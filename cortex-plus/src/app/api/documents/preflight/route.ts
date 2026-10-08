@@ -7,6 +7,9 @@ import { AdminCheckError } from "@/lib/auth/roles";
 import { userFacingIngestionMessage } from "@/lib/documents/ingestion-errors";
 import { FREE_PAGE_TOTAL, freePagesRemaining } from "@/lib/documents/free-pages";
 import { FREE_PAGE_LIMIT_CODE } from "@/lib/documents/process-errors";
+import { getUserEntitlements } from "@/lib/billing/entitlements";
+import { getActionCost } from "@/lib/credits/service";
+import { spendableCredits } from "@/lib/credits/spendable-server";
 
 const bodySchema = z.object({ documentId: z.string().uuid() });
 
@@ -94,6 +97,11 @@ export async function POST(request: Request) {
     .eq("id", doc.id)
     .eq("user_id", userId);
 
+  // Ücretli hesap, sayfa başına kredi (kredi sistemi v2, 8 Ekim 2026):
+  // öğrenci yüklemeden önce belgenin hakkının ne kadarını kullanacağını,
+  // yetmiyorsa kaç sayfasının işleneceğini görür.
+  const creditUse = freePages ? null : await documentCreditUse(service, userId, counts);
+
   const remaining = limits.scanPagesRemaining;
   const fits =
     limits.unlimited ||
@@ -107,6 +115,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     freePages,
+    creditUse,
     pageCount: counts.pageCount,
     // Upper bound: pages without a text layer. Truly blank pages are counted
     // here but ingestion does not charge quota for them.
@@ -124,4 +133,25 @@ export async function POST(request: Request) {
     fits,
     estimatedMinutes,
   });
+}
+
+async function documentCreditUse(
+  service: Parameters<typeof spendableCredits>[0],
+  userId: string,
+  counts: { textPages: number; scannedPages: number },
+): Promise<{ percent: number; pagesAffordable: number | null } | null> {
+  const spendable = await spendableCredits(service, userId);
+  if (!Number.isFinite(spendable)) return null;
+  const [pageCost, scanCost, entitlements] = await Promise.all([
+    getActionCost(service, "DOCUMENT_PAGE_PROCESS"),
+    getActionCost(service, "DOCUMENT_SCAN_PAGE"),
+    getUserEntitlements(service, userId),
+  ]);
+  const page = Math.max(1, pageCost ?? 2);
+  const cost = (counts.textPages + counts.scannedPages) * page + counts.scannedPages * (scanCost ?? 6);
+  const allowance = entitlements.monthlyAllowance ?? 0;
+  return {
+    percent: allowance > 0 ? Math.max(1, Math.round((cost / allowance) * 100)) : 0,
+    pagesAffordable: spendable >= cost ? null : Math.floor(spendable / page),
+  };
 }

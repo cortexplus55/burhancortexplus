@@ -24,7 +24,7 @@ export const MARKETING_FAQ: FaqItem[] = [
   },
   {
     q: "Ücretsiz kullanabilir miyim, kart istiyor musunuz?",
-    a: "Kart istemiyoruz. Ücretsiz hesap her gün yenilenen 2 kredi alıyor — günde bir ders, ya da bir test ya da bir podcast. Bütün özellikler açık; ücretsiz planda bir sınav hazırlığı ve toplam 5 sayfa PDF işleme var. Ücretli planlar özellik değil, hacim satıyor.",
+    a: "Kart istemiyoruz. Ücretsiz hesap her gün yenilenen bir hak alıyor — günde bir ders ya da iki sohbet mesajı. Bütün özellikler açık; ücretsiz planda bir sınav hazırlığı ve toplam 5 sayfa PDF işleme var. Ücretli planlar özellik değil, hacim satıyor.",
   },
   {
     q: "ChatGPT'den farkı ne?",
@@ -44,7 +44,7 @@ export const MARKETING_FAQ: FaqItem[] = [
   },
   {
     q: "Kredi ne demek, ne kadar yetiyor?",
-    a: "Her AI işlemi kredi harcıyor: sohbet, quiz üretimi, podcast gibi. İşlemin kaç kredi olduğu yapmadan önce yazıyor — sürpriz yok. Ücretsiz hesapta günde 2 kredi her sabah 03:00'te yenileniyor.",
+    a: "Her AI işlemi hakkından bir pay kullanıyor: sohbet, ders, test, podcast gibi; hakkının ne kadarını kullandığını yüzde olarak görürsün. Plus ayda yaklaşık 2.400 mesaj ya da 1.200 ders yapar. Ücretsiz hesapta hak her sabah 03:00'te yenileniyor.",
   },
   {
     q: "Kartım yok, nasıl ödeme yapabilirim?",

@@ -8,7 +8,9 @@ import { extractImageText } from "@/lib/documents/extract-image-text";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import { AdminCheckError } from "@/lib/auth/roles";
 import { billingExempt } from "@/lib/billing/free-preview";
-import { reserveCredits, refundCredits, recordUsage } from "@/lib/credits/service";
+import { getActionCost, reserveCredits, refundCredits, recordUsage } from "@/lib/credits/service";
+import { chargeNow } from "@/lib/credits/charge-now";
+import { spendableCredits } from "@/lib/credits/spendable-server";
 import { chunkText, embedTexts } from "@/lib/rag/pipeline";
 import { env } from "@/lib/env";
 import { logOpsEvent } from "@/lib/observability/ops-log";
@@ -126,11 +128,12 @@ async function assertLease(service: SupabaseClient, documentId: string, token: s
 }
 
 async function ensureReservation(
-  service: SupabaseClient, userId: string, documentId: string, lease: Lease,
+  service: SupabaseClient, userId: string, documentId: string, lease: Lease, pages: number,
 ): Promise<string> {
   if (lease.reservationId) return lease.reservationId;
   const key = `document_process_${documentId}`;
-  const reservation = await reserveCredits(service, userId, "DOCUMENT_PAGE_PROCESS", key);
+  // Sayfa başına kredi (8 Ekim 2026): işlenecek sayfa sayısı kadar.
+  const reservation = await reserveCredits(service, userId, "DOCUMENT_PAGE_PROCESS", key, pages);
   let id: string | null = reservation.ok ? reservation.reservationId : null;
   if (!reservation.ok && (reservation.reason === "operation_in_progress" ||
       reservation.reason === "operation_completed")) {
@@ -209,6 +212,7 @@ async function ocrOneBlankPage(input: {
       .select("page_number", { count: "exact", head: true })
       .eq("document_id", documentId);
     if ((count ?? 0) >= maxOcrPages) {
+      // Tavan (kredi ya da istek) doldu: bu resim sayfası okunmadan atlanır.
       return {
         page: {
           text: "",
@@ -219,6 +223,7 @@ async function ocrOneBlankPage(input: {
         claimed: false,
         ocrSuccess: false,
         failed: true,
+        quotaSkipped: true,
         tokensIn: 0,
         tokensOut: 0,
       };
@@ -590,9 +595,6 @@ export async function processPdfDocumentStep(
     // belge işleme günlük ders hakkından yemez — sınırı bu 5 sayfa koyar.
     const remaining = await freePagesRemaining(service, userId, documentId);
     if (remaining === 0) throw new Error("free_page_limit");
-    if (remaining === null) {
-      reservationId = await ensureReservation(service, userId, documentId, lease);
-    }
     await renewLease(service, documentId, lease.token);
 
     const { data: doc, error: docError } = await service.from("documents")
@@ -603,15 +605,47 @@ export async function processPdfDocumentStep(
       .download(doc.storage_path);
     if (downloadError || !file) throw new Error("download_failed");
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Ücretli hesap, sayfa başına kredi (8 Ekim 2026): ilk adımda belgenin
+    // sayfa sayısı kadar ayrılır; hak yetmezse yettiği kadar sayfa işlenir
+    // (ücretsizdeki 5 sayfa sınırıyla aynı yol). Sınır sonraki adımlarda
+    // `total_pages`'ten okunur.
+    let paidCap: number | null = null;
+    let maxOcrPages = options?.maxOcrPages ?? null;
+    if (remaining === null) {
+      if (!reservationId) {
+        const pageCount = (await extractText(buffer, "application/pdf", 1, 0)).total;
+        const spendable = await spendableCredits(service, userId);
+        const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 2);
+        paidCap = Math.min(pageCount || 1, Number.isFinite(spendable) ? Math.floor(spendable / pageCost) : 1000, 1000);
+        if (paidCap < 1) throw new Error("insufficient_credits");
+        reservationId = await ensureReservation(service, userId, documentId, lease, paidCap);
+        await updateLease(service, documentId, lease.token, { total_pages: paidCap });
+      } else {
+        paidCap = lease.totalPages ?? null;
+      }
+      // Taranmış sayfa ayrıca 6 kredi: hakkın yettiğinden fazlası okunmaz, atlanır.
+      const spendable = await spendableCredits(service, userId);
+      if (Number.isFinite(spendable)) {
+        const scanCost = Math.max(1, (await getActionCost(service, "DOCUMENT_SCAN_PAGE")) ?? 6);
+        const { count } = await service.from("document_ocr_claims")
+          .select("page_number", { count: "exact", head: true })
+          .eq("document_id", documentId);
+        const allowed = (count ?? 0) + Math.floor(spendable / scanCost);
+        maxOcrPages = maxOcrPages == null ? allowed : Math.min(maxOcrPages, allowed);
+      }
+    }
+    const pageCap = remaining ?? paidCap;
+
     const firstPage = lease.nextPage ?? 1;
-    const pageBudget = remaining == null
+    const pageBudget = pageCap == null
       ? adaptivePageBudget(deadlineMs)
-      : Math.max(1, Math.min(adaptivePageBudget(deadlineMs), remaining - firstPage + 1));
+      : Math.max(1, Math.min(adaptivePageBudget(deadlineMs), pageCap - firstPage + 1));
     const read = await readPdfBatch(
-      service, buffer, documentId, userId, firstPage, pageBudget, deadlineMs, options?.maxOcrPages,
+      service, buffer, documentId, userId, firstPage, pageBudget, deadlineMs, maxOcrPages,
     );
     ocrPageNumbers = read.ocrPageNumbers;
-    const total = cappedPageTotal(read.total, remaining);
+    const total = cappedPageTotal(read.total, pageCap);
     if (read.pages.length > total - firstPage + 1) read.pages.length = Math.max(0, total - firstPage + 1);
 
     // Deadline with zero finished pages — retryable, do not advance cursor.
@@ -645,6 +679,9 @@ export async function processPdfDocumentStep(
 
     await assertLease(service, documentId, lease.token);
     await saveBatch(service, documentId, firstPage, read.pages);
+    if (remaining === null && ocrPageNumbers.length) {
+      await chargeNow(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_${documentId}_${firstPage}`, ocrPageNumbers.length);
+    }
     const nextPage = firstPage + read.pages.length;
     const complete = nextPage > total;
 

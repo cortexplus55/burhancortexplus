@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   const outcome = await runTeacherPodcast(service, {
     userId,
-    actionCode: "AI_CHAT_STANDARD",
+    actionCode: "PODCAST_GENERATE",
     idempotencyKey: `studio-podcast:${userId}:${crypto.randomUUID()}`,
     topicLabel: topic,
     prepTitle: source.fileName ?? topic,

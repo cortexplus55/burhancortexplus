@@ -90,7 +90,7 @@ describe("pazarlama kopyası ücretsizde açık özelliği Plus'a yazmaz", () =>
     const lines = plusBenefitLines().join(" ");
     expect(lines).not.toMatch(/podcast/i);
     expect(lines).not.toMatch(/sözlü/i);
-    expect(lines).toMatch(/aylık kota/);
+    expect(lines).toMatch(/Ayda yaklaşık 2\.400 mesaj ya da 1\.200 ders/);
     expect(lines).toMatch(/300 sayfa/);
   });
 });

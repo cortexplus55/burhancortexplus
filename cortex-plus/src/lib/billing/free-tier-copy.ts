@@ -2,8 +2,8 @@
  * Ücretsiz katmanın sınırları ve cümleleri (3 Ekim 2026, ürün sahibinin
  * kararı). Tek kaynak: sunucu kontrolleri (`free-pages.ts`,
  * `free-prep-limit.ts`) ve fiyat tablosu buradan okur. İstemci de okuduğu
- * için `server-only` yok. Günlük hak (2 kredi = bir ders) SQL'de:
- * 20261003120000_free_tier_one_lesson.
+ * için `server-only` yok. Günlük hak (6 kredi = bir ders ya da iki mesaj) SQL'de:
+ * 20261008120000_credit_system_v2.
  */
 /** Ücretsiz hesabın kurabileceği sınav hazırlığı sayısı. */
 export const FREE_PREP_LIMIT = 1;

@@ -16,6 +16,7 @@ import {
   refundCredits,
   reserveCredits,
 } from "@/lib/credits/service";
+import { chargeNow } from "@/lib/credits/charge-now";
 import { freePagesRemaining } from "@/lib/documents/free-pages";
 import { FREE_PAGE_LIMIT_CODE, PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
@@ -465,7 +466,9 @@ export async function POST(request: Request) {
   }
 
   // Ücretsiz hesapta belge işleme günlük ders hakkından yemez; sınırı
-  // toplam 5 sayfa koyar (3 Ekim 2026). Abonede belge başına sabit ücret.
+  // toplam 5 sayfa koyar (3 Ekim 2026). Ücretlide sayfa başına kredi
+  // (8 Ekim 2026): ilk sayfa önden ayrılır, kalanı ve taranmış sayfalar
+  // işlendikten sonra sayılır.
   const freeTier = (await freePagesRemaining(service, userId, doc.id)) !== null;
   const reservation = freeTier
     ? ({ ok: true, reservationId: "", cost: 0 } as const)
@@ -549,7 +552,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!freeTier) await commitCredits(service, reservation.reservationId);
+  if (!freeTier) {
+    await commitCredits(service, reservation.reservationId);
+    await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_${doc.id}`, (result.pageCount ?? 1) - 1);
+    await chargeNow(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_${doc.id}`, result.scannedPages ?? 0);
+  }
   cleanAfterResponse(service, { userId, documentId: doc.id, startedAt });
 
   return NextResponse.json({

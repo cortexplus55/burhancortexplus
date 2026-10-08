@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     mode: "document",
     length: DEFAULT_PODCAST_LENGTH,
     userId,
-    actionCode: "STUDY_PLAN_GENERATE",
+    actionCode: "PODCAST_GENERATE",
     idempotencyKey: `lesson-podcast:${userId}:${topicId}:${crypto.randomUUID()}`,
     topicLabel: topic.label ?? "Konu",
     prepTitle: prep.title ?? "Hazırlık",

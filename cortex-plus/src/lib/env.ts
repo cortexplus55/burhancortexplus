@@ -85,10 +85,13 @@ export const envSchema = z.object({
    */
   OPENAI_OUTLINE_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   /**
-   * One-shot konu haritası (>30 sayfa veya doğrulama yükseltmesi).
-   * gpt-4.1 — 1M bağlam; bütün materyal tek çağrıda.
+   * One-shot konu haritası (>30 sayfa veya doğrulama yükseltmesi); bütün
+   * materyal tek çağrıda. 8 Ekim 2026: gpt-4.1'den luna'ya (kredi sistemi v2).
+   * 211 ve 99 sayfalık belgede ilk turda doğrulamadan geçti, harita aynı ya da
+   * daha kapsamlı; 100 sayfada $0,30 → ~$0,01. Adı bilerek değişti: Vercel'de
+   * eski `OPENAI_OUTLINE_STRONG_MODEL=gpt-4.1` tanımlıysa artık okunmuyor.
    */
-  OPENAI_OUTLINE_STRONG_MODEL: z.string().default("gpt-4.1"),
+  OPENAI_OUTLINE_LARGE_MODEL: z.string().default("gpt-6-luna"),
   /**
    * gpt-4.1 art arda düşerse sessiz yedek model (öğrenci görmez).
    * Boşsa gpt-4.1-mini.
@@ -156,7 +159,7 @@ const parsed = envSchema.safeParse({
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
   OPENAI_OUTLINE_STANDARD_MODEL: process.env.OPENAI_OUTLINE_STANDARD_MODEL,
-  OPENAI_OUTLINE_STRONG_MODEL: process.env.OPENAI_OUTLINE_STRONG_MODEL,
+  OPENAI_OUTLINE_LARGE_MODEL: process.env.OPENAI_OUTLINE_LARGE_MODEL,
   OPENAI_OUTLINE_FALLBACK_MODEL: process.env.OPENAI_OUTLINE_FALLBACK_MODEL,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
@@ -189,4 +192,9 @@ export type ActionCode =
   | "PRACTICE_EXAM_GRADE"
   | "STUDY_PLAN_GENERATE"
   | "EXPORT_PDF"
-  | "AUDIO_SYNTHESIZE";
+  | "AUDIO_SYNTHESIZE"
+  /** Kredi sistemi v2 (8 Ekim 2026): kendi maliyetiyle fiyatlanan işler. */
+  | "PODCAST_GENERATE"
+  | "ORAL_EXAM_GENERATE"
+  | "VOICE_TURN"
+  | "DOCUMENT_SCAN_PAGE";

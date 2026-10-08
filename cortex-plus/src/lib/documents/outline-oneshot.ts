@@ -48,7 +48,7 @@ export function outlineStandardModel(): string {
 }
 
 export function outlineStrongModel(): string {
-  return env.OPENAI_OUTLINE_STRONG_MODEL?.trim() || "gpt-4.1";
+  return env.OPENAI_OUTLINE_LARGE_MODEL?.trim() || "gpt-6-luna";
 }
 
 /** Second model when gpt-4.1 keeps failing (env-configurable). */

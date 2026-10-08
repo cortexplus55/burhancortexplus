@@ -32,10 +32,15 @@ export const ACTION_LABELS: Record<string, string> = {
   QUIZ_GENERATE: "Quiz üretme",
   FLASHCARD_GENERATE: "Flashcard seti üretme",
   EXAM_GENERATE: "Deneme sınavı üretme",
-  STUDY_PLAN_GENERATE: "Çalışma planı üretme",
+  STUDY_PLAN_GENERATE: "Ders üretme",
   DOCUMENT_PAGE_PROCESS: "Yüklenen dokümanın bir sayfasını işleme",
+  DOCUMENT_SCAN_PAGE: "Taranmış sayfa okuma (ek)",
   PODCAST_GENERATE: "Podcast üretme",
   ORAL_EXAM: "Sözlü sınav",
+  ORAL_EXAM_GENERATE: "Sözlü deneme",
+  VOICE_TURN: "Sesli sohbet turu",
+  AI_CHAT_STANDARD: "Sohbet mesajı",
+  PRACTICE_EXAM_GENERATE: "Yazılı deneme sınavı",
   WRITTEN_EXAM: "Yazılı sınav değerlendirme",
 };
 

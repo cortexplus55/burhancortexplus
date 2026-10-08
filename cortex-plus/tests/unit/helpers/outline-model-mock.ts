@@ -41,7 +41,7 @@ export const outlineEnv = {
   env: {
     OPENAI_STANDARD_MODEL: "gpt-4o-mini",
     OPENAI_OUTLINE_STANDARD_MODEL: "gpt-4o-mini",
-    OPENAI_OUTLINE_STRONG_MODEL: "gpt-4.1",
+    OPENAI_OUTLINE_LARGE_MODEL: "gpt-4.1",
     OPENAI_OUTLINE_FALLBACK_MODEL: "gpt-4.1-mini",
   },
 };

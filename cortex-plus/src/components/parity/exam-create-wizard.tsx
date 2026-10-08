@@ -941,6 +941,7 @@ export function ExamCreateWizard({
             code?: string;
             pageCount?: number;
             freePages?: { total: number; remaining: number } | null;
+            creditUse?: { percent: number; pagesAffordable: number | null } | null;
             fits?: boolean;
             scannedPages?: number;
             textPages?: number;
@@ -955,6 +956,17 @@ export function ExamCreateWizard({
           const free = preflight.freePages;
           if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
             toast.message(freePageCapLine(preflight.pageCount, free.remaining));
+          }
+          // Ücretlide belge sayfa başına haktan düşer (kredi sistemi v2): önceden söyle.
+          const use = preflight.creditUse;
+          if (use?.pagesAffordable != null && typeof preflight.pageCount === "number") {
+            toast.message(
+              use.pagesAffordable > 0
+                ? `Kalan hakkın bu belgenin ilk ${use.pagesAffordable} sayfasına yetiyor; kalanı için ek paket alabilirsin.`
+                : "Bu belge için hakkın kalmadı; ek paket alabilir ya da dönem yenilenince yükleyebilirsin.",
+            );
+          } else if (use && use.percent >= 3) {
+            toast.message(`Bu belge dönem hakkının yaklaşık %${use.percent}'ini kullanacak.`);
           }
           // Taranmış sayfa hakkı yetmese de belge reddedilmiyor (3 Ekim 2026):
           // metinli sayfalar işlenir, hakkı aşan resim sayfaları atlanır.

@@ -77,6 +77,7 @@ describe("bounded map round progress labels", () => {
   it("exposes outline model routing constants", () => {
     expect(OUTLINE_MINI_PAGE_LIMIT).toBe(30);
     expect(outlineStandardModel()).toMatch(/mini|4o/i);
-    expect(outlineStrongModel()).toMatch(/gpt-4\.1/);
+    // 8 Ekim 2026: büyük belgenin haritası luna (kredi sistemi v2).
+    expect(outlineStrongModel()).toBe("gpt-6-luna");
   });
 });

@@ -1,7 +1,7 @@
 import "server-only";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { freePreview, previewAllowanceLeft } from "@/lib/billing/free-preview";
+import { spendableCredits } from "@/lib/credits/spendable-server";
 import { env } from "@/lib/env";
 import type { Familiarity, Mood } from "@/lib/learning/session-signals";
 
@@ -77,21 +77,7 @@ export async function canAffordLesson(
   cost: number,
   now = Date.now(),
 ): Promise<boolean> {
-  const { data: admin } = await service.rpc("is_admin", { uid: userId });
-  if (admin === true) {
-    // Ücretsiz önizlemede yöneticinin hakkı ayrı tabloda (free-preview.ts).
-    const preview = await freePreview(service, userId).catch(() => null);
-    return preview ? previewAllowanceLeft(preview, now) >= cost : true;
-  }
-  const { data } = await service
-    .from("credit_wallets")
-    .select("balance, free_allowance_remaining, period_allowance, period_ends_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!data) return false;
-  const ended = data.period_ends_at ? new Date(data.period_ends_at as string).getTime() <= now : false;
-  const allowance = Number((ended ? data.period_allowance : data.free_allowance_remaining) ?? 0);
-  return Number(data.balance ?? 0) + allowance >= cost;
+  return (await spendableCredits(service, userId, now)) >= cost;
 }
 
 export async function nodeHasAttempts(service: SupabaseClient, nodeId: string) {

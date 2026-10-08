@@ -106,7 +106,7 @@ export async function POST(request: Request) {
   const reservation = await reserveCredits(
     service,
     userId,
-    "AI_CHAT_STANDARD",
+    "VOICE_TURN",
     `voice:${userId}:${parsed.data.nodeId}:${parsed.data.messages.length}:${crypto.randomUUID()}`,
   );
   if (!reservation.ok) {
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
       onUsage: (tokensIn, tokensOut) =>
         recordUsage(service, {
           userId,
-          actionCode: "AI_CHAT_STANDARD",
+          actionCode: "VOICE_TURN",
           model,
           tokensIn,
           tokensOut,

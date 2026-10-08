@@ -36,14 +36,16 @@ describe("SSS listesi", () => {
 describe("vaatlerin kodda karşılığı var", () => {
   const answers = MARKETING_FAQ.map((i) => i.a).join("\n");
 
-  /* Ücretsiz günlük hak gerçekten 2 mi? (3 Ekim 2026: günde bir ders) */
-  it("2 kredi iddiası göç dosyasıyla uyuşuyor", () => {
-    expect(answers).toContain("2 kredi");
-    const sql = readFileSync(
-      "supabase/migrations/20261003120000_free_tier_one_lesson.sql",
-      "utf8",
-    );
-    expect(sql).toContain("v_allowance := 2");
+  /* Kredi sistemi v2 (8 Ekim 2026): ücretsiz günde bir ders ya da iki mesaj,
+     Plus ayda yaklaşık 2.400 mesaj ya da 1.200 ders. Sayılar göçle uyuşmalı. */
+  it("hak iddiaları göç dosyasıyla uyuşuyor", () => {
+    expect(answers).toContain("günde bir ders ya da iki sohbet mesajı");
+    expect(answers).toContain("Plus ayda yaklaşık 2.400 mesaj ya da 1.200 ders");
+    const sql = readFileSync("supabase/migrations/20261008120000_credit_system_v2.sql", "utf8");
+    expect(sql).toContain("v_allowance := 6;");
+    expect(sql).toContain("('AI_CHAT_STANDARD', 3)");
+    expect(sql).toContain("('STUDY_PLAN_GENERATE', 6)");
+    expect(sql).toContain("('plus-aylik', 7200)");
   });
 
   /* "Cevaplayamadığında kredin düşmüyor" — sohbet rotasında iade var mı? */

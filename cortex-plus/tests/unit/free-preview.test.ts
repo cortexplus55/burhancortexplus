@@ -49,11 +49,15 @@ describe("ücretsiz önizleme", () => {
     expect(previewing.showsUpgradeChrome).toBe(true);
   });
 
-  it("günlük hak: gün geçince yeniden 2, değilse kalan", () => {
+  it("günlük hak: gün geçince yeniden dolu (6, kredi sistemi v2), değilse kalan", () => {
     const preview = { startedAt: "2026-10-08T10:00:00Z", remaining: 0, periodEndsAt: "2026-10-09T00:00:00Z" };
     expect(previewAllowanceLeft(preview, Date.parse("2026-10-08T12:00:00Z"))).toBe(0);
-    expect(previewAllowanceLeft(preview, Date.parse("2026-10-09T00:00:01Z"))).toBe(2);
-    expect(previewWallet(preview)).toMatchObject({ period_allowance: 2, period_kind: "daily" });
+    expect(previewAllowanceLeft(preview, Date.parse("2026-10-09T00:00:01Z"))).toBe(6);
+    expect(previewWallet(preview)).toMatchObject({ period_allowance: 6, period_kind: "daily" });
+    // Önizlemenin hakkı ücretsizle aynı: göçte de 6.
+    const v2 = read("supabase/migrations/20261008120000_credit_system_v2.sql");
+    expect(v2).toContain("v_preview.remaining := 6;");
+    expect(v2).toContain("v_allowance := 6;");
   });
 
   it("SQL: yönetici kolu önizlemede ayrı hakkı düşer; iade aynı günün hakkını geri verir", () => {
@@ -81,7 +85,8 @@ describe("ücretsiz önizleme", () => {
     expect(read("src/lib/documents/pdf-ingestion.ts")).toMatch(/founder = await billingExempt\(service, userId\)/);
     expect(read("src/lib/documents/photo-quota.ts").match(/billingExempt\(service, userId\)/g)?.length).toBe(2);
     expect(read("src/lib/documents/document-limits.ts")).toMatch(/if \(preview\) unlimited = false;/);
-    expect(read("src/lib/learning/lesson-prefetch.ts")).toMatch(/previewAllowanceLeft\(preview, now\) >= cost/);
+    expect(read("src/lib/credits/spendable-server.ts")).toMatch(/preview \? previewAllowanceLeft\(preview, now\) : Number\.POSITIVE_INFINITY/);
+    expect(read("src/lib/learning/lesson-prefetch.ts")).toMatch(/spendableCredits\(service, userId, now\)\) >= cost/);
     for (const route of ["src/app/api/ai/chat/route.ts", "src/app/api/ai/solve-image/route.ts"]) {
       expect(read(route)).toMatch(/isAdmin && \(await billingExempt\(service, userId\)\)/);
     }
