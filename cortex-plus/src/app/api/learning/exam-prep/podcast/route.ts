@@ -170,7 +170,7 @@ export async function POST(request: Request) {
     mode: topicDocumentId ? "document" : "topic",
     length,
     userId,
-    actionCode: "STUDY_PLAN_GENERATE",
+    actionCode: "PODCAST_GENERATE",
     idempotencyKey: `podcast:${userId}:${prepId}:${topicId}:${length}:${requestId ?? crypto.randomUUID()}`,
     topicLabel: topic.label,
     prepTitle: prep.title ?? "Hazırlık",

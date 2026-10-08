@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   const outcome = await runWithTeacherModel(service, {
     userId,
-    actionCode: "AI_CHAT_STANDARD",
+    actionCode: "ORAL_EXAM_GENERATE",
     idempotencyKey: `studio-oral:${userId}:${crypto.randomUUID()}`,
     label: "studio_oral",
     topic,

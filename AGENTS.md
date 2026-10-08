@@ -211,7 +211,7 @@ bile ücretsiz hesap yeni hazırlık kuramıyordu.
 
 | Kural | Nerede |
 |---|---|
-| Günlük hak **2 kredi** = bir ders (ya da bir test, bir podcast, iki sohbet mesajı); her şey aynı haktan | `credit_reserve` (göç `20261003120000`), `period.ts` |
+| Günlük hak **6 kredi** (8 Ekim'den beri; önce 2) = bir ders ya da iki sohbet mesajı; her şey aynı haktan | `credit_reserve` (göç `20261008120000`), `period.ts` |
 | **Bir** sınav hazırlığı ("Hedef puan" kaydı sayılmaz); ders seçilince kapı | `free-prep-limit.ts`, sihirbaz + sohbet + okul kopyası |
 | Hesap başına **toplam 5 sayfa** belge işleme (silinenler dahil); fazlası işlenmez, "ilk N sayfa işlendi" yazar | `free-pages.ts`, `pdf-ingestion.ts`, `pipeline.ts`, `documents.source_page_count` |
 | Resim sayfası hakkı dolunca belge **reddedilmez**; o sayfalar atlanır | `scan_pages_skipped` |
@@ -227,6 +227,25 @@ ayrı bir tabloda düşer (cüzdana dokunmaz), belge ve hazırlık sınırı yal
 başladıktan sonra eklenenleri sayar. Kapatma düğmesi öğrenci ekranlarının üstündeki
 şeritte. Yeni bir yönetici muafiyeti eklerken `isAdminUser` değil `billingExempt`
 kullanın, yoksa önizleme o noktada sınırı atlar. Bekçi: `free-preview.test.ts`.
+
+## Kredi sistemi v2 (8 Ekim 2026) — 1 kredi = $0,001, Plus ayda 7.200
+
+Ürün sahibinin kararı: tek sayaç, **Astra'dan fazla kullanım**, yoğun öğrencide
+**%50 kâr**. Astra Plus canlıda ölçüldü (1 mesaj aylık hakkın %0,05'i → ≈2.000 mesaj;
+1 ders %0,26–0,45 → 220–380 ders); bizde Plus ayda 2.400 mesaj ya da 1.200 ders.
+Hesap, tablo ve kararlar: `docs/delivery/KREDI-SISTEMI.md`.
+
+| Kural | Nerede |
+|---|---|
+| Her işin kredisi ölçülen maliyetinden (mesaj 3, ders 6, test 4, podcast 12, sözlü 8, deneme 15) | göç `20261008120000`, `price-table.ts` |
+| Podcast, sözlü, sesli sohbet kendi koduyla (eskiden ders ya da sohbet fiyatındaydı) | `PODCAST_GENERATE`, `ORAL_EXAM_GENERATE`, `VOICE_TURN` |
+| Belge sayfa başına: metinli 2, taranmış +6; hak yetmezse yettiği kadar sayfa | `pdf-ingestion.ts`, `process/route.ts`, sihirbazda önceden "%X" |
+| Büyük belgenin konu haritası luna (gpt-4.1'de 100 sayfa $0,30 idi) | `OPENAI_OUTLINE_LARGE_MODEL` (eski ad Vercel'de kalsa da okunmuyor) |
+| Öğrenci kredi sayısı görmez; hak somut sayıyla anlatılır, "kat" yazılmaz | `allowanceWorkLine` |
+
+Bir işin bedelini değiştirirken önce `ai_usage_events`'ten yeniden ölçün; göç ve
+`price-table.ts` birlikte değişir. Bekçi: `credit-system-v2.test.ts` (göçü PGlite'ta
+çalıştırır), `tutor-surface-credits.test.ts`.
 
 ## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
 

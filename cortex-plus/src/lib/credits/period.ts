@@ -37,9 +37,9 @@ export type QuotaView = {
  */
 export type PeriodKind = "daily" | "weekly" | "monthly";
 
-/** Ücretsiz günlük hak: bir ders (3 Ekim 2026). SQL: 20261003120000. */
-export const FREE_DAILY_ALLOWANCE = 2;
-const PREMIUM_MONTHLY_ALLOWANCE = 400;
+/** Ücretsiz günlük hak: bir ders ya da iki mesaj (kredi sistemi v2, 8 Ekim 2026). SQL: 20261008120000. */
+export const FREE_DAILY_ALLOWANCE = 6;
+const PREMIUM_MONTHLY_ALLOWANCE = 7200;
 
 /**
  * UTC gün başına `days` ekler. Gün başı Türkiye'de 03:00'dır.

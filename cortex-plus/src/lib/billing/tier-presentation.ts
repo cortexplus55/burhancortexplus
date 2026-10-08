@@ -3,6 +3,7 @@ import { periodLabel, type PeriodKind } from "@/lib/credits/period";
 import { formatDate } from "@/lib/format";
 
 import { FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
+import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 
 /**
  * Fiyat, profil ve kabuk aynı cümleleri buradan okur.
@@ -11,9 +12,19 @@ import { FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
 
 export const BENEFITS_LEAD = "Ücretsiz plandaki her şey ve:";
 
+/**
+ * Hak somut sayıyla anlatılır (8 Ekim 2026, ürün sahibinin kararı): "kat"
+ * değil, ne kadar iş. Sayılar kredi tablosundan; tablo değişirse cümle de.
+ */
+export function allowanceWorkLine(allowance: number, per: "ay" | "hafta" = "ay"): string {
+  const { messages, lessons } = allowanceInWork(allowance);
+  const fmt = (value: number) => value.toLocaleString("tr-TR");
+  return `${per === "ay" ? "Ayda" : "Haftada"} yaklaşık ${fmt(messages)} mesaj ya da ${fmt(lessons)} ders`;
+}
+
 export function plusBenefitLines(): string[] {
   return [
-    "Günlük hak yerine yüksek aylık kota",
+    allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
     "Sınırsız sınav hazırlığı ve belgenin tamamı işlenir",
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa)`,
     "Hakkın bitince ek paket alabilme",
@@ -23,7 +34,7 @@ export function plusBenefitLines(): string[] {
 export function sigmaBenefitLines(): string[] {
   return [
     "Plus’taki her şey",
-    "Daha yüksek aylık kota",
+    allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
     "Gelişmiş model",
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.sigma} sayfa)`,
     "Ek paket",
@@ -33,7 +44,7 @@ export function sigmaBenefitLines(): string[] {
 export function parentPlusBenefitLines(): string[] {
   return [
     "Kota çocuğunun hesabına tanımlanır",
-    "Günlük hak yerine yüksek aylık kota",
+    allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa)`,
     "Hakkı bitince ek paket",
   ];
@@ -69,10 +80,10 @@ export function tierComparisonRows(): TierComparisonRow[] {
     {
       label: "AI kullanımı",
       guest: "Yok",
-      // 3 Ekim 2026: günde 2 kredi — bir ders ya da bir test ya da bir podcast.
+      // Kredi sistemi v2 (8 Ekim 2026): günde 6 kredi — bir ders ya da iki mesaj.
       free: "Günde 1 ders",
-      plus: "Yüksek aylık kota",
-      sigma: "Daha yüksek aylık kota",
+      plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
+      sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
     },
     {
       label: "Sınav hazırlığı",

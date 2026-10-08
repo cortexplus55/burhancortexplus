@@ -61,6 +61,8 @@ export async function processDocument(
   notice?: string;
   topicMap?: { ok: boolean; topics: number; coverageStatus?: string };
   pageCount?: number;
+  /** OCR ile okunan (taranmış/fotoğraf) sayfa sayısı — sayfa başına ek kredi. */
+  scannedPages?: number;
   /** Konu haritası bu istekte çalışmadı; sonraki tur sürdürür. */
   deferred?: boolean;
 }> {
@@ -397,7 +399,7 @@ export async function processDocument(
   }
   // With v2 on, the topic map is built by the course pipeline (process route).
 
-  return { ok: true, chunks: allChunks.length, notice, pageCount: pages.length };
+  return { ok: true, chunks: allChunks.length, notice, pageCount: pages.length, scannedPages: claimedPages };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",

@@ -23,9 +23,10 @@ import { tierComparisonRows } from "@/lib/billing/tier-presentation";
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("ücretsiz katman sınırları", () => {
-  it("günlük hak 2 kredi: SQL ve arayüz aynı sayıyı söylüyor", () => {
-    expect(read("supabase/migrations/20261003120000_free_tier_one_lesson.sql")).toContain("v_allowance := 2;");
-    expect(quotaView(null, false).allowance).toBe(2);
+  // Kredi sistemi v2 (8 Ekim 2026): birim küçüldü, hak aynı iş — bir ders (6) ya da iki mesaj (3).
+  it("günlük hak bir ders: SQL ve arayüz aynı sayıyı söylüyor", () => {
+    expect(read("supabase/migrations/20261008120000_credit_system_v2.sql")).toContain("v_allowance := 6;");
+    expect(quotaView(null, false).allowance).toBe(6);
   });
 
   it("bir hazırlık ve toplam 5 sayfa; fiyat tablosu aynı sayıları gösteriyor", () => {
@@ -52,7 +53,8 @@ describe("ücretsiz katman sınırları", () => {
   it("5 sayfa: PDF ve diğer belgeler kalan hak kadar işleniyor", () => {
     const pdf = read("src/lib/documents/pdf-ingestion.ts");
     expect(pdf).toMatch(/const remaining = await freePagesRemaining\(service, userId, documentId\);\s*if \(remaining === 0\) throw new Error\("free_page_limit"\);/);
-    expect(pdf).toMatch(/const total = cappedPageTotal\(read\.total, remaining\);/);
+    expect(pdf).toMatch(/const pageCap = remaining \?\? paidCap;/);
+    expect(pdf).toMatch(/const total = cappedPageTotal\(read\.total, pageCap\);/);
     expect(pdf).toMatch(/source_page_count: read\.total/);
     const other = read("src/lib/rag/pipeline.ts");
     expect(other).toMatch(/if \(freeRemaining === 0\) return failAndRelease\("free_page_limit"\);/);
@@ -75,17 +77,20 @@ describe("ücretsiz katman sınırları", () => {
     expect(generate).toMatch(/if \(charge\) await commitCredits/);
   });
 
-  it("ücretsizde belge işleme ders hakkından yemiyor; abonede sabit ücret duruyor", () => {
+  // Kredi sistemi v2: ücretlide sayfa başına kredi (metinli 2, taranmış +6).
+  it("ücretsizde belge işleme ders hakkından yemiyor; ücretlide sayfa başına", () => {
     const pdf = read("src/lib/documents/pdf-ingestion.ts");
-    expect(pdf).toMatch(/if \(remaining === null\) \{\s*reservationId = await ensureReservation/);
+    expect(pdf).toMatch(/if \(remaining === null\) \{\s*if \(!reservationId\) \{/);
+    expect(pdf).toMatch(/reservationId = await ensureReservation\(service, userId, documentId, lease, paidCap\);/);
+    expect(pdf).toMatch(/chargeNow\(service, userId, "DOCUMENT_SCAN_PAGE"/);
     const route = read("src/app/api/documents/process/route.ts");
     expect(route).toMatch(/const freeTier = \(await freePagesRemaining\(service, userId, doc\.id\)\) !== null;/);
-    expect(route).toMatch(/if \(!freeTier\) await commitCredits/);
+    expect(route).toMatch(/if \(!freeTier\) \{\s*await commitCredits/);
+    expect(route).toMatch(/chargeNow\(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_\$\{doc\.id\}`, result\.scannedPages \?\? 0\)/);
   });
 
   it("önceden hazırlama dönem hakkını da sayıyor (#243 hatası)", () => {
-    const prefetch = read("src/lib/learning/lesson-prefetch.ts");
-    expect(prefetch).toMatch(/free_allowance_remaining/);
+    expect(read("src/lib/credits/spendable-server.ts")).toMatch(/free_allowance_remaining/);
     expect(read("src/app/api/learning/exam-prep/node/route.ts")).toMatch(/canAffordLesson\(service, userId, rule\.credit_cost\)/);
   });
 });

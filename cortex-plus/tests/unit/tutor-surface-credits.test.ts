@@ -65,7 +65,7 @@ describe("kredi fiyat tablosu", () => {
     const costs: Record<string, number> = {};
     for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) {
       const sql = readFileSync(join(dir, file), "utf8");
-      for (const match of sql.matchAll(/\('([A-Z0-9_]+)',\s*(\d+)\s*,/g)) {
+      for (const match of sql.matchAll(/\('([A-Z0-9_]+)',\s*(\d+)\s*[,)]/g)) {
         costs[match[1] ?? ""] = Number(match[2]);
       }
       for (const match of sql.matchAll(/credit_cost\s*=\s*(\d+)[\s\S]{0,240}?action_code\s*=\s*'([A-Z0-9_]+)'/g)) {
@@ -76,9 +76,10 @@ describe("kredi fiyat tablosu", () => {
       expect(costs[code], code).toBe(price.credits);
     }
     expect(PLUS_CHAT_IS_FREE).toBe(false);
-    expect(CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits).toBe(1);
-    expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBe(2);
-    expect(CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits).toBe(1);
+    // Kredi sistemi v2 (8 Ekim 2026): 1 kredi = $0,001 ölçülen maliyet.
+    expect(CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits).toBe(3);
+    expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBe(6);
+    expect(CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits).toBe(2);
   });
 
   it("ses kredisi 900 karakterdir ve sohbet bir kez ayırır", () => {

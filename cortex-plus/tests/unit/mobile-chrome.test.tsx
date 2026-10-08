@@ -74,7 +74,7 @@ describe("fiyatlandırma karşılaştırması", () => {
     render(<SubscriptionCards plans={plans} guestMode checkoutEnabled={false} />);
 
     expect(screen.getAllByText("Misafir, ücretsiz ve premium")).toHaveLength(1);
-    expect(screen.getAllByText("Daha yüksek aylık kota").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Ayda yaklaşık 20.000 mesaj ya da 10.000 ders").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Gelişmiş").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Sigma").length).toBeGreaterThan(0);
     expect(document.querySelector(".tier-compare-cards")).not.toBeNull();

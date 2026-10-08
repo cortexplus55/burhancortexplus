@@ -229,11 +229,12 @@ const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);
 const TEACHER_CARD_KINDS = new Set<PlanNodeKind>(["flashcards", "spaced"]);
 const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast", "true_false"]);
 
+/** Kredi sistemi v2 (8 Ekim 2026): her iş kendi ölçülen maliyetiyle fiyatlanır. */
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
-  if (kind === "lesson" || kind === "podcast" || kind === "oral" || kind === "readiness") {
-    return "STUDY_PLAN_GENERATE" as const;
-  }
+  if (kind === "lesson") return "STUDY_PLAN_GENERATE" as const;
+  if (kind === "podcast") return "PODCAST_GENERATE" as const;
+  if (kind === "oral") return "ORAL_EXAM_GENERATE" as const;
   return "QUIZ_GENERATE" as const;
 }
 

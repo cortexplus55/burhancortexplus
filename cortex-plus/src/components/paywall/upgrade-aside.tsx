@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CortexMark } from "@/components/brand/cortex-mark";
 import { useIsFounder } from "@/lib/student/student-shell-context";
+import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
+import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import "@/styles/upgrade-gate.css";
 
 /**
@@ -29,7 +31,7 @@ export function UpgradeAside({ returnPath }: { returnPath?: string }) {
       </div>
       <p className="ug-aside-title">Plus&apos;a yükselt</p>
       <p className="ug-aside-blurb">
-        Günlük hak yerine yüksek aylık kota ve daha yüksek yükleme limiti.
+        {allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)} ve daha yüksek yükleme limiti.
       </p>
       <Link href={href} className="ug-aside-cta">
         Plus&apos;a geç

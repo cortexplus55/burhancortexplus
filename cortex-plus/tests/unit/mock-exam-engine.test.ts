@@ -214,7 +214,7 @@ describe("credits + sonuc güvenlik", () => {
   it("grade is free; generate includes evaluation", async () => {
     const { CREDIT_PRICE_TABLE } = await import("@/lib/credits/price-table");
     expect(CREDIT_PRICE_TABLE.PRACTICE_EXAM_GRADE.credits).toBe(0);
-    expect(CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits).toBe(8);
+    expect(CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits).toBe(15);
   });
 
   it("sonuc page ignores query.score", async () => {

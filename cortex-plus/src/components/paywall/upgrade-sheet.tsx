@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Sparkles, Unlock, Users, X } from "lucide-react";
 import { useIsFounder } from "@/lib/student/student-shell-context";
+import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
+import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/upgrade-gate.css";
@@ -86,7 +88,7 @@ export function UpgradeSheet({
 
         <div className="ug-perk">
           <Unlock className="h-4 w-4" aria-hidden />
-          <span>Plus ile günlük hak yerine aylık hak, kat kat fazlası</span>
+          <span>Plus ile {allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly).toLocaleLowerCase("tr-TR")}</span>
         </div>
 
         <Link href={href} className="ug-cta" onClick={() => onOpenChange(false)}>
