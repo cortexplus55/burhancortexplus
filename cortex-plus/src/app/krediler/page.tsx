@@ -15,6 +15,7 @@ import { loadReferralSummary } from "@/lib/credits/referral";
 import { loadInviteLink } from "@/lib/credits/invite-code";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
 import { createServiceClient } from "@/lib/supabase/server";
+import { freePreview, previewWallet } from "@/lib/billing/free-preview";
 import { planTier } from "@/lib/documents/photo-quota";
 import { loadUsageLimits } from "@/lib/student/usage-limits";
 import { FounderCreditsView } from "@/components/student/founder-credits-view";
@@ -103,13 +104,15 @@ export default async function KredilerPage() {
   ]);
 
   const isPremium = Boolean(shell.account?.isPremium);
+  // Yöneticinin ücretsiz önizlemesinde hak ayrı tabloda; cüzdan ve ek paket görünmez.
+  const preview = shell.account?.freePreview ? await freePreview(service, user.id) : null;
   const quota = quotaView(
-    wallet,
+    preview ? previewWallet(preview) : wallet,
     isPremium,
     new Date(),
     shell.account?.subscriptionAllowance ?? undefined,
   );
-  const extraPercent = allowanceShare(wallet?.balance ?? 0, quota.allowance);
+  const extraPercent = preview ? null : allowanceShare(wallet?.balance ?? 0, quota.allowance);
 
   return (
     <ParitySorShell {...shell}>
