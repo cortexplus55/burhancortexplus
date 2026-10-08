@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { layoutBoard } from "@/lib/learning/lesson-board";
-import { groundLearnerLesson, upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
 import { reviewQuestionFor } from "@/lib/learning/teacher-brain";
 import { lessonPublishIssues, validateLessonPedagogy } from "@/lib/learning/teaching-standards";
 
@@ -14,9 +13,6 @@ const source = [
   "Vakum durumunda P_mutlak = P_atm - P_vakum.",
   TEMPERATURE_FACT,
 ].join(" ");
-
-const thinPressure = "Basınç, kuvvet ve alan oranıdır.";
-const thinAbsolute = "Mutlak basınç, manometrik basınç ile hesaplanır.";
 
 describe("missed questions change angle", () => {
   it("turns the live temperature true/false into the source fact", () => {
@@ -73,102 +69,6 @@ describe("missed questions change angle", () => {
     expect(retry.prompt).toContain("ısıl durumunu gösteren bir özelliktir");
     expect(retry.prompt).not.toBe("Sıcaklığın birimi için hangisi yazılır?");
     expect(retry.options[retry.answerIndex]).toBe("Doğru");
-  });
-});
-
-describe("summary keeps the full relation", () => {
-  it("replaces the live thin lines and the invented next step", () => {
-    const topics = [
-      "Termodinamiğe Giriş",
-      "Basınç ve Sıcaklık Kavramları",
-      "Saf Maddenin Özellikleri",
-      "Enerji Geçişi",
-    ];
-    expect(upcomingTopicsAfter("Basınç ve Sıcaklık Kavramları", topics)).toEqual([
-      "Saf Maddenin Özellikleri",
-      "Enerji Geçişi",
-    ]);
-    expect(upcomingTopicsAfter("Basınç ve Sıcaklık", topics)).toEqual([
-      "Saf Maddenin Özellikleri",
-      "Enerji Geçişi",
-    ]);
-    expect(upcomingTopicsAfter("Enerji Geçişi", topics)).toEqual([]);
-    expect(upcomingTopicsAfter("Hidrostatik", topics)).toBeNull();
-
-    const grounded = groundLearnerLesson(
-      {
-        title: "Basınç ve Sıcaklık Kavramları",
-        sections: [{ heading: "Basınç", body: source }],
-        summary: [thinPressure, thinAbsolute, "Sıcaklık, ısıl durumu gösteren bir özelliktir."],
-        nextFocus: ["Basınç ve sıcaklık arasındaki ilişki.", "Hidrostatik basıncın hesaplanması."],
-      },
-      source,
-      { upcomingTopics: upcomingTopicsAfter("Basınç ve Sıcaklık Kavramları", topics) ?? [] },
-    );
-    const lesson = grounded.lesson as { summary?: string[]; nextFocus?: string[] };
-    const summary = lesson.summary?.join(" ") ?? "";
-    expect(grounded.removed.join(" ")).toMatch(/summary:replaced/);
-    expect(summary).not.toContain(thinPressure);
-    expect(summary).not.toContain(thinAbsolute);
-    expect(summary).toMatch(/yüzeye dik/);
-    expect(summary).toContain("P = F/A");
-    expect(summary).toContain("P_mutlak = P_atm + P_man");
-    expect(summary).toContain("P_mutlak = P_atm - P_vakum");
-    expect(summary).toContain("Sıcaklık, ısıl durumu gösteren bir özelliktir.");
-    expect(lesson.nextFocus).toEqual(["Saf Maddenin Özellikleri", "Enerji Geçişi"]);
-
-    const again = groundLearnerLesson(lesson, source, {
-      upcomingTopics: ["Saf Maddenin Özellikleri", "Enerji Geçişi"],
-    });
-    expect(again.removed).toEqual([]);
-  });
-});
-
-const LIVE_FORMULA_INDEX =
-  "Bu sayfadaki formüller: Kalite tanımı | İki fazlı karışımda kalite, buhar kütle oranıdır: x = m g /m. 0 ile 1 arasındadır. x = 0 doymuş sıvı, x = 1 | Bir doymuş karışımda h f =500 kJ/kg, h fg =2200 kJ/kg ve x=0.80 ise h = 500 + 0.80×2200 =";
-
-const QUALITY_BODY = [
-  "[s.4] Doymuş Su Tabloları: İki fazlı karışımda kalite, buhar kütle oranıdır: x = m g / m.",
-  "Kalite 0 ile 1 arasındadır; 0 ≤ x ≤ 1.",
-  "x = 0 doymuş sıvı, x = 1 doymuş buhardır.",
-  "Bir özellik y = y f + x * y fg şeklinde hesaplanabilir.",
-  LIVE_FORMULA_INDEX,
-].join("\n");
-
-describe("summary ignores the formula index", () => {
-  it("drops the live dump and the objective filler, then keeps clean relations", () => {
-    const grounded = groundLearnerLesson(
-      {
-        title: "Doymuş Su Tabloları ve Kalite",
-        sections: [{ heading: "Kalite", body: QUALITY_BODY }],
-        summary: [LIVE_FORMULA_INDEX, "Doymuş Su Tabloları ve Kalite konusunu anlayarak uygulayabilmek."],
-      },
-      QUALITY_BODY,
-    );
-    const lesson = grounded.lesson as { summary?: string[] };
-    const summary = lesson.summary ?? [];
-    const text = summary.join(" ");
-    expect(summary.length).toBeGreaterThanOrEqual(3);
-    expect(summary.length).toBeLessThanOrEqual(5);
-    expect(text).not.toContain("Bu sayfadaki formüller");
-    expect(text).not.toContain("|");
-    expect(text).not.toMatch(/[=+×]\s*$/);
-    expect(text).not.toContain("anlayarak uygulayabilmek");
-    expect(text).not.toContain("2200");
-    expect(text).not.toMatch(/\bm g\b/);
-    expect(text).not.toMatch(/\bh f\b/);
-    expect(text).not.toMatch(/\bh fg\b/);
-    expect(text).toContain("m_g/m");
-    expect(text).toContain("0 ≤ x ≤ 1");
-    expect(text).toMatch(/x = 0 doymuş sıvı/);
-    expect(text).toMatch(/x = 1 doymuş buhar/);
-    expect(text).toContain("y_f");
-    expect(text).toContain("y_fg");
-    expect(text).toContain("·");
-    expect(text).not.toContain("*");
-
-    const again = groundLearnerLesson(lesson, QUALITY_BODY);
-    expect(again.removed).toEqual([]);
   });
 });
 

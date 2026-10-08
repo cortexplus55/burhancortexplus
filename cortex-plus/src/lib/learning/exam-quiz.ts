@@ -57,10 +57,6 @@ export const quizQuestionSchema = z.object({
   topic: z.string().min(2).max(80).optional(),
 });
 
-export const quizPayloadSchema = z.object({
-  questions: z.array(quizQuestionSchema).min(3).max(8),
-});
-
 function stripChoicePrefix(text: string) {
   return text.replace(/^[A-Da-d][).:\-]\s*/, "").trim();
 }
@@ -199,53 +195,4 @@ export function scoreQuizAnswers(
     }
   });
   return { score, total: questions.length || 1 };
-}
-
-/** `max`: düello 12 aday ister; başka her yer 8 ile kalır. */
-export function parseQuizQuestions(raw: unknown, max = 8): QuizQuestion[] | null {
-  const parsed = quizPayloadSchema.safeParse(raw);
-  if (!parsed.success) return coerceQuizQuestions(raw, max);
-  const questions = parsed.data.questions
-    .map(normalizeQuizQuestion)
-    .filter((question): question is QuizQuestion => question !== null);
-  return questions.length >= 3 ? questions : coerceQuizQuestions(raw, max);
-}
-
-/** Tek bozuk soru seti düşürmez. En az üç sağlam soru kalırsa üretim sürer. */
-export function coerceQuizQuestions(raw: unknown, max = 8): QuizQuestion[] | null {
-  const row = raw && typeof raw === "object" ? (raw as { questions?: unknown }) : null;
-  const list = Array.isArray(row?.questions) ? row.questions : null;
-  if (!list) return null;
-  const questions = list.flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const record = item as Record<string, unknown>;
-    const text = typeof record.text === "string"
-      ? record.text
-      : typeof record.question === "string"
-        ? record.question
-        : "";
-    const options = Array.isArray(record.options) ? record.options.map((option) => String(option)) : [];
-    const optionWhy = Array.isArray(record.optionWhy)
-      ? record.optionWhy.filter((line): line is string => typeof line === "string")
-      : undefined;
-    const optionReasons =
-      record.optionReasons && typeof record.optionReasons === "object"
-        ? (record.optionReasons as Record<string, string>)
-        : undefined;
-    const normalized = normalizeQuizQuestion({
-      text,
-      options,
-      correct: (record.correct ?? record.answer ?? record.answerIndex) as string | number | (string | number)[],
-      multi: record.multi === true,
-      explanation: typeof record.explanation === "string" ? record.explanation : undefined,
-      learningObjective: typeof record.learningObjective === "string" ? record.learningObjective : undefined,
-      misconceptionTag: typeof record.misconceptionTag === "string" ? record.misconceptionTag : undefined,
-      optionReasons,
-      optionWhy,
-      steps: Array.isArray(record.steps) ? (record.steps as string[]) : undefined,
-      topic: typeof record.topic === "string" ? record.topic : undefined,
-    });
-    return normalized ? [normalized] : [];
-  });
-  return questions.length >= 3 ? questions.slice(0, max) : null;
 }

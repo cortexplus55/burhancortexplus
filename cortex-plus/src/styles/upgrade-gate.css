@@ -134,6 +134,66 @@
 
 .ug-why:hover { color: #f2f0ec; }
 
+button.ug-why {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+/* Geri sayım (3 Ekim 2026, Astra'nın sohbet duvarı gibi). */
+.ug-countdown {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: center;
+  margin-top: 1rem;
+}
+
+.ug-countdown-label {
+  font-size: 0.8125rem;
+  color: #a3a19c;
+}
+
+.ug-countdown-clock {
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.8125rem;
+  color: #a3a19c;
+}
+
+.ug-countdown-clock b {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f2f0ec;
+  font-variant-numeric: tabular-nums;
+}
+
+.ug-why-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.ug-why-list li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.8125rem;
+  color: #a3a19c;
+}
+
+.ug-why-list strong {
+  color: #f2f0ec;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ug-backdrop { animation: none; }
 }

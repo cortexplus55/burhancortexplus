@@ -96,10 +96,6 @@ const VERDICT_LABEL: Record<ClaimVerdict, string> = {
   yanlis: "Tekrar bakalım",
 };
 
-export function verdictChipLabel(verdict: ClaimVerdict): string {
-  return VERDICT_LABEL[verdict];
-}
-
 export function requestsAnswerOnly(message: string): boolean {
   return ANSWER_ONLY.test(message);
 }
@@ -242,7 +238,7 @@ export function followUpChips(input: {
   ].slice(0, 3);
 }
 
-function chipMarker(chip: ReplyChip): string {
+export function chipMarker(chip: ReplyChip): string {
   return `[[chip:${chip.label}|${chip.prompt.replace(/[\]|]/g, " ")}]]`;
 }
 

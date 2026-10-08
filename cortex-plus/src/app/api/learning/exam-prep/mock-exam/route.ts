@@ -3,12 +3,15 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { createMockExam } from "@/lib/learning/mock-exam/create";
+import { clampMockMinutes, MOCK_MINUTES_MAX } from "@/lib/learning/mock-exam/time-limit";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   preset: z.enum(["short", "standard", "real"]).optional(),
   scope: z.enum(["all", "topics"]).optional(),
   topicIds: z.array(z.string().uuid()).max(40).optional(),
+  /** Serbest süre (dk). 0 süresiz. */
+  durationMinutes: z.number().int().min(0).max(MOCK_MINUTES_MAX).optional(),
 });
 
 export async function POST(request: Request) {
@@ -27,6 +30,7 @@ export async function POST(request: Request) {
     preset: parsed.data.preset,
     scope: parsed.data.scope,
     topicIds: parsed.data.topicIds,
+    durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
   });
 
   if (!result.ok) return errorResponse(result.status, result.error);

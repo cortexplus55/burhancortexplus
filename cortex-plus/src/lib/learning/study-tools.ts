@@ -17,27 +17,101 @@ export type StudyToolId =
   | "written_exam"
   | "quiz"
   | "flashcards"
-  | "qa";
+  | "qa"
+  | "gaps"
+  | "focused"
+  | "true_false"
+  | "spaced";
+
+/** Astra'daki "Sonraki ders" penceresinin üç sekmesi (1 Ekim 2026). */
+export type StudyToolGroup = "learn" | "practice" | "exam";
+
+export const STUDY_TOOL_GROUPS: { id: StudyToolGroup; label: string }[] = [
+  { id: "learn", label: "Öğren" },
+  { id: "practice", label: "Pratik yap" },
+  { id: "exam", label: "Sınav" },
+];
 
 export type StudyTool = {
   id: StudyToolId;
   kind: PlanNodeKind;
+  group: StudyToolGroup;
   title: string;
   blurb: string;
+  /**
+   * Bu türün düğümü yoksa açılacak tür. Doğru/Yanlış ayrı düğüm olarak
+   * eklenmiyor (test zaten doğru/yanlış içeriyor, bkz. mergeStudyPathTemplate);
+   * karo o durumda konu testini açar.
+   */
+  fallbackKind?: PlanNodeKind;
 };
 
 export const STUDY_TOOLS: StudyTool[] = [
-  { id: "lesson", kind: "lesson", title: "Konu anlatımı", blurb: "Kısa ders" },
-  { id: "podcast", kind: "podcast", title: "Podcast", blurb: "Sesli anlatım" },
-  { id: "oral", kind: "oral", title: "Sözlü deneme", blurb: "Konuş veya yaz" },
-  { id: "written_exam", kind: "written_exam", title: "Yazılı deneme", blurb: "Süre var, yardım yok" },
-  { id: "quiz", kind: "quiz", title: "Konu testi", blurb: "Tek konu, kısa kontrol" },
-  { id: "flashcards", kind: "flashcards", title: "Kartlar", blurb: "Kısa tekrar" },
-  { id: "qa", kind: "qa", title: "AI öğretmen", blurb: "Soru-cevap" },
+  { id: "lesson", kind: "lesson", group: "learn", title: "Konu anlatımı", blurb: "Kısa ders" },
+  { id: "podcast", kind: "podcast", group: "learn", title: "Podcast", blurb: "Sesli anlatım" },
+  { id: "flashcards", kind: "flashcards", group: "learn", title: "Kartlar", blurb: "Kısa tekrar" },
+  { id: "gaps", kind: "gaps", group: "learn", title: "Bilgi boşlukları", blurb: "Eksiğini bul, kapat" },
+  { id: "qa", kind: "qa", group: "learn", title: "AI öğretmen", blurb: "Soru-cevap" },
+  { id: "focused", kind: "focused", group: "practice", title: "Alıştırma", blurb: "Zayıf noktaya odaklı" },
+  { id: "quiz", kind: "quiz", group: "practice", title: "Konu testi", blurb: "Tek konu, kısa kontrol" },
+  {
+    id: "true_false",
+    kind: "true_false",
+    group: "practice",
+    title: "Doğru / Yanlış",
+    blurb: "Hızlı kontrol",
+    fallbackKind: "quiz",
+  },
+  { id: "spaced", kind: "spaced", group: "practice", title: "Tekrar", blurb: "Aralıklı tekrar" },
+  { id: "written_exam", kind: "written_exam", group: "exam", title: "Yazılı deneme", blurb: "Süre var, yardım yok" },
+  { id: "oral", kind: "oral", group: "exam", title: "Sözlü deneme", blurb: "Konuş veya yaz" },
 ];
+
+/**
+ * "Önerilen" rozeti: yolda sıradaki bitmemiş etkinliğin türü. Astra da
+ * sıradaki önerisini bu pencerede işaretliyor.
+ */
+export function recommendedStudyTool(nodes: { kind: string; status: string; sortOrder: number }[]): StudyTool | null {
+  const next = [...nodes].sort((a, b) => a.sortOrder - b.sortOrder).find((node) => node.status !== "done");
+  if (!next) return null;
+  return STUDY_TOOLS.find((tool) => tool.kind === next.kind) ?? null;
+}
 
 export function studyToolById(id: StudyToolId): StudyTool {
   return STUDY_TOOLS.find((tool) => tool.id === id) ?? STUDY_TOOLS[0];
+}
+
+/**
+ * Astra gibi kilitli araçlar (1 Ekim 2026): Bilgi boşlukları nerede
+ * zorlandığın ortaya çıkınca, Tekrar ilk çalışma bitince açılır. Kilitliyken
+ * üretim yapılmaz; sunucu da aynı kuralla "kilitli" cevabı döner.
+ */
+export const STUDY_TOOL_LOCK_COPY = {
+  gaps: "Bir testte ya da derste yanlış yaptığında açılır; nerede zorlandığını burada toplar.",
+  spaced: "İlk dersini ya da testini bitirince açılır; öğrendiklerini pekiştirir.",
+} as const;
+
+export function studyToolLock(
+  id: StudyToolId,
+  input: { nodes: { kind: string; status: string }[]; openMisconceptions: number },
+): string | null {
+  if (id === "gaps") {
+    const done = input.nodes.some((node) => node.kind === "gaps" && node.status === "done");
+    return done || input.openMisconceptions > 0 ? null : STUDY_TOOL_LOCK_COPY.gaps;
+  }
+  if (id === "spaced") {
+    return input.nodes.some((node) => node.status === "done") ? null : STUDY_TOOL_LOCK_COPY.spaced;
+  }
+  return null;
+}
+
+/** Türün düğümleri; yoksa yedek türünkiler. Sıraya göre. */
+function toolPool<T extends { kind: string; sortOrder: number }>(nodes: T[], id: StudyToolId): T[] {
+  const tool = studyToolById(id);
+  const pick = (kind: string) =>
+    nodes.filter((node) => node.kind === kind).sort((a, b) => a.sortOrder - b.sortOrder);
+  const own = pick(tool.kind);
+  return own.length || !tool.fallbackKind ? own : pick(tool.fallbackKind);
 }
 
 /** Sıra kilidi açık düğümü kapatmaz. Bilinmeyen durum kapalı kalır. */
@@ -89,10 +163,7 @@ export function resolveStudyToolNode<T extends StudyNodeRef>(
   tool: StudyToolId,
   topic?: { id?: string | null; label?: string | null },
 ): T | null {
-  const kind = studyToolById(tool).kind;
-  const pool = nodes
-    .filter((node) => node.kind === kind)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const pool = toolPool(nodes, tool);
   if (!pool.length) return null;
   const topicId = topic?.id?.trim();
   const label = fold(topic?.label);
@@ -128,10 +199,7 @@ export function openStudyActivity<T extends StudyNodeRef>(
     return { node: matched, topicQuery: same ? null : label };
   }
   if (!label) return null;
-  const kind = studyToolById(tool).kind;
-  const pool = nodes
-    .filter((node) => node.kind === kind)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const pool = toolPool(nodes, tool);
   if (!pool.length) return null;
   return {
     node: pool.find((node) => node.status !== "done") ?? pool[0],

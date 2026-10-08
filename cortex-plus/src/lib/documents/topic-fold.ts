@@ -17,6 +17,7 @@ import {
   normalizeTopicTitle,
   topicCeiling,
 } from "@/lib/documents/topic-title";
+import { outlineTopicBounds } from "@/lib/documents/outline-clean";
 
 export type LooseTopic = {
   title: string;
@@ -99,18 +100,6 @@ function significant(title: string): string[] {
 
 function cleanHeading(raw: string): string {
   return (raw ?? "").replace(TOC_PAGE_TAIL, "").trim();
-}
-
-export function preferredHeading(headings: string[]): string {
-  for (const raw of headings) {
-    const heading = cleanHeading(raw);
-    if (!heading) continue;
-    if (isRunningHeader(heading) || isCalloutLabel(heading) || isProcedureStep(heading)) {
-      continue;
-    }
-    return heading;
-  }
-  return "";
 }
 
 /**
@@ -199,9 +188,13 @@ export function outlineSections(
  * öğrenci hiç ayrı ölçemez; büyük kitaplarda aynı kayıp katlanır.
  */
 function mapCeiling(pageCount: number, pages: { headings: string[] }[]): number {
-  const ceiling = topicCeiling(pageCount);
+  // Valid numbered chapters only (question stems already filtered out).
   const numbered = chapterHeadings(pages).filter((heading) => isNumberedChapter(heading)).length;
-  return Math.max(ceiling, numbered);
+  if (pageCount > 40) {
+    const bounds = outlineTopicBounds(pageCount);
+    return Math.max(bounds.topicsMax, numbered);
+  }
+  return Math.max(topicCeiling(pageCount), numbered);
 }
 
 export function headingsToGuard(pages: { headings: string[] }[]): string[] {

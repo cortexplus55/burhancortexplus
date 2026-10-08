@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
   BookOpen,
-  CalendarRange,
   Camera,
   FileText,
   FlaskConical,
@@ -42,7 +41,6 @@ const ICONS: Record<string, LucideIcon> = {
   "soru-coz": Camera,
   flashcard: Layers,
   quiz: BookOpen,
-  "calisma-plani": CalendarRange,
   deneme: FileText,
   dokuman: FileText,
   ilerleme: LineChart,
@@ -75,7 +73,7 @@ export function ToolsHub() {
       <header className="tools-hero">
         <h1>Araçlar</h1>
         <p>
-          Hesaplayıcılar bu sayfada açılır. Kısayollar ise sohbet, deneme veya plan gibi ilgili bölüme gider.
+          Hesaplayıcılar bu sayfada açılır. Kısayollar ise sohbet, deneme ya da belgeler gibi ilgili bölüme gider.
         </p>
       </header>
 

@@ -8,6 +8,11 @@ import {
   sessionMetaBySortOrder,
 } from "@/lib/learning/exam-prep-plan";
 import { insertExamPrepGraph } from "@/lib/learning/exam-prep-insert";
+import {
+  FREE_PREP_LIMIT_CODE,
+  FREE_PREP_LIMIT_MESSAGE,
+  freePrepLimitReached,
+} from "@/lib/billing/free-prep-limit";
 import { alignNewSessionSortOrders } from "@/lib/learning/exam-prep-reschedule-apply";
 import {
   buildExamScheduleV2,
@@ -27,6 +32,9 @@ import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import type { TopicContradiction } from "@/lib/learning/source-contradictions";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
+import { documentRunningHeaders } from "@/lib/documents/clean-pages";
+import { isRunningHeader } from "@/lib/documents/clean-text";
+import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 
 const prefsSchema = z
   .object({
@@ -64,6 +72,15 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
+
+  // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; Astra'da ücretsiz
+  // hesap yeni hazırlık kuramıyor).
+  if (await freePrepLimitReached(service, userId)) {
+    return NextResponse.json(
+      { error: FREE_PREP_LIMIT_MESSAGE, code: FREE_PREP_LIMIT_CODE },
+      { status: 402 },
+    );
+  }
 
   const v2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
   let topics = parsed.data.note?.trim()
@@ -116,6 +133,20 @@ export async function POST(request: Request) {
           scheduleTopics = ordered;
         }
       }
+    }
+    // Eski belgelerin saklı analizinde sayfa başlığı ("KPSS HUKUKUN TEMEL
+    // KAVRAMLARI") ve test sorusu kökü konu olarak duruyor (2 Ekim 2026'da
+    // KPSS hazırlığında 20 tane temizlendi). Yalnız belgeden gelen başlık
+    // süzülür; öğrencinin elle yazdığı konuya dokunulmaz.
+    const edges = (await Promise.all(documentIds.map((id) => documentRunningHeaders(service, id)))).flat();
+    const keep = topics.map(
+      (title, index) =>
+        !isRunningHeader(title, edges) && !(topicNodeIds[index] && isJunkTopicTitle(title)),
+    );
+    if (keep.some((kept) => !kept) && keep.some(Boolean)) {
+      topics = topics.filter((_, index) => keep[index]);
+      topicNodeIds = topicNodeIds.filter((_, index) => keep[index]);
+      if (scheduleTopics.length === keep.length) scheduleTopics = scheduleTopics.filter((_, index) => keep[index]);
     }
   }
 

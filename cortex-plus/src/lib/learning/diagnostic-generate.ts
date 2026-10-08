@@ -5,7 +5,7 @@ import {
   firstLessonDiagnosticSlots,
   selectDiagnosticSkillQuestions,
   isDiagnosticSkill,
-  pickMainTopics,
+  pickStudyTopics,
   planDiagnosticTopics,
   scoreDiagnosticAnswers,
   type DiagnosticQuestion,
@@ -44,7 +44,7 @@ export async function loadDocumentTopicPlans(
   const rows = (nodes ?? []) as DocumentTopicRow[];
   if (!rows.length) return [];
 
-  const main = pickMainTopics(
+  const main = pickStudyTopics(
     rows.map((n) => ({ ...n, parentId: n.parent_id })),
   );
 
@@ -206,6 +206,7 @@ Kurallar:
       schemaHintExtra: "Bu tanıda questions dizisi 6 soru içerir. Her sorunun topic alanı definition, concept veya application kodudur.",
       sourceExcerpt: source.block,
       requireSourceSupport: true,
+      count: batch.length,
       userPrompt,
     });
     // Stage 7: retries + independent-only accept live inside generateExamQuiz / generateJson

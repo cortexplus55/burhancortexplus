@@ -22,7 +22,10 @@ export function ToolShell({
   inputs,
   result,
   children,
+  embedded = false,
 }: {
+  /** Sohbetin içinde açıldıysa "Araçlar" geri bağlantısı gösterilmez. */
+  embedded?: boolean;
   title: string;
   subject: string;
   summary: string;
@@ -32,11 +35,13 @@ export function ToolShell({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="tool">
-      <Link href="/araclar" className="tool-back">
-        <ArrowLeft className="h-4 w-4" aria-hidden />
-        Araçlar
-      </Link>
+    <div className={embedded ? "tool tool--embedded" : "tool"}>
+      {embedded ? null : (
+        <Link href="/araclar" className="tool-back">
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Araçlar
+        </Link>
+      )}
 
       <header className="tool-head">
         <h1>{title}</h1>

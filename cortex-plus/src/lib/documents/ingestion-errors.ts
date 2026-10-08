@@ -136,8 +136,17 @@ const DEFS: Record<string, IngestionErrorDef> = {
     code: "photo_quota_exhausted",
     retryable: false,
     scope: "document",
-    userMessage: "Bu ayki taranmış sayfa hakkın doldu.",
+    // Yalnız belgenin HİÇBİR sayfası okunamadığında: metinli sayfası olan
+    // belge artık reddedilmiyor, resim sayfaları atlanıyor (3 Ekim 2026).
+    userMessage: "Belgenin sayfaları resim; bu ayki taranmış sayfa hakkın doldu.",
     action: "Plus'a geç veya metin katmanı olan bir PDF yükle.",
+  },
+  free_page_limit: {
+    code: "free_page_limit",
+    retryable: false,
+    scope: "document",
+    userMessage: "Ücretsiz planda toplam 5 sayfa işlenebiliyor; hakkın doldu.",
+    action: "Belgenin tamamını işlemek için Plus'a geç.",
   },
   photo_quota_unavailable: {
     code: "photo_quota_unavailable",
@@ -155,17 +164,18 @@ const DEFS: Record<string, IngestionErrorDef> = {
   },
   topic_map_failed: {
     code: "topic_map_failed",
-    retryable: false,
-    scope: "document",
+    // OCR already paid; map LLM blips must not burn the document.
+    retryable: true,
+    scope: "batch",
     userMessage: "Konu haritası çıkarılamadı.",
-    action: "'Yeniden dene' ile tekrar başlat.",
+    action: "Belgen kaydedildi; 'Devam et' ile kaldığı yerden sürdür.",
   },
   topic_map_unavailable: {
     code: "topic_map_unavailable",
-    retryable: false,
-    scope: "document",
-    userMessage: "Konu haritası bu belgeden çıkarılamadı.",
-    action: "Daha net bir tarama yükle veya 'Yeniden dene'.",
+    retryable: true,
+    scope: "batch",
+    userMessage: "Belgen kaydedildi.",
+    action: "Konuları hazırlamak için Tekrar dene.",
   },
   topic_map_no_readable_pages: {
     code: "topic_map_no_readable_pages",

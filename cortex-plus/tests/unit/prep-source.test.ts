@@ -145,7 +145,6 @@ describe("subjectSuggestions", () => {
 */
 describe("rotalar kaynak kararını tek yerden alıyor", () => {
   const routes = [
-    "src/app/api/learning/exam-prep/lesson/route.ts",
     "src/app/api/learning/exam-prep/node/route.ts",
     "src/app/api/learning/exam-prep/intro/route.ts",
   ];
@@ -179,7 +178,8 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
     reddediyor.
   */
   it("iki doğru şıkkı istem önlüyor; gözden geçirme bu yollarda kapalı", () => {
-    expect(readFileSync("src/lib/learning/exam-quiz-generate.ts", "utf8")).toContain(
+    // Eski zincir silindi (3 Ekim 2026); kural öğretmen test motorunun yazar ve denetçi isteminde.
+    expect(readFileSync("src/lib/learning/teacher-quiz.ts", "utf8")).toContain(
       "iki doğru kuralı yan yana şık yapma",
     );
     for (const route of [
@@ -207,7 +207,8 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
     const resolver = src.indexOf("await resolveLessonSource(");
     expect(gate).toBeGreaterThan(-1);
     expect(resolver).toBeGreaterThan(gate);
-    expect(src).toMatch(/if \(topicOnlyLesson\) \{\s*source = EMPTY_SOURCE_CONTEXT;/);
+    // Belgesiz ders öğretmen motoruna da işaretlenir (2 Ekim 2026), kaynak yine boş.
+    expect(src).toMatch(/if \(topicOnlyLesson\) \{\s*lessonTopicOnly = true;\s*source = EMPTY_SOURCE_CONTEXT;/);
     expect(src).toMatch(/sourceMode === "topic_only"\s*\n?\s*\? topicFence\(/);
   });
 });

@@ -1,37 +1,13 @@
+import { exampleIsComplete } from "@/lib/learning/example-completeness";
 import { describe, expect, it } from "vitest";
 import {
   isScaffoldHeading,
   joinSplitSuperscripts,
   lessonPublishIssues,
   publishLessonDraft,
-  type LessonV2,
 } from "@/lib/learning/teaching-standards";
-import { exampleIsComplete, repairLearnerLesson, scopeLessonToTopic } from "@/lib/learning/lesson-repair";
-import { criticalTeachingFailures, finishTaughtLesson, teachingFailures } from "@/lib/learning/lesson-teach";
-import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
-import { fluencyIssues, repairLessonSurface, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { layoutBoard } from "@/lib/learning/lesson-board";
-
-/*
-  29 Eylül 2026. Yayındaki ders modeli (gpt-4.1-mini) ile yerelde yedi
-  belgesiz "Üslü Sayılar" taslağı üretildi ve canlıdaki zincirden geçirildi.
-  Yedisinin yedisi de kurtarma yoluna (salvageTaughtLesson) düşüyordu:
-  öğrenciye 1–3 bölüm ve ders cümlesinin kopyası "hep doğru" sorular
-  kalıyordu, çözümlü örnek hiç çıkmıyordu.
-
-  Model şemadan şu yollarla sapıyordu:
-  - example ve commonMistake'i bir bölümün İÇİNE yazıyor;
-  - çözümü `solution` yerine `steps` + `result` alanlarına yazıyor;
-  - "Üslü Sayılar Özet", "… Yaygın Hata", "Bilgi Kontrolü: …" gibi
-    şablon bölümleri açıyor;
-  - çeldiriciyi açıklamada değil şık başına optionWhy'da çürütüyor.
-
-  Ardından dolgu ders cümlesinden doğru/yanlış kurup (conceptCheck) kritik
-  echo_check hatası üretiyor, ders kurtarmaya düşüyordu. Düzeltmeden sonra
-  yedisinde de kurtarma yok, kritik hata yok.
-*/
-
-const topic = "Üslü Sayılar";
 
 const base = {
   title: "Üslü Sayılar",
@@ -144,26 +120,6 @@ describe("gpt-4.1-mini taslak sapmaları", () => {
     expect(moved.sections).toHaveLength(2);
     expect(moved.sections[0].check?.prompt).toContain("4⁵ × 4²");
   });
-
-  it("belgesiz zincirde kurtarma yok; örnek, sık hata ve iki soru türü kalır", async () => {
-    const scoped = scopeLessonToTopic(lesson, "", topic);
-    const grounded = repairLessonSurface(groundLearnerLesson(scoped, "", {}).lesson as LessonV2);
-    const repair = await repairLearnerLesson(grounded, { source: "", topicLabel: topic }, async () => null);
-    const taught = await finishTaughtLesson(repair.lesson, { source: "", topicLabel: topic });
-    expect(taught.salvaged).toBe(false);
-    expect(criticalTeachingFailures(taught.failures)).toEqual([]);
-    expect(taught.lesson.example).toBeTruthy();
-    expect(taught.lesson.commonMistake).toBeTruthy();
-    const types = taught.lesson.sections.map((section) => section.check?.type);
-    expect(types).toContain("mcq");
-    expect(types).toContain("trueFalse");
-    // Ders cümlesinden kurulan "hep doğru" dolgu sorusu yok.
-    for (const section of taught.lesson.sections) {
-      expect(section.check?.whyRight ?? "").not.toBe("Doğru: bu yargı dersteki tanımla uyumludur.");
-    }
-    // Özet kalıp cümle değil, sorulardaki kural cümlesi.
-    expect(taught.lesson.summary?.join(" ") ?? "").not.toContain("tanımına ve şartına bağlıdır");
-  });
 });
 
 /*
@@ -219,17 +175,6 @@ describe("çözümlü örnek yazımı", () => {
     expect(lesson.example?.solution).not.toMatch(/birimle/);
   });
 
-  it("görev fiili başta ve iki noktalı soru da örnek sorusudur", () => {
-    const published = publishLessonDraft({
-      ...draft,
-      example: {
-        prompt: "Çözümleyiniz: (3² × 3⁻³) ÷ 3⁻¹",
-        solution: "3² × 3⁻³ = 3⁻¹ olur. 3⁻¹ ÷ 3⁻¹ = 3⁰ = 1 bulunur.",
-      },
-    })!;
-    expect(scopeLessonToTopic(published, "", topic).example?.prompt).toMatch(/^Çözümleyiniz:/);
-  });
-
   it("cümle sonu noktasıyla biten ve üslü yazılan hesap tamamdır", () => {
     expect(exampleIsComplete("2³ × 2⁴ ÷ 2² nedir?\nÇarpmada üsler toplanır: 3 + 4 = 7. Sonuç: 2⁵ = 32.")).toBe(true);
     expect(exampleIsComplete("3⁴ × 3⁻² kaçtır?\n3⁴ × 3⁻² = 3² Sonuç: 9")).toBe(true);
@@ -268,12 +213,6 @@ describe("çözüm tahtası etiketleri", () => {
   yerel yeniden oynatma). Düzeltmeden sonra 1/17.
 */
 describe("kurtarmayı tetikleyen yanlış alarmlar", () => {
-  it("araç eki yönelme sanılıp bozulmaz", () => {
-    expect(repairLessonSurface("Üslü sayı, bir sayının kendisiyle tekrar çarpılmasıdır.")).toBe(
-      "Üslü sayı, bir sayının kendisiyle tekrar çarpılmasıdır.",
-    );
-    expect(repairLessonSurface("Bu değer denklemin formülle çözülmesiyle bulunur.")).toContain("formülle");
-  });
 
   it("sondaki parantez yüklemin yerini almaz", () => {
     expect(fluencyIssues("Her sayı sıfır üssü aldığında sonuç 1 olur (0⁰ hariç).")).not.toContain("no_predicate");
@@ -281,40 +220,5 @@ describe("kurtarmayı tetikleyen yanlış alarmlar", () => {
 
   it("'Sık Karşılaşılan Hata' şablon başlığıdır", () => {
     expect(isScaffoldHeading("Üslü Sayılarda Sık Karşılaşılan Hata")).toBe(true);
-  });
-
-  it("başlık ile gövde ekleri farklı olsa da aynı kökte buluşur", () => {
-    const lesson = {
-      title: "Üslü Sayılar",
-      overview: "Üslü sayılarda işlem kurallarını bu derste öğreneceğiz ve örneklerle pekiştireceğiz.",
-      sections: [
-        {
-          heading: "Üslerle İşlemler: Çarpma ve Bölme",
-          body: "Aynı tabana sahip üslü sayılar çarpılırken üsler toplanır; bölünürken üsler çıkarılır. Örneğin 2³ × 2² = 2⁵ olur.",
-        },
-      ],
-    } as LessonV2;
-    const failures = criticalTeachingFailures(teachingFailures(lesson, "", topic));
-    expect(failures.map((failure) => failure.problem)).not.toContain("off_title");
-  });
-
-  it("onarım modelinin sızdırdığı 'null' cümlesi yayına çıkmaz", async () => {
-    const lesson = publishLessonDraft(base)!;
-    lesson.sections[1] = {
-      ...lesson.sections[1],
-      body: `${lesson.sections[1].body} Sonuç = 3³ + 3² = null.`,
-    };
-    const taught = await finishTaughtLesson(lesson, { source: "", topicLabel: topic });
-    expect(taught.lesson.sections.map((section) => section.body).join(" ")).not.toMatch(/null/);
-  });
-});
-
-describe("model yarışında hakemin bulduğu zincir hataları", () => {
-  it("kısa başlık yönelme onarımıyla bozulmaz", () => {
-    expect(repairLessonSurface("Üslü İfade")).toBe("Üslü İfade");
-    expect(repairLessonSurface({ title: "Üslü ifade", body: "aⁿ ifadesinde a taban, n üstür." })).toEqual({
-      title: "Üslü ifade",
-      body: "aⁿ ifadesinde a taban, n üstür.",
-    });
   });
 });

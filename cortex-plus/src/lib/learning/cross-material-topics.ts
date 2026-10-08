@@ -32,6 +32,10 @@ export type MaterialCandidate = {
    * gelir. "Sınavda ağırlıklı" rozeti üretmez.
    */
   emphasis?: "core" | "support" | "skim" | null;
+  /** One-shot outline high exam weight → wizard "sınavda sık çıkar". */
+  examHeavy?: boolean;
+  /** Short student-facing why/what description. */
+  description?: string | null;
 };
 
 export type MaterialDocument = {
@@ -57,7 +61,7 @@ export type ConsolidatedTopic = {
   prerequisites: string[];
   /** Müfredattaki pay. Müfredat yoksa null. */
   weightPercent: number | null;
-  /** "Sınavda ağırlıklı" rozeti. Yalnızca müfredat böyle dediyse. */
+  /** "Sınavda sık çıkar" — müfredat veya oneshot high examWeight. */
   examHeavy: boolean;
   /**
    * Öğretmen analizinin önem sırası. Müfredat payı yokken süre ve rozet
@@ -101,6 +105,8 @@ export type ConsolidationResult = {
   ambiguous: AmbiguousClusterPair[];
   /** Konu olmayan bölümler. Test ve iz için. */
   foldedNonTopics: string[];
+  /** Wizard bölümleri; topicIndexes consolidated.topics sırasına göre. */
+  units?: { title: string; topicIndexes: number[] }[];
 };
 
 export type TopicImportance = "important" | "medium" | "less";
@@ -540,7 +546,9 @@ function absorbCandidate(bucket: Bucket, candidate: MaterialCandidate, asSection
   if (nodeId) bucket.nodeIds.push(nodeId);
   bucket.memberIds.push(candidate.id);
   if (candidate.summary?.trim()) bucket.summaryParts.push(candidate.summary.trim());
+  else if (candidate.description?.trim()) bucket.summaryParts.push(candidate.description.trim());
   bucket.emphasis = strongerEmphasis(bucket.emphasis, candidate.emphasis ?? null);
+  if (candidate.examHeavy) bucket.examHeavy = true;
   if (!asSection) return;
   const key = topicMatchKey(candidate.title);
   const existing = bucket.sections.find((section) => topicMatchKey(section.title) === key);
@@ -1322,18 +1330,6 @@ export function extraPracticeForTopic(
   if (!heavy && !medium) return 0;
   if (daysToExam >= 21 && heavy) return 2;
   return 1;
-}
-
-/**
- * Rozet kaynağı. Müfredat "sınavda ağırlıklı" demediyse o yazılmaz.
- * Öğretmen analizi core dediyse "Önemli". Kaynak yoksa rozet yok.
- */
-export function topicBadge(
-  topic: { examHeavy?: boolean; importance?: TopicImportance | null },
-): "exam-heavy" | "important" | null {
-  if (topic.examHeavy) return "exam-heavy";
-  if (topic.importance === "important") return "important";
-  return null;
 }
 
 /** 1 en yüksek. Öğretmen analizi yoksa null. */

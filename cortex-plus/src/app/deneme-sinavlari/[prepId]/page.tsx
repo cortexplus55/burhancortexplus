@@ -16,8 +16,6 @@ import {
   examPrepIntroHref,
   examPrepNodeHref,
   examPrepTopicHref,
-  examIntroPending,
-  needsExamIntro,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
   isFeatureEnabled,
@@ -152,9 +150,20 @@ export default async function ExamPrepDetailPage({
 
   // Paylaşım kolonları migration ile geliyor; yoksa düğme gizli kalır.
   const [{ data: profile }, { data: shareRow }] = await Promise.all([
-    supabase.from("profiles").select("school_id").eq("id", user.id).maybeSingle(),
-    supabase.from("exam_preps").select("visibility").eq("id", prepId).maybeSingle(),
+    supabase.from("profiles").select("school_id, school_name").eq("id", user.id).maybeSingle(),
+    supabase.from("exam_preps").select("visibility, view_count, forked_from").eq("id", prepId).maybeSingle(),
   ]);
+  // Okuldan katılınan hazırlıkta "Oluşturan" asıl sahibin ilk adı. Başkasının
+  // profili RLS'e takıldığı için servis anahtarıyla, yalnız ad okunur.
+  let creatorLabel = "Sen";
+  const forkedFrom = (shareRow as { forked_from?: string | null } | null)?.forked_from ?? null;
+  if (forkedFrom) {
+    const { data: source } = await service.from("exam_preps").select("user_id").eq("id", forkedFrom).maybeSingle();
+    const { data: owner } = source?.user_id
+      ? await service.from("profiles").select("full_name").eq("id", source.user_id as string).maybeSingle()
+      : { data: null };
+    creatorLabel = String(owner?.full_name ?? "").trim().split(/\s+/)[0] || "Okul arkadaşın";
+  }
 
   const prepTopics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
   const topicsMeter = topicProgress(prepTopics);
@@ -190,8 +199,16 @@ export default async function ExamPrepDetailPage({
 
   const progress = nodeProgress(nodes);
   let ready = nodes.find((node) => node.status === "ready");
-  const hasTopic = Boolean(prep.active_topic_id);
-  const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes, prep.intro_deferred_at);
+  // Astra: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
+  // Eskiden önce "Konu seç", sonra zorunlu 8 soruluk tanı geliyordu. Etkin
+  // konu yoksa ilk konu etkin olur; tanı yolun başında isteğe bağlı düğümdür.
+  let activeTopicId = (prep.active_topic_id as string | null) ?? null;
+  if (!activeTopicId && prepTopics.length) {
+    activeTopicId = prepTopics[0].id;
+    await supabase.from("exam_preps").update({ active_topic_id: activeTopicId }).eq("id", prep.id);
+  }
+  const hasTopic = Boolean(activeTopicId);
+  const needsIntro = false;
 
   let learningTrackingView = null as null | {
     programProgressPct: number;
@@ -336,11 +353,11 @@ export default async function ExamPrepDetailPage({
         : examPrepHomeHref(prepId);
 
   let topicLabel: string | null = null;
-  if (prep.active_topic_id) {
+  if (activeTopicId) {
     const { data: topic } = await supabase
       .from("exam_prep_topics")
       .select("label")
-      .eq("id", prep.active_topic_id)
+      .eq("id", activeTopicId)
       .maybeSingle();
     topicLabel = topic?.label ?? null;
   }
@@ -398,7 +415,7 @@ export default async function ExamPrepDetailPage({
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}
-        introPending={examIntroPending(prep.intro_completed_at, prep.intro_deferred_at)}
+        introPending={!prep.intro_completed_at}
         startHref={startHref}
         canShare={Boolean(profile?.school_id)}
         initialShared={shareRow?.visibility === "school"}
@@ -419,6 +436,10 @@ export default async function ExamPrepDetailPage({
         readinessClaim={learningTrackingView?.claimFullyReady ?? null}
         topicWarnings={await loadTopicWarnings(supabase, prepId)}
         progressView={progressView}
+        targetScore={typeof prep.target_score === "number" ? prep.target_score : null}
+        creatorLabel={creatorLabel}
+        schoolName={(profile as { school_name?: string | null } | null)?.school_name ?? null}
+        joinCount={Number((shareRow as { view_count?: number } | null)?.view_count ?? 0)}
       />
     </ParitySorShell>
   );

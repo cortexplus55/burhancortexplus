@@ -1,13 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Headphones, Mic, FileQuestion, ListChecks, Layers, Sparkles, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+import {
+  BookOpen,
+  CheckCheck,
+  Crosshair,
+  FileQuestion,
+  Headphones,
+  Layers,
+  ListChecks,
+  Mic,
+  Puzzle,
+  Repeat,
+  Sparkles,
+  X,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import "@/styles/oral-exam-chrome.css";
 import {
   STUDY_PATH_HINT,
   STUDY_TOOLS,
+  STUDY_TOOL_GROUPS,
   openStudyActivity,
+  recommendedStudyTool,
+  studyToolLock,
+  type StudyToolGroup,
   studyActivityHref,
   studyPodcastHref,
   type StudyNodeRef,
@@ -22,6 +41,10 @@ const TOOL_ICONS: Record<StudyToolId, LucideIcon> = {
   quiz: ListChecks,
   flashcards: Layers,
   qa: Sparkles,
+  gaps: Puzzle,
+  focused: Crosshair,
+  true_false: CheckCheck,
+  spaced: Repeat,
 };
 
 /**
@@ -37,9 +60,12 @@ export function StudyToolsHub({
   topicLabel,
   onTopic,
   onClose,
+  openMisconceptions = 0,
 }: {
   prepId: string;
   nodes: StudyNodeRef[];
+  /** Açık yanılgı sayısı: Bilgi boşlukları kilidini açar. */
+  openMisconceptions?: number;
   topics: string[];
   /** exam_prep_topics kimliği. Yoksa podcast seçicisi kendi listesini açar. */
   topicOptions?: { id: string; label: string }[];
@@ -47,6 +73,9 @@ export function StudyToolsHub({
   onTopic: (label: string | null) => void;
   onClose: () => void;
 }) {
+  // Astra gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
+  const recommended = recommendedStudyTool(nodes);
+  const [group, setGroup] = useState<StudyToolGroup>(recommended?.group ?? "learn");
   return (
     <div className="cp-oral-modal-back" onClick={onClose}>
       <div
@@ -83,11 +112,27 @@ export function StudyToolsHub({
         ) : (
           <p className="cp-oral-empty">Bu hazırlıkta konu yok. Etkinlik yine de plandaki düğümden açılır.</p>
         )}
+        <div className="cp-study-hub-tabs" role="tablist" aria-label="Etkinlik türü">
+          {STUDY_TOOL_GROUPS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={group === item.id}
+              className={group === item.id ? "is-on" : undefined}
+              onClick={() => setGroup(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
         <ul className="cp-study-hub-grid">
-          {STUDY_TOOLS.map((tool) => {
+          {STUDY_TOOLS.filter((tool) => tool.group === group).map((tool) => {
             const Icon = TOOL_ICONS[tool.id];
-            const href =
-              tool.id === "podcast"
+            const lock = studyToolLock(tool.id, { nodes, openMisconceptions });
+            const href = lock
+              ? null
+              : tool.id === "podcast"
                 ? studyPodcastHref(prepId, topicLabel, topicOptions)
                 : (() => {
                     const target = openStudyActivity(nodes, tool.id, { label: topicLabel });
@@ -100,8 +145,9 @@ export function StudyToolsHub({
                 <span className={`cp-study-hub-icon cp-study-hub-icon--${tool.id}`} aria-hidden>
                   <Icon className="h-5 w-5" />
                 </span>
-                <strong>{tool.title}</strong>
-                <em>{href ? tool.blurb : "Bu konuda yok"}</em>
+                {recommended?.id === tool.id ? <span className="cp-study-hub-badge">Önerilen</span> : null}
+                <strong>{lock ? `🔒 ${tool.title}` : tool.title}</strong>
+                <em>{lock ?? (href ? tool.blurb : "Bu konuda yok")}</em>
               </>
             );
             return (
@@ -111,7 +157,7 @@ export function StudyToolsHub({
                     {body}
                   </Link>
                 ) : (
-                  <span className="cp-study-hub-tile is-off" aria-disabled="true">
+                  <span className={cn("cp-study-hub-tile is-off", lock && "is-locked")} aria-disabled="true">
                     {body}
                   </span>
                 )}

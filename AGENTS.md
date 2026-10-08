@@ -77,13 +77,46 @@ Bekçi test: `tests/unit/loading-fallbacks.test.ts`.
 
 ---
 
+## Her hazırlığın kendi yolu — belgeler tek programda birleşmez
+
+**3 Ekim 2026, ürün sahibi çok net:** "öğrenciye bütün yüklediği belgeleri tek
+bir yolda birleştirmiş … her yüklediği dökümanın yolu farklı". Astra'da her
+sınav bir derse ve kendi materyaline bağlı, yolu yalnız kendi kartında.
+
+| Yapmayın | Yapın |
+|---|---|
+| Birden çok hazırlığı/belgeyi tek ekranda "bugünkü program" diye toplamak (eski "Çalış" sekmesi, `ProgramHub`) | Öğrenci Sınavlar'dan hazırlığını seçer, o yolu yürür |
+| Kurulumun materyal adımında öğrencinin bütün eski belgelerini seçtirmek | Ders → tarih → hedef → yalnız o dersin materyali (Astra sırası) |
+| Aynı belge için ikinci hazırlık açtıran düğme | Belgenin yolu varsa "Yoluna devam et" |
+
+Menü Astra sırasında: Ana Sayfa · Sınavlar · Araçlar · Profil; Belgelerim "Daha
+fazla" menüsünde (#234). `/calisma-plani` kalıcı olarak Sınavlar'a yönleniyor. #232.
+Bekçi test: `tests/unit/separate-paths.test.ts`.
+
+**3 Ekim 2026 son Astra turu (#234–#240), aynı ekranlar yan yana bakılarak:**
+
+| Ekran | Kural |
+|---|---|
+| Ders / test / podcast oturumu | Üst çubuk yok, tek çıkış × (`chrome="session"`) |
+| Hazırlık sayfası | Simgeler üst çubukta; tanı bandı yok — "Seviye tespiti" yolun ilk düğümü |
+| "Devam et" | Dersi doğrudan açar: etkin konu yoksa ilk konu, tanı zorunlu değil (açılınca ertelenir) |
+| Hazırlık adı | Ana konulardan model yazar (`PREP_TITLE`); dosya adı yalnız yedek |
+| Yol kartı, ders kurulumu | Kavram birimli derste dersin kendi adı |
+
+Kullanıcı kararıyla **eklenmeyenler** (yine soruldu, "hiçbiri"): Yıldızlar / haftalık
+sıralama, yazılı denemede "Kağıtta çöz", video ders. Bekçi: `astra-final-ui.test.ts`,
+`continue-opens-lesson.test.ts`, `prep-title.test.ts`.
+
+---
+
 ## Ürün öğrenci-only — veli ve öğretmen paneli yok
 
 **`3e666f6` (29 Ağustos 2026)** veli ve öğretmen arayüzünü tümüyle emekli
 etti: `/ogretmen-paneli/*`, `/odevlerim/*`, `/onboarding/veli`,
 `/onboarding/ogretmen` silindi, kayıt sihirbazından veli/öğretmen adımları
-çıkarıldı, `/ogretmenler-ve-profesorler-icin` `/kayit`'e yönlendirmeye
-dönüştü. "Veli tarafını düzeltelim" denince önce bu satır okunmalı.
+çıkarıldı, `/ogretmenler-ve-profesorler-icin` emekli rota oldu (middleware
+`/ogretmen`'e gönderiyor; oturumsuz ziyaretçi `/giris`'e düşer — e2e
+`auth.spec.ts`). "Veli tarafını düzeltelim" denince önce bu satır okunmalı.
 
 Bugün geriye kalanlar (4 Eylül 2026 itibarıyla doğrulandı):
 
@@ -156,9 +189,30 @@ liste soruyor (para hareketi yok) ve cevabı `/admin/sistem`'e yazıyor.
 
 **Karar park edildi (17 Eylül 2026):** "Direkt API'ye geçip PCI'ı kabul
 edelim mi" sorusu ürün sahibine soruldu; cevap **önce PayTR'ye soralım**
-oldu. Gönderilecek talep hazır: `cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`
-— dört soru ve her cevabın ne değiştireceği yazılı. Yazılı cevap gelmeden
+oldu. Talep **3 Ekim 2026'da gönderildi** (Mağaza Paneli → Destek, Teknik Destek /
+Entegrasyon, mağaza 747272): `cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`
+— dört soru ve her cevabın ne değiştireceği yazılı. Cevap panelde "Destek
+Talepleriniz" altında ve hesabın e-postasına gelir. Yazılı cevap gelmeden
 Direkt API'ye geçilmiyor ve sözleşme metnine dokunulmuyor.
+
+## Ücretsiz katman (3 Ekim 2026) — günde bir ders, bir hazırlık, toplam 5 sayfa
+
+Ürün sahibinin kararı, aynı gün Astra'nın ücretsiz hesabı ölçülerek: Astra'da
+**tek sohbet mesajı günlük hakkın %64'ünü** yedi; ikinci mesajla hak doldu,
+üçüncüsünde cevap bulanık + geri sayımlı yükseltme kapısı çıktı. Sayaç %0'dayken
+bile ücretsiz hesap yeni hazırlık kuramıyordu.
+
+| Kural | Nerede |
+|---|---|
+| Günlük hak **2 kredi** = bir ders (ya da bir test, bir podcast, iki sohbet mesajı); her şey aynı haktan | `credit_reserve` (göç `20261003120000`), `period.ts` |
+| **Bir** sınav hazırlığı ("Hedef puan" kaydı sayılmaz); ders seçilince kapı | `free-prep-limit.ts`, sihirbaz + sohbet + okul kopyası |
+| Hesap başına **toplam 5 sayfa** belge işleme (silinenler dahil); fazlası işlenmez, "ilk N sayfa işlendi" yazar | `free-pages.ts`, `pdf-ingestion.ts`, `pipeline.ts`, `documents.source_page_count` |
+| Resim sayfası hakkı dolunca belge **reddedilmez**; o sayfalar atlanır | `scan_pages_skipped` |
+| Konu haritası, kurulum sohbeti ve ücretsizde belge işleme **ders hakkından yemez** | `generateJson({ chargeCredits: false })` |
+| Kapıda geri sayım + "neden ücretsiz değil" | `upgrade-sheet.tsx` |
+
+Sayılar tek yerde: `src/lib/billing/free-tier-copy.ts`. Kampanya bandı kurulmadı
+(karar: şimdilik değil; `/admin/promosyonlar` hazır). Bekçi: `free-tier.test.ts`.
 
 ## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
 
@@ -200,26 +254,71 @@ göremez — hepsi yeşildi.
 
 Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası".
 
-## Ders kalitesi: model yazıyor, zincir siliyor olabilir — önce ölç
+## Öğretmen ders motoru (2 Ekim 2026) — eski onarım zinciri silindi (3 Ekim 2026)
 
-**29 Eylül 2026'da belgesiz dersler hep "kurtarma" moduna düşüyordu**:
-1–3 bölüm, ders cümlesinin kopyası "hep doğru" sorular, çözümlü örnek yok.
-Model örneği, sayısal soruyu, formül kartını, şık gerekçesini **yazıyordu**;
-yayına giden zincir (normalize → kapı → onarım → öğretim denetimi) yolda
-siliyordu. Ayrıntı: #163, #165, #166, #167, #168.
+Belgeli sınav hazırlığı dersleri öğretmen motorundan geliyor: temiz sayfa metni (`document_pages.clean_text`) → tek öğretmen
+istemi (`teacher-lesson.ts`) → model denetimi → en fazla 2 düzeltme turu.
+**Kod ders metnine hiçbir şey eklemez** — "Kaynak:" satırı, kalıp özet, dolgu
+soru yok. Denetimde yüksek sorun kalırsa ders öğrenciye gitmez, kredi iade.
+Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI.md`.
 
 | Yapmayın | Yapın |
 |---|---|
-| Ders kötü diye istemi değiştirmek | Canlı `lesson_shape` kaydına bakın: `draft` ile `published` karşılaştırması neyin nerede düştüğünü söyler |
-| Kapıyı gevşetip bırakmak | Gevşeyen her kapıdan sonra cevap anahtarını **ekrandan çözerek** doğrulayın — #166 sonrası "(3⁴)² = 3¹²" anahtarı öğrenciye gitti, `exponent-key.ts` o yüzden var |
-| Dolgu soru üretip sonra onu "kopya" diye cezalandırmak | Doldurma (`ensureThreeChecks`) ile kapı (`teachingFailures`) aynı kuralı paylaşmalı |
+| Kötü bir dersi kodla "onarmak" | İstemi ya da denetimi düzeltin, sonra altın denemeyi (`tests/unit/_tmp/golden-lesson.test.ts`, yerel) yeniden koşun |
+| Kaynaktaki bozuk cümleyi kopyalatmak | Yazar kaynağın kendi örnekleriyle tutarlı anlamı sessizce yazar; denetçi bunu sorun saymaz |
+| Yazar ve denetçiye farklı kural vermek | Bir kural eklenince ikisine de eklenir — çelişirse düzeltme turu hiçbir şey değiştirmez |
 
-Taslak `gpt-4.1-mini`'den geliyor ve şemadan tutarlı biçimde sapıyor: örneği
-bölümün içine yazıyor, çözümü `steps`'e koyuyor, "… Özet" / "Bilgi Kontrolü: …"
-bölümleri açıyor, üssün üssünü `3²×³` diye yazıyor. Bunlar artık
-`normalizeLessonShape` ve `coerceLessonCosmetics` içinde karşılanıyor; yeni
-bir sapma görürseniz orada karşılayın, dersi düşürmeyin. Bekçi testler:
-`lesson-draft-drift.test.ts`, `lesson-rich-fields.test.ts`, `exponent-key.test.ts`.
+Belgesiz hazırlık dersleri de aynı motordan (`mode: "topic"`): aynı akış, kaynak
+kuralı yerine doğruluk kuralı, denetçi doğruluğa bakar. Hazırlık sohbeti de öğretmen
+yolunda (`teacher-tutor.ts`), öğrencinin seçtiği moda göre.
+
+**2 Ekim 2026: bütün içerik öğretmen motorlarında** (ürün sahibinin kararı). Hepsi
+aynı kalıp: temiz çekirdek sayfalar (dersle aynı sayfalar) → tek öğretmen istemi →
+öğeyi **önce kendisi çözen/cevaplayan** model denetimi → sorunlu öğenin düzeltilmesi
+ya da elenmesi → yetmezse içerik gösterilmez, kredi iade. Kod metne dokunmaz; yalnız
+biçim (başlık yazımı, gösterim/seslendirme) ve sıra (şık karıştırma, zor kart önce).
+
+| İçerik | Dosya |
+|---|---|
+| Ders (belgeli + belgesiz) | `teacher-lesson*.ts` |
+| Hazırlık sohbeti (`TUTOR_ENGINE`) | `teacher-tutor*.ts` |
+| Konu testi, tuzak, yazılı deneme, son kontrol, odaklı pratik, soru-cevap, deneme sınavı, düello, tanışma, tanı, test aracı | `teacher-quiz*.ts`, `exam-quiz-generate.ts` |
+| Podcast (5 tür) | `teacher-podcast*.ts` |
+| Kartlar, aralıklı tekrar | `teacher-cards.ts` |
+| Doğru/yanlış, sözlü deneme | `teacher-practice.ts` |
+| Kavram birimi (`TOPIC_UNITS_ENGINE`) | `concept-units*.ts` |
+
+Ortak parçalar: `teacher-item-loop.ts` (yedekli taslak, öğe öğe denetim, düzeltme),
+`teacher-engine-run.ts` (kredi kabuğu). Çoktan seçmeli şıklar soru metnine bağlı
+sabit sırayla karışır — model doğru cevabı neredeyse hep ilk şıkka yazıyordu.
+
+**Eski taslak + onarım zinciri 3 Ekim 2026'da silindi** (ürün sahibinin kararı;
+~8.200 satır: `lesson-repair`, `lesson-teach`, `lesson-quality-pipeline`, eski
+test zinciri, `/calis` oturumu, `LESSON/QUIZ/PODCAST/CARDS/PRACTICE_ENGINE`
+anahtarları). Çekirdek sayfası bulunamayan belgeli içerik yazılmaz:
+`source_unavailable`, kredi düşmez. Eski zincirin canlı hatalardan çıkmış
+kuralları (aralık uçları, iki doğru kural yan yana şık) `teacher-quiz.ts`'in yazar
+ve denetçi istemine taşındı. Kötü içerik için kod onarımı geri getirilmez — istem
+ya da denetim düzeltilir.
+
+**Araçlar da öğretmen motorunda (3 Ekim 2026, #242):** `/araclar` kartları, podcast,
+sözlü deneme, sesli ders/sesli sözlü ve ders podcast'i aynı motorlardan;
+kaynak `studio-teacher-source.ts` (belge seçiliyse konunun sayfaları, değilse konu
+modu). Eski `generateJson` taslak yolu bu uçlardan kalktı.
+
+**Sıradaki ders önceden yazılıyor (3 Ekim 2026, #243):** öğrenci bir dersi açınca
+aynı konunun yolundaki sonraki ders arka planda yazılır, `exam_prep_prefetch`'te
+bekler. **Kredi yalnız öğrenci açınca düşer**; açılmayan dersin model maliyeti
+bizde (kullanım `LESSON_PREFETCH` koduyla). Arka plan isteği öğrencinin çerezini
+taşımaz — Supabase yenileme anahtarını iki istekte kullanmak oturumu düşürebilir;
+sunucu imzalı kısa ömürlü başlık (`lesson-prefetch.ts`) taşır. Öğrencinin aşinalık
+cevabı başka kuşaktaysa (yeni/duymuştum · temel · iyi/güvenli) hazır ders atılır,
+yeniden yazılır. Bekçi test: `lesson-prefetch.test.ts`.
+
+**Tüm test paketini `npx vitest run --exclude "tests/unit/_tmp/**"` ile koşun.**
+`tests/unit/_tmp/` yerel altın denemeleri `.env.local` anahtarıyla canlı model
+çağırıyor ve kapıları yok; düz `npx vitest run` onları da çalıştırır (3 Ekim'de
+onaysız ~0,04 $).
 
 ## Fonksiyon bölgesi Frankfurt (`fra1`) — veritabanının yanı
 

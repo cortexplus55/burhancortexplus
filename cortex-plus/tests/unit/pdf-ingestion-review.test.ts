@@ -294,7 +294,9 @@ describe("readPdfBatch OCR claim release on quota failure (B5)", () => {
     });
   });
 
-  it("quota fail: claimed pages released once; no unhandledRejection", async () => {
+  // 3 Ekim 2026: hak dolunca belge artık reddedilmiyor. Hakkı olan sayfalar
+  // okunuyor, hakkı aşan resim sayfaları atlanıyor; alınan haklar korunuyor.
+  it("quota fail: over-quota pages skipped, claimed pages kept; no unhandledRejection", async () => {
     const claimResults = [true, true, false, false];
     let claimCalls = 0;
     const releases: number[] = [];
@@ -340,26 +342,28 @@ describe("readPdfBatch OCR claim release on quota failure (B5)", () => {
     process.on("unhandledRejection", onUnhandled);
 
     try {
-      await expect(
-        readPdfBatch(
-          service as never,
-          Buffer.from("pdf"),
-          "doc-1",
-          "user-1",
-          1,
-          4,
-          Date.now() + 60_000,
-          null,
-          4,
-        ),
-      ).rejects.toThrow("photo_quota_exhausted");
+      const read = await readPdfBatch(
+        service as never,
+        Buffer.from("pdf"),
+        "doc-1",
+        "user-1",
+        1,
+        4,
+        Date.now() + 60_000,
+        null,
+        4,
+      );
 
-      // Let sibling rejections and finally handlers flush.
+      // Let sibling handlers flush.
       await new Promise((resolve) => setTimeout(resolve, 80));
 
       expect(claimCalls).toBe(4);
-      expect(releases.sort((a, b) => a - b)).toEqual([1, 2]);
-      expect(releases).toHaveLength(2);
+      expect(read.pages).toHaveLength(4);
+      expect(read.ocrPageNumbers.sort((a, b) => a - b)).toEqual([1, 2]);
+      expect(read.scanSkipped.sort((a, b) => a - b)).toEqual([3, 4]);
+      expect(read.failedPages.sort((a, b) => a - b)).toEqual([3, 4]);
+      // OCR'ı biten sayfaların hakkı geri verilmiyor; atlanan sayfa hiç almamıştı.
+      expect(releases).toEqual([]);
       expect(unhandled).toEqual([]);
     } finally {
       process.off("unhandledRejection", onUnhandled);

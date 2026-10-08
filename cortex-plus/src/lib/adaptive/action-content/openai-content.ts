@@ -4,6 +4,7 @@
  */
 
 import "server-only";
+import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
@@ -44,7 +45,7 @@ async function chatJson(
 ): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
   const completion = await client.chat.completions.create({
     model: modelId,
-    temperature: 0.35,
+    ...samplingParams(modelId, { temperature: 0.35 }),
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: system },

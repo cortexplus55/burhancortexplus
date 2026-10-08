@@ -15,7 +15,7 @@ import {
   MIN_USABLE_LESSON_CHARS,
   type SourceContext,
 } from "@/lib/learning/source-context";
-import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { topicTitlesAlign } from "@/lib/learning/topic-align";
 import {
   allowedPrepDocumentIds,
   parseTopicSourceRefs,

@@ -5,7 +5,6 @@ import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
  * Bileşenler bu sabitleri kullanır; metin ikinci bir yerde yazılmaz.
  */
 export const WIZARD_STEP_ORDER = [
-  "start",
   "subject",
   "date",
   "target",
@@ -16,8 +15,6 @@ export const WIZARD_STEP_ORDER = [
   "focus",
   "plan",
 ] as const;
-
-export type WizardProgressStep = (typeof WIZARD_STEP_ORDER)[number];
 
 export const DOCUMENT_ANALYSIS_STAGES = [
   "Ekler okunuyor",
@@ -67,7 +64,7 @@ export const WIZARD_COPY = {
   topicDuplicate: "Bu konu listede zaten var.",
   topicCheckFailed: "Konu şu an doğrulanamadı. Tekrar dene.",
   fileCap: "Bir hazırlığa en fazla 8 dosya ekleyebilirsin.",
-  examHeavy: "Sınavda ağırlıklı",
+  examHeavy: "Sınavda sık çıkar",
   important: "Önemli",
   missingMaterial: "materyalde yok",
   addMissing: "Ekle",

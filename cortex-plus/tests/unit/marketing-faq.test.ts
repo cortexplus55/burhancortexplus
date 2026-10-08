@@ -36,14 +36,14 @@ describe("SSS listesi", () => {
 describe("vaatlerin kodda karşılığı var", () => {
   const answers = MARKETING_FAQ.map((i) => i.a).join("\n");
 
-  /* Ücretsiz günlük hak gerçekten 6 mı? */
-  it("6 kredi iddiası göç dosyasıyla uyuşuyor", () => {
-    expect(answers).toContain("6 kredi");
+  /* Ücretsiz günlük hak gerçekten 2 mi? (3 Ekim 2026: günde bir ders) */
+  it("2 kredi iddiası göç dosyasıyla uyuşuyor", () => {
+    expect(answers).toContain("2 kredi");
     const sql = readFileSync(
-      "supabase/migrations/20260903150000_daily_budget_calendar_app_metrics.sql",
+      "supabase/migrations/20261003120000_free_tier_one_lesson.sql",
       "utf8",
     );
-    expect(sql).toContain("v_allowance := 6");
+    expect(sql).toContain("v_allowance := 2");
   });
 
   /* "Cevaplayamadığında kredin düşmüyor" — sohbet rotasında iade var mı? */

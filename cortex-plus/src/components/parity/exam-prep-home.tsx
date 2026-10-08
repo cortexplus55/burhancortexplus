@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AudioLines,
   ClipboardCheck,
@@ -51,6 +52,8 @@ import {
 } from "@/lib/learning/prep-progress-view";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
+import { formatDayLong } from "@/lib/format";
+import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
@@ -58,6 +61,10 @@ import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
 } from "@/components/parity/exam-prep-settings-panel";
+
+/** Kabuğun "focus" başlığındaki simge yeri (sor-shell). */
+export const PREP_TOP_SLOT_ID = "cp-sor-top-slot";
+const INTRO_NODE_ID = "__intro";
 
 export type HomeNode = {
   id: string;
@@ -139,7 +146,12 @@ function labelsFor(topicLabels: string[], rows: { title: string }[]): string[] {
 /** "Birim Çember · Ders · notlar s.10–18" → "Birim Çember". */
 function nodeHeading(node: HomeNode): string {
   const raw = node.title || PLAN_NODE_META[node.kind].title;
-  return raw.split(" · ")[0]?.trim() || raw;
+  const parts = raw.split(" · ").map((part) => part.trim());
+  // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
+  // kendi adı. Astra kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
+  const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
+  if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
+  return parts[0] || raw;
 }
 
 export type PrepMaterial = {
@@ -191,6 +203,10 @@ export function ExamPrepHome({
   readinessClaim = null,
   topicWarnings = {},
   progressView = null,
+  targetScore = null,
+  creatorLabel = "Sen",
+  schoolName = null,
+  joinCount = 0,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -233,6 +249,13 @@ export function ExamPrepHome({
   topicWarnings?: Record<string, string>;
   /** İlerleme sekmesi; sayfa kayıtlardan kurar. Yoksa düğümlerden hesaplanır. */
   progressView?: PrepProgressView | null;
+  /** Ayarlar'da düzenlenir (Astra, 1 Ekim 2026). */
+  targetScore?: number | null;
+  /** Menü kartında "Oluşturan": "Sen" ya da okuldan katılınan hazırlığın sahibi. */
+  creatorLabel?: string;
+  schoolName?: string | null;
+  /** Okulda paylaşıldıysa katılım sayısı. */
+  joinCount?: number;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -250,6 +273,26 @@ export function ExamPrepHome({
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
   const [view, setView] = useState<"yol" | "ilerleme">("yol");
+  const [topSlot, setTopSlot] = useState<HTMLElement | null>(null);
+  // Sunucu çiziminde simgeler gizli: yoksa açılışta bir an ayrı satırda
+  // görünüp üst çubuğa zıplıyorlardı.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setTopSlot(document.getElementById(PREP_TOP_SLOT_ID));
+    setMounted(true);
+  }, []);
+  /**
+   * Seviye tespiti yolun ilk düğümü (3 Ekim 2026). Eskiden yolun üstünde
+   * "Seviyeni henüz ölçmedik" bandıydı; Astra'nın yolunda bant yok.
+   */
+  const introNode: HomeNode = {
+    id: INTRO_NODE_ID,
+    kind: "quiz",
+    title: "Seviye tespiti",
+    dayIndex: 0,
+    sortOrder: -1,
+    status: "ready",
+  };
   /** "⋮" — Astra'nın hazırlık menüsü: paylaş, ders oluştur, kaynaklar, ayarlar. */
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsPane, setOptionsPane] = useState<"menu" | "kaynaklar" | "ayarlar">("menu");
@@ -288,6 +331,10 @@ export function ExamPrepHome({
   }
 
   function openNode(node: HomeNode) {
+    if (node.id === INTRO_NODE_ID) {
+      router.push(examPrepIntroHref(prepId));
+      return;
+    }
     if (!hasTopic) {
       router.push(`/deneme-sinavlari/${prepId}/konu`);
       return;
@@ -324,12 +371,15 @@ export function ExamPrepHome({
     }
   }
 
-  return (
-    <div className="cp-exam-page cp-exam-trail-page">
-      {/* Astra'da hazırlığın sağ üstünde üç simge var: sohbet, paylaş, "⋮".
-          Bakım işleri (ayarlar, kaynaklar, değerlendirme) o menüde; ilk
-          ekran yalnızca yolu gösteriyor. */}
-      <div className="cp-prep-actions" role="toolbar" aria-label="Hazırlık işlemleri">
+  // Astra'da hazırlığın simgeleri (sohbet, düello, paylaş, "⋮") üst çubukta,
+  // serinin solunda (3 Ekim 2026). Kabuk "focus" başlığında yer açıyor;
+  // yer yoksa (test ortamı) simgeler sayfanın başında kalır.
+  const toolbar = (
+      <div
+        className={cn("cp-prep-actions", !mounted && "cp-prep-actions--pending")}
+        role="toolbar"
+        aria-label="Hazırlık işlemleri"
+      >
         <Link
           href={`/deneme-sinavlari/${prepId}/sohbet`}
           className="cp-prep-icon"
@@ -370,6 +420,11 @@ export function ExamPrepHome({
           <MoreVertical className="h-4 w-4" aria-hidden />
         </button>
       </div>
+  );
+
+  return (
+    <div className="cp-exam-page cp-exam-trail-page">
+      {topSlot ? createPortal(toolbar, topSlot) : toolbar}
 
       <header className="cp-exam-trail-head cp-exam-hero">
         <h1>{title}</h1>
@@ -412,16 +467,6 @@ export function ExamPrepHome({
         />
       ) : null}
 
-      {view === "yol" && introPending ? (
-        <Link href={examPrepIntroHref(prepId)} className="cp-intro-nudge">
-          <strong>Seviyeni henüz ölçmedik.</strong>
-          <span>
-            8 soruluk tanı, planı hangi konuya daha çok zaman ayıracağına göre
-            ayarlar. Birkaç dakika sürer.
-          </span>
-        </Link>
-      ) : null}
-
       {view === "yol" && !nodes.length ? (
         <div className="cp-exam-empty cp-exam-empty--discover" role="status">
           <p>
@@ -444,6 +489,7 @@ export function ExamPrepHome({
       ) : view === "yol" ? (
         <StudyPath
           nodes={nodes}
+          lead={introPending ? introNode : null}
           currentId={nextNode?.id ?? null}
           onOpen={openNode}
           readinessClaim={readinessClaim}
@@ -520,11 +566,16 @@ export function ExamPrepHome({
             {optionsPane === "menu" ? (
               <>
                 <div className="cp-prep-sheet-card">
+                  <p className="cp-prep-sheet-owner">
+                    Oluşturan: <strong>{creatorLabel}</strong>
+                    {schoolName ? <span> · 🏛️ {schoolName}</span> : null}
+                    {shared && joinCount > 0 ? <span> · {joinCount} katılım</span> : null}
+                  </p>
                   <p className="cp-prep-sheet-kicker">{examType}</p>
                   <p className="cp-prep-sheet-title">{title}</p>
                   <p className="cp-prep-sheet-meta">
                     {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `%${progressPct}`}
-                    {examDate ? ` · sınav ${examDate}` : ""}
+                    {examDate ? ` · sınav ${formatDayLong(examDate)}` : ""}
                     {daysLabel ? ` · ${daysLabel}` : ""}
                   </p>
                   {!uiV2 && scheduleSummary ? (
@@ -589,14 +640,12 @@ export function ExamPrepHome({
                       </Link>
                     </li>
                   ) : null}
-                  {settings ? (
-                    <li>
-                      <button type="button" onClick={() => setOptionsPane("ayarlar")}>
-                        <Settings className="h-4 w-4" aria-hidden />
-                        Ayarlar
-                      </button>
-                    </li>
-                  ) : null}
+                  <li>
+                    <button type="button" onClick={() => setOptionsPane("ayarlar")}>
+                      <Settings className="h-4 w-4" aria-hidden />
+                      Ayarlar
+                    </button>
+                  </li>
                 </ul>
               </>
             ) : null}
@@ -622,9 +671,10 @@ export function ExamPrepHome({
               </div>
             ) : null}
 
-            {optionsPane === "ayarlar" && settings ? (
+            {optionsPane === "ayarlar" ? (
               <div className="cp-prep-sheet-pane">
-                <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
+                <PrepBasicsPanel prepId={prepId} title={title} targetScore={targetScore} />
+                {settings ? <ExamPrepSettingsPanel prepId={prepId} initial={settings} /> : null}
               </div>
             ) : null}
           </div>
@@ -635,6 +685,7 @@ export function ExamPrepHome({
         <StudyToolsHub
           prepId={prepId}
           nodes={nodes}
+          openMisconceptions={openMisconceptions}
           topics={labels}
           topicOptions={topicOptions}
           topicLabel={hubTopic}
@@ -659,11 +710,14 @@ const PATH_PATTERN = [0, 1, 0, -1] as const;
 
 function StudyPath({
   nodes,
+  lead = null,
   currentId,
   onOpen,
   readinessClaim,
 }: {
   nodes: HomeNode[];
+  /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
+  lead?: HomeNode | null;
   currentId: string | null;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
@@ -671,8 +725,8 @@ function StudyPath({
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
   // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları Astra'daki gibi yok.
   const ordered = useMemo(
-    () => groupNodesByPhase(nodes).flatMap((group) => group.nodes),
-    [nodes],
+    () => [...(lead ? [lead] : []), ...groupNodesByPhase(nodes).flatMap((group) => group.nodes)],
+    [nodes, lead],
   );
   const points = ordered.map((node, index) => ({
     node,

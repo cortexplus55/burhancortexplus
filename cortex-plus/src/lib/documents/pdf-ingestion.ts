@@ -2,6 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractText } from "@/lib/documents/extract-text";
 import { renderPdfPages, BLANK_INK_RATIO } from "@/lib/documents/render-pdf-pages";
+
+type RenderedPage = Awaited<ReturnType<typeof renderPdfPages>>["pages"][number];
 import { extractImageText } from "@/lib/documents/extract-image-text";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import { isAdminUser, AdminCheckError } from "@/lib/auth/roles";
@@ -10,13 +12,52 @@ import { chunkText, embedTexts } from "@/lib/rag/pipeline";
 import { env } from "@/lib/env";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
+import { cappedPageTotal, freePagesRemaining } from "@/lib/documents/free-pages";
 
 /** Default pages per step; shrinks when the deadline is near. */
-export const PDF_PAGES_PER_STEP = 6;
+export const PDF_PAGES_PER_STEP = 40;
 /** Soft wall-clock budget for one Vercel invocation (leave margin under 300s). */
-export const PDF_STEP_DEADLINE_MS = 200_000;
-/** Parallel OCR pages per wave — claim/retry/blocked stay per-page. */
-export const OCR_PAGE_CONCURRENCY = 4;
+export const PDF_STEP_DEADLINE_MS = 250_000;
+/**
+ * OCR pages in flight — claim/retry/blocked stay per-page. The pool starts at
+ * OCR_START_CONCURRENCY, halves on a 429 (never below OCR_MIN_CONCURRENCY)
+ * and grows by one per clean page up to OCR_PAGE_CONCURRENCY. A high-detail
+ * page image is ~37k input tokens for gpt-4o-mini, so the provider's TPM
+ * limit, not a fixed number, decides the real speed.
+ */
+export const OCR_PAGE_CONCURRENCY = 24;
+export const OCR_START_CONCURRENCY = 12;
+export const OCR_MIN_CONCURRENCY = 4;
+/**
+ * The pool keeps its size across 40-page steps of the same document (the
+ * route chains steps in one process), so each step does not fall back to
+ * OCR_START_CONCURRENCY. A cold instance starts over at the start value.
+ */
+const OCR_POOL_MEMORY_MS = 15 * 60_000;
+const ocrPoolMemory = new Map<string, { limit: number; at: number }>();
+
+export function rememberedOcrLimit(documentId: string, now = Date.now()): number | null {
+  const hit = ocrPoolMemory.get(documentId);
+  if (!hit) return null;
+  if (now - hit.at > OCR_POOL_MEMORY_MS) {
+    ocrPoolMemory.delete(documentId);
+    return null;
+  }
+  return hit.limit;
+}
+
+function rememberOcrLimit(documentId: string, limit: number) {
+  ocrPoolMemory.delete(documentId);
+  ocrPoolMemory.set(documentId, { limit, at: Date.now() });
+  while (ocrPoolMemory.size > 500) {
+    const oldest = ocrPoolMemory.keys().next().value;
+    if (oldest === undefined) break;
+    ocrPoolMemory.delete(oldest);
+  }
+}
+
+/** How long one process/route invocation may chain extract steps. */
+export const PDF_CHAIN_BUDGET_MS = 250_000;
 const EMBED_BATCH = 24;
 const LEASE_RENEW_MS = 240_000;
 
@@ -151,8 +192,11 @@ async function ocrOneBlankPage(input: {
   claimed: boolean;
   ocrSuccess: boolean;
   failed: boolean;
+  /** Resim sayfası hakkı dolduğu için okunmadı (belge düşmez, 3 Ekim 2026). */
+  quotaSkipped?: boolean;
   tokensIn: number;
   tokensOut: number;
+  rateLimited?: boolean;
 }> {
   const {
     service, documentId, userId, pageNumber, png, inkRatio,
@@ -187,7 +231,20 @@ async function ocrOneBlankPage(input: {
       p_page_number: pageNumber, p_limit: limit,
     });
     if (error) throw new Error("photo_quota_unavailable");
-    if (data !== true) throw new Error("photo_quota_exhausted");
+    if (data !== true) {
+      // Eskiden belgenin tamamı reddediliyordu (27 Eylül 2026: ücretsiz
+      // hesabın KPSS PDF'i birkaç resim sayfası yüzünden düştü). Artık
+      // yalnız bu sayfa okunmuyor; metinli sayfalar işleniyor.
+      return {
+        page: { text: "", extractionOk: false, extractionMethod: "ocr", pageKind: "unreadable" },
+        claimed: false,
+        ocrSuccess: false,
+        failed: true,
+        quotaSkipped: true,
+        tokensIn: 0,
+        tokensOut: 0,
+      };
+    }
     claimed = true;
     onClaimed?.(pageNumber);
   }
@@ -232,6 +289,7 @@ async function ocrOneBlankPage(input: {
       failed: false,
       tokensIn: read.tokensIn,
       tokensOut: read.tokensOut,
+      rateLimited: read.rateLimited,
     };
   }
 
@@ -249,6 +307,7 @@ async function ocrOneBlankPage(input: {
     failed: !blank,
     tokensIn: read.tokensIn,
     tokensOut: read.tokensOut,
+    rateLimited: read.rateLimited,
   };
 }
 
@@ -271,6 +330,7 @@ export async function readPdfBatch(
   total: number;
   ocrPageNumbers: number[];
   failedPages: number[];
+  scanSkipped: number[];
 }> {
   const extracted = await extractText(buffer, "application/pdf", firstPage, pageBudget);
   if (extracted.total <= 0 || !extracted.pages.length) throw new Error("empty_content");
@@ -284,10 +344,11 @@ export async function readPdfBatch(
   const done = pages.map((page) => Boolean(page.text.trim()));
   const failedPages: number[] = [];
   const ocrPageNumbers: number[] = [];
+  const scanSkipped: number[] = [];
 
   const blankIndexes = pages.flatMap((page, index) => page.text.trim() ? [] : [index]);
   if (!blankIndexes.length) {
-    return { pages, total: extracted.total, ocrPageNumbers, failedPages };
+    return { pages, total: extracted.total, ocrPageNumbers, failedPages, scanSkipped };
   }
 
   let founder = false;
@@ -302,45 +363,62 @@ export async function readPdfBatch(
   const claimed = new Set<number>();
 
   try {
-    const rendered = await renderPdfPages(buffer, pages.length, firstPage);
-    if (rendered.pages.length !== pages.length) throw new Error("scan_unreadable");
-
-    // Classify without OCR first — blank / render-failed are done immediately.
-    const needsOcr: number[] = [];
-    for (const index of blankIndexes) {
-      const meta = rendered.pages[index]!;
-      const number = firstPage + index;
+    // Render and OCR are pipelined: a page goes to OCR as soon as it is painted.
+    const blank = new Set(blankIndexes);
+    const metas = new Map<number, RenderedPage>();
+    const queue: number[] = [];
+    let wake: (() => void) | null = null;
+    const notify = () => {
+      const resume = wake;
+      wake = null;
+      resume?.();
+    };
+    const takePage = (meta: RenderedPage, index: number) => {
+      if (!blank.has(index) || metas.has(index)) return;
+      metas.set(index, meta);
+      // Classify without OCR first — blank / render-failed are done immediately.
       if (meta.inkRatio < BLANK_INK_RATIO && !meta.hasImageContent) {
-        pages[index] = {
-          text: "",
-          extractionOk: true,
-          extractionMethod: "none",
-          pageKind: "blank",
-        };
+        pages[index] = { text: "", extractionOk: true, extractionMethod: "none", pageKind: "blank" };
         done[index] = true;
-        continue;
-      }
-      if (meta.scanRenderFailed) {
-        pages[index] = {
-          text: "",
-          extractionOk: false,
-          extractionMethod: "ocr",
-          pageKind: "unreadable",
-        };
+      } else if (meta.scanRenderFailed) {
+        pages[index] = { text: "", extractionOk: false, extractionMethod: "ocr", pageKind: "unreadable" };
         done[index] = true;
-        failedPages.push(number);
-        continue;
+        failedPages.push(firstPage + index);
+      } else {
+        queue.push(index);
+        notify();
       }
-      needsOcr.push(index);
-    }
+    };
+    const renderStarted = Date.now();
+    let renderMs = 0;
+    let renderError: unknown = null;
+    let renderDone = false;
+    const rendering = renderPdfPages(buffer, pages.length, firstPage, { onPage: takePage })
+      .then((rendered) => {
+        if (rendered.pages.length !== pages.length) throw new Error("scan_unreadable");
+        rendered.pages.forEach(takePage);
+      })
+      .catch((error) => {
+        renderError = error;
+      })
+      .finally(() => {
+        renderDone = true;
+        renderMs = Date.now() - renderStarted;
+        notify();
+      });
 
-    // Bounded pool: start up to OCR_PAGE_CONCURRENCY pages, honour deadline
-    // before each start so a near-budget step returns a contiguous prefix.
-    let cursor = 0;
+    const ocrStarted = Date.now();
+    const maxLimit = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
+    let limitNow = Math.max(1, Math.min(
+      rememberedOcrLimit(documentId) ?? OCR_START_CONCURRENCY,
+      maxLimit,
+    ));
+    const limitStart = limitNow;
+    let rateLimitedPages = 0;
     let poolError: unknown = null;
     const inFlight = new Map<number, Promise<void>>();
     const startOne = (index: number) => {
-      const meta = rendered.pages[index]!;
+      const meta = metas.get(index)!;
       const number = firstPage + index;
       const work = (async () => {
         const result = await ocrOneBlankPage({
@@ -352,8 +430,15 @@ export async function readPdfBatch(
         });
         pages[index] = result.page;
         done[index] = true;
+        if (result.rateLimited) {
+          rateLimitedPages += 1;
+          limitNow = Math.max(Math.min(OCR_MIN_CONCURRENCY, maxLimit), Math.floor(limitNow / 2));
+        } else if (result.ocrSuccess) {
+          limitNow = Math.min(maxLimit, limitNow + 1);
+        }
         if (result.ocrSuccess) ocrPageNumbers.push(number);
         if (result.failed) failedPages.push(number);
+        if (result.quotaSkipped) scanSkipped.push(number);
         if (result.tokensIn || result.tokensOut) {
           await recordUsage(service, {
             userId, actionCode: "DOCUMENT_PAGE_PROCESS",
@@ -363,38 +448,43 @@ export async function readPdfBatch(
         }
       })();
       inFlight.set(index, work);
-      // Record the first failure and swallow so siblings never surface as
-      // unhandledRejection; the loop stops starting and rethrows after settle.
       work
         .catch((error) => {
           poolError = poolError ?? error;
         })
         .finally(() => {
           inFlight.delete(index);
+          notify();
         });
     };
 
-    const concurrency = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
-    while (cursor < needsOcr.length || inFlight.size) {
-      while (
-        !poolError &&
-        inFlight.size < concurrency &&
-        cursor < needsOcr.length &&
-        Date.now() < deadlineMs - 5_000
-      ) {
-        startOne(needsOcr[cursor]!);
-        cursor += 1;
+    // Honour the deadline before each start so a near-budget step returns a
+    // contiguous prefix.
+    let ocrPages = 0;
+    for (;;) {
+      while (!poolError && inFlight.size < limitNow && queue.length && Date.now() < deadlineMs - 5_000) {
+        startOne(queue.shift()!);
+        ocrPages += 1;
       }
-      if (poolError) {
-        await Promise.allSettled([...inFlight.values()]);
-        break;
-      }
-      if (!inFlight.size) break;
-      // Race may reject when a worker fails; poolError catch already recorded it.
-      await Promise.race(inFlight.values()).catch(() => undefined);
+      if (poolError || renderError) break;
+      const canStart = queue.length > 0 && Date.now() < deadlineMs - 5_000;
+      if (renderDone && !inFlight.size && !canStart) break;
+      await new Promise<void>((resolve) => {
+        wake = resolve;
+      });
     }
     if (inFlight.size) await Promise.allSettled([...inFlight.values()]);
+    if (ocrPages > 0) rememberOcrLimit(documentId, limitNow);
+    await rendering;
+    console.info("pipeline_timing", {
+      documentId, stage: "render", ms: renderMs, pages: pages.length, firstPage,
+    });
+    console.info("pipeline_timing", {
+      documentId, stage: "ocr", ms: Date.now() - ocrStarted, pages: ocrPages,
+      concurrencyStart: limitStart, concurrencyEnd: limitNow, rateLimitedPages,
+    });
     if (poolError) throw poolError;
+    if (renderError) throw renderError;
   } catch (error) {
     if (!founder) {
       // Batch is abandoning — release every held claim (text was not saved).
@@ -414,6 +504,7 @@ export async function readPdfBatch(
     total: extracted.total,
     ocrPageNumbers: ocrPageNumbers.filter((n) => n < firstPage + prefixLen),
     failedPages: failedPages.filter((n) => n < firstPage + prefixLen),
+    scanSkipped: scanSkipped.filter((n) => n < firstPage + prefixLen),
   };
 }
 
@@ -463,8 +554,8 @@ export async function saveBatch(
 
 function adaptivePageBudget(deadlineMs: number): number {
   const remaining = deadlineMs - Date.now();
-  if (remaining < 45_000) return 2;
-  if (remaining < 90_000) return 4;
+  if (remaining < 45_000) return 8;
+  if (remaining < 90_000) return 16;
   return PDF_PAGES_PER_STEP;
 }
 
@@ -493,11 +584,18 @@ export async function processPdfDocumentStep(
   let reservationId: string | null = lease.reservationId ?? null;
   let ocrPageNumbers: number[] = [];
   try {
-    reservationId = await ensureReservation(service, userId, documentId, lease);
+    // Ücretsiz katman: hesap başına toplam 5 sayfa (3 Ekim 2026). Bu belge
+    // kalan hak kadar işlenir; hak hiç yoksa belge reddedilir. Ücretsizde
+    // belge işleme günlük ders hakkından yemez — sınırı bu 5 sayfa koyar.
+    const remaining = await freePagesRemaining(service, userId, documentId);
+    if (remaining === 0) throw new Error("free_page_limit");
+    if (remaining === null) {
+      reservationId = await ensureReservation(service, userId, documentId, lease);
+    }
     await renewLease(service, documentId, lease.token);
 
     const { data: doc, error: docError } = await service.from("documents")
-      .select("storage_path")
+      .select("storage_path, scan_pages_skipped")
       .eq("id", documentId).eq("user_id", userId).is("deleted_at", null).maybeSingle();
     if (docError || !doc) throw new Error("not_found");
     const { data: file, error: downloadError } = await service.storage.from("documents")
@@ -505,11 +603,15 @@ export async function processPdfDocumentStep(
     if (downloadError || !file) throw new Error("download_failed");
     const buffer = Buffer.from(await file.arrayBuffer());
     const firstPage = lease.nextPage ?? 1;
-    const pageBudget = adaptivePageBudget(deadlineMs);
+    const pageBudget = remaining == null
+      ? adaptivePageBudget(deadlineMs)
+      : Math.max(1, Math.min(adaptivePageBudget(deadlineMs), remaining - firstPage + 1));
     const read = await readPdfBatch(
       service, buffer, documentId, userId, firstPage, pageBudget, deadlineMs, options?.maxOcrPages,
     );
     ocrPageNumbers = read.ocrPageNumbers;
+    const total = cappedPageTotal(read.total, remaining);
+    if (read.pages.length > total - firstPage + 1) read.pages.length = Math.max(0, total - firstPage + 1);
 
     // Deadline with zero finished pages — retryable, do not advance cursor.
     if (!read.pages.length) {
@@ -519,7 +621,7 @@ export async function processPdfDocumentStep(
       });
       return {
         status: "processing",
-        pageCount: read.total,
+        pageCount: total,
         nextPage: firstPage,
         pagesDone: firstPage - 1,
         failedPages: [],
@@ -537,13 +639,13 @@ export async function processPdfDocumentStep(
         topic_map_status: "none", topic_map_error: null, topic_map_updated_at: null,
         updated_at: new Date().toISOString(),
       }).eq("id", documentId).eq("user_id", userId);
-      await updateLease(service, documentId, lease.token, { initialized: true, total_pages: read.total });
+      await updateLease(service, documentId, lease.token, { initialized: true, total_pages: total });
     }
 
     await assertLease(service, documentId, lease.token);
     await saveBatch(service, documentId, firstPage, read.pages);
     const nextPage = firstPage + read.pages.length;
-    const complete = nextPage > read.total;
+    const complete = nextPage > total;
 
     if (complete) {
       const { count, error: countError } = await service.from("document_chunks")
@@ -551,7 +653,7 @@ export async function processPdfDocumentStep(
       if (countError) throw new Error("empty_content");
       if (!count) {
         const anyOk = read.pages.some((page) => page.extractionOk && page.text.trim());
-        if (!anyOk) throw new Error("empty_content");
+        if (!anyOk) throw new Error(read.scanSkipped.length ? "photo_quota_exhausted" : "empty_content");
       }
     }
 
@@ -559,7 +661,9 @@ export async function processPdfDocumentStep(
     const { error: documentError } = await service.from("documents")
       .update({
         status: "processing",
-        page_count: read.total,
+        page_count: total,
+        source_page_count: read.total,
+        scan_pages_skipped: Number(doc.scan_pages_skipped ?? 0) + read.scanSkipped.length,
         error_message: null,
         updated_at: nowIso,
       })
@@ -567,24 +671,24 @@ export async function processPdfDocumentStep(
     if (documentError) throw new Error("completion_update_failed");
     await service.from("processing_jobs").update({
       status: "processing",
-      progress: Math.min(complete ? 40 : 39, Math.floor((nextPage - 1) / read.total * 40)),
+      progress: Math.min(complete ? 40 : 39, Math.floor((nextPage - 1) / total * 40)),
       error_message: null,
     }).eq("document_id", documentId);
 
     await updateLease(service, documentId, lease.token, {
       next_page: nextPage,
-      total_pages: read.total,
+      total_pages: total,
       status: complete ? "ready" : "extracting",
       lease_token: null,
       lease_until: null,
     });
 
     if (complete) {
-      return { status: "ready", pageCount: read.total, failedPages: read.failedPages };
+      return { status: "ready", pageCount: total, failedPages: read.failedPages };
     }
     return {
       status: "processing",
-      pageCount: read.total,
+      pageCount: total,
       nextPage,
       pagesDone: nextPage - 1,
       failedPages: read.failedPages,

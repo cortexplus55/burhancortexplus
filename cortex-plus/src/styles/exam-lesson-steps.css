@@ -9,6 +9,12 @@
   flex-direction: column;
 }
 
+.als-toolbar {
+  display: flex;
+  justify-content: center;
+  margin: calc(-1 * var(--sp-2, 0.5rem)) 0 var(--sp-3, 0.75rem);
+}
+
 .als-top {
   position: sticky;
   top: 0;
@@ -924,4 +930,86 @@
   .als-minutes {
     display: none;
   }
+}
+
+/* Ders giriş kartı — Astra gibi plan (1 Ekim 2026). */
+.als-intro-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--cp-muted, var(--c-text-muted));
+}
+
+.als-intro-tag {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cp-text, var(--c-text));
+}
+
+.als-intro-plan {
+  margin: 1rem 0 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.als-intro-plan h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.als-intro-plan ol {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.als-intro-plan li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.als-intro-plan li > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+}
+
+.als-intro-plan li > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+
+.als-intro-plan li small {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
+  opacity: 0.68;
+}
+
+.als-intro-end {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-muted, var(--c-text-muted));
 }

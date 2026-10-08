@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { definitionalInversionIssues, mistakeTeachesInversion } from "@/lib/learning/unit-inversions";
-import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { layoutBoard } from "@/lib/learning/lesson-board";
 import { reviewQuestionFor } from "@/lib/learning/teacher-brain";
 
@@ -110,28 +109,6 @@ describe("phase-change lesson", () => {
         "Faz kararı için sıcaklık T_sat(P) ile karşılaştırılır.",
       ),
     ).toBe(false);
-  });
-
-  it("replaces vague summary lines with the source sentence", () => {
-    const grounded = groundLearnerLesson(
-      {
-        title: "Saf Maddeler ve Faz Değişimi",
-        sections: [{ heading: "Saf Maddeler ve Fazlar", body: source }],
-        summary: [VAGUE_MIXTURE, VAGUE_COMPARE, "Saf maddenin bileşimi her yerde aynıdır."],
-      },
-      source,
-    );
-    const lesson = grounded.lesson as { summary?: string[] };
-    const summary = lesson.summary?.join(" ") ?? "";
-    expect(grounded.removed.join(" ")).toMatch(/summary:replaced/);
-    expect(summary).not.toContain("karışımını belirler");
-    expect(summary).not.toContain("sıcaklık ve basınç arasında");
-    expect(summary).toMatch(/kuruluk/);
-    expect(summary).toMatch(/T_sat/);
-    expect(summary).toContain("Saf maddenin bileşimi her yerde aynıdır.");
-
-    const again = groundLearnerLesson(lesson, source);
-    expect(again.removed).toEqual([]);
   });
 
   it("puts saturation relations on their own formula line", () => {

@@ -52,6 +52,8 @@ export type ExamChatContext = {
   starters: ExamChatPrompt[];
   /** Modele en fazla bir kez değinmesi için kişisel bağlam satırı. */
   personalizationPrompt: string;
+  /** En son okunan ders (belgeden üretilip denetlendi); öğretmen sohbeti pasaj olarak kullanır. */
+  lastLesson?: { title: string; text: string } | null;
 };
 
 /**
@@ -347,16 +349,30 @@ export async function loadExamChatContext(
   // sohbetin neye baktığı belli olsun.
   const { data: lessonRow } = await service
     .from("exam_prep_lessons")
-    .select("title, content_json")
+    .select("title, content_json, created_at")
     .eq("exam_prep_id", prepId)
     .not("content_json", "is", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Düğüm dersi (konu kimliği olmadan açılan "Ders oluştur") exam_prep_lessons'a
+  // yazılmıyor; 2 Ekim 2026 canlı denemesinde sohbet o dersi görmüyordu.
+  const { data: nodeLessonRow } = await service
+    .from("exam_prep_node_attempts")
+    .select("payload, created_at")
+    .eq("exam_prep_id", prepId)
+    .eq("user_id", userId)
+    .eq("payload->>type", "lesson")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nodeLessonNewer =
+    nodeLessonRow?.created_at && (!lessonRow?.created_at || String(nodeLessonRow.created_at) > String(lessonRow.created_at));
+  const lessonJson = nodeLessonNewer
+    ? (nodeLessonRow?.payload as { lesson?: unknown } | null)?.lesson
+    : lessonRow?.content_json;
 
-  const lesson = lessonRow?.content_json
-    ? lessonV2Schema.safeParse(lessonRow.content_json).data ?? null
-    : null;
+  const lesson = lessonJson ? lessonV2Schema.safeParse(lessonJson).data ?? null : null;
 
   if (lesson) {
     // Yalnızca başlıklar verilince sohbet tanımları kendi bilgisinden
@@ -446,6 +462,7 @@ export async function loadExamChatContext(
     history,
     starters,
     personalizationPrompt,
+    lastLesson: lesson ? { title: lesson.title, text: lessonFacts.slice(0, 6000) } : null,
     block: `\n\n<sinav-hazirligi>\n${lines.join("\n")}\n</sinav-hazirligi>`,
   };
 }

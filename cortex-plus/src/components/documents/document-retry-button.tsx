@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  PROCESS_RETRY_MESSAGE,
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
@@ -18,9 +17,12 @@ export function DocumentRetryButton({ documentId }: { documentId: string }) {
     try {
       const result = await requestDocumentProcessing({
         documentId,
-        post: postDocumentProcess,
+        // An explicit press: a map that ran out of attempts starts fresh.
+        post: (body) => postDocumentProcess({ ...body, retryMap: true }),
       });
-      if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+      // Silent automatic retries; toast only on terminal failure. A map that
+      // could not be built again just offers "Tekrar dene" again (no error).
+      if (!result.ok && result.body.canRetry === true) return;
       if (!result.ok) {
         toast.error(
           typeof result.body.error === "string" ? result.body.error : "Doküman yeniden işlenemedi.",
@@ -44,7 +46,7 @@ export function DocumentRetryButton({ documentId }: { documentId: string }) {
       onClick={retry}
       className="text-xs font-medium text-[var(--cs-primary)] underline underline-offset-2 disabled:opacity-60"
     >
-      {pending ? "İşleniyor…" : "Yeniden işle"}
+      {pending ? "İşleniyor…" : "Tekrar dene"}
     </button>
   );
 }

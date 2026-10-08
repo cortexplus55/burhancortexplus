@@ -858,24 +858,6 @@ export function quantityClaimGrounded(
   return evaluateQuantityClaim(text, source, seedProven).ok;
 }
 
-/** Kaynakta olmayan (ve türetilemeyen) niceliğin cümlesini düşürür. */
-export function withoutUnsupportedQuantities(text: string, source: string): string {
-  if (!text.trim()) return text;
-  // Cümle cümle; önceki cümlede kanıtlanan sonuç sonraki adımda kullanılabilir.
-  const parts = text.split(/\n+|(?<=[.!?;])\s+(?=[A-ZÇĞİÖŞÜ“"]|[A-Za-z])/);
-  let proven = new Set<string>();
-  const kept: string[] = [];
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    const result = evaluateQuantityClaim(trimmed, source, proven);
-    if (!result.ok) continue;
-    kept.push(trimmed);
-    proven = result.proven;
-  }
-  return kept.join(" ").replace(/\s+/g, " ").trim();
-}
-
 /**
  * Analizde duran formülü kaynakta yoksa at.
  * Katsayısı 3 ve üstü olan ifade, o sayı belgede yoksa kalmaz.
@@ -1211,25 +1193,6 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
   return clipBlock(lines.join("\n"), 2200);
 }
 
-/**
- * Üreticiye formül yasağı. Öğretmen notu vurgu olabilir; olgu olamaz.
- * Doğrulayıcı da aynı cümleyi görür, böylece not ile sayfa metni ayrışmaz.
- */
-/**
- * Öğretmen notundaki kavram adları. Ders bunları gövdede geçiyorsa koyulaştırır.
- * Notta olmayan bir terim üretilmez.
- */
-export function keyTermsFromTeacherNote(note: string): string[] {
-  const terms: string[] = [];
-  for (const line of note.split("\n")) {
-    const match = line.match(/concept:\s*([^:\n]{2,80})/i);
-    if (!match) continue;
-    const term = match[1].replace(/\s+/g, " ").trim();
-    if (term.length >= 3 && term.length <= 60) terms.push(term);
-  }
-  return [...new Set(terms)].slice(0, 24);
-}
-
 export const SOURCE_PAGE_FORMULA_RULE =
   "Formül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. " +
   "Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. " +
@@ -1453,25 +1416,6 @@ export function teacherTurnGuidance(input: {
     );
   }
   return parts.join("\n");
-}
-
-export function voiceReplySchemaHint(language: MaterialLanguage): string {
-  if (language === "en") {
-    return 'JSON: {"reply":string,"done":boolean}. reply is spoken aloud and is short English. done is true only when the session has naturally ended.';
-  }
-  return 'JSON: {"reply":string,"done":boolean}. reply sesli okunacak, kısa Türkçe. done true yalnızca oturum doğal bittiyse.';
-}
-
-/**
- * Nicelik kapısı nottaki sayı yüzünden düşerse ders notsuz bir kez daha
- * üretilir. İkinci tur da düşerse üretim biter; döngü yok.
- */
-export function shouldRetryLessonWithoutBrief(input: {
-  brief: string | null | undefined;
-  rejectedForQuantity: boolean;
-  retried: boolean;
-}): boolean {
-  return !input.retried && Boolean(input.brief?.trim()) && input.rejectedForQuantity;
 }
 
 export const SINGLE_NARRATOR_SCHEMA =
@@ -1799,12 +1743,6 @@ export function retrySubjectStem(text: string): string | null {
   return null;
 }
 
-export function retrySharesSubject(original: string, next: string): boolean {
-  const subject = retrySubjectStem(original);
-  if (!subject) return true;
-  return foldTr(next).includes(subject);
-}
-
 function factStems(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -2115,43 +2053,4 @@ function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
     return null;
   }
   return shiftOptions({ ...check, prompt });
-}
-
-/** Ders sonu tekrarı aynı cümleyi ve aynı şık yerini geri getirmez. */
-export function rephraseReviewPrompt(prompt: string, language: MaterialLanguage = "tr"): string {
-  const trimmed = prompt.trim();
-  if (language === "en") {
-    const lower = trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
-    const next = `On the exam, ${lower}`;
-    return next === trimmed ? `Restated: ${trimmed}` : next.slice(0, 300);
-  }
-  let next = trimmed;
-  if (/^aşağıdakilerden hangisi/i.test(trimmed)) {
-    next = trimmed.replace(/^Aşağıdakilerden hangisi/i, "Sınavda hangisi");
-  } else if (trimmed.endsWith("?")) {
-    next = `Aynı noktayı başka sözcüklerle: ${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`;
-  } else {
-    next = `Bunu sınav diliyle yeniden düşün: ${trimmed}`;
-  }
-  if (next.trim() === trimmed) next = `Tekrar, yeni cümleyle: ${trimmed}`;
-  return next.slice(0, 300);
-}
-
-export function rephraseSectionCheck<T extends ReviewCheck>(
-  check: T,
-  language: MaterialLanguage = "tr",
-): T {
-  const count = check.options.length;
-  const shift = stableShift(check.prompt, count);
-  const options =
-    shift === 0
-      ? check.options
-      : check.options.map((_, index) => check.options[(index + shift) % count]);
-  const answerIndex = shift === 0 ? check.answerIndex : (check.answerIndex - shift + count) % count;
-  return {
-    ...check,
-    prompt: rephraseReviewPrompt(check.prompt, language),
-    options,
-    answerIndex,
-  };
 }

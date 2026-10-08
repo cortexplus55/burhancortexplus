@@ -4,7 +4,7 @@ import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { examPrepIntroHref, needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
+import { needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
 import type { Familiarity } from "@/lib/learning/session-signals";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -12,6 +12,7 @@ import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
 import { studyNodeOpenable } from "@/lib/learning/study-tools";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
+import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 
 export const metadata = { title: "Ders" };
 
@@ -58,8 +59,14 @@ export default async function ExamNodePage({
     .from("exam_prep_nodes")
     .select("status")
     .eq("exam_prep_id", prepId);
+  // Tanı zorunlu kapı değil (3 Ekim 2026, Astra): öğrenci bir etkinliği
+  // açtıysa ölçüm ertelenir; seviye tespiti yolun başında düğüm olarak kalır.
   if (needsExamIntro(prep.intro_completed_at, nodeRows ?? [], prep.intro_deferred_at)) {
-    redirect(examPrepIntroHref(prepId));
+    await createServiceClient()
+      .from("exam_preps")
+      .update({ intro_deferred_at: new Date().toISOString() })
+      .eq("id", prepId)
+      .eq("user_id", user.id);
   }
 
   // Etiket, düğümün kendi konusundan gelir.
@@ -103,18 +110,40 @@ export default async function ExamNodePage({
     }));
   }
 
-  let sourceName: string | null = null;
-  if (prep.document_id) {
-    const { data: doc } = await supabase
-      .from("documents")
-      .select("file_name")
-      .eq("id", prep.document_id)
-      .maybeSingle();
-    sourceName = (doc?.file_name as string | null) ?? null;
-  }
+  // "N kaynak": hazırlığın bütün materyalleri. source_document_ids ayrı
+  // okunur — kolon yoksa tek belgeye düşülür (hazırlık sayfasıyla aynı).
+  const { data: sourceIdRow } = await supabase
+    .from("exam_preps")
+    .select("source_document_ids")
+    .eq("id", prepId)
+    .maybeSingle();
+  const rawSourceIds = (sourceIdRow as { source_document_ids?: unknown } | null)?.source_document_ids;
+  const sourceIds = prepSourceDocumentIds({
+    documentId: (prep.document_id as string | null) ?? null,
+    sourceDocumentIds: Array.isArray(rawSourceIds)
+      ? rawSourceIds.filter((id): id is string => typeof id === "string")
+      : [],
+  });
+  const { data: sourceRows } = sourceIds.length
+    ? await supabase
+        .from("documents")
+        .select("id, file_name")
+        .in("id", sourceIds)
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+    : { data: [] as { id: string; file_name: string }[] };
+  const sourceById = new Map((sourceRows ?? []).map((row) => [row.id as string, row]));
+  const sources = sourceIds.flatMap((id) => {
+    const row = sourceById.get(id);
+    return row ? [{ id, name: (row.file_name as string) || "Belge", href: `/dokumanlar/${id}` }] : [];
+  });
+  const sourceName =
+    (prep.document_id ? sourceById.get(prep.document_id as string)?.file_name : null) ??
+    sources[0]?.name ??
+    null;
 
   return (
-    <ParitySorShell {...shell} chrome="exam">
+    <ParitySorShell {...shell} chrome="session">
       <ExamNodeSession
         prepId={prep.id}
         nodeId={node.id}
@@ -126,9 +155,11 @@ export default async function ExamNodePage({
         initialFamiliarity={topicFamiliarity}
         resumeEnabled={resumeEnabled}
         sourceName={sourceName}
+        sources={sources}
         oralTopics={oralTopics}
         language={prepLanguage(prep.learning_preferences)}
         subject={(prep.exam_type as string | null) ?? null}
+        unitTitle={sessionMeta?.unitTitle ?? null}
       />
     </ParitySorShell>
   );

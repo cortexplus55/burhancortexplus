@@ -50,7 +50,7 @@ export default async function ExamPrepLessonPage({
     : null;
 
   return (
-    <ParitySorShell {...shell} chrome="exam">
+    <ParitySorShell {...shell} chrome="session">
       <article className="cp-exam-page cp-lesson-page">
         <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
           ← Geri
@@ -77,18 +77,8 @@ export default async function ExamPrepLessonPage({
         )}
 
         <div className="cp-exam-result-actions">
-          <Link
-            href={
-              lesson.topic_id
-                ? `/deneme-sinavlari/${prepId}/calis?topic=${lesson.topic_id}`
-                : `/deneme-sinavlari/${prepId}/calis`
-            }
-            className="cp-exam-continue cp-exam-continue--primary"
-          >
-            Konuya dön
-          </Link>
-          <Link href={`/deneme-sinavlari/${prepId}`} className="cp-exam-continue">
-            Konu yoluna dön
+          <Link href={`/deneme-sinavlari/${prepId}`} className="cp-exam-continue cp-exam-continue--primary">
+            Çalışma yoluna dön
           </Link>
         </div>
       </article>

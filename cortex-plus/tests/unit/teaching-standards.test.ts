@@ -1,31 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  appendLessonReviewCards,
-  cardsFromLessonReviews,
-  extractMisconceptions,
-  lessonMissDrafts,
-  prepareLessonDraft,
-  parseSessionMeta,
-  scoreFlashcardsV2,
-  teachingActivityForKind,
-  teachingSessionContext,
-  teachingStandardConstraints,
-  validateFlashcardPedagogy,
-  blockingLessonIssues,
-  brokenSuperscript,
-  dropScaffoldSections,
-  emptyMistake,
-  isScaffoldHeading,
-  lessonPublishIssues,
-  lessonV2Schema,
-  validateLessonPedagogy,
-  validateLessonV2,
-  validateOralPedagogy,
-  validatePodcastPedagogy,
-  validateQuizPedagogy,
-  validateTrueFalsePedagogy,
-} from "@/lib/learning/teaching-standards";
-import type { QuizQuestion } from "@/lib/learning/exam-quiz";
+import { appendLessonReviewCards, cardsFromLessonReviews, extractMisconceptions, lessonMissDrafts, prepareLessonDraft, parseSessionMeta, scoreFlashcardsV2, teachingActivityForKind, teachingSessionContext, teachingStandardConstraints, blockingLessonIssues, brokenSuperscript, dropScaffoldSections, emptyMistake, isScaffoldHeading, lessonPublishIssues, lessonV2Schema, validateLessonPedagogy, validateLessonV2, validatePodcastPedagogy } from "@/lib/learning/teaching-standards";
 
 describe("teaching standards contract", () => {
   it("maps node kinds to activities", () => {
@@ -334,80 +308,6 @@ describe("teaching standards contract", () => {
     expect(brokenSuperscript("Taban 3, üs 4")).toBe(false);
   });
 
-  it("rejects quiz pedagogy failures", () => {
-    const bad: QuizQuestion[] = [
-      {
-        text: "2+2?",
-        options: ["4", "Hepsi doğrudur", "4", "3"],
-        correct: ["4"],
-        multi: true,
-        explanation: "kısa",
-      },
-    ];
-    const issues = validateQuizPedagogy(bad, { requireObjective: true });
-    expect(issues.some((i) => i.includes("multi"))).toBe(true);
-    expect(issues.some((i) => i.includes("hepsi") || i.includes("tekrar") || i.includes("learningObjective"))).toBe(true);
-
-    const good: QuizQuestion[] = [
-      {
-        text: "Birim çemberde 90° noktasının koordinatı nedir?",
-        options: ["(0, 1)", "(1, 0)", "(0, -1)", "(-1, 0)"],
-        correct: ["(0, 1)"],
-        multi: false,
-        explanation: "90° yukarıda olduğu için x=0 ve y=1 olur.",
-        learningObjective: "90° özel açısını okumak",
-      },
-    ];
-    expect(validateQuizPedagogy(good, { requireObjective: true })).toEqual([]);
-    expect(
-      validateQuizPedagogy(
-        [{ ...good[0], learningObjective: undefined }],
-        { requireObjective: true },
-      ).some((i) => i.includes("learningObjective")),
-    ).toBe(true);
-  });
-
-  it("flags vague true/false and missing correction", () => {
-    expect(
-      validateTrueFalsePedagogy([
-        {
-          text: "Her zaman doğrudur.",
-          correct: true,
-          explanation: "Bu belirsiz bir genelleme örneğidir.",
-        },
-      ]).length,
-    ).toBeGreaterThan(0);
-    expect(
-      validateTrueFalsePedagogy([
-        {
-          text: "180° bir tam açıdır.",
-          correct: false,
-          explanation: "Tam açı 360° ölçüsündedir.",
-          correctedStatement: "360° bir tam açıdır.",
-        },
-      ]),
-    ).toEqual([]);
-  });
-
-  it("rejects flashcards that leak the answer", () => {
-    const issues = validateFlashcardPedagogy([
-      { front: "sin 30° = 1/2", back: "1/2", difficulty: "easy" },
-      { front: "cos 0°?", back: "1", difficulty: "medium" },
-      { front: "tan 45°?", back: "1", difficulty: "hard" },
-      { front: "Birim çember yarıçapı?", back: "1", difficulty: "easy" },
-    ]);
-    expect(issues.some((i) => i.includes("sızdır") || i.includes("Zor"))).toBe(true);
-
-    expect(
-      validateFlashcardPedagogy([
-        { front: "sin 30° değeri nedir?", back: "1/2", difficulty: "hard" },
-        { front: "cos 0°?", back: "1", difficulty: "medium" },
-        { front: "tan 45°?", back: "1", difficulty: "easy" },
-        { front: "Birim çember yarıçapı?", back: "1", difficulty: "easy" },
-      ]),
-    ).toEqual([]);
-  });
-
   it("scores flashcards as participation not mastery", () => {
     const scored = scoreFlashcardsV2(4, { "0": true, "1": true, "2": false, "3": true });
     expect(scored).toMatchObject({ score: 1, total: 1, knownCount: 3, masteryClaim: false });
@@ -455,24 +355,6 @@ describe("teaching standards contract", () => {
     // Somut hata: hangi değeri neyin yerine koyduğu belli.
     expect(emptyMistake("LL = 52 yerine PI = 28 kullanmak sınıfı yanlış verir.")).toBe(false);
     expect(emptyMistake("Sinüs ile kosinüsü yer değiştirmek sık hatadır.")).toBe(false);
-  });
-
-  it("requires oral rubrics under v2", () => {
-    expect(
-      validateOralPedagogy([{ prompt: "Birim çemberi anlat." }]).some((i) =>
-        i.includes("rubric"),
-      ),
-    ).toBe(true);
-    expect(
-      validateOralPedagogy([
-        {
-          prompt: "Birim çemberi anlat.",
-          rubricCriteria: ["Tanım", "Koordinat"],
-          expectedPoints: ["yarıçap 1", "x=cos"],
-          modelAnswer: "Birim çemberin yarıçapı 1'dir; x ekseni cosinus verir.",
-        },
-      ]),
-    ).toEqual([]);
   });
 
   it("extracts misconceptions from wrong quiz/tf answers", () => {
@@ -847,19 +729,6 @@ describe("echo, broken feedback, and summary synthesis", () => {
     expect(issues.some((issue) => issue.includes("kopyası"))).toBe(true);
     expect(issues.some((issue) => issue.includes("anlaşılmıyor"))).toBe(true);
   });
-
-  it("edebiyatta bozuk açıklamayı düşürür", () => {
-    expect(
-      validateTrueFalsePedagogy([
-        {
-          text: "Redif ile kafiye aynı sestir.",
-          correct: false,
-          explanation: "Hangi dizenin ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.",
-          correctedStatement: "Redif ek, kafiye kökte benzer sestir.",
-        },
-      ]).some((issue) => issue.includes("şablon") || issue.includes("yarım")),
-    ).toBe(true);
-  });
 });
 
 describe("validateLessonV2 is the publish gate", () => {
@@ -991,107 +860,6 @@ describe("validateLessonV2 is the publish gate", () => {
     expect(prepared?.sections.map((section) => section.heading)).not.toContain("Bölüm 1");
     expect(prepared?.sections).toHaveLength(2);
     expect(validateLessonV2(numbered)).toEqual([]);
-  });
-});
-
-describe("quiz tag and distractor gate", () => {
-  it("requires a misconception tag and a refutation when the exam gate is on", () => {
-    const question: QuizQuestion = {
-      text: "90° noktasının y koordinatı nedir?",
-      options: ["bir", "sıfır", "eksi"],
-      correct: ["bir"],
-      multi: false,
-      explanation: "90° yukarıdadır. Sıfır yatay eksendedir, y değeri değildir.",
-      learningObjective: "Özel açıyı okumak",
-    };
-    expect(
-      validateQuizPedagogy([question], {
-        requireMisconceptionTag: true,
-        requireDistractorRefutation: true,
-      }).some((issue) => issue.includes("misconceptionTag")),
-    ).toBe(true);
-    expect(
-      validateQuizPedagogy(
-        [{ ...question, misconceptionTag: "sin_cos_swap" }],
-        { requireMisconceptionTag: true, requireDistractorRefutation: true },
-      ),
-    ).toEqual([]);
-  });
-});
-
-describe("true/false exam gate", () => {
-  it("requires the tag and an explanation that uses the correction", () => {
-    const weak = {
-      text: "Pi tam olarak 22/7'ye eşittir.",
-      correct: false,
-      explanation: "Bu ifade yanlıştır.",
-      correctedStatement: "Pi yaklaşık 22/7 değerindedir.",
-      misconceptionTag: "pi_fraction",
-    };
-    expect(
-      validateTrueFalsePedagogy([weak], { requireMisconceptionTag: true }).some((issue) =>
-        issue.includes("çürütmüyor"),
-      ),
-    ).toBe(true);
-    expect(
-      validateTrueFalsePedagogy(
-        [
-          {
-            ...weak,
-            explanation: "22/7 bir kesirdir; pi yalnızca yaklaşık o değere yakındır.",
-          },
-        ],
-        { requireMisconceptionTag: true },
-      ),
-    ).toEqual([]);
-  });
-});
-
-describe("quiz explanations must refute a distractor", () => {
-  const q = (
-    text: string,
-    options: string[],
-    correct: string[],
-    explanation: string,
-  ): QuizQuestion => ({ text, options, correct, multi: false, explanation });
-
-  it("rejects a set where every explanation only restates the answer", () => {
-    // Canlıda üretilmiş beşlinin aynısı: hepsi doğruyu tekrarlıyor.
-    const questions = [
-      q(
-        "Hangi açı için kosinüs -1 olur?",
-        ["180°", "90°", "270°", "360°"],
-        ["180°"],
-        "Kosinüs -1 sadece 180° için elde edilir.",
-      ),
-      q(
-        "Sinüs 1/2 olan açı grubu hangisidir?",
-        ["30°, 150°", "120°, 240°", "45°, 225°", "60°, 300°"],
-        ["30°, 150°"],
-        "Sinüs 1/2 olan açılar 30° ve 150°'dir.",
-      ),
-    ];
-    expect(
-      validateQuizPedagogy(questions).some((i) => i.includes("yalnızca doğruyu tekrarlıyor")),
-    ).toBe(true);
-  });
-
-  it("accepts a set whose explanations say what a wrong option actually is", () => {
-    const questions = [
-      q(
-        "90° ve 270°'de tanımsız olan fonksiyon hangisidir?",
-        ["Tanjant", "Sinüs", "Kosinüs", "Kotanjant"],
-        ["Tanjant"],
-        "Tanjant sinüs/kosinüs olduğundan kosinüs sıfırken tanımsızdır. Sinüs 90°'de 1 değerini alır, tanımsız değildir.",
-      ),
-      q(
-        "Hangi açı için kosinüs -1 olur?",
-        ["180°", "90°", "270°", "360°"],
-        ["180°"],
-        "Kosinüs x koordinatıdır; 180°'de -1 olur. 90° ve 270°'de kosinüs sıfırdır.",
-      ),
-    ];
-    expect(validateQuizPedagogy(questions)).toEqual([]);
   });
 });
 

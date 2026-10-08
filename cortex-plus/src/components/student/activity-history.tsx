@@ -1,3 +1,4 @@
+import { formatDayLong } from "@/lib/format";
 import {
   activityWeeks,
   currentStreak,
@@ -13,6 +14,7 @@ import {
  * öyle diyor; ölçmediğimiz bir şeyi sayı gibi göstermiyoruz.
  */
 
+// Ekran okuyucu ve ipucu ham ISO tarihi okuyordu ("2026-09-25: 0 etkinlik").
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 /** Yoğunluk kademesi; sıfır ayrı, gerisi üç basamak. */
@@ -56,7 +58,7 @@ export function ActivityHistory({ timestamps }: { timestamps: string[] }) {
             />
             <em>{dayLabel(day.date)}</em>
             <span className="sr-only">
-              {day.date}: {day.count} etkinlik
+              {formatDayLong(day.date)}: {day.count} etkinlik
             </span>
           </li>
         ))}
@@ -78,7 +80,7 @@ export function ActivityHistory({ timestamps }: { timestamps: string[] }) {
                     key={day.date}
                     className="cp-activity-cell"
                     data-level={level(day.count)}
-                    title={`${day.date}: ${day.count} etkinlik`}
+                    title={`${formatDayLong(day.date)}: ${day.count} etkinlik`}
                   />
                 ) : (
                   <span

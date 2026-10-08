@@ -359,25 +359,49 @@
   color: var(--cp-text);
 }
 
+/* Astra'nın Başla'sı: yuvarlak ışıltı, altında aralıklı küçük yazı. */
 .cp-sor-start {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  margin-top: 1.25rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+  padding: 0;
+  border: 0;
   background: transparent;
   color: var(--cp-text);
-  font-size: 0.9375rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.cp-sor-start:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.35);
+.cp-sor-start-orb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--cp-text) 8%, var(--cp-bg));
+  border: 1px solid color-mix(in srgb, var(--cp-text) 12%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cp-sor-start-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-sor-start:hover:not(:disabled) .cp-sor-start-orb {
+  transform: scale(1.04);
+  background: color-mix(in srgb, var(--cp-text) 12%, var(--cp-bg));
+}
+
+.cp-sor-start:focus-visible .cp-sor-start-orb {
+  outline: 2px solid var(--c-ai, #7c6cf7);
+  outline-offset: 3px;
 }
 
 /*
@@ -2786,6 +2810,107 @@
   z-index: 20;
 }
 
+/* Yazı kutusundaki ayar düğmesi: bugünkü ruh hali (Astra, 1 Ekim 2026). */
+.cp-mood-menu {
+  width: min(19rem, 90vw);
+  padding: 0.6rem;
+}
+
+.cp-mood-menu-title {
+  margin: 0.15rem 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-mood-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.cp-mood-chip {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-mood-chip:hover {
+  background: var(--c-surface-1);
+}
+
+.cp-mood-chip.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+}
+
+.cp-mood-menu-more {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-top: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-mood-menu-more:hover {
+  color: var(--cp-text);
+}
+
+/* Sohbetten açılan periyodik tablo. */
+.cp-ptable-back {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cp-ptable-modal {
+  position: relative;
+  width: min(100%, 60rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.1rem;
+  background: var(--c-bg);
+}
+
+.cp-ptable-close {
+  position: sticky;
+  top: 0.6rem;
+  z-index: 2;
+  float: right;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0.6rem 0.6rem 0 0;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+  cursor: pointer;
+}
+
+.tool--embedded {
+  padding: 1rem 1rem 1.5rem;
+}
+
 .cp-composer-mode-item {
   display: flex;
   gap: 0.65rem;
@@ -2892,6 +3017,16 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.5rem 0 1rem;
+}
+
+/* Tek çıkış ×: süre yokken de sağda dursun. */
+.cp-exam-study-bar > :last-child {
+  margin-left: auto;
+}
+
+/* Oturum kabuğu: üst çubuk yok, içerik ekranın başından başlar. */
+.cp-sor-root--session .cp-sor-main {
+  padding-top: 0.75rem;
 }
 
 .cp-topic-path {
@@ -5761,26 +5896,88 @@
   padding: 0;
 }
 
-.cp-pod-lengths {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.85rem;
+/* Podcast türü — Astra'daki beş tür (1 Ekim 2026). */
+.cp-pod-formats {
+  display: grid;
+  gap: 0.45rem;
   margin: 0.75rem 0;
   border: 0;
   padding: 0;
 }
 
-.cp-pod-lengths legend {
-  width: 100%;
-  margin-bottom: 0.25rem;
+.cp-pod-formats legend {
+  margin-bottom: 0.35rem;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
-.cp-pod-lengths label {
-  display: inline-flex;
+.cp-pod-format {
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
+  gap: 0.7rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cp-pod-format:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-pod-format.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 10%, transparent);
+}
+
+.cp-pod-format input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cp-pod-format:has(input:focus-visible) {
+  outline: 2px solid var(--c-action);
+  outline-offset: 2px;
+}
+
+.cp-pod-format-emoji {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.cp-pod-format-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.8rem;
+  color: var(--cp-muted);
+}
+
+.cp-pod-format-text strong {
+  font-size: 0.9rem;
+  color: var(--cp-text);
+}
+
+.cp-pod-format-text em {
+  margin-left: 0.25rem;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--cp-muted);
+}
+
+.cp-pod-format-badge {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--c-action);
+  border-radius: 999px;
+  color: var(--c-action);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .cp-studio {
@@ -9090,6 +9287,203 @@
   gap: 0.5rem;
 }
 
+/* Kart ilerlemesi, tekrar turu teklifi ve "N kaynak" (Astra, 1 Ekim 2026). */
+.cp-exam-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(100%, 32rem);
+}
+
+.cp-exam-card-progress > span {
+  position: relative;
+  flex: 1;
+  height: 0.3rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cp-border);
+}
+
+.cp-exam-card-progress i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--c-action);
+  transition: width 0.25s ease;
+}
+
+.cp-exam-card-progress em {
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--cp-muted);
+  white-space: nowrap;
+}
+
+.cp-exam-card-offer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 3rem auto 0;
+  max-width: 26rem;
+  text-align: center;
+}
+
+.cp-exam-card-offer h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.cp-exam-card-offer p {
+  margin: 0;
+  color: var(--cp-muted);
+}
+
+.cp-exam-card-offer-emoji {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.cp-node-sources {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: center;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.cp-node-sources:hover {
+  color: var(--cp-text);
+  background: var(--c-surface-2);
+}
+
+.cp-node-sources-back {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.cp-node-sources-modal {
+  width: min(100%, 26rem);
+  padding: 1.1rem 1.15rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1rem;
+  background: var(--c-surface-1, var(--cp-surface));
+  color: var(--cp-text);
+  text-align: left;
+}
+
+.cp-node-sources-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cp-node-sources-modal h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.cp-node-sources-modal header button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  cursor: pointer;
+}
+
+.cp-node-sources-modal > p {
+  margin: 0.35rem 0 0.9rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-node-sources-modal ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-node-sources-modal li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.75rem;
+}
+
+.cp-node-sources-modal li span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-node-sources-modal li a {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Sonuç ekranında "Arkadaşına meydan oku". */
+.cp-exam-challenge {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1rem;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  text-align: left;
+}
+
+.cp-exam-challenge:hover {
+  border-color: var(--c-action);
+}
+
+.cp-exam-challenge svg {
+  color: var(--c-action);
+}
+
+.cp-exam-challenge span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cp-exam-challenge em {
+  font-size: 0.85rem;
+  font-style: normal;
+  color: var(--cp-muted);
+}
+
 /* --- Seri ve rozetler penceresi ---------------------------------------------
    Üst çubuktaki alev düğmesi açıyor. Yerleşim referans üründen: tam ekran,
    ortada Seri / Rozetler sekmesi, sağ üstte bilgi ve Kapat; rozetler üç
@@ -9758,6 +10152,40 @@
   justify-content: flex-end;
   gap: 0.5rem;
   margin: 0 0 0.6rem;
+}
+
+/* Üst çubuğa taşınınca (Astra): serinin solunda, ayrı satır yok. */
+.cp-sor-top-slot {
+  display: contents;
+}
+
+.cp-sor-top-slot .cp-prep-actions {
+  margin: 0 0.5rem 0 0;
+}
+
+.cp-sor-root--focus .cp-prep-actions--pending {
+  display: none;
+}
+
+/* Telefonda Astra gibi tek satır: Geri, simgeler, seri, menü, avatar. */
+@media (max-width: 480px) {
+  .cp-sor-top-slot .cp-prep-actions {
+    gap: 0.3rem;
+    margin-right: 0.25rem;
+  }
+
+  .cp-sor-top-slot .cp-prep-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .cp-sor-root--focus .cp-sor-top {
+    flex-wrap: nowrap;
+  }
+
+  .cp-sor-root--focus .cp-sor-more-label {
+    display: none;
+  }
 }
 
 .cp-prep-icon {
@@ -10708,4 +11136,771 @@
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--c-brand, #6366f1);
+}
+
+/* Sohbet: "Problem N saniyede çözüldü" (Astra gibi, 1 Ekim 2026). */
+.cp-solved-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cp-solved-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+/* Profil: avatarı değiştir (Astra gibi, 1 Ekim 2026). */
+.cp-avatar-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+}
+
+.cp-avatar-pick-toggle {
+  border: 0;
+  background: none;
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cp-avatar-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 2.5rem));
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.cp-avatar-pick-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.cp-avatar-pick-option[aria-pressed="true"] {
+  border-color: var(--cs-primary, #f4ae0b);
+}
+
+.cp-avatar-pick-initial {
+  grid-column: span 2;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--cs-text, #fafafa);
+}
+
+/* Ayarlar penceresi (Astra gibi sekmeli, 1 Ekim 2026). */
+.cp-settings-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.cp-settings-link {
+  display: block;
+  margin-top: 1.25rem;
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cp-settings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cp-settings-chip {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--cs-text, #fafafa);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-settings-chip.is-on {
+  border-color: var(--cs-primary, #f4ae0b);
+  background: color-mix(in srgb, var(--cs-primary, #f4ae0b) 14%, transparent);
+}
+
+.cp-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.9rem;
+  cursor: pointer;
+}
+
+.cp-settings-toggle strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.cp-settings-toggle em {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-style: normal;
+}
+
+.cp-settings-toggle input {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  accent-color: var(--cs-primary, #f4ae0b);
+}
+
+/* Seri penceresi: günlük çalışma hedefi satırı. */
+.cp-jr-goal {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cp-jr-goal span {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cp-jr-goal strong {
+  font-size: 0.9rem;
+}
+
+.cp-jr-goal em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--cs-muted, #a1a1aa);
+  text-decoration: underline;
+}
+
+/* Disleksi dostu okuma (Ayarlar > Öğrenme tercihleri). */
+html[data-readable="1"] main {
+  letter-spacing: 0.035em;
+  word-spacing: 0.12em;
+}
+
+html[data-readable="1"] main p,
+html[data-readable="1"] main li {
+  line-height: 1.85;
+}
+
+/*
+  Kaynak kilidi ve ders seçici sabit bestecinin üstüne iki satır ekliyor.
+  1 Ekim 2026'da 1568px genişlikte çipler son cevabın son satırlarının
+  üstüne biniyordu: mesaj listesi 12rem yer açıyordu, besteci bölgesi ~15rem.
+  Çip satırı da artık opak; altından yazı görünmüyor.
+*/
+.cp-sor-view:has(.cp-sor-source-mode) .cp-sor-messages {
+  padding-bottom: calc(17.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.cp-sor-composer-zone .cp-sor-source-mode {
+  background: var(--c-surface-2);
+}
+
+/* "Sınav hazırlıklarında ara" — Astra'daki arama sayfası (1 Ekim 2026). */
+a.cp-exam-search {
+  text-decoration: none;
+}
+
+.cp-psearch {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.cp-psearch-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cp-psearch-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.cp-psearch-input {
+  flex: none;
+}
+
+.cp-psearch-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cp-psearch-owners {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0 0 0.25rem;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.cp-psearch-owner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 4rem;
+  padding: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 0.85rem;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cp-psearch-owner .cp-school-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.05rem;
+}
+
+.cp-psearch-owner.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 10%, transparent);
+}
+
+/*
+  Ders filtre çipleri (okul akışı, hazırlık araması). Eskiden "Uygulamalar"
+  bölümünün cp-lab-chip stilini kullanıyorlardı; bölüm silinince stil de
+  gitti ve 1 Ekim 2026'da çipler yan yana düz yazı gibi görünüyordu.
+*/
+.cp-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-filter-chip:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-filter-chip--on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+}
+
+/* Podcast oluşturma sayfasının konu seçicisi. */
+.cp-studio .cp-field select {
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  padding: 0 0.75rem;
+}
+
+/* Yazılı denemede serbest süre (Astra, 1 Ekim 2026). */
+.cp-mock-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.cp-mock-time-value {
+  min-width: 7rem;
+  margin: 0;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--cp-muted);
+}
+
+.cp-mock-time-value strong {
+  font-size: 2.25rem;
+  color: var(--cp-text);
+}
+
+.cp-mock-time.is-off .cp-mock-time-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cp-text);
+}
+
+.cp-mock-time-step {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.cp-mock-time-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cp-mock-time-range {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  accent-color: var(--c-action);
+}
+
+.cp-mock-time-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+/*
+  Podcast oluşturma sayfası: ortalı ve dar. .cp-studio kendi kenar boşluğunu
+  yazdığı için .cp-exam-page ile aynı öğede ortalama eziliyordu (1 Ekim 2026).
+*/
+.cp-studio-page {
+  max-width: min(40rem, 100%);
+}
+
+.cp-studio-page .cp-field select {
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  padding: 0 0.75rem;
+}
+
+/* Hazırlık menüsü: oluşturan / okul / katılım; Ayarlar'da ad, hedef, sil (1 Ekim 2026). */
+.cp-prep-sheet-owner {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-sheet-owner strong {
+  color: var(--cp-text);
+}
+
+.cp-prep-basics {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.cp-prep-basics-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.85rem;
+}
+
+.cp-prep-basics-label {
+  flex: 0 0 100%;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-basics-row > strong {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cp-prep-basics-link {
+  border: 0;
+  background: transparent;
+  color: var(--c-action);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics-edit {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.cp-prep-basics-edit input {
+  flex: 1 1 10rem;
+  min-height: 40px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.65rem;
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+}
+
+.cp-prep-basics button:not(.cp-prep-basics-link):not(.cp-prep-basics-delete) {
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics button.is-ghost {
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-text);
+}
+
+.cp-prep-basics button.is-danger {
+  background: var(--c-danger, #dc2626);
+}
+
+.cp-prep-basics button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cp-prep-basics-danger {
+  margin-top: 0.4rem;
+}
+
+.cp-prep-basics-delete {
+  border: 0;
+  background: transparent;
+  color: var(--c-danger, #ef4444);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics-confirm {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--c-danger, #ef4444) 45%, transparent);
+  border-radius: 0.85rem;
+}
+
+.cp-prep-basics-confirm p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.cp-prep-basics-confirm div {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* "Sınav hazırlıklarım" sayfası (Astra, 1 Ekim 2026). */
+.cp-prep-row-title a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cp-prep-row-title a:hover {
+  color: var(--c-action);
+}
+
+.cp-my-preps {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: center;
+}
+
+.cp-my-preps-head {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.cp-my-preps-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.cp-my-preps-head p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-my-preps-avatar {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.cp-my-preps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.cp-my-preps-new {
+  justify-self: center;
+}
+
+/* Hazırlıklarım sekmeleri. Ders seçicinin sekme stili oral-exam-chrome.css'te ve
+   bu sayfada yüklenmiyordu; sekmeler düz yazı gibi görünüyordu (2 Ekim 2026). */
+.cp-my-preps-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+}
+
+.cp-my-preps-tabs button {
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cp-my-preps-tabs button.is-on {
+  background: var(--cp-text);
+  color: var(--c-bg);
+}
+
+/* Belgelerim (3 Ekim 2026): sınav sayfalarıyla aynı kart dili. */
+.cp-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.cp-docs-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--cp-muted);
+  font-size: 0.9375rem;
+}
+
+.cp-docs-intro p {
+  margin: 0;
+}
+
+.cp-docs-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-docs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.cp-docs-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.cp-docs-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--cp-text) 6%, transparent);
+  color: var(--cp-muted);
+}
+
+.cp-docs-name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-docs-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+/* Ücretsiz planda kısmen işlenen belge (3 Ekim 2026). */
+.cp-docs-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-text);
+}
+
+.cp-docs-note a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cp-docs-status {
+  flex-shrink: 0;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--cp-text) 6%, transparent);
+  color: var(--cp-muted);
+}
+
+.cp-docs-status--completed {
+  background: color-mix(in srgb, #22c55e 16%, transparent);
+  color: #86efac;
+}
+
+.cp-docs-status--failed {
+  background: color-mix(in srgb, #ef4444 16%, transparent);
+  color: #fca5a5;
+}
+
+.cp-docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+
+.cp-docs-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 1.1rem;
+  border-radius: 9999px;
+  background: #3b5bdb;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cp-docs-link {
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cp-docs-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+@media (max-width: 480px) {
+  .cp-docs-primary {
+    width: 100%;
+  }
+  .cp-docs-tools {
+    margin-left: 0;
+  }
 }

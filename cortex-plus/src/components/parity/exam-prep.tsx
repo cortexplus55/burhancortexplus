@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, GraduationCap, HelpCircle, Landmark, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { turkishFold } from "@/lib/text/turkish";
 import { cn } from "@/lib/utils";
 import { SchoolFeedView } from "@/components/parity/school-feed-view";
 import {
@@ -29,6 +28,10 @@ export type ExamPrepCard = {
   topicsTotal: number;
   targetScore: number | null;
   continueHref: string;
+  /** Sınav günü geçti ("Geçmiş" sekmesi). */
+  past?: boolean;
+  /** Okulda paylaşıldıysa katılım sayısı. */
+  joinCount?: number;
 };
 
 /** Astra'daki üç sekme: Okulum / Müfredatım / Resmî sınavlar. */
@@ -73,7 +76,6 @@ export function ParityExamPrep({
   >([]);
   const [pickingSchool, setPickingSchool] = useState(!initialSchoolName);
   const [savingSchool, setSavingSchool] = useState(false);
-  const [query, setQuery] = useState("");
   const [howOpen, setHowOpen] = useState(false);
 
   useEffect(() => {
@@ -132,27 +134,16 @@ export function ParityExamPrep({
   const cards = [activePrep, ...otherPreps].filter(
     (card): card is ExamPrepCard => Boolean(card),
   );
-  // Katlama olmadan "ingilizce" yazan "İngilizce"yi bulamıyordu.
-  const needle = turkishFold(query.trim());
-  const visibleCards = cards.filter(
-    (card) =>
-      !needle ||
-      turkishFold(`${card.title} ${card.examType ?? ""} ${card.daysLabel}`).includes(needle),
-  );
   const curriculum = curriculumFor(gradeLevel);
 
   return (
     <div className="cp-exam-page">
       <div className="cp-exam-hub-tools">
-        <label className="cp-exam-search">
+        {/* Astra gibi: "Ara" okulda paylaşılanlarla birlikte arayan sayfayı açar. */}
+        <Link href="/deneme-sinavlari/ara" className="cp-exam-search">
           <Search className="h-4 w-4" aria-hidden />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ara"
-            aria-label="Hazırlık ara"
-          />
-        </label>
+          Ara
+        </Link>
         <button type="button" className="cp-exam-how" onClick={() => setHowOpen(true)}>
           <HelpCircle className="h-4 w-4" aria-hidden />
           Nasıl çalışır
@@ -165,17 +156,16 @@ export function ParityExamPrep({
       {cards.length ? (
         <section className="cp-prep-row-section" aria-labelledby="my-preps-title">
           <h1 id="my-preps-title" className="cp-prep-row-title">
-            Sınav hazırlıklarım <ChevronRight className="h-4 w-4" aria-hidden />
+            {/* Astra gibi: başlık bütün hazırlıkların sayfasını açar. */}
+            <Link href="/deneme-sinavlari/hazirliklarim">
+              Sınav hazırlıklarım <ChevronRight className="h-4 w-4" aria-hidden />
+            </Link>
           </h1>
-          {visibleCards.length ? (
-            <div className="cp-prep-row">
-              {visibleCards.map((card, index) => (
-                <PrepCard key={card.id} card={card} showTargetLabel={index === 0} />
-              ))}
-            </div>
-          ) : (
-            <p className="cp-exam-search-empty">Bu aramaya uyan hazırlık yok.</p>
-          )}
+          <div className="cp-prep-row">
+            {cards.map((card, index) => (
+              <PrepCard key={card.id} card={card} showTargetLabel={index === 0} />
+            ))}
+          </div>
         </section>
       ) : (
         <article className="cp-exam-active-card cp-exam-discover">
@@ -357,7 +347,7 @@ export function ParityExamPrep({
 }
 
 /** Astra'nın hazırlık kartı: başlık, hedef işaretli çubuk, yüzde, tarih, konu, Devam et. */
-function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTargetLabel: boolean }) {
+export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTargetLabel: boolean }) {
   const target =
     card.targetScore != null && card.targetScore > 0 && card.targetScore <= 100
       ? Math.min(100, Math.max(8, card.targetScore))

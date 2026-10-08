@@ -28,6 +28,21 @@
   transition: width 0.3s ease;
 }
 
+/* In-step document processing — progress only until retries exhaust. */
+.apw-process-bar {
+  height: 6px;
+  margin: 0.75rem 0 0.35rem;
+  border-radius: 9999px;
+  background: rgba(124, 108, 247, 0.18);
+  overflow: hidden;
+}
+
+.apw-process-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-ai), var(--c-action));
+  transition: width 0.35s ease;
+}
+
 .apw-back {
   display: inline-flex;
   align-items: center;
@@ -74,6 +89,18 @@
   color: var(--cp-muted);
   font-size: 0.9375rem;
   line-height: 1.5;
+}
+
+/* Materyal adımı: bu hazırlık yalnız seçilen dersin materyalinden kurulur. */
+.apw-scope {
+  display: inline-block;
+  margin: 0.5rem 0 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border);
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .apw-group {
@@ -1137,6 +1164,22 @@
   border-radius: 999px;
   padding: 0.05rem 0.45rem;
   color: var(--cp-text);
+}
+
+.apw-topic-heavy {
+  border-color: color-mix(in srgb, var(--cp-text) 22%, transparent);
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.apw-topic-desc {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 400;
+  opacity: 0.72;
+  line-height: 1.35;
 }
 
 .apw-excluded,

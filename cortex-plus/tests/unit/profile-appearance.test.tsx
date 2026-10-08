@@ -6,6 +6,8 @@ const setTheme = vi.fn();
 vi.mock("next-themes", () => ({
   useTheme: () => ({ theme: "dark", setTheme }),
 }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
 import { ProfilePanel } from "@/components/parity/profile-panel";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
@@ -23,6 +25,7 @@ const data: ProfileDashboard = {
   longestStreak: 4,
   week: [],
   upcomingEvents: 0,
+  avatarEmoji: null,
 };
 
 describe("profil menüsü (Astra: Görünüm menüde)", () => {
@@ -44,5 +47,31 @@ describe("profil menüsü (Astra: Görünüm menüde)", () => {
     expect(screen.getByText("Kurucu")).toBeTruthy();
     expect(screen.queryByText("Ücretsiz plan")).toBeNull();
     expect(screen.queryByText("Daha hızlı öğren")).toBeNull();
+  });
+});
+
+describe("profil kartı: avatar ve takvim rozeti (Astra gibi, 1 Ekim 2026)", () => {
+  it("seçilen emoji avatar olarak görünür, yoksa baş harf", () => {
+    render(<ProfilePanel data={{ ...data, avatarEmoji: "🦊" }} email={null} isPremium={false} subscriptionBadge={null} />);
+    expect(document.querySelector(".cp-pp-avatar")?.textContent).toBe("🦊");
+    cleanup();
+    render(<ProfilePanel data={data} email={null} isPremium={false} subscriptionBadge={null} />);
+    expect(document.querySelector(".cp-pp-avatar")?.textContent).toBe("A");
+  });
+
+  it("Avatarı değiştir listeden seçip kaydeder", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ProfilePanel data={data} email={null} isPremium={false} subscriptionBadge={null} />);
+    fireEvent.click(screen.getByRole("button", { name: "Avatarı değiştir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Avatar 🦉" }));
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith("/api/profile/me", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ avatar_url: "🦉" }) }));
+    vi.unstubAllGlobals();
+  });
+
+  it("Takvimim kartında yaklaşan sayı rozeti", () => {
+    render(<ProfilePanel data={{ ...data, upcomingEvents: 7 }} email={null} isPremium={false} subscriptionBadge={null} />);
+    expect(document.querySelector(".cp-pp-card-badge")?.textContent).toBe("7");
   });
 });

@@ -275,7 +275,19 @@ export type UsageCode =
   /** Yeni sohbetin başlığı (0 kredi; küçük model, sohbet başına bir kez). */
   | "CHAT_TITLE"
   /** Uzun belgenin alt başlıklarını ana konulara toplama (0 kredi, belge başına bir kez). */
-  | "TOPIC_MAP_GROUP";
+  | "TOPIC_MAP_GROUP"
+  /** Sayfa temizliği: PDF metin katmanının yazım/tanıma hataları (0 kredi, sayfa başına bir kez). */
+  | "DOCUMENT_CLEAN"
+  /** Büyük ana konuyu kavram birimlerine bölme (0 kredi, belge başına bir kez). */
+  | "TOPIC_UNITS"
+  /** Hazırlığın içerikten adı (0 kredi, kurulum başına bir kez). */
+  | "PREP_TITLE"
+  /** Sıradaki dersin önceden yazımı (kredi öğrenci dersi açınca ayrıca düşer). */
+  | "LESSON_PREFETCH"
+  /** Konu haritası (tek seferlik özet; 0 kredi, belge başına sabit işleme ücreti var). */
+  | "TOPIC_MAP_OUTLINE"
+  /** Hazırlık kurulum sohbeti (0 kredi; ücretsizde hazırlık sayısı sınırlı). */
+  | "PREP_INTAKE";
 
 export async function recordUsage(
   service: SupabaseClient,

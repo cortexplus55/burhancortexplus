@@ -4,6 +4,15 @@
 almak mı, hatırlatmalı yenilemede kalmak mı — bu, PayTR'nin yazılı cevabından
 sonra verilecek. Bu belge o talebi hazır tutuyor.
 
+**Gönderildi: 3 Ekim 2026.** Mağaza Paneli → Destek & Kurulum → Destek;
+Ana Başlık "Teknik Destek / Yazılım Hataları", Alt Başlık "Entegrasyon"
+("Direkt API Talebi" bilerek seçilmedi — geçiş başvurusu gibi okunurdu).
+Mağaza No 747272. Kutu 2000 karakterle sınırlı; aşağıdaki metin dört soru
+aynen kalarak giriş ve kapanışta kısaltıldı (1299 karakter). Cevap panelde
+"Destek Talepleriniz" altında ve hesabın kayıtlı e-postasına gelir — o adres
+şu an kişisel bir Gmail; operasyon adresine (`cortexplus@cortexplus.app`)
+çekilmesi ürün sahibinin kararı.
+
 ## Nereden gönderilecek
 
 - **Birincil:** PayTR Mağaza Paneli → **Destek Merkezi** (destek talebi).

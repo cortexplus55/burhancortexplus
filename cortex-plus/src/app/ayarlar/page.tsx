@@ -70,10 +70,10 @@ export default async function AyarlarPage() {
 
         <SectionCard
           title="Öğrenme tercihleri"
-          description="AI öğretmen stilini ve sınıf bilgini profilden güncelleyebilirsin."
+          description="Öğretmen stili, günlük çalışma hedefi, önerilen sorular, okuma ve ses ayarları."
         >
-          <Link href="/profil" className="text-sm font-medium underline">
-            Profile git
+          <Link href="/profil?dialog=profile" className="text-sm font-medium underline">
+            Ayarları aç
           </Link>
         </SectionCard>
 

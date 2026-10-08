@@ -100,7 +100,5 @@ describe("kredi fiyat tablosu", () => {
     expect(session).toContain("router.refresh()");
     const player = readFileSync("src/components/parity/exam-podcast-player.tsx", "utf8");
     expect(player).toContain("creditsSpent");
-    const lessonRepair = readFileSync("src/lib/learning/lesson-repair.ts", "utf8");
-    expect(lessonRepair).toContain("repairTurkishSurface");
   });
 });

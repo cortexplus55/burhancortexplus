@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Swords } from "lucide-react";
 import { toast } from "sonner";
 import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
 import {
@@ -82,6 +83,10 @@ import {
 import "@/styles/node-generation-progress.css";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
+import { knownCardCount, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
+import { NodeSources, type NodeSource } from "@/components/parity/node-sources";
+import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
+import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
 
 /** Aktif süre hangi başlıkta sayılır: ders, test ya da sınav. */
 function learningSurface(kind: PlanNodeKind): LearningSurface {
@@ -120,6 +125,8 @@ type Payload = {
   cards?: { front: string; back: string }[];
   practice?: string;
   reused?: boolean;
+  /** Kilitli araç (Bilgi boşlukları, Tekrar): tamamla düğmesi yok. */
+  locked?: boolean;
   /** Senaryo üretiminde düşen kredi. Önbellek 0, yeni senaryo fiyat tablosundaki değer. */
   scriptCredits?: number;
   uncoveredTopics?: string[];
@@ -142,7 +149,11 @@ export function ExamNodeSession({
   oralTopics = [],
   language = "tr",
   subject = null,
+  sources = [],
+  unitTitle = null,
 }: {
+  /** Kavram birimli derste dersin kendi adı; kurulum ekranları bunu gösterir. */
+  unitTitle?: string | null;
   prepId: string;
   nodeId: string;
   kind: PlanNodeKind;
@@ -171,6 +182,8 @@ export function ExamNodeSession({
   language?: "tr" | "en";
   /** Hazırlığın dersi ("Matematik"); Aktivitelerim'deki en sevilen dersler. */
   subject?: string | null;
+  /** Hazırlığın materyalleri — çalışma ekranında "N kaynak". */
+  sources?: NodeSource[];
 }) {
   const router = useRouter();
   const isAdmin = useIsFounder();
@@ -203,7 +216,7 @@ export function ExamNodeSession({
     stage === "play" || stage === "oral-review",
   );
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
-  const [podcastLength, setPodcastLength] = useState<"ozet" | "standart" | "derin">("standart");
+  const [podcastLength, setPodcastLength] = useState<PodcastLength>(DEFAULT_PODCAST_LENGTH);
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [oralSelected, setOralSelected] = useState<string[]>(() => {
     if (!requestedTopic) return [];
@@ -239,6 +252,12 @@ export function ExamNodeSession({
   const [flipped, setFlipped] = useState(false);
   /** Cevabı en az bir kez görülen kartın sırası — değerlendirme ancak ondan sonra açılır. */
   const [revealedCard, setRevealedCard] = useState(-1);
+  /** İlk turun sonunda "Hayır" denen kartlar: tekrar turu teklifi. */
+  const [cardOffer, setCardOffer] = useState<number[] | null>(null);
+  /** Tekrar turu: sıradaki kartlar, konum ve bu turda bilinenler. */
+  const [cardRepeat, setCardRepeat] = useState<{ list: number[]; pos: number; known: number[] } | null>(null);
+  /** Kart sonucu "Bildiğin kartlar N/M" — kayıttaki puan katılım puanı. */
+  const [cardSummary, setCardSummary] = useState<{ known: number; total: number; repeated: number } | null>(null);
   const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
   const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
   const [oralGrade, setOralGrade] = useState<{
@@ -635,6 +654,44 @@ export function ExamNodeSession({
     scheduleSave(next, Number(key) || index);
   }
 
+  function finishCards(base: Record<string, unknown>, recovered: number[]) {
+    setCardSummary({
+      known: knownCardCount(base, cards.length, recovered),
+      total: cards.length,
+      repeated: missedCards(base, cards.length).length,
+    });
+    void finish(base);
+  }
+
+  /**
+   * Kartı değerlendir. İlk turun sonunda "Hayır" denen kart varsa tekrar
+   * turu teklif edilir; tekrar turundaki cevap kayda yazılmaz.
+   */
+  function rateCard(known: boolean) {
+    setFlipped(false);
+    setRevealedCard(-1);
+    if (cardRepeat) {
+      const current = cardRepeat.list[cardRepeat.pos];
+      const recovered = known ? [...cardRepeat.known, current] : cardRepeat.known;
+      if (cardRepeat.pos + 1 < cardRepeat.list.length) {
+        setCardRepeat({ ...cardRepeat, pos: cardRepeat.pos + 1, known: recovered });
+      } else {
+        setCardRepeat({ ...cardRepeat, known: recovered });
+        finishCards(answersRef.current, recovered);
+      }
+      return;
+    }
+    const nextAnswers = { ...answersRef.current, [String(index)]: known };
+    updateAnswer(String(index), known);
+    if (index + 1 < cards.length) {
+      setIndex(index + 1);
+      return;
+    }
+    const missed = missedCards(nextAnswers, cards.length);
+    if (missed.length) setCardOffer(missed);
+    else finishCards(nextAnswers, []);
+  }
+
   async function loadLessonPodcast() {
     if (!topicId) return;
     setPodcastLoading(true);
@@ -702,13 +759,15 @@ export function ExamNodeSession({
       null
     );
   }, [payload.lesson]);
+  const cardIndex = cardRepeat ? (cardRepeat.list[cardRepeat.pos] ?? index) : index;
+  const cardsPlaying = stage === "play" && payload.type === "cards" && !cardOffer;
   const coachItem =
     payload.type === "quiz"
       ? questions[index]?.text
       : payload.type === "true_false"
         ? items[index]?.text
         : payload.type === "cards"
-          ? cards[index]?.front
+          ? cards[cardIndex]?.front
           : payload.type === "oral"
             ? questions[index]?.prompt
             : payload.type === "lesson"
@@ -746,6 +805,24 @@ export function ExamNodeSession({
       : oralVoicePercent(oralTranscript));
   const oralOwnsChrome =
     isOral && stage !== "restoring" && !(stage === "play" && payload.type === "oral");
+  // Boşluk tuşu kartı çevirir (Astra). Odak bir düğmedeyse tarayıcı zaten
+  // o düğmeye basıyor; ikinci kez çevirmeyelim.
+  useEffect(() => {
+    if (!cardsPlaying) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== " " || event.repeat) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("button, a, input, textarea, select, [contenteditable='true']")) return;
+      event.preventDefault();
+      setFlipped((value) => !value);
+      setRevealedCard(cardIndex);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cardsPlaying, cardIndex]);
+
+  const heroScore = payload.type === "cards" && cardSummary ? cardSummary.known : score.score;
+  const heroTotal = payload.type === "cards" && cardSummary ? cardSummary.total : score.total;
   const showCoach =
     stage === "play" &&
     Boolean(coachItem) &&
@@ -763,11 +840,8 @@ export function ExamNodeSession({
           onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
       {cinematicLesson || cinematicLoading || cinematicPodcast || oralOwnsChrome ? null : (
+      // Astra'da oturumda tek çıkış sağ üstteki × (3 Ekim 2026); üst çubuk da yok.
       <div className="cp-exam-study-bar">
-        <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill"
-          onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
-          ← Geri
-        </Link>
         {stage === "play" && isTimedExam ? (
           <span className={cn("cp-exam-timer", timeLeft < 120 && "cp-exam-timer--urgent")}>
             ⏱ {formatTimer(timeLeft)}
@@ -799,7 +873,7 @@ export function ExamNodeSession({
           familiarity={familiarity}
           mood={mood}
           recommendedTitle={meta.setupLabel}
-          topicLabel={topicLabel}
+          topicLabel={unitTitle ?? topicLabel}
           onFamiliarity={(level) => {
             setFamiliarity(level);
             setDifficulty(difficultyFromFamiliarity(level));
@@ -819,7 +893,7 @@ export function ExamNodeSession({
           step="recommend"
           recommendedTitle={meta.setupLabel}
           blurb={meta.blurb}
-          topicLabel={topicLabel}
+          topicLabel={unitTitle ?? topicLabel}
           onFamiliarity={() => undefined}
           onMood={() => undefined}
           onContinue={() => setStage("setup")}
@@ -904,7 +978,7 @@ export function ExamNodeSession({
         <LessonOpenChrome
           step="create"
           recommendedTitle={meta.setupLabel}
-          topicLabel={topicLabel}
+          topicLabel={unitTitle ?? topicLabel}
           busy={loading}
           canCreate={!generationFailure || generationFailure.canRetryNow}
           error={generationError}
@@ -938,26 +1012,7 @@ export function ExamNodeSession({
             />
           </label>
           {kind === "podcast" ? (
-            <fieldset className="cp-pod-lengths">
-              <legend>Süre</legend>
-              {(
-                [
-                  ["ozet", "Özet · ~1 dk"],
-                  ["standart", "Standart · ~5 dk"],
-                  ["derin", "Derinlemesine · ~10 dk"],
-                ] as const
-              ).map(([value, label]) => (
-                <label key={value}>
-                  <input
-                    type="radio"
-                    name="podcast-length"
-                    checked={podcastLength === value}
-                    onChange={() => setPodcastLength(value)}
-                  />
-                  {label}
-                </label>
-              ))}
-            </fieldset>
+            <PodcastFormatPicker value={podcastLength} onChange={setPodcastLength} />
           ) : null}
           {meta.voice ? (
             <label className="cp-exam-voice-row">
@@ -1062,6 +1117,7 @@ export function ExamNodeSession({
               void finish(Object.keys(payloadAnswers).length ? payloadAnswers : undefined);
             }}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+            toolbar={sources.length ? <NodeSources sources={sources} /> : null}
           />
         ) : (
           <section>
@@ -1097,6 +1153,7 @@ export function ExamNodeSession({
 
       {stage === "play" && payload.type === "quiz" && questions[index] ? (
         <div className="cp-written-review">
+          {!isTimedExam ? <NodeSources sources={sources} /> : null}
           {isTimedExam ? (
             <p className="cp-exam-silence">
               Yardım kapalı. Süre bitince cevapların gider. Açıklama sınav sonunda.
@@ -1143,14 +1200,16 @@ export function ExamNodeSession({
       {stage === "play" && payload.type === "practice_empty" ? (
         <section className="cp-practice-empty">
           <p className="cp-lesson-kicker">{meta.setupLabel}</p>
-          <h1>Kayıtlı soru yok</h1>
+          <h1>{payload.locked ? "🔒 Henüz kilitli" : "Kayıtlı soru yok"}</h1>
           <p>{payload.message}</p>
           <button type="button" className="cp-exam-continue" onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
             Çalışma yoluna dön
           </button>
-          <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} onClick={() => void finish()}>
-            Bu adımı tamamla
-          </button>
+          {payload.locked ? null : (
+            <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} onClick={() => void finish()}>
+              Bu adımı tamamla
+            </button>
+          )}
         </section>
       ) : null}
 
@@ -1237,7 +1296,42 @@ export function ExamNodeSession({
         </section>
       ) : null}
 
-      {stage === "play" && payload.type === "cards" && cards[index] ? (
+      {stage === "play" && payload.type === "cards" && cardOffer ? (
+        <section className="cp-exam-card-offer" aria-labelledby="card-offer-title">
+          <p className="cp-exam-card-offer-emoji" aria-hidden>
+            🔁
+          </p>
+          <h2 id="card-offer-title">Bilmediğin kartlara bir kez daha bakalım</h2>
+          <p>
+            Tekrarlanacak kartlar: <strong>{cardOffer.length}</strong>
+          </p>
+          <div className="cp-exam-card-rate">
+            <button
+              type="button"
+              className="cp-exam-continue"
+              disabled={loading}
+              onClick={() => finishCards(answersRef.current, [])}
+            >
+              Atla
+            </button>
+            <button
+              type="button"
+              className="cp-exam-continue cp-exam-continue--primary"
+              disabled={loading}
+              onClick={() => {
+                setCardRepeat({ list: cardOffer, pos: 0, known: [] });
+                setCardOffer(null);
+                setFlipped(false);
+                setRevealedCard(-1);
+              }}
+            >
+              Devam et
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {cardsPlaying && cards[cardIndex] ? (
         /*
           Değerlendirme cevap görüldükten sonra açılıyor. Önceden "Evet"
           kart hiç çevrilmeden basılabiliyordu: öğrenci cevabı görmeden
@@ -1246,53 +1340,48 @@ export function ExamNodeSession({
           dürüstçe değerlendir.
         */
         <section className="cp-exam-card-stage">
-          <p className="cp-lesson-kicker">
-            {index + 1}/{cards.length}
-          </p>
+          <CardProgress
+            label={cardRepeat ? "Tekrar" : null}
+            position={cardRepeat ? cardRepeat.pos + 1 : index + 1}
+            total={cardRepeat ? cardRepeat.list.length : cards.length}
+          />
+          <NodeSources sources={sources} />
           <button
             type="button"
             className={cn("cp-exam-flash", flipped && "cp-exam-flash--back")}
             aria-label={flipped ? "Kartı soru yüzüne çevir" : "Kartı çevir, cevabı göster"}
             onClick={() => {
               setFlipped((value) => !value);
-              setRevealedCard(index);
+              setRevealedCard(cardIndex);
             }}
           >
             <span className="cp-exam-flash-side">{flipped ? "Cevap" : "Soru"}</span>
             <span aria-live="polite">
-              <RichBody text={flipped ? cards[index].back : cards[index].front} />
+              <RichBody text={flipped ? cards[cardIndex].back : cards[cardIndex].front} />
             </span>
           </button>
-          {revealedCard !== index ? (
-            <p className="cp-exam-card-hint">Önce kendin hatırlamaya çalış, sonra karta dokunup cevabı gör.</p>
+          {revealedCard !== cardIndex ? (
+            <p className="cp-exam-card-hint">
+              Önce kendin hatırlamaya çalış, sonra karta dokun ya da boşluk tuşuna bas.
+            </p>
           ) : null}
-          {revealedCard === index ? (
+          {revealedCard === cardIndex ? (
           <>
           <p>Cevabı biliyor muydun?</p>
           <div className="cp-exam-card-rate">
             <button
               type="button"
               className="cp-exam-continue"
-              onClick={() => {
-                const nextAnswers = { ...answersRef.current, [String(index)]: false };
-                updateAnswer(String(index), false);
-                setFlipped(false);
-                if (index + 1 < cards.length) setIndex(index + 1);
-                else void finish(nextAnswers);
-              }}
+              disabled={loading}
+              onClick={() => rateCard(false)}
             >
               Hayır
             </button>
             <button
               type="button"
               className="cp-exam-continue cp-exam-continue--primary"
-              onClick={() => {
-                const nextAnswers = { ...answersRef.current, [String(index)]: true };
-                updateAnswer(String(index), true);
-                setFlipped(false);
-                if (index + 1 < cards.length) setIndex(index + 1);
-                else void finish(nextAnswers);
-              }}
+              disabled={loading}
+              onClick={() => rateCard(true)}
             >
               Evet
             </button>
@@ -1420,7 +1509,7 @@ export function ExamNodeSession({
         <section
           className={cn(
             "cp-exam-node-result",
-            `cp-exam-node-result--${resultMood(score.score, score.total).tone}`,
+            `cp-exam-node-result--${resultMood(heroScore, heroTotal).tone}`,
           )}
         >
           {payload.type === "lesson" ? (
@@ -1428,19 +1517,28 @@ export function ExamNodeSession({
           ) : null}
           {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,
               altında doğruluk ve süre satırları. */}
-          <p className="cp-lesson-kicker">Doğru cevaplar</p>
-          <p className="cp-result-hero" aria-label={`${score.total} sorudan ${score.score} doğru`}>
-            <strong>{score.score}</strong>
-            <span>/{score.total}</span>
+          <p className="cp-lesson-kicker">
+            {payload.type === "cards" && cardSummary ? "Bildiğin kartlar" : "Doğru cevaplar"}
+          </p>
+          <p
+            className="cp-result-hero"
+            aria-label={
+              payload.type === "cards" && cardSummary
+                ? `${heroTotal} karttan ${heroScore} biliniyor`
+                : `${heroTotal} sorudan ${heroScore} doğru`
+            }
+          >
+            <strong>{heroScore}</strong>
+            <span>/{heroTotal}</span>
           </p>
           <p className="cp-result-mood">
-            <span aria-hidden>{resultMood(score.score, score.total).emoji}</span>{" "}
-            {resultMood(score.score, score.total).text}
+            <span aria-hidden>{resultMood(heroScore, heroTotal).emoji}</span>{" "}
+            {resultMood(heroScore, heroTotal).text}
           </p>
           <dl className="cp-result-lines" aria-label="Oturum özeti">
             <div>
               <dt>Doğruluk</dt>
-              <dd>%{Math.round((score.score / Math.max(1, score.total)) * 100)}</dd>
+              <dd>%{Math.round((heroScore / Math.max(1, heroTotal)) * 100)}</dd>
             </div>
             <div>
               <dt>Harcanan zaman</dt>
@@ -1453,6 +1551,9 @@ export function ExamNodeSession({
               </dd>
             </div>
           </dl>
+          {payload.type === "cards" && cardSummary && repeatedCardsLine(cardSummary.repeated) ? (
+            <p className="text-sm text-[var(--cp-muted)]">{repeatedCardsLine(cardSummary.repeated)}</p>
+          ) : null}
           {score.retried > 0 ? (
             <p className="text-sm text-[var(--cp-muted)]">
               {score.retried === 1
@@ -1508,6 +1609,9 @@ export function ExamNodeSession({
               setIndex(0);
               setAnswers({});
               setFeedback(null);
+              setCardOffer(null);
+              setCardRepeat(null);
+              setCardSummary(null);
             }}>
               Dersi tekrarla
             </button>
@@ -1583,6 +1687,15 @@ export function ExamNodeSession({
             )
           ) : null}
           {attemptId ? <LessonRatingCard attemptId={attemptId} /> : null}
+          {/* Astra her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
+              2026). Düello sayfasına gider; kurmak öğrencinin kararı. */}
+          <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-exam-challenge">
+            <Swords className="h-5 w-5 shrink-0" aria-hidden />
+            <span>
+              <strong>Arkadaşına meydan oku</strong>
+              <em>Aynı konuda düello kur, bağlantıyı gönder. Arkadaşının hesap açması gerekmiyor.</em>
+            </span>
+          </Link>
           <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
             {payload.type === "lesson" ? "Sıradaki adıma geç" : "Devam et"}
           </Link>
@@ -1609,6 +1722,28 @@ export function ExamNodeSession({
         }
         returnPath={`/deneme-sinavlari/${prepId}`}
       />
+    </div>
+  );
+}
+
+/** Kart destesinin üstündeki ilerleme çubuğu (Astra: çubuk + "1 / 10"). */
+function CardProgress({ label, position, total }: { label: string | null; position: number; total: number }) {
+  const pct = Math.round((Math.min(position, total) / Math.max(1, total)) * 100);
+  return (
+    <div className="cp-exam-card-progress">
+      <span
+        role="progressbar"
+        aria-valuenow={position}
+        aria-valuemin={1}
+        aria-valuemax={total}
+        aria-label={label ? `${label} ilerlemesi` : "Kart ilerlemesi"}
+      >
+        <i style={{ width: `${pct}%` }} />
+      </span>
+      <em>
+        {label ? `${label} · ` : ""}
+        {position} / {total}
+      </em>
     </div>
   );
 }

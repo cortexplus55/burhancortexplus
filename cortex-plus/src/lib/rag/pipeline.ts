@@ -17,6 +17,7 @@ import {
   releasePhotoPages,
 } from "@/lib/documents/photo-quota";
 import { recordUsage } from "@/lib/credits/service";
+import { freePagesRemaining } from "@/lib/documents/free-pages";
 import { recordAbuse } from "@/lib/abuse/record";
 import { chunkText } from "@/lib/rag/chunk";
 export { chunkText } from "@/lib/rag/chunk";
@@ -28,7 +29,6 @@ import {
   isFeatureEnabled,
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
-import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { mapExtractFailure, userMessageForProcessError } from "@/lib/documents/process-user-message";
 
@@ -258,9 +258,19 @@ export async function processDocument(
     }
   }
 
+  // Ücretsiz katman: hesap başına toplam 5 sayfa (3 Ekim 2026). Fazlası
+  // işlenmez; ekranda "ilk N sayfa işlendi, tamamı için Plus" yazar.
+  const sourcePages = pages.length;
+  const freeRemaining = await freePagesRemaining(service, userId, documentId);
+  if (freeRemaining === 0) return failAndRelease("free_page_limit");
+  if (freeRemaining != null && pages.length > freeRemaining) {
+    pages = pages.slice(0, freeRemaining);
+    notice = `Ücretsiz planda ${sourcePages} sayfalık belgenin ilk ${pages.length} sayfası işlendi. Tamamı için Plus'a geç.`;
+  }
+
   await service
     .from("documents")
-    .update({ status: "processing", page_count: pages.length })
+    .update({ status: "processing", page_count: pages.length, source_page_count: sourcePages })
     .eq("id", documentId);
 
   // A request can be interrupted after writing only part of the derived data.
@@ -377,18 +387,7 @@ export async function processDocument(
     .update({ status: "completed", progress: 100 })
     .eq("document_id", documentId);
 
-  // Stage 2 path is opt-in. Flag off → classic RAG complete, no topic map.
-  let topicMap:
-    | { ok: boolean; topics: number; coverageStatus?: string }
-    | undefined;
-  if (await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG)) {
-    const v2 = await runPdfLearningV2(service, documentId);
-    topicMap = {
-      ok: v2.ok,
-      topics: v2.topics,
-      coverageStatus: v2.coverage?.status,
-    };
-  } else {
+  if (!(await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG))) {
     console.info(JSON.stringify({
       event: "teacher_analysis",
       documentId,
@@ -396,8 +395,9 @@ export async function processDocument(
       error: "pdf_learning_v2_off",
     }));
   }
+  // With v2 on, the topic map is built by the course pipeline (process route).
 
-  return { ok: true, chunks: allChunks.length, notice, topicMap, pageCount: pages.length };
+  return { ok: true, chunks: allChunks.length, notice, pageCount: pages.length };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",

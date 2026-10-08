@@ -481,6 +481,9 @@ export async function POST(request: Request) {
     difficulty: "hard",
     sourceExcerpt: source.block,
     requireSourceSupport: sourceMode !== "topic_only",
+    count: 5,
+    topicLabel: topic.label,
+    prepTitle: prep.title ?? prep.exam_type,
     userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}${topicBlock}
 5 çoktan seçmeli tanışma sorusu yaz. Konunun temelini yokla, aşırı tuzak kurma.
 Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.

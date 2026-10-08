@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { pickStudyTopics } from "@/lib/learning/diagnostic";
 import { pageSourceBlock } from "@/lib/learning/source-context";
 
 /** Belge stüdyosunda konu seçimi fiziksel sayfa numaralarına dayanır. */
@@ -10,6 +11,8 @@ export type DocumentGenerationContext = {
   documentId: string;
   fileName: string;
   excerpt: string;
+  /** Konunun okunabilir sayfaları (öğretmen motorları bunlardan bitişik çekirdek seçer). */
+  topicPages: number[];
 };
 
 type PageIndexRow = {
@@ -71,13 +74,18 @@ async function linkedTopicPages(
   topic: string,
 ): Promise<number[] | null> {
   const { data: topics, error } = await service.from("document_topic_nodes")
-    .select("id, title")
-    .eq("document_id", documentId)
-    .is("parent_id", null);
+    .select("id, title, parent_id")
+    .eq("document_id", documentId);
   if (error) return null;
-  const chosen = (topics ?? []).map((row) => ({
+  const nodes = (topics ?? []).map((row) => ({
     id: row.id as string,
-    score: titleScore(row.title as string, topic),
+    title: row.title as string,
+    parentId: (row.parent_id as string | null) ?? null,
+  }));
+  const study = pickStudyTopics(nodes);
+  const chosen = study.map((row) => ({
+    id: row.id,
+    score: titleScore(row.title, topic),
   })).sort((a, b) => b.score - a.score)[0];
   if (!chosen || chosen.score <= 0) return [];
   const { data: links, error: linkError } = await service.from("document_topic_page_links")
@@ -155,5 +163,5 @@ export async function loadDocumentGenerationContext(
       excerpt = pageSourceBlock(fileName, usable, true);
     }
   }
-  return excerpt.trim() ? { documentId, fileName, excerpt } : null;
+  return excerpt.trim() ? { documentId, fileName, excerpt, topicPages: selected } : null;
 }

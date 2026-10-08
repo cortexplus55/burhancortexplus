@@ -2,6 +2,8 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamCreateEntry } from "@/components/parity/exam-create-entry";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { freePrepLimitReached } from "@/lib/billing/free-prep-limit";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Sınav oluştur" };
 export const dynamic = "force-dynamic";
@@ -52,6 +54,7 @@ export default async function ExamCreatePage({
         recentSubjects={recentSubjects}
         initialSubject={initialSubject}
         initialPrompt={initialPrompt}
+        prepLimitReached={await freePrepLimitReached(createServiceClient(), user.id)}
       />
     </ParitySorShell>
   );

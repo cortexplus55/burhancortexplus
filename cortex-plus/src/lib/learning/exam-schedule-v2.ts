@@ -32,6 +32,11 @@ export type ScheduleTopicInput = {
   importance?: "important" | "medium" | "less" | null;
   /** Birleşmiş konunun dayandığı dosyalar. Takvim bunu okumaz. */
   sourceRefs?: TopicSourceRef[];
+  /**
+   * Kavram birimleri (konu haritasından, 2 Ekim 2026). Varsa her birim ayrı
+   * ders olur ve adını taşır; yoksa mekanik 3 sayfalık bölme.
+   */
+  units?: { title: string; pages: number[] }[];
 };
 
 export type ScheduleBuildInput = {
@@ -63,6 +68,8 @@ export type ScheduleSession = {
   /** Büyük konunun kaçıncı dersi (1'den). Tek dersli konuda yok. */
   lessonPart?: number;
   lessonParts?: number;
+  /** Kavram biriminin adı (birimli konuda). */
+  unitTitle?: string;
 };
 
 /**
@@ -92,7 +99,14 @@ export function lessonPageChunks(pageNumbers: number[]): number[][] {
   return chunks;
 }
 
-type LessonChunk = { pages: number[]; part: number; parts: number };
+type LessonChunk = { pages: number[]; part: number; parts: number; title?: string };
+
+/** Konunun dersleri: kavram birimleri varsa onlar, yoksa mekanik sayfa dilimleri. */
+export function topicLessonChunks(topic: Pick<ScheduleTopicInput, "pageNumbers" | "units">): { pages: number[]; title?: string }[] {
+  const units = (topic.units ?? []).filter((unit) => unit.pages.length && unit.title.trim());
+  if (units.length > 1) return units.map((unit) => ({ pages: [...unit.pages], title: unit.title.trim() }));
+  return lessonPageChunks(topic.pageNumbers ?? []).map((pages) => ({ pages }));
+}
 
 export type ScheduleFitOption =
   | "increase_daily_time"
@@ -181,7 +195,7 @@ export function listStudyDayDates(
 export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
   const pages = topic.pageNumbers?.length ?? 2;
   // Her ek ders için süre; tek dersli konuda formül değişmez.
-  const extraLessons = lessonPageChunks(topic.pageNumbers ?? []).length - 1;
+  const extraLessons = topicLessonChunks(topic).length - 1;
   const base = 25 + Math.min(40, pages * 4) + extraLessons * 15;
   const level = topic.measuredLevel ?? "unknown";
   const hardBoost = topic.selfHard ? 1.2 : 1;
@@ -360,9 +374,12 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     sourceCitation(topic.sourceRefs, pages);
 
   const partFields = (chunk: LessonChunk | null) =>
-    chunk && chunk.parts > 1 ? { lessonPart: chunk.part, lessonParts: chunk.parts } : {};
+    chunk && chunk.parts > 1
+      ? { lessonPart: chunk.part, lessonParts: chunk.parts, ...(chunk.title ? { unitTitle: chunk.title } : {}) }
+      : {};
+  // Kavram birimi varsa dersin hedefi birimin adıdır; yoksa "(2/5)".
   const partObjective = (objective: string, chunk: LessonChunk | null) =>
-    chunk && chunk.parts > 1 ? `${objective} (${chunk.part}/${chunk.parts})` : objective;
+    chunk && chunk.parts > 1 ? (chunk.title ? chunk.title : `${objective} (${chunk.part}/${chunk.parts})`) : objective;
 
   const place = (
     dayIndex: number,
@@ -425,14 +442,14 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
 
     // Büyük konu ardışık derslere bölünür; her ders bir öncekinden önceki
     // bir güne konmaz. Tek dersli konuda bu döngü bir kez döner.
-    const chunks = lessonPageChunks(topic.pageNumbers ?? []);
+    const chunks = topicLessonChunks(topic);
     const parts = chunks.length;
     const lessonM = parts > 1 ? Math.max(MIN_TOPIC_MINUTES, Math.round(learnM / parts)) : learnM;
     let learnDay = -1;
     let chunkFrom = Math.max(preferredDay, earliestLearnDay);
-    for (const [chunkIndex, chunkPages] of chunks.entries()) {
+    for (const [chunkIndex, chunkEntry] of chunks.entries()) {
       const chunk: LessonChunk | null =
-        parts > 1 ? { pages: chunkPages, part: chunkIndex + 1, parts } : null;
+        parts > 1 ? { pages: chunkEntry.pages, part: chunkIndex + 1, parts, title: chunkEntry.title } : null;
       let chunkDay = -1;
       const learnOrder: number[] = [];
       for (let d = chunkFrom; d < Math.max(0, lastIdx); d += 1) learnOrder.push(d);
@@ -641,7 +658,7 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
     const label =
       s.role === "learn"
         ? s.lessonPart && s.lessonParts && s.lessonParts > 1
-          ? `Ders ${s.lessonPart}/${s.lessonParts}`
+          ? `Ders ${s.lessonPart}/${s.lessonParts}${s.unitTitle ? `: ${s.unitTitle}` : ""}`
           : "Ders"
         : s.role === "practice"
           ? practice!.label
@@ -666,6 +683,7 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
         role: s.role,
         calendarDate: s.calendarDate,
         ...(s.lessonPart && s.lessonParts ? { lessonPart: s.lessonPart, lessonParts: s.lessonParts } : {}),
+        ...(s.unitTitle ? { unitTitle: s.unitTitle } : {}),
       },
     };
   });

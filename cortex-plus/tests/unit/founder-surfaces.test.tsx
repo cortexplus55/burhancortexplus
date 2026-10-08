@@ -10,13 +10,11 @@ import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner } from "@/components/paywall/promo-banner";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
-import { StudentAccountStrip } from "@/components/student/student-account-strip";
 import { FounderBadge, FounderChip } from "@/components/student/founder-chip";
 import { FounderCreditsView } from "@/components/student/founder-credits-view";
 import { OralTeacherCustomize } from "@/components/parity/oral-exam-flow";
 import { GeneratorForm } from "@/components/learning/generator-form";
 import { ImageSolver } from "@/components/learning/image-solver";
-import { FOUNDER_CREDIT_LABEL } from "@/lib/credits/chip-label";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/krediler",
@@ -94,26 +92,6 @@ describe("satın alma yüzeyleri kurucuda hiç render edilmez", () => {
   it("kabuk bağlamı yoksa (misafir sayfası) kurucu sayılmaz", () => {
     const { container } = render(<UpgradeAside />);
     expect(container.textContent).toContain("Plus'a geç");
-  });
-});
-
-describe("hesap şeridi", () => {
-  it("kurucuda çip ve not var; bakiye, paket ve maliyet yok", () => {
-    const { container } = render(<StudentAccountStrip account={founder} creditHint="Quiz üretimi: 2 kredi." />);
-    const text = container.textContent ?? "";
-    expect(text).toContain(FOUNDER_CREDIT_LABEL);
-    expect(text).toContain("Kurucu hesabı: işlemler hakkından düşmez.");
-    expect(text).not.toMatch(/Ek paket|Kullanımını artır|kredi harcar|2 kredi|ücretsiz hak/);
-    expect(container.querySelector("a[href='/paketler']")).toBeNull();
-  });
-
-  it("normal kullanıcıda bakiye ve paket bağlantısı değişmedi", () => {
-    const { container } = render(<StudentAccountStrip account={student} creditHint="Quiz üretimi: 2 kredi." />);
-    const text = container.textContent ?? "";
-    expect(text).toContain("%0 kullanıldı");
-    expect(text).not.toMatch(/d+ kredi|ücretsiz hak/);
-    expect(text).toContain("Quiz üretimi: 2 kredi.");
-    expect(container.querySelector("a[href='/paketler']")).not.toBeNull();
   });
 });
 

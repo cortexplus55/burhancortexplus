@@ -20,6 +20,8 @@ import { claimPhotoPages } from "@/lib/documents/photo-quota";
                              (aşağıda her eylem kodu için gerçek PostgreSQL'de)
     premium_required      →  requireFeature; oturum açmış her hesapta açık
     fotoğraf kotası       →  claimPhotoPages; yöneticide sayılmaz
+    ücretsiz sınırı       →  free_page_limit / free_prep_limit (3 Ekim 2026);
+                             yardımcılar yöneticiyi ilk satırda muaf tutar
 */
 
 const ROOT = process.cwd();
@@ -33,7 +35,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-type Producer = { file: string; line: number; kind: "credits" | "premium" | "photo" | "unknown" };
+type Producer = { file: string; line: number; kind: "credits" | "premium" | "photo" | "free" | "unknown" };
 
 function serverProducers(): Producer[] {
   const files = [...walk(path.join(ROOT, "src/app/api")), ...walk(path.join(ROOT, "src/lib"))];
@@ -51,7 +53,9 @@ function serverProducers(): Producer[] {
           ? "premium"
           : /photo_quota|PHOTO_QUOTA_CODE/.test(window)
             ? "photo"
-            : "unknown";
+            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT/.test(window)
+              ? "free"
+              : "unknown";
       found.push({ file: path.relative(ROOT, file).replaceAll("\\", "/"), line: index + 1, kind });
     });
   }
@@ -87,7 +91,14 @@ describe("sunucudaki her 402 sınıflanmış", () => {
 
   it("üç sınıfın üçü de gerçekten var — sınıflayıcı boşa çalışmıyor", () => {
     const kinds = new Set(producers.map((p) => p.kind));
-    expect(kinds).toEqual(new Set(["credits", "premium", "photo"]));
+    expect(kinds).toEqual(new Set(["credits", "premium", "photo", "free"]));
+  });
+
+  it("ücretsiz sınırı yöneticiye hiç uygulanmaz", () => {
+    for (const file of ["src/lib/documents/free-pages.ts", "src/lib/billing/free-prep-limit.ts"]) {
+      const source = readFileSync(path.join(ROOT, file), "utf8");
+      expect(source).toMatch(/if \(await isAdminUser\(service, userId\)\.catch\(\(\) => false\)\) return (null|false);/);
+    }
   });
 });
 

@@ -6,12 +6,7 @@ import {
   teacherBriefForTopic,
   teacherNoteGroundedInSource,
 } from "@/lib/learning/teacher-brain";
-import {
-  lessonDraftForVerifier,
-  lessonPublishIssues,
-  parseModelJson,
-  publishLessonDraft,
-} from "@/lib/learning/teaching-standards";
+import { lessonPublishIssues, publishLessonDraft } from "@/lib/learning/teaching-standards";
 
 /**
  * Canlı red (e58afd8): düğüm sayfalarında ideal gaz yokken üretici PV = nRT
@@ -95,19 +90,19 @@ describe("teacher note versus node pages", () => {
     expect(ask).not.toContain("ideal gaz");
   });
 
-  it("uses the same grounding on lesson, podcast, chat, and voice prompts", () => {
+  it("uses the same grounding on lesson, podcast and chat; voice uses the teacher tutor", () => {
     const node = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    const lesson = readFileSync("src/app/api/learning/exam-prep/lesson/route.ts", "utf8");
     const chat = readFileSync("src/lib/learning/exam-chat-context.ts", "utf8");
     const chatRoute = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
     const voice = readFileSync("src/app/api/learning/exam-prep/voice/route.ts", "utf8");
-    for (const source of [node, lesson, chat, chatRoute, voice]) {
+    // Sesli çalışma 3 Ekim 2026'dan beri sohbetin öğretmen motorunda.
+    expect(voice).toContain("runTeacherTutor({");
+    for (const source of [node, chat, chatRoute]) {
       expect(source).toContain("teacherNoteGroundedInSource");
       expect(source).toContain("SOURCE_PAGE_FORMULA_RULE");
     }
     const podcast = node.slice(node.indexOf('input.kind === "podcast"'));
-    expect(podcast).toContain("generatePodcastEpisode");
-    expect(readFileSync("src/lib/learning/podcast-episode.ts", "utf8")).toContain("auditQuantitative");
+    expect(podcast).toContain("teacherPodcastEpisode");
     expect(node.indexOf("teacherNoteGroundedInSource")).toBeLessThan(
       node.indexOf('input.kind === "podcast"'),
     );
@@ -166,17 +161,5 @@ describe("cosmetic lesson shape", () => {
     expect(published?.summary?.length).toBeGreaterThanOrEqual(2);
     expect(lessonPublishIssues(raw).some((issue) => issue.includes("koyu"))).toBe(false);
     expect(lessonPublishIssues(raw).some((issue) => issue.includes("şemasını"))).toBe(false);
-  });
-
-  it("parses fenced JSON with a trailing comma before review", () => {
-    const fenced =
-      '```json\n{"overview":"Basınç birim alana gelen kuvvettir ve okunur.","sections":[{"heading":"Basınç","body":"Basınç birim alana gelen kuvvettir.","check":{"review":"bozuk"}}],}\n```';
-    expect(parseModelJson(fenced)).toMatchObject({
-      overview: "Basınç birim alana gelen kuvvettir ve okunur.",
-    });
-    const stripped = lessonDraftForVerifier(fenced);
-    expect(stripped.startsWith("{")).toBe(true);
-    expect(stripped).toContain("Basınç");
-    expect(stripped).not.toContain("bozuk");
   });
 });

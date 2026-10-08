@@ -1,5 +1,4 @@
 import { foldTr } from "@/lib/documents/page-analysis";
-import type { GroundMatch } from "@/lib/learning/topic-grounding";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
 /**
@@ -23,6 +22,8 @@ export type LoadedPrepTopic = {
   examHeavy?: boolean;
   importance?: "important" | "medium" | "less" | null;
   sourceRefs?: TopicSourceRef[];
+  /** Kavram birimleri; yeniden adlandırmada da konuya bağlı kalır. */
+  units?: { title: string; pages: number[] }[];
 };
 
 export type LoadedPrepTopics = {
@@ -127,16 +128,4 @@ export function applyStudentTopicList(input: {
   }
 
   return { titles, nodeIds, scheduleTopics };
-}
-
-export function requestedFromGround(
-  title: string,
-  match: GroundMatch,
-): RequestedPrepTopic {
-  return {
-    title: title.trim(),
-    linkedTitle: match.linkedTitle,
-    pageNumbers: match.pageNumbers,
-    sourceRefs: match.sourceRefs,
-  };
 }

@@ -203,7 +203,6 @@ describe("yükleme yolu", () => {
   });
 
   it.each([
-    "src/components/documents/document-upload.tsx",
     "src/components/parity/exam-create-wizard.tsx",
   ])("%s .docx ve .pptx seçtiriyor", (file) => {
     const source = readFileSync(file, "utf8");

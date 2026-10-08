@@ -28,6 +28,8 @@ export type StudentAccountContext = {
    * ol" demek eksik cevap. Beklerse de çözülüyor ve bunu saklamıyoruz.
    */
   resetsAtLabel: string;
+  /** Aynı an, ISO — yükseltme kapısındaki geri sayım için (Astra gibi). */
+  resetsAtIso?: string;
   periodKind: PeriodKind;
   /** Dönem hakkının kullanılan yüzdesi — öğrenciye gösterilen tek sayı. */
   usedPercent: number;
@@ -74,6 +76,7 @@ export async function getStudentAccountContext(
     canSpend: isAdmin || balance > 0 || freeAllowanceRemaining > 0,
     isAdmin,
     resetsAtLabel: formatResetAt(quota.resetsAt),
+    resetsAtIso: quota.resetsAt.toISOString(),
     periodKind: quota.kind,
     usedPercent: quota.usedPercent,
     extraPercent: allowanceShare(balance, quota.allowance),

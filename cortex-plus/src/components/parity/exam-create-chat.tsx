@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-plan";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { FREE_PREP_LIMIT_CODE, FREE_PREP_LIMIT_MESSAGE } from "@/lib/billing/free-tier-copy";
 import { subjectSuggestions } from "@/lib/learning/subjects";
 
 type Draft = { title: string; examType: string; topics: string[] };
@@ -31,6 +32,7 @@ export function ExamCreateChat({
   recentSubjects = [],
   initialSubject = null,
   initialPrompt = null,
+  prepLimitReached = false,
 }: {
   /** Stage 9 — deep link from topic map / docs list. */
   initialDocumentId?: string | null;
@@ -40,6 +42,8 @@ export function ExamCreateChat({
   initialSubject?: string | null;
   /** Katalog kartından gelen ilk mesaj; kutuya yazılı gelir, öğrenci gönderir. */
   initialPrompt?: string | null;
+  /** Ücretsiz hesabın tek hazırlık hakkı dolu: ilk mesajda kapı açılır. */
+  prepLimitReached?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMsg[]>([
@@ -62,6 +66,7 @@ export function ExamCreateChat({
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState("Plan çıkarmak için kullanım hakkın doldu.");
   const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
   const [intakeMode, setIntakeMode] = useState<"legacy" | "v2">("legacy");
@@ -143,6 +148,11 @@ export function ExamCreateChat({
   async function send(nextDate?: string) {
     const text = input.trim();
     if (!nextDate && !text) return;
+    if (prepLimitReached) {
+      setPaywallMessage(FREE_PREP_LIMIT_MESSAGE);
+      setPaywall(true);
+      return;
+    }
     const history = nextDate
       ? messages
       : [...messages, { role: "user" as const, content: text }];
@@ -216,6 +226,11 @@ export function ExamCreateChat({
         }),
       });
       const payload = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        setPaywallMessage(payload.code === FREE_PREP_LIMIT_CODE ? FREE_PREP_LIMIT_MESSAGE : (payload.error ?? paywallMessage));
+        setPaywall(true);
+        return;
+      }
       if (!res.ok) {
         toast.error(payload.error ?? "Plan oluşturulamadı.");
         return;
@@ -466,7 +481,7 @@ export function ExamCreateChat({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Plan çıkarmak için kullanım hakkın doldu."
+        message={paywallMessage}
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>

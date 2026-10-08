@@ -97,15 +97,4 @@ describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
     const page = readFileSync("src/app/duello/[code]/page.tsx", "utf8");
     expect(page).toContain("questions={publicQuestions(questions)}");
   });
-  it("ayrıştırıcı varsayılan 8 soru tutar, düello için 12 alabilir", async () => {
-    const { parseQuizQuestions } = await import("@/lib/learning/exam-quiz");
-    const questions = Array.from({ length: 12 }, (_, i) => ({
-      text: `Soru ${i + 1}: 2 + ${i} kaçtır?`,
-      options: [`${2 + i}`, `${3 + i}`, `${4 + i}`, `${5 + i}`],
-      correct: `${2 + i}`,
-      multi: false,
-    }));
-    expect(parseQuizQuestions({ questions })?.length).toBe(8);
-    expect(parseQuizQuestions({ questions }, 12)?.length).toBe(12);
-  });
 });
