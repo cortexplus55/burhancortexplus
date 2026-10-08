@@ -33,6 +33,15 @@ describe("hazırlığın adı içerikten", () => {
     expect(intake).toContain("const named = await namePrepFromTopics(service, { userId, topics: topicTitles });");
   });
 
+  // 8 Ekim 2026: ücretsiz 5 sayfadan tek konu çıktı, ad dosya adına düştü.
+  it("tek ana konuda ad o konudur; model çağrılmaz", () => {
+    expect(prepTitleFromModel({ title: "Açı Ölçüsü ve Radyan Kavramı" })).toBe("Açı Ölçüsü ve Radyan Kavramı");
+    const intake = readFileSync("src/app/api/learning/exam-prep/intake/route.ts", "utf8");
+    const single = intake.indexOf("topicTitles.length === 1 ? prepTitleFromModel({ title: topicTitles[0] }) : null");
+    expect(single).toBeGreaterThan(-1);
+    expect(single).toBeLessThan(intake.indexOf("const named = await namePrepFromTopics"));
+  });
+
   it("yol kartı kavram birimli derste dersin adını yazar", () => {
     const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
     expect(home).toContain('if (unit) return unit.replace(/^Ders \\d+\\/\\d+: /, "");');
