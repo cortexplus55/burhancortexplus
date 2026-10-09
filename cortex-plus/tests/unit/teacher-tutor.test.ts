@@ -177,8 +177,13 @@ describe("sohbet uç noktası öğretmen yolunu kullanır", () => {
     expect(route).toContain("if (strict && !evidence.length && !imageUrl && !teacherPrepChat)");
   });
 
-  it("hazırlık sohbeti 'Yalnızca belgem' ile açılır", () => {
+  // 9 Ekim 2026 (Faz 5): varsayılan "Belgem + genel bilgi"; belgede olmayan
+  // bilgi "Genel bilgiden:" diye ayrı verilir, denetçi onu doğruluğa göre okur.
+  it("hazırlık sohbeti belgeyle ve 'Belgem + genel bilgi' moduyla açılır", () => {
     const panel = readFileSync("src/components/chat/chat-panel.tsx", "utf8");
     expect(panel).toContain("useState(Boolean(initialDocumentId) || Boolean(prepId))");
+    expect(panel).toContain("const [documentsOnly, setDocumentsOnly] = useState(false);");
+    expect(tutorSystemPrompt({ passages: [], mode: "mixed" })).toContain("'Genel bilgiden:'");
+    expect(tutorVerifySystem("mixed")).toContain("'Genel bilgiden:' paragrafında yanlış bilgi");
   });
 });

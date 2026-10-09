@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { spendableCredits } from "@/lib/credits/spendable";
 import { creditChipLabel, FOUNDER_CREDIT_LABEL } from "@/lib/credits/chip-label";
@@ -59,6 +60,25 @@ describe("beş kontrol ve paket sızdırmazlığı", () => {
     expect(sealed).not.toHaveProperty("answerIndex");
     expect(JSON.stringify(sealed)).not.toMatch(/answerIndex/);
     expect(sealed.lines?.length).toBeGreaterThan(1);
+  });
+
+  it("doğru/yanlışta 'doğrusu' pakette yok, notlandırmadan sonra gelir", () => {
+    const trueFalse = check({
+      type: "trueFalse",
+      prompt: "Hukuku ayıran şey yalnızca hapis cezasıdır.",
+      options: ["Doğru", "Yanlış"],
+      answerIndex: 1,
+      explanation: "Ayıran şey maddi yaptırımdır.",
+      corrected: "Hukuku ayıran şey maddi yaptırımdır; hapis bunlardan biridir.",
+    });
+    expect(JSON.stringify(sealSectionCheck(trueFalse))).not.toMatch(/corrected|maddi yaptırımdır/);
+    expect(gradeSectionCheck(trueFalse, { pick: 1 })).toMatchObject({
+      correct: true,
+      corrected: "Hukuku ayıran şey maddi yaptırımdır; hapis bunlardan biridir.",
+    });
+    // Tekrar sorusu başka bir ifade olabilir; rota birincinin doğrusunu ona vermez.
+    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    expect(route).toContain("const corrected = check.prompt === primary.prompt ? result.corrected : undefined;");
   });
 
   it("optionWhy tekrarı reddedilir", () => {

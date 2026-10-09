@@ -128,12 +128,15 @@ export const TEACHER_SYSTEM =
   "Her bölümün 'lead' satırı dersin başındaki içerik listesinde başlığın altında durur: bölümün neyi ayırt " +
   "ettirdiğini söyleyen tek kısa cümle; yeni bilgi taşımaz, başlığı tekrar etmez.\n" +
   "3) İlk bölümde checkFirst=true: konu anlatılmadan önce öğrencinin ön bilgisini yoklayan, yaygın yanılgıyı ölçen bir " +
-  "soru; tercihen doğru/yanlış (trueFalse, options ['Doğru','Yanlış']).\n" +
+  "soru; tercihen doğru/yanlış (trueFalse, options ['Doğru','Yanlış']). Doğru/yanlış ifadesi yanlışsa 'corrected' " +
+  "alanına ifadenin doğru hâlini tek cümleyle yaz; öğrenci cevaptan sonra 'Doğrusu' diye görür.\n" +
   "4) Her bölüm bir kontrolle biter. Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). review: aynı kavramı farklı yönden soran soru — tanımdan terim soruldaysa bu kez " +
-  "bir durumdan (olaydan) terim sorulur; şıklar aynı kalır.\n" +
+  "bir durumdan (olaydan) terim sorulur; şıklar aynı kalır. Durum sorusundaki olay tek kavrama okunmalı: iki kavramla " +
+  "da açıklanabilen muğlak örnek kurma ('herkesten eşit oranda vergi' — oran mı, miktar mı?); ayırt ettiren ayrıntıyı " +
+  "olayın içine yaz.\n" +
   EXAMPLE_DOCUMENT +
   "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler, anahtar kelimeleriyle.\n" +
   "8) nextFocus yalnız verilen SIRADAKİ KONULAR listesinden, aynen; liste boşsa boş dizi.\n\n" +
@@ -183,8 +186,9 @@ export const VERIFY_SYSTEM =
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma. (Yeni bilgi taşımayan gündelik " +
   "örnek ya da benzetme sorun değildir.)\n" +
   "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade.\n" +
-  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru.\n" +
-  "D) explanation ya da optionWhy'da yanlış bilgi.\n" +
+  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
+  "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik).\n" +
+  "D) explanation, optionWhy ya da corrected'da (yanlış ifadenin doğrusu) yanlış bilgi.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle; kaynağın bozuk kelimesinin ya da bozuk cümlesinin kopyası.\n" +
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
   "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
@@ -202,8 +206,9 @@ export const TOPIC_VERIFY_SYSTEM =
   "A) Yanlış olgu, tanım, sayı, tarih, kural ya da sınıflandırma.\n" +
   "B) Emin olunamayacak kadar ayrıntılı ya da güncel olarak değişebilecek bilgi (yürürlükteki oran, son düzenleme), " +
   "tartışmalı bir görüşün kesin doğru gibi sunulması.\n" +
-  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru.\n" +
-  "D) explanation ya da optionWhy'da yanlış bilgi; çözümlü örnekte hesap hatası.\n" +
+  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
+  "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik).\n" +
+  "D) explanation, optionWhy ya da corrected'da (yanlış ifadenin doğrusu) yanlış bilgi; çözümlü örnekte hesap hatası.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "F) Ders içinde tutarsızlık.\n" +
   "A-F 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
@@ -441,6 +446,11 @@ export function lessonStructureIssues(lesson: LessonV2, input: Pick<TeacherLesso
       const options = check.options ?? [];
       if (options.length !== 2 || typeof check.answerIndex !== "number" || check.answerIndex > 1) {
         add(`${where}.check`, "Doğru/yanlış sorusunda şıklar ['Doğru','Yanlış'] ve answerIndex 0 ya da 1 olmalı.");
+      }
+      // Eksik "doğrusu" dersi düşürmez: düzeltme turu zaten açılırsa eklenir.
+      const falseStatement = /^(yanlış|yanlis|false)$/i.test(options[check.answerIndex ?? -1]?.trim() ?? "");
+      if (falseStatement && !check.corrected?.trim()) {
+        issues.push({ where: `${where}.check`, severity: "low", problem: "Yanlış ifadenin doğrusu (corrected) yazılmamış." });
       }
     }
   });

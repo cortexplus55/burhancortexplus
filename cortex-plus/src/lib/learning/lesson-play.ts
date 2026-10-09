@@ -163,6 +163,7 @@ export function sealSectionCheck(check: SectionCheck): PublicSectionCheck {
     hint: _h,
     explanation: _i,
     review: _j,
+    corrected: _k,
     ...visible
   } = check;
   void _a;
@@ -175,6 +176,7 @@ export function sealSectionCheck(check: SectionCheck): PublicSectionCheck {
   void _h;
   void _i;
   void _j;
+  void _k;
 
   const sealed: PublicSectionCheck = {
     type: visible.type,
@@ -367,6 +369,8 @@ export type GradeCheckResult = {
   whyWrong?: string;
   misconception?: string;
   hint?: string;
+  /** Doğru/yanlışta yanlış ifadenin doğrusu. */
+  corrected?: string;
   answerIndex?: number;
   answer?: string;
   expectedPoints?: string[];
@@ -390,6 +394,7 @@ export function gradeSectionCheck(
     whyWrong: check.whyWrong,
     misconception: check.misconception,
     hint: check.hint,
+    corrected: check.type === "trueFalse" ? check.corrected : undefined,
     answerIndex: check.answerIndex,
     answer: check.answer,
     expectedPoints: check.expectedPoints,

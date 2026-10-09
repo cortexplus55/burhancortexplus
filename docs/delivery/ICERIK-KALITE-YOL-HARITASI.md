@@ -222,3 +222,72 @@ Canlıda bulunup düzeltilenler: sohbetin "kast/taksir" sorusunda öğrencinin
 dersini kaynak saymaması (#222), sohbet tablolarının çizilmemesi (#223),
 gösterim çeviricinin "P-v"yi "P⁻v" yapması (#226), test ve podcastin dersten
 farklı sayfalardan yazılması (#226), doğru cevabın hep ilk şık olması (#228, #230).
+
+---
+
+## 8. Faz 5 — Astra ile yan yana (9 Ekim 2026)
+
+Astra Plus hesabıyla ve kurucu hesabıyla, aynı konuda. Puan anahtarı Bölüm 4'teki
+(0–2): sadakat, doğruluk, Türkçe, öğretim akışı, kontrol kalitesi, sınav odağı.
+Astra'nın ders içeriği sayfanın kendi verisinden tam okundu; metin buraya
+kopyalanmadı, yalnız yapı ve bulgu yazıldı.
+
+### KPSS Vatandaşlık — ders
+
+Bizim: "Toplumsal Düzen ve Hukuk Kuralları" (Ders 1/6, belge s.3–16; 4 bölüm).
+Astra: "Hukukun Müeyyidesi ve Uygulama Alanları" (3 bölüm, ~3 dk, 8 adım). Ortak
+kesit: yaptırım türleri ve hükümsüzlük.
+
+| Ölçüt | Biz | Astra | Not |
+|---|---|---|---|
+| Sadakat | 2 | 2 | İkisi de belgeyle tutarlı |
+| Doğruluk | 1 | 2 | Bizde "Devlet herkesten eşit oranda vergi alıyor → denkleştirici adalet" iki adalet türüne de okunabiliyor |
+| Türkçe | 2 | 2 | |
+| Öğretim akışı | 1 | 2 | Bizim ders 14 sayfa ve 4 büyük kavram; Astra'nınki dar (3 kavram) |
+| Kontrol kalitesi | 2 | 1 | Astra'da sayma sorusu ("kaç ana başlık") ve "metne göre"; bizde her şıkkın gerekçesi var |
+| Sınav odağı | 2 | 2 | Bizde sınav ipucu + yaygın hata + çözümlü örnek; Astra'da karşılaştırma kutuları |
+| **Toplam** | **10** | **11** | |
+
+Astra'da olup bizde olmayan: doğru/yanlış sorusunda yanlış ifadenin **doğrusu**
+ayrı satırda veriliyor.
+
+### KPSS Vatandaşlık — sohbet (3 soru, ikisi de belgeli mod)
+
+Sorular: yokluk–mutlak butlan farkı; korkutularak imzalatılan sözleşme; genellik–
+soyutluk ayrımı.
+
+| Ölçüt | Biz | Astra | Not |
+|---|---|---|---|
+| Sadakat | 2 | 1 | Astra belgede olmayan ayrıntı ekliyor (hâkimin kendiliğinden dikkate alması, iptal süresi) — doğru ama işaretsiz |
+| Doğruluk | 2 | 1 | Astra: "kimlere / ne zaman" diye açıyor — "ne zaman" süreklilik, soyutluk değil |
+| Türkçe | 2 | 2 | |
+| Öğretim akışı | 1 | 2 | Bizimkiler doğru ama kısa (bir cevap iki cümle); Astra sonuçları ve "neden"i açıyor |
+| Kontrol kalitesi | 2 | 2 | İkisi de soruyla bitiyor |
+| Sınav odağı | 2 | 2 | |
+| **Toplam** | **11** | **10** | |
+
+### Pediatri — sohbet (3 soru)
+
+Belgeler aynı değil (bizde 10 sayfalık pediatri notu, Astra'da "Sağlam Çocuk
+İzlemi"), puanlanmadı. Gözlem: bizim üç cevabın ikisi "belgende geçmiyor" dedi
+(baş çevresi artışı, tarama takvimi) — "Yalnızca belgem" modunun doğru davranışı,
+ama öğrenci sınav bilgisini alamadı. Astra aynı sorulara dolu ve doğru cevap verdi
+("notlarındaki bilgilere göre" diyerek; belgesi farklı olduğu için doğrulanamadı).
+Belgede olan soruda (gelişimsel alarm bulguları) bizim cevap doğru ve öz.
+
+### Sonuç ve yapılan
+
+Ders ve sohbette fark küçük ve iki yönlü: biz doğruluk, sadakat ve kontrol
+gerekçelerinde öndeyiz; Astra ders kapsamının darlığında ve sohbet derinliğinde.
+Düzeltilen (aynı gün): durum sorusunda olayın tek kavrama okunması kuralı yazara ve
+denetçiye eklendi (`teacher-lesson.ts`).
+
+Ürün sahibinin kararları (aynı gün):
+
+| Konu | Karar | Nerede |
+|---|---|---|
+| Ders kapsamı | Yapay zekâ öğretmen gibi karar verir; sabit kavram/sayfa tavanı yok, yeniden sorulmaz | kavram birimi adımı |
+| Belgede olmayan bilgi | Hazırlık sohbeti "Belgem + genel bilgi" moduyla açılır; genel bilgi "Genel bilgiden:" paragrafında, denetçi doğruluğuna bakar | `chat-panel.tsx`, `teacher-tutor.ts` |
+| Sohbet derinliği | "Neden / fark ne / ne olur" sorularında sonuç, koşul ve örnek de açılır | `teacher-tutor.ts` (TEACHER_MANNER) |
+| Doğru/yanlış | Yanlış ifadenin doğrusu (`corrected`) cevaptan sonra "Doğrusu" satırında; eksikliği dersi düşürmez (düşük önem) | `teaching-standards.ts`, `teacher-lesson.ts`, `exam-lesson-steps.tsx` |
+Maliyet: bizde 6 sohbet mesajı (~$0,02); Astra'da Plus hakkından.

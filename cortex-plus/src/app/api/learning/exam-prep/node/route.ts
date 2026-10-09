@@ -616,7 +616,9 @@ async function handleNodeRequest(
         retryCheck: sealSectionCheck(retry),
       });
     }
-    return NextResponse.json({ ok: true, ...result });
+    // Tekrar sorusu başka bir ifade olabilir; birincinin "doğrusu" ona ait değil.
+    const corrected = check.prompt === primary.prompt ? result.corrected : undefined;
+    return NextResponse.json({ ok: true, ...result, corrected });
   }
 
   // --- Stage 8: resume in-progress attempt (flag ON) ---

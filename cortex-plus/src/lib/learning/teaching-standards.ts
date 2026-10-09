@@ -342,6 +342,11 @@ export const sectionCheckSchema = z.object({
    */
   optionWhy: z.array(z.string().max(200)).max(6).optional().catch(undefined),
   /**
+   * Doğru/yanlış kontrolünde ifade yanlışsa doğru hâli, tek cümle. Cevaptan
+   * sonra "Doğrusu" satırında gösterilir (9 Ekim 2026, Faz 5 kararı).
+   */
+  corrected: z.string().max(300).optional().catch(undefined),
+  /**
    * Aynı üretim çağrısında yazılan tekrar. Bozuk varyant dersi düşürmez;
    * ekran o zaman şık kaydırma + önek kullanır.
    */

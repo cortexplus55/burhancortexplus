@@ -303,7 +303,8 @@ Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI
 
 Belgesiz hazırlık dersleri de aynı motordan (`mode: "topic"`): aynı akış, kaynak
 kuralı yerine doğruluk kuralı, denetçi doğruluğa bakar. Hazırlık sohbeti de öğretmen
-yolunda (`teacher-tutor.ts`), öğrencinin seçtiği moda göre.
+yolunda (`teacher-tutor.ts`), öğrencinin seçtiği moda göre; **varsayılan mod 9 Ekim 2026'dan beri
+"Belgem + genel bilgi"** (belgede olmayan bilgi "Genel bilgiden:" etiketiyle, Faz 5 kararı).
 
 **2 Ekim 2026: bütün içerik öğretmen motorlarında** (ürün sahibinin kararı). Hepsi
 aynı kalıp: temiz çekirdek sayfalar (dersle aynı sayfalar) → tek öğretmen istemi →

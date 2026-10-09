@@ -286,11 +286,16 @@ function ChatPanelSession({
   // `?belge=` ile gelen öğrenci belgesinden çalışmak istiyor: belge modu
   // açık başlar ve kilit görünür. Aksi hâlde konuşma sessizce genel bilgiye
   // düşerdi ve "belgemi okumadı" şikâyeti gelirdi.
-  // Hazırlık sohbeti "Yalnızca belgem" ile açılır (2 Ekim 2026, ürün sahibinin
-  // kararı); öğrenci modu kendisi değiştirebilir.
+  // Hazırlık sohbeti belgeyle açılır; öğrenci modu kendisi değiştirebilir.
   const [useDocuments, setUseDocuments] = useState(Boolean(initialDocumentId) || Boolean(prepId));
-  /** true = Yalnızca Belgem (varsayılan); false = Belgem + Genel Bilgi */
-  const [documentsOnly, setDocumentsOnly] = useState(true);
+  /**
+   * true = Yalnızca Belgem; false = Belgem + Genel Bilgi (varsayılan).
+   * 9 Ekim 2026, ürün sahibinin kararı (Faz 5): belgede olmayan sınav bilgisi
+   * sorulunca "belgende geçmiyor" deyip susmak yerine, bunu söyleyip genel
+   * bilgiyi "Genel bilgiden:" diye ayrı paragrafta verir. Önceki varsayılan
+   * (2 Ekim) Yalnızca Belgem'di; Pediatri'de üç sorudan ikisi cevapsız kaldı.
+   */
+  const [documentsOnly, setDocumentsOnly] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const conversationId = useRef<string | undefined>(initialConversationId);
   const activeDocumentId = useRef<string | undefined>(initialDocumentId);

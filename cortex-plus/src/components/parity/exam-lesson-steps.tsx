@@ -1305,13 +1305,17 @@ function Explanation({
   const misconception =
     gradeResult?.misconception ?? ("misconception" in check ? check.misconception : undefined);
   const hint = gradeResult?.hint ?? ("hint" in check ? check.hint : undefined);
+  const corrected =
+    check.type === "trueFalse"
+      ? (gradeResult?.corrected ?? ("corrected" in check ? check.corrected : undefined))?.trim() ?? ""
+      : "";
   const structured = Boolean(whyRight || whyWrong || misconception || hint || optionWhy.length);
   const options = check.options ?? ("lines" in check ? check.lines : undefined) ?? [];
   const wrongBody = (pickedWhy || whyWrong || explanation).trim();
   const rightBody = (answerWhy || (structured && whyRight ? whyRight : explanation)).trim();
   const body = wrong ? wrongBody : rightBody;
   // Boş AÇIKLAMA kutusu gösterme (28 Eyl olayı).
-  if (!body && !misconception?.trim() && !hint?.trim() && !(wrong && optionWhy.length > 1)) {
+  if (!body && !corrected && !misconception?.trim() && !hint?.trim() && !(wrong && optionWhy.length > 1)) {
     return wrong && revisit ? (
       <div className="als-explain" aria-live="polite">
         <p className="als-revisit">Dersin sonunda buna geri döneceğiz.</p>
@@ -1357,6 +1361,11 @@ function Explanation({
       ) : rightBody ? (
         <p>
           <RichBody text={rightBody} topicHint={topicHint} />
+        </p>
+      ) : null}
+      {corrected ? (
+        <p>
+          <span className="als-tag als-tag--ok">Doğrusu</span> {corrected}
         </p>
       ) : null}
       {wrong && revisit ? (
