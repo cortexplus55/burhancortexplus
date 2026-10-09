@@ -96,6 +96,7 @@ const good: LessonV2 = {
         options: ["Doğru", "Yanlış"],
         answerIndex: 1,
         explanation: "Ayıran şey yaptırımın maddi olmasıdır; tazminat ve hükümsüzlük de maddi yaptırımdır.",
+        corrected: "Hukuk kurallarını ayıran şey maddi yaptırımdır; hapis cezası bunlardan yalnızca biridir.",
       },
     },
     {
@@ -174,6 +175,29 @@ describe("yapı denetimi", () => {
     for (const system of [verifySystem("document"), verifySystem("topic")]) {
       expect(system).toContain("durum sorusundaki olayın iki kavrama da okunabilmesi");
     }
+  });
+
+  // Faz 5 (9 Ekim 2026): Astra yanlış ifadenin doğrusunu ayrı satırda veriyor.
+  it("yanlış doğru/yanlış ifadesinin doğrusu istenir; eksikliği dersi düşürmez", () => {
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      expect(system).toContain("'corrected' alanına ifadenin doğru hâlini");
+    }
+    for (const system of [verifySystem("document"), verifySystem("topic")]) {
+      expect(system).toContain("corrected'da (yanlış ifadenin doğrusu) yanlış bilgi");
+    }
+    const first = good.sections[0]!;
+    const missing: LessonV2 = {
+      ...good,
+      sections: [{ ...first, check: { ...first.check!, corrected: undefined } }, ...good.sections.slice(1)],
+    };
+    const issues = lessonStructureIssues(missing, {}).filter((issue) => /doğrusu/.test(issue.problem));
+    expect(issues).toEqual([expect.objectContaining({ where: "sections[0].check", severity: "low" })]);
+    // Doğru ifadenin "doğrusu" olmaz.
+    const trueStatement: LessonV2 = {
+      ...good,
+      sections: [{ ...first, check: { ...first.check!, answerIndex: 0, corrected: undefined } }, ...good.sections.slice(1)],
+    };
+    expect(lessonStructureIssues(trueStatement, {}).some((issue) => /doğrusu/.test(issue.problem))).toBe(false);
   });
 
   it("belgesiz ders: aynı akış, kaynak kuralı yerine doğruluk kuralı", () => {

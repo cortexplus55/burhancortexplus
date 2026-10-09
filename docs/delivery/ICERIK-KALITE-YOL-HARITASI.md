@@ -280,7 +280,14 @@ Belgede olan soruda (gelişimsel alarm bulguları) bizim cevap doğru ve öz.
 Ders ve sohbette fark küçük ve iki yönlü: biz doğruluk, sadakat ve kontrol
 gerekçelerinde öndeyiz; Astra ders kapsamının darlığında ve sohbet derinliğinde.
 Düzeltilen (aynı gün): durum sorusunda olayın tek kavrama okunması kuralı yazara ve
-denetçiye eklendi (`teacher-lesson.ts`). Kararı ürün sahibine sorulanlar: ders
-kapsamını daraltmak, belgede olmayan bilgiyi etiketli genel bilgiyle vermek, sohbet
-derinliği, doğru/yanlışta "doğrusu" satırı.
+denetçiye eklendi (`teacher-lesson.ts`).
+
+Ürün sahibinin kararları (aynı gün):
+
+| Konu | Karar | Nerede |
+|---|---|---|
+| Ders kapsamı | Yapay zekâ öğretmen gibi karar verir; sabit kavram/sayfa tavanı yok, yeniden sorulmaz | kavram birimi adımı |
+| Belgede olmayan bilgi | Hazırlık sohbeti "Belgem + genel bilgi" moduyla açılır; genel bilgi "Genel bilgiden:" paragrafında, denetçi doğruluğuna bakar | `chat-panel.tsx`, `teacher-tutor.ts` |
+| Sohbet derinliği | "Neden / fark ne / ne olur" sorularında sonuç, koşul ve örnek de açılır | `teacher-tutor.ts` (TEACHER_MANNER) |
+| Doğru/yanlış | Yanlış ifadenin doğrusu (`corrected`) cevaptan sonra "Doğrusu" satırında; eksikliği dersi düşürmez (düşük önem) | `teaching-standards.ts`, `teacher-lesson.ts`, `exam-lesson-steps.tsx` |
 Maliyet: bizde 6 sohbet mesajı (~$0,02); Astra'da Plus hakkından.
