@@ -64,7 +64,8 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
   });
 
   it("istem: türün biçimi, kaynak kuralı; diyalogda Kerem; özette soru-cevap yok", () => {
-    expect(podcastSystem("document", "diyalog")).toContain('"ada"|"kerem"');
+    expect(podcastSystem("document", "diyalog")).toContain('{"speaker":"kerem"');
+    expect(podcastSystem("document", "diyalog")).toContain('{"speaker":"ada"');
     expect(podcastSystem("document", "basit")).toContain("KAYNAK KURALI (kesin)");
     expect(podcastSystem("topic", "basit")).toContain("BİLGİ KURALI (belgesiz, kesin)");
     expect(podcastSystem("document", "basit")).toContain("'Dur ve düşün:'");
