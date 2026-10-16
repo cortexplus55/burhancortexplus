@@ -1055,7 +1055,15 @@ export function ExamNodeSession({
               disabled={loading}
               onClick={() => void start()}
             >
-              {loading ? "Hazırlanıyor…" : kind === "podcast" ? "Podcast oluştur" : "Ders oluştur"}
+              {loading
+                ? "Hazırlanıyor…"
+                : kind === "podcast"
+                  ? "Podcast oluştur"
+                  : kind === "flashcards"
+                    ? "Kartları oluştur"
+                    : kind === "written_exam"
+                      ? "Denemeyi oluştur"
+                      : "Testi oluştur"}
             </button>
           )}
           {generationError ? (

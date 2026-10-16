@@ -49,8 +49,21 @@ const SCHEMA = `{
     {
       "heading": "kavramın adı",
       "lead": "içerik listesinde başlığın altında durur: bu bölümde ne var; tek cümle, en çok 12 kelime",
-      "body": "60-140 kelime; anahtar terimler **koyu**",
+      "body": "60-140 kelime; anahtar terimler **koyu**; soruyu tekrar sormaz, doğrudan anlatır",
       "checkFirst": true,
+      "check": {
+        "type": "trueFalse",
+        "prompt": "öğrencinin gerçekten inandığı yanılgı, bir ifade olarak",
+        "options": ["Doğru", "Yanlış"],
+        "answerIndex": 1,
+        "explanation": "neden yanlış (ya da doğru) olduğu",
+        "corrected": "ifade yanlışsa doğru hâli, tek cümle"
+      }
+    },
+    {
+      "heading": "kavramın adı",
+      "lead": "…",
+      "body": "…",
       "cards": [{"title": "kardeş kavram", "body": "tek cümle tanım"}],
       "table": {"caption": "…", "columns": ["…","…"], "rows": [["…","…"]]},
       "procedure": {"title": "…", "steps": [{"label": "…", "detail": "…"}]},
@@ -113,13 +126,17 @@ export const TEACHER_SYSTEM =
   "karıştırıldığını, sonra sınavda nasıl tanınacağını söyle. Zıtlıkla anlat (X böyledir, Y ise şöyle). " +
   "Kaynak bir karşılaştırma ya da tablo veriyorsa 'table' kullan; kardeş kavramları (aynı ailedeki 2-6 terim) 'cards' " +
   "ile tek cümlelik tanımlar olarak ver; sıralı bir işlem varsa 'procedure'; hesaplanabilir bağıntı varsa 'formula'. " +
+  "Yaşa, evreye ya da türe göre değişen birden çok değer sayıyorsan ('6 ayda …, 12 ayda …, 2 yaşta …') bunları gövdede " +
+  "art arda sıralama: 'table' kur (satır yaş/evre, sütun alan) ve gövdede tabloyu nasıl okuyacağını söyle. " +
   "Öğrencinin sık karıştırdığı iki kavram varsa bölümün içine 'note' (tone: warn) koy: 'X ile Y farkı'. " +
   "GÜNDELİK ÖRNEK (zorunlu): Derste EN AZ BİR bölümde, uyarı notu olmayan bir bölüme, 'note' (tone: info) ile " +
   "gündelik hayattan kısa bir örnek kutusu koy. Başlık 'Günlük hayattan: …' diye başlasın ve örneği anlatsın. " +
   "Somut bir sahne kur: biri bir şey yapıyor ve bir şey oluyor; soyut tanımı tekrar etme. Örnek biçimi: 'Kırmızı ışıkta " +
   "geçip bir arabaya çarptığında devlete ödediğin para ceza, karşı tarafın hasarını ödemen tazminattır.' Bu cümleyi " +
   "kopyalama; kendi konunun kavramları için benzer bir sahne kur. Örnek, kavramı ya da karıştırılan iki kavramı " +
-  "ayırt ettirir; yeni bilgi (sayı, kural, yasa, tarih, sonuç) taşımaz ve kaynaktaki tanımla çelişmez.\n\n" +
+  "ayırt ettirir; yeni bilgi (sayı, kural, yasa, tarih, sonuç) taşımaz ve kaynaktaki tanımla çelişmez. Sahnede iki " +
+  "kavram aynı olayda FARKLI sonuç versin (biri değişir, öteki değişmez; biri ceza, öteki tazminat). Konuyu yalnızca " +
+  "uygulayan birini anlatan sahne ('ebeveyn ölçümleri eğriye işler', 'öğrenci tanımı ezberler') örnek sayılmaz.\n\n" +
   "AKIŞ:\n" +
   "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle.\n" +
   "2) Bölümler: 3-4 bölüm (kaynak darsa 2). Her bölüm tek kavram; başlık kavramın adı. " +

@@ -17,6 +17,7 @@ import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-
 import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
+import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
@@ -1794,6 +1795,7 @@ async function handleNodeRequest(
                     ?.measured_level ?? null,
               })
             : difficulty,
+          requestedDifficulty: difficulty,
           familiarity,
           mood,
           sourceBlock: source.block,
@@ -2183,6 +2185,8 @@ async function generateNodePayload(input: {
   prepTitle: string;
   topicLabel: string;
   difficulty: string;
+  /** Kurulumdaki kaydırıcı (kolay/orta/ileri); öğretmen test motoru bunu kullanır. */
+  requestedDifficulty?: string;
   familiarity: Familiarity;
   mood: Mood;
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
@@ -2676,6 +2680,7 @@ async function teacherQuizPayload(
     count,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     runningHeaders: edges,
+    difficulty: quizDifficulty(input.requestedDifficulty),
     startedAt,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);

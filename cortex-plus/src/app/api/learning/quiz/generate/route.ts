@@ -86,6 +86,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     teachingV2: true,
     difficulty: difficulty === "easy" || difficulty === "hard" ? difficulty : "medium",
+    studentDifficulty: difficulty === "easy" || difficulty === "hard" ? difficulty : "medium",
     idempotencyKey,
     sourceExcerpt: docContext?.excerpt,
     requireSourceSupport: Boolean(docContext),

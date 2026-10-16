@@ -36,6 +36,30 @@ export type TeacherQuizInput = {
   /** Çağıranın isteği: soru türü planı, konu kodları, kapsam. */
   brief?: string;
   runningHeaders?: string[];
+  /**
+   * Öğrencinin seçtiği zorluk. 16 Ekim 2026'ya kadar kuruluştaki kaydırıcı
+   * yazara hiç ulaşmıyordu; "Orta" seçilen Pediatri testi tanım sorularıyla geldi.
+   */
+  difficulty?: QuizDifficulty;
+};
+
+export type QuizDifficulty = "kolay" | "orta" | "ileri";
+
+/** Kurulumdan gelen değer; tanınmayan değer yazara zorluk satırı göndermez. */
+export function quizDifficulty(value: string | null | undefined): QuizDifficulty | undefined {
+  if (value === "kolay" || value === "orta" || value === "ileri") return value;
+  if (value === "easy") return "kolay";
+  if (value === "medium") return "orta";
+  if (value === "hard") return "ileri";
+  return undefined;
+}
+
+const DIFFICULTY_LINE: Record<QuizDifficulty, string> = {
+  kolay: "kolay — tanıma ve temel ayrım; tanım sorusu olabilir ama çeldiriciler yine aynı aileden.",
+  orta:
+    "orta — soruların çoğu bir durumdan kavram buldurur ya da iki kardeş kavramı ayırt ettirir; en fazla bir tanım sorusu.",
+  ileri:
+    "ileri — her soru uygulama ya da çıkarım: vaka, koşul, istisna, iki bilginin birleşimi; tanım sorusu yok.",
 };
 
 const SCHEMA = `{
@@ -73,6 +97,11 @@ const DESIGN =
   "- Her soru tek kavramı ölçer. Kolaydan zora sırala.\n" +
   "- 4 şık. Tek doğru şık (multi false). Çeldiriciler aynı ailedeki kardeş terimler ya da öğrencinin gerçekten " +
   "yaptığı hata; şıklar aynı türden ve benzer uzunlukta. 'Hepsi', 'hiçbiri', 'yukarıdakilerin' şıkkı yok.\n" +
+  "- Dört şık da sorulan kategoriden olur: ölçüm soruluyorsa dördü de ölçüm, yaklaşım soruluyorsa dördü de aynı işe " +
+  "dönük yaklaşım. Konuyu bilmeyen birinin eleyebileceği şık ('Sosyal gülümseme' bir ölçüm sorusunda, 'Yalnızca dil " +
+  "becerilerini değerlendirmek' bir büyüme sorusunda) çeldirici değildir; soruyu tahminle çözdürür.\n" +
+  "- Kök, doğru şıkkı ötekilerden ayıran ipucunu vermez ('kilo akut etkilenir' deyip 'kronik olanı hangisi' diye sorup " +
+  "şıklara kiloyu koymak gibi).\n" +
   "- Kök cevabı vermez; doğru şıkkın kelimeleri kökte geçmez. Sayma sorusu ('kaç tür vardır') yok. Olumsuz kök " +
   "('hangisi değildir') en fazla bir soruda ve olumsuz ek **koyu** yazılır.\n" +
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
@@ -123,6 +152,7 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     input.prepTitle ? `SINAV: ${input.prepTitle}` : "",
     input.topicLabel ? `KONU: ${input.topicLabel}` : "",
     `SORU SAYISI: ${ask}`,
+    input.difficulty ? `ZORLUK: ${DIFFICULTY_LINE[input.difficulty]}` : "",
     input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     input.runningHeaders?.length
@@ -146,8 +176,10 @@ const VERIFY_DOCUMENT =
   "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi.\n" +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
+  "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
+  "ötekilerden ayıran ipucunu vermesi (soru tahminle çözülüyor).\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla kullanılması sorun değildir.\n" +
-  "A-F 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
+  "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
 const VERIFY_TOPIC =
   "Sen titiz bir sınav sorusu denetçisisin. Belgesi olmayan bir testi doğruluk açısından denetliyorsun. HER SORUYU ÖNCE " +
@@ -161,7 +193,9 @@ const VERIFY_TOPIC =
   "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi.\n" +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
-  "A-F 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
+  "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
+  "ötekilerden ayıran ipucunu vermesi (soru tahminle çözülüyor).\n" +
+  "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
 const VERIFY_JSON =
   'JSON döndür: {"issues":[{"question":0,"severity":"high","problem":"…","fix":"…"}]} — question, 0\'dan başlayan ' +

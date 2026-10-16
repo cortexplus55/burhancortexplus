@@ -4,6 +4,7 @@ import type { ActionCode } from "@/lib/env";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { randomUUID } from "node:crypto";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
+import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 
 export async function generateExamQuiz(input: {
   service: SupabaseClient;
@@ -11,6 +12,8 @@ export async function generateExamQuiz(input: {
   isPremium: boolean;
   userPrompt: string;
   difficulty?: "easy" | "medium" | "hard";
+  /** Öğrencinin seçtiği zorluk (test aracı); öğretmen yazarına ZORLUK satırı olarak gider. */
+  studentDifficulty?: "easy" | "medium" | "hard";
   verificationMode?: "full" | "schema";
   /** Stage 5: enforce pedagogy validators (fail closed via quality gate). */
   teachingV2?: boolean;
@@ -74,6 +77,9 @@ export async function generateExamQuiz(input: {
     count,
     minimum: Math.min(3, count),
     brief: [input.userPrompt, input.schemaHintExtra].filter(Boolean).join("\n"),
+    // Yalnız öğrencinin kendi seçimi; "difficulty" eski zincirden kalma sabit
+    // ("hard" tanı ve tanışma testinde) ve yazara gitmez.
+    difficulty: quizDifficulty(input.studentDifficulty),
     deferCommit: input.deferCommit,
   });
   if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
