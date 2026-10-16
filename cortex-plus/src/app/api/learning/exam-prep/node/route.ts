@@ -2435,6 +2435,25 @@ async function teacherLessonPayload(
     charge: input.charge,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  // Düzeltme turu açan ders yavaş (16 Ekim 2026: ~4,5 dk). Nedeni yönetim "Ders hataları"nda
+  // görünsün; ölçmeden kural değiştirmeyelim. Ders öğrenciye gider, bu yalnız kayıt.
+  if (outcome.fixTriggers.length) {
+    await recordLessonGenerationFailure(input.service, {
+      userId: input.userId,
+      prepId: input.prepId ?? null,
+      topicId: input.topicId ?? null,
+      topicLabel: input.topicLabel,
+      kind: "lesson",
+      stage: "fix_rounds",
+      reason: "slow_generation",
+      reasons: [
+        `${Math.round(outcome.ms / 1000)} sn · ${outcome.calls} çağrı · ${outcome.fixTriggers.length} tur`,
+        ...outcome.fixTriggers.flatMap((issues, round) =>
+          issues.slice(0, 4).map((issue) => `tur ${round + 1} · ${issue.where}: ${issue.problem}`.slice(0, 200)),
+        ),
+      ],
+    });
+  }
   const lesson = outcome.lesson;
   const payload = {
     type: "lesson",
