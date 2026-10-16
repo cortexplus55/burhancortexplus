@@ -5,7 +5,7 @@ import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements"
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
-import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { readLessonV2 } from "@/lib/learning/lesson-v3";
 
 /**
  * Ders bitince önerilen sesli tekrar.
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   const lesson = row?.content_json
-    ? lessonV2Schema.safeParse(row.content_json).data ?? null
+    ? readLessonV2(row.content_json)
     : null;
   if (!lesson) return errorResponse(409, "lesson_required");
 

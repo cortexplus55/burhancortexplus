@@ -13,7 +13,7 @@ import {
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
-import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { prepLanguage, type StoredReview } from "@/lib/learning/teacher-brain";
 
 export type LocalSessionPlan =
@@ -55,9 +55,9 @@ function asReview(value: unknown): StoredReview | null {
 }
 
 function lessonChecks(content: unknown, topic: string): StoredLessonCheck[] {
-  const parsed = lessonV2Schema.safeParse(content);
-  const sections = parsed.success
-    ? parsed.data.sections
+  const parsed = readLessonV2(content);
+  const sections = parsed
+    ? parsed.sections
     : Array.isArray((content as { sections?: unknown } | null)?.sections)
       ? ((content as { sections: unknown[] }).sections ?? [])
       : [];

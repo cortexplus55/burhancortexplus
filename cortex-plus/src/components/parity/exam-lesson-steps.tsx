@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronLeft, CornerDownLeft, Info, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -28,6 +28,16 @@ import type {
   PublicSectionCheck,
 } from "@/lib/learning/lesson-play";
 import { planLine, publicLessonV2Schema } from "@/lib/learning/lesson-play";
+import type { PublicLessonBlock, PublicLessonV3 } from "@/lib/learning/lesson-play-v3";
+import {
+  conceptGroups,
+  isLessonV3,
+  screenText,
+  v2ToV3,
+  v3ToV2,
+  type LessonBlock,
+  type LessonV3,
+} from "@/lib/learning/lesson-v3";
 import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
 import "@/styles/exam-lesson-steps.css";
@@ -195,25 +205,186 @@ function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][num
   );
 }
 
-type PlayLesson = LessonV2 | z.infer<typeof publicLessonV2Schema>;
+/** Ekran içindeki çözümlü örnek: önce kendin dene, sonra çözüm. */
+function ExampleBlock({
+  example,
+  topicHint,
+}: {
+  example: Extract<LessonBlock, { type: "example" }>["example"];
+  topicHint: string;
+}) {
+  const [shown, setShown] = useState(false);
+  const stepTexts = (example.steps ?? []).filter((item) => !isPromptEcho(item, example.prompt));
+  const solution = displaySolution(example.solution, example.prompt);
+  return (
+    <section className="als-example" aria-label="Çözümlü örnek">
+      <p className="als-kicker">ÇÖZÜMLÜ ÖRNEK</p>
+      {example.givens?.length ? (
+        <>
+          <h2 className="als-subhead">Verilenler</h2>
+          <ul className="als-list">
+            {example.givens.map((given) => (
+              <li key={given}>
+                <RichBody text={given} topicHint={topicHint} />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="als-body">
+          <RichBody text={example.prompt} topicHint={topicHint} />
+        </p>
+      )}
+      {example.unknown ? (
+        <>
+          <h2 className="als-subhead">İstenen</h2>
+          <p className="als-body">
+            <RichBody text={example.unknown} topicHint={topicHint} />
+          </p>
+        </>
+      ) : null}
+      {shown ? (
+        <div className="als-solution">
+          <span className="als-tag">Çözüm</span>
+          {stepTexts.length ? (
+            <ol className="als-list">
+              {stepTexts.map((item, stepIndex) => (
+                <li key={item}>
+                  {stepIndex + 1}. <RichBody text={item} topicHint={topicHint} />
+                </li>
+              ))}
+            </ol>
+          ) : solution ? (
+            <BoardBody text={solution} className="als-solution-body" topicHint={topicHint} />
+          ) : null}
+          {example.result ? (
+            <p>
+              <strong>Sonuç: </strong>
+              <RichBody text={example.result} topicHint={topicHint} />
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <button type="button" className="als-secondary" onClick={() => setShown(true)}>
+          Önce kendin dene, sonra sonucu göster
+        </button>
+      )}
+    </section>
+  );
+}
+
+/**
+ * LessonV3 ekranının blokları, dizideki sırayla (16 Ekim 2026). Soru blokları
+ * burada çizilmez; soru bölgesi ayrı (kontrol, açıklama, "Doğrusu").
+ */
+function LessonBlocks({
+  blocks,
+  source,
+  topicHint,
+  idBase,
+}: {
+  blocks: PlayBlock[];
+  source?: { file: string; page?: number };
+  topicHint: string;
+  idBase: string;
+}) {
+  let sourceShown = !source;
+  return (
+    <>
+      {blocks.map((block, blockIndex) => {
+        const key = `${idBase}-${blockIndex}`;
+        switch (block.type) {
+          case "text": {
+            const badge = sourceShown ? null : <SourceBadge source={source!} />;
+            sourceShown = true;
+            return (
+              <Fragment key={key}>
+                <BoardBody text={block.text} topicHint={topicHint} />
+                {bodyHasRemovalNote(block.text) ? (
+                  <p className="als-removed" role="status" title="Materyalinle doğrulanamayan kısımları göstermedik.">
+                    <Info className="h-3.5 w-3.5" aria-hidden />
+                    Doğrulanamayan cümleler çıkarıldı.
+                  </p>
+                ) : null}
+                {badge}
+              </Fragment>
+            );
+          }
+          case "cards":
+            return block.cards.length >= 2 ? (
+              <div key={key} className="als-card-grid">
+                {block.cards.map((card) => (
+                  <article key={card.title} className="als-card">
+                    <h2>{card.title}</h2>
+                    <p>
+                      <RichBody text={card.body} topicHint={topicHint} />
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : null;
+          case "formula":
+            return <FormulaCard key={key} formula={block.formula} />;
+          case "procedure":
+            return <ProcedureList key={key} procedure={block.procedure} />;
+          case "table":
+            return <ReferenceTable key={key} table={block.table} />;
+          case "diagram":
+            return <LessonDiagramView key={key} diagram={block.diagram} id={key} />;
+          case "note":
+            return (
+              <aside key={key} className={`als-note als-note--${calloutTone(block.note)}`}>
+                <p className="als-note-title">{block.note.title}</p>
+                <p className="als-note-body">
+                  <RichBody text={block.note.body} topicHint={topicHint} />
+                </p>
+              </aside>
+            );
+          case "example":
+            return <ExampleBlock key={key} example={block.example} topicHint={topicHint} />;
+          default:
+            return null;
+        }
+      })}
+    </>
+  );
+}
+
+/** Ekran her iki biçimi de alır; içeride V3'e çevrilir (16 Ekim 2026, LessonV3). */
+type PlayLesson = LessonV2 | z.infer<typeof publicLessonV2Schema> | LessonV3 | PublicLessonV3;
+type PlayLessonV3 = LessonV3 | PublicLessonV3;
+type PlayBlock = LessonBlock | PublicLessonBlock;
 type PlayCheck = NonNullable<LessonV2["sections"][number]["check"]> | PublicSectionCheck;
+
+function toPlayV3(lesson: PlayLesson): PlayLessonV3 {
+  return isLessonV3(lesson) ? (lesson as PlayLessonV3) : v2ToV3(lesson as LessonV2);
+}
+
+/** Bloklar ilk sorudan bölünür: öncekiler sorudan önce, sonrakiler cevaptan sonra görünür. */
+function splitAtCheck(blocks: PlayBlock[]): { before: PlayBlock[]; after: PlayBlock[] } {
+  const at = blocks.findIndex((block) => block.type === "check");
+  if (at < 0) return { before: blocks, after: [] };
+  return {
+    before: blocks.slice(0, at),
+    after: blocks.slice(at + 1).filter((block) => block.type !== "check"),
+  };
+}
 
 type Step =
   | { kind: "overview"; heading: string; body: string }
   | {
       kind: "section";
       heading: string;
+      /** Metin bloklarının birleşimi (yardımcılar için); ekran blokları çizer. */
       body: string;
+      /** Sıralı bloklar (soru dahil); ekranda bu sırayla görünür. */
+      blocks: PlayBlock[];
       check?: PlayCheck;
-      /** true: check ekranda gövdeden önce gösterilir (geri getirme / "önce dene"). */
+      /** true: soru ekranın ilk bloğu — anlatım cevaptan sonra açılır ("önce dene"). */
       checkFirst?: boolean;
-      note?: LessonV2["sections"][number]["note"];
-      diagram?: LessonV2["sections"][number]["diagram"];
-      cards?: LessonV2["sections"][number]["cards"];
       source?: { file: string; page?: number };
-      formula?: LessonV2["sections"][number]["formula"];
-      procedure?: LessonV2["sections"][number]["procedure"];
-      table?: LessonV2["sections"][number]["table"];
+      /** Kavram birden çok ekrana yayılıyorsa: "Z-skoru · 1/2". */
+      part?: { concept: string; index: number; total: number };
       sectionIndex: number;
     }
   | {
@@ -252,45 +423,55 @@ function bodyHasRemovalNote(text: string): boolean {
   return /Doğrulanamayan cümleler çıkarıldı/i.test(text);
 }
 
-function buildSteps(lesson: PlayLesson): Step[] {
+function buildSteps(lesson: PlayLessonV3, view: LessonV2): Step[] {
   const steps: Step[] = [];
   const overview = (lesson.overview ?? "").trim();
-  const firstBody = lesson.sections[0]?.body ?? "";
+  const firstBody = lesson.screens[0] ? screenText(lesson.screens[0]) : "";
+  const groups = conceptGroups(lesson.screens);
   // Astra gibi giriş kartı (1 Ekim 2026): ders her zaman bir planla açılır —
-  // okuma süresi, adım sayısı, bölüm başlıkları. Özet ilk bölümü tekrar
-  // ediyorsa kanca cümlesi boş kalır, kart yine gösterilir.
+  // okuma süresi, adım sayısı, kavramlar. Özet ilk ekranı tekrar ediyorsa
+  // kanca cümlesi boş kalır, kart yine gösterilir.
   const hook = overview && !overviewDuplicatesSection(overview, firstBody) ? overview : "";
-  if (hook || planHeadings(lesson).length >= 2) {
+  if (hook || groups.length >= 2) {
     steps.push({ kind: "overview", heading: lesson.title, body: hook });
   }
   steps.push(
-    ...lesson.sections.map((s, sectionIndex): Step => {
-      // `source` alanı doldurulmuş üretimlerde zaten ayrı gelir; bu
-      // değişiklikten önce kaydedilmiş derslerde künye hâlâ gövdenin
-      // sonunda gömülü olabilir — ekranda göstermeden önce ayıklanır.
-      const existingSource = "source" in s ? (s.source as { file: string; page?: number } | undefined) : undefined;
-      const stripped = existingSource ? null : stripInlineSourceLine(s.body);
-      const note = s.note as LessonV2["sections"][number]["note"] | undefined;
-      // dropDuplicateNotes (lesson-teach.ts) yalnızca yeni üretimde çalışır;
-      // bu değişiklikten önce kaydedilmiş derslerde gövdesini tekrarlayan
-      // note hâlâ veritabanında durabilir — aynı kontrol burada da yapılır.
-      const dedupedNote =
-        note && isNearDuplicateText(note.body, s.body) ? undefined : note;
+    ...lesson.screens.map((screen, sectionIndex): Step => {
+      const blocks = screen.blocks as PlayBlock[];
+      const text = screenText(screen);
+      // `source` alanı doldurulmuş üretimlerde zaten ayrı gelir; bundan önce
+      // kaydedilmiş derslerde künye hâlâ ilk metnin sonunda gömülü olabilir —
+      // ekranda göstermeden önce ayıklanır.
+      let source = screen.source;
+      let strippedFirst = false;
+      const cleaned = blocks.flatMap((block): PlayBlock[] => {
+        if (block.type === "text" && !strippedFirst && !source) {
+          strippedFirst = true;
+          const stripped = stripInlineSourceLine(block.text);
+          if (stripped) {
+            source = stripped.source ?? undefined;
+            return stripped.body.trim() ? [{ ...block, text: stripped.body }] : [];
+          }
+          return [block];
+        }
+        // dropDuplicateNotes yalnızca eski üretimde çalışıyordu; o derslerde
+        // metni tekrarlayan not hâlâ kayıtta durabilir — burada da ayıklanır.
+        if (block.type === "note" && isNearDuplicateText(block.note.body, text)) return [];
+        return [block];
+      });
+      const group = groups.find((item) => item.screens.includes(sectionIndex));
+      const check = cleaned.find((block) => block.type === "check");
       return {
         kind: "section",
-        heading: s.heading,
-        body: stripped ? stripped.body : s.body,
-        check: s.check as PlayCheck | undefined,
-        checkFirst: ("checkFirst" in s ? s.checkFirst : undefined) as boolean | undefined,
-        note: dedupedNote,
-        diagram: ("diagram" in s ? s.diagram : undefined) as LessonV2["sections"][number]["diagram"] | undefined,
-        cards: s.cards as LessonV2["sections"][number]["cards"] | undefined,
-        source: existingSource ?? stripped?.source ?? undefined,
-        formula: ("formula" in s ? s.formula : undefined) as LessonV2["sections"][number]["formula"] | undefined,
-        procedure: ("procedure" in s ? s.procedure : undefined) as
-          | LessonV2["sections"][number]["procedure"]
-          | undefined,
-        table: ("table" in s ? s.table : undefined) as LessonV2["sections"][number]["table"] | undefined,
+        heading: screen.heading,
+        body: text,
+        blocks: cleaned,
+        check: check?.type === "check" ? (check.check as PlayCheck) : undefined,
+        checkFirst: cleaned[0]?.type === "check",
+        source,
+        ...(group && group.screens.length > 1
+          ? { part: { concept: group.concept, index: group.screens.indexOf(sectionIndex) + 1, total: group.screens.length } }
+          : {}),
         sectionIndex,
       };
     }),
@@ -317,6 +498,7 @@ function buildSteps(lesson: PlayLesson): Step[] {
       kind: "section",
       heading: "Hesap",
       body: "Formülü ve verilenleri kullanarak hesapla.",
+      blocks: [{ type: "text", text: "Formülü ve verilenleri kullanarak hesapla." }],
       check: {
         type: "numerical",
         prompt: num.prompt,
@@ -338,6 +520,7 @@ function buildSteps(lesson: PlayLesson): Step[] {
       kind: "section",
       heading: "Hatayı bul",
       body: find.faultyText ?? "",
+      blocks: find.faultyText ? [{ type: "text", text: find.faultyText }] : [],
       check: {
         type: "findError",
         prompt: find.prompt,
@@ -367,7 +550,7 @@ function buildSteps(lesson: PlayLesson): Step[] {
         ? lesson.infoCheck.answer.trim()
         : "";
     if (answer) {
-      const duplicated = lesson.sections.some(
+      const duplicated = view.sections.some(
         (section) => section.check?.prompt.trim() === lesson.infoCheck?.prompt.trim(),
       );
       if (!duplicated) {
@@ -389,35 +572,33 @@ function buildSteps(lesson: PlayLesson): Step[] {
     });
   }
   if (!steps.length) {
-    steps.push({ kind: "overview", heading: lesson.title, body: lesson.sections[0]?.body ?? "" });
+    steps.push({ kind: "overview", heading: lesson.title, body: view.sections[0]?.body ?? "" });
   }
   return steps;
 }
 
-/** Bölüm başlıkları, tekrar etmeden. Ekrana yayılan kavram aynı başlığı taşır. */
-function planHeadings(lesson: PlayLesson): string[] {
-  return lesson.sections
-    .map((section) => section.heading.trim())
-    .filter((heading, index, all) => heading && all.indexOf(heading) === index);
-}
-
-/** Giriş kartındaki "Bu derste neler var" listesi. */
-function LessonPlan({ lesson }: { lesson: PlayLesson }) {
-  const headings = planHeadings(lesson);
-  if (headings.length < 2) return null;
-  const checks = lesson.sections.filter((section) => section.check).length;
+/**
+ * Giriş kartındaki "Bu derste neler var" listesi: kavramlar, tekrar etmeden.
+ * İki-üç ekrana yayılan kavram bir kez yazılır; altındaki satır ilk ekranının.
+ */
+function LessonPlan({ lesson }: { lesson: PlayLessonV3 }) {
+  const groups = conceptGroups(lesson.screens).filter(
+    (group, index, all) => all.findIndex((other) => other.concept === group.concept) === index,
+  );
+  if (groups.length < 2) return null;
+  const checks = lesson.screens.filter((screen) => screen.blocks.some((block) => block.type === "check")).length;
   return (
     <section className="als-intro-plan" aria-label="Bu derste neler var">
       <h2>Bu derste neler var</h2>
       <ol>
-        {headings.map((heading, index) => {
-          const section = lesson.sections.find((item) => item.heading.trim() === heading);
-          const line = section ? planLine(section) : "";
+        {groups.map((group, index) => {
+          const first = lesson.screens[group.screens[0]!];
+          const line = first ? planLine({ lead: first.lead, body: screenText(first) }) : "";
           return (
-            <li key={heading}>
+            <li key={group.concept}>
               <span aria-hidden>{index + 1}</span>
               <div>
-                {heading}
+                {group.concept}
                 {line ? <small>{line}</small> : null}
               </div>
             </li>
@@ -476,7 +657,10 @@ export function ExamLessonSteps({
     variant?: CheckGradeVariant,
   ) => Promise<GradeCheckResult>;
 }) {
-  const base = useMemo(() => buildSteps(lesson), [lesson]);
+  const play = useMemo(() => toPlayV3(lesson), [lesson]);
+  /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
+  const view = useMemo(() => v3ToV2(play as LessonV3), [play]);
+  const base = useMemo(() => buildSteps(play, view), [play, view]);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -494,13 +678,13 @@ export function ExamLessonSteps({
   const [ungradable, setUngradable] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const closeDialogRef = useRef<HTMLDivElement | null>(null);
-  const mathTopicHint = lesson.title ?? "";
+  const mathTopicHint = play.title ?? "";
 
   const steps = useMemo(() => {
     const retries = missed
       .map((sectionIndex) => {
-        const section = lesson.sections[sectionIndex] as
-          | (PlayLesson["sections"][number] & { retryCheck?: PublicSectionCheck })
+        const section = view.sections[sectionIndex] as
+          | (LessonV2["sections"][number] & { retryCheck?: PublicSectionCheck })
           | undefined;
         if (!section?.check) return null;
         // Sunucunun primary notlandırmada verdiği sealed retry.
@@ -532,7 +716,7 @@ export function ExamLessonSteps({
       .filter((s): s is Extract<Step, { kind: "retry" }> => s !== null);
     if (!retries.length) return base;
     const distinct = retries.some((retry) => {
-      const primary = lesson.sections[retry.sectionIndex]?.check;
+      const primary = view.sections[retry.sectionIndex]?.check;
       if (!primary) return false;
       return isDistinctRetryVariant(primary, retry.check);
     });
@@ -541,7 +725,7 @@ export function ExamLessonSteps({
       { kind: "review-gate", count: retries.length, distinct } as Step,
       ...retries,
     ];
-  }, [base, missed, lesson, language, serverRetries]);
+  }, [base, missed, view, language, serverRetries]);
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
@@ -781,7 +965,7 @@ export function ExamLessonSteps({
               Math.max(0, steps.length - base.length - 1),
             )}
           </span>
-          <span className="als-minutes">yaklaşık {honestReadingMinutes(lesson as LessonV2)} dk</span>
+          <span className="als-minutes">yaklaşık {honestReadingMinutes(view)} dk</span>
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
@@ -837,55 +1021,31 @@ export function ExamLessonSteps({
           {step.kind === "overview" ? (
             <p className="als-intro-meta">
               <span className="als-intro-tag">Ders</span>
-              yaklaşık {honestReadingMinutes(lesson as LessonV2)} dk okuma · {base.length} adım
+              yaklaşık {honestReadingMinutes(view)} dk okuma · {base.length} adım
+            </p>
+          ) : null}
+          {step.kind === "section" && step.part ? (
+            <p className="als-kicker als-part">
+              {step.part.concept} · {step.part.index}/{step.part.total}
             </p>
           ) : null}
           <h1 className="als-heading">{step.heading}</h1>
 
-          {step.kind === "overview" || step.kind === "section" ? (
+          {step.kind === "overview" ? (
             <>
-              {step.body ? <BoardBody text={step.body}  topicHint={mathTopicHint} /> : null}
-              {step.kind === "overview" ? <LessonPlan lesson={lesson} /> : null}
-              {bodyHasRemovalNote(step.body) ? (
-                <p className="als-removed" role="status" title="Materyalinle doğrulanamayan kısımları göstermedik.">
-                  <Info className="h-3.5 w-3.5" aria-hidden />
-                  Doğrulanamayan cümleler çıkarıldı.
-                </p>
-              ) : null}
-              {step.kind === "section" && step.source ? <SourceBadge source={step.source} /> : null}
+              {step.body ? <BoardBody text={step.body} topicHint={mathTopicHint} /> : null}
+              <LessonPlan lesson={play} />
             </>
           ) : null}
 
-          {step.kind === "section" && step.cards && step.cards.length >= 2 ? (
-            <div className="als-card-grid">
-              {step.cards.map((card) => (
-                <article key={card.title} className="als-card">
-                  <h2>{card.title}</h2>
-                  <p>
-                    <RichBody text={card.body}  topicHint={mathTopicHint} />
-                  </p>
-                </article>
-              ))}
-            </div>
-          ) : null}
-
-          {step.kind === "section" && step.formula ? <FormulaCard formula={step.formula} /> : null}
-
-          {step.kind === "section" && step.procedure ? <ProcedureList procedure={step.procedure} /> : null}
-
-          {step.kind === "section" && step.table ? <ReferenceTable table={step.table} /> : null}
-
-          {step.kind === "section" && step.diagram ? (
-            <LessonDiagramView diagram={step.diagram} id={`als-d-${index}`} />
-          ) : null}
-
-          {step.kind === "section" && step.note ? (
-            <aside className={`als-note als-note--${calloutTone(step.note)}`}>
-              <p className="als-note-title">{step.note.title}</p>
-              <p className="als-note-body">
-                <RichBody text={step.note.body}  topicHint={mathTopicHint} />
-              </p>
-            </aside>
+          {/* LessonV3: bloklar dizideki sırayla. "Önce dene"de sorudan sonrakiler, değilse sorudan öncekiler. */}
+          {step.kind === "section" ? (
+            <LessonBlocks
+              blocks={step.checkFirst ? splitAtCheck(step.blocks).after : splitAtCheck(step.blocks).before}
+              source={step.source}
+              topicHint={mathTopicHint}
+              idBase={`als-d-${index}`}
+            />
           ) : null}
 
           {step.kind === "example" ? (
@@ -1239,6 +1399,16 @@ export function ExamLessonSteps({
           <div className="als-step-content">
             {checkFirst ? checkRegion : slideRegion}
             {checkFirst ? (revealed ? slideRegion : null) : checkRegion}
+            {/* Sorunun ortada durduğu ekranda sonrası cevaptan sonra açılır. */}
+            {!checkFirst && step.kind === "section" && revealed && splitAtCheck(step.blocks).after.length ? (
+              <div className="als-slide als-slide--after">
+                <LessonBlocks
+                  blocks={splitAtCheck(step.blocks).after}
+                  topicHint={mathTopicHint}
+                  idBase={`als-d-${index}-after`}
+                />
+              </div>
+            ) : null}
           </div>
         );
       })()}

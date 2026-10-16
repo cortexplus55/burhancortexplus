@@ -1,4 +1,13 @@
-import { lessonV2Schema, type LessonV2 } from "@/lib/learning/teaching-standards";
+import {
+  LESSON_V3_FORMAT,
+  conceptGroups,
+  readLessonV3,
+  screenCheck,
+  screenChecksFirst,
+  screenText,
+  type LessonBlock,
+  type LessonV3,
+} from "@/lib/learning/lesson-v3";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 
 /**
@@ -42,45 +51,44 @@ export function sourceText(pages: TeacherLessonInput["pages"]): string {
 }
 
 const SCHEMA = `{
+  "format": 3,
   "title": "konunun içerikten adı, en fazla 9 kelime",
   "overview": "kanca: 1-2 cümle; konunun neden önemli olduğunu kaynaktaki bir gerçekle söyler",
   "objective": "bu dersten sonra öğrencinin YAPABİLECEĞİ tek şey",
-  "sections": [
+  "screens": [
     {
-      "heading": "kavramın adı",
-      "lead": "içerik listesinde başlığın altında durur: bu bölümde ne var; tek cümle, en çok 12 kelime",
-      "body": "60-140 kelime; anahtar terimler **koyu**; soruyu tekrar sormaz, doğrudan anlatır",
-      "checkFirst": true,
-      "check": {
-        "type": "trueFalse",
-        "prompt": "öğrencinin gerçekten inandığı yanılgı, bir ifade olarak",
-        "options": ["Doğru", "Yanlış"],
-        "answerIndex": 1,
-        "explanation": "neden yanlış (ya da doğru) olduğu",
-        "corrected": "ifade yanlışsa doğru hâli, tek cümle"
-      }
+      "heading": "ekranın odağı: kavramın adı",
+      "concept": "kavramın adı (aynı kavramın bütün ekranlarında aynı)",
+      "lead": "içerik listesinde kavramın altında durur: bu kavramda ne var; tek cümle, en çok 12 kelime",
+      "blocks": [
+        {"type": "check", "check": {"type": "trueFalse", "prompt": "öğrencinin gerçekten inandığı yanılgı, bir ifade olarak", "options": ["Doğru", "Yanlış"], "answerIndex": 1, "explanation": "neden yanlış (ya da doğru) olduğu", "corrected": "ifade yanlışsa doğru hâli, tek cümle"}},
+        {"type": "text", "text": "60-140 kelime; anahtar terimler **koyu**; soruyu tekrar sormaz, doğrudan anlatır"},
+        {"type": "formula", "formula": {"title": "…", "expression": "kaynaktaki bağıntı", "note": "harflerin anlamı"}}
+      ]
     },
     {
-      "heading": "kavramın adı",
+      "heading": "aynı kavram: hesap",
+      "concept": "kavramın adı (bir önceki ekranla aynı)",
+      "blocks": [
+        {"type": "text", "text": "formülün nasıl uygulanacağı, kısa"},
+        {"type": "procedure", "procedure": {"title": "…", "steps": [{"label": "…", "detail": "kaynaktaki sayıyla"}]}},
+        {"type": "example", "example": {"prompt": "…", "givens": ["…"], "unknown": "…", "steps": ["…"], "result": "birimli sonuç", "solution": "…"}},
+        {"type": "check", "check": {"type": "mcq", "prompt": "…", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "doğru cevabın nedeni + her çeldiricinin gerçekte ne olduğu", "optionWhy": ["şık 1 için tek cümle", "şık 2", "şık 3", "şık 4"], "review": {"prompt": "aynı kavramı farklı yönden soran durum sorusu; şıklar aynı kalır"}}}
+      ]
+    },
+    {
+      "heading": "ikinci kavramın adı",
+      "concept": "ikinci kavramın adı",
       "lead": "…",
-      "body": "…",
-      "cards": [{"title": "kardeş kavram", "body": "tek cümle tanım"}],
-      "table": {"caption": "…", "columns": ["…","…"], "rows": [["…","…"]]},
-      "procedure": {"title": "…", "steps": [{"label": "…", "detail": "…"}]},
-      "formula": {"title": "…", "expression": "…", "note": "…"},
-      "note": {"title": "X ile Y farkı", "body": "…", "tone": "warn"},
-      "check": {
-        "type": "mcq",
-        "prompt": "…",
-        "options": ["…","…","…","…"],
-        "answerIndex": 0,
-        "explanation": "doğru cevabın nedeni + her çeldiricinin gerçekte ne olduğu",
-        "optionWhy": ["şık 1 için tek cümle", "şık 2", "şık 3", "şık 4"],
-        "review": {"prompt": "aynı kavramı farklı yönden soran durum sorusu; şıklar aynı kalır"}
-      }
+      "blocks": [
+        {"type": "text", "text": "…"},
+        {"type": "cards", "cards": [{"title": "kardeş kavram", "body": "tek cümle tanım"}, {"title": "kardeş kavram", "body": "tek cümle tanım"}]},
+        {"type": "table", "table": {"caption": "…", "columns": ["…","…"], "rows": [["…","…"], ["…","…"]]}},
+        {"type": "note", "note": {"title": "X ile Y farkı", "body": "…", "tone": "warn"}},
+        {"type": "check", "check": {"type": "mcq", "prompt": "…", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "…", "optionWhy": ["…","…","…","…"], "review": {"prompt": "…"}}}
+      ]
     }
   ],
-  "example": {"prompt": "…", "givens": ["…"], "unknown": "…", "steps": ["…"], "result": "…", "solution": "…"},
   "commonMistake": {"claim": "öğrencinin gerçekten yaptığı hata", "correction": "…"},
   "summary": ["sınavda işe yarayan kesin bilgi", "…", "…"],
   "nextFocus": ["SIRADAKİ KONULAR listesinden aynen"]
@@ -101,12 +109,13 @@ const RULE_TOPIC =
   "Aşağıda 'kaynak' denen her yer bu derste konunun yerleşik bilgisi anlamına gelir.\n\n";
 
 const EXAMPLE_DOCUMENT =
-  "5) example yalnız kaynakta çözümlü bir örnek ya da hesap varsa; verilen, istenen, adımlar ve birimli sonuç kaynaktan.\n" +
+  "5) 'example' bloğu yalnız kaynakta çözümlü bir örnek ya da hesap varsa, ait olduğu kavramın ekranında; verilen, " +
+  "istenen, adımlar ve birimli sonuç kaynaktan.\n" +
   "6) commonMistake: kaynağa göre öğrencinin yapacağı somut hata ve düzeltmesi (öğüt değil, hata).\n";
 
 const EXAMPLE_TOPIC =
-  "5) example: konu hesap ya da uygulama içeriyorsa kendin kurduğun basit, adım adım doğrulanabilir bir çözümlü örnek " +
-  "(verilen, istenen, adımlar, birimli sonuç); değilse yazma.\n" +
+  "5) 'example' bloğu: konu hesap ya da uygulama içeriyorsa kendin kurduğun basit, adım adım doğrulanabilir bir " +
+  "çözümlü örnek (verilen, istenen, adımlar, birimli sonuç), ait olduğu kavramın ekranında; değilse yazma.\n" +
   "6) commonMistake: öğrencilerin bu konuda gerçekten yaptığı somut hata ve düzeltmesi (öğüt değil, hata).\n";
 
 /** Öğretmen istemi — Astra'nın aynı belgeyle gözlenen ders akışı. */
@@ -124,13 +133,17 @@ export const TEACHER_SYSTEM =
   "'kaynakta yanlış yazılmış' gibi bir nottan hiç söz etme.\n\n" +
   "ANLATIM: 'Sen' diye konuşan, sakin, sınav odaklı bir öğretmen. Kısa cümleler. Önce kavramın ne olduğunu, sonra neyle " +
   "karıştırıldığını, sonra sınavda nasıl tanınacağını söyle. Zıtlıkla anlat (X böyledir, Y ise şöyle). " +
-  "Kaynak bir karşılaştırma ya da tablo veriyorsa 'table' kullan; kardeş kavramları (aynı ailedeki 2-6 terim) 'cards' " +
-  "ile tek cümlelik tanımlar olarak ver; sıralı bir işlem varsa 'procedure'; hesaplanabilir bağıntı varsa 'formula'. " +
-  "Yaşa, evreye ya da türe göre değişen birden çok değer sayıyorsan ('6 ayda …, 12 ayda …, 2 yaşta …') bunları gövdede " +
-  "art arda sıralama: 'table' kur (satır yaş/evre, sütun alan) ve gövdede tabloyu nasıl okuyacağını söyle. " +
-  "Tablo kurduğun bölümde gövde tablonun satırlarını yeniden saymaz; ayırt ettiren ölçütü ve tablonun nasıl okunacağını söyler. " +
-  "Öğrencinin sık karıştırdığı iki kavram varsa bölümün içine 'note' (tone: warn) koy: 'X ile Y farkı'. " +
-  "GÜNDELİK ÖRNEK (zorunlu): Derste EN AZ BİR bölümde, uyarı notu olmayan bir bölüme, 'note' (tone: info) ile " +
+  "SAYILAR: Kaynak bir sayı, eşik, aralık, oran ya da birim veriyorsa onu aynen yaz ('2 SD'nin altı', '%3', '13 cm'); " +
+  "'yüksek', 'düşük', 'belirli bir değer' diye geçiştirme. Kaynakta olmayan sayıyı ekleme.\n\n" +
+  "BLOKLAR: Her ekran sıralı bloklardan oluşur ve ekranda yukarıdan aşağı bu sırayla görünür; anlatım sırasıyla diz " +
+  "(formül, onu açıklayan metnin hemen ardından gelebilir). Kaynak bir karşılaştırma ya da tablo veriyorsa 'table' bloğu; " +
+  "kardeş kavramları (aynı ailedeki 2-6 terim) 'cards' bloğunda tek cümlelik tanımlar olarak ver; sıralı bir işlem varsa " +
+  "'procedure'; hesaplanabilir bağıntı varsa 'formula'; çözümlü hesap varsa 'example'. " +
+  "Yaşa, evreye ya da türe göre değişen birden çok değer sayıyorsan ('6 ayda …, 12 ayda …, 2 yaşta …') bunları metinde " +
+  "art arda sıralama: 'table' kur (satır yaş/evre, sütun alan) ve metinde tabloyu nasıl okuyacağını söyle. " +
+  "Tablo kurduğun ekranda metin tablonun satırlarını yeniden saymaz; ayırt ettiren ölçütü ve tablonun nasıl okunacağını söyler. " +
+  "Öğrencinin sık karıştırdığı iki kavram varsa ekrana 'note' bloğu (tone: warn) koy: 'X ile Y farkı'. " +
+  "GÜNDELİK ÖRNEK (zorunlu): Derste EN AZ BİR ekranda, uyarı notu olmayan bir ekrana, 'note' bloğu (tone: info) ile " +
   "gündelik hayattan kısa bir örnek kutusu koy. Başlık 'Günlük hayattan: …' diye başlasın ve örneği anlatsın. " +
   "Somut bir sahne kur: biri bir şey yapıyor ve bir şey oluyor; soyut tanımı tekrar etme. Örnek biçimi: 'Kırmızı ışıkta " +
   "geçip bir arabaya çarptığında devlete ödediğin para ceza, karşı tarafın hasarını ödemen tazminattır.' Bu cümleyi " +
@@ -141,17 +154,22 @@ export const TEACHER_SYSTEM =
   "AKIŞ:\n" +
   "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle. 'Önce dene' sorusundan önce " +
   "okunur: o sorunun cevabını vermez (soru 'temel risk etken mi?' diye soruyorsa kanca 'asıl risk sıvı kaybı' demez).\n" +
-  "2) Bölümler: 3-4 bölüm (kaynak darsa 2). Her bölüm tek kavram; başlık kavramın adı. " +
+  "2) Kavramlar ve ekranlar: 3-4 kavram (kaynak darsa 2). Bir kavram genelde tek ekrandır; hesap yolu, çok adımlı bir " +
+  "işlemi ya da uzun bir tablosu varsa 2-3 ekrana böl: önce kavram ve formül, sonra adımlar ve kaynaktaki sayılarla " +
+  "çözümlü örnek. Aynı kavramın ekranları art arda gelir ve aynı 'concept' adını taşır; 'heading' ekranın kendi " +
+  "odağıdır ('Z-skoru', 'Z-skoru: hesap'). En fazla 7 ekran. 'concept' ve 'heading' kavramın adıdır. " +
   "Kaynakta başlık büyük harfle yazılmış olsa bile sen normal yazımla yaz ('MADDİ YAPTIRIMLAR' değil 'Maddi Yaptırımlar'). " +
-  "Bölüm numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok. " +
-  "Her bölümün 'lead' satırı dersin başındaki içerik listesinde başlığın altında durur: bölümün neyi ayırt " +
-  "ettirdiğini söyleyen tek kısa cümle; yeni bilgi taşımaz, başlığı tekrar etmez.\n" +
-  "3) İlk bölümde checkFirst=true: konu anlatılmadan önce öğrencinin ön bilgisini yoklayan, yaygın yanılgıyı ölçen bir " +
-  "soru. Bu soru doğru/yanlıştır (trueFalse, options ['Doğru','Yanlış']): yaygın yanılgıyı bir ifade olarak yaz; yalnız " +
-  "kavram bir hesap gerektiriyorsa çoktan seçmeli olabilir. Soruyu gövdede tekrar sorma ('Önce düşün: … doğru mu, " +
-  "yanlış mı?' yazma); gövde doğrudan anlatır. Doğru/yanlış ifadesi yanlışsa 'corrected' " +
+  "Ekran numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok. Her ekranda en az bir 'text' " +
+  "bloğu. Kavramın ilk ekranındaki 'lead' satırı dersin başındaki içerik listesinde kavramın altında durur: kavramın " +
+  "neyi ayırt ettirdiğini söyleyen tek kısa cümle; yeni bilgi taşımaz, başlığı tekrar etmez.\n" +
+  "3) İlk ekranın İLK bloğu bir 'check' bloğudur (önce dene): konu anlatılmadan önce öğrencinin ön bilgisini yoklayan, " +
+  "yaygın yanılgıyı ölçen bir soru; ekranın geri kalanı cevaptan sonra açılır. Bu soru doğru/yanlıştır (trueFalse, " +
+  "options ['Doğru','Yanlış']): yaygın yanılgıyı bir ifade olarak yaz; yalnız kavram bir hesap gerektiriyorsa çoktan " +
+  "seçmeli olabilir. Soruyu metin bloğunda tekrar sorma ('Önce düşün: … doğru mu, yanlış mı?' yazma); metin doğrudan " +
+  "anlatır. Doğru/yanlış ifadesi yanlışsa 'corrected' " +
   "alanına ifadenin doğru hâlini tek cümleyle yaz; öğrenci cevaptan sonra 'Doğrusu' diye görür.\n" +
-  "4) Her bölüm bir kontrolle biter. Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
+  "4) Her kavram bir soruyla biter: kavramın son ekranının son bloğu bir 'check' bloğu. Ekran başına en fazla bir " +
+  "'check' bloğu. Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). review: aynı kavramı farklı yönden soran soru — tanımdan terim soruldaysa bu kez " +
@@ -162,7 +180,7 @@ export const TEACHER_SYSTEM =
   "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler, anahtar kelimeleriyle.\n" +
   "8) nextFocus yalnız verilen SIRADAKİ KONULAR listesinden, aynen; liste boşsa boş dizi.\n\n" +
   "YAZMA: 'Kaynak:', sayfa numarası, 's.12', 'PDF', 'bu derste ... öğreneceğiz' gibi boş cümle, kendini tekrar, " +
-  "iç not. Gövdede başlığı tekrar etme. Bilgiyi kaynağa atfetme ('kaynakta … diye açıklanır', 'metne göre', " +
+  "iç not. Metinde başlığı tekrar etme. Bilgiyi kaynağa atfetme ('kaynakta … diye açıklanır', 'metne göre', " +
   "'belgede belirtildiği gibi' yok): öğretmen gibi doğrudan söyle.\n\n" +
   `${CONTENT_STYLE}\n\n` +
   `Yalnızca bu şemada JSON döndür (kullanmadığın isteğe bağlı alanları yazma):\n${SCHEMA}`;
@@ -206,10 +224,11 @@ export const VERIFY_SYSTEM =
   "Sen titiz bir ders denetçisisin. Bir dersi, yazıldığı KAYNAK ile karşılaştırıyorsun. Şunları bul:\n" +
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma. (Yeni bilgi taşımayan gündelik " +
   "örnek ya da benzetme sorun değildir.)\n" +
-  "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade.\n" +
+  "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade; kaynaktaki bir sayının, eşiğin ya da birimin yanlış " +
+  "aktarılması ya da kaynak sayıyı açıkça verirken derste 'yüksek/düşük' gibi soyut sözle geçiştirilmesi.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
   "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik).\n" +
-  "D) explanation, optionWhy ya da corrected'da (yanlış ifadenin doğrusu) yanlış bilgi.\n" +
+  "D) explanation, optionWhy, corrected'da (yanlış ifadenin doğrusu) ya da çözümlü örnekte yanlış bilgi veya hesap hatası.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle; kaynağın bozuk kelimesinin ya da bozuk cümlesinin kopyası.\n" +
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
   "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
@@ -218,13 +237,13 @@ export const VERIFY_SYSTEM =
   "çelişen) derste kaynağın kendi açıklama ve örnekleriyle tutarlı anlamıyla yazılması SORUN DEĞİLDİR; bunu A ya da B " +
   "sayma.\n" +
   "A-G 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
-  'JSON döndür: {"issues":[{"where":"sections[1].check","severity":"high","problem":"…","fix":"…"}]}. ' +
+  'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}]}. ' +
   "Sorun yoksa issues boş dizi.";
 
 /** Belgesiz ders denetimi: kaynak yok, doğruluk ve öğretim kalitesi. */
 export const TOPIC_VERIFY_SYSTEM =
   "Sen titiz bir ders denetçisisin. Belgesi olmayan bir sınav dersini doğruluk açısından denetliyorsun. Şunları bul:\n" +
-  "A) Yanlış olgu, tanım, sayı, tarih, kural ya da sınıflandırma.\n" +
+  "A) Yanlış olgu, tanım, sayı, eşik, birim, tarih, kural ya da sınıflandırma.\n" +
   "B) Emin olunamayacak kadar ayrıntılı ya da güncel olarak değişebilecek bilgi (yürürlükteki oran, son düzenleme), " +
   "tartışmalı bir görüşün kesin doğru gibi sunulması.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
@@ -233,7 +252,7 @@ export const TOPIC_VERIFY_SYSTEM =
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "F) Ders içinde tutarsızlık.\n" +
   "A-F 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
-  'JSON döndür: {"issues":[{"where":"sections[1].check","severity":"high","problem":"…","fix":"…"}]}. ' +
+  'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}]}. ' +
   "Sorun yoksa issues boş dizi.";
 
 export function verifySystem(mode: TeacherLessonMode = "document"): string {
@@ -241,7 +260,7 @@ export function verifySystem(mode: TeacherLessonMode = "document"): string {
 }
 
 export function verifyUserPrompt(
-  lesson: LessonV2,
+  lesson: LessonV3,
   input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle">,
 ): string {
   const head =
@@ -264,7 +283,7 @@ export function fixSystem(mode: TeacherLessonMode = "document"): string {
 }
 
 export function fixUserPrompt(
-  lesson: LessonV2,
+  lesson: LessonV3,
   issues: TeacherIssue[],
   input: TeacherLessonInput,
 ): string {
@@ -302,19 +321,29 @@ export function parseIssues(raw: unknown): TeacherIssue[] {
  * yazıma çevirir (KPSS altın denemesinde iki düzeltme turu da başlıkları
  * değiştirmedi; yazım yüzünden ders reddedilmesin).
  */
-export function parseTeacherLesson(raw: unknown, upcomingTopics: string[]): LessonV2 | null {
-  const parsed = lessonV2Schema.safeParse(raw);
-  if (!parsed.success) return null;
-  const lesson = parsed.data;
+export function parseTeacherLesson(raw: unknown, upcomingTopics: string[]): LessonV3 | null {
+  // Model "format" alanını unutursa ekranlı ders yine V3 sayılır; eski biçimde
+  // (sections) dönerse çevrilir — biçim yüzünden ders reddedilmez.
+  const shaped =
+    raw && typeof raw === "object" && Array.isArray((raw as { screens?: unknown }).screens)
+      ? { ...(raw as object), format: LESSON_V3_FORMAT }
+      : raw;
+  const lesson = readLessonV3(shaped);
+  if (!lesson) return null;
   const allowed = new Set(upcomingTopics.map((topic) => topic.trim().toLocaleLowerCase("tr")));
   const nextFocus = (lesson.nextFocus ?? []).filter((item) => allowed.has(item.trim().toLocaleLowerCase("tr")));
   return {
     ...lesson,
     title: calmHeading(lesson.title),
-    sections: lesson.sections.map((section) => ({
-      ...section,
-      heading: calmHeading(section.heading),
-      ...(section.cards ? { cards: section.cards.map((card) => ({ ...card, title: calmHeading(card.title) })) } : {}),
+    screens: lesson.screens.map((screen) => ({
+      ...screen,
+      heading: calmHeading(screen.heading),
+      ...(screen.concept ? { concept: calmHeading(screen.concept) } : {}),
+      blocks: screen.blocks.map((block): LessonBlock =>
+        block.type === "cards"
+          ? { ...block, cards: block.cards.map((card) => ({ ...card, title: calmHeading(card.title) })) }
+          : block,
+      ),
     })),
     nextFocus,
   };
@@ -341,37 +370,40 @@ function seedOf(text: string): number {
  * değişmez. Altın denemede Pediatri dersinin üç sorusunda da doğru cevap
  * ilk şıktı. Doğru/yanlış kontrollerine dokunulmaz.
  */
-export function shuffleLessonChecks(lesson: LessonV2): LessonV2 {
+export function shuffleLessonChecks(lesson: LessonV3): LessonV3 {
   return {
     ...lesson,
-    sections: lesson.sections.map((section) => {
-      const check = section.check;
-      if (!check || check.type !== "mcq" || !check.options || check.options.length < 3 || typeof check.answerIndex !== "number") {
-        return section;
-      }
-      let state = seedOf(check.prompt);
-      const random = () => {
-        state ^= state << 13;
-        state ^= state >>> 17;
-        state ^= state << 5;
-        return (state >>> 0) / 4294967296;
-      };
-      const order = check.options.map((_, index) => index);
-      for (let index = order.length - 1; index > 0; index -= 1) {
-        const pick = Math.floor(random() * (index + 1));
-        [order[index], order[pick]] = [order[pick], order[index]];
-      }
-      const whyAligned = check.optionWhy?.length === check.options.length;
-      return {
-        ...section,
-        check: {
-          ...check,
-          options: order.map((index) => check.options![index]),
-          answerIndex: order.indexOf(check.answerIndex),
-          ...(whyAligned ? { optionWhy: order.map((index) => check.optionWhy![index]) } : {}),
-        },
-      };
-    }),
+    screens: lesson.screens.map((screen) => ({
+      ...screen,
+      blocks: screen.blocks.map((block): LessonBlock => (block.type === "check" ? { ...block, check: shuffleCheck(block.check) } : block)),
+    })),
+  };
+}
+
+type Check = Extract<LessonBlock, { type: "check" }>["check"];
+
+function shuffleCheck(check: Check): Check {
+  if (check.type !== "mcq" || !check.options || check.options.length < 3 || typeof check.answerIndex !== "number") {
+    return check;
+  }
+  let state = seedOf(check.prompt);
+  const random = () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return (state >>> 0) / 4294967296;
+  };
+  const order = check.options.map((_, index) => index);
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const pick = Math.floor(random() * (index + 1));
+    [order[index], order[pick]] = [order[pick], order[index]];
+  }
+  const whyAligned = check.optionWhy?.length === check.options.length;
+  return {
+    ...check,
+    options: order.map((index) => check.options![index]),
+    answerIndex: order.indexOf(check.answerIndex),
+    ...(whyAligned ? { optionWhy: order.map((index) => check.optionWhy![index]) } : {}),
   };
 }
 
@@ -427,100 +459,131 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
 }
 
 /**
- * Yapı denetimi (saf). Sorunu düzeltmez; düzeltme turuna "high" olarak
- * gider. Gözlenen her eski kusur burada bir kural: BÜYÜK HARF başlık
- * (sayfa üst bilgisi), "Kaynak:" yapıştırma, bariz kontrol, eksik gerekçe.
+ * Yapı denetimi (saf, LessonV3). Sorunu düzeltmez; düzeltme turuna gider.
+ * Gözlenen her eski kusur burada bir kural: BÜYÜK HARF başlık (sayfa üst
+ * bilgisi), "Kaynak:" yapıştırma, bariz kontrol, eksik gerekçe. Önem
+ * dereceleri V2'deki gibi; V3'ün kendi kuralları (ekran başına bir soru,
+ * kavram bir soruyla biter, kavramın ekranları art arda) yüksek.
  */
-export function lessonStructureIssues(lesson: LessonV2, input: Pick<TeacherLessonInput, "runningHeaders">): TeacherIssue[] {
+export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLessonInput, "runningHeaders">): TeacherIssue[] {
   const issues: TeacherIssue[] = [];
   const add = (where: string, problem: string) => issues.push({ where, severity: "high", problem });
+  const low = (where: string, problem: string) => issues.push({ where, severity: "low", problem });
   const headers = input.runningHeaders ?? [];
+  const screens = lesson.screens;
+  const groups = conceptGroups(screens);
 
   if (shouting(lesson.title)) add("title", "Başlık BÜYÜK HARFLE yazılmış; içerikten, normal yazımla bir konu adı ver.");
   if (headers.some((line) => sameKey(line, lesson.title))) add("title", "Başlık sayfa kenarında tekrar eden kitap başlığı; konunun kendi adını ver.");
   if (!lesson.overview?.trim()) add("overview", "Kanca (overview) yok.");
-  if (lesson.sections.length < 2) add("sections", "En az iki bölüm olmalı.");
-  if (lesson.sections.length > 5) add("sections", "En fazla dört bölüm; konuyu daralt.");
+  if (screens.length < 2) add("screens", "En az iki ekran olmalı.");
+  if (screens.length > 7) add("screens", "En fazla yedi ekran; konuyu daralt ya da kavramı daha az ekrana sığdır.");
+  if (groups.length > 5) add("screens", "En fazla dört kavram; konuyu daralt.");
+  const seenConcepts = new Set<string>();
+  for (const group of groups) {
+    const key = group.concept.toLocaleLowerCase("tr");
+    const first = group.screens[0]!;
+    const lastIndex = group.screens[group.screens.length - 1]!;
+    if (seenConcepts.has(key)) add(`screens[${first}].concept`, `'${group.concept}' kavramının ekranları art arda olmalı.`);
+    seenConcepts.add(key);
+    if (group.screens.length > 3) add(`screens[${first}].concept`, `'${group.concept}' en fazla üç ekran olmalı.`);
+    if (!screenCheck(screens[lastIndex]!)) {
+      add(`screens[${lastIndex}]`, `'${group.concept}' kavramı bir soruyla bitmeli: son ekranına 'check' bloğu koy.`);
+    }
+  }
+
   // Tür serbest: Termodinamik altın denemesinde "önce dene" çoktan seçmeli
   // yazıldı, iki düzeltme turu da değiştirmedi ve iyi bir ders reddedildi.
-  if (!lesson.sections[0]?.checkFirst || !lesson.sections[0]?.check) {
-    add("sections[0]", "İlk bölüm 'önce dene' ile açılmalı: checkFirst=true ve bir kontrol (tercihen doğru/yanlış).");
+  const opener = screens[0];
+  const openerCheck = opener ? screenCheck(opener) : undefined;
+  if (!opener || !screenChecksFirst(opener)) {
+    add("screens[0].blocks[0]", "İlk ekran 'önce dene' ile açılmalı: ilk blok bir 'check' (tercihen doğru/yanlış).");
   }
   // Düşük önem: düzeltme turu açılırsa düzelir, ders bunun için düşmez (16 Ekim 2026,
   // "Gerçek Kişilik" dersi: gövde "doğru mu, yanlış mı?" diye sordu, kontrol çoktan seçmeliydi).
-  const opener = lesson.sections[0];
-  if (opener?.checkFirst && opener.check && opener.check.type !== "trueFalse" && opener.check.type !== "numerical") {
-    issues.push({ where: "sections[0].check", severity: "low", problem: "'Önce dene' sorusu doğru/yanlış olmalı: yaygın yanılgıyı bir ifade olarak yaz." });
+  if (opener && screenChecksFirst(opener) && openerCheck && openerCheck.type !== "trueFalse" && openerCheck.type !== "numerical") {
+    low("screens[0].blocks[0]", "'Önce dene' sorusu doğru/yanlış olmalı: yaygın yanılgıyı bir ifade olarak yaz.");
   }
-  if (opener && /doğru\s+mu,?\s+yanlış\s+mı/i.test(opener.body)) {
-    issues.push({ where: "sections[0].body", severity: "low", problem: "Gövde 'önce dene' sorusunu tekrar soruyor; soru kontrolde, gövde doğrudan anlatsın." });
+  if (opener && /doğru\s+mu,?\s+yanlış\s+mı/i.test(screenText(opener))) {
+    low("screens[0]", "Metin 'önce dene' sorusunu tekrar soruyor; soru 'check' bloğunda, metin doğrudan anlatsın.");
   }
   // Kanca sorudan önce okunuyor (16 Ekim 2026 Gastroenterit dersi: kanca "asıl risk
   // dehidratasyon" dedi, ardından soru "temel risk etken mi?" diye sordu).
-  if (opener?.checkFirst && opener.check?.corrected && givesAway(lesson.overview ?? "", opener.check.prompt, opener.check.corrected)) {
-    issues.push({ where: "overview", severity: "low", problem: "Kanca 'önce dene' sorusunun cevabını veriyor; cevabı söylemeden merak uyandır." });
+  if (
+    opener &&
+    screenChecksFirst(opener) &&
+    openerCheck?.corrected &&
+    givesAway(lesson.overview ?? "", openerCheck.prompt, openerCheck.corrected)
+  ) {
+    low("overview", "Kanca 'önce dene' sorusunun cevabını veriyor; cevabı söylemeden merak uyandır.");
   }
 
-  lesson.sections.forEach((section, index) => {
-    const where = `sections[${index}]`;
-    if (shouting(section.heading)) add(`${where}.heading`, "Bölüm başlığı BÜYÜK HARF.");
-    if (SCAFFOLD_HEADING.test(section.heading.trim())) add(`${where}.heading`, "Şablon başlık; kavramın adını yaz.");
-    if (headers.some((line) => sameKey(line, section.heading))) add(`${where}.heading`, "Başlık sayfa üst bilgisi; kavramın adını yaz.");
-    if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b/i.test(section.body)) {
-      add(`${where}.body`, "Gövdede kaynak/sayfa notu var; metinden çıkar (kaynak ekranda ayrıca gösteriliyor).");
+  screens.forEach((screen, index) => {
+    const where = `screens[${index}]`;
+    if (shouting(screen.heading)) add(`${where}.heading`, "Ekran başlığı BÜYÜK HARF.");
+    if (SCAFFOLD_HEADING.test(screen.heading.trim())) add(`${where}.heading`, "Şablon başlık; kavramın adını yaz.");
+    if (headers.some((line) => sameKey(line, screen.heading))) add(`${where}.heading`, "Başlık sayfa üst bilgisi; kavramın adını yaz.");
+    const text = screenText(screen);
+    if (!text) add(`${where}.blocks`, "Ekranda en az bir 'text' bloğu olmalı.");
+    if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b/i.test(text)) {
+      add(`${where}.blocks`, "Metinde kaynak/sayfa notu var; çıkar (kaynak ekranda ayrıca gösteriliyor).");
     }
     // KPSS altın denemesi: düzeltme turu "Kaynaktaki … ifadesi anlatım hatasıdır" diye derse not düştü.
-    if (/kayna(?:kta|ktaki|ğın)\s[^.]{0,80}?(?:hata|yanlış|bozuk)/i.test(section.body)) {
-      add(`${where}.body`, "Gövdede kaynağın hatasından söz eden iç not var; düzeltmeyi sessizce yap, notu çıkar.");
+    if (/kayna(?:kta|ktaki|ğın)\s[^.]{0,80}?(?:hata|yanlış|bozuk)/i.test(text)) {
+      add(`${where}.blocks`, "Metinde kaynağın hatasından söz eden iç not var; düzeltmeyi sessizce yap, notu çıkar.");
     }
-    const words = section.body.split(/\s+/).filter(Boolean).length;
-    if (words > 220) add(`${where}.body`, `Gövde çok uzun (${words} kelime); 60-140 kelimeye indir, ayrıntıyı karta/tabloya taşı.`);
-    const check = section.check;
-    if (!check) {
-      add(`${where}.check`, "Bölüm bir kontrolle bitmeli.");
-      return;
+    const words = text.split(/\s+/).filter(Boolean).length;
+    if (words > 220) {
+      add(`${where}.blocks`, `Ekranın metni çok uzun (${words} kelime); 60-140 kelimeye indir, ayrıntıyı karta/tabloya ya da ikinci ekrana taşı.`);
     }
-    if (check.type === "mcq") {
-      const options = check.options ?? [];
-      if (options.length !== 4) add(`${where}.check`, "Çoktan seçmeli soruda 4 şık olmalı.");
-      if (typeof check.answerIndex !== "number" || check.answerIndex < 0 || check.answerIndex >= options.length) {
-        add(`${where}.check`, "answerIndex şıklarla uyuşmuyor.");
-      }
-      if (!check.optionWhy || check.optionWhy.length !== options.length) {
-        add(`${where}.check`, "optionWhy her şık için bir cümle olmalı.");
-      }
-      if (new Set(options.map((option) => option.trim().toLocaleLowerCase("tr"))).size !== options.length) {
-        add(`${where}.check`, "Aynı şık iki kez yazılmış.");
-      }
-      // \b Türkçe harfi tanımıyor ("kaç" ç ile biter); boşlukla sınırla.
-      if (/(?:^|\s)kaç\s+(?:\S+\s+){0,2}(tür|çeşit|başlık|madde|unsur|aşama|basamak)/i.test(check.prompt)) {
-        add(`${where}.check`, "Sayma sorusu öğretici değil; kavramı ayırt ettiren bir soru sor.");
-      }
-      if (!check.review?.prompt) add(`${where}.check.review`, "review (farklı yönden tekrar sorusu) yok.");
-    }
-    if (check.type === "trueFalse") {
-      const options = check.options ?? [];
-      if (options.length !== 2 || typeof check.answerIndex !== "number" || check.answerIndex > 1) {
-        add(`${where}.check`, "Doğru/yanlış sorusunda şıklar ['Doğru','Yanlış'] ve answerIndex 0 ya da 1 olmalı.");
-      }
-      // Eksik "doğrusu" dersi düşürmez: düzeltme turu zaten açılırsa eklenir.
-      const falseStatement = /^(yanlış|yanlis|false)$/i.test(options[check.answerIndex ?? -1]?.trim() ?? "");
-      if (falseStatement && !check.corrected?.trim()) {
-        issues.push({ where: `${where}.check`, severity: "low", problem: "Yanlış ifadenin doğrusu (corrected) yazılmamış." });
-      }
-    }
+    const checks = screen.blocks.flatMap((block, blockIndex) => (block.type === "check" ? [{ check: block.check, blockIndex }] : []));
+    if (checks.length > 1) add(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu ayrı bir ekrana taşı ya da çıkar.");
+    for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low);
   });
 
   // Astra her derste bir gündelik örnek kutusu koyuyor; bizim ilk dört dersimizde
   // hiç çıkmadı (2 Ekim 2026, ürün sahibinin kararı: her derste en az bir).
-  if (!lesson.sections.some((section) => section.note?.tone === "info")) {
+  if (!screens.some((screen) => screen.blocks.some((block) => block.type === "note" && block.note.tone === "info"))) {
     add(
-      "sections",
-      "Gündelik örnek kutusu yok: uyarı notu olmayan bir bölüme 'note' (tone: info, başlık 'Günlük hayattan: …') ile " +
+      "screens",
+      "Gündelik örnek kutusu yok: uyarı notu olmayan bir ekrana 'note' bloğu (tone: info, başlık 'Günlük hayattan: …') ile " +
         "kavramı tanıdık bir durumla ayırt ettiren kısa bir örnek ekle; yeni bilgi taşımasın.",
     );
   }
   const summary = lesson.summary ?? [];
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
   return issues;
+}
+
+function checkIssues(
+  check: Check,
+  where: string,
+  add: (where: string, problem: string) => void,
+  low: (where: string, problem: string) => void,
+) {
+  if (check.type === "mcq") {
+    const options = check.options ?? [];
+    if (options.length !== 4) add(where, "Çoktan seçmeli soruda 4 şık olmalı.");
+    if (typeof check.answerIndex !== "number" || check.answerIndex < 0 || check.answerIndex >= options.length) {
+      add(where, "answerIndex şıklarla uyuşmuyor.");
+    }
+    if (!check.optionWhy || check.optionWhy.length !== options.length) add(where, "optionWhy her şık için bir cümle olmalı.");
+    if (new Set(options.map((option) => option.trim().toLocaleLowerCase("tr"))).size !== options.length) {
+      add(where, "Aynı şık iki kez yazılmış.");
+    }
+    // \b Türkçe harfi tanımıyor ("kaç" ç ile biter); boşlukla sınırla.
+    if (/(?:^|\s)kaç\s+(?:\S+\s+){0,2}(tür|çeşit|başlık|madde|unsur|aşama|basamak)/i.test(check.prompt)) {
+      add(where, "Sayma sorusu öğretici değil; kavramı ayırt ettiren bir soru sor.");
+    }
+    if (!check.review?.prompt) add(`${where}.review`, "review (farklı yönden tekrar sorusu) yok.");
+  }
+  if (check.type === "trueFalse") {
+    const options = check.options ?? [];
+    if (options.length !== 2 || typeof check.answerIndex !== "number" || check.answerIndex > 1) {
+      add(where, "Doğru/yanlış sorusunda şıklar ['Doğru','Yanlış'] ve answerIndex 0 ya da 1 olmalı.");
+    }
+    // Eksik "doğrusu" dersi düşürmez: düzeltme turu zaten açılırsa eklenir.
+    const falseStatement = /^(yanlış|yanlis|false)$/i.test(options[check.answerIndex ?? -1]?.trim() ?? "");
+    if (falseStatement && !check.corrected?.trim()) low(where, "Yanlış ifadenin doğrusu (corrected) yazılmamış.");
+  }
 }

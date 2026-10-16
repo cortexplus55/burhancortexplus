@@ -6,6 +6,7 @@
 
 import { z } from "zod";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
+import { lessonV3SectionsView } from "@/lib/learning/lesson-v3-view";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
@@ -372,11 +373,71 @@ export const sectionNoteSchema = z.object({
   tone: z.enum(["warn", "info", "unit"]).optional().catch(undefined),
 });
 
-const looseText = (max: number) =>
+export const looseText = (max: number) =>
   z.preprocess(
     (value) => (typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined),
     z.string().max(max).optional().catch(undefined),
   );
+
+/*
+  Ders parçalarının şemaları. LessonV2'de bölümün sabit alanları, LessonV3'te
+  (lesson-v3.ts) ekranın blokları olarak kullanılıyor; ikisi aynı kuralı paylaşsın
+  diye burada tek yerde duruyorlar.
+*/
+
+/** Kardeş kavramlar (Kapalı sistem / Açık sistem) yatay kart olarak gelir. */
+export const lessonCardsSchema = z
+  .array(
+    z.object({
+      title: z.string().min(2).max(80),
+      body: z.string().min(4).max(320),
+    }),
+  )
+  .min(2)
+  .max(6);
+
+/** Hesaplanabilir bağıntı: gövdeye gömülmez, ayrı kart. */
+export const lessonFormulaSchema = z.object({
+  title: z.string().min(2).max(60),
+  expression: z.string().min(2).max(200),
+  note: z.string().min(2).max(200).optional().catch(undefined),
+});
+
+/** Sıralı, uygulanabilir işlem (hesaplama, tanı basamağı): numaralı adımlar. */
+export const lessonProcedureSchema = z.object({
+  title: z.string().min(2).max(80).optional().catch(undefined),
+  steps: z
+    .array(
+      z.object({
+        label: z.string().min(2).max(80),
+        detail: z.string().min(2).max(200),
+      }),
+    )
+    .min(2)
+    .max(6),
+});
+
+/** Karşılık/eşik tablosu (persentil↔SD gibi). */
+export const lessonTableSchema = z.object({
+  caption: z.string().min(2).max(100).optional().catch(undefined),
+  columns: z.array(z.string().min(1).max(40)).min(2).max(4),
+  rows: z.array(z.array(z.string().min(1).max(60)).min(1).max(4)).min(2).max(6),
+});
+
+/** Çözümlü örnek: verilenler, istenen, adımlar, sonuç. */
+export const lessonExampleSchema = z.object({
+  prompt: z.string().min(8).max(800),
+  solution: z.string().min(8).max(1500),
+  givens: z.array(z.string().min(1).max(160)).max(8).optional(),
+  unknown: z.string().min(2).max(200).optional(),
+  steps: z.array(z.string().min(2).max(400)).max(8).optional(),
+  result: z.string().min(1).max(200).optional(),
+});
+
+export const lessonSourceSchema = z.object({
+  file: z.string().min(1).max(200),
+  page: z.number().int().min(1).max(9999).optional().catch(undefined),
+});
 
 export const lessonV2Schema = z.object({
   title: z.string().min(2).max(160),
@@ -398,13 +459,7 @@ export const lessonV2Schema = z.object({
         // besler. Model bunu yazmıyor — attachCitations/weaveUnusedSources
         // (lesson-teach.ts) veya legacy gövdeden ayrıştırma
         // (stripInlineSourceLine) dolduruyor. Yoksa rozet render edilmez.
-        source: z
-          .object({
-            file: z.string().min(1).max(200),
-            page: z.number().int().min(1).max(9999).optional().catch(undefined),
-          })
-          .optional()
-          .catch(undefined),
+        source: lessonSourceSchema.optional().catch(undefined),
         check: sectionCheckSchema.optional().catch(undefined),
         // true ise ekranda check gövdeden ÖNCE gösterilir (geri getirme /
         // "önce dene" — Astra kıyasında bu sıranın kavramı daha iyi
@@ -422,60 +477,22 @@ export const lessonV2Schema = z.object({
         note: sectionNoteSchema.optional().catch(undefined),
         // Kardeş kavramlar (Kapalı sistem / Açık sistem) yatay kart olarak
         // gelir. Bozuk dizi dersi düşürmez.
-        cards: z
-          .array(
-            z.object({
-              title: z.string().min(2).max(80),
-              body: z.string().min(4).max(320),
-            }),
-          )
-          .min(2)
-          .max(6)
-          .optional()
-          .catch(undefined),
+        cards: lessonCardsSchema.optional().catch(undefined),
         // Şekille anlaşılan konularda çizim; model tarifini veriyor,
         // SVG'yi biz kuruyoruz (bkz. lesson-diagram.ts).
         diagram: lessonDiagramSchema.optional().catch(undefined),
         // Hesaplanabilir bir bağıntı varsa gövdeye gömülmez, ayrı bir
         // kart olarak durur — Astra karşılaştırmasında gövdeye sıkışan
         // formüllerin okunaksızlaştığı görüldü (bkz. docs kıyas notu).
-        formula: z
-          .object({
-            title: z.string().min(2).max(60),
-            expression: z.string().min(2).max(200),
-            note: z.string().min(2).max(200).optional().catch(undefined),
-          })
-          .optional()
-          .catch(undefined),
+        formula: lessonFormulaSchema.optional().catch(undefined),
         // Kaynakta sıralı, uygulanabilir bir işlem varsa (hesaplama,
         // tanı basamağı) düz paragraf yerine numaralı adım listesi.
-        procedure: z
-          .object({
-            title: z.string().min(2).max(80).optional().catch(undefined),
-            steps: z
-              .array(
-                z.object({
-                  label: z.string().min(2).max(80),
-                  detail: z.string().min(2).max(200),
-                }),
-              )
-              .min(2)
-              .max(6),
-          })
-          .optional()
-          .catch(undefined),
+        procedure: lessonProcedureSchema.optional().catch(undefined),
         // Kaynakta doğal bir karşılık/eşik tablosu varsa (persentil↔SD
         // gibi) küçük bir referans tablosu. Satır uzunluğu columns'la
         // tutmuyorsa render katmanı kırpar/doldurur; şema burada katı
         // değil — bozuk tablo dersi düşürmemeli.
-        table: z
-          .object({
-            caption: z.string().min(2).max(100).optional().catch(undefined),
-            columns: z.array(z.string().min(1).max(40)).min(2).max(4),
-            rows: z.array(z.array(z.string().min(1).max(60)).min(1).max(4)).min(2).max(6),
-          })
-          .optional()
-          .catch(undefined),
+        table: lessonTableSchema.optional().catch(undefined),
       }),
     )
     // Alt sınır bir: dar kaynak iki kavram da taşımayabilir ve uydurulan
@@ -490,17 +507,7 @@ export const lessonV2Schema = z.object({
   // lesson-coherence.ts …) bunu opsiyonel bir nesne sanıyor. Yapılandırılmış
   // alanlar (givens/unknown/steps/result) yalnızca ders kalite kapısının
   // kendi çözümlü-örnek denetiminde kullanılıyor, isteğe bağlı kalmalı.
-  example: z
-    .object({
-      prompt: z.string().min(8).max(800),
-      solution: z.string().min(8).max(1500),
-      givens: z.array(z.string().min(1).max(160)).max(8).optional(),
-      unknown: z.string().min(2).max(200).optional(),
-      steps: z.array(z.string().min(2).max(400)).max(8).optional(),
-      result: z.string().min(1).max(200).optional(),
-    })
-    .optional()
-    .catch(undefined),
+  example: lessonExampleSchema.optional().catch(undefined),
   commonMistake: z
     .object({
       claim: z.string().min(8).max(400),
@@ -2569,7 +2576,11 @@ export function extractMisconceptions(input: {
   }
 
   if (data.type === "lesson") {
-    const lesson = lessonV2Schema.safeParse(data.lesson).data;
+    // V3 ders (16 Ekim 2026): ekran i = bölüm i, ekranın sorusu bölümün sorusu.
+    const screens = lessonV3SectionsView(data.lesson);
+    const lesson = screens
+      ? ({ sections: screens } as unknown as Pick<LessonV2, "sections">)
+      : lessonV2Schema.safeParse(data.lesson).data;
     if (lesson) {
       const raw = input.answers.lessonMisses;
       const indexes = Array.isArray(raw)

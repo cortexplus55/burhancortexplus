@@ -17,7 +17,7 @@ import {
   loadSourceContext,
   SourceUnavailableError,
 } from "@/lib/learning/source-context";
-import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { pagesMarkedInSource } from "@/lib/learning/source-context";
@@ -162,8 +162,8 @@ export async function POST(request: Request) {
       .select("content_json")
       .eq("id", topic.lesson_id)
       .maybeSingle();
-    const structured = lessonV2Schema.safeParse(lesson?.content_json);
-    if (structured.success) lessonBrief = lessonPodcastBrief(structured.data);
+    const structured = readLessonV2(lesson?.content_json);
+    if (structured) lessonBrief = lessonPodcastBrief(structured);
   }
 
   const outcome = await runTeacherPodcast(service, {

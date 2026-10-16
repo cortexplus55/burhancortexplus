@@ -18,6 +18,11 @@ import {
   teacherUserPrompt,
 } from "@/lib/learning/teacher-lesson";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
+import { screenCheck, screenText, v2ToV3, type LessonV3 } from "@/lib/learning/lesson-v3";
+
+/** Fikstürler V2 yazılı (okunaklı); motor V3 okur — kayıtlı derslerle aynı çeviriden geçer. */
+const structureOf = (lesson: LessonV2 | LessonV3, input: { runningHeaders?: string[] } = {}) =>
+  lessonStructureIssues("format" in lesson ? lesson : v2ToV3(lesson), input);
 
 /*
   Öğretmen ders motoru (2 Ekim 2026). Kurallar aynı KPSS PDF'iyle Astra'nın
@@ -120,7 +125,7 @@ const good: LessonV2 = {
 
 describe("yapı denetimi", () => {
   it("Astra tarzı ders geçer", () => {
-    expect(lessonStructureIssues(good, { runningHeaders: [KPSS_HEADER] })).toEqual([]);
+    expect(structureOf(good, { runningHeaders: [KPSS_HEADER] })).toEqual([]);
   });
 
   it("eski KPSS dersinin kusurları yakalanır", () => {
@@ -136,10 +141,10 @@ describe("yapı denetimi", () => {
       ],
       summary: ["Hukukun amacı düzendir."],
     };
-    const problems = lessonStructureIssues(bad, { runningHeaders: [KPSS_HEADER] }).map((issue) => `${issue.where}: ${issue.problem}`);
+    const problems = structureOf(bad, { runningHeaders: [KPSS_HEADER] }).map((issue) => `${issue.where}: ${issue.problem}`);
     expect(problems.some((p) => p.startsWith("title:") && /BÜYÜK HARF/.test(p))).toBe(true);
     expect(problems.some((p) => p.startsWith("title:") && /sayfa kenarında/.test(p))).toBe(true);
-    expect(problems.some((p) => p.startsWith("sections[0]:") && /önce dene/.test(p))).toBe(true);
+    expect(problems.some((p) => p.startsWith("screens[0].blocks[0]:") && /önce dene/.test(p))).toBe(true);
     expect(problems.some((p) => /Kaynak|sayfa notu/.test(p))).toBe(true);
     expect(problems.some((p) => /Sayma sorusu/.test(p))).toBe(true);
     expect(problems.some((p) => /optionWhy/.test(p))).toBe(true);
@@ -150,7 +155,7 @@ describe("yapı denetimi", () => {
   it("şemayı oturtur, metne dokunmaz, yalnız liste dışı sıradaki konuyu düşürür", () => {
     const parsed = parseTeacherLesson({ ...good, nextFocus: ["Örf ve Âdet", "KPSS"] }, ["Örf ve âdet"]);
     expect(parsed?.nextFocus).toEqual(["Örf ve Âdet"]);
-    expect(parsed?.sections[0].body).toBe(good.sections[0].body);
+    expect(screenText(parsed!.screens[0]!)).toBe(good.sections[0].body);
     expect(parseTeacherLesson({ title: "x" }, [])).toBeNull();
   });
 
@@ -162,8 +167,8 @@ describe("yapı denetimi", () => {
       { ...good, sections: [{ ...good.sections[0], heading: "MADDİ YAPTIRIMLAR" }, good.sections[1]] },
       [],
     );
-    expect(parsed?.sections[0].heading).toBe("Maddi Yaptırımlar");
-    expect(lessonStructureIssues(parsed!, {}).some((issue) => /BÜYÜK HARF/.test(issue.problem))).toBe(false);
+    expect(parsed?.screens[0]?.heading).toBe("Maddi Yaptırımlar");
+    expect(structureOf(parsed!).some((issue) => /BÜYÜK HARF/.test(issue.problem))).toBe(false);
   });
 
   // Faz 5 (9 Ekim 2026): KPSS dersinde "Devlet herkesten eşit oranda vergi
@@ -183,28 +188,28 @@ describe("yapı denetimi", () => {
       expect(system).toContain("'corrected' alanına ifadenin doğru hâlini");
     }
     for (const system of [verifySystem("document"), verifySystem("topic")]) {
-      expect(system).toContain("corrected'da (yanlış ifadenin doğrusu) yanlış bilgi");
+      expect(system).toContain("corrected'da (yanlış ifadenin doğrusu)");
     }
     const first = good.sections[0]!;
     const missing: LessonV2 = {
       ...good,
       sections: [{ ...first, check: { ...first.check!, corrected: undefined } }, ...good.sections.slice(1)],
     };
-    const issues = lessonStructureIssues(missing, {}).filter((issue) => /doğrusu/.test(issue.problem));
-    expect(issues).toEqual([expect.objectContaining({ where: "sections[0].check", severity: "low" })]);
+    const issues = structureOf(missing).filter((issue) => /doğrusu/.test(issue.problem));
+    expect(issues).toEqual([expect.objectContaining({ where: "screens[0].blocks[0]", severity: "low" })]);
     // Doğru ifadenin "doğrusu" olmaz.
     const trueStatement: LessonV2 = {
       ...good,
       sections: [{ ...first, check: { ...first.check!, answerIndex: 0, corrected: undefined } }, ...good.sections.slice(1)],
     };
-    expect(lessonStructureIssues(trueStatement, {}).some((issue) => /doğrusu/.test(issue.problem))).toBe(false);
+    expect(structureOf(trueStatement).some((issue) => /doğrusu/.test(issue.problem))).toBe(false);
   });
 
   // 16 Ekim 2026 canlı ders: gövde "doğru mu, yanlış mı?" diye sordu, kontrol çoktan seçmeliydi.
   it("'önce dene' doğru/yanlış olur ve gövdede tekrar sorulmaz; ikisi de dersi düşürmez", () => {
     for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
       expect(system).toContain("Bu soru doğru/yanlıştır");
-      expect(system).toContain("Soruyu gövdede tekrar sorma");
+      expect(system).toContain("Soruyu metin bloğunda tekrar sorma");
     }
     const first = good.sections[0]!;
     const opener: LessonV2 = {
@@ -226,20 +231,21 @@ describe("yapı denetimi", () => {
         ...good.sections.slice(1),
       ],
     };
-    const found = lessonStructureIssues(opener, {}).filter((issue) => issue.where.startsWith("sections[0]"));
-    expect(found.map((issue) => issue.where).sort()).toEqual(["sections[0].body", "sections[0].check"]);
+    const found = structureOf(opener).filter((issue) => issue.where.startsWith("screens[0]"));
+    expect(found.map((issue) => issue.where).sort()).toEqual(["screens[0]", "screens[0].blocks[0]"]);
     expect(found.every((issue) => issue.severity === "low")).toBe(true);
-    expect(lessonStructureIssues(good, {}).some((issue) => issue.where.startsWith("sections[0]"))).toBe(false);
+    expect(structureOf(good).some((issue) => issue.where.startsWith("screens[0]"))).toBe(false);
   });
 
   // 16 Ekim 2026 Pediatri dersi: şema örneğindeki ilk bölüm çoktan seçmeliydi ve model onu
   // kopyaladı; yaş basamakları gövdede sıralandı; gündelik örnek yalnız "eğriye işler" dedi.
   it("şema örneği 'önce dene'yi doğru/yanlış gösterir; yaş listesi tablo, örnek iki kavramı ayırır", () => {
     for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
-      const firstSection = system.slice(system.indexOf('"checkFirst": true'), system.indexOf('"cards"'));
-      expect(firstSection).toContain('"type": "trueFalse"');
-      expect(firstSection).toContain('"corrected"');
-      expect(firstSection).not.toContain('"type": "mcq"');
+      const firstScreen = system.slice(system.indexOf('"blocks": ['), system.indexOf('"heading": "aynı kavram: hesap"'));
+      expect(firstScreen.indexOf('"type": "check"')).toBeLessThan(firstScreen.indexOf('"type": "text"'));
+      expect(firstScreen).toContain('"type": "trueFalse"');
+      expect(firstScreen).toContain('"corrected"');
+      expect(firstScreen).not.toContain('"type": "mcq"');
       expect(system).toContain("'table' kur (satır yaş/evre, sütun alan)");
       expect(system).toContain("aynı olayda FARKLI sonuç versin");
     }
@@ -250,7 +256,7 @@ describe("yapı denetimi", () => {
   it("kanca 'önce dene'nin cevabını verirse düşük önemle işaretlenir; tablolu gövde tabloyu saymaz", () => {
     for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
       expect(system).toContain("o sorunun cevabını vermez");
-      expect(system).toContain("gövde tablonun satırlarını yeniden saymaz");
+      expect(system).toContain("metin tablonun satırlarını yeniden saymaz");
     }
     const first = good.sections[0]!;
     const opener = {
@@ -269,10 +275,10 @@ describe("yapı denetimi", () => {
       overview: "Akut ishale çoğunlukla enfeksiyöz etkenler yol açar; asıl risk dehidratasyon ve elektrolit bozukluğu olabilir.",
       sections: [opener, ...good.sections.slice(1)],
     };
-    const found = lessonStructureIssues(leaking, {}).filter((issue) => issue.where === "overview");
+    const found = structureOf(leaking).filter((issue) => issue.where === "overview");
     expect(found).toEqual([expect.objectContaining({ severity: "low" })]);
     const quiet: LessonV2 = { ...leaking, overview: "İshalli bir çocukta seni en çok ne korkutmalı: mikrop mu, başka bir şey mi?" };
-    expect(lessonStructureIssues(quiet, {}).some((issue) => issue.where === "overview")).toBe(false);
+    expect(structureOf(quiet).some((issue) => issue.where === "overview")).toBe(false);
   });
 
   it("ders yazılırken bağlantı koparsa sayfa önce hazır dersi arar", () => {
@@ -283,10 +289,10 @@ describe("yapı denetimi", () => {
   it("belgesiz ders: aynı akış, kaynak kuralı yerine doğruluk kuralı", () => {
     expect(TOPIC_TEACHER_SYSTEM).toContain("BİLGİ KURALI (belgesiz ders, kesin)");
     expect(TOPIC_TEACHER_SYSTEM).not.toContain("KAYNAK KURALI (kesin)");
-    expect(TOPIC_TEACHER_SYSTEM).not.toContain("example yalnız kaynakta");
+    expect(TOPIC_TEACHER_SYSTEM).not.toContain("'example' bloğu yalnız kaynakta");
     expect(TOPIC_TEACHER_SYSTEM).toContain("kendin kurduğun basit, adım adım doğrulanabilir");
     // Akış ve anlatım belgeli dersle aynı kaynaktan.
-    for (const rule of ["GÜNDELİK ÖRNEK (zorunlu)", "checkFirst=true", "kardeş terimler", "optionWhy", "'Kaynak:'"]) {
+    for (const rule of ["GÜNDELİK ÖRNEK (zorunlu)", "İlk ekranın İLK bloğu bir 'check' bloğudur", "kardeş terimler", "optionWhy", "'Kaynak:'"]) {
       expect(TOPIC_TEACHER_SYSTEM).toContain(rule);
     }
     expect(teacherSystem("topic")).toBe(TOPIC_TEACHER_SYSTEM);
@@ -295,7 +301,7 @@ describe("yapı denetimi", () => {
     expect(fixSystem("topic")).toContain("BİLGİ KURALI");
     const prompt = teacherUserPrompt({ topicLabel: "Üslü sayılar", prepTitle: "TYT Matematik", pages: [], upcomingTopics: [], mode: "topic" });
     expect(prompt).toContain("KAYNAK: (yok — belgesiz ders");
-    expect(verifyUserPrompt(good, { pages: [], mode: "topic", topicLabel: "Üslü sayılar", prepTitle: "TYT Matematik" })).toContain("KONU: Üslü sayılar");
+    expect(verifyUserPrompt(v2ToV3(good), { pages: [], mode: "topic", topicLabel: "Üslü sayılar", prepTitle: "TYT Matematik" })).toContain("KONU: Üslü sayılar");
   });
 
   it("çoktan seçmeli kontroller gerekçeleriyle karışır; doğru cevap yer değiştirse de doğru kalır", () => {
@@ -310,15 +316,15 @@ describe("yapı denetimi", () => {
     }));
     const positions = new Set<number>();
     for (const lesson of lessons) {
-      const check = shuffleLessonChecks(lesson).sections[1].check!;
+      const check = screenCheck(shuffleLessonChecks(v2ToV3(lesson)).screens[1]!)!;
       expect(check.options![check.answerIndex!]).toBe("Yokluk");
       check.options!.forEach((option, index) => expect(check.optionWhy![index]).toBe(`${option} gerekçesi burada.`));
-      expect(shuffleLessonChecks(lesson).sections[1].check!.options).toEqual(check.options);
+      expect(screenCheck(shuffleLessonChecks(v2ToV3(lesson)).screens[1]!)!.options).toEqual(check.options);
       positions.add(check.answerIndex!);
     }
     expect(positions.size).toBeGreaterThanOrEqual(3);
     // Doğru/yanlış kontrolüne dokunulmaz.
-    expect(shuffleLessonChecks(good).sections[0].check).toEqual(good.sections[0].check);
+    expect(screenCheck(shuffleLessonChecks(v2ToV3(good)).screens[0]!)).toEqual(good.sections[0].check);
   });
 
   it("gündelik örnek kutusu olmayan ders düzeltmeye gider", () => {
@@ -326,7 +332,7 @@ describe("yapı denetimi", () => {
       ...good,
       sections: [{ ...good.sections[0], note: undefined }, good.sections[1]],
     };
-    expect(lessonStructureIssues(noExample, {}).some((issue) => /Gündelik örnek kutusu yok/.test(issue.problem))).toBe(true);
+    expect(structureOf(noExample).some((issue) => /Gündelik örnek kutusu yok/.test(issue.problem))).toBe(true);
     expect(TEACHER_SYSTEM).toContain("GÜNDELİK ÖRNEK (zorunlu)");
   });
 
@@ -338,8 +344,8 @@ describe("yapı denetimi", () => {
         good.sections[1],
       ],
     };
-    expect(lessonStructureIssues(noted, {}).some((issue) => /iç not/.test(issue.problem))).toBe(true);
-    expect(lessonStructureIssues(good, {}).some((issue) => /iç not/.test(issue.problem))).toBe(false);
+    expect(structureOf(noted).some((issue) => /iç not/.test(issue.problem))).toBe(true);
+    expect(structureOf(good).some((issue) => /iç not/.test(issue.problem))).toBe(false);
   });
 
   it("denetçi sorunları okunur; ciddiyet belirtilmezse yüksek sayılır", () => {
@@ -355,7 +361,7 @@ describe("öğretmen istemi", () => {
   it("kaynak kuralı, önce dene, kardeş çeldirici, farklı yönden tekrar ve yasaklar istemde", () => {
     expect(TEACHER_SYSTEM).toContain("KAYNAK KURALI");
     expect(TEACHER_SYSTEM).toContain("yeni bir bilgi");
-    expect(TEACHER_SYSTEM).toContain("checkFirst=true");
+    expect(TEACHER_SYSTEM).toContain("İlk ekranın İLK bloğu bir 'check' bloğudur (önce dene)");
     expect(TEACHER_SYSTEM).toContain("kardeş terimler");
     expect(TEACHER_SYSTEM).toContain("optionWhy");
     expect(TEACHER_SYSTEM).toContain("bir durumdan (olaydan) terim");
