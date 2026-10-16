@@ -346,3 +346,13 @@ Maliyet: 5 sohbet mesajı + 1 ders (~$0,05).
 | Test kurulum düğmesi "Ders oluştur" | — | "Testi oluştur / Kartları oluştur / Denemeyi oluştur" |
 
 Kalan: Astra'yla aynı PDF üzerinde yan yana puan (Astra'ya giriş bekleniyor).
+
+### LessonV3 — ekran ve blok (16 Ekim 2026)
+
+27 Eylül'deki isteğin (bölümü sabit alanlı `{heading, body}`'den ekran + sıralı bloğa
+taşımak) kalan kısmı. Ürün sahibi mevcut şemayla tamamlamak yerine gerçek blok dizisini
+seçti. Yeni: formül metnin ortasında durabilir, bir ekranda iki tablo ya da iki formül
+olabilir, hesabı olan kavram 2-3 ekrana bölünür (önce kavram + formül, sonra adımlar +
+kaynaktaki sayılarla çözümlü örnek). Yazar kuralları: kaynaktaki sayı/eşik/birim aynen
+yazılır, "yüksek/düşük" diye geçiştirilmez (denetçi B, yüksek). Örnek ders bekçi testte:
+`tests/unit/lesson-v3-zscore.test.tsx`. Kurallar ve değişmezler: `AGENTS.md`.

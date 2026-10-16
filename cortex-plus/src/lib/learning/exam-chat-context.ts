@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { lessonSectionDetails } from "@/lib/learning/lesson-section-text";
 import { loadPrepDocumentIds, loadTopicTeaching, taughtCoverageLine } from "@/lib/documents/teacher-analysis-run";
 import {
@@ -372,7 +372,7 @@ export async function loadExamChatContext(
     ? (nodeLessonRow?.payload as { lesson?: unknown } | null)?.lesson
     : lessonRow?.content_json;
 
-  const lesson = lessonJson ? lessonV2Schema.safeParse(lessonJson).data ?? null : null;
+  const lesson = lessonJson ? readLessonV2(lessonJson) : null;
 
   if (lesson) {
     // Yalnızca başlıklar verilince sohbet tanımları kendi bilgisinden

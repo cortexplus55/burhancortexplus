@@ -92,7 +92,6 @@ import {
   teachingActivityForKind,
   teachingSessionContext,
   teachingStandardConstraints,
-  lessonV2Schema,
   type LessonReviewCard,
   type LessonV2,
   type SessionTeachingMeta,
@@ -105,11 +104,12 @@ import {
   buildLessonRetryCheck,
   gradeSectionCheck,
   resolveCheckForGrade,
-  sealLessonForPlay,
   sealSectionCheck,
   type CheckGradeVariant,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
+import { readLessonV2 } from "@/lib/learning/lesson-v3";
+import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
 import { isAdminUser } from "@/lib/auth/roles";
 import {
   honestReadingMinutes,
@@ -221,6 +221,11 @@ const bodySchema = z.object({
   podcastLength: z.enum(PODCAST_LENGTHS).optional(),
   /** Sunucunun kendi isteği: sıradaki dersi kredi düşmeden önceden yaz. */
   prefetch: z.boolean().optional(),
+  /**
+   * 3: istemci V3 dersi (ekran → blok) okuyor. Göndermeyen eski sekme V2 paketi
+   * alır; yayın sırasında açık kalan sayfada ders boş açılmasın (16 Ekim 2026).
+   */
+  lessonFormat: z.literal(3).optional(),
 });
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
@@ -445,6 +450,7 @@ async function handleNodeRequest(
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const { prepId, nodeId, action } = parsed.data;
+  const lessonFormat: 2 | 3 = parsed.data.lessonFormat === 3 ? 3 : 2;
   // Önceden yazım yalnız imzalı iç istekten, imzadaki düğüm için.
   const prefetch = options.prefetchNodeId !== null;
   if (prefetch && (parsed.data.prefetch !== true || options.prefetchNodeId !== nodeId || action !== "start")) {
@@ -593,7 +599,8 @@ async function handleNodeRequest(
       .eq("node_id", nodeId)
       .maybeSingle();
     if (!attempt?.payload) return errorResponse(404, "not_found");
-    const lesson = (attempt.payload as { lesson?: LessonV2 }).lesson;
+    // V2 ya da V3 kayıt: ekran i = bölüm i, ekranın sorusu bölümün sorusu.
+    const lesson = readLessonV2((attempt.payload as { lesson?: unknown }).lesson);
     const section = lesson?.sections?.[sectionIndex];
     const primary = section?.check;
     if (!primary) return errorResponse(400, "invalid_input");
@@ -638,7 +645,7 @@ async function handleNodeRequest(
         kind,
         title,
         topicLabel,
-        publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+        publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
         resumed: true,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -1061,7 +1068,7 @@ async function handleNodeRequest(
           kind,
           title,
           topicLabel,
-          publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+          publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1084,7 +1091,7 @@ async function handleNodeRequest(
             kind,
             title,
             topicLabel,
-            publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+            publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
             resumed: true,
           },
         ),
@@ -1109,7 +1116,7 @@ async function handleNodeRequest(
           kind,
           title,
           topicLabel,
-          publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+          publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1186,7 +1193,7 @@ async function handleNodeRequest(
         title,
         topicLabel,
         voiceMode: false,
-        payload: await publicPayloadForUser(service, userId, local.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+        payload: await publicPayloadForUser(service, userId, local.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
         ...(await readWalletBalance(service, userId)),
       });
     }
@@ -1311,7 +1318,7 @@ async function handleNodeRequest(
           kind,
           title,
           topicLabel,
-          publicPayload: await publicPayloadForUser(service, userId, taken.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+          publicPayload: await publicPayloadForUser(service, userId, taken.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
           resumed: false,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1720,7 +1727,7 @@ async function handleNodeRequest(
               kind,
               title,
               topicLabel,
-              publicPayload: await publicPayloadForUser(service, userId, raced.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+              publicPayload: await publicPayloadForUser(service, userId, raced.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
               resumed: true,
             }),
           );
@@ -1944,7 +1951,7 @@ async function handleNodeRequest(
   const total = countTotal(kind, payload);
 
   if (kind === "lesson" && payload.type === "lesson" && payload.lesson && typeof payload.lesson === "object") {
-    const honest = honestReadingMinutes(payload.lesson as LessonV2);
+    const honest = honestReadingMinutes(readLessonV2(payload.lesson) ?? { sections: [] });
     const planned = sessionMeta?.durationMinutes;
     if (typeof planned === "number" && shouldReplacePlannedMinutes(planned, honest)) {
       const meta =
@@ -2035,7 +2042,7 @@ async function handleNodeRequest(
         kind,
         title,
         topicLabel,
-        publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+        publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
         resumed: false,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -2100,7 +2107,7 @@ async function handleNodeRequest(
     title,
     topicLabel,
     voiceMode,
-    payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+    payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
     ...(await readWalletBalance(service, userId)),
   });
 }
@@ -2123,7 +2130,7 @@ async function loadTopicLesson(
     .limit(1)
     .maybeSingle();
   if (!data?.content_json) return null;
-  return lessonV2Schema.safeParse(data.content_json).data ?? null;
+  return readLessonV2(data.content_json);
 }
 
 class NodeGenerationError extends Error {
@@ -2450,8 +2457,8 @@ async function saveTopicLesson(
   service: SupabaseClient,
   input: { prepId: string; topicId: string; payload: Record<string, unknown> },
 ) {
-  const lesson = input.payload.lesson as LessonV2 | undefined;
-  if (!lesson || typeof lesson !== "object" || !lesson.title) return;
+  const lesson = readLessonV2(input.payload.lesson);
+  if (!lesson?.title) return;
   await service
     .from("exam_prep_lessons")
     .insert({
@@ -2459,7 +2466,8 @@ async function saveTopicLesson(
       topic_id: input.topicId,
       title: lesson.title,
       content_md: lesson.overview ?? lesson.sections?.[0]?.body ?? lesson.title,
-      content_json: lesson,
+      // Kayıt biçimi olduğu gibi (V3); okuyanlar readLessonV2/readLessonV3 ile çevirir.
+      content_json: input.payload.lesson,
     })
     .then(undefined, () => undefined);
 }
@@ -2819,10 +2827,11 @@ async function publicPayloadForUser(
   reviewCards: LessonReviewCard[] = [],
   nodeKind?: PlanNodeKind,
   language: ReturnType<typeof prepLanguage> = "tr",
+  lessonFormat: 2 | 3 = 2,
 ) {
   const isLesson = payload.type === "lesson";
   const isAdmin = isLesson ? await isAdminUser(service, userId) : false;
-  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language });
+  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language, lessonFormat });
 }
 
 function publicNodePayload(
@@ -2833,6 +2842,7 @@ function publicNodePayload(
     isAdmin?: boolean;
     qualityReport?: { rule: string; excerpt: string }[];
     language?: ReturnType<typeof prepLanguage>;
+    lessonFormat?: 2 | 3;
   } = {},
 ) {
   const decorated = withLessonReviewCards(payload, reviewCards);
@@ -2847,9 +2857,11 @@ function publicNodePayload(
     return { ...decorated, questions };
   }
   if (decorated.type === "lesson" && decorated.lesson && typeof decorated.lesson === "object") {
-    const sealed = sealLessonForPlay(decorated.lesson as LessonV2, {
+    const sealed = sealStoredLesson(decorated.lesson, {
       language: options.language ?? "tr",
+      format: options.lessonFormat ?? 2,
     });
+    if (!sealed) return { ...decorated, lesson: undefined, qualityReport: undefined };
     const report =
       options.qualityReport ??
       (Array.isArray(decorated.qualityReport)
@@ -2927,10 +2939,7 @@ function scoreAttempt(
     return { score, total: questions.length || 1, retried: 0 };
   }
   if (data.type === "lesson") {
-    return scoreLessonChecks(
-      (data.lesson as { sections?: { check?: unknown }[] } | null) ?? { sections: [] },
-      answers,
-    );
+    return scoreLessonChecks(readLessonV2(data.lesson) ?? { sections: [] }, answers);
   }
   return { score: 1, total: 1, retried: 0 };
 }
@@ -2942,7 +2951,7 @@ function lessonScoreForClient(
   fallbackTotal: number,
 ) {
   const data = (payload ?? {}) as { type?: string; lesson?: { sections?: { check?: unknown }[] } };
-  if (data.type === "lesson") return scoreLessonChecks(data.lesson, answers);
+  if (data.type === "lesson") return scoreLessonChecks(readLessonV2(data.lesson) ?? { sections: [] }, answers);
   return { score: fallbackScore, total: fallbackTotal, retried: 0 };
 }
 

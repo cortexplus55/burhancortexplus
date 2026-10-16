@@ -222,8 +222,8 @@ Sayılar tek yerde: `src/lib/billing/free-tier-copy.ts`. Kampanya bandı kurulma
 (karar: şimdilik değil; `/admin/promosyonlar` hazır). Bekçi: `free-tier.test.ts`.
 
 **Ücretsiz akışı denemek için test hesabı açmayın:** `/admin` → "Ücretsiz gibi gör"
-(8 Ekim 2026). Kurucu hesabı o an ücretsiz öğrenci gibi sınırlanır: günde 2 kredi
-ayrı bir tabloda düşer (cüzdana dokunmaz), belge ve hazırlık sınırı yalnız önizleme
+(8 Ekim 2026). Kurucu hesabı o an ücretsiz öğrenci gibi sınırlanır: günde 6 kredi
+(kredi sistemi v2'den beri; önce 2) ayrı bir tabloda düşer (cüzdana dokunmaz), belge ve hazırlık sınırı yalnız önizleme
 başladıktan sonra eklenenleri sayar. Kapatma düğmesi öğrenci ekranlarının üstündeki
 şeritte. Yeni bir yönetici muafiyeti eklerken `isAdminUser` değil `billingExempt`
 kullanın, yoksa önizleme o noktada sınırı atlar. Bekçi: `free-preview.test.ts`.
@@ -348,6 +348,23 @@ taşımaz — Supabase yenileme anahtarını iki istekte kullanmak oturumu düş
 sunucu imzalı kısa ömürlü başlık (`lesson-prefetch.ts`) taşır. Öğrencinin aşinalık
 cevabı başka kuşaktaysa (yeni/duymuştum · temel · iyi/güvenli) hazır ders atılır,
 yeniden yazılır. Bekçi test: `lesson-prefetch.test.ts`.
+
+**Ders biçimi LessonV3: Ders → Ekran → Blok dizisi (16 Ekim 2026, ürün sahibinin kararı).**
+Yeni dersler `format: 3` yazılır (`lesson-v3.ts`): her ekran sıralı bloklar (`text`,
+`formula`, `procedure`, `table`, `cards`, `note`, `diagram`, `example`, `check`); bir
+kavram 2-3 ekrana yayılabilir (`concept` aynı kalır). Kayıtlı V2 dersler veritabanında
+olduğu gibi durur, okunurken çevrilir.
+
+| Kural | Neden |
+|---|---|
+| **Ekran i = bölüm i** ve **ekran başına bir soru** (ilk `check` bloğu) | Cevaplar (`lessonAnswers[i]`), `grade-check`'in `sectionIndex`'i, puanlama ve tekrar soruları değişmeden çalışsın |
+| Ders okuyan her yer `readLessonV3` (ekran) ya da `readLessonV2` (metin/puan görünümü) ile okur; `lessonV2Schema.safeParse` ile değil | Kayıtta iki biçim var; doğrudan V2 ayrıştırma V3 dersi sessizce boş sayar (podcast dersi görmez, sohbet bağlamı kaybolur) |
+| İstemci `lessonFormat: 3` gönderir; göndermeyen V2 paketi alır (`sealStoredLesson`) | Yayın sırasında açık kalan eski sekme V3'ü okuyamaz, ders boş açılmasın |
+| V3 mühür/oynatma kodu `lesson-play-v3.ts`'te, `lesson-play.ts`'te değil | `teaching-standards → lesson-play → lesson-v3 → teaching-standards` döngüsü şemaları yarım yükler; bütün test dosyaları içe aktarmada düşer |
+| Soru ilk bloksa "önce dene": sonraki bloklar cevaptan sonra açılır | Gövde sorunun altında cevabı veriyordu (#259) |
+
+Bekçi testler: `lesson-v3.test.ts` (çeviri, gidiş-dönüş), `lesson-v3-zscore.test.tsx`
+(Z-skoru / hedef boy örneği: iki ekranlı kavram, blok sırası, mühür, V3 yapı kuralları).
 
 **Tüm test paketini `npx vitest run --exclude "tests/unit/_tmp/**"` ile koşun.**
 `tests/unit/_tmp/` yerel altın denemeleri `.env.local` anahtarıyla canlı model

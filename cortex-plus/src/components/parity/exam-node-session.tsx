@@ -16,12 +16,11 @@ import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
-import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import {
-  publicLessonV2Schema,
   type GradeCheckResult,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
+import { readPlayLessonV3 } from "@/lib/learning/lesson-play-v3";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
@@ -316,7 +315,7 @@ export function ExamNodeSession({
         const res = await fetch("/api/learning/exam-prep/node", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prepId, nodeId, action: "resume" }),
+          body: JSON.stringify({ prepId, nodeId, action: "resume", lessonFormat: 3 }),
         });
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
@@ -330,7 +329,7 @@ export function ExamNodeSession({
           const reviewRes = await fetch("/api/learning/exam-prep/node", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prepId, nodeId, action: "review" }),
+            body: JSON.stringify({ prepId, nodeId, action: "review", lessonFormat: 3 }),
           });
           const reviewData = await reviewRes.json().catch(() => ({}));
           if (!cancelled && reviewRes.ok && reviewData.review) {
@@ -509,6 +508,8 @@ export function ExamNodeSession({
           prepId,
           nodeId,
           action: "start",
+          // Bu ekran LessonV3 (ekran → blok) okuyor; eski sekme göndermez, V2 alır.
+          lessonFormat: 3,
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
@@ -585,7 +586,7 @@ export function ExamNodeSession({
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, nodeId, action: "resume" }),
+        body: JSON.stringify({ prepId, nodeId, action: "resume", lessonFormat: 3 }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.resumed || !data.attemptId || !data.payload) return false;
@@ -622,6 +623,7 @@ export function ExamNodeSession({
           prepId,
           nodeId,
           action: "complete",
+          lessonFormat: 3,
           attemptId: attemptId ?? undefined,
           generationId: generationId ?? undefined,
           clientRequestId: clientRequestId ?? undefined,
@@ -772,14 +774,7 @@ export function ExamNodeSession({
   const chapters = payload.chapters ?? [];
   // Şema tutmazsa düz markdown'a düşülür; ders hiç açılmamasındansa
   // biçimsiz açılsın.
-  const structuredLesson = useMemo(() => {
-    if (!payload.lesson) return null;
-    return (
-      publicLessonV2Schema.safeParse(payload.lesson).data ??
-      lessonV2Schema.safeParse(payload.lesson).data ??
-      null
-    );
-  }, [payload.lesson]);
+  const structuredLesson = useMemo(() => (payload.lesson ? readPlayLessonV3(payload.lesson) : null), [payload.lesson]);
   const cardIndex = cardRepeat ? (cardRepeat.list[cardRepeat.pos] ?? index) : index;
   const cardsPlaying = stage === "play" && payload.type === "cards" && !cardOffer;
   const coachItem =

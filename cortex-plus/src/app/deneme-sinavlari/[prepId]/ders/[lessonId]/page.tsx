@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonToolbar } from "@/components/parity/exam-lesson-toolbar";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
-import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { readLessonV3 } from "@/lib/learning/lesson-v3";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -39,7 +39,7 @@ export default async function ExamPrepLessonPage({
   const content = (lesson.content_md as string) ?? "";
   // Yapı varsa adım adım göster; eski dersler markdown olarak açılmayı sürdürür.
   const structured = lesson.content_json
-    ? (lessonV2Schema.safeParse(lesson.content_json).data ?? null)
+    ? readLessonV3(lesson.content_json)
     : null;
 
   const created = lesson.created_at

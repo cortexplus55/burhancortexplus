@@ -4,7 +4,8 @@ import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
-import { parseModelJson, type LessonV2 } from "@/lib/learning/teaching-standards";
+import { parseModelJson } from "@/lib/learning/teaching-standards";
+import type { LessonV3 } from "@/lib/learning/lesson-v3";
 import {
   fixSystem,
   teacherSystem,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/learning/teacher-lesson";
 
 export type TeacherLessonOutcome =
-  | { ok: true; lesson: LessonV2; calls: number; ms: number; remainingLow: TeacherIssue[] }
+  | { ok: true; lesson: LessonV3; calls: number; ms: number; remainingLow: TeacherIssue[] }
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /**
@@ -148,9 +149,9 @@ export async function teacherLessonLoop(
   ask: AskJson,
   input: TeacherLessonInput,
   started = Date.now(),
-): Promise<{ lesson: LessonV2 | null; issues: TeacherIssue[]; drafts: LessonV2[] }> {
-  const drafts: LessonV2[] = [];
-  const review = async (lesson: LessonV2): Promise<TeacherIssue[]> => {
+): Promise<{ lesson: LessonV3 | null; issues: TeacherIssue[]; drafts: LessonV3[] }> {
+  const drafts: LessonV3[] = [];
+  const review = async (lesson: LessonV3): Promise<TeacherIssue[]> => {
     const structural = lessonStructureIssues(lesson, input);
     let factual: TeacherIssue[] = [];
     try {
