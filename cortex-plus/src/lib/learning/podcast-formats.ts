@@ -76,10 +76,14 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         maxChapters: 6,
         brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 550-750 kelime.",
         speakers: "duo",
+        // 17 Ekim 2026, ürün sahibi: "Astra gibi iki ses de anlatsın". Kerem'in bütün sıraları tek
+        // cümlelik soruydu (canlı ölçüm, solunum podcast'i); Astra'da iki sunucu da anlatıyor.
         style:
-          "Ada öğretmen, Kerem meraklı bir öğrenci arkadaşı. Sırayla konuşurlar. Kerem kısa sorular sorar " +
-          "ya da öğrencilerin karıştırdığı noktayı soru olarak dile getirir; Ada açıklar ve düzeltir. " +
-          "Kerem kesin bilgi vermez, yanlış bir cümleyi doğruymuş gibi söylemez. Konuşmayı Ada açar ve bitirir.",
+          "Ada öğretmen, Kerem konuya çalışmış bir öğrenci arkadaşı; ikisi de anlatır. Kerem yalnız soru sormaz: " +
+          "kaynaktaki bir örneği anlatır, duyduğunu kendi sözleriyle toparlar, iki kavramı karşılaştırır ya da Ada'nın " +
+          "açıklamasını bir adım ilerletir (1-3 cümle). Kerem'in konuşma sıralarının en az yarısı soru değil, bilgi taşır. " +
+          "Ada açıklamanın ağırlığını taşır, Kerem'in eksik bıraktığını tamamlar. Kerem'in söylediği bilgi de doğru ve " +
+          "kaynağa dayalıdır; yanlış bir cümleyi doğruymuş gibi söylemez. Konuşmayı Ada açar ve bitirir.",
       };
     case "soru_cevap":
       return {
@@ -120,7 +124,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
 
 /** İki sunuculu türlerin JSON kuralı (tek öğretmenli olanın karşılığı). */
 export const DUO_NARRATOR_SCHEMA =
-  'Her satırın speaker alanı "ada" (öğretmen) ya da "kerem" (öğrenci arkadaşı). İkisi de konuşur. Her satır bir konuşma sırasıdır: 1-4 cümle, her cümle en çok 25 kelime. Ada açıklarken nedenini ve sonucunu da söyler; Kerem kısa sorar ya da duyduğunu toparlar.';
+  'Her satırın speaker alanı "ada" (öğretmen) ya da "kerem" (öğrenci arkadaşı). İkisi de konuşur. Her satır bir konuşma sırasıdır: 1-4 cümle, her cümle en çok 25 kelime. Ada açıklarken nedenini ve sonucunu da söyler; Kerem\'in ne yaptığı BİÇİM satırında yazılı.';
 
 export function podcastDuoBrief(): string {
   return (
@@ -128,7 +132,7 @@ export function podcastDuoBrief(): string {
     "Bütün podcast'te şunlar olsun: her kavramın ne olduğu ve neden önemli olduğu, kaynaktaki somut örnek, öğrencinin " +
     "gerçekten yaptığı bir iki hata, sınavda çıkan nokta. Bunları her bölümde aynı sırayla dizme; bölümler farklı açılsın " +
     "(bir vaka, Kerem'in merakı, iki kavramın karşılaştırması). " +
-    "Kerem doğal konuşur: merak eder, örnek ister, karıştırılan noktayı soru olarak sorar ('Yani … mı?'); Ada " +
+    "Kerem doğal konuşur: merak eder, karıştırılan noktayı soru olarak sorar ('Yani … mı?'); Ada " +
     "nedenini söyleyerek cevaplar. Kerem her bölümde 'Ben … sanmışım / varsaymışım' diye hata itiraf etmez; " +
     "bu bütün podcast'te en çok bir kez olur. " +
     "Ada kaynaktan cümle okumaz; kendi sözleriyle, konuşur gibi anlatır ve bir açıklamayı art arda iki üç satırda " +

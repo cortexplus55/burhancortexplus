@@ -49,10 +49,14 @@ const RULE_TOPIC =
 
 // Örnek konuşma sırası çok cümleli: model örneği kuraldan çok izliyor (16 Ekim 2026 canlı podcast'te
 // "text":"tek cümle" örneği yüzünden sıraların %83'ü tek cümleydi).
+// 17 Ekim 2026: örnekte Kerem yalnız "kısa soru" yazınca canlıda Kerem'in bütün sıraları tek cümle
+// soruydu; örnek Kerem'in anlattığı bir sırayı da gösterir.
 const SCHEMA_DUO =
   '{"title":"…","chapters":[{"title":"kavramın adı","lines":[' +
-  '{"speaker":"kerem","text":"kısa soru ya da duyduğunu toparlama"},' +
-  '{"speaker":"ada","text":"konuşma sırası: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"}]}]}';
+  '{"speaker":"kerem","text":"soru ya da merak"},' +
+  '{"speaker":"ada","text":"konuşma sırası: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"},' +
+  '{"speaker":"kerem","text":"1-3 cümle: kaynaktaki bir örnek, kendi sözleriyle toparlama ya da bir adım ileri"},' +
+  '{"speaker":"ada","text":"tamamlar ya da yeni bilgiyi açar: 1-4 cümle"}]}]}';
 const SCHEMA_SINGLE =
   '{"title":"…","chapters":[{"title":"kavramın adı","lines":[' +
   '{"speaker":"ada","text":"paragraf: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"}]}]}';
