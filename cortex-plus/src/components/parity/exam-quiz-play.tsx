@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { multiPartialPercent, sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 
 export function ExamQuizPlay({
@@ -39,6 +39,8 @@ export function ExamQuizPlay({
   const isOn = (option: string) => selected.includes(option);
   const hasCorrect = Array.isArray(question.correct) && question.correct.length > 0;
   const isCorrect = hasCorrect ? sameOptionSet(selected, question.correct!) : false;
+  // Çok cevaplıda kısmi puan, Astra'daki gibi: (doğru seçilen − yanlış seçilen) / doğru sayısı.
+  const partial = hasCorrect && question.multi ? multiPartialPercent(selected, question.correct!) : 0;
 
   function pick(option: string) {
     if (!examMode && revealed) return;
@@ -74,11 +76,6 @@ export function ExamQuizPlay({
         <span className="px-3 py-1 rounded-full border border-[var(--cp-border)] bg-[var(--cp-surface)] text-xs font-semibold text-[var(--cp-text)]">
           Soru {index + 1} / {questions.length}
         </span>
-        {question.multi ? (
-          <span className="px-2.5 py-1 rounded-full bg-[rgba(96,165,250,.14)] text-[11px] font-semibold text-[var(--cp-text)]">
-            Birden fazla yanıt seçebilirsin
-          </span>
-        ) : null}
       </div>
       <div
         className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--cp-surface-2)]"
@@ -96,6 +93,8 @@ export function ExamQuizPlay({
       <h2 className="text-lg sm:text-xl font-semibold text-[var(--cp-text)] leading-relaxed">
         <RichBody text={question.text} />
       </h2>
+      {/* Astra'daki gibi kökün hemen altında (17 Ekim 2026). */}
+      {question.multi ? <p className="cp-quiz-multi-hint">Birden fazla yanıt seçebilirsin</p> : null}
 
       <div className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
         {question.options.map((option, optionIndex) => {
@@ -168,6 +167,11 @@ export function ExamQuizPlay({
               <>
                 <Check className="h-4 w-4 stroke-[3] text-[var(--pm-success,#22c55e)]" />
                 <span>Doğru</span>
+              </>
+            ) : question.multi && partial > 0 ? (
+              <>
+                <Check className="h-4 w-4 stroke-[3] text-[var(--c-warning,#f59e0b)]" />
+                <span>Kısmen doğru · %{partial}</span>
               </>
             ) : (
               <>

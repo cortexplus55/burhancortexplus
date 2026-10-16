@@ -42,3 +42,29 @@ describe("written exam quiz play", () => {
     expect(onContinue).toHaveBeenCalledOnce();
   });
 });
+
+// 17 Ekim 2026: çok cevaplı soru Astra'daki gibi — ipucu kökün altında, kısmi doğru yüzdeyle.
+describe("çok cevaplı soru ekranı", () => {
+  it("kökün altında ipucu; bir doğruyu seçince 'Kısmen doğru · %50'", () => {
+    const multi = [
+      {
+        text: "Aşağıdakilerden hangileri krup tablosunda beklenir?",
+        options: ["Havlar tarzda öksürük", "İnspiratuvar stridor", "Fokal ral", "Ekspiratuvar uzama"],
+        multi: true,
+        correct: ["Havlar tarzda öksürük", "İnspiratuvar stridor"],
+        explanation: "Krup havlar öksürük ve inspiratuvar stridor yapar.",
+      },
+    ];
+    function Harness() {
+      const [value, setValue] = useState<string | string[]>([]);
+      return (
+        <ExamQuizPlay questions={multi} index={0} value={value} onChange={setValue} onContinue={() => {}} continueLabel="Devam et" />
+      );
+    }
+    render(<Harness />);
+    expect(screen.getByText("Birden fazla yanıt seçebilirsin")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Havlar tarzda öksürük/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Kontrol et" }));
+    expect(screen.getByText("Kısmen doğru · %50")).toBeTruthy();
+  });
+});

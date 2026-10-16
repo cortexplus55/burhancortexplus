@@ -2708,6 +2708,8 @@ async function teacherQuizPayload(
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     runningHeaders: edges,
     difficulty: quizDifficulty(input.requestedDifficulty),
+    // Konu testinde bir soru çok cevaplı (17 Ekim 2026, Astra'daki gibi); tuzak testi tek cevaplı.
+    multi: input.kind === "quiz" && count >= 5,
     startedAt,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);

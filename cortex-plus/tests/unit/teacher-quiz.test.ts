@@ -11,7 +11,8 @@ import {
   quizVerifySystem,
   shuffleOptions,
 } from "@/lib/learning/teacher-quiz";
-import { minimumQuestions, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
+import { minimumQuestions, teacherQuizLoop, withOneMultiLast } from "@/lib/learning/teacher-quiz-run";
+import { multiPartialPercent } from "@/lib/learning/exam-quiz";
 
 /*
   Öğretmen test motoru (2 Ekim 2026). Altın denemede KPSS 5/5 ve Termodinamik
@@ -263,5 +264,57 @@ describe("kök cevabı ele vermez, kaynağa sormaz", () => {
       correct: ["Demir düşük"],
     };
     expect(quizStructureIssues(sourced as never).some((issue) => /kaynak\/sayfa notu ya da 'metne göre'/.test(issue))).toBe(true);
+  });
+});
+
+// 17 Ekim 2026, ürün sahibi: çok cevaplı soru eklensin. Astra'nın konu testinde 7 sorudan
+// sonuncusu çok cevaplıydı ("BİRDEN FAZLA YANIT SEÇEBİLİRSİN"), kısmi puanla ("%50 doğru").
+describe("çok cevaplı soru", () => {
+  const multi = {
+    text: "Aşağıdakilerden hangileri krup tablosunda beklenir?",
+    options: ["Havlar tarzda öksürük", "İnspiratuvar stridor", "Fokal ral", "Ekspiratuvar uzama"],
+    correct: ["Havlar tarzda öksürük", "İnspiratuvar stridor"],
+    multi: true,
+    explanation: "Krup subglottik ödemle havlar öksürük ve inspiratuvar stridor yapar; fokal ral pnömoniye, ekspiratuvar uzama alt hava yoluna aittir.",
+    optionWhy: ["Krupun tipik öksürüğüdür.", "Üst hava yolu daralmasının sesidir.", "Pnömonide duyulur.", "Alt hava yolu tıkanmasında görülür."],
+  };
+
+  it("yalnız konu testi açar; yazar tam bir soru yazar, öteki testler tek cevaplı kalır", () => {
+    expect(quizSystem("document", "practice", true)).toContain("ÇOK CEVAPLI SORU: Bu testte tam bir soru çok cevaplıdır");
+    expect(quizSystem("document", "practice")).not.toContain("ÇOK CEVAPLI SORU:");
+    expect(quizSystem("topic", "practice", true)).toContain("2 ya da 3'ü doğru");
+    for (const mode of ["document", "topic"] as const) {
+      expect(quizVerifySystem(mode)).toContain("multi true olan soruda (çok cevaplı) birden fazla doğru şık olması B değildir");
+    }
+    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    expect(route).toContain('multi: input.kind === "quiz" && count >= 5,');
+  });
+
+  it("yapı: izin varsa 2-3 doğru geçer; izin yoksa ya da doğru sayısı tutmazsa düzeltmeye gider", () => {
+    expect(quizStructureIssues(multi as never, { multi: true })).toEqual([]);
+    expect(quizStructureIssues(multi as never).join(" ")).toMatch(/Tek doğru şık olmalı/);
+    const one = { ...multi, correct: ["Havlar tarzda öksürük"] };
+    expect(quizStructureIssues(one as never, { multi: true }).join(" ")).toMatch(/1 doğru var; 2 ya da 3 olmalı/);
+    const all = { ...multi, correct: [...multi.options] };
+    expect(quizStructureIssues(all as never, { multi: true }).join(" ")).toMatch(/4 doğru var/);
+    const leaky = { ...multi, text: "Stridor duyulan çocukta krupta hangileri beklenir?" };
+    expect(quizStructureIssues(leaky as never, { multi: true }).join(" ")).toMatch(/ele veren kelimeyi içeriyor \('stridor'\)/);
+  });
+
+  it("testte en çok bir çok cevaplı soru ve o sonda; yedekler kesilirken düşmez", () => {
+    const single = (n: number) => ({ ...multi, text: `Soru ${n}`, multi: false, correct: ["Fokal ral"] }) as never;
+    const pool = [single(1), multi as never, single(2), single(3), single(4), single(5), { ...multi, text: "İkinci çok cevaplı" } as never];
+    const kept = withOneMultiLast(pool, 5);
+    expect(kept).toHaveLength(5);
+    expect(kept.filter((question) => (question as { multi: boolean }).multi)).toHaveLength(1);
+    expect((kept[4] as { text: string }).text).toBe(multi.text);
+    expect(withOneMultiLast([single(1), single(2)], 5)).toHaveLength(2);
+  });
+
+  it("kısmi puan: (doğru seçilen − yanlış seçilen) / doğru sayısı", () => {
+    expect(multiPartialPercent(["Havlar tarzda öksürük"], multi.correct)).toBe(50);
+    expect(multiPartialPercent(multi.correct, multi.correct)).toBe(100);
+    expect(multiPartialPercent(["Havlar tarzda öksürük", "Fokal ral"], multi.correct)).toBe(0);
+    expect(multiPartialPercent(["Fokal ral"], multi.correct)).toBe(0);
   });
 });

@@ -41,6 +41,11 @@ export type TeacherQuizInput = {
    * yazara hiç ulaşmıyordu; "Orta" seçilen Pediatri testi tanım sorularıyla geldi.
    */
   difficulty?: QuizDifficulty;
+  /**
+   * Testte tam bir soru çok cevaplı (17 Ekim 2026, ürün sahibinin kararı; Astra'nın konu
+   * testinde 7 sorudan biri, kısmi puanla). Yalnız hazırlığın konu testi açar.
+   */
+  multi?: boolean;
 };
 
 export type QuizDifficulty = "kolay" | "orta" | "ileri";
@@ -97,7 +102,7 @@ const DESIGN =
   "- Türleri karıştır: bir durumdan (olaydan) kavramı buldurma; birbirine karıştırılan iki kardeş kavramı ayırt " +
   "ettirme; bir özelliğin hangi kavrama ait olduğunu sorma; kaynakta sayı ya da bağıntı varsa hesap.\n" +
   "- Her soru tek kavramı ölçer. Kolaydan zora sırala.\n" +
-  "- 4 şık. Tek doğru şık (multi false). Çeldiriciler aynı ailedeki kardeş terimler ya da öğrencinin gerçekten " +
+  "- 4 şık. Tek doğru şık (multi false); aşağıda ÇOK CEVAPLI SORU kuralı varsa yalnız o soru istisna. Çeldiriciler aynı ailedeki kardeş terimler ya da öğrencinin gerçekten " +
   "yaptığı hata; şıklar aynı türden ve benzer uzunlukta. 'Hepsi', 'hiçbiri', 'yukarıdakilerin' şıkkı yok.\n" +
   "- Dört şık da sorulan kategoriden olur: ölçüm soruluyorsa dördü de ölçüm, yaklaşım soruluyorsa dördü de aynı işe " +
   "dönük yaklaşım. Konuyu bilmeyen birinin eleyebileceği şık ('Sosyal gülümseme' bir ölçüm sorusunda, 'Yalnızca dil " +
@@ -124,11 +129,18 @@ const DESIGN =
   "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede', 'PDF', 'belirtilmiştir', 'belirtildiği gibi' — soru " +
   "bilgiyi kaynağa değil konuya sorar ('hangi gerekçe belirtilmiştir' değil 'neden uygun değildir').\n\n";
 
+const MULTI_QUESTION =
+  "ÇOK CEVAPLI SORU: Bu testte tam bir soru çok cevaplıdır (multi true) ve testin son sorularından biridir. 4 şık, " +
+  "2 ya da 3'ü doğru; correct doğru şıkların metinlerinden oluşan dizidir. Kök 'hangileri' diye sorar ('Aşağıdakilerden " +
+  "hangileri … ?'). Doğru şıkların her biri kendi başına kesin doğru, yanlış şıkların her biri kesin yanlıştır; " +
+  "yarı doğru şık yok. explanation hangi şıkların neden doğru, ötekilerin neden yanlış olduğunu söyler. Öteki bütün " +
+  "sorular tek doğru şıklıdır (multi false).\n\n";
+
 const GAPS_FOCUS =
   "BU TEST TUZAK SORULARI: her soru, kaynağın uyardığı ya da öğrencinin sık karıştırdığı bir ayrımı yoklar " +
   "(yakın iki kavram, istisna, koşul). misconceptionTag o tuzağın adıdır.\n\n";
 
-function system(mode: TeacherLessonMode, focus: TeacherQuizInput["focus"]): string {
+function system(mode: TeacherLessonMode, focus: TeacherQuizInput["focus"], multi = false): string {
   const intro =
     mode === "topic"
       ? "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ama belge yüklemedi. Bu konudan, sınavdaki " +
@@ -139,13 +151,18 @@ function system(mode: TeacherLessonMode, focus: TeacherQuizInput["focus"]): stri
     intro +
     (mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
     DESIGN +
+    (multi ? MULTI_QUESTION : "") +
     (focus === "gaps" ? GAPS_FOCUS : "") +
     `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SCHEMA}`
   );
 }
 
-export function quizSystem(mode: TeacherLessonMode = "document", focus: TeacherQuizInput["focus"] = "practice"): string {
-  return system(mode, focus);
+export function quizSystem(
+  mode: TeacherLessonMode = "document",
+  focus: TeacherQuizInput["focus"] = "practice",
+  multi = false,
+): string {
+  return system(mode, focus, multi);
 }
 
 function quizSource(input: TeacherQuizInput): string {
@@ -170,6 +187,11 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     .join("\n\n");
 }
 
+// Çok cevaplı soruda "birden fazla doğru" sorun değil, şartı; anahtarın her parçası ayrı ayrı denetlenir.
+const MULTI_VERIFY =
+  "multi true olan soruda (çok cevaplı) birden fazla doğru şık olması B değildir: işaretli doğruların her biri kesin " +
+  "doğru, işaretsiz şıkların her biri kesin yanlış olmalı; değilse A. Yarı doğru şık B'dir.\n";
+
 const VERIFY_DOCUMENT =
   "Sen titiz bir sınav sorusu denetçisisin. Testi yazıldığı KAYNAK ile karşılaştırıyorsun. HER SORUYU ÖNCE KENDİN " +
   "ÇÖZ (anahtara bakmadan), sonra anahtarla karşılaştır. Şunları bul:\n" +
@@ -186,6 +208,7 @@ const VERIFY_DOCUMENT =
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
   "çeldiricinin doğru şıkkın olumsuz kopyası olması (soru tahminle çözülüyor).\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla kullanılması sorun değildir.\n" +
+  MULTI_VERIFY +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
 const VERIFY_TOPIC =
@@ -203,6 +226,7 @@ const VERIFY_TOPIC =
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
   "çeldiricinin doğru şıkkın olumsuz kopyası olması (soru tahminle çözülüyor).\n" +
+  MULTI_VERIFY +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
 const VERIFY_JSON =
@@ -221,13 +245,18 @@ export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQu
   return `${head}\n\nTEST (JSON):\n${JSON.stringify({ questions: questions.map(publicShape) })}`;
 }
 
-export function quizFixSystem(mode: TeacherLessonMode = "document", focus: TeacherQuizInput["focus"] = "practice"): string {
+export function quizFixSystem(
+  mode: TeacherLessonMode = "document",
+  focus: TeacherQuizInput["focus"] = "practice",
+  multi = false,
+): string {
   return (
     "Sen aynı testi yazan öğretmensin. Denetçinin sorun bulduğu soruları düzelt: anahtarı düzelt, tek doğru şık kalacak " +
-    "biçimde şıkları değiştir, kaynakta dayanağı olmayan bilgiyi çıkar, gerekçeyi düzelt. Bir soru düzeltilemiyorsa aynı " +
+    "biçimde şıkları değiştir (multi true soruda işaretli doğrular kesin doğru, ötekiler kesin yanlış kalacak biçimde), " +
+    "kaynakta dayanağı olmayan bilgiyi çıkar, gerekçeyi düzelt. Bir soru düzeltilemiyorsa aynı " +
     "kavramı ölçen yeni bir soru yaz. Önerilen düzeltme ('→' sonrası) varsa uygula. Yalnız verilen soruları, aynı " +
     "sayıda ve aynı sırayla döndür. Kurallar ve şema aynı:\n\n" +
-    system(mode, focus)
+    system(mode, focus, multi)
   );
 }
 
@@ -376,9 +405,12 @@ function answerOnlyWordInStem(stem: string, answer: string, options: string[]): 
   return null;
 }
 
-export function quizStructureIssues(question: QuizQuestion): string[] {
+export function quizStructureIssues(question: QuizQuestion, options: { multi?: boolean } = {}): string[] {
   const issues: string[] = [];
   if (question.options.length !== 4) issues.push(`Şık sayısı ${question.options.length}; 4 olmalı.`);
+  if (question.multi && options.multi) {
+    return [...issues, ...multiQuestionIssues(question)];
+  }
   if (question.multi || question.correct.length !== 1) issues.push("Tek doğru şık olmalı (multi false).");
   if (!question.explanation?.trim()) issues.push("explanation yok.");
   if ((question.optionWhy?.length ?? 0) !== question.options.length) {
@@ -408,6 +440,37 @@ export function quizStructureIssues(question: QuizQuestion): string[] {
     issues.push("Cevap anahtarı hesapla çelişiyor.");
   } else if (mathOptionsAmbiguous(keyed)) {
     issues.push("İki şık aynı cevap: aynı değer ya da aynı öğeler farklı sırayla.");
+  }
+  return issues;
+}
+
+/** Çok cevaplı sorunun yapısı: 2-3 doğru, her biri şıklarda; kök hiçbir doğruyu ele vermez. */
+function multiQuestionIssues(question: QuizQuestion): string[] {
+  const issues: string[] = [];
+  const correct = [...new Set(question.correct)];
+  if (correct.length < 2 || correct.length > 3) {
+    issues.push(`Çok cevaplı soruda ${correct.length} doğru var; 2 ya da 3 olmalı.`);
+  }
+  if (correct.some((answer) => !question.options.includes(answer))) {
+    issues.push("correct dizisindeki her doğru, options içinden aynen olmalı.");
+  }
+  if (!question.explanation?.trim()) issues.push("explanation yok.");
+  if ((question.optionWhy?.length ?? 0) !== question.options.length) {
+    issues.push("optionWhy her şık için bir cümle olmalı, şık sayısı kadar ve aynı sırada.");
+  }
+  if (question.options.some((option) => BANNED_OPTION.test(option.trim()))) {
+    issues.push("'Hepsi / hiçbiri / yukarıdakiler' şıkkı kullanılmış.");
+  }
+  if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
+    issues.push("Kökte kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
+  }
+  const wrong = question.options.filter((option) => !correct.includes(option));
+  for (const answer of correct) {
+    const giveaway = answerOnlyWordInStem(question.text, answer, wrong.concat(answer));
+    if (giveaway) {
+      issues.push(`Kök doğru şıkkı ele veren kelimeyi içeriyor ('${giveaway}'); kökten çıkar.`);
+      break;
+    }
   }
   return issues;
 }
