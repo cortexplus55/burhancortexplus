@@ -369,8 +369,11 @@ export type SectionCheck = z.infer<typeof sectionCheckSchema>;
 export const sectionNoteSchema = z.object({
   title: z.string().min(3).max(80),
   body: z.string().min(10).max(400),
-  /** warn = kırmızı uyarı, info = altın bilgi, unit = turuncu birim. */
-  tone: z.enum(["warn", "info", "unit"]).optional().catch(undefined),
+  /**
+   * warn = kırmızı uyarı, info = altın bilgi, unit = turuncu birim,
+   * general = belgede olmayan, denetlenmiş genel bilgi (16 Ekim 2026; yalnız belgeli ders).
+   */
+  tone: z.enum(["warn", "info", "unit", "general"]).optional().catch(undefined),
 });
 
 export const looseText = (max: number) =>

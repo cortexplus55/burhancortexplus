@@ -115,3 +115,18 @@ yenileme, sözleşmedeki "otomatik olarak yenilenmez" ve `AUTO_RENEW_SUPPORTED =
 false` aynen kalıyor. Onay gelirse sıra: PCI belgesi → Direkt API ödeme sayfası
 ve kart saklama → yenileme zamanlayıcısı (Hobby cron kotasına dikkat: mevcut
 günlük cron'un içine) → en son sözleşme metni ve `AUTO_RENEW_SUPPORTED`.
+
+## PayTR'nin cevabı: test girişi (9 Ekim 2026)
+
+İkinci talebe iki cevap geldi: aynı gün "ilgili ekiplere yönlendirildi", ertesi
+gün (**9 Ekim 11:37**) "web sayfanızda inceleme sağlayabilmemiz adına test giriş
+bilgisi iletmenizi rica ederiz". PCI ve 3D/Non3D sorularına henüz cevap yok.
+Cevap panelde, Destek sayfasındaki listede; liste açılışta son bir haftayı
+gösteriyor — eski talepler için tarih aralığını geri çekmek gerekiyor.
+
+**Karar (16 Ekim 2026):** ayrı bir inceleme hesabı açılıyor
+(`cortexplus+paytr@cortexplus.app`, ücretsiz katmanda kalır ki ödeme sayfası
+`/pay` görünsün). Kurucu hesabı verilmiyor: yönetim yetkili. Şifre ve gönderim
+ürün sahibinde; gönderilen metin ödeme sayfasını (`/pay`, giriş gerekli) ve açık
+fiyat sayfasını (`/fiyatlandirma`) gösteriyor, otomatik yenilemenin bugün
+olmadığını tekrar söylüyor.

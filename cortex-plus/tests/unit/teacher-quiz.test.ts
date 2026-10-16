@@ -230,3 +230,38 @@ describe("zorluk ve çeldirici kategorisi", () => {
     expect(generate).toContain("difficulty: quizDifficulty(input.studentDifficulty),");
   });
 });
+
+// Canlı Pediatri testi (16 Ekim 2026): kök "annede B12 eksikliği" diyip hangi eksiklik diye sordu;
+// bir başka soru "hangi gerekçe belirtilmiştir" diye kaynağa sordu.
+describe("kök cevabı ele vermez, kaynağa sormaz", () => {
+  const base = {
+    multi: false,
+    explanation: "Makrositoz ve nörolojik bulgu B12 eksikliğini düşündürür.",
+    optionWhy: ["a", "b", "c", "d"],
+  };
+  it("yalnız doğru şıkta olan kelime kökte geçerse yakalanır", () => {
+    const leaky = {
+      ...base,
+      text: "Annede B12 eksikliği olan bebekte makrositoz var. Hangi mikrobesin eksikliği düşünülür?",
+      options: ["Demir", "A vitamini", "D vitamini", "B12 vitamini"],
+      correct: ["B12 vitamini"],
+    };
+    expect(quizStructureIssues(leaky as never).some((issue) => /ele veren kelimeyi içeriyor \('b12'\)/.test(issue))).toBe(true);
+    const clean = { ...leaky, text: "Yalnız anne sütü alan bebekte makrositoz ve nörolojik bulgu var. Hangi mikrobesin eksikliği düşünülür?" };
+    expect(quizStructureIssues(clean as never).some((issue) => /ele veren/.test(issue))).toBe(false);
+    // Bütün şıklarda geçen kelime (vitamini) ipucu sayılmaz.
+    const shared = { ...clean, text: "Bebekte makrositoz var; hangi vitamini eksik olabilir?", options: ["A vitamini", "D vitamini", "E vitamini", "B12 vitamini"] };
+    expect(quizStructureIssues(shared as never).some((issue) => /ele veren/.test(issue))).toBe(false);
+  });
+
+  it("'belirtilmiştir' kaynağa sorar: yazar yasağı ve yapı denetimi", () => {
+    expect(quizSystem("document")).toContain("'belirtilmiştir'");
+    const sourced = {
+      ...base,
+      text: "İnek sütünün erken dönemde ana içecek olmaması için hangi gerekçe belirtilmiştir?",
+      options: ["Demir düşük", "Kalsiyum yüksek", "Protein düşük", "Yağ yüksek"],
+      correct: ["Demir düşük"],
+    };
+    expect(quizStructureIssues(sourced as never).some((issue) => /kaynak\/sayfa notu ya da 'metne göre'/.test(issue))).toBe(true);
+  });
+});

@@ -102,7 +102,15 @@ export function sealStoredLesson(
     return lesson ? sealLessonV3ForPlay(lesson) : null;
   }
   const lesson = readLessonV2(stored);
-  return lesson ? sealLessonForPlay(lesson, options) : null;
+  if (!lesson) return null;
+  // Eski ekran "general" tonunu tanımıyor; şeması reddetmesin diye bilgi kutusu olur.
+  const legacy: LessonV2 = {
+    ...lesson,
+    sections: lesson.sections.map((section) =>
+      section.note?.tone === "general" ? { ...section, note: { ...section.note, tone: "info" as const } } : section,
+    ),
+  };
+  return sealLessonForPlay(legacy, options);
 }
 
 /** V3 oynatma paketi: `check` bloklarında cevap ve gerekçe yok. */

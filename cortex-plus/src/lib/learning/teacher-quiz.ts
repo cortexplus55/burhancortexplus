@@ -121,7 +121,8 @@ const DESIGN =
   "'0° ile 360° arasında' uçları belirsiz bırakır ve iki cevabı doğru yapar.\n" +
   "- Yazmadan önce her soruyu kendin çöz: tek doğru cevap var mı, anahtar doğru mu, diğer şıkların her biri kesin " +
   "yanlış mı?\n\n" +
-  "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede', 'PDF'.\n\n";
+  "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede', 'PDF', 'belirtilmiştir', 'belirtildiği gibi' — soru " +
+  "bilgiyi kaynağa değil konuya sorar ('hangi gerekçe belirtilmiştir' değil 'neden uygun değildir').\n\n";
 
 const GAPS_FOCUS =
   "BU TEST TUZAK SORULARI: her soru, kaynağın uyardığı ya da öğrencinin sık karıştırdığı bir ayrımı yoklar " +
@@ -352,6 +353,29 @@ const COUNTING = /(?:^|\s)kaç\s+(?:\S+\s+){0,2}(tür|çeşit|başlık|madde|uns
  * Hesap anahtarı denetimi (exponentKeyWrong, mathKeyWrong) metne dokunmaz,
  * yalnız anahtarın hesapla çeliştiğini söyler.
  */
+/**
+ * Doğru şıkta olup çeldiricilerin hiçbirinde olmayan bir kelime kökte geçiyorsa
+ * soru ele veriyor (16 Ekim 2026 Pediatri testi: "annede B12 eksikliği" deyip
+ * "hangi mikrobesin" diye sordu; şıklarda yalnız doğru olanda "B12" vardı).
+ * Türkçe ek için 5 harflik kök; rakamlı kelime (B12, D3) bütün olarak.
+ */
+function answerOnlyWordInStem(stem: string, answer: string, options: string[]): string | null {
+  const keys = (text: string) =>
+    new Map(
+      text
+        .toLocaleLowerCase("tr")
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((word) => (/\d/.test(word) ? word.length >= 2 : word.length >= 5))
+        .map((word) => [/\d/.test(word) ? word : word.slice(0, 5), word] as const),
+    );
+  const others = new Set(options.filter((option) => option !== answer).flatMap((option) => [...keys(option).keys()]));
+  const inStem = keys(stem);
+  for (const [key, word] of keys(answer)) {
+    if (!others.has(key) && inStem.has(key)) return word;
+  }
+  return null;
+}
+
 export function quizStructureIssues(question: QuizQuestion): string[] {
   const issues: string[] = [];
   if (question.options.length !== 4) issues.push(`Şık sayısı ${question.options.length}; 4 olmalı.`);
@@ -367,8 +391,11 @@ export function quizStructureIssues(question: QuizQuestion): string[] {
   const answer = question.correct[0] ?? "";
   if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
     issues.push("Kök doğru şıkkı içeriyor; cevabı veriyor.");
+  } else {
+    const giveaway = answerOnlyWordInStem(question.text, answer, question.options);
+    if (giveaway) issues.push(`Kök doğru şıkkı ele veren kelimeyi içeriyor ('${giveaway}'); kökten çıkar.`);
   }
-  if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede/i.test(question.text)) {
+  if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
     issues.push("Kökte kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
   }
   const keyed = {
