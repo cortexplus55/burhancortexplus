@@ -22,14 +22,24 @@ import {
 } from "@/lib/learning/teacher-lesson";
 
 export type TeacherLessonOutcome =
-  | { ok: true; lesson: LessonV3; calls: number; ms: number; remainingLow: TeacherIssue[] }
+  | {
+      ok: true;
+      lesson: LessonV3;
+      calls: number;
+      ms: number;
+      remainingLow: TeacherIssue[];
+      /** Düzeltme turunu açtıran yüksek sorunlar (tur başına); yavaş dersi teşhis için. */
+      fixTriggers: TeacherIssue[][];
+    }
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /**
  * 300 sn fonksiyon tavanı: yeni düzeltme turu (düzeltme + denetim ≈ 60-75 sn)
  * isteğin başından bu kadar süre geçtiyse başlamaz. Süre temizlik dahil ölçülür.
  */
-const FIX_DEADLINE_MS = 200_000;
+// LessonV3 dersi uzun: bir düzeltme turu (yazar + denetçi) ~70-100 sn. Tur 200. saniyede
+// başlarsa fonksiyonun 300 sn sınırını aşıyordu (16 Ekim 2026 canlı ders ~4,5 dk sürdü).
+const FIX_DEADLINE_MS = 150_000;
 const MAX_FIX_ROUNDS = 2;
 
 /**
@@ -127,7 +137,7 @@ export async function runTeacherLesson(
     }
     const lesson = loop.lesson;
     if (reservationId) await commitCredits(service, reservationId);
-    return { ok: true, lesson, calls, ms: Date.now() - started, remainingLow: loop.issues };
+    return { ok: true, lesson, calls, ms: Date.now() - started, remainingLow: loop.issues, fixTriggers: loop.fixTriggers };
   } catch (error) {
     await refund();
     console.error("teacher_lesson_failed", {
@@ -149,8 +159,9 @@ export async function teacherLessonLoop(
   ask: AskJson,
   input: TeacherLessonInput,
   started = Date.now(),
-): Promise<{ lesson: LessonV3 | null; issues: TeacherIssue[]; drafts: LessonV3[] }> {
+): Promise<{ lesson: LessonV3 | null; issues: TeacherIssue[]; drafts: LessonV3[]; fixTriggers: TeacherIssue[][] }> {
   const drafts: LessonV3[] = [];
+  const fixTriggers: TeacherIssue[][] = [];
   const review = async (lesson: LessonV3): Promise<TeacherIssue[]> => {
     const structural = lessonStructureIssues(lesson, input);
     let factual: TeacherIssue[] = [];
@@ -166,12 +177,13 @@ export async function teacherLessonLoop(
   let lesson = parseTeacherLesson(await ask(teacherSystem(input.mode), teacherUserPrompt(input)), input.upcomingTopics);
   // Şema tutmadı: bir kez yeniden yazdır.
   if (!lesson) lesson = parseTeacherLesson(await ask(teacherSystem(input.mode), teacherUserPrompt(input)), input.upcomingTopics);
-  if (!lesson) return { lesson: null, issues: [], drafts };
+  if (!lesson) return { lesson: null, issues: [], drafts, fixTriggers };
   drafts.push(lesson);
 
   let issues = await review(lesson);
   for (let round = 0; round < MAX_FIX_ROUNDS && issues.some((issue) => issue.severity === "high"); round += 1) {
     if (Date.now() - started > FIX_DEADLINE_MS) break;
+    fixTriggers.push(issues.filter((issue) => issue.severity === "high"));
     const fixed = parseTeacherLesson(await ask(fixSystem(input.mode), fixUserPrompt(lesson, issues, input)), input.upcomingTopics);
     if (!fixed) break;
     // Model dersi aynen geri verdiyse yeniden denetlemek boşa çağrı.
@@ -180,5 +192,5 @@ export async function teacherLessonLoop(
     drafts.push(lesson);
     issues = await review(lesson);
   }
-  return { lesson: lesson ? shuffleLessonChecks(lesson) : lesson, issues, drafts };
+  return { lesson: lesson ? shuffleLessonChecks(lesson) : lesson, issues, drafts, fixTriggers };
 }

@@ -19,6 +19,8 @@ const REASON_LABEL: Record<string, string> = {
   pages_unusable: "Sayfa okunamadı",
   search_no_match: "Arama eşleşmedi",
   search_error: "Arama hatası",
+  // Hata değil: ders çıktı ama düzeltme turu açtı (yavaş). Neden ret cümlelerinde.
+  slow_generation: "Yavaş üretim (düzeltme turu)",
 };
 
 export default async function AdminDersHatalariPage({

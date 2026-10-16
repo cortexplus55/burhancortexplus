@@ -64,7 +64,8 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
   });
 
   it("istem: türün biçimi, kaynak kuralı; diyalogda Kerem; özette soru-cevap yok", () => {
-    expect(podcastSystem("document", "diyalog")).toContain('"ada"|"kerem"');
+    expect(podcastSystem("document", "diyalog")).toContain('{"speaker":"kerem"');
+    expect(podcastSystem("document", "diyalog")).toContain('{"speaker":"ada"');
     expect(podcastSystem("document", "basit")).toContain("KAYNAK KURALI (kesin)");
     expect(podcastSystem("topic", "basit")).toContain("BİLGİ KURALI (belgesiz, kesin)");
     expect(podcastSystem("document", "basit")).toContain("'Dur ve düşün:'");
@@ -87,6 +88,9 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     for (const length of ["diyalog", "basit"] as const) {
       const system = podcastSystem("document", length);
       expect(system).not.toContain("TEK cümle");
+      // Canlıda örnek kuraldan güçlü çıktı: "text":"tek cümle" örneği varken sıraların %83'ü tek cümleydi.
+      expect(system).not.toContain('"text":"tek cümle"');
+      expect(system).toContain("2-4 cümle — olgu, nedeni, sonucu ya da örneği");
       expect(system).toContain("1-4 cümle");
       expect(system).toMatch(/Bilgi taşımayan cümle kurma/);
     }

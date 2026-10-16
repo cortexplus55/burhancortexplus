@@ -400,3 +400,23 @@ describe("öğretmen istemi", () => {
     expect(route).toContain("!isRunningHeader(title, edges) && !(topicNodeIds[index] && isJunkTopicTitle(title))");
   });
 });
+
+// 16 Ekim 2026: canlı V3 dersi ~4,5 dk sürdü (fonksiyon sınırı 300 sn). Düzeltme turunu
+// açtıran sorunlar kayda geçer; son tur 150. saniyeden sonra başlamaz.
+describe("yavaş ders teşhisi", () => {
+  it("düzeltme turunu açtıran yüksek sorunlar döner; yönetim sayfasına 'Yavaş üretim' olarak yazılır", async () => {
+    const { teacherLessonLoop } = await import("@/lib/learning/teacher-lesson-run");
+    const draft = { ...good, overview: "" };
+    const replies: unknown[] = [draft, { issues: [] }, good, { issues: [] }];
+    const ask = async () => replies.shift() ?? null;
+    const loop = await teacherLessonLoop(ask, { topicLabel: "Hukuk", prepTitle: "KPSS", pages: [{ page: 1, text: "x" }], upcomingTopics: [] });
+    expect(loop.lesson?.overview).toBe(good.overview);
+    expect(loop.fixTriggers).toHaveLength(1);
+    expect(loop.fixTriggers[0]!.map((issue) => issue.where)).toContain("overview");
+    const run = readFileSync("src/lib/learning/teacher-lesson-run.ts", "utf8");
+    expect(run).toContain("const FIX_DEADLINE_MS = 150_000;");
+    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    expect(route).toContain('reason: "slow_generation"');
+    expect(readFileSync("src/app/admin/ders-hatalari/page.tsx", "utf8")).toContain('slow_generation: "Yavaş üretim (düzeltme turu)"');
+  });
+});
