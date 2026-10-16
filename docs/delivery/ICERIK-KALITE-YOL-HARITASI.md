@@ -356,3 +356,30 @@ olabilir, hesabı olan kavram 2-3 ekrana bölünür (önce kavram + formül, son
 kaynaktaki sayılarla çözümlü örnek). Yazar kuralları: kaynaktaki sayı/eşik/birim aynen
 yazılır, "yüksek/düşük" diye geçiştirilmez (denetçi B, yüksek). Örnek ders bekçi testte:
 `tests/unit/lesson-v3-zscore.test.tsx`. Kurallar ve değişmezler: `AGENTS.md`.
+
+## 10. Astra'yla son yan yana — aynı Pediatri PDF'i (16 Ekim 2026)
+
+Bu kez **aynı belge** iki tarafa yüklendi (10 sayfalık pediatri konu anlatımı; Astra Plus
+hesabı). İki ürün de 10 konuluk neredeyse aynı haritayı çıkardı. Karşılaştırma
+"Beslenme, Vitaminler ve Malnütrisyon" konusunda: ders, konu testi (Orta), podcast. Puan
+anahtarı 0–2 (sadakat, doğruluk, Türkçe/doğallık, akış, kontrol/gerekçe, sınav odağı).
+
+| İçerik | Biz | Astra | Belirleyen |
+|---|---|---|---|
+| Ders (LessonV3) | 10 | 10 | Astra belgede olmayan sınav bilgisini (bal 1 yaş/botulizm, "6. aydan sonra", pika) **"metinde açıkça belirtilmiştir" diye** veriyor — doğru bilgi, yanlış kaynak. Biz sadık ama o bilgileri vermedik; bir kavramı gereksiz böldük, metin başka ekrandaki tabloya gönderdi. |
+| Konu testi (Orta) | 11 | 10 | İkisi de vaka kökü. Bizde her şıkkın gerekçesi var; bir kök cevabı veriyordu ("annede B12 eksikliği"), biri kaynağa soruyordu ("belirtilmiştir"). Astra'da "Yalnızca …" ipuçlu şık, aynı dört şık üç soruda, şık gerekçesi yok. |
+| Podcast | 8 | 11 | **Asıl açık.** Bizde her konuşma sırası tek cümle, Ada belge cümlesi okuyor, bilgi taşımayan satırlar var. Astra'da 2-4 cümlelik doğal sıralar, nedenler açılıyor. |
+| Sohbet (KPSS, aynı gün) | 12 | 10 | §9. |
+
+Kapatılanlar (aynı gün): gereksiz bölme ve başka ekrandaki tabloya gönderme (#261);
+kökte cevabı ele veren kelime ve "belirtilmiştir" (#262); **etiketli, denetlenmiş "Genel
+bilgi" kutusu** — ürün sahibinin kararı: Astra'nın eklediği türden sınav bilgisi bizde
+ayrı renkli kutuda, belgeden gelmediği açıkça yazılı, en çok iki (#262); podcast'te 1-4
+cümlelik sıralar, boş cümle yasağı, nedeni açma ve sesli "Belgende geçmiyor ama bilmen
+iyi olur:" etiketi (#263).
+
+Bilerek farklı kalanlar: video ders (ürün sahibi istemedi), çok cevaplı soru (TUS/KPSS
+biçimi tek cevaplı), Astra'nın kurulumdaki "nasıl çalışmayı seversin" sorusu (içerik
+kalitesi değil).
+
+Maliyet: bizde 1 ders + 1 test + 1 podcast (~$0,06); Astra'da Plus hakkından.
