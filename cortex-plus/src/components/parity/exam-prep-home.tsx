@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AudioLines,
+  ChevronDown,
   ClipboardCheck,
   Crosshair,
   FileText,
@@ -26,6 +27,7 @@ import {
   Settings,
   Share2,
   Target,
+  Timer,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +45,7 @@ import {
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
-import { STUDY_PATH_HINT, studyNodeAria } from "@/lib/learning/study-tools";
+import { STUDY_PATH_HINT, studyNodeAria, type StudyToolGroup } from "@/lib/learning/study-tools";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
 import {
@@ -207,6 +209,7 @@ export function ExamPrepHome({
   creatorLabel = "Sen",
   schoolName = null,
   joinCount = 0,
+  lastResult = null,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -256,6 +259,8 @@ export function ExamPrepHome({
   schoolName?: string | null;
   /** Okulda paylaşıldıysa katılım sayısı. */
   joinCount?: number;
+  /** Son biten etkinlik ve yüzdesi; Astra yolun üstünde kart olarak gösteriyor. */
+  lastResult?: { nodeId: string; pct: number | null } | null;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -281,6 +286,18 @@ export function ExamPrepHome({
     setTopSlot(document.getElementById(PREP_TOP_SLOT_ID));
     setMounted(true);
   }, []);
+  // Astra: büyük başlık kaydırılıp gidince adı yapışkan şeritte görünür.
+  const heroRef = useRef<HTMLElement | null>(null);
+  const [heroVisible, setHeroVisible] = useState(true);
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setHeroVisible(Boolean(entry?.isIntersecting)), {
+      rootMargin: "-64px 0px 0px 0px",
+    });
+    observer.observe(hero);
+    return () => observer.disconnect();
+  }, []);
   /**
    * Seviye tespiti yolun ilk düğümü (3 Ekim 2026). Eskiden yolun üstünde
    * "Seviyeni henüz ölçmedik" bandıydı; Astra'nın yolunda bant yok.
@@ -297,6 +314,12 @@ export function ExamPrepHome({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsPane, setOptionsPane] = useState<"menu" | "kaynaklar" | "ayarlar">("menu");
   const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
+  /** "Deneme sınavı oluştur" pencereyi Sınav sekmesinde açar. */
+  const [hubGroup, setHubGroupState] = useState<StudyToolGroup | undefined>(undefined);
+  function setHubGroup(group: StudyToolGroup) {
+    setHubGroupState(group);
+    setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null);
+  }
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
   const mockNode = nodes.find((node) => node.kind === "written_exam") ?? null;
   const progress = useMemo(
@@ -371,9 +394,9 @@ export function ExamPrepHome({
     }
   }
 
-  // Astra'da hazırlığın simgeleri (sohbet, düello, paylaş, "⋮") üst çubukta,
-  // serinin solunda (3 Ekim 2026). Kabuk "focus" başlığında yer açıyor;
-  // yer yoksa (test ortamı) simgeler sayfanın başında kalır.
+  // Astra'nın üst çubuğunda yalnız sohbet ve "+" (ders oluştur) var; düello, paylaş ve
+  // menü başlığın altında etiketli düğmeler (17 Ekim 2026, yan yana bakıldı). Kabuk
+  // "focus" başlığında yer açıyor; yer yoksa (test ortamı) simgeler sayfanın başında kalır.
   const toolbar = (
       <div
         className={cn("cp-prep-actions", !mounted && "cp-prep-actions--pending")}
@@ -388,57 +411,35 @@ export function ExamPrepHome({
         >
           <MessageCircle className="h-4 w-4" aria-hidden />
         </Link>
-        <Link
-          href={`/deneme-sinavlari/${prepId}/duello`}
-          className="cp-prep-icon"
-          aria-label="Düellolar"
-          title="Düellolar"
-        >
-          <Swords className="h-4 w-4" aria-hidden />
-        </Link>
-        {canShare ? (
-          <button
-            type="button"
-            className={cn("cp-prep-icon", shared && "is-on")}
-            aria-label={shared ? "Okulunla paylaşıldı" : "Okulunla paylaş"}
-            aria-pressed={shared}
-            title={shared ? "Okulunla paylaşıldı" : "Okulunla paylaş"}
-            disabled={sharing}
-            onClick={() => void toggleShare()}
-          >
-            <Share2 className="h-4 w-4" aria-hidden />
-          </button>
-        ) : null}
         <button
           type="button"
           className="cp-prep-icon"
-          aria-label="Hazırlık seçenekleri"
-          aria-haspopup="dialog"
-          title="Hazırlık seçenekleri"
-          onClick={() => openOptions("menu")}
+          aria-label="Etkinlik oluştur"
+          title="Etkinlik oluştur"
+          onClick={() => setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null)}
         >
-          <MoreVertical className="h-4 w-4" aria-hidden />
+          <Plus className="h-4 w-4" aria-hidden />
         </button>
       </div>
   );
+
+  const lastNode = lastResult ? nodes.find((node) => node.id === lastResult.nodeId) ?? null : null;
 
   return (
     <div className="cp-exam-page cp-exam-trail-page">
       {topSlot ? createPortal(toolbar, topSlot) : toolbar}
 
-      <header className="cp-exam-trail-head cp-exam-hero">
-        <h1>{title}</h1>
-        {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
-            Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
-        {documentId ? null : (
-          <p className="cp-exam-source-note">{TOPIC_ONLY_NOTICE}</p>
-        )}
-        <div className="cp-exam-tabs" role="tablist" aria-label="Hazırlık görünümü">
+      {/* Astra: sekmeler en üstte ve yapışkan; başlık kaydırınca bu şeridin üstünde kalır. */}
+      <div className="cp-prep-tabbar">
+        <p className={cn("cp-prep-tabbar-title", heroVisible && "is-hidden")} aria-hidden={heroVisible}>
+          {title}
+        </p>
+        <div className="cp-prep-tabs" role="tablist" aria-label="Hazırlık görünümü">
           <button
             type="button"
             role="tab"
             aria-selected={view === "yol"}
-            className={cn("cp-exam-tab", view === "yol" && "is-active")}
+            className={cn(view === "yol" && "is-active")}
             onClick={() => setView("yol")}
           >
             {PREP_HOME_COPY.path}
@@ -447,14 +448,72 @@ export function ExamPrepHome({
             type="button"
             role="tab"
             aria-selected={view === "ilerleme"}
-            className={cn("cp-exam-tab", view === "ilerleme" && "is-active")}
+            className={cn(view === "ilerleme" && "is-active")}
             onClick={() => setView("ilerleme")}
           >
             {PREP_HOME_COPY.progress}
-            <span className="cp-exam-tab-pct">%{pathPct}</span>
+            <span className="cp-prep-tabs-pct">%{pathPct}</span>
+          </button>
+        </div>
+      </div>
+
+      <header className="cp-prep-hero" ref={heroRef}>
+        {examType && examType !== "Serbest" ? <p className="cp-prep-hero-kicker">{examType}</p> : null}
+        <h1>{title}</h1>
+        {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
+            Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
+        {documentId ? null : (
+          <p className="cp-exam-source-note">{TOPIC_ONLY_NOTICE}</p>
+        )}
+        <div className="cp-prep-hero-actions">
+          <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-prep-hero-action">
+            <span className="cp-prep-hero-icon" aria-hidden>
+              <Swords className="h-4 w-4" />
+            </span>
+            Düello
+          </Link>
+          {canShare ? (
+            <button
+              type="button"
+              className={cn("cp-prep-hero-action", shared && "is-on")}
+              aria-pressed={shared}
+              aria-label={shared ? "Okulunla paylaşıldı" : "Okulunla paylaş"}
+              disabled={sharing}
+              onClick={() => void toggleShare()}
+            >
+              <span className="cp-prep-hero-icon" aria-hidden>
+                <Share2 className="h-4 w-4" />
+              </span>
+              {shared ? "Paylaşıldı" : "Paylaş"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="cp-prep-hero-action"
+            aria-haspopup="dialog"
+            aria-label="Hazırlık seçenekleri"
+            onClick={() => openOptions("menu")}
+          >
+            <span className="cp-prep-hero-icon" aria-hidden>
+              <MoreVertical className="h-4 w-4" />
+            </span>
+            Daha fazla
           </button>
         </div>
       </header>
+
+      {view === "yol" && lastNode ? (
+        <section className="cp-prep-last" aria-label="Son etkinlik">
+          <div className="cp-prep-badges">
+            {lastResult?.pct != null ? <span className="cp-prep-badge cp-prep-badge--score">%{lastResult.pct}</span> : null}
+            <span className="cp-prep-badge">{PLAN_NODE_META[lastNode.kind].title}</span>
+          </div>
+          <h2 className="cp-prep-last-title">{nodeHeading(lastNode)}</h2>
+          <Link href={examPrepNodeHref(prepId, lastNode.id)} className="cp-prep-last-go">
+            Sonuçları gör
+          </Link>
+        </section>
+      ) : null}
 
       {view === "ilerleme" ? (
         <ExamPrepProgress
@@ -487,22 +546,42 @@ export function ExamPrepHome({
           </div>
         </div>
       ) : view === "yol" ? (
-        <StudyPath
-          nodes={nodes}
-          lead={introPending ? introNode : null}
-          currentId={nextNode?.id ?? null}
-          onOpen={openNode}
-          readinessClaim={readinessClaim}
-        />
+        <>
+          <StudyPath
+            nodes={nodes}
+            lead={introPending ? introNode : null}
+            currentId={nextNode?.id ?? null}
+            onOpen={openNode}
+            readinessClaim={readinessClaim}
+          />
+          {/* Astra'da yolun sonu: beşgen "hazırlık düzeyi" ve deneme sınavı çağrısı. */}
+          <section className="cp-prep-goal" aria-label="Hazırlık düzeyi">
+            <div className="cp-prep-goal-badge">
+              <span className="cp-prep-goal-spark" aria-hidden>
+                ✦
+              </span>
+              <strong>%{progress.scorePct}</strong>
+              <span>Hazırlık düzeyi</span>
+            </div>
+            <h2>Gerçek sınavda nasıl yapacağını merak ediyor musun?</h2>
+            <p>Hazır olduğunda öğren.</p>
+            <button type="button" className="cp-prep-goal-go" onClick={() => setHubGroup("exam")}>
+              <Timer className="h-4 w-4" aria-hidden />
+              Deneme sınavı oluştur
+            </button>
+          </section>
+        </>
       ) : null}
 
-      {/* Astra'nın alt kartı: etkinlik türü, başlık, "Dersi özelleştir" ve
-          "Devam et". Yol düğümlerinin yanında yazı yok; ne olduğunu bu kart
-          söylüyor. */}
+      {/* Astra'nın alt kartı: "SIRADAKİ" ve etkinlik türü etiketi, başlık, "Dersi
+          özelleştir" ve "Devam et". */}
       {view === "yol" && nodes.length ? (
         <div className="cp-exam-start-card cp-path-next">
           {nextNode ? (
-            <p className="cp-path-next-kind">{PLAN_NODE_META[nextNode.kind].title}</p>
+            <div className="cp-prep-badges">
+              <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>
+              <span className="cp-prep-badge">{PLAN_NODE_META[nextNode.kind].title}</span>
+            </div>
           ) : null}
           <h2 className="cp-path-next-title">
             {nextNode ? nodeHeading(nextNode) : "Tüm etkinlikler bitti"}
@@ -691,7 +770,11 @@ export function ExamPrepHome({
           topicOptions={topicOptions}
           topicLabel={hubTopic}
           onTopic={setHubTopic}
-          onClose={() => setHubTopic(undefined)}
+          initialGroup={hubGroup}
+          onClose={() => {
+            setHubTopic(undefined);
+            setHubGroupState(undefined);
+          }}
         />
       ) : null}
     </div>
@@ -735,6 +818,16 @@ function StudyPath({
     y: PATH_ROW / 2 + index * PATH_ROW,
   }));
   const height = ordered.length * PATH_ROW;
+  // Astra'daki aşağı ok: sıradaki düğüm ekranın dışındaysa oraya kaydırır.
+  const currentRef = useRef<HTMLLIElement | null>(null);
+  const [currentVisible, setCurrentVisible] = useState(true);
+  useEffect(() => {
+    const item = currentRef.current;
+    if (!item || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setCurrentVisible(Boolean(entry?.isIntersecting)));
+    observer.observe(item);
+    return () => observer.disconnect();
+  }, [currentId]);
 
   return (
     <div className="cp-zpath" style={{ height }}>
@@ -770,7 +863,8 @@ function StudyPath({
           return (
             <li
               key={node.id}
-              className="cp-exam-trail-item"
+              ref={node.id === currentId ? currentRef : undefined}
+              className={cn("cp-exam-trail-item", x > PATH_WIDTH / 2 && "is-right")}
               style={{ left: x, top: y }}
             >
               <button
@@ -788,10 +882,27 @@ function StudyPath({
               >
                 <NodeGlyph node={node} />
               </button>
+              {/* Astra: sıradaki düğümün yanında "SIRADAKİ" ve konunun adı. */}
+              {node.id === currentId ? (
+                <span className="cp-path-current-label" aria-hidden>
+                  <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>
+                  <span className="cp-path-current-title">{nodeHeading(node)}</span>
+                </span>
+              ) : null}
             </li>
           );
         })}
       </ol>
+      {currentId && !currentVisible ? (
+        <button
+          type="button"
+          className="cp-path-jump"
+          aria-label="Sıradaki etkinliğe git"
+          onClick={() => currentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+        >
+          <ChevronDown className="h-5 w-5" aria-hidden />
+        </button>
+      ) : null}
     </div>
   );
 }

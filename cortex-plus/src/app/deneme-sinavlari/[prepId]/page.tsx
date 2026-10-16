@@ -325,6 +325,17 @@ export default async function ExamPrepDetailPage({
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
+  // Astra yolun üstünde son biten etkinliği yüzdesiyle gösteriyor ("30% · PODCAST · Sonuçları gör").
+  const lastAttempt = (attemptRows ?? []).find((row) => typeof row.node_id === "string");
+  const lastResult = lastAttempt
+    ? {
+        nodeId: lastAttempt.node_id as string,
+        pct:
+          typeof lastAttempt.score === "number" && typeof lastAttempt.total === "number" && lastAttempt.total > 0
+            ? Math.round((lastAttempt.score / lastAttempt.total) * 100)
+            : null,
+      }
+    : null;
   const progressView = buildPrepProgressView({
     nodes,
     attempts: (attemptRows ?? []).map((row) => ({
@@ -403,7 +414,7 @@ export default async function ExamPrepDetailPage({
     : null;
 
   return (
-    <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari">
+    <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari" minimalTop>
       <ExamPrepHome
         prepId={prep.id}
         title={prep.title ?? prep.exam_type}
@@ -440,6 +451,7 @@ export default async function ExamPrepDetailPage({
         creatorLabel={creatorLabel}
         schoolName={(profile as { school_name?: string | null } | null)?.school_name ?? null}
         joinCount={Number((shareRow as { view_count?: number } | null)?.view_count ?? 0)}
+        lastResult={lastResult}
       />
     </ParitySorShell>
   );
