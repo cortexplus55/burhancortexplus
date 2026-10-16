@@ -96,6 +96,7 @@ describe("gpt-4.1-mini taslak sapmaları", () => {
     expect(isScaffoldHeading("Üslü Sayılarda Yaygın Hata: Toplama ve Çarpma Karışıklığı")).toBe(true);
     expect(isScaffoldHeading("Üslü Sayılarda Sık Yapılan Yanlış")).toBe(true);
     expect(isScaffoldHeading("Newton Yasası: Kuvvet ve İvme")).toBe(false);
+    expect(isScaffoldHeading("Tekrar edelim: Dehidratasyonu birlikte değerlendirelim")).toBe(true);
     expect(isScaffoldHeading("Kalite Kontrolü")).toBe(false);
   });
 

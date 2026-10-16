@@ -604,6 +604,8 @@ const SCAFFOLD_HEADINGS = [
   "nicin",
   "sonuc",
   "tekrar",
+  // 16 Ekim 2026 Gastroenterit podcast'i: son bölüm "Tekrar edelim: …" adını aldı.
+  "tekrar edelim",
 ];
 
 /**

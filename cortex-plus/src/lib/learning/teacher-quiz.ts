@@ -57,9 +57,11 @@ export function quizDifficulty(value: string | null | undefined): QuizDifficulty
 const DIFFICULTY_LINE: Record<QuizDifficulty, string> = {
   kolay: "kolay — tanıma ve temel ayrım; tanım sorusu olabilir ama çeldiriciler yine aynı aileden.",
   orta:
-    "orta — soruların çoğu bir durumdan kavram buldurur ya da iki kardeş kavramı ayırt ettirir; en fazla bir tanım sorusu.",
+    "orta — soruların yarısından çoğu kısa bir vakayla açılır (kim, hangi bulgu ya da durum) ve kavramı buldurur ya da " +
+    "iki kardeş kavramı ayırt ettirir; en fazla bir tanım sorusu.",
   ileri:
-    "ileri — her soru uygulama ya da çıkarım: vaka, koşul, istisna, iki bilginin birleşimi; tanım sorusu yok.",
+    "ileri — her soru bir vakayla açılır ve uygulama ya da çıkarım ister: koşul, istisna, iki bilginin birleşimi, " +
+    "sıradaki doğru adım; tanım sorusu yok.",
 };
 
 const SCHEMA = `{
@@ -102,6 +104,9 @@ const DESIGN =
   "becerilerini değerlendirmek' bir büyüme sorusunda) çeldirici değildir; soruyu tahminle çözdürür.\n" +
   "- Kök, doğru şıkkı ötekilerden ayıran ipucunu vermez ('kilo akut etkilenir' deyip 'kronik olanı hangisi' diye sorup " +
   "şıklara kiloyu koymak gibi).\n" +
+  "- Şıkların biçimi cevabı ele vermez: doğru şık en uzun ya da tek ayrıntılı şık olmaz; çeldirici doğru şıkkın " +
+  "olumsuz kopyası olmaz ('uygun oranlı ORS' karşısında 'uygun oranı gözetilmeyen karışım'); bulgu kümesi sorusunda " +
+  "tek 'ağır' şık üç 'hafif' şıkkın arasında durmaz — yanlış kümeler de karışık ve gerçekçi olur.\n" +
   "- Kök cevabı vermez; doğru şıkkın kelimeleri kökte geçmez. Sayma sorusu ('kaç tür vardır') yok. Olumsuz kök " +
   "('hangisi değildir') en fazla bir soruda ve olumsuz ek **koyu** yazılır.\n" +
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
@@ -177,7 +182,8 @@ const VERIFY_DOCUMENT =
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
-  "ötekilerden ayıran ipucunu vermesi (soru tahminle çözülüyor).\n" +
+  "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
+  "çeldiricinin doğru şıkkın olumsuz kopyası olması (soru tahminle çözülüyor).\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla kullanılması sorun değildir.\n" +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
@@ -194,7 +200,8 @@ const VERIFY_TOPIC =
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
-  "ötekilerden ayıran ipucunu vermesi (soru tahminle çözülüyor).\n" +
+  "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
+  "çeldiricinin doğru şıkkın olumsuz kopyası olması (soru tahminle çözülüyor).\n" +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
 const VERIFY_JSON =
