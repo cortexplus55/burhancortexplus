@@ -47,8 +47,15 @@ const RULE_TOPIC =
   "tartışmasız bilgiyle anlat. Emin olmadığın sayı, tarih, madde numarası, eşik ya da kuralı söyleme; güncel olarak " +
   "değişebilecek bilgiyi verme. Aşağıda 'kaynak' denen her yer konunun yerleşik bilgisi anlamına gelir.\n\n";
 
-const SCHEMA_DUO = '{"title":"…","chapters":[{"title":"kavramın adı","lines":[{"speaker":"ada"|"kerem","text":"tek cümle"}]}]}';
-const SCHEMA_SINGLE = '{"title":"…","chapters":[{"title":"kavramın adı","lines":[{"speaker":"ada","text":"tek cümle"}]}]}';
+// Örnek konuşma sırası çok cümleli: model örneği kuraldan çok izliyor (16 Ekim 2026 canlı podcast'te
+// "text":"tek cümle" örneği yüzünden sıraların %83'ü tek cümleydi).
+const SCHEMA_DUO =
+  '{"title":"…","chapters":[{"title":"kavramın adı","lines":[' +
+  '{"speaker":"kerem","text":"kısa soru ya da duyduğunu toparlama"},' +
+  '{"speaker":"ada","text":"konuşma sırası: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"}]}]}';
+const SCHEMA_SINGLE =
+  '{"title":"…","chapters":[{"title":"kavramın adı","lines":[' +
+  '{"speaker":"ada","text":"paragraf: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"}]}]}';
 
 function system(mode: TeacherLessonMode, length: PodcastLength): string {
   const spec = podcastLengthSpec(length);

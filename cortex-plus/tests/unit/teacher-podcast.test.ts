@@ -87,6 +87,9 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     for (const length of ["diyalog", "basit"] as const) {
       const system = podcastSystem("document", length);
       expect(system).not.toContain("TEK cümle");
+      // Canlıda örnek kuraldan güçlü çıktı: "text":"tek cümle" örneği varken sıraların %83'ü tek cümleydi.
+      expect(system).not.toContain('"text":"tek cümle"');
+      expect(system).toContain("2-4 cümle — olgu, nedeni, sonucu ya da örneği");
       expect(system).toContain("1-4 cümle");
       expect(system).toMatch(/Bilgi taşımayan cümle kurma/);
     }
