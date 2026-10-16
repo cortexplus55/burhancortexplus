@@ -83,7 +83,7 @@ export const publicLessonV2Schema = z.object({
           .object({
             title: z.string(),
             body: z.string(),
-            tone: z.enum(["warn", "info", "unit"]).optional(),
+            tone: z.enum(["warn", "info", "unit", "general"]).optional(),
           })
           .optional(),
         cards: z

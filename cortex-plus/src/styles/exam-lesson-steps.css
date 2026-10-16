@@ -590,6 +590,17 @@
   background: rgba(226, 179, 64, 0.1);
 }
 
+/* Belgede olmayan, denetlenmiş genel bilgi: öğrenci neyin belgesinden gelmediğini görsün. */
+.als-note--general {
+  border-color: #4f8fd6;
+  border-style: dashed;
+  background: rgba(79, 143, 214, 0.1);
+}
+
+.als-note--general .als-note-title {
+  color: #6ea6e6;
+}
+
 .als-note-title {
   margin: 0;
   font-size: 0.75rem;

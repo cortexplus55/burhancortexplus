@@ -122,7 +122,13 @@ const EXAMPLE_TOPIC =
 export const TEACHER_SYSTEM =
   INTRO_DOCUMENT +
   "KAYNAK KURALI (kesin): Her olgu, tanım, sayı, tarih, madde numarası, kural, sınıflandırma ve olay örneği yalnızca " +
-  "KAYNAK metninden gelir. Kaynakta yoksa yazma; tahmin etme, genel kültürden ekleme. " +
+  "KAYNAK metninden gelir. Kaynakta yoksa yazma; tahmin etme, genel kültürden ekleme — tek istisna aşağıdaki " +
+  "'Genel bilgi' kutusu. " +
+  "GENEL BİLGİ KUTUSU: Kaynak bir konuyu sınavda sorulan kesin bilgisini vermeden geçiyorsa (yaş sınırı, eşik, " +
+  "neden — örn. kaynak 'bal konusunda aile eğitimi önemlidir' deyip yaşı ve nedeni vermiyor) o bilgiyi yalnız bir " +
+  "'note' bloğunda ver: tone 'general', başlık 'Genel bilgi: …', tek iki cümle. Yalnız ders kitaplarında tartışmasız, " +
+  "güncel olarak değişmeyen bilgi; emin değilsen yazma. Ders başına en fazla iki kutu. Kaynakta zaten olan bilgiyi " +
+  "buraya koyma; bu kutudaki bilgiyi metin, soru, 'corrected' ya da özet bloğunda kullanma — sorular kaynaktan çözülür. " +
   "Kavramı ayırt ettirmek için gündelik hayattan kısa bir örnek ya da benzetme kullanabilirsin, ama o örnek yeni bir " +
   "bilgi (sayı, kural, yasa, tarih, sonuç) taşımaz ve kaynaktaki tanımla çelişmez. " +
   "Kaynaktaki bozuk ya da yanlış yazılmış kelimeleri doğru Türkçeyle yaz; kaynaktan uzun cümle kopyalama. " +
@@ -226,7 +232,8 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
 export const VERIFY_SYSTEM =
   "Sen titiz bir ders denetçisisin. Bir dersi, yazıldığı KAYNAK ile karşılaştırıyorsun. Şunları bul:\n" +
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma. (Yeni bilgi taşımayan gündelik " +
-  "örnek ya da benzetme sorun değildir.)\n" +
+  "örnek ya da benzetme sorun değildir. tone 'general' olan 'Genel bilgi' notu kaynakta olmayabilir; onu A'ya göre " +
+  "değil H'ye göre denetle.)\n" +
   "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade; kaynaktaki bir sayının, eşiğin ya da birimin yanlış " +
   "aktarılması ya da kaynak sayıyı açıkça verirken derste 'yüksek/düşük' gibi soyut sözle geçiştirilmesi.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
@@ -236,10 +243,12 @@ export const VERIFY_SYSTEM =
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
   "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
   "ya da bilgiyi kaynağa atfeden cümle ('kaynakta … diye açıklanır', 'metne göre', 'belgede belirtildiği gibi').\n" +
+  "H) 'Genel bilgi' notunda (tone 'general') yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; kaynakta zaten " +
+  "olan bilginin bu nota konması; bu nottaki bilginin metinde, soruda, 'corrected'da ya da özette kullanılması.\n" +
   "Kaynakta açıkça bozuk bir cümlenin (olumsuzluk eki düşmüş, kelime kaymış, kendi açıklaması ve örnekleriyle " +
   "çelişen) derste kaynağın kendi açıklama ve örnekleriyle tutarlı anlamıyla yazılması SORUN DEĞİLDİR; bunu A ya da B " +
   "sayma.\n" +
-  "A-G 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
+  "A-H 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
   'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}]}. ' +
   "Sorun yoksa issues boş dizi.";
 
@@ -566,6 +575,18 @@ export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLesso
       "Gündelik örnek kutusu yok: uyarı notu olmayan bir ekrana 'note' bloğu (tone: info, başlık 'Günlük hayattan: …') ile " +
         "kavramı tanıdık bir durumla ayırt ettiren kısa bir örnek ekle; yeni bilgi taşımasın.",
     );
+  }
+  // Belgede olmayan, denetlenmiş genel bilgi (16 Ekim 2026): az ve etiketli olmalı.
+  const general = screens.flatMap((screen, index) =>
+    screen.blocks.flatMap((block, blockIndex) =>
+      block.type === "note" && block.note.tone === "general" ? [{ note: block.note, where: `screens[${index}].blocks[${blockIndex}]` }] : [],
+    ),
+  );
+  if (general.length > 2) add("screens", "En fazla iki 'Genel bilgi' kutusu; gerisini çıkar ya da kaynaktaki bilgiyle anlat.");
+  for (const item of general) {
+    if (!/^genel bilgi\b/i.test(item.note.title.trim())) {
+      add(item.where, "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı; öğrenci bilginin belgesinden gelmediğini görsün.");
+    }
   }
   const summary = lesson.summary ?? [];
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");

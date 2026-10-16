@@ -13,7 +13,7 @@ export const LESSON_PREP_STEPS = [
   "Materyallerinle karşılaştırılıyor",
 ] as const;
 
-export type CalloutTone = "warn" | "info" | "unit";
+export type CalloutTone = "warn" | "info" | "unit" | "general";
 
 export function checkPresentation(check: Pick<SectionCheck, "type">): "trueFalse" | "quickQuiz" {
   return check.type === "trueFalse" ? "trueFalse" : "quickQuiz";
@@ -39,7 +39,7 @@ export function trueFalseIndexes(options: string[]): { wrong: number; right: num
 }
 
 export function calloutTone(note: { title: string; tone?: CalloutTone | null }): CalloutTone {
-  if (note.tone === "warn" || note.tone === "info" || note.tone === "unit") return note.tone;
+  if (note.tone === "warn" || note.tone === "info" || note.tone === "unit" || note.tone === "general") return note.tone;
   const title = note.title.toLocaleLowerCase("tr");
   if (title.includes("birim")) return "unit";
   if (/(uyarı|dikkat|hareket|tuzak|yanlış)/.test(title)) return "warn";

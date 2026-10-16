@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV3Schema, readLessonV2, screenCheck, type LessonV3 } from "@/lib/learning/lesson-v3";
-import { sealLessonV3ForPlay } from "@/lib/learning/lesson-play-v3";
+import { sealLessonV3ForPlay, sealStoredLesson } from "@/lib/learning/lesson-play-v3";
 import { TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM, lessonStructureIssues, verifySystem } from "@/lib/learning/teacher-lesson";
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -210,5 +210,61 @@ describe("LessonV3 — Z-skoru ve hedef boy örneği", () => {
     }
     expect(verifySystem("document")).toContain("kaynaktaki bir sayının, eşiğin ya da birimin yanlış aktarılması");
     expect(verifySystem("topic")).toContain("sayı, eşik, birim");
+  });
+});
+
+// 16 Ekim 2026 Astra kıyası: Astra belgede olmayan sınav bilgisini ("bal 1 yaşına kadar,
+// botulizm") "metinde belirtilmiştir" diye veriyordu. Ürün sahibinin kararı: etiketli,
+// denetlenmiş "Genel bilgi" kutusu; yalnız belgeli derste, en fazla iki.
+describe("LessonV3 — Genel bilgi kutusu", () => {
+  const withGeneral = (title: string, count = 1): LessonV3 => ({
+    ...zscore,
+    screens: zscore.screens.map((screen, index) =>
+      index === 0
+        ? {
+            ...screen,
+            blocks: [
+              ...screen.blocks,
+              ...Array.from({ length: count }, () => ({
+                type: "note" as const,
+                note: { title, body: "Bal, botulizm riski nedeniyle 1 yaşından önce verilmez.", tone: "general" as const },
+              })),
+            ],
+          }
+        : screen,
+    ),
+  });
+
+  it("yalnız belgeli derste istenir; denetçi doğruluğunu ayrıca denetler", () => {
+    expect(TEACHER_SYSTEM).toContain("GENEL BİLGİ KUTUSU");
+    expect(TOPIC_TEACHER_SYSTEM).not.toContain("GENEL BİLGİ KUTUSU");
+    expect(verifySystem("document")).toContain("H) 'Genel bilgi' notunda (tone 'general') yanlış");
+    expect(verifySystem("document")).toContain("A-H 'high'");
+  });
+
+  it("etiketli ve en fazla iki", () => {
+    expect(lessonStructureIssues(withGeneral("Genel bilgi: bal ve yaş"), {})).toEqual([]);
+    expect(lessonStructureIssues(withGeneral("Bal ve yaş"), {}).some((issue) => /'Genel bilgi: …' ile başlamalı/.test(issue.problem))).toBe(true);
+    expect(lessonStructureIssues(withGeneral("Genel bilgi: bal", 3), {}).some((issue) => /En fazla iki 'Genel bilgi'/.test(issue.problem))).toBe(true);
+  });
+
+  it("ekranda ayrı renkte; eski sekmenin V2 paketinde bilgi kutusu olur", () => {
+    const lesson = withGeneral("Genel bilgi: bal ve yaş");
+    const { container } = render(<ExamLessonSteps lesson={sealLessonV3ForPlay(lesson)} closeHref="/deneme-sinavlari/p" />);
+    fireEvent.click(screen.getByRole("button", { name: /Devam et/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));
+    expect(container.querySelector(".als-note--general")?.textContent).toContain("Genel bilgi: bal ve yaş");
+    // Genel bilgi kutusu ekranın ilk notu: V2 görünümünde bölümün notu olur ve eski ekran tonu tanımaz.
+    const [first, ...rest] = zscore.screens;
+    const generalFirst: LessonV3 = {
+      ...zscore,
+      screens: [
+        { ...first!, blocks: [{ type: "note", note: { title: "Genel bilgi: bal", body: "Bal 1 yaşından önce verilmez.", tone: "general" } }, ...first!.blocks] },
+        ...rest,
+      ],
+    };
+    const legacy = sealStoredLesson(generalFirst, { format: 2 }) as { sections: { note?: { title: string; tone?: string } }[] };
+    expect(legacy.sections[0]?.note?.title).toBe("Genel bilgi: bal");
+    expect(legacy.sections[0]?.note?.tone).toBe("info");
   });
 });
