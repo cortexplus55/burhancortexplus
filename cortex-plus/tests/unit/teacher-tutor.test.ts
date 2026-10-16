@@ -32,6 +32,8 @@ describe("öğretmen sohbeti istemi", () => {
     expect(TUTOR_RULES).toContain("Etiketli kalıp kullanma");
     // Faz 5 ikinci tur (16 Ekim 2026): tarama takvimi cevabı 1 yaşta kesildi.
     expect(TUTOR_RULES).toContain("listeyi yarıda kesme");
+    // KPSS sohbeti: tablodaki "resmî nikâhsız evlilik" örneğini kontrol sorusu olarak geri sordu.
+    expect(TUTOR_RULES).toContain("aynı ayrımı yeni bir durumla yoklar");
     expect(TUTOR_VERIFY_SYSTEM).toContain("dayanağı olmayan");
   });
 
