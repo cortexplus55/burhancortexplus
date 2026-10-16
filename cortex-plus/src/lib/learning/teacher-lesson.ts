@@ -142,7 +142,10 @@ export const TEACHER_SYSTEM =
   "SAYILAR: Kaynak bir sayı, eşik, aralık, oran ya da birim veriyorsa onu aynen yaz ('2 SD'nin altı', '%3', '13 cm'); " +
   "'yüksek', 'düşük', 'belirli bir değer' diye geçiştirme. Kaynakta olmayan sayıyı ekleme.\n\n" +
   "BLOKLAR: Her ekran sıralı bloklardan oluşur ve ekranda yukarıdan aşağı bu sırayla görünür; anlatım sırasıyla diz " +
-  "(formül, onu açıklayan metnin hemen ardından gelebilir). Kaynak bir karşılaştırma ya da tablo veriyorsa 'table' bloğu; " +
+  "(formül, onu açıklayan metnin hemen ardından gelebilir). KAYNAK'ta konuna ait bir tablo varsa ('| … |' satırları) " +
+  "onu 'table' bloğu olarak koru: satırlarını paragrafa dökme, hücrelerdeki ayırıcı ipuçlarını düşürme (kısaltabilirsin); " +
+  "metin o tablonun nasıl okunacağını ve neyi ayırt ettirdiğini söyler. Kaynak tablo vermeden bir karşılaştırma " +
+  "yapıyorsa da 'table' bloğu; " +
   "kardeş kavramları (aynı ailedeki 2-6 terim) 'cards' bloğunda tek cümlelik tanımlar olarak ver; sıralı bir işlem varsa " +
   "'procedure'; hesaplanabilir bağıntı varsa 'formula'; çözümlü hesap varsa 'example'. " +
   "Yaşa, evreye ya da türe göre değişen birden çok değer sayıyorsan ('6 ayda …, 12 ayda …, 2 yaşta …') bunları metinde " +
@@ -478,7 +481,10 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
  * dereceleri V2'deki gibi; V3'ün kendi kuralları (ekran başına bir soru,
  * kavram bir soruyla biter, kavramın ekranları art arda) yüksek.
  */
-export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLessonInput, "runningHeaders">): TeacherIssue[] {
+export function lessonStructureIssues(
+  lesson: LessonV3,
+  input: Pick<TeacherLessonInput, "runningHeaders"> & Partial<Pick<TeacherLessonInput, "pages">>,
+): TeacherIssue[] {
   const issues: TeacherIssue[] = [];
   const add = (where: string, problem: string) => issues.push({ where, severity: "high", problem });
   const low = (where: string, problem: string) => issues.push({ where, severity: "low", problem });
@@ -592,9 +598,64 @@ export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLesso
       add(item.where, "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı; öğrenci bilginin belgesinden gelmediğini görsün.");
     }
   }
+  // 16 Ekim 2026 Pediatri solunum dersi: kaynağın 5 satırlık "Bulgular | Düşündürür |
+  // Ayırıcı ipucu" tablosu paragrafa döküldü, "ince ral/ronküs" ve "reversibilite" düştü.
+  // Tablonun satırları derste anılıyorsa tablo derste de tablo olmalı.
+  if (!screens.some((screen) => screen.blocks.some((block) => block.type === "table"))) {
+    const said = stemSet(JSON.stringify(lesson));
+    const flattened = sourceTables(input.pages ?? []).find((table) => {
+      const mentioned = table.rows.filter((row) => row.some((cell) => cellMentioned(cell, said))).length;
+      return table.rows.length >= 3 && mentioned >= 3 && mentioned * 2 >= table.rows.length;
+    });
+    if (flattened) {
+      add(
+        "screens",
+        `Kaynaktaki tablo (${flattened.columns.join(" | ")}) derste paragrafa dökülmüş; onu 'table' bloğu olarak ver, ` +
+          "ayırıcı ipuçlarını düşürme. Metin tablonun satırlarını yeniden saymasın, nasıl okunacağını söylesin.",
+      );
+    }
+  }
   const summary = lesson.summary ?? [];
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
   return issues;
+}
+
+/** Temiz sayfadaki Markdown tablolar (`| a | b |`); ayraç satırı (`|---|`) atlanır. */
+export function sourceTables(pages: readonly { text: string }[]): { columns: string[]; rows: string[][] }[] {
+  const tables: { columns: string[]; rows: string[][] }[] = [];
+  for (const page of pages) {
+    let current: string[][] = [];
+    for (const raw of [...page.text.split(/\r?\n/), ""]) {
+      const line = raw.trim();
+      if (line.length > 2 && line.startsWith("|") && line.endsWith("|")) {
+        const cells = line.slice(1, -1).split("|").map((cell) => cell.trim());
+        if (!cells.every((cell) => /^:?-{2,}:?$/.test(cell))) current.push(cells);
+        continue;
+      }
+      if (current.length >= 2) tables.push({ columns: current[0]!, rows: current.slice(1) });
+      current = [];
+    }
+  }
+  return tables;
+}
+
+/** Sözcüklerin ilk beş harfi: Türkçe ek farkı ("krupta/krup", "öksürük/öksürüğü") eşleşmeye engel olmasın. */
+function stemSet(text: string): Set<string> {
+  return new Set(
+    text
+      .toLocaleLowerCase("tr")
+      .split(/[^\p{L}\d]+/u)
+      .filter((word) => word.length >= 3)
+      .map((word) => word.slice(0, 5)),
+  );
+}
+
+/** Kısa bir tablo hücresinin (en çok 4 sözcük) bütün sözcükleri derste geçiyor mu. */
+function cellMentioned(cell: string, said: Set<string>): boolean {
+  const stems = [...stemSet(cell)];
+  // Beş harften kısa sözcük ekli hâliyle de geçer: "krup" → "krupu".
+  const seen = (stem: string) => said.has(stem) || (stem.length < 5 && [...said].some((word) => word.startsWith(stem)));
+  return stems.length > 0 && stems.length <= 4 && stems.every(seen);
 }
 
 /** Kavramın ikinci ve üçüncü ekranını haklı çıkaran parçalar. */
