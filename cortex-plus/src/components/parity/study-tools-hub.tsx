@@ -61,9 +61,12 @@ export function StudyToolsHub({
   onTopic,
   onClose,
   openMisconceptions = 0,
+  preferred = [],
 }: {
   prepId: string;
   nodes: StudyNodeRef[];
+  /** Kurulumda seçilen çalışma biçimleri: "Önerilen" rozetini yönlendirir. */
+  preferred?: readonly string[];
   /** Açık yanılgı sayısı: Bilgi boşlukları kilidini açar. */
   openMisconceptions?: number;
   topics: string[];
@@ -74,7 +77,7 @@ export function StudyToolsHub({
   onClose: () => void;
 }) {
   // Astra gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
-  const recommended = recommendedStudyTool(nodes);
+  const recommended = recommendedStudyTool(nodes, preferred);
   const [group, setGroup] = useState<StudyToolGroup>(recommended?.group ?? "learn");
   return (
     <div className="cp-oral-modal-back" onClick={onClose}>

@@ -14,6 +14,7 @@ const prefsSchema = z.object({
   modality: z
     .enum(["reading", "listening", "watching", "practice", "auto"])
     .optional(),
+  modalities: z.array(z.enum(["reading", "listening", "watching", "practice"])).max(4).optional(),
   language: z.enum(["tr", "en"]).optional(),
 });
 
