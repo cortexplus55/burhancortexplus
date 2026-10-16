@@ -245,6 +245,36 @@ describe("yapı denetimi", () => {
     }
   });
 
+  // 16 Ekim 2026 Gastroenterit dersi: kanca "asıl risk dehidratasyon" dedi, bir adım sonra
+  // "önce dene" "temel risk etkenin kendisidir" diye sordu.
+  it("kanca 'önce dene'nin cevabını verirse düşük önemle işaretlenir; tablolu gövde tabloyu saymaz", () => {
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      expect(system).toContain("o sorunun cevabını vermez");
+      expect(system).toContain("gövde tablonun satırlarını yeniden saymaz");
+    }
+    const first = good.sections[0]!;
+    const opener = {
+      ...first,
+      check: {
+        type: "trueFalse" as const,
+        prompt: "Akut ishalde çoğu zaman temel risk, enfeksiyöz etkenin kendisidir.",
+        options: ["Doğru", "Yanlış"],
+        answerIndex: 1,
+        explanation: "Asıl risk sıvı ve elektrolit kaybıdır.",
+        corrected: "Akut ishalde çoğu zaman temel risk dehidratasyon ve elektrolit bozukluğudur.",
+      },
+    };
+    const leaking: LessonV2 = {
+      ...good,
+      overview: "Akut ishale çoğunlukla enfeksiyöz etkenler yol açar; asıl risk dehidratasyon ve elektrolit bozukluğu olabilir.",
+      sections: [opener, ...good.sections.slice(1)],
+    };
+    const found = lessonStructureIssues(leaking, {}).filter((issue) => issue.where === "overview");
+    expect(found).toEqual([expect.objectContaining({ severity: "low" })]);
+    const quiet: LessonV2 = { ...leaking, overview: "İshalli bir çocukta seni en çok ne korkutmalı: mikrop mu, başka bir şey mi?" };
+    expect(lessonStructureIssues(quiet, {}).some((issue) => issue.where === "overview")).toBe(false);
+  });
+
   it("ders yazılırken bağlantı koparsa sayfa önce hazır dersi arar", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).toContain("if (resumeEnabled && (await resumeAfterLostStart())) return;");

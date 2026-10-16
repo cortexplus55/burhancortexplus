@@ -33,9 +33,13 @@ describe("ExamLessonSteps — checkFirst (retrieval-practice ordering)", () => {
       },
     });
     const { container } = render(<ExamLessonSteps lesson={lesson} closeHref="/deneme-sinavlari/p" />);
+    const body = "Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir.";
+    expect(container.innerHTML.indexOf("Mol kütlesi her zaman aynıdır.")).toBeGreaterThan(-1);
+    // 16 Ekim 2026: anlatım cevaptan önce görünmez — gövde cevabı veriyordu.
+    expect(container.innerHTML).not.toContain(body);
+    fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));
     const promptIndex = container.innerHTML.indexOf("Mol kütlesi her zaman aynıdır.");
-    const bodyIndex = container.innerHTML.indexOf("Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir.");
-    expect(promptIndex).toBeGreaterThan(-1);
+    const bodyIndex = container.innerHTML.indexOf(body);
     expect(bodyIndex).toBeGreaterThan(-1);
     expect(promptIndex).toBeLessThan(bodyIndex);
   });

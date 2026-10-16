@@ -128,6 +128,7 @@ export const TEACHER_SYSTEM =
   "ile tek cümlelik tanımlar olarak ver; sıralı bir işlem varsa 'procedure'; hesaplanabilir bağıntı varsa 'formula'. " +
   "Yaşa, evreye ya da türe göre değişen birden çok değer sayıyorsan ('6 ayda …, 12 ayda …, 2 yaşta …') bunları gövdede " +
   "art arda sıralama: 'table' kur (satır yaş/evre, sütun alan) ve gövdede tabloyu nasıl okuyacağını söyle. " +
+  "Tablo kurduğun bölümde gövde tablonun satırlarını yeniden saymaz; ayırt ettiren ölçütü ve tablonun nasıl okunacağını söyler. " +
   "Öğrencinin sık karıştırdığı iki kavram varsa bölümün içine 'note' (tone: warn) koy: 'X ile Y farkı'. " +
   "GÜNDELİK ÖRNEK (zorunlu): Derste EN AZ BİR bölümde, uyarı notu olmayan bir bölüme, 'note' (tone: info) ile " +
   "gündelik hayattan kısa bir örnek kutusu koy. Başlık 'Günlük hayattan: …' diye başlasın ve örneği anlatsın. " +
@@ -138,7 +139,8 @@ export const TEACHER_SYSTEM =
   "kavram aynı olayda FARKLI sonuç versin (biri değişir, öteki değişmez; biri ceza, öteki tazminat). Konuyu yalnızca " +
   "uygulayan birini anlatan sahne ('ebeveyn ölçümleri eğriye işler', 'öğrenci tanımı ezberler') örnek sayılmaz.\n\n" +
   "AKIŞ:\n" +
-  "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle.\n" +
+  "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle. 'Önce dene' sorusundan önce " +
+  "okunur: o sorunun cevabını vermez (soru 'temel risk etken mi?' diye soruyorsa kanca 'asıl risk sıvı kaybı' demez).\n" +
   "2) Bölümler: 3-4 bölüm (kaynak darsa 2). Her bölüm tek kavram; başlık kavramın adı. " +
   "Kaynakta başlık büyük harfle yazılmış olsa bile sen normal yazımla yaz ('MADDİ YAPTIRIMLAR' değil 'Maddi Yaptırımlar'). " +
   "Bölüm numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok. " +
@@ -404,6 +406,27 @@ function sameKey(a: string, b: string): boolean {
 }
 
 /**
+ * "Doğrusu"nu yanlış ifadeden ayıran sözcükler (ilk 5 harfiyle) metinde en az ikisi
+ * geçiyorsa metin cevabı veriyor sayılır. Ek farkı ("bozukluğu/bozukluğudur") köke takılmaz.
+ */
+function givesAway(text: string, prompt: string, corrected: string): boolean {
+  const stems = (s: string) =>
+    new Set(
+      s
+        .toLocaleLowerCase("tr")
+        .replace(/[^\p{L}\d]+/gu, " ")
+        .split(" ")
+        .filter((word) => word.length >= 5)
+        .map((word) => word.slice(0, 5)),
+    );
+  const asked = stems(prompt);
+  const answer = [...stems(corrected)].filter((stem) => !asked.has(stem));
+  if (answer.length < 2) return false;
+  const seen = stems(text);
+  return answer.filter((stem) => seen.has(stem)).length >= 2;
+}
+
+/**
  * Yapı denetimi (saf). Sorunu düzeltmez; düzeltme turuna "high" olarak
  * gider. Gözlenen her eski kusur burada bir kural: BÜYÜK HARF başlık
  * (sayfa üst bilgisi), "Kaynak:" yapıştırma, bariz kontrol, eksik gerekçe.
@@ -431,6 +454,11 @@ export function lessonStructureIssues(lesson: LessonV2, input: Pick<TeacherLesso
   }
   if (opener && /doğru\s+mu,?\s+yanlış\s+mı/i.test(opener.body)) {
     issues.push({ where: "sections[0].body", severity: "low", problem: "Gövde 'önce dene' sorusunu tekrar soruyor; soru kontrolde, gövde doğrudan anlatsın." });
+  }
+  // Kanca sorudan önce okunuyor (16 Ekim 2026 Gastroenterit dersi: kanca "asıl risk
+  // dehidratasyon" dedi, ardından soru "temel risk etken mi?" diye sordu).
+  if (opener?.checkFirst && opener.check?.corrected && givesAway(lesson.overview ?? "", opener.check.prompt, opener.check.corrected)) {
+    issues.push({ where: "overview", severity: "low", problem: "Kanca 'önce dene' sorusunun cevabını veriyor; cevabı söylemeden merak uyandır." });
   }
 
   lesson.sections.forEach((section, index) => {

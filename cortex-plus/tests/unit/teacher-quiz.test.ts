@@ -203,7 +203,7 @@ describe("rota test düğümünü öğretmen motoruna yollar", () => {
 describe("zorluk ve çeldirici kategorisi", () => {
   it("öğrencinin seçtiği zorluk yazara satır olarak gider; tanınmayan değer gitmez", () => {
     const base = { topicLabel: "Büyüme", prepTitle: "Pediatri", pages: [{ page: 1, text: "Büyüme niceliksel artıştır." }], count: 5 };
-    expect(quizUserPrompt({ ...base, difficulty: "orta" })).toContain("ZORLUK: orta — soruların çoğu bir durumdan");
+    expect(quizUserPrompt({ ...base, difficulty: "orta" })).toContain("ZORLUK: orta — soruların yarısından çoğu kısa bir vakayla açılır");
     expect(quizUserPrompt({ ...base, difficulty: "ileri" })).toContain("tanım sorusu yok");
     expect(quizUserPrompt(base)).not.toContain("ZORLUK:");
     expect(quizDifficulty("ileri")).toBe("ileri");
@@ -216,6 +216,9 @@ describe("zorluk ve çeldirici kategorisi", () => {
       expect(quizSystem(mode)).toContain("Dört şık da sorulan kategoriden olur");
       expect(quizVerifySystem(mode)).toContain("G) Çeldiricinin sorulan kategoriden olmaması");
       expect(quizVerifySystem(mode)).toContain("A-G 'high'");
+      // Canlı Pediatri testi (16 Ekim): doğru şık en uzundu; tek "ağır" küme üç "hafif"in arasındaydı.
+      expect(quizSystem(mode)).toContain("doğru şık en uzun ya da tek ayrıntılı şık olmaz");
+      expect(quizVerifySystem(mode)).toContain("çeldiricinin doğru şıkkın olumsuz kopyası olması");
     }
   });
 

@@ -1233,10 +1233,12 @@ export function ExamLessonSteps({
       ) : null}
           </>
         );
+        // "Önce dene"de anlatım cevaptan sonra açılır. 16 Ekim 2026'ya kadar ikisi
+        // birlikte görünüyordu: gövde sorunun hemen altında cevabı veriyordu.
         return (
           <div className="als-step-content">
             {checkFirst ? checkRegion : slideRegion}
-            {checkFirst ? slideRegion : checkRegion}
+            {checkFirst ? (revealed ? slideRegion : null) : checkRegion}
           </div>
         );
       })()}

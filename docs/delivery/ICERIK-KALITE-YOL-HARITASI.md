@@ -325,3 +325,24 @@ yenilenince ders oradaydı. Artık hata göstermeden önce bir kez hazır ders a
 (`exam-node-session.tsx`).
 
 Maliyet: 5 sohbet mesajı + 1 ders (~$0,05).
+
+### Üçüncü ve dördüncü tur — Pediatri, kendi çıktımız (16 Ekim 2026)
+
+Ürün sahibi: "içerik kalitesi olarak fark istemiyorum". Astra oturumu düştüğü için
+önce kendi çıktımız puan anahtarıyla okundu; her bulgu istem ya da denetimde kapandı.
+
+| Bulgu | Kök neden | Düzeltme |
+|---|---|---|
+| "Önce dene" yine çoktan seçmeli | Şema örneğinin ilk bölümü checkFirst + mcq idi; model kuralı değil örneği kopyaladı | Örnek ilk bölüm doğru/yanlış + `corrected` (#258) — sonraki derste doğru/yanlış geldi, "Doğrusu" ekranda |
+| Yaş basamakları paragrafta | Kural yoktu | Yaşa/evreye göre değişen değerler tabloya; tablolu bölümde gövde tabloyu saymaz |
+| Gündelik örnek konuyu tekrar ediyor | "Ayırt ettirir" kuralı soyuttu | İki kavram aynı olayda farklı sonuç versin |
+| Konu testi "Orta"da tanım soruları | Zorluk kaydırıcısı öğretmen test motoruna **hiç ulaşmıyordu** | `ZORLUK` satırı (kolay/orta/ileri tanımlı); yalnız öğrencinin seçimi, tanı/tanışma testinin eski sabit "hard"ı gitmez |
+| Şıklar eleyerek bulunuyor ("Sosyal gülümseme" ölçüm sorusunda) | Kural vardı, denetçi bakmıyordu | Yazar: dört şık aynı kategoriden; denetçi G (yüksek) |
+| Doğru şık en uzun, çeldirici doğrunun olumsuz kopyası, tek "ağır" küme | — | Yazar + denetçi G'ye eklendi |
+| Podcast her bölümde aynı kalıp ("Ben … varsaymışım", "Tekrar edelim") | İstem "Her bölüm: ne, neden, örnek, hata, tekrar" diyordu | Parçalar bütün bölüme ait; itiraf en çok bir kez; tekrar son bölümde — sonraki podcast'te itiraf 5 → 1 |
+| "Önce dene" sorusunun altında cevabı veren gövde görünüyordu | Ekran ikisini birlikte çiziyordu | Gövde cevaptan sonra açılır (`exam-lesson-steps.tsx`) |
+| Kanca "önce dene"nin cevabını veriyor | — | İstem + yapı denetimi (düşük önem) |
+| Podcast son bölüm adı "Tekrar edelim: …" | Şablon listesinde yoktu | `SCAFFOLD_HEADINGS` |
+| Test kurulum düğmesi "Ders oluştur" | — | "Testi oluştur / Kartları oluştur / Denemeyi oluştur" |
+
+Kalan: Astra'yla aynı PDF üzerinde yan yana puan (Astra'ya giriş bekleniyor).
