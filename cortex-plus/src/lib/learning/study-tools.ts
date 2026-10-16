@@ -67,14 +67,40 @@ export const STUDY_TOOLS: StudyTool[] = [
   { id: "oral", kind: "oral", group: "exam", title: "Sözlü deneme", blurb: "Konuş veya yaz" },
 ];
 
+/** Kurulumdaki "Nasıl çalışmayı seversin?" seçeneğinin karşılığı olan araç. */
+const MODALITY_TOOL: Partial<Record<string, StudyToolId>> = {
+  reading: "lesson",
+  listening: "podcast",
+  practice: "quiz",
+};
+
 /**
  * "Önerilen" rozeti: yolda sıradaki bitmemiş etkinliğin türü. Astra da
  * sıradaki önerisini bu pencerede işaretliyor.
+ *
+ * 17 Ekim 2026: öğrencinin kurulumda seçtiği çalışma biçimleri (`preferred`) bu
+ * rozeti yönlendirir. Sıradaki etkinlik seçtiği biçimlerden biriyse o kalır; öğrenme
+ * adımında başka biçim seçtiyse (yalnız dinleyerek gibi) o biçimin aracı önerilir;
+ * yalnız pratik seçtiyse konu testi.
  */
-export function recommendedStudyTool(nodes: { kind: string; status: string; sortOrder: number }[]): StudyTool | null {
+export function recommendedStudyTool(
+  nodes: { kind: string; status: string; sortOrder: number }[],
+  preferred: readonly string[] = [],
+): StudyTool | null {
   const next = [...nodes].sort((a, b) => a.sortOrder - b.sortOrder).find((node) => node.status !== "done");
   if (!next) return null;
-  return STUDY_TOOLS.find((tool) => tool.kind === next.kind) ?? null;
+  const tool = STUDY_TOOLS.find((item) => item.kind === next.kind) ?? null;
+  const wanted = preferred.flatMap((modality) => {
+    const id = MODALITY_TOOL[modality];
+    return id ? [id] : [];
+  });
+  if (!tool || !wanted.length || wanted.includes(tool.id)) return tool;
+  if (tool.group === "learn") {
+    const learn = wanted.find((id) => studyToolById(id).group === "learn");
+    if (learn) return studyToolById(learn);
+  }
+  if (wanted.length === 1 && wanted[0] === "quiz") return studyToolById("quiz");
+  return tool;
 }
 
 export function studyToolById(id: StudyToolId): StudyTool {

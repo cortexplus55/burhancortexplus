@@ -19,7 +19,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
 import {
   DOCUMENT_ANALYSIS_STAGES,
   PREP_HOME_COPY,
@@ -79,7 +78,22 @@ type Step =
 
 const STEP_ORDER: Step[] = [...WIZARD_STEP_ORDER];
 const BUILD_STAGES = [...DOCUMENT_ANALYSIS_STAGES];
-const MODALITIES: { id: StudyModality; label: string }[] = STUDY_MODALITY_CHOICES;
+const MODALITIES = STUDY_MODALITY_CHOICES;
+type ChosenModality = (typeof STUDY_MODALITY_CHOICES)[number]["id"];
+
+/** Eski taslakta tek seçim vardı ("auto" ya da bir biçim); yenisinde liste. */
+function draftModalities(draft: { modality: string; modalities?: string[] }): ChosenModality[] {
+  const known = new Set<string>(MODALITIES.map((option) => option.id));
+  const list = draft.modalities ?? (draft.modality === "auto" ? [] : [draft.modality]);
+  return [...new Set(list.filter((item): item is ChosenModality => known.has(item)))];
+}
+
+/** Eski "style" alanı: yalnız okuyorsa kuram, yalnız pratik yapıyorsa örnek, yoksa karışık. */
+function modalityStyle(modalities: ChosenModality[]): "theory" | "examples" | "mixed" {
+  if (modalities.length === 1 && modalities[0] === "reading") return "theory";
+  if (modalities.length === 1 && modalities[0] === "practice") return "examples";
+  return "mixed";
+}
 
 type WizardMaterial = {
   id: string;
@@ -250,7 +264,7 @@ export function ExamCreateWizard({
   const [examDate, setExamDate] = useState("");
   const [target, setTarget] = useState(75);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
-  const [modality, setModality] = useState<StudyModality>("auto");
+  const [modalities, setModalities] = useState<ChosenModality[]>([]);
   /** true: tüm konulara eşit. false: focusTopics seçili. */
   const [equalFocus, setEqualFocus] = useState(true);
 
@@ -338,7 +352,7 @@ export function ExamCreateWizard({
     setExamDate("");
     setTarget(75);
     setLanguage("tr");
-    setModality("auto");
+    setModalities([]);
     setEqualFocus(true);
     setMaterials(
       initialDocumentId
@@ -378,7 +392,7 @@ export function ExamCreateWizard({
       setExamDate(draft.examDate);
       setTarget(draft.target);
       setLanguage(draft.language);
-      setModality(draft.modality as StudyModality);
+      setModalities(draftModalities(draft));
       setEqualFocus(draft.equalFocus);
       setFocusTopics(draft.focusTopics);
       setMaterials(draft.materials);
@@ -419,7 +433,8 @@ export function ExamCreateWizard({
         examDate,
         target,
         language,
-        modality,
+        modality: modalities[0] ?? "auto",
+        modalities,
         equalFocus,
         focusTopics,
         materials,
@@ -458,7 +473,7 @@ export function ExamCreateWizard({
     examDate,
     target,
     language,
-    modality,
+    modalities,
     equalFocus,
     focusTopics,
     materials,
@@ -1042,13 +1057,9 @@ export function ExamCreateWizard({
           topicOrderManual: orderEdited,
           hardTopics: equalFocus ? [] : focusTopics,
           learningPreferences: {
-            style:
-              modality === "reading"
-                ? "theory"
-                : modality === "practice"
-                  ? "examples"
-                  : "mixed",
-            modality,
+            style: modalityStyle(modalities),
+            modality: modalities[0] ?? "auto",
+            modalities,
             language,
           },
         }),
@@ -1542,24 +1553,24 @@ export function ExamCreateWizard({
       {!planning && step === "modality" ? (
         <section className="apw-step">
           <h1>{WIZARD_COPY.modalityTitle}</h1>
-          <p className="apw-lead">
-            Ders, podcast ve pratik bu tercihe göre sıralanır.
-          </p>
-          <div className="apw-choices" role="radiogroup" aria-label="Çalışma biçimi">
-            {MODALITIES.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                role="radio"
-                aria-checked={modality === option.id}
-                className={
-                  modality === option.id ? "apw-choice apw-choice--on" : "apw-choice"
-                }
-                onClick={() => setModality(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
+          <p className="apw-lead">{WIZARD_COPY.modalityLead}</p>
+          <div className="apw-choices" role="group" aria-label="Çalışma biçimi">
+            {MODALITIES.map((option) => {
+              const on = modalities.includes(option.id);
+              return (
+                <CheckRow
+                  key={option.id}
+                  on={on}
+                  title={option.label}
+                  blurb={option.blurb}
+                  onToggle={() =>
+                    setModalities((prev) =>
+                      on ? prev.filter((item) => item !== option.id) : [...prev, option.id],
+                    )
+                  }
+                />
+              );
+            })}
           </div>
           <button
             type="button"
@@ -1574,42 +1585,35 @@ export function ExamCreateWizard({
       {!planning && step === "focus" ? (
         <section className="apw-step">
           <h1>{WIZARD_COPY.focusTitle}</h1>
-          <p className="apw-lead">
-            Eşit odak tüm konulara aynı yeri ayırır. İstersen birkaçı öne çıksın.
-          </p>
-          <div className="apw-choices">
-            <button
-              type="button"
-              className={equalFocus ? "apw-choice apw-choice--on" : "apw-choice"}
-              aria-pressed={equalFocus}
-              onClick={() => {
+          <p className="apw-lead">{WIZARD_COPY.focusLead}</p>
+          {/* Astra'daki gibi: eşit odakta bütün konular işaretli; birinin işaretini kaldırınca
+              işaretli kalanlar öne çıkar. Hepsi ya da hiçbiri işaretliyse eşit odak. */}
+          <div className="apw-choices" role="group" aria-label="Odak konular">
+            <CheckRow
+              on={equalFocus}
+              title={WIZARD_COPY.equalFocus}
+              onToggle={() => {
                 setEqualFocus(true);
                 setFocusTopics([]);
               }}
-            >
-              {WIZARD_COPY.equalFocus}
-            </button>
+            />
             {topics.map((topic) => {
-              const on = !equalFocus && focusTopics.includes(topic);
+              const on = equalFocus || focusTopics.includes(topic);
               return (
-                <button
+                <CheckRow
                   key={topic}
-                  type="button"
-                  className={on ? "apw-choice apw-choice--on" : "apw-choice"}
-                  aria-pressed={on}
-                  onClick={() => {
-                    setEqualFocus(false);
-                    setFocusTopics((prev) => {
-                      const next = prev.includes(topic)
-                        ? prev.filter((item) => item !== topic)
-                        : [...prev, topic];
-                      if (!next.length) setEqualFocus(true);
-                      return next;
-                    });
+                  on={on}
+                  title={topic}
+                  onToggle={() => {
+                    const current = equalFocus ? topics : focusTopics;
+                    const next = current.includes(topic)
+                      ? current.filter((item) => item !== topic)
+                      : [...current, topic];
+                    const equal = !next.length || next.length >= topics.length;
+                    setEqualFocus(equal);
+                    setFocusTopics(equal ? [] : next);
                   }}
-                >
-                  {topic}
-                </button>
+                />
               );
             })}
           </div>
@@ -2191,5 +2195,36 @@ function DateStep({
         {WIZARD_COPY.continue}
       </button>
     </section>
+  );
+}
+
+/** Astra'nın kurulumundaki onay kutulu satır: solda kutu, başlık ve altında kısa açıklama. */
+function CheckRow({
+  on,
+  title,
+  blurb,
+  onToggle,
+}: {
+  on: boolean;
+  title: string;
+  blurb?: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={on}
+      className={on ? "apw-choice apw-check apw-choice--on" : "apw-choice apw-check"}
+      onClick={onToggle}
+    >
+      <span className="apw-check-box" aria-hidden="true">
+        {on ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : null}
+      </span>
+      <span className="apw-check-text">
+        <span className="apw-check-title">{title}</span>
+        {blurb ? <span className="apw-check-blurb">{blurb}</span> : null}
+      </span>
+    </button>
   );
 }

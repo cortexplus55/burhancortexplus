@@ -22,12 +22,15 @@ export const DOCUMENT_ANALYSIS_STAGES = [
   "Konular düzenleniyor",
 ] as const;
 
-export const STUDY_MODALITY_CHOICES: { id: StudyModality; label: string }[] = [
-  { id: "reading", label: "Okuyarak" },
-  { id: "listening", label: "Dinleyerek" },
-  { id: "watching", label: "İzleyerek" },
-  { id: "practice", label: "Pratik yaparak" },
-  { id: "auto", label: "Sen karar ver" },
+/**
+ * "Nasıl çalışmayı seversin?" — Astra'daki gibi birden çok seçilir ve her seçeneğin altında ne
+ * olduğu yazar (17 Ekim 2026). Hiçbiri seçilmezse "auto": yolun kendi önerisi.
+ */
+export const STUDY_MODALITY_CHOICES: { id: Exclude<StudyModality, "auto">; label: string; blurb: string }[] = [
+  { id: "reading", label: "Okuyarak", blurb: "Kendi hızında okuyacağın kısa dersler" },
+  { id: "listening", label: "Dinleyerek", blurb: "Podcast'ler ve sesli anlatım" },
+  { id: "watching", label: "İzleyerek", blurb: "Kısa video dersler" },
+  { id: "practice", label: "Pratik yaparak", blurb: "Sorular, testler ve deneme sınavları" },
 ];
 
 export const WIZARD_COPY = {
@@ -41,7 +44,9 @@ export const WIZARD_COPY = {
   save: "Kaydet",
   cancel: "İptal",
   modalityTitle: "Nasıl çalışmayı seversin?",
+  modalityLead: "Planını bunlara göre hazırlarım. Birden çok seçebilirsin.",
   focusTitle: "En çok neye odaklanalım?",
+  focusLead: "Hepsini çalışacağız; seçtiklerine biraz daha fazla zaman ayıracağız.",
   equalFocus: "Tüm konulara eşit odaklan",
   planningTitle: "Çalışma planın hazırlanıyor...",
   planningLead: "Konular günlere yerleştiriliyor.",

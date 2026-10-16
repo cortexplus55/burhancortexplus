@@ -652,6 +652,48 @@
   background: rgba(124, 108, 247, 0.14);
 }
 
+/* Onay kutulu satır (17 Ekim 2026, Astra'nın kurulumundaki gibi): kutu, başlık, açıklama. */
+.apw-check {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.apw-check-box {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.35rem;
+  border: 1.5px solid var(--cp-border);
+  background: transparent;
+  color: #fff;
+}
+
+.apw-choice--on .apw-check-box {
+  border-color: var(--c-action, #3d5afe);
+  background: var(--c-action, #3d5afe);
+}
+
+.apw-check-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.apw-check-title {
+  font-weight: 600;
+}
+
+.apw-check-blurb {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--cp-muted);
+}
+
 .apw-topic-edit {
   flex-shrink: 0;
   border: 0;

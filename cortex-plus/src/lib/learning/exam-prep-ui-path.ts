@@ -70,8 +70,19 @@ export type LearningPreferencesView = {
   pace?: "slow" | "normal" | "fast";
   notes?: string;
   modality?: StudyModality;
+  /**
+   * Kurulumdaki "Nasıl çalışmayı seversin?" çoklu seçimi (17 Ekim 2026, Astra'daki gibi).
+   * Eski kayıtlarda yalnız `modality` var; okurken ondan türetilir. Boş: öğrenci seçmedi.
+   */
+  modalities?: Exclude<StudyModality, "auto">[];
   language?: "tr" | "en";
 };
+
+const CHOSEN_MODALITIES = ["reading", "listening", "watching", "practice"] as const;
+
+function isChosenModality(value: unknown): value is Exclude<StudyModality, "auto"> {
+  return typeof value === "string" && (CHOSEN_MODALITIES as readonly string[]).includes(value);
+}
 
 export function parseLearningPreferences(raw: unknown): LearningPreferencesView {
   if (!raw || typeof raw !== "object") return {};
@@ -94,7 +105,16 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
       ? o.modality
       : undefined;
   const language = o.language === "tr" || o.language === "en" ? o.language : undefined;
-  return { style, pace, notes, modality, language };
+  const listed: Exclude<StudyModality, "auto">[] = Array.isArray(o.modalities)
+    ? [...new Set((o.modalities as unknown[]).filter(isChosenModality))]
+    : [];
+  const single: unknown = modality;
+  const modalities: Exclude<StudyModality, "auto">[] = listed.length
+    ? listed
+    : isChosenModality(single)
+      ? [single]
+      : [];
+  return { style, pace, notes, modality, modalities, language };
 }
 
 export type TopicProgress = {

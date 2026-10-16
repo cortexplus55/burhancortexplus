@@ -686,6 +686,7 @@ export function ExamPrepHome({
           prepId={prepId}
           nodes={nodes}
           openMisconceptions={openMisconceptions}
+          preferred={settings?.preferences.modalities ?? []}
           topics={labels}
           topicOptions={topicOptions}
           topicLabel={hubTopic}
