@@ -383,3 +383,23 @@ biçimi tek cevaplı), Astra'nın kurulumdaki "nasıl çalışmayı seversin" so
 kalitesi değil).
 
 Maliyet: bizde 1 ders + 1 test + 1 podcast (~$0,06); Astra'da Plus hakkından.
+
+### Yeniden ölçüm — yeni konu (16 Ekim 2026, gece)
+
+"Çocuklarda Solunum Sistemi Hastalıkları" konusunda bir ders ve bir diyalog podcast'i,
+düzeltmeler canlıdayken (#263–#265).
+
+- **Podcast:** Ada'nın konuşma sıraları ortalama **2,38 cümle** (önce bütün sıralar 1,26);
+  sıraların dağılımı 1/2/3/4/5 cümle: 19/5/5/1/1, tek cümlelikler büyük ölçüde Kerem'in
+  soruları. Nedenler açılıyor ("küçük hava yollarındaki ödem, mukus ve hücresel artıklar
+  hava akımını kısıtlar; bu nedenle tedavinin temeli destek tedavisidir"). İtiraf bir kez,
+  "Tekrar edelim" yalnız son bölümde. Kalan küçük kusur: bir "neden" sorusuna önceki
+  cümle az farkla yinelendi — kural eklenmedi.
+- **Ders:** 90 saniyenin altında hazırlandı, düzeltme turu açılmadı (önceki yavaş ders
+  4,5 dk). Sadık ve doğru, ama kaynağın 4. sayfasındaki 5 satırlık **"Bulgular |
+  Düşündürür | Ayırıcı ipucu" tablosu paragrafa döküldü**; "ince ral/ronküs" ve
+  "reversibilite önemli" düştü. Temiz sayfa metninde tablo Markdown olarak duruyordu;
+  yazar kuralı zayıftı, yapı denetimi tabloya bakmıyordu.
+  Düzeltme: yazar kaynağın tablosunu `table` bloğu olarak korur; satırları derste anılan
+  bir kaynak tablosu derste tablo değilse yapı denetimi yüksek sorun yazar ve düzeltme
+  turu tabloyu kurar (`sourceTables`, bekçi `lesson-v3-zscore.test.tsx`).

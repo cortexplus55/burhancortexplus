@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV3Schema, readLessonV2, screenCheck, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { sealLessonV3ForPlay, sealStoredLesson } from "@/lib/learning/lesson-play-v3";
-import { TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM, lessonStructureIssues, verifySystem } from "@/lib/learning/teacher-lesson";
+import { TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM, lessonStructureIssues, sourceTables, verifySystem } from "@/lib/learning/teacher-lesson";
 
 Element.prototype.scrollIntoView = vi.fn();
 afterEach(cleanup);
@@ -223,6 +223,76 @@ describe("LessonV3 — Z-skoru ve hedef boy örneği", () => {
     }
     expect(verifySystem("document")).toContain("kaynaktaki bir sayının, eşiğin ya da birimin yanlış aktarılması");
     expect(verifySystem("topic")).toContain("sayı, eşik, birim");
+  });
+});
+
+// 16 Ekim 2026 Pediatri solunum dersi: temiz sayfadaki 5 satırlık Markdown tablo
+// paragrafa döküldü; "ince ral/ronküs" ve "reversibilite önemli" dersten düştü.
+describe("LessonV3 — kaynaktaki tablo derste tablo kalır", () => {
+  const page = {
+    page: 4,
+    text: [
+      "Semptoma göre hızlı yaklaşım",
+      "",
+      "| Bulgular | Düşündürür | Ayırıcı ipucu |",
+      "|---|---|---|",
+      "| Havlar tarzda öksürük + stridor | Krup | Üst hava yolu; ses kısıklığı eşlik edebilir. |",
+      "| Hışıltı + ilk atak + küçük bebek | Bronşiolit | Viral prodrom, ince ral/ronküs; özellikle süt çocukluğu. |",
+      "| Tekrarlayan hışıltı + tetikleyici | Astım | Egzersiz, alerjen, gece semptomları; reversibilite önemli. |",
+      "| Ateş + takipne + fokal akciğer bulgusu | Pnömoni | Yaşa göre takipne, hipoksemi ve genel durum belirleyici. |",
+      "| Ani öksürük/boğulma + tek taraflı bulgu | Yabancı cisim | Ani başlangıç öyküsü çok değerlidir. |",
+      "",
+      "Bronşiolit",
+      "En sık viral etkenlerle oluşur.",
+    ].join("\n"),
+  };
+  const noTable: LessonV3 = {
+    ...zscore,
+    screens: zscore.screens.map((item) => ({ ...item, blocks: item.blocks.filter((block) => block.type !== "table") })),
+  };
+  // Canlı dersin ilk ekranı: tablonun satırları tek paragrafta.
+  const prose: LessonV3 = {
+    ...noTable,
+    screens: noTable.screens.map((item, index) =>
+      index === 0
+        ? {
+            ...item,
+            blocks: [
+              ...item.blocks,
+              {
+                type: "text" as const,
+                text:
+                  "Havlar tarzda öksürük ve stridor krupu; ilk kez görülen hışıltı küçük bebekte bronşioliti düşündürür. " +
+                  "Hışıltı tekrarlıyorsa astım, ateş ve takipne pnömoni ipucudur; ani boğulma öyküsü yabancı cismi düşündürür.",
+              },
+            ],
+          }
+        : item,
+    ),
+  };
+  const flattened = (lesson: LessonV3) =>
+    lessonStructureIssues(lesson, { pages: [page] }).find((issue) => /paragrafa dökülmüş/.test(issue.problem));
+
+  it("temiz sayfadaki Markdown tabloyu okur", () => {
+    const [table] = sourceTables([page]);
+    expect(table?.columns).toEqual(["Bulgular", "Düşündürür", "Ayırıcı ipucu"]);
+    expect(table?.rows).toHaveLength(5);
+    expect(table?.rows[1]).toEqual(["Hışıltı + ilk atak + küçük bebek", "Bronşiolit", "Viral prodrom, ince ral/ronküs; özellikle süt çocukluğu."]);
+  });
+
+  it("satırları anılan tablo paragrafa dökülürse düzeltmeye gider (yüksek)", () => {
+    expect(flattened(prose)?.severity).toBe("high");
+    expect(flattened(prose)?.problem).toContain("Bulgular | Düşündürür | Ayırıcı ipucu");
+    // Derste bir tablo varsa ya da kaynağın tablosu bu dersin konusu değilse sorun yok.
+    expect(flattened(zscore)).toBeUndefined();
+    expect(flattened(noTable)).toBeUndefined();
+    expect(lessonStructureIssues(prose, {}).some((issue) => /paragrafa dökülmüş/.test(issue.problem))).toBe(false);
+  });
+
+  it("yazar kaynağın tablosunu tablo olarak korur", () => {
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      expect(system).toContain("onu 'table' bloğu olarak koru: satırlarını paragrafa dökme");
+    }
   });
 });
 
