@@ -166,8 +166,21 @@ describe("LessonV3 — Z-skoru ve hedef boy örneği", () => {
     };
     expect(lessonStructureIssues(periodic, {}).some((issue) => /tabloya gönderiyor/.test(issue.problem))).toBe(false);
     expect(TEACHER_SYSTEM).toContain("Hesap, çok adımlı işlem ya da uzun tablo YOKSA kavramı bölme");
-    // Severity: V3 kuralları yüksek.
-    expect(lessonStructureIssues(twoChecks, {}).find((issue) => /tek 'check'/.test(issue.problem))?.severity).toBe("high");
+    // Kavram soruyla bitmezse ders düzeltmeye gider (yüksek).
+    expect(lessonStructureIssues(openEnded, {}).find((issue) => /soruyla bitmeli/.test(issue.problem))?.severity).toBe("high");
+    // İki soru dersi düşürmez (16 Ekim 2026 canlı Yenidoğan dersi düştü): ekran yalnız ilkini gösterir.
+    expect(lessonStructureIssues(twoChecks, {}).find((issue) => /tek 'check'/.test(issue.problem))?.severity).toBe("low");
+  });
+
+  it("tek ekranlı ilk kavramda 'önce dene' kavramın sorusudur; ikinci soru istenmez", () => {
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      expect(system).toContain("İlk kavram tek ekransa onun sorusu 'önce dene' sorusudur");
+      expect(system).not.toContain("kavramın son ekranının son bloğu bir 'check' bloğu");
+    }
+    // Canlıdaki biçim: ilk kavram tek ekran, soru başta — yüksek sorun yok.
+    const [first, , third] = zscore.screens as [LessonV3["screens"][number], LessonV3["screens"][number], LessonV3["screens"][number]];
+    const single: LessonV3 = { ...zscore, screens: [{ ...first, concept: "Z-skoru" }, third] };
+    expect(lessonStructureIssues(single, {}).filter((issue) => issue.severity === "high")).toEqual([]);
   });
 
   it("mühür cevabı ve doğrusunu siler; blok sırası ve içerik kalır; notlandırma ekran = bölüm", () => {
