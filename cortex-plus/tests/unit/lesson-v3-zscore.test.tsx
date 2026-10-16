@@ -149,6 +149,23 @@ describe("LessonV3 — Z-skoru ve hedef boy örneği", () => {
     expect(lessonStructureIssues(split, {}).some((issue) => /art arda/.test(issue.problem))).toBe(true);
     const noText: LessonV3 = { ...zscore, screens: [first, { ...second, blocks: second.blocks.filter((block) => block.type !== "text") }, third] };
     expect(lessonStructureIssues(noText, {}).some((issue) => /en az bir 'text'/.test(issue.problem))).toBe(true);
+    // 16 Ekim 2026 Beslenme dersi: ikinci ekran yeni parça taşımadan böldü; metin başka ekrandaki tabloya gönderdi.
+    const needless: LessonV3 = {
+      ...zscore,
+      screens: [first, { ...second, blocks: second.blocks.filter((block) => block.type === "text" || block.type === "check") }, third],
+    };
+    expect(lessonStructureIssues(needless, {}).some((issue) => /gereksiz bölünmüş/.test(issue.problem))).toBe(true);
+    const pointing: LessonV3 = {
+      ...zscore,
+      screens: [first, { ...second, blocks: [{ type: "text", text: "Tabloda eşiği ve sonucu birlikte oku." }, ...second.blocks] }, third],
+    };
+    expect(lessonStructureIssues(pointing, {}).some((issue) => /tabloya gönderiyor/.test(issue.problem))).toBe(true);
+    const periodic: LessonV3 = {
+      ...zscore,
+      screens: [first, { ...second, blocks: [{ type: "text", text: "Periyodik tabloda soldan sağa okuyunca yarıçap küçülür." }, ...second.blocks] }, third],
+    };
+    expect(lessonStructureIssues(periodic, {}).some((issue) => /tabloya gönderiyor/.test(issue.problem))).toBe(false);
+    expect(TEACHER_SYSTEM).toContain("Hesap, çok adımlı işlem ya da uzun tablo YOKSA kavramı bölme");
     // Severity: V3 kuralları yüksek.
     expect(lessonStructureIssues(twoChecks, {}).find((issue) => /tek 'check'/.test(issue.problem))?.severity).toBe("high");
   });

@@ -157,7 +157,10 @@ export const TEACHER_SYSTEM =
   "2) Kavramlar ve ekranlar: 3-4 kavram (kaynak darsa 2). Bir kavram genelde tek ekrandır; hesap yolu, çok adımlı bir " +
   "işlemi ya da uzun bir tablosu varsa 2-3 ekrana böl: önce kavram ve formül, sonra adımlar ve kaynaktaki sayılarla " +
   "çözümlü örnek. Aynı kavramın ekranları art arda gelir ve aynı 'concept' adını taşır; 'heading' ekranın kendi " +
-  "odağıdır ('Z-skoru', 'Z-skoru: hesap'). En fazla 7 ekran. 'concept' ve 'heading' kavramın adıdır. " +
+  "odağıdır ('Z-skoru', 'Z-skoru: hesap'). Hesap, çok adımlı işlem ya da uzun tablo YOKSA kavramı bölme: ikinci " +
+  "ekran birinciyi tekrar edemez, yeni bir parça ('formula', 'procedure', 'example', 'table') taşır. Bir tabloya " +
+  "gönderen cümle ('tabloda oku') yalnız o tablonun durduğu ekranda yazılır. En fazla 7 ekran. 'concept' ve " +
+  "'heading' kavramın adıdır. " +
   "Kaynakta başlık büyük harfle yazılmış olsa bile sen normal yazımla yaz ('MADDİ YAPTIRIMLAR' değil 'Maddi Yaptırımlar'). " +
   "Ekran numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok. Her ekranda en az bir 'text' " +
   "bloğu. Kavramın ilk ekranındaki 'lead' satırı dersin başındaki içerik listesinde kavramın altında durur: kavramın " +
@@ -487,6 +490,16 @@ export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLesso
     if (seenConcepts.has(key)) add(`screens[${first}].concept`, `'${group.concept}' kavramının ekranları art arda olmalı.`);
     seenConcepts.add(key);
     if (group.screens.length > 3) add(`screens[${first}].concept`, `'${group.concept}' en fazla üç ekran olmalı.`);
+    // 16 Ekim 2026 Beslenme dersi: hesabı olmayan kavram ikiye bölündü, ikinci ekran
+    // birinciyi tekrar etti. Sonraki ekran yeni bir parça taşımalı.
+    for (const index of group.screens.slice(1)) {
+      if (!screens[index]!.blocks.some((block) => SPLIT_WORTHY.has(block.type))) {
+        add(
+          `screens[${index}]`,
+          `'${group.concept}' gereksiz bölünmüş: bu ekran formül, adımlar, çözümlü örnek ya da tablo taşımıyor; öncekiyle tek ekrana indir.`,
+        );
+      }
+    }
     if (!screenCheck(screens[lastIndex]!)) {
       add(`screens[${lastIndex}]`, `'${group.concept}' kavramı bir soruyla bitmeli: son ekranına 'check' bloğu koy.`);
     }
@@ -525,6 +538,10 @@ export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLesso
     if (headers.some((line) => sameKey(line, screen.heading))) add(`${where}.heading`, "Başlık sayfa üst bilgisi; kavramın adını yaz.");
     const text = screenText(screen);
     if (!text) add(`${where}.blocks`, "Ekranda en az bir 'text' bloğu olmalı.");
+    // 16 Ekim 2026 Beslenme dersi: "Tabloda bulguyu … oku" dedi, tablo bir sonraki ekrandaydı.
+    if (POINTS_TO_TABLE.test(text) && !/periyodik\s+tablo/i.test(text) && !screen.blocks.some((block) => block.type === "table")) {
+      add(`${where}.blocks`, "Metin bir tabloya gönderiyor ama bu ekranda tablo yok; tabloyu bu ekrana taşı ya da cümleyi çıkar.");
+    }
     if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b/i.test(text)) {
       add(`${where}.blocks`, "Metinde kaynak/sayfa notu var; çıkar (kaynak ekranda ayrıca gösteriliyor).");
     }
@@ -554,6 +571,12 @@ export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLesso
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
   return issues;
 }
+
+/** Kavramın ikinci ve üçüncü ekranını haklı çıkaran parçalar. */
+const SPLIT_WORTHY = new Set<LessonBlock["type"]>(["formula", "procedure", "example", "table"]);
+
+/** "Tabloda … oku", "tablodaki değerlere bak": okuru bir tabloya gönderen cümle. */
+const POINTS_TO_TABLE = /(?:^|[^\p{L}])tablo(?:da|daki|yu|ya)(?=[^\p{L}])[^.]{0,80}?(?:oku|bak|incele|karşılaştır|gör)/iu;
 
 function checkIssues(
   check: Check,
