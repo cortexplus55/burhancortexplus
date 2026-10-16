@@ -35,7 +35,10 @@ export type TeacherPodcastInput = {
 
 const RULE_DOCUMENT =
   "KAYNAK KURALI (kesin): Her olgu, tanım, sayı, formül, tarih ve sınıflandırma yalnızca KAYNAK'tan (ve verilmişse " +
-  "öğrencinin aynı konudaki DERS'inden) gelir. Kaynakta yoksa söyleme; genel kültürden ekleme. Kaynaktaki bozuk ya da " +
+  "öğrencinin aynı konudaki DERS'inden) gelir. Kaynakta yoksa söyleme; genel kültürden ekleme — tek istisna: kaynak bir " +
+  "olgunun nedenini ya da sınavda sorulan kesin bilgisini vermiyorsa en çok iki yerde, cümleye 'Belgende geçmiyor ama " +
+  "bilmen iyi olur:' diye başlayarak ders kitaplarında tartışmasız, güncel olarak değişmeyen bir bilgiyi söyleyebilirsin. " +
+  "Kaynaktaki bozuk ya da " +
   "yanlış yazılmış kelimeleri doğru Türkçeyle söyle; kaynakta açıkça bozuk bir cümle varsa kaynağın kendi örnekleriyle " +
   "tutarlı anlamını söyle ve bundan söz etme.\n\n";
 
@@ -104,11 +107,14 @@ export function podcastUserPrompt(input: TeacherPodcastInput): string {
 const VERIFY_DOCUMENT =
   "Sen titiz bir içerik denetçisisin. Bir podcast metnini, dayandığı KAYNAK (ve verilmişse DERS) ile karşılaştırıyorsun. " +
   "Şunları bul:\n" +
-  "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, formül ya da sınıflandırma (yeni bilgi taşımayan gündelik sahne sorun değil).\n" +
+  "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, formül ya da sınıflandırma (yeni bilgi taşımayan gündelik sahne sorun değil; " +
+  "'Belgende geçmiyor ama bilmen iyi olur:' diye başlayan cümle kaynakta olmayabilir, onu A'ya göre değil F'ye göre denetle).\n" +
   "B) Kaynakla çelişen ya da anlamı değiştiren ifade.\n" +
   "C) Yanlış hesap, tutmayan eşitlik, yarım bırakılmış örnek.\n" +
   "D) 'Cevap:' satırının sorulan soruya yanlış ya da eksik cevap vermesi.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
+  "F) 'Belgende geçmiyor ama bilmen iyi olur:' cümlesinde yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; " +
+  "bu işaretle ikiden fazla cümle; kaynakta olmayan bilginin bu işaret olmadan söylenmesi A'dır.\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla söylenmesi sorun değildir.\n";
 
 const VERIFY_TOPIC =
@@ -120,7 +126,7 @@ const VERIFY_TOPIC =
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n";
 
 const VERIFY_JSON =
-  "A-E 'high'. Şunlar 'low': tekdüze anlatım, uzunluk.\n" +
+  "A-F 'high'. Şunlar 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.\n" +
   'JSON döndür: {"issues":[{"where":"chapters[1].lines[3]","severity":"high","problem":"…","fix":"…"}]}. Sorun yoksa issues boş dizi.';
 
 export function podcastVerifySystem(mode: TeacherLessonMode = "document"): string {

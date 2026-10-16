@@ -366,6 +366,18 @@ olduğu gibi durur, okunurken çevrilir.
 Bekçi testler: `lesson-v3.test.ts` (çeviri, gidiş-dönüş), `lesson-v3-zscore.test.tsx`
 (Z-skoru / hedef boy örneği: iki ekranlı kavram, blok sırası, mühür, V3 yapı kuralları).
 
+**Belgede olmayan bilgi: yalnız etiketli (16 Ekim 2026, ürün sahibinin kararı).** Astra
+aynı PDF'te belgede olmayan sınav bilgisini "metinde belirtilmiştir" diye veriyordu. Bizde
+kaynak kuralı kesin kalır; tek istisna etiketli ve denetlenmiş genel bilgi:
+
+| Yüzey | Biçim | Denetim |
+|---|---|---|
+| Ders | `note` bloğu, tone `general`, başlık "Genel bilgi: …", en çok 2; soru/özet/doğrusu buna dayanmaz | Denetçi H (yüksek) |
+| Podcast | Cümle "Belgende geçmiyor ama bilmen iyi olur:" ile başlar, en çok 2 | Denetçi F (yüksek) |
+| Sohbet | "Belgem + genel bilgi" modunda "Genel bilgiden:" paragrafı | Öğretmen denetimi |
+
+Etiketsiz dış bilgi hâlâ hata (A). Yalnız belgeli içerikte; belgesiz hazırlık zaten konu bilgisiyle yazılır.
+
 **Tüm test paketini `npx vitest run --exclude "tests/unit/_tmp/**"` ile koşun.**
 `tests/unit/_tmp/` yerel altın denemeleri `.env.local` anahtarıyla canlı model
 çağırıyor ve kapıları yok; düz `npx vitest run` onları da çalıştırır (3 Ekim'de

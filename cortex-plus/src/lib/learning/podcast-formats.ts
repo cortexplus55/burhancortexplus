@@ -120,7 +120,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
 
 /** İki sunuculu türlerin JSON kuralı (tek öğretmenli olanın karşılığı). */
 export const DUO_NARRATOR_SCHEMA =
-  'Her satırın speaker alanı "ada" (öğretmen) ya da "kerem" (öğrenci arkadaşı). İkisi de konuşur. Her text TEK cümle ve 25 kelimeyi geçmez.';
+  'Her satırın speaker alanı "ada" (öğretmen) ya da "kerem" (öğrenci arkadaşı). İkisi de konuşur. Her satır bir konuşma sırasıdır: 1-4 cümle, her cümle en çok 25 kelime. Ada açıklarken nedenini ve sonucunu da söyler; Kerem kısa sorar ya da duyduğunu toparlar.';
 
 export function podcastDuoBrief(): string {
   return (
@@ -133,6 +133,8 @@ export function podcastDuoBrief(): string {
     "bu bütün podcast'te en çok bir kez olur. " +
     "Ada kaynaktan cümle okumaz; kendi sözleriyle, konuşur gibi anlatır ve bir açıklamayı art arda iki üç satırda " +
     "sürdürebilir. Aynı tanımı bir bölümde bir kez söyle; 'Tekrar edelim' yalnız son bölümde. " +
+    "Bilgi taşımayan cümle kurma ('önemli nokta, … ele alınmasıdır', 'bu konu çok önemlidir' gibi); her cümle bir bilgi, " +
+    "bir neden ya da bir örnek taşır. Bir olguyu söylediğinde nedenini ve sonucunu da söyle. " +
     "Benzetme açıklamanın yerine geçmez. Kaynakta olmayan sayı veya formül yok."
   );
 }

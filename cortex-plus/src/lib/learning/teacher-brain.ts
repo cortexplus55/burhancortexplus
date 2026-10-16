@@ -1419,7 +1419,7 @@ export function teacherTurnGuidance(input: {
 }
 
 export const SINGLE_NARRATOR_SCHEMA =
-  'Her satırın speaker alanı "ada". Tek öğretmen anlatır; ikinci kişi, diyalog ve Kerem yok. Her text TEK cümle ve 25 kelimeyi geçmez.';
+  'Her satırın speaker alanı "ada". Tek öğretmen anlatır; ikinci kişi, diyalog ve Kerem yok. Her satır bir paragraf: 1-4 cümle, her cümle en çok 25 kelime.';
 
 export function podcastNarrationBrief(language: MaterialLanguage = "tr"): string {
   if (language === "en") {
@@ -1434,6 +1434,8 @@ export function podcastNarrationBrief(language: MaterialLanguage = "tr"): string
     "Bütün anlatımda şunlar olsun: her kavramın ne olduğu ve neden önemli olduğu, kaynaktaki somut örnek, öğrencinin " +
     "gerçekten yaptığı bir iki hata, sınavda çıkan nokta. Bunları her bölümde aynı sırayla dizme; bölümler farklı açılsın " +
     "(bir vaka, bir soru, iki kavramın karşılaştırması). Kaynaktan cümle okuma; konuşur gibi, kendi sözlerinle anlat. " +
+    "Bilgi taşımayan cümle kurma; her cümle bir bilgi, bir neden ya da bir örnek taşır; bir olguyu söylediğinde nedenini " +
+    "ve sonucunu da söyle. " +
     "Aynı tanımı kelimesi kelimesine tekrarlama; bölüm sonu toparlaması (biçim istiyorsa) başka kelimelerle tek " +
     "cümledir ve 'Tekrar edelim' kalıbı her bölümde kullanılmaz. " +
     "Benzetme açıklamanın yerine geçmez. Kaynakta olmayan sayı veya formül yok."
