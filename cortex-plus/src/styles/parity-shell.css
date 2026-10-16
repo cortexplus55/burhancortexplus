@@ -11055,27 +11055,306 @@
   }
 }
 
+/* Hazırlık kartı (17 Ekim 2026, Astra ile yan yana): üst gövde + ayrı alt şerit. */
 .cp-prep-card {
   scroll-snap-align: start;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 0.75rem;
   min-width: 0;
   border-radius: 1.25rem;
   border: 1px solid var(--cp-border);
-  background: var(--cp-surface);
-  padding: 1.1rem 1.2rem 1rem;
+  background: var(--c-surface-2, #1b1b1d);
+  overflow: hidden;
+}
+
+.cp-prep-card-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.6rem;
+  min-height: 8.5rem;
+  padding: 1.1rem 1.1rem 1.15rem;
+  background: var(--cp-bg, #0d0d0f);
+  border-radius: 0 0 1.1rem 1.1rem;
 }
 
 .cp-prep-card-title {
   margin: 0;
   font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cp-prep-meter {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cp-prep-meter-rail {
+  position: relative;
+  flex: 1;
+  height: 0.3rem;
+  border-radius: 999px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.16) 0 2px,
+    transparent 2px 4px
+  );
+}
+
+.cp-prep-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: #22c3a6;
+}
+
+.cp-prep-meter-knob {
+  position: absolute;
+  top: 50%;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: #5b5b60;
+}
+
+.cp-prep-meter-knob.is-moving {
+  background: #22c3a6;
+  box-shadow: 0 0 0 3px rgba(34, 195, 166, 0.22);
+}
+
+.cp-prep-meter-pct {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prep-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 0.9rem;
+}
+
+.cp-prep-card-meta {
+  font-size: 0.85rem;
+  color: var(--cp-text);
+}
+
+.cp-prep-card-meta small {
+  font-size: 0.7rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-card-go {
+  flex-shrink: 0;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: var(--c-action, #3d5afe);
+  color: var(--c-on-action, #fff);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-prep-card-go:hover {
+  background: var(--c-action-hover, #5170ff);
+}
+
+/* Sınavlar listesi üst şeridi ve üç kutu (Astra: OKULUM / MÜFREDAT / RESMÎ SINAVLAR). */
+.cp-exam-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1.25rem;
+  background: var(--c-surface-1, #141416);
+}
+
+.cp-exam-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border);
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-exam-toolbar-btn:hover {
+  background: var(--c-surface-2, #1b1b1d);
+}
+
+.cp-catalog-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0 0 1.75rem;
+}
+
+.cp-catalog-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: 5.75rem;
+  padding: 0.9rem 0.5rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1, #141416);
+  color: var(--cp-text);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.cp-catalog-tile:hover {
+  border-color: color-mix(in srgb, var(--cp-text) 30%, transparent);
+}
+
+.cp-catalog-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: var(--c-surface-2, #1b1b1d);
+}
+
+.cp-catalog-tile-label {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
   font-weight: 700;
-  line-height: 1.35;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.cp-prep-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.cp-prep-list-head .cp-prep-row-title {
+  margin: 0;
+}
+
+.cp-prep-when {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border);
+}
+
+.cp-prep-when button {
+  padding: 0.3rem 0.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-when button.is-on {
+  background: #fff;
+  color: #111;
+}
+
+.cp-prep-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .cp-prep-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cp-catalog-tile-label {
+    font-size: 0.64rem;
+  }
+}
+
+.cp-prep-drafts {
+  margin: 0 0 1.5rem;
+}
+
+.cp-prep-drafts-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--cp-muted);
+}
+
+.cp-prep-draft {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.9rem;
+  background: var(--c-surface-1, #141416);
+}
+
+.cp-prep-draft-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.cp-prep-draft-resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  background: var(--c-action, #3d5afe);
+  color: var(--c-on-action, #fff);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-prep-draft-drop {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-danger, #ef4444);
+  cursor: pointer;
+}
+
+.cp-exam-subpage-title {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+  font-weight: 700;
 }
 
 .cp-catalog {
