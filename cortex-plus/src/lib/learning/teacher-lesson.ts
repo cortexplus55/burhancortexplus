@@ -177,8 +177,9 @@ export const TEACHER_SYSTEM =
   "seçmeli olabilir. Soruyu metin bloğunda tekrar sorma ('Önce düşün: … doğru mu, yanlış mı?' yazma); metin doğrudan " +
   "anlatır. Doğru/yanlış ifadesi yanlışsa 'corrected' " +
   "alanına ifadenin doğru hâlini tek cümleyle yaz; öğrenci cevaptan sonra 'Doğrusu' diye görür.\n" +
-  "4) Her kavram bir soruyla biter: kavramın son ekranının son bloğu bir 'check' bloğu. Ekran başına en fazla bir " +
-  "'check' bloğu. Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
+  "4) Her kavramın son ekranında bir 'check' bloğu olur; ekran başına en fazla bir 'check' bloğu. İlk kavram tek " +
+  "ekransa onun sorusu 'önce dene' sorusudur — o ekrana ikinci soru yazma. Öbür ekranlarda soru ekranın son bloğudur. " +
+  "Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). review: aynı kavramı farklı yönden soran soru — tanımdan terim soruldaysa bu kez " +
@@ -563,7 +564,10 @@ export function lessonStructureIssues(lesson: LessonV3, input: Pick<TeacherLesso
       add(`${where}.blocks`, `Ekranın metni çok uzun (${words} kelime); 60-140 kelimeye indir, ayrıntıyı karta/tabloya ya da ikinci ekrana taşı.`);
     }
     const checks = screen.blocks.flatMap((block, blockIndex) => (block.type === "check" ? [{ check: block.check, blockIndex }] : []));
-    if (checks.length > 1) add(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu ayrı bir ekrana taşı ya da çıkar.");
+    // Düşük önem (16 Ekim 2026 canlı Yenidoğan dersi düştü): ilk kavram tek ekranken
+    // "önce dene" + "kavram soruyla biter" iki soru yazdırıyordu. Ekran yalnız ilk soruyu
+    // gösterir, notlandırma da ilk soruya bakar; ikincisi öğrenciye zarar vermez.
+    if (checks.length > 1) low(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu çıkar (ekran yalnız ilkini gösterir).");
     for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low);
   });
 
