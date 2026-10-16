@@ -200,6 +200,43 @@ describe("yapı denetimi", () => {
     expect(lessonStructureIssues(trueStatement, {}).some((issue) => /doğrusu/.test(issue.problem))).toBe(false);
   });
 
+  // 16 Ekim 2026 canlı ders: gövde "doğru mu, yanlış mı?" diye sordu, kontrol çoktan seçmeliydi.
+  it("'önce dene' doğru/yanlış olur ve gövdede tekrar sorulmaz; ikisi de dersi düşürmez", () => {
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      expect(system).toContain("Bu soru doğru/yanlıştır");
+      expect(system).toContain("Soruyu gövdede tekrar sorma");
+    }
+    const first = good.sections[0]!;
+    const opener: LessonV2 = {
+      ...good,
+      sections: [
+        {
+          ...first,
+          body: `Önce düşün: kişilik ana rahminde mi başlar? Doğru mu, yanlış mı? ${first.body}`,
+          check: {
+            type: "mcq",
+            prompt: "Hukuku diğer kurallardan ayıran nedir?",
+            options: ["Maddi yaptırım", "Ayıplanma", "Vicdan azabı", "Dışlanma"],
+            answerIndex: 0,
+            explanation: "Hukuku ayıran maddi yaptırımdır; diğerleri ahlak ve görgü kurallarının yaptırımıdır.",
+            optionWhy: ["Devlet zorlar.", "Görgü kuralı.", "Ahlak kuralı.", "Görgü kuralı."],
+            review: { prompt: "Borcunu ödemeyenin malı haczediliyor; bu hangi kuralın yaptırımıdır?" },
+          },
+        },
+        ...good.sections.slice(1),
+      ],
+    };
+    const found = lessonStructureIssues(opener, {}).filter((issue) => issue.where.startsWith("sections[0]"));
+    expect(found.map((issue) => issue.where).sort()).toEqual(["sections[0].body", "sections[0].check"]);
+    expect(found.every((issue) => issue.severity === "low")).toBe(true);
+    expect(lessonStructureIssues(good, {}).some((issue) => issue.where.startsWith("sections[0]"))).toBe(false);
+  });
+
+  it("ders yazılırken bağlantı koparsa sayfa önce hazır dersi arar", () => {
+    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    expect(session).toContain("if (resumeEnabled && (await resumeAfterLostStart())) return;");
+  });
+
   it("belgesiz ders: aynı akış, kaynak kuralı yerine doğruluk kuralı", () => {
     expect(TOPIC_TEACHER_SYSTEM).toContain("BİLGİ KURALI (belgesiz ders, kesin)");
     expect(TOPIC_TEACHER_SYSTEM).not.toContain("KAYNAK KURALI (kesin)");

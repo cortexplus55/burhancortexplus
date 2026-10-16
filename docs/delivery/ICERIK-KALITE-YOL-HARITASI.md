@@ -290,4 +290,38 @@ denetçiye eklendi (`teacher-lesson.ts`).
 | Belgede olmayan bilgi | Hazırlık sohbeti "Belgem + genel bilgi" moduyla açılır; genel bilgi "Genel bilgiden:" paragrafında, denetçi doğruluğuna bakar | `chat-panel.tsx`, `teacher-tutor.ts` |
 | Sohbet derinliği | "Neden / fark ne / ne olur" sorularında sonuç, koşul ve örnek de açılır | `teacher-tutor.ts` (TEACHER_MANNER) |
 | Doğru/yanlış | Yanlış ifadenin doğrusu (`corrected`) cevaptan sonra "Doğrusu" satırında; eksikliği dersi düşürmez (düşük önem) | `teaching-standards.ts`, `teacher-lesson.ts`, `exam-lesson-steps.tsx` |
+
 Maliyet: bizde 6 sohbet mesajı (~$0,02); Astra'da Plus hakkından.
+
+## 9. Faz 5 ikinci tur — kararlardan sonra (16 Ekim 2026)
+
+Aynı sorular, canlıda, #256 yayına çıktıktan sonra. Sohbet "Belgem + genel bilgi"
+ile açıldı (ekranda doğrulandı).
+
+**KPSS sohbet (aynı 3 soru):** yokluk–mutlak butlan cevabı iki cümleden tabloya,
+örneğe, belgedeki ek bilgiye ve kontrol sorusuna çıktı; korkutma → nispi butlan doğru,
+kimin ne yapabileceği ve süre koşulu açıldı (örnek yok); genellik–soyutluk doğru
+ölçütle (kimlere / hangi olaylara), örnekle ve ayırt ettiren soruyla. Puan:
+**12** (önce 11; Astra 10). Kalan zayıflık: ilk cevabın kontrol sorusu tablodaki
+örneği soruyor, cevabı veriyor.
+
+**Pediatri sohbet (ilk turda reddedilen 2 soru):** ikisi de artık cevaplanıyor —
+belgenin söylediği önce, belgede olmayan "Genel bilgiden:" paragrafında (ilk yılda
+baş çevresi ~12 cm; yenidoğan taramaları). Tarama takvimi cevabı 1 yaşta kesildi →
+öğretmen tavrına "listeyi yarıda kesme" kuralı eklendi.
+
+**Yeni ders ("Gerçek Kişilik ve Sona Ermesi", Kişiler Hukuku):** kavram birimi dar
+seçti (kişiliğin başlangıcı, ölüm, ölüm karinesi, gaiplik). İki durum sorusu da tek
+kavrama okunuyor (gemi batıp ölümü kesin sayılan kişi → ölüm karinesi; 5 yıl haber
+yok → uzun zamandır haber alınamama). Bilgiler doğru (hak ehliyeti ana rahmine
+düşmeden itibaren, sağ doğum koşuluyla; ölüm 10 gün içinde bildirilir). Bulgu: dört
+kontrolün hepsi çoktan seçmeli, ilk bölümün gövdesi "Doğru mu, yanlış mı?" diye
+soruyor — "Doğrusu" satırı bu yüzden görünmedi. Yazar kuralı sıkılaştı ('önce dene'
+doğru/yanlış; gövdede tekrar sorulmaz), yapı denetimi ikisini düşük önemle işaretliyor
+(Termodinamik dersi bu yüzden düşmüştü; ders bunun için düşmez).
+
+**Arayüz:** ders yazılırken bağlantı koptu, "Bağlantı kurulamadı" çıktı; sayfa
+yenilenince ders oradaydı. Artık hata göstermeden önce bir kez hazır ders aranıyor
+(`exam-node-session.tsx`).
+
+Maliyet: 5 sohbet mesajı + 1 ders (~$0,05).

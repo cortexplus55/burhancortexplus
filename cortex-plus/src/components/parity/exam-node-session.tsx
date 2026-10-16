@@ -570,10 +570,31 @@ export function ExamNodeSession({
       setStage("play");
       onGenerationSucceeded(() => router.refresh());
     } catch {
+      // Bağlantı ders yazılırken koptuysa sunucu çoğu zaman yazmayı bitiriyor
+      // (16 Ekim 2026: hata çıktı, sayfa yenilenince ders oradaydı). Önce bir kez bak.
+      if (resumeEnabled && (await resumeAfterLostStart())) return;
       setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
     } finally {
       setLoading(false);
       startInFlight.current = false;
+    }
+  }
+
+  async function resumeAfterLostStart(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/learning/exam-prep/node", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepId, nodeId, action: "resume" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.resumed || !data.attemptId || !data.payload) return false;
+      applyStartPayload(data);
+      setPlayStartedAt(Date.now());
+      setStage("play");
+      return true;
+    } catch {
+      return false;
     }
   }
 

@@ -30,6 +30,8 @@ describe("öğretmen sohbeti istemi", () => {
     expect(TUTOR_RULES).toContain("cevabı hemen verme");
     expect(TUTOR_RULES).toContain("TEK bir soruyla bitir");
     expect(TUTOR_RULES).toContain("Etiketli kalıp kullanma");
+    // Faz 5 ikinci tur (16 Ekim 2026): tarama takvimi cevabı 1 yaşta kesildi.
+    expect(TUTOR_RULES).toContain("listeyi yarıda kesme");
     expect(TUTOR_VERIFY_SYSTEM).toContain("dayanağı olmayan");
   });
 
