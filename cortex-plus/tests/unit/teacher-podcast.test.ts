@@ -94,6 +94,15 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
       expect(system).toContain("1-4 cümle");
       expect(system).toMatch(/Bilgi taşımayan cümle kurma/);
     }
+    // 17 Ekim 2026, ürün sahibi "Astra gibi iki ses de anlatsın": canlıda Kerem'in bütün sıraları tek
+    // cümlelik soruydu. Diyalogda Kerem de anlatır; örnek de bunu gösterir. Soru-cevapta Kerem yine sorar.
+    expect(duo).toContain("Kerem yalnız soru sormaz");
+    expect(duo).toContain("en az yarısı soru değil");
+    expect(duo).toContain('{"speaker":"kerem","text":"1-3 cümle: kaynaktaki bir örnek');
+    expect(duo).not.toContain("Kerem kesin bilgi vermez");
+    const qa = podcastSystem("document", "soru_cevap");
+    expect(qa).toContain("Kerem yalnızca soru sorar");
+    expect(qa).not.toContain("Kerem yalnız soru sormaz");
     // Belgede olmayan neden/bilgi: sesli etiketle, en çok iki yerde; denetçi doğruluğunu ayrıca denetler.
     expect(podcastSystem("document", "diyalog")).toContain("'Belgende geçmiyor ama bilmen iyi olur:'");
     expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
