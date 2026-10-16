@@ -264,8 +264,9 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
       );
     case "podcast":
       return (
-        "Tek öğretmen anlatır; iki kişi diyalog kurmaz. Bölüm sırası: ne olduğu, neden önemli, " +
-        "kaynaktaki somut örnek, öğrencinin gerçekten yaptığı hata, tek cümlelik tekrar. " +
+        "Tek öğretmen anlatır; iki kişi diyalog kurmaz. Bütün anlatımda: ne olduğu, neden önemli, " +
+        "kaynaktaki somut örnek, öğrencinin gerçekten yaptığı bir iki hata; her bölümde aynı sırayla dizilmez, " +
+        "tekrar yalnız son bölümde. " +
         "Benzetme açıklamanın yerine geçmez. Sınavda çıkan noktayı vurgula. " +
         "Formüller konuşulabilir Unicode. Kaynak dışı sayı ve iddia yok. " +
         "Her satır tek anlatıcıda (ada) ve TTS öncesi doğrulanabilir kısa cümle."

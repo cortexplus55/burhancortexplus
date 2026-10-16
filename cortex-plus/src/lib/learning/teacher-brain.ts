@@ -1431,8 +1431,12 @@ export function podcastNarrationBrief(language: MaterialLanguage = "tr"): string
   }
   return (
     "Tek öğretmen akılda kalan bir ders anlatır. İki kişi konuşmaz. " +
-    "Her bölüm: ne olduğu, neden önemli olduğu, kaynaktaki somut örnek, öğrencinin gerçekten yaptığı hata, tek cümlelik tekrar. " +
-    "Benzetme açıklamanın yerine geçmez. Sınavda çıkan noktayı vurgula. Kaynakta olmayan sayı veya formül yok."
+    "Bütün anlatımda şunlar olsun: her kavramın ne olduğu ve neden önemli olduğu, kaynaktaki somut örnek, öğrencinin " +
+    "gerçekten yaptığı bir iki hata, sınavda çıkan nokta. Bunları her bölümde aynı sırayla dizme; bölümler farklı açılsın " +
+    "(bir vaka, bir soru, iki kavramın karşılaştırması). Kaynaktan cümle okuma; konuşur gibi, kendi sözlerinle anlat. " +
+    "Aynı tanımı kelimesi kelimesine tekrarlama; bölüm sonu toparlaması (biçim istiyorsa) başka kelimelerle tek " +
+    "cümledir ve 'Tekrar edelim' kalıbı her bölümde kullanılmaz. " +
+    "Benzetme açıklamanın yerine geçmez. Kaynakta olmayan sayı veya formül yok."
   );
 }
 

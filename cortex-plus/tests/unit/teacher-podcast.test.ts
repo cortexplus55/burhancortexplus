@@ -69,6 +69,19 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     expect(podcastSystem("topic", "basit")).toContain("BİLGİ KURALI (belgesiz, kesin)");
     expect(podcastSystem("document", "basit")).toContain("'Dur ve düşün:'");
     expect(podcastSystem("document", "ozet")).not.toContain("'Dur ve düşün:'");
+    // 16 Ekim 2026 Pediatri podcast'i: her bölüm aynı kalıp (soru → belge cümlesi →
+    // "Ben … varsaymışım" → "Tekrar edelim"). Kalıp istemden geliyordu.
+    for (const length of ["diyalog", "basit"] as const) {
+      const system = podcastSystem("document", length);
+      expect(system).not.toContain("Her bölüm: ne olduğu");
+      expect(system).toContain("her bölümde aynı sırayla dizme");
+    }
+    const duo = podcastSystem("document", "diyalog");
+    expect(duo).toContain("'Tekrar edelim' yalnız son bölümde");
+    expect(duo).toContain("bu bütün podcast'te en çok bir kez olur");
+    // Biçimin kendi kuralıyla çelişmez: Kerem yanlış cümleyi doğru gibi söylemez.
+    expect(duo).not.toContain("yanlış tahmin");
+    expect(podcastSystem("document", "basit")).toContain("'Tekrar edelim' kalıbı her bölümde kullanılmaz");
     expect(podcastVerifySystem("document")).toContain("Kaynakta dayanağı olmayan");
   });
 

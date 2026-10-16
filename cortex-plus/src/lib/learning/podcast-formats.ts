@@ -124,8 +124,15 @@ export const DUO_NARRATOR_SCHEMA =
 
 export function podcastDuoBrief(): string {
   return (
-    "Ada (öğretmen) ile Kerem (öğrenci arkadaşı) konuşarak akılda kalan bir ders anlatır. " +
-    "Her bölüm: ne olduğu, neden önemli olduğu, kaynaktaki somut örnek, öğrencinin gerçekten yaptığı hata, tek cümlelik tekrar. " +
-    "Benzetme açıklamanın yerine geçmez. Sınavda çıkan noktayı vurgula. Kaynakta olmayan sayı veya formül yok."
+    "Ada (öğretmen) ile Kerem (öğrenci arkadaşı) gerçek bir sohbet gibi konuşarak akılda kalan bir ders anlatır. " +
+    "Bütün podcast'te şunlar olsun: her kavramın ne olduğu ve neden önemli olduğu, kaynaktaki somut örnek, öğrencinin " +
+    "gerçekten yaptığı bir iki hata, sınavda çıkan nokta. Bunları her bölümde aynı sırayla dizme; bölümler farklı açılsın " +
+    "(bir vaka, Kerem'in merakı, iki kavramın karşılaştırması). " +
+    "Kerem doğal konuşur: merak eder, örnek ister, karıştırılan noktayı soru olarak sorar ('Yani … mı?'); Ada " +
+    "nedenini söyleyerek cevaplar. Kerem her bölümde 'Ben … sanmışım / varsaymışım' diye hata itiraf etmez; " +
+    "bu bütün podcast'te en çok bir kez olur. " +
+    "Ada kaynaktan cümle okumaz; kendi sözleriyle, konuşur gibi anlatır ve bir açıklamayı art arda iki üç satırda " +
+    "sürdürebilir. Aynı tanımı bir bölümde bir kez söyle; 'Tekrar edelim' yalnız son bölümde. " +
+    "Benzetme açıklamanın yerine geçmez. Kaynakta olmayan sayı veya formül yok."
   );
 }

@@ -232,6 +232,19 @@ describe("yapı denetimi", () => {
     expect(lessonStructureIssues(good, {}).some((issue) => issue.where.startsWith("sections[0]"))).toBe(false);
   });
 
+  // 16 Ekim 2026 Pediatri dersi: şema örneğindeki ilk bölüm çoktan seçmeliydi ve model onu
+  // kopyaladı; yaş basamakları gövdede sıralandı; gündelik örnek yalnız "eğriye işler" dedi.
+  it("şema örneği 'önce dene'yi doğru/yanlış gösterir; yaş listesi tablo, örnek iki kavramı ayırır", () => {
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      const firstSection = system.slice(system.indexOf('"checkFirst": true'), system.indexOf('"cards"'));
+      expect(firstSection).toContain('"type": "trueFalse"');
+      expect(firstSection).toContain('"corrected"');
+      expect(firstSection).not.toContain('"type": "mcq"');
+      expect(system).toContain("'table' kur (satır yaş/evre, sütun alan)");
+      expect(system).toContain("aynı olayda FARKLI sonuç versin");
+    }
+  });
+
   it("ders yazılırken bağlantı koparsa sayfa önce hazır dersi arar", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).toContain("if (resumeEnabled && (await resumeAfterLostStart())) return;");
