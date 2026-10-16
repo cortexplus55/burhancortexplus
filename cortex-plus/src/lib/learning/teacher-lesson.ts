@@ -128,7 +128,9 @@ export const TEACHER_SYSTEM =
   "Her bölümün 'lead' satırı dersin başındaki içerik listesinde başlığın altında durur: bölümün neyi ayırt " +
   "ettirdiğini söyleyen tek kısa cümle; yeni bilgi taşımaz, başlığı tekrar etmez.\n" +
   "3) İlk bölümde checkFirst=true: konu anlatılmadan önce öğrencinin ön bilgisini yoklayan, yaygın yanılgıyı ölçen bir " +
-  "soru; tercihen doğru/yanlış (trueFalse, options ['Doğru','Yanlış']). Doğru/yanlış ifadesi yanlışsa 'corrected' " +
+  "soru. Bu soru doğru/yanlıştır (trueFalse, options ['Doğru','Yanlış']): yaygın yanılgıyı bir ifade olarak yaz; yalnız " +
+  "kavram bir hesap gerektiriyorsa çoktan seçmeli olabilir. Soruyu gövdede tekrar sorma ('Önce düşün: … doğru mu, " +
+  "yanlış mı?' yazma); gövde doğrudan anlatır. Doğru/yanlış ifadesi yanlışsa 'corrected' " +
   "alanına ifadenin doğru hâlini tek cümleyle yaz; öğrenci cevaptan sonra 'Doğrusu' diye görür.\n" +
   "4) Her bölüm bir kontrolle biter. Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
@@ -403,6 +405,15 @@ export function lessonStructureIssues(lesson: LessonV2, input: Pick<TeacherLesso
   // yazıldı, iki düzeltme turu da değiştirmedi ve iyi bir ders reddedildi.
   if (!lesson.sections[0]?.checkFirst || !lesson.sections[0]?.check) {
     add("sections[0]", "İlk bölüm 'önce dene' ile açılmalı: checkFirst=true ve bir kontrol (tercihen doğru/yanlış).");
+  }
+  // Düşük önem: düzeltme turu açılırsa düzelir, ders bunun için düşmez (16 Ekim 2026,
+  // "Gerçek Kişilik" dersi: gövde "doğru mu, yanlış mı?" diye sordu, kontrol çoktan seçmeliydi).
+  const opener = lesson.sections[0];
+  if (opener?.checkFirst && opener.check && opener.check.type !== "trueFalse" && opener.check.type !== "numerical") {
+    issues.push({ where: "sections[0].check", severity: "low", problem: "'Önce dene' sorusu doğru/yanlış olmalı: yaygın yanılgıyı bir ifade olarak yaz." });
+  }
+  if (opener && /doğru\s+mu,?\s+yanlış\s+mı/i.test(opener.body)) {
+    issues.push({ where: "sections[0].body", severity: "low", problem: "Gövde 'önce dene' sorusunu tekrar soruyor; soru kontrolde, gövde doğrudan anlatsın." });
   }
 
   lesson.sections.forEach((section, index) => {
