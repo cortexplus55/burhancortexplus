@@ -46,7 +46,7 @@ export async function teacherQuizLoop(
 ): Promise<{ questions: QuizQuestion[]; rejected: Reviewed[]; rounds: number }> {
   const mode = input.mode ?? "document";
   const review = async (questions: QuizQuestion[]): Promise<Reviewed[]> => {
-    const structural = questions.map((question) => quizStructureIssues(question));
+    const structural = questions.map((question) => quizStructureIssues(question, { multi: input.multi }));
     let factual: ReturnType<typeof parseQuizIssues> = [];
     try {
       factual = parseQuizIssues(await ask(quizVerifySystem(mode), quizVerifyUserPrompt(questions, input)));
@@ -68,8 +68,9 @@ export async function teacherQuizLoop(
     }));
   };
 
-  let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus), quizUserPrompt(input, input.count + SPARE)));
-  if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus), quizUserPrompt(input, input.count + SPARE)));
+  const multi = Boolean(input.multi);
+  let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE)));
+  if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE)));
   if (!draft) return { questions: [], rejected: [], rounds: 0 };
 
   const reviewed = await review(draft);
@@ -78,13 +79,24 @@ export async function teacherQuizLoop(
   let rounds = 0;
   while (good.length < input.count && bad.length && rounds < MAX_FIX_ROUNDS && Date.now() - started < FIX_DEADLINE_MS) {
     rounds += 1;
-    const fixed = parseTeacherQuiz(await ask(quizFixSystem(mode, input.focus), quizFixUserPrompt(bad, input)));
+    const fixed = parseTeacherQuiz(await ask(quizFixSystem(mode, input.focus, multi), quizFixUserPrompt(bad, input)));
     if (!fixed) break;
     const again = await review(fixed);
     good.push(...again.filter((item) => !item.problems.length).map((item) => item.question));
     bad = again.filter((item) => item.problems.length);
   }
-  return { questions: good.slice(0, input.count).map(shuffleOptions), rejected: bad, rounds };
+  return { questions: withOneMultiLast(good, input.count).map(shuffleOptions), rejected: bad, rounds };
+}
+
+/**
+ * Testte en çok bir çok cevaplı soru ve o sonda (Astra'da 7 sorudan sonuncusu). Yedekler
+ * kesilirken çok cevaplı soru düşmesin; fazlası atılır.
+ */
+export function withOneMultiLast(questions: QuizQuestion[], count: number): QuizQuestion[] {
+  const multi = questions.find((question) => question.multi);
+  const single = questions.filter((question) => !question.multi);
+  if (!multi) return single.slice(0, count);
+  return [...single.slice(0, Math.max(0, count - 1)), multi];
 }
 
 export type TeacherQuizOutcome =

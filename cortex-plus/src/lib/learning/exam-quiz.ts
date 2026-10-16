@@ -184,6 +184,22 @@ export function sameOptionSet(left: string[], right: string[]) {
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
+/**
+ * Çok cevaplı soruda kısmi doğruluk yüzdesi: (doğru seçilen − yanlış seçilen) / doğru sayısı,
+ * sıfırın altına inmez. Yazılı denemenin `multiMcqPoints` kuralıyla aynı.
+ */
+export function multiPartialPercent(selected: string[], correct: string[]): number {
+  const want = new Set(correct);
+  if (!want.size) return 0;
+  let hit = 0;
+  let miss = 0;
+  for (const pick of new Set(selected)) {
+    if (want.has(pick)) hit += 1;
+    else miss += 1;
+  }
+  return Math.round(Math.max(0, (hit - miss) / want.size) * 100);
+}
+
 export function scoreQuizAnswers(
   questions: QuizQuestion[],
   answers: Record<string, unknown>,
