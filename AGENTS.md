@@ -103,9 +103,26 @@ Bekçi test: `tests/unit/separate-paths.test.ts`.
 | Hazırlık adı | Ana konulardan model yazar (`PREP_TITLE`); dosya adı yalnız yedek |
 | Yol kartı, ders kurulumu | Kavram birimli derste dersin kendi adı |
 
-Kullanıcı kararıyla **eklenmeyenler** (yine soruldu, "hiçbiri"): Yıldızlar / haftalık
-sıralama, yazılı denemede "Kağıtta çöz", video ders. Bekçi: `astra-final-ui.test.ts`,
-`continue-opens-lesson.test.ts`, `prep-title.test.ts`.
+3 Ekim'de eklenmeyenler (Yıldızlar, "Kağıtta çöz", video ders) **17 Ekim 2026'da ürün sahibinin kararıyla
+eklendi** — aşağıdaki bölüm. Bekçi: `astra-final-ui.test.ts`, `continue-opens-lesson.test.ts`, `prep-title.test.ts`.
+
+## Astra ile yan yana, 17 Ekim 2026 — eski "eklenmesin"ler geri alındı
+
+Ürün sahibi: "geri kalanları tek tek en ince ayrıntısına kadar eksiksiz ekle". Bulgular ve sıra:
+`docs/delivery/ASTRA-YAN-YANA-17-EKIM.md`. Simülasyon bölümü (/lab) **kapalı kalıyor**.
+
+| Ne | Kural | Nerede |
+|---|---|---|
+| Yıldızlar | Kazanç tek satır (öğrenci, kaynak, ref) — aynı test iki kez saymaz; günlük hedef 50 (+25), haftalık seri (+100), davet (+100/+50), abone olan davetli (+300), okuldan katılım (+50), sohbet (günde bir, 3. mesajdan sonra 15), düello (Astra'nın okul maçının yeri). Sıralamada ad + soyadın baş harfi + okul; **Ayarlar'da gizleme** (ürün sahibinin kararı) | göç `20261017120000_stars.sql` (`award_stars`), `src/lib/stars/`, `stars-dialog.tsx` |
+| Kâğıtta çöz | Yazılı denemede önce "Nasıl çözmek istiyorsun?"; kâğıt yalnız baskıda; Başla yazdırınca; fotoğraf en çok 10, cihazda küçültülür (4,5 MB gövde sınırı), saklanmaz; model yalnız işaret ve yazıyı okur, **çözmez**; not yine `/api/learning/exam/grade` | `paper-exam*.ts(x)`, `/api/learning/exam/paper-read` |
+| Video ders | **Oynatıcıda birleşen video** (MP4 değil) ve **yalnız Plus** (ürün sahibinin kararları); senaryo öğretmen motoru kalıbında, sahne başına resim (`OPENAI_IMAGE_MODEL`) + ses; `VIDEO_GENERATE` 280 kredi | göç `20261017150000_prep_videos.sql`, `video-lesson.ts`, `video-run.ts` |
+| Çok cevaplı soru | Yalnız hazırlığın konu testinde, tam bir soru, sonda; kısmi puan ekranda ("Kısmen doğru · %50"), kayıtlı puan tam sayı | `teacher-quiz.ts` (`multi`), `withOneMultiLast` |
+| Kurulum | "Nasıl çalışmayı seversin?" çoklu seçim ve gerçekten kullanılıyor ("Önerilen" rozeti) | `learning_preferences.modalities`, `recommendedStudyTool` |
+| Sınavlar / hazırlık sayfası | Astra düzeni: üç kutu ayrı sayfa, iki sütunlu ızgara, Yaklaşan/Geçmiş, Taslaklar; hazırlıkta sade üst çubuk (`minimalTop`), kahraman alanı, "Sıradaki" etiketi, hazırlık düzeyi beşgeni | `exam-prep.tsx`, `exam-prep-home.tsx` |
+| Podcast | Diyalogda Kerem de anlatır (örnek, toparlama); soru-cevap türünde yine sorar | `podcast-formats.ts` |
+
+Canlı veritabanına göçler SQL ekranında uygulandı; panel `DROP POLICY` satırını "yıkıcı" sayıp onay
+istiyor — yeni tabloda o satıra gerek yok, yazmayın.
 
 ---
 
