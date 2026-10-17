@@ -12220,17 +12220,26 @@ a.cp-exam-search {
   overflow-x: clip;
 }
 
+/* Hazırlık sayfasında üst çubuk (Geri, sohbet, +) Astra'daki gibi yerinde kalır; sekmeler
+   tam altında yapışır (17 Ekim 2026: aradaki boşluktan yolun düğümü görünüyordu). */
+.cp-sor-root--minimal-top .cp-sor-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--cp-bg, #050505);
+}
+
 /* Sekmeler en üstte ve yapışkan; başlık kaydırınca şeridin üstünde görünür. */
 .cp-prep-tabbar {
   position: sticky;
-  top: calc(env(safe-area-inset-top, 0px) + 3.25rem);
+  top: calc(env(safe-area-inset-top, 0px) + 3.95rem);
   z-index: 6;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
   padding: 0.35rem 0 0.6rem;
-  background: linear-gradient(var(--cp-bg, #0b0b0c) 70%, transparent);
+  background: linear-gradient(var(--cp-bg, #050505) 75%, transparent);
 }
 
 .cp-prep-tabbar-title {
