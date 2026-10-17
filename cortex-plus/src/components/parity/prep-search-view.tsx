@@ -92,7 +92,7 @@ export function PrepSearchView({ rows, hasSchool }: { rows: PrepSearchRow[]; has
   const shownSubjects = allSubjects ? subjects : subjects.slice(0, SUBJECTS_SHOWN);
 
   return (
-    <div className="cp-exam-page cp-psearch">
+    <div className="cp-exam-page cp-exam-page--list cp-psearch">
       <header className="cp-psearch-head">
         <h1>Sınav hazırlıklarında ara</h1>
         <Link href="/deneme-sinavlari/olustur" className="cp-exam-create">
