@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AudioLines,
+  Check,
   ChevronDown,
+  CircleDashed,
   ClipboardCheck,
   Crosshair,
   FileText,
@@ -14,6 +16,7 @@ import {
   Flame,
   FolderOpen,
   Layers,
+  LineChart,
   Lock,
   MessageCircle,
   MessagesSquare,
@@ -24,6 +27,7 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
+  Route,
   Settings,
   Share2,
   Target,
@@ -424,10 +428,15 @@ export function ExamPrepHome({
   );
 
   const lastNode = lastResult ? nodes.find((node) => node.id === lastResult.nodeId) ?? null : null;
+  const doneCount = nodes.filter((node) => node.status === "done").length;
 
   return (
-    <div className="cp-exam-page cp-exam-trail-page">
+    <div className="cp-exam-page cp-exam-trail-page cp-prep-layout">
       {topSlot ? createPortal(toolbar, topSlot) : toolbar}
+
+      {/* Astra (17 Ekim 2026): geniş ekranda solda sabit bilgi kartı (başlık, özet, sekmeler,
+          düğmeler), sağda yol. Telefonda sıra bugünkü gibi: sekmeler üstte yapışkan. */}
+      <aside className="cp-prep-aside">
 
       {/* Astra: sekmeler en üstte ve yapışkan; başlık kaydırınca bu şeridin üstünde kalır. */}
       <div className="cp-prep-tabbar">
@@ -442,6 +451,7 @@ export function ExamPrepHome({
             className={cn(view === "yol" && "is-active")}
             onClick={() => setView("yol")}
           >
+            <Route className="cp-prep-tab-icon" aria-hidden />
             {PREP_HOME_COPY.path}
           </button>
           <button
@@ -451,6 +461,7 @@ export function ExamPrepHome({
             className={cn(view === "ilerleme" && "is-active")}
             onClick={() => setView("ilerleme")}
           >
+            <LineChart className="cp-prep-tab-icon" aria-hidden />
             {PREP_HOME_COPY.progress}
             <span className="cp-prep-tabs-pct">%{pathPct}</span>
           </button>
@@ -460,12 +471,32 @@ export function ExamPrepHome({
       <header className="cp-prep-hero" ref={heroRef}>
         {examType && examType !== "Serbest" ? <p className="cp-prep-hero-kicker">{examType}</p> : null}
         <h1>{title}</h1>
+        <p className="cp-prep-hero-meta">
+          <span>
+            <CircleDashed className="h-4 w-4" aria-hidden />
+            Hazırlık: %{progress.scorePct}
+          </span>
+          <span>
+            <Check className="h-4 w-4" aria-hidden />
+            {doneCount ? `${doneCount} ders tamamlandı` : "Henüz ders tamamlanmadı"}
+          </span>
+        </p>
         {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
             Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
         {documentId ? null : (
           <p className="cp-exam-source-note">{TOPIC_ONLY_NOTICE}</p>
         )}
         <div className="cp-prep-hero-actions">
+          <button
+            type="button"
+            className="cp-prep-hero-action cp-prep-hero-action--lesson"
+            onClick={() => setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null)}
+          >
+            <span className="cp-prep-hero-icon" aria-hidden>
+              <Plus className="h-4 w-4" />
+            </span>
+            Ders
+          </button>
           <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-prep-hero-action">
             <span className="cp-prep-hero-icon" aria-hidden>
               <Swords className="h-4 w-4" />
@@ -501,7 +532,9 @@ export function ExamPrepHome({
           </button>
         </div>
       </header>
+      </aside>
 
+      <div className="cp-prep-main">
       {view === "yol" && lastNode ? (
         <section className="cp-prep-last" aria-label="Son etkinlik">
           <div className="cp-prep-badges">
@@ -602,6 +635,7 @@ export function ExamPrepHome({
           </div>
         </div>
       ) : null}
+      </div>
 
       {optionsOpen ? (
         <div className="cp-oral-modal-back" onClick={() => setOptionsOpen(false)}>
@@ -787,6 +821,43 @@ export function ExamPrepHome({
  * denemede (d2954d2) yazı satırı değişken yükseklikteydi ve çizgi CSS ile
  * güvenilir bükülemiyordu — sebep ortadan kalktı.
  */
+/**
+ * Yol düğümü: üç boyutlu disk (Astra'daki gibi basılabilir düğme; 17 Ekim 2026). Üstte
+ * elips yüzey, yanda gövde, altta gölge; renk duruma göre: bitmiş beyaz, sıradaki mavi
+ * ışıklı, açık koyu mavi gri, kilitli koyu gri ve iç halkalı. Çizim bize ait.
+ */
+const PUCK_FILL: Record<"done" | "current" | "ready" | "locked", { top: [string, string]; side: [string, string]; ring?: boolean; gloss: number }> = {
+  done: { top: ["#ffffff", "#d3d6dd"], side: ["#a9adb6", "#7c818b"], gloss: 0.55 },
+  current: { top: ["#a3abff", "#4353f3"], side: ["#3341d8", "#232fa6"], gloss: 0.45 },
+  ready: { top: ["#353846", "#262833"], side: ["#1d1f28", "#14151b"], ring: true, gloss: 0.08 },
+  locked: { top: ["#2c2c2c", "#202020"], side: ["#171717", "#101010"], ring: true, gloss: 0.06 },
+};
+
+function PathPuck({ state }: { state: keyof typeof PUCK_FILL }) {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const fill = PUCK_FILL[state];
+  return (
+    <svg className={`cp-puck cp-puck--${state}`} viewBox="0 0 92 62" aria-hidden>
+      <defs>
+        <linearGradient id={`t${id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={fill.top[0]} />
+          <stop offset="1" stopColor={fill.top[1]} />
+        </linearGradient>
+        <linearGradient id={`s${id}`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={fill.side[1]} />
+          <stop offset="0.5" stopColor={fill.side[0]} />
+          <stop offset="1" stopColor={fill.side[1]} />
+        </linearGradient>
+      </defs>
+      <ellipse cx="46" cy="50" rx="44" ry="11" fill="rgba(0,0,0,0.45)" />
+      <path d="M2 26 V36 A44 16 0 0 0 90 36 V26 Z" fill={`url(#s${id})`} />
+      <ellipse cx="46" cy="26" rx="44" ry="17" fill={`url(#t${id})`} />
+      {fill.ring ? <ellipse cx="46" cy="25" rx="31" ry="11" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" /> : null}
+      <ellipse cx="40" cy="19" rx="24" ry="6" fill="#fff" opacity={fill.gloss * 0.35} />
+    </svg>
+  );
+}
+
 const PATH_ROW = 96;
 const PATH_STEP = 56;
 const PATH_WIDTH = 280;
@@ -832,25 +903,6 @@ function StudyPath({
   return (
     <div className="cp-zpath" style={{ height }}>
       <p className="sr-only">{STUDY_PATH_HINT}</p>
-      <svg
-        className="cp-path-lines"
-        width={PATH_WIDTH}
-        height={height}
-        viewBox={`0 0 ${PATH_WIDTH} ${height}`}
-        aria-hidden
-      >
-        {points.slice(1).map((point, index) => {
-          const from = points[index];
-          const midY = (from.y + point.y) / 2;
-          return (
-            <path
-              key={point.node.id}
-              d={`M${from.x} ${from.y} C${from.x} ${midY} ${point.x} ${midY} ${point.x} ${point.y}`}
-              className={from.node.status === "done" ? "is-done" : undefined}
-            />
-          );
-        })}
-      </svg>
       <ol className="cp-path-list" aria-label={PREP_HOME_COPY.path}>
         {points.map(({ node, x, y }) => {
           const meta = PLAN_NODE_META[node.kind];
@@ -880,8 +932,26 @@ function StudyPath({
                 title={`${nodeHeading(node)} · ${meta.title}`}
                 onClick={() => onOpen(node)}
               >
-                <NodeGlyph node={node} />
+                <PathPuck state={node.status === "done" ? "done" : node.id === currentId ? "current" : node.status === "locked" ? "locked" : "ready"} />
+                {/* Astra: bitmişte onay, kilitlide kilit, sıradakinde simge huzmede, açıkta tür. */}
+                {node.id === currentId ? null : (
+                  <span className="cp-puck-glyph" aria-hidden>
+                    {node.status === "done" ? <Check className="h-6 w-6" strokeWidth={2.5} /> : <NodeGlyph node={node} />}
+                  </span>
+                )}
               </button>
+              {node.id === currentId ? (
+                <span className="cp-path-beam" aria-hidden>
+                  <span className="cp-path-beam-icon">
+                    <NodeGlyph node={node} />
+                  </span>
+                </span>
+              ) : null}
+              {node.status === "done" && node.id !== currentId ? (
+                <span className="cp-path-done-label" aria-hidden>
+                  {meta.title}
+                </span>
+              ) : null}
               {/* Astra: sıradaki düğümün yanında "SIRADAKİ" ve konunun adı. */}
               {node.id === currentId ? (
                 <span className="cp-path-current-label" aria-hidden>

@@ -16,7 +16,7 @@ export function MyPrepsView({ cards, userInitial }: { cards: ExamPrepCard[]; use
   const joins = cards.reduce((sum, card) => sum + (card.joinCount ?? 0), 0);
 
   return (
-    <div className="cp-exam-page cp-my-preps">
+    <div className="cp-exam-page cp-exam-page--list cp-my-preps">
       <header className="cp-my-preps-head">
         <span className="cp-my-preps-avatar" aria-hidden>
           {userInitial}

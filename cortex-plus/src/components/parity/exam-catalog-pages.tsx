@@ -77,7 +77,7 @@ export function SchoolPrepsPage({
   }
 
   return (
-    <div className="cp-exam-page cp-exam-subpage">
+    <div className="cp-exam-page cp-exam-page--list cp-exam-subpage">
       <h1 className="cp-exam-subpage-title">Okulum</h1>
       {schoolName && !picking ? <SchoolPodium rows={podium} /> : null}
       {picking || !schoolName ? (
@@ -133,7 +133,7 @@ export function SchoolPrepsPage({
 export function CurriculumPage({ gradeLevel }: { gradeLevel: string | null }) {
   const curriculum = curriculumFor(gradeLevel);
   return (
-    <section className="cp-exam-page cp-exam-subpage cp-catalog" aria-label="Müfredat">
+    <section className="cp-exam-page cp-exam-page--list cp-exam-subpage cp-catalog" aria-label="Müfredat">
       <p className="cp-catalog-level">
         <GraduationCap className="h-4 w-4" aria-hidden />
         Eğitim seviyen · {curriculum.levelLabel}
@@ -149,7 +149,7 @@ export function CurriculumPage({ gradeLevel }: { gradeLevel: string | null }) {
 
 export function OfficialExamsPage() {
   return (
-    <section className="cp-exam-page cp-exam-subpage cp-catalog" aria-label="Resmî sınavlar">
+    <section className="cp-exam-page cp-exam-page--list cp-exam-subpage cp-catalog" aria-label="Resmî sınavlar">
       <h1 className="cp-exam-subpage-title">Resmî sınavlar</h1>
       <p className="cp-catalog-lead">Hazırlandığın sınavı seç; konuları birlikte netleştirip yolunu kuralım.</p>
       <CatalogGrid items={OFFICIAL_EXAMS} icon />

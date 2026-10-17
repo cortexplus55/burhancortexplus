@@ -12,9 +12,11 @@
   height: 28px;
   padding: 0 10px;
   border-radius: 9999px;
-  border: 1px solid rgba(244, 174, 11, 0.35);
-  background: rgba(244, 174, 11, 0.12);
-  color: var(--cp-gold);
+  /* Astra paletinde altın durum rengi yok (17 Ekim 2026): kurucu çipi de nötr cam kapsül. */
+  border: 0;
+  background: var(--glass-bg);
+  box-shadow: var(--glass-inset);
+  color: var(--c-text-muted);
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
@@ -26,7 +28,7 @@
 }
 
 .cp-founder-chip:hover {
-  background: rgba(244, 174, 11, 0.18);
+  color: var(--c-text);
 }
 
 .cp-founder-chip:active {

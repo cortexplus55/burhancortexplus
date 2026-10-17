@@ -12776,3 +12776,410 @@ a.cp-exam-search {
   color: var(--c-text);
   font: 600 1rem / 1.125 var(--font-ui);
 }
+
+/* =============================================================================
+   Sınavlar listesi ve kartlar (Astra, 17 Ekim 2026, tasarım 4. adım).
+   768 px sütun; üstte #1f1f1f'ten zemine kararan şerit (16 px üst köşe, 12/16 iç boşluk)
+   ve içinde #393e4c çerçeveli 36 px kapsüller; altındaki kutular ve kartlar 16 px içeride.
+   Kutu 92 px, 24 px köşe, simge cam dairede, etiket JetBrains Mono 11 px / +0.06em.
+   Kart çerçevesi #2c2c30; başlık 18 px / 600, kart başlığı 500, alt satır 14 px / 500.
+   ============================================================================= */
+/* Yalnız liste sayfaları: ders, test ve hazırlık ekranları da .cp-exam-page kullanıyor. */
+.cp-exam-page--list {
+  max-width: min(calc(48rem + 2.5rem), 100%);
+}
+
+.cp-exam-toolbar {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(0deg, var(--c-bg) 0%, var(--c-surface-2) 100%);
+}
+
+.cp-exam-toolbar-btn {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 0.8px solid #393e4c;
+  background: var(--c-bg);
+  font: var(--t-label-13);
+  letter-spacing: 0.2px;
+}
+
+.cp-exam-toolbar-btn:hover {
+  background: var(--c-surface-1);
+}
+
+.cp-catalog-tiles {
+  gap: 8px;
+}
+
+.cp-catalog-tile {
+  min-height: 92px;
+  gap: 10px;
+  padding: 14px 8px;
+  border: 0.8px solid var(--c-border);
+  border-radius: 24px;
+  background: var(--c-surface-1);
+}
+
+.cp-catalog-tile:hover {
+  border-color: var(--c-border-strong);
+}
+
+.cp-catalog-tile-icon {
+  background: var(--glass-bg);
+  box-shadow: var(--glass-inset);
+}
+
+.cp-catalog-tile-label {
+  font: var(--t-mono-s);
+  letter-spacing: 0.06em;
+}
+
+.cp-prep-row-title {
+  font: 600 1.125rem / 1.5556 var(--font-ui);
+  letter-spacing: normal;
+}
+
+.cp-prep-card {
+  border-color: #2c2c30;
+}
+
+.cp-prep-card-title {
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.cp-prep-card-meta {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.43;
+  color: var(--c-gray-150);
+}
+
+@media (min-width: 768px) {
+  .cp-exam-page--list > :not(.cp-exam-toolbar) {
+    margin-inline: 16px;
+  }
+}
+
+/* =============================================================================
+   Hazırlık sayfası (Astra, 17 Ekim 2026, tasarım 5. adım).
+   Geniş ekranda 1064 px kap, 72/32 boşluk; 420 px sabit sol kart (#141414, 24 px köşe,
+   32 px iç boşluk) + 56 px ara + 524 px yol. Düğümler üç boyutlu disk (PathPuck), yolu
+   birleştiren çizgi yok; sıradakinin üstünde tür simgeli ışık huzmesi.
+   ============================================================================= */
+.cp-path-lines {
+  display: none;
+}
+
+.cp-path-list .cp-exam-trail-node,
+.cp-path-list .cp-exam-trail-node.is-current,
+.cp-path-list .cp-path-node--hex.is-current {
+  width: 92px;
+  height: 62px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  opacity: 1;
+  color: var(--c-text);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.cp-path-list .cp-exam-trail-node:hover {
+  transform: translateY(-1px);
+}
+
+.cp-path-list .cp-exam-trail-node:active {
+  transform: translateY(3px);
+}
+
+.cp-path-list .cp-exam-trail-node.is-current {
+  filter: drop-shadow(0 0 18px rgba(67, 83, 243, 0.55));
+}
+
+.cp-path-list .cp-exam-trail-node.is-current::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  right: -12px;
+  top: 4px;
+  bottom: -6px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-top-color: transparent;
+  pointer-events: none;
+}
+
+.cp-puck {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.cp-puck-glyph {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cp-exam-trail-node--done .cp-puck-glyph {
+  color: #3a3d45;
+}
+
+.cp-exam-trail-node--locked .cp-puck-glyph {
+  color: var(--c-gray-450);
+}
+
+.cp-exam-trail-node--locked .cp-puck-glyph svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cp-puck-glyph .cp-path-letters {
+  font-size: 0.7rem;
+}
+
+.cp-path-beam {
+  position: absolute;
+  left: 50%;
+  bottom: calc(50% + 10px);
+  display: flex;
+  justify-content: center;
+  width: 46px;
+  height: 76px;
+  padding-top: 10px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.cp-path-beam-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+.cp-path-beam-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cp-path-beam-icon .cp-path-letters {
+  font-size: 0.55rem;
+}
+
+.cp-path-done-label {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + 58px);
+  font: var(--t-label-13);
+  letter-spacing: var(--ls-label);
+  color: var(--c-text-muted);
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.cp-prep-badge {
+  border-radius: 6px;
+  font: var(--t-mono-s);
+  letter-spacing: 0.06em;
+}
+
+.cp-prep-badge--next {
+  background: var(--c-action-soft);
+  color: var(--c-info);
+}
+
+.cp-prep-badge--score {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+}
+
+.cp-prep-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin: 0;
+  font: var(--t-label-13);
+  letter-spacing: var(--ls-label);
+  color: var(--c-text);
+}
+
+.cp-prep-hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-prep-hero-meta svg {
+  color: var(--c-text-muted);
+}
+
+.cp-prep-tab-icon {
+  display: none;
+  width: 16px;
+  height: 16px;
+}
+
+.cp-prep-hero-action--lesson {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .cp-prep-layout {
+    display: grid;
+    grid-template-columns: 420px minmax(0, 524px);
+    column-gap: 56px;
+    align-items: start;
+    justify-content: center;
+    max-width: min(1064px, 100%);
+    padding: 72px 32px 48px;
+  }
+
+  .cp-prep-layout > .cp-prep-actions {
+    grid-column: 1 / -1;
+  }
+
+  .cp-prep-aside {
+    position: sticky;
+    top: 112px;
+    display: flex;
+    flex-direction: column;
+    padding: 32px;
+    border-radius: 24px;
+    background: var(--c-surface-1);
+  }
+
+  .cp-prep-aside .cp-prep-hero {
+    display: contents;
+  }
+
+  .cp-prep-aside .cp-prep-hero-kicker {
+    order: 1;
+    margin: 0 0 8px;
+    font: var(--t-mono-m);
+    letter-spacing: 0.1em;
+  }
+
+  .cp-prep-aside .cp-prep-hero h1 {
+    order: 2;
+    margin: 0 0 16px;
+    font: var(--t-heading-xl);
+    letter-spacing: var(--ls-heading);
+    text-align: left;
+  }
+
+  .cp-prep-aside .cp-prep-hero-meta {
+    order: 3;
+    justify-content: flex-start;
+  }
+
+  .cp-prep-aside .cp-exam-source-note {
+    order: 4;
+    margin-top: 12px;
+    text-align: left;
+  }
+
+  .cp-prep-aside .cp-prep-tabbar {
+    order: 5;
+    position: static;
+    margin: 24px 0 0;
+    padding: 24px 0;
+    border-top: 1px solid var(--c-border);
+    border-bottom: 1px solid var(--c-border);
+    background: none;
+  }
+
+  .cp-prep-aside .cp-prep-tabbar-title {
+    display: none;
+  }
+
+  .cp-prep-aside .cp-prep-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    padding: 4px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--c-bg);
+  }
+
+  .cp-prep-aside .cp-prep-tabs button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-height: 56px;
+    border-radius: 12px;
+    font: var(--t-label-11);
+    letter-spacing: var(--ls-label);
+    text-transform: none;
+  }
+
+  .cp-prep-aside .cp-prep-tabs button.is-active {
+    background: var(--glass-bg);
+    box-shadow: var(--glass-inset);
+    color: var(--c-text);
+  }
+
+  .cp-prep-aside .cp-prep-tabs-pct {
+    display: none;
+  }
+
+  .cp-prep-aside .cp-prep-tab-icon {
+    display: block;
+  }
+
+  .cp-prep-aside .cp-prep-hero-actions {
+    order: 6;
+    justify-content: center;
+    gap: 24px;
+    margin: 24px 0 0;
+  }
+
+  .cp-prep-aside .cp-prep-hero-action--lesson {
+    display: flex;
+  }
+
+  .cp-prep-aside .cp-prep-hero-action {
+    font: var(--t-label-11);
+    letter-spacing: var(--ls-label);
+  }
+
+  .cp-prep-aside .cp-prep-hero-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--glass-bg);
+    box-shadow: var(--glass-inset);
+  }
+
+  .cp-prep-main {
+    min-width: 0;
+  }
+
+  .cp-prep-main .cp-zpath {
+    margin-top: 24px;
+  }
+
+  .cp-prep-main .cp-path-next,
+  .cp-prep-main .cp-prep-last {
+    width: 100%;
+  }
+}

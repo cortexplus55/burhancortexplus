@@ -41,7 +41,7 @@ export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
   const shown = tab === "upcoming" ? upcoming : past;
 
   return (
-    <div className="cp-exam-page">
+    <div className="cp-exam-page cp-exam-page--list">
       {/* Astra: tek şerit — solda Ara, sağda yeni hazırlık. */}
       <div className="cp-exam-toolbar">
         <Link href="/deneme-sinavlari/ara" className="cp-exam-toolbar-btn">
