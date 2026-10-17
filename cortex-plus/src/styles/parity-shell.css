@@ -8,6 +8,8 @@
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
+  /* Astra'nın uygulamasında tırnaklı başlık yok (17 Ekim 2026): kabukta başlık yazısı Figtree. */
+  --font-display: var(--font-ui, "Figtree", system-ui, sans-serif);
 }
 
 .cp-sor-top {
@@ -351,11 +353,13 @@
   color: var(--cp-muted);
 }
 
+/* Astra: karşılama piksel yazıyla (Jersey 10, 35 px, normal, +0.03em). */
 .cp-sor-hero-title {
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-family: var(--font-pixel);
+  font-size: clamp(1.75rem, 4vw, 2.1875rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1.03;
   color: var(--cp-text);
 }
 
@@ -387,9 +391,8 @@
 }
 
 .cp-sor-start-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font: var(--t-mono-m);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cp-muted);
 }
@@ -1065,10 +1068,11 @@
   position: absolute;
   top: -1.45rem;
   transform: translateX(-50%);
-  font-family: "Segoe Print", "Comic Sans MS", cursive;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #fbbf24;
+  font-family: var(--font-hand);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  color: var(--c-brand);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -4226,7 +4230,8 @@
   margin: 0;
   font-family: var(--font-display, Georgia, serif);
   font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: 400;
+  font-weight: 600;
+  letter-spacing: var(--ls-heading);
   line-height: 1.2;
 }
 
@@ -6034,7 +6039,7 @@
   margin: 0.35rem 0 1.15rem;
   font-family: var(--font-display, "DM Serif Display", Georgia, serif);
   font-size: clamp(1.85rem, 4vw, 2.4rem);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.12;
   letter-spacing: -0.02em;
   color: #fff;
@@ -7188,7 +7193,7 @@
 }
 
 .tool-input--mono {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.875rem;
 }
 
@@ -8055,7 +8060,7 @@
 
 .cp-class-invite-code {
   margin: 0.6rem 0 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -11157,7 +11162,7 @@
   flex-shrink: 0;
   padding: 0.55rem 1rem;
   border-radius: 999px;
-  background: var(--c-action, #3d5afe);
+  background: var(--c-action, var(--c-action));
   color: var(--c-on-action, #fff);
   font-size: 0.85rem;
   font-weight: 600;
@@ -11234,7 +11239,7 @@
 }
 
 .cp-catalog-tile-label {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -11331,7 +11336,7 @@
   flex-shrink: 0;
   padding: 0.45rem 0.85rem;
   border-radius: 999px;
-  background: var(--c-action, #3d5afe);
+  background: var(--c-action, var(--c-action));
   color: var(--c-on-action, #fff);
   font-size: 0.8rem;
   font-weight: 600;
@@ -12226,7 +12231,7 @@ a.cp-exam-search {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: var(--cp-bg, #050505);
+  background: var(--cp-bg, #0d0d0d);
 }
 
 /* Sekmeler en üstte ve yapışkan; başlık kaydırınca şeridin üstünde görünür. */
@@ -12239,7 +12244,7 @@ a.cp-exam-search {
   align-items: center;
   gap: 0.35rem;
   padding: 0.35rem 0 0.6rem;
-  background: linear-gradient(var(--cp-bg, #050505) 75%, transparent);
+  background: linear-gradient(var(--cp-bg, #0d0d0d) 75%, transparent);
 }
 
 .cp-prep-tabbar-title {
@@ -12276,7 +12281,7 @@ a.cp-exam-search {
   border-radius: 999px;
   background: transparent;
   color: var(--cp-muted);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -12305,7 +12310,7 @@ a.cp-exam-search {
 
 .cp-prep-hero-kicker {
   margin: 0;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -12352,7 +12357,7 @@ a.cp-exam-search {
 }
 
 .cp-prep-hero-action.is-on .cp-prep-hero-icon {
-  background: color-mix(in srgb, var(--c-action, #3d5afe) 30%, transparent);
+  background: color-mix(in srgb, var(--c-action, var(--c-action)) 30%, transparent);
 }
 
 /* Etiket rozetleri: SIRADAKİ, tür, yüzde. */
@@ -12370,7 +12375,7 @@ a.cp-exam-search {
   border-radius: 0.55rem;
   background: var(--c-surface-1, #232327);
   color: var(--cp-muted);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -12505,7 +12510,7 @@ a.cp-exam-search {
   margin-right: -3.5rem;
   border: 0;
   border-radius: 999px;
-  background: var(--c-action, #3d5afe);
+  background: var(--c-action, var(--c-action));
   color: #fff;
   cursor: pointer;
   z-index: 7;
@@ -12546,7 +12551,7 @@ a.cp-exam-search {
 }
 
 .cp-prep-goal-badge span:last-child {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;

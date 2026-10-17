@@ -673,8 +673,8 @@
 }
 
 .apw-choice--on .apw-check-box {
-  border-color: var(--c-action, #3d5afe);
-  background: var(--c-action, #3d5afe);
+  border-color: var(--c-action, var(--c-action));
+  background: var(--c-action, var(--c-action));
 }
 
 .apw-check-text {

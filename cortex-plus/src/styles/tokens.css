@@ -43,6 +43,29 @@
   /* --- Yazı --- */
   --font-display: "DM Serif Display", Georgia, serif;
   --font-ui: "Figtree", system-ui, sans-serif;
+  /* Astra yazı sistemi (17 Ekim 2026, birebir): etiket eşaralıklı, karşılama pikseli, el yazısı. */
+  --font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
+  --font-pixel: var(--font-pixel-face, "Jersey 10"), var(--font-ui);
+  --font-hand: var(--font-hand-face, "Caveat"), cursive;
+  /* Yazı ölçeği (Astra): başlık 600 ve -0.02em; etiketler 500 ve +0.01em. */
+  --t-display-l: 700 3.5rem / 1 var(--font-ui);
+  --t-heading-xl: 600 2.5rem / 1.02 var(--font-ui);
+  --t-heading-s: 600 1.75rem / 1.02 var(--font-ui);
+  --t-title-l: 600 1.25rem / 1.25 var(--font-ui);
+  --t-title-m: 600 1.125rem / 1.25 var(--font-ui);
+  --t-body-14: 400 0.875rem / 1.4 var(--font-ui);
+  --t-label-15: 500 0.9375rem / 1.25 var(--font-ui);
+  --t-label-13: 500 0.8125rem / 1.25 var(--font-ui);
+  --t-label-11: 500 0.6875rem / 1.25 var(--font-ui);
+  --t-button-l: 600 1rem / 1 var(--font-ui);
+  --t-button-s: 600 0.8125rem / 1 var(--font-ui);
+  --t-mono-l: 500 0.9375rem / 1.25 var(--font-mono);
+  --t-mono-m: 500 0.8125rem / 1.25 var(--font-mono);
+  --t-mono-s: 500 0.6875rem / 1.25 var(--font-mono);
+  --t-mono-xs: 500 0.5625rem / 1.25 var(--font-mono);
+  --ls-heading: -0.02em;
+  --ls-display: -0.03em;
+  --ls-label: 0.01em;
   --fs-12: 0.75rem;
   --fs-14: 0.875rem;
   --fs-16: 1rem;
@@ -76,6 +99,7 @@
   --r-lg: 16px;
   --r-xl: 20px;
   --r-2xl: 24px;
+  --r-3xl: 32px;
   --r-pill: 999px;
 
   /* --- Gölge --- */
@@ -209,37 +233,80 @@
 }
 
 .dark {
-  --c-bg: #050505;
-  --c-surface-1: #121212;
-  --c-surface-2: #1a1a1a;
-  --c-surface-3: #242424;
-  --c-border: rgba(255, 255, 255, 0.08);
-  --c-border-strong: rgba(255, 255, 255, 0.16);
-  --c-text: #fafafa;
-  --c-text-muted: #a3a3a3;
-  --c-text-subtle: #737373;
+  /*
+   * Astra paleti birebir (17 Ekim 2026, ürün sahibinin kararı). Gri skalası: 950 zemin,
+   * 920 yüzey, 880 yükselmiş yüzey, 860/810 çerçeve; mavi tek eylem rengi; sarı yalnız
+   * marka ve "hedef puan" gibi özel anlarda (seçim ve seçili menü nötr/mavi).
+   */
+  --c-gray-50: #f2f2f2;
+  --c-gray-150: #d9d9d9;
+  --c-gray-400: #999999;
+  --c-gray-450: #8c8c8c;
+  --c-gray-650: #595959;
+  --c-gray-750: #404040;
+  --c-gray-810: #303030;
+  --c-gray-860: #242424;
+  --c-gray-880: #1f1f1f;
+  --c-gray-920: #141414;
+  --c-gray-950: #0d0d0d;
+  --c-gray-970: #080808;
 
-  --background: 0 0% 2%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 7%;
+  --c-bg: #0d0d0d;
+  --c-surface-1: #141414;
+  --c-surface-2: #1f1f1f;
+  --c-surface-3: #242424;
+  --c-border: #242424;
+  --c-border-strong: #303030;
+  --c-text: #ffffff;
+  --c-text-muted: #999999;
+  --c-text-subtle: #8c8c8c;
+
+  --c-brand: #fdb300;
+  --c-brand-hover: #ffc233;
+  --c-brand-soft: #372c11;
+  --c-on-brand: #0d0d0d;
+
+  --c-action: #4353f3;
+  --c-action-hover: #4b5af4;
+  --c-action-pressed: #3e4de8;
+  --c-action-soft: #1b1d35;
+  --c-on-action: #ffffff;
+
+  --c-ai: #707dff;
+  --c-ai-soft: #1b1d35;
+
+  --c-success: #1dd3a2;
+  --c-success-soft: #153129;
+  --c-danger: #ff4d4d;
+  --c-danger-soft: #371d1d;
+  --c-warning: #ff901a;
+  --c-warning-soft: #372715;
+  --c-info: #707dff;
+  --c-info-soft: #1b1d35;
+  --c-focus: #4353f3;
+  --glow-action: 0 8px 24px rgba(67, 83, 243, 0.28);
+
+  --background: 0 0% 5%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 8%;
   --card-foreground: 0 0% 98%;
-  --popover: 0 0% 7%;
+  --popover: 0 0% 8%;
   --popover-foreground: 0 0% 98%;
-  --primary: 230 99% 62%;
+  --primary: 235 88% 61%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 10%;
   --secondary-foreground: 0 0% 98%;
   --muted: 0 0% 12%;
-  --muted-foreground: 0 0% 64%;
+  --muted-foreground: 0 0% 60%;
   --accent: 0 0% 12%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 98%;
   --border: 0 0% 14%;
   --input: 0 0% 14%;
-  --ring: 42 91% 51%;
-  --brand: 42 91% 51%;
-  --brand-foreground: 0 0% 2%;
+  --ring: 235 88% 61%;
+  --brand: 42 100% 50%;
+  --brand-foreground: 0 0% 5%;
 }
 
 @media (prefers-reduced-motion: reduce) {

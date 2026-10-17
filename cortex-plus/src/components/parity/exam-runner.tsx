@@ -299,7 +299,7 @@ export function ParityExamRunner({
       </header>
 
       <div
-        className="mt-0 h-[3px] bg-[color:color-mix(in_srgb,#3d5afe_20%,transparent)]"
+        className="mt-0 h-[3px] bg-[color:color-mix(in_srgb,var(--c-action)_20%,transparent)]"
         aria-hidden
       >
         <div
@@ -326,7 +326,7 @@ export function ParityExamRunner({
           <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-[color:var(--cp-muted)]">
             Soru {index + 1}
           </span>
-          <span className="rounded-full bg-[color:color-mix(in_srgb,#3d5afe_20%,transparent)] px-2.5 py-1 text-xs text-[color:var(--cp-text)]">
+          <span className="rounded-full bg-[color:color-mix(in_srgb,var(--c-action)_20%,transparent)] px-2.5 py-1 text-xs text-[color:var(--cp-text)]">
             {questionTypeChip(type, current.points)}
           </span>
           {current.points != null ? (
@@ -373,7 +373,7 @@ export function ParityExamRunner({
                   className={cn(
                     "flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition-colors duration-150",
                     on
-                      ? "border-[#3d5afe] bg-[color:color-mix(in_srgb,#3d5afe_14%,transparent)]"
+                      ? "border-[var(--c-action)] bg-[color:color-mix(in_srgb,var(--c-action)_14%,transparent)]"
                       : "border-[color:var(--cp-border)] bg-[color:var(--cp-surface-2)] hover:bg-white/5",
                   )}
                   onClick={() => {
@@ -518,7 +518,7 @@ export function ParityExamRunner({
                       "relative flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold",
                       i === index && "ring-2 ring-white",
                       has
-                        ? "bg-[color:color-mix(in_srgb,#3d5afe_20%,transparent)]"
+                        ? "bg-[color:color-mix(in_srgb,var(--c-action)_20%,transparent)]"
                         : "bg-[color:var(--cp-surface-2)]",
                     )}
                     onClick={() => {

@@ -22,7 +22,7 @@ function StatCard({
       <p className="text-12 font-semibold uppercase tracking-[0.08em] text-[var(--c-text-muted)]">
         {label}
       </p>
-      <p className="mt-1 font-display text-28 text-[var(--c-text)] tabular-nums">{value}</p>
+      <p className="mt-1 text-28 font-semibold tracking-[-0.02em] text-[var(--c-text)] tabular-nums">{value}</p>
       {hint ? <p className="mt-1 text-14 text-[var(--c-text-muted)]">{hint}</p> : null}
     </div>
   );

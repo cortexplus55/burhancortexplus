@@ -85,7 +85,7 @@ export function ExamQuizPlay({
         aria-valuemax={100}
       >
         <div
-          className="h-full rounded-full bg-[var(--cp-action,#3d5afe)] transition-[width] duration-300"
+          className="h-full rounded-full bg-[var(--cp-action)] transition-[width] duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -120,7 +120,7 @@ export function ExamQuizPlay({
                     : missedCorrect
                       ? "bg-[rgba(245,158,11,.14)] border-[var(--c-warning,#f59e0b)] text-[var(--cp-text)]"
                       : selectedThis
-                        ? "bg-[rgba(61,90,254,.16)] border-[var(--cp-action,#3d5afe)] text-[var(--cp-text)]"
+                        ? "bg-[color-mix(in_srgb,var(--c-action)_16%,transparent)] border-[var(--cp-action)] text-[var(--cp-text)]"
                         : "bg-[var(--cp-surface)] hover:bg-[var(--cp-surface-2)] border-[var(--cp-border)] text-[var(--cp-text)]",
               )}
             >
@@ -135,7 +135,7 @@ export function ExamQuizPlay({
                       : missedCorrect
                         ? "bg-[var(--c-warning,#f59e0b)] text-black"
                         : selectedThis
-                          ? "bg-[var(--cp-action,#3d5afe)] text-white"
+                          ? "bg-[var(--cp-action)] text-white"
                           : "bg-[var(--cp-surface-2)] text-[var(--cp-muted)] border border-[var(--cp-border)]",
                 )}
               >

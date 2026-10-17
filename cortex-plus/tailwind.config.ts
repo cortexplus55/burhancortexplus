@@ -108,6 +108,9 @@ export default {
       fontFamily: {
         display: ["var(--font-display)", "Georgia", "serif"],
         ui: ["var(--font-ui)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)"],
+        pixel: ["var(--font-pixel)"],
+        hand: ["var(--font-hand)"],
       },
       fontSize: {
         12: "var(--fs-12)",
