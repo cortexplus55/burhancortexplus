@@ -30,7 +30,9 @@ export type FeatureKey =
   | "oral_transcribe"
   | "advanced_chat"
   | "photo_quota_plus"
-  | "photo_quota_sigma";
+  | "photo_quota_sigma"
+  /** Video ders: yalnız Plus ve Sigma (17 Ekim 2026, ürün sahibinin kararı). */
+  | "video";
 
 export type UserEntitlements = {
   /** Kayıtsız istek `guest`. Aboneliği olmayan hesap `free`. */
@@ -74,6 +76,8 @@ function featureMap(input: {
     advanced_chat: input.advancedChat,
     photo_quota_plus: input.photoPlus,
     photo_quota_sigma: input.photoSigma,
+    // Ücretli kademe (Plus ve Sigma) — fotoğraf kotasıyla aynı sınır.
+    video: input.photoPlus,
   };
 }
 

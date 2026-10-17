@@ -1,0 +1,208 @@
+import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
+
+/**
+ * Video ders (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi).
+ *
+ * Astra'da canlı bakıldı: "1 dakikalık video dersi izle — Hızlı ve görsel", stil seçimi
+ * (Gerçekçi · Çizgi roman · Beyaz tahta · Brainrot · Mem), konu seçimi; çıktı dikey,
+ * 66 sn, 6-8 sahne, her sahnede ayrı bir çizim, 2-4 kelimelik akan alt yazı ve
+ * anlatıcı sesi. Kararla bizde video oynatıcıda birleşir: sahne resimleri, sahne başına
+ * ses ve alt yazı ayrı saklanır; yalnız Plus.
+ *
+ * Senaryo öğretmen motoru kalıbında: kaynak sayfalar → tek yazar istemi → kaynakla
+ * eşleyen denetim → gerekirse bir düzeltme. Kod anlatıma bir şey eklemez.
+ */
+
+export type VideoStyle = "realistic" | "comic" | "whiteboard" | "brainrot" | "meme";
+
+export const VIDEO_STYLES: { id: VideoStyle; emoji: string; label: string; blurb: string; image: string }[] = [
+  {
+    id: "realistic",
+    emoji: "🏞️",
+    label: "Gerçekçi",
+    blurb: "Gerçeğe yakın sahneler, zengin detay",
+    image: "photorealistic educational illustration, rich detail, soft natural light",
+  },
+  {
+    id: "comic",
+    emoji: "💥",
+    label: "Çizgi roman",
+    blurb: "Kalın çizgiler, canlı renkler",
+    image: "comic book illustration, bold ink outlines, vivid flat colors, dynamic composition",
+  },
+  {
+    id: "whiteboard",
+    emoji: "✏️",
+    label: "Beyaz tahta",
+    blurb: "Basit çizimler, beyaz arka plan",
+    image: "whiteboard sketch, simple black marker line drawing on a plain white background, minimal shading",
+  },
+  {
+    id: "brainrot",
+    emoji: "🧠",
+    label: "Brainrot",
+    blurb: "Oyun görselleri, hızlı tempo",
+    image: "video game style 3D render, saturated colors, playful exaggerated scene, energetic",
+  },
+  {
+    id: "meme",
+    emoji: "💀",
+    label: "Mem",
+    blurb: "Mem biçimleri, kalın yazılar",
+    image: "funny internet meme style illustration, expressive cartoon character reaction, simple background",
+  },
+];
+
+export function videoStyle(id: string | null | undefined): (typeof VIDEO_STYLES)[number] {
+  return VIDEO_STYLES.find((item) => item.id === id) ?? VIDEO_STYLES[2]!;
+}
+
+export const VIDEO_MIN_SCENES = 5;
+export const VIDEO_MAX_SCENES = 8;
+/** Bir sahnenin anlatımı: 1-2 cümle, en çok 30 kelime (yaklaşık 8-11 sn). */
+export const VIDEO_SCENE_MAX_WORDS = 30;
+/** Bütün video: yaklaşık 1 dakika. */
+export const VIDEO_TOTAL_WORDS = { min: 110, max: 190 } as const;
+
+export type VideoScene = { narration: string; visual: string };
+export type VideoScript = { title: string; scenes: VideoScene[] };
+
+export type VideoInput = {
+  mode: TeacherLessonMode;
+  topicLabel: string;
+  prepTitle: string;
+  pages: { page: number; text: string }[];
+  style: VideoStyle;
+};
+
+const SCHEMA =
+  '{"title":"videonun kısa adı","scenes":[{"narration":"1-2 cümle anlatım","visual":"bu sahnenin resmini anlatan İngilizce tarif, yazısız"}]}';
+
+const RULE_DOCUMENT =
+  "KAYNAK KURALI (kesin): Anlatımdaki her olgu, sayı, tanım ve kural yalnız KAYNAK metninden gelir. Kaynakta yoksa " +
+  "söyleme; genel kültürden ekleme. Kaynaktaki bozuk kelimeyi doğru Türkçeyle söyle.\n\n";
+
+const RULE_TOPIC =
+  "BİLGİ KURALI (belgesiz, kesin): Konuyu sınav müfredatındaki yerleşik, tartışmasız bilgiyle anlat. Emin olmadığın " +
+  "sayı, eşik ya da kuralı söyleme.\n\n";
+
+export function videoSystem(mode: TeacherLessonMode): string {
+  return (
+    "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor; konunun özünü yaklaşık 1 dakikalık dikey bir " +
+    "video derste izleyecek. Ekranda her sahnede tek bir resim ve senin anlatımın akıyor.\n\n" +
+    (mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
+    "AKIŞ:\n" +
+    `- ${VIDEO_MIN_SCENES}-${VIDEO_MAX_SCENES} sahne, toplam ${VIDEO_TOTAL_WORDS.min}-${VIDEO_TOTAL_WORDS.max} kelime.\n` +
+    `- Her sahnenin anlatımı 1-2 kısa cümle, en çok ${VIDEO_SCENE_MAX_WORDS} kelime; konuşur gibi, 'sen' diye.\n` +
+    "- İlk sahne merak uyandıran bir kanca (bir soru ya da karşılaştırma); son sahne sınavda akılda kalacak tek cümlelik " +
+    "özet. Aradaki sahneler konunun en önemli 3-5 noktasını sırayla anlatır: ne olduğu, neyle karıştırıldığı, sınavda " +
+    "nasıl tanınacağı. Bir olguyu söylediğinde nedenini de söyle.\n" +
+    "- Boş cümle yok ('bu videoda … öğreneceğiz', 'önemli bir konudur'). Kaynağa atıf yok ('metne göre', 'belgede').\n" +
+    "- visual: o sahnenin resmini İngilizce tarif et — sahnedeki nesne, beden bölgesi, olay ya da karşılaştırma; " +
+    "resimde YAZI, harf, sayı, etiket olmaz. Gerçek kişi, marka ya da logo olmaz. Tek cümle, somut.\n\n" +
+    `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SCHEMA}`
+  );
+}
+
+export function videoUserPrompt(input: VideoInput): string {
+  return [
+    `SINAV: ${input.prepTitle}`,
+    `KONU: ${input.topicLabel}`,
+    input.mode === "topic" ? "KAYNAK: (yok — belgesiz; konunun yerleşik bilgisiyle anlat)" : `KAYNAK:\n${sourceText(input.pages)}`,
+  ].join("\n\n");
+}
+
+export const VIDEO_VERIFY_SYSTEM =
+  "Sen titiz bir video ders denetçisisin. Senaryoyu yazıldığı KAYNAK ile (belgesizse konunun yerleşik bilgisiyle) " +
+  "karşılaştırıyorsun. Şunları bul:\n" +
+  "A) Kaynakta dayanağı olmayan ya da kaynakla çelişen olgu, sayı, tanım, kural (belgesizde: yanlış ya da tartışmalı bilgi).\n" +
+  "B) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
+  "C) Bilgi taşımayan boş cümle ya da kaynağa atıf ('metne göre').\n" +
+  "D) visual tarifinde yazı/etiket isteği, gerçek kişi ya da marka.\n" +
+  "A-B 'high'; C-D 'low'.\n" +
+  'JSON döndür: {"issues":[{"scene":0,"severity":"high","problem":"…","fix":"…"}]} — scene 0\'dan başlar. Sorun yoksa boş dizi.';
+
+export function videoVerifyUserPrompt(script: VideoScript, input: VideoInput): string {
+  return `${videoUserPrompt(input)}\n\nSENARYO (JSON):\n${JSON.stringify(script)}`;
+}
+
+export const VIDEO_FIX_PREFIX =
+  "Sen aynı video dersi yazan öğretmensin. Denetçinin bulduğu sorunları düzelt; sorunsuz sahnelere dokunma. " +
+  "Kurallar ve şema aynı:\n\n";
+
+export function videoFixUserPrompt(script: VideoScript, problems: string[], input: VideoInput): string {
+  return [videoUserPrompt(input), `SENARYO (JSON):\n${JSON.stringify(script)}`, `SORUNLAR:\n${problems.join("\n")}`].join("\n\n");
+}
+
+const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+/** Model çıktısını senaryo tipine oturtur; metne bir şey eklemez, yalnız kırpar. */
+export function parseVideoScript(raw: unknown, fallbackTitle: string): VideoScript | null {
+  const row = (raw ?? {}) as Record<string, unknown>;
+  const list = Array.isArray(row.scenes) ? row.scenes : [];
+  const scenes = list.flatMap((item) => {
+    const scene = (item ?? {}) as Record<string, unknown>;
+    const narration = typeof scene.narration === "string" ? scene.narration.replace(/\s+/g, " ").trim() : "";
+    const visual = typeof scene.visual === "string" ? scene.visual.replace(/\s+/g, " ").trim() : "";
+    return narration && visual ? [{ narration, visual }] : [];
+  });
+  if (!scenes.length) return null;
+  const title = typeof row.title === "string" && row.title.trim() ? row.title.trim().slice(0, 120) : fallbackTitle;
+  return { title, scenes: scenes.slice(0, VIDEO_MAX_SCENES) };
+}
+
+/** Yapı denetimi (saf). Sorunu düzeltmez; düzeltme turuna yollar. */
+export function videoStructureIssues(script: VideoScript): string[] {
+  const issues: string[] = [];
+  if (script.scenes.length < VIDEO_MIN_SCENES) issues.push(`Sahne sayısı ${script.scenes.length}; en az ${VIDEO_MIN_SCENES} olmalı.`);
+  const total = script.scenes.reduce((sum, scene) => sum + words(scene.narration), 0);
+  if (total < VIDEO_TOTAL_WORDS.min || total > VIDEO_TOTAL_WORDS.max) {
+    issues.push(`Toplam ${total} kelime; ${VIDEO_TOTAL_WORDS.min}-${VIDEO_TOTAL_WORDS.max} olmalı (yaklaşık 1 dakika).`);
+  }
+  script.scenes.forEach((scene, index) => {
+    if (words(scene.narration) > VIDEO_SCENE_MAX_WORDS) {
+      issues.push(`scenes[${index}]: anlatım ${words(scene.narration)} kelime; en çok ${VIDEO_SCENE_MAX_WORDS}.`);
+    }
+    if (/metne göre|belgede|kaynakta|bu videoda/i.test(scene.narration)) {
+      issues.push(`scenes[${index}]: kaynağa atıf ya da boş giriş cümlesi; çıkar.`);
+    }
+  });
+  return issues;
+}
+
+/** Resim istemi: sahne tarifi + stil; yazısız, dikey. */
+export function videoImagePrompt(scene: VideoScene, style: VideoStyle): string {
+  const look = videoStyle(style).image;
+  return `${scene.visual}. Style: ${look}. Vertical 9:16 composition, single clear focal subject, no text, no letters, no numbers, no labels, no watermark.`;
+}
+
+/**
+ * Alt yazı parçaları: anlatım 2-4 kelimelik parçalara bölünür (Astra'da ekranda akan
+ * kalın yazı); süre sahnenin sesine kelime sayısıyla oranlanır.
+ */
+export function captionChunks(narration: string, durationMs: number): { text: string; startMs: number; endMs: number }[] {
+  const tokens = narration.split(/\s+/).filter(Boolean);
+  if (!tokens.length) return [];
+  const chunks: string[][] = [];
+  let current: string[] = [];
+  for (const token of tokens) {
+    current.push(token);
+    const ends = /[.,;:!?]$/.test(token);
+    if (current.length >= 4 || (ends && current.length >= 2)) {
+      chunks.push(current);
+      current = [];
+    }
+  }
+  if (current.length) {
+    if (current.length === 1 && chunks.length) chunks[chunks.length - 1]!.push(current[0]!);
+    else chunks.push(current);
+  }
+  const perWord = durationMs / tokens.length;
+  let cursor = 0;
+  return chunks.map((chunk) => {
+    const startMs = Math.round(cursor * perWord);
+    cursor += chunk.length;
+    return { text: chunk.join(" "), startMs, endMs: Math.round(cursor * perWord) };
+  });
+}

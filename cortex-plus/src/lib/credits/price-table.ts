@@ -34,6 +34,11 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
   STUDY_PLAN_GENERATE: { credits: 6, per: "ders" },
   PODCAST_GENERATE: { credits: 12, per: "podcast" },
   ORAL_EXAM_GENERATE: { credits: 8, per: "sözlü deneme" },
+  /**
+   * Video ders (17 Ekim 2026): 6-8 sahne resmi + ~1 dk seslendirme + senaryo. Resimler
+   * işin büyük kısmı (Astra: "Aylık limitinden daha fazlasını kullanır"); yalnız Plus.
+   */
+  VIDEO_GENERATE: { credits: 280, per: "video ders" },
   EXPORT_PDF: { credits: 0, per: "dışa aktarma" },
   AUDIO_SYNTHESIZE: { credits: 2, per: "900 karakter" },
 };
