@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Info, Loader2 } from "lucide-react";
+import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import "@/styles/paper-exam.css";
 import {
   MOCK_MINUTES_MAX,
   MOCK_MINUTES_MIN,
@@ -52,6 +53,8 @@ export function MockExamSetup({
   // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
   const [minutes, setMinutes] = useState(() => presetMinutes(formatSummary ? "real" : "standard"));
   const [untimed, setUntimed] = useState(false);
+  /** Astra: "Nasıl çözmek istiyorsun?" — uygulamada ya da kâğıtta (17 Ekim 2026). */
+  const [answerMode, setAnswerMode] = useState<"app" | "paper" | null>(null);
 
   const creditNote = isAdmin
     ? "Kurucu hesabı: bu deneme hakkından düşmez."
@@ -92,7 +95,7 @@ export function MockExamSetup({
       }
       if (payload.note) toast.message(payload.note);
       setProgress((p) => [...p, "Sorular hazır."]);
-      router.push(`/deneme-sinavlari/${prepId}/deneme/${payload.examId}`);
+      router.push(`/deneme-sinavlari/${prepId}/deneme/${payload.examId}${answerMode === "paper" ? "?kagit=1" : ""}`);
     } catch {
       toast.error("Bağlantı hatası.");
       setLoading(false);
@@ -123,8 +126,37 @@ export function MockExamSetup({
     );
   }
 
+  if (!answerMode) {
+    return (
+      <div className="mx-auto max-w-[640px] px-4 py-8">
+        <p className="text-xs font-semibold tracking-widest text-[color:var(--cp-gold,#f4ae0b)]">YAZILI DENEME</p>
+        <h1 className="mt-2 text-[28px] leading-tight text-[color:var(--cp-text)]">Nasıl çözmek istiyorsun?</h1>
+        <p className="mt-2 text-[15px] text-[color:var(--cp-muted)]">
+          Uygulamada çöz ya da çalışma kâğıdını yazdırıp kâğıt üzerinde çöz.
+        </p>
+        <div className="cp-answer-modes">
+          <button type="button" className="cp-answer-mode" onClick={() => setAnswerMode("app")}>
+            <Smartphone className="h-6 w-6" aria-hidden />
+            <strong>Uygulamada</strong>
+            <span>Her soruyu alıştığın gibi burada cevapla.</span>
+            <em>Uygulamayı seç</em>
+          </button>
+          <button type="button" className="cp-answer-mode" onClick={() => setAnswerMode("paper")}>
+            <Printer className="h-6 w-6" aria-hidden />
+            <strong>Kâğıtta</strong>
+            <span>Çalışma kâğıdını yazdır, süre tutarak çöz ve değerlendirme için fotoğrafını çek. Bir yazıcın olmalı.</span>
+            <em>Kâğıdı seç</em>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-[640px] px-4 py-8">
+      <button type="button" className="cp-answer-mode-back" onClick={() => setAnswerMode(null)}>
+        {answerMode === "paper" ? "Kâğıtta çözülecek · değiştir" : "Uygulamada çözülecek · değiştir"}
+      </button>
       <p className="text-xs font-semibold tracking-widest text-[color:var(--cp-gold,#f4ae0b)]">
         YAZILI DENEME
       </p>
@@ -322,7 +354,11 @@ export function MockExamSetup({
       <div className="mt-8 flex gap-3 rounded-2xl border border-[color:var(--cp-border)] bg-[color:var(--cp-surface-2)] p-4 text-sm text-[color:var(--cp-muted)]">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <ul className="list-disc space-y-1 pl-4">
-          <li>Sınav sırasında ipucu ve sohbet kapalı.</li>
+          {answerMode === "paper" ? (
+            <li>Kâğıdı yazdırıp süre tutarak çözersin; bitince her sayfanın fotoğrafını yüklersin, el yazını okuyup notlandırırız.</li>
+          ) : (
+            <li>Sınav sırasında ipucu ve sohbet kapalı.</li>
+          )}
           <li>
             {untimed
               ? "Süre sınırı yok; bitirdiğinde cevaplarını sen gönderirsin."

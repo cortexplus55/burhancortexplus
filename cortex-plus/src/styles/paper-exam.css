@@ -1,0 +1,470 @@
+/* Kâğıtta çöz (17 Ekim 2026, Astra'daki gibi). */
+
+.cp-answer-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 560px) {
+  .cp-answer-modes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cp-answer-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-answer-mode:hover {
+  border-color: #3d5afe;
+}
+
+.cp-answer-mode strong {
+  font-size: 1.05rem;
+}
+
+.cp-answer-mode span {
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-answer-mode em {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: #3d5afe;
+  color: #fff;
+  font-style: normal;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cp-answer-mode-back {
+  margin-bottom: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cp-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cp-paper {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.cp-paper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.cp-paper-step h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.cp-paper-quiet {
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  color: var(--cp-muted);
+}
+
+.cp-paper-lead {
+  margin: 0;
+  max-width: 30rem;
+  font-size: 0.92rem;
+  color: var(--cp-muted);
+}
+
+.cp-paper-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--cp-muted);
+}
+
+.cp-paper-preview {
+  width: min(100%, 22rem);
+  padding: 1.2rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #fafaf7;
+  color: #1b1b1b;
+  text-align: left;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.cp-paper-preview-kicker {
+  margin: 0;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+}
+
+.cp-paper-preview h2 {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 1rem;
+}
+
+.cp-paper-preview ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.cp-paper-preview-more {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #6b6b6b;
+}
+
+.cp-paper-primary,
+.cp-paper-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-paper-primary {
+  width: min(100%, 26rem);
+  min-height: 3rem;
+  border: 0;
+  background: #3d5afe;
+  color: #fff;
+}
+
+.cp-paper-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cp-paper-secondary {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.875rem;
+}
+
+.cp-paper-ring {
+  position: relative;
+  width: 11rem;
+  height: 11rem;
+  margin: 1rem 0;
+}
+
+.cp-paper-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.cp-paper-ring-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 6;
+}
+
+.cp-paper-ring-fill {
+  fill: none;
+  stroke: #3d5afe;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.cp-paper-ring > span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.cp-paper-ring strong {
+  font-size: 2.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-paper-ring small {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-paper-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 1.5rem 1rem;
+  border-radius: 1.25rem;
+  border: 1.5px dashed var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.cp-paper-drop.is-over {
+  border-color: #3d5afe;
+}
+
+.cp-paper-drop p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.cp-paper-drop > span {
+  font-size: 0.8rem;
+  color: var(--cp-muted);
+}
+
+.cp-paper-drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.cp-paper-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-paper-photos li {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  border: 1px solid var(--cp-border);
+}
+
+.cp-paper-photos img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cp-paper-photos button {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  cursor: pointer;
+}
+
+.cp-paper-qr-back {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.cp-paper-qr {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: min(100%, 22rem);
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: #161618;
+  text-align: center;
+}
+
+.cp-paper-qr h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.cp-paper-qr p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--cp-muted);
+}
+
+.cp-paper-qr img {
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.cp-paper-qr-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: #242428;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Çalışma kâğıdı: ekranda gizli, yalnız baskıda. */
+.cp-paper-sheet {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .cp-paper-sheet,
+  .cp-paper-sheet * {
+    visibility: visible !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .cp-paper-sheet {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    color: #000;
+    background: #fff;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 11.5pt;
+    line-height: 1.45;
+  }
+
+  .cp-paper-sheet header h1 {
+    margin: 2mm 0 1mm;
+    font-size: 17pt;
+  }
+
+  .cp-paper-sheet header p {
+    margin: 0;
+  }
+
+  .cp-paper-sheet-brand {
+    font-family: Arial, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .cp-paper-sheet-fields {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 6mm;
+    margin: 5mm 0 3mm;
+  }
+
+  .cp-paper-sheet-fields span {
+    padding-bottom: 6mm;
+    border-bottom: 1px solid #000;
+  }
+
+  .cp-paper-sheet-rule {
+    margin: 0 0 5mm;
+    font-size: 10pt;
+    font-style: italic;
+  }
+
+  .cp-paper-sheet > ol {
+    margin: 0;
+    padding-left: 6mm;
+  }
+
+  .cp-paper-sheet > ol > li {
+    margin-bottom: 6mm;
+    break-inside: avoid;
+  }
+
+  .cp-paper-sheet-q {
+    margin: 0 0 2mm;
+  }
+
+  .cp-paper-sheet-note {
+    margin: 0 0 2mm;
+    font-size: 9.5pt;
+    font-style: italic;
+  }
+
+  .cp-paper-sheet-options {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cp-paper-sheet-options li {
+    display: flex;
+    align-items: baseline;
+    gap: 2.5mm;
+    margin: 1.2mm 0;
+  }
+
+  .cp-paper-sheet-box {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 3.6mm;
+    height: 3.6mm;
+    border: 1px solid #000;
+  }
+
+  .cp-paper-sheet-lines {
+    height: 18mm;
+    background-image: repeating-linear-gradient(transparent 0 8.5mm, #999 8.5mm 8.8mm);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cp-paper-sheet-lines.is-long {
+    height: 45mm;
+  }
+}

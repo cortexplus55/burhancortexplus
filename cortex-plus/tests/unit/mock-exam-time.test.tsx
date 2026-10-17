@@ -49,6 +49,8 @@ describe("yazılı deneme süresi", () => {
         allocationPreview={[{ topicLabel: "Birim Çember", count: 20, examHeavy: false }]}
       />,
     );
+    // 17 Ekim 2026: önce çözüm yolu soruluyor (Astra: "Nasıl çözmek istiyorsun?").
+    fireEvent.click(screen.getByRole("button", { name: /Uygulamada/ }));
     return bodies;
   }
 
