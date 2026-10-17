@@ -13191,3 +13191,47 @@ a.cp-exam-search {
     width: 100%;
   }
 }
+
+/* =============================================================================
+   3B simge seti (17 Ekim 2026, tasarım 7. adım). Görsel kendi gölgesini ve rengini taşır;
+   eski renkli kare, cam daire ya da madalya çizimi görselin arkasında kalmasın.
+   ============================================================================= */
+.cp-icon3d {
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.cp-catalog-tile-icon.cp-catalog-tile-icon--3d,
+.cp-study-hub-icon.cp-study-hub-icon--3d,
+.tool-icon.tool-icon--3d {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.cp-ref-art {
+  display: block;
+  margin-bottom: 0.6rem;
+}
+
+.cp-jr-art {
+  position: relative;
+  margin-bottom: 0.35rem;
+}
+
+.cp-empty-art {
+  display: block;
+  margin: 0 auto 0.75rem;
+}
+
+.cp-exam-discover .cp-empty-art {
+  margin: 0 0 0.75rem;
+}
+
+.cp-stars-mine-icon.cp-icon3d {
+  width: 3.5rem;
+  height: 3.5rem;
+}

@@ -3,22 +3,8 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import {
-  BookOpen,
-  CheckCheck,
-  Clapperboard,
-  Crosshair,
-  FileQuestion,
-  Headphones,
-  Layers,
-  ListChecks,
-  Mic,
-  Puzzle,
-  Repeat,
-  Sparkles,
-  X,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { X } from "lucide-react";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import "@/styles/oral-exam-chrome.css";
 import {
   STUDY_PATH_HINT,
@@ -35,19 +21,20 @@ import {
   type StudyToolId,
 } from "@/lib/learning/study-tools";
 
-const TOOL_ICONS: Record<StudyToolId, LucideIcon> = {
-  lesson: BookOpen,
-  podcast: Headphones,
-  video: Clapperboard,
-  oral: Mic,
-  written_exam: FileQuestion,
-  quiz: ListChecks,
-  flashcards: Layers,
-  qa: Sparkles,
-  gaps: Puzzle,
-  focused: Crosshair,
-  true_false: CheckCheck,
-  spaced: Repeat,
+/** 3B simge seti (tasarım 7. adım); her araç kendi görseliyle. */
+const TOOL_ICONS: Record<StudyToolId, Icon3DName> = {
+  lesson: "ders",
+  podcast: "podcast",
+  video: "video",
+  oral: "sozlu",
+  written_exam: "yazili",
+  quiz: "konu-testi",
+  flashcards: "kartlar",
+  qa: "ogretmen",
+  gaps: "bosluk",
+  focused: "alistirma",
+  true_false: "dogru-yanlis",
+  spaced: "tekrar",
 };
 
 /**
@@ -137,7 +124,6 @@ export function StudyToolsHub({
         </div>
         <ul className="cp-study-hub-grid">
           {STUDY_TOOLS.filter((tool) => tool.group === group).map((tool) => {
-            const Icon = TOOL_ICONS[tool.id];
             const lock = studyToolLock(tool.id, { nodes, openMisconceptions });
             const href = lock
               ? null
@@ -153,8 +139,8 @@ export function StudyToolsHub({
                   })();
             const body = (
               <>
-                <span className={`cp-study-hub-icon cp-study-hub-icon--${tool.id}`} aria-hidden>
-                  <Icon className="h-5 w-5" />
+                <span className={`cp-study-hub-icon cp-study-hub-icon--${tool.id} cp-study-hub-icon--3d`} aria-hidden>
+                  <Icon3D name={TOOL_ICONS[tool.id]} size={40} />
                 </span>
                 {recommended?.id === tool.id ? <span className="cp-study-hub-badge">Önerilen</span> : null}
                 <strong>{lock ? `🔒 ${tool.title}` : tool.title}</strong>
