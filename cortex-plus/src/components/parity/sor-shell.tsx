@@ -210,21 +210,39 @@ export function ParitySorShell({
               ) : null}
             </Link>
 
-            <nav className="cp-sor-topnav" aria-label="Ana bölümler">
-              {studentTopTabs.map((tab) => {
-                const active = tab.match(pathname);
-                return (
-                  <Link
-                    key={tab.id}
-                    href={tab.href}
-                    className={cn("cp-sor-topnav-link", active && "cp-sor-topnav-link--active")}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </nav>
+            {/* Astra (17 Ekim 2026): simgeli sekme grubu ve yanında ayrı "Daha fazla" kutusu.
+                Telefonda sekmeler altta; "Daha fazla" sağ üstte kalır. */}
+            <div className="cp-sor-topnav-group">
+              <nav className="cp-sor-topnav" aria-label="Ana bölümler">
+                {studentTopTabs.map((tab) => {
+                  const active = tab.match(pathname);
+                  const Icon = tab.icon;
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={tab.href}
+                      className={cn("cp-sor-topnav-link", active && "cp-sor-topnav-link--active")}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon className="cp-sor-topnav-icon" aria-hidden />
+                      {tab.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+              {minimalTop ? null : (
+                <button
+                  type="button"
+                  className="cp-sor-more cp-sor-more--center"
+                  aria-label="Daha fazla"
+                  aria-expanded={menuOpen}
+                  onClick={() => setMenuOpen(true)}
+                >
+                  <LayoutGrid className="h-5 w-5" aria-hidden />
+                  <span className="cp-sor-more-label">Daha fazla</span>
+                </button>
+              )}
+            </div>
           </>
         )}
 
@@ -260,7 +278,7 @@ export function ParitySorShell({
             <StarsButton />
             <button
               type="button"
-              className="cp-sor-more"
+              className="cp-sor-more cp-sor-more--side"
               aria-label="Daha fazla"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen(true)}

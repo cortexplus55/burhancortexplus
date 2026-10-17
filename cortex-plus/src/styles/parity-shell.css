@@ -12591,3 +12591,188 @@ a.cp-exam-search {
 .cp-path-next {
   width: min(100%, 36rem);
 }
+
+/* =============================================================================
+   Astra kabuğu (17 Ekim 2026, tasarım 3. adım; ölçümler docs/delivery/TASARIM-ASTRA-17-EKIM.md).
+   Üst çubuk 96 px; ortada simgeli sekme grubu (#141414 kapsül, 48 px, iç boşluk 4 px;
+   sekme 40 px, 0 14 px, simge 20 px, 13 px / 600) ve yanında ayrı "Daha fazla" kapsülü;
+   seçili sekme ve sağ üstteki küçük düğmeler "cam" yüzey. Önceki katmanların üzerine yazar.
+   ============================================================================= */
+.cp-sor-topnav-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.cp-sor-topnav {
+  gap: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-1);
+}
+
+.cp-sor-topnav-link {
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 14px;
+  font: var(--t-button-s);
+  letter-spacing: var(--ls-label);
+  color: var(--c-text-muted);
+}
+
+.cp-sor-topnav-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.cp-sor-topnav-link:hover {
+  color: var(--c-text);
+}
+
+.cp-sor-topnav-link--active,
+.cp-sor-nav-link--active {
+  background: var(--glass-bg);
+  box-shadow: var(--glass-inset);
+  color: var(--c-text) !important;
+}
+
+.cp-sor-more {
+  gap: 0.5rem;
+  color: var(--c-text);
+  font: var(--t-button-s);
+  letter-spacing: var(--ls-label);
+}
+
+.cp-sor-more--center {
+  display: none;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-1);
+}
+
+.cp-sor-more--center:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-sor-streak {
+  min-height: 40px;
+  gap: 0.5rem;
+  padding: 0 13px;
+  border-radius: var(--r-pill);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-inset);
+  color: var(--c-text);
+  font: var(--t-label-15);
+}
+
+.cp-sor-streak:hover {
+  background: var(--glass-bg);
+  color: var(--c-text);
+  filter: brightness(1.15);
+}
+
+.cp-sor-avatar {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: var(--glass-bg);
+  box-shadow: var(--glass-inset);
+}
+
+@media (min-width: 768px) {
+  .cp-sor-top {
+    min-height: 96px;
+    padding: 24px;
+    border-bottom: 0;
+    background: color-mix(in srgb, var(--c-bg) 80%, transparent);
+  }
+
+  .cp-sor-more--center {
+    display: inline-flex;
+  }
+
+  /* Yalnız ortadaki kutu varken (sınav/odak görünümünde sekme grubu yok). */
+  .cp-sor-top:has(.cp-sor-more--center) .cp-sor-more--side {
+    display: none !important;
+  }
+}
+
+@media (min-width: 900px) {
+  .cp-sor-topnav {
+    position: static;
+    transform: none;
+  }
+
+  .cp-sor-topnav-group {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* Mesaj kutusu (Astra): tek yüzey #212121, 24 px köşe, çerçeve yok, 768 px; ders çipi kutunun
+   üst kenarından çıkan sekmede (16 px üst köşe, tabanında içe kıvrık köşeler). İçteki ikinci
+   kutu ortak Textarea'nın koyu tema sınıfından geliyordu. Sınav görünümünün kendi kutusu var. */
+.cp-sor-composer-zone {
+  width: min(calc(100% - 2rem), 48rem);
+}
+
+.cp-sor-composer-box {
+  border: 0;
+  border-radius: 24px;
+  background: #212121;
+  padding: 16px 16px 12px;
+}
+
+.cp-sor-composer-box textarea {
+  padding-left: 0;
+  padding-right: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.cp-sor-subject-wrap {
+  position: relative;
+  width: max-content;
+  height: 48px;
+  margin: 0 auto -1px;
+  padding: 8px 0;
+  border-radius: 16px 16px 0 0;
+  background: #212121;
+  align-items: center;
+}
+
+.cp-sor-subject-wrap::before,
+.cp-sor-subject-wrap::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.cp-sor-subject-wrap::before {
+  left: -16px;
+  background: radial-gradient(circle at 0 0, transparent 15.5px, #212121 16px);
+}
+
+.cp-sor-subject-wrap::after {
+  right: -16px;
+  background: radial-gradient(circle at 100% 0, transparent 15.5px, #212121 16px);
+}
+
+.cp-sor-subject {
+  padding: 6px 12px;
+  border: 0.8px solid #3c50e0;
+  background: rgba(60, 80, 224, 0.2);
+  color: var(--c-text);
+  font: 600 1rem / 1.125 var(--font-ui);
+}
