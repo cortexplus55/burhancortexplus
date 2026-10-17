@@ -115,14 +115,29 @@ eklendi** — aşağıdaki bölüm. Bekçi: `astra-final-ui.test.ts`, `continue-
 |---|---|---|
 | Yıldızlar | Kazanç tek satır (öğrenci, kaynak, ref) — aynı test iki kez saymaz; günlük hedef 50 (+25), haftalık seri (+100), davet (+100/+50), abone olan davetli (+300), okuldan katılım (+50), sohbet (günde bir, 3. mesajdan sonra 15), düello (Astra'nın okul maçının yeri). Sıralamada ad + soyadın baş harfi + okul; **Ayarlar'da gizleme** (ürün sahibinin kararı) | göç `20261017120000_stars.sql` (`award_stars`), `src/lib/stars/`, `stars-dialog.tsx` |
 | Kâğıtta çöz | Yazılı denemede önce "Nasıl çözmek istiyorsun?"; kâğıt yalnız baskıda; Başla yazdırınca; fotoğraf en çok 10, cihazda küçültülür (4,5 MB gövde sınırı), saklanmaz; model yalnız işaret ve yazıyı okur, **çözmez**; not yine `/api/learning/exam/grade` | `paper-exam*.ts(x)`, `/api/learning/exam/paper-read` |
-| Video ders | **Oynatıcıda birleşen video** (MP4 değil) ve **yalnız Plus** (ürün sahibinin kararları); senaryo öğretmen motoru kalıbında, sahne başına resim (`OPENAI_IMAGE_MODEL`) + ses; `VIDEO_GENERATE` 280 kredi | göç `20261017150000_prep_videos.sql`, `video-lesson.ts`, `video-run.ts` |
+| Video ders | **Oynatıcıda birleşen video** (MP4 değil) ve **yalnız Plus** (ürün sahibinin kararları); senaryo öğretmen motoru kalıbında, sahne başına resim (`OPENAI_IMAGE_MODEL`) + ses; `VIDEO_GENERATE` 280 kredi. **1 dakika = 6-8 sahne, 85-115 kelime**: seslendirme saniyede ~1,64 kelime okuyor (178 kelime 1:48 çıktı); hedef kaçarsa düzeltme turu, yalnız sert sınır (70-140 kelime) videoyu düşürür | göç `20261017150000_prep_videos.sql`, `video-lesson.ts`, `video-run.ts` |
 | Çok cevaplı soru | Yalnız hazırlığın konu testinde, tam bir soru, sonda; kısmi puan ekranda ("Kısmen doğru · %50"), kayıtlı puan tam sayı | `teacher-quiz.ts` (`multi`), `withOneMultiLast` |
 | Kurulum | "Nasıl çalışmayı seversin?" çoklu seçim ve gerçekten kullanılıyor ("Önerilen" rozeti) | `learning_preferences.modalities`, `recommendedStudyTool` |
 | Sınavlar / hazırlık sayfası | Astra düzeni: üç kutu ayrı sayfa, iki sütunlu ızgara, Yaklaşan/Geçmiş, Taslaklar; hazırlıkta sade üst çubuk (`minimalTop`), kahraman alanı, "Sıradaki" etiketi, hazırlık düzeyi beşgeni | `exam-prep.tsx`, `exam-prep-home.tsx` |
 | Podcast | Diyalogda Kerem de anlatır (örnek, toparlama); soru-cevap türünde yine sorar | `podcast-formats.ts` |
+| Yazılı deneme | Astra'nın kâğıdı gibi **çoktan seçmeli + açık uçlu** (%80 / %20; doğru/yanlış ve sayısal yer yok). Çoktan seçmeli test motorundan, açık uçlu sözlü motorundan (beklenen noktalar rubrik olur); **kod soruyu başka türe çevirmez** — şık silip doğru/yanlış yapınca "hangi grupta sınıflanır?" sorusuna Doğru/Yanlış şıkkı çıkmıştı. Açık uçlu cevabı tek model çağrısı ölçüt ölçüt, cevaptan **birebir alıntıyla** notlar; cevapta olmayan alıntı puan getirmez | `mock-exam/create.ts`, `mock-exam/open-grade.ts`, `grade-exam.ts` |
 
 Canlı veritabanına göçler SQL ekranında uygulandı; panel `DROP POLICY` satırını "yıkıcı" sayıp onay
 istiyor — yeni tabloda o satıra gerek yok, yazmayın.
+
+### Paralel işler aynı ödeme anahtarını paylaşmaz
+
+**2–17 Ekim 2026 yazılı deneme yalnız ilk konunun sorularıyla çıktı** (Pediatri'de 10 sorudan 1).
+Deneme her konu için ayrı öğretmen üretimi başlatıyor, hepsine aynı `idempotencyKey`'i veriyordu;
+kredi sistemi anahtarı ilk işe veriyor, ötekiler `operation_in_progress` / `operation_completed` alıp
+**sessizce boş** dönüyordu. Ekranda yalnız "Planlanan 10 sorudan 1'i hazırlandı" görünüyordu.
+
+| Yapmayın | Yapın |
+|---|---|
+| Bir işin parçalarına aynı anahtarla ayrı ayrı `reserveCredits` | Krediyi bir kez ayırın, parçalara `heldReservationId` verin (`runTeacherQuiz`, `runWithTeacherModel`); en az bir sonuç varsa kesinleştirin, yoksa iade |
+| Parça başına yeni anahtar | Öğrenciden parça sayısı kadar ücret keser (16 konu × deneme ücreti) |
+
+Bekçi: `mock-exam-charge.test.ts` (gerçek kredi davranışını taklit eder; eski kodla 16 sorudan 1'i üretir).
 
 ---
 
