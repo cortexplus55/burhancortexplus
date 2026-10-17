@@ -44,6 +44,7 @@ import {
   examPrepAssessmentHref,
   examPrepIntroHref,
   examPrepNodeHref,
+  examPrepNodeResultHref,
   examPrepReviewsHref,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
@@ -370,7 +371,8 @@ export function ExamPrepHome({
       router.push(`/deneme-sinavlari/${prepId}/tanisma`);
       return;
     }
-    router.push(`/deneme-sinavlari/${prepId}/dugum/${node.id}`);
+    // Astra: bitmiş düğüm önce sonucunu açar; "Dersi tekrarla" oradan yeniden başlatır.
+    router.push(node.status === "done" ? examPrepNodeResultHref(prepId, node.id) : examPrepNodeHref(prepId, node.id));
   }
 
   // Paylaşım yalnızca konu başlıklarını görünür kılar; ilerleme ve cevaplar
@@ -542,7 +544,7 @@ export function ExamPrepHome({
             <span className="cp-prep-badge">{PLAN_NODE_META[lastNode.kind].title}</span>
           </div>
           <h2 className="cp-prep-last-title">{nodeHeading(lastNode)}</h2>
-          <Link href={examPrepNodeHref(prepId, lastNode.id)} className="cp-prep-last-go">
+          <Link href={examPrepNodeResultHref(prepId, lastNode.id)} className="cp-prep-last-go">
             Sonuçları gör
           </Link>
         </section>
