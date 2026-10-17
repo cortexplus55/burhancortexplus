@@ -275,7 +275,7 @@ export function AdaptiveStudySession({
   if (done) {
     return (
       <div className="mx-auto max-w-lg space-y-4 px-4 py-16 text-center">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--cs-text)]">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--cs-text)]">
           Bugün tamamlandı
         </h1>
         <p className="text-sm text-[var(--cs-muted)]">
@@ -309,7 +309,7 @@ export function AdaptiveStudySession({
           {prepTitle}
           {daysRemaining != null ? ` · ${daysRemaining} gün` : ""}
         </p>
-        <h1 className="font-[family-name:var(--font-display)] text-xl text-[var(--cs-text)]">
+        <h1 className="text-xl font-semibold tracking-[-0.02em] text-[var(--cs-text)]">
           {session?.objective || "Çalışma oturumu"}
         </h1>
       </header>

@@ -1,7 +1,7 @@
 /* /ogretmen — referans ürün tarzı Sor (minimal composer, cinematic empty state) */
 
 .cs-sor-screen {
-  --cs-bg: #050505;
+  --cs-bg: var(--c-bg);
   --cs-sor-nav-lift: calc(5.25rem + env(safe-area-inset-bottom, 0px));
   --cs-sor-composer-lift: calc(9.5rem + env(safe-area-inset-bottom, 0px));
   font-family: var(--font-ui, "Figtree", system-ui, sans-serif);

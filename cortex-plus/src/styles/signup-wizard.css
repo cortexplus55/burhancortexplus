@@ -1,6 +1,6 @@
 /* Kayıt sihirbazı — sinematik adımlar */
 .signup-wizard {
-  background: #050505;
+  background: var(--c-bg);
   position: relative;
 }
 

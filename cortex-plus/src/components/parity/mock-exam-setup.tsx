@@ -115,7 +115,7 @@ export function MockExamSetup({
   if (loading) {
     return (
       <div className="mx-auto max-w-[640px] px-4 py-16 text-center">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#3d5afe]" />
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-[var(--c-action)]" />
         <h1 className="mt-4 text-xl font-semibold">Deneme sınavın hazırlanıyor…</h1>
         <ul className="mt-6 space-y-2 text-left text-sm text-[color:var(--cp-muted)]">
           {progress.map((line) => (
@@ -160,10 +160,7 @@ export function MockExamSetup({
       <p className="text-xs font-semibold tracking-widest text-[color:var(--cp-gold,#f4ae0b)]">
         YAZILI DENEME
       </p>
-      <h1
-        className="mt-2 text-[32px] leading-tight text-[color:var(--cp-text)]"
-        style={{ fontFamily: "var(--font-display, Georgia, serif)" }}
-      >
+      <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-[-0.02em] text-[color:var(--cp-text)]">
         Gerçek sınav provası
       </h1>
       <p className="mt-2 text-[15px] text-[color:var(--cp-muted)]">
@@ -185,7 +182,7 @@ export function MockExamSetup({
               className={cn(
                 "flex-1 rounded-lg py-2.5 text-sm font-semibold",
                 scope === value
-                  ? "bg-[color:color-mix(in_srgb,#3d5afe_20%,transparent)] text-[color:var(--cp-text)]"
+                  ? "bg-[color:color-mix(in_srgb,var(--c-action)_20%,transparent)] text-[color:var(--cp-text)]"
                   : "text-[color:var(--cp-muted)]",
               )}
               onClick={() => setScope(value)}
@@ -252,7 +249,7 @@ export function MockExamSetup({
                 className={cn(
                   "relative rounded-2xl border p-4 text-left text-sm",
                   preset === value
-                    ? "border-[#3d5afe] bg-[color:color-mix(in_srgb,#3d5afe_12%,transparent)]"
+                    ? "border-[var(--c-action)] bg-[color:color-mix(in_srgb,var(--c-action)_12%,transparent)]"
                     : "border-[color:var(--cp-border)] bg-[color:var(--cp-surface)]",
                 )}
                 onClick={() => {
@@ -339,7 +336,7 @@ export function MockExamSetup({
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-white/5">
                   <div
-                    className="h-full rounded-full bg-[color:color-mix(in_srgb,#3d5afe_60%,transparent)]"
+                    className="h-full rounded-full bg-[color:color-mix(in_srgb,var(--c-action)_60%,transparent)]"
                     style={{
                       width: `${Math.min(100, row.count * 8)}%`,
                     }}

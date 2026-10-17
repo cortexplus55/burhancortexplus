@@ -675,7 +675,7 @@
   margin: 0.4rem 0 0;
   font-size: 1rem;
   line-height: 1.5;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .als-formula-card-note {

@@ -29,7 +29,7 @@
 }
 
 .cp-answer-mode:hover {
-  border-color: #3d5afe;
+  border-color: var(--c-action);
 }
 
 .cp-answer-mode strong {
@@ -45,7 +45,7 @@
   margin-top: 0.5rem;
   padding: 0.5rem 0.9rem;
   border-radius: 999px;
-  background: #3d5afe;
+  background: var(--c-action);
   color: #fff;
   font-style: normal;
   font-size: 0.85rem;
@@ -115,7 +115,7 @@
 
 .cp-paper-preview-kicker {
   margin: 0;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.65rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -156,7 +156,7 @@
   width: min(100%, 26rem);
   min-height: 3rem;
   border: 0;
-  background: #3d5afe;
+  background: var(--c-action);
   color: #fff;
 }
 
@@ -194,7 +194,7 @@
 
 .cp-paper-ring-fill {
   fill: none;
-  stroke: #3d5afe;
+  stroke: var(--c-action);
   stroke-width: 6;
   stroke-linecap: round;
   transition: stroke-dashoffset 1s linear;
@@ -232,7 +232,7 @@
 }
 
 .cp-paper-drop.is-over {
-  border-color: #3d5afe;
+  border-color: var(--c-action);
 }
 
 .cp-paper-drop p {

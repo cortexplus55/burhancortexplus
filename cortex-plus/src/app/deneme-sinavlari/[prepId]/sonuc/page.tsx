@@ -169,10 +169,7 @@ export default async function ExamPrepSonucPage({
           <p className="text-xs font-semibold tracking-widest text-[color:var(--cp-gold,#f4ae0b)]">
             DENEME SONUCU
           </p>
-          <h1
-            className="mt-2 text-2xl text-[color:var(--cp-text)]"
-            style={{ fontFamily: "var(--font-display, Georgia, serif)" }}
-          >
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[color:var(--cp-text)]">
             {prep.title} · yazılı deneme
           </h1>
 

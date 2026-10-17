@@ -38,7 +38,7 @@
   border: 3px solid transparent;
   background:
     linear-gradient(var(--c-surface-1, #141416), var(--c-surface-1, #141416)) padding-box,
-    linear-gradient(135deg, #f6b73c, #8b5cf6, #3d5afe) border-box;
+    linear-gradient(135deg, #f6b73c, #8b5cf6, var(--c-action)) border-box;
 }
 
 .cp-video-lead {
@@ -62,7 +62,7 @@
   min-height: 3rem;
   border: 0;
   border-radius: 999px;
-  background: #3d5afe;
+  background: var(--c-action);
   color: #fff;
   font: inherit;
   font-weight: 600;
@@ -111,8 +111,8 @@
 }
 
 .cp-video-style.is-on {
-  border-color: #3d5afe;
-  background: rgba(61, 90, 254, 0.14);
+  border-color: var(--c-action);
+  background: rgba(67, 83, 243, 0.14);
 }
 
 .cp-video-style-emoji {
@@ -304,7 +304,7 @@
   padding: 0.45rem 1rem;
   border: 0;
   border-radius: 999px;
-  background: #3d5afe;
+  background: var(--c-action);
   color: #fff;
   font: inherit;
   font-size: 0.82rem;
@@ -394,7 +394,7 @@
 .cp-video-bar input[type="range"] {
   flex: 1;
   min-width: 0;
-  accent-color: #3d5afe;
+  accent-color: var(--c-action);
 }
 
 .cp-video-time {

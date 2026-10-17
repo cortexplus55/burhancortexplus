@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Serif_Display, Figtree, Geist, Geist_Mono } from "next/font/google";
+import { Caveat, DM_Serif_Display, Figtree, Geist, Geist_Mono, JetBrains_Mono, Jersey_10 } from "next/font/google";
 import "./globals.css";
 // Model çıktısındaki LaTeX her yüzeyde render edilebilsin diye kök seviyede.
 import "katex/dist/katex.min.css";
@@ -9,7 +9,32 @@ import { Providers } from "@/components/providers";
 
 const figtree = Figtree({
   variable: "--font-ui",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+});
+
+/*
+ * Astra'nın dört yazı tipi (17 Ekim 2026, ürün sahibinin kararı: birebir): Figtree metin,
+ * JetBrains Mono küçük etiketler, Jersey 10 karşılama başlığı, Caveat el yazısı ("hedef puan").
+ * Dördü de Google Fonts, serbest lisans. Eşaralıklı etiketler daha önce sistemin kendi
+ * yazı tipine (Windows'ta Consolas) düşüyordu; "hedef puan" Segoe Print idi (yalnız Windows).
+ */
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+});
+
+const jersey = Jersey_10({
+  variable: "--font-pixel-face",
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+});
+
+const caveat = Caveat({
+  variable: "--font-hand-face",
+  subsets: ["latin", "latin-ext"],
   display: "swap",
 });
 
@@ -80,7 +105,7 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <body
-        className={`${figtree.variable} ${dmSerif.variable} ${geistSans.variable} ${geistMono.variable} min-h-screen antialiased bg-background text-foreground`}
+        className={`${figtree.variable} ${dmSerif.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${jersey.variable} ${caveat.variable} min-h-screen antialiased bg-background text-foreground`}
       >
         <Providers>{children}</Providers>
       </body>
