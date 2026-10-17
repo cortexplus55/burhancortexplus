@@ -32,13 +32,14 @@
     inset 0 0 0 1px rgba(232, 168, 56, 0.15);
 }
 
+/* Astra: birincil düğme düz mavi, beyaz yazı (17 Ekim 2026). */
 .cs-app .cs-btn-primary {
-  background: linear-gradient(135deg, #f0b84d 0%, #d4922a 100%);
-  color: #0c0a06;
+  background: var(--c-action);
+  color: var(--c-on-action);
 }
 
 .cs-app .cs-btn-primary:hover {
-  background: linear-gradient(135deg, #ffc857 0%, var(--c-brand) 100%);
+  background: var(--c-action-hover);
 }
 
 .cs-app .cs-pay-card {
@@ -80,8 +81,8 @@
 }
 
 .cs-app .cs-quiz-option--selected {
-  border-color: var(--cs-primary);
-  box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.35);
+  border-color: var(--c-action);
+  box-shadow: inset 0 0 0 1px rgba(67, 83, 243, 0.35);
 }
 
 .cs-app .cs-quiz-option--correct {

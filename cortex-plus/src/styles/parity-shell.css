@@ -436,12 +436,12 @@
 
 .cp-sor-starter:hover:not(:disabled) {
   background: var(--cp-surface-2);
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
   color: var(--cp-text);
 }
 
 .cp-sor-starter:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 2px;
 }
 
@@ -485,7 +485,7 @@
   margin-bottom: 0.75rem;
   max-width: min(85%, 36rem);
   border-radius: 1.25rem;
-  background: var(--cp-gold);
+  background: var(--c-surface-2);
   color: var(--c-bg);
   padding: 0.65rem 0.9rem;
   font-size: 0.9375rem;
@@ -546,7 +546,7 @@
 }
 
 .cp-msg-action:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 2px;
 }
 
@@ -593,11 +593,11 @@
 }
 
 .cp-msg-reason:hover {
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
 }
 
 .cp-msg-reason:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 2px;
 }
 
@@ -628,12 +628,12 @@
 
 .cp-followup:hover {
   background: var(--cp-surface-2);
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
   color: var(--cp-text);
 }
 
 .cp-followup:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 2px;
 }
 
@@ -914,7 +914,7 @@
 .cp-exam-create {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--cp-gold);
+  color: var(--c-text);
 }
 
 .cp-exam-hub-tools {
@@ -952,7 +952,7 @@
   flex-shrink: 0;
   border: 0;
   background: transparent;
-  color: var(--cp-gold);
+  color: var(--c-text-muted);
   font: inherit;
   font-size: 0.85rem;
   font-weight: 600;
@@ -1800,7 +1800,7 @@
 
 .cp-subject-chip--on {
   border-color: transparent;
-  box-shadow: 0 0 0 1.5px var(--c-ai), 0 0 0 3px rgba(244, 174, 11, 0.55);
+  box-shadow: 0 0 0 1.5px var(--c-ai), 0 0 0 3px rgba(67, 83, 243, 0.55);
 }
 
 .cp-subject-actions {
@@ -2107,7 +2107,7 @@
 .cp-copy-link {
   border: 0;
   background: transparent;
-  color: var(--cp-gold);
+  color: var(--c-text);
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0;
@@ -2184,7 +2184,7 @@
 .cp-limit-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--cp-gold);
+  background: var(--c-success);
 }
 
 .cp-limit-row p {
@@ -2308,8 +2308,8 @@
   margin-top: 0.5rem;
   border: 0;
   border-radius: 9999px;
-  background: var(--cp-gold);
-  color: #111;
+  background: var(--c-action);
+  color: var(--c-on-action);
   padding: 0.75rem 1rem;
   font-weight: 700;
   cursor: pointer;
@@ -2344,7 +2344,7 @@
 }
 
 .cp-path-node--done span {
-  background: var(--cp-gold);
+  background: var(--c-success);
   color: #111;
 }
 
@@ -2387,11 +2387,11 @@
 }
 
 .cp-cal-cell--due {
-  box-shadow: inset 0 0 0 1px var(--cp-gold);
+  box-shadow: inset 0 0 0 1px var(--c-action);
 }
 
 .cp-cal-cell--done {
-  background: rgba(244, 174, 11, 0.18);
+  background: rgba(29, 211, 162, 0.18);
 }
 
 .cp-cal-list {
@@ -2469,9 +2469,9 @@
   align-items: center;
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
-  border: 1px solid rgba(244, 174, 11, 0.35);
-  background: rgba(244, 174, 11, 0.08);
-  color: var(--cp-gold);
+  border: 1px solid rgba(57, 62, 76, 0.35);
+  background: rgba(31, 31, 31, 0.08);
+  color: var(--c-text);
   font-size: 0.8125rem;
   font-weight: 600;
   text-decoration: none;
@@ -2573,8 +2573,8 @@
   height: 3rem;
   margin: 0 auto 0.75rem;
   border-radius: 9999px;
-  color: var(--cp-gold);
-  background: rgba(244, 174, 11, 0.12);
+  color: var(--c-text);
+  background: rgba(31, 31, 31, 0.12);
 }
 
 .cp-sor-root .cp-empty-title {
@@ -2607,8 +2607,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--cp-gold);
-  color: var(--c-bg);
+  background: var(--c-action);
+  color: var(--c-on-action);
   font-weight: 700;
   border: none;
   cursor: pointer;
@@ -2649,8 +2649,8 @@
 }
 
 .cp-sor-root input[type="file"]::file-selector-button:hover {
-  border-color: var(--cp-gold);
-  color: var(--cp-gold);
+  border-color: #393e4c;
+  color: var(--c-text);
 }
 
 .cp-profile-backdrop {
@@ -2763,8 +2763,8 @@
 }
 
 .cp-profile-role--active {
-  border-color: var(--cp-gold);
-  box-shadow: 0 0 0 1px rgba(244, 174, 11, 0.25);
+  border-color: var(--c-action);
+  box-shadow: 0 0 0 1px rgba(67, 83, 243, 0.25);
 }
 
 .cp-school-suggest {
@@ -3021,8 +3021,8 @@
 /* Sohbet girişi diğer bakım bağlantılarıyla aynı sırada duruyor ama
    çalışmanın bir parçası, bakım değil — altın kenar onu ayırıyor. */
 .cp-back-pill--accent {
-  border-color: color-mix(in srgb, var(--cp-gold) 45%, transparent);
-  color: var(--cp-gold);
+  border-color: color-mix(in srgb, #393e4c 45%, transparent);
+  color: var(--c-text);
 }
 
 .cp-exam-study-bar {
@@ -3075,12 +3075,12 @@
 }
 
 .cp-topic-path-item--on {
-  border-color: rgba(244, 174, 11, 0.45);
-  background: rgba(244, 174, 11, 0.1);
+  border-color: rgba(67, 83, 243, 0.45);
+  background: rgba(67, 83, 243, 0.1);
 }
 
 .cp-topic-path-item--done .cp-topic-num {
-  background: var(--cp-gold);
+  background: var(--c-success);
   color: #111;
 }
 
@@ -3267,7 +3267,7 @@
   width: 2px;
   height: 4rem;
   margin: 0 auto 1rem;
-  background: linear-gradient(180deg, var(--c-ai), var(--c-brand));
+  background: linear-gradient(180deg, var(--c-ai), var(--c-surface-2));
   border-radius: 9999px;
 }
 
@@ -3288,7 +3288,7 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 0.65rem;
-  background: linear-gradient(135deg, #34d399, #fbbf24, #f87171, var(--c-info));
+  background: linear-gradient(135deg, #34d399, var(--c-surface-2), #f87171, var(--c-info));
 }
 
 .cp-classroom-icon--joined {
@@ -3333,7 +3333,7 @@
 }
 
 .cp-sketch-color--active {
-  border-color: var(--cp-gold);
+  border-color: var(--c-action);
 }
 
 .cp-sketch-canvas {
@@ -3393,7 +3393,7 @@
 }
 
 .cp-lesson-kicker {
-  color: var(--cp-gold);
+  color: var(--c-text-muted);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -3431,8 +3431,8 @@
 }
 
 .cp-lesson-tool--liked {
-  border-color: rgba(244, 174, 11, 0.55);
-  color: var(--cp-gold);
+  border-color: rgba(67, 83, 243, 0.55);
+  color: var(--c-text);
 }
 
 .cp-lesson-prose {
@@ -3448,7 +3448,7 @@
   margin: 0.5rem 0 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--cp-gold);
+  color: var(--c-text);
 }
 
 .cp-lesson-prose ul {
@@ -3483,7 +3483,7 @@
 }
 
 .cp-more-history-item a:hover {
-  color: var(--cp-gold);
+  color: var(--c-text);
 }
 
 .cp-class-hero {
@@ -3697,7 +3697,7 @@
 
 .cp-exam-intake-user {
   margin-left: auto;
-  background: rgba(244, 174, 11, 0.12);
+  background: rgba(31, 31, 31, 0.12);
 }
 
 /* Belgesiz hazırlıkta içeriğin nereden geldiğini söyleyen satır. */
@@ -3728,8 +3728,8 @@
 
 .cp-exam-chip:hover,
 .cp-exam-chip:focus-visible {
-  border-color: rgba(244, 174, 11, 0.55);
-  background: rgba(244, 174, 11, 0.1);
+  border-color: rgba(57, 62, 76, 0.55);
+  background: rgba(31, 31, 31, 0.1);
 }
 
 .cp-exam-plan-preview {
@@ -3813,7 +3813,7 @@
 .cp-exam-trail-meter span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--c-ai), var(--c-brand));
+  background: linear-gradient(90deg, var(--c-ai), var(--c-success));
 }
 
 .cp-exam-phases {
@@ -3919,12 +3919,12 @@
 }
 
 .cp-exam-trail-node--ready {
-  border-color: rgba(244, 174, 11, 0.5);
-  box-shadow: 0 0 0 3px rgba(244, 174, 11, 0.12);
+  border-color: rgba(67, 83, 243, 0.5);
+  box-shadow: 0 0 0 3px rgba(67, 83, 243, 0.12);
 }
 
 .cp-exam-trail-node--done {
-  background: var(--cp-gold);
+  background: var(--c-success);
   color: #111;
 }
 
@@ -4223,7 +4223,7 @@
 .cp-exam-score-xl {
   font-size: 3rem;
   font-weight: 800;
-  color: var(--cp-gold);
+  color: var(--c-success);
 }
 
 .cp-exam-result-title {
@@ -4479,8 +4479,8 @@
 }
 
 .cp-exam-pod-chapter.is-on {
-  border-color: rgba(244, 174, 11, 0.55);
-  background: rgba(244, 174, 11, 0.08);
+  border-color: rgba(67, 83, 243, 0.55);
+  background: rgba(67, 83, 243, 0.08);
 }
 
 .cp-exam-silence,
@@ -4591,7 +4591,7 @@
   font-size: 0.75rem !important;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--cp-gold) !important;
+  color: var(--c-text-muted) !important;
 }
 
 .cp-exam-debrief ul {
@@ -4615,9 +4615,9 @@
   margin-bottom: 0.55rem;
   padding: 0.4rem 0.8rem;
   border-radius: 9999px;
-  border: 1px solid rgba(244, 174, 11, 0.45);
-  background: rgba(244, 174, 11, 0.08);
-  color: var(--cp-gold);
+  border: 1px solid rgba(57, 62, 76, 0.45);
+  background: rgba(31, 31, 31, 0.08);
+  color: var(--c-text);
   font: inherit;
   font-size: 0.85rem;
   cursor: pointer;
@@ -4724,9 +4724,9 @@
   gap: 0.45rem;
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
-  background: rgba(244, 174, 11, 0.12);
-  border: 1px solid rgba(244, 174, 11, 0.35);
-  color: #fbbf24;
+  background: rgba(31, 31, 31, 0.12);
+  border: 1px solid rgba(57, 62, 76, 0.35);
+  color: var(--c-text);
   font-weight: 700;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
@@ -4850,7 +4850,7 @@
 }
 
 .cp-signal-option:hover {
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
   background: #212121;
 }
 
@@ -4859,7 +4859,7 @@
 }
 
 .cp-signal-option[aria-pressed="true"] {
-  border-color: var(--cp-gold);
+  border-color: var(--c-action);
   background: #241f12;
 }
 
@@ -4895,7 +4895,7 @@
 }
 
 .cp-signal-step--on {
-  background: var(--cp-gold);
+  background: var(--c-action);
 }
 
 /* ---------------------------------------------------------------------------
@@ -4983,7 +4983,7 @@
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--cp-gold);
+  background: var(--c-success);
   transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -5065,7 +5065,7 @@
 }
 
 .cp-exam-today-item--ready {
-  border-color: color-mix(in srgb, var(--cp-gold) 45%, var(--cp-border));
+  border-color: color-mix(in srgb, var(--c-success) 45%, var(--cp-border));
 }
 
 .cp-exam-today-item--done {
@@ -5271,7 +5271,7 @@
 .cp-quota-fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--cp-gold);
+  background: var(--c-success);
   transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -5330,7 +5330,7 @@
 }
 
 .cp-cal-add:hover {
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
 }
 
 .cp-cal-filters {
@@ -5395,7 +5395,7 @@
 
 .cp-cal-month button:hover {
   color: #f4f4f5;
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
 }
 
 .cp-cal-weekdays,
@@ -5432,7 +5432,7 @@
 }
 
 .cp-cal-day--today {
-  outline: 1px solid var(--cp-gold);
+  outline: 1px solid var(--c-action);
   font-weight: 700;
 }
 
@@ -5512,7 +5512,7 @@
 }
 
 .cp-cal-item-title a:hover {
-  color: var(--cp-gold);
+  color: var(--c-text);
 }
 
 .cp-cal-item-meta {
@@ -6316,7 +6316,7 @@
 
 .cp-ref-primary {
   border: 1px solid transparent;
-  background: var(--cp-gold);
+  background: var(--c-action);
   color: #1a1204;
 }
 
@@ -6342,7 +6342,7 @@
 
 .cp-ref-primary:focus-visible,
 .cp-ref-ghost:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 2px;
 }
 
@@ -6468,7 +6468,7 @@
 
 .cp-mk-tab.is-active {
   color: var(--cp-text, #e4e4e7);
-  border-bottom-color: var(--cp-gold);
+  border-bottom-color: var(--c-action);
 }
 
 .cp-mk-grid {
@@ -6504,7 +6504,7 @@
 }
 
 .cp-mk-key:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 1px;
 }
 
@@ -6932,7 +6932,7 @@
 }
 
 .tools-search:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 1px;
 }
 
@@ -6961,9 +6961,9 @@
 }
 
 .tools-chip.is-on {
-  border-color: var(--cp-gold);
-  background: rgba(244, 174, 11, 0.14);
-  color: var(--cp-gold);
+  border-color: var(--c-action);
+  background: rgba(67, 83, 243, 0.14);
+  color: var(--c-text);
   font-weight: 600;
 }
 
@@ -7007,12 +7007,12 @@
 }
 
 .tool-card:hover {
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
   transform: translateY(-2px);
 }
 
 .tool-card:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 2px;
 }
 
@@ -7033,8 +7033,8 @@
   width: 2.4rem;
   height: 2.4rem;
   border-radius: 0.7rem;
-  background: rgba(244, 174, 11, 0.13);
-  color: var(--cp-gold);
+  background: rgba(31, 31, 31, 0.13);
+  color: var(--c-text);
 }
 
 .tool-card.is-shortcut .tool-icon {
@@ -7198,7 +7198,7 @@
 }
 
 .tool-input:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 1px;
 }
 
@@ -7217,8 +7217,8 @@
 }
 
 .tool-swap:hover {
-  border-color: var(--cp-gold);
-  color: var(--cp-gold);
+  border-color: #393e4c;
+  color: var(--c-text);
 }
 
 /* --- Sonuç ---------------------------------------------------------------- */
@@ -7227,9 +7227,9 @@
   gap: 0.3rem;
   padding: 1.2rem 1.3rem;
   border-radius: 1rem;
-  border: 1px solid var(--cp-gold);
+  border: 1px solid #393e4c;
   background:
-    linear-gradient(180deg, rgba(244, 174, 11, 0.1), transparent 72%),
+    linear-gradient(180deg, rgba(31, 31, 31, 0.1), transparent 72%),
     var(--cp-surface);
 }
 
@@ -7358,7 +7358,7 @@
 }
 
 .pt-cell:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 1px;
   z-index: 3;
 }
@@ -7396,7 +7396,7 @@
 }
 
 .pt-legend-item.is-on {
-  border-color: var(--cp-gold);
+  border-color: var(--c-action);
   color: var(--cp-text);
 }
 
@@ -7561,20 +7561,20 @@
   max-width: 34rem;
   padding: 0.85rem 1.1rem;
   border-radius: 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--cp-gold) 45%, transparent);
-  background: color-mix(in srgb, var(--cp-gold) 8%, var(--cp-surface));
+  border: 1px solid color-mix(in srgb, #393e4c 45%, transparent);
+  background: color-mix(in srgb, var(--c-surface-2) 8%, var(--cp-surface));
   text-align: left;
   text-decoration: none;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .cp-sor-daily:hover {
-  border-color: var(--cp-gold);
-  background: color-mix(in srgb, var(--cp-gold) 14%, var(--cp-surface));
+  border-color: #393e4c;
+  background: color-mix(in srgb, var(--c-surface-2) 14%, var(--cp-surface));
 }
 
 .cp-sor-daily:focus-visible {
-  outline: 2px solid var(--cp-gold);
+  outline: 2px solid var(--c-action);
   outline-offset: 2px;
 }
 
@@ -7621,15 +7621,15 @@
   gap: 0.25rem;
   margin: 1rem 0;
   border-radius: 1rem;
-  border: 1px solid rgba(244, 174, 11, 0.35);
-  background: rgba(244, 174, 11, 0.08);
+  border: 1px solid rgba(57, 62, 76, 0.35);
+  background: rgba(31, 31, 31, 0.08);
   padding: 0.9rem 1.05rem;
   color: inherit;
   text-decoration: none;
 }
 
 .cp-intro-nudge:hover {
-  border-color: var(--cp-gold);
+  border-color: #393e4c;
 }
 
 .cp-intro-nudge strong {
@@ -7810,7 +7810,7 @@
   display: block;
   height: 100%;
   border-radius: 9999px;
-  background: var(--cp-gold);
+  background: var(--c-success);
 }
 
 /* Üç ölçütten hangisinin öne çıktığı belli olsun: ikincil olanlar
@@ -7986,7 +7986,7 @@
   flex-shrink: 0;
   padding: 0.5rem 0.85rem;
   border-radius: 999px;
-  background: var(--cp-gold, var(--c-brand));
+  background: var(--c-action);
   color: var(--c-surface-2);
   font-size: 0.8rem;
   font-weight: 600;
@@ -8030,7 +8030,7 @@
 }
 
 .cp-profile-links a:hover {
-  border-color: color-mix(in srgb, var(--cp-gold, var(--c-brand)) 50%, transparent);
+  border-color: color-mix(in srgb, #393e4c 50%, transparent);
 }
 
 /* --- Sınıf davet kartı --- */
@@ -8086,12 +8086,12 @@
 
 .cp-class-invite-primary {
   border: 0;
-  background: rgba(244, 174, 11, 0.16);
-  color: var(--c-brand);
+  background: rgba(67, 83, 243, 0.16);
+  color: var(--c-action);
 }
 
 .cp-class-invite-primary:hover {
-  background: rgba(244, 174, 11, 0.24);
+  background: rgba(67, 83, 243, 0.24);
 }
 
 .cp-class-invite-ghost {
@@ -8101,7 +8101,7 @@
 }
 
 .cp-class-invite-ghost:hover {
-  border-color: rgba(244, 174, 11, 0.45);
+  border-color: rgba(57, 62, 76, 0.45);
 }
 
 .cp-class-invite-qr {
@@ -8272,7 +8272,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--cp-gold);
+  color: var(--c-text-muted);
 }
 .cp-exam-discover-steps {
   display: grid;
@@ -8373,8 +8373,8 @@
   border-radius: 999px;
 }
 .tool-kind.is-hesap {
-  background: rgba(244, 174, 11, 0.16);
-  color: var(--cp-gold);
+  background: rgba(31, 31, 31, 0.16);
+  color: var(--c-text);
 }
 .tool-kind.is-shortcut {
   background: var(--cp-surface-2);
@@ -8403,12 +8403,10 @@
   --cp-surface-2: var(--c-surface-2);
   --cp-border: var(--c-border);
   --cp-gold: var(--c-brand);
-  --cs-primary: var(--c-brand);
-  --cs-primary-hover: var(--c-brand-hover);
-  background:
-    radial-gradient(ellipse 70% 40% at 80% -10%, rgba(244, 174, 11, 0.08), transparent 50%),
-    radial-gradient(ellipse 50% 35% at 0% 100%, rgba(99, 70, 220, 0.06), transparent 45%),
-    var(--cp-bg);
+  /* Astra: birincil düğme mavi, zemin düz (altın ve mor ışıma yok). */
+  --cs-primary: var(--c-action);
+  --cs-primary-hover: var(--c-action-hover);
+  background: var(--cp-bg);
 }
 
 .cp-sor-top {
@@ -8418,16 +8416,18 @@
   border-bottom-color: var(--c-border);
 }
 
+/* Astra: seçili sekme gri dolgu, beyaz yazı; altın alt çizgi yok (17 Ekim 2026). */
 .cp-sor-topnav-link--active,
 .cp-sor-nav-link--active {
-  color: #ffc857 !important;
-  box-shadow: inset 0 -2px 0 var(--c-brand);
+  background: var(--c-surface-3);
+  color: var(--c-text) !important;
+  box-shadow: none;
 }
 
 .cp-sor-composer,
 .cp-sor-panel,
 .cp-card-premium {
-  border-color: rgba(232, 168, 56, 0.16);
+  border-color: rgba(57, 62, 76, 0.16);
   background: color-mix(in srgb, var(--c-surface-1) 72%, transparent);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03),
@@ -8718,7 +8718,7 @@
   width: 100%;
   border-radius: 999px;
   border: 1px solid rgba(129, 140, 248, 0.72);
-  background: linear-gradient(90deg, #1b1b22 0%, #1b1b22 76%, rgba(244, 174, 11, 0.22) 100%);
+  background: linear-gradient(90deg, #1b1b22 0%, #1b1b22 76%, rgba(31, 31, 31, 0.22) 100%);
   color: #fff;
   padding: 0.48rem 0.7rem 0.48rem 0.95rem;
   font-size: 0.9rem;
@@ -10218,8 +10218,8 @@
 }
 
 .cp-prep-icon.is-on {
-  border-color: var(--c-brand, #6366f1);
-  color: var(--c-brand, #6366f1);
+  border-color: var(--c-action);
+  color: var(--c-text);
 }
 
 .cp-exam-trail-head h1 {
@@ -10688,7 +10688,7 @@
   top: -0.2rem;
   bottom: -0.2rem;
   width: 2px;
-  background: #f4ae0b;
+  background: var(--c-success);
 }
 
 .cp-prog .cp-prog-topic-meta {
@@ -10702,7 +10702,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--c-brand, #6366f1);
+  color: var(--c-text-muted);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 600;
@@ -10930,7 +10930,7 @@
 }
 
 .cp-rating-option:hover {
-  border-color: var(--c-brand, #6366f1);
+  border-color: #393e4c;
 }
 
 .cp-rating-thanks {
@@ -11411,7 +11411,7 @@
 }
 
 .cp-catalog-card:hover {
-  border-color: var(--c-brand, #6366f1);
+  border-color: #393e4c;
 }
 
 .cp-catalog-card strong {
@@ -11429,7 +11429,7 @@
   font-style: normal;
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--c-brand, #6366f1);
+  color: var(--c-text-muted);
 }
 
 /* Sohbet: "Problem N saniyede çözüldü" (Astra gibi, 1 Ekim 2026). */
@@ -11495,7 +11495,7 @@
 }
 
 .cp-avatar-pick-option[aria-pressed="true"] {
-  border-color: var(--cs-primary, #f4ae0b);
+  border-color: var(--cs-primary, var(--c-action));
 }
 
 .cp-avatar-pick-initial {
@@ -11542,8 +11542,8 @@
 }
 
 .cp-settings-chip.is-on {
-  border-color: var(--cs-primary, #f4ae0b);
-  background: color-mix(in srgb, var(--cs-primary, #f4ae0b) 14%, transparent);
+  border-color: var(--cs-primary, var(--c-action));
+  background: color-mix(in srgb, var(--cs-primary, var(--c-action)) 14%, transparent);
 }
 
 .cp-settings-toggle {
@@ -11575,7 +11575,7 @@
   width: 1.15rem;
   height: 1.15rem;
   flex-shrink: 0;
-  accent-color: var(--cs-primary, #f4ae0b);
+  accent-color: var(--cs-primary, var(--c-action));
 }
 
 /* Seri penceresi: günlük çalışma hedefi satırı. */

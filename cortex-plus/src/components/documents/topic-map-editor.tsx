@@ -356,7 +356,7 @@ export function TopicMapEditor({
           type="button"
           disabled={pending || !dirty}
           onClick={() => save(false)}
-          className="rounded-full bg-[var(--cs-primary)] px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
+          className="rounded-full bg-[var(--cs-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {pending ? "Kaydediliyor…" : "Kaydet"}
         </button>
