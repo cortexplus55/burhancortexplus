@@ -13,6 +13,7 @@ export const STUDY_PATH_HINT =
 export type StudyToolId =
   | "lesson"
   | "podcast"
+  | "video"
   | "oral"
   | "written_exam"
   | "quiz"
@@ -34,7 +35,8 @@ export const STUDY_TOOL_GROUPS: { id: StudyToolGroup; label: string }[] = [
 
 export type StudyTool = {
   id: StudyToolId;
-  kind: PlanNodeKind;
+  /** Yoldaki düğüm türü; video yolda düğüm değil, kendi sayfası var. */
+  kind: PlanNodeKind | "video";
   group: StudyToolGroup;
   title: string;
   blurb: string;
@@ -49,6 +51,8 @@ export type StudyTool = {
 export const STUDY_TOOLS: StudyTool[] = [
   { id: "lesson", kind: "lesson", group: "learn", title: "Konu anlatımı", blurb: "Kısa ders" },
   { id: "podcast", kind: "podcast", group: "learn", title: "Podcast", blurb: "Sesli anlatım" },
+  // Astra'daki sırayla podcast'in ardından (17 Ekim 2026); yalnız Plus, sayfa kapıyı gösterir.
+  { id: "video", kind: "video", group: "learn", title: "Video", blurb: "1 dakikalık video ders" },
   { id: "flashcards", kind: "flashcards", group: "learn", title: "Kartlar", blurb: "Kısa tekrar" },
   { id: "gaps", kind: "gaps", group: "learn", title: "Bilgi boşlukları", blurb: "Eksiğini bul, kapat" },
   { id: "qa", kind: "qa", group: "learn", title: "AI öğretmen", blurb: "Soru-cevap" },
@@ -71,6 +75,7 @@ export const STUDY_TOOLS: StudyTool[] = [
 const MODALITY_TOOL: Partial<Record<string, StudyToolId>> = {
   reading: "lesson",
   listening: "podcast",
+  watching: "video",
   practice: "quiz",
 };
 
@@ -255,6 +260,17 @@ export function studyActivityHref(
  * Konu kimliği hazırlığın konu kaydıysa sorguya yazılır; etiket
  * eşleşmezse seçici açılır.
  */
+/** Video dersin sayfası; konu seçiliyse kimliğiyle (kurulum o konuyla açılır). */
+export function studyVideoHref(
+  prepId: string,
+  topicLabel: string | null,
+  topics: { id: string; label: string }[] = [],
+): string {
+  const wanted = (topicLabel ?? "").trim().toLocaleLowerCase("tr-TR");
+  const match = wanted ? topics.find((topic) => topic.label.trim().toLocaleLowerCase("tr-TR") === wanted) : undefined;
+  return match ? `/deneme-sinavlari/${prepId}/video?topicId=${match.id}` : `/deneme-sinavlari/${prepId}/video`;
+}
+
 export function studyPodcastHref(
   prepId: string,
   topicLabel: string | null,

@@ -98,6 +98,8 @@ export const envSchema = z.object({
    */
   OPENAI_OUTLINE_FALLBACK_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
+  /** Video dersin sahne resimleri (17 Ekim 2026). dall-e-3 de çalışır; boyut ona göre seçilir. */
+  OPENAI_IMAGE_MODEL: z.string().default("gpt-image-1"),
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
   /** TypeSafe Jev decision engine (server-only; never expose to client). */
   TYPESAFE_API_KEY: z.string().optional(),
@@ -162,6 +164,7 @@ const parsed = envSchema.safeParse({
   OPENAI_OUTLINE_LARGE_MODEL: process.env.OPENAI_OUTLINE_LARGE_MODEL,
   OPENAI_OUTLINE_FALLBACK_MODEL: process.env.OPENAI_OUTLINE_FALLBACK_MODEL,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
+  OPENAI_IMAGE_MODEL: process.env.OPENAI_IMAGE_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
   TYPESAFE_API_KEY: process.env.TYPESAFE_API_KEY,
   AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
@@ -197,4 +200,6 @@ export type ActionCode =
   | "PODCAST_GENERATE"
   | "ORAL_EXAM_GENERATE"
   | "VOICE_TURN"
-  | "DOCUMENT_SCAN_PAGE";
+  | "DOCUMENT_SCAN_PAGE"
+  /** Video ders (17 Ekim 2026): senaryo + sahne resimleri + seslendirme. */
+  | "VIDEO_GENERATE";

@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   BookOpen,
   CheckCheck,
+  Clapperboard,
   Crosshair,
   FileQuestion,
   Headphones,
@@ -29,6 +30,7 @@ import {
   type StudyToolGroup,
   studyActivityHref,
   studyPodcastHref,
+  studyVideoHref,
   type StudyNodeRef,
   type StudyToolId,
 } from "@/lib/learning/study-tools";
@@ -36,6 +38,7 @@ import {
 const TOOL_ICONS: Record<StudyToolId, LucideIcon> = {
   lesson: BookOpen,
   podcast: Headphones,
+  video: Clapperboard,
   oral: Mic,
   written_exam: FileQuestion,
   quiz: ListChecks,
@@ -140,6 +143,8 @@ export function StudyToolsHub({
               ? null
               : tool.id === "podcast"
                 ? studyPodcastHref(prepId, topicLabel, topicOptions)
+                : tool.id === "video"
+                  ? studyVideoHref(prepId, topicLabel, topicOptions)
                 : (() => {
                     const target = openStudyActivity(nodes, tool.id, { label: topicLabel });
                     return target
