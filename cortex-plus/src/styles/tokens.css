@@ -285,6 +285,9 @@
   --c-info-soft: #1b1d35;
   --c-focus: #4353f3;
   --glow-action: 0 8px 24px rgba(67, 83, 243, 0.28);
+  /* Astra'nın "cam" yüzeyi: seçili sekme, seri kutusu, küçük düğmeler (üstten ışık + iç parlama). */
+  --glass-bg: radial-gradient(90% 55% at 50% 0%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 70%), linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.016)), #181818;
+  --glass-inset: inset 0 1px 1px rgba(255, 255, 255, 0.05);
 
   --background: 0 0% 5%;
   --foreground: 0 0% 100%;
