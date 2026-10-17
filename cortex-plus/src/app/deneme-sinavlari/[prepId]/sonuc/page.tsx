@@ -5,6 +5,7 @@ import { ArrowRight, BookOpen, ListChecks, RotateCcw } from "lucide-react";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { cn } from "@/lib/utils";
 import {
   buildNextSteps,
   multiMcqScoringNote,
@@ -121,7 +122,9 @@ export default async function ExamPrepSonucPage({
 
   const correct = (reviews ?? []).filter((r) => r.verdict === "dogru" || r.is_correct).length;
   const blank = (reviews ?? []).filter((r) => r.verdict === "bos").length;
-  const wrong = (reviews ?? []).length - correct - blank;
+  // Açık uçlu cevap kısmi puan alabilir (17 Ekim 2026); yanlış sayılmaz, ayrı gösterilir.
+  const partial = (reviews ?? []).filter((r) => r.verdict === "kismen").length;
+  const wrong = (reviews ?? []).length - correct - blank - partial;
 
   const hasMulti = true;
   const nextSteps = buildNextSteps({
@@ -206,9 +209,10 @@ export default async function ExamPrepSonucPage({
           </p>
         </section>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={cn("mt-4 grid grid-cols-2 gap-3", partial ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
           {[
             ["Doğru", correct],
+            ...(partial ? [["Kısmen", partial]] : []),
             ["Yanlış", wrong],
             ["Boş", blank],
             [

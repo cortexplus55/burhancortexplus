@@ -17,7 +17,6 @@ import {
   type MockQuestionType,
   type MockTopicSlot,
 } from "@/lib/learning/mock-exam";
-import { verifyChoiceQuestion } from "@/lib/learning/question-verifier";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 
@@ -196,29 +195,39 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
       questions = rotateCorrectOptions(questions);
     }
 
-    // Eksikse bir kez daha dene (en zayıf konu)
+    // Eksikse bir kez daha dene: eksik kalan konular, çoktan seçmeli (17 Ekim 2026'ya kadar her
+    // zaman listenin ilk konusu deneniyordu; Nefroloji boş kalınca yerine Büyüme'den ikinci soru geldi).
     const planned = blueprint.questionCount;
     if (questions.length < planned && allocation.length) {
-      const weak = allocation[0];
-      const extra = await generateForTopic({
-        service,
-        userId,
-        isPremium: input.isPremium,
-        prepTitle: String(prep.title),
-        documentId: prep.document_id as string | null,
-        topic: weak,
-        slots: Array.from({ length: Math.min(4, planned - questions.length) }, () => ({
-          type: "mcq" as const,
-          points: 4,
-        })),
-        allTopics: topics,
-        chargeKey,
-        reservationId,
-      });
+      const have = new Map<string, number>();
+      for (const q of questions) have.set(q.topicLabel, (have.get(q.topicLabel) ?? 0) + 1);
+      const short = allocation
+        .map((row) => ({ row, missing: row.count - (have.get(row.topicLabel) ?? 0) }))
+        .filter((item) => item.missing > 0);
+      const targets = (short.length ? short : [{ row: allocation[0]!, missing: planned - questions.length }]).slice(
+        0,
+        TOPIC_GENERATE_CONCURRENCY,
+      );
+      const extra = await Promise.all(
+        targets.map(({ row, missing }) =>
+          generateForTopic({
+            service,
+            userId,
+            isPremium: input.isPremium,
+            prepTitle: String(prep.title),
+            documentId: prep.document_id as string | null,
+            topic: row,
+            slots: Array.from({ length: Math.min(4, missing) }, () => ({ type: "mcq" as const, points: 4 })),
+            allTopics: topics,
+            chargeKey,
+            reservationId,
+          }),
+        ),
+      );
       questions = filterOverlappingQuestions([
         ...questions,
-        ...extra.filter((q) => q.source.label.trim()),
-      ]);
+        ...extra.flat().filter((q) => q.source.label.trim()),
+      ]).slice(0, planned);
     }
 
     const ready = questions.length;
@@ -375,19 +384,14 @@ async function choiceDrafts(
   for (const q of outcome.questions) {
     if (drafts.length >= slots.length) break;
     const slot = slots[drafts.length] ?? slots[0];
-    const verified = verifyChoiceQuestion(
-      {
-        text: q.text,
-        options: q.options,
-        correct: q.correct,
-        multi: q.multi || slot.type === "multi_mcq",
-        explanation: q.explanation,
-        optionWhy: q.optionWhy,
-      },
-      block,
-    );
-    if (verified.status === "drop") continue;
-    const vq = verified.question;
+    // Öğretmen motorunun denetçisi soruyu kendisi çözüp onayladı; burada yalnız biçim bakılır.
+    // Eski kural süzgeci (verifyChoiceQuestion) onaylı soruyu düşürüyor, kaynakta geçen tek şıkkı
+    // görünce cevap anahtarını değiştirip çok cevaplıyı tek cevaplı yapıyordu (17 Ekim: Nefroloji'nin
+    // tek sorusu düştü, denemede o konu hiç yoktu). Konu testi de bu süzgeçten geçmiyor.
+    const options = q.options.map((option) => option.trim()).filter(Boolean);
+    const correct = q.correct.filter((answer) => options.includes(answer));
+    if (q.text.trim().length < 8 || options.length < 2 || !correct.length || (!q.multi && correct.length !== 1)) continue;
+    const vq = { ...q, options, correct, multi: q.multi && correct.length > 1 };
     drafts.push({
       ...base,
       text: polishMockCopy(vq.text),
@@ -395,8 +399,8 @@ async function choiceDrafts(
       options: vq.options,
       correctAnswers: vq.correct,
       points: slot.points,
-      explanation: polishMockCopy(vq.explanation ?? q.explanation ?? ""),
-      optionWhy: vq.optionWhy ?? q.optionWhy ?? [],
+      explanation: polishMockCopy(vq.explanation ?? ""),
+      optionWhy: vq.optionWhy ?? [],
       rubric: [],
       modelAnswer: "",
     });
