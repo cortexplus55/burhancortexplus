@@ -70,7 +70,23 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect([...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki", "Giriş Dersi"]);
     const start = screen.getByRole("link", { name: "Devam et" });
     expect(start.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
-    expect(container.querySelectorAll(".cp-path-lines path")).toHaveLength(1);
+    // 17 Ekim 2026 (tasarım 5. adım, Astra): yolu birleştiren çizgi yok; düğüm üç boyutlu
+    // disk, sıradakinin üstünde tür simgeli ışık huzmesi.
+    expect(container.querySelectorAll(".cp-path-lines")).toHaveLength(0);
+    expect(container.querySelectorAll(".cp-puck").length).toBe(container.querySelectorAll(".cp-exam-trail-node").length);
+    expect(container.querySelectorAll(".cp-puck--current")).toHaveLength(1);
+    expect(container.querySelectorAll(".cp-path-beam")).toHaveLength(1);
+  });
+
+  it("Astra sol kartı: başlık altında hazırlık ve tamamlanan ders özeti, Ders düğmesi, simgeli sekmeler", () => {
+    const { container } = renderHome({ nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }], topicsDone: 1 });
+    const aside = container.querySelector(".cp-prep-aside") as HTMLElement;
+    expect(aside).toBeTruthy();
+    expect(aside.querySelector(".cp-prep-hero-meta")?.textContent).toMatch(/Hazırlık: %\d+1 ders tamamlandı/);
+    expect(aside.querySelector(".cp-prep-hero-action--lesson")?.textContent).toBe("Ders");
+    expect(aside.querySelectorAll(".cp-prep-tab-icon")).toHaveLength(2);
+    expect(container.querySelector(".cp-prep-main .cp-path-next")).toBeTruthy();
+    expect(container.querySelector(".cp-path-done-label")?.textContent).toBeTruthy();
   });
 
   it("keeps Devam et on the next step once a node is done", () => {
