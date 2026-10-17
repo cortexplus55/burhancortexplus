@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MessageCircle, RotateCcw, X } from "lucide-react";
+import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -32,7 +33,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
       .maybeSingle(),
     supabase
       .from("exam_prep_node_attempts")
-      .select("score, total, created_at, started_at, updated_at")
+      .select("id, score, total, created_at, started_at, updated_at")
       .eq("node_id", nodeId)
       .eq("user_id", user.id)
       .eq("status", "completed")
@@ -95,6 +96,9 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
             <MessageCircle className="h-4 w-4" aria-hidden />
             Öğretmenine sor
           </Link>
+        </div>
+        <div className="cp-node-result-rating">
+          <LessonRatingCard attemptId={attempt.id as string} />
         </div>
         <Link href={back} className="cp-node-result-go">
           Devam et

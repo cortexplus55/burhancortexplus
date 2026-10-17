@@ -5,7 +5,7 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { GamificationGate } from "@/components/parity/gamification";
@@ -274,7 +274,8 @@ export function ParitySorShell({
               <Flame className="h-4 w-4 text-orange-500" aria-hidden />
               <span>{streakCount}</span>
             </button>
-            {/* Yıldızlar (17 Ekim 2026, Astra'daki gibi serinin yanında). */}
+            {/* Yıldızlar ve avatar tek cam kapsülde (Astra, 17 Ekim 2026). */}
+            <div className="cp-sor-me">
             <StarsButton />
             <button
               type="button"
@@ -295,6 +296,7 @@ export function ParitySorShell({
                 (userInitial?.slice(0, 1) ?? "?")
               )}
             </Link>
+            </div>
             </>
           )}
           <Link
@@ -369,7 +371,8 @@ export function ParitySorShell({
                 return (
                   <Link key={item.href} href={item.href} className="cp-more-action">
                     <Icon className="h-6 w-6" aria-hidden />
-                    {item.label}
+                    <span className="cp-more-action-label">{item.label}</span>
+                    <ChevronRight className="cp-more-action-chevron" aria-hidden />
                   </Link>
                 );
               })}

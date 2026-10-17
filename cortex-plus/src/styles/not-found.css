@@ -1,0 +1,78 @@
+/* 404 (17 Ekim 2026, tasarım 8. adım; Astra düzeni, bize özgü çizim). */
+
+.cp-404 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-height: 100dvh;
+  padding: 48px 16px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  text-align: center;
+}
+
+.cp-404-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 40px;
+  color: var(--c-text);
+  font: 700 1.25rem / 1 var(--font-ui);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.cp-404-art {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font: 400 8rem / 1 var(--font-pixel);
+  color: var(--c-brand);
+}
+
+.cp-404-zero {
+  filter: drop-shadow(0 10px 24px rgba(67, 83, 243, 0.35));
+}
+
+.cp-404-title {
+  margin: 40px 0 0;
+  font: var(--t-heading-s);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-404-text {
+  margin: 12px 0 0;
+  font: var(--t-body-14);
+  color: var(--c-gray-150);
+}
+
+.cp-404-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin-top: 40px;
+  padding: 0 32px;
+  border-radius: var(--r-pill);
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font: var(--t-button-s);
+  text-decoration: none;
+}
+
+.cp-404-go:hover {
+  background: var(--c-action-hover);
+}
+
+.cp-404-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 32px 0 0;
+  font: var(--t-label-13);
+  color: var(--c-text-muted);
+  user-select: all;
+}

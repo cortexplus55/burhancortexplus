@@ -1722,6 +1722,7 @@ function ChatPanelSession({
                     type="button"
                     className={cn(
                       "cp-sor-tool",
+                      "cp-sor-mic",
                       examChrome && "cp-exam-mic",
                       listening && "text-[var(--cp-subject)]",
                     )}

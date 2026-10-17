@@ -876,7 +876,8 @@ export function ExamNodeSession({
       )}
 
       {stage === "restoring" ? (
-        <section className="cp-exam-setup" aria-busy="true" aria-live="polite">
+        <section className="cp-exam-setup cp-exam-restoring" aria-busy="true" aria-live="polite">
+          <span className="cp-exam-restoring-spin" aria-hidden />
           <p className="cp-lesson-kicker">Devam</p>
           <h1>Kaldığın yer açılıyor…</h1>
           <p className="text-sm text-[var(--cp-muted)]">

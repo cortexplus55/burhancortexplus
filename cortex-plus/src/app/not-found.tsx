@@ -1,61 +1,36 @@
 import Link from "next/link";
-import { Compass } from "lucide-react";
-import { MarketingPage } from "@/components/layout/marketing-page";
+import { Mail } from "lucide-react";
+import { CortexMark } from "@/components/brand/cortex-mark";
+import { Icon3D } from "@/components/ui/icon-3d";
+import "@/styles/not-found.css";
 
 /**
- * 404 daha önce çıplak bir sayfaydı: başlık, bir cümle, tek düğme — üstelik
- * uygulama temasının `text-muted-foreground` değişkeniyle, ki bu sayfada o
- * tema hiç yüklü değil. En önemlisi başlık ve altbilgi yoktu: yanlış adrese
- * düşen kişinin gidebileceği tek yer ana sayfaydı.
- *
- * Şimdi pazarlama kabuğunun içinde; menü ve altbilgi bağlantıları geri geldi,
- * ayrıca en çok aranan üç yer doğrudan veriliyor.
+ * 404 (17 Ekim 2026, tasarım 8. adım). Astra'nınki sade ve şakacı: üstte logo, ortada bir
+ * çizim ("4×0≠4"), başlık, tek düğme, destek adresi. Bizimki kendi şakamız: sıfırın yerinde
+ * beyin (cortex = beyin kabuğu), rakamlar karşılamadaki piksel yazıyla. Oturumlu ya da
+ * oturumsuz herkese aynı; pazarlama menüsü oturumlu öğrenciye "Giriş yap" gösteriyordu.
  */
 export default function NotFound() {
   return (
-    <MarketingPage
-      variant="auth"
-      title="Sayfa bulunamadı"
-      description="Aradığın sayfa taşınmış ya da hiç var olmamış olabilir."
-    >
-      <div className="mk-card mx-auto max-w-md p-8 text-center">
-        <span className="mk-icon mx-auto" aria-hidden>
-          <Compass className="h-5 w-5" />
-        </span>
-
-        <p className="mt-5 text-sm leading-relaxed text-[var(--mk-muted)]">
-          Adresi elle yazdıysan bir harf eksik olabilir. Aşağıdakiler en çok
-          gidilen yerler.
-        </p>
-
-        <Link
-          href="/"
-          className="mk-btn-primary mt-6 inline-flex w-full items-center justify-center px-6 py-3 text-sm"
-        >
-          Ana sayfaya dön
-        </Link>
-
-        <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
-          <Link
-            href="/ozellikler"
-            className="text-[var(--mk-muted)] underline underline-offset-4 hover:text-[var(--mk-text)]"
-          >
-            Özellikler
-          </Link>
-          <Link
-            href="/fiyatlandirma"
-            className="text-[var(--mk-muted)] underline underline-offset-4 hover:text-[var(--mk-text)]"
-          >
-            Fiyatlandırma
-          </Link>
-          <Link
-            href="/yardim"
-            className="text-[var(--mk-muted)] underline underline-offset-4 hover:text-[var(--mk-text)]"
-          >
-            Yardım
-          </Link>
-        </div>
-      </div>
-    </MarketingPage>
+    <main className="cp-404">
+      <Link href="/" className="cp-404-logo" aria-label="Cortex Plus">
+        <CortexMark size={22} />
+        <span>cortex</span>
+      </Link>
+      <p className="cp-404-art" aria-label="404">
+        <span aria-hidden>4</span>
+        <Icon3D name="avatar" size={112} className="cp-404-zero" />
+        <span aria-hidden>4</span>
+      </p>
+      <h1 className="cp-404-title">Sayfa bulunamadı</h1>
+      <p className="cp-404-text">Adres yanlış yazılmış ya da sayfa taşınmış olabilir.</p>
+      <Link href="/" className="cp-404-go">
+        Ana sayfaya dön
+      </Link>
+      <p className="cp-404-help">
+        <Mail className="h-4 w-4" aria-hidden />
+        cortexplus@cortexplus.app
+      </p>
+    </main>
   );
 }

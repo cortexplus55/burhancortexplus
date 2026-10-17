@@ -71,3 +71,27 @@ describe("Astra tasarım sistemi", () => {
     expect(read("src/components/parity/mock-exam-setup.tsx")).not.toContain("Georgia, serif");
   });
 });
+
+describe("Astra ayrıntıları (tasarım 8. adım)", () => {
+  it("geri bildirim Astra'nın beş seçeneği; API ve kart aynı listeyi kullanır; sonuç sayfasında görünür", () => {
+    const card = read("src/components/parity/lesson-rating-card.tsx");
+    for (const label of ["Harikaydı", "Çok kolaydı", "Çok zordu", "Mantıklı değildi", "Başka bir şey yanlış gitti"]) expect(card).toContain(label);
+    expect(read("src/app/api/learning/exam-prep/rating/route.ts")).toContain('["great", "too_easy", "too_hard", "confusing", "other"]');
+    expect(read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx")).toContain("<LessonRatingCard attemptId=");
+  });
+
+  it("404 bize özgü: tek başlık, beyin görseli, destek adresi; pazarlama menüsü yok", () => {
+    const page = read("src/app/not-found.tsx");
+    expect(page.match(/<h1/g)).toHaveLength(1);
+    expect(page).toContain("Sayfa bulunamadı");
+    expect(page).toContain('<Icon3D name="avatar"');
+    expect(page).toContain("cortexplus@cortexplus.app");
+    expect(page).not.toContain("MarketingPage");
+  });
+
+  it("yıldızlar ve avatar tek cam kapsülde; Daha fazla satır kartları", () => {
+    const shell = read("src/components/parity/sor-shell.tsx");
+    expect(shell).toContain('<div className="cp-sor-me">');
+    expect(shell).toContain('<ChevronRight className="cp-more-action-chevron" aria-hidden />');
+  });
+});
