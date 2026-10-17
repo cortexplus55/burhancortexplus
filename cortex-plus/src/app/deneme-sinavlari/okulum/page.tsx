@@ -3,6 +3,7 @@ import { SchoolPrepsPage } from "@/components/parity/exam-catalog-pages";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { toFeedRows, toSummary } from "@/lib/parity/school-feed";
+import { toLeaderboardRows } from "@/lib/stars/view";
 
 export const metadata = { title: "Okulum" };
 export const dynamic = "force-dynamic";
@@ -11,11 +12,13 @@ export const dynamic = "force-dynamic";
 export default async function SchoolPrepsRoute() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
-  const [{ data: profile }, summaryRes, feedRes] = await Promise.all([
+  const [{ data: profile }, summaryRes, feedRes, podiumRes] = await Promise.all([
     supabase.from("profiles").select("school_name").eq("id", user.id).maybeSingle(),
     // Okul ağı RPC'leri yoksa sayfa çökmesin; boş akış "okulunu seç" hâlini gösterir.
     supabase.rpc("school_summary"),
     supabase.rpc("school_feed", { p_limit: 30 }),
+    // Astra: "Geçen haftanın en iyi okul arkadaşları" (yıldızla).
+    supabase.rpc("star_leaderboard", { p_scope: "school", p_period: "last_week", p_limit: 3 }),
   ]);
   return (
     <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari">
@@ -23,6 +26,7 @@ export default async function SchoolPrepsRoute() {
         initialSchoolName={(profile?.school_name as string | null) ?? ""}
         summary={toSummary(summaryRes.data)}
         rows={toFeedRows(feedRes.data)}
+        podium={toLeaderboardRows(podiumRes.error ? [] : podiumRes.data).filter((row) => row.rank <= 3)}
       />
     </ParitySorShell>
   );

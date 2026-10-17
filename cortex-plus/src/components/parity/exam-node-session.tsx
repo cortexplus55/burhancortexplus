@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Swords } from "lucide-react";
+import { Star, Swords } from "lucide-react";
 import { toast } from "sonner";
 import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/lib/learning/generation-failure";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
+import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
@@ -258,6 +259,8 @@ export function ExamNodeSession({
   /** Kart sonucu "Bildiğin kartlar N/M" — kayıttaki puan katılım puanı. */
   const [cardSummary, setCardSummary] = useState<{ known: number; total: number; repeated: number } | null>(null);
   const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
+  /** Bu etkinlikle kazanılan yıldız (Astra: sonuç ekranında "+17 yıldız"). */
+  const [starsEarned, setStarsEarned] = useState(0);
   const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
   const [oralGrade, setOralGrade] = useState<{
     items: { index: number; correct: boolean; gap: string | null }[];
@@ -645,6 +648,9 @@ export function ExamNodeSession({
       setSaveError(null);
       completeRequestIdRef.current = null;
       setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
+      const earned = Number(data.stars) || 0;
+      setStarsEarned(earned);
+      if (earned > 0) window.dispatchEvent(new Event(STARS_CHANGED_EVENT));
       setOralGrade(
         data.oralGrade && Array.isArray(data.oralGrade.items)
           ? {
@@ -1437,6 +1443,12 @@ export function ExamNodeSession({
             void finish(next);
           }}
         />
+      ) : null}
+
+      {stage === "result" && starsEarned > 0 ? (
+        <p className="cp-stars-earned" role="status">
+          <Star className="h-4 w-4" aria-hidden />+{starsEarned} yıldız
+        </p>
       ) : null}
 
       {stage === "oral-review-time" ? (

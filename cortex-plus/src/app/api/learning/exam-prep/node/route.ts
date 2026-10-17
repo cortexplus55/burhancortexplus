@@ -17,6 +17,8 @@ import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-
 import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
+import { awardStars } from "@/lib/stars/award";
+import { prepStars } from "@/lib/stars/rules";
 import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
@@ -1032,10 +1034,19 @@ async function handleNodeRequest(
       }).catch(() => null);
     }
 
+    // Yıldızlar (17 Ekim 2026, Astra'daki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır.
+    const stars = await awardStars(service, {
+      userId,
+      source: "prep",
+      ref: `attempt:${attempt.id}`,
+      amount: prepStars(kind, completed.score, completed.total),
+    });
+
     return NextResponse.json({
       ok: true,
       score: completed.score,
       total: completed.total,
+      stars,
       retried: scored.retried,
       nextHref,
       learningTracking,

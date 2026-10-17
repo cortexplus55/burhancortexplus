@@ -104,7 +104,10 @@ describe("completion transaction", () => {
     expect(filters).toContainEqual(["id", attemptId]);
     expect(filters).toContainEqual(["user_id", "user"]);
     expect(filters).toContainEqual(["exam_prep_id", "00000000-0000-4000-8000-000000000001"]);
-    expect(rpc).toHaveBeenCalledExactlyOnceWith("complete_exam_prep_node", expect.objectContaining({ p_attempt_id: attemptId, p_score: 0, p_total: 1 }));
+    // Tamamlama bir kez; ardından yalnız yıldız kaydı (17 Ekim 2026), o da başarıdan sonra.
+    const completes = rpc.mock.calls.filter(([name]) => name === "complete_exam_prep_node");
+    expect(completes).toEqual([["complete_exam_prep_node", expect.objectContaining({ p_attempt_id: attemptId, p_score: 0, p_total: 1 })]]);
+    expect(rpc.mock.calls.filter(([name]) => name !== "complete_exam_prep_node").map(([name]) => name)).toEqual(failed ? [] : ["award_stars"]);
     expect(update).not.toHaveBeenCalled();
   });
 });

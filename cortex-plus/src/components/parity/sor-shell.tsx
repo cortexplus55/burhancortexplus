@@ -13,6 +13,7 @@ import { JourneyDialog, type JourneyTab } from "@/components/parity/journey-dial
 import { BadgeUnlockNotice } from "@/components/parity/badge-unlock-notice";
 import type { BadgeJourney } from "@/lib/gamification/badges";
 import { ParityDialogHost, MenuDialogUrlSync } from "@/components/parity/parity-dialog-host";
+import { StarsButton } from "@/components/parity/stars-dialog";
 import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
@@ -255,6 +256,8 @@ export function ParitySorShell({
               <Flame className="h-4 w-4 text-orange-500" aria-hidden />
               <span>{streakCount}</span>
             </button>
+            {/* Yıldızlar (17 Ekim 2026, Astra'daki gibi serinin yanında). */}
+            <StarsButton />
             <button
               type="button"
               className="cp-sor-more"

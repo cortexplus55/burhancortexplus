@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GraduationCap, Landmark } from "lucide-react";
+import { GraduationCap, Landmark, Star } from "lucide-react";
 import { toast } from "sonner";
 import { SchoolFeedView } from "@/components/parity/school-feed-view";
 import {
@@ -12,6 +12,7 @@ import {
   type CatalogItem,
 } from "@/lib/learning/exam-catalog";
 import type { SchoolFeedRow, SchoolSummary } from "@/lib/parity/school-feed";
+import type { LeaderboardRow } from "@/lib/stars/view";
 
 /*
   Sınavlar listesindeki üç kutunun sayfaları (17 Ekim 2026, Astra ile yan yana:
@@ -23,10 +24,13 @@ export function SchoolPrepsPage({
   initialSchoolName,
   summary,
   rows,
+  podium = [],
 }: {
   initialSchoolName: string;
   summary: SchoolSummary | null;
   rows: SchoolFeedRow[];
+  /** Geçen haftanın ilk üç okul arkadaşı (yıldız). */
+  podium?: LeaderboardRow[];
 }) {
   const [schoolName, setSchoolName] = useState(initialSchoolName);
   const [schoolQuery, setSchoolQuery] = useState("");
@@ -75,6 +79,7 @@ export function SchoolPrepsPage({
   return (
     <div className="cp-exam-page cp-exam-subpage">
       <h1 className="cp-exam-subpage-title">Okulum</h1>
+      {schoolName && !picking ? <SchoolPodium rows={podium} /> : null}
       {picking || !schoolName ? (
         <div className="cp-exam-school-picker">
           <label className="cp-field">
@@ -166,5 +171,40 @@ function CatalogGrid({ items, icon = false }: { items: CatalogItem[]; icon?: boo
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Astra'nın okul sayfasındaki kürsü: geçen haftanın en çok yıldız kazanan üç okul
+ * arkadaşı ve tam sıralamayı açan bağlantı (17 Ekim 2026).
+ */
+function SchoolPodium({ rows }: { rows: LeaderboardRow[] }) {
+  return (
+    <section className="cp-school-podium" aria-label="Geçen haftanın en iyi okul arkadaşları">
+      <p className="cp-school-podium-kicker">Geçen haftanın en iyi okul arkadaşları</p>
+      {rows.length ? (
+        <ol>
+          {rows.map((row) => (
+            <li key={`${row.rank}-${row.label}`} className={row.isMe ? "is-me" : undefined}>
+              <span className="cp-school-podium-rank">{row.rank}</span>
+              <strong>
+                {row.label}
+                {row.isMe ? " (sen)" : ""}
+              </strong>
+              <span className="cp-school-podium-stars">
+                <Star className="h-3.5 w-3.5" aria-hidden />
+                {row.stars}
+                <span className="sr-only"> yıldız</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="cp-school-podium-empty">Geçen hafta okulundan yıldız kazanan olmadı.</p>
+      )}
+      <Link href="?dialog=stars" className="cp-school-podium-link" scroll={false}>
+        Yıldız sıralaması
+      </Link>
+    </section>
   );
 }

@@ -32,6 +32,7 @@ import {
 import { extractText } from "@/lib/documents/extract-text";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { recordUserActivity } from "@/lib/streak/record-activity";
+import { awardChatStars } from "@/lib/stars/chat";
 import { loadExamChatContext } from "@/lib/learning/exam-chat-context";
 import { loadPrepChatGrounding, recordChatMisconception } from "@/lib/learning/prep-chat-grounding";
 import {
@@ -551,6 +552,8 @@ export async function POST(request: Request) {
       }).catch(() => undefined);
     }
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
+    // Yıldızlar (17 Ekim 2026, Astra: "Öğretmenle sohbet — günde bir kez, 3 mesajdan sonra").
+    after(() => awardChatStars(service, userId));
     // Yeni sohbet: Astra gibi kısa başlık + emoji, cevap gittikten sonra.
     const savedConversationId = (saved as SavedChatResult).conversationId;
     if (!rest.conversationId && savedConversationId) {
