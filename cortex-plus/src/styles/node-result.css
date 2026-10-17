@@ -1,0 +1,142 @@
+/* Bitmiş etkinliğin sonucu (17 Ekim 2026, Astra'daki gibi; ölçüler docs/delivery/TASARIM-ASTRA-17-EKIM.md). */
+
+.cp-node-result {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  padding: 32px 16px calc(32px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(0deg, var(--c-bg) 55%, var(--c-success-soft) 100%);
+  text-align: center;
+}
+
+.cp-node-result.is-low {
+  background: linear-gradient(0deg, var(--c-bg) 55%, var(--c-surface-2) 100%);
+}
+
+.cp-node-result-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-inset);
+  color: var(--c-text);
+}
+
+.cp-node-result-kicker {
+  margin: 0;
+  font: 500 1rem / 1.5 var(--font-ui);
+  color: var(--c-text);
+}
+
+.cp-node-result-score {
+  margin: 12px 0 0;
+  font: 700 8rem / 1 var(--font-ui);
+  color: var(--c-success);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-node-result-score span {
+  font-size: 4rem;
+  opacity: 0.55;
+}
+
+.cp-node-result.is-low .cp-node-result-score {
+  color: var(--c-text);
+}
+
+.cp-node-result-emoji {
+  margin: 28px 0 0;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.cp-node-result-headline {
+  margin: 10px 0 0;
+  font: 600 1rem / 1.5 var(--font-ui);
+}
+
+.cp-node-result-topic {
+  margin: 4px 0 0;
+  max-width: 32rem;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-node-result-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 12rem);
+  margin: 16px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--c-border);
+}
+
+.cp-node-result-stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cp-node-result-stats dt {
+  font: var(--t-body-14);
+  color: #8a9bad;
+}
+
+.cp-node-result-stats dd {
+  margin: 0;
+  font: 500 0.875rem / 1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-node-result-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.cp-node-result-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 0.8px solid #393e4c;
+  border-radius: var(--r-pill);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: var(--t-label-13);
+  letter-spacing: 0.2px;
+  text-decoration: none;
+}
+
+.cp-node-result-pill:hover {
+  background: var(--c-surface-1);
+}
+
+.cp-node-result-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 32.5rem);
+  min-height: 48px;
+  margin-top: auto;
+  border-radius: var(--r-pill);
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font: var(--t-button-l);
+  text-decoration: none;
+}
+
+.cp-node-result-go:hover {
+  background: var(--c-action-hover);
+}

@@ -204,14 +204,15 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
     expect(label?.textContent).toContain("Giriş Dersi");
   });
 
-  it("son biten etkinlik yüzdesiyle kart; 'Sonuçları gör' düğümü açar", () => {
+  it("son biten etkinlik yüzdesiyle kart; 'Sonuçları gör' sonucu açar, etkinliği baştan kurmaz", () => {
     renderHome({
       nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }],
       lastResult: { nodeId: "lesson-1", pct: 80 },
     });
     const card = screen.getByRole("region", { name: "Son etkinlik" });
     expect(card.textContent).toContain("%80");
-    expect(screen.getByRole("link", { name: "Sonuçları gör" }).getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
+    // 17 Ekim 2026: düğümü açmak etkinliği baştan kuruyordu; Astra önceki sonucu gösteriyor.
+    expect(screen.getByRole("link", { name: "Sonuçları gör" }).getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1/sonuc");
   });
 
   it("yolun sonunda hazırlık düzeyi; 'Deneme sınavı oluştur' pencereyi Sınav sekmesinde açar", () => {

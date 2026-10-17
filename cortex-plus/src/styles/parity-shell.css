@@ -12946,7 +12946,8 @@ a.cp-exam-search {
 }
 
 .cp-puck-glyph .cp-path-letters {
-  font-size: 0.7rem;
+  font-size: 0.55rem;
+  line-height: 1;
 }
 
 .cp-path-beam {
@@ -13051,7 +13052,8 @@ a.cp-exam-search {
     align-items: start;
     justify-content: center;
     max-width: min(1064px, 100%);
-    padding: 72px 32px 48px;
+    /* Üst çubuk (96 px) zaten yer kaplıyor; Astra'da sol kart sayfanın 80. pikselinde. */
+    padding: 0 32px 48px;
   }
 
   .cp-prep-layout > .cp-prep-actions {
@@ -13068,8 +13070,15 @@ a.cp-exam-search {
     background: var(--c-surface-1);
   }
 
+  /* İçerik kartın akışına girsin (Astra sırası); hizalama soldan. */
   .cp-prep-aside .cp-prep-hero {
     display: contents;
+    text-align: left;
+  }
+
+  /* Astra geniş ekranda "son etkinlik" kartı göstermiyor; bitmiş düğüm yolun üstünde. */
+  .cp-prep-main .cp-prep-last {
+    display: none;
   }
 
   .cp-prep-aside .cp-prep-hero-kicker {
@@ -13178,8 +13187,7 @@ a.cp-exam-search {
     margin-top: 24px;
   }
 
-  .cp-prep-main .cp-path-next,
-  .cp-prep-main .cp-prep-last {
+  .cp-prep-main .cp-path-next {
     width: 100%;
   }
 }

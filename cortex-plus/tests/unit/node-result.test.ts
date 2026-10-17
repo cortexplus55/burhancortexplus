@@ -1,0 +1,55 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import { examPrepNodeResultHref } from "@/lib/learning/exam-prep-hrefs";
+import { nodeResultView, spentMinutes } from "@/lib/learning/node-result";
+
+/*
+  17 Ekim 2026, Astra ile yan yana: bitmiş testte "Sonuçları gör" Astra'da önceki sonucu
+  açıyor (3/7, doğruluk %50, harcanan zaman 3 dk, "Dersi tekrarla"). Bizde aynı düğme
+  etkinliği baştan kuruyordu ("Bu konuya ne kadar aşinasın?") — devam edilse yeni deneme.
+*/
+const read = (path: string) => readFileSync(path, "utf8");
+
+describe("bitmiş etkinliğin sonucu", () => {
+  it("puan, doğruluk, süre ve cümle kayıttan", () => {
+    const view = nodeResultView({
+      score: 3,
+      total: 7,
+      startedAt: "2026-10-17T10:00:00Z",
+      createdAt: "2026-10-17T09:59:00Z",
+      updatedAt: "2026-10-17T10:03:10Z",
+    });
+    expect(view).toMatchObject({ scored: true, score: 3, total: 7, pct: 43, minutes: 3, headline: "Bir tekrar iyi gelir." });
+    expect(nodeResultView({ score: 6, total: 7, startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: null })).toMatchObject({
+      pct: 86,
+      minutes: null,
+      headline: "Harika iş çıkardın!",
+    });
+    expect(nodeResultView({ score: 4, total: 7, startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: null }).headline).toBe(
+      "İyi gidiyorsun!",
+    );
+    // Puansız etkinlik (ders, podcast): sayı yok, yalnız "Tamamladın!".
+    expect(nodeResultView({ score: null, total: null, startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: null })).toMatchObject({
+      scored: false,
+      pct: null,
+      headline: "Tamamladın!",
+    });
+  });
+
+  it("süre ölçülemiyorsa yok; en az 1 dk, 10 saati aşan kayıt yok sayılır", () => {
+    expect(spentMinutes({ startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: "2026-10-17T10:00:20Z" })).toBe(1);
+    expect(spentMinutes({ startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: "2026-10-17T09:00:00Z" })).toBeNull();
+    expect(spentMinutes({ startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: "2026-10-18T10:00:00Z" })).toBeNull();
+  });
+
+  it("Sonuçları gör ve yoldaki bitmiş düğüm sonuç sayfasını açar; sayfa yalnız sahibin kaydını okur", () => {
+    expect(examPrepNodeResultHref("p1", "n1")).toBe("/deneme-sinavlari/p1/dugum/n1/sonuc");
+    const home = read("src/components/parity/exam-prep-home.tsx");
+    expect(home).toContain('<Link href={examPrepNodeResultHref(prepId, lastNode.id)} className="cp-prep-last-go">');
+    expect(home).toContain('node.status === "done" ? examPrepNodeResultHref(prepId, node.id)');
+    const page = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
+    expect(page).toContain('.eq("user_id", user.id)');
+    expect(page).toContain('.eq("status", "completed")');
+    expect(page).toContain("Dersi tekrarla");
+  });
+});

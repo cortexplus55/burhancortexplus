@@ -15,6 +15,11 @@ export function examPrepNodeHref(prepId: string, nodeId: string) {
   return `/deneme-sinavlari/${prepId}/dugum/${nodeId}`;
 }
 
+/** Bitmiş etkinliğin sonucu (Astra: "Sonuçları gör" önceki sonucu açar, etkinliği baştan kurmaz). */
+export function examPrepNodeResultHref(prepId: string, nodeId: string) {
+  return `/deneme-sinavlari/${prepId}/dugum/${nodeId}/sonuc`;
+}
+
 export function examPrepReviewsHref(prepId: string) {
   return `/deneme-sinavlari/${prepId}/tekrarlar`;
 }
