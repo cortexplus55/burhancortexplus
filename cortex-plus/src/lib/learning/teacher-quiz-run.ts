@@ -116,6 +116,12 @@ export async function runTeacherQuiz(
      * true iken dönen reservationId bekleyen durumdadır.
      */
     deferCommit?: boolean;
+    /**
+     * Krediyi çağıran zaten ayırdı (yazılı deneme: konu başına bir üretim, deneme
+     * başına tek ücret). Verilirse burada ayırma, kesinleştirme ve iade yok; kullanım
+     * bu ayrılışa yazılır. Aynı anahtarla her konu kendi ayırsaydı yalnız ilki geçerdi.
+     */
+    heldReservationId?: string;
     /** Asgari soru sayısı; yoksa count − 2 (en az 3). */
     minimum?: number;
   },
@@ -124,7 +130,10 @@ export async function runTeacherQuiz(
   if (!input.pages.length && !input.sourceBlock?.trim() && input.mode !== "topic") {
     return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
   }
-  const reservation = await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
+  const held = input.heldReservationId;
+  const reservation = held
+    ? ({ ok: true, reservationId: held } as const)
+    : await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
   if (!reservation.ok) {
     return {
       ok: false,
@@ -133,6 +142,7 @@ export async function runTeacherQuiz(
       reasons: [],
     };
   }
+  const refund = () => (held ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined));
   const started = input.startedAt ?? Date.now();
   const model = contentModel();
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
@@ -170,7 +180,7 @@ export async function runTeacherQuiz(
       ms: Date.now() - started,
     });
     if (loop.questions.length < (input.minimum ?? minimumQuestions(input.count))) {
-      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+      await refund();
       return {
         ok: false,
         status: 503,
@@ -178,13 +188,13 @@ export async function runTeacherQuiz(
         reasons: loop.rejected.slice(0, 4).map((item) => item.problems[0]?.slice(0, 200) ?? "sorun"),
       };
     }
-    if (input.deferCommit) {
+    if (input.deferCommit || held) {
       return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
     }
     await commitCredits(service, reservation.reservationId);
     return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
   } catch (error) {
-    await refundCredits(service, reservation.reservationId).catch(() => undefined);
+    await refund();
     console.error("teacher_quiz_failed", {
       topic: input.topicLabel.slice(0, 80),
       calls,

@@ -4,6 +4,9 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { createMockExam } from "@/lib/learning/mock-exam/create";
 
+/** Konu başına öğretmen motoru (yazar + denetim + düzeltme), sekizli dalgalar. */
+export const maxDuration = 300;
+
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
   questionCount: z.number().int().min(5).max(20).default(10),

@@ -5,6 +5,9 @@ import { isPremiumUser } from "@/lib/ai/generate";
 import { createMockExam } from "@/lib/learning/mock-exam/create";
 import { clampMockMinutes, MOCK_MINUTES_MAX } from "@/lib/learning/mock-exam/time-limit";
 
+/** Konu başına öğretmen motoru (yazar + denetim + düzeltme), sekizli dalgalar. */
+export const maxDuration = 300;
+
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   preset: z.enum(["short", "standard", "real"]).optional(),

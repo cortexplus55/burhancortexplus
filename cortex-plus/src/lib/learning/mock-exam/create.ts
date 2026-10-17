@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { loadMergedTopicContext, loadTopicSpanContext } from "@/lib/learning/source-context";
 import {
@@ -141,126 +142,151 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
   }
   if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
 
-  const drafts: MockExamQuestionDraft[] = [];
-  const allocation = blueprint.allocation.filter((a) => a.count > 0);
-  const slotQueue = [...blueprint.slots];
+  // Deneme başına tek ücret: kredi burada bir kez ayrılır, konu üretimleri bu ayrılışı
+  // kullanır. 17 Ekim 2026'ya kadar her konu aynı anahtarla kendi ayırmaya çalışıyordu;
+  // yalnız ilk konu geçiyor, ötekiler "işlem sürüyor/bitti" ile boş dönüyordu (Pediatri'de
+  // 10 sorudan 1'i).
   const chargeKey = `practice-exam:${prepId}:${userId}:${Date.now()}`;
-
-  // Konu başına paralel üretim (en fazla 4)
-  for (let i = 0; i < allocation.length; i += TOPIC_GENERATE_CONCURRENCY) {
-    const batch = allocation.slice(i, i + TOPIC_GENERATE_CONCURRENCY);
-    const batchPlans = batch.map((row) => ({
-      row,
-      slots: slotQueue.splice(0, row.count),
-    }));
-    const parts = await Promise.all(
-      batchPlans.map(({ row, slots }) =>
-        generateForTopic({
-          service,
-          userId,
-          isPremium: input.isPremium,
-          prepTitle: String(prep.title),
-          documentId: prep.document_id as string | null,
-          topic: row,
-          slots: slots.length ? slots : [{ type: "mcq", points: 4 }],
-          allowNumeric,
-          allTopics: topics,
-          chargeKey,
-        }),
-      ),
-    );
-    for (const part of parts) drafts.push(...part);
+  const charge = await reserveCredits(service, userId, "PRACTICE_EXAM_GENERATE", chargeKey);
+  if (!charge.ok) {
+    return { ok: false, status: charge.reason === "insufficient_credits" ? 402 : 409, error: charge.reason };
   }
+  const reservationId = charge.reservationId;
+  const refund = () => refundCredits(service, reservationId).catch(() => undefined);
 
-  let questions = filterOverlappingQuestions(drafts);
-  // Kaynaksız soru yayımlama
-  questions = questions.filter((q) => q.source.label.trim().length > 0);
+  try {
+    const drafts: MockExamQuestionDraft[] = [];
+    const allocation = blueprint.allocation.filter((a) => a.count > 0);
+    const slotQueue = [...blueprint.slots];
 
-  // Harf dengesi bozuksa mcq'ları karıştır (yeniden üretmek yerine)
-  if (!letterBalanceOk(questions)) {
-    questions = rotateCorrectOptions(questions);
-  }
+    // Konu başına paralel üretim
+    for (let i = 0; i < allocation.length; i += TOPIC_GENERATE_CONCURRENCY) {
+      const batch = allocation.slice(i, i + TOPIC_GENERATE_CONCURRENCY);
+      const batchPlans = batch.map((row) => ({
+        row,
+        slots: slotQueue.splice(0, row.count),
+      }));
+      const parts = await Promise.all(
+        batchPlans.map(({ row, slots }) =>
+          generateForTopic({
+            service,
+            userId,
+            isPremium: input.isPremium,
+            prepTitle: String(prep.title),
+            documentId: prep.document_id as string | null,
+            topic: row,
+            slots: slots.length ? slots : [{ type: "mcq", points: 4 }],
+            allowNumeric,
+            allTopics: topics,
+            chargeKey,
+            reservationId,
+          }),
+        ),
+      );
+      for (const part of parts) drafts.push(...part);
+    }
 
-  // Eksikse bir kez daha dene (en zayıf konu)
-  const planned = blueprint.questionCount;
-  if (questions.length < planned && allocation.length) {
-    const weak = allocation[0];
-    const extra = await generateForTopic({
-      service,
-      userId,
-      isPremium: input.isPremium,
-      prepTitle: String(prep.title),
-      documentId: prep.document_id as string | null,
-      topic: weak,
-      slots: Array.from({ length: Math.min(4, planned - questions.length) }, () => ({
-        type: "mcq" as const,
-        points: 4,
+    let questions = filterOverlappingQuestions(drafts);
+    // Kaynaksız soru yayımlama
+    questions = questions.filter((q) => q.source.label.trim().length > 0);
+
+    // Harf dengesi bozuksa mcq'ları karıştır (yeniden üretmek yerine)
+    if (!letterBalanceOk(questions)) {
+      questions = rotateCorrectOptions(questions);
+    }
+
+    // Eksikse bir kez daha dene (en zayıf konu)
+    const planned = blueprint.questionCount;
+    if (questions.length < planned && allocation.length) {
+      const weak = allocation[0];
+      const extra = await generateForTopic({
+        service,
+        userId,
+        isPremium: input.isPremium,
+        prepTitle: String(prep.title),
+        documentId: prep.document_id as string | null,
+        topic: weak,
+        slots: Array.from({ length: Math.min(4, planned - questions.length) }, () => ({
+          type: "mcq" as const,
+          points: 4,
+        })),
+        allowNumeric,
+        allTopics: topics,
+        chargeKey,
+        reservationId,
+      });
+      questions = filterOverlappingQuestions([
+        ...questions,
+        ...extra.filter((q) => q.source.label.trim()),
+      ]);
+    }
+
+    const ready = questions.length;
+    if (!ready) {
+      await refund();
+      return { ok: false, status: 500, error: "generation_failed" };
+    }
+
+    const note =
+      ready < planned
+        ? polishMockCopy(`Planlanan ${planned} sorudan ${ready}'si hazırlandı.`)
+        : null;
+
+    const { data: exam, error: examError } = await service
+      .from("practice_exams")
+      .insert({
+        user_id: userId,
+        title: `${prep.title} · yazılı deneme`,
+        duration_minutes: blueprint.durationMinutes,
+        exam_prep_id: prepId,
+        blueprint,
+        scope: input.scope ?? "all",
+        topic_ids: input.topicIds ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (examError || !exam) {
+      await refund();
+      return { ok: false, status: 500, error: "generation_failed" };
+    }
+
+    await service.from("practice_exam_questions").insert(
+      questions.map((q, sort_order) => ({
+        exam_id: exam.id,
+        question_text: q.text,
+        question_type: q.type,
+        options: q.options.length ? q.options : null,
+        correct_answer: q.correctAnswers[0] ?? null,
+        correct_answers: q.correctAnswers,
+        points: q.points,
+        sort_order,
+        topic_id: q.topicId,
+        topic_label: q.topicLabel,
+        explanation: q.explanation,
+        option_why: q.optionWhy.length ? q.optionWhy : null,
+        rubric: q.rubric.length ? q.rubric : null,
+        model_answer: q.modelAnswer || null,
+        source_document_id: q.source.documentId,
+        source_page: q.source.page,
+        source_label: q.source.label,
+        difficulty: q.difficulty,
       })),
-      allowNumeric,
-      allTopics: topics,
-      chargeKey,
-    });
-    questions = filterOverlappingQuestions([
-      ...questions,
-      ...extra.filter((q) => q.source.label.trim()),
-    ]);
-  }
+    );
 
-  const ready = questions.length;
-  if (!ready) return { ok: false, status: 500, error: "generation_failed" };
-
-  const note =
-    ready < planned
-      ? polishMockCopy(`Planlanan ${planned} sorudan ${ready}'si hazırlandı.`)
-      : null;
-
-  const { data: exam, error: examError } = await service
-    .from("practice_exams")
-    .insert({
-      user_id: userId,
-      title: `${prep.title} · yazılı deneme`,
-      duration_minutes: blueprint.durationMinutes,
-      exam_prep_id: prepId,
+    await commitCredits(service, reservationId);
+    return {
+      ok: true,
+      examId: exam.id as string,
       blueprint,
-      scope: input.scope ?? "all",
-      topic_ids: input.topicIds ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (examError || !exam) return { ok: false, status: 500, error: "generation_failed" };
-
-  await service.from("practice_exam_questions").insert(
-    questions.map((q, sort_order) => ({
-      exam_id: exam.id,
-      question_text: q.text,
-      question_type: q.type,
-      options: q.options.length ? q.options : null,
-      correct_answer: q.correctAnswers[0] ?? null,
-      correct_answers: q.correctAnswers,
-      points: q.points,
-      sort_order,
-      topic_id: q.topicId,
-      topic_label: q.topicLabel,
-      explanation: q.explanation,
-      option_why: q.optionWhy.length ? q.optionWhy : null,
-      rubric: q.rubric.length ? q.rubric : null,
-      model_answer: q.modelAnswer || null,
-      source_document_id: q.source.documentId,
-      source_page: q.source.page,
-      source_label: q.source.label,
-      difficulty: q.difficulty,
-    })),
-  );
-
-  return {
-    ok: true,
-    examId: exam.id as string,
-    blueprint,
-    planned,
-    ready,
-    note,
-  };
+      planned,
+      ready,
+      note,
+    };
+  } catch (error) {
+    await refund();
+    throw error;
+  }
 }
 
 async function generateForTopic(input: {
@@ -274,6 +300,8 @@ async function generateForTopic(input: {
   allowNumeric: boolean;
   allTopics: TopicRow[];
   chargeKey: string;
+  /** Denemenin ayrılmış kredisi; konu üretimi kendi ayırmaz (bkz. createMockExam). */
+  reservationId: string;
 }): Promise<MockExamQuestionDraft[]> {
   const ctx = await topicContext(
     input.service,
@@ -299,6 +327,7 @@ async function generateForTopic(input: {
     requireSourceSupport: true,
     actionCode: "PRACTICE_EXAM_GENERATE",
     idempotencyKey: input.chargeKey,
+    heldReservationId: input.reservationId,
     count: input.slots.length,
     topicLabel: input.topic.topicLabel,
     prepTitle: input.prepTitle,
