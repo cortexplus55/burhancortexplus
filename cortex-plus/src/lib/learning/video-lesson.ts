@@ -58,12 +58,19 @@ export function videoStyle(id: string | null | undefined): (typeof VIDEO_STYLES)
   return VIDEO_STYLES.find((item) => item.id === id) ?? VIDEO_STYLES[2]!;
 }
 
-export const VIDEO_MIN_SCENES = 5;
+/*
+ * Süre: seslendirme Türkçeyi saniyede ~1,64 kelimeyle okuyor (17 Ekim canlı ölçüm: 178
+ * kelime 108,5 sn — "1 dakikalık" denen video 1:48 çıktı). Astra'nın 66 sn'si ≈ 108 kelime.
+ * Yazara hedef verilir; hedef kaçarsa düzeltme turu, yalnız sınırın dışı videoyu düşürür.
+ */
+export const VIDEO_MIN_SCENES = 6;
 export const VIDEO_MAX_SCENES = 8;
-/** Bir sahnenin anlatımı: 1-2 cümle, en çok 30 kelime (yaklaşık 8-11 sn). */
-export const VIDEO_SCENE_MAX_WORDS = 30;
-/** Bütün video: yaklaşık 1 dakika. */
-export const VIDEO_TOTAL_WORDS = { min: 110, max: 190 } as const;
+/** Bir sahnenin anlatımı: 1-2 cümle, en çok 18 kelime (yaklaşık 11 sn). */
+export const VIDEO_SCENE_MAX_WORDS = 18;
+/** Bütün video: 85-115 kelime ≈ 52-70 sn. */
+export const VIDEO_TOTAL_WORDS = { min: 85, max: 115 } as const;
+/** Düzeltmeden sonra da aşılırsa video yazılmaz (≈ 43-85 sn, 5 sahne, sahnede 24 kelime). */
+export const VIDEO_HARD_LIMITS = { minScenes: 5, sceneWords: 24, totalWords: { min: 70, max: 140 } } as const;
 
 export type VideoScene = { narration: string; visual: string };
 export type VideoScript = { title: string; scenes: VideoScene[] };
@@ -152,20 +159,39 @@ export function parseVideoScript(raw: unknown, fallbackTitle: string): VideoScri
   return { title, scenes: scenes.slice(0, VIDEO_MAX_SCENES) };
 }
 
-/** Yapı denetimi (saf). Sorunu düzeltmez; düzeltme turuna yollar. */
-export function videoStructureIssues(script: VideoScript): string[] {
-  const issues: string[] = [];
-  if (script.scenes.length < VIDEO_MIN_SCENES) issues.push(`Sahne sayısı ${script.scenes.length}; en az ${VIDEO_MIN_SCENES} olmalı.`);
+export type VideoStructureIssue = { severity: "high" | "low"; problem: string };
+
+/**
+ * Yapı denetimi (saf). Sorunu düzeltmez; hepsi düzeltme turuna gider. "high" yalnız
+ * sert sınırın dışı: düzeltmeden sonra da kalırsa video yazılmaz.
+ */
+export function videoStructureIssues(script: VideoScript): VideoStructureIssue[] {
+  const issues: VideoStructureIssue[] = [];
+  const count = script.scenes.length;
+  if (count < VIDEO_MIN_SCENES) {
+    issues.push({
+      severity: count < VIDEO_HARD_LIMITS.minScenes ? "high" : "low",
+      problem: `Sahne sayısı ${count}; ${VIDEO_MIN_SCENES}-${VIDEO_MAX_SCENES} olmalı.`,
+    });
+  }
   const total = script.scenes.reduce((sum, scene) => sum + words(scene.narration), 0);
   if (total < VIDEO_TOTAL_WORDS.min || total > VIDEO_TOTAL_WORDS.max) {
-    issues.push(`Toplam ${total} kelime; ${VIDEO_TOTAL_WORDS.min}-${VIDEO_TOTAL_WORDS.max} olmalı (yaklaşık 1 dakika).`);
+    const hard = VIDEO_HARD_LIMITS.totalWords;
+    issues.push({
+      severity: total < hard.min || total > hard.max ? "high" : "low",
+      problem: `Toplam ${total} kelime; ${VIDEO_TOTAL_WORDS.min}-${VIDEO_TOTAL_WORDS.max} olmalı (yaklaşık 1 dakika).`,
+    });
   }
   script.scenes.forEach((scene, index) => {
-    if (words(scene.narration) > VIDEO_SCENE_MAX_WORDS) {
-      issues.push(`scenes[${index}]: anlatım ${words(scene.narration)} kelime; en çok ${VIDEO_SCENE_MAX_WORDS}.`);
+    const sceneWords = words(scene.narration);
+    if (sceneWords > VIDEO_SCENE_MAX_WORDS) {
+      issues.push({
+        severity: sceneWords > VIDEO_HARD_LIMITS.sceneWords ? "high" : "low",
+        problem: `scenes[${index}]: anlatım ${sceneWords} kelime; en çok ${VIDEO_SCENE_MAX_WORDS}.`,
+      });
     }
     if (/metne göre|belgede|kaynakta|bu videoda/i.test(scene.narration)) {
-      issues.push(`scenes[${index}]: kaynağa atıf ya da boş giriş cümlesi; çıkar.`);
+      issues.push({ severity: "low", problem: `scenes[${index}]: kaynağa atıf ya da boş giriş cümlesi; çıkar.` });
     }
   });
   return issues;

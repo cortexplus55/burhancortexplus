@@ -53,9 +53,13 @@ export async function videoScriptLoop(
   const review = async (draft: VideoScript) => {
     const structural = videoStructureIssues(draft);
     const factual = parseIssues(await ask(VIDEO_VERIFY_SYSTEM, videoVerifyUserPrompt(draft, input)));
+    const line = (issue: Issue) => `scenes[${issue.scene}]: ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`;
     return {
-      high: [...structural, ...factual.filter((issue) => issue.severity === "high").map((issue) => `scenes[${issue.scene}]: ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`)],
-      all: [...structural, ...factual.map((issue) => `scenes[${issue.scene}]: ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`)],
+      high: [
+        ...structural.filter((issue) => issue.severity === "high").map((issue) => issue.problem),
+        ...factual.filter((issue) => issue.severity === "high").map(line),
+      ],
+      all: [...structural.map((issue) => issue.problem), ...factual.map(line)],
     };
   };
   let found = await review(script);

@@ -740,6 +740,7 @@
 
 .cp-study-hub-icon--lesson { background: var(--c-action-soft); color: var(--c-action); }
 .cp-study-hub-icon--podcast { background: var(--c-ai-soft); color: var(--c-ai); }
+.cp-study-hub-icon--video { background: var(--c-info-soft); color: var(--c-info); }
 .cp-study-hub-icon--oral { background: var(--c-warning-soft); color: var(--c-warning); }
 .cp-study-hub-icon--written_exam { background: var(--c-info-soft); color: var(--c-info); }
 .cp-study-hub-icon--quiz { background: var(--c-success-soft); color: var(--c-success); }
