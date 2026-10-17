@@ -38,7 +38,8 @@ describe("video senaryosu", () => {
     expect(VIDEO_STYLES.map((item) => item.label)).toEqual(["Gerçekçi", "Çizgi roman", "Beyaz tahta", "Brainrot", "Mem"]);
     const system = videoSystem("document");
     expect(system).toContain("KAYNAK KURALI (kesin)");
-    expect(system).toContain("5-8 sahne, toplam 110-190 kelime.");
+    expect(system).toContain("6-8 sahne, toplam 85-115 kelime.");
+    expect(system).toContain("en çok 18 kelime");
     expect(system).toContain("resimde YAZI, harf, sayı, etiket olmaz");
     expect(videoSystem("topic")).toContain("BİLGİ KURALI (belgesiz, kesin)");
     expect(videoImagePrompt(scene("x"), "whiteboard")).toContain("whiteboard sketch");
@@ -47,15 +48,34 @@ describe("video senaryosu", () => {
 
   it("yapı: az sahne, uzun ya da kısa toplam, uzun sahne ve kaynağa atıf yakalanır", () => {
     const words = (n: number) => Array.from({ length: n }, (_, i) => `kelime${i}`).join(" ");
-    const good = parseVideoScript({ title: "Krup", scenes: Array.from({ length: 6 }, () => scene(`${words(22)}.`)) }, "Konu")!;
+    const text = (script: ReturnType<typeof parseVideoScript>) => videoStructureIssues(script!).map((issue) => issue.problem).join(" ");
+    const good = parseVideoScript({ title: "Krup", scenes: Array.from({ length: 7 }, () => scene(`${words(14)}.`)) }, "Konu")!;
     expect(videoStructureIssues(good)).toEqual([]);
     const short = parseVideoScript({ scenes: [scene("Kısa.")] }, "Konu")!;
     expect(short.title).toBe("Konu");
-    expect(videoStructureIssues(short).join(" ")).toMatch(/Sahne sayısı 1/);
+    expect(text(short)).toMatch(/Sahne sayısı 1/);
     const long = parseVideoScript({ scenes: Array.from({ length: 6 }, () => scene(`${words(35)}.`)) }, "K")!;
-    expect(videoStructureIssues(long).join(" ")).toMatch(/35 kelime; en çok 30/);
-    const cited = parseVideoScript({ scenes: Array.from({ length: 6 }, (_, i) => scene(i === 0 ? `Metne göre ${words(20)}.` : `${words(22)}.`)) }, "K")!;
-    expect(videoStructureIssues(cited).join(" ")).toMatch(/kaynağa atıf/);
+    expect(text(long)).toMatch(/35 kelime; en çok 18/);
+    const cited = parseVideoScript({ scenes: Array.from({ length: 7 }, (_, i) => scene(i === 0 ? `Metne göre ${words(12)}.` : `${words(14)}.`)) }, "K")!;
+    expect(text(cited)).toMatch(/kaynağa atıf/);
+  });
+
+  it("süre: 1:48'lik senaryo (8 × 22 kelime) düşer; hedefi biraz kaçıran düzeltilir ama atılmaz", () => {
+    // 17 Ekim canlı: 178 kelime 108,5 sn sürdü; "1 dakikalık" video 1:48 çıktı.
+    const words = (n: number) => Array.from({ length: n }, (_, i) => `kelime${i}`).join(" ");
+    const high = (script: ReturnType<typeof parseVideoScript>) =>
+      videoStructureIssues(script!).filter((issue) => issue.severity === "high").map((issue) => issue.problem);
+    const live = parseVideoScript({ scenes: Array.from({ length: 8 }, () => scene(`${words(22)}.`)) }, "K")!;
+    expect(high(live).join(" ")).toMatch(/Toplam 176 kelime/);
+    const slightlyLong = parseVideoScript({ scenes: Array.from({ length: 6 }, () => scene(`${words(20)}.`)) }, "K")!;
+    expect(videoStructureIssues(slightlyLong).length).toBeGreaterThan(0);
+    expect(high(slightlyLong)).toEqual([]);
+    const fiveScenes = parseVideoScript({ scenes: Array.from({ length: 5 }, () => scene(`${words(18)}.`)) }, "K")!;
+    expect(high(fiveScenes)).toEqual([]);
+    const fourScenes = parseVideoScript({ scenes: Array.from({ length: 4 }, () => scene(`${words(18)}.`)) }, "K")!;
+    expect(high(fourScenes).join(" ")).toMatch(/Sahne sayısı 4/);
+    // Koşucu yalnız "high" yapı sorununda videoyu düşürür.
+    expect(read("src/lib/learning/video-run.ts")).toContain('structural.filter((issue) => issue.severity === "high")');
   });
 
   it("alt yazı 2-4 kelimelik parçalar, sesin süresine oranlı", () => {
@@ -89,6 +109,9 @@ describe("video: kapı, kredi, yol", () => {
     expect(studyVideoHref("p1", "Krup", [{ id: "t1", label: "Krup" }])).toBe("/deneme-sinavlari/p1/video?topicId=t1");
     const nodes = [{ kind: "lesson", status: "ready", sortOrder: 1 }];
     expect(recommendedStudyTool(nodes, ["watching"])?.id).toBe("video");
+    // 17 Ekim canlı: Video kutusunun simgesi renkli zeminsiz kalmıştı — her aracın kuralı olsun.
+    const css = read("src/styles/oral-exam-chrome.css");
+    for (const tool of STUDY_TOOLS) expect(css, tool.id).toContain(`.cp-study-hub-icon--${tool.id} {`);
   });
 
   it("göç PGlite'ta çalışır: tablo, sahip okur, kredi kuralı", async () => {
@@ -152,5 +175,7 @@ describe("video ekranları", () => {
     expect(container.querySelector(".cp-video-caption")?.textContent).toBe("Havlar öksürük krupu düşündürür.");
     fireEvent.click(screen.getByRole("button", { name: "Oynat" }));
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    // Ses daha yüklenmeden düğme "Duraklat" olur (ikinci dokunuş oynatmayı iptal etmesin).
+    expect(screen.getByRole("button", { name: "Duraklat" })).toBeTruthy();
   });
 });

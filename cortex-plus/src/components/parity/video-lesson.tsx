@@ -274,7 +274,9 @@ export function VideoLessonPlayer({
       return;
     }
     if (el.paused) {
-      void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      // Ses yüklenirken düğme hemen "Duraklat" olsun; yoksa yavaş bağlantıda ikinci dokunuş durdurur.
+      setPlaying(true);
+      void el.play().catch(() => setPlaying(false));
     } else {
       el.pause();
       setPlaying(false);
