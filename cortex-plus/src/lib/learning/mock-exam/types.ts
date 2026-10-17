@@ -119,5 +119,5 @@ export const DEADLINE_GRACE_SEC = 120;
 /** Cevap kaydı debounce (ms). */
 export const ANSWER_SAVE_DEBOUNCE_MS = 800;
 
-/** Konu üretiminde eşzamanlı üst sınır. */
-export const TOPIC_GENERATE_CONCURRENCY = 4;
+/** Konu üretiminde eşzamanlı üst sınır: 16 konulu hazırlık iki dalgada biter (uç 300 sn). */
+export const TOPIC_GENERATE_CONCURRENCY = 8;

@@ -35,6 +35,8 @@ export async function generateExamQuiz(input: {
    * kullanılamazsa iade). true iken dönen reservationId pending'dir.
    */
   deferCommit?: boolean;
+  /** Krediyi çağıran ayırdı (yazılı deneme, konu başına üretim); bkz. runTeacherQuiz. */
+  heldReservationId?: string;
   /**
    * Ayrıştırıcı ve doğrulayıcı en fazla bu kadar soru tutar (varsayılan 8).
    * Düello 7 soru gösteriyor; 8 adaydan 7'sinin doğrulamayı geçmesi
@@ -81,6 +83,7 @@ export async function generateExamQuiz(input: {
     // ("hard" tanı ve tanışma testinde) ve yazara gitmez.
     difficulty: quizDifficulty(input.studentDifficulty),
     deferCommit: input.deferCommit,
+    heldReservationId: input.heldReservationId,
   });
   if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
   return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };
