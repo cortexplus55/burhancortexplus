@@ -37,6 +37,8 @@ export async function generateExamQuiz(input: {
   deferCommit?: boolean;
   /** Krediyi çağıran ayırdı (yazılı deneme, konu başına üretim); bkz. runTeacherQuiz. */
   heldReservationId?: string;
+  /** Tam bir çok cevaplı soru, sonda (yazılı denemede çok cevaplı yer bu konudaysa). */
+  multi?: boolean;
   /**
    * Ayrıştırıcı ve doğrulayıcı en fazla bu kadar soru tutar (varsayılan 8).
    * Düello 7 soru gösteriyor; 8 adaydan 7'sinin doğrulamayı geçmesi
@@ -84,6 +86,7 @@ export async function generateExamQuiz(input: {
     difficulty: quizDifficulty(input.studentDifficulty),
     deferCommit: input.deferCommit,
     heldReservationId: input.heldReservationId,
+    multi: input.multi,
   });
   if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
   return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };

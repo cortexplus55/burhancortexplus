@@ -9,6 +9,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
   "işlem sürüyor / bitti" ile boş dönüyordu. Hata 2 Ekim'de deneme öğretmen motoruna
   geçtiğinden beri vardı. Şimdi kredi deneme başında bir kez ayrılır; konu üretimleri o
   ayrılışı kullanır, en az bir soru çıkarsa kesinleşir, çıkmazsa iade edilir.
+
+  Aynı denemede 10 sorunun 4'ü bozuktu: kod çoktan seçmeli soruyu şıklarını silip
+  doğru/yanlış ("hangi grupta sınıflanır?" + Doğru/Yanlış), sayısal ve açık uçlu yapıyordu.
+  Karar (ürün sahibi, Astra gibi): çoktan seçmeli + açık uçlu; açık uçlu sözlü öğretmen
+  motorundan, cevabı yapay zekâ ölçüt başına alıntıyla notlar.
 */
 
 const credits = vi.hoisted(() => {
@@ -27,7 +32,13 @@ const credits = vi.hoisted(() => {
   };
 });
 
-const quiz = vi.hoisted(() => ({ fail: false, calls: [] as Array<{ topicLabel?: string; held?: string }> }));
+const quiz = vi.hoisted(() => ({
+  fail: false,
+  calls: [] as Array<{ topicLabel?: string; held?: string; multi?: boolean }>,
+  oral: [] as Array<{ topicLabel: string; count: number }>,
+}));
+/** Modelin cevabı; varsayılan "{}" (motor soru çıkaramaz, kredi yolu görünür). */
+const ai = vi.hoisted(() => ({ reply: "{}", calls: 0 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/credits/service", () => credits);
@@ -35,10 +46,36 @@ vi.mock("@/lib/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/env")>();
   return { ...actual, env: { ...actual.env, OPENAI_API_KEY: "k", OPENAI_CONTENT_MODEL: "luna-test" } };
 });
-// Model boş döner: motor soru çıkaramaz, kredi yolu (iade / iadesiz) görünür.
 vi.mock("openai", () => ({
   default: class {
-    chat = { completions: { create: async () => ({ choices: [{ message: { content: "{}" } }], usage: {} }) } };
+    chat = {
+      completions: {
+        create: async () => {
+          ai.calls += 1;
+          return { choices: [{ message: { content: ai.reply } }], usage: {} };
+        },
+      },
+    };
+  },
+}));
+vi.mock("@/lib/learning/mistake-notebook", () => ({ recordMistakes: async () => undefined }));
+vi.mock("@/lib/learning/missed-day-reschedule", () => ({ maybeRescheduleMissedDays: async () => undefined }));
+vi.mock("@/lib/streak/record-activity", () => ({ recordUserActivity: async () => undefined }));
+// Öğretmen sözlü motoru: denetlenmiş açık uçlu soru, beklenen noktalar ve örnek cevap.
+vi.mock("@/lib/learning/teacher-practice", () => ({
+  teacherOralLoop: async (_ask: unknown, input: { topicLabel: string; count: number }) => {
+    quiz.oral.push({ topicLabel: input.topicLabel, count: input.count });
+    if (quiz.fail) return { items: [], rejected: [], rounds: 0 };
+    return {
+      items: Array.from({ length: input.count }, (_, i) => ({
+        prompt: `${input.topicLabel} ${input.topicLabel.split("").reverse().join("")} açıkla ${i}`,
+        rubricCriteria: [],
+        expectedPoints: ["Yaş ve genel görünüm belirleyicidir", "Ateş derecesi tek başına yetmez", "Alarm bulguları acildir"],
+        modelAnswer: "Yaş, genel görünüm ve alarm bulguları ateş derecesinden daha belirleyicidir.",
+      })),
+      rejected: [],
+      rounds: 0,
+    };
   },
 }));
 vi.mock("@/lib/learning/source-context", () => ({
@@ -59,9 +96,10 @@ vi.mock("@/lib/learning/exam-quiz-generate", () => ({
     idempotencyKey?: string;
     heldReservationId?: string;
     count?: number;
+    multi?: boolean;
     topicLabel?: string;
   }) => {
-    quiz.calls.push({ topicLabel: input.topicLabel, held: input.heldReservationId });
+    quiz.calls.push({ topicLabel: input.topicLabel, held: input.heldReservationId, multi: input.multi });
     if (!input.heldReservationId) {
       const claim = await credits.reserveCredits(input.service, input.userId, "PRACTICE_EXAM_GENERATE", input.idempotencyKey ?? "");
       if (!claim.ok) return { ok: false, status: 409, error: claim.reason };
@@ -84,7 +122,10 @@ vi.mock("@/lib/learning/exam-quiz-generate", () => ({
   },
 }));
 
+import { defaultSlots } from "@/lib/learning/mock-exam/blueprint";
 import { createMockExam } from "@/lib/learning/mock-exam/create";
+import { gradeMockExam } from "@/lib/learning/mock-exam/grade-exam";
+import { parseOpenGrade } from "@/lib/learning/mock-exam/open-grade";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 
 const TOPICS = [
@@ -94,7 +135,7 @@ const TOPICS = [
 ].map((label, i) => ({ id: `t${i}`, label, status: "ready", source_refs: [] }));
 
 /** Zincirlenebilen sahte Supabase istemcisi; eklenen satırları tutar. */
-function fakeService() {
+function fakeService(extra: Record<string, unknown> = {}) {
   const inserted: Record<string, unknown[]> = {};
   const tables: Record<string, unknown> = {
     exam_preps: { id: "p1", title: "Çocuk Sağlığı ve Hastalıkları", exam_type: "", user_id: "u1", document_id: "d1" },
@@ -102,6 +143,7 @@ function fakeService() {
     exam_prep_source_documents: [],
     document_pages: [],
     practice_exams: { id: "e1" },
+    ...extra,
   };
   return {
     inserted,
@@ -136,6 +178,9 @@ beforeEach(() => {
   credits.recordUsage.mockClear();
   quiz.fail = false;
   quiz.calls = [];
+  quiz.oral = [];
+  ai.reply = "{}";
+  ai.calls = 0;
 });
 
 describe("yazılı deneme: tek ücret, bütün konular", () => {
@@ -148,8 +193,21 @@ describe("yazılı deneme: tek ücret, bütün konular", () => {
     expect(result.ready).toBe(result.planned);
     expect(result.note).toBeNull();
     const allocated = result.blueprint.allocation.filter((row) => row.count > 0).length;
-    expect(new Set(quiz.calls.map((call) => call.topicLabel)).size).toBe(allocated);
+    const topicsAsked = new Set([...quiz.calls.map((call) => call.topicLabel), ...quiz.oral.map((call) => call.topicLabel)]);
+    expect(topicsAsked.size).toBe(allocated);
     expect(allocated).toBeGreaterThan(1);
+
+    // Çoktan seçmeli + açık uçlu; açık uçlu sözlü motorundan, beklenen noktalar rubrik olur.
+    const saved = service.inserted.practice_exam_questions?.[0] as Array<{ question_type: string; options: unknown; rubric: Array<{ criterion: string; points: number }> | null; model_answer: string | null; points: number }>;
+    expect(new Set(saved.map((row) => row.question_type))).toEqual(new Set(["mcq", "open"]));
+    const open = saved.filter((row) => row.question_type === "open");
+    expect(open.length).toBe(quiz.oral.reduce((sum, call) => sum + call.count, 0));
+    expect(open[0]?.options).toBeNull();
+    expect(open[0]?.rubric?.map((row) => row.criterion)).toEqual(["Yaş ve genel görünüm belirleyicidir", "Ateş derecesi tek başına yetmez", "Alarm bulguları acildir"]);
+    expect(open[0]?.rubric?.reduce((sum, row) => sum + row.points, 0)).toBe(open[0]?.points);
+    expect(open[0]?.model_answer).toContain("alarm bulguları");
+    // Çok cevaplı yer hangi konudaysa test motoruna "tam bir çok cevaplı" diye gider.
+    expect(quiz.calls.filter((call) => call.multi).length).toBe(1);
 
     expect(credits.reserveCredits).toHaveBeenCalledTimes(1);
     const reservationId = `res:${String(credits.reserveCredits.mock.calls[0]?.[3])}`;
@@ -206,5 +264,115 @@ describe("öğretmen test motoru: ayrılmış krediyle çalışma", () => {
     expect(out.ok).toBe(false);
     expect(credits.reserveCredits).toHaveBeenCalledTimes(1);
     expect(credits.refundCredits).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("yazılı deneme: Astra gibi çoktan seçmeli + açık uçlu", () => {
+  it("varsayılan plan doğru/yanlış ve sayısal yer açmaz; 10 soruda 7 + 1 çok cevaplı + 2 açık uçlu", () => {
+    const count = (slots: { type: string }[], type: string) => slots.filter((slot) => slot.type === type).length;
+    const ten = defaultSlots(10, true);
+    expect([count(ten, "mcq"), count(ten, "multi_mcq"), count(ten, "open")]).toEqual([7, 1, 2]);
+    for (const n of [5, 10, 20, 40]) {
+      const slots = defaultSlots(n, true);
+      expect(slots).toHaveLength(n);
+      expect(slots.every((slot) => ["mcq", "multi_mcq", "open"].includes(slot.type))).toBe(true);
+    }
+  });
+
+  const questions = [
+    {
+      id: "q1",
+      question_text: "Ateşli çocukta aciliyeti neye göre değerlendirirsin?",
+      question_type: "open",
+      options: null,
+      correct_answer: null,
+      correct_answers: [],
+      points: 10,
+      explanation: "Yaş, genel görünüm ve alarm bulguları ateş derecesinden daha belirleyicidir.",
+      topic_id: "t5",
+      topic_label: "Enfeksiyon",
+      rubric: [
+        { criterion: "Yaş ve genel görünüm belirleyicidir", points: 5 },
+        { criterion: "Ateş derecesi tek başına yetmez", points: 5 },
+      ],
+      model_answer: "Yaş, genel görünüm ve alarm bulguları ateş derecesinden daha belirleyicidir.",
+    },
+    {
+      id: "q2",
+      question_text: "Menenjitte alarm bulgularını say.",
+      question_type: "open",
+      options: null,
+      correct_answer: null,
+      correct_answers: [],
+      points: 10,
+      explanation: "Ense sertliği, bilinç değişikliği, peteşi.",
+      topic_id: "t5",
+      topic_label: "Enfeksiyon",
+      rubric: [
+        { criterion: "Ense sertliği", points: 5 },
+        { criterion: "Bilinç değişikliği", points: 5 },
+      ],
+      model_answer: "Ense sertliği, bilinç değişikliği ve peteşi.",
+    },
+  ];
+  const answers = {
+    // Ölçütlerin sözcükleri geçmiyor ama ikisini de doğru söylüyor.
+    q1: "Bebeğin kaç aylık olduğuna ve ne kadar hasta göründüğüne bakarım; termometredeki sayı tek başına karar verdirmez.",
+    q2: "Ateş ve öksürük olur.",
+  };
+  const grade = async () => {
+    const service = fakeService({
+      practice_exams: { id: "e1", title: "Pediatri", user_id: "u1", deadline_at: null, blueprint: null },
+      practice_exam_questions: questions,
+      practice_exam_attempts: { id: "a1" },
+    });
+    const result = await gradeMockExam({ service: service as never, userId: "u1", examId: "e1", answers });
+    const reviews = service.inserted.practice_exam_item_reviews?.[0] as Array<{ question_id: string; verdict: string; points_earned: number }>;
+    return { result, reviews: Object.fromEntries(reviews.map((row) => [row.question_id, row])) };
+  };
+
+  it("açık uçlu cevabı yapay zekâ ölçüt başına alıntıyla notlar; sözcükleri farklı doğru cevap tam puan alır", async () => {
+    ai.reply = JSON.stringify({
+      items: [
+        {
+          index: 0,
+          criteria: [
+            { index: 0, met: true, quote: "kaç aylık olduğuna ve ne kadar hasta göründüğüne bakarım" },
+            { index: 1, met: true, quote: "termometredeki sayı tek başına karar verdirmez" },
+          ],
+        },
+        // Uydurma alıntı: cevapta yok, puan getirmez.
+        { index: 1, criteria: [{ index: 0, met: true, quote: "ense sertliği olur" }, { index: 1, met: false, quote: "" }] },
+      ],
+    });
+    const { result, reviews } = await grade();
+    expect(result.ok).toBe(true);
+    expect(ai.calls).toBe(1);
+    expect(reviews.q1).toMatchObject({ verdict: "dogru", points_earned: 10 });
+    expect(reviews.q2).toMatchObject({ verdict: "yanlis", points_earned: 0 });
+    expect(credits.recordUsage).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ actionCode: "PRACTICE_EXAM_GRADE" }));
+  });
+
+  it("yarısını karşılayan cevap kısmen; model düşerse not yine çıkar (eski yerel yöntem)", async () => {
+    ai.reply = JSON.stringify({
+      items: [{ index: 0, criteria: [{ index: 0, met: true, quote: "ne kadar hasta göründüğüne bakarım" }, { index: 1, met: false }] }],
+    });
+    const partial = await grade();
+    expect(partial.reviews.q1).toMatchObject({ verdict: "kismen", points_earned: 5 });
+
+    ai.reply = "bozuk";
+    const fallback = await grade();
+    expect(fallback.result.ok).toBe(true);
+    expect(fallback.reviews.q1?.verdict).toBeDefined();
+  });
+
+  it("ayrıştırıcı: bilinmeyen soru ve ölçüt dizini, alıntısız 'met' düşer", () => {
+    const items = [{ question: "S", criteria: ["A", "B"], modelAnswer: "", answer: "cevap" }];
+    const parsed = parseOpenGrade(
+      { items: [{ index: 0, criteria: [{ index: 0, met: true, quote: "cevap" }, { index: 5, met: true, quote: "x" }, { index: 1, met: true, quote: "" }] }, { index: 3, criteria: [] }] },
+      items,
+    );
+    expect([...parsed.keys()]).toEqual([0]);
+    expect(parsed.get(0)?.quotes).toEqual([{ criterion: "A", quote: "cevap" }]);
   });
 });

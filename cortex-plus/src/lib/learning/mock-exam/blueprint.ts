@@ -3,7 +3,7 @@
  * Sayılar metinde birebir doğrulanmadan plana yazılmaz.
  */
 
-import type { MockLengthPreset, MockQuestionType, MockSlotPlan } from "@/lib/learning/mock-exam/types";
+import type { MockLengthPreset, MockSlotPlan } from "@/lib/learning/mock-exam/types";
 import { DEFAULT_SHORT, DEFAULT_STANDARD } from "@/lib/learning/mock-exam/types";
 
 export type ParsedExamFormat = {
@@ -118,29 +118,25 @@ function matchInt(
   return map(n);
 }
 
-/** Varsayılan karışım: %70 mcq/multi, %15 numeric|tf, %15 short|open. */
+/**
+ * Varsayılan karışım (17 Ekim 2026, ürün sahibinin kararı: Astra gibi): %80 çoktan seçmeli
+ * (biri çok cevaplı), %20 açık uçlu. Astra'nın kâğıdında yalnız A–D kutucuk ve yazma yeri
+ * var. Doğru/yanlış ve sayısal yer yok: öğretmen motoru çoktan seçmeli yazıyordu, kod şıkları
+ * silip türe çeviriyordu ("hangi grupta sınıflanır?" sorusuna Doğru/Yanlış şıkkı).
+ * `allowNumeric` hesap sorusunun çoktan seçmeli yazılmasına engel değil; imza çağıranlar için.
+ */
 export function defaultSlots(
   questionCount: number,
-  allowNumeric: boolean,
+  _allowNumeric: boolean,
 ): MockSlotPlan[] {
   const slots: MockSlotPlan[] = [];
   const multiTarget = Math.max(1, Math.round(questionCount * 0.1));
-  const numericOrTf = Math.max(0, Math.round(questionCount * 0.15));
-  const shortOrOpen = Math.max(0, Math.round(questionCount * 0.15));
-  const mcqCount = Math.max(0, questionCount - multiTarget - numericOrTf - shortOrOpen);
+  const openCount = Math.max(1, Math.round(questionCount * 0.2));
+  const mcqCount = Math.max(0, questionCount - multiTarget - openCount);
 
   for (let i = 0; i < mcqCount; i += 1) slots.push({ type: "mcq", points: 4 });
   for (let i = 0; i < multiTarget; i += 1) slots.push({ type: "multi_mcq", points: 4 });
-
-  for (let i = 0; i < numericOrTf; i += 1) {
-    const type: MockQuestionType =
-      allowNumeric && i % 2 === 0 ? "numeric" : "true_false";
-    slots.push({ type, points: type === "numeric" ? 5 : 3 });
-  }
-  for (let i = 0; i < shortOrOpen; i += 1) {
-    const type: MockQuestionType = i % 2 === 0 ? "short_answer" : "open";
-    slots.push({ type, points: type === "open" ? 10 : 5 });
-  }
+  for (let i = 0; i < openCount; i += 1) slots.push({ type: "open", points: 10 });
 
   // Tam sayı sapması: fazla/eksik mcq ile kapat
   while (slots.length < questionCount) slots.push({ type: "mcq", points: 4 });
