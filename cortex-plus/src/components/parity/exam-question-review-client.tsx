@@ -19,7 +19,25 @@ type ReviewItem = {
   is_correct: boolean;
   explanation: string | null;
   liked: boolean;
+  /** Kayıtlı karar; eski kayıtta yok, o zaman is_correct. */
+  verdict?: string | null;
+  points_earned?: number | null;
+  points_max?: number | null;
+  /** Açık uçlu cevapta karşılanan ve eksik kalan ölçütler. */
+  feedback?: { met: string[]; missed: string[] } | null;
 };
+
+type Verdict = "dogru" | "kismen" | "yanlis" | "bos";
+
+/** Açık uçlu cevap kısmi puan alabilir (17 Ekim 2026); "Yanlış / Boş" demek 7/10 alanı yanlış gösteriyordu. */
+export function reviewVerdict(review: ReviewItem | undefined): Verdict {
+  if (!review) return "bos";
+  if (review.verdict === "dogru" || review.verdict === "kismen" || review.verdict === "yanlis" || review.verdict === "bos") return review.verdict;
+  if (review.is_correct) return "dogru";
+  return review.user_answer?.trim() ? "yanlis" : "bos";
+}
+
+const VERDICT_LABEL: Record<Verdict, string> = { dogru: "Doğru", kismen: "Kısmen doğru", yanlis: "Yanlış", bos: "Boş" };
 
 type QuestionItem = {
   id: string;
@@ -52,18 +70,18 @@ export function ExamQuestionReviewClient({
 
   const stats = useMemo(() => {
     let correctCount = 0;
+    let partialCount = 0;
     let wrongCount = 0;
     for (const q of questions) {
-      const r = reviewMap.get(q.id);
-      if (r?.is_correct) {
-        correctCount++;
-      } else {
-        wrongCount++;
-      }
+      const verdict = reviewVerdict(reviewMap.get(q.id));
+      if (verdict === "dogru") correctCount++;
+      else if (verdict === "kismen") partialCount++;
+      else wrongCount++;
     }
     return {
       total: questions.length,
       correct: correctCount,
+      partial: partialCount,
       wrong: wrongCount,
     };
   }, [questions, reviewMap]);
@@ -72,8 +90,8 @@ export function ExamQuestionReviewClient({
     if (filter === "all") return questions;
     return questions.filter((q) => {
       const r = reviewMap.get(q.id);
-      if (filter === "correct") return Boolean(r?.is_correct);
-      return !r?.is_correct;
+      if (filter === "correct") return reviewVerdict(r) === "dogru";
+      return reviewVerdict(r) !== "dogru";
     });
   }, [filter, questions, reviewMap]);
 
@@ -179,6 +197,12 @@ export function ExamQuestionReviewClient({
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               {stats.correct} Doğru
             </span>
+            {stats.partial ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                {stats.partial} Kısmen
+              </span>
+            ) : null}
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-rose-400" />
               {stats.wrong} Yanlış
@@ -192,7 +216,12 @@ export function ExamQuestionReviewClient({
         {filteredQuestions.map((question) => {
           const review = reviewMap.get(question.id);
           const options = question.options ?? [];
-          const isCorrect = review?.is_correct ?? false;
+          const verdict = reviewVerdict(review);
+          const open = options.length === 0;
+          const points =
+            review?.points_max != null && review.points_earned != null
+              ? `${Number.isInteger(review.points_earned) ? review.points_earned : review.points_earned.toFixed(1)}/${review.points_max} puan`
+              : null;
           const explanation =
             review?.explanation ||
             `Doğru yanıt: ${question.correct_answer ?? "—"}`;
@@ -215,22 +244,22 @@ export function ExamQuestionReviewClient({
                 <div
                   className={cn(
                     "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide",
-                    isCorrect
+                    verdict === "dogru"
                       ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
-                      : "bg-rose-500/15 border border-rose-500/30 text-rose-400",
+                      : verdict === "kismen"
+                        ? "bg-amber-500/15 border border-amber-500/30 text-amber-300"
+                        : "bg-rose-500/15 border border-rose-500/30 text-rose-400",
                   )}
                 >
-                  {isCorrect ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Doğru Yanıt</span>
-                    </>
+                  {verdict === "dogru" || verdict === "kismen" ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                   ) : (
-                    <>
-                      <XCircle className="w-3.5 h-3.5" />
-                      <span>Yanlış / Boş</span>
-                    </>
+                    <XCircle className="w-3.5 h-3.5" />
                   )}
+                  <span>
+                    {VERDICT_LABEL[verdict]}
+                    {open && points ? ` · ${points}` : ""}
+                  </span>
                 </div>
               </div>
 
@@ -292,6 +321,44 @@ export function ExamQuestionReviewClient({
                   );
                 })}
               </div>
+
+              {/* Açık uçlu: öğrencinin cevabı ve ölçüt ölçüt not */}
+              {open ? (
+                <div className="cp-review-open space-y-3">
+                  <div className="p-4 rounded-2xl bg-[var(--cp-surface-2)] border border-[var(--cp-border)]">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--cp-muted)]">Senin cevabın</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--cp-text)] whitespace-pre-line">
+                      {review?.user_answer?.trim() || "Boş bıraktın."}
+                    </p>
+                  </div>
+                  {review?.feedback?.met.length ? (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Karşıladığın noktalar</p>
+                      <ul className="mt-1.5 space-y-1 text-sm text-[var(--c-text-muted)]">
+                        {review.feedback.met.map((point) => (
+                          <li key={point} className="flex gap-2">
+                            <CheckCircle2 className="mt-0.5 w-4 h-4 flex-shrink-0 text-emerald-400" aria-hidden />
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {review?.feedback?.missed.length ? (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-rose-400">Eksik kalanlar</p>
+                      <ul className="mt-1.5 space-y-1 text-sm text-[var(--c-text-muted)]">
+                        {review.feedback.missed.map((point) => (
+                          <li key={point} className="flex gap-2">
+                            <XCircle className="mt-0.5 w-4 h-4 flex-shrink-0 text-rose-400" aria-hidden />
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {/* AI Explanation & Tutor Insight Card */}
               <div className="p-4 sm:p-5 rounded-2xl bg-[var(--cp-surface)] border border-[var(--cp-border)] space-y-3">

@@ -8,6 +8,16 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
 export const metadata = { title: "Soru inceleme" };
 
+/** Açık uçlu notun ölçütleri (grade-exam: met / missed). Eski kayıtta yok. */
+function reviewFeedback(raw: unknown): { met: string[]; missed: string[] } | null {
+  const row = raw && typeof raw === "object" ? (raw as { met?: unknown; missed?: unknown }) : null;
+  if (!row) return null;
+  const list = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : []);
+  const met = list(row.met);
+  const missed = list(row.missed);
+  return met.length || missed.length ? { met, missed } : null;
+}
+
 export default async function ExamQuestionReviewPage({
   params,
 }: {
@@ -48,7 +58,7 @@ export default async function ExamQuestionReviewPage({
     attempt
       ? supabase
           .from("practice_exam_item_reviews")
-          .select("id, question_id, user_answer, is_correct, explanation, liked")
+          .select("id, question_id, user_answer, is_correct, explanation, liked, verdict, points_earned, points_max, feedback")
           .eq("attempt_id", attempt.id)
       : Promise.resolve({ data: [] as never[] }),
   ]);
@@ -68,6 +78,10 @@ export default async function ExamQuestionReviewPage({
     is_correct: Boolean(r.is_correct),
     explanation: r.explanation as string | null,
     liked: Boolean(r.liked),
+    verdict: (r.verdict as string | null) ?? null,
+    points_earned: r.points_earned != null ? Number(r.points_earned) : null,
+    points_max: r.points_max != null ? Number(r.points_max) : null,
+    feedback: reviewFeedback(r.feedback),
   }));
 
   const wrongCount = mappedReviews.filter((r) => !r.is_correct).length;

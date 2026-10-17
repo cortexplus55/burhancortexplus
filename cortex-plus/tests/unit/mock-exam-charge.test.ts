@@ -34,6 +34,8 @@ const credits = vi.hoisted(() => {
 
 const quiz = vi.hoisted(() => ({
   fail: false,
+  /** İlk denemede boş dönen konular (canlıda Nefroloji). */
+  failOnce: new Set<string>(),
   calls: [] as Array<{ topicLabel?: string; held?: string; multi?: boolean }>,
   oral: [] as Array<{ topicLabel: string; count: number }>,
 }));
@@ -85,9 +87,6 @@ vi.mock("@/lib/learning/source-context", () => ({
   }),
   loadMergedTopicContext: async () => ({ block: "", documentName: null }),
 }));
-vi.mock("@/lib/learning/question-verifier", () => ({
-  verifyChoiceQuestion: (question: unknown) => ({ status: "keep", question }),
-}));
 // Öğretmen test motorunun kredi davranışı: ayrılış verilmezse anahtarla kendisi ayırır.
 vi.mock("@/lib/learning/exam-quiz-generate", () => ({
   generateExamQuiz: async (input: {
@@ -105,6 +104,7 @@ vi.mock("@/lib/learning/exam-quiz-generate", () => ({
       if (!claim.ok) return { ok: false, status: 409, error: claim.reason };
     }
     if (quiz.fail) return { ok: false, status: 503, error: "generation_failed" };
+    if (input.topicLabel && quiz.failOnce.delete(input.topicLabel)) return { ok: false, status: 503, error: "generation_failed" };
     const count = input.count ?? 1;
     // Deneme benzer soruları eler; her konunun sorusu kendi sözcükleriyle yazılır.
     const words = `${input.topicLabel} ${input.topicLabel?.split("").reverse().join("")} vaka${quiz.calls.length}`;
@@ -113,8 +113,12 @@ vi.mock("@/lib/learning/exam-quiz-generate", () => ({
       questions: Array.from({ length: count }, (_, i) => ({
         text: `${words} soru${i}${quiz.calls.length}?`,
         options: [`${input.topicLabel} A`, `${input.topicLabel} B`, `${input.topicLabel} C`, `${input.topicLabel} D`],
-        correct: [`${input.topicLabel} ${"ABCD"[i % 4]}`],
-        multi: false,
+        // Çok cevaplı yer bu konudaysa öğretmen son soruyu "hangileri" yazar (iki doğru).
+        correct:
+          input.multi && i === count - 1
+            ? [`${input.topicLabel} A`, `${input.topicLabel} C`]
+            : [`${input.topicLabel} ${"ABCD"[i % 4]}`],
+        multi: Boolean(input.multi && i === count - 1),
         explanation: "Kaynaktaki ayırıcı bulgu bu şıkkı gösterir.",
         optionWhy: ["a", "b", "c", "d"],
       })),
@@ -179,6 +183,7 @@ beforeEach(() => {
   quiz.fail = false;
   quiz.calls = [];
   quiz.oral = [];
+  quiz.failOnce = new Set();
   ai.reply = "{}";
   ai.calls = 0;
 });
@@ -199,7 +204,9 @@ describe("yazılı deneme: tek ücret, bütün konular", () => {
 
     // Çoktan seçmeli + açık uçlu; açık uçlu sözlü motorundan, beklenen noktalar rubrik olur.
     const saved = service.inserted.practice_exam_questions?.[0] as Array<{ question_type: string; options: unknown; rubric: Array<{ criterion: string; points: number }> | null; model_answer: string | null; points: number }>;
-    expect(new Set(saved.map((row) => row.question_type))).toEqual(new Set(["mcq", "open"]));
+    // Öğretmenin çok cevaplı sorusu eski kural süzgecine takılmadan çok cevaplı kalır.
+    expect(new Set(saved.map((row) => row.question_type))).toEqual(new Set(["mcq", "multi_mcq", "open"]));
+    expect(saved.filter((row) => row.question_type === "multi_mcq")).toHaveLength(1);
     const open = saved.filter((row) => row.question_type === "open");
     expect(open.length).toBe(quiz.oral.reduce((sum, call) => sum + call.count, 0));
     expect(open[0]?.options).toBeNull();
@@ -264,6 +271,24 @@ describe("öğretmen test motoru: ayrılmış krediyle çalışma", () => {
     expect(out.ok).toBe(false);
     expect(credits.reserveCredits).toHaveBeenCalledTimes(1);
     expect(credits.refundCredits).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("yazılı deneme: eksik kalan konu", () => {
+  it("ilk turda boş dönen konu yeniden denenir; listenin ilk konusu değil", async () => {
+    quiz.failOnce = new Set(["Nefroloji"]);
+    const service = fakeService();
+    const result = await createMockExam({ service: service as never, userId: "u1", isPremium: true, prepId: "p1", preset: "short" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const allocated = result.blueprint.allocation.filter((row) => row.count > 0).map((row) => row.topicLabel);
+    expect(allocated).toContain("Nefroloji");
+    expect(quiz.calls.filter((call) => call.topicLabel === "Nefroloji")).toHaveLength(2);
+    expect(quiz.calls.filter((call) => call.topicLabel === allocated[0])).toHaveLength(1);
+    const saved = service.inserted.practice_exam_questions?.[0] as Array<{ topic_label: string }>;
+    expect(saved.some((row) => row.topic_label === "Nefroloji")).toBe(true);
+    expect(result.ready).toBe(result.planned);
+    expect(credits.reserveCredits).toHaveBeenCalledTimes(1);
   });
 });
 
