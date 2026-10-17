@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Building2, ChevronDown, CircleHelp, MapPin, Star, Users, X } from "lucide-react";
+import { Icon3D } from "@/components/ui/icon-3d";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import "@/styles/stars.css";
@@ -125,7 +126,7 @@ export function StarsDialog({ open, onClose }: { open: boolean; onClose: () => v
         </header>
 
         <section className="cp-stars-mine" aria-label="Bu haftaki yıldızların">
-          <Star className="cp-stars-mine-icon" aria-hidden />
+          <Icon3D name="yildiz" size={56} className="cp-stars-mine-icon" />
           <div>
             <p className="cp-stars-kicker">{period === "week" ? "Bu haftaki yıldızların" : "Bütün yıldızların"}</p>
             <p className="cp-stars-big">{number.format(period === "week" ? (me?.week ?? 0) : (me?.all ?? 0))}</p>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Flame, Info, Rocket, X } from "lucide-react";
+import { Icon3D } from "@/components/ui/icon-3d";
 import { cn } from "@/lib/utils";
 import {
   formatBadgeDate,
@@ -164,6 +165,7 @@ function StreakTab({
     <section className="cp-jr-streak" aria-label="Seri">
       <div className="cp-jr-hero">
         <span className={cn("cp-jr-glow", streak.current > 0 && "is-on")} aria-hidden />
+        <Icon3D name="seri" size={72} className="cp-jr-art" />
         <strong className="cp-jr-count">{streak.current}</strong>
         <span className="cp-jr-count-label">günlük seri</span>
         <span className="cp-jr-count-hint">

@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon3D } from "@/components/ui/icon-3d";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -34,7 +35,7 @@ export function ReferralRewardCard({
         {summary.usedCount}/{summary.maxCount} davet sayıldı
       </span>
 
-      <div className="cp-ref-coin" aria-hidden />
+      <Icon3D name="davet" size={64} className="cp-ref-art" />
 
       <h2 className="cp-ref-title">Arkadaşını davet et, hakkın katlansın</h2>
       <p className="cp-ref-body">{referralPitch(summary)}</p>

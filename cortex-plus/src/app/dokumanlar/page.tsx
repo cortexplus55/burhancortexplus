@@ -196,6 +196,7 @@ export default async function DokumanlarPage() {
           <EmptyState
             variant="parity"
             icon={FileText}
+            illustration="bos-belge"
             title="Henüz bir belgen yok."
             description={DOCUMENT_EMPTY_DESCRIPTION}
             actionHref="/deneme-sinavlari/olustur"

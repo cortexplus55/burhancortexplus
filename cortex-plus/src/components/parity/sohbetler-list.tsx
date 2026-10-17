@@ -155,6 +155,7 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
         <EmptyState
           variant="parity"
           icon={MessageCircle}
+          illustration="bos-sohbet"
           title="Henüz sohbetin yok"
           description="AI Öğretmen ile ilk sorununu sor."
           actionHref="/ogretmen"

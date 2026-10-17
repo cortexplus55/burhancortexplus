@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { cn } from "@/lib/utils";
 
 /** `premium` = oturum açık öğrenci kabuğu (misafir/auth ile aynı cam + altın). `plain` = admin / klasik shadcn. */
@@ -20,6 +21,7 @@ export function EmptyState({
   actionLabel,
   variant = "premium",
   icon: Icon,
+  illustration,
 }: {
   title: string;
   description: string;
@@ -27,6 +29,8 @@ export function EmptyState({
   actionLabel?: string;
   variant?: UiVariant;
   icon?: LucideIcon;
+  /** 3B görsel (tasarım 7. adım); varsa düz simgenin yerine. */
+  illustration?: Icon3DName;
 }) {
   const v = resolveVariant(variant);
 
@@ -36,7 +40,9 @@ export function EmptyState({
       // `cs-pay-card--premium` sınıfı burada hiç uygulanmıyordu, çünkü
       // kuralı `.cs-app.cortex-premium-app` altına kapsanmış.
       <div className="cp-empty cs-pay-card cs-pay-card--premium">
-        {Icon ? (
+        {illustration ? (
+          <Icon3D name={illustration} size={72} className="cp-empty-art" />
+        ) : Icon ? (
           <span className="cp-empty-icon">
             <Icon className="h-6 w-6" aria-hidden />
           </span>

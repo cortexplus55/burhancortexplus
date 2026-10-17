@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { TOOLS, TOOL_SUBJECTS, type Tool } from "@/lib/parity/tools";
 
 /**
@@ -138,8 +139,17 @@ export function ToolsHub() {
   );
 }
 
+/** Hesap araçlarının 3B görseli (tasarım 7. adım); kısayollar düz simgede kalır. */
+const ICONS_3D: Partial<Record<string, Icon3DName>> = {
+  denklem: "denklem",
+  integral: "integral",
+  periyodik: "periyodik",
+  birim: "birim",
+};
+
 function ToolCard({ tool }: { tool: Tool }) {
   const Icon = ICONS[tool.id] ?? Layers;
+  const art = ICONS_3D[tool.id];
   const isShortcut = tool.kind === "kisayol";
 
   return (
@@ -147,8 +157,8 @@ function ToolCard({ tool }: { tool: Tool }) {
       href={tool.href}
       className={cn("tool-card", isShortcut && "is-shortcut")}
     >
-      <span className="tool-icon" aria-hidden>
-        <Icon className="h-5 w-5" />
+      <span className={cn("tool-icon", art && "tool-icon--3d")} aria-hidden>
+        {art ? <Icon3D name={art} size={44} /> : <Icon className="h-5 w-5" />}
       </span>
       <span className="tool-body">
         <span className="tool-title">

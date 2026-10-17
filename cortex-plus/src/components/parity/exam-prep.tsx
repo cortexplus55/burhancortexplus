@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronRight, Landmark, Pencil, Plus, Search, Trash2, Trophy, X } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { cn } from "@/lib/utils";
 import { clearExamWizardDraft, readExamWizardDraft } from "@/lib/learning/exam-wizard-draft";
 
@@ -27,10 +27,10 @@ export type ExamPrepCard = {
  * Astra'nın sınav listesindeki üç kutu (17 Ekim 2026, yan yana bakıldı): her biri ayrı
  * sayfa açar. Önceden listenin altında aynı sayfada sekmeydiler.
  */
-const CATALOG_TILES: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/deneme-sinavlari/okulum", label: "Okulum", icon: Landmark },
-  { href: "/deneme-sinavlari/mufredat", label: "Müfredat", icon: BookOpen },
-  { href: "/deneme-sinavlari/resmi", label: "Resmî sınavlar", icon: Trophy },
+const CATALOG_TILES: { href: string; label: string; icon: Icon3DName }[] = [
+  { href: "/deneme-sinavlari/okulum", label: "Okulum", icon: "okulum" },
+  { href: "/deneme-sinavlari/mufredat", label: "Müfredat", icon: "mufredat" },
+  { href: "/deneme-sinavlari/resmi", label: "Resmî sınavlar", icon: "resmi-sinavlar" },
 ];
 
 export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
@@ -55,10 +55,10 @@ export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
       </div>
 
       <nav className="cp-catalog-tiles" aria-label="Hazır hazırlıklar">
-        {CATALOG_TILES.map(({ href, label, icon: Icon }) => (
+        {CATALOG_TILES.map(({ href, label, icon }) => (
           <Link key={href} href={href} className="cp-catalog-tile">
-            <span className="cp-catalog-tile-icon" aria-hidden>
-              <Icon className="h-5 w-5" />
+            <span className="cp-catalog-tile-icon cp-catalog-tile-icon--3d" aria-hidden>
+              <Icon3D name={icon} size={44} />
             </span>
             <span className="cp-catalog-tile-label">{label}</span>
           </Link>
@@ -111,6 +111,7 @@ export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
         </section>
       ) : (
         <article className="cp-exam-active-card cp-exam-discover">
+          <Icon3D name="bos-hazirlik" size={72} className="cp-empty-art" />
           <p className="cp-exam-discover-kicker">Henüz hazırlık yok</p>
           <h1 className="cp-exam-active-title">İlk sınav yolunu kur</h1>
           <p className="mt-2 text-sm text-[var(--cp-muted)]">
