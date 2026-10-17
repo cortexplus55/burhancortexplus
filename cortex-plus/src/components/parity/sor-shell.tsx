@@ -58,6 +58,7 @@ export function ParitySorShell({
   chrome = "app",
   backHref = "/deneme-sinavlari",
   conversationBaseHref,
+  minimalTop = false,
 }: {
   children: React.ReactNode;
   userInitial?: string;
@@ -77,6 +78,11 @@ export function ParitySorShell({
    * Verilmezse genel öğretmen sohbetine gider.
    */
   conversationBaseHref?: string;
+  /**
+   * Hazırlık sayfası (17 Ekim 2026, Astra ile yan yana): üst çubukta yalnız Geri ve
+   * sayfanın kendi simgeleri; seri, menü, avatar ve kurucu rozeti yok.
+   */
+  minimalTop?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -224,7 +230,7 @@ export function ParitySorShell({
         <div className="cp-sor-top-actions">
           {/* Hazırlık sayfasının simgeleri buraya taşınır (PREP_TOP_SLOT_ID). */}
           {chrome === "focus" ? <div id="cp-sor-top-slot" className="cp-sor-top-slot" /> : null}
-          {isAdmin && account ? (
+          {minimalTop ? null : isAdmin && account ? (
             <FounderChip />
           ) : examChrome ? null : showBuy ? (
             <Link href="/pay" className="cp-sor-buy">
@@ -234,38 +240,42 @@ export function ParitySorShell({
           {/* Abonede kredi çipi yok (29 Eylül 2026): Astra'da Plus'ın üst
               çubuğunda yalnızca seri, "Daha fazla" ve avatar duruyor; kullanım
               profil → Kullanım'da yüzde olarak görülüyor. */}
-          <button
-            type="button"
-            className="cp-sor-streak"
-            aria-label={`Seri: ${streakCount} gün. Seri ve rozetleri aç`}
-            aria-haspopup="dialog"
-            onClick={() => {
-              setJourneyTab("streak");
-              setJourneyOpen(true);
-            }}
-          >
-            <Flame className="h-4 w-4 text-orange-500" aria-hidden />
-            <span>{streakCount}</span>
-          </button>
-          <button
-            type="button"
-            className="cp-sor-more"
-            aria-label="Daha fazla"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(true)}
-          >
-            <LayoutGrid className="h-4 w-4" aria-hidden />
-            <span className="cp-sor-more-label">Daha fazla</span>
-          </button>
-          <Link href="/profil" className="cp-sor-avatar" aria-label="Profil">
-            {avatarEmoji ? (
-              <span className="text-lg" aria-hidden>
-                {avatarEmoji}
-              </span>
-            ) : (
-              (userInitial?.slice(0, 1) ?? "?")
-            )}
-          </Link>
+          {minimalTop ? null : (
+            <>
+            <button
+              type="button"
+              className="cp-sor-streak"
+              aria-label={`Seri: ${streakCount} gün. Seri ve rozetleri aç`}
+              aria-haspopup="dialog"
+              onClick={() => {
+                setJourneyTab("streak");
+                setJourneyOpen(true);
+              }}
+            >
+              <Flame className="h-4 w-4 text-orange-500" aria-hidden />
+              <span>{streakCount}</span>
+            </button>
+            <button
+              type="button"
+              className="cp-sor-more"
+              aria-label="Daha fazla"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+            >
+              <LayoutGrid className="h-4 w-4" aria-hidden />
+              <span className="cp-sor-more-label">Daha fazla</span>
+            </button>
+            <Link href="/profil" className="cp-sor-avatar" aria-label="Profil">
+              {avatarEmoji ? (
+                <span className="text-lg" aria-hidden>
+                  {avatarEmoji}
+                </span>
+              ) : (
+                (userInitial?.slice(0, 1) ?? "?")
+              )}
+            </Link>
+            </>
+          )}
           <Link
             href="/ogretmen?dialog=profile"
             className="cp-sor-settings-link sr-only"

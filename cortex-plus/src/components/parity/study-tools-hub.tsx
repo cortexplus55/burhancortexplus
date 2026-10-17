@@ -62,6 +62,7 @@ export function StudyToolsHub({
   onClose,
   openMisconceptions = 0,
   preferred = [],
+  initialGroup,
 }: {
   prepId: string;
   nodes: StudyNodeRef[];
@@ -75,10 +76,12 @@ export function StudyToolsHub({
   topicLabel: string | null;
   onTopic: (label: string | null) => void;
   onClose: () => void;
+  /** Açılacak sekme; yoksa önerilen etkinliğin sekmesi. */
+  initialGroup?: StudyToolGroup;
 }) {
   // Astra gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
   const recommended = recommendedStudyTool(nodes, preferred);
-  const [group, setGroup] = useState<StudyToolGroup>(recommended?.group ?? "learn");
+  const [group, setGroup] = useState<StudyToolGroup>(initialGroup ?? recommended?.group ?? "learn");
   return (
     <div className="cp-oral-modal-back" onClick={onClose}>
       <div

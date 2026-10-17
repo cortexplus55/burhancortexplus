@@ -66,7 +66,8 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     // Aşama başlıkları yok; yol tek zikzak.
     expect(screen.queryByRole("heading", { name: "Bugün başla" })).toBeNull();
     const card = container.querySelector(".cp-path-next") as HTMLElement;
-    expect(card.querySelector(".cp-path-next-kind")?.textContent).toBe("Giriş Dersi");
+    // 17 Ekim 2026, Astra ile yan yana: kartta "SIRADAKİ" ve tür rozeti.
+    expect([...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki", "Giriş Dersi"]);
     const start = screen.getByRole("link", { name: "Devam et" });
     expect(start.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
     expect(container.querySelectorAll(".cp-path-lines path")).toHaveLength(1);
@@ -162,5 +163,46 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     const { container } = renderHome({ nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "done" }, quiz] });
     expect(container.querySelector(".cp-path-node--hex")).toBeTruthy();
     expect(container.querySelector(".cp-path-letters")?.textContent).toBe("ABCD");
+  });
+});
+
+// 17 Ekim 2026, Astra ile yan yana: başlık alanı, sıradaki etiketi, son sonuç kartı,
+// hazırlık düzeyi beşgeni ve "Deneme sınavı oluştur".
+describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
+  it("başlık alanında ders etiketi ve etiketli Düello / Daha fazla; üst çubukta sohbet ve +", () => {
+    const { container } = renderHome({ canShare: true });
+    expect(container.querySelector(".cp-prep-hero-kicker")?.textContent).toBe("Okul");
+    expect(screen.getByRole("heading", { level: 1, name: "Termodinamik" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Düello/ }).getAttribute("href")).toBe("/deneme-sinavlari/prep-1/duello");
+    expect(screen.getByRole("button", { name: "Okulunla paylaş" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hazırlık seçenekleri" }).textContent).toContain("Daha fazla");
+    const toolbar = screen.getByRole("toolbar", { name: "Hazırlık işlemleri" });
+    expect(toolbar.querySelectorAll("a, button")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Etkinlik oluştur" })).toBeTruthy();
+  });
+
+  it("sıradaki düğümün yanında 'Sıradaki' ve konunun adı", () => {
+    const { container } = renderHome();
+    const label = container.querySelector(".cp-path-current-label");
+    expect(label?.textContent).toContain("Sıradaki");
+    expect(label?.textContent).toContain("Giriş Dersi");
+  });
+
+  it("son biten etkinlik yüzdesiyle kart; 'Sonuçları gör' düğümü açar", () => {
+    renderHome({
+      nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }],
+      lastResult: { nodeId: "lesson-1", pct: 80 },
+    });
+    const card = screen.getByRole("region", { name: "Son etkinlik" });
+    expect(card.textContent).toContain("%80");
+    expect(screen.getByRole("link", { name: "Sonuçları gör" }).getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
+  });
+
+  it("yolun sonunda hazırlık düzeyi; 'Deneme sınavı oluştur' pencereyi Sınav sekmesinde açar", () => {
+    renderHome();
+    const goal = screen.getByRole("region", { name: "Hazırlık düzeyi" });
+    expect(goal.textContent).toContain("Gerçek sınavda nasıl yapacağını merak ediyor musun?");
+    fireEvent.click(screen.getByRole("button", { name: /Deneme sınavı oluştur/ }));
+    expect(screen.getByRole("tab", { name: /Sınav/ }).getAttribute("aria-selected")).toBe("true");
   });
 });
