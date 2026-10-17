@@ -32,10 +32,10 @@
   outline-offset: 2px;
 }
 
-/* Premium scrollbars (Chromium/WebKit) */
+/* Kaydırma çubukları nötr gri (17 Ekim 2026, Astra paleti: durum rengi altın değil). */
 .dark * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(244, 174, 11, 0.35) transparent;
+  scrollbar-color: #303030 transparent;
 }
 
 .dark *::-webkit-scrollbar {
@@ -44,14 +44,14 @@
 }
 
 .dark *::-webkit-scrollbar-thumb {
-  background: rgba(244, 174, 11, 0.28);
+  background: #303030;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 .dark *::-webkit-scrollbar-thumb:hover {
-  background: rgba(244, 174, 11, 0.45);
+  background: #404040;
   background-clip: padding-box;
 }
 
