@@ -93,7 +93,10 @@ describe("kabuk", () => {
   it("ortak kabuk krediyi ayırır, iş kabul edilmezse iade eder", () => {
     const source = readFileSync("src/lib/learning/teacher-engine-run.ts", "utf8");
     expect(source).toContain("await reserveCredits(service, options.userId, options.actionCode, options.idempotencyKey)");
-    expect(source).toContain("await refundCredits(service, reservation.reservationId)");
+    expect(source).toContain("refundCredits(service, reservation.reservationId)");
     expect(source).toContain("await commitCredits(service, reservation.reservationId)");
+    // Yazılı deneme ayrılışı kendisi tutar; kabuk o zaman ne kesinleştirir ne iade eder
+    // (davranış: mock-exam-charge.test.ts).
+    expect(source).toContain("if (!held) await commitCredits(service, reservation.reservationId)");
   });
 });

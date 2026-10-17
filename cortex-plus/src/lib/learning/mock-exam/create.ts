@@ -18,6 +18,8 @@ import {
   type MockTopicSlot,
 } from "@/lib/learning/mock-exam";
 import { verifyChoiceQuestion } from "@/lib/learning/question-verifier";
+import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
+import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -176,7 +178,6 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
             documentId: prep.document_id as string | null,
             topic: row,
             slots: slots.length ? slots : [{ type: "mcq", points: 4 }],
-            allowNumeric,
             allTopics: topics,
             chargeKey,
             reservationId,
@@ -210,7 +211,6 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
           type: "mcq" as const,
           points: 4,
         })),
-        allowNumeric,
         allTopics: topics,
         chargeKey,
         reservationId,
@@ -289,7 +289,10 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
   }
 }
 
-async function generateForTopic(input: {
+/** Açık uçlu yerler (Astra'nın kâğıdındaki yazma yeri) sözlü deneme motorundan gelir. */
+const OPEN_TYPES = new Set<MockQuestionType>(["open", "short_answer"]);
+
+type TopicGenInput = {
   service: SupabaseClient;
   userId: string;
   isPremium: boolean;
@@ -297,12 +300,21 @@ async function generateForTopic(input: {
   documentId: string | null;
   topic: { topicId: string | null; topicLabel: string; count: number };
   slots: Array<{ type: MockQuestionType; points: number }>;
-  allowNumeric: boolean;
   allTopics: TopicRow[];
   chargeKey: string;
   /** Denemenin ayrılmış kredisi; konu üretimi kendi ayırmaz (bkz. createMockExam). */
   reservationId: string;
-}): Promise<MockExamQuestionDraft[]> {
+};
+
+type DraftBase = Pick<MockExamQuestionDraft, "topicId" | "topicLabel" | "source" | "difficulty">;
+
+/**
+ * Bir konunun soruları: çoktan seçmeli yerler öğretmen test motorundan, açık uçlu yerler
+ * öğretmen sözlü motorundan. Her öğeyi kendi denetçisi çözer; kod soruyu başka türe
+ * çevirmez (17 Ekim 2026'ya kadar şıkları silip doğru/yanlış, sayısal, açık uçlu
+ * yapıyordu — denetçinin çözdüğü soru öğrencinin gördüğü soru değildi).
+ */
+async function generateForTopic(input: TopicGenInput): Promise<MockExamQuestionDraft[]> {
   const ctx = await topicContext(
     input.service,
     input.userId,
@@ -313,44 +325,56 @@ async function generateForTopic(input: {
   if (!ctx.block.trim()) return [];
 
   const sourceLabel = sourceLabelFromBlock(ctx.block, ctx.documentName);
+  const base: DraftBase = {
+    topicId: input.topic.topicId,
+    topicLabel: input.topic.topicLabel,
+    source: { documentId: input.documentId, page: pageFromLabel(sourceLabel), label: sourceLabel },
+    difficulty: "medium",
+  };
+  const choiceSlots = input.slots.filter((slot) => !OPEN_TYPES.has(slot.type));
+  const openSlots = input.slots.filter((slot) => OPEN_TYPES.has(slot.type));
+  const [choice, open] = await Promise.all([
+    choiceSlots.length ? choiceDrafts(input, ctx.block, choiceSlots, base) : Promise.resolve([]),
+    openSlots.length ? openDrafts(input, ctx.block, openSlots, base) : Promise.resolve([]),
+  ]);
+  return [...choice, ...open];
+}
 
-  const typeHint = input.slots
-    .map((s, i) => `${i + 1}. tür=${s.type}, puan=${s.points}`)
-    .join("; ");
-
+async function choiceDrafts(
+  input: TopicGenInput,
+  block: string,
+  slots: TopicGenInput["slots"],
+  base: DraftBase,
+): Promise<MockExamQuestionDraft[]> {
   const outcome = await generateExamQuiz({
     service: input.service,
     userId: input.userId,
     isPremium: input.isPremium,
     teachingV2: true,
-    sourceExcerpt: ctx.block,
+    sourceExcerpt: block,
     requireSourceSupport: true,
     actionCode: "PRACTICE_EXAM_GENERATE",
     idempotencyKey: input.chargeKey,
     heldReservationId: input.reservationId,
-    count: input.slots.length,
+    count: slots.length,
+    multi: slots.some((slot) => slot.type === "multi_mcq"),
     topicLabel: input.topic.topicLabel,
     prepTitle: input.prepTitle,
     userPrompt: [
       `Sınav: ${input.prepTitle}.`,
       `Konu: ${input.topic.topicLabel}.`,
-      `Tam ${input.slots.length} soru yaz; yalnız bu konudan.`,
-      `Tür planı: ${typeHint}.`,
-      input.allowNumeric ? "" : "Sayısal (numeric) soru yazma.",
+      `Tam ${slots.length} çoktan seçmeli soru yaz; yalnız bu konudan.`,
       "Sınav disiplini: ipucu yok, doğru cevabı soru metnine koyma.",
       "Her soruda explanation ve optionWhy zorunlu.",
       "Kaynakta olmayan olgu yazma.",
-    ]
-      .filter(Boolean)
-      .join(" "),
+    ].join(" "),
   });
-
   if (!outcome.ok) return [];
 
   const drafts: MockExamQuestionDraft[] = [];
-  for (let i = 0; i < outcome.questions.length && drafts.length < input.slots.length; i += 1) {
-    const q = outcome.questions[i];
-    const slot = input.slots[drafts.length] ?? input.slots[0];
+  for (const q of outcome.questions) {
+    if (drafts.length >= slots.length) break;
+    const slot = slots[drafts.length] ?? slots[0];
     const verified = verifyChoiceQuestion(
       {
         text: q.text,
@@ -360,112 +384,14 @@ async function generateForTopic(input: {
         explanation: q.explanation,
         optionWhy: q.optionWhy,
       },
-      ctx.block,
+      block,
     );
     if (verified.status === "drop") continue;
     const vq = verified.question;
-
-    const type: MockQuestionType =
-      slot.type === "multi_mcq" || vq.multi
-        ? vq.correct.length > 1
-          ? "multi_mcq"
-          : "mcq"
-        : slot.type === "mcq"
-          ? "mcq"
-          : slot.type;
-
-    // open/short/numeric/tf: şimdilik mcq üretiminden türet; klasik için explanation→rubrik
-    if (type === "open" || type === "short_answer") {
-      drafts.push({
-        text: polishMockCopy(q.text),
-        type,
-        options: [],
-        correctAnswers: vq.correct,
-        points: slot.points,
-        explanation: polishMockCopy(q.explanation ?? ""),
-        optionWhy: [],
-        rubric:
-          type === "open"
-            ? [
-                { criterion: "Ana fikir", points: Math.ceil(slot.points / 3) },
-                { criterion: "Gerekçe", points: Math.ceil(slot.points / 3) },
-                { criterion: "Örnek veya sayı", points: slot.points - 2 * Math.ceil(slot.points / 3) },
-              ].filter((r) => r.points > 0)
-            : [
-                { criterion: "Beklenen nokta 1", points: Math.ceil(slot.points / 2) },
-                { criterion: "Beklenen nokta 2", points: Math.floor(slot.points / 2) },
-              ],
-        modelAnswer: polishMockCopy(vq.correct.join("; ")),
-        topicId: input.topic.topicId,
-        topicLabel: input.topic.topicLabel,
-        source: {
-          documentId: input.documentId,
-          page: pageFromLabel(sourceLabel),
-          label: sourceLabel,
-        },
-        difficulty: "medium",
-      });
-      continue;
-    }
-
-    if (type === "true_false") {
-      const statement = polishMockCopy(q.text);
-      const isTrue = vq.correct[0] === vq.options[0];
-      drafts.push({
-        text: statement,
-        type: "true_false",
-        options: ["Doğru", "Yanlış"],
-        correctAnswers: [isTrue ? "Doğru" : "Yanlış"],
-        points: slot.points,
-        explanation: polishMockCopy(q.explanation ?? ""),
-        optionWhy: [],
-        rubric: [],
-        modelAnswer: "",
-        topicId: input.topic.topicId,
-        topicLabel: input.topic.topicLabel,
-        source: {
-          documentId: input.documentId,
-          page: pageFromLabel(sourceLabel),
-          label: sourceLabel,
-        },
-        difficulty: "medium",
-        trueFalseStatement: statement,
-        correctedStatement: isTrue ? statement : polishMockCopy(q.explanation ?? statement),
-      });
-      continue;
-    }
-
-    if (type === "numeric" && input.allowNumeric) {
-      const num = extractLeadingNumber(vq.correct[0] ?? "");
-      if (num == null) continue;
-      drafts.push({
-        text: polishMockCopy(q.text),
-        type: "numeric",
-        options: [],
-        correctAnswers: vq.correct,
-        points: slot.points,
-        explanation: polishMockCopy(q.explanation ?? ""),
-        optionWhy: [],
-        rubric: [],
-        modelAnswer: vq.correct[0] ?? "",
-        topicId: input.topic.topicId,
-        topicLabel: input.topic.topicLabel,
-        source: {
-          documentId: input.documentId,
-          page: pageFromLabel(sourceLabel),
-          label: sourceLabel,
-        },
-        difficulty: "medium",
-        numericExpected: num,
-        numericUnit: extractUnit(vq.correct[0] ?? ""),
-        numericTolerance: Math.max(0.01, Math.abs(num) * 0.02),
-      });
-      continue;
-    }
-
     drafts.push({
+      ...base,
       text: polishMockCopy(vq.text),
-      type: type === "multi_mcq" ? "multi_mcq" : "mcq",
+      type: vq.multi && vq.correct.length > 1 ? "multi_mcq" : "mcq",
       options: vq.options,
       correctAnswers: vq.correct,
       points: slot.points,
@@ -473,18 +399,68 @@ async function generateForTopic(input: {
       optionWhy: vq.optionWhy ?? q.optionWhy ?? [],
       rubric: [],
       modelAnswer: "",
-      topicId: input.topic.topicId,
-      topicLabel: input.topic.topicLabel,
-      source: {
-        documentId: input.documentId,
-        page: pageFromLabel(sourceLabel),
-        label: sourceLabel,
-      },
-      difficulty: "medium",
     });
   }
-
   return drafts;
+}
+
+async function openDrafts(
+  input: TopicGenInput,
+  block: string,
+  slots: TopicGenInput["slots"],
+  base: DraftBase,
+): Promise<MockExamQuestionDraft[]> {
+  const run = await runWithTeacherModel(input.service, {
+    userId: input.userId,
+    actionCode: "PRACTICE_EXAM_GENERATE",
+    idempotencyKey: input.chargeKey,
+    heldReservationId: input.reservationId,
+    label: "teacher_exam_open",
+    topic: input.topic.topicLabel,
+    work: async (ask, started) => {
+      const loop = await teacherOralLoop(
+        ask,
+        {
+          topicLabel: input.topic.topicLabel,
+          prepTitle: input.prepTitle,
+          mode: "document",
+          pages: [],
+          sourceBlock: block,
+          brief: "Yazılı deneme: öğrenci cevabı birkaç cümleyle kâğıda ya da uygulamaya yazacak.",
+          count: slots.length,
+        },
+        started,
+      );
+      return loop.items.length
+        ? { ok: true as const, result: loop.items, log: { kept: loop.items.length, rejected: loop.rejected.length } }
+        : { ok: false as const, reasons: loop.rejected.map((row) => row.problems[0] ?? "sorun") };
+    },
+  });
+  if (!run.ok) return [];
+  return run.result.slice(0, slots.length).map((item, index) => {
+    const slot = slots[index] ?? slots[0];
+    return {
+      ...base,
+      text: polishMockCopy(item.prompt),
+      type: slot.type,
+      options: [],
+      correctAnswers: [],
+      points: slot.points,
+      explanation: polishMockCopy(item.modelAnswer),
+      optionWhy: [],
+      rubric: rubricFromPoints(item.expectedPoints, slot.points),
+      modelAnswer: polishMockCopy(item.modelAnswer),
+    };
+  });
+}
+
+/** Beklenen noktalar rubriğe: puan noktalara tam sayı olarak bölünür, artan ilk noktalara. */
+export function rubricFromPoints(points: string[], total: number): { criterion: string; points: number }[] {
+  const list = points.map((point) => point.trim()).filter(Boolean).slice(0, Math.max(1, total));
+  if (!list.length) return [{ criterion: "Ana nokta", points: total }];
+  const each = Math.floor(total / list.length);
+  const extra = total - each * list.length;
+  return list.map((criterion, index) => ({ criterion, points: each + (index < extra ? 1 : 0) }));
 }
 
 async function topicContext(
@@ -611,18 +587,6 @@ function pageFromLabel(label: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-function extractLeadingNumber(text: string): number | null {
-  const m = text.replace(/,/g, ".").match(/-?\d+(?:\.\d+)?/);
-  if (!m) return null;
-  const n = Number(m[0]);
-  return Number.isFinite(n) ? n : null;
-}
-
-function extractUnit(text: string): string | null {
-  const m = text.match(/\d+(?:[.,]\d+)?\s*([a-zA-ZğüşıöçĞÜŞİÖÇ/%°]+)/);
-  return m?.[1] ?? null;
-}
-
 function rotateCorrectOptions(questions: MockExamQuestionDraft[]): MockExamQuestionDraft[] {
   let shift = 0;
   return questions.map((q) => {
@@ -635,7 +599,10 @@ function rotateCorrectOptions(questions: MockExamQuestionDraft[]): MockExamQuest
     if (target === idx) return q;
     const options = [...q.options];
     [options[idx], options[target]] = [options[target], options[idx]];
-    return { ...q, options, correctAnswers: [options[target]] };
+    // Şık gerekçesi şıkla birlikte yer değiştirir; yoksa açıklama başka şıkkın altına düşer.
+    const optionWhy = [...q.optionWhy];
+    if (optionWhy.length === q.options.length) [optionWhy[idx], optionWhy[target]] = [optionWhy[target], optionWhy[idx]];
+    return { ...q, options, optionWhy, correctAnswers: [options[target]] };
   });
 }
 

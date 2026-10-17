@@ -1,6 +1,18 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import OpenAI from "openai";
+import { contentModel } from "@/lib/ai/model-router";
+import { recordUsage } from "@/lib/credits/service";
+import { env } from "@/lib/env";
 import { recordMistakes } from "@/lib/learning/mistake-notebook";
+import {
+  OPEN_GRADE_SYSTEM,
+  openGradeUserPrompt,
+  parseOpenGrade,
+  type OpenGradeItem,
+  type OpenJudgement,
+} from "@/lib/learning/mock-exam/open-grade";
+import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import {
@@ -40,7 +52,7 @@ export type GradeMockExamResult =
 
 /**
  * Notlandırma kredi düşmez. Açıklamalar üretimde hazır;
- * klasik/kısa cevap rubrik + alıntı ile yerel puanlanır.
+ * açık uçlu cevaplar yapay zekâyla (ölçüt başına alıntı) notlanır, olmazsa yerel yöntemle.
  */
 export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMockExamResult> {
   const { service, userId, examId, answers } = input;
@@ -90,13 +102,50 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     };
   });
 
+  const answerTextOf = (q: GradeableQuestion) => {
+    const raw = normalizeSubmittedAnswer(answers[q.id], q.type);
+    return Array.isArray(raw) ? raw.join(" ") : String(raw ?? "");
+  };
+  const rubricOf = (q: GradeableQuestion) => (q.rubric?.length ? q.rubric : [{ criterion: "Ana nokta", points: q.points }]);
+  const openQuestions = gradeables.filter(
+    (q) => (q.type === "short_answer" || q.type === "open") && answerTextOf(q).trim(),
+  );
+  const judged = await judgeOpenAnswers(
+    service,
+    userId,
+    openQuestions.map((q) => ({
+      question: list.find((row) => row.id === q.id)?.question_text as string,
+      criteria: rubricOf(q).map((row) => row.criterion),
+      modelAnswer: q.modelAnswer ?? "",
+      answer: answerTextOf(q),
+    })),
+  );
+  const judgementFor = new Map(openQuestions.map((q, index) => [q.id, judged.get(index)]));
+
   const items: MockGradeItem[] = gradeables.map((q) => {
     const raw = normalizeSubmittedAnswer(answers[q.id], q.type);
     if (q.type === "short_answer" || q.type === "open") {
       const answerText = Array.isArray(raw) ? raw.join(" ") : String(raw ?? "");
-      const rubric = q.rubric?.length
-        ? q.rubric
-        : [{ criterion: "Ana nokta", points: q.points }];
+      const rubric = rubricOf(q);
+      const judgement = judgementFor.get(q.id);
+      if (judgement) {
+        // Yapay zekâ notu: karşılanan ölçütün alıntısı cevapta birebir yoksa sayılmaz.
+        const graded = gradeRubricAnswer(answerText, rubric, judgement.quotes);
+        const verdict: MockGradeItem["verdict"] =
+          graded.invalid || graded.earned === 0 ? "yanlis" : graded.earned >= graded.max ? "dogru" : "kismen";
+        return {
+          questionId: q.id,
+          userAnswer: answerText,
+          isCorrect: verdict === "dogru",
+          pointsEarned: graded.earned,
+          pointsMax: graded.max,
+          verdict,
+          explanation: q.explanation ?? "",
+          feedback: { met: graded.met, missed: graded.missed, invalid: false, quotes: judgement.quotes },
+          topicId: q.topicId ?? null,
+          topicLabel: q.topicLabel?.trim() || "Konu",
+        };
+      }
       // Alıntı: model_answer / rubrik maddelerinden cevapta geçen parçalar
       const quotes = rubric
         .map((r) => {
@@ -296,4 +345,43 @@ function fold(s: string) {
     .toLocaleLowerCase("tr")
     .normalize("NFD")
     .replace(/\p{M}/gu, "");
+}
+
+/**
+ * Açık uçlu cevapları tek çağrıda notlatır (bkz. open-grade.ts). Değerlendirme denemenin
+ * ücretine dahil: kullanım yazılır, kredi düşmez. Çağrı düşerse boş döner; o cevaplar
+ * eski yerel yöntemle (alıntı / kelime örtüşmesi) notlanır, not kaybolmaz.
+ */
+async function judgeOpenAnswers(
+  service: SupabaseClient,
+  userId: string,
+  items: OpenGradeItem[],
+): Promise<Map<number, OpenJudgement>> {
+  if (!items.length || !env.OPENAI_API_KEY) return new Map();
+  const model = contentModel();
+  try {
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 60_000, maxRetries: 1 });
+    const response = await openai.chat.completions.create({
+      model,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: OPEN_GRADE_SYSTEM },
+        { role: "user", content: openGradeUserPrompt(items) },
+      ],
+    });
+    await recordUsage(service, {
+      userId,
+      actionCode: "PRACTICE_EXAM_GRADE",
+      model,
+      tokensIn: response.usage?.prompt_tokens ?? 0,
+      tokensOut: response.usage?.completion_tokens ?? 0,
+    }).catch(() => undefined);
+    return parseOpenGrade(parseModelJson(response.choices[0]?.message?.content ?? ""), items);
+  } catch (error) {
+    console.error("exam_open_grade_failed", {
+      count: items.length,
+      cause: error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 200) : "unknown",
+    });
+    return new Map();
+  }
 }

@@ -23,6 +23,11 @@ export async function runWithTeacherModel<R>(
     userId: string;
     actionCode: ActionCode;
     idempotencyKey: string;
+    /**
+     * Krediyi çağıran ayırdı (yazılı deneme: bir ücret, birçok konu). Verilirse burada
+     * ayırma, kesinleştirme ve iade yok; kullanım bu ayrılışa yazılır.
+     */
+    heldReservationId?: string;
     startedAt?: number;
     /** Günlük satırının adı ("teacher_cards"). */
     label: string;
@@ -31,7 +36,10 @@ export async function runWithTeacherModel<R>(
   },
 ): Promise<TeacherRunOutcome<R>> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
-  const reservation = await reserveCredits(service, options.userId, options.actionCode, options.idempotencyKey);
+  const held = options.heldReservationId;
+  const reservation = held
+    ? ({ ok: true, reservationId: held } as const)
+    : await reserveCredits(service, options.userId, options.actionCode, options.idempotencyKey);
   if (!reservation.ok) {
     return {
       ok: false,
@@ -40,6 +48,7 @@ export async function runWithTeacherModel<R>(
       reasons: [],
     };
   }
+  const refund = () => (held ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined));
   const started = options.startedAt ?? Date.now();
   const model = contentModel();
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
@@ -69,13 +78,13 @@ export async function runWithTeacherModel<R>(
     const outcome = await options.work(ask, started);
     console.info(options.label, { topic: options.topic.slice(0, 80), ok: outcome.ok, calls, ms: Date.now() - started, ...outcome.log });
     if (!outcome.ok) {
-      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+      await refund();
       return { ok: false, status: 503, error: "generation_failed", reasons: outcome.reasons.slice(0, 6) };
     }
-    await commitCredits(service, reservation.reservationId);
+    if (!held) await commitCredits(service, reservation.reservationId);
     return { ok: true, result: outcome.result, calls, ms: Date.now() - started };
   } catch (error) {
-    await refundCredits(service, reservation.reservationId).catch(() => undefined);
+    await refund();
     console.error(`${options.label}_failed`, {
       topic: options.topic.slice(0, 80),
       calls,
