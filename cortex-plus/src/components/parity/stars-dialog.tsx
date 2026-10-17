@@ -68,7 +68,9 @@ export function StarsDialog({ open, onClose }: { open: boolean; onClose: () => v
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") (helpOpen ? setHelpOpen(false) : onClose());
+      if (event.key !== "Escape") return;
+      if (helpOpen) setHelpOpen(false);
+      else onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

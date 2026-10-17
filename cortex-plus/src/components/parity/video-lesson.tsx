@@ -158,10 +158,10 @@ export function VideoLessonSetup({
         </>
       ) : (
         <div className="cp-video-locked">
-          <strong>Video ders Plus'ta</strong>
+          <strong>{"Video ders Plus'ta"}</strong>
           <span>Konunu 1 dakikalık, çizimli ve anlatımlı bir videoyla özetle.</span>
           <Link href="/pay" className="cp-video-primary">
-            Plus'a geç
+            {"Plus'a geç"}
           </Link>
         </div>
       )}
