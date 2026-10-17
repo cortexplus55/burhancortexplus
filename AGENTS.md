@@ -125,6 +125,21 @@ eklendi** — aşağıdaki bölüm. Bekçi: `astra-final-ui.test.ts`, `continue-
 Canlı veritabanına göçler SQL ekranında uygulandı; panel `DROP POLICY` satırını "yıkıcı" sayıp onay
 istiyor — yeni tabloda o satıra gerek yok, yazmayın.
 
+### Tasarım: Astra'nın yazı ve renk sistemi birebir (17 Ekim 2026)
+
+Ürün sahibinin kararı: yazı tipleri ve palet Astra'yla **birebir**; hazırlık sayfası iki sütun + 3B
+düğüm; görseller **bize özgü** 3B set. Ölçümler ve 8 adım: `docs/delivery/TASARIM-ASTRA-17-EKIM.md`.
+
+| Kural | Nerede |
+|---|---|
+| Dört yazı tipi: Figtree (metin), JetBrains Mono (etiket), Jersey 10 (karşılama, 404), Caveat ("hedef puan"); `ui-monospace` ya da tırnaklı başlık yazmayın | `layout.tsx`, `tokens.css` (`--font-mono/pixel/hand`) |
+| Koyu palet: zemin #0d0d0d, yüzey #141414 / #1f1f1f, çerçeve #242424 / #303030, mavi #4353f3; **durum renkleri altın değil** (seçili sekme gri cam, seçim mavi, ilerleme yeşil); sarı yalnız marka, Plus, yıldız, seri, "hedef puan" | `tokens.css` `.dark`, `--glass-bg` |
+| Yazı ölçeği `--t-*` (başlık 600, -0.02em; etiket 500, +0.01em); yeni ara boyut (13.6, 16.8) uydurmayın | `tokens.css` |
+| 3B simgeler `Icon3D` ile, ad listesi tek kaynak; yeni görsel aynı tarzda üretilir | `components/ui/icon-3d.tsx`, `public/illustrations/3d` |
+| `.cp-exam-page` ders/test/hazırlık ekranlarında da var: liste genişliği yalnız `.cp-exam-page--list` | `parity-shell.css` |
+
+Bekçi: `astra-design-system.test.ts`, `icon-3d.test.ts`, `node-result.test.ts`.
+
 ### Paralel işler aynı ödeme anahtarını paylaşmaz
 
 **2–17 Ekim 2026 yazılı deneme yalnız ilk konunun sorularıyla çıktı** (Pediatri'de 10 sorudan 1).
