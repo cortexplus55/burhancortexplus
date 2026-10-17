@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ParityExamRunner } from "@/components/parity/exam-runner";
+import { PaperExamRunner } from "@/components/parity/paper-exam-runner";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
@@ -9,10 +10,14 @@ export const metadata = { title: "Deneme" };
 
 export default async function ExamPrepDenemePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ prepId: string; examId: string }>;
+  searchParams: Promise<{ kagit?: string; yukle?: string }>;
 }) {
   const { prepId, examId } = await params;
+  // Kâğıtta çöz (17 Ekim 2026): kurulumda "Kâğıtta" seçildiyse; telefondan QR ile yükleme adımı.
+  const { kagit, yukle } = await searchParams;
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
@@ -41,7 +46,15 @@ export default async function ExamPrepDenemePage({
 
   return (
     <ParitySorShell {...shell} chrome="session">
-      {questions.length ? (
+      {questions.length && kagit === "1" ? (
+        <PaperExamRunner
+          examId={examId}
+          prepId={prepId}
+          title={exam.title ?? "Deneme"}
+          questions={questions}
+          startAtUpload={yukle === "1"}
+        />
+      ) : questions.length ? (
         <ParityExamRunner
           examId={examId}
           prepId={prepId}
