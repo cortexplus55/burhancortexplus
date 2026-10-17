@@ -7,7 +7,8 @@ import { errorResponse, withUser } from "@/lib/api/guards";
  * (30 Eylül 2026). Cevap denemenin kendi kaydına yazılıyor (payload
  * içinde `studentRating`); ayrı tablo ya da migration gerekmiyor.
  */
-const LESSON_RATINGS = ["great", "too_easy", "too_hard"] as const;
+// 17 Ekim 2026: Astra'nın beş seçeneği (Mantıklı değildi, Başka bir şey yanlış gitti eklendi).
+const LESSON_RATINGS = ["great", "too_easy", "too_hard", "confusing", "other"] as const;
 
 const bodySchema = z.object({
   attemptId: z.string().uuid(),

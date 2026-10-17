@@ -7,6 +7,8 @@ const OPTIONS = [
   { id: "great", emoji: "👍", label: "Harikaydı" },
   { id: "too_easy", emoji: "🥱", label: "Çok kolaydı" },
   { id: "too_hard", emoji: "😵", label: "Çok zordu" },
+  { id: "confusing", emoji: "🤔", label: "Mantıklı değildi" },
+  { id: "other", emoji: "🚫", label: "Başka bir şey yanlış gitti" },
 ] as const;
 
 /**
