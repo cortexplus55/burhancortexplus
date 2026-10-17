@@ -13266,6 +13266,10 @@ a.cp-exam-search {
 /* "Daha fazla": satır kartları (simge, yazı, sağda ok) ve eşaralıklı bölüm başlığı. */
 .cp-more-panel {
   max-width: 30rem;
+  /* Bizde altı satır (Astra'da üç): pencere ekrandan uzun olunca başlık ve kapatma dışarıda kalıyordu. */
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 0;
   border-radius: 24px;
   background: var(--c-surface-1);
@@ -13281,7 +13285,7 @@ a.cp-exam-search {
   flex-direction: row;
   justify-content: flex-start;
   gap: 14px;
-  min-height: 56px;
+  min-height: 48px;
   padding: 0 16px;
   border: 0;
   border-radius: 16px;
