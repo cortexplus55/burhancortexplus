@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyPaytrCallbackHash } from "@/lib/payments/paytr";
 import { auditLog } from "@/lib/audit";
+import { awardInviteSubscribed } from "@/lib/stars/invite";
 
 const OK = () => new Response("OK", { status: 200 });
 const RETRY = () => new Response("RETRY", { status: 500 });
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
         credits: result.credits ?? 0,
       },
     });
+    // Yıldızlar: davet edilen abone olunca davet edene 300, bir kez (17 Ekim 2026).
+    await awardInviteSubscribed(service, result.beneficiary_id ?? result.payer_id);
   }
 
   return OK();

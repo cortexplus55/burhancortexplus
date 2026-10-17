@@ -63,6 +63,8 @@ const patchSchema = z.object({
   show_suggestions: z.boolean().optional(),
   readable_font: z.boolean().optional(),
   tutor_voice: z.enum(["female", "male"]).optional(),
+  // Yıldız sıralamasında başkalarına görünmemek (17 Ekim 2026, ürün sahibinin kararı).
+  stars_hidden: z.boolean().optional(),
   // Yalnızca kayıttaki emoji listesi ya da baş harfe dönüş (null). Serbest
   // metin kabul edilmez: avatar_url başka yerde görsel adresi olarak okunuyor.
   avatar_url: z

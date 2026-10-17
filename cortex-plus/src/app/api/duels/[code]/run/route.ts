@@ -8,6 +8,8 @@ import {
   scoreDuel,
   type DuelQuestion,
 } from "@/lib/learning/duel";
+import { awardStars } from "@/lib/stars/award";
+import { duelStars } from "@/lib/stars/rules";
 
 const bodySchema = z.object({
   answers: z
@@ -80,6 +82,11 @@ export async function POST(
   });
   if (error) return errorResponse(500, "save_failed");
 
+  // Yıldızlar (17 Ekim 2026): düello Astra'daki okul maçının yerinde. Hesaplı oyuncuya, düello başına bir kez.
+  const stars = playerId
+    ? await awardStars(service, { userId: playerId, source: "duel", ref: `duel:${duel.id}`, amount: duelStars(result.correct) })
+    : 0;
+
   const [{ data: board }, { count: better }] = await Promise.all([
     service
       .from("prep_duel_runs")
@@ -101,6 +108,7 @@ export async function POST(
     total: questions.length,
     answers: result.perQuestion.map((item) => item.answer),
     rank: (better ?? 0) + 1,
+    stars,
     leaderboard: (board ?? []).map((row) => ({
       name: row.display_name as string,
       score: row.score as number,

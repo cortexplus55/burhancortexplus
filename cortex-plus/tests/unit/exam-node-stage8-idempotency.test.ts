@@ -420,7 +420,8 @@ describe("stage 8 resume + last answer in score", () => {
       }),
     );
     expect(response.status).toBe(200);
-    expect(rpc).toHaveBeenCalledExactlyOnceWith(
+    expect(rpc.mock.calls.filter(([name]) => name === "complete_exam_prep_node")).toHaveLength(1);
+    expect(rpc).toHaveBeenCalledWith(
       "complete_exam_prep_node",
       expect.objectContaining({
         p_attempt_id: ATTEMPT,

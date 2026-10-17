@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ProfileDialog, type ProfilePlanView } from "@/components/parity/profile-dialog";
 import { SketchDialog } from "@/components/parity/sketch-dialog";
+import { StarsDialog } from "@/components/parity/stars-dialog";
 import { UploadModal } from "@/components/parity/upload-modal";
 import {
   dispatchComposerAttach,
@@ -55,6 +56,7 @@ function ParityDialogHostInner({
         }}
       />
       <SketchDialog open={dialog === "sketch"} onClose={closeDialog} />
+      <StarsDialog open={dialog === "stars"} onClose={closeDialog} />
     </>
   );
 }

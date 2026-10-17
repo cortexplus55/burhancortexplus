@@ -6,6 +6,8 @@ import {
 } from "@/lib/billing/free-prep-limit";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { awardStars } from "@/lib/stars/award";
+import { PREP_JOINED_STARS } from "@/lib/stars/rules";
 
 /**
  * Okul ağı eylemleri.
@@ -149,6 +151,14 @@ export async function POST(request: Request) {
   await service.rpc("increment_prep_view", {
     p_prep_id: source.id,
     p_viewer: userId,
+  });
+
+  // Yıldızlar (17 Ekim 2026, Astra: "Hazırlığında yeni öğrenci — 50"): paylaşanın, katılan başına bir kez.
+  await awardStars(service, {
+    userId: source.user_id as string,
+    source: "prep_joined",
+    ref: `${source.id}:${userId}`,
+    amount: PREP_JOINED_STARS,
   });
 
   return NextResponse.json({ id: copy.id as string, topics: rows.length });
