@@ -186,7 +186,7 @@ export function ParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
-      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session")}>
+      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session", minimalTop && "cp-sor-root--minimal-top")}>
       {account?.freePreview && chrome !== "session" ? (
         <div className="cp-free-preview-bar" role="status">
           <span>Ücretsiz önizleme açık: ücretsiz bir öğrencinin gördüğünü görüyorsun.</span>
