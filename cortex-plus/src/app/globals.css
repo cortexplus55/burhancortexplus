@@ -15,16 +15,15 @@
   }
 }
 
+/* Astra zemini düz (17 Ekim 2026): üstteki altın ışıma kalktı. */
 .dark body {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(244, 174, 11, 0.035), transparent 55%),
-    hsl(var(--background));
+  background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
 
 .dark ::selection {
-  background: rgba(244, 174, 11, 0.35);
-  color: #fff8e8;
+  background: rgba(67, 83, 243, 0.4);
+  color: #ffffff;
 }
 
 .dark :focus-visible {
@@ -32,10 +31,10 @@
   outline-offset: 2px;
 }
 
-/* Premium scrollbars (Chromium/WebKit) */
+/* Kaydırma çubukları nötr gri (17 Ekim 2026, Astra paleti: durum rengi altın değil). */
 .dark * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(244, 174, 11, 0.35) transparent;
+  scrollbar-color: #303030 transparent;
 }
 
 .dark *::-webkit-scrollbar {
@@ -44,14 +43,14 @@
 }
 
 .dark *::-webkit-scrollbar-thumb {
-  background: rgba(244, 174, 11, 0.28);
+  background: #303030;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 .dark *::-webkit-scrollbar-thumb:hover {
-  background: rgba(244, 174, 11, 0.45);
+  background: #404040;
   background-clip: padding-box;
 }
 

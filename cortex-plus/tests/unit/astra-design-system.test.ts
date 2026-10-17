@@ -54,6 +54,8 @@ describe("Astra tasarım sistemi", () => {
     expect(root).toContain("background: var(--cp-bg);");
     expect(read("src/styles/parity-app.css")).not.toMatch(/\.cs-btn-primary \{\s*background: linear-gradient/);
     expect(read("src/styles/signup-wizard.css")).not.toMatch(/232, 168, 56|244, 174, 11|#e8a838|#f0b84d|#c9851f/);
+    // Kaydırma çubukları da nötr (17 Ekim canlıda altın görüldü).
+    expect(read("src/app/globals.css")).not.toMatch(/244, 174, 11/);
     // Maviyle altının karıştığı geçiş kalmasın (eşleme betiği yalnız bir durağı çevirdiğinde oluyordu).
     for (const file of ["parity-shell.css", "parity-sor.css", "signup-wizard.css", "exam-create-wizard.css"]) {
       const gradients = read(`src/styles/${file}`).match(/linear-gradient\((?:[^()]|\([^()]*\))*\)/g) ?? [];
