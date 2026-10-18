@@ -11,6 +11,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
 import { studyNodeOpenable } from "@/lib/learning/study-tools";
+import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 
@@ -84,11 +85,16 @@ export default async function ExamNodePage({
   let topicFamiliarity: Familiarity | null = null;
 
   const topicId = sessionMeta?.topicId ?? prep.active_topic_id;
-  if (topicId) {
+  // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar (`prepTopicMatch`); yalnız `id` ile
+  // arama kurulumdaki aşinalığı bulmuyor, her açılışta yeniden soruyordu (18 Ekim 2026).
+  const topicMatch = topicId ? prepTopicMatch(topicId) : null;
+  if (topicMatch) {
     const { data: topic } = await supabase
       .from("exam_prep_topics")
       .select("label, familiarity")
-      .eq("id", topicId)
+      .eq("exam_prep_id", prepId)
+      .or(topicMatch)
+      .limit(1)
       .maybeSingle();
     topicLabel = topicLabel ?? topic?.label ?? null;
     // Bu konuya daha önce girildiyse beyan edilen seviye varsayılan olur.

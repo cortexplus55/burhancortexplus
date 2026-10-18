@@ -420,11 +420,17 @@ export const lessonProcedureSchema = z.object({
     .max(6),
 });
 
-/** Karşılık/eşik tablosu (persentil↔SD gibi). */
+/**
+ * Karşılık/eşik tablosu (persentil↔SD gibi). Sınırlar kaynak tablolarına göre: 18 Ekim 2026'da
+ * Pediatri belgesinin gelişim basamakları tablosu (7 satır: 2 ay … 3 yaş, 4 sütun) eski
+ * "en çok 6 satır, hücre 60 karakter" sınırına takıldı. Şema tabloyu sessizce düşürdü, metin
+ * "aşağıdaki tabloda" diye kaldı, düzeltme 3 turda aynı tabloyu yazdı ve sınavın en önemli
+ * kavramı dersten atıldı. Ekran tabloyu yatay kaydırır; uzun tablo sorun değil.
+ */
 export const lessonTableSchema = z.object({
   caption: z.string().min(2).max(100).optional().catch(undefined),
-  columns: z.array(z.string().min(1).max(40)).min(2).max(4),
-  rows: z.array(z.array(z.string().min(1).max(60)).min(1).max(4)).min(2).max(6),
+  columns: z.array(z.string().min(1).max(40)).min(2).max(5),
+  rows: z.array(z.array(z.string().min(1).max(120)).min(1).max(5)).min(2).max(14),
 });
 
 /** Çözümlü örnek: verilenler, istenen, adımlar, sonuç. */

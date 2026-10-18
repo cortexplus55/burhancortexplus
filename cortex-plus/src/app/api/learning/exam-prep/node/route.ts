@@ -62,6 +62,7 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { pickPracticeNodeId, practiceHref, studyNodeOpenable, topicLabelsMatch } from "@/lib/learning/study-tools";
 import { loadLevelHint } from "@/lib/learning/prep-level";
+import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import {
   gradeOralExam,
   isOralLength,
@@ -509,12 +510,17 @@ async function handleNodeRequest(
 
   const sessionMeta = teachingV2 ? parseSessionMeta(node.session_meta) : null;
   const topicLookupId = sessionMeta?.topicId ?? prep.active_topic_id;
+  // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar; yalnız `id` ile arama konuyu bulmaz
+  // (18 Ekim 2026: aşinalık kaydedilmiyor, konunun sayfa eşlemesi atlanıyordu).
+  const topicMatch = topicLookupId ? prepTopicMatch(topicLookupId) : null;
 
-  const { data: topic } = topicLookupId
+  const { data: topic } = topicMatch
     ? await service
         .from("exam_prep_topics")
         .select("id, label, measured_level, document_topic_node_id, source_refs")
-        .eq("id", topicLookupId)
+        .eq("exam_prep_id", prepId)
+        .or(topicMatch)
+        .limit(1)
         .maybeSingle()
     : await service
         .from("exam_prep_topics")
