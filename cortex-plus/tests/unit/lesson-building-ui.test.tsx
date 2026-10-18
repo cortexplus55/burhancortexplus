@@ -81,7 +81,8 @@ describe("parça parça açılan ders ekranı", () => {
     expect(session).toContain('...(kind === "lesson" ? { lessonStream: true } : {})');
     expect(session).toContain('action: "progress"');
     expect(session).toContain("building={lessonBuilding}");
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    // Windows çalışma kopyası CRLF olabilir; satır atlamalı arama satır sonundan bağımsız olsun.
+    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8").replace(/\r\n/g, "\n");
     expect(route).toContain('if (action === "progress") {');
     expect(route).toContain("parsed.data.lessonStream === true");
     // Kalan kavramlar yanıttan sonra aynı fonksiyonda; ilk kavramla kayıt "active".
