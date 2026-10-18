@@ -4,6 +4,8 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { TopicMapEditor } from "@/components/documents/topic-map-editor";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
+import { DocumentReanalyzeButton } from "@/components/documents/document-reanalyze-button";
+import { isAdminUser } from "@/lib/auth/roles";
 import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
 import { processErrorLabel } from "@/lib/documents/error-labels";
 import { isProcessingStale } from "@/lib/documents/processing-stale";
@@ -41,6 +43,8 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const service = createServiceClient();
   const pdfLearningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
+  // Yönetici belgenin öğretmen analizini baştan yazdırabilir (plan 4.4); öğrenciye görünmez.
+  const admin = await isAdminUser(service, user.id);
 
   const { data: doc } = await service
     .from("documents")
@@ -220,6 +224,11 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 enabled={canGenerate}
               />
             </div>
+            {admin ? (
+              <div className="pt-1">
+                <DocumentReanalyzeButton documentId={documentId} />
+              </div>
+            ) : null}
           </section>
         ) : doc.status === "failed" ? (
           <section className="cs-pay-card space-y-3 p-5">
