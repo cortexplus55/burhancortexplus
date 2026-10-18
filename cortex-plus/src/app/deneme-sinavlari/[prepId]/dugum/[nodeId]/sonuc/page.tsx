@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MessageCircle, RotateCcw, X } from "lucide-react";
+import { MessageCircle, RotateCcw, Sparkles, X } from "lucide-react";
 import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
+import { examPrepLessonReplayHref, examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
 import { nodeResultView } from "@/lib/learning/node-result";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -88,10 +88,20 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
           ) : null}
         </dl>
         <div className="cp-node-result-links">
-          <Link href={examPrepNodeHref(prepId, nodeId)} className="cp-node-result-pill">
+          {/* Ders: aynı ders yeniden açılır; "Farklı anlat" yeni bir anlatım yazdırır (18 Ekim 2026). */}
+          <Link
+            href={node.kind === "lesson" ? examPrepLessonReplayHref(prepId, nodeId) : examPrepNodeHref(prepId, nodeId)}
+            className="cp-node-result-pill"
+          >
             <RotateCcw className="h-4 w-4" aria-hidden />
             Dersi tekrarla
           </Link>
+          {node.kind === "lesson" ? (
+            <Link href={examPrepNodeHref(prepId, nodeId)} className="cp-node-result-pill">
+              <Sparkles className="h-4 w-4" aria-hidden />
+              Farklı anlat
+            </Link>
+          ) : null}
           <Link href={`/deneme-sinavlari/${prepId}/sohbet`} className="cp-node-result-pill">
             <MessageCircle className="h-4 w-4" aria-hidden />
             Öğretmenine sor

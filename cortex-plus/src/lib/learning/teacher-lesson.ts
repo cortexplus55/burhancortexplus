@@ -521,23 +521,24 @@ function seedOf(text: string): number {
  * değişmez. Altın denemede Pediatri dersinin üç sorusunda da doğru cevap
  * ilk şıktı. Doğru/yanlış kontrollerine dokunulmaz.
  */
-export function shuffleLessonChecks(lesson: LessonV3): LessonV3 {
+/** `salt`: "Dersi tekrarla"da aynı ders başka bir sırayla (18 Ekim 2026); yazımda boş. */
+export function shuffleLessonChecks(lesson: LessonV3, salt = ""): LessonV3 {
   return {
     ...lesson,
     screens: lesson.screens.map((screen) => ({
       ...screen,
-      blocks: screen.blocks.map((block): LessonBlock => (block.type === "check" ? { ...block, check: shuffleCheck(block.check) } : block)),
+      blocks: screen.blocks.map((block): LessonBlock => (block.type === "check" ? { ...block, check: shuffleCheck(block.check, salt) } : block)),
     })),
   };
 }
 
 type Check = Extract<LessonBlock, { type: "check" }>["check"];
 
-function shuffleCheck(check: Check): Check {
+function shuffleCheck(check: Check, salt = ""): Check {
   if (check.type !== "mcq" || !check.options || check.options.length < 3 || typeof check.answerIndex !== "number") {
     return check;
   }
-  let state = seedOf(check.prompt);
+  let state = seedOf(salt + check.prompt);
   const random = () => {
     state ^= state << 13;
     state ^= state >>> 17;
