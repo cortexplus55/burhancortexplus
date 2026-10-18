@@ -28,7 +28,11 @@ import {
   fileProgressLine,
 } from "@/lib/learning/exam-wizard-copy";
 import {
-  clearExamWizardDraft,
+  draftStarted,
+  dropExamWizardDraft,
+  fetchExamWizardDraft,
+  pickNewerDraft,
+  pushExamWizardDraft,
   readExamWizardDraft,
   writeExamWizardDraft,
   type ExamWizardDraft,
@@ -328,6 +332,7 @@ export function ExamCreateWizard({
   const [draftResumeBanner, setDraftResumeBanner] = useState(false);
   const draftHydrated = useRef(false);
   const draftWriteTimer = useRef<number | null>(null);
+  const draftPushTimer = useRef<number | null>(null);
 
   const [starting, setStarting] = useState(false);
   const [planning, setPlanning] = useState(false);
@@ -352,7 +357,7 @@ export function ExamCreateWizard({
   const alive = useRef(true);
 
   const resetWizard = useCallback(() => {
-    clearExamWizardDraft();
+    void dropExamWizardDraft();
     clearPendingDocProcess();
     setStep("subject");
     setSubject("");
@@ -386,49 +391,64 @@ export function ExamCreateWizard({
     setDraftResumeBanner(false);
   }, [initialDocumentId]);
 
+  const applyDraft = useCallback((draft: ExamWizardDraft) => {
+    setDraftResumeBanner(true);
+    setStep(draft.step as Step);
+    setSubject(draft.subject);
+    setExamDate(draft.examDate);
+    setTarget(draft.target);
+    setLanguage(draft.language);
+    setModalities(draftModalities(draft));
+    setFamiliarity(parseFamiliarity(draft.familiarity));
+    setEqualFocus(draft.equalFocus);
+    setFocusTopics(draft.focusTopics);
+    setMaterials(draft.materials);
+    setFailedMaterials(draft.failedMaterials);
+    setTitle(draft.title);
+    setOrderEdited(draft.orderEdited);
+    if (draft.topicsDraft) {
+      setTopics(draft.topicsDraft.topics);
+      setTopicPages(draft.topicsDraft.topicPages ?? []);
+      setTopicFiles(draft.topicsDraft.topicFiles ?? []);
+      setTopicWarnings(draft.topicsDraft.topicWarnings ?? []);
+      setTopicUnits(draft.topicsDraft.units ?? []);
+      setTopicMeta(
+        draft.topicsDraft.meta ??
+          draft.topicsDraft.topics.map((_, index) => ({
+            ...EMPTY_META,
+            unitTitle: unitTitleForIndex(draft.topicsDraft?.units ?? [], index),
+          })),
+      );
+    }
+    if (draft.processing) {
+      setProcessDetail(`Belge işleniyor: ${draft.processing.fileName}`);
+    }
+  }, []);
+
   useEffect(() => {
     if (draftHydrated.current) return;
     draftHydrated.current = true;
     const pending = readPendingDocProcess();
-    const draft = readExamWizardDraft();
-    if (!draft && !pending) return;
+    const local = readExamWizardDraft();
 
-    if (draft) {
-      setDraftResumeBanner(true);
-      setStep(draft.step as Step);
-      setSubject(draft.subject);
-      setExamDate(draft.examDate);
-      setTarget(draft.target);
-      setLanguage(draft.language);
-      setModalities(draftModalities(draft));
-      setFamiliarity(parseFamiliarity(draft.familiarity));
-      setEqualFocus(draft.equalFocus);
-      setFocusTopics(draft.focusTopics);
-      setMaterials(draft.materials);
-      setFailedMaterials(draft.failedMaterials);
-      setTitle(draft.title);
-      setOrderEdited(draft.orderEdited);
-      if (draft.topicsDraft) {
-        setTopics(draft.topicsDraft.topics);
-        setTopicPages(draft.topicsDraft.topicPages ?? []);
-        setTopicFiles(draft.topicsDraft.topicFiles ?? []);
-        setTopicWarnings(draft.topicsDraft.topicWarnings ?? []);
-        setTopicUnits(draft.topicsDraft.units ?? []);
-        setTopicMeta(
-          draft.topicsDraft.meta ??
-            draft.topicsDraft.topics.map((_, index) => ({
-              ...EMPTY_META,
-              unitTitle: unitTitleForIndex(draft.topicsDraft?.units ?? [], index),
-            })),
-        );
-      }
-      if (draft.processing) {
-        setProcessDetail(`Belge işleniyor: ${draft.processing.fileName}`);
-      }
+    if (local) {
+      applyDraft(local);
     } else if (pending?.surface === "exam-wizard") {
       setStep("material");
     }
-  }, []);
+
+    // Başka cihazda bırakılan kurulum (18 Ekim 2026): sunucudaki kopya yeniyse onu aç.
+    let cancelled = false;
+    void fetchExamWizardDraft().then((remote) => {
+      if (cancelled || !remote || !draftStarted(remote)) return;
+      if (pickNewerDraft(local, remote) !== remote) return;
+      applyDraft(remote);
+      writeExamWizardDraft(remote);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyDraft]);
 
   useEffect(() => {
     if (!draftHydrated.current) return;
@@ -473,6 +493,11 @@ export function ExamCreateWizard({
         updatedAt: new Date().toISOString(),
       };
       writeExamWizardDraft(payload);
+      // Sunucu kopyası daha seyrek: her tuşta değil, el durunca. Boş taslak satırı siler.
+      if (draftPushTimer.current) window.clearTimeout(draftPushTimer.current);
+      draftPushTimer.current = window.setTimeout(() => {
+        void pushExamWizardDraft(payload);
+      }, 1200);
     }, 300);
     return () => {
       if (draftWriteTimer.current) window.clearTimeout(draftWriteTimer.current);
@@ -1086,7 +1111,8 @@ export function ExamCreateWizard({
         toast.error(payload.error ?? "Plan kurulamadı.");
         return;
       }
-      clearExamWizardDraft();
+      if (draftPushTimer.current) window.clearTimeout(draftPushTimer.current);
+      void dropExamWizardDraft();
       if (typeof payload.prepId === "string") {
         setFocusPrepCookieClient(payload.prepId);
       }

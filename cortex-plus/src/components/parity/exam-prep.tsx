@@ -5,7 +5,14 @@ import Link from "next/link";
 import { ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { cn } from "@/lib/utils";
-import { clearExamWizardDraft, readExamWizardDraft } from "@/lib/learning/exam-wizard-draft";
+import {
+  draftStarted,
+  dropExamWizardDraft,
+  fetchExamWizardDraft,
+  readExamWizardDraft,
+  writeExamWizardDraft,
+  type ExamWizardDraft,
+} from "@/lib/learning/exam-wizard-draft";
 
 export type ExamPrepCard = {
   id: string;
@@ -184,17 +191,31 @@ export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
 
 /**
  * Astra'daki "Taslaklar": yarım bırakılan kurulum, kaldığı yerden tamamlanır ya da atılır.
- * Bizde kurulum taslağı tarayıcıda (24 saat); sunucuda yarım hazırlık açılmıyor.
+ * Taslak tarayıcıda (24 saat) ve 18 Ekim 2026'dan beri sunucuda da durur: bu cihazda yoksa
+ * sunucudaki (başka cihazda bırakılan) gösterilir. Sunucuda yarım hazırlık açılmıyor.
  */
 function WizardDrafts() {
   const [draft, setDraft] = useState<{ name: string } | null>(null);
 
   useEffect(() => {
-    const saved = readExamWizardDraft();
-    if (!saved) return;
-    const started = Boolean(saved.subject.trim() || saved.materials.length || saved.title?.trim());
-    if (!started) return;
-    setDraft({ name: saved.title?.trim() || saved.subject.trim() || "Adsız hazırlık" });
+    const show = (saved: ExamWizardDraft) => {
+      if (!draftStarted(saved)) return;
+      setDraft({ name: saved.title?.trim() || saved.subject.trim() || "Adsız hazırlık" });
+    };
+    const local = readExamWizardDraft();
+    if (local) {
+      show(local);
+      return;
+    }
+    let cancelled = false;
+    void fetchExamWizardDraft().then((remote) => {
+      if (cancelled || !remote) return;
+      writeExamWizardDraft(remote);
+      show(remote);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!draft) return null;
@@ -212,7 +233,7 @@ function WizardDrafts() {
           className="cp-prep-draft-drop"
           aria-label="Taslağı sil"
           onClick={() => {
-            clearExamWizardDraft();
+            void dropExamWizardDraft();
             setDraft(null);
           }}
         >
