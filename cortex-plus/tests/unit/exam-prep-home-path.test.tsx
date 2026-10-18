@@ -99,6 +99,33 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect(screen.queryByRole("link", { name: "Hadi öğrenmeye başlayalım" })).toBeNull();
   });
 
+  // 18 Ekim 2026 canlı deneme: etiket "Soru-Cevap · Büyüme" derken Devam et Beslenme'nin
+  // kartlarını açıyordu. Kart, bağlantının gerçekten açtığı düğümü anlatmalı.
+  it("Sıradaki kartı Devam et'in açtığı düğümü anlatır, yoldaki ilk açık düğümü değil", () => {
+    const cards: HomeNode = {
+      id: "cards-3",
+      kind: "flashcards",
+      title: "Kartlar",
+      dayIndex: 2,
+      sortOrder: 2,
+      status: "ready",
+      sessionMeta: { topicTitle: "Beslenme" },
+    };
+    const { container } = renderHome({
+      nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }, cards],
+      topicsDone: 1,
+      startHref: "/deneme-sinavlari/prep-1/dugum/cards-3",
+    });
+    const card = container.querySelector(".cp-path-next") as HTMLElement;
+    expect(card.querySelector(".cp-path-next-title")?.textContent).toContain("Beslenme");
+    const badges = [...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent);
+    expect(badges[0]).toBe("Sıradaki");
+    expect(badges[1]).not.toBe("Podcast Dinle");
+    expect(screen.getByRole("link", { name: "Devam et" }).getAttribute("href")).toBe(
+      "/deneme-sinavlari/prep-1/dugum/cards-3",
+    );
+  });
+
   it("has only two views: path and progress with a percentage", () => {
     renderHome();
     const tabs = screen.getAllByRole("tab").filter((tab) =>

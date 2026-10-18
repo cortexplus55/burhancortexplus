@@ -4408,6 +4408,35 @@
   justify-content: center;
 }
 
+/* Yazılı cevap (18 Ekim 2026): mikrofon yoksa ya da izin yoksa sözlü yine sürer. */
+.cp-tutor-typed {
+  display: flex;
+  gap: 0.5rem;
+  width: min(100%, 36rem);
+  margin-top: 0.75rem;
+}
+
+.cp-tutor-typed input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.cp-tutor-typed input::placeholder {
+  color: var(--cp-muted);
+}
+
+.cp-tutor-typed .cp-exam-continue {
+  flex-shrink: 0;
+}
+
 .cp-exam-pod {
   display: flex;
   flex-direction: column;

@@ -290,8 +290,19 @@ export function ExamPrepHome({
       ? examPrepNodeHref(prepId, firstPlayable.id)
       : startHref;
   const primaryHref = hasProgress ? startHref : beginHref;
-  /** Alt karttaki etkinlik: sıradaki, yoksa bitmemiş ilk düğüm. */
-  const nextNode = ready ?? nodes.find((node) => node.status !== "done") ?? null;
+  /*
+    Alt karttaki etkinlik "Devam et"in gerçekten açtığı düğüm olmalı. 18 Ekim 2026 canlı
+    deneme: etiket "Soru-Cevap · Büyüme ve Gelişme" derken bağlantı Beslenme'nin tekrar
+    kartlarını açıyordu — sunucu "sıradaki"yi seçilen konuya göre, bu kart ise yoldaki ilk
+    açık düğüme göre buluyordu. Bağlantı düğüme gidiyorsa etiket de o düğümden; gitmiyorsa
+    (tanı/başlangıç sayfası) eski kural: sıradaki, yoksa bitmemiş ilk düğüm.
+  */
+  const primaryNodeId = primaryHref.match(/\/dugum\/([^/?#]+)/)?.[1] ?? null;
+  const nextNode =
+    nodes.find((node) => node.id === primaryNodeId) ??
+    ready ??
+    nodes.find((node) => node.status !== "done") ??
+    null;
   const pathPct =
     topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct;
   const [shared, setShared] = useState(initialShared);
