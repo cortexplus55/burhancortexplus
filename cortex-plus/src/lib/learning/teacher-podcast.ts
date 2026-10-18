@@ -123,7 +123,9 @@ const VERIFY_DOCUMENT =
   "Sen titiz bir içerik denetçisisin. Bir podcast metnini, dayandığı KAYNAK (ve verilmişse DERS) ile karşılaştırıyorsun. " +
   "Şunları bul:\n" +
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, formül ya da sınıflandırma (yeni bilgi taşımayan gündelik sahne sorun değil; " +
-  "'Belgende geçmiyor ama bilmen iyi olur:' diye başlayan cümle kaynakta olmayabilir, onu A'ya göre değil F'ye göre denetle).\n" +
+  "'Belgende geçmiyor ama bilmen iyi olur:' diye başlayan cümle kaynakta olmayabilir, onu A'ya göre değil F'ye göre denetle; " +
+  "'bu konu sınavda ağırlıklı' ya da 'sınav kapsamında değil' cümlesi hazırlığın konu listesinden gelir, kaynak iddiası değildir, " +
+  "A sayma).\n" +
   "B) Kaynakla çelişen ya da anlamı değiştiren ifade.\n" +
   "C) Yanlış hesap, tutmayan eşitlik, yarım bırakılmış örnek.\n" +
   "D) 'Cevap:' satırının sorulan soruya yanlış ya da eksik cevap vermesi.\n" +
