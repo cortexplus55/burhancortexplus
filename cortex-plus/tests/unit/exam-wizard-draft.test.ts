@@ -11,6 +11,7 @@ import {
   pickNewerDraft,
   pushExamWizardDraft,
   readExamWizardDraft,
+  startedDraft,
   writeExamWizardDraft,
   type ExamWizardDraft,
 } from "@/lib/learning/exam-wizard-draft";
@@ -112,6 +113,17 @@ describe("exam-wizard-draft", () => {
     expect(parsed?.materials).toEqual([]);
     expect(draftStarted(parsed!)).toBe(true);
     expect(draftStarted(sampleDraft({ subject: " ", materials: [], title: "" }))).toBe(false);
+  });
+
+  // Canlı deneme (18 Ekim 2026): telefon sihirbazı açılınca boş bir tarayıcı kopyası yazıyor; o kopya
+  // "var" sayılınca masaüstünde başlanan kurulum telefonda hiç görünmedi.
+  it("başlamamış tarayıcı kopyası yok sayılır; dolu sunucu kopyasını yenemez", () => {
+    const empty = sampleDraft({ subject: "", materials: [], title: "" });
+    expect(startedDraft(empty)).toBeNull();
+    expect(startedDraft(null)).toBeNull();
+    const remote = sampleDraft({ subject: "Pediatri", updatedAt: new Date(Date.now() - 60_000).toISOString() });
+    expect(pickNewerDraft(startedDraft(empty), remote)).toBe(remote);
+    expect(pickNewerDraft(empty, remote)).toBe(empty);
   });
 
   it("iki kopyadan yenisi seçilir", () => {
