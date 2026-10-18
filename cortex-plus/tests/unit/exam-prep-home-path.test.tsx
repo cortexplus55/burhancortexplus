@@ -117,7 +117,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
       startHref: "/deneme-sinavlari/prep-1/dugum/cards-3",
     });
     const card = container.querySelector(".cp-path-next") as HTMLElement;
-    expect(card.querySelector(".cp-path-next-title")?.textContent).toContain("Beslenme");
+    expect(card.querySelector(".cp-path-next-title")?.textContent).toBe("Kartlar");
     const badges = [...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent);
     expect(badges[0]).toBe("Sıradaki");
     expect(badges[1]).not.toBe("Podcast Dinle");
