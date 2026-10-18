@@ -163,6 +163,8 @@ export async function teacherLessonPipeline(
     let header: Header | null = null;
     let closing: Closing | null = null;
     let streamEnded = false;
+    // İlk kavram düştüyse ders yazılmayacak: öbür kavramların denetimi boşuna sürmesin.
+    let cancelled = false;
     let wake: () => void = () => undefined;
     const signal = () => wake();
     let headerResolve: (value: Header | null) => void = () => undefined;
@@ -194,6 +196,7 @@ export async function teacherLessonPipeline(
       let disputes: TeacherDispute[] = [];
       const triggers: TeacherIssue[][] = [];
       for (let round = 0; ; round += 1) {
+        if (cancelled) return { ok: false, high: [], triggers };
         const { lesson, part: span } = context(index, screens, { ...head, ...headerPatch }, close);
         // Kod kuralları düzeltme isteminde işaretli: yazar bunlara itiraz edemez.
         const structural = partStructureIssues(lesson, span, input).map((issue) => ({ ...issue, problem: `[yapı kuralı] ${issue.problem}` }));
@@ -298,6 +301,7 @@ export async function teacherLessonPipeline(
         if (!outcome.ok) {
           if (index === 0) {
             failure = outcome.high;
+            cancelled = true;
             return false;
           }
           dropped.push(parts[index]!.concept);
