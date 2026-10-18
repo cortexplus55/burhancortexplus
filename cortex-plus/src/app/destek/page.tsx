@@ -3,6 +3,7 @@ import { SectionCard } from "@/components/ui-kit/empty-state";
 import { SupportForm } from "@/components/support/support-form";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
+import { supportSlaLine } from "@/lib/support/sla";
 
 export const metadata = { title: "Destek" };
 
@@ -28,7 +29,7 @@ export default async function DestekPage() {
       <div className="space-y-6">
         <SectionCard
           title="Yeni destek talebi"
-          description="Sorununu yaz; ekibimiz e-posta ile dönüş yapar."
+          description={`Sorununu yaz; ekibimiz e-posta ile dönüş yapar. ${supportSlaLine()}`}
         >
           <SupportForm />
         </SectionCard>
