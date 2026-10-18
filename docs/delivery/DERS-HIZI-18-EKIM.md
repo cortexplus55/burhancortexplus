@@ -82,3 +82,20 @@ ilk kavram ~12–20 sn'de açılır ve gerisi öğrenci okurken gelir.
 
 Fiyat satırı: `ai_model_prices` → `gpt-6-luna-fast` ($0,20 / $1,00, göç `20261018120000`).
 Bekçi testler: `lesson-stream-pipeline.test.ts`, `lesson-building-ui.test.tsx`, `lesson-prefetch.test.ts`.
+
+## İkinci tur: hep bir adım önde (18 Ekim 2026)
+
+Ürün sahibi: "Luna fast biraz pahalı … kullanıcı ilk dersi çözerken biz diğerini yapmamız lazım, hep
+bir adım önden gitmemiz lazım ki kullanıcı beklemesin." Sorulan ve verilen kararlar:
+
+| Soru | Karar |
+|---|---|
+| Hızlı işlem | Yalnız hazır içerik yoksa (yedek) |
+| Bir adım önde neyi kapsasın | Yoldaki sıradaki her etkinlik (ders, test, doğru/yanlış, kartlar, podcast, sözlü) |
+| İlk ders ne zaman | Hazırlık kurulunca + hazırlık sayfası her açıldığında "Sıradaki" hazır değilse |
+| Aşinalık uyuşmazlığı | Aşinalık kurulumda bir kez (hazırlık geneli); açılışta "Düzey: … · Değiştir" |
+| "Dersi tekrarla" | Aynı ders yeniden açılır (anında, kredisiz); yeni anlatım için "Farklı anlat" |
+| Ruh hali sorusu | Kalır, yalnız kaydedilir |
+| Seçimli etkinlikler (podcast, sözlü) | Varsayılanla hazırlanır; öğrenci farklı seçerse yeniden yazılır |
+
+Değişiklik paketleri: #294 (aşinalık kurulumda, ruh hali kayıt), #295 (dersi tekrarla), #296 (bir adım önde).
