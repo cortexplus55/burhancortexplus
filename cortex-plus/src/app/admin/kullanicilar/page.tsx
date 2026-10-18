@@ -45,7 +45,7 @@ export default async function AdminKullanicilarPage({
   let query = service
     .from("profiles")
     .select(
-      "id, full_name, grade_level, created_at, credit_wallets(balance), user_roles!user_roles_user_id_fkey(role, revoked_at)",
+      "id, full_name, grade_level, created_at, suspended_at, credit_wallets(balance), user_roles!user_roles_user_id_fkey(role, revoked_at)",
     )
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);
@@ -87,6 +87,7 @@ export default async function AdminKullanicilarPage({
       balance: wallet?.balance ?? 0,
       isAdmin: roles.includes("admin"),
       isTeacher: roles.includes("teacher") || roles.includes("verified_teacher"),
+      isSuspended: Boolean((profile as { suspended_at?: string | null }).suspended_at),
     };
   });
 
@@ -138,6 +139,7 @@ export default async function AdminKullanicilarPage({
                     {!row.isAdmin && !row.isTeacher ? (
                       <AdminBadge tone="mute">Öğrenci</AdminBadge>
                     ) : null}
+                    {row.isSuspended ? <AdminBadge tone="warn">Askıda</AdminBadge> : null}
                   </div>
                 </td>
                 <td className="adm-num text-xs text-[var(--adm-muted)]">
@@ -149,6 +151,7 @@ export default async function AdminKullanicilarPage({
                     isAdmin={row.isAdmin}
                     isTeacher={row.isTeacher}
                     isSelf={row.id === actor.id}
+                    isSuspended={row.isSuspended}
                   />
                 </td>
               </tr>

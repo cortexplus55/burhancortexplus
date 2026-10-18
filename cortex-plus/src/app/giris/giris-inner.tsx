@@ -21,6 +21,9 @@ export default function GirisPage() {
   // sonra öğrenciyi başka bir siteye götürüyordu (açık yönlendirme). Google
   // yolu sunucuda (auth/callback) temizleniyordu, şifreli giriş yolu değil.
   const next = safeNextPath(params.get("next"));
+  // Askıya alınan hesap ara katmandan buraya düşer (plan 4.1): neden yazmazsak
+  // öğrenci şifresini yanlış sanır ve destek yerine sıfırlama döngüsüne girer.
+  const suspended = params.get("durum") === "askida";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,6 +70,18 @@ export default function GirisPage() {
       subtitle="Google ile saniyeler içinde devam et veya e-postanla giriş yap."
     >
       <div className="space-y-4">
+        {suspended ? (
+          <p
+            role="status"
+            className="rounded-xl border border-[var(--cx-border)] px-4 py-3 text-sm text-[var(--cx-muted)]"
+          >
+            Hesabın askıya alındı; şu an giriş yapılamıyor. Bilgi ve itiraz için{" "}
+            <a href="mailto:cortexplus@cortexplus.app" className="underline">
+              cortexplus@cortexplus.app
+            </a>
+            {" "}adresine yaz.
+          </p>
+        ) : null}
         <GoogleSignInButton onClick={google} disabled={loading} />
         {/* Google ile ilk girişte hesap burada da açılabiliyor; kayıt
             sihirbazındaki onay kutusu bu yolda hiç görünmüyordu. */}

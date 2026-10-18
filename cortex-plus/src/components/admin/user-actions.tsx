@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { adjustCredits, setUserRole } from "@/app/admin/actions";
+import { adjustCredits, setUserRole, setUserSuspended } from "@/app/admin/actions";
 
 /**
  * Bir kullanıcı satırındaki işlemler: kredi ekle/düş ve yetki değiştir.
@@ -17,12 +17,15 @@ export function UserActions({
   isAdmin,
   isTeacher,
   isSelf,
+  isSuspended = false,
 }: {
   userId: string;
   isAdmin: boolean;
   isTeacher: boolean;
-  /** Kendi satırında yöneticiliği geri alma düğmesi kapalı. */
+  /** Kendi satırında yöneticiliği geri alma ve askıya alma düğmeleri kapalı. */
   isSelf: boolean;
+  /** Plan 4.1 (18 Ekim 2026): askıdaki hesap giriş yapamaz, verisi durur. */
+  isSuspended?: boolean;
 }) {
   const [amount, setAmount] = useState("");
   const [pending, startTransition] = useTransition();
@@ -85,6 +88,16 @@ export function UserActions({
         onClick={() => run(() => setUserRole({ userId, role: "admin", grant: !isAdmin }))}
       >
         {isAdmin ? "Yöneticiliği al" : "Yönetici yap"}
+      </button>
+
+      <button
+        type="button"
+        className={`adm-btn${isSuspended ? "" : " adm-btn--danger"}`}
+        disabled={pending || isSelf}
+        title={isSelf ? "Kendi hesabını askıya alamazsın." : undefined}
+        onClick={() => run(() => setUserSuspended({ userId, suspend: !isSuspended }))}
+      >
+        {isSuspended ? "Askıyı kaldır" : "Askıya al"}
       </button>
     </div>
   );

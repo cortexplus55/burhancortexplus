@@ -89,10 +89,10 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 
 | # | Eksik | Çözüm |
 |---|---|---|
-| 4.1 | Hesabı askıya alma / açma | `/admin/kullanicilar` satırına düğme; askıdaki hesap giriş yapamaz |
+| 4.1 | Hesabı askıya alma / açma | **Yazıldı (18 Ekim):** `/admin/kullanicilar` satırında "Askıya al / Askıyı kaldır"; `profiles.suspended_at` silinmiş-hesap bariyeriyle aynı kapıdan geçer (açık oturum düşer, giriş kapanır, veri durur), giriş ekranı "hesabın askıya alındı" der; göç SQL ekranında uygulanacak |
 | 4.2 | Kullanıcının hazırlığını destek için görme (salt okunur) | "Kullanıcı olarak gör" yerine salt okunur hazırlık görünümü; denetim günlüğüne yazılır |
-| 4.3 | Takılı dersi / oturumu sıfırlama, krediyi iade etme | `exam_prep_node_attempts` creating/active kaydını kapatma düğmesi |
-| 4.4 | Belge analizini ve konu haritasını yeniden çalıştırma | `/dokumanlar` yönetici düğmesi (kısmen var: "Tekrar dene") |
+| 4.3 | Takılı dersi / oturumu sıfırlama, krediyi iade etme | **Yazıldı (18 Ekim, #312):** `/admin/ders-hatalari` → "Takılı üretimler" → Kapat ve iade et (iş + oturum failed, yarım önceden-yazım silinir, pending rezervasyon iade) |
+| 4.4 | Belge analizini ve konu haritasını yeniden çalıştırma | **Yazıldı (18 Ekim, #311):** `/dokumanlar/[id]` yöneticiye "Öğretmen analizini yeniden çalıştır" — Pediatri'de 2 konu/12 madde → 10 konu/57 madde |
 | 4.5 | Abonelik süresini elle uzatma / tek seferlik kredi hediyesi | Kredi ekleme var; süre uzatma yok |
 | 4.6 | Kullanıcı arama (e-posta/ad), filtre, sayfalama | **Arama bitti (18 Ekim, #308):** ad ya da e-posta. Filtre ve sayfalama yok; 14 hesapta 50'lik sayfa yetiyor, 1.000'i geçince gerekir |
 | 4.7 | **Runbook'lar** (`docs/ops/`): takılı ders, yanlış kredi, PayTR geri bildirim gelmedi, OpenAI kota, Supabase duraklama, yayın geri alma | **Yazıldı (18 Ekim):** `docs/ops/README.md` + altı dosya, belirti → bakılacak yer → işlem → önleme; koddan ve panelden, tahmin yok |
