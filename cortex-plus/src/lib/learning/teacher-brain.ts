@@ -8,12 +8,18 @@
 
 import { z } from "zod";
 import { foldTr } from "@/lib/documents/page-analysis";
+import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 
 export const ANALYSIS_CHUNK_CHARS = 4800;
 export const MAX_ANALYSIS_CHUNKS = 3;
 export const MIN_ANALYSIS_CHARS = 80;
-/** Ücretsiz planda yayınlanan PDF sayfa tavanı. Tek kaynak entitlements. */
-export const FREE_PDF_PAGE_CAP = 2;
+/**
+ * Ücretsiz planda öğretmen analizinin okuduğu PDF sayfası: ücretsiz katmanın işlediği sayfa kadar
+ * (`FREE_PAGE_TOTAL`, 5). 18 Ekim 2026'ya kadar eski fotoğraf tavanına (2) bağlıydı; Pediatri
+ * belgesinde analiz 10 bölümden yalnız ilk ikisini gördü, kalan konuların "Sınavda sorulur"
+ * maddeleri boş kaldı. Analiz artık öğrenciden kredi düşmüyor; sınırı işlenen sayfa koyar.
+ */
+export const FREE_PDF_PAGE_CAP = FREE_PAGE_TOTAL;
 
 export type AnalysisPage = { pageNumber: number; text: string };
 export type MaterialLanguage = "tr" | "en";

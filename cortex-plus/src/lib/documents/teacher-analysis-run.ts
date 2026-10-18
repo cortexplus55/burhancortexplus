@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { planTier } from "@/lib/billing/entitlements";
+import { billingExempt } from "@/lib/billing/free-preview";
 import {
   coverageStatusLine,
   mergeCoverage,
@@ -141,6 +142,8 @@ export async function runTeacherAnalysis(
     let tier: "free" | "plus" | "sigma" = "plus";
     try {
       tier = await planTier(service, input.userId);
+      // Kurucu/yönetici (ücretsiz önizleme kapalıysa) belgenin tamamını okutur.
+      if (tier === "free" && (await billingExempt(service, input.userId))) tier = "plus";
     } catch {
       tier = "plus";
     }
