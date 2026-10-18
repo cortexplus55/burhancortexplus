@@ -401,6 +401,8 @@ type Step =
   | { kind: "mistake"; heading: string; claim: string; correction: string }
   | { kind: "summary"; heading: string; points: string[]; next: string[] }
   | { kind: "review-gate"; count: number; distinct: boolean }
+  /** Parça parça açılan derste sıradaki kavram henüz denetimden çıkmadı. */
+  | { kind: "building"; heading: string }
   | {
       kind: "retry";
       heading: string;
@@ -423,7 +425,7 @@ function bodyHasRemovalNote(text: string): boolean {
   return /Doğrulanamayan cümleler çıkarıldı/i.test(text);
 }
 
-function buildSteps(lesson: PlayLessonV3, view: LessonV2): Step[] {
+function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false): Step[] {
   const steps: Step[] = [];
   const overview = (lesson.overview ?? "").trim();
   const firstBody = lesson.screens[0] ? screenText(lesson.screens[0]) : "";
@@ -432,7 +434,8 @@ function buildSteps(lesson: PlayLessonV3, view: LessonV2): Step[] {
   // okuma süresi, adım sayısı, kavramlar. Özet ilk ekranı tekrar ediyorsa
   // kanca cümlesi boş kalır, kart yine gösterilir.
   const hook = overview && !overviewDuplicatesSection(overview, firstBody) ? overview : "";
-  if (hook || groups.length >= 2) {
+  // Ders yazılırken giriş kartı hep var: sonradan eklenip adımları kaydırmasın.
+  if (hook || groups.length >= 2 || building) {
     steps.push({ kind: "overview", heading: lesson.title, body: hook });
   }
   steps.push(
@@ -581,11 +584,13 @@ function buildSteps(lesson: PlayLessonV3, view: LessonV2): Step[] {
  * Giriş kartındaki "Bu derste neler var" listesi: kavramlar, tekrar etmeden.
  * İki-üç ekrana yayılan kavram bir kez yazılır; altındaki satır ilk ekranının.
  */
-function LessonPlan({ lesson }: { lesson: PlayLessonV3 }) {
+function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayLessonV3; upcoming?: string[]; building?: boolean }) {
   const groups = conceptGroups(lesson.screens).filter(
     (group, index, all) => all.findIndex((other) => other.concept === group.concept) === index,
   );
-  if (groups.length < 2) return null;
+  // Yazımı süren kavramlar yalnız adlarıyla: denetlenmemiş satır gösterilmez.
+  const pending = upcoming.filter((name) => !groups.some((group) => group.concept === name));
+  if (groups.length + pending.length < 2) return null;
   const checks = lesson.screens.filter((screen) => screen.blocks.some((block) => block.type === "check")).length;
   return (
     <section className="als-intro-plan" aria-label="Bu derste neler var">
@@ -604,8 +609,14 @@ function LessonPlan({ lesson }: { lesson: PlayLessonV3 }) {
             </li>
           );
         })}
+        {pending.map((name, index) => (
+          <li key={`pending-${name}`} className="als-intro-pending">
+            <span aria-hidden>{groups.length + index + 1}</span>
+            <div>{name}</div>
+          </li>
+        ))}
       </ol>
-      {checks ? (
+      {checks && !building ? (
         <p className="als-intro-end">
           {checks === 1 ? "Arada 1 kısa soru" : `Arada ${checks} kısa soru`}
           {lesson.summary?.length ? ", sonunda özet" : ""}
@@ -630,6 +641,8 @@ function progressLabel(
 
 export function ExamLessonSteps({
   lesson,
+  building = false,
+  upcoming = [],
   language = "tr",
   onFinish,
   onClose,
@@ -638,6 +651,10 @@ export function ExamLessonSteps({
   toolbar,
 }: {
   lesson: PlayLesson;
+  /** Parça parça açılan ders: sonraki kavramlar hâlâ yazılıyor (18 Ekim 2026). */
+  building?: boolean;
+  /** Yazımı süren kavramların adları. */
+  upcoming?: string[];
   /** İlerleme çubuğunun altında duran küçük denetimler ("N kaynak"). */
   toolbar?: ReactNode;
   /** Hazırlığın dili. Tekrar sorusu bu dilde yeniden kurulur. */
@@ -660,7 +677,7 @@ export function ExamLessonSteps({
   const play = useMemo(() => toPlayV3(lesson), [lesson]);
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
   const view = useMemo(() => v3ToV2(play as LessonV3), [play]);
-  const base = useMemo(() => buildSteps(play, view), [play, view]);
+  const base = useMemo(() => buildSteps(play, view, building), [play, view, building]);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -681,6 +698,8 @@ export function ExamLessonSteps({
   const mathTopicHint = play.title ?? "";
 
   const steps = useMemo(() => {
+    // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
+    if (building) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
     const retries = missed
       .map((sectionIndex) => {
         const section = view.sections[sectionIndex] as
@@ -725,7 +744,7 @@ export function ExamLessonSteps({
       { kind: "review-gate", count: retries.length, distinct } as Step,
       ...retries,
     ];
-  }, [base, missed, view, language, serverRetries]);
+  }, [base, missed, view, language, serverRetries, building, upcoming]);
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
@@ -764,6 +783,8 @@ export function ExamLessonSteps({
   }
 
   function next() {
+    // Bekleme kartında ilerlenmez: sıradaki kavram gelince kart onun yerini alır.
+    if (step.kind === "building") return;
     if (last) {
       onFinish?.(missed, lessonAnswers, retryAnswers);
       return;
@@ -1014,14 +1035,27 @@ export function ExamLessonSteps({
         </div>
       ) : null}
 
+      {step.kind === "building" ? (
+        <div className="als-slide als-building" role="status" aria-live="polite">
+          <p className="als-kicker">HAZIRLANIYOR</p>
+          <h1 className="als-heading">{step.heading}</h1>
+          <p className="als-body">Öğretmenin bu bölümü yazıyor ve denetliyor. Birkaç saniye içinde burada olacak.</p>
+          <span className="als-building-dots" aria-hidden>
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
+      ) : null}
+
       {step.kind === "retry" ? <p className="als-kicker">TEKRARLA</p> : null}
 
-      {step.kind !== "review-gate" ? (
+      {step.kind !== "review-gate" && step.kind !== "building" ? (
         <div className={step.kind === "overview" || step.kind === "section" ? "als-slide" : undefined}>
           {step.kind === "overview" ? (
             <p className="als-intro-meta">
               <span className="als-intro-tag">Ders</span>
-              yaklaşık {honestReadingMinutes(view)} dk okuma · {base.length} adım
+              yaklaşık {honestReadingMinutes(view)} dk okuma{building ? "" : ` · ${base.length} adım`}
             </p>
           ) : null}
           {step.kind === "section" && step.part ? (
@@ -1034,7 +1068,7 @@ export function ExamLessonSteps({
           {step.kind === "overview" ? (
             <>
               {step.body ? <BoardBody text={step.body} topicHint={mathTopicHint} /> : null}
-              <LessonPlan lesson={play} />
+              <LessonPlan lesson={play} upcoming={upcoming} building={building} />
             </>
           ) : null}
 
@@ -1427,7 +1461,7 @@ export function ExamLessonSteps({
             Devam et <CornerDownLeft className="h-4 w-4" aria-hidden />
           </button>
         </div>
-      ) : mustAnswer ? null : (
+      ) : mustAnswer || step.kind === "building" ? null : (
         <button type="button" className="als-cta" onClick={next}>
           {step.kind === "review-gate" ? "Başla" : last ? "Dersi bitir" : "Devam et"}
           <CornerDownLeft className="h-4 w-4" aria-hidden />

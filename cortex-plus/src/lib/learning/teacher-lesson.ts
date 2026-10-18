@@ -1,14 +1,17 @@
 import {
   LESSON_V3_FORMAT,
   conceptGroups,
+  lessonScreenSchema,
   readLessonV3,
   screenCheck,
   screenChecksFirst,
   screenText,
   type LessonBlock,
+  type LessonScreen,
   type LessonV3,
 } from "@/lib/learning/lesson-v3";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -185,7 +188,9 @@ export const TEACHER_SYSTEM =
   "Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
-  "cümle (şık sayısı kadar). review: aynı kavramı farklı yönden soran soru — tanımdan terim soruldaysa bu kez " +
+  "cümle (şık sayısı kadar). " +
+  `${OPTION_ORDER_RULE} ` +
+  "review: aynı kavramı farklı yönden soran soru — tanımdan terim soruldaysa bu kez " +
   "bir durumdan (olaydan) terim sorulur; şıklar aynı kalır. Durum sorusundaki olay tek kavrama okunmalı: iki kavramla " +
   "da açıklanabilen muğlak örnek kurma ('herkesten eşit oranda vergi' — oran mı, miktar mı?); ayırt ettiren ayrıntıyı " +
   "olayın içine yaz.\n" +
@@ -233,6 +238,18 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     .join("\n\n");
 }
 
+/**
+ * Denetçi ayarı (18 Ekim 2026). 17 Ekim'de canlı "Kadın Hastalıkları ve Doğum" dersi iki
+ * düzeltme turundan sonra tek bir eşik itirazıyla bütünüyle atıldı (~4 dk); ertesi denemede
+ * "… belirtmiyor" türünden eksik-ayrıntı itirazları iki tur daha açtırdı. Eksik ayrıntı yanlış
+ * bilgi değildir; eşdeğer söyleyiş sorun değildir; emin olunmayan şey yüksek yazılmaz.
+ */
+const CALIBRATION =
+  "ÖNEM: 'high' yalnız öğrenciye yanlış ya da yanıltıcı bir şey öğreten, cevabı yanlış ya da çözülemez kılan " +
+  "sorunlar içindir. Bir ayrıntının derste geçmemesi (eksik bilgi, 'şunu da belirtmiyor') tek başına 'low'dur; " +
+  "eksiklik yazılan ifadeyi yanlış yapıyorsa 'high'. Aynı bilginin eşdeğer söylenişi ('≥2 katı' ile '2 katı ve " +
+  "üzeri') sorun değildir. Emin olmadığın bir şeyi 'high' yazma. 'problem' ve 'fix' en çok 30 kelime.\n";
+
 export const VERIFY_SYSTEM =
   "Sen titiz bir ders denetçisisin. Bir dersi, yazıldığı KAYNAK ile karşılaştırıyorsun. Şunları bul:\n" +
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma. (Yeni bilgi taşımayan gündelik " +
@@ -242,7 +259,8 @@ export const VERIFY_SYSTEM =
   "aktarılması ya da kaynak sayıyı açıkça verirken derste 'yüksek/düşük' gibi soyut sözle geçiştirilmesi.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
   "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik).\n" +
-  "D) explanation, optionWhy, corrected'da (yanlış ifadenin doğrusu) ya da çözümlü örnekte yanlış bilgi veya hesap hatası.\n" +
+  "D) explanation, optionWhy, corrected'da (yanlış ifadenin doğrusu) ya da çözümlü örnekte yanlış bilgi veya hesap hatası; " +
+  "explanation ya da optionWhy'ın şıklara sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor).\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle; kaynağın bozuk kelimesinin ya da bozuk cümlesinin kopyası.\n" +
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
   "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
@@ -253,6 +271,7 @@ export const VERIFY_SYSTEM =
   "çelişen) derste kaynağın kendi açıklama ve örnekleriyle tutarlı anlamıyla yazılması SORUN DEĞİLDİR; bunu A ya da B " +
   "sayma.\n" +
   "A-H 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
+  CALIBRATION +
   'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}]}. ' +
   "Sorun yoksa issues boş dizi.";
 
@@ -264,10 +283,14 @@ export const TOPIC_VERIFY_SYSTEM =
   "tartışmalı bir görüşün kesin doğru gibi sunulması.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
   "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik).\n" +
-  "D) explanation, optionWhy ya da corrected'da (yanlış ifadenin doğrusu) yanlış bilgi; çözümlü örnekte hesap hatası.\n" +
+  "D) explanation, optionWhy ya da corrected'da (yanlış ifadenin doğrusu) yanlış bilgi; çözümlü örnekte hesap hatası; " +
+  "explanation ya da optionWhy'ın şıklara sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor).\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "F) Ders içinde tutarsızlık.\n" +
   "A-F 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
+  CALIBRATION +
+  "Kurumlar ya da kılavuz sürümleri arasında küçük farklar olan bir eşikte ders yaygın kabul gören değeri veriyorsa " +
+  "bu A ya da B değildir.\n" +
   'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}]}. ' +
   "Sorun yoksa issues boş dizi.";
 
@@ -286,29 +309,132 @@ export function verifyUserPrompt(
   return `${head}\n\nDERS (JSON):\n${JSON.stringify(lesson)}`;
 }
 
-const FIX_PREFIX =
-  "Sen aynı dersi yazan öğretmensin. Denetçinin bulduğu sorunları düzelt. Kaynakta dayanağı olmayan bilgiyi çıkar ya da " +
-  "kaynaktaki doğrusuyla değiştir; yanlış anahtarı düzelt; bozuk cümleyi doğru Türkçeyle yeniden yaz. " +
-  "Listedeki her alanı mutlaka değiştir; önerilen düzeltme ('→' sonrası) varsa onu uygula. Dersi aynen geri döndürme. " +
-  "Sorunsuz kısımları değiştirme. Kurallar ve şema aynı:\n\n";
+/**
+ * Kavram kavram denetim (18 Ekim 2026). Ders akışla yazılırken her kavramın ekranları
+ * biter bitmez denetlenir; öğrenci ilk kavramı okurken sonrakiler denetimden geçer.
+ * Denetçi dersin o ana kadarki hâlini görür (tutarlılık için) ama yalnız istenen parçayı
+ * denetler. Ekran numaraları dersin bütünündeki yeriyle yazılır.
+ */
+export type LessonPart = {
+  /** Denetlenen ekranların dersteki ilk ve son sırası (dahil). */
+  from: number;
+  to: number;
+  /** İlk parça: başlık, kanca ve hedef de denetlenir (giriş kartında görünür). */
+  header: boolean;
+  /** Son parça: sık yapılan hata ve özet de denetlenir. */
+  closing: boolean;
+};
 
-export const FIX_SYSTEM = FIX_PREFIX + TEACHER_SYSTEM;
+export type TeacherDispute = { where: string; reason: string };
 
-export function fixSystem(mode: TeacherLessonMode = "document"): string {
-  return FIX_PREFIX + teacherSystem(mode);
+function partLabel(part: LessonPart): string {
+  const screens = part.from === part.to ? `screens[${part.from}]` : `screens[${part.from}]–screens[${part.to}]`;
+  return [screens, part.header ? "title, overview, objective" : "", part.closing ? "commonMistake, summary" : ""]
+    .filter(Boolean)
+    .join(", ");
 }
 
-export function fixUserPrompt(
+function disputeLines(disputes: TeacherDispute[]): string {
+  return disputes.map((item, i) => `${i + 1}. [${item.where}] ${item.reason}`).join("\n");
+}
+
+export function verifyPartUserPrompt(
   lesson: LessonV3,
+  part: LessonPart,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle">,
+  disputes: TeacherDispute[] = [],
+): string {
+  return [
+    verifyUserPrompt(lesson, input),
+    `DENETLENECEK: yalnız ${partLabel(part)}. Dersin öbür kısımları ayrıca denetlendi ya da denetlenecek; onları ` +
+      "yalnız tutarlılık (F) için oku, onlar için sorun yazma.",
+    disputes.length
+      ? `YAZARIN İTİRAZLARI (önceki denetimdeki sorunlar için):\n${disputeLines(disputes)}\n` +
+        "Her itirazı tart: yazar haklıysa o sorunu yeniden yazma; haksızsa sorunu nedeniyle birlikte yeniden yaz."
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+const FIX_PART_PREFIX =
+  "Sen aynı dersi yazan öğretmensin. Ders ekran ekran öğrenciye açılıyor; denetçi bir kısmında sorun buldu. Yalnız o " +
+  "kısmı düzelt. Kaynakta dayanağı olmayan bilgiyi çıkar ya da kaynaktaki doğrusuyla değiştir; yanlış anahtarı düzelt; " +
+  "bozuk cümleyi doğru Türkçeyle yeniden yaz; önerilen düzeltme ('→' sonrası) haklıysa onu uygula. Sorunsuz kısımları değiştirme. Bir sorunun yanlış olduğundan eminsen " +
+  "(yazdığın bilgi doğru ve kurala uygun) o yeri değiştirme, 'disputes' içinde kısa nedenini yaz. Kurallar aynı:\n\n";
+
+export function fixPartSystem(mode: TeacherLessonMode = "document"): string {
+  return FIX_PART_PREFIX + teacherSystem(mode);
+}
+
+export function fixPartUserPrompt(
+  lesson: LessonV3,
+  part: LessonPart,
   issues: TeacherIssue[],
   input: TeacherLessonInput,
 ): string {
+  const fields = [
+    `"screens": [screens[${part.from}]…screens[${part.to}] düzeltilmiş hâli, aynı sırayla; kısmın BÜTÜN ekranları, değiştirmediklerin de; 1-3 ekran, aynı kavram]`,
+    part.header ? '"title", "overview", "objective" (değiştirdiysen)' : "",
+    part.closing ? '"commonMistake", "summary" (değiştirdiysen)' : "",
+    '"disputes": [{"where": "…", "reason": "…"}]',
+  ].filter(Boolean);
   return [
     teacherUserPrompt(input),
     `ŞU ANKİ DERS (JSON):\n${JSON.stringify(lesson)}`,
-    `DÜZELTİLECEK SORUNLAR:\n${issues.map((issue, i) => `${i + 1}. [${issue.where}] ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`).join("\n")}`,
-    "Düzeltilmiş dersin tamamını aynı şemayla JSON olarak döndür.",
+    `DÜZELTİLECEK KISIM: ${partLabel(part)}`,
+    `SORUNLAR:\n${issues.map((issue, i) => `${i + 1}. [${issue.where}] ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`).join("\n")}`,
+    "'[yapı kuralı]' ile başlayan sorunlar koddaki kurallardır: itiraz edilemez, mutlaka düzelt.",
+    `Dersin tamamını DEĞİL, yalnız şu alanları taşıyan bir JSON döndür: {${fields.join(", ")}}.`,
   ].join("\n\n");
+}
+
+export type PartFix = {
+  screens: LessonV3["screens"];
+  title?: string;
+  overview?: string;
+  objective?: string;
+  commonMistake?: LessonV3["commonMistake"];
+  summary?: string[];
+  disputes: TeacherDispute[];
+};
+
+/** Düzeltilmiş kısmı okur; ekranlar dersin şemasından geçer. Bozuksa null. */
+export function parsePartFix(raw: unknown, base: LessonV3, upcomingTopics: string[]): PartFix | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const disputes = Array.isArray(row.disputes)
+    ? row.disputes.flatMap((item) => {
+        const value = item as Record<string, unknown>;
+        const reason = typeof value?.reason === "string" ? value.reason.trim().slice(0, 300) : "";
+        return reason ? [{ where: typeof value.where === "string" ? value.where.slice(0, 80) : "ders", reason }] : [];
+      })
+    : [];
+  const screens = Array.isArray(row.screens) ? row.screens : [];
+  // Ekranlar ve kapanış alanları dersin kendi şemasından geçsin: tek kaynak.
+  const shaped = parseTeacherLesson(
+    {
+      ...base,
+      ...(typeof row.title === "string" ? { title: row.title } : {}),
+      ...(typeof row.overview === "string" ? { overview: row.overview } : {}),
+      ...(typeof row.objective === "string" ? { objective: row.objective } : {}),
+      ...(row.commonMistake && typeof row.commonMistake === "object" ? { commonMistake: row.commonMistake } : {}),
+      ...(Array.isArray(row.summary) ? { summary: row.summary } : {}),
+      screens: screens.length ? screens : base.screens,
+    },
+    upcomingTopics,
+  );
+  if (!shaped) return null;
+  if (!screens.length && !disputes.length) return null;
+  return {
+    screens: screens.length ? shaped.screens.slice(0, 3) : [],
+    ...(typeof row.title === "string" ? { title: shaped.title } : {}),
+    ...(typeof row.overview === "string" ? { overview: shaped.overview } : {}),
+    ...(typeof row.objective === "string" ? { objective: shaped.objective } : {}),
+    ...(row.commonMistake ? { commonMistake: shaped.commonMistake } : {}),
+    ...(Array.isArray(row.summary) ? { summary: shaped.summary } : {}),
+    disputes,
+  };
 }
 
 export type TeacherIssue = { where: string; severity: "high" | "low"; problem: string; fix?: string };
@@ -351,18 +477,27 @@ export function parseTeacherLesson(raw: unknown, upcomingTopics: string[]): Less
   return {
     ...lesson,
     title: calmHeading(lesson.title),
-    screens: lesson.screens.map((screen) => ({
-      ...screen,
-      heading: calmHeading(screen.heading),
-      ...(screen.concept ? { concept: calmHeading(screen.concept) } : {}),
-      blocks: screen.blocks.map((block): LessonBlock =>
-        block.type === "cards"
-          ? { ...block, cards: block.cards.map((card) => ({ ...card, title: calmHeading(card.title) })) }
-          : block,
-      ),
-    })),
+    screens: lesson.screens.map(calmScreen),
     nextFocus,
   };
+}
+
+/** Kaynaktan aynen alınmış BÜYÜK HARF başlıklar normal yazıma; metne başka dokunulmaz. */
+function calmScreen(screen: LessonScreen): LessonScreen {
+  return {
+    ...screen,
+    heading: calmHeading(screen.heading),
+    ...(screen.concept ? { concept: calmHeading(screen.concept) } : {}),
+    blocks: screen.blocks.map((block): LessonBlock =>
+      block.type === "cards" ? { ...block, cards: block.cards.map((card) => ({ ...card, title: calmHeading(card.title) })) } : block,
+    ),
+  };
+}
+
+/** Akışla gelen tek ekran: dersin ekran şemasından geçer. Bozuksa null. */
+export function parseTeacherScreen(raw: unknown): LessonScreen | null {
+  const parsed = lessonScreenSchema.safeParse(raw);
+  return parsed.success ? calmScreen(parsed.data) : null;
 }
 
 const MINOR_WORDS = new Set(["ve", "ile", "veya", "ya", "da", "de", "ki", "için", "gibi", "ya da"]);
@@ -474,56 +609,27 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
   return answer.filter((stem) => seen.has(stem)).length >= 2;
 }
 
-/**
- * Yapı denetimi (saf, LessonV3). Sorunu düzeltmez; düzeltme turuna gider.
- * Gözlenen her eski kusur burada bir kural: BÜYÜK HARF başlık (sayfa üst
- * bilgisi), "Kaynak:" yapıştırma, bariz kontrol, eksik gerekçe. Önem
- * dereceleri V2'deki gibi; V3'ün kendi kuralları (ekran başına bir soru,
- * kavram bir soruyla biter, kavramın ekranları art arda) yüksek.
- */
-export function lessonStructureIssues(
-  lesson: LessonV3,
-  input: Pick<TeacherLessonInput, "runningHeaders"> & Partial<Pick<TeacherLessonInput, "pages">>,
-): TeacherIssue[] {
-  const issues: TeacherIssue[] = [];
-  const add = (where: string, problem: string) => issues.push({ where, severity: "high", problem });
-  const low = (where: string, problem: string) => issues.push({ where, severity: "low", problem });
-  const headers = input.runningHeaders ?? [];
-  const screens = lesson.screens;
-  const groups = conceptGroups(screens);
+type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> & Partial<Pick<TeacherLessonInput, "pages">>;
 
+function collector() {
+  const issues: TeacherIssue[] = [];
+  return {
+    issues,
+    add: (where: string, problem: string) => issues.push({ where, severity: "high", problem }),
+    low: (where: string, problem: string) => issues.push({ where, severity: "low", problem }),
+  };
+}
+
+/** Giriş kartı ve "önce dene": dersin başlığı, kancası ve ilk ekranın açılışı. */
+export function headerStructureIssues(lesson: LessonV3, input: StructureInput): TeacherIssue[] {
+  const { issues, add, low } = collector();
+  const headers = input.runningHeaders ?? [];
   if (shouting(lesson.title)) add("title", "Başlık BÜYÜK HARFLE yazılmış; içerikten, normal yazımla bir konu adı ver.");
   if (headers.some((line) => sameKey(line, lesson.title))) add("title", "Başlık sayfa kenarında tekrar eden kitap başlığı; konunun kendi adını ver.");
   if (!lesson.overview?.trim()) add("overview", "Kanca (overview) yok.");
-  if (screens.length < 2) add("screens", "En az iki ekran olmalı.");
-  if (screens.length > 7) add("screens", "En fazla yedi ekran; konuyu daralt ya da kavramı daha az ekrana sığdır.");
-  if (groups.length > 5) add("screens", "En fazla dört kavram; konuyu daralt.");
-  const seenConcepts = new Set<string>();
-  for (const group of groups) {
-    const key = group.concept.toLocaleLowerCase("tr");
-    const first = group.screens[0]!;
-    const lastIndex = group.screens[group.screens.length - 1]!;
-    if (seenConcepts.has(key)) add(`screens[${first}].concept`, `'${group.concept}' kavramının ekranları art arda olmalı.`);
-    seenConcepts.add(key);
-    if (group.screens.length > 3) add(`screens[${first}].concept`, `'${group.concept}' en fazla üç ekran olmalı.`);
-    // 16 Ekim 2026 Beslenme dersi: hesabı olmayan kavram ikiye bölündü, ikinci ekran
-    // birinciyi tekrar etti. Sonraki ekran yeni bir parça taşımalı.
-    for (const index of group.screens.slice(1)) {
-      if (!screens[index]!.blocks.some((block) => SPLIT_WORTHY.has(block.type))) {
-        add(
-          `screens[${index}]`,
-          `'${group.concept}' gereksiz bölünmüş: bu ekran formül, adımlar, çözümlü örnek ya da tablo taşımıyor; öncekiyle tek ekrana indir.`,
-        );
-      }
-    }
-    if (!screenCheck(screens[lastIndex]!)) {
-      add(`screens[${lastIndex}]`, `'${group.concept}' kavramı bir soruyla bitmeli: son ekranına 'check' bloğu koy.`);
-    }
-  }
-
   // Tür serbest: Termodinamik altın denemesinde "önce dene" çoktan seçmeli
   // yazıldı, iki düzeltme turu da değiştirmedi ve iyi bir ders reddedildi.
-  const opener = screens[0];
+  const opener = lesson.screens[0];
   const openerCheck = opener ? screenCheck(opener) : undefined;
   if (!opener || !screenChecksFirst(opener)) {
     add("screens[0].blocks[0]", "İlk ekran 'önce dene' ile açılmalı: ilk blok bir 'check' (tercihen doğru/yanlış).");
@@ -546,37 +652,104 @@ export function lessonStructureIssues(
   ) {
     low("overview", "Kanca 'önce dene' sorusunun cevabını veriyor; cevabı söylemeden merak uyandır.");
   }
+  return issues;
+}
 
-  screens.forEach((screen, index) => {
-    const where = `screens[${index}]`;
-    if (shouting(screen.heading)) add(`${where}.heading`, "Ekran başlığı BÜYÜK HARF.");
-    if (SCAFFOLD_HEADING.test(screen.heading.trim())) add(`${where}.heading`, "Şablon başlık; kavramın adını yaz.");
-    if (headers.some((line) => sameKey(line, screen.heading))) add(`${where}.heading`, "Başlık sayfa üst bilgisi; kavramın adını yaz.");
-    const text = screenText(screen);
-    if (!text) add(`${where}.blocks`, "Ekranda en az bir 'text' bloğu olmalı.");
-    // 16 Ekim 2026 Beslenme dersi: "Tabloda bulguyu … oku" dedi, tablo bir sonraki ekrandaydı.
-    if (POINTS_TO_TABLE.test(text) && !/periyodik\s+tablo/i.test(text) && !screen.blocks.some((block) => block.type === "table")) {
-      add(`${where}.blocks`, "Metin bir tabloya gönderiyor ama bu ekranda tablo yok; tabloyu bu ekrana taşı ya da cümleyi çıkar.");
+/** Tek ekranın kuralları; `index` ekranın dersteki yeri. */
+export function screenStructureIssues(screen: LessonV3["screens"][number], index: number, input: StructureInput): TeacherIssue[] {
+  const { issues, add, low } = collector();
+  const headers = input.runningHeaders ?? [];
+  const where = `screens[${index}]`;
+  if (shouting(screen.heading)) add(`${where}.heading`, "Ekran başlığı BÜYÜK HARF.");
+  if (SCAFFOLD_HEADING.test(screen.heading.trim())) add(`${where}.heading`, "Şablon başlık; kavramın adını yaz.");
+  if (headers.some((line) => sameKey(line, screen.heading))) add(`${where}.heading`, "Başlık sayfa üst bilgisi; kavramın adını yaz.");
+  const text = screenText(screen);
+  if (!text) add(`${where}.blocks`, "Ekranda en az bir 'text' bloğu olmalı.");
+  // 16 Ekim 2026 Beslenme dersi: "Tabloda bulguyu … oku" dedi, tablo bir sonraki ekrandaydı.
+  if (POINTS_TO_TABLE.test(text) && !/periyodik\s+tablo/i.test(text) && !screen.blocks.some((block) => block.type === "table")) {
+    add(`${where}.blocks`, "Metin bir tabloya gönderiyor ama bu ekranda tablo yok; tabloyu bu ekrana taşı ya da cümleyi çıkar.");
+  }
+  if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b/i.test(text)) {
+    add(`${where}.blocks`, "Metinde kaynak/sayfa notu var; çıkar (kaynak ekranda ayrıca gösteriliyor).");
+  }
+  // KPSS altın denemesi: düzeltme turu "Kaynaktaki … ifadesi anlatım hatasıdır" diye derse not düştü.
+  if (/kayna(?:kta|ktaki|ğın)\s[^.]{0,80}?(?:hata|yanlış|bozuk)/i.test(text)) {
+    add(`${where}.blocks`, "Metinde kaynağın hatasından söz eden iç not var; düzeltmeyi sessizce yap, notu çıkar.");
+  }
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words > 220) {
+    add(`${where}.blocks`, `Ekranın metni çok uzun (${words} kelime); 60-140 kelimeye indir, ayrıntıyı karta/tabloya ya da ikinci ekrana taşı.`);
+  }
+  const checks = screen.blocks.flatMap((block, blockIndex) => (block.type === "check" ? [{ check: block.check, blockIndex }] : []));
+  // Düşük önem (16 Ekim 2026 canlı Yenidoğan dersi düştü): ilk kavram tek ekranken
+  // "önce dene" + "kavram soruyla biter" iki soru yazdırıyordu. Ekran yalnız ilk soruyu
+  // gösterir, notlandırma da ilk soruya bakar; ikincisi öğrenciye zarar vermez.
+  if (checks.length > 1) low(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu çıkar (ekran yalnız ilkini gösterir).");
+  for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low);
+  screen.blocks.forEach((block, blockIndex) => {
+    if (block.type === "note" && block.note.tone === "general" && !/^genel bilgi\b/i.test(block.note.title.trim())) {
+      add(`${where}.blocks[${blockIndex}]`, "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı; öğrenci bilginin belgesinden gelmediğini görsün.");
     }
-    if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b/i.test(text)) {
-      add(`${where}.blocks`, "Metinde kaynak/sayfa notu var; çıkar (kaynak ekranda ayrıca gösteriliyor).");
-    }
-    // KPSS altın denemesi: düzeltme turu "Kaynaktaki … ifadesi anlatım hatasıdır" diye derse not düştü.
-    if (/kayna(?:kta|ktaki|ğın)\s[^.]{0,80}?(?:hata|yanlış|bozuk)/i.test(text)) {
-      add(`${where}.blocks`, "Metinde kaynağın hatasından söz eden iç not var; düzeltmeyi sessizce yap, notu çıkar.");
-    }
-    const words = text.split(/\s+/).filter(Boolean).length;
-    if (words > 220) {
-      add(`${where}.blocks`, `Ekranın metni çok uzun (${words} kelime); 60-140 kelimeye indir, ayrıntıyı karta/tabloya ya da ikinci ekrana taşı.`);
-    }
-    const checks = screen.blocks.flatMap((block, blockIndex) => (block.type === "check" ? [{ check: block.check, blockIndex }] : []));
-    // Düşük önem (16 Ekim 2026 canlı Yenidoğan dersi düştü): ilk kavram tek ekranken
-    // "önce dene" + "kavram soruyla biter" iki soru yazdırıyordu. Ekran yalnız ilk soruyu
-    // gösterir, notlandırma da ilk soruya bakar; ikincisi öğrenciye zarar vermez.
-    if (checks.length > 1) low(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu çıkar (ekran yalnız ilkini gösterir).");
-    for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low);
   });
+  return issues;
+}
 
+/** Bir kavramın ardışık ekranları: en çok üç, bölünme gerekçeli, son ekranı soruyla biter. */
+export function conceptStructureIssues(screens: LessonV3["screens"], group: { concept: string; screens: number[] }): TeacherIssue[] {
+  const { issues, add } = collector();
+  const first = group.screens[0]!;
+  const lastIndex = group.screens[group.screens.length - 1]!;
+  if (group.screens.length > 3) add(`screens[${first}].concept`, `'${group.concept}' en fazla üç ekran olmalı.`);
+  // 16 Ekim 2026 Beslenme dersi: hesabı olmayan kavram ikiye bölündü, ikinci ekran
+  // birinciyi tekrar etti. Sonraki ekran yeni bir parça taşımalı.
+  for (const index of group.screens.slice(1)) {
+    if (!screens[index]!.blocks.some((block) => SPLIT_WORTHY.has(block.type))) {
+      add(
+        `screens[${index}]`,
+        `'${group.concept}' gereksiz bölünmüş: bu ekran formül, adımlar, çözümlü örnek ya da tablo taşımıyor; öncekiyle tek ekrana indir.`,
+      );
+    }
+  }
+  if (!screenCheck(screens[lastIndex]!)) {
+    add(`screens[${lastIndex}]`, `'${group.concept}' kavramı bir soruyla bitmeli: son ekranına 'check' bloğu koy.`);
+  }
+  return issues;
+}
+
+/**
+ * Kaynağın tablosu derste paragrafa dökülmüş mü (16 Ekim 2026 Pediatri solunum dersi:
+ * 5 satırlık "Bulgular | Düşündürür | Ayırıcı ipucu" tablosu paragrafa döküldü, "ince
+ * ral/ronküs" ve "reversibilite" düştü). `said` tablonun satırlarının arandığı metin.
+ */
+function flattenedSourceTable(said: string, pages: readonly { text: string }[]) {
+  const stems = stemSet(said);
+  return sourceTables(pages).find((table) => {
+    const mentioned = table.rows.filter((row) => row.some((cell) => cellMentioned(cell, stems))).length;
+    return table.rows.length >= 3 && mentioned >= 3 && mentioned * 2 >= table.rows.length;
+  });
+}
+
+function flattenedTableIssue(table: { columns: string[] }): string {
+  return (
+    `Kaynaktaki tablo (${table.columns.join(" | ")}) derste paragrafa dökülmüş; onu 'table' bloğu olarak ver, ` +
+    "ayırıcı ipuçlarını düşürme. Metin tablonun satırlarını yeniden saymasın, nasıl okunacağını söylesin."
+  );
+}
+
+/** Dersin bütününe bakan kurallar: ekran ve kavram sayısı, sıra, gündelik örnek, tablo, özet. */
+export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInput): TeacherIssue[] {
+  const { issues, add } = collector();
+  const screens = lesson.screens;
+  const groups = conceptGroups(screens);
+  if (screens.length < 2) add("screens", "En az iki ekran olmalı.");
+  if (screens.length > 7) add("screens", "En fazla yedi ekran; konuyu daralt ya da kavramı daha az ekrana sığdır.");
+  if (groups.length > 5) add("screens", "En fazla dört kavram; konuyu daralt.");
+  const seenConcepts = new Set<string>();
+  for (const group of groups) {
+    const key = group.concept.toLocaleLowerCase("tr");
+    if (seenConcepts.has(key)) add(`screens[${group.screens[0]!}].concept`, `'${group.concept}' kavramının ekranları art arda olmalı.`);
+    seenConcepts.add(key);
+  }
   // Astra her derste bir gündelik örnek kutusu koyuyor; bizim ilk dört dersimizde
   // hiç çıkmadı (2 Ekim 2026, ürün sahibinin kararı: her derste en az bir).
   if (!screens.some((screen) => screen.blocks.some((block) => block.type === "note" && block.note.tone === "info"))) {
@@ -587,36 +760,54 @@ export function lessonStructureIssues(
     );
   }
   // Belgede olmayan, denetlenmiş genel bilgi (16 Ekim 2026): az ve etiketli olmalı.
-  const general = screens.flatMap((screen, index) =>
-    screen.blocks.flatMap((block, blockIndex) =>
-      block.type === "note" && block.note.tone === "general" ? [{ note: block.note, where: `screens[${index}].blocks[${blockIndex}]` }] : [],
-    ),
-  );
+  const general = screens.flatMap((screen) => screen.blocks.filter((block) => block.type === "note" && block.note.tone === "general"));
   if (general.length > 2) add("screens", "En fazla iki 'Genel bilgi' kutusu; gerisini çıkar ya da kaynaktaki bilgiyle anlat.");
-  for (const item of general) {
-    if (!/^genel bilgi\b/i.test(item.note.title.trim())) {
-      add(item.where, "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı; öğrenci bilginin belgesinden gelmediğini görsün.");
-    }
-  }
-  // 16 Ekim 2026 Pediatri solunum dersi: kaynağın 5 satırlık "Bulgular | Düşündürür |
-  // Ayırıcı ipucu" tablosu paragrafa döküldü, "ince ral/ronküs" ve "reversibilite" düştü.
   // Tablonun satırları derste anılıyorsa tablo derste de tablo olmalı.
   if (!screens.some((screen) => screen.blocks.some((block) => block.type === "table"))) {
-    const said = stemSet(JSON.stringify(lesson));
-    const flattened = sourceTables(input.pages ?? []).find((table) => {
-      const mentioned = table.rows.filter((row) => row.some((cell) => cellMentioned(cell, said))).length;
-      return table.rows.length >= 3 && mentioned >= 3 && mentioned * 2 >= table.rows.length;
-    });
-    if (flattened) {
-      add(
-        "screens",
-        `Kaynaktaki tablo (${flattened.columns.join(" | ")}) derste paragrafa dökülmüş; onu 'table' bloğu olarak ver, ` +
-          "ayırıcı ipuçlarını düşürme. Metin tablonun satırlarını yeniden saymasın, nasıl okunacağını söylesin.",
-      );
-    }
+    const flattened = flattenedSourceTable(JSON.stringify(lesson), input.pages ?? []);
+    if (flattened) add("screens", flattenedTableIssue(flattened));
   }
   const summary = lesson.summary ?? [];
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
+  return issues;
+}
+
+/**
+ * Yapı denetimi (saf, LessonV3). Sorunu düzeltmez; düzeltme turuna gider.
+ * Gözlenen her eski kusur burada bir kural: BÜYÜK HARF başlık (sayfa üst
+ * bilgisi), "Kaynak:" yapıştırma, bariz kontrol, eksik gerekçe. Önem
+ * dereceleri V2'deki gibi; V3'ün kendi kuralları (ekran başına bir soru,
+ * kavram bir soruyla biter, kavramın ekranları art arda) yüksek.
+ */
+export function lessonStructureIssues(lesson: LessonV3, input: StructureInput): TeacherIssue[] {
+  const groups = conceptGroups(lesson.screens);
+  return [
+    ...headerStructureIssues(lesson, input),
+    ...groups.flatMap((group) => conceptStructureIssues(lesson.screens, group)),
+    ...lesson.screens.flatMap((screen, index) => screenStructureIssues(screen, index, input)),
+    ...lessonLevelStructureIssues(lesson, input),
+  ];
+}
+
+/**
+ * Akışlı derste bir kısmın yapı denetimi: `lesson` dersin o ana kadarki hâli. İlk kısım
+ * giriş kartını, son kısım dersin bütününü de taşır. Ara kısımda tablo kuralı yalnız o
+ * kısmın metnine bakar: tablo başka bir kavramda durabilir.
+ */
+export function partStructureIssues(lesson: LessonV3, part: LessonPart, input: StructureInput): TeacherIssue[] {
+  const indexes = lesson.screens.map((_, index) => index).filter((index) => index >= part.from && index <= part.to);
+  const concept = conceptGroups(lesson.screens).find((group) => group.screens.includes(part.from));
+  const issues = [
+    ...(part.header ? headerStructureIssues(lesson, input) : []),
+    ...(concept ? conceptStructureIssues(lesson.screens, { concept: concept.concept, screens: indexes }) : []),
+    ...indexes.flatMap((index) => screenStructureIssues(lesson.screens[index]!, index, input)),
+  ];
+  if (part.closing) return [...issues, ...lessonLevelStructureIssues(lesson, input)];
+  const hasTable = lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "table"));
+  if (!hasTable) {
+    const flattened = flattenedSourceTable(JSON.stringify(indexes.map((index) => lesson.screens[index])), input.pages ?? []);
+    if (flattened) issues.push({ where: `screens[${part.from}]`, severity: "high", problem: flattenedTableIssue(flattened) });
+  }
   return issues;
 }
 
@@ -685,6 +876,10 @@ function checkIssues(
       add(where, "Sayma sorusu öğretici değil; kavramı ayırt ettiren bir soru sor.");
     }
     if (!check.review?.prompt) add(`${where}.review`, "review (farklı yönden tekrar sorusu) yok.");
+    // Şıklar karıştırılıyor: "ilk seçenek …" karıştırmadan sonra başka şıkkı gösterir (18 Ekim 2026).
+    if (refersToOptionOrder(check.explanation) || (check.optionWhy ?? []).some(refersToOptionOrder)) {
+      add(where, "Açıklama şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
+    }
   }
   if (check.type === "trueFalse") {
     const options = check.options ?? [];

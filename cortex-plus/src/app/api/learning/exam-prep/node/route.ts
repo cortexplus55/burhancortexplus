@@ -10,12 +10,15 @@ import {
   PREFETCH_HEADER,
   requestNextLessonPrefetch,
   storePrefetchedLesson,
+  adoptedPrefetchAttempt,
+  peekBuildingPrefetch,
+  publishPrefetchPartial,
   takePrefetchedLesson,
   verifyPrefetchToken,
 } from "@/lib/learning/lesson-prefetch";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
-import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
+import { runTeacherLesson, type PublishedLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 import { awardStars } from "@/lib/stars/award";
 import { prepStars } from "@/lib/stars/rules";
@@ -112,6 +115,7 @@ import {
 } from "@/lib/learning/lesson-play";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
+import { buildingPayload, isBuilding, isStaleBuild, truncatedPayload } from "@/lib/learning/lesson-build";
 import { isAdminUser } from "@/lib/auth/roles";
 import {
   honestReadingMinutes,
@@ -187,7 +191,7 @@ const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "progress"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
@@ -228,6 +232,11 @@ const bodySchema = z.object({
    * alır; yayın sırasında açık kalan sayfada ders boş açılmasın (16 Ekim 2026).
    */
   lessonFormat: z.literal(3).optional(),
+  /**
+   * true: istemci parça parça açılan dersi okuyor (18 Ekim 2026). İlk denetlenmiş kavram
+   * yazılınca yanıt döner, kalanlar `action: "progress"` ile gelir.
+   */
+  lessonStream: z.boolean().optional(),
 });
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
@@ -629,6 +638,52 @@ async function handleNodeRequest(
     // Tekrar sorusu başka bir ifade olabilir; birincinin "doğrusu" ona ait değil.
     const corrected = check.prompt === primary.prompt ? result.corrected : undefined;
     return NextResponse.json({ ok: true, ...result, corrected });
+  }
+
+  // Parça parça açılan ders (18 Ekim 2026): yazım sürerken ekran yeni kavramları buradan alır.
+  if (action === "progress") {
+    if (kind !== "lesson") return errorResponse(400, "invalid_input");
+    const attemptId = parsed.data.attemptId;
+    if (!attemptId) return errorResponse(400, "invalid_input");
+    const { data: attempt } = await service
+      .from("exam_prep_node_attempts")
+      .select("id, payload, generation_id, client_request_id")
+      .eq("id", attemptId)
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("node_id", nodeId)
+      .maybeSingle();
+    if (!attempt?.payload || typeof attempt.payload !== "object") return errorResponse(404, "not_found");
+    let stored = attempt.payload as Record<string, unknown>;
+    if (isStaleBuild(stored)) {
+      // Yazımı yürüten fonksiyon düştü: ders olduğu kadarıyla kapanır, kredi iade.
+      stored = truncatedPayload(stored);
+      await service
+        .from("exam_prep_node_attempts")
+        .update({ payload: stored })
+        .eq("id", attempt.id)
+        .eq("generation_id", attempt.generation_id as string);
+      if (attempt.client_request_id) {
+        const key = creditIdempotencyKeyForStart({ userId, nodeId, clientRequestId: attempt.client_request_id as string });
+        const adoptedKey = (attempt.payload as { adoptedPrefetch?: unknown }).adoptedPrefetch === true;
+        await settlePendingStart(service, { userId, key: adoptedKey ? `${key}_prefetched` : key, outcome: "refund" });
+      }
+      await recordLessonGenerationFailure(service, {
+        userId,
+        prepId,
+        topicId: topic?.id ?? null,
+        topicLabel,
+        kind,
+        stage: "generation",
+        reason: "build_stalled",
+        reasons: ["yazım ilerlemedi; ders olduğu kadarıyla kapandı"],
+      });
+    }
+    return NextResponse.json({
+      ok: true,
+      building: isBuilding(stored),
+      payload: await publicPayloadForUser(service, userId, stored, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
+    });
   }
 
   // --- Stage 8: resume in-progress attempt (flag ON) ---
@@ -1236,6 +1291,104 @@ async function handleNodeRequest(
     }
   }
 
+  // Yazımı süren hazır ders (18 Ekim 2026): ikinci kez yazılmaz, devralınır. Öğrenci
+  // denetlenmiş kısmı hemen görür; kalanı önceden yazım yazdıkça kaydına düşer.
+  if (kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.lessonStream === true) {
+    const building = await peekBuildingPrefetch(service, { userId, nodeId, familiarity, waitMs: 20_000 });
+    if (building?.status === "building") {
+      const requestId = clientRequestId ?? crypto.randomUUID();
+      const reservation = await reserveCredits(
+        service,
+        userId,
+        actionForKind(kind),
+        `${creditIdempotencyKeyForStart({ userId, nodeId, clientRequestId: requestId })}_prefetched`,
+      );
+      if (!reservation.ok) {
+        return reservation.reason === "insufficient_credits"
+          ? errorResponse(402, "insufficient_credits")
+          : errorResponse(409, "generation_in_progress");
+      }
+      const { data: adoptedRow, error: adoptError } = await service
+        .from("exam_prep_node_attempts")
+        .insert({
+          node_id: nodeId,
+          exam_prep_id: prepId,
+          user_id: userId,
+          topic_id: topic?.id ?? null,
+          difficulty,
+          voice_mode: false,
+          payload: { ...building.payload, adoptedPrefetch: true },
+          total: 1,
+          status: "active",
+          generation_id: crypto.randomUUID(),
+          client_request_id: requestId,
+          familiarity,
+          mood,
+          content_version: 1,
+          updated_at: new Date().toISOString(),
+        })
+        .select(
+          "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+        )
+        .single();
+      if (adoptError || !adoptedRow) {
+        await refundCredits(service, reservation.reservationId).catch(() => undefined);
+        return errorResponse(500, "generation_failed", { refunded: true });
+      }
+      // Yarış: önceden yazım tam bu arada bittiyse hazır dersi hemen al.
+      let served = adoptedRow;
+      const finished = await takePrefetchedLesson(service, { userId, nodeId });
+      if (finished) {
+        const { data: done } = await service
+          .from("exam_prep_node_attempts")
+          .update({ payload: finished.payload, updated_at: new Date().toISOString() })
+          .eq("id", adoptedRow.id)
+          .select(
+            "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+          )
+          .single();
+        if (done) served = done;
+        await commitCredits(service, reservation.reservationId).catch(() => undefined);
+        const topicId = topic?.id ?? finished.topicId;
+        if (topicId) await saveTopicLesson(service, { prepId, topicId, payload: finished.payload });
+      }
+      await upsertGenerationJob(service, {
+        userId,
+        prepId,
+        nodeId,
+        attemptId: adoptedRow.id as string,
+        clientRequestId: requestId,
+        generationId: adoptedRow.generation_id as string,
+        status: "ready",
+      });
+      if (topic?.id) await service.from("exam_prep_topics").update({ familiarity }).eq("id", topic.id);
+      await service.from("study_session_moods").insert({ user_id: userId, exam_prep_id: prepId, node_id: nodeId, mood });
+      if (node.status !== "done") await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+      console.info("lesson_prefetch_adopted", { nodeId, finished: Boolean(finished) });
+      after(() =>
+        requestNextLessonPrefetch(service, {
+          origin: options.origin,
+          userId,
+          prepId,
+          sortOrder: node.sort_order as number,
+          topicId: sessionMeta?.topicId ?? null,
+          familiarity,
+          mood,
+        }),
+      );
+      return NextResponse.json({
+        ...attemptStartResponse(served, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: await publicPayloadForUser(service, userId, served.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
+          resumed: false,
+        }),
+        ...(await readWalletBalance(service, userId)),
+      });
+    }
+  }
+
   // Önceden yazılmış ders: beklemeden gelir, kredi şimdi düşer.
   if (
     kind === "lesson" &&
@@ -1785,14 +1938,49 @@ async function handleNodeRequest(
       ? await loadUpcomingTopicTitles(service, prepId, topicLabel)
       : null;
 
-  let payload: Record<string, unknown>;
-  try {
-    payload = voiceSession
+  // Parça parça açılış (18 Ekim 2026, ürün sahibinin kararı): ilk denetlenmiş kavram kayda
+  // yazılınca öğrenciye dönülür; kalan kavramlar arka planda (`after`) aynı kayda eklenir.
+  // Öğrencinin cevap kaydı ayrı alanlara yazıyor (answers, content_version); yalnız payload değişir.
+  const progressive =
+    kind === "lesson" &&
+    teachingV2 &&
+    !prefetch &&
+    !voiceSession &&
+    parsed.data.lessonStream === true &&
+    Boolean(creatingAttemptId && generationId && clientRequestId);
+  let shownFirst = false;
+  let announceFirst: (payload: Record<string, unknown>) => void = () => undefined;
+  const firstShown = new Promise<Record<string, unknown>>((resolve) => (announceFirst = resolve));
+  const publishLesson = async (partial: Record<string, unknown>) => {
+    const next = buildingPayload(partial);
+    const { error: publishError } = await service
+      .from("exam_prep_node_attempts")
+      .update({ payload: next, status: "active", updated_at: new Date().toISOString() })
+      .eq("id", creatingAttemptId!)
+      .eq("generation_id", generationId!)
+      .in("status", ["creating", "active"]);
+    if (publishError) {
+      console.error("lesson_publish_failed", { nodeId, cause: publishError.message.slice(0, 160) });
+      return;
+    }
+    if (!shownFirst) {
+      shownFirst = true;
+      announceFirst(next);
+    }
+  };
+
+  const generation: Promise<Record<string, unknown>> = (async () =>
+    voiceSession
       ? { type: "voice" }
       : await generateNodePayload({
           service,
           userId,
           isPremium: premium,
+          onLessonPublish: progressive
+            ? publishLesson
+            : prefetch
+              ? (partial: Record<string, unknown>) => publishPrefetchPartial(service, nodeId, partial)
+              : undefined,
           kind,
           prepTitle: prep.title ?? "Hazırlık",
           topicLabel,
@@ -1901,11 +2089,44 @@ async function handleNodeRequest(
                   .filter(Boolean)
                   .join("\n")
               : "",
-        });
+        }))();
+  // Sonuç aşağıda okunur; erken red işlenmemiş sayılmasın.
+  generation.catch(() => undefined);
+
+  const settle = async (): Promise<NextResponse> => {
+  let payload: Record<string, unknown>;
+  try {
+    payload = await generation;
   } catch (error) {
     const code = error instanceof NodeGenerationError ? error.code : "generation_failed";
     const status = error instanceof NodeGenerationError ? error.status : 502;
     const reasons = error instanceof NodeGenerationError ? error.reasons.slice(0, 6) : [];
+    if (shownFirst && creatingAttemptId && generationId) {
+      // Öğrenci dersin baş kısmını okuyor: kayıt başarısız sayılmaz, ders olduğu kadarıyla kapanır.
+      const { data: current } = await service
+        .from("exam_prep_node_attempts")
+        .select("payload")
+        .eq("id", creatingAttemptId)
+        .maybeSingle();
+      if (current?.payload && typeof current.payload === "object") {
+        await service
+          .from("exam_prep_node_attempts")
+          .update({ payload: truncatedPayload(current.payload as Record<string, unknown>) })
+          .eq("id", creatingAttemptId)
+          .eq("generation_id", generationId);
+      }
+      await recordLessonGenerationFailure(service, {
+        userId,
+        prepId,
+        topicId: topic?.id ?? null,
+        topicLabel,
+        kind,
+        stage: "generation",
+        reason: code,
+        reasons: ["yayımlanmış ders olduğu kadarıyla kapandı", ...reasons],
+      });
+      return errorResponse(status, code, { refunded: true });
+    }
     // generateJson deferCommit başarısızlığında rezervasyon iade edilir.
     // commitCredits sonrası hatalar generateNodePayload içinde yutulur.
     const refunded = code !== "source_unavailable";
@@ -1948,7 +2169,31 @@ async function handleNodeRequest(
         errorCode: code,
       });
     }
-    if (prefetch) await dropPrefetch(service, nodeId);
+    if (prefetch) {
+      const adopted = await adoptedPrefetchAttempt(service, nodeId).catch(() => null);
+      if (adopted) {
+        const { data: current } = await service
+          .from("exam_prep_node_attempts")
+          .select("payload")
+          .eq("id", adopted.id)
+          .maybeSingle();
+        if (current?.payload && typeof current.payload === "object") {
+          await service
+            .from("exam_prep_node_attempts")
+            .update({ payload: truncatedPayload(current.payload as Record<string, unknown>) })
+            .eq("id", adopted.id)
+            .eq("generation_id", adopted.generationId);
+        }
+        if (adopted.clientRequestId) {
+          await settlePendingStart(service, {
+            userId: adopted.userId,
+            key: `${creditIdempotencyKeyForStart({ userId: adopted.userId, nodeId, clientRequestId: adopted.clientRequestId })}_prefetched`,
+            outcome: "refund",
+          });
+        }
+      }
+      await dropPrefetch(service, nodeId);
+    }
     if (error instanceof NodeGenerationError) {
       const admin = await isAdminUser(service, userId).catch(() => false);
       return errorResponse(error.status, error.code, {
@@ -1978,6 +2223,26 @@ async function handleNodeRequest(
   }
 
   if (prefetch) {
+    const adopted = await adoptedPrefetchAttempt(service, nodeId);
+    if (adopted) {
+      await service
+        .from("exam_prep_node_attempts")
+        .update({ payload, updated_at: new Date().toISOString() })
+        .eq("id", adopted.id)
+        .eq("generation_id", adopted.generationId);
+      if (adopted.clientRequestId) {
+        await settlePendingStart(service, {
+          userId: adopted.userId,
+          key: `${creditIdempotencyKeyForStart({ userId: adopted.userId, nodeId, clientRequestId: adopted.clientRequestId })}_prefetched`,
+          outcome: "commit",
+        });
+      }
+      await dropPrefetch(service, nodeId);
+      const topicId = topic?.id ?? null;
+      if (topicId) await saveTopicLesson(service, { prepId, topicId, payload });
+      console.info("lesson_prefetch_adopted_done", { nodeId });
+      return NextResponse.json({ ok: true, prefetched: "adopted" });
+    }
     const stored = await storePrefetchedLesson(service, nodeId, payload);
     console.info("lesson_prefetch_ready", { nodeId, stored });
     return NextResponse.json({ ok: true, prefetched: stored });
@@ -1995,7 +2260,8 @@ async function handleNodeRequest(
       })
       .eq("id", creatingAttemptId)
       .eq("generation_id", generationId)
-      .eq("status", "creating")
+      // Parça parça açılan ders ilk kavramla "active" oldu.
+      .in("status", shownFirst ? ["creating", "active"] : ["creating"])
       .select(
         "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
       )
@@ -2035,7 +2301,7 @@ async function handleNodeRequest(
 
     if (kind === "lesson" && !voiceSession) {
       // Öğrenci bu dersi okurken sıradaki ders yazılsın.
-      after(() =>
+      const prefetchNext = () =>
         requestNextLessonPrefetch(service, {
           origin: options.origin,
           userId,
@@ -2044,8 +2310,10 @@ async function handleNodeRequest(
           topicId: sessionMeta?.topicId ?? null,
           familiarity,
           mood,
-        }),
-      );
+        });
+      // Parça parça açılışta zaten yanıttan sonradayız.
+      if (shownFirst) await prefetchNext();
+      else after(prefetchNext);
     }
 
     return NextResponse.json({
@@ -2121,6 +2389,51 @@ async function handleNodeRequest(
     payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
     ...(await readWalletBalance(service, userId)),
   });
+  };
+  let settling: Promise<NextResponse> | null = null;
+  const settleOnce = () => (settling ??= settle());
+
+  if (progressive) {
+    const first = await Promise.race([
+      firstShown.then((partial) => ({ shown: true as const, partial })),
+      generation.then(
+        () => ({ shown: false as const }),
+        () => ({ shown: false as const }),
+      ),
+    ]);
+    if (first.shown) {
+      // Kalan kavramlar, kapanış ve yan kayıtlar yanıttan sonra, aynı fonksiyonda.
+      after(() =>
+        settleOnce().then(undefined, (error: unknown) => {
+          console.error("lesson_build_settle_failed", {
+            nodeId,
+            cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+          });
+        }),
+      );
+      const { data: activeAttempt } = await service
+        .from("exam_prep_node_attempts")
+        .select(
+          "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+        )
+        .eq("id", creatingAttemptId!)
+        .maybeSingle();
+      if (activeAttempt) {
+        console.info("lesson_first_shown", { nodeId });
+        return NextResponse.json({
+          ...attemptStartResponse(activeAttempt, {
+            kind,
+            title,
+            topicLabel,
+            publicPayload: await publicPayloadForUser(service, userId, first.partial, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
+            resumed: false,
+          }),
+          ...(await readWalletBalance(service, userId)),
+        });
+      }
+    }
+  }
+  return settleOnce();
 }
 
 /**
@@ -2142,6 +2455,26 @@ async function loadTopicLesson(
     .maybeSingle();
   if (!data?.content_json) return null;
   return readLessonV2(data.content_json);
+}
+
+/**
+ * Takılı kalan parça parça dersin bekleyen kredisi. Anahtar açılışın kredi anahtarı; ders
+ * motoru krediyi bu anahtarla ayırıyor. Kesinleşmiş ya da iade edilmiş kayda dokunulmaz.
+ */
+async function settlePendingStart(
+  service: SupabaseClient,
+  input: { userId: string; key: string; outcome: "commit" | "refund" },
+) {
+  const { data } = await service
+    .from("credit_reservations")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("idempotency_key", input.key)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (!data?.id) return;
+  const settle = input.outcome === "commit" ? commitCredits : refundCredits;
+  await settle(service, data.id as string).catch(() => undefined);
 }
 
 class NodeGenerationError extends Error {
@@ -2228,6 +2561,8 @@ async function generateNodePayload(input: {
   idempotencyKey?: string;
   /** false: önceden yazılan ders; kredi öğrenci açınca düşer. */
   charge?: boolean;
+  /** Parça parça açılış: denetlenen her kavram, ders kaydı biçiminde öğrencinin kaydına yazılır. */
+  onLessonPublish?: (payload: Record<string, unknown>) => Promise<void> | void;
   learningPreferences?: unknown;
   /**
    * Aynı konunun doğrulanmış dersi — varsa podcast bunun sesli hâli olur.
@@ -2444,8 +2779,51 @@ async function teacherLessonPayload(
     runningHeaders: edges,
     startedAt,
     charge: input.charge,
+    // Plus'ta OpenAI hızlı işlem (18 Ekim 2026, ürün sahibinin kararı: yalnız Plus).
+    // Önceden yazımda bekleyen öğrenci yok: normal işlem (yarı fiyat).
+    fast: input.isPremium && input.charge !== false,
+    onPublish: input.onLessonPublish
+      ? (published: PublishedLesson) =>
+          input.onLessonPublish!({
+            type: "lesson",
+            lesson: published.lesson,
+            title: published.lesson.title,
+            teachingStandard: activity,
+            qualityReport: null,
+            refunded: false,
+            engine: "teacher",
+            // Giriş kartı planı: henüz yayımlanmamış kavramların yalnız adları.
+            upcoming: published.upcoming,
+          })
+      : undefined,
   });
+  // Okunamayan taslak (17 Ekim 2026: 486 jetonluk bir cevap 40 sn yedi, nedeni hiçbir yerde
+  // yoktu). Ders yeniden yazıldıysa da kayda geçer.
+  if (outcome.draftNote) {
+    await recordLessonGenerationFailure(input.service, {
+      userId: input.userId,
+      prepId: input.prepId ?? null,
+      topicId: input.topicId ?? null,
+      topicLabel: input.topicLabel,
+      kind: "lesson",
+      stage: "draft",
+      reason: "draft_unreadable",
+      reasons: [outcome.draftNote.slice(0, 400)],
+    });
+  }
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  if (outcome.dropped.length) {
+    await recordLessonGenerationFailure(input.service, {
+      userId: input.userId,
+      prepId: input.prepId ?? null,
+      topicId: input.topicId ?? null,
+      topicLabel: input.topicLabel,
+      kind: "lesson",
+      stage: "concept",
+      reason: "concept_dropped",
+      reasons: outcome.dropped.map((concept) => `düzelmeyen kavram atıldı: ${concept}`.slice(0, 200)),
+    });
+  }
   // Düzeltme turu açan ders yavaş (16 Ekim 2026: ~4,5 dk). Nedeni yönetim "Ders hataları"nda
   // görünsün; ölçmeden kural değiştirmeyelim. Ders öğrenciye gider, bu yalnız kayıt.
   if (outcome.fixTriggers.length) {

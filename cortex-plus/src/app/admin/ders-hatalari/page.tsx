@@ -21,6 +21,9 @@ const REASON_LABEL: Record<string, string> = {
   search_error: "Arama hatası",
   // Hata değil: ders çıktı ama düzeltme turu açtı (yavaş). Neden ret cümlelerinde.
   slow_generation: "Yavaş üretim (düzeltme turu)",
+  // 18 Ekim 2026: akışlı motor. Taslak okunamadı (yeniden yazıldı) ya da düzelmeyen kavram atıldı.
+  draft_unreadable: "Taslak okunamadı (yeniden yazıldı)",
+  concept_dropped: "Kavram atıldı (düzelmedi)",
 };
 
 export default async function AdminDersHatalariPage({

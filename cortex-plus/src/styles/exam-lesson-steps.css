@@ -1024,3 +1024,54 @@
   font-size: 0.8125rem;
   color: var(--cp-muted, var(--c-text-muted));
 }
+
+/* Parça parça açılan ders (18 Ekim 2026): sıradaki kavram denetimden çıkmadıysa bekleme kartı.
+   Giriş kartında yazımı süren kavramlar yalnız adıyla, soluk. */
+.als-intro-plan li.als-intro-pending {
+  opacity: 0.5;
+}
+
+.als-building .als-body {
+  color: var(--cp-muted, var(--c-text-muted));
+}
+
+.als-building-dots {
+  display: inline-flex;
+  gap: 0.4rem;
+  margin-top: 1.25rem;
+}
+
+.als-building-dots i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--als-action, var(--c-action));
+  animation: als-building-pulse 1.2s ease-in-out infinite;
+}
+
+.als-building-dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.als-building-dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes als-building-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .als-building-dots i {
+    animation: none;
+    opacity: 0.6;
+  }
+}

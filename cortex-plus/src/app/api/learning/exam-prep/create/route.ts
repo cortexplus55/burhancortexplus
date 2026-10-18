@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { requestFirstLessonPrefetch } from "@/lib/learning/lesson-prefetch";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -338,6 +339,13 @@ export async function POST(request: Request) {
     if (extraWrite.error && !missingColumn(extraWrite.error)) {
       console.error("topic sources", extraWrite.error.message);
     }
+  }
+
+  // İlk ders hemen yazılmaya başlar (18 Ekim 2026, ürün sahibinin kararı): öğrenci hazırlık
+  // sayfasından "Devam et"e basana kadar dersin başı hazır olur; kredi açılınca düşer.
+  if (v2) {
+    const origin = new URL(request.url).origin;
+    after(() => requestFirstLessonPrefetch(service, { origin, userId, prepId: result.prepId }));
   }
 
   return NextResponse.json({

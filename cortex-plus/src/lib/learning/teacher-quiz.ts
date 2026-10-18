@@ -2,6 +2,7 @@ import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { normalizeQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
+import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 
 /**
@@ -116,6 +117,7 @@ const DESIGN =
   "('hangisi değildir') en fazla bir soruda ve olumsuz ek **koyu** yazılır.\n" +
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle, options ile aynı sırada. Hesap sorusunda steps: her adım tek işlem, kendi içinde doğru.\n" +
+  `- ${OPTION_ORDER_RULE}\n` +
   "- Yanlış şıkkın optionWhy'ı o şıkkın gerçekte neye karşılık geldiğini söyler ('(√2/2, √2/2) 45°'nin noktasıdır; " +
   "90°'nin noktası (0, 1)'dir'). Şıkkı tekrar edip yalnız 'olamaz / değildir' demek gerekçe değildir.\n" +
   "- İki şık aynı şeyi söylemez: aynı noktaları ya da öğeleri farklı sırayla ('(1, 0) ve (0, 1)' ile '(0, 1) ve " +
@@ -201,7 +203,8 @@ const VERIFY_DOCUMENT =
   "farklı yazımla söylüyor.\n" +
   "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması; yanlış şıkkın " +
-  "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi.\n" +
+  "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara sırasıyla ya da harfiyle " +
+  "gönderme yapması (şıklar karıştırılıyor).\n" +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
@@ -220,7 +223,8 @@ const VERIFY_TOPIC =
   "farklı yazımla söylüyor.\n" +
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
-  "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi.\n" +
+  "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara " +
+  "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor).\n" +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
@@ -420,6 +424,10 @@ export function quizStructureIssues(question: QuizQuestion, options: { multi?: b
     issues.push("'Hepsi / hiçbiri / yukarıdakiler' şıkkı kullanılmış.");
   }
   if (COUNTING.test(question.text)) issues.push("Sayma sorusu ('kaç tür'); kavramı ölçen soru yaz.");
+  // Şıklar karıştırılıyor: "ilk seçenek …" karıştırmadan sonra başka şıkkı gösterir (18 Ekim 2026).
+  if (refersToOptionOrder(question.explanation) || (question.optionWhy ?? []).some(refersToOptionOrder)) {
+    issues.push("Açıklama şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
+  }
   const answer = question.correct[0] ?? "";
   if (answer.length >= 6 && question.text.toLocaleLowerCase("tr").includes(answer.toLocaleLowerCase("tr"))) {
     issues.push("Kök doğru şıkkı içeriyor; cevabı veriyor.");
