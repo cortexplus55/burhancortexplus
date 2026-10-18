@@ -150,6 +150,7 @@ export function ExamNodeSession({
   requestedTopic = null,
   topicId = null,
   initialFamiliarity,
+  replayLesson = false,
   resumeEnabled = false,
   sourceName = null,
   resetsAtLabel = null,
@@ -172,6 +173,8 @@ export function ExamNodeSession({
   topicId?: string | null;
   /** Konuya daha önce girildiyse beyan edilen aşinalık — varsayılan olarak gelir. */
   initialFamiliarity?: Familiarity | null;
+  /** Sonuç sayfasından "Dersi tekrarla" (?tekrar=1): aynı ders yeniden açılır. */
+  replayLesson?: boolean;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
   resumeEnabled?: boolean;
   /** Hazırlık bir belgeye bağlıysa dosya adı — üretim ekranında gösterilir. */
@@ -360,13 +363,21 @@ export function ExamNodeSession({
         // Fall through to normal setup.
       }
       if (!cancelled) {
-        setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : signalStage);
+        if (kind === "lesson" && replayLesson) {
+          // Sonuç sayfasından "Dersi tekrarla": soru kartları olmadan aynı ders.
+          setStage("setup");
+          void start({ replay: true });
+        } else {
+          setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : signalStage);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [resumeEnabled, prepId, nodeId, kind, signalStage]);
+    // start her render'da yeni; yalnız açılışta, kayıtlı oturum yoksa bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeEnabled, prepId, nodeId, kind, signalStage, replayLesson]);
 
   useEffect(() => {
     if (kind !== "readiness" || stage !== "setup" || startInFlight.current) return;
@@ -505,6 +516,8 @@ export function ExamNodeSession({
     difficulty?: Difficulty;
     voiceMode?: boolean;
     mood?: Mood;
+    /** "Dersi tekrarla": son ders yeniden açılır, yeniden yazılmaz. */
+    replay?: boolean;
   }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
@@ -525,6 +538,7 @@ export function ExamNodeSession({
           lessonFormat: 3,
           // Ders parça parça açılır: ilk denetlenmiş kavram gelince ekran açılır (18 Ekim 2026).
           ...(kind === "lesson" ? { lessonStream: true } : {}),
+          ...(kind === "lesson" && overrides?.replay ? { replay: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
@@ -1702,9 +1716,21 @@ export function ExamNodeSession({
               setCardOffer(null);
               setCardRepeat(null);
               setCardSummary(null);
+              // Ders aynı haliyle yeniden açılır (anında, kredisiz); öbür etkinlikler yeniden kurulur.
+              if (kind === "lesson") void start({ replay: true });
             }}>
               Dersi tekrarla
             </button>
+            {kind === "lesson" ? (
+              <button type="button" className="cp-exam-continue" onClick={() => {
+                setStage("setup");
+                setIndex(0);
+                setAnswers({});
+                setFeedback(null);
+              }}>
+                Farklı anlat
+              </button>
+            ) : null}
             <button
               type="button"
               className="cp-exam-continue"
