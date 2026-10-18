@@ -96,3 +96,59 @@ describe("arka plan isteği", () => {
     expect(route).toMatch(/if \(!prefetch && parsed\.data\.prefetch\) return errorResponse\(400/);
   });
 });
+
+/*
+  Önceden hazırlama genişledi (18 Ekim 2026, ürün sahibinin kararı): hazırlık kurulunca ilk
+  ders yazılmaya başlar; sıradaki ders konu değişse de hazırlanır; öğrenci yazımı süren dersi
+  açarsa ders ikinci kez yazılmaz, devralınır.
+*/
+function fakeService(tables: Record<string, unknown>) {
+  return {
+    from(table: string) {
+      const chain: Record<string, unknown> = {};
+      for (const name of ["select", "eq", "gt", "neq", "order", "update", "insert", "delete", "in"]) chain[name] = () => chain;
+      chain.limit = () => Object.assign(Promise.resolve({ data: tables[table] }), chain);
+      chain.maybeSingle = () => Promise.resolve({ data: tables[table] });
+      return chain;
+    },
+  } as never;
+}
+
+describe("önceden hazırlama: geniş kapsam", () => {
+  it("aynı konuda ders kalmadıysa sıradaki konunun ilk dersi hazırlanır", async () => {
+    const rows = [
+      { id: "n-other", status: "ready", session_meta: { topicId: "t2" } },
+      { id: "n-later", status: "ready", session_meta: { topicId: "t3" } },
+    ];
+    expect(await lib.nextLessonNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", sortOrder: 1, topicId: "t1" })).toBe("n-other");
+    const same = [rows[0], { id: "n-same", status: "ready", session_meta: { topicId: "t1" } }];
+    expect(await lib.nextLessonNode(fakeService({ exam_prep_nodes: same }), { prepId: "p", sortOrder: 1, topicId: "t1" })).toBe("n-same");
+  });
+
+  it("yazımı süren hazır ders: kuşak tutarsa ve yazım ilerliyorsa devralınır", async () => {
+    const now = Date.parse("2026-10-18T10:00:00Z");
+    const row = (over: Record<string, unknown>) => ({
+      exam_prep_prefetch: { familiarity: "basics", status: "creating", payload: { type: "lesson", building: true }, updated_at: "2026-10-18T09:59:50Z", ...over },
+    });
+    const peek = (tables: Record<string, unknown>, familiarity: "basics" | "new" = "basics") =>
+      lib.peekBuildingPrefetch(fakeService(tables), { userId: "u", nodeId: "n", familiarity }, () => now);
+    expect(await peek(row({}))).toMatchObject({ status: "building" });
+    expect(await peek(row({ status: "ready" }))).toEqual({ status: "ready" });
+    expect(await peek(row({}), "new")).toBeNull();
+    expect(await peek(row({ updated_at: "2026-10-18T09:40:00Z" }))).toBeNull();
+    expect(await peek(row({ payload: null }))).toBeNull();
+    expect(await peek({})).toBeNull();
+  });
+
+  it("hazırlık kurulunca ilk ders yazılır; devralınan dersin kredisi yazım bitince kesinleşir, düşerse iade", () => {
+    const create = read("src/app/api/learning/exam-prep/create/route.ts");
+    expect(create).toContain("after(() => requestFirstLessonPrefetch(service, { origin, userId, prepId: result.prepId }))");
+    expect(route).toContain("peekBuildingPrefetch(service, { userId, nodeId, familiarity, waitMs: 20_000 })");
+    expect(route).toContain("payload: { ...building.payload, adoptedPrefetch: true }");
+    expect(route).toContain('outcome: "commit"');
+    expect(route).toContain('outcome: "refund"');
+    expect(route).toContain("publishPrefetchPartial(service, nodeId, partial)");
+    // Önceden yazımda bekleyen öğrenci yok: hızlı işlem yalnız açılışta.
+    expect(route).toContain("fast: input.isPremium && input.charge !== false,");
+  });
+});

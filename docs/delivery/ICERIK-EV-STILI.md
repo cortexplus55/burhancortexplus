@@ -107,6 +107,13 @@ kontrol "hangisi bu tanıma uyar" diye sorar, çeldiriciler diğer
 kardeşlerdir. Açıklama doğru şıkkı onaylamakla kalmaz, **her çeldiricinin
 gerçekte ne olduğunu** söyler ve kaynağa yaslanır ("Metne göre…").
 
+Şık sırası kuralı (18 Ekim 2026): şıklar öğrenciye karışık sırayla gösterilir
+(model doğru cevabı neredeyse hep ilk şıkka yazıyordu). Bu yüzden açıklama bir
+şıkka **sırasıyla ya da harfiyle gönderme yapmaz** ("ilk seçenek sabit basınçta…",
+"diğer seçenekler sırasıyla bronşiolit, astım…" yanlış şıkkı gösterir); her
+şıkkı kendi içeriğiyle anar. Altın kıyasta hakemin bulduğu sorunların yarısı
+buydu. Kural: `option-reference.ts`; ders ve test motorunda yazar, denetçi, kod.
+
 ---
 
 ### Öğrenme adımı ders, podcast değil

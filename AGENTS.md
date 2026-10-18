@@ -337,9 +337,10 @@ Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası"
 ## Öğretmen ders motoru (2 Ekim 2026) — eski onarım zinciri silindi (3 Ekim 2026)
 
 Belgeli sınav hazırlığı dersleri öğretmen motorundan geliyor: temiz sayfa metni (`document_pages.clean_text`) → tek öğretmen
-istemi (`teacher-lesson.ts`) → model denetimi → en fazla 2 düzeltme turu.
+istemi (`teacher-lesson.ts`) → kavram kavram model denetimi → yalnız sorunlu kavramın düzeltilmesi
+(18 Ekim 2026'dan beri, aşağıdaki "Ders hızı" bölümü).
 **Kod ders metnine hiçbir şey eklemez** — "Kaynak:" satırı, kalıp özet, dolgu
-soru yok. Denetimde yüksek sorun kalırsa ders öğrenciye gitmez, kredi iade.
+soru yok. Düzelmeyen kavram öğrenciye gitmez (atılır); ilk kavram düzelmezse ders yazılmaz, kredi iade.
 Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI.md`.
 
 | Yapmayın | Yapın |
@@ -388,7 +389,8 @@ kaynak `studio-teacher-source.ts` (belge seçiliyse konunun sayfaları, değilse
 modu). Eski `generateJson` taslak yolu bu uçlardan kalktı.
 
 **Sıradaki ders önceden yazılıyor (3 Ekim 2026, #243):** öğrenci bir dersi açınca
-aynı konunun yolundaki sonraki ders arka planda yazılır, `exam_prep_prefetch`'te
+aynı konunun yolundaki sonraki ders (18 Ekim'den beri: yoksa sıradaki konunun ilki; hazırlık
+kurulunca da ilk ders) arka planda yazılır, `exam_prep_prefetch`'te
 bekler. **Kredi yalnız öğrenci açınca düşer**; açılmayan dersin model maliyeti
 bizde (kullanım `LESSON_PREFETCH` koduyla). Arka plan isteği öğrencinin çerezini
 taşımaz — Supabase yenileme anahtarını iki istekte kullanmak oturumu düşürebilir;
@@ -424,6 +426,30 @@ kaynak kuralı kesin kalır; tek istisna etiketli ve denetlenmiş genel bilgi:
 | Sohbet | "Belgem + genel bilgi" modunda "Genel bilgiden:" paragrafı | Öğretmen denetimi |
 
 Etiketsiz dış bilgi hâlâ hata (A). Yalnız belgeli içerikte; belgesiz hazırlık zaten konu bilgisiyle yazılır.
+
+### Ders hızı (18 Ekim 2026) — akışlı yazım, kavram kavram denetim, parça parça açılış
+
+**17 Ekim'de canlı bir ders ~4 dk sürdü ve "oluşturulamadı" dedi:** her düzeltme turu dersin
+tamamını baştan yazıyordu (tur başına ~60 sn) ve tek bir eşik itirazı bütün dersi attı. Ürün
+sahibinin kararları: ders ~10 sn'de açılsın, kalite düşmesin; **hızlı işlem (Fast mode) yalnız
+Plus'ta**; ders parça parça açılsın; önceden hazırlama genişlesin. Ölçümler ve altın kıyas:
+`docs/delivery/DERS-HIZI-18-EKIM.md`.
+
+| Yapmayın | Yapın |
+|---|---|
+| Düzeltme turunda dersin tamamını yeniden yazdırmak | Yalnız sorunlu kavramı (`fixPartUserPrompt`); dönmeyen ekran yerinde kalır (`mergePartScreens`) |
+| Tek bir itiraz yüzünden bütün dersi atmak | Düzelmeyen kavram atılır; ilk kavram düzelmezse ders yazılmaz |
+| Yazarı her itirazı kabule zorlamak ("listedeki her alanı değiştir") | Yazar gerekçeyle itiraz eder (`disputes`), denetçi tartar; kod kuralları (`[yapı kuralı]`) itiraz edilemez |
+| Eksik ayrıntıyı ("şunu belirtmiyor") ciddi saymak | `CALIBRATION`: eksiklik ifadeyi yanlış yapmıyorsa düşük önem |
+| Açıklamada şıklara sırayla gönderme ("ilk seçenek …") | Şıklar karışık gösteriliyor: `OPTION_ORDER_RULE` yazar + denetçi + kod, ders ve testte |
+| Yazarı varsayılan düşünmeyle çalıştırmak | Yazar akışla ve `reasoning_effort: "low"`; denetçi varsayılan; ilk kavramın düzeltmesi düşük, sonrakiler varsayılan |
+| Ders bitmeden öğrenciye bir şey göstermemek | İlk denetlenmiş kavram `building: true` ile döner; kalanlar `after` ile aynı kayda, ekran `action: "progress"` sorar |
+| Denetlenmemiş ekranı göstermek | Kavramlar sırayla ve yalnız denetimden geçince yayımlanır; giriş kartında gelecek kavramların yalnız adı |
+| Önceden yazımı süren dersi açılışta ikinci kez yazdırmak | Devral (`peekBuildingPrefetch`, `adoptedPrefetch`); kredi yazım bitince kesinleşir |
+
+Takılı yazım: 120 sn ilerlemezse ders olduğu kadarıyla kapanır, kredi iade (`lesson-build.ts`).
+Hızlı işlem kullanımı `gpt-6-luna-fast` adıyla kayda geçer (göç `20261018120000`). Bekçi:
+`lesson-stream-pipeline.test.ts`, `lesson-building-ui.test.tsx`, `lesson-prefetch.test.ts`.
 
 **Tüm test paketini `npx vitest run --exclude "tests/unit/_tmp/**"` ile koşun.**
 `tests/unit/_tmp/` yerel altın denemeleri `.env.local` anahtarıyla canlı model

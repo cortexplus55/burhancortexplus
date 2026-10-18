@@ -132,7 +132,14 @@ type Payload = {
   uncoveredTopics?: string[];
   message?: string;
   screen?: ReadinessScreen;
+  /** Parça parça açılan ders: sonraki kavramlar yazılıyor (18 Ekim 2026). */
+  building?: boolean;
+  /** Henüz gelmemiş kavramların adları (giriş kartı planı). */
+  upcoming?: string[];
 };
+
+/** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
+const LESSON_PROGRESS_POLL_MS = 1_500;
 
 export function ExamNodeSession({
   prepId,
@@ -513,6 +520,8 @@ export function ExamNodeSession({
           action: "start",
           // Bu ekran LessonV3 (ekran → blok) okuyor; eski sekme göndermez, V2 alır.
           lessonFormat: 3,
+          // Ders parça parça açılır: ilk denetlenmiş kavram gelince ekran açılır (18 Ekim 2026).
+          ...(kind === "lesson" ? { lessonStream: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
@@ -781,6 +790,43 @@ export function ExamNodeSession({
   // Şema tutmazsa düz markdown'a düşülür; ders hiç açılmamasındansa
   // biçimsiz açılsın.
   const structuredLesson = useMemo(() => (payload.lesson ? readPlayLessonV3(payload.lesson) : null), [payload.lesson]);
+  const lessonBuilding = payload.type === "lesson" && payload.building === true;
+
+  // Parça parça açılan ders: yazım sürerken yeni kavramlar kayıttan okunur. Öğrenci ilk
+  // kavramı okurken sonrakiler denetlenip eklenir; bitince bayrak kalkar.
+  useEffect(() => {
+    if (!lessonBuilding || !attemptId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    // Değişmeyen cevapla ekran yeniden çizilmesin.
+    let last = "";
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/learning/exam-prep/node", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prepId, nodeId, attemptId, action: "progress", lessonFormat: 3 }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; payload?: Payload };
+        if (!stopped && res.ok && data.payload) {
+          const seen = JSON.stringify(data.payload);
+          if (seen !== last) {
+            last = seen;
+            setPayload(data.payload);
+          }
+          if (data.payload.building !== true) return;
+        }
+      } catch {
+        // Bağlantı anlık koptu: bir sonraki turda yeniden sorulur.
+      }
+      if (!stopped) timer = setTimeout(poll, LESSON_PROGRESS_POLL_MS);
+    };
+    timer = setTimeout(poll, LESSON_PROGRESS_POLL_MS);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [lessonBuilding, attemptId, prepId, nodeId]);
   const cardIndex = cardRepeat ? (cardRepeat.list[cardRepeat.pos] ?? index) : index;
   const cardsPlaying = stage === "play" && payload.type === "cards" && !cardOffer;
   const coachItem =
@@ -1107,6 +1153,8 @@ export function ExamNodeSession({
           // biter ve öğrenci cevaplamadan ilerleyemez.
           <ExamLessonSteps
             lesson={structuredLesson}
+            building={lessonBuilding}
+            upcoming={lessonBuilding ? (payload.upcoming ?? []) : []}
             language={language}
             gradeCheck={
               attemptId
