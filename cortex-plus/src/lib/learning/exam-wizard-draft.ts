@@ -17,6 +17,7 @@ export type WizardDraftStep =
   | "shaping"
   | "topics"
   | "modality"
+  | "familiarity"
   | "focus"
   | "plan";
 
@@ -30,6 +31,8 @@ export type ExamWizardDraft = {
   modality: string;
   /** "Nasıl çalışmayı seversin?" çoklu seçimi (17 Ekim 2026). Eski taslakta yok. */
   modalities?: string[];
+  /** "Bu derse ne kadar aşinasın?" (18 Ekim 2026). Eski taslakta yok. */
+  familiarity?: string;
   equalFocus: boolean;
   focusTopics: string[];
   materials: {
@@ -108,6 +111,7 @@ export function readExamWizardDraft(
       modalities: Array.isArray(parsed.modalities)
         ? parsed.modalities.filter((m): m is string => typeof m === "string")
         : undefined,
+      ...(typeof parsed.familiarity === "string" ? { familiarity: parsed.familiarity } : {}),
       equalFocus: parsed.equalFocus !== false,
       focusTopics: Array.isArray(parsed.focusTopics)
         ? parsed.focusTopics.filter((t): t is string => typeof t === "string")

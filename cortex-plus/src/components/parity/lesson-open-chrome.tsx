@@ -31,6 +31,7 @@ export function LessonOpenChrome({
   onMood,
   onContinue,
   onCreate,
+  onChangeLevel,
 }: {
   step: LessonOpenStep;
   familiarity?: Familiarity;
@@ -46,6 +47,8 @@ export function LessonOpenChrome({
   onMood: (mood: Mood) => void;
   onContinue: () => void;
   onCreate: () => void;
+  /** Aşinalık kurulumdan geldiyse soru sorulmaz; burada görünür ve değiştirilebilir. */
+  onChangeLevel?: () => void;
 }) {
   if (step === "familiarity" || step === "mood") {
     return (
@@ -122,6 +125,17 @@ export function LessonOpenChrome({
       <h1>{LESSON_OPEN_COPY.exploreTitle}</h1>
       <p className="cp-signal-lead">{LESSON_OPEN_COPY.exploreLead}</p>
       {topicLabel ? <p className="text-sm text-[var(--cp-muted)]">{topicLabel}</p> : null}
+      {onChangeLevel && familiarity ? (
+        <p className="cp-open-level text-sm text-[var(--cp-muted)]">
+          {LESSON_OPEN_COPY.levelLabel}:{" "}
+          {FAMILIARITY_OPTIONS.find((option) => option.id === familiarity)?.emoji}{" "}
+          {FAMILIARITY_OPTIONS.find((option) => option.id === familiarity)?.title}
+          {" · "}
+          <button type="button" className="cp-open-level-change" onClick={onChangeLevel} disabled={busy}>
+            {LESSON_OPEN_COPY.levelChange}
+          </button>
+        </p>
+      ) : null}
       {canCreate ? (
         <button
           type="button"

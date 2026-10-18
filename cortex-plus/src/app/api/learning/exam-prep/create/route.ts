@@ -65,6 +65,11 @@ const bodySchema = z.object({
   learningPreferences: prefsSchema,
   /** Öğrenci konu oklarıyla sırayı değiştirdiyse otomatik önkoşul sırası yazılmaz. */
   topicOrderManual: z.boolean().optional(),
+  /**
+   * "Bu derse ne kadar aşinasın?" kurulumda bir kez (18 Ekim 2026, ürün sahibinin kararı). Bütün
+   * konulara yazılır; önceden yazılan ders bu düzeyle yazılır, açılıştaki soru kalkar.
+   */
+  familiarity: z.enum(["new", "heard", "basics", "good", "confident"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -321,8 +326,13 @@ export async function POST(request: Request) {
       .from("exam_prep_topics")
       .update({
         document_topic_node_id: nodeId,
-        // Self-report only — measured_level stays null until diagnostic.
-        familiarity: isHard ? "heard" : null,
+        // Self-report only — measured_level stays null until diagnostic. Zor diye işaretlenen
+        // konu kurulumdaki düzeyden yüksek başlamaz (en çok "duymuştum").
+        familiarity: isHard
+          ? parsed.data.familiarity === "new"
+            ? "new"
+            : "heard"
+          : (parsed.data.familiarity ?? null),
         measured_level: "unknown",
         diagnostic_status: "unmeasured",
       })

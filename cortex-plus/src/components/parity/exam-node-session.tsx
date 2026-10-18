@@ -199,6 +199,9 @@ export function ExamNodeSession({
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
   const isOral = kind === "oral";
   const opensReadiness = kind === "readiness";
+  // Aşinalık kurulumda bir kez sorulur (18 Ekim 2026); konunun düzeyi biliniyorsa açılış
+  // doğrudan ruh haline geçer. Önceden yazılan içerik bu düzeyle yazıldı.
+  const signalStage = initialFamiliarity ? "mood" : "familiarity";
   const [stage, setStage] = useState<
     | "familiarity"
     | "mood"
@@ -211,7 +214,7 @@ export function ExamNodeSession({
     | "oral-customize"
     | "oral-review-time"
     | "oral-review"
-  >(resumeEnabled ? "restoring" : opensReadiness ? "setup" : isOral ? "oral-topics" : "familiarity");
+  >(resumeEnabled ? "restoring" : opensReadiness ? "setup" : isOral ? "oral-topics" : signalStage);
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
@@ -357,13 +360,13 @@ export function ExamNodeSession({
         // Fall through to normal setup.
       }
       if (!cancelled) {
-        setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : "familiarity");
+        setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : signalStage);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [resumeEnabled, prepId, nodeId, kind]);
+  }, [resumeEnabled, prepId, nodeId, kind, signalStage]);
 
   useEffect(() => {
     if (kind !== "readiness" || stage !== "setup" || startInFlight.current) return;
@@ -1048,6 +1051,8 @@ export function ExamNodeSession({
           step="create"
           recommendedTitle={meta.setupLabel}
           topicLabel={unitTitle ?? topicLabel}
+          familiarity={familiarity}
+          onChangeLevel={() => setStage("familiarity")}
           busy={loading}
           canCreate={!generationFailure || generationFailure.canRetryNow}
           error={generationError}
@@ -1571,7 +1576,7 @@ export function ExamNodeSession({
             answersRef.current = {};
             setPayload({});
             setScore({ score: 0, total: 1, retried: 0 });
-            setStage("familiarity");
+            setStage(signalStage);
           }}
         />
       ) : null}

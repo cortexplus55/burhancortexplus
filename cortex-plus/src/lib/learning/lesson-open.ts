@@ -12,7 +12,10 @@ export const LESSON_OPEN_COPY = {
   familiarityTitle: "Bu konuya ne kadar aşinasın?",
   familiarityLead: "Bu, doğru zorluk seviyesini belirlememize yardımcı olur.",
   moodTitle: "Bugün ruh halin nasıl?",
-  moodLead: "Öğretmen kendini nasıl hissettiğine göre uyum sağlayacak.",
+  // Ruh hali yalnız kaydedilir (18 Ekim 2026): önceden yazılan ders ona göre değişemez.
+  moodLead: "Cevabın çalışma geçmişine kaydedilir.",
+  levelLabel: "Düzey",
+  levelChange: "Değiştir",
   recommendedKicker: "ÖNERİLEN DERS",
   recommendedContinue: "Devam et",
   exploreTitle: "Konuyu öğretmeninle keşfet",

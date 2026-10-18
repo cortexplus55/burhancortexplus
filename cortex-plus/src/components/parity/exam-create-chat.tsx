@@ -7,6 +7,7 @@ import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-pla
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { FREE_PREP_LIMIT_CODE, FREE_PREP_LIMIT_MESSAGE } from "@/lib/billing/free-tier-copy";
 import { subjectSuggestions } from "@/lib/learning/subjects";
+import { DEFAULT_FAMILIARITY, FAMILIARITY_OPTIONS, type Familiarity } from "@/lib/learning/session-signals";
 
 type Draft = { title: string; examType: string; topics: string[] };
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -75,6 +76,8 @@ export function ExamCreateChat({
   const [hardTopics, setHardTopics] = useState<string[]>([]);
   const [prefStyle, setPrefStyle] = useState<"examples" | "theory" | "mixed">("mixed");
   const [prefPace, setPrefPace] = useState<"slow" | "normal" | "fast">("normal");
+  // Aşinalık kurulumda bir kez (18 Ekim 2026): dersler bu düzeyle önceden yazılır.
+  const [familiarity, setFamiliarity] = useState<Familiarity>(DEFAULT_FAMILIARITY);
 
   useEffect(() => {
     let alive = true;
@@ -214,6 +217,7 @@ export function ExamCreateChat({
           examType: draft.examType,
           topics: draft.topics,
           examDate,
+          familiarity,
           documentId: documentId ?? undefined,
           ...(intakeMode === "v2"
             ? {
@@ -296,6 +300,25 @@ export function ExamCreateChat({
             onChange={(event) => setExamDate(event.target.value)}
           />
         </label>
+      ) : null}
+
+      {needDate || draft.topics.length >= 2 ? (
+        <fieldset className="cp-field">
+          <legend>Bu derse ne kadar aşinasın?</legend>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }} role="group" aria-label="Aşinalık">
+            {FAMILIARITY_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className="cp-back-pill"
+                aria-pressed={familiarity === option.id}
+                onClick={() => setFamiliarity(option.id)}
+              >
+                <span aria-hidden>{option.emoji}</span> {option.title}
+              </button>
+            ))}
+          </div>
+        </fieldset>
       ) : null}
 
       {docs.length && (needDate || draft.topics.length >= 2) ? (
