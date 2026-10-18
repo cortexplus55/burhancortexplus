@@ -461,8 +461,20 @@ export type OneShotValidationIssue =
       fileIndex: number;
       pageStart: number;
       pageEnd: number;
+      /** Why grounding failed (outline-grounding.ts verdict); logged per stage. */
+      reason?: string;
     }
   | { code: "diger_bucket"; title: string };
+
+/** Issue codes → counts, for the stage log ("ungrounded:absent_word": 12). */
+export function outlineIssueCounts(issues: OneShotValidationIssue[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const issue of issues) {
+    const key = issue.code === "ungrounded_topic" ? `ungrounded:${issue.reason ?? "?"}` : issue.code;
+    out[key] = (out[key] ?? 0) + 1;
+  }
+  return out;
+}
 
 export type OneShotValidationOptions = {
   /** Highest valid page number per file, indexed by 0-based file index. */
@@ -600,13 +612,15 @@ export function validateOneShotOutline(
       ].slice(0, MAX_LIKELY_ASKED);
 
       const grounding = groundingFor(fileIndex);
-      if (grounding && !groundTopic(grounding, { title, pageStart: start, pageEnd: end }).grounded) {
+      const verdict = grounding ? groundTopic(grounding, { title, pageStart: start, pageEnd: end }) : null;
+      if (verdict && !verdict.grounded) {
         issues.push({
           code: "ungrounded_topic",
           title,
           fileIndex,
           pageStart: start,
           pageEnd: end,
+          reason: verdict.reason,
         });
         continue;
       }
@@ -998,6 +1012,21 @@ export type OutlineProgress = {
   viaFallback?: boolean;
 };
 
+/**
+ * What this stage's model call produced, for the `outline_stage` log. 18 Ekim
+ * 2026'da canlıda 30 sayfalık bir not 2 konuya düştü ve kayıtta yalnız
+ * "continue" vardı: hangi taslağın kaç konu önerdiği, kaçının hangi sebeple
+ * düştüğü görünmüyordu (sebep: glif numaralı metin, 34 başlığın 34'ü
+ * "absent_word").
+ */
+export type OutlineStepDiag = {
+  model: string;
+  proposed?: number;
+  kept?: number;
+  issues?: Record<string, number>;
+  error?: string;
+};
+
 export type OutlineStepResult =
   | {
       kind: "done";
@@ -1006,15 +1035,16 @@ export type OutlineStepResult =
       path: OutlineStage | "kept";
       /** Refund now: parsed drafts that are not part of the kept map. */
       release: string[];
+      diag?: OutlineStepDiag;
     }
-  | { kind: "continue"; progress: OutlineProgress; release: string[]; failed: boolean }
+  | { kind: "continue"; progress: OutlineProgress; release: string[]; failed: boolean; diag?: OutlineStepDiag }
   | { kind: "wait"; needMs: number }
   | { kind: "blocked"; error: string; release: string[] }
   /**
    * No usable map. "rejected": our validation turned down every draft of this
    * cycle — final for this attempt. "provider": the model never answered.
    */
-  | { kind: "exhausted"; release: string[]; reason: "rejected" | "provider" };
+  | { kind: "exhausted"; release: string[]; reason: "rejected" | "provider"; diag?: OutlineStepDiag };
 
 function draftTopicCount(draft: OneShotOutlineDraft): number {
   return draft.units.reduce((n, unit) => n + unit.topics.length, 0);
@@ -1143,11 +1173,11 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     return input.deadlineAt - now() >= needMs ? null : needMs;
   };
   const best = progress.best;
-  const failWith = (error: string | undefined, next: OutlineProgress): OutlineStepResult => {
+  const failWith = (error: string | undefined, next: OutlineProgress, model?: string): OutlineStepResult => {
     if (error && BLOCKING_ERRORS.has(error)) {
       return { kind: "blocked", error, release: reservationsOf(best) };
     }
-    return { kind: "continue", progress: next, release: [], failed: true };
+    return { kind: "continue", progress: next, release: [], failed: true, diag: model ? { model, error } : undefined };
   };
 
   // ——— Huge corpus: parallel parts, then a merge in the next round ———
@@ -1236,9 +1266,13 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       repairErrors: issues.map((issue) => JSON.stringify(issue)).join("\n") || "Konuların çoğu alıntılanan sayfalarda doğrulanamadı.",
       invalidDraftJson: JSON.stringify(draft),
     });
-    const fixed = repaired.draft
-      ? candidateFrom(repaired.draft, material.validation, model, repaired.reservationId ? [repaired.reservationId] : []).candidate
+    const repairedResult = repaired.draft
+      ? candidateFrom(repaired.draft, material.validation, model, repaired.reservationId ? [repaired.reservationId] : [])
       : null;
+    const fixed = repairedResult?.candidate ?? null;
+    const diag: OutlineStepDiag = repaired.draft && repairedResult
+      ? { model, proposed: draftTopicCount(repaired.draft), kept: fixed?.kept ?? 0, issues: outlineIssueCounts(repairedResult.issues) }
+      : { model, error: repaired.error };
     const chosen = better(best, fixed);
     if (!chosen) {
       return {
@@ -1246,6 +1280,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
         release: repaired.reservationId ? [repaired.reservationId] : [],
         // The repair only runs after a draft was rejected by validation.
         reason: "rejected",
+        diag,
       };
     }
     const loser = chosen === best ? fixed : best;
@@ -1253,7 +1288,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       ...reservationsOf(loser),
       ...(!fixed && repaired.reservationId ? [repaired.reservationId] : []),
     ];
-    return { kind: "done", map: chosen, path: chosen === fixed ? "repair" : "kept", release };
+    return { kind: "done", map: chosen, path: chosen === fixed ? "repair" : "kept", release, diag };
   }
 
   // ——— first / escalate / fallback: one call over the whole corpus ———
@@ -1276,27 +1311,33 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     if (call.error === "deadline" || (call.error && BOOKKEEPING_ERRORS.has(call.error))) {
       return { kind: "continue", progress, release: [], failed: true };
     }
-    if (isMini) return failWith(call.error, { ...progress, stage: "escalate" });
+    if (isMini) return failWith(call.error, { ...progress, stage: "escalate" }, model);
     if (progress.stage !== "fallback" && fallback !== strong) {
-      return failWith(call.error, { ...progress, stage: "fallback" });
+      return failWith(call.error, { ...progress, stage: "fallback" }, model);
     }
-    if (best) return { kind: "done", map: best, path: "kept", release: [] };
-    return { kind: "exhausted", release: [], reason: "provider" };
+    if (best) return { kind: "done", map: best, path: "kept", release: [], diag: { model, error: call.error } };
+    return { kind: "exhausted", release: [], reason: "provider", diag: { model, error: call.error } };
   }
 
-  const { candidate } = candidateFrom(
+  const { candidate, issues } = candidateFrom(
     call.draft,
     material.validation,
     model,
     call.reservationId ? [call.reservationId] : [],
   );
+  const diag: OutlineStepDiag = {
+    model,
+    proposed: draftTopicCount(call.draft),
+    kept: candidate?.kept ?? 0,
+    issues: outlineIssueCounts(issues),
+  };
   // Mini's thin map is kept as `best` but not accepted: the strong model gets one
   // look at the whole corpus first. A thin map from the strong model is accepted —
   // a genuinely single-topic file exists, and there is no better model to ask.
   const thinMini =
     isMini && outlineTooThin(candidate, { pageCount: material.pageCount, corpusChars: material.corpus.length });
   if (goodEnough(candidate) && !thinMini) {
-    return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best) };
+    return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best), diag };
   }
   const nextBest = better(best, candidate);
   const release = [
@@ -1304,7 +1345,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     ...(!candidate && call.reservationId ? [call.reservationId] : []),
   ];
   if (isMini) {
-    return { kind: "continue", progress: { stage: "escalate", best: nextBest }, release, failed: false };
+    return { kind: "continue", progress: { stage: "escalate", best: nextBest }, release, failed: false, diag };
   }
   return {
     kind: "continue",
@@ -1317,6 +1358,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     },
     release,
     failed: false,
+    diag,
   };
 }
 

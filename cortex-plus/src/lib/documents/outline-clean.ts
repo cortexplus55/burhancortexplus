@@ -6,6 +6,8 @@
  * units → topics, with coverage preserved.
  */
 
+import { decodeGlyphIdText } from "@/lib/documents/glyph-id-text";
+
 export type CleanPageInput = {
   pageNumber: number;
   text: string;
@@ -141,7 +143,8 @@ export function foldOutlineKey(text: string): string {
 
 /** Strip OCR model formatting without touching LaTeX bodies. */
 export function cleanOcrPageText(text: string): string {
-  let out = (text ?? "").replace(/\u0000/g, "");
+  // Eski kayıtlarda saklı glif numaralı metin okunurken çözülür (yeni yüklemeler çıkarmada çözülüyor).
+  let out = decodeGlyphIdText((text ?? "").replace(/\u0000/g, ""));
   out = out.replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, "");
   out = out.replace(/\n?\s*```\s*$/g, "");
   out = out.replace(/```[a-zA-Z0-9_-]*\n?/g, "");

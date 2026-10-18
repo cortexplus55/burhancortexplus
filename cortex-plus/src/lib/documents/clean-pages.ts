@@ -6,6 +6,7 @@ import { contentModel } from "@/lib/ai/model-router";
 import { recordUsage } from "@/lib/credits/service";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { acceptCleanPage, repeatedEdgeLines } from "@/lib/documents/clean-text";
+import { decodeGlyphIdText } from "@/lib/documents/glyph-id-text";
 
 /**
  * Temiz metin (2 Ekim 2026). Sayfalar ilk ihtiyaçta asıl modelle temizlenir
@@ -36,7 +37,7 @@ export async function documentRunningHeaders(service: SupabaseClient, documentId
     .eq("document_id", documentId)
     .order("page_number")
     .limit(40);
-  return repeatedEdgeLines(((data ?? []) as { text_content: string | null }[]).map((row) => row.text_content ?? ""));
+  return repeatedEdgeLines(((data ?? []) as { text_content: string | null }[]).map((row) => decodeGlyphIdText(row.text_content ?? "")));
 }
 
 export async function ensureCleanPages(
@@ -56,14 +57,14 @@ export async function ensureCleanPages(
   const dirty: { page: number; text: string }[] = [];
   for (const page of wanted) {
     const row = byPage.get(page);
-    const raw = (row?.text_content ?? "").trim();
+    const raw = decodeGlyphIdText((row?.text_content ?? "").trim());
     if (!raw) continue;
     if (row?.clean_text?.trim()) result.set(page, { page, text: row.clean_text.trim(), cleaned: true });
     else dirty.push({ page, text: raw });
   }
 
   if (dirty.length && env.OPENAI_API_KEY) {
-    const edges = input.edges ?? repeatedEdgeLines(rows.map((row) => row.text_content ?? ""));
+    const edges = input.edges ?? repeatedEdgeLines(rows.map((row) => decodeGlyphIdText(row.text_content ?? "")));
     const model = contentModel();
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 1 });
     // Partiler paralel: ders isteği 300 sn içinde bitmeli (sırayla 5 sayfa 51 sn sürüyordu).
