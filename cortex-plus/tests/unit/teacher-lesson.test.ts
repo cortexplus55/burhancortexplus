@@ -411,6 +411,8 @@ describe("yavaş ders teşhisi", () => {
     expect(run).toContain("fixTriggers.push(...outcome.triggers);");
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('reason: "slow_generation"');
-    expect(readFileSync("src/app/admin/ders-hatalari/page.tsx", "utf8")).toContain('slow_generation: "Yavaş üretim (düzeltme turu)"');
+    // 18 Ekim 2026: sebep adları tek kaynakta (günlük özet e-postası da okuyor).
+    expect(readFileSync("src/lib/admin/failure-labels.ts", "utf8")).toContain('slow_generation: "Yavaş üretim (düzeltme turu)"');
+    expect(readFileSync("src/app/admin/ders-hatalari/page.tsx", "utf8")).toContain("FAILURE_REASON_LABEL");
   });
 });
