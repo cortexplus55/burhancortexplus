@@ -1047,6 +1047,27 @@ function goodEnough(candidate: OutlineCandidate | null): candidate is OutlineCan
   return Boolean(candidate && candidate.kept * 3 >= candidate.proposed * 2);
 }
 
+/**
+ * Fewest topics a readable corpus of this many pages should yield.
+ *
+ * 18 Ekim 2026: a 20-page trigonometry note (one heading per page, clean text
+ * layer) came back from gpt-4o-mini as ONE topic in 3 s. Validation dropped
+ * nothing, so 1/1 passed `goodEnough` and the student got a single-topic path
+ * for the whole file while Astra built seven from the same PDF. `goodEnough`
+ * only compares kept to proposed; it cannot see that the proposal itself was
+ * thin. This floor can — and mini's thin map now escalates to the strong model.
+ */
+export function minTopicsForPages(pageCount: number): number {
+  if (pageCount <= 3) return 1;
+  if (pageCount <= 8) return 2;
+  return Math.min(8, Math.ceil(pageCount / 5));
+}
+
+/** A kept map too small for the material (judged against the page count). */
+export function outlineTooThin(candidate: OutlineCandidate | null, pageCount: number): boolean {
+  return Boolean(candidate && candidate.kept < minTopicsForPages(pageCount));
+}
+
 function better(a: OutlineCandidate | undefined, b: OutlineCandidate | null | undefined) {
   if (!a) return b ?? undefined;
   if (!b) return a;
@@ -1253,7 +1274,11 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     model,
     call.reservationId ? [call.reservationId] : [],
   );
-  if (goodEnough(candidate)) {
+  // Mini's thin map is kept as `best` but not accepted: the strong model gets one
+  // look at the whole corpus first. A thin map from the strong model is accepted —
+  // a genuinely single-topic file exists, and there is no better model to ask.
+  const thinMini = isMini && outlineTooThin(candidate, material.pageCount);
+  if (goodEnough(candidate) && !thinMini) {
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best) };
   }
   const nextBest = better(best, candidate);

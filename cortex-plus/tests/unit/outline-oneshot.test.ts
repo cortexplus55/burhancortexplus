@@ -547,7 +547,11 @@ describe("runOutlineStep (one course outline)", () => {
   });
 
   it("routes on summed pages across files: 12 + 16 = 28 stays on mini", async () => {
-    expect(await runSummedRouting([12, 16])).toEqual(["gpt-4o-mini"]);
+    // Routing is the first call. The one-topic demo draft is far too thin for 28
+    // pages, so mini's map escalates to the strong model (outline-thin-map.test.ts).
+    const models = await runSummedRouting([12, 16]);
+    expect(models[0]).toBe("gpt-4o-mini");
+    expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
   });
 
   it("routes on summed pages across files: 16 + 16 = 32 goes strong", async () => {
