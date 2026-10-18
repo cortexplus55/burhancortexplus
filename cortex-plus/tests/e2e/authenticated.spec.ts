@@ -63,6 +63,13 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
+    /*
+      Belgelerim sunucuda servis anahtarıyla çalışıyor (özellik bayrağı + öğretmen analizi).
+      CI'ya servis anahtarı verilmiyor; o yüzden anahtar yoksa bu sayfa atlanır, yerelde
+      (.env.local) ölçülür. Hata sayfası yana taşmadığı için genişlik tek başına yetmez:
+      durum kodu ve üst çubuğun varlığı da aranır — 500 dönen sayfa sessizce geçmesin.
+    */
+    const needsServiceKey = new Set(["/dokumanlar"]);
     const screens = [
       "/ogretmen",
       "/deneme-sinavlari",
@@ -70,18 +77,21 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
       "/deneme-sinavlari/hazirliklarim",
       "/dokumanlar",
       "/profil",
-    ];
+    ].filter((path) => process.env.SUPABASE_SECRET_KEY || !needsServiceKey.has(path));
     for (const path of screens) {
-      await page.goto(path);
+      const response = await page.goto(path);
+      expect(response?.status() ?? 0, `${path} durum kodu`).toBeLessThan(400);
       await page.waitForLoadState("domcontentloaded");
       const fit = await page.evaluate(() => {
         const root = document.documentElement;
         const header = document.querySelector("header.cp-sor-top");
         return {
           page: root.scrollWidth - root.clientWidth,
+          hasHeader: Boolean(header),
           header: header ? header.scrollWidth - header.clientWidth : 0,
         };
       });
+      expect(fit.hasHeader, `${path} üst çubuk yok`).toBe(true);
       expect(fit.page, `${path} sayfa genişliği`).toBeLessThanOrEqual(1);
       expect(fit.header, `${path} üst çubuk`).toBeLessThanOrEqual(1);
     }
