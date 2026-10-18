@@ -163,7 +163,8 @@
 .onboarding-ambient {
   pointer-events: none;
   position: absolute;
-  inset: -3rem -1.5rem -2rem;
+  /* Yanlara taşmaz: -1.5rem telefonda sayfayı 9 px yana kaydırıyordu (18 Ekim 2026). */
+  inset: -3rem 0 -2rem;
   z-index: 0;
   overflow: hidden;
 }

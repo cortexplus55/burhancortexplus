@@ -13,7 +13,7 @@ export function DocumentDeleteButton({ documentId }: { documentId: string }) {
     return (
       <button
         type="button"
-        className="text-xs text-red-300/80 underline hover:text-red-200"
+        className="inline-flex min-h-8 items-center px-1 text-xs text-red-300/80 underline hover:text-red-200"
         onClick={() => setConfirming(true)}
       >
         Sil

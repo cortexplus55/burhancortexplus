@@ -158,7 +158,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
         <div className="space-y-1">
           <Link
             href="/dokumanlar"
-            className="text-xs text-[var(--cs-muted)] underline"
+            className="inline-flex min-h-8 items-center text-xs text-[var(--cs-muted)] underline"
           >
             ← Belgeler
           </Link>

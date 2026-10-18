@@ -17,7 +17,8 @@ export const dynamic = "force-dynamic";
  * şıklar gider; doğru cevaplar sunucuda kalır.
  */
 export default async function DuelPage({ params }: { params: Promise<{ code: string }> }) {
-  const { code } = await params;
+  // Kod küçük harfle üretiliyor; elle büyük harfle yazılan adres de aynı düelloyu açsın.
+  const code = (await params).code.toLowerCase();
   if (!/^[a-z0-9]{6,16}$/.test(code)) notFound();
 
   const service = createServiceClient();

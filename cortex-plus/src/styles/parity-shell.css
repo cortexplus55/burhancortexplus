@@ -10192,7 +10192,12 @@
   display: none;
 }
 
-/* Telefonda Astra gibi tek satır: Geri, simgeler, seri, menü, avatar. */
+/* Telefonda Astra gibi tek satır: Geri, simgeler, seri, menü, avatar.
+   18 Ekim 2026 telefon denetimi (375 px): "Geri"li üst çubuk yalnız odak kabuğunda
+   daralıyordu; sınav kabuğunda (sohbet, podcast, düello, ara, müfredat…) "Daha fazla"
+   yazısı ve geniş boşluklarla 456 px'e çıkıp sayfayı yana kaydırıyor ya da avatarı
+   kırpıyordu. Kurucu çipi tek başına 79 px; telefonda bu çubukta yer yok, bilgi
+   Krediler'de duruyor. */
 @media (max-width: 480px) {
   .cp-sor-top-slot .cp-prep-actions {
     gap: 0.3rem;
@@ -10204,11 +10209,26 @@
     height: 2rem;
   }
 
-  .cp-sor-root--focus .cp-sor-top {
+  .cp-sor-root--focus .cp-sor-top,
+  .cp-sor-root--exam .cp-sor-top {
     flex-wrap: nowrap;
+    gap: 0.5rem;
+    padding-inline: 1rem;
   }
 
-  .cp-sor-root--focus .cp-sor-more-label {
+  .cp-sor-root--focus .cp-sor-more-label,
+  .cp-sor-root--exam .cp-sor-more-label {
+    display: none;
+  }
+
+  .cp-sor-root--focus .cp-sor-top-actions,
+  .cp-sor-root--exam .cp-sor-top-actions {
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .cp-sor-root--focus .cp-founder-chip,
+  .cp-sor-root--exam .cp-founder-chip {
     display: none;
   }
 }
@@ -12066,12 +12086,15 @@ a.cp-exam-search {
   color: var(--c-bg);
 }
 
-/* Belgelerim (3 Ekim 2026): sınav sayfalarıyla aynı kart dili. */
+/* Belgelerim (3 Ekim 2026): sınav sayfalarıyla aynı kart dili.
+   min-width: 0 — ızgara hücresi olarak en küçük içerik genişliğine açılıyordu: alt çizgili
+   dosya adı (tek satır) telefonda kartı 398 px'e itip sayfayı yana kaydırıyordu (18 Ekim 2026). */
 .cp-docs {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   margin-top: 1rem;
+  min-width: 0;
 }
 
 .cp-docs-intro {
