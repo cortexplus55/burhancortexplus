@@ -10,7 +10,10 @@ describe("E: wizard draft + B6 + focus prep wiring", () => {
     expect(draft).toContain("cortex:exam-wizard-draft:v1");
     expect(wizard).toContain("readExamWizardDraft");
     expect(wizard).toContain("writeExamWizardDraft");
-    expect(wizard).toContain("clearExamWizardDraft");
+    // 18 Ekim 2026: taslak sunucuda da; silme iki yeri birden boşaltır, açılış sunucuya da bakar.
+    expect(wizard).toContain("dropExamWizardDraft");
+    expect(wizard).toContain("fetchExamWizardDraft");
+    expect(wizard).toContain("pushExamWizardDraft");
     expect(wizard).toContain("Kaldığın yerden devam ediyorsun.");
     expect(wizard).toContain("Baştan başla");
     expect(wizard).toContain("WizardProcessingPanel");

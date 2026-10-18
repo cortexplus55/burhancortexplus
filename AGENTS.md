@@ -33,6 +33,7 @@ başka Supabase projesi **yok**. Bir tanesini gördüğünüzde bu dosyaya geri 
   - Panel URL'i: `https://vercel.com/cortexplus55/burhancortexplus-app/deployments`
     (`cortexplus55s-projects` diye bir scope **yok**, 404 verir).
 - **Operasyon e-postası (tek):** **`cortexplus@cortexplus.app`** — panel, OAuth test, Squarespace, Gmail MCP, doküman; kişisel `@gmail.com` **yasak**. Ayrıntı: `docs/delivery/IDENTITY.md`, kural: `.cursor/rules/cortexplus-identity.mdc`
+- **Bir şey bozulduğunda:** `docs/ops/README.md` — takılı ders, yanlış kredi, PayTR bildirimi, OpenAI kota, Supabase duraklama, yayın geri alma (belirti → bakılacak yer → işlem). Satışa hazırlık durumu: `docs/delivery/SATISA-HAZIRLIK-PLANI.md`
 
 Kullanıcı **github hazır** dedikten sonra: Supabase proje oluştur, migration push, Vercel env, MCP `project_ref` güncelle.
 
@@ -158,7 +159,13 @@ Küçük: belge kartında "Sil" 13×16 ve "← Belgeler" 58×14 → 32 px; `/due
 çevrilir. **Sorun çıkmayanlar:** ders ekranları (tablo kendi kutusunda yana kayar), test, sonuç,
 podcast/düello kurulumu, stüdyo, araçlar, ödeme, profil/ayarlar, menüler ve yıldız/etkinlik pencereleri,
 yönetim sayfaları (tablolar kendi kutusunda kayar; `/admin/adaptive` 622 px — hata ayıklama sayfası,
-bırakıldı). Bekçi: `mobile-audit-guards.test.ts`.
+bırakıldı). Bekçi: `mobile-audit-guards.test.ts`; oturumlu e2e 390 px (`authenticated.spec.ts`, `E2E_USER_*` ister).
+
+**Kurulum taslağı cihazlar arası (18 Ekim 2026, plan 2.3):** sihirbazın yarım taslağı tarayıcıda
+(24 saat) **ve** sunucuda (`exam_wizard_drafts`, kullanıcı başına tek satır, yazma yalnız
+`/api/learning/exam-prep/draft`). Açılışta ikisinden yeni olan alınır (`pickNewerDraft`); boş taslak
+satırı siler; tablo ya da ağ yoksa tarayıcı kopyasıyla sessizce devam. Sınavlar sayfasındaki
+"Taslaklar" kartı bu cihazda taslak yoksa sunucudakini gösterir. Bekçi: `exam-wizard-draft*.test.ts`.
 
 ### Paralel işler aynı ödeme anahtarını paylaşmaz
 
