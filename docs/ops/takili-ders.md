@@ -21,9 +21,10 @@
 2. **Kredi**: 10 dk'dan eski `pending` rezervasyon öğrencinin bir sonraki isteğinde ya da günlük cron'da
    kendiliğinden iade edilir (`refundStalePendingReservations`). İade görünmüyorsa `/admin/kullanicilar` →
    krediyi elle ekle, nedenini yaz.
-3. **Hâlâ takılıysa** (yönetici düğmesi gelene kadar — plan 4.3): SQL ekranında yalnız o kaydı kapat:
-   `exam_prep_generation_jobs` → `status = 'failed'`; `exam_prep_prefetch`'te aynı düğümün `building`
-   satırını sil. Öğrenci yeniden açınca sıfırdan yazılır.
+3. **Hâlâ takılıysa:** `/admin/ders-hatalari` → "Takılı üretimler" (10 dakikadır ilerlemeyen işler) →
+   **Kapat ve iade et** (#312): iş ve oturum `failed` olur, düğümün yarım önceden-yazımı silinir, aynı
+   anahtarın askıdaki rezervasyonu iade edilir; denetim günlüğüne yazılır. Öğrenci yeniden açınca
+   sıfırdan yazılır. SQL'e gerek yok.
 4. Aynı belgede her ders düşüyorsa **içerik sorunu**dur: `reasons` sütununu oku; kodla "onarma",
    istemi/denetçiyi düzelt (AGENTS.md "Öğretmen ders motoru"). Çekirdek sayfası bulunamayan belge
    `source_unavailable` verir, kredi düşmez.

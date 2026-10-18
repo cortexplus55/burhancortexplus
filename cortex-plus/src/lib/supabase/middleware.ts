@@ -153,10 +153,18 @@ export async function updateSession(request: NextRequest) {
     });
   }
   if (!active) {
+    // Askıdaki hesap nedenini görsün (plan 4.1); silinmiş hesap eskisi gibi sessiz çıkar.
+    let status: string | null = null;
+    try {
+      const { data } = await supabase.rpc("current_account_status");
+      status = typeof data === "string" ? data : null;
+    } catch {
+      status = null;
+    }
     await supabase.auth.signOut({ scope: "local" });
     const url = request.nextUrl.clone();
     url.pathname = "/giris";
-    url.search = "";
+    url.search = status === "suspended" ? "?durum=askida" : "";
     const response = NextResponse.redirect(url);
     for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
     return response;

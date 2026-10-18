@@ -1127,3 +1127,54 @@ export async function resetStuckGeneration(
     message: `Kapatıldı · ${result.refunded} rezervasyon iade${result.attemptClosed ? " · oturum kapatıldı" : ""}`,
   };
 }
+
+const suspendSchema = z.object({
+  userId: z.string().uuid(),
+  suspend: z.boolean(),
+  reason: z.string().trim().max(200).optional(),
+});
+
+/**
+ * Hesabı askıya alır / açar (18 Ekim 2026, plan 4.1). `profiles.suspended_at` dolunca
+ * `current_account_active()` false döner: açık oturumlar ara katmanda düşer, bütün
+ * tablolardaki kısıtlayıcı ilke okumayı kapatır. Kimlik tarafında da giriş kapatılır
+ * (`ban_duration`) ki askıdaki kişi yeniden oturum açamasın. Veri silinmez.
+ */
+export async function setUserSuspended(input: {
+  userId: string;
+  suspend: boolean;
+  reason?: string;
+}): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  const parsed = suspendSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Geçersiz istek." };
+  const { userId, suspend, reason } = parsed.data;
+  if (userId === actorId) return { ok: false, error: "Kendi hesabını askıya alamazsın." };
+
+  const service = createServiceClient();
+  const { error } = await service
+    .from("profiles")
+    .update({
+      suspended_at: suspend ? new Date().toISOString() : null,
+      suspended_reason: suspend ? reason ?? null : null,
+    })
+    .eq("id", userId);
+  if (error) return { ok: false, error: "Kayıt güncellenemedi." };
+
+  // Giriş kapısı: 100 yıl yasak = kalıcı; "none" kaldırır. Düşerse profil bariyeri yine tutar.
+  await service.auth.admin
+    .updateUserById(userId, { ban_duration: suspend ? "876600h" : "none" })
+    .catch(() => undefined);
+
+  await auditLog(service, {
+    actorId,
+    action: suspend ? "user.suspended" : "user.unsuspended",
+    entityType: "user",
+    entityId: userId,
+    metadata: { reason: reason ?? null },
+  });
+
+  revalidatePath("/admin/kullanicilar");
+  return { ok: true, message: suspend ? "Hesap askıya alındı." : "Askı kaldırıldı." };
+}
