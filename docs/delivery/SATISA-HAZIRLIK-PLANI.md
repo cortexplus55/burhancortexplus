@@ -96,7 +96,7 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 | 4.5 | Abonelik süresini elle uzatma / tek seferlik kredi hediyesi | Kredi ekleme var; süre uzatma yok |
 | 4.6 | Kullanıcı arama (e-posta/ad), filtre, sayfalama | **Arama bitti (18 Ekim, #308):** ad ya da e-posta. Filtre ve sayfalama yok; 14 hesapta 50'lik sayfa yetiyor, 1.000'i geçince gerekir |
 | 4.7 | **Runbook'lar** (`docs/ops/`): takılı ders, yanlış kredi, PayTR geri bildirim gelmedi, OpenAI kota, Supabase duraklama, yayın geri alma | **Yazıldı (18 Ekim):** `docs/ops/README.md` + altı dosya, belirti → bakılacak yer → işlem → önleme; koddan ve panelden, tahmin yok |
-| 4.8 | Uyarılar: Sentry → e-posta; günlük özet (üretim hatası, ödeme, yeni kayıt) | `/admin` zaten sayıyor; e-posta ile gönderim eklenir |
+| 4.8 | Uyarılar: Sentry → e-posta; günlük özet (üretim hatası, ödeme, yeni kayıt) | **Günlük özet yazıldı (18 Ekim):** her sabah 09:00 TRT `cortexplus@cortexplus.app`'a, günlük cron'un sonunda (üçüncü cron yok); yeni kayıt, ödeme, başarısız/yavaş üretim, takılı üretim; sorun varsa konu "Dikkat"; aynı gün iki kez gitmez; `/admin/sistem` → "Özeti şimdi gönder". **Sentry → e-posta ürün sahibinde:** sentry.io'da Alerts → Create Alert → Issues → "a new issue is created" → "Send a notification to … (e-mail)"; panel girişi gerekiyor |
 | 4.9 | Destek kanalı: `/destek` sayfası + `cortexplus@cortexplus.app`; hedef cevap süresi yazılı | Sayfa var; süre ve sorumlu yok |
 | 4.10 | KVKK: aydınlatma metni, veri silme talebi (kuyruk var) uçtan uca prova | Silme kuyruğu günlük cron'da; bir hesapla dene |
 

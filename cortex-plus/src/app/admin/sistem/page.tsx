@@ -1,6 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { SmtpTestButton } from "@/components/admin/smtp-test-button";
+import { DigestSendButton } from "@/components/admin/digest-send-button";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
@@ -281,6 +282,18 @@ export default async function AdminSistemPage() {
         desc="Kayıt ve doğrulama e-postalarının gidip gitmediğini kontrol eder. Kimseye e-posta göndermez, yalnızca bağlantıyı dener."
       >
         <SmtpTestButton />
+      </AdminCard>
+
+      <AdminCard
+        title="Günlük özet e-postası"
+        desc="Her sabah 09:00'da (günlük iş turuyla) cortexplus@cortexplus.app adresine gider: yeni kayıt, ödeme, üretim hatası, takılı üretim. Yalnız sayılar; öğrenci adı ya da e-postası yok."
+      >
+        <p className="mb-3 text-sm text-[var(--adm-muted)]">
+          Sabahı beklemeden görmek için buradan gönder. Aynı gün sabah özeti zaten gittiyse ikinci kez
+          gitmez; bu düğme yine de gönderir. Kapatmak için Vercel&apos;de{" "}
+          <code>ADMIN_DIGEST_EMAIL=off</code>.
+        </p>
+        <DigestSendButton />
       </AdminCard>
     </AdminShell>
   );

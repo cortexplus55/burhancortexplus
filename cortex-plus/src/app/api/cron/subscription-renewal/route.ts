@@ -13,6 +13,7 @@ import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { cleanupExpiredUploads } from "@/lib/documents/upload-cleanup";
 import { refundStalePendingReservations, refundAbandonedDocumentReservations } from "@/lib/credits/service";
+import { sendDailyDigest } from "@/lib/admin/daily-digest";
 
 export const dynamic = "force-dynamic";
 
@@ -183,6 +184,20 @@ export async function GET(request: Request) {
     logOpsEvent("credit_transaction_failed", { stage: "stale_reservations" });
   }
 
+  /*
+    Günlük özet e-postası da bu turun sonunda gider (plan 4.8): yeni kayıt, ödeme,
+    üretim hatası, takılı üretim — kurucuya, operasyon adresine. Hobby'de üçüncü
+    cron açılamadığı için ayrı iş değil; iade ve temizlik bittikten sonra sayılır
+    ki özet o sabahki gerçek durumu anlatsın. Aynı gün ikinci kez gitmez.
+  */
+  let digest: { ok: boolean; reason?: string } = { ok: false, reason: "not_run" };
+  try {
+    const result = await sendDailyDigest(service, { now });
+    digest = result.ok ? { ok: true } : { ok: false, reason: result.reason };
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "daily_digest" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
@@ -191,5 +206,6 @@ export async function GET(request: Request) {
     deletion,
     expiredUploads,
     staleReservations,
+    digest,
   });
 }
