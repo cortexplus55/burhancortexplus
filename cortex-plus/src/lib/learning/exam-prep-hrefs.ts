@@ -15,6 +15,11 @@ export function examPrepNodeHref(prepId: string, nodeId: string) {
   return `/deneme-sinavlari/${prepId}/dugum/${nodeId}`;
 }
 
+/** "Dersi tekrarla": aynı ders yeniden açılır, yeniden yazılmaz (18 Ekim 2026). */
+export function examPrepLessonReplayHref(prepId: string, nodeId: string) {
+  return `${examPrepNodeHref(prepId, nodeId)}?tekrar=1`;
+}
+
 /** Bitmiş etkinliğin sonucu (Astra: "Sonuçları gör" önceki sonucu açar, etkinliği baştan kurmaz). */
 export function examPrepNodeResultHref(prepId: string, nodeId: string) {
   return `/deneme-sinavlari/${prepId}/dugum/${nodeId}/sonuc`;

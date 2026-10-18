@@ -117,6 +117,7 @@ import {
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
 import { buildingPayload, isBuilding, isStaleBuild, truncatedPayload } from "@/lib/learning/lesson-build";
+import { replayLessonPayload } from "@/lib/learning/lesson-replay";
 import { isAdminUser } from "@/lib/auth/roles";
 import {
   honestReadingMinutes,
@@ -238,6 +239,8 @@ const bodySchema = z.object({
    * yazılınca yanıt döner, kalanlar `action: "progress"` ile gelir.
    */
   lessonStream: z.boolean().optional(),
+  /** "Dersi tekrarla": aynı ders yeniden açılır, yeniden yazılmaz (18 Ekim 2026). */
+  replay: z.boolean().optional(),
 });
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
@@ -1289,6 +1292,72 @@ async function handleNodeRequest(
       !(await canAffordLesson(service, userId, rule.credit_cost))
     ) {
       return NextResponse.json({ ok: true, skipped: "credits" });
+    }
+  }
+
+  // "Dersi tekrarla" (18 Ekim 2026, ürün sahibinin kararı): son ders yeni bir kayıtta açılır —
+  // anında, kredisiz; şıklar başka sırayla, cevaplar sıfırdan. Ders yoksa normal açılış sürer.
+  if (kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.replay === true) {
+    const { data: previous } = await service
+      .from("exam_prep_node_attempts")
+      .select("payload")
+      .eq("node_id", nodeId)
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .in("status", ["completed", "active"])
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const requestId = clientRequestId ?? crypto.randomUUID();
+    const replayed = (previous ?? [])
+      .map((row) => replayLessonPayload(row.payload, requestId))
+      .find((item): item is Record<string, unknown> => Boolean(item));
+    if (replayed) {
+      const { data: replayAttempt, error: replayError } = await service
+        .from("exam_prep_node_attempts")
+        .insert({
+          node_id: nodeId,
+          exam_prep_id: prepId,
+          user_id: userId,
+          topic_id: topic?.id ?? null,
+          difficulty,
+          voice_mode: false,
+          payload: replayed,
+          total: countTotal(kind, replayed),
+          status: "active",
+          generation_id: crypto.randomUUID(),
+          client_request_id: requestId,
+          familiarity,
+          mood,
+          content_version: 1,
+          updated_at: new Date().toISOString(),
+        })
+        .select(
+          "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+        )
+        .single();
+      if (!replayError && replayAttempt) {
+        await upsertGenerationJob(service, {
+          userId,
+          prepId,
+          nodeId,
+          attemptId: replayAttempt.id as string,
+          clientRequestId: requestId,
+          generationId: replayAttempt.generation_id as string,
+          status: "ready",
+        });
+        await service.from("study_session_moods").insert({ user_id: userId, exam_prep_id: prepId, node_id: nodeId, mood });
+        console.info("lesson_replayed", { nodeId });
+        return NextResponse.json({
+          ...attemptStartResponse(replayAttempt, {
+            kind,
+            title,
+            topicLabel,
+            publicPayload: await publicPayloadForUser(service, userId, replayed, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
+            resumed: false,
+          }),
+          ...(await readWalletBalance(service, userId)),
+        });
+      }
     }
   }
 
