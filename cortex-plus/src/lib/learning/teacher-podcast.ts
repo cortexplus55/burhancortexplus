@@ -6,6 +6,7 @@ import { SINGLE_NARRATOR_SCHEMA, podcastNarrationBrief } from "@/lib/learning/te
 import { isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
+import { examPointsBlock } from "@/lib/learning/exam-points";
 
 /**
  * Öğretmen podcast motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik
@@ -30,6 +31,8 @@ export type TeacherPodcastInput = {
   /** Müfredat ağırlığı / kapsam satırı; yoksa boş. */
   syllabusLine?: string;
   learnerLine?: string;
+  /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
+  examPoints?: string[];
   runningHeaders?: string[];
 };
 
@@ -104,6 +107,7 @@ export function podcastUserPrompt(input: TeacherPodcastInput): string {
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
+    examPointsBlock(input.examPoints, "podcast"),
     input.syllabusLine ? `KAPSAM: ${input.syllabusLine}` : "",
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu değildir: ${input.runningHeaders.join(" | ")}`

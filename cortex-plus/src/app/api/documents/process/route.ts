@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { processDocument } from "@/lib/rag/pipeline";
+import { ensureTeacherAnalyses } from "@/lib/documents/teacher-analysis-run";
 import {
   COURSE_ROUND_BUDGET_MS,
   firstUnextractedDocument,
@@ -64,19 +65,30 @@ function cleanAfterResponse(
   service: Parameters<typeof cleanWholeDocument>[0],
   input: { userId: string; documentId: string; startedAt: number },
 ) {
+  // "Öğretmen gözü" (18 Ekim 2026): belge hazır olunca öğretmen analizi de aynı arka plan işinde,
+  // temizlikle yan yana çalışır; öğrenci sihirbazın kalan adımlarını yaparken biter, ilk ders
+  // "Sınavda sorulur" notuyla yazılır. Dosya başına tek arka plan işi (course-map-guards).
   after(() =>
-    cleanWholeDocument(service, {
-      userId: input.userId,
-      documentId: input.documentId,
-      deadlineAt: input.startedAt + UPLOAD_CLEAN_BUDGET_MS,
-    })
-      .then((result) => console.info("document_upload_clean", { documentId: input.documentId, ...result }))
-      .catch((error) =>
-        console.error("document_upload_clean_failed", {
+    Promise.all([
+      ensureTeacherAnalyses(service, { userId: input.userId, documentIds: [input.documentId] }).catch((error) =>
+        console.error("teacher_analysis_after_upload_failed", {
           documentId: input.documentId,
           cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
         }),
       ),
+      cleanWholeDocument(service, {
+        userId: input.userId,
+        documentId: input.documentId,
+        deadlineAt: input.startedAt + UPLOAD_CLEAN_BUDGET_MS,
+      })
+        .then((result) => console.info("document_upload_clean", { documentId: input.documentId, ...result }))
+        .catch((error) =>
+          console.error("document_upload_clean_failed", {
+            documentId: input.documentId,
+            cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+          }),
+        ),
+    ]),
   );
 }
 

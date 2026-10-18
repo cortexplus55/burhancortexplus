@@ -4,6 +4,7 @@ import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
+import { examPointsBlock } from "@/lib/learning/exam-points";
 
 /**
  * Öğretmen test motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
@@ -29,6 +30,8 @@ export type TeacherQuizInput = {
   focus?: "practice" | "gaps";
   /** Aşinalık ve ruh hali satırı. */
   learnerLine?: string;
+  /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
+  examPoints?: string[];
   /**
    * Sayfa listesi yerine hazır kaynak bloğu (deneme sınavı, düello, tanışma
    * testi gibi eski çağıranların kaynağı). Varsa KAYNAK budur.
@@ -180,6 +183,7 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     input.difficulty ? `ZORLUK: ${DIFFICULTY_LINE[input.difficulty]}` : "",
     input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
+    examPointsBlock(input.examPoints, "quiz"),
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu değildir: ${input.runningHeaders.join(" | ")}`
       : "",

@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
+import { ensureTeacherAnalyses, loadPrepDocumentIds, TEACHER_ANALYSIS_WAIT_MS } from "@/lib/documents/teacher-analysis-run";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -355,7 +356,18 @@ export async function POST(request: Request) {
   // sayfasından "Devam et"e basana kadar dersin başı hazır olur; kredi açılınca düşer.
   if (v2) {
     const origin = new URL(request.url).origin;
-    after(() => requestPrepPrefetch(service, { origin, userId, prepId: result.prepId }));
+    // Önce öğretmen analizi (belge yüklenince başlamıştı; yoksa burada): ilk ders "Sınavda
+    // sorulur" notuyla yazılsın. En çok TEACHER_ANALYSIS_WAIT_MS beklenir, sonra notsuz yazılır.
+    after(async () => {
+      const documentIds = await loadPrepDocumentIds(service, result.prepId).catch(() => [] as string[]);
+      if (documentIds.length) {
+        await Promise.race([
+          ensureTeacherAnalyses(service, { userId, documentIds }).catch(() => undefined),
+          new Promise((resolve) => setTimeout(resolve, TEACHER_ANALYSIS_WAIT_MS)),
+        ]);
+      }
+      await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId });
+    });
   }
 
   return NextResponse.json({

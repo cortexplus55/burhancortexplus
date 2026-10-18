@@ -1622,12 +1622,14 @@ async function handleNodeRequest(
           ? [prepSource.document_id as string, ...prepDocs]
           : prepDocs,
         topicLabel,
+        sessionMeta?.sourcePages ?? [],
       )
     : {
         brief: "",
         priority: null as TeachingPriority | null,
         checklist: [],
         depth: { difficulty: "hard" as const, maxDraftAttempts: 2 as const, quizItems: 5, line: "" },
+        examPoints: [] as string[],
       };
 
   let sourceBoundaryMode: "documents_only" | "allow_supporting" | null = null;
@@ -2146,6 +2148,8 @@ async function handleNodeRequest(
               : [],
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
           teacherBrief: teachingV2 ? teachingPlan.brief : "",
+          // "Öğretmen gözü" (18 Ekim 2026): bütün öğretmen motorları aynı maddeleri okur.
+          examPoints: teachingV2 ? teachingPlan.examPoints : [],
           teachingPriority: teachingV2 ? teachingPlan.priority : null,
           upcomingTopics,
           lessonContent:
@@ -2665,6 +2669,8 @@ async function generateNodePayload(input: {
   sectionBackbone?: string[];
   /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */
   teacherBrief?: string;
+  /** Öğretmen analizinin "Sınavda sorulur" maddeleri. */
+  examPoints?: string[];
   teachingPriority?: TeachingPriority | null;
   /** null: konu listesi yok, nextFocus'a dokunma. Dizi: sıradaki gerçek konular. */
   upcomingTopics?: string[] | null;
@@ -2864,6 +2870,7 @@ async function teacherLessonPayload(
     pages: clean.map((item) => ({ page: item.page, text: item.text })),
     upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    examPoints: input.examPoints,
     runningHeaders: edges,
     startedAt,
     charge: input.charge,
@@ -3011,6 +3018,7 @@ async function teacherPodcastEpisode(
     lessonText: input.lessonContent ? lessonPodcastBrief(input.lessonContent) : undefined,
     syllabusLine: input.grounding?.trim() || undefined,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    examPoints: input.examPoints,
     runningHeaders: edges,
     startedAt,
   });
@@ -3055,6 +3063,7 @@ async function teacherCardsPayload(
     count: 8,
     focus: input.kind === "spaced" ? ("spaced" as const) : ("cards" as const),
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    examPoints: input.examPoints,
     runningHeaders: source.edges,
   };
   const outcome = await runWithTeacherModel(input.service, {
@@ -3102,6 +3111,8 @@ async function teacherTrueFalsePayload(
           pages: source.pages,
           mode: core ? "document" : "topic",
           learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+          examPoints: input.examPoints,
+          examPointsUse: "true_false",
           count: 8,
         },
         started,
@@ -3143,6 +3154,8 @@ async function teacherOralPayload(
           mode: block ? "document" : "topic",
           brief: input.syllabusLine?.trim() || undefined,
           learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+          examPoints: input.examPoints,
+          examPointsUse: "oral",
           count: asked,
         },
         started,
@@ -3192,6 +3205,7 @@ async function teacherQuizPayload(
     pages: clean.map((item) => ({ page: item.page, text: item.text })),
     count,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    examPoints: input.examPoints,
     runningHeaders: edges,
     difficulty: quizDifficulty(input.requestedDifficulty),
     // Konu testinde bir soru çok cevaplı (17 Ekim 2026, Astra'daki gibi); tuzak testi tek cevaplı.

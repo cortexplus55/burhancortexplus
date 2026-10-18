@@ -71,6 +71,13 @@ export const teacherAnalysisSchema = z.object({
         emphasis: z.enum(["core", "support", "skim"]),
         prerequisites: z.array(z.string().min(2).max(120)).max(6),
         pageNumbers,
+        /**
+         * "Sınavda sorulur" (18 Ekim 2026, ürün sahibinin kararı: "öğretmen olsan bu soruları
+         * sorardım mantığıyla"): bu konudan soru çıkaracak kesin bilgiler — belgenin SINAV İPUCU /
+         * AKILDA TUT / ALARM kutuları, tablolar, eşik ve yaşlar, sınıflamalar, ayırıcı ipuçları.
+         * Eski kayıtlarda yok (boş).
+         */
+        examPoints: z.array(z.string().min(8).max(220)).max(6),
         strategy: z.object({
           examples: z.array(z.string().min(2).max(220)).max(4),
           analogies: z.array(z.string().min(2).max(220)).max(3),
@@ -199,6 +206,7 @@ export function parseTeacherAnalysis(
           emphasis: emphasisOf(rec.emphasis),
           prerequisites: textList(rec.prerequisites, 6, 120, 2),
           pageNumbers: nums(rec.pageNumbers),
+          examPoints: textList(rec.examPoints, 6, 220, 8),
           strategy: {
             examples: textList(strategy.examples, 4, 220, 2),
             analogies: textList(strategy.analogies, 3, 220, 2),
@@ -269,6 +277,7 @@ export function mergeTeacherAnalyses(parts: TeacherAnalysis[]): TeacherAnalysis 
           2,
         ),
         pageNumbers: nums([...have.pageNumbers, ...topic.pageNumbers]),
+        examPoints: textList([...have.examPoints, ...topic.examPoints], 6, 220, 8),
         strategy: {
           examples: textList([...have.strategy.examples, ...topic.strategy.examples], 4, 220, 2),
           analogies: textList(
@@ -424,14 +433,15 @@ export function teacherAnalysisPrompt(input: {
       '"examFocus":{"questionTypes":string[],"keyFormulas":[{"expression":string,"meaning":string,"pageNumbers":number[]}],' +
       '"keyDefinitions":[{"term":string,"definition":string,"pageNumbers":number[]}]},' +
       '"misconceptions":[{"mistake":string,"correction":string,"pageNumbers":number[]}],' +
-      '"topics":[{"title":string,"emphasis":"core"|"support"|"skim","prerequisites":string[],"pageNumbers":number[],' +
+      '"topics":[{"title":string,"emphasis":"core"|"support"|"skim","prerequisites":string[],"pageNumbers":number[],"examPoints":string[],' +
       '"strategy":{"examples":string[],"analogies":string[],"mnemonics":string[],"workedExamplePlan":string,"checkQuestions":string[]}}]}',
     userPrompt: `Belge: "${input.fileName}". Parça ${input.part}/${input.parts}.
-Sen bu dersin profesörüsün. Yalnızca aşağıdaki sayfalarda yazanlara dayan.
-Kaynakta olmayan formül, sayı, tanım veya alıntı yazma. Kısa belgede tek konu yeter.
+Sen bu dersin profesörüsün ve sınavı sen hazırlayacaksın. Yalnızca aşağıdaki sayfalarda yazanlara dayan.
+Kaynakta olmayan formül, sayı, tanım veya alıntı yazma. Belge birden çok bölüm/başlık içeriyorsa her ana bölüm ayrı konu olsun (başlığı belgedeki gibi); tek konulu kısa belgede tek konu yeter.
 emphasis önceliktir, eleme değildir. "core" önemli (önce ve derin), "support" orta, "skim" daha az önemli (sonra ve kısa). "skim" konuyu listeden çıkarma.
 Sınavda çıkabilecek her kavram, formül, tuzak ve örnek tipi bir konuda kalsın. Kenar notu, uyarı kutusu ve örnek adımı ayrı konu olmasın; en yakın konunun örneği ya da tuzağı olarak yaz.
-Benzetme ve ezber cümlesi ancak gerçek açıklamayı destekliyorsa.
+examPoints (her konu için 3-6 madde): "Bu konudan sınavda ne sorardım?" diye düşün; öğrencinin soruyu çözmek için bilmesi gereken KESİN bilgileri yaz. Önce belgenin kendi işaretlediği yerler: "SINAV İPUCU", "TUS / SINAV İPUCU", "AKILDA TUT", "PRATİK NOKTA", "ALARM BULGULARI", "DİKKAT", "ÖNEMLİ" kutuları; sonra tablolar (neyi ayırt ettirdiği ve kilit satırları), eşik, yaş, sayı ve süreler, sınıflamalar, ayırıcı ipuçları ve "aksi kanıtlanana kadar" türü kurallar. Her madde tek cümle, kaynaktaki sayı ve terimle; kaynakta olmayanı yazma.
+Benzetme ve ezber cümlesi ancak gerçek açıklamayı destekliyorsa; ezber (mnemonics) sıralı liste ya da sınıflamada, kaynaktaki öğelerin baş harfleri ya da kısa bir cümleyle.
 ${langLine}
 
 ${body}`,
@@ -870,6 +880,16 @@ function keepSourceBackedList(items: string[], source: string): string[] {
   return items.filter((item) => !unsupportedQuantities(item, source).length);
 }
 
+/**
+ * Sınav maddesi daha sıkı: içindeki HER sayı (yaş, ay, eşik, doz) kaynakta geçmeli. Miktar
+ * denetimi birimsiz yaşları ("24 ayda") görmüyordu; öğrenciye uydurma eşik gitmesin.
+ */
+function examPointGrounded(point: string, source: string): boolean {
+  if (unsupportedQuantities(point, source).length) return false;
+  const numbers = point.match(/\d+(?:[.,]\d+)?/g) ?? [];
+  return numbers.every((value) => sourceContainsNumber(source, value));
+}
+
 export function sanitizeAnalysisAgainstSource(
   analysis: TeacherAnalysis,
   source: string,
@@ -892,6 +912,8 @@ export function sanitizeAnalysisAgainstSource(
   });
   const topics = analysis.topics.map((topic) => ({
     ...topic,
+    // Sınav maddesi kaynakta olmayan sayı taşıyorsa düşer: öğrenciye uydurma eşik gitmesin.
+    examPoints: topic.examPoints.filter((point) => examPointGrounded(point, source)),
     strategy: {
       examples: keepSourceBackedList(topic.strategy.examples, source),
       analogies: keepSourceBackedList(topic.strategy.analogies, source),
@@ -1126,12 +1148,24 @@ export function lessonDepth(priority: TeachingPriority | null): {
   };
 }
 
-/** Ders, quiz, podcast ve sohbet için konu notu. */
-export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: string): string {
-  const topic = matchTopic(analysis, topicTitle);
+/** Konunun "Sınavda sorulur" maddeleri (denetçi ve video bunları ayrıca okur). */
+export function examPointsForTopic(analysis: TeacherAnalysis, topicTitle: string, pages: number[] = []): string[] {
+  return (matchTopic(analysis, topicTitle) ?? topicByPages(analysis, pages))?.examPoints ?? [];
+}
+
+/**
+ * Ders, quiz, podcast ve sohbet için konu notu. Başlık tutmazsa (konu haritası "Büyüme ve
+ * Gelişme", analiz "Büyüme ve gelişmenin değerlendirilmesi") konunun sayfalarıyla eşleşir.
+ */
+export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: string, topicPages: number[] = []): string {
+  const topic = matchTopic(analysis, topicTitle) ?? topicByPages(analysis, topicPages);
   const lines: string[] = ["Öğretmen notu (yalnızca bu belgeden; kaynakta yoksa yazma):"];
   if (topic) {
     lines.push(`Konu: ${topic.title}. Vurgu: ${topic.emphasis}.`);
+    if (topic.examPoints.length) {
+      lines.push("SINAVDA SORULUR — öğrenci bunları bilmeden soruyu çözemez, her biri derste geçsin:");
+      for (const point of topic.examPoints) lines.push(`* ${point}`);
+    }
     if (topic.prerequisites.length) lines.push(`Önkoşul: ${topic.prerequisites.join(", ")}.`);
     if (topic.strategy.workedExamplePlan) lines.push(`Örnek planı: ${topic.strategy.workedExamplePlan}`);
     if (topic.strategy.examples.length) lines.push(`Örnekler: ${topic.strategy.examples.join(" | ")}`);

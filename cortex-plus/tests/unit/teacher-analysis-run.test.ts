@@ -7,6 +7,7 @@ const gate = vi.hoisted(() => ({
   blow: false,
   tier: "plus" as "free" | "plus" | "sigma",
   cost: 1,
+  chargeCredits: undefined as boolean | undefined,
 }));
 
 vi.mock("@/lib/ai/generate", () => ({
@@ -14,8 +15,10 @@ vi.mock("@/lib/ai/generate", () => ({
   generateJson: async (params: {
     userPrompt: string;
     parse: (raw: unknown) => unknown;
+    chargeCredits?: boolean;
   }) => {
     gate.calls += 1;
+    gate.chargeCredits = params.chargeCredits;
     gate.prompts.push(params.userPrompt);
     if (gate.blow) throw new Error("llm_down");
     const data = params.parse({
@@ -159,7 +162,9 @@ describe("öğretmen analizi kaydı", () => {
     expect(gate.calls).toBe(0);
   });
 
-  it("kredi konu haritasını aç bırakacaksa analizi atlar", async () => {
+  // 18 Ekim 2026: analiz belge işlemenin parçası, öğrenciden kredi düşmez. Eskiden hak yetmeyince
+  // sessizce atlanıyor, "öğretmen gözü" o öğrencide hiç çalışmıyordu.
+  it("öğrencinin hakkı az olsa da analiz yapılır ve krediden düşmez", async () => {
     const state: State = {
       existing: null,
       pages: [{ page_number: 1, text_content: "Hücre zarı seçici geçirgendir ve madde alışverişini protein kanallarıyla düzenler." }],
@@ -171,10 +176,10 @@ describe("öğretmen analizi kaydı", () => {
       fileName: "not.pdf",
       mimeType: "application/pdf",
     });
-    expect(result.status).toBe("skipped");
-    expect(result.ok).toBe(false);
-    expect(state.saved?.error).toBe("credit_budget");
-    expect(gate.calls).toBe(0);
+    expect(state.saved?.error).not.toBe("credit_budget");
+    expect(gate.calls).toBe(1);
+    expect(gate.chargeCredits).toBe(false);
+    void result;
   });
 
   it("yöneticinin bakiyesi düşmediği için bütçe ön kontrolü onu atlatmaz", async () => {
