@@ -815,6 +815,11 @@ export function ExamNodeSession({
   // Şema tutmazsa düz markdown'a düşülür; ders hiç açılmamasındansa
   // biçimsiz açılsın.
   const structuredLesson = useMemo(() => (payload.lesson ? readPlayLessonV3(payload.lesson) : null), [payload.lesson]);
+  /** Baştan yazıma rağmen hazırlanamayan kavramlar (sunucu `missingConcepts`). */
+  const missingConcepts = useMemo(() => {
+    const raw = (payload as { missingConcepts?: unknown }).missingConcepts;
+    return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+  }, [payload]);
   const lessonBuilding = payload.type === "lesson" && payload.building === true;
 
   // Parça parça açılan ders: yazım sürerken yeni kavramlar kayıttan okunur. Öğrenci ilk
@@ -1625,7 +1630,14 @@ export function ExamNodeSession({
           )}
         >
           {payload.type === "lesson" ? (
-            <h1 className="cp-exam-result-title">Dersin tamamı bu kadar</h1>
+            <h1 className="cp-exam-result-title">{missingConcepts.length ? "Dersin hazır olan kısmı bu kadar" : "Dersin tamamı bu kadar"}</h1>
+          ) : null}
+          {/* Baştan yazıma rağmen hazırlanamayan bölüm sessizce eksik kalmaz (18 Ekim 2026). */}
+          {payload.type === "lesson" && missingConcepts.length ? (
+            <p className="cp-lesson-missing" role="status">
+              Bu bölüm hazırlanamadı: <strong>{missingConcepts.join(", ")}</strong>. &quot;Farklı anlat&quot; ile yeniden
+              yazdırabilirsin.
+            </p>
           ) : null}
           {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,
               altında doğruluk ve süre satırları. */}

@@ -45,3 +45,12 @@ describe("document prep topic lookup", () => {
     }
   });
 });
+
+describe("a concept that could not be written is not hidden", () => {
+  it("stores the missing concepts and names them on the lesson's end screen", () => {
+    expect(readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8")).toContain("missingConcepts: outcome.dropped");
+    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    expect(session).toContain("Bu bölüm hazırlanamadı");
+    expect(session).toContain("Dersin hazır olan kısmı bu kadar");
+  });
+});

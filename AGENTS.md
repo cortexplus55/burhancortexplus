@@ -340,7 +340,8 @@ Belgeli sınav hazırlığı dersleri öğretmen motorundan geliyor: temiz sayfa
 istemi (`teacher-lesson.ts`) → kavram kavram model denetimi → yalnız sorunlu kavramın düzeltilmesi
 (18 Ekim 2026'dan beri, aşağıdaki "Ders hızı" bölümü).
 **Kod ders metnine hiçbir şey eklemez** — "Kaynak:" satırı, kalıp özet, dolgu
-soru yok. Düzelmeyen kavram öğrenciye gitmez (atılır); ilk kavram düzelmezse ders yazılmaz, kredi iade.
+soru yok. Düzelmeyen kavram öğrenciye gitmez: bir kez baştan yazılır (18 Ekim 2026), o da geçmezse atılır ve
+bitiş ekranında adıyla söylenir (`missingConcepts`); ilk kavram düzelmezse ders yazılmaz, kredi iade.
 Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI.md`.
 
 | Yapmayın | Yapın |
@@ -439,7 +440,8 @@ gün herkese açıldı; önceden yazım normal işlemde); ders parça parça aç
 | Yapmayın | Yapın |
 |---|---|
 | Düzeltme turunda dersin tamamını yeniden yazdırmak | Yalnız sorunlu kavramı (`fixPartUserPrompt`); dönmeyen ekran yerinde kalır (`mergePartScreens`) |
-| Tek bir itiraz yüzünden bütün dersi atmak | Düzelmeyen kavram atılır; ilk kavram düzelmezse ders yazılmaz |
+| Tek bir itiraz yüzünden bütün dersi atmak | Düzelmeyen kavram bir kez baştan yazılır (`rewritePartUserPrompt`; yama aynı yerde takılıyordu); o da geçmezse atılır ve öğrenciye söylenir; ilk kavram düzelmezse ders yazılmaz |
+| Kavramı sessizce atıp "Dersin tamamı bu kadar" demek | `missingConcepts` → "Dersin hazır olan kısmı bu kadar · Bu bölüm hazırlanamadı: …"; yeniden yazım sürerken yayımlanan kısım 40 sn'de bir tazelenir (takıldı sayılmasın) |
 | Yazarı her itirazı kabule zorlamak ("listedeki her alanı değiştir") | Yazar gerekçeyle itiraz eder (`disputes`), denetçi tartar; kod kuralları (`[yapı kuralı]`) itiraz edilemez |
 | Eksik ayrıntıyı ("şunu belirtmiyor") ciddi saymak | `CALIBRATION`: eksiklik ifadeyi yanlış yapmıyorsa düşük önem |
 | Açıklamada şıklara sırayla gönderme ("ilk seçenek …") | Şıklar karışık gösteriliyor: `OPTION_ORDER_RULE` yazar + denetçi + kod, ders ve testte |

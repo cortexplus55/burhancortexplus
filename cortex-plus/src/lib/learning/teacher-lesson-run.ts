@@ -15,6 +15,7 @@ import {
   parseTeacherLesson,
   parseTeacherScreen,
   partStructureIssues,
+  rewritePartUserPrompt,
   shuffleLessonChecks,
   teacherSystem,
   teacherUserPrompt,
@@ -39,7 +40,8 @@ import {
   - Düzeltme yalnız sorunlu kavramı yeniden yazar; yazar haksız bulduğu itiraza gerekçe
     yazar, denetçi bir sonraki turda o gerekçeyi tartar.
   - Kavramlar sırayla yayımlanır (`onPublish`); öğrenci denetlenmemiş ekran görmez.
-    Düzeltilemeyen kavram atılır; ilk kavram düzelmezse ders yazılmaz.
+    Düzeltilemeyen kavram bir kez BAŞTAN yazılır ve yeniden denetlenir (18 Ekim 2026); o da
+    geçmezse atılır ve öğrenciye söylenir (`missingConcepts`). İlk kavram düzelmezse ders yazılmaz.
   - Öğrenci beklerken hızlı işlem (ürün sahibinin kararı: önce yalnız Plus, aynı gün herkese).
   Kod ders metnine hiçbir şey eklemez.
 */
@@ -64,6 +66,17 @@ export type TeacherLessonOutcome =
 const FIX_DEADLINE_MS = 150_000;
 const MAX_FIX_ROUNDS = 2;
 const WRITE_TIMEOUT_MS = 120_000;
+/**
+ * Düzelmeyen kavram atılmadan önce bir kez baştan yazılır (18 Ekim 2026, ürün sahibinin kararı).
+ * Baştan yazım bu süreden sonra başlamaz; ardından gelen denetim/düzeltme ikinci sınıra kadar sürer.
+ */
+const REWRITE_START_MS = 170_000;
+const REWRITE_DEADLINE_MS = 230_000;
+/**
+ * Yeniden yazım sürerken ders "takıldı" sayılmasın (`BUILD_STALE_MS` 120 sn): yayımlanan kısım
+ * aynı hâliyle tazelenir, giriş kartında kavram "hazırlanıyor" kalır.
+ */
+const HEARTBEAT_MS = 40_000;
 
 export type PublishedLesson = {
   /** Denetlenmiş ekranlar + giriş kartı; `done` olunca kapanış da. */
@@ -205,6 +218,9 @@ export async function teacherLessonPipeline(
       let headerPatch: Partial<Header> = {};
       let disputes: TeacherDispute[] = [];
       const triggers: TeacherIssue[][] = [];
+      // İlk kavramda öğrenci bekliyor: iki tur. Sonrakiler öğrenci okurken düzelir: bir tur fazla.
+      let rounds = index === 0 ? MAX_FIX_ROUNDS : MAX_FIX_ROUNDS + 1;
+      let rewritten = false;
       for (let round = 0; ; round += 1) {
         if (cancelled || !current()) return { ok: false, high: [], triggers };
         const { lesson, part: span } = context(index, screens, { ...head, ...headerPatch }, close);
@@ -222,9 +238,38 @@ export async function teacherLessonPipeline(
         if (!high.length) {
           return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers };
         }
-        // İlk kavramda öğrenci bekliyor: iki tur. Sonrakiler öğrenci okurken düzelir: bir tur fazla.
-        const rounds = index === 0 ? MAX_FIX_ROUNDS : MAX_FIX_ROUNDS + 1;
-        if (round >= rounds || Date.now() - started > FIX_DEADLINE_MS) return { ok: false, high, triggers };
+        const deadline = rewritten ? REWRITE_DEADLINE_MS : FIX_DEADLINE_MS;
+        if (round >= rounds || Date.now() - started > deadline) {
+          // Atmadan önce bir kez baştan: yama aynı yerde takılıyordu (Pediatri, üç tur aynı sorun).
+          if (rewritten || Date.now() - started > REWRITE_START_MS || !current()) return { ok: false, high, triggers };
+          rewritten = true;
+          triggers.push(high);
+          let fresh: ReturnType<typeof parsePartFix> = null;
+          try {
+            fresh = parsePartFix(
+              await io.ask(fixPartSystem(mode), rewritePartUserPrompt(lesson, span, high, input), "fix-careful"),
+              lesson,
+              input.upcomingTopics,
+            );
+          } catch {
+            fresh = null;
+          }
+          if (!fresh?.screens.length) return { ok: false, high, triggers };
+          // Yeni taslak eskisinin yerine geçer (yama değil); kavram adı korunur, ekranlar bir araya kalsın.
+          screens = fresh.screens.map((screen) => ({ ...screen, concept: part.concept }));
+          disputes = [];
+          if (span.closing) {
+            close = {
+              ...(close ?? {}),
+              ...(fresh.commonMistake ? { commonMistake: fresh.commonMistake } : {}),
+              ...(fresh.summary ? { summary: fresh.summary } : {}),
+            };
+          }
+          if (current()) part.screens = screens;
+          // Yeni taslak denetlenir; gerekirse bir düzeltme turu daha.
+          rounds = round + 2;
+          continue;
+        }
         triggers.push(high);
         let fixed: ReturnType<typeof parsePartFix> = null;
         try {
@@ -318,7 +363,22 @@ export async function teacherLessonPipeline(
           await new Promise<void>((resolve) => (wake = resolve));
         }
         if (!outcomes[index]) break;
-        const outcome = await outcomes[index]!;
+        // Bu kavram uzun sürüyorsa (baştan yazım) yayımlanan kısım tazelenir: ders takıldı sayılmaz.
+        const heartbeat =
+          options.onPublish && publishedHeader
+            ? setInterval(() => {
+                void Promise.resolve(
+                  options.onPublish!({
+                    lesson: { format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] },
+                    done: false,
+                    upcoming: parts.slice(index).map((item) => item.concept),
+                  }),
+                ).catch(() => undefined);
+              }, HEARTBEAT_MS)
+            : null;
+        const outcome = await outcomes[index]!.finally(() => {
+          if (heartbeat) clearInterval(heartbeat);
+        });
         fixTriggers.push(...outcome.triggers);
         if (!outcome.ok) {
           if (index === 0) {

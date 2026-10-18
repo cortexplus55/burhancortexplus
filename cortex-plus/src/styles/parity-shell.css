@@ -4235,6 +4235,16 @@
   line-height: 1.2;
 }
 
+/* Hazırlanamayan bölüm: dersin eksik olduğu açıkça yazar (18 Ekim 2026). */
+.cp-lesson-missing {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--c-border, #303030);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: var(--c-text-muted, #a1a1a1);
+}
+
 .cp-exam-result-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

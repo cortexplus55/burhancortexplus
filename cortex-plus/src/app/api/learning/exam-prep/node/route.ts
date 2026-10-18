@@ -2941,6 +2941,9 @@ async function teacherLessonPayload(
     qualityReport: null,
     refunded: false,
     engine: "teacher",
+    // Baştan yazıma rağmen hazırlanamayan kavramlar: ders bunları sessizce tam saymaz,
+    // öğrenciye adıyla söyler ("Farklı anlat" yeniden yazdırır). 18 Ekim 2026.
+    ...(outcome.dropped.length ? { missingConcepts: outcome.dropped.slice(0, 6) } : {}),
   };
   // Önceden yazılan ders konuya öğrenci açınca yazılır.
   if (input.prepId && input.topicId && input.charge !== false) {
