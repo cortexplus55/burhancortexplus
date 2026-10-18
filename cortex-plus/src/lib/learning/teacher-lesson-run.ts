@@ -187,16 +187,26 @@ export async function teacherLessonPipeline(
       };
     };
 
-    const reviewPart = async (index: number): Promise<PartOutcome> => {
+    /*
+      İlk kavramın denetimi ilk ekran biter bitmez başlar (18 Ekim 2026, canlı ölçüm: hızlı işlemde
+      ilk ekran 15 sn'de geliyordu; ~3 sn'si kavramın bittiğini anlamak için sonraki ekranı
+      beklemekti). Sonraki ekran aynı kavramdansa ya da ders tek kavramsa bu erken denetim atılır,
+      kavram bütünüyle yeniden denetlenir.
+    */
+    let early: { promise: Promise<PartOutcome>; valid: boolean } | null = null;
+
+    const reviewPart = async (index: number, options: { early?: boolean } = {}): Promise<PartOutcome> => {
       const part = parts[index]!;
-      let screens = part.screens;
+      // Erken denetim kendi kopyasıyla çalışır: kavrama sonradan eklenen ekran onu değiştirmesin.
+      let screens = [...part.screens];
+      const current = () => !options.early || early?.valid !== false;
       let head = (await headerReady) ?? { title: input.topicLabel };
       let close = part.last ? await closingReady : null;
       let headerPatch: Partial<Header> = {};
       let disputes: TeacherDispute[] = [];
       const triggers: TeacherIssue[][] = [];
       for (let round = 0; ; round += 1) {
-        if (cancelled) return { ok: false, high: [], triggers };
+        if (cancelled || !current()) return { ok: false, high: [], triggers };
         const { lesson, part: span } = context(index, screens, { ...head, ...headerPatch }, close);
         // Kod kuralları düzeltme isteminde işaretli: yazar bunlara itiraz edemez.
         const structural = partStructureIssues(lesson, span, input).map((issue) => ({ ...issue, problem: `[yapı kuralı] ${issue.problem}` }));
@@ -240,8 +250,8 @@ export async function teacherLessonPipeline(
             ...(fixed.summary ? { summary: fixed.summary } : {}),
           };
         }
-        // Öbür kısımların bağlamı da son hâli görsün.
-        part.screens = screens;
+        // Öbür kısımların bağlamı da son hâli görsün (atılmış erken denetim yazmaz).
+        if (current()) part.screens = screens;
         head = { ...head, ...headerPatch };
       }
     };
@@ -250,7 +260,16 @@ export async function teacherLessonPipeline(
       const part = parts[parts.length - 1];
       if (!part || outcomes.length === parts.length) return;
       part.last = last;
-      outcomes.push(reviewPart(parts.length - 1));
+      const index = parts.length - 1;
+      if (index === 0 && early) {
+        if (early.valid && !last && part.screens.length === 1) {
+          outcomes.push(early.promise);
+          signal();
+          return;
+        }
+        early.valid = false;
+      }
+      outcomes.push(reviewPart(index));
       signal();
     };
 
@@ -262,11 +281,14 @@ export async function teacherLessonPipeline(
       const open = parts[parts.length - 1];
       if (open && outcomes.length < parts.length && open.key === key) {
         open.screens.push(screen);
+        // İlk kavram iki ekranlı: tek ekranla başlayan erken denetim geçersiz.
+        if (parts.length === 1 && early) early.valid = false;
         return;
       }
       // Yeni kavram: önceki kavram tamam, denetime gider.
       closePart(false);
       parts.push({ concept, key, screens: [screen], last: false });
+      if (parts.length === 1) early = { promise: reviewPart(0, { early: true }), valid: true };
     };
 
     const writing = io

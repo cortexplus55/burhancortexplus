@@ -248,3 +248,47 @@ describe("düzeltilen kısım", () => {
     expect(mergePartScreens([a], [b, a])).toEqual([b, a]);
   });
 });
+
+describe("ilk kavramın erken denetimi", () => {
+  async function slowRun(draft: LessonV3) {
+    const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
+    const events: string[] = [];
+    const result = await teacherLessonPipeline(
+      {
+        write: async (_system, _user, onDelta) => {
+          const text = JSON.stringify(draft);
+          // Akış gerçekteki gibi parça parça ve zamana yayılı gelsin.
+          for (const piece of chunks(text)) {
+            onDelta(piece);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+          events.push("yazım bitti");
+          return { text, finish: "stop" };
+        },
+        ask: async (_system, user) => {
+          events.push(/DENETLENECEK: yalnız ([^.]*)\./.exec(user)?.[1] ?? "?");
+          return { issues: [] };
+        },
+      },
+      input,
+    );
+    return { result, events };
+  }
+
+  it("tek ekranlı ilk kavram yazım bitmeden denetlenir; fazladan çağrı yok", async () => {
+    const { result, events } = await slowRun(lesson);
+    expect(result.lesson?.screens).toHaveLength(3);
+    const first = events.findIndex((event) => event.startsWith("screens[0],"));
+    expect(first).toBeGreaterThan(-1);
+    expect(first).toBeLessThan(events.indexOf("yazım bitti"));
+    expect(events.filter((event) => event !== "yazım bitti")).toHaveLength(3);
+  });
+
+  it("ilk kavram iki ekranlıysa erken denetim atılır, iki ekran birlikte denetlenir", async () => {
+    const second = { ...lesson.screens[0]!, heading: "Maddi Yaptırım: türleri", blocks: [{ type: "text", text: "Ceza, tazminat ve cebri icra maddi yaptırımdır." }, { type: "table", table: { caption: "Türler", columns: ["Tür", "Örnek"], rows: [["Ceza", "Hapis"], ["Tazminat", "Zarar ödemesi"]] } }, mcq("Hangisi maddi yaptırımdır?")] };
+    const draft = { ...lesson, screens: [lesson.screens[0]!, second, ...lesson.screens.slice(1)] } as LessonV3;
+    const { result, events } = await slowRun(draft);
+    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Maddi Yaptırım: türleri", "Yokluk", "Mutlak Butlan"]);
+    expect(events.some((event) => event.startsWith("screens[0]–screens[1]"))).toBe(true);
+  });
+});
