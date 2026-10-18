@@ -96,6 +96,15 @@ export function draftStarted(draft: ExamWizardDraft): boolean {
 }
 
 /**
+ * Başlamamış taslak yok sayılır. Sihirbaz açılır açılmaz boş bir tarayıcı kopyası yazıyor;
+ * o kopya "var" sayılınca telefon sunucudaki (masaüstünde başlanan) kurulumu hiç sormuyordu
+ * ve yenilik kıyasında boş kopya dolu olanı yeniyordu (18 Ekim 2026 canlı deneme).
+ */
+export function startedDraft(draft: ExamWizardDraft | null): ExamWizardDraft | null {
+  return draft && draftStarted(draft) ? draft : null;
+}
+
+/**
  * Ham JSON'dan (tarayıcı deposu ya da sunucu satırı) güvenli taslak. Bilinmeyen,
  * bozuk ya da süresi (24 saat) dolmuş veri `null`. Saf fonksiyon: sunucu da
  * gelen gövdeyi bununla süzer, alan alan aynı kurallar.

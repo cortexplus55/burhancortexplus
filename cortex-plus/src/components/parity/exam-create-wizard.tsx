@@ -28,12 +28,12 @@ import {
   fileProgressLine,
 } from "@/lib/learning/exam-wizard-copy";
 import {
-  draftStarted,
   dropExamWizardDraft,
   fetchExamWizardDraft,
   pickNewerDraft,
   pushExamWizardDraft,
   readExamWizardDraft,
+  startedDraft,
   writeExamWizardDraft,
   type ExamWizardDraft,
   type WizardDraftStep,
@@ -438,12 +438,13 @@ export function ExamCreateWizard({
     }
 
     // Başka cihazda bırakılan kurulum (18 Ekim 2026): sunucudaki kopya yeniyse onu aç.
+    // Buradaki boş tarayıcı kopyası kıyasa girmez; girerse dolu sunucu kopyasını yener.
     let cancelled = false;
     void fetchExamWizardDraft().then((remote) => {
-      if (cancelled || !remote || !draftStarted(remote)) return;
-      if (pickNewerDraft(local, remote) !== remote) return;
-      applyDraft(remote);
-      writeExamWizardDraft(remote);
+      if (cancelled || !startedDraft(remote)) return;
+      if (pickNewerDraft(startedDraft(local), remote) !== remote) return;
+      applyDraft(remote!);
+      writeExamWizardDraft(remote!);
     });
     return () => {
       cancelled = true;

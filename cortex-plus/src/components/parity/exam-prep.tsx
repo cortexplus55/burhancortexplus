@@ -10,6 +10,7 @@ import {
   dropExamWizardDraft,
   fetchExamWizardDraft,
   readExamWizardDraft,
+  startedDraft,
   writeExamWizardDraft,
   type ExamWizardDraft,
 } from "@/lib/learning/exam-wizard-draft";
@@ -202,16 +203,16 @@ function WizardDrafts() {
       if (!draftStarted(saved)) return;
       setDraft({ name: saved.title?.trim() || saved.subject.trim() || "Adsız hazırlık" });
     };
-    const local = readExamWizardDraft();
+    const local = startedDraft(readExamWizardDraft());
     if (local) {
       show(local);
       return;
     }
     let cancelled = false;
     void fetchExamWizardDraft().then((remote) => {
-      if (cancelled || !remote) return;
-      writeExamWizardDraft(remote);
-      show(remote);
+      if (cancelled || !startedDraft(remote)) return;
+      writeExamWizardDraft(remote!);
+      show(remote!);
     });
     return () => {
       cancelled = true;
