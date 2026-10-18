@@ -54,13 +54,13 @@ maddeleri ve vurgu artık var; şimdi bütün yolun bunu taşıdığını göste
 
 | # | İş | Nasıl ölçülür |
 |---|---|---|
-| 1.1 | Pediatri belgesinde **10 konunun hepsini** sırayla çalış (ders → test → podcast → doğru/yanlış → sözlü), sonunda yazılı deneme | Her konuda "Sınavda sorulur" maddelerinin derste ve testte geçme oranı; deneme puanı. #303 yayında olmalı (analiz 5 sayfa) |
-| 1.2 | **"Sıfır bilgi" senaryosu**: aşinalık "yeni", seviye tespiti, ilk üç ders | Ders terimleri tanımlıyor mu, hız uygun mu; test puanı |
-| 1.3 | **Çoklu belge**: 2-3 PDF + bir slayt yükle (ör. Kimya setindeki eski dosyalar) | Konu listesi birleşik ve tekrarsız mı; sıra önkoşula uyuyor mu; her ders doğru belgenin sayfasından mı |
-| 1.4 | Ezber kodu ve sınav kutularını **listeli konuda** gör (Kardiyoloji: Fallot; Aciller: ABCDE) | Kod kaynaktaki öğelerle birebir mi; denetçi I maddesi çalışıyor mu |
-| 1.5 | Seviye önerisi canlıda: iki düşük test → kart → "Daha kolay" → sonraki ders gerçekten kolay mı | `exam_prep_topics.familiarity` değişimi + sonraki dersin zorluğu |
-| 1.6 | Astra ile **ikinci konu** yan yana (Yenidoğan): aynı 100 puanlık ölçüt | Tek konuyla verilen 84 tahmini doğrulanır ya da düzeltilir |
-| 1.7 | Ders üretim kayıtlarını haftalık oku (`/admin/ders-hatalari`): yavaş, atılan kavram, başarısız | Hedef: atılan kavram 0, başarısız < %2 |
+| 1.1 | Pediatri belgesinde **10 konunun hepsini** sırayla çalış (ders → test → podcast → doğru/yanlış → sözlü), sonunda yazılı deneme | Her konuda "Sınavda sorulur" maddelerinin derste ve testte geçme oranı; deneme puanı. #303 yayında olmalı (analiz 5 sayfa). **Yapıldı (18 Ekim, hazırlık 175b0fec):** 10 ders akışlı üretildi (ilk ekran 15-19 sn, düzeltme turları 20-142 sn); 1 kavram (Koarktasyon) yeniden yazımda da geçmedi, atıldı ve bitişte "Bu bölüm hazırlanamadı" olarak söylendi; derslerde turuncu vurgu 0-4, sınav ipucu / akılda tut / alarm kutuları ve tablolar var; podcast ~30 sn; yazılı deneme 20 soru (15 çoktan seçmeli + 1 çok cevaplı + 4 açık uçlu) → **91/100** (18 doğru, 2 kısmen). Konu testleri rastgele cevaplandığı için test tarafında geçme oranı ölçülmedi |
+| 1.2 | **"Sıfır bilgi" senaryosu**: aşinalık "yeni", seviye tespiti, ilk üç ders | Ders terimleri tanımlıyor mu, hız uygun mu; test puanı. **Kısmen (18 Ekim):** aynı hazırlıkta düzey kartından "Daha kolay" seçildi, bütün konular "duymuştum" düzeyine indi ve sıradaki içerik "Kolay" yazıldı; "yeni" aşinalıkla sıfırdan kurulum ayrıca yapılmadı |
+| 1.3 | **Çoklu belge**: 2-3 PDF + bir slayt yükle (ör. Kimya setindeki eski dosyalar) | Konu listesi birleşik ve tekrarsız mı; sıra önkoşula uyuyor mu; her ders doğru belgenin sayfasından mı. Yapılmadı — yeni belge yüklemesi gerekiyor |
+| 1.4 | Ezber kodu ve sınav kutularını **listeli konuda** gör (Kardiyoloji: Fallot; Aciller: ABCDE) | Kod kaynaktaki öğelerle birebir mi; denetçi I maddesi çalışıyor mu. Yapılmadı — Kardiyoloji/Aciller belgesi gerekiyor |
+| 1.5 | Seviye önerisi canlıda: iki düşük test → kart → "Daha kolay" → sonraki ders gerçekten kolay mı | `exam_prep_topics.familiarity` değişimi + sonraki dersin zorluğu. **Doğrulandı (18 Ekim):** iki düşük test (0/5, 1/5) → kart çıktı → "Daha kolay" → bütün konular `heard`, bekleyen içerik atıldı, sıradaki ders "Kolay" |
+| 1.6 | Astra ile **ikinci konu** yan yana (Yenidoğan): aynı 100 puanlık ölçüt | Tek konuyla verilen 84 tahmini doğrulanır ya da düzeltilir. Yapılmadı — Astra girişi ürün sahibinde |
+| 1.7 | Ders üretim kayıtlarını haftalık oku (`/admin/ders-hatalari`): yavaş, atılan kavram, başarısız | Hedef: atılan kavram 0, başarısız < %2. Günlük özet e-postası (4.8) başarısız / yavaş / takılı sayısını her sabah getiriyor; haftalık okuma `/admin/ders-hatalari` |
 
 Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden onayla.
 
