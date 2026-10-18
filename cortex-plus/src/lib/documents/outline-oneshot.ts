@@ -1063,9 +1063,25 @@ export function minTopicsForPages(pageCount: number): number {
   return Math.min(8, Math.ceil(pageCount / 5));
 }
 
-/** A kept map too small for the material (judged against the page count). */
-export function outlineTooThin(candidate: OutlineCandidate | null, pageCount: number): boolean {
-  return Boolean(candidate && candidate.kept < minTopicsForPages(pageCount));
+/** Clean text that counts as one full page when judging how much a file holds. */
+export const FULL_PAGE_CHARS = 1_200;
+
+/**
+ * The floor is judged on full pages of text, not the page count alone: a
+ * 20-page scan with two lines per page is not a 20-page book, and a short
+ * fixture must not look thin. Whichever is smaller — pages or text pages — wins.
+ */
+export function minTopicsForMaterial(input: { pageCount: number; corpusChars: number }): number {
+  const textPages = Math.max(1, Math.round(input.corpusChars / FULL_PAGE_CHARS));
+  return minTopicsForPages(Math.min(Math.max(1, input.pageCount), textPages));
+}
+
+/** A kept map too small for the material (page count and text volume). */
+export function outlineTooThin(
+  candidate: OutlineCandidate | null,
+  material: { pageCount: number; corpusChars: number },
+): boolean {
+  return Boolean(candidate && candidate.kept < minTopicsForMaterial(material));
 }
 
 function better(a: OutlineCandidate | undefined, b: OutlineCandidate | null | undefined) {
@@ -1277,7 +1293,8 @@ export async function runOutlineStep(input: OutlinePromptInput & {
   // Mini's thin map is kept as `best` but not accepted: the strong model gets one
   // look at the whole corpus first. A thin map from the strong model is accepted —
   // a genuinely single-topic file exists, and there is no better model to ask.
-  const thinMini = isMini && outlineTooThin(candidate, material.pageCount);
+  const thinMini =
+    isMini && outlineTooThin(candidate, { pageCount: material.pageCount, corpusChars: material.corpus.length });
   if (goodEnough(candidate) && !thinMini) {
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best) };
   }

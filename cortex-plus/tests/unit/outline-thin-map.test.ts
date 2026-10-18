@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  FULL_PAGE_CHARS,
+  minTopicsForMaterial,
   minTopicsForPages,
   outlineTooThin,
   prepareOutlineMaterial,
@@ -11,12 +13,12 @@ import {
 
 /*
   İnce konu haritası (18 Ekim 2026): 20 sayfalık trigonometri notu (her sayfada başlık,
-  temiz metin) gpt-4o-mini'den 3 sn'de TEK konu olarak döndü; doğrulama hiçbir şey
-  düşürmedi, 1/1 "yeterince iyi" sayıldı ve öğrenci bütün dosya için tek konulu yol aldı
-  (Astra aynı PDF'ten 7 konu çıkardı). `goodEnough` yalnız tutulan/önerilen oranına bakar;
-  önerinin kendisinin ince olduğunu sayfa sayısına göre bu kat görür ve mini'nin haritası
-  güçlü modele yükseltilir. Güçlü modelin ince haritası kabul edilir: tek konulu dosya olur,
-  soracak daha iyi model yok.
+  temiz metin, ~28 bin karakter) gpt-4o-mini'den 3 sn'de TEK konu olarak döndü; doğrulama
+  hiçbir şey düşürmedi, 1/1 "yeterince iyi" sayıldı ve öğrenci bütün dosya için tek konulu
+  yol aldı (Astra aynı PDF'ten 7 konu çıkardı). `goodEnough` yalnız tutulan/önerilen oranına
+  bakar; önerinin kendisinin ince olduğunu bu kat görür — sayfa sayısı VE metin hacmiyle,
+  ikisinin küçüğüyle — ve mini'nin haritası güçlü modele yükseltilir. Güçlü modelin ince
+  haritası kabul edilir: tek konulu dosya olur, soracak daha iyi model yok.
 */
 vi.mock("@/lib/ai/generate", () => ({
   generateJson: vi.fn(),
@@ -36,10 +38,12 @@ import { generateJson } from "@/lib/ai/generate";
 
 const mockedGenerate = vi.mocked(generateJson);
 
-function trigPages(count: number) {
+/** Full pages: a heading plus enough running text to count as a page of a real note. */
+function trigPages(count: number, charsPerPage = 1_400) {
+  const sentence = "Trigonometri açı derece radyan birim çember sinüs kosinüs tanjant oranları anlatılır. ";
   return Array.from({ length: count }, (_, i) => ({
     pageNumber: i + 1,
-    text: `Trigonometri açı derece radyan birim çember sinüs kosinüs anlatılır sayfa ${i + 1}.`,
+    text: `Sayfa ${i + 1} başlığı. ${sentence.repeat(Math.ceil(charsPerPage / sentence.length))}`.slice(0, charsPerPage),
   }));
 }
 
@@ -66,9 +70,10 @@ function draft(topicCount: number): OneShotOutlineDraft {
   } as OneShotOutlineDraft;
 }
 
-async function runToEnd(pageCount: number): Promise<{ result: OutlineStepResult; models: string[] }> {
-  const material = prepareOutlineMaterial([{ fileName: "trig.pdf", pages: trigPages(pageCount) }]);
-  const models: string[] = [];
+async function runToEnd(
+  pages: { pageNumber: number; text: string }[],
+): Promise<{ result: OutlineStepResult }> {
+  const material = prepareOutlineMaterial([{ fileName: "trig.pdf", pages }]);
   let progress: OutlineProgress = { stage: "first" };
   for (let steps = 1; steps <= 6; steps += 1) {
     const result = await runOutlineStep({
@@ -79,14 +84,14 @@ async function runToEnd(pageCount: number): Promise<{ result: OutlineStepResult;
       keyFor: (stage, part) => `outline:trig:${steps}:${stage}${part ? `:part${part}` : ""}`,
       deadlineAt: Date.now() + 300_000,
     });
-    if (result.kind !== "continue") return { result, models };
+    if (result.kind !== "continue") return { result };
     progress = result.progress;
   }
   throw new Error("outline did not settle");
 }
 
-describe("ince konu haritası: sayfa sayısına göre taban", () => {
-  it("taban: 3 sayfaya kadar 1, 8'e kadar 2, sonra sayfa/5 (en çok 8)", () => {
+describe("ince konu haritası: taban", () => {
+  it("sayfa tabanı: 3'e kadar 1, 8'e kadar 2, sonra sayfa/5 (en çok 8)", () => {
     expect(minTopicsForPages(1)).toBe(1);
     expect(minTopicsForPages(3)).toBe(1);
     expect(minTopicsForPages(4)).toBe(2);
@@ -97,11 +102,21 @@ describe("ince konu haritası: sayfa sayısına göre taban", () => {
     expect(minTopicsForPages(200)).toBe(8);
   });
 
+  it("metin hacmi sayfa sayısını aşağı çeker: iki satırlık 28 sayfa ince sayılmaz", () => {
+    // Canlı trigonometri notu: 20 sayfa, 28.059 karakter → 4 konu tabanı.
+    expect(minTopicsForMaterial({ pageCount: 20, corpusChars: 28_059 })).toBe(4);
+    // Test fikstürü: 28 sayfa × ~70 karakter → metin iki sayfa bile değil → taban 1.
+    expect(minTopicsForMaterial({ pageCount: 28, corpusChars: 2_000 })).toBe(1);
+    // Az sayfa, çok metin: sayfa sayısı sınırlar.
+    expect(minTopicsForMaterial({ pageCount: 2, corpusChars: 40 * FULL_PAGE_CHARS })).toBe(1);
+  });
+
   it("outlineTooThin tutulan sayıyı tabanla kıyaslar", () => {
+    const material = { pageCount: 20, corpusChars: 28_059 };
     const candidate = { units: [], kept: 1, proposed: 1, dropped: 0, model: "m", reservationIds: [] };
-    expect(outlineTooThin(candidate, 20)).toBe(true);
-    expect(outlineTooThin({ ...candidate, kept: 4 }, 20)).toBe(false);
-    expect(outlineTooThin(null, 20)).toBe(false);
+    expect(outlineTooThin(candidate, material)).toBe(true);
+    expect(outlineTooThin({ ...candidate, kept: 4 }, material)).toBe(false);
+    expect(outlineTooThin(null, material)).toBe(false);
   });
 });
 
@@ -110,14 +125,14 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
     mockedGenerate.mockReset();
   });
 
-  it("20 sayfada mini 1 konu verince güçlü modele geçer; güçlü 7 konu verince o kalır", async () => {
+  it("20 dolu sayfada mini 1 konu verince güçlü modele geçer; güçlü 7 konu verince o kalır", async () => {
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
       const count = params.modelOverride === "gpt-4o-mini" ? 1 : 7;
       return { ok: true, data: params.parse(draft(count)), reservationId: `r-${models.length}` } as never;
     });
-    const { result } = await runToEnd(20);
+    const { result } = await runToEnd(trigPages(20));
     expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
     expect(result.kind).toBe("done");
     if (result.kind !== "done") return;
@@ -134,7 +149,7 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
       models.push(String(params.modelOverride));
       return { ok: true, data: params.parse(draft(1)), reservationId: `r-${models.length}` } as never;
     });
-    const { result } = await runToEnd(20);
+    const { result } = await runToEnd(trigPages(20));
     expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
     expect(result.kind).toBe("done");
     if (result.kind === "done") {
@@ -143,14 +158,26 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
     }
   });
 
-  it("kısa belgede (2 sayfa) mini'nin tek konusu yeterlidir, yükseltme yok", async () => {
+  it("mini yeterli konu verince yükseltme yok", async () => {
+    const models: string[] = [];
+    mockedGenerate.mockImplementation(async (params) => {
+      models.push(String(params.modelOverride));
+      return { ok: true, data: params.parse(draft(5)), reservationId: "r-mini" } as never;
+    });
+    const { result } = await runToEnd(trigPages(20));
+    expect(models).toEqual(["gpt-4o-mini"]);
+    expect(result.kind).toBe("done");
+    if (result.kind === "done") expect(result.map.kept).toBe(5);
+  });
+
+  it("kısa belgede (2 dolu sayfa) ya da az metinli 20 sayfada mini'nin tek konusu yeterlidir", async () => {
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
       return { ok: true, data: params.parse(draft(1)), reservationId: "r-mini" } as never;
     });
-    const { result } = await runToEnd(2);
-    expect(models).toEqual(["gpt-4o-mini"]);
-    expect(result.kind).toBe("done");
+    expect((await runToEnd(trigPages(2))).result.kind).toBe("done");
+    expect((await runToEnd(trigPages(20, 90))).result.kind).toBe("done");
+    expect(models).toEqual(["gpt-4o-mini", "gpt-4o-mini"]);
   });
 });
