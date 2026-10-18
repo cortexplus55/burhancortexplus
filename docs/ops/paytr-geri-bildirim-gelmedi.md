@@ -16,10 +16,13 @@
 ## İşlem
 1. PayTR panelinde ödeme **başarısızsa**: öğrenciye söyle, para çekilmemiştir (bankanın "bloke"si 1-3 günde
    düşer).
-2. PayTR'de **başarılı**, bizde bekliyorsa: `/admin/odemeler` → PayTR ile karşılaştır
-   (`reconcilePaymentWithPaytr`): PayTR'nin kaydı sorgulanır, eşleşirse ödeme tamamlanır ve Plus açılır.
-3. Karşılaştırma çalışmıyorsa Bildirim URL'sini ve `PAYTR_MERCHANT_*` değişkenlerini (`/admin/sistem`)
-   kontrol et; `payment_webhook_events`'te `INVALID` izi varsa anahtar/salt yanlıştır.
+2. PayTR'de **başarılı**, bizde bekliyorsa: `/admin/odemeler` → ödeme satırında **Mutabakat**
+   (`reconcilePaymentWithPaytr`, `refund-button.tsx`): PayTR'nin kaydı sorgulanır, toplam eşleşirse ödeme
+   tamamlanır ve Plus açılır; aynı tutar iki kez yazılmaz.
+3. Mutabakat da boş dönüyorsa Bildirim URL'sini ve `PAYTR_MERCHANT_ID / KEY / SALT`, `PAYTR_TEST_MODE`
+   değişkenlerini (`/admin/sistem`) kontrol et. Hash tutmayan bildirim **iz bırakmaz**: uç veritabanına
+   dokunmadan `INVALID` döner, bu yüzden `payment_webhook_events` boş kalır ve PayTR panelinde bildirim
+   "başarısız" görünür — anahtar/salt yanlış demektir.
 4. İade gerekiyorsa `/admin/odemeler` → iade (`markPaymentRefunded`); PayTR panelinden yapılan iadeyi
    bizde kaydetmek için `recordExternalRefund`. Kredi düşümü ve Plus kapanışı iadeyle birlikte işlenir
    (`src/lib/payments/refund.ts`).
