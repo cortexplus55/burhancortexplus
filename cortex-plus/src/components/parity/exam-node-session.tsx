@@ -798,6 +798,8 @@ export function ExamNodeSession({
     if (!lessonBuilding || !attemptId) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Değişmeyen cevapla ekran yeniden çizilmesin.
+    let last = "";
     const poll = async () => {
       try {
         const res = await fetch("/api/learning/exam-prep/node", {
@@ -807,7 +809,11 @@ export function ExamNodeSession({
         });
         const data = (await res.json().catch(() => ({}))) as { ok?: boolean; payload?: Payload };
         if (!stopped && res.ok && data.payload) {
-          setPayload(data.payload);
+          const seen = JSON.stringify(data.payload);
+          if (seen !== last) {
+            last = seen;
+            setPayload(data.payload);
+          }
           if (data.payload.building !== true) return;
         }
       } catch {
