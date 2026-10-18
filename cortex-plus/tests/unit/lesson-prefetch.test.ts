@@ -187,3 +187,14 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(route).toContain("fast: input.charge !== false,");
   });
 });
+
+describe("önceden yazımın düzeyi düğüm sayfasıyla aynı", () => {
+  // 18 Ekim 2026 canlı: konu kimliği olmayan düğümde önceden yazım "temel" düzeyle yazdı; öğrencinin
+  // kurulumdaki "duymuştum"u tutmadı, ders açılışta bir kez daha yazıldı.
+  it("düğümün konusu yoksa hazırlığın etkin konusu okunur", async () => {
+    const service = fakeService({ exam_preps: { active_topic_id: "t1" }, exam_prep_topics: { familiarity: "heard" } });
+    expect(await lib.nodeFamiliarity(service, "p", {})).toBe("heard");
+    expect(await lib.nodeFamiliarity(fakeService({ exam_prep_topics: { familiarity: "good" } }), "p", { topicId: "t2" })).toBe("good");
+    expect(await lib.nodeFamiliarity(fakeService({ exam_preps: { active_topic_id: null } }), "p", {})).toBe("basics");
+  });
+});
