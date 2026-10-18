@@ -284,6 +284,8 @@ export type UsageCode =
   | "PREP_TITLE"
   /** Sıradaki dersin önceden yazımı (kredi öğrenci dersi açınca ayrıca düşer). */
   | "LESSON_PREFETCH"
+  /** Sıradaki test, kart, podcast, sözlü… önceden yazımı (18 Ekim 2026; kredi açılınca düşer). */
+  | "CONTENT_PREFETCH"
   /** Konu haritası (tek seferlik özet; 0 kredi, belge başına sabit işleme ücreti var). */
   | "TOPIC_MAP_OUTLINE"
   /** Hazırlık kurulum sohbeti (0 kredi; ücretsizde hazırlık sayısı sınırlı). */

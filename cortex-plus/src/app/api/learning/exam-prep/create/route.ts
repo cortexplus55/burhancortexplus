@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { requestFirstLessonPrefetch } from "@/lib/learning/lesson-prefetch";
+import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -355,7 +355,7 @@ export async function POST(request: Request) {
   // sayfasından "Devam et"e basana kadar dersin başı hazır olur; kredi açılınca düşer.
   if (v2) {
     const origin = new URL(request.url).origin;
-    after(() => requestFirstLessonPrefetch(service, { origin, userId, prepId: result.prepId }));
+    after(() => requestPrepPrefetch(service, { origin, userId, prepId: result.prepId }));
   }
 
   return NextResponse.json({

@@ -225,7 +225,10 @@ export function ExamNodeSession({
     subject,
     stage === "play" || stage === "oral-review",
   );
-  const [difficulty, setDifficulty] = useState<Difficulty>("orta");
+  // Aşinalık kurulumdan geldiyse zorluk da ondan başlar; önceden yazılan test bu zorlukla yazıldı.
+  const [difficulty, setDifficulty] = useState<Difficulty>(
+    initialFamiliarity ? difficultyFromFamiliarity(initialFamiliarity) : "orta",
+  );
   const [podcastLength, setPodcastLength] = useState<PodcastLength>(DEFAULT_PODCAST_LENGTH);
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [oralSelected, setOralSelected] = useState<string[]>(() => {

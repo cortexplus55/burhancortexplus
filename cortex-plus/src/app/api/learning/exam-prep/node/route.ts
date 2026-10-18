@@ -8,7 +8,10 @@ import {
   nodeHasAttempts,
   peekPrefetchedLesson,
   PREFETCH_HEADER,
-  requestNextLessonPrefetch,
+  requestNextPrefetch,
+  PREFETCH_KINDS,
+  prefetchVariant,
+  waitForPrefetchReady,
   storePrefetchedLesson,
   adoptedPrefetchAttempt,
   peekBuildingPrefetch,
@@ -552,12 +555,21 @@ async function handleNodeRequest(
 
   // Önceden yazım yalnız açılmamış ders düğümü için; öğrenci açtıysa gerek yok.
   if (prefetch) {
-    if (kind !== "lesson" || !teachingV2 || node.status === "done") {
+    if (!PREFETCH_KINDS.has(kind) || !teachingV2 || node.status === "done") {
       return errorResponse(400, "invalid_input");
     }
     if (await nodeHasAttempts(service, nodeId)) {
       return NextResponse.json({ ok: true, skipped: "opened" });
     }
+  }
+
+  // "Hep bir adım önde" (18 Ekim 2026, ürün sahibinin kararı): öğrenci bir etkinliği açınca
+  // yolundaki sıradaki hazırlanabilir etkinlik arka planda yazılır. Tek yer: her açılış buradan
+  // geçer (hazır, devralınan, tekrar edilen, yeni yazılan). Kayıt ya da yazım varsa atlanır.
+  if (!prefetch && action === "start") {
+    afterResponse(() =>
+      requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number }),
+    );
   }
 
   if (action === "review") {
@@ -1366,17 +1378,6 @@ async function handleNodeRequest(
       await service.from("study_session_moods").insert({ user_id: userId, exam_prep_id: prepId, node_id: nodeId, mood });
       if (node.status !== "done") await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
       console.info("lesson_prefetch_adopted", { nodeId, finished: Boolean(finished) });
-      after(() =>
-        requestNextLessonPrefetch(service, {
-          origin: options.origin,
-          userId,
-          prepId,
-          sortOrder: node.sort_order as number,
-          topicId: sessionMeta?.topicId ?? null,
-          familiarity,
-          mood,
-        }),
-      );
       return NextResponse.json({
         ...attemptStartResponse(served, {
           kind,
@@ -1390,13 +1391,26 @@ async function handleNodeRequest(
     }
   }
 
-  // Önceden yazılmış ders: beklemeden gelir, kredi şimdi düşer.
+  // Önceden yazılmış etkinlik (18 Ekim 2026'dan beri her hazırlanabilir tür): beklemeden gelir,
+  // kredi şimdi düşer. Seçim (zorluk, podcast süresi, sözlü ayarları) tutmazsa yeniden yazılır.
+  const variant = prefetchVariant(kind, {
+    topicLabel,
+    difficulty,
+    podcastLength: parsed.data.podcastLength ?? null,
+    oralQuestionCount: oralCount ?? null,
+    oralScope: parsed.data.oralScope ?? null,
+    mood,
+  });
+  if (PREFETCH_KINDS.has(kind) && kind !== "lesson" && teachingV2 && !voiceSession && !prefetch) {
+    // Akışsız içerik kayda bütün düşer: yazımı sürüyorsa biraz bekle, ikinci kez yazma.
+    await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });
+  }
   if (
-    kind === "lesson" &&
+    PREFETCH_KINDS.has(kind) &&
     teachingV2 &&
     !voiceSession &&
     !prefetch &&
-    (await peekPrefetchedLesson(service, { userId, nodeId, familiarity }))
+    (await peekPrefetchedLesson(service, { userId, nodeId, familiarity, variant }))
   ) {
     const requestId = clientRequestId ?? crypto.randomUUID();
     const reservation = await reserveCredits(
@@ -1411,6 +1425,7 @@ async function handleNodeRequest(
         : errorResponse(409, "generation_in_progress");
     }
     const taken = await takePrefetchedLesson(service, { userId, nodeId });
+    if (taken) delete taken.payload.prefetchVariant;
     if (!taken) {
       // Aynı anda başka bir açılış aldı; bu istek dersi kendisi yazar.
       await refundCredits(service, reservation.reservationId).catch(() => undefined);
@@ -1454,7 +1469,7 @@ async function handleNodeRequest(
       });
       const topicId = topic?.id ?? taken.topicId;
       if (topicId) {
-        await saveTopicLesson(service, { prepId, topicId, payload: taken.payload });
+        if (kind === "lesson") await saveTopicLesson(service, { prepId, topicId, payload: taken.payload });
         await service.from("exam_prep_topics").update({ familiarity }).eq("id", topicId);
       }
       await service.from("study_session_moods").insert({
@@ -1466,18 +1481,7 @@ async function handleNodeRequest(
       if (node.status !== "done") {
         await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
       }
-      console.info("lesson_prefetch_served", { nodeId });
-      after(() =>
-        requestNextLessonPrefetch(service, {
-          origin: options.origin,
-          userId,
-          prepId,
-          sortOrder: node.sort_order as number,
-          topicId: sessionMeta?.topicId ?? null,
-          familiarity,
-          mood,
-        }),
-      );
+      console.info("prefetch_served", { nodeId, kind });
       return NextResponse.json({
         ...attemptStartResponse(readyAttempt, {
           kind,
@@ -2246,8 +2250,8 @@ async function handleNodeRequest(
       console.info("lesson_prefetch_adopted_done", { nodeId });
       return NextResponse.json({ ok: true, prefetched: "adopted" });
     }
-    const stored = await storePrefetchedLesson(service, nodeId, payload);
-    console.info("lesson_prefetch_ready", { nodeId, stored });
+    const stored = await storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant });
+    console.info("prefetch_ready", { nodeId, kind, stored });
     return NextResponse.json({ ok: true, prefetched: stored });
   }
 
@@ -2300,23 +2304,6 @@ async function handleNodeRequest(
 
     if (node.status !== "done") {
       await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
-    }
-
-    if (kind === "lesson" && !voiceSession) {
-      // Öğrenci bu dersi okurken sıradaki ders yazılsın.
-      const prefetchNext = () =>
-        requestNextLessonPrefetch(service, {
-          origin: options.origin,
-          userId,
-          prepId,
-          sortOrder: node.sort_order as number,
-          topicId: sessionMeta?.topicId ?? null,
-          familiarity,
-          mood,
-        });
-      // Parça parça açılışta zaten yanıttan sonradayız.
-      if (shownFirst) await prefetchNext();
-      else after(prefetchNext);
     }
 
     return NextResponse.json({
@@ -2478,6 +2465,15 @@ async function settlePendingStart(
   if (!data?.id) return;
   const settle = input.outcome === "commit" ? commitCredits : refundCredits;
   await settle(service, data.id as string).catch(() => undefined);
+}
+
+/** `after` yalnız bir istek içinde çalışır; rotayı doğrudan çağıran birim testlerinde arka plan işi atlanır. */
+function afterResponse(task: () => unknown) {
+  try {
+    after(task);
+  } catch {
+    // İstek dışı: yapılacak arka plan işi yok.
+  }
 }
 
 class NodeGenerationError extends Error {
@@ -2678,7 +2674,7 @@ async function generateNodePayload(input: {
     // sayfalar; kod metne bir şey eklemez, cümle silmez.
     if (!pagesReady) throw noPages();
     const episode = await teacherPodcastEpisode(input, core, length);
-    if (input.prepId && input.userId) {
+    if (input.prepId && input.userId && input.charge !== false) {
       await writePodcastCache(input.service, {
         prepId: input.prepId,
         userId: input.userId,
@@ -2916,6 +2912,7 @@ async function teacherPodcastEpisode(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `podcast:${input.prepId ?? "x"}:${input.topicLabel}:${length}:${Date.now()}`,
+    charge: input.charge,
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
     pages: clean.map((item) => ({ page: item.page, text: item.text })),
@@ -2972,6 +2969,7 @@ async function teacherCardsPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `cards:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    charge: input.charge,
     startedAt,
     label: "teacher_cards",
     topic: input.topicLabel,
@@ -2999,6 +2997,7 @@ async function teacherTrueFalsePayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `tf:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    charge: input.charge,
     startedAt,
     label: "teacher_true_false",
     topic: input.topicLabel,
@@ -3037,6 +3036,7 @@ async function teacherOralPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `oral:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    charge: input.charge,
     startedAt,
     label: "teacher_oral",
     topic: input.topicLabel,
@@ -3094,6 +3094,7 @@ async function teacherQuizPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `quiz:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    charge: input.charge,
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
     pages: clean.map((item) => ({ page: item.page, text: item.text })),

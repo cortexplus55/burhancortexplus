@@ -80,13 +80,18 @@ export async function runTeacherPodcast(
     actionCode: ActionCode;
     idempotencyKey: string;
     startedAt?: number;
+    /** false: önceden yazım (18 Ekim 2026); kredi ayrılmaz, öğrenci açınca düşer. */
+    charge?: boolean;
   },
 ): Promise<TeacherPodcastOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
   if (!input.pages.length && !input.lessonText && input.mode !== "topic") {
     return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
   }
-  const reservation = await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
+  const free = input.charge === false;
+  const reservation = free
+    ? ({ ok: true, reservationId: null } as const)
+    : await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
   if (!reservation.ok) {
     return {
       ok: false,
@@ -111,7 +116,7 @@ export async function runTeacherPodcast(
     });
     await recordUsage(service, {
       userId: input.userId,
-      actionCode: input.actionCode,
+      actionCode: free ? "CONTENT_PREFETCH" : input.actionCode,
       model,
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
@@ -132,7 +137,7 @@ export async function runTeacherPodcast(
       ms: Date.now() - started,
     });
     if (!loop.episode || loop.problems.length) {
-      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+      if (reservation.reservationId) await refundCredits(service, reservation.reservationId).catch(() => undefined);
       return {
         ok: false,
         status: 503,
@@ -140,10 +145,10 @@ export async function runTeacherPodcast(
         reasons: loop.problems.slice(0, 6).map((problem) => problem.slice(0, 200)),
       };
     }
-    await commitCredits(service, reservation.reservationId);
+    if (reservation.reservationId) await commitCredits(service, reservation.reservationId);
     return { ok: true, episode: loop.episode, calls, ms: Date.now() - started };
   } catch (error) {
-    await refundCredits(service, reservation.reservationId).catch(() => undefined);
+    if (reservation.reservationId) await refundCredits(service, reservation.reservationId).catch(() => undefined);
     console.error("teacher_podcast_failed", {
       topic: input.topicLabel.slice(0, 80),
       calls,
