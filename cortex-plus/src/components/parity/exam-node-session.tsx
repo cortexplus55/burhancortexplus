@@ -73,6 +73,8 @@ import {
 import { cn } from "@/lib/utils";
 import { resultMood } from "@/lib/learning/result-mood";
 import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
+import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
+import type { LevelHint } from "@/lib/learning/prep-level";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
@@ -284,6 +286,8 @@ export function ExamNodeSession({
   } | null>(null);
   const [writtenReview, setWrittenReview] = useState<WrittenExamReview | null>(null);
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
+  /** Astra'nın sonuç sonrası düzey önerisi; bitirişte sunucu söyler. */
+  const [levelHint, setLevelHint] = useState<LevelHint | null>(null);
   const [feedback, setFeedback] = useState<{
     headline: string;
     note: string;
@@ -691,6 +695,7 @@ export function ExamNodeSession({
       if (data.review) setWrittenReview(data.review);
       if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
+      setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
       router.refresh();
@@ -1805,6 +1810,7 @@ export function ExamNodeSession({
               <p className="text-sm text-[var(--cp-muted)]">Sıradaki adım, hazırlığın bir sonraki çalışmasıdır.</p>
             )
           ) : null}
+          {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           {attemptId ? <LessonRatingCard attemptId={attemptId} /> : null}
           {/* Astra her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
               2026). Düello sayfasına gider; kurmak öğrencinin kararı. */}

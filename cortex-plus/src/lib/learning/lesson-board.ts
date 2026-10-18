@@ -162,13 +162,20 @@ function cleanPiece(text: string): string {
   return text.replace(/[;]+\s*$/g, "").trim();
 }
 
-/** "1. P = F/A" numarası gider. "1 kPa" kalır — rakamın ardında nokta yok. */
+/**
+ * Liste numarası: "1) …" ya da ardından büyük harf/simge gelen "1. P = F/A". Türkçe sıra sayısı
+ * ("2. ay", "18. ayda", "3. basamak") liste numarası değildir — ardından küçük harfli kelime
+ * gelir ve silinirse anlam gider. Astra'nın dersinde tam bu oldu: "2 ay / 6 ay / 9 ay" yerine
+ * "1 Ay / 2 Ay / 3 Ay" (18 Ekim 2026, yan yana bakıldı). "1 kPa" kalır — rakamın ardında nokta yok.
+ */
+const LIST_MARKER = /^(?:\d{1,2}\)\s+(?=\S)|\d{1,2}\.\s+(?=[^\sa-zçğıöşü]))/;
+
 function stripListMarker(text: string): string {
-  return text.replace(/^\d{1,2}[.)]\s+(?=\S)/, "").trim();
+  return text.replace(LIST_MARKER, "").trim();
 }
 
 function splitNumbered(text: string): string[] {
-  const parts = text.split(/\s+(?=\d{1,2}[.)]\s+)/);
+  const parts = text.split(/\s+(?=\d{1,2}\)\s+|\d{1,2}\.\s+[^\sa-zçğıöşü])/);
   return parts.map(stripListMarker).filter(Boolean);
 }
 
@@ -314,7 +321,24 @@ function splitBlock(block: string): string[] {
   return pieces;
 }
 
+/** Sıra sayısının noktası işlem boyunca bu işaretle saklanır, sonda geri gelir. */
+const ORDINAL_DOT = "";
+
+/**
+ * Metindeki numaralar 1'den sırayla gitmiyorsa ("2. Ay", "6. Ay", "9. Ay") liste değil sıra
+ * sayısıdır: noktası saklanır, ne silinir ne cümle sonu sayılır.
+ */
+function guardOrdinals(text: string): string {
+  const numbers = [...text.matchAll(/(?:^|\s)(\d{1,2})[.)]\s/g)].map((match) => Number(match[1]));
+  if (numbers.every((value, index) => value === index + 1)) return text;
+  return text.replace(/(^|\s)(\d{1,2})\.(?=\s)/g, `$1$2${ORDINAL_DOT}`);
+}
+
 export function layoutBoard(text: string): BoardLine[] {
+  return layoutGuarded(guardOrdinals(text)).map((line) => ({ ...line, text: line.text.replaceAll(ORDINAL_DOT, ".") }));
+}
+
+function layoutGuarded(text: string): BoardLine[] {
   const normalized = restoreMathNotation(text)
     .replace(/şöyle\s+olarak\s+(hesaplan\w*)/gi, "şöyle $1")
     .replace(/\r\n/g, "\n")

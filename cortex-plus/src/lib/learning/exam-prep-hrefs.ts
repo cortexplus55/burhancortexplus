@@ -3,6 +3,11 @@ export function examPrepHomeHref(prepId: string) {
   return `/deneme-sinavlari/${prepId}`;
 }
 
+/** Kilitli adımın adresi açılınca: hazırlık sayfası o adımı seçili gösterir (18 Ekim 2026). */
+export function examPrepLockedHref(prepId: string, nodeId: string) {
+  return `${examPrepHomeHref(prepId)}?kilitli=${encodeURIComponent(nodeId)}`;
+}
+
 export function examPrepTopicHref(prepId: string) {
   return `/deneme-sinavlari/${prepId}/konu`;
 }

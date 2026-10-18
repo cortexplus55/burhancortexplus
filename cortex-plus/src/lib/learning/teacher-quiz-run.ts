@@ -6,6 +6,7 @@ import { contentModel } from "@/lib/ai/model-router";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
+import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import {
   parseQuizIssues,
   parseTeacherQuiz,
@@ -153,11 +154,14 @@ export async function runTeacherQuiz(
   const model = contentModel();
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
   let calls = 0;
+  // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
+  const tier = fastTier(!free && !held);
   const ask: AskJson = async (system, user) => {
     calls += 1;
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },
+      ...tier,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -166,7 +170,7 @@ export async function runTeacherQuiz(
     await recordUsage(service, {
       userId: input.userId,
       actionCode: free ? "CONTENT_PREFETCH" : input.actionCode,
-      model,
+      model: billedModel(model, response.service_tier),
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
       reservationId: reservation.reservationId,

@@ -7,6 +7,7 @@ import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
 import { parseIssues } from "@/lib/learning/teacher-lesson";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
+import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import {
   parseTeacherPodcast,
   podcastFixSystem,
@@ -104,11 +105,14 @@ export async function runTeacherPodcast(
   const model = contentModel();
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
   let calls = 0;
+  // Öğrenci bekliyor (önceden hazır podcast yok): hızlı işlem.
+  const tier = fastTier(!free);
   const ask: AskJson = async (system, user) => {
     calls += 1;
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },
+      ...tier,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -117,7 +121,7 @@ export async function runTeacherPodcast(
     await recordUsage(service, {
       userId: input.userId,
       actionCode: free ? "CONTENT_PREFETCH" : input.actionCode,
-      model,
+      model: billedModel(model, response.service_tier),
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
       reservationId: reservation.reservationId,

@@ -4,7 +4,7 @@ import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
+import { examPrepLockedHref, needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
 import type { Familiarity } from "@/lib/learning/session-signals";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -48,7 +48,10 @@ export default async function ExamNodePage({
       .maybeSingle(),
   ]);
 
-  if (!prep || !node || !studyNodeOpenable(node.status)) notFound();
+  if (!prep || !node) notFound();
+  // Kilitli adım adresten açılmaz (18 Ekim 2026, Astra'daki gibi): hazırlık sayfası o adımı
+  // seçili gösterir, "Başka birini seç" oradan.
+  if (!studyNodeOpenable(node.status, node.kind)) redirect(examPrepLockedHref(prepId, nodeId));
 
   // Yazılı deneme tek motor: kurulum → practice_exams.
   if (node.kind === "written_exam") {

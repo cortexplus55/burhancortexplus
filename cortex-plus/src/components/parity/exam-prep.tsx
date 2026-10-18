@@ -161,7 +161,7 @@ export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
               </li>
               <li>
                 <strong>Yolda ilerle</strong>
-                <span>Podcast, alıştırma, quiz, sözlü ve deneme önerilen sıradadır. İstediğin etkinliği istediğin zaman açabilirsin.</span>
+                <span>Podcast, alıştırma, quiz ve sözlü sırayla açılır. Başka bir etkinlik istersen &quot;Başka birini seç&quot;; deneme sınavı her zaman açık.</span>
               </li>
               <li>
                 <strong>Ders bitince</strong>
