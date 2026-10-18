@@ -54,6 +54,12 @@ export function ExamVoiceTutor({
   );
   const [caption, setCaption] = useState("");
   const [paywall, setPaywall] = useState(false);
+  /*
+    Yazılı cevap (18 Ekim 2026 canlı deneme): mikrofon yokken ya da izin verilmeyince
+    alt yazı "yazarak da sürebilirsin" diyordu ama yazacak yer yoktu; öğrenci yalnız
+    "Bitir"e basabiliyordu. Yazılan metin sesle aynı yoldan eğitmene gider.
+  */
+  const [typed, setTyped] = useState("");
   const recRef = useRef<Recorder | null>(null);
   const voiceRef = useRef<{ stop: () => void } | null>(null);
   const browserRecRef = useRef<ReturnType<typeof createRecognizer>>(null);
@@ -321,6 +327,40 @@ export function ExamVoiceTutor({
     setCaption("Durduruldu.");
   }
 
+  function sendTyped() {
+    const text = typed.trim();
+    if (!text || phase === "thinking") return;
+    // "Durdur"dan sonra da yazılabilsin: konuşma kesilir, oturum sürer.
+    stopped.current = false;
+    paused.current = false;
+    cutSpeech();
+    setTyped("");
+    void turn(messages, text);
+  }
+
+  const typedForm = (
+    <form
+      className="cp-tutor-typed"
+      onSubmit={(event) => {
+        event.preventDefault();
+        sendTyped();
+      }}
+    >
+      <input
+        type="text"
+        value={typed}
+        onChange={(event) => setTyped(event.target.value)}
+        placeholder="Cevabını yaz…"
+        aria-label="Cevabını yaz"
+        autoComplete="off"
+        maxLength={1200}
+      />
+      <button type="submit" className="cp-exam-continue" disabled={!typed.trim() || phase === "thinking"}>
+        Gönder
+      </button>
+    </form>
+  );
+
   function confirmEnd() {
     // Bitiş duraklatma değil. Geç gelen sunucu sesi de onEnd de yok sayılır.
     stopped.current = true;
@@ -366,6 +406,7 @@ export function ExamVoiceTutor({
               Tekrar konuş
             </button>
           ) : null}
+          {phase !== "speaking" ? typedForm : null}
         </div>
         <button type="button" className="cp-oral-end" onClick={openEndDialog}>
           Sınavı bitir
@@ -451,6 +492,7 @@ export function ExamVoiceTutor({
           Bitir
         </button>
       </div>
+      {typedForm}
 
       <CreditGate
         open={paywall}
