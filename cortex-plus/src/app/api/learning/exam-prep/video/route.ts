@@ -6,6 +6,7 @@ import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements"
 import { prepTopicSource } from "@/lib/learning/prep-topic-source";
 import { VIDEO_STYLES, type VideoStyle } from "@/lib/learning/video-lesson";
 import { runVideoLesson } from "@/lib/learning/video-run";
+import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 
 export const maxDuration = 300;
 
@@ -59,6 +60,17 @@ export async function POST(request: Request) {
   });
   if (!source) return errorResponse(503, "source_unavailable");
 
+  // "Öğretmen gözü" (18 Ekim 2026): sahnelerin kilit bilgileri "Sınavda sorulur" maddelerinden.
+  const teaching =
+    source.mode === "topic"
+      ? null
+      : await loadTopicTeaching(
+          service,
+          await loadPrepDocumentIds(service, prepId).catch(() => [] as string[]),
+          String(topic.label),
+          source.pages.map((page) => page.page),
+        ).catch(() => null);
+
   const outcome = await runVideoLesson(service, {
     userId,
     prepId,
@@ -67,6 +79,7 @@ export async function POST(request: Request) {
     prepTitle: String(prep.title ?? "Hazırlık"),
     mode: source.mode,
     pages: source.pages,
+    examPoints: teaching?.examPoints ?? [],
     style,
     idempotencyKey: `video:${userId}:${prepId}:${topicId}:${style}:${parsed.data.clientRequestId ?? crypto.randomUUID()}`,
   });

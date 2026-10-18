@@ -68,6 +68,7 @@ export default async function PrepVideoPage({
             durationMs: scene.durationMs,
             imageUrl: url.get(scene.imagePath) ?? "",
             audioUrl: url.get(scene.audioPath) ?? "",
+            ...(scene.keyFact ? { keyFact: scene.keyFact } : {}),
           }))}
         />
       </ParitySorShell>

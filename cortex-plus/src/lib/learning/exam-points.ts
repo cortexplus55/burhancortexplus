@@ -10,7 +10,7 @@
  * 18 Ekim incelemesi: 7 Ekim'den beri analiz yeni hazırlıklarda çalışmıyordu, motorlar da 2-3
  * Ekim'den beri okumuyordu — dersin önemli noktaya parmak basması tesadüfe kalmıştı.
  */
-export type ExamPointsUse = "lesson" | "quiz" | "podcast" | "cards" | "true_false" | "oral";
+export type ExamPointsUse = "lesson" | "quiz" | "podcast" | "cards" | "true_false" | "oral" | "video";
 
 const USE_LINE: Record<ExamPointsUse, string> = {
   lesson:
@@ -21,6 +21,7 @@ const USE_LINE: Record<ExamPointsUse, string> = {
   cards: "Kartların çoğu bu maddelerden kurulsun; arka yüz maddenin kesin bilgisini taşısın.",
   true_false: "Önermelerin çoğu bu maddelerden kurulsun; yanlış önerme maddenin tipik karıştırılan hâli olsun.",
   oral: "Sorular bu maddeleri yoklasın; beklenen noktalar maddelerin kesin bilgisini taşısın.",
+  video: "Sahnelerin kilit bilgileri (keyFact) ve anlatımı bu maddelerden seçilsin.",
 };
 
 /** Motor istemine giren blok. Madde yoksa boş (eski hazırlık ya da analiz henüz yok). */

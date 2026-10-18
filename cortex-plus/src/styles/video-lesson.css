@@ -312,6 +312,49 @@
   cursor: pointer;
 }
 
+/* Kilit bilgi: resmin üstünde, büyük ve sınav turuncusu (18 Ekim 2026). */
+.cp-video-fact {
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  top: 40%;
+  z-index: 2;
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.9rem;
+  background: rgba(10, 10, 10, 0.72);
+  border: 1.5px solid #ff8a3d;
+  color: #ffb27a;
+  font-size: clamp(1.05rem, 5vw, 1.5rem);
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  transform: translateY(-50%);
+  animation: cp-video-fact-in 420ms ease-out both;
+}
+
+@keyframes cp-video-fact-in {
+  from {
+    opacity: 0;
+    transform: translateY(-40%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-video-fact {
+    animation: none;
+  }
+}
+
+/* Alt yazıda anahtar kelime: aynı turuncu. */
+.cp-video-key {
+  color: #ffb27a;
+}
+
 .cp-video-caption {
   position: absolute;
   left: 0.75rem;

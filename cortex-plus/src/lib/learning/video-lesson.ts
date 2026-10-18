@@ -1,5 +1,6 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
+import { examPointsBlock } from "@/lib/learning/exam-points";
 
 /**
  * Video ders (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi).
@@ -72,7 +73,12 @@ export const VIDEO_TOTAL_WORDS = { min: 85, max: 115 } as const;
 /** Düzeltmeden sonra da aşılırsa video yazılmaz (≈ 43-85 sn, 5 sahne, sahnede 24 kelime). */
 export const VIDEO_HARD_LIMITS = { minScenes: 5, sceneWords: 24, totalWords: { min: 70, max: 140 } } as const;
 
-export type VideoScene = { narration: string; visual: string };
+/**
+ * keyFact: sahnenin sınavda sorulacak kilit bilgisi; oynatıcı resmin üstüne büyük yazar (18 Ekim 2026,
+ * Astra'nın tahtasında eşikler büyük yazılıydı). Resim yazısız kalır: model yazıyı bozuyor.
+ * Anlatımdaki **anahtar kelime** alt yazıda renkli görünür, seslendirmede okunmaz.
+ */
+export type VideoScene = { narration: string; visual: string; keyFact?: string };
 export type VideoScript = { title: string; scenes: VideoScene[] };
 
 export type VideoInput = {
@@ -81,10 +87,12 @@ export type VideoInput = {
   prepTitle: string;
   pages: { page: number; text: string }[];
   style: VideoStyle;
+  /** Öğretmen analizinin "Sınavda sorulur" maddeleri: kilit bilgiler bunlardan seçilir. */
+  examPoints?: string[];
 };
 
 const SCHEMA =
-  '{"title":"videonun kısa adı","scenes":[{"narration":"1-2 cümle anlatım","visual":"bu sahnenin resmini anlatan İngilizce tarif, yazısız"}]}';
+  '{"title":"videonun kısa adı","scenes":[{"narration":"1-2 cümle anlatım; sahnenin anahtar kelimesi **iki yıldız** arasında","visual":"bu sahnenin resmini anlatan İngilizce tarif, yazısız","keyFact":"ekrana büyük yazılacak kilit bilgi, en çok 8 kelime"}]}';
 
 const RULE_DOCUMENT =
   "KAYNAK KURALI (kesin): Anlatımdaki her olgu, sayı, tanım ve kural yalnız KAYNAK metninden gelir. Kaynakta yoksa " +
@@ -107,7 +115,12 @@ export function videoSystem(mode: TeacherLessonMode): string {
     "nasıl tanınacağı. Bir olguyu söylediğinde nedenini de söyle.\n" +
     "- Boş cümle yok ('bu videoda … öğreneceğiz', 'önemli bir konudur'). Kaynağa atıf yok ('metne göre', 'belgede').\n" +
     "- visual: o sahnenin resmini İngilizce tarif et — sahnedeki nesne, beden bölgesi, olay ya da karşılaştırma; " +
-    "resimde YAZI, harf, sayı, etiket olmaz. Gerçek kişi, marka ya da logo olmaz. Tek cümle, somut.\n\n" +
+    "resimde YAZI, harf, sayı, etiket olmaz. Gerçek kişi, marka ya da logo olmaz. Tek cümle, somut.\n" +
+    "- keyFact: sahnenin sınavda sorulacak KİLİT bilgisi (eşik, yaş, süre, ayırıcı ipucu, sınıflama) — ekranda " +
+    "resmin üstüne büyük yazılır, öğrenci onu akılda tutar. En çok 8 kelime, kaynaktaki sayı ve terimle, anlatımla " +
+    "aynı bilgi; cümle değil kısa ifade ('Safralı kusma → obstrüksiyon', '18 ayda kelime yoksa: alarm'). Kancada ve " +
+    "bilgisi olmayan sahnede boş bırak.\n" +
+    "- narration'da sahnenin tek anahtar kelimesini **iki yıldız** arasına al: alt yazıda renkli görünür, sesli okunmaz.\n\n" +
     `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SCHEMA}`
   );
 }
@@ -116,8 +129,11 @@ export function videoUserPrompt(input: VideoInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
+    examPointsBlock(input.examPoints, "video"),
     input.mode === "topic" ? "KAYNAK: (yok — belgesiz; konunun yerleşik bilgisiyle anlat)" : `KAYNAK:\n${sourceText(input.pages)}`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export const VIDEO_VERIFY_SYSTEM =
@@ -127,7 +143,8 @@ export const VIDEO_VERIFY_SYSTEM =
   "B) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "C) Bilgi taşımayan boş cümle ya da kaynağa atıf ('metne göre').\n" +
   "D) visual tarifinde yazı/etiket isteği, gerçek kişi ya da marka.\n" +
-  "A-B 'high'; C-D 'low'.\n" +
+  "E) keyFact kaynakta olmayan ya da yanlış bir sayı/bilgi taşıyor, anlatımla çelişiyor ya da 8 kelimeden uzun.\n" +
+  "A-B ve E'deki yanlış bilgi 'high'; C-D ve E'deki uzunluk 'low'.\n" +
   'JSON döndür: {"issues":[{"scene":0,"severity":"high","problem":"…","fix":"…"}]} — scene 0\'dan başlar. Sorun yoksa boş dizi.';
 
 export function videoVerifyUserPrompt(script: VideoScript, input: VideoInput): string {
@@ -152,7 +169,10 @@ export function parseVideoScript(raw: unknown, fallbackTitle: string): VideoScri
     const scene = (item ?? {}) as Record<string, unknown>;
     const narration = typeof scene.narration === "string" ? scene.narration.replace(/\s+/g, " ").trim() : "";
     const visual = typeof scene.visual === "string" ? scene.visual.replace(/\s+/g, " ").trim() : "";
-    return narration && visual ? [{ narration, visual }] : [];
+    const fact = typeof scene.keyFact === "string" ? scene.keyFact.replace(/\s+/g, " ").trim() : "";
+    // Kilit bilgi kısa kalır: uzun cümle ekrana sığmaz, akılda da kalmaz.
+    const keyFact = fact && words(fact) <= 12 ? fact.slice(0, 90) : undefined;
+    return narration && visual ? [{ narration, visual, ...(keyFact ? { keyFact } : {}) }] : [];
   });
   if (!scenes.length) return null;
   const title = typeof row.title === "string" && row.title.trim() ? row.title.trim().slice(0, 120) : fallbackTitle;
@@ -207,14 +227,37 @@ export function videoImagePrompt(scene: VideoScene, style: VideoStyle): string {
  * Alt yazı parçaları: anlatım 2-4 kelimelik parçalara bölünür (Astra'da ekranda akan
  * kalın yazı); süre sahnenin sesine kelime sayısıyla oranlanır.
  */
-export function captionChunks(narration: string, durationMs: number): { text: string; startMs: number; endMs: number }[] {
-  const tokens = narration.split(/\s+/).filter(Boolean);
+/** Seslendirilen metin: **anahtar kelime** işareti okunmaz. */
+export function speechText(narration: string): string {
+  return narration.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Anlatımın kelimeleri; **…** içindekiler anahtar (alt yazıda renkli). */
+function captionWords(narration: string): { word: string; key: boolean }[] {
+  const out: { word: string; key: boolean }[] = [];
+  let key = false;
+  for (const raw of narration.split(/\s+/).filter(Boolean)) {
+    const opens = raw.startsWith("**");
+    const closes = raw.replace(/[.,;:!?]+$/, "").endsWith("**") && (raw.length > 4 || !opens);
+    if (opens) key = true;
+    const word = raw.replace(/\*\*/g, "");
+    if (word) out.push({ word, key });
+    if (closes) key = false;
+  }
+  return out;
+}
+
+export function captionChunks(
+  narration: string,
+  durationMs: number,
+): { text: string; words: { word: string; key: boolean }[]; startMs: number; endMs: number }[] {
+  const tokens = captionWords(narration);
   if (!tokens.length) return [];
-  const chunks: string[][] = [];
-  let current: string[] = [];
+  const chunks: { word: string; key: boolean }[][] = [];
+  let current: { word: string; key: boolean }[] = [];
   for (const token of tokens) {
     current.push(token);
-    const ends = /[.,;:!?]$/.test(token);
+    const ends = /[.,;:!?]$/.test(token.word);
     if (current.length >= 4 || (ends && current.length >= 2)) {
       chunks.push(current);
       current = [];
@@ -229,6 +272,6 @@ export function captionChunks(narration: string, durationMs: number): { text: st
   return chunks.map((chunk) => {
     const startMs = Math.round(cursor * perWord);
     cursor += chunk.length;
-    return { text: chunk.join(" "), startMs, endMs: Math.round(cursor * perWord) };
+    return { text: chunk.map((item) => item.word).join(" "), words: chunk, startMs, endMs: Math.round(cursor * perWord) };
   });
 }

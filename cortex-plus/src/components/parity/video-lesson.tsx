@@ -7,7 +7,7 @@ import { Expand, Loader2, Pause, Play, RotateCcw, RotateCw, Smartphone, X } from
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
-import { VIDEO_STYLES, captionChunks, type VideoStyle } from "@/lib/learning/video-lesson";
+import { VIDEO_STYLES, captionChunks, speechText, type VideoStyle } from "@/lib/learning/video-lesson";
 import "@/styles/video-lesson.css";
 
 type Topic = { id: string; label: string };
@@ -186,7 +186,7 @@ export function VideoLessonSetup({
   );
 }
 
-type PlayerScene = { narration: string; durationMs: number; imageUrl: string; audioUrl: string };
+type PlayerScene = { narration: string; durationMs: number; imageUrl: string; audioUrl: string; keyFact?: string };
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
 
@@ -240,7 +240,8 @@ export function VideoLessonPlayer({
   const chunks = useMemo(() => scenes.map((item) => captionChunks(item.narration, item.durationMs)), [scenes]);
   const current = scenes[scene];
   const elapsed = (starts.list[scene] ?? 0) + offset;
-  const caption = chunks[scene]?.find((chunk) => offset >= chunk.startMs && offset < chunk.endMs)?.text ?? chunks[scene]?.at(-1)?.text ?? "";
+  const captionChunk = chunks[scene]?.find((chunk) => offset >= chunk.startMs && offset < chunk.endMs) ?? chunks[scene]?.at(-1);
+  const caption = captionChunk?.text ?? "";
 
   useEffect(() => {
     const el = audio.current;
@@ -347,9 +348,21 @@ export function VideoLessonPlayer({
             {completed ? "Yola dön" : "Dersi tamamla"}
           </button>
         </div>
+        {/* Kilit bilgi (18 Ekim 2026): sınavda sorulacak sayı ya da kural resmin üstünde büyük ve renkli;
+            resim yazısız kalır, yazıyı oynatıcı çizer. */}
+        {current?.keyFact ? (
+          <p key={`fact-${scene}`} className="cp-video-fact">
+            {current.keyFact}
+          </p>
+        ) : null}
         {caption ? (
           <p className="cp-video-caption" aria-live="off">
-            {caption}
+            {captionChunk?.words.map((item, index) => (
+              <span key={index} className={item.key ? "cp-video-key" : undefined}>
+                {index ? " " : ""}
+                {item.word}
+              </span>
+            )) ?? caption}
           </p>
         ) : null}
         <div className={cn("cp-video-center", playing && "is-hidden")}>
@@ -394,7 +407,7 @@ export function VideoLessonPlayer({
         <summary>Anlatımın metni</summary>
         <ol>
           {scenes.map((item, index) => (
-            <li key={index}>{item.narration}</li>
+            <li key={index}>{speechText(item.narration)}</li>
           ))}
         </ol>
       </details>
