@@ -1,9 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
-import { getActionCost } from "@/lib/credits/service";
 import { planTier } from "@/lib/billing/entitlements";
-import { billingExempt, freePreview } from "@/lib/billing/free-preview";
 import {
   coverageStatusLine,
   mergeCoverage,
@@ -12,7 +10,6 @@ import {
   type PrepDocumentRow,
 } from "@/lib/learning/exam-coverage";
 import {
-  analysisCreditOk,
   chunkPagesForAnalysis,
   detectMaterialLanguage,
   lessonDepth,
@@ -21,6 +18,7 @@ import {
   sanitizeAnalysisAgainstSource,
   selectAnalysisPages,
   teacherAnalysisPrompt,
+  examPointsForTopic,
   teacherBriefForTopic,
   teacherBriefForTopicMap,
   type AnalysisPage,
@@ -160,26 +158,9 @@ export async function runTeacherAnalysis(
       return EMPTY;
     }
 
-    const cost = await getActionCost(service, "STUDY_PLAN_GENERATE");
-    const { data: wallet } = await service
-      .from("credit_wallets")
-      .select("balance, reserved")
-      .eq("user_id", input.userId)
-      .maybeSingle();
-    // Ücretsiz önizlemedeki yöneticinin satın alınmış kredisi yok sayılır.
-    const previewing = (await freePreview(service, input.userId).catch(() => null)) !== null;
-    const available = previewing
-      ? 0
-      : Math.max(0, Number(wallet?.balance ?? 0) - Number(wallet?.reserved ?? 0));
-    // Yöneticinin bakiyesi hiç düşmediği için ön kontrol ona bakmıyor; aksi
-    // hâlde boş cüzdanlı kurucu hesabında analiz sessizce atlanırdı.
-    const exempt = await billingExempt(service, input.userId);
-    if (!exempt && !analysisCreditOk(available, cost ?? 0, chunks.length)) {
-      await save(service, documentId, { status: "skipped", error: "credit_budget" });
-      reportAnalysis(documentId, "skipped", "credit_budget");
-      return EMPTY;
-    }
-
+    // Analiz belge işlemenin parçası: öğrenciden kredi düşmez (18 Ekim 2026; konu haritası ve
+    // ücretsizde belge işleme gibi, `chargeCredits: false`). Eskiden "çalışma planı" kredisi
+    // düşüyor, hak yetmeyince analiz sessizce atlanıyordu.
     const source = pages.map((page) => page.text).join("\n");
     const language = detectMaterialLanguage(source);
     const nonce = existing?.status === "failed" ? Date.now().toString(36) : "v1";
@@ -199,6 +180,7 @@ export async function runTeacherAnalysis(
           service,
           userId: input.userId,
           actionCode: "STUDY_PLAN_GENERATE",
+          chargeCredits: false,
           isPremium,
           verificationMode: "schema",
           maxDraftAttempts: 1,
@@ -324,16 +306,19 @@ export type TopicTeaching = {
   priority: TeachingPriority | null;
   checklist: CoverageItem[];
   depth: ReturnType<typeof lessonDepth>;
+  /** "Sınavda sorulur" maddeleri: yazar, denetçi ve video ayrıca okur (18 Ekim 2026). */
+  examPoints: string[];
 };
 
 /**
  * Saklı analizlerden konu notu. Hazır satır yoksa boş döner; modeli yeniden
- * çağırmaz, başarısız kaydı da döngüye sokmaz.
+ * çağırmaz, başarısız kaydı da döngüye sokmaz. Başlık tutmazsa konu sayfalarıyla eşleşir.
  */
 export async function loadTopicTeaching(
   service: SupabaseClient,
   documentIds: string[],
   topicTitle: string,
+  pages: number[] = [],
 ): Promise<TopicTeaching> {
   const groups: { documentId: string; analysis: TeacherAnalysis }[] = [];
   for (const documentId of documentIds) {
@@ -341,14 +326,49 @@ export async function loadTopicTeaching(
     if (analysis) groups.push({ documentId, analysis });
   }
   const priority = priorityForTopic(groups, topicTitle);
-  const owner = groups.find((group) => priorityForTopic([group], topicTitle));
-  const brief = owner ? teacherBriefForTopic(owner.analysis, topicTitle) : "";
+  const owner =
+    groups.find((group) => priorityForTopic([group], topicTitle)) ??
+    groups.find((group) => examPointsForTopic(group.analysis, topicTitle, pages).length > 0);
+  const brief = owner ? teacherBriefForTopic(owner.analysis, topicTitle, pages) : "";
   return {
     brief,
     priority,
     checklist: mergeCoverage(groups),
     depth: lessonDepth(priority),
+    examPoints: owner ? examPointsForTopic(owner.analysis, topicTitle, pages) : [],
   };
+}
+
+/** Analizin süresi: yeni hazırlığın ilk önceden yazımı bunu bekler, sonra notsuz yazar. */
+export const TEACHER_ANALYSIS_WAIT_MS = 45_000;
+
+/**
+ * Hazırlığın belgelerinin öğretmen analizi hazır olsun (18 Ekim 2026). 7 Ekim'den beri (#146,
+ * tek seferde konu haritası) belge işleme analizi çalıştırmıyordu: "öğretmen gözü" yeni
+ * hazırlıklarda boştu. Hazır kayıt yeniden üretilmez; öğrenciden kredi düşmez (belge işleme gibi).
+ */
+export async function ensureTeacherAnalyses(
+  service: SupabaseClient,
+  input: { userId: string; documentIds: string[] },
+): Promise<void> {
+  for (const documentId of [...new Set(input.documentIds)].slice(0, 6)) {
+    const { data: row } = await service
+      .from("document_teacher_analyses")
+      .select("status")
+      .eq("document_id", documentId)
+      .maybeSingle();
+    if (row?.status === "ready") continue;
+    const { data: doc } = await service
+      .from("documents")
+      .select("file_name, mime_type")
+      .eq("id", documentId)
+      .maybeSingle();
+    await runTeacherAnalysis(service, documentId, {
+      userId: input.userId,
+      fileName: (doc?.file_name as string | null) ?? "belge",
+      mimeType: (doc?.mime_type as string | null) ?? null,
+    });
+  }
 }
 
 export function taughtCoverageLine(

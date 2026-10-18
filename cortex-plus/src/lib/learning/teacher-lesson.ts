@@ -12,6 +12,7 @@ import {
 } from "@/lib/learning/lesson-v3";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
+import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -37,6 +38,8 @@ export type TeacherLessonInput = {
   previousTopic?: string | null;
   /** Aşinalık ve ruh hali satırı (session-signals). */
   learnerLine?: string;
+  /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
+  examPoints?: string[];
   /** Sayfa kenarında tekrar eden satırlar: başlık olamaz. */
   runningHeaders?: string[];
   /**
@@ -226,6 +229,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     `KONU: ${input.topicLabel}`,
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
+    examPointsBlock(input.examPoints, "lesson"),
     `SIRADAKİ KONULAR: ${input.upcomingTopics.length ? input.upcomingTopics.join(" | ") : "(yok)"}`,
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
@@ -341,11 +345,12 @@ function disputeLines(disputes: TeacherDispute[]): string {
 export function verifyPartUserPrompt(
   lesson: LessonV3,
   part: LessonPart,
-  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle">,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle" | "examPoints">,
   disputes: TeacherDispute[] = [],
 ): string {
   return [
     verifyUserPrompt(lesson, input),
+    examPointsVerifyBlock(input.examPoints),
     `DENETLENECEK: yalnız ${partLabel(part)}. Dersin öbür kısımları ayrıca denetlendi ya da denetlenecek; onları ` +
       "yalnız tutarlılık (F) için oku, onlar için sorun yazma.",
     disputes.length

@@ -1,6 +1,7 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { issuesByItem, teacherItemLoop, type Reviewed } from "@/lib/learning/teacher-item-loop";
+import { examPointsBlock } from "@/lib/learning/exam-points";
 
 /**
  * Öğretmen kart motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
@@ -21,6 +22,8 @@ export type TeacherCardsInput = {
   /** "spaced": aralıklı tekrar — çekirdek tanım ve formül önce. */
   focus?: "cards" | "spaced";
   learnerLine?: string;
+  /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
+  examPoints?: string[];
   runningHeaders?: string[];
 };
 
@@ -67,6 +70,7 @@ export function cardsUserPrompt(input: TeacherCardsInput, ask = input.count): st
     `KONU: ${input.topicLabel}`,
     `KART SAYISI: ${ask}`,
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
+    examPointsBlock(input.examPoints, "cards"),
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu değildir: ${input.runningHeaders.join(" | ")}`
       : "",

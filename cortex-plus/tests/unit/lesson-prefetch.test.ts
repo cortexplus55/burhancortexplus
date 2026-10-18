@@ -144,7 +144,9 @@ describe("önceden hazırlama: geniş kapsam", () => {
     const page = read("src/app/deneme-sinavlari/[prepId]/page.tsx");
     expect(page).toContain("after(() => requestPrepPrefetch(service,");
     const create = read("src/app/api/learning/exam-prep/create/route.ts");
-    expect(create).toContain("after(() => requestPrepPrefetch(service, { origin, userId, prepId: result.prepId }))");
+    // Öğretmen analizi önce (en çok TEACHER_ANALYSIS_WAIT_MS), sonra ilk önceden yazım (18 Ekim 2026).
+    expect(create).toContain("ensureTeacherAnalyses(service, { userId, documentIds })");
+    expect(create).toContain("await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId });");
     expect(route).toContain("requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number })");
     expect(route).toContain("if (!prefetch && action === \"start\") {");
     expect(route).toContain("await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });");
