@@ -140,6 +140,26 @@ düğüm; görseller **bize özgü** 3B set. Ölçümler ve 8 adım: `docs/deliv
 
 Bekçi: `astra-design-system.test.ts`, `icon-3d.test.ts`, `node-result.test.ts`.
 
+### Telefon denetimi (18 Ekim 2026) — 375 px'te her sayfa tek tek gezildi
+
+Ürün sahibi: "kendi tarayıcında mobile uyumlu mu değil mi, her sayfayı tek tek kontrol et".
+Yerleşik tarayıcıda 375×812, koyu tema, herkese açık 26 + giriş yapılmış ~90 sayfa (ders, test,
+video, sohbet, stüdyo, yönetim dahil). Ölçüm her sayfada aynı betikle: belge genişliği, kırpılan
+metin, 24 px'ten küçük dokunma alanı; sonra ekran görüntüsü. Dört gerçek hata çıktı, hepsi CSS:
+
+| Hata | Neden | Düzeltme |
+|---|---|---|
+| "Geri"li üst çubuk 456 px (sohbet, podcast, düello, ara, müfredat, okulum, resmî, hazırlıklarım): sayfa yana kayıyor ya da avatar kırpılıyor | Daraltma yalnız `--focus` kabuğundaydı; `--exam` kabuğunda "Daha fazla" yazısı + 20 px boşluklar; kurucu çipi tek başına 79 px | `@media (max-width: 480px)` kuralı iki kabuğa; kurucu çipi telefonda gizli |
+| Belgelerim 418 px | `.cp-docs` ızgara hücresi `min-width: auto` → tek satırlık dosya adı hücreyi büyütüyor | `.cp-docs { min-width: 0 }` |
+| Kayıt sihirbazı 384 px | `.onboarding-ambient` ışık katmanı `inset` ile 1,5 rem yanlara taşıyor | yatay `inset: 0` |
+| Video: kilit bilgi kutusu duraklatınca oynat düğmesine biniyor (223–313 / 299) | kutu %40'ta, orta düğmeler %50'de | kutu %24 (#303) |
+
+Küçük: belge kartında "Sil" 13×16 ve "← Belgeler" 58×14 → 32 px; `/duello/KOD` büyük harf → küçük harfe
+çevrilir. **Sorun çıkmayanlar:** ders ekranları (tablo kendi kutusunda yana kayar), test, sonuç,
+podcast/düello kurulumu, stüdyo, araçlar, ödeme, profil/ayarlar, menüler ve yıldız/etkinlik pencereleri,
+yönetim sayfaları (tablolar kendi kutusunda kayar; `/admin/adaptive` 622 px — hata ayıklama sayfası,
+bırakıldı). Bekçi: `mobile-audit-guards.test.ts`.
+
 ### Paralel işler aynı ödeme anahtarını paylaşmaz
 
 **2–17 Ekim 2026 yazılı deneme yalnız ilk konunun sorularıyla çıktı** (Pediatri'de 10 sorudan 1).
@@ -294,24 +314,26 @@ Bir işin bedelini değiştirirken önce `ai_usage_events`'ten yeniden ölçün;
 `price-table.ts` birlikte değişir. Bekçi: `credit-system-v2.test.ts` (göçü PGlite'ta
 çalıştırır), `tutor-surface-credits.test.ts`.
 
-## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
+## Satıcı bilgileri: bir alan bilerek yayınlanmıyor
 
 Vergi levhasından girildi (`src/lib/legal/seller.ts`): **Mukadder Önder**,
 şahıs işletmesi, Bafra / Samsun, vergi dairesi **Bafra**, iletişim
-`cortexplus@cortexplus.app`.
+`cortexplus@cortexplus.app` ve telefon.
 
-**Yayınlanmayanlar — ürün sahibinin kararı, eksiklik değil:**
+**Telefon yayınlanıyor (20 Eylül 2026'dan beri):** PayTR canlı onayı sitede
+telefon istedi; o güne kadar "kişisel numara yayınlanmasın" kararı vardı,
+onayla birlikte kalktı. `missingSellerFields()` telefonu zorunlu sayar.
+
+**Yayınlanmayan — ürün sahibinin kararı, eksiklik değil:**
 
 | Alan | Neden |
 |---|---|
 | Vergi kimlik numarası | Şahıs işletmesinde bu numara T.C. kimlik numarası; herkese açık olması gerçek bir gizlilik riski. Vergi dairesi gösteriliyor. |
-| Telefon | Kişisel numara yayınlanmak istenmedi; iletişim e-posta üzerinden. |
 
-İkisi de `ACCEPTED_OMISSIONS` altında gerekçesiyle duruyor ve
-`missingSellerFields()` bunları eksik saymıyor — saysaydı hukuki sayfaların
-başında sürekli kırmızı uyarı dururdu ve uyarı anlamını yitirirdi. Kabul
-edilen risk: bir denetimde eksik sayılabilir. "Neden telefon yok" diye
-sorulduğunda cevap bu satırdır.
+`ACCEPTED_OMISSIONS` altında gerekçesiyle duruyor ve `missingSellerFields()`
+bunu eksik saymıyor — saysaydı hukuki sayfaların başında sürekli kırmızı
+uyarı dururdu ve uyarı anlamını yitirirdi. Kabul edilen risk: bir denetimde
+eksik sayılabilir.
 
 ---
 
