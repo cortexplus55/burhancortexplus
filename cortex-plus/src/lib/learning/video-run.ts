@@ -10,6 +10,7 @@ import {
   VIDEO_FIX_PREFIX,
   VIDEO_VERIFY_SYSTEM,
   parseVideoScript,
+  speechText,
   videoFixUserPrompt,
   videoImagePrompt,
   videoStructureIssues,
@@ -21,7 +22,8 @@ import {
 } from "@/lib/learning/video-lesson";
 
 /** Bir sahnenin saklanan hâli: anlatım, resim ve ses yolu, sesin süresi. */
-export type StoredVideoScene = { narration: string; imagePath: string; audioPath: string; durationMs: number };
+/** keyFact: resmin üstünde büyük yazılan kilit bilgi (18 Ekim 2026; eski videolarda yok). */
+export type StoredVideoScene = { narration: string; imagePath: string; audioPath: string; durationMs: number; keyFact?: string };
 
 type Issue = { scene: number; severity: "high" | "low"; problem: string; fix?: string };
 
@@ -120,7 +122,8 @@ export async function runVideoLesson(
         script.scenes.map(async (scene, index): Promise<StoredVideoScene> => {
           const [image, voice] = await Promise.all([
             sceneImage(openai, videoImagePrompt(scene, input.style)),
-            synthesizeLine(scene.narration, "ada"),
+            // Anahtar kelime işareti (**…**) seslendirilmez.
+            synthesizeLine(speechText(scene.narration), "ada"),
           ]);
           if (!voice) throw new Error("speech_failed");
           const imageType = env.OPENAI_IMAGE_MODEL.startsWith("dall-e") ? "png" : "webp";
@@ -135,7 +138,7 @@ export async function runVideoLesson(
             recordUsage(service, { userId: input.userId, actionCode: "VIDEO_GENERATE", model: env.OPENAI_IMAGE_MODEL, tokensIn: 1, tokensOut: 0 }),
             recordUsage(service, { userId: input.userId, actionCode: "VIDEO_GENERATE", model: env.OPENAI_TTS_MODEL, tokensIn: voice.chars, tokensOut: 0 }),
           ]).catch(() => undefined);
-          return { narration: scene.narration, imagePath, audioPath, durationMs: voice.durationMs };
+          return { narration: scene.narration, imagePath, audioPath, durationMs: voice.durationMs, ...(scene.keyFact ? { keyFact: scene.keyFact } : {}) };
         }),
       );
 

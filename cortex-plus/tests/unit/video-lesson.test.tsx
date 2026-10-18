@@ -100,7 +100,7 @@ describe("video: kapı, kredi, yol", () => {
     expect(read("supabase/migrations/20261017150000_prep_videos.sql")).toContain("('VIDEO_GENERATE', 280,");
     const run = read("src/lib/learning/video-run.ts");
     expect(run).toContain('actionCode: "VIDEO_GENERATE"');
-    expect(run).toContain('synthesizeLine(scene.narration, "ada")');
+    expect(run).toContain('synthesizeLine(speechText(scene.narration), "ada")');
   });
 
   it("Ders oluştur'da podcast'in ardından Video; 'İzleyerek' seçen öğrenciye önerilir", () => {
@@ -177,5 +177,58 @@ describe("video ekranları", () => {
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
     // Ses daha yüklenmeden düğme "Duraklat" olur (ikinci dokunuş oynatmayı iptal etmesin).
     expect(screen.getByRole("button", { name: "Duraklat" })).toBeTruthy();
+  });
+});
+
+/*
+  Videoda kilit bilgi (18 Ekim 2026, ürün sahibinin kararı). Astra'nın beyaz tahta videosunda
+  takipne eşikleri tahtaya büyük yazılıydı (belgede olmasa da). Bizde kilit bilgi yalnız kaynaktan,
+  resmin üstüne oynatıcı yazar (resim modeli yazıyı bozuyor); anahtar kelime alt yazıda renkli.
+*/
+describe("videoda kilit bilgi", () => {
+  it("senaryo kilit bilgiyi ve anahtar kelimeyi ister; uzun kilit bilgi atılır", () => {
+    const system = videoSystem("document");
+    expect(system).toContain("keyFact");
+    expect(system).toContain("**iki yıldız**");
+    const parsed = parseVideoScript(
+      {
+        title: "Krup",
+        scenes: [
+          { ...scene("**Havlar öksürük** krupu düşündürür."), keyFact: "Havlar öksürük + stridor → krup" },
+          { ...scene("İlk hışıltı bronşiolittir."), keyFact: "bu çok uzun bir cümle ekrana sığmaz ve akılda da kalmaz çünkü fazla kelime var" },
+        ],
+      },
+      "Krup",
+    )!;
+    expect(parsed.scenes[0]!.keyFact).toBe("Havlar öksürük + stridor → krup");
+    expect(parsed.scenes[1]!.keyFact).toBeUndefined();
+  });
+
+  it("anahtar kelime alt yazıda işaretli, seslendirmede yok", async () => {
+    const { speechText } = await import("@/lib/learning/video-lesson");
+    expect(speechText("**Havlar öksürük** krupu düşündürür.")).toBe("Havlar öksürük krupu düşündürür.");
+    const chunks = captionChunks("**Havlar öksürük** krupu düşündürür.", 3000);
+    expect(chunks[0]!.text).toBe("Havlar öksürük krupu düşündürür.");
+    expect(chunks[0]!.words.filter((item) => item.key).map((item) => item.word)).toEqual(["Havlar", "öksürük"]);
+    expect(read("src/lib/learning/video-run.ts")).toContain("synthesizeLine(speechText(scene.narration)");
+  });
+
+  it("oynatıcı kilit bilgiyi resmin üstüne yazar ve anahtar kelimeyi renklendirir", () => {
+    const { container } = render(
+      <VideoLessonPlayer
+        prepId="p1"
+        videoId="v1"
+        title="Çocuklarda solunum"
+        topicLabel="Solunum"
+        styleLabel="Beyaz tahta"
+        completed={false}
+        scenes={[
+          { narration: "**Havlar öksürük** krupu düşündürür.", durationMs: 3000, imageUrl: "/a.webp", audioUrl: "/a.mp3", keyFact: "Havlar öksürük + stridor → krup" },
+        ]}
+      />,
+    );
+    expect(container.querySelector(".cp-video-fact")?.textContent).toBe("Havlar öksürük + stridor → krup");
+    expect([...container.querySelectorAll(".cp-video-key")].map((node) => node.textContent?.trim())).toEqual(["Havlar", "öksürük"]);
+    expect(container.querySelector(".cp-video-caption")?.textContent).toBe("Havlar öksürük krupu düşündürür.");
   });
 });
