@@ -37,12 +37,15 @@ export default defineConfig({
       dışarıdan / `.env.local`'den gelen değer yoksa. Authenticated setup gerçek
       anahtar + `E2E_USER_*` ister. Tek işleri bekçiyi yanlış alarmdan kurtarmak.
     */
+    // `||`, `??` değil: CI'da tanımsız sır boş dize olarak gelir (`${{ secrets.X }}`);
+    // boş anahtar yer tutucuya düşmeli, yoksa sunucu anahtarsız kalkar ve kayıt
+    // formu bekçisi public testleri düşürür.
     env: {
       NEXT_PUBLIC_SUPABASE_URL:
-        process.env.NEXT_PUBLIC_SUPABASE_URL ??
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
         "https://dgjfyewgrukglsehyntc.supabase.co",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "sb-e2e-local-only",
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb-e2e-local-only",
     },
   },
   projects: [
