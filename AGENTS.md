@@ -521,6 +521,21 @@ Bekçi: `oral-exam-grade.test.ts` ("study path opens in order"), `exam-prep-home
 çağırıyor ve kapıları yok; düz `npx vitest run` onları da çalıştırır (3 Ekim'de
 onaysız ~0,04 $).
 
+## Konu haritası: ince harita kabul edilmez (18 Ekim 2026)
+
+**20 sayfalık trigonometri notu tek konu olarak haritalandı; Astra aynı PDF'ten 7 konu çıkardı.**
+Vercel `pipeline_timing`: `outline_stage first · gpt-4o-mini · 3,1 sn · topics 1 · dropped 0`. ≤30 sayfa
+ucuz modele gidiyor (`OUTLINE_MINI_PAGE_LIMIT`), model tek konu önerdi, doğrulama hiçbir şey
+düşürmedi ve `goodEnough` (tutulan ≥ önerilenin 2/3'ü) 1/1'i geçirdi — öneri ince olunca oran kör.
+
+| Yapmayın | Yapın |
+|---|---|
+| Mini'nin haritasını yalnız tutulan/önerilen oranıyla kabul etmek | Sayfa tabanı: `minTopicsForPages` (≤3 sayfa 1, ≤8 sayfa 2, sonra sayfa/5, en çok 8); altındaysa `escalate` (güçlü model, bütün metin) |
+| Güçlü modelin ince haritasını da reddedip döngüye sokmak | Kabul edin — tek konulu dosya olabilir, soracak daha iyi model yok |
+| "Konu az çıktı" diye haritayı kodla bölmek | Model yeniden yazar; kod yalnız kapıyı tutar (`outline-oneshot.ts`) |
+
+Bekçi: `outline-thin-map.test.ts`. Kıyas belgesi masaüstünde `trigonometri_20_sayfa_detayli.pdf`.
+
 ## Fonksiyon bölgesi Frankfurt (`fra1`) — veritabanının yanı
 
 **29 Eylül 2026'ya kadar fonksiyonlar `iad1`'de (Washington) çalışıyordu;

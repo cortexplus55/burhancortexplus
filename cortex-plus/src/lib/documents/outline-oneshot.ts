@@ -1047,6 +1047,43 @@ function goodEnough(candidate: OutlineCandidate | null): candidate is OutlineCan
   return Boolean(candidate && candidate.kept * 3 >= candidate.proposed * 2);
 }
 
+/**
+ * Fewest topics a readable corpus of this many pages should yield.
+ *
+ * 18 Ekim 2026: a 20-page trigonometry note (one heading per page, clean text
+ * layer) came back from gpt-4o-mini as ONE topic in 3 s. Validation dropped
+ * nothing, so 1/1 passed `goodEnough` and the student got a single-topic path
+ * for the whole file while Astra built seven from the same PDF. `goodEnough`
+ * only compares kept to proposed; it cannot see that the proposal itself was
+ * thin. This floor can — and mini's thin map now escalates to the strong model.
+ */
+export function minTopicsForPages(pageCount: number): number {
+  if (pageCount <= 3) return 1;
+  if (pageCount <= 8) return 2;
+  return Math.min(8, Math.ceil(pageCount / 5));
+}
+
+/** Clean text that counts as one full page when judging how much a file holds. */
+export const FULL_PAGE_CHARS = 1_200;
+
+/**
+ * The floor is judged on full pages of text, not the page count alone: a
+ * 20-page scan with two lines per page is not a 20-page book, and a short
+ * fixture must not look thin. Whichever is smaller — pages or text pages — wins.
+ */
+export function minTopicsForMaterial(input: { pageCount: number; corpusChars: number }): number {
+  const textPages = Math.max(1, Math.round(input.corpusChars / FULL_PAGE_CHARS));
+  return minTopicsForPages(Math.min(Math.max(1, input.pageCount), textPages));
+}
+
+/** A kept map too small for the material (page count and text volume). */
+export function outlineTooThin(
+  candidate: OutlineCandidate | null,
+  material: { pageCount: number; corpusChars: number },
+): boolean {
+  return Boolean(candidate && candidate.kept < minTopicsForMaterial(material));
+}
+
 function better(a: OutlineCandidate | undefined, b: OutlineCandidate | null | undefined) {
   if (!a) return b ?? undefined;
   if (!b) return a;
@@ -1253,7 +1290,12 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     model,
     call.reservationId ? [call.reservationId] : [],
   );
-  if (goodEnough(candidate)) {
+  // Mini's thin map is kept as `best` but not accepted: the strong model gets one
+  // look at the whole corpus first. A thin map from the strong model is accepted —
+  // a genuinely single-topic file exists, and there is no better model to ask.
+  const thinMini =
+    isMini && outlineTooThin(candidate, { pageCount: material.pageCount, corpusChars: material.corpus.length });
+  if (goodEnough(candidate) && !thinMini) {
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best) };
   }
   const nextBest = better(best, candidate);

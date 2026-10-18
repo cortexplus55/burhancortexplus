@@ -547,6 +547,8 @@ describe("runOutlineStep (one course outline)", () => {
   });
 
   it("routes on summed pages across files: 12 + 16 = 28 stays on mini", async () => {
+    // The fixture pages carry one short line each, so the one-topic draft is not
+    // "thin" for this little text (outline-thin-map.test.ts covers full pages).
     expect(await runSummedRouting([12, 16])).toEqual(["gpt-4o-mini"]);
   });
 
