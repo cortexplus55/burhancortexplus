@@ -13399,3 +13399,24 @@ a.cp-exam-search {
 .cp-rating-option:hover {
   background: var(--c-surface-2);
 }
+
+/* Ders açılışı: aşinalık kurulumda alındıysa "Düzey: … · Değiştir" satırı (18 Ekim 2026). */
+.cp-open-level {
+  margin: 0.25rem 0 0;
+}
+
+.cp-open-level-change {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-text, inherit);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.cp-open-level-change:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -72,6 +72,7 @@ import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import {
   contentDifficultyLine,
+  DEFAULT_MOOD,
   parseFamiliarity,
   parseMood,
   sessionSignalsPrompt,
@@ -2003,7 +2004,9 @@ async function handleNodeRequest(
             : difficulty,
           requestedDifficulty: difficulty,
           familiarity,
-          mood,
+          // Ruh hali yalnız kaydedilir (18 Ekim 2026, ürün sahibinin kararı): önceden yazılan içerik
+          // ona göre değişemez, açılışta yazılan da değişmesin. Sözlüde bu alan öğretmen tipini taşır.
+          mood: kind === "oral" ? mood : DEFAULT_MOOD,
           sourceBlock: source.block,
           lessonCore:
             (kind === "lesson" || TEACHER_PAGE_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length

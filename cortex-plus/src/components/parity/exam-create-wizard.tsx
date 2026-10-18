@@ -61,6 +61,12 @@ import {
 } from "@/lib/documents/upload-labels";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import { uploadDocumentFile } from "@/lib/documents/upload-client";
+import {
+  DEFAULT_FAMILIARITY,
+  FAMILIARITY_OPTIONS,
+  parseFamiliarity,
+  type Familiarity,
+} from "@/lib/learning/session-signals";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -73,6 +79,7 @@ type Step =
   | "shaping"
   | "topics"
   | "modality"
+  | "familiarity"
   | "focus"
   | "plan";
 
@@ -265,6 +272,7 @@ export function ExamCreateWizard({
   const [target, setTarget] = useState(75);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
   const [modalities, setModalities] = useState<ChosenModality[]>([]);
+  const [familiarity, setFamiliarity] = useState<Familiarity>(DEFAULT_FAMILIARITY);
   /** true: tüm konulara eşit. false: focusTopics seçili. */
   const [equalFocus, setEqualFocus] = useState(true);
 
@@ -393,6 +401,7 @@ export function ExamCreateWizard({
       setTarget(draft.target);
       setLanguage(draft.language);
       setModalities(draftModalities(draft));
+      setFamiliarity(parseFamiliarity(draft.familiarity));
       setEqualFocus(draft.equalFocus);
       setFocusTopics(draft.focusTopics);
       setMaterials(draft.materials);
@@ -435,6 +444,7 @@ export function ExamCreateWizard({
         language,
         modality: modalities[0] ?? "auto",
         modalities,
+        familiarity,
         equalFocus,
         focusTopics,
         materials,
@@ -474,6 +484,7 @@ export function ExamCreateWizard({
     target,
     language,
     modalities,
+    familiarity,
     equalFocus,
     focusTopics,
     materials,
@@ -1056,6 +1067,7 @@ export function ExamCreateWizard({
           documentIds,
           topicOrderManual: orderEdited,
           hardTopics: equalFocus ? [] : focusTopics,
+          familiarity,
           learningPreferences: {
             style: modalityStyle(modalities),
             modality: modalities[0] ?? "auto",
@@ -1575,10 +1587,34 @@ export function ExamCreateWizard({
           <button
             type="button"
             className="apw-cta"
-            onClick={() => setStep("focus")}
+            onClick={() => setStep("familiarity")}
           >
             {WIZARD_COPY.continue}
           </button>
+        </section>
+      ) : null}
+
+      {!planning && step === "familiarity" ? (
+        <section className="apw-step">
+          <h1>{WIZARD_COPY.familiarityTitle}</h1>
+          <p className="apw-lead">{WIZARD_COPY.familiarityLead}</p>
+          <div className="apw-choices" role="radiogroup" aria-label="Aşinalık">
+            {FAMILIARITY_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={familiarity === option.id}
+                className={familiarity === option.id ? "apw-choice apw-choice--on" : "apw-choice"}
+                onClick={() => {
+                  setFamiliarity(option.id);
+                  setStep("focus");
+                }}
+              >
+                <span aria-hidden>{option.emoji}</span> {option.title}
+              </button>
+            ))}
+          </div>
         </section>
       ) : null}
 

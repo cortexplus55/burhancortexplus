@@ -12,6 +12,7 @@ export const WIZARD_STEP_ORDER = [
   "language",
   "topics",
   "modality",
+  "familiarity",
   "focus",
   "plan",
 ] as const;
@@ -45,6 +46,9 @@ export const WIZARD_COPY = {
   cancel: "İptal",
   modalityTitle: "Nasıl çalışmayı seversin?",
   modalityLead: "Planını bunlara göre hazırlarım. Birden çok seçebilirsin.",
+  // Aşinalık kurulumda bir kez (18 Ekim 2026): dersler bu düzeyle önceden yazılır.
+  familiarityTitle: "Bu derse ne kadar aşinasın?",
+  familiarityLead: "Dersler bu düzeyden başlar. Bir dersi açarken değiştirebilirsin.",
   focusTitle: "En çok neye odaklanalım?",
   focusLead: "Hepsini çalışacağız; seçtiklerine biraz daha fazla zaman ayıracağız.",
   equalFocus: "Tüm konulara eşit odaklan",
