@@ -140,11 +140,14 @@ export const EMPHASIS_RULE =
   "TUT' / 'PRATİK NOKTA' ya da 'ALARM BULGULARI' kutusu varsa atlama, 'note' bloğu olarak ver: sınav ipucu tone 'exam' " +
   "(başlık 'Sınav ipucu: …'), akılda tut ve pratik nokta tone 'remember' (başlık 'Akılda tut: …'), alarm bulguları " +
   "tone 'warn' (başlık 'Alarm bulguları'); gövde kutunun bilgisini kendi cümlelerinle ve eksiksiz verir. " +
-  "EZBER KODU: Kavramda üyeleri ya da sırası ezberlenecek bir liste ya da sınıflama varsa (en az 3 öğe; örn. bir " +
-  "sendromun bileşenleri, bir yaklaşımın adımları) kavram başına en çok bir 'note' bloğu, tone 'mnemonic', başlık " +
-  "'Ezber kodu: <kod>'; gövde kodun her harfinin ya da sözcüğünün kaynaktaki hangi öğeye karşılık geldiğini sırayla " +
-  "yazar. Kod yalnız kaynaktaki öğelerden kurulur; öğe eklemez, eksiltmez, sırayı bozmaz. Zorlama ya da anlamsız " +
-  "kod yazma; gerek yoksa hiç yazma.\n\n";
+  "EZBER KODU (zorunlu kural): KAYNAK'ta kavramın en az 3 öğeli AÇIK bir listesi ya da sınıflaması varsa (bir " +
+  "sendromun bileşenleri, bir yaklaşımın basamakları, tanı kriterleri, bir dönüşüm/değer tablosunun satırları, " +
+  "bölgelerin işaret kuralı gibi) o kavramda BİR 'note' bloğu, tone 'mnemonic', başlık 'Ezber kodu: <kod>' " +
+  "ZORUNLUDUR; listesi olmayan kavrama yazma, kavram başına en çok bir. Kod Türkçe ve söylenebilir (akrostiş, " +
+  "kısa cümle ya da hece dizisi); gövde kodun her harfinin ya da sözcüğünün kaynaktaki hangi öğeye karşılık " +
+  "geldiğini kaynaktaki sırayla yazar. Kod yalnız kaynaktaki öğelerden kurulur; öğe eklemez, eksiltmez, sırayı " +
+  "bozmaz; anlamsız harf yığını sayılmaz. Kod listenin kendisi DEĞİLDİR: öğe adlarını virgül ya da tireyle art arda " +
+  "yazmak kod sayılmaz; her öğeden bir harf ya da hece alıp söylenebilir tek bir sözcük ya da kısa cümle kur.\n\n";
 
 /** Öğretmen istemi — Astra'nın aynı belgeyle gözlenen ders akışı. */
 export const TEACHER_SYSTEM =
@@ -295,8 +298,10 @@ export const VERIFY_SYSTEM =
   "H) 'Genel bilgi' notunda (tone 'general') yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; kaynakta zaten " +
   "olan bilginin bu nota konması; bu nottaki bilginin metinde, soruda, 'corrected'da ya da özette kullanılması.\n" +
   "I) Ezber kodu (tone 'mnemonic') kaynaktaki öğelerle birebir eşleşmiyor (öğe eksik ya da fazla, harf yanlış öğeye " +
-  "karşılık, sıra bozuk); ==vurgulanan== ifade kaynakta yok ya da yanlış; kaynakta kavramın bir SINAV İPUCU / AKILDA " +
-  "TUT / ALARM kutusu varken derste hiç geçmemesi.\n" +
+  "karşılık, sıra bozuk); kaynakta kavramın en az 3 öğeli AÇIK bir listesi ya da sınıflaması varken derste o kavram " +
+  "için ezber kodu olmaması; kodun öğe adlarının art arda yazılmasından ibaret olması (kod değil liste); " +
+  "==vurgulanan== ifade kaynakta yok ya da yanlış; kaynakta kavramın bir SINAV İPUCU / " +
+  "AKILDA TUT / ALARM kutusu varken derste hiç geçmemesi.\n" +
   "Kaynakta açıkça bozuk bir cümlenin (olumsuzluk eki düşmüş, kelime kaymış, kendi açıklaması ve örnekleriyle " +
   "çelişen) derste kaynağın kendi açıklama ve örnekleriyle tutarlı anlamıyla yazılması SORUN DEĞİLDİR; bunu A ya da B " +
   "sayma.\n" +
