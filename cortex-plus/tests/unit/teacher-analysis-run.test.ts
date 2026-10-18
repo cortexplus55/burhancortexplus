@@ -224,11 +224,12 @@ describe("öğretmen analizi kaydı", () => {
     expect(state.saved?.status).toBe("failed");
   });
 
-  it("ücretsiz PDF'te yalnızca ilk iki sayfayı okur ve kaydeder", async () => {
+  // 18 Ekim 2026: ücretsiz katmanın işlediği 5 sayfa (eski tavan 2 analizi kör ediyordu).
+  it("ücretsiz PDF'te işlenen ilk beş sayfayı okur ve kaydeder", async () => {
     gate.tier = "free";
     const state: State = {
       existing: null,
-      pages: [1, 2, 3, 4].map((page) => ({
+      pages: [1, 2, 3, 4, 5, 6].map((page) => ({
         page_number: page,
         text_content: `SAYFA${page} hücre zarı seçici geçirgendir ve bu sayfada madde alışverişi anlatılır.`,
       })),
@@ -242,8 +243,8 @@ describe("öğretmen analizi kaydı", () => {
     });
     expect(result.ok).toBe(true);
     expect(gate.prompts[0]).toContain("SAYFA1");
-    expect(gate.prompts[0]).toContain("SAYFA2");
-    expect(gate.prompts.join("\n")).not.toContain("SAYFA3");
+    expect(gate.prompts[0]).toContain("SAYFA5");
+    expect(gate.prompts.join("\n")).not.toContain("SAYFA6");
     expect(state.saved?.status).toBe("ready");
   });
 });

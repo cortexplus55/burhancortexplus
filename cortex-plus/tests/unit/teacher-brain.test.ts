@@ -122,23 +122,22 @@ describe("parça ve kota", () => {
     );
   });
 
-  it("ücretsiz PDF'i yayınlanan sayfa tavanında keser, slaytı kesmez", () => {
-    const pages = [1, 2, 3, 4].map((pageNumber) => ({
+  // 18 Ekim 2026: tavan ücretsiz katmanın işlediği sayfa (5); eski fotoğraf tavanı (2) analizi kör ediyordu.
+  it("ücretsiz PDF'i işlenen sayfa tavanında keser, slaytı kesmez", () => {
+    const pages = [1, 2, 3, 4, 5, 6, 7].map((pageNumber) => ({
       pageNumber,
       text: `sayfa ${pageNumber}`,
     }));
-    expect(FREE_PDF_PAGE_CAP).toBe(PHOTO_PAGE_LIMITS.free);
-    expect(selectAnalysisPages(pages, { mimeType: "application/pdf", tier: "free" })).toHaveLength(
-      PHOTO_PAGE_LIMITS.free,
-    );
+    expect(FREE_PDF_PAGE_CAP).toBe(5);
+    expect(selectAnalysisPages(pages, { mimeType: "application/pdf", tier: "free" })).toHaveLength(5);
     expect(
       selectAnalysisPages(pages, {
         mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         tier: "free",
       }),
-    ).toHaveLength(4);
+    ).toHaveLength(7);
     expect(selectAnalysisPages(pages, { mimeType: "application/pdf", tier: "plus" })).toHaveLength(
-      4,
+      7,
     );
   });
 
