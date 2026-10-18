@@ -318,7 +318,9 @@
   position: absolute;
   left: 0.9rem;
   right: 0.9rem;
-  top: 34%;
+  /* Telefonda (375 px) üst blok %21'de bitiyor, orta oynat düğmesi %45'te başlıyor; %34'te
+     iki satırlık kutu duraklatınca düğmeye biniyordu (18 Ekim 2026 denetimi). */
+  top: 24%;
   z-index: 2;
   margin: 0;
   padding: 0.55rem 0.8rem;
