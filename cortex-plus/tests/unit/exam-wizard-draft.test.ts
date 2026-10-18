@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  EXAM_WIZARD_DRAFT_ENDPOINT,
   EXAM_WIZARD_DRAFT_KEY,
   clearExamWizardDraft,
+  draftStarted,
+  dropExamWizardDraft,
+  fetchExamWizardDraft,
   normalizeDraftStep,
+  parseExamWizardDraft,
+  pickNewerDraft,
+  pushExamWizardDraft,
   readExamWizardDraft,
   writeExamWizardDraft,
   type ExamWizardDraft,
@@ -90,5 +97,68 @@ describe("exam-wizard-draft", () => {
     parsed.updatedAt = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
     store.set(EXAM_WIZARD_DRAFT_KEY, JSON.stringify(parsed));
     expect(readExamWizardDraft()).toBeNull();
+  });
+
+  // 18 Ekim 2026: aynı süzgeç sunucuda da çalışır; cihazlar arası yeni olan kazanır.
+  it("saf ayrıştırıcı sunucu satırını da süzer; boş taslak başlamamış sayılır", () => {
+    const now = Date.now();
+    expect(parseExamWizardDraft(null, now)).toBeNull();
+    expect(parseExamWizardDraft({ v: 1 }, now)).toBeNull();
+    expect(
+      parseExamWizardDraft({ ...sampleDraft(), updatedAt: new Date(now - 25 * 3600 * 1000).toISOString() }, now),
+    ).toBeNull();
+    const parsed = parseExamWizardDraft({ ...sampleDraft({ step: "shaping" }), materials: [{ id: 7 }] }, now);
+    expect(parsed?.step).toBe("language");
+    expect(parsed?.materials).toEqual([]);
+    expect(draftStarted(parsed!)).toBe(true);
+    expect(draftStarted(sampleDraft({ subject: " ", materials: [], title: "" }))).toBe(false);
+  });
+
+  it("iki kopyadan yenisi seçilir", () => {
+    const old = sampleDraft({ subject: "Eski", updatedAt: new Date(Date.now() - 60_000).toISOString() });
+    const fresh = sampleDraft({ subject: "Yeni" });
+    expect(pickNewerDraft(old, fresh)?.subject).toBe("Yeni");
+    expect(pickNewerDraft(fresh, old)?.subject).toBe("Yeni");
+    expect(pickNewerDraft(null, fresh)?.subject).toBe("Yeni");
+    expect(pickNewerDraft(old, null)?.subject).toBe("Eski");
+  });
+
+  it("sunucu kopyası: okuma süzülür, yazma PUT, silme iki yeri de boşaltır; ağ hatası sessiz", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const fetchOk = (async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ draft: sampleDraft({ subject: "Kimya", step: "building" }) }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    const remote = await fetchExamWizardDraft(fetchOk);
+    expect(remote?.subject).toBe("Kimya");
+    expect(remote?.step).toBe("language");
+    expect(calls[0].url).toBe(EXAM_WIZARD_DRAFT_ENDPOINT);
+
+    expect(await pushExamWizardDraft(sampleDraft({ step: "building" }), fetchOk)).toBe(true);
+    expect(calls[1].init?.method).toBe("PUT");
+    expect((JSON.parse(String(calls[1].init?.body)) as { draft: { step: string } }).draft.step).toBe("language");
+
+    const store = new Map<string, string>([[EXAM_WIZARD_DRAFT_KEY, "{}"]]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+      },
+    });
+    await dropExamWizardDraft(fetchOk);
+    expect(store.has(EXAM_WIZARD_DRAFT_KEY)).toBe(false);
+    expect(calls[2].init?.method).toBe("DELETE");
+
+    const fetchDown = (async () => {
+      throw new Error("offline");
+    }) as unknown as typeof fetch;
+    expect(await fetchExamWizardDraft(fetchDown)).toBeNull();
+    expect(await pushExamWizardDraft(sampleDraft(), fetchDown)).toBe(false);
+    await expect(dropExamWizardDraft(fetchDown)).resolves.toBeUndefined();
   });
 });

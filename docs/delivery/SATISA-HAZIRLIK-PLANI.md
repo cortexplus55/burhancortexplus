@@ -21,9 +21,9 @@ alınmamalı.
 | Sınava tam hazırlıyor mu? | **Ölçülmedi** | Bunu ancak öğrenci sonucu gösterir: deneme sınavı puanı (önce/sonra). Faz 1'de ölçüt kuruluyor |
 | Hiç bilgisi olmayan biri hazırlanabilir mi? | **Yol var, sonucu ölçülmedi** | "Bu benim için yeni" → ders sıfırdan, terim tanımlanmadan kullanılmaz; seviye tespiti; kolay zorluk. Uçtan uca "sıfırdan deneme sınavına" senaryosu hiç koşulmadı → Faz 1 |
 | Astra mantığıyla aynı mı? | **Evet, yapı aynı; iki bilinçli fark** | Yol, ders→test→podcast→deneme, yıldız, düello, kilitli adım, seviye önerisi aynı. Fark: biz belgeye daha sadığız (Astra dış bilgiyi belgeden gibi veriyor); Astra sıradakini önceden yazmıyor, biz yazıyoruz |
-| Tasarım premium mu? | **Masaüstünde evet; telefonda doğrulanmadı** | Astra'nın yazı tipi ve paleti birebir (17 Ekim), 3B düğümler. Telefon ekranı bu turda açılamadı (aşağıda) |
-| Mobilden aynı çalışıyor mu? | **Bilinmiyor** | Otomatik testler yalnız giriş yapılmamış sayfaları telefonda deniyor (`responsive-a11y.spec.ts`). Hazırlık sayfası, ders, test, video telefonda hiç test edilmedi → Faz 2 |
-| Kaldığı yerden devam (web ↔ mobil)? | **Evet, ders/test/sohbet için** | Her oturum sunucuda (`exam_prep_node_attempts`), "Kaldığın yer açılıyor" canlıda görüldü. **İstisna:** kurulum sihirbazının yarım taslağı tarayıcıda (`localStorage`), cihaz değişince kaybolur → Faz 2 |
+| Tasarım premium mu? | **Evet; telefonda 18 Ekim'de doğrulandı** | Astra'nın yazı tipi ve paleti birebir (17 Ekim), 3B düğümler. 375 px'te ~116 sayfa gezildi; dört taşma düzeltildi (#305) |
+| Mobilden aynı çalışıyor mu? | **Evet (emülasyonda); gerçek telefon 2.1'de** | 18 Ekim: giriş yapılmış ~90 sayfa 375×812'de tek tek açıldı — ders ekranları, test, video, sohbet, stüdyo, yönetim dahil. Bulgular ve düzeltmeler AGENTS.md "Telefon denetimi"; bekçi `mobile-audit-guards.test.ts`, oturumlu e2e 390 px (#306) |
+| Kaldığı yerden devam (web ↔ mobil)? | **Evet** | Her oturum sunucuda (`exam_prep_node_attempts`), "Kaldığın yer açılıyor" canlıda görüldü. Kurulum sihirbazının yarım taslağı da 18 Ekim'den beri sunucuda (`exam_wizard_drafts`, 2.3); tarayıcı kopyası kalır, yeni olan açılır |
 | Aynı anda 1000 kullanıcı? | **Hayır, bugün değil** | Hiç yük testi yok. Vercel **Hobby** (kişisel plan, ticari kullanıma kapalı, ödeme yöntemi tanımlı değil), Supabase **Free** (yedek yok, hareketsizlikte duraklar, 60 bağlantı). Asıl darboğaz OpenAI dakikalık jeton sınırı: bir ders ~5-8 bin jeton; 1000 eşzamanlı ders dakikada milyonlarca jeton ister → kuyruk şart. Faz 0 + Faz 3 |
 | Herkes kendi verisini mi görüyor? | **Evet** | 121 tablonun hepsinde satır düzeyi güvenlik açık; 7 iç tablo (kuyruk/önbellek) kullanıcıya tümüyle kapalı. Düğüm/hazırlık uçları `user_id` ile süzüyor |
 | Yönetici her şeye müdahale edebiliyor mu? | **Çoğuna; 6 eksik** | 17 yönetim sayfası: kullanıcılar (kredi ekle/düş, yetki), ödemeler (PayTR iade), kredi kuralları, paketler, promosyonlar, bayraklar, istemler, ders hataları, AI kullanımı, maliyetler, kötüye kullanım, denetim günlüğü, sistem, "ücretsiz gibi gör". **Yok:** hesabı askıya alma, kullanıcının hazırlığını destek için görme, takılı dersi sıfırlama, belge analizini yeniden çalıştırma, abonelik süresini elle uzatma, kullanıcı arama/filtre → Faz 4 |
@@ -40,10 +40,10 @@ oturum, 7 günde 11 ders üretim kaydı (7 yavaş, 3 başarısız, 1 kavram atı
 | 0.1 | **Vercel Pro'ya geç** (20 $/ay) | Hobby planı kişisel kullanım içindir; ticari sitede hesap kapatılabilir. Ayrıca cron 2/gün sınırı (23 Eylül'de yayın durdu), tek bölge, sınırlı eşzamanlılık | Ürün sahibi (kart) | 10 dk |
 | 0.2 | **Supabase Pro'ya geç** (25 $/ay) + günlük yedek; PITR isteğe bağlı (+100 $) | Free'de yedek yok, proje hareketsizlikte duraklar, kaynaklar paylaşımlı. Müşteri verisi yedeksiz tutulamaz | Ürün sahibi | 10 dk |
 | 0.3 | OpenAI hesabının **kullanım katmanını ve dakikalık sınırını** oku; sınır aşımında kullanıcıya düzgün mesaj + yeniden deneme var mı doğrula | 429 yeniden denemesi var (`transient-retry.ts`); kota bitince ne olduğu görülmedi | Ben + ürün sahibi (panel) | 1 saat |
-| 0.4 | **Sentry canlıda çalışıyor mu**: DSN dolu mu, bir deneme hatası e-postaya düşüyor mu | Kodda kurulu, canlı doğrulanmadı | Ben | 30 dk |
+| 0.4 | **Sentry canlıda çalışıyor mu**: DSN dolu mu, bir deneme hatası e-postaya düşüyor mu | **Yarısı bitti (18 Ekim):** `/admin/sistem` DSN'i "Tanımlı" gösteriyor. Panelde hatanın görünüp e-postaya düştüğü senin Sentry girişinle bakılacak | Ürün sahibi (Sentry paneli) | 15 dk |
 | 0.5 | **PayTR canlı mod provası**: 1 TL'lik gerçek ödeme, geri bildirim, iade; sonra test modunu kapat | Bugün 2 ödeme test; canlı tahsilat hiç olmadı | Ürün sahibi (kart) + ben | 1 saat |
-| 0.6 | E-posta: Google Workspace SMTP günlük sınırı (~2.000) ve SPF/DKIM/DMARC kaydı doğrula | Kayıt, şifre sıfırlama, makbuz hep buradan | Ben | 30 dk |
-| 0.7 | Hukuki sayfalar canlıda açılıyor mu (10 sayfa): KVKK, mesafeli satış, ön bilgilendirme, iptal-iade, teslimat, künye | 17 Eylül'de dört tanesi 404 vermişti | Ben | 15 dk |
+| 0.6 | E-posta: Google Workspace SMTP günlük sınırı (~2.000) ve SPF/DKIM/DMARC kaydı doğrula | **Bitti (18 Ekim):** SPF `include:_spf.google.com ~all`, DKIM `google` seçicisi, DMARC `p=none` + rapor adresi, MX Google. İleride DMARC `p=quarantine`'e alınabilir | — | — |
+| 0.7 | Hukuki sayfalar canlıda açılıyor mu (10 sayfa): KVKK, mesafeli satış, ön bilgilendirme, iptal-iade, teslimat, künye | **Bitti (18 Ekim):** 10 sayfanın hepsi 200 | — | — |
 
 Faz 0 maliyeti: ~45 $/ay sabit + ilk ay OpenAI kullanımı.
 
@@ -68,10 +68,10 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 
 | # | İş | Not |
 |---|---|---|
-| 2.1 | **Gerçek telefonda** (iPhone Safari + Android Chrome) tam akış: kayıt, belge yükleme (kamera dahil), sihirbaz, hazırlık sayfası, ders, test, video, podcast, deneme, ödeme | Bu turda masaüstü Chrome penceresi küçültülemedi; emülasyon yetmez |
-| 2.2 | Otomatik teste **390 px genişlikte giriş yapılmış akış** ekle (`learning-loop-smoke` kopyası) | Bugün yalnız giriş yapılmamış sayfalar telefonda test ediliyor |
-| 2.3 | Sihirbaz taslağını sunucuya taşı (`exam_prep_drafts`), cihaz değişince kurulum kaybolmasın | Bugün `localStorage` |
-| 2.4 | `/mobil-uygulama` sayfasının vaadini kontrol et: uygulama var mı, PWA mı, "yakında" mı | Satışta yanlış beklenti yaratmasın |
+| 2.1 | **Gerçek telefonda** (iPhone Safari + Android Chrome) tam akış: kayıt, belge yükleme (kamera dahil), sihirbaz, hazırlık sayfası, ders, test, video, podcast, deneme, ödeme | Emülasyonda 18 Ekim'de ~116 sayfa gezildi (#305); gerçek cihaz turu ürün sahibinin telefonuyla |
+| 2.2 | Otomatik teste **390 px genişlikte giriş yapılmış akış** ekle (`learning-loop-smoke` kopyası) | **Yazıldı (#306):** `authenticated.spec.ts` altı sayfada sayfa + üst çubuk genişliğini ölçer. Çalışması için `E2E_USER_EMAIL/PASSWORD` sırrı (ayrı test hesabı) gerekir; bugün CI'da atlanıyor |
+| 2.3 | Sihirbaz taslağını sunucuya taşı (`exam_wizard_drafts`), cihaz değişince kurulum kaybolmasın | **Yazıldı (18 Ekim):** kullanıcı başına tek satır, `/api/learning/exam-prep/draft`; tarayıcı kopyası kalır, açılışta yeni olan kazanır; göç SQL ekranında uygulanacak |
+| 2.4 | `/mobil-uygulama` sayfasının vaadini kontrol et: uygulama var mı, PWA mı, "yakında" mı | **Bitti (18 Ekim):** sayfa dürüst — "mağaza uygulaması yok, web tam çalışır, ana ekrana ekle"; `app/manifest.ts` var |
 | 2.5 | Bildirimler: çalışma hatırlatması e-postası (`study-reminders` cron) telefonda okunabilir mi | — |
 
 ## Faz 3 — Yük ve dayanıklılık (1 hafta, Faz 0'dan sonra)
