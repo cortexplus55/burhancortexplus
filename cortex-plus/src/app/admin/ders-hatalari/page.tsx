@@ -5,6 +5,8 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { listLessonGenerationFailures } from "@/lib/learning/lesson-generation-failures";
+import { listStuckGenerations, STUCK_AFTER_MS } from "@/lib/learning/stuck-generations";
+import { StuckResetButton } from "@/components/admin/stuck-reset-button";
 import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Yönetim · Ders hataları" };
@@ -39,7 +41,7 @@ export default async function AdminDersHatalariPage({
   const days = Math.min(30, Math.max(1, Number(params.gun) || 7));
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
-  const [listed, pending] = await Promise.all([
+  const [listed, pending, stuck] = await Promise.all([
     listLessonGenerationFailures(service, {
       limit: 200,
       kind,
@@ -47,6 +49,7 @@ export default async function AdminDersHatalariPage({
       since,
     }),
     countPendingApplications(service),
+    listStuckGenerations(service),
   ]);
   const rows = listed.rows;
   const tableMissing = listed.tableMissing;
@@ -108,6 +111,41 @@ export default async function AdminDersHatalariPage({
           Filtrele
         </button>
       </form>
+
+      {/* Plan 4.3 (18 Ekim 2026): 10 dk'dır ilerlemeyen üretim; kapatınca askıdaki kredi iade edilir. */}
+      <AdminCard
+        title="Takılı üretimler"
+        desc={
+          stuck.error
+            ? "Kayıtlar okunamadı."
+            : `${stuck.rows.length} kayıt · ${Math.round(STUCK_AFTER_MS / 60_000)} dakikadır ilerlemeyen yazımlar`
+        }
+        bodyless
+      >
+        {stuck.rows.length ? (
+          <AdminTableFrame columns={["Son hareket (TRT)", "Hazırlık / düğüm", "Kullanıcı", "Kredi anahtarı", "İşlem"]}>
+            {stuck.rows.map((row) => (
+              <tr key={row.id}>
+                <td>{formatDate(row.updatedAt)}</td>
+                <td>
+                  <Link href={`/deneme-sinavlari/${row.prepId}`}>{row.prepId.slice(0, 8)}</Link>
+                  {" · "}
+                  <span className="text-xs">{row.nodeId.slice(0, 8)}</span>
+                </td>
+                <td className="text-xs">{row.userId.slice(0, 8)}</td>
+                <td className="text-xs">{row.creditKey ? row.creditKey.slice(0, 18) : "—"}</td>
+                <td>
+                  <StuckResetButton jobId={row.id} />
+                </td>
+              </tr>
+            ))}
+          </AdminTableFrame>
+        ) : (
+          <AdminEmpty title="Takılı üretim yok">
+            {stuck.error ? "Sorgu hatası; biraz sonra yenile." : "Bütün yazımlar ya bitti ya 10 dakikadan genç."}
+          </AdminEmpty>
+        )}
+      </AdminCard>
 
       <AdminCard
         title="Ders üretim hataları"

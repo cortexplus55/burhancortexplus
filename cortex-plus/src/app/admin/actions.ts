@@ -1086,3 +1086,44 @@ export async function rerunTeacherAnalysis(documentId: string): Promise<
   if (result.status !== "ready") return { ok: false, error: "Analiz yazılamadı; ders hataları sayfasına bak." };
   return { ok: true, topics: topics.length, examPoints };
 }
+
+/**
+ * Takılı üretimi kapatır (18 Ekim 2026, plan 4.3): iş ve oturum `failed`, yarım
+ * önceden-yazım silinir, askıdaki rezervasyon iade edilir. Öğrenci yeniden açınca
+ * sıfırdan yazılır. Denetim günlüğüne yazılır.
+ */
+export async function resetStuckGeneration(
+  jobId: string,
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  if (!z.string().uuid().safeParse(jobId).success) return { ok: false, error: "Geçersiz kayıt." };
+
+  const service = createServiceClient();
+  const { resetStuckGeneration: reset } = await import("@/lib/learning/stuck-generations");
+  const result = await reset(service, jobId);
+
+  await auditLog(service, {
+    actorId,
+    action: "generation.admin_reset",
+    entityType: "exam_prep_generation_job",
+    entityId: jobId,
+    metadata: result.ok
+      ? { attemptClosed: result.attemptClosed, prefetchDropped: result.prefetchDropped, refunded: result.refunded }
+      : { error: result.error },
+  });
+
+  revalidatePath("/admin/ders-hatalari");
+  if (!result.ok) {
+    const label: Record<string, string> = {
+      not_found: "Kayıt bulunamadı.",
+      not_stuck: "Bu üretim artık takılı değil.",
+      job_update_failed: "Kayıt güncellenemedi.",
+    };
+    return { ok: false, error: label[result.error] ?? "Kapatılamadı." };
+  }
+  return {
+    ok: true,
+    message: `Kapatıldı · ${result.refunded} rezervasyon iade${result.attemptClosed ? " · oturum kapatıldı" : ""}`,
+  };
+}
