@@ -313,11 +313,12 @@
 }
 
 /* Kilit bilgi: resmin üstünde, büyük ve sınav turuncusu (18 Ekim 2026). */
+/* Üst çubukla ortadaki oynat/±15 düğmeleri arasında (canlıda %40 düğmelerin üstüne biniyordu). */
 .cp-video-fact {
   position: absolute;
   left: 0.9rem;
   right: 0.9rem;
-  top: 40%;
+  top: 34%;
   z-index: 2;
   margin: 0;
   padding: 0.55rem 0.8rem;
