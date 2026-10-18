@@ -61,6 +61,8 @@ import {
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { pickPracticeNodeId, practiceHref, studyNodeOpenable, topicLabelsMatch } from "@/lib/learning/study-tools";
+import { loadLevelHint } from "@/lib/learning/prep-level";
+import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import {
   gradeOralExam,
   isOralLength,
@@ -196,7 +198,7 @@ const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "progress"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "progress", "choose"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
@@ -494,17 +496,31 @@ async function handleNodeRequest(
     .eq("exam_prep_id", prepId)
     .maybeSingle();
   if (!node) return errorResponse(404, "not_found");
-  // Sıra bir öneridir. Kredi ve plan sınırı üretimde durur.
-  if (!studyNodeOpenable(node.status)) return errorResponse(403, "forbidden");
+  const openable = studyNodeOpenable(node.status, node.kind as string);
+  // "Başka birini seç" / "+" (18 Ekim 2026, Astra'daki gibi): öğrencinin seçtiği kilitli adım açılır.
+  if (action === "choose") {
+    if (!openable) {
+      await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).eq("status", "locked");
+    }
+    return NextResponse.json({ ok: true });
+  }
+  // Yol sırayla açılır; kilitli adımı yalnız önceden yazım (öğrenci açmadan) hazırlar.
+  // Kredi ve plan sınırı üretimde durur.
+  if (!openable && !prefetch) return errorResponse(403, "node_locked");
 
   const sessionMeta = teachingV2 ? parseSessionMeta(node.session_meta) : null;
   const topicLookupId = sessionMeta?.topicId ?? prep.active_topic_id;
+  // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar; yalnız `id` ile arama konuyu bulmaz
+  // (18 Ekim 2026: aşinalık kaydedilmiyor, konunun sayfa eşlemesi atlanıyordu).
+  const topicMatch = topicLookupId ? prepTopicMatch(topicLookupId) : null;
 
-  const { data: topic } = topicLookupId
+  const { data: topic } = topicMatch
     ? await service
         .from("exam_prep_topics")
         .select("id, label, measured_level, document_topic_node_id, source_refs")
-        .eq("id", topicLookupId)
+        .eq("exam_prep_id", prepId)
+        .or(topicMatch)
+        .limit(1)
         .maybeSingle()
     : await service
         .from("exam_prep_topics")
@@ -913,24 +929,26 @@ async function handleNodeRequest(
           .select("id, kind, sort_order, session_meta")
           .eq("exam_prep_id", prepId);
         const practiceTopic = parsed.data.oralScope === "all" ? null : topicLabel;
+        const practiceId = pickPracticeNodeId(
+          (practiceNodes ?? []).map((row) => ({
+            id: row.id as string,
+            kind: row.kind as string,
+            sortOrder: (row.sort_order as number) ?? 0,
+            status: "ready",
+            sessionMeta:
+              row.session_meta && typeof row.session_meta === "object"
+                ? (row.session_meta as { topicId?: string; topicTitle?: string })
+                : null,
+          })),
+          practiceTopic,
+        );
+        // Önerilen pratik adımı sırada değilse açılır: öneriyi uygulama veriyor (yol sırayla açılır).
+        if (practiceId) {
+          await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", practiceId).eq("status", "locked");
+        }
         report.nextStep = {
           label: report.weaknesses.length ? "Eksik konuda pratik" : "Çalışma yoluna dön",
-          href: practiceHref(
-            prepId,
-            pickPracticeNodeId(
-              (practiceNodes ?? []).map((row) => ({
-                id: row.id as string,
-                kind: row.kind as string,
-                sortOrder: (row.sort_order as number) ?? 0,
-                status: "ready",
-                sessionMeta:
-                  row.session_meta && typeof row.session_meta === "object"
-                    ? (row.session_meta as { topicId?: string; topicTitle?: string })
-                    : null,
-              })),
-              practiceTopic,
-            ),
-          ),
+          href: practiceHref(prepId, practiceId),
         };
         scored = { score: report.fullCount, total: report.total, retried: 0 };
         oralExtras = report;
@@ -1121,6 +1139,8 @@ async function handleNodeRequest(
       retried: scored.retried,
       nextHref,
       learningTracking,
+      // Astra: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
+      levelHint: await loadLevelHint(service, prepId).catch(() => null),
       state: "completed",
       review,
       oralReview: oralExtras ?? oralReviewFromPayload(attempt.payload),

@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { DEFAULT_FAMILIARITY, DEFAULT_MOOD, parseFamiliarity, type Familiarity, type Mood } from "@/lib/learning/session-signals";
 import { difficultyFromFamiliarity } from "@/lib/learning/lesson-open";
 import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
+import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 
 /**
  * Sıradaki dersin önceden hazırlanması (3 Ekim 2026, ürün sahibinin kararı).
@@ -344,8 +345,16 @@ export async function nodeFamiliarity(service: SupabaseClient, prepId: string, s
     const { data: prep } = await service.from("exam_preps").select("active_topic_id").eq("id", prepId).maybeSingle();
     topicId = (prep?.active_topic_id as string | null | undefined) ?? null;
   }
-  if (!topicId) return DEFAULT_FAMILIARITY;
-  const { data } = await service.from("exam_prep_topics").select("familiarity").eq("id", topicId).maybeSingle();
+  const match = topicId ? prepTopicMatch(topicId) : null;
+  if (!match) return DEFAULT_FAMILIARITY;
+  // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar (`prepTopicMatch`).
+  const { data } = await service
+    .from("exam_prep_topics")
+    .select("familiarity")
+    .eq("exam_prep_id", prepId)
+    .or(match)
+    .limit(1)
+    .maybeSingle();
   return parseFamiliarity(data?.familiarity ?? DEFAULT_FAMILIARITY);
 }
 

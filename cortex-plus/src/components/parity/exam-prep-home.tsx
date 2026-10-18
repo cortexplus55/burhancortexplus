@@ -50,7 +50,7 @@ import {
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
-import { STUDY_PATH_HINT, studyNodeAria, type StudyToolGroup } from "@/lib/learning/study-tools";
+import { STUDY_PATH_HINT, studyNodeAria, studyNodeOpenable, type StudyToolGroup } from "@/lib/learning/study-tools";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
 import {
@@ -158,7 +158,11 @@ function nodeHeading(node: HomeNode): string {
   // kendi adı. Astra kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
   const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
   if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
-  return parts[0] || raw;
+  const heading = parts[0] || raw;
+  // Başlık yalnız etkinliğin türüyse ("Podcast Dinle") konunun adı yazılır; tür zaten
+  // etiketinde. Astra'da "SIRADAKİ · AKILLI METİN · Büyüme Eğrileri…" (18 Ekim 2026).
+  const topic = node.sessionMeta?.topicTitle?.trim();
+  return topic && heading === PLAN_NODE_META[node.kind].title ? topic : heading;
 }
 
 export type PrepMaterial = {
@@ -215,6 +219,8 @@ export function ExamPrepHome({
   schoolName = null,
   joinCount = 0,
   lastResult = null,
+  nodeScores = {},
+  lockedPickId = null,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -266,8 +272,16 @@ export function ExamPrepHome({
   joinCount?: number;
   /** Son biten etkinlik ve yüzdesi; Astra yolun üstünde kart olarak gösteriyor. */
   lastResult?: { nodeId: string; pct: number | null } | null;
+  /** Biten adımların son yüzdesi; yolda adımın altında yazar (Astra "30% Podcast"). */
+  nodeScores?: Record<string, number>;
+  /** Kilitli adımın adresi açıldıysa o adım seçili gelir. */
+  lockedPickId?: string | null;
 }) {
   const router = useRouter();
+  /** Yolda seçilen kilitli adım: açılmaz, alt kartta "öncekileri bitirince açılır" yazar. */
+  const [lockedPick, setLockedPick] = useState<HomeNode | null>(
+    () => nodes.find((node) => node.id === lockedPickId && !studyNodeOpenable(node.status, node.kind)) ?? null,
+  );
   const ready = nodes.find((node) => node.status === "ready");
   const hasProgress = nodes.some((node) => node.status === "done");
   const firstPlayable = nodes.find((node) => node.status !== "locked");
@@ -363,6 +377,12 @@ export function ExamPrepHome({
       router.push(examPrepIntroHref(prepId));
       return;
     }
+    // Astra: kilitli adım açılmaz, seçilir; alt kart neden açılmadığını söyler (18 Ekim 2026).
+    if (!studyNodeOpenable(node.status, node.kind)) {
+      setLockedPick(node);
+      return;
+    }
+    setLockedPick(null);
     if (!hasTopic) {
       router.push(`/deneme-sinavlari/${prepId}/konu`);
       return;
@@ -586,6 +606,8 @@ export function ExamPrepHome({
             nodes={nodes}
             lead={introPending ? introNode : null}
             currentId={nextNode?.id ?? null}
+            pickedId={lockedPick?.id ?? null}
+            scores={nodeScores}
             onOpen={openNode}
             readinessClaim={readinessClaim}
           />
@@ -608,9 +630,36 @@ export function ExamPrepHome({
         </>
       ) : null}
 
-      {/* Astra'nın alt kartı: "SIRADAKİ" ve etkinlik türü etiketi, başlık, "Dersi
-          özelleştir" ve "Devam et". */}
-      {view === "yol" && nodes.length ? (
+      {/* Astra'nın alt kartı (18 Ekim 2026, yan yana bakıldı): kilitli adım seçiliyse neden
+          açılmadığı; değilse "SIRADAKİ" + tür etiketi, başlık, "Başka birini seç" ve "Devam et". */}
+      {view === "yol" && nodes.length && lockedPick ? (
+        <div className="cp-exam-start-card cp-path-next cp-path-next--locked" role="status">
+          <div className="cp-prep-badges">
+            <span className="cp-prep-badge">
+              <Lock className="h-3 w-3" aria-hidden /> Kilitli
+            </span>
+            <span className="cp-prep-badge">{PLAN_NODE_META[lockedPick.kind].title}</span>
+          </div>
+          <h2 className="cp-path-next-title">{nodeHeading(lockedPick)}</h2>
+          <p className="cp-path-next-note">Bu adım, öncekileri bitirince açılır.</p>
+          <div className="cp-path-next-actions">
+            <button
+              type="button"
+              className="cp-path-next-custom"
+              onClick={() => setHubTopic(lockedPick.sessionMeta?.topicTitle ?? null)}
+            >
+              Başka birini seç
+            </button>
+            <button
+              type="button"
+              className="cp-exam-continue cp-exam-continue--primary"
+              onClick={() => setLockedPick(null)}
+            >
+              Sıradakine dön
+            </button>
+          </div>
+        </div>
+      ) : view === "yol" && nodes.length ? (
         <div className="cp-exam-start-card cp-path-next">
           {nextNode ? (
             <div className="cp-prep-badges">
@@ -625,11 +674,9 @@ export function ExamPrepHome({
             <button
               type="button"
               className="cp-path-next-custom"
-              aria-label="Dersi özelleştir"
-              title="Dersi özelleştir"
               onClick={() => setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null)}
             >
-              <RefreshCw className="h-4 w-4" aria-hidden />
+              Başka birini seç
             </button>
             <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
               {PREP_HOME_COPY.continue}
@@ -869,6 +916,8 @@ function StudyPath({
   nodes,
   lead = null,
   currentId,
+  pickedId = null,
+  scores = {},
   onOpen,
   readinessClaim,
 }: {
@@ -876,6 +925,10 @@ function StudyPath({
   /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
   lead?: HomeNode | null;
   currentId: string | null;
+  /** Seçilen kilitli adım (Astra'da çerçeveyle işaretli). */
+  pickedId?: string | null;
+  /** Biten adımın yüzdesi. */
+  scores?: Record<string, number>;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
 }) {
@@ -929,8 +982,12 @@ function StudyPath({
                   `cp-path-node--${nodeShape(node.kind)}`,
                   node.kind === "podcast" && "cp-exam-trail-node--podcast",
                   node.id === currentId && "is-current",
+                  node.id === pickedId && "is-picked",
                 )}
-                aria-label={`${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${readinessNote}`}
+                aria-pressed={node.id === pickedId ? true : undefined}
+                aria-label={`${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${
+                  node.status === "done" && scores[node.id] != null ? `, %${scores[node.id]}` : ""
+                }${readinessNote}`}
                 title={`${nodeHeading(node)} · ${meta.title}`}
                 onClick={() => onOpen(node)}
               >
@@ -951,6 +1008,7 @@ function StudyPath({
               ) : null}
               {node.status === "done" && node.id !== currentId ? (
                 <span className="cp-path-done-label" aria-hidden>
+                  {scores[node.id] != null ? <b className="cp-path-done-pct">%{scores[node.id]}</b> : null}
                   {meta.title}
                 </span>
               ) : null}

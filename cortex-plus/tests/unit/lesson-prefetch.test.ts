@@ -106,7 +106,7 @@ function fakeService(tables: Record<string, unknown>) {
   return {
     from(table: string) {
       const chain: Record<string, unknown> = {};
-      for (const name of ["select", "eq", "gt", "neq", "order", "update", "insert", "delete", "in"]) chain[name] = () => chain;
+      for (const name of ["select", "eq", "gt", "neq", "order", "update", "insert", "delete", "in", "or"]) chain[name] = () => chain;
       chain.limit = () => Object.assign(Promise.resolve({ data: tables[table] }), chain);
       chain.maybeSingle = () => Promise.resolve({ data: tables[table] });
       return chain;

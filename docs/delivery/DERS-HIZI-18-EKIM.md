@@ -99,3 +99,30 @@ bir adım önden gitmemiz lazım ki kullanıcı beklemesin." Sorulan ve verilen 
 | Seçimli etkinlikler (podcast, sözlü) | Varsayılanla hazırlanır; öğrenci farklı seçerse yeniden yazılır |
 
 Değişiklik paketleri: #294 (aşinalık kurulumda, ruh hali kayıt), #295 (dersi tekrarla), #296 (bir adım önde).
+
+Canlı zincir (#297 yayında, "Biyoloji sınavı"): ders → podcast açılınca test arkada 43 sn'de hazır;
+test 1,3 sn'de açıldı, kredi düştü, yeni model çağrısı yok; ardından doğru/yanlış 22 sn'de hazır.
+
+## Üçüncü tur: Astra ile yan yana (18 Ekim 2026)
+
+Astra Plus hesabında, Pediatri hazırlığında (10013245) ürün sahibinin onayıyla bir ders, ders sonu
+testi ve bir podcast açıldı (Plus hakkının ~%1-1,5'i). Ölçüm tıklamadan içeriğin ekrana gelişine:
+
+| | Astra | Cortex Plus |
+|---|---|---|
+| Ders, hazır değilken | 43,5 sn, tamamı birden ("Dersin hazırlanıyor…" 5 adımlı bekleme) | İlk ekran 15-19 sn, kalan kavramlar okurken gelir |
+| Ders, hazırken | — ("Sıradaki" ders günlerce bekledi, yine 43 sn yazıldı: önceden yazmıyor) | 3 sn |
+| Ders sonu testi | 0,3 sn (dersle birlikte yazılıyor) | 1,3 sn (önceden yazılmış konu testi) |
+| Podcast, hazır değilken | 43 sn, 4:45 | ~85 sn, 6:32 → hızlı işlem açıldı |
+| Açılış soruları | Yalnız zorluk kaydırıcısı + "Ders oluştur" | Ruh hali (kayıt) + zorluk + "Ders oluştur" |
+
+İçerik (Astra, 7 adım): giriş kartı ("3 dk okuma · 7 adım", "Seni neler bekliyor", "Sonunda kısa bir
+test"), bir kavram iki ekrana yayılıyor, her ekran tek soruyla bitiyor, doğru/yanlış kaydırmalı kart
+cevaptan sonra doğru ifadeyi gösteriyor, yanlışa "Dersin sonunda buna geri döneceğiz" → farklı
+sözle tekrar sorusu. Bizdeki LessonV3 aynı yapıda. **Astra'da bir hata:** gelişim basamaklarında
+yaşlar liste numarası sanılıp silindi ("2 ay / 6 ay / 9 ay" → "1 Ay / 2 Ay / 3 Ay", açıklamada
+"ayda sosyal gülümsemenin olmaması"). Bizde de tahta ve sohbet aynı hatayı yapıyordu; düzeltildi.
+
+Astra'dan alınanlar: kilitli adım açılmaz ("Henüz belli değil" yerine bizde adımın türü belli olduğu
+için "öncekileri bitirince açılır"), "Başka birini seç", biten adımda yüzde, sıradaki kartta konu
+adı, iki düşük sonuçtan sonra "Bu hazırlık sana fazla zor gelebilir". Kurallar AGENTS.md'de.

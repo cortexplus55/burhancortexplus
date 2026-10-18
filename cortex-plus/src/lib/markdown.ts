@@ -49,6 +49,20 @@ function renderInline(text: string, breaks = false) {
  * emits its own markup and rejects HTML-injecting commands like `\href`.
  */
 const LIST_LINE = /^\s*(?:\d+\.|[-*])\s/;
+const LIST_ITEM_SPLIT = /\n(?=\s*(?:\d+\.|[-*])\s)/;
+
+/**
+ * Numaralı liste mi, Türkçe sıra sayısı mı ("2. ay", "6. ay", "18. ayda")? Liste sırayla gider
+ * ve kendi numarasından başlar (`start`); sayılar atlıyorsa satırlar olduğu gibi yazılır. Liste
+ * sanılıp 1, 2, 3 diye yeniden numaralanırsa gerçek sayı kaybolur — Astra'nın dersinde
+ * "2 ay / 6 ay / 9 ay" böyle "1 Ay / 2 Ay / 3 Ay" oldu (18 Ekim 2026, yan yana bakıldı).
+ */
+function orderedListStart(lines: string[]): number | null {
+  const numbers = lines.map((line) => Number(line.match(/^\s*(\d+)\./)?.[1]));
+  const first = numbers[0];
+  if (!Number.isFinite(first)) return null;
+  return numbers.every((value, index) => value === first + index) ? first : null;
+}
 
 /*
   "Kaynaklar:\n- [a](/x)" gibi bloklarda başlık satırı ile liste aynı
@@ -148,16 +162,17 @@ export function renderMarkdownToHtml(content: string): string {
         )}</p>`;
       }
 
-      if (/^(\d+\.|[-*])\s/.test(trimmed)) {
-        const ordered = /^\d+\./.test(trimmed);
+      const ordered = /^\d+\./.test(trimmed);
+      const start = ordered ? orderedListStart(trimmed.split(LIST_ITEM_SPLIT)) : null;
+      if (LIST_LINE.test(trimmed) && (!ordered || start != null)) {
         const items = trimmed
-          .split(/\n(?=\s*(?:\d+\.|[-*])\s)/)
+          .split(LIST_ITEM_SPLIT)
           .map((line) => line.replace(/^(\d+\.|[-*])\s*/, "").trim())
           .filter(Boolean)
           .map((item) => `<li>${renderInline(item, true)}</li>`)
           .join("");
         return ordered
-          ? `<ol class="list-decimal space-y-1 pl-5">${items}</ol>`
+          ? `<ol class="list-decimal space-y-1 pl-5"${start != null && start !== 1 ? ` start="${start}"` : ""}>${items}</ol>`
           : `<ul class="list-disc space-y-1 pl-5">${items}</ul>`;
       }
 

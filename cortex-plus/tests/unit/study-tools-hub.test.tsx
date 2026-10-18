@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
 import { openStudyActivity, resolveStudyToolNode, studyActivityHref, studyToolHref } from "@/lib/learning/study-tools";
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  push.mockReset();
+  vi.unstubAllGlobals();
+});
 
 /** "Ders oluştur" Astra gibi sekmeli (1 Ekim 2026). */
 const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
@@ -90,12 +95,9 @@ describe("study tools hub regression", () => {
       { id: "a", name: "not-1.pdf" },
       { id: "b", name: "not-2.pdf" },
     ]);
-    const oralOnPath = screen.getAllByRole("button", { name: /AI ile Sözlü Deneme, önerilen sırada/ });
+    // Yolda kilitli (18 Ekim 2026, Astra); menüden seçilince açılır.
+    const oralOnPath = screen.getAllByRole("button", { name: /AI ile Sözlü Deneme, kilitli/ });
     expect(oralOnPath.length).toBeGreaterThan(0);
-    for (const button of oralOnPath) {
-      expect((button as HTMLButtonElement).disabled).toBe(false);
-      expect(button.getAttribute("aria-label")).not.toMatch(/kilitli/);
-    }
 
     fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
     fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
@@ -220,5 +222,28 @@ describe("ders oluştur: Astra gibi üç sekme ve önerilen", () => {
     expect(screen.getByRole("link", { name: "Doğru / Yanlış" }).getAttribute("href")).toBe(
       studyToolHref("prep-1", "quiz-1"),
     );
+  });
+});
+
+// 18 Ekim 2026 (Astra'daki gibi): yol sırayla açılır; öğrencinin seçtiği etkinlik ise hemen.
+describe("Başka birini seç: seçilen kilitli etkinlik açılır", () => {
+  it("opens the hub from the next card", () => {
+    renderPrep("Kimya", chemistryNodes, ["Stokiyometri", "Gazlar"], [{ id: "a", name: "not-1.pdf" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Başka birini seç" }));
+    expect(screen.getByRole("dialog", { name: "Ders oluştur" })).toBeTruthy();
+  });
+
+  it("unlocks the chosen node before going there", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderPrep("Kimya", chemistryNodes, ["Stokiyometri", "Gazlar"], [{ id: "a", name: "not-1.pdf" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
+    fireEvent.change(screen.getByLabelText("Konu seç"), { target: { value: "Gazlar" } });
+    tab("Sınav");
+    fireEvent.click(screen.getByRole("link", { name: "Sözlü deneme" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/deneme-sinavlari/prep-1/dugum/oral-gaz"));
+    const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(JSON.parse(String(init.body))).toMatchObject({ prepId: "prep-1", nodeId: "oral-gaz", action: "choose" });
   });
 });

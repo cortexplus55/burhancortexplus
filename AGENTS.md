@@ -465,6 +465,23 @@ Takılı yazım: 120 sn ilerlemezse ders olduğu kadarıyla kapanır, kredi iade
 Hızlı işlem kullanımı `gpt-6-luna-fast` adıyla kayda geçer (göç `20261018120000`). Bekçi:
 `lesson-stream-pipeline.test.ts`, `lesson-building-ui.test.tsx`, `lesson-prefetch.test.ts`.
 
+**Astra ile yan yana, 18 Ekim 2026 (aynı Pediatri hazırlığında ölçüldü):** Astra'da soğuk ders
+43,5 sn (tamamı birden), ders sonu testi 0,3 sn (dersle birlikte yazılıyor), podcast 43 sn; "Sıradaki"
+ders önceden yazılmıyor. Bizde hazır ders 3 sn, hazır test 1,3 sn, soğuk dersin ilk ekranı 15-19 sn.
+Ürün sahibi: "Astra'ya bakarak bütün düzeltmeleri ona göre yap".
+
+| Kural | Nerede |
+|---|---|
+| **Yol sırayla açılır** (#107'deki "kilit bir öneridir" kararı geri alındı): kilitli adım yoldan tıklanınca açılmaz, alt kart "Bu adım, öncekileri bitirince açılır" der; adresi açılırsa hazırlık sayfasına seçili döner; uç `node_locked` verir. Yalnız önceden yazım kilitli adımı yazar | `studyNodeOpenable`, düğüm sayfası, `exam-prep-home.tsx` |
+| Başka etkinlik "Başka birini seç" / "+" ile: seçim kilidi kaldırır (`action: "choose"`). Sözlüden sonraki önerilen pratik, konu seçimi ve tanı da seçili adımı açar. Yazılı deneme her zaman açık | `chooseStudyNode`, `study-tools-hub.tsx` |
+| Sıradaki kartta türden başka başlık yoksa konunun adı; biten adımda yüzde ("%40 · Konu testi") | `nodeHeading`, `nodeScores` |
+| Son iki puanlı sonuç %50 altı → "Bu hazırlık sana fazla zor gelebilir", ikisi %90+ → "kolay gelebilir"; seçim bütün konuların aşinalığını bir basamak kaydırır, hazır bekleyen içerik atılıp yeni düzeyde yazılır | `prep-level.ts`, `/api/learning/exam-prep/level` |
+| Hazır içerik yokken test, kart, podcast, sözlü, doğru/yanlış da hızlı işlemde (soğuk podcast 85 sn idi); önceden yazım ve yazılı denemenin parçaları normal | `teacher-tier.ts` |
+| **Türkçe sıra sayısı liste numarası değil**: "2. ay / 6. ay / 9. ay" silinmez, 1-2-3 diye yeniden numaralanmaz (Astra'da tam bu oldu, bizde de tahta ve sohbet aynı hatayı yapıyordu). Liste ancak sırayla giderse liste; kendi numarasından başlar | `lesson-board.ts` `guardOrdinals`, `markdown.ts` `orderedListStart` |
+
+Bekçi: `oral-exam-grade.test.ts` ("study path opens in order"), `exam-prep-home-path.test.tsx`,
+`study-tools-hub.test.tsx`, `prep-level.test.tsx`, `lesson-board-numbers.test.ts`.
+
 **Tüm test paketini `npx vitest run --exclude "tests/unit/_tmp/**"` ile koşun.**
 `tests/unit/_tmp/` yerel altın denemeleri `.env.local` anahtarıyla canlı model
 çağırıyor ve kapıları yok; düz `npx vitest run` onları da çalıştırır (3 Ekim'de

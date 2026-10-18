@@ -2,13 +2,17 @@ import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepNodeHref, examPrepPodcastHref } from "@/lib/learning/exam-prep-hrefs";
 
 /**
- * Çalışma yolu bir öneridir. Kilit, önceki adım bitmeden sonrakini
- * yasaklamaz. Kredi ve plan sınırı burada değil; düğüm üretilirken
- * durur.
+ * Çalışma yolu sırayla açılır (18 Ekim 2026, ürün sahibinin kararı, Astra'daki gibi): kilitli
+ * adım yoldan da adresten de açılmaz. Başka bir etkinlik isteyen "Başka birini seç" ya da "+"
+ * ile seçer; seçim kilidi açar (düğüm ucunda `action: "choose"`). Yazılı deneme kendi
+ * düğmesinden her zaman açılır. Kredi ve plan sınırı burada değil; düğüm üretilirken durur.
  */
 
 export const STUDY_PATH_HINT =
-  "Önerilen sıra. İstediğin etkinliği istediğin zaman açabilirsin.";
+  "Etkinlikler sırayla açılır. Başka bir etkinlik için \"Başka birini seç\".";
+
+/** "Ders oluştur" / "Başka birini seç" penceresi: seçilen etkinlik sırası gelmeden açılır. */
+export const STUDY_HUB_HINT = "Seçtiğin etkinlik hemen açılır; yoldaki sıra değişmez.";
 
 export type StudyToolId =
   | "lesson"
@@ -145,14 +149,19 @@ function toolPool<T extends { kind: string; sortOrder: number }>(nodes: T[], id:
   return own.length || !tool.fallbackKind ? own : pick(tool.fallbackKind);
 }
 
-/** Sıra kilidi açık düğümü kapatmaz. Bilinmeyen durum kapalı kalır. */
-export function studyNodeOpenable(status: string | null | undefined): boolean {
-  return status === "locked" || status === "ready" || status === "done";
+/**
+ * Açılabilir mi: sıradaki ve biten adım açılır; kilitli adım açılmaz (öğrenci seçerse önce
+ * kilit kalkar). Yazılı deneme kilitliyken de açılır — "Deneme sınavı oluştur" her zaman var.
+ * Bilinmeyen durum kapalı kalır.
+ */
+export function studyNodeOpenable(status: string | null | undefined, kind?: string | null): boolean {
+  if (status === "ready" || status === "done") return true;
+  return status === "locked" && kind === "written_exam";
 }
 
 export function studyNodeAria(status: NodeStatus | string): string {
   if (status === "done") return "tamamlandı";
-  if (status === "locked") return "önerilen sırada";
+  if (status === "locked") return "kilitli";
   return "sırada";
 }
 

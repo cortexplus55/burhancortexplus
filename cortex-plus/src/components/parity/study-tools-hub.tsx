@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import "@/styles/oral-exam-chrome.css";
+import { chooseStudyNode } from "@/lib/learning/choose-study-node";
 import {
-  STUDY_PATH_HINT,
+  STUDY_HUB_HINT,
   STUDY_TOOLS,
   STUDY_TOOL_GROUPS,
   openStudyActivity,
   recommendedStudyTool,
+  studyNodeOpenable,
   studyToolLock,
   type StudyToolGroup,
   studyActivityHref,
@@ -72,6 +75,15 @@ export function StudyToolsHub({
   // Astra gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
   const recommended = recommendedStudyTool(nodes, preferred);
   const [group, setGroup] = useState<StudyToolGroup>(initialGroup ?? recommended?.group ?? "learn");
+  const router = useRouter();
+  const [choosing, setChoosing] = useState(false);
+  // Yol sırayla açılır; buradan seçilen kilitli etkinliğin kilidi gitmeden kalkar.
+  async function openChosen(nodeId: string, href: string) {
+    if (choosing) return;
+    setChoosing(true);
+    await chooseStudyNode(prepId, nodeId);
+    router.push(href);
+  }
   return (
     <div className="cp-oral-modal-back" onClick={onClose}>
       <div
@@ -88,7 +100,7 @@ export function StudyToolsHub({
             <X className="h-4 w-4" />
           </button>
         </header>
-        <p className="cp-study-hub-hint">{STUDY_PATH_HINT}</p>
+        <p className="cp-study-hub-hint">{STUDY_HUB_HINT}</p>
         {topics.length ? (
           <label className="cp-field">
             <span>Konu seç</span>
@@ -125,18 +137,21 @@ export function StudyToolsHub({
         <ul className="cp-study-hub-grid">
           {STUDY_TOOLS.filter((tool) => tool.group === group).map((tool) => {
             const lock = studyToolLock(tool.id, { nodes, openMisconceptions });
+            const target =
+              lock || tool.id === "podcast" || tool.id === "video"
+                ? null
+                : openStudyActivity(nodes, tool.id, { label: topicLabel });
             const href = lock
               ? null
               : tool.id === "podcast"
                 ? studyPodcastHref(prepId, topicLabel, topicOptions)
                 : tool.id === "video"
                   ? studyVideoHref(prepId, topicLabel, topicOptions)
-                : (() => {
-                    const target = openStudyActivity(nodes, tool.id, { label: topicLabel });
-                    return target
-                      ? studyActivityHref(prepId, target.node.id, target.topicQuery)
-                      : null;
-                  })();
+                  : target
+                    ? studyActivityHref(prepId, target.node.id, target.topicQuery)
+                    : null;
+            /** Kilitli düğüm: önce seç (kilit kalkar), sonra git. */
+            const chooseFirst = target && !studyNodeOpenable(target.node.status, target.node.kind) ? target.node.id : null;
             const body = (
               <>
                 <span className={`cp-study-hub-icon cp-study-hub-icon--${tool.id} cp-study-hub-icon--3d`} aria-hidden>
@@ -150,7 +165,20 @@ export function StudyToolsHub({
             return (
               <li key={tool.id}>
                 {href ? (
-                  <Link href={href} className="cp-study-hub-tile" aria-label={tool.title}>
+                  <Link
+                    href={href}
+                    className="cp-study-hub-tile"
+                    aria-label={tool.title}
+                    aria-busy={choosing && chooseFirst ? true : undefined}
+                    onClick={
+                      chooseFirst
+                        ? (event) => {
+                            event.preventDefault();
+                            void openChosen(chooseFirst, href);
+                          }
+                        : undefined
+                    }
+                  >
                     {body}
                   </Link>
                 ) : (

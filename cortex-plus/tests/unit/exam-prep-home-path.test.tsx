@@ -116,7 +116,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect(screen.getByText("PDF · 10 sayfa")).toBeTruthy();
   });
 
-  it("opens a locked podcast from the path and starts a new one from the hub", () => {
+  it("keeps a locked podcast closed on the path and starts a new one from the hub", () => {
     renderHome({
       topicOptions: [
         { id: "topic-sistemler", label: "Sistemler" },
@@ -124,8 +124,13 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
       ],
     });
     const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
-    expect((locked as HTMLButtonElement).disabled).toBe(false);
-    expect(locked.getAttribute("aria-label")).toMatch(/önerilen sırada/);
+    expect(locked.getAttribute("aria-label")).toMatch(/kilitli/);
+    // Astra (18 Ekim 2026): kilitli adım açılmaz, seçilir; alt kart nedenini söyler.
+    fireEvent.click(locked);
+    expect(screen.getByText("Bu adım, öncekileri bitirince açılır.")).toBeTruthy();
+    expect(locked.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Sıradakine dön" }));
+    expect(screen.queryByText("Bu adım, öncekileri bitirince açılır.")).toBeNull();
     expect(screen.queryByRole("link", { name: "Podcast oluştur" })).toBeNull();
     openOptions();
     fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
@@ -221,5 +226,27 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
     expect(goal.textContent).toContain("Gerçek sınavda nasıl yapacağını merak ediyor musun?");
     fireEvent.click(screen.getByRole("button", { name: /Deneme sınavı oluştur/ }));
     expect(screen.getByRole("tab", { name: /Sınav/ }).getAttribute("aria-selected")).toBe("true");
+  });
+});
+
+// Astra ile yan yana (18 Ekim 2026): sıradaki kartta konunun adı, biten adımda yüzde.
+describe("path labels like Astra", () => {
+  it("titles a generic next activity with its topic and shows the done score", () => {
+    renderHome({
+      nodes: [
+        { ...lesson, status: "done" },
+        { ...podcast, status: "ready", sessionMeta: { topicTitle: "Hücre zarı ve madde geçişi" } },
+      ],
+      nodeScores: { "lesson-1": 80 },
+    });
+    expect(screen.getByRole("heading", { name: "Hücre zarı ve madde geçişi" })).toBeTruthy();
+    expect(screen.getByText("%80")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Giriş Dersi · Giriş Dersi, tamamlandı, %80/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Başka birini seç" })).toBeTruthy();
+  });
+
+  it("shows the lock card when a locked node's address was opened", () => {
+    renderHome({ lockedPickId: "pod-1" });
+    expect(screen.getByText("Bu adım, öncekileri bitirince açılır.")).toBeTruthy();
   });
 });

@@ -416,14 +416,25 @@ describe("oral exam grading is grounded for every subject", () => {
   });
 });
 
-describe("study path lock is a recommendation", () => {
-  it("opens a locked node and does not call it kilitli", () => {
-    expect(studyNodeOpenable("locked")).toBe(true);
+// 18 Ekim 2026, ürün sahibinin kararı (Astra'daki gibi): yol sırayla açılır. Önceki kural
+// ("kilit bir öneridir", #107) geri alındı; başka etkinlik "Başka birini seç" / "+" ile seçilir.
+describe("study path opens in order", () => {
+  it("keeps a locked node closed except the written exam", () => {
+    expect(studyNodeOpenable("locked")).toBe(false);
+    expect(studyNodeOpenable("locked", "quiz")).toBe(false);
+    expect(studyNodeOpenable("locked", "written_exam")).toBe(true);
     expect(studyNodeOpenable("ready")).toBe(true);
     expect(studyNodeOpenable("done")).toBe(true);
     expect(studyNodeOpenable("hidden")).toBe(false);
-    expect(studyNodeAria("locked")).toBe("önerilen sırada");
-    expect(studyNodeAria("locked")).not.toContain("kilitli");
+    expect(studyNodeAria("locked")).toBe("kilitli");
+  });
+
+  it("lets the student's own choice unlock a node, and only prefetch writes a locked one", () => {
+    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    expect(route).toContain('"choose"');
+    expect(route).toContain('if (!openable && !prefetch) return errorResponse(403, "node_locked")');
+    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
+    expect(page).toContain("redirect(examPrepLockedHref(prepId, nodeId))");
   });
 
   it("keeps the page and the node route on the same openable check", () => {

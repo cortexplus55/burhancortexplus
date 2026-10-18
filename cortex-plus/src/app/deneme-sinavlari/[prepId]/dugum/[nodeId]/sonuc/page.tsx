@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MessageCircle, RotateCcw, Sparkles, X } from "lucide-react";
 import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
+import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
+import { loadLevelHint } from "@/lib/learning/prep-level";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -54,6 +56,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
   const kind = PLAN_NODE_META[node.kind as PlanNodeKind]?.title ?? "Etkinlik";
   const topic = parseSessionMeta(node.session_meta)?.topicTitle?.trim() || String(node.title ?? "");
   const back = `/deneme-sinavlari/${prepId}`;
+  const levelHint = await loadLevelHint(supabase, prepId).catch(() => null);
 
   return (
     <ParitySorShell {...shell} chrome="session">
@@ -108,6 +111,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
           </Link>
         </div>
         <div className="cp-node-result-rating">
+          {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           <LessonRatingCard attemptId={attempt.id as string} />
         </div>
         <Link href={back} className="cp-node-result-go">

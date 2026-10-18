@@ -75,10 +75,14 @@ async function loadTopicWarnings(
 
 export default async function ExamPrepDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ prepId: string }>;
+  searchParams: Promise<{ kilitli?: string }>;
 }) {
   const { prepId } = await params;
+  // Kilitli adımın adresi açıldıysa o adım seçili gelir (düğüm sayfası buraya yönlendirir).
+  const { kilitli } = await searchParams;
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const service = createServiceClient();
@@ -348,6 +352,16 @@ export default async function ExamPrepDetailPage({
             : null,
       }
     : null;
+  // Astra yolda biten her adımın yüzdesini yazıyor ("30% Podcast"): adımın son bitişi. Tek
+  // öğeli bitiş (sorusuz podcast 1/1) puan sayılmaz, yüzde yazılmaz.
+  const nodeScores: Record<string, number> = {};
+  for (const row of attemptRows ?? []) {
+    const id = typeof row.node_id === "string" ? row.node_id : null;
+    if (!id || id in nodeScores) continue;
+    if (typeof row.score === "number" && typeof row.total === "number" && row.total > 1) {
+      nodeScores[id] = Math.round((row.score / row.total) * 100);
+    }
+  }
   const progressView = buildPrepProgressView({
     nodes,
     attempts: (attemptRows ?? []).map((row) => ({
@@ -464,6 +478,8 @@ export default async function ExamPrepDetailPage({
         schoolName={(profile as { school_name?: string | null } | null)?.school_name ?? null}
         joinCount={Number((shareRow as { view_count?: number } | null)?.view_count ?? 0)}
         lastResult={lastResult}
+        nodeScores={nodeScores}
+        lockedPickId={typeof kilitli === "string" ? kilitli : null}
       />
     </ParitySorShell>
   );

@@ -10382,18 +10382,41 @@
   flex: 1;
 }
 
+/* Astra: "Başka birini seç" yazılı düğme (18 Ekim 2026; önceden yalnız ↻ simgesiydi). */
 .cp-path-next-custom {
-  flex: none;
+  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
   border-radius: 9999px;
   border: 1px solid var(--cp-border);
   background: var(--cp-surface);
   color: var(--cp-text);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.cp-path-next-note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--cp-muted);
+}
+
+.cp-path-next--locked .cp-prep-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Seçilen kilitli adım: Astra'daki gibi çevresinde ince çerçeve. */
+.cp-path-list .cp-exam-trail-node.is-picked {
+  outline: 1.5px solid var(--c-text-muted, #8a8a8a);
+  outline-offset: 6px;
+  border-radius: 10px;
 }
 
 /* "⋮" hazırlık menüsü — Astra'daki alt sayfanın karşılığı. */
@@ -12995,6 +13018,13 @@ a.cp-exam-search {
   white-space: nowrap;
   transform: translateY(-50%);
   pointer-events: none;
+}
+
+/* Astra: biten adımın yüzdesi türün üstünde ("30%" / "Podcast"). */
+.cp-path-done-pct {
+  display: block;
+  font-weight: 600;
+  color: var(--c-text);
 }
 
 .cp-prep-badge {
