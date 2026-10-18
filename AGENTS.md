@@ -536,6 +536,28 @@ düşürmedi ve `goodEnough` (tutulan ≥ önerilenin 2/3'ü) 1/1'i geçirdi —
 
 Bekçi: `outline-thin-map.test.ts`. Kıyas belgesi masaüstünde `trigonometri_20_sayfa_detayli.pdf`.
 
+## Glif numaralı PDF metni — Calibri'nin bozuk metin katmanı (19 Ekim 2026)
+
+**30 sayfalık KPSS Anayasa notu canlıda 2 konuya düştü; Astra aynı PDF'ten 6 konu çıkardı.** Kullanım
+kaydı: mini 6 konu önerdi (2 tutuldu), luna 34 konu (6.810 jeton) ve onarım turu (7.212 jeton) —
+ikisi de **tamamen** atıldı, kalan mini'nin 2 konusu. Neden kod değil metin: PDF'in metin katmanı
+Calibri'nin glif numaralarıyla çıkmış ("Anayasacılık Tarihi" → `\u0004ŶĂǇĂƐĂĐŦůŦŬ\u0003dĂƌŝŚŝ`; her
+sayfanın harflerinin %75–85'i). Model metni yine de anlıyor ve düzgün başlıklar yazıyor, ama
+temellendirme başlığın kelimelerini sayfada arayınca 34 başlığın 34'ü `absent_word` ile düşüyor.
+Kayıtta bu görünmüyordu: `outline_stage` yalnız `continue` yazıyordu.
+
+| Yapmayın | Yapın |
+|---|---|
+| Böyle bir belgede temellendirmeyi gevşetmek ya da kapatmak | Metni çözün: `decodeGlyphIdText` (`glyph-id-text.ts`) çıkarmada (`extractText`), okumada (`cleanOcrPageText`) ve sayfa temizliğinde (`ensureCleanPages`) çalışır; yalnız sayfada ≥8 farklı, ≥30 adet, harflerin ≥%8'i tablo kodu olunca ve yalnız kod içeren parçalara uygulanır — düzgün yazı tipiyle basılmış satırlar ("DEVLET", "I. Devlet") dokunulmaz, çözüm Türkçeye benzemiyorsa (ünlü payı) metin olduğu gibi kalır |
+| Tabloyu tahminle genişletmek | Tablo o belgenin ham metni ile modelin temizlediği metin satır satır hizalanarak çıkarıldı (Calibri glif sırası: küçük harf 258+, büyük harf ASCII/kontrol kodu, rakam 1004+, noktalama 842+, bitişik harfler `ti/tt/tti/ft/fl`); başka yazı tipi için aynı yöntem |
+| Düşen başlığa bakmadan "model kötü" demek | `outline_stage` kaydında artık `draftModel · proposed · keptTopics · issues {"ungrounded:absent_word": 31} · next · callError` var; önce ona bakın |
+| Çerçeve sözcüğü ("devletin **unsurları**", "TBMM'nin iç **yapısı**", "anayasa değişikliği **süreci**", "hakların **sınıflandırılması**", "ilk **belgeler**") sayfada yok diye başlığı düşürmek | Bu sözcükler temellendirmede kanıt sayılmaz (`STOPWORDS`); "sayısı"/"sayıları" gibi tampon harfli gövdeler çıplak biçimiyle de dizine girer |
+
+Çözülmüş metinle aynı 34 başlığın 29'u tutuluyor (modelin temizlediği metinle 24, ham metinle 0).
+Bekçi: `glyph-id-text.test.ts`, `outline-grounding.test.ts` (sahte başlık eşikleri aynen 9/10 ve
+15/18). Denenip vazgeçilen: iki uzun gövdeyi ortak altı harflik kökten eşlemek — gerçek başlık
+kurtarmadı, bir sahteyi ("Miras Paylaşımı" ← "paylaşılır") geçirdi.
+
 ## Fonksiyon bölgesi Frankfurt (`fra1`) — veritabanının yanı
 
 **29 Eylül 2026'ya kadar fonksiyonlar `iad1`'de (Washington) çalışıyordu;

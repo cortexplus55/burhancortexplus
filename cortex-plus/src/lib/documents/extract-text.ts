@@ -1,3 +1,4 @@
+import { decodeGlyphIdText } from "@/lib/documents/glyph-id-text";
 import { pdfjsDocumentOptions } from "@/lib/documents/pdfjs-options";
 
 /** pdfjs-dist 6 uses Promise.withResolvers (Node 22+); polyfill for Node 20 CI/runtimes. */
@@ -39,9 +40,10 @@ export async function extractText(
     for (let number = first; number <= last; number++) {
       const page = await pdf.getPage(number);
       const content = await page.getTextContent();
-      pages.push(content.items.map((item) =>
+      // Calibri glif numarası bozukluğu (glyph-id-text.ts) saklanmadan önce çözülür.
+      pages.push(decodeGlyphIdText(content.items.map((item) =>
         "str" in item ? item.str + (item.hasEOL ? "\n" : " ") : "",
-      ).join("").replace(/\u0000/g, "").trim());
+      ).join("").replace(/\u0000/g, "").trim()));
       page.cleanup();
     }
     return { pages, ok: pages.some((page) => Boolean(page.trim())), total: pdf.numPages };

@@ -948,7 +948,12 @@ export async function runCourseMapRound(
         ...(step.kind === "done"
           ? { model: step.map.model, path: step.path, units: step.map.units.length, topics: step.map.kept, droppedTopics: step.map.dropped }
           : {}),
+        ...(step.kind === "continue" ? { next: step.progress.stage, failed: step.failed } : {}),
         ...(step.kind === "exhausted" ? { reason: step.reason } : {}),
+        // Bu çağrının taslağı: model, önerilen/tutulan konu, düşme sebepleri (19 Ekim 2026).
+        ...("diag" in step && step.diag
+          ? { draftModel: step.diag.model, proposed: step.diag.proposed, keptTopics: step.diag.kept, issues: step.diag.issues, callError: step.diag.error }
+          : {}),
       });
 
       if (step.kind === "wait") {

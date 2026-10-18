@@ -59,6 +59,13 @@ const STOPWORDS = new Set(
     "tanimi", "esas", "esaslar", "esaslari", "ilke", "ilkeler", "ilkeleri", "calis", "calisma",
     "anlama", "anlamak", "sinav", "sinavda", "sorulabilecek", "bilgi", "bilgiler", "uygulama",
     "uygulamalar",
+    // Çerçeve sözcükleri (19 Ekim 2026): öğretmen konuyu "devletin unsurları", "TBMM'nin iç
+    // yapısı", "anayasa değişikliği süreci", "hakların sınıflandırılması", "ilk belgeler" diye
+    // adlandırır; sayfa o sözcüğü kullanmaz. Konu sözcüğü değil, adlandırma kalıbıdır.
+    "unsur", "unsurlar", "unsurlari", "unsuru", "yapi", "yapis", "yapisi", "yapilari",
+    "surec", "sureci", "surecleri", "asama", "asamasi", "asamalar", "asamalari",
+    "belge", "belgeler", "belgeleri", "siniflandirma", "siniflandirmasi", "siniflandirilmasi",
+    "siniflandirilm", "siniflama", "siniflamasi",
     // English function / generic study words
     "the", "and", "for", "with", "from", "into", "onto", "about", "that", "this", "these",
     "those", "you", "your", "will", "can", "how", "what", "why", "when", "which", "who", "its",
@@ -186,6 +193,9 @@ function wordOnPage(page: PageEntry, q: string): boolean {
     if (len < MIN_PREFIX_MATCH && q.length - len > SHORT_STEM_SUFFIX) continue;
     if (page.set.has(q.slice(0, len))) return true;
   }
+  // Not tried: matching two long stems on a shared six-letter root ("kullanm" ~
+  // "kullanir"). 19 Ekim 2026: it rescued no real KPSS title but let a held-out
+  // fake through ("Miras Paylaşımı" via "paylaşılır"), so it stays out.
   return false;
 }
 
@@ -196,7 +206,13 @@ export function buildGroundingFile(
   const entries = new Map<number, PageEntry>();
   for (const [pageNumber, text] of pages) {
     const tokens = groundingTokens(text ?? "", lang);
-    entries.set(pageNumber, { set: new Set(tokens), sorted: [...tokens].sort() });
+    const set = new Set(tokens);
+    if (lang === "tr") {
+      // "sayısı" stems to "sayis" (a buffer letter); index the bare "sayi" too, so the
+      // title's "sayıları" ("sayilar", too short to strip) finds it by prefix.
+      for (const t of tokens) if (BUFFER_LEFTOVER.test(t)) set.add(t.slice(0, -1));
+    }
+    entries.set(pageNumber, { set, sorted: [...set].sort() });
   }
   return { lang, pages: entries, pageCount: Math.max(1, entries.size), dfCache: new Map() };
 }
@@ -247,7 +263,24 @@ export type GroundingVerdict = {
     | "scattered";
 };
 
+/** One title word's distribution: in the whole file (df) and on the cited pages (hits). */
+export type GroundingWordStat = {
+  t: string;
+  df: number;
+  hits: number;
+  common: boolean;
+  weight: number;
+};
+
+export type GroundingReport = GroundingVerdict & { words: GroundingWordStat[] };
+
 export function groundTopic(file: GroundingFile, input: GroundingInput): GroundingVerdict {
+  const { grounded, reason } = groundTopicReport(file, input);
+  return { grounded, reason };
+}
+
+/** The verdict with the word statistics behind it (diagnostics, logs). */
+export function groundTopicReport(file: GroundingFile, input: GroundingInput): GroundingReport {
   const start = Math.max(1, Math.min(input.pageStart, input.pageEnd));
   const end = Math.max(input.pageStart, input.pageEnd);
   const range: PageEntry[] = [];
@@ -255,21 +288,21 @@ export function groundTopic(file: GroundingFile, input: GroundingInput): Groundi
     const page = file.pages.get(p);
     if (page && page.set.size) range.push(page);
   }
-  if (!range.length) return { grounded: false, reason: "empty_range" };
+  if (!range.length) return { grounded: false, reason: "empty_range", words: [] };
 
   const title = groundingTokens(input.title, file.lang);
-  if (!title.length) return { grounded: false, reason: "no_title_tokens" };
+  if (!title.length) return { grounded: false, reason: "no_title_tokens", words: [] };
 
   const inRange = (t: string) => range.filter((page) => pageHas(page, t)).length;
 
   for (const t of title) {
-    if (YEAR.test(t) && inRange(t) === 0) return { grounded: false, reason: "year_missing" };
+    if (YEAR.test(t) && inRange(t) === 0) return { grounded: false, reason: "year_missing", words: [] };
   }
   const words = title.filter((t) => !YEAR.test(t));
-  if (!words.length) return { grounded: true, reason: "ok" };
+  if (!words.length) return { grounded: true, reason: "ok", words: [] };
 
   const N = file.pageCount;
-  const stats = words.map((t) => {
+  const stats: GroundingWordStat[] = words.map((t) => {
     const df = documentFrequency(file, t);
     const hits = inRange(t);
     return {
@@ -280,24 +313,27 @@ export function groundTopic(file: GroundingFile, input: GroundingInput): Groundi
       weight: Math.log(1 + N / (1 + df)),
     };
   });
+  const verdict = (grounded: boolean, reason: GroundingVerdict["reason"]): GroundingReport => ({
+    grounded,
+    reason,
+    words: stats,
+  });
   if (N < SHORT_FILE_PAGES) {
     const hit = stats.filter((s) => s.hits > 0).length;
     return hit / stats.length >= SHORT_FILE_COVERAGE
-      ? { grounded: true, reason: "ok" }
-      : { grounded: false, reason: "low_title_coverage" };
+      ? verdict(true, "ok")
+      : verdict(false, "low_title_coverage");
   }
   // A title word the material never uses anywhere was not taken from it.
-  if (stats.some((s) => s.df === 0)) return { grounded: false, reason: "absent_word" };
+  if (stats.some((s) => s.df === 0)) return verdict(false, "absent_word");
   const distinctive = stats.filter((s) => !s.common);
   if (!distinctive.length) {
     // Only everyday words of this material: they must all be on the pages.
-    return stats.every((s) => s.hits > 0)
-      ? { grounded: true, reason: "ok" }
-      : { grounded: false, reason: "low_title_coverage" };
+    return stats.every((s) => s.hits > 0) ? verdict(true, "ok") : verdict(false, "low_title_coverage");
   }
   const total = distinctive.reduce((n, s) => n + s.weight, 0);
   const covered = distinctive.filter((s) => s.hits > 0).reduce((n, s) => n + s.weight, 0);
-  if (covered / total < TITLE_COVERAGE) return { grounded: false, reason: "low_title_coverage" };
+  if (covered / total < TITLE_COVERAGE) return verdict(false, "low_title_coverage");
 
   const span = range.length;
   if (span > WIDE_RANGE_PAGES) {
@@ -305,7 +341,7 @@ export function groundTopic(file: GroundingFile, input: GroundingInput): Groundi
     const concentrated = distinctive.some(
       (s) => s.hits > 0 && s.hits / span >= CONCENTRATION_LIFT * (s.df / N),
     );
-    if (!concentrated) return { grounded: false, reason: "scattered" };
+    if (!concentrated) return verdict(false, "scattered");
   }
-  return { grounded: true, reason: "ok" };
+  return verdict(true, "ok");
 }
