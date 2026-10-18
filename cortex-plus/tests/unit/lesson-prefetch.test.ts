@@ -149,6 +149,6 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(route).toContain('outcome: "refund"');
     expect(route).toContain("publishPrefetchPartial(service, nodeId, partial)");
     // Önceden yazımda bekleyen öğrenci yok: hızlı işlem yalnız açılışta.
-    expect(route).toContain("fast: input.isPremium && input.charge !== false,");
+    expect(route).toContain("fast: input.charge !== false,");
   });
 });

@@ -21,7 +21,7 @@ ayrıntı). Model çıktısının ~%65'i görünmeyen düşünme jetonu (6.100 j
 
 | Soru | Karar |
 |---|---|
-| OpenAI hızlı işlem (Fast mode, jeton fiyatı 2 kat, ~2 kat hız) | **Yalnız Plus** |
+| OpenAI hızlı işlem (Fast mode, jeton fiyatı 2 kat, ~2 kat hız) | Önce **yalnız Plus**; canlıda ücretsiz öğrencinin ilk ekranı 18,4 sn çıkınca aynı gün **herkese** (öğrenci beklerken; önceden yazım normal işlemde) |
 | Ders parça parça açılsın mı | **Evet**: ilk denetlenmiş kavram gelince açılır, gerisi öğrenci okurken |
 | Önceden hazırlama genişlesin mi (açılmayan dersin maliyeti bizde) | **Evet** |
 | Ölçüm bütçesi | ~0,30 $ (harcanan ~0,22 $) |
