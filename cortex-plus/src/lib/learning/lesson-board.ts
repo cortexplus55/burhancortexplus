@@ -68,7 +68,34 @@ export function preserveSubscriptLetters(text: string): string {
  * Sınav vurgusu `==…==` (18 Ekim 2026): sınavda soru olacak kesin bilgi, ekranda turuncu.
  * İçi boşlukla başlayıp bitemez: programlama dersindeki "a == b" vurgu sanılmasın.
  */
-const EXAM_MARK = /==(?=\S)[^=\n]{1,120}?(?<=\S)==/;
+const EXAM_MARK = /==(?=\S)(?:[^=\n]|=(?!=)){1,160}?(?<=\S)==/;
+
+/*
+  Düzenleme sırasında vurgu bir bütün olarak korunur (18 Ekim 2026, trigonometri dersi):
+  "==Derece → radyan: π/180; radyan → derece: 180/π.==" içindeki ";" ve işaretin kendi "=="
+  karakterleri formül sanılıp cümle oradan bölünüyordu; işaret iki satıra kırılınca ekranda
+  ham "==" kaldı ve "=" taşıyan parçalar formül satırı olup bir önceki cümleye "şöyle
+  hesaplanır:" eklendi. İşaret önce yer tutucuya alınır, satırlar kurulunca geri konur;
+  içindeki satır sonları tek boşluğa iner ki vurgu tek satırda dursun.
+*/
+const EXAM_MARK_WIDE = /==(?=\S)(?:[^=]|=(?!=)){1,200}?(?<=\S)==/g;
+// U+E100/U+E101: sıra sayısı noktasının yer tutucusu (ORDINAL_DOT, U+E000) ile çakışmasın.
+const MARK_OPEN = "";
+const MARK_CLOSE = "";
+const MARK_TOKEN = /(\d+)/g;
+
+function protectMarks(text: string): { text: string; marks: string[] } {
+  const marks: string[] = [];
+  const safe = text.replace(EXAM_MARK_WIDE, (mark) => {
+    marks.push(mark.replace(/\s+/g, " "));
+    return `${MARK_OPEN}${marks.length - 1}${MARK_CLOSE}`;
+  });
+  return { text: safe, marks };
+}
+
+function restoreMarks(text: string, marks: string[]): string {
+  return text.replace(MARK_TOKEN, (_token, index: string) => marks[Number(index)] ?? "");
+}
 
 /** Koyu işaret öğrenci metninde ya kalın ya da düz yazıdır; yıldız görünmez. `==…==` sınav vurgusudur. */
 export function studentTextParts(text: string): { bold: boolean; exam?: boolean; text: string }[] {
@@ -319,8 +346,9 @@ function peelFormulas(sentence: string): string[] {
 function splitBlock(block: string): string[] {
   const pieces: string[] = [];
   for (const chunk of splitNumbered(block)) {
+    // Korunan vurgunun sonu (U+E101) da cümle sonu sayılır: "….== Son kolları …" ayrı cümledir.
     const sentences = chunk
-      .split(/(?<=[.!?])\s+(?=\*{0,2}[A-ZÇĞİÖŞÜ0-9“"(])/)
+      .split(/(?<=[.!?])\s+(?=\*{0,2}[A-ZÇĞİÖŞÜ0-9“"(])/)
       .map((part) => part.trim())
       .filter(Boolean);
     for (const sentence of sentences) {
@@ -349,7 +377,11 @@ function guardOrdinals(text: string): string {
 }
 
 export function layoutBoard(text: string): BoardLine[] {
-  return layoutGuarded(guardOrdinals(text)).map((line) => ({ ...line, text: line.text.replaceAll(ORDINAL_DOT, ".") }));
+  const { text: safe, marks } = protectMarks(text);
+  return layoutGuarded(guardOrdinals(safe)).map((line) => ({
+    ...line,
+    text: restoreMarks(line.text.replaceAll(ORDINAL_DOT, "."), marks),
+  }));
 }
 
 function layoutGuarded(text: string): BoardLine[] {
