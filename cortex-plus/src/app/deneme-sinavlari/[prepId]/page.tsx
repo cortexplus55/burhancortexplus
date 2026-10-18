@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import { after } from "next/server";
+import { headers } from "next/headers";
+import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamPrepHome } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -91,6 +94,15 @@ export default async function ExamPrepDetailPage({
     .maybeSingle();
 
   if (!prep) notFound();
+
+  // "Sıradaki" hazır değilse arka planda yazılır (18 Ekim 2026, ürün sahibinin kararı): öğrenci
+  // hazırlığına her döndüğünde yolu bir adım önden hazır. Kayıt ya da yazım varsa atlanır.
+  if (trackingV2) {
+    const head = await headers();
+    const host = head.get("x-forwarded-host") ?? head.get("host");
+    const proto = head.get("x-forwarded-proto") ?? "https";
+    if (host) after(() => requestPrepPrefetch(service, { origin: `${proto}://${host}`, userId: user.id, prepId }));
+  }
 
   // Hazırlığın kurulduğu belge. document_id ana select'te değil: kolon
   // migration ile geldi ve ana select'e eklenseydi kod migration'dan önce

@@ -115,14 +115,50 @@ function fakeService(tables: Record<string, unknown>) {
 }
 
 describe("önceden hazırlama: geniş kapsam", () => {
-  it("aynı konuda ders kalmadıysa sıradaki konunun ilk dersi hazırlanır", async () => {
+  it("hep bir adım önde: yolda sıradaki hazırlanabilir etkinlik, türü ne olursa olsun", async () => {
+    // Zayıf nokta öğrencinin kayıtlarından anında kurulur: atlanır; sıradaki test hazırlanır.
     const rows = [
-      { id: "n-other", status: "ready", session_meta: { topicId: "t2" } },
-      { id: "n-later", status: "ready", session_meta: { topicId: "t3" } },
+      { id: "n-gaps", kind: "gaps", status: "ready", session_meta: {} },
+      { id: "n-quiz", kind: "quiz", status: "ready", session_meta: {} },
+      { id: "n-lesson", kind: "lesson", status: "ready", session_meta: {} },
     ];
-    expect(await lib.nextLessonNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", sortOrder: 1, topicId: "t1" })).toBe("n-other");
-    const same = [rows[0], { id: "n-same", status: "ready", session_meta: { topicId: "t1" } }];
-    expect(await lib.nextLessonNode(fakeService({ exam_prep_nodes: same }), { prepId: "p", sortOrder: 1, topicId: "t1" })).toBe("n-same");
+    expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", afterSortOrder: 1 }))?.id).toBe("n-quiz");
+    const none = [{ id: "n-final", kind: "final_check", status: "ready", session_meta: {} }];
+    expect(await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: none }), { prepId: "p", afterSortOrder: 1 })).toBeNull();
+    for (const kind of ["lesson", "quiz", "true_false", "flashcards", "podcast", "oral"]) expect(lib.PREFETCH_KINDS.has(kind)).toBe(true);
+    for (const kind of ["gaps", "focused", "final_check", "spaced", "readiness", "written_exam", "qa"]) expect(lib.PREFETCH_KINDS.has(kind)).toBe(false);
+  });
+
+  it("hazır içerik öğrencinin seçimine uyuyorsa verilir: zorluk, podcast süresi, sözlü ayarları", () => {
+    const base = { topicLabel: "Akut Gastroenterit" };
+    expect(lib.prefetchVariant("lesson", { ...base, difficulty: "kolay" })).toBe(lib.prefetchVariant("lesson", { ...base, difficulty: "ileri" }));
+    expect(lib.prefetchVariant("quiz", { ...base, difficulty: "kolay" })).not.toBe(lib.prefetchVariant("quiz", { ...base, difficulty: "orta" }));
+    expect(lib.prefetchVariant("podcast", base)).toBe(lib.prefetchVariant("podcast", { ...base, podcastLength: lib.PREFETCH_DEFAULTS.podcastLength }));
+    const oralDefault = lib.prefetchVariant("oral", { ...base, oralQuestionCount: 3, oralScope: "topic", mood: "calm", difficulty: "orta" });
+    expect(lib.prefetchVariant("oral", { topicLabel: "akut gastroenterit" })).toBe(oralDefault);
+    expect(lib.prefetchVariant("oral", { ...base, oralQuestionCount: 5 })).not.toBe(oralDefault);
+    expect(lib.prefetchVariant("oral", { ...base, mood: "stressed", difficulty: "ileri" })).not.toBe(oralDefault);
+  });
+
+  it("hazırlık sayfası açılınca ve hazırlık kurulunca 'Sıradaki' yazılır; her açılış sıradakini tetikler", () => {
+    const page = read("src/app/deneme-sinavlari/[prepId]/page.tsx");
+    expect(page).toContain("after(() => requestPrepPrefetch(service,");
+    const create = read("src/app/api/learning/exam-prep/create/route.ts");
+    expect(create).toContain("after(() => requestPrepPrefetch(service, { origin, userId, prepId: result.prepId }))");
+    expect(route).toContain("requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number })");
+    expect(route).toContain("if (!prefetch && action === \"start\") {");
+    expect(route).toContain("await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });");
+    expect(route).toContain("storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant })");
+  });
+
+  it("önceden yazım her motorda kredisiz; kullanım ayrı kodla, açılmayan podcast önbelleğe girmez", () => {
+    for (const file of ["src/lib/learning/teacher-engine-run.ts", "src/lib/learning/teacher-quiz-run.ts", "src/lib/learning/teacher-podcast-run.ts"]) {
+      const text = read(file);
+      expect(text, file).toContain('free ? \"CONTENT_PREFETCH\" :');
+      expect(text, file).toContain("({ ok: true, reservationId: null } as const)");
+    }
+    expect(route).toContain("if (input.prepId && input.userId && input.charge !== false) {");
+    expect(route.match(/charge: input.charge,/g)?.length).toBeGreaterThanOrEqual(6);
   });
 
   it("yazımı süren hazır ders: kuşak tutarsa ve yazım ilerliyorsa devralınır", async () => {
@@ -142,7 +178,6 @@ describe("önceden hazırlama: geniş kapsam", () => {
 
   it("hazırlık kurulunca ilk ders yazılır; devralınan dersin kredisi yazım bitince kesinleşir, düşerse iade", () => {
     const create = read("src/app/api/learning/exam-prep/create/route.ts");
-    expect(create).toContain("after(() => requestFirstLessonPrefetch(service, { origin, userId, prepId: result.prepId }))");
     expect(route).toContain("peekBuildingPrefetch(service, { userId, nodeId, familiarity, waitMs: 20_000 })");
     expect(route).toContain("payload: { ...building.payload, adoptedPrefetch: true }");
     expect(route).toContain('outcome: "commit"');

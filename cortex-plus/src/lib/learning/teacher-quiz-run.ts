@@ -124,6 +124,8 @@ export async function runTeacherQuiz(
     heldReservationId?: string;
     /** Asgari soru sayısı; yoksa count − 2 (en az 3). */
     minimum?: number;
+    /** false: önceden yazım (18 Ekim 2026); kredi ayrılmaz, öğrenci açınca düşer. */
+    charge?: boolean;
   },
 ): Promise<TeacherQuizOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
@@ -131,9 +133,12 @@ export async function runTeacherQuiz(
     return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
   }
   const held = input.heldReservationId;
+  const free = input.charge === false;
   const reservation = held
     ? ({ ok: true, reservationId: held } as const)
-    : await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
+    : free
+      ? ({ ok: true, reservationId: null } as const)
+      : await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
   if (!reservation.ok) {
     return {
       ok: false,
@@ -142,7 +147,8 @@ export async function runTeacherQuiz(
       reasons: [],
     };
   }
-  const refund = () => (held ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined));
+  const refund = () =>
+    held || !reservation.reservationId ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined);
   const started = input.startedAt ?? Date.now();
   const model = contentModel();
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
@@ -159,7 +165,7 @@ export async function runTeacherQuiz(
     });
     await recordUsage(service, {
       userId: input.userId,
-      actionCode: input.actionCode,
+      actionCode: free ? "CONTENT_PREFETCH" : input.actionCode,
       model,
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
@@ -188,8 +194,8 @@ export async function runTeacherQuiz(
         reasons: loop.rejected.slice(0, 4).map((item) => item.problems[0]?.slice(0, 200) ?? "sorun"),
       };
     }
-    if (input.deferCommit || held) {
-      return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
+    if (input.deferCommit || held || !reservation.reservationId) {
+      return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId ?? undefined };
     }
     await commitCredits(service, reservation.reservationId);
     return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };

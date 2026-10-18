@@ -97,6 +97,6 @@ describe("kabuk", () => {
     expect(source).toContain("await commitCredits(service, reservation.reservationId)");
     // Yazılı deneme ayrılışı kendisi tutar; kabuk o zaman ne kesinleştirir ne iade eder
     // (davranış: mock-exam-charge.test.ts).
-    expect(source).toContain("if (!held) await commitCredits(service, reservation.reservationId)");
+    expect(source).toContain("if (!held && reservation.reservationId) await commitCredits(service, reservation.reservationId)");
   });
 });

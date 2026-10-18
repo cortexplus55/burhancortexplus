@@ -28,6 +28,11 @@ export async function runWithTeacherModel<R>(
      * ayırma, kesinleştirme ve iade yok; kullanım bu ayrılışa yazılır.
      */
     heldReservationId?: string;
+    /**
+     * false: önceden yazım (18 Ekim 2026). Kredi ayrılmaz; öğrenci açınca düşer. Kullanım
+     * CONTENT_PREFETCH koduyla yazılır (açılmazsa model maliyeti bizde).
+     */
+    charge?: boolean;
     startedAt?: number;
     /** Günlük satırının adı ("teacher_cards"). */
     label: string;
@@ -37,9 +42,12 @@ export async function runWithTeacherModel<R>(
 ): Promise<TeacherRunOutcome<R>> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
   const held = options.heldReservationId;
+  const free = options.charge === false;
   const reservation = held
     ? ({ ok: true, reservationId: held } as const)
-    : await reserveCredits(service, options.userId, options.actionCode, options.idempotencyKey);
+    : free
+      ? ({ ok: true, reservationId: null } as const)
+      : await reserveCredits(service, options.userId, options.actionCode, options.idempotencyKey);
   if (!reservation.ok) {
     return {
       ok: false,
@@ -48,7 +56,8 @@ export async function runWithTeacherModel<R>(
       reasons: [],
     };
   }
-  const refund = () => (held ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined));
+  const refund = () =>
+    held || !reservation.reservationId ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined);
   const started = options.startedAt ?? Date.now();
   const model = contentModel();
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
@@ -65,7 +74,7 @@ export async function runWithTeacherModel<R>(
     });
     await recordUsage(service, {
       userId: options.userId,
-      actionCode: options.actionCode,
+      actionCode: free ? "CONTENT_PREFETCH" : options.actionCode,
       model,
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
@@ -81,7 +90,7 @@ export async function runWithTeacherModel<R>(
       await refund();
       return { ok: false, status: 503, error: "generation_failed", reasons: outcome.reasons.slice(0, 6) };
     }
-    if (!held) await commitCredits(service, reservation.reservationId);
+    if (!held && reservation.reservationId) await commitCredits(service, reservation.reservationId);
     return { ok: true, result: outcome.result, calls, ms: Date.now() - started };
   } catch (error) {
     await refund();

@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { spendableCredits } from "@/lib/credits/spendable-server";
 import { env } from "@/lib/env";
 import { DEFAULT_FAMILIARITY, DEFAULT_MOOD, parseFamiliarity, type Familiarity, type Mood } from "@/lib/learning/session-signals";
+import { difficultyFromFamiliarity } from "@/lib/learning/lesson-open";
+import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
 
 /**
  * Sıradaki dersin önceden hazırlanması (3 Ekim 2026, ürün sahibinin kararı).
@@ -140,24 +142,92 @@ export async function storePrefetchedLesson(
   return !error;
 }
 
-/** Hazır ders var mı, öğrencinin seçimine uyuyor mu — henüz almadan bakar. */
+/**
+ * Önceden hazırlanan etkinlikler (18 Ekim 2026, ürün sahibinin kararı: "hep bir adım önde").
+ * Zayıf nokta, odaklı pratik, son kontrol ve aralıklı tekrar öğrencinin kayıtlarından açılışta
+ * model çağırmadan kurulur — erken kurulsa son yanlışları kaçırırdı. Yazılı deneme ve sohbet
+ * kendi akışlarında.
+ */
+export const PREFETCH_KINDS: ReadonlySet<string> = new Set(["lesson", "quiz", "true_false", "flashcards", "podcast", "oral"]);
+
+/** Seçimli etkinliklerin varsayılanları: önceden yazım bunlarla yazılır (istemcinin ilk seçimi). */
+export const PREFETCH_DEFAULTS = {
+  podcastLength: DEFAULT_PODCAST_LENGTH,
+  oralQuestionCount: 3,
+  /** "Yardımsever" öğretmen. */
+  oralMood: "calm" as Mood,
+  oralDifficulty: "orta" as const,
+};
+
+/**
+ * Hazır içerik öğrencinin seçimine uyuyor mu: aynı anahtar. Ders yalnız aşinalık kuşağına bakar;
+ * test, doğru/yanlış ve kartlar zorluğa; podcast süreye; sözlü soru sayısı, konu ve öğretmen tipine.
+ */
+export function prefetchVariant(
+  kind: string,
+  input: {
+    topicLabel: string;
+    difficulty?: string | null;
+    podcastLength?: string | null;
+    oralQuestionCount?: number | null;
+    oralScope?: string | null;
+    mood?: string | null;
+  },
+): string {
+  if (kind === "lesson") return "lesson";
+  if (kind === "podcast") return `podcast:${input.podcastLength ?? PREFETCH_DEFAULTS.podcastLength}`;
+  if (kind === "oral") {
+    const topic = input.oralScope === "all" ? "*" : input.topicLabel.trim().toLocaleLowerCase("tr");
+    return `oral:${input.oralQuestionCount ?? PREFETCH_DEFAULTS.oralQuestionCount}:${topic}:${input.mood ?? PREFETCH_DEFAULTS.oralMood}:${input.difficulty ?? PREFETCH_DEFAULTS.oralDifficulty}`;
+  }
+  return `${kind}:${input.difficulty ?? "orta"}`;
+}
+
+/** Hazır içerik var mı, öğrencinin seçimine uyuyor mu — henüz almadan bakar. */
 export async function peekPrefetchedLesson(
   service: SupabaseClient,
-  input: { userId: string; nodeId: string; familiarity: Familiarity },
+  input: { userId: string; nodeId: string; familiarity: Familiarity; variant?: string },
 ): Promise<boolean> {
   const { data } = await service
     .from("exam_prep_prefetch")
-    .select("familiarity, status")
+    .select("familiarity, status, payload")
     .eq("node_id", input.nodeId)
     .eq("user_id", input.userId)
     .maybeSingle();
   if (!data || data.status !== "ready") return false;
-  if (familiarityBand(data.familiarity as Familiarity) !== familiarityBand(input.familiarity)) {
-    // Öğrenci başka bir yerden başlamak istiyor; hazır ders artık ona göre değil.
+  const stored = (data.payload as { prefetchVariant?: unknown } | null)?.prefetchVariant;
+  const variantMismatch = Boolean(input.variant && typeof stored === "string" && stored !== input.variant);
+  if (familiarityBand(data.familiarity as Familiarity) !== familiarityBand(input.familiarity) || variantMismatch) {
+    // Öğrenci başka bir düzey ya da seçim istiyor; hazır içerik artık ona göre değil.
     await dropPrefetch(service, input.nodeId);
     return false;
   }
   return true;
+}
+
+/**
+ * Yazımı süren (akışsız) hazır içeriği bekle: test, kartlar, podcast kayda bütün olarak düşer.
+ * Hazır olunca döner; kayıt yoksa, bayatsa ya da süre dolduysa hemen.
+ */
+export async function waitForPrefetchReady(
+  service: SupabaseClient,
+  input: { userId: string; nodeId: string; maxMs: number },
+  now: () => number = Date.now,
+): Promise<boolean> {
+  const deadline = now() + input.maxMs;
+  for (;;) {
+    const { data } = await service
+      .from("exam_prep_prefetch")
+      .select("status, updated_at")
+      .eq("node_id", input.nodeId)
+      .eq("user_id", input.userId)
+      .maybeSingle();
+    if (!data) return false;
+    if (data.status === "ready") return true;
+    if (now() - Date.parse(String(data.updated_at ?? "")) >= STALE_CREATING_MS) return false;
+    if (now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
 }
 
 /** Hazır dersi tek seferlik al (siler). Aynı anda iki açılışta yalnız biri alır. */
@@ -178,136 +248,6 @@ export async function takePrefetchedLesson(
     payload: data.payload as Record<string, unknown>,
     topicId: (data.topic_id as string | null) ?? null,
   };
-}
-
-/**
- * Bu dersten sonra gelen ilk açılmamış ders: önce aynı konunun yolunda, yoksa sıradaki konunun
- * ilk dersi (18 Ekim 2026, ürün sahibinin kararı: konu değişse de sıradaki ders hazır beklesin).
- */
-export async function nextLessonNode(
-  service: SupabaseClient,
-  input: { prepId: string; sortOrder: number; topicId: string | null },
-): Promise<string | null> {
-  const { data } = await service
-    .from("exam_prep_nodes")
-    .select("id, status, session_meta")
-    .eq("exam_prep_id", input.prepId)
-    .eq("kind", "lesson")
-    .gt("sort_order", input.sortOrder)
-    .neq("status", "done")
-    .order("sort_order")
-    .limit(12);
-  const rows = data ?? [];
-  const sameTopic = rows.find((row) => {
-    const meta = row.session_meta as { topicId?: unknown } | null;
-    const topicId = meta && typeof meta.topicId === "string" ? meta.topicId : null;
-    return input.topicId ? topicId === input.topicId : true;
-  });
-  return ((sameTopic ?? rows[0])?.id as string | undefined) ?? null;
-}
-
-/** Hazırlığın ilk açılmamış dersi ve konusunun kayıtlı aşinalığı (yoksa varsayılan). */
-export async function firstLessonNode(
-  service: SupabaseClient,
-  prepId: string,
-): Promise<{ nodeId: string; familiarity: Familiarity } | null> {
-  const { data } = await service
-    .from("exam_prep_nodes")
-    .select("id, session_meta")
-    .eq("exam_prep_id", prepId)
-    .eq("kind", "lesson")
-    .neq("status", "done")
-    .order("sort_order")
-    .limit(1)
-    .maybeSingle();
-  if (!data?.id) return null;
-  const meta = data.session_meta as { topicId?: unknown } | null;
-  const topicId = meta && typeof meta.topicId === "string" ? meta.topicId : null;
-  let familiarity: Familiarity = DEFAULT_FAMILIARITY;
-  if (topicId) {
-    const { data: topic } = await service.from("exam_prep_topics").select("familiarity").eq("id", topicId).maybeSingle();
-    familiarity = parseFamiliarity(topic?.familiarity ?? DEFAULT_FAMILIARITY);
-  }
-  return { nodeId: data.id as string, familiarity };
-}
-
-/**
- * Bir dersi arka planda yazdır. Yanıt gönderildikten sonra (`after`) çağrılır; isteği
- * başlatıp ayrılır — yazım kendi fonksiyonunda sürer.
- */
-export async function requestLessonPrefetch(
-  service: SupabaseClient,
-  input: { origin: string; userId: string; prepId: string; nodeId: string; familiarity: Familiarity; mood: Mood },
-) {
-  try {
-    if (await nodeHasAttempts(service, input.nodeId)) return;
-    const { data: existing } = await service
-      .from("exam_prep_prefetch")
-      .select("node_id")
-      .eq("node_id", input.nodeId)
-      .maybeSingle();
-    if (existing) return;
-    const token = prefetchToken(input.userId, input.nodeId);
-    if (!token) return;
-    await fetch(`${input.origin}/api/learning/exam-prep/node`, {
-      method: "POST",
-      headers: { "content-type": "application/json", [PREFETCH_HEADER]: token },
-      body: JSON.stringify({
-        prepId: input.prepId,
-        nodeId: input.nodeId,
-        action: "start",
-        prefetch: true,
-        familiarity: input.familiarity,
-        mood: input.mood,
-        clientRequestId: randomUUID(),
-      }),
-      // Yazım bir dakikanın altında sürer; beklemiyoruz. Bağlantı kopsa da öteki
-      // fonksiyon işini bitirir.
-      signal: AbortSignal.timeout(8_000),
-    }).catch(() => undefined);
-  } catch (error) {
-    console.error("lesson_prefetch_request_failed", {
-      cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
-    });
-  }
-}
-
-/** Öğrenci bir dersi açınca yolundaki sıradaki ders yazılsın. */
-export async function requestNextLessonPrefetch(
-  service: SupabaseClient,
-  input: {
-    origin: string;
-    userId: string;
-    prepId: string;
-    sortOrder: number;
-    topicId: string | null;
-    familiarity: Familiarity;
-    mood: Mood;
-  },
-) {
-  const nextId = await nextLessonNode(service, input).catch(() => null);
-  if (!nextId) return;
-  await requestLessonPrefetch(service, { ...input, nodeId: nextId });
-}
-
-/**
- * Hazırlık kurulunca ilk ders hemen yazılmaya başlar (18 Ekim 2026): öğrenci hazırlık
- * sayfasından "Devam et"e basana kadar dersin başı hazır olur.
- */
-export async function requestFirstLessonPrefetch(
-  service: SupabaseClient,
-  input: { origin: string; userId: string; prepId: string },
-) {
-  const first = await firstLessonNode(service, input.prepId).catch(() => null);
-  if (!first) return;
-  await requestLessonPrefetch(service, {
-    origin: input.origin,
-    userId: input.userId,
-    prepId: input.prepId,
-    nodeId: first.nodeId,
-    familiarity: first.familiarity,
-    mood: DEFAULT_MOOD,
-  });
 }
 
 /**
@@ -387,5 +327,120 @@ export async function publishPrefetchPartial(
       .eq("id", adopted.id)
       .eq("generation_id", adopted.generationId)
       .then(undefined, () => undefined);
+  }
+}
+
+type PathRow = { id: string; kind: string; status: string | null; session_meta: unknown };
+
+/** Düğümün konusunun kurulumda kaydedilen aşinalığı (yoksa varsayılan). */
+async function nodeFamiliarity(service: SupabaseClient, sessionMeta: unknown): Promise<Familiarity> {
+  const meta = sessionMeta as { topicId?: unknown } | null;
+  const topicId = meta && typeof meta.topicId === "string" ? meta.topicId : null;
+  if (!topicId) return DEFAULT_FAMILIARITY;
+  const { data } = await service.from("exam_prep_topics").select("familiarity").eq("id", topicId).maybeSingle();
+  return parseFamiliarity(data?.familiarity ?? DEFAULT_FAMILIARITY);
+}
+
+/**
+ * Yolda bu sıradan sonra gelen ilk önceden hazırlanabilir etkinlik. Arada öğrencinin kayıtlarından
+ * anında kurulan (zayıf nokta, son kontrol…) adımlar atlanır; en çok üç adım ileriye bakılır.
+ */
+export async function nextPrefetchNode(
+  service: SupabaseClient,
+  input: { prepId: string; afterSortOrder: number },
+): Promise<PathRow | null> {
+  const { data } = await service
+    .from("exam_prep_nodes")
+    .select("id, kind, status, session_meta")
+    .eq("exam_prep_id", input.prepId)
+    .gt("sort_order", input.afterSortOrder)
+    .neq("status", "done")
+    .order("sort_order")
+    .limit(3);
+  return ((data ?? []) as PathRow[]).find((row) => PREFETCH_KINDS.has(row.kind)) ?? null;
+}
+
+/**
+ * Bir etkinliği arka planda yazdır (varsayılan seçimlerle). Yanıt gönderildikten sonra
+ * (`after`) çağrılır; isteği başlatıp ayrılır — yazım kendi fonksiyonunda sürer.
+ */
+export async function requestNodePrefetch(
+  service: SupabaseClient,
+  input: { origin: string; userId: string; prepId: string; node: PathRow },
+) {
+  try {
+    if (!PREFETCH_KINDS.has(input.node.kind)) return;
+    if (await nodeHasAttempts(service, input.node.id)) return;
+    const { data: existing } = await service
+      .from("exam_prep_prefetch")
+      .select("node_id")
+      .eq("node_id", input.node.id)
+      .maybeSingle();
+    if (existing) return;
+    const token = prefetchToken(input.userId, input.node.id);
+    if (!token) return;
+    const familiarity = await nodeFamiliarity(service, input.node.session_meta);
+    const oral = input.node.kind === "oral";
+    await fetch(`${input.origin}/api/learning/exam-prep/node`, {
+      method: "POST",
+      headers: { "content-type": "application/json", [PREFETCH_HEADER]: token },
+      body: JSON.stringify({
+        prepId: input.prepId,
+        nodeId: input.node.id,
+        action: "start",
+        prefetch: true,
+        familiarity,
+        mood: oral ? PREFETCH_DEFAULTS.oralMood : DEFAULT_MOOD,
+        difficulty: oral ? PREFETCH_DEFAULTS.oralDifficulty : difficultyFromFamiliarity(familiarity),
+        ...(input.node.kind === "podcast" ? { podcastLength: PREFETCH_DEFAULTS.podcastLength } : {}),
+        ...(oral ? { oralQuestionCount: PREFETCH_DEFAULTS.oralQuestionCount, oralScope: "topic", voiceMode: false } : {}),
+        lessonFormat: 3,
+        clientRequestId: randomUUID(),
+      }),
+      // Yazım bir dakikanın altında sürer; beklemiyoruz. Bağlantı kopsa da öteki
+      // fonksiyon işini bitirir.
+      signal: AbortSignal.timeout(8_000),
+    }).catch(() => undefined);
+  } catch (error) {
+    console.error("prefetch_request_failed", {
+      cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+    });
+  }
+}
+
+/** Öğrenci bir etkinliği açınca yolundaki sıradaki hazırlanır ("hep bir adım önde"). */
+export async function requestNextPrefetch(
+  service: SupabaseClient,
+  input: { origin: string; userId: string; prepId: string; sortOrder: number },
+) {
+  const next = await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: input.sortOrder }).catch(() => null);
+  if (next) await requestNodePrefetch(service, { ...input, node: next });
+}
+
+/**
+ * Hazırlık kurulunca ve hazırlık sayfası her açıldığında "Sıradaki" hazır değilse yazılır
+ * (18 Ekim 2026). Sıradaki etkinlik açılmış ama bitmemişse ondan sonraki hazırlanır.
+ */
+export async function requestPrepPrefetch(
+  service: SupabaseClient,
+  input: { origin: string; userId: string; prepId: string },
+) {
+  try {
+    const { data } = await service
+      .from("exam_prep_nodes")
+      .select("id, kind, status, session_meta, sort_order")
+      .eq("exam_prep_id", input.prepId)
+      .neq("status", "done")
+      .order("sort_order")
+      .limit(4);
+    const rows = (data ?? []) as (PathRow & { sort_order: number })[];
+    const first = rows[0];
+    if (!first) return;
+    const target = (await nodeHasAttempts(service, first.id))
+      ? await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: first.sort_order })
+      : (rows.find((row) => PREFETCH_KINDS.has(row.kind)) ?? null);
+    if (target) await requestNodePrefetch(service, { ...input, node: target });
+  } catch (error) {
+    console.error("prep_prefetch_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
   }
 }
