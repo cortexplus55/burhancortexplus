@@ -322,7 +322,7 @@ describe("LessonV3 — Genel bilgi kutusu", () => {
     expect(TEACHER_SYSTEM).toContain("GENEL BİLGİ KUTUSU");
     expect(TOPIC_TEACHER_SYSTEM).not.toContain("GENEL BİLGİ KUTUSU");
     expect(verifySystem("document")).toContain("H) 'Genel bilgi' notunda (tone 'general') yanlış");
-    expect(verifySystem("document")).toContain("A-H 'high'");
+    expect(verifySystem("document")).toContain("A-I 'high'");
   });
 
   it("etiketli ve en fazla iki", () => {

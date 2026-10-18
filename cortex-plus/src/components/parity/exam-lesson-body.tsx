@@ -21,7 +21,11 @@ function renderInline(text: string) {
       );
     }
     return studentTextParts(segment.value).map((part, index) =>
-      part.bold ? (
+      part.exam ? (
+        <mark key={`${segIndex}-${index}`} className="als-exam" title="Sınavda çıkar">
+          {part.text}
+        </mark>
+      ) : part.bold ? (
         <strong key={`${segIndex}-${index}`}>{part.text}</strong>
       ) : (
         <span key={`${segIndex}-${index}`}>{part.text}</span>

@@ -13,7 +13,9 @@ export const LESSON_PREP_STEPS = [
   "Materyallerinle karşılaştırılıyor",
 ] as const;
 
-export type CalloutTone = "warn" | "info" | "unit" | "general";
+/** exam / remember / mnemonic: "Sınav ipucu", "Akılda tut", "Ezber kodu" (18 Ekim 2026). */
+export type CalloutTone = "warn" | "info" | "unit" | "general" | "exam" | "remember" | "mnemonic";
+const CALLOUT_TONES: readonly CalloutTone[] = ["warn", "info", "unit", "general", "exam", "remember", "mnemonic"];
 
 export function checkPresentation(check: Pick<SectionCheck, "type">): "trueFalse" | "quickQuiz" {
   return check.type === "trueFalse" ? "trueFalse" : "quickQuiz";
@@ -39,8 +41,12 @@ export function trueFalseIndexes(options: string[]): { wrong: number; right: num
 }
 
 export function calloutTone(note: { title: string; tone?: CalloutTone | null }): CalloutTone {
-  if (note.tone === "warn" || note.tone === "info" || note.tone === "unit" || note.tone === "general") return note.tone;
+  if (note.tone && CALLOUT_TONES.includes(note.tone)) return note.tone;
   const title = note.title.toLocaleLowerCase("tr");
+  if (title.includes("ezber")) return "mnemonic";
+  if (/sınav ipucu|tus ipucu/.test(title)) return "exam";
+  if (/akılda tut|pratik nokta/.test(title)) return "remember";
+  if (title.includes("alarm")) return "warn";
   if (title.includes("birim")) return "unit";
   if (/(uyarı|dikkat|hareket|tuzak|yanlış)/.test(title)) return "warn";
   return "info";

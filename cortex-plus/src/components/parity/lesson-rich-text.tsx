@@ -32,7 +32,12 @@ export function RichBody({ text, topicHint = "" }: { text: string; topicHint?: s
           );
         }
         return studentTextParts(segment.value).map((part, index) =>
-          part.bold ? (
+          part.exam ? (
+            // Sınav vurgusu (18 Ekim 2026): sınavda soru olacak kesin bilgi, turuncu işaret.
+            <mark key={`${segIndex}-${index}`} className="als-exam" title="Sınavda çıkar">
+              {part.text}
+            </mark>
+          ) : part.bold ? (
             <strong key={`${segIndex}-${index}`} className="als-term">
               {part.text}
             </strong>
