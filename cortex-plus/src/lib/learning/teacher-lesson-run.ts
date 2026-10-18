@@ -40,7 +40,7 @@ import {
     yazar, denetçi bir sonraki turda o gerekçeyi tartar.
   - Kavramlar sırayla yayımlanır (`onPublish`); öğrenci denetlenmemiş ekran görmez.
     Düzeltilemeyen kavram atılır; ilk kavram düzelmezse ders yazılmaz.
-  - Plus'ta hızlı işlem (ürün sahibinin kararı: yalnız Plus).
+  - Öğrenci beklerken hızlı işlem (ürün sahibinin kararı: önce yalnız Plus, aynı gün herkese).
   Kod ders metnine hiçbir şey eklemez.
 */
 
@@ -373,8 +373,8 @@ export async function teacherLessonPipeline(
 
 /**
  * OpenAI çağrıları: yazar akışla ve düşük düşünmeyle (17 Ekim ölçümü: ilk ekran 6-14 sn, denetçi
- * daha fazla sorun bulmadı), denetçi varsayılan düşünmeyle, düzeltme düşük düşünmeyle. Plus'ta
- * hızlı işlem. Yerel ölçüm betiği de bunu kullanır: canlıyla aynı ayar.
+ * daha fazla sorun bulmadı), denetçi varsayılan düşünmeyle, düzeltme düşük düşünmeyle. Öğrenci
+ * beklerken hızlı işlem. Yerel ölçüm betiği de bunu kullanır: canlıyla aynı ayar.
  */
 export function createLessonIo(
   openai: OpenAI,
@@ -461,7 +461,7 @@ export async function runTeacherLesson(
      * açınca düşer. Model kullanımı ayrı kodla (LESSON_PREFETCH) yazılır.
      */
     charge?: boolean;
-    /** Plus: OpenAI hızlı işlem (jeton fiyatı 2 kat; ürün sahibinin kararı, 18 Ekim 2026). */
+    /** OpenAI hızlı işlem (jeton fiyatı 2 kat; ürün sahibinin kararı, 18 Ekim 2026): öğrenci bekliyorsa. */
     fast?: boolean;
     /** Denetlenen her kavram yayımlanınca (parça parça açılış). */
     onPublish?: (published: PublishedLesson) => Promise<void> | void;

@@ -431,8 +431,9 @@ Etiketsiz dış bilgi hâlâ hata (A). Yalnız belgeli içerikte; belgesiz hazı
 
 **17 Ekim'de canlı bir ders ~4 dk sürdü ve "oluşturulamadı" dedi:** her düzeltme turu dersin
 tamamını baştan yazıyordu (tur başına ~60 sn) ve tek bir eşik itirazı bütün dersi attı. Ürün
-sahibinin kararları: ders ~10 sn'de açılsın, kalite düşmesin; **hızlı işlem (Fast mode) yalnız
-Plus'ta**; ders parça parça açılsın; önceden hazırlama genişlesin. Ölçümler ve altın kıyas:
+sahibinin kararları: ders ~10 sn'de açılsın, kalite düşmesin; **hızlı işlem (Fast mode) öğrenci
+beklerken herkese** (önce yalnız Plus'tı; canlıda ücretsiz öğrencinin ilk ekranı 18 sn çıkınca aynı
+gün herkese açıldı; önceden yazım normal işlemde); ders parça parça açılsın; önceden hazırlama genişlesin. Ölçümler ve altın kıyas:
 `docs/delivery/DERS-HIZI-18-EKIM.md`.
 
 | Yapmayın | Yapın |

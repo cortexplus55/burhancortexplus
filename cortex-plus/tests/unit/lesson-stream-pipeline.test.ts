@@ -217,13 +217,13 @@ describe("kavram kavram denetim ve yayım", () => {
 
 describe("motor ayarları", () => {
   const run = readFileSync("src/lib/learning/teacher-lesson-run.ts", "utf8");
-  it("yazar akışla ve düşük düşünmeyle; denetçi varsayılan düşünmeyle; Plus'ta hızlı işlem", () => {
+  it("yazar akışla ve düşük düşünmeyle; denetçi varsayılan düşünmeyle; öğrenci beklerken hızlı işlem", () => {
     expect(run).toContain("stream: true");
     expect(run).toMatch(/reasoning_effort: "low",\s*\.\.\.tier/);
     expect(run).toContain('...(role === "fix" ? { reasoning_effort: "low" as const } : {})');
     expect(run).toContain('const tier = options.fast ? ({ service_tier: "fast" } as const) : {};');
     expect(run).toContain('fast: input.fast,');
-    expect(readFileSync('src/app/api/learning/exam-prep/node/route.ts', 'utf8')).toContain('fast: input.isPremium && input.charge !== false,');
+    expect(readFileSync('src/app/api/learning/exam-prep/node/route.ts', 'utf8')).toContain('fast: input.charge !== false,');
     expect(run).toContain("`${model}-fast`");
   });
 

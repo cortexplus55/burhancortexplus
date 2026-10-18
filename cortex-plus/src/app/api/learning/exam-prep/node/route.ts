@@ -2779,9 +2779,10 @@ async function teacherLessonPayload(
     runningHeaders: edges,
     startedAt,
     charge: input.charge,
-    // Plus'ta OpenAI hızlı işlem (18 Ekim 2026, ürün sahibinin kararı: yalnız Plus).
-    // Önceden yazımda bekleyen öğrenci yok: normal işlem (yarı fiyat).
-    fast: input.isPremium && input.charge !== false,
+    // OpenAI hızlı işlem herkese (18 Ekim 2026, ürün sahibinin ikinci kararı; ilk karar yalnız
+    // Plus'tı, canlıda ücretsiz öğrencinin ilk ekranı 18 sn çıktı). Önceden yazımda bekleyen
+    // öğrenci yok: normal işlem (yarı fiyat).
+    fast: input.charge !== false,
     onPublish: input.onLessonPublish
       ? (published: PublishedLesson) =>
           input.onLessonPublish!({
