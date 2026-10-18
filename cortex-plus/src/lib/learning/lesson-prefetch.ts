@@ -332,10 +332,18 @@ export async function publishPrefetchPartial(
 
 type PathRow = { id: string; kind: string; status: string | null; session_meta: unknown };
 
-/** Düğümün konusunun kurulumda kaydedilen aşinalığı (yoksa varsayılan). */
-async function nodeFamiliarity(service: SupabaseClient, sessionMeta: unknown): Promise<Familiarity> {
+/**
+ * Düğümün konusunun kurulumda kaydedilen aşinalığı. Düğüm sayfasıyla aynı sıra: düğümün konusu,
+ * yoksa hazırlığın etkin konusu, o da yoksa varsayılan (18 Ekim 2026 canlı: konu kimliği olmayan
+ * düğümde önceden yazım "temel" düzeyle yazdı, öğrencinin "duymuştum"u tutmadı, ders iki kez yazıldı).
+ */
+export async function nodeFamiliarity(service: SupabaseClient, prepId: string, sessionMeta: unknown): Promise<Familiarity> {
   const meta = sessionMeta as { topicId?: unknown } | null;
-  const topicId = meta && typeof meta.topicId === "string" ? meta.topicId : null;
+  let topicId = meta && typeof meta.topicId === "string" ? meta.topicId : null;
+  if (!topicId) {
+    const { data: prep } = await service.from("exam_preps").select("active_topic_id").eq("id", prepId).maybeSingle();
+    topicId = (prep?.active_topic_id as string | null | undefined) ?? null;
+  }
   if (!topicId) return DEFAULT_FAMILIARITY;
   const { data } = await service.from("exam_prep_topics").select("familiarity").eq("id", topicId).maybeSingle();
   return parseFamiliarity(data?.familiarity ?? DEFAULT_FAMILIARITY);
@@ -379,7 +387,7 @@ export async function requestNodePrefetch(
     if (existing) return;
     const token = prefetchToken(input.userId, input.node.id);
     if (!token) return;
-    const familiarity = await nodeFamiliarity(service, input.node.session_meta);
+    const familiarity = await nodeFamiliarity(service, input.prepId, input.node.session_meta);
     const oral = input.node.kind === "oral";
     await fetch(`${input.origin}/api/learning/exam-prep/node`, {
       method: "POST",
