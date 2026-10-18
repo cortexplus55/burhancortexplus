@@ -1040,3 +1040,49 @@ export async function savePromptVersion(input: { key: string; content: string })
   revalidatePath("/admin/promptlar");
   return { ok: true, message: `v${nextVersion} yayına alındı.` };
 }
+
+/**
+ * Belgenin öğretmen analizini baştan yazdırır (18 Ekim 2026, plan 4.4).
+ *
+ * Hazır analiz kendiliğinden yenilenmez; sayfa sınırı değişince (ücretsiz 2 → 5 sayfa,
+ * muaf hesap tam belge) ya da analiz eksik çıkınca eski kayıt dersleri "Sınavda sorulur"
+ * maddesiz bırakıyordu. Öğrenciden kredi düşmez (analiz `chargeCredits: false`).
+ */
+export async function rerunTeacherAnalysis(documentId: string): Promise<
+  { ok: true; topics: number; examPoints: number } | { ok: false; error: string }
+> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  if (!z.string().uuid().safeParse(documentId).success) return { ok: false, error: "Geçersiz belge." };
+
+  const service = createServiceClient();
+  const { data: doc } = await service
+    .from("documents")
+    .select("id, user_id, file_name, mime_type, status, deleted_at")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc || doc.deleted_at) return { ok: false, error: "Belge bulunamadı." };
+  if (doc.status !== "completed") return { ok: false, error: "Belge henüz işlenmedi." };
+
+  const { runTeacherAnalysis } = await import("@/lib/documents/teacher-analysis-run");
+  const result = await runTeacherAnalysis(service, documentId, {
+    userId: doc.user_id as string,
+    fileName: String(doc.file_name ?? "belge"),
+    mimeType: (doc.mime_type as string | null) ?? null,
+    force: true,
+  });
+  const topics = result.analysis?.topics ?? [];
+  const examPoints = topics.reduce((sum, topic) => sum + (topic.examPoints?.length ?? 0), 0);
+
+  await auditLog(service, {
+    actorId,
+    action: "document.analysis_rerun",
+    entityType: "document",
+    entityId: documentId,
+    metadata: { status: result.status, topics: topics.length, examPoints },
+  });
+
+  revalidatePath(`/dokumanlar/${documentId}`);
+  if (result.status !== "ready") return { ok: false, error: "Analiz yazılamadı; ders hataları sayfasına bak." };
+  return { ok: true, topics: topics.length, examPoints };
+}

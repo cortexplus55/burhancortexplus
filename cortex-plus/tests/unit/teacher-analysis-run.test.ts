@@ -162,6 +162,27 @@ describe("öğretmen analizi kaydı", () => {
     expect(gate.calls).toBe(0);
   });
 
+  // Plan 4.4 (18 Ekim 2026): yönetici düğmesi hazır kaydı baştan yazdırır — Pediatri'nin analizi eski
+  // 2 sayfalık sınırla kalmış, kendiliğinden yenilenmiyordu.
+  it("force ile hazır kayıt yeniden üretilir ve üstüne yazılır", async () => {
+    const state: State = {
+      existing: { status: "ready", analysis: readyAnalysis },
+      pages: [{ page_number: 1, text_content: "Hücre zarı seçici geçirgendir ve madde alışverişini protein kanallarıyla düzenler." }],
+      wallet: { balance: 10, reserved: 0 },
+      saved: null,
+    };
+    const result = await runTeacherAnalysis(client(state), "doc-1", {
+      userId: "user-1",
+      fileName: "biyoloji.pdf",
+      mimeType: "application/pdf",
+      force: true,
+    });
+    expect(gate.calls).toBe(1);
+    expect(result.status).toBe("ready");
+    expect(state.saved?.status).toBe("ready");
+    expect(result.analysis?.summary).not.toBe(readyAnalysis.summary);
+  });
+
   // 18 Ekim 2026: analiz belge işlemenin parçası, öğrenciden kredi düşmez. Eskiden hak yetmeyince
   // sessizce atlanıyor, "öğretmen gözü" o öğrencide hiç çalışmıyordu.
   it("öğrencinin hakkı az olsa da analiz yapılır ve krediden düşmez", async () => {

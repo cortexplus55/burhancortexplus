@@ -96,14 +96,18 @@ function rememberAnalysis(documentId: string, analysis: TeacherAnalysis | null) 
  * Belge başına bir öğretmen analizi.
  *
  * Model susarsa, kredi yetmezse ya da kayıt yazılamazsa yükleme akışı
- * olduğu gibi sürer. Hazır kayıt varsa yeniden üretilmez.
+ * olduğu gibi sürer. Hazır kayıt varsa yeniden üretilmez — `force` bunun tek
+ * istisnası: yönetici düğmesi (18 Ekim 2026, plan 4.4). Pediatri belgesinin
+ * analizi eski 2 sayfalık sınırla yazılmış, 10 konunun 8'inde "Sınavda sorulur"
+ * maddesi yoktu ve hazır kayıt yüzünden kendiliğinden düzelmiyordu.
  */
 export async function runTeacherAnalysis(
   service: SupabaseClient,
   documentId: string,
-  input: { userId: string; fileName: string; mimeType?: string | null },
+  input: { userId: string; fileName: string; mimeType?: string | null; force?: boolean },
 ): Promise<TeacherAnalysisRun> {
   try {
+    if (input.force) analysisCache.delete(documentId);
     const existingResult = await service
       .from("document_teacher_analyses")
       .select("status, analysis")
@@ -114,7 +118,7 @@ export async function runTeacherAnalysis(
       return { ...EMPTY, status: "failed" };
     }
     const existing = existingResult.data;
-    if (existing?.status === "ready") {
+    if (existing?.status === "ready" && !input.force) {
       const stored = parseTeacherAnalysis(existing.analysis);
       if (stored) {
         rememberAnalysis(documentId, stored);
