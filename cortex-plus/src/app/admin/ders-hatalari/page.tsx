@@ -8,25 +8,12 @@ import { listLessonGenerationFailures } from "@/lib/learning/lesson-generation-f
 import { listStuckGenerations, STUCK_AFTER_MS } from "@/lib/learning/stuck-generations";
 import { StuckResetButton } from "@/components/admin/stuck-reset-button";
 import { formatDate } from "@/lib/format";
+import { FAILURE_REASON_LABEL } from "@/lib/admin/failure-labels";
 
 export const metadata = { title: "Yönetim · Ders hataları" };
 
-const REASON_LABEL: Record<string, string> = {
-  source_unavailable: "Kaynak yok",
-  content_verification_failed: "Kalite kapısı",
-  generation_failed: "Üretim hatası",
-  no_prep_documents: "Belge yok",
-  documents_processing: "Belge işleniyor",
-  no_topic_mapping: "Konu eşleşmedi",
-  pages_unusable: "Sayfa okunamadı",
-  search_no_match: "Arama eşleşmedi",
-  search_error: "Arama hatası",
-  // Hata değil: ders çıktı ama düzeltme turu açtı (yavaş). Neden ret cümlelerinde.
-  slow_generation: "Yavaş üretim (düzeltme turu)",
-  // 18 Ekim 2026: akışlı motor. Taslak okunamadı (yeniden yazıldı) ya da düzelmeyen kavram atıldı.
-  draft_unreadable: "Taslak okunamadı (yeniden yazıldı)",
-  concept_dropped: "Kavram atıldı (düzelmedi)",
-};
+/** Sebep adları tek kaynakta (günlük özet e-postası da aynı listeyi okur). */
+const REASON_LABEL = FAILURE_REASON_LABEL;
 
 export default async function AdminDersHatalariPage({
   searchParams,

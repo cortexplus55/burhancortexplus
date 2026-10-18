@@ -1178,3 +1178,40 @@ export async function setUserSuspended(input: {
   revalidatePath("/admin/kullanicilar");
   return { ok: true, message: suspend ? "Hesap askıya alındı." : "Askı kaldırıldı." };
 }
+
+/**
+ * Günlük özet e-postasını sabahı beklemeden gönderir (18 Ekim 2026, plan 4.8).
+ * Günlük kilidi aşar; alıcı yine operasyon adresi. Denetim günlüğüne yazılır.
+ */
+export async function sendDailyDigestNow(): Promise<
+  { ok: true; message: string } | { ok: false; error: string }
+> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+
+  const service = createServiceClient();
+  const { sendDailyDigest } = await import("@/lib/admin/daily-digest");
+  const result = await sendDailyDigest(service, { force: true });
+
+  await auditLog(service, {
+    actorId,
+    action: "ops.daily_digest_manual",
+    entityType: "day",
+    metadata: result.ok
+      ? { to: result.to, failures: result.digest.failures.total, stuck: result.digest.stuck }
+      : { reason: result.reason, detail: result.detail ?? null },
+  });
+
+  if (!result.ok) {
+    const label: Record<string, string> = {
+      disabled: "Özet kapalı (ADMIN_DIGEST_EMAIL=off).",
+      send_failed: `E-posta gönderilemedi${result.detail ? `: ${result.detail}` : "."}`,
+    };
+    return { ok: false, error: label[result.reason] ?? "Gönderilemedi." };
+  }
+  const d = result.digest;
+  return {
+    ok: true,
+    message: `${result.to} adresine gitti · ${d.signups} kayıt · ${d.payments.paid} ödeme · ${d.failures.total} hata · ${d.stuck} takılı`,
+  };
+}
