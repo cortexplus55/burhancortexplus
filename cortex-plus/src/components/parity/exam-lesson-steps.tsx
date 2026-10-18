@@ -18,6 +18,7 @@ import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 import {
   layoutBoard,
   overviewDuplicatesSection,
+  studentTextParts,
   type BoardLine,
 } from "@/lib/learning/lesson-board";
 import { RichBody } from "@/components/parity/lesson-rich-text";
@@ -622,8 +623,18 @@ function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayL
           {lesson.summary?.length ? ", sonunda özet" : ""}
         </p>
       ) : null}
+      {/* Renk anahtarı (18 Ekim 2026): turuncu işaret sınavda soru olacak kesin bilgi. */}
+      {lessonHasExamMarks(lesson) ? (
+        <p className="als-intro-legend">
+          <mark className="als-exam">Turuncu</mark> işaretli yerler sınavda çıkar.
+        </p>
+      ) : null}
     </section>
   );
+}
+
+function lessonHasExamMarks(lesson: PlayLessonV3): boolean {
+  return studentTextParts(JSON.stringify(lesson.screens)).some((part) => part.exam);
 }
 
 function progressLabel(

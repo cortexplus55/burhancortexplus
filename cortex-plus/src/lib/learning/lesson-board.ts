@@ -64,17 +64,31 @@ export function preserveSubscriptLetters(text: string): string {
     .replace(/_([A-Za-z])(?![A-Za-z0-9])/g, (_match, letter: string) => subOf(letter));
 }
 
-/** Koyu işaret öğrenci metninde ya kalın ya da düz yazıdır; yıldız görünmez. */
-export function studentTextParts(text: string): { bold: boolean; text: string }[] {
-  const parts = text.split(/(\*\*[^*\n]{1,80}\*\*)/g);
+/**
+ * Sınav vurgusu `==…==` (18 Ekim 2026): sınavda soru olacak kesin bilgi, ekranda turuncu.
+ * İçi boşlukla başlayıp bitemez: programlama dersindeki "a == b" vurgu sanılmasın.
+ */
+const EXAM_MARK = /==(?=\S)[^=\n]{1,120}?(?<=\S)==/;
+
+/** Koyu işaret öğrenci metninde ya kalın ya da düz yazıdır; yıldız görünmez. `==…==` sınav vurgusudur. */
+export function studentTextParts(text: string): { bold: boolean; exam?: boolean; text: string }[] {
+  const parts = text.split(new RegExp(`(\\*\\*[^*\\n]{1,80}\\*\\*|${EXAM_MARK.source})`, "g"));
   return parts
     .map((part) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return { bold: true, text: part.slice(2, -2) };
       }
+      if (EXAM_MARK.test(part) && part.startsWith("==") && part.endsWith("==")) {
+        return { bold: true, exam: true, text: part.slice(2, -2).replace(/\*\*/g, "") };
+      }
       return { bold: false, text: part.replace(/\*\*/g, "") };
     })
     .filter((part) => part.text.length > 0);
+}
+
+/** Düz metin (okuma süresi, giriş kartı, ses): koyu ve sınav vurgusu işaretleri kalkar. */
+export function stripEmphasis(text: string): string {
+  return text.replace(new RegExp(EXAM_MARK.source, "g"), (mark) => mark.slice(2, -2)).replace(/\*\*/g, "");
 }
 
 /** "P r" ve "∫ 1 2" alt simge ile integral sınırına döner. */
@@ -92,7 +106,7 @@ export function restoreMathNotation(text: string): string {
 }
 
 function plain(text: string): string {
-  return text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  return stripEmphasis(text).replace(/\s+/g, " ").trim();
 }
 
 export function overviewDuplicatesSection(overview: string, body: string): boolean {

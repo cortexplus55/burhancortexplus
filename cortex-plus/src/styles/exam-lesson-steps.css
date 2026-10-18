@@ -590,6 +590,47 @@
   background: rgba(226, 179, 64, 0.1);
 }
 
+/*
+  Sınav vurgusu ve sınav kutuları (18 Ekim 2026, ürün sahibinin kararı: önemli nokta farklı
+  renkte, akılda kalıcı). Terim koyu kalır; renk yalnız sınavda soru olacak kesin bilgi için.
+*/
+.als-exam {
+  padding: 0 0.2em;
+  border-radius: 0.3em;
+  background: rgba(255, 138, 61, 0.2);
+  color: #ffb27a;
+  font-weight: 650;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.als-note--exam {
+  border-color: #ff8a3d;
+  background: rgba(255, 138, 61, 0.12);
+}
+
+.als-note--exam .als-note-title {
+  color: #ff9d5c;
+}
+
+.als-note--remember {
+  border-color: #3fbf7f;
+  background: rgba(63, 191, 127, 0.1);
+}
+
+.als-note--remember .als-note-title {
+  color: #5fd396;
+}
+
+.als-note--mnemonic {
+  border-color: #9b7bff;
+  background: rgba(155, 123, 255, 0.12);
+}
+
+.als-note--mnemonic .als-note-title {
+  color: #b39cff;
+}
+
 /* Belgede olmayan, denetlenmiş genel bilgi: öğrenci neyin belgesinden gelmediğini görsün. */
 .als-note--general {
   border-color: #4f8fd6;
@@ -1021,6 +1062,12 @@
 
 .als-intro-end {
   margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-muted, var(--c-text-muted));
+}
+
+.als-intro-legend {
+  margin: 0.4rem 0 0;
   font-size: 0.8125rem;
   color: var(--cp-muted, var(--c-text-muted));
 }

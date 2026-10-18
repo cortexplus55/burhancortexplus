@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 import { reviewGateQuestion } from "@/lib/learning/lesson-chrome";
 import { powerValue } from "@/lib/learning/exponent-key";
+import { stripEmphasis } from "@/lib/learning/lesson-board";
 import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 
 export type LessonCheckAnswer = {
@@ -83,7 +84,7 @@ export const publicLessonV2Schema = z.object({
           .object({
             title: z.string(),
             body: z.string(),
-            tone: z.enum(["warn", "info", "unit", "general"]).optional(),
+            tone: z.enum(["warn", "info", "unit", "general", "exam", "remember", "mnemonic"]).optional(),
           })
           .optional(),
         cards: z
@@ -215,9 +216,9 @@ export function buildLessonRetryCheck(
  * cümlesi. Uzun cümle kesilmez — satır boş kalır.
  */
 export function planLine(section: { lead?: string; body: string }): string {
-  const lead = section.lead?.replace(/\*\*/g, "").trim();
+  const lead = section.lead ? stripEmphasis(section.lead).trim() : "";
   if (lead) return lead;
-  const first = section.body.replace(/\*\*/g, "").trim().match(/^[^\n]*?[.!?](?=\s|$)/)?.[0] ?? "";
+  const first = stripEmphasis(section.body).trim().match(/^[^\n]*?[.!?](?=\s|$)/)?.[0] ?? "";
   return first.length >= 12 && first.length <= 140 ? first : "";
 }
 

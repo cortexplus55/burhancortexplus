@@ -13,6 +13,7 @@ import {
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
+import { studentTextParts } from "@/lib/learning/lesson-board";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -124,6 +125,27 @@ const EXAMPLE_TOPIC =
   "çözümlü örnek (verilen, istenen, adımlar, birimli sonuç), ait olduğu kavramın ekranında; değilse yazma.\n" +
   "6) commonMistake: öğrencilerin bu konuda gerçekten yaptığı somut hata ve düzeltmesi (öğüt değil, hata).\n";
 
+/**
+ * Renkli vurgu, sınav kutuları ve ezber kodu (18 Ekim 2026, ürün sahibinin kararı; Pediatri
+ * belgesi öğrenci gözüyle incelendi). Belge önemli yerleri kutularla işaretliyordu ("TUS / SINAV
+ * İPUCU", "AKILDA TUT", "ALARM BULGULARI"); ders bunları ayrıca öne çıkarmıyordu. Terimler koyu
+ * kalır (paragraf alacalı olmasın); renk yalnız sınavda soru olacak kesin bilgi ve kutular için.
+ * Denetçi I maddesiyle aynı kuralı denetler.
+ */
+export const EMPHASIS_RULE =
+  "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
+  "kanıtlanana kadar' türü kural, SINAVDA SORULUR maddesi) metinde ==çift eşittir== arasına al; ekranda turuncu " +
+  "işaretlenir. Ekran başına en çok 2 vurgu, her biri tam cümle değil kilit ifade (en çok 12 kelime); kaynaktaki sayı ve " +
+  "terimle. Anahtar terimler yine **koyu**. KAYNAK'ta kavramına ait bir 'SINAV İPUCU' / 'TUS / SINAV İPUCU', 'AKILDA " +
+  "TUT' / 'PRATİK NOKTA' ya da 'ALARM BULGULARI' kutusu varsa atlama, 'note' bloğu olarak ver: sınav ipucu tone 'exam' " +
+  "(başlık 'Sınav ipucu: …'), akılda tut ve pratik nokta tone 'remember' (başlık 'Akılda tut: …'), alarm bulguları " +
+  "tone 'warn' (başlık 'Alarm bulguları'); gövde kutunun bilgisini kendi cümlelerinle ve eksiksiz verir. " +
+  "EZBER KODU: Kavramda üyeleri ya da sırası ezberlenecek bir liste ya da sınıflama varsa (en az 3 öğe; örn. bir " +
+  "sendromun bileşenleri, bir yaklaşımın adımları) kavram başına en çok bir 'note' bloğu, tone 'mnemonic', başlık " +
+  "'Ezber kodu: <kod>'; gövde kodun her harfinin ya da sözcüğünün kaynaktaki hangi öğeye karşılık geldiğini sırayla " +
+  "yazar. Kod yalnız kaynaktaki öğelerden kurulur; öğe eklemez, eksiltmez, sırayı bozmaz. Zorlama ya da anlamsız " +
+  "kod yazma; gerek yoksa hiç yazma.\n\n";
+
 /** Öğretmen istemi — Astra'nın aynı belgeyle gözlenen ders akışı. */
 export const TEACHER_SYSTEM =
   INTRO_DOCUMENT +
@@ -157,7 +179,8 @@ export const TEACHER_SYSTEM =
   "Yaşa, evreye ya da türe göre değişen birden çok değer sayıyorsan ('6 ayda …, 12 ayda …, 2 yaşta …') bunları metinde " +
   "art arda sıralama: 'table' kur (satır yaş/evre, sütun alan) ve metinde tabloyu nasıl okuyacağını söyle. " +
   "Tablo kurduğun ekranda metin tablonun satırlarını yeniden saymaz; ayırt ettiren ölçütü ve tablonun nasıl okunacağını söyler. " +
-  "Öğrencinin sık karıştırdığı iki kavram varsa ekrana 'note' bloğu (tone: warn) koy: 'X ile Y farkı'. " +
+  "Öğrencinin sık karıştırdığı iki kavram varsa ekrana 'note' bloğu (tone: warn) koy: 'X ile Y farkı'.\n\n" +
+  EMPHASIS_RULE +
   "GÜNDELİK ÖRNEK (zorunlu): Derste EN AZ BİR ekranda, uyarı notu olmayan bir ekrana, 'note' bloğu (tone: info) ile " +
   "gündelik hayattan kısa bir örnek kutusu koy. Başlık 'Günlük hayattan: …' diye başlasın ve örneği anlatsın. " +
   "Somut bir sahne kur: biri bir şey yapıyor ve bir şey oluyor; soyut tanımı tekrar etme. Örnek biçimi: 'Kırmızı ışıkta " +
@@ -271,10 +294,14 @@ export const VERIFY_SYSTEM =
   "ya da bilgiyi kaynağa atfeden cümle ('kaynakta … diye açıklanır', 'metne göre', 'belgede belirtildiği gibi').\n" +
   "H) 'Genel bilgi' notunda (tone 'general') yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; kaynakta zaten " +
   "olan bilginin bu nota konması; bu nottaki bilginin metinde, soruda, 'corrected'da ya da özette kullanılması.\n" +
+  "I) Ezber kodu (tone 'mnemonic') kaynaktaki öğelerle birebir eşleşmiyor (öğe eksik ya da fazla, harf yanlış öğeye " +
+  "karşılık, sıra bozuk); ==vurgulanan== ifade kaynakta yok ya da yanlış; kaynakta kavramın bir SINAV İPUCU / AKILDA " +
+  "TUT / ALARM kutusu varken derste hiç geçmemesi.\n" +
   "Kaynakta açıkça bozuk bir cümlenin (olumsuzluk eki düşmüş, kelime kaymış, kendi açıklaması ve örnekleriyle " +
   "çelişen) derste kaynağın kendi açıklama ve örnekleriyle tutarlı anlamıyla yazılması SORUN DEĞİLDİR; bunu A ya da B " +
   "sayma.\n" +
-  "A-H 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
+  "A-I 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca, ekranda 2'den fazla ==vurgu== ya da " +
+  "sınavlık olmayan bilgiye vurgu.\n" +
   CALIBRATION +
   'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}]}. ' +
   "Sorun yoksa issues boş dizi.";
@@ -712,6 +739,9 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   if (/kayna(?:kta|ktaki|ğın)\s[^.]{0,80}?(?:hata|yanlış|bozuk)/i.test(text)) {
     add(`${where}.blocks`, "Metinde kaynağın hatasından söz eden iç not var; düzeltmeyi sessizce yap, notu çıkar.");
   }
+  // Sınav vurgusu ekran başına en çok 2 (18 Ekim 2026): her şey turuncuysa hiçbir şey öne çıkmaz.
+  const marks = studentTextParts(text).filter((part) => part.exam).length;
+  if (marks > 3) add(`${where}.blocks`, `Ekranda ${marks} sınav vurgusu (==…==) var; yalnız sınavda soru olacak en önemli iki bilgiyi işaretle.`);
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words > 220) {
     add(`${where}.blocks`, `Ekranın metni çok uzun (${words} kelime); 60-140 kelimeye indir, ayrıntıyı karta/tabloya ya da ikinci ekrana taşı.`);
@@ -749,6 +779,11 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
   if (!screenCheck(screens[lastIndex]!)) {
     add(`screens[${lastIndex}]`, `'${group.concept}' kavramı bir soruyla bitmeli: son ekranına 'check' bloğu koy.`);
   }
+  // Ezber kodu kavram başına en çok bir (18 Ekim 2026): birden çok kod akılda kalmaz, karışır.
+  const codes = group.screens.flatMap((index) =>
+    screens[index]!.blocks.filter((block) => block.type === "note" && block.note.tone === "mnemonic").map(() => index),
+  );
+  if (codes.length > 1) add(`screens[${codes[1]}].blocks`, `'${group.concept}' kavramında ${codes.length} ezber kodu var; en çok bir tane bırak.`);
   return issues;
 }
 

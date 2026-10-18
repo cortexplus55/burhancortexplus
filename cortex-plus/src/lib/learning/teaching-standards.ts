@@ -371,9 +371,10 @@ export const sectionNoteSchema = z.object({
   body: z.string().min(10).max(400),
   /**
    * warn = kırmızı uyarı, info = altın bilgi, unit = turuncu birim,
-   * general = belgede olmayan, denetlenmiş genel bilgi (16 Ekim 2026; yalnız belgeli ders).
+   * general = belgede olmayan, denetlenmiş genel bilgi (16 Ekim 2026; yalnız belgeli ders),
+   * exam = "Sınav ipucu", remember = "Akılda tut", mnemonic = "Ezber kodu" (18 Ekim 2026).
    */
-  tone: z.enum(["warn", "info", "unit", "general"]).optional().catch(undefined),
+  tone: z.enum(["warn", "info", "unit", "general", "exam", "remember", "mnemonic"]).optional().catch(undefined),
 });
 
 export const looseText = (max: number) =>
