@@ -33,6 +33,7 @@ başka Supabase projesi **yok**. Bir tanesini gördüğünüzde bu dosyaya geri 
   - Panel URL'i: `https://vercel.com/cortexplus55/burhancortexplus-app/deployments`
     (`cortexplus55s-projects` diye bir scope **yok**, 404 verir).
 - **Operasyon e-postası (tek):** **`cortexplus@cortexplus.app`** — panel, OAuth test, Squarespace, Gmail MCP, doküman; kişisel `@gmail.com` **yasak**. Ayrıntı: `docs/delivery/IDENTITY.md`, kural: `.cursor/rules/cortexplus-identity.mdc`
+- **Bir şey bozulduğunda:** `docs/ops/README.md` — takılı ders, yanlış kredi, PayTR bildirimi, OpenAI kota, Supabase duraklama, yayın geri alma (belirti → bakılacak yer → işlem). Satışa hazırlık durumu: `docs/delivery/SATISA-HAZIRLIK-PLANI.md`
 
 Kullanıcı **github hazır** dedikten sonra: Supabase proje oluştur, migration push, Vercel env, MCP `project_ref` güncelle.
 
