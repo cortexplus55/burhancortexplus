@@ -192,19 +192,41 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(second).toContain("ACOG: normalin 2 katı");
   });
 
-  it("düzelmeyen ara kavram atılır, ders kalanla gider; ilk kavram düzelmezse ders yazılmaz", async () => {
+  it("düzelmeyen ara kavram baştan yazılır; o da geçmezse atılır, ders kalanla gider; ilk kavram düzelmezse ders yazılmaz", async () => {
     const stuck = (target: string) => (user: string) =>
       user.includes(`yalnız ${target}`) ? { issues: [{ where: target, severity: "high", problem: "Yanlış bilgi." }] } : { issues: [] };
     const middle = await run({ verify: stuck("screens[1]"), fix: () => ({ screens: [lesson.screens[1]], disputes: [] }) });
     expect(middle.result.dropped).toEqual(["Yokluk"]);
     expect(middle.result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Mutlak Butlan"]);
-    // Ara kavrama bir tur fazla hak: öğrenci okurken düzelir.
-    expect(middle.calls.filter((call) => call.role === "fix-careful")).toHaveLength(3);
+    // Ara kavrama bir tur fazla hak (3), sonra bir kez baştan yazım ve bir düzeltme daha.
+    const careful = middle.calls.filter((call) => call.role === "fix-careful");
+    expect(careful).toHaveLength(5);
+    expect(careful.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM: screens[1]"))).toHaveLength(1);
 
     const first = await run({ verify: stuck("screens[0]"), fix: () => ({ screens: [lesson.screens[0]], disputes: [] }) });
     expect(first.result.lesson).toBeNull();
     expect(first.result.failure[0]!.problem).toBe("Yanlış bilgi.");
     expect(first.published).toEqual([]);
+  });
+
+  // 18 Ekim 2026, Pediatri: aynı taslağı yamalayan üç tur aynı yerde takıldı, sınavın en önemli
+  // kavramı (gelişim basamakları) atıldı. Ürün sahibi: "arkada yeniden yazılsın".
+  it("baştan yazılan kavram denetimden geçerse derste yerinde kalır", async () => {
+    const rewritten = { ...lesson.screens[1]!, heading: "Yokluk: hiç doğmamış işlem", blocks: [{ type: "text", text: "Kurucu unsuru eksik işlem hukuken **hiç doğmamıştır**: yokluk." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")] };
+    const { result, calls, published } = await run({
+      verify: (user) =>
+        user.includes("yalnız screens[1]") && !user.includes("hiç doğmamıştır")
+          ? { issues: [{ where: "screens[1]", severity: "high", problem: "Tablo yok." }] }
+          : { issues: [] },
+      fix: (user) => (user.includes("YENİDEN YAZILACAK KISIM") ? { screens: [rewritten] } : { screens: [lesson.screens[1]], disputes: [] }),
+    });
+    expect(result.dropped).toEqual([]);
+    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk: hiç doğmamış işlem", "Mutlak Butlan"]);
+    // Kavram adı korunur: giriş kartı ve yayım sırası bozulmaz.
+    expect(result.lesson?.screens[1]?.concept).toBe("Yokluk");
+    expect(calls.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM"))).toHaveLength(1);
+    // Beklerken kavram "hazırlanıyor" olarak duyurulur, ilk kavram yalnız başına yayımlanmıştı.
+    expect(published[0]).toEqual(expect.objectContaining({ screens: 1, upcoming: ["Yokluk", "Mutlak Butlan"] }));
   });
 
   it("taslak okunamazsa nedeni kaydedilir ve bir kez baştan yazılır", async () => {

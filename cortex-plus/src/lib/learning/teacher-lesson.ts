@@ -389,6 +389,36 @@ export function fixPartUserPrompt(
   ].join("\n\n");
 }
 
+/**
+ * Düzelmeyen kavramı BAŞTAN yazdırma (18 Ekim 2026, ürün sahibinin kararı: "arkada yeniden
+ * yazılsın"). Düzeltme turları aynı taslağı yamalıyor; aynı yerde takılan taslak (Pediatri,
+ * gelişim basamakları: üç tur aynı sorun) yamayla düzelmiyor ve kavram dersten atılıyordu —
+ * öğrenci sınavın en önemli bölümü eksik dersi tam sanıyordu. Önceki taslak bir kez bırakılır,
+ * kavram kaynaktan yeniden yazılır; yeni taslak yine denetlenir.
+ */
+export function rewritePartUserPrompt(
+  lesson: LessonV3,
+  part: LessonPart,
+  issues: TeacherIssue[],
+  input: TeacherLessonInput,
+): string {
+  const concept = lesson.screens[part.from]?.concept || lesson.screens[part.from]?.heading || "bu kavram";
+  return [
+    teacherUserPrompt(input),
+    `ŞU ANKİ DERS (JSON):\n${JSON.stringify(lesson)}`,
+    `YENİDEN YAZILACAK KISIM: ${partLabel(part)} — kavram "${concept}".`,
+    `Bu kavramın taslağı düzeltmelere rağmen denetimden geçmedi. Son sorunlar:\n${issues
+      .map((issue, i) => `${i + 1}. [${issue.where}] ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`)
+      .join("\n")}`,
+    "Önceki taslağı bırak: kavramı KAYNAK'tan baştan, farklı bir kuruluşla yaz. Kavramın sınavda soruyu " +
+      "çözdüren bilgisini (tablo, eşik, sınıflama, ayırıcı ipucu) mutlaka taşı; kaynaktaki tabloyu 'table' " +
+      "bloğu olarak ver. Aynı kavram adını ('concept') koru. '[yapı kuralı]' sorunları koddaki kurallardır.",
+    `Yalnız şu alanları taşıyan bir JSON döndür: {"screens": [bu kavramın 1-3 ekranı, baştan yazılmış]${
+      part.closing ? ', "commonMistake", "summary"' : ""
+    }}.`,
+  ].join("\n\n");
+}
+
 export type PartFix = {
   screens: LessonV3["screens"];
   title?: string;
