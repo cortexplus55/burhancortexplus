@@ -30,21 +30,6 @@ export default async function AdminKullanicilarPage({
     seçemiyor ve sorgunun tamamı boş dönüyor — hata da vermiyor, yalnızca sıfır
     satır. Bu sayfa uzun süredir bu yüzden boş görünüyordu.
   */
-  let query = service
-    .from("profiles")
-    .select(
-      "id, full_name, grade_level, created_at, credit_wallets(balance), user_roles!user_roles_user_id_fkey(role, revoked_at)",
-    )
-    .order("created_at", { ascending: false })
-    .limit(PAGE_SIZE);
-
-  if (term) query = query.ilike("full_name", `%${term}%`);
-
-  const [{ data: profiles }, pending] = await Promise.all([
-    query,
-    countPendingApplications(service),
-  ]);
-
   /*
     E-posta `profiles` içinde tutulmuyor, kimlik tarafında duruyor. Tek
     seferde çekip eşleştiriyoruz — bu, kullanıcı sayısı binleri geçtiğinde
@@ -56,6 +41,37 @@ export default async function AdminKullanicilarPage({
   for (const authUser of authUsers?.users ?? []) {
     if (authUser.email) emails.set(authUser.id, authUser.email);
   }
+
+  let query = service
+    .from("profiles")
+    .select(
+      "id, full_name, grade_level, created_at, credit_wallets(balance), user_roles!user_roles_user_id_fkey(role, revoked_at)",
+    )
+    .order("created_at", { ascending: false })
+    .limit(PAGE_SIZE);
+
+  if (term) {
+    /*
+      Destek yazan öğrenci adını değil e-postasını verir (18 Ekim 2026, plan 4.6): arama
+      ikisine de bakar. E-posta kimlik tarafında olduğu için eşleşen kimlikleri burada
+      bulup sorguya veriyoruz; virgül ve parantez PostgREST listesini bozmasın diye
+      yalnız kimlikler gider, aranan metin ada `ilike` olarak.
+    */
+    const needle = term.toLocaleLowerCase("tr");
+    const emailMatches = [...emails.entries()]
+      .filter(([, email]) => email.toLocaleLowerCase("tr").includes(needle))
+      .map(([id]) => id)
+      .slice(0, 200);
+    const namePattern = `%${term.replace(/[%_,()]/g, " ")}%`;
+    query = emailMatches.length
+      ? query.or(`full_name.ilike.${namePattern},id.in.(${emailMatches.join(",")})`)
+      : query.ilike("full_name", namePattern);
+  }
+
+  const [{ data: profiles }, pending] = await Promise.all([
+    query,
+    countPendingApplications(service),
+  ]);
 
   const rows = (profiles ?? []).map((profile) => {
     const roles = (profile.user_roles ?? [])
@@ -92,7 +108,7 @@ export default async function AdminKullanicilarPage({
               type="search"
               name="q"
               defaultValue={term}
-              placeholder="İsimle ara"
+              placeholder="İsim ya da e-postayla ara"
               aria-label="Kullanıcı ara"
               className="adm-input"
             />
