@@ -89,6 +89,15 @@ type Step =
 
 const STEP_ORDER: Step[] = [...WIZARD_STEP_ORDER];
 const BUILD_STAGES = [...DOCUMENT_ANALYSIS_STAGES];
+/*
+  Birden çok dosyanın ortak konu haritası birkaç turda biter. 18 Ekim 2026'da iki
+  dosyalı kurulumda ilk iki deneme "konular hâlâ hazırlanıyor" (409) aldı ve öğrenci
+  açıklamasız materyal ekranına düştü; üçüncü "Devam et" ancak geçti. Harita
+  hazırlanıyor dedikçe aynı ekranda bekleyip yeniden sorarız; kota ve gerçek hatalar
+  yine aşağıdaki dallarda.
+*/
+const COURSE_MAP_RETRIES = 6;
+const COURSE_MAP_RETRY_DELAY_MS = 2_500;
 const MODALITIES = STUDY_MODALITY_CHOICES;
 type ChosenModality = (typeof STUDY_MODALITY_CHOICES)[number]["id"];
 
@@ -634,8 +643,15 @@ export function ExamCreateWizard({
       try {
         let course = await buildCourseMap();
         let { res, payload } = course.ok ? await probe() : { res: null, payload: {} };
-        if (res?.status === 409) {
-          // A map was pending (e.g. an old flat map) — outline once more, then read.
+        // A map was pending (old flat map, or a course outline still in its rounds):
+        // outline again and read, a bounded number of times, without leaving this screen.
+        for (
+          let attempt = 0;
+          attempt < COURSE_MAP_RETRIES && course.ok && res?.status === 409;
+          attempt += 1
+        ) {
+          setProcessDetail("Konular birleştiriliyor…");
+          await new Promise((resolve) => setTimeout(resolve, COURSE_MAP_RETRY_DELAY_MS));
           course = await buildCourseMap();
           if (course.ok) ({ res, payload } = await probe());
         }
@@ -1316,6 +1332,24 @@ export function ExamCreateWizard({
             ve slayt fotoğrafı (JPG, PNG, HEIC) de olur. Konular senin
             materyalinden çıkar.
           </p>
+          {/* Konu çıkarma bu ekrana geri düşürdüyse nedeni burada da görünsün;
+              eskiden yalnız konular adımında çiziliyordu ve öğrenci açıklamasız
+              materyal ekranına dönüyordu (18 Ekim 2026). */}
+          {intakeAlert ? (
+            <div
+              className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-50"
+              role="alert"
+            >
+              <p>{intakeAlert}</p>
+              <button
+                type="button"
+                className="mt-2 text-xs underline underline-offset-2"
+                onClick={() => setIntakeAlert(null)}
+              >
+                Kapat
+              </button>
+            </div>
+          ) : null}
 
           <div
             className={dragOver ? "apw-drop apw-drop--over" : "apw-drop"}
