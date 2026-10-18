@@ -51,4 +51,39 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
     await expect(chromeCredit.first()).toBeVisible();
     await expect(page.locator("a.cp-sor-credit-chip")).toHaveCount(0);
   });
+
+  /*
+    Telefon denetimi (18 Ekim 2026): giriş yapılmış ekranlar otomatik testte hiç telefon
+    genişliğinde açılmıyordu; "Geri"li üst çubuk 456 px'e taşıyor, Belgelerim 418 px'e
+    açılıyordu ve kimse görmedi. Burada hem sayfa hem üst çubuk 390 px'e sığmalı —
+    üst çubuğu ayrıca ölçüyoruz, çünkü sohbet sayfasında kök kutu taşanı kırpıyor ve
+    sayfa genişliği tek başına temiz görünüyor.
+  */
+  test("telefon genişliğinde oturumlu ekranlar ve üst çubuk yana taşmaz", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const screens = [
+      "/ogretmen",
+      "/deneme-sinavlari",
+      "/deneme-sinavlari/ara",
+      "/deneme-sinavlari/hazirliklarim",
+      "/dokumanlar",
+      "/profil",
+    ];
+    for (const path of screens) {
+      await page.goto(path);
+      await page.waitForLoadState("domcontentloaded");
+      const fit = await page.evaluate(() => {
+        const root = document.documentElement;
+        const header = document.querySelector("header.cp-sor-top");
+        return {
+          page: root.scrollWidth - root.clientWidth,
+          header: header ? header.scrollWidth - header.clientWidth : 0,
+        };
+      });
+      expect(fit.page, `${path} sayfa genişliği`).toBeLessThanOrEqual(1);
+      expect(fit.header, `${path} üst çubuk`).toBeLessThanOrEqual(1);
+    }
+  });
 });
