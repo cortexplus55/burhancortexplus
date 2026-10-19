@@ -4,21 +4,20 @@ import { describe, expect, it } from "vitest";
 import { SUPPORT_SLA, supportSlaLine } from "@/lib/support/sla";
 
 /*
-  Destek cevap süresi sözü (plan 4.9, 19 Ekim 2026): hafta içi 24 saat, hafta sonu 48 saat,
-  sorumlu operasyon adresi. Söz tek kaynaktan (`sla.ts`) okunur ve destek sayfasında yazar.
+  Destek cevap süresi sözü (plan 4.9). Ürün sahibinin kararı (19 Ekim 2026): 24 saat içinde, hafta sonu
+  dahil; sorumlu operasyon adresi. Söz tek kaynaktan (`sla.ts`) okunur, destek sayfasında yazar, günlük
+  özet 24 saati geçen açık talepleri sayar.
 */
 describe("destek cevap süresi", () => {
-  it("24 / 48 saat ve operasyon adresi", () => {
-    expect(SUPPORT_SLA.weekdayHours).toBe(24);
-    expect(SUPPORT_SLA.weekendHours).toBe(48);
+  it("24 saat ve operasyon adresi", () => {
+    expect(SUPPORT_SLA.hours).toBe(24);
     expect(SUPPORT_SLA.email).toBe("cortexplus@cortexplus.app");
-    expect(supportSlaLine()).toBe(
-      "Hafta içi 24 saat, hafta sonu 48 saat içinde cortexplus@cortexplus.app adresinden cevap veririz.",
-    );
+    expect(supportSlaLine()).toBe("24 saat içinde cortexplus@cortexplus.app adresinden cevap veririz.");
   });
 
-  it("destek sayfası sözü tek kaynaktan yazar", () => {
-    const page = readFileSync(path.resolve(__dirname, "..", "..", "src", "app", "destek", "page.tsx"), "utf8");
-    expect(page).toContain("supportSlaLine()");
+  it("destek sayfası ve günlük özet sözü tek kaynaktan okur", () => {
+    const root = path.resolve(__dirname, "..", "..", "src");
+    expect(readFileSync(path.join(root, "app", "destek", "page.tsx"), "utf8")).toContain("supportSlaLine()");
+    expect(readFileSync(path.join(root, "lib", "admin", "daily-digest.ts"), "utf8")).toContain("SUPPORT_SLA.hours");
   });
 });

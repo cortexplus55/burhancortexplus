@@ -1215,3 +1215,52 @@ export async function sendDailyDigestNow(): Promise<
     message: `${result.to} adresine gitti · ${d.signups} kayıt · ${d.payments.paid} ödeme · ${d.failures.total} hata · ${d.stuck} takılı`,
   };
 }
+
+const extendSchema = z.object({ userId: z.string().uuid(), days: z.number().int().min(1).max(365) });
+
+/**
+ * Etkin aboneliği elle uzatır (19 Ekim 2026, satışa hazırlık plan 4.5): destek telafisi, ödeme
+ * gecikmesi, kampanya. Bitiş = max(şimdi, mevcut bitiş) + gün. Etkin abonelik yoksa uzatılacak bir şey
+ * yok (kredi ekleme ayrı). Denetim günlüğüne önce/sonra bitiş tarihiyle yazılır.
+ */
+export async function extendSubscription(input: {
+  userId: string;
+  days: number;
+}): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  const parsed = extendSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Gün 1 ile 365 arasında olmalı." };
+  const { userId, days } = parsed.data;
+
+  const service = createServiceClient();
+  const { data: sub } = await service
+    .from("subscriptions")
+    .select("id, current_period_end")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("current_period_end", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (!sub) return { ok: false, error: "Etkin abonelik yok; uzatılacak bir şey yok." };
+
+  const before = sub.current_period_end as string | null;
+  const base = Math.max(Date.now(), before ? new Date(before).getTime() : 0);
+  const after = new Date(base + days * 86_400_000).toISOString();
+  const { error } = await service
+    .from("subscriptions")
+    .update({ current_period_end: after, updated_at: new Date().toISOString() })
+    .eq("id", sub.id);
+  if (error) return { ok: false, error: "Abonelik güncellenemedi." };
+
+  await auditLog(service, {
+    actorId,
+    action: "subscription.extended",
+    entityType: "user",
+    entityId: userId,
+    metadata: { subscriptionId: sub.id, days, before, after },
+  });
+
+  revalidatePath(`/admin/kullanicilar/${userId}`);
+  return { ok: true, message: `Abonelik ${days} gün uzatıldı.` };
+}

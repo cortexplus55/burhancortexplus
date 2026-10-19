@@ -1,4 +1,5 @@
 import "server-only";
+import { SUPPORT_SLA } from "@/lib/support/sla";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditLog } from "@/lib/audit";
 import { sendEmail } from "@/lib/email/mailer";
@@ -41,6 +42,8 @@ export type DailyDigest = {
   };
   /** 10 dakikadan uzun süredir `creating` duran üretim işleri (şu an). */
   stuck: number;
+  /** Destek: pencerede gelen talep; 24 saati geçmiş açık talep (plan 4.9). */
+  support?: { opened: number; overdue: number };
 };
 
 /** TRT gününün anahtarı: `2026-10-18`. */
@@ -86,11 +89,19 @@ export async function collectDailyDigest(
   const now = options.now ?? new Date();
   const since = new Date(now.getTime() - (options.windowMs ?? DIGEST_WINDOW_MS)).toISOString();
 
-  const [signups, payments, failures, stuck] = await Promise.all([
+  // Destek sözü (plan 4.9, 24 saat): pencerede gelen talepler ve süresi geçmiş açık talepler.
+  const slaCutoff = new Date(now.getTime() - SUPPORT_SLA.hours * 3_600_000).toISOString();
+  const [signups, payments, failures, stuck, supportOpened, supportOverdue] = await Promise.all([
     service.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since),
     service.from("payments").select("amount_try, status").gte("created_at", since).limit(2000),
     service.from("lesson_generation_failures").select("reason").gte("created_at", since).limit(5000),
     listStuckGenerations(service, { now: now.getTime(), limit: 50 }),
+    service.from("support_requests").select("id", { count: "exact", head: true }).gte("created_at", since),
+    service
+      .from("support_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open")
+      .lt("created_at", slaCutoff),
   ]);
 
   const pay = { paid: 0, paidKurus: 0, failed: 0, pending: 0, refunded: 0 };
@@ -124,11 +135,17 @@ export async function collectDailyDigest(
     payments: pay,
     failures: { total: byReason.reduce((sum, item) => sum + item.count, 0), slow, byReason },
     stuck: stuck.rows.length,
+    support: { opened: supportOpened.count ?? 0, overdue: supportOverdue.count ?? 0 },
   };
 }
 
 export function digestNeedsAttention(digest: DailyDigest): boolean {
-  return digest.failures.total > 0 || digest.stuck > 0 || digest.payments.failed > 0;
+  return (
+    digest.failures.total > 0 ||
+    digest.stuck > 0 ||
+    digest.payments.failed > 0 ||
+    (digest.support?.overdue ?? 0) > 0
+  );
 }
 
 function escapeHtml(value: string): string {
@@ -160,6 +177,16 @@ export function renderDailyDigest(
         (digest.failures.slow ? ` · ${digest.failures.slow} yavaş/yeniden yazım` : ""),
     },
     { label: "Takılı üretim (şu an)", value: String(digest.stuck) },
+    ...(digest.support
+      ? [
+          {
+            label: "Destek",
+            value:
+              `${digest.support.opened} yeni talep` +
+              (digest.support.overdue ? ` · ${digest.support.overdue} cevapsız (${SUPPORT_SLA.hours} saati geçti)` : ""),
+          },
+        ]
+      : []),
   ];
 
   const reasonLines = digest.failures.byReason.map((item) => `${item.label}: ${item.count}`);
