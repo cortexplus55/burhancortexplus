@@ -147,6 +147,14 @@ describe("video ekranları", () => {
     expect(screen.getByRole("button", { name: /Krup/ })).toBeTruthy();
   });
 
+  it("konudan gelindiyse düğme 'Konu seç' demez; konu adı yazar", () => {
+    render(<VideoLessonSetup prepId="p1" entitled topics={[{ id: "t1", label: "Krup" }]} initialTopicId="t1" previous={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Videoyu ayarla" }));
+    expect(screen.queryByRole("button", { name: "Konu seç" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Videoyu oluştur" })).toBeTruthy();
+    expect(screen.getByText("Konu: Krup")).toBeTruthy();
+  });
+
   it("oynatıcı: başlık, 'Dersi tamamla', ±15 sn, hız, tam ekran, alt yazı", () => {
     vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});

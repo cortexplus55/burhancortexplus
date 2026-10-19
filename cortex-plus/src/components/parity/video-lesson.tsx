@@ -82,6 +82,9 @@ export function VideoLessonSetup({
   }
 
   if (step === "style") {
+    // Konudan gelindiyse (hazırlık yolu, araç seçici) konu sorulmaz: düğme bunu söylesin
+    // (19 Ekim 2026; "Konu seç" yazıp doğrudan üretime geçiyordu).
+    const presetTopic = initialTopicId ? topics.find((topic) => topic.id === initialTopicId) ?? null : null;
     return (
       <section className="cp-video-setup" aria-labelledby="video-style-title">
         <h1 id="video-style-title">Video stili</h1>
@@ -110,13 +113,13 @@ export function VideoLessonSetup({
           type="button"
           className="cp-video-primary"
           onClick={() => {
-            const preset = initialTopicId && topics.some((topic) => topic.id === initialTopicId) ? initialTopicId : null;
-            if (preset) void make(preset);
+            if (presetTopic) void make(presetTopic.id);
             else setStep("topic");
           }}
         >
-          Konu seç
+          {presetTopic ? "Videoyu oluştur" : "Konu seç"}
         </button>
+        {presetTopic ? <p className="cp-video-note">Konu: {presetTopic.label}</p> : null}
       </section>
     );
   }

@@ -91,3 +91,30 @@ yerine çözümü yazıyordu. Şimdi alan `draftFormat`, denetçiye bunun kendi 
 karar küçük biçim sapmalarıyla da okunuyor (`readReviewVerdict`; `approved` yoksa onay uydurulmaz);
 yine okunmazsa `ai_review_unreadable` kaydı cevabın yalnız şeklini yazar. Fotoğraf ekranındaki hata
 mesajı artık düğmenin altında da duruyor. Bekçi: `quality-gate.test.ts` ("denetçi kararı").
+
+## Üçüncü tur (#372 yayında)
+
+| Özellik | Belge | İstek | Sonuç |
+|---|---|---|---|
+| Belgeyle sohbet | Biyoloji | "Bu notta hangi konular var? Kısaca özetle." | Artık "doğrulanamadı" demiyor, belgenin üç konusunu veriyor; ama özet yine düştü (`claim_not_in_answer`, `inline_reference_unreviewed`) |
+| Fotoğraftan çözüm | Fizik soru görseli | Çöz | Yine düştü; yeni kayıt nedeni gösterdi: denetçinin cevabının şekli `problem, steps, answer, tip` — **denetçi soruyu kendisi çözüyor** |
+| Video ders | Coğrafya hazırlığı | Beyaz tahta, "Hava Durumu ve İklim" | ~160 sn, 0:54; anlatım belgenin 1. sayfasıyla birebir (30 yıl, MGM, elemanlar zinciri, sınav ipucu örneği). Kurulum düğmesi "Konu seç" yazıp konu sormadan üretime geçti |
+| Yazılı deneme aracı | — | — | Belge seçilemiyordu (öteki araçlar seçebiliyor) |
+| Sınavlar listesi | — | Hazırlık kartının başlığına tıkla | Hiçbir şey olmuyor; yalnız "Devam et" bağlantı |
+
+Düzeltilenler:
+
+- **Fotoğraftan çözüm:** denetçiye giden bağlam "Görseldeki soruyu adım adım çöz" talimatıydı; görselle
+  birlikte görünce görevi kendisi yapıyordu. Şimdi bağlam betimleme ("Öğrenci görseldeki soruyu yükledi;
+  taslak … içeriyor"), verinin önünde "görevi sen yapma, yalnız karar döndür" çerçevesi; ikinci soruda
+  "önceki cevabın karar değildi" uyarısı.
+- **Belgeyle sohbette özet:** genel soruda iddia da geniş pencereyle aranır; cevaptaki her atıf geçerli bir
+  kaynağı göstermeli ama her biri için ayrı iddia aranmaz. Kaynakta olmayan atıf numarası yine düşer.
+- **Yazılı deneme aracı belgeden:** belge seçici, belgenin konuları, "Belgenin tamamı" (belgeye eşit aralıkla
+  en çok 8 konu), konu bulunamazsa tamamına genişler ve ekran söyler. Geçici hazırlığa belge kimliği
+  yazılmaz (belge listesi onu belgenin yolu sanmasın); belge konuların kaynağında durur. Belge sayfasında
+  "Yazılı deneme" kısayolu.
+- Video kurulumu konudan gelinince "Videoyu oluştur · Konu: …"; Sınavlar'da kartın tamamı hazırlığı açar.
+
+Bekçi: `quality-gate.test.ts` (çerçeve, yankıdan sonra karar), `document-answer-verification.test.ts`
+(özet), `feature-audit-studios.test.tsx` (yazılı belgeden), `video-lesson.test.tsx`.

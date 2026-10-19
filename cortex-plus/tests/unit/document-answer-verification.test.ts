@@ -60,6 +60,49 @@ describe("genel sorular (özet) — 19 Ekim 2026", () => {
     expect(looselyContains(page, merged, { ratio: 0.7, widthFactor: 3 })).toBe(true);
     expect(looselyContains("Ankara Savaşı (1402) Timur'a yenilgi ile bitti.", "Ankara Savaşı 1403 yılında Timur'a yenilgiyle bitti", { ratio: 0.7, widthFactor: 3 })).toBe(false);
   });
+
+  // Canlıda (19 Ekim 2026) alıntı gevşetilince özet `claim_not_in_answer` ve
+  // `inline_reference_unreviewed` ile düştü: denetçi iddiayı kısaltıyor, üç sayfalık özetin her atfı için
+  // ayrı iddia yazmıyor.
+  const evidence = [1, 2, 3].map((reference) => ({
+    reference, documentId: "d", documentName: "Biyoloji.pdf", pageNumber: reference, chunkId: null,
+    content: [
+      "Fotosentez, klorofil taşıyan canlıların ışık enerjisini kullanarak inorganik maddelerden organik besin ürettiği olaydır.",
+      "Işığa bağımlı tepkimeler tilakoit zarında gerçekleşir; ATP ve NADPH üretilir, O₂ dışarı verilir.",
+      "Oksijenli solunumda bir glikozdan yaklaşık 30–32 ATP elde edilir. Oksijen yoksa hücre fermantasyona geçer.",
+    ][reference - 1]!,
+  }));
+  const answer =
+    "Belgeden: Not üç konu anlatıyor. Fotosentez ışık enerjisiyle inorganik maddelerden organik besin üretilmesidir [1]. " +
+    "Işığa bağımlı tepkimelerde tilakoit zarında ATP ve NADPH üretilir [2]. Oksijenli solunumda bir glikozdan yaklaşık 30–32 ATP elde edilir [3].";
+  const reviewer = () => ({
+    chat: { completions: { create: async () => ({
+      choices: [{ message: { content: JSON.stringify({
+        answerable: true, fullySupported: true, confidence: 0.9,
+        claims: [
+          { claim: "Fotosentez ışık enerjisiyle organik besin üretilmesidir", reference: 1, quote: "ışık enerjisini kullanarak inorganik maddelerden organik besin ürettiği olaydır" },
+          { claim: "tilakoit zarında ATP ve NADPH üretilir", reference: 2, quote: "tilakoit zarında gerçekleşir; ATP ve NADPH üretilir" },
+        ],
+      }) } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    }) } },
+  }) as never;
+
+  it("özet: kısaltılmış iddia ve iddiası yazılmamış geçerli atıf cevabı düşürmez", async () => {
+    const result = await verifyDocumentAnswer({ client: reviewer(), question: "Bu notta hangi konular var? Kısaca özetle.", answer, evidence, strict: false });
+    expect(result.reasons).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("belirli soruda aynı cevap yine her atfın denetlenmesini ister", async () => {
+    const result = await verifyDocumentAnswer({ client: reviewer(), question: "Glikozdan kaç ATP çıkar?", answer, evidence, strict: false });
+    expect(result.reasons).toContain("inline_reference_unreviewed");
+  });
+
+  it("özet: kaynakta olmayan atıf numarası yine düşer", async () => {
+    const result = await verifyDocumentAnswer({ client: reviewer(), question: "Notumu özetle", answer: `${answer} Ayrıca Calvin döngüsü vardır [7].`, evidence, strict: false });
+    expect(result.reasons).toContain("inline_reference_unreviewed");
+  });
 });
 
 describe("verifyDocumentAnswer (no LLM paths)", () => {

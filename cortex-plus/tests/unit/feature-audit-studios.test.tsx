@@ -203,3 +203,52 @@ describe("yazılı deneme aracının geçici hazırlığı", () => {
     expect(read("src/app/api/learning/exam/generate/route.ts")).toContain("exam_type: STUDIO_EXAM_TYPE");
   });
 });
+
+/*
+  İkinci tur (19 Ekim 2026): yazılı deneme aracı belge almıyordu — öteki araçlar belge seçerken o
+  "hazırlığının sayfasını aç" diyordu. Artık belge seçilir; konular belgenin kendi konularından.
+*/
+describe("yazılı deneme aracı belgeden", () => {
+  it("belge seçici, belgenin konuları ve sayı isteğe gider", async () => {
+    const calls: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      calls.push(JSON.parse(String(init?.body ?? "{}")));
+      return new Response(JSON.stringify({
+        examId: "e1", title: "Hukuk", source: { kind: "document", wholeDocument: true, matched: true },
+        questions: [{ id: "q1", text: "Sözleşme nedir?", options: ["A", "B"] }],
+      }), { status: 200 });
+    }));
+    const { WrittenStudio } = await import("@/components/learning/studio/written-studio");
+    render(
+      <WrittenStudio
+        creditCost={15}
+        documents={[{ id: "d1", fileName: "Hukuk.pdf", topics: ["Sözleşmenin kurulması", "İrade sakatlıkları"] }]}
+        initialDocumentId="d1"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Yeni belge yükle" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "İrade sakatlıkları" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "15 soru" }));
+    fireEvent.click(screen.getByRole("button", { name: "Belgenin tamamı" }));
+    await waitFor(() => expect(calls.length).toBe(1));
+    expect(calls[0]).toMatchObject({ topic: "Belgenin tamamı", questionCount: 15, documentId: "d1" });
+    expect(await screen.findByText("Belgenin tamamından hazırlandı.")).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
+  it("uç belgeyi konuların kaynağına yazar; geçici hazırlığa belge kimliği yazmaz", () => {
+    const route = read("src/app/api/learning/exam/generate/route.ts");
+    expect(route).toContain("documentId: z.string().uuid().optional()");
+    expect(route).toContain("studioExamTopics(service, userId, documentId, topic, questionCount)");
+    expect(route).toContain("source_refs: row.refs");
+    expect(route).not.toMatch(/document_id:\s*documentId/);
+    expect(read("src/app/dokumanlar/[documentId]/page.tsx")).toContain("/studio/yazili?documentId=");
+  });
+
+  it("belgenin tamamında konular belgeye eşit aralıkla yayılır (ilk ve son dahil)", async () => {
+    const { spreadPick } = await import("@/lib/learning/studio-exam-topics");
+    expect(spreadPick([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 8)).toEqual([1, 3, 4, 6, 7, 9, 10, 12]);
+    expect(spreadPick([1, 2, 3], 8)).toEqual([1, 2, 3]);
+    expect(spreadPick([1, 2, 3, 4, 5], 1)).toEqual([1]);
+  });
+});
