@@ -65,6 +65,10 @@ function SkipSeconds({ direction }: { direction: "back" | "forward" }) {
   );
 }
 
+/** Ses isteği düşünce kendiliğinden yeniden deneme sayısı ve ilk bekleme (ikincide iki katı). */
+const AUDIO_AUTO_RETRIES = 2;
+const AUDIO_RETRY_MS = 2_500;
+
 function padClock(ms: number): string {
   const [minutes, seconds] = formatClock(ms).split(":");
   return `${(minutes ?? "0").padStart(2, "0")}:${seconds ?? "00"}`;
@@ -126,6 +130,14 @@ export function ExamPodcastPlayer({
   const [status, setStatus] = useState<
     "loading" | "ready" | "fallback" | "premium" | "credits"
   >("loading");
+  /**
+   * Ses isteği düşerse (ağ, sağlayıcı) oynatıcı kendiliğinden yeniden dener; "üretilemedi"
+   * ancak iki denemeden sonra ve bir "yeniden dene" düğmesiyle görünür (19 Ekim 2026,
+   * ürün sahibi: "podcast istendiyse üretilsin").
+   */
+  const [audioAttempt, setAudioAttempt] = useState(0);
+  const audioRetriesRef = useRef(0);
+  const lastNormalizedRef = useRef<typeof normalized | null>(null);
   const onCreditsSpentRef = useRef(onCreditsSpent);
   onCreditsSpentRef.current = onCreditsSpent;
   const [playing, setPlaying] = useState(false);
@@ -192,6 +204,11 @@ export function ExamPodcastPlayer({
     }
     let alive = true;
     let started = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    if (lastNormalizedRef.current !== normalized) {
+      lastNormalizedRef.current = normalized;
+      audioRetriesRef.current = 0;
+    }
     const controller = new AbortController();
     const place = (index: number, line: AudioLine, total: number) => {
       if (!alive || index < 0) return;
@@ -304,19 +321,27 @@ export function ExamPodcastPlayer({
           setStatus("ready");
           return;
         }
-        setStatus(
-          error.message === "premium" || error.message === "credits"
-            ? error.message
-            : "fallback",
-        );
+        if (error.message === "premium" || error.message === "credits") {
+          setStatus(error.message);
+          return;
+        }
+        if (audioRetriesRef.current < AUDIO_AUTO_RETRIES) {
+          audioRetriesRef.current += 1;
+          retryTimer = setTimeout(() => {
+            if (alive) setAudioAttempt((value) => value + 1);
+          }, AUDIO_RETRY_MS * audioRetriesRef.current);
+          return;
+        }
+        setStatus("fallback");
       });
     return () => {
       alive = false;
+      if (retryTimer) clearTimeout(retryTimer);
       controller.abort();
       tokenRef.current += 1;
       elementRef.current?.pause();
     };
-  }, [normalized]);
+  }, [normalized, audioAttempt]);
 
   useEffect(() => {
     return () => {
@@ -587,7 +612,7 @@ export function ExamPodcastPlayer({
             <span aria-hidden />
           )}
         </header>
-        <p className="cp-pod-state">Bu podcast henüz üretilemedi.</p>
+        <p className="cp-pod-state">Podcast metni bu sefer gelmedi; kapatıp yeniden açınca yeniden yazılır.</p>
       </section>
     );
   }
@@ -765,7 +790,17 @@ export function ExamPodcastPlayer({
           </p>
         ) : status === "fallback" ? (
           <p className="cp-pod-state">
-            Ses şu an üretilemedi. Bölümleri transkriptten okuyabilirsin.
+            Ses bu sefer gelmedi; bölümleri transkriptten okuyabilirsin.{" "}
+            <button
+              type="button"
+              className="cp-pod-upsell cp-pod-retry"
+              onClick={() => {
+                audioRetriesRef.current = 0;
+                setAudioAttempt((value) => value + 1);
+              }}
+            >
+              Sesi yeniden dene
+            </button>
           </p>
         ) : null}
 

@@ -33,6 +33,11 @@ export function minimumQuestions(count: number): number {
   return Math.max(3, count - 2);
 }
 
+/** İkinci taslak ancak bu süreden önce başlar (rota tavanı 300 sn). */
+const SECOND_PASS_DEADLINE_MS = 150_000;
+/** İki geçişten sonra bile bu kadar soru yoksa test yok (19 Ekim 2026). */
+export const MIN_DELIVERABLE_QUESTIONS = 2;
+
 type Reviewed = { question: QuizQuestion; problems: string[] };
 
 /**
@@ -180,16 +185,34 @@ export async function runTeacherQuiz(
 
   try {
     const loop = await teacherQuizLoop(ask, input, started);
+    let questions = loop.questions;
+    let passes = 1;
+    const minimum = input.minimum ?? minimumQuestions(input.count);
+    // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): yetersiz soru hata değil, ikinci
+    // taslak demek. İkinci geçişin yeni soruları eklenir; yine de iki sorunun altındaysa test yok.
+    if (questions.length < minimum && Date.now() - started < SECOND_PASS_DEADLINE_MS) {
+      passes = 2;
+      const again = await teacherQuizLoop(ask, { ...input, count: Math.max(3, input.count - questions.length) }, started);
+      const seen = new Set(questions.map((question) => question.text.trim().toLocaleLowerCase("tr-TR")));
+      const fresh = again.questions.filter((question) => {
+        const key = question.text.trim().toLocaleLowerCase("tr-TR");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      questions = withOneMultiLast([...questions, ...fresh], input.count);
+    }
     console.info("teacher_quiz", {
       topic: input.topicLabel.slice(0, 80),
       mode: input.mode ?? "document",
-      kept: loop.questions.length,
+      kept: questions.length,
       rejected: loop.rejected.length,
       rounds: loop.rounds,
+      passes,
       calls,
       ms: Date.now() - started,
     });
-    if (loop.questions.length < (input.minimum ?? minimumQuestions(input.count))) {
+    if (questions.length < Math.min(minimum, MIN_DELIVERABLE_QUESTIONS)) {
       await refund();
       return {
         ok: false,
@@ -199,10 +222,10 @@ export async function runTeacherQuiz(
       };
     }
     if (input.deferCommit || held || !reservation.reservationId) {
-      return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId ?? undefined };
+      return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId ?? undefined };
     }
     await commitCredits(service, reservation.reservationId);
-    return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
+    return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
   } catch (error) {
     await refund();
     console.error("teacher_quiz_failed", {

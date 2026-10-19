@@ -9,6 +9,9 @@ import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 
 export type AskJson = (system: string, user: string) => Promise<unknown | null>;
 
+/** İlk geçiş düşerse ikinci geçiş ancak bu süreden önce başlar (rota tavanı 300 sn). */
+const RETRY_DEADLINE_MS = 90_000;
+
 export type TeacherRunOutcome<R> =
   | { ok: true; result: R; calls: number; ms: number }
   | { ok: false; status: number; error: string; reasons: string[] };
@@ -88,7 +91,21 @@ export async function runWithTeacherModel<R>(
   };
 
   try {
-    const outcome = await options.work(ask, started);
+    let outcome = await options.work(ask, started).catch((error: unknown) => ({
+      ok: false as const,
+      reasons: ["model_error"],
+      log: { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" },
+    }));
+    // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): ilk geçiş düşerse — model hatası ya da
+    // denetimden geçen öğe kalmaması — öğrenciye söylemeden önce iş bir kez baştan koşar.
+    if (!outcome.ok && Date.now() - started < RETRY_DEADLINE_MS) {
+      console.warn(`${options.label}_retry`, {
+        topic: options.topic.slice(0, 80),
+        calls,
+        reasons: outcome.reasons.slice(0, 3).map((reason) => reason.slice(0, 120)),
+      });
+      outcome = await options.work(ask, started);
+    }
     console.info(options.label, { topic: options.topic.slice(0, 80), ok: outcome.ok, calls, ms: Date.now() - started, ...outcome.log });
     if (!outcome.ok) {
       await refund();

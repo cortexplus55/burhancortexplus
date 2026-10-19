@@ -17,6 +17,7 @@ import {
   podcastUserPrompt,
   podcastVerifySystem,
   podcastVerifyUserPrompt,
+  salvagePodcast,
   type TeacherPodcastInput,
 } from "@/lib/learning/teacher-podcast";
 
@@ -25,48 +26,101 @@ export type AskJson = (system: string, user: string) => Promise<unknown | null>;
 const MAX_FIX_ROUNDS = 2;
 /** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). */
 const FIX_DEADLINE_MS = 200_000;
+/** İkinci taslak ancak bu süreden önce başlar; sonrası rota tavanına sığmaz. */
+const SECOND_DRAFT_DEADLINE_MS = 150_000;
+/** Model çağrısı düşerse (ağ, sağlayıcı) döngü bu süreden önce bir kez baştan koşar. */
+const RERUN_DEADLINE_MS = 120_000;
+
+export type PodcastLoopResult = {
+  episode: PodcastEpisode | null;
+  problems: string[];
+  drafts: number;
+  /** Kurtarmada çıkarılan satır sayısı (0: olduğu gibi geçti). */
+  salvaged: number;
+  /** Denetçi iki kez ulaşılamaz oldu; podcast yalnız yapı denetimiyle yayınlandı. */
+  unverified: boolean;
+};
 
 /**
- * Taslak → yapı + belge denetimi → modelin düzeltmesi. Krediye dokunmaz;
- * `runTeacherPodcast` krediyi sarar, yerel ölçüm betiği doğrudan çağırır.
+ * Taslak → yapı + belge denetimi → modelin düzeltmesi → (gerekirse) kurtarma → (gerekirse)
+ * ikinci taslak. Krediye dokunmaz; `runTeacherPodcast` krediyi sarar, yerel ölçüm betiği
+ * doğrudan çağırır.
+ *
+ * 19 Ekim 2026, ürün sahibi: "podcast istendiyse üretilsin; 'üretilemedi' olmasın". Önceden
+ * düzeltme turlarından sonra tek bir sorunlu satır bile podcast'in tamamını düşürüyordu
+ * (18 Ekim: iki podcast, bir "sınavda ağırlıklı" cümlesi ve tutmayan bir eşitlik). Şimdi
+ * sorunlu satır çıkarılır (`salvagePodcast`); satıra bağlanamayan sorun kaldıysa ikinci
+ * taslak yazılır; o da olmazsa ancak o zaman podcast yok.
  */
 export async function teacherPodcastLoop(
   ask: AskJson,
   input: TeacherPodcastInput,
   started = Date.now(),
-): Promise<{ episode: PodcastEpisode | null; problems: string[]; drafts: number }> {
+): Promise<PodcastLoopResult> {
   const mode = input.mode ?? "document";
-  const review = async (episode: PodcastEpisode): Promise<string[]> => {
+  let drafts = 0;
+
+  const review = async (episode: PodcastEpisode): Promise<{ problems: string[]; verified: boolean }> => {
     const structural = podcastStructureIssues(episode);
     try {
       const factual = parseIssues(await ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(episode, input)))
         .filter((issue) => issue.severity === "high")
         .map((issue) => `[${issue.where}] ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`);
-      return [...structural, ...factual];
-    } catch (error) {
-      return [...structural, `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}`];
+      return { problems: [...structural, ...factual], verified: true };
+    } catch {
+      return { problems: structural, verified: false };
     }
   };
 
-  let episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input)), input);
-  if (!episode) episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input)), input);
-  if (!episode) return { episode: null, problems: ["Podcast bölümleri kurulamadı."], drafts: 0 };
-  let drafts = 1;
-
-  let problems = await review(episode);
-  for (let round = 0; round < MAX_FIX_ROUNDS && problems.length; round += 1) {
-    if (Date.now() - started > FIX_DEADLINE_MS) break;
-    const fixed = parseTeacherPodcast(
-      await ask(podcastFixSystem(mode, input.length), podcastFixUserPrompt(episode, problems, input)),
-      input,
-    );
-    if (!fixed) break;
-    if (JSON.stringify(fixed) === JSON.stringify(episode)) break;
-    episode = fixed;
+  const attempt = async (
+    fixRounds: number,
+  ): Promise<{ episode: PodcastEpisode; problems: string[]; verified: boolean } | null> => {
+    let episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input)), input);
+    if (!episode) episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input)), input);
+    if (!episode) return null;
     drafts += 1;
-    problems = await review(episode);
+
+    let reviewed = await review(episode);
+    // Denetçi bir kez ulaşılamadıysa bir daha sorulur; denetimsiz yayın son çaredir.
+    if (!reviewed.verified) reviewed = await review(episode);
+    for (let round = 0; round < fixRounds && reviewed.problems.length; round += 1) {
+      if (Date.now() - started > FIX_DEADLINE_MS) break;
+      const fixed = parseTeacherPodcast(
+        await ask(podcastFixSystem(mode, input.length), podcastFixUserPrompt(episode, reviewed.problems, input)),
+        input,
+      );
+      if (!fixed) break;
+      if (JSON.stringify(fixed) === JSON.stringify(episode)) break;
+      episode = fixed;
+      drafts += 1;
+      reviewed = await review(episode);
+    }
+    return { episode, ...reviewed };
+  };
+
+  const finish = (outcome: { episode: PodcastEpisode; problems: string[]; verified: boolean }): PodcastLoopResult | null => {
+    if (!outcome.problems.length) {
+      return { episode: outcome.episode, problems: [], drafts, salvaged: 0, unverified: !outcome.verified };
+    }
+    const salvaged = salvagePodcast(outcome.episode, outcome.problems);
+    if (!salvaged) return null;
+    return { episode: salvaged.episode, problems: [], drafts, salvaged: salvaged.removed, unverified: !outcome.verified };
+  };
+
+  const first = await attempt(MAX_FIX_ROUNDS);
+  if (!first) return { episode: null, problems: ["Podcast bölümleri kurulamadı."], drafts, salvaged: 0, unverified: false };
+  const done = finish(first);
+  if (done) return done;
+
+  if (Date.now() - started < SECOND_DRAFT_DEADLINE_MS) {
+    const second = await attempt(1);
+    if (second) {
+      const doneSecond = finish(second);
+      if (doneSecond) return doneSecond;
+      return { episode: second.episode, problems: second.problems, drafts, salvaged: 0, unverified: false };
+    }
   }
-  return { episode, problems, drafts };
+  return { episode: first.episode, problems: first.problems, drafts, salvaged: 0, unverified: false };
 }
 
 export type TeacherPodcastOutcome =
@@ -130,13 +184,27 @@ export async function runTeacherPodcast(
   };
 
   try {
-    const loop = await teacherPodcastLoop(ask, input, started);
+    let loop: PodcastLoopResult;
+    try {
+      loop = await teacherPodcastLoop(ask, input, started);
+    } catch (error) {
+      // Ağ ya da sağlayıcı düştü: öğrenciye hata göstermeden önce döngü bir kez baştan koşar.
+      if (Date.now() - started > RERUN_DEADLINE_MS) throw error;
+      console.warn("teacher_podcast_rerun", {
+        topic: input.topicLabel.slice(0, 80),
+        calls,
+        cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+      });
+      loop = await teacherPodcastLoop(ask, input, started);
+    }
     console.info("teacher_podcast", {
       topic: input.topicLabel.slice(0, 80),
       length: input.length,
       mode: input.mode ?? "document",
       drafts: loop.drafts,
       problems: loop.problems.length,
+      salvaged: loop.salvaged,
+      unverified: loop.unverified,
       calls,
       ms: Date.now() - started,
     });

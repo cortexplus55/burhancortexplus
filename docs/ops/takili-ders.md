@@ -33,3 +33,11 @@
 - Haftada bir `/admin/ders-hatalari`: hedef atılan kavram 0, başarısız < %2 (plan 1.7).
 - Önceden yazım açık kaldıkça öğrenci soğuk üretimi az görür; "Sıradaki" hazır değilse hazırlık sayfası
   açılışı tetikler (`requestPrepPrefetch`).
+
+**19 Ekim 2026 — "üretilemedi" artık son çare.** Podcast'te sorunlu satır çıkarılır, ikinci taslak
+yazılır; derste ilk kavram da atılabilir, hiçbir kavram geçmezse ders baştan yazılır; testte ikinci
+taslak; kartlar/sözlü/doğru-yanlış kabuğu bir kez yeniden koşar; ekran da bir kez kendiliğinden
+yeniden dener. Hâlâ "bu sefer tamamlanamadı; iki kez denedik" görülüyorsa **dört deneme düştü**
+demektir: Vercel'de `teacher_podcast_rerun`, `teacher_lesson_rewrite_all`, `teacher_*_retry`
+satırlarına ve `/admin/ders-hatalari`'ndaki ret cümlelerine bakın; çoğu zaman sağlayıcı (429/5xx)
+ya da kaynak sayfası sorunudur. Kural: AGENTS.md → "İçerik 'üretilemedi' demez".

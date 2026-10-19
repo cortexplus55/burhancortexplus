@@ -6270,6 +6270,15 @@
   text-underline-offset: 2px;
 }
 
+/* "Sesi yeniden dene" (19 Ekim 2026): bağlantı gibi görünen düğme. */
+.cp-pod-retry {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* ---------------------------------------------------------------------------
    Davet ödülü kartı
    Kotanın hemen üstünde duruyor: kullanıcı limitine baktığı anda "nasıl

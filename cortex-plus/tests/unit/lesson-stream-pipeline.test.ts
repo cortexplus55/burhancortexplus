@@ -197,7 +197,7 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(second).toContain("ACOG: normalin 2 katı");
   });
 
-  it("düzelmeyen ara kavram baştan yazılır; o da geçmezse atılır, ders kalanla gider; ilk kavram düzelmezse ders yazılmaz", async () => {
+  it("düzelmeyen ara kavram baştan yazılır; o da geçmezse atılır, ders kalanla gider; ilk kavram da düşerse kalanla gider", async () => {
     const stuck = (target: string) => (user: string) =>
       user.includes(`yalnız ${target}`) ? { issues: [{ where: target, severity: "high", problem: "Yanlış bilgi." }] } : { issues: [] };
     const middle = await run({ verify: stuck("screens[1]"), fix: () => ({ screens: [lesson.screens[1]], disputes: [] }) });
@@ -208,10 +208,29 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(careful).toHaveLength(5);
     expect(careful.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM: screens[1]"))).toHaveLength(1);
 
+    // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): ilk kavram da düşerse ders yine yazılır,
+    // kavram atılır ve bitişte adıyla söylenir.
     const first = await run({ verify: stuck("screens[0]"), fix: () => ({ screens: [lesson.screens[0]], disputes: [] }) });
-    expect(first.result.lesson).toBeNull();
-    expect(first.result.failure[0]!.problem).toBe("Yanlış bilgi.");
-    expect(first.published).toEqual([]);
+    expect(first.result.dropped).toEqual(["Maddi Yaptırım"]);
+    expect(first.result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Yokluk", "Mutlak Butlan"]);
+    expect(first.result.failure).toEqual([]);
+    expect(first.published.length).toBeGreaterThan(0);
+  });
+
+  it("hiçbir kavram geçmezse ders bir kez baştan yazılır; yine geçmezse ders yok", async () => {
+    const flagAll = (user: string) => ({
+      issues: [{ where: /yalnız (screens\[\d+\])/.exec(user)?.[1] ?? "screens[0]", severity: "high", problem: "Yanlış bilgi." }],
+    });
+    const { result, calls } = await run({
+      verify: flagAll,
+      fix: () => ({ screens: [lesson.screens[0]], disputes: [] }),
+      drafts: [JSON.stringify(lesson), JSON.stringify(lesson)],
+    });
+    expect(result.lesson).toBeNull();
+    expect(result.dropped).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
+    expect(result.failure[0]!.problem).toBe("Yanlış bilgi.");
+    // İki tam taslak: ilk turda hiçbir kavram geçmeyince ders baştan yazıldı.
+    expect(calls.filter((call) => call.role === "verify").length).toBeGreaterThanOrEqual(6);
   });
 
   // 18 Ekim 2026, Pediatri: aynı taslağı yamalayan üç tur aynı yerde takıldı, sınavın en önemli
