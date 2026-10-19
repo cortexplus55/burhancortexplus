@@ -13,6 +13,7 @@ import {
   seriesLabelFromFileName,
 } from "@/lib/learning/study-outline";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
+import { buildTopicOnlySchedule } from "@/lib/learning/topic-only-schedule";
 import {
   refoldTopicMapIfNeeded,
   planCourseMap,
@@ -515,7 +516,19 @@ ${transcript}`,
     needDate: !examDate && (draft.needDate || draft.topics.length >= 2),
     ready,
     days,
-    preview: days ? buildExamPlan(days) : [],
+    // Belgesiz kurulumda önizleme, kurulacak gerçek konu yolundan (19 Ekim 2026); önceden konulardan
+    // bağımsız kalıp bir "14 günlük yol" gösteriyordu.
+    preview: days
+      ? !documentIds.length && v2 && draft.topics.length
+        ? buildTopicOnlySchedule({
+            daysToExam: days,
+            titles: draft.topics,
+            dailyMinutes: parsed.data.dailyMinutes,
+            studyDays: parsed.data.studyDays,
+            hardTopics: parsed.data.hardTopics,
+          }).drafts.map(({ kind, title, dayIndex, sortOrder }) => ({ kind, title, dayIndex, sortOrder }))
+        : buildExamPlan(days)
+      : [],
     intakeMode,
     topicSuggestions,
     profile: {

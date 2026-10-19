@@ -22,6 +22,7 @@ import {
   type ScheduleTopicInput,
 } from "@/lib/learning/exam-schedule-v2";
 import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
+import { remapTopicIds, topicIdMap, topicOnlyScheduleTopics } from "@/lib/learning/topic-only-schedule";
 import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
 import { missingColumn } from "@/lib/learning/missing-column";
 import {
@@ -158,6 +159,11 @@ export async function POST(request: Request) {
     }
   }
 
+  // Belgesiz hazırlık da konu konu kurulur (19 Ekim 2026): önceden takvim yalnız belgeden doluyordu,
+  // belgesiz yol kalıp şablondan çıkıyordu (beş konu için konusuz tek "Giriş Dersi").
+  const topicOnly = !documentIds.length && v2 && topics.length > 0;
+  if (topicOnly) scheduleTopics = topicOnlyScheduleTopics(topics, parsed.data.hardTopics ?? []);
+
   const hardSet = new Set(
     (parsed.data.hardTopics ?? []).map((t) => t.trim().toLocaleLowerCase("tr")),
   );
@@ -208,6 +214,18 @@ export async function POST(request: Request) {
   });
 
   if ("error" in result) return errorResponse(500, result.error ?? "exam_prep_failed");
+
+  // Belgesiz: takvimin geçici konu kimlikleri (topic:i) kayıtlı konuların kimliğine çevrilir; düğüm
+  // rotası konuyu session_meta.topicId ile arıyor.
+  if (topicOnly && scheduleSummary) {
+    const { data: savedTopics } = await service
+      .from("exam_prep_topics")
+      .select("id, sort_order")
+      .eq("exam_prep_id", result.prepId);
+    const idFor = topicIdMap((savedTopics ?? []) as { id: string; sort_order: number }[]);
+    scheduleSummary = remapTopicIds(scheduleSummary, idFor);
+    scheduleDrafts = remapTopicIds(scheduleDrafts, idFor);
+  }
 
   await service
     .from("exam_preps")
