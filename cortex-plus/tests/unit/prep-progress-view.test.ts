@@ -6,6 +6,8 @@ import {
 } from "@/lib/learning/prep-progress-view";
 
 const NOW = new Date("2026-09-29T12:00:00Z");
+/** Ders sayılan türler (prep-progress-view.ts LESSON_KINDS ile aynı). */
+const LESSON_KINDS_FOR_TEST = new Set<ProgressNode["kind"]>(["lesson", "focused", "gaps", "spaced"]);
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * 86_400_000).toISOString();
 
 function node(
@@ -40,12 +42,27 @@ const base = {
 };
 
 describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
-  it("tahmini ilk iki dersten önce göstermiyor", () => {
-    const view = buildPrepProgressView({
+  it("tahmin ilk dersten önce yok, ilk dersten sonra var (19 Ekim 2026: Astra ilk dersten hemen sonra gösteriyor)", () => {
+    const none = buildPrepProgressView({
+      ...base,
+      nodes: nodes.map((n) => (LESSON_KINDS_FOR_TEST.has(n.kind) ? { ...n, status: "ready" as const } : n)),
+      examDate: "2026-10-13",
+    });
+    expect(none.forecast.kind).toBe("waiting");
+    expect(none.pace).toBeNull();
+    const one = buildPrepProgressView({
       ...base,
       nodes: nodes.map((n) => (n.id === "l2" ? { ...n, status: "ready" as const } : n)),
+      examDate: "2026-10-13",
+      attempts: [{ nodeId: "l1", score: 3, total: 3, createdAt: daysAgo(0) }],
+      measuredReadinessPct: 2,
     });
-    expect(view.forecast.kind).toBe("waiting");
+    expect(one.forecast.kind).toBe("ready");
+    // Tempo kartı: 1 ders → +%2; hedef 75'e 37 ders; 14 güne 3/gün; bugün 1 ders.
+    expect(one.pace).toEqual({ gainPerLessonPct: 2, lessonsToTarget: 37, perDay: 3, todayLessons: 1 });
+    // Puanlanmış etkinlik var ve eksik yok: "0 eksik" bir ölçüm sonucu.
+    expect(one.gapsMeasured).toBe(true);
+    expect(none.gapsMeasured).toBe(false);
   });
 
   it("sınav tarihi yoksa tahmin beklemede", () => {

@@ -49,6 +49,18 @@ export type PrepProgressView = {
   forecast:
     | { kind: "waiting"; reason: string }
     | { kind: "ready"; pct: number; text: string };
+  /**
+   * Tempo kartı (19 Ekim 2026, Astra'daki gibi): bir ders ne kazandırıyor, hedefe kaç ders kaldı,
+   * günde kaç ders gerekir. Ölçülen puan ve biten ders sayısından; ikisi de yoksa null.
+   */
+  pace: {
+    gainPerLessonPct: number;
+    lessonsToTarget: number;
+    perDay: number | null;
+    todayLessons: number;
+  } | null;
+  /** En az bir etkinlik puanlandı: "eksik yok" artık bir ölçüm sonucudur, boşluk değil. */
+  gapsMeasured: boolean;
   gaps: ProgressGap[];
   topics: { label: string; pct: number; solved: number; lessons: number }[];
   weeks: {
@@ -67,8 +79,11 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Astra'nın "Hedef ustalık %75"i. Hazırlıkta hedef puan yoksa bu. */
 export const DEFAULT_TARGET_PCT = 75;
-/** Sınav günü tahmini kaç biten dersten sonra görünür (Astra: ilk iki ders). */
-const FORECAST_MIN_LESSONS = 2;
+/**
+ * Sınav günü tahmini kaç biten dersten sonra görünür. 29 Eylül'de "Astra: ilk iki ders" diye 2
+ * yazılmıştı; 19 Ekim 2026'da Astra'da ilk dersten hemen sonra tahmin ve tempo kartı görüldü.
+ */
+const FORECAST_MIN_LESSONS = 1;
 const WEEK_COUNT = 5;
 
 const LESSON_KINDS = new Set<PlanNodeKind>(["lesson", "focused", "gaps", "spaced"]);
@@ -176,7 +191,7 @@ export function buildPrepProgressView(input: {
   if (lessonsDone < FORECAST_MIN_LESSONS) {
     forecast = {
       kind: "waiting",
-      reason: "İlerleme eğilimin ve tahminin, bu hazırlıktaki ilk iki dersten sonra görünür.",
+      reason: "İlerleme eğilimin ve tahminin, bu hazırlıktaki ilk dersten sonra görünür.",
     };
   } else if (!Number.isFinite(examTime)) {
     forecast = { kind: "waiting", reason: "Sınav tarihi girilince tahmin görünür." };
@@ -195,6 +210,28 @@ export function buildPrepProgressView(input: {
       text: `Son iki haftanın temposu sürerse sınav günü çalışma yolunda %${projectedPct} tamamlanmış olur.`,
     };
   }
+
+  // Tempo kartı: ölçülen puanı biten derse bölerek "bir ders yaklaşık +%X"; hedefe kalan puan /
+  // kazanç = kaç ders; sınav tarihi varsa günde kaç. Astra'daki kartın karşılığı, aynı sayılarla.
+  const daysToExam = Number.isFinite(examTime) ? Math.max(1, Math.ceil((examTime - now) / DAY_MS)) : null;
+  const gainPerLessonPct = lessonsDone > 0 && scorePct > 0 ? Math.max(1, Math.round(scorePct / lessonsDone)) : 0;
+  const pace: PrepProgressView["pace"] =
+    gainPerLessonPct > 0
+      ? (() => {
+          const lessonsToTarget = Math.max(0, Math.ceil(Math.max(0, targetPct - scorePct) / gainPerLessonPct));
+          return {
+            gainPerLessonPct,
+            lessonsToTarget,
+            perDay: daysToExam ? Math.ceil(lessonsToTarget / daysToExam) : null,
+            todayLessons: completed.filter((attempt) => {
+              const node = nodeById.get(attempt.nodeId);
+              const time = Date.parse(attempt.createdAt);
+              return Boolean(node && LESSON_KINDS.has(node.kind)) && Number.isFinite(time) && now - time < DAY_MS;
+            }).length,
+          };
+        })()
+      : null;
+  const gapsMeasured = completed.some((attempt) => (attempt.total ?? 0) > 0);
 
   const mocks = completed
     .filter((attempt) => MOCK_KINDS.has(nodeById.get(attempt.nodeId)?.kind as PlanNodeKind))
@@ -218,6 +255,8 @@ export function buildPrepProgressView(input: {
     topicCount: labels.length,
     lessonsDone,
     forecast,
+    pace,
+    gapsMeasured,
     gaps: input.gaps.slice(0, 5),
     topics,
     weeks: { labels: weekLabels(), rows },

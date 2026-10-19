@@ -111,10 +111,31 @@ export function ExamPrepProgress({
               </>
             ) : (
               <>
-                <h3>Tahmin, ilk derslerinden sonra görünür</h3>
+                <h3>Tahmin, ilk dersinden sonra görünür</h3>
                 <p>{view.forecast.reason}</p>
               </>
             )}
+            {view.pace ? (
+              <div className="cp-prog-pace" aria-label="Tempo">
+                <p>
+                  Bu hazırlıkta her ders yaklaşık <strong>+%{view.pace.gainPerLessonPct}</strong> kazandırıyor.
+                  {view.pace.lessonsToTarget > 0 ? (
+                    <>
+                      {" "}
+                      Hedefine ulaşmak için yaklaşık <strong>{view.pace.lessonsToTarget} ders daha</strong> gerekiyor.
+                    </>
+                  ) : (
+                    <> Hedefine ulaştın.</>
+                  )}
+                </p>
+                <p className="cp-prog-pace-meta">
+                  <span>Bugün {view.pace.todayLessons} ders tamamlandı</span>
+                  {view.pace.perDay !== null && view.pace.lessonsToTarget > 0 ? (
+                    <span>günde yaklaşık {view.pace.perDay}</span>
+                  ) : null}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="cp-prog-block">
@@ -135,6 +156,11 @@ export function ExamPrepProgress({
                     Yanlışlarını çalış
                   </Link>
                 ) : null}
+              </>
+            ) : view.gapsMeasured ? (
+              <>
+                <h3>0 eksik</h3>
+                <p>Bilgi eksiğin yok! Yanlış cevap çıkınca burada görünür.</p>
               </>
             ) : (
               <>
