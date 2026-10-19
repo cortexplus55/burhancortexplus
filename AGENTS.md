@@ -640,3 +640,15 @@ Hak, paket, kaynak-yok ve "üretim hâlâ sürüyor" kodları yeniden denenmez: 
 ister. Bekçi: `teacher-podcast.test.ts` ("kurtarma"), `teacher-quiz-second-pass.test.ts`,
 `lesson-stream-pipeline.test.ts` ("hiçbir kavram geçmezse"), `audio-credits.test.ts` ("yeniden
 denenir"), `podcast-audio-once.test.tsx` ("kendiliğinden yeniden").
+
+## Astra ekran turu (19 Ekim 2026) — kapanan kararlar
+
+Ürün sahibi: "sırayla hallet, belirlediğin ölçüleri koy". Bulgular ve ölçüler:
+`docs/delivery/ASTRA-TUR-19-EKIM.md`. Yeniden açmayın:
+
+| Konu | Karar |
+|---|---|
+| Okulum'da hazırlık paylaşımı | **İsteğe bağlı kalır** (Astra'da varsayılan açık); belgeden çıkan hazırlık okul listesine kendiliğinden düşmez |
+| Konu sayısı (#247, "her sayfa tek konuya") | **Gevşetilmez.** KPSS 30 sayfa → 16 konu (Astra 6); bütün bölümler yolda, ilk ders Cortex 88 / Astra 78 |
+| "Beceri ağacı" görünümü | **Eklenmez**: İlerleme'deki konu listesi aynı bilgiyi veriyor |
+| Ruh hali kartı | Günde bir kez (#340) — derste art arda iki onay kartı da kalktı |
