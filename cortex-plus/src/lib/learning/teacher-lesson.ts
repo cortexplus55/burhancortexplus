@@ -832,10 +832,13 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
  */
 function flattenedSourceTable(said: string, pages: readonly { text: string }[]) {
   const stems = stemSet(said);
-  return sourceTables(pages).find((table) => {
-    const mentioned = table.rows.filter((row) => row.some((cell) => cellMentioned(cell, stems))).length;
-    return table.rows.length >= 3 && mentioned >= 3 && mentioned * 2 >= table.rows.length;
-  });
+  return sourceTables(pages).find((table) => tableRowsMentioned(table, stems));
+}
+
+/** Tablonun en az üç ve yarısından çok satırı metinde anılıyor mu. */
+function tableRowsMentioned(table: { rows: string[][] }, stems: Set<string>): boolean {
+  const mentioned = table.rows.filter((row) => row.some((cell) => cellMentioned(cell, stems))).length;
+  return table.rows.length >= 3 && mentioned >= 3 && mentioned * 2 >= table.rows.length;
 }
 
 function flattenedTableIssue(table: { columns: string[] }): string {
@@ -915,7 +918,17 @@ export function partStructureIssues(lesson: LessonV3, part: LessonPart, input: S
   const hasTable = lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "table"));
   if (!hasTable) {
     const flattened = flattenedSourceTable(JSON.stringify(indexes.map((index) => lesson.screens[index])), input.pages ?? []);
-    if (flattened) issues.push({ where: `screens[${part.from}]`, severity: "high", problem: flattenedTableIssue(flattened) });
+    /*
+      Tablo onu ilk anan kavramındır (20 Ekim 2026). Kavramlar aynı anda denetleniyor; önceki kavramın
+      tablo düzeltmesi derse işlenmeden sonraki kavram aynı tablo için geri çevriliyordu. İdrar dersinde
+      aynı hormon tablosu üç kavrama eklendi, ders 3 tur / 11 çağrı / 54 sn sürdü. Tablo hiç verilmezse
+      dersin kapanışındaki genel kural yine yakalar.
+    */
+    const ownedEarlier =
+      flattened && part.from > 0 && tableRowsMentioned(flattened, stemSet(JSON.stringify(lesson.screens.slice(0, part.from))));
+    if (flattened && !ownedEarlier) {
+      issues.push({ where: `screens[${part.from}]`, severity: "high", problem: flattenedTableIssue(flattened) });
+    }
   }
   return issues;
 }

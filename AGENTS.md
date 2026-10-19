@@ -868,6 +868,7 @@ Tümden çalışmayan özellik çıkmadı; bunlar çıktı:
 | Her sayfa açılışında 2-4 CSP raporu: PostHog'un `eu-assets` adresi listede yoktu, anket betiği boşuna yükleniyordu | `eu-assets.i.posthog.com` betik ve bağlantı listesinde; PostHog anketi kapalı (anket bizde, `/api/feedback/weekly`) | `csp.ts`, `analytics.tsx` |
 | Fotoğraf okuma CO₂'yi LaTeX'e çeviriyordu | Kimyasal formül ve birim olduğu gibi yazılır | `extract-image-text.ts` |
 | `/okulum` 404 | Kalıcı yönlendirme `/deneme-sinavlari/okulum` | `next.config.ts` |
+| Tablolu kaynakta ders tur dönüyordu: kavramlar aynı anda denetlenirken önceki kavramın tablo düzeltmesi derse işlenmeden sonraki kavram aynı tablo için geri çevriliyordu (İdrar dersi: aynı tablo üç kavramda, 3 tur / 11 çağrı / 54 sn; Nefroloji 18 Ekim'de hiç çıkmadı) | Tablo onu ilk anan kavramındır: önceki ekranlar tablonun satırlarını anıyorsa sonraki kavram aynı tablo için istenmez; tablo hiç verilmezse kapanıştaki ders düzeyi kural yakalar | `teacher-lesson.ts` `partStructureIssues` |
 
 **Göç kayıt tablosu.** Göçler SQL ekranından (ve bir dönem panelin/MCP'nin uygulama anındaki zamanıyla)
 uygulandığı için `supabase_migrations.schema_migrations` repoyla ayrışmıştı: 70 dosya kayıtta yoktu,
@@ -878,7 +879,7 @@ yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şem
 (`insert into supabase_migrations.schema_migrations (version, name) values ('<dosya zamanı>', '<ad>')`).
 
 Kendiliğinden düzelen: bir belgenin konu haritası "bekliyor"da kalmıştı; Belgelerim açılınca tamamlanıyor.
-Bekçi: `audit-20-ekim.test.tsx`.
+Bekçi: `audit-20-ekim.test.tsx`, `lesson-v3-zscore.test.tsx` ("akışlı derste aynı tablo").
 
 ## Plus'ın bir ayı — misafire ve ücretsiz öğrenciye (20 Ekim 2026)
 
