@@ -13,6 +13,9 @@ import type { Icon3DName } from "@/components/ui/icon-3d";
 export const HERO = {
   eyebrow: "Üniversite sınavları · KPSS · YKS · TUS",
   title: "Notunu yükle, sınava hazır bir yol çıksın.",
+  /** Başlığın iki parçası: ikincisi ışıklı yazılır (sinematik kahraman, 19 Ekim 2026). */
+  titleLead: "Notunu yükle,",
+  titleAccent: "sınava hazır bir yol çıksın.",
   lead:
     "Cortex Plus ders notunu konulara ayırır; her konu için ders, podcast, test ve sözlü pratik hazırlar. Hepsi senin notundan, notunda olmayanı uydurmadan.",
   primary: { label: "Ücretsiz başla", href: "/kayit" },
@@ -67,20 +70,27 @@ export const STEPS: { icon: Icon3DName; title: string; body: string }[] = [
   },
 ];
 
-export type LandingFeature = { icon: Icon3DName; title: string; body: string; plusOnly?: boolean };
+export type LandingFeature = {
+  icon: Icon3DName;
+  title: string;
+  body: string;
+  plusOnly?: boolean;
+  /** Izgaradaki yer: "hero" iki sütun iki satır, "wide" iki sütun. */
+  size?: "hero" | "wide";
+};
 
 /** Hazırlık yolundaki ve Araçlar'daki gerçek etkinlikler (`study-tools.ts`, `/araclar`). */
 export const FEATURES: LandingFeature[] = [
-  { icon: "ders", title: "Ders", body: "Kısa ekranlar, önce dene soruları, tablolar. Yanlış cevapta doğrusu hemen." },
-  { icon: "podcast", title: "Podcast", body: "İki öğretmen konuyu konuşarak anlatır. Yolda, serviste dinle.", plusOnly: true },
+  { icon: "ders", title: "Ders", body: "Kısa ekranlar, önce dene soruları, tablolar. Yanlış cevapta doğrusu hemen.", size: "hero" },
+  { icon: "podcast", title: "Podcast", body: "Ada ve Kerem konuyu konuşarak anlatır. Yolda, serviste dinle.", plusOnly: true, size: "wide" },
   { icon: "video", title: "Video ders", body: "Bir dakikalık anlatım; sınavda sorulan bilgi ekranda büyük yazılı.", plusOnly: true },
   { icon: "kartlar", title: "Kartlar ve tekrar", body: "Zorlandığın kart önce gelir; aralıklı tekrarla unutmazsın." },
   { icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
   { icon: "dogru-yanlis", title: "Doğru / Yanlış", body: "Hızlı kontrol; yanlış cümlenin doğrusu yanında." },
   { icon: "yazili", title: "Yazılı deneme", body: "Çoktan seçmeli ve açık uçlu. İstersen kâğıda çöz, fotoğrafını çek.", plusOnly: true },
   { icon: "sozlu", title: "Sözlü deneme", body: "Sesli ya da yazılı cevapla; eksik bıraktığın yeri öğretmen bir kez sorar, sonunda not verir.", plusOnly: true },
-  { icon: "ogretmen", title: "AI öğretmen", body: "Takıldığın yeri sor; cevap kendi notuna dayanır." },
-  { icon: "yildiz", title: "Düello ve yıldızlar", body: "Arkadaşına meydan oku, seriyi koru, haftalık sıralamada yüksel." },
+  { icon: "ogretmen", title: "AI öğretmen", body: "Takıldığın yeri sor; cevap kendi notuna dayanır.", size: "wide" },
+  { icon: "yildiz", title: "Düello ve yıldızlar", body: "Arkadaşına meydan oku, seriyi koru, haftalık sıralamada yüksel.", size: "wide" },
 ];
 
 /** Gerçek bir dersin ekranları (Çocuk Sağlığı hazırlığı, kurucu hesabı, 18 Ekim 2026 yazımı). */
@@ -91,6 +101,12 @@ export const LESSON_SCENE = {
     answer: "Yanlış",
     corrected:
       "Çocuklar hipotansiyonu uzun süre kompanse edebildiği için dolaşım bozukluğunun erken bulguları önemlidir.",
+  },
+  /** Aynı dersin tablosundan bir soru (özellik ızgarasındaki küçük ders ekranı). */
+  quiz: {
+    prompt: "Makül, papül, vezikül ve kabuğun aynı anda görüldüğü hastalık hangisi?",
+    options: ["Kızamık", "Suçiçeği", "Kızıl"],
+    answer: "Suçiçeği",
   },
   screen: {
     heading: "Döküntülü hastalıkların ipuçları",
@@ -106,6 +122,29 @@ export const LESSON_SCENE = {
       ],
     },
   },
+} as const;
+
+/**
+ * Kahraman sahnesi: notun sayfası → yol → ders ekranı. Hepsi üründe olan ekranlardan (hazırlık yolu,
+ * "Sınavda sorulur" kutusu, "+%X kazandın" kartı); sayılar örnek olduğu için yalnız kart içinde.
+ */
+export const STAGE = {
+  note: {
+    file: "Çocuk Sağlığı notu.pdf",
+    heading: "Döküntülü hastalıklar",
+    tip: "Suçiçeğinde makül, papül, vezikül ve kabuk aynı anda görülür.",
+  },
+  path: {
+    title: "Yolun",
+    subtitle: "Çocuk Sağlığı",
+    nodes: [
+      { label: "Seviye tespiti", state: "done" },
+      { label: "Ders · Döküntülü hastalıklar", state: "next" },
+      { label: "Konu testi", state: "todo" },
+      { label: "Podcast", state: "todo", plus: true },
+    ],
+  },
+  gain: { value: "+%12 kazandın", detail: "Konu hâkimiyeti %64" },
 } as const;
 
 export const TRUST = [

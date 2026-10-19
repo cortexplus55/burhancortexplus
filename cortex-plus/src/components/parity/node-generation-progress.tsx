@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Info, Loader2, X } from "lucide-react";
-import { CortexMark } from "@/components/brand/cortex-mark";
+import { CortexLogoMotion } from "@/components/brand/cortex-logo-motion";
 import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
 
 /**
@@ -13,24 +13,6 @@ import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
  * notundan çıktığını gösteren tek bir işaret yoktu. Adımlar sunucudaki gerçek
  * sırayı anlatıyor; son adım gerçekten cevap gelene kadar döner.
  */
-
-const SPHERE_DOTS = buildSphere(168);
-
-function buildSphere(count: number) {
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  const dots: { x: number; y: number; z: number }[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const y = 1 - (i / (count - 1)) * 2;
-    const radius = Math.sqrt(Math.max(0, 1 - y * y));
-    const theta = golden * i;
-    dots.push({
-      x: Math.cos(theta) * radius,
-      y,
-      z: Math.sin(theta) * radius,
-    });
-  }
-  return dots;
-}
 
 export function NodeGenerationProgress({
   onClose,
@@ -76,19 +58,10 @@ export function NodeGenerationProgress({
       ) : null}
       <div className="apg-head">
         <h1>{title}</h1>
-        <CortexMark size={18} />
       </div>
-      <div className="apg-sphere" aria-hidden>
-        {SPHERE_DOTS.map((dot, index) => (
-          <span
-            key={index}
-            style={{
-              transform: `translate3d(${dot.x * 92}px, ${dot.y * 92}px, ${dot.z * 40}px)`,
-              opacity: 0.28 + ((dot.z + 1) / 2) * 0.72,
-              animationDelay: `${(index % 8) * 0.16}s`,
-            }}
-          />
-        ))}
+      {/* 19 Ekim 2026: nokta küresinin yerine markanın kendisi — sinyal ağda dolaşır, artıda parlar. */}
+      <div className="apg-brand" aria-hidden>
+        <CortexLogoMotion size={168} mode="loop" />
       </div>
       <ul className="apg-steps">
         {steps.map((label, index) => {

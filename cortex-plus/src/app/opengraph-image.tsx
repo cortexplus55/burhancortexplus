@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
+import { CortexIconSvg } from "@/components/brand/cortex-icon-svg";
 
-export const alt = "Cortex Plus — AI destekli öğrenme";
+export const alt = "Cortex Plus — Ders notundan sınav hazırlığı";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -36,18 +37,7 @@ export default function OpenGraphImage() {
               borderRadius: 16,
             }}
           >
-            <svg width={44} height={44} viewBox="0 0 24 24" fill="none">
-              <path
-                d="M18.4 5.4A8.9 8.9 0 1 0 18.4 18.6"
-                stroke="#d99a17"
-                strokeWidth="3.1"
-                strokeLinecap="round"
-              />
-              <path
-                d="M15.7 7.5 16.93 10.3 19.98 10.61 17.7 12.65 18.35 15.64 15.7 14.1 13.06 15.64 13.7 12.65 11.42 10.61 14.47 10.3Z"
-                fill="#f4ae0b"
-              />
-            </svg>
+            <CortexIconSvg size={60} detailed />
           </div>
           <div
             style={{
@@ -71,7 +61,7 @@ export default function OpenGraphImage() {
               maxWidth: 900,
             }}
           >
-            AI destekli öğrenme
+            Notunu yükle, sınava hazır bir yol çıksın.
           </div>
           <div
             style={{
@@ -81,7 +71,7 @@ export default function OpenGraphImage() {
               maxWidth: 820,
             }}
           >
-            Notunu yükle; ders, podcast, test ve sözlü pratik senin notundan
+            Ders, podcast, test ve sözlü pratik; hepsi senin notundan.
           </div>
         </div>
 

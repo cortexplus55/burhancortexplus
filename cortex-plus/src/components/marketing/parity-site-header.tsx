@@ -23,13 +23,15 @@ export function ParitySiteHeader() {
             navFocus,
           )}
         >
-          <CortexMark size={22} />
-          Cortex Plus
+          <CortexMark size={26} />
+          <span className="text-[13px] font-semibold uppercase tracking-[0.28em]">
+            Cortex <span className="text-[var(--c-brand,#fdb300)]">Plus</span>
+          </span>
         </Link>
 
         <nav
           className="hidden items-center gap-6 text-sm text-[var(--mk-muted)] md:flex"
-          aria-label="Ana menÃ¼"
+          aria-label="Ana menü"
         >
           {MARKETING_NAV.map((item) => (
             <Link
@@ -76,7 +78,7 @@ export function ParitySiteHeader() {
             )}
             aria-expanded={open}
             aria-controls="cs-mobile-nav"
-            aria-label={open ? "MenÃ¼yÃ¼ kapat" : "MenÃ¼yÃ¼ aÃ§"}
+            aria-label={open ? "Menüyü kapat" : "Menüyü aç"}
             onClick={() => setOpen((value) => !value)}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -88,7 +90,7 @@ export function ParitySiteHeader() {
         <nav
           id="cs-mobile-nav"
           className="border-t border-[var(--mk-border)] bg-[var(--mk-bg)] px-4 py-3 md:hidden"
-          aria-label="Mobil menÃ¼"
+          aria-label="Mobil menü"
         >
           <ul className="flex flex-col gap-1 text-sm">
             {MARKETING_NAV.map((item) => (
@@ -115,7 +117,7 @@ export function ParitySiteHeader() {
                 onClick={() => setOpen(false)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
-                Plus planlarÄ±
+                Plus planları
               </Link>
             </li>
             <li className="mt-3 flex gap-2">

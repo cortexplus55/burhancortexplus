@@ -52,6 +52,28 @@
 }
 
 /* Nokta örgüsü küre — üretim sürerken yavaşça döner. */
+/* Hareketli logo (19 Ekim 2026): kürenin yerinde, aynı ölçüde. */
+.apg-brand {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 15.5rem;
+  height: 15.5rem;
+  margin: 0.5rem 0;
+}
+
+.apg-brand::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(253, 179, 0, 0.12), rgba(67, 83, 243, 0.08) 45%, transparent 70%);
+}
+
+.apg-brand svg {
+  position: relative;
+}
+
 .apg-sphere {
   position: relative;
   width: 15.5rem;
