@@ -456,7 +456,8 @@ export function ExamCreateChat({
               <ul>
                 {nodes.map((node) => (
                   <li key={`${day}-${node.sortOrder}`}>
-                    {PLAN_NODE_META[node.kind].title}
+                    {/* Konu konu yolda başlık konuyu taşır ("Mol kavramı · Ders"); eski kalıpta türün adı. */}
+                    {node.title?.trim() || PLAN_NODE_META[node.kind].title}
                   </li>
                 ))}
               </ul>
