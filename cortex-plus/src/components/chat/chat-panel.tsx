@@ -220,6 +220,7 @@ function ChatPanelSession({
   audience = "student",
   startPrompt,
   startLabel = "Başla",
+  heroFooter,
   showEmptyStarter = true,
   composerMode = "full",
   placeholder,
@@ -244,6 +245,8 @@ function ChatPanelSession({
   audience?: "student" | "parent";
   startPrompt?: string;
   startLabel?: string;
+  /** Selam ve Başla düğmesinin altında (ana sayfada ilk hazırlık kartı). */
+  heroFooter?: React.ReactNode;
   showEmptyStarter?: boolean;
   composerMode?: "full" | "minimal" | "parity";
   placeholder?: string;
@@ -1245,6 +1248,8 @@ function ChatPanelSession({
                   {startLabel}
                 </span>
               </button>
+
+              {heroFooter}
 
               {/* Astra gibi yalnızca selam ve Başla (30 Eylül 2026 kararı).
                   Kısayollar ilk cevabın altında, kaynak seçimi ilk mesajdan
