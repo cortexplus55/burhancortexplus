@@ -351,6 +351,8 @@ describe("yazılı deneme aracı: açık uçlu ve çok cevaplı soru", () => {
     await waitFor(() => expect(posts.some((post) => post.url.includes("/exam/grade"))).toBe(true));
     const grade = posts.find((post) => post.url.includes("/exam/grade"))!;
     expect(grade.body.answers).toEqual({ q1: ["Reeskont", "Açık piyasa"], q2: "45 - 40 = yaklaşık %5" });
+    // Puan yüzde; çıplak "70" ne olduğu belli olmayan bir sayıydı.
+    expect(await screen.findByText("%70")).toBeTruthy();
     vi.unstubAllGlobals();
   });
 });

@@ -303,7 +303,7 @@ export function OralStudio({
         <StudioResults
           tool="sozlu"
           topic={topic}
-          scoreLabel={score != null ? `${score}` : undefined}
+          scoreLabel={score != null ? `%${score}` : undefined}
           title="Sözlü kapandı."
           lead={feedback}
           onAgain={() => {

@@ -143,3 +143,16 @@ Düzeltilenler:
 
 Bekçi: `feature-audit-studios.test.tsx` (akışlı ses, sohbet sesi, açık uçlu/çok cevaplı),
 `mock-exam-charge.test.ts` ("eksik tamamlama").
+
+## Beşinci tur — #374 yayında, doğrulama
+
+| Özellik | Sonuç |
+|---|---|
+| Kurulumun ders listesi | "deneme" kalktı |
+| Belgeyle sohbet, "Bu notu kısaca özetle." | Dört maddelik, üç sayfadan atıflı özet; kalıp giriş cümlesi ve "Kontrol sorusu:" etiketi yok |
+| Podcast aracı (kayıtlı 5:32'lik bölüm) | Oynatıcı birkaç saniyede açıldı ("Dinlemeye başlayabilirsin…"), ses tamamlanınca süre 5:32 |
+| Yazılı deneme aracı, Biyoloji, 10 soru | **60 sn içinde** (önce Ekonomi'de 280 sn); 7 çoktan seçmeli + 1 çok cevaplı + 2 açık uçlu; açık uçlu yazı alanıyla, boş geçilebiliyor; teslim ve not çalışıyor |
+| Konu testi, Hukuk, 20 soru | 20/20, ~130 sn, belgenin beş bölümünün hepsinden |
+| Sınav hazırlığı, Farmakoloji 10 s. | 9 konu = belgenin 1–9. bölümleri (10. sayfa özet tablo); kurulum ~15 sn; ilk ders 3 sn (önceden yazılmış), tablo ve "Akılda tut" kutusu belgeyle birebir |
+
+Son düzeltme: yazılı ve sözlü sonuç ekranında puan "%27" diye yazılır (önce çıplak "27").
