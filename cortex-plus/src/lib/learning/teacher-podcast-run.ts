@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
+import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
 import { parseIssues } from "@/lib/learning/teacher-lesson";
@@ -128,7 +129,7 @@ export type TeacherPodcastOutcome =
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /** Kredi bir kez ayrılır; podcast sorunsuz çıkarsa kesinleşir, çıkmazsa iade. */
-export async function runTeacherPodcast(
+async function runTeacherPodcastInner(
   service: SupabaseClient,
   input: TeacherPodcastInput & {
     userId: string;
@@ -228,4 +229,13 @@ export async function runTeacherPodcast(
     });
     return { ok: false, status: 503, error: "generation_failed", reasons: ["model_error"] };
   }
+}
+
+/** Üretim yuvasıyla (19 Ekim 2026, Faz 3.2); bkz. `withGenerationSlot`. */
+export async function runTeacherPodcast(...args: Parameters<typeof runTeacherPodcastInner>): Promise<TeacherPodcastOutcome> {
+  return withGenerationSlot(
+    args[1].charge === false ? "prefetch" : "student",
+    () => runTeacherPodcastInner(...args),
+    () => ({ ok: false, status: 503, error: "generation_busy", reasons: [] }),
+  );
 }

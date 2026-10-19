@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
+import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
@@ -21,7 +22,7 @@ export type TeacherRunOutcome<R> =
  * çağrısı kullanım olarak kaydedilir; iş sonucu kabul edilirse kredi
  * kesinleşir, edilmezse ya da hata olursa iade edilir.
  */
-export async function runWithTeacherModel<R>(
+async function runWithTeacherModelInner<R>(
   service: SupabaseClient,
   options: {
     userId: string;
@@ -122,4 +123,16 @@ export async function runWithTeacherModel<R>(
     });
     return { ok: false, status: 503, error: "generation_failed", reasons: ["model_error"] };
   }
+}
+
+/** Üretim yuvasıyla (19 Ekim 2026, Faz 3.2); bkz. `withGenerationSlot`. */
+export async function runWithTeacherModel<R>(
+  service: SupabaseClient,
+  options: Parameters<typeof runWithTeacherModelInner<R>>[1],
+): Promise<TeacherRunOutcome<R>> {
+  return withGenerationSlot(
+    options.charge === false ? "prefetch" : "student",
+    () => runWithTeacherModelInner<R>(service, options),
+    () => ({ ok: false, status: 503, error: "generation_busy", reasons: [] }),
+  );
 }

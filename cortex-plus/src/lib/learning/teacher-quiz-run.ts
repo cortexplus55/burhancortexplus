@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
+import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
@@ -111,7 +112,7 @@ export type TeacherQuizOutcome =
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /** Kredi bir kez ayrılır; yeterli soru çıkarsa kesinleşir, çıkmazsa iade. */
-export async function runTeacherQuiz(
+async function runTeacherQuizInner(
   service: SupabaseClient,
   input: TeacherQuizInput & {
     userId: string;
@@ -239,4 +240,13 @@ export async function runTeacherQuiz(
     });
     return { ok: false, status: 503, error: "generation_failed", reasons: ["model_error"] };
   }
+}
+
+/** Üretim yuvasıyla (19 Ekim 2026, Faz 3.2); bkz. `withGenerationSlot`. */
+export async function runTeacherQuiz(...args: Parameters<typeof runTeacherQuizInner>): Promise<TeacherQuizOutcome> {
+  return withGenerationSlot(
+    args[1].charge === false ? "prefetch" : "student",
+    () => runTeacherQuizInner(...args),
+    () => ({ ok: false, status: 503, error: "generation_busy", reasons: [] }),
+  );
 }

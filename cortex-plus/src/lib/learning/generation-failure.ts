@@ -156,6 +156,14 @@ export function describeGenerationFailure(
         canRetryNow: true,
       };
 
+    // Faz 3.2 (19 Ekim 2026): ekran ~3 dk sırada bekledi, yer açılmadı. Kredi düşmedi (yuva krediden önce).
+    case "generation_busy":
+      return {
+        message: "Şu an çok yoğun; sıradaydın ama yer açılmadı. Birkaç dakika sonra yeniden dene. Hakkından düşülmedi.",
+        retryMintsNewId: true,
+        canRetryNow: true,
+      };
+
     case "premium_required":
       return {
         message: "Bu içerik Plus üyeliğe özel. Yeniden denemek açmaz.",

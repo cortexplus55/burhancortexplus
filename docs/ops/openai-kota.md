@@ -28,3 +28,9 @@
 ## Önleme
 - Plan 3.2: üretim kuyruğu; 3.5: 1000 öğrenci için maliyet modeli. Haftalık `/admin/maliyetler`.
 - Modeli ya da işlem katmanını değiştirirken `ai_model_prices`'ı güncelle, yoksa gider yanlış hesaplanır.
+
+**Üretim yuvaları (19 Ekim 2026):** 429 dalgasını önlemek için aynı anda en çok `GENERATION_SLOTS` (varsayılan
+40) içerik üretimi çalışır. Dolu kapıda öğrenci hata değil "Şu an yoğunluk var; sıradasın" görür, ekran ~3 dk
+kendiliğinden yeniden dener; önceden yazım yuvaların %70'i dolunca hiç başlamaz. `/admin/sistem` → "Üretim
+yuvaları: şu an X / Y". OpenAI katmanı yükselirse sınırı Vercel'de artırın; 429 artıyorsa düşürün. Kayıtta
+`generation_busy` satırları sıranın dolduğunu gösterir.

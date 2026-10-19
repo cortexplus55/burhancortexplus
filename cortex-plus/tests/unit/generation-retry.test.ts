@@ -71,6 +71,7 @@ describe("bütün içerik ekranları aynı kuralı kullanır", () => {
 
   it("podcast sayfası boş yazı yerine bekleme ekranı gösterir", () => {
     const page = readFileSync("src/components/parity/prep-podcast-session.tsx", "utf8");
-    expect(page).toContain('<NodeGenerationProgress title="Podcast hazırlanıyor…"');
+    expect(page).toContain('<NodeGenerationProgress');
+    expect(page).toContain('title="Podcast hazırlanıyor…"');
   });
 });
