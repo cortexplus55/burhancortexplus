@@ -650,6 +650,12 @@ export async function runTeacherLesson(
       firstTokenMs,
       ...result.timing,
       callS: callMs,
+      // Denetçinin düzeltme istettiği yüksek sorunlar (tur tur, kısaltılmış): 19 Ekim 2026'da
+      // tek sayfalık KPSS dersinde 7 tur ve atılan kavram vardı, sebebi kayıtta yoktu.
+      fixWhy: result.fixTriggers.slice(0, 8).map((round) =>
+        round.slice(0, 2).map((issue) => `${issue.where}: ${issue.problem}`.slice(0, 140)),
+      ),
+      ...(result.dropped.length ? { droppedConcepts: result.dropped.slice(0, 4) } : {}),
     });
     if (!result.lesson) {
       await refund();
