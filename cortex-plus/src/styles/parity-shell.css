@@ -8428,6 +8428,11 @@
   background: var(--cp-surface-2);
   color: var(--cp-muted);
 }
+/* 19 Ekim 2026: ücretsiz günlük haktan büyük araç — sarı yalnız Plus için. */
+.tool-kind.is-plus {
+  background: rgba(253, 179, 0, 0.14);
+  color: var(--c-brand);
+}
 .tool-card.is-shortcut {
   opacity: 0.95;
 }

@@ -68,21 +68,31 @@ export const TOOLS: Tool[] = [
     kind: "kisayol",
     href: "/soru-coz",
   },
+  // 19 Ekim 2026: kartlar ve test belge seçebilen stüdyolara gider (eski /flashcardlar ve /quizler
+  // yalnız konu yazdırıyordu); doğru/yanlış stüdyosu da listede.
   {
     id: "flashcard",
-    title: "Flashcard",
-    blurb: "Konudan kart üret, aralıklı tekrarla çalış.",
+    title: "Kartlar",
+    blurb: "Konudan ya da belgenden kart üret, aralıklı tekrarla çalış.",
     subject: "Genel",
     kind: "kisayol",
-    href: "/flashcardlar",
+    href: "/studio/flashcard",
   },
   {
     id: "quiz",
-    title: "Quiz",
-    blurb: "Herhangi bir konudan kendine test hazırla.",
+    title: "Konu testi",
+    blurb: "Konudan ya da belgenden kendine test hazırla; her şık açıklanır.",
     subject: "Genel",
     kind: "kisayol",
-    href: "/quizler",
+    href: "/studio/quiz",
+  },
+  {
+    id: "dogru-yanlis",
+    title: "Doğru / Yanlış",
+    blurb: "Hızlı kontrol; yanlış cümlenin doğrusu yanında.",
+    subject: "Genel",
+    kind: "kisayol",
+    href: "/studio/dogru-yanlis",
   },
   {
     id: "deneme",
