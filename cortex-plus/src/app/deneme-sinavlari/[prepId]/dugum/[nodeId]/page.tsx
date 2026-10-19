@@ -5,7 +5,8 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepLockedHref, needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
-import type { Familiarity } from "@/lib/learning/session-signals";
+import { parseMood, type Familiarity } from "@/lib/learning/session-signals";
+import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
@@ -102,6 +103,17 @@ export default async function ExamNodePage({
   }
   if (requestedTopic) topicLabel = requestedTopic;
 
+  // Ruh hali günde bir kez (19 Ekim 2026): bugün verildiyse kart atlanır, o cevap kullanılır.
+  const { data: moodToday } = await supabase
+    .from("study_session_moods")
+    .select("mood")
+    .eq("user_id", user.id)
+    .gte("created_at", moodAskedSince())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const todayMood = moodToday?.mood ? parseMood(moodToday.mood) : null;
+
   // Üretim ekranı "senin notundan çıkıyor" diyebilsin diye kaynak dosya adı.
   // Hazırlık bir belgeye bağlı değilse gösterilmez — olmayan bir güvence
   // vermemek için.
@@ -162,6 +174,7 @@ export default async function ExamNodePage({
         requestedTopic={requestedTopic || null}
         topicId={topicId ?? null}
         initialFamiliarity={topicFamiliarity}
+        todayMood={todayMood}
         replayLesson={tekrar === "1"}
         resumeEnabled={resumeEnabled}
         sourceName={sourceName}

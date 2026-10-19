@@ -1,4 +1,5 @@
 import type { Familiarity } from "@/lib/learning/session-signals";
+import { istanbulDay } from "@/lib/istanbul-day";
 
 /**
  * Ders açılışının iki ekranı.
@@ -35,4 +36,23 @@ export function difficultyFromFamiliarity(
 /** Ruh halinden sonra yalnızca giriş dersi öneri kartına uğrar. */
 export function stepAfterMood(kind: string): "recommend" | "setup" {
   return kind === "lesson" ? "recommend" : "setup";
+}
+
+/**
+ * Ruh hali günde bir kez sorulur (19 Ekim 2026, ürün sahibinin kararı): Astra'da hiç yok, bizde
+ * her etkinlikten önce soruluyordu ve derste "ruh hali → önerilen ders" iki onay kartı art arda
+ * çıkıyordu. Bugün (Türkiye günü) cevap verildiyse o kullanılır, kart atlanır.
+ * Döner: bugünün Türkiye'de başladığı an (ISO), `created_at >=` sorgusu için.
+ */
+export function moodAskedSince(now: Date = new Date()): string {
+  return new Date(`${istanbulDay(now)}T00:00:00+03:00`).toISOString();
+}
+
+/** Aşinalık biliniyorsa açılışın ilk ekranı: bugün ruh hali verildiyse doğrudan sonraki ekran. */
+export function openingStage(
+  kind: string,
+  signals: { familiarityKnown: boolean; moodToday: boolean },
+): "familiarity" | "mood" | "recommend" | "setup" {
+  if (!signals.familiarityKnown) return "familiarity";
+  return signals.moodToday ? stepAfterMood(kind) : "mood";
 }
