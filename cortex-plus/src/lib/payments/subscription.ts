@@ -140,3 +140,33 @@ export function hasExpired(
   const end = new Date(sub.current_period_end);
   return !Number.isNaN(end.getTime()) && end.getTime() <= now.getTime();
 }
+
+/**
+ * Kodla açılan Plus denemesi mi (19 Ekim 2026, kapalı beta; göç `20261019160000`).
+ * `trial_until` dönem bitişine eşitken deneme. Öğrenci bu sırada ödeme yaparsa PayTR
+ * dönemi uzatır, eşitlik bozulur ve abonelik ücretli sayılır: hatırlatma ve kart eski
+ * yazıya döner.
+ */
+export function isTrialPeriod(sub: {
+  trial_until?: string | null;
+  current_period_end?: string | null;
+}): boolean {
+  if (!sub.trial_until || !sub.current_period_end) return false;
+  const trial = new Date(sub.trial_until).getTime();
+  const end = new Date(sub.current_period_end).getTime();
+  return Number.isFinite(trial) && Number.isFinite(end) && Math.abs(trial - end) < 60_000;
+}
+
+/** Deneme bildirimleri: ücret alınmaz, hazırlıklar yerinde kalır, Plus isteğe bağlı. */
+export function trialNotice(kind: "reminder" | "expired", whenText = "") {
+  if (kind === "expired") {
+    return {
+      title: "Plus denemen bitti",
+      body: "Beta denemen bugün bitti; hesabın ücretsize döndü, ücret alınmadı. Hazırlıkların ve ilerlemen yerinde. Plus'ta devam etmek istersen Abonelik sayfasından alabilirsin.",
+    };
+  }
+  return {
+    title: `Plus denemen ${whenText} bitiyor`,
+    body: `Beta denemen ${whenText} doluyor. Sonra ücretsiz hesapla devam edersin; hazırlıkların ve ilerlemen yerinde kalır. Plus'ta kalmak istersen bitmeden alabilirsin, kalan günlerin yanmaz.`,
+  };
+}

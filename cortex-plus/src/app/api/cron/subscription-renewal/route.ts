@@ -4,8 +4,10 @@ import {
   RENEWAL_REMINDER_DAYS,
   daysUntil,
   hasExpired,
+  isTrialPeriod,
   needsRenewalReminder,
   periodLabel,
+  trialNotice,
   type BillingPeriod,
 } from "@/lib/payments/subscription";
 import { processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
@@ -48,6 +50,7 @@ type SubRow = {
   renewal_reminder_sent_at: string | null;
   expired_notified_at: string | null;
   cancel_at_period_end: boolean | null;
+  trial_until?: string | null;
   plans: { name: string | null; billing_period: string | null } | null;
 };
 
@@ -67,7 +70,7 @@ export async function GET(request: Request) {
     .from("subscriptions")
     .select(
       `id, user_id, status, billing_period, current_period_start, current_period_end,
-       renewal_reminder_sent_at, expired_notified_at, cancel_at_period_end,
+       renewal_reminder_sent_at, expired_notified_at, cancel_at_period_end, trial_until,
        plans(name, billing_period)`,
     )
     .eq("status", "active")
@@ -90,9 +93,14 @@ export async function GET(request: Request) {
       sub.plans?.billing_period ??
       "monthly") as BillingPeriod;
 
+    // Kodla açılan Plus denemesi (kapalı beta): "yenile" değil, "ücretsize dönersin" denir.
+    const trial = isTrialPeriod(sub);
+
     if (hasExpired(sub, now)) {
       expired.push(sub.id);
-      if (!sub.expired_notified_at) {
+      if (!sub.expired_notified_at && trial) {
+        notices.push({ user_id: sub.user_id, ...trialNotice("expired") });
+      } else if (!sub.expired_notified_at) {
         notices.push({
           user_id: sub.user_id,
           title: `${planName} aboneliğin sona erdi`,
@@ -109,6 +117,10 @@ export async function GET(request: Request) {
       const whenText =
         left <= 0 ? "bugün" : left === 1 ? "yarın" : `${left} gün sonra`;
       reminded.push(sub.id);
+      if (trial) {
+        notices.push({ user_id: sub.user_id, ...trialNotice("reminder", whenText) });
+        continue;
+      }
       notices.push({
         user_id: sub.user_id,
         title: `${planName} aboneliğin ${whenText} bitiyor`,

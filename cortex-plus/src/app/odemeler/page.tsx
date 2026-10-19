@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { SubscriptionCard } from "@/components/billing/subscription-card";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate, formatTry } from "@/lib/format";
-import { billingPeriodOf, daysUntil } from "@/lib/payments/subscription";
+import { billingPeriodOf, daysUntil, isTrialPeriod } from "@/lib/payments/subscription";
 import { parseRefundReason } from "@/lib/payments/refund";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -41,7 +41,7 @@ export default async function OdemelerPage() {
       .from("subscriptions")
       .select(
         `status, billing_period, current_period_end, cancel_at_period_end,
-         auto_renew, plans(name, price_try, billing_period, is_premium)`,
+         auto_renew, trial_until, plans(name, price_try, billing_period, is_premium)`,
       )
       .eq("user_id", user.id)
       .eq("status", "active")
@@ -91,6 +91,7 @@ export default async function OdemelerPage() {
             daysLeft: daysUntil(sub.current_period_end),
             cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
             autoRenew: Boolean(sub.auto_renew),
+            trial: isTrialPeriod(sub),
           }}
         />
       ) : null}

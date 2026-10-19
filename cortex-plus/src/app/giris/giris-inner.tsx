@@ -150,7 +150,11 @@ export default function GirisPage() {
             Şifreni mi unuttun?
           </Link>
           {" · "}
-          <Link href="/kayit" className="text-[var(--cx-gold-hover)] underline">
+          {/* Beta kodu bağlantısıyla gelen yeni öğrenci (/pay?kod=…) kayıttan sonra koda dönsün. */}
+          <Link
+            href={params.get("next") ? `/kayit?next=${encodeURIComponent(next)}` : "/kayit"}
+            className="text-[var(--cx-gold-hover)] underline"
+          >
             Kayıt ol
           </Link>
         </p>
