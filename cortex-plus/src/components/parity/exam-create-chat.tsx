@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { dropExamWizardDraft } from "@/lib/learning/exam-wizard-draft";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-plan";
@@ -201,7 +202,9 @@ export function ExamCreateChat({
         return;
       }
       setMessages((prev) => [...prev, { role: "assistant", content: payload.reply }]);
-      if (payload.draft) setDraft(payload.draft);
+      // Seçilmiş ders (sihirbaz ya da katalog) sunucunun taslağıyla ezilmez; canlıda "Kimya" seçilip
+      // hazırlık "Serbest" diye kaydedildi (19 Ekim 2026).
+      if (payload.draft) setDraft(initialSubject ? { ...payload.draft, examType: initialSubject } : payload.draft);
       setNeedDate(Boolean(payload.needDate));
       setPreview(payload.preview ?? []);
       setDays(payload.days ?? null);
@@ -260,6 +263,9 @@ export function ExamCreateChat({
       } else {
         toast.success(`${days ?? ""} günlük planın hazır.`);
       }
+      // Sihirbazdan "Belgem yok" ile gelindiyse o taslak bu hazırlıktı: silinir. Yoksa Sınavlar'da
+      // "Taslaklar" ve sihirbaz "Kaldığın yerden devam ediyorsun" diye kurulmuş hazırlığı geri getiriyordu.
+      if (topicOnly) void dropExamWizardDraft();
       router.push(`/deneme-sinavlari/${payload.prepId}`);
       router.refresh();
     } catch {
@@ -452,7 +458,8 @@ export function ExamCreateChat({
               <ul>
                 {nodes.map((node) => (
                   <li key={`${day}-${node.sortOrder}`}>
-                    {PLAN_NODE_META[node.kind].title}
+                    {/* Konu konu yolda başlık konuyu taşır ("Mol kavramı · Ders"); eski kalıpta türün adı. */}
+                    {node.title?.trim() || PLAN_NODE_META[node.kind].title}
                   </li>
                 ))}
               </ul>

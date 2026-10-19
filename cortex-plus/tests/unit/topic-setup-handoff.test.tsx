@@ -44,4 +44,17 @@ describe("konudan kurulum: sihirbazın seçimleri taşınır", () => {
     expect(chat).toContain("...(initialTarget ? { targetScore: initialTarget } : {}),");
     expect(chat).toContain(`const [examDate, setExamDate] = useState(initialExamDate ?? "");`);
   });
+
+  // 19 Ekim 2026: kurulan hazırlık sihirbaz taslağı olarak "Kaldığın yerden devam ediyorsun" diye geri geliyordu.
+  it("seçilen ders sunucunun taslağıyla ezilmez", () => {
+    expect(read("src/components/parity/exam-create-chat.tsx")).toContain("setDraft(initialSubject ? { ...payload.draft, examType: initialSubject } : payload.draft)");
+  });
+
+  it("önizleme düğümün kendi başlığını gösterir (konu adıyla)", () => {
+    expect(read("src/components/parity/exam-create-chat.tsx")).toContain("{node.title?.trim() || PLAN_NODE_META[node.kind].title}");
+  });
+
+  it("sihirbazdan gelen kurulum bitince sihirbaz taslağı silinir", () => {
+    expect(read("src/components/parity/exam-create-chat.tsx")).toContain("if (topicOnly) void dropExamWizardDraft();");
+  });
 });
