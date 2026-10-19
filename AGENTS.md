@@ -748,3 +748,19 @@ hiç verilmeyen "zor soruda güçlü model", ücretsiz zor soruda "Plus'ta güç
 | Fiyatlar veritabanından okunur | `src/app/page.tsx` |
 
 Bekçi: `marketing-claims.test.ts` (yasak cümleler, Plus etiketi ↔ kredi tablosu, hak sayıları).
+
+## Öğrenci gibi kurulum turu (19 Ekim 2026) — bulunan ve kapanan hatalar
+
+Ürün sahibi: "kullanıcıya sunduğumuz hizmetleri tek tek kontrol et". Canlıda kurucu hesabıyla, öğrenci
+gibi uçtan uca kuruldu ("YKS biyoloji: hücre bölünmeleri", "YKS kimya: mol kavramı", belgesiz).
+
+| Bulgu | Kural | Nerede |
+|---|---|---|
+| Belgesiz hazırlığın yolu kalıp şablondan çıkıyordu: beş konu için konusuz tek "Giriş Dersi" | Belgesiz hazırlık da konu konu kurulur (ders → test → tekrar, sonda deneme); geçici kimlik `topic:i` kayıttan sonra gerçek konu kimliğine çevrilir | `topic-only-schedule.ts`, `create/route.ts`, `intake/route.ts` |
+| "Belgem yok" sohbeti sihirbazın ders, tarih, hedefini kaybediyor, tarihi yeniden soruyor, eski belgeleri listeliyordu | Seçimler sohbete taşınır; belgesiz kurulumda belge seçici yok; seçilen ders sunucunun taslağıyla ezilmez; kurulum bitince sihirbaz taslağı silinir | `exam-create-entry.tsx`, `exam-create-chat.tsx` |
+| Ücretsiz öğrenci podcast/sözlü/deneme/fotoğrafta "hakkın doldu" + geri sayım görüyordu (iş günlük haktan büyük, beklemek çözmez) | Kapı iş kodunu alır: ücretsiz hakkı aşan işte "Plus'ta açık" der, geri sayım göstermez; araç seçici ve Araçlar'da ücretsizde "Plus" rozeti | `free-reach.ts`, `CreditGate action=`, `study-tools-hub.tsx`, `tools-hub.tsx` |
+| Kayıttan sonra asıl değer (notundan yol) yalnız Sınavlar'daydı | Hazırlığı olmayan öğrenciye ana sayfada "İlk hazırlığını kur" kartı | `first-prep-card.tsx` |
+| Araçlar'da test/kartlar belge seçemeyen eski sayfalara gidiyordu; Yanlışlarım menüde yoktu | Kartlar stüdyolara gider (`/studio/quiz`, `/studio/flashcard`, `/studio/dogru-yanlis`); "Daha fazla"da Yanlışlarım | `tools.ts`, `sor-shell.tsx` |
+
+Bekçi: `topic-only-schedule.test.ts`, `topic-setup-handoff.test.tsx`, `free-reach.test.tsx`,
+`home-first-prep.test.tsx`, `tools-studios.test.ts`.
