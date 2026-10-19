@@ -36,7 +36,7 @@ export function SubjectModal({
 }) {
   const [custom, setCustom] = useState("");
   const [adding, setAdding] = useState(false);
-  const extras = !PARITY_SUBJECTS.includes(value as (typeof PARITY_SUBJECTS)[number])
+  const extras = value && !PARITY_SUBJECTS.includes(value as (typeof PARITY_SUBJECTS)[number])
     ? [value]
     : [];
   const list = [...PARITY_SUBJECTS, ...extras];

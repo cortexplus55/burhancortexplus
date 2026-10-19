@@ -87,6 +87,8 @@ export function StudioEntry({
   placeholder,
   submitLabel,
   initialTopic = "",
+  suggestions,
+  setup,
   onSubmit,
 }: {
   tool: StudioToolId;
@@ -95,9 +97,14 @@ export function StudioEntry({
   submitLabel: string;
   creditCost: number | null;
   initialTopic?: string;
+  /** Belge seçiliyse belgenin kendi konuları (19 Ekim 2026); yoksa aracın örnekleri. */
+  suggestions?: string[];
+  /** Kaynak, sayı, süre seçimi: sorunun üstünde. */
+  setup?: ReactNode;
   onSubmit: (topic: string) => void;
 }) {
   const intro = STUDIO_INTRO[tool];
+  const chips = suggestions?.length ? suggestions : intro.suggestions;
   const [draft, setDraft] = useState(initialTopic);
 
   function start(topic: string) {
@@ -123,6 +130,8 @@ export function StudioEntry({
         <span />
       </div>
 
+      {setup}
+
       <div className="ls-msg">
         <span className="ls-msg-mark" aria-hidden>
           <CortexMark size={20} />
@@ -131,7 +140,7 @@ export function StudioEntry({
       </div>
 
       <div className="ls-chips" role="group" aria-label="Örnek konular">
-        {intro.suggestions.map((suggestion) => (
+        {chips.map((suggestion) => (
           <button
             key={suggestion}
             type="button"

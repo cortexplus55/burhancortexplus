@@ -4,7 +4,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadCompletedDocumentOptions } from "@/lib/documents/document-options";
 import { normalizeChapters } from "@/lib/learning/podcast-script";
 
-export const metadata = { title: "Podcast stüdyosu" };
+export const metadata = { title: "Podcast" };
 export const dynamic = "force-dynamic";
 
 export default async function PodcastStudioPage({
@@ -16,7 +16,7 @@ export default async function PodcastStudioPage({
   const params = await searchParams;
 
   const [creditCost, documents, { data: library }, saved] = await Promise.all([
-    getCreditCost("AI_CHAT_STANDARD"),
+    getCreditCost("PODCAST_GENERATE"),
     loadCompletedDocumentOptions(supabase, user.id),
     supabase
       .from("podcasts")
@@ -35,7 +35,7 @@ export default async function PodcastStudioPage({
       : Promise.resolve(null),
   ]);
 
-  const sourceDocument = documents.find((d) => d.id === params.documentId) ?? null;
+  const initialDocumentId = documents.some((d) => d.id === params.documentId) ? params.documentId ?? null : null;
   const savedEpisode = saved
     ? {
         id: saved.id as string,
@@ -50,7 +50,8 @@ export default async function PodcastStudioPage({
     <PodcastStudio
       creditCost={creditCost}
       initialTopic={params.topic ?? ""}
-      sourceDocument={sourceDocument}
+      documents={documents}
+      initialDocumentId={initialDocumentId}
       library={(library ?? []).map((p) => ({
         id: p.id as string,
         title: p.title as string,

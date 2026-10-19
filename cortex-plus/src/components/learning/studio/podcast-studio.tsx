@@ -18,8 +18,21 @@ import {
   normalizeChapters,
   type PodcastChapter,
 } from "@/lib/learning/podcast-script";
+import {
+  documentSuggestions,
+  sourceNotice,
+  StudioChoices,
+  StudioSetup,
+  StudioSourcePicker,
+  type StudioDocument,
+  type StudioSourceMode,
+} from "@/components/learning/studio/studio-setup";
+import {
+  DEFAULT_PODCAST_LENGTH,
+  PODCAST_FORMAT_OPTIONS,
+  type PodcastLength,
+} from "@/lib/learning/podcast-formats";
 import { cn } from "@/lib/utils";
-import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 
 /**
@@ -62,24 +75,36 @@ export type SavedEpisode = {
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
 /** 900 karakter ≈ 1 dakika konuşma (bkz. audio-cache.ts); bedeli fiyat tablosundan (19 Ekim 2026: 15 kredi). */
 const CHARS_PER_MINUTE = 900;
-const ESTIMATED_MINUTES = 5;
+/** Tür = süre (19 Ekim 2026'dan beri Araçlar'da da seçilir; önce hep 5 dakikalık diyalogdu). */
+const FORMAT_CHOICES = PODCAST_FORMAT_OPTIONS.map((option) => ({
+  value: option.id,
+  label: `${option.label} · ${option.minutes} dk`,
+}));
 
 export function PodcastStudio({
   creditCost,
   initialTopic = "",
-  sourceDocument = null,
+  documents = [],
+  initialDocumentId = null,
   library = [],
   savedEpisode = null,
 }: {
   creditCost: number | null;
   initialTopic?: string;
-  /** Belge sayfasından gelindiyse senaryo yalnızca bu belgeden. */
-  sourceDocument?: { id: string; fileName: string } | null;
+  /** Hazır belgeler; seçilirse senaryo yalnızca o belgeden. */
+  documents?: StudioDocument[];
+  initialDocumentId?: string | null;
   /** Daha önce üretilen bölümler — yeniden açılabilir. */
   library?: PodcastLibraryItem[];
   /** `?podcastId=` ile açılan kayıtlı bölüm; sese doğrudan geçer. */
   savedEpisode?: SavedEpisode | null;
 }) {
+  const [sourceMode, setSourceMode] = useState<StudioSourceMode>(initialDocumentId ? "document" : "topic");
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? documents[0]?.id ?? null);
+  const [length, setLength] = useState<PodcastLength>(DEFAULT_PODCAST_LENGTH);
+  const [notice, setNotice] = useState<string | null>(null);
+  const sourceDocument = sourceMode === "document" ? documents.find((doc) => doc.id === documentId) ?? null : null;
+  const format = PODCAST_FORMAT_OPTIONS.find((option) => option.id === length) ?? PODCAST_FORMAT_OPTIONS[0];
   const [phase, setPhase] = useState<"entry" | "loading" | "play" | "results">("entry");
   const [topic, setTopic] = useState(initialTopic);
   const [title, setTitle] = useState("");
@@ -177,8 +202,10 @@ export function PodcastStudio({
       tagline?: string;
       chapters?: unknown[];
       podcastId?: string | null;
+      source?: { kind?: string; wholeDocument?: boolean; matched?: boolean; fileName?: string | null };
     }>("/api/learning/podcast/generate", {
       topic: nextTopic,
+      length,
       ...(sourceDocument ? { documentId: sourceDocument.id } : {}),
     });
 
@@ -197,6 +224,7 @@ export function PodcastStudio({
       return;
     }
 
+    setNotice(sourceNotice(script.data.source));
     const normalized = normalizeChapters(script.data.chapters);
     if (!normalized.length) {
       toast.error("Podcast bu sefer tamamlanamadı; yeniden dene.");
@@ -355,15 +383,29 @@ export function PodcastStudio({
           </p>
           <StudioEntry
             tool="podcast"
-            title="Konuyu dinle."
-            placeholder={sourceDocument ? "Örn. 3. bölüm — hücre zarı" : "Örn. Hücre bölünmesi"}
+            title="Podcast"
+            placeholder={sourceDocument ? "Örn. Belgenin tamamı ya da bir bölüm" : "Örn. Hücre bölünmesi"}
             submitLabel="Yayını hazırla"
             creditCost={creditCost}
             initialTopic={initialTopic}
+            suggestions={documentSuggestions(sourceDocument)}
+            setup={
+              <StudioSetup>
+                <StudioSourcePicker
+                  idPrefix="podcast"
+                  documents={documents}
+                  mode={sourceMode}
+                  onModeChange={setSourceMode}
+                  documentId={documentId}
+                  onDocumentChange={setDocumentId}
+                />
+                <StudioChoices label="Tür ve süre" options={FORMAT_CHOICES} value={length} onChange={setLength} />
+              </StudioSetup>
+            }
             onSubmit={(next) => void start(next)}
           />
 
-          {/* Üretimden önce ne alınacağı: kaynak, süre, kredi. */}
+          {/* Üretimden önce ne alınacağı: kaynak ve süre. Öğrenci kredi sayısı görmez (AGENTS.md). */}
           <dl className="ls-pod-preflight" aria-label="Yayın özeti">
             <div>
               <dt>Kaynak</dt>
@@ -371,14 +413,7 @@ export function PodcastStudio({
             </div>
             <div>
               <dt>Tahmini süre</dt>
-              <dd>~{ESTIMATED_MINUTES} dk · 4-5 bölüm · tek öğretmen</dd>
-            </div>
-            <div>
-              <dt>Kredi</dt>
-              <dd>
-                Senaryo {creditCost ?? "—"} · Ses ~{ESTIMATED_MINUTES * CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits} (dakika başına ~{CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits};
-                daha önce üretilmiş cümleler bedava)
-              </dd>
+              <dd>~{format.minutes} dk · {format.blurb}</dd>
             </div>
           </dl>
 
@@ -415,6 +450,7 @@ export function PodcastStudio({
         <div className="ls-player">
           <p className="ls-studio-kicker">{tagline}</p>
           <h2 className="ls-entry-title">{title}</h2>
+          {notice ? <p className="ls-source-notice">{notice}</p> : null}
 
           {tracks?.length ? (
             <>

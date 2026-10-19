@@ -10,6 +10,10 @@ export type StudioTeacherSource = {
   pages: { page: number; text: string }[];
   edges: string[];
   fileName: string | null;
+  /** Belgenin tamamından mı (öğrenci tamamını istedi ya da yazdığı konu belgede yoktu). */
+  wholeDocument: boolean;
+  /** Yazılan konu belgede bulundu mu; false ise ekran "belgenin tamamından hazırladım" der. */
+  matched: boolean;
 };
 
 /**
@@ -22,14 +26,16 @@ export async function studioTeacherSource(
   service: SupabaseClient,
   input: { userId: string; topic: string; documentId?: string | null },
 ): Promise<StudioTeacherSource | null> {
-  if (!input.documentId) return { mode: "topic", pages: [], edges: [], fileName: null };
+  if (!input.documentId) return { mode: "topic", pages: [], edges: [], fileName: null, wholeDocument: false, matched: true };
   const context = await loadDocumentGenerationContext(service, input.userId, input.documentId, input.topic);
   if (!context) return null;
   const edges = await documentRunningHeaders(service, input.documentId);
   const clean = await ensureCleanPages(service, {
     userId: input.userId,
     documentId: input.documentId,
-    pages: corePageRun(context.topicPages),
+    // Konu istendiyse bitişik çekirdek (ders gibi tek birim); tamamı istendiyse her konudan seçilmiş
+    // sayfalar olduğu gibi (19 Ekim 2026: 8 sayfalık notta podcast son iki dönemi atlıyordu).
+    pages: context.wholeDocument ? context.topicPages : corePageRun(context.topicPages),
     edges,
   });
   if (!clean.length) return null;
@@ -38,5 +44,7 @@ export async function studioTeacherSource(
     pages: clean.map((item) => ({ page: item.page, text: item.text })),
     edges,
     fileName: context.fileName,
+    wholeDocument: context.wholeDocument,
+    matched: context.matched,
   };
 }

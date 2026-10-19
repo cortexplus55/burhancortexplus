@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
-import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
+import { parsePodcastLength } from "@/lib/learning/podcast-formats";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
@@ -10,6 +10,8 @@ const bodySchema = z.object({
   topic: z.string().min(3).max(300),
   /** "Belgem" kaynağı: senaryo yalnızca bu belgeden. */
   documentId: z.string().uuid().optional(),
+  /** Tür ve süre (Özet 1 dk, Diyalog 5, Soru-Cevap 7, Basit 5, Derinlemesine 10); 19 Ekim 2026'dan beri seçilir. */
+  length: z.string().max(20).optional(),
 });
 
 /*
@@ -36,6 +38,7 @@ export async function POST(request: Request) {
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
   const { topic, documentId } = parsedBody.data;
+  const length = parsePodcastLength(parsedBody.data.length);
 
   // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
   const source = await studioTeacherSource(service, { userId, topic, documentId });
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
     prepTitle: source.fileName ?? topic,
     pages: source.pages,
     mode: source.mode,
-    length: DEFAULT_PODCAST_LENGTH,
+    length,
     runningHeaders: source.edges,
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
@@ -84,8 +87,9 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ...episode,
     podcastId,
+    length,
     source: documentId
-      ? { kind: "document", documentId, fileName: source.fileName }
+      ? { kind: "document", documentId, fileName: source.fileName, wholeDocument: source.wholeDocument, matched: source.matched }
       : { kind: "topic" },
   });
 }

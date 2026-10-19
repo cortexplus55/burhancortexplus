@@ -749,6 +749,24 @@ hiç verilmeyen "zor soruda güçlü model", ücretsiz zor soruda "Plus'ta güç
 
 Bekçi: `marketing-claims.test.ts` (yasak cümleler, Plus etiketi ↔ kredi tablosu, hak sayıları).
 
+## Araçlar ve belgeyle sohbet: özellik özellik denetim (19 Ekim 2026)
+
+Ürün sahibi: "her özelliği farklı belgeyle tek tek dene; istediği sayıda ve dakikada üretebiliyor mu".
+Bulgular, neden ve düzeltme: `docs/delivery/OZELLIK-DENETIMI-19-EKIM.md`; belgeler `tests/fixtures/feature-audit/`.
+
+| Kural | Nerede |
+|---|---|
+| "Genel sohbet" katı mod göndermez; sunucu "yalnızca belgem"i ancak belge modu açıkken uygular. PDF eklenince mod belgeli sohbete geçer, belge hemen işlenir | `chat-panel.tsx`, `api/ai/chat/route.ts` |
+| Ders etiketi ("[Matematik]") varsayılan boş; belgeyle konuşurken hiç eklenmez | `chat-panel.tsx` |
+| Cevap kontrolünde alıntı **kelime kelime** aranır (Markdown ve PDF boşlukları yok sayılır; %85 ve bütün sayılar birebir). Birebir arama doğru cevapları reddediyordu; gevşetirken sayı kuralını kaldırmayın | `looselyContains` |
+| "Belgenin tamamı" serbest yazımla tanınır; konu belgede yoksa istek düşmez, tamama genişler; tamamı her konudan sayfa (en çok 14) — bitişik 6 sayfaya kesmeyin | `isWholeDocumentRequest`, `wholeDocumentPages`, `studio-teacher-source.ts` |
+| Her araçta belge seçici + yükleme + belgenin konuları + sayı/süre seçimi; ortak bileşen tek yerde | `studio-setup.tsx` |
+| Doğru/Yanlış ve sözlü öğretmen motorunda ve belgeden; eksik kalan kart/önerme ikinci geçişle tamamlanır | `true-false/generate`, `oral/generate`, `flashcards/generate` |
+| Podcast kelime aralığı ölçülen hızla: iki ses ~88, tek ses ~95 kelime/dk | `podcast-formats.ts`, `estimatedPodcastMinutes` |
+| Yazılı deneme aracının geçici hazırlığı (`exam_type = 'deneme'`) listede, ücretsiz hakta ve sayımlarda yok | `studio-exam.ts` |
+
+Bekçi: `feature-audit-studios.test.tsx`, `document-answer-verification.test.ts`.
+
 ## Logo: sinir ağı, hareketli (19 Ekim 2026)
 
 Ürün sahibi beş fütüristik adaydan **B, sinir ağı**nı seçti (eski "C + yıldız" ve ilk altı sade aday

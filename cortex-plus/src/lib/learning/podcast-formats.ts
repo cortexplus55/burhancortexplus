@@ -46,6 +46,11 @@ export type PodcastLengthSpec = {
   style: string;
 };
 
+/*
+  Kelime aralıkları ölçülen okuma hızından (19 Ekim 2026): canlıda iki sesli 657 kelimelik bölüm
+  7:29 sürdü — dakikada ~88 kelime (sesler arası duraklarla); tek seste ~95. Önceki aralıklar
+  dakikada 130 kelime varsayıyordu: "~5 dk" diye sunulan podcast 7,5 dakika çıkıyordu.
+*/
 export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
   switch (length) {
     case "ozet":
@@ -54,7 +59,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minutes: 1,
         minChapters: 3,
         maxChapters: 4,
-        brief: "Yaklaşık 1 dakika, 3 kısa bölüm, toplam 120-180 kelime. Sınav öncesi tekrar.",
+        brief: "Yaklaşık 1 dakika, 3 kısa bölüm, toplam 85-105 kelime. Sınav öncesi tekrar.",
         speakers: "single",
         style: "",
       };
@@ -64,7 +69,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minutes: 10,
         minChapters: 6,
         maxChapters: 8,
-        brief: "Yaklaşık 10 dakika, 6-8 bölüm, toplam 1100-1400 kelime. Örnek ve bağlamla tam konu.",
+        brief: "Yaklaşık 10 dakika, 6-8 bölüm, toplam 860-1000 kelime. Örnek ve bağlamla tam konu.",
         speakers: "single",
         style: "",
       };
@@ -74,7 +79,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minutes: 5,
         minChapters: 4,
         maxChapters: 6,
-        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 550-750 kelime.",
+        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 400-480 kelime.",
         speakers: "duo",
         // 17 Ekim 2026, ürün sahibi: "Astra gibi iki ses de anlatsın". Kerem'in bütün sıraları tek
         // cümlelik soruydu (canlı ölçüm, solunum podcast'i); Astra'da iki sunucu da anlatıyor.
@@ -91,7 +96,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minutes: 7,
         minChapters: 5,
         maxChapters: 7,
-        brief: "Yaklaşık 7 dakika, 5-7 bölüm, toplam 800-1000 kelime.",
+        brief: "Yaklaşık 7 dakika, 5-7 bölüm, toplam 560-670 kelime.",
         speakers: "duo",
         style:
           "Her bölüm Kerem'in sınavda çıkabilecek bir sorusuyla açılır; Ada adım adım cevaplar. " +
@@ -103,7 +108,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minutes: 5,
         minChapters: 4,
         maxChapters: 6,
-        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 450-600 kelime.",
+        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 430-520 kelime.",
         speakers: "single",
         style:
           "Sade anlat: günlük kelimeler, her cümle en fazla 15 kelime. Terimi kullanmadan önce tanımla. " +
@@ -115,7 +120,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minutes: 5,
         minChapters: 4,
         maxChapters: 6,
-        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 550-750 kelime.",
+        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 430-520 kelime.",
         speakers: "single",
         style: "",
       };
@@ -141,4 +146,10 @@ export function podcastDuoBrief(): string {
     "bir neden ya da bir örnek taşır. Bir olguyu söylediğinde nedenini ve sonucunu da söyle. " +
     "Benzetme açıklamanın yerine geçmez. Kaynakta olmayan sayı veya formül yok."
   );
+}
+
+/** Senaryonun yaklaşık süresi (dakika), ölçülen okuma hızıyla: iki seste ~88, tek seste ~95 kelime/dk. */
+export function estimatedPodcastMinutes(words: number, speakers: "single" | "duo"): number {
+  const perMinute = speakers === "duo" ? 88 : 95;
+  return Math.max(1, Math.round(words / perMinute));
 }

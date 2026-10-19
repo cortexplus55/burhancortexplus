@@ -1,4 +1,5 @@
 import "server-only";
+import { NOT_STUDIO_EXAM_FILTER } from "@/lib/learning/studio-exam";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ExamPrepCard } from "@/components/parity/exam-prep";
 import { mapPrepTopics, topicProgress, type PrepTopic } from "@/lib/learning/exam-prep-progress";
@@ -56,6 +57,7 @@ export async function loadPrepCards(
     .from("exam_preps")
     .select("id, title, exam_type, target_score, created_at, study_plan_id, exam_date, view_count")
     .eq("user_id", userId)
+    .or(NOT_STUDIO_EXAM_FILTER)
     .order("created_at", { ascending: false })
     .limit(limit);
   const preps = (prepRows ?? []) as PrepRow[];

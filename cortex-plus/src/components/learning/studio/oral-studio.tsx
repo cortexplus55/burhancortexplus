@@ -13,19 +13,44 @@ import {
   StudioResults,
 } from "@/components/learning/studio/studio-shared";
 import { createRecognizer, speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
+import {
+  documentSuggestions,
+  sourceNotice,
+  StudioChoices,
+  StudioSetup,
+  StudioSourcePicker,
+  type StudioDocument,
+  type StudioSourceMode,
+} from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
 
-type Question = { prompt: string; hint?: string };
+/** expectedPoints: belgeden beklenen noktalar; puanlama bunlara göre yapılır (19 Ekim 2026). */
+type Question = { prompt: string; hint?: string; expectedPoints?: string[] };
+
+const QUESTION_COUNTS = [
+  { value: 3, label: "3 soru" },
+  { value: 5, label: "5 soru" },
+  { value: 8, label: "8 soru" },
+] as const;
 
 const TURN_SECONDS = 45;
 
 export function OralStudio({
   creditCost,
   initialTopic = "",
+  documents = [],
+  initialDocumentId = null,
 }: {
   creditCost: number | null;
   initialTopic?: string;
+  documents?: StudioDocument[];
+  initialDocumentId?: string | null;
 }) {
+  const [sourceMode, setSourceMode] = useState<StudioSourceMode>(initialDocumentId ? "document" : "topic");
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? documents[0]?.id ?? null);
+  const [count, setCount] = useState<number>(5);
+  const [notice, setNotice] = useState<string | null>(null);
+  const sourceDocument = sourceMode === "document" ? documents.find((doc) => doc.id === documentId) ?? null : null;
   const [phase, setPhase] = useState<"entry" | "loading" | "play" | "grading" | "results">(
     "entry",
   );
@@ -68,11 +93,20 @@ export function OralStudio({
   }, [phase, index]);
 
   async function start(topic: string) {
+    if (sourceMode === "document" && !sourceDocument) {
+      toast.error(documentId ? "Belgen hâlâ hazırlanıyor; biter bitmez başlatabilirsin." : "Önce bir belge seç ya da yükle.");
+      return;
+    }
     setPhase("loading");
-    const result = await postStudio<{ title?: string; questions?: Question[] }>(
-      "/api/learning/oral/generate",
-      { topic },
-    );
+    const result = await postStudio<{
+      title?: string;
+      questions?: Question[];
+      source?: { kind?: string; wholeDocument?: boolean; matched?: boolean; fileName?: string | null };
+    }>("/api/learning/oral/generate", {
+      topic,
+      count,
+      ...(sourceDocument ? { documentId: sourceDocument.id } : {}),
+    });
     if ("paywall" in result) {
       setPaywall(true);
       setPhase("entry");
@@ -85,6 +119,7 @@ export function OralStudio({
     }
     setTopic(topic);
     setTitle(result.data.title ?? topic);
+    setNotice(sourceNotice(result.data.source));
     setQuestions(result.data.questions);
     setIndex(0);
     setAnswer("");
@@ -153,6 +188,7 @@ export function OralStudio({
       items: questions.map((q, i) => ({
         prompt: q.prompt,
         answer: nextAnswers[i] ?? "",
+        ...(q.expectedPoints?.length ? { expectedPoints: q.expectedPoints } : {}),
       })),
     });
     if ("paywall" in result) {
@@ -191,22 +227,37 @@ export function OralStudio({
       {phase === "entry" ? (
         <StudioEntry
           tool="sozlu"
-          title="Söyle, notunu al."
-          placeholder="Örn. Kurtuluş Savaşı"
+          title="Sözlü deneme"
+          placeholder={sourceDocument ? "Örn. Belgenin tamamı ya da bir bölüm" : "Örn. Kurtuluş Savaşı"}
           submitLabel="Sözlüyü başlat"
           creditCost={creditCost}
           initialTopic={initialTopic}
+          suggestions={documentSuggestions(sourceDocument)}
+          setup={
+            <StudioSetup>
+              <StudioSourcePicker
+                idPrefix="oral"
+                documents={documents}
+                mode={sourceMode}
+                onModeChange={setSourceMode}
+                documentId={documentId}
+                onDocumentChange={setDocumentId}
+              />
+              <StudioChoices label="Kaç soru?" options={QUESTION_COUNTS} value={count} onChange={setCount} />
+            </StudioSetup>
+          }
           onSubmit={(next) => void start(next)}
         />
       ) : null}
 
       {phase === "loading" ? (
-        <StudioLoading title="Jüri yerini alıyor" lead="Beş soru, bir süre, net geri bildirim." />
+        <StudioLoading title="Jüri yerini alıyor" lead={`${count} soru${sourceDocument ? " belgenden" : ""}, her biri için süre ve net geri bildirim.`} />
       ) : null}
 
       {phase === "play" && question ? (
         <>
           <StudioProgress index={index} total={questions.length} />
+          {notice && index === 0 ? <p className="ls-source-notice">{notice}</p> : null}
           <p className="ls-timer">{seconds}s</p>
           <h2 className="ls-question">{question.prompt}</h2>
           {question.hint ? <p className="ls-entry-lead">{question.hint}</p> : null}

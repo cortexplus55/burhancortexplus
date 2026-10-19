@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeForMatch, verifyDocumentAnswer } from "@/lib/ai/document-answer-verification";
+import { looselyContains, normalizeForMatch, verifyDocumentAnswer } from "@/lib/ai/document-answer-verification";
 
 describe("normalizeForMatch — PDF metni ile model alıntısı eşleşir", () => {
   const source =
@@ -16,6 +16,33 @@ describe("normalizeForMatch — PDF metni ile model alıntısı eşleşir", () =
   });
   it("kaynakta olmayan içerik yine eşleşmez", () => {
     expect(normalizeForMatch(source)).not.toContain(normalizeForMatch("Sabah gazetesinde 1898'de"));
+  });
+});
+
+describe("looselyContains — canlıda belgede yazan cevaplar düşmesin (19 Ekim 2026)", () => {
+  // Canlıdaki 3 sayfalık biyoloji notunun 2. sayfası, PDF'ten çıktığı gibi.
+  const page = "Bu evrenin ürünleri: ATP, NADPH ve O₂ . ATP ve NADPH bir sonraki evrede kullanılır; O₂ dışarı verilir.";
+  it("Markdown kalın yazı ve [1] atfı eşleşmeyi bozmaz", () => {
+    expect(looselyContains("Fotosentezin ışığa bağımlı evresinin ürünleri **ATP, NADPH ve O₂**'dir [1].", "ışığa bağımlı evresinin ürünleri ATP, NADPH ve O₂'dir")).toBe(true);
+  });
+  it("PDF'teki noktadan önceki boşluk ve alt simge eşleşmeyi bozmaz", () => {
+    expect(looselyContains(page, "Bu evrenin ürünleri: ATP, NADPH ve O2.")).toBe(true);
+  });
+  it("satırlara bölünmüş formül, bir iki kelime farkla bulunur", () => {
+    const source = "Sürtünmesiz eğik düzlemde cismin ivmesi kütleden bağımsızdır: a = g · sin θ . Örneğin 30°'lik\nsürtünmesiz eğik düzlemde (sin 30° = 0,5, g = 10 m/s²) ivme 5 m/s² 'dir.";
+    expect(looselyContains(source, "Örneğin 30°'lik sürtünmesiz eğik düzlemde sin 30° = 0,5 ve g = 10 m/s² için ivme 5 m/s²'dir")).toBe(true);
+  });
+  it("sayısı tutmayan alıntı geçmez", () => {
+    const source = "Sırpsındığı Savaşı (1364): Haçlılarla yapılan ilk savaştır ve kazanıldı.";
+    expect(looselyContains(source, "Sırpsındığı Savaşı (1364): Haçlılarla yapılan ilk savaştır")).toBe(true);
+    expect(looselyContains(source, "Sırpsındığı Savaşı (1371): Haçlılarla yapılan ilk savaştır")).toBe(false);
+  });
+  it("kelimelerinin çoğu kaynakta olmayan alıntı geçmez", () => {
+    expect(looselyContains(page, "Calvin döngüsünde RuBisCO enzimi karbondioksiti bağlar ve glikoz üretir")).toBe(false);
+  });
+  it("dört kelimeden kısa alıntı yalnız birebir eşleşir", () => {
+    expect(looselyContains(page, "ATP NADPH O2")).toBe(false);
+    expect(looselyContains(page, "ATP, NADPH ve O₂")).toBe(true);
   });
 });
 

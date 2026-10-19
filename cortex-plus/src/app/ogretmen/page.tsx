@@ -1,4 +1,5 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
+import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import {
   parityGreetingName,
@@ -74,7 +75,8 @@ export default async function OgretmenPage({
         .from("exam_preps")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .neq("exam_type", "hedef"),
+        .neq("exam_type", "hedef")
+        .neq("exam_type", STUDIO_EXAM_TYPE),
     ]);
 
   // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın

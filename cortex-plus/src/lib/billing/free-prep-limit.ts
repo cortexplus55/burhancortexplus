@@ -1,4 +1,5 @@
 import "server-only";
+import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { planTier } from "@/lib/billing/entitlements";
 import { billingExempt, freePreview } from "@/lib/billing/free-preview";
@@ -28,7 +29,8 @@ export async function freePrepLimitReached(
     .from("exam_preps")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .neq("exam_type", "hedef");
+    .neq("exam_type", "hedef")
+    .neq("exam_type", STUDIO_EXAM_TYPE);
   if (preview) query = query.gte("created_at", preview.startedAt);
   const { count, error } = await query;
   if (error) return false;

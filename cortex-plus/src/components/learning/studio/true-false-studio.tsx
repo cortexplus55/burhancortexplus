@@ -14,17 +14,41 @@ import {
 } from "@/components/learning/studio/studio-shared";
 import { playPlusTone } from "@/lib/learning/studio-sound";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import {
+  documentSuggestions,
+  sourceNotice,
+  StudioChoices,
+  StudioSetup,
+  StudioSourcePicker,
+  type StudioDocument,
+  type StudioSourceMode,
+} from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
 
 type Item = { id: string; text: string; correct: boolean; explanation: string; correctedStatement?: string };
 
+const ITEM_COUNTS = [
+  { value: 8, label: "8 önerme" },
+  { value: 12, label: "12 önerme" },
+  { value: 16, label: "16 önerme" },
+] as const;
+
 export function TrueFalseStudio({
   creditCost,
   initialTopic = "",
+  documents = [],
+  initialDocumentId = null,
 }: {
   creditCost: number | null;
   initialTopic?: string;
+  documents?: StudioDocument[];
+  initialDocumentId?: string | null;
 }) {
+  const [sourceMode, setSourceMode] = useState<StudioSourceMode>(initialDocumentId ? "document" : "topic");
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? documents[0]?.id ?? null);
+  const [count, setCount] = useState<number>(8);
+  const [notice, setNotice] = useState<string | null>(null);
+  const sourceDocument = sourceMode === "document" ? documents.find((doc) => doc.id === documentId) ?? null : null;
   const [phase, setPhase] = useState<"entry" | "loading" | "play" | "reveal" | "results">(
     "entry",
   );
@@ -39,11 +63,19 @@ export function TrueFalseStudio({
   const item = items[index];
 
   async function start(topic: string) {
+    if (sourceMode === "document" && !sourceDocument) {
+      toast.error(documentId ? "Belgen hâlâ hazırlanıyor; biter bitmez başlatabilirsin." : "Önce bir belge seç ya da yükle.");
+      return;
+    }
     setPhase("loading");
-    const result = await postStudio<{ items?: Item[] }>(
-      "/api/learning/true-false/generate",
-      { topic },
-    );
+    const result = await postStudio<{
+      items?: Item[];
+      source?: { kind?: string; wholeDocument?: boolean; matched?: boolean; fileName?: string | null };
+    }>("/api/learning/true-false/generate", {
+      topic,
+      count,
+      ...(sourceDocument ? { documentId: sourceDocument.id } : {}),
+    });
     if ("paywall" in result) {
       setPaywall(true);
       setPhase("entry");
@@ -55,6 +87,7 @@ export function TrueFalseStudio({
       return;
     }
     setTopic(topic);
+    setNotice(sourceNotice(result.data.source));
     setItems(result.data.items);
     setIndex(0);
     setPicked(null);
@@ -86,22 +119,37 @@ export function TrueFalseStudio({
       {phase === "entry" ? (
         <StudioEntry
           tool="tf"
-          title="İki kapı. Bir gerçek."
-          placeholder="Örn. Fotosentez"
+          title="Doğru / Yanlış"
+          placeholder={sourceDocument ? "Örn. Belgenin tamamı ya da bir bölüm" : "Örn. Fotosentez"}
           submitLabel="Turu başlat"
           creditCost={creditCost}
           initialTopic={initialTopic}
+          suggestions={documentSuggestions(sourceDocument)}
+          setup={
+            <StudioSetup>
+              <StudioSourcePicker
+                idPrefix="tf"
+                documents={documents}
+                mode={sourceMode}
+                onModeChange={setSourceMode}
+                documentId={documentId}
+                onDocumentChange={setDocumentId}
+              />
+              <StudioChoices label="Kaç önerme?" options={ITEM_COUNTS} value={count} onChange={setCount} />
+            </StudioSetup>
+          }
           onSubmit={(next) => void start(next)}
         />
       ) : null}
 
       {phase === "loading" ? (
-        <StudioLoading title="İddialar hazırlanıyor" lead="Kısa, keskin, tek cümlelik gerçekler." />
+        <StudioLoading title="Önermeler hazırlanıyor" lead={`${count} önerme; her biri ikinci kez denetleniyor.`} />
       ) : null}
 
       {(phase === "play" || phase === "reveal") && item ? (
         <>
           <StudioProgress index={index} total={items.length} />
+          {notice && index === 0 ? <p className="ls-source-notice">{notice}</p> : null}
           <h2 className="ls-question">{item.text}</h2>
           <div className="ls-tf-grid">
             <button

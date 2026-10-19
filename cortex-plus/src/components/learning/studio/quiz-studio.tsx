@@ -13,6 +13,15 @@ import {
 } from "@/components/learning/studio/studio-shared";
 import { playPlusTone } from "@/lib/learning/studio-sound";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import {
+  documentSuggestions,
+  sourceNotice,
+  StudioChoices,
+  StudioSetup,
+  StudioSourcePicker,
+  type StudioDocument,
+  type StudioSourceMode,
+} from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
 
 type Question = {
@@ -33,7 +42,15 @@ const DIFFICULTIES = [
 
 type DiffId = (typeof DIFFICULTIES)[number]["id"];
 
-export type QuizDocumentOption = { id: string; fileName: string };
+/** 19 Ekim 2026: 20'ye kadar (önce 4 / 6 / 8 / 10). */
+const QUESTION_COUNTS = [
+  { value: 5, label: "5 soru" },
+  { value: 10, label: "10 soru" },
+  { value: 15, label: "15 soru" },
+  { value: 20, label: "20 soru" },
+] as const;
+
+export type QuizDocumentOption = StudioDocument;
 
 export function QuizStudio({
   creditCost,
@@ -61,9 +78,10 @@ export function QuizStudio({
   const [incorrect, setIncorrect] = useState(0);
   const [blank, setBlank] = useState(0);
   const [weakTopics, setWeakTopics] = useState<string[]>([]);
-  const [count, setCount] = useState(6);
+  const [count, setCount] = useState<number>(10);
+  const [notice, setNotice] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<DiffId>("medium");
-  const [sourceMode, setSourceMode] = useState<"topic" | "document">(
+  const [sourceMode, setSourceMode] = useState<StudioSourceMode>(
     initialDocumentId ? "document" : "topic",
   );
   const [documentId, setDocumentId] = useState<string | null>(
@@ -82,7 +100,7 @@ export function QuizStudio({
 
   async function start(nextTopic: string) {
     if (sourceMode === "document" && !activeDocument) {
-      toast.error("Önce bir belge seç.");
+      toast.error(documentId ? "Belgen hâlâ hazırlanıyor; biter bitmez başlatabilirsin." : "Önce bir belge seç ya da yükle.");
       return;
     }
     setPhase("loading");
@@ -90,6 +108,7 @@ export function QuizStudio({
       quizId?: string;
       title?: string;
       questions?: Question[];
+      source?: { kind?: string; wholeDocument?: boolean; matched?: boolean; fileName?: string | null };
     }>("/api/learning/quiz/generate", {
       topic: nextTopic,
       count,
@@ -112,6 +131,7 @@ export function QuizStudio({
     }
     setTopic(nextTopic);
     setTitle(result.data.title ?? nextTopic);
+    setNotice(sourceNotice(result.data.source));
     setQuizId(result.data.quizId ?? null);
     setQuestions(result.data.questions);
     setIndex(0);
@@ -197,121 +217,37 @@ export function QuizStudio({
   }
 
   return (
-    <StudioFrame tool="quiz" kicker="Quiz">
+    <StudioFrame tool="quiz" kicker="Konu testi">
       {phase === "entry" ? (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-semibold",
-                sourceMode === "topic"
-                  ? "border-amber-500/50 bg-amber-500/15 text-amber-100"
-                  : "border-white/15 text-[var(--cs-muted)]",
-              )}
-              onClick={() => setSourceMode("topic")}
-            >
-              Konu
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-semibold",
-                sourceMode === "document"
-                  ? "border-amber-500/50 bg-amber-500/15 text-amber-100"
-                  : "border-white/15 text-[var(--cs-muted)]",
-              )}
-              onClick={() => setSourceMode("document")}
-            >
-              Belgem
-            </button>
-          </div>
-          {sourceMode === "document" ? (
-            documents.length ? (
-              <div className="space-y-1">
-                <label
-                  htmlFor="quiz-document"
-                  className="text-xs font-semibold uppercase tracking-wide text-[var(--cs-muted)]"
-                >
-                  Belge
-                </label>
-                <select
-                  id="quiz-document"
-                  value={documentId ?? ""}
-                  onChange={(e) => setDocumentId(e.target.value || null)}
-                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--cs-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
-                >
-                  {documents.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.fileName}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-[var(--cs-muted)]">
-                  Sorular yalnızca bu belgeden üretilir. Aşağıya belgenin hangi
-                  bölümüne odaklanmak istediğini yaz.
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-[var(--cs-muted)]">
-                Henüz hazır bir belgen yok.{" "}
-                <Link href="/dokumanlar" className="underline">
-                  Belge yükle
-                </Link>
-                ; işlenince burada seçebilirsin.
-              </p>
-            )
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            {[4, 6, 8, 10].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setCount(n)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-semibold",
-                  count === n
-                    ? "border-amber-500/50 bg-amber-500/15"
-                    : "border-white/15 text-[var(--cs-muted)]",
-                )}
-              >
-                {n} soru
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => setDifficulty(d.id)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-semibold",
-                  difficulty === d.id
-                    ? "border-amber-500/50 bg-amber-500/15"
-                    : "border-white/15 text-[var(--cs-muted)]",
-                )}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          <StudioEntry
-            tool="quiz"
-            title="Quiz oluştur"
-            placeholder={
-              sourceMode === "document"
-                ? "Örn. 3. bölüm — fonksiyonlar"
-                : "Örn. Fonksiyonlar"
-            }
-            submitLabel={
-              sourceMode === "document" ? "Belgeden quiz başlat" : "Quiz başlat"
-            }
-            creditCost={creditCost}
-            initialTopic={initialTopic}
-            onSubmit={(nextTopic) => void start(nextTopic)}
-          />
-        </div>
+        <StudioEntry
+          tool="quiz"
+          title="Konu testi"
+          placeholder={activeDocument ? "Örn. Belgenin tamamı ya da bir bölüm" : "Örn. Fonksiyonlar"}
+          submitLabel={activeDocument ? "Belgeden testi başlat" : "Testi başlat"}
+          creditCost={creditCost}
+          initialTopic={initialTopic}
+          suggestions={documentSuggestions(activeDocument)}
+          setup={
+            <StudioSetup>
+              <StudioSourcePicker
+                idPrefix="quiz"
+                documents={documents}
+                mode={sourceMode}
+                onModeChange={setSourceMode}
+                documentId={documentId}
+                onDocumentChange={setDocumentId}
+              />
+              <StudioChoices label="Kaç soru?" options={QUESTION_COUNTS} value={count} onChange={setCount} />
+              <StudioChoices
+                label="Zorluk"
+                options={DIFFICULTIES.map((d) => ({ value: d.id, label: d.label }))}
+                value={difficulty}
+                onChange={setDifficulty}
+              />
+            </StudioSetup>
+          }
+          onSubmit={(nextTopic) => void start(nextTopic)}
+        />
       ) : null}
 
       {phase === "loading" ? (
@@ -327,6 +263,7 @@ export function QuizStudio({
           <p className="ls-credit" style={{ marginBottom: "0.75rem" }}>
             {title}
           </p>
+          {notice && index === 0 ? <p className="ls-source-notice">{notice}</p> : null}
           <div className="ls-stage ls-stage--quiz">
             <h2 className="ls-question">{question.text}</h2>
             <div className="ls-options">

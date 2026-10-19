@@ -8,7 +8,8 @@ import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
-  count: z.number().int().min(4).max(20).default(10),
+  /** 19 Ekim 2026: öğrenci 10 / 15 / 20 / 25 seçer (önce ekranda hep 10'du). */
+  count: z.number().int().min(4).max(25).default(10),
   /** "Belgem" kaynağı: kartlar yalnızca bu belgeden. */
   documentId: z.string().uuid().optional(),
 });
@@ -40,21 +41,35 @@ export async function POST(request: Request) {
     label: "studio_cards",
     topic,
     work: async (ask, started) => {
-      const loop = await teacherCardsLoop(
+      const run = (want: number) => teacherCardsLoop(
         ask,
         {
           topicLabel: topic,
           prepTitle: source.fileName ?? topic,
           pages: source.pages,
           mode: source.mode,
-          count,
+          count: want,
           runningHeaders: source.edges,
         },
         started,
       );
-      const log = { kept: loop.cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
-      return loop.cards.length >= minimum
-        ? { ok: true as const, result: loop.cards, log }
+      const loop = await run(count);
+      // İstenen sayı tutmadıysa ikinci geçiş eksik kadar yazar; aynı ön yüz iki kez girmez
+      // (19 Ekim 2026: istek sayısı "en az 4"e kadar sessizce düşebiliyordu).
+      let cards = loop.cards;
+      if (cards.length < count && Date.now() - started < 110_000) {
+        const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
+        const extra = await run(count - cards.length + 1).catch(() => null);
+        for (const card of extra?.cards ?? []) {
+          const key = card.front.trim().toLocaleLowerCase("tr");
+          if (cards.length >= count || seen.has(key)) continue;
+          seen.add(key);
+          cards = [...cards, card];
+        }
+      }
+      const log = { kept: cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
+      return cards.length >= minimum
+        ? { ok: true as const, result: cards, log }
         : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
     },
   });
@@ -92,7 +107,7 @@ export async function POST(request: Request) {
     setId: set.id,
     title,
     source: documentId
-      ? { kind: "document", documentId, fileName: source.fileName }
+      ? { kind: "document", documentId, fileName: source.fileName, wholeDocument: source.wholeDocument, matched: source.matched }
       : { kind: "topic" },
     count: outcome.result.length,
     creditsUsed: await getCreditCost("FLASHCARD_GENERATE"),

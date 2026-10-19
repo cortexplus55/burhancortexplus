@@ -1,0 +1,205 @@
+// @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { isWholeDocumentRequest, loadDocumentGenerationContext } from "@/lib/documents/generation-context";
+import { estimatedPodcastMinutes, podcastLengthSpec } from "@/lib/learning/podcast-formats";
+
+/*
+  19 Ekim 2026, ürün sahibi: "her özelliği farklı belgeyle tek tek dene; istediği sayıda ve dakikada
+  üretebiliyor mu". Canlıda bulunanlar ve bu testin tuttuğu kurallar:
+  - "Belgenin tamamı" yazan öğrencinin kart isteği "belge hazır değil" diye düştü (yalnız tek
+    kelimelik "tümü" tanınıyordu); konu bulunamayınca da istek düşüyordu.
+  - "tümü" denince podcast 8 sayfalık notun yalnız ilk 6 sayfasını anlattı (son iki dönem yok).
+  - Kart sayısı ekranda hep 10'du; Doğru/Yanlış ve sözlü belge almıyordu.
+  - "~5 dk" denen podcast 7:29 çıktı (kelime aralıkları dakikada 130 kelime varsayıyordu).
+  - Sohbet: "Genel sohbet"teyken PDF eklenince katı moda düşüp belgede yazanı reddediyordu; her
+    mesaja gizlice "[Matematik]" ekleniyordu.
+*/
+
+const refresh = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+vi.mock("@/lib/student/student-shell-context", () => ({
+  useStudentShellAccount: () => ({ isPremium: true }),
+  useIsFounder: () => false,
+}));
+
+afterEach(() => cleanup());
+
+const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+
+describe("belgenin tamamı isteği", () => {
+  it("öğrencinin yazdığı biçimlerle tanınır", () => {
+    for (const phrase of ["Belgenin tamamı", "tümü", "Tüm konular", "hepsi", "bütün belge", "belge", "Notun tamamından"]) {
+      expect(isWholeDocumentRequest(phrase), phrase).toBe(true);
+    }
+  });
+  it("gerçek konu adını tamama çevirmez", () => {
+    for (const phrase of ["Genel kimya", "Calvin döngüsü", "Osman Bey Dönemi"]) {
+      expect(isWholeDocumentRequest(phrase), phrase).toBe(false);
+    }
+  });
+});
+
+function fakeDocument(pages: number, topics: { id: string; title: string; pages: number[] }[]) {
+  const selected: number[][] = [];
+  const service = {
+    from(table: string) {
+      let columns = "";
+      let inPages: number[] = [];
+      let topicFilter: string | null = null;
+      const query = {
+        select(value: string) { columns = value; return query; },
+        eq(column: string, value: string) { if (column === "topic_id") topicFilter = value; return query; },
+        is() { return query; },
+        order() { return query; },
+        range() { return query; },
+        in(_c: string, values: number[]) { inPages = values; selected.push(values); return query; },
+        maybeSingle: async () => ({ data: { id: "doc", file_name: "Tarih.pdf", status: "completed" }, error: null }),
+        then(resolve: (value: unknown) => void) {
+          const data = table === "document_topic_nodes"
+            ? topics.map((t, i) => ({ id: t.id, title: t.title, parent_id: null, sort_order: i }))
+            : table === "document_topic_page_links"
+              ? topics.filter((t) => !topicFilter || t.id === topicFilter).flatMap((t) => t.pages.map((page) => ({ topic_id: t.id, page_number: page })))
+              : columns.includes("text_content")
+                ? inPages.map((page) => ({ page_number: page, text_content: `Sayfa ${page} metni.`, formulas: [], extraction_ok: true, page_kind: "content" }))
+                : Array.from({ length: pages }, (_, i) => ({ page_number: i + 1, headings: [], extraction_ok: true, page_kind: "content" }));
+          return Promise.resolve({ data, error: null }).then(resolve);
+        },
+      };
+      return query;
+    },
+  } as unknown as SupabaseClient;
+  return { service, selected };
+}
+
+describe("belge kaynağı seçimi", () => {
+  const topics = Array.from({ length: 10 }, (_, i) => ({ id: `t${i}`, title: `Dönem ${i + 1}`, pages: [i * 3 + 1, i * 3 + 2, i * 3 + 3] }));
+
+  it("tamamı istenince her konudan sayfa gelir (son konu dahil)", async () => {
+    const { service } = fakeDocument(30, topics);
+    const context = await loadDocumentGenerationContext(service, "u", "doc", "Belgenin tamamı");
+    expect(context?.wholeDocument).toBe(true);
+    expect(context?.matched).toBe(true);
+    for (const topic of topics) {
+      expect(context?.topicPages.some((page) => topic.pages.includes(page)), topic.title).toBe(true);
+    }
+    expect(context?.topicPages.length).toBeLessThanOrEqual(14);
+  });
+
+  it("konu belgede yoksa istek düşmez, belgenin tamamına genişler", async () => {
+    const { service } = fakeDocument(30, topics);
+    const context = await loadDocumentGenerationContext(service, "u", "doc", "Kuantum fiziği");
+    expect(context).not.toBeNull();
+    expect(context?.wholeDocument).toBe(true);
+    expect(context?.matched).toBe(false);
+  });
+
+  it("konu bulunursa yalnız o konunun sayfaları", async () => {
+    const { service } = fakeDocument(30, topics);
+    const context = await loadDocumentGenerationContext(service, "u", "doc", "Dönem 4");
+    expect(context?.wholeDocument).toBe(false);
+    expect(context?.topicPages).toEqual([10, 11, 12]);
+  });
+});
+
+describe("podcast süresi ölçülen okuma hızıyla", () => {
+  it("5 dakikalık diyaloğun kelime aralığı 5 dakikada okunur", () => {
+    const brief = podcastLengthSpec("diyalog").brief;
+    const [low, high] = (brief.match(/(\d+)-(\d+) kelime/) ?? []).slice(1).map(Number);
+    expect(estimatedPodcastMinutes(low, "duo")).toBeGreaterThanOrEqual(4);
+    expect(estimatedPodcastMinutes(high, "duo")).toBeLessThanOrEqual(6);
+    // Canlıdaki ölçüm: 657 kelime, iki ses, 7:29.
+    expect(estimatedPodcastMinutes(657, "duo")).toBe(7);
+  });
+  it("her türün aralığı kendi dakikasına oturur", () => {
+    for (const id of ["ozet", "diyalog", "soru_cevap", "basit", "derin"] as const) {
+      const spec = podcastLengthSpec(id);
+      const [low, high] = (spec.brief.match(/(\d+)-(\d+) kelime/) ?? []).slice(1).map(Number);
+      const mid = estimatedPodcastMinutes((low + high) / 2, spec.speakers);
+      expect(Math.abs(mid - spec.minutes), id).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe("araç kurulumu", () => {
+  it("kartlar: belge seçilince belgenin konuları ve sayı seçimi görünür", async () => {
+    const { FlashcardStudio } = await import("@/components/learning/studio/flashcard-studio");
+    render(
+      <FlashcardStudio
+        creditCost={3}
+        documents={[{ id: "d1", fileName: "Biyoloji.pdf", topics: ["Calvin döngüsü", "Fermantasyon"] }]}
+        initialDocumentId="d1"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Belgenin tamamı" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Calvin döngüsü" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "15 kart" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Yeni belge yükle" })).toBeTruthy();
+  });
+
+  it("kartlar: seçilen sayı ve belge isteğe gider", async () => {
+    const calls: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      calls.push(JSON.parse(String(init?.body ?? "{}")));
+      return new Response(JSON.stringify({ title: "t", cards: [{ id: "c", front: "Ön", back: "Arka" }] }), { status: 200 });
+    }));
+    const { FlashcardStudio } = await import("@/components/learning/studio/flashcard-studio");
+    render(
+      <FlashcardStudio
+        creditCost={3}
+        documents={[{ id: "d1", fileName: "Biyoloji.pdf", topics: ["Calvin döngüsü"] }]}
+        initialDocumentId="d1"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "20 kart" }));
+    fireEvent.click(screen.getByRole("button", { name: "Belgenin tamamı" }));
+    await waitFor(() => expect(calls.length).toBe(1));
+    expect(calls[0]).toMatchObject({ topic: "Belgenin tamamı", count: 20, documentId: "d1" });
+    vi.unstubAllGlobals();
+  });
+
+  it("podcast ekranında kredi sayısı ve 'tek öğretmen' yazmaz; tür ve süre seçilir", () => {
+    const source = read("src/components/learning/studio/podcast-studio.tsx");
+    expect(source).not.toMatch(/tek öğretmen/);
+    expect(source).not.toMatch(/<dt>Kredi<\/dt>/);
+    expect(source).toContain("Tür ve süre");
+    expect(read("src/app/api/learning/podcast/generate/route.ts")).toContain("parsePodcastLength(parsedBody.data.length)");
+  });
+
+  it("Doğru/Yanlış ve sözlü belge ve sayı alır; D/Y öğretmen motorunda", () => {
+    const tf = read("src/app/api/learning/true-false/generate/route.ts");
+    expect(tf).toContain("teacherTrueFalseLoop");
+    expect(tf).not.toContain("generateJson");
+    expect(tf).toContain("documentId: z.string().uuid().optional()");
+    const oral = read("src/app/api/learning/oral/generate/route.ts");
+    expect(oral).toContain("studioTeacherSource");
+    expect(oral).toContain("expectedPoints: item.expectedPoints");
+    expect(read("src/app/api/learning/oral/grade/route.ts")).toContain("Beklenen noktalar:");
+  });
+});
+
+describe("sohbet ve belge", () => {
+  it("'Genel sohbet' katı mod göndermez; sunucu katı modu belge modu açıkken kabul eder", () => {
+    expect(read("src/components/chat/chat-panel.tsx")).toContain("documentsOnly: useDocuments ? documentsOnly : false");
+    expect(read("src/app/api/ai/chat/route.ts")).toContain("const strict = grounded && documentsOnly && useDocuments;");
+  });
+  it("ders etiketi varsayılan olarak boş; belgeyle konuşurken eklenmez", () => {
+    const panel = read("src/components/chat/chat-panel.tsx");
+    expect(panel).toContain('const [subject, setSubject] = useState("");');
+    expect(panel).toContain("subject && !activeDocumentId.current");
+  });
+  it("sohbetten yüklenen belge hemen işlenir", () => {
+    expect(read("src/components/chat/chat-panel.tsx")).toContain("requestDocumentProcessing({ documentId: uploaded.documentId");
+  });
+});
+
+describe("yazılı deneme aracının geçici hazırlığı", () => {
+  it("Sınavlar listesine, ücretsiz hazırlık hakkına ve ana sayfa sayımına girmez", () => {
+    expect(read("src/lib/learning/prep-cards.ts")).toContain(".or(NOT_STUDIO_EXAM_FILTER)");
+    expect(read("src/lib/billing/free-prep-limit.ts")).toContain('.neq("exam_type", STUDIO_EXAM_TYPE)');
+    expect(read("src/app/ogretmen/page.tsx")).toContain('.neq("exam_type", STUDIO_EXAM_TYPE)');
+    expect(read("src/app/api/learning/exam/generate/route.ts")).toContain("exam_type: STUDIO_EXAM_TYPE");
+  });
+});
