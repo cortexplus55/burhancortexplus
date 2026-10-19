@@ -48,9 +48,11 @@ karakter) ~$54 maliyet çıkarır.
 1.000 aktif öğrenci (%70 normal, %30 yoğun): model + ses ~$4.200/ay; Vercel Pro $20 + kullanım
 ~$50-150; Supabase Pro $25-35; ses depolama birkaç $. Hepsi aylık Plus ise net gelir ~$9.300.
 
-## Karar bekleyenler (ürün sahibi)
+## Kararlar (ürün sahibi, 19 Ekim 2026)
 
-1. Ses kredisi: 2 → 15 / 900 karakter (maliyet + %50 yakın) mı, ses podcast'e mi katılsın?
-2. Ders kredisi 6 → ~12-16 mı, yoksa #348'in etkisini 1 hafta ölçüp mü karar?
-3. Test 4 → 6, mesaj 3 → 5 mi? (Plus'ın "2.400 mesaj / 1.200 ders" vaadi buna göre değişir.)
-4. Video resimleri kullanım kaydına yazılsın (ölçülebilsin) — kod işi, karar gerektirmez.
+| Soru | Karar | PR |
+|---|---|---|
+| Ses kredisi | **15 kredi / 900 karakter** (önce 2) | #352, göç `20261019130000` |
+| Ders kredisi (6) | Kredi değişmedi; **hızlı işlem yalnız Plus/Sigma ve kurucuya** (ücretsizde soğuk ders normal hızda, maliyet yarıya) | #352 |
+| Test (4) ve mesaj (3) | **Kalsın** | — |
+| Video resimlerinin kullanım kaydı | Kod işi, sırada | — |
