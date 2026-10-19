@@ -15,3 +15,10 @@ sonraki sınav için hem Cortex'te hem Astra'da sınav hazırlığı kuruldu.
 
 `pdf-pages.json`: PDF'in sayfa sayfa metni (temellendirme testleri için). İçerik elle yazıldı; PDF ve
 fotoğraflar Chromium ile, Word fflate ile üretildi.
+
+`photo-ocr.json`: fotoğrafların canlıdaki ilk okuması (19 Ekim, gpt-4o-mini). Konu eşleştirme testleri
+için yeterli, **şık harfleri güvenilir değil**: Test-14'ün iki sütunlu şıkları sütun sütun okunup yeniden
+harflendirildi (1., 3., 5. ve 6. sorular), son şıklar düştü. Kâğıdın kendisinde 2. soruda öğrenci A'yı
+("Arka hipofizde üretilir") işaretledi, doğrusu B; 6. soruda şıklar A) plazmada çözünmüş B) karbaminohemoglobin
+C) bikarbonat iyonu D) oksihemoglobin E) karboksihemoglobin, öğrenci B'yi işaretledi, doğrusu C (~%70).
+20 Ekim'den beri fotoğrafı luna okuyor ve şık kendi harfiyle kalıyor (AGENTS.md, "Fotoğraf okuma").

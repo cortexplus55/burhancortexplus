@@ -20,7 +20,7 @@ vi.mock("@/lib/observability/ops-log", () => ({ logOpsEvent: vi.fn() }));
 const { readPdfBatch, rememberedOcrLimit, OCR_START_CONCURRENCY, OCR_MIN_CONCURRENCY, OCR_PAGE_CONCURRENCY } = await import("@/lib/documents/pdf-ingestion");
 
 const scanned = (n: number) => ({ png: Buffer.from(`p${n}`), inkRatio: 0.05, hasImageContent: true, scanRenderFailed: false, pageNumber: n });
-const ok = (rateLimited = false) => ({ pages: ["Taranmış sayfanın okunan metni yeterince uzun bir paragraf."], ok: true, model: "m", tokensIn: 0, tokensOut: 0, rateLimited });
+const ok = (rateLimited = false) => ({ pages: ["Taranmış sayfanın okunan metni yeterince uzun bir paragraf."], ok: true, model: "m", tokensIn: 0, tokensOut: 0, usage: [], rateLimited });
 const service = { rpc: vi.fn(async () => ({ data: true, error: null })) };
 
 beforeEach(() => {
@@ -108,7 +108,7 @@ describe("OCR 429 backoff respects the deadline", () => {
   it("never sleeps past deadlineMs", async () => {
     vi.resetModules();
     vi.doUnmock("@/lib/documents/extract-image-text");
-    vi.doMock("@/lib/env", () => ({ env: { OPENAI_API_KEY: "k", OPENAI_STANDARD_MODEL: "mini", OPENAI_ADVANCED_MODEL: "big" } }));
+    vi.doMock("@/lib/env", () => ({ env: { OPENAI_API_KEY: "k", OPENAI_CONTENT_MODEL: "luna", OPENAI_ADVANCED_MODEL: "big" } }));
     vi.doMock("@/lib/ai/moderation", () => ({ moderate: async () => ({ action: "allow" }) }));
     const create = vi.fn(async () => {
       const error = Object.assign(new Error("rate"), { status: 429, headers: { get: () => "20" } });

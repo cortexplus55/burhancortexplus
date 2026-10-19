@@ -61,7 +61,7 @@ export type TeacherLessonMode = "document" | "topic";
  * ikisine birden gider (19 Ekim 2026, 7 dosyalık sınav seti).
  */
 export const SUPPORT_SOURCE_NOTE =
-  "--- Ek kaynaklar: öğrencinin bu konuya ait başka dosyaları (defter, tahta, test, kart fotoğrafı, kısa not). Bunlar da kaynaktır. Test parçasında öğrencinin yanlış işaretlediği bir soru varsa, o noktayı ilgili yerde doğrusuyla açıkça ele al.";
+  "--- Ek kaynaklar: öğrencinin bu konuya ait başka dosyaları (defter, tahta, test, kart fotoğrafı, kısa not). Bunlar da kaynaktır. Test parçasında şıkkın sonundaki (işaretli) öğrencinin seçtiği şıktır; seçim yanlışsa ya da kâğıtta düzeltme notu varsa, o yanılgıyı ilgili yerde doğrusuyla açıkça ele al.";
 
 export function sourceText(pages: TeacherLessonInput["pages"]): string {
   const block = (items: TeacherLessonInput["pages"]) =>

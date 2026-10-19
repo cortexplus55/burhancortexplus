@@ -199,6 +199,7 @@ describe("çok sayfa okuma", () => {
     mocks.create.mockResolvedValue(reply(LONG));
     const result = await extractImagePages([png(), png()]);
     expect(result.tokensIn).toBe(1800);
+    expect(result.usage).toEqual([{ model: "gpt-6-luna", tokensIn: 1800, tokensOut: 80 }]);
   });
 });
 

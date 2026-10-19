@@ -4,6 +4,7 @@ import {
   extractImagePages,
   extractImageText,
   isImageDocument,
+  type ModelUsage,
 } from "@/lib/documents/extract-image-text";
 import { visionReadyImage } from "@/lib/documents/vision-image";
 import { renderPdfPages } from "@/lib/documents/render-pdf-pages";
@@ -144,21 +145,19 @@ export async function processDocument(
     return ok;
   };
 
-  const recordVision = (
-    tokensIn: number,
-    tokensOut: number,
-    model: string | null,
-  ) => {
-    // Okunamayan denemenin faturası da bize geliyor; kayıt ikisini de
-    // taşısın, yoksa kademeli okumanın gerçek bedeli görünmez.
-    if (!tokensIn && !tokensOut) return;
-    void recordUsage(service, {
-      userId,
-      actionCode: "DOCUMENT_PAGE_PROCESS",
-      model: model ?? env.OPENAI_STANDARD_MODEL,
-      tokensIn,
-      tokensOut,
-    });
+  // Okunamayan denemenin faturası da bize geliyor; her deneme kendi modeliyle
+  // kayda geçer, yoksa kademeli okumanın gerçek bedeli görünmez.
+  const recordVision = (usage: ModelUsage[]) => {
+    for (const entry of usage) {
+      if (!entry.tokensIn && !entry.tokensOut) continue;
+      void recordUsage(service, {
+        userId,
+        actionCode: "DOCUMENT_PAGE_PROCESS",
+        model: entry.model,
+        tokensIn: entry.tokensIn,
+        tokensOut: entry.tokensOut,
+      });
+    }
   };
 
   const reportBlocked = () => {
@@ -181,7 +180,7 @@ export async function processDocument(
     const prepared = await visionReadyImage(buffer, doc.mime_type);
     if (!prepared) return failAndRelease("image_unreadable");
     const read = await extractImageText(prepared.buffer, prepared.mimeType);
-    recordVision(read.tokensIn, read.tokensOut, read.model);
+    recordVision(read.usage);
 
     if (read.reason === "blocked") {
       reportBlocked();
@@ -231,7 +230,7 @@ export async function processDocument(
 
       const pngs = rendered.pages.map((page) => page.png);
       const read = await extractImagePages(pngs);
-      recordVision(read.tokensIn, read.tokensOut, null);
+      recordVision(read.usage);
 
       if (read.blocked) {
         reportBlocked();
