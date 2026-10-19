@@ -1,0 +1,79 @@
+/* "+%X kazandın" kartı (19 Ekim 2026): Astra'nın test sonrası konu hâkimiyeti ekranı. */
+
+.cp-topic-gain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 100dvh;
+  padding: 48px 16px calc(32px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(0deg, var(--c-bg) 55%, var(--c-success-soft) 100%);
+  text-align: center;
+}
+
+.cp-topic-gain-title {
+  margin: 0;
+  font: var(--t-title-l);
+  color: var(--c-text);
+  text-wrap: balance;
+}
+
+.cp-topic-gain-title span {
+  color: var(--c-success);
+}
+
+.cp-topic-gain-topic {
+  margin: 0;
+  max-width: 34rem;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+  text-wrap: balance;
+}
+
+.cp-topic-gain-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 16px 22px 22px;
+  border-radius: var(--r-2xl);
+  background: color-mix(in srgb, var(--c-success) 18%, var(--c-surface-2));
+  box-shadow: var(--glass-inset);
+}
+
+.cp-topic-gain-kicker {
+  margin: 0;
+  font: var(--t-label-13);
+  color: var(--c-text);
+}
+
+.cp-topic-gain-ring {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--c-surface-2) 82%, transparent 83%),
+    conic-gradient(var(--c-success) calc(var(--gain, 0) * 1%), color-mix(in srgb, var(--c-text) 14%, transparent) 0);
+}
+
+.cp-topic-gain-ring strong {
+  font: var(--t-heading-s);
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-topic-gain-note {
+  margin: 24px 0 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-topic-gain-continue {
+  margin-top: auto;
+  width: min(100%, 26rem);
+  justify-content: center;
+}
