@@ -224,7 +224,7 @@ describe("otomatik yenileme engelleri", () => {
   */
   it("desteklenmiyorken kullanım koşulları ve SSS de yenileme ima etmiyor", () => {
     const terms = readFileSync("src/app/kullanim-kosullari/page.tsx", "utf8");
-    const faq = readFileSync("src/lib/parity/marketing-faq.ts", "utf8");
+    const faq = readFileSync("src/lib/marketing/landing-content.ts", "utf8");
     if (!AUTO_RENEW_SUPPORTED) {
       expect(terms).toContain("otomatik olarak yenilenmez");
       expect(terms).not.toMatch(/yenilemeyi durdur/i);

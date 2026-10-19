@@ -75,7 +75,9 @@ describe("fiyatlandırma karşılaştırması", () => {
 
     expect(screen.getAllByText("Misafir, ücretsiz ve premium")).toHaveLength(1);
     expect(screen.getAllByText("Ayda yaklaşık 20.000 mesaj ya da 10.000 ders").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Gelişmiş").length).toBeGreaterThan(0);
+    // 19 Ekim 2026: "Gelişmiş model" satırı kalktı (her plan aynı model); yerine hız satırı.
+    expect(screen.queryAllByText("Gelişmiş")).toHaveLength(0);
+    expect(screen.getAllByText("Hızlı").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Sigma").length).toBeGreaterThan(0);
     expect(document.querySelector(".tier-compare-cards")).not.toBeNull();
     expect(document.querySelector(".tier-compare-table")).not.toBeNull();

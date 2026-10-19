@@ -1,32 +1,38 @@
 import Link from "next/link";
 import { LifeBuoy, Mail } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
+import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { supportSlaLine } from "@/lib/support/sla";
 
 export const metadata = {
   title: "Yardım",
   description: "Cortex Plus hakkında sık sorulan sorular ve destek kanalları.",
 };
 
+// 19 Ekim 2026: "çalışma planı", "gelişmiş model" ve "öncelikli destek" yoktu; cevaplar bugünkü ürüne göre.
 const faqs = [
   {
     question: "Kullanım hakkı nasıl çalışıyor?",
     answer:
-      "Her AI işlemi kullanım hakkından düşer; ne kadarını kullandığını Profil → Kullanım'da yüzde olarak görürsün. İşlem başarısız olursa hakkın otomatik iade edilir.",
+      "Her yapay zekâ işlemi kullanım hakkından düşer; ne kadarını kullandığını Profil → Kullanım'da yüzde olarak görürsün. Bir içerik hiç hazırlanamazsa o işlemin hakkı iade edilir.",
   },
   {
     question: "Ücretsiz olarak ne yapabilirim?",
-    answer:
-      "Hesap açtığında tanımlı ücretsiz hakkınla AI öğretmeni deneyebilir, quiz ve çalışma planı üretebilirsin.",
+    answer: `Ücretsiz hesap her gün yenilenen bir hak alır: günde bir ders ya da iki sohbet mesajı. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin. Ders, podcast, test, kartlar ve sözlü deneme açık; video ders yalnız Plus'ta.`,
   },
   {
     question: "Dosyalarım güvende mi?",
     answer:
-      "Yüklediğin dosyalar özel (private) depolama alanında tutulur, yalnızca senin hesabınla ilişkilendirilir ve imzalı bağlantı ile erişilir.",
+      "Yüklediğin dosyalar özel (private) depolama alanında tutulur, yalnızca senin hesabınla ilişkilendirilir ve imzalı bağlantı ile erişilir. Dilediğin zaman Belgelerim'den silebilirsin.",
   },
   {
     question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      "Ücretsiz planda günlük hakların ve standart AI modeli vardır. Plus’ta daha yüksek kota, gelişmiş model ve öncelikli destek sunulur.",
+      "Plus hacim ve hız satar: ayda yaklaşık 1.200 ders ya da 2.400 mesaj, belgenin tamamı, sınırsız hazırlık, video ders ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.",
+  },
+  {
+    question: "Destek ne kadar sürede döner?",
+    answer: `${supportSlaLine()} Bu süre her plan için aynı.`,
   },
   {
     question: "Şifremi unuttum, ne yapmalıyım?",
@@ -64,8 +70,8 @@ export default function YardimPage() {
           <div>
             <h2 className="font-semibold text-[var(--mk-text)]">Hâlâ takıldın mı?</h2>
             <p className="mt-1 text-sm leading-relaxed text-[var(--mk-muted)]">
-              Hesabın varsa uygulama içindeki Destek sayfasından talep aç; yazışman
-              tek yerde birikir.
+              Hesabın varsa uygulama içindeki Destek sayfasından talep aç; durumunu
+              orada görürsün, cevabı e-postana gelir.
             </p>
           </div>
         </div>

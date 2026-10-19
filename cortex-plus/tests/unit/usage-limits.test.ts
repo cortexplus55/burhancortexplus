@@ -76,7 +76,8 @@ describe("ücretsiz hesap", () => {
 });
 
 describe("abone hesap", () => {
-  it("kendi kademesinin fotoğraf hakkını ve yükseltme tavanını görüyor", async () => {
+  // 19 Ekim 2026: "Zor soruda güçlü model" satırı kalktı — yükseltme hiç verilmiyordu.
+  it("kendi kademesinin fotoğraf hakkını görüyor; güçlü model sayacı yok", async () => {
     const limits = await loadUsageLimits(
       service({
         document_page_grants: { period_start: THIS_PERIOD, used: 12 },
@@ -87,24 +88,8 @@ describe("abone hesap", () => {
       NOW,
     );
 
-    expect(limits.map((l) => l.key)).toEqual(["photo-pages", "hard-upgrade"]);
+    expect(limits.map((l) => l.key)).toEqual(["photo-pages"]);
     expect(limits[0]).toMatchObject({ used: 12, limit: 1000 });
-    expect(limits[1]).toMatchObject({ used: 7, limit: 60 });
-  });
-
-  /* Yükseltme sayacı tavanın BİR ÜSTÜNDE doyuyor (`claim_model_upgrade`);
-     ekrana "61 / 60" çıkarsa öğrenciye bir şey anlatmaz. */
-  it("doymuş sayacı tavanda kırpıyor", async () => {
-    const limits = await loadUsageLimits(
-      service({ model_upgrade_grants: { period_start: THIS_PERIOD, used: 61 } }),
-      "u",
-      "plus",
-      NOW,
-    );
-    expect(limits.find((l) => l.key === "hard-upgrade")).toMatchObject({
-      used: 60,
-      limit: 60,
-    });
   });
 
   /* Ay dönmüşse sayaç sıfırlanmış sayılıyor — `claim_*` fonksiyonları da

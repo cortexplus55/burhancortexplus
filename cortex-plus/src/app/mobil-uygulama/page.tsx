@@ -9,18 +9,18 @@ export const metadata = {
 const perks = [
   {
     icon: Flame,
-    title: "Streak ve bildirimler",
-    body: "Günlük seriyi koru; çalışma saatinde hatırlatma gelsin.",
+    title: "Seri ve hatırlatma",
+    body: "Günlük seriyi koru; sınavın varken o gün çalışmadıysan akşam hatırlatma gelir. E-postasını istersen kapatırsın.",
   },
   {
     icon: Camera,
-    title: "Fotoğraftan Çözüm",
-    body: "Defterdeki soruyu telefonla çek, çözümü adım adım al.",
+    title: "Podcast ve kâğıtta çöz",
+    body: "Podcast'i yolda dinle; yazılı denemeyi kâğıda çözüp telefonla fotoğrafını gönder.",
   },
   {
     icon: Wallet,
     title: "Tek hesap",
-    body: "Ücretsiz ve Plus planların web ile aynı hesapta; kredin ortak.",
+    body: "Telefonda ve bilgisayarda aynı hesap; yarım kalan hazırlığın kaldığın yerden açılır.",
   },
 ];
 
@@ -28,7 +28,7 @@ export default function MobilUygulamaPage() {
   return (
     <MarketingPage
       title="Telefondan Cortex"
-      description="AI Öğretmen, deneme sınavları ve çalışma araçları telefonunda."
+      description="Ders, podcast, test ve AI öğretmen telefonunun tarayıcısında."
     >
       <div className="mk-card flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
         <div className="flex items-start gap-4">

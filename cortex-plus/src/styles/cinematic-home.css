@@ -1,11 +1,11 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
+/* 19 Ekim 2026: pazarlama başlıkları da uygulamanın yazı tipinde (Figtree); tırnaklı başlık yok. */
 
 /* Ana sayfa sinematik katman — referans ürünün pazarlama katmanı üzerine */
 :is(.cinematic-home, .cinematic-marketing) {
   --mk-primary: #f4ae0b;
   --mk-primary-soft: rgba(244, 174, 11, 0.22);
   --mk-glow: rgba(255, 196, 87, 0.45);
-  --font-display: "DM Serif Display", Georgia, serif;
+  --font-display: var(--font-ui), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-hero-gradient {
@@ -22,13 +22,14 @@
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-btn-primary {
-  background: linear-gradient(135deg, #f0b84d 0%, #d4922a 100%);
-  color: #0c0a06;
-  box-shadow: 0 0 32px var(--mk-primary-soft);
+  /* 19 Ekim 2026: birincil eylem uygulamadaki gibi mavi; altın yalnız marka ve Plus. */
+  background: #4353f3;
+  color: #fff;
+  box-shadow: 0 10px 30px -12px rgba(67, 83, 243, 0.7);
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-btn-primary:hover {
-  background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%);
+  background: #5463ff;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-btn-play {
@@ -70,7 +71,7 @@
 
 :is(.cinematic-home, .cinematic-marketing) .mk-display {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 
@@ -187,7 +188,7 @@
 :is(.cinematic-home, .cinematic-marketing) .mk-section-title,
 :is(.cinematic-home, .cinematic-marketing) main section > div > h2 {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 
@@ -386,9 +387,9 @@
 
 .cinematic-auth .mk-auth-stack > .mb-6 h1.mk-display {
   font-family: var(--font-display, "DM Serif Display", Georgia, serif);
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.02em;
-  background: linear-gradient(180deg, #fff8e8 0%, #f0b84d 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #e5e5e5 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -433,10 +434,10 @@
 
 :is(.cinematic-home, .cinematic-marketing) .mk-section-title {
   font-family: var(--font-display, "DM Serif Display", Georgia, serif);
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.15;
-  background: linear-gradient(180deg, #fffaf0 10%, #f5d89a 100%);
+  background: linear-gradient(180deg, #ffffff 10%, #e5e5e5 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -485,7 +486,7 @@
 
 .cs-marketing .mk-loop-title {
   font-family: var(--font-display, "DM Serif Display", Georgia, serif);
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 
@@ -598,7 +599,7 @@
 
 .mk-hero-title {
   font-family: var(--font-display, "DM Serif Display", Georgia, serif);
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.035em;
   line-height: 1.05;
   font-size: clamp(2.4rem, 6vw, 3.75rem);
@@ -866,7 +867,7 @@
   margin: 0.45rem 0 0.4rem;
   font-family: var(--font-display, "DM Serif Display", Georgia, serif);
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.02em;
   color: #fff6e6;
 }

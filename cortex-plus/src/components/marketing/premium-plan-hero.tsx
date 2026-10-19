@@ -1,7 +1,7 @@
 export function PremiumPlanHero({
   eyebrow = "Plus",
   title = "Daha fazla çalış, sınırda kalma",
-  description = "Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde. Plus aboneliği gelişmiş model ve çok daha yüksek kullanım hakkı sunar.",
+  description = "Ders, test, kartlar ve AI öğretmen ücretsiz planda da açık. Plus geniş aylık hak, podcast, sözlü ve yazılı deneme ile video ders ekler; abonelik kendiliğinden yenilenmez.",
   align = "center",
   headingLevel = "h2",
 }: {

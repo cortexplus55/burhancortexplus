@@ -18,7 +18,7 @@ export const DOCUMENT_PICK_REJECTED =
   "PDF, Word (.docx), PowerPoint (.pptx), JPG, PNG, HEIC veya TXT yükleyebilirsin.";
 
 export const DOCUMENT_EMPTY_DESCRIPTION =
-  "Ders notunu yükle — PDF, Word veya PowerPoint. Konular çıkınca çalışma planın oluşsun.";
+  "Ders notunu yükle — PDF, Word veya PowerPoint. Konular çıkınca çalışma yolun oluşsun.";
 
 export const DOCUMENT_ONBOARDING_HINT =
   "PDF, Word, PowerPoint veya fotoğraf yükleyerek yalnızca kendi belgenden öğrenebilirsin.";

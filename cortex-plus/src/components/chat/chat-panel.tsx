@@ -2233,7 +2233,6 @@ function ChatPanelSession({
             ) : allowAdvanced || tutorStyleLabel ? (
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 {[
-                  allowAdvanced ? "Sigma ile gelişmiş model kullanılır." : null,
                   tutorStyleLabel ? `Stil: ${tutorStyleLabel}` : null,
                 ]
                   .filter(Boolean)

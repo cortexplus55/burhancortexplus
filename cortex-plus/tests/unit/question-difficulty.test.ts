@@ -151,10 +151,11 @@ describe("chatFallbackMessage", () => {
     }
   });
 
-  it("ücretsiz hesaba zor soruda Plus'tan söz ediyor", () => {
-    expect(chatFallbackMessage({ isPremium: false, difficulty: "hard" })).toContain(
-      "Plus",
-    );
+  /* 19 Ekim 2026: Plus aynı modeli kullanıyor; "Plus'ta güçlü model" satışı yanlış vaatti. */
+  it("ücretsiz hesaba zor soruda da Plus satmıyor, soruyu bölmeyi öneriyor", () => {
+    const message = chatFallbackMessage({ isPremium: false, difficulty: "hard" });
+    expect(message).not.toContain("Plus");
+    expect(message).toContain("parçalara böl");
   });
 
   /* Ödeyen kullanıcıya abonelik önermek saygısızlık olur. */

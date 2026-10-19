@@ -11,9 +11,9 @@ import { test, expect } from "@playwright/test";
  * `/ogretmen`'e yönlendiriyor. Yönlendirmenin kendisi `auth.spec.ts`'te.
  */
 const PUBLIC_ROUTES: [string, string][] = [
-  ["/", "Bilgiye hükmet"],
-  ["/ozellikler", "Özellikler"],
-  ["/sinav-hazirligi", "Sınav hazırlığı"],
+  ["/", "Notunu yükle"],
+  ["/ozellikler", "Her konu için"],
+  ["/sinav-hazirligi", "Sınavına kadar"],
   ["/fiyatlandirma", "Fiyatlandırma"],
   ["/hakkimizda", "Hakkımızda"],
   ["/iletisim", "İletişim"],
@@ -26,7 +26,6 @@ const PUBLIC_ROUTES: [string, string][] = [
   ["/sifremi-unuttum", "Şifremi unuttum"],
   ["/email-dogrula", "E-posta doğrulama"],
   ["/mobil-uygulama", "Telefondan Cortex"],
-  ["/yaratici-program", "Yaratıcı program"],
 ];
 
 test.describe("public pages", { tag: ["@public"] }, () => {

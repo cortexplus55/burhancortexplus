@@ -1,0 +1,707 @@
+/*
+  Ana sayfa (19 Ekim 2026). Uygulamanın koyu paleti ve yazı ölçeği: zemin #0d0d0d, yüzey #141414 /
+  #1f1f1f, çerçeve #242424 / #303030, eylem mavisi #4353f3; sarı yalnız marka ve Plus. Pazarlama
+  kabuğu (üst menü, alt bilgi) zaten koyu; sayfa açık temada da koyu kalır.
+*/
+
+.lp {
+  --lp-bg: #0d0d0d;
+  --lp-surface: #141414;
+  --lp-surface-2: #1f1f1f;
+  --lp-border: #242424;
+  --lp-border-strong: #303030;
+  --lp-text: #f5f5f5;
+  --lp-muted: #a3a3a3;
+  --lp-subtle: #8c8c8c;
+  /* Mavi yazı: eylem mavisi koyu zeminde 4:1 kalıyordu (axe); metin için açık tonu. */
+  --lp-accent-text: #8e98ff;
+  --lp-action: #4353f3;
+  --lp-action-hover: #5463ff;
+  --lp-brand: #fdb300;
+  --lp-success: #22c55e;
+  --lp-exam-bg: rgba(255, 138, 61, 0.2);
+  --lp-exam-text: #ffb27a;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  font-family: var(--font-ui), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.lp-wrap {
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding-inline: 1.25rem;
+}
+
+.lp-muted {
+  margin: 0;
+  color: var(--lp-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.lp-kicker {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-accent-text);
+}
+
+.lp-h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.lp-h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Düğmeler ---------- */
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.4rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.lp-btn--primary {
+  background: var(--lp-action);
+  color: #fff;
+}
+
+.lp-btn--primary:hover {
+  background: var(--lp-action-hover);
+}
+
+.lp-btn--ghost {
+  border: 1px solid var(--lp-border-strong);
+  color: var(--lp-text);
+}
+
+.lp-btn--ghost:hover {
+  border-color: var(--lp-muted);
+}
+
+.lp-btn--plus {
+  background: var(--lp-brand);
+  color: #161100;
+}
+
+.lp-btn--block {
+  width: 100%;
+  margin-top: auto;
+}
+
+/* ---------- Kahraman ---------- */
+
+.lp-hero {
+  padding-block: 3.5rem 3rem;
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, rgba(67, 83, 243, 0.18), transparent 60%),
+    radial-gradient(40rem 24rem at -10% 10%, rgba(253, 179, 0, 0.07), transparent 60%);
+}
+
+.lp-hero-grid {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .lp-hero {
+    padding-block: 5rem 4rem;
+  }
+
+  .lp-hero-grid {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  }
+}
+
+.lp-hero-copy {
+  min-width: 0;
+}
+
+.lp-eyebrow {
+  display: inline-block;
+  margin: 0 0 1.1rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--lp-muted);
+}
+
+.lp-hero-title {
+  margin: 0;
+  font-size: clamp(2.2rem, 5.4vw, 3.9rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.lp-hero-lead {
+  max-width: 36rem;
+  margin: 1.25rem 0 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--lp-muted);
+}
+
+.lp-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.lp-fineprint {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--lp-subtle);
+}
+
+/* Telefon: dersin "önce dene" ekranı */
+
+.lp-phone {
+  justify-self: center;
+  width: 100%;
+  max-width: 21rem;
+  margin: 0;
+}
+
+.lp-phone-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.1rem 1.1rem 1.25rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 2rem;
+  background: var(--lp-surface);
+  box-shadow: 0 40px 80px -30px rgba(67, 83, 243, 0.35), 0 0 0 6px #050505, 0 0 0 7px var(--lp-border-strong);
+}
+
+.lp-phone-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lp-phone-progress {
+  flex: 1;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+  overflow: hidden;
+}
+
+.lp-phone-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lp-success);
+}
+
+.lp-phone-x {
+  color: var(--lp-subtle);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.lp-phone-topic {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--lp-subtle);
+}
+
+.lp-phone-kicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lp-accent-text);
+}
+
+.lp-phone-prompt {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.lp-phone-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.lp-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.6rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 0.9rem;
+  background: var(--lp-surface-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.lp-option--right {
+  border-color: rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.lp-phone-answer {
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.9rem;
+  background: rgba(34, 197, 94, 0.08);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #d4d4d4;
+}
+
+.lp-phone-answer p {
+  margin: 0;
+}
+
+.lp-phone-answer-title {
+  margin-bottom: 0.25rem !important;
+  font-weight: 650;
+  color: #86efac;
+}
+
+.lp-phone-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  border-radius: 999px;
+  background: var(--lp-action);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.lp-caption {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--lp-subtle);
+}
+
+/* ---------- Kanıt şeridi ---------- */
+
+.lp-proof {
+  padding-block: 1rem 3rem;
+}
+
+.lp-proof-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.lp-proof-card {
+  padding: 1.25rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.25rem;
+  background: var(--lp-surface);
+}
+
+.lp-proof-stat {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--lp-accent-text);
+}
+
+.lp-proof-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* ---------- Bölümler ---------- */
+
+.lp-section {
+  padding-block: 4rem;
+}
+
+.lp-section--alt {
+  border-block: 1px solid var(--lp-border);
+  background: #101010;
+}
+
+.lp-steps {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.lp-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.25rem;
+  background: var(--lp-surface);
+}
+
+.lp-step .cp-icon3d {
+  margin-bottom: 0.4rem;
+}
+
+.lp-step-no {
+  position: absolute;
+  top: 1rem;
+  right: 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--lp-subtle);
+}
+
+.lp-split {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .lp-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.lp-split-copy {
+  min-width: 0;
+}
+
+.lp-trust {
+  display: grid;
+  gap: 1.25rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-trust li {
+  display: flex;
+  gap: 0.85rem;
+}
+
+.lp-trust-icon {
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.1rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: rgba(67, 83, 243, 0.18);
+  color: var(--lp-accent-text);
+}
+
+/* Ders kartı: turuncu vurgu + tablo */
+
+.lp-lesson-card {
+  min-width: 0;
+  margin: 0;
+  padding: 1.4rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 1.5rem;
+  background: var(--lp-surface);
+}
+
+.lp-lesson-chip {
+  display: inline-block;
+  margin: 0 0 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--lp-exam-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lp-exam-text);
+}
+
+.lp-lesson-heading {
+  margin: 0 0 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.lp-lesson-text {
+  margin: 0 0 1rem;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: #d4d4d4;
+}
+
+.lp-lesson-text mark {
+  padding: 0 0.2em;
+  border-radius: 0.3em;
+  background: var(--lp-exam-bg);
+  color: var(--lp-exam-text);
+  font-weight: 650;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.lp-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--lp-border);
+  border-radius: 0.9rem;
+}
+
+.lp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.lp-table th,
+.lp-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--lp-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.lp-table th {
+  background: var(--lp-surface-2);
+  font-weight: 600;
+  color: var(--lp-muted);
+}
+
+.lp-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.lp-table td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Özellikler */
+
+.lp-features {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+}
+
+.lp-feature {
+  display: flex;
+  gap: 0.9rem;
+  padding: 1.1rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1.1rem;
+  background: var(--lp-surface);
+}
+
+.lp-feature .cp-icon3d {
+  flex: none;
+}
+
+.lp-plus-chip {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(253, 179, 0, 0.16);
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: var(--lp-brand);
+}
+
+/* Planlar */
+
+.lp-plans {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+.lp-plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.5rem;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 1.4rem;
+  background: var(--lp-surface);
+}
+
+.lp-plan--featured {
+  border-color: rgba(253, 179, 0, 0.55);
+  box-shadow: 0 24px 60px -30px rgba(253, 179, 0, 0.35);
+}
+
+.lp-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(253, 179, 0, 0.14);
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--lp-brand);
+}
+
+.lp-plan-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.lp-plan-price {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-plan-price span {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--lp-muted);
+}
+
+.lp-plan-note {
+  margin: -0.3rem 0 0;
+  font-size: 0.82rem;
+  color: var(--lp-muted);
+}
+
+.lp-plan-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.4rem 0 1.25rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.92rem;
+  color: #d4d4d4;
+}
+
+.lp-plan-list li {
+  position: relative;
+  padding-left: 1.4rem;
+}
+
+.lp-plan-list li::before {
+  content: "";
+  position: absolute;
+  top: 0.45em;
+  left: 0.15rem;
+  width: 0.55rem;
+  height: 0.3rem;
+  border-bottom: 2px solid var(--lp-success);
+  border-left: 2px solid var(--lp-success);
+  transform: rotate(-45deg);
+}
+
+.lp-plans-foot {
+  margin: 1.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--lp-muted);
+}
+
+.lp-plans-foot a {
+  display: inline-block;
+  padding-block: 0.35rem;
+  color: var(--lp-text);
+  text-decoration: underline;
+}
+
+/* SSS */
+
+.lp-faq-wrap {
+  max-width: 52rem;
+}
+
+.lp-faq {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1.75rem;
+}
+
+.lp-faq-item {
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--lp-border);
+  border-radius: 1rem;
+  background: var(--lp-surface);
+}
+
+.lp-faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+
+.lp-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-faq-item summary::after {
+  content: "+";
+  float: right;
+  color: var(--lp-subtle);
+}
+
+.lp-faq-item[open] summary::after {
+  content: "−";
+}
+
+.lp-faq-item p {
+  margin-top: 0.6rem;
+}
+
+/* Son çağrı */
+
+.lp-final {
+  padding-block: 4.5rem;
+  background: radial-gradient(40rem 20rem at 50% 100%, rgba(67, 83, 243, 0.2), transparent 70%);
+}
+
+.lp-final-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}

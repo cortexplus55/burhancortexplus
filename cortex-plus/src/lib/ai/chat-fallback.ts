@@ -7,9 +7,9 @@
  *
  * İki ayrı durum var ve ikisini aynı cümleyle geçmek yanlış olur:
  *
- *   • Ücretsiz hesap, zor soru — gerçek bir sınıra çarptı. Bunu söylemek
- *     dürüstlük, üstelik paywall'ın kazanılmış hâli: öğrenci reklamı değil
- *     kendi sorusunun cevabını arıyorken sınırı görüyor.
+ *   • Zor soru — çok adımlı, uzun. Öğrenciye soruyu parçalara bölmesi önerilir.
+ *     19 Ekim 2026'ya kadar burada "Plus'ta daha güçlü model" satışı vardı; yanlıştı:
+ *     her plan aynı modeli kullanıyor (`model-router.ts`), Plus cevabı değiştirmez.
  *   • Diğer her durum — bizim tarafta bir şey tutmadı. Öğrenciye abonelik
  *     önermek burada saygısızlık olur; zaten ödüyor ya da soru zor değil.
  *
@@ -27,8 +27,7 @@ export function chatFallbackMessage(input: {
       "olamadım, o yüzden sana yanlış bir şey göstermek istemiyorum. " +
       "Kredin harcanmadı.\n\n" +
       "Bu tür sorular — çok adımlı çözümler, ispatlar, uzun problem " +
-      "metinleri — daha güçlü modeli gerektiriyor. Plus'ta soruların " +
-      "otomatik olarak o modele gidiyor.\n\n" +
+      "metinleri — tek mesajda zorlanıyor.\n\n" +
       "Şimdi denemek istersen: soruyu parçalara böl, tek tek soralım. " +
       "Çoğu zaman bu da işe yarıyor."
     );

@@ -187,7 +187,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
               </p>
             ) : (
               <p className="text-sm text-[var(--cs-muted)]">
-                Konu haritası hazırlanınca çalışma planını oluşturabilirsin.
+                Konu haritası hazırlanınca bu belgeyle sınav hazırlığı kurabilirsin.
               </p>
             )}
             {canGenerate ? (

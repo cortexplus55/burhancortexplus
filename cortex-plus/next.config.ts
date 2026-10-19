@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
       { source: "/sor", destination: "/soru-coz", permanent: false },
       { source: "/chat", destination: "/ogretmen", permanent: false },
       { source: "/podcast", destination: "/studio/podcast", permanent: false },
+      // 19 Ekim 2026: okul lisansı ve okul raporu satan sayfa emekli — ürün öğrenci-only, ikisi de yoktu.
+      { source: "/yaratici-program", destination: "/iletisim", permanent: true },
     ];
   },
   /*

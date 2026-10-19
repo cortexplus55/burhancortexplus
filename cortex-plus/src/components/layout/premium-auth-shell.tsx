@@ -28,8 +28,8 @@ export function PremiumAuthShell({
               Sınav hazırlığını adım adım ilerlet
             </p>
             <p className="cortex-premium-auth__hero-lead">
-              Kişisel AI öğretmenin, deneme analizi ve çalışma planı — tek uygulamada,
-              7/24.
+              Notundan ders, podcast, test ve sözlü pratik — kendi hızında, sınav gününe
+              kadar.
             </p>
             <div className="cortex-premium-auth__badges">
               <span className="cortex-premium-auth__badge">Adım adım çözüm</span>

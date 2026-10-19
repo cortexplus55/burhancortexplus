@@ -730,3 +730,21 @@ p95 < 20 sn, hazır ders p95 < 3 sn, ödeme başarısı > %95, destek cevabı < 
 | Ödeme başarısı: başarılı (iade edilen dahil) / (başarılı + başarısız); bekleyen sayılmaz | `collectBetaMetrics` |
 
 Bekçi: `beta-exit-metrics.test.ts`.
+
+## Misafire gösterilen her söz bugün çalışıyor (19 Ekim 2026)
+
+Ürün sahibi: "misafire sistemimizde olmayan bir şey gösteriyor muyuz, yalan vaat var mı?" Vardı ve
+kaldırıldı: saatli günlük plan ("09:00 Matematik"), "Net 28.4" deneme analizi, Plus'ta "gelişmiş
+model" ve "öncelikli destek", okul lisansı ve okul raporları (`/yaratici-program` → `/iletisim`),
+veliden ödeme isteği (alıcısı emekli veli paneliydi), "her işlem öncesi kredi gösterilir", Limitler'de
+hiç verilmeyen "zor soruda güçlü model", ücretsiz zor soruda "Plus'ta güçlü model" satışı.
+
+| Kural | Nerede |
+|---|---|
+| Ana sayfanın bütün cümleleri tek dosyada; ders sahnesi gerçek bir dersten (Çocuk Sağlığı). Rakip adı geçmez | `src/lib/marketing/landing-content.ts`, `components/landing/landing-page.tsx` |
+| **Her plan aynı modeli kullanır** (`model-router.ts`). Planların gerçek farkı: hak, günlük haktan büyük işler, video ders, hazır içerik yokken hızlı yazım. "Gelişmiş/güçlü model" yazmayın | `tier-presentation.ts` (model satırı yok, hız satırı var) |
+| Ücretsiz günlük hak 6 kredi: ders (6), test (4), kartlar (3), mesaj (3) açılır; **podcast (12), sözlü (8), yazılı deneme (15), fotoğraf çözümü (10), video (280) açılmaz** — pazarlamada bunlar "Plus" etiketli | `FEATURES.plusOnly` |
+| Pazarlama başlıkları da Figtree (tırnaklı DM Serif kalktı); birincil eylem mavi, altın yalnız marka ve Plus | `cinematic-home.css`, `landing.css` |
+| Fiyatlar veritabanından okunur | `src/app/page.tsx` |
+
+Bekçi: `marketing-claims.test.ts` (yasak cümleler, Plus etiketi ↔ kredi tablosu, hak sayıları).

@@ -19,7 +19,7 @@ const principles = [
   {
     icon: Receipt,
     title: "Ne harcadığın önceden belli",
-    body: "Her işlemin kredi bedeli işlemden önce ekranda görünür. İşlem başarısız olursa kredi iade edilir. Sürpriz fatura ya da görünmeyen kesinti yok.",
+    body: "Ne kadar kullandığın Profil → Kullanım'da yüzde olarak görünür. Bir içerik hiç hazırlanamazsa hakkın iade edilir. Abonelik kendiliğinden yenilenmez; sürpriz çekim ya da görünmeyen kesinti yok.",
   },
   {
     icon: ShieldCheck,

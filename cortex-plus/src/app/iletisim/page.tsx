@@ -85,8 +85,8 @@ export default function IletisimPage() {
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-[var(--mk-muted)]">
             Uygulama içindeki <strong className="text-[var(--mk-text)]">Destek</strong>{" "}
-            sayfasından talep açtığında yazışmanın geçmişi tek yerde birikir ve
-            durumunu takip edebilirsin.
+            sayfasından talep açtığında taleplerin ve durumları orada görünür; cevabı
+            24 saat içinde e-postana göndeririz.
           </p>
           <Link
             href="/giris?next=%2Fdestek"

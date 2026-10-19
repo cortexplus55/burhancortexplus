@@ -13,7 +13,6 @@ const marketingPaths = [
   // emekli edildi ve artık /kayit'e yönlendiriyor. Yönlendirmeye düşen bir
   // adresi site haritasına koymak, Google'a boş yere gezdirilecek bir adres
   // bildirmek demek.
-  "/yaratici-program",
   "/hakkimizda",
   "/iletisim",
   "/giris",
