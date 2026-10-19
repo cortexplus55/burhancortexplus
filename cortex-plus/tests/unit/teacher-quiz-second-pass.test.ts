@@ -12,7 +12,7 @@ const credits = vi.hoisted(() => ({
   recordUsage: vi.fn(async () => undefined),
 }));
 /** Her taslak çağrısında modelin döndüreceği soru sayısı (sırayla). */
-const ai = vi.hoisted(() => ({ drafts: 0, verifies: 0, draftSizes: [] as number[] }));
+const ai = vi.hoisted(() => ({ drafts: 0, verifies: 0, draftSizes: [] as number[], efforts: [] as { verify: boolean; effort: unknown }[] }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/credits/service", () => credits);
@@ -26,6 +26,7 @@ vi.mock("openai", () => ({
       completions: {
         create: async (params: { messages: { role: string; content: string }[] }) => {
           const system = params.messages[0]?.content ?? "";
+          ai.efforts.push({ verify: system.includes("denetçisisin"), effort: (params as { reasoning_effort?: unknown }).reasoning_effort });
           let content: string;
           if (system.includes("denetçisisin")) {
             ai.verifies += 1;
@@ -99,5 +100,20 @@ describe("test motoru: yetersiz soru ikinci taslak demek", () => {
     const out = await runTeacherQuiz({} as never, input);
     expect(out.ok && out.questions.length).toBe(5);
     expect(ai.drafts).toBe(1);
+  });
+});
+
+// 19 Ekim 2026: soğuk test 30 sn (Astra ~15). Taslak ve düzeltme düşük düşünmeyle, denetçi varsayılanla.
+describe("test motoru: düşünme ayarı", () => {
+  it("taslak düşük düşünmeyle, denetim varsayılanla", async () => {
+    ai.draftSizes = [5];
+    ai.efforts = [];
+    await runTeacherQuiz({} as never, input);
+    const draft = ai.efforts.filter((call) => !call.verify);
+    const verify = ai.efforts.filter((call) => call.verify);
+    expect(draft.length).toBeGreaterThan(0);
+    expect(draft.every((call) => call.effort === "low")).toBe(true);
+    expect(verify.length).toBeGreaterThan(0);
+    expect(verify.every((call) => call.effort === undefined)).toBe(true);
   });
 });

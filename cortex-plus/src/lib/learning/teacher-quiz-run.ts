@@ -21,7 +21,8 @@ import {
   type TeacherQuizInput,
 } from "@/lib/learning/teacher-quiz";
 
-export type AskJson = (system: string, user: string) => Promise<unknown | null>;
+/** `role`: taslak ve düzeltme düşük düşünmeyle, denetim varsayılanla (19 Ekim 2026). */
+export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
 
 /** Taslakta öğrenciye gidecek sayının üstüne yedek soru: elenen yerine geçer. */
 const SPARE = 2;
@@ -55,7 +56,7 @@ export async function teacherQuizLoop(
     const structural = questions.map((question) => quizStructureIssues(question, { multi: input.multi }));
     let factual: ReturnType<typeof parseQuizIssues> = [];
     try {
-      factual = parseQuizIssues(await ask(quizVerifySystem(mode), quizVerifyUserPrompt(questions, input)));
+      factual = parseQuizIssues(await ask(quizVerifySystem(mode), quizVerifyUserPrompt(questions, input), "verify"));
     } catch (error) {
       // Denetlenemeyen soru öğrenciye gitmez.
       return questions.map((question) => ({
@@ -75,8 +76,8 @@ export async function teacherQuizLoop(
   };
 
   const multi = Boolean(input.multi);
-  let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE)));
-  if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE)));
+  let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE), "draft"));
+  if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE), "draft"));
   if (!draft) return { questions: [], rejected: [], rounds: 0 };
 
   const reviewed = await review(draft);
@@ -85,7 +86,7 @@ export async function teacherQuizLoop(
   let rounds = 0;
   while (good.length < input.count && bad.length && rounds < MAX_FIX_ROUNDS && Date.now() - started < FIX_DEADLINE_MS) {
     rounds += 1;
-    const fixed = parseTeacherQuiz(await ask(quizFixSystem(mode, input.focus, multi), quizFixUserPrompt(bad, input)));
+    const fixed = parseTeacherQuiz(await ask(quizFixSystem(mode, input.focus, multi), quizFixUserPrompt(bad, input), "fix"));
     if (!fixed) break;
     const again = await review(fixed);
     good.push(...again.filter((item) => !item.problems.length).map((item) => item.question));
@@ -161,12 +162,15 @@ export async function runTeacherQuiz(
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   const tier = fastTier(!free && !held);
-  const ask: AskJson = async (system, user) => {
+  const ask: AskJson = async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },
       ...tier,
+      // 19 Ekim 2026: soğuk test 30 sn sürüyordu (Astra ~15). Ders yazarındaki gibi taslak ve
+      // düzeltme düşük düşünmeyle; her soruyu kendisi çözen denetçi varsayılanda kalır.
+      ...(role === "verify" ? {} : { reasoning_effort: "low" as const }),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
