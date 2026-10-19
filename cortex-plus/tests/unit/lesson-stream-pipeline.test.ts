@@ -158,6 +158,11 @@ describe("kavram kavram denetim ve yayım", () => {
     const verifies = calls.filter((call) => call.role === "verify").map((call) => call.user);
     expect(verifies[0]).toContain("DENETLENECEK: yalnız screens[0], title, overview, objective");
     expect(verifies[2]).toContain("DENETLENECEK: yalnız screens[2], commonMistake, summary");
+    // Zaman çizgisi kayda gidiyor (19 Ekim 2026): ilk ekran ≤ ilk kavram ≤ ilk yayım; akış sonu dolu.
+    const { firstScreenMs, firstPartMs, firstPublishMs, writeMs } = result.timing;
+    expect([firstScreenMs, firstPartMs, firstPublishMs, writeMs].every((v) => typeof v === "number" && v >= 0)).toBe(true);
+    expect(firstScreenMs!).toBeLessThanOrEqual(firstPartMs!);
+    expect(firstPartMs!).toBeLessThanOrEqual(firstPublishMs!);
   });
 
   it("sorunlu kavram yalnız kendisi düzeltilir; dersin tamamı yeniden yazılmaz", async () => {
