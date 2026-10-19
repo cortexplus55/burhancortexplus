@@ -56,7 +56,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteTitle = "Cortex Plus — AI destekli öğrenme";
+// 19 Ekim 2026: başlık ürünün ne yaptığını söyler (arama sonucunda ve sekmede görünen ilk satır).
+const siteTitle = "Cortex Plus — Ders notundan sınav hazırlığı";
 const siteDescription =
   "Ders notunu yükle; ders, podcast, test ve sözlü pratik senin notundan hazırlansın. Sınav hazırlığı için AI öğretmen — cortexplus.app";
 

@@ -114,7 +114,7 @@ describe("V9: rebuild on a map a study plan uses", () => {
     const r = await rebuild();
     expect(r.status).toBe(422);
     expect(r.body).toMatchObject({ code: "topic_map_in_use", inUse: true });
-    expect(String(r.body.error)).toMatch(/çalışma planında kullanılıyor/);
+    expect(String(r.body.error)).toMatch(/sınav hazırlığında kullanılıyor/);
     expect(docA(fake)).toMatchObject({ status: "completed", topic_map_status: "ready", topic_map_error: null });
     expect(nodesA(fake)).toEqual(["on1", "on2"]);
     expect(model.calls).toHaveLength(0);

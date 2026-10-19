@@ -337,7 +337,7 @@ export function TopicMapEditor({
 
       {mapInUse ? (
         <p className="text-xs text-[var(--cs-muted)]">
-          Bu harita çalışma planında kullanılıyor; planın bozulmasın diye
+          Bu harita bir sınav hazırlığında kullanılıyor; yolun bozulmasın diye
           yeniden oluşturulmaz.
         </p>
       ) : null}

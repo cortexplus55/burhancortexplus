@@ -196,7 +196,7 @@ export async function POST(request: Request, context: RouteContext) {
     // As on main: refused, nothing changed, no model call.
     return NextResponse.json(
       {
-        error: "Bu harita bir çalışma planında kullanılıyor; plan bozulmasın diye yeniden oluşturulmaz.",
+        error: "Bu harita bir sınav hazırlığında kullanılıyor; yolun bozulmasın diye yeniden oluşturulmaz.",
         code: "topic_map_in_use",
         inUse: true,
       },
