@@ -42,3 +42,42 @@ describe("podcast sesi bir kez istenir", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+// 19 Ekim 2026, ürün sahibi: "üretilemedi" görülmesin. Ses isteği düşünce oynatıcı 2,5 ve 5 sn
+// sonra kendiliğinden yeniden dener; ancak üçü de düşerse mesaj ve "Sesi yeniden dene" düğmesi.
+describe("ses isteği düşünce kendiliğinden yeniden denenir", () => {
+  it("iki otomatik deneme, sonra düğme", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn(() => Promise.reject(new Error("net")));
+      vi.stubGlobal("fetch", fetchMock);
+      const { act, screen, fireEvent } = await import("@testing-library/react");
+      render(<ExamPodcastPlayer title="Podcast" chapters={chapters()} onFinish={() => undefined} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/Ses bu sefer gelmedi/)).toBeNull();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2500);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      const retry = screen.getByRole("button", { name: "Sesi yeniden dene" });
+      await act(async () => {
+        fireEvent.click(retry);
+        await Promise.resolve();
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

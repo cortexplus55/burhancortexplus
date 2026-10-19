@@ -379,7 +379,7 @@ istemi (`teacher-lesson.ts`) → kavram kavram model denetimi → yalnız sorunl
 (18 Ekim 2026'dan beri, aşağıdaki "Ders hızı" bölümü).
 **Kod ders metnine hiçbir şey eklemez** — "Kaynak:" satırı, kalıp özet, dolgu
 soru yok. Düzelmeyen kavram öğrenciye gitmez: bir kez baştan yazılır (18 Ekim 2026), o da geçmezse atılır ve
-bitiş ekranında adıyla söylenir (`missingConcepts`); ilk kavram düzelmezse ders yazılmaz, kredi iade.
+bitiş ekranında adıyla söylenir (`missingConcepts`); **19 Ekim 2026'dan beri ilk kavram için de aynı** — hiçbir kavram geçmezse ders bir kez baştan yazılır, o da olmazsa kredi iade (aşağıdaki "İçerik üretilemedi demez" bölümü).
 Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI.md`.
 
 | Yapmayın | Yapın |
@@ -478,7 +478,7 @@ gün herkese açıldı; önceden yazım normal işlemde); ders parça parça aç
 | Yapmayın | Yapın |
 |---|---|
 | Düzeltme turunda dersin tamamını yeniden yazdırmak | Yalnız sorunlu kavramı (`fixPartUserPrompt`); dönmeyen ekran yerinde kalır (`mergePartScreens`) |
-| Tek bir itiraz yüzünden bütün dersi atmak | Düzelmeyen kavram bir kez baştan yazılır (`rewritePartUserPrompt`; yama aynı yerde takılıyordu); o da geçmezse atılır ve öğrenciye söylenir; ilk kavram düzelmezse ders yazılmaz |
+| Tek bir itiraz yüzünden bütün dersi atmak | Düzelmeyen kavram bir kez baştan yazılır (`rewritePartUserPrompt`; yama aynı yerde takılıyordu); o da geçmezse atılır ve öğrenciye söylenir; ilk kavram da dahil (19 Ekim 2026) — hiçbir kavram geçmezse ders bir kez baştan yazılır |
 | Kavramı sessizce atıp "Dersin tamamı bu kadar" demek | `missingConcepts` → "Dersin hazır olan kısmı bu kadar · Bu bölüm hazırlanamadı: …"; yeniden yazım sürerken yayımlanan kısım 40 sn'de bir tazelenir (takıldı sayılmasın) |
 | Yazarı her itirazı kabule zorlamak ("listedeki her alanı değiştir") | Yazar gerekçeyle itiraz eder (`disputes`), denetçi tartar; kod kuralları (`[yapı kuralı]`) itiraz edilemez |
 | Eksik ayrıntıyı ("şunu belirtmiyor") ciddi saymak | `CALIBRATION`: eksiklik ifadeyi yanlış yapmıyorsa düşük önem |
@@ -616,3 +616,27 @@ Uzun süren bir dalda ara ara `npm ci`'yi elle çalıştırın ya da PR açın.
 **404 döndüğü** görüldü: sayfalar yazılmış, test edilmiş, commit edilmişti —
 ama dalda duruyordu. Yazılmış olmak yayında olmak değil; `curl` ile bakmak
 on saniye sürüyor.
+
+## İçerik "üretilemedi" demez (19 Ekim 2026)
+
+**Ürün sahibi:** "Kullanıcı podcast istediyse üretilsin; 'üretilemedi / oluşturulamadı' gibi bir şey
+olmasın. İstek karşılansın." Canlı kayıt (`/admin/ders-hatalari`, 18 Ekim): iki podcast **tek bir**
+"bu konu sınavda ağırlıklı" cümlesi ve tutmayan bir eşitlik yüzünden tümden düşmüş, öğrenci
+"Podcast şu anda oluşturulamadı" görmüştü. Kalite kapısı kalkmadı; kapıdan geçmeyen **parça** düşer,
+**istek** düşmez.
+
+| Katman | Kural | Nerede |
+|---|---|---|
+| Podcast | Düzeltme turlarından sonra kalan sorunlu satır çıkarılır (`salvagePodcast`: denetçinin `chapters[i].lines[j]`'si, satır içi tutmayan hesap, kaynak notu, tekrar; soru giderse cevabı da); satıra bağlanamayan sorun kaldıysa **ikinci taslak**; model çağrısı düşerse döngü bir kez baştan. Bölüm sayısı / şablon başlık gibi biçim sorunları yayını durdurmaz. Kayıt: `teacher_podcast` → `salvaged`, `unverified` | `teacher-podcast.ts`, `teacher-podcast-run.ts` |
+| Ders | İlk kavram da düşerse ders yine yazılır (kavram atılır, bitişte adıyla söylenir); hiçbir kavram geçmezse ders bir kez baştan yazılır (`teacher_lesson_rewrite_all`) | `teacher-lesson-run.ts` yayıncı |
+| Test | Asgari sorunun altında kalınca ikinci taslak, yeni sorular eklenir; iki geçişten sonra bile 2'nin altındaysa test yok (`MIN_DELIVERABLE_QUESTIONS`) | `teacher-quiz-run.ts` |
+| Kartlar, doğru/yanlış, sözlü (ortak kabuk) | İlk geçiş düşerse (model hatası ya da geçen öğe yok) iş bir kez baştan koşar (`*_retry`) | `teacher-engine-run.ts` |
+| Ses | Satır sesi 3 kez denenir (400 / 1200 ms), yükleme 2 kez; aynı ses başka istekte üretiliyorsa beklenir | `audio-cache.ts` |
+| Oynatıcı | Ses isteği düşünce 2,5 ve 5 sn sonra kendiliğinden yeniden; sonra "Ses bu sefer gelmedi" + **Sesi yeniden dene** düğmesi | `exam-podcast-player.tsx` |
+| Ekran | `generation_failed`, `content_verification_failed`, `invalid_ai_response`, `podcast_script_rejected` kodlarında hazırlanıyor ekranı kapanmadan bir kez kendiliğinden yeniden (`AUTO_RETRY_CODES`); mesaj ancak ikinci deneme de düşünce ("bu sefer tamamlanamadı; iki kez denedik") | `exam-node-session.tsx`, `generation-failure.ts` |
+
+Hak, paket, kaynak-yok ve "üretim hâlâ sürüyor" kodları yeniden denenmez: yeniden denemek ya hiçbir
+şeyi değiştirmez ya da ikinci bir üretim başlatır. Kod yine cümle yazmaz; yalnız siler ve yeniden
+ister. Bekçi: `teacher-podcast.test.ts` ("kurtarma"), `teacher-quiz-second-pass.test.ts`,
+`lesson-stream-pipeline.test.ts` ("hiçbir kavram geçmezse"), `audio-credits.test.ts` ("yeniden
+denenir"), `podcast-audio-once.test.tsx` ("kendiliğinden yeniden").

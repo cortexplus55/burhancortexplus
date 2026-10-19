@@ -194,8 +194,6 @@ export async function teacherLessonPipeline(
     let header: Header | null = null;
     let closing: Closing | null = null;
     let streamEnded = false;
-    // İlk kavram düştüyse ders yazılmayacak: öbür kavramların denetimi boşuna sürmesin.
-    let cancelled = false;
     let wake: () => void = () => undefined;
     const signal = () => wake();
     let headerResolve: (value: Header | null) => void = () => undefined;
@@ -240,7 +238,7 @@ export async function teacherLessonPipeline(
       let rounds = index === 0 ? MAX_FIX_ROUNDS : MAX_FIX_ROUNDS + 1;
       let rewritten = false;
       for (let round = 0; ; round += 1) {
-        if (cancelled || !current()) return { ok: false, high: [], triggers };
+        if (!current()) return { ok: false, high: [], triggers };
         const { lesson, part: span } = context(index, screens, { ...head, ...headerPatch }, close);
         // Kod kuralları düzeltme isteminde işaretli: yazar bunlara itiraz edemez.
         const structural = partStructureIssues(lesson, span, input).map((issue) => ({ ...issue, problem: `[yapı kuralı] ${issue.problem}` }));
@@ -401,18 +399,18 @@ export async function teacherLessonPipeline(
         });
         fixTriggers.push(...outcome.triggers);
         if (!outcome.ok) {
-          if (index === 0) {
-            failure = outcome.high;
-            cancelled = true;
-            return false;
-          }
+          // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): ilk kavram da düşerse ders yine
+          // yazılır — kavram atılır, bitişte adıyla söylenir. Yalnız hiçbir kavram geçmezse ders yok;
+          // o zaman `failure` ilk kavramın itirazlarını taşır (kayıt için).
+          if (!publishedHeader && !failure.length) failure = outcome.high;
           dropped.push(parts[index]!.concept);
           continue;
         }
         lowIssues.push(...outcome.low);
-        if (index === 0) {
+        if (!publishedHeader) {
           publishedHeader = { ...((await headerReady) ?? { title: input.topicLabel }), ...outcome.header };
           timing.firstPublishMs ??= sinceStart();
+          failure = [];
         }
         if (outcome.closing) publishedClosing = outcome.closing;
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: outcome.screens }).screens);
@@ -464,6 +462,16 @@ export async function teacherLessonPipeline(
 
     const ok = await publishing;
     if (!ok || !published.length || !publishedHeader) {
+      // Hiçbir kavram denetimden geçmedi: öğrenciye söylemeden önce ders bir kez baştan yazılır.
+      if (attempt === 0) {
+        console.warn("teacher_lesson_rewrite_all", {
+          topic: input.topicLabel.slice(0, 80),
+          dropped: dropped.slice(0, 6),
+          failure: failure.slice(0, 2).map((issue) => issue.problem.slice(0, 120)),
+        });
+        dropped.length = 0;
+        continue;
+      }
       return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing };
     }
     const lesson: LessonV3 = {

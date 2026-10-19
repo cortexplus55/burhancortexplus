@@ -47,7 +47,7 @@ describe("podcast oynatıcı kabuğu", () => {
         onClose={onClose}
       />,
     );
-    expect(screen.getByText("Bu podcast henüz üretilemedi.")).toBeTruthy();
+    expect(screen.getByText(/Podcast metni bu sefer gelmedi/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
     expect(onClose).toHaveBeenCalledOnce();
   });

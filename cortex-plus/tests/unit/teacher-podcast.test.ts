@@ -8,6 +8,7 @@ import {
   podcastSystem,
   podcastVerifySystem,
   podcastVerifyUserPrompt,
+  salvagePodcast,
 } from "@/lib/learning/teacher-podcast";
 import { teacherPodcastLoop } from "@/lib/learning/teacher-podcast-run";
 
@@ -160,5 +161,62 @@ describe("rota podcast'i öğretmen motoruna yollar", () => {
     // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
     expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
     expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
+  });
+});
+
+/*
+  19 Ekim 2026, ürün sahibi: "podcast istendiyse üretilsin; 'üretilemedi' olmasın". 18 Ekim'de
+  iki podcast tek bir "bu konu sınavda ağırlıklı" cümlesi ve tutmayan bir eşitlik yüzünden
+  tümden düşmüştü. Artık düzeltme turlarından sonra kalan sorunlu satır çıkarılır; satıra
+  bağlanamayan sorun kaldıysa ikinci taslak yazılır.
+*/
+describe("öğretmen podcast motoru: kurtarma", () => {
+  const episodeOf = () => parseTeacherPodcast(draft, { length: "basit", topicLabel: "Hükümsüzlük" })!;
+
+  it("denetçinin gösterdiği satır çıkar; iki satırın altına inen bölüm düşer", () => {
+    const out = salvagePodcast(episodeOf(), ["[chapters[1].lines[1]] Organ satımı kaynakta yok → çıkar"])!;
+    expect(out.removed).toBe(2);
+    expect(out.episode.chapters.map((chapter) => chapter.title)).toEqual(["Yokluk", "Nispi butlan", "Akılda kalacaklar"]);
+    expect(JSON.stringify(out.episode)).not.toContain("Organ satımı");
+  });
+
+  it("'Cevap:' satırı giderse sorusu da gider; biçim sorunları yayını durdurmaz", () => {
+    const out = salvagePodcast(episodeOf(), ["[chapters[0].lines[3]] Cevap eksik", "Bölüm sayısı 4; 5-7 olmalı."])!;
+    expect(out.removed).toBe(2);
+    expect(out.episode.chapters[0]!.lines.map((item) => item.beat ?? "")).toEqual(["", ""]);
+    const untouched = salvagePodcast(episodeOf(), ["Bölüm sayısı 4; 5-7 olmalı."])!;
+    expect(untouched.removed).toBe(0);
+    expect(untouched.episode).toBe(untouched.episode);
+  });
+
+  it("satıra bağlanamayan sorun kurtarılmaz", () => {
+    expect(salvagePodcast(episodeOf(), ["Denetim yapılamadı: zaman aşımı"])).toBeNull();
+  });
+
+  it("döngü: düzeltme aynı metni döndürse de sorunlu satır çıkarılır, podcast yayınlanır", async () => {
+    const ask = vi.fn(async (system: string) => {
+      if (system.includes("denetçisisin")) return { issues: [{ where: "chapters[1].lines[1]", severity: "high", problem: "Organ satımı kaynakta yok" }] };
+      return draft;
+    });
+    const loop = await teacherPodcastLoop(ask, { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], length: "basit" });
+    expect(loop.problems).toEqual([]);
+    expect(loop.salvaged).toBe(2);
+    expect(loop.unverified).toBe(false);
+    expect(JSON.stringify(loop.episode)).not.toContain("Organ satımı");
+  });
+
+  it("döngü: satıra bağlanamayan sorun kalırsa ikinci taslak yazılır", async () => {
+    let verify = 0;
+    const ask = vi.fn(async (system: string) => {
+      if (system.includes("denetçisisin")) {
+        verify += 1;
+        return verify === 1 ? { issues: [{ where: "chapters", severity: "high", problem: "Bütün anlatım yanlış çerçevede." }] } : { issues: [] };
+      }
+      return draft;
+    });
+    const loop = await teacherPodcastLoop(ask, { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], length: "basit" });
+    expect(loop.problems).toEqual([]);
+    expect(loop.drafts).toBe(2);
+    expect(loop.episode?.chapters).toHaveLength(4);
   });
 });

@@ -413,3 +413,23 @@ describe("aynı ses başka bir istekte üretiliyorsa", () => {
     expect(mocks.synthesizeLine).not.toHaveBeenCalled();
   });
 });
+
+// 19 Ekim 2026: sağlayıcı bir satırda bir kez takılınca bütün podcast sessiz kalmasın.
+describe("satır sesi bir kez düşerse yeniden denenir", () => {
+  it("ikinci denemede gelen satırla podcast tamamlanır; kredi bir kez kesinleşir", async () => {
+    let failedOnce = false;
+    mocks.synthesizeLine.mockImplementation(async (text: string) => {
+      if (text === "Cümle 2." && !failedOnce) {
+        failedOnce = true;
+        throw new Error("network");
+      }
+      return { audio: Buffer.from("mp3"), durationMs: 1234, chars: text.length };
+    });
+    const lines = Array.from({ length: 4 }, (_, i) => line(`Cümle ${i}.`));
+    const result = await synthesizeCharged(asService(fakeService()), "user-1", lines);
+    expect(result.ok && result.tracks.length).toBe(4);
+    expect(mocks.synthesizeLine).toHaveBeenCalledTimes(5);
+    expect(mocks.commitCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.refundCredits).not.toHaveBeenCalled();
+  });
+});

@@ -145,11 +145,13 @@ export function describeGenerationFailure(
         canRetryNow: true,
       };
 
+    // 19 Ekim 2026: ekran bu kodlarda bir kez kendiliğinden yeniden dener; bu cümle ancak
+    // ikinci deneme de düşünce görünür (ürün sahibi: "oluşturulamadı" gibi uyarılar olmasın).
     case "generation_failed":
       return {
         message: podcast
-          ? `Podcast üretimi sunucuda tamamlanamadı.${refundNote} Yeniden deneyebilirsin.`
-          : `Ders şu anda oluşturulamadı.${refundNote} Yeniden deneyebilirsin.`,
+          ? `Podcast bu sefer tamamlanamadı; iki kez denedik.${refundNote} Birkaç saniye sonra yeniden dene.`
+          : `Ders bu sefer tamamlanamadı; iki kez denedik.${refundNote} Birkaç saniye sonra yeniden dene.`,
         retryMintsNewId: true,
         canRetryNow: true,
       };
@@ -194,8 +196,8 @@ export function describeGenerationFailure(
     default:
       return {
         message: podcast
-          ? "Podcast şu anda oluşturulamadı. Yeniden deneyebilirsin."
-          : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.",
+          ? "Podcast bu sefer tamamlanamadı. Birkaç saniye sonra yeniden dene."
+          : "Ders bu sefer tamamlanamadı. Birkaç saniye sonra yeniden dene.",
         retryMintsNewId: true,
         canRetryNow: true,
       };

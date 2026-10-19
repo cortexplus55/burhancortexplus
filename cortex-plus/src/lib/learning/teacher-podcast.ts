@@ -256,3 +256,117 @@ function nearDuplicate(a: string, b: string): boolean {
   const shared = [...left].filter((word) => right.has(word)).length;
   return shared / Math.min(left.size, right.size) >= 0.8;
 }
+
+/**
+ * Satır düzeyinde düşürülebilir sorunlar. Kod burada da cümle yazmaz; yalnız hangi satırın
+ * çıkacağını söyler: kaynak/sayfa notu, tek satır içinde tutmayan eşitlik, bir öncekinin tekrarı.
+ */
+export function podcastLineProblems(episode: PodcastEpisode): { chapter: number; line: number; reason: string }[] {
+  const out: { chapter: number; line: number; reason: string }[] = [];
+  episode.chapters.forEach((chapter, chapterIndex) => {
+    chapter.lines.forEach((line, lineIndex) => {
+      if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b/i.test(line.text)) {
+        out.push({ chapter: chapterIndex, line: lineIndex, reason: "kaynak/sayfa notu" });
+        return;
+      }
+      if (auditQuantitative(line.text, "").issues.some((issue) => issue.kind === "arithmetic")) {
+        out.push({ chapter: chapterIndex, line: lineIndex, reason: "tutmayan hesap" });
+        return;
+      }
+      const previous = chapter.lines[lineIndex - 1];
+      if (previous && nearDuplicate(previous.text, line.text)) {
+        out.push({ chapter: chapterIndex, line: lineIndex, reason: "bir önceki cümlenin tekrarı" });
+      }
+    });
+  });
+  return out;
+}
+
+/** Yayını durdurmayan biçim sorunları: bölüm sayısı, şablon başlık, soru-cevap sayısı, son bölüm uzunluğu. */
+const COSMETIC_PROBLEM = /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar/;
+/** Satır taramasının karşıladığı yapı sorunları (`podcastLineProblems`). */
+const LINE_HANDLED_PROBLEM = /^Metinde kaynak\/sayfa notu var|^Tutmayan hesap:|bir önceki cümlenin tekrarı/;
+const LINE_REF = /chapters\[(\d+)\]\.lines\[(\d+)\]/g;
+const CHAPTER_ONLY_REF = /chapters\[(\d+)\](?!\.lines)/g;
+/** Bu kadar satırın altındaki podcast yayınlanmaz; ikinci taslak denenir. */
+const MIN_SALVAGED_LINES = 4;
+
+/**
+ * Son çare (19 Ekim 2026, ürün sahibi: "podcast istendiyse üretilsin; 'üretilemedi' olmasın").
+ * Düzeltme turlarından sonra hâlâ sorunlu satır kaldıysa podcast'in tamamı atılmaz, yalnız o
+ * satırlar çıkarılır. 18 Ekim'de iki podcast tek bir "bu konu sınavda ağırlıklı" cümlesi ve
+ * tutmayan bir eşitlik yüzünden tümden düşmüş, öğrenci "oluşturulamadı" görmüştü.
+ *
+ * Kod cümle yazmaz, yalnız siler: denetçinin `chapters[i].lines[j]` ile gösterdiği satırlar,
+ * `chapters[i]` ile gösterdiği bölümler ve satır taramasının bulduklarını. "Dur ve düşün"
+ * sorusu giderse cevabı da gider (ve tersi); iki satırın altına inen bölüm düşer. Biçim
+ * sorunları (bölüm sayısı, şablon başlık) yayını durdurmaz. Satıra bağlanamayan bir sorun
+ * kaldıysa (ör. satırlar arası tutmayan hesap) kurtarma yok: null → ikinci taslak.
+ */
+export function salvagePodcast(
+  episode: PodcastEpisode,
+  problems: string[],
+): { episode: PodcastEpisode; removed: number } | null {
+  const dropLines = new Set<string>();
+  const dropChapters = new Set<number>();
+  for (const problem of problems) {
+    let attributed = false;
+    for (const match of problem.matchAll(LINE_REF)) {
+      dropLines.add(`${match[1]}:${match[2]}`);
+      attributed = true;
+    }
+    if (!attributed) {
+      for (const match of problem.matchAll(CHAPTER_ONLY_REF)) {
+        dropChapters.add(Number(match[1]));
+        attributed = true;
+      }
+    }
+    if (!attributed && !COSMETIC_PROBLEM.test(problem) && !LINE_HANDLED_PROBLEM.test(problem)) return null;
+  }
+  for (const item of podcastLineProblems(episode)) dropLines.add(`${item.chapter}:${item.line}`);
+  for (const key of [...dropLines]) {
+    const [chapterIndex, lineIndex] = key.split(":").map(Number);
+    const lines = episode.chapters[chapterIndex]?.lines ?? [];
+    const line = lines[lineIndex];
+    if (!line) continue;
+    if (line.beat === "ask" && lines[lineIndex + 1]?.beat === "reveal") dropLines.add(`${chapterIndex}:${lineIndex + 1}`);
+    if (line.beat === "reveal" && lines[lineIndex - 1]?.beat === "ask") dropLines.add(`${chapterIndex}:${lineIndex - 1}`);
+  }
+
+  let removed = 0;
+  const chapters = episode.chapters
+    .map((chapter, chapterIndex) => {
+      if (dropChapters.has(chapterIndex)) {
+        removed += chapter.lines.length;
+        return null;
+      }
+      const lines = chapter.lines.filter((_, lineIndex) => {
+        const drop = dropLines.has(`${chapterIndex}:${lineIndex}`);
+        if (drop) removed += 1;
+        return !drop;
+      });
+      if (lines.length < 2) {
+        removed += lines.length;
+        return null;
+      }
+      return lines.length === chapter.lines.length ? chapter : { ...chapter, lines };
+    })
+    .filter((chapter): chapter is PodcastEpisode["chapters"][number] => chapter !== null);
+  const total = chapters.reduce((sum, chapter) => sum + chapter.lines.length, 0);
+  if (!chapters.length || total < MIN_SALVAGED_LINES) return null;
+  const next: PodcastEpisode = removed ? { ...episode, chapters } : episode;
+
+  // Çıkarma yeni bir ardışık tekrar doğurabilir: satıra bağlı sorun kaldıysa bir tur daha.
+  const leftover = podcastLineProblems(next);
+  if (leftover.length) {
+    if (!removed) return null;
+    const again = salvagePodcast(
+      next,
+      leftover.map((item) => `chapters[${item.chapter}].lines[${item.line}]: ${item.reason}`),
+    );
+    return again ? { episode: again.episode, removed: removed + again.removed } : null;
+  }
+  // Satıra bağlanamayan sert sorun (satırlar arası tutmayan hesap) kaldıysa kurtarma yok.
+  if (podcastStructureIssues(next).some((issue) => !COSMETIC_PROBLEM.test(issue))) return null;
+  return { episode: next, removed };
+}

@@ -24,6 +24,23 @@ import {
 
 export const AUDIO_BUCKET = "lesson-audio";
 const SIGNED_URL_SECONDS = 60 * 60;
+/** Bir satırın sesi düşerse yeniden deneme beklemeleri (deneme sayısı = uzunluk + 1). */
+const SYNTH_RETRY_MS = [400, 1200];
+
+/** `fn` null dönerse ya da fırlatırsa bekleyip yeniden dener; hepsi düşerse null. */
+async function retrying<T>(fn: () => Promise<T | null>, delays: number[]): Promise<T | null> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const out = await fn();
+      if (out) return out;
+    } catch {
+      // Ağ hatası da bir deneme sayılır.
+    }
+    const delay = delays[attempt];
+    if (delay === undefined) return null;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+}
 
 type Service = ReturnType<typeof createServiceClient>;
 
@@ -212,16 +229,18 @@ async function ensureAudio(
       const job = missing[cursor];
       cursor += 1;
       if (!job) return;
-      const result = await synthesizeLine(job.line.text, job.line.speaker);
+      // Sağlayıcı bir satırda takılırsa bütün podcast sessiz kalmasın: satır üç kez denenir
+      // (19 Ekim 2026). Yükleme de bir kez daha.
+      const result = await retrying(() => synthesizeLine(job.line.text, job.line.speaker), SYNTH_RETRY_MS);
       if (!result || failed) {
         failed = true;
         return;
       }
       const path = `${job.hash.slice(0, 2)}/${job.hash}.mp3`;
-      const { error } = await service.storage.from(AUDIO_BUCKET).upload(path, result.audio, {
-        contentType: "audio/mpeg",
-        upsert: true,
-      });
+      const upload = () =>
+        service.storage.from(AUDIO_BUCKET).upload(path, result.audio, { contentType: "audio/mpeg", upsert: true });
+      let { error } = await upload();
+      if (error) ({ error } = await upload());
       if (error || failed) {
         failed = true;
         return;

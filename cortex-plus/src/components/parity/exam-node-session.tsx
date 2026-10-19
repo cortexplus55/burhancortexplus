@@ -142,6 +142,18 @@ type Payload = {
 
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
 const LESSON_PROGRESS_POLL_MS = 1_500;
+/**
+ * Üretim bu kodlarla düşerse ekran bir kez kendiliğinden yeniden dener (19 Ekim 2026).
+ * `generation_failed_retry` (üretim hâlâ sürüyor) ve hak/paket/kaynak kodları dışarıda:
+ * yeniden denemek ya ikinci üretim başlatır ya da hiçbir şeyi değiştirmez.
+ */
+const AUTO_RETRY_CODES = new Set([
+  "generation_failed",
+  "content_verification_failed",
+  "invalid_ai_response",
+  "podcast_script_rejected",
+]);
+const AUTO_RETRY_DELAY_MS = 1_500;
 
 export function ExamNodeSession({
   prepId,
@@ -540,6 +552,8 @@ export function ExamNodeSession({
     mood?: Mood;
     /** "Dersi tekrarla": son ders yeniden açılır, yeniden yazılmaz. */
     replay?: boolean;
+    /** Sunucu düşünce ekranın kendi kendine yaptığı ikinci deneme (bir kez). */
+    autoRetried?: boolean;
   }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
@@ -599,8 +613,19 @@ export function ExamNodeSession({
         //
         // Üretim hâlâ sürüyorsa yenilenmiyor: yenilemek ikinci bir üretim
         // başlatır ve öğrenci iki kez ödeyebilir.
+        const code = generationFailureCode(data);
+        // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı gibi uyarılar olmasın"): üretim düşünce
+        // ekran bir kez kendiliğinden yeniden dener; hazırlanıyor ekranı kapanmaz. Hak, paket
+        // ve kaynak hataları yeniden denemekle geçmez, onlar hemen söylenir.
+        if (typeof code === "string" && AUTO_RETRY_CODES.has(code) && !overrides?.autoRetried) {
+          clearClientRequestId();
+          await new Promise((resolve) => setTimeout(resolve, AUTO_RETRY_DELAY_MS));
+          startInFlight.current = false;
+          await start({ ...overrides, autoRetried: true });
+          return;
+        }
         const failure = describeGenerationFailure(
-          generationFailureCode(data),
+          code,
           resetsAtLabel ?? undefined,
           kind,
           {
@@ -1650,7 +1675,7 @@ export function ExamNodeSession({
           {/* Baştan yazıma rağmen hazırlanamayan bölüm sessizce eksik kalmaz (18 Ekim 2026). */}
           {payload.type === "lesson" && missingConcepts.length ? (
             <p className="cp-lesson-missing" role="status">
-              Bu bölüm hazırlanamadı: <strong>{missingConcepts.join(", ")}</strong>. &quot;Farklı anlat&quot; ile yeniden
+              Bu derste yer almayan bölüm: <strong>{missingConcepts.join(", ")}</strong>. &quot;Farklı anlat&quot; ile yeniden
               yazdırabilirsin.
             </p>
           ) : null}
