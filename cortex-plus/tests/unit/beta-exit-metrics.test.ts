@@ -150,7 +150,8 @@ describe("beta ölçütleri: göç", () => {
 describe("beta ölçütleri: bekçi", () => {
   it("ders açılışının üç yolu ölçülür, yanıt beklemez", () => {
     const route = read("src/app/api/learning/exam-prep/node/route.ts");
-    for (const path of ['path: "adopted"', 'path: "ready"', 'path: "cold"']) expect(route).toContain(path);
+    // Hazır açılış, beklenen önceden yazımda "devralınan" olur (20 Ekim 2026): servedOpenPath.
+    for (const path of ['path: "adopted"', "servedOpenPath(", 'path: "cold"']) expect(route).toContain(path);
     expect(route.match(/after\(\(\) => recordOpenTiming\(/g)).toHaveLength(3);
   });
 

@@ -248,8 +248,11 @@ describe("yükleme yolu", () => {
     "src/components/parity/exam-create-wizard.tsx",
   ])("%s .docx ve .pptx seçtiriyor", (file) => {
     const source = readFileSync(file, "utf8");
-    expect(source).toContain(".docx,.pptx");
-    expect(source).toContain("wordprocessingml.document");
+    // Seçici türleri tek kaynaktan (20 Ekim 2026): upload-accept.ts.
+    expect(source).toContain("accept={DOCUMENT_UPLOAD_ACCEPT}");
+    const accept = readFileSync("src/lib/documents/upload-accept.ts", "utf8");
+    expect(accept).toContain('".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"');
+    expect(accept).toContain('".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"');
     expect(source).toContain("DOCUMENT_UPLOAD_HINT");
   });
 

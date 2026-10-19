@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Smartphone, Upload, X } from "lucide-react";
 import { useDocumentLimits } from "@/lib/student/student-shell-context";
+import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 
 export function UploadModal({
   open,
@@ -124,7 +125,7 @@ export function UploadModal({
           <Upload className="h-8 w-8 opacity-70" aria-hidden />
           <p>Dosyalarını buraya bırak</p>
           <p className="cp-upload-hint">
-            Görseller, PDF
+            Görseller, PDF, Word, PowerPoint
             {freePdfCap !== null ? ` · aylık taranmış sayfa hakkı: ${freePdfCap}` : ""}
           </p>
           <button
@@ -172,7 +173,7 @@ export function UploadModal({
           ref={inputRef}
           type="file"
           className="hidden"
-          accept="image/*,.pdf,application/pdf"
+          accept={CHAT_UPLOAD_ACCEPT}
           onChange={(e) => {
             takeFile(e.target.files?.[0]);
             e.target.value = "";

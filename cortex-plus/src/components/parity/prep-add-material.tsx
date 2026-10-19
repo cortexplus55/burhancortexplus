@@ -26,6 +26,7 @@ import {
   useStudentShellAccount,
 } from "@/lib/student/student-shell-context";
 import { uploadDocumentFile } from "@/lib/documents/upload-client";
+import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import "@/styles/exam-create-wizard.css";
 
 const EXTENSIONS = [".pdf", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".docx", ".pptx"];
@@ -231,7 +232,7 @@ export function PrepMaterialAdder({
         ref={fileRef}
         type="file"
         className="hidden"
-        accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.heic,.heif,.docx,.pptx,image/heic,image/heif"
+        accept={DOCUMENT_UPLOAD_ACCEPT}
         onChange={(event) => {
           void takeFile(event.target.files?.[0]);
           event.target.value = "";

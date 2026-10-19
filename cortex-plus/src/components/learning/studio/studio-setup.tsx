@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 
 /**
  * Araçların ortak kurulumu (19 Ekim 2026). Canlıda her aracı ayrı belgeyle denedik ve şunları
@@ -115,7 +116,7 @@ export function StudioSourcePicker({
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.pptx,.docx,application/pdf"
+            accept={DOCUMENT_UPLOAD_ACCEPT}
             className="sr-only"
             tabIndex={-1}
             aria-hidden

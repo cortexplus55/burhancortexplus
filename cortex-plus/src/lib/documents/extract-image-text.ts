@@ -95,7 +95,7 @@ const PROMPT = [
   "Satır ve paragraf düzenini koru. Şıkları ayrı satırlara yaz.",
   "Şıklar iki ya da üç sütun hâlinde dizilmiş olabilir: her şıkkı kâğıtta yanında basılı olan harfle yaz ve harf sırasıyla (A, B, C, D, E) sırala; şık atlama, harfleri yeniden dağıtma.",
   "Kâğıttaki işaretleri de aktar: daire içine alınmış, karalanmış ya da tiklenmiş şıkkın sonuna (işaretli) yaz; el yazısıyla eklenmiş notları ve düzeltmeleri bulundukları yere olduğu gibi yaz.",
-  "Matematiksel ifadeleri LaTeX ile yaz.",
+  "Matematiksel ifadeleri LaTeX ile yaz; kimyasal formülleri ve birimleri (CO₂, H₂O, Na⁺, mmHg) LaTeX'e çevirmeden olduğu gibi yaz.",
   "El yazısını da oku.",
   "Markdown, kod bloğu veya ``` kullanma; düz metin yaz.",
   `Görselde okunacak hiçbir yazı yoksa yalnızca ${NO_TEXT} yaz.`,

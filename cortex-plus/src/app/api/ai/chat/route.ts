@@ -31,6 +31,7 @@ import {
   teacherTurnGuidance,
 } from "@/lib/learning/teacher-brain";
 import { extractText } from "@/lib/documents/extract-text";
+import { extractOfficeText, isOfficeDocument } from "@/lib/documents/extract-office-text";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import { awardChatStars } from "@/lib/stars/chat";
@@ -127,7 +128,8 @@ export async function POST(request: Request) {
         const { data, error: signedError } = await service.storage.from("documents").createSignedUrl(doc.storage_path, 300);
         if (signedError || !data) return errorResponse(503, "Görsel açılamadı. Yeniden dene.");
         imageUrl = data.signedUrl;
-      } else if (doc.mime_type === "application/pdf" || doc.mime_type === "text/plain") {
+      } else if (doc.mime_type === "application/pdf" || doc.mime_type === "text/plain" || isOfficeDocument(doc.mime_type)) {
+        // Word ve PowerPoint de belgeli sohbete girer (20 Ekim 2026); önceden "desteklenmiyor" diyordu.
         documentAttached = true;
         // Prefer the canonical parsed pages, including OCR, over reparsing every question.
         // İşlenmesi süren belgede sayfa tablosu yarım olabilir (19 Ekim 2026: sohbetten yüklenen belge
@@ -142,7 +144,10 @@ export async function POST(request: Request) {
         if (!sourcePages.length) {
           const { data, error: downloadError } = await service.storage.from("documents").download(doc.storage_path);
           if (downloadError || !data) throw new Error("source_unavailable");
-          const extracted = await extractText(Buffer.from(await data.arrayBuffer()), doc.mime_type);
+          const buffer = Buffer.from(await data.arrayBuffer());
+          const extracted = isOfficeDocument(doc.mime_type)
+            ? extractOfficeText(buffer, doc.mime_type)
+            : await extractText(buffer, doc.mime_type);
           if (!extracted.ok) return errorResponse(422, "Belge henüz okunamıyor. Belgeler ekranından işlem durumunu kontrol et.");
           sourcePages = extracted.pages.map((text, i) => ({ page: i + 1, text }));
         }

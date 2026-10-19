@@ -33,6 +33,9 @@ export function Analytics() {
             api_host: host,
             capture_pageview: false,
             person_profiles: "identified_only",
+            // Anketi kendimiz soruyoruz (/api/feedback/weekly); PostHog'un anket betiği her sayfada
+            // boşuna yükleniyor ve güvenlik politikasına takılıyordu (20 Ekim 2026).
+            disable_surveys: true,
           });
           window.posthog = posthog as unknown as Window["posthog"];
         }

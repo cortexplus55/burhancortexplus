@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { MIME_BY_EXTENSION } from "@/lib/documents/upload-accept";
 
 export const DOCUMENT_MAX_BYTES = 15 * 1024 * 1024;
 export const PDF_MAX_BYTES = 50 * 1024 * 1024;
@@ -24,18 +25,6 @@ export const DOCUMENT_ALLOWED_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ]);
 
-const MIME_BY_EXTENSION: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".txt": "text/plain",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".heic": "image/heic",
-  ".heif": "image/heif",
-  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-};
 
 /** Tarayıcı HEIC için boş tür gönderebiliyor. Ad ve dosya başı türü tamamlar. */
 export function resolveUploadMime(

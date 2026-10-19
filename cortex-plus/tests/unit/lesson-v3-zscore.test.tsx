@@ -4,7 +4,14 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV3Schema, readLessonV2, screenCheck, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { sealLessonV3ForPlay, sealStoredLesson } from "@/lib/learning/lesson-play-v3";
-import { TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM, lessonStructureIssues, sourceTables, verifySystem } from "@/lib/learning/teacher-lesson";
+import {
+  TEACHER_SYSTEM,
+  TOPIC_TEACHER_SYSTEM,
+  lessonStructureIssues,
+  partStructureIssues,
+  sourceTables,
+  verifySystem,
+} from "@/lib/learning/teacher-lesson";
 
 Element.prototype.scrollIntoView = vi.fn();
 afterEach(cleanup);
@@ -287,6 +294,36 @@ describe("LessonV3 — kaynaktaki tablo derste tablo kalır", () => {
     expect(flattened(zscore)).toBeUndefined();
     expect(flattened(noTable)).toBeUndefined();
     expect(lessonStructureIssues(prose, {}).some((issue) => /paragrafa dökülmüş/.test(issue.problem))).toBe(false);
+  });
+
+  /*
+    20 Ekim 2026, canlı İdrar dersi: kavramlar aynı anda denetlenirken aynı hormon tablosu her kavramda
+    "tabloyu ver" diye geri çevrildi; tablo üç kavrama eklendi, ders 3 tur / 11 çağrı / 54 sn sürdü.
+    Tablo onu ilk anan kavramındır; sonraki kavram aynı tablo için geri çevrilmez.
+  */
+  it("akışlı derste aynı tablo yalnız onu ilk anan kavramdan istenir", () => {
+    const rowsInProse = {
+      type: "text" as const,
+      text:
+        "Havlar tarzda öksürük ve stridor krupu; ilk kez görülen hışıltı küçük bebekte bronşioliti düşündürür. " +
+        "Hışıltı tekrarlıyorsa astım, ateş ve takipne pnömoni ipucudur; ani boğulma öyküsü yabancı cismi düşündürür.",
+    };
+    const withProse = (indexes: number[]): LessonV3 => ({
+      ...noTable,
+      screens: noTable.screens.map((item, index) => (indexes.includes(index) ? { ...item, blocks: [...item.blocks, rowsInProse] } : item)),
+    });
+    const flagged = (lesson: LessonV3, from: number, to: number) =>
+      partStructureIssues(lesson, { from, to, header: from === 0, closing: false }, { pages: [page] }).some((issue) =>
+        /paragrafa dökülmüş/.test(issue.problem),
+      );
+    // İki kavram da tablonun satırlarını anıyor: ilk kavram ister, ikincisi istenmez.
+    const both = withProse([0, 2]);
+    expect(flagged(both, 0, 1)).toBe(true);
+    expect(flagged(both, 2, 2)).toBe(false);
+    // Tabloyu yalnız sonraki kavram anıyorsa o ister.
+    expect(flagged(withProse([2]), 2, 2)).toBe(true);
+    // Tablo hiç verilmezse dersin kapanışı yine yakalar.
+    expect(flattened(both)?.severity).toBe("high");
   });
 
   it("yazar kaynağın tablosunu tablo olarak korur", () => {

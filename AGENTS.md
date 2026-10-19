@@ -854,6 +854,33 @@ fotoğraflı istek ~1.050 jeton (~$0,0003, çıktı dahil).
 Kayıtlı eski okumalar kendiliğinden düzelmez; dosya yeniden yüklenince yeni kuralla okunur. Bekçi:
 `photo-documents.test.ts`, `scanned-pdf.test.ts`.
 
+## Denetim (20 Ekim 2026) — canlı kayıtlardan ve sayfa taramasından
+
+Ürün sahibi: "gerçek sorunlar, kodlama hataları, çalışmayan özellikler". Kanıt: `/admin/beta`,
+`/admin/ders-hatalari`, 14 günlük belge/kredi/önceden yazım kayıtları, 11 sayfada konsol ve ağ isteği.
+Tümden çalışmayan özellik çıkmadı; bunlar çıktı:
+
+| Bulgu | Kural | Nerede |
+|---|---|---|
+| Sohbetler sayfası React #418: "Bugün / Dün" sunucuda UTC gününe, tarayıcıda Türkiye gününe göre | Sunucuda da çizilen istemci bileşeninde gün `istanbul-day.ts` ile, "şimdi" sunucudan prop; `setHours` / `getDate` ile gün hesaplanmaz | `sohbetler-list.tsx` |
+| Hazır ders p95 tek açılış yüzünden düşüyordu: sunucu süren yazımın bitmesini 10,7 sn bekledi, kayıt "hazır" dedi | Beklenen hazır içerik "devralınan" kaydedilir (`servedOpenPath`, ≥ 1 sn) | `beta-metrics.ts`, `node/route.ts` |
+| Araçlar fotoğraf, sohbet Word/PowerPoint seçtirmiyordu; sohbet API'si Word'e "desteklenmiyor" diyordu | Seçiciler tek kaynaktan (`DOCUMENT_UPLOAD_ACCEPT`; sohbette `CHAT_UPLOAD_ACCEPT`, HEIC yok — görüntü modeli okumuyor); sohbet işlenmemiş Word/PowerPoint'i `extractOfficeText` ile modelsiz okur | `upload-accept.ts`, `api/ai/chat/route.ts` |
+| Her sayfa açılışında 2-4 CSP raporu: PostHog'un `eu-assets` adresi listede yoktu, anket betiği boşuna yükleniyordu | `eu-assets.i.posthog.com` betik ve bağlantı listesinde; PostHog anketi kapalı (anket bizde, `/api/feedback/weekly`) | `csp.ts`, `analytics.tsx` |
+| Fotoğraf okuma CO₂'yi LaTeX'e çeviriyordu | Kimyasal formül ve birim olduğu gibi yazılır | `extract-image-text.ts` |
+| `/okulum` 404 | Kalıcı yönlendirme `/deneme-sinavlari/okulum` | `next.config.ts` |
+| Tablolu kaynakta ders tur dönüyordu: kavramlar aynı anda denetlenirken önceki kavramın tablo düzeltmesi derse işlenmeden sonraki kavram aynı tablo için geri çevriliyordu (İdrar dersi: aynı tablo üç kavramda, 3 tur / 11 çağrı / 54 sn; Nefroloji 18 Ekim'de hiç çıkmadı) | Tablo onu ilk anan kavramındır: önceki ekranlar tablonun satırlarını anıyorsa sonraki kavram aynı tablo için istenmez; tablo hiç verilmezse kapanıştaki ders düzeyi kural yakalar | `teacher-lesson.ts` `partStructureIssues` |
+
+**Göç kayıt tablosu.** Göçler SQL ekranından (ve bir dönem panelin/MCP'nin uygulama anındaki zamanıyla)
+uygulandığı için `supabase_migrations.schema_migrations` repoyla ayrışmıştı: 70 dosya kayıtta yoktu,
+kayıtta hiçbir dosyaya karşılık gelmeyen 33 satır var. 20 Ekim'de 70 eksik sürüm yalnız eklenerek
+yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şema kontrolü). Yetim 33 satır silinmedi:
+`supabase db push` bu yüzden "remote versions not found" diyerek durur — bu bir emniyettir.
+**`supabase db push` kullanmayın; yeni göçü SQL ekranında uygulayıp aynı anda kayıt satırını yazın**
+(`insert into supabase_migrations.schema_migrations (version, name) values ('<dosya zamanı>', '<ad>')`).
+
+Kendiliğinden düzelen: bir belgenin konu haritası "bekliyor"da kalmıştı; Belgelerim açılınca tamamlanıyor.
+Bekçi: `audit-20-ekim.test.tsx`, `lesson-v3-zscore.test.tsx` ("akışlı derste aynı tablo").
+
 ## Plus'ın bir ayı — misafire ve ücretsiz öğrenciye (20 Ekim 2026)
 
 Ürün sahibi: "plus alan biri bütün bir plus hesabıyla neler yapabilir, kaç adet kullanabilir; misafir

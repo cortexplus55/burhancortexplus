@@ -69,6 +69,7 @@ import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
+import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -1851,7 +1852,7 @@ function ChatPanelSession({
           ref={fileInputRef}
           type="file"
           className="hidden"
-          accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf"
+          accept={CHAT_UPLOAD_ACCEPT}
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
@@ -2143,7 +2144,7 @@ function ChatPanelSession({
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf"
+                accept={CHAT_UPLOAD_ACCEPT}
                 onChange={async (event) => {
                   const file = event.target.files?.[0];
                   event.target.value = "";
@@ -2304,7 +2305,7 @@ function ChatPanelSession({
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept=".pdf,.png,.jpg,.jpeg,.webp"
+              accept={CHAT_UPLOAD_ACCEPT}
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 event.target.value = "";
