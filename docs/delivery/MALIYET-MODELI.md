@@ -55,4 +55,4 @@ karakter) ~$54 maliyet çıkarır.
 | Ses kredisi | **15 kredi / 900 karakter** (önce 2) | #352, göç `20261019130000` |
 | Ders kredisi (6) | Kredi değişmedi; **hızlı işlem yalnız Plus/Sigma ve kurucuya** (ücretsizde soğuk ders normal hızda, maliyet yarıya) | #352 |
 | Test (4) ve mesaj (3) | **Kalsın** | — |
-| Video resimlerinin kullanım kaydı | Kod işi, sırada | — |
+| Video resimlerinin kullanım kaydı | Resimler zaten birim = 1 resim olarak yazılıyordu; eksik olan `gpt-image-1` fiyat satırıydı (resim başına $0,016). Göç `20261019140000`. Video başına ~8 resim $0,13 + ses ~$0,015 + metin $0,003 ≈ $0,15; kredi 280 ($0,28) yetiyor |
