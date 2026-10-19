@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { scoreQuizAnswers, type PublicQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
+import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 
 export function ChallengeSetPlay({ prepId }: { prepId: string }) {
   const [questions, setQuestions] = useState<PublicQuizQuestion[] | null>(null);
@@ -18,14 +19,13 @@ export function ChallengeSetPlay({ prepId }: { prepId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/learning/exam-prep/challenge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId }),
-      });
-      const payload = await res.json().catch(() => ({}));
+      // Üretim düşünce bir kez kendiliğinden yeniden (19 Ekim 2026).
+      const { res, data: payload } = await postJsonWithRetry<{ error?: string; code?: string; questions?: unknown }>(
+        "/api/learning/exam-prep/challenge",
+        () => ({ prepId }),
+      );
       if (!res.ok) {
-        setError(payload.error ?? "Zor sorular şu an hazırlanamadı.");
+        setError(payload.error ?? "Zor sorular bu sefer tamamlanamadı; birkaç saniye sonra yeniden dene.");
         return;
       }
       const next = Array.isArray(payload.questions) ? (payload.questions as PublicQuizQuestion[]) : [];

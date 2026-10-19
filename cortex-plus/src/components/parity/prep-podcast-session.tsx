@@ -4,11 +4,14 @@ import { useRouter } from "next/navigation";
 import type { PodcastLength } from "@/lib/learning/podcast-formats";
 import { useEffect, useState } from "react";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
+import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
 import {
   describeGenerationFailure,
   generationFailureCode,
 } from "@/lib/learning/generation-failure";
+import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { useIsFounder } from "@/lib/student/student-shell-context";
+import "@/styles/node-generation-progress.css";
 
 export function PrepPodcastSession({
   prepId,
@@ -31,22 +34,18 @@ export function PrepPodcastSession({
 
   useEffect(() => {
     let alive = true;
-    const clientRequestId = crypto.randomUUID();
     setStatus("loading");
-    void fetch("/api/learning/exam-prep/podcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prepId, topicId, length, clientRequestId }),
-    })
-      .then(async (res) => {
-        const data = (await res.json().catch(() => ({}))) as {
-          title?: string;
-          chapters?: unknown[];
-          code?: string;
-          error?: string;
-          refunded?: boolean;
-          reason?: string;
-        };
+    // Üretim düşerse bir kez kendiliğinden, yeni istek kimliğiyle yeniden istenir (19 Ekim 2026):
+    // öğrenci "üretilemedi" görmeden önce iki tam deneme yapılır.
+    void postJsonWithRetry<{
+      title?: string;
+      chapters?: unknown[];
+      code?: string;
+      error?: string;
+      refunded?: boolean;
+      reason?: string;
+    }>("/api/learning/exam-prep/podcast", () => ({ prepId, topicId, length, clientRequestId: crypto.randomUUID() }))
+      .then(({ res, data }) => {
         if (!alive) return;
         if (!res.ok || !Array.isArray(data.chapters)) {
           const failure = describeGenerationFailure(
@@ -69,7 +68,7 @@ export function PrepPodcastSession({
       })
       .catch(() => {
         if (!alive) return;
-        setMessage("Bağlantı kurulamadı. Yeniden deneyebilirsin.");
+        setMessage("Bağlantı koptu. Yeniden dene; podcast kaldığı yerden hazırlanır.");
         setStatus("error");
       });
     return () => {
@@ -80,11 +79,8 @@ export function PrepPodcastSession({
   const home = `/deneme-sinavlari/${prepId}`;
 
   if (status === "loading") {
-    return (
-      <section className="cp-pod" aria-busy="true">
-        <p className="cp-pod-state">Podcast hazırlanıyor…</p>
-      </section>
-    );
+    // Düğüm ekranındaki bekleme ekranının aynısı: boş bir "hazırlanıyor" yazısı 50 sn sürüyordu.
+    return <NodeGenerationProgress title="Podcast hazırlanıyor…" onClose={() => router.push(home)} />;
   }
 
   if (status === "error") {

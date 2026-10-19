@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Expand, Loader2, Pause, Play, RotateCcw, RotateCw, Smartphone, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import { VIDEO_STYLES, captionChunks, speechText, type VideoStyle } from "@/lib/learning/video-lesson";
 import "@/styles/video-lesson.css";
@@ -45,12 +46,11 @@ export function VideoLessonSetup({
     setStep("making");
     setLine(0);
     try {
-      const res = await fetch("/api/learning/exam-prep/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, topicId, style, clientRequestId: crypto.randomUUID() }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { videoId?: string; error?: string };
+      // Üretim düşünce bir kez kendiliğinden, yeni istek kimliğiyle (19 Ekim 2026).
+      const { res, data: body } = await postJsonWithRetry<{ videoId?: string; error?: string; code?: string }>(
+        "/api/learning/exam-prep/video",
+        () => ({ prepId, topicId, style, clientRequestId: crypto.randomUUID() }),
+      );
       if (res.status === 402) {
         toast.error(body.error === "insufficient_credits" ? "Bu ayki hakkın video için yetmiyor." : "Video ders Plus'ta.");
         setStep("intro");
@@ -59,7 +59,7 @@ export function VideoLessonSetup({
       if (!res.ok || !body.videoId) throw new Error();
       router.replace(`/deneme-sinavlari/${prepId}/video?v=${body.videoId}`);
     } catch {
-      toast.error("Video şu an hazırlanamadı. Hakkın iade edildi.");
+      toast.error("Video bu sefer tamamlanamadı; iki kez denedik. Hakkın iade edildi, birkaç saniye sonra yeniden dene.");
       setStep("topic");
     }
   }

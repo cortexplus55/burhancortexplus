@@ -23,6 +23,8 @@ import {
 } from "@/lib/learning/lesson-play";
 import { readPlayLessonV3 } from "@/lib/learning/lesson-play-v3";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
+// Üretim düşünce ekran bir kez kendiliğinden yeniden dener (19 Ekim 2026); kurallar tek yerde.
+import { AUTO_RETRY_CODES, AUTO_RETRY_DELAY_MS } from "@/lib/learning/generation-retry";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
@@ -143,18 +145,6 @@ type Payload = {
 
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
 const LESSON_PROGRESS_POLL_MS = 1_500;
-/**
- * Üretim bu kodlarla düşerse ekran bir kez kendiliğinden yeniden dener (19 Ekim 2026).
- * `generation_failed_retry` (üretim hâlâ sürüyor) ve hak/paket/kaynak kodları dışarıda:
- * yeniden denemek ya ikinci üretim başlatır ya da hiçbir şeyi değiştirmez.
- */
-const AUTO_RETRY_CODES = new Set([
-  "generation_failed",
-  "content_verification_failed",
-  "invalid_ai_response",
-  "podcast_script_rejected",
-]);
-const AUTO_RETRY_DELAY_MS = 1_500;
 
 export function ExamNodeSession({
   prepId,
@@ -817,12 +807,12 @@ export function ExamNodeSession({
         return;
       }
       if (!res.ok || !Array.isArray(data.chapters)) {
-        toast.error("Sesli tekrar şu anda hazırlanamadı.");
+        toast.error("Sesli tekrar bu sefer tamamlanamadı; yeniden dene.");
         return;
       }
       setLessonPodcast({ title: data.title ?? topicLabel ?? "Sesli tekrar", chapters: data.chapters });
     } catch {
-      toast.error("Sesli tekrar şu anda hazırlanamadı.");
+      toast.error("Sesli tekrar bu sefer tamamlanamadı; yeniden dene.");
     } finally {
       setPodcastLoading(false);
     }

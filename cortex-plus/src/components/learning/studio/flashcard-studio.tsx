@@ -56,7 +56,7 @@ export function FlashcardStudio({
       toast.error(
         !result.ok && result.error === "document_not_ready"
           ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
-          : "Kartlar üretilemedi. Kredin düşmedi.",
+          : "Kartlar bu sefer tamamlanamadı; iki kez denedik. Kredin düşmedi, yeniden dene.",
       );
       setPhase("entry");
       return;

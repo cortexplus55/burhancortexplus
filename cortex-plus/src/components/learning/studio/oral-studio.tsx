@@ -79,7 +79,7 @@ export function OralStudio({
       return;
     }
     if (!result.ok || !result.data.questions?.length) {
-      toast.error(result.ok ? "Sözlü üretilemedi." : result.error);
+      toast.error(result.ok ? "Sözlü bu sefer tamamlanamadı; yeniden dene." : result.error);
       setPhase("entry");
       return;
     }

@@ -6,6 +6,7 @@ import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import "@/styles/paper-exam.css";
+import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import {
   MOCK_MINUTES_MAX,
   MOCK_MINUTES_MIN,
@@ -72,23 +73,22 @@ export function MockExamSetup({
     setLoading(true);
     setProgress(["Konular okunuyor…"]);
     try {
-      const res = await fetch("/api/learning/exam-prep/mock-exam", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      // Üretim düşünce bir kez kendiliğinden yeniden (19 Ekim 2026).
+      const { res, data: payload } = await postJsonWithRetry<{ error?: string; code?: string; note?: string; examId?: string }>(
+        "/api/learning/exam-prep/mock-exam",
+        () => ({
           prepId,
           preset,
           scope,
           topicIds: scope === "topics" ? [...selected] : undefined,
           durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
         }),
-      });
-      const payload = await res.json().catch(() => ({}));
+      );
       if (!res.ok) {
         toast.error(
-          payload.error === "insufficient_credits"
+          payload.error === "insufficient_credits" || payload.code === "insufficient_credits"
             ? "Kredin yetersiz."
-            : "Deneme şu anda hazırlanamadı. Kredin iade edildi.",
+            : "Deneme bu sefer tamamlanamadı; iki kez denedik. Kredin iade edildi, birkaç saniye sonra yeniden dene.",
         );
         setLoading(false);
         return;

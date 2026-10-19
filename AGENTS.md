@@ -634,6 +634,7 @@ olmasın. İstek karşılansın." Canlı kayıt (`/admin/ders-hatalari`, 18 Ekim
 | Ses | Satır sesi 3 kez denenir (400 / 1200 ms), yükleme 2 kez; aynı ses başka istekte üretiliyorsa beklenir | `audio-cache.ts` |
 | Oynatıcı | Ses isteği düşünce 2,5 ve 5 sn sonra kendiliğinden yeniden; sonra "Ses bu sefer gelmedi" + **Sesi yeniden dene** düğmesi | `exam-podcast-player.tsx` |
 | Ekran | `generation_failed`, `content_verification_failed`, `invalid_ai_response`, `podcast_script_rejected` kodlarında hazırlanıyor ekranı kapanmadan bir kez kendiliğinden yeniden (`AUTO_RETRY_CODES`); mesaj ancak ikinci deneme de düşünce ("bu sefer tamamlanamadı; iki kez denedik") | `exam-node-session.tsx`, `generation-failure.ts` |
+| Öbür içerik ekranları | Hazırlığın podcast sayfası (artık bekleme ekranıyla), Araçlar stüdyoları, video ders, yazılı deneme kurulumu, zor sorular: hepsi `postJsonWithRetry` ile bir kez kendiliğinden yeniden ister (her denemede yeni istek kimliği); kalan mesajlar "bu sefer tamamlanamadı" diye yazılır, "üretilemedi" yazılmaz | `generation-retry.ts` |
 
 Hak, paket, kaynak-yok ve "üretim hâlâ sürüyor" kodları yeniden denenmez: yeniden denemek ya hiçbir
 şeyi değiştirmez ya da ikinci bir üretim başlatır. Kod yine cümle yazmaz; yalnız siler ve yeniden

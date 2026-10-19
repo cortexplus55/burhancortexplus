@@ -142,7 +142,7 @@ export function PodcastStudio({
       return;
     }
     if (!audio.ok || !audio.data.lines?.length) {
-      setAudioNote("Ses şu an üretilemedi; hakkından düşülmedi. Senaryoyu aşağıdan okuyabilirsin.");
+      setAudioNote("Ses bu sefer gelmedi; hakkından düşülmedi. Senaryoyu aşağıdan okuyabilirsin.");
       return;
     }
     const verified = validatePodcastAudio(normalized, audio.data.lines);
@@ -190,7 +190,7 @@ export function PodcastStudio({
       toast.error(
         !script.ok && script.error === "document_not_ready"
           ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
-          : "Podcast üretilemedi. Kredin düşmedi.",
+          : "Podcast bu sefer tamamlanamadı; iki kez denedik. Kredin düşmedi, yeniden dene.",
       );
       setPhase("entry");
       return;
@@ -198,7 +198,7 @@ export function PodcastStudio({
 
     const normalized = normalizeChapters(script.data.chapters);
     if (!normalized.length) {
-      toast.error("Podcast üretilemedi.");
+      toast.error("Podcast bu sefer tamamlanamadı; yeniden dene.");
       setPhase("entry");
       return;
     }

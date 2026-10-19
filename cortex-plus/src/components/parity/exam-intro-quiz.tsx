@@ -131,7 +131,7 @@ export function ExamIntroQuiz({
         return;
       }
       if (!res.ok) {
-        const message = data.error ?? "Tanışma testi üretilemedi.";
+        const message = data.error ?? "Tanışma testi bu sefer tamamlanamadı; yeniden dene.";
         setStartError(message);
         toast.error(message);
         return;

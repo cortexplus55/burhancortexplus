@@ -56,7 +56,7 @@ export function WrittenStudio({
       return;
     }
     if (!result.ok || !result.data.questions?.length || !result.data.examId) {
-      toast.error(result.ok ? "Yazılı üretilemedi." : result.error);
+      toast.error(result.ok ? "Yazılı bu sefer tamamlanamadı; yeniden dene." : result.error);
       setPhase("entry");
       return;
     }
