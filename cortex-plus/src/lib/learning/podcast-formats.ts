@@ -148,8 +148,12 @@ export function podcastDuoBrief(): string {
   );
 }
 
-/** Senaryonun yaklaşık süresi (dakika), ölçülen okuma hızıyla: iki seste ~88, tek seste ~95 kelime/dk. */
+/** Ölçülen okuma hızı (kelime/dk): iki seste sesler arası duraklarla ~88, tek seste ~95 (19 Ekim 2026). */
+export const DUO_WORDS_PER_MINUTE = 88;
+export const SINGLE_WORDS_PER_MINUTE = 95;
+
+/** Senaryonun yaklaşık süresi (dakika), ölçülen okuma hızıyla. */
 export function estimatedPodcastMinutes(words: number, speakers: "single" | "duo"): number {
-  const perMinute = speakers === "duo" ? 88 : 95;
+  const perMinute = speakers === "duo" ? DUO_WORDS_PER_MINUTE : SINGLE_WORDS_PER_MINUTE;
   return Math.max(1, Math.round(words / perMinute));
 }

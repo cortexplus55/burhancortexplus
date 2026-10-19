@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Sparkles, Unlock, Users, X } from "lucide-react";
+import { Sparkles, Users, X } from "lucide-react";
 import { useIsFounder } from "@/lib/student/student-shell-context";
-import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
-import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
+import { PlusCountsInline } from "@/components/marketing/plus-month";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/upgrade-gate.css";
@@ -86,10 +85,8 @@ export function UpgradeSheet({
             cevabı, satış cümlesinin içine gömülmemeli. */}
         <p className="ug-reason">{message}</p>
 
-        <div className="ug-perk">
-          <Unlock className="h-4 w-4" aria-hidden />
-          <span>Plus ile {allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly).toLocaleLowerCase("tr-TR")}</span>
-        </div>
+        {/* Plus'ın bir ayı dört sayıyla (20 Ekim 2026); sayılar kredi tablosundan (plan-value.ts). */}
+        <PlusCountsInline />
 
         <Link href={href} className="ug-cta" onClick={() => onOpenChange(false)}>
           Plus&apos;a yükselt

@@ -16,6 +16,8 @@ import { defaultStartPrompt } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstPrepCard } from "@/components/parity/first-prep-card";
+import { PlusMonth } from "@/components/marketing/plus-month";
+import { loadPlusPrices } from "@/lib/billing/plan-prices";
 
 export const metadata = { title: "Sor" };
 
@@ -37,6 +39,7 @@ export default async function OgretmenPage({
     { data: goal },
     { data: conversations },
     { count: prepCount },
+    prices,
   ] =
     await Promise.all([
       supabase
@@ -77,6 +80,7 @@ export default async function OgretmenPage({
         .eq("user_id", user.id)
         .neq("exam_type", "hedef")
         .neq("exam_type", STUDIO_EXAM_TYPE),
+      loadPlusPrices(supabase),
     ]);
 
   // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın
@@ -138,6 +142,24 @@ export default async function OgretmenPage({
     goal: goalText,
   });
   const style = parseTutorStyle(profile?.tutor_style);
+  // Ücretsiz öğrenciye Plus'ın bir ayı somut sayıyla (20 Ekim 2026). Hiç hazırlığı yoksa önce ilk
+  // hazırlık kartı: değeri yaşamadan satın alma istemek dönüşmüyor; Plus kartı hemen altında.
+  const showPlus = account.showsUpgradeChrome;
+  const heroCards =
+    !params.sohbet && (prepCount === 0 || showPlus) ? (
+      <>
+        {prepCount === 0 ? <FirstPrepCard /> : null}
+        {showPlus ? (
+          <PlusMonth
+            variant="compact"
+            monthlyKurus={prices.plusMonthly}
+            yearlyKurus={prices.plusYearly}
+            primary={{ label: "Plus'a geç", href: "/pay" }}
+            secondary={{ label: "Bir ayda neler var?", href: "/pay#plus-ay" }}
+          />
+        ) : null}
+      </>
+    ) : undefined;
   const avatar = profile?.avatar_url as string | null | undefined;
 
   return (
@@ -160,7 +182,7 @@ export default async function OgretmenPage({
         startPrompt={bootPrompt}
         showEmptyStarter
         startLabel="Başla"
-        heroFooter={prepCount === 0 && !params.sohbet ? <FirstPrepCard /> : undefined}
+        heroFooter={heroCards}
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversationId}

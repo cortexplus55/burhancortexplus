@@ -834,3 +834,20 @@ yeniden denenmez, sonraki push ya da paneldeki "Redeploy" gerekir.
 Bekçi: `exam-set-plan.test.ts`, `topic-support-pages.test.ts`, `node-open-no-resume-wait.test.tsx`,
 `office-documents.test.ts`, `outline-grounding.test.ts`, `prep-schedule-reload.test.ts`, `upload-batch.test.ts`,
 `wizard-topic-sources.test.ts`.
+
+## Plus'ın bir ayı — misafire ve ücretsiz öğrenciye (20 Ekim 2026)
+
+Ürün sahibi: "plus alan biri bütün bir plus hesabıyla neler yapabilir, kaç adet kullanabilir; misafir
+ekranına ve kayıtlı ücretsiz kullanıcı ekranına dikkat çekici, en önemli nokta buymuş gibi; sinematik
+ve fütüristik". Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Her sayı **kredi tablosundan hesaplanır**, elle yazılmaz: Plus ayda 1.200 ders, 1.800 konu testi, 2.400 kart seti, 100 podcast (5 dk, **sesiyle**: senaryo + seslendirme), 900 sözlü deneme, 480 yazılı deneme, 720 fotoğraftan çözüm, 25 video ders, 2.400 soru; 3.600 sayfa not, ayda 300 fotoğraf/taranmış sayfa. "Her biri tek başına; hepsi aynı aylık haktan" her yüzeyde yazılı | `src/lib/billing/plan-value.ts` |
+| "Ücretsizde kapalı" yalnız ücretsiz günlük haktan (6) büyük işler: podcast, sözlü, yazılı deneme, fotoğraftan çözüm, video | `PLAN_WORK[].plusOnly` |
+| "Kendi ayını kur": öğrenci temposunu (günde ders/test/soru, haftada podcast/deneme, ayda video) seçer; hakkın yüzdesi, kalan pay ve aynı tempo ücretsizle kaç gün sürerdi görünür. Hazır tempolar Plus'a sığar (düzenli %38, sınav ayı %60, son sprint %75). Öğrenci **kredi sayısı görmez**, yüzde görür | `TEMPO_PRESETS`, `tempoMix`, `mixShare`, `freeDaysFor` |
+| Fiyat satırı: aylık fiyatın günlük karşılığı (yıllık daha ucuzsa onunki de), "Otomatik yenileme yok", "Kart bilgisi bize gelmez" — üçü de bugün doğru (`AUTO_RENEW_SUPPORTED = false`, PayTR iFrame). Sahte aciliyet, sahte yorum, indirim sayacı yok | `TrustLine` |
+| Misafir: ana sayfada ikinci bölüm (güven çubuğunun hemen ardından). Ücretsiz öğrenci (`showsUpgradeChrome`): ana ekranda kart — hiç hazırlığı yoksa önce "İlk hazırlığını kur" (değeri yaşatmadan satış dönüşmüyor), hemen altında Plus kartı; ödeme sayfasında planların altında tam bölüm; yükseltme kapısında dört sayı. Plus/Sigma ve kurucu görmez | `landing-page.tsx`, `ogretmen/page.tsx`, `pay/page.tsx`, `upgrade-sheet.tsx` |
+| Tasarım: koyu zemin, yavaş mavi-altın ışık, ufka uzanan ızgara, tarama ışığı, dönen altın kenarlı kart; altın yalnız Plus. `overflow: clip` (hidden değil): hidden kaydırılabilir kutu kuruyor, #plus-ay bağlantısıyla gelince içerik telefonda 461 px sola kaçıyordu. Sayılar sunucuda son değerle yazılır, ekrana girince sayar; hareket azaltmada durur | `plus-month.tsx`, `plus-month.css` |
+
+Fiyatlar tek okuyucudan (`loadPlusPrices`). Bekçi: `plus-month.test.tsx`, `marketing-claims.test.ts`.
