@@ -202,7 +202,9 @@ export function ExamCreateChat({
         return;
       }
       setMessages((prev) => [...prev, { role: "assistant", content: payload.reply }]);
-      if (payload.draft) setDraft(payload.draft);
+      // Seçilmiş ders (sihirbaz ya da katalog) sunucunun taslağıyla ezilmez; canlıda "Kimya" seçilip
+      // hazırlık "Serbest" diye kaydedildi (19 Ekim 2026).
+      if (payload.draft) setDraft(initialSubject ? { ...payload.draft, examType: initialSubject } : payload.draft);
       setNeedDate(Boolean(payload.needDate));
       setPreview(payload.preview ?? []);
       setDays(payload.days ?? null);
