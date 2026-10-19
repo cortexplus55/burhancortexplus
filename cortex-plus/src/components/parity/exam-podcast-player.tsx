@@ -101,7 +101,15 @@ export function ExamPodcastPlayer({
   /** Ses üretimi bitince düşen kredi. 0 önbellektir. */
   onCreditsSpent?: (credits: number) => void;
 }) {
-  const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
+  // İçerik anahtarı: üst bileşen aynı bölümleri yeni bir diziyle verince (kayıt tazelendi,
+  // ekran yeniden çizildi) ses isteği baştan başlamasın. 19 Ekim 2026'da canlıda aynı sese
+  // 5 sn arayla iki istek gitti; ikincisi krediyi "işlem sürüyor" diye alamayıp "ses
+  // üretilemedi" dedi, ilki sesi üretip krediyi düştü — öğrenci ödediği sesi duymadı.
+  const chaptersKey = JSON.stringify(Array.isArray(chapters) ? chapters : []);
+  const normalized = useMemo(() => normalizeChapters(JSON.parse(chaptersKey) as unknown), [chaptersKey]);
+  // Kaldığı yer anahtarı ses isteğini yeniden başlatmaz; yalnız okunur.
+  const resumeKeyRef = useRef(resumeKey);
+  resumeKeyRef.current = resumeKey;
   const [audio, setAudio] = useState<(AudioLine | null)[] | null>(null);
   const [progress, setProgress] = useState({ ready: 0, total: 0 });
   /*
@@ -198,7 +206,8 @@ export function ExamPodcastPlayer({
       if (!started && index === 0) {
         started = true;
         setStatus("ready");
-        const saved = resumeKey ? Number(window.localStorage.getItem(`cp-pod-pos:${resumeKey}`)) : 0;
+        const key = resumeKeyRef.current;
+        const saved = key ? Number(window.localStorage.getItem(`cp-pod-pos:${key}`)) : 0;
         if (!(Number.isFinite(saved) && saved > 800)) playRef.current(0);
       } else if (waitingRef.current && index === indexRef.current) {
         waitingRef.current = false;
@@ -307,7 +316,7 @@ export function ExamPodcastPlayer({
       tokenRef.current += 1;
       elementRef.current?.pause();
     };
-  }, [normalized, resumeKey]);
+  }, [normalized]);
 
   useEffect(() => {
     return () => {

@@ -9,6 +9,7 @@ Kaynak koddan ve yönetim panelinden yazıldı; tahmin edilen hiçbir adım yok 
 |---|---|
 | Öğrenci "Ders hazırlanıyor"da kalıyor / "oluşturulamadı" | [takili-ders.md](takili-ders.md) |
 | Kredi düştü ama içerik yok; iki kez kesildi | [yanlis-kredi.md](yanlis-kredi.md) |
+| Podcast "Ses şu an üretilemedi" dedi ama kredi düştü | [podcast-ses.md](podcast-ses.md) |
 | Ödeme yapıldı, Plus açılmadı | [paytr-geri-bildirim-gelmedi.md](paytr-geri-bildirim-gelmedi.md) |
 | Üretimler art arda düşüyor, 429 | [openai-kota.md](openai-kota.md) |
 | Site veritabanına ulaşamıyor, proje duraklamış | [supabase-duraklama.md](supabase-duraklama.md) |

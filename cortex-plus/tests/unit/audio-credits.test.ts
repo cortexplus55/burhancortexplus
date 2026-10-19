@@ -378,3 +378,38 @@ describe("guards", () => {
     );
   });
 });
+
+/*
+  19 Ekim 2026, canlı: oynatıcı aynı sese 5 sn arayla iki istek attı. İlki 14 sn'de sesi
+  üretip krediyi düştü; ikincisi `credit_reserve`'den "işlem sürüyor" alıp "ses üretilemedi"
+  dedi. Öğrenci ödediği sesi duymadı. Anahtarın yorumu zaten "ikincisi birincinin ayırmasını
+  alır, öğrenci bir kez öder" diyordu; kredi sistemi v2'nin meşgul cevabı bunu bozmuştu.
+*/
+describe("aynı ses başka bir istekte üretiliyorsa", () => {
+  it("'işlem sürüyor' cevabında öteki işin bitmesini bekler ve sesi bedava verir", async () => {
+    mocks.reserveCredits.mockResolvedValue({ ok: false, reason: "operation_in_progress" });
+    const service = fakeService();
+    const hash = createHash("sha256").update("ada|Bekle").digest("hex");
+    setTimeout(() => service.rows.set(hash, { storage_path: `ab/${hash}.mp3`, duration_ms: 900 }), 25);
+    const result = await synthesizeCharged(asService(service), "user-1", [line("Bekle")], {
+      inFlightWaitMs: 2000,
+      inFlightPollMs: 5,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.creditsSpent).toBe(0);
+    expect(result.ok && result.tracks[0]?.url).toBe(`https://cdn.test/ab/${hash}.mp3`);
+    expect(mocks.synthesizeLine).not.toHaveBeenCalled();
+    expect(mocks.commitCredits).not.toHaveBeenCalled();
+    expect(mocks.refundCredits).not.toHaveBeenCalled();
+  });
+
+  it("öteki iş süre içinde bitmezse ses yok, kredi yok", async () => {
+    mocks.reserveCredits.mockResolvedValue({ ok: false, reason: "operation_in_progress" });
+    const result = await synthesizeCharged(asService(fakeService()), "user-1", [line("Bekle")], {
+      inFlightWaitMs: 30,
+      inFlightPollMs: 5,
+    });
+    expect(result).toEqual({ ok: false, reason: "audio_unavailable" });
+    expect(mocks.synthesizeLine).not.toHaveBeenCalled();
+  });
+});

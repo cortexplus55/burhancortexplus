@@ -181,6 +181,15 @@ kredi sistemi anahtarı ilk işe veriyor, ötekiler `operation_in_progress` / `o
 
 Bekçi: `mock-exam-charge.test.ts` (gerçek kredi davranışını taklit eder; eski kodla 16 sorudan 1'i üretir).
 
+**Aynı içeriğe aynı anahtar doğru, ama anahtarı alamayan istek düşmez — bekler (19 Ekim 2026).**
+Podcast sesi: oynatıcı aynı sese 5 sn arayla iki istek attı (kayıt tazelenince bölümler yeni diziyle
+geldi, ses etkisi yeniden koştu). İlk istek 14 sn'de sesi üretip krediyi düştü; ikincisi
+`credit_reserve`'den `operation_in_progress` alıp "Ses şu an üretilemedi" dedi — öğrenci ödediği sesi
+duymadı. Şimdi `synthesizeCharged` bu cevapta öteki işin bitmesini bekleyip sesi önbellekten bedava
+veriyor (`waitForInFlightAudio`); oynatıcı ses isteğini içerik anahtarına bağlıyor (`chaptersKey`),
+kaldığı-yer anahtarı isteği yenilemiyor. Runbook: `docs/ops/podcast-ses.md`. Bekçi:
+`audio-credits.test.ts`, `podcast-audio-once.test.tsx`.
+
 ---
 
 ## Ürün öğrenci-only — veli ve öğretmen paneli yok

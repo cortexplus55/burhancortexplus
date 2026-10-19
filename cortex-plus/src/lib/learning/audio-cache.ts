@@ -127,7 +127,15 @@ export function audioIdempotencyKey(
 type AudioProgress = {
   /** Bir satırın sesi hazır olur olmaz. Oynatıcı ilk satırdan başlar. */
   onTrack?: (index: number, track: AudioTrack) => void;
+  /** Aynı ses başka bir istekte üretiliyorsa (işlem sürüyor) en çok bu kadar beklenir. */
+  inFlightWaitMs?: number;
+  /** Beklerken önbelleğe bakma aralığı. */
+  inFlightPollMs?: number;
 };
+
+/** Beş dakikalık diyaloğun sesi canlıda 14-60 sn sürüyor; rota sınırı 300 sn. */
+const IN_FLIGHT_WAIT_MS = 90_000;
+const IN_FLIGHT_POLL_MS = 1_500;
 
 async function signPath(service: Service, path: string): Promise<string | null> {
   const { data, error } = await service.storage
@@ -285,6 +293,41 @@ async function ensureAudio(
   return tracks;
 }
 
+/**
+ * Aynı satırlar başka bir istekte üretiliyor (`operation_in_progress`): oynatıcı iki kez
+ * istedi ya da iki sekme açık. 19 Ekim 2026'da canlıda tam bu oldu — ilk istek 14 sn'de
+ * sesi üretip krediyi düştü, 5 sn sonra gelen ikincisi "işlem sürüyor" alıp "ses
+ * üretilemedi" dedi; öğrenci ödediği sesi duymadı. Hata vermek yerine öteki işin
+ * bitmesi beklenir: önbellek dolunca ses bedava servis edilir (ücret ilk istekte alındı).
+ * Öteki iş düşerse önbellek dolmaz; süre bitince yine `audio_unavailable`.
+ */
+async function waitForInFlightAudio(
+  service: Service,
+  lines: AudioRequest[],
+  userId: string,
+  options?: AudioProgress,
+): Promise<AudioTrack[] | null> {
+  const deadline = Date.now() + (options?.inFlightWaitMs ?? IN_FLIGHT_WAIT_MS);
+  const interval = Math.max(1, options?.inFlightPollMs ?? IN_FLIGHT_POLL_MS);
+  for (;;) {
+    let remaining: number;
+    try {
+      remaining = await countNewAudioChars(service, lines);
+    } catch {
+      return null;
+    }
+    if (remaining === 0) {
+      try {
+        return await ensureAudio(service, lines, userId, options);
+      } catch {
+        return null;
+      }
+    }
+    if (Date.now() + interval > deadline) return null;
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+}
+
 export type ChargedAudio =
   | { ok: true; tracks: AudioTrack[]; creditsSpent: number }
   | { ok: false; reason: "insufficient_credits" | "audio_unavailable" };
@@ -327,10 +370,16 @@ export async function synthesizeCharged(
     // tarafımızın arızası; öğrenciye ücretsiz ses vermektense isteği
     // reddetmek doğru — sessizce bedavaya geçen bir yol, ölçmediğimiz bir
     // maliyet demek.
-    if (!reservation.ok) return {
-      ok: false,
-      reason: reservation.reason === "insufficient_credits" ? "insufficient_credits" : "audio_unavailable",
-    };
+    if (!reservation.ok) {
+      if (reservation.reason === "operation_in_progress") {
+        const tracks = await waitForInFlightAudio(service, lines, userId, options);
+        if (tracks) return { ok: true, tracks, creditsSpent: 0 };
+      }
+      return {
+        ok: false,
+        reason: reservation.reason === "insufficient_credits" ? "insufficient_credits" : "audio_unavailable",
+      };
+    }
     reservationId = reservation.reservationId;
   }
 
