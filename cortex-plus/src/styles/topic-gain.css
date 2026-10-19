@@ -1,13 +1,14 @@
 /* "+%X kazandın" kartı (19 Ekim 2026): Astra'nın test sonrası konu hâkimiyeti ekranı. */
 
 .cp-topic-gain {
+  /* Oturum kabuğunun içinde: tam ekran yüksekliği "Devam et"i katlanma çizgisinin altına itiyordu (19 Ekim canlı). */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  min-height: 100dvh;
-  padding: 48px 16px calc(32px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(0deg, var(--c-bg) 55%, var(--c-success-soft) 100%);
+  padding: 40px 16px calc(32px + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--r-3xl);
+  background: linear-gradient(0deg, transparent 40%, var(--c-success-soft) 100%);
   text-align: center;
 }
 
@@ -73,7 +74,7 @@
 }
 
 .cp-topic-gain-continue {
-  margin-top: auto;
+  margin-top: 16px;
   width: min(100%, 26rem);
   justify-content: center;
 }
