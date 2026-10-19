@@ -4,6 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { createMockExam } from "@/lib/learning/mock-exam/create";
 import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
+import { studioExamTopics, type StudioExamTopic } from "@/lib/learning/studio-exam-topics";
 
 /** Konu başına öğretmen motoru (yazar + denetim + düzeltme), sekizli dalgalar. */
 export const maxDuration = 300;
@@ -14,6 +15,8 @@ const bodySchema = z.object({
   difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
   /** Stüdyo hazırlığa bağlıysa. */
   prepId: z.string().uuid().optional(),
+  /** Araçlar'da seçilen belge (19 Ekim 2026): konular belgenin kendi konularından. */
+  documentId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -23,28 +26,44 @@ export async function POST(request: Request) {
 
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
-  const { topic, questionCount, prepId } = parsedBody.data;
+  const { topic, questionCount, prepId, documentId } = parsedBody.data;
 
   // Stüdyo: prep yoksa geçici prep veya topic-only deneme.
   let resolvedPrepId = prepId;
+  let source: { kind: "document" | "topic"; wholeDocument?: boolean; matched?: boolean; fileName?: string } = { kind: "topic" };
+  // Belgenin tamamından yazılının adı belgenin adı ("Belgenin tamamı" değil).
+  const examTitle = () =>
+    source.kind === "document" && source.wholeDocument && source.fileName
+      ? source.fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || topic
+      : topic;
   if (!resolvedPrepId) {
+    let studioTopics: StudioExamTopic[] = [{ label: topic, refs: [] }];
+    if (documentId) {
+      const picked = await studioExamTopics(service, userId, documentId, topic, questionCount);
+      if (!picked) return errorResponse(409, "document_not_ready");
+      studioTopics = picked.topics;
+      source = { kind: "document", wholeDocument: picked.wholeDocument, matched: picked.matched, fileName: picked.fileName };
+    }
     const { data: prep, error } = await service
       .from("exam_preps")
       .insert({
         user_id: userId,
-        title: topic.slice(0, 80),
+        title: examTitle().slice(0, 80),
         exam_type: STUDIO_EXAM_TYPE,
       })
       .select("id")
       .single();
     if (error || !prep) return errorResponse(500, "generation_failed");
     resolvedPrepId = prep.id as string;
-    await service.from("exam_prep_topics").insert({
-      exam_prep_id: resolvedPrepId,
-      label: topic,
-      sort_order: 0,
-      status: "ready",
-    });
+    await service.from("exam_prep_topics").insert(
+      studioTopics.map((row, index) => ({
+        exam_prep_id: resolvedPrepId,
+        label: row.label,
+        sort_order: index,
+        status: "ready",
+        source_refs: row.refs,
+      })),
+    );
   }
 
   const result = await createMockExam({
@@ -52,7 +71,8 @@ export async function POST(request: Request) {
     userId,
     isPremium: await isPremiumUser(service, userId),
     prepId: resolvedPrepId,
-    topicLabel: topic,
+    // Belgeden: konular zaten belgenin konuları; konu adıyla süzülmez.
+    topicLabel: source.kind === "document" ? undefined : topic,
     questionCount,
     preset: questionCount <= 12 ? "short" : "standard",
   });
@@ -67,7 +87,8 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     examId: result.examId,
-    title: topic,
+    title: examTitle(),
+    source,
     durationMinutes: result.blueprint.durationMinutes,
     questions: (rows ?? []).map((row) => ({
       id: row.id,

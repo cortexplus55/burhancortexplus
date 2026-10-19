@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import type OpenAI from "openai";
 vi.mock("@/lib/env", () => ({ env: { OPENAI_ADVANCED_MODEL: "review-model" } }));
 import {
   EducationalVerificationError,
   readReviewVerdict,
+  REVIEW_NOTE,
   repairInstruction,
   verifyEducationalContent,
 } from "@/lib/ai/quality-gate";
@@ -318,14 +320,29 @@ describe("denetçi kararı okunurken", () => {
     await verifyEducationalContent({ ...input, format: 'Yalnızca şu JSON şemasını döndür: {"problem": string}' });
     const call = create.mock.calls[0]?.[0] as { messages: { content: unknown }[] };
     const user = call.messages[1]!.content as { type: string; text?: string }[];
-    expect(JSON.parse(user[0]!.text!)).toMatchObject({ draftFormat: expect.stringContaining("JSON şemasını") });
+    // Önce çerçeve ("görevi sen yapma"), sonra veri.
+    expect(user[0]!.text).toBe(REVIEW_NOTE);
+    expect(JSON.parse(user[1]!.text!)).toMatchObject({ draftFormat: expect.stringContaining("JSON şemasını") });
     expect(String(call.messages[0]!.content)).toContain("draftFormat alanı taslağın uyması gereken biçimdir");
   });
 
-  it("denetçi iki kez çözümü yankılarsa yine invalid_review (içerik onaylanmış sayılmaz)", async () => {
+  it("denetçi çözümü yankılarsa ikinci soru 'önceki cevabın karar değildi' der; ikisi de yankıysa invalid_review", async () => {
     const echo = { problem: "Kütle 5 kg", steps: ["F = ma"], answer: "C" };
     const { input, create } = fixture([echo, echo]);
     await expect(verifyEducationalContent(input)).rejects.toMatchObject({ reason: "invalid_review" });
     expect(create).toHaveBeenCalledTimes(2);
+    const second = create.mock.calls[1]?.[0] as { messages: { content: { text?: string }[] }[] };
+    expect(second.messages[1]!.content[0]!.text).toContain("Önceki cevabın bir karar değildi");
+  });
+
+  it("yankıdan sonra karar gelirse çözüm onaylanır", async () => {
+    const { input } = fixture([{ problem: "Kütle 5 kg", steps: ["F = ma"], answer: "C" }, { approved: true, issues: [] }]);
+    await expect(verifyEducationalContent(input)).resolves.toMatchObject({ content: "ilk taslak" });
+  });
+
+  it("fotoğraf ucu denetçiye talimat değil betimleme verir", () => {
+    const route = readFileSync("src/app/api/ai/solve-image/route.ts", "utf8");
+    expect(route).toContain("verificationContext:");
+    expect(route).toContain("Öğrenci görseldeki soruyu yükledi.");
   });
 });

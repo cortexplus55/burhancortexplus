@@ -53,7 +53,7 @@ export function isWholeDocumentRequest(topic: string): boolean {
   return /\b(tum|tumu|tamami|tamamini|tamamindan|butun|hepsi|hepsini|hepsinden|komple|bastan sona)\b/.test(text);
 }
 
-function titleScore(title: string, query: string): number {
+export function titleScore(title: string, query: string): number {
   const wanted = fold(query);
   const label = fold(title);
   if (!wanted || !label) return 0;

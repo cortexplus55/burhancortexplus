@@ -11,10 +11,21 @@ import {
   StudioProgress,
   StudioResults,
 } from "@/components/learning/studio/studio-shared";
-import { StudioChoices, StudioSetup } from "@/components/learning/studio/studio-setup";
+import {
+  documentSuggestions,
+  sourceNotice,
+  StudioChoices,
+  StudioSetup,
+  StudioSourcePicker,
+  type StudioDocument,
+  type StudioSourceMode,
+} from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
 
-/** 19 Ekim 2026: soru sayısı seçilir (önce hep 8). Belgeden yazılı deneme hazırlık yolunda. */
+/**
+ * 19 Ekim 2026: soru sayısı seçilir (önce hep 8) ve öteki araçlar gibi belgeden yazılır (önce
+ * "hazırlığının sayfasını aç" diyordu).
+ */
 const QUESTION_COUNTS = [
   { value: 5, label: "5 soru" },
   { value: 10, label: "10 soru" },
@@ -29,9 +40,13 @@ const LETTERS = ["A", "B", "C", "D", "E"];
 export function WrittenStudio({
   creditCost,
   initialTopic = "",
+  documents = [],
+  initialDocumentId = null,
 }: {
   creditCost: number | null;
   initialTopic?: string;
+  documents?: StudioDocument[];
+  initialDocumentId?: string | null;
 }) {
   const [phase, setPhase] = useState<"entry" | "loading" | "play" | "grading" | "results">(
     "entry",
@@ -46,19 +61,29 @@ export function WrittenStudio({
   const [analysis, setAnalysis] = useState("");
   const [paywall, setPaywall] = useState(false);
   const [count, setCount] = useState<number>(10);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [sourceMode, setSourceMode] = useState<StudioSourceMode>(initialDocumentId ? "document" : "topic");
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? documents[0]?.id ?? null);
 
   const question = questions[index];
+  const activeDocument = sourceMode === "document" ? documents.find((d) => d.id === documentId) ?? null : null;
 
   async function start(topic: string) {
+    if (sourceMode === "document" && !activeDocument) {
+      toast.error(documentId ? "Belgen hâlâ hazırlanıyor; biter bitmez başlatabilirsin." : "Önce bir belge seç ya da yükle.");
+      return;
+    }
     setPhase("loading");
     const result = await postStudio<{
       examId?: string;
       title?: string;
       questions?: Question[];
+      source?: { kind?: string; wholeDocument?: boolean; matched?: boolean; fileName?: string | null };
     }>("/api/learning/exam/generate", {
       topic,
       questionCount: count,
       difficulty: "medium",
+      ...(activeDocument ? { documentId: activeDocument.id } : {}),
     });
     if ("paywall" in result) {
       setPaywall(true);
@@ -66,11 +91,18 @@ export function WrittenStudio({
       return;
     }
     if (!result.ok || !result.data.questions?.length || !result.data.examId) {
-      toast.error(result.ok ? "Yazılı bu sefer tamamlanamadı; yeniden dene." : result.error);
+      toast.error(
+        !result.ok && result.error === "document_not_ready"
+          ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
+          : result.ok
+            ? "Yazılı bu sefer tamamlanamadı; yeniden dene."
+            : result.error,
+      );
       setPhase("entry");
       return;
     }
     setTopic(topic);
+    setNotice(sourceNotice(result.data.source));
     setExamId(result.data.examId);
     setTitle(result.data.title ?? topic);
     setQuestions(result.data.questions);
@@ -113,14 +145,22 @@ export function WrittenStudio({
         <StudioEntry
           tool="yazili"
           title="Yazılı deneme"
-          placeholder="Örn. Fonksiyonlar"
-          submitLabel="Yazılıyı aç"
+          placeholder={activeDocument ? "Örn. Belgenin tamamı ya da bir bölüm" : "Örn. Fonksiyonlar"}
+          submitLabel={activeDocument ? "Belgeden yazılıyı aç" : "Yazılıyı aç"}
           creditCost={creditCost}
           initialTopic={initialTopic}
+          suggestions={documentSuggestions(activeDocument)}
           setup={
             <StudioSetup>
+              <StudioSourcePicker
+                idPrefix="yazili"
+                documents={documents}
+                mode={sourceMode}
+                onModeChange={setSourceMode}
+                documentId={documentId}
+                onDocumentChange={setDocumentId}
+              />
               <StudioChoices label="Kaç soru?" options={QUESTION_COUNTS} value={count} onChange={setCount} />
-              <p className="ls-setup-note">Belgenden yazılı deneme için hazırlığının sayfasındaki “Yazılı deneme”yi aç.</p>
             </StudioSetup>
           }
           onSubmit={(next) => void start(next)}
@@ -134,6 +174,7 @@ export function WrittenStudio({
       {phase === "play" && question ? (
         <>
           <StudioProgress index={index} total={questions.length} />
+          {notice && index === 0 ? <p className="ls-source-notice">{notice}</p> : null}
           <div className="ls-paper">
             <p className="ls-flash-kicker">{title}</p>
             <h2 className="ls-question" style={{ marginBottom: "1rem" }}>

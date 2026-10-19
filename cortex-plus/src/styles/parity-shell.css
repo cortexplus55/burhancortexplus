@@ -13553,3 +13553,21 @@ a.cp-exam-search {
   opacity: 0.5;
   cursor: default;
 }
+
+/* Kartın tamamı hazırlığı açar (19 Ekim 2026): başlığa tıklayan öğrenci hiçbir şey olmadığını
+   görüyordu; yalnız "Devam et" bağlantıydı. Tek bağlantı kalır, alanı kartı kaplar. */
+.cp-prep-card {
+  position: relative;
+  cursor: pointer;
+}
+
+.cp-prep-card-go::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.cp-prep-card:hover {
+  border-color: var(--cp-border-strong, #3a3a40);
+}

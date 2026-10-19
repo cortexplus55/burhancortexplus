@@ -76,6 +76,12 @@ export async function POST(request: Request) {
     userPrompt: note
       ? `Görseldeki soruyu adım adım çöz. Okunaksızsa unreadable:true dön, çözüm uydurma. Öğrencinin notu: ${note}`
       : "Görseldeki soruyu adım adım çöz. Okunaksız veya bulanıksa unreadable:true dön ve çözüm uydurma.",
+    // Denetçiye talimat değil betimleme: "çöz" görünce soruyu kendisi çözüp karar yerine çözüm
+    // döndürüyordu (19 Ekim 2026, `ai_review_unreadable`).
+    verificationContext:
+      "Öğrenci görseldeki soruyu yükledi. Taslak, sorunun okunmuş hâlini (problem), adım adım çözümünü (steps) ve cevabını (answer) içeriyor. " +
+      "Denetlenecek: soru görseldekiyle aynı okunmuş mu, adımlar ve cevap doğru mu, şıklı soruysa doğru şık mı." +
+      (note ? ` Öğrencinin notu: ${note}` : ""),
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

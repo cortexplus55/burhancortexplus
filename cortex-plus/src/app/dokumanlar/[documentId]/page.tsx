@@ -234,6 +234,11 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 label="Sözlü deneme"
                 enabled={canGenerate}
               />
+              <ActionChip
+                href={`/studio/yazili?documentId=${documentId}`}
+                label="Yazılı deneme"
+                enabled={canGenerate}
+              />
             </div>
             {admin ? (
               <div className="pt-1">

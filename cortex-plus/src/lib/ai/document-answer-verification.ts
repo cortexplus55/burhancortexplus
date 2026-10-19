@@ -286,6 +286,12 @@ export async function verifyDocumentAnswer(input: {
     kod okunarak tahmin edilebildi. Her düşen koşul adıyla döner; rota loglar.
   */
   const reasons: string[] = [];
+  // Genel soruda ("özetle", "hangi konular var") cevap birçok yeri toparlar: alıntı ve iddia daha
+  // geniş pencereyle aranır (sayılar yine birebir), cevaptaki her atıf geçerli bir kaynağı göstermeli
+  // ama her biri için ayrı iddia aranmaz. 19 Ekim 2026: alıntı gevşetilince özet bu kez
+  // `claim_not_in_answer` ve `inline_reference_unreviewed` ile düştü.
+  const overview = isOverviewQuestion(input.question);
+  const loose = overview ? { ratio: 0.7, widthFactor: 3 } : {};
   if (!verdict.answerable) reasons.push("not_answerable");
   if (!verdict.fullySupported) reasons.push("not_fully_supported");
   if (verdict.confidence < 0.8) reasons.push(`low_confidence:${verdict.confidence.toFixed(2)}`);
@@ -293,13 +299,12 @@ export async function verifyDocumentAnswer(input: {
   for (const claim of verdict.claims) {
     const source = input.evidence.find((e) => e.reference === claim.reference);
     if (!source) { reasons.push(`unknown_reference:${claim.reference}`); continue; }
-    // Genel soruda alıntı birkaç cümleyi toparlar: daha geniş pencere, %70; sayılar yine birebir.
-    const loose = isOverviewQuestion(input.question) ? { ratio: 0.7, widthFactor: 3 } : {};
     if (!looselyContains(source.content, claim.quote, loose)) reasons.push(`quote_not_in_source:${claim.reference}`);
-    if (!looselyContains(documentPart, claim.claim)) reasons.push("claim_not_in_answer");
+    if (!looselyContains(documentPart, claim.claim, loose)) reasons.push("claim_not_in_answer");
   }
   const generalPart = input.strict ? "" : split.generalPart;
-  if (!inlineReferences.every((r) => references.includes(r))) reasons.push("inline_reference_unreviewed");
+  const known = overview ? input.evidence.map((e) => e.reference) : references;
+  if (!inlineReferences.every((r) => known.includes(r))) reasons.push("inline_reference_unreviewed");
   if (/\[(?:\d+|Sayfa\s+\d+)\]/i.test(generalPart)) reasons.push("citation_in_general_part");
   const ok = reasons.length === 0;
   return { ok, citations: ok ? citationsForReferences(input.evidence, references) : [], reasons, ...usage };
