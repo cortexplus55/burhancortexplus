@@ -33,3 +33,24 @@ export function turkishFold(value: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/ı/g, "i");
 }
+
+/**
+ * İki cümle aynı şeyi mi söylüyor (19 Ekim 2026)? Kelimeler katlanıp ilk beş harfe kesilir (Türkçe
+ * ekleri kabaca atar: "eşlenmesi" ~ "eşlenir"), kesişim / birleşim oranı eşiği aşarsa tekrar sayılır.
+ * Derste doğru/yanlış sorusunun "Açıklama"sı ile "Doğrusu" çoğu kez aynı cümleydi.
+ */
+export function nearDuplicateSentence(a: string, b: string, threshold = 0.6): boolean {
+  const stems = (value: string) =>
+    new Set(
+      turkishFold(value)
+        .split(/[^a-z0-9]+/)
+        .filter((word) => word.length > 1)
+        .map((word) => word.slice(0, 5)),
+    );
+  const left = stems(a);
+  const right = stems(b);
+  if (!left.size || !right.size) return false;
+  let shared = 0;
+  for (const stem of left) if (right.has(stem)) shared += 1;
+  return shared / (left.size + right.size - shared) >= threshold;
+}

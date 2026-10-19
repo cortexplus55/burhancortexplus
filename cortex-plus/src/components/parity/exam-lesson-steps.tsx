@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { nearDuplicateSentence } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -1531,6 +1532,8 @@ function Explanation({
   const wrongBody = (pickedWhy || whyWrong || explanation).trim();
   const rightBody = (answerWhy || (structured && whyRight ? whyRight : explanation)).trim();
   const body = wrong ? wrongBody : rightBody;
+  // "Doğrusu" açıklamanın kendisini tekrar ediyorsa gösterilmez (19 Ekim 2026, canlı ders).
+  const showCorrected = Boolean(corrected) && !nearDuplicateSentence(corrected, body);
   // Boş AÇIKLAMA kutusu gösterme (28 Eyl olayı).
   if (!body && !corrected && !misconception?.trim() && !hint?.trim() && !(wrong && optionWhy.length > 1)) {
     return wrong && revisit ? (
@@ -1580,7 +1583,7 @@ function Explanation({
           <RichBody text={rightBody} topicHint={topicHint} />
         </p>
       ) : null}
-      {corrected ? (
+      {showCorrected ? (
         <p>
           <span className="als-tag als-tag--ok">Doğrusu</span> {corrected}
         </p>
