@@ -25,6 +25,7 @@ import { readPlayLessonV3 } from "@/lib/learning/lesson-play-v3";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 // Üretim düşünce ekran bir kez kendiliğinden yeniden dener (19 Ekim 2026); kurallar tek yerde.
 import { AUTO_RETRY_CODES, AUTO_RETRY_DELAY_MS } from "@/lib/learning/generation-retry";
+import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
@@ -295,6 +296,9 @@ export function ExamNodeSession({
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
   /** Astra'nın sonuç sonrası düzey önerisi; bitirişte sunucu söyler. */
   const [levelHint, setLevelHint] = useState<LevelHint | null>(null);
+  /** Sonuçtan sonra "+%X kazandın" (19 Ekim 2026); yalnız konu hâkimiyeti arttıysa. */
+  const [topicGain, setTopicGain] = useState<TopicGain | null>(null);
+  const [gainOpen, setGainOpen] = useState(false);
   const [feedback, setFeedback] = useState<{
     headline: string;
     note: string;
@@ -732,6 +736,8 @@ export function ExamNodeSession({
       if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
+      setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);
+      setGainOpen(false);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
       router.refresh();
@@ -1658,7 +1664,9 @@ export function ExamNodeSession({
         </section>
       ) : null}
 
-      {stage === "result" && !isOral && !isTimedExam && payload.type !== "readiness" && payload.type !== "practice_empty" ? (
+      {stage === "result" && gainOpen && topicGain ? <TopicGainCard gain={topicGain} nextHref={nextHref} /> : null}
+
+      {stage === "result" && !gainOpen && !isOral && !isTimedExam && payload.type !== "readiness" && payload.type !== "practice_empty" ? (
         <section
           className={cn(
             "cp-exam-node-result",
@@ -1869,9 +1877,23 @@ export function ExamNodeSession({
               <em>Aynı konuda düello kur, bağlantıyı gönder. Arkadaşının hesap açması gerekmiyor.</em>
             </span>
           </Link>
-          <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
-            {payload.type === "lesson" ? "Sıradaki adıma geç" : "Devam et"}
-          </Link>
+          {topicGain ? (
+            // Konu hâkimiyeti arttıysa önce "+%X kazandın" kartı, sonra sıradaki adım (Astra sırası).
+            <button
+              type="button"
+              className="cp-exam-continue cp-exam-continue--primary"
+              onClick={() => {
+                setGainOpen(true);
+                window.scrollTo({ top: 0 });
+              }}
+            >
+              Devam et
+            </button>
+          ) : (
+            <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
+              {payload.type === "lesson" ? "Sıradaki adıma geç" : "Devam et"}
+            </Link>
+          )}
         </section>
       ) : null}
 

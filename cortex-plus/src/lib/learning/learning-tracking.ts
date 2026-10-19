@@ -663,3 +663,27 @@ export function weakOrStaleTopicKeys(
     })
     .map((t) => t.topicKey);
 }
+
+export type TopicGain = { label: string; before: number; after: number };
+
+/**
+ * Sonuç ekranından sonraki "+%X kazandın" kartı (19 Ekim 2026, Astra'da test sonrası
+ * "Konu hakimiyeti %18" ekranı). Ölçüm bu etkinliğin kanıtıyla değişen konunun güveni:
+ * önce kayıttaki değer, sonra katlanmış değer. Kanıt yoksa (ders, kart, podcast) null.
+ */
+export function topicMasteryGain(input: {
+  prior: TopicMasterySnapshot[];
+  folded: TopicMasterySnapshot[];
+  evidenceKeys: string[];
+  topicLabel: string | null;
+}): TopicGain | null {
+  const keys = [...new Set(input.evidenceKeys.map(normalizeTopicKey))];
+  if (!keys.length) return null;
+  const own = input.topicLabel ? normalizeTopicKey(input.topicLabel) : null;
+  const key = own && keys.includes(own) ? own : keys[0]!;
+  const before = input.prior.find((topic) => normalizeTopicKey(topic.topicKey) === key)?.confidence ?? 0;
+  const after = input.folded.find((topic) => normalizeTopicKey(topic.topicKey) === key)?.confidence;
+  if (typeof after !== "number") return null;
+  const label = own === key && input.topicLabel ? input.topicLabel.trim() : key;
+  return { label, before: Math.round(before), after: Math.round(after) };
+}

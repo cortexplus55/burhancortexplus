@@ -11,7 +11,9 @@ import {
   preferNextNodeForTracking,
   stripAnswerMeta,
   toPersistedTracking,
+  topicMasteryGain,
   weakOrStaleTopicKeys,
+  type TopicGain,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
 
@@ -47,7 +49,7 @@ export async function recordLearningTrackingAfterComplete(
     sessionObjective: string | null;
     targetScore: number | null;
   },
-): Promise<{ nextNodeId: string | null; tracking: ReturnType<typeof toPersistedTracking> }> {
+): Promise<{ nextNodeId: string | null; tracking: ReturnType<typeof toPersistedTracking>; topicGain: TopicGain | null }> {
   const priorCount = await countPriorCompletedAttempts(service, {
     userId: input.userId,
     prepId: input.prepId,
@@ -122,6 +124,13 @@ export async function recordLearningTrackingAfterComplete(
   }));
 
   const folded = foldTopicMastery(evidence, prior);
+  // "+%X kazandın" kartı (19 Ekim 2026): bu etkinliğin kanıtıyla değişen konunun güveni.
+  const topicGain = topicMasteryGain({
+    prior,
+    folded,
+    evidenceKeys: evidence.map((row) => row.topicKey),
+    topicLabel: input.topicLabel,
+  });
 
   for (const topic of folded) {
     if (!topic.measured && topic.evidenceCount === 0) continue;
@@ -219,7 +228,7 @@ export async function recordLearningTrackingAfterComplete(
     weakOrStaleTopicKeys: weakOrStaleTopicKeys(folded),
   });
 
-  return { nextNodeId: next?.id ?? null, tracking };
+  return { nextNodeId: next?.id ?? null, tracking, topicGain };
 }
 
 export { stripAnswerMeta };

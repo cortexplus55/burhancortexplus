@@ -1054,6 +1054,8 @@ async function handleNodeRequest(
       ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
       : `/deneme-sinavlari/${prepId}`;
     let learningTracking: unknown = null;
+    /** Sonuçtan sonra "+%X kazandın" kartı (19 Ekim 2026); kanıt üreten etkinliklerde dolu. */
+    let topicGain: { label: string; before: number; after: number } | null = null;
 
     if (teachingV2) {
       let payloadForEvidence = attempt.payload;
@@ -1109,6 +1111,7 @@ async function handleNodeRequest(
             typeof prep.target_score === "number" ? prep.target_score : null,
         });
         learningTracking = tracked.tracking;
+        topicGain = tracked.topicGain;
         if (tracked.nextNodeId) {
           nextHref = `/deneme-sinavlari/${prepId}/dugum/${tracked.nextNodeId}`;
         }
@@ -1176,6 +1179,7 @@ async function handleNodeRequest(
       retried: scored.retried,
       nextHref,
       learningTracking,
+      topicGain,
       // Astra: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
       levelHint: await loadLevelHint(service, prepId).catch(() => null),
       state: "completed",
