@@ -698,3 +698,21 @@ kartında toplu üretilir (`BETA-XXXX-XXXX`, karışan harf yok); kod ya da haz�
 
 Bekçi: `beta-plus-codes.test.ts` (göçü PGlite'ta çalıştırır: açılış, tek kişilik kod, tek deneme,
 ücretli Plus'ın ezilmemesi, deneme bitince günlük hakka dönüş, hediye kredi).
+
+## Haftalık kısa anket (19 Ekim 2026) — kapalı beta geri bildirimi
+
+Ürün sahibinin kararı: "Uygulama içi haftalık kısa anket". Sınavlar sayfasında, listenin üstünde
+kart; dört soru: yardım (1-5), önerme (0-10), en çok kullanılan, tek cümle öneri (isteğe bağlı).
+Sonuçlar `/admin/anket`: hafta hafta cevap, "Şimdi değil", yardım ortalaması, tavsiye puanı
+(9-10 eksi 0-6), en çok kullanılan; altta son öneriler, satır öğrencinin destek görünümüne gider.
+
+| Kural | Nerede |
+|---|---|
+| Kime: o hafta en az bir etkinlik açan, hesabı iki günden eski öğrenci; haftada en çok bir kez (İstanbul saatiyle ISO hafta). Karar sunucuda; okuma düşerse kart görünmez | `weekly-survey-server.ts` `surveyEligibility` |
+| "Şimdi değil" (ya da ×) da haftanın satırını yazar: aynı hafta yeniden sorulmaz | göç `20261019170000`, `UNIQUE (user_id, week_key)` |
+| Hafta anahtarı istemciden alınmaz; cevabın yanına anlık plan yazılır (ücretsiz / Plus / Sigma / **beta**) | `/api/feedback/weekly` |
+| Kapatma: Özellik anahtarları → `weekly_survey` (göç açık ekler) | `feature_flags` |
+| Hesap silinince satırlar gider (aynı turda eksik bulunan `star_events`, `exam_wizard_drafts` da listeye girdi) | `account-deletion.ts` |
+
+Destek görünümleri artık ham kod göstermiyor ("inactive", "basics", "lesson", "slow_generation"):
+adlar öğrencinin gördüğü kaynaklardan (`support-labels.ts`). Bekçi: `weekly-survey.test.tsx`.

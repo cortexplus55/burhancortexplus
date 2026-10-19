@@ -1,0 +1,184 @@
+/* Haftalık kısa anket kartı (19 Ekim 2026, kapalı beta). Sınavlar sayfasında, listenin üstünde. */
+
+.cp-survey {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 18px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-2xl);
+  background: var(--c-surface-1);
+  color: var(--c-text);
+}
+
+.cp-survey--thanks p {
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-success);
+}
+
+.cp-survey-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cp-survey-title {
+  margin: 0;
+  font: var(--t-title-m);
+}
+
+.cp-survey-intro {
+  margin: 4px 0 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-survey-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  color: var(--c-text-muted);
+}
+
+.cp-survey-close:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+.cp-survey-q {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cp-survey-q legend,
+.cp-survey-text > span {
+  margin-bottom: 8px;
+  padding: 0;
+  font: var(--t-label-15);
+  color: var(--c-text);
+}
+
+.cp-survey-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cp-survey-scale--11 {
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cp-survey-scale button,
+.cp-survey-chips button {
+  min-height: 36px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+  font: var(--t-label-13);
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-survey-scale button.is-on,
+.cp-survey-chips button.is-on {
+  border-color: var(--c-action);
+  background: var(--c-action-soft);
+}
+
+.cp-survey-ends {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font: var(--t-label-11);
+  color: var(--c-text-subtle);
+}
+
+.cp-survey-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cp-survey-chips button {
+  padding: 0 12px;
+}
+
+.cp-survey-text textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+  font: var(--t-body-14);
+  color: var(--c-text);
+  resize: vertical;
+}
+
+.cp-survey-text textarea:focus {
+  outline: none;
+  border-color: var(--c-action);
+}
+
+.cp-survey-error {
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-danger);
+}
+
+.cp-survey-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cp-survey-later,
+.cp-survey-send {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  font: var(--t-button-s);
+}
+
+.cp-survey-later {
+  color: var(--c-text-muted);
+}
+
+.cp-survey-send {
+  background: var(--c-action);
+  color: var(--c-on-action);
+}
+
+.cp-survey-send:disabled {
+  opacity: 0.45;
+}
+
+/* 375 px'te on bir düğme sığsın: aralık ve yazı küçülür, dokunma alanı 24 px'in üstünde kalır. */
+@media (max-width: 480px) {
+  .cp-survey {
+    padding: 14px;
+  }
+
+  .cp-survey-scale--11 {
+    gap: 3px;
+  }
+
+  .cp-survey-scale--11 button {
+    min-height: 32px;
+    font: var(--t-label-11);
+  }
+}
