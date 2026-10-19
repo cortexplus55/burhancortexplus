@@ -268,7 +268,7 @@ describe("motor ayarları", () => {
     expect(run).toMatch(/reasoning_effort: "low",\s*\.\.\.tier/);
     expect(run).toContain('...(role === "fix" ? { reasoning_effort: "low" as const } : {})');
     expect(run).toContain('const tier = options.fast ? ({ service_tier: "fast" } as const) : {};');
-    expect(run).toContain('fast: input.fast,');
+    expect(run).toContain('const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));');
     // Öğrenci beklerken hızlı işlem; ısınma yazımında da (öğrenci kartlarda, 19 Ekim 2026).
     expect(readFileSync('src/app/api/learning/exam-prep/node/route.ts', 'utf8')).toContain('fast: input.charge !== false || input.warm === true,');
     expect(run).toContain("`${model}-fast`");

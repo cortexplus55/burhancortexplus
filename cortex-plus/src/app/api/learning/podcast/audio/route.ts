@@ -13,7 +13,7 @@ export const maxDuration = 300;
  * Podcast seslendirme.
  *
  * Kayıtlı her kademe bu ucu çağırabilir. Harcama özellik kilidi değil:
- * yalnızca gerçekten üretilen karakter faturalanıyor (900 karakter = 1 kredi);
+ * yalnızca gerçekten üretilen karakter faturalanıyor (900 karakter = 15 kredi, 19 Ekim 2026);
  * önbellekten gelen cümle bedava, çünkü bize de bir maliyeti yok. Hak bitince
  * 402 `insufficient_credits`. Misafir `withUser` ile 401 alır.
  *

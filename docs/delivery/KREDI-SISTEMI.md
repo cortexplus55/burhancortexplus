@@ -46,7 +46,7 @@ orantılı kalır. Öğrenci sayıyı değil **yüzdeyi** görür (#179).
 | Fotoğraftan soru | `IMAGE_SOLUTION` | 10 |
 | Belge, metinli sayfa | `DOCUMENT_PAGE_PROCESS` (sayfa başına) | 2 |
 | Belge, taranmış sayfa (üstüne) | `DOCUMENT_SCAN_PAGE` | 6 |
-| Seslendirme (900 karakter) | `AUDIO_SYNTHESIZE` | 2 |
+| Seslendirme (900 karakter) | `AUDIO_SYNTHESIZE` | **15** (19 Ekim 2026; önce 2 — ölçülen maliyet 900 karakter ≈ $0,015, `MALIYET-MODELI.md`) |
 
 Konu haritası, kurulum sohbeti ve hazırlık adı haktan düşmez (#249).
 

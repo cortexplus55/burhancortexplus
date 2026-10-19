@@ -19,6 +19,7 @@ import {
   type PodcastChapter,
 } from "@/lib/learning/podcast-script";
 import { cn } from "@/lib/utils";
+import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 
 /**
@@ -59,7 +60,7 @@ export type SavedEpisode = {
 };
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
-/** 900 karakter ≈ 1 dakika ≈ 1 kredi (bkz. audio-cache.ts). */
+/** 900 karakter ≈ 1 dakika konuşma (bkz. audio-cache.ts); bedeli fiyat tablosundan (19 Ekim 2026: 15 kredi). */
 const CHARS_PER_MINUTE = 900;
 const ESTIMATED_MINUTES = 5;
 
@@ -211,7 +212,7 @@ export function PodcastStudio({
     setPlaying(false);
 
     /*
-      Ses ayrı bir istek ve ayrı bir bedel (900 karakter = 1 kredi; önbellekten
+      Ses ayrı bir istek ve ayrı bir bedel (900 karakter = 15 kredi; önbellekten
       gelen cümle bedava). Senaryo kredisi bu noktada zaten harcandı, bu yüzden
       ses gelmese bile senaryo ekranda kalıyor — öğrenci ödediği şeyi görüyor.
       Ses üretimi başarısızsa ses kredisi sunucuda iade ediliyor
@@ -375,7 +376,7 @@ export function PodcastStudio({
             <div>
               <dt>Kredi</dt>
               <dd>
-                Senaryo {creditCost ?? "—"} · Ses ~{ESTIMATED_MINUTES} (dakika başına 1;
+                Senaryo {creditCost ?? "—"} · Ses ~{ESTIMATED_MINUTES * CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits} (dakika başına ~{CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits};
                 daha önce üretilmiş cümleler bedava)
               </dd>
             </div>

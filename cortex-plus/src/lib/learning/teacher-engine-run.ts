@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
+import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
@@ -68,7 +69,8 @@ async function runWithTeacherModelInner<R>(
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
-  const tier = fastTier(!free && !held);
+  // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
+  const tier = fastTier(!free && !held && (await fastAllowedFor(service, options.userId)));
   const ask: AskJson = async (system, user) => {
     calls += 1;
     const response = await openai.chat.completions.create({
