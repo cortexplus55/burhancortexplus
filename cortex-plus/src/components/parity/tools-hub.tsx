@@ -21,6 +21,16 @@ import {
 import { cn } from "@/lib/utils";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { TOOLS, TOOL_SUBJECTS, type Tool } from "@/lib/parity/tools";
+import { exceedsFreeDaily } from "@/lib/billing/free-reach";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import type { ActionCode } from "@/lib/env";
+
+/** Ücretsiz günlük haktan büyük kısayollar (19 Ekim 2026): ücretsiz hesapta "Plus" rozeti. */
+const TOOL_ACTION: Partial<Record<string, ActionCode>> = {
+  "soru-coz": "IMAGE_SOLUTION",
+  podcast: "PODCAST_GENERATE",
+  sozlu: "ORAL_EXAM_GENERATE",
+};
 
 /**
  * Araçlar merkezi.
@@ -48,9 +58,12 @@ const ICONS: Record<string, LucideIcon> = {
   sohbetler: MessageSquare,
   yanlislarim: NotebookPen,
   anlat: Mic,
+  "dogru-yanlis": BookOpen,
 };
 
 export function ToolsHub() {
+  const shellAccount = useStudentShellAccount();
+  const freeAccount = shellAccount ? !shellAccount.isPremium : false;
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState<string>("Tümü");
 
@@ -110,7 +123,7 @@ export function ToolsHub() {
           </h2>
           <div className="tools-grid">
             {calculators.map((t) => (
-              <ToolCard key={t.id} tool={t} />
+              <ToolCard key={t.id} tool={t} plus={false} />
             ))}
           </div>
         </section>
@@ -123,9 +136,10 @@ export function ToolsHub() {
             <span>{shortcuts.length}</span>
           </h2>
           <div className="tools-grid">
-            {shortcuts.map((t) => (
-              <ToolCard key={t.id} tool={t} />
-            ))}
+            {shortcuts.map((t) => {
+              const code = TOOL_ACTION[t.id];
+              return <ToolCard key={t.id} tool={t} plus={freeAccount && Boolean(code && exceedsFreeDaily(code))} />;
+            })}
           </div>
         </section>
       ) : null}
@@ -147,7 +161,7 @@ const ICONS_3D: Partial<Record<string, Icon3DName>> = {
   birim: "birim",
 };
 
-function ToolCard({ tool }: { tool: Tool }) {
+function ToolCard({ tool, plus }: { tool: Tool; plus: boolean }) {
   const Icon = ICONS[tool.id] ?? Layers;
   const art = ICONS_3D[tool.id];
   const isShortcut = tool.kind === "kisayol";
@@ -171,9 +185,13 @@ function ToolCard({ tool }: { tool: Tool }) {
         <span className="tool-blurb">{tool.blurb}</span>
       </span>
       <span className="tool-meta">
-        <span className={cn("tool-kind", isShortcut ? "is-shortcut" : "is-hesap")}>
-          {isShortcut ? "Kısayol" : "Hesap"}
-        </span>
+        {plus ? (
+          <span className="tool-kind is-plus">Plus</span>
+        ) : (
+          <span className={cn("tool-kind", isShortcut ? "is-shortcut" : "is-hesap")}>
+            {isShortcut ? "Kısayol" : "Hesap"}
+          </span>
+        )}
         <span className="tool-subject">{tool.subject}</span>
       </span>
     </Link>
