@@ -465,6 +465,12 @@ async function handleNodeRequest(
   options: { origin: string; prefetchNodeId: string | null },
 ): Promise<NextResponse> {
   const { userId, service } = ctx;
+  // Soğuk dersin rota zaman çizgisi (19 Ekim 2026): motor ilk kavramı 9,8 sn'de yayımlarken
+  // öğrenci ilk ekranı 15 sn'de gördü — aradaki ~5 sn rotada. Nerede olduğu kayda yazılır.
+  const requestStarted = Date.now();
+  let peekBuildingMs: number | null = null;
+  let generationLaunchedMs: number | null = null;
+  let firstPublishedMs: number | null = null;
 
   const parsed = bodySchema.safeParse(rawBody);
   if (!parsed.success) return errorResponse(400, "invalid_input");
@@ -1396,7 +1402,9 @@ async function handleNodeRequest(
   // Yazımı süren hazır ders (18 Ekim 2026): ikinci kez yazılmaz, devralınır. Öğrenci
   // denetlenmiş kısmı hemen görür; kalanı önceden yazım yazdıkça kaydına düşer.
   if (kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.lessonStream === true) {
+    const peekStarted = Date.now();
     const building = await peekBuildingPrefetch(service, { userId, nodeId, familiarity, waitMs: 20_000 });
+    peekBuildingMs = Date.now() - peekStarted;
     if (building?.status === "building") {
       const requestId = clientRequestId ?? crypto.randomUUID();
       const reservation = await reserveCredits(
@@ -2061,10 +2069,12 @@ async function handleNodeRequest(
     }
     if (!shownFirst) {
       shownFirst = true;
+      firstPublishedMs = Date.now() - requestStarted;
       announceFirst(next);
     }
   };
 
+  generationLaunchedMs = Date.now() - requestStarted;
   const generation: Promise<Record<string, unknown>> = (async () =>
     voiceSession
       ? { type: "voice" }
@@ -2502,7 +2512,14 @@ async function handleNodeRequest(
         .eq("id", creatingAttemptId!)
         .maybeSingle();
       if (activeAttempt) {
-        console.info("lesson_first_shown", { nodeId });
+        console.info("lesson_first_shown", {
+          nodeId,
+          // ms, istek başından: önceden yazım bekleme · motor başlangıcı · ilk yayın · yanıt
+          peekBuildingMs,
+          generationLaunchedMs,
+          firstPublishedMs,
+          respondedMs: Date.now() - requestStarted,
+        });
         return NextResponse.json({
           ...attemptStartResponse(activeAttempt, {
             kind,
@@ -2851,6 +2868,7 @@ async function teacherLessonPayload(
 ) {
   const startedAt = Date.now();
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const headersMs = Date.now() - startedAt;
   const clean = core
     ? await ensureCleanPages(input.service, {
         userId: input.userId,
@@ -2859,6 +2877,13 @@ async function teacherLessonPayload(
         edges,
       })
     : [];
+  // Motor öncesi: sayfa kenarı satırları + temiz sayfa (model temizliği gerekirse burada ödenir).
+  console.info("lesson_pre_timing", {
+    headersMs,
+    cleanMs: Date.now() - startedAt - headersMs,
+    pages: clean.length,
+    cleanedByModelNow: clean.filter((item) => item.cleaned).length,
+  });
   const outcome = await runTeacherLesson(input.service, {
     mode: core ? "document" : "topic",
     userId: input.userId,
