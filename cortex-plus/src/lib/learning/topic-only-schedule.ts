@@ -1,5 +1,7 @@
 import {
   buildExamScheduleV2,
+  prepDailyMinutes,
+  prepStudyDays,
   scheduleSessionsToNodeDrafts,
   type ScheduleBuildResult,
   type ScheduleTopicInput,
@@ -39,8 +41,8 @@ export function buildTopicOnlySchedule(input: {
 }): { schedule: ScheduleBuildResult; drafts: PlanNodeDraft[] } {
   const schedule = buildExamScheduleV2({
     daysToExam: input.daysToExam,
-    dailyMinutes: input.dailyMinutes ?? 45,
-    studyDays: input.studyDays?.length ? input.studyDays : [1, 2, 3, 4, 5],
+    dailyMinutes: prepDailyMinutes(input.dailyMinutes),
+    studyDays: prepStudyDays(input.studyDays),
     topics: topicOnlyScheduleTopics(input.titles, input.hardTopics ?? []),
     targetScore: input.targetScore,
   });

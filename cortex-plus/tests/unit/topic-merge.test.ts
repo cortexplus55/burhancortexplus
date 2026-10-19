@@ -96,16 +96,18 @@ describe("prerequisite order", () => {
     ]);
   });
 
-  it("puts a heavier ready topic ahead of a lighter one", () => {
+  // 19 Ekim 2026'ya kadar ağır konu hafif konunun önüne geçiyordu; artık sırayı yalnız ön koşul ve
+  // belgenin sırası belirler, ağırlık süre ve ek pratik verir.
+  it("exam weight does not jump a lighter topic; a prerequisite still comes first", () => {
     const weighted = [
       { title: "Temel kanunlar", prerequisites: [] as string[], weightPercent: 5 },
       { title: "Stokiyometri", prerequisites: ["Mol kavramı"], examHeavy: true, weightPercent: 25 },
       { title: "Mol kavramı", prerequisites: [] as string[], examHeavy: true, weightPercent: 10 },
     ];
     expect(orderTopicsForPath(weighted, { manualOrder: false }).map((topic) => topic.title)).toEqual([
+      "Temel kanunlar",
       "Mol kavramı",
       "Stokiyometri",
-      "Temel kanunlar",
     ]);
   });
 

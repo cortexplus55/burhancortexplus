@@ -11,7 +11,8 @@ import {
 } from "@/lib/admin/feature-flags";
 import { ensureDailyPlan, istanbulToday } from "@/lib/adaptive/daily-planner";
 import { maybeReplanMaster } from "@/lib/adaptive/master-plan-engine";
-import type { ScheduleBuildResult, ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
+import { prepDailyMinutes, prepStudyDays, type ScheduleBuildResult } from "@/lib/learning/exam-schedule-v2";
+import { loadPrepScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 
 const bodySchema = z.object({
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   const { data: prep } = await service
     .from("exam_preps")
     .select(
-      "id, exam_date, daily_minutes, study_days, schedule_v2, adaptive_plan_version",
+      "id, exam_date, daily_minutes, study_days, hard_topics_self, schedule_v2, adaptive_plan_version",
     )
     .eq("id", parsed.data.examPrepId)
     .maybeSingle();
@@ -59,25 +60,20 @@ export async function POST(request: Request) {
       .eq("exam_prep_id", parsed.data.examPrepId);
 
     const previous = prep.schedule_v2 as ScheduleBuildResult;
-    const topicMap = new Map<string, ScheduleTopicInput>();
-    for (const s of previous.sessions ?? []) {
-      topicMap.set(s.topicId, {
-        id: s.topicId,
-        title: s.topicTitle,
-        pageNumbers: s.sourcePages ?? [],
-      });
-    }
+    const topics = await loadPrepScheduleTopics(service, {
+      prepId: prep.id,
+      previous,
+      hardTopics: Array.isArray(prep.hard_topics_self) ? (prep.hard_topics_self as string[]) : [],
+    });
 
     const record = await maybeReplanMaster(service, {
       userId,
       examPrepId: parsed.data.examPrepId,
       triggers: [parsed.data.reason === "manual" ? "manual" : parsed.data.reason],
-      topics: [...topicMap.values()],
+      topics,
       examDate: prep.exam_date as string,
-      dailyMinutes: Number(prep.daily_minutes ?? 60),
-      studyDays: Array.isArray(prep.study_days)
-        ? (prep.study_days as number[])
-        : [1, 2, 3, 4, 5],
+      dailyMinutes: prepDailyMinutes(prep.daily_minutes),
+      studyDays: prepStudyDays(prep.study_days),
       nodes: (nodes ?? []).map((n) => ({
         id: n.id as string,
         kind: n.kind as PlanNodeKind,

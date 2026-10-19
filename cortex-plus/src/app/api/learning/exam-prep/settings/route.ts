@@ -5,7 +5,8 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
 import { rebuildPrepSchedule } from "@/lib/learning/exam-prep-reschedule-apply";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import type { ScheduleBuildResult, ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
+import { prepDailyMinutes, prepStudyDays, type ScheduleBuildResult } from "@/lib/learning/exam-schedule-v2";
+import { loadPrepScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 
 const prefsSchema = z.object({
   style: z.enum(["examples", "theory", "mixed"]).optional(),
@@ -56,14 +57,8 @@ export async function PATCH(request: Request) {
   if (!prep) return errorResponse(404, "not_found");
 
   const nextExamDate = parsed.data.examDate ?? prep.exam_date;
-  const nextDaily =
-    parsed.data.dailyMinutes ??
-    (typeof prep.daily_minutes === "number" ? prep.daily_minutes : 45);
-  const nextStudyDays =
-    parsed.data.studyDays ??
-    (Array.isArray(prep.study_days) && prep.study_days.length
-      ? (prep.study_days as number[])
-      : [1, 2, 3, 4, 5]);
+  const nextDaily = parsed.data.dailyMinutes ?? prepDailyMinutes(prep.daily_minutes);
+  const nextStudyDays = prepStudyDays(parsed.data.studyDays ?? prep.study_days);
   const nextHard =
     parsed.data.hardTopics ??
     (Array.isArray(prep.hard_topics_self)
@@ -97,40 +92,8 @@ export async function PATCH(request: Request) {
       .eq("exam_prep_id", prep.id);
     if (nodesError) return errorResponse(503, "node_lookup_failed");
 
-    const { data: topicRows } = await service
-      .from("exam_prep_topics")
-      // SIRA ÖNEMLİ, SIRASIZ SORGU YETMİYOR.
-      //
-      // Planı kuran sıralama, konular eşit puanlıysa GİRDİ SIRASINI koruyor
-      // ve girdinin belgenin sırası olduğunu varsayıyor. Kurulumda öyle
-      // (`document_topic_nodes` sort_order'a göre okunuyor), ama yenilemede
-      // değildi: bu sorgunun sırası yoktu. Sonuç, canlıda yenilenen bir
-      // Türkçe planının "Topluluğun Doğuşu" ile BİTMESİ oldu.
-      .select("id, label, document_topic_node_id, sort_order")
-      .eq("exam_prep_id", prep.id)
-      .order("sort_order");
-
-    const hardSet = new Set(
-      nextHard.map((t) => t.trim().toLocaleLowerCase("tr")),
-    );
-    const topics: ScheduleTopicInput[] = (topicRows ?? []).map((t) => ({
-      id: (t.document_topic_node_id as string | null) ?? (t.id as string),
-      title: t.label as string,
-      selfHard: hardSet.has(String(t.label).trim().toLocaleLowerCase("tr")),
-      pageNumbers: [],
-    }));
-
-    // Prefer previous session topic ids when available.
-    const fromSessions = previous.sessions.map((s) => ({
-      id: s.topicId,
-      title: s.topicTitle,
-      pageNumbers: s.sourcePages ?? [],
-      selfHard: hardSet.has(s.topicTitle.trim().toLocaleLowerCase("tr")),
-    }));
-    const topicMap = new Map<string, ScheduleTopicInput>();
-    for (const t of [...topics, ...fromSessions]) {
-      topicMap.set(t.id, t);
-    }
+    // Sıra hazırlığın konu sırası; kaynaklar, ders bölümleri ve ağırlık kayıttan (tek yükleyici).
+    const topics = await loadPrepScheduleTopics(service, { prepId: prep.id, previous, hardTopics: nextHard });
 
     const result = await rebuildPrepSchedule(service, {
       prepId: prep.id,
@@ -138,7 +101,7 @@ export async function PATCH(request: Request) {
       examDate: nextExamDate as string,
       dailyMinutes: nextDaily,
       studyDays: nextStudyDays,
-      topics: [...topicMap.values()],
+      topics,
       previous,
       settings: { hard_topics_self: nextHard, learning_preferences: nextPrefs },
       nodes: (nodeRows ?? []).map((n) => ({

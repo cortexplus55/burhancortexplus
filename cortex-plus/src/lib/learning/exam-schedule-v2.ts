@@ -48,16 +48,29 @@ export type ScheduleBuildInput = {
   targetScore?: number | null;
   /** Calendar start (its Europe/Istanbul day); defaults to now. */
   fromDate?: Date;
-  /**
-   * Konular öğrencinin onayladığı sırada gelir; takvim onları yeniden dizmez.
-   *
-   * 19 Ekim 2026, AYT Biyoloji sınav seti: sihirbaz "Yol bu listeyle kurulur" dedi, listede
-   * "Sinir Dokusu, Nöron Yapısı" birinciydi; yol "Dinlenme Potansiyeli"yle başladı ve nöron yapısı
-   * yedinci sıraya düştü, çünkü "sınavda ağırlıklı" konular öne alınıyordu. Ağırlık süreyi ve
-   * pratik sayısını artırır; sırayı öğrencinin listesi belirler.
-   */
-  keepOrder?: boolean;
 };
+
+/**
+ * Öğrenci çalışma günü seçmediyse her gün sayılır (19 Ekim 2026). Sihirbaz gün sormuyor; yalnız hafta
+ * içi sayılınca 25 gün sonraki sınavın planı 18 güne iniyor, son güne konu yığılıyordu. Seçim
+ * hazırlık ayarlarından yapılır ve kayda geçer; boş kayıt da "her gün" demektir.
+ */
+export const DEFAULT_STUDY_DAYS: readonly number[] = [1, 2, 3, 4, 5, 6, 7];
+/** Günlük süre sorulmuyor; takvim etkinlikleri güne bu bütçeyle dağıtır (özette saat yazılmaz). */
+export const DEFAULT_DAILY_MINUTES = 45;
+
+/** Kayıttaki çalışma günleri; boşsa ya da bozuksa her gün. ISO hafta günü 1=Pzt … 7=Paz. */
+export function prepStudyDays(stored: unknown): number[] {
+  const days = Array.isArray(stored)
+    ? stored.filter((day): day is number => Number.isInteger(day) && day >= 1 && day <= 7)
+    : [];
+  return days.length ? [...new Set(days)].sort((a, b) => a - b) : [...DEFAULT_STUDY_DAYS];
+}
+
+/** Kayıttaki günlük dakika; yoksa varsayılan. */
+export function prepDailyMinutes(stored: unknown): number {
+  return typeof stored === "number" && Number.isFinite(stored) && stored >= 5 ? Math.min(480, stored) : DEFAULT_DAILY_MINUTES;
+}
 
 export type ScheduleSession = {
   dayIndex: number;
@@ -183,11 +196,7 @@ export function listStudyDayDates(
   from = new Date(),
 ): string[] {
   const span = Math.max(1, Math.min(120, Math.floor(daysToExam)));
-  const allowed = new Set(
-    (studyDays.length ? studyDays : [1, 2, 3, 4, 5]).filter(
-      (d) => d >= 1 && d <= 7,
-    ),
-  );
+  const allowed = new Set(prepStudyDays(studyDays));
   const start = istanbulDay(from);
   const dates: string[] = [];
   for (let offset = 0; offset < span; offset += 1) {
@@ -221,31 +230,13 @@ export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
 }
 
 /**
- * Müfredat payı bir konuyu öne alabilir; ön koşulunun önüne geçiremez.
- * "Önemli" rozeti tek başına sırayı bozmaz — o, süre ve pratik miktarıdır.
- */
-export function canPromoteForWeight(topic: {
-  examHeavy?: boolean;
-  weightPercent?: number | null;
-}): boolean {
-  return Boolean(topic.examHeavy) || (topic.weightPercent ?? 0) >= 20;
-}
-
-function weaknessRank(topic: ScheduleTopicInput): number {
-  if (topic.measuredLevel === "weak" || topic.selfHard) return 0;
-  if (topic.measuredLevel === "emerging") return 1;
-  return 2;
-}
-
-/**
- * Ön koşul, sonra ölçülmüş zayıflık, sonra sınav ağırlığı, en son belgenin sırası.
+ * Ön koşul, sonra belgenin sırası. Eşitlik bozucu BELGENİN KENDİ SIRASI, alfabe değil: konular
+ * buraya belgeden çıktıkları sırayla geliyor, yazarın öğretim sırası.
  *
- * Eşitlik bozucu BELGENİN KENDİ SIRASI, alfabe değil.
- *
- * Yeni bir hazırlıkta hiçbir konu ölçülmemiştir. Konular buraya belgeden
- * çıktıkları sırayla geliyor: yazarın öğretim sırası. Ölçülmüş bir zayıflık
- * yoksa ve konu sınavda ayrıca ağır değilse o sıra korunur. Ağır bir konu,
- * dayandığı konu bittikten sonra daha hafif bağımsız konuların önüne geçebilir.
+ * Sınav ağırlığı, ölçülen zayıflık ve öğrencinin "zorlandığım" seçimi SIRAYI DEĞİŞTİRMEZ (19 Ekim
+ * 2026): süre ve ek pratik verir (`estimateTopicMinutes`, `extraPracticeForTopic`). Eskiden
+ * öne alıyordu; AYT Biyoloji setinde yol "Sinir Dokusu, Nöron Yapısı"nı yedinci sıraya itti, yeniden
+ * planlamada da öğrencinin odak seçtiği konular yolun başına sıçrıyordu.
  */
 export function orderTopicsByPrerequisites(
   topics: ScheduleTopicInput[],
@@ -267,10 +258,7 @@ export function orderTopicsByPrerequisites(
       });
     });
     const pick = (ready.length ? ready : topics.filter((t) => remaining.has(t.id))).sort(
-      (a, b) =>
-        weaknessRank(a) - weaknessRank(b) ||
-        (canPromoteForWeight(a) ? 0 : 1) - (canPromoteForWeight(b) ? 0 : 1) ||
-        (documentOrder.get(a.id) ?? 0) - (documentOrder.get(b.id) ?? 0),
+      (a, b) => (documentOrder.get(a.id) ?? 0) - (documentOrder.get(b.id) ?? 0),
     )[0];
     if (!pick) break;
     remaining.delete(pick.id);
@@ -326,7 +314,9 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     input.fromDate,
   );
   const availableMinutes = studyDayDates.length * daily;
-  const ordered = input.keepOrder ? input.topics.slice() : orderTopicsByPrerequisites(input.topics);
+  // Konular yolun sırasıyla gelir (kurulumda öğrencinin onayladığı liste, yeniden planlamada
+  // hazırlığın konu sırası); takvim yeniden dizmez.
+  const ordered = input.topics.slice();
   const loads = ordered.map((t) => ({
     topic: t,
     minutes: estimateTopicMinutes(t),

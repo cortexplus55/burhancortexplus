@@ -21,7 +21,7 @@ dosyanın yalnız kendisinde olan bilgi yazılı).
 
 | | Astra (hazırlık 10168652) | Cortex (hazırlık 58d065e9, düzeltmelerden sonra) |
 |---|---|---|
-| 7 dosyanın okunması | ~30 sn | ~76 sn (dosyalar sırayla işleniyor) |
+| 7 dosyanın okunması | ~30 sn | ~76 sn sırayla; artık ücretli hesapta 3 dosya aynı anda (yayından sonra ölçülecek) |
 | Konu listesi | ~90 sn; 10 geniş konu, konu başına "N kaynak" | ~105 sn; 10 ünite, 28 konu; her konu tek bir dosyanın sayfalarına bağlı |
 | Word 6 sayfa | okundu | 19 Ekim'de 1 sayfa sayılıyordu → #376 ile 6 sayfa |
 | Adımlar | ders, tarih, hedef, materyal, konular, çalışma biçimi ("Sen karar ver" dahil), odak, özet | aynı sıra; aşinalık kurulumda bir kez (Astra derste soruyor); "Sen karar ver" yok — boş seçim aynı anlama geliyor (17 Ekim kararı) |
@@ -80,10 +80,12 @@ düzeyi / denemeler / tempo, sınav günü tahmini, bilgi eksikleri, konu listes
 | #377 | Kurulum konuları sihirbazın haritasından değil eski birleştirmeden türetiyordu (9 konu sayfasız, yanlış sayfalar); yol listeden farklı sırada; yalnız hafta içi (25 gün → 18); son 10 konu testsiz son güne yığıldı; "N kaynak" 7 dosyayı da gösteriyordu; "PH" | kurulum haritayı okur ve sırasını korur; sorulmayan çalışma günü = her gün; iki geçişli takvim; kaynak penceresi konunun dosyaları; pH/mRNA/DNA korunur |
 | #378 | Üç dosya hiçbir derse girmiyordu; iki konu tek fotoğraftan yazılacaktı | yardımcı kaynaklar (yukarıda) |
 | #379 | Hiç açılmamış derste her açılışta ~5 sn "Kaldığın yer açılıyor… kaydedilmiş cevapların yükleniyor" | açık oturum sunucuda okunur; yoksa sorgu ve ekran atlanır |
+| (bu PR) | Yeniden planlama (tarih, ayarlar, kaçırılan gün, uyarlamalı plan) konuları eski oturumlardan kuruyordu: dosya etiketi ve çok dersli konular kayboluyor, "zorlandığım" konu başa sıçrıyor, varsayılan yalnız hafta içi ve 45/60 dk tutarsız | tek yükleyici `loadPrepScheduleTopics`; ağırlık/zayıflık sırayı hiç değiştirmez; tek varsayılan (her gün, 45 dk); eski kurallar silindi |
+| (bu PR) | 7 dosya sırayla işleniyordu (~76 sn); bekleyen belge kaydı tek kayıttı ve bir sekmenin temizliği öbürününkini siliyordu | ücretli hesapta 3 dosya aynı anda, seçim sırası korunur; kayıt belge başına |
+| (bu PR) | Kurulumda konunun kaç dosyadan beslendiği görünmüyordu; tek konulu ünite konunun adını tekrar ediyordu | çok dosyalı konuda "N kaynak" (yardımcı dosyalar dahil); tekrar eden başlık yazılmaz |
 
 ## Açık kalan
 
-- 7 dosyanın okunması ~76 sn (Astra ~30 sn). Dosyalar sırayla işleniyor; paralel işleme, "sekmeyi
-  kapatırsan kaldığı yerden devam eder" kaydının tek dosyalık yapısını değiştirmeyi gerektiriyor.
-- Kurs haritası bir konuyu tek dosyaya bağlıyor; çok dosyalı konu #378'in yardımcı kaynaklarıyla
-  karşılanıyor, haritanın kendisinde değil.
+- Kurs haritası bir konuyu tek dosyaya bağlıyor; çok dosyalı konu yardımcı kaynaklarla (#378) karşılanıyor,
+  haritanın kendisinde değil. Ders, test, kart ve podcast hepsi yardımcı kaynakları okuyor; haritayı değiştirmek
+  model istemini ve temellendirmeyi dosya dosya yeniden yazmayı gerektirir, ölçülmüş bir açık yok.

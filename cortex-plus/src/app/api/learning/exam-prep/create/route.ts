@@ -18,6 +18,8 @@ import {
 import { alignNewSessionSortOrders } from "@/lib/learning/exam-prep-reschedule-apply";
 import {
   buildExamScheduleV2,
+  prepDailyMinutes,
+  prepStudyDays,
   scheduleSessionsToNodeDrafts,
   type ScheduleTopicInput,
 } from "@/lib/learning/exam-schedule-v2";
@@ -171,7 +173,8 @@ export async function POST(request: Request) {
   // Sihirbaz çalışma günü sormuyor (Astra da sormuyor). Sorulmadıysa her gün sayılır: 19 Ekim 2026'da
   // 25 gün sonraki sınavın planı yalnız hafta içiyle 18 güne indi ve son güne on konu yığıldı.
   // Öğrenci günleri hazırlık ayarlarından daraltabilir; seçim kayda geçer.
-  const studyDays = parsed.data.studyDays?.length ? parsed.data.studyDays : [1, 2, 3, 4, 5, 6, 7];
+  const studyDays = prepStudyDays(parsed.data.studyDays);
+  const dailyMinutes = prepDailyMinutes(parsed.data.dailyMinutes);
 
   let scheduleSummary: ReturnType<typeof buildExamScheduleV2> | null = null;
   let scheduleDrafts: ReturnType<typeof scheduleSessionsToNodeDrafts> | null = null;
@@ -188,12 +191,10 @@ export async function POST(request: Request) {
   if (v2 && scheduleTopics.length) {
     scheduleSummary = buildExamScheduleV2({
       daysToExam: daysUntilExam(parsed.data.examDate),
-      dailyMinutes: parsed.data.dailyMinutes ?? 45,
+      dailyMinutes,
       studyDays,
       topics: scheduleTopics,
       targetScore: parsed.data.targetScore,
-      // Sıra yukarıda kuruldu; takvim yeniden dizmez.
-      keepOrder: true,
     });
     scheduleDrafts = mergeStudyPathTemplate(
       scheduleSessionsToNodeDrafts(scheduleSummary.sessions),
@@ -235,7 +236,7 @@ export async function POST(request: Request) {
   await service
     .from("exam_preps")
     .update({
-      daily_minutes: parsed.data.dailyMinutes ?? null,
+      daily_minutes: dailyMinutes,
       study_days: studyDays,
       hard_topics_self: parsed.data.hardTopics ?? [],
       learning_preferences: parsed.data.learningPreferences ?? {},

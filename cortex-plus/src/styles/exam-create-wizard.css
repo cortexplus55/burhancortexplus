@@ -1241,6 +1241,19 @@
   opacity: 0.9;
 }
 
+/* "3 kaynak": konu birden çok dosyadan besleniyor (dosya adları üzerine gelince). */
+.apw-topic-sources {
+  display: inline-flex;
+  width: fit-content;
+  font: var(--t-mono-s);
+  font-style: normal;
+  border: 1px solid color-mix(in srgb, var(--cp-text) 18%, transparent);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  color: var(--cp-muted);
+  cursor: help;
+}
+
 .apw-topic-desc {
   display: block;
   margin-top: 0.15rem;

@@ -54,15 +54,25 @@ describe("exam-schedule-v2", () => {
     expect(ordered.map((t) => t.id)).toEqual(["1", "2", "3", "4"]);
   });
 
-  it("still lifts a measured weakness above the document order", () => {
-    // Belge sırası varsayılan, kural değil: ölçülmüş bir zayıflık öne geçer.
-    const ordered = orderTopicsByPrerequisites([
-      { id: "1", title: "Birinci bölüm" },
-      { id: "2", title: "İkinci bölüm", measuredLevel: "weak" },
-      { id: "3", title: "Üçüncü bölüm" },
-    ]);
-    expect(ordered[0].id).toBe("2");
-    expect(ordered.slice(1).map((t) => t.id)).toEqual(["1", "3"]);
+  it("a measured weakness or a 'hard for me' pick does not reorder the path; it gets more time", () => {
+    // 19 Ekim 2026'ya kadar zayıf ve "zorlandığım" konu öne geçiyordu; yeniden planlamada öğrencinin
+    // odak seçtiği konular yolun başına sıçrıyordu. Sıra öğrencinin listesi; zayıflık süre verir.
+    const topics: ScheduleTopicInput[] = [
+      { id: "1", title: "Birinci bölüm", pageNumbers: [1, 2] },
+      { id: "2", title: "İkinci bölüm", measuredLevel: "weak", selfHard: true, pageNumbers: [3, 4] },
+      { id: "3", title: "Üçüncü bölüm", pageNumbers: [5, 6] },
+    ];
+    expect(orderTopicsByPrerequisites(topics).map((t) => t.id)).toEqual(["1", "2", "3"]);
+    const plan = buildExamScheduleV2({
+      daysToExam: 14,
+      dailyMinutes: 45,
+      studyDays: [1, 2, 3, 4, 5, 6, 7],
+      topics,
+      fromDate: new Date("2026-09-08T12:00:00"),
+    });
+    const lessons = plan.sessions.filter((s) => s.role === "learn").sort((a, b) => a.sortOrder - b.sortOrder);
+    expect(lessons.map((s) => s.topicId)).toEqual(["1", "2", "3"]);
+    expect(estimateTopicMinutes(topics[1]!)).toBeGreaterThan(estimateTopicMinutes(topics[0]!));
   });
 
   it("lists only selected study weekdays within the exam window", () => {

@@ -84,6 +84,30 @@ export function sourceCountLabel(count: number): string {
   return count === 1 ? "1 kaynak" : `${count} kaynak`;
 }
 
+/**
+ * Konu satırındaki "N kaynak": yalnız birden çok dosyadan beslenen konuda (19 Ekim 2026, Astra'nın
+ * konu listesi gibi). Tek dosyalı konuda yazılmaz — 7 Ekim'de kaldırılan "Kaynak: … s.3, 4" satırı
+ * gibi her satırı doldurmasın. Dosya adları üzerine gelince.
+ */
+export function topicSourcesChip(files: readonly string[] | undefined): { label: string; title: string } | null {
+  const unique = [...new Set((files ?? []).map((file) => file.trim()).filter(Boolean))];
+  return unique.length >= 2 ? { label: sourceCountLabel(unique.length), title: unique.join(" · ") } : null;
+}
+
+const foldTitle = (text: string) =>
+  text
+    .toLocaleLowerCase("tr")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+/**
+ * Tek konulu ünitenin adı konunun adıyla aynıysa başlık tekrar gibi okunuyor ("SİSTEMLER ARASI
+ * HOMEOSTAZİ BAĞLANTILARI" altında "Sistemler Arası Homeostazi Bağlantıları"); başlık yazılmaz.
+ */
+export function redundantUnitHeader(unitTitle: string, topicTitles: string[]): boolean {
+  return topicTitles.length === 1 && foldTitle(unitTitle) === foldTitle(topicTitles[0] ?? "");
+}
+
 /** Yükleme sırasında hangi dosyanın okunduğu. */
 export function fileProgressLine(
   done: number,
