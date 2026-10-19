@@ -13,4 +13,4 @@ görseli. İçerik elle yazıldı, Chromium ile PDF'e çevrildi (metin katmanlı
 | Hukuk-Sozlesme-Hukukuna-Giris.pdf | 5 | Sözlü deneme |
 | Farmakoloji-Antibiyotikler.pdf | 10 | Sınav hazırlığı: ders, yazılı deneme |
 | Cografya-Turkiyenin-Iklimi.pdf | 12 | Sınav hazırlığı: konu haritası, ders, video |
-| Fizik-soru-7.png | — | Fotoğraftan çözüm (doğru cevap: B, 5 m/s²) |
+| Fizik-soru-7.png | — | Fotoğraftan çözüm (doğru cevap: C, 5 m/s²) |

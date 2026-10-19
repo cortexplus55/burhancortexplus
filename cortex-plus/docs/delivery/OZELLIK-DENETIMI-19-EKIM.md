@@ -26,6 +26,7 @@ denendi. Her satırdaki gözlem canlı bir istekten; nedenler kayıtlardan (Verc
 | Yazılı deneme aracı | — | — | Her kullanım Sınavlar'a görünmez bir hazırlık ekliyor | Geçici hazırlık satırı listede, ücretsiz hazırlık hakkında ve ana sayfa sayımında |
 | Belge sayfası | — | — | "Çalışma planımı oluştur", "Quiz", "Flashcard" | Eski ve İngilizce etiketler |
 | Etkinlik sayacı | — | — | `/api/activity/time` her 30 sn 503 | Hata kaydedilmiyordu (artık `learning_time_failed`) |
+| Fotoğraftan çözüm | Fizik soru görseli | Çöz | 502 "doğrulamadan geçmedi" | Denetçinin kendi cevabı bozuk JSON (`invalid_review`); içerik suçlanıp reddedildi, ekran da yeniden denemedi |
 
 ## Düzeltilenler (PR bu belgeyle birlikte)
 
@@ -46,6 +47,8 @@ denendi. Her satırdaki gözlem canlı bir istekten; nedenler kayıtlardan (Verc
 - **Podcast:** kelime aralıkları ölçülen hıza göre (diyalog 5 dk = 400–480 kelime); kredi satırı ve
   "tek öğretmen" kalktı.
 - **Yazılı deneme aracı:** geçici hazırlık listede, sınırda ve sayımlarda yok.
+- **Denetim:** denetçinin cevabı bozuk gelirse içerik reddedilmez, denetim bir kez daha sorulur; fotoğraf ekranı
+  5xx'te bir kez kendiliğinden yeniden dener.
 
 Bekçi: `feature-audit-studios.test.tsx`, `document-answer-verification.test.ts` ("looselyContains").
 
