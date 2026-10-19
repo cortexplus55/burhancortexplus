@@ -44,6 +44,16 @@ export const normalizeForMatch = (s: string) =>
     .toLocaleLowerCase("tr")
     .trim();
 
+/**
+ * Belgenin geneli hakkında soru mu ("bu notta hangi konular var", "özetle", "ne anlatıyor")? Böyle
+ * bir cevap birçok yeri toparlar; denetçinin alıntısı da birkaç cümleyi birleştirir. 19 Ekim 2026:
+ * canlıda üç sayfalık notun özeti, alıntı eşleşmesi yüzünden iki kez reddedildi.
+ */
+export function isOverviewQuestion(question: string): boolean {
+  const text = question.toLocaleLowerCase("tr");
+  return /(özetle|özet\b|özetini|hangi konu|konular(ı)? (neler|ne)|neler var|ne anlatıyor|neyi anlatıyor|ana fikir|genel(ine)? bak|içeriği ne|ne hakkında)/.test(text);
+}
+
 /** Kelime dizisi: noktalama düşer, kesmeden sonraki ek atılır ("1364'te" → "1364"). */
 function matchTokens(s: string): string[] {
   return normalizeForMatch(s)
@@ -61,7 +71,11 @@ function matchTokens(s: string): string[] {
  * öğrenci "güvenilir yanıt oluşturamadım" gördü. Uydurma alıntı yine geçmez: sayısı tutmayan ya da
  * kelimelerinin çoğu kaynakta olmayan alıntı reddedilir. Dört kelimeden kısa alıntı yalnız birebir.
  */
-export function looselyContains(haystack: string, needle: string): boolean {
+export function looselyContains(
+  haystack: string,
+  needle: string,
+  options: { ratio?: number; widthFactor?: number } = {},
+): boolean {
   const hay = normalizeForMatch(haystack);
   const want = normalizeForMatch(needle);
   if (!want) return false;
@@ -72,8 +86,8 @@ export function looselyContains(haystack: string, needle: string): boolean {
   const wanted = new Map<string, number>();
   for (const token of need) wanted.set(token, (wanted.get(token) ?? 0) + 1);
   const digits = [...new Set(need.filter((token) => /\d/.test(token)))];
-  const required = Math.ceil(need.length * 0.85);
-  const width = Math.max(need.length, Math.ceil(need.length * 1.6));
+  const required = Math.ceil(need.length * (options.ratio ?? 0.85));
+  const width = Math.max(need.length, Math.ceil(need.length * (options.widthFactor ?? 1.6)));
   const inWindow = new Map<string, number>();
   let covered = 0;
   const shift = (token: string, delta: 1 | -1) => {
@@ -279,7 +293,9 @@ export async function verifyDocumentAnswer(input: {
   for (const claim of verdict.claims) {
     const source = input.evidence.find((e) => e.reference === claim.reference);
     if (!source) { reasons.push(`unknown_reference:${claim.reference}`); continue; }
-    if (!looselyContains(source.content, claim.quote)) reasons.push(`quote_not_in_source:${claim.reference}`);
+    // Genel soruda alıntı birkaç cümleyi toparlar: daha geniş pencere, %70; sayılar yine birebir.
+    const loose = isOverviewQuestion(input.question) ? { ratio: 0.7, widthFactor: 3 } : {};
+    if (!looselyContains(source.content, claim.quote, loose)) reasons.push(`quote_not_in_source:${claim.reference}`);
     if (!looselyContains(documentPart, claim.claim)) reasons.push("claim_not_in_answer");
   }
   const generalPart = input.strict ? "" : split.generalPart;

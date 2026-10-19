@@ -35,6 +35,13 @@ export function ImageSolver() {
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [solution, setSolution] = useState<Solution | null>(null);
+  // Hata yalnız birkaç saniyelik bildirimde kalmasın: düğmenin altında da durur (19 Ekim 2026).
+  const [error, setError] = useState<string | null>(null);
+
+  function fail(message: string) {
+    setError(message);
+    toast.error(message);
+  }
 
   const previewUrl = useMemo(
     () => (file ? URL.createObjectURL(file) : null),
@@ -57,6 +64,7 @@ export function ImageSolver() {
 
     setLoading(true);
     setSolution(null);
+    setError(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -78,7 +86,7 @@ export function ImageSolver() {
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         const code = typeof payload.error === "string" ? payload.error : "";
-        toast.error(
+        fail(
           ERROR_LABELS[code] ??
             payload.message ??
             "Çözüm bu sefer tamamlanamadı. Kredin düşmedi, yeniden dene.",
@@ -87,13 +95,13 @@ export function ImageSolver() {
       }
 
       if (payload.unreadable || payload.code === "unreadable") {
-        toast.error(ERROR_LABELS.unreadable);
+        fail(ERROR_LABELS.unreadable);
         return;
       }
 
       setSolution(payload as Solution);
     } catch {
-      toast.error("Bağlantı hatası. Kredin düşmedi.");
+      fail("Bağlantı hatası. Kredin düşmedi.");
     } finally {
       setLoading(false);
     }
@@ -175,6 +183,11 @@ export function ImageSolver() {
         >
           {loading ? "Çözülüyor…" : "Çöz"}
         </Button>
+        {error && !loading ? (
+          <p role="alert" className="rounded-xl border border-white/10 px-3 py-2 text-sm text-[var(--cs-text)]">
+            {error}
+          </p>
+        ) : null}
       </form>
 
       {solution ? (

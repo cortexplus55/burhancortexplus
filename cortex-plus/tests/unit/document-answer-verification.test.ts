@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { looselyContains, normalizeForMatch, verifyDocumentAnswer } from "@/lib/ai/document-answer-verification";
+import { isOverviewQuestion, looselyContains, normalizeForMatch, verifyDocumentAnswer } from "@/lib/ai/document-answer-verification";
 
 describe("normalizeForMatch — PDF metni ile model alıntısı eşleşir", () => {
   const source =
@@ -43,6 +43,22 @@ describe("looselyContains — canlıda belgede yazan cevaplar düşmesin (19 Eki
   it("dört kelimeden kısa alıntı yalnız birebir eşleşir", () => {
     expect(looselyContains(page, "ATP NADPH O2")).toBe(false);
     expect(looselyContains(page, "ATP, NADPH ve O₂")).toBe(true);
+  });
+});
+
+describe("genel sorular (özet) — 19 Ekim 2026", () => {
+  it("özet ve konu sorularını tanır", () => {
+    for (const q of ["Bu notta hangi konular var? Kısaca özetle.", "Bu belge ne anlatıyor?", "Notumu özetle", "Konuları neler?"]) {
+      expect(isOverviewQuestion(q), q).toBe(true);
+    }
+    expect(isOverviewQuestion("Haçlılarla yapılan ilk savaş hangisi?")).toBe(false);
+  });
+  it("genel soruda birleştirilmiş alıntı geniş pencerede bulunur, sayı yine birebir", () => {
+    const page = "Fotosentez, klorofil taşıyan canlıların ışık enerjisini kullanarak inorganik maddelerden organik besin ürettiği olaydır. Bitkilerde, alglerde ve siyanobakterilerde görülür. Ökaryot hücrelerde fotosentez kloroplastta gerçekleşir.";
+    const merged = "Fotosentez ışık enerjisini kullanarak organik besin üretme olayıdır ve ökaryot hücrelerde kloroplastta gerçekleşir";
+    expect(looselyContains(page, merged)).toBe(false);
+    expect(looselyContains(page, merged, { ratio: 0.7, widthFactor: 3 })).toBe(true);
+    expect(looselyContains("Ankara Savaşı (1402) Timur'a yenilgi ile bitti.", "Ankara Savaşı 1403 yılında Timur'a yenilgiyle bitti", { ratio: 0.7, widthFactor: 3 })).toBe(false);
   });
 });
 

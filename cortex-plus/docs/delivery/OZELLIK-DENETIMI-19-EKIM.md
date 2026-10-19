@@ -57,3 +57,37 @@ Bekçi: `feature-audit-studios.test.tsx`, `document-answer-verification.test.ts`
 Yayından sonra aynı belgelerle: belgeyle sohbet (üç soru), Doğru/Yanlış ve sözlü belgeden, podcast
 süresi, kart 20; sınav hazırlığı yolu (Farmakoloji 10 s., Coğrafya 12 s.): konu haritası, ders, yazılı
 deneme, video; fotoğraftan çözüm.
+
+## İkinci tur (yayından sonra, aynı belgelerle)
+
+| Özellik | Belge | İstek | Sonuç |
+|---|---|---|---|
+| Belgeyle sohbet | Biyoloji | "Mitozun evreleri neler?" | Doğru, sayfa atıflı |
+| Belgeyle sohbet | Biyoloji | "Bu notta hangi konular var? Kısaca özetle." | **Hata:** "doğrulanamadı" — özet cümleleri belgeden kelimesi kelimesine alıntı olmuyor |
+| Araçlardan belge yükleme | Tarih 8 s. | Yükle | ~30 sn'de işlendi, seçicide göründü |
+| Sözlü | Tarih | 3 soru | 3/3, 25 sn, beklenen noktalar belgeden |
+| Doğru / Yanlış | Coğrafya | 12 önerme | 12/12, 27 sn, sınav kalitesinde |
+| Podcast | Tarih | Özet · 1 dk · Belgenin tamamı | 103 kelime, kuruluştan 1453'e bütün dönemler; **ama 126 sn** (3 taslak, 6 çağrı) |
+| Sınav hazırlığı yolu | Coğrafya 12 s. | Kurulum | 12 konu bütün sayfaları kapsıyor; soğuk ders 11 sn, doğru; yazılı deneme 20/20, ~85 sn |
+| Kurulum sihirbazı | — | Taslaktan devam | "…silinsin mi?Evet, baştan başlaVazgeç" — şeridin stili yoktu |
+
+Düzeltilenler (ikinci PR):
+
+- **Belgeyle sohbette genel soru** ("özetle", "hangi konular var", "ne anlatıyor"): alıntı kontrolü özet
+  cümlesine göre gevşek pencereyle (%70); yine geçmezse cevap düşmez, belgenin kendi konu listesi
+  "Bu notta şu konular var" diye verilir ve öğrenciye hangisinden başlamak istediği sorulur.
+- **Podcast hızı:** yazar ve düzeltme düşük düşünmeyle (denetçi varsayılan); ilk düzeltmeden sonra kalan
+  sorun en çok 3 satırsa ikinci düzeltme turu yerine o satırlar çıkarılır (~40 sn kazanç).
+- Podcast aracının başlığı "Podcast"; sihirbazın devam şeridi düzenli.
+
+Bekçi: `document-answer-verification.test.ts` ("genel sorular"), `teacher-podcast.test.ts` ("ikinci tur
+yerine satır çıkar").
+
+Aynı turda: **kartlar** Biyoloji'den 20 kart, ~35 sn, tekrar yok, belgenin bütün bölümlerinden ve doğru.
+**Fotoğraftan çözüm** yine reddedildi: denetçinin cevabı iki denemede de karar kalıbına uymadı
+(`invalid_review`; üç model çağrısı, 12 sn). Neden: taslağın biçimi denetçiye `format` adıyla "Yalnızca
+şu JSON şemasını döndür: {problem, steps…}" diye gidiyordu, denetçi bunu kendine verilmiş sanıp kararı
+yerine çözümü yazıyordu. Şimdi alan `draftFormat`, denetçiye bunun kendi talimatı olmadığı söyleniyor;
+karar küçük biçim sapmalarıyla da okunuyor (`readReviewVerdict`; `approved` yoksa onay uydurulmaz);
+yine okunmazsa `ai_review_unreadable` kaydı cevabın yalnız şeklini yazar. Fotoğraf ekranındaki hata
+mesajı artık düğmenin altında da duruyor. Bekçi: `quality-gate.test.ts` ("denetçi kararı").

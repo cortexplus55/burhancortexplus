@@ -373,7 +373,7 @@ export function PodcastStudio({
   const progressPct = totalMs > 0 ? Math.min(100, (elapsedMs / totalMs) * 100) : 0;
 
   return (
-    <StudioFrame tool="podcast" kicker="Podcast stüdyosu">
+    <StudioFrame tool="podcast" kicker="Podcast">
       {phase === "entry" ? (
         <>
           <p className="ls-pod-lock">

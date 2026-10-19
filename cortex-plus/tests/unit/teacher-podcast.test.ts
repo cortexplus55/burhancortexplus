@@ -205,6 +205,25 @@ describe("öğretmen podcast motoru: kurtarma", () => {
     expect(JSON.stringify(loop.episode)).not.toContain("Organ satımı");
   });
 
+  it("döngü: ilk düzeltmeden sonra kalan sorun 1-2 satırsa ikinci tur yerine satır çıkar (hız)", async () => {
+    const roles: (string | undefined)[] = [];
+    let fix = 0;
+    const ask = vi.fn(async (system: string, _user: string, role?: "draft" | "verify" | "fix") => {
+      roles.push(role);
+      if (system.includes("denetçisisin")) return { issues: [{ where: "chapters[1].lines[1]", severity: "high", problem: "Organ satımı kaynakta yok" }] };
+      if (system.startsWith("Sen aynı podcast")) {
+        fix += 1;
+        return { ...draft, title: `${draft.title} (düzeltme ${fix})` };
+      }
+      return draft;
+    });
+    const loop = await teacherPodcastLoop(ask, { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], length: "ozet" });
+    expect(loop.problems).toEqual([]);
+    expect(fix).toBe(1);
+    expect(roles).toEqual(["draft", "verify", "fix", "verify"]);
+    expect(JSON.stringify(loop.episode)).not.toContain("Organ satımı");
+  });
+
   it("döngü: satıra bağlanamayan sorun kalırsa ikinci taslak yazılır", async () => {
     let verify = 0;
     const ask = vi.fn(async (system: string) => {
