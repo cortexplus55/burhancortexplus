@@ -261,7 +261,8 @@ export function ExamCreateWizard({
   /** Öğrencinin daha önce çalıştığı dersler — en üstte önerilir. */
   recentSubjects?: string[];
   /** "Materyalim yok" yolu: sohbetle kurulum. */
-  onUseChat: () => void;
+  /** "Belgem yok": seçilen ders, tarih ve hedef sohbete taşınır (yeniden sorulmaz). */
+  onUseChat: (picked: { subject: string; examDate: string; target: number }) => void;
 }) {
   const router = useRouter();
   const account = useStudentShellAccount();
@@ -1470,7 +1471,7 @@ export function ExamCreateWizard({
           >
             {WIZARD_COPY.continue}
           </button>
-          <button type="button" className="apw-ghost" onClick={onUseChat}>
+          <button type="button" className="apw-ghost" onClick={() => onUseChat({ subject, examDate, target })}>
             Belgem yok, konudan çalışayım
           </button>
         </section>
