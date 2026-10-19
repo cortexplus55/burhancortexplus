@@ -80,6 +80,7 @@ import { NodeGenerationProgress } from "@/components/parity/node-generation-prog
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
 import {
   difficultyFromFamiliarity,
+  openingStage,
   stepAfterMood,
 } from "@/lib/learning/lesson-open";
 import "@/styles/node-generation-progress.css";
@@ -164,6 +165,7 @@ export function ExamNodeSession({
   requestedTopic = null,
   topicId = null,
   initialFamiliarity,
+  todayMood = null,
   replayLesson = false,
   resumeEnabled = false,
   sourceName = null,
@@ -187,6 +189,8 @@ export function ExamNodeSession({
   topicId?: string | null;
   /** Konuya daha önce girildiyse beyan edilen aşinalık — varsayılan olarak gelir. */
   initialFamiliarity?: Familiarity | null;
+  /** Bugün (Türkiye günü) verilmiş ruh hali; varsa kart sorulmaz (19 Ekim 2026). */
+  todayMood?: Mood | null;
   /** Sonuç sayfasından "Dersi tekrarla" (?tekrar=1): aynı ders yeniden açılır. */
   replayLesson?: boolean;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
@@ -218,7 +222,8 @@ export function ExamNodeSession({
   const opensReadiness = kind === "readiness";
   // Aşinalık kurulumda bir kez sorulur (18 Ekim 2026); konunun düzeyi biliniyorsa açılış
   // doğrudan ruh haline geçer. Önceden yazılan içerik bu düzeyle yazıldı.
-  const signalStage = initialFamiliarity ? "mood" : "familiarity";
+  // Ruh hali günde bir kez (19 Ekim 2026): bugün verildiyse kart atlanır.
+  const signalStage = openingStage(kind, { familiarityKnown: Boolean(initialFamiliarity), moodToday: Boolean(todayMood) });
   const [stage, setStage] = useState<
     | "familiarity"
     | "mood"
@@ -235,7 +240,7 @@ export function ExamNodeSession({
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
-  const [mood, setMood] = useState<Mood>(DEFAULT_MOOD);
+  const [mood, setMood] = useState<Mood>(todayMood ?? DEFAULT_MOOD);
   // Yalnızca çalışırken sayılır; kurulum ve sonuç ekranı değil.
   useLearningTimer(
     learningSurface(kind),
@@ -404,7 +409,8 @@ export function ExamNodeSession({
   const warmedRef = useRef(false);
   useEffect(() => {
     if (kind !== "lesson" || replayLesson || warmedRef.current) return;
-    if (stage !== "familiarity" && stage !== "mood") return;
+    // Ruh hali bugün verildiyse açılış doğrudan öneri kartıdır; ısınma orada da başlar.
+    if (stage !== "familiarity" && stage !== "mood" && stage !== "recommend") return;
     warmedRef.current = true;
     void fetch("/api/learning/exam-prep/node", {
       method: "POST",
@@ -1016,7 +1022,7 @@ export function ExamNodeSession({
           onFamiliarity={(level) => {
             setFamiliarity(level);
             setDifficulty(difficultyFromFamiliarity(level));
-            setStage("mood");
+            setStage(todayMood ? stepAfterMood(kind) : "mood");
           }}
           onMood={(next) => {
             setMood(next);

@@ -39,7 +39,7 @@ describe("kurulumda aşinalık", () => {
 
   it("açılışta düzey biliniyorsa soru atlanır; kartta görünür ve değiştirilebilir", () => {
     const session = read("src/components/parity/exam-node-session.tsx");
-    expect(session).toContain('const signalStage = initialFamiliarity ? "mood" : "familiarity";');
+    expect(session).toContain("familiarityKnown: Boolean(initialFamiliarity)");
     expect(session).toContain("onChangeLevel={() => setStage(\"familiarity\")}");
     const change = vi.fn();
     render(
