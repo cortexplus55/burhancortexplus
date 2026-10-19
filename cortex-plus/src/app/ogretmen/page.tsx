@@ -14,6 +14,7 @@ import { turkishLower } from "@/lib/text/turkish";
 import { defaultStartPrompt } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
+import { FirstPrepCard } from "@/components/parity/first-prep-card";
 
 export const metadata = { title: "Sor" };
 
@@ -34,6 +35,7 @@ export default async function OgretmenPage({
     streak,
     { data: goal },
     { data: conversations },
+    { count: prepCount },
   ] =
     await Promise.all([
       supabase
@@ -67,6 +69,12 @@ export default async function OgretmenPage({
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(5),
+      // Hiç hazırlığı yoksa selamın altında ilk adım kartı (19 Ekim 2026). "Hedef puan" kaydı sayılmaz.
+      supabase
+        .from("exam_preps")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .neq("exam_type", "hedef"),
     ]);
 
   // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın
@@ -150,6 +158,7 @@ export default async function OgretmenPage({
         startPrompt={bootPrompt}
         showEmptyStarter
         startLabel="Başla"
+        heroFooter={prepCount === 0 && !params.sohbet ? <FirstPrepCard /> : undefined}
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversationId}
