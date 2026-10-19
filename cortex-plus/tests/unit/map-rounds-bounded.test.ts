@@ -75,7 +75,8 @@ describe("bounded map round progress labels", () => {
   });
 
   it("exposes outline model routing constants", () => {
-    expect(OUTLINE_MINI_PAGE_LIMIT).toBe(30);
+    // 19 Ekim 2026: 30 → 12 — orta boy notta mini'nin sayfa atıfları kayıyor, luna daha ucuz.
+    expect(OUTLINE_MINI_PAGE_LIMIT).toBe(12);
     expect(outlineStandardModel()).toMatch(/mini|4o/i);
     // 8 Ekim 2026: büyük belgenin haritası luna (kredi sistemi v2).
     expect(outlineStrongModel()).toBe("gpt-6-luna");

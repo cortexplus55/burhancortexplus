@@ -80,12 +80,12 @@ export const envSchema = z.object({
   /** Yalnız aboneye açık işler (model-router). gpt-4o'dan ucuz: $2/$8 vs $2,5/$10. */
   OPENAI_ADVANCED_MODEL: z.string().default("gpt-4.1"),
   /**
-   * One-shot konu haritası (≤30 sayfa). Boşsa OPENAI_STANDARD_MODEL.
+   * One-shot konu haritası (≤12 sayfa, OUTLINE_MINI_PAGE_LIMIT). Boşsa OPENAI_STANDARD_MODEL.
    * Öğrenci model seçimini görmez; yalnızca sunucu yönlendirir.
    */
   OPENAI_OUTLINE_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   /**
-   * One-shot konu haritası (>30 sayfa veya doğrulama yükseltmesi); bütün
+   * One-shot konu haritası (>12 sayfa veya doğrulama yükseltmesi); bütün
    * materyal tek çağrıda. 8 Ekim 2026: gpt-4.1'den luna'ya (kredi sistemi v2).
    * 211 ve 99 sayfalık belgede ilk turda doğrulamadan geçti, harita aynı ya da
    * daha kapsamlı; 100 sayfada $0,30 → ~$0,01. Adı bilerek değişti: Vercel'de

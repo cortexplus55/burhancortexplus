@@ -186,8 +186,8 @@ describe("course map round (fake DB, real credit semantics)", () => {
     expect(chargedCredits("u1")).toBe(0);
   });
 
-  it("12 + 16 pages → one call on gpt-4o-mini; 16 + 16 → one call on gpt-4.1", async () => {
-    for (const [pagesA, pagesB, routed] of [[12, 16, "gpt-4o-mini"], [16, 16, "gpt-4.1"]] as const) {
+  it("5 + 6 pages → one call on gpt-4o-mini; 7 + 6 → one call on gpt-4.1 (limit 12 since 19 Ekim 2026)", async () => {
+    for (const [pagesA, pagesB, routed] of [[5, 6, "gpt-4o-mini"], [7, 6, "gpt-4.1"]] as const) {
       calls.length = 0;
       const { client, chargedCredits } = mkDb([
         { id: "dA", name: "a.pdf", pages: pagesA, file: 0 },

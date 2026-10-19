@@ -153,13 +153,19 @@ describe("buildMaterialCorpus", () => {
 });
 
 describe("selectOutlineModel", () => {
-  it("routes ≤30 pages to gpt-4o-mini", () => {
-    const choice = selectOutlineModel({ pageCount: 30, corpusChars: 10_000 });
+  it("routes short notes (≤12 pages) to gpt-4o-mini", () => {
+    const choice = selectOutlineModel({ pageCount: OUTLINE_MINI_PAGE_LIMIT, corpusChars: 10_000 });
     expect(choice.tier).toBe("standard");
     expect(choice.model).toBe("gpt-4o-mini");
   });
 
-  it("routes >30 pages to gpt-4.1", () => {
+  it("routes a 20-30 page note straight to the strong model (19 Ekim 2026: mini's page citations drift there)", () => {
+    expect(OUTLINE_MINI_PAGE_LIMIT).toBe(12);
+    expect(selectOutlineModel({ pageCount: 20, corpusChars: 28_000 }).tier).toBe("strong");
+    expect(selectOutlineModel({ pageCount: 30, corpusChars: 54_000 }).tier).toBe("strong");
+  });
+
+  it("routes >12 pages to gpt-4.1", () => {
     const choice = selectOutlineModel({
       pageCount: OUTLINE_MINI_PAGE_LIMIT + 1,
       corpusChars: 10_000,
@@ -169,7 +175,7 @@ describe("selectOutlineModel", () => {
     expect(choice.reason).toBe("page_count");
   });
 
-  it("routes oversized corpus to gpt-4.1 even under 30 pages", () => {
+  it("routes oversized corpus to gpt-4.1 even under the page limit", () => {
     const choice = selectOutlineModel({
       pageCount: 10,
       corpusChars: ONESHOT_MAX_INPUT_CHARS + 1,
@@ -541,19 +547,19 @@ describe("runOutlineStep (one course outline)", () => {
     expect(mockedGenerate).toHaveBeenCalledTimes(1);
   });
 
-  it("routes >30 page material to gpt-4.1 in one call (no split)", async () => {
+  it("routes >12 page material to gpt-4.1 in one call (no split)", async () => {
     const models = await runSummedRouting([40]);
     expect(models).toEqual(["gpt-4.1"]);
   });
 
-  it("routes on summed pages across files: 12 + 16 = 28 stays on mini", async () => {
+  it("routes on summed pages across files: 5 + 6 = 11 stays on mini", async () => {
     // The fixture pages carry one short line each, so the one-topic draft is not
     // "thin" for this little text (outline-thin-map.test.ts covers full pages).
-    expect(await runSummedRouting([12, 16])).toEqual(["gpt-4o-mini"]);
+    expect(await runSummedRouting([5, 6])).toEqual(["gpt-4o-mini"]);
   });
 
-  it("routes on summed pages across files: 16 + 16 = 32 goes strong", async () => {
-    expect(await runSummedRouting([16, 16])).toEqual(["gpt-4.1"]);
+  it("routes on summed pages across files: 7 + 6 = 13 goes strong", async () => {
+    expect(await runSummedRouting([7, 6])).toEqual(["gpt-4.1"]);
   });
 
   it("escalates to gpt-4.1 when the mini draft is rejected, releasing the mini draft", async () => {
