@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import { recordOpenTiming } from "@/lib/admin/beta-metrics";
 import { createServiceClient } from "@/lib/supabase/server";
 import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
 import {
@@ -1510,6 +1511,8 @@ async function handleNodeRequest(
       await service.from("study_session_moods").insert({ user_id: userId, exam_prep_id: prepId, node_id: nodeId, mood });
       if (node.status !== "done") await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
       console.info("lesson_prefetch_adopted", { nodeId, finished: Boolean(finished) });
+      // Beta çıkış ölçütü (19 Ekim 2026): açılış süresi günlükten başka yerde de kalsın.
+      { const ms = Date.now() - requestStarted; after(() => recordOpenTiming(service, { userId, kind, path: "adopted", ms })); }
       return NextResponse.json({
         ...attemptStartResponse(served, {
           kind,
@@ -1614,6 +1617,7 @@ async function handleNodeRequest(
         await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
       }
       console.info("prefetch_served", { nodeId, kind });
+      { const ms = Date.now() - requestStarted; after(() => recordOpenTiming(service, { userId, kind, path: "ready", ms })); }
       return NextResponse.json({
         ...attemptStartResponse(readyAttempt, {
           kind,
@@ -2556,6 +2560,7 @@ async function handleNodeRequest(
           firstPublishedMs,
           respondedMs: Date.now() - requestStarted,
         });
+        { const ms = Date.now() - requestStarted; after(() => recordOpenTiming(service, { userId, kind: "lesson", path: "cold", ms })); }
         return NextResponse.json({
           ...attemptStartResponse(activeAttempt, {
             kind,

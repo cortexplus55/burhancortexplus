@@ -4,8 +4,10 @@ import {
   ClipboardList,
   Coins,
   FileText,
+  Gauge,
   GraduationCap,
   History,
+  LifeBuoy,
   LayoutDashboard,
   MessageSquare,
   Package,
@@ -53,6 +55,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: LayoutDashboard,
         blurb: "Sistemin bugünkü durumu tek ekranda: kaç kişi var, ne kadar gelir geldi, bekleyen iş var mı.",
       },
+      {
+        href: "/admin/beta",
+        label: "Beta ölçütleri",
+        icon: Gauge,
+        blurb: "Kapalı betadan lansmana geçiş için altı ölçüt: atılan kavram, ders açılış süreleri, ödeme başarısı, destek cevabı, Sentry.",
+      },
     ],
   },
   {
@@ -63,6 +71,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Kullanıcılar",
         icon: Users,
         blurb: "Hesapları ara, kredi ver ya da al, yetki değiştir, hesabı askıya al.",
+      },
+      {
+        href: "/admin/destek",
+        label: "Destek talepleri",
+        icon: LifeBuoy,
+        blurb: "Öğrencilerin /destek formundan yazdıkları. Cevap e-postayla gider; burada \"Cevaplandı\" ile süre yazılır.",
       },
       {
         href: "/admin/anket",

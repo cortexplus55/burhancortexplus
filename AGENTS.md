@@ -716,3 +716,17 @@ Sonuçlar `/admin/anket`: hafta hafta cevap, "Şimdi değil", yardım ortalamas�
 
 Destek görünümleri artık ham kod göstermiyor ("inactive", "basics", "lesson", "slow_generation"):
 adlar öğrencinin gördüğü kaynaklardan (`support-labels.ts`). Bekçi: `weekly-survey.test.tsx`.
+
+## Beta çıkış ölçütleri ve destek kutusu (19 Ekim 2026) — plan Faz 5.3
+
+`/admin/beta` altı ölçütü son 7 ve 30 gün için gösterir: atılan kavram 0, soğuk ders ilk ekran
+p95 < 20 sn, hazır ders p95 < 3 sn, ödeme başarısı > %95, destek cevabı < 24 saat, Sentry kritik 0
+(bu satır elle: anahtar ürün sahibinde). Hedefler ve ölçüm tek yerde: `beta-metrics.ts`.
+
+| Kural | Nerede |
+|---|---|
+| Ders açılış süresi yalnız 3 günlük Vercel günlüğündeydi; artık her açılış `open_timings`e yazılır (`ready` önceden yazılmış, `adopted` yazımı süren devralındı, `cold` ilk ekran yazımdan). Süre sunucunun (istek başından yanıta), ağ hariç; yazım `after()` içinde, yanıtı beklemez | `node/route.ts` (üç günlük satırının yanı), göç `20261019180000` |
+| Destek talebini görecek ya da kapatacak ekran yoktu; günlük özetin "24 saati geçti" sayısı yalnız büyüyebilirdi. `/admin/destek` talepleri listeler; cevap e-postayla gittikten sonra "Cevaplandı" `answered_at` yazar (bir kez), öğrenci `/destek`te "Cevaplandı · e-postana bak" görür | `support-actions.ts`, `support_requests.answered_at` |
+| Ödeme başarısı: başarılı (iade edilen dahil) / (başarılı + başarısız); bekleyen sayılmaz | `collectBetaMetrics` |
+
+Bekçi: `beta-exit-metrics.test.ts`.

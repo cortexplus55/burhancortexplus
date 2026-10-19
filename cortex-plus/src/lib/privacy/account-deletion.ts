@@ -20,7 +20,7 @@ const USER_CONTENT_TABLES = [
   "adaptive_master_plans",
   // 19 Ekim 2026: yıldız kayıtları, kurulum taslağı ve haftalık anket de öğrencinin verisi. İlk ikisi listede
   // yoktu: profil anonimleşse de satırlar kalıyordu (silme işçisi profili silmez, CASCADE çalışmaz).
-  "star_events", "exam_wizard_drafts", "weekly_surveys",
+  "star_events", "exam_wizard_drafts", "weekly_surveys", "open_timings",
 ] as const;
 
 /** Every step is checked and repeatable by the deletion worker. */
