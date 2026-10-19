@@ -476,7 +476,9 @@ export type OneShotValidationIssue =
       /** Why grounding failed (outline-grounding.ts verdict); logged per stage. */
       reason?: string;
     }
-  | { code: "diger_bucket"; title: string };
+  | { code: "diger_bucket"; title: string }
+  /** Not a drop: a unit whose topics all failed grounding survived as one topic under its own title. */
+  | { code: "unit_rescued"; title: string };
 
 /** Issue codes → counts, for the stage log ("ungrounded:absent_word": 12). */
 export function outlineIssueCounts(issues: OneShotValidationIssue[]): Record<string, number> {
@@ -571,6 +573,15 @@ export function validateOneShotOutline(
       continue;
     }
     const topics: OutlineUnitDraft["topics"] = [];
+    /** Topics of this unit that grounding dropped — the unit may survive under its own title. */
+    const ungroundedInUnit: {
+      fileIndex: number;
+      start: number;
+      end: number;
+      id: string | undefined;
+      why: string | undefined;
+      likelyAsked: string[];
+    }[] = [];
     for (const topic of unit.topics) {
       if (kept >= MAX_TOPICS_TOTAL) {
         issues.push({ code: "topic_count", topics: MAX_TOPICS_TOTAL + 1 });
@@ -634,6 +645,7 @@ export function validateOneShotOutline(
           pageEnd: end,
           reason: verdict.reason,
         });
+        ungroundedInUnit.push({ fileIndex, start, end, id: topic.id?.trim() || undefined, why, likelyAsked });
         continue;
       }
 
@@ -661,6 +673,42 @@ export function validateOneShotOutline(
         prerequisiteIds: topic.prerequisiteIds ?? [],
         prerequisiteTitles,
       });
+    }
+    if (!topics.length && ungroundedInUnit.length && kept < MAX_TOPICS_TOTAL) {
+      // Birim kurtarma (19 Ekim 2026). KPSS notunda "Siyasi partiler" biriminin iki konusu da
+      // temellendirmede düştü ("üyelik" kökü sayfada "üye", "kapatılması" ham metinde yok) ve
+      // bölüm yoldan kayboldu. Birimin kendi başlığı o sayfalarda duruyorsa, bölüm modelin
+      // verdiği birim adıyla tek konu olarak kalır; kod başlık uydurmaz, sayfa eklemez.
+      const first = ungroundedInUnit[0]!;
+      const same = ungroundedInUnit.filter((t) => t.fileIndex === first.fileIndex);
+      const start = Math.min(...same.map((t) => t.start));
+      const end = Math.max(...same.map((t) => t.end));
+      const unitKey = unitTitle.toLocaleLowerCase("tr");
+      const grounding = groundingFor(first.fileIndex);
+      if (
+        grounding &&
+        !seen.has(unitKey) &&
+        groundTopic(grounding, { title: unitTitle, pageStart: start, pageEnd: end }).grounded
+      ) {
+        seen.add(unitKey);
+        kept += 1;
+        const pageNumbers: number[] = [];
+        for (let p = start; p <= end; p += 1) pageNumbers.push(p);
+        topics.push({
+          id: first.id,
+          title: unitTitle,
+          sourceTitles: [unitTitle],
+          fileIndex: first.fileIndex,
+          pageNumbers,
+          description: first.why,
+          whyLearn: first.why,
+          examWeight: unit.examWeight ?? "medium",
+          likelyAsked: [...new Set(same.flatMap((t) => t.likelyAsked))].slice(0, MAX_LIKELY_ASKED),
+          prerequisiteIds: [],
+          prerequisiteTitles: [],
+        });
+        issues.push({ code: "unit_rescued", title: unitTitle });
+      }
     }
     if (!topics.length) {
       issues.push({ code: "empty_unit", title: unitTitle });

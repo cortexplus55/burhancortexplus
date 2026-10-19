@@ -362,6 +362,45 @@ describe("validateOneShotOutline", () => {
     }
   });
 
+  it("a unit whose topics all fail grounding survives as one topic under its own title (KPSS 'Siyasi partiler', 19 Ekim 2026)", () => {
+    const filler = (n: number) => ({ pageNumber: n, text: `Sayfa ${n}: mol kavramı, Avogadro sayısı ve kütle hesapları anlatılır. Çözümlü örnekler verilir.` });
+    const pageTexts = pageTextMapFromFiles([
+      {
+        fileName: "x.pdf",
+        pages: [
+          filler(1), filler(2), filler(3), filler(4), filler(5),
+          { pageNumber: 6, text: "Siyasi partiler önceden izin almadan kurulur. Parti üyesi olamayacaklar: hâkimler, savcılar, memurlar. Devlet yardımı alma şartı yüzde üç oydur." },
+        ],
+      },
+    ]);
+    const draft = {
+      units: [
+        {
+          title: "Kimya",
+          topics: [{ title: "Mol Kavramı", whyLearn: "Avogadro sayısını öğreneceksin.", pageStart: 1, pageEnd: 2, likelyAsked: ["Mol kavramı"] }],
+        },
+        {
+          title: "Siyasi Partiler",
+          topics: [
+            // "kapatılma" ve "dava" sayfada yok → absent_word; "üyelik" kökü sayfada "üye" → düşer.
+            { title: "Siyasi partilerin kapatılma davası", whyLearn: "Kapatma davasını öğreneceksin.", pageStart: 6, pageEnd: 6, likelyAsked: ["Kapatma davası"] },
+            { title: "Parti üyeliği ve kapatılma yasakları", whyLearn: "Üyelik yasaklarını öğreneceksin.", pageStart: 6, pageEnd: 6, likelyAsked: ["Üye olamayacaklar"] },
+          ],
+        },
+      ],
+    } as OneShotOutlineDraft;
+    const result = validateOneShotOutline(draft, { filePageCounts: [6], pageTexts });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.normalized.map((u) => u.title)).toEqual(["Kimya", "Siyasi Partiler"]);
+    const rescued = result.normalized[1]!.topics;
+    expect(rescued).toHaveLength(1);
+    expect(rescued[0]).toMatchObject({ title: "Siyasi Partiler", pageNumbers: [6], likelyAsked: ["Kapatma davası", "Üye olamayacaklar"] });
+    expect(result.dropped.filter((i) => i.code === "ungrounded_topic")).toHaveLength(2);
+    expect(result.dropped.some((i) => i.code === "unit_rescued")).toBe(true);
+    expect(result.dropped.some((i) => i.code === "empty_unit")).toBe(false);
+  });
+
   it("bounds page ranges per file and records the topic's fileIndex", () => {
     const pageTexts = pageTextMapFromFiles([
       { fileName: "a.pdf", pages: [{ pageNumber: 1, text: "Mol kavramı Avogadro sayısı." }] },
