@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
@@ -125,7 +126,11 @@ export default async function AdminKullanicilarPage({
             {rows.map((row) => (
               <tr key={row.id}>
                 <td>
-                  <div className="font-medium">{row.name}</div>
+                  <div className="font-medium">
+                    <Link href={`/admin/kullanicilar/${row.id}`} className="underline">
+                      {row.name}
+                    </Link>
+                  </div>
                   <div className="text-xs text-[var(--adm-muted)]">
                     {row.email}
                     {row.grade ? ` · ${row.grade}` : ""}
