@@ -275,7 +275,7 @@ export function WrittenStudio({
         <StudioResults
           tool="yazili"
           topic={topic}
-          scoreLabel={score != null ? `${score}` : undefined}
+          scoreLabel={score != null ? `%${score}` : undefined}
           title="Yazılı bitti."
           lead={analysis}
           onAgain={() => {
