@@ -82,7 +82,7 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 |---|---|---|
 | 3.1 | Yük testi (k6): 50 → 200 → 1000 eşzamanlı; senaryo "hazırlık sayfası + hazır ders açma" ve "soğuk ders üretimi" | p95 sayfa < 2 sn; üretim kuyruğa girsin, düşmesin |
 | 3.2 | **Üretim kuyruğu / geri basınç**: aynı anda en çok N ders üretimi, fazlası "sıradasın" ekranı | OpenAI dakikalık sınırı aşılmasın; kredi iadesi düzgün. **Yazıldı (19 Ekim 2026):** `generation-slots.ts` — Upstash kira kayıtları, varsayılan 40 (`GENERATION_SLOTS`); öğrenci 25 sn yer bekler, ekran ~3 dk "sıradasın" der; önceden yazım %70 ile sınırlı; kredi yuvadan sonra ayrılır; `/admin/sistem` sayıyı gösterir. k6 yük testi (3.1) ürün sahibinin kararıyla lansmana kaldı |
-| 3.3 | Supabase: bağlantı havuzu (PostgREST), yavaş sorgu günlüğü, indeks kontrolü | p95 sorgu < 100 ms |
+| 3.3 | Supabase: bağlantı havuzu (PostgREST), yavaş sorgu günlüğü, indeks kontrolü | p95 sorgu < 100 ms. **Yapıldı (19 Ekim 2026):** `pg_stat_statements`: uygulamada 100 ms üstü tek sorgu belge parça aramasıydı (ortalama 277 ms, en çok belgesi olan kullanıcıda ~820 ms). Göç `20261019120000` (önce kullanıcıya süz, sonra tam mesafe + `document_embeddings(chunk_id)` indeksi) canlıda uygulandı: 27 ms. Kalan en yavaşlar: parça yazımı 53 ms, `credit_reserve` 29 ms |
 | 3.4 | Vercel: fonksiyon süresi (ders 300 sn), eşzamanlılık, bölge `fra1` | Zaman aşımı < %0,5 |
 | 3.5 | Maliyet modeli: 1000 aktif öğrenci/ay için OpenAI + Vercel + Supabase + TTS + resim | Plus 7.200 kredi = 7,2 $ tavan; gerçek ortalama ölçülsün |
 | 3.6 | Felaket provası: Supabase yedekten geri dönüş, Vercel geri alma | Yazılı adımlar |
