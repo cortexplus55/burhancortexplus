@@ -10,6 +10,8 @@ import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
   fixPartSystem,
   fixPartUserPrompt,
+  isMnemonicCountIssue,
+  isMnemonicIssue,
   parseIssues,
   parsePartFix,
   parseTeacherLesson,
@@ -17,6 +19,7 @@ import {
   partStructureIssues,
   rewritePartUserPrompt,
   shuffleLessonChecks,
+  stripMnemonics,
   teacherSystem,
   teacherUserPrompt,
   verifyPartUserPrompt,
@@ -253,6 +256,31 @@ export async function teacherLessonPipeline(
         const high = issues.filter((issue) => issue.severity === "high");
         if (!high.length) {
           return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers };
+        }
+        // 19 Ekim 2026: yavaş derslerin çoğu yalnız ezber kodu yüzünden 5-7 tur döndü, kavram iki kez
+        // atıldı. Kalan tek sorun ezber koduysa (fazla kod hemen; kötü kod bir düzeltme turundan sonra)
+        // kutu çıkar, kavram yayımlanır. Parça düşer, istek düşmez; kod cümle yazmaz.
+        const onlyCount = high.every(isMnemonicCountIssue);
+        if ((onlyCount || round >= 1) && high.every((issue) => isMnemonicIssue(issue, lesson))) {
+          const stripped = stripMnemonics(screens, { keepFirst: onlyCount });
+          if (stripped.length) {
+            screens = stripped;
+            if (current()) part.screens = screens;
+            triggers.push(high);
+            const note: TeacherIssue = {
+              where: "ders",
+              severity: "low",
+              problem: onlyCount ? "Fazla ezber kodu çıkarıldı." : "Ezber kodu düzelmedi; kavram kodsuz yayımlandı.",
+            };
+            return {
+              ok: true,
+              screens,
+              header: headerPatch,
+              ...(close ? { closing: close } : {}),
+              low: [...issues.filter((issue) => issue.severity !== "high"), note],
+              triggers,
+            };
+          }
         }
         const deadline = rewritten ? REWRITE_DEADLINE_MS : FIX_DEADLINE_MS;
         if (round >= rounds || Date.now() - started > deadline) {

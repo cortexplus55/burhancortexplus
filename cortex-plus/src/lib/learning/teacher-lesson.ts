@@ -132,6 +132,19 @@ const EXAMPLE_TOPIC =
  * kalır (paragraf alacalı olmasın); renk yalnız sınavda soru olacak kesin bilgi ve kutular için.
  * Denetçi I maddesiyle aynı kuralı denetler.
  */
+/**
+ * Ezber kodunun ortak tanımı (19 Ekim 2026): yazar ve denetçi aynı örnekleri görür. Kötü örnekler
+ * canlı kayıttan (`/admin/ders-hatalari`): denetçi bunları reddetti, yazar 5-7 turda düzeltemedi.
+ * Harf kuralı "Çalış" ↔ Cumhuriyet (C) itirazından.
+ */
+export const MNEMONIC_EXAMPLES =
+  "Geçerli kod örneği: 'İpek Ceza Taktı, Cebir Hükmetti' = İptal, Ceza, Tazminat, Cebri icra, Hükümsüzlük (her sözcük " +
+  "bir öğenin ilk harfiyle başlar; cümlenin anlamlı olması gerekmez, söylenebilir olması yeter). Kod sayılmayanlar: " +
+  "'Ün-Bö-Fed-Kon' (öğe adlarının kısaltma listesi), 'Ülke İnsan Otorite' ve 'Soy sınıf, din toplum' (öğe adlarının " +
+  "kendisi). Harf eşleşmesi Türkçe harfle birebirdir: C ile Ç, G ile Ğ, I ile İ, O ile Ö, S ile Ş, U ile Ü ayrı " +
+  "harflerdir. En güvenli yol: öğeleri kaynaktaki sırayla yaz, her birinin ilk harfiyle başlayan gerçek Türkçe " +
+  "sözcüklerden kısa bir cümle kur.";
+
 export const EMPHASIS_RULE =
   "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
   "kanıtlanana kadar' türü kural, SINAVDA SORULUR maddesi) metinde ==çift eşittir== arasına al; ekranda turuncu " +
@@ -147,7 +160,9 @@ export const EMPHASIS_RULE =
   "kısa cümle ya da hece dizisi); gövde kodun her harfinin ya da sözcüğünün kaynaktaki hangi öğeye karşılık " +
   "geldiğini kaynaktaki sırayla yazar. Kod yalnız kaynaktaki öğelerden kurulur; öğe eklemez, eksiltmez, sırayı " +
   "bozmaz; anlamsız harf yığını sayılmaz. Kod listenin kendisi DEĞİLDİR: öğe adlarını virgül ya da tireyle art arda " +
-  "yazmak kod sayılmaz; her öğeden bir harf ya da hece alıp söylenebilir tek bir sözcük ya da kısa cümle kur.\n\n";
+  "yazmak kod sayılmaz; her öğeden bir harf ya da hece alıp söylenebilir tek bir sözcük ya da kısa cümle kur. " +
+  MNEMONIC_EXAMPLES +
+  "\n\n";
 
 /** Öğretmen istemi — Astra'nın aynı belgeyle gözlenen ders akışı. */
 export const TEACHER_SYSTEM =
@@ -299,7 +314,10 @@ export const VERIFY_SYSTEM =
   "olan bilginin bu nota konması; bu nottaki bilginin metinde, soruda, 'corrected'da ya da özette kullanılması.\n" +
   "I) Ezber kodu (tone 'mnemonic') kaynaktaki öğelerle birebir eşleşmiyor (öğe eksik ya da fazla, harf yanlış öğeye " +
   "karşılık, sıra bozuk); kaynakta kavramın en az 3 öğeli AÇIK bir listesi ya da sınıflaması varken derste o kavram " +
-  "için ezber kodu olmaması; kodun öğe adlarının art arda yazılmasından ibaret olması (kod değil liste); " +
+  "için ezber kodu olmaması; kodun öğe adlarının art arda yazılmasından ibaret olması (kod değil liste). Ezber kodunu " +
+  "yazarla aynı tanımla denetle: " +
+  MNEMONIC_EXAMPLES +
+  " Anlamı tuhaf ama harfleri birebir tutan akrostiş cümle SORUN DEĞİLDİR. " +
   "==vurgulanan== ifade kaynakta yok ya da yanlış; kaynakta kavramın bir SINAV İPUCU / " +
   "AKILDA TUT / ALARM kutusu varken derste hiç geçmemesi.\n" +
   "Kaynakta açıkça bozuk bir cümlenin (olumsuzluk eki düşmüş, kelime kaymış, kendi açıklaması ve örnekleriyle " +
@@ -966,4 +984,51 @@ function checkIssues(
     const falseStatement = /^(yanlış|yanlis|false)$/i.test(options[check.answerIndex ?? -1]?.trim() ?? "");
     if (falseStatement && !check.corrected?.trim()) low(where, "Yanlış ifadenin doğrusu (corrected) yazılmamış.");
   }
+}
+
+/** Yapı kuralı: kavramda birden fazla ezber kodu (`partStructureIssues`). */
+const MNEMONIC_COUNT_RULE = /ezber kodu var; en çok bir/;
+
+function isMnemonicBlock(block: unknown): boolean {
+  const row = block as { type?: unknown; note?: { tone?: unknown } } | null;
+  return row?.type === "note" && row.note?.tone === "mnemonic";
+}
+
+/**
+ * Sorun ezber koduna mı ait: metni ezber kodundan söz ediyor ya da yeri bir ezber kodu kutusu
+ * (`screens[i].blocks[j]`, ders bütünündeki sıra). 19 Ekim 2026: canlıda yavaş derslerin çoğu
+ * ("Ün-Bö-Fed-Kon", "Ülke İnsan Otorite", "Çalış" ↔ C) bu kutu yüzünden 5-7 tur döndü.
+ */
+export function isMnemonicIssue(issue: TeacherIssue, lesson: Pick<LessonV3, "screens">): boolean {
+  if (/ezber/i.test(issue.problem)) return true;
+  const at = /screens\[(\d+)\]\.blocks\[(\d+)\]/.exec(issue.where);
+  if (!at) return false;
+  return isMnemonicBlock(lesson.screens[Number(at[1])]?.blocks[Number(at[2])]);
+}
+
+/** Yalnız "kavramda birden fazla ezber kodu" yapı kuralı mı. */
+export function isMnemonicCountIssue(issue: TeacherIssue): boolean {
+  return MNEMONIC_COUNT_RULE.test(issue.problem);
+}
+
+/**
+ * Kavramın ekranlarından ezber kodu kutularını çıkarır (`keepFirst`: ilkini bırakır). Kod cümle
+ * yazmaz; isteğe bağlı bir kutuyu siler ("parça düşer, istek düşmez", 19 Ekim 2026). Yalnız
+ * ezber kutusundan oluşan ekran düşer.
+ */
+export function stripMnemonics(screens: LessonScreen[], options: { keepFirst?: boolean } = {}): LessonScreen[] {
+  let kept = false;
+  return screens
+    .map((screen) => {
+      const blocks = screen.blocks.filter((block) => {
+        if (!isMnemonicBlock(block)) return true;
+        if (options.keepFirst && !kept) {
+          kept = true;
+          return true;
+        }
+        return false;
+      });
+      return blocks.length === screen.blocks.length ? screen : { ...screen, blocks };
+    })
+    .filter((screen) => screen.blocks.length > 0);
 }
