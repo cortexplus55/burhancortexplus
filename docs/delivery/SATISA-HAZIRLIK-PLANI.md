@@ -106,7 +106,7 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 
 1. Fiyat ve paketlerin son hâli (`/admin/paketler`), ücretsiz katman kapıları gözden geçirilir (günde 6 kredi, 1 hazırlık, 5 sayfa).
 2. **Kapalı beta**: 20 gerçek öğrenci, 2 hafta, haftalık görüşme; `/admin/yanit-oylari` ve ders sonu anketi okunur. **Erişim yazıldı (19 Ekim 2026, ürün sahibinin kararı):** tek kullanımlık 14 gün Plus kodu; `/admin/promosyonlar` → "Beta kodları" toplu üretir, öğrenci Abonelik sayfasında girer, bitince ücretsize döner, ücret alınmaz (`AGENTS.md` → "Kapalı beta kodları"). Beta öğrencilerinin nereden geleceği henüz karar değil. **Geri bildirim yazıldı (19 Ekim 2026):** Sınavlar sayfasında haftalık dört soruluk anket, sonuçlar `/admin/anket` (yardım, tavsiye puanı, en çok kullanılan, öneriler; beta denemesindekiler ayrı sayılır).
-3. Çıkış ölçütleri: atılan kavram 0, ders ilk ekran p95 < 20 sn (hazır değilken), hazır ders < 3 sn, ödeme başarı > %95, destek cevabı < 24 saat, Sentry'de çözülmemiş kritik hata 0.
+3. Çıkış ölçütleri: atılan kavram 0, ders ilk ekran p95 < 20 sn (hazır değilken), hazır ders < 3 sn, ödeme başarı > %95, destek cevabı < 24 saat, Sentry'de çözülmemiş kritik hata 0. **Ölçüm yazıldı (19 Ekim 2026):** `/admin/beta` altısını son 7 ve 30 gün için gösterir; ders açılış süreleri artık veritabanında (`open_timings`), destek talepleri `/admin/destek`te "Cevaplandı" ile süreli kapanır. Sentry satırı panelden elle.
 4. Otomatik yenileme: PayTR Direkt API onayı gelene kadar sözleşme "otomatik yenilenmez" kalır (bkz. `PAYTR-ABONELIK.md`); onay gelirse ayrı iş.
 5. Kampanya bandı hazır (`/admin/promosyonlar`), lansman günü açılır.
 

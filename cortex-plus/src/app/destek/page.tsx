@@ -12,6 +12,8 @@ const SUPPORT_STATUS: Record<string, string> = {
   pending: "Bekliyor",
   closed: "Kapandı",
   resolved: "Çözüldü",
+  // 19 Ekim 2026: yönetim panelinde "Cevaplandı" denince. Cevap e-postayla gider.
+  answered: "Cevaplandı · e-postana bak",
 };
 
 export default async function DestekPage() {
