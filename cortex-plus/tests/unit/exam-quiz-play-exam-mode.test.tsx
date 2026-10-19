@@ -68,3 +68,30 @@ describe("çok cevaplı soru ekranı", () => {
     expect(screen.getByText("Kısmen doğru · %50")).toBeTruthy();
   });
 });
+
+// 19 Ekim 2026, Astra yan yana: tek seçimlide yanlış cevap verince doğru şık yeşil görünür.
+// Önce yalnız seçilen şık kırmızıydı; öğrenci doğruyu açıklamanın içinde arıyordu.
+describe("tek seçimli soruda yanlış cevap", () => {
+  it("seçilen şık kırmızı, doğru şık yeşil işaretli", () => {
+    function Harness() {
+      const [value, setValue] = useState<string | string[]>("");
+      return (
+        <ExamQuizPlay
+          questions={questions}
+          index={0}
+          value={value}
+          onChange={setValue}
+          onContinue={() => undefined}
+          continueLabel="Devam et"
+        />
+      );
+    }
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: /Yalnızca kuvvet/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Kontrol et" }));
+    expect(screen.getByLabelText("Yanlış")).toBeTruthy();
+    expect(screen.getByLabelText("Doğru cevap")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Kuvvetin alana oranı/ }).className).toMatch(/22c55e/);
+    expect(screen.getByRole("button", { name: /Yalnızca kuvvet/ }).className).toMatch(/ef4444/);
+  });
+});
