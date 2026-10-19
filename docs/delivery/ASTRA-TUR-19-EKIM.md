@@ -93,3 +93,14 @@ Not: `/okulum` adresi 404 (sayfa `/deneme-sinavlari/okulum`); menüde bağlantı
 | 5a. 16 konu (#247) | Kalır. "Her sayfa tek konuya" kuralı gevşetilmez (28'e çıkmaz). Ölçü: 30 sayfa → 16 konu, sayfa/konu ≈ 1,9; bütün bölümler yolda; ilk ders kıyası Cortex 88 / Astra 78 | — |
 | 5b. Beceri ağacı görünümü | Eklenmez: konu listesi aynı bilgiyi (konu başına %, çözülen, ders) gösteriyor; ayrı görünüm öğretmiyor (AGENTS: parite tek başına gerekçe değil) | — |
 | 5c. Ders açılışında iki onay kartı | 1. maddeyle çözüldü: aynı gün ikinci açılışta yalnız "Önerilen ders" kartı | #340 |
+
+## Canlı doğrulama (19 Ekim 2026, yayından sonra, KPSS hazırlığı)
+| Değişiklik | Canlıda görülen |
+|---|---|
+| #339 podcast "üretilemedi" demez | Soğuk podcast ("Kuvvetler Birliği"): `teacher_podcast` 3 taslak, sorun 0, 51,9 sn; ses tamamlandı (5:10) ve çaldı |
+| #340 ruh hali günde bir | Aynı gün ikinci düğüm doğrudan "Zorluk seviyesi · Testi oluştur" kartıyla açıldı |
+| #341 test taslağı düşük düşünme | `teacher_quiz` 13.625 ms (önce 30.165), 5/5 soru geçti, ret 0; ekranda ilk soru 18 sn (önce 36) |
+| #342 "+%X kazandın" | 3/5 testten sonra "+%20 kazandın · Devletin Unsurları ve Devlet Şekilleri konusunda · Konu hâkimiyeti %40"; "Devam et" sıradaki adıma gitti |
+| #344 her ekranda yeniden deneme | Podcast sayfası artık bekleme ekranıyla açılıyor |
+| #345 podcast sonucu | Birim testle; canlıda podcast oturumu "1/1 doğru" gösteriyordu (düzeltmeden önce görüldü) |
+| #346 kazanç kartı yerleşimi | "Devam et" görünür alanda (y 457 / 639) |
