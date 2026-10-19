@@ -33,6 +33,9 @@ export function ExamCreateChat({
   recentSubjects = [],
   initialSubject = null,
   initialPrompt = null,
+  initialExamDate,
+  initialTarget,
+  topicOnly = false,
   prepLimitReached = false,
 }: {
   /** Stage 9 — deep link from topic map / docs list. */
@@ -45,13 +48,20 @@ export function ExamCreateChat({
   initialPrompt?: string | null;
   /** Ücretsiz hesabın tek hazırlık hakkı dolu: ilk mesajda kapı açılır. */
   prepLimitReached?: boolean;
+  /** Sihirbazda seçilen sınav tarihi (YYYY-MM-DD): yeniden sorulmaz. */
+  initialExamDate?: string;
+  /** Sihirbazda seçilen hedef puan. */
+  initialTarget?: number;
+  /** "Belgem yok" ile gelindi: belge seçici gösterilmez (her hazırlığın kendi materyali). */
+  topicOnly?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "assistant",
-      content:
-        "Sınavında neler var, söyle. Konuları birlikte netleştirelim; sonra tarihi seçip yolunu çıkaracağım.",
+      content: initialExamDate
+        ? "Sınavında neler var, söyle. Konuları birlikte netleştirelim; yolunu çıkaracağım."
+        : "Sınavında neler var, söyle. Konuları birlikte netleştirelim; sonra tarihi seçip yolunu çıkaracağım.",
     },
   ]);
   const [draft, setDraft] = useState<Draft>({
@@ -60,7 +70,7 @@ export function ExamCreateChat({
     topics: [],
   });
   const [input, setInput] = useState(initialPrompt ?? "");
-  const [examDate, setExamDate] = useState("");
+  const [examDate, setExamDate] = useState(initialExamDate ?? "");
   const [needDate, setNeedDate] = useState(false);
   const [preview, setPreview] = useState<PlanNodeDraft[]>([]);
   const [days, setDays] = useState<number | null>(null);
@@ -219,6 +229,7 @@ export function ExamCreateChat({
           examDate,
           familiarity,
           documentId: documentId ?? undefined,
+          ...(initialTarget ? { targetScore: initialTarget } : {}),
           ...(intakeMode === "v2"
             ? {
                 dailyMinutes,
@@ -321,7 +332,7 @@ export function ExamCreateChat({
         </fieldset>
       ) : null}
 
-      {docs.length && (needDate || draft.topics.length >= 2) ? (
+      {!topicOnly && docs.length && (needDate || draft.topics.length >= 2) ? (
         <label className="cp-field">
           <span>Hangi kaynaktan çalışalım?</span>
           <select

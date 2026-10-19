@@ -28,6 +28,9 @@ export function ExamCreateEntry({
   const [mode, setMode] = useState<"wizard" | "chat">(
     initialPrompt && !initialDocumentId ? "chat" : "wizard",
   );
+  // 19 Ekim 2026: sihirbazdan "Belgem yok" ile gelince ders, tarih ve hedef taşınır; sohbet bunları
+  // yeniden sormuyordu ama sorduğunu sanıyordu ("sonra tarihi seçip"), eski belgeleri de listeliyordu.
+  const [picked, setPicked] = useState<{ subject: string; examDate: string; target: number } | null>(null);
 
   if (mode === "chat") {
     return (
@@ -42,8 +45,11 @@ export function ExamCreateEntry({
         <ExamCreateChat
           initialDocumentId={initialDocumentId}
           recentSubjects={recentSubjects}
-          initialSubject={initialSubject}
+          initialSubject={picked?.subject || initialSubject}
           initialPrompt={initialPrompt}
+          initialExamDate={picked?.examDate || undefined}
+          initialTarget={picked?.target}
+          topicOnly={Boolean(picked)}
           prepLimitReached={prepLimitReached}
         />
       </>
@@ -54,7 +60,10 @@ export function ExamCreateEntry({
     <ExamCreateWizard
       initialDocumentId={initialDocumentId}
       recentSubjects={recentSubjects}
-      onUseChat={() => setMode("chat")}
+      onUseChat={(choice) => {
+        setPicked(choice);
+        setMode("chat");
+      }}
       prepLimitReached={prepLimitReached}
     />
   );
