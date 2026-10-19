@@ -399,7 +399,9 @@ export function computeExamReadiness(input: {
 
   // No measured evidence → low readiness, never high confidence.
   if (measured === 0 || measuredSuccessPct == null) {
-    const pct = Math.min(15, Math.round(input.programPct * 0.1));
+    // 19 Ekim 2026: 16 konulu yolda ilk ders bitince %1'in altı yuvarlanıp "%0" çıkıyordu; Astra
+    // aynı anda %2 gösteriyor. İlerleme varsa en az %1 — ölçüm iddiası değil, sıfır değil işareti.
+    const pct = Math.min(15, Math.max(input.programPct > 0 ? 1 : 0, Math.round(input.programPct * 0.1)));
     return {
       pct,
       label: "Henüz ölçülmüş konu yok — hazırlık tahmini düşük",

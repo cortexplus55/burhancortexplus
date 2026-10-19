@@ -10706,6 +10706,33 @@
   color: var(--cp-muted);
 }
 
+/* Tempo kartı (19 Ekim 2026): "her ders yaklaşık +%X · N ders daha · günde yaklaşık M". */
+.cp-prog-pace {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  background: var(--cp-surface-2, rgba(255, 255, 255, 0.03));
+}
+
+.cp-prog-pace p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--cp-muted);
+}
+
+.cp-prog-pace strong {
+  color: var(--cp-text);
+}
+
+.cp-prog-pace-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem !important;
+  font-size: 0.78rem !important;
+}
+
 .cp-prog-gaps {
   list-style: none;
   margin: 0.5rem 0 0.75rem;
