@@ -17,8 +17,20 @@ import { env } from "@/lib/env";
 import type { OutlineUnitDraft } from "@/lib/documents/outline-clean";
 import { buildGroundingFile, groundTopic, type GroundingFile } from "@/lib/documents/outline-grounding";
 
-/** Soft page threshold for the cheaper outline model. */
-export const OUTLINE_MINI_PAGE_LIMIT = 30;
+/**
+ * Page threshold for the standard (mini) outline model; above it the strong
+ * model reads the file directly.
+ *
+ * 19 Ekim 2026: was 30. On real 20–30 page notes mini's maps kept failing in
+ * ways the gates catch only after the fact — one topic for a 20-page
+ * trigonometry note, "Yürütme" cited on pages 15–18 of a KPSS note whose
+ * executive chapter is on 22–25 (dropped by grounding, the chapter vanished
+ * from the path). The strong model (gpt-6-luna) is cheaper per token than
+ * gpt-4o-mini and cited the same note correctly; its only cost is ~40 s more
+ * in the wizard, which the escalate path was paying anyway whenever mini
+ * failed. Mini keeps the short notes, where it is fast and accurate.
+ */
+export const OUTLINE_MINI_PAGE_LIMIT = 12;
 /** ~100k tokens — stay under mini context with prompt margin. */
 export const ONESHOT_MAX_INPUT_CHARS = 280_000;
 /** gpt-4.1 1M context — whole-book corpus without splitting. */
@@ -1144,6 +1156,19 @@ export const MIN_MINI_COVERAGE = 0.6;
 /** Coverage is judged only on material big enough for this many topics (≈11+ pages of text). */
 export const COVERAGE_MIN_TOPICS = 3;
 
+/**
+ * Mini lost a chapter: on sizeable material a topic it proposed was dropped
+ * because its cited pages do not carry it (mini's page numbers drift). The
+ * strong model re-reads the file rather than shipping a map with a hole.
+ */
+export function outlineDroppedByGrounding(
+  issues: OneShotValidationIssue[],
+  material: { pageCount: number; corpusChars: number },
+): boolean {
+  if (minTopicsForMaterial(material) < COVERAGE_MIN_TOPICS) return false;
+  return issues.some((issue) => issue.code === "ungrounded_topic");
+}
+
 /** Mini's map stops well before the end of a sizeable file. */
 export function outlineCoverageTooLow(
   candidate: OutlineCandidate | null,
@@ -1399,7 +1424,11 @@ export async function runOutlineStep(input: OutlinePromptInput & {
   // "Thin" is too few topics for the material OR topics that cite only a small
   // part of it (a map that stops a third of the way through the file).
   const size = { pageCount: material.pageCount, corpusChars: material.corpus.length };
-  const thinMini = isMini && (outlineTooThin(candidate, size) || outlineCoverageTooLow(candidate, size));
+  const thinMini =
+    isMini &&
+    (outlineTooThin(candidate, size) ||
+      outlineCoverageTooLow(candidate, size) ||
+      outlineDroppedByGrounding(issues, size));
   if (goodEnough(candidate) && !thinMini) {
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best), diag };
   }

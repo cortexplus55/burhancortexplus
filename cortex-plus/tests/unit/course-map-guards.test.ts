@@ -71,7 +71,8 @@ beforeEach(() => {
 
 describe("M3: wizard-deferred files wait for the ONE course outline", () => {
   it("poller posts make no call before or during the course; one course call; one outline charge", async () => {
-    const fake = db([{ id: A, name: "kimya12.pdf", pages: pages(0, 12) }, { id: B, name: "kimya16.pdf", pages: pages(1, 16) }]);
+    // 5 + 6 = 11 pages: under OUTLINE_MINI_PAGE_LIMIT (12 since 19 Ekim 2026), so mini goes first.
+    const fake = db([{ id: A, name: "kimya5.pdf", pages: pages(0, 5) }, { id: B, name: "kimya6.pdf", pages: pages(1, 6) }]);
     // Mini's draft is rejected, so the course needs a second round (escalate).
     model.impl = (p) => (p.modelOverride === "gpt-4o-mini" ? JUNK : courseOutline);
 
@@ -101,7 +102,7 @@ describe("M3: wizard-deferred files wait for the ONE course outline", () => {
     // Main's background page clean: once per file, only by the round that saved the map.
     expect(afterCalls.n - cleansBefore).toBe(2);
     expect(model.calls.map((c) => c.model)).toEqual(["gpt-4o-mini", "gpt-4.1"]);
-    expect(model.calls[1]!.prompt).toContain("kimya16.pdf");
+    expect(model.calls[1]!.prompt).toContain("kimya6.pdf");
     expect(outlineCharges(fake)).toBe(1);
     expect(fake.chargedCredits("u1")).toBe(5 + 5 + COST);
     expect(fake.db.tables.documents!.map((d: any) => `${d.status}/${d.topic_map_status}`)).toEqual([

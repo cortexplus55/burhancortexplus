@@ -132,14 +132,15 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
     mockedGenerate.mockReset();
   });
 
-  it("20 dolu sayfada mini 1 konu verince güçlü modele geçer; güçlü 7 konu verince o kalır", async () => {
+  // 19 Ekim 2026'dan beri mini yalnız ≤12 sayfayı okuyor (OUTLINE_MINI_PAGE_LIMIT); fikstürler 12 dolu sayfa.
+  it("12 dolu sayfada mini 1 konu verince güçlü modele geçer; güçlü 7 konu verince o kalır", async () => {
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
       const count = params.modelOverride === "gpt-4o-mini" ? 1 : 7;
       return { ok: true, data: params.parse(draft(count)), reservationId: `r-${models.length}` } as never;
     });
-    const { result } = await runToEnd(trigPages(20));
+    const { result } = await runToEnd(trigPages(12));
     expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
     expect(result.kind).toBe("done");
     if (result.kind !== "done") return;
@@ -156,7 +157,7 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
       models.push(String(params.modelOverride));
       return { ok: true, data: params.parse(draft(1)), reservationId: `r-${models.length}` } as never;
     });
-    const { result } = await runToEnd(trigPages(20));
+    const { result } = await runToEnd(trigPages(12));
     expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
     expect(result.kind).toBe("done");
     if (result.kind === "done") {
@@ -169,31 +170,49 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
-      // 5 konu × 4 sayfa = 20 sayfanın tamamı
-      return { ok: true, data: params.parse(draft(5, 4)), reservationId: "r-mini" } as never;
+      // 4 konu × 3 sayfa = 12 sayfanın tamamı
+      return { ok: true, data: params.parse(draft(4, 3)), reservationId: "r-mini" } as never;
     });
-    const { result } = await runToEnd(trigPages(20));
+    const { result } = await runToEnd(trigPages(12));
     expect(models).toEqual(["gpt-4o-mini"]);
     expect(result.kind).toBe("done");
-    if (result.kind === "done") expect(result.map.kept).toBe(5);
+    if (result.kind === "done") expect(result.map.kept).toBe(4);
   });
 
   it("konu sayısı yeterli ama konular dosyanın yalnız başını kapsıyorsa mini yükseltilir (KPSS 19 Ekim)", async () => {
     // Canlı: 27 içerik sayfası, mini 7 konu tuttu, hepsi 3–11. sayfalarda → yol Siyasi Partiler'de bitti.
+    // Fikstür 12 sayfa: mini 3 konu (taban 3 → geçer) ama hepsi ilk 3 sayfada (kapsam %25).
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
-      const count = params.modelOverride === "gpt-4o-mini" ? 6 : 6;
-      const spread = params.modelOverride === "gpt-4o-mini" ? 1 : 4;
+      const count = params.modelOverride === "gpt-4o-mini" ? 3 : 4;
+      const spread = params.modelOverride === "gpt-4o-mini" ? 1 : 3;
       return { ok: true, data: params.parse(draft(count, spread)), reservationId: `r-${models.length}` } as never;
     });
-    const { result } = await runToEnd(trigPages(27));
+    const { result } = await runToEnd(trigPages(12));
     expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
     expect(result.kind).toBe("done");
     if (result.kind !== "done") return;
     expect(result.path).toBe("escalate");
     expect(result.map.model).toBe("gpt-4.1");
     expect(result.release).toEqual(["r-1"]);
+  });
+
+  it("mini bir konuyu yanlış sayfaya atıf yapıp düşürürse (bölüm kaybolur) güçlü model okur — KPSS 'Yürütme [15-18]'", async () => {
+    const models: string[] = [];
+    mockedGenerate.mockImplementation(async (params) => {
+      models.push(String(params.modelOverride));
+      const d = draft(6, 2); // 12 sayfayı kapsar
+      if (params.modelOverride === "gpt-4o-mini") {
+        // Sayfalarda geçmeyen bir başlık, yanlış aralıkta: temellendirme düşürür.
+        d.units[0]!.topics.push({ ...d.units[0]!.topics[0]!, id: "t-yurutme", title: "Yürütme Organı Cumhurbaşkanı", pageStart: 3, pageEnd: 4 });
+      }
+      return { ok: true, data: params.parse(d), reservationId: `r-${models.length}` } as never;
+    });
+    const { result } = await runToEnd(trigPages(12));
+    expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
+    expect(result.kind).toBe("done");
+    if (result.kind === "done") expect(result.map.model).toBe("gpt-4.1");
   });
 
   it("outlineCoverage: alıntılanan sayfaların payı", () => {
@@ -211,14 +230,14 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
     expect(outlineCoverageTooLow(null, { pageCount: 27, corpusChars: 27 * 1_400 })).toBe(false);
   });
 
-  it("kısa belgede (2 dolu sayfa) ya da az metinli 20 sayfada mini'nin tek konusu yeterlidir", async () => {
+  it("kısa belgede (2 dolu sayfa) ya da az metinli 12 sayfada mini'nin tek konusu yeterlidir", async () => {
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
       return { ok: true, data: params.parse(draft(1)), reservationId: "r-mini" } as never;
     });
     expect((await runToEnd(trigPages(2))).result.kind).toBe("done");
-    expect((await runToEnd(trigPages(20, 90))).result.kind).toBe("done");
+    expect((await runToEnd(trigPages(12, 90))).result.kind).toBe("done");
     expect(models).toEqual(["gpt-4o-mini", "gpt-4o-mini"]);
   });
 });
