@@ -58,7 +58,7 @@ const geistMono = Geist_Mono({
 
 const siteTitle = "Cortex Plus — AI destekli öğrenme";
 const siteDescription =
-  "Sınav hazırlığı, AI öğretmen, quiz ve kişisel çalışma planı — cortexplus.app";
+  "Ders notunu yükle; ders, podcast, test ve sözlü pratik senin notundan hazırlansın. Sınav hazırlığı için AI öğretmen — cortexplus.app";
 
 export const metadata: Metadata = {
   title: {

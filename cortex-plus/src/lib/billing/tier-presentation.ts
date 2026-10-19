@@ -35,7 +35,6 @@ export function sigmaBenefitLines(): string[] {
   return [
     "Plus’taki her şey",
     allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
-    "Gelişmiş model",
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.sigma} sayfa)`,
     "Ek paket",
   ];
@@ -54,7 +53,6 @@ export function parentSigmaBenefitLines(): string[] {
   return [
     "Plus’taki her şey çocuğunun hesabında",
     "Daha yüksek aylık kota",
-    "Gelişmiş model",
     `Daha yüksek yükleme limiti (${PHOTO_PAGE_LIMITS.sigma} sayfa)`,
   ];
 }
@@ -67,23 +65,44 @@ export type TierComparisonRow = {
   sigma: string;
 };
 
-/** Misafirin de gördüğü karşılaştırma. Rakamlar foto limitlerinden gelir. */
+/**
+ * Misafirin de gördüğü karşılaştırma. Rakamlar foto limitlerinden gelir.
+ *
+ * 19 Ekim 2026: "Model: Standart / Standart / Gelişmiş" satırı kalktı — her plan aynı modeli kullanıyor
+ * (`model-router.ts`), Sigma'nın "gelişmiş" bayrağı hiçbir yere bağlı değildi. Gerçek farklar: hak,
+ * günlük haktan büyük işler (podcast 12, sözlü 8, deneme 15 kredi; ücretsiz günlük hak 6), video ders,
+ * hazır içerik yokken hızlı yazım (`fast-access.ts`).
+ */
 export function tierComparisonRows(): TierComparisonRow[] {
   return [
     {
-      label: "Öğrenme stüdyoları",
+      label: "AI kullanımı",
+      guest: "Yok",
+      // Kredi sistemi v2 (8 Ekim 2026): günde 6 kredi — bir ders, bir test ya da iki mesaj.
+      free: "Günde 1 ders, 1 test ya da 2 mesaj",
+      plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
+      sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
+    },
+    {
+      label: "Ders, test, kartlar, AI öğretmen",
       guest: "Yok",
       free: "Açık",
       plus: "Açık",
       sigma: "Açık",
     },
     {
-      label: "AI kullanımı",
-      guest: "Yok",
-      // Kredi sistemi v2 (8 Ekim 2026): günde 6 kredi — bir ders ya da iki mesaj.
-      free: "Günde 1 ders",
-      plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
-      sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
+      label: "Podcast, sözlü ve yazılı deneme",
+      guest: "—",
+      free: "Günlük hak yetmez",
+      plus: "Açık",
+      sigma: "Açık",
+    },
+    {
+      label: "Video ders",
+      guest: "—",
+      free: "Yok",
+      plus: "Var",
+      sigma: "Var",
     },
     {
       label: "Sınav hazırlığı",
@@ -100,18 +119,18 @@ export function tierComparisonRows(): TierComparisonRow[] {
       sigma: "Belgenin tamamı",
     },
     {
-      label: "Foto / PDF sayfa",
+      label: "Fotoğraf / taranmış sayfa (ayda)",
       guest: "—",
       free: String(PHOTO_PAGE_LIMITS.free),
       plus: String(PHOTO_PAGE_LIMITS.plus),
       sigma: String(PHOTO_PAGE_LIMITS.sigma),
     },
     {
-      label: "Model",
+      label: "Hazır içerik yokken yazım",
       guest: "—",
-      free: "Standart",
-      plus: "Standart",
-      sigma: "Gelişmiş",
+      free: "Normal",
+      plus: "Hızlı",
+      sigma: "Hızlı",
     },
     {
       label: "Ek paket",

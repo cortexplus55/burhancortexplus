@@ -1,129 +1,133 @@
-import {
-  BookOpenCheck,
-  Camera,
-  ClipboardList,
-  FileText,
-  GraduationCap,
-  Layers,
-  Receipt,
-  ShieldCheck,
-} from "lucide-react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { ParityMarketingPage } from "@/components/parity/marketing";
-import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
-import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section";
+import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
+import "@/styles/landing.css";
 
 export const metadata = {
   title: "Özellikler",
   description:
-    "Fotoğraftan çözüm, deneme analizi, quiz ve kişisel plan — sınav odaklı AI öğretmen.",
+    "Ders, podcast, video, kartlar, konu testi, yazılı ve sözlü deneme, yanlışlar defteri ve AI öğretmen — hepsi kendi notundan.",
 };
 
-/**
- * Özellikler iki gruba ayrıldı: öğrenciyi ilerleten şeyler ve platformun
- * verdiği sözler. Sekiz kartı tek yığın hâlinde sunmak hepsini eşit ağırlıkta
- * gösteriyordu; oysa "fotoğraftan çözüm" ile "şeffaf kredi" aynı türden vaat
- * değil.
- */
-const learning = [
+/*
+  19 Ekim 2026: sayfa "gelişmiş model", "çalışma planı ve günlük görevler", "her işlem öncesi kredi
+  gösterilir" diyordu; üçü de yoktu. Her kart bugün çalışan bir araca karşılık gelir; ücretsiz günlük
+  haktan büyük olanlar "Plus" etiketli (podcast 12, sözlü 8, deneme 15, fotoğraf 10 kredi; günlük hak 6).
+*/
+
+type Feature = { icon: Icon3DName; title: string; body: string; plus?: boolean };
+
+const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
   {
-    icon: GraduationCap,
-    title: "AI Öğretmen",
-    body: "Soruyu yaz, adım adım anlatım al. İpucu iste, daha basit anlatım seç, benzer örnek üret.",
+    title: "Öğren",
+    lead: "Bir konuyu sana uyan yoldan çalış.",
+    items: [
+      { icon: "ders", title: "Ders", body: "Kısa ekranlar, önce dene soruları, tablolar ve ezber kodları. Sınavda sorulacak yer turuncu." },
+      { icon: "podcast", title: "Podcast", body: "İki öğretmen konuyu konuşarak anlatır; beş farklı tür, indirip dinleyebilirsin.", plus: true },
+      { icon: "video", title: "Video ders", body: "Bir dakikalık anlatım; kilit bilgi ekranda büyük yazılı.", plus: true },
+      { icon: "kartlar", title: "Kartlar ve tekrar", body: "Zorlandığın kart önce gelir; aralıklı tekrarla unutmazsın." },
+      { icon: "ogretmen", title: "Anlatarak öğren", body: "Konuyu kendi cümlelerinle anlat; atladığın noktalar ve kuramadığın bağlar tek tek önüne konur." },
+    ],
   },
   {
-    icon: FileText,
-    title: "Kendi Belgemden Çalış",
-    body: "PDF ve notlarını yükle; yanıtlar senin belgene atıf vererek gelsin.",
+    title: "Pratik yap",
+    lead: "Bildiğini sına, bilmediğini kaybetme.",
+    items: [
+      { icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
+      { icon: "dogru-yanlis", title: "Doğru / Yanlış", body: "Hızlı kontrol; yanlış cümlenin doğrusu yanında." },
+      { icon: "tekrar", title: "Yanlışlar defteri", body: "Testlerde yanlış yaptığın soru konusuyla deftere yazılır; her gün defterinden 10 soruluk tur, üst üste iki doğruyla çıkar." },
+      { icon: "denklem", title: "Fotoğraftan çözüm", body: "Sorunun fotoğrafını çek; adım adım çözüm ve benzer bir soru.", plus: true },
+    ],
   },
   {
-    icon: Camera,
-    title: "Fotoğraftan Çözüm",
-    body: "Sorunun fotoğrafını yükle, gelişmiş model çözümü adımlarıyla göstersin.",
+    title: "Sınavı provala",
+    lead: "Gerçek sınavdan önce kendini dene.",
+    items: [
+      { icon: "yazili", title: "Yazılı deneme", body: "Bütün konulardan, çoktan seçmeli ve açık uçlu. Açık uçlu cevabın, cevabından alıntıyla puanlanır.", plus: true },
+      { icon: "resmi-sinavlar", title: "Kâğıtta çöz", body: "Denemeyi yazdır, kâğıda çöz, fotoğrafını çek; işaretlerin ve yazdıkların okunup notlanır.", plus: true },
+      { icon: "sozlu", title: "Sözlü deneme", body: "Sesli ya da yazılı cevapla; eksik bıraktığın yeri öğretmen bir kez sorar.", plus: true },
+    ],
   },
   {
-    icon: Layers,
-    title: "Quiz ve Flashcard",
-    body: "Konu başlığından ya da belgenden anında test ve tekrar kartları üret, ilerlemeni ölç.",
-  },
-  {
-    icon: BookOpenCheck,
-    title: "Deneme Sınavı ve Yanlışlar Defteri",
-    body: "Deneme çöz, puanını gör; yanlışların deftere yazılsın, üst üste iki doğruyla çıksın.",
-  },
-  {
-    icon: ClipboardList,
-    title: "Çalışma Planı ve İlerleme Analizi",
-    body: "Sınav tarihini yaz; günlük görevler zayıf konularına göre yeniden dizilsin, hazırlık yüzdeni gör.",
+    title: "Yanında",
+    lead: "Takıldığında ve motivasyon gerektiğinde.",
+    items: [
+      { icon: "bos-sohbet", title: "AI öğretmen", body: "Takıldığın yeri sor; cevap notuna dayanır ve hangi sayfadan geldiği yazar." },
+      { icon: "yildiz", title: "Düello", body: "Aynı sorularla arkadaşına meydan oku." },
+      { icon: "seri", title: "Seri ve yıldızlar", body: "Günlük hedef, haftalık seri ve sıralama; istersen Ayarlar'dan gizlersin." },
+      { icon: "mufredat", title: "İlerleme", body: "Hazırlık puanı, sınav günü tahmini, bilgi eksikleri ve konu konu durum." },
+    ],
   },
 ];
-
-const promises = [
-  {
-    icon: Receipt,
-    title: "Şeffaf kredi",
-    body: "Her işlem öncesi harcanacak kredi gösterilir; işlem başarısızsa iade edilir.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Gizlilik önceliği",
-    body: "Dosyaların özel depolamada tutulur, yalnızca senin hesabına bağlıdır.",
-  },
-];
-
-function FeatureCard({
-  icon: Icon,
-  title,
-  body,
-}: {
-  icon: typeof GraduationCap;
-  title: string;
-  body: string;
-}) {
-  return (
-    <article className="mk-feature">
-      <span className="mk-icon" aria-hidden>
-        <Icon className="h-5 w-5" />
-      </span>
-      <h3 className="mt-4 text-lg font-semibold text-[var(--mk-text)]">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--mk-muted)]">{body}</p>
-    </article>
-  );
-}
 
 export default function OzelliklerPage() {
   return (
-    <ParityMarketingPage
-      title="Özellikler"
-      description="Zayıf konuyu gör, bir sonraki adımı bil. Öğrenme araçları tek akışta."
-    >
-      {/* Döngü listelerden önce: kartlar tek tek ne yaptığımızı sayıyor,
-          döngü hepsinin neden bir arada durduğunu anlatıyor. */}
-      <MistakeLoopSection variant="full" />
+    <ParityMarketingPage variant="marketing">
+      <div className="lp">
+        <section className="lp-hero" aria-labelledby="oz-title">
+          <div className="lp-wrap">
+            <p className="lp-eyebrow">Özellikler</p>
+            <h1 id="oz-title" className="lp-hero-title">
+              Her konu için birçok yol, hepsi kendi notundan
+            </h1>
+            <p className="lp-hero-lead">
+              Aşağıdaki her şey bugün çalışıyor. Etiketsizler ücretsiz günlük hakla açılır; &quot;Plus&quot; etiketliler
+              günlük haktan büyük, Plus&apos;ta açık.
+            </p>
+            <div className="lp-cta-row">
+              <Link href="/kayit" className="lp-btn lp-btn--primary">
+                Ücretsiz başla
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <Link href="/fiyatlandirma" className="lp-btn lp-btn--ghost">
+                Planları karşılaştır
+              </Link>
+            </div>
+          </div>
+        </section>
 
-      <div className="mx-auto max-w-6xl px-4 pb-16" data-cinematic-reveal>
-        <p className="mk-eyebrow">Çalışırken</p>
-        <h2 className="mt-2 text-2xl font-bold text-[var(--mk-text)] md:text-3xl">
-          Sorudan sonuca kadar tek yerde
-        </h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {learning.map((f) => (
-            <FeatureCard key={f.title} {...f} />
-          ))}
-        </div>
+        {GROUPS.map((group, index) => (
+          <section
+            key={group.title}
+            className={index % 2 ? "lp-section lp-section--alt" : "lp-section"}
+            aria-labelledby={`oz-${index}`}
+          >
+            <div className="lp-wrap">
+              <p className="lp-kicker">{group.title}</p>
+              <h2 id={`oz-${index}`} className="lp-h2">
+                {group.lead}
+              </h2>
+              <div className="lp-features">
+                {group.items.map((feature) => (
+                  <article key={feature.title} className="lp-feature">
+                    <Icon3D name={feature.icon} size={44} />
+                    <div className="min-w-0">
+                      <h3 className="lp-h3">
+                        {feature.title}
+                        {feature.plus ? <span className="lp-plus-chip">Plus</span> : null}
+                      </h3>
+                      <p className="lp-muted">{feature.body}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        ))}
 
-        <p className="mk-eyebrow mt-14">Sözümüz</p>
-        <h2 className="mt-2 text-2xl font-bold text-[var(--mk-text)] md:text-3xl">
-          Ne harcadığın ve neyin nerede durduğu belli
-        </h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {promises.map((f) => (
-            <FeatureCard key={f.title} {...f} />
-          ))}
-        </div>
-
-        <div className="mt-12">
-          <CinematicPrimaryCta label="Başla" />
-        </div>
+        <section className="lp-final" aria-labelledby="oz-final">
+          <div className="lp-wrap lp-final-inner">
+            <h2 id="oz-final" className="lp-h2">
+              Notunla dene
+            </h2>
+            <p className="lp-muted">Kart istemiyoruz. Her gün bir ders ücretsiz.</p>
+            <Link href="/kayit" className="lp-btn lp-btn--primary">
+              Ücretsiz başla
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </div>
+        </section>
       </div>
     </ParityMarketingPage>
   );

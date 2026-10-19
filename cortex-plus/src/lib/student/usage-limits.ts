@@ -4,7 +4,6 @@ import { dailyKey, peekCount } from "@/lib/rate-limit";
 import {
   FREE_IMAGE_DAILY_LIMIT,
 } from "@/lib/ai/image-quota";
-import { HARD_UPGRADE_MONTHLY_LIMIT } from "@/lib/ai/model-upgrade";
 import { photoPageLimit, type PlanTier } from "@/lib/documents/photo-quota";
 
 /**
@@ -57,19 +56,12 @@ export async function loadUsageLimits(
     ];
   }
 
-  const [photo, upgrade, dailyPhotos] = await Promise.all([
+  const [photo, dailyPhotos] = await Promise.all([
     service
       .from("document_page_grants")
       .select("period_start, used")
       .eq("user_id", userId)
       .maybeSingle(),
-    tier === "free"
-      ? Promise.resolve({ data: null })
-      : service
-          .from("model_upgrade_grants")
-          .select("period_start, used")
-          .eq("user_id", userId)
-          .maybeSingle(),
     tier === "free"
       ? peekCount(dailyKey(userId, "image-free", now))
       : Promise.resolve(0),
@@ -95,24 +87,14 @@ export async function loadUsageLimits(
       label: "Günlük fotoğraf sorusu",
       used: Math.min(dailyPhotos as number, FREE_IMAGE_DAILY_LIMIT),
       limit: FREE_IMAGE_DAILY_LIMIT,
-      hint: "Fotoğraftan soru çözme, ücretsiz hesapta günde bu kadar. Gece yarısı yenilenir.",
-    });
-  } else {
-    /*
-      Yükseltme sayacı tavanın bir üstünde doyuyor (`claim_model_upgrade`),
-      o yüzden gösterirken kırpılıyor: "61 / 60" öğrenciye bir şey anlatmaz.
-    */
-    limits.push({
-      key: "hard-upgrade",
-      label: "Zor soruda güçlü model",
-      used: Math.min(
-        usedThisMonth((upgrade as { data: Grant }).data, now),
-        HARD_UPGRADE_MONTHLY_LIMIT,
-      ),
-      limit: HARD_UPGRADE_MONTHLY_LIMIT,
-      hint: "Zor bulunan soruda güçlü modele çıkıyoruz — kredin artmıyor. Dolunca cevap standart modelden gelir.",
+      // 19 Ekim 2026: çözüm 10 kredi, ücretsiz günlük hak 6 — sayaç ancak davet hediyesiyle dolar.
+      hint: "Fotoğraftan çözüm ücretsiz günlük haktan büyük bir iş; davet hediyesi ya da Plus ile açılır. Hakkın varken günde en çok bu kadar.",
     });
   }
+  /*
+    19 Ekim 2026: "Zor soruda güçlü model" satırı kalktı. `selectModel` hiçbir zaman yükseltme
+    vermiyor (her plan aynı model); sayaç hep 0/60 duruyor ve olmayan bir hakkı vaat ediyordu.
+  */
 
   return limits;
 }

@@ -81,7 +81,7 @@ export default function OpenGraphImage() {
               maxWidth: 820,
             }}
           >
-            Sınav hazırlığı, AI öğretmen, quiz ve kişisel çalışma planı
+            Notunu yükle; ders, podcast, test ve sözlü pratik senin notundan
           </div>
         </div>
 

@@ -56,7 +56,7 @@ export default async function AyarlarPage() {
             description={
               account.isPremium
                 ? "Plus aboneliğin aktif. Kullanımını ve ödemelerini Kullanım sayfasından takip edebilirsin."
-                : "Ücretsiz plandasın. Plus ile gelişmiş model ve daha yüksek limit açılır."
+                : "Ücretsiz plandasın. Plus ile podcast, sözlü ve yazılı deneme, video ders ve ayda yaklaşık 1.200 ders hakkı açılır."
             }
           >
             <Link

@@ -14,7 +14,7 @@
   --cx-border-gold: rgba(232, 168, 56, 0.28);
   --cx-text: var(--c-text);
   --cx-muted: var(--c-text-muted);
-  --font-display: "DM Serif Display", Georgia, serif;
+  --font-display: var(--font-ui), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-ui: "Figtree", var(--font-geist-sans), system-ui, sans-serif;
   font-family: var(--font-ui);
 }
@@ -47,7 +47,7 @@
 .cs-app.cortex-premium-app .cortex-premium-section-title {
   font-family: var(--font-display);
   font-size: clamp(1.35rem, 4vw, 1.75rem);
-  font-weight: 400;
+  font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.02em;
 }
@@ -120,7 +120,7 @@
 .cortex-premium-upgrade-sheet__title {
   font-family: var(--font-display);
   font-size: 1.35rem;
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 
@@ -180,7 +180,7 @@
 .cortex-premium-auth__hero-title {
   font-family: var(--font-display);
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 400;
+  font-weight: 650;
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
@@ -254,7 +254,7 @@
 .cortex-premium-auth__title {
   font-family: var(--font-display);
   font-size: 1.75rem;
-  font-weight: 400;
+  font-weight: 650;
   letter-spacing: -0.02em;
   text-align: center;
 }

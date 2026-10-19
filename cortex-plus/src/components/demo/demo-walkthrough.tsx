@@ -101,8 +101,8 @@ const STEPS: Step[] = [
   {
     id: "sinir",
     kicker: "6. adım",
-    title: "Notunun dışına çıkmaz",
-    lead: "Asıl fark burada. Sor ve ne yaptığını gör — notunda olmayana cevap uydurmaz, yanlış bir varsayımı da onaylamaz.",
+    title: "Neyin notundan geldiği belli",
+    lead: "Asıl fark burada. Sor ve ne yaptığını gör — notunda olmayanı notundan geliyormuş gibi sunmaz, yanlış bir varsayımı da onaylamaz.",
     icon: ShieldCheck,
   },
 ];
@@ -145,9 +145,9 @@ const BOUNDARY_CASES: BoundaryCase[] = [
     id: "yok",
     kind: "yok",
     question: "Solunum denklemi nedir?",
-    badge: "Notunda yok — hakkından düşmedi",
+    badge: "Notunda yok — ayrı etiketli",
     answer:
-      "Bu notta solunum geçmiyor, o yüzden cevap vermiyorum. Genel bilgiden anlatabilirdim ama sınavda bu nottan sorumluysan seni yanlış yere götürürdü.\n\nNotta gerçekten olanlar: fotosentez denklemi, klorofilin görevi, fotosentez hızını etkileyen etkenler. Hangisine bakalım?",
+      "Bu notta solunum geçmiyor.\n\nGenel bilgiden: hücresel solunumun özet denklemi C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O + enerji (ATP). Sınavda bu nottan sorumluysan bu kısım notunda yok; \"Yalnızca belgem\" modunu seçersen bu tür cevabı hiç vermem ve o soru için hakkından düşmez.\n\nNotta gerçekten olanlar: fotosentez denklemi, klorofilin görevi, fotosentez hızını etkileyen etkenler. Hangisine bakalım?",
   },
   {
     id: "duzeltme",

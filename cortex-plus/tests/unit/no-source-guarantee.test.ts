@@ -150,7 +150,10 @@ describe("örnek akış iddiayı kanıtlıyor", () => {
     expect(cases).toContain("Hayır");
   });
 
-  it("reddedilen soruda kredinin düşmediği yazıyor", () => {
-    expect(demo).toContain("hakkından düşmedi");
+  // 19 Ekim 2026: varsayılan mod "Belgem + genel bilgi" — örnek, notta olmayanı "Genel bilgiden:" diye
+  // ayrı gösteriyor; reddetme ve ücretsizlik yalnız "Yalnızca belgem" modunda, örnek bunu söylüyor.
+  it("notta olmayan bilgi etiketli; yalnız-belge modunda hakkın düşmediği yazıyor", () => {
+    expect(demo).toContain("Genel bilgiden:");
+    expect(demo).toContain("hakkından düşmez");
   });
 });

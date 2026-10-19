@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -364,7 +363,7 @@ export function SubscriptionCards({
             title={currentBadge ? "Aboneliğin aktif" : undefined}
             description={
               currentBadge === "Sigma"
-                ? "Sigma planınla gelişmiş model ve yüksek aylık kotan açık."
+                ? "Sigma planınla en yüksek aylık hakkın ve yükleme limitin açık."
                 : currentBadge
                   ? `${currentBadge} planınla yüksek aylık kotan ve yükleme limitin açık.`
                   : undefined
@@ -684,14 +683,7 @@ export function SubscriptionCards({
                     planId={sigmaPlan.id}
                     planName={sigmaPlan.name}
                   />
-                ) : sigmaUnderFold ? null : (
-                  <Link
-                    href="/destek"
-                    className="mt-3 block text-center text-xs text-[var(--cs-primary)] underline underline-offset-2"
-                  >
-                    Ebeveynden ödeme iste
-                  </Link>
-                )}
+                ) : null}
               </div>
             </div>
           </article>

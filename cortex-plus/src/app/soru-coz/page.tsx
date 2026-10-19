@@ -26,8 +26,8 @@ export default async function SoruCozPage() {
                 Fotoğraftan soru çöz
               </h2>
               <p className="mt-1 text-sm text-[var(--cx-muted)]">
-                Sorunun net bir fotoğrafını yükle; adım adım çözüm alırsın. Gelişmiş
-                model kullanılır.
+                Sorunun net bir fotoğrafını yükle; adım adım çözüm ve benzer bir soru
+                alırsın. Ücretsiz günlük haktan büyük bir iştir; Plus&apos;ta açık.
               </p>
             </div>
           </div>
