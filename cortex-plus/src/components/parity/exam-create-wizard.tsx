@@ -340,6 +340,9 @@ export function ExamCreateWizard({
   /** The course map ran out of attempts: offer a calm "Tekrar dene". */
   const [mapRetry, setMapRetry] = useState(false);
   const [draftResumeBanner, setDraftResumeBanner] = useState(false);
+  // "Baştan başla" sayfa içinde onaylanır (19 Ekim 2026): tarayıcının onay penceresi tasarıma uymuyor,
+  // canlıda sekmeyi de kilitledi.
+  const [confirmReset, setConfirmReset] = useState(false);
   const draftHydrated = useRef(false);
   const draftWriteTimer = useRef<number | null>(null);
   const draftPushTimer = useRef<number | null>(null);
@@ -1181,18 +1184,28 @@ export function ExamCreateWizard({
 
       {draftResumeBanner ? (
         <div className="apw-draft-resume" role="status">
-          <span>Kaldığın yerden devam ediyorsun.</span>
-          <button
-            type="button"
-            className="apw-ghost"
-            onClick={() => {
-              if (window.confirm("Sihirbazı sıfırlamak istediğine emin misin?")) {
-                resetWizard();
-              }
-            }}
-          >
-            Baştan başla
-          </button>
+          <span>{confirmReset ? "Seçimlerin silinsin mi?" : "Kaldığın yerden devam ediyorsun."}</span>
+          {confirmReset ? (
+            <>
+              <button
+                type="button"
+                className="apw-ghost"
+                onClick={() => {
+                  setConfirmReset(false);
+                  resetWizard();
+                }}
+              >
+                Evet, baştan başla
+              </button>
+              <button type="button" className="apw-ghost" onClick={() => setConfirmReset(false)}>
+                Vazgeç
+              </button>
+            </>
+          ) : (
+            <button type="button" className="apw-ghost" onClick={() => setConfirmReset(true)}>
+              Baştan başla
+            </button>
+          )}
         </div>
       ) : null}
 
