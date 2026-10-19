@@ -92,6 +92,20 @@ export async function nodeHasAttempts(service: SupabaseClient, nodeId: string) {
   return Boolean(data?.length);
 }
 
+/**
+ * Yazılıyor ya da süren kayıt var mı. Isınma yazımı (19 Ekim 2026) bitmiş kayıtları saymaz:
+ * bitmiş dersin düğümü yeniden açılınca ("Farklı anlat") yeni ders yine önceden yazılır.
+ */
+export async function nodeHasOpenAttempt(service: SupabaseClient, nodeId: string) {
+  const { data } = await service
+    .from("exam_prep_node_attempts")
+    .select("id")
+    .eq("node_id", nodeId)
+    .in("status", ["creating", "active"])
+    .limit(1);
+  return Boolean(data?.length);
+}
+
 /** Yazıma başlamadan önce düğümü sahiplen. Başkası yazıyorsa false. */
 export async function claimPrefetchSlot(
   service: SupabaseClient,
@@ -130,8 +144,10 @@ export async function storePrefetchedLesson(
   service: SupabaseClient,
   nodeId: string,
   payload: Record<string, unknown>,
+  options: { warm?: boolean } = {},
 ): Promise<boolean> {
-  if (await nodeHasAttempts(service, nodeId)) {
+  // Isınma yazımında bitmiş eski kayıtlar engel değil; yalnız süren bir kayıt varsa atılır.
+  if (options.warm ? await nodeHasOpenAttempt(service, nodeId) : await nodeHasAttempts(service, nodeId)) {
     await dropPrefetch(service, nodeId);
     return false;
   }
@@ -384,16 +400,26 @@ export async function nextPrefetchNode(
 export async function requestNodePrefetch(
   service: SupabaseClient,
   input: { origin: string; userId: string; prepId: string; node: PathRow },
+  /**
+   * warm (19 Ekim 2026): öğrenci ders düğümünü açtı, kartlara bakıyor. Yazım hemen ve hızlı
+   * işlemle başlar; bitmiş eski kayıtlar engel değil (yalnız süren kayıt), bayat yazım devralınır.
+   */
+  options: { warm?: boolean } = {},
 ) {
   try {
     if (!PREFETCH_KINDS.has(input.node.kind)) return;
-    if (await nodeHasAttempts(service, input.node.id)) return;
+    const warm = options.warm === true;
+    if (warm ? await nodeHasOpenAttempt(service, input.node.id) : await nodeHasAttempts(service, input.node.id)) return;
     const { data: existing } = await service
       .from("exam_prep_prefetch")
-      .select("node_id")
+      .select("node_id, status, updated_at")
       .eq("node_id", input.node.id)
       .maybeSingle();
-    if (existing) return;
+    if (existing) {
+      if (!warm) return;
+      const fresh = Date.now() - Date.parse(String(existing.updated_at ?? "")) < STALE_CREATING_MS;
+      if (existing.status === "ready" || fresh) return;
+    }
     const token = prefetchToken(input.userId, input.node.id);
     if (!token) return;
     const familiarity = await nodeFamiliarity(service, input.prepId, input.node.session_meta);
@@ -411,6 +437,7 @@ export async function requestNodePrefetch(
         difficulty: oral ? PREFETCH_DEFAULTS.oralDifficulty : difficultyFromFamiliarity(familiarity),
         ...(input.node.kind === "podcast" ? { podcastLength: PREFETCH_DEFAULTS.podcastLength } : {}),
         ...(oral ? { oralQuestionCount: PREFETCH_DEFAULTS.oralQuestionCount, oralScope: "topic", voiceMode: false } : {}),
+        ...(warm ? { warm: true } : {}),
         lessonFormat: 3,
         clientRequestId: randomUUID(),
       }),

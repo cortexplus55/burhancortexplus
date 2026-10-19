@@ -73,8 +73,10 @@ describe("kredi yalnız açılınca düşer", () => {
     expect(route).toMatch(/input\.charge !== false\) \{\s*await saveTopicLesson/);
   });
 
-  it("öğrenci açtıysa hazır ders saklanmaz", () => {
-    expect(prefetchLib).toMatch(/storePrefetchedLesson[\s\S]*if \(await nodeHasAttempts\(service, nodeId\)\)/);
+  it("öğrenci açtıysa hazır ders saklanmaz (ısınmada yalnız süren kayıt sayılır)", () => {
+    expect(prefetchLib).toMatch(
+      /storePrefetchedLesson[\s\S]*if \(options\.warm \? await nodeHasOpenAttempt\(service, nodeId\) : await nodeHasAttempts\(service, nodeId\)\)/,
+    );
   });
 });
 
@@ -114,6 +116,58 @@ function fakeService(tables: Record<string, unknown>) {
   } as never;
 }
 
+describe("ısınma yazımı: düğüm açılınca başlar (19 Ekim 2026)", () => {
+  const session = read("src/components/parity/exam-node-session.tsx");
+
+  it("istemci ruh hali / aşinalık ekranında bir kez 'warm' ister; sunucu yalnız ders düğümünde yazımı başlatır", () => {
+    expect(session).toMatch(/action: "warm"/);
+    expect(session).toMatch(/stage !== "familiarity" && stage !== "mood"/);
+    expect(route).toMatch(/if \(action === "warm"\) \{/);
+    expect(route).toMatch(/requestNodePrefetch\([\s\S]*?\{ warm: true \},\s*\)/);
+    // Isınma yazımı hızlı işlemde: öğrenci kartlarda bekliyor.
+    expect(route).toMatch(/fast: input\.charge !== false \|\| input\.warm === true/);
+    // Bitmiş düğüm de ısıtılır; yalnız süren kayıt durdurur. Hazır ders saklanırken de aynı kural.
+    expect(route).toMatch(/node\.status === "done" && !warm/);
+    expect(route).toMatch(/warm \? await nodeHasOpenAttempt\(service, nodeId\) : await nodeHasAttempts\(service, nodeId\)/);
+    expect(prefetchLib).toMatch(/options\.warm \? await nodeHasOpenAttempt\(service, nodeId\) : await nodeHasAttempts\(service, nodeId\)/);
+  });
+
+  it("bitmiş kaydı olan düğüm: ısınma iç isteği warm bayrağıyla gider, sıradan önceden yazım gitmez", async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown> });
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      // exam_prep_node_attempts: bir bitmiş kayıt var; duruma göre süzülünce (süren kayıt?) boş. exam_prep_prefetch: yok.
+      const service = {
+        from(table: string) {
+          const chain: Record<string, unknown> = {};
+          let filteredByStatus = false;
+          for (const name of ["select", "eq", "gt", "neq", "order", "update", "insert", "delete", "or"]) chain[name] = () => chain;
+          chain.in = () => {
+            filteredByStatus = true;
+            return chain;
+          };
+          chain.limit = () => Promise.resolve({ data: table === "exam_prep_node_attempts" ? (filteredByStatus ? [] : [{ id: "a-done" }]) : undefined });
+          chain.maybeSingle = () => Promise.resolve({ data: undefined });
+          return chain;
+        },
+      } as never;
+      const node = { id: "22222222-2222-4222-8222-222222222222", kind: "lesson", status: "done", session_meta: {} };
+      const input = { origin: "https://cortexplus.app", userId: "11111111-1111-4111-8111-111111111111", prepId: "p", node };
+      await lib.requestNodePrefetch(service, input);
+      expect(calls).toHaveLength(0);
+      await lib.requestNodePrefetch(service, input, { warm: true });
+      expect(calls).toHaveLength(1);
+      expect(calls[0]!.body).toMatchObject({ prefetch: true, warm: true, action: "start", nodeId: node.id });
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
 describe("önceden hazırlama: geniş kapsam", () => {
   it("hep bir adım önde: yolda sıradaki hazırlanabilir etkinlik, türü ne olursa olsun", async () => {
     // Zayıf nokta öğrencinin kayıtlarından anında kurulur: atlanır; sıradaki test hazırlanır.
@@ -150,7 +204,7 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(route).toContain("requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number })");
     expect(route).toContain("if (!prefetch && action === \"start\") {");
     expect(route).toContain("await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });");
-    expect(route).toContain("storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant })");
+    expect(route).toContain("storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant }, { warm })");
   });
 
   it("önceden yazım her motorda kredisiz; kullanım ayrı kodla, açılmayan podcast önbelleğe girmez", () => {
@@ -185,8 +239,8 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(route).toContain('outcome: "commit"');
     expect(route).toContain('outcome: "refund"');
     expect(route).toContain("publishPrefetchPartial(service, nodeId, partial)");
-    // Önceden yazımda bekleyen öğrenci yok: hızlı işlem yalnız açılışta.
-    expect(route).toContain("fast: input.charge !== false,");
+    // Önceden yazımda bekleyen öğrenci yok: hızlı işlem yalnız açılışta — ve ısınma yazımında (öğrenci kartlarda).
+    expect(route).toContain("fast: input.charge !== false || input.warm === true,");
   });
 });
 

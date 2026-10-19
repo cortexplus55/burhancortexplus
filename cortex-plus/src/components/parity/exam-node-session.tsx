@@ -386,6 +386,21 @@ export function ExamNodeSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeEnabled, prepId, nodeId, kind, signalStage, replayLesson]);
 
+  // Isınma (19 Ekim 2026): ders düğümü açılıp ruh hali / aşinalık ekranı görününce yazım sunucuda
+  // hemen başlar; öğrenci kartlara bakarken ilk kavram hazırlanır, "Ders oluştur" devralır.
+  // Bir kez; "Dersi tekrarla" hariç (o yazdırmaz). Sunucu süren kayıt ya da hazır ders varsa atlar.
+  const warmedRef = useRef(false);
+  useEffect(() => {
+    if (kind !== "lesson" || replayLesson || warmedRef.current) return;
+    if (stage !== "familiarity" && stage !== "mood") return;
+    warmedRef.current = true;
+    void fetch("/api/learning/exam-prep/node", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prepId, nodeId, action: "warm", familiarity, lessonFormat: 3 }),
+    }).catch(() => undefined);
+  }, [kind, replayLesson, stage, prepId, nodeId, familiarity]);
+
   useEffect(() => {
     if (kind !== "readiness" || stage !== "setup" || startInFlight.current) return;
     void start();
