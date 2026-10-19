@@ -884,7 +884,7 @@ function studentOutlinePrompt(input: {
 - Bu içeriği en iyi nasıl anlarım, hangi sırayla çalışırım?
 - Ünite/konu sırasını öğrenme sırasına koy (önkoşullar önce; kitap sırasından farklı olabilir).
 - Konuları öğrencinin çalışacağı gibi grupla.
-- Her konu için whyLearn: tek cümle (ne öğreneceğim / neden önemli).
+- Her konu için whyLearn: öğrenciye seslenen tek cümle, ne öğreneceği ve neden önemli ("… ayırt edersin", "… sınavda sık sorulur"). Birinci tekil yazma ("öğreneceğim", "bilgim" yok).
 - Her konuya kısa id ver (ör. "t1") ve prerequisiteIds ile önceki konu id'lerini bağla.
 
 SERT KURAL — UYDURMA YOK:
