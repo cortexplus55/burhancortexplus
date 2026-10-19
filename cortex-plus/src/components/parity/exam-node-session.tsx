@@ -168,6 +168,7 @@ export function ExamNodeSession({
   todayMood = null,
   replayLesson = false,
   resumeEnabled = false,
+  openAttempt = true,
   sourceName = null,
   resetsAtLabel = null,
   oralTopics = [],
@@ -195,6 +196,12 @@ export function ExamNodeSession({
   replayLesson?: boolean;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
   resumeEnabled?: boolean;
+  /**
+   * Sunucu bu düğümde açık oturum (ya da yazılı denemede inceleme) olabileceğini söylüyor. Değilse
+   * "kaldığın yer" sorgusu ve ekranı atlanır: 20 Ekim 2026'da hiç açılmamış derste her açılışta
+   * ~5 sn "Kaldığın yer açılıyor… Kaydedilmiş cevapların yükleniyor" yazıyordu.
+   */
+  openAttempt?: boolean;
   /** Hazırlık bir belgeye bağlıysa dosya adı — üretim ekranında gösterilir. */
   sourceName?: string | null;
   /**
@@ -239,7 +246,7 @@ export function ExamNodeSession({
     | "oral-customize"
     | "oral-review-time"
     | "oral-review"
-  >(resumeEnabled ? "restoring" : opensReadiness ? "setup" : isOral ? "oral-topics" : signalStage);
+  >(resumeEnabled && openAttempt ? "restoring" : opensReadiness ? "setup" : isOral ? "oral-topics" : signalStage);
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
@@ -359,6 +366,14 @@ export function ExamNodeSession({
     if (!resumeEnabled) return;
     let cancelled = false;
     (async () => {
+      if (!openAttempt) {
+        // Açık oturum yok: doğrudan açılış (tekrar isteği de burada başlar).
+        if (kind === "lesson" && replayLesson) {
+          setStage("setup");
+          void start({ replay: true });
+        }
+        return;
+      }
       try {
         const res = await fetch("/api/learning/exam-prep/node", {
           method: "POST",
@@ -409,7 +424,7 @@ export function ExamNodeSession({
     };
     // start her render'da yeni; yalnız açılışta, kayıtlı oturum yoksa bir kez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeEnabled, prepId, nodeId, kind, signalStage, replayLesson]);
+  }, [resumeEnabled, openAttempt, prepId, nodeId, kind, signalStage, replayLesson]);
 
   // Isınma (19 Ekim 2026): ders düğümü açılıp ruh hali / aşinalık ekranı görününce yazım sunucuda
   // hemen başlar; öğrenci kartlara bakarken ilk kavram hazırlanır, "Ders oluştur" devralır.
