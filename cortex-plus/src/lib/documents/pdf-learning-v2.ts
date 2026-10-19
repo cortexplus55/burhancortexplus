@@ -1204,11 +1204,18 @@ export function flatMapNeedsOneshotRegen(input: {
   status: string | null;
   inUse: boolean;
   nodes: { parent_id: string | null; is_student_edited?: boolean | null }[];
+  /**
+   * Belge çok dosyalı bir kurulumun parçası. Ortak konu haritasında konular çoğu zaman büyük
+   * dosyaya bağlanır; fotoğrafa ya da kısa nota hiç düğüm düşmemesi normaldir. 19 Ekim 2026: 65
+   * sayfalık PDF + Word + 5 fotoğrafta düğümsüz fotoğraflar "bozuk harita" sayılıp "pending"e
+   * çekildi, sihirbaz bütün haritayı dört kez baştan yazdırdı (her biri ~1,5 dk).
+   */
+  courseMember?: boolean;
 }): boolean {
   if (input.status !== "ready" && input.status !== "reviewed") return false;
   if (input.inUse) return false;
   if (input.nodes.some((n) => n.is_student_edited === true)) return false;
-  if (!input.nodes.length) return true;
+  if (!input.nodes.length) return !input.courseMember;
   if (input.nodes.some((n) => n.parent_id != null)) return false;
   // Short flat maps can be legitimate single-level outlines.
   return input.nodes.length > 16;
@@ -1217,6 +1224,7 @@ export function flatMapNeedsOneshotRegen(input: {
 export async function unusedFlatMapNeedsOneshot(
   service: SupabaseClient,
   documentId: string,
+  options: { courseMember?: boolean } = {},
 ): Promise<boolean> {
   const { data: doc } = await service
     .from("documents")
@@ -1242,6 +1250,7 @@ export async function unusedFlatMapNeedsOneshot(
   return flatMapNeedsOneshotRegen({
     status,
     inUse,
+    courseMember: options.courseMember,
     nodes: rows.map((r) => ({
       parent_id: (r.parent_id as string | null) ?? null,
       is_student_edited: (r.is_student_edited as boolean | null) ?? null,
@@ -1256,8 +1265,9 @@ export async function unusedFlatMapNeedsOneshot(
 export async function regenerateUnusedFlatTopicMap(
   service: SupabaseClient,
   documentId: string,
+  options: { courseMember?: boolean } = {},
 ): Promise<{ regenerating: boolean }> {
-  const needs = await unusedFlatMapNeedsOneshot(service, documentId);
+  const needs = await unusedFlatMapNeedsOneshot(service, documentId, options);
   if (!needs) return { regenerating: false };
 
   // Keep the old map until the new one is ready — mark pending without wipe.

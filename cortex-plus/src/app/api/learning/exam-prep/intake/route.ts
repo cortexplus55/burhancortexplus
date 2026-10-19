@@ -278,7 +278,8 @@ export async function POST(request: Request) {
   if (v2) {
     for (const documentId of documentIds) {
       try {
-        const regen = await regenerateUnusedFlatTopicMap(service, documentId);
+        // Çok dosyalı kurulumda konusuz kalan dosya (fotoğraf, kısa not) bozuk harita değildir.
+        const regen = await regenerateUnusedFlatTopicMap(service, documentId, { courseMember: documentIds.length > 1 });
         if (regen.regenerating) {
           return NextResponse.json(
             {

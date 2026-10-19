@@ -52,19 +52,45 @@ function cleanup(text: string): string {
 }
 
 /**
- * Word: paragraf sınırları satır sonu, açık sayfa sonları sayfa sınırı.
+ * Word: paragraf sınırları satır sonu; sayfa sınırı belgenin kendi işaretlerinden.
  *
  * `.docx` içinde SAYFA diye bir şey yok — sayfalama yazıcıya/ekrana göre
- * hesaplanıyor. Elle konmuş sayfa sonları tek gerçek işaret; onlar da yoksa
- * belge tek sayfa sayılıyor. Uydurma sayfa bölmek, "3. sayfada yazıyor"
- * diyen bir alıntıyı yanlış yere göndermek olurdu.
+ * hesaplanıyor. Uydurma sayfa bölmek, "3. sayfada yazıyor" diyen bir alıntıyı
+ * yanlış yere göndermek olurdu; bu yüzden yalnız belgede yazan işaretler sayılır:
+ *
+ * - elle konmuş sayfa sonu (`<w:br w:type="page"/>`),
+ * - Word'ün belgeyi en son çizdiğinde her sayfanın başına yazdığı
+ *   `<w:lastRenderedPageBreak/>`,
+ * - "sayfa öncesi kes" (`pageBreakBefore`) özelliği olan paragraf — doğrudan ya da
+ *   stilinden (ör. her ana başlık yeni sayfada).
+ *
+ * 19 Ekim 2026'ya kadar yalnız ilki sayılıyordu; Word'de yazılmış 6 sayfalık bir not elle
+ * sayfa sonu içermediği için "1 sayfa" görünüyor, bütün alıntılar "s. 1"e gidiyordu.
+ * Aynı yerde iki işaret (elle sonu izleyen çizim işareti) boş sayfa üretir; boşlar atılır.
  */
+function pageBreakStyles(files: Record<string, Uint8Array>): Set<string> {
+  const styles = files["word/styles.xml"];
+  if (!styles) return new Set();
+  const out = new Set<string>();
+  for (const match of strFromU8(styles).matchAll(/<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g)) {
+    if (/<w:pageBreakBefore(?:\s*\/>|\s+w:val="(?:1|true|on)"\s*\/>)/.test(match[2])) out.add(match[1]);
+  }
+  return out;
+}
+
 function readDocx(files: Record<string, Uint8Array>): string[] {
   const doc = files["word/document.xml"];
   if (!doc) return [];
+  const breakStyles = pageBreakStyles(files);
 
   const xml = strFromU8(doc)
+    .replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?<\/w:pPr>/g, (head) => {
+      const direct = /<w:pageBreakBefore(?:\s*\/>|\s+w:val="(?:1|true|on)"\s*\/>)/.test(head);
+      const style = head.match(/<w:pStyle\s+w:val="([^"]+)"/)?.[1];
+      return direct || (style && breakStyles.has(style)) ? "\u000c" + head : head;
+    })
     .replace(/<w:br[^>]*w:type="page"[^>]*\/?>/g, "\u000c")
+    .replace(/<w:lastRenderedPageBreak\s*\/>/g, "\u000c")
     .replace(/<\/w:p>/g, "\n");
 
   const text = decodeEntities(xml.replace(/<[^>]+>/g, ""));
@@ -122,7 +148,9 @@ export function extractOfficeText(
     files = {};
     for (const [name, data] of Object.entries(all)) {
       const wanted =
-        name === "word/document.xml" || /^ppt\/slides\/slide\d+\.xml$/.test(name);
+        name === "word/document.xml" ||
+        name === "word/styles.xml" ||
+        /^ppt\/slides\/slide\d+\.xml$/.test(name);
       if (!wanted) continue;
       unzipped += data.byteLength;
       if (unzipped > MAX_UNZIPPED_BYTES) throw new Error("too_large");
