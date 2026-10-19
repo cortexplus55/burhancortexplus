@@ -491,6 +491,7 @@ beklemesin diye içerik önceden yazılır, hızlı işlem yalnız hazır içeri
 | Aşinalık kurulumda bir kez sorulur, bütün konulara yazılır; açılışta sorulmaz ("Düzey: … · Değiştir"). Ruh hali sorulur ama yalnız kaydedilir — içerik üretimine nötr gider (sözlüde öğretmen tipi kalır) | `exam-create-wizard`, `exam-create-chat`, `create/route.ts` |
 | "Dersi tekrarla" aynı dersi yeni kayıtta açar (anında, kredisiz, şıklar başka sırayla); "Farklı anlat" yeniden yazdırır | `lesson-replay.ts`, `?tekrar=1` |
 | Önceden yazılan podcast önbelleğe girmez (açılmadan ücretsiz dinlenmesin) | `writePodcastCache` koşulu |
+| **Isınma (19 Ekim 2026):** öğrenci ders düğümünü açıp ruh hali / aşinalık ekranına gelince istemci bir kez `action: "warm"` ister; sunucu yazımı hemen, **hızlı işlemle** ve kredisiz başlatır (bitmiş düğüm de — "Farklı anlat"; yalnız süren kayıt ya da hazır/taze yazım varsa atlar); "Ders oluştur" yazımı süren dersi devralır. Ölçüm: soğuk ilk ekran 13-15 sn'nin ~2,8 sn'si rota, 7,8 sn'si motor (ilk jeton 3,8), kalanı yanıt/çizim; kartlarda geçen 5-10 sn yazıma kazandırılır | `requestNodePrefetch(…, { warm: true })`, `nodeHasOpenAttempt`, `exam-node-session.tsx` ısınma etkisi |
 
 Takılı yazım: 120 sn ilerlemezse ders olduğu kadarıyla kapanır, kredi iade (`lesson-build.ts`).
 Hızlı işlem kullanımı `gpt-6-luna-fast` adıyla kayda geçer (göç `20261018120000`). Bekçi:

@@ -126,3 +126,32 @@ yaşlar liste numarası sanılıp silindi ("2 ay / 6 ay / 9 ay" → "1 Ay / 2 Ay
 Astra'dan alınanlar: kilitli adım açılmaz ("Henüz belli değil" yerine bizde adımın türü belli olduğu
 için "öncekileri bitirince açılır"), "Başka birini seç", biten adımda yüzde, sıradaki kartta konu
 adı, iki düşük sonuçtan sonra "Bu hazırlık sana fazla zor gelebilir". Kurallar AGENTS.md'de.
+
+## Dördüncü tur: soğuk dersin zaman çizgisi (19 Ekim 2026)
+
+KPSS hazırlığında (9516e9cb) "Farklı anlat" ile soğuk ders, hızlı işlem. Kayıt artık her çağrının
+süresini ve ilk ekran / ilk kavram / ilk yayın anlarını yazıyor (#330, #331, #332).
+
+| Nereden nereye | Süre |
+|---|---|
+| Tıklama → istek sunucuda | ~0,3 sn |
+| İstek → motor başlatıldı (yetki, hazırlık/düğüm/konu okuma, önceden yazım bakışı 35 ms, kayıt açma) | **2,8 sn** |
+| Motor: ilk jeton | 3,8 sn (yazar istemi + düşük düşünme) |
+| Motor: ilk ekran ayrıştı | 6,5 sn |
+| Motor: ilk kavram bitti = ilk yayın (erken denetim 2,1 sn akışla örtüştü) | 7,8–9,8 sn |
+| Yanıt | 10,7 sn |
+| Öğrenci ekranda görüyor | **13–15 sn** |
+| Dersin tamamı (3-4 kavram, 7 tur düzeltme, 1 kavram atıldı) | 111–125 sn, 15–19 çağrı |
+
+Sayfa kenarı satırı 59 ms, temiz sayfa 31 ms (zaten temizdi) — motor öncesi iş değil.
+
+**Karar (adım 3):** yazımı öğrenci "Ders oluştur"a basınca değil, düğümü açıp ruh hali ekranına
+gelince başlatmak (ısınma, `action: "warm"`). Öğrenci iki kartta 5-10 sn geçiriyor; o sürede ilk
+kavram yazılıyor, "Ders oluştur" yazımı süren dersi devralıyor (`peekBuildingPrefetch`). Isınma
+hızlı işlemde ve kredisiz; kredi öğrenci açınca düşer. Bitmiş düğüm de ısıtılır ("Farklı anlat"
+soğuk kalmasın); süren kayıt ya da taze yazım varsa atlanır. Düzey değişirse kuşak tutmaz, ders
+normal yoldan yazılır.
+
+Not: testte görülen "Kaldığın yer açılıyor" yenilemesi ürün hatası değil; yayın değişince Next
+tam yükleme yapıyor. Denetçi sertliği (tek sayfalık derste 7 tur, atılan kavram) ayrı iş: `fixWhy`
+kaydı eklendi, kayıttan okunacak.

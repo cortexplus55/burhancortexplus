@@ -6,9 +6,11 @@ import {
   claimPrefetchSlot,
   dropPrefetch,
   nodeHasAttempts,
+  nodeHasOpenAttempt,
   peekPrefetchedLesson,
   PREFETCH_HEADER,
   requestNextPrefetch,
+  requestNodePrefetch,
   PREFETCH_KINDS,
   prefetchVariant,
   waitForPrefetchReady,
@@ -198,7 +200,7 @@ const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "progress", "choose"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check", "progress", "choose", "warm"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
@@ -234,6 +236,11 @@ const bodySchema = z.object({
   podcastLength: z.enum(PODCAST_LENGTHS).optional(),
   /** Sunucunun kendi isteği: sıradaki dersi kredi düşmeden önceden yaz. */
   prefetch: z.boolean().optional(),
+  /**
+   * Isınma yazımı (19 Ekim 2026): öğrenci düğümü açtı, kartlara bakıyor. Önceden yazım
+   * hızlı işlemle ve bitmiş eski kayıtlara bakmadan başlar. Yalnız iç istekte anlamlı.
+   */
+  warm: z.boolean().optional(),
   /**
    * 3: istemci V3 dersi (ekran → blok) okuyor. Göndermeyen eski sekme V2 paketi
    * alır; yayın sırasında açık kalan sayfada ders boş açılmasın (16 Ekim 2026).
@@ -579,13 +586,37 @@ async function handleNodeRequest(
     kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
 
   // Önceden yazım yalnız açılmamış ders düğümü için; öğrenci açtıysa gerek yok.
+  // Isınma yazımı (warm) bitmiş düğümü de yazar; yalnız süren bir kayıt varsa durur.
+  const warm = prefetch && parsed.data.warm === true;
   if (prefetch) {
-    if (!PREFETCH_KINDS.has(kind) || !teachingV2 || node.status === "done") {
+    if (!PREFETCH_KINDS.has(kind) || !teachingV2 || (node.status === "done" && !warm)) {
       return errorResponse(400, "invalid_input");
     }
-    if (await nodeHasAttempts(service, nodeId)) {
+    if (warm ? await nodeHasOpenAttempt(service, nodeId) : await nodeHasAttempts(service, nodeId)) {
       return NextResponse.json({ ok: true, skipped: "opened" });
     }
+  }
+
+  // Isınma (19 Ekim 2026, adım 3 "soğuk ders 10 sn"): öğrenci ders düğümünü açıp ruh hali
+  // ekranına gelince yazım arka planda hızlı işlemle başlar; "Ders oluştur" basılınca yazımı süren
+  // ders devralınır (peekBuildingPrefetch). Öğrenci kartlarda geçirdiği 5-10 sn'yi yazıma kazandırır.
+  if (action === "warm") {
+    const warmable = kind === "lesson" && teachingV2;
+    if (warmable) {
+      afterResponse(() =>
+        requestNodePrefetch(
+          service,
+          {
+            origin: options.origin,
+            userId,
+            prepId,
+            node: { id: node.id as string, kind: node.kind as string, status: (node.status as string | null) ?? null, session_meta: node.session_meta },
+          },
+          { warm: true },
+        ),
+      );
+    }
+    return NextResponse.json({ ok: true, warming: warmable });
   }
 
   // "Hep bir adım önde" (18 Ekim 2026, ürün sahibinin kararı): öğrenci bir etkinliği açınca
@@ -2143,6 +2174,7 @@ async function handleNodeRequest(
               : "",
           idempotencyKey: creditKey,
           charge: !prefetch,
+          warm,
           // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
           sectionBackbone:
             kind === "lesson" && teachingV2
@@ -2353,7 +2385,7 @@ async function handleNodeRequest(
       console.info("lesson_prefetch_adopted_done", { nodeId });
       return NextResponse.json({ ok: true, prefetched: "adopted" });
     }
-    const stored = await storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant });
+    const stored = await storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant }, { warm });
     console.info("prefetch_ready", { nodeId, kind, stored });
     return NextResponse.json({ ok: true, prefetched: stored });
   }
@@ -2670,6 +2702,8 @@ async function generateNodePayload(input: {
   idempotencyKey?: string;
   /** false: önceden yazılan ders; kredi öğrenci açınca düşer. */
   charge?: boolean;
+  /** Isınma yazımı (19 Ekim 2026): öğrenci kartlarda bekliyor sayılır, hızlı işlem. */
+  warm?: boolean;
   /** Parça parça açılış: denetlenen her kavram, ders kaydı biçiminde öğrencinin kaydına yazılır. */
   onLessonPublish?: (payload: Record<string, unknown>) => Promise<void> | void;
   learningPreferences?: unknown;
@@ -2901,8 +2935,8 @@ async function teacherLessonPayload(
     charge: input.charge,
     // OpenAI hızlı işlem herkese (18 Ekim 2026, ürün sahibinin ikinci kararı; ilk karar yalnız
     // Plus'tı, canlıda ücretsiz öğrencinin ilk ekranı 18 sn çıktı). Önceden yazımda bekleyen
-    // öğrenci yok: normal işlem (yarı fiyat).
-    fast: input.charge !== false,
+    // öğrenci yok: normal işlem (yarı fiyat). Isınma yazımında öğrenci kartlarda bekliyor: hızlı.
+    fast: input.charge !== false || input.warm === true,
     onPublish: input.onLessonPublish
       ? (published: PublishedLesson) =>
           input.onLessonPublish!({
