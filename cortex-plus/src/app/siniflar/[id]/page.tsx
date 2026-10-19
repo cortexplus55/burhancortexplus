@@ -14,6 +14,7 @@ import {
 } from "@/lib/student/classroom-access";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { createServiceClient } from "@/lib/supabase/server";
+import { NOT_STUDIO_EXAM_FILTER } from "@/lib/learning/studio-exam";
 
 export const metadata = { title: "Sınıf" };
 export const dynamic = "force-dynamic";
@@ -62,6 +63,7 @@ export default async function SinifDetailPage({
         .select("id, title")
         .eq("user_id", user.id)
         .is("classroom_id", null)
+        .or(NOT_STUDIO_EXAM_FILTER)
         .order("created_at", { ascending: false })
         .limit(20),
     ]);

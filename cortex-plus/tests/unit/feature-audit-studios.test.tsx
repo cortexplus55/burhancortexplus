@@ -201,6 +201,10 @@ describe("yazılı deneme aracının geçici hazırlığı", () => {
     expect(read("src/lib/billing/free-prep-limit.ts")).toContain('.neq("exam_type", STUDIO_EXAM_TYPE)');
     expect(read("src/app/ogretmen/page.tsx")).toContain('.neq("exam_type", STUDIO_EXAM_TYPE)');
     expect(read("src/app/api/learning/exam/generate/route.ts")).toContain("exam_type: STUDIO_EXAM_TYPE");
+    // Dördüncü tur: kurulumun "Devam ettiklerin" listesinde "deneme" diye ders görünüyordu.
+    for (const file of ["src/app/deneme-sinavlari/olustur/page.tsx", "src/lib/gamification/load-badge-facts.ts", "src/app/siniflar/[id]/page.tsx"]) {
+      expect(read(file), file).toContain(".or(NOT_STUDIO_EXAM_FILTER)");
+    }
   });
 });
 
