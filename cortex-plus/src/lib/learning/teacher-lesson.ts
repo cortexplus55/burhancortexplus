@@ -31,8 +31,11 @@ import { studentTextParts } from "@/lib/learning/lesson-board";
 export type TeacherLessonInput = {
   topicLabel: string;
   prepTitle: string;
-  /** Temiz kaynak sayfaları, sırayla. */
-  pages: { page: number; text: string }[];
+  /**
+   * Temiz kaynak sayfaları, sırayla. label: konunun kendi dosyası dışından gelen yardımcı
+   * sayfa ("Ek kaynak · Test-14.jpg · parça 2"; topic-support-pages.ts).
+   */
+  pages: { page: number; text: string; label?: string }[];
   /** Sıradaki gerçek konular; nextFocus yalnız bunlardan. */
   upcomingTopics: string[];
   /** Hazırlıktaki bir önceki konu; varsa derse bağlanılır. */
@@ -53,8 +56,20 @@ export type TeacherLessonInput = {
 
 export type TeacherLessonMode = "document" | "topic";
 
+/**
+ * Yardımcı sayfaların önündeki açıklama. Yazar ve denetçi aynı kaynak metnini gördüğü için kural
+ * ikisine birden gider (19 Ekim 2026, 7 dosyalık sınav seti).
+ */
+export const SUPPORT_SOURCE_NOTE =
+  "--- Ek kaynaklar: öğrencinin bu konuya ait başka dosyaları (defter, tahta, test, kart fotoğrafı, kısa not). Bunlar da kaynaktır. Test parçasında öğrencinin yanlış işaretlediği bir soru varsa, o noktayı ilgili yerde doğrusuyla açıkça ele al.";
+
 export function sourceText(pages: TeacherLessonInput["pages"]): string {
-  return pages.map((item) => `[s.${item.page}]\n${item.text.trim()}`).join("\n\n");
+  const block = (items: TeacherLessonInput["pages"]) =>
+    items.map((item) => `[${item.label ?? `s.${item.page}`}]\n${item.text.trim()}`).join("\n\n");
+  const own = pages.filter((item) => !item.label);
+  const support = pages.filter((item) => item.label);
+  if (!support.length) return block(own);
+  return [block(own), SUPPORT_SOURCE_NOTE, block(support)].filter(Boolean).join("\n\n");
 }
 
 const SCHEMA = `{

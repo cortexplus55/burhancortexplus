@@ -17,6 +17,7 @@ import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
 import { formatPageList } from "@/lib/learning/path-source-label";
+import { loadTopicSupport } from "@/lib/learning/topic-support-load";
 
 /**
  * Konuya bağlı etkinlikler: "N kaynak" konunun kendi dosyalarını ve sayfalarını gösterir. Deneme,
@@ -93,6 +94,7 @@ export default async function ExamNodePage({
   let topicLabel: string | null = sessionMeta?.topicTitle?.trim() || null;
   let topicFamiliarity: Familiarity | null = null;
   let topicSourceRefs: unknown = null;
+  let topicRowId: string | null = null;
 
   const topicId = sessionMeta?.topicId ?? prep.active_topic_id;
   // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar (`prepTopicMatch`); yalnız `id` ile
@@ -101,13 +103,14 @@ export default async function ExamNodePage({
   if (topicMatch) {
     const { data: topic } = await supabase
       .from("exam_prep_topics")
-      .select("label, familiarity, source_refs")
+      .select("id, label, familiarity, source_refs")
       .eq("exam_prep_id", prepId)
       .or(topicMatch)
       .limit(1)
       .maybeSingle();
     topicLabel = topicLabel ?? topic?.label ?? null;
     topicSourceRefs = topic?.source_refs ?? null;
+    topicRowId = (topic?.id as string | undefined) ?? null;
     // Bu konuya daha önce girildiyse beyan edilen seviye varsayılan olur.
     topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
@@ -173,12 +176,27 @@ export default async function ExamNodePage({
       topicPages.set(ref.documentId, [...(topicPages.get(ref.documentId) ?? []), ...ref.pages]);
     }
   }
-  const shownSourceIds = topicPages.size ? sourceIds.filter((id) => topicPages.has(id)) : sourceIds;
+  // Konunun yardımcı kaynakları (defter, test, kart fotoğrafı): derse giren her dosya listede olsun.
+  const support =
+    TOPIC_SCOPED_KINDS.has(node.kind as PlanNodeKind) && topicRowId
+      ? await loadTopicSupport(createServiceClient(), { userId: user.id, prepId, topicId: topicRowId })
+      : [];
+  const supportByDoc = new Map<string, string[]>();
+  for (const excerpt of support) {
+    const where = excerpt.part ? `parça ${excerpt.part}` : excerpt.pageCount > 1 ? `s.${excerpt.page}` : "";
+    supportByDoc.set(excerpt.documentId, [...(supportByDoc.get(excerpt.documentId) ?? []), where]);
+  }
+  const shownSourceIds = topicPages.size
+    ? sourceIds.filter((id) => topicPages.has(id) || supportByDoc.has(id))
+    : sourceIds;
   const sources = shownSourceIds.flatMap((id) => {
     const row = sourceById.get(id);
-    const pages = formatPageList(topicPages.get(id) ?? []);
+    const own = formatPageList(topicPages.get(id) ?? []);
+    const extra = [...new Set((supportByDoc.get(id) ?? []).filter(Boolean))];
+    const extraText = extra.length ? `ek: ${extra.join(", ")}` : supportByDoc.has(id) ? "ek kaynak" : "";
+    const pages = [own ? `s.${own}` : "", extraText].filter(Boolean).join(" · ");
     return row
-      ? [{ id, name: (row.file_name as string) || "Belge", href: `/dokumanlar/${id}`, ...(pages ? { pages: `s.${pages}` } : {}) }]
+      ? [{ id, name: (row.file_name as string) || "Belge", href: `/dokumanlar/${id}`, ...(pages ? { pages } : {}) }]
       : [];
   });
   const sourceName =
