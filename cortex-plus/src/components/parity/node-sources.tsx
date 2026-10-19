@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { FileText, Library, X } from "lucide-react";
 
-export type NodeSource = { id: string; name: string; href: string };
+/** pages: konuya bağlı etkinlikte kullanılan sayfalar ("s.5–6"); yoksa dosyanın tamamı. */
+export type NodeSource = { id: string; name: string; href: string; pages?: string };
 
 /**
  * "N kaynak" — çalışmanın hangi materyallerden üretildiği (Astra, 1 Ekim
@@ -53,7 +54,10 @@ export function NodeSources({ sources }: { sources: NodeSource[] }) {
               {sources.map((source) => (
                 <li key={source.id}>
                   <FileText className="h-4 w-4 shrink-0" aria-hidden />
-                  <span>{source.name}</span>
+                  <span>
+                    {source.name}
+                    {source.pages ? <small className="cp-node-sources-pages"> · {source.pages}</small> : null}
+                  </span>
                   <a href={source.href} target="_blank" rel="noopener noreferrer">
                     Aç
                   </a>

@@ -15,6 +15,14 @@ import { studyNodeOpenable } from "@/lib/learning/study-tools";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
+import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
+import { formatPageList } from "@/lib/learning/path-source-label";
+
+/**
+ * Konuya bağlı etkinlikler: "N kaynak" konunun kendi dosyalarını ve sayfalarını gösterir. Deneme,
+ * son kontrol, zayıf nokta gibi bütün hazırlığı kapsayan işler bütün materyalleri gösterir.
+ */
+const TOPIC_SCOPED_KINDS = new Set<PlanNodeKind>(["lesson", "podcast", "qa", "quiz", "true_false", "spaced"]);
 
 export const metadata = { title: "Ders" };
 
@@ -84,6 +92,7 @@ export default async function ExamNodePage({
   const sessionMeta = parseSessionMeta(node.session_meta);
   let topicLabel: string | null = sessionMeta?.topicTitle?.trim() || null;
   let topicFamiliarity: Familiarity | null = null;
+  let topicSourceRefs: unknown = null;
 
   const topicId = sessionMeta?.topicId ?? prep.active_topic_id;
   // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar (`prepTopicMatch`); yalnız `id` ile
@@ -92,12 +101,13 @@ export default async function ExamNodePage({
   if (topicMatch) {
     const { data: topic } = await supabase
       .from("exam_prep_topics")
-      .select("label, familiarity")
+      .select("label, familiarity, source_refs")
       .eq("exam_prep_id", prepId)
       .or(topicMatch)
       .limit(1)
       .maybeSingle();
     topicLabel = topicLabel ?? topic?.label ?? null;
+    topicSourceRefs = topic?.source_refs ?? null;
     // Bu konuya daha önce girildiyse beyan edilen seviye varsayılan olur.
     topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
@@ -131,8 +141,10 @@ export default async function ExamNodePage({
     }));
   }
 
-  // "N kaynak": hazırlığın bütün materyalleri. source_document_ids ayrı
-  // okunur — kolon yoksa tek belgeye düşülür (hazırlık sayfasıyla aynı).
+  // "N kaynak": konuya bağlı etkinlikte konunun dosyaları ve sayfaları, öbürlerinde hazırlığın bütün
+  // materyalleri. 19 Ekim 2026'ya kadar her derste yedi dosyanın yedisi "bu çalışma şu
+  // materyallerden üretildi" diye listeleniyordu; ders yalnız PDF'in iki sayfasından yazılmıştı.
+  // source_document_ids ayrı okunur — kolon yoksa tek belgeye düşülür (hazırlık sayfasıyla aynı).
   const { data: sourceIdRow } = await supabase
     .from("exam_preps")
     .select("source_document_ids")
@@ -154,9 +166,20 @@ export default async function ExamNodePage({
         .is("deleted_at", null)
     : { data: [] as { id: string; file_name: string }[] };
   const sourceById = new Map((sourceRows ?? []).map((row) => [row.id as string, row]));
-  const sources = sourceIds.flatMap((id) => {
+  const topicPages = new Map<string, number[]>();
+  if (TOPIC_SCOPED_KINDS.has(node.kind as PlanNodeKind)) {
+    for (const ref of parseTopicSourceRefs(topicSourceRefs)) {
+      if (!sourceIds.includes(ref.documentId)) continue;
+      topicPages.set(ref.documentId, [...(topicPages.get(ref.documentId) ?? []), ...ref.pages]);
+    }
+  }
+  const shownSourceIds = topicPages.size ? sourceIds.filter((id) => topicPages.has(id)) : sourceIds;
+  const sources = shownSourceIds.flatMap((id) => {
     const row = sourceById.get(id);
-    return row ? [{ id, name: (row.file_name as string) || "Belge", href: `/dokumanlar/${id}` }] : [];
+    const pages = formatPageList(topicPages.get(id) ?? []);
+    return row
+      ? [{ id, name: (row.file_name as string) || "Belge", href: `/dokumanlar/${id}`, ...(pages ? { pages: `s.${pages}` } : {}) }]
+      : [];
   });
   const sourceName =
     (prep.document_id ? sourceById.get(prep.document_id as string)?.file_name : null) ??

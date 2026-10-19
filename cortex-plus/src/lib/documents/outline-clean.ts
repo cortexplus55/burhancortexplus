@@ -209,6 +209,17 @@ function detectTextLanguage(text: string): "tr" | "en" | "unknown" {
   return "unknown";
 }
 
+/**
+ * Kendi yazımı olan kelime: "pH", "mRNA", "tRNA", "DNA", "ATP". Büyük harf başlığa çevrilirken
+ * bozulmaz — 19 Ekim 2026'da konu adı "Kan Şekeri, PH ve Egzersiz" çıktı.
+ */
+function keepsOwnCasing(word: string): boolean {
+  const letters = word.replace(/[^\p{L}]/gu, "");
+  if (letters.length < 2) return false;
+  if (/^\p{Ll}+\p{Lu}/u.test(letters)) return true;
+  return (letters.match(/\p{Lu}/gu) ?? []).length >= 2;
+}
+
 function englishTitleCase(text: string): string {
   const letters = text.replace(/[^\p{L}]/gu, "");
   const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
@@ -217,6 +228,7 @@ function englishTitleCase(text: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .map((word, index) => {
+      if (!shouting && keepsOwnCasing(word)) return word;
       const body = shouting ? word.toLowerCase() : word;
       const lower = body.toLowerCase();
       if (index > 0 && EN_TITLE_MINOR.has(lower)) return lower;
@@ -426,6 +438,7 @@ export function turkishTitleCase(text: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .map((word, index) => {
+      if (!shouting && keepsOwnCasing(word)) return word;
       const body = shouting ? word.toLocaleLowerCase("tr") : word;
       const lower = body.toLocaleLowerCase("tr");
       if (index > 0 && TR_TITLE_MINOR.has(lower)) return lower;
