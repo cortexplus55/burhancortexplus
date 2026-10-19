@@ -533,6 +533,7 @@ düşürmedi ve `goodEnough` (tutulan ≥ önerilenin 2/3'ü) 1/1'i geçirdi —
 | Mini'nin haritasını yalnız tutulan/önerilen oranıyla kabul etmek | Sayfa tabanı: `minTopicsForPages` (≤3 sayfa 1, ≤8 sayfa 2, sonra sayfa/5, en çok 8); altındaysa `escalate` (güçlü model, bütün metin) |
 | Güçlü modelin ince haritasını da reddedip döngüye sokmak | Kabul edin — tek konulu dosya olabilir, soracak daha iyi model yok |
 | "Konu az çıktı" diye haritayı kodla bölmek | Model yeniden yazar; kod yalnız kapıyı tutar (`outline-oneshot.ts`) |
+| Konu sayısı tabanı geçti diye haritayı kabul etmek | **Kapsam da sayılır (19 Ekim 2026):** mini'nin tuttuğu konuların alıntıladığı sayfalar, metin hacmi ≥3 konuluk belgede sayfaların %60'ından azını kapsıyorsa `escalate` (`outlineCoverageTooLow`). KPSS notunda mini TOC'un 10 başlığını önerdi, 7'si kaldı ama hepsi 3–11. sayfadaydı: Yasama, Yürütme, Yargı (dosyanın üçte ikisi) yolda yoktu |
 
 Bekçi: `outline-thin-map.test.ts`. Kıyas belgesi masaüstünde `trigonometri_20_sayfa_detayli.pdf`.
 
