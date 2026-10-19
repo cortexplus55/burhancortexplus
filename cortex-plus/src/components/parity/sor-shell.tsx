@@ -5,7 +5,7 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { GamificationGate } from "@/components/parity/gamification";
@@ -41,6 +41,8 @@ function relativeTr(iso: string) {
 
 const MORE_LINKS = [
   { href: "/dokumanlar", label: "Belgelerim", icon: FileText },
+  // 19 Ekim 2026: testlerdeki yanlışlar ve günlük 10 soruluk tur; önceden yalnız Araçlar'dan ulaşılıyordu.
+  { href: "/yanlislarim", label: "Yanlışlarım", icon: NotebookPen },
   { href: "/siniflar", label: "Sınıflar", icon: Users },
   { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
   { href: "/takvimim", label: "Takvimim", icon: CalendarDays },
