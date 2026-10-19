@@ -1248,3 +1248,23 @@
   font-size: 0.8rem;
   color: var(--ls-muted);
 }
+
+/* Yazılı denemede açık uçlu soru (19 Ekim 2026; önce yalnız şık çiziliyordu). */
+.ls-open-answer {
+  width: 100%;
+  min-height: 8rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.8rem;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--ls-text);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ls-open-answer:focus-visible {
+  outline: 2px solid var(--c-action, #4353f3);
+  outline-offset: 2px;
+}

@@ -33,7 +33,15 @@ const QUESTION_COUNTS = [
   { value: 20, label: "20 soru" },
 ] as const;
 
-type Question = { id: string; text: string; options: string[]; points?: number };
+type Question = { id: string; text: string; options: string[]; points?: number; question_type?: string };
+
+/*
+  Yazılı deneme Astra gibi çoktan seçmeli + açık uçlu (ve bir çok cevaplı) soru içerir. 19 Ekim 2026'ya
+  kadar bu ekran yalnız şık çiziyordu: Ekonomi yazılısının 7. sorusu açık uçluydu, şık yoktu, "Sonraki
+  soru" hiç açılmadı. Açık uçlu soruya yazı alanı, çok cevaplıya çoklu işaret; boş açık uçlu geçilebilir.
+*/
+const isOpen = (q: Question) => q.question_type === "open" || q.question_type === "short_answer" || !q.options.length;
+const isMulti = (q: Question) => q.question_type === "multi_mcq";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 
@@ -56,7 +64,7 @@ export function WrittenStudio({
   const [title, setTitle] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [score, setScore] = useState<number | null>(null);
   const [analysis, setAnalysis] = useState("");
   const [paywall, setPaywall] = useState(false);
@@ -114,7 +122,25 @@ export function WrittenStudio({
 
   function choose(option: string) {
     if (!question) return;
+    if (isMulti(question)) {
+      setAnswers((prev) => {
+        const current = Array.isArray(prev[question.id]) ? (prev[question.id] as string[]) : [];
+        const next = current.includes(option) ? current.filter((item) => item !== option) : [...current, option];
+        return { ...prev, [question.id]: next };
+      });
+      return;
+    }
     setAnswers((prev) => ({ ...prev, [question.id]: option }));
+  }
+
+  function answered(q: Question): boolean {
+    const value = answers[q.id];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value?.trim());
+  }
+
+  function picked(q: Question, option: string): boolean {
+    const value = answers[q.id];
+    return Array.isArray(value) ? value.includes(option) : value === option;
   }
 
   async function finish() {
@@ -180,22 +206,34 @@ export function WrittenStudio({
             <h2 className="ls-question" style={{ marginBottom: "1rem" }}>
               {question.text}
             </h2>
-            <div className="ls-options">
-              {question.options.map((option, i) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={cn(
-                    "ls-option",
-                    answers[question.id] === option && "is-selected",
-                  )}
-                  onClick={() => choose(option)}
-                >
-                  <span className="ls-letter">{LETTERS[i] ?? i + 1}</span>
-                  <span>{option}</span>
-                </button>
-              ))}
-            </div>
+            {isOpen(question) ? (
+              <textarea
+                className="ls-open-answer"
+                aria-label="Cevabın"
+                rows={6}
+                placeholder="Cevabını birkaç cümleyle yaz. Boş bırakıp geçebilirsin."
+                value={typeof answers[question.id] === "string" ? (answers[question.id] as string) : ""}
+                onChange={(event) => setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))}
+              />
+            ) : (
+              <>
+                {isMulti(question) ? <p className="ls-credit">Birden çok doğru şık olabilir; hepsini işaretle.</p> : null}
+                <div className="ls-options">
+                  {question.options.map((option, i) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={picked(question, option)}
+                      className={cn("ls-option", picked(question, option) && "is-selected")}
+                      onClick={() => choose(option)}
+                    >
+                      <span className="ls-letter">{LETTERS[i] ?? i + 1}</span>
+                      <span>{option}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <div className="ls-actions">
             <button
@@ -210,7 +248,7 @@ export function WrittenStudio({
               <button
                 type="button"
                 className="ls-cta"
-                disabled={!answers[question.id]}
+                disabled={!isOpen(question) && !answered(question)}
                 onClick={() => setIndex((n) => n + 1)}
               >
                 Sonraki soru
@@ -219,7 +257,7 @@ export function WrittenStudio({
               <button
                 type="button"
                 className="ls-cta"
-                disabled={Object.keys(answers).length !== questions.length}
+                disabled={questions.some((q) => !isOpen(q) && !answered(q))}
                 onClick={() => void finish()}
               >
                 Kağıdı teslim et

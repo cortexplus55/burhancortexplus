@@ -14,6 +14,7 @@ import {
 import { CreditGate } from "@/components/paywall/credit-gate";
 import {
   SPEAKER_LABEL,
+  flattenLines,
   formatClock,
   normalizeChapters,
   type PodcastChapter,
@@ -125,6 +126,15 @@ export function PodcastStudio({
   const cursorRef = useRef(0);
   const speedRef = useRef<number>(1);
   const openedSavedRef = useRef(false);
+  /*
+    Ses akışla gelir (19 Ekim 2026): önce bütün sesi bekliyordu, 5 dakikalık diyalogda senaryo 37 sn
+    sürerken oynatıcı ~3,5 dk sonra açıldı. Şimdi ilk satırın sesi gelince açılır; çalarken sıradaki
+    satır henüz yoksa oynatıcı onu bekler (waitingRef), gelince kaldığı yerden sürer.
+  */
+  const linesRef = useRef<(Track | undefined)[]>([]);
+  const completeRef = useRef(true);
+  const waitingRef = useRef<(() => void) | null>(null);
+  const [audioLoading, setAudioLoading] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -145,35 +155,135 @@ export function PodcastStudio({
     setPaywall(true);
   }
 
-  const totalMs = tracks?.reduce((sum, t) => sum + t.durationMs, 0) ?? 0;
-  const trackOffsets = (() => {
-    const out: number[] = [];
-    let acc = 0;
-    for (const t of tracks ?? []) {
-      out.push(acc);
-      acc += t.durationMs;
-    }
-    return out;
-  })();
+  const knownMs = tracks?.reduce((sum, t) => sum + t.durationMs, 0) ?? 0;
+  // Ses gelirken toplam süre senaryodan tahmin; bitince gerçek süre.
+  const totalMs = audioLoading ? Math.max(knownMs, estimateEpisodeMinutes(chapters) * 60_000) : knownMs;
 
-  async function fetchAudio(normalized: PodcastChapter[]) {
-    const audio = await postStudio<{ lines?: Track[] }>(
-      "/api/learning/podcast/audio",
-      { chapters: normalized },
-    );
+  /** Satırın bölüm içindeki başlangıcı — her an gelen satırlardan hesaplanır. */
+  function offsetOf(cursor: number): number {
+    let sum = 0;
+    for (let i = 0; i < cursor; i += 1) sum += linesRef.current[i]?.durationMs ?? 0;
+    return sum;
+  }
 
-    if ("paywall" in audio) {
-      openPaywall();
-      setAudioNote("Bu bölümün sesi için kullanım hakkın yetmedi. Senaryoyu aşağıdan okuyabilirsin.");
-      return;
-    }
-    if (!audio.ok || !audio.data.lines?.length) {
-      setAudioNote("Ses bu sefer gelmedi; hakkından düşülmedi. Senaryoyu aşağıdan okuyabilirsin.");
-      return;
-    }
-    const verified = validatePodcastAudio(normalized, audio.data.lines);
-    if (verified) setTracks(verified);
-    else setAudioNote("Sesin tamamı doğrulanamadı. Senaryoyu aşağıdan okuyabilirsin.");
+  /** İlk satırın sesi gelince (ya da ses hiç gelmezse) döner; geri kalanı arkada akar. */
+  async function fetchAudio(normalized: PodcastChapter[]): Promise<void> {
+    const expected = flattenLines(normalized);
+    linesRef.current = [];
+    completeRef.current = false;
+    waitingRef.current = null;
+    setAudioLoading(true);
+    let resolveFirst: () => void = () => {};
+    const first = new Promise<void>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const publish = () => {
+      const prefix: Track[] = [];
+      for (const item of linesRef.current) {
+        if (!item) break;
+        prefix.push(item);
+      }
+      setTracks(prefix.length ? prefix : null);
+      if (!prefix.length) return;
+      resolveFirst();
+      const resume = waitingRef.current;
+      if (resume && prefix.length > cursorRef.current) {
+        waitingRef.current = null;
+        resume();
+      }
+    };
+    const finish = (note?: string) => {
+      completeRef.current = true;
+      setAudioLoading(false);
+      if (note && !linesRef.current.some(Boolean)) setAudioNote(note);
+      // Çalarken satır beklenip ses bittiyse oynatıcı sona gelmiş sayılır.
+      const resume = waitingRef.current;
+      waitingRef.current = null;
+      resume?.();
+      resolveFirst();
+    };
+    const failed = "Ses bu sefer gelmedi; hakkından düşülmedi. Senaryoyu aşağıdan okuyabilirsin.";
+    const noCredits = "Bu bölümün sesi için kullanım hakkın yetmedi. Senaryoyu aşağıdan okuyabilirsin.";
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/learning/podcast/audio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chapters: normalized, stream: true }),
+        });
+        if (res.status === 402) {
+          openPaywall();
+          finish(noCredits);
+          return;
+        }
+        if (!res.ok || !res.body) {
+          finish(failed);
+          return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const parts = buffer.split("\n");
+          buffer = parts.pop() ?? "";
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const event = JSON.parse(part) as {
+              type?: string;
+              code?: string;
+              index?: number;
+              speaker?: string;
+              text?: string;
+              url?: string;
+              durationMs?: number;
+              lines?: unknown;
+            };
+            if (event.type === "error") {
+              if (event.code === "insufficient_credits") openPaywall();
+              finish(event.code === "insufficient_credits" ? noCredits : failed);
+              return;
+            }
+            if (event.type === "line" && typeof event.index === "number") {
+              // Her satır senaryodaki yerine karşı denetlenir (bütün ses gelince bir kez daha).
+              const source = expected[event.index];
+              if (
+                source &&
+                event.text === source.text &&
+                event.speaker === source.speaker &&
+                typeof event.url === "string" &&
+                event.url.startsWith("https:") &&
+                typeof event.durationMs === "number" &&
+                event.durationMs > 0
+              ) {
+                linesRef.current[event.index] = {
+                  chapterIndex: source.chapterIndex,
+                  url: event.url,
+                  durationMs: event.durationMs,
+                };
+                publish();
+              }
+            }
+            if (event.type === "done") {
+              const verified = validatePodcastAudio(normalized, event.lines);
+              if (verified) {
+                linesRef.current = verified;
+                publish();
+              }
+              finish(verified ? undefined : "Sesin tamamı doğrulanamadı. Senaryoyu aşağıdan okuyabilirsin.");
+              return;
+            }
+          }
+        }
+        finish(failed);
+      } catch {
+        finish(failed);
+      }
+    })();
+    await first;
   }
 
   async function openEpisode(episode: SavedEpisode) {
@@ -255,8 +365,7 @@ export function PodcastStudio({
   }
 
   function playFrom(trackIndex: number, offsetSec = 0) {
-    const list = tracks;
-    if (!list?.length) return;
+    if (!linesRef.current[trackIndex]) return;
 
     const token = ++tokenRef.current;
     if (!audioRef.current) audioRef.current = new Audio();
@@ -264,8 +373,14 @@ export function PodcastStudio({
 
     const step = (cursor: number, startAt: number) => {
       if (token !== tokenRef.current) return;
-      const track = list[cursor];
+      const track = linesRef.current[cursor];
       if (!track) {
+        // Ses hâlâ geliyorsa sıradaki satır beklenir; gelince buradan sürer.
+        if (!completeRef.current) {
+          cursorRef.current = cursor;
+          waitingRef.current = () => step(cursor, 0);
+          return;
+        }
         setPlaying(false);
         setPhase("results");
         return;
@@ -279,7 +394,7 @@ export function PodcastStudio({
       };
       element.ontimeupdate = () => {
         if (token !== tokenRef.current) return;
-        setElapsedMs((trackOffsets[cursor] ?? 0) + element.currentTime * 1000);
+        setElapsedMs(offsetOf(cursor) + element.currentTime * 1000);
       };
       element.onended = () => step(cursor + 1, 0);
       element.onerror = () => {
@@ -309,6 +424,8 @@ export function PodcastStudio({
     if (!tracks?.length) return;
     const element = audioRef.current;
     if (playing) {
+      // Sıradaki satırı bekliyorduysa o satır gelince kendiliğinden çalmasın.
+      waitingRef.current = null;
       element?.pause();
       setPlaying(false);
       return;
@@ -334,18 +451,19 @@ export function PodcastStudio({
     const cursor = cursorRef.current;
     const element = audioRef.current;
     const withinMs = element?.src ? element.currentTime * 1000 : 0;
-    let targetMs = (trackOffsets[cursor] ?? 0) + withinMs + deltaSec * 1000;
-    targetMs = Math.max(0, Math.min(targetMs, Math.max(0, totalMs - 500)));
+    let targetMs = offsetOf(cursor) + withinMs + deltaSec * 1000;
+    // Yalnız gelmiş sese sıçranır.
+    targetMs = Math.max(0, Math.min(targetMs, Math.max(0, knownMs - 500)));
 
     let target = 0;
     for (let i = 0; i < list.length; i += 1) {
-      if (targetMs < (trackOffsets[i] ?? 0) + list[i].durationMs) {
+      if (targetMs < offsetOf(i) + list[i].durationMs) {
         target = i;
         break;
       }
       target = i;
     }
-    const offsetSec = (targetMs - (trackOffsets[target] ?? 0)) / 1000;
+    const offsetSec = (targetMs - offsetOf(target)) / 1000;
     const wasPlaying = playing;
     playFrom(target, offsetSec);
     if (!wasPlaying) {
@@ -365,6 +483,7 @@ export function PodcastStudio({
 
   function stop() {
     tokenRef.current += 1;
+    waitingRef.current = null;
     audioRef.current?.pause();
     setPlaying(false);
   }
@@ -498,8 +617,14 @@ export function PodcastStudio({
                 </button>
               </div>
               <p className="ls-credit ls-pod-clock">
-                {formatClock(elapsedMs)} / {formatClock(totalMs)}
+                {formatClock(elapsedMs)} / {audioLoading ? "~" : ""}
+                {formatClock(totalMs)}
               </p>
+              {audioLoading ? (
+                <p className="ls-credit" role="status">
+                  Dinlemeye başlayabilirsin; sesin geri kalanı hazırlanıyor.
+                </p>
+              ) : null}
 
               <div className="ls-pod-speeds" role="group" aria-label="Oynatma hızı">
                 {SPEEDS.map((s) => (
