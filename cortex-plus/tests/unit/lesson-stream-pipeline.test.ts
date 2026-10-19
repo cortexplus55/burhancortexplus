@@ -339,3 +339,50 @@ describe("ilk kavramın erken denetimi", () => {
     expect(events.some((event) => event.startsWith("screens[0]–screens[1]"))).toBe(true);
   });
 });
+
+/*
+  19 Ekim 2026, canlı (/admin/ders-hatalari, KPSS): yavaş derslerin çoğu yalnız ezber kodu yüzünden
+  5-7 tur döndü ("Ün-Bö-Fed-Kon", "Ülke İnsan Otorite", "Çalış" ↔ C), "Demokrasi türleri" kavramı iki
+  kez atıldı. Kalan tek sorun ezber koduysa kutu çıkar, kavram yayımlanır; fazla kod hemen çıkar.
+*/
+describe("ezber kodu kavramı düşürmez", () => {
+  const code = (title: string) => ({ type: "note", note: { title: `Ezber kodu: ${title}`, body: "Y = Yokluk, M = Mutlak butlan.", tone: "mnemonic" } });
+  const withCodes = (count: number) =>
+    JSON.stringify({
+      ...lesson,
+      screens: lesson.screens.map((screen, index) =>
+        index === 1 ? { ...screen, blocks: [...screen.blocks, ...Array.from({ length: count }, (_, i) => code(`Kod${i}`))] } : screen,
+      ),
+    });
+
+  it("kötü kod bir düzeltme turundan sonra çıkar; kavram atılmaz, baştan yazılmaz", async () => {
+    const { result, calls } = await run({
+      drafts: [withCodes(1)],
+      verify: (user) =>
+        user.includes("yalnız screens[1]")
+          ? { issues: [{ where: "screens[1].blocks[2]", severity: "high", problem: "Kod öğe adlarının art arda yazılmasından ibaret." }] }
+          : { issues: [] },
+      fix: () => ({ screens: [JSON.parse(withCodes(1)).screens[1]], disputes: [] }),
+    });
+    expect(result.dropped).toEqual([]);
+    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
+    const yokluk = result.lesson!.screens[1]!;
+    expect(yokluk.blocks.some((block) => block.type === "note" && block.note.tone === "mnemonic")).toBe(false);
+    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
+    expect(calls.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM"))).toHaveLength(0);
+  });
+
+  it("fazla ezber kodu hiç tur dönmeden çıkar; ilki kalır", async () => {
+    const { result, calls } = await run({ drafts: [withCodes(2)], verify: () => ({ issues: [] }) });
+    const yokluk = result.lesson!.screens[1]!;
+    expect(yokluk.blocks.filter((block) => block.type === "note" && block.note.tone === "mnemonic")).toHaveLength(1);
+    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
+  });
+
+  it("yazar ve denetçi aynı ezber kodu örneklerini görür", async () => {
+    const { verifySystem, teacherSystem, MNEMONIC_EXAMPLES } = await import("@/lib/learning/teacher-lesson");
+    expect(MNEMONIC_EXAMPLES).toContain("C ile Ç");
+    expect(teacherSystem("document")).toContain(MNEMONIC_EXAMPLES);
+    expect(verifySystem("document")).toContain(MNEMONIC_EXAMPLES);
+  });
+});
