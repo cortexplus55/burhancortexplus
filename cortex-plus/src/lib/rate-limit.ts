@@ -246,3 +246,25 @@ export function userKey(userId: string, scope: string) {
 export function dailyKey(userId: string, scope: string, at = new Date()) {
   return `cortex:d:${scope}:${userId}:${at.toISOString().slice(0, 10)}`;
 }
+
+/**
+ * Redis'e ham komut dizisi (Upstash REST pipeline). Redis yoksa ya da ulaşılamazsa null:
+ * çağıran kapıyı kapatmaz, kendi yedeğine düşer. Üretim yuvaları bunu kullanıyor.
+ */
+export async function redisPipeline(commands: string[][]): Promise<unknown[] | null> {
+  const redis = redisConfig();
+  if (!redis) return null;
+  try {
+    const res = await fetch(`${redis.url}/pipeline`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(commands),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { result?: unknown; error?: unknown }[];
+    return data.map((row) => row?.result ?? null);
+  } catch {
+    return null;
+  }
+}

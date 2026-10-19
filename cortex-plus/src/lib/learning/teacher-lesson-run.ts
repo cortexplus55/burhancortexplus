@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
+import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
@@ -598,7 +599,7 @@ export function createLessonIo(
  * Taslak → kavram kavram denetim → (gerekirse) yalnız o kavramın düzeltmesi.
  * Kredi bir kez ayrılır; ders dönerse kesinleşir, dönmezse iade edilir.
  */
-export async function runTeacherLesson(
+async function runTeacherLessonInner(
   service: SupabaseClient,
   input: TeacherLessonInput & {
     userId: string;
@@ -725,4 +726,16 @@ export async function runTeacherLesson(
     });
     return { ok: false, status: 503, error: "generation_failed", reasons: ["model_error"] };
   }
+}
+
+/**
+ * Üretim yuvasıyla (19 Ekim 2026, Faz 3.2): yuvalar doluysa öğrenci isteği yer bekler, yine doluysa
+ * `generation_busy`; önceden yazım beklemez. Kredi ayrılmadan önce: dolu kapıda öğrenciden bir şey düşmez.
+ */
+export async function runTeacherLesson(...args: Parameters<typeof runTeacherLessonInner>): Promise<TeacherLessonOutcome> {
+  return withGenerationSlot(
+    args[1].charge === false ? "prefetch" : "student",
+    () => runTeacherLessonInner(...args),
+    () => ({ ok: false, status: 503, error: "generation_busy", reasons: [] }),
+  );
 }

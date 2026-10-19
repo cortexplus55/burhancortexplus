@@ -24,7 +24,14 @@ import {
 import { readPlayLessonV3 } from "@/lib/learning/lesson-play-v3";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 // Üretim düşünce ekran bir kez kendiliğinden yeniden dener (19 Ekim 2026); kurallar tek yerde.
-import { AUTO_RETRY_CODES, AUTO_RETRY_DELAY_MS } from "@/lib/learning/generation-retry";
+import {
+  AUTO_RETRY_CODES,
+  AUTO_RETRY_DELAY_MS,
+  BUSY_CODE,
+  BUSY_MAX_RETRIES,
+  BUSY_NOTE,
+  BUSY_RETRY_DELAY_MS,
+} from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
 import { UNSCORED_NODE_KINDS } from "@/lib/learning/node-result";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
@@ -259,6 +266,8 @@ export function ExamNodeSession({
   const [oralReviewTab, setOralReviewTab] = useState<"ai" | "you">("ai");
   const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  /** Üretim yuvaları dolu: hazırlanıyor ekranında "sıradasın" notu (19 Ekim 2026, Faz 3.2). */
+  const [queueNote, setQueueNote] = useState(false);
   /**
    * Hatanın kendisi, yalnızca metni değil.
    *
@@ -555,6 +564,8 @@ export function ExamNodeSession({
     replay?: boolean;
     /** Sunucu düşünce ekranın kendi kendine yaptığı ikinci deneme (bir kez). */
     autoRetried?: boolean;
+    /** Üretim yuvaları doluyken ("sıradasın") yapılan bekleme denemelerinin sayısı. */
+    busyTries?: number;
   }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
@@ -615,6 +626,16 @@ export function ExamNodeSession({
         // Üretim hâlâ sürüyorsa yenilenmiyor: yenilemek ikinci bir üretim
         // başlatır ve öğrenci iki kez ödeyebilir.
         const code = generationFailureCode(data);
+        // Yuvalar dolu (Faz 3.2): hata değil, sıra. Hazırlanıyor ekranı açık kalır, birkaç saniyede bir
+        // yeniden sorulur; sunucu her denemede yer açılmasını ayrıca bekliyor.
+        if (code === BUSY_CODE && (overrides?.busyTries ?? 0) < BUSY_MAX_RETRIES) {
+          setQueueNote(true);
+          await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_DELAY_MS));
+          startInFlight.current = false;
+          await start({ ...overrides, busyTries: (overrides?.busyTries ?? 0) + 1 });
+          return;
+        }
+        setQueueNote(false);
         // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı gibi uyarılar olmasın"): üretim düşünce
         // ekran bir kez kendiliğinden yeniden dener; hazırlanıyor ekranı kapanmaz. Hak, paket
         // ve kaynak hataları yeniden denemekle geçmez, onlar hemen söylenir.
@@ -640,6 +661,7 @@ export function ExamNodeSession({
         setGenerationError(failure.message);
         return;
       }
+      setQueueNote(false);
       applyStartPayload(data);
       if (typeof data.balance === "number") {
         window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
@@ -1108,6 +1130,7 @@ export function ExamNodeSession({
       {stage === "setup" && loading && kind !== "readiness" ? (
         <NodeGenerationProgress
           sourceName={sourceName}
+          note={queueNote ? BUSY_NOTE : undefined}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
         />
       ) : null}

@@ -81,7 +81,7 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 | # | İş | Hedef |
 |---|---|---|
 | 3.1 | Yük testi (k6): 50 → 200 → 1000 eşzamanlı; senaryo "hazırlık sayfası + hazır ders açma" ve "soğuk ders üretimi" | p95 sayfa < 2 sn; üretim kuyruğa girsin, düşmesin |
-| 3.2 | **Üretim kuyruğu / geri basınç**: aynı anda en çok N ders üretimi, fazlası "sıradasın" ekranı | OpenAI dakikalık sınırı aşılmasın; kredi iadesi düzgün |
+| 3.2 | **Üretim kuyruğu / geri basınç**: aynı anda en çok N ders üretimi, fazlası "sıradasın" ekranı | OpenAI dakikalık sınırı aşılmasın; kredi iadesi düzgün. **Yazıldı (19 Ekim 2026):** `generation-slots.ts` — Upstash kira kayıtları, varsayılan 40 (`GENERATION_SLOTS`); öğrenci 25 sn yer bekler, ekran ~3 dk "sıradasın" der; önceden yazım %70 ile sınırlı; kredi yuvadan sonra ayrılır; `/admin/sistem` sayıyı gösterir. k6 yük testi (3.1) ürün sahibinin kararıyla lansmana kaldı |
 | 3.3 | Supabase: bağlantı havuzu (PostgREST), yavaş sorgu günlüğü, indeks kontrolü | p95 sorgu < 100 ms |
 | 3.4 | Vercel: fonksiyon süresi (ders 300 sn), eşzamanlılık, bölge `fra1` | Zaman aşımı < %0,5 |
 | 3.5 | Maliyet modeli: 1000 aktif öğrenci/ay için OpenAI + Vercel + Supabase + TTS + resim | Plus 7.200 kredi = 7,2 $ tavan; gerçek ortalama ölçülsün |

@@ -36,6 +36,7 @@ export function NodeGenerationProgress({
   onClose,
   title = "Dersin hazırlanıyor…",
   sourceChips = [],
+  note,
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
@@ -44,6 +45,8 @@ export function NodeGenerationProgress({
   title?: string;
   /** Okunan dosya çipleri — 1. adımın altında. */
   sourceChips?: string[];
+  /** Ek durum notu (ör. üretim yuvaları dolu: "sıradasın", 19 Ekim 2026). */
+  note?: string;
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
@@ -117,7 +120,12 @@ export function NodeGenerationProgress({
           );
         })}
       </ul>
-      {slow ? (
+      {note ? (
+        <p className="apg-slow" role="status">
+          {note}
+        </p>
+      ) : null}
+      {slow && !note ? (
         <p className="apg-slow">
           Beklenenden uzun sürüyor — hâlâ üzerinde çalışıyoruz. Sayfayı kapatsan
           da ders hazırlanmaya devam eder.

@@ -654,3 +654,19 @@ denenir"), `podcast-audio-once.test.tsx` ("kendiliğinden yeniden").
 | Konu sayısı (#247, "her sayfa tek konuya") | **Gevşetilmez.** KPSS 30 sayfa → 16 konu (Astra 6); bütün bölümler yolda, ilk ders Cortex 88 / Astra 78 |
 | "Beceri ağacı" görünümü | **Eklenmez**: İlerleme'deki konu listesi aynı bilgiyi veriyor |
 | Ruh hali kartı | Günde bir kez (#340) — derste art arda iki onay kartı da kalktı |
+
+## Üretim yuvaları (19 Ekim 2026, Faz 3.2) — aynı anda en çok N üretim
+
+Ders, test, podcast ve ortak motor kabuğu (`runTeacherLesson`, `runTeacherQuiz`, `runTeacherPodcast`,
+`runWithTeacherModel`) bir üretim yuvasıyla çalışır (`src/lib/ai/generation-slots.ts`): Upstash'te süreli kira
+kaydı, sınır `GENERATION_SLOTS` (varsayılan 40). Yuva **kredi ayrılmadan önce** alınır.
+
+| Durum | Davranış |
+|---|---|
+| Öğrenci isteği, yuva dolu | Sunucu 25 sn yer bekler; yine doluysa `generation_busy` (503). Ekran hata göstermez: hazırlanıyor ekranında "Şu an yoğunluk var; sıradasın" ve ~3 dk kendiliğinden yeniden (`BUSY_*`, `postJsonWithRetry`) |
+| Önceden yazım | Yuvaların yalnız %70'i; beklemez — öğrenciye yer kalsın |
+| Redis'e ulaşılamıyor | Kapı kapanmaz (ders yarıda kalmasın); Redis hiç yoksa sayaç sunucu belleğinde |
+| İşlev çöktü | Kira 6 dk sonra düşer |
+
+Yeni bir model zinciri eklerken bu dört kabuktan birini kullanın ya da `withGenerationSlot` ile sarın. k6 yük testi
+ürün sahibinin kararıyla lansmana kaldı. Bekçi: `generation-slots.test.ts`. Runbook: `docs/ops/openai-kota.md`.

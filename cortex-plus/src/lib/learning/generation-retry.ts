@@ -15,6 +15,20 @@ export const AUTO_RETRY_CODES = new Set([
 ]);
 export const AUTO_RETRY_DELAY_MS = 1_500;
 
+/**
+ * Üretim yuvaları dolu (Faz 3.2, `generation-slots.ts`): sunucu her istekte 25 sn'ye kadar yer
+ * bekliyor; ekran bundan sonra da birkaç kez yeniden sorar (toplam ~3 dk) ve bu sürede
+ * hazırlanıyor ekranında `BUSY_NOTE` görünür. Hak ya da para düşmez: kredi yuva alındıktan sonra ayrılır.
+ */
+export const BUSY_CODE = "generation_busy";
+export const BUSY_RETRY_DELAY_MS = 3_000;
+export const BUSY_MAX_RETRIES = 6;
+export const BUSY_NOTE = "Şu an yoğunluk var; sıradasın, birazdan başlıyor.";
+
+export function isBusy(status: number, code: unknown): boolean {
+  return status === 503 && code === BUSY_CODE;
+}
+
 /** 5xx ve kodu ya yok ya da üretim düşüşü olan cevap. */
 export function isRetryableFailure(status: number, code: unknown): boolean {
   if (status < 500) return false;
@@ -30,7 +44,7 @@ export function isRetryableFailure(status: number, code: unknown): boolean {
 export async function postJsonWithRetry<T extends Record<string, unknown> = Record<string, unknown>>(
   url: string,
   body: () => unknown,
-  options: { delayMs?: number } = {},
+  options: { delayMs?: number; busyDelayMs?: number; busyRetries?: number; onBusy?: () => void } = {},
 ): Promise<{ res: Response; data: T; retried: boolean }> {
   const once = async () => {
     const res = await fetch(url, {
@@ -41,7 +55,13 @@ export async function postJsonWithRetry<T extends Record<string, unknown> = Reco
     const data = (await res.json().catch(() => ({}))) as T;
     return { res, data };
   };
-  const first = await once();
+  let first = await once();
+  // Yuvalar dolu: hata değil, sıra. Birkaç saniyede bir yeniden sorulur (sunucu ayrıca bekliyor).
+  for (let tries = 0; isBusy(first.res.status, first.data.code) && tries < (options.busyRetries ?? BUSY_MAX_RETRIES); tries += 1) {
+    options.onBusy?.();
+    await new Promise((resolve) => setTimeout(resolve, options.busyDelayMs ?? BUSY_RETRY_DELAY_MS));
+    first = await once();
+  }
   if (first.res.ok || !isRetryableFailure(first.res.status, first.data.code ?? first.data.error)) {
     return { ...first, retried: false };
   }

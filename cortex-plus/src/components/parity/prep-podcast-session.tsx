@@ -9,7 +9,7 @@ import {
   describeGenerationFailure,
   generationFailureCode,
 } from "@/lib/learning/generation-failure";
-import { postJsonWithRetry } from "@/lib/learning/generation-retry";
+import { BUSY_NOTE, postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import "@/styles/node-generation-progress.css";
 
@@ -31,6 +31,8 @@ export function PrepPodcastSession({
   const [title, setTitle] = useState(topicLabel);
   const [chapters, setChapters] = useState<unknown[]>([]);
   const [message, setMessage] = useState("");
+  /** Üretim yuvaları dolu: "sıradasın" notu (19 Ekim 2026, Faz 3.2). */
+  const [queued, setQueued] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -44,9 +46,14 @@ export function PrepPodcastSession({
       error?: string;
       refunded?: boolean;
       reason?: string;
-    }>("/api/learning/exam-prep/podcast", () => ({ prepId, topicId, length, clientRequestId: crypto.randomUUID() }))
+    }>("/api/learning/exam-prep/podcast", () => ({ prepId, topicId, length, clientRequestId: crypto.randomUUID() }), {
+      onBusy: () => {
+        if (alive) setQueued(true);
+      },
+    })
       .then(({ res, data }) => {
         if (!alive) return;
+        setQueued(false);
         if (!res.ok || !Array.isArray(data.chapters)) {
           const failure = describeGenerationFailure(
             generationFailureCode(data),
@@ -80,7 +87,13 @@ export function PrepPodcastSession({
 
   if (status === "loading") {
     // Düğüm ekranındaki bekleme ekranının aynısı: boş bir "hazırlanıyor" yazısı 50 sn sürüyordu.
-    return <NodeGenerationProgress title="Podcast hazırlanıyor…" onClose={() => router.push(home)} />;
+    return (
+      <NodeGenerationProgress
+        title="Podcast hazırlanıyor…"
+        note={queued ? BUSY_NOTE : undefined}
+        onClose={() => router.push(home)}
+      />
+    );
   }
 
   if (status === "error") {

@@ -14,6 +14,7 @@ import {
 } from "@/lib/payments/paytr-capability";
 import { ACCEPTED_OMISSIONS, missingSellerFields } from "@/lib/legal/seller";
 import { probeSchema } from "@/lib/admin/schema-probe";
+import { generationSlotsInUse } from "@/lib/ai/generation-slots";
 
 export const metadata = { title: "Yönetim · Sistem durumu" };
 
@@ -70,6 +71,7 @@ export default async function AdminSistemPage() {
   const capability = await probePaytrRecurring();
   const missingSeller = missingSellerFields();
   const schema = await probeSchema(service);
+  const slots = await generationSlotsInUse();
   const schemaBroken = schema.filter((check) => !check.ok);
   const schemaCritical = schemaBroken.filter((check) => check.critical);
 
@@ -104,6 +106,14 @@ export default async function AdminSistemPage() {
           PayTR <strong>canlı kipte</strong> — ödemeler gerçek karttan çekilir.
         </AdminNote>
       ) : null}
+
+      {/* Üretim yuvaları (19 Ekim 2026, Faz 3.2): aynı anda süren içerik üretimi ve sınırı. */}
+      <AdminNote tone={slots.active >= slots.limit ? "warn" : "info"}>
+        <strong>Üretim yuvaları:</strong> şu an {slots.active} / {slots.limit} üretim sürüyor
+        {slots.shared ? "" : " (Redis yok: yalnız bu sunucunun sayısı)"}. Sınır Vercel&apos;de{" "}
+        <code>GENERATION_SLOTS</code> ile değişir; dolunca öğrenci &quot;sıradasın&quot; görür, önceden yazım
+        yuvaların %70&apos;i dolunca bekler.
+      </AdminNote>
 
       {/*
         Tekrarlayan tahsilat yetkisi. "Yetki alındı sanıyorum" ile "yetki var"
