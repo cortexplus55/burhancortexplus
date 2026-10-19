@@ -749,6 +749,24 @@ hiç verilmeyen "zor soruda güçlü model", ücretsiz zor soruda "Plus'ta güç
 
 Bekçi: `marketing-claims.test.ts` (yasak cümleler, Plus etiketi ↔ kredi tablosu, hak sayıları).
 
+## Logo: sinir ağı, hareketli (19 Ekim 2026)
+
+Ürün sahibi beş fütüristik adaydan **B, sinir ağı**nı seçti (eski "C + yıldız" ve ilk altı sade aday
+beğenilmedi). C, birbirine bağlı düğümlerden; ağın ucunda artı. Geometri tek dosyada.
+
+| Kural | Nerede |
+|---|---|
+| 40 pikselin altında küçük çizim (altı düğüm + artı), üstünde ağın tamamı; ikisi de `CortexMark` | `components/brand/cortex-geometry.ts`, `cortex-mark.tsx` |
+| Hareket: açılışta düğümler yerine oturur, sonra 3,2 sn'de bir sinyal ağda akıp artıda parlar; yükleniyor ekranında sürekli ve hızlı (`mode="loop"`). Menü, sekme, sohbet gibi küçük yerlerde hareket yok; hareket azaltma açıksa her yerde durur | `cortex-logo-motion.tsx`, `brand-motion.css` |
+| Sayfanın aşağısındaki logo açılışı kaçırmasın: ekrana girince bir kez yeniden oynar, hiçbir an gizli beklemez | `cortex-logo-reveal.tsx` |
+| Sekme, telefon simgesi ve paylaşım görseli düz altın (satori'de gradyan yok), aynı geometriden | `cortex-icon-svg.tsx`, `icon.tsx`, `apple-icon.tsx`, `opengraph-image.tsx` |
+| Pazarlama menüsünde kilit: işaret + geniş aralıklı "CORTEX PLUS" (metin büyük harfle yazılmaz, CSS ile; ekran okuyucu harf harf okumasın) | `parity-site-header.tsx` |
+
+Ana sayfa aynı gün sinematik hale geldi (ürün sahibi: "fütüristik ama dozu kararında"): kahramanda ışık ve
+ufka akan ızgara, nottan ders ekranına uzanan sahne (not sayfası → ders → yol + "+%X kazandın"), tek
+çizgili adım akışı, özellik ızgarası, kenarında dönen altın ışıklı Plus kartı, ufuk çizgisiyle son çağrı.
+Sahnedeki her ekran üründe var. Bekçi: `brand-neural-mark.test.tsx`, `marketing-claims.test.ts`.
+
 ## Öğrenci gibi kurulum turu (19 Ekim 2026) — bulunan ve kapanan hatalar
 
 Ürün sahibi: "kullanıcıya sunduğumuz hizmetleri tek tek kontrol et". Canlıda kurucu hesabıyla, öğrenci
