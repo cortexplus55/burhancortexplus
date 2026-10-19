@@ -40,7 +40,8 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
    */
   VIDEO_GENERATE: { credits: 280, per: "video ders" },
   EXPORT_PDF: { credits: 0, per: "dışa aktarma" },
-  AUDIO_SYNTHESIZE: { credits: 2, per: "900 karakter" },
+  /** 19 Ekim 2026: 2 → 15 (ölçülen maliyet 900 karakter ≈ $0,015; göç 20261019130000). */
+  AUDIO_SYNTHESIZE: { credits: 15, per: "900 karakter" },
 };
 
 export const AUDIO_CHARS_PER_CREDIT_PRICE = 900;

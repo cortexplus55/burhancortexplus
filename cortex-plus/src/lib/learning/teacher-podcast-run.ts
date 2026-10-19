@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
+import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
 import { parseIssues } from "@/lib/learning/teacher-lesson";
@@ -161,7 +162,8 @@ async function runTeacherPodcastInner(
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
   let calls = 0;
   // Öğrenci bekliyor (önceden hazır podcast yok): hızlı işlem.
-  const tier = fastTier(!free);
+  // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
+  const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
   const ask: AskJson = async (system, user) => {
     calls += 1;
     const response = await openai.chat.completions.create({

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
+import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
@@ -660,8 +661,10 @@ async function runTeacherLessonInner(
   /** Çağrı süreleri rol rol (sn, bir ondalık) ve yazarın ilk jetonu: kayıt için. */
   const callMs: Record<string, number[]> = {};
   let firstTokenMs: number | undefined;
+  // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, ürün sahibinin kararı; `fast-access.ts`).
+  const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));
   const io = createLessonIo(openai, model, {
-    fast: input.fast,
+    fast,
     onCall: () => {
       calls += 1;
     },
@@ -679,7 +682,7 @@ async function runTeacherLessonInner(
       pages: input.pages.map((item) => item.page),
       calls,
       ms: Date.now() - started,
-      fast: Boolean(input.fast),
+      fast,
       rounds: result.fixTriggers.length,
       dropped: result.dropped.length,
       low: result.issues.length,

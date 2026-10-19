@@ -470,8 +470,7 @@ Etiketsiz dış bilgi hâlâ hata (A). Yalnız belgeli içerikte; belgesiz hazı
 
 **17 Ekim'de canlı bir ders ~4 dk sürdü ve "oluşturulamadı" dedi:** her düzeltme turu dersin
 tamamını baştan yazıyordu (tur başına ~60 sn) ve tek bir eşik itirazı bütün dersi attı. Ürün
-sahibinin kararları: ders ~10 sn'de açılsın, kalite düşmesin; **hızlı işlem (Fast mode) öğrenci
-beklerken herkese** (önce yalnız Plus'tı; canlıda ücretsiz öğrencinin ilk ekranı 18 sn çıkınca aynı
+sahibinin kararları: ders ~10 sn'de açılsın, kalite düşmesin; **hızlı işlem (Fast mode) öğrencibeklerken herkese** (önce yalnız Plus'tı; canlıda ücretsiz öğrencinin ilk ekranı 18 sn çıkınca aynı
 gün herkese açıldı; önceden yazım normal işlemde); ders parça parça açılsın; önceden hazırlama genişlesin. Ölçümler ve altın kıyas:
 `docs/delivery/DERS-HIZI-18-EKIM.md`.
 
@@ -670,3 +669,13 @@ kaydı, sınır `GENERATION_SLOTS` (varsayılan 40). Yuva **kredi ayrılmadan ö
 
 Yeni bir model zinciri eklerken bu dört kabuktan birini kullanın ya da `withGenerationSlot` ile sarın. k6 yük testi
 ürün sahibinin kararıyla lansmana kaldı. Bekçi: `generation-slots.test.ts`. Runbook: `docs/ops/openai-kota.md`.
+
+## Maliyet kararları (19 Ekim 2026) — hızlı işlem yalnız Plus, ses 15 kredi
+
+Ölçüm: `docs/delivery/MALIYET-MODELI.md` (17-19 Ekim, bugünkü motorlar). Ürün sahibinin kararları:
+
+| Karar | Ayrıntı | Nerede |
+|---|---|---|
+| **Hızlı işlem yalnız Plus/Sigma ve kurucuya** | 18 Ekim'deki "öğrenci beklerken herkese" kararı daraldı: ders $0,016 tutuyordu, kredisi $0,006. Ücretsiz öğrencinin soğuk içeriği normal hızda; abonelik okunamazsa hızlı işlem yok | `fast-access.ts` (`fastAllowedFor`), dört motor kabuğu |
+| **Seslendirme 15 kredi / 900 karakter** (önce 2) | Ölçülen maliyet ~$0,015 / 900 karakter; 5 dk podcast sesi ~60 kredi. Önbellekten gelen cümle yine bedava | göç `20261019130000`, `price-table.ts` |
+| Test (4) ve mesaj (3) kredisi **kalır** | Maliyetin ~1,5 katı eksik ama normal öğrencide marj ~%72; yoğun öğrenci azınlıkta varsayımı | — |

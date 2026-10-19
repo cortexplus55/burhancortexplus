@@ -79,7 +79,8 @@ describe("kredi fiyat tablosu", () => {
     // Kredi sistemi v2 (8 Ekim 2026): 1 kredi = $0,001 ölçülen maliyet.
     expect(CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits).toBe(3);
     expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBe(6);
-    expect(CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits).toBe(2);
+    // 19 Ekim 2026: 2 → 15 (ölçülen maliyet 900 karakter ≈ $0,015, ürün sahibinin kararı).
+    expect(CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits).toBe(15);
   });
 
   it("ses kredisi 900 karakterdir ve sohbet bir kez ayırır", () => {

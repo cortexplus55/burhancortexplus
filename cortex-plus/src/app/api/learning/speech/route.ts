@@ -12,7 +12,7 @@ import { MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
  * kalıplar ("Güzel, devam edelim.") ikinci kez üretilmiyor.
  *
  * Podcast ile aynı ücretlendirmeden geçiyor: yalnızca gerçekten üretilen
- * karakter faturalanıyor (900 karakter = 1 kredi). Sözlü sınavda tekrar eden
+ * karakter faturalanıyor (900 karakter = 15 kredi, 19 Ekim 2026). Sözlü sınavda tekrar eden
  * kalıplar zaten önbellekte olduğu için pratikte çoğu cümle bedava geliyor.
  */
 
