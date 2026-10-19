@@ -223,11 +223,17 @@ export function buildPrepProgressView(input: {
             gainPerLessonPct,
             lessonsToTarget,
             perDay: daysToExam ? Math.ceil(lessonsToTarget / daysToExam) : null,
-            todayLessons: completed.filter((attempt) => {
-              const node = nodeById.get(attempt.nodeId);
-              const time = Date.parse(attempt.createdAt);
-              return Boolean(node && LESSON_KINDS.has(node.kind)) && Number.isFinite(time) && now - time < DAY_MS;
-            }).length,
+            // Ayrı ders sayısı: aynı dersin tekrar kayıtları bir kez sayılır — kahraman alanındaki
+            // "1 ders tamamlandı" ile çelişmesin (canlıda "Bugün 4 ders" çıkmıştı, 19 Ekim 2026).
+            todayLessons: new Set(
+              completed
+                .filter((attempt) => {
+                  const node = nodeById.get(attempt.nodeId);
+                  const time = Date.parse(attempt.createdAt);
+                  return Boolean(node && LESSON_KINDS.has(node.kind)) && Number.isFinite(time) && now - time < DAY_MS;
+                })
+                .map((attempt) => attempt.nodeId),
+            ).size,
           };
         })()
       : null;

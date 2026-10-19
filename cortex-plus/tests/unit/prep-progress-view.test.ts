@@ -54,7 +54,11 @@ describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
       ...base,
       nodes: nodes.map((n) => (n.id === "l2" ? { ...n, status: "ready" as const } : n)),
       examDate: "2026-10-13",
-      attempts: [{ nodeId: "l1", score: 3, total: 3, createdAt: daysAgo(0) }],
+      // Aynı ders bugün iki kez kaydedilmiş ("Dersi tekrarla"): bugün 1 ders sayılır, 2 değil.
+      attempts: [
+        { nodeId: "l1", score: 3, total: 3, createdAt: daysAgo(0) },
+        { nodeId: "l1", score: 3, total: 3, createdAt: daysAgo(0) },
+      ],
       measuredReadinessPct: 2,
     });
     expect(one.forecast.kind).toBe("ready");
