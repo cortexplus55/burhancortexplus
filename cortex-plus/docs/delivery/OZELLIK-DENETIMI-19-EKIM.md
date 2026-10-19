@@ -82,3 +82,12 @@ Düzeltilenler (ikinci PR):
 
 Bekçi: `document-answer-verification.test.ts` ("genel sorular"), `teacher-podcast.test.ts` ("ikinci tur
 yerine satır çıkar").
+
+Aynı turda: **kartlar** Biyoloji'den 20 kart, ~35 sn, tekrar yok, belgenin bütün bölümlerinden ve doğru.
+**Fotoğraftan çözüm** yine reddedildi: denetçinin cevabı iki denemede de karar kalıbına uymadı
+(`invalid_review`; üç model çağrısı, 12 sn). Neden: taslağın biçimi denetçiye `format` adıyla "Yalnızca
+şu JSON şemasını döndür: {problem, steps…}" diye gidiyordu, denetçi bunu kendine verilmiş sanıp kararı
+yerine çözümü yazıyordu. Şimdi alan `draftFormat`, denetçiye bunun kendi talimatı olmadığı söyleniyor;
+karar küçük biçim sapmalarıyla da okunuyor (`readReviewVerdict`; `approved` yoksa onay uydurulmaz);
+yine okunmazsa `ai_review_unreadable` kaydı cevabın yalnız şeklini yazar. Fotoğraf ekranındaki hata
+mesajı artık düğmenin altında da duruyor. Bekçi: `quality-gate.test.ts` ("denetçi kararı").

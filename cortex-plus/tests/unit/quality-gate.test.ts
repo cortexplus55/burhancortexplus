@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 vi.mock("@/lib/env", () => ({ env: { OPENAI_ADVANCED_MODEL: "review-model" } }));
 import {
   EducationalVerificationError,
+  readReviewVerdict,
   repairInstruction,
   verifyEducationalContent,
 } from "@/lib/ai/quality-gate";
@@ -289,5 +290,42 @@ describe("educational quality gate", () => {
         independent: (content) => ({ draft: content, parsed: {} }),
       }),
     ).rejects.toMatchObject({ reason: "validator_unavailable" });
+  });
+});
+
+/*
+  19 Ekim 2026: fotoğraftan çözümde denetçi iki denemede de şemaya uymayan cevap verdi
+  (`invalid_review`) ve doğru çözüm reddedildi. Taslağın biçimi "format" adıyla "Yalnızca şu JSON
+  şemasını döndür" diye gidiyordu; denetçi bunu kendine verilmiş sanıyordu.
+*/
+describe("denetçi kararı okunurken", () => {
+  it("küçük biçim sapmaları içerik reddine dönmez", () => {
+    expect(readReviewVerdict({ approved: true, issues: [] })).toEqual({ approved: true, issues: [] });
+    expect(readReviewVerdict({ verdict: { approved: "false", issues: [{ problem: "İvme 5 değil 3." }] } }))
+      .toEqual({ approved: false, issues: ["İvme 5 değil 3."] });
+    expect(readReviewVerdict({ approved: true })).toEqual({ approved: true, issues: [] });
+    expect(readReviewVerdict({ approved: false, issues: Array.from({ length: 15 }, (_, i) => `s${i}`) })?.issues).toHaveLength(12);
+  });
+
+  it("karar yoksa onay uydurulmaz", () => {
+    expect(readReviewVerdict({ problem: "Kütle 5 kg", steps: ["F = ma"], answer: "C" })).toBeNull();
+    expect(readReviewVerdict({ approved: "belki", issues: [] })).toBeNull();
+    expect(readReviewVerdict(null)).toBeNull();
+  });
+
+  it("taslağın biçimi denetçiye 'draftFormat' olarak, kendi talimatı olmadığı söylenerek gider", async () => {
+    const { input, create } = fixture([{ approved: true, issues: [] }]);
+    await verifyEducationalContent({ ...input, format: 'Yalnızca şu JSON şemasını döndür: {"problem": string}' });
+    const call = create.mock.calls[0]?.[0] as { messages: { content: unknown }[] };
+    const user = call.messages[1]!.content as { type: string; text?: string }[];
+    expect(JSON.parse(user[0]!.text!)).toMatchObject({ draftFormat: expect.stringContaining("JSON şemasını") });
+    expect(String(call.messages[0]!.content)).toContain("draftFormat alanı taslağın uyması gereken biçimdir");
+  });
+
+  it("denetçi iki kez çözümü yankılarsa yine invalid_review (içerik onaylanmış sayılmaz)", async () => {
+    const echo = { problem: "Kütle 5 kg", steps: ["F = ma"], answer: "C" };
+    const { input, create } = fixture([echo, echo]);
+    await expect(verifyEducationalContent(input)).rejects.toMatchObject({ reason: "invalid_review" });
+    expect(create).toHaveBeenCalledTimes(2);
   });
 });
