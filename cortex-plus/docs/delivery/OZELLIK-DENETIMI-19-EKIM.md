@@ -118,3 +118,28 @@ Düzeltilenler:
 
 Bekçi: `quality-gate.test.ts` (çerçeve, yankıdan sonra karar), `document-answer-verification.test.ts`
 (özet), `feature-audit-studios.test.tsx` (yazılı belgeden), `video-lesson.test.tsx`.
+
+## Dördüncü tur (#373 yayında)
+
+| Özellik | Belge | İstek | Sonuç |
+|---|---|---|---|
+| Fotoğraftan çözüm | Fizik soru görseli | Çöz | **Çalışıyor:** soru doğru okundu, adımlar doğru, cevap 5 m/s² (C) |
+| Belgeyle sohbet | Biyoloji | "Bu notu kısaca özetle." | **Özet geliyor**, üç sayfadan atıflı ve doğru; ama "Takıldığın özel bir nokta belirtilmedi." diye başlayıp "Kontrol sorusu:" etiketiyle bitiyor |
+| Podcast | Hukuk 5 s. | Diyalog · 5 dk · Belgenin tamamı | Süre 5:32 (önce 7:29); senaryo 37 sn (önce özet bile 126 sn) — ama oynatıcı bütün sesi bekleyip ~3,5 dk sonra açıldı |
+| Yazılı deneme aracı | Ekonomi 4 s. | 10 soru · Belgenin tamamı | 10 soru, belgeden, doğru; ama **280 sn** (tek zor konu 143 + 132 sn) ve **açık uçlu soruda takılıyor** (ekran şık bekliyor, "Sonraki soru" açılmıyor) |
+
+Düzeltilenler:
+
+- **Podcast aracı sesi akışla alır:** ilk satırın sesi gelince oynatıcı açılır ("Dinlemeye başlayabilirsin;
+  sesin geri kalanı hazırlanıyor"), çalarken sıradaki satır gelmediyse bekleyip sürer; her satır
+  senaryodaki yerine karşı denetlenir, bitince bütün ses bir kez daha.
+- **Genel sohbetin sesi:** eski "(1) takıldığı yer (2) ipucu (3) kontrol sorusu" kalıbı genel sohbette de
+  kalktı (hazırlık sohbetinde Ekim başında kalkmıştı); etiket yok, "takıldığın nokta belirtilmedi" yorumu yok.
+- **Yazılı deneme hızı:** konu üretimi tek iyi soruyla yetinir (motorun kendi ikinci taslağı yok); eksik
+  tamamlama hiç soru vermeyen konuyu yine dener ama kısmen dolan zor konuyu baştan denemez, eksik payını
+  tam veren konulardan alır; tamamlama 150 sn'den sonra başlamaz.
+- **Yazılı deneme ekranı:** açık uçlu soruya yazı alanı (boş geçilebilir), çok cevaplıya çoklu işaret;
+  not verme ucu ikisini zaten kabul ediyordu.
+
+Bekçi: `feature-audit-studios.test.tsx` (akışlı ses, sohbet sesi, açık uçlu/çok cevaplı),
+`mock-exam-charge.test.ts` ("eksik tamamlama").

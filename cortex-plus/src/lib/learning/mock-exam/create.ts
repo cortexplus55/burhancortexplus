@@ -55,6 +55,7 @@ type TopicRow = {
 
 export async function createMockExam(input: CreateMockExamInput): Promise<CreateMockExamResult> {
   const { service, userId, prepId } = input;
+  const startedAt = Date.now();
 
   const { data: prep } = await service
     .from("exam_preps")
@@ -197,17 +198,15 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
 
     // Eksikse bir kez daha dene: eksik kalan konular, çoktan seçmeli (17 Ekim 2026'ya kadar her
     // zaman listenin ilk konusu deneniyordu; Nefroloji boş kalınca yerine Büyüme'den ikinci soru geldi).
+    // 19 Ekim 2026: hiç soru vermeyen konu yine yeniden denenir; kısmen dolan zor konu ise baştan
+    // denenmez, eksik soru kendi sorularını sorunsuz veren konulardan gelir. Araçlar'daki 10 soruluk
+    // Ekonomi yazılısında tek konu 143 sn uğraşıp 1 soru verdi, tamamlama aynı konuyu 132 sn daha
+    // denedi; deneme 280 sn sürdü (tavan 300). Tamamlama ancak TOPUP_DEADLINE_MS'den önce başlar.
     const planned = blueprint.questionCount;
-    if (questions.length < planned && allocation.length) {
+    if (questions.length < planned && allocation.length && Date.now() - startedAt < TOPUP_DEADLINE_MS) {
       const have = new Map<string, number>();
       for (const q of questions) have.set(q.topicLabel, (have.get(q.topicLabel) ?? 0) + 1);
-      const short = allocation
-        .map((row) => ({ row, missing: row.count - (have.get(row.topicLabel) ?? 0) }))
-        .filter((item) => item.missing > 0);
-      const targets = (short.length ? short : [{ row: allocation[0]!, missing: planned - questions.length }]).slice(
-        0,
-        TOPIC_GENERATE_CONCURRENCY,
-      );
+      const targets = topUpTargets(allocation, have, planned - questions.length).slice(0, TOPIC_GENERATE_CONCURRENCY);
       const extra = await Promise.all(
         targets.map(({ row, missing }) =>
           generateForTopic({
@@ -366,6 +365,9 @@ async function choiceDrafts(
     idempotencyKey: input.chargeKey,
     heldReservationId: input.reservationId,
     count: slots.length,
+    // Tek iyi soru bu konu için yeter: eksik kalan soruyu deneme kendisi tamamlar (motorun
+    // kendi ikinci taslağı zor konuda süreyi ikiye katlıyordu, 19 Ekim 2026).
+    minimum: 1,
     multi: slots.some((slot) => slot.type === "multi_mcq"),
     topicLabel: input.topic.topicLabel,
     prepTitle: input.prepTitle,
@@ -456,6 +458,38 @@ async function openDrafts(
       modelAnswer: polishMockCopy(item.modelAnswer),
     };
   });
+}
+
+/** Eksik tamamlama ancak denemenin başından bu kadar süre geçmeden başlar (rota tavanı 300 sn). */
+const TOPUP_DEADLINE_MS = 150_000;
+
+/**
+ * Eksik soruların kimden isteneceği: hiç soru vermeyen konu kendisi (konu denemede yer alsın);
+ * öteki eksikler kendi payını tam veren konulara sırayla dağılır. Tam veren konu yoksa eksik konular.
+ */
+export function topUpTargets<R extends { topicLabel: string; count: number }>(
+  allocation: R[],
+  have: Map<string, number>,
+  missingTotal: number,
+): { row: R; missing: number }[] {
+  const got = (row: R) => have.get(row.topicLabel) ?? 0;
+  const empty = allocation.filter((row) => row.count > 0 && got(row) === 0);
+  const healthy = allocation.filter((row) => row.count > 0 && got(row) >= row.count);
+  const partial = allocation.filter((row) => got(row) > 0 && got(row) < row.count);
+  const counts = new Map<R, number>();
+  let left = missingTotal;
+  for (const row of empty) {
+    if (left <= 0) break;
+    const take = Math.min(row.count, left);
+    counts.set(row, take);
+    left -= take;
+  }
+  const pool = healthy.length ? healthy : partial.length ? partial : allocation.slice(0, 1);
+  for (let index = 0; left > 0 && pool.length; index += 1, left -= 1) {
+    const row = pool[index % pool.length]!;
+    counts.set(row, (counts.get(row) ?? 0) + 1);
+  }
+  return [...counts].map(([row, missing]) => ({ row, missing }));
 }
 
 /** Beklenen noktalar rubriğe: puan noktalara tam sayı olarak bölünür, artan ilk noktalara. */

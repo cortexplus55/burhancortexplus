@@ -1152,6 +1152,8 @@ export function ExamCreateWizard({
     if (!q) return pool;
     return pool.filter((s) => s.toLocaleLowerCase("tr").includes(q));
   }, [subjectQuery, recentSubjects]);
+  const recentMatches = recentSubjects.filter((s) => subjectMatches.includes(s));
+  const commonMatches = COMMON_SUBJECTS.filter((s) => subjectMatches.includes(s));
 
   const removeFailedMaterial = useCallback((failed: { documentId: string }) => {
     void fetch(`/api/documents/${failed.documentId}`, { method: "DELETE" })
@@ -1258,12 +1260,12 @@ export function ExamCreateWizard({
               &ldquo;{subjectQuery.trim()}&rdquo; dersini ekle
             </button>
           ) : null}
-          {recentSubjects.length ? (
+          {/* Aramayla eşleşen yoksa başlık da durmaz (19 Ekim 2026: "Farmakoloji" yazınca iki boş başlık kalıyordu). */}
+          {recentMatches.length ? (
             <>
               <h2 className="apw-group">Devam ettiklerin</h2>
               <div className="apw-grid">
-                {recentSubjects
-                  .filter((s) => subjectMatches.includes(s))
+                {recentMatches
                   .map((item) => (
                     <button
                       key={item}
@@ -1279,21 +1281,25 @@ export function ExamCreateWizard({
               </div>
             </>
           ) : null}
-          <h2 className="apw-group">Dersler</h2>
-          <div className="apw-grid">
-            {COMMON_SUBJECTS.filter((s) => subjectMatches.includes(s)).map((item) => (
-              <button
-                key={item}
-                type="button"
-                className="apw-tile"
-                onClick={() => {
-                  pickSubject(item);
-                }}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
+          {commonMatches.length ? (
+            <>
+              <h2 className="apw-group">Dersler</h2>
+              <div className="apw-grid">
+                {commonMatches.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className="apw-tile"
+                    onClick={() => {
+                      pickSubject(item);
+                    }}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
         </section>
       ) : null}
 

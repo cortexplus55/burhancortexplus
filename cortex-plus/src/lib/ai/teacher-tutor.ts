@@ -180,6 +180,16 @@ export function tutorHistoryText(content: string): string {
 }
 
 /**
+ * Genel sohbetin (Sor) sesi. 19 Ekim 2026'ya kadar genel sohbet hâlâ eski `tutorStylePrompt`'u
+ * kullanıyordu; "Bu notu kısaca özetle" diyen öğrenciye cevap "Takıldığın özel bir nokta
+ * belirtilmedi." diye başlayıp "Kontrol sorusu:" etiketiyle bitiyordu.
+ */
+export const CHAT_NATURAL_VOICE =
+  "Etiketli kalıp kullanma ('Nerede takıldığın:', 'Tek ipucu:', 'Kontrol sorusu:' gibi başlıklar yok); doğal konuş. " +
+  "Öğrencinin takıldığı yer hakkında yorum yazma ('takıldığın bir nokta belirtilmedi' gibi); sorulanı yap. " +
+  "Gerekiyorsa sonda tek kısa soru sor, başlıksız.";
+
+/**
  * Öğrencinin profilde seçtiği anlatım tarzı. Eski `tutorStylePrompt` her
  * cevaba "(1) nerede takıldığı (2) tek ipucu (3) kontrol sorusu" sırasını
  * dayatıyordu — öğrencinin gördüğü kalıbın kaynağı; bu yolda kullanılmaz.

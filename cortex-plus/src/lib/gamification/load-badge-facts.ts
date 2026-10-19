@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BadgeFacts } from "@/lib/gamification/badges";
 import { parsePersistedTracking } from "@/lib/learning/learning-tracking";
+import { NOT_STUDIO_EXAM_FILTER } from "@/lib/learning/studio-exam";
 
 function istanbulToday(now = new Date()): string {
   return now.toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" });
@@ -61,6 +62,7 @@ export async function loadBadgeFacts(
         .from("exam_preps")
         .select("id, created_at, learning_tracking")
         .eq("user_id", userId)
+        .or(NOT_STUDIO_EXAM_FILTER)
         .order("created_at", { ascending: false })
         .limit(50),
       service

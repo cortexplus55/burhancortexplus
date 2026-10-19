@@ -4,6 +4,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { freePrepLimitReached } from "@/lib/billing/free-prep-limit";
 import { createServiceClient } from "@/lib/supabase/server";
+import { NOT_STUDIO_EXAM_FILTER } from "@/lib/learning/studio-exam";
 
 export const metadata = { title: "Sınav oluştur" };
 export const dynamic = "force-dynamic";
@@ -33,6 +34,8 @@ export default async function ExamCreatePage({
     .from("exam_preps")
     .select("exam_type")
     .eq("user_id", user.id)
+    // Araçlar'daki yazılının geçici hazırlığı ("deneme") ders listesine düşmesin (19 Ekim 2026).
+    .or(NOT_STUDIO_EXAM_FILTER)
     .order("created_at", { ascending: false })
     .limit(12);
 

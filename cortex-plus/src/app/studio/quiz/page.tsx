@@ -3,7 +3,7 @@ import { getCreditCost } from "@/lib/credits/rules";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadCompletedDocumentOptions } from "@/lib/documents/document-options";
 
-export const metadata = { title: "Quiz stüdyosu" };
+export const metadata = { title: "Konu testi" };
 export const dynamic = "force-dynamic";
 
 export default async function QuizStudioPage({

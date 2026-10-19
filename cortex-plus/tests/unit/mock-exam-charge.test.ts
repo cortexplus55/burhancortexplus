@@ -127,7 +127,7 @@ vi.mock("@/lib/learning/exam-quiz-generate", () => ({
 }));
 
 import { defaultSlots } from "@/lib/learning/mock-exam/blueprint";
-import { createMockExam } from "@/lib/learning/mock-exam/create";
+import { createMockExam, topUpTargets } from "@/lib/learning/mock-exam/create";
 import { gradeMockExam } from "@/lib/learning/mock-exam/grade-exam";
 import { parseOpenGrade } from "@/lib/learning/mock-exam/open-grade";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
@@ -399,5 +399,38 @@ describe("yazılı deneme: Astra gibi çoktan seçmeli + açık uçlu", () => {
     );
     expect([...parsed.keys()]).toEqual([0]);
     expect(parsed.get(0)?.quotes).toEqual([{ criterion: "A", quote: "cevap" }]);
+  });
+});
+
+/*
+  19 Ekim 2026, Araçlar'daki Ekonomi yazılısı: tek konu 143 sn uğraşıp 1 soru verdi, tamamlama aynı
+  konuyu 132 sn daha denedi; deneme 280 sn sürdü (tavan 300).
+*/
+describe("yazılı deneme: eksik tamamlama", () => {
+  const rows = [
+    { topicLabel: "Enflasyon", count: 3 },
+    { topicLabel: "Türleri", count: 3 },
+    { topicLabel: "Para politikası", count: 2 },
+    { topicLabel: "Miktar teorisi", count: 2 },
+  ];
+  it("kısmen dolan zor konu baştan denenmez; eksik, payını tam veren konulardan gelir", () => {
+    const have = new Map([["Enflasyon", 3], ["Türleri", 1], ["Para politikası", 2], ["Miktar teorisi", 2]]);
+    const targets = topUpTargets(rows, have, 2);
+    expect(targets.map((t) => t.row.topicLabel)).not.toContain("Türleri");
+    expect(targets.reduce((sum, t) => sum + t.missing, 0)).toBe(2);
+  });
+  it("hiç soru vermeyen konu yine kendisi denenir", () => {
+    const have = new Map([["Enflasyon", 3], ["Para politikası", 2], ["Miktar teorisi", 2]]);
+    expect(topUpTargets(rows, have, 3)).toEqual([{ row: rows[1], missing: 3 }]);
+  });
+  it("payını tam veren konu yoksa eksik konular", () => {
+    const have = new Map([["Enflasyon", 1], ["Türleri", 1], ["Para politikası", 1], ["Miktar teorisi", 1]]);
+    expect(topUpTargets(rows, have, 2).map((t) => t.row.topicLabel)).toEqual(["Enflasyon", "Türleri"]);
+  });
+  it("konu üretimi tek iyi soruyla yetinir; tamamlama süre sınırlı", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync("src/lib/learning/mock-exam/create.ts", "utf8");
+    expect(source).toContain("minimum: 1,");
+    expect(source).toContain("Date.now() - startedAt < TOPUP_DEADLINE_MS");
   });
 });

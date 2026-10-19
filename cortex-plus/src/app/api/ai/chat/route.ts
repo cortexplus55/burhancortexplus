@@ -16,7 +16,7 @@ import { SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
-import { parseTutorStyle, tutorStylePrompt } from "@/lib/learning/tutor-style";
+import { parseTutorStyle } from "@/lib/learning/tutor-style";
 import { moodPrompt, parseMood } from "@/lib/learning/session-signals";
 import { env, type ActionCode } from "@/lib/env";
 import { recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
@@ -59,7 +59,7 @@ import {
 } from "@/lib/learning/tutor-reply";
 import { topWeightedTopic } from "@/lib/learning/prep-corpus";
 import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
-import { teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
+import { CHAT_NATURAL_VOICE, teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
 import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import {
@@ -293,7 +293,7 @@ export async function POST(request: Request) {
       const chatMood = parseMood(rest.mood);
       const moodLine = chatMood === "neutral" ? "" : ` ${moodPrompt(chatMood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(parseTutorStyle(profile?.tutor_style))} ${CHAT_NATURAL_VOICE}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
       ];
