@@ -26,6 +26,7 @@ import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 // Üretim düşünce ekran bir kez kendiliğinden yeniden dener (19 Ekim 2026); kurallar tek yerde.
 import { AUTO_RETRY_CODES, AUTO_RETRY_DELAY_MS } from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
+import { UNSCORED_NODE_KINDS } from "@/lib/learning/node-result";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
@@ -961,6 +962,9 @@ export function ExamNodeSession({
     return () => window.removeEventListener("keydown", onKey);
   }, [cardsPlaying, cardIndex]);
 
+  // Podcast puanlanmaz (19 Ekim 2026, canlı): soru yokken sonuç "Doğru cevaplar 1/1 · Doğruluk %100"
+  // diyordu. Sonuç sayfasındaki `UNSCORED_NODE_KINDS` kuralı oturum ekranında da geçerli.
+  const unscored = UNSCORED_NODE_KINDS.has(kind);
   const heroScore = payload.type === "cards" && cardSummary ? cardSummary.known : score.score;
   const heroTotal = payload.type === "cards" && cardSummary ? cardSummary.total : score.total;
   const showCoach =
@@ -1685,29 +1689,42 @@ export function ExamNodeSession({
           ) : null}
           {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,
               altında doğruluk ve süre satırları. */}
-          <p className="cp-lesson-kicker">
-            {payload.type === "cards" && cardSummary ? "Bildiğin kartlar" : "Doğru cevaplar"}
-          </p>
-          <p
-            className="cp-result-hero"
-            aria-label={
-              payload.type === "cards" && cardSummary
-                ? `${heroTotal} karttan ${heroScore} biliniyor`
-                : `${heroTotal} sorudan ${heroScore} doğru`
-            }
-          >
-            <strong>{heroScore}</strong>
-            <span>/{heroTotal}</span>
-          </p>
-          <p className="cp-result-mood">
-            <span aria-hidden>{resultMood(heroScore, heroTotal).emoji}</span>{" "}
-            {resultMood(heroScore, heroTotal).text}
-          </p>
+          {unscored ? (
+            <>
+              <p className="cp-lesson-kicker">Podcast</p>
+              <p className="cp-result-mood">
+                <span aria-hidden>🎧</span> Dinledin, konu kulağında.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="cp-lesson-kicker">
+                {payload.type === "cards" && cardSummary ? "Bildiğin kartlar" : "Doğru cevaplar"}
+              </p>
+              <p
+                className="cp-result-hero"
+                aria-label={
+                  payload.type === "cards" && cardSummary
+                    ? `${heroTotal} karttan ${heroScore} biliniyor`
+                    : `${heroTotal} sorudan ${heroScore} doğru`
+                }
+              >
+                <strong>{heroScore}</strong>
+                <span>/{heroTotal}</span>
+              </p>
+              <p className="cp-result-mood">
+                <span aria-hidden>{resultMood(heroScore, heroTotal).emoji}</span>{" "}
+                {resultMood(heroScore, heroTotal).text}
+              </p>
+            </>
+          )}
           <dl className="cp-result-lines" aria-label="Oturum özeti">
-            <div>
-              <dt>Doğruluk</dt>
-              <dd>%{Math.round((heroScore / Math.max(1, heroTotal)) * 100)}</dd>
-            </div>
+            {unscored ? null : (
+              <div>
+                <dt>Doğruluk</dt>
+                <dd>%{Math.round((heroScore / Math.max(1, heroTotal)) * 100)}</dd>
+              </div>
+            )}
             <div>
               <dt>Harcanan zaman</dt>
               <dd>
@@ -1729,9 +1746,11 @@ export function ExamNodeSession({
                 : `${score.retried} soru ilk denemede yanlıştı. Tekrarlar ayrı durur ve bu sayıya eklenmez.`}
             </p>
           ) : null}
-          <p className="text-sm text-[var(--cp-muted)]">
-            Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
-          </p>
+          {unscored ? null : (
+            <p className="text-sm text-[var(--cp-muted)]">
+              Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
+            </p>
+          )}
           {oralGrade?.items?.some((item) => !item.correct && item.gap) ? (
             <ul className="mt-2 space-y-1 text-sm">
               {oralGrade.items
@@ -1783,7 +1802,7 @@ export function ExamNodeSession({
               // Ders aynı haliyle yeniden açılır (anında, kredisiz); öbür etkinlikler yeniden kurulur.
               if (kind === "lesson") void start({ replay: true });
             }}>
-              Dersi tekrarla
+              {unscored ? "Yeniden dinle" : "Dersi tekrarla"}
             </button>
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" onClick={() => {
@@ -1795,14 +1814,17 @@ export function ExamNodeSession({
                 Farklı anlat
               </button>
             ) : null}
-            <button
-              type="button"
-              className="cp-exam-continue"
-              disabled={feedbackLoading}
-              onClick={() => void loadFeedback()}
-            >
-              {feedbackLoading ? "Yazıyor…" : "Eğitmeninden geri bildirim"}
-            </button>
+            {/* Podcast'te cevap yok: eğitmenin değerlendireceği bir şey de yok. */}
+            {unscored ? null : (
+              <button
+                type="button"
+                className="cp-exam-continue"
+                disabled={feedbackLoading}
+                onClick={() => void loadFeedback()}
+              >
+                {feedbackLoading ? "Yazıyor…" : "Eğitmeninden geri bildirim"}
+              </button>
+            )}
             {/* Sesli tekrar dersin devamı: aynı bölümler, aynı örnek,
                 kulakla bir kez daha. Ders bitmeden önerilmiyor. */}
             {kind === "lesson" && topicId && !lessonPodcast ? (

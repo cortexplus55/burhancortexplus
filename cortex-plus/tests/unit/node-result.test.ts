@@ -60,3 +60,16 @@ describe("bitmiş etkinliğin sonucu", () => {
     expect(page).toContain("Dersi tekrarla");
   });
 });
+
+// 19 Ekim 2026, canlı: podcast oturumunun kendi sonuç ekranı da "Doğru cevaplar 1/1 · Doğruluk %100"
+// diyordu. Oturum ekranı aynı kuralı (`UNSCORED_NODE_KINDS`) kullanır; skor, doğruluk ve eğitmen
+// geri bildirimi gösterilmez, tekrar düğmesi "Yeniden dinle" der.
+describe("podcast oturumunun sonuç ekranı puan göstermez", () => {
+  it("oturum ekranı puansız türde skor satırlarını gizler", async () => {
+    const { readFileSync } = await import("node:fs");
+    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    expect(session).toContain("const unscored = UNSCORED_NODE_KINDS.has(kind);");
+    expect(session).toContain('{unscored ? "Yeniden dinle" : "Dersi tekrarla"}');
+    expect(session).toMatch(/\{unscored \? null : \(\s*<div>\s*<dt>Doğruluk<\/dt>/);
+  });
+});
