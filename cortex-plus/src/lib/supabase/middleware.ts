@@ -133,7 +133,10 @@ export async function updateSession(request: NextRequest) {
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/giris";
-    url.searchParams.set("next", path);
+    // Sorgu `next`in içinde kalır: beta kodu bağlantısı (/pay?kod=…) girişten ve kayıttan
+    // sonra kutusu dolu açılır (19 Ekim 2026). Sorgusuz yolda adres eskisi gibi.
+    url.search = "";
+    url.searchParams.set("next", `${path}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 

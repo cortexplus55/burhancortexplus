@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { SubscriptionCards } from "@/components/parity/subscription-cards";
+import { PromoRedeem } from "@/components/billing/promo-redeem";
 import { requireUser } from "@/lib/auth/session";
 import { getSubscriptionBadge } from "@/lib/student/subscription-badge";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
@@ -8,8 +9,11 @@ import { isPaytrConfigured } from "@/lib/payments/paytr";
 export const metadata = { title: "Abonelik" };
 
 /** Referans ürün `/pay` — uygulama içi Plus satın alma (checkout altyapısı /paketler ile aynı). */
-export default async function PayPage() {
+export default async function PayPage({ searchParams }: { searchParams: Promise<{ kod?: string | string[] }> }) {
   const { supabase, user } = await requireUser();
+  // Beta kodu bağlantısı (/pay?kod=BETA-…): kutu dolu açılır, öğrenci "Kodu kullan"a basar.
+  const kodParam = (await searchParams).kod;
+  const initialCode = (Array.isArray(kodParam) ? kodParam[0] : kodParam)?.slice(0, 40) ?? "";
 
   const [extendedPlans, currentBadge, entitlements] = await Promise.all([
     supabase
@@ -48,6 +52,7 @@ export default async function PayPage() {
         currentAllowance={entitlements.monthlyAllowance}
         checkoutEnabled={isPaytrConfigured()}
       />
+      <PromoRedeem initialCode={initialCode} />
     </AppShell>
   );
 }

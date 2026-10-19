@@ -105,7 +105,7 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 ## Faz 5 — Lansman (Faz 0-4 bittikten sonra)
 
 1. Fiyat ve paketlerin son hâli (`/admin/paketler`), ücretsiz katman kapıları gözden geçirilir (günde 6 kredi, 1 hazırlık, 5 sayfa).
-2. **Kapalı beta**: 20 gerçek öğrenci, 2 hafta, haftalık görüşme; `/admin/yanit-oylari` ve ders sonu anketi okunur.
+2. **Kapalı beta**: 20 gerçek öğrenci, 2 hafta, haftalık görüşme; `/admin/yanit-oylari` ve ders sonu anketi okunur. **Erişim yazıldı (19 Ekim 2026, ürün sahibinin kararı):** tek kullanımlık 14 gün Plus kodu; `/admin/promosyonlar` → "Beta kodları" toplu üretir, öğrenci Abonelik sayfasında girer, bitince ücretsize döner, ücret alınmaz (`AGENTS.md` → "Kapalı beta kodları"). Beta öğrencilerinin nereden geleceği henüz karar değil.
 3. Çıkış ölçütleri: atılan kavram 0, ders ilk ekran p95 < 20 sn (hazır değilken), hazır ders < 3 sn, ödeme başarı > %95, destek cevabı < 24 saat, Sentry'de çözülmemiş kritik hata 0.
 4. Otomatik yenileme: PayTR Direkt API onayı gelene kadar sözleşme "otomatik yenilenmez" kalır (bkz. `PAYTR-ABONELIK.md`); onay gelirse ayrı iş.
 5. Kampanya bandı hazır (`/admin/promosyonlar`), lansman günü açılır.

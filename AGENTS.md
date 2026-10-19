@@ -679,3 +679,22 @@ Yeni bir model zinciri eklerken bu dört kabuktan birini kullanın ya da `withGe
 | **Hızlı işlem yalnız Plus/Sigma ve kurucuya** | 18 Ekim'deki "öğrenci beklerken herkese" kararı daraldı: ders $0,016 tutuyordu, kredisi $0,006. Ücretsiz öğrencinin soğuk içeriği normal hızda; abonelik okunamazsa hızlı işlem yok | `fast-access.ts` (`fastAllowedFor`), dört motor kabuğu |
 | **Seslendirme 15 kredi / 900 karakter** (önce 2) | Ölçülen maliyet ~$0,015 / 900 karakter; 5 dk podcast sesi ~60 kredi. Önbellekten gelen cümle yine bedava | göç `20261019130000`, `price-table.ts` |
 | Test (4) ve mesaj (3) kredisi **kalır** | Maliyetin ~1,5 katı eksik ama normal öğrencide marj ~%72; yoğun öğrenci azınlıkta varsayımı | — |
+
+## Kapalı beta kodları (19 Ekim 2026) — tek kullanımlık, 14 gün Plus
+
+Ürün sahibinin kararı: "2 hafta ücretsiz Plus kodu". Kodlar `/admin/promosyonlar` → "Beta kodları"
+kartında toplu üretilir (`BETA-XXXX-XXXX`, karışan harf yok); kod ya da hazır bağlantı
+(`/pay?kod=…`) olarak kopyalanır. Öğrenci kodu Abonelik sayfasındaki "Kodun var mı?" kutusuna girer.
+
+| Kural | Nerede |
+|---|---|
+| Bütün kontrol ve yazım tek SQL fonksiyonunda: kod geçerli mi, kullanıldı mı, deneme daha önce alındı mı (hesap başına **bir** deneme), ücretli abonelik sürüyor mu; sonra abonelik, cüzdan, kayıt, bildirim | göç `20261019160000`, `redeem_promo_code` (yalnız `service_role`) |
+| Deneme `plus-aylik` planıyla açılır, `trial_until = current_period_end`; hak gün sayısıyla orantılı (14 gün = 3.360), cüzdan dönemi denemeyle aynı gün biter → ertesi istekte ücretsiz günlük hak | aynı göç; `isTrialPeriod` |
+| Deneme gelir değildir: ödeme kaydı yazılmaz, gelir raporları ödemelerden okunur | — |
+| Hatırlatma ve kart "yenile" demez, "ücretsize dönersin, ücret alınmaz" der; öğrenci ödeme yaparsa PayTR dönemi uzatır, eşitlik bozulur, abonelik ücretli sayılır | `trialNotice`, `subscription-card.tsx`, `subscription-renewal` |
+| Giriş yapmamış öğrencinin bağlantısı kodu kaybetmez: `next` sorguyu taşır, girişteki "Kayıt ol" `next`i kayda geçirir | `middleware.ts`, `giris-inner.tsx` |
+| Uç sıkı sınırda (dakikada 5, günde 20): kodlar tahminle denenmesin | `/api/promo/redeem` |
+| Eski kampanya kodları (hediye kredi) da aynı kutudan kullanılır; öğrenciye kredi sayısı değil iş söylenir | `promo-codes.ts` `redeemSuccessMessage` |
+
+Bekçi: `beta-plus-codes.test.ts` (göçü PGlite'ta çalıştırır: açılış, tek kişilik kod, tek deneme,
+ücretli Plus'ın ezilmemesi, deneme bitince günlük hakka dönüş, hediye kredi).

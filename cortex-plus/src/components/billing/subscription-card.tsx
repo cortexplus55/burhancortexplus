@@ -16,6 +16,8 @@ export type SubscriptionView = {
   daysLeft: number | null;
   cancelAtPeriodEnd: boolean;
   autoRenew: boolean;
+  /** Kodla açılan Plus denemesi (kapalı beta): ücret yok, bitince ücretsize döner. */
+  trial?: boolean;
 };
 
 function formatDay(value: string | null): string {
@@ -48,6 +50,37 @@ export function SubscriptionCard({ sub }: { sub: SubscriptionView }) {
   const left = sub.daysLeft;
   const endText = formatDay(sub.currentPeriodEnd);
   const soon = left !== null && left <= 3;
+
+  if (sub.trial) {
+    return (
+      <section className="cortex-premium-card mb-6 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-semibold text-[var(--cs-text)]">{sub.planName}</h2>
+          <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-100">Beta denemesi</Badge>
+        </div>
+        <p className="mt-1 text-sm text-[var(--cs-muted)]">
+          {endText} tarihinde biter; sonra ücretsiz hesapla devam edersin. Ücret alınmaz, hazırlıkların yerinde kalır.
+        </p>
+        {left !== null ? (
+          <p
+            className={
+              soon
+                ? "mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
+                : "mt-3 text-sm text-[var(--cs-muted)]"
+            }
+          >
+            {left <= 0 ? "Bugün son gün." : left === 1 ? "1 gün kaldı." : `${left} gün kaldı.`} Plus&apos;ta kalmak istersen
+            bitmeden alabilirsin; kalan günlerin yanmaz.
+          </p>
+        ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button type="button" size="sm" onClick={() => router.push("/pay")}>
+            Plus&apos;a geç
+          </Button>
+        </div>
+      </section>
+    );
+  }
 
   async function toggleCancel(action: "cancel" | "resume") {
     setBusy(true);

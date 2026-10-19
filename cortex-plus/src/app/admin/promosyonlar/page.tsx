@@ -1,24 +1,43 @@
+import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
-import { PromoCreateForm, PromoToggle } from "@/components/admin/promo-tools";
+import { BetaCodeForm, PromoCreateForm, PromoToggle } from "@/components/admin/promo-tools";
 import { CampaignForm } from "@/components/admin/campaign-form";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
+import { appOrigin } from "@/lib/app-url";
 
 export const metadata = { title: "Yönetim · Kampanyalar" };
+export const dynamic = "force-dynamic";
+
+type PromoRow = {
+  id: string;
+  code: string;
+  credit_amount: number;
+  max_redemptions: number | null;
+  redemption_count: number;
+  active: boolean;
+  expires_at: string | null;
+  created_at: string;
+  plus_days?: number | null;
+  batch?: string | null;
+  promo_redemptions?: { user_id: string; created_at: string }[] | null;
+};
 
 export default async function AdminPromosyonlarPage() {
   await requireAdmin();
   const service = createServiceClient();
 
-  const [{ data: promos }, { data: campaign }, pending] = await Promise.all([
+  const [{ data: promos }, { data: campaign }, pending, { count: activeTrials }] = await Promise.all([
     service
       .from("promo_codes")
-      .select("id, code, credit_amount, max_redemptions, redemption_count, active, expires_at, created_at")
+      .select(
+        "id, code, credit_amount, max_redemptions, redemption_count, active, expires_at, created_at, plus_days, batch, promo_redemptions(user_id, created_at)",
+      )
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(400),
     service
       .from("promo_campaigns")
       .select("title, description, href, ends_at")
@@ -28,16 +47,26 @@ export default async function AdminPromosyonlarPage() {
       .limit(1)
       .maybeSingle(),
     countPendingApplications(service),
+    // Denemesi süren öğrenci: kodla açılmış ve dönemi henüz bitmemiş abonelik.
+    service
+      .from("subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .not("trial_until", "is", null)
+      .gt("current_period_end", new Date().toISOString()),
   ]);
 
-  const rows = promos ?? [];
+  const rows = (promos ?? []) as PromoRow[];
+  const betaRows = rows.filter((row) => row.plus_days);
+  const betaUsed = betaRows.filter((row) => row.redemption_count > 0).length;
 
   return (
     <AdminShell href="/admin/promosyonlar" pendingApplications={pending}>
       <AdminNote tone="info">
-        Kampanya kodu, giren kişiye <strong>hediye kredi</strong> tanımlar. Bir
-        kişi aynı kodu bir kez kullanabilir. Kodu kapattığında daha önce
-        kullananların kredisi geri alınmaz.
+        Öğrenci kodu Abonelik sayfasındaki <strong>Kodun var mı?</strong> kutusuna
+        girer (/pay). Kampanya kodu <strong>hediye kredi</strong>, beta kodu{" "}
+        <strong>Plus denemesi</strong> tanımlar. Bir kişi aynı kodu bir kez
+        kullanabilir. Kodu kapattığında daha önce kullananların hakkı geri alınmaz.
       </AdminNote>
 
       <AdminCard
@@ -59,6 +88,13 @@ export default async function AdminPromosyonlarPage() {
       </AdminCard>
 
       <AdminCard
+        title="Beta kodları (Plus denemesi)"
+        desc={`Tek kullanımlık; her kod belirtilen gün kadar Plus açar, bitince hesap ücretsize döner, ücret alınmaz. Bir hesap denemeyi bir kez alır. Şu an: ${formatNumber(betaRows.length)} kod · ${formatNumber(betaUsed)} kullanıldı · ${formatNumber(activeTrials ?? 0)} öğrenci denemede.`}
+      >
+        <BetaCodeForm origin={appOrigin()} />
+      </AdminCard>
+
+      <AdminCard
         title="Yeni kod oluştur"
         desc="Kod yalnızca harf, rakam ve tire içerebilir; küçük yazsan da büyük harfe çevrilir."
       >
@@ -68,7 +104,7 @@ export default async function AdminPromosyonlarPage() {
       <AdminCard title="Kodlar" desc="En yeni kod üstte." bodyless>
         {rows.length ? (
           <AdminTableFrame
-            columns={["Kod", "Hediye", "Kullanım", "Durum", "Oluşturma", "İşlem"]}
+            columns={["Kod", "Hediye", "Kullanım", "Kullanan", "Durum", "Oluşturma", "İşlem"]}
           >
             {rows.map((promo) => {
               const limitReached =
@@ -79,13 +115,31 @@ export default async function AdminPromosyonlarPage() {
 
               return (
                 <tr key={promo.id}>
-                  <td className="font-mono font-medium">{promo.code}</td>
-                  <td className="adm-num">{formatNumber(promo.credit_amount)} kredi</td>
+                  <td className="font-mono font-medium">
+                    {promo.code}
+                    {promo.batch ? <span className="block text-xs font-normal text-[var(--adm-muted)]">{promo.batch}</span> : null}
+                  </td>
+                  <td className="adm-num">
+                    {promo.plus_days ? `${promo.plus_days} gün Plus` : `${formatNumber(promo.credit_amount)} kredi`}
+                  </td>
                   <td className="adm-num">
                     {formatNumber(promo.redemption_count)}
                     {promo.max_redemptions !== null
                       ? ` / ${formatNumber(promo.max_redemptions)}`
                       : " / sınırsız"}
+                  </td>
+                  <td className="text-xs">
+                    {(promo.promo_redemptions ?? []).slice(0, 3).map((redemption) => (
+                      <Link
+                        key={redemption.user_id}
+                        href={`/admin/kullanicilar/${redemption.user_id}`}
+                        className="block underline"
+                      >
+                        {formatDate(redemption.created_at)}
+                      </Link>
+                    ))}
+                    {(promo.promo_redemptions ?? []).length > 3 ? `+${(promo.promo_redemptions ?? []).length - 3}` : null}
+                    {(promo.promo_redemptions ?? []).length === 0 ? "—" : null}
                   </td>
                   <td>
                     {!promo.active ? (
