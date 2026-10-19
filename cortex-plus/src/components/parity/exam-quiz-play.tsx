@@ -100,8 +100,10 @@ export function ExamQuizPlay({
         {question.options.map((option, optionIndex) => {
           const selectedThis = isOn(option);
           const isThisCorrect = hasCorrect && question.correct!.includes(option);
+          // Çok cevaplıda kaçırılan doğru amber; tek seçimlide yanlış cevapta doğru şık yeşil
+          // görünür (Astra'daki gibi, 19 Ekim 2026 — öğrenci doğruyu açıklamadan aramasın).
           const missedCorrect = showFeedback && isThisCorrect && !selectedThis && question.multi;
-          const showGreen = showFeedback && isThisCorrect && selectedThis;
+          const showGreen = showFeedback && isThisCorrect && (selectedThis || !question.multi);
           const showRed = showFeedback && selectedThis && !isThisCorrect;
           const letter = String.fromCharCode(65 + optionIndex);
 
@@ -140,7 +142,10 @@ export function ExamQuizPlay({
                 )}
               >
                 {showGreen || missedCorrect ? (
-                  <Check className="h-4 w-4 stroke-[3]" aria-label={missedCorrect ? "Kaçırılan doğru" : "Doğru"} />
+                  <Check
+                    className="h-4 w-4 stroke-[3]"
+                    aria-label={missedCorrect ? "Kaçırılan doğru" : selectedThis ? "Doğru" : "Doğru cevap"}
+                  />
                 ) : showRed ? (
                   <X className="h-4 w-4 stroke-[3]" aria-label="Yanlış" />
                 ) : (
