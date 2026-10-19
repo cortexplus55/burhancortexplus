@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/auth/session";
 import { getSubscriptionBadge } from "@/lib/student/subscription-badge";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
+import { PlusMonth } from "@/components/marketing/plus-month";
+import { loadPlusPrices } from "@/lib/billing/plan-prices";
 
 export const metadata = { title: "Abonelik" };
 
@@ -15,7 +17,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   const kodParam = (await searchParams).kod;
   const initialCode = (Array.isArray(kodParam) ? kodParam[0] : kodParam)?.slice(0, 40) ?? "";
 
-  const [extendedPlans, currentBadge, entitlements] = await Promise.all([
+  const [extendedPlans, currentBadge, entitlements, prices] = await Promise.all([
     supabase
       .from("plans")
       .select(
@@ -25,6 +27,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
       .order("sort_order"),
     getSubscriptionBadge(supabase, user.id),
     getUserEntitlements(supabase, user.id),
+    loadPlusPrices(supabase),
   ]);
 
   let plans = extendedPlans.data;
@@ -44,15 +47,27 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
 
   return (
     <AppShell>
-      <SubscriptionCards
-        plans={plans ?? []}
-        embedded
-        headingLevel="h1"
-        currentBadge={currentBadge}
-        currentAllowance={entitlements.monthlyAllowance}
-        checkoutEnabled={isPaytrConfigured()}
-      />
+      <div id="planlar">
+        <SubscriptionCards
+          plans={plans ?? []}
+          embedded
+          headingLevel="h1"
+          currentBadge={currentBadge}
+          currentAllowance={entitlements.monthlyAllowance}
+          checkoutEnabled={isPaytrConfigured()}
+        />
+      </div>
       <PromoRedeem initialCode={initialCode} />
+      {/* Ücretsiz öğrenciye planların altında Plus'ın bir ayı ve "ayını kur" (20 Ekim 2026). */}
+      {entitlements.showsUpgradeChrome ? (
+        <PlusMonth
+          variant="full"
+          headingLevel="h2"
+          monthlyKurus={prices.plusMonthly}
+          yearlyKurus={prices.plusYearly}
+          primary={{ label: "Plus'ı seç", href: "#planlar" }}
+        />
+      ) : null}
     </AppShell>
   );
 }

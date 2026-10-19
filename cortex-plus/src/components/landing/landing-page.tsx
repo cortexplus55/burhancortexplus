@@ -16,14 +16,12 @@ import {
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { formatTryWhole } from "@/lib/format";
+import { PlusMonth } from "@/components/marketing/plus-month";
+import type { PlusPrices } from "@/lib/billing/plan-prices";
 import { cn } from "@/lib/utils";
 import "@/styles/landing.css";
 
-export type LandingPrices = {
-  plusMonthly: number | null;
-  plusYearly: number | null;
-  plusWeekly: number | null;
-};
+export type LandingPrices = PlusPrices;
 
 const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
 
@@ -81,6 +79,15 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
           </div>
         </div>
       </section>
+
+      {/* Plus'ın değeri somut sayıyla (20 Ekim 2026): misafirin ikinci gördüğü şey. */}
+      <PlusMonth
+        variant="full"
+        monthlyKurus={prices.plusMonthly}
+        yearlyKurus={prices.plusYearly}
+        primary={{ label: "Plus ile başla", href: "/kayit?next=%2Fpay" }}
+        secondary={{ label: "Önce ücretsiz dene", href: "/kayit" }}
+      />
 
       <section id="nasil" className="lp-section" aria-labelledby="lp-steps-title">
         <div className="lp-wrap" data-cinematic-reveal>

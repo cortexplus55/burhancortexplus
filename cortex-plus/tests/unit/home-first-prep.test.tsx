@@ -23,7 +23,10 @@ describe("ana sayfa: ilk hazırlık kartı", () => {
   it("yalnız hiç hazırlığı yokken ve açık sohbet yokken görünür; hedef puan kaydı sayılmaz", () => {
     const page = read("src/app/ogretmen/page.tsx");
     expect(page).toContain(`.neq("exam_type", "hedef")`);
-    expect(page).toContain("heroFooter={prepCount === 0 && !params.sohbet ? <FirstPrepCard /> : undefined}");
+    // 20 Ekim 2026: kart Plus tanıtımıyla aynı yerde; ilk hazırlık kartı yine yalnız hazırlık yokken.
+    expect(page).toContain("{prepCount === 0 ? <FirstPrepCard /> : null}");
+    expect(page).toContain("!params.sohbet && (prepCount === 0 || showPlus)");
+    expect(page).toContain("heroFooter={heroCards}");
     expect(read("src/components/chat/chat-panel.tsx")).toContain("{heroFooter}");
   });
 });
