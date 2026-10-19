@@ -146,7 +146,8 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
   const planHref = prep
     ? `/deneme-sinavlari/${prep.id}`
     : `/deneme-sinavlari/olustur?documentId=${documentId}`;
-  const planLabel = prep ? "Çalışmaya devam et" : "Çalışma planımı oluştur";
+  // 19 Ekim 2026: "çalışma planı" emekli; her belgenin kendi sınav hazırlığı var.
+  const planLabel = prep ? "Yoluna devam et" : "Sınav hazırlığı kur";
   const failedLabel =
     processErrorLabel(doc.error_message as string | null) ??
     "Belge işlenemedi. Yeniden işlemeyi veya tekrar yüklemeyi dene.";
@@ -210,17 +211,27 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
               />
               <ActionChip
                 href={`/studio/quiz?documentId=${documentId}`}
-                label="Quiz"
+                label="Konu testi"
                 enabled={canGenerate}
               />
               <ActionChip
                 href={`/studio/flashcard?documentId=${documentId}`}
-                label="Flashcard"
+                label="Kartlar"
+                enabled={canGenerate}
+              />
+              <ActionChip
+                href={`/studio/dogru-yanlis?documentId=${documentId}`}
+                label="Doğru / Yanlış"
                 enabled={canGenerate}
               />
               <ActionChip
                 href={`/studio/podcast?documentId=${documentId}`}
                 label="Podcast"
+                enabled={canGenerate}
+              />
+              <ActionChip
+                href={`/studio/sozlu?documentId=${documentId}`}
+                label="Sözlü deneme"
                 enabled={canGenerate}
               />
             </div>

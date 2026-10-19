@@ -49,10 +49,14 @@ export async function POST(request: Request) {
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
 
+  // Beklenen noktalar (belgeden) varsa değerlendirme onlara göre yapılır (19 Ekim 2026; önce yalnız
+  // soru ve cevap gidiyordu, belgeli sözlü de modelin genel bilgisiyle notlanıyordu).
   const lines = parsedBody.data.items
     .map(
       (item, i) =>
-        `${i + 1}. index=${i}\nSoru: ${item.prompt}\nCevap: ${item.answer}`,
+        `${i + 1}. index=${i}\nSoru: ${item.prompt}\n` +
+        (item.expectedPoints?.length ? `Beklenen noktalar: ${item.expectedPoints.join(" | ")}\n` : "") +
+        `Cevap: ${item.answer}`,
     )
     .join("\n\n");
 

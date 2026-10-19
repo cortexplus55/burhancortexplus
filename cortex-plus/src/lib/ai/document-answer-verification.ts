@@ -32,10 +32,65 @@ export const normalizeForMatch = (s: string) =>
     .replace(/[\u2010-\u2015\u2212]/g, "-")
     .replace(/\u00AD/g, "")
     .replace(/-\s*\n\s*(?=\p{Ll})/gu, "")
+    // 19 Ekim 2026: yanıt Markdown'la yazılıyor (**kalın**, madde işareti, [1] atfı); denetçi iddiayı
+    // bazen işaretli, bazen işaretsiz aktarıyor. PDF metni de noktadan önce boşluk taşıyor ("O₂ .").
+    // İşaretler ve atıflar karşılaştırmadan çıkar; kelimeler ve sayılar aynen kalır.
+    .replace(/\[(?:\d+|Sayfa\s+\d+)\]/gi, " ")
+    .replace(/\*\*|__|`/g, "")
+    .replace(/(^|\n)\s*(?:#{1,6}\s+|[-•*]\s+)/g, "$1")
+    .replace(/\s+([.,;:!?)\]])/g, "$1")
+    .replace(/([([])\s+/g, "$1")
     .replace(/\s+/g, " ")
     .toLocaleLowerCase("tr")
     .trim();
-const normalize = normalizeForMatch;
+
+/** Kelime dizisi: noktalama düşer, kesmeden sonraki ek atılır ("1364'te" → "1364"). */
+function matchTokens(s: string): string[] {
+  return normalizeForMatch(s)
+    .replace(/[^\p{L}\p{N}'\s]/gu, " ")
+    .split(/\s+/)
+    .map((token) => token.split("'")[0])
+    .filter(Boolean);
+}
+
+/**
+ * Alıntı kaynakta var mı? Önce birebir (normalize edilmiş) arar. Bulamazsa kısa bir pencerede kelime
+ * kelime arar: alıntının en az %85'i aynı bölgede geçmeli ve **bütün sayılar** birebir bulunmalı.
+ * 19 Ekim 2026'da canlıda belgede yazan üç cevap (fotosentez özeti, eğik düzlem ivmesi, Sırpsındığı)
+ * PDF'in satır kırılmaları, alt simgeleri ve Markdown işaretleri yüzünden birebir aramada düştü;
+ * öğrenci "güvenilir yanıt oluşturamadım" gördü. Uydurma alıntı yine geçmez: sayısı tutmayan ya da
+ * kelimelerinin çoğu kaynakta olmayan alıntı reddedilir. Dört kelimeden kısa alıntı yalnız birebir.
+ */
+export function looselyContains(haystack: string, needle: string): boolean {
+  const hay = normalizeForMatch(haystack);
+  const want = normalizeForMatch(needle);
+  if (!want) return false;
+  if (hay.includes(want)) return true;
+  const need = matchTokens(needle);
+  if (need.length < 4) return false;
+  const hayTokens = matchTokens(haystack);
+  const wanted = new Map<string, number>();
+  for (const token of need) wanted.set(token, (wanted.get(token) ?? 0) + 1);
+  const digits = [...new Set(need.filter((token) => /\d/.test(token)))];
+  const required = Math.ceil(need.length * 0.85);
+  const width = Math.max(need.length, Math.ceil(need.length * 1.6));
+  const inWindow = new Map<string, number>();
+  let covered = 0;
+  const shift = (token: string, delta: 1 | -1) => {
+    const limit = wanted.get(token);
+    if (!limit) return;
+    const before = inWindow.get(token) ?? 0;
+    const after = before + delta;
+    inWindow.set(token, after);
+    covered += Math.min(after, limit) - Math.min(before, limit);
+  };
+  for (let end = 0; end < hayTokens.length; end += 1) {
+    shift(hayTokens[end], 1);
+    if (end >= width) shift(hayTokens[end - width], -1);
+    if (covered >= required && digits.every((digit) => (inWindow.get(digit) ?? 0) > 0)) return true;
+  }
+  return false;
+}
 
 const OUTSIDE_LABEL = /(?:Genel bilgiden|Materyal dışı|Outside the material)\s*:/i;
 const NOT_IN_SOURCE_LINE = /Bu,\s*yüklediğin kaynakta yok\s*[—–-]\s*genel bilgiyle anlatıyorum\s*:/i;
@@ -224,8 +279,8 @@ export async function verifyDocumentAnswer(input: {
   for (const claim of verdict.claims) {
     const source = input.evidence.find((e) => e.reference === claim.reference);
     if (!source) { reasons.push(`unknown_reference:${claim.reference}`); continue; }
-    if (!normalize(source.content).includes(normalize(claim.quote))) reasons.push(`quote_not_in_source:${claim.reference}`);
-    if (!normalize(documentPart).includes(normalize(claim.claim))) reasons.push("claim_not_in_answer");
+    if (!looselyContains(source.content, claim.quote)) reasons.push(`quote_not_in_source:${claim.reference}`);
+    if (!looselyContains(documentPart, claim.claim)) reasons.push("claim_not_in_answer");
   }
   const generalPart = input.strict ? "" : split.generalPart;
   if (!inlineReferences.every((r) => references.includes(r))) reasons.push("inline_reference_unreviewed");

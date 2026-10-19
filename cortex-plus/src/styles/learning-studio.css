@@ -6,7 +6,8 @@
   --ls-text: #fafafa;
   --ls-muted: #a3a3a3;
   --ls-accent: #f4ae0b;
-  --ls-display: "DM Serif Display", Georgia, serif;
+  /* 19 Ekim 2026: tırnaklı başlık kalktı; tasarım sistemi tek yazı tipi (Figtree). */
+  --ls-display: var(--font-ui), "Segoe UI", system-ui, sans-serif;
   position: relative;
   display: flex;
   min-height: 0;
@@ -1137,4 +1138,113 @@
   bottom: 46%;
   border-top: 1px solid rgba(244, 174, 11, 0.22);
   border-bottom: 1px solid rgba(244, 174, 11, 0.16);
+}
+
+
+/* ---- Araç kurulumu (19 Ekim 2026): kaynak, belge, sayı ve süre seçimi ---- */
+.ls-setup {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ls-setup-block {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ls-setup-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ls-muted);
+}
+
+.ls-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ls-seg button {
+  min-height: 2.25rem;
+  padding: 0 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ls-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Seçim mavi (tasarım sistemi: durum rengi altın değil). */
+.ls-seg button[aria-pressed="true"] {
+  border-color: rgba(142, 152, 255, 0.6);
+  background: rgba(67, 83, 243, 0.2);
+  color: #e4e7ff;
+}
+
+.ls-seg button:focus-visible,
+.ls-upload:focus-visible,
+.ls-select:focus-visible {
+  outline: 2px solid #8e98ff;
+  outline-offset: 2px;
+}
+
+.ls-setup-doc {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ls-select {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.8rem;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--ls-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.ls-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 0.45rem;
+  min-height: 2.4rem;
+  padding: 0 0.95rem;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ls-text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ls-upload:disabled {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+.ls-setup-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ls-muted);
+}
+
+.ls-source-notice {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--ls-muted);
 }

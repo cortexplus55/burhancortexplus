@@ -11,7 +11,16 @@ import {
   StudioProgress,
   StudioResults,
 } from "@/components/learning/studio/studio-shared";
+import { StudioChoices, StudioSetup } from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
+
+/** 19 Ekim 2026: soru sayısı seçilir (önce hep 8). Belgeden yazılı deneme hazırlık yolunda. */
+const QUESTION_COUNTS = [
+  { value: 5, label: "5 soru" },
+  { value: 10, label: "10 soru" },
+  { value: 15, label: "15 soru" },
+  { value: 20, label: "20 soru" },
+] as const;
 
 type Question = { id: string; text: string; options: string[]; points?: number };
 
@@ -36,6 +45,7 @@ export function WrittenStudio({
   const [score, setScore] = useState<number | null>(null);
   const [analysis, setAnalysis] = useState("");
   const [paywall, setPaywall] = useState(false);
+  const [count, setCount] = useState<number>(10);
 
   const question = questions[index];
 
@@ -47,7 +57,7 @@ export function WrittenStudio({
       questions?: Question[];
     }>("/api/learning/exam/generate", {
       topic,
-      questionCount: 8,
+      questionCount: count,
       difficulty: "medium",
     });
     if ("paywall" in result) {
@@ -102,11 +112,17 @@ export function WrittenStudio({
       {phase === "entry" ? (
         <StudioEntry
           tool="yazili"
-          title="Kağıt önünde."
+          title="Yazılı deneme"
           placeholder="Örn. Fonksiyonlar"
           submitLabel="Yazılıyı aç"
           creditCost={creditCost}
           initialTopic={initialTopic}
+          setup={
+            <StudioSetup>
+              <StudioChoices label="Kaç soru?" options={QUESTION_COUNTS} value={count} onChange={setCount} />
+              <p className="ls-setup-note">Belgenden yazılı deneme için hazırlığının sayfasındaki “Yazılı deneme”yi aç.</p>
+            </StudioSetup>
+          }
           onSubmit={(next) => void start(next)}
         />
       ) : null}

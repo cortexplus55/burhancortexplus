@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     let documentAttached = false;
     if (rest.imageDocumentId) {
       const { data: doc, error } = await service.from("documents")
-        .select("storage_path,mime_type,file_name").eq("id", rest.imageDocumentId)
+        .select("storage_path,mime_type,file_name,status").eq("id", rest.imageDocumentId)
         .eq("user_id", userId).is("deleted_at", null).maybeSingle();
       if (error) return errorResponse(503, "Belgene şu an erişilemiyor.");
       if (!doc || !isOwnedDocumentPath(doc.storage_path, userId, rest.imageDocumentId)) return errorResponse(404, "document_not_found");
@@ -127,8 +127,13 @@ export async function POST(request: Request) {
       } else if (doc.mime_type === "application/pdf" || doc.mime_type === "text/plain") {
         documentAttached = true;
         // Prefer the canonical parsed pages, including OCR, over reparsing every question.
-        const { data: pages, error: pagesError } = await service.from("document_pages")
-          .select("id,page_number,text_content").eq("document_id", rest.imageDocumentId).order("page_number");
+        // İşlenmesi süren belgede sayfa tablosu yarım olabilir (19 Ekim 2026: sohbetten yüklenen belge
+        // arka planda işlenirken ilk soru geliyor); o zaman dosya doğrudan okunur.
+        const processed = doc.status === "completed";
+        const { data: pages, error: pagesError } = processed
+          ? await service.from("document_pages")
+            .select("id,page_number,text_content").eq("document_id", rest.imageDocumentId).order("page_number")
+          : { data: [], error: null };
         if (pagesError) throw new Error("source_unavailable");
         let sourcePages = (pages ?? []).map((p) => ({ page: p.page_number as number, text: p.text_content as string }));
         if (!sourcePages.length) {
@@ -192,7 +197,10 @@ export async function POST(request: Request) {
       evidence = matches.map((m, i) => ({ reference: i + 1, documentId: m.documentId, documentName: m.documentName, pageNumber: m.pageNumber, chunkId: m.chunkId, content: m.content }));
     }
     const grounded = useDocuments || documentAttached;
-    const strict = grounded && documentsOnly;
+    // "Yalnızca belgem" ancak belge modu açıkken geçerli. 19 Ekim 2026: öğrenci "Genel sohbet"teyken
+    // PDF ekleyince istemci documentsOnly=true gönderiyordu; sohbet katı moda düşüp belgede açıkça
+    // yazan cevapları "belgede yok" diye reddediyordu.
+    const strict = grounded && documentsOnly && useDocuments;
     const history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
     if (rest.conversationId) {
       const { data, error } = await service.from("messages").select("role,content")

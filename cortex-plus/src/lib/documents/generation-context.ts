@@ -6,6 +6,8 @@ import { pageSourceBlock } from "@/lib/learning/source-context";
 /** Belge stüdyosunda konu seçimi fiziksel sayfa numaralarına dayanır. */
 const PAGE_QUERY_BATCH = 200;
 const MAX_CONTEXT_PAGES = 8;
+/** "Belgenin tamamı": her konudan sayfa, en çok bu kadar (19 Ekim 2026; önce 6–8 sayfada kesiliyordu). */
+export const WHOLE_DOCUMENT_PAGES = 14;
 
 export type DocumentGenerationContext = {
   documentId: string;
@@ -13,6 +15,14 @@ export type DocumentGenerationContext = {
   excerpt: string;
   /** Konunun okunabilir sayfaları (öğretmen motorları bunlardan bitişik çekirdek seçer). */
   topicPages: number[];
+  /**
+   * Belgenin tamamından mı? Öğrenci "belgenin tamamı" dediyse ya da yazdığı konu belgede
+   * bulunamadıysa true; o zaman `topicPages` her konudan seçilmiş sayfalardır ve motor bitişik
+   * çekirdeğe kesmez.
+   */
+  wholeDocument: boolean;
+  /** Yazılan konu belgede bulundu mu (false: istek düşmedi, belgenin tamamına genişledi). */
+  matched: boolean;
 };
 
 type PageIndexRow = {
@@ -27,6 +37,20 @@ function fold(text: string): string {
     .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g")
     .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c")
     .replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * "Belgenin tamamı", "tüm konular", "hepsi", "genel tekrar", "bütün belge"… 19 Ekim 2026'ya kadar
+ * yalnız tek kelimelik "tümü/tamamı/genel/belge/doküman" tanınıyordu; "Belgenin tamamı" yazan
+ * öğrencinin isteği "belge hazır değil" diye düşüyordu.
+ */
+export function isWholeDocumentRequest(topic: string): boolean {
+  const text = fold(topic);
+  if (!text) return true;
+  // "Genel kimya" gibi gerçek konu adları tek başına "genel" diye tamama dönmesin: tek kelime
+  // ancak yalnız başına yazıldıysa. Konusu belgede bulunamayan istek zaten tamama genişler.
+  if (/^(belge|belgem|dokuman|genel|hepsi|tumu|tamami)$/.test(text)) return true;
+  return /\b(tum|tumu|tamami|tamamini|tamamindan|butun|hepsi|hepsini|hepsinden|komple|bastan sona)\b/.test(text);
 }
 
 function titleScore(title: string, query: string): number {
@@ -66,6 +90,46 @@ async function loadPageIndex(service: SupabaseClient, documentId: string): Promi
     if ((data ?? []).length < PAGE_QUERY_BATCH) break;
   }
   return out;
+}
+
+/**
+ * Belgenin tamamı için sayfa seçimi: önce her konunun ilk sayfası (konu sırasıyla), sonra kalan
+ * yer konular arasında sırayla dolar; konu haritası yoksa sayfalar eşit aralıkla. Böylece 8
+ * sayfalık tarih notunda son iki dönem (II. Murad, kronoloji) de kaynağa girer.
+ */
+async function wholeDocumentPages(
+  service: SupabaseClient,
+  documentId: string,
+  readable: number[],
+  limit = WHOLE_DOCUMENT_PAGES,
+): Promise<number[]> {
+  if (readable.length <= limit) return readable;
+  const allowed = new Set(readable);
+  const { data: topics } = await service.from("document_topic_nodes")
+    .select("id, title, parent_id, sort_order")
+    .eq("document_id", documentId)
+    .order("sort_order", { ascending: true });
+  const study = pickStudyTopics(((topics ?? []) as { id: string; parent_id: string | null }[])
+    .map((row) => ({ id: row.id, parentId: row.parent_id ?? null })));
+  if (!study.length) return representativePages(readable, limit);
+  const { data: links } = await service.from("document_topic_page_links")
+    .select("topic_id, page_number")
+    .eq("document_id", documentId)
+    .order("page_number", { ascending: true });
+  const rows = (links ?? []) as { topic_id: string; page_number: number }[];
+  const byTopic = study
+    .map((topic) => rows.filter((link) => link.topic_id === topic.id && allowed.has(link.page_number)).map((link) => link.page_number))
+    .filter((pages) => pages.length);
+  if (!byTopic.length) return representativePages(readable, limit);
+  const picked = new Set<number>();
+  for (let round = 0; picked.size < limit && byTopic.some((pages) => pages.length > round); round += 1) {
+    for (const pages of byTopic) {
+      if (picked.size >= limit) break;
+      const page = pages[round];
+      if (page != null) picked.add(page);
+    }
+  }
+  return [...picked].sort((a, b) => a - b);
 }
 
 async function linkedTopicPages(
@@ -121,24 +185,34 @@ export async function loadDocumentGenerationContext(
   );
   if (!readable.length) return null;
 
-  const linked = await linkedTopicPages(service, documentId, topic);
-  if (linked === null) return null;
   const readableNumbers = new Set(readable.map((page) => page.page_number));
-  let selected = linked.filter((number) => readableNumbers.has(number));
-  if (!selected.length) {
-    const scored = readable.map((page) => ({
-      number: page.page_number,
-      score: Math.max(0, ...(page.headings ?? []).map((heading) => titleScore(heading, topic))),
-    })).filter((page) => page.score > 0).sort((a, b) => b.score - a.score);
-    selected = scored.map((page) => page.number);
+  const allReadable = readable.map((page) => page.page_number);
+  let selected: number[] = [];
+  let whole = isWholeDocumentRequest(topic) ||
+    titleScore(fileName.replace(/\.[^.]+$/, "").replace(/[_-]/g, " "), topic) >= 5;
+  let matched = true;
+  if (!whole) {
+    const linked = await linkedTopicPages(service, documentId, topic);
+    if (linked === null) return null;
+    selected = linked.filter((number) => readableNumbers.has(number));
+    if (!selected.length) {
+      const scored = readable.map((page) => ({
+        number: page.page_number,
+        score: Math.max(0, ...(page.headings ?? []).map((heading) => titleScore(heading, topic))),
+      })).filter((page) => page.score > 0).sort((a, b) => b.score - a.score);
+      selected = scored.map((page) => page.number);
+    }
+    // Konu belgede yoksa istek düşmez: belgenin tamamından hazırlanır (19 Ekim 2026; önce 409
+    // "belge hazır değil" dönüyor, ekran çoğu zaman hiçbir şey söylemiyordu).
+    if (!selected.length) {
+      whole = true;
+      matched = false;
+    }
   }
-  if (!selected.length && (titleScore(fileName.replace(/\.[^.]+$/, "").replace(/[_-]/g, " "), topic) > 0 ||
-    /^(tümü|tamamı|genel|belge|doküman)$/i.test(topic.trim()))) {
-    selected = readable.map((page) => page.page_number);
-  }
+  if (whole) selected = await wholeDocumentPages(service, documentId, allReadable);
   if (!selected.length) return null;
 
-  const chosenNumbers = representativePages(selected);
+  const chosenNumbers = whole ? selected : representativePages(selected);
   const { data: pages, error: pagesError } = await service.from("document_pages")
     .select("page_number, text_content, formulas, extraction_ok, page_kind")
     .eq("document_id", documentId)
@@ -163,5 +237,7 @@ export async function loadDocumentGenerationContext(
       excerpt = pageSourceBlock(fileName, usable, true);
     }
   }
-  return excerpt.trim() ? { documentId, fileName, excerpt, topicPages: selected } : null;
+  return excerpt.trim()
+    ? { documentId, fileName, excerpt, topicPages: selected, wholeDocument: whole, matched }
+    : null;
 }

@@ -8,7 +8,8 @@ import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
-  count: z.number().int().min(4).max(10).optional(),
+  /** 19 Ekim 2026: 20'ye çıktı (öğrenci 5 / 10 / 15 / 20 seçer). */
+  count: z.number().int().min(4).max(20).optional(),
   difficulty: z.enum(["easy", "medium", "hard", "mixed"]).optional(),
   operationId: z.string().uuid().optional(),
   /** "Belgem" modu: sorular yalnızca bu belgenin parçalarından üretilir. */
@@ -176,7 +177,7 @@ export async function POST(request: Request) {
       quizId: quiz?.id,
       title: parsed.title,
       source: docContext
-        ? { kind: "document", documentId, fileName: docContext.fileName }
+        ? { kind: "document", documentId, fileName: docContext.fileName, wholeDocument: docContext.wholeDocument, matched: docContext.matched }
         : { kind: "topic" },
       questions: questions.length > 0 ? questions : fallbackQuestions(parsed.questions),
     });

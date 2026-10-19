@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { logOpsEvent } from "@/lib/observability/ops-log";
 import { todayKey } from "@/lib/learning/daily-drill";
 import { LEARNING_SURFACES } from "@/lib/learning/learning-time";
 
@@ -30,6 +31,11 @@ export async function POST(request: Request) {
     p_subject: (parsed.data.subject ?? "").trim().slice(0, 40),
     p_seconds: parsed.data.seconds,
   });
-  if (error) return errorResponse(503, "save_failed");
+  if (error) {
+    // 19 Ekim 2026: canlıda bu uç her 30 saniyede 503 dönüyordu ve neden yazmıyordu. Hata kodu ve
+    // mesajı kayda geçer; öğrenci etkilenmez (sayaç sessizce bir sonraki turda yeniden dener).
+    logOpsEvent("learning_time_failed", { code: error.code, message: error.message?.slice(0, 200), surface: parsed.data.surface });
+    return errorResponse(503, "save_failed");
+  }
   return new NextResponse(null, { status: 204 });
 }

@@ -1,4 +1,5 @@
 import { ParitySorShell } from "@/components/parity/sor-shell";
+import { NOT_STUDIO_EXAM_FILTER } from "@/lib/learning/studio-exam";
 import { PrepSearchView } from "@/components/parity/prep-search-view";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -21,6 +22,7 @@ export default async function PrepSearchPage() {
       .from("exam_preps")
       .select("id, title, exam_type, view_count, created_at")
       .eq("user_id", user.id)
+      .or(NOT_STUDIO_EXAM_FILTER)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase.from("profiles").select("school_id").eq("id", user.id).maybeSingle(),

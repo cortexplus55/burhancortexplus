@@ -12,35 +12,35 @@ export const STUDIO_NEXT: Record<
   { id: StudioToolId; href: string; label: string }[]
 > = {
   quiz: [
-    { id: "flash", href: "/studio/flashcard", label: "Flash kartlar" },
+    { id: "flash", href: "/studio/flashcard", label: "Kartlar" },
     { id: "podcast", href: "/studio/podcast", label: "Podcast" },
   ],
   tf: [
-    { id: "quiz", href: "/studio/quiz", label: "Quiz" },
-    { id: "yazili", href: "/studio/yazili", label: "Yazılı" },
+    { id: "quiz", href: "/studio/quiz", label: "Konu testi" },
+    { id: "yazili", href: "/studio/yazili", label: "Yazılı deneme" },
   ],
   flash: [
-    { id: "quiz", href: "/studio/quiz", label: "Quiz" },
-    { id: "sozlu", href: "/studio/sozlu", label: "Sözlü" },
+    { id: "quiz", href: "/studio/quiz", label: "Konu testi" },
+    { id: "sozlu", href: "/studio/sozlu", label: "Sözlü deneme" },
   ],
   podcast: [
-    { id: "flash", href: "/studio/flashcard", label: "Flash kartlar" },
-    { id: "sozlu", href: "/studio/sozlu", label: "Sözlü" },
+    { id: "flash", href: "/studio/flashcard", label: "Kartlar" },
+    { id: "sozlu", href: "/studio/sozlu", label: "Sözlü deneme" },
   ],
   sozlu: [
-    { id: "yazili", href: "/studio/yazili", label: "Yazılı" },
-    { id: "quiz", href: "/studio/quiz", label: "Quiz" },
+    { id: "yazili", href: "/studio/yazili", label: "Yazılı deneme" },
+    { id: "quiz", href: "/studio/quiz", label: "Konu testi" },
   ],
   yazili: [
-    { id: "sozlu", href: "/studio/sozlu", label: "Sözlü" },
-    { id: "flash", href: "/studio/flashcard", label: "Flash kartlar" },
+    { id: "sozlu", href: "/studio/sozlu", label: "Sözlü deneme" },
+    { id: "flash", href: "/studio/flashcard", label: "Kartlar" },
   ],
   // Anlatmanın ardından sıradaki adım ölçmek: anlattığını gerçekten
   // biliyor muydun, quiz söyler. Flash kart ise anlatırken tökezlediğin
   // kavramlar için.
   anlat: [
-    { id: "quiz", href: "/studio/quiz", label: "Quiz" },
-    { id: "flash", href: "/studio/flashcard", label: "Flash kartlar" },
+    { id: "quiz", href: "/studio/quiz", label: "Konu testi" },
+    { id: "flash", href: "/studio/flashcard", label: "Kartlar" },
   ],
 };
 

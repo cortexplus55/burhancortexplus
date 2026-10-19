@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { createMockExam } from "@/lib/learning/mock-exam/create";
+import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 
 /** Konu başına öğretmen motoru (yazar + denetim + düzeltme), sekizli dalgalar. */
 export const maxDuration = 300;
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: userId,
         title: topic.slice(0, 80),
-        exam_type: "deneme",
+        exam_type: STUDIO_EXAM_TYPE,
       })
       .select("id")
       .single();

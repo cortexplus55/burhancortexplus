@@ -62,10 +62,13 @@ export function ImageSolver() {
       form.append("file", file);
       if (note) form.append("note", note);
 
-      const res = await fetch("/api/ai/solve-image", {
-        method: "POST",
-        body: form,
-      });
+      // Çözüm ya da denetimi düşerse bir kez kendiliğinden yeniden (19 Ekim 2026; diğer üretim
+      // ekranları gibi). 4xx (okunmuyor, hak yok) yeniden denenmez.
+      let res = await fetch("/api/ai/solve-image", { method: "POST", body: form });
+      if (res.status >= 500) {
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        res = await fetch("/api/ai/solve-image", { method: "POST", body: form });
+      }
 
       if (res.status === 402) {
         setPaywall(true);

@@ -10,7 +10,8 @@ export function logOpsEvent(
     | "credit_transaction_failed"
     | "subscription_sync_failed"
     | "payment_webhook_failed"
-    | "exam_autosave_failed",
+    | "exam_autosave_failed"
+    | "learning_time_failed",
   fields: Record<string, string | number | boolean | null | undefined | string[]> = {},
 ) {
   console.error(JSON.stringify({ event: name, at: new Date().toISOString(), ...fields }));

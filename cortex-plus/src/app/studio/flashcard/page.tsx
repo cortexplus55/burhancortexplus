@@ -3,7 +3,7 @@ import { getCreditCost } from "@/lib/credits/rules";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadCompletedDocumentOptions } from "@/lib/documents/document-options";
 
-export const metadata = { title: "Flashcard stüdyosu" };
+export const metadata = { title: "Kartlar" };
 export const dynamic = "force-dynamic";
 
 export default async function FlashcardStudioPage({
@@ -17,12 +17,13 @@ export default async function FlashcardStudioPage({
     loadCompletedDocumentOptions(supabase, user.id),
     searchParams,
   ]);
-  const doc = documents.find((d) => d.id === params.documentId) ?? null;
+  const initialDocumentId = documents.some((d) => d.id === params.documentId) ? params.documentId ?? null : null;
   return (
     <FlashcardStudio
       creditCost={creditCost}
       initialTopic={params.topic ?? ""}
-      sourceDocument={doc}
+      documents={documents}
+      initialDocumentId={initialDocumentId}
     />
   );
 }

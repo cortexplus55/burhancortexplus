@@ -384,7 +384,7 @@ export function TopicMapEditor({
             href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
             className="rounded-full border border-[color:color-mix(in_srgb,var(--cs-primary)_40%,transparent)] px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"
           >
-            Çalışma planımı oluştur →
+            Sınav hazırlığı kur →
           </a>
         ) : (
           <span

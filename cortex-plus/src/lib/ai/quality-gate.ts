@@ -353,6 +353,10 @@ export async function verifyEducationalContent(input: {
 
     const verdictResult = verdictSchema.safeParse(verdictRaw);
     if (!verdictResult.success) {
+      // Denetçinin kendi cevabı bozuk geldiyse (JSON değil) içerik suçlanmaz: bir kez daha sorulur.
+      // 19 Ekim 2026: canlıda temiz bir fotoğraflı fizik sorusunun doğru çözümü bu yüzden
+      // "doğrulamadan geçmedi" diye reddedildi (`invalid_review`, içerik sorunu yok).
+      if (attempt === 0) continue;
       stamp(
         new EducationalVerificationError("invalid_review", "recheck", ["invalid_review"]),
       );

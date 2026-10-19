@@ -310,7 +310,12 @@ function ChatPanelSession({
   const [keyboardInset, setKeyboardInset] = useState(0);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [subject, setSubject] = useState("Matematik");
+  /**
+   * Ders seçilmeden boş. 19 Ekim 2026'ya kadar "Matematik"ti ve her mesajın başına "[Matematik]"
+   * ekleniyordu: biyoloji notunu yükleyip "bu notta neler var" diyen öğrenciye model matematik
+   * aradı ve "belgede yok" dedi.
+   */
+  const [subject, setSubject] = useState("");
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [listening, setListening] = useState(false);
@@ -733,6 +738,19 @@ function ChatPanelSession({
   async function uploadAttachment(file: File): Promise<string | null> {
     const { uploadDocumentFile } = await import("@/lib/documents/upload-client");
     const uploaded = await uploadDocumentFile(file);
+    if (!file.type.startsWith("image/")) {
+      // 19 Ekim 2026: sohbetten yüklenen belge, öğrenci Belgelerim'i açana kadar "İşleniyor"da
+      // kalıyordu (işleme yalnız sihirbazda ve belge sayfalarında ilerliyordu); Araçlar'da da
+      // görünmüyordu. Şimdi yükleme biter bitmez arka planda işlenir. Sohbet ilk soruyu dosyanın
+      // kendisinden cevaplar; mod da belgeli sohbete geçer.
+      void import("@/lib/documents/process-session")
+        .then(({ postDocumentProcess, requestDocumentProcessing }) =>
+          requestDocumentProcessing({ documentId: uploaded.documentId, post: postDocumentProcess }),
+        )
+        .catch(() => {});
+      setUseDocuments(true);
+      setDocumentsOnly(false);
+    }
     return uploaded.documentId;
   }
 
@@ -744,8 +762,9 @@ function ChatPanelSession({
   ) {
     if (!text.trim() || (loading && !allowWhileLoading)) return;
     if (imageDocumentId) activeDocumentId.current = imageDocumentId;
+    // Belgeyle konuşurken ders etiketi eklenmez: konu belgeden belli.
     const prefixed =
-      variant === "parity" && showSubjectPicker && subject
+      variant === "parity" && showSubjectPicker && subject && !activeDocumentId.current
         ? `[${subject}] ${text.trim()}`
         : text.trim();
     setLoading(true);
@@ -776,7 +795,7 @@ function ChatPanelSession({
           actionCode: advanced && allowAdvanced ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD",
           conversationId: conversationId.current,
           useDocuments,
-          documentsOnly: useDocuments ? documentsOnly : true,
+          documentsOnly: useDocuments ? documentsOnly : false,
           audience,
           imageDocumentId: activeDocumentId.current,
           prepId,
@@ -855,6 +874,10 @@ function ChatPanelSession({
           return copy;
         });
       }
+      // İşlem kimliği yalnız yarıda kalan isteğin yeniden denenmesi içindir. Cevap tamamlanınca
+      // silinir: aynı cümle ikinci kez (örneğin mod değiştirdikten sonra) sorulduğunda sunucu
+      // "bu işlem kimliği başka bir soru için kullanılmış" diye reddediyordu (19 Ekim 2026).
+      chatOperationIds.current.delete(opKey);
       // Astra gibi: hesap sorusunda cevabın üstünde çözüm süresi.
       if (assistant.trim() && isProblemQuestion(text)) {
         const solvedMs = Date.now() - startedAt;
@@ -1428,7 +1451,7 @@ function ChatPanelSession({
                   aria-expanded={subjectOpen}
                   onClick={() => setSubjectOpen(true)}
                 >
-                  {subject}
+                  {subject || "Ders seç"}
                   <ChevronsUpDown className="h-3.5 w-3.5 opacity-80" aria-hidden />
                 </button>
               </div>
@@ -2256,7 +2279,7 @@ function ChatPanelSession({
                 onClick={() => setSubjectOpen((v) => !v)}
                 aria-expanded={subjectOpen}
               >
-                {subject}
+                {subject || "Ders seç"}
               </button>
               {subjectOpen ? (
                 <ul className="absolute bottom-full z-10 mb-2 max-h-48 w-48 overflow-auto rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] py-1 text-sm shadow-lg">
