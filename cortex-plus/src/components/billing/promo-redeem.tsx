@@ -48,7 +48,7 @@ export function PromoRedeem({ initialCode = "" }: { initialCode?: string }) {
   return (
     <section
       aria-labelledby="promo-redeem-title"
-      className="mt-6 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] p-5"
+      className="mx-auto mt-6 w-full max-w-md rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] p-5"
     >
       <h2 id="promo-redeem-title" className="text-base font-semibold text-[var(--cs-text)]">
         Kodun var mı?
