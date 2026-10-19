@@ -23,9 +23,15 @@ import {
   type TeacherPodcastInput,
 } from "@/lib/learning/teacher-podcast";
 
-export type AskJson = (system: string, user: string) => Promise<unknown | null>;
+export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
 
 const MAX_FIX_ROUNDS = 2;
+/**
+ * İkinci düzeltme turu (yeniden yazım + yeniden denetim, ~40 sn) yerine kalan sorun en çok bu kadar
+ * satırı çıkararak çözülüyorsa satır çıkarılır. 19 Ekim 2026: 1 dakikalık özet podcast 6 çağrıda
+ * 126 sn sürdü; ikinci turdan sonra yine iki satır çıkarılmıştı.
+ */
+const SALVAGE_INSTEAD_OF_FIX_LINES = 3;
 /** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). */
 const FIX_DEADLINE_MS = 200_000;
 /** İkinci taslak ancak bu süreden önce başlar; sonrası rota tavanına sığmaz. */
@@ -65,7 +71,7 @@ export async function teacherPodcastLoop(
   const review = async (episode: PodcastEpisode): Promise<{ problems: string[]; verified: boolean }> => {
     const structural = podcastStructureIssues(episode);
     try {
-      const factual = parseIssues(await ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(episode, input)))
+      const factual = parseIssues(await ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(episode, input), "verify"))
         .filter((issue) => issue.severity === "high")
         .map((issue) => `[${issue.where}] ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`);
       return { problems: [...structural, ...factual], verified: true };
@@ -77,8 +83,8 @@ export async function teacherPodcastLoop(
   const attempt = async (
     fixRounds: number,
   ): Promise<{ episode: PodcastEpisode; problems: string[]; verified: boolean } | null> => {
-    let episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input)), input);
-    if (!episode) episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input)), input);
+    let episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input), "draft"), input);
+    if (!episode) episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input), "draft"), input);
     if (!episode) return null;
     drafts += 1;
 
@@ -87,8 +93,12 @@ export async function teacherPodcastLoop(
     if (!reviewed.verified) reviewed = await review(episode);
     for (let round = 0; round < fixRounds && reviewed.problems.length; round += 1) {
       if (Date.now() - started > FIX_DEADLINE_MS) break;
+      if (round > 0) {
+        const cheap = salvagePodcast(episode, reviewed.problems);
+        if (cheap && cheap.removed <= SALVAGE_INSTEAD_OF_FIX_LINES) break;
+      }
       const fixed = parseTeacherPodcast(
-        await ask(podcastFixSystem(mode, input.length), podcastFixUserPrompt(episode, reviewed.problems, input)),
+        await ask(podcastFixSystem(mode, input.length), podcastFixUserPrompt(episode, reviewed.problems, input), "fix"),
         input,
       );
       if (!fixed) break;
@@ -164,12 +174,15 @@ async function runTeacherPodcastInner(
   // Öğrenci bekliyor (önceden hazır podcast yok): hızlı işlem.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
-  const ask: AskJson = async (system, user) => {
+  const ask: AskJson = async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },
       ...tier,
+      // 19 Ekim 2026: özet podcast 126 sn sürdü. Testteki gibi yazar ve düzeltme düşük düşünmeyle;
+      // her satırı kaynağa karşı okuyan denetçi varsayılanda kalır.
+      ...(role === "verify" ? {} : { reasoning_effort: "low" as const }),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

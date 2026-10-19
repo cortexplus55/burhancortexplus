@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { after, NextResponse } from "next/server";
 import { samplingParams } from "@/lib/ai/model-params";
@@ -64,12 +65,14 @@ import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/cha
 import {
   isAcceptableOutsideAnswer,
   isClearlyOffDocument,
+  isOverviewQuestion,
   outsideMaterialReviewNote,
   paidChatAttempts,
   presentOutsideMaterialAnswer,
   verifyDocumentAnswer,
 } from "@/lib/ai/document-answer-verification";
 import { logOpsEvent } from "@/lib/observability/ops-log";
+import { pickStudyTopics } from "@/lib/learning/diagnostic";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, streamedChatResultResponse, type SavedChatResult } from "@/lib/ai/chat-operation";
 
 export const maxDuration = 300;
@@ -517,7 +520,15 @@ export async function POST(request: Request) {
         break;
       }
       if (!accepted) {
-        content = strict ? "Belgedeki bilgilerle bu soruya güvenilir bir yanıt oluşturamadım. Soruyu daraltabilir veya başka bir belge ekleyebilirsin.\n\n_Kredin harcanmadı._" : chatFallbackMessage({ isPremium, difficulty: difficulty.level });
+        // "Bu notta neler var?" denetimden geçmezse öğrenci "emin olamadım" görmesin: belgenin
+        // doğrulanmış konu haritasından cevap kurulur (19 Ekim 2026; konu başlıkları belgeyle
+        // temellendirilmiş veri, yeni bilgi yazılmaz).
+        const outline = documentAttached && rest.imageDocumentId && isOverviewQuestion(message)
+          ? await documentOutlineAnswer(service, rest.imageDocumentId)
+          : null;
+        content = outline ?? (strict
+          ? "Belgedeki bilgilerle bu soruya güvenilir bir yanıt oluşturamadım. Soruyu daraltabilir veya başka bir belge ekleyebilirsin.\n\n_Kredin harcanmadı._"
+          : chatFallbackMessage({ isPremium, difficulty: difficulty.level }));
         charge = false;
         citations = [];
       }
@@ -581,4 +592,25 @@ export async function POST(request: Request) {
     console.error("generation_failed", { feature: "chat", operationId, cancelled: request.signal.aborted, cause: cause.slice(0, 300) });
     return NextResponse.json({ error: "Yanıt tamamlanamadı. Aynı soruyu yeniden deneyebilirsin; tamamlanmış işlem tekrar ücretlenmez." }, { status: request.signal.aborted ? 499 : 503 });
   }
+}
+
+/** Belgenin konu haritasından "bu notta neler var" cevabı; harita yoksa null. */
+async function documentOutlineAnswer(
+  service: SupabaseClient,
+  documentId: string,
+): Promise<string | null> {
+  const { data } = await service.from("document_topic_nodes")
+    .select("id, title, parent_id, sort_order")
+    .eq("document_id", documentId)
+    .order("sort_order", { ascending: true });
+  const nodes = ((data ?? []) as { id: string; title: string; parent_id: string | null }[])
+    .map((row) => ({ id: row.id, title: row.title, parentId: row.parent_id ?? null }));
+  const titles = [...new Set(pickStudyTopics(nodes).map((row) => row.title.trim()).filter(Boolean))];
+  if (!titles.length) return null;
+  return [
+    "Belgeden: Bu notta şu konular var:",
+    ...titles.map((title, index) => `${index + 1}. ${title}`),
+    "",
+    "Hangisinden başlayalım? Bir konuyu yazarsan onu belgendeki bilgilerle anlatırım.",
+  ].join("\n");
 }
