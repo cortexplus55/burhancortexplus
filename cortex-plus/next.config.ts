@@ -30,6 +30,8 @@ const nextConfig: NextConfig = {
       { source: "/podcast", destination: "/studio/podcast", permanent: false },
       // 19 Ekim 2026: okul lisansı ve okul raporu satan sayfa emekli — ürün öğrenci-only, ikisi de yoktu.
       { source: "/yaratici-program", destination: "/iletisim", permanent: true },
+      // 20 Ekim 2026: okul sayfası hazırlıkların altında; kısa adres 404 veriyordu.
+      { source: "/okulum", destination: "/deneme-sinavlari/okulum", permanent: true },
     ];
   },
   /*

@@ -74,6 +74,7 @@ import {
   parseFamiliarity,
   type Familiarity,
 } from "@/lib/learning/session-signals";
+import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -1451,7 +1452,7 @@ export function ExamCreateWizard({
               type="file"
               multiple
               className="hidden"
-              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.heic,.heif,.docx,.pptx,image/heic,image/heif"
+              accept={DOCUMENT_UPLOAD_ACCEPT}
               onChange={(e) => {
                 void takeFiles(e.target.files ?? undefined);
                 e.target.value = "";

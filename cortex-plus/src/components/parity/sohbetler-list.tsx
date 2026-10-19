@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MessageCircle, Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui-kit/empty-state";
+import { addDays, istanbulDay } from "@/lib/istanbul-day";
 
 export type ConversationRow = {
   id: string;
@@ -13,26 +14,24 @@ export type ConversationRow = {
   updatedAt: string;
 };
 
-function startOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next.getTime();
-}
-
-function groupLabel(iso: string, now: number) {
-  const time = new Date(iso).getTime();
-  const today = startOfDay(new Date(now));
-  const yesterday = today - 24 * 60 * 60 * 1000;
-  if (time >= today) return "BUGÜN";
-  if (time >= yesterday) return "DÜN";
+/*
+  Gün Türkiye takvimiyle ve sunucunun verdiği tek "şimdi"yle hesaplanır (20 Ekim 2026). Eskiden
+  `setHours(0, 0, 0, 0)` sunucuda UTC gününü, tarayıcıda Türkiye gününü veriyordu; 00:00–03:00
+  arasında güncellenen sohbette iki taraf farklı başlık yazınca React sayfayı hata verip baştan
+  çiziyordu (#418).
+*/
+export function groupLabel(iso: string, nowIso: string): "BUGÜN" | "DÜN" | "DAHA ESKİ" {
+  const day = istanbulDay(new Date(iso));
+  const today = istanbulDay(new Date(nowIso));
+  if (day >= today) return "BUGÜN";
+  if (day === addDays(today, -1)) return "DÜN";
   return "DAHA ESKİ";
 }
 
-export function SohbetlerList({ items }: { items: ConversationRow[] }) {
+export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: string }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState(items);
-  const now = Date.now();
 
   const grouped = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");

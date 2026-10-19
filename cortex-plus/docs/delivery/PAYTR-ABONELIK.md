@@ -154,7 +154,8 @@ Astra AI'ın 5 Eylül 2026 tarihli vitrini referans alındı (Plus ₺770/ay ve
 `formatTry()` ve PayTR'a giden tutar bu varsayıma dayanıyor — değiştirilirse
 ödeme tutarları 100 katına çıkar.
 
-Kademeyi ayıran şey kota: `plans.monthly_allowance` (Plus 400, Sigma 1600).
+Kademeyi ayıran şey kota: `plans.monthly_allowance` (kredi sistemi v2'den beri, 8 Ekim 2026: Plus
+7.200, Sigma 60.000; ilk hâli Plus 400, Sigma 1600).
 `credit_reserve()` dönem yenilerken bu değeri okur. Önceden her premium
 kullanıcı 400 alıyordu, yani Sigma kartındaki "daha yüksek aylık kullanım
 hakkı" kodda karşılığı olmayan bir sözdü.

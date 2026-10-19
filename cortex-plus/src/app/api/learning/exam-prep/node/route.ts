@@ -1,5 +1,5 @@
 import { after, NextResponse } from "next/server";
-import { recordOpenTiming } from "@/lib/admin/beta-metrics";
+import { recordOpenTiming, servedOpenPath } from "@/lib/admin/beta-metrics";
 import { createServiceClient } from "@/lib/supabase/server";
 import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
 import {
@@ -1537,9 +1537,12 @@ async function handleNodeRequest(
     oralScope: parsed.data.oralScope ?? null,
     mood,
   });
+  let prefetchWaitMs = 0;
   if (PREFETCH_KINDS.has(kind) && kind !== "lesson" && teachingV2 && !voiceSession && !prefetch) {
     // Akışsız içerik kayda bütün düşer: yazımı sürüyorsa biraz bekle, ikinci kez yazma.
+    const waitStarted = Date.now();
     await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });
+    prefetchWaitMs = Date.now() - waitStarted;
   }
   if (
     PREFETCH_KINDS.has(kind) &&
@@ -1618,7 +1621,12 @@ async function handleNodeRequest(
         await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
       }
       console.info("prefetch_served", { nodeId, kind });
-      { const ms = Date.now() - requestStarted; after(() => recordOpenTiming(service, { userId, kind, path: "ready", ms })); }
+      {
+        const ms = Date.now() - requestStarted;
+        // Önceden yazımın bitmesi beklendiyse "hazır" değil, devralınan açılış.
+        const path = servedOpenPath(Math.max(peekBuildingMs ?? 0, prefetchWaitMs));
+        after(() => recordOpenTiming(service, { userId, kind, path, ms }));
+      }
       return NextResponse.json({
         ...attemptStartResponse(readyAttempt, {
           kind,

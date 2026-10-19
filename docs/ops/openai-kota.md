@@ -19,14 +19,14 @@
 1. `insufficient_quota` ise bütçe/ödeme bitmiştir: OpenAI panelinde bütçeyi yükselt ya da ödeme yöntemini
    düzelt — başka çözüm yok; düzelince üretimler kendiliğinden geçer.
 2. `rate_limit_exceeded` ise anlıktır: 1-2 dk sonra yeniden dener; sürüyorsa OpenAI'dan katman/limit
-   artışı iste. Kuyruk ve geri basınç henüz yok (plan 3.2) — aynı anda N üretim sınırı gelene kadar yoğun
-   saatte düşme olabilir.
+   artışı iste. Geri basınç var: aynı anda en çok `GENERATION_SLOTS` üretim çalışır (aşağıda "Üretim
+   yuvaları"); yuva doluysa öğrenci hata değil "sıradasın" görür. Ayrı bir iş kuyruğu yok.
 3. Öğrenciye: "Birkaç dakika sonra yeniden dene; kredin düşmedi" — `/krediler`'den doğrulat.
 4. Düşen dersleri toplu yeniden yazdırma yok; öğrenci açınca yeniden üretilir (hazır içerik yoksa hızlı
    işlemle).
 
 ## Önleme
-- Plan 3.2: üretim kuyruğu; 3.5: 1000 öğrenci için maliyet modeli. Haftalık `/admin/maliyetler`.
+- Plan 3.2: üretim yuvaları (19 Ekim'de geldi); 3.5: 1000 öğrenci için maliyet modeli. Haftalık `/admin/maliyetler`.
 - Modeli ya da işlem katmanını değiştirirken `ai_model_prices`'ı güncelle, yoksa gider yanlış hesaplanır.
 
 **Üretim yuvaları (19 Ekim 2026):** 429 dalgasını önlemek için aynı anda en çok `GENERATION_SLOTS` (varsayılan

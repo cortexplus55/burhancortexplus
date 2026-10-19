@@ -20,6 +20,7 @@ export default async function SohbetlerPage() {
   return (
     <ParitySorShell {...shell}>
       <SohbetlerList
+        now={new Date().toISOString()}
         items={(conversations ?? []).map((row) => ({
           id: row.id,
           title: row.title,

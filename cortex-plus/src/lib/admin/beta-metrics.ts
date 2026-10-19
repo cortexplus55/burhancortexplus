@@ -12,6 +12,19 @@ const DAY_MS = 24 * HOUR_MS;
 
 export type OpenPath = "ready" | "adopted" | "cold";
 
+/** Bir bekleme turu: bundan kısa bekleme "hazır" açılışı bozmaz. */
+export const READY_WAIT_MS = 1_000;
+
+/**
+ * Hazır içerik verildiyse ama önce süren önceden yazımın bitmesi beklendiyse açılış "devralınan"
+ * sayılır (20 Ekim 2026). 19 Ekim'de bir hazır açılış 10,7 sn sürdü: sunucu yazımın bitmesini
+ * bekledi, kayıt "hazır" dedi ve hazır ders p95 ölçütü bu tek açılış yüzünden düştü (öteki dördü
+ * 1,0–1,3 sn).
+ */
+export function servedOpenPath(waitedMs: number | null | undefined): OpenPath {
+  return waitedMs != null && waitedMs >= READY_WAIT_MS ? "adopted" : "ready";
+}
+
 /**
  * Açılışın sunucu süresini yazar (istek başından yanıta). Rota bunu `after()` içinde çağırır:
  * yanıt beklemez, düşerse sessiz — ölçüm hiçbir dersi geciktirmemeli.

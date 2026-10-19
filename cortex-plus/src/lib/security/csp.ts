@@ -20,6 +20,7 @@
  * | *.supabase.co         | tarayıcıdan giriş, veri ve depo (ses/görsel)    |
  * | videos.pexels.com     | `cinematic-hero.tsx` tanıtım videosu            |
  * | eu.i.posthog.com      | `analytics.tsx` ölçüm betiği ve gönderimi       |
+ * | eu-assets.i.posthog.com | PostHog'un uzak ayar dosyası (`config.js`)    |
  * | *.ingest.sentry.io    | hata bildirimi (Sentry tarayıcı SDK'sı)         |
  * | www.paytr.com         | ödeme iframe'i ve form hedefi                   |
  *
@@ -28,6 +29,8 @@
  */
 
 const SUPABASE = "https://*.supabase.co";
+const POSTHOG = "https://eu.i.posthog.com";
+const POSTHOG_ASSETS = "https://eu-assets.i.posthog.com";
 
 export type CspOptions = {
   /** Üretim dışında Next bazı yerlerde `eval` kullanıyor. */
@@ -37,7 +40,11 @@ export type CspOptions = {
 };
 
 export function cspDirectives(options: CspOptions = {}): Record<string, string[]> {
-  const script = ["'self'", "'unsafe-inline'", "https://eu.i.posthog.com"];
+  /*
+    20 Ekim 2026: PostHog ayar dosyasını eu-assets'ten çekiyor; listede yoktu ve her sayfa açılışı
+    2-4 ihlal raporu (her biri bir sunucu çağrısı) gönderiyordu. Zorunlu kipe geçilse ölçüm kırılırdı.
+  */
+  const script = ["'self'", "'unsafe-inline'", POSTHOG, POSTHOG_ASSETS];
   // Next App Router kendi hidrasyon verisini sayfaya satır içi gömüyor, bu
   // yüzden 'unsafe-inline' şimdilik zorunlu. Kalıcı çözüm middleware'den
   // nonce geçirmek; o ayrı bir iş ve sayfa çizimini etkiliyor.
@@ -58,7 +65,8 @@ export function cspDirectives(options: CspOptions = {}): Record<string, string[]
       "'self'",
       SUPABASE,
       "wss://*.supabase.co",
-      "https://eu.i.posthog.com",
+      POSTHOG,
+      POSTHOG_ASSETS,
       "https://*.ingest.sentry.io",
       "https://*.sentry.io",
     ],
