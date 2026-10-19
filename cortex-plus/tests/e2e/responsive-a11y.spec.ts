@@ -12,10 +12,10 @@ test.describe("responsive layout", { tag: ["@public"] }, () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
-  test("landing subject grid on mobile", async ({ page }) => {
+  test("landing primary action on mobile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /Matematik/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Ücretsiz başla/i }).first()).toBeVisible();
   });
 
   test("pricing page loads on mobile without overflow blocker", async ({ page }) => {

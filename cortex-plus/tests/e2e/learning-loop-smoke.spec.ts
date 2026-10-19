@@ -9,23 +9,16 @@ test.describe("learning loop surfaces", { tag: ["@smoke"] }, () => {
   test("marketing feature names stay canonical", async ({ page }) => {
     await page.goto("/ozellikler");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    // Pazarlama ve uygulama aynı adı kullanıyor: "AI Öğretmen", "Kendi
-    // Belgemden Çalış", "Fotoğraftan Çözüm", "Yanlışlar Defteri".
-    for (const name of [
-      "AI Öğretmen",
-      "Kendi Belgemden Çalış",
-      "Fotoğraftan Çözüm",
-      "Quiz ve Flashcard",
-    ]) {
-      await expect(page.getByRole("heading", { name })).toBeVisible();
+    // 19 Ekim 2026: sayfa bugünkü araçları adlarıyla sayar (Plus etiketliler başlıkta "Plus" taşır).
+    for (const name of ["AI öğretmen", "Fotoğraftan çözüm", "Konu testi", "Yanlışlar defteri", "Yazılı deneme"]) {
+      await expect(page.getByRole("heading", { name }).first()).toBeVisible();
     }
-    await expect(page.getByText("Yanlışlar Defteri", { exact: false }).first()).toBeVisible();
   });
 
-  test("ana sayfa özellik şeridi canonical", async ({ page }) => {
+  test("ana sayfa özellik listesi canonical", async ({ page }) => {
     await page.goto("/");
-    for (const name of ["Sözlü Sınav", "Deneme Sınavı", "Fotoğraftan Çözüm"]) {
-      await expect(page.getByRole("heading", { name, exact: true }).first()).toBeVisible();
+    for (const name of ["Podcast", "Yazılı deneme", "Sözlü deneme", "Konu testi"]) {
+      await expect(page.getByRole("heading", { name }).first()).toBeVisible();
     }
   });
 
