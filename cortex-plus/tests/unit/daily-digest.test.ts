@@ -30,6 +30,7 @@ type State = {
   failures: Row[];
   jobs: Row[];
   audit: Row[];
+  support?: Row[];
 };
 
 function table(state: State, name: string): Row[] {
@@ -38,6 +39,7 @@ function table(state: State, name: string): Row[] {
   if (name === "lesson_generation_failures") return state.failures;
   if (name === "exam_prep_generation_jobs") return state.jobs;
   if (name === "audit_logs") return state.audit;
+  if (name === "support_requests") return (state.support ??= []);
   throw new Error(`unexpected table ${name}`);
 }
 
@@ -204,5 +206,23 @@ describe("günlük özet: bekçi", () => {
 
   it("ders hataları sayfası sebep adlarını aynı kaynaktan okur", () => {
     expect(read("src/app/admin/ders-hatalari/page.tsx")).toContain("FAILURE_REASON_LABEL");
+  });
+});
+
+// Plan 4.9 (19 Ekim 2026): destek sözü 24 saat. Özet pencerede gelen talepleri ve 24 saati geçmiş açık
+// talepleri sayar; süresi geçen talep varsa konu "Dikkat" ile başlar.
+describe("günlük özet: destek talepleri", () => {
+  it("yeni ve cevapsız talepleri sayar, gecikme dikkat ister", async () => {
+    const s = state();
+    s.support = [
+      { id: "t1", status: "open", created_at: inWindow },
+      { id: "t2", status: "open", created_at: "2026-10-16T05:00:00Z" },
+      { id: "t3", status: "closed", created_at: "2026-10-16T05:00:00Z" },
+    ];
+    const digest = await collectDailyDigest(client(s), { now: NOW });
+    expect(digest.support).toEqual({ opened: 1, overdue: 1 });
+    const mail = renderDailyDigest(digest, "https://cortexplus.app");
+    expect(mail.text).toContain("Destek: 1 yeni talep · 1 cevapsız (24 saati geçti)");
+    expect(mail.subject.startsWith("Dikkat")).toBe(true);
   });
 });
