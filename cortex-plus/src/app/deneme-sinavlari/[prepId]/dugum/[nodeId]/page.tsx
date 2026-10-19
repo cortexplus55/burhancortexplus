@@ -116,6 +116,23 @@ export default async function ExamNodePage({
   }
   if (requestedTopic) topicLabel = requestedTopic;
 
+  // Açık oturum var mı? Yoksa istemci "kaldığın yer" sorgusunu atlar (20 Ekim 2026: yeni derste her
+  // açılışta ~5 sn "Kaldığın yer açılıyor" yazıyordu). Yazılı denemede tamamlanmış kağıt incelemesi
+  // aynı sorgudan geldiği için orada hep sorulur; okuma düşerse sorulur.
+  let openAttempt = true;
+  if (resumeEnabled && node.kind !== "written_exam") {
+    const { data: active, error: activeError } = await supabase
+      .from("exam_prep_node_attempts")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("exam_prep_id", prepId)
+      .eq("node_id", nodeId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    openAttempt = Boolean(activeError) || Boolean(active);
+  }
+
   // Ruh hali günde bir kez (19 Ekim 2026): bugün verildiyse kart atlanır, o cevap kullanılır.
   const { data: moodToday } = await supabase
     .from("study_session_moods")
@@ -218,6 +235,7 @@ export default async function ExamNodePage({
         todayMood={todayMood}
         replayLesson={tekrar === "1"}
         resumeEnabled={resumeEnabled}
+        openAttempt={openAttempt}
         sourceName={sourceName}
         sources={sources}
         oralTopics={oralTopics}

@@ -807,3 +807,28 @@ gibi uçtan uca kuruldu ("YKS biyoloji: hücre bölünmeleri", "YKS kimya: mol k
 
 Bekçi: `topic-only-schedule.test.ts`, `topic-setup-handoff.test.tsx`, `free-reach.test.tsx`,
 `home-first-prep.test.tsx`, `tools-studios.test.ts`.
+
+## Sınav seti (19–20 Ekim 2026) — 7 dosya, 25 gün, Astra ile son karşılaştırma
+
+Ürün sahibi: "5 fotoğraf, 65 sayfa PDF, 6 sayfa Word; 25 gün sonraki sınav; tam olarak Astra gibi kur,
+karşılaştır, eksikleri tamamen hallet." Set `cortex-plus/tests/fixtures/sinav-seti/`, karşılaştırma
+`cortex-plus/docs/delivery/SINAV-SETI-KARSILASTIRMA-20-EKIM.md`. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Kurulum konuları **sihirbazın gösterdiği kurs haritasından** okur (`loadOneshotIntakeTopics`), eski birleştirmeden değil; sıra öğrencinin listesi. Eski yol 29 konunun 9'unu sayfasız bırakıp yanlış sayfa veriyordu | `prep-schedule-topics.ts`, `create/route.ts` |
+| "Sınavda ağırlıklı" **sırayı değiştirmez** (süre ve ek test verir); takvim listeyi yeniden dizmez (`keepOrder`) | `exam-schedule-v2.ts` |
+| Çalışma günü sorulmadıysa **her gün**; etkin günler kayda yazılır (yalnız hafta içi 25 günü 18'e indiriyordu) | `create/route.ts` |
+| Takvim iki geçiş: önce her konunun dersi + ilk testi döneme yayılır (konu gün sayısını geçince kısalır), ek testler ve tekrarlar kalan süreye; her konunun en az bir testi olur. Sıra numarası konu konu yeniden verilir | `buildExamScheduleV2` |
+| Kurs haritası konuyu tek dosyaya bağlar; **yardımcı kaynaklar** modelsiz eşlenir: küçük dosyanın (≤ 8 sayfa) yetim sayfası açık ara en yakın konuya, çok konulu sayfa (test) parça parça, ince kaynaklı konuya (< 900 karakter) başka dosyadan en yakın iki sayfa. Kayıt yazılmaz, her üretimde hesaplanır; motorlara "Ek kaynak · …" etiketiyle, yazar ve denetçiye aynı notla gider | `topic-support-pages.ts`, `topic-support-load.ts`, `teacher-lesson.ts` `sourceText` |
+| "N kaynak" konuya bağlı etkinlikte konunun dosyalarını ve sayfalarını (ve yardımcıları "ek: parça 2") gösterir | `dugum/[nodeId]/page.tsx`, `node-sources.tsx` |
+| Başlık büyütmede "pH", "mRNA", "DNA" korunur | `outline-clean.ts` `keepsOwnCasing` |
+| "Kaldığın yer açılıyor" yalnız açık oturum varsa; yoksa sorgu ve ekran atlanır (yeni derste ~5 sn bekletiyordu) | `openAttempt`, `exam-node-session.tsx` |
+
+Açık: 7 dosyanın okunması ~76 sn (Astra ~30 sn) — dosyalar sırayla işleniyor; paralel işleme bekleyen
+belge kaydının (`writePendingDocProcess`) tek dosyalık yapısını değiştirmeyi gerektiriyor.
+Vercel Hobby'de günlük yayın sınırı var: önizlemeler de sayılır; sınıra takılan yayın kendiliğinden
+yeniden denenmez, sonraki push ya da paneldeki "Redeploy" gerekir.
+
+Bekçi: `exam-set-plan.test.ts`, `topic-support-pages.test.ts`, `node-open-no-resume-wait.test.tsx`,
+`office-documents.test.ts`, `outline-grounding.test.ts`.
