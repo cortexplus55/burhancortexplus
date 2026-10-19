@@ -103,6 +103,21 @@ type PartOutcome =
   | { ok: true; screens: LessonScreen[]; header?: Partial<Header>; closing?: Closing; low: TeacherIssue[]; triggers: TeacherIssue[][] }
   | { ok: false; high: TeacherIssue[]; triggers: TeacherIssue[][] };
 
+/**
+ * Soğuk dersin zaman çizgisi (19 Ekim 2026): "Farklı anlat" ile ilk ekran 30 sn, kayıtta yalnız
+ * toplam süre ve çağrı sayısı vardı (111 sn, 15 çağrı, 5 tur). Ölçmeden hızlandırılmaz.
+ */
+export type PipelineTiming = {
+  /** Akıştan ilk ekranın ayrıştığı an (ms, başlangıçtan). */
+  firstScreenMs: number | null;
+  /** İlk kavramın yazımı bitip denetime gittiği an. */
+  firstPartMs: number | null;
+  /** İlk kavramın öğrenciye yayımlandığı an. */
+  firstPublishMs: number | null;
+  /** Yazarın akışı bitirdiği an. */
+  writeMs: number | null;
+};
+
 export type PipelineResult = {
   lesson: LessonV3 | null;
   issues: TeacherIssue[];
@@ -111,6 +126,7 @@ export type PipelineResult = {
   draftNote: string | null;
   /** İlk kavram düzelmediyse onun yüksek sorunları. */
   failure: TeacherIssue[];
+  timing: PipelineTiming;
 };
 
 /** Sorunun yeri bu kısmın içinde mi: ekran numarası, giriş alanları ya da kapanış. */
@@ -168,6 +184,8 @@ export async function teacherLessonPipeline(
   const fixTriggers: TeacherIssue[][] = [];
   const dropped: string[] = [];
   let draftNote: string | null = null;
+  const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null };
+  const sinceStart = () => Date.now() - started;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const reader = new LessonStreamReader();
@@ -306,6 +324,7 @@ export async function teacherLessonPipeline(
       if (!part || outcomes.length === parts.length) return;
       part.last = last;
       const index = parts.length - 1;
+      if (index === 0) timing.firstPartMs ??= sinceStart();
       if (index === 0 && early) {
         if (early.valid && !last && part.screens.length === 1) {
           outcomes.push(early.promise);
@@ -332,6 +351,7 @@ export async function teacherLessonPipeline(
       }
       // Yeni kavram: önceki kavram tamam, denetime gider.
       closePart(false);
+      if (!parts.length) timing.firstScreenMs ??= sinceStart();
       parts.push({ concept, key, screens: [screen], last: false });
       if (parts.length === 1) early = { promise: reviewPart(0, { early: true }), valid: true };
     };
@@ -390,7 +410,10 @@ export async function teacherLessonPipeline(
           continue;
         }
         lowIssues.push(...outcome.low);
-        if (index === 0) publishedHeader = { ...((await headerReady) ?? { title: input.topicLabel }), ...outcome.header };
+        if (index === 0) {
+          publishedHeader = { ...((await headerReady) ?? { title: input.topicLabel }), ...outcome.header };
+          timing.firstPublishMs ??= sinceStart();
+        }
         if (outcome.closing) publishedClosing = outcome.closing;
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: outcome.screens }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
@@ -405,6 +428,7 @@ export async function teacherLessonPipeline(
     })();
 
     const written = await writing;
+    timing.writeMs ??= sinceStart();
     // Akış bitti: son kavram kapanır; kapanış alanları bütün metinden.
     const whole = parseTeacherLesson(parseModelJson(written.text), input.upcomingTopics);
     if (!header) {
@@ -440,7 +464,7 @@ export async function teacherLessonPipeline(
 
     const ok = await publishing;
     if (!ok || !published.length || !publishedHeader) {
-      return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure };
+      return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing };
     }
     const lesson: LessonV3 = {
       format: LESSON_V3_FORMAT,
@@ -448,9 +472,9 @@ export async function teacherLessonPipeline(
       screens: published,
       ...((publishedClosing as Closing | null) ?? {}),
     };
-    return { lesson, issues: lowIssues, fixTriggers, dropped, draftNote, failure: [] };
+    return { lesson, issues: lowIssues, fixTriggers, dropped, draftNote, failure: [], timing };
   }
-  return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure: [] };
+  return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure: [], timing };
 }
 
 /**
@@ -465,12 +489,16 @@ export function createLessonIo(
     fast?: boolean;
     onCall?: () => void;
     onUsage: (usage: OpenAI.CompletionUsage | null | undefined, servedTier: string | null | undefined) => Promise<void> | void;
+    /** Her çağrının süresi (yazarda ilk jetona kadar geçen süre de), kayıt için. */
+    onTiming?: (event: { role: "write" | "verify" | "fix" | "fix-careful"; ms: number; firstTokenMs?: number }) => void;
   },
 ): LessonIo {
   const tier = options.fast ? ({ service_tier: "fast" } as const) : {};
   return {
     write: async (system, user, onDelta) => {
       options.onCall?.();
+      const callStarted = Date.now();
+      let firstTokenMs: number | undefined;
       const stream = await openai.chat.completions.create(
         {
           model,
@@ -493,6 +521,7 @@ export function createLessonIo(
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content ?? "";
         if (delta) {
+          firstTokenMs ??= Date.now() - callStarted;
           text += delta;
           try {
             onDelta(delta);
@@ -505,10 +534,12 @@ export function createLessonIo(
         if (chunk.service_tier) served = chunk.service_tier;
       }
       await options.onUsage(usage, served);
+      options.onTiming?.({ role: "write", ms: Date.now() - callStarted, firstTokenMs });
       return { text, finish };
     },
     ask: async (system, user, role) => {
       options.onCall?.();
+      const callStarted = Date.now();
       const response = await openai.chat.completions.create({
         model,
         response_format: { type: "json_object" },
@@ -521,6 +552,7 @@ export function createLessonIo(
         ],
       });
       await options.onUsage(response.usage, response.service_tier);
+      options.onTiming?.({ role, ms: Date.now() - callStarted });
       return parseModelJson(response.choices[0]?.message?.content ?? "");
     },
   };
@@ -588,12 +620,19 @@ export async function runTeacherLesson(
       reservationId,
     }).catch(() => undefined);
   };
+  /** Çağrı süreleri rol rol (sn, bir ondalık) ve yazarın ilk jetonu: kayıt için. */
+  const callMs: Record<string, number[]> = {};
+  let firstTokenMs: number | undefined;
   const io = createLessonIo(openai, model, {
     fast: input.fast,
     onCall: () => {
       calls += 1;
     },
     onUsage: record,
+    onTiming: (event) => {
+      (callMs[event.role] ??= []).push(Math.round(event.ms / 100) / 10);
+      if (event.role === "write" && firstTokenMs === undefined) firstTokenMs = event.firstTokenMs;
+    },
   });
 
   try {
@@ -607,6 +646,10 @@ export async function runTeacherLesson(
       rounds: result.fixTriggers.length,
       dropped: result.dropped.length,
       low: result.issues.length,
+      // 19 Ekim 2026: soğuk dersin zaman çizgisi (ms) — ilk jeton, ilk ekran, ilk kavram, ilk yayın, akış sonu.
+      firstTokenMs,
+      ...result.timing,
+      callS: callMs,
     });
     if (!result.lesson) {
       await refund();
