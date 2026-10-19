@@ -155,3 +155,11 @@ normal yoldan yazılır.
 Not: testte görülen "Kaldığın yer açılıyor" yenilemesi ürün hatası değil; yayın değişince Next
 tam yükleme yapıyor. Denetçi sertliği (tek sayfalık derste 7 tur, atılan kavram) ayrı iş: `fixWhy`
 kaydı eklendi, kayıttan okunacak.
+
+**Isınma canlıda (#333, 19 Ekim 06:14, aynı hazırlık, "Farklı anlat" yolu):** sayfa açılır açılmaz
+ısınma isteği gitti (06:13:57, hızlı işlem, kredisiz); öğrenci kartlarda 10 sn geçirdi; "Ders oluştur"
+yazımı süren dersi devraldı (`lesson_prefetch_adopted { finished: false }`) ve ilk ekran **4-6 sn**'de
+göründü (önce 13-15 sn). Ders öğrenci okurken 2 → 6 ekrana büyüdü; yazım bitince devralınan kayıt
+tamamlandı (`lesson_prefetch_adopted_done`). Bedel: düğümü açıp vazgeçen öğrencinin dersi bizde kalır
+(hızlı işlem, 0,6-1,3 sent). Kalan iyileştirme: rota yükü 2,8 sn (sıralı okumalar) ve iki ardışık onay
+kartı (Astra'da tek) — ürün sahibinin kararına bağlı.
