@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import "@/styles/paper-exam.css";
 import { postJsonWithRetry } from "@/lib/learning/generation-retry";
+import { CreditGate } from "@/components/paywall/credit-gate";
 import {
   MOCK_MINUTES_MAX,
   MOCK_MINUTES_MIN,
@@ -48,6 +49,7 @@ export function MockExamSetup({
     formatSummary ? "real" : "standard",
   );
   const [loading, setLoading] = useState(false);
+  const [paywall, setPaywall] = useState(false);
   const [progress, setProgress] = useState<string[]>([]);
   const presetMinutes = (value: "short" | "standard" | "real") =>
     value === "real" ? (realMinutes ?? PRESET_MINUTES.standard) : PRESET_MINUTES[value];
@@ -85,11 +87,13 @@ export function MockExamSetup({
         }),
       );
       if (!res.ok) {
-        toast.error(
-          payload.error === "insufficient_credits" || payload.code === "insufficient_credits"
-            ? "Kredin yetersiz."
-            : "Deneme bu sefer tamamlanamadı; iki kez denedik. Kredin iade edildi, birkaç saniye sonra yeniden dene.",
-        );
+        // 19 Ekim 2026: hak yetmezse kapı açılır (ücretsizde deneme günlük haktan büyük; "Kredin
+        // yetersiz" yazısı ne yapılacağını söylemiyordu, öğrenci kredi sayısı da görmez).
+        if (payload.error === "insufficient_credits" || payload.code === "insufficient_credits") {
+          setPaywall(true);
+        } else {
+          toast.error("Deneme bu sefer tamamlanamadı; iki kez denedik. Hakkın iade edildi, birkaç saniye sonra yeniden dene.");
+        }
         setLoading(false);
         return;
       }
@@ -373,6 +377,14 @@ export function MockExamSetup({
         Sınavı başlat
       </button>
       <p className="mt-3 text-center text-[13px] text-[color:var(--cp-muted)]">{creditNote}</p>
+      <CreditGate
+        open={paywall}
+        onOpenChange={setPaywall}
+        message="Yazılı deneme için kullanım hakkın yetmiyor."
+        action="PRACTICE_EXAM_GENERATE"
+        actionLabel="Yazılı deneme"
+        returnPath={`/deneme-sinavlari/${prepId}`}
+      />
     </div>
   );
 }

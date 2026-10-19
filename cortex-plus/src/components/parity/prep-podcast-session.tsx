@@ -10,6 +10,7 @@ import {
   generationFailureCode,
 } from "@/lib/learning/generation-failure";
 import { BUSY_NOTE, postJsonWithRetry } from "@/lib/learning/generation-retry";
+import { CreditGate } from "@/components/paywall/credit-gate";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import "@/styles/node-generation-progress.css";
 
@@ -27,7 +28,7 @@ export function PrepPodcastSession({
   const router = useRouter();
   const isAdmin = useIsFounder();
   const [attempt, setAttempt] = useState(0);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "error" | "paywall">("loading");
   const [title, setTitle] = useState(topicLabel);
   const [chapters, setChapters] = useState<unknown[]>([]);
   const [message, setMessage] = useState("");
@@ -54,6 +55,12 @@ export function PrepPodcastSession({
       .then(({ res, data }) => {
         if (!alive) return;
         setQueued(false);
+        // 19 Ekim 2026: hak yetmezse "Yeniden dene" anlamsız — kapı açılır (ücretsizde podcast
+        // günlük haktan büyük; kapı bunu söyler, geri sayım göstermez).
+        if (res.status === 402) {
+          setStatus("paywall");
+          return;
+        }
         if (!res.ok || !Array.isArray(data.chapters)) {
           const failure = describeGenerationFailure(
             generationFailureCode(data),
@@ -93,6 +100,23 @@ export function PrepPodcastSession({
         note={queued ? BUSY_NOTE : undefined}
         onClose={() => router.push(home)}
       />
+    );
+  }
+
+  if (status === "paywall") {
+    return (
+      <section className="cp-pod">
+        <CreditGate
+          open
+          onOpenChange={(open) => {
+            if (!open) router.push(home);
+          }}
+          message="Bu podcast için kullanım hakkın yetmiyor."
+          action="PODCAST_GENERATE"
+          actionLabel="Podcast"
+          returnPath={home}
+        />
+      </section>
     );
   }
 

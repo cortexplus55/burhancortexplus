@@ -1178,6 +1178,12 @@
   text-transform: uppercase;
 }
 
+/* 19 Ekim 2026: ücretsiz günlük haktan büyük araç — sarı yalnız Plus için. */
+.cp-study-hub-badge--plus {
+  border-color: var(--c-brand);
+  color: var(--c-brand);
+}
+
 .cp-study-hub-icon--gaps { background: var(--c-warning-soft); color: var(--c-warning); }
 .cp-study-hub-icon--focused { background: var(--c-danger-soft, var(--c-warning-soft)); color: var(--c-danger, var(--c-warning)); }
 .cp-study-hub-icon--true_false { background: var(--c-success-soft); color: var(--c-success); }

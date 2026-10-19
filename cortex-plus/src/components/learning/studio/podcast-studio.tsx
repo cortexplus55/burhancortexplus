@@ -550,6 +550,8 @@ export function PodcastStudio({
         open={paywall}
         onOpenChange={setPaywall}
         message="Bu podcast için hakkın yetmiyor. Yenilenince ya da paketinle devam edebilirsin."
+        action="PODCAST_GENERATE"
+        actionLabel="Podcast"
         returnPath="/studio/podcast"
       />
     </StudioFrame>

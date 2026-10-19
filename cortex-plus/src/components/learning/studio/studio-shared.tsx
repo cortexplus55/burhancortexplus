@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import type { ActionCode } from "@/lib/env";
 import { CortexMark } from "@/components/brand/cortex-mark";
 import { STUDIO_INTRO } from "@/lib/learning/studio-intro";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
@@ -273,16 +274,23 @@ export function StudioPaywall({
   open,
   onOpenChange,
   returnPath,
+  action,
+  actionLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   returnPath: string;
+  /** Ücretsiz hakkı aşan iş (sözlü): kapı "doldu" demez, geri sayım göstermez. */
+  action?: ActionCode;
+  actionLabel?: string;
 }) {
   return (
     <CreditGate
       open={open}
       onOpenChange={onOpenChange}
       message="Bu stüdyo için kullanım hakkın yetmiyor."
+      action={action}
+      actionLabel={actionLabel}
       returnPath={returnPath}
     />
   );
