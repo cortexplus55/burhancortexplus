@@ -61,3 +61,21 @@ describe("flatMapNeedsOneshotRegen", () => {
     ).toBe(false);
   });
 });
+
+/*
+  19 Ekim 2026, 65 sayfalık PDF + 6 sayfalık Word + 5 fotoğraf: ortak haritada konular PDF'e
+  bağlandı, fotoğraflara düğüm düşmedi. Kurulum ucu düğümsüz fotoğrafları "bozuk harita" sayıp
+  "pending"e çekti; sihirbaz bütün haritayı dört kez baştan yazdırdı (her biri ~1,5 dk, bir model çağrısı).
+*/
+describe("çok dosyalı kurulumda düğümsüz dosya", () => {
+  it("bozuk sayılmaz; tek başına yüklenen düğümsüz belge yine yeniden üretilir", () => {
+    expect(flatMapNeedsOneshotRegen({ status: "ready", inUse: false, nodes: [], courseMember: true })).toBe(false);
+    expect(flatMapNeedsOneshotRegen({ status: "ready", inUse: false, nodes: [] })).toBe(true);
+  });
+
+  it("kurulum ucu çok dosyada belgeyi kurs üyesi olarak sorar", async () => {
+    const { readFileSync } = await import("node:fs");
+    const intake = readFileSync("src/app/api/learning/exam-prep/intake/route.ts", "utf8");
+    expect(intake).toContain("regenerateUnusedFlatTopicMap(service, documentId, { courseMember: documentIds.length > 1 })");
+  });
+});

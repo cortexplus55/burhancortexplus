@@ -244,3 +244,23 @@ describe("grounding tokens", () => {
     );
   });
 });
+
+/*
+  19 Ekim 2026, 65 sayfalık AYT Biyoloji notu (tests/fixtures/sinav-seti): doğrulama gerçek bölümleri
+  attı. "Nefronda süzülme, geri emilim ve salgılama [61–62]" düştü; "nefron" 60. ve 63. sayfada
+  geçiyordu. Boşaltım ünitesinin çekirdeği yoldan kayboldu. Komşu sayfa artık başlık kapsamını
+  tamamlar; sahte başlık eşikleri (yukarıda 9/10 ve 15/18) değişmedi.
+*/
+describe("komşu sayfa başlık kapsamını tamamlar", () => {
+  const pages = JSON.parse(readFileSync("tests/fixtures/sinav-seti/pdf-pages.json", "utf8")) as Record<string, string>;
+  const file = buildGroundingFile(new Map(Object.entries(pages).map(([n, t]) => [Number(n), t] as [number, string])), "tr");
+  it.each([
+    ["Nefronda süzülme, geri emilim ve salgılama", 61, 62],
+    ["Böbrek üstü bezi ve pankreas hormonları", 19, 20],
+  ])("%s [%i–%i] tutulur", (title, pageStart, pageEnd) => {
+    expect(groundTopic(file, { title, pageStart, pageEnd }).grounded).toBe(true);
+  });
+  it("uzak bir bölümün başlığı yine düşer", () => {
+    expect(groundTopic(file, { title: "Nefronda süzülme ve geri emilim", pageStart: 25, pageEnd: 26 }).grounded).toBe(false);
+  });
+});

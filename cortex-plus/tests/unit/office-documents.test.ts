@@ -89,6 +89,48 @@ describe("Word", () => {
     expect(result.pages[1]).toContain("İkinci");
   });
 
+  /* 19 Ekim 2026: Word'de yazılmış 6 sayfalık not elle sayfa sonu içermediği için "1 sayfa"
+     sayılıyordu. Word, belgeyi en son çizdiğinde her sayfanın başına bir işaret yazar. */
+  it("Word'ün çizim işaretinde (lastRenderedPageBreak) bölüyor", () => {
+    const result = extractOfficeText(
+      docx(
+        para("Birinci sayfa") +
+          '<w:p><w:r><w:lastRenderedPageBreak/></w:r><w:r><w:t>İkinci sayfa</w:t></w:r></w:p>' +
+          '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' +
+          '<w:p><w:r><w:lastRenderedPageBreak/></w:r><w:r><w:t>Üçüncü sayfa</w:t></w:r></w:p>',
+      ),
+      DOCX,
+    );
+    // Elle sonu izleyen çizim işareti ikinci bir sayfa üretmez.
+    expect(result.pages).toEqual(["Birinci sayfa", "İkinci sayfa", "Üçüncü sayfa"]);
+  });
+
+  it("stilinde ya da paragrafında 'sayfa öncesi kes' olan paragraf yeni sayfa açar", () => {
+    const styles =
+      '<w:styles><w:style w:type="paragraph" w:styleId="Heading1"><w:pPr><w:pageBreakBefore/></w:pPr></w:style>' +
+      '<w:style w:type="paragraph" w:styleId="Normal"><w:pPr/></w:style></w:styles>';
+    const result = extractOfficeText(
+      docx(
+        '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Bölüm 1</w:t></w:r></w:p>' +
+          para("metin") +
+          '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Bölüm 2</w:t></w:r></w:p>' +
+          '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Bölüm 3</w:t></w:r></w:p>' +
+          '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>devam</w:t></w:r></w:p>',
+        { "word/styles.xml": styles },
+      ),
+      DOCX,
+    );
+    expect(result.pages).toEqual(["Bölüm 1\nmetin", "Bölüm 2", "Bölüm 3\ndevam"]);
+  });
+
+  it("sınav setindeki 6 sayfalık Word notu 6 sayfa okunur", () => {
+    const file = readFileSync("tests/fixtures/sinav-seti/Homeostazi-Son-Tekrar-Notu.docx");
+    const result = extractOfficeText(file, DOCX);
+    expect(result.pages).toHaveLength(6);
+    expect(result.pages[1]).toContain("ANP");
+    expect(result.pages[5]).toContain("25 Günlük Çalışma Planı");
+  });
+
   /* Uydurma sayfa bölmek, "3. sayfada yazıyor" diyen bir alıntıyı yanlış
      yere göndermek olurdu. */
   it("sayfa sonu yoksa tek sayfa sayıyor", () => {

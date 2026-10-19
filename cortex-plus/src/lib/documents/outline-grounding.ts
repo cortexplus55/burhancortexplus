@@ -66,6 +66,10 @@ const STOPWORDS = new Set(
     "surec", "sureci", "surecleri", "asama", "asamasi", "asamalar", "asamalari",
     "belge", "belgeler", "belgeleri", "siniflandirma", "siniflandirmasi", "siniflandirilmasi",
     "siniflandirilm", "siniflama", "siniflamasi",
+    // 19 Ekim 2026, AYT Biyoloji notu: "enerji kullanımı", "kanalın başlangıç bölümleri", "nöron
+    // çeşitleri", "kanın izlediği yol" — sayfa bu adlandırma sözcüklerini kullanmıyordu, bölüm düştü.
+    "kullanim", "kullanimi", "baslangic", "baslangici", "cesit", "cesitler", "cesitleri",
+    "izledik", "izlenen", "yol", "yolu",
     // English function / generic study words
     "the", "and", "for", "with", "from", "into", "onto", "about", "that", "this", "these",
     "those", "you", "your", "will", "can", "how", "what", "why", "when", "which", "who", "its",
@@ -173,10 +177,25 @@ const SHORT_STEM_SUFFIX = 3;
  */
 const BUFFER_LEFTOVER = /^[a-z]{3,}[aeiou][sny]$/;
 
+/** Üç harfli kök + iyelik/belirtme ünlüsü ("bezi", "kanı"): kök "bez" sayfada "bezler" olabilir. */
+const SHORT_ROOT_VOWEL = /^[a-z]{3}[iu]$/;
+
 function pageHas(page: PageEntry | undefined, q: string): boolean {
   if (!page) return false;
   if (wordOnPage(page, q)) return true;
-  return BUFFER_LEFTOVER.test(q) && wordOnPage(page, q.slice(0, -1));
+  if (BUFFER_LEFTOVER.test(q) && wordOnPage(page, q.slice(0, -1))) return true;
+  // 19 Ekim 2026: "Böbrek üstü bezi" sayfadaki "Bezleri" ile eşleşmediği için düştü. Kök en çok üç
+  // harf ek alabilir ("bezler"); "bezelye" gibi başka kelimeler eşleşmez.
+  return SHORT_ROOT_VOWEL.test(q) && shortRootOnPage(page, q.slice(0, -1));
+}
+
+function shortRootOnPage(page: PageEntry, root: string): boolean {
+  for (let i = lowerBound(page.sorted, root); i < page.sorted.length; i += 1) {
+    const word = page.sorted[i]!;
+    if (!word.startsWith(root)) break;
+    if (word.length - root.length <= SHORT_STEM_SUFFIX) return true;
+  }
+  return false;
 }
 
 function wordOnPage(page: PageEntry, q: string): boolean {
@@ -294,6 +313,13 @@ export function groundTopicReport(file: GroundingFile, input: GroundingInput): G
   if (!title.length) return { grounded: false, reason: "no_title_tokens", words: [] };
 
   const inRange = (t: string) => range.filter((page) => pageHas(page, t)).length;
+  // Aralığın hemen önceki ve sonraki sayfası (yalnız başlık kapsamına ikinci şans için).
+  const neighbors: PageEntry[] = [];
+  for (const p of [start - 1, end + 1]) {
+    const page = file.pages.get(p);
+    if (page && page.set.size) neighbors.push(page);
+  }
+  const nearRange = (t: string) => neighbors.some((page) => pageHas(page, t));
 
   for (const t of title) {
     if (YEAR.test(t) && inRange(t) === 0) return { grounded: false, reason: "year_missing", words: [] };
@@ -333,7 +359,16 @@ export function groundTopicReport(file: GroundingFile, input: GroundingInput): G
   }
   const total = distinctive.reduce((n, s) => n + s.weight, 0);
   const covered = distinctive.filter((s) => s.hits > 0).reduce((n, s) => n + s.weight, 0);
-  if (covered / total < TITLE_COVERAGE) return verdict(false, "low_title_coverage");
+  if (covered / total < TITLE_COVERAGE) {
+    // Bölümün adı çoğu zaman bir sayfa önce başlar ya da bir sayfa sonra özetlenir: 19 Ekim 2026'da
+    // "Nefronda süzülme, geri emilim ve salgılama [61–62]" düştü, çünkü "nefron" 60. ve 63. sayfada
+    // geçiyordu; boşaltım ünitesinin çekirdeği yoldan kayboldu. Komşu sayfa yalnız kapsamı tamamlar;
+    // kelimenin aralıkta en az bir isabeti ve "dağınık" denetimi aynen kalır.
+    const near = distinctive.filter((s) => s.hits > 0 || nearRange(s.t)).reduce((n, s) => n + s.weight, 0);
+    if (near / total < TITLE_COVERAGE || !distinctive.some((s) => s.hits > 0)) {
+      return verdict(false, "low_title_coverage");
+    }
+  }
 
   const span = range.length;
   if (span > WIDE_RANGE_PAGES) {
