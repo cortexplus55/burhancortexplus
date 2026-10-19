@@ -134,8 +134,9 @@ export async function POST(request: Request) {
             title: applied.titles[index] ?? topic.title,
             nodeId: applied.nodeIds[index],
           }));
+          // Haritadan gelen liste sihirbazda öğrencinin gördüğü sıradır ("Yol bu listeyle kurulur").
           const ordered = orderTopicsForPath(paired, {
-            manualOrder: parsed.data.topicOrderManual === true,
+            manualOrder: parsed.data.topicOrderManual === true || loaded.fromOutline === true,
           });
           topics = ordered.map((topic) => topic.title);
           topicNodeIds = ordered.map((topic) => topic.nodeId ?? null);
@@ -167,6 +168,10 @@ export async function POST(request: Request) {
   const hardSet = new Set(
     (parsed.data.hardTopics ?? []).map((t) => t.trim().toLocaleLowerCase("tr")),
   );
+  // Sihirbaz çalışma günü sormuyor (Astra da sormuyor). Sorulmadıysa her gün sayılır: 19 Ekim 2026'da
+  // 25 gün sonraki sınavın planı yalnız hafta içiyle 18 güne indi ve son güne on konu yığıldı.
+  // Öğrenci günleri hazırlık ayarlarından daraltabilir; seçim kayda geçer.
+  const studyDays = parsed.data.studyDays?.length ? parsed.data.studyDays : [1, 2, 3, 4, 5, 6, 7];
 
   let scheduleSummary: ReturnType<typeof buildExamScheduleV2> | null = null;
   let scheduleDrafts: ReturnType<typeof scheduleSessionsToNodeDrafts> | null = null;
@@ -184,11 +189,11 @@ export async function POST(request: Request) {
     scheduleSummary = buildExamScheduleV2({
       daysToExam: daysUntilExam(parsed.data.examDate),
       dailyMinutes: parsed.data.dailyMinutes ?? 45,
-      studyDays: parsed.data.studyDays?.length
-        ? parsed.data.studyDays
-        : [1, 2, 3, 4, 5],
+      studyDays,
       topics: scheduleTopics,
       targetScore: parsed.data.targetScore,
+      // Sıra yukarıda kuruldu; takvim yeniden dizmez.
+      keepOrder: true,
     });
     scheduleDrafts = mergeStudyPathTemplate(
       scheduleSessionsToNodeDrafts(scheduleSummary.sessions),
@@ -231,7 +236,7 @@ export async function POST(request: Request) {
     .from("exam_preps")
     .update({
       daily_minutes: parsed.data.dailyMinutes ?? null,
-      study_days: parsed.data.studyDays ?? [],
+      study_days: studyDays,
       hard_topics_self: parsed.data.hardTopics ?? [],
       learning_preferences: parsed.data.learningPreferences ?? {},
       ...(scheduleSummary

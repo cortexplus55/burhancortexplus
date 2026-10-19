@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { schedulePriorityForTopic } from "@/lib/learning/exam-coverage";
 import type { ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
+import { loadOneshotIntakeTopics } from "@/lib/learning/intake-outline";
 import { priorityFromImportance, priorityFromWeight } from "@/lib/learning/cross-material-topics";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
 import { parseTeacherAnalysis, type TeacherAnalysis } from "@/lib/learning/teacher-brain";
@@ -11,6 +12,10 @@ export type PrepScheduleTopics = {
   titles: string[];
   nodeIds: (string | null)[];
   scheduleTopics: ScheduleTopicInput[];
+  /**
+   * Konular sihirbazın gösterdiği haritadan geldi: sıra öğretim sırasıdır, yeniden dizilmez.
+   */
+  fromOutline?: boolean;
 };
 
 /**
@@ -41,9 +46,17 @@ export async function loadScheduleTopics(
     }
   }
 
-  const consolidated = await consolidatePrepDocuments(service, userId, documentIds, {
-    allowModel: false,
-  });
+  // Sihirbaz konuları kurs haritasından gösteriyor (intake: loadOneshotIntakeTopics, "model sırası
+  // esas"). Kurulum aynı haritayı okur. 19 Ekim 2026'ya kadar burada eski birleştirme çalışıyordu:
+  // 7 dosyalık AYT Biyoloji setinde 29 konunun 9'u sayfasız kaldı ("Sinir Dokusu, Nöron Yapısı"
+  // s.1–4 yerine hiç), "İnce Bağırsakta Sindirim" nefron sayfalarını (61–62) aldı ve yol
+  // öğrencinin onayladığı sıradan başka bir sırayla kuruldu.
+  const outline = userId ? await loadOneshotIntakeTopics(service, userId, documentIds).catch(() => null) : null;
+  const consolidated = outline
+    ? { topics: outline.topics }
+    : await consolidatePrepDocuments(service, userId, documentIds, {
+        allowModel: false,
+      });
   const weighted = consolidated.topics.map((topic) => ({
     ...topic,
     priority:
@@ -51,7 +64,7 @@ export async function loadScheduleTopics(
       priorityFromImportance(topic.importance) ??
       schedulePriorityForTopic(groups, topic.title),
   }));
-  const ordered = orderTopicsForPath(weighted, { manualOrder: false });
+  const ordered = orderTopicsForPath(weighted, { manualOrder: Boolean(outline) });
   const titles = ordered.map((topic) => topic.title);
   const nodeIds = ordered.map((topic) => topic.nodeIds[0] ?? null);
 
@@ -104,5 +117,5 @@ export async function loadScheduleTopics(
     units: unitsFor(topic),
   }));
 
-  return { titles, nodeIds, scheduleTopics };
+  return { titles, nodeIds, scheduleTopics, fromOutline: Boolean(outline) };
 }

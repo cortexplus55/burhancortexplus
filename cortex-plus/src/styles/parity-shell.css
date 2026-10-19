@@ -9508,6 +9508,11 @@
   white-space: nowrap;
 }
 
+.cp-node-sources-pages {
+  color: var(--cp-muted);
+  font: var(--t-mono-s);
+}
+
 .cp-node-sources-modal li a {
   padding: 0.25rem 0.7rem;
   border-radius: 999px;
