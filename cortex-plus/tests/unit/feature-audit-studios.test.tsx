@@ -354,3 +354,12 @@ describe("yazılı deneme aracı: açık uçlu ve çok cevaplı soru", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("kurulum sihirbazı: ders adımı", () => {
+  // Canlıda "Farmakoloji" yazınca altında hiçbir şey olmayan iki başlık kalıyordu.
+  it("aramayla eşleşen ders yoksa 'Devam ettiklerin' ve 'Dersler' başlıkları çizilmez", () => {
+    const wizard = read("src/components/parity/exam-create-wizard.tsx");
+    expect(wizard).toContain("{recentMatches.length ? (");
+    expect(wizard).toContain("{commonMatches.length ? (");
+  });
+});

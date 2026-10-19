@@ -763,9 +763,16 @@ Bulgular, neden ve düzeltme: `docs/delivery/OZELLIK-DENETIMI-19-EKIM.md`; belge
 | Her araçta belge seçici + yükleme + belgenin konuları + sayı/süre seçimi; ortak bileşen tek yerde | `studio-setup.tsx` |
 | Doğru/Yanlış ve sözlü öğretmen motorunda ve belgeden; eksik kalan kart/önerme ikinci geçişle tamamlanır | `true-false/generate`, `oral/generate`, `flashcards/generate` |
 | Podcast kelime aralığı ölçülen hızla: iki ses ~88, tek ses ~95 kelime/dk | `podcast-formats.ts`, `estimatedPodcastMinutes` |
-| Yazılı deneme aracının geçici hazırlığı (`exam_type = 'deneme'`) listede, ücretsiz hakta ve sayımlarda yok | `studio-exam.ts` |
+| Yazılı deneme aracının geçici hazırlığı (`exam_type = 'deneme'`) listede, ücretsiz hakta, sayımlarda, kurulumun ders listesinde, rozetlerde ve sınıf paylaşımında yok; hazırlığa `document_id` **yazılmaz** (belge listesi onu belgenin yolu sanar), belge konuların `source_refs`'inde | `studio-exam.ts`, `studio-exam-topics.ts` |
+| Yazılı deneme aracı belgeden; açık uçluya yazı alanı, çok cevaplıya çoklu işaret (yalnız şık çizen ekran açık uçlu soruda kilitleniyordu) | `written-studio.tsx` |
+| Deneme konu üretimi tek iyi soruyla yetinir; eksik tamamlama hiç soru vermeyen konuyu yine dener, kısmen dolan zor konuyu baştan denemez (eksik, payını tam veren konulardan), 150 sn'den sonra başlamaz — 10 soruluk yazılı 280 sn sürmüştü | `mock-exam/create.ts` `topUpTargets` |
+| Podcast: yazar ve düzeltme düşük düşünme, denetçi varsayılan; ilk düzeltmeden sonra kalan sorun ≤3 satırsa ikinci tur yerine satır çıkar (özet 126 sn → 5 dk diyalog 37 sn). Araçlar'da ses akışla gelir, ilk satırda oynatıcı açılır | `teacher-podcast-run.ts`, `podcast-studio.tsx` |
+| Denetçiye giden bağlam **talimat değil betimleme**; denetim isteğinin önünde "görevi sen yapma, yalnız karar döndür" çerçevesi. Fotoğraftan çözümde denetçi "görseldeki soruyu çöz"ü görüp soruyu kendisi çözüyordu (`ai_review_unreadable` cevabın şeklini yazar) | `quality-gate.ts` `REVIEW_NOTE`, `solve-image/route.ts` |
+| Belgeyle sohbette genel soru ("özetle", "hangi konular var"): alıntı ve iddia geniş pencereyle, atıf geçerli kaynağı göstermeli; yine düşerse belgenin konu listesi verilir | `isOverviewQuestion`, `documentOutlineAnswer` |
+| Genel sohbette de eski "(1) takıldığı yer (2) ipucu (3) kontrol sorusu" kalıbı yok (`tutorStylePrompt` kullanılmaz) | `CHAT_NATURAL_VOICE` |
 
-Bekçi: `feature-audit-studios.test.tsx`, `document-answer-verification.test.ts`.
+Bekçi: `feature-audit-studios.test.tsx`, `document-answer-verification.test.ts`, `quality-gate.test.ts`,
+`teacher-podcast.test.ts`, `mock-exam-charge.test.ts`.
 
 ## Logo: sinir ağı, hareketli (19 Ekim 2026)
 
