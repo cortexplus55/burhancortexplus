@@ -52,6 +52,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
     startedAt: (attempt.started_at as string | null) ?? null,
     createdAt: attempt.created_at as string,
     updatedAt: (attempt.updated_at as string | null) ?? null,
+    kind: node.kind as string,
   });
   const kind = PLAN_NODE_META[node.kind as PlanNodeKind]?.title ?? "Etkinlik";
   const topic = parseSessionMeta(node.session_meta)?.topicTitle?.trim() || String(node.title ?? "");

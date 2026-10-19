@@ -10,7 +10,15 @@ export type NodeResultInput = {
   startedAt: string | null;
   createdAt: string;
   updatedAt: string | null;
+  /** Düğüm türü: sorusuz etkinlikte kayıt 1/1 olsa da puan gösterilmez. */
+  kind?: string | null;
 };
+
+/**
+ * Soru sorulmayan etkinlikler. Bitince kayıt `score 1 / total 1` yazar (tamamlandı
+ * işareti); sonuç ekranı bunu "Doğru cevaplar 1/1 · %100" diye gösteriyordu (19 Ekim 2026).
+ */
+export const UNSCORED_NODE_KINDS: ReadonlySet<string> = new Set(["podcast"]);
 
 export type NodeResultView = {
   scored: boolean;
@@ -34,7 +42,7 @@ export function spentMinutes(input: Pick<NodeResultInput, "startedAt" | "created
 export function nodeResultView(input: NodeResultInput): NodeResultView {
   const total = typeof input.total === "number" && input.total > 0 ? input.total : 0;
   const score = typeof input.score === "number" ? Math.max(0, Math.min(input.score, total || input.score)) : 0;
-  const scored = total > 0;
+  const scored = total > 0 && !UNSCORED_NODE_KINDS.has(input.kind ?? "");
   const pct = scored ? Math.round((score / total) * 100) : null;
   const tone =
     pct == null

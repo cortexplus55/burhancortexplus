@@ -34,6 +34,13 @@ describe("bitmiş etkinliğin sonucu", () => {
       pct: null,
       headline: "Tamamladın!",
     });
+    // Podcast bitince kayıt 1/1 yazar; ekranda "Doğru cevaplar 1/1 · %100" çıkmaz (19 Ekim 2026).
+    expect(nodeResultView({ score: 1, total: 1, kind: "podcast", startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: null })).toMatchObject({
+      scored: false,
+      pct: null,
+      headline: "Tamamladın!",
+    });
+    expect(nodeResultView({ score: 1, total: 1, kind: "quiz", startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: null }).scored).toBe(true);
   });
 
   it("süre ölçülemiyorsa yok; en az 1 dk, 10 saati aşan kayıt yok sayılır", () => {
