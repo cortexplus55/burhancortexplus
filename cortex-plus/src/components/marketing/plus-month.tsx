@@ -186,7 +186,7 @@ function PlusMonthCompact({ monthlyKurus, yearlyKurus, primary, secondary }: Plu
           Plus ile bu ay
         </p>
         <h2 id="pm-card-title" className="pm-card-title">
-          Günde 3 ders, 5 test ve her gün bir podcast — hakkının yalnız <span className="pm-gold">%{share}</span>'i.
+          Günde 3 ders, 5 test ve her gün bir podcast — hakkının yalnız <span className="pm-gold">%{share}</span>&apos;i.
         </h2>
         <ul className="pm-card-counts">
           {items.map((id) => {
