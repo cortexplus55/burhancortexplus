@@ -14,6 +14,7 @@ Kaynak koddan ve yönetim panelinden yazıldı; tahmin edilen hiçbir adım yok 
 | Üretimler art arda düşüyor, 429 | [openai-kota.md](openai-kota.md) |
 | Site veritabanına ulaşamıyor, proje duraklamış | [supabase-duraklama.md](supabase-duraklama.md) |
 | Yayından sonra sayfa boş / hata; geri almak gerek | [yayin-geri-alma.md](yayin-geri-alma.md) |
+| Veri kayboldu / yedekten dönmek gerek | [veritabani-yedek.md](veritabani-yedek.md) |
 
 ## Nereden haber gelir
 
