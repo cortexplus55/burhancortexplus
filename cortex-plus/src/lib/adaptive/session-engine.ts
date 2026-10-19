@@ -9,6 +9,7 @@ import {
 } from "@/lib/adaptive/mastery-engine";
 import { classifyKnowledgeGap } from "@/lib/adaptive/knowledge-gap";
 import { nextReviewIntervalDays } from "@/lib/adaptive/review-scheduler";
+import { prepStudyDays } from "@/lib/learning/exam-schedule-v2";
 import {
   loadStudentState,
   persistTopicMastery,
@@ -959,11 +960,12 @@ async function buildSessionSummary(
   const { istanbulToday } = await import("@/lib/adaptive/daily-planner");
   const today = istanbulToday();
   let nextStudyDay: string | null = today;
-  const studyDays = bundle?.global.studyDays ?? [1, 2, 3, 4, 5];
+  const studyDays = prepStudyDays(bundle?.global.studyDays);
   for (let i = 1; i <= 7; i += 1) {
     const d = new Date(`${today}T12:00:00`);
     d.setDate(d.getDate() + i);
-    const dow = d.getDay();
+    // Çalışma günleri ISO (1=Pzt … 7=Paz); getDay() Pazar'ı 0 verir — Pazar hiç eşleşmiyordu.
+    const dow = d.getDay() || 7;
     if (studyDays.includes(dow)) {
       nextStudyDay = d.toISOString().slice(0, 10);
       break;

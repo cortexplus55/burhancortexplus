@@ -35,6 +35,7 @@ import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
 import { loadOneshotIntakeTopics, type IntakeStudyUnit } from "@/lib/learning/intake-outline";
+import { supportFilesForTopics } from "@/lib/learning/topic-support-load";
 import { namePrepFromTopics } from "@/lib/learning/prep-title-run";
 import { prepTitleFromModel } from "@/lib/learning/prep-title";
 
@@ -369,15 +370,30 @@ export async function POST(request: Request) {
       { status: 422 },
     );
   }
+  // Konu başına dosyalar: konunun kendi dosyası + derse girecek yardımcı dosyalar (nefron defteri,
+  // işaretli test, hormon kartı; topic-support-pages.ts). Astra konu listesinde "N kaynak" gösteriyor;
+  // bizde de öğrenci kurulumda hangi dosyasının hangi konuya girdiğini görür (19 Ekim 2026).
+  const supportFiles = await supportFilesForTopics(
+    service,
+    userId,
+    documentIds,
+    mergedTopics.map((topic, index) => ({
+      id: String(index),
+      title: topic.title,
+      refs: topic.sources.map((source) => ({ documentId: source.documentId, pages: source.pages })),
+    })),
+  );
+  const topicFiles = mergedTopics.map((topic, index) => [
+    ...new Set([
+      ...topic.sources.map((source) => source.fileName).filter(Boolean),
+      ...(supportFiles.get(String(index)) ?? []),
+    ]),
+  ]);
   const merged = {
     topics: mergedTopics.map((topic) => topic.title),
     topicPages: mergedTopics.map((topic) => topic.pages),
-    topicFiles: mergedTopics.map((topic) =>
-      [...new Set(topic.sources.map((source) => source.fileName).filter(Boolean))],
-    ),
-    topicSourceCounts: mergedTopics.map((topic) =>
-      "sourceCount" in topic ? topic.sourceCount : topic.sources.length,
-    ),
+    topicFiles,
+    topicSourceCounts: topicFiles.map((files) => files.length),
     topicHeavy: mergedTopics.map((topic) => ("examHeavy" in topic ? topic.examHeavy : false)),
     topicImportant: mergedTopics.map((topic) =>
       "importance" in topic ? topic.importance === "important" && !topic.examHeavy : false,

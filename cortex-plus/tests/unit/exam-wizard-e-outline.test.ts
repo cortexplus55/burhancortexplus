@@ -35,12 +35,14 @@ describe("E: wizard draft + B6 + focus prep wiring", () => {
     expect(wizard).toContain("setStep(\"material\")");
   });
 
-  it("TopicEditor has unit headers and no Kaynak/source meta (B6)", () => {
+  it("TopicEditor has unit headers; no page/file lists, only a compact multi-file chip (B6)", () => {
     expect(wizard).toContain("topicUnits");
     expect(wizard).toContain("apw-topic-unit");
     expect(wizard).not.toContain("Kaynak:");
-    expect(wizard).not.toContain("sourceCountLabel");
     expect(wizard).not.toMatch(/Kaynak: s\./);
+    // 19 Ekim 2026: "N kaynak" yalnız birden çok dosyadan beslenen konuda (topicSourcesChip).
+    expect(wizard).toContain("topicSourcesChip(topicFiles[index])");
+    expect(wizard).toContain("redundantUnitHeader(");
   });
 
   it("sets focus cookie after plan create (the hub was removed on main)", () => {

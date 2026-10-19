@@ -5,6 +5,7 @@ import { dropExamWizardDraft } from "@/lib/learning/exam-wizard-draft";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-plan";
+import { DEFAULT_STUDY_DAYS } from "@/lib/learning/exam-schedule-v2";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { FREE_PREP_LIMIT_CODE, FREE_PREP_LIMIT_MESSAGE } from "@/lib/billing/free-tier-copy";
 import { subjectSuggestions } from "@/lib/learning/subjects";
@@ -83,7 +84,8 @@ export function ExamCreateChat({
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
   const [intakeMode, setIntakeMode] = useState<"legacy" | "v2">("legacy");
   const [dailyMinutes, setDailyMinutes] = useState(45);
-  const [studyDays, setStudyDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  // Seçilmezse her gün (takvimin varsayılanıyla aynı; 19 Ekim 2026).
+  const [studyDays, setStudyDays] = useState<number[]>([...DEFAULT_STUDY_DAYS]);
   const [hardTopics, setHardTopics] = useState<string[]>([]);
   const [prefStyle, setPrefStyle] = useState<"examples" | "theory" | "mixed">("mixed");
   const [prefPace, setPrefPace] = useState<"slow" | "normal" | "fast">("normal");

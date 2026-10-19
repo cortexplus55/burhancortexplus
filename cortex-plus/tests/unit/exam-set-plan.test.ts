@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildExamScheduleV2, type ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
+import {
+  DEFAULT_DAILY_MINUTES,
+  DEFAULT_STUDY_DAYS,
+  buildExamScheduleV2,
+  prepDailyMinutes,
+  prepStudyDays,
+  type ScheduleTopicInput,
+} from "@/lib/learning/exam-schedule-v2";
 import { turkishTitleCase } from "@/lib/documents/outline-clean";
 
 /*
@@ -62,7 +69,6 @@ const plan = (studyDays: number[]) =>
     dailyMinutes: 45,
     studyDays,
     topics,
-    keepOrder: true,
     fromDate: new Date("2026-10-19T20:00:00Z"),
   });
 
@@ -127,9 +133,51 @@ describe("sınav seti: yol öğrencinin listesiyle kurulur", () => {
     expect(loader).toContain("orderTopicsForPath(weighted, { manualOrder: Boolean(outline) })");
     const create = readFileSync("src/app/api/learning/exam-prep/create/route.ts", "utf8");
     expect(create).toContain("loaded.fromOutline === true");
-    expect(create).toContain("keepOrder: true");
-    expect(create).toContain("[1, 2, 3, 4, 5, 6, 7]");
+    expect(create).toContain("const studyDays = prepStudyDays(parsed.data.studyDays);");
     expect(create).toContain("study_days: studyDays");
+  });
+
+  it("çalışma günü ve günlük süre tek varsayılandan; boş kayıt her gün demek", () => {
+    expect([...DEFAULT_STUDY_DAYS]).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(prepStudyDays([])).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(prepStudyDays(null)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(prepStudyDays([5, 1, 1, 9, 3])).toEqual([1, 3, 5]);
+    expect(prepDailyMinutes(null)).toBe(DEFAULT_DAILY_MINUTES);
+    expect(prepDailyMinutes(90)).toBe(90);
+    // Eski "yalnız hafta içi" ve "60 dk" varsayılanları hiçbir yerde kalmadı.
+    for (const file of [
+      "src/app/api/learning/exam-prep/create/route.ts",
+      "src/app/api/learning/exam-prep/reschedule/route.ts",
+      "src/app/api/learning/exam-prep/settings/route.ts",
+      "src/app/api/adaptive/replan/route.ts",
+      "src/lib/learning/missed-day-reschedule.ts",
+      "src/lib/learning/topic-only-schedule.ts",
+      "src/lib/learning/exam-schedule-v2.ts",
+      "src/lib/adaptive/session-engine.ts",
+      "src/components/parity/exam-create-chat.tsx",
+      "src/app/deneme-sinavlari/[prepId]/page.tsx",
+    ]) {
+      const source = readFileSync(file, "utf8");
+      expect(source, file).not.toContain("[1, 2, 3, 4, 5]");
+      expect(source, file).not.toMatch(/daily_minutes \?\? 60/);
+    }
+  });
+
+  it("yeniden planlamanın dört çağıranı konuları tek yükleyiciden alır", () => {
+    for (const file of [
+      "src/app/api/learning/exam-prep/reschedule/route.ts",
+      "src/app/api/learning/exam-prep/settings/route.ts",
+      "src/app/api/adaptive/replan/route.ts",
+      "src/lib/learning/missed-day-reschedule.ts",
+    ]) {
+      const source = readFileSync(file, "utf8");
+      expect(source, file).toContain("loadPrepScheduleTopics(service");
+      expect(source, file).not.toContain("topicMap.set(s.topicId");
+    }
+    const schedule = readFileSync("src/lib/learning/exam-schedule-v2.ts", "utf8");
+    expect(schedule).not.toContain("canPromoteForWeight");
+    expect(schedule).not.toContain("weaknessRank");
+    expect(schedule).not.toContain("keepOrder");
   });
 });
 

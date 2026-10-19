@@ -26,6 +26,8 @@ import {
   WIZARD_COPY,
   WIZARD_STEP_ORDER,
   fileProgressLine,
+  redundantUnitHeader,
+  topicSourcesChip,
 } from "@/lib/learning/exam-wizard-copy";
 import {
   dropExamWizardDraft,
@@ -50,9 +52,10 @@ import {
 import { messageFromProcessBody } from "@/lib/documents/process-user-message";
 import {
   clearPendingDocProcess,
-  readPendingDocProcess,
+  readPendingDocProcesses,
   writePendingDocProcess,
 } from "@/lib/documents/pending-doc-process";
+import { PARALLEL_UPLOADS, inSelectionOrder, runPool } from "@/lib/documents/upload-batch";
 import {
   useDocumentLimits,
   useStudentShellAccount,
@@ -267,6 +270,7 @@ export function ExamCreateWizard({
   const router = useRouter();
   const account = useStudentShellAccount();
   const { isAdmin } = useDocumentLimits();
+  const paidUploads = account?.audience === "plus" || account?.audience === "sigma";
   const materialLimitLine = freeMaterialLimitLine({
     isAdmin,
     tier:
@@ -371,7 +375,7 @@ export function ExamCreateWizard({
 
   const resetWizard = useCallback(() => {
     void dropExamWizardDraft();
-    clearPendingDocProcess();
+    clearPendingDocProcess({ surface: "exam-wizard" });
     setStep("subject");
     setSubject("");
     setSubjectQuery("");
@@ -441,12 +445,12 @@ export function ExamCreateWizard({
   useEffect(() => {
     if (draftHydrated.current) return;
     draftHydrated.current = true;
-    const pending = readPendingDocProcess();
+    const pending = readPendingDocProcesses("exam-wizard")[0];
     const local = readExamWizardDraft();
 
     if (local) {
       applyDraft(local);
-    } else if (pending?.surface === "exam-wizard") {
+    } else if (pending) {
       setStep("material");
     }
 
@@ -468,7 +472,8 @@ export function ExamCreateWizard({
     if (!draftHydrated.current) return;
     if (draftWriteTimer.current) window.clearTimeout(draftWriteTimer.current);
     draftWriteTimer.current = window.setTimeout(() => {
-      const pending = readPendingDocProcess();
+      // Taslak yalnız ekrandaki "işleniyor" satırı için ilk dosyayı taşır; sürdürme bu cihazın kaydından.
+      const pending = readPendingDocProcesses("exam-wizard")[0];
       const payload: ExamWizardDraft = {
         v: 1,
         step: step as WizardDraftStep,
@@ -484,7 +489,7 @@ export function ExamCreateWizard({
         materials,
         failedMaterials,
         processing:
-          pending?.surface === "exam-wizard"
+          pending
             ? {
                 documentId: pending.documentId,
                 fileName: pending.fileName,
@@ -848,11 +853,16 @@ export function ExamCreateWizard({
     return true;
   }
 
-  async function processAndRemember(input: {
-    documentId: string;
-    fileName: string;
-    sizeBytes: number | null;
-  }): Promise<boolean> {
+  async function processAndRemember(
+    input: {
+      documentId: string;
+      fileName: string;
+      sizeBytes: number | null;
+    },
+    /** Paralel toplu yüklemede dosya başına ilerleme satırı yazılmaz; "3/7 dosya hazır" satırı yeter. */
+    options: { quiet?: boolean } = {},
+  ): Promise<boolean> {
+    const quiet = options.quiet === true;
     writePendingDocProcess({
       documentId: input.documentId,
       fileName: input.fileName,
@@ -860,8 +870,10 @@ export function ExamCreateWizard({
       startedAt: new Date().toISOString(),
       surface: "exam-wizard",
     });
-    setProcessDetail("Belge işleniyor…");
-    setProcessPercent(4);
+    if (!quiet) {
+      setProcessDetail("Belge işleniyor…");
+      setProcessPercent(4);
+    }
     const processExamType = clampExamLabel(subject);
     const processExamDate = examDate.trim() || undefined;
     const result = await requestDocumentProcessing({
@@ -875,6 +887,7 @@ export function ExamCreateWizard({
           deferMap: true,
         }),
       onProgress: (progress) => {
+        if (quiet) return;
         const line = formatDocumentProcessProgress(progress);
         if (line) setProcessDetail(line);
         const ratio = processProgressRatio(progress);
@@ -884,7 +897,7 @@ export function ExamCreateWizard({
     const processed = result.body;
     // Silent mid-flight retries — toast/retry UI only after exhaustion below.
     if (result.status === 402) {
-      clearPendingDocProcess();
+      clearPendingDocProcess({ documentId: input.documentId });
       setProcessDetail(null);
       setProcessPercent(null);
       if (isFreePageLimitError(processed)) {
@@ -920,7 +933,7 @@ export function ExamCreateWizard({
       if (keepPending) {
         return false;
       }
-      clearPendingDocProcess();
+      clearPendingDocProcess({ documentId: input.documentId });
       setFailedMaterials((current) => {
         const rest = current.filter((item) => item.documentId !== input.documentId);
         return [
@@ -935,7 +948,7 @@ export function ExamCreateWizard({
       });
       return false;
     }
-    clearPendingDocProcess();
+    clearPendingDocProcess({ documentId: input.documentId });
     setProcessAlert(null);
     setProcessDetail(null);
     setProcessPercent(null);
@@ -952,32 +965,44 @@ export function ExamCreateWizard({
       toast.error(WIZARD_COPY.fileCap);
       return false;
     }
-    toast.success("Materyalin hazır.", {
-      description: typeof processed.notice === "string" ? processed.notice : undefined,
-    });
+    // Toplu yüklemede dosya başına "hazır" bildirimi yok ("3/7 dosya hazır" satırı söylüyor); belgenin
+    // kendi notu (ör. "ilk 5 sayfa işlendi") yine gösterilir.
+    if (!quiet) {
+      toast.success("Materyalin hazır.", {
+        description: typeof processed.notice === "string" ? processed.notice : undefined,
+      });
+    }
     if (typeof processed.notice === "string" && processed.notice.trim()) {
-      toast.message(processed.notice.trim());
+      toast.message(quiet ? `${input.fileName}: ${processed.notice.trim()}` : processed.notice.trim());
     }
     return true;
   }
 
   useEffect(() => {
-    const pending = readPendingDocProcess();
-    if (!pending || pending.surface !== "exam-wizard" || resumePendingRef.current) return;
+    const pending = readPendingDocProcesses("exam-wizard");
+    if (!pending.length || resumePendingRef.current) return;
     resumePendingRef.current = true;
     setUploading(true);
-    void processAndRemember({
-      documentId: pending.documentId,
-      fileName: pending.fileName,
-      sizeBytes: pending.sizeBytes,
-    }).finally(() => {
+    // Sekme kapanınca yarım kalan dosyaların hepsi sürer (paralel toplu yükleme birden çok bırakabilir).
+    const many = pending.length > 1;
+    void runPool(pending, many ? PARALLEL_UPLOADS : 1, (entry) =>
+      processAndRemember(
+        { documentId: entry.documentId, fileName: entry.fileName, sizeBytes: entry.sizeBytes },
+        { quiet: many },
+      ),
+    ).finally(() => {
       setUploading(false);
       resumePendingRef.current = false;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount resume once
   }, []);
 
-  async function takeFile(file: File | undefined, enforceCap = true): Promise<boolean> {
+  async function takeFile(
+    file: File | undefined,
+    enforceCap = true,
+    /** Toplu yüklemenin parçası: "yükleniyor" durumu topluca tutulur. */
+    batch: { quiet: boolean } | null = null,
+  ): Promise<boolean> {
     if (!file) return false;
     if (enforceCap) {
       const { accepted } = filesAcceptedFromSelection({
@@ -998,7 +1023,7 @@ export function ExamCreateWizard({
       toast.error("PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.");
       return false;
     }
-    setUploading(true);
+    if (!batch) setUploading(true);
     try {
       const uploaded = await uploadDocumentFile(file);
       // Authoritative server page/quota check before the long OCR wait.
@@ -1053,16 +1078,19 @@ export function ExamCreateWizard({
           // Preflight is advisory — process path still enforces quota.
         }
       }
-      return await processAndRemember({
-        documentId: uploaded.documentId,
-        fileName: file.name,
-        sizeBytes: file.size,
-      });
+      return await processAndRemember(
+        {
+          documentId: uploaded.documentId,
+          fileName: file.name,
+          sizeBytes: file.size,
+        },
+        { quiet: batch?.quiet === true },
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Bağlantı hatası.");
       return false;
     } finally {
-      setUploading(false);
+      if (!batch) setUploading(false);
     }
   }
 
@@ -1080,17 +1108,31 @@ export function ExamCreateWizard({
     }
     if (overflow > 0) toast.error(WIZARD_COPY.fileCap);
     reservedSlots.current += accepted;
-    setFileProgress({ done: 0, total: accepted, current: null });
+    const batch = files.slice(0, accepted);
+    // Ücretli hesapta en çok üç dosya aynı anda (upload-batch.ts); ücretsizde sırayla.
+    const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
+    const existing = new Set(materialsRef.current.map((material) => material.id));
+    const reading: string[] = [];
+    let done = 0;
+    const report = () =>
+      setFileProgress({ done, total: accepted, current: reading.length ? reading.join(", ") : null });
+    report();
+    setUploading(true);
     try {
-      let done = 0;
-      for (const file of files.slice(0, accepted)) {
-        setFileProgress({ done, total: accepted, current: file.name });
-        const added = await takeFile(file, false);
-        if (!added) break;
-        done += 1;
-        setFileProgress({ done, total: accepted, current: null });
+      await runPool(batch, lanes, async (file) => {
+        reading.push(file.name);
+        report();
+        const added = await takeFile(file, false, { quiet: lanes > 1 });
+        reading.splice(reading.indexOf(file.name), 1);
+        if (added) done += 1;
+        report();
+        return added;
+      });
+      if (lanes > 1) {
+        setMaterials((current) => inSelectionOrder(current, existing, batch.map((file) => file.name)));
       }
     } finally {
+      setUploading(false);
       setFileProgress(null);
       reservedSlots.current = Math.max(0, reservedSlots.current - accepted);
     }
@@ -1165,9 +1207,7 @@ export function ExamCreateWizard({
         setFailedMaterials((current) =>
           current.filter((item) => item.documentId !== failed.documentId),
         );
-        if (readPendingDocProcess()?.documentId === failed.documentId) {
-          clearPendingDocProcess();
-        }
+        clearPendingDocProcess({ documentId: failed.documentId });
       })
       .catch(() => toast.error("Bağlantı hatası."));
   }, []);
@@ -2035,11 +2075,17 @@ function TopicEditor({
     const topic = topics[index];
     const meta = topicMeta[index] ?? EMPTY_META;
     if (!topic) return null;
+    const sources = topicSourcesChip(topicFiles[index]);
     return (
       <li key={`${index}-${topic}`}>
         <span className="apw-topic-field">
           <strong>{topic}</strong>
           {meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+          {sources ? (
+            <em className="apw-topic-sources" title={sources.title}>
+              {sources.label}
+            </em>
+          ) : null}
           {meta.important && !meta.examHeavy ? (
             <em className="apw-topic-important">{WIZARD_COPY.important}</em>
           ) : null}
@@ -2108,14 +2154,21 @@ function TopicEditor({
       ) : null}
       <ul className="apw-topics">
         {unitHeaders.length
-          ? unitHeaders.map((unit) => (
-              <li key={unit.title} className="apw-topic-unit">
-                <h3 className="apw-group">{unit.title}</h3>
-                <ul className="apw-topics">
-                  {unit.topicIndexes.map((index) => renderTopicRow(index))}
-                </ul>
-              </li>
-            ))
+          ? unitHeaders.map((unit) =>
+              redundantUnitHeader(
+                unit.title,
+                unit.topicIndexes.map((index) => topics[index] ?? ""),
+              ) ? (
+                renderTopicRow(unit.topicIndexes[0]!)
+              ) : (
+                <li key={unit.title} className="apw-topic-unit">
+                  <h3 className="apw-group">{unit.title}</h3>
+                  <ul className="apw-topics">
+                    {unit.topicIndexes.map((index) => renderTopicRow(index))}
+                  </ul>
+                </li>
+              ),
+            )
           : topics.map((_, index) => renderTopicRow(index))}
         {orphanIndexes.length ? (
           <li className="apw-topic-unit">

@@ -2,10 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rebuildPrepSchedule } from "@/lib/learning/exam-prep-reschedule-apply";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import type {
-  ScheduleBuildResult,
-  ScheduleTopicInput,
-} from "@/lib/learning/exam-schedule-v2";
+import { prepDailyMinutes, prepStudyDays, type ScheduleBuildResult } from "@/lib/learning/exam-schedule-v2";
+import { loadPrepScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 
 function istanbulToday(): string {
@@ -67,35 +65,19 @@ export async function maybeRescheduleMissedDays(
     });
     if (!hasPastPending && !options.force) continue;
 
-    const hardSet = new Set(
-      (Array.isArray(prep.hard_topics_self)
-        ? (prep.hard_topics_self as string[])
-        : []
-      ).map((t) => t.trim().toLocaleLowerCase("tr")),
-    );
-
-    const topicMap = new Map<string, ScheduleTopicInput>();
-    for (const s of previous.sessions) {
-      topicMap.set(s.topicId, {
-        id: s.topicId,
-        title: s.topicTitle,
-        pageNumbers: s.sourcePages ?? [],
-        selfHard: hardSet.has(s.topicTitle.trim().toLocaleLowerCase("tr")),
-      });
-    }
-
     try {
+      const topics = await loadPrepScheduleTopics(service, {
+        prepId: prep.id as string,
+        previous,
+        hardTopics: Array.isArray(prep.hard_topics_self) ? (prep.hard_topics_self as string[]) : [],
+      });
       await rebuildPrepSchedule(service, {
         prepId: prep.id as string,
         userId,
         examDate: prep.exam_date as string,
-        dailyMinutes:
-          typeof prep.daily_minutes === "number" ? prep.daily_minutes : 45,
-        studyDays:
-          Array.isArray(prep.study_days) && prep.study_days.length
-            ? (prep.study_days as number[])
-            : [1, 2, 3, 4, 5],
-        topics: [...topicMap.values()],
+        dailyMinutes: prepDailyMinutes(prep.daily_minutes),
+        studyDays: prepStudyDays(prep.study_days),
+        topics,
         previous,
         nodes: (nodeRows ?? []).map((n) => ({
           id: n.id as string,

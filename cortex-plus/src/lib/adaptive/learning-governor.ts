@@ -27,6 +27,7 @@ import {
   type RecentActionTrace,
 } from "@/lib/adaptive/policy-engine";
 import { prioritizeTopics } from "@/lib/adaptive/priority";
+import { prepDailyMinutes } from "@/lib/learning/exam-schedule-v2";
 import { reasonCopy } from "@/lib/adaptive/reason-copy";
 import { loadStudentState } from "@/lib/adaptive/student-state";
 import { routeTutorModel } from "@/lib/adaptive/tutor-model-router";
@@ -189,7 +190,7 @@ export async function nextAction(
   );
   const sessionMinutes =
     ctx.sessionMinutesRemaining ??
-    Math.max(10, bundle.global.dailyMinutes ?? 45);
+    Math.max(10, prepDailyMinutes(bundle.global.dailyMinutes));
 
   const recentActions =
     ctx.recentActions ?? (await loadRecentActions(service, sessionId));

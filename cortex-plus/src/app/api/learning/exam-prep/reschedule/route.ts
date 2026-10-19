@@ -4,7 +4,8 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { rebuildPrepSchedule } from "@/lib/learning/exam-prep-reschedule-apply";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import type { ScheduleBuildResult, ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
+import { prepDailyMinutes, prepStudyDays, type ScheduleBuildResult } from "@/lib/learning/exam-schedule-v2";
+import { loadPrepScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -45,12 +46,8 @@ export async function POST(request: Request) {
     return errorResponse(400, "no_schedule_v2");
   }
 
-  const dailyMinutes =
-    typeof prep.daily_minutes === "number" ? prep.daily_minutes : 45;
-  const studyDays =
-    Array.isArray(prep.study_days) && prep.study_days.length
-      ? (prep.study_days as number[])
-      : [1, 2, 3, 4, 5];
+  const dailyMinutes = prepDailyMinutes(prep.daily_minutes);
+  const studyDays = prepStudyDays(prep.study_days);
 
   const { data: nodeRows, error: nodesError } = await service
     .from("exam_prep_nodes")
@@ -58,22 +55,11 @@ export async function POST(request: Request) {
     .eq("exam_prep_id", prep.id);
   if (nodesError) return errorResponse(503, "node_lookup_failed");
 
-  const hardSet = new Set(
-    (Array.isArray(prep.hard_topics_self)
-      ? (prep.hard_topics_self as string[])
-      : []
-    ).map((t) => t.trim().toLocaleLowerCase("tr")),
-  );
-
-  const topicMap = new Map<string, ScheduleTopicInput>();
-  for (const s of previous.sessions) {
-    topicMap.set(s.topicId, {
-      id: s.topicId,
-      title: s.topicTitle,
-      pageNumbers: s.sourcePages ?? [],
-      selfHard: hardSet.has(s.topicTitle.trim().toLocaleLowerCase("tr")),
-    });
-  }
+  const topics = await loadPrepScheduleTopics(service, {
+    prepId: prep.id,
+    previous,
+    hardTopics: Array.isArray(prep.hard_topics_self) ? (prep.hard_topics_self as string[]) : [],
+  });
 
   const result = await rebuildPrepSchedule(service, {
     prepId: prep.id,
@@ -81,7 +67,7 @@ export async function POST(request: Request) {
     examDate: prep.exam_date as string,
     dailyMinutes,
     studyDays,
-    topics: [...topicMap.values()],
+    topics,
     previous,
     nodes: (nodeRows ?? []).map((n) => ({
       id: n.id as string,

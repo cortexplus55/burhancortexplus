@@ -3,7 +3,6 @@ import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { mergeStudyPathTemplate } from "@/lib/learning/exam-prep-plan";
 import {
   buildExamScheduleV2,
-  canPromoteForWeight,
   orderTopicsByPrerequisites,
   scheduleSessionsToNodeDrafts,
   type ScheduleTopicInput,
@@ -168,28 +167,36 @@ describe("study path order", () => {
       { id: "2", title: "Orta konu", importance: "important" },
       { id: "3", title: "Son konu" },
     ];
-    expect(canPromoteForWeight(topics[1])).toBe(false);
     expect(orderTopicsByPrerequisites(topics).map((topic) => topic.id)).toEqual(["1", "2", "3"]);
     expect(learnTitles(topics)).toEqual(["Giriş konusu", "Orta konu", "Son konu"]);
   });
 
-  it("moves an independent exam-weighted topic earlier, never ahead of its prerequisite", () => {
+  /*
+    19 Ekim 2026'ya kadar sınavda ağır konu bağımsızsa öne alınıyordu. AYT Biyoloji setinde yol
+    "Dinlenme Potansiyeli"yle başladı, "Sinir Dokusu, Nöron Yapısı" yedinci sıraya düştü. Ağırlık
+    sırayı değil süreyi ve pratik sayısını değiştirir; ön koşul sırası korunur.
+  */
+  it("exam weight never reorders the path; it buys a heavy topic more practice", () => {
     const independent: ScheduleTopicInput[] = [
       { id: "light", title: "Hafif konu", weightPercent: 5 },
       { id: "heavy", title: "Ağır konu", examHeavy: true, weightPercent: 30 },
     ];
-    expect(learnTitles(independent)).toEqual(["Ağır konu", "Hafif konu"]);
+    expect(orderTopicsByPrerequisites(independent).map((topic) => topic.id)).toEqual(["light", "heavy"]);
+    expect(learnTitles(independent)).toEqual(["Hafif konu", "Ağır konu"]);
+    const plan = buildExamScheduleV2({
+      daysToExam: 23,
+      dailyMinutes: 45,
+      studyDays: [1, 2, 3, 4, 5, 6, 7],
+      topics: independent,
+      fromDate: FROM,
+    });
+    const practice = (id: string) => plan.sessions.filter((s) => s.topicId === id && s.role === "practice").length;
+    expect(practice("heavy")).toBeGreaterThan(practice("light"));
 
     const dependent: ScheduleTopicInput[] = [
+      { id: "heavy", title: "Ağır konu", examHeavy: true, weightPercent: 30, prerequisites: ["Temel konu"] },
       { id: "base", title: "Temel konu", weightPercent: 5 },
-      {
-        id: "heavy",
-        title: "Ağır konu",
-        examHeavy: true,
-        weightPercent: 30,
-        prerequisites: ["Temel konu"],
-      },
     ];
-    expect(learnTitles(dependent)).toEqual(["Temel konu", "Ağır konu"]);
+    expect(orderTopicsByPrerequisites(dependent).map((topic) => topic.id)).toEqual(["base", "heavy"]);
   });
 });

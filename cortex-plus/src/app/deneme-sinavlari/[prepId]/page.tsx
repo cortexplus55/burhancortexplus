@@ -32,6 +32,7 @@ import {
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
+import { prepDailyMinutes, prepStudyDays } from "@/lib/learning/exam-schedule-v2";
 import { materialKindLabel, prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import {
   formatContradictions,
@@ -418,12 +419,8 @@ export default async function ExamPrepDetailPage({
   const settings = trackingV2
     ? {
         examDate: (prep.exam_date as string | null) ?? null,
-        dailyMinutes:
-          typeof prep.daily_minutes === "number" ? prep.daily_minutes : 45,
-        studyDays:
-          Array.isArray(prep.study_days) && prep.study_days.length
-            ? (prep.study_days as number[])
-            : [1, 2, 3, 4, 5],
+        dailyMinutes: prepDailyMinutes(prep.daily_minutes),
+        studyDays: prepStudyDays(prep.study_days),
         hardTopics: Array.isArray(prep.hard_topics_self)
           ? (prep.hard_topics_self as string[])
           : [],

@@ -11,7 +11,7 @@ import { formatDocumentProcessProgress } from "@/lib/documents/process-progress-
 import { messageFromProcessBody } from "@/lib/documents/process-user-message";
 import {
   clearPendingDocProcess,
-  readPendingDocProcess,
+  readPendingDocProcesses,
   writePendingDocProcess,
 } from "@/lib/documents/pending-doc-process";
 import {
@@ -122,7 +122,7 @@ export function PrepMaterialAdder({
     const processed = result.body;
     // Silent automatic retries — student sees progress only until exhaustion.
     if (result.status === 402) {
-      clearPendingDocProcess();
+      clearPendingDocProcess({ documentId: input.documentId });
       setProcessDetail(null);
       if (isFreePageLimitError(processed)) {
         if (typeof processed.error === "string") setPaywallMessage(processed.error);
@@ -143,7 +143,7 @@ export function PrepMaterialAdder({
       return;
     }
     if (!result.ok) {
-      clearPendingDocProcess();
+      clearPendingDocProcess({ documentId: input.documentId });
       const message = messageFromProcessBody(processed);
       // A map out of attempts is not an error: just offer "Tekrar dene".
       const calm = processed.canRetry === true;
@@ -157,15 +157,15 @@ export function PrepMaterialAdder({
       });
       return;
     }
-    clearPendingDocProcess();
+    clearPendingDocProcess({ documentId: input.documentId });
     setProcessAlert(null);
     setProcessDetail(null);
     await attach(input.documentId);
   }
 
   useEffect(() => {
-    const pending = readPendingDocProcess();
-    if (!pending || pending.surface !== "prep-add" || resumeRef.current) return;
+    const pending = readPendingDocProcesses("prep-add")[0];
+    if (!pending || resumeRef.current) return;
     resumeRef.current = true;
     setBusy(true);
     void processThenAttach({
@@ -311,8 +311,8 @@ export function PrepMaterialAdder({
                     toast.error("Kaldırılamadı.");
                     return;
                   }
+                  clearPendingDocProcess({ documentId: failedUpload.documentId });
                   setFailedUpload(null);
-                  clearPendingDocProcess();
                 })
                 .catch(() => toast.error("Bağlantı hatası."));
             }}
