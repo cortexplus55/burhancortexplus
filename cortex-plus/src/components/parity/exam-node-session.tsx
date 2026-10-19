@@ -11,7 +11,8 @@ import {
   generationFailureCode,
   type GenerationFailure,
 } from "@/lib/learning/generation-failure";
-import { useIsFounder } from "@/lib/student/student-shell-context";
+import { useIsFounder, useStudentShellAccount } from "@/lib/student/student-shell-context";
+import { creditGateCopy } from "@/lib/billing/free-reach";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
@@ -214,6 +215,9 @@ export function ExamNodeSession({
 }) {
   const router = useRouter();
   const isAdmin = useIsFounder();
+  // Kredi kapısının cümlesi: ücretsiz hakkı aşan işte (podcast, sözlü) "doldu" denmez (free-reach.ts).
+  const shellAccount = useStudentShellAccount();
+  const gateCopy = creditGateCopy(kind, shellAccount?.isPremium ?? false);
   const meta = PLAN_NODE_META[kind];
   // Referans üründeki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
@@ -1955,11 +1959,8 @@ export function ExamNodeSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message={
-          paywallReason === "premium"
-            ? "Sesli tekrar için hakkın yetmedi."
-            : "Bu ders için kullanım hakkın doldu."
-        }
+        message={paywallReason === "premium" ? "Sesli tekrar için hakkın yetmedi." : gateCopy.message}
+        beyondFreeDaily={paywallReason !== "premium" && gateCopy.beyondFreeDaily}
         returnPath={`/deneme-sinavlari/${prepId}`}
       />
     </div>

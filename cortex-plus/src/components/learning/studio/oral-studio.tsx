@@ -269,7 +269,13 @@ export function OralStudio({
         />
       ) : null}
 
-      <StudioPaywall open={paywall} onOpenChange={setPaywall} returnPath="/studio/sozlu" />
+      <StudioPaywall
+        open={paywall}
+        onOpenChange={setPaywall}
+        returnPath="/studio/sozlu"
+        action="ORAL_EXAM_GENERATE"
+        actionLabel="Sözlü deneme"
+      />
     </StudioFrame>
   );
 }

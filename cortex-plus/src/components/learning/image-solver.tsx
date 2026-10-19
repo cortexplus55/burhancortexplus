@@ -214,6 +214,8 @@ export function ImageSolver() {
         open={paywall}
         onOpenChange={setPaywall}
         message="Fotoğraftan çözüm için kullanım hakkın doldu."
+        action="IMAGE_SOLUTION"
+        actionLabel="Fotoğraftan çözüm"
         returnPath="/soru-coz"
       />
     </>

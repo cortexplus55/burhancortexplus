@@ -8,6 +8,8 @@ import { X } from "lucide-react";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import "@/styles/oral-exam-chrome.css";
 import { chooseStudyNode } from "@/lib/learning/choose-study-node";
+import { toolBeyondFreeDaily } from "@/lib/billing/free-reach";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import {
   STUDY_HUB_HINT,
   STUDY_TOOLS,
@@ -72,6 +74,8 @@ export function StudyToolsHub({
   /** Açılacak sekme; yoksa önerilen etkinliğin sekmesi. */
   initialGroup?: StudyToolGroup;
 }) {
+  const shellAccount = useStudentShellAccount();
+  const freeAccount = shellAccount ? !shellAccount.isPremium : false;
   // Astra gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
   const recommended = recommendedStudyTool(nodes, preferred);
   const [group, setGroup] = useState<StudyToolGroup>(initialGroup ?? recommended?.group ?? "learn");
@@ -157,7 +161,12 @@ export function StudyToolsHub({
                 <span className={`cp-study-hub-icon cp-study-hub-icon--${tool.id} cp-study-hub-icon--3d`} aria-hidden>
                   <Icon3D name={TOOL_ICONS[tool.id]} size={40} />
                 </span>
-                {recommended?.id === tool.id ? <span className="cp-study-hub-badge">Önerilen</span> : null}
+                {recommended?.id === tool.id ? (
+                  <span className="cp-study-hub-badge">Önerilen</span>
+                ) : freeAccount && toolBeyondFreeDaily(tool.id) ? (
+                  /* 19 Ekim 2026: ücretsiz günlük haktan büyük iş; kapıya kurulumdan sonra çarpmasın. */
+                  <span className="cp-study-hub-badge cp-study-hub-badge--plus">Plus</span>
+                ) : null}
                 <strong>{lock ? `🔒 ${tool.title}` : tool.title}</strong>
                 <em>{lock ?? (href ? tool.blurb : "Bu konuda yok")}</em>
               </>
