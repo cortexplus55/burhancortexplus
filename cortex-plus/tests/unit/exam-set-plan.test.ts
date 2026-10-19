@@ -147,9 +147,9 @@ describe("başlıkta kendi yazımı olan kelime", () => {
 describe("ders ekranındaki 'N kaynak'", () => {
   it("konuya bağlı etkinlikte konunun dosyaları ve sayfaları", () => {
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
-    expect(page).toContain('.select("label, familiarity, source_refs")');
+    expect(page).toContain('.select("id, label, familiarity, source_refs")');
     expect(page).toContain("TOPIC_SCOPED_KINDS.has(node.kind as PlanNodeKind)");
-    expect(page).toContain("topicPages.size ? sourceIds.filter((id) => topicPages.has(id)) : sourceIds");
+    expect(page).toContain("sourceIds.filter((id) => topicPages.has(id) || supportByDoc.has(id))");
     const dialog = readFileSync("src/components/parity/node-sources.tsx", "utf8");
     expect(dialog).toContain("source.pages");
   });

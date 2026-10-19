@@ -24,6 +24,7 @@ import {
 } from "@/lib/learning/lesson-prefetch";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
+import { loadTopicSupport, supportPagesForEngine, type SupportPage } from "@/lib/learning/topic-support-load";
 import { runTeacherLesson, type PublishedLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 import { awardStars } from "@/lib/stars/award";
@@ -2113,6 +2114,14 @@ async function handleNodeRequest(
     }
   };
 
+  // Konunun yardımcı kaynakları (defter, test, kart fotoğrafı; 19 Ekim 2026). Model çağrısı yok;
+  // okuma düşerse boş döner ve ders kendi sayfalarıyla yazılır.
+  const teacherCore =
+    (kind === "lesson" || TEACHER_PAGE_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length && !voiceSession;
+  const lessonSupport = teacherCore
+    ? loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null })
+    : Promise.resolve([]);
+
   generationLaunchedMs = Date.now() - requestStarted;
   const generation: Promise<Record<string, unknown>> = (async () =>
     voiceSession
@@ -2153,8 +2162,12 @@ async function handleNodeRequest(
           mood: kind === "oral" ? mood : DEFAULT_MOOD,
           sourceBlock: source.block,
           lessonCore:
-            (kind === "lesson" || TEACHER_PAGE_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length
-              ? { documentId: lessonCoreDocumentId, pages: lessonCorePages }
+            teacherCore && lessonCoreDocumentId
+              ? {
+                  documentId: lessonCoreDocumentId,
+                  pages: lessonCorePages,
+                  support: supportPagesForEngine(await lessonSupport),
+                }
               : null,
           lessonTopicOnly,
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
@@ -2693,7 +2706,7 @@ async function generateNodePayload(input: {
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
   sourceBlock: string;
   /** Öğretmen motorunun okuyacağı belge ve konunun kendi sayfaları. */
-  lessonCore?: { documentId: string; pages: number[] } | null;
+  lessonCore?: LessonCore | null;
   /** Belgesiz hazırlık dersi (topic_only, hazırlıkta belge yok). */
   lessonTopicOnly?: boolean;
   repetitiveSparseEvidence?: boolean;
@@ -2899,6 +2912,17 @@ async function generateNodePayload(input: {
 }
 
 /**
+ * Öğretmen motorlarının kaynağı: konunun kendi belgesi ve sayfaları; support, kendi dosyası dışından
+ * gelen yardımcı sayfalar (defter, test, kart fotoğrafı; topic-support-pages.ts, 19 Ekim 2026).
+ */
+type LessonCore = { documentId: string; pages: number[]; support?: SupportPage[] };
+
+/** Temiz çekirdek sayfalar, ardından etiketli yardımcı sayfalar. */
+function withSupport(clean: { page: number; text: string }[], core: LessonCore | null) {
+  return [...clean.map((item) => ({ page: item.page, text: item.text })), ...(core?.support ?? [])];
+}
+
+/**
  * Öğretmen motoru (2 Ekim 2026): temiz sayfalar → tek öğretmen istemi →
  * belgeyle eşleme → modelin düzeltmesi. Kod ders metnine bir şey eklemez.
  * Kredi motorun içinde ayrılır ve sonuçlanır.
@@ -2907,7 +2931,7 @@ async function teacherLessonPayload(
   input: Parameters<typeof generateNodePayload>[0],
   activity: ReturnType<typeof teachingActivityForKind>,
   /** null: belgesiz hazırlık; ders doğruluk kuralıyla yazılır. */
-  core: { documentId: string; pages: number[] } | null,
+  core: LessonCore | null,
 ) {
   const startedAt = Date.now();
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
@@ -2935,7 +2959,7 @@ async function teacherLessonPayload(
     // Kavram birimli konuda ders birimi anlatır: "Hukukun Temel Kavramları: Hükümsüzlüğün dereceleri".
     topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,
     prepTitle: input.prepTitle,
-    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    pages: withSupport(clean, core),
     upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     examPoints: input.examPoints,
@@ -3060,7 +3084,7 @@ async function saveTopicLesson(
  */
 async function teacherPodcastEpisode(
   input: Parameters<typeof generateNodePayload>[0],
-  core: { documentId: string; pages: number[] } | null,
+  core: LessonCore | null,
   length: PodcastLength,
 ) {
   const startedAt = Date.now();
@@ -3082,7 +3106,7 @@ async function teacherPodcastEpisode(
     charge: input.charge,
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
-    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    pages: withSupport(clean, core),
     lessonText: input.lessonContent ? lessonPodcastBrief(input.lessonContent) : undefined,
     syllabusLine: input.grounding?.trim() || undefined,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
@@ -3097,7 +3121,7 @@ async function teacherPodcastEpisode(
 /** Temiz çekirdek sayfalar ya da belgesiz; öğretmen motorlarının ortak kaynağı. */
 async function teacherPages(
   input: Parameters<typeof generateNodePayload>[0],
-  core: { documentId: string; pages: number[] } | null,
+  core: LessonCore | null,
 ) {
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
   const clean = core
@@ -3108,7 +3132,7 @@ async function teacherPages(
         edges,
       })
     : [];
-  return { edges, pages: clean.map((item) => ({ page: item.page, text: item.text })) };
+  return { edges, pages: withSupport(clean, core) };
 }
 
 /**
@@ -3119,7 +3143,7 @@ async function teacherPages(
 async function teacherCardsPayload(
   input: Parameters<typeof generateNodePayload>[0],
   activity: ReturnType<typeof teachingActivityForKind>,
-  core: { documentId: string; pages: number[] } | null,
+  core: LessonCore | null,
 ) {
   const startedAt = Date.now();
   const source = await teacherPages(input, core);
@@ -3158,7 +3182,7 @@ async function teacherCardsPayload(
 async function teacherTrueFalsePayload(
   input: Parameters<typeof generateNodePayload>[0],
   activity: ReturnType<typeof teachingActivityForKind>,
-  core: { documentId: string; pages: number[] } | null,
+  core: LessonCore | null,
 ) {
   const startedAt = Date.now();
   const source = await teacherPages(input, core);
@@ -3248,7 +3272,7 @@ async function teacherQuizPayload(
   input: Parameters<typeof generateNodePayload>[0],
   activity: ReturnType<typeof teachingActivityForKind>,
   /** null: belgesiz hazırlık; sorular konunun yerleşik bilgisinden. */
-  core: { documentId: string; pages: number[] } | null,
+  core: LessonCore | null,
   count: number,
 ) {
   const startedAt = Date.now();
@@ -3270,7 +3294,7 @@ async function teacherQuizPayload(
     charge: input.charge,
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
-    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    pages: withSupport(clean, core),
     count,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     examPoints: input.examPoints,
