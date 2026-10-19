@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { dropExamWizardDraft } from "@/lib/learning/exam-wizard-draft";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-plan";
@@ -260,6 +261,9 @@ export function ExamCreateChat({
       } else {
         toast.success(`${days ?? ""} günlük planın hazır.`);
       }
+      // Sihirbazdan "Belgem yok" ile gelindiyse o taslak bu hazırlıktı: silinir. Yoksa Sınavlar'da
+      // "Taslaklar" ve sihirbaz "Kaldığın yerden devam ediyorsun" diye kurulmuş hazırlığı geri getiriyordu.
+      if (topicOnly) void dropExamWizardDraft();
       router.push(`/deneme-sinavlari/${payload.prepId}`);
       router.refresh();
     } catch {
