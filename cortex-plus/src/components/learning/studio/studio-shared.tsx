@@ -12,6 +12,7 @@ import { playPlusTone } from "@/lib/learning/studio-sound";
 import { downloadStudioCard } from "@/lib/learning/studio-share-card";
 import { cn } from "@/lib/utils";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
+import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import "@/styles/learning-studio.css";
 
 export type { StudioToolId };
@@ -25,15 +26,8 @@ export async function postStudio<T>(
   | { ok: false; error: string }
 > {
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const payload = (await res.json().catch(() => ({}))) as T & {
-      error?: string;
-      code?: string;
-    };
+    // Üretim düşünce bir kez kendiliğinden yeniden (19 Ekim 2026, "üretilemedi" görülmesin).
+    const { res, data: payload } = await postJsonWithRetry<T & { error?: string; code?: string }>(url, () => body);
     /*
       402 iki ayrı sebeple geliyor ve ikisine farklı kapı açılıyor: kredisi
       biten aboneye "ay başında yenilenir", aboneliği olmayana "Plus'a geç".

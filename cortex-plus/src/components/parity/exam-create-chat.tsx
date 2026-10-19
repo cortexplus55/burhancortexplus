@@ -236,7 +236,7 @@ export function ExamCreateChat({
         return;
       }
       if (!res.ok) {
-        toast.error(payload.error ?? "Plan oluşturulamadı.");
+        toast.error(payload.error ?? "Plan bu sefer tamamlanamadı; yeniden dene.");
         return;
       }
       if (payload.schedule?.summary) {

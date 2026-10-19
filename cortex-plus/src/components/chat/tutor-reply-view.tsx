@@ -95,7 +95,7 @@ export function TutorReplyView({
     return (
       <div className="cp-tutor-error" role="alert">
         <AlertCircle size={18} aria-hidden />
-        <p>Yanıt şu anda oluşturulamadı.</p>
+        <p>Yanıt bu sefer gelmedi; sorunu yeniden gönderebilirsin.</p>
         {onRetry ? (
           <button type="button" className="cp-tutor-error-retry" onClick={onRetry}>
             Yeniden dene

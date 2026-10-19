@@ -104,7 +104,7 @@ export function AdaptiveStudySession({
         if (res.ok && data.ok && data.content) {
           setContent(data.content as ActionContent);
         } else {
-          setStepNote("İçerik şu an üretilemedi; yine de devam edebilirsin.");
+          setStepNote("İçerik bu sefer gelmedi; yine de devam edebilirsin.");
         }
       } catch {
         setStepNote("Bağlantı sorunu; içeriği yenilemeyi dene.");

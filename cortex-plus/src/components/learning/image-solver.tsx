@@ -78,7 +78,7 @@ export function ImageSolver() {
         toast.error(
           ERROR_LABELS[code] ??
             payload.message ??
-            "Çözüm üretilemedi. Kredin düşmedi. Tekrar deneyebilirsin.",
+            "Çözüm bu sefer tamamlanamadı. Kredin düşmedi, yeniden dene.",
         );
         return;
       }
