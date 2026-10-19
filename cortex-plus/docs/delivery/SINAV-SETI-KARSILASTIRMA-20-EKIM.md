@@ -80,9 +80,19 @@ düzeyi / denemeler / tempo, sınav günü tahmini, bilgi eksikleri, konu listes
 | #377 | Kurulum konuları sihirbazın haritasından değil eski birleştirmeden türetiyordu (9 konu sayfasız, yanlış sayfalar); yol listeden farklı sırada; yalnız hafta içi (25 gün → 18); son 10 konu testsiz son güne yığıldı; "N kaynak" 7 dosyayı da gösteriyordu; "PH" | kurulum haritayı okur ve sırasını korur; sorulmayan çalışma günü = her gün; iki geçişli takvim; kaynak penceresi konunun dosyaları; pH/mRNA/DNA korunur |
 | #378 | Üç dosya hiçbir derse girmiyordu; iki konu tek fotoğraftan yazılacaktı | yardımcı kaynaklar (yukarıda) |
 | #379 | Hiç açılmamış derste her açılışta ~5 sn "Kaldığın yer açılıyor… kaydedilmiş cevapların yükleniyor" | açık oturum sunucuda okunur; yoksa sorgu ve ekran atlanır |
-| (bu PR) | Yeniden planlama (tarih, ayarlar, kaçırılan gün, uyarlamalı plan) konuları eski oturumlardan kuruyordu: dosya etiketi ve çok dersli konular kayboluyor, "zorlandığım" konu başa sıçrıyor, varsayılan yalnız hafta içi ve 45/60 dk tutarsız | tek yükleyici `loadPrepScheduleTopics`; ağırlık/zayıflık sırayı hiç değiştirmez; tek varsayılan (her gün, 45 dk); eski kurallar silindi |
-| (bu PR) | 7 dosya sırayla işleniyordu (~76 sn); bekleyen belge kaydı tek kayıttı ve bir sekmenin temizliği öbürününkini siliyordu | ücretli hesapta 3 dosya aynı anda, seçim sırası korunur; kayıt belge başına |
-| (bu PR) | Kurulumda konunun kaç dosyadan beslendiği görünmüyordu; tek konulu ünite konunun adını tekrar ediyordu | çok dosyalı konuda "N kaynak" (yardımcı dosyalar dahil); tekrar eden başlık yazılmaz |
+| #380 | Yeniden planlama (tarih, ayarlar, kaçırılan gün, uyarlamalı plan) konuları eski oturumlardan kuruyordu: dosya etiketi ve çok dersli konular kayboluyor, "zorlandığım" konu başa sıçrıyor, varsayılan yalnız hafta içi ve 45/60 dk tutarsız | tek yükleyici `loadPrepScheduleTopics`; ağırlık/zayıflık sırayı hiç değiştirmez; tek varsayılan (her gün, 45 dk); eski kurallar silindi |
+| #380 | 7 dosya sırayla işleniyordu (~76 sn); bekleyen belge kaydı tek kayıttı ve bir sekmenin temizliği öbürününkini siliyordu | ücretli hesapta 3 dosya aynı anda, seçim sırası korunur; kayıt belge başına |
+| #380 | Kurulumda konunun kaç dosyadan beslendiği görünmüyordu; tek konulu ünite konunun adını tekrar ediyordu | çok dosyalı konuda "N kaynak" (yardımcı dosyalar dahil); tekrar eden başlık yazılmaz |
+| (bu PR) | İşaretli test fotoğrafı üç okumanın üçünde yanlış harflendi: iki sütunlu şıklar sütun sütun okunup yeniden harflendirildi, son şıklar düştü, "doğrusu C (~%70)" bikarbonat yerine karbaminohemoglobine bağlandı; öğrencinin işaretlediği şık yazılmıyordu. Okuyucu gpt-4o-mini fotoğrafı ~25.500 jeton sayıyordu | fotoğrafı asıl model (luna) okur, gpt-4.1 yedek; şık kendi harfiyle, işaretli şık "(işaretli)", kelime değişmez; yazar notu işareti tanır; kullanım model model kayda geçer |
+
+## Canlı doğrulama (20 Ekim 2026, hazırlık 58d065e9)
+
+| Ne | Sonuç |
+|---|---|
+| #379: hiç açılmamış ders ("İdrarın Hormonal Kontrolü ve Böbrek Homeostazisi") | "Kaldığın yer" ekranı yok; ilk ekran ~8 sn (ısınma kartlarda başladı), "3 kaynak" |
+| #378: kaynak penceresi | AYT PDF s.63–64 · Homeostazi-Son-Tekrar-Notu.docx "ek: parça 2" · Test-14 fotoğrafı "ek: parça 2" |
+| #378: işaretli testteki ADH sorusu derste | ders yanılgıyı doğrusuyla ele alıyor: "ADH arka hipofizde üretilir" yanlış → hipotalamusta üretilir, arka hipofizden kana verilir; alkol ADH'yi baskılar; toplama kanalında su geri emilimini artırır |
+| Aynı fotoğrafın CO₂ sorusu | okuma hatası bulundu (yukarıdaki satır); düzeltme bu PR'da |
 
 ## Açık kalan
 

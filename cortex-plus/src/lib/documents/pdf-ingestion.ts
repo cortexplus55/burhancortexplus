@@ -4,7 +4,7 @@ import { extractText } from "@/lib/documents/extract-text";
 import { renderPdfPages, BLANK_INK_RATIO } from "@/lib/documents/render-pdf-pages";
 
 type RenderedPage = Awaited<ReturnType<typeof renderPdfPages>>["pages"][number];
-import { extractImageText } from "@/lib/documents/extract-image-text";
+import { extractImageText, mergeUsage, type ModelUsage } from "@/lib/documents/extract-image-text";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import { AdminCheckError } from "@/lib/auth/roles";
 import { billingExempt } from "@/lib/billing/free-preview";
@@ -12,7 +12,6 @@ import { getActionCost, reserveCredits, refundCredits, recordUsage } from "@/lib
 import { chargeNow } from "@/lib/credits/charge-now";
 import { spendableCredits } from "@/lib/credits/spendable-server";
 import { chunkText, embedTexts } from "@/lib/rag/pipeline";
-import { env } from "@/lib/env";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 import { cappedPageTotal, freePagesRemaining } from "@/lib/documents/free-pages";
@@ -198,8 +197,8 @@ async function ocrOneBlankPage(input: {
   failed: boolean;
   /** Resim sayfası hakkı dolduğu için okunmadı (belge düşmez, 3 Ekim 2026). */
   quotaSkipped?: boolean;
-  tokensIn: number;
-  tokensOut: number;
+  /** Bütün okuma denemelerinin jetonları, model model (ikinci deneme dahil). */
+  usage: ModelUsage[];
   rateLimited?: boolean;
 }> {
   const {
@@ -224,8 +223,7 @@ async function ocrOneBlankPage(input: {
         ocrSuccess: false,
         failed: true,
         quotaSkipped: true,
-        tokensIn: 0,
-        tokensOut: 0,
+        usage: [],
       };
     }
   }
@@ -247,8 +245,7 @@ async function ocrOneBlankPage(input: {
         ocrSuccess: false,
         failed: true,
         quotaSkipped: true,
-        tokensIn: 0,
-        tokensOut: 0,
+        usage: [],
       };
     }
     claimed = true;
@@ -265,8 +262,10 @@ async function ocrOneBlankPage(input: {
   };
 
   let read = await extractImageText(png, "image/png", { deadlineMs });
+  let usage = read.usage;
   if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
     read = await extractImageText(png, "image/png", { deadlineMs });
+    usage = mergeUsage(usage, read.usage);
   }
 
   if (read.reason === "blocked") {
@@ -281,8 +280,7 @@ async function ocrOneBlankPage(input: {
       claimed: false,
       ocrSuccess: false,
       failed: true,
-      tokensIn: read.tokensIn,
-      tokensOut: read.tokensOut,
+      usage,
     };
   }
 
@@ -293,8 +291,7 @@ async function ocrOneBlankPage(input: {
       claimed,
       ocrSuccess: true,
       failed: false,
-      tokensIn: read.tokensIn,
-      tokensOut: read.tokensOut,
+      usage,
       rateLimited: read.rateLimited,
     };
   }
@@ -311,8 +308,7 @@ async function ocrOneBlankPage(input: {
     claimed: false,
     ocrSuccess: false,
     failed: !blank,
-    tokensIn: read.tokensIn,
-    tokensOut: read.tokensOut,
+    usage,
     rateLimited: read.rateLimited,
   };
 }
@@ -445,11 +441,12 @@ export async function readPdfBatch(
         if (result.ocrSuccess) ocrPageNumbers.push(number);
         if (result.failed) failedPages.push(number);
         if (result.quotaSkipped) scanSkipped.push(number);
-        if (result.tokensIn || result.tokensOut) {
+        for (const entry of result.usage) {
+          if (!entry.tokensIn && !entry.tokensOut) continue;
           await recordUsage(service, {
             userId, actionCode: "DOCUMENT_PAGE_PROCESS",
-            model: env.OPENAI_STANDARD_MODEL,
-            tokensIn: result.tokensIn, tokensOut: result.tokensOut,
+            model: entry.model,
+            tokensIn: entry.tokensIn, tokensOut: entry.tokensOut,
           });
         }
       })();

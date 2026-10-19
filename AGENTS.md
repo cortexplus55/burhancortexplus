@@ -835,6 +835,25 @@ Bekçi: `exam-set-plan.test.ts`, `topic-support-pages.test.ts`, `node-open-no-re
 `office-documents.test.ts`, `outline-grounding.test.ts`, `prep-schedule-reload.test.ts`, `upload-batch.test.ts`,
 `wizard-topic-sources.test.ts`.
 
+## Fotoğraf okuma: şık kendi harfiyle, işaret yazılır (20 Ekim 2026)
+
+**Sınav setinin işaretli test fotoğrafı (Test-14) canlıda üç kez okundu, üçünde de harfler kaydı.**
+Okuyucu (gpt-4o-mini) iki sütunlu şıkları sütun sütun okuyup A, B, C… diye yeniden harflendirdi, son
+şıkları düşürdü ve bir şıkkın sözünü değiştirdi. Kâğıttaki "doğrusu C (~%70)" bikarbonat yerine
+karbaminohemoglobine bağlandı: derse giden bilgi yanlışlandı. Öğrencinin işaretlediği şık hiç yazılmıyordu.
+Bedel de tersmiş: mini yüksek ayrıntılı bir fotoğrafı ~25.500 girdi jetonu sayıyor (~$0,0038); luna'da
+fotoğraflı istek ~1.050 jeton (~$0,0003, çıktı dahil).
+
+| Yapmayın | Yapın |
+|---|---|
+| Fotoğrafı ya da taranmış sayfayı gpt-4o-mini ile okumak ("önce ucuz model") | Önce asıl model (luna, `reasoning_effort: "low"`), okuyamazsa gpt-4.1 (`imageReadLadder`) |
+| Şıkları okuma sırasına göre yeniden harflendirmek, şık atlamak, kelime düzeltmek | Her şık kâğıttaki kendi harfiyle, harf sırasıyla; metin olduğu gibi (temizlik sonra) |
+| Öğrencinin işaretini atlamak | İşaretli şıkkın sonuna `(işaretli)`, el yazısı düzeltme yerinde; yazar notu (`SUPPORT_SOURCE_NOTE`) aynı adı tanır ve yanılgıyı derste ele aldırır |
+| Okumanın jetonunu tek modele yazmak | Her deneme kendi modeliyle kayda geçer (`usage`, `mergeUsage`); taranmış sayfanın ikinci denemesi de |
+
+Kayıtlı eski okumalar kendiliğinden düzelmez; dosya yeniden yüklenince yeni kuralla okunur. Bekçi:
+`photo-documents.test.ts`, `scanned-pdf.test.ts`.
+
 ## Plus'ın bir ayı — misafire ve ücretsiz öğrenciye (20 Ekim 2026)
 
 Ürün sahibi: "plus alan biri bütün bir plus hesabıyla neler yapabilir, kaç adet kullanabilir; misafir

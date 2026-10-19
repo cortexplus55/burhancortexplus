@@ -10,7 +10,8 @@ import { readFileSync } from "node:fs";
 
   Bu dosya, düzeltmenin dört kırılgan yerini tutuyor:
 
-  1. ÖNCE UCUZ MODEL. Pahalıya ancak ucuzu okuyamadığında çıkılmalı.
+  1. OKUMA SIRASI. Önce asıl model (luna: fotoğrafta hem en ucuz hem en doğru
+     okuyan, 20 Ekim 2026 ölçümü); ikinci modele ancak ilki okuyamadığında.
   2. OKUNAMAYAN FOTOĞRAF KOTA YAKMAMALI — hak geri verilmeli.
   3. Kotası dolmuş bir PLUS ABONESİNE kredi satılmamalı; kredi bu sorunu
      çözmüyor.
@@ -33,9 +34,10 @@ vi.mock("openai", () => ({
 
 vi.mock("@/lib/ai/moderation", () => ({ moderate: mocks.moderate }));
 
-const { extractImageText, isImageDocument } = await import(
+const { extractImageText, imageReadLadder, isImageDocument } = await import(
   "@/lib/documents/extract-image-text"
 );
+const { SUPPORT_SOURCE_NOTE } = await import("@/lib/learning/teacher-lesson");
 const { PHOTO_PAGE_LIMITS, photoPageLimit, planTier } = await import(
   "@/lib/documents/photo-quota"
 );
@@ -73,20 +75,18 @@ describe("hangi belge fotoğraf", () => {
 });
 
 describe("kademeli okuma", () => {
-  /* Düzgün çekilmiş bir ders notunu ucuz model de okuyor; gpt-4o 1.000 jeton
-     başına ~17 kat pahalı. Pahalıya her fotoğrafta çıkmak, kademeyi anlamsız
-     kılardı. */
-  it("ucuz model okuduysa pahalıya hiç çıkmıyor", async () => {
+  /* İkinci modele her fotoğrafta çıkmak kademeyi anlamsız kılardı. */
+  it("asıl model okuduysa ikinciye hiç çıkmıyor", async () => {
     mocks.create.mockResolvedValueOnce(reply(LONG));
     const result = await extractImageText(photo(), "image/jpeg");
 
     expect(result.ok).toBe(true);
     expect(result.pages).toEqual([LONG]);
-    expect(result.model).toBe("gpt-4o-mini");
+    expect(result.model).toBe("gpt-6-luna");
     expect(mocks.create).toHaveBeenCalledTimes(1);
   });
 
-  it("ucuz model okuyamazsa pahalıya çıkıyor", async () => {
+  it("asıl model okuyamazsa gpt-4.1'e çıkıyor", async () => {
     mocks.create
       .mockResolvedValueOnce(reply("[METIN_YOK]"))
       .mockResolvedValueOnce(reply(LONG));
@@ -95,8 +95,35 @@ describe("kademeli okuma", () => {
     expect(result.ok).toBe(true);
     expect(result.model).toBe("gpt-4.1");
     expect(mocks.create).toHaveBeenCalledTimes(2);
-    expect(mocks.create.mock.calls[0][0].model).toBe("gpt-4o-mini");
+    expect(mocks.create.mock.calls[0][0].model).toBe("gpt-6-luna");
     expect(mocks.create.mock.calls[1][0].model).toBe("gpt-4.1");
+  });
+
+  /* 20 Ekim 2026: gpt-4o-mini bir fotoğrafı ~25.500 girdi jetonu sayıyordu (luna ~1.050) ve
+     işaretli test fotoğrafının üç okumasının üçünde iki sütunlu şıkları yeniden harflendirdi. */
+  it("gpt-4o-mini fotoğraf okumuyor; luna düşük çabayla, gpt-4.1 akıl yürütme parametresiz", async () => {
+    expect(imageReadLadder()).toEqual(["gpt-6-luna", "gpt-4.1"]);
+    mocks.create
+      .mockResolvedValueOnce(reply("[METIN_YOK]"))
+      .mockResolvedValueOnce(reply(LONG));
+    await extractImageText(photo(), "image/jpeg");
+
+    expect(mocks.create.mock.calls[0][0].reasoning_effort).toBe("low");
+    // gpt-4.1 akıl yürüten model değil: parametreyi alırsa çağrı 400 ile düşer.
+    expect(mocks.create.mock.calls[1][0]).not.toHaveProperty("reasoning_effort");
+  });
+
+  /* Kayıt her denemeyi kendi modeliyle yazar; maliyet tablosu model fiyatıyla çarpar. */
+  it("kullanım model model ayrılıyor", async () => {
+    mocks.create
+      .mockResolvedValueOnce(reply("[METIN_YOK]", 1000, 10))
+      .mockResolvedValueOnce(reply(LONG, 800, 60));
+
+    const result = await extractImageText(photo(), "image/jpeg");
+    expect(result.usage).toEqual([
+      { model: "gpt-6-luna", tokensIn: 1000, tokensOut: 10 },
+      { model: "gpt-4.1", tokensIn: 800, tokensOut: 60 },
+    ]);
   });
 
   /* Tek kelimelik bir cevap ya da modelin özrü, gömülüp aranabilir hâle
@@ -156,6 +183,22 @@ describe("kademeli okuma", () => {
     const prompt = mocks.create.mock.calls[0][0].messages[0].content[0].text;
     expect(prompt).toContain("Soruyu ÇÖZME");
     expect(prompt).toContain("olduğu gibi yaz");
+  });
+
+  /* Sınav seti, Test-14 (20 Ekim 2026): iki sütunlu şıklar sütun sütun okunup yeniden
+     harflendirildi; kâğıttaki "doğrusu C (~%70)" bikarbonat yerine karbaminohemoglobine
+     bağlandı. Testte harf anlamın kendisi; öğrencinin işareti de yanılgının kendisi. */
+  it("istem: şık kendi harfiyle kalır, işaret yazılır, kelime değişmez", async () => {
+    mocks.create.mockResolvedValueOnce(reply(LONG));
+    await extractImageText(photo(), "image/jpeg");
+
+    const prompt = mocks.create.mock.calls[0][0].messages[0].content[0].text;
+    expect(prompt).toContain("kâğıtta yanında basılı olan harfle");
+    expect(prompt).toContain("harfleri yeniden dağıtma");
+    expect(prompt).toContain("(işaretli)");
+    expect(prompt).toContain("Kelimeleri değiştirme");
+    // Ders, test, kart ve podcast yazarı işareti aynı adla tanır.
+    expect(SUPPORT_SOURCE_NOTE).toContain("(işaretli) öğrencinin seçtiği şıktır");
   });
 });
 
@@ -348,7 +391,9 @@ describe("boru hattı", () => {
      tekrarlamayalım. Okunamayan denemenin faturası da bize geliyor. */
   it("okuma maliyetini kaydediyor", () => {
     expect(source).toContain('actionCode: "DOCUMENT_PAGE_PROCESS"');
-    expect(source).toMatch(/recordVision\(read\.tokensIn, read\.tokensOut/);
+    // Her deneme kendi modeliyle: fotoğrafta da taranmış PDF'te de.
+    expect(source.match(/recordVision\(read\.usage\)/g)).toHaveLength(2);
+    expect(source).toContain("model: entry.model");
   });
 
   /* Kota okumadan ÖNCE alınmalı: sonra alınsaydı kotası dolmuş bir hesap

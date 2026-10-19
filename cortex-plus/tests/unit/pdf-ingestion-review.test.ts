@@ -235,6 +235,7 @@ describe("readPdfBatch deadline prefix", () => {
         model: "m",
         tokensIn: 1,
         tokensOut: 1,
+        usage: [{ model: "m", tokensIn: 1, tokensOut: 1 }],
       };
     });
 
@@ -310,6 +311,7 @@ describe("readPdfBatch OCR claim release on quota failure (B5)", () => {
         model: "m",
         tokensIn: 1,
         tokensOut: 1,
+        usage: [{ model: "m", tokensIn: 1, tokensOut: 1 }],
       };
     });
 
