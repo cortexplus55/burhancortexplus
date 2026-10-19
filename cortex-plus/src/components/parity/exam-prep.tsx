@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
+import { WeeklySurveyCard } from "@/components/feedback/weekly-survey-card";
 import { cn } from "@/lib/utils";
 import {
   draftStarted,
@@ -72,6 +73,9 @@ export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
           </Link>
         ))}
       </nav>
+
+      {/* Haftalık kısa anket (kapalı beta): o hafta çalışana haftada bir kez; kararı sunucu verir. */}
+      <WeeklySurveyCard />
 
       {cards.length ? (
         <section className="cp-prep-row-section" aria-labelledby="my-preps-title">

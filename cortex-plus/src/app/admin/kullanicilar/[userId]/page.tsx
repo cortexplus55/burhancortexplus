@@ -8,6 +8,13 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
+import { isTrialPeriod } from "@/lib/payments/subscription";
+import {
+  failureReasonLabel,
+  nodeKindLabel,
+  paymentStatusLabel,
+  subscriptionStatusLabel,
+} from "@/lib/admin/support-labels";
 
 export const metadata = { title: "Yönetim · Kullanıcı" };
 export const dynamic = "force-dynamic";
@@ -41,7 +48,7 @@ export default async function AdminKullaniciPage({ params }: { params: Promise<{
   const [{ data: subscription }, { data: preps }, { data: failures }, { data: payments }] = await Promise.all([
     service
       .from("subscriptions")
-      .select("id, status, current_period_end, plans(name, slug)")
+      .select("id, status, current_period_end, trial_until, plans(name, slug)")
       .eq("user_id", userId)
       .order("current_period_end", { ascending: false, nullsFirst: false })
       .limit(1)
@@ -116,8 +123,14 @@ export default async function AdminKullaniciPage({ params }: { params: Promise<{
         {subscription ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm">
-              {plan ?? "Plan"} · {subscriptionActive ? "etkin" : String(subscription.status)} · bitiş{" "}
-              {subscription.current_period_end ? formatDate(subscription.current_period_end as string) : "—"}
+              {plan ?? "Plan"} ·{" "}
+              {subscriptionActive
+                ? "etkin"
+                : subscription.status === "active"
+                  ? "süresi doldu"
+                  : subscriptionStatusLabel(subscription.status as string)}{" "}
+              · bitiş {subscription.current_period_end ? formatDate(subscription.current_period_end as string) : "—"}
+              {isTrialPeriod(subscription as { trial_until: string | null; current_period_end: string | null }) ? " · beta denemesi (kodla)" : ""}
             </p>
             {subscriptionActive ? <SubscriptionExtend userId={profile.id} /> : null}
           </div>
@@ -158,8 +171,8 @@ export default async function AdminKullaniciPage({ params }: { params: Promise<{
             {failures.map((row, index) => (
               <tr key={`${row.created_at}-${index}`}>
                 <td className="adm-num text-xs">{formatDate(row.created_at as string)}</td>
-                <td>{(row.kind as string) ?? "—"}</td>
-                <td>{row.reason as string}</td>
+                <td>{nodeKindLabel(row.kind as string | null)}</td>
+                <td>{failureReasonLabel(row.reason as string | null)}</td>
                 <td className="text-xs">{(row.topic_label as string) ?? "—"}</td>
               </tr>
             ))}
@@ -176,7 +189,7 @@ export default async function AdminKullaniciPage({ params }: { params: Promise<{
               <tr key={row.id as string}>
                 <td className="adm-num text-xs">{formatDate(row.created_at as string)}</td>
                 <td className="adm-num">₺{formatNumber(Number(row.amount_try ?? 0))}</td>
-                <td>{row.status as string}</td>
+                <td>{paymentStatusLabel(row.status as string)}</td>
               </tr>
             ))}
           </AdminTableFrame>

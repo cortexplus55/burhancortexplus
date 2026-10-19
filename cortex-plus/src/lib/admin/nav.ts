@@ -1,6 +1,7 @@
 import {
   Activity,
   AlertTriangle,
+  ClipboardList,
   Coins,
   FileText,
   GraduationCap,
@@ -64,6 +65,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         blurb: "Hesapları ara, kredi ver ya da al, yetki değiştir, hesabı askıya al.",
       },
       {
+        href: "/admin/anket",
+        label: "Haftalık anket",
+        icon: ClipboardList,
+        blurb: "Öğrencilerin haftalık kısa ankete cevapları: ne kadar yardımcı oldu, önerir mi, en çok neyi kullandı, ne değişsin.",
+      },
+      {
         href: "/admin/ogretmen-basvurulari",
         label: "Öğretmen başvuruları",
         icon: GraduationCap,
@@ -90,7 +97,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/promosyonlar",
         label: "Kampanyalar",
         icon: Ticket,
-        blurb: "Ana ekrandaki duyuru bandı ve hediye kredi kodları. Bant, verdiğin bitiş tarihinde kendiliğinden kaybolur.",
+        blurb: "Ana ekrandaki duyuru bandı, hediye kredi kodları ve beta kodları (Plus denemesi). Bant, verdiğin bitiş tarihinde kendiliğinden kaybolur.",
       },
     ],
   },

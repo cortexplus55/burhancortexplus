@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { auditLog } from "@/lib/audit";
 import { formatDate } from "@/lib/format";
+import { familiarityLabel, failureReasonLabel, nodeKindLabel, nodeStatusLabel } from "@/lib/admin/support-labels";
 
 export const metadata = { title: "Yönetim · Hazırlık (salt okunur)" };
 export const dynamic = "force-dynamic";
@@ -99,7 +100,7 @@ export default async function AdminHazirlikPage({
           {(topics ?? []).map((topic) => (
             <AdminBadge key={topic.label as string} tone={topic.status === "done" ? "ok" : "mute"}>
               {topic.label as string}
-              {topic.familiarity ? ` · ${topic.familiarity as string}` : ""}
+              {topic.familiarity ? ` · ${familiarityLabel(topic.familiarity as string)}` : ""}
             </AdminBadge>
           ))}
         </div>
@@ -114,11 +115,11 @@ export default async function AdminHazirlikPage({
               return (
                 <tr key={node.id as string}>
                   <td className="adm-num">{index + 1}</td>
-                  <td>{node.kind as string}</td>
+                  <td>{nodeKindLabel(node.kind as string)}</td>
                   <td className="text-xs">{meta?.topicTitle || (node.title as string)}</td>
                   <td>
                     <AdminBadge tone={node.status === "done" ? "ok" : node.status === "ready" ? "gold" : "mute"}>
-                      {node.status as string}
+                      {nodeStatusLabel(node.status as string)}
                     </AdminBadge>
                   </td>
                   <td className="adm-num">
@@ -145,8 +146,8 @@ export default async function AdminHazirlikPage({
             {failures.map((row, index) => (
               <tr key={`${row.created_at}-${index}`}>
                 <td className="adm-num text-xs">{formatDate(row.created_at as string)}</td>
-                <td>{(row.kind as string) ?? "—"}</td>
-                <td>{row.reason as string}</td>
+                <td>{nodeKindLabel(row.kind as string | null)}</td>
+                <td>{failureReasonLabel(row.reason as string | null)}</td>
                 <td className="text-xs">{(row.topic_label as string) ?? "—"}</td>
                 <td className="text-xs">{((row.reasons as string[] | null) ?? []).slice(0, 2).join(" · ").slice(0, 220)}</td>
               </tr>
