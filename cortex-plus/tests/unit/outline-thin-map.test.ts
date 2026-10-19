@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FULL_PAGE_CHARS,
+  MIN_MINI_COVERAGE,
   minTopicsForMaterial,
   minTopicsForPages,
+  outlineCoverage,
+  outlineCoverageTooLow,
   outlineTooThin,
   prepareOutlineMaterial,
   runOutlineStep,
@@ -47,7 +50,11 @@ function trigPages(count: number, charsPerPage = 1_400) {
   }));
 }
 
-function draft(topicCount: number): OneShotOutlineDraft {
+/**
+ * `pagesPerTopic` spreads the topics over the file (topic i cites pages
+ * i·n+1 … i·n+n); 1 (default) stacks them on the first `topicCount` pages.
+ */
+function draft(topicCount: number, pagesPerTopic = 1): OneShotOutlineDraft {
   return {
     units: [
       {
@@ -59,8 +66,8 @@ function draft(topicCount: number): OneShotOutlineDraft {
           whyLearn: "Açı ölçülerini dönüştüreceksin.",
           description: "Açı",
           fileIndex: 0,
-          pageStart: i + 1,
-          pageEnd: i + 1,
+          pageStart: i * pagesPerTopic + 1,
+          pageEnd: i * pagesPerTopic + pagesPerTopic,
           examWeight: "high",
           likelyAsked: ["Derece radyan dönüşümü"],
           prerequisiteIds: [],
@@ -158,16 +165,50 @@ describe("ince konu haritası: mini yükseltilir, güçlü model kabul edilir", 
     }
   });
 
-  it("mini yeterli konu verince yükseltme yok", async () => {
+  it("mini yeterli konu verince ve konular dosyayı kapsayınca yükseltme yok", async () => {
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
-      return { ok: true, data: params.parse(draft(5)), reservationId: "r-mini" } as never;
+      // 5 konu × 4 sayfa = 20 sayfanın tamamı
+      return { ok: true, data: params.parse(draft(5, 4)), reservationId: "r-mini" } as never;
     });
     const { result } = await runToEnd(trigPages(20));
     expect(models).toEqual(["gpt-4o-mini"]);
     expect(result.kind).toBe("done");
     if (result.kind === "done") expect(result.map.kept).toBe(5);
+  });
+
+  it("konu sayısı yeterli ama konular dosyanın yalnız başını kapsıyorsa mini yükseltilir (KPSS 19 Ekim)", async () => {
+    // Canlı: 27 içerik sayfası, mini 7 konu tuttu, hepsi 3–11. sayfalarda → yol Siyasi Partiler'de bitti.
+    const models: string[] = [];
+    mockedGenerate.mockImplementation(async (params) => {
+      models.push(String(params.modelOverride));
+      const count = params.modelOverride === "gpt-4o-mini" ? 6 : 6;
+      const spread = params.modelOverride === "gpt-4o-mini" ? 1 : 4;
+      return { ok: true, data: params.parse(draft(count, spread)), reservationId: `r-${models.length}` } as never;
+    });
+    const { result } = await runToEnd(trigPages(27));
+    expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
+    expect(result.kind).toBe("done");
+    if (result.kind !== "done") return;
+    expect(result.path).toBe("escalate");
+    expect(result.map.model).toBe("gpt-4.1");
+    expect(result.release).toEqual(["r-1"]);
+  });
+
+  it("outlineCoverage: alıntılanan sayfaların payı", () => {
+    const topic = (pages: number[]) => ({
+      title: "t", sourceTitles: ["t"], fileIndex: 0, pageNumbers: pages, examWeight: "medium" as const,
+      likelyAsked: [], prerequisiteIds: [], prerequisiteTitles: [],
+    });
+    const candidate = { units: [{ title: "u", examWeight: "medium" as const, topics: [topic([3, 4, 5]), topic([5, 6])] }], kept: 2, proposed: 2, dropped: 0, model: "m", reservationIds: [] };
+    expect(outlineCoverage(candidate, 10)).toBeCloseTo(0.4);
+    expect(outlineCoverage(null, 10)).toBe(0);
+    expect(MIN_MINI_COVERAGE).toBe(0.6);
+    // Küçük ya da az metinli belgede kapsam kuralı yok (tek konulu not olabilir).
+    expect(outlineCoverageTooLow(candidate, { pageCount: 10, corpusChars: 2_000 })).toBe(false);
+    expect(outlineCoverageTooLow(candidate, { pageCount: 27, corpusChars: 27 * 1_400 })).toBe(true);
+    expect(outlineCoverageTooLow(null, { pageCount: 27, corpusChars: 27 * 1_400 })).toBe(false);
   });
 
   it("kısa belgede (2 dolu sayfa) ya da az metinli 20 sayfada mini'nin tek konusu yeterlidir", async () => {

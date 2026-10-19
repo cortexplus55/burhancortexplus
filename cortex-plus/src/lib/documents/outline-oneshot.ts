@@ -1024,6 +1024,10 @@ export type OutlineStepDiag = {
   proposed?: number;
   kept?: number;
   issues?: Record<string, number>;
+  /** First dropped topics with their cited range and reason. */
+  dropped?: string[];
+  /** Share of the material's pages the kept topics cite. */
+  coverage?: number;
   error?: string;
 };
 
@@ -1112,6 +1116,54 @@ export function outlineTooThin(
   material: { pageCount: number; corpusChars: number },
 ): boolean {
   return Boolean(candidate && candidate.kept < minTopicsForMaterial(material));
+}
+
+/**
+ * Share of the material's pages that the kept topics cite (19 Ekim 2026).
+ *
+ * A 30-page KPSS note came back from gpt-4o-mini as the ten headings of its
+ * table of contents; validation dropped three and the seven survivors all sat
+ * on pages 3–11. Six topics on a 27-page corpus passed the topic floor and the
+ * kept/proposed ratio, so the student got a path that stopped at "Siyasi
+ * Partiler" — Yasama, Yürütme and Yargı (two thirds of the file) had no topic.
+ * Topic count cannot see this; cited-page coverage can.
+ */
+export function outlineCoverage(candidate: OutlineCandidate | null, pageCount: number): number {
+  if (!candidate || pageCount <= 0) return 0;
+  const cited = new Set<string>();
+  for (const unit of candidate.units) {
+    for (const topic of unit.topics) {
+      for (const page of topic.pageNumbers) cited.add(`${topic.fileIndex}:${page}`);
+    }
+  }
+  return Math.min(1, cited.size / pageCount);
+}
+
+/** Mini's map must cite at least this share of the pages, or the strong model looks. */
+export const MIN_MINI_COVERAGE = 0.6;
+/** Coverage is judged only on material big enough for this many topics (≈11+ pages of text). */
+export const COVERAGE_MIN_TOPICS = 3;
+
+/** Mini's map stops well before the end of a sizeable file. */
+export function outlineCoverageTooLow(
+  candidate: OutlineCandidate | null,
+  material: { pageCount: number; corpusChars: number },
+): boolean {
+  if (!candidate) return false;
+  if (minTopicsForMaterial(material) < COVERAGE_MIN_TOPICS) return false;
+  return outlineCoverage(candidate, material.pageCount) < MIN_MINI_COVERAGE;
+}
+
+/** First few dropped topics, for the stage log ("Yürütme [20-23] low_title_coverage"). */
+export function droppedTitlesFor(issues: OneShotValidationIssue[], limit = 6): string[] {
+  const out: string[] = [];
+  for (const issue of issues) {
+    if (out.length >= limit) break;
+    if (issue.code === "ungrounded_topic") out.push(`${issue.title} [${issue.pageStart}-${issue.pageEnd}] ${issue.reason ?? "?"}`);
+    else if (issue.code === "page_range") out.push(`${issue.title} [${issue.pageStart}-${issue.pageEnd}] page_range`);
+    else if ("title" in issue) out.push(`${issue.title} ${issue.code}`);
+  }
+  return out;
 }
 
 function better(a: OutlineCandidate | undefined, b: OutlineCandidate | null | undefined) {
@@ -1271,7 +1323,14 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       : null;
     const fixed = repairedResult?.candidate ?? null;
     const diag: OutlineStepDiag = repaired.draft && repairedResult
-      ? { model, proposed: draftTopicCount(repaired.draft), kept: fixed?.kept ?? 0, issues: outlineIssueCounts(repairedResult.issues) }
+      ? {
+          model,
+          proposed: draftTopicCount(repaired.draft),
+          kept: fixed?.kept ?? 0,
+          issues: outlineIssueCounts(repairedResult.issues),
+          dropped: droppedTitlesFor(repairedResult.issues),
+          coverage: outlineCoverage(fixed, material.pageCount),
+        }
       : { model, error: repaired.error };
     const chosen = better(best, fixed);
     if (!chosen) {
@@ -1325,17 +1384,22 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     model,
     call.reservationId ? [call.reservationId] : [],
   );
+  const coverage = outlineCoverage(candidate, material.pageCount);
   const diag: OutlineStepDiag = {
     model,
     proposed: draftTopicCount(call.draft),
     kept: candidate?.kept ?? 0,
     issues: outlineIssueCounts(issues),
+    dropped: droppedTitlesFor(issues),
+    coverage,
   };
   // Mini's thin map is kept as `best` but not accepted: the strong model gets one
   // look at the whole corpus first. A thin map from the strong model is accepted —
   // a genuinely single-topic file exists, and there is no better model to ask.
-  const thinMini =
-    isMini && outlineTooThin(candidate, { pageCount: material.pageCount, corpusChars: material.corpus.length });
+  // "Thin" is too few topics for the material OR topics that cite only a small
+  // part of it (a map that stops a third of the way through the file).
+  const size = { pageCount: material.pageCount, corpusChars: material.corpus.length };
+  const thinMini = isMini && (outlineTooThin(candidate, size) || outlineCoverageTooLow(candidate, size));
   if (goodEnough(candidate) && !thinMini) {
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best), diag };
   }

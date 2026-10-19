@@ -952,7 +952,15 @@ export async function runCourseMapRound(
         ...(step.kind === "exhausted" ? { reason: step.reason } : {}),
         // Bu çağrının taslağı: model, önerilen/tutulan konu, düşme sebepleri (19 Ekim 2026).
         ...("diag" in step && step.diag
-          ? { draftModel: step.diag.model, proposed: step.diag.proposed, keptTopics: step.diag.kept, issues: step.diag.issues, callError: step.diag.error }
+          ? {
+              draftModel: step.diag.model,
+              proposed: step.diag.proposed,
+              keptTopics: step.diag.kept,
+              coverage: step.diag.coverage,
+              issues: step.diag.issues,
+              dropped: step.diag.dropped,
+              callError: step.diag.error,
+            }
           : {}),
       });
 
