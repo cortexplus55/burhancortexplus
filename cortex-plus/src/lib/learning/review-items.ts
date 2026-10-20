@@ -41,7 +41,7 @@ export const REVIEW_SOURCE_LABEL: Record<ReviewSourceKind, string> = {
   card: "Kart",
 };
 
-type ChoiceForm = { prompt: string; options: string[]; correct: string[] };
+type ChoiceForm = { prompt: string; options: string[]; correct: string[]; explanation?: string };
 
 export type StoredReviewItem =
   | {
@@ -161,7 +161,9 @@ export function reviewPromptKey(item: StoredReviewItem): string {
   const stem = fold(stripEmphasis(item.mode === "choice" ? item.prompt : item.front));
   const answer = fold(item.mode === "choice" ? item.correct.join("|") : stripEmphasis(item.back));
   const full = `${stem}|${answer}`;
-  return `${fnv(full, 2166136261)}${fnv(full, 0x811c9dc5 ^ 0x5bd1e995)}|${stem.slice(0, 48)}`;
+  // Yalnız özet (20 Ekim 2026 inceleme): okunur kök öneki `.in()` süzgecinde tırnak/ters bölü/parantezle
+  // bozuluyor, yeniden kaçan soru 1. güne dönmüyordu.
+  return `${fnv(full, 2166136261)}${fnv(full, 0x811c9dc5 ^ 0x5bd1e995)}`;
 }
 
 /**
@@ -221,7 +223,8 @@ function variantFor(
   if (!accepted) return undefined;
   const right = accepted.options[accepted.answerIndex];
   if (!right) return undefined;
-  return { prompt: accepted.prompt, options: accepted.options, correct: [right] };
+  // Varyantın kendi açıklaması: ana sorunun gerekçesi ona ait değil (doğru/yanlışta cevap ters olabilir).
+  return { prompt: accepted.prompt, options: accepted.options, correct: [right], ...(accepted.explanation ? { explanation: accepted.explanation } : {}) };
 }
 
 function lessonCheckItem(check: SectionCheck, source: string): StoredReviewItem | null {
@@ -450,6 +453,7 @@ const choiceFormSchema = z.object({
   prompt: z.string().min(2).max(4000),
   options: z.array(z.string().min(1).max(1500)).min(2).max(6),
   correct: z.array(z.string().min(1).max(1500)).min(1).max(6),
+  explanation: z.string().max(3000).optional().catch(undefined),
 });
 
 const storedItemSchema = z.discriminatedUnion("mode", [
@@ -595,10 +599,10 @@ export function reviewReveal(item: StoredReviewItem, askCount: number) {
     : undefined;
   return {
     correctAnswers: form?.correct ?? item.correct,
-    ...(item.explanation ? { explanation: item.explanation } : {}),
+    ...(form?.variant ? (form.explanation ? { explanation: form.explanation } : {}) : item.explanation ? { explanation: item.explanation } : {}),
     // "Doğrusu" orijinal önermeye ait; yazarın tekrar kökünde gösterilmez.
     ...(item.corrected && form && !form.variant ? { corrected: item.corrected } : {}),
-    ...(optionWhy && Object.keys(optionWhy).length ? { optionWhy } : {}),
+    ...(optionWhy && Object.keys(optionWhy).length && !form?.variant ? { optionWhy } : {}),
   };
 }
 
