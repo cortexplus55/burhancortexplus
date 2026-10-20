@@ -107,7 +107,9 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(11);
+    expect(checks).toHaveLength(12);
+    // 20 Ekim 2026: sonuca göre yol fonksiyonu da soruluyor.
+    expect(find(checks, "Sonuca göre yol").ok).toBe(true);
     expect(find(checks, "Öğretmen analizi").ok).toBe(true);
     expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 6, podcast 12 kredi");
   });

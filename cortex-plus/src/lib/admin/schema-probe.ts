@@ -72,6 +72,22 @@ async function probeRefundFunction(service: SupabaseClient): Promise<boolean> {
   return !(error && /could not find the function|PGRST202/i.test(error.message));
 }
 
+/**
+ * Sonuca göre yol fonksiyonu yerinde mi (20 Ekim 2026). Boş argümanla sorulur: güncelleme hiçbir
+ * satırı tutmaz, ekleme zorunlu alanda düşer ve işlem geri alınır. Yoksa PostgREST bulamaz.
+ */
+async function probePathInsert(service: SupabaseClient): Promise<boolean> {
+  const { error } = await service.rpc("exam_path_insert_after", {
+    p_prep_id: null,
+    p_after_sort: null,
+    p_kind: null,
+    p_title: null,
+    p_day_index: null,
+    p_session_meta: null,
+  });
+  return !(error && /could not find the function|PGRST202/i.test(error.message));
+}
+
 async function hasTable(
   service: SupabaseClient,
   table: string,
@@ -87,7 +103,7 @@ export async function probeSchema(
     .from("document_teacher_analyses")
     .select("document_id")
     .limit(1);
-  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch] = await Promise.all([
+  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch, pathInsert] = await Promise.all([
     probeCreditReserve(service),
     service
       .from("credit_rules")
@@ -113,6 +129,7 @@ export async function probeSchema(
     probeRefundFunction(service),
     hasTable(service, "admin_free_preview"),
     hasTable(service, "exam_prep_prefetch"),
+    probePathInsert(service),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -172,6 +189,14 @@ export async function probeSchema(
       detail: preview && prefetch
         ? "admin_free_preview ve exam_prep_prefetch yerinde"
         : "Tablo eksik (20261008100000 / 20261003100000).",
+    },
+    {
+      name: "Sonuca göre yol",
+      ok: pathInsert,
+      critical: false,
+      detail: pathInsert
+        ? "exam_path_insert_after yerinde: düşük sonuçta konunun odaklı pratiği araya girer"
+        : "Fonksiyon yok — düşük sonuçta odaklı pratik eklenmez (20261020120000).",
     },
     {
       name: "Zor soru tavanı sayacı",

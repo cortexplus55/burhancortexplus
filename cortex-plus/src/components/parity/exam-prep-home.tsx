@@ -51,6 +51,7 @@ import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
 import { STUDY_PATH_HINT, studyNodeAria, studyNodeOpenable, type StudyToolGroup } from "@/lib/learning/study-tools";
+import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
 import {
@@ -955,6 +956,13 @@ function StudyPath({
     y: PATH_ROW / 2 + index * PATH_ROW,
   }));
   const height = ordered.length * PATH_ROW;
+  // 2 adım ileri (20 Ekim 2026): sonrası sonuçlara göre değişebilir, soluk çizilir; not ilkinde.
+  // Pencere kilidin açıldığı sırayla (sort_order, konu konu) sayılır; yol aşamaya göre çiziliyor.
+  const far = useMemo(
+    () => farNodeIds([...nodes].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
+    [nodes, currentId],
+  );
+  const firstFarId = ordered.find((node) => far.has(node.id))?.id ?? null;
   // Astra'daki aşağı ok: sıradaki düğüm ekranın dışındaysa oraya kaydırır.
   const currentRef = useRef<HTMLLIElement | null>(null);
   const [currentVisible, setCurrentVisible] = useState(true);
@@ -982,7 +990,7 @@ function StudyPath({
             <li
               key={node.id}
               ref={node.id === currentId ? currentRef : undefined}
-              className={cn("cp-exam-trail-item", x > PATH_WIDTH / 2 && "is-right")}
+              className={cn("cp-exam-trail-item", x > PATH_WIDTH / 2 && "is-right", far.has(node.id) && "is-far")}
               style={{ left: x, top: y }}
             >
               <button
@@ -998,7 +1006,7 @@ function StudyPath({
                 aria-pressed={node.id === pickedId ? true : undefined}
                 aria-label={`${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${
                   node.status === "done" && scores[node.id] != null ? `, %${scores[node.id]}` : ""
-                }${readinessNote}`}
+                }${readinessNote}${far.has(node.id) ? `, ${PATH_FAR_NOTE.toLocaleLowerCase("tr")}` : ""}`}
                 title={`${nodeHeading(node)} · ${meta.title}`}
                 onClick={() => onOpen(node)}
               >
@@ -1021,6 +1029,11 @@ function StudyPath({
                 <span className="cp-path-done-label" aria-hidden>
                   {scores[node.id] != null ? <b className="cp-path-done-pct">%{scores[node.id]}</b> : null}
                   {meta.title}
+                </span>
+              ) : null}
+              {node.id === firstFarId ? (
+                <span className="cp-path-far-note" aria-hidden>
+                  {PATH_FAR_NOTE}
                 </span>
               ) : null}
               {/* Astra: sıradaki düğümün yanında "SIRADAKİ" ve konunun adı. */}

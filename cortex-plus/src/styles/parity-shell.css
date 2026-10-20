@@ -13128,6 +13128,42 @@ a.cp-exam-search {
   pointer-events: none;
 }
 
+/* 2 adım ileri (20 Ekim 2026): şu anki + iki adımdan sonrası soluk; plan sonuçlara göre değişebilir. */
+.cp-path-list .cp-exam-trail-item.is-far .cp-exam-trail-node {
+  opacity: 0.38;
+  filter: saturate(0.4);
+}
+
+/* Sonuca göre yol: sonuç ekranında tek satır (20 Ekim 2026). */
+.cp-path-change {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: var(--c-action-soft);
+  color: var(--c-text);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.cp-path-far-note {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.8rem);
+  transform: translateY(-50%);
+  width: max-content;
+  max-width: 8.5rem;
+  font: var(--t-label-13);
+  letter-spacing: var(--ls-label);
+  color: var(--c-text-muted);
+  pointer-events: none;
+}
+
+.cp-path-list .cp-exam-trail-item.is-right .cp-path-far-note {
+  left: auto;
+  right: calc(100% + 0.8rem);
+  text-align: right;
+}
+
 /* Astra: biten adımın yüzdesi türün üstünde ("30%" / "Podcast"). */
 .cp-path-done-pct {
   display: block;

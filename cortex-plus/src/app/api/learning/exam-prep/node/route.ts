@@ -169,6 +169,8 @@ import {
   shouldReuseExistingStart,
 } from "@/lib/learning/attempt-lifecycle";
 import { buildLocalSessionPayload, spacedReviewGate } from "@/lib/learning/exam-local-session";
+import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
+import { adaptiveFocusTopic } from "@/lib/learning/path-change";
 import {
   acceptFilledExplanations,
   buildWrittenExamReview,
@@ -506,7 +508,7 @@ async function handleNodeRequest(
 
   const { data: node } = await service
     .from("exam_prep_nodes")
-    .select("id, kind, title, status, sort_order, session_meta")
+    .select("id, kind, title, status, sort_order, day_index, session_meta")
     .eq("id", nodeId)
     .eq("exam_prep_id", prepId)
     .maybeSingle();
@@ -995,6 +997,26 @@ async function handleNodeRequest(
     }
     const answersForRpc = teachingV2 ? stripAnswerMeta(mergedAnswers) : mergedAnswers;
 
+    // Sonuca göre yol (20 Ekim 2026): düşük sonuçta konunun odaklı pratiği araya girer, yüksekte
+    // konunun kalan ek testleri kalkar. RPC'den önce: eklenen düğümü RPC sıradaki olarak açar.
+    const pathChange =
+      attempt.status !== "completed"
+        ? await adaptPathAfterResult(service, {
+            prepId,
+            node: {
+              id: nodeId,
+              kind,
+              sortOrder: (node.sort_order as number) ?? 0,
+              dayIndex: (node.day_index as number) ?? 1,
+              sessionMeta:
+                node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as Record<string, unknown>) : null,
+            },
+            topicLabel,
+            score: scored.score,
+            total: scored.total,
+          }).catch(() => null)
+        : null;
+
     const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
       p_user_id: userId,
       p_prep_id: prepId,
@@ -1184,6 +1206,7 @@ async function handleNodeRequest(
       topicGain,
       // Astra: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
       levelHint: await loadLevelHint(service, prepId).catch(() => null),
+      pathChange,
       state: "completed",
       review,
       oralReview: oralExtras ?? oralReviewFromPayload(attempt.payload),
@@ -1286,6 +1309,7 @@ async function handleNodeRequest(
               prepTitle: prep.title ?? "Hazırlık",
               targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
               learningPreferences: prep.learning_preferences,
+              focusTopic: adaptiveFocusTopic(kind, node.session_meta, topicLabel),
             });
     } catch {
       return errorResponse(503, "generation_failed");

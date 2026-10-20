@@ -492,7 +492,7 @@ beklemesin diye içerik önceden yazılır, hızlı işlem yalnız hazır içeri
 
 | Kural | Nerede |
 |---|---|
-| Her açılış yoldaki sıradaki hazırlanabilir etkinliği yazdırır (ders, test, doğru/yanlış, kartlar, podcast, sözlü; en çok 3 adım ileri). Zayıf nokta, odaklı pratik, son kontrol, aralıklı tekrar kayıtlardan anında kurulur — önceden yazılmaz | `PREFETCH_KINDS`, `requestNextPrefetch` (rotada tek tetik) |
+| Her açılış yoldaki sıradaki hazırlanabilir etkinliği yazdırır (ders, test, doğru/yanlış, kartlar, podcast, sözlü; yalnız yolun kesin penceresi: 2 adım, `PATH_LOOKAHEAD` — 20 Ekim 2026'ya kadar 3). Zayıf nokta, odaklı pratik, son kontrol, aralıklı tekrar kayıtlardan anında kurulur — önceden yazılmaz | `PREFETCH_KINDS`, `requestNextPrefetch` (rotada tek tetik) |
 | Hazırlık kurulunca ve hazırlık sayfası her açıldığında "Sıradaki" hazır değilse yazılır | `requestPrepPrefetch` |
 | Önceden yazım kredisiz (`charge: false`, kullanım `LESSON_PREFETCH` / `CONTENT_PREFETCH`); kredi açılınca düşer | ders, test, kart, podcast, sözlü kabukları |
 | Hazır içerik yalnız seçim anahtarı tutarsa verilir (zorluk; podcast süresi; sözlü soru sayısı, konu, öğretmen tipi); tutmazsa atılır, yeniden yazılır | `prefetchVariant` |
@@ -880,6 +880,24 @@ yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şem
 
 Kendiliğinden düzelen: bir belgenin konu haritası "bekliyor"da kalmıştı; Belgelerim açılınca tamamlanıyor.
 Bekçi: `audit-20-ekim.test.tsx`, `lesson-v3-zscore.test.tsx` ("akışlı derste aynı tablo").
+
+## 2 adım ileri — yol (20 Ekim 2026, Aşama 1)
+
+Ürün sahibi: "Astra mantığına geçelim: yolda ve derste bir sonraki 2'yi aça aça ilerleyelim; maliyeti
+kısarız, kullanıcının durumuna göre ilerleriz." Kararlar ve Aşama 2 (ders kavram kavram, 2 kavram önden):
+`cortex-plus/docs/delivery/IKI-ADIM-ILERI-20-EKIM.md`. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Yolun tamamı görünür; şu anki + 2 adımdan sonrası **soluk**, ilkinde "Plan sonuçlarına göre değişebilir". Pencere kilidin açıldığı sırayla (sort_order) sayılır — yol aşamaya göre çiziliyor, çizim sırası sıradaki adımı göstermez | `study-path-window.ts`, `exam-prep-home.tsx` |
+| Önceden yazım yalnız pencere içi (sıradaki 2 adım; hazırlık sayfasında şu anki + 2) | `lesson-prefetch.ts` `PATH_LOOKAHEAD` |
+| Sonuca göre yol, **kendiliğinden**: puanlı adımda (konu testi, doğru/yanlış, sözlü, soru-cevap; en az 3 soru) %50 altı → konunun odaklı pratiği bu adımın hemen arkasına girer (bekleyen varsa ikincisi eklenmez); %90 ve üstü → konunun kalan, denemesiz ek testleri yoldan çıkar (konunun en az bir testi bitmiş olmalı). Odaklı pratiğin kendisi tetiklemez | `path-change.ts`, `adaptive-path.ts` |
+| Uyarlama tamamlama RPC'sinden **önce**: eklenen düğümü RPC sıradaki olarak açar. Kaydırma + ekleme tek SQL işleminde (`exam_path_insert_after`, yalnız `service_role`); düğüm başına güncelleme 90 düğümlük yolda saniyeler sürerdi | göç `20261020120000`, `node/route.ts` |
+| Uyarlamalı odaklı pratik yalnız o konudan kurulur (kayıtlı yanlışlar ve ders soruları; yoksa o konu için üretim). Hazırlık geneli odaklı pratik eskisi gibi bütün zayıf konulardan | `adaptiveFocusTopic`, `exam-local-session.ts` `focusTopic` |
+| Öğrenciye sonuç ekranında tek satır ("Bu konuda zorlandın: sıradaki adım … için odaklı pratik." / "Bu konuyu iyi biliyorsun: … için N ek testi yoldan çıkardık.") | `pathChangeLine`, `exam-node-session.tsx` |
+
+Takvim (Takvimim, hatırlatmalar, sınav günü tahmini) arka planda tam plan olarak kalır. `/admin/sistem` "Sonuca göre
+yol" satırı fonksiyonu sorar. Bekçi: `study-path-window.test.tsx`, `adaptive-path.test.ts` (fonksiyonu PGlite'ta çalıştırır).
 
 ## Plus'ın bir ayı — misafire ve ücretsiz öğrenciye (20 Ekim 2026)
 
