@@ -884,7 +884,7 @@ Bekçi: `audit-20-ekim.test.tsx`, `lesson-v3-zscore.test.tsx` ("akışlı derste
 ## 2 adım ileri — yol (20 Ekim 2026, Aşama 1)
 
 Ürün sahibi: "Astra mantığına geçelim: yolda ve derste bir sonraki 2'yi aça aça ilerleyelim; maliyeti
-kısarız, kullanıcının durumuna göre ilerleriz." Kararlar ve Aşama 2 (ders kavram kavram, 2 kavram önden):
+kısarız, kullanıcının durumuna göre ilerleriz." Kararlar ve Aşama 2 (ders tek parça kalır; ölçümle karar değişti, ders sonu uyarlaması zaten var):
 `cortex-plus/docs/delivery/IKI-ADIM-ILERI-20-EKIM.md`. Yeniden açmayın:
 
 | Kural | Nerede |
