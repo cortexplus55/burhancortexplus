@@ -71,7 +71,11 @@ export default function GirisPage() {
   return (
     <PremiumAuthShell
       title="Tekrar hoş geldin"
-      subtitle="Google ile saniyeler içinde devam et veya e-postanla giriş yap."
+      subtitle={
+        blockedApp
+          ? "E-postanla giriş yap."
+          : "Google ile saniyeler içinde devam et veya e-postanla giriş yap."
+      }
     >
       <div className="space-y-4">
         {suspended ? (

@@ -92,4 +92,21 @@ describe("başka tarayıcıda onaylanan kayıt: dönüş adresi kaybolmaz", () =
     // Kayıt onayı tarayıcıdan bağımsız açılınca tamamla sayfası yük bulamaz ve kuruluma gönderir.
     expect(read("src/app/kayit/tamamla/finalizer.tsx")).toContain('router.replace("/onboarding");');
   });
+
+  it("kodlu bağlantı oturumsuz öğrenciyi kayda götürür; kayıttaki giriş bağlantısı kodu taşır", () => {
+    expect(read("src/lib/supabase/middleware.ts")).toContain(
+      'url.pathname = path === "/pay" && request.nextUrl.searchParams.has("kod") ? "/kayit" : "/giris";',
+    );
+    expect(read("src/components/layout/signup-premium-shell.tsx")).toContain("<Link href={loginHref}");
+    expect(read("src/app/kayit/signup-wizard.tsx")).toContain(
+      '? `/giris?next=${encodeURIComponent(safeNextPath(searchParams.get("next"), ""))}`',
+    );
+  });
+
+  it("girişte Instagram tarayıcısında alt başlık Google'dan söz etmez", () => {
+    vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue(UA.instagramAndroid);
+    render(<GirisPage />);
+    expect(screen.getByText("E-postanla giriş yap.")).toBeTruthy();
+    expect(screen.queryByText(/Google ile saniyeler içinde/)).toBeNull();
+  });
 });

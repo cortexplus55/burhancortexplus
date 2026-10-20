@@ -271,6 +271,11 @@ export function SignupWizard() {
       progress={progress}
       stepLabel={`Adım ${stepIndex + 1}/${steps.length}`}
       headerStart={headerStart}
+      loginHref={
+        safeNextPath(searchParams.get("next"), "")
+          ? `/giris?next=${encodeURIComponent(safeNextPath(searchParams.get("next"), ""))}`
+          : "/giris"
+      }
     >
       <div className="signup-wizard flex flex-1 flex-col">
         {step === "grade" ? (

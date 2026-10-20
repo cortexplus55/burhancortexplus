@@ -692,7 +692,7 @@ kartında toplu üretilir (`BETA-XXXX-XXXX`, karışan harf yok); kod ya da haz�
 | Deneme `plus-aylik` planıyla açılır, `trial_until = current_period_end`; hak gün sayısıyla orantılı (14 gün = 3.360), cüzdan dönemi denemeyle aynı gün biter → ertesi istekte ücretsiz günlük hak | aynı göç; `isTrialPeriod` |
 | Deneme gelir değildir: ödeme kaydı yazılmaz, gelir raporları ödemelerden okunur | — |
 | Hatırlatma ve kart "yenile" demez, "ücretsize dönersin, ücret alınmaz" der; öğrenci ödeme yaparsa PayTR dönemi uzatır, eşitlik bozulur, abonelik ücretli sayılır | `trialNotice`, `subscription-card.tsx`, `subscription-renewal` |
-| Giriş yapmamış öğrencinin bağlantısı kodu kaybetmez: `next` sorguyu taşır, girişteki "Kayıt ol" `next`i kayda geçirir | `middleware.ts`, `giris-inner.tsx` |
+| Giriş yapmamış öğrencinin bağlantısı kodu kaybetmez: `next` sorguyu taşır. Kodlu bağlantı (`/pay?kod=…`) oturumsuz öğrenciyi **kayda** götürür (20 Ekim 2026; giriş "Tekrar hoş geldin" diyordu); kayıttaki "Giriş yap" ve girişteki "Kayıt ol" `next`i taşır | `middleware.ts`, `signup-premium-shell.tsx`, `giris-inner.tsx` |
 | Uç sıkı sınırda (dakikada 5, günde 20): kodlar tahminle denenmesin | `/api/promo/redeem` |
 | Eski kampanya kodları (hediye kredi) da aynı kutudan kullanılır; öğrenciye kredi sayısı değil iş söylenir | `promo-codes.ts` `redeemSuccessMessage` |
 

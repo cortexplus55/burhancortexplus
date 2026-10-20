@@ -31,6 +31,12 @@ test.describe("authentication guards", { tag: ["@auth", "@smoke"] }, () => {
     });
   }
 
+  // Beta kodu bağlantısı yeni öğrenciye gidiyor (20 Ekim 2026): giriş yerine kayıt, kod `next`te.
+  test("a code link sends anonymous visitors to sign up with the code", async ({ page }) => {
+    await page.goto("/pay?kod=BETA-TEST");
+    await expect(page).toHaveURL(/\/kayit\?next=%2Fpay%3Fkod%3DBETA-TEST$/);
+  });
+
   // Emekli rotalar `/ogretmen`'e gider, ama `/ogretmen` de korumalı: oturumsuz
   // ziyaretçi zincirin sonunda giriş ekranında biter. Test eskiden zincirin
   // yalnızca ilk halkasını bekliyordu.

@@ -132,7 +132,9 @@ export async function updateSession(request: NextRequest) {
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/giris";
+    // Kodlu bağlantı (/pay?kod=…) sosyal medyadan yeni öğrenciye gidiyor (20 Ekim 2026): "Tekrar hoş
+    // geldin" diyen giriş yerine kayıt açılır; kayıttaki "Giriş yap" bağlantısı `next`i taşır.
+    url.pathname = path === "/pay" && request.nextUrl.searchParams.has("kod") ? "/kayit" : "/giris";
     // Sorgu `next`in içinde kalır: beta kodu bağlantısı (/pay?kod=…) girişten ve kayıttan
     // sonra kutusu dolu açılır (19 Ekim 2026). Sorgusuz yolda adres eskisi gibi.
     url.search = "";
