@@ -1,9 +1,17 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ generateJson: vi.fn() }));
 vi.mock("@/lib/ai/generate", () => ({ generateJson: mocks.generateJson }));
 
-import { coercePodcastDraft, mergePodcastSource, podcastSyllabusLines, readPodcastCache, writePodcastCache } from "@/lib/learning/podcast-episode";
+import {
+  coercePodcastDraft,
+  mergePodcastSource,
+  podcastGroundingBrief,
+  podcastSyllabusLines,
+  readPodcastCache,
+  writePodcastCache,
+} from "@/lib/learning/podcast-episode";
 import {
   describeGenerationFailure,
   generationFailureCode,
@@ -86,6 +94,89 @@ describe("prep-wide podcast grounding", () => {
         episode: { title: "Mol", length: "ozet", chapters: [] },
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+/*
+  20 Ekim 2026 kör kıyas: Kerem bir podcast'te dört kez "Notlarındaki örnekte …" dedi. Kök neden
+  kodun kendisiydi: kapsam satırı yazara '"notlarındaki örnek" de' diyordu.
+*/
+describe("podcast kapsam satırı kaynağa gönderme istemez", () => {
+  it("örnek kalır, 'notlarındaki örnek de' talimatı yok", () => {
+    const brief = podcastGroundingBrief({ priority: null, examples: ["9 ayda desteksiz oturur"], excludedTopics: [] });
+    expect(brief).toContain("9 ayda desteksiz oturur");
+    expect(brief).toContain("kaynağı anmadan");
+    expect(brief).not.toMatch(/"notlarındaki örnek" de/);
+    expect(brief).not.toContain("Öğrencinin notlarındaki örnek");
+  });
+});
+
+/*
+  Dinleme kontrolü önbellekte (20 Ekim 2026, göç 20261020150000). Kod göçten önce de çalışır:
+  okuma `select("*")`, yazma sütun yoksa sütunsuz bir kez yeniden dener.
+*/
+describe("podcast önbelleği ve dinleme kontrolü", () => {
+  const check = [
+    { text: "Kilo neyi hızlı yansıtır?", options: ["Akut beslenme", "Kronik süreç"], correct: ["Akut beslenme"], multi: false },
+    { text: "Baş çevresi neyi gösterir?", options: ["Beyin büyümesi", "Kas gücü"], correct: ["Beyin büyümesi"], multi: false },
+  ];
+  const episode = { title: "Büyüme", length: "diyalog" as const, chapters: [{ title: "Persentil", lines: [{ speaker: "ada" as const, text: "Tek ölçüm yetmez." }] }] };
+
+  it("okuma sütun listesi değil * ister ve kontrolü döndürür", async () => {
+    const selects: string[] = [];
+    const builder = {
+      select: (columns: string) => {
+        selects.push(columns);
+        return builder;
+      },
+      eq: () => builder,
+      maybeSingle: async () => ({ data: { ...episode, listening_check: check }, error: null }),
+    };
+    const cached = await readPodcastCache({ from: () => builder } as never, "prep", "Büyüme", "diyalog");
+    expect(selects).toEqual(["*"]);
+    expect(cached?.check.map((question) => question.text)).toEqual(check.map((question) => question.text));
+    expect(cached?.check[0]?.correct).toEqual(["Akut beslenme"]);
+  });
+
+  it("eski satırda (sütun boş) kontrol boş dizi", async () => {
+    const builder = { select: () => builder, eq: () => builder, maybeSingle: async () => ({ data: { ...episode }, error: null }) };
+    const cached = await readPodcastCache({ from: () => builder } as never, "prep", "Büyüme", "diyalog");
+    expect(cached?.check).toEqual([]);
+    expect(cached?.chapters).toHaveLength(1);
+  });
+
+  it("yazma: sütun yoksa (PGRST204) bir kez sütunsuz yeniden dener", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const builder = {
+      upsert: async (body: Record<string, unknown>) => {
+        bodies.push(body);
+        return bodies.length === 1 ? { error: { code: "PGRST204", message: "Could not find the 'listening_check' column" } } : { error: null };
+      },
+    };
+    await writePodcastCache({ from: () => builder } as never, { prepId: "p", userId: "u", topicLabel: "Büyüme", episode, check });
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]?.listening_check).toEqual(check);
+    expect("listening_check" in (bodies[1] ?? {})).toBe(false);
+    expect(bodies[1]?.chapters).toEqual(episode.chapters);
+  });
+
+  it("yazma: kontrol yoksa sütun boş; başka hata yeniden denenmez", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const builder = {
+      upsert: async (body: Record<string, unknown>) => {
+        bodies.push(body);
+        return { error: { code: "23505", message: "conflict" } };
+      },
+    };
+    await writePodcastCache({ from: () => builder } as never, { prepId: "p", userId: "u", topicLabel: "Büyüme", episode });
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]?.listening_check).toBeNull();
+  });
+
+  it("göç yalnız boş olabilen sütunu ekler", () => {
+    const sql = readFileSync("supabase/migrations/20261020150000_podcast_listening_check.sql", "utf8");
+    expect(sql).toContain("ALTER TABLE public.exam_prep_podcasts ADD COLUMN IF NOT EXISTS listening_check jsonb;");
+    expect(sql).not.toMatch(/DROP|schema_migrations/i);
   });
 });
 

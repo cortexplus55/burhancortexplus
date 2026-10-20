@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { examPrepNodeResultHref } from "@/lib/learning/exam-prep-hrefs";
-import { nodeResultView, spentMinutes } from "@/lib/learning/node-result";
+import { nodeResultView, spentMinutes, unscoredResult } from "@/lib/learning/node-result";
 
 /*
   17 Ekim 2026, Astra ile yan yana: bitmiş testte "Sonuçları gör" Astra'da önceki sonucu
@@ -41,6 +41,14 @@ describe("bitmiş etkinliğin sonucu", () => {
       headline: "Tamamladın!",
     });
     expect(nodeResultView({ score: 1, total: 1, kind: "quiz", startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: null }).scored).toBe(true);
+    // Dinleme kontrolü cevaplanan podcast (20 Ekim 2026): "2/3 · %67"; atlanan yine 1/1, puansız.
+    expect(nodeResultView({ score: 2, total: 3, kind: "podcast", startedAt: null, createdAt: "2026-10-17T10:00:00Z", updatedAt: null })).toMatchObject({
+      scored: true,
+      pct: 67,
+    });
+    expect(unscoredResult("podcast", 1)).toBe(true);
+    expect(unscoredResult("podcast", 3)).toBe(false);
+    expect(unscoredResult("quiz", 1)).toBe(false);
   });
 
   it("süre ölçülemiyorsa yok; en az 1 dk, 10 saati aşan kayıt yok sayılır", () => {
@@ -68,8 +76,9 @@ describe("podcast oturumunun sonuç ekranı puan göstermez", () => {
   it("oturum ekranı puansız türde skor satırlarını gizler", async () => {
     const { readFileSync } = await import("node:fs");
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
-    expect(session).toContain("const unscored = UNSCORED_NODE_KINDS.has(kind);");
-    expect(session).toContain('{unscored ? "Yeniden dinle" : "Dersi tekrarla"}');
+    // 20 Ekim 2026: dinleme kontrolü cevaplanınca podcast de puanlı (2/3); atlanınca yine puansız.
+    expect(session).toContain("const unscored = unscoredResult(kind, score.total);");
+    expect(session).toContain('{kind === "podcast" ? "Yeniden dinle" : "Dersi tekrarla"}');
     expect(session).toMatch(/\{unscored \? null : \(\s*<div>\s*<dt>Doğruluk<\/dt>/);
   });
 });

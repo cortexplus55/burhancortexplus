@@ -4586,6 +4586,37 @@
   font-size: 0.85rem;
 }
 
+/* Podcast'in dinleme kontrolü (20 Ekim 2026): testin kartı; başlıkta atlama düğmesi. 375 px'te sığar. */
+.cp-pod-check-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.cp-pod-check-skip {
+  min-height: 2.25rem;
+  padding: 0 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cp-pod-check-skip:hover {
+  color: var(--cp-text);
+}
+
+.cp-pod-check-lead {
+  margin: 0 0 0.85rem;
+  color: var(--cp-muted);
+  font-size: 0.9rem;
+}
+
 .cp-written-review-actions,
 .cp-readiness-actions,
 .cp-practice-empty {
