@@ -106,7 +106,7 @@ const SCHEMA = `{
         {"type": "text", "text": "…"},
         {"type": "cards", "cards": [{"title": "kardeş kavram", "body": "tek cümle tanım"}, {"title": "kardeş kavram", "body": "tek cümle tanım"}]},
         {"type": "table", "table": {"caption": "…", "columns": ["…","…"], "rows": [["…","…"], ["…","…"]]}},
-        {"type": "note", "note": {"title": "X ile Y farkı", "body": "…", "tone": "warn"}},
+        {"type": "note", "note": {"title": "<karıştırılan kavram> ile <öteki kavram> farkı (iki kavramın gerçek adıyla)", "body": "…", "tone": "warn"}},
         {"type": "check", "check": {"type": "mcq", "prompt": "…", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "…", "optionWhy": ["…","…","…","…"], "review": {"prompt": "…"}}}
       ]
     }
@@ -212,7 +212,8 @@ export const TEACHER_SYSTEM =
   "Yaşa, evreye ya da türe göre değişen birden çok değer sayıyorsan ('6 ayda …, 12 ayda …, 2 yaşta …') bunları metinde " +
   "art arda sıralama: 'table' kur (satır yaş/evre, sütun alan) ve metinde tabloyu nasıl okuyacağını söyle. " +
   "Tablo kurduğun ekranda metin tablonun satırlarını yeniden saymaz; ayırt ettiren ölçütü ve tablonun nasıl okunacağını söyler. " +
-  "Öğrencinin sık karıştırdığı iki kavram varsa ekrana 'note' bloğu (tone: warn) koy: 'X ile Y farkı'.\n\n" +
+  "Öğrencinin sık karıştırdığı iki kavram varsa ekrana 'note' bloğu (tone: warn) koy; başlık iki kavramın gerçek " +
+  "adını taşır ('Üniter devlet ile bölgeli devlet farkı'), 'X ile Y' gibi yer tutucu yazılmaz.\n\n" +
   EMPHASIS_RULE +
   "GÜNDELİK ÖRNEK (zorunlu): Derste EN AZ BİR ekranda, uyarı notu olmayan bir ekrana, 'note' bloğu (tone: info) ile " +
   "gündelik hayattan kısa bir örnek kutusu koy. Başlık 'Günlük hayattan: …' diye başlasın ve örneği anlatsın. " +
@@ -676,6 +677,11 @@ export function calmHeading(text: string): string {
 }
 
 const SCAFFOLD_HEADING = /^(giriş|özet|örnek|yaygın hata|sık yapılan hata|bilgi kontrolü|kapanış|sonuç|tekrar)\b/i;
+/**
+ * Şema örneğinden kopyalanmış yer tutucu başlık: "X ile Y farkı", "…". Dar tutuldu: "Hepatit A ile B", "X ile Y
+ * kromozomu farkı" gerçek kavram adlarıdır.
+ */
+const PLACEHOLDER_TITLE = /(?:^|[^\p{L}])X\s+ile\s+Y\s+fark|…|\.\.\./u;
 
 function shouting(text: string): boolean {
   const letters = text.replace(/[^\p{L}]/gu, "");
@@ -791,6 +797,11 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   if (checks.length > 1) low(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu çıkar (ekran yalnız ilkini gösterir).");
   for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low);
   screen.blocks.forEach((block, blockIndex) => {
+    // 20 Ekim 2026 kör kıyas: şemadaki örnek başlık "X ile Y farkı" iki derste aynen ekrana çıktı.
+    const title = block.type === "note" ? block.note.title : block.type === "table" ? (block.table.caption ?? "") : "";
+    if (PLACEHOLDER_TITLE.test(title)) {
+      add(`${where}.blocks[${blockIndex}]`, "Başlıkta yer tutucu var ('X ile Y', '…'); karıştırılan iki kavramın gerçek adını yaz.");
+    }
     if (block.type === "note" && block.note.tone === "general" && !/^genel bilgi\b/i.test(block.note.title.trim())) {
       add(`${where}.blocks[${blockIndex}]`, "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı; öğrenci bilginin belgesinden gelmediğini görsün.");
     }

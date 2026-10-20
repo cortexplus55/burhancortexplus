@@ -10,20 +10,27 @@
  */
 export const OPTION_ORDER_RULE =
   "Şıklar öğrenciye karışık sırayla gösterilir: explanation ve optionWhy hiçbir şıkka sırasıyla ya da harfiyle " +
-  "gönderme yapmaz ('ilk seçenek', 'A şıkkı', 'diğer seçenekler sırasıyla …' yok); her şıkkı kendi içeriğiyle an.";
+  "gönderme yapmaz ('ilk seçenek', 'ilk iki ifade', 'A şıkkı', 'diğer seçenekler(deki …) sırasıyla …' yok); her " +
+  "şıkkı kendi içeriğiyle an.";
 
 const ORDINAL = "(?:ilk|birinci|ikinci|üçüncü|dördüncü|beşinci|son|sonuncu)";
 const OPTION = "(?:seçenek|şık)";
+/**
+ * Sıra sözcüğüyle birlikte şık yerine geçen adlar (20 Ekim 2026, kör kıyas): trigonometri dersinde "ilk iki ifade
+ * aynı son kola sahip" karışık şıklarda yanlış ikiliyi gösteriyordu. Soru köklerinde numaralı öncül kullanılmıyor;
+ * bu adlar burada yalnız şıkları gösterebilir.
+ */
+const OPTION_LIKE = "(?:seçenek|şık|ifade|cevap|madde)";
 
 const PATTERNS = [
-  // "ilk seçenek", "ilk iki seçenek", "son şık"
-  new RegExp(`(?:^|[^\\p{L}])${ORDINAL}\\s+(?:(?:iki|üç)\\s+)?${OPTION}`, "iu"),
+  // "ilk seçenek", "ilk iki seçenek", "son şık", "ilk iki ifade"
+  new RegExp(`(?:^|[^\\p{L}])${ORDINAL}\\s+(?:(?:iki|üç)\\s+)?${OPTION_LIKE}`, "iu"),
   // "A şıkkı", "B seçeneği"
   new RegExp(`(?:^|[^\\p{L}])[A-E]\\s+(?:şıkk|seçene[kğ])`, "u"),
   // "2. seçenek", "3. şık"
   new RegExp(`(?:^|[^\\p{L}\\d])[1-6]\\.\\s*${OPTION}`, "iu"),
-  // "diğer seçenekler sırasıyla", "sırasıyla … şıklar"
-  new RegExp(`${OPTION}\\p{L}*\\s+sırasıyla|sırasıyla[^.]{0,40}${OPTION}`, "iu"),
+  // "diğer seçenekler sırasıyla", "diğer seçeneklerdeki bulgular sırasıyla" (Pediatri, 20 Ekim), "sırasıyla … şıklar"
+  new RegExp(`${OPTION}\\p{L}*[^.]{0,40}?\\s+sırasıyla|sırasıyla[^.]{0,40}${OPTION}`, "iu"),
 ];
 
 /** Metin şıklara konumla mı gönderme yapıyor. */
