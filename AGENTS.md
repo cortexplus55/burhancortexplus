@@ -207,7 +207,7 @@ Bugün geriye kalanlar (4 Eylül 2026 itibarıyla doğrulandı):
 |---|---|
 | `/siniflar` | **Öğrenci** sayfası — öğrenci sınıf kurar ya da koda katılır. Öğretmen paneli değil. |
 | `verified_teacher` rolü | Hâlâ iş görüyor (quiz üretiminde daha yüksek sınır). Yalnızca yönetim panelinden elle veriliyor. |
-| `/admin/ogretmen-basvurulari` | Duruyor ama **yeni başvuru gelmiyor** — form ve API kaldırıldı. Karardan önce gelmiş 1 bekleyen kayıt var. |
+| `/admin/ogretmen-basvurulari` | Duruyor ama **yeni başvuru gelmiyor** — form ve API kaldırıldı. Bekleyen kayıt yok (20 Ekim 2026'da bakıldı: tek kayıt 28 Ağustos'ta onaylanmış). |
 | `parent_payment_requests` | Yaşıyor ve öğrenci tarafı: "veliden ödeme iste". Astra'da bu yok, bizde çalışıyor — bilerek duruyor. |
 | `src/lib/parent/link-status.ts`, `profile.ts` | Canlı: veli bağlama ve veli profili kaydı hâlâ kullanılıyor. |
 
@@ -696,8 +696,15 @@ kartında toplu üretilir (`BETA-XXXX-XXXX`, karışan harf yok); kod ya da haz�
 | Uç sıkı sınırda (dakikada 5, günde 20): kodlar tahminle denenmesin | `/api/promo/redeem` |
 | Eski kampanya kodları (hediye kredi) da aynı kutudan kullanılır; öğrenciye kredi sayısı değil iş söylenir | `promo-codes.ts` `redeemSuccessMessage` |
 
+**Ortak kod (20 Ekim 2026, ürün sahibinin kararı):** beta öğrencisi sosyal medyadan gelir (Instagram,
+WhatsApp / Telegram grubu); duyuruda **tek kod, tek bağlantı, ilk 50 kişi**. Aynı sayfada "Ortak beta kodu"
+kartı (`createSharedBetaCode`; kod boşsa üretilir, 2–1.000 kişi, 1–90 gün). Aynı SQL fonksiyonu: kişi başına
+bir kez; denemesini almış ya da ücretli abonesi olan reddedilir ve **kontenjandan yer yemez**; kod satırı
+kilitlenerek sayılır (`FOR UPDATE`), aynı anda gelen 51. kişi taşmaz. Dolunca "Bu kodun kullanım hakkı doldu"
+— eski "Her kod tek kişilik" ortak kodda yanlış söylüyordu.
+
 Bekçi: `beta-plus-codes.test.ts` (göçü PGlite'ta çalıştırır: açılış, tek kişilik kod, tek deneme,
-ücretli Plus'ın ezilmemesi, deneme bitince günlük hakka dönüş, hediye kredi).
+ücretli Plus'ın ezilmemesi, deneme bitince günlük hakka dönüş, hediye kredi, ortak kodun kontenjanı).
 
 ## Haftalık kısa anket (19 Ekim 2026) — kapalı beta geri bildirimi
 
@@ -874,7 +881,8 @@ Tümden çalışmayan özellik çıkmadı; bunlar çıktı:
 **Göç kayıt tablosu.** Göçler SQL ekranından (ve bir dönem panelin/MCP'nin uygulama anındaki zamanıyla)
 uygulandığı için `supabase_migrations.schema_migrations` repoyla ayrışmıştı: 70 dosya kayıtta yoktu,
 kayıtta hiçbir dosyaya karşılık gelmeyen 33 satır var. 20 Ekim'de 70 eksik sürüm yalnız eklenerek
-yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şema kontrolü). Yetim 33 satır silinmedi:
+yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şema kontrolü). Yetim 33 satır silinmedi
+(ürün sahibinin kararı, 20 Ekim: bırak):
 `supabase db push` bu yüzden "remote versions not found" diyerek durur — bu bir emniyettir.
 **`supabase db push` kullanmayın; yeni göçü SQL ekranında uygulayıp aynı anda kayıt satırını yazın**
 (`insert into supabase_migrations.schema_migrations (version, name) values ('<dosya zamanı>', '<ad>')`).

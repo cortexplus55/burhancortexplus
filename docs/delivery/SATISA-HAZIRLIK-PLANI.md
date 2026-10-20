@@ -37,9 +37,9 @@ oturum, 7 günde 11 ders üretim kaydı (7 yavaş, 3 başarısız, 1 kavram atı
 
 | # | İş | Neden | Kim | Süre |
 |---|---|---|---|---|
-| 0.1 | **Vercel Pro'ya geç** (20 $/ay) | Hobby planı kişisel kullanım içindir; ticari sitede hesap kapatılabilir. Ayrıca cron 2/gün sınırı (23 Eylül'de yayın durdu), tek bölge, sınırlı eşzamanlılık | Ürün sahibi (kart) | 10 dk |
-| 0.2 | **Supabase Pro'ya geç** (25 $/ay) + günlük yedek; PITR isteğe bağlı (+100 $) | Free'de yedek yok, proje hareketsizlikte duraklar, kaynaklar paylaşımlı. Müşteri verisi yedeksiz tutulamaz | Ürün sahibi | 10 dk |
-| 0.3 | OpenAI hesabının **kullanım katmanını ve dakikalık sınırını** oku; sınır aşımında kullanıcıya düzgün mesaj + yeniden deneme var mı doğrula | 429 yeniden denemesi var (`transient-retry.ts`); kota bitince ne olduğu görülmedi | Ben + ürün sahibi (panel) | 1 saat |
+| 0.1 | **Vercel Pro'ya geç** (20 $/ay) | Hobby planı kişisel kullanım içindir; ticari sitede hesap kapatılabilir. Ayrıca cron 2/gün sınırı (23 Eylül'de yayın durdu), tek bölge, sınırlı eşzamanlılık. **Karar (20 Ekim): lansmanda** | Ürün sahibi (kart) | 10 dk |
+| 0.2 | **Supabase Pro'ya geç** (25 $/ay) + günlük yedek; PITR isteğe bağlı (+100 $) | Free'de yedek yok, proje hareketsizlikte duraklar, kaynaklar paylaşımlı. Müşteri verisi yedeksiz tutulamaz. **Karar (20 Ekim): lansmanda, Vercel Pro ile birlikte**; o güne kadar haftalık elle `pg_dump` (`docs/ops/veritabani-yedek.md`) | Ürün sahibi | 10 dk |
+| 0.3 | OpenAI hesabının **kullanım katmanını ve dakikalık sınırını** oku; sınır aşımında kullanıcıya düzgün mesaj + yeniden deneme var mı doğrula | 429 yeniden denemesi var (`transient-retry.ts`); kota bitince ne olduğu görülmedi. **Karar (20 Ekim): lansmana kadar bekler** | Ben + ürün sahibi (panel) | 1 saat |
 | 0.4 | **Sentry canlıda çalışıyor mu**: DSN dolu mu, bir deneme hatası e-postaya düşüyor mu | **Yarısı bitti (18 Ekim):** `/admin/sistem` DSN'i "Tanımlı" gösteriyor; 20 Ekim'de canlı sayfalardan Sentry'ye gönderim görüldü. Panelde hatanın görünüp e-postaya düştüğü senin Sentry girişinle bakılacak | Ürün sahibi (Sentry paneli) | 15 dk |
 | 0.5 | **PayTR canlı mod provası**: 1 TL'lik gerçek ödeme, geri bildirim, iade; sonra test modunu kapat | Canlı tahsilat hiç olmadı. 20 Ekim: PayTR canlı kipte (`/admin/sistem`); 1 TL'lik ürün yok — prova için satışta olmayan bir paket birkaç dakikalığına 1 TL yapılır, ödeme sonrası eski hâline döner | Ürün sahibi (kart) + ben | 1 saat |
 | 0.6 | E-posta: Google Workspace SMTP günlük sınırı (~2.000) ve SPF/DKIM/DMARC kaydı doğrula | **Bitti (18 Ekim):** SPF `include:_spf.google.com ~all`, DKIM `google` seçicisi, DMARC `p=none` + rapor adresi, MX Google. İleride DMARC `p=quarantine`'e alınabilir | — | — |
@@ -105,17 +105,20 @@ Bütçe: belge başına birkaç dolar model maliyeti; her canlı deneme önceden
 ## Faz 5 — Lansman (Faz 0-4 bittikten sonra)
 
 1. Fiyat ve paketlerin son hâli (`/admin/paketler`), ücretsiz katman kapıları gözden geçirilir (günde 6 kredi, 1 hazırlık, 5 sayfa).
-2. **Kapalı beta**: 20 gerçek öğrenci, 2 hafta, haftalık görüşme; `/admin/yanit-oylari` ve ders sonu anketi okunur. **Erişim yazıldı (19 Ekim 2026, ürün sahibinin kararı):** tek kullanımlık 14 gün Plus kodu; `/admin/promosyonlar` → "Beta kodları" toplu üretir, öğrenci Abonelik sayfasında girer, bitince ücretsize döner, ücret alınmaz (`AGENTS.md` → "Kapalı beta kodları"). Beta öğrencilerinin nereden geleceği henüz karar değil. **Geri bildirim yazıldı (19 Ekim 2026):** Sınavlar sayfasında haftalık dört soruluk anket, sonuçlar `/admin/anket` (yardım, tavsiye puanı, en çok kullanılan, öneriler; beta denemesindekiler ayrı sayılır).
+2. **Kapalı beta**: 20 gerçek öğrenci, 2 hafta, haftalık görüşme; `/admin/yanit-oylari` ve ders sonu anketi okunur. **Erişim yazıldı (19 Ekim 2026, ürün sahibinin kararı):** tek kullanımlık 14 gün Plus kodu; `/admin/promosyonlar` → "Beta kodları" toplu üretir, öğrenci Abonelik sayfasında girer, bitince ücretsize döner, ücret alınmaz (`AGENTS.md` → "Kapalı beta kodları"). **Beta öğrencileri sosyal medyadan (karar, 20 Ekim 2026):** Instagram ve WhatsApp / Telegram grubu duyurusu; tek ortak kod, ilk 50 kişi, 14 gün Plus (`/admin/promosyonlar` → "Ortak beta kodu"). **Geri bildirim yazıldı (19 Ekim 2026):** Sınavlar sayfasında haftalık dört soruluk anket, sonuçlar `/admin/anket` (yardım, tavsiye puanı, en çok kullanılan, öneriler; beta denemesindekiler ayrı sayılır).
 3. Çıkış ölçütleri: atılan kavram 0, ders ilk ekran p95 < 20 sn (hazır değilken), hazır ders < 3 sn, ödeme başarı > %95, destek cevabı < 24 saat, Sentry'de çözülmemiş kritik hata 0. **Ölçüm yazıldı (19 Ekim 2026):** `/admin/beta` altısını son 7 ve 30 gün için gösterir; ders açılış süreleri artık veritabanında (`open_timings`), destek talepleri `/admin/destek`te "Cevaplandı" ile süreli kapanır. Sentry satırı panelden elle.
 4. Otomatik yenileme: PayTR Direkt API onayı gelene kadar sözleşme "otomatik yenilenmez" kalır (bkz. `PAYTR-ABONELIK.md`); onay gelirse ayrı iş.
 5. Kampanya bandı hazır (`/admin/promosyonlar`), lansman günü açılır.
 
-## Bugün karar bekleyenler
+## Kararlar (20 Ekim 2026)
 
-1. Vercel Pro ve Supabase Pro'ya geçiş (toplam ~45 $/ay) — kart ürün sahibinde.
-2. Faz 1 canlı denemeleri için model bütçesi (önerim: 10 $).
-3. Yük testi için hedef sayı: 200 mü, 1000 mi? (1000 için önce kuyruk gerekir.)
-4. Kapalı beta öğrencileri nereden gelecek (okul, tanıdık, reklam)?
+1. Vercel Pro ve Supabase Pro (+ günlük yedek): **lansmanda, birlikte** — kart ürün sahibinde.
+2. Faz 1 canlı denemeleri için model bütçesi: **şimdilik yok**.
+3. Yük testi (k6): lansmana kaldı (19 Ekim); kuyruk yazıldı (3.2). OpenAI sınırları da lansmanda okunur (0.3).
+4. Kapalı beta öğrencileri: **sosyal medya** (Instagram, WhatsApp / Telegram grubu), tek ortak kod, ilk 50 kişi.
+
+Ürün sahibinin elinde bekleyenler: Sentry uyarı kuralı (0.4, Sentry girişi), PayTR 1 TL provası (0.5,
+kart; iade de ürün sahibinde), uçtan uca test hesabı ve GitHub sırları (2.2).
 
 ## Yöntem notu
 

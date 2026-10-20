@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
-import { BetaCodeForm, PromoCreateForm, PromoToggle } from "@/components/admin/promo-tools";
+import { BetaCodeForm, PromoCreateForm, PromoToggle, SharedBetaCodeForm } from "@/components/admin/promo-tools";
 import { CampaignForm } from "@/components/admin/campaign-form";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -57,8 +57,11 @@ export default async function AdminPromosyonlarPage() {
   ]);
 
   const rows = (promos ?? []) as PromoRow[];
-  const betaRows = rows.filter((row) => row.plus_days);
+  // Tek kişilik beta kodu ile ortak kod (ilk N kişi) ayrı sayılır: ortak kod tek satırda çok kullanım.
+  const betaRows = rows.filter((row) => row.plus_days && row.max_redemptions === 1);
   const betaUsed = betaRows.filter((row) => row.redemption_count > 0).length;
+  const sharedRows = rows.filter((row) => row.plus_days && row.max_redemptions !== 1);
+  const sharedUsed = sharedRows.reduce((sum, row) => sum + row.redemption_count, 0);
 
   return (
     <AdminShell href="/admin/promosyonlar" pendingApplications={pending}>
@@ -92,6 +95,13 @@ export default async function AdminPromosyonlarPage() {
         desc={`Tek kullanımlık; her kod belirtilen gün kadar Plus açar, bitince hesap ücretsize döner, ücret alınmaz. Bir hesap denemeyi bir kez alır. Şu an: ${formatNumber(betaRows.length)} kod · ${formatNumber(betaUsed)} kullanıldı · ${formatNumber(activeTrials ?? 0)} öğrenci denemede.`}
       >
         <BetaCodeForm origin={appOrigin()} />
+      </AdminCard>
+
+      <AdminCard
+        title="Ortak beta kodu (sosyal medya)"
+        desc={`Tek kod, tek bağlantı: ilk N kişiye Plus denemesi. Kişi başına bir kez; deneme hakkını daha önce kullanan ya da ücretli abonesi olan açamaz. Kontenjan dolunca öğrenci "Bu kodun kullanım hakkı doldu" görür. Şu an: ${formatNumber(sharedRows.length)} ortak kod · ${formatNumber(sharedUsed)} kişi kullandı.`}
+      >
+        <SharedBetaCodeForm origin={appOrigin()} />
       </AdminCard>
 
       <AdminCard

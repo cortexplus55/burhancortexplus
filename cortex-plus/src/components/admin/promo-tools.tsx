@@ -3,8 +3,120 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createPromoCode, togglePromoCode } from "@/app/admin/actions";
-import { generateBetaCodeBatch } from "@/app/admin/beta-code-actions";
-import { BETA_BATCH_MAX, BETA_PLUS_DAYS } from "@/lib/billing/promo-codes";
+import { createSharedBetaCode, generateBetaCodeBatch } from "@/app/admin/beta-code-actions";
+import {
+  BETA_BATCH_MAX,
+  BETA_PLUS_DAYS,
+  SHARED_BETA_DEFAULT_USES,
+  SHARED_BETA_MAX_USES,
+} from "@/lib/billing/promo-codes";
+
+/** Ortak beta kodu: tek bağlantı, ilk N kişi (sosyal medya duyurusu, 20 Ekim 2026). */
+export function SharedBetaCodeForm({ origin }: { origin: string }) {
+  const [code, setCode] = useState("");
+  const [uses, setUses] = useState(String(SHARED_BETA_DEFAULT_USES));
+  const [days, setDays] = useState(String(BETA_PLUS_DAYS));
+  const [result, setResult] = useState<{ code: string; uses: number; days: number } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const usesNum = Number(uses);
+  const daysNum = Number(days);
+  const valid =
+    /^[A-Za-z0-9-]*$/.test(code.trim()) &&
+    (code.trim() === "" || code.trim().length >= 3) &&
+    Number.isInteger(usesNum) &&
+    usesNum >= 2 &&
+    usesNum <= SHARED_BETA_MAX_USES &&
+    Number.isInteger(daysNum) &&
+    daysNum >= 1 &&
+    daysNum <= 90;
+  const link = result ? `${origin}/pay?kod=${result.code}` : "";
+
+  async function copy(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} kopyalandı.`);
+    } catch {
+      toast.error("Kopyalanamadı; metni seçip kopyala.");
+    }
+  }
+
+  return (
+    <div className="grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          Kod (boş = üretilir)
+          <input
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            placeholder="CORTEXBETA"
+            aria-label="Ortak kod"
+            className="adm-input font-mono"
+          />
+        </label>
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          Kişi
+          <input
+            type="number"
+            min={2}
+            max={SHARED_BETA_MAX_USES}
+            value={uses}
+            onChange={(event) => setUses(event.target.value)}
+            aria-label="Kaç kişi kullanabilir"
+            className="adm-input w-24"
+          />
+        </label>
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          Plus gün
+          <input
+            type="number"
+            min={1}
+            max={90}
+            value={days}
+            onChange={(event) => setDays(event.target.value)}
+            aria-label="Ortak kod Plus gün sayısı"
+            className="adm-input w-24"
+          />
+        </label>
+        <button
+          type="button"
+          className="adm-btn adm-btn--primary"
+          disabled={pending || !valid}
+          onClick={() =>
+            startTransition(async () => {
+              const response = await createSharedBetaCode({ code: code.trim() || undefined, uses: usesNum, days: daysNum });
+              if (response.ok) {
+                setResult({ code: response.code, uses: response.uses, days: response.days });
+                toast.success(`${response.code} oluşturuldu (${response.uses} kişi).`);
+              } else {
+                toast.error(response.error);
+              }
+            })
+          }
+        >
+          {pending ? "Oluşturuluyor…" : "Ortak kod oluştur"}
+        </button>
+      </div>
+      {result ? (
+        <div className="grid gap-2">
+          <p className="text-xs text-[var(--adm-muted)]">
+            {result.code} · ilk {result.uses} kişiye {result.days} gün Plus. Herkes bir kez kullanır; deneme hakkını daha önce
+            kullanan ya da ücretli abonesi olan açamaz.
+          </p>
+          <input readOnly value={link} aria-label="Ortak kod bağlantısı" className="adm-input font-mono text-xs" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="adm-btn" onClick={() => copy(result.code, "Kod")}>
+              Kodu kopyala
+            </button>
+            <button type="button" className="adm-btn" onClick={() => copy(link, "Bağlantı")}>
+              Bağlantıyı kopyala
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** Yeni kampanya kodu formu. */
 export function PromoCreateForm() {

@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth/session";
-import { BETA_BATCH_MAX, BETA_PLUS_DAYS, generateBetaCodes } from "@/lib/billing/promo-codes";
+import {
+  BETA_BATCH_MAX,
+  BETA_PLUS_DAYS,
+  PROMO_CODE_PATTERN,
+  SHARED_BETA_MAX_USES,
+  generateBetaCode,
+  generateBetaCodes,
+  normalizePromoCode,
+} from "@/lib/billing/promo-codes";
 import { createServiceClient } from "@/lib/supabase/server";
 
 const inputSchema = z.object({
@@ -19,6 +27,45 @@ const inputSchema = z.object({
 });
 
 export type BetaCodeResult = { ok: true; codes: string[]; batch: string } | { ok: false; error: string };
+
+const sharedSchema = z.object({
+  code: z.string().trim().max(40).optional(),
+  uses: z.number().int().min(2).max(SHARED_BETA_MAX_USES),
+  days: z.number().int().min(1).max(90).default(BETA_PLUS_DAYS),
+});
+
+export type SharedBetaCodeResult = { ok: true; code: string; uses: number; days: number } | { ok: false; error: string };
+
+/**
+ * Ortak beta kodu (20 Ekim 2026): sosyal medya duyurusunda tek bağlantı, ilk `uses` kişiye `days` gün
+ * Plus. Kişi başına bir kez, hesap başına tek deneme (`redeem_promo_code`). Kod boşsa üretilir.
+ */
+export async function createSharedBetaCode(input: { code?: string; uses: number; days?: number }): Promise<SharedBetaCodeResult> {
+  const { user } = await requireAdmin();
+  const parsed = sharedSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: `2 ile ${SHARED_BETA_MAX_USES} arası kişi, 1 ile 90 arası gün gir.` };
+  const code = parsed.data.code ? normalizePromoCode(parsed.data.code) : generateBetaCode();
+  if (!PROMO_CODE_PATTERN.test(code)) return { ok: false, error: "Kod yalnızca harf, rakam ve tire içerebilir (3-40)." };
+  const { uses, days } = parsed.data;
+  const service = createServiceClient();
+  const { error } = await service.from("promo_codes").insert({
+    code,
+    credit_amount: 0,
+    max_redemptions: uses,
+    plus_days: days,
+    batch: `ortak-${new Date().toISOString().slice(0, 10)}`,
+  });
+  if (error) return { ok: false, error: error.code === "23505" ? "Bu kod zaten var." : "Kod oluşturulamadı." };
+  await auditLog(service, {
+    actorId: user.id,
+    action: "promo.beta_shared_created",
+    entityType: "promo_code",
+    entityId: code,
+    metadata: { uses, days },
+  }).catch(() => undefined);
+  revalidatePath("/admin/promosyonlar");
+  return { ok: true, code, uses, days };
+}
 
 /**
  * Kapalı beta kodları (19 Ekim 2026, ürün sahibinin kararı): her öğrenciye tek kullanımlık kod,

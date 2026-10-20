@@ -15,6 +15,12 @@ export const BETA_CODE_PREFIX = "BETA";
 /** Karışan harfler yok (0/O, 1/I/L): kod kâğıttan ya da mesajdan elle yazılıyor. */
 export const BETA_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 export const BETA_BATCH_MAX = 200;
+/**
+ * Ortak beta kodu (20 Ekim 2026, ürün sahibinin kararı: sosyal medya duyurusu için tek bağlantı,
+ * ilk N kişi). Aynı kural geçerli: kişi başına bir kez, hesap başına tek deneme, ücretli aboneye açılmaz.
+ */
+export const SHARED_BETA_MAX_USES = 1000;
+export const SHARED_BETA_DEFAULT_USES = 50;
 
 export const PROMO_CODE_PATTERN = /^[A-Z0-9-]{3,40}$/;
 
@@ -65,7 +71,8 @@ export const REDEEM_MESSAGES: Record<RedeemReason, string> = {
   invalid_code: "Bu kod geçerli değil. Harfleri kontrol edip yeniden dene.",
   expired: "Bu kodun süresi dolmuş.",
   already_redeemed: "Bu kodu zaten kullandın.",
-  used_up: "Bu kod daha önce kullanılmış. Her kod tek kişilik.",
+  // Ortak kodda da doğru (20 Ekim 2026): "her kod tek kişilik" 51. kişiye yanlış söylüyordu.
+  used_up: "Bu kodun kullanım hakkı doldu.",
   trial_used: "Plus denemeni daha önce kullandın; bir hesap denemeyi bir kez alır.",
   already_premium: "Aboneliğin zaten açık. Bu kod deneme içindir; ücretli dönemine dokunmadık.",
   plan_missing: "Kod şu an kullanılamıyor. Biraz sonra yeniden dene.",
