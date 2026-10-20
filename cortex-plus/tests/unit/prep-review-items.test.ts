@@ -354,7 +354,7 @@ describe("taslaklar: test, doğru/yanlış, kart, sözlü", () => {
     const item: StoredReviewItem = { mode: "choice", prompt: "  **Hangisi**  soygazdır? ", options: ["Argon", "Azot"], correct: ["Argon"], multi: false };
     const key = reviewPromptKey(item);
     // Yalnız özet: `.in()` süzgecinde tırnak/ters bölü/parantez bozmasın (20 Ekim inceleme).
-    expect(key).toMatch(/^[0-9a-f]{16}$/);\|hangisi soygazdır\?$/);
+    expect(key).toMatch(/^[0-9a-f]{16}$/);
     expect(reviewPromptKey({ ...item, prompt: "Hangisi soygazdır?", options: ["Azot", "Argon"] })).toBe(key);
     expect(reviewPromptKey({ ...item, correct: ["Azot"] })).not.toBe(key);
     const long: StoredReviewItem = { mode: "recall", front: "ş".repeat(400), back: "ğ".repeat(400) };
