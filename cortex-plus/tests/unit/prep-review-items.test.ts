@@ -78,7 +78,13 @@ const mcqPlain = {
   answerIndex: 2,
   explanation: "Baş çevresi beyin büyümesini yansıtır.",
   optionWhy: ["Boy kronik süreci gösterir.", "Kilo akut süreci gösterir.", "Beyin büyümesini yansıtır.", "Rutin izlenmez."],
-  review: { prompt: "Bir bebekte beyin büyümesini izlemek için hangi ölçüme bakılır?" },
+  // Yazarın tam ikinci sorusu (20 Ekim 2026): kendi şıkları ve anahtarı; doğru şık ana sorunun doğru şıkkıyla aynı.
+  review: {
+    prompt: "Bir bebekte beyin büyümesini izlemek için hangi ölçüme bakılır?",
+    options: ["Kilo", "Baş çevresi", "Boy", "Göğüs çevresi"],
+    answerIndex: 1,
+    explanation: "Baş çevresi ilk iki yılda beyin büyümesini yansıtır; kilo akut, boy kronik süreci gösterir.",
+  },
 };
 
 const mcqExam = {
@@ -155,12 +161,26 @@ describe("taslaklar: ders", () => {
     expect(miss.options).toEqual(mcqPlain.options);
     expect(miss.correct).toEqual(["Baş çevresi"]);
     expect(miss.optionWhy?.["Baş çevresi"]).toBe("Beyin büyümesini yansıtır.");
-    // Yazarın tekrar kökü kabul kuralından geçerse saklanır; şıklar aynı küme.
+    // Yazarın tam ikinci sorusu kabul kuralından geçerse saklanır; doğru cevabı aynı metin.
     expect(miss.variant?.prompt).toBe(mcqPlain.review.prompt);
-    expect([...(miss.variant?.options ?? [])].sort()).toEqual([...mcqPlain.options].sort());
+    expect([...(miss.variant?.options ?? [])].sort()).toEqual([...mcqPlain.review.options].sort());
+    expect(miss.variant?.correct).toEqual(["Baş çevresi"]);
     // Tekrar kökü olmayan soruda varyant yok.
     expect((drafts[0]!.item as { variant?: unknown }).variant).toBeUndefined();
     expect((drafts[2]!.item as { trueFalse?: boolean }).trueFalse).toBe(true);
+  });
+
+  it("yalnız kökü olan eski ikinci soru varyant olmaz: anahtarı doğrulanamaz (20 Ekim 2026 ikinci soru hatası)", () => {
+    const legacy = { ...mcqPlain, review: { prompt: mcqPlain.review.prompt } };
+    const drafts = reviewDraftsFromAttempt({
+      attemptId: ATTEMPT,
+      kind: "lesson",
+      payload: { type: "lesson", lesson: { title: "Büyüme", format: 3, screens: [screen("Baş çevresi", [{ type: "text", text: "Baş çevresi beyin büyümesini yansıtır." }, { type: "check", check: legacy }])] } },
+      answers: { lessonAnswers: { 0: { pick: 0 } } },
+      topicLabel: "Büyüme",
+    });
+    expect(drafts).toHaveLength(1);
+    expect((drafts[0]!.item as { variant?: unknown }).variant).toBeUndefined();
   });
 
   it("tekrarda doğru olsa da ilk cevap sayılır; sınav noktası ders başına en çok 3; eski istemcinin kaçan listesi", () => {
