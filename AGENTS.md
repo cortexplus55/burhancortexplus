@@ -703,7 +703,14 @@ bir kez; denemesini almış ya da ücretli abonesi olan reddedilir ve **kontenja
 kilitlenerek sayılır (`FOR UPDATE`), aynı anda gelen 51. kişi taşmaz. Dolunca "Bu kodun kullanım hakkı doldu"
 — eski "Her kod tek kişilik" ortak kodda yanlış söylüyordu.
 
-Bekçi: `beta-plus-codes.test.ts` (göçü PGlite'ta çalıştırır: açılış, tek kişilik kod, tek deneme,
+Instagram'dan gelen öğrencinin iki engeli kapatıldı (aynı gün):
+
+| Engel | Kural | Nerede |
+|---|---|---|
+| Google, uygulamanın kendi tarayıcısında girişi reddediyor ("disallowed_useragent"); öğrenci Google'ın hata sayfasını görüyordu | Instagram / Facebook / TikTok tarayıcısında Google düğmesi yerine "E-postanla devam et ya da sağ üstteki menüden sayfayı tarayıcıda aç" (giriş ve kayıt); WhatsApp ve Telegram gerçek tarayıcıda açar | `in-app-browser.ts`, `google-blocked-note.tsx` |
+| Instagram'da kayıt olup onayı e-posta uygulamasından açınca onay başka tarayıcıda açılıyor; dönüş adresi (`/pay?kod=…`) yalnız ilk tarayıcının `localStorage`'ındaydı, kod kayboluyordu | Kayıt dönüş adresini hesaba da yazar (`signup_next`); tamamla sayfası yük bulamayınca kuruluma gönderir, kurulum sonunda oraya gidilir | `signup-wizard.tsx`, `onboarding/page.tsx` |
+
+Bekçi: `beta-social-signup.test.tsx`, `beta-plus-codes.test.ts` (göçü PGlite'ta çalıştırır: açılış, tek kişilik kod, tek deneme,
 ücretli Plus'ın ezilmemesi, deneme bitince günlük hakka dönüş, hediye kredi, ortak kodun kontenjanı).
 
 ## Haftalık kısa anket (19 Ekim 2026) — kapalı beta geri bildirimi

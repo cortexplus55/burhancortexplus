@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { GoogleBlockedNote } from "@/components/auth/google-blocked-note";
+import { useGoogleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { authErrorMessage } from "@/lib/auth/messages";
@@ -28,6 +30,8 @@ export default function GirisPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
+  // Instagram / Facebook / TikTok tarayıcısında Google girişi reddediliyor (beta duyurusu, 20 Ekim 2026).
+  const blockedApp = useGoogleBlockedWebViewApp();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,26 +86,35 @@ export default function GirisPage() {
             {" "}adresine yaz.
           </p>
         ) : null}
-        <GoogleSignInButton onClick={google} disabled={loading} />
-        {/* Google ile ilk girişte hesap burada da açılabiliyor; kayıt
-            sihirbazındaki onay kutusu bu yolda hiç görünmüyordu. */}
-        <p className="text-center text-xs text-[var(--cx-muted)]">
-          Google ile devam ederek{" "}
-          <Link href="/kullanim-kosullari" className="underline">
-            Kullanım Koşulları
-          </Link>
-          {" ve "}
-          <Link href="/kvkk" className="underline">
-            KVKK Aydınlatma Metni
-          </Link>
-          &apos;ni kabul etmiş olursun.
-        </p>
+        {blockedApp ? (
+          <GoogleBlockedNote
+            app={blockedApp}
+            className="border-[var(--cx-border)] text-[var(--cx-muted)]"
+          />
+        ) : (
+          <>
+            <GoogleSignInButton onClick={google} disabled={loading} />
+            {/* Google ile ilk girişte hesap burada da açılabiliyor; kayıt
+                sihirbazındaki onay kutusu bu yolda hiç görünmüyordu. */}
+            <p className="text-center text-xs text-[var(--cx-muted)]">
+              Google ile devam ederek{" "}
+              <Link href="/kullanim-kosullari" className="underline">
+                Kullanım Koşulları
+              </Link>
+              {" ve "}
+              <Link href="/kvkk" className="underline">
+                KVKK Aydınlatma Metni
+              </Link>
+              &apos;ni kabul etmiş olursun.
+            </p>
 
-        <div className="flex items-center gap-3 text-xs text-[var(--cx-muted)]">
-          <span className="h-px flex-1 bg-[var(--cx-border)]" aria-hidden />
-          veya e-posta ile
-          <span className="h-px flex-1 bg-[var(--cx-border)]" aria-hidden />
-        </div>
+            <div className="flex items-center gap-3 text-xs text-[var(--cx-muted)]">
+              <span className="h-px flex-1 bg-[var(--cx-border)]" aria-hidden />
+              veya e-posta ile
+              <span className="h-px flex-1 bg-[var(--cx-border)]" aria-hidden />
+            </div>
+          </>
+        )}
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
