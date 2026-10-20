@@ -115,6 +115,8 @@ export async function buildLocalSessionPayload(
     prepTitle: string;
     targetScore: number | null;
     learningPreferences: unknown;
+    /** Uyarlamalı odaklı pratik (20 Ekim 2026): yalnız düşük sonuç alınan konu. */
+    focusTopic?: string | null;
   },
 ): Promise<LocalSessionPlan> {
   const language = prepLanguage(input.learningPreferences);
@@ -245,12 +247,15 @@ export async function buildLocalSessionPayload(
     return { action: "serve", payload: { type: "readiness", screen } };
   }
 
-  const weakTopics = collectWeakTopics({
-    mastery,
-    misconceptions,
-    missedTopics,
-    plannedTopics: topicLabels,
-  });
+  const focus = input.kind === "focused" ? input.focusTopic?.trim() : "";
+  const weakTopics = focus
+    ? [focus]
+    : collectWeakTopics({
+        mastery,
+        misconceptions,
+        missedTopics,
+        plannedTopics: topicLabels,
+      });
   // Bilgi boşlukları zayıf nokta yoksa kilitli; varsa yeni sorular yalnız
   // o konulardan üretilir (Astra, 1 Ekim 2026).
   if (input.kind === "gaps") {

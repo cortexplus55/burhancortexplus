@@ -34,6 +34,7 @@ import {
   BUSY_RETRY_DELAY_MS,
 } from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
+import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning/path-change";
 import { UNSCORED_NODE_KINDS } from "@/lib/learning/node-result";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
@@ -319,6 +320,8 @@ export function ExamNodeSession({
   const [levelHint, setLevelHint] = useState<LevelHint | null>(null);
   /** Sonuçtan sonra "+%X kazandın" (19 Ekim 2026); yalnız konu hâkimiyeti arttıysa. */
   const [topicGain, setTopicGain] = useState<TopicGain | null>(null);
+  /** Sonuca göre yol (20 Ekim 2026): araya giren odaklı pratik ya da kalkan ek testler. */
+  const [pathChange, setPathChange] = useState<PathChange | null>(null);
   const [gainOpen, setGainOpen] = useState(false);
   const [feedback, setFeedback] = useState<{
     headline: string;
@@ -779,6 +782,7 @@ export function ExamNodeSession({
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
       setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);
+      setPathChange(parsePathChange(data.pathChange));
       setGainOpen(false);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
@@ -1929,6 +1933,11 @@ export function ExamNodeSession({
             ) : (
               <p className="text-sm text-[var(--cp-muted)]">Sıradaki adım, hazırlığın bir sonraki çalışmasıdır.</p>
             )
+          ) : null}
+          {pathChange ? (
+            <p className="cp-path-change" role="status">
+              {pathChangeLine(pathChange)}
+            </p>
           ) : null}
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           {attemptId ? <LessonRatingCard attemptId={attemptId} /> : null}

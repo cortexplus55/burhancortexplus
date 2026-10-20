@@ -7,6 +7,7 @@ import { DEFAULT_FAMILIARITY, DEFAULT_MOOD, parseFamiliarity, type Familiarity, 
 import { difficultyFromFamiliarity } from "@/lib/learning/lesson-open";
 import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
+import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
 
 /**
  * Sıradaki dersin önceden hazırlanması (3 Ekim 2026, ürün sahibinin kararı).
@@ -376,7 +377,8 @@ export async function nodeFamiliarity(service: SupabaseClient, prepId: string, s
 
 /**
  * Yolda bu sıradan sonra gelen ilk önceden hazırlanabilir etkinlik. Arada öğrencinin kayıtlarından
- * anında kurulan (zayıf nokta, son kontrol…) adımlar atlanır; en çok üç adım ileriye bakılır.
+ * anında kurulan (zayıf nokta, son kontrol…) adımlar atlanır. Yalnız yolun kesin penceresine
+ * (`PATH_LOOKAHEAD`, 2 adım) bakılır: sonrası sonuçlara göre değişebilir (20 Ekim 2026; önce 3).
  */
 export async function nextPrefetchNode(
   service: SupabaseClient,
@@ -389,7 +391,7 @@ export async function nextPrefetchNode(
     .gt("sort_order", input.afterSortOrder)
     .neq("status", "done")
     .order("sort_order")
-    .limit(3);
+    .limit(PATH_LOOKAHEAD);
   return ((data ?? []) as PathRow[]).find((row) => PREFETCH_KINDS.has(row.kind)) ?? null;
 }
 
@@ -476,7 +478,7 @@ export async function requestPrepPrefetch(
       .eq("exam_prep_id", input.prepId)
       .neq("status", "done")
       .order("sort_order")
-      .limit(4);
+      .limit(PATH_LOOKAHEAD + 1);
     const rows = (data ?? []) as (PathRow & { sort_order: number })[];
     const first = rows[0];
     if (!first) return;
