@@ -83,6 +83,11 @@ export function isDistinctRetryVariant(
  *
  * Sunucu ve sızdırma yolu aynı fonksiyonu kullanır (deterministik).
  * Cevaplı paket gerekir; sızdırılmış pakette istemci bunu çağırmamalı.
+ *
+ * Ders içi ikinci soru kaçırılan olguyu yeniden sınar (`sameFactOnly`, 20 Ekim 2026 kör kıyas: kod
+ * yedekleri kaynağın komşu cümlesini sorup "konfederasyon" kaçıranı "üniter" ile sınıyordu). Notlandırma
+ * (`resolveCheckForGrade`), mühürlü tekrar (`buildLessonRetryCheck`) ve eski istemci yolu bu fonksiyondan
+ * geçer: üçü aynı bayrakla, aynı soruyu kurar.
  */
 export function reviewGateQuestion<T extends SectionCheck>(
   check: T,
@@ -98,5 +103,6 @@ export function reviewGateQuestion<T extends SectionCheck>(
     { ...check, type: check.type, options: check.options, answerIndex: check.answerIndex },
     language,
     source,
+    { sameFactOnly: true },
   ) as T;
 }

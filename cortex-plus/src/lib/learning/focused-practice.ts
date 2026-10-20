@@ -92,24 +92,38 @@ export function rewordPracticeQuestion(
 ): QuizQuestion {
   const answerIndex = question.options.findIndex((option) => option === question.correct[0]);
   if (question.correct.length !== 1 || answerIndex < 0) return question;
+  const explanation = question.explanation?.trim() || question.options.join(". ");
   const next = reviewQuestionFor(
     {
       type: "mcq",
       prompt: question.text,
       options: question.options,
       answerIndex,
-      explanation: question.explanation?.trim() || question.options.join(". "),
+      explanation,
       review: question.review ?? null,
     },
     language,
   );
   const correct = next.options[next.answerIndex];
   if (!correct) return question;
+  // Yazarın tam tekrar öğesi kendi açıklamasını taşır; şık gerekçeleri yalnız aynı şıklar için yeniden
+  // eşlenir, yeni şıklarda düşer (20 Ekim 2026: gerekçe başka şıkkın altında kalıyordu).
+  const why = question.optionWhy?.length === question.options.length ? question.optionWhy : undefined;
+  const optionWhy = why
+    ? next.options.map((option) => {
+        const index = question.options.indexOf(option);
+        return index >= 0 ? why[index] : undefined;
+      })
+    : undefined;
+  const { optionWhy: _optionWhy, ...rest } = question;
+  void _optionWhy;
   return {
-    ...question,
+    ...rest,
     text: next.prompt,
     options: next.options,
     correct: [correct],
+    ...(next.explanation !== explanation ? { explanation: next.explanation } : {}),
+    ...(optionWhy?.every((item): item is string => typeof item === "string") ? { optionWhy } : {}),
   };
 }
 

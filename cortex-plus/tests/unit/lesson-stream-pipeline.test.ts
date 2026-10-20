@@ -21,8 +21,16 @@ const opener = {
     answerIndex: 1,
     explanation: "Ayıran şey yaptırımın maddi olmasıdır.",
     corrected: "Hukuk kurallarını ayıran şey maddi yaptırımdır; hapis yalnızca biridir.",
+    review: {
+      prompt: "Haciz bir hukuk kuralının yaptırımı sayılmaz, çünkü kimse hapse girmez.",
+      options: ["Doğru", "Yanlış"],
+      answerIndex: 1,
+      explanation: "Haciz de devletin zorla uygulattığı maddi yaptırımdır.",
+      corrected: "Haciz de maddi yaptırımdır.",
+    },
   },
 };
+// Yanlıştan sonraki ikinci soru tam öğe (20 Ekim 2026): kendi şıkları, aynı doğru şık, kendi açıklaması.
 const mcq = (prompt: string) => ({
   type: "check",
   check: {
@@ -32,7 +40,12 @@ const mcq = (prompt: string) => ({
     answerIndex: 0,
     explanation: "Kurucu unsur yoksa işlem doğmaz; ötekiler doğmuş ama sakat işlemlerdir.",
     optionWhy: ["Kurucu unsur yok.", "Emredici kurala aykırı.", "İrade sakatlığı.", "Onay eksik."],
-    review: { prompt: "Kurucu unsuru tam ama emredici kurala aykırı işlem hangisidir?" },
+    review: {
+      prompt: "Taraflardan hiçbirinin iradesini açıklamadığı bir işlem hangi türdür?",
+      options: ["Mutlak butlan", "Yokluk", "Nispi butlan", "Bağlamazlık"],
+      answerIndex: 1,
+      explanation: "İrade açıklaması kurucu unsurdur; yoksa işlem hiç doğmaz. Mutlak butlanda unsurlar vardır.",
+    },
   },
 });
 
@@ -49,7 +62,7 @@ const lesson: LessonV3 = {
       blocks: [
         opener,
         { type: "text", text: "Hukuku diğer sosyal kurallardan ayıran şey **maddi yaptırım**dır; devlet zorlar." },
-        { type: "note", note: { title: "Günlük hayattan: Ceza ve tazminat", body: "Kırmızıda geçip çarparsan devlete ödediğin ceza, hasarı ödemen tazminattır.", tone: "info" } },
+        { type: "note", note: { title: "Örnek vaka: Ceza ve tazminat", body: "Kırmızıda geçip çarparsan devlete ödediğin ceza, hasarı ödemen tazminattır.", tone: "info" } },
       ],
     },
     {
@@ -90,6 +103,7 @@ async function run(options: {
   verify: (user: string, round: number) => unknown;
   fix?: (user: string) => unknown;
   drafts?: string[];
+  started?: number;
 }) {
   const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
   const drafts = options.drafts ?? [JSON.stringify(lesson)];
@@ -113,7 +127,10 @@ async function run(options: {
       },
     },
     input,
-    { onPublish: (item) => void published.push({ screens: item.lesson.screens.length, done: item.done, upcoming: item.upcoming }) },
+    {
+      started: options.started,
+      onPublish: (item) => void published.push({ screens: item.lesson.screens.length, done: item.done, upcoming: item.upcoming }),
+    },
   );
   return { result, calls, published };
 }
@@ -140,7 +157,7 @@ describe("akış okuyucu", () => {
   });
 
   it("fikstür yapı denetiminden temiz geçer", () => {
-    expect(lessonStructureIssues(lesson, {}).filter((issue) => issue.severity === "high")).toEqual([]);
+    expect(lessonStructureIssues(lesson, {})).toEqual([]);
   });
 });
 
@@ -329,7 +346,8 @@ describe("ilk kavramın erken denetimi", () => {
     expect(first).toBeGreaterThan(-1);
     expect(first).toBeLessThan(events.indexOf("yazım bitti"));
     expect(events.filter((event) => event !== "yazım bitti")).toHaveLength(3);
-  });
+    // Parça başına bir zamanlayıcı turu: tam ikinci sorulu fikstür (20 Ekim 2026) daha uzun; tam pakette yük altında 5 sn'yi aşıyordu.
+  }, 15_000);
 
   it("ilk kavram iki ekranlıysa erken denetim atılır, iki ekran birlikte denetlenir", async () => {
     const second = { ...lesson.screens[0]!, heading: "Maddi Yaptırım: türleri", blocks: [{ type: "text", text: "Ceza, tazminat ve cebri icra maddi yaptırımdır." }, { type: "table", table: { caption: "Türler", columns: ["Tür", "Örnek"], rows: [["Ceza", "Hapis"], ["Tazminat", "Zarar ödemesi"]] } }, mcq("Hangisi maddi yaptırımdır?")] };
@@ -337,7 +355,7 @@ describe("ilk kavramın erken denetimi", () => {
     const { result, events } = await slowRun(draft);
     expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Maddi Yaptırım: türleri", "Yokluk", "Mutlak Butlan"]);
     expect(events.some((event) => event.startsWith("screens[0]–screens[1]"))).toBe(true);
-  });
+  }, 15_000);
 });
 
 /*
@@ -384,5 +402,94 @@ describe("ezber kodu kavramı düşürmez", () => {
     expect(MNEMONIC_EXAMPLES).toContain("C ile Ç");
     expect(teacherSystem("document")).toContain(MNEMONIC_EXAMPLES);
     expect(verifySystem("document")).toContain(MNEMONIC_EXAMPLES);
+  });
+});
+
+/*
+  20 Ekim 2026 (kör kıyas; ürün sahibinin kararı): ezber kodu isteğe bağlı. İlk kavramda öğrenci ilk ekranı bekliyor:
+  ayrım taşımayan kod tur açmadan çıkar. Sonraki kavramlarda bir tur kalır (iyi bir ayrım kodu çıkabilsin).
+*/
+describe("ilk kavramda kötü ezber kodu hemen çıkar", () => {
+  it("screens[0]'daki kötü kod düzeltme turu açmadan çıkar, kavram yayımlanır", async () => {
+    const draft = JSON.stringify({
+      ...lesson,
+      screens: lesson.screens.map((screen, index) =>
+        index === 0
+          ? { ...screen, blocks: [...screen.blocks, { type: "note", note: { title: "Ezber kodu: MY", body: "M = maddi, Y = yaptırım.", tone: "mnemonic" } }] }
+          : screen,
+      ),
+    });
+    const { result, calls } = await run({
+      drafts: [draft],
+      verify: (user) =>
+        user.includes("yalnız screens[0]")
+          ? { issues: [{ where: "screens[0].blocks[3]", severity: "high", problem: "Kod yalnız baş harfleri taşıyor; ayrım yok." }] }
+          : { issues: [] },
+    });
+    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
+    expect(result.dropped).toEqual([]);
+    const first = result.lesson!.screens[0]!;
+    expect(first.blocks.some((block) => block.type === "note" && block.note.tone === "mnemonic")).toBe(false);
+    expect(result.issues.some((issue) => /ayrım taşımıyordu/.test(issue.problem))).toBe(true);
+  });
+});
+
+/*
+  Öğretim ölçütü ('medium', 20 Ekim 2026, ürün sahibinin kararı): yanlış bir şey öğretmeyen ama öğretimi zayıflatan
+  sorun. İlk kavramda tur açmaz (soğuk ilk ekran p95 < 20 sn); sonraki kavramda en çok bir kavram içi tur; düzeltme
+  yüksek bir sorun getirirse önceki ekranlar yayımlanır; asla atma ya da baştan yazma ("atılan kavram 0").
+*/
+describe("öğretim ölçütü turu", () => {
+  const medium = (target: string) => (user: string) =>
+    user.includes(`yalnız ${target}`)
+      ? { issues: [{ where: target, severity: "medium", problem: "Aynı bilgi önceki ekranda da anlatılıyor." }] }
+      : { issues: [] };
+
+  it("ilk kavramda 'medium' tur açmaz", async () => {
+    const { result, calls } = await run({ verify: medium("screens[0]") });
+    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
+    expect(result.lesson?.screens).toHaveLength(3);
+    expect(result.issues.some((issue) => issue.problem.startsWith("[öğretim]"))).toBe(true);
+  });
+
+  it("sonraki kavramda tek bir dikkatli düzeltme; 'medium' kalsa da yayımlanır", async () => {
+    const improved = {
+      ...lesson.screens[1]!,
+      blocks: [{ type: "text", text: "Kurucu unsuru olmayan işlem hiç doğmaz: **yokluk**." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")],
+    };
+    const { result, calls } = await run({ verify: medium("screens[1]"), fix: () => ({ screens: [improved], disputes: [] }) });
+    const fixes = calls.filter((call) => call.role !== "verify");
+    expect(fixes.map((call) => call.role)).toEqual(["fix-careful"]);
+    expect(fixes[0]!.user).toContain("[öğretim]");
+    expect(fixes[0]!.user).toContain("ÖĞRETİM ÖLÇÜTÜ sorunlarıdır");
+    expect(result.dropped).toEqual([]);
+    expect(result.lesson?.screens[1]!.blocks[0]).toMatchObject({ text: expect.stringContaining("hiç doğmaz") });
+    expect(result.fixTriggers).toHaveLength(1);
+  });
+
+  it("düzeltme yüksek bir sorun getirirse önceki ekranlar yayımlanır; kavram atılmaz, baştan yazılmaz", async () => {
+    const broken = {
+      ...lesson.screens[1]!,
+      blocks: [{ type: "text", text: "Yokluk sonradan iptal edilebilir." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")],
+    };
+    const { result, calls } = await run({
+      verify: (user, round) =>
+        user.includes("yalnız screens[1]")
+          ? round === 0
+            ? { issues: [{ where: "screens[1]", severity: "medium", problem: "Neden söylenmiyor." }] }
+            : { issues: [{ where: "screens[1].blocks[0]", severity: "high", problem: "Yokluk iptal edilemez; yanlış." }] }
+          : { issues: [] },
+      fix: () => ({ screens: [broken], disputes: [] }),
+    });
+    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(1);
+    expect(result.dropped).toEqual([]);
+    expect(result.lesson?.screens[1]!.blocks[0]).toMatchObject({ text: "Kurucu unsuru hiç olmayan işlem **yokluk** ile sakattır." });
+    expect(calls.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM"))).toHaveLength(0);
+  });
+
+  it("süre sınırından sonra 'medium' tur açmaz", async () => {
+    const { calls, result } = await run({ verify: medium("screens[1]"), started: Date.now() - 160_000 });
+    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
+    expect(result.lesson?.screens).toHaveLength(3);
   });
 });

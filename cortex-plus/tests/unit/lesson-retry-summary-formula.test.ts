@@ -36,21 +36,39 @@ describe("missed questions change angle", () => {
     expect(retry.prompt).not.toContain("başka sözcüklerle");
   });
 
-  it("keeps a stored rephrase ahead of the source sentence", () => {
-    const retry = reviewQuestionFor(
+  /*
+    20 Ekim 2026: bu test eski hatayı sabitliyordu. Yalnız kök tekrar ana sorunun anahtarını alıyordu: "Sıcaklık ısıl
+    durumu gösteren bir özellik midir?" sorusu "Yanlış" anahtarıyla sorulacaktı, oysa kaynağa göre doğru. Yalnız kök
+    artık kullanılmaz; yazarın tam öğesi kendi anahtarıyla gelir.
+  */
+  it("ignores a prompt-only review (its key cannot be checked) and uses the writer's full item", () => {
+    const base = {
+      type: "trueFalse" as const,
+      prompt: LIVE_PROMPT,
+      options: ["Yanlış", "Doğru"],
+      answerIndex: 0,
+      explanation: "Sıcaklık enerji birimi değildir.",
+    };
+    const promptOnly = reviewQuestionFor({ ...base, review: { prompt: "Sıcaklık ısıl durumu gösteren bir özellik midir?" } }, "tr", source);
+    expect(promptOnly.prompt).not.toBe("Sıcaklık ısıl durumu gösteren bir özellik midir?");
+    expect(promptOnly.options[promptOnly.answerIndex]).toBe("Doğru");
+
+    const full = reviewQuestionFor(
       {
-        type: "trueFalse",
-        prompt: LIVE_PROMPT,
-        options: ["Yanlış", "Doğru"],
-        answerIndex: 0,
-        explanation: "Sıcaklık enerji birimi değildir.",
-        review: { prompt: "Sıcaklık ısıl durumu gösteren bir özellik midir?" },
+        ...base,
+        review: {
+          prompt: "Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir.",
+          options: ["Doğru", "Yanlış"],
+          answerIndex: 0,
+          explanation: "Sıcaklık ısıl durumu gösterir; enerji birimi değildir.",
+        },
       },
       "tr",
       source,
     );
-    expect(retry.prompt).toBe("Sıcaklık ısıl durumu gösteren bir özellik midir?");
-    expect(retry.options[retry.answerIndex]).toBe("Yanlış");
+    expect(full.prompt).toBe("Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir.");
+    expect(full.options[full.answerIndex]).toBe("Doğru");
+    expect(full.explanation).toBe("Sıcaklık ısıl durumu gösterir; enerji birimi değildir.");
   });
 
   it("asks a fill-style multiple choice from the source sentence", () => {
