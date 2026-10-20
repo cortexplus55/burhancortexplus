@@ -21,6 +21,9 @@ const USER_CONTENT_TABLES = [
   // 19 Ekim 2026: yıldız kayıtları, kurulum taslağı ve haftalık anket de öğrencinin verisi. İlk ikisi listede
   // yoktu: profil anonimleşse de satırlar kalıyordu (silme işçisi profili silmez, CASCADE çalışmaz).
   "star_events", "exam_wizard_drafts", "weekly_surveys", "open_timings",
+  // 20 Ekim 2026: günü gelen tekrar kayıtları. Hazırlık silinince CASCADE; hesap silinince burada
+  // (silme işçisi hazırlığı değil profili anonimleştirir). Tablo canlıda olmadan bu satır yayına çıkmaz.
+  "exam_prep_review_items",
 ] as const;
 
 /** Every step is checked and repeatable by the deletion worker. */

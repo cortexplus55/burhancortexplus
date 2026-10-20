@@ -164,6 +164,7 @@ import {
   stripAnswerMeta,
 } from "@/lib/learning/learning-tracking-persist";
 import { recordMistakes } from "@/lib/learning/mistake-notebook";
+import { scheduleReviewsAfterComplete } from "@/lib/learning/review-items-store";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import {
   creditIdempotencyKeyForStart,
@@ -1183,6 +1184,22 @@ async function handleNodeRequest(
       // Notebook / streak must not roll back a completed node.
     }
 
+    // Günü gelen tekrar (20 Ekim 2026, ürün sahibinin kararı): kaçırılan soru ve dersin sınav noktası
+    // 1-3-7-14 gün sonra hazırlık sayfasında yeniden sorulur. Kayıt kopyadır, model çağrısı yok; yol,
+    // önceden yazım ve tamamlama RPC'si değişmez. Anahtar (spaced_review) içeride; hata 0 döner.
+    const reviewScheduled = await scheduleReviewsAfterComplete(service, {
+      userId,
+      prepId,
+      nodeId,
+      attemptId: attempt.id as string,
+      kind,
+      payload: attempt.payload,
+      answers: mergedAnswers,
+      topicLabel,
+      topicId: (topic?.id as string | undefined) ?? null,
+      oralReport: oralExtras ?? oralReviewFromPayload(attempt.payload),
+    }).catch(() => 0);
+
     let review = null;
     if (kind === "written_exam") {
       review = await writtenReviewForPayload(service, {
@@ -1217,6 +1234,7 @@ async function handleNodeRequest(
       // Astra: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
       levelHint: await loadLevelHint(service, prepId).catch(() => null),
       pathChange,
+      reviewScheduled,
       state: "completed",
       review,
       oralReview: oralExtras ?? oralReviewFromPayload(attempt.payload),

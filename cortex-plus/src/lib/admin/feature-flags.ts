@@ -11,6 +11,11 @@ export const JEV_ENABLED_FLAG = "jev_enabled";
 export const ADAPTIVE_DAILY_REPLAN_FLAG = "adaptive_daily_replan_enabled";
 /** TutorModelRouter gpt-4o escalation path. */
 export const ADAPTIVE_MODEL_ROUTER_FLAG = "adaptive_model_router_enabled";
+/**
+ * Günü gelen tekrar (20 Ekim 2026): yanlış soru ve dersin sınav noktası 1-3-7-14 gün sonra; hazırlık
+ * sayfasında "Bugün N tekrar". Kapalıyken yeni tekrar yazılmaz, kart ve hatırlatma görünmez.
+ */
+export const SPACED_REVIEW_FLAG = "spaced_review";
 
 type FlagRow = {
   enabled: boolean;

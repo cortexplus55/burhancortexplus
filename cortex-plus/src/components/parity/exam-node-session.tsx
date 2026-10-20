@@ -38,6 +38,7 @@ import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning
 import { unscoredResult } from "@/lib/learning/node-result";
 import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
 import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { reviewScheduledLine } from "@/lib/learning/review-copy";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
@@ -326,6 +327,8 @@ export function ExamNodeSession({
   const [topicGain, setTopicGain] = useState<TopicGain | null>(null);
   /** Sonuca göre yol (20 Ekim 2026): araya giren odaklı pratik ya da kalkan ek testler. */
   const [pathChange, setPathChange] = useState<PathChange | null>(null);
+  /** Günü gelen tekrar (20 Ekim 2026): bu etkinlikten yarına yazılan yanlış sayısı. */
+  const [reviewScheduled, setReviewScheduled] = useState(0);
   const [gainOpen, setGainOpen] = useState(false);
   const [feedback, setFeedback] = useState<{
     headline: string;
@@ -789,6 +792,7 @@ export function ExamNodeSession({
       setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
       setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);
       setPathChange(parsePathChange(data.pathChange));
+      setReviewScheduled(Number(data.reviewScheduled) || 0);
       setGainOpen(false);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
@@ -1964,6 +1968,11 @@ export function ExamNodeSession({
           {pathChange ? (
             <p className="cp-path-change" role="status">
               {pathChangeLine(pathChange)}
+            </p>
+          ) : null}
+          {reviewScheduledLine(reviewScheduled, kind) ? (
+            <p className="cp-path-change" role="status">
+              {reviewScheduledLine(reviewScheduled, kind)}
             </p>
           ) : null}
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}

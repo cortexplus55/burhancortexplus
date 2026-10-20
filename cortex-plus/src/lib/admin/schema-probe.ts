@@ -113,7 +113,7 @@ export async function probeSchema(
     .from("document_teacher_analyses")
     .select("document_id")
     .limit(1);
-  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch, pathInsert, listeningCheck] = await Promise.all([
+  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch, pathInsert, listeningCheck, reviewItems] = await Promise.all([
     probeCreditReserve(service),
     service
       .from("credit_rules")
@@ -141,6 +141,7 @@ export async function probeSchema(
     hasTable(service, "exam_prep_prefetch"),
     probePathInsert(service),
     probeListeningCheckColumn(service),
+    hasTable(service, "exam_prep_review_items"),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -216,6 +217,14 @@ export async function probeSchema(
       detail: listeningCheck
         ? "exam_prep_podcasts.listening_check yerinde: önbellekten gelen podcast de kontrollü açılır"
         : "Sütun yok — önbellekteki podcast dinleme kontrolsüz (puansız) açılır (20261020150000).",
+    },
+    {
+      name: "Aralıklı tekrar kaydı",
+      ok: reviewItems,
+      critical: false,
+      detail: reviewItems
+        ? "exam_prep_review_items yerinde: kaçırılan soru 1-3-7-14 gün sonra yeniden sorulur"
+        : "Tablo yok — tekrar yazılmıyor, \"Bugün N tekrar\" görünmüyor, hesap silme bu adımda düşer (20261020160000).",
     },
     {
       name: "Zor soru tavanı sayacı",

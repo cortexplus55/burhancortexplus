@@ -613,12 +613,21 @@ export type OralMisconceptionDraft = {
 
 const UNVERIFIED_ANSWER = /doğrulanamadı|doğrulanmış bir çözüm cümlesi yok/i;
 
+/**
+ * Bu sözlü cevap yeniden sorulmaya değer mi: yanlış / kısmen / boş ve denetlenmiş bir çözüm cümlesi
+ * var. Yanılgı kuyruğu ve günü gelen tekrar (20 Ekim 2026) aynı kuralı okur; ikisi ayrışmasın.
+ */
+export function oralItemReviewable(item: OralItemGrade): boolean {
+  if (item.verdict !== "yanlis" && item.verdict !== "kismen" && item.verdict !== "bos") return false;
+  const answer = typeof item.modelAnswer === "string" ? item.modelAnswer : "";
+  if (answer.trim().length < 8) return false;
+  return !isScoreLabel(answer) && !UNVERIFIED_ANSWER.test(answer);
+}
+
 /** Yalnızca yanlış / kısmen / boş. Doğru cevap ve çözümsüz kart kuyruğa girmez. */
 export function oralMisconceptionDrafts(report: OralExamReport): OralMisconceptionDraft[] {
   return report.items
-    .filter((item) => item.verdict === "yanlis" || item.verdict === "kismen" || item.verdict === "bos")
-    .filter((item) => item.modelAnswer.trim().length >= 8)
-    .filter((item) => !isScoreLabel(item.modelAnswer) && !UNVERIFIED_ANSWER.test(item.modelAnswer))
+    .filter(oralItemReviewable)
     .map((item) => ({
       claim: item.dontKnow ? "Bilmiyorum" : item.answer.slice(0, 240) || "(boş)",
       corrected: item.modelAnswer,

@@ -54,6 +54,7 @@ import { STUDY_PATH_HINT, studyNodeAria, studyNodeOpenable, type StudyToolGroup 
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
+import { PrepDueReviewCard } from "@/components/parity/prep-review-card";
 import {
   buildPrepProgressView,
   type PrepProgressView,
@@ -222,6 +223,7 @@ export function ExamPrepHome({
   lastResult = null,
   nodeScores = {},
   lockedPickId = null,
+  dueReviews = 0,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -277,6 +279,8 @@ export function ExamPrepHome({
   nodeScores?: Record<string, number>;
   /** Kilitli adımın adresi açıldıysa o adım seçili gelir. */
   lockedPickId?: string | null;
+  /** Bu hazırlıkta bugün sorulacak tekrar (20 Ekim 2026); yolu kilitlemez. */
+  dueReviews?: number;
 }) {
   const router = useRouter();
   /** Yolda seçilen kilitli adım: açılmaz, alt kartta "öncekileri bitirince açılır" yazar. */
@@ -581,6 +585,8 @@ export function ExamPrepHome({
           </Link>
         </section>
       ) : null}
+
+      {view === "yol" ? <PrepDueReviewCard prepId={prepId} count={dueReviews} /> : null}
 
       {view === "ilerleme" ? (
         <ExamPrepProgress
