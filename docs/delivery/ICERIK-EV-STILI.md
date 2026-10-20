@@ -86,7 +86,8 @@ Astra'nın dersi baştan sona gezildi. İskelet şu:
 
 1. **Kanca** — dersin tam adı, konuya girmeden önce tek paragraf
 2..n. **Kavram adımı** — başlık kavramın adı, metinde anahtar terimler
-   koyu, tuzak akışın içinde ayrı kutuda, **adım kendi kontrolüyle biter**
+   koyu, tuzak akışın içinde ayrı kutuda, **her ekran kendi sorusuyla biter**
+   (20 Ekim 2026'dan beri; önce yalnız kavramın son ekranı)
 n+1. **Özet ve gelecek bakış** — özet + **sonraki konunun adı**
 n+2. **Tekrarla** — geldiği bölümün adıyla etiketli hatırlama sorusu
 son. **Kapanış** — kendini test et
@@ -113,6 +114,97 @@ gerçekte ne olduğunu** söyler ve kaynağa yaslanır ("Metne göre…").
 "diğer seçenekler sırasıyla bronşiolit, astım…" yanlış şıkkı gösterir); her
 şıkkı kendi içeriğiyle anar. Altın kıyasta hakemin bulduğu sorunların yarısı
 buydu. Kural: `option-reference.ts`; ders ve test motorunda yazar, denetçi, kod.
+20 Ekim 2026'dan beri dedektör "ilk iki ifade", "sırayla" ve cümle başındaki
+büyük "İ"yi de yakalıyor (JS'in `i` bayrağı "İ"yi "i" saymıyordu); "madde"
+şık sayılmıyor — "Anayasanın ilk üç maddesi değiştirilemez" KPSS'in çekirdek
+bilgisi ve itiraz edilemeyen yapı kuralı onu yazdırmıyordu. Ders denetçisi
+kuralı yazarla aynı cümleyle okur.
+
+---
+
+### Ders motoru: öğretim kalitesi (20 Ekim 2026, kör kıyas)
+
+Kod: `src/lib/learning/teacher-lesson.ts`, `teacher-lesson-run.ts`,
+`teaching-rubric.ts`, `teacher-brain.ts` (`reviewItemProblems`,
+`acceptReviewVariant`, `reviewQuestionFor`) · Test:
+`tests/unit/lesson-teaching-quality.test.ts`, `tests/unit/retry-key.test.ts`,
+`tests/unit/lesson-stream-pipeline.test.ts`
+
+Aynı belgeyle (KPSS anayasa, trigonometri, Pediatri gelişim) Astra ve
+Cortex dersleri körlemesine, hakem modellerle yan yana puanlandı. Doğrulukta
+beş çiftin beşi bizdeydi; öğretimde değil. Bu bölümün her satırı o kıyasta
+somut bir dersten çıktı.
+
+**İkinci soru (review) tam öğe — yanlış anahtar olayı.** Yazara "aynı kavramı
+farklı yönden sor; şıklar aynı kalır" deniyordu; yazar yalnız kök yazıyor,
+kod ana sorunun anahtarını o köke veriyordu. Kökler başka şıkkı soruyordu:
+konfederasyon kaçırana "tek hukuk + milli birlik" (cevabı üniter devlet)
+"Konfederasyon" anahtarıyla, Pediatri'de "12 aylıkken dil becerisi" (cevabı
+1-3 anlamlı kelime) "2 kelimeli cümleler" anahtarıyla soruldu. İncelenen üç
+tekrarın üçünde öğrencinin **gerçekten doğru** ikinci cevabı yanlış sayıldı,
+o yanlış anahtar yanılgı kayıtlarına ve aralıklı tekrar kartlarına da yazıldı.
+
+| Kural | Nerede |
+|---|---|
+| İkinci soru tam öğedir: kendi şıkları, anahtarı, açıklaması (doğru/yanlışta doğrusu); en olası yanlış seçimi ölçen **yeni** bir durum; çoktan seçmelide doğru şık ana sorununkiyle **aynı metin** | istem `review` kuralı, şema |
+| Yapı denetimi ve çalışma anı aynı listeye bakar: yazar tam olarak çalışma anında reddedilecek şeyi düzeltir (çoktan seçmelide yüksek, doğru/yanlışta düşük) | `reviewItemProblems` |
+| Yalnız kök tekrar artık kabul edilmez (anahtarı denetlenemiyor); geçerli öğe yoksa kod yedeği çalışır | `acceptReviewVariant` |
+| Ders içi ikinci soru kaçırılan **olguyu** yeniden sınar: kaynağın başka cümlesini ya da başka bir sıcaklığı soran yedekler çalışmaz; notlandırma, mühürlü tekrar ve eski istemci yolu aynı bayrakla. Odaklı pratik bayraksız | `reviewQuestionFor(…, { sameFactOnly })`, `reviewGateQuestion` |
+| Şık gerekçesi yalnız kendi şıkkının altında: kayan şıkla gerekçe de kayar, yeni şık dizisinde ana sorunun gerekçeleri taşınmaz | `shiftOptions`, `resolveCheckForGrade` |
+| İkinci sorunun şıkları da kendi kökünden türeyen sırayla karışır | `shuffleLessonChecks` |
+| Denetçi ikinci soruyu da her soru gibi çözer: başka kavramı sorması ya da doğru şıkkın farklı olması C | `VERIFY_SYSTEM` C/D |
+
+**Her ekran bir soruyla biter; yoğun tablo bölünür.** Pediatri'nin gelişim
+tablosunu Astra beş ekran içi soruyla öğretti, biz iki soruyla geçtik. Kural:
+her ekran tek bir soruyla biter (yalnız ilk ekranın sorusu başta: önce dene);
+5 ya da daha çok satırlı tablo aynı kavramın 2-3 ekranına satır gruplarıyla
+bölünür, her ekranın sorusu komşu satırları ayırt ettirir. Bölünen tablo
+**ikinci kavramdan** başlar: ilk kavram tek ekran (soğuk ilk ekran p95 < 20 sn
+hedefi; ilk kavramda yoğun tablo kuralı düşük önem). Kural yalnız kavramın kendi
+tablo bloklarına bakar — 20 Ekim'deki "aynı tablo" döngüsü yeniden kurulmasın;
+kavram iki tablo ekranına bölündüyse ya da zaten üç ekransa sağlanmış sayılır.
+Ekran üst sınırı 7 → **9** ve sınır aşımı **düşük önem**: sınır ancak dersin
+kapanışında denetleniyordu, aşımı önceki kavramlar yapıyordu ve son kavram
+düzeltemeyeceği bir sorun için baştan yazılıp atılıyordu.
+
+**"Günlük hayattan" yerine "Örnek vaka".** Gündelik örnek kutuları düz
+kaldı ("ebeveyn ölçümü eğriye işler"). Yeni kutu: başlık "Örnek vaka: …",
+sonucunu kavramın belirlediği kısa, somut bir durum (kavram değişse sonuç
+değişirdi); vakadaki her sayı, eşik ve sonuç kaynakta geçer. Eski başlık
+kabul edilmez (yapı kuralı yüksek).
+
+**Ezber kodu isteğe bağlı.** Kodların çoğu yalnız sırayı ya da baş harfleri
+taşıyordu ("ÜB-FK", "Soylu sınıf dine…"); sınav sırayı değil ayrımı soruyordu.
+Kod yalnız iki durumda yazılır: sınav kategoriyi ve onu ayırt ettiren ipucunu
+soruyorsa kod eşlemeyi taşır ("Soyda Mon, zümrede Oli, din adamında Teo,
+toplumda Cum"); sınav listenin tamamını ya da sırasını soruyorsa liste kodu
+("İpek Ceza Taktı, Cebir Hükmetti"). Yoksa kutu yazılmaz; denetçi "kod yok"
+diye itiraz etmez. İlk kavramda ayrım taşımayan kod tur açmadan çıkar.
+
+**Öğretim ölçütü ve 'medium' önem.** Tekrar, kaynağın kısaltmasını
+açıklamadan aktarma ("ayrı hukuk sistemi + uluslararası sözleşme"),
+tanımlanmadan sorulan terim ("eş yönlü"), kutunun işini anlatan boş cümle
+("sırasını hatırlatır"), döngüsel tanım, üstündeki cümleyi geri soran soru.
+Yazar ve denetçi bunları **aynı metinle** okur (`TEACHING_RUBRIC`). Denetçi
+bunları `medium` yazar: öğretimi zayıflatır ama yanlış bir şey öğretmez.
+`medium` ilk kavramda tur açmaz; sonraki kavramlarda en çok **bir** kavram içi
+tur açar, düzeltme yüksek bir sorun getirirse önceki ekranlar yayımlanır —
+`medium` hiçbir kavramı attırmaz ya da baştan yazdırmaz ("atılan kavram 0").
+Yönetim kaydında bu turlar `[öğretim]` önekiyle görünür.
+
+**Kaynak kuralının dar istisnası.** Ölçütün "neden ve nasıl" ve "terimi
+açıkla" maddeleri kaynak kuralıyla çakışıyordu (denetçi A: "kaynakta dayanağı
+yok"). İstisna dar: kaynaktaki iki bilgiyi birbirine bağlayan neden cümlesi
+ve yabancı terimin birebir Türkçe karşılığı yeni bilgi sayılmaz; kaynakta
+tanımı olmayan bir terimi dışarıdan açıklamak yine yalnız "Genel bilgi"
+kutusunda (ders başına en çok iki). Yazar ve denetçi aynı cümleyi okur
+(`SOURCE_LINK_EXEMPTION`).
+
+**Yer tutucu başlık.** Şemanın örnek başlığı ("X ile Y farkı") iki derste
+aynen ekrana çıktı. Yapı kuralı şemadan kopyalanan değerleri yakalar ("X ile
+Y", "<karıştırılan kavram>", "…", "kardeş kavram", "ikinci kavramın adı");
+"Hepatit A ile B farkı", "X ile Y kromozomu farkı", "Yokluk ile butlan farkı"
+gerçek addır.
 
 ---
 

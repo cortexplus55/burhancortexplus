@@ -91,7 +91,7 @@ const good: LessonV2 = {
         { title: "Tazminat", body: "Hukuka aykırı davranışla verilen zararın giderilmesi." },
       ],
       note: {
-        title: "Günlük hayattan: Ceza ve tazminat",
+        title: "Örnek vaka: Ceza ve tazminat",
         body: "Kırmızı ışıkta geçip bir arabaya çarptığında devlete ödediğin para ceza, karşı tarafın hasarını ödemen tazminattır.",
         tone: "info",
       },
@@ -102,6 +102,13 @@ const good: LessonV2 = {
         answerIndex: 1,
         explanation: "Ayıran şey yaptırımın maddi olmasıdır; tazminat ve hükümsüzlük de maddi yaptırımdır.",
         corrected: "Hukuk kurallarını ayıran şey maddi yaptırımdır; hapis cezası bunlardan yalnızca biridir.",
+        review: {
+          prompt: "Borcunu ödemeyen birinin malının haczedilmesi bir hukuk kuralının yaptırımı sayılmaz, çünkü hapis yoktur.",
+          options: ["Doğru", "Yanlış"],
+          answerIndex: 1,
+          explanation: "Haciz de devletin zorla uygulattığı maddi yaptırımdır; hapis tek maddi yaptırım değildir.",
+          corrected: "Haciz de maddi yaptırımdır; hukuk kuralını ayıran şey maddi yaptırımdır.",
+        },
       },
     },
     {
@@ -115,7 +122,12 @@ const good: LessonV2 = {
         answerIndex: 0,
         explanation: "Nikâh memuru kurucu unsurdur; yoksa işlem hiç doğmaz. Mutlak butlanda unsur vardır ama kurala aykırıdır.",
         optionWhy: ["Kurucu unsur yok.", "Unsur var, emredici kurala aykırı.", "İrade sakatlığı.", "Onay eksikliği."],
-        review: { prompt: "Kurucu unsurları tam ama amca ile yeğen arasında yapılan evlilik hangi türdür?" },
+        review: {
+          prompt: "Taraflardan hiçbirinin evlenme iradesini açıklamadığı bir evlilik kaydı hangi hükümsüzlük türüdür?",
+          options: ["Mutlak butlan", "Yokluk", "Nispi butlan", "Tek taraflı bağlamazlık"],
+          answerIndex: 1,
+          explanation: "İrade açıklaması kurucu unsurdur; yoksa işlem hiç doğmaz. Mutlak butlanda unsurlar vardır ama kurala aykırıdır.",
+        },
       },
     },
   ],
@@ -225,7 +237,12 @@ describe("yapı denetimi", () => {
             answerIndex: 0,
             explanation: "Hukuku ayıran maddi yaptırımdır; diğerleri ahlak ve görgü kurallarının yaptırımıdır.",
             optionWhy: ["Devlet zorlar.", "Görgü kuralı.", "Ahlak kuralı.", "Görgü kuralı."],
-            review: { prompt: "Borcunu ödemeyenin malı haczediliyor; bu hangi kuralın yaptırımıdır?" },
+            review: {
+              prompt: "Borcunu ödemeyenin malı devlet eliyle haczediliyor; bu hangi yaptırımdır?",
+              options: ["Ayıplanma", "Maddi yaptırım", "Dışlanma", "Vicdan azabı"],
+              answerIndex: 1,
+              explanation: "Haczi devlet zorla uygular: maddi yaptırım. Ayıplanma ve dışlanma görgü, vicdan azabı ahlak kuralının yaptırımıdır.",
+            },
           },
         },
         ...good.sections.slice(1),
@@ -241,7 +258,9 @@ describe("yapı denetimi", () => {
   // kopyaladı; yaş basamakları gövdede sıralandı; gündelik örnek yalnız "eğriye işler" dedi.
   it("şema örneği 'önce dene'yi doğru/yanlış gösterir; yaş listesi tablo, örnek iki kavramı ayırır", () => {
     for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
-      const firstScreen = system.slice(system.indexOf('"blocks": ['), system.indexOf('"heading": "aynı kavram: hesap"'));
+      // 20 Ekim 2026: ilk kavram tek ekran; bölünen (hesaplı) kavram ikinci kavram.
+      const firstScreen = system.slice(system.indexOf('"blocks": ['), system.indexOf('"heading": "ikinci kavramın adı"'));
+      expect(firstScreen.length).toBeGreaterThan(100);
       expect(firstScreen.indexOf('"type": "check"')).toBeLessThan(firstScreen.indexOf('"type": "text"'));
       expect(firstScreen).toContain('"type": "trueFalse"');
       expect(firstScreen).toContain('"corrected"');
@@ -292,7 +311,7 @@ describe("yapı denetimi", () => {
     expect(TOPIC_TEACHER_SYSTEM).not.toContain("'example' bloğu yalnız kaynakta");
     expect(TOPIC_TEACHER_SYSTEM).toContain("kendin kurduğun basit, adım adım doğrulanabilir");
     // Akış ve anlatım belgeli dersle aynı kaynaktan.
-    for (const rule of ["GÜNDELİK ÖRNEK (zorunlu)", "İlk ekranın İLK bloğu bir 'check' bloğudur", "kardeş terimler", "optionWhy", "'Kaynak:'"]) {
+    for (const rule of ["ÖRNEK VAKA (zorunlu)", "İlk ekranın İLK bloğu bir 'check' bloğudur", "kardeş terimler", "optionWhy", "'Kaynak:'"]) {
       expect(TOPIC_TEACHER_SYSTEM).toContain(rule);
     }
     expect(teacherSystem("topic")).toBe(TOPIC_TEACHER_SYSTEM);
@@ -327,13 +346,25 @@ describe("yapı denetimi", () => {
     expect(screenCheck(shuffleLessonChecks(v2ToV3(good)).screens[0]!)).toEqual(good.sections[0].check);
   });
 
-  it("gündelik örnek kutusu olmayan ders düzeltmeye gider", () => {
+  // 20 Ekim 2026 (kör kıyas): "Günlük hayattan" kutuları düz kaldı; yerine sonucu kavramın belirlediği "Örnek vaka".
+  it("örnek vaka kutusu olmayan ders düzeltmeye gider; eski 'Günlük hayattan' başlığı yetmez", () => {
     const noExample: LessonV2 = {
       ...good,
       sections: [{ ...good.sections[0], note: undefined }, good.sections[1]],
     };
-    expect(structureOf(noExample).some((issue) => /Gündelik örnek kutusu yok/.test(issue.problem))).toBe(true);
-    expect(TEACHER_SYSTEM).toContain("GÜNDELİK ÖRNEK (zorunlu)");
+    expect(structureOf(noExample).some((issue) => /Örnek vaka kutusu yok/.test(issue.problem))).toBe(true);
+    const legacy: LessonV2 = {
+      ...good,
+      sections: [{ ...good.sections[0], note: { ...good.sections[0].note!, title: "Günlük hayattan: Ceza ve tazminat" } }, good.sections[1]],
+    };
+    expect(structureOf(legacy).find((issue) => /Örnek vaka kutusu yok/.test(issue.problem))?.severity).toBe("high");
+    expect(structureOf(good).some((issue) => /Örnek vaka kutusu yok/.test(issue.problem))).toBe(false);
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      expect(system).toContain("ÖRNEK VAKA (zorunlu)");
+      expect(system).toContain("Örnek vaka:");
+      expect(system).toContain("Vakadaki her sayı");
+      expect(system).not.toContain("Günlük hayattan");
+    }
   });
 
   it("kaynağın hatasından söz eden iç not yakalanır", () => {

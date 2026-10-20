@@ -303,13 +303,21 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
  * bölümün metnine bağlar.
  */
 const reviewVariantSchema = z.object({
-  prompt: z.string().min(8).max(180),
+  /** 400 (önce 180): durum anlatan kök uzun; sınır aşılınca `.catch` bütün tekrarı sessizce düşürüyordu. */
+  prompt: z.string().min(8).max(400),
   /**
-   * Şıklar modelden istenmez. Eski bir taslak yine de kopyaladıysa
-   * kabul kuralı bakar; uymayan dizi dersi düşürmez, alan atılır.
+   * Yanlıştan sonra sorulan ikinci soru 20 Ekim 2026'dan beri tam öğe: kendi şıkları, anahtarı ve açıklaması
+   * (`reviewItemProblems`, teacher-brain.ts). Kabul kuralı çalışma anında bakar; bozuk tek alan öğeyi düşürmez,
+   * yalnız o alan atılır. Eski taslaklar yalnız kök ya da ana sorunun şıklarını taşıyordu.
    */
-  options: z.array(z.string().min(1).max(160)).min(2).max(4).optional(),
-  answerIndex: z.number().int().min(0).max(3).optional(),
+  options: z.array(z.string().min(1).max(200)).min(2).max(4).optional().catch(undefined),
+  answerIndex: z.number().int().min(0).max(3).optional().catch(undefined),
+  explanation: z
+    .preprocess((value) => (typeof value === "string" ? value.slice(0, 600) : value), z.string().min(8).max(600))
+    .optional()
+    .catch(undefined),
+  /** Doğru/yanlış tekrarında ifade yanlışsa doğrusu. */
+  corrected: z.string().max(300).optional().catch(undefined),
 });
 
 export const sectionCheckSchema = z.object({
@@ -1731,16 +1739,11 @@ export function sanitizeReviewVariants(lesson: LessonV2): LessonV2 {
       if (acceptReviewVariant({ ...check, type: check.type, options: check.options, answerIndex: check.answerIndex })) {
         return section;
       }
-      return {
-        ...section,
-        check: {
-          type: check.type,
-          prompt: check.prompt,
-          options: check.options,
-          answerIndex: check.answerIndex,
-          explanation: check.explanation,
-        },
-      };
+      // Yalnız tekrar atılır; şık gerekçeleri ve "doğrusu" kalır (20 Ekim 2026: yalnız kök tekrar artık
+      // reddediliyor, eskiden burada sorunun öbür alanları da gidiyordu).
+      const { review: _review, ...rest } = check;
+      void _review;
+      return { ...section, check: rest };
     }),
   };
 }
@@ -2436,16 +2439,19 @@ export function lessonMissDrafts(input: {
     if (!check || (check.type !== "mcq" && check.type !== "trueFalse") || !check.options || check.answerIndex == null) {
       continue;
     }
+    // Öğrencinin gördüğü ikinci soru (ders tekrarıyla aynı bayrak); kartın arkası o sorunun cevabı ve
+    // açıklaması — yazarın tam öğesinde kendi açıklaması (20 Ekim 2026).
     const variant = reviewQuestionFor(
       { ...check, type: check.type, options: check.options, answerIndex: check.answerIndex },
       input.language ?? "tr",
       section.body,
+      { sameFactOnly: true },
     );
     const correct = variant.options[variant.answerIndex]?.trim();
     if (!correct || !variant.prompt.trim()) continue;
     out.push({
       claim: section.heading,
-      corrected: `${correct}. ${check.explanation}`.slice(0, 400),
+      corrected: `${correct}. ${variant.explanation?.trim() || check.explanation}`.slice(0, 400),
       wrongType: "lesson_check_miss",
       sourceKind: "lesson_review",
       topicLabel: input.topicLabel ?? null,

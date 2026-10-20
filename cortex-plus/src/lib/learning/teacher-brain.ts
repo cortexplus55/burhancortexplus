@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { refersToOptionOrder } from "@/lib/learning/option-reference";
 
 export const ANALYSIS_CHUNK_CHARS = 4800;
 export const MAX_ANALYSIS_CHUNKS = 3;
@@ -1548,34 +1549,46 @@ function hasNovelQuantity(text: string, source: string): boolean {
   return false;
 }
 
+/**
+ * Şıkları sabit bir adımla kaydırır. Şık başına gerekçe (`optionWhy`) varsa onu da aynı adımla kaydırır
+ * (20 Ekim 2026): kaydırılmış tekrarda gerekçeler eski sırada kalıyor, öğrenci seçtiği şıkkın altında
+ * başka bir şıkkın gerekçesini okuyordu.
+ */
 function shiftOptions<T extends ReviewCheck>(check: T): T {
   const count = check.options.length;
   const shift = stableShift(check.prompt, count);
   if (shift === 0) return check;
+  const why = (check as { optionWhy?: unknown }).optionWhy;
+  const aligned = Array.isArray(why) && why.length === count;
   return {
     ...check,
     options: check.options.map((_, index) => check.options[(index + shift) % count]),
     answerIndex: (check.answerIndex - shift + count) % count,
+    ...(aligned ? { optionWhy: check.options.map((_, index) => (why as string[])[(index + shift) % count]) } : {}),
   };
 }
 
 export type StoredReview = {
   prompt: string;
-  /** Eski taslaklar şık da yazdı. Yeni üretim yalnızca kök cümle ister. */
+  /**
+   * Yanlıştan sonra sorulan ikinci soru (20 Ekim 2026'dan beri tam öğe): yazar kendi şıklarını, anahtarını ve
+   * açıklamasını yazar. Eski taslaklarda yalnız kök vardı ya da ana sorunun şıkları kopyalanmıştı.
+   */
   options?: string[];
   answerIndex?: number;
+  explanation?: string;
+  /** Doğru/yanlış tekrarında ifade yanlışsa doğrusu. */
+  corrected?: string;
 };
 
 /**
- * Ders üretilirken aynı çağrıda yazılan tekrar.
- * Şık metinleri orijinalin aynısı olmalı; yeni sayı veya orijinal cümle yok.
- * Tutmazsa null — ekran önek uydurmaz, orijinal soruyu bırakır.
+ * Ders üretilirken aynı çağrıda yazılan tekrar. Bozuk alan atılır; kök yoksa null.
  */
 function storedReview(value: unknown): StoredReview | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const row = value as { prompt?: unknown; options?: unknown; answerIndex?: unknown };
+  const row = value as { prompt?: unknown; options?: unknown; answerIndex?: unknown; explanation?: unknown; corrected?: unknown };
   if (typeof row.prompt !== "string") return null;
-  const prompt = row.prompt.trim().slice(0, 180);
+  const prompt = row.prompt.trim().slice(0, 400);
   if (prompt.length < 8) return null;
   const options = Array.isArray(row.options)
     ? row.options.filter((option): option is string => typeof option === "string").map((option) => option.trim())
@@ -1584,15 +1597,105 @@ function storedReview(value: unknown): StoredReview | null {
     typeof row.answerIndex === "number" && Number.isInteger(row.answerIndex)
       ? row.answerIndex
       : undefined;
-  return { prompt, options, answerIndex };
+  const explanation = typeof row.explanation === "string" ? row.explanation.trim().slice(0, 600) : "";
+  const corrected = typeof row.corrected === "string" ? row.corrected.trim().slice(0, 300) : "";
+  return {
+    prompt,
+    options,
+    answerIndex,
+    ...(explanation.length >= 8 ? { explanation } : {}),
+    ...(corrected ? { corrected } : {}),
+  };
 }
 
+function foldOption(text: string): string {
+  return foldPrompt(text).replace(/[.!?\s]+$/g, "");
+}
+
+function trueFalsePair(options: string[]): boolean {
+  const folded = options.map((option) => foldOption(option));
+  return folded.length === 2 && folded.includes("doğru") && folded.includes("yanlış");
+}
+
+/**
+ * Yanlıştan sonra sorulan ikinci sorunun (review) tam öğe olarak sorunları (20 Ekim 2026, kör kıyas).
+ *
+ * Eski yol yalnız kökü kabul edip ana sorunun anahtarını ona veriyordu: KPSS dersinde "tek hukuk düzenini
+ * milli birlik ilkesiyle kuran model" (cevabı üniter devlet) "Konfederasyon" anahtarıyla, Pediatri'de
+ * "12 aylıkken dil becerisi" (cevabı 1-3 anlamlı kelime) "2 kelimeli cümleler" anahtarıyla soruldu;
+ * öğrencinin gerçekten doğru ikinci cevabı yanlış sayıldı. Anahtarı denetlenemeyen kök artık kabul edilmez.
+ *
+ * Yapı denetimi (teacher-lesson.ts) aynı listeyi kullanır: yazar tam olarak çalışma anında reddedilecek
+ * şeyi düzeltir. Boş dizi: öğe geçerli.
+ */
+export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview | null }): string[] {
+  const review = storedReview(check.review);
+  if (!review) return ["yok; tam bir soru yaz: prompt, options, answerIndex ve explanation."];
+  const problems: string[] = [];
+  const original = foldPrompt(check.prompt);
+  const next = foldPrompt(review.prompt);
+  if (next === original || next.includes(original) || /başka sözcüklerle|baska sozcuklerle/i.test(review.prompt)) {
+    problems.push("ana sorunun kökünü tekrar ediyor; en olası yanlışı ölçen yeni bir durum kur.");
+  } else if (retryStemBroken(review.prompt, check.explanation)) {
+    problems.push("kökü bozuk (çözümü ya da açıklamayı taşıyor); yeni bir soru kökü yaz.");
+  }
+  const options = review.options;
+  if (!options || typeof review.answerIndex !== "number" || !review.explanation) {
+    problems.push("yalnız soru kökü yetmez: kendi şıkları (options), answerIndex ve explanation olan tam bir soru yaz.");
+    return problems;
+  }
+  if (options.length !== check.options.length) problems.push(`şık sayısı ana soruyla aynı olmalı (${check.options.length}).`);
+  if (options.some((option) => !option) || new Set(options.map(foldOption)).size !== options.length) {
+    problems.push("aynı şık iki kez yazılmış ya da boş şık var.");
+  }
+  const picked = options[review.answerIndex];
+  if (review.answerIndex < 0 || picked === undefined) problems.push("answerIndex şıklarla uyuşmuyor.");
+  if (check.type === "trueFalse") {
+    if (!trueFalsePair(options)) problems.push("doğru/yanlış sorusunun ikinci sorusu da doğru/yanlıştır: options ['Doğru','Yanlış'].");
+  } else {
+    const correct = check.options[check.answerIndex];
+    if (correct && picked !== undefined && foldOption(picked) !== foldOption(correct)) {
+      problems.push(`doğru şıkkı ana sorunun doğru şıkkıyla aynı metin olmalı ('${correct.trim()}'); başka bir kavramın cevabını sorma.`);
+    }
+  }
+  if (refersToOptionOrder(review.explanation)) {
+    problems.push("açıklaması şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
+  }
+  return problems;
+}
+
+export type AcceptedReview = ReviewCheck & {
+  /** Yazarın tam öğesi: kendi şıkları, anahtarı ve açıklaması (ana sorunun gerekçeleri ona ait değil). */
+  full: boolean;
+  corrected?: string;
+};
+
+/**
+ * Saklı tekrarın kabulü. Tam öğe (`reviewItemProblems` boş) kendi şıkları, anahtarı ve açıklamasıyla gelir;
+ * kaynak burada yok (yalnız ekran metni var), sayıları denetçi denetler. Eski taslağın şık kopyalayan tekrarı
+ * eski kuralla: şıklar ana sorunun aynısı, doğru şık aynı metin, yeni sayı yok. Yalnız kök (şıksız) tekrar
+ * reddedilir (20 Ekim 2026): anahtarı denetlenemiyor; yedek zincir çalışır.
+ */
 export function acceptReviewVariant(
   check: ReviewCheck & { review?: StoredReview | null },
   source = "",
-): ReviewCheck | null {
+): AcceptedReview | null {
   const review = storedReview(check.review);
   if (!review) return null;
+  if (review.options && typeof review.answerIndex === "number" && review.explanation) {
+    if (reviewItemProblems(check).length) return null;
+    const accepted: AcceptedReview = {
+      type: check.type,
+      prompt: review.prompt,
+      options: review.options,
+      answerIndex: review.answerIndex,
+      explanation: review.explanation,
+      full: true,
+      ...(check.type === "trueFalse" && review.corrected ? { corrected: review.corrected } : {}),
+    };
+    // Çoktan seçmelide şıklar ana soruyla aynı sıradaysa öğrenci doğru yeri ezberden bulmasın.
+    return check.type === "mcq" && sameOptionOrder(check.options, accepted.options) ? shiftOptions(accepted) : accepted;
+  }
   const original = foldPrompt(check.prompt);
   const next = foldPrompt(review.prompt);
   if (next.length < 8 || next === original || next.includes(original)) return null;
@@ -1605,26 +1708,30 @@ export function acceptReviewVariant(
     review.options.length >= 2 &&
     typeof review.answerIndex === "number" &&
     sameOptionSet(check.options, review.options);
-  if (review.options && !copied) return null;
-  const accepted: ReviewCheck = copied
-    ? {
-        type: check.type,
-        prompt: review.prompt,
-        options: review.options!.map((option) => option.trim()),
-        answerIndex: review.answerIndex!,
-        explanation: check.explanation,
-      }
-    : {
-        type: check.type,
-        prompt: review.prompt,
-        options: check.options,
-        answerIndex: check.answerIndex,
-        explanation: check.explanation,
-      };
+  if (!copied) return null;
+  const accepted: AcceptedReview = {
+    type: check.type,
+    prompt: review.prompt,
+    options: review.options!.map((option) => option.trim()),
+    answerIndex: review.answerIndex!,
+    explanation: check.explanation,
+    full: false,
+  };
   const correct = check.options[check.answerIndex]?.trim();
   const picked = accepted.options[accepted.answerIndex]?.trim();
   if (!correct || picked !== correct) return null;
   return sameOptionOrder(check.options, accepted.options) ? shiftOptions(accepted) : accepted;
+}
+
+/** Ana sorunun şık gerekçeleri, aynı şıkların başka sıradaki dizilişine (şık metniyle eşlenir). */
+function realignedOptionWhy(check: ReviewCheck, options: string[]): string[] | undefined {
+  const why = (check as { optionWhy?: unknown }).optionWhy;
+  if (!Array.isArray(why) || why.length !== check.options.length) return undefined;
+  const out = options.map((option) => {
+    const index = check.options.findIndex((item) => item.trim() === option.trim());
+    return index >= 0 ? why[index] : undefined;
+  });
+  return out.every((item): item is string => typeof item === "string") ? out : undefined;
 }
 
 function trueFalseRightIndex(options: string[]): number {
@@ -1634,24 +1741,26 @@ function trueFalseRightIndex(options: string[]): number {
 /**
  * Doğru/yanlış tekrarı aynı cümleyi öneklemez.
  * Kaynakta 273 varsa başka bir sıcaklık sorar; yoksa orijinal kalır.
+ * `sameFactOnly` (ders içi ikinci soru): başka bir olguyu soran sıcaklık dalı çalışmaz; aynı yargının
+ * olumsuzu ("kullanılmamalıdır") aynı olgudur, kalır. Ana sorunun şık gerekçeleri yeni yargıya ait değil.
  */
-function groundedTrueFalseRetry<T extends ReviewCheck>(check: T, source: string): T | null {
+function groundedTrueFalseRetry<T extends ReviewCheck>(check: T, source: string, sameFactOnly = false): T | null {
   const right = trueFalseRightIndex(check.options);
   const wrong = check.options.findIndex((option) => option.trim().toLocaleLowerCase("tr") === "yanlış");
   if (right < 0 || wrong < 0) return null;
   const corpus = [source, check.explanation, check.prompt].join("\n");
   const aboutTemperature = /°\s*c|kelvin|santigrat/i.test(`${check.prompt}\n${check.explanation}`);
-  if (aboutTemperature && /273/.test(corpus)) {
+  if (!sameFactOnly && aboutTemperature && /273/.test(corpus)) {
     const prompt = /0\s*°\s*c/i.test(check.prompt)
       ? "273.15 K, 0 °C eder. DOĞRU MU YANLIŞ?"
       : "0 °C, 273.15 K eder. DOĞRU MU YANLIŞ?";
     if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
-    return { ...check, prompt, answerIndex: right };
+    return { ...check, prompt, answerIndex: right, optionWhy: undefined };
   }
   if (/kullanılmalıdır|kullanilmalidir/i.test(check.prompt) && check.answerIndex === right) {
     const flipped = check.prompt.replace(/kullanılmalıdır|kullanilmalidir/gi, "kullanılmamalıdır");
     if (flipped !== check.prompt) {
-      return { ...check, prompt: flipped, answerIndex: wrong };
+      return { ...check, prompt: flipped, answerIndex: wrong, optionWhy: undefined };
     }
   }
   return null;
@@ -1724,11 +1833,13 @@ function groundedDefinitionRetry<T extends ReviewCheck>(check: T, source: string
   const options = [canonical, ...distractors].slice(0, Math.max(check.options.length, 2));
   const prompt = `${dativePhrase(correctOption)} ne ad verilir?`.slice(0, 300);
   if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+  // Yeni şık dizisi: ana sorunun şık gerekçeleri bu şıklara ait değil (20 Ekim 2026).
   return shiftOptions({
     ...check,
     prompt,
     options,
     answerIndex: 0,
+    optionWhy: undefined,
   });
 }
 
@@ -1879,10 +1990,11 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
     subject && !foldTr(check.explanation ?? "").includes(subject)
       ? "Yanıt, sorudaki kavramın kaynağındaki tanımına uyar; başka bir terimin tanımı bu soruyu karşılamaz."
       : check.explanation ?? "Yanıt, kaynağın kurduğu tanıma uyar.";
+  // Başka bir cümle (ve çoktan seçmelide iki şık): ana sorunun şık gerekçeleri buna ait değil (20 Ekim 2026).
   if (isTrueFalse) {
     const right = trueFalseRightIndex(check.options);
     if (right < 0) return null;
-    return { ...check, prompt, answerIndex: right, explanation };
+    return { ...check, prompt, answerIndex: right, explanation, optionWhy: undefined };
   }
   return {
     ...check,
@@ -1891,6 +2003,7 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
     options: ["Yanlış", "Doğru"],
     answerIndex: 1,
     explanation,
+    optionWhy: undefined,
   };
 }
 
@@ -1908,8 +2021,12 @@ function isBinaryReview(check: ReviewCheck): boolean {
   return /\bm[ıi]d[ıi]r\s*\??$/i.test(check.prompt.trim());
 }
 
-/** Doğru/yanlış tekrarı aynı kökü geri sormaz. Evet/hayır cümlesi bildiren yargıya döner. */
-function restateBinaryPrompt(prompt: string): string {
+/**
+ * Doğru/yanlış tekrarı aynı kökü geri sormaz. Evet/hayır cümlesi bildiren yargıya döner.
+ * `sameFactOnly` (ders içi ikinci soru): yalnız bu dönüşüm; "… ne için yapılır?", "… hangi durumda
+ * geçerlidir?" kökleri Doğru/Yanlış şıklarıyla cevaplanamıyor — kök değişmezse aynı yargı yeniden sorulur.
+ */
+function restateBinaryPrompt(prompt: string, sameFactOnly = false): string {
   const trimmed = prompt.replace(/\s+/g, " ").trim();
   const yesNo = trimmed.match(/^(.*\S)\s+(m[ıi]d[ıi]r|mudur|müdür)\s*\??$/i);
   if (yesNo) {
@@ -1918,6 +2035,7 @@ function restateBinaryPrompt(prompt: string): string {
     const next = `${stem}${copula(last)}. Doğru mu, yanlış mı?`;
     if (foldPrompt(next) !== foldPrompt(trimmed)) return next.slice(0, 300);
   }
+  if (sameFactOnly) return trimmed;
   const stripped = trimmed
     .replace(/\s*(?:doğru mu,?\s*yanlış(?:\s*mı)?\??|DOĞRU MU YANLIŞ\??)\s*$/i, "")
     .replace(/\s*yargısı doğru mudur\??\s*$/i, "")
@@ -1941,7 +2059,7 @@ function restateBinaryPrompt(prompt: string): string {
  * Çoktan seçmeli tekrar, kök aynı kaldıysa aynı olguyu başka bir açıdan sorar.
  * "başka sözcüklerle" kalıbı kullanılmaz; normalize edilmiş kök eşit kalamaz.
  */
-function meaningfulRetryStem(prompt: string): string {
+function meaningfulRetryStem(prompt: string, generic = true): string {
   const trimmed = prompt.replace(/\s+/g, " ").trim();
   let next = trimmed
     .replace(/(.+?)\s+aşağıdakilerden hangisi için doğrudur\??$/i, "$1 hangi durumda geçerlidir?")
@@ -1950,6 +2068,9 @@ function meaningfulRetryStem(prompt: string): string {
     .replace(/ne denir\??/gi, "hangi adla anılır?");
   // "nedir?" bir ad sormaz ("katkısı / sonucu / görevi nedir"); "ne ile bilinir?" ya da "hangi addır?"
   // kökü bozuyordu (20 Ekim 2026, canlı odaklı pratik: "katkısı hangi addır?"). Aşağıdaki genel kök kullanılır.
+  // Ders içi ikinci soru (`generic` kapalı) genel köke düşmez: "… hangisidir için geçerli ifade hangisidir?"
+  // olurdu; kök aynı kalır, şıklar kayar.
+  if (!generic) return next.replace(/\s+/g, " ").trim().slice(0, 300);
   if (foldPrompt(next) === foldPrompt(trimmed)) {
     const core = trimmed.replace(/[?.!\s]+$/g, "");
     next = `${core} için geçerli ifade hangisidir?`;
@@ -1959,15 +2080,22 @@ function meaningfulRetryStem(prompt: string): string {
 
 /**
  * Kısa tekrar kapısının sorusu.
- * Saklı varyant gerçekten farklıysa o gelir.
+ * Yazarın geçerli tam öğesi varsa o gelir: kendi şıkları, anahtarı, açıklaması ve doğrusuyla; ana sorunun
+ * şık gerekçeleri ona taşınmaz (20 Ekim 2026). Yalnız kök tekrar kabul edilmez (anahtarı denetlenemiyor).
  * Değilse tanım tersinden, doğru/yanlış başka bir kaynaktan sorulur.
  * Kalan doğru/yanlış kökü de sözcüğü sözcüğüne tekrar etmez.
+ *
+ * `sameFactOnly` (ders içi ikinci soru; notlandırma, mühürlü tekrar ve eski istemci yolu aynı bayrakla,
+ * belirlenimli): kaynaktan BAŞKA bir olgu kuran yedekler (başka sıcaklık, kaynağın başka cümlesi) çalışmaz;
+ * öğrenci kaçırdığı olguyla yeniden sınanır. Odaklı pratik bayraksız çağırır.
  */
 export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredReview | null }>(
   check: T,
   language: MaterialLanguage = "tr",
   source = "",
+  options: { sameFactOnly?: boolean } = {},
 ): T {
+  const sameFactOnly = options.sameFactOnly === true;
   const accepted = acceptReviewVariant(check, source);
   if (accepted && foldPrompt(accepted.prompt) !== foldPrompt(check.prompt)) {
     return {
@@ -1975,31 +2103,29 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
       prompt: accepted.prompt,
       options: accepted.options,
       answerIndex: accepted.answerIndex,
+      explanation: accepted.explanation,
+      optionWhy: accepted.full ? undefined : realignedOptionWhy(check, accepted.options),
+      // Ana sorunun "doğrusu" başka bir yargıya ait; tam öğe kendi doğrusunu taşır.
+      corrected: accepted.full ? accepted.corrected : undefined,
     };
   }
-  const grounded = language === "tr" ? groundedTrueFalseRetry(check, source) : null;
+  const grounded = language === "tr" ? groundedTrueFalseRetry(check, source, sameFactOnly) : null;
   if (grounded && foldPrompt(grounded.prompt) !== foldPrompt(check.prompt)) return grounded;
   const reversed = language === "tr" ? groundedDefinitionRetry(check, source) : null;
   if (reversed && foldPrompt(reversed.prompt) !== foldPrompt(check.prompt)) return reversed;
-  const fact = language === "tr" ? groundedFactRetry(check, source) : null;
+  const fact = language === "tr" && !sameFactOnly ? groundedFactRetry(check, source) : null;
   if (fact && foldPrompt(fact.prompt) !== foldPrompt(check.prompt)) return fact;
   if ((check.options?.length ?? 0) >= 3) {
     const rephrased = rephraseMultipleChoice(check);
     if (rephrased && foldPrompt(rephrased.prompt) !== foldPrompt(check.prompt)) return rephrased;
-    const prompt = meaningfulRetryStem(check.prompt);
+    const prompt = meaningfulRetryStem(check.prompt, !sameFactOnly);
     if (foldPrompt(prompt) !== foldPrompt(check.prompt) && !retryStemBroken(prompt, check.explanation ?? "")) {
       return shiftOptions({ ...check, prompt });
     }
-    const shifted = shiftOptions(check);
-    return {
-      ...check,
-      prompt: check.prompt,
-      options: shifted.options,
-      answerIndex: shifted.answerIndex,
-    };
+    return shiftOptions(check);
   }
   if (isBinaryReview(check)) {
-    const prompt = restateBinaryPrompt(check.prompt);
+    const prompt = restateBinaryPrompt(check.prompt, sameFactOnly);
     if (foldPrompt(prompt) !== foldPrompt(check.prompt)) return { ...check, prompt };
   }
   return check;
@@ -2010,10 +2136,13 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
  * "= hangisi", sondaki "=", "diğer seçenek" ve bildiren cümlenin sonuna
  * yapışmış soru işareti bu kapıdadır.
  */
-/** Soru sözcüğü Türkçe harfle biter; ASCII sözcük sınırı "kaç"ı kaçırır. */
+/**
+ * Soru sözcüğü Türkçe harfle biter; ASCII sözcük sınırı "kaç"ı kaçırır. "kaçtır", "kaçta", "kaçıncı" da soru
+ * (20 Ekim 2026): "… Z-skoru kaçtır?" bildiren cümle sayılıp ikinci soru reddediliyordu.
+ */
 function asksQuestion(text: string): boolean {
   const folded = foldTr(text);
-  return /(^|[^a-z0-9])(midir|mudur|hangisi|hangi|kac|nedir|neden|nasil|mi|mu)(?![a-z0-9])/.test(folded);
+  return /(^|[^a-z0-9])(midir|mudur|hangisi|hangi|kac(?:tir|ta|inci|ar)?|nedir|neden|nasil|mi|mu)(?![a-z0-9])/.test(folded);
 }
 
 export function retryStemBroken(prompt: string, explanation = ""): boolean {

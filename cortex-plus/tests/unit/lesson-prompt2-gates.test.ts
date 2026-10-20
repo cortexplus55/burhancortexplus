@@ -76,9 +76,12 @@ describe("beş kontrol ve paket sızdırmazlığı", () => {
       correct: true,
       corrected: "Hukuku ayıran şey maddi yaptırımdır; hapis bunlardan biridir.",
     });
-    // Tekrar sorusu başka bir ifade olabilir; rota birincinin doğrusunu ona vermez.
+    // Tekrar sorusu başka bir ifade olabilir; rota birincinin doğrusunu ona vermez. Yazarın tam ikinci sorusu
+    // kendi doğrusunu taşır (20 Ekim 2026): doğrusu birincininkinden farklıysa o gösterilir.
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(route).toContain("const corrected = check.prompt === primary.prompt ? result.corrected : undefined;");
+    expect(route).toContain(
+      "const corrected = check.prompt === primary.prompt || check.corrected !== primary.corrected ? result.corrected : undefined;",
+    );
   });
 
   it("optionWhy tekrarı reddedilir", () => {

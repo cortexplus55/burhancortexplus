@@ -42,6 +42,13 @@ const zscore: LessonV3 = {
             answerIndex: 1,
             explanation: "Ortalamanın altı tek başına kısalık değildir; ölçüt standart sapmadır.",
             corrected: "Kısa boy, boyun yaşıtlarına göre −2 SD'nin altında olmasıdır.",
+            review: {
+              prompt: "Z-skoru −1 olan bir çocuk, boyu yaşıtlarının ortalamasının altında olduğu için kısa boyludur.",
+              options: ["Doğru", "Yanlış"],
+              answerIndex: 1,
+              explanation: "−1 ortalamanın altıdır ama kısa boy eşiği −2 SD'nin altıdır.",
+              corrected: "Z-skoru −1 olan çocuk kısa boylu sayılmaz; eşik −2 SD'nin altıdır.",
+            },
           },
         },
         {
@@ -56,7 +63,7 @@ const zscore: LessonV3 = {
         {
           type: "note",
           note: {
-            title: "Günlük hayattan: aynı boy, farklı Z",
+            title: "Örnek vaka: aynı boy, farklı Z",
             body: "Aynı sınıftaki iki çocuğun boyu aynıdır; biri yaşıtlarından bir yaş küçük olduğu için onun Z-skoru daha yüksek çıkar.",
             tone: "info",
           },
@@ -99,7 +106,12 @@ const zscore: LessonV3 = {
             answerIndex: 0,
             explanation: "(104 − 110) / 3 = −2. Eşikte, altı değil.",
             optionWhy: ["Doğru hesap.", "Farkı 6'ya böldün.", "İşaret ters.", "Farkı 2'ye böldün."],
-            review: { prompt: "Z-skoru −2,4 çıkan çocuk için ne söylersin?" },
+            review: {
+              prompt: "Ölçümü 102 cm, yaşıt ortalaması 110 cm, SD 4 cm olan çocuğun Z-skoru kaçtır?",
+              options: ["+2", "−2", "−1", "−4"],
+              answerIndex: 1,
+              explanation: "(102 − 110) / 4 = −2. İşaret eksidir: ölçüm ortalamanın altında.",
+            },
           },
         },
       ],
@@ -130,7 +142,12 @@ const zscore: LessonV3 = {
             answerIndex: 0,
             explanation: "(160 + 176 + 13) / 2 = 174,5 cm.",
             optionWhy: ["Doğru.", "Kız formülü.", "13 eklenmemiş.", "13 iki kez eklenmiş."],
-            review: { prompt: "Aynı ailede kız çocuğun hedef boyu kaç olur?" },
+            review: {
+              prompt: "Annesi 176 cm, babası 160 cm olan erkek çocuğun hedef boyu kaçtır?",
+              options: ["161,5 cm", "168 cm", "174,5 cm", "181 cm"],
+              answerIndex: 2,
+              explanation: "Formül anne ve babanın boyunu toplar; sıraları sonucu değiştirmez: (176 + 160 + 13) / 2 = 174,5 cm.",
+            },
           },
         },
       ],
@@ -193,7 +210,8 @@ describe("LessonV3 — Z-skoru ve hedef boy örneği", () => {
   it("mühür cevabı ve doğrusunu siler; blok sırası ve içerik kalır; notlandırma ekran = bölüm", () => {
     const sealed = sealLessonV3ForPlay(zscore);
     const blob = JSON.stringify(sealed);
-    expect(blob).not.toMatch(/"answerIndex"|"optionWhy"|"corrected"|"explanation"/);
+    // İkinci soru (review) tam öğe olarak cevabını taşıyor (20 Ekim 2026): pakete hiç girmez.
+    expect(blob).not.toMatch(/"answerIndex"|"optionWhy"|"corrected"|"explanation"|"review"/);
     expect(sealed.screens[1]!.blocks.map((block) => block.type)).toEqual(["text", "procedure", "example", "check"]);
     // Sunucu notlandırması V2 görünümünden: ekran 1'in sorusu bölüm 1'in sorusu.
     expect(readLessonV2(zscore)?.sections[1]?.check).toEqual(screenCheck(zscore.screens[1]!));

@@ -37,16 +37,26 @@ describe("focused practice from stored work", () => {
     ).toEqual(["Basınç", "Sıcaklık", "Akış"]);
   });
 
-  it("reuses the stored review stem and does not keep the original option order", () => {
+  // 20 Ekim 2026: ikinci soru tam öğe; kendi açıklamasıyla gelir. Yalnız kök (şıksız) tekrar artık kullanılmaz:
+  // anahtarı denetlenemiyordu, kör kıyasta üç tekrarın üçü doğru ikinci cevabı yanlış saydı.
+  it("reuses the stored review item and does not keep the original option order", () => {
+    const base = {
+      topic: "Basınç",
+      heading: "Tanım",
+      prompt: "Basınç kuvvetin alana oranı mıdır?",
+      options: ["Evet", "Hayır", "Bazen"],
+      answerIndex: 0,
+      explanation: "Basınç kuvvetin alana bölümüdür.",
+    };
     const lesson = questionsFromLessonChecks([
       {
-        topic: "Basınç",
-        heading: "Tanım",
-        prompt: "Basınç kuvvetin alana oranı mıdır?",
-        options: ["Evet", "Hayır", "Bazen"],
-        answerIndex: 0,
-        explanation: "Basınç kuvvetin alana bölümüdür.",
-        review: { prompt: "Kuvvet alana bölününce çıkan büyüklük basınç mıdır?" },
+        ...base,
+        review: {
+          prompt: "Kuvvet alana bölününce çıkan büyüklük basınç mıdır?",
+          options: ["Evet", "Hayır", "Bazen"],
+          answerIndex: 0,
+          explanation: "Kuvvetin alana bölümü basınçtır; bu her yüzey için geçerlidir.",
+        },
       },
     ]);
     const assembled = assembleFocusedPractice({
@@ -61,8 +71,15 @@ describe("focused practice from stored work", () => {
     expect(assembled.questions[0].text).toBe("Kuvvet alana bölününce çıkan büyüklük basınç mıdır?");
     expect(assembled.questions[0].correct).toEqual(["Evet"]);
     expect(assembled.questions[0].options[0]).not.toBe("Evet");
-    expect(assembled.questions[0].explanation).toBe("Basınç kuvvetin alana bölümüdür.");
+    expect(assembled.questions[0].explanation).toBe("Kuvvetin alana bölümü basınçtır; bu her yüzey için geçerlidir.");
     expect(assembled.uncoveredTopics).toEqual([]);
+
+    const promptOnly = questionsFromLessonChecks([
+      { ...base, review: { prompt: "Kuvvet alana bölününce çıkan büyüklük basınç mıdır?" } },
+    ]);
+    const reworded = assembleFocusedPractice({ weakTopics: ["Basınç"], missed: [], lessonQuestions: promptOnly, reviewPrompts: [], limit: 3 });
+    expect(reworded.questions[0]?.text).not.toBe("Kuvvet alana bölününce çıkan büyüklük basınç mıdır?");
+    expect(reworded.questions[0]?.correct).toEqual(["Evet"]);
   });
 
   it("does not invent questions for a topic that has no stored item", () => {

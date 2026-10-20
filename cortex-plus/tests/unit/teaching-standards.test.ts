@@ -512,7 +512,9 @@ describe("teaching standards contract", () => {
     expect(cleaned?.title).toBe("Sistemler");
   });
 
-  it("keeps a short prompt-only review and shuffles the original options later", () => {
+  // 20 Ekim 2026: yalnız kök tekrar ana sorunun anahtarını alıyordu (kör kıyasta üç tekrarın üçü doğru ikinci
+  // cevabı yanlış saydı); artık saklanmaz. Sorunun öbür alanları (gerekçeler) kalır.
+  it("drops a prompt-only review and keeps the rest of the check", () => {
     const cleaned = prepareLessonDraft({
       title: "Sistemler",
       objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
@@ -527,6 +529,7 @@ describe("teaching standards contract", () => {
             options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
             answerIndex: 1,
             explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+            optionWhy: ["Kütle geçmez.", "Kütle geçer.", "Ne kütle ne enerji geçer."],
             review: { prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?" },
           },
         },
@@ -544,8 +547,9 @@ describe("teaching standards contract", () => {
       summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
       nextFocus: ["Özellikler"],
     });
-    expect(cleaned?.sections[0].check?.review?.prompt).toContain("türbin");
-    expect(cleaned?.sections[0].check?.review?.options).toBeUndefined();
+    expect(cleaned?.sections[0].check?.review).toBeUndefined();
+    expect(cleaned?.sections[0].check?.optionWhy).toEqual(["Kütle geçmez.", "Kütle geçer.", "Ne kütle ne enerji geçer."]);
+    expect(cleaned?.sections[0].check?.prompt).toBe("Sınırından kütle geçen düzeneğe ne denir?");
   });
 
   it("keeps a grounded review and appends it after existing cards", () => {

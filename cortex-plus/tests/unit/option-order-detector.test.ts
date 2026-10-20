@@ -24,12 +24,29 @@ describe("şıklara sırayla gönderme", () => {
     ]) expect(refersToOptionOrder(text), text).toBe(true);
   });
 
+  // JS'in `i` bayrağı "İ"yi "i" saymıyor: cümle başındaki büyük İ kaçıyordu.
+  it("cümle başındaki büyük İ ve 'sırayla' da yakalanır", () => {
+    for (const text of [
+      "İlk iki ifade aynı son kola sahiptir.",
+      "İlk seçenek sabit basınçtadır.",
+      "İkinci şık ters işaretlidir.",
+      "Diğer şıklar sırayla 6, 12 ve 18 aydır.",
+      "İLK SEÇENEK yanlıştır.",
+    ]) expect(refersToOptionOrder(text), text).toBe(true);
+  });
+
   it("şıkkı içeriğiyle anan açıklamaya dokunmaz", () => {
     for (const text of [
       "Konfederasyon uluslararası sözleşmeyle kurulur; federasyon ise anayasaya dayanır.",
       "İlk iki yılda baş çevresi beyin büyümesini yansıtır.",
       "Bu ifade yanlıştır; doğrusu, egemenliğin topluma ait olmasıdır.",
       "Sırasıyla ülke, insan topluluğu ve egemenlik aranır.",
+      // KPSS çekirdek bilgisi: "madde" şık değildir (itiraz edilemeyen yapı kuralı bu cümleyi yasaklıyordu).
+      "Anayasanın ilk üç maddesi değiştirilemez.",
+      "Anayasanın ikinci maddesi Cumhuriyetin niteliklerini sayar.",
+      "Diğer iki şık yanlış.",
+      // "ışık" şık değildir.
+      "Kırmızı ve mavi ışıklar sırasıyla farklı açılarla kırılır.",
     ]) expect(refersToOptionOrder(text), text).toBe(false);
   });
 

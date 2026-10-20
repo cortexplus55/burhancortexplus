@@ -719,8 +719,9 @@ async function handleNodeRequest(
         retryCheck: sealSectionCheck(retry),
       });
     }
-    // Tekrar sorusu başka bir ifade olabilir; birincinin "doğrusu" ona ait değil.
-    const corrected = check.prompt === primary.prompt ? result.corrected : undefined;
+    // Tekrar sorusu başka bir ifade olabilir; birincinin "doğrusu" ona ait değil. Yazarın tam öğesi
+    // kendi doğrusunu taşır (20 Ekim 2026).
+    const corrected = check.prompt === primary.prompt || check.corrected !== primary.corrected ? result.corrected : undefined;
     return NextResponse.json({ ok: true, ...result, corrected });
   }
 

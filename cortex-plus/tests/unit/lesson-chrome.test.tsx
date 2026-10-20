@@ -232,7 +232,9 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByRole("button", { name: "Doymuş sıvı" })).toBeTruthy();
   });
 
-  it("retries a missed true/false from the source sentence and keeps prose off the formula line", () => {
+  // 20 Ekim 2026 (ürün sahibinin kararı): ders içi ikinci soru kaçırılan olguyu yeniden sınar (`sameFactOnly`);
+  // kaynağın başka cümlesini doğru/yanlış diye sormaz. Yazarın ikinci sorusu yoksa aynı yargı yeniden sorulur.
+  it("retries a missed true/false on the same fact and keeps prose off the formula line", () => {
     const body = [
       "P = F/A. **Basınç** SI birimi Pascal (Pa) olarak tanımlanır",
       "genelde kPa veya MPa cinsinden ifade edilir.",
@@ -273,10 +275,10 @@ describe("ExamLessonSteps", () => {
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Başla" }));
     expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
-    expect(screen.getByText(/ısıl durumunu gösteren bir özelliktir/)).toBeTruthy();
     expect(
-      screen.queryByText("Sıcaklık enerji birimidir, bu nedenle ısıl durumu gösterir. DOĞRU MU YANLIŞ?"),
-    ).toBeNull();
+      screen.getByText("Sıcaklık enerji birimidir, bu nedenle ısıl durumu gösterir. DOĞRU MU YANLIŞ?"),
+    ).toBeTruthy();
+    expect(screen.queryByText(/ısıl durumunu gösteren bir özelliktir\. Doğru mu, yanlış mı\?/)).toBeNull();
   });
 
   it("renders Veri and Adım lines as a list instead of one paragraph", () => {
