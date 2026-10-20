@@ -53,12 +53,14 @@ function detailFor(topic: TopicMasterySnapshot, openMisses: number): string {
   return parts.join(" · ");
 }
 
+/**
+ * 20 Ekim 2026: konu "hazır" = sağlam (%85+, en az 3 öğe) ve açık yanlışı yok. Önceden bütün
+ * geçmişte tek yanlış bile konuyu "çalışılacak"ta tutuyordu; düzelmiş yanlış artık tutmaz
+ * (`openMissesByTopic` yalnız çözülmemiş yanılgılardan gelir).
+ */
 function topicState(topic: TopicMasterySnapshot, openMisses: number): ReadinessTopicState {
   if (!topic.measured || topic.evidenceCount === 0) return "unmeasured";
-  const cleanAttempts =
-    (topic.independentTotal === 0 || topic.independentCorrect === topic.independentTotal) &&
-    (topic.firstAttemptTotal === 0 || topic.firstAttemptCorrect === topic.firstAttemptTotal);
-  if (topic.level === "solid" && openMisses === 0 && cleanAttempts) return "ready";
+  if (topic.level === "solid" && openMisses === 0) return "ready";
   return "needs_work";
 }
 

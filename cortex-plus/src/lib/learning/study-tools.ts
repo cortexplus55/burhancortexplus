@@ -70,7 +70,7 @@ export const STUDY_TOOLS: StudyTool[] = [
     blurb: "Hızlı kontrol",
     fallbackKind: "quiz",
   },
-  { id: "spaced", kind: "spaced", group: "practice", title: "Tekrar", blurb: "Aralıklı tekrar" },
+  { id: "spaced", kind: "spaced", group: "practice", title: "Tekrar", blurb: "Kartlarla tekrar" },
   { id: "written_exam", kind: "written_exam", group: "exam", title: "Yazılı deneme", blurb: "Süre var, yardım yok" },
   { id: "oral", kind: "oral", group: "exam", title: "Sözlü deneme", blurb: "Konuş veya yaz" },
 ];

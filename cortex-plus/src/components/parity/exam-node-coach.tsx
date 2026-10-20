@@ -13,11 +13,17 @@ export function ExamNodeCoach({
   nodeId,
   itemText,
   returnPath,
+  onUsed,
 }: {
   prepId: string;
   nodeId: string;
   itemText: string;
   returnPath: string;
+  /**
+   * Eğitmen cevap verdi (20 Ekim 2026). Oturum, soru cevaplanmadan önce gelen yardımı "ipuçlu"
+   * işaretler; o cevap bağımsız başarı sayılmaz. Hak yetmediğinde ya da hata olduğunda çağrılmaz.
+   */
+  onUsed?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -49,6 +55,7 @@ export function ExamNodeCoach({
         return;
       }
       setMessages([...next, { role: "assistant", content: data.reply ?? "" }]);
+      onUsed?.();
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {

@@ -9,6 +9,10 @@ import {
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
+import {
+  countResolvedMisconceptions,
+  withOpenMisconceptions,
+} from "@/lib/learning/misconception-store";
 
 export const metadata = { title: "Yanlışlar ve tekrarlar" };
 export const dynamic = "force-dynamic";
@@ -35,15 +39,22 @@ export default async function ExamPrepReviewsPage({
     .maybeSingle();
   if (!prep) notFound();
 
-  const { data: rows } = await supabase
-    .from("exam_prep_misconceptions")
-    .select(
-      "id, claim, corrected, wrong_type, topic_label, question_preview, created_at, node_id",
-    )
-    .eq("exam_prep_id", prepId)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  // Yalnız açık yanılgılar (20 Ekim 2026); çözülenler sayıyla anılır. Sütun yoksa hepsi açık.
+  const [{ data: rows }, resolvedCount] = await Promise.all([
+    withOpenMisconceptions((onlyOpen) => {
+      const query = supabase
+        .from("exam_prep_misconceptions")
+        .select(
+          "id, claim, corrected, wrong_type, topic_label, question_preview, created_at, node_id",
+        )
+        .eq("exam_prep_id", prepId)
+        .eq("user_id", user.id);
+      return (onlyOpen ? query.is("resolved_at", null) : query)
+        .order("created_at", { ascending: false })
+        .limit(50);
+    }),
+    countResolvedMisconceptions(supabase, { userId: user.id, prepId }),
+  ]);
 
   const { data: reviewNodes } = await supabase
     .from("exam_prep_nodes")
@@ -84,7 +95,7 @@ export default async function ExamPrepReviewsPage({
 
   return (
     <ParitySorShell {...shell}>
-      <ExamPrepReviews prepId={prepId} items={items} />
+      <ExamPrepReviews prepId={prepId} items={items} resolvedCount={resolvedCount} />
     </ParitySorShell>
   );
 }

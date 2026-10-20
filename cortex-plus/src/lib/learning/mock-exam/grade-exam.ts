@@ -14,6 +14,7 @@ import {
 } from "@/lib/learning/mock-exam/open-grade";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
+import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import {
   buildTopicReport,
@@ -59,7 +60,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
 
   const { data: exam } = await service
     .from("practice_exams")
-    .select("id, title, user_id, deadline_at, blueprint")
+    .select("id, title, user_id, deadline_at, blueprint, exam_prep_id, scope")
     .eq("id", examId)
     .maybeSingle();
 
@@ -280,6 +281,24 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
         source: "practice_exam",
       })),
     );
+  }
+
+  // Hazırlığın yolu (20 Ekim 2026): düğüm biter, sıradaki açılır, puan hazırlık tahminine girer.
+  // Takvim yeniden kurulmadan ÖNCE: bitmiş düğüm kurulumda korunur. Düşerse not yine döner.
+  try {
+    await writeBackMockToPrep(service, {
+      userId,
+      prepId: typeof exam.exam_prep_id === "string" ? exam.exam_prep_id : null,
+      scope: typeof exam.scope === "string" ? exam.scope : null,
+      practiceExamId: examId,
+      practiceAttemptId: attempt.id as string,
+      scorePct: scored.scorePct,
+      items,
+    });
+  } catch (error) {
+    console.error("mock_prep_writeback_failed", {
+      cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+    });
   }
 
   try {

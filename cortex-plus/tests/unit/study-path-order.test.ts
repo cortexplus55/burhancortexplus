@@ -124,11 +124,16 @@ describe("study path order", () => {
     const heavy = drafts.filter((node) => node.meta?.topicId === "1" && node.kind === "quiz");
     expect(heavy.map((node) => node.title)).toEqual([
       "Mol kavramı ve Avogadro sayısı · Testler ve Doğru/Yanlış",
-      "Mol kavramı ve Avogadro sayısı · Tekrar testi (karışık)",
-      "Mol kavramı ve Avogadro sayısı · Zor sorular",
+      "Mol kavramı ve Avogadro sayısı · İkinci test",
+      "Mol kavramı ve Avogadro sayısı · Üçüncü test",
     ]);
-    expect(heavy[1]?.meta?.objective).toMatch(/karışık bir tekrar/);
-    expect(heavy[2]?.meta?.objective).toMatch(/daha zor sorular/);
+    expect(heavy[1]?.meta?.objective).toMatch(/ikinci bir test/);
+    expect(heavy[2]?.meta?.objective).toMatch(/üçüncü bir test/);
+    // 20 Ekim 2026: karışık ya da daha zor test kurulmuyor; ad bunu vaat etmez.
+    for (const node of heavy) {
+      expect(node.title.toLocaleLowerCase("tr")).not.toMatch(/karışık|zor/);
+      expect((node.meta?.objective ?? "").toLocaleLowerCase("tr")).not.toMatch(/karışık|zor/);
+    }
     expect(drafts.filter((node) => node.meta?.topicId === "4" && node.kind === "quiz")).toHaveLength(1);
 
     const prepWide = new Set(["written_exam", "gaps", "focused", "flashcards", "final_check", "readiness"]);

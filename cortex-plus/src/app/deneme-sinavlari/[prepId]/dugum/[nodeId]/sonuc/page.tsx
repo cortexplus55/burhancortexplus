@@ -9,6 +9,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepLessonReplayHref, examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
 import { nodeResultView } from "@/lib/learning/node-result";
+import { mockReviewHref } from "@/lib/learning/mock-exam/prep-node-link";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import "@/styles/node-result.css";
@@ -35,7 +36,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
       .maybeSingle(),
     supabase
       .from("exam_prep_node_attempts")
-      .select("id, score, total, created_at, started_at, updated_at")
+      .select("id, score, total, created_at, started_at, updated_at, payload")
       .eq("node_id", nodeId)
       .eq("user_id", user.id)
       .eq("status", "completed")
@@ -45,6 +46,9 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
   ]);
   if (!prep || !node) notFound();
   if (!attempt) redirect(examPrepNodeHref(prepId, nodeId));
+  // Bitmiş yazılı deneme (20 Ekim 2026): "72/100 Doğru cevaplar" yerine denemenin soru incelemesi.
+  const mockReview = mockReviewHref(prepId, node.kind as string, attempt.payload);
+  if (mockReview) redirect(mockReview);
 
   const view = nodeResultView({
     score: attempt.score as number | null,

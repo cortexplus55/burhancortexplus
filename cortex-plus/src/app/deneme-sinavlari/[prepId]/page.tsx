@@ -31,6 +31,7 @@ import {
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
+import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
 import { prepDailyMinutes, prepStudyDays } from "@/lib/learning/exam-schedule-v2";
 import { materialKindLabel, prepSourceDocumentIds } from "@/lib/learning/prep-source";
@@ -254,12 +255,8 @@ export default async function ExamPrepDetailPage({
       .select("label")
       .eq("exam_prep_id", prepId);
 
-    const { count: misconceptionCount } = await supabase
-      .from("exam_prep_misconceptions")
-      .select("id", { count: "exact", head: true })
-      .eq("exam_prep_id", prepId);
-
-    openMisconceptions = misconceptionCount ?? 0;
+    // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
+    openMisconceptions = await countOpenMisconceptions(supabase, { prepId });
 
     const topics: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
       topicKey: row.topic_key as string,
@@ -335,12 +332,15 @@ export default async function ExamPrepDetailPage({
       .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(500),
-    supabase
-      .from("exam_prep_misconceptions")
-      .select("claim, topic_label")
-      .eq("exam_prep_id", prepId)
-      .order("created_at", { ascending: false })
-      .limit(5),
+    withOpenMisconceptions((onlyOpen) => {
+      const query = supabase
+        .from("exam_prep_misconceptions")
+        .select("claim, topic_label")
+        .eq("exam_prep_id", prepId);
+      return (onlyOpen ? query.is("resolved_at", null) : query)
+        .order("created_at", { ascending: false })
+        .limit(5);
+    }),
   ]);
   // Astra yolun üstünde son biten etkinliği yüzdesiyle gösteriyor ("30% · PODCAST · Sonuçları gör").
   const lastAttempt = (attemptRows ?? []).find((row) => typeof row.node_id === "string");

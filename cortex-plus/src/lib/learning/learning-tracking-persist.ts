@@ -16,6 +16,10 @@ import {
   type TopicGain,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
+import {
+  countOpenMisconceptions,
+  resolveMisconceptionsAfterEvidence,
+} from "@/lib/learning/misconception-store";
 
 export async function countPriorCompletedAttempts(
   service: SupabaseClient,
@@ -81,6 +85,15 @@ export async function recordLearningTrackingAfterComplete(
     })
     .eq("id", input.attemptId);
 
+  const { data: topicRows } = await service
+    .from("exam_prep_topics")
+    .select("label")
+    .eq("exam_prep_id", input.prepId);
+
+  const plannedTopicKeys = (topicRows ?? [])
+    .map((t) => String(t.label ?? "").trim())
+    .filter(Boolean);
+
   if (evidence.length) {
     await service.from("exam_prep_answer_evidence").insert(
       evidence.map((row) => ({
@@ -100,6 +113,16 @@ export async function recordLearningTrackingAfterComplete(
         question_preview: row.questionPreview,
       })),
     );
+  }
+
+  // Yanılgı çözümü (20 Ekim 2026): bu bitişte yardımsız doğru varsa, iki ayrı günde doğru
+  // cevaplanan konunun yanılgıları kapanır. Düşerse yanılgılar açık kalır; tamamlama sürer.
+  if (evidence.some((row) => row.correct && !row.hintAssisted)) {
+    await resolveMisconceptionsAfterEvidence(service, {
+      userId: input.userId,
+      prepId: input.prepId,
+      plannedTopicKeys,
+    }).catch(() => []);
   }
 
   const { data: masteryRows } = await service
@@ -125,11 +148,13 @@ export async function recordLearningTrackingAfterComplete(
 
   const folded = foldTopicMastery(evidence, prior);
   // "+%X kazandın" kartı (19 Ekim 2026): bu etkinliğin kanıtıyla değişen konunun güveni.
+  // Zayıf konuya yönelen hazırlık geneli düğümde (20 Ekim 2026) kartın adı sorulan konu.
+  const tested = (input.payload as { testedTopic?: unknown } | null)?.testedTopic;
   const topicGain = topicMasteryGain({
     prior,
     folded,
     evidenceKeys: evidence.map((row) => row.topicKey),
-    topicLabel: input.topicLabel,
+    topicLabel: typeof tested === "string" && tested.trim() ? tested.trim() : input.topicLabel,
   });
 
   for (const topic of folded) {
@@ -170,20 +195,11 @@ export async function recordLearningTrackingAfterComplete(
         : null,
   }));
 
-  const { data: topicRows } = await service
-    .from("exam_prep_topics")
-    .select("label")
-    .eq("exam_prep_id", input.prepId);
-
-  const plannedTopicKeys = (topicRows ?? [])
-    .map((t) => String(t.label ?? "").trim())
-    .filter(Boolean);
-
-  const { count: misconceptionCount } = await service
-    .from("exam_prep_misconceptions")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", input.userId)
-    .eq("exam_prep_id", input.prepId);
+  // Yalnız açık (çözülmemiş) yanılgılar; sütun yoksa hepsi açık sayılır.
+  const misconceptionCount = await countOpenMisconceptions(service, {
+    userId: input.userId,
+    prepId: input.prepId,
+  });
 
   const mockNode = nodes.find((n) => n.kind === "written_exam" && n.status === "done");
   let mockScorePct: number | null = null;
@@ -209,7 +225,7 @@ export async function recordLearningTrackingAfterComplete(
     plannedTopicKeys,
     mockScorePct,
     targetScore: input.targetScore,
-    openMisconceptions: misconceptionCount ?? 0,
+    openMisconceptions: misconceptionCount,
   });
   const tracking = toPersistedTracking(indicators);
 
@@ -224,7 +240,7 @@ export async function recordLearningTrackingAfterComplete(
     .eq("user_id", input.userId);
 
   const next = preferNextNodeForTracking(nodes, {
-    openMisconceptions: misconceptionCount ?? 0,
+    openMisconceptions: misconceptionCount,
     weakOrStaleTopicKeys: weakOrStaleTopicKeys(folded),
   });
 

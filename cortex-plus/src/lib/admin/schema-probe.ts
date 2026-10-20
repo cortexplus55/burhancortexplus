@@ -131,6 +131,11 @@ export async function probeSchema(
     hasTable(service, "exam_prep_prefetch"),
     probePathInsert(service),
   ]);
+  // Yanılgı çözümü (20 Ekim 2026): sütun yoksa sayımlar eski davranışta, hepsi açık sayılır.
+  const misconceptionResolution = await service
+    .from("exam_prep_misconceptions")
+    .select("resolved_at")
+    .limit(1);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
   const v2 = Boolean(podcastRule.data) && chatRule.data?.credit_cost === chatPrice;
@@ -197,6 +202,14 @@ export async function probeSchema(
       detail: pathInsert
         ? "exam_path_insert_after yerinde: düşük sonuçta konunun odaklı pratiği araya girer"
         : "Fonksiyon yok — düşük sonuçta odaklı pratik eklenmez (20261020120000).",
+    },
+    {
+      name: "Yanılgı çözümü",
+      ok: !misconceptionResolution.error,
+      critical: false,
+      detail: misconceptionResolution.error
+        ? "20261020170000 uygulanmamış: açık yanılgılar sayımı eski davranışta (hepsi açık)."
+        : "resolved_at yerinde: iki ayrı günde doğru cevaplanan konunun yanılgısı kapanır",
     },
     {
       name: "Zor soru tavanı sayacı",

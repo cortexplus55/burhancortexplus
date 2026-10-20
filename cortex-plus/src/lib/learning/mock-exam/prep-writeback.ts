@@ -1,0 +1,129 @@
+import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
+import { recordLearningTrackingAfterComplete } from "@/lib/learning/learning-tracking-persist";
+import type { MockGradeItem } from "@/lib/learning/mock-exam";
+import { mockNodePayload, mockNodeRequestId } from "@/lib/learning/mock-exam/prep-node-link";
+
+/**
+ * Notlanan yazılı deneme hazırlığın yoluna yazılır (20 Ekim 2026).
+ *
+ * Düğüm sayfası "Yazılı deneme"yi deneme kurulumuna gönderiyor; notlandırma yalnız
+ * `practice_exam_*` tablolarına yazıyordu. Düğüm hiç bitmiyor, sonrasındaki "Kartlarla son tekrar",
+ * "Son kontrol" ve "Hazırsın" sırayla hiç açılmıyor, hazırlık tahmini denemeyi hiç görmüyordu.
+ * Şimdi tam deneme (`scope = 'all'`) düğümü tamamlar: aynı tamamlama işlevi (sıradakini açar),
+ * deneme puanı düğüm kaydına yüzde olarak, her soru kendi konusuna kanıt olarak yazılır.
+ *
+ * Erken çözülen deneme de düğümü tamamlar (ürün sahibinin kararı); "Devam et"in sınav gününe
+ * atlamaması `preferNextNodeForTracking` penceresinde. Deneme yanlışları yanılgı satırı olmaz (v1).
+ *
+ * Çağıran, takvimi yeniden kurmadan ÖNCE çağırır: bitmiş düğüm yeniden kurulumda korunur;
+ * önce kurulum koşsaydı başlanmış deneme düğümü silinip yeniden yazılırdı.
+ */
+export async function writeBackMockToPrep(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    prepId: string | null;
+    scope: string | null;
+    practiceExamId: string;
+    practiceAttemptId: string;
+    scorePct: number;
+    items: readonly MockGradeItem[];
+  },
+): Promise<{ nodeId: string } | null> {
+  // Hazırlıksız deneme, konu seçili deneme: yol değişmez. Eski kayıtta kapsam boş = tam deneme.
+  if (!input.prepId) return null;
+  if (input.scope != null && input.scope !== "all") return null;
+  if (!(await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG))) return null;
+
+  const { data: prep } = await service
+    .from("exam_preps")
+    .select("id, target_score")
+    .eq("id", input.prepId)
+    .eq("user_id", input.userId)
+    .maybeSingle();
+  if (!prep) return null;
+
+  // Araçlar'ın geçici deneme hazırlığında (exam_type 'deneme') düğüm yok: hiçbir şey yazılmaz.
+  const { data: node } = await service
+    .from("exam_prep_nodes")
+    .select("id, status")
+    .eq("exam_prep_id", input.prepId)
+    .eq("kind", "written_exam")
+    .order("sort_order")
+    .limit(1)
+    .maybeSingle();
+  if (!node?.id) return null;
+  const nodeId = node.id as string;
+
+  // "Yazılı deneme her zaman açık": kilitliyse önce açılır (tamamlama kilitli düğümü reddeder).
+  if (node.status === "locked") {
+    await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).eq("status", "locked");
+  }
+
+  const payload = mockNodePayload({
+    practiceExamId: input.practiceExamId,
+    practiceAttemptId: input.practiceAttemptId,
+    items: input.items,
+  });
+  const requestId = mockNodeRequestId(input.practiceAttemptId);
+  let attempt: { id: string; status: string } | null = null;
+  const { data: created, error: insertError } = await service
+    .from("exam_prep_node_attempts")
+    .insert({
+      node_id: nodeId,
+      exam_prep_id: input.prepId,
+      user_id: input.userId,
+      topic_id: null,
+      payload,
+      total: 100,
+      status: "active",
+      client_request_id: requestId,
+      practice_exam_id: input.practiceExamId,
+    })
+    .select("id, status")
+    .single();
+  if (created?.id) {
+    attempt = { id: created.id as string, status: String(created.status ?? "active") };
+  } else if (insertError) {
+    // Aynı notlandırma ikinci kez geldi (benzersiz istek anahtarı): var olan kayıt.
+    const { data: existing } = await service
+      .from("exam_prep_node_attempts")
+      .select("id, status")
+      .eq("user_id", input.userId)
+      .eq("node_id", nodeId)
+      .eq("client_request_id", requestId)
+      .maybeSingle();
+    if (existing?.id) attempt = { id: existing.id as string, status: String(existing.status ?? "") };
+  }
+  if (!attempt) return null;
+  if (attempt.status === "completed") return { nodeId };
+
+  const score = Math.max(0, Math.min(100, Math.round(input.scorePct)));
+  const { error: completeError } = await service.rpc("complete_exam_prep_node", {
+    p_user_id: input.userId,
+    p_prep_id: input.prepId,
+    p_node_id: nodeId,
+    p_attempt_id: attempt.id,
+    p_score: score,
+    p_total: 100,
+    p_answers: {},
+  });
+  if (completeError) return null;
+
+  await recordLearningTrackingAfterComplete(service, {
+    userId: input.userId,
+    prepId: input.prepId,
+    nodeId,
+    attemptId: attempt.id,
+    kind: "written_exam",
+    payload,
+    answers: {},
+    topicLabel: null,
+    sessionObjective: null,
+    targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+  }).catch(() => undefined);
+
+  return { nodeId };
+}
