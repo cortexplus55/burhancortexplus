@@ -29,6 +29,9 @@ import {
 } from "@/lib/parity/signup";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
+import { useGoogleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { GoogleBlockedNote } from "@/components/auth/google-blocked-note";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 import { SignupPremiumShell } from "@/components/layout/signup-premium-shell";
@@ -48,6 +51,7 @@ export function SignupWizard() {
   const [password2, setPassword2] = useState("");
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const blockedApp = useGoogleBlockedWebViewApp();
 
   const steps = useMemo(() => stepIdsForRole("student"), []);
   const step = steps[stepIndex] ?? "role";
@@ -190,6 +194,10 @@ export function SignupWizard() {
           // Doğrulama bağlantısı başka tarayıcıda açılırsa localStorage'daki
           // yük kaybolur; onay anı hesapta da dursun ki sunucu kaydedebilsin.
           legal_consent_at: payload.consentAcceptedAt,
+          // Dönüş adresi de (ör. beta kodlu /pay?kod=…) hesapta dursun: Instagram'ın tarayıcısında
+          // kayıt olup onayı e-posta uygulamasından açan öğrencide kod kayboluyordu (20 Ekim 2026).
+          // Kurulum sonunda onboarding buradan okur.
+          signup_next: safeNextPath(searchParams.get("next"), ""),
         },
       },
     });
@@ -263,6 +271,11 @@ export function SignupWizard() {
       progress={progress}
       stepLabel={`Adım ${stepIndex + 1}/${steps.length}`}
       headerStart={headerStart}
+      loginHref={
+        safeNextPath(searchParams.get("next"), "")
+          ? `/giris?next=${encodeURIComponent(safeNextPath(searchParams.get("next"), ""))}`
+          : "/giris"
+      }
     >
       <div className="signup-wizard flex flex-1 flex-col">
         {step === "grade" ? (
@@ -474,13 +487,20 @@ export function SignupWizard() {
               >
                 {loading ? "Oluşturuluyor…" : "Hesabı oluştur"}
               </button>
-              <button
-                type="button"
-                onClick={googleSignup}
-                className="mk-btn-outline w-full py-3 text-sm font-medium"
-              >
-                Google ile devam et
-              </button>
+              {blockedApp ? (
+                <GoogleBlockedNote
+                  app={blockedApp}
+                  className="border-[var(--mk-border)] text-[var(--mk-muted)]"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={googleSignup}
+                  className="mk-btn-outline w-full py-3 text-sm font-medium"
+                >
+                  Google ile devam et
+                </button>
+              )}
             </form>
           </StepShell>
         ) : null}

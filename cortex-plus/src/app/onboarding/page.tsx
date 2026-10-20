@@ -12,6 +12,7 @@ import {
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { createClient } from "@/lib/supabase/client";
 import { recordConsentFromAccount } from "@/app/kayit/actions";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
 import {
   GOAL_OPTIONS,
   GRADE_OPTIONS,
@@ -179,10 +180,15 @@ export default function OnboardingPage() {
       }
 
       toast.success("Profilin hazır!");
+      // Kayıt başka tarayıcıda doğrulandıysa buraya gelinir ve tarayıcıdaki dönüş adresi yoktur;
+      // kayıtta hesaba yazılan adres (ör. beta kodlu /pay?kod=…) kullanılır (20 Ekim 2026).
+      const signupNext = safeNextPath(
+        typeof user.user_metadata?.signup_next === "string" ? user.user_metadata.signup_next : null,
+        "",
+      );
       router.push(
-        hasDocument === "yes"
-          ? "/dokumanlar"
-          : homePathForRole(existing?.primary_role),
+        signupNext ||
+          (hasDocument === "yes" ? "/dokumanlar" : homePathForRole(existing?.primary_role)),
       );
     } finally {
       setSaving(false);

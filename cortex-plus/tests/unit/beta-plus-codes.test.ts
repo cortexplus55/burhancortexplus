@@ -179,6 +179,27 @@ describe("beta kodu: göç canlı gibi çalışıyor", () => {
     expect(await redeem(other, "BETA-CCCC-CCCC")).toMatchObject({ ok: true, plusDays: 14 });
   });
 
+  it("ortak kod (20 Ekim 2026): ilk N kişi, herkes bir kez; deneme hakkı olmayan yer kapmaz", async () => {
+    const [a, b, c] = [
+      "44444444-4444-4444-8444-444444444444",
+      "55555555-5555-4555-8555-555555555555",
+      "66666666-6666-4666-8666-666666666666",
+    ];
+    await db.exec(`INSERT INTO promo_codes(code, credit_amount, max_redemptions, plus_days, batch) VALUES ('CORTEXBETA', 0, 2, 14, 'ortak-1');
+      INSERT INTO credit_wallets(user_id, balance, free_allowance_remaining) VALUES ('${a}', 0, 6), ('${b}', 0, 6), ('${c}', 0, 6);`);
+    expect(await redeem(a, " cortexbeta ")).toMatchObject({ ok: true, plusDays: 14 });
+    expect(await redeem(a, "CORTEXBETA")).toMatchObject({ ok: false, reason: "already_redeemed" });
+    // Denemesini başka koddan almış öğrenci reddedilir ve kontenjandan yer yemez.
+    expect(await redeem(student, "CORTEXBETA")).toMatchObject({ ok: false, reason: "trial_used" });
+    expect(await redeem(paid, "CORTEXBETA")).toMatchObject({ ok: false, reason: "already_premium" });
+    expect(await redeem(b, "CORTEXBETA")).toMatchObject({ ok: true, plusDays: 14 });
+    expect(await redeem(c, "CORTEXBETA")).toMatchObject({ ok: false, reason: "used_up" });
+    const count = await db.query<{ redemption_count: number }>("SELECT redemption_count FROM promo_codes WHERE code = 'CORTEXBETA'");
+    expect(count.rows[0]!.redemption_count).toBe(2);
+    // Mesaj ortak koda da uyar: "her kod tek kişilik" 3. kişiye yanlış olurdu.
+    expect(redeemFailureMessage("used_up")).toBe("Bu kodun kullanım hakkı doldu.");
+  });
+
   it("fonksiyonu yalnız sunucu çağırır", async () => {
     const grants = await db.query<{ grantee: string }>(
       `SELECT grantee FROM information_schema.role_routine_grants

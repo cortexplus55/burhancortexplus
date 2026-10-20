@@ -207,7 +207,7 @@ Bugün geriye kalanlar (4 Eylül 2026 itibarıyla doğrulandı):
 |---|---|
 | `/siniflar` | **Öğrenci** sayfası — öğrenci sınıf kurar ya da koda katılır. Öğretmen paneli değil. |
 | `verified_teacher` rolü | Hâlâ iş görüyor (quiz üretiminde daha yüksek sınır). Yalnızca yönetim panelinden elle veriliyor. |
-| `/admin/ogretmen-basvurulari` | Duruyor ama **yeni başvuru gelmiyor** — form ve API kaldırıldı. Karardan önce gelmiş 1 bekleyen kayıt var. |
+| `/admin/ogretmen-basvurulari` | Duruyor ama **yeni başvuru gelmiyor** — form ve API kaldırıldı. Bekleyen kayıt yok (20 Ekim 2026'da bakıldı: tek kayıt 28 Ağustos'ta onaylanmış). |
 | `parent_payment_requests` | Yaşıyor ve öğrenci tarafı: "veliden ödeme iste". Astra'da bu yok, bizde çalışıyor — bilerek duruyor. |
 | `src/lib/parent/link-status.ts`, `profile.ts` | Canlı: veli bağlama ve veli profili kaydı hâlâ kullanılıyor. |
 
@@ -692,12 +692,26 @@ kartında toplu üretilir (`BETA-XXXX-XXXX`, karışan harf yok); kod ya da haz�
 | Deneme `plus-aylik` planıyla açılır, `trial_until = current_period_end`; hak gün sayısıyla orantılı (14 gün = 3.360), cüzdan dönemi denemeyle aynı gün biter → ertesi istekte ücretsiz günlük hak | aynı göç; `isTrialPeriod` |
 | Deneme gelir değildir: ödeme kaydı yazılmaz, gelir raporları ödemelerden okunur | — |
 | Hatırlatma ve kart "yenile" demez, "ücretsize dönersin, ücret alınmaz" der; öğrenci ödeme yaparsa PayTR dönemi uzatır, eşitlik bozulur, abonelik ücretli sayılır | `trialNotice`, `subscription-card.tsx`, `subscription-renewal` |
-| Giriş yapmamış öğrencinin bağlantısı kodu kaybetmez: `next` sorguyu taşır, girişteki "Kayıt ol" `next`i kayda geçirir | `middleware.ts`, `giris-inner.tsx` |
+| Giriş yapmamış öğrencinin bağlantısı kodu kaybetmez: `next` sorguyu taşır. Kodlu bağlantı (`/pay?kod=…`) oturumsuz öğrenciyi **kayda** götürür (20 Ekim 2026; giriş "Tekrar hoş geldin" diyordu); kayıttaki "Giriş yap" ve girişteki "Kayıt ol" `next`i taşır | `middleware.ts`, `signup-premium-shell.tsx`, `giris-inner.tsx` |
 | Uç sıkı sınırda (dakikada 5, günde 20): kodlar tahminle denenmesin | `/api/promo/redeem` |
 | Eski kampanya kodları (hediye kredi) da aynı kutudan kullanılır; öğrenciye kredi sayısı değil iş söylenir | `promo-codes.ts` `redeemSuccessMessage` |
 
-Bekçi: `beta-plus-codes.test.ts` (göçü PGlite'ta çalıştırır: açılış, tek kişilik kod, tek deneme,
-ücretli Plus'ın ezilmemesi, deneme bitince günlük hakka dönüş, hediye kredi).
+**Ortak kod (20 Ekim 2026, ürün sahibinin kararı):** beta öğrencisi sosyal medyadan gelir (Instagram,
+WhatsApp / Telegram grubu); duyuruda **tek kod, tek bağlantı, ilk 50 kişi**. Aynı sayfada "Ortak beta kodu"
+kartı (`createSharedBetaCode`; kod boşsa üretilir, 2–1.000 kişi, 1–90 gün). Aynı SQL fonksiyonu: kişi başına
+bir kez; denemesini almış ya da ücretli abonesi olan reddedilir ve **kontenjandan yer yemez**; kod satırı
+kilitlenerek sayılır (`FOR UPDATE`), aynı anda gelen 51. kişi taşmaz. Dolunca "Bu kodun kullanım hakkı doldu"
+— eski "Her kod tek kişilik" ortak kodda yanlış söylüyordu.
+
+Instagram'dan gelen öğrencinin iki engeli kapatıldı (aynı gün):
+
+| Engel | Kural | Nerede |
+|---|---|---|
+| Google, uygulamanın kendi tarayıcısında girişi reddediyor ("disallowed_useragent"); öğrenci Google'ın hata sayfasını görüyordu | Instagram / Facebook / TikTok tarayıcısında Google düğmesi yerine "E-postanla devam et ya da sağ üstteki menüden sayfayı tarayıcıda aç" (giriş ve kayıt); WhatsApp ve Telegram gerçek tarayıcıda açar | `in-app-browser.ts`, `google-blocked-note.tsx` |
+| Instagram'da kayıt olup onayı e-posta uygulamasından açınca onay başka tarayıcıda açılıyor; dönüş adresi (`/pay?kod=…`) yalnız ilk tarayıcının `localStorage`'ındaydı, kod kayboluyordu | Kayıt dönüş adresini hesaba da yazar (`signup_next`); tamamla sayfası yük bulamayınca kuruluma gönderir, kurulum sonunda oraya gidilir | `signup-wizard.tsx`, `onboarding/page.tsx` |
+
+Bekçi: `beta-social-signup.test.tsx`, `beta-plus-codes.test.ts` (göçü PGlite'ta çalıştırır: açılış, tek kişilik kod, tek deneme,
+ücretli Plus'ın ezilmemesi, deneme bitince günlük hakka dönüş, hediye kredi, ortak kodun kontenjanı).
 
 ## Haftalık kısa anket (19 Ekim 2026) — kapalı beta geri bildirimi
 
@@ -874,7 +888,8 @@ Tümden çalışmayan özellik çıkmadı; bunlar çıktı:
 **Göç kayıt tablosu.** Göçler SQL ekranından (ve bir dönem panelin/MCP'nin uygulama anındaki zamanıyla)
 uygulandığı için `supabase_migrations.schema_migrations` repoyla ayrışmıştı: 70 dosya kayıtta yoktu,
 kayıtta hiçbir dosyaya karşılık gelmeyen 33 satır var. 20 Ekim'de 70 eksik sürüm yalnız eklenerek
-yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şema kontrolü). Yetim 33 satır silinmedi:
+yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şema kontrolü). Yetim 33 satır silinmedi
+(ürün sahibinin kararı, 20 Ekim: bırak):
 `supabase db push` bu yüzden "remote versions not found" diyerek durur — bu bir emniyettir.
 **`supabase db push` kullanmayın; yeni göçü SQL ekranında uygulayıp aynı anda kayıt satırını yazın**
 (`insert into supabase_migrations.schema_migrations (version, name) values ('<dosya zamanı>', '<ad>')`).

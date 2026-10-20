@@ -6,11 +6,14 @@ export function SignupPremiumShell({
   progress,
   stepLabel,
   headerStart,
+  loginHref = "/giris",
   children,
 }: {
   progress: number;
   stepLabel: string;
   headerStart: React.ReactNode;
+  /** Kodlu bağlantıyla gelen hesap sahibi girişte de koda dönsün (`next` taşır). */
+  loginHref?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -63,7 +66,7 @@ export function SignupPremiumShell({
             {children}
           </main>
           <p className="mx-auto mb-8 max-w-sm px-4 text-center text-xs text-[var(--cx-muted)]">
-            <Link href="/giris" className="underline hover:text-[var(--cx-text)]">
+            <Link href={loginHref} className="underline hover:text-[var(--cx-text)]">
               Zaten hesabın var mı? Giriş yap
             </Link>
             {" · "}
