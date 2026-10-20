@@ -10,16 +10,22 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import {
+  FORCE_FIX_CODES,
   parseQuizIssues,
   parseTeacherQuiz,
   quizFixSystem,
   quizFixUserPrompt,
+  quizSetIssues,
   quizStructureIssues,
   quizSystem,
   quizUserPrompt,
   quizVerifySystem,
   quizVerifyUserPrompt,
   shuffleOptions,
+  SOFT_CODES,
+  tableLookupLike,
+  topicTestPoints,
+  type QuizIssue,
   type TeacherQuizInput,
 } from "@/lib/learning/teacher-quiz";
 
@@ -28,6 +34,8 @@ export type AskJson = (system: string, user: string, role?: "draft" | "verify" |
 
 /** Taslakta öğrenciye gidecek sayının üstüne yedek soru: elenen yerine geçer. */
 const SPARE = 2;
+/** Konu testinde pedagojik kurallar da eler (20 Ekim 2026): bir yedek fazla, düzeltme turu daha seyrek. */
+const SPARE_TOPIC_TEST = 3;
 const MAX_FIX_ROUNDS = 2;
 /** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). */
 const FIX_DEADLINE_MS = 200_000;
@@ -43,58 +51,236 @@ export const MIN_DELIVERABLE_QUESTIONS = 2;
 
 type Reviewed = { question: QuizQuestion; problems: string[] };
 
+/** soft: pedagojik (konu testinde H-K ve kodun kapsam denetimi); forceFix: kapsam eksiği, düzeltme turu açar. */
+type Problem = { text: string; soft: boolean; forceFix: boolean };
+/** index: taslaktaki yeri. Düzeltilen soru aynı yere döner (20 Ekim 2026'ya kadar sona ekleniyordu, kesilebiliyordu). */
+type Slot = { index: number; question: QuizQuestion };
+type Pending = Slot & { problems: Problem[] };
+
+export type TeacherQuizLoopResult = {
+  questions: QuizQuestion[];
+  rejected: Reviewed[];
+  rounds: number;
+  /** Konu testi: düzelmeyen ama yalnız pedagojik sorunu olan, sayıyı tamamlamak için geri konan soru. */
+  softKept: number;
+  /** Bu soruların ilk sorunu (yönetim "Ders hataları"). */
+  salvaged: string[];
+  /** Kapsam eksiği (J) yüzünden düzeltme turu açıldı mı. */
+  forced: boolean;
+  /** Denetçi ve kod sorunlarının harf sayımı (yalnız konu testi). */
+  codes: Record<string, number>;
+};
+
+/** withOneMultiLast'in seçtiği yerler: tek cevaplılar sırayla (count−1), çok cevaplı soru sonda. */
+function deliveryWindow(slots: readonly Slot[], count: number): Set<number> {
+  const multi = slots.find((slot) => slot.question.multi);
+  const single = slots.filter((slot) => !slot.question.multi);
+  const chosen = multi ? [...single.slice(0, Math.max(0, count - 1)), multi] : single.slice(0, count);
+  return new Set(chosen.map((slot) => slot.index));
+}
+
+const byIndex = (left: Slot, right: Slot) => left.index - right.index;
+const allSoft = (row: Pending) => row.problems.every((problem) => problem.soft);
+
 /**
  * Taslak → yapı + bağımsız çözüm denetimi → sorunlu sorular modelin
  * düzeltmesine. Krediye dokunmaz; `runTeacherQuiz` krediyi sarar, yerel
  * ölçüm betiği doğrudan çağırır.
+ *
+ * Konu testinde (`scope: "topic_test"`, 20 Ekim 2026) denetim bütün teste de bakar: kök kalıbı,
+ * madde kapsamı, dersle tekrar (kod + denetçinin H-K'si). Bu sorunlar yumuşak: soru düzeltilir ya
+ * da yedekle değişir; pedagojik sorun için en çok bir tur; düzelmeyen soru sayıyı tamamlamak için geri
+ * konur ("İçerik üretilemedi demez": öğrenciye giden soru sayısı bugünkünden düşmez). Doğruluk ve
+ * yapı sorunu olan soru hiçbir zaman geri konmaz.
  */
 export async function teacherQuizLoop(
   ask: AskJson,
   input: TeacherQuizInput,
   started = Date.now(),
-): Promise<{ questions: QuizQuestion[]; rejected: Reviewed[]; rounds: number }> {
+): Promise<TeacherQuizLoopResult> {
   const mode = input.mode ?? "document";
-  const review = async (questions: QuizQuestion[]): Promise<Reviewed[]> => {
-    const structural = questions.map((question) => quizStructureIssues(question, { multi: input.multi }));
-    let factual: ReturnType<typeof parseQuizIssues> = [];
-    try {
-      factual = parseQuizIssues(await ask(quizVerifySystem(mode), quizVerifyUserPrompt(questions, input), "verify"));
-    } catch (error) {
-      // Denetlenemeyen soru öğrenciye gitmez.
-      return questions.map((question) => ({
-        question,
-        problems: [`Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}`],
-      }));
-    }
-    return questions.map((question, index) => ({
-      question,
-      problems: [
-        ...structural[index],
-        ...factual
-          .filter((issue) => issue.question === index && issue.severity === "high")
-          .map((issue) => `${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`),
-      ],
-    }));
+  const scope = input.scope;
+  const scoped = scope === "topic_test";
+  const count = input.count;
+  const multi = Boolean(input.multi);
+  // İkinci geçişte birinci geçişin soruları testin başı sayılır.
+  const prior = scoped ? (input.avoid ?? []) : [];
+  const pointsAvailable = scoped ? topicTestPoints(input).length : 0;
+  const codes: Record<string, number> = {};
+  const slots: (QuizQuestion | null)[] = [];
+  const accepted = (): Slot[] => slots.flatMap((question, index) => (question ? [{ index, question }] : []));
+  const testSoFar = () => (scoped ? [...prior, ...accepted().map((slot) => slot.question)] : []);
+
+  const fromIssue = (issue: QuizIssue): Problem => {
+    const soft = scoped && Boolean(issue.code && SOFT_CODES.has(issue.code));
+    if (scoped && issue.code) codes[issue.code] = (codes[issue.code] ?? 0) + 1;
+    return {
+      text: `${scoped && issue.code ? `[${issue.code}] ` : ""}${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`,
+      soft,
+      forceFix: soft && FORCE_FIX_CODES.has(issue.code!),
+    };
   };
 
-  const multi = Boolean(input.multi);
-  let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE), "draft"));
-  if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi), quizUserPrompt(input, input.count + SPARE), "draft"));
-  if (!draft) return { questions: [], rejected: [], rounds: 0 };
+  const review = async (candidates: Slot[]): Promise<Pending[]> => {
+    const kept = accepted();
+    const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi }));
+    let factual: QuizIssue[] = [];
+    try {
+      factual = parseQuizIssues(
+        await ask(
+          quizVerifySystem(mode, scope),
+          quizVerifyUserPrompt(
+            candidates.map((slot) => slot.question),
+            input,
+            testSoFar(),
+          ),
+          "verify",
+        ),
+      );
+    } catch (error) {
+      // Denetlenemeyen soru öğrenciye gitmez.
+      return candidates.map((slot) => ({
+        ...slot,
+        problems: [
+          { text: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}`, soft: false, forceFix: false },
+        ],
+      }));
+    }
+    const rows: Pending[] = candidates.map((slot, position) => ({
+      ...slot,
+      problems: [
+        ...structural[position].map((text) => ({ text, soft: false, forceFix: false })),
+        ...factual.filter((issue) => issue.question === position && issue.severity === "high").map(fromIssue),
+      ],
+    }));
+    if (scoped) {
+      // Bütün test: önceki geçiş + kabul edilenler + engellenmeyen adaylar, testteki sırayla.
+      const merged: { question: QuizQuestion; row: Pending | null }[] = [
+        ...prior.map((question) => ({ question, row: null })),
+        ...[
+          ...kept.map((slot) => ({ ...slot, row: null })),
+          ...rows.filter(allSoft).map((row) => ({ index: row.index, question: row.question, row })),
+        ]
+          .sort(byIndex)
+          .map(({ question, row }) => ({ question, row })),
+      ];
+      for (const issue of quizSetIssues(
+        merged.map((item) => item.question),
+        { pointsAvailable, lessonChecks: input.lesson?.checks },
+      )) {
+        const row = merged[issue.index]?.row;
+        if (!row) continue;
+        codes[`set_${issue.code}`] = (codes[`set_${issue.code}`] ?? 0) + 1;
+        row.problems.push({ text: `[${issue.code}] ${issue.problem}`, soft: true, forceFix: issue.forceFix });
+      }
+    }
+    return rows;
+  };
 
-  const reviewed = await review(draft);
-  const good = reviewed.filter((item) => !item.problems.length).map((item) => item.question);
-  let bad = reviewed.filter((item) => item.problems.length);
+  const draftCount = count + (scoped ? SPARE_TOPIC_TEST : SPARE);
+  let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
+  if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
+  if (!draft) return { questions: [], rejected: [], rounds: 0, softKept: 0, salvaged: [], forced: false, codes };
+
+  slots.push(...draft.map(() => null));
+  let bad: Pending[] = [];
+  const settle = (rows: Pending[]) => {
+    for (const row of rows) {
+      if (row.problems.length) bad.push(row);
+      else slots[row.index] = row.question;
+    }
+    bad.sort(byIndex);
+  };
+  settle(await review(draft.map((question, index) => ({ index, question }))));
+
+  // Konu testinde "yeterli" öğrenciye gidecek sayıdır (tek çok cevaplı soru sayılır); öbür yüzeylerde bugünkü gibi.
+  const have = () => {
+    const kept = slots.filter((question): question is QuizQuestion => question !== null);
+    return scoped ? withOneMultiLast(kept, count).length : kept.length;
+  };
+  // Kapsam eksiği yalnız öğrenciye gidecek sorulardaysa tur açar; kesilecek yedeği düzeltmek boşa.
+  const forcedInWindow = () => {
+    if (!scoped) return [];
+    const window = deliveryWindow([...accepted(), ...bad.filter(allSoft)].sort(byIndex), count);
+    return bad.filter((row) => window.has(row.index) && row.problems.some((problem) => problem.forceFix));
+  };
+
   let rounds = 0;
-  while (good.length < input.count && bad.length && rounds < MAX_FIX_ROUNDS && Date.now() - started < FIX_DEADLINE_MS) {
+  let forced = false;
+  while (bad.length && rounds < MAX_FIX_ROUNDS && Date.now() - started < FIX_DEADLINE_MS) {
+    const short = have() < count;
+    const coverage = forcedInWindow();
+    if (!short && !coverage.length) break;
+    const toFix = short ? bad : coverage;
+    // Yalnız pedagojik sorun için en çok bir tur: düzelmezse soru yedekle değişir ya da geri konur.
+    if (scoped && rounds >= 1 && toFix.every(allSoft)) break;
     rounds += 1;
-    const fixed = parseTeacherQuiz(await ask(quizFixSystem(mode, input.focus, multi), quizFixUserPrompt(bad, input), "fix"));
+    if (coverage.length) forced = true;
+    let answer: unknown;
+    try {
+      answer = await ask(
+        quizFixSystem(mode, input.focus, multi, scope),
+        quizFixUserPrompt(
+          toFix.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),
+          input,
+          testSoFar(),
+        ),
+        "fix",
+      );
+    } catch (error) {
+      // Konu testinde düzeltme çağrısı düşerse test düşmez: elde kalanlar ve geri konacaklar teslim edilir.
+      if (!scoped) throw error;
+      break;
+    }
+    const fixed = parseTeacherQuiz(answer);
     if (!fixed) break;
-    const again = await review(fixed);
-    good.push(...again.filter((item) => !item.problems.length).map((item) => item.question));
-    bad = again.filter((item) => item.problems.length);
+    const candidates = fixed.slice(0, toFix.length).map((question, position) => ({ index: toFix[position].index, question }));
+    const replaced = new Set(candidates.map((slot) => slot.index));
+    const previous = new Map(toFix.map((row) => [row.index, row]));
+    const again = await review(candidates);
+    bad = bad.filter((row) => !replaced.has(row.index));
+    // Düzeltme doğruluk sorunu getirdiyse (ya da denetlenemediyse) elde yalnız pedagojik sorunu olan eski
+    // soru kalır: geri konabilsin, teslim edilen sayı düzeltme yüzünden düşmesin.
+    settle(
+      again.map((row) => {
+        const before = previous.get(row.index);
+        return scoped && before && allSoft(before) && !allSoft(row) ? before : row;
+      }),
+    );
   }
-  return { questions: withOneMultiLast(good, input.count).map(shuffleOptions), rejected: bad, rounds };
+
+  // Yumuşak kurtarma: sayı eksikse yalnız pedagojik sorunu kalan sorular, testteki sırayla geri konur.
+  let softKept = 0;
+  const salvaged: string[] = [];
+  if (scoped) {
+    for (const row of [...bad]) {
+      if (have() >= count) break;
+      if (!allSoft(row)) continue;
+      const before = have();
+      slots[row.index] = row.question;
+      // İkinci çok cevaplı soru sayıyı artırmaz, öbürünün yerine geçmesin.
+      if (have() <= before) {
+        slots[row.index] = null;
+        continue;
+      }
+      softKept += 1;
+      salvaged.push(row.problems[0]?.text.slice(0, 200) ?? "sorun");
+      bad = bad.filter((item) => item !== row);
+    }
+  }
+  const questions = withOneMultiLast(
+    slots.filter((question): question is QuizQuestion => question !== null),
+    count,
+  ).map(shuffleOptions);
+  return {
+    questions,
+    rejected: bad.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),
+    rounds,
+    softKept,
+    salvaged,
+    forced,
+    codes,
+  };
 }
 
 /**
@@ -109,7 +295,16 @@ export function withOneMultiLast(questions: QuizQuestion[], count: number): Quiz
 }
 
 export type TeacherQuizOutcome =
-  | { ok: true; questions: QuizQuestion[]; calls: number; ms: number; reservationId?: string }
+  | {
+      ok: true;
+      questions: QuizQuestion[];
+      calls: number;
+      ms: number;
+      reservationId?: string;
+      /** Konu testi: pedagojik sorunu düzelmeden geri konan soru sayısı ve sorunları (20 Ekim 2026). */
+      softKept?: number;
+      salvaged?: string[];
+    }
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /** Kredi bir kez ayrılır; yeterli soru çıkarsa kesinleşir, çıkmazsa iade. */
@@ -194,12 +389,23 @@ async function runTeacherQuizInner(
     const loop = await teacherQuizLoop(ask, input, started);
     let questions = loop.questions;
     let passes = 1;
+    let softKept = loop.softKept;
+    const salvaged = [...loop.salvaged];
     const minimum = input.minimum ?? minimumQuestions(input.count);
     // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): yetersiz soru hata değil, ikinci
     // taslak demek. İkinci geçişin yeni soruları eklenir; yine de iki sorunun altındaysa test yok.
     if (questions.length < minimum && Date.now() - started < SECOND_PASS_DEADLINE_MS) {
       passes = 2;
-      const again = await teacherQuizLoop(ask, { ...input, count: Math.max(3, input.count - questions.length) }, started);
+      const again = await teacherQuizLoop(
+        ask,
+        {
+          ...input,
+          count: Math.max(3, input.count - questions.length),
+          // Konu testi: ikinci taslak ilk geçişin sorularını görür, kalıplarını ve maddelerini tekrar etmez (20 Ekim 2026).
+          ...(input.scope === "topic_test" ? { avoid: questions } : {}),
+        },
+        started,
+      );
       const seen = new Set(questions.map((question) => question.text.trim().toLocaleLowerCase("tr-TR")));
       const fresh = again.questions.filter((question) => {
         const key = question.text.trim().toLocaleLowerCase("tr-TR");
@@ -208,6 +414,9 @@ async function runTeacherQuizInner(
         return true;
       });
       questions = withOneMultiLast([...questions, ...fresh], input.count);
+      softKept += again.softKept;
+      salvaged.push(...again.salvaged);
+      for (const [code, n] of Object.entries(again.codes)) loop.codes[code] = (loop.codes[code] ?? 0) + n;
     }
     console.info("teacher_quiz", {
       topic: input.topicLabel.slice(0, 80),
@@ -218,6 +427,17 @@ async function runTeacherQuizInner(
       passes,
       calls,
       ms: Date.now() - started,
+      // Konu testi kuralları (20 Ekim 2026): etkisi ölçülmeden kural değişmesin.
+      ...(input.scope === "topic_test"
+        ? {
+            scope: input.scope,
+            softKept,
+            forced: loop.forced,
+            codes: loop.codes,
+            lessonAware: Boolean(input.lesson),
+            lookupLike: tableLookupLike(questions, input.pages),
+          }
+        : {}),
     });
     if (questions.length < Math.min(minimum, MIN_DELIVERABLE_QUESTIONS)) {
       await refund();
@@ -228,11 +448,12 @@ async function runTeacherQuizInner(
         reasons: loop.rejected.slice(0, 4).map((item) => item.problems[0]?.slice(0, 200) ?? "sorun"),
       };
     }
+    const kept = softKept ? { softKept, salvaged: salvaged.slice(0, 6) } : {};
     if (input.deferCommit || held || !reservation.reservationId) {
-      return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId ?? undefined };
+      return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId ?? undefined, ...kept };
     }
     await commitCredits(service, reservation.reservationId);
-    return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
+    return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId, ...kept };
   } catch (error) {
     await refund();
     console.error("teacher_quiz_failed", {

@@ -22,6 +22,8 @@ import {
   takePrefetchedLesson,
   verifyPrefetchToken,
 } from "@/lib/learning/lesson-prefetch";
+import { lessonQuizContext, loadTopicLessons, type LessonQuizContext } from "@/lib/learning/lesson-quiz-context";
+import { quizPrefetchStorable, refreshQuizPrefetchAfterLesson, tagQuizPrefetchClaim } from "@/lib/learning/topic-test-prefetch";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { loadTopicSupport, supportPagesForEngine, type SupportPage } from "@/lib/learning/topic-support-load";
@@ -631,6 +633,13 @@ async function handleNodeRequest(
       requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number }),
     );
   }
+  // Konu testi dersi bilir (20 Ekim 2026): ders kaydedilince sıradaki test derse göre yeniden hazırlanır.
+  const refreshTopicQuiz = (topicId: string | null | undefined) => {
+    if (!topicId || !teachingV2) return;
+    afterResponse(() =>
+      refreshQuizPrefetchAfterLesson(service, { origin: options.origin, userId, prepId, afterSortOrder: node.sort_order as number, topicId }),
+    );
+  };
 
   if (action === "review") {
     if (kind !== "written_exam") return errorResponse(400, "invalid_input");
@@ -1522,6 +1531,7 @@ async function handleNodeRequest(
         await commitCredits(service, reservation.reservationId).catch(() => undefined);
         const topicId = topic?.id ?? finished.topicId;
         if (topicId) await saveTopicLesson(service, { prepId, topicId, payload: finished.payload });
+        refreshTopicQuiz(topicId);
       }
       await upsertGenerationJob(service, {
         userId,
@@ -1551,9 +1561,15 @@ async function handleNodeRequest(
     }
   }
 
+  // Konu testi konunun kaydedilmiş dersini bilir (20 Ekim 2026): yazar dersin sorularını ve
+  // terimlerini görür; önceden yazılan testin anahtarı dersin parmak izini taşır.
+  const quizLesson: LessonQuizContext | null =
+    kind === "quiz" && teachingV2 && topic?.id ? lessonQuizContext((await loadTopicLessons(service, topic.id)).lessons) : null;
+
   // Önceden yazılmış etkinlik (18 Ekim 2026'dan beri her hazırlanabilir tür): beklemeden gelir,
   // kredi şimdi düşer. Seçim (zorluk, podcast süresi, sözlü ayarları) tutmazsa yeniden yazılır.
   const variant = prefetchVariant(kind, {
+    lessonKey: quizLesson?.key ?? null,
     topicLabel,
     difficulty,
     podcastLength: parsed.data.podcastLength ?? null,
@@ -1633,6 +1649,7 @@ async function handleNodeRequest(
       const topicId = topic?.id ?? taken.topicId;
       if (topicId) {
         if (kind === "lesson") await saveTopicLesson(service, { prepId, topicId, payload: taken.payload });
+        if (kind === "lesson") refreshTopicQuiz(topicId);
         await service.from("exam_prep_topics").update({ familiarity }).eq("id", topicId);
       }
       await service.from("study_session_moods").insert({
@@ -1998,6 +2015,7 @@ async function handleNodeRequest(
       familiarity,
     });
     if (!claimed) return NextResponse.json({ ok: true, skipped: "busy" });
+    if (kind === "quiz") await tagQuizPrefetchClaim(service, { nodeId, variant });
   }
 
   if (teachingV2 && !prefetch) {
@@ -2251,6 +2269,8 @@ async function handleNodeRequest(
             kind === "podcast" && teachingV2 && topic?.id
               ? await loadTopicLesson(service, topic.id)
               : null,
+          lessonQuiz: quizLesson,
+          onLessonSaved: refreshTopicQuiz,
           prepId,
           topicId: topic?.id ?? null,
           practiceTopics,
@@ -2435,8 +2455,25 @@ async function handleNodeRequest(
       await dropPrefetch(service, nodeId);
       const topicId = topic?.id ?? null;
       if (topicId) await saveTopicLesson(service, { prepId, topicId, payload });
+      refreshTopicQuiz(topicId);
       console.info("lesson_prefetch_adopted_done", { nodeId });
       return NextResponse.json({ ok: true, prefetched: "adopted" });
+    }
+    // Test yazılırken konunun dersi kaydedildiyse (ya da satırı başka yazım aldıysa) saklanmaz.
+    if (
+      kind === "quiz" &&
+      topic?.id &&
+      !(await quizPrefetchStorable(service, {
+        origin: options.origin,
+        userId,
+        prepId,
+        node: { id: node.id as string, kind: node.kind as string, status: (node.status as string | null) ?? null, session_meta: node.session_meta },
+        topicId: topic.id,
+        variant,
+        lessonKey: quizLesson?.key ?? null,
+      }))
+    ) {
+      return NextResponse.json({ ok: true, prefetched: false });
     }
     const stored = await storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant }, { warm });
     console.info("prefetch_ready", { nodeId, kind, stored });
@@ -2767,6 +2804,10 @@ async function generateNodePayload(input: {
    * ihtimalini kaynağında kurutuyor.
    */
   lessonContent?: LessonV2 | null;
+  /** Konu testi: konunun kaydedilmiş ders(ler)inin soruları ve terimleri (20 Ekim 2026). */
+  lessonQuiz?: LessonQuizContext | null;
+  /** Ders konuya kaydedilince (sıradaki konu testi derse göre yenilenir). */
+  onLessonSaved?: (topicId: string) => void;
   /** Ders düğümü içeriğini konuya yazabilsin diye. */
   prepId?: string;
   topicId?: string | null;
@@ -3079,6 +3120,7 @@ async function teacherLessonPayload(
   // Önceden yazılan ders konuya öğrenci açınca yazılır.
   if (input.prepId && input.topicId && input.charge !== false) {
     await saveTopicLesson(input.service, { prepId: input.prepId, topicId: input.topicId, payload });
+    input.onLessonSaved?.(input.topicId);
   }
   return payload;
 }
@@ -3334,9 +3376,25 @@ async function teacherQuizPayload(
     difficulty: quizDifficulty(input.requestedDifficulty),
     // Konu testinde bir soru çok cevaplı (17 Ekim 2026, Astra'daki gibi); tuzak testi tek cevaplı.
     multi: input.kind === "quiz" && count >= 5,
+    // Yoldaki konu testinin kuralları ve dersi (20 Ekim 2026); tuzak testi (gaps) bugünkü gibi.
+    scope: input.kind === "quiz" ? "topic_test" : undefined,
+    lesson: input.kind === "quiz" ? (input.lessonQuiz ?? undefined) : undefined,
     startedAt,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  // Pedagojik sorunu düzelmeden geri konan soru: test öğrenciye gider, neden yönetimde görünsün.
+  if (outcome.softKept) {
+    await recordLessonGenerationFailure(input.service, {
+      userId: input.userId,
+      prepId: input.prepId ?? null,
+      topicId: input.topicId ?? null,
+      topicLabel: input.topicLabel,
+      kind: "quiz",
+      stage: "set",
+      reason: "pedagogy_salvaged",
+      reasons: [`${outcome.softKept} soru düzelmeden geri kondu`, ...(outcome.salvaged ?? [])],
+    });
+  }
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity, engine: "teacher" };
 }
 

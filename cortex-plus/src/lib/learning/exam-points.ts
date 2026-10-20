@@ -24,13 +24,20 @@ const USE_LINE: Record<ExamPointsUse, string> = {
   video: "Sahnelerin kilit bilgileri (keyFact) ve anlatımı bu maddelerden seçilsin.",
 };
 
-/** Motor istemine giren blok. Madde yoksa boş (eski hazırlık ya da analiz henüz yok). */
+/** İstemlere giren en çok madde sayısı; testin kapsam sayımı da bu sınırla. */
+export const EXAM_POINTS_MAX = 8;
+
+/**
+ * Motor istemine giren blok. Madde yoksa boş (eski hazırlık ya da analiz henüz yok).
+ * Testte maddeler numaralı (20 Ekim 2026): konu testi her sorunun "point" alanına numarayı yazar,
+ * denetçi ve kod kapsamı bu numarayla sayar. Öbür motorlar madde imiyle okur.
+ */
 export function examPointsBlock(points: readonly string[] | undefined, use: ExamPointsUse): string {
-  const list = (points ?? []).map((point) => point.trim()).filter(Boolean).slice(0, 8);
+  const list = (points ?? []).map((point) => point.trim()).filter(Boolean).slice(0, EXAM_POINTS_MAX);
   if (!list.length) return "";
   return [
     "SINAVDA SORULUR (belgenin öğretmen analizi; yalnız KAYNAK'taki bilgi geçerli, çelişirse KAYNAK haklı):",
-    ...list.map((point) => `* ${point}`),
+    ...list.map((point, index) => (use === "quiz" ? `${index + 1}. ${point}` : `* ${point}`)),
     USE_LINE[use],
   ].join("\n");
 }
