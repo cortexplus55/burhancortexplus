@@ -18,8 +18,7 @@ sonraki 2'yi aça aça ilerleyelim; hem maliyeti kısarız hem de kullanıcını
 |---|---|
 | Yolda ne görünür | Yolun tamamı; şu anki adım + sonraki 2 adım net, sonrası **soluk** ve "Plan sonuçlarına göre değişebilir" |
 | Sonuca göre sıra | **Kendiliğinden**: puanlı adımda %50 altı → o konunun odaklı pratiği hemen sıradaki adım; %90 üstü → o konunun ek alıştırması atlanır; öğrenciye kısa satırla söylenir |
-| Ders içinde | Önce plan (başlık + kavram listesi), sonra kavram kavram; **2 kavram önden**; sonraki kavram önceki cevaplara göre ayarlanır; yarım dersin kalanı yazılmaz |
-| Kalite ölçümü | Yerel altın kıyas (eski ders ↔ yeni ders, aynı kaynak), ~$0,05 model harcaması onaylı |
+| Ders içinde | İlk karar "2 kavram önden"di; aynı gece ölçümle **geri alındı** (aşağıda "Aşama 2"): ders tek parça kalır |
 
 ## Aşama 1 — Yol
 
@@ -31,13 +30,16 @@ sonraki 2'yi aça aça ilerleyelim; hem maliyeti kısarız hem de kullanıcını
 
 Takvim (Takvimim, hatırlatmalar, sınav günü tahmini) arka planda tam plan olarak kalır.
 
-## Aşama 2 — Ders (özellik anahtarıyla, önce kurucu hesabı)
+## Aşama 2 — Ders: tek parça kalır (aynı gece, ölçümle karar değişti)
 
-1. Yazar önce dersin planını ve ilk iki kavramı yazar (bugünkü akış, kavram listesi giriş kartında).
-2. Öğrenci kavram *k*'ya gelince *k+2* yazılır; istemde o ana kadarki ekranlar ve öğrencinin cevapları
-   (yanlış cevaplanan soru varsa kısa hatırlatmayla başla).
-3. Her kavram bugünkü gibi denetlenir, düzeltilir, yayımlanır (ders hızı kuralları aynen).
-4. Kapanış (sık hata, özet) son kavramla birlikte, öğrencinin cevaplarını görerek.
-5. Önceden yazım planı ve ilk iki kavramı yazar.
+Ölçüm (son 10 günün 30 dersi): 5'i 2 kavramlık, 14'ü 3, 9'u 4, 2'si 5. "2 kavram önden" kuralında öğrenci
+1. kavramdayken 2. ve 3. hazır olmalı; derslerin %63'ü (2-3 kavramlık) yine baştan sona yazılır — tasarruf da
+uyarlama da sıfır, geri kalanında yalnız son 1-2 kavram ve yalnız yarıda bırakılırsa. Ürün sahibinin kararı:
 
-Ölçüm: altın kıyas (kalite), canlıda kavram başına süre ve çağrı, yarım bırakılan derste yazılmayan kavram sayısı.
+- Ders tek parça kalır; maliyet ölçülen kaynaktan düşürülür. En büyük kaynak düzeltme turları (aynı gece canlı
+  derste 4 kavram / 11 çağrı / 3 tur); tablo turu #383 ile kapandı. 27 Ekim civarı `ai_usage_events` ve
+  `/admin/ders-hatalari` ile yeniden ölçülür, sıradaki en sık tur sebebine bakılır.
+- Ders sonunda öğrencinin yanlışlarına göre uyarlama **zaten var**: yanlış cevaplanan her kavram için dersin
+  sonunda "Tekrar" adımı ve farklı bir soru (`exam-lesson-steps.tsx` `review-gate`, sunucunun mühürlü tekrar
+  sorusu); yanlışlar odaklı pratiğe de beslenir. Konu düzeyinde uyarlama Aşama 1'de (#384).
+- Altın kıyas onayı (~$0,05) Aşama 2 içindi; kullanılmadı.

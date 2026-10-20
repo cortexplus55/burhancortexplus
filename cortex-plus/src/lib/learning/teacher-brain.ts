@@ -1947,8 +1947,9 @@ function meaningfulRetryStem(prompt: string): string {
     .replace(/(.+?)\s+aşağıdakilerden hangisi için doğrudur\??$/i, "$1 hangi durumda geçerlidir?")
     .replace(/aşağıdakilerden hangisi/gi, "hangi seçenek")
     .replace(/hangisi doğrudur\??/gi, "hangi ifade geçerlidir?")
-    .replace(/ne denir\??/gi, "hangi adla anılır?")
-    .replace(/nedir\??/gi, "ne ile bilinir?");
+    .replace(/ne denir\??/gi, "hangi adla anılır?");
+  // "nedir?" bir ad sormaz ("katkısı / sonucu / görevi nedir"); "ne ile bilinir?" ya da "hangi addır?"
+  // kökü bozuyordu (20 Ekim 2026, canlı odaklı pratik: "katkısı hangi addır?"). Aşağıdaki genel kök kullanılır.
   if (foldPrompt(next) === foldPrompt(trimmed)) {
     const core = trimmed.replace(/[?.!\s]+$/g, "");
     next = `${core} için geçerli ifade hangisidir?`;
@@ -2091,8 +2092,7 @@ function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
   if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) {
     prompt = check.prompt
       .replace(/ne denir\??/i, "hangi adı taşır?")
-      .replace(/hangisi doğrudur\??/i, "hangi ifade doğrudur?")
-      .replace(/nedir\??/i, "hangi addır?");
+      .replace(/hangisi doğrudur\??/i, "hangi ifade doğrudur?");
   }
   prompt = prompt.replace(/\s+/g, " ").trim().slice(0, 300);
   if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt) || retryStemBroken(prompt, check.explanation)) {

@@ -868,6 +868,7 @@ Tümden çalışmayan özellik çıkmadı; bunlar çıktı:
 | Her sayfa açılışında 2-4 CSP raporu: PostHog'un `eu-assets` adresi listede yoktu, anket betiği boşuna yükleniyordu | `eu-assets.i.posthog.com` betik ve bağlantı listesinde; PostHog anketi kapalı (anket bizde, `/api/feedback/weekly`) | `csp.ts`, `analytics.tsx` |
 | Fotoğraf okuma CO₂'yi LaTeX'e çeviriyordu | Kimyasal formül ve birim olduğu gibi yazılır | `extract-image-text.ts` |
 | `/okulum` 404 | Kalıcı yönlendirme `/deneme-sinavlari/okulum` | `next.config.ts` |
+| Odaklı pratik / tekrar sorusunda kök bozuluyordu: "katkısı nedir?" → "katkısı hangi addır?" (canlıda görüldü) | "nedir?" bir ad sormaz: "hangi addır?" ve "ne ile bilinir?" eşlemeleri kalktı; "ne denir?" → "hangi adla anılır?" kalır; kök değişmezse genel kök ("… için geçerli ifade hangisidir?") | `teacher-brain.ts` (`rephraseMultipleChoice`, `meaningfulRetryStem`) |
 | Tablolu kaynakta ders tur dönüyordu: kavramlar aynı anda denetlenirken önceki kavramın tablo düzeltmesi derse işlenmeden sonraki kavram aynı tablo için geri çevriliyordu (İdrar dersi: aynı tablo üç kavramda, 3 tur / 11 çağrı / 54 sn; Nefroloji 18 Ekim'de hiç çıkmadı) | Tablo onu ilk anan kavramındır: önceki ekranlar tablonun satırlarını anıyorsa sonraki kavram aynı tablo için istenmez; tablo hiç verilmezse kapanıştaki ders düzeyi kural yakalar | `teacher-lesson.ts` `partStructureIssues` |
 
 **Göç kayıt tablosu.** Göçler SQL ekranından (ve bir dönem panelin/MCP'nin uygulama anındaki zamanıyla)
@@ -879,12 +880,12 @@ yazıldı (şema değişmedi; uygulanmışlığın kanıtı `/admin/sistem` şem
 (`insert into supabase_migrations.schema_migrations (version, name) values ('<dosya zamanı>', '<ad>')`).
 
 Kendiliğinden düzelen: bir belgenin konu haritası "bekliyor"da kalmıştı; Belgelerim açılınca tamamlanıyor.
-Bekçi: `audit-20-ekim.test.tsx`, `lesson-v3-zscore.test.tsx` ("akışlı derste aynı tablo").
+Bekçi: `audit-20-ekim.test.tsx`, `lesson-v3-zscore.test.tsx` ("akışlı derste aynı tablo"), `retry-stem-nedir.test.ts`.
 
 ## 2 adım ileri — yol (20 Ekim 2026, Aşama 1)
 
 Ürün sahibi: "Astra mantığına geçelim: yolda ve derste bir sonraki 2'yi aça aça ilerleyelim; maliyeti
-kısarız, kullanıcının durumuna göre ilerleriz." Kararlar ve Aşama 2 (ders kavram kavram, 2 kavram önden):
+kısarız, kullanıcının durumuna göre ilerleriz." Kararlar ve Aşama 2 (ders tek parça kalır; ölçümle karar değişti, ders sonu uyarlaması zaten var):
 `cortex-plus/docs/delivery/IKI-ADIM-ILERI-20-EKIM.md`. Yeniden açmayın:
 
 | Kural | Nerede |
