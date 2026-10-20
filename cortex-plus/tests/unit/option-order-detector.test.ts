@@ -55,3 +55,11 @@ describe("şıklara sırayla gönderme", () => {
     expect(OPTION_ORDER_RULE).toContain("diğer seçenekler(deki …) sırasıyla");
   });
 });
+
+describe("test denetçisi şık sırası kuralını yazarla aynı metinden okur", () => {
+  it("belgeli ve belgesiz denetçi OPTION_ORDER_RULE'u aynen taşır", async () => {
+    const { quizVerifySystem } = await import("@/lib/learning/teacher-quiz");
+    expect(quizVerifySystem("document")).toContain(OPTION_ORDER_RULE);
+    expect(quizVerifySystem("topic")).toContain(OPTION_ORDER_RULE);
+  });
+});

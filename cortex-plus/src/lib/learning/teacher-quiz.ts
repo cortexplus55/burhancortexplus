@@ -320,7 +320,8 @@ const VERIFY_DOCUMENT =
   "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması; yanlış şıkkın " +
   "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara sırasıyla ya da harfiyle " +
-  "gönderme yapması (şıklar karıştırılıyor).\n" +
+  "gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
+  `${OPTION_ORDER_RULE}\n` +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
@@ -341,7 +342,8 @@ const VERIFY_TOPIC =
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
   "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara " +
-  "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor).\n" +
+  "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
+  `${OPTION_ORDER_RULE}\n` +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
