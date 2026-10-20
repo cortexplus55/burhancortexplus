@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { collectBetaMetrics, evaluateBetaCriteria, type CriterionStatus } from "@/lib/admin/beta-metrics";
+import { REVIEW_REASK_TARGET, collectReviewMetrics, percentLabel } from "@/lib/admin/review-metrics";
 
 export const metadata = { title: "Yönetim · Beta ölçütleri" };
 export const dynamic = "force-dynamic";
@@ -24,11 +25,15 @@ export default async function AdminBetaPage() {
   await requireAdmin();
   const service = createServiceClient();
   const now = new Date();
-  const [week, month, pending] = await Promise.all([
+  const [week, month, pending, reviewWeek, reviewMonth] = await Promise.all([
     collectBetaMetrics(service, { now, days: 7 }),
     collectBetaMetrics(service, { now, days: 30 }),
     countPendingApplications(service),
+    collectReviewMetrics(service, { now, days: 7 }),
+    collectReviewMetrics(service, { now, days: 30 }),
   ]);
+  const reviewStatus = (share: number | null) =>
+    share == null ? STATUS.nodata : share >= REVIEW_REASK_TARGET ? STATUS.pass : STATUS.fail;
   const rowsWeek = evaluateBetaCriteria(week);
   const rowsMonth = evaluateBetaCriteria(month);
   const passing = rowsWeek.filter((row) => row.status === "pass").length;
@@ -61,6 +66,37 @@ export default async function AdminBetaPage() {
               </tr>
             );
           })}
+        </AdminTableFrame>
+      </AdminCard>
+
+      {/* Günü gelen tekrar (20 Ekim 2026): çıkış ölçütlerinden ayrı; yalnız 7 günü dolmuş yanlışlar. */}
+      <AdminCard
+        title="Aralıklı tekrar"
+        desc="Yalnız tekrar kaydına düşen yanlışlar; sayısal / açıklama ders soruları ve yazılı deneme kayda girmez."
+        bodyless
+      >
+        <AdminTableFrame columns={["Ölçüt", "Hedef", "Son 7 gün", "Son 30 gün"]}>
+          <tr>
+            <td className="font-medium">Yanlışın 7 gün içinde yeniden sorulma payı</td>
+            <td className="adm-num">≥ %{Math.round(REVIEW_REASK_TARGET * 100)}</td>
+            {[reviewWeek, reviewMonth].map((metrics) => (
+              <td key={metrics.days} className="text-xs">
+                <AdminBadge tone={reviewStatus(metrics.share).tone}>{reviewStatus(metrics.share).label}</AdminBadge>
+                <span className="mt-1 block">
+                  {percentLabel(metrics.share)} · {metrics.reasked} / {metrics.cohort}
+                </span>
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td className="font-medium">İlk tekrarda doğru</td>
+            <td className="adm-num">—</td>
+            {[reviewWeek, reviewMonth].map((metrics) => (
+              <td key={metrics.days} className="text-xs">
+                {percentLabel(metrics.accuracy)} · {metrics.reaskCorrect} / {metrics.reasked}
+              </td>
+            ))}
+          </tr>
         </AdminTableFrame>
       </AdminCard>
     </AdminShell>

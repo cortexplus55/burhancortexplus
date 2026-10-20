@@ -34,6 +34,11 @@ export function examPrepReviewsHref(prepId: string) {
   return `/deneme-sinavlari/${prepId}/tekrarlar`;
 }
 
+/** Günü gelen tekrar (20 Ekim 2026): bugünün oturumu; yolun dışında, yolu kilitlemez. */
+export function examPrepDueReviewHref(prepId: string) {
+  return `/deneme-sinavlari/${prepId}/tekrar`;
+}
+
 export function examPrepAssessmentHref(prepId: string) {
   return `/deneme-sinavlari/${prepId}/degerlendirme`;
 }

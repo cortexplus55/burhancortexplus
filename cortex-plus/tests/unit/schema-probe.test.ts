@@ -57,6 +57,7 @@ const healthy = () =>
       lesson_generation_failures: {},
       admin_free_preview: {},
       exam_prep_prefetch: {},
+      exam_prep_review_items: {},
     },
   });
 
@@ -107,9 +108,10 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(12);
-    // 20 Ekim 2026: sonuca göre yol fonksiyonu da soruluyor.
+    expect(checks).toHaveLength(13);
+    // 20 Ekim 2026: sonuca göre yol fonksiyonu ve günü gelen tekrar tablosu da soruluyor.
     expect(find(checks, "Sonuca göre yol").ok).toBe(true);
+    expect(find(checks, "Aralıklı tekrar").ok).toBe(true);
     expect(find(checks, "Öğretmen analizi").ok).toBe(true);
     expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 6, podcast 12 kredi");
   });
@@ -134,6 +136,8 @@ describe("diğer göç dosyaları", () => {
     );
     expect(find(checks, "Fotoğraf sayfası sayacı").ok).toBe(false);
     expect(find(checks, "Zor soru tavanı").ok).toBe(false);
+    // Günü gelen tekrar tablosu yoksa kırmızı ama kritik değil (göç koddan önce uygulanır).
+    expect(find(checks, "Aralıklı tekrar")).toMatchObject({ ok: false, critical: false });
     expect(find(checks, "Deneme üretimi").ok).toBe(false);
     expect(find(checks, "Davet çarpanı").ok).toBe(false);
   });

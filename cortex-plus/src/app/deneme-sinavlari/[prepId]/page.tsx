@@ -39,6 +39,8 @@ import {
   type TopicContradiction,
 } from "@/lib/learning/source-contradictions";
 import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
+// Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
+import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -477,6 +479,11 @@ export default async function ExamPrepDetailPage({
         lastResult={lastResult}
         nodeScores={nodeScores}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
+        dueReviews={await dueReviewCountForPrep(service, {
+          userId: user.id,
+          prepId,
+          examDate: (prep.exam_date as string | null) ?? null,
+        })}
       />
     </ParitySorShell>
   );

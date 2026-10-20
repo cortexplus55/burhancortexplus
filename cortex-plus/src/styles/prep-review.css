@@ -1,0 +1,386 @@
+/* Günü gelen tekrar (20 Ekim 2026): hazırlık sayfasındaki "Bugün N tekrar" kartı ve /tekrar oturumu.
+   Astra paleti ve yazı ölçeği (tokens.css, yeni ara boyut yok); durum renkleri altın değil — seçim
+   mavi, doğru yeşil, yanlış kırmızı. Telefon 375 px: 16 px kenar, tam genişlik şıklar, dokunma ≥ 40 px. */
+
+/* Hazırlık sayfası kartı. `.cp-prep-last` geniş ekranda gizleniyor; bu kart her genişlikte görünür. */
+.cp-prep-due {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  box-sizing: border-box;
+  width: min(100%, 36rem);
+  margin: 0 auto 1rem;
+  padding: 16px 18px;
+  border-radius: var(--r-2xl, 1.35rem);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+  text-align: center;
+}
+
+.cp-prep-due-title {
+  margin: 0;
+  font: var(--t-title-m);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-prep-due-note {
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-prep-due-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--r-pill);
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font: var(--t-button-l);
+  text-decoration: none;
+}
+
+.cp-prep-due-go:hover {
+  background: var(--c-action-hover);
+}
+
+/* Oturum */
+.cp-review {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 40rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px 16px calc(32px + env(safe-area-inset-bottom, 0px));
+  overflow-wrap: anywhere;
+}
+
+.cp-review-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-inset);
+  color: var(--c-text);
+}
+
+.cp-review-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 40px;
+  padding-right: 56px;
+}
+
+.cp-review-kicker {
+  margin: 0;
+  font: var(--t-title-m);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-review-count {
+  margin: 0;
+  font: var(--t-mono-m);
+  color: var(--c-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-review-progress {
+  height: 6px;
+  margin: 12px 0 20px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  overflow: hidden;
+}
+
+.cp-review-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c-success);
+  transition: width 0.3s ease;
+}
+
+.cp-review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.cp-review-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+  font: var(--t-mono-s);
+  letter-spacing: var(--ls-label);
+}
+
+.cp-review-chip--exam {
+  background: rgba(245, 158, 11, 0.16);
+  color: #f6b73c;
+}
+
+.cp-review-prompt {
+  margin: 0 0 16px;
+  font: 600 var(--fs-18) / 1.5 var(--font-ui);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-review-hint {
+  margin: -8px 0 12px;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-review-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cp-review-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-xl, 1rem);
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  font: 400 var(--fs-16) / 1.45 var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-review-option:disabled {
+  cursor: default;
+}
+
+.cp-review-option:not(:disabled):hover {
+  background: var(--c-surface-2);
+}
+
+.cp-review-option-mark {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+  font: var(--t-label-13);
+}
+
+.cp-review-option-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cp-review-option.is-picked {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 16%, transparent);
+}
+
+.cp-review-option.is-picked .cp-review-option-mark {
+  border-color: var(--c-action);
+  background: var(--c-action);
+  color: var(--c-on-action);
+}
+
+.cp-review-option.is-right {
+  border-color: var(--c-success);
+  background: var(--c-success-soft);
+}
+
+.cp-review-option.is-right .cp-review-option-mark {
+  border-color: var(--c-success);
+  background: var(--c-success);
+  color: #000;
+}
+
+.cp-review-option.is-wrong {
+  border-color: var(--c-danger);
+  background: var(--c-danger-soft);
+}
+
+.cp-review-option.is-wrong .cp-review-option-mark {
+  border-color: var(--c-danger);
+  background: var(--c-danger);
+  color: #fff;
+}
+
+.cp-review-why {
+  margin: 4px 0 0 44px;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-review-card {
+  padding: 18px 16px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-2xl, 1.35rem);
+  background: var(--c-surface-1);
+}
+
+.cp-review-card-label {
+  margin: 0 0 6px;
+  font: var(--t-mono-s);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
+
+.cp-review-card-front {
+  margin: 0;
+  font: 600 var(--fs-16) / 1.5 var(--font-ui);
+}
+
+.cp-review-card-back {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--c-border);
+  font: 400 var(--fs-16) / 1.55 var(--font-ui);
+}
+
+.cp-review-ask {
+  margin: 18px 0 8px;
+  font: var(--t-label-15);
+}
+
+.cp-review-feedback {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--r-xl, 1rem);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+
+.cp-review-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font: var(--t-label-15);
+}
+
+.cp-review-line.is-right {
+  color: var(--c-success);
+}
+
+.cp-review-line.is-wrong {
+  color: var(--c-danger);
+}
+
+.cp-review-explain {
+  margin: 10px 0 0;
+  font: 400 var(--fs-14) / 1.55 var(--font-ui);
+  color: var(--c-text);
+}
+
+.cp-review-corrected {
+  margin: 8px 0 0;
+  font: 400 var(--fs-14) / 1.55 var(--font-ui);
+  color: var(--c-text-muted);
+}
+
+.cp-review-corrected strong {
+  color: var(--c-text);
+}
+
+.cp-review-error {
+  margin: 14px 0 0;
+  font: var(--t-body-14);
+  color: var(--c-danger);
+}
+
+.cp-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cp-review-btn {
+  flex: 1 1 10rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-pill);
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  font: var(--t-button-l);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cp-review-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cp-review-btn--primary {
+  border-color: transparent;
+  background: var(--c-action);
+  color: var(--c-on-action);
+}
+
+.cp-review-btn--primary:not(:disabled):hover {
+  background: var(--c-action-hover);
+}
+
+.cp-review-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 72px;
+  text-align: center;
+}
+
+.cp-review-done h1 {
+  margin: 0;
+  font: var(--t-title-l);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-review-done p {
+  margin: 0;
+  max-width: 28rem;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-review-done .cp-review-actions {
+  flex-direction: column;
+  width: min(100%, 24rem);
+}
+
+.cp-review-done .cp-review-btn {
+  flex: 0 0 auto;
+  width: 100%;
+}
