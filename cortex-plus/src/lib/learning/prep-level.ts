@@ -56,21 +56,39 @@ export function prepFamiliarity(values: unknown[]): Familiarity {
   return best ?? parseFamiliarity(null);
 }
 
-/** Sonuç ekranı için: son iki puanlı bitiş ve hazırlığın düzeyi. */
+/**
+ * Düzey önerisini beslemeyen puanlı etkinlikler. Podcast'in dinleme kontrolü (20 Ekim 2026) az önce
+ * duyulanı soran üç kolay soru: 3/3 "fazla kolay" önerisini tetiklemesin (ürün sahibinin kararı).
+ */
+const LEVEL_HINT_EXCLUDED_KINDS: ReadonlySet<string> = new Set(["podcast"]);
+/** Dışarıda kalan türler araya girse de son iki puanlı sonuç bulunsun diye okunan kayıt. */
+const LEVEL_HINT_LOOKBACK = 8;
+
+/** Sonuç ekranı için: son iki puanlı bitiş (podcast kontrolü hariç) ve hazırlığın düzeyi. */
 export async function loadLevelHint(service: SupabaseClient, prepId: string): Promise<LevelHint | null> {
   const [{ data: attempts }, { data: topics }] = await Promise.all([
     service
       .from("exam_prep_node_attempts")
-      .select("score, total")
+      .select("score, total, node_id")
       .eq("exam_prep_id", prepId)
       .eq("status", "completed")
       .gt("total", 1)
       .order("updated_at", { ascending: false })
-      .limit(2),
+      .limit(LEVEL_HINT_LOOKBACK),
     service.from("exam_prep_topics").select("familiarity").eq("exam_prep_id", prepId),
   ]);
-  const pct = (attempts ?? [])
+  const rows = attempts ?? [];
+  const nodeIds = [...new Set(rows.map((row) => row.node_id).filter((id): id is string => typeof id === "string"))];
+  const { data: nodes } = nodeIds.length
+    ? await service.from("exam_prep_nodes").select("id, kind").in("id", nodeIds)
+    : { data: [] as { id: string; kind: string }[] };
+  const excluded = new Set(
+    (nodes ?? []).filter((node) => LEVEL_HINT_EXCLUDED_KINDS.has(String(node.kind))).map((node) => String(node.id)),
+  );
+  const pct = rows
+    .filter((row) => !excluded.has(String(row.node_id)))
     .filter((row) => typeof row.score === "number" && typeof row.total === "number" && row.total > 0)
+    .slice(0, 2)
     .map((row) => Math.round(((row.score as number) / (row.total as number)) * 100));
   return levelHintFromScores(pct, prepFamiliarity((topics ?? []).map((row) => row.familiarity)));
 }

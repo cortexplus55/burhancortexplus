@@ -57,6 +57,7 @@ const healthy = () =>
       lesson_generation_failures: {},
       admin_free_preview: {},
       exam_prep_prefetch: {},
+      exam_prep_podcasts: {},
     },
   });
 
@@ -107,9 +108,11 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(12);
+    expect(checks).toHaveLength(13);
     // 20 Ekim 2026: sonuca göre yol fonksiyonu da soruluyor.
     expect(find(checks, "Sonuca göre yol").ok).toBe(true);
+    // 20 Ekim 2026: podcast önbelleğinin dinleme kontrolü sütunu; eksikse kritik değil.
+    expect(find(checks, "Dinleme kontrolü önbelleği").ok).toBe(true);
     expect(find(checks, "Öğretmen analizi").ok).toBe(true);
     expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 6, podcast 12 kredi");
   });
@@ -136,6 +139,20 @@ describe("diğer göç dosyaları", () => {
     expect(find(checks, "Zor soru tavanı").ok).toBe(false);
     expect(find(checks, "Deneme üretimi").ok).toBe(false);
     expect(find(checks, "Davet çarpanı").ok).toBe(false);
+  });
+
+  /* 20 Ekim 2026: dinleme kontrolü sütunu yoksa yalnız o satır kırmızı ve kritik değil — kod göçsüz
+     çalışıyor, önbellekteki podcast kontrolsüz açılıyor. */
+  it("dinleme kontrolü sütunu yoksa kritik olmayan kırmızı satır", async () => {
+    const sb = healthy();
+    const from = sb.from;
+    sb.from = (table: string) =>
+      table === "exam_prep_podcasts"
+        ? { select: () => ({ limit: () => Promise.resolve({ error: { code: "42703", message: "column does not exist" } }) }) }
+        : from(table);
+    const check = find(await probeSchema(sb), "Dinleme kontrolü önbelleği");
+    expect(check).toMatchObject({ ok: false, critical: false });
+    expect(check.detail).toContain("20261020150000");
   });
 
   /* Ses kuralı yoksa seslendirme ücretsiz üretiliyor — ürün çalışıyor

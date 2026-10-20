@@ -88,6 +88,16 @@ async function probePathInsert(service: SupabaseClient): Promise<boolean> {
   return !(error && /could not find the function|PGRST202/i.test(error.message));
 }
 
+/**
+ * Podcast önbelleğinin dinleme kontrolü sütunu (20 Ekim 2026). Yalnız sütun yoksa kırmızı: kod
+ * göçsüz de çalışır, önbellekteki podcast o zaman kontrolsüz (puansız) açılır.
+ */
+async function probeListeningCheckColumn(service: SupabaseClient): Promise<boolean> {
+  const { error } = await service.from("exam_prep_podcasts").select("listening_check").limit(1);
+  const code = (error as { code?: string } | null)?.code;
+  return !(code === "42703" || code === "PGRST204");
+}
+
 async function hasTable(
   service: SupabaseClient,
   table: string,
@@ -103,7 +113,7 @@ export async function probeSchema(
     .from("document_teacher_analyses")
     .select("document_id")
     .limit(1);
-  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch, pathInsert] = await Promise.all([
+  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch, pathInsert, listeningCheck] = await Promise.all([
     probeCreditReserve(service),
     service
       .from("credit_rules")
@@ -130,6 +140,7 @@ export async function probeSchema(
     hasTable(service, "admin_free_preview"),
     hasTable(service, "exam_prep_prefetch"),
     probePathInsert(service),
+    probeListeningCheckColumn(service),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -197,6 +208,14 @@ export async function probeSchema(
       detail: pathInsert
         ? "exam_path_insert_after yerinde: düşük sonuçta konunun odaklı pratiği araya girer"
         : "Fonksiyon yok — düşük sonuçta odaklı pratik eklenmez (20261020120000).",
+    },
+    {
+      name: "Dinleme kontrolü önbelleği",
+      ok: listeningCheck,
+      critical: false,
+      detail: listeningCheck
+        ? "exam_prep_podcasts.listening_check yerinde: önbellekten gelen podcast de kontrollü açılır"
+        : "Sütun yok — önbellekteki podcast dinleme kontrolsüz (puansız) açılır (20261020150000).",
     },
     {
       name: "Zor soru tavanı sayacı",

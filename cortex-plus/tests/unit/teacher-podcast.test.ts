@@ -3,13 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { toDisplay } from "@/lib/learning/speech-normalizer";
 import {
+  REPEAT_RULE,
+  TABLE_RULE,
+  parsePodcastIssues,
   parseTeacherPodcast,
+  podcastFixSystem,
+  podcastIssueLine,
+  podcastLineProblems,
   podcastStructureIssues,
   podcastSystem,
   podcastVerifySystem,
   podcastVerifyUserPrompt,
   salvagePodcast,
 } from "@/lib/learning/teacher-podcast";
+import { DUO_TURN_RULE } from "@/lib/learning/podcast-formats";
 import { teacherPodcastLoop } from "@/lib/learning/teacher-podcast-run";
 
 /*
@@ -99,7 +106,8 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     // cümlelik soruydu. Diyalogda Kerem de anlatır; örnek de bunu gösterir. Soru-cevapta Kerem yine sorar.
     expect(duo).toContain("Kerem yalnız soru sormaz");
     expect(duo).toContain("en az yarısı soru değil");
-    expect(duo).toContain('{"speaker":"kerem","text":"1-3 cümle: kaynaktaki bir örnek');
+    // 20 Ekim 2026: "kaynaktaki bir örnek" Kerem'e "Notlarındaki örnekte …" dedirtiyordu.
+    expect(duo).toContain('{"speaker":"kerem","text":"1-3 cümle: bir örnek (kaynağı anmadan)');
     expect(duo).not.toContain("Kerem kesin bilgi vermez");
     const qa = podcastSystem("document", "soru_cevap");
     expect(qa).toContain("Kerem yalnızca soru sorar");
@@ -108,7 +116,8 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     expect(podcastSystem("document", "diyalog")).toContain("'Belgende geçmiyor ama bilmen iyi olur:'");
     expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
     expect(podcastVerifySystem("document")).toContain("F) 'Belgende geçmiyor ama bilmen iyi olur:' cümlesinde yanlış");
-    expect(podcastVerifySystem("document")).toContain("A-F 'high'");
+    // 20 Ekim 2026: kulak maddeleri G-I de yüksek.
+    expect(podcastVerifySystem("document")).toContain("A-I 'high'");
     expect(podcastVerifySystem("document")).toContain("Kaynakta dayanağı olmayan");
   });
 
@@ -154,7 +163,8 @@ describe("rota podcast'i öğretmen motoruna yollar", () => {
   it("yalnız öğretmen motoru, çekirdek sayfa ya da belgesiz; önbellek korunur", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast", "true_false"]);');
-    expect(route).toContain("const episode = await teacherPodcastEpisode(input, core, length);");
+    // 20 Ekim 2026: motor senaryoyla birlikte dinleme kontrolünü de döndürür.
+    expect(route).toContain("const { episode, check } = await teacherPodcastEpisode(input, core, length);");
     // Sayfa listesi boş düğümde test ve podcast dersin çözücüsünden aynı sayfaları alır.
     const block = route.slice(route.indexOf("if (TEACHER_PAGE_KINDS.has(kind) && teachingV2"), route.indexOf("// Podcast, sayfa kaynağı duruyorsa"));
     expect(block).toContain("await resolveLessonSource(service, {");
@@ -236,6 +246,232 @@ describe("öğretmen podcast motoru: kurtarma", () => {
     const loop = await teacherPodcastLoop(ask, { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], length: "basit" });
     expect(loop.problems).toEqual([]);
     expect(loop.drafts).toBe(2);
+    expect(loop.episode?.chapters).toHaveLength(4);
+  });
+});
+
+/*
+  20 Ekim 2026 kör kıyas (P6, bizim çıktımız): podcast robot gibiydi ve kendisiyle çelişiyordu.
+  Kerem doğru cevabı verip "yanlış sanmışım" dedi; bir bölümde art arda iki soru sordu, Ada ilgisiz
+  bir tanımla devam etti; "Notlarındaki örnekte" dört kez geçti (kod yazara söyletiyordu); 21
+  hücrelik tablo satır satır okundu; "kendi eğrisi" beş kez söylendi. Yazar ve denetçi aynı kural
+  metnini okur; kod yalnız işaretler ve siler.
+*/
+const k = (text: string) => line(text, "kerem");
+const p6Draft = {
+  title: "Büyüme ve Gelişme",
+  chapters: [
+    {
+      title: "Persentil eğrisi",
+      lines: [
+        line("Bir çocuğun tek ölçümü normal aralıkta olsa bile, büyüme değerlendirmesi için bu bilgi tek başına yeterli midir?"),
+        k("Hayır; boy, kilo ve baş çevresini zamana karşı persentil eğrisiyle değerlendirmek gerekir."),
+        k("Çünkü tek ölçüm, çocuğun zaman içindeki değişimini göstermez."),
+        line("Doğru."),
+        line("Çocuğun kendi eğrisini koruması, çoğu zaman tek ölçümünün normal aralıkta olmasından daha değerlidir."),
+        line("Böylece ölçümün gidişatını da yorumlarız."),
+        k("Ben tek ölçümün normal aralıkta olmasını yeterli sanmışım."),
+        k("Şimdi kendi eğrisine bakmanın, ölçümü zaman içinde karşılaştırmayı sağladığını anlıyorum."),
+      ],
+    },
+    {
+      title: "Büyüme ve gelişmenin ölçümleri",
+      lines: [
+        k("Kilo ile boy aynı hızda mı etkilenir?"),
+        k("Ölçümleri birlikte yorumlarken bu ayrımı nasıl kullanmalıyız?"),
+        line("Büyüme, vücut ölçülerindeki niceliksel artıştır; gelişme ise motor, dil, bilişsel ve sosyal becerilerin olgunlaşmasıdır."),
+        k("Kilo, akut beslenme ve enerji dengesinden daha hızlı etkilenir; boy uzaması daha çok kronik süreçleri yansıtır."),
+        line("Baş çevresi özellikle ilk 2 yılda beyin büyümesi hakkında önemli ipucu verir."),
+      ],
+    },
+    {
+      title: "Gelişim basamakları",
+      lines: [
+        line("Dokuz aylık bir çocuğun becerilerini düşün: Hangi basamak kaba motor, hangisi dil alanındadır?"),
+        k("Notlarındaki örnekte 9 ayda kaba motor desteksiz oturur, emekleyebilir."),
+        k("Notlarındaki örnekte 2 ayda başını kısa süre kaldırır, sosyal gülümser."),
+        k("İki yaş satırında topa vurma dil basamağı mıdır, yoksa kaba motor basamağı mı?"),
+        line("Kaba motor basamağıdır."),
+        line("Aynı yaşın dil basamağı iki kelimeli cümlelerdir; beceriyi doğru alanla eşleştirmek yanılgıyı önler."),
+      ],
+    },
+    {
+      title: "Alarm bulguları",
+      lines: [
+        k("Bir çocuk daha önce kazandığı becerileri kaybediyorsa bunu yalnızca yaşıtlarından farklı gelişmesi diye yorumlamak doğru olur mu?"),
+        line("Hayır."),
+        line("Gelişimde gerileme her yaşta ciddidir; kazanılmış becerilerin kaybı sıradan bir farklılık değildir."),
+        k("Notlarındaki örnekte sosyal gülümseme 2 ay satırındaki ince motor-sosyal basamaktadır."),
+        line("Ayrıca 18 ayda anlamlı kelime olmaması ayrıntılı değerlendirme gerektirir."),
+      ],
+    },
+    {
+      title: "Büyüme ve gelişmenin değerlendirilmesi",
+      lines: [
+        line("Büyüme ölçülerde niceliksel artış, gelişme becerilerin olgunlaşmasıdır."),
+        k("Boy, kilo ve baş çevresi zaman içindeki persentil eğrisiyle değerlendirilir."),
+        line("Gelişimde gerileme her yaşta ciddidir."),
+      ],
+    },
+  ],
+};
+const p6 = () => parseTeacherPodcast(p6Draft, { length: "diyalog", topicLabel: "Büyüme ve gelişme" })!;
+const at = (episode: ReturnType<typeof p6>, chapter: number, start: string) =>
+  episode.chapters[chapter]!.lines.findIndex((item) => item.text.startsWith(start));
+
+describe("podcast: kaynağa gönderme yok (20 Ekim 2026)", () => {
+  it("yazar 'notlarındaki' demeyi bilir; etiketli genel bilgi yalnız belgeli kipte", () => {
+    for (const [mode, length] of [["document", "diyalog"], ["topic", "basit"], ["document", "ozet"]] as const) {
+      expect(podcastSystem(mode, length)).toContain("'notlarındaki'");
+      expect(podcastSystem(mode, length)).toContain("Bilgiyi kaynağa değil konuya bağla");
+    }
+    expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
+    expect(podcastSystem("document", "diyalog")).toContain("'Belgende geçmiyor ama bilmen iyi olur:' etiketi bu yasağın dışındadır");
+    expect(podcastSystem("document", "diyalog")).not.toContain("kaynaktaki bir örneği anlatır");
+    expect(podcastFixSystem("document", "diyalog")).toContain("kaynağa göndermeyi kaldır");
+  });
+
+  it("kod kaynağa göndermeyi tek sorun olarak işaretler; satır numarası yok, kurtarma silmez", () => {
+    const episode = p6();
+    const attribution = podcastStructureIssues(episode).filter((issue) => issue.startsWith("Kaynağa gönderme"));
+    expect(attribution).toHaveLength(1);
+    expect(attribution[0]).toContain("Notlarındaki örnekte 9 ayda");
+    expect(attribution[0]).not.toMatch(/chapters\[\d+\]/);
+    const salvaged = salvagePodcast(episode, attribution)!;
+    expect(salvaged).not.toBeNull();
+    expect(salvaged.removed).toBe(0);
+  });
+
+  it("etiketli genel bilgi ve 'belgende geçmiyor' gönderme sayılmaz; 'belgende yazan' sayılır", () => {
+    const clean = parseTeacherPodcast(
+      { ...draft, chapters: [{ title: "Yokluk", lines: [line("Belgende geçmiyor ama bilmen iyi olur: yokluk tespit davasıyla ileri sürülür."), line("Kurucu unsur eksikse işlem hiç doğmamış sayılır.")] }, ...draft.chapters.slice(1)] },
+      { length: "basit", topicLabel: "Hükümsüzlük" },
+    )!;
+    expect(podcastStructureIssues(clean).some((issue) => issue.startsWith("Kaynağa gönderme"))).toBe(false);
+    const cited = parseTeacherPodcast(
+      { ...draft, chapters: [{ title: "Yokluk", lines: [line("Belgende yazan örnekte nikâh memuru yoktur."), line("Notlarına göre bu evlilik yok hükmündedir.")] }, ...draft.chapters.slice(1)] },
+      { length: "basit", topicLabel: "Hükümsüzlük" },
+    )!;
+    expect(podcastStructureIssues(cited).filter((issue) => issue.startsWith("Kaynağa gönderme"))).toHaveLength(1);
+  });
+});
+
+describe("podcast: konuşma ve kulak kuralları yazarda ve denetçide aynı metin", () => {
+  it("konuşma sırası kuralı iki sunuculu yazarda ve iki kipteki denetçide", () => {
+    for (const length of ["diyalog", "soru_cevap"] as const) expect(podcastSystem("document", length)).toContain(DUO_TURN_RULE);
+    expect(podcastSystem("document", "diyalog")).toContain("bu bütün podcast'te en çok bir kez olur");
+    for (const mode of ["document", "topic"] as const) {
+      const verify = podcastVerifySystem(mode);
+      expect(verify).toContain(DUO_TURN_RULE);
+      expect(verify).toContain(TABLE_RULE);
+      expect(verify).toContain(REPEAT_RULE);
+      expect(verify).toContain("G) (İki konuşmacılı metinde)");
+      expect(verify).toContain('"rule"');
+    }
+    expect(podcastVerifySystem("topic")).toContain("A-E ve G-I 'high'");
+    expect(podcastVerifySystem("document")).toContain("Şunlar 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.");
+  });
+
+  it("tablo ve tekrar kuralı her türün yazarında; bölüm kalıbı geri gelmez", () => {
+    for (const length of ["diyalog", "basit", "ozet", "derin", "soru_cevap"] as const) {
+      const system = podcastSystem("document", length);
+      expect(system, length).toContain(TABLE_RULE);
+      expect(system, length).toContain(REPEAT_RULE);
+      expect(system, length).toContain("Her bölüm (son tekrar bölümü hariç) tek bir fikir taşır");
+      expect(system, length).not.toContain("Her bölüm: ne olduğu");
+    }
+  });
+
+  it("denetçinin madde harfi okunur; tanınmayan harf atılır", () => {
+    const issues = parsePodcastIssues({
+      issues: [
+        { where: "chapters[0].lines[1]", rule: "g", severity: "high", problem: "Soru cevapsız" },
+        { where: "chapters[1].lines[0]", rule: "Z", severity: "high", problem: "Bilinmeyen" },
+        { where: "chapters[2]", severity: "low", problem: "Tekdüze" },
+        { where: "chapters[3]", rule: "A" },
+      ],
+    });
+    expect(issues.map((issue) => issue.rule)).toEqual(["G", undefined, undefined]);
+    expect(podcastIssueLine(issues[0]!)).toBe("[chapters[0].lines[1]] (G) Soru cevapsız");
+  });
+});
+
+describe("podcast kurtarma: kulak kuralları (20 Ekim 2026)", () => {
+  it("I (tablo okuma) silinmez; satırsız H bölüm düşürmez ve yayını durdurmaz", () => {
+    const episode = p6();
+    const table = salvagePodcast(episode, ["[chapters[2].lines[1]] (I) Tablo satır satır okunuyor"])!;
+    expect(table.removed).toBe(0);
+    const repeat = salvagePodcast(episode, ["[chapters[1]] (H) 'kendi eğrisi' tekrar ediyor"])!;
+    expect(repeat).not.toBeNull();
+    expect(repeat.removed).toBe(0);
+    expect(repeat.episode.chapters).toHaveLength(episode.chapters.length);
+  });
+
+  it("G satırı çıkar: doğruyu kendisi söyleyip yanılgı itiraf eden satır", () => {
+    const episode = p6();
+    const confession = at(episode, 0, "Ben tek ölçümün");
+    const out = salvagePodcast(episode, [`[chapters[0].lines[${confession}]] (G) Doğruyu kendisi söyledikten sonra yanılgı itirafı`])!;
+    expect(out.removed).toBe(1);
+    expect(JSON.stringify(out.episode)).not.toContain("yeterli sanmışım");
+  });
+
+  it("cevabın ilk satırı giderse soru da gider; soru giderse çıplak 'Hayır.' da gider", () => {
+    const episode = p6();
+    const answer = at(episode, 2, "Kaba motor basamağıdır");
+    const first = salvagePodcast(episode, [`[chapters[2].lines[${answer}]] Eksik cevap`])!;
+    expect(JSON.stringify(first.episode)).not.toContain("topa vurma dil basamağı mıdır");
+    expect(first.removed).toBe(2);
+    const question = at(episode, 3, "Bir çocuk daha önce");
+    const second = salvagePodcast(episode, [`[chapters[3].lines[${question}]] (G) Soru cevapsız`])!;
+    expect(second.removed).toBe(2);
+    expect(second.episode.chapters[3]!.lines[0]!.text).toMatch(/^Gelişimde gerileme/);
+  });
+
+  it("kod ikinci yanılgı itirafını ve kimsenin cevaplamadığı soruyu işaretler (yalnız iki sunucuda)", () => {
+    const twice = parseTeacherPodcast(
+      {
+        ...p6Draft,
+        chapters: [
+          ...p6Draft.chapters.slice(0, 4),
+          { title: "Değerlendirme", lines: [k("Ben kiloyu boyla aynı sanmışım."), line("Kilo akut süreçleri yansıtır."), k("Peki baş çevresi neyi gösterir?")] },
+        ],
+      },
+      { length: "diyalog", topicLabel: "Büyüme" },
+    )!;
+    const problems = podcastLineProblems(twice).map((item) => `${item.chapter}:${item.line}:${item.reason}`);
+    expect(problems).toContain("4:0:ikinci yanılgı itirafı");
+    expect(problems).toContain("4:2:cevapsız soru");
+    expect(podcastStructureIssues(twice)).toContain("chapters[4].lines[0]: ikinci yanılgı itirafı; çıkar ya da düzelt.");
+    // Tek öğretmende konuşma kuralı yok: bölüm sonundaki soru dinleyene sorulabilir.
+    const single = parseTeacherPodcast(
+      { ...draft, chapters: [...draft.chapters.slice(0, 3), { title: "Akılda kalacaklar", lines: [line("Yoklukta işlem doğmaz."), line("Mutlak butlanda işlem kesin geçersizdir."), line("Sence hangisi daha ağır?")] }] },
+      { length: "basit", topicLabel: "Hükümsüzlük" },
+    )!;
+    expect(podcastLineProblems(single)).toEqual([]);
+  });
+
+  it("döngü: denetçinin I sorunu düzeltme turuna harfiyle gider, sonra podcast silinmeden yayınlanır", async () => {
+    const roles: (string | undefined)[] = [];
+    const fixPrompts: string[] = [];
+    let fix = 0;
+    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix") => {
+      roles.push(role);
+      if (system.includes("denetçisisin")) {
+        return { issues: [{ where: "chapters[1].lines[0]", rule: "I", severity: "high", problem: "Tablo satır satır okunuyor" }] };
+      }
+      if (system.startsWith("Sen aynı podcast")) {
+        fix += 1;
+        fixPrompts.push(user);
+        return { ...draft, title: `${draft.title} (düzeltme ${fix})` };
+      }
+      return draft;
+    });
+    const loop = await teacherPodcastLoop(ask, { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], length: "basit" });
+    expect(roles).toEqual(["draft", "verify", "fix", "verify"]);
+    expect(fixPrompts[0]).toContain("[chapters[1].lines[0]] (I) Tablo satır satır okunuyor");
+    expect(loop.problems).toEqual([]);
+    expect(loop.salvaged).toBe(0);
+    expect(loop.earIssues).toEqual({ G: 0, H: 0, I: 1 });
     expect(loop.episode?.chapters).toHaveLength(4);
   });
 });

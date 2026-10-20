@@ -10,6 +10,7 @@ import {
 } from "@/lib/learning/exam-quiz";
 import type { PlanNodeKind, NodeStatus } from "@/lib/learning/exam-prep-plan";
 import { nodeProgress } from "@/lib/learning/exam-prep-plan";
+import { podcastCheckAnswered, podcastCheckOf } from "@/lib/learning/podcast-check";
 
 export type AnswerEvidenceDraft = {
   topicKey: string;
@@ -209,7 +210,31 @@ export function extractAnswerEvidence(input: {
     });
   }
 
-  // Flashcards / podcast / lesson: no mastery evidence rows.
+  // Podcast'in dinleme kontrolü (20 Ekim 2026, ürün sahibinin kararı: kanıt sayılır). Yalnız
+  // cevaplandıysa; "Şimdi değil" boş cevapla biter ve kanıt yazmaz.
+  if (data.type === "podcast") {
+    const check = podcastCheckOf(data);
+    if (podcastCheckAnswered(check, input.answers)) {
+      check.forEach((question, index) => {
+        const correct = sameOptionSet(selectedOptions(input.answers[String(index)]), question.correct);
+        const hintAssisted = Boolean(hints[String(index)]);
+        out.push({
+          topicKey,
+          learningObjective: question.learningObjective?.trim() || input.sessionObjective?.trim() || null,
+          questionIndex: index,
+          correct,
+          isFirstAttempt: input.isFirstAttempt,
+          hintAssisted,
+          independentSuccess: correct && !hintAssisted,
+          wrongType: correct ? null : question.misconceptionTag?.trim() || "podcast_check_miss",
+          sourceKind: "podcast",
+          questionPreview: question.text.slice(0, 160),
+        });
+      });
+    }
+  }
+
+  // Kartlar, ders ve kontrolsüz podcast: kanıt yok.
   return out.slice(0, 40);
 }
 
@@ -669,7 +694,8 @@ export type TopicGain = { label: string; before: number; after: number };
 /**
  * Sonuç ekranından sonraki "+%X kazandın" kartı (19 Ekim 2026, Astra'da test sonrası
  * "Konu hakimiyeti %18" ekranı). Ölçüm bu etkinliğin kanıtıyla değişen konunun güveni:
- * önce kayıttaki değer, sonra katlanmış değer. Kanıt yoksa (ders, kart, podcast) null.
+ * önce kayıttaki değer, sonra katlanmış değer. Kanıt yoksa (ders, kart, kontrolsüz ya da kontrolü
+ * atlanmış podcast) null.
  */
 export function topicMasteryGain(input: {
   prior: TopicMasterySnapshot[];

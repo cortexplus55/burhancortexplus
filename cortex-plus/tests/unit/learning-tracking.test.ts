@@ -7,6 +7,7 @@ import {
   preferNextNodeForTracking,
   scoreTopicMastery,
   stripAnswerMeta,
+  topicMasteryGain,
   weakOrStaleTopicKeys,
 } from "@/lib/learning/learning-tracking";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -234,5 +235,42 @@ describe("learning-tracking Stage 6", () => {
     expect(keys).toContain("weak-topic");
     expect(keys).toContain("stale-topic");
     expect(keys).not.toContain("fresh-solid");
+  });
+});
+
+/*
+  20 Ekim 2026, ürün sahibinin kararı: podcast'in dinleme kontrolü kanıt sayılır (kaynak türü
+  "podcast"); "+%X kazandın" kartı da bundan çıkar. Atlanan kontrol ("Şimdi değil") ve kontrolsüz
+  podcast kanıt yazmaz.
+*/
+describe("podcast dinleme kontrolü kanıtı", () => {
+  const check = [
+    { text: "Büyüme ile gelişme farkı nedir?", options: ["Nicel artış / olgunlaşma", "İkisi aynı"], correct: ["Nicel artış / olgunlaşma"], multi: false },
+    { text: "Kilo neyi daha hızlı yansıtır?", options: ["Akut beslenme", "Kronik süreç"], correct: ["Akut beslenme"], multi: false, misconceptionTag: "kilo-boy karışıklığı" },
+    { text: "Gerilemenin anlamı nedir?", options: ["Her yaşta ciddi", "Normal varyasyon"], correct: ["Her yaşta ciddi"], multi: false },
+  ];
+  const run = (answers: Record<string, unknown>, payload: Record<string, unknown> = { type: "podcast", check }) =>
+    extractAnswerEvidence({ kind: "podcast", topicLabel: "Büyüme ve gelişme", isFirstAttempt: true, answers, payload });
+
+  it("cevaplanan kontrol üç kanıt satırı yazar; '+%X' kartı çıkar", () => {
+    const rows = run({ "0": "Nicel artış / olgunlaşma", "1": "Kronik süreç", "2": "Her yaşta ciddi" });
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.sourceKind)).toEqual(["podcast", "podcast", "podcast"]);
+    expect(rows.map((row) => row.correct)).toEqual([true, false, true]);
+    expect(rows[1]?.wrongType).toBe("kilo-boy karışıklığı");
+    const gain = topicMasteryGain({
+      prior: [],
+      folded: foldTopicMastery(rows),
+      evidenceKeys: rows.map((row) => row.topicKey),
+      topicLabel: "Büyüme ve gelişme",
+    });
+    expect(gain).not.toBeNull();
+    expect(gain!.after).toBeGreaterThan(0);
+  });
+
+  it("atlanan kontrol ve kontrolsüz podcast kanıt yazmaz", () => {
+    expect(run({})).toEqual([]);
+    expect(run({ __meta: { hintsUsed: {} } })).toEqual([]);
+    expect(run({ "0": "Nicel artış / olgunlaşma" }, { type: "podcast", chapters: [] })).toEqual([]);
   });
 });

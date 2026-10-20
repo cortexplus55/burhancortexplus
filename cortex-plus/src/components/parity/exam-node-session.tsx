@@ -35,7 +35,9 @@ import {
 } from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
 import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning/path-change";
-import { UNSCORED_NODE_KINDS } from "@/lib/learning/node-result";
+import { unscoredResult } from "@/lib/learning/node-result";
+import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
+import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
@@ -123,6 +125,8 @@ type Payload = {
   // tarafından normalleştiriliyor, eski script biçimi de kabul ediliyor.
   chapters?: unknown[];
   length?: string;
+  /** Podcast'in dinleme kontrolü (20 Ekim 2026); yoksa podcast kontrolsüz biter. */
+  check?: PublicQuizQuestion[];
   questions?: {
     text?: string;
     prompt?: string;
@@ -332,6 +336,8 @@ export function ExamNodeSession({
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [tfRevealed, setTfRevealed] = useState(false);
   const [podcastLoading, setPodcastLoading] = useState(false);
+  /** Podcast bitti, dinleme kontrolü açık (aşama yine "play": süre sayılmaya devam eder). */
+  const [podcastCheckOpen, setPodcastCheckOpen] = useState(false);
   const [lessonPodcast, setLessonPodcast] = useState<{
     title: string;
     chapters: unknown[];
@@ -961,9 +967,15 @@ export function ExamNodeSession({
               : null;
   const cinematicLesson =
     stage === "play" && payload.type === "lesson" && Boolean(structuredLesson);
+  const podcastCheck =
+    payload.type === "podcast" && Array.isArray(payload.check)
+      ? payload.check.filter((question) => typeof question?.text === "string" && Array.isArray(question.options))
+      : [];
+  // Dinleme kontrolü testteki gibi oturum çubuğuyla (tek çıkış ×) açılır; oynatıcı kendi çıkışını taşır.
   const cinematicPodcast =
     stage === "play" &&
     payload.type === "podcast" &&
+    !podcastCheckOpen &&
     normalizeChapters(chapters).length > 0;
   const cinematicLoading = stage === "setup" && loading && kind !== "readiness";
   const oralRows: OralTopicRow[] = oralTopics.length
@@ -1008,8 +1020,9 @@ export function ExamNodeSession({
   }, [cardsPlaying, cardIndex]);
 
   // Podcast puanlanmaz (19 Ekim 2026, canlı): soru yokken sonuç "Doğru cevaplar 1/1 · Doğruluk %100"
-  // diyordu. Sonuç sayfasındaki `UNSCORED_NODE_KINDS` kuralı oturum ekranında da geçerli.
-  const unscored = UNSCORED_NODE_KINDS.has(kind);
+  // diyordu. Dinleme kontrolü cevaplandıysa (20 Ekim 2026) "2/3" gösterilir; atlandıysa yine puansız.
+  // Sonuç sayfasıyla aynı kural (`unscoredResult`).
+  const unscored = unscoredResult(kind, score.total);
   const heroScore = payload.type === "cards" && cardSummary ? cardSummary.known : score.score;
   const heroTotal = payload.type === "cards" && cardSummary ? cardSummary.total : score.total;
   const showCoach =
@@ -1333,7 +1346,14 @@ export function ExamNodeSession({
         )
       ) : null}
 
-      {stage === "play" && payload.type === "podcast" ? (
+      {stage === "play" && payload.type === "podcast" && podcastCheckOpen && podcastCheck.length ? (
+        <PodcastListeningCheck
+          questions={podcastCheck}
+          busy={loading}
+          onDone={(checkAnswers) => void finish(checkAnswers)}
+          onSkip={() => void finish({})}
+        />
+      ) : stage === "play" && payload.type === "podcast" ? (
         <ExamPodcastPlayer
           title={payload.title ?? topicLabel ?? "Podcast"}
           chapters={chapters}
@@ -1350,7 +1370,8 @@ export function ExamNodeSession({
             if (spent > 0) router.refresh();
           }}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
-          onFinish={() => void finish()}
+          // Kontrol varsa önce üç soru (atlanabilir), sonra tamamlama (20 Ekim 2026).
+          onFinish={() => (podcastCheck.length ? setPodcastCheckOpen(true) : void finish())}
         />
       ) : null}
 
@@ -1745,7 +1766,11 @@ export function ExamNodeSession({
           ) : (
             <>
               <p className="cp-lesson-kicker">
-                {payload.type === "cards" && cardSummary ? "Bildiğin kartlar" : "Doğru cevaplar"}
+                {payload.type === "cards" && cardSummary
+                  ? "Bildiğin kartlar"
+                  : payload.type === "podcast"
+                    ? "Dinleme kontrolü"
+                    : "Doğru cevaplar"}
               </p>
               <p
                 className="cp-result-hero"
@@ -1845,10 +1870,11 @@ export function ExamNodeSession({
               setCardOffer(null);
               setCardRepeat(null);
               setCardSummary(null);
+              setPodcastCheckOpen(false);
               // Ders aynı haliyle yeniden açılır (anında, kredisiz); öbür etkinlikler yeniden kurulur.
               if (kind === "lesson") void start({ replay: true });
             }}>
-              {unscored ? "Yeniden dinle" : "Dersi tekrarla"}
+              {kind === "podcast" ? "Yeniden dinle" : "Dersi tekrarla"}
             </button>
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" onClick={() => {
@@ -1860,8 +1886,9 @@ export function ExamNodeSession({
                 Farklı anlat
               </button>
             ) : null}
-            {/* Podcast'te cevap yok: eğitmenin değerlendireceği bir şey de yok. */}
-            {unscored ? null : (
+            {/* Podcast'te eğitmen notu yok: geri bildirim yalnız test ve doğru/yanlış cevaplarını okuyor
+                (dinleme kontrolü cevaplansa da). */}
+            {unscored || kind === "podcast" ? null : (
               <button
                 type="button"
                 className="cp-exam-continue"

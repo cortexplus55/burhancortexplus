@@ -7,13 +7,23 @@ import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
-import { parseIssues } from "@/lib/learning/teacher-lesson";
+import type { QuizQuestion } from "@/lib/learning/exam-quiz";
+import {
+  MIN_CHECK_QUESTIONS,
+  PODCAST_CHECK_BRIEF,
+  PODCAST_CHECK_COUNT,
+  podcastCheckEligible,
+  podcastCheckSource,
+} from "@/lib/learning/podcast-check";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
+import { teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
 import {
+  parsePodcastIssues,
   parseTeacherPodcast,
   podcastFixSystem,
   podcastFixUserPrompt,
+  podcastIssueLine,
   podcastStructureIssues,
   podcastSystem,
   podcastUserPrompt,
@@ -47,6 +57,8 @@ export type PodcastLoopResult = {
   salvaged: number;
   /** Denetçi iki kez ulaşılamaz oldu; podcast yalnız yapı denetimiyle yayınlandı. */
   unverified: boolean;
+  /** Son denetimin kulak maddeleri (20 Ekim 2026): G/H/I kaç kez yüksek çıktı. */
+  earIssues?: { G: number; H: number; I: number };
 };
 
 /**
@@ -67,14 +79,21 @@ export async function teacherPodcastLoop(
 ): Promise<PodcastLoopResult> {
   const mode = input.mode ?? "document";
   let drafts = 0;
+  /** Son denetimin kulak maddeleri (G/H/I): ek düzeltme turunun bedeli ölçülsün. */
+  let ear = { G: 0, H: 0, I: 0 };
 
   const review = async (episode: PodcastEpisode): Promise<{ problems: string[]; verified: boolean }> => {
     const structural = podcastStructureIssues(episode);
     try {
-      const factual = parseIssues(await ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(episode, input), "verify"))
-        .filter((issue) => issue.severity === "high")
-        .map((issue) => `[${issue.where}] ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`);
-      return { problems: [...structural, ...factual], verified: true };
+      // Madde harfiyle (20 Ekim 2026): kurtarma G/H/I'yı A-F'den ayrı işler (`salvagePodcast`).
+      const high = parsePodcastIssues(await ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(episode, input), "verify"))
+        .filter((issue) => issue.severity === "high");
+      ear = {
+        G: high.filter((issue) => issue.rule === "G").length,
+        H: high.filter((issue) => issue.rule === "H").length,
+        I: high.filter((issue) => issue.rule === "I").length,
+      };
+      return { problems: [...structural, ...high.map(podcastIssueLine)], verified: true };
     } catch {
       return { problems: structural, verified: false };
     }
@@ -112,11 +131,11 @@ export async function teacherPodcastLoop(
 
   const finish = (outcome: { episode: PodcastEpisode; problems: string[]; verified: boolean }): PodcastLoopResult | null => {
     if (!outcome.problems.length) {
-      return { episode: outcome.episode, problems: [], drafts, salvaged: 0, unverified: !outcome.verified };
+      return { episode: outcome.episode, problems: [], drafts, salvaged: 0, unverified: !outcome.verified, earIssues: ear };
     }
     const salvaged = salvagePodcast(outcome.episode, outcome.problems);
     if (!salvaged) return null;
-    return { episode: salvaged.episode, problems: [], drafts, salvaged: salvaged.removed, unverified: !outcome.verified };
+    return { episode: salvaged.episode, problems: [], drafts, salvaged: salvaged.removed, unverified: !outcome.verified, earIssues: ear };
   };
 
   const first = await attempt(MAX_FIX_ROUNDS);
@@ -129,14 +148,68 @@ export async function teacherPodcastLoop(
     if (second) {
       const doneSecond = finish(second);
       if (doneSecond) return doneSecond;
-      return { episode: second.episode, problems: second.problems, drafts, salvaged: 0, unverified: false };
+      return { episode: second.episode, problems: second.problems, drafts, salvaged: 0, unverified: false, earIssues: ear };
     }
   }
-  return { episode: first.episode, problems: first.problems, drafts, salvaged: 0, unverified: false };
+  return { episode: first.episode, problems: first.problems, drafts, salvaged: 0, unverified: false, earIssues: ear };
+}
+
+/** Bu süreden sonra dinleme kontrolü başlamaz: test döngüsünün düzeltme tavanı (200 sn) aynı başlangıçtan sayılır. */
+const CHECK_DEADLINE_MS = 170_000;
+
+/**
+ * Dinleme kontrolü (20 Ekim 2026, kör kıyas: podcast'in sonunda soru yoktu). Denetlenmiş
+ * senaryodan test motoru üç soru yazar; denetçi her soruyu önce kendisi çözer. Kaynak
+ * senaryonun kendisi olduğu için kip "document" (belgesiz kipte test motoru kaynağı okumaz).
+ * Aynı `ask`: hızlı işlem, kredi ayrılışı, kullanım kodu ve üretim yuvası podcast'inkiyle aynı;
+ * ek ücret yok (PODCAST_GENERATE ikisini de karşılar). Kontrol hiçbir zaman podcast'i düşürmez:
+ * yazılamazsa, iki sorunun altında kalırsa ya da süre geçtiyse boş döner, podcast kontrolsüz gelir.
+ */
+export async function podcastListeningCheck(
+  ask: AskJson,
+  episode: PodcastEpisode,
+  input: Pick<TeacherPodcastInput, "topicLabel" | "prepTitle"> & { listeningCheck?: boolean },
+  started: number,
+): Promise<QuizQuestion[]> {
+  if (input.listeningCheck !== true || !podcastCheckEligible(episode.length)) return [];
+  if (Date.now() - started > CHECK_DEADLINE_MS) return [];
+  const checkStarted = Date.now();
+  try {
+    const loop = await teacherQuizLoop(
+      ask,
+      {
+        topicLabel: input.topicLabel,
+        prepTitle: input.prepTitle,
+        pages: [],
+        mode: "document",
+        sourceBlock: podcastCheckSource(episode),
+        brief: PODCAST_CHECK_BRIEF,
+        count: PODCAST_CHECK_COUNT,
+        focus: "practice",
+        multi: false,
+      },
+      started,
+    );
+    const questions = loop.questions.slice(0, PODCAST_CHECK_COUNT);
+    console.info("teacher_podcast_check", {
+      topic: input.topicLabel.slice(0, 80),
+      kept: questions.length,
+      rejected: loop.rejected.length,
+      rounds: loop.rounds,
+      ms: Date.now() - checkStarted,
+    });
+    return questions.length >= MIN_CHECK_QUESTIONS ? questions : [];
+  } catch (error) {
+    console.warn("teacher_podcast_check_failed", {
+      topic: input.topicLabel.slice(0, 80),
+      cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+    });
+    return [];
+  }
 }
 
 export type TeacherPodcastOutcome =
-  | { ok: true; episode: PodcastEpisode; calls: number; ms: number }
+  | { ok: true; episode: PodcastEpisode; check: QuizQuestion[]; calls: number; ms: number }
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /** Kredi bir kez ayrılır; podcast sorunsuz çıkarsa kesinleşir, çıkmazsa iade. */
@@ -149,6 +222,11 @@ async function runTeacherPodcastInner(
     startedAt?: number;
     /** false: önceden yazım (18 Ekim 2026); kredi ayrılmaz, öğrenci açınca düşer. */
     charge?: boolean;
+    /**
+     * Dinleme kontrolü de yazılsın (20 Ekim 2026). Yalnız hazırlığın podcast'i (yol düğümü ve
+     * hazırlığın podcast sayfası); stüdyo ve ders podcast'i v1'de kontrolsüz.
+     */
+    listeningCheck?: boolean;
   },
 ): Promise<TeacherPodcastOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
@@ -221,6 +299,7 @@ async function runTeacherPodcastInner(
       problems: loop.problems.length,
       salvaged: loop.salvaged,
       unverified: loop.unverified,
+      earIssues: loop.earIssues ?? null,
       calls,
       ms: Date.now() - started,
     });
@@ -233,8 +312,10 @@ async function runTeacherPodcastInner(
         reasons: loop.problems.slice(0, 6).map((problem) => problem.slice(0, 200)),
       };
     }
+    // Kontrol, kredi kesinleşmeden önce aynı `ask` ile: kullanımı aynı ayrılışa yazılır.
+    const check = await podcastListeningCheck(ask, loop.episode, input, started);
     if (reservation.reservationId) await commitCredits(service, reservation.reservationId);
-    return { ok: true, episode: loop.episode, calls, ms: Date.now() - started };
+    return { ok: true, episode: loop.episode, check, calls, ms: Date.now() - started };
   } catch (error) {
     if (reservation.reservationId) await refundCredits(service, reservation.reservationId).catch(() => undefined);
     console.error("teacher_podcast_failed", {

@@ -31,6 +31,7 @@ import { awardStars } from "@/lib/stars/award";
 import { prepStars } from "@/lib/stars/rules";
 import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
+import { podcastCheckOf, podcastPayloadEpisode, scorePodcastCheck } from "@/lib/learning/podcast-check";
 import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
@@ -1620,7 +1621,18 @@ async function handleNodeRequest(
         await refundCredits(service, reservation.reservationId).catch(() => undefined);
         return errorResponse(500, "generation_failed", { refunded: true });
       }
-      await commitCredits(service, reservation.reservationId).catch(() => undefined);
+      // Önceden yazım önbellekten gelmiş podcast'se (hazırlığın podcast sayfası aynı konuyu yazmıştı)
+      // bedelsiz: soğuk açılışta da önbellek ücret almıyor ve oynatıcı "hakkından düşülmedi" diyor.
+      const cachedPodcast = kind === "podcast" && taken.payload.reused === true;
+      if (cachedPodcast) await refundCredits(service, reservation.reservationId).catch(() => undefined);
+      else await commitCredits(service, reservation.reservationId).catch(() => undefined);
+      // 20 Ekim 2026: önceden yazılmış podcast açılıp ücreti alındıktan sonra önbelleğe girer. Önceden
+      // hiç girmiyordu; "Yeniden dinle" aynı podcast'i yeniden yazıp yeniden ücret alıyordu. Açılmadan
+      // önbelleğe girmez kuralı korunur (yazım `charge !== false` iken, burada açılıştan sonra).
+      const servedPodcast = kind === "podcast" && !cachedPodcast ? podcastPayloadEpisode(taken.payload) : null;
+      if (servedPodcast) {
+        await writePodcastCache(service, { prepId, userId, topicLabel, episode: servedPodcast, check: podcastCheckOf(taken.payload) });
+      }
       await upsertGenerationJob(service, {
         userId,
         prepId,
@@ -2867,19 +2879,22 @@ async function generateNodePayload(input: {
           reused: true,
           scriptCredits: 0,
           teachingStandard: activity,
+          // Dinleme kontrolü (20 Ekim 2026): önbellekteki podcast de kontrollü açılır.
+          ...(cached.check.length ? { check: cached.check } : {}),
         };
       }
     }
     // Öğretmen podcast motoru (2 Ekim 2026): aynı konunun dersi ve çekirdek
     // sayfalar; kod metne bir şey eklemez, cümle silmez.
     if (!pagesReady) throw noPages();
-    const episode = await teacherPodcastEpisode(input, core, length);
+    const { episode, check } = await teacherPodcastEpisode(input, core, length);
     if (input.prepId && input.userId && input.charge !== false) {
       await writePodcastCache(input.service, {
         prepId: input.prepId,
         userId: input.userId,
         topicLabel: input.topicLabel,
         episode,
+        check,
       });
     }
     return {
@@ -2887,9 +2902,11 @@ async function generateNodePayload(input: {
       title: episode.title,
       chapters: episode.chapters,
       length,
-      scriptCredits: CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits,
+      // Yalnız gösterim (önbellek notu `=== 0`); düşen kredi PODCAST_GENERATE (20 Ekim 2026'ya kadar STUDY_PLAN_GENERATE yazıyordu).
+      scriptCredits: CREDIT_PRICE_TABLE.PODCAST_GENERATE.credits,
       teachingStandard: activity,
       engine: "teacher",
+      ...(check.length ? { check } : {}),
     };
   }
 
@@ -3145,9 +3162,11 @@ async function teacherPodcastEpisode(
     examPoints: input.examPoints,
     runningHeaders: edges,
     startedAt,
+    // Dinleme kontrolü (20 Ekim 2026): senaryodan üç soru; yazılamazsa podcast kontrolsüz gelir.
+    listeningCheck: true,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
-  return outcome.episode;
+  return { episode: outcome.episode, check: outcome.check };
 }
 
 /** Temiz çekirdek sayfalar ya da belgesiz; öğretmen motorlarının ortak kaynağı. */
@@ -3522,6 +3541,11 @@ function publicNodePayload(
       qualityReport: undefined,
     };
   }
+  // Dinleme kontrolü testteki gibi anında geri bildirimli: doğru şık istemciye gider (20 Ekim 2026).
+  if (decorated.type === "podcast") {
+    const check = podcastCheckOf(decorated);
+    return check.length ? { ...decorated, check: check.map(publicQuizQuestion) } : decorated;
+  }
   if (decorated.type !== "quiz") return decorated;
   const seal = nodeKind === "written_exam";
   const questions = ((decorated.questions as QuizQuestion[]) ?? []).map((question) =>
@@ -3539,6 +3563,8 @@ function countTotal(kind: PlanNodeKind, payload: Record<string, unknown>) {
     return ((payload.cards as unknown[]) ?? []).length;
   }
   if (payload.type === "oral") return ((payload.questions as unknown[]) ?? []).length;
+  // Dinleme kontrolü varsa soru sayısı; atlanırsa tamamlama yine 1/1 yazar (`scorePodcastCheck`).
+  if (payload.type === "podcast") return podcastCheckOf(payload).length || 1;
   return 1;
 }
 
@@ -3586,6 +3612,8 @@ function scoreAttempt(
   if (data.type === "lesson") {
     return scoreLessonChecks(readLessonV2(data.lesson) ?? { sections: [] }, answers);
   }
+  // Dinleme kontrolü cevaplandıysa doğru / soru; kontrolsüz ya da "Şimdi değil" ise 1/1 (puansız).
+  if (data.type === "podcast") return { ...scorePodcastCheck(data, answers), retried: 0 };
   return { score: 1, total: 1, retried: 0 };
 }
 
@@ -3630,6 +3658,24 @@ function mistakeDraftsFromAttempt(
       drafts.push({
         source: "quiz",
         sourceQuestionId: `${attemptId}:q:${index}`,
+        topicLabel,
+        questionText: question.text,
+        options: question.options,
+        correctAnswer: question.correct.join(" · ") || null,
+        wrongAnswer: selected.join(" · ") || null,
+        explanation: question.explanation ?? null,
+      });
+    });
+  }
+
+  // Dinleme kontrolünün yanlışı da deftere (20 Ekim 2026); atlanan soru (boş cevap) yanlış değil.
+  if (data.type === "podcast") {
+    podcastCheckOf(data).forEach((question, index) => {
+      const selected = selectedOptions(answers[String(index)]);
+      if (!selected.length || sameOptionSet(selected, question.correct)) return;
+      drafts.push({
+        source: "quiz",
+        sourceQuestionId: `${attemptId}:pc:${index}`,
         topicLabel,
         questionText: question.text,
         options: question.options,
