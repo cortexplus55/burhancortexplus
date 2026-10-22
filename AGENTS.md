@@ -931,3 +931,150 @@ ve fütüristik". Yeniden açmayın:
 | Tasarım: koyu zemin, yavaş mavi-altın ışık, ufka uzanan ızgara, tarama ışığı, dönen altın kenarlı kart; altın yalnız Plus. `overflow: clip` (hidden değil): hidden kaydırılabilir kutu kuruyor, #plus-ay bağlantısıyla gelince içerik telefonda 461 px sola kaçıyordu. Sayılar sunucuda son değerle yazılır, ekrana girince sayar; hareket azaltmada durur | `plus-month.tsx`, `plus-month.css` |
 
 Fiyatlar tek okuyucudan (`loadPlusPrices`). Bekçi: `plus-month.test.tsx`, `marketing-claims.test.ts`.
+
+## Öğretim kalitesi (20 Ekim 2026) — kör kıyas ve beş düzeltme
+
+Ürün sahibi: "en önemli nokta: belgedeki bilgiyi öğrenciye nasıl aktarıyoruz; bir öğrenci Cortex Astra'dan
+iyi öğretiyor diyebilir mi?" Aynı belgelerden (KPSS anayasa, trigonometri, Pediatri) iki ürünün dersleri,
+testleri ve podcast'i **kör** yan yana puanlandı (dört gözle: öğrenme bilimi, sınav koçu, öğrenci, kaynağa
+sadakat; artı yalnız materyali okuyan "öğrenci" ajanlarına bağımsız sınav). Sonuç: **doğrulukta öndeyiz,
+öğretmede değil.** Astra her derste daha çok soru soruyor, yanlışa hedefli ikinci soru veriyordu; bizim
+podcast robotik ve çelişkiliydi; testimiz tablo satırlarını aynı kalıpla soruyordu. Yeniden ölçüm (3'er
+örnek, aynı konuda podcast) yeni kurallarla **henüz koşulmadı** — "daha iyi öğretiyor" ancak o ölçümde her
+çiftte kazanınca söylenir.
+
+**Kör kıyasta bulunan ciddi hata — ikinci sorunun anahtarı.** Yanlıştan sonra sorulan ikinci soru yalnız
+kök yazılıyor, kod ona ana sorunun anahtarını veriyordu; kök çoğu zaman başka şıkkı soruyordu. İncelenen üç
+tekrarın üçünde öğrencinin **doğru** ikinci cevabı **yanlış** sayıldı ve yanlış anahtar yanılgı kayıtlarına
+ve tekrar kartlarına da yazıldı.
+
+### Ders motoru
+
+| Yapmayın | Yapın |
+|---|---|
+| İkinci soruya yalnız kök yazdırmak ("şıklar aynı kalır") ya da yalnız kökü kabul etmek | Tam öğe: kendi şıkları, anahtarı, açıklaması (doğru/yanlışta `corrected`); çoktan seçmelide doğru şık ana sorununkiyle aynı metin. Yapı denetimi ve çalışma anı aynı listeye bakar (`reviewItemProblems`); yalnız-kök reddedilir, yedek zincir çalışır |
+| Ders içi ikinci soruda kaynağın başka cümlesini sormak | `sameFactOnly`: `reviewGateQuestion` ve `lessonMissDrafts` aynı bayrakla; odaklı pratik bayraksız (20 Ekim "nedir" düzeltmesi orada) |
+| Kaydırılan ya da yeni şıklı tekrarda ana sorunun `optionWhy`'ını bırakmak | `shiftOptions` gerekçeyi de kaydırır; yeni şık dizisinde gerekçe yok, ekran açıklamaya düşer |
+| Her 3+ öğeli listede ezber kodu zorunlu tutmak (18 Ekim kararı **değişti**) | Kod yalnız sınavın sorduğu **ayrımı** kodlarsa (kategori ↔ ipucu: "Soyda Mon, zümrede Oli, din adamında Teo, toplumda Cum") ya da sınav bütün listeyi soruyorsa; yoksa kutu yok, "kod yok" sorun değil; ilk kavramda kötü kod tur açmadan çıkar |
+| "Günlük hayattan" kutusu | "Örnek vaka: …": sonucu kavramın belirlediği somut durum; kaynakta olmayan sayı/kural/sonuç yok (eski başlık kabul edilmez) |
+
+| Kural | Nerede |
+|---|---|
+| Her ekran tek soruyla biter (yalnız ilk ekranın sorusu başta); ara ekran sorusuzsa yüksek | `conceptStructureIssues` |
+| 5+ satırlı tablo aynı kavramın 2-3 ekranına bölünür; kural yalnız kavramın kendi tablo bloklarına bakar ("aynı tablo" döngüsü kurulmasın); ilk kavramda düşük | `denseTableIssues` |
+| İlk kavram tek ekran (önce dene + kısa anlatım); bölünen tablo/hesap ikinci kavramdan (soğuk ilk ekran p95 < 20 sn) | `TEACHER_SYSTEM` AKIŞ 2 |
+| En fazla 9 ekran (önce 7) ve 5 kavram; ikisi de **düşük** — kapanışta denetlenen sınırı son kavram düzeltemiyor, baştan yazılıp atılıyordu | `lessonLevelStructureIssues` |
+| Öğretim ölçütü (ekranlar arası tekrar yok, kaynağın kısaltması açıklanır, terim ilk geçtiğinde açıklanır, boş cümle yok, döngüsel tanım yok, soru üstündeki cümleyi geri sormaz) yazar + düzeltici + denetçide **aynı metin** | `teaching-rubric.ts` `TEACHING_RUBRIC` |
+| Yeni önem `medium`: ilk kavramda tur açmaz; sonraki kavramda en çok bir kavram içi tur, gerilerse önceki ekranlar kalır; asla atma ya da baştan yazma. Yalnız ders denetimi okur; kayıtta `[öğretim]` | `teacher-lesson-run.ts`, `TEACHING_TAG` |
+| Kaynak kuralının dar istisnası: kaynaktaki iki bilgiyi bağlayan neden cümlesi ve yabancı terimin birebir Türkçe karşılığı yeni bilgi değil; dışarıdan tanım yine yalnız "Genel bilgi" kutusunda | `SOURCE_LINK_EXEMPTION` (yazar + denetçi A) |
+| Şık sırası dedektörü büyük "İ"yi, "ilk iki ifade"yi, "sırayla"yı yakalar; "madde" şık değil ("Anayasanın ilk üç maddesi"), "ışık" şık değil; ders **ve test** denetçisi kuralı yazarla aynı cümleyle okur | `option-reference.ts` |
+| Şemadan kopyalanan yer tutucu başlık ("X ile Y farkı", "<karıştırılan kavram>", "…", "kardeş kavram") yüksek; "Hepatit A ile B farkı" gerçek ad | `placeholderTitle` |
+
+Kayıtlı derslerdeki yalnız-kök ikinci sorular yayından sonra kod yedeğine düşer (doğru anahtarla aynı olgu).
+Bekçi: `lesson-teaching-quality.test.ts`, `retry-key.test.ts`, `option-order-detector.test.ts`,
+`lesson-stream-pipeline.test.ts` ("öğretim ölçütü turu"), `lesson-v3-zscore.test.tsx`.
+
+### Konu testi (yalnız yoldaki konu testi, `scope: "topic_test"`)
+
+Pediatri solunum testimiz kaynak tablosunun dört satırını "En olası tanı hangisidir?" kalıbıyla sordu; uyarı
+ve tedavi cümlelerini hiç sormadı; KPSS testinde 5 sorudan 4'ü aynı bloktandı. Denetçi soruları tek tek
+doğru buldu; teste bütün olarak bakan yoktu. Motoru paylaşan öbür yüzeyler (zayıf nokta, test aracı,
+soru-cevap, odaklı pratik, son kontrol, yazılı deneme, düello, tanı, tanışma) bugünkü istemi alır.
+
+| Kural | Nerede |
+|---|---|
+| Yazar, düzeltici ve denetçi aynı `TOPIC_TEST_RULE` metnini okur: her soru bir SINAVDA SORULUR maddesi (`point` alanı, maddeler numaralı); sorulmamış madde varken tekrar yok; aynı tablodan en çok 2, aynı kök kalıbı en çok 2 soruda; tablo satırı soru değildir; en az bir soru uyarı/yasak/yönetim cümlesini yoklar; dersin sorusu tekrar edilmez, dersin terimi kullanılır | `teacher-quiz.ts` |
+| **Vaka** = kaynaktaki bilginin somut hâli (kaynak "küçük bebek" → "5 aylık bebek"); tablo satırını kopyalamak vaka değil; vakaya kaynakta olmayan bulgu/eşik/sayı eklenmez. Tanım yalnız bu kuralda, öbür yüzeyler değişmedi | `TOPIC_TEST_RULE`, `topicTestVerify` |
+| Denetçi aynası H (tablo/cümle tekrarı), I (kalıp ya da madde tekrarı), J (kapsam), K (dersle tekrar), harfli `code`; kod da teste bütün bakar ve yalnız işaretler (`stemFrame`, `quizSetIssues`). Tablo satırı tekrarı kodda kapı değil, yalnız ölçüm (`lookupLike`) | `parseQuizIssues`, `quizSetIssues` |
+| **H-K yumuşak**: düzeltilir ya da yedekle değişir (3 yedek); düzelmeyen soru sayıyı tamamlamak için **geri konur**; A-G / yapı / harfsiz sorunlu soru asla geri konmaz; düzeltme düşse de test düşmez. Teslim edilen sayı bugünkünden düşmez. J bir tur açar (yalnız öğrenciye gidecek sorularda) | `teacherQuizLoop`, `deliveryWindow` |
+| Kapsam sırası: önce dersin işlediği maddeler ("(derste işlendi)"), sonra konunun öbürleri; ders yoksa hepsi | `topicTestPoints`, `pointTaught` |
+| Test konunun kaydedilmiş dersini bilir (en çok 4 ders; sorular ≤12, koyu terimler ≤25, kaynaktan önce) | `lesson-quiz-context.ts` |
+| Çok cevaplı soruda yanlış şıklar aynı bağlamdan; başka hastalığın tipik bulgusu çeldirici değil (yazar + denetçi G) | `MULTI_DISTRACTOR_RULE` |
+| **Önceden yazılan test dersin parmak iziyle anahtarlanır** (`quiz:orta:L…`); dersten önce yazılan test açılışta verilmez; ders kaydedilince (devralınan, hazır, soğuk) sıradaki bu konunun testiyse eski silinir, yenisi derse göre istenir. Yazım sahiplendiği satıra anahtarını yazar; satır başkasınınsa ya da ders değiştiyse saklamaz | `prefetchVariant`, `topic-test-prefetch.ts` |
+| Bedel: soğuk/devralınan ders yolunda konu testi iki kez önceden yazılır (ikisi de `CONTENT_PREFETCH`) | — |
+| Ölçüm: `teacher_quiz` günlüğü `scope`, `softKept`, `forced`, `codes`, `lessonAware`, `lookupLike`; geri konan soru `/admin/ders-hatalari`'nda `pedagogy_salvaged` | `teacher-quiz-run.ts` |
+
+Bekçi: `topic-test-rules.test.ts`, `topic-test-loop.test.ts` (P4 soruları birebir), `lesson-quiz-context.test.ts`,
+`topic-test-prefetch.test.ts`.
+
+### Podcast — kaynağa gönderme yok, konuşma kuralı, dinleme kontrolü
+
+Podcast'imiz robot gibiydi: Kerem doğru cevabı verip "yanlış sanmışım" dedi; sorular cevapsız kaldı;
+"Notlarındaki örnekte" dört kez geçti — **kodun kendi talimatıydı** (`podcastGroundingBrief` yazara
+`"notlarındaki örnek" de` diyordu); 21 hücrelik tablo satır satır okundu; sonda soru yoktu.
+
+| Yapmayın | Yapın |
+|---|---|
+| Yazara kaynağı andıran kalıp söyletmek | Örnek "kaynağı anmadan" anlatılır; YAZMA listesinde `notlarında/notlarındaki/belgende yazan`; etiketli genel bilgi yasağın dışında. Kod tek **satırsız** sorun yazar ("Kaynağa gönderme var"): düzeltme turuna gider, cümle silinmez |
+| Yazara ve denetçiye ayrı kural | `DUO_TURN_RULE` (soru sonraki sırada cevaplanır; itiraf yalnız doğru söylenmeden önce; kimse kendisiyle çelişmez), `TABLE_RULE` (sıra başına ≤3 öğe, tablo 2-3 karşılaştırmaya), `REPEAT_RULE` (aynı nokta en çok iki kez) ikisinde **aynen**; `CHAPTER_RULE` yalnız yazarda |
+| Denetçinin G/H/I'sını A-F gibi işlemek | `rule` harfi (`parsePodcastIssues`); kurtarmada G/H satırı çıkar, I (tablo okuma) **silinmez**; satırsız G/H bölüm düşürmez; G/H/I asla ikinci taslak sebebi değil |
+
+**Dinleme kontrolü** (ürün sahibinin kararı): senaryo denetimden geçince test motoru (`teacherQuizLoop`,
+kip "document", kaynak senaryonun kendisi) üç soru yazar; aynı `ask` ve aynı kredi (PODCAST_GENERATE 12
+kalır; soğuk podcast'e +20-35 sn kabul). Kontrol podcast'i **hiçbir zaman düşürmez**; 1 dakikalık özette
+yok. Oynatıcı bitince gösterilir, "Şimdi değil" ile atlanır (o zaman 1/1, puansız, kanıtsız). Cevaplanınca
+"2/3" ve **kanıt** (`source_kind 'podcast'`); yol uyarlanmaz; düzey önerisi podcast'i saymaz; **yıldız sabit
+20**; önbellekten yeniden dinlenen (`reused`) podcast aynı kontrolü yeniden kanıt yazmaz. Yalnız hazırlığın
+podcast'inde (stüdyo ve ders podcast'i kontrolsüz). Denetçi de kontrolün kurallarını görür (`İSTEK`).
+Önceden yazılmış podcast **açılıp ücreti alındıktan sonra** önbelleğe girer (önce girmiyordu, "Yeniden dinle"
+ikinci kez 12 kredi alıyordu). Göç `20261020150000` (`listening_check jsonb`); okuma `select("*")`, yazma
+sütun yoksa bir kez sütunsuz dener — kod göçten önce yayına çıkabilir.
+Bekçi: `teacher-podcast.test.ts`, `podcast-check.test.ts`, `podcast-listening-check.test.tsx`, `podcast-episode.test.ts`.
+
+### Günü gelen tekrar — yolun dışında, tarihe bağlı
+
+Ürün sahibinin kararı: yanlışlar ve dersin sınav noktaları 1-3-7-14 gün sonra (sınavdan önceye sınırlı)
+kendiliğinden yeniden sorulur; hazırlık sayfasında "Bugün N tekrar"; **yolu kilitlemez**. Yoldaki "Kartlarla
+tekrar" düğümü (eski adı "Aralıklı tekrar") aynı oturumdaki kart destesi olarak kalır.
+
+| Kural | Nerede |
+|---|---|
+| Öğe, yazarın yazıp denetçinin geçirdiği sorunun **kopyası**; model çağrısı yok, metin yeniden yazılmaz, kök kodla kurulmaz; sunarken yalnız şık sırası karışır. Yazarın tam ikinci sorusu varyant olur (çift soruluşta), yalnız-kök olmaz; varyant kendi açıklamasını gösterir | `review-items.ts` |
+| Anahtar yalnız özet (`prompt_key` 16 hex): okunur kök öneki `.in()` süzgecinde tırnak/ters bölü/parantezle bozuluyor, yeniden kaçan soru 1. güne dönmüyordu | `reviewPromptKey` |
+| Merdiven İstanbul günüyle 1/3/7/14; yanlış 1. güne döner, 14. günde doğru → öğrenildi; yanlış 1 günden, doğru cevaplanmış sınav noktası 3 günden başlar | `reviewDueOn`, `nextReviewStep` |
+| Kaynaklar: ders sorusu (mcq/doğru-yanlış, **ilk cevap** sayılır), test/odaklı/boşluk (`reused` hariç), doğru/yanlış, sözlü, kartta "Hayır"; doğru cevaplanan `==…==` / Sınav ipucu ekranı → sınav noktası (ders başına ≤3); etkinlik başına ≤20. Yazılı deneme yanlışları v1'de girmez | `reviewDraftsFromAttempt` |
+| Düğüm değil: yol sırası, `PATH_LOOKAHEAD`, önceden yazım, `complete_exam_prep_node` değişmez; kayıt yalnız bitirilen etkinlikten, RPC'den sonra, hata 0 döner | `scheduleReviewsAfterComplete`, node rotası |
+| "Bugün N tekrar" yalnız o hazırlığın sayfasında; oturum `/deneme-sinavlari/[prepId]/tekrar` (tek çıkış ×, bir seferde bir soru, en çok 12 — bitişte "Bu tur bitti"; hepsi bitince "Bugünkü tekrar bitti"); `force-dynamic`, Suspense yok | `prep-review-session.tsx` |
+| Not **sunucuda** (anahtar istemciye gitmez); aynı gün ikinci tıklama yazmaz; kredi, model, yıldız yok; cevap hâkimiyete yazılmaz (v1); Yanlışlarım ile ayrı | `/api/learning/exam-prep/review`, `answerReviewItem` |
+| Hatırlatma: yeni cron yok; 19:00'daki tek bildirim "N tekrar bekliyor" (sıra: sınav yaklaşması > tekrar > seri > boş gün) | `study-reminder.ts` |
+| Tablo `exam_prep_review_items`: satır güvenliği açık, **politika yok** (yalnız service_role); hesap silinince `purgeUserData` siler; kapatma `spaced_review` anahtarı; ölçü `/admin/beta` "Aralıklı tekrar" kartı (7 günde yeniden sorulma payı, hedef ≥ %80) | göç `20261020160000`, `review-metrics.ts` |
+
+**Canlıya geçiş sırası: önce göç, sonra kod.** `account-deletion.ts` tabloyu siler; tablo yoksa her hesap
+silme isteği `purge_exam_prep_review_items` adımında düşer.
+Bekçi: `prep-review-items.test.ts` (göçü PGlite'ta), `prep-review-answer.test.ts`, `prep-review-session.test.tsx`,
+`study-reminder.test.ts`, `review-metrics.test.ts`.
+
+### Öğrenme döngüsü — yanılgı kapanır, deneme yolu bitirir, "Hazırsın" ulaşılabilir
+
+Yanılgı satırı yazılıyor ama hiç kapanmıyordu; eğitmenle çözülen soru bağımsız doğru sayılıyordu;
+notlanan yazılı deneme yoldaki düğümü hiç bitirmiyordu (sonraki "Kartlarla son tekrar", "Son kontrol",
+"Hazırsın" sırayla hiç açılmıyordu); hazırlık geneli düğümler 1. konunun sayfalarından yazılıyordu; tek bir
+eski yanlış "Hazırsın"ı ömür boyu kapatıyordu.
+
+| Kural | Nerede |
+|---|---|
+| **Yanılgı çözülür**: aynı konu, yanılgıdan sonra, iki ayrı Türkiye gününde yardımsız doğru → `resolved_at`; eşleşme konu anahtarıyla; yanılgıyı yazan denemenin doğruları sayılmaz. Konuya bağlanmayan yanılgı (sohbet) herhangi bir konunun iki günlük doğrusuyla çözülür | `misconception-resolution.ts` |
+| Her okuyucu **yalnız açık** yanılgıyı okur; çözülmüş satır yeniden yazımı engellemez. Göçsüz yayın güvenli: süzgeçli sorgu düşerse süzgeçsiz koşar, **hepsi açık** sayılır — asla "0 açık" sanılmaz | `misconception-store.ts` |
+| **"Hazırsın"** = her planlı konu ölçülmüş ve sağlam (%85+, ≥3 öğe), açık yanılgı 0, yazılı deneme hedefte ya da üstünde (**zorunlu**), kapsam %100. `!anyWrong` ve `measuredSuccessPct >= 100` kalktı: düzelmiş hata kapatmaz. Yüzde dürüst kalır, iddia yoksa en çok 99 | `computeExamReadiness`, `readiness-screen.ts` |
+| Eğitmen yardımı cevap **kilitlenmeden önce** gelirse soru ipuçlu (bağımsız başarı sayılmaz); kilit testte "Kontrol et" | `hintsUsedRef`, `markHint`, `onUsed`, `onReveal` |
+| Ek testlerin adı dürüst: "İkinci test" / "Üçüncü test" (karışık/zor test **kurulmaz**); yoldaki adım "Kartlarla tekrar" | `practiceActivity`, `PLAN_NODE_META.spaced`, göç `20261020171000` (yalnız UPDATE) |
+| **Notlanan tam deneme** yoldaki "Yazılı deneme" düğümünü tamamlar (`mock:<kayıt>` ile tek kayıt), her soru kendi konusuna kanıt; takvim yeniden kurulmadan önce; bitmiş deneme varken ikinci deneme konmaz; sonucu soru incelemesine gider | `prep-writeback.ts`, `grade-exam.ts`, `sonuc/page.tsx` |
+| "Devam et" yalnız yolun penceresinde; sınav günü türleri sırası gelince | `preferNextNodeForTracking` |
+| Hazırlık geneli düğüm **en zayıf konuya** yönelir (içerik `testedTopic` taşır); `?konu=` o konunun kaydını okur; son kart destesi konu değişince yeniden yazılır; sırası gelen "Bilgi boşlukları" boşluk yokken kilitli dönmez | `prep-wide-target.ts`, `isPathTurn` |
+
+Göçler: `20261020170000` (`resolved_at`) ve `20261020171000` (başlıklar). Bekçi: `misconception-resolution.test.ts`,
+`learning-loop-store.test.ts`, `learning-loop-readiness.test.ts`, `learning-loop-path.test.ts`, `exam-node-hints.test.tsx`,
+`mock-exam-prep-writeback.test.ts`, `prep-wide-target.test.ts`.
+
+### Dört göç, kod yayınından önce, SQL ekranında (sırayla)
+
+| Göç | Ne | Kod göçsüz? |
+|---|---|---|
+| `20261020150000_podcast_listening_check` | `exam_prep_podcasts.listening_check jsonb` | Güvenli (önbellekteki podcast kontrolsüz) |
+| `20261020160000_prep_review_items` | yeni tablo + `spaced_review` anahtarı | **Değil**: hesap silme düşer |
+| `20261020170000_misconception_resolution` | `exam_prep_misconceptions.resolved_at` + dizin | Güvenli (hepsi açık sayılır) |
+| `20261020171000_path_labels` | yalnız `UPDATE` (başlıklar) | Güvenli (eski adlar kalır) |
+
+Her biri için aynı oturumda `insert into supabase_migrations.schema_migrations (version, name) values ('<zaman>', '<ad>')`.
+`DROP POLICY` yok, `supabase db push` yok. Doğrulama: `/admin/sistem` → "Dinleme kontrolü önbelleği",
+"Aralıklı tekrar kaydı", "Yanılgı çözümü" yeşil.
