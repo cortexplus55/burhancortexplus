@@ -216,7 +216,9 @@ export function extractAnswerEvidence(input: {
 
   // Podcast'in dinleme kontrolü (20 Ekim 2026, ürün sahibinin kararı: kanıt sayılır). Yalnız
   // cevaplandıysa; "Şimdi değil" boş cevapla biter ve kanıt yazmaz.
-  if (data.type === "podcast") {
+  // Önbellekten gelen podcast ("Yeniden dinle") aynı üç soruyu yeniden sorar; ikinci kez kanıt olmaz
+  // (20 Ekim inceleme: hâkimiyet her dinleyişte şişiyordu).
+  if (data.type === "podcast" && data.reused !== true) {
     const check = podcastCheckOf(data);
     if (podcastCheckAnswered(check, input.answers)) {
       check.forEach((question, index) => {

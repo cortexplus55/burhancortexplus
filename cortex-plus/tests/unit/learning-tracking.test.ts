@@ -273,4 +273,10 @@ describe("podcast dinleme kontrolü kanıtı", () => {
     expect(run({ __meta: { hintsUsed: {} } })).toEqual([]);
     expect(run({ "0": "Nicel artış / olgunlaşma" }, { type: "podcast", chapters: [] })).toEqual([]);
   });
+
+  it("önbellekten yeniden dinlenen podcast (reused) aynı kontrolü yeniden kanıt yazmaz", () => {
+    const answers = { "0": "Nicel artış / olgunlaşma" };
+    expect(run(answers).length).toBeGreaterThan(0);
+    expect(run(answers, { type: "podcast", check, reused: true })).toEqual([]);
+  });
 });

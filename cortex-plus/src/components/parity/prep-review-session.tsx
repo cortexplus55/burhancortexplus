@@ -14,6 +14,8 @@ export const PREP_REVIEW_COPY = {
   title: "Bugünkü tekrar",
   empty: "Bugün tekrar yok. Yanlış yaptığın sorular ve dersin sınav noktaları ertesi gün burada.",
   done: "Bugünkü tekrar bitti",
+  // Oturum 12 soruda biter; daha bekleyen varsa "bugünkü bitti" yalan olur (20 Ekim inceleme).
+  roundDone: "Bu tur bitti",
   back: "Yoluna dön",
   check: "Kontrol et",
   next: "Sıradaki",
@@ -71,8 +73,8 @@ export function PrepReviewSession({
       <main className="cp-review">
         {close}
         <section className="cp-review-done" aria-live="polite">
-          <h1>{items.length ? PREP_REVIEW_COPY.done : PREP_REVIEW_COPY.title}</h1>
-          <p>{items.length ? `${answered} sorudan ${right} doğru · ${prepTitle}` : PREP_REVIEW_COPY.empty}</p>
+          <h1>{items.length ? (left > 0 ? PREP_REVIEW_COPY.roundDone : PREP_REVIEW_COPY.done) : PREP_REVIEW_COPY.title}</h1>
+          <p>{items.length ? (answered > 0 ? `${answered} sorudan ${right} doğru · ${prepTitle}` : prepTitle) : PREP_REVIEW_COPY.empty}</p>
           <div className="cp-review-actions">
             {items.length && left > 0 ? (
               <button type="button" className="cp-review-btn cp-review-btn--primary" onClick={() => router.refresh()}>

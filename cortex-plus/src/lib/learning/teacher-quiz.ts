@@ -403,7 +403,10 @@ export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQu
   const head =
     input.mode === "topic"
       ? `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n${input.brief ? `İSTEK: ${input.brief.slice(0, 600)}\n` : ""}(Belgesiz test.)`
-      : quizSource(input);
+      : // Belgeli kipte de denetçi İSTEK'i görür (20 Ekim 2026): podcast dinleme kontrolünün kuralları
+        // ("Ada/Kerem geçmez", itiraf doğru şık olamaz) yalnız yazara gidiyordu.
+        `${quizSource(input)}${input.brief ? `
+İSTEK: ${input.brief.slice(0, 600)}` : ""}`;
   const context =
     input.scope === "topic_test"
       ? [

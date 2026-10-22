@@ -161,6 +161,34 @@ describe("tekrar oturumu", () => {
     expect(screen.getByRole("link", { name: PREP_REVIEW_COPY.back }).getAttribute("href")).toBe(`/deneme-sinavlari/${PREP}`);
   });
 
+  it("bekleyen tekrar varsa başlık 'Bu tur bitti' der, hepsi bitince 'Bugünkü tekrar bitti'; cevapsız bitişte sayı satırı yok", async () => {
+    stubFetch([{ status: 200, body: outcome({ remaining: 7 }) }]);
+    render(<PrepReviewSession prepId={PREP} prepTitle="Kimya" items={[choice]} total={8} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Argon/ }));
+    fireEvent.click(screen.getByRole("button", { name: PREP_REVIEW_COPY.check }));
+    await screen.findByText("Yanlış · yarın yeniden sorulacak");
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(PREP_REVIEW_COPY.finish) }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(PREP_REVIEW_COPY.roundDone);
+    expect(screen.queryByText(PREP_REVIEW_COPY.done)).toBeNull();
+    cleanup();
+    stubFetch([{ status: 200, body: outcome({ remaining: 0 }) }]);
+    render(<PrepReviewSession prepId={PREP} prepTitle="Kimya" items={[choice]} total={1} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Argon/ }));
+    fireEvent.click(screen.getByRole("button", { name: PREP_REVIEW_COPY.check }));
+    await screen.findByText("Yanlış · yarın yeniden sorulacak");
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(PREP_REVIEW_COPY.finish) }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(PREP_REVIEW_COPY.done);
+    expect(screen.getByText("1 sorudan 0 doğru · Kimya")).toBeTruthy();
+    cleanup();
+    // Her soru başka yerde bitmişse (409) hiçbir şey cevaplanmadan bitiş: "0 sorudan 0 doğru" yazılmaz.
+    stubFetch([{ status: 409, body: { error: "not_due" } }]);
+    render(<PrepReviewSession prepId={PREP} prepTitle="Kimya" items={[choice]} total={1} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Argon/ }));
+    fireEvent.click(screen.getByRole("button", { name: PREP_REVIEW_COPY.check }));
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByText(/sorudan/)).toBeNull();
+  });
+
   it("başka yerde bitmiş soru (409) hata ekranı açmaz, geçilir", async () => {
     stubFetch([{ status: 409, body: { code: "not_due" } }]);
     render(<PrepReviewSession prepId={PREP} prepTitle="Kimya" items={[choice, recall]} total={2} />);
