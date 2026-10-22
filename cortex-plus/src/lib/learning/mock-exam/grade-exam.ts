@@ -67,6 +67,36 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
   if (!exam) return { ok: false, status: 404, error: "not_found" };
   if (exam.user_id !== userId) return { ok: false, status: 403, error: "forbidden" };
 
+  // Aynı deneme ikinci kez notlanmaz (22 Ekim 2026 inceleme): sonuç sayfasından "geri" ile dönüp "Bitir"e
+  // basmak ya da zaman aşımından sonraki ikinci gönderim yeni kayıt açıyor, yol düğümü iki kez bitiyor, kanıt ve
+  // hâkimiyet iki kez yazılıyordu. Notlanmış kayıt varsa onun sonucu döner; hiçbir şey yeniden yazılmaz.
+  const { data: graded } = await service
+    .from("practice_exam_attempts")
+    .select("id, score, topic_report")
+    .eq("exam_id", examId)
+    .eq("user_id", userId)
+    .not("completed_at", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (graded?.id) {
+    const { data: reviews } = await service.from("practice_exam_item_reviews").select("verdict").eq("attempt_id", graded.id);
+    const verdicts = (reviews ?? []).map((row) => String(row.verdict ?? ""));
+    const correct = verdicts.filter((verdict) => verdict === "dogru").length;
+    const blank = verdicts.filter((verdict) => verdict === "bos").length;
+    const score = Math.round(Number(graded.score ?? 0));
+    return {
+      ok: true,
+      attemptId: String(graded.id),
+      score,
+      correct,
+      wrong: Math.max(0, verdicts.length - correct - blank),
+      blank,
+      topicReport: (Array.isArray(graded.topic_report) ? graded.topic_report : []) as ReturnType<typeof buildTopicReport>,
+      analysis: polishSummary(score),
+    };
+  }
+
   if (deadlinePassed(exam.deadline_at as string | null, Date.now(), DEADLINE_GRACE_SEC)) {
     // Geç gönderim: kayıtlı son cevaplarla notlandır (answers body yok sayılmaz — zaten geldiyse kullan)
   }

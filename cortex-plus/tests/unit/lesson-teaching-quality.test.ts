@@ -7,7 +7,9 @@ import {
   TOPIC_VERIFY_SYSTEM,
   VERIFY_SYSTEM,
   conceptStructureIssues,
+  denseTableIssues,
   fixPartSystem,
+  flattenedTableIssue,
   lessonStructureIssues,
   parseIssues,
   partStructureIssues,
@@ -313,5 +315,44 @@ describe("denetçinin 'medium'u (C7c)", () => {
       { where: "screens[1]", severity: "low", problem: "uzun", fix: undefined },
     ]);
     expect(parseIssues(raw)[0]).toMatchObject({ severity: "high", problem: "Aynı bilgi iki ekranda anlatılıyor." });
+  });
+});
+
+describe("22 Ekim 2026 inceleme: kurallar gereksiz tur açmasın", () => {
+  const placeholderIssues = (value: LessonScreen) => screenStructureIssues(value, 1, {}).filter((issue) => /yer tutucu/.test(issue.problem));
+
+  it("kavramı bilmeden çözülen soru C (high) değil, öğretim ölçütü (medium)", () => {
+    for (const system of [verifySystem("document"), verifySystem("topic")]) {
+      expect(system).not.toContain("Kavramı bilmeden çözülen soru da C'dir");
+      expect(system).toContain("kavramı bilmeden çözülebilen soru (şıklardan yalnız biri sorulan kategoriden)");
+    }
+  });
+
+  it("üslup üç noktası ve eşitsizlik yer tutucu değil; kısa '…' yer tutucu", () => {
+    const lead = screen("Z-skoru", [text("Metin."), mcq("Hangisi?")]);
+    lead.lead = "Z-skoru nedir, nasıl hesaplanır…";
+    expect(placeholderIssues(lead)).toEqual([]);
+    const formula = { type: "formula", formula: { title: "a<b ve b>c", expression: "a<b<c", explanation: "" } } as LessonBlock;
+    expect(placeholderIssues(screen("Sıralama", [text("Metin."), formula, mcq("Hangisi?")]))).toEqual([]);
+    const stub = { type: "note", note: { title: "Örnek vaka: …", body: "Metin.", tone: "info" } } as LessonBlock;
+    expect(placeholderIssues(screen("Devlet", [text("Metin."), stub, mcq("Hangisi?")]))).toHaveLength(1);
+    const code = { type: "note", note: { title: "Ezber kodu: <kod>", body: "Metin.", tone: "mnemonic" } } as LessonBlock;
+    expect(placeholderIssues(screen("Devlet", [text("Metin."), code, mcq("Hangisi?")]))).toHaveLength(1);
+  });
+
+  it("yoğun tablo: en büyük tablo sayılır, toplam değil", () => {
+    const table = (rows: number) =>
+      ({ type: "table", table: { columns: ["a", "b"], rows: Array.from({ length: rows }, (_, i) => [`${i}`, `${i}`]) } }) as LessonBlock;
+    const two = [screen("Hormonlar", [text("Metin."), table(3), table(2), mcq("Hangisi?")])];
+    expect(denseTableIssues(two, { concept: "Hormonlar", screens: [0] }, "high")).toEqual([]);
+    const one = [screen("Hormonlar", [text("Metin."), table(5), mcq("Hangisi?")])];
+    expect(denseTableIssues(one, { concept: "Hormonlar", screens: [0] }, "high")).toHaveLength(1);
+  });
+
+  it("paragrafa dökülmüş tablo: ilk kavrama bölme cümlesi yazılmaz", () => {
+    const source = { columns: ["Yaş", "Basamak"], rows: Array.from({ length: 6 }, (_, i) => [`${i} ay`, `b${i}`]) };
+    expect(flattenedTableIssue(source, { split: false })).not.toContain("2-3 ekranına böl");
+    expect(flattenedTableIssue(source, { split: true })).toContain("2-3 ekranına böl");
+    expect(flattenedTableIssue(source)).toContain("2-3 ekranına böl");
   });
 });

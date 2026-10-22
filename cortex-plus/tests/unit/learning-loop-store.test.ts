@@ -183,3 +183,11 @@ describe("Bilgi boşlukları yolu durdurmaz", () => {
     expect(turn).toBeLessThan(route.indexOf("if (local.action === \"serve\" && local.payload.locked === true) {\n"));
   });
 });
+
+describe("22 Ekim 2026 inceleme: sayı okunamazsa null", () => {
+  it("iki okuma da düşerse 0 değil null döner", async () => {
+    const fake = fakeSupabase(() => ({ error: { code: "57014", message: "timeout" } }));
+    expect(await countOpenMisconceptions(fake.service as never, { prepId: "p1" })).toBeNull();
+    expect(fake.calls).toHaveLength(2);
+  });
+});

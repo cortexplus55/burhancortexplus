@@ -218,7 +218,9 @@ export function extractAnswerEvidence(input: {
   // cevaplandıysa; "Şimdi değil" boş cevapla biter ve kanıt yazmaz.
   // Önbellekten gelen podcast ("Yeniden dinle") aynı üç soruyu yeniden sorar; ikinci kez kanıt olmaz
   // (20 Ekim inceleme: hâkimiyet her dinleyişte şişiyordu).
-  if (data.type === "podcast" && data.reused !== true) {
+  // 22 Ekim 2026 inceleme: önbellekten gelen podcast (hazırlığın podcast sayfası ya da önceden yazım doldurmuş)
+  // ilk dinleyişte de `reused` taşıyor; kontrolün İLK cevabı kanıttır. Yalnız aynı düğümün ikinci dinleyişi yazmaz.
+  if (data.type === "podcast" && (data.reused !== true || input.isFirstAttempt)) {
     const check = podcastCheckOf(data);
     if (podcastCheckAnswered(check, input.answers)) {
       check.forEach((question, index) => {
@@ -332,9 +334,12 @@ export function foldTopicMastery(
     cur.evidenceCount += 1;
     cur.lastPracticedAt = nowIso;
 
+    // İpucuyla verilen cevap ilk denemede "bildi" sayılmaz (22 Ekim 2026 inceleme): bütün soruları eğitmen
+    // yardımıyla doğru cevaplayan öğrencinin bağımsız kanıtı yoktu, puan ilk deneme oranına düşüyor ve konu
+    // "sağlam" çıkıyordu. Soru ilk denemenin toplamında kalır (soruldu), doğrusuna girmez.
     if (row.isFirstAttempt) {
       cur.firstAttemptTotal += 1;
-      if (row.correct) cur.firstAttemptCorrect += 1;
+      if (row.correct && !row.hintAssisted) cur.firstAttemptCorrect += 1;
     }
     // Independent successes are counted against all graded items that were not hint-assisted.
     if (!row.hintAssisted) {
@@ -400,6 +405,9 @@ export function computeProgramProgress(
  * Yüzde dürüst kalır: tavanlar yerinde, "Hazırsın" %88'de de görünebilir; iddia yoksa en çok 99.
  * Bütün etkinlikleri yanlışlarla bitirmek yine 100 / "hazır" vermez.
  */
+/** Hedef puan girilmemişse deneme bu hedefe göre ölçülür; ekran da aynı sayıyı söyler. */
+export const DEFAULT_TARGET_SCORE = 70;
+
 export function computeExamReadiness(input: {
   programPct: number;
   topics: TopicMasterySnapshot[];
@@ -408,6 +416,8 @@ export function computeExamReadiness(input: {
   mockScorePct?: number | null;
   targetScore?: number | null;
   openMisconceptions?: number;
+  /** Açık yanılgı sayısı okunamadıysa false: sayı 0 sanılmaz, "Hazırsın" kapalı kalır. */
+  openMisconceptionsKnown?: boolean;
 }): LearningIndicators["examReadiness"] {
   const planned = (input.plannedTopicKeys ?? []).map(normalizeTopicKey);
   const byKey = new Map(input.topics.map((t) => [normalizeTopicKey(t.topicKey), t]));
@@ -455,6 +465,7 @@ export function computeExamReadiness(input: {
       ? null
       : Math.max(0, Math.min(100, Math.round(input.mockScorePct)));
   const openMisconceptions = Math.max(0, input.openMisconceptions ?? 0);
+  const misconceptionsKnown = input.openMisconceptionsKnown !== false;
 
   // No measured evidence → low readiness, never high confidence.
   if (measured === 0 || measuredSuccessPct == null) {
@@ -475,7 +486,7 @@ export function computeExamReadiness(input: {
     };
   }
 
-  const target = input.targetScore ?? 70;
+  const target = input.targetScore ?? DEFAULT_TARGET_SCORE;
   const mockFactor =
     mockPct == null ? measuredSuccessPct : Math.round(0.6 * measuredSuccessPct + 0.4 * mockPct);
 
@@ -489,7 +500,7 @@ export function computeExamReadiness(input: {
   // Hard caps — completion ≠ readiness.
   // Açık yanılgı varken %85 üstü yok. Düzelmiş eski yanlış bu tavanı getirmez (20 Ekim 2026):
   // onun payını ölçülen başarı tavanı (aşağıda) zaten dürüstçe düşürüyor.
-  if (openMisconceptions > 0) {
+  if (openMisconceptions > 0 || !misconceptionsKnown) {
     pct = Math.min(pct, 85);
   }
   if (measuredSuccessPct < 100) {
@@ -515,6 +526,7 @@ export function computeExamReadiness(input: {
   const claimFullyReady =
     coveragePct >= 100 &&
     allClaimTopicsSolid &&
+    misconceptionsKnown &&
     openMisconceptions === 0 &&
     mockPct != null &&
     mockPct >= target &&
@@ -606,6 +618,7 @@ export function buildLearningIndicators(input: {
   mockScorePct?: number | null;
   targetScore?: number | null;
   openMisconceptions?: number;
+  openMisconceptionsKnown?: boolean;
 }): LearningIndicators {
   const programProgress = computeProgramProgress(input.nodes);
   const topicMastery = computeTopicMasterySummary(
@@ -619,6 +632,7 @@ export function buildLearningIndicators(input: {
     mockScorePct: input.mockScorePct,
     targetScore: input.targetScore,
     openMisconceptions: input.openMisconceptions,
+    openMisconceptionsKnown: input.openMisconceptionsKnown,
   });
   return { programProgress, topicMastery, examReadiness };
 }

@@ -243,6 +243,7 @@ export default async function ExamPrepDetailPage({
   };
 
   let openMisconceptions = 0;
+  let openMisconceptionsKnown = true;
 
   if (trackingV2) {
     const { data: masteryRows } = await supabase
@@ -258,7 +259,9 @@ export default async function ExamPrepDetailPage({
       .eq("exam_prep_id", prepId);
 
     // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
-    openMisconceptions = await countOpenMisconceptions(supabase, { prepId });
+    const openCount = await countOpenMisconceptions(supabase, { prepId });
+    openMisconceptions = openCount ?? 0;
+    openMisconceptionsKnown = openCount != null;
 
     const topics: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
       topicKey: row.topic_key as string,
@@ -302,6 +305,7 @@ export default async function ExamPrepDetailPage({
       mockScorePct,
       targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
       openMisconceptions,
+      openMisconceptionsKnown,
     });
 
     learningTrackingView = {

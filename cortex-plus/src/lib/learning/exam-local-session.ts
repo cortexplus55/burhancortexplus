@@ -15,7 +15,7 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { prepLanguage, type StoredReview } from "@/lib/learning/teacher-brain";
-import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
+import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
 
 export type LocalSessionPlan =
   | { action: "serve"; payload: Record<string, unknown> }
@@ -285,6 +285,11 @@ export async function buildLocalSessionPayload(
       .limit(20),
   ]);
 
+  // Okuma düşerse (22 Ekim 2026 inceleme) "boşluk yok" / "açık yanlış yok" sanılmaz: istek düşer, ekran bir kez
+  // kendiliğinden yeniden dener. Odaklı pratik ve son kontrol yine de kurulur (eksik konuyla).
+  if ((input.kind === "gaps" || input.kind === "readiness") && (topicsRes.error || masteryRes.error || missRes.error)) {
+    throw new Error("tracking_read_failed");
+  }
   const topicLabels = (topicsRes.data ?? [])
     .map((row) => String(row.label ?? "").trim())
     .filter(Boolean);
@@ -374,10 +379,15 @@ export async function buildLocalSessionPayload(
       if (!label) continue;
       missesByTopic.set(label, (missesByTopic.get(label) ?? 0) + 1);
     }
+    // Toplam bütün açık satırlardan (`openMisconceptionRows` en yeni 40'ı listeler; /degerlendirme ile aynı
+    // sayı); okunamazsa istek düşer.
+    const openTotal = await countOpenMisconceptions(service, { userId: input.userId, prepId: input.prepId });
+    if (openTotal == null) throw new Error("tracking_read_failed");
     const screen = buildReadinessScreen({
       plannedTopics: topicLabels,
       mastery,
       openMissesByTopic: [...missesByTopic.entries()].map(([topic, count]) => ({ topic, count })),
+      openMisconceptionsTotal: openTotal,
       mockScorePct,
       targetScore: input.targetScore,
       nodes,

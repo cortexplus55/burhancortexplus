@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptReviewVariant,
   reviewItemProblems,
+  retryStemBroken,
   reviewQuestionFor,
   type ReviewCheck,
   type StoredReview,
@@ -342,5 +343,56 @@ describe("ikinci sorunun şıkları da karışır (C4f)", () => {
       positions.add(review!.answerIndex!);
     }
     expect(positions.size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("22 Ekim 2026 inceleme: ikinci sorunun kökü ve ana sorunun gerekçeleri", () => {
+  it("'ne olur / ne sağlar / ne eder / kim' soru sayılır; çözümü taşıyan kök yine reddedilir", () => {
+    for (const stem of ["Bu durumda sonuç ne olur?", "Bu tedavi hastada ne sağlar?", "Bu işlem hücrede ne eder?", "Bu kuralı kim koyar?"]) {
+      expect(retryStemBroken(stem), stem).toBe(false);
+    }
+    expect(retryStemBroken("Bu işlem hücreyi iki hücre eder?")).toBe(true);
+    expect(retryStemBroken("ΔE = -10 - (-4) = hangisi olur?")).toBe(true);
+  });
+
+  const primary = {
+    type: "mcq",
+    prompt: "Bir devlet modelinde ayrı hukuk sistemi uluslararası sözleşme ile veriliyor. Bu model hangisidir?",
+    options: ["Federasyon", "Konfederasyon", "Bölgeli devlet", "Üniter devlet"],
+    answerIndex: 1,
+    explanation: "Konfederasyonda ayrı hukuk uluslararası sözleşmeyle gelir.",
+    whyWrong: "ANA whyWrong",
+    whyRight: "ANA whyRight",
+    hint: "ANA hint",
+    misconception: "ANA yanılgı",
+    review: {
+      prompt: "Üye devletlerin kendi hukuk düzenini uluslararası sözleşmeyle koruduğu birlik hangisidir?",
+      options: ["Konfederasyon", "Üniter devlet", "Bölgeli devlet", "Federasyon"],
+      answerIndex: 0,
+      explanation: "TEKRAR açıklaması",
+    },
+  };
+
+  it("aynı şık kümesi (başka sıra): ana sorunun whyWrong / hint'i tekrara da aittir", () => {
+    const retry = resolveCheckForGrade(primary as unknown as SectionCheck, "retry", "tr", "");
+    expect(retry.explanation).toBe("TEKRAR açıklaması");
+    expect(retry.whyWrong).toBe("ANA whyWrong");
+    expect(retry.hint).toBe("ANA hint");
+  });
+
+  it("yazarın tam öğesi yeni şıklarla gelince ana sorunun whyWrong / whyRight / hint / misconception'ı taşınmaz", () => {
+    const fresh = resolveCheckForGrade(
+      { ...primary, review: { ...primary.review, options: ["Konfederasyon", "Devletler topluluğu", "Özerk bölge", "Eyalet"] } } as unknown as SectionCheck,
+      "retry",
+      "tr",
+      "",
+    );
+    expect(fresh.options).toEqual(["Konfederasyon", "Devletler topluluğu", "Özerk bölge", "Eyalet"]);
+    expect(fresh.explanation).toBe("TEKRAR açıklaması");
+    expect(fresh.whyWrong).toBeUndefined();
+    expect(fresh.whyRight).toBeUndefined();
+    expect(fresh.hint).toBeUndefined();
+    expect(fresh.misconception).toBeUndefined();
+    expect(fresh.optionWhy).toBeUndefined();
   });
 });

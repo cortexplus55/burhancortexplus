@@ -277,7 +277,10 @@ export function reviewDraftsFromAttempt(input: {
 }): ReviewDraft[] {
   const data = (input.payload && typeof input.payload === "object" ? input.payload : {}) as Record<string, unknown>;
   const answers = input.answers ?? {};
-  const topic = input.topicLabel?.trim() || null;
+  // Hazırlık geneli düğüm zayıf konuya yönelince içerik `testedTopic` taşır (prep-wide-target.ts); tekrar satırı
+  // da kanıt ve yanılgı gibi sorulan konunun adını alır (22 Ekim 2026 inceleme: düğümün adıyla yazılıyordu).
+  const stamped = typeof data.testedTopic === "string" ? data.testedTopic.trim() : "";
+  const topic = stamped || input.topicLabel?.trim() || null;
   const drafts: ReviewDraft[] = [];
   const push = (draft: Omit<ReviewDraft, "promptKey">) => {
     drafts.push({ ...draft, promptKey: reviewPromptKey(draft.item) });

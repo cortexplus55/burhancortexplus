@@ -301,15 +301,27 @@ export async function teacherLessonPipeline(
           }
           teachingSnapshot = { screens, headerPatch, close, issues };
           triggers.push(medium);
+          // Öğretim turuna düşük yapı kuralları gitmez (22 Ekim 2026 inceleme): "en fazla dokuz ekran" gibi son
+          // kavramın düzeltemeyeceği maddeler "mutlaka düzelt" diye gidince düzeltici kendi ekranlarını sıkıştırıyordu.
+          const forFixer = issues.filter((issue) => issue.severity !== "low" || !issue.problem.startsWith("[yapı kuralı]"));
           let fixed: ReturnType<typeof parsePartFix> = null;
           try {
-            fixed = parsePartFix(await io.ask(fixPartSystem(mode), fixPartUserPrompt(lesson, span, issues, input), "fix-careful"), lesson, input.upcomingTopics);
+            fixed = parsePartFix(await io.ask(fixPartSystem(mode), fixPartUserPrompt(lesson, span, forFixer, input), "fix-careful"), lesson, input.upcomingTopics);
           } catch {
             fixed = null;
           }
           if (!fixed?.screens.length) return publishSnapshot(teachingSnapshot);
+          const merged = mergePartScreens(screens, fixed.screens);
+          // Ekran düşüren düzeltme gerilemedir: öğretim turu içerik eksiltmez, önceki hâli yayımlanır.
+          if (merged.length < screens.length) {
+            return publishSnapshot(teachingSnapshot, {
+              where: "ders",
+              severity: "low",
+              problem: "Öğretim düzeltmesi ekran düşürdü; önceki hâli yayımlandı.",
+            });
+          }
           disputes = fixed.disputes;
-          screens = mergePartScreens(screens, fixed.screens);
+          screens = merged;
           if (span.closing) {
             close = {
               ...(close ?? {}),

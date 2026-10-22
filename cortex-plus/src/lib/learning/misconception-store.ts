@@ -24,12 +24,16 @@ export async function withOpenMisconceptions<R extends { error: unknown }>(
   return run(false);
 }
 
-/** Açık yanılgı sayısı. `userId` verilmezse RLS'li istemci kendi satırlarını sayar. */
+/**
+ * Açık yanılgı sayısı. `userId` verilmezse RLS'li istemci kendi satırlarını sayar.
+ * İki okuma da düşerse (geçici hata) sayı bilinmiyor: `null`. Çağıran 0 sanmaz; "Hazırsın" kapalı kalır
+ * (22 Ekim 2026 inceleme: `count ?? 0` okunamayan sayıyı "açık yanlış yok" diye yazıyordu).
+ */
 export async function countOpenMisconceptions(
   client: SupabaseClient,
   input: { userId?: string; prepId: string },
-): Promise<number> {
-  const { count } = await withOpenMisconceptions((onlyOpen) => {
+): Promise<number | null> {
+  const { count, error } = await withOpenMisconceptions((onlyOpen) => {
     let query = client
       .from("exam_prep_misconceptions")
       .select("id", { count: "exact", head: true })
@@ -37,7 +41,7 @@ export async function countOpenMisconceptions(
     if (input.userId) query = query.eq("user_id", input.userId);
     return onlyOpen ? query.is("resolved_at", null) : query;
   });
-  return count ?? 0;
+  return error ? null : (count ?? 0);
 }
 
 /** Çözülmüş yanılgı sayısı; sütun yoksa 0 (hiçbiri çözülmemiş sayılır). */

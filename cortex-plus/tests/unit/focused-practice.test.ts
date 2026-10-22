@@ -102,3 +102,21 @@ describe("focused practice from stored work", () => {
     expect(assembled.uncoveredTopics).toEqual(["Akış"]);
   });
 });
+
+describe("22 Ekim 2026 inceleme: en zayıf konu önce", () => {
+  it("zayıf konular güvene göre, sonra düşük başarılı gelişmekte olanlar; sağlam konu girmez", () => {
+    expect(
+      collectWeakTopics({
+        plannedTopics: ["Kaldırma", "Basınç", "Gazlar", "Kuvvet"],
+        mastery: [
+          { topicKey: "kaldırma", level: "weak", measured: true, confidence: 40 },
+          { topicKey: "gazlar", level: "emerging", measured: true, independentCorrect: 1, independentTotal: 4 },
+          { topicKey: "basınç", level: "weak", measured: true, confidence: 10 },
+          { topicKey: "kuvvet", level: "solid", measured: true },
+        ] as never,
+        misconceptions: [],
+        missedTopics: [],
+      }),
+    ).toEqual(["Basınç", "Kaldırma", "Gazlar"]);
+  });
+});

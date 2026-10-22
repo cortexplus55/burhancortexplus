@@ -28,9 +28,13 @@ export function mockNodePayload(input: {
   };
 }
 
-/** Düğüm kaydının istek anahtarı: aynı notlandırma ikinci kez yazılmaz. */
-export function mockNodeRequestId(practiceAttemptId: string): string {
-  return `mock:${practiceAttemptId}`;
+/**
+ * Düğüm kaydının istek anahtarı: aynı deneme ikinci kez yazılmaz. Anahtar denemenin kimliği (22 Ekim 2026
+ * inceleme): notlandırma kaydının kimliğiyle her yeni notlandırma yeni anahtar alıyor, benzersiz dizin
+ * (user_id, node_id, client_request_id) hiç tutmuyordu.
+ */
+export function mockNodeRequestId(practiceExamId: string): string {
+  return `mock:${practiceExamId}`;
 }
 
 /**

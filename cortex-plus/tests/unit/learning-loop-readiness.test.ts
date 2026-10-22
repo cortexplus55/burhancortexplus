@@ -234,7 +234,7 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
   }));
   const screenOf = (plan: Awaited<ReturnType<typeof buildLocalSessionPayload>>) => {
     if (plan.action !== "serve") throw new Error("serve bekleniyordu");
-    return plan.payload.screen as { mockLine: string; actions: { label: string }[] };
+    return plan.payload.screen as { mockLine: string; ready: boolean; actions: { label: string }[] };
   };
   const handler =
     (withMockDone: boolean) =>
@@ -287,5 +287,51 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
     expect(screen.mockLine).toBe("Yazılı deneme henüz çözülmedi.");
     expect(screen.actions.map((action) => action.label)).toContain("Yazılı denemeyi çöz");
     expect(fake.calls.filter((call) => call.table === "exam_prep_node_attempts")).toHaveLength(1);
+  });
+
+  // 22 Ekim 2026 inceleme.
+  it("açık yanılgı sayısı okunamadıysa Hazırsın kapalı, yüzde 85'i geçmez", () => {
+    const indicators = buildLearningIndicators({
+      nodes: allDone,
+      topics: [topic({ topicKey: "basınç" })],
+      plannedTopicKeys: ["Basınç"],
+      openMisconceptions: 0,
+      openMisconceptionsKnown: false,
+      mockScorePct: 80,
+      targetScore: 70,
+    });
+    expect(indicators.examReadiness.claimFullyReady).toBe(false);
+    expect(indicators.examReadiness.pct).toBeLessThanOrEqual(85);
+  });
+
+  it("hedef girilmemişse ekran %70'i söyler ve hedef altındaki denemeyi gösterir", () => {
+    const screen = buildReadinessScreen({
+      plannedTopics: ["Basınç"],
+      mastery: [topic({ topicKey: "basınç" })],
+      openMissesByTopic: [],
+      mockScorePct: 65,
+      targetScore: null,
+      nodes: allDone,
+      links: { written: "/w", home: "/h" },
+    });
+    expect(screen.mockLine).toContain("Hedef %70");
+    expect(screen.actions.map((action) => action.label)).toContain("Deneme hedefin altında (%65). Bir tur daha çöz");
+  });
+
+  it("bilgi boşlukları: yanılgı okuması düşerse 'boşluk yok' denmez, istek düşer", async () => {
+    const fake = fakeSupabase((call) =>
+      call.table === "exam_prep_misconceptions" ? { error: { code: "57014", message: "timeout" } } : handler(true)(call),
+    );
+    await expect(buildLocalSessionPayload(fake.service as never, { ...prep, kind: "gaps" })).rejects.toThrow("tracking_read_failed");
+  });
+
+  it("değerlendirme: toplam açık yanılgı sayısı bütün satırlardan; okunamazsa istek düşer", async () => {
+    const isCount = (call: FakeCall) => call.table === "exam_prep_misconceptions" && Boolean((call.options as { head?: boolean } | undefined)?.head);
+    const counted = fakeSupabase((call) => (isCount(call) ? { count: 3 } : handler(true)(call)));
+    const plan = await buildLocalSessionPayload(counted.service as never, { ...prep, kind: "readiness" });
+    expect(screenOf(plan).actions.map((action) => action.label)).not.toContain("Yazılı denemeyi çöz");
+    expect(screenOf(plan).ready).toBe(false);
+    const failing = fakeSupabase((call) => (isCount(call) ? { error: { code: "57014", message: "timeout" } } : handler(true)(call)));
+    await expect(buildLocalSessionPayload(failing.service as never, { ...prep, kind: "readiness" })).rejects.toThrow("tracking_read_failed");
   });
 });

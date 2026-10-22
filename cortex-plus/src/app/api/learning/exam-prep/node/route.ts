@@ -727,10 +727,11 @@ async function handleNodeRequest(
         retryCheck: sealSectionCheck(retry),
       });
     }
-    // Tekrar sorusu başka bir ifade olabilir; birincinin "doğrusu" ona ait değil. Yazarın tam öğesi
-    // kendi doğrusunu taşır (20 Ekim 2026).
-    const corrected = check.prompt === primary.prompt || check.corrected !== primary.corrected ? result.corrected : undefined;
-    return NextResponse.json({ ok: true, ...result, corrected });
+    // Tekrarın "doğrusu" (22 Ekim 2026 inceleme): yazarın tam öğesi kendi doğrusunu taşır; kodun kurduğu tekrar
+    // aynı olgunun başka ifadesidir (`sameFactOnly`), ana sorunun doğrusu ona da aittir; başka olgu kuran yedekler
+    // ders yolunda çalışmaz. Eski "kök farklı, doğrusu aynıysa gizle" kuralı aynı doğruyu taşıyan tam öğenin kendi
+    // doğrusunu da siliyordu.
+    return NextResponse.json({ ok: true, ...result });
   }
 
   // Parça parça açılan ders (18 Ekim 2026): yazım sürerken ekran yeni kavramları buradan alır.
@@ -1346,7 +1347,9 @@ async function handleNodeRequest(
               prepTitle: prep.title ?? "Hazırlık",
               targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
               learningPreferences: prep.learning_preferences,
-              focusTopic: adaptiveFocusTopic(kind, node.session_meta, topicLabel),
+              // `?konu=` (22 Ekim 2026 inceleme): seçilen konu önce hazır sorulardan; yoksa üretim ve yeniden
+              // hedefleme. Seçim yoksa uyarlamalı odaklı pratiğin konusu.
+              focusTopic: (kind === "focused" && requestedTopic) || adaptiveFocusTopic(kind, node.session_meta, topicLabel),
             });
     } catch {
       return errorResponse(503, "generation_failed");

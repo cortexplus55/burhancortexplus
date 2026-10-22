@@ -76,12 +76,12 @@ describe("beş kontrol ve paket sızdırmazlığı", () => {
       correct: true,
       corrected: "Hukuku ayıran şey maddi yaptırımdır; hapis bunlardan biridir.",
     });
-    // Tekrar sorusu başka bir ifade olabilir; rota birincinin doğrusunu ona vermez. Yazarın tam ikinci sorusu
-    // kendi doğrusunu taşır (20 Ekim 2026): doğrusu birincininkinden farklıysa o gösterilir.
+    // Tekrarın "doğrusu" (22 Ekim 2026 inceleme): yazarın tam öğesi kendi doğrusunu taşır, kodun kurduğu tekrar aynı
+    // olgunun başka ifadesidir; rota notu olduğu gibi verir. Eski "kök farklı, doğrusu aynıysa gizle" kuralı aynı
+    // doğruyu taşıyan tam öğenin kendi doğrusunu da siliyordu.
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(route).toContain(
-      "const corrected = check.prompt === primary.prompt || check.corrected !== primary.corrected ? result.corrected : undefined;",
-    );
+    expect(route).not.toContain("check.corrected !== primary.corrected ? result.corrected : undefined");
+    expect(route).toContain('Tekrarın "doğrusu" (22 Ekim 2026 inceleme)');
   });
 
   it("optionWhy tekrarı reddedilir", () => {

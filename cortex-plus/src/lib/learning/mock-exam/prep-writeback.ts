@@ -67,7 +67,9 @@ export async function writeBackMockToPrep(
     practiceAttemptId: input.practiceAttemptId,
     items: input.items,
   });
-  const requestId = mockNodeRequestId(input.practiceAttemptId);
+  // Anahtar denemenin kendisi (22 Ekim 2026 inceleme): aynı deneme ikinci kez notlanırsa yeni kayıt kimliği
+  // benzersiz dizini geçiyor, düğüm iki kez bitiyordu. Notlandırma zaten yinelenmez; bu ikinci emniyet.
+  const requestId = mockNodeRequestId(input.practiceExamId);
   let attempt: { id: string; status: string } | null = null;
   const { data: created, error: insertError } = await service
     .from("exam_prep_node_attempts")

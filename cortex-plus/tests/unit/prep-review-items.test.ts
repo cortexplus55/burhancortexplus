@@ -576,3 +576,16 @@ describe("göç (gerçek PostgreSQL)", () => {
     expect(read("supabase/migrations/20261020160000_prep_review_items.sql")).not.toMatch(/DROP POLICY|schema_migrations/i);
   });
 });
+
+describe("22 Ekim 2026 inceleme: testedTopic", () => {
+  it("hazırlık geneli düğümün tekrar satırı sorulan konunun adını alır", () => {
+    const drafts = reviewDraftsFromAttempt({
+      attemptId: ATTEMPT,
+      kind: "final_check",
+      payload: { type: "quiz", testedTopic: "Basınç", questions: [{ text: "Hangisi soygazdır?", options: ["Argon", "Oksijen"], correct: "Argon" }] },
+      answers: { 0: "Oksijen" },
+      topicLabel: "Isı",
+    });
+    expect(drafts.map((draft) => draft.topicLabel)).toEqual(["Basınç"]);
+  });
+});

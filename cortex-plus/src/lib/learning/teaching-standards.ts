@@ -2559,7 +2559,9 @@ export function extractMisconceptions(input: {
         corrected: question.correct.join(", "),
         wrongType: question.misconceptionTag?.trim() || "quiz_miss",
         sourceKind: input.kind,
-        topicLabel,
+        // Hazır sorularla açılan odaklı pratik / son kontrol birden çok zayıf konudan soru taşır; yanılgı
+        // kanıtla aynı konuya yazılır (22 Ekim 2026 inceleme: düğümün devraldığı 1. konuya yazılıyordu).
+        topicLabel: (question as { topic?: string }).topic?.trim() || topicLabel,
         questionPreview: question.text.slice(0, 160),
       });
     });

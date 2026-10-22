@@ -80,7 +80,8 @@ describe("writeBackMockToPrep", () => {
       exam_prep_id: "p1",
       total: 100,
       status: "active",
-      client_request_id: "mock:pa1",
+      // Anahtar denemenin kimliği (22 Ekim 2026): aynı deneme ikinci kez notlansa da düğüm bir kez biter.
+      client_request_id: "mock:e1",
       practice_exam_id: "e1",
       payload: {
         type: "mock_exam",
@@ -155,5 +156,15 @@ describe("bitmiş deneme düğümünün sonucu", () => {
     expect(mockReviewHref("p1", "written_exam", null)).toBeNull();
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx", "utf8");
     expect(page).toContain("mockReviewHref(prepId, node.kind as string, attempt.payload)");
+  });
+});
+
+describe("22 Ekim 2026 inceleme: aynı deneme ikinci kez notlanmaz", () => {
+  it("notlanmış kayıt varken yeni kayıt açılmaz, yola ve kanıta yeniden yazılmaz", () => {
+    const grade = readFileSync("src/lib/learning/mock-exam/grade-exam.ts", "utf8");
+    const guard = grade.indexOf('.not("completed_at", "is", null)');
+    expect(guard).toBeGreaterThan(0);
+    expect(guard).toBeLessThan(grade.search(/\.from\("practice_exam_attempts"\)\s*\.insert\(/));
+    expect(grade.indexOf("if (graded?.id) {")).toBeLessThan(grade.indexOf("await writeBackMockToPrep(service, {"));
   });
 });

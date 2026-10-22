@@ -1078,3 +1078,27 @@ Göçler: `20261020170000` (`resolved_at`) ve `20261020171000` (başlıklar). Be
 Her biri için aynı oturumda `insert into supabase_migrations.schema_migrations (version, name) values ('<zaman>', '<ad>')`.
 `DROP POLICY` yok, `supabase db push` yok. Doğrulama: `/admin/sistem` → "Dinleme kontrolü önbelleği",
 "Aralıklı tekrar kaydı", "Yanılgı çözümü" yeşil.
+
+### İnceleme 22 Ekim 2026 — beş boyut, kapanan bulgular
+
+Öğretim kalitesi dalı (PR #387) beş ayrı inceleyiciyle (ikinci soru notlandırma, ders döngüsü, deneme yazımı,
+hedefleme/ipucu/yanılgı, test-podcast-tekrar kuralları) yeniden okundu. Anahtar hatası yok; kapananlar:
+
+| Bulgu | Kural | Nerede |
+|---|---|---|
+| **Aynı deneme ikinci kez notlanıyordu** (sonuçtan "geri" + "Bitir", zaman aşımı sonrası ikinci gönderim): yol düğümü iki kez bitiyor, kanıt ve hâkimiyet iki kez yazılıyordu | Notlanmış kayıt varsa aynı sonuç döner, hiçbir şey yeniden yazılmaz; düğüm kaydının anahtarı denemenin kimliği (`mock:<examId>`) | `grade-exam.ts`, `prep-node-link.ts` |
+| Erken çözülen deneme + zorunlu yeniden planlama → sıradaki adım bitince "sonraki düğüm" bitmiş deneme çıkıyor, yol kilitli kalıyordu; deneme sonrakini ("Kartlarla son tekrar") sırası gelmeden açıyordu | Sıradaki = ilk **kilitli** düğüm (bitmiş atlanır); önünde bitmemiş adım varken biten düğüm sonrakini açmaz; dönen nextId bitmişi atlar | göç `20261022120000_complete_node_in_order.sql` (yalnız fonksiyon gövdesi) |
+| Değerlendirme düğümü deneme puanını son 40 etkinlikte arıyordu | Bitmiş written_exam düğümünün son kaydından; açık yanılgı toplamı bütün satırlardan (/degerlendirme ile aynı) | `exam-local-session.ts` |
+| Açık yanılgı sayısı iki okumada da düşünce 0 sayılıyordu; boşluk/değerlendirme okuma hatasında "boşluk yok" diye adım bitiyordu | `countOpenMisconceptions` → `null` (bilinmiyor) → "Hazırsın" kapalı, tavan %85; gaps/readiness okuma hatasında istek düşer (ekran bir kez yeniden dener) | `misconception-store.ts`, `openMisconceptionsKnown` |
+| İpucuyla doğru cevaplanan ilk deneme konuyu "sağlam" yapıyordu (bağımsız kanıt yokken ilk deneme oranına düşüyordu) | İpuculu cevap ilk denemenin toplamında, doğrusunda değil | `foldTopicMastery` |
+| Hazır sorularla açılan odaklı pratik/son kontrol yanılgıyı düğümün devraldığı 1. konuya yazıyordu; tekrar satırı `testedTopic`'i okumuyordu | Yanılgı sorunun kendi konusuna (`question.topic`); tekrar satırı `testedTopic` | `extractMisconceptions`, `reviewDraftsFromAttempt` |
+| "En zayıf konu" satır sırasıydı; `?konu=` hazır soru varken yok sayılıyordu | Zayıflar güvene göre sıralı; seçilen konu önce hazır sorulardan (`focusTopic`) | `collectWeakTopics`, node rotası |
+| Önbellekten gelen podcast ilk dinleyişte de `reused` taşıyor, kontrolün ilk cevabı kanıtsız kalıyordu | Kanıt: `reused` değilse **ya da** düğümün ilk kaydıysa | `extractAnswerEvidence` |
+| Yazarın tam ikinci sorusu yeni şıklarla gelince ana sorunun whyWrong/hint'i gösteriliyordu; "ne olur / ne sağlar / kim" kökleri bozuk sayılıyordu; aynı doğruyu taşıyan tam öğenin "Doğrusu"su gizleniyordu | Şık kümesi aynıysa ana metinler kalır, değilse tekrarın açıklaması; yalın "ne" ve "kim" soru sözcüğü; rota `corrected`'ı olduğu gibi verir | `resolveCheckForGrade`, `asksQuestion`, grade-check |
+| Ders denetçisi aynı belirtiyi hem C (high) hem J (medium) diye okuyordu; ilk kavrama "2-3 ekrana böl" yapı kuralı gidiyordu; iki küçük tablonun satırları toplanıyordu; her "…" ve "a<b" yer tutucu sayılıyordu; öğretim turuna düşük yapı kuralları gidiyor, ekran düşüren düzeltme yayımlanıyordu | Kavramı bilmeden çözülen soru yalnız J; bölme cümlesi ilk kavramda yok; en büyük tablo sayılır; "…" yalnız ≤3 kelimelik değerde, `<…>` harfe yapışık değilse; öğretim turuna yalnız medium (+ yapı dışı low), ekran düşerse önceki hâl | `teacher-lesson.ts`, `teacher-lesson-run.ts` |
+| Hedef puan girilmemişse karar %70'e göreydi ama ekran söylemiyordu; inceleme sayfası notlanmamış taslağı açabiliyordu | `DEFAULT_TARGET_SCORE` ekranda da; yalnız `completed_at` dolu kayıt | `readiness-screen.ts`, `incele/page.tsx` |
+
+Düzeltilmeyen (kozmetik, kabul): "Yanlış yaptığın N soru yarın yeniden sorulacak" sayısı eş zamanlı çift
+tamamlamada fazla sayabilir. Bekçi: `complete-node-in-order.test.ts` (PGlite), `retry-key.test.ts`,
+`lesson-teaching-quality.test.ts`, `lesson-stream-pipeline.test.ts` ("ekran düşürmez"), `learning-tracking.test.ts`,
+`learning-loop-readiness.test.ts`, `focused-practice.test.ts`, `mock-exam-prep-writeback.test.ts`.

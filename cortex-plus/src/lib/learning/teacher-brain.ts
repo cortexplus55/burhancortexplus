@@ -2142,7 +2142,9 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
  */
 function asksQuestion(text: string): boolean {
   const folded = foldTr(text);
-  return /(^|[^a-z0-9])(midir|mudur|hangisi|hangi|kac(?:tir|ta|inci|ar)?|nedir|neden|nasil|mi|mu)(?![a-z0-9])/.test(folded);
+  // "ne olur / ne sağlar / ne eder / kim / nerede" de soru (22 Ekim 2026 inceleme): yalın "ne" listede yoktu,
+  // "Bu durumda sonuç ne olur?" bildiren cümle sayılıp yazarın geçerli ikinci sorusu reddediliyordu.
+  return /(^|[^a-z0-9])(midir|mudur|hangisi|hangi|kac(?:tir|ta|inci|ar)?|nedir|neden|nasil|ne|kim(?:dir|in|e|i)?|nerede|nereye|nereden|mi|mu)(?![a-z0-9])/.test(folded);
 }
 
 export function retryStemBroken(prompt: string, explanation = ""): boolean {

@@ -61,15 +61,19 @@ export function collectWeakTopics(input: {
     out.push(display(text));
   };
 
+  // En zayıf önce (22 Ekim 2026 inceleme): liste veritabanı satır sırasıyla geliyordu, hazırlık geneli düğüm
+  // "en zayıf konu" değil "ilk zayıf satır"a yöneliyordu. Zayıf (weak) konular güvene göre, sonra başarısı
+  // düşük gelişmekte olan (emerging) konular başarı oranına göre; eşitlikte satır sırası.
+  const ranked: { key: string; rank: number }[] = [];
   for (const row of input.mastery) {
     if (!row.measured) continue;
-    const weakLevel = row.level === "weak";
-    const low =
-      row.level === "emerging" &&
-      (row.independentTotal ?? 0) > 0 &&
-      (row.independentCorrect ?? 0) / (row.independentTotal ?? 1) < 0.5;
-    if (weakLevel || low) push(row.topicKey);
+    const total = row.independentTotal ?? 0;
+    const rate = total > 0 ? (row.independentCorrect ?? 0) / total : 1;
+    if (row.level === "weak") ranked.push({ key: row.topicKey, rank: (row as { confidence?: number }).confidence ?? 0 });
+    else if (row.level === "emerging" && total > 0 && rate < 0.5) ranked.push({ key: row.topicKey, rank: 100 + rate * 100 });
   }
+  ranked.sort((a, b) => a.rank - b.rank);
+  for (const row of ranked) push(row.key);
   for (const row of input.misconceptions) {
     const kind = row.sourceKind ?? "";
     const type = row.wrongType ?? "";

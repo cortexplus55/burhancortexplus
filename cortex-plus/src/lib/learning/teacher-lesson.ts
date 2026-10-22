@@ -356,9 +356,11 @@ const VERIFY_JSON =
  */
 const REVIEW_VERIFY =
   "Bunlar her sorunun 'review' alanına (yanlış cevaptan sonra sorulan ikinci soru) da uygulanır; review başka bir " +
-  "kavramı soruyorsa ya da çoktan seçmelide doğru şıkkı ana sorunun doğru şıkkıyla aynı metin değilse bu da C'dir. Kavramı " +
-  "bilmeden çözülen soru da C'dir: kök hemen üstündeki cümleyi kelimesi kelimesine tekrar ediyor ya da şıklardan yalnız " +
-  "biri sorulan kategoriden.";
+  "kavramı soruyorsa ya da çoktan seçmelide doğru şıkkı ana sorunun doğru şıkkıyla aynı metin değilse bu da C'dir. " +
+  // 22 Ekim 2026 inceleme: aynı belirti hem C (high) hem J (medium) diye yazılıydı; C'yi seçen denetçi öğretim
+  // nitini düzeltme turuna, oradan yeniden yazıma taşıyordu. Yalnız öğretim ölçütü maddesi (medium).
+  "(Kavramı bilmeden çözülebilen soru — kök üstündeki cümleyi geri soruyor ya da şıklardan yalnız biri sorulan " +
+  "kategoriden — C değil, öğretim ölçütü maddesidir: 'medium'.)";
 
 /**
  * Ezber kodunun denetimi (20 Ekim 2026): kod isteğe bağlı; olmaması sorun değil, ayrım taşımayan kod sorun.
@@ -377,7 +379,8 @@ const MNEMONIC_VERIFY =
 const RUBRIC_VERIFY =
   "ÖĞRETİM ÖLÇÜTÜ'ne (yazarın okuduğu metin aşağıda) uymayan ekran, kutu, soru ya da özet: tekrar, kaynağın kısaltmasını " +
   "açıklamadan aktarma, ilk geçtiği yerde açıklanmamış terim, boş cümle, döngüsel tanım, üstündeki cümleyi geri soran " +
-  "soru, en olası yanlışı ölçmeyen ikinci soru, kavramı düşüren özet. Bunlar 'medium'dur ('high' değil). " +
+  "soru, kavramı bilmeden çözülebilen soru (şıklardan yalnız biri sorulan kategoriden), en olası yanlışı ölçmeyen " +
+  "ikinci soru, kavramı düşüren özet. Bunlar 'medium'dur ('high' değil). " +
   TEACHING_RUBRIC +
   "\n";
 
@@ -803,7 +806,13 @@ const SCAFFOLD_HEADING = /^(giriş|özet|örnek|yaygın hata|sık yapılan hata|
  * T > Tsat" bir koşuldur.
  */
 const PLACEHOLDER_TITLE =
-  /(?:^|[^\p{L}])[XY]\s+(?:ile|ve)\s+[XY](?:'\p{L}+)?\s+(?:arasındaki\s+)?fark|<\p{Ll}[\p{Ll}\s]{1,38}\p{Ll}>|gerçek adıyla|…|\.\.\./u;
+  /(?:^|[^\p{L}])[XY]\s+(?:ile|ve)\s+[XY](?:'\p{L}+)?\s+(?:arasındaki\s+)?fark|(?:^|[\s(])<\p{Ll}[\p{Ll}\s]{1,38}\p{Ll}>(?=$|[\s).,:;!?])|gerçek adıyla/u;
+/**
+ * Üç nokta yalnız kısa değerde yer tutucudur ("Basamaklar …", "Örnek vaka: …"); cümle sonundaki üslup üç noktası
+ * ("Z-skoru nedir, nasıl hesaplanır…") değil (22 Ekim 2026 inceleme: her "…" yapı kuralı diye tur açıyordu).
+ * Açılı ayraç yer tutucusu da ("<kod>") harfe yapışık "a<b ve b>c" eşitsizliğini kapsamaz.
+ */
+const ELLIPSIS = /…|\.\.\./g;
 
 /** Şemadaki örnek alan değerleri ("kardeş kavram", "ikinci kavramın adı"): aynen kopyalanırsa yer tutucudur. */
 const SCHEMA_PLACEHOLDERS = new Set(
@@ -821,7 +830,9 @@ function placeholderTitle(text: string | undefined): boolean {
   const value = (text ?? "").trim();
   if (!value) return false;
   const folded = value.toLocaleLowerCase("tr").replace(/\s*\(.*\)\s*$/, "").trim();
-  return PLACEHOLDER_TITLE.test(value) || SCHEMA_PLACEHOLDERS.has(folded);
+  const ellipsisStub = ELLIPSIS.test(value) && value.replace(ELLIPSIS, " ").trim().split(/\s+/).filter(Boolean).length <= 3;
+  ELLIPSIS.lastIndex = 0;
+  return PLACEHOLDER_TITLE.test(value) || ellipsisStub || SCHEMA_PLACEHOLDERS.has(folded);
 }
 
 function shouting(text: string): boolean {
@@ -1022,12 +1033,16 @@ function tableRowsMentioned(table: { rows: string[][] }, stems: Set<string>): bo
   return table.rows.length >= 3 && mentioned >= 3 && mentioned * 2 >= table.rows.length;
 }
 
-function flattenedTableIssue(table: { columns: string[]; rows: string[][] }): string {
+/**
+ * `split`: yoğun tablo bölme cümlesi. İlk kavramda yazılmaz (22 Ekim 2026 inceleme): istem ilk kavramı tek ekran
+ * ister; "2-3 ekrana böl" oraya yapı kuralı diye gidince soğuk yolda fazladan tur açıyordu.
+ */
+export function flattenedTableIssue(table: { columns: string[]; rows: string[][] }, options: { split: boolean } = { split: true }): string {
   return (
     `Kaynaktaki tablo (${table.columns.join(" | ")}) derste paragrafa dökülmüş; onu 'table' bloğu olarak ver, ` +
     "ayırıcı ipuçlarını düşürme. Metin tablonun satırlarını yeniden saymasın, ayırt ettiren kuralı tek cümlede söylesin" +
     // Tek turda iki kural birden tutsun (20 Ekim 2026): tablo verilir VE yoğunsa bölünür.
-    (table.rows.length >= DENSE_TABLE_ROWS
+    (options.split && table.rows.length >= DENSE_TABLE_ROWS
       ? `; ${DENSE_TABLE_ROWS}+ satırlı tabloyu aynı kavramın 2-3 ekranına böl, her ekran bir soruyla bitsin.`
       : ".")
   );
@@ -1048,9 +1063,10 @@ export function denseTableIssues(
   severity: "high" | "low",
 ): TeacherIssue[] {
   const tableScreens = group.screens.filter((index) => screens[index]?.blocks.some((block) => block.type === "table"));
+  // En büyük tablo sayılır, toplam değil (22 Ekim 2026 inceleme): bir ekrandaki iki küçük tablonun satırları
+  // toplanınca var olmayan "5 satırlık tablo" için tur açılıyordu.
   const rows = group.screens.reduce(
-    (sum, index) =>
-      sum + (screens[index]?.blocks ?? []).reduce((count, block) => count + (block.type === "table" ? block.table.rows.length : 0), 0),
+    (max, index) => Math.max(max, ...(screens[index]?.blocks ?? []).map((block) => (block.type === "table" ? block.table.rows.length : 0))),
     0,
   );
   if (rows < DENSE_TABLE_ROWS || tableScreens.length >= 2 || group.screens.length >= 3) return [];
@@ -1104,7 +1120,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   // Tablonun satırları derste anılıyorsa tablo derste de tablo olmalı.
   if (!screens.some((screen) => screen.blocks.some((block) => block.type === "table"))) {
     const flattened = flattenedSourceTable(JSON.stringify(lesson), input.pages ?? []);
-    if (flattened) add("screens", flattenedTableIssue(flattened));
+    if (flattened) add("screens", flattenedTableIssue(flattened, { split: conceptGroups(lesson.screens).length > 1 }));
   }
   const summary = lesson.summary ?? [];
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
@@ -1159,7 +1175,7 @@ export function partStructureIssues(lesson: LessonV3, part: LessonPart, input: S
     const ownedEarlier =
       flattened && part.from > 0 && tableRowsMentioned(flattened, stemSet(JSON.stringify(lesson.screens.slice(0, part.from))));
     if (flattened && !ownedEarlier) {
-      issues.push({ where: `screens[${part.from}]`, severity: "high", problem: flattenedTableIssue(flattened) });
+      issues.push({ where: `screens[${part.from}]`, severity: "high", problem: flattenedTableIssue(flattened, { split: !part.header }) });
     }
   }
   return issues;

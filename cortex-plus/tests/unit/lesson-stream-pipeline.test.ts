@@ -493,3 +493,53 @@ describe("öğretim ölçütü turu", () => {
     expect(result.lesson?.screens).toHaveLength(3);
   });
 });
+
+describe("öğretim turu ekran düşürmez (22 Ekim 2026 inceleme)", () => {
+  it("düzeltici kısmı daha az ekranla yeniden kurarsa önceki hâli yayımlanır", async () => {
+    const split = {
+      ...lesson,
+      screens: [
+        lesson.screens[0]!,
+        lesson.screens[1]!,
+        {
+          heading: "Yokluk: sonuç",
+          concept: "Yokluk",
+          lead: "Hiç doğmamış işlemin sonucu",
+          // Aynı kavramın ikinci ekranı yalnız adım/tablo/örnek taşıyorsa bölünebilir (yapı kuralı).
+          blocks: [
+            { type: "text", text: "Yok sayılan işlem hiçbir hüküm doğurmaz; herkes ileri sürebilir." },
+            {
+              type: "procedure",
+              procedure: {
+                title: "Yokluğu ileri sürme",
+                steps: [
+                  { label: "Kurucu unsura bak", detail: "Evlenme iradesi ya da memur önünde beyan var mı?" },
+                  { label: "Eksikse işlem yok", detail: "Hiç doğmamış sayılır, hüküm doğurmaz." },
+                  { label: "Herkes ileri sürer", detail: "Süre ve dava şartı aranmaz." },
+                ],
+              },
+            },
+            mcq("Yokluğu kim ileri sürebilir?"),
+          ],
+        },
+        lesson.screens[2]!,
+      ],
+    } as LessonV3;
+    const merged = {
+      heading: "Yokluk (tek ekran)",
+      concept: "Yokluk",
+      lead: "Hiç doğmamış işlem",
+      blocks: [{ type: "text", text: "Kurucu unsuru olmayan işlem **yokluk** ile sakattır; hiçbir hüküm doğurmaz." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")],
+    };
+    const { result, calls } = await run({
+      drafts: [JSON.stringify(split)],
+      verify: (user) =>
+        user.includes("yalnız screens[1]") ? { issues: [{ where: "screens[1]", severity: "medium", problem: "Aynı bilgi iki ekranda." }] } : { issues: [] },
+      fix: () => ({ screens: [merged], disputes: [] }),
+    });
+    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
+    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Yokluk: sonuç", "Mutlak Butlan"]);
+    expect(result.issues.some((issue) => issue.problem.includes("ekran düşürdü"))).toBe(true);
+    expect(result.dropped).toEqual([]);
+  });
+});

@@ -274,14 +274,22 @@ export function resolveCheckForGrade(
     retry.prompt === primary.prompt &&
     count === (primary.options?.length ?? 0) &&
     (retry.options ?? []).every((option, index) => option === primary.options?.[index]);
+  // Yazarın tam öğesi yeni şıklarla geldiyse (22 Ekim 2026 inceleme) ana sorunun whyRight / whyWrong / hint /
+  // misconception metinleri ona ait değil: ana sorunun olası yanlış şıkkı için yazılmışlardı ve ekran tekrarın
+  // kendi açıklaması yerine onları gösteriyordu. Şık kümesi aynıysa (aynı sıra ya da kaydırılmış) aynı olgu:
+  // ana sorunun metinleri geçerli kalır.
+  const fold = (option: string) => option.trim().toLocaleLowerCase("tr");
+  const primarySet = new Set((primary.options ?? []).map(fold));
+  const sameOptionSet = count === primarySet.size && (retry.options ?? []).every((option) => primarySet.has(fold(option)));
+  const inherit = (own: string | undefined, fallback: string | undefined) => (sameOptionSet ? own?.trim() || fallback : undefined);
   return {
     ...retry,
     explanation: retry.explanation?.trim() || primary.explanation,
     optionWhy: aligned ? retry.optionWhy : sameShape ? primary.optionWhy : undefined,
-    whyRight: retry.whyRight?.trim() || primary.whyRight,
-    whyWrong: retry.whyWrong?.trim() || primary.whyWrong,
-    misconception: retry.misconception?.trim() || primary.misconception,
-    hint: retry.hint?.trim() || primary.hint,
+    whyRight: inherit(retry.whyRight, primary.whyRight),
+    whyWrong: inherit(retry.whyWrong, primary.whyWrong),
+    misconception: inherit(retry.misconception, primary.misconception),
+    hint: inherit(retry.hint, primary.hint),
   };
 }
 

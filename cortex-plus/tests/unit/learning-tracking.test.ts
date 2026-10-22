@@ -11,6 +11,7 @@ import {
   weakOrStaleTopicKeys,
 } from "@/lib/learning/learning-tracking";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { extractMisconceptions } from "@/lib/learning/teaching-standards";
 
 describe("learning-tracking Stage 6", () => {
   it("binds quiz answers to topic + learning objective with first/hint flags", () => {
@@ -274,9 +275,47 @@ describe("podcast dinleme kontrolü kanıtı", () => {
     expect(run({ "0": "Nicel artış / olgunlaşma" }, { type: "podcast", chapters: [] })).toEqual([]);
   });
 
-  it("önbellekten yeniden dinlenen podcast (reused) aynı kontrolü yeniden kanıt yazmaz", () => {
+  it("önbellekten gelen podcast: ilk dinleyişte kanıt yazar, aynı düğümün ikinci dinleyişinde yazmaz", () => {
     const answers = { "0": "Nicel artış / olgunlaşma" };
     expect(run(answers).length).toBeGreaterThan(0);
-    expect(run(answers, { type: "podcast", check, reused: true })).toEqual([]);
+    // 22 Ekim 2026 inceleme: hazırlığın podcast sayfası ya da önceden yazım önbelleği doldurunca yol düğümü ilk
+    // dinleyişte de `reused` taşıyordu; kontrolün ilk cevabı kanıtsız kalıyordu.
+    expect(run(answers, { type: "podcast", check, reused: true }).length).toBe(3);
+    const again = extractAnswerEvidence({ kind: "podcast", topicLabel: "Büyüme ve gelişme", isFirstAttempt: false, answers, payload: { type: "podcast", check, reused: true } });
+    expect(again).toEqual([]);
+  });
+});
+
+describe("22 Ekim 2026 inceleme: ipucu ve konu", () => {
+  it("bütün soruları ipucuyla doğru cevaplayan ilk deneme konuyu 'sağlam' yapmaz", () => {
+    const rows = Array.from({ length: 5 }, (_, index) => ({
+      topicKey: "basınç",
+      learningObjective: null,
+      questionIndex: index,
+      correct: true,
+      isFirstAttempt: true,
+      hintAssisted: true,
+      independentSuccess: false,
+      wrongType: null,
+      sourceKind: "quiz",
+      questionPreview: null,
+    }));
+    const [topic] = foldTopicMastery(rows as never);
+    expect(topic?.level).not.toBe("solid");
+    expect(topic?.firstAttemptTotal).toBe(5);
+    expect(topic?.firstAttemptCorrect).toBe(0);
+  });
+
+  it("hazır sorularla açılan odaklı pratikte yanılgı sorunun kendi konusuna yazılır", () => {
+    const drafts = extractMisconceptions({
+      kind: "focused",
+      payload: {
+        type: "quiz",
+        questions: [{ text: "Kaldırma kuvveti neye bağlıdır?", options: ["Hacim", "Renk"], correct: ["Hacim"], topic: "Kaldırma kuvveti" }],
+      },
+      answers: { "0": "Renk" },
+      topicLabel: "Isı ve sıcaklık",
+    });
+    expect(drafts.map((draft) => draft.topicLabel)).toEqual(["Kaldırma kuvveti"]);
   });
 });

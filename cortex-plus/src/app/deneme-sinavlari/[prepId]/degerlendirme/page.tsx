@@ -128,7 +128,8 @@ export default async function ExamPrepAssessmentPage({
     }
   }
 
-  const openMisconceptions = misconceptionCount;
+  // Sayı okunamadıysa (null) 0 sanılmaz: "Hazırsın" kapalı kalır; yönlendirme için 0.
+  const openMisconceptions = misconceptionCount ?? 0;
   const indicators = buildLearningIndicators({
     nodes,
     topics,
@@ -136,6 +137,7 @@ export default async function ExamPrepAssessmentPage({
     mockScorePct,
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
     openMisconceptions,
+    openMisconceptionsKnown: misconceptionCount != null,
   });
 
   const hasTopic = Boolean(prep.active_topic_id);

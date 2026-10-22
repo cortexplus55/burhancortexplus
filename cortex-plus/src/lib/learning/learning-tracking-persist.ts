@@ -225,7 +225,8 @@ export async function recordLearningTrackingAfterComplete(
     plannedTopicKeys,
     mockScorePct,
     targetScore: input.targetScore,
-    openMisconceptions: misconceptionCount,
+    openMisconceptions: misconceptionCount ?? 0,
+    openMisconceptionsKnown: misconceptionCount != null,
   });
   const tracking = toPersistedTracking(indicators);
 
@@ -240,7 +241,7 @@ export async function recordLearningTrackingAfterComplete(
     .eq("user_id", input.userId);
 
   const next = preferNextNodeForTracking(nodes, {
-    openMisconceptions: misconceptionCount,
+    openMisconceptions: misconceptionCount ?? 0,
     weakOrStaleTopicKeys: weakOrStaleTopicKeys(folded),
   });
 
