@@ -7,7 +7,9 @@ import {
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
+import { buildLocalSessionPayload } from "@/lib/learning/exam-local-session";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { fakeSupabase, has, type FakeCall, type FakeResult } from "./helpers/query-recorder";
 
 /*
   Öğrenme döngüsü (20 Ekim 2026, ürün sahibinin kararı): "Hazırsın" düzelmiş hata yüzünden
@@ -200,5 +202,90 @@ describe("Devam et yolun penceresinde kalır", () => {
       weakOrStaleTopicKeys: [],
     });
     expect(next?.id).toBe("cards");
+  });
+});
+
+/*
+  22 Ekim 2026 (inceleme bulgusu): hazırlık değerlendirme düğümü deneme puanını son 40 etkinliğin
+  içinde arıyordu. Deneme zorunlu olunca, erken çözülen deneme 40 etkinlikten sonra pencereden
+  düşüyor, ekran "Yazılı denemeyi çöz" diyordu — /degerlendirme ise çözüldü diyordu. Puan artık
+  bitmiş "Yazılı deneme" düğümünün son kaydından okunur; pencere yalnız kaçırılan sorular için.
+*/
+describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğümün kaydından", () => {
+  const prep = { userId: "u1", prepId: "p1", prepTitle: "Fizik", targetScore: 70, learningPreferences: null };
+  const nodes = (withMockDone: boolean) => [
+    { id: "n-lesson", kind: "lesson", status: "done", session_meta: { topicTitle: "Basınç" } },
+    { id: "n-mock", kind: "written_exam", status: withMockDone ? "done" : "ready", session_meta: null },
+    ...Array.from({ length: 40 }, (_, i) => ({
+      id: `n-quiz-${i}`,
+      kind: "quiz",
+      status: "done",
+      session_meta: { topicTitle: "Basınç" },
+    })),
+  ];
+  // 40 yeni test kaydı: deneme kaydı pencerenin dışında kaldı.
+  const windowAttempts = Array.from({ length: 40 }, (_, i) => ({
+    node_id: `n-quiz-${i}`,
+    payload: { type: "quiz", questions: [] },
+    answers: {},
+    score: 5,
+    total: 5,
+    status: "completed",
+  }));
+  const screenOf = (plan: Awaited<ReturnType<typeof buildLocalSessionPayload>>) => {
+    if (plan.action !== "serve") throw new Error("serve bekleniyordu");
+    return plan.payload.screen as { mockLine: string; actions: { label: string }[] };
+  };
+  const handler =
+    (withMockDone: boolean) =>
+    (call: FakeCall): FakeResult | undefined => {
+      if (call.table === "exam_prep_topics") return { data: [{ id: "t1", label: "Basınç" }] };
+      if (call.table === "exam_prep_topic_mastery") {
+        return {
+          data: [
+            {
+              topic_key: "basınç",
+              measured_level: "solid",
+              confidence: 90,
+              evidence_count: 10,
+              first_attempt_correct: 9,
+              first_attempt_total: 10,
+              independent_correct: 9,
+              independent_total: 10,
+              last_practiced_at: "2026-10-18T09:00:00.000Z",
+            },
+          ],
+        };
+      }
+      if (call.table === "exam_prep_misconceptions") return { data: [] };
+      if (call.table === "exam_prep_nodes") return { data: nodes(withMockDone) };
+      if (call.table === "exam_prep_lessons") return { data: [] };
+      if (call.table === "exam_prep_node_attempts") {
+        if (has(call, "eq", "node_id", "n-mock")) return { data: { score: 8, total: 10 } };
+        return { data: windowAttempts };
+      }
+      return undefined;
+    };
+
+  it("deneme 40 etkinlik önce çözülmüşse puan yine görünür, 'Yazılı denemeyi çöz' çıkmaz", async () => {
+    const fake = fakeSupabase(handler(true));
+    const plan = await buildLocalSessionPayload(fake.service as never, { ...prep, kind: "readiness" });
+    expect(plan.action).toBe("serve");
+    const screen = screenOf(plan);
+    expect(screen.mockLine).toContain("%80");
+    expect(screen.actions.map((action) => action.label)).not.toContain("Yazılı denemeyi çöz");
+    const direct = fake.calls.find((call) => call.table === "exam_prep_node_attempts" && has(call, "eq", "node_id", "n-mock"));
+    expect(direct?.columns).toBe("score, total");
+    expect(has(direct!, "eq", "status", "completed")).toBe(true);
+    expect(has(direct!, "limit", 1)).toBe(true);
+  });
+
+  it("deneme düğümü bitmemişse ek sorgu yok, ekran denemeyi ister", async () => {
+    const fake = fakeSupabase(handler(false));
+    const plan = await buildLocalSessionPayload(fake.service as never, { ...prep, kind: "readiness" });
+    const screen = screenOf(plan);
+    expect(screen.mockLine).toBe("Yazılı deneme henüz çözülmedi.");
+    expect(screen.actions.map((action) => action.label)).toContain("Yazılı denemeyi çöz");
+    expect(fake.calls.filter((call) => call.table === "exam_prep_node_attempts")).toHaveLength(1);
   });
 });

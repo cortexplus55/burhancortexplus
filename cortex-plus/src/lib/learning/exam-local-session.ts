@@ -324,7 +324,25 @@ export async function buildLocalSessionPayload(
 
   const missedQuestions: QuizQuestion[] = [];
   const missedTopics: string[] = [];
+  // Deneme puanı bitmiş "Yazılı deneme" düğümünün son kaydından, 40'lık pencereden değil (22 Ekim 2026
+  // inceleme): "Hazırsın" artık denemeyi zorunlu sayıyor; erken çözülen deneme 40 etkinlikten sonra
+  // pencereden düşünce ekran "Yazılı denemeyi çöz" diyordu, /degerlendirme ise "çözüldü". Aynı okuma
+  // `learning-tracking-persist.ts` ve değerlendirme sayfasında. Pencere yalnız kaçırılan sorular için.
   let mockScorePct: number | null = null;
+  const mockNode = nodes.find((node) => node.kind === "written_exam" && node.status === "done");
+  if (mockNode) {
+    const { data: mockAttempt } = await service
+      .from("exam_prep_node_attempts")
+      .select("score, total")
+      .eq("node_id", mockNode.id)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (mockAttempt?.total) {
+      mockScorePct = Math.round((Number(mockAttempt.score ?? 0) / Number(mockAttempt.total)) * 100);
+    }
+  }
   for (const attempt of attemptsRes.data ?? []) {
     const node = nodeById.get(String(attempt.node_id));
     const topic = node?.topic || input.prepTitle;
