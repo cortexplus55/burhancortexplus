@@ -153,18 +153,27 @@ function fakeService(extra: Record<string, unknown> = {}) {
     inserted,
     from(table: string) {
       const result = { data: tables[table] ?? null, error: null };
+      // "Notlanmış kayıt var mı" sorgusu (`.not("completed_at", "is", null)`, 22 Ekim 2026): bu denemede yok.
+      let filtered = false;
+      const answer = () => (filtered ? { data: null, error: null } : result);
       const chain: Record<string | symbol, unknown> = new Proxy(
         {},
         {
           get(_target, prop) {
-            if (prop === "then") return (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(result).then(ok, bad);
+            if (prop === "then") return (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(answer()).then(ok, bad);
+            if (prop === "not") {
+              return () => {
+                filtered = true;
+                return chain;
+              };
+            }
             if (prop === "insert") {
               return (rows: unknown) => {
                 (inserted[table] ??= []).push(rows);
                 return chain;
               };
             }
-            if (prop === "maybeSingle" || prop === "single") return () => Promise.resolve(result);
+            if (prop === "maybeSingle" || prop === "single") return () => Promise.resolve(answer());
             return () => chain;
           },
         },

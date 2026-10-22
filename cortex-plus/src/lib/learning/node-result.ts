@@ -20,6 +20,14 @@ export type NodeResultInput = {
  */
 export const UNSCORED_NODE_KINDS: ReadonlySet<string> = new Set(["podcast"]);
 
+/**
+ * Puan gösterilmez mi. Podcast'in dinleme kontrolü (20 Ekim 2026) cevaplandıysa kayıt "2/3" yazar
+ * ve puan gösterilir; kontrolsüz ya da "Şimdi değil" ile biten podcast yine 1/1, puansız.
+ */
+export function unscoredResult(kind: string | null | undefined, total: number): boolean {
+  return UNSCORED_NODE_KINDS.has(kind ?? "") && total <= 1;
+}
+
 export type NodeResultView = {
   scored: boolean;
   score: number;
@@ -42,7 +50,7 @@ export function spentMinutes(input: Pick<NodeResultInput, "startedAt" | "created
 export function nodeResultView(input: NodeResultInput): NodeResultView {
   const total = typeof input.total === "number" && input.total > 0 ? input.total : 0;
   const score = typeof input.score === "number" ? Math.max(0, Math.min(input.score, total || input.score)) : 0;
-  const scored = total > 0 && !UNSCORED_NODE_KINDS.has(input.kind ?? "");
+  const scored = total > 0 && !unscoredResult(input.kind, total);
   const pct = scored ? Math.round((score / total) * 100) : null;
   const tone =
     pct == null

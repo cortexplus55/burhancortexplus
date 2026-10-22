@@ -38,6 +38,8 @@ import {
   type PodcastLine,
 } from "@/lib/learning/podcast-script";
 import { speakVerified, toDisplay } from "@/lib/learning/speech-normalizer";
+import type { QuizQuestion } from "@/lib/learning/exam-quiz";
+import { podcastCheckOf } from "@/lib/learning/podcast-check";
 
 export {
   DEFAULT_PODCAST_LENGTH,
@@ -260,9 +262,13 @@ export function podcastGroundingBrief(input: {
 }): string {
   const lines: string[] = [];
   if (input.examples.length) {
+    // 20 Ekim 2026 kör kıyas: bu satır yazara '"notlarındaki örnek" de' diyordu; Kerem bir podcast'te
+    // dört kez "Notlarındaki örnekte …" dedi. Örnek kaynağı anmadan anlatılır; kod denetimi de
+    // kaynağa göndermeyi düzeltme turuna yollar (`podcastStructureIssues`).
     lines.push(
-      `Öğrencinin notlarındaki örnek: ${input.examples.slice(0, 2).join(" | ")}. ` +
-        'Bu örneği kullanırken "notlarındaki örnek" de. Sayıları bu örnekten al, yenisini uydurma.',
+      `Kaynaktaki örnek: ${input.examples.slice(0, 2).join(" | ")}. ` +
+        "Bu örneği kendi sözlerinle, kaynağı anmadan anlat ('notlarındaki', 'belgende yazan' deme). " +
+        "Sayıları bu örnekten al, yenisini uydurma.",
     );
   }
   if (input.priority === "important") {
@@ -290,18 +296,28 @@ function cacheRelationMissing(error: { code?: string; message?: string } | null)
   );
 }
 
+/** Sütun yok: göç uygulanmadan önce yazılan kayıt (`listening_check`, 20261020150000). */
+function cacheColumnMissing(error: { code?: string } | null): boolean {
+  return error?.code === "PGRST204" || error?.code === "42703";
+}
+
+/**
+ * Önbellekten podcast + dinleme kontrolü (20 Ekim 2026). Sütun listesi değil `*`: kod göçten önce
+ * yayına çıkarsa adlı `listening_check` her okumayı 42703 ile düşürür, her açılış yeniden yazıp
+ * yeniden ücret alırdı. Eski satırda kontrol yok (boş dizi): o podcast puansız kalır.
+ */
 export async function readPodcastCache(
   service: SupabaseClient,
   prepId: string,
   topicLabel: string,
   length: PodcastLength,
-): Promise<PodcastEpisode | null> {
-  let data: { title?: string; chapters?: unknown; length?: string } | null = null;
+): Promise<(PodcastEpisode & { check: QuizQuestion[] }) | null> {
+  let data: { title?: string; chapters?: unknown; length?: string; listening_check?: unknown } | null = null;
   let error: { code?: string; message?: string } | null = null;
   try {
     const result = await service
       .from("exam_prep_podcasts")
-      .select("title, chapters, length")
+      .select("*")
       .eq("exam_prep_id", prepId)
       .eq("topic_key", podcastTopicKey(topicLabel))
       .eq("length", length)
@@ -323,26 +339,40 @@ export async function readPodcastCache(
   if (!data) return null;
   const chapters = Array.isArray(data.chapters) ? (data.chapters as PodcastChapter[]) : [];
   if (!chapters.length || typeof data.title !== "string") return null;
-  return { title: data.title, chapters, length: parsePodcastLength(data.length) };
+  return {
+    title: data.title,
+    chapters,
+    length: parsePodcastLength(data.length),
+    check: podcastCheckOf({ check: data.listening_check }),
+  };
 }
 
 export async function writePodcastCache(
   service: SupabaseClient,
-  input: { prepId: string; userId: string; topicLabel: string; episode: PodcastEpisode },
+  input: {
+    prepId: string;
+    userId: string;
+    topicLabel: string;
+    episode: PodcastEpisode;
+    /** Dinleme kontrolü (20 Ekim 2026); yoksa sütun boş kalır. */
+    check?: QuizQuestion[];
+  },
 ): Promise<void> {
   try {
-    const { error } = await service.from("exam_prep_podcasts").upsert(
-      {
-        exam_prep_id: input.prepId,
-        user_id: input.userId,
-        topic_key: podcastTopicKey(input.topicLabel),
-        topic_label: input.topicLabel.trim(),
-        length: input.episode.length,
-        title: input.episode.title,
-        chapters: input.episode.chapters,
-      },
-      { onConflict: "exam_prep_id,topic_key,length" },
-    );
+    const row = {
+      exam_prep_id: input.prepId,
+      user_id: input.userId,
+      topic_key: podcastTopicKey(input.topicLabel),
+      topic_label: input.topicLabel.trim(),
+      length: input.episode.length,
+      title: input.episode.title,
+      chapters: input.episode.chapters,
+    };
+    const upsert = (body: Record<string, unknown>) =>
+      service.from("exam_prep_podcasts").upsert(body, { onConflict: "exam_prep_id,topic_key,length" });
+    let { error } = await upsert({ ...row, listening_check: input.check?.length ? input.check : null });
+    // Göç (20261020150000) uygulanmadıysa sütun yok: podcast kontrolsüz de olsa önbelleğe girsin.
+    if (cacheColumnMissing(error)) ({ error } = await upsert(row));
     if (error) {
       console.error(cacheRelationMissing(error) ? "podcast_cache_skipped" : "podcast_cache_write_failed", {
         code: error.code ?? "unknown",

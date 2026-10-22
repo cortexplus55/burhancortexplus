@@ -22,6 +22,7 @@ import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-
 import { corePageRun } from "@/lib/learning/core-pages";
 import { pagesMarkedInSource } from "@/lib/learning/source-context";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
+import { publicQuizQuestion } from "@/lib/learning/exam-quiz";
 
 /**
  * Yoldan bağımsız podcast. Düğüm durumuna dokunmaz; kilitli adım kilitli kalır.
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
       chapters: cached.chapters,
       length,
       reused: true,
+      check: cached.check.map(publicQuizQuestion),
     });
   }
 
@@ -186,6 +188,9 @@ export async function POST(request: Request) {
         .filter(Boolean)
         .join("\n") || undefined,
     runningHeaders: edges,
+    // Dinleme kontrolü (20 Ekim 2026): bu sayfa göstermez, önbelleğe yazar; aynı konunun yol
+    // düğümü önbellekten kontrollü (puanlı, kanıtlı) açılır.
+    listeningCheck: true,
   });
 
   if (!outcome.ok) {
@@ -202,6 +207,7 @@ export async function POST(request: Request) {
     userId,
     topicLabel: topic.label,
     episode: outcome.episode,
+    check: outcome.check,
   });
 
   return NextResponse.json({
@@ -210,5 +216,6 @@ export async function POST(request: Request) {
     chapters: outcome.episode.chapters,
     length,
     reused: false,
+    check: outcome.check.map(publicQuizQuestion),
   });
 }

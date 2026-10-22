@@ -1,4 +1,5 @@
 import {
+  DEFAULT_TARGET_SCORE,
   computeExamReadiness,
   computeProgramProgress,
   normalizeTopicKey,
@@ -53,12 +54,14 @@ function detailFor(topic: TopicMasterySnapshot, openMisses: number): string {
   return parts.join(" · ");
 }
 
+/**
+ * 20 Ekim 2026: konu "hazır" = sağlam (%85+, en az 3 öğe) ve açık yanlışı yok. Önceden bütün
+ * geçmişte tek yanlış bile konuyu "çalışılacak"ta tutuyordu; düzelmiş yanlış artık tutmaz
+ * (`openMissesByTopic` yalnız çözülmemiş yanılgılardan gelir).
+ */
 function topicState(topic: TopicMasterySnapshot, openMisses: number): ReadinessTopicState {
   if (!topic.measured || topic.evidenceCount === 0) return "unmeasured";
-  const cleanAttempts =
-    (topic.independentTotal === 0 || topic.independentCorrect === topic.independentTotal) &&
-    (topic.firstAttemptTotal === 0 || topic.firstAttemptCorrect === topic.firstAttemptTotal);
-  if (topic.level === "solid" && openMisses === 0 && cleanAttempts) return "ready";
+  if (topic.level === "solid" && openMisses === 0) return "ready";
   return "needs_work";
 }
 
@@ -66,6 +69,8 @@ export function buildReadinessScreen(input: {
   plannedTopics: string[];
   mastery: TopicMasterySnapshot[];
   openMissesByTopic: { topic: string; count: number }[];
+  /** Bütün açık yanılgılar (liste en yeni 40'ı taşır); verilmezse listeden toplanır. */
+  openMisconceptionsTotal?: number;
   mockScorePct: number | null;
   targetScore: number | null;
   nodes: { kind: PlanNodeKind; status: NodeStatus }[];
@@ -104,7 +109,10 @@ export function buildReadinessScreen(input: {
   });
 
   const program = computeProgramProgress(input.nodes);
-  const openMisconceptions = input.openMissesByTopic.reduce((sum, row) => sum + row.count, 0);
+  const openMisconceptions = input.openMisconceptionsTotal ?? input.openMissesByTopic.reduce((sum, row) => sum + row.count, 0);
+  // Hedef girilmemişse karar %70'e göre verilir (computeExamReadiness); ekran da aynı sayıyı söyler
+  // (22 Ekim 2026 inceleme: deneme %65 iken "Hazırsın" kapalıydı ama neden görünmüyordu).
+  const target = input.targetScore == null ? DEFAULT_TARGET_SCORE : Math.round(input.targetScore);
   const verdict = computeExamReadiness({
     programPct: program.pct,
     topics: input.mastery,
@@ -149,13 +157,7 @@ export function buildReadinessScreen(input: {
   }
   if (!ready && input.mockScorePct == null && input.links.written) {
     actions.push({ label: "Yazılı denemeyi çöz", href: input.links.written });
-  } else if (
-    !ready &&
-    input.mockScorePct != null &&
-    input.targetScore != null &&
-    input.mockScorePct < input.targetScore &&
-    input.links.written
-  ) {
+  } else if (!ready && input.mockScorePct != null && input.mockScorePct < target && input.links.written) {
     actions.push({
       label: `Deneme hedefin altında (%${input.mockScorePct}). Bir tur daha çöz`,
       href: input.links.written,
@@ -171,12 +173,11 @@ export function buildReadinessScreen(input: {
     actions.push({ label: "Çalışma yoluna dön", href: input.links.home });
   }
 
-  const target = input.targetScore == null ? null : Math.round(input.targetScore);
   const mockLine =
     input.mockScorePct == null
       ? "Yazılı deneme henüz çözülmedi."
-      : target == null
-        ? `Yazılı deneme skoru %${input.mockScorePct}.`
+      : input.targetScore == null
+        ? `Yazılı deneme skoru %${input.mockScorePct}. Hedef %${target} (hedef puan girilmediği için varsayılan).`
         : `Yazılı deneme skoru %${input.mockScorePct}. Hedef %${target}.`;
 
   return { headline, ready, lead, topics, actions, mockLine };

@@ -35,7 +35,10 @@ import {
 } from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
 import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning/path-change";
-import { UNSCORED_NODE_KINDS } from "@/lib/learning/node-result";
+import { unscoredResult } from "@/lib/learning/node-result";
+import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
+import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { reviewScheduledLine } from "@/lib/learning/review-copy";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
@@ -123,6 +126,8 @@ type Payload = {
   // tarafından normalleştiriliyor, eski script biçimi de kabul ediliyor.
   chapters?: unknown[];
   length?: string;
+  /** Podcast'in dinleme kontrolü (20 Ekim 2026); yoksa podcast kontrolsüz biter. */
+  check?: PublicQuizQuestion[];
   questions?: {
     text?: string;
     prompt?: string;
@@ -322,6 +327,8 @@ export function ExamNodeSession({
   const [topicGain, setTopicGain] = useState<TopicGain | null>(null);
   /** Sonuca göre yol (20 Ekim 2026): araya giren odaklı pratik ya da kalkan ek testler. */
   const [pathChange, setPathChange] = useState<PathChange | null>(null);
+  /** Günü gelen tekrar (20 Ekim 2026): bu etkinlikten yarına yazılan yanlış sayısı. */
+  const [reviewScheduled, setReviewScheduled] = useState(0);
   const [gainOpen, setGainOpen] = useState(false);
   const [feedback, setFeedback] = useState<{
     headline: string;
@@ -332,12 +339,20 @@ export function ExamNodeSession({
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [tfRevealed, setTfRevealed] = useState(false);
   const [podcastLoading, setPodcastLoading] = useState(false);
+  /** Podcast bitti, dinleme kontrolü açık (aşama yine "play": süre sayılmaya devam eder). */
+  const [podcastCheckOpen, setPodcastCheckOpen] = useState(false);
   const [lessonPodcast, setLessonPodcast] = useState<{
     title: string;
     chapters: unknown[];
   } | null>(null);
-  /** Stage 6: which question indices showed a hint before submit. */
-  const hintsUsed: Record<string, boolean> = {};
+  /**
+   * Stage 6: cevaplanmadan önce eğitmenden yardım alınan sorular. 20 Ekim 2026'ya kadar her
+   * çizimde boş bir nesneydi ve hiç doldurulmuyordu: eğitmenle çözülen soru bağımsız doğru
+   * sayılıyordu. Yalnız bellekte; sayfa yenilenirse kaybolur (eski davranış).
+   */
+  const hintsUsedRef = useRef<Record<string, boolean>>({});
+  /** Testte "Kontrol et" ile kilitlenen sorular: sonrasındaki eğitmen açıklaması ipucu değil. */
+  const revealedRef = useRef<Set<string>>(new Set());
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
@@ -364,6 +379,12 @@ export function ExamNodeSession({
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
+
+  // Yeni deneme, yeni ipucu kaydı.
+  useEffect(() => {
+    hintsUsedRef.current = {};
+    revealedRef.current = new Set();
+  }, [attemptId]);
 
   useEffect(() => {
     if (!resumeEnabled) return;
@@ -753,7 +774,7 @@ export function ExamNodeSession({
             : undefined,
           answers: {
             ...base,
-            __meta: { hintsUsed },
+            __meta: { hintsUsed: hintsUsedRef.current },
           },
         }),
       });
@@ -783,6 +804,7 @@ export function ExamNodeSession({
       setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
       setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);
       setPathChange(parsePathChange(data.pathChange));
+      setReviewScheduled(Number(data.reviewScheduled) || 0);
       setGainOpen(false);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
@@ -961,9 +983,15 @@ export function ExamNodeSession({
               : null;
   const cinematicLesson =
     stage === "play" && payload.type === "lesson" && Boolean(structuredLesson);
+  const podcastCheck =
+    payload.type === "podcast" && Array.isArray(payload.check)
+      ? payload.check.filter((question) => typeof question?.text === "string" && Array.isArray(question.options))
+      : [];
+  // Dinleme kontrolü testteki gibi oturum çubuğuyla (tek çıkış ×) açılır; oynatıcı kendi çıkışını taşır.
   const cinematicPodcast =
     stage === "play" &&
     payload.type === "podcast" &&
+    !podcastCheckOpen &&
     normalizeChapters(chapters).length > 0;
   const cinematicLoading = stage === "setup" && loading && kind !== "readiness";
   const oralRows: OralTopicRow[] = oralTopics.length
@@ -1008,8 +1036,9 @@ export function ExamNodeSession({
   }, [cardsPlaying, cardIndex]);
 
   // Podcast puanlanmaz (19 Ekim 2026, canlı): soru yokken sonuç "Doğru cevaplar 1/1 · Doğruluk %100"
-  // diyordu. Sonuç sayfasındaki `UNSCORED_NODE_KINDS` kuralı oturum ekranında da geçerli.
-  const unscored = UNSCORED_NODE_KINDS.has(kind);
+  // diyordu. Dinleme kontrolü cevaplandıysa (20 Ekim 2026) "2/3" gösterilir; atlandıysa yine puansız.
+  // Sonuç sayfasıyla aynı kural (`unscoredResult`).
+  const unscored = unscoredResult(kind, score.total);
   const heroScore = payload.type === "cards" && cardSummary ? cardSummary.known : score.score;
   const heroTotal = payload.type === "cards" && cardSummary ? cardSummary.total : score.total;
   const showCoach =
@@ -1019,6 +1048,24 @@ export function ExamNodeSession({
     payload.type !== "voice" &&
     payload.type !== "podcast" &&
     !cinematicLesson;
+
+  /**
+   * Eğitmen cevap verdi: soru henüz kilitlenmediyse bu soru ipuçlu sayılır (20 Ekim 2026). Testte
+   * kilit "Kontrol et", doğru/yanlışta seçim; sözlüde cevap ilerleyince sonraki soruya geçilir.
+   * Cevaptan sonraki açıklama ipucu değil.
+   */
+  function markHint() {
+    if (payload.type !== "quiz" && payload.type !== "true_false" && payload.type !== "oral") return;
+    const key = String(index);
+    const locked =
+      payload.type === "quiz"
+        ? revealedRef.current.has(key)
+        : payload.type === "true_false"
+          ? answersRef.current[key] !== undefined
+          : false;
+    if (locked) return;
+    hintsUsedRef.current = { ...hintsUsedRef.current, [key]: true };
+  }
 
   return (
     <div className="cp-exam-page cp-exam-node">
@@ -1333,7 +1380,14 @@ export function ExamNodeSession({
         )
       ) : null}
 
-      {stage === "play" && payload.type === "podcast" ? (
+      {stage === "play" && payload.type === "podcast" && podcastCheckOpen && podcastCheck.length ? (
+        <PodcastListeningCheck
+          questions={podcastCheck}
+          busy={loading}
+          onDone={(checkAnswers) => void finish(checkAnswers)}
+          onSkip={() => void finish({})}
+        />
+      ) : stage === "play" && payload.type === "podcast" ? (
         <ExamPodcastPlayer
           title={payload.title ?? topicLabel ?? "Podcast"}
           chapters={chapters}
@@ -1350,7 +1404,8 @@ export function ExamNodeSession({
             if (spent > 0) router.refresh();
           }}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
-          onFinish={() => void finish()}
+          // Kontrol varsa önce üç soru (atlanabilir), sonra tamamlama (20 Ekim 2026).
+          onFinish={() => (podcastCheck.length ? setPodcastCheckOpen(true) : void finish())}
         />
       ) : null}
 
@@ -1383,6 +1438,7 @@ export function ExamNodeSession({
             index={index}
             value={answers[String(index)]}
             onChange={(value) => updateAnswer(String(index), value)}
+            onReveal={() => revealedRef.current.add(String(index))}
             onContinue={() => {
               if (index + 1 < questions.length) setIndex(index + 1);
               else void finish();
@@ -1745,7 +1801,11 @@ export function ExamNodeSession({
           ) : (
             <>
               <p className="cp-lesson-kicker">
-                {payload.type === "cards" && cardSummary ? "Bildiğin kartlar" : "Doğru cevaplar"}
+                {payload.type === "cards" && cardSummary
+                  ? "Bildiğin kartlar"
+                  : payload.type === "podcast"
+                    ? "Dinleme kontrolü"
+                    : "Doğru cevaplar"}
               </p>
               <p
                 className="cp-result-hero"
@@ -1845,10 +1905,11 @@ export function ExamNodeSession({
               setCardOffer(null);
               setCardRepeat(null);
               setCardSummary(null);
+              setPodcastCheckOpen(false);
               // Ders aynı haliyle yeniden açılır (anında, kredisiz); öbür etkinlikler yeniden kurulur.
               if (kind === "lesson") void start({ replay: true });
             }}>
-              {unscored ? "Yeniden dinle" : "Dersi tekrarla"}
+              {kind === "podcast" ? "Yeniden dinle" : "Dersi tekrarla"}
             </button>
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" onClick={() => {
@@ -1860,8 +1921,9 @@ export function ExamNodeSession({
                 Farklı anlat
               </button>
             ) : null}
-            {/* Podcast'te cevap yok: eğitmenin değerlendireceği bir şey de yok. */}
-            {unscored ? null : (
+            {/* Podcast'te eğitmen notu yok: geri bildirim yalnız test ve doğru/yanlış cevaplarını okuyor
+                (dinleme kontrolü cevaplansa da). */}
+            {unscored || kind === "podcast" ? null : (
               <button
                 type="button"
                 className="cp-exam-continue"
@@ -1939,6 +2001,11 @@ export function ExamNodeSession({
               {pathChangeLine(pathChange)}
             </p>
           ) : null}
+          {reviewScheduledLine(reviewScheduled, kind) ? (
+            <p className="cp-path-change" role="status">
+              {reviewScheduledLine(reviewScheduled, kind)}
+            </p>
+          ) : null}
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           {attemptId ? <LessonRatingCard attemptId={attemptId} /> : null}
           {/* Astra her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
@@ -1977,6 +2044,7 @@ export function ExamNodeSession({
           nodeId={nodeId}
           itemText={coachItem}
           returnPath={`/deneme-sinavlari/${prepId}`}
+          onUsed={markHint}
         />
       ) : null}
 

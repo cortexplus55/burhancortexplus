@@ -41,6 +41,9 @@ export default async function ExamQuestionReviewPage({
     .select("id, score, analysis")
     .eq("exam_id", examId)
     .eq("user_id", user.id)
+    // Yalnız notlanmış kayıt (22 Ekim 2026 inceleme): notlandıktan sonra kaydedilen taslak satırı en yeni
+    // kayıt oluyor, inceleme puansız açılıyordu.
+    .not("completed_at", "is", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

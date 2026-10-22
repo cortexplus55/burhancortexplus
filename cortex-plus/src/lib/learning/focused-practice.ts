@@ -61,15 +61,19 @@ export function collectWeakTopics(input: {
     out.push(display(text));
   };
 
+  // En zayıf önce (22 Ekim 2026 inceleme): liste veritabanı satır sırasıyla geliyordu, hazırlık geneli düğüm
+  // "en zayıf konu" değil "ilk zayıf satır"a yöneliyordu. Zayıf (weak) konular güvene göre, sonra başarısı
+  // düşük gelişmekte olan (emerging) konular başarı oranına göre; eşitlikte satır sırası.
+  const ranked: { key: string; rank: number }[] = [];
   for (const row of input.mastery) {
     if (!row.measured) continue;
-    const weakLevel = row.level === "weak";
-    const low =
-      row.level === "emerging" &&
-      (row.independentTotal ?? 0) > 0 &&
-      (row.independentCorrect ?? 0) / (row.independentTotal ?? 1) < 0.5;
-    if (weakLevel || low) push(row.topicKey);
+    const total = row.independentTotal ?? 0;
+    const rate = total > 0 ? (row.independentCorrect ?? 0) / total : 1;
+    if (row.level === "weak") ranked.push({ key: row.topicKey, rank: (row as { confidence?: number }).confidence ?? 0 });
+    else if (row.level === "emerging" && total > 0 && rate < 0.5) ranked.push({ key: row.topicKey, rank: 100 + rate * 100 });
   }
+  ranked.sort((a, b) => a.rank - b.rank);
+  for (const row of ranked) push(row.key);
   for (const row of input.misconceptions) {
     const kind = row.sourceKind ?? "";
     const type = row.wrongType ?? "";
@@ -92,24 +96,38 @@ export function rewordPracticeQuestion(
 ): QuizQuestion {
   const answerIndex = question.options.findIndex((option) => option === question.correct[0]);
   if (question.correct.length !== 1 || answerIndex < 0) return question;
+  const explanation = question.explanation?.trim() || question.options.join(". ");
   const next = reviewQuestionFor(
     {
       type: "mcq",
       prompt: question.text,
       options: question.options,
       answerIndex,
-      explanation: question.explanation?.trim() || question.options.join(". "),
+      explanation,
       review: question.review ?? null,
     },
     language,
   );
   const correct = next.options[next.answerIndex];
   if (!correct) return question;
+  // Yazarın tam tekrar öğesi kendi açıklamasını taşır; şık gerekçeleri yalnız aynı şıklar için yeniden
+  // eşlenir, yeni şıklarda düşer (20 Ekim 2026: gerekçe başka şıkkın altında kalıyordu).
+  const why = question.optionWhy?.length === question.options.length ? question.optionWhy : undefined;
+  const optionWhy = why
+    ? next.options.map((option) => {
+        const index = question.options.indexOf(option);
+        return index >= 0 ? why[index] : undefined;
+      })
+    : undefined;
+  const { optionWhy: _optionWhy, ...rest } = question;
+  void _optionWhy;
   return {
-    ...question,
+    ...rest,
     text: next.prompt,
     options: next.options,
     correct: [correct],
+    ...(next.explanation !== explanation ? { explanation: next.explanation } : {}),
+    ...(optionWhy?.every((item): item is string => typeof item === "string") ? { optionWhy } : {}),
   };
 }
 

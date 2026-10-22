@@ -41,6 +41,9 @@ export function prepStars(kind: string, score: number | null | undefined, total:
   const count = Math.max(0, Math.floor(Number(total ?? 0)));
   if (EXAM_KINDS.has(kind)) return Math.min(210, 30 + 4 * correct);
   if (QUIZ_KINDS.has(kind)) return Math.min(40, 10 + 2 * correct);
+  // Podcast sabit 20 (20 Ekim 2026, ürün sahibinin kararı): dinleme kontrolünü atlayan (1/1) cevaplayandan
+  // (2/3 → 17) fazla kazanmasın; kontrol yıldızı değiştirmez.
+  if (kind === "podcast") return 20;
   const ratio = count > 0 ? Math.min(1, correct / count) : 0;
   return 10 + Math.round(10 * ratio);
 }

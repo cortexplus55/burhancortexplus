@@ -15,6 +15,7 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { prepLanguage, type StoredReview } from "@/lib/learning/teacher-brain";
+import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
 
 export type LocalSessionPlan =
   | { action: "serve"; payload: Record<string, unknown> }
@@ -33,6 +34,49 @@ export function lockedToolPayload(kind: "gaps" | "spaced"): LocalSessionPlan {
       topics: [],
     },
   };
+}
+
+/**
+ * Yolda sırası gelen "Bilgi boşlukları" kapatılacak boşluk yokken (20 Ekim 2026). Kilitli cevapta
+ * "Bu adımı tamamla" yok; yol bu adımda duruyordu. Bu cevap kayıt açar, adım tamamlanır.
+ */
+export const GAPS_NOTHING_OPEN_COPY =
+  "Açık yanlışın ya da zayıf konun yok; kapatılacak boşluk bulunmadı. Bu adımı tamamlayıp yola devam edebilirsin.";
+
+export function gapsNothingOpenPayload(): LocalSessionPlan {
+  return {
+    action: "serve",
+    payload: {
+      type: "practice_empty",
+      practice: "gaps",
+      reason: "no_weak_topics",
+      message: GAPS_NOTHING_OPEN_COPY,
+      topics: [],
+    },
+  };
+}
+
+/**
+ * Düğüm yolda öğrencinin sırası mı: açık ve önünde bitmemiş adım yok. "Başka birini seç" ile
+ * öne alınan adımın önünde bitmemiş adım vardır; o kilit cevabını görmeye devam eder. Okuma
+ * düşerse sırası sayılır — yolu durdurmak boş bir adımdan kötü.
+ */
+export async function isPathTurn(
+  service: SupabaseClient,
+  prepId: string,
+  node: { status?: unknown; sort_order?: unknown },
+): Promise<boolean> {
+  if (node.status !== "ready") return false;
+  const sortOrder = typeof node.sort_order === "number" ? node.sort_order : null;
+  if (sortOrder == null) return true;
+  const { count, error } = await service
+    .from("exam_prep_nodes")
+    .select("id", { count: "exact", head: true })
+    .eq("exam_prep_id", prepId)
+    .neq("status", "done")
+    .lt("sort_order", sortOrder);
+  if (error) return true;
+  return (count ?? 0) === 0;
 }
 
 /** Tekrar: hazırlıkta bitmiş bir adım yoksa kilitli. */
@@ -106,6 +150,94 @@ function quizQuestions(payload: unknown): (QuizQuestion & { review?: StoredRevie
   return out;
 }
 
+/**
+ * Yalnız çözülmemiş yanılgılar (20 Ekim 2026): çözülen yanılgı zayıf konu, hazırlık ekranında
+ * "açık yanlış" ve odaklı pratiğin tekrar sorusu olmaz. Sütun yoksa hepsi açık sayılır.
+ */
+function openMisconceptionRows(service: SupabaseClient, input: { userId: string; prepId: string }) {
+  return withOpenMisconceptions((onlyOpen) => {
+    const query = service
+      .from("exam_prep_misconceptions")
+      .select("topic_label, wrong_type, source_kind, question_preview")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.prepId);
+    return (onlyOpen ? query.is("resolved_at", null) : query)
+      .order("created_at", { ascending: false })
+      .limit(40);
+  });
+}
+
+function masterySnapshots(rows: Record<string, unknown>[] | null): TopicMasterySnapshot[] {
+  return (rows ?? []).map((row) => ({
+    topicKey: String(row.topic_key ?? ""),
+    measured: Number(row.evidence_count ?? 0) > 0,
+    level: (row.measured_level as TopicMasterySnapshot["level"]) ?? "unmeasured",
+    confidence: Number(row.confidence ?? 0),
+    evidenceCount: Number(row.evidence_count ?? 0),
+    firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
+    firstAttemptTotal: Number(row.first_attempt_total ?? 0),
+    independentCorrect: Number(row.independent_correct ?? 0),
+    independentTotal: Number(row.independent_total ?? 0),
+    lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
+  }));
+}
+
+const MASTERY_COLUMNS =
+  "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at";
+
+export type PrepTopicRow = {
+  id: string;
+  label: string;
+  document_topic_node_id: string | null;
+  source_refs: unknown;
+  measured_level: string | null;
+};
+
+/**
+ * Hazırlık geneli düğümün hedef konusu için hafif okuma (20 Ekim 2026): konular, hâkimiyet ve açık
+ * yanılgılardan zayıf konu listesi. Testlerin son 40 kaydını okumaz (yerel oturumun işi).
+ */
+export async function weakTopicsForPrep(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string },
+): Promise<{ topics: PrepTopicRow[]; mastery: TopicMasterySnapshot[]; weakTopics: string[] }> {
+  const [topicsRes, masteryRes, missRes] = await Promise.all([
+    service
+      .from("exam_prep_topics")
+      .select("id, label, document_topic_node_id, source_refs, measured_level")
+      .eq("exam_prep_id", input.prepId)
+      .order("sort_order"),
+    service
+      .from("exam_prep_topic_mastery")
+      .select(MASTERY_COLUMNS)
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.prepId),
+    openMisconceptionRows(service, input),
+  ]);
+  const topics: PrepTopicRow[] = (topicsRes.data ?? [])
+    .map((row) => ({
+      id: String(row.id),
+      label: String(row.label ?? "").trim(),
+      document_topic_node_id: typeof row.document_topic_node_id === "string" ? row.document_topic_node_id : null,
+      source_refs: row.source_refs ?? null,
+      measured_level: typeof row.measured_level === "string" ? row.measured_level : null,
+    }))
+    .filter((row) => row.label);
+  const mastery = masterySnapshots(masteryRes.data as Record<string, unknown>[] | null);
+  const weakTopics = collectWeakTopics({
+    mastery,
+    misconceptions: (missRes.data ?? []).map((row) => ({
+      topicLabel: (row.topic_label as string | null) ?? null,
+      wrongType: (row.wrong_type as string | null) ?? null,
+      sourceKind: (row.source_kind as string | null) ?? null,
+      questionPreview: (row.question_preview as string | null) ?? null,
+    })),
+    missedTopics: [],
+    plannedTopics: topics.map((row) => row.label),
+  });
+  return { topics, mastery, weakTopics };
+}
+
 export async function buildLocalSessionPayload(
   service: SupabaseClient,
   input: {
@@ -131,13 +263,7 @@ export async function buildLocalSessionPayload(
       )
       .eq("user_id", input.userId)
       .eq("exam_prep_id", input.prepId),
-    service
-      .from("exam_prep_misconceptions")
-      .select("topic_label, wrong_type, source_kind, question_preview")
-      .eq("user_id", input.userId)
-      .eq("exam_prep_id", input.prepId)
-      .order("created_at", { ascending: false })
-      .limit(40),
+    openMisconceptionRows(service, input),
     service
       .from("exam_prep_nodes")
       .select("id, kind, status, session_meta")
@@ -159,6 +285,11 @@ export async function buildLocalSessionPayload(
       .limit(20),
   ]);
 
+  // Okuma düşerse (22 Ekim 2026 inceleme) "boşluk yok" / "açık yanlış yok" sanılmaz: istek düşer, ekran bir kez
+  // kendiliğinden yeniden dener. Odaklı pratik ve son kontrol yine de kurulur (eksik konuyla).
+  if ((input.kind === "gaps" || input.kind === "readiness") && (topicsRes.error || masteryRes.error || missRes.error)) {
+    throw new Error("tracking_read_failed");
+  }
   const topicLabels = (topicsRes.data ?? [])
     .map((row) => String(row.label ?? "").trim())
     .filter(Boolean);
@@ -198,7 +329,25 @@ export async function buildLocalSessionPayload(
 
   const missedQuestions: QuizQuestion[] = [];
   const missedTopics: string[] = [];
+  // Deneme puanı bitmiş "Yazılı deneme" düğümünün son kaydından, 40'lık pencereden değil (22 Ekim 2026
+  // inceleme): "Hazırsın" artık denemeyi zorunlu sayıyor; erken çözülen deneme 40 etkinlikten sonra
+  // pencereden düşünce ekran "Yazılı denemeyi çöz" diyordu, /degerlendirme ise "çözüldü". Aynı okuma
+  // `learning-tracking-persist.ts` ve değerlendirme sayfasında. Pencere yalnız kaçırılan sorular için.
   let mockScorePct: number | null = null;
+  const mockNode = nodes.find((node) => node.kind === "written_exam" && node.status === "done");
+  if (mockNode) {
+    const { data: mockAttempt } = await service
+      .from("exam_prep_node_attempts")
+      .select("score, total")
+      .eq("node_id", mockNode.id)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (mockAttempt?.total) {
+      mockScorePct = Math.round((Number(mockAttempt.score ?? 0) / Number(mockAttempt.total)) * 100);
+    }
+  }
   for (const attempt of attemptsRes.data ?? []) {
     const node = nodeById.get(String(attempt.node_id));
     const topic = node?.topic || input.prepTitle;
@@ -230,10 +379,15 @@ export async function buildLocalSessionPayload(
       if (!label) continue;
       missesByTopic.set(label, (missesByTopic.get(label) ?? 0) + 1);
     }
+    // Toplam bütün açık satırlardan (`openMisconceptionRows` en yeni 40'ı listeler; /degerlendirme ile aynı
+    // sayı); okunamazsa istek düşer.
+    const openTotal = await countOpenMisconceptions(service, { userId: input.userId, prepId: input.prepId });
+    if (openTotal == null) throw new Error("tracking_read_failed");
     const screen = buildReadinessScreen({
       plannedTopics: topicLabels,
       mastery,
       openMissesByTopic: [...missesByTopic.entries()].map(([topic, count]) => ({ topic, count })),
+      openMisconceptionsTotal: openTotal,
       mockScorePct,
       targetScore: input.targetScore,
       nodes,

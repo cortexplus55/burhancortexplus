@@ -192,6 +192,13 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(lib.prefetchVariant("oral", { topicLabel: "akut gastroenterit" })).toBe(oralDefault);
     expect(lib.prefetchVariant("oral", { ...base, oralQuestionCount: 5 })).not.toBe(oralDefault);
     expect(lib.prefetchVariant("oral", { ...base, mood: "stressed", difficulty: "ileri" })).not.toBe(oralDefault);
+    // 20 Ekim 2026: son kartlar zayıf konuya yönelir; başka konunun hazır destesi verilmez.
+    expect(lib.prefetchVariant("flashcards", { topicLabel: "Basınç" })).not.toBe(
+      lib.prefetchVariant("flashcards", { topicLabel: "Sıcaklık" }),
+    );
+    expect(lib.prefetchVariant("flashcards", { topicLabel: "Basınç" })).toBe(
+      lib.prefetchVariant("flashcards", { topicLabel: " basınç ", difficulty: "orta" }),
+    );
   });
 
   it("hazırlık sayfası açılınca ve hazırlık kurulunca 'Sıradaki' yazılır; her açılış sıradakini tetikler", () => {

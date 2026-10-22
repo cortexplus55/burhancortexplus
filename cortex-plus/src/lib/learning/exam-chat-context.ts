@@ -11,6 +11,7 @@ import {
 } from "@/lib/learning/teacher-brain";
 import type { ExamChatPrompt } from "@/lib/learning/exam-chat-chrome";
 import { daysUntilDate } from "@/lib/learning/exam-countdown";
+import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
 
 /**
  * Sohbetin hangi sınava çalıştığını bilmesi.
@@ -104,13 +105,17 @@ async function loadChatPersonalization(
         .is("mastered_at", null)
         .order("wrong_count", { ascending: false })
         .limit(5),
-      service
-        .from("exam_prep_misconceptions")
-        .select("id, topic_label, claim, created_at")
-        .eq("user_id", userId)
-        .eq("exam_prep_id", prepId)
-        .order("created_at", { ascending: false })
-        .limit(5),
+      // Yalnız açık yanılgılar (20 Ekim 2026); sütun yoksa hepsi.
+      withOpenMisconceptions((onlyOpen) => {
+        const query = service
+          .from("exam_prep_misconceptions")
+          .select("id, topic_label, claim, created_at")
+          .eq("user_id", userId)
+          .eq("exam_prep_id", prepId);
+        return (onlyOpen ? query.is("resolved_at", null) : query)
+          .order("created_at", { ascending: false })
+          .limit(5);
+      }),
       service
         .from("weak_topics")
         .select("id, topic_label, created_at")

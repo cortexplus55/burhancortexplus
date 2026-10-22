@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { moreUrgent, pickReminder, type Reminder } from "@/lib/learning/study-reminder";
 import { sendEmail } from "@/lib/email/mailer";
+import { isFeatureEnabled, SPACED_REVIEW_FLAG } from "@/lib/admin/feature-flags";
+import { istanbulDay } from "@/lib/istanbul-day";
+import { examPrepDueReviewHref } from "@/lib/learning/exam-prep-hrefs";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +45,8 @@ export async function GET(request: Request) {
   const yesterday = isoDay(new Date(now.getTime() - 24 * 60 * 60 * 1000));
 
   // Sınavı geçmemiş hazırlıklar. Bitmiş yolu olan öğrenciye hatırlatma
-  // gitmiyor; bunu düğüm durumlarından anlıyoruz.
+  // gitmiyor; bunu düğüm durumlarından anlıyoruz. İstisna (20 Ekim 2026):
+  // günü gelen tekrarı olan hazırlık, yolu bitmiş olsa da hatırlatılır.
   const { data: preps } = await service
     .from("exam_preps")
     .select("id, user_id, title, exam_date")
@@ -54,16 +58,16 @@ export async function GET(request: Request) {
   }
 
   const userIds = [...new Set(preps.map((prep) => prep.user_id as string))];
+  const prepIds = preps.map((prep) => prep.id as string);
+  // Günü gelen tekrar (20 Ekim 2026): yeni cron yok (Hobby: en çok 2); aynı günlük bildirimin içinde.
+  const spacedReview = await isFeatureEnabled(service, SPACED_REVIEW_FLAG).catch(() => false);
 
-  const [{ data: nodes }, { data: attempts }, { data: streaks }, { data: sentToday }] =
+  const [{ data: nodes }, { data: attempts }, { data: streaks }, { data: sentToday }, { data: dueRows }] =
     await Promise.all([
       service
         .from("exam_prep_nodes")
         .select("exam_prep_id, status")
-        .in(
-          "exam_prep_id",
-          preps.map((prep) => prep.id as string),
-        ),
+        .in("exam_prep_id", prepIds),
       service
         .from("exam_prep_node_attempts")
         .select("user_id, updated_at")
@@ -79,7 +83,22 @@ export async function GET(request: Request) {
         .select("user_id, created_at")
         .in("user_id", userIds)
         .gte("created_at", `${today}T00:00:00Z`),
+      // Tablo yoksa sorgu hata verir: liste boş, hatırlatma eski kuralla.
+      spacedReview
+        ? service
+            .from("exam_prep_review_items")
+            .select("exam_prep_id")
+            .in("exam_prep_id", prepIds)
+            .eq("status", "active")
+            .lte("due_on", istanbulDay(now))
+            .limit(20000)
+        : Promise.resolve({ data: [] as { exam_prep_id: string }[] }),
     ]);
+
+  const dueByPrep = new Map<string, number>();
+  for (const row of (dueRows ?? []) as { exam_prep_id: string }[]) {
+    dueByPrep.set(row.exam_prep_id, (dueByPrep.get(row.exam_prep_id) ?? 0) + 1);
+  }
 
   const unfinishedByPrep = new Set(
     (nodes ?? [])
@@ -108,12 +127,16 @@ export async function GET(request: Request) {
   // "kaldığın yer seni bekliyor" mesajı alabiliyordu.
   const best = new Map<
     string,
-    { reminder: Reminder; daysUntilExam: number | null; prepTitle: string }
+    { reminder: Reminder; daysUntilExam: number | null; prepTitle: string; link: string }
   >();
 
   for (const prep of preps) {
     const userId = prep.user_id as string;
-    if (!unfinishedByPrep.has(prep.id as string)) continue;
+    const prepId = prep.id as string;
+    const unfinished = unfinishedByPrep.has(prepId);
+    const dueReviews = dueByPrep.get(prepId) ?? 0;
+    // Yolu bitmiş hazırlıkta da tekrar günü gelmişse hatırlatılır.
+    if (!unfinished && !dueReviews) continue;
 
     const last = lastActivity.get(userId);
     const hoursSinceActivity = last
@@ -131,13 +154,14 @@ export async function GET(request: Request) {
 
     const streak = streakByUser.get(userId);
     const reminder = pickReminder({
-      hasUnfinishedPath: true,
+      hasUnfinishedPath: unfinished,
       hoursSinceActivity,
       daysUntilExam,
       streakDays: (streak?.current_streak as number | null) ?? 0,
       streakBreaksToday:
         (streak?.last_activity_date as string | null) === yesterday,
       alreadyNotifiedToday: notifiedToday.has(userId),
+      dueReviews,
     });
     if (!reminder) continue;
 
@@ -145,6 +169,11 @@ export async function GET(request: Request) {
       reminder,
       daysUntilExam,
       prepTitle: (prep.title as string | null) ?? "Sınav hazırlığın",
+      // Tekrar hatırlatması (ya da yolu bitmiş hazırlıkta tekrarlı sınav uyarısı) doğrudan tekrara açar.
+      link:
+        reminder.kind === "review" || (dueReviews > 0 && !unfinished)
+          ? `${APP_URL}${examPrepDueReviewHref(prepId)}`
+          : `${APP_URL}/deneme-sinavlari`,
     };
     const current = best.get(userId);
     if (!current || moreUrgent(candidate, current) < 0) {
@@ -179,6 +208,7 @@ export async function GET(request: Request) {
   for (const profile of optedIn ?? []) {
     const row = rows.find((r) => r.user_id === profile.id);
     if (!row) continue;
+    const link = best.get(row.user_id)?.link ?? `${APP_URL}/deneme-sinavlari`;
     const { data: account } = await service.auth.admin.getUserById(
       profile.id as string,
     );
@@ -189,12 +219,12 @@ export async function GET(request: Request) {
       subject: row.title,
       text: `${row.body}
 
-Yoluna dön: ${APP_URL}/deneme-sinavlari
+Yoluna dön: ${link}
 
 Bu hatırlatmayı ayarlardan kapatabilirsin.`,
       html:
         `<p>${row.body}</p>` +
-        `<p><a href="${APP_URL}/deneme-sinavlari">Yoluna dön</a></p>` +
+        `<p><a href="${link}">Yoluna dön</a></p>` +
         `<p style="color:#666;font-size:12px">Bu hatırlatmayı ayarlardan kapatabilirsin.</p>`,
     });
     if (result.ok) mailed += 1;

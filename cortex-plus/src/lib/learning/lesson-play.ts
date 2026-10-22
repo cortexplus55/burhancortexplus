@@ -265,14 +265,31 @@ export function resolveCheckForGrade(
 ): SectionCheck {
   if (variant !== "retry") return primary;
   const retry = buildLessonRetryCheck(primary, language, source);
+  // Şık gerekçesi yalnız kendi şıkkının altında (20 Ekim 2026): tekrar yeni şıklar ya da başka sıra taşıyorsa
+  // ana sorunun gerekçeleri başka şıkları anlatıyordu. Tekrar kendi dizisini taşır (kaydırılmış, yeniden
+  // eşlenmiş) ya da hiç taşımaz; o zaman ekran açıklamaya düşer.
+  const count = retry.options?.length ?? 0;
+  const aligned = count > 0 && retry.optionWhy?.length === count;
+  const sameShape =
+    retry.prompt === primary.prompt &&
+    count === (primary.options?.length ?? 0) &&
+    (retry.options ?? []).every((option, index) => option === primary.options?.[index]);
+  // Yazarın tam öğesi yeni şıklarla geldiyse (22 Ekim 2026 inceleme) ana sorunun whyRight / whyWrong / hint /
+  // misconception metinleri ona ait değil: ana sorunun olası yanlış şıkkı için yazılmışlardı ve ekran tekrarın
+  // kendi açıklaması yerine onları gösteriyordu. Şık kümesi aynıysa (aynı sıra ya da kaydırılmış) aynı olgu:
+  // ana sorunun metinleri geçerli kalır.
+  const fold = (option: string) => option.trim().toLocaleLowerCase("tr");
+  const primarySet = new Set((primary.options ?? []).map(fold));
+  const sameOptionSet = count === primarySet.size && (retry.options ?? []).every((option) => primarySet.has(fold(option)));
+  const inherit = (own: string | undefined, fallback: string | undefined) => (sameOptionSet ? own?.trim() || fallback : undefined);
   return {
     ...retry,
     explanation: retry.explanation?.trim() || primary.explanation,
-    optionWhy: retry.optionWhy?.length ? retry.optionWhy : primary.optionWhy,
-    whyRight: retry.whyRight?.trim() || primary.whyRight,
-    whyWrong: retry.whyWrong?.trim() || primary.whyWrong,
-    misconception: retry.misconception?.trim() || primary.misconception,
-    hint: retry.hint?.trim() || primary.hint,
+    optionWhy: aligned ? retry.optionWhy : sameShape ? primary.optionWhy : undefined,
+    whyRight: inherit(retry.whyRight, primary.whyRight),
+    whyWrong: inherit(retry.whyWrong, primary.whyWrong),
+    misconception: inherit(retry.misconception, primary.misconception),
+    hint: inherit(retry.hint, primary.hint),
   };
 }
 

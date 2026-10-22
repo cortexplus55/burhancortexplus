@@ -34,6 +34,10 @@ describe("yıldız kuralları", () => {
     expect(prepStars("quiz", 40, 40)).toBe(40);
     expect(prepStars("written_exam", 0, 20)).toBe(30);
     expect(prepStars("written_exam", 60, 60)).toBe(210);
+    // Podcast sabit 20 (20 Ekim 2026): dinleme kontrolünü atlamak (1/1) cevaplamaktan (0/3, 2/3) fazla kazandırmaz.
+    expect(prepStars("podcast", 1, 1)).toBe(20);
+    expect(prepStars("podcast", 0, 3)).toBe(20);
+    expect(prepStars("podcast", 2, 3)).toBe(20);
     expect(duelStars(0)).toBe(30);
     expect(duelStars(7)).toBe(100);
     expect(duelStars(20)).toBe(130);

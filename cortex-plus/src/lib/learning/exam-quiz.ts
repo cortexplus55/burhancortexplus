@@ -23,6 +23,11 @@ export type QuizQuestion = {
   steps?: string[];
   /** Hazırlıktaki konu adı. Bilinmeyen ad sınav sonunda gösterilmez. */
   topic?: string;
+  /**
+   * Konu testinde sorunun yokladığı "Sınavda sorulur" maddesi (numarası) ya da kaynak bölümü
+   * (20 Ekim 2026). Kapsam denetimi okur; öğrenciye gitmez (`publicQuizQuestion` almaz).
+   */
+  point?: string;
   /** İkinci çözücü bunu görür. Öğrenciye gitmez. */
   needsSolver?: boolean;
 };
@@ -111,6 +116,7 @@ export function normalizeQuizQuestion(raw: {
   optionWhy?: string[];
   steps?: string[];
   topic?: string;
+  point?: string;
 }): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
   const corrects = resolveCorrects(options, raw.correct);
@@ -137,6 +143,7 @@ export function normalizeQuizQuestion(raw: {
       : undefined,
     steps: normalizeSteps(raw.steps),
     topic: raw.topic?.trim() || undefined,
+    point: raw.point?.trim().slice(0, 80) || undefined,
   };
 }
 

@@ -339,13 +339,12 @@ describe("akış notu ve tekrar sorusu", () => {
         },
       }),
     ).toBeNull();
+    // 20 Ekim 2026: yalnız kök tekrar reddedilir — ana sorunun anahtarını alıyordu, anahtarı denetlenemiyor.
     const promptOnly = acceptReviewVariant({
       ...check,
       review: { prompt: "Boşluk basıncı düşünce kalan büyüklük hangisidir?" },
     });
-    expect(promptOnly?.prompt).toBe("Boşluk basıncı düşünce kalan büyüklük hangisidir?");
-    expect(promptOnly?.options[promptOnly.answerIndex]).toBe("σ − u");
-    expect(promptOnly?.options).not.toEqual(check.options);
+    expect(promptOnly).toBeNull();
     expect(acceptReviewVariant({ ...check, review: "kopya" as never })).toBeNull();
   });
 });

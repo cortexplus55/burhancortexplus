@@ -78,7 +78,9 @@ export const PLAN_NODE_META: Record<
     voice: true,
   },
   spaced: {
-    title: "Aralıklı tekrar",
+    // 20 Ekim 2026: bu adım bir kart destesi; günü gelen (1-3-7-14 gün) tekrar ayrı bir özellik.
+    // "Aralıklı tekrar" adı onu vaat ediyordu (ürün sahibinin kararı). Tür adı `spaced` aynı kalır.
+    title: "Kartlarla tekrar",
     blurb: "Öğrendiklerini tekrar et.",
     setupLabel: "Tekrar",
     voice: false,

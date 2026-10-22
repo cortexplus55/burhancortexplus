@@ -10,6 +10,8 @@ import {
 } from "@/lib/learning/exam-quiz";
 import type { PlanNodeKind, NodeStatus } from "@/lib/learning/exam-prep-plan";
 import { nodeProgress } from "@/lib/learning/exam-prep-plan";
+import { podcastCheckAnswered, podcastCheckOf } from "@/lib/learning/podcast-check";
+import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
 
 export type AnswerEvidenceDraft = {
   topicKey: string;
@@ -102,7 +104,10 @@ export function extractAnswerEvidence(input: {
   hintsUsed?: Record<string, boolean>;
 }): AnswerEvidenceDraft[] {
   const data = (input.payload ?? {}) as Record<string, unknown>;
-  const topicKey = normalizeTopicKey(input.topicLabel);
+  // Hazırlık geneli düğüm zayıf konuya yönelince (20 Ekim 2026) içerik o konunun adını taşır;
+  // kanıt düğümün devraldığı konuya değil sorulan konuya yazılır (yanılgı satırıyla aynı kural).
+  const stamped = typeof data.testedTopic === "string" ? data.testedTopic.trim() : "";
+  const topicKey = normalizeTopicKey(stamped || input.topicLabel);
   const hints = input.hintsUsed ?? parseHintsUsed(input.answers);
   const out: AnswerEvidenceDraft[] = [];
 
@@ -120,7 +125,7 @@ export function extractAnswerEvidence(input: {
       const hintAssisted = Boolean(hints[String(index)]);
       const questionTopic = (question as { topic?: string }).topic;
       out.push({
-        topicKey: normalizeTopicKey(questionTopic || input.topicLabel),
+        topicKey: normalizeTopicKey(questionTopic || stamped || input.topicLabel),
         learningObjective:
           question.learningObjective?.trim() ||
           input.sessionObjective?.trim() ||
@@ -209,7 +214,57 @@ export function extractAnswerEvidence(input: {
     });
   }
 
-  // Flashcards / podcast / lesson: no mastery evidence rows.
+  // Podcast'in dinleme kontrolü (20 Ekim 2026, ürün sahibinin kararı: kanıt sayılır). Yalnız
+  // cevaplandıysa; "Şimdi değil" boş cevapla biter ve kanıt yazmaz.
+  // Önbellekten gelen podcast ("Yeniden dinle") aynı üç soruyu yeniden sorar; ikinci kez kanıt olmaz
+  // (20 Ekim inceleme: hâkimiyet her dinleyişte şişiyordu).
+  // 22 Ekim 2026 inceleme: önbellekten gelen podcast (hazırlığın podcast sayfası ya da önceden yazım doldurmuş)
+  // ilk dinleyişte de `reused` taşıyor; kontrolün İLK cevabı kanıttır. Yalnız aynı düğümün ikinci dinleyişi yazmaz.
+  if (data.type === "podcast" && (data.reused !== true || input.isFirstAttempt)) {
+    const check = podcastCheckOf(data);
+    if (podcastCheckAnswered(check, input.answers)) {
+      check.forEach((question, index) => {
+        const correct = sameOptionSet(selectedOptions(input.answers[String(index)]), question.correct);
+        const hintAssisted = Boolean(hints[String(index)]);
+        out.push({
+          topicKey,
+          learningObjective: question.learningObjective?.trim() || input.sessionObjective?.trim() || null,
+          questionIndex: index,
+          correct,
+          isFirstAttempt: input.isFirstAttempt,
+          hintAssisted,
+          independentSuccess: correct && !hintAssisted,
+          wrongType: correct ? null : question.misconceptionTag?.trim() || "podcast_check_miss",
+          sourceKind: "podcast",
+          questionPreview: question.text.slice(0, 160),
+        });
+      });
+    }
+  }
+
+  // Yazılı deneme (20 Ekim 2026): notlanan her soru kendi konusuna kanıt. Konu adı denemenin soru
+  // satırında (`practice_exam_questions.topic_label` = `exam_prep_topics.label`). Kısmi ve boş
+  // cevap doğru sayılmaz; kısmi puan yalnız deneme puanında kalır. Sınavda yardım yok.
+  if (data.type === "mock_exam") {
+    const items = (data.items as { topic?: string; correct?: boolean; verdict?: string }[] | undefined) ?? [];
+    items.forEach((item, index) => {
+      const correct = item.correct === true;
+      out.push({
+        topicKey: normalizeTopicKey(item.topic || input.topicLabel),
+        learningObjective: null,
+        questionIndex: index,
+        correct,
+        isFirstAttempt: input.isFirstAttempt,
+        hintAssisted: false,
+        independentSuccess: correct,
+        wrongType: correct ? null : item.verdict === "bos" ? "mock_blank" : "mock_miss",
+        sourceKind: "written_exam",
+        questionPreview: null,
+      });
+    });
+  }
+
+  // Kartlar, ders ve kontrolsüz podcast: kanıt yok.
   return out.slice(0, 40);
 }
 
@@ -279,9 +334,12 @@ export function foldTopicMastery(
     cur.evidenceCount += 1;
     cur.lastPracticedAt = nowIso;
 
+    // İpucuyla verilen cevap ilk denemede "bildi" sayılmaz (22 Ekim 2026 inceleme): bütün soruları eğitmen
+    // yardımıyla doğru cevaplayan öğrencinin bağımsız kanıtı yoktu, puan ilk deneme oranına düşüyor ve konu
+    // "sağlam" çıkıyordu. Soru ilk denemenin toplamında kalır (soruldu), doğrusuna girmez.
     if (row.isFirstAttempt) {
       cur.firstAttemptTotal += 1;
-      if (row.correct) cur.firstAttemptCorrect += 1;
+      if (row.correct && !row.hintAssisted) cur.firstAttemptCorrect += 1;
     }
     // Independent successes are counted against all graded items that were not hint-assisted.
     if (!row.hintAssisted) {
@@ -337,8 +395,19 @@ export function computeProgramProgress(
 
 /**
  * Exam readiness estimate — never equals program completion alone.
- * Completing everything with wrong answers cannot yield 100 / "fully ready".
+ *
+ * "Hazırsın" (20 Ekim 2026, ürün sahibinin kararı): her planlı konu ölçülmüş ve sağlam (%85+,
+ * en az 3 öğe), açık (çözülmemiş) yanılgı yok, yazılı deneme hedef puanda ya da üstünde, kapsam
+ * %100. Önceden bütün geçmişte tek bir yanlış bile "Hazırsın"ı kapatıyordu (`!anyWrong`,
+ * `measuredSuccessPct >= 100`): hâkimiyet birikimli ve azalmıyor, yani bir kez yanılan öğrenci
+ * yanılgısını düzeltse de hiç hazır olamıyordu. Düzelmiş hata artık kapatmaz; açık hata kapatır.
+ *
+ * Yüzde dürüst kalır: tavanlar yerinde, "Hazırsın" %88'de de görünebilir; iddia yoksa en çok 99.
+ * Bütün etkinlikleri yanlışlarla bitirmek yine 100 / "hazır" vermez.
  */
+/** Hedef puan girilmemişse deneme bu hedefe göre ölçülür; ekran da aynı sayıyı söyler. */
+export const DEFAULT_TARGET_SCORE = 70;
+
 export function computeExamReadiness(input: {
   programPct: number;
   topics: TopicMasterySnapshot[];
@@ -347,6 +416,8 @@ export function computeExamReadiness(input: {
   mockScorePct?: number | null;
   targetScore?: number | null;
   openMisconceptions?: number;
+  /** Açık yanılgı sayısı okunamadıysa false: sayı 0 sanılmaz, "Hazırsın" kapalı kalır. */
+  openMisconceptionsKnown?: boolean;
 }): LearningIndicators["examReadiness"] {
   const planned = (input.plannedTopicKeys ?? []).map(normalizeTopicKey);
   const byKey = new Map(input.topics.map((t) => [normalizeTopicKey(t.topicKey), t]));
@@ -359,13 +430,16 @@ export function computeExamReadiness(input: {
   let unmeasured = 0;
   let successSum = 0;
   let successN = 0;
-  let anyWrong = false;
   let evidenceItems = 0;
+  // "Hazırsın" için her planlı konu sağlam olmalı; plan yoksa ölçülen her konu.
+  const claimKeys = planned.length ? new Set(planned) : new Set(byKey.keys());
+  let allClaimTopicsSolid = claimKeys.size > 0;
 
   for (const key of keys.length ? keys : ["genel"]) {
     const t = byKey.get(key);
     if (!t || !t.measured || t.evidenceCount === 0) {
       unmeasured += 1;
+      if (claimKeys.has(key)) allClaimTopicsSolid = false;
       continue;
     }
     measured += 1;
@@ -378,12 +452,7 @@ export function computeExamReadiness(input: {
           : 0;
     successSum += rate;
     successN += 1;
-    if (
-      (t.independentTotal > 0 && t.independentCorrect < t.independentTotal) ||
-      (t.firstAttemptTotal > 0 && t.firstAttemptCorrect < t.firstAttemptTotal)
-    ) {
-      anyWrong = true;
-    }
+    if (claimKeys.has(key) && scoreTopicMastery(t).level !== "solid") allClaimTopicsSolid = false;
   }
 
   void unmeasured;
@@ -396,6 +465,7 @@ export function computeExamReadiness(input: {
       ? null
       : Math.max(0, Math.min(100, Math.round(input.mockScorePct)));
   const openMisconceptions = Math.max(0, input.openMisconceptions ?? 0);
+  const misconceptionsKnown = input.openMisconceptionsKnown !== false;
 
   // No measured evidence → low readiness, never high confidence.
   if (measured === 0 || measuredSuccessPct == null) {
@@ -416,7 +486,7 @@ export function computeExamReadiness(input: {
     };
   }
 
-  const target = input.targetScore ?? 70;
+  const target = input.targetScore ?? DEFAULT_TARGET_SCORE;
   const mockFactor =
     mockPct == null ? measuredSuccessPct : Math.round(0.6 * measuredSuccessPct + 0.4 * mockPct);
 
@@ -428,7 +498,9 @@ export function computeExamReadiness(input: {
   );
 
   // Hard caps — completion ≠ readiness.
-  if (anyWrong || openMisconceptions > 0) {
+  // Açık yanılgı varken %85 üstü yok. Düzelmiş eski yanlış bu tavanı getirmez (20 Ekim 2026):
+  // onun payını ölçülen başarı tavanı (aşağıda) zaten dürüstçe düşürüyor.
+  if (openMisconceptions > 0 || !misconceptionsKnown) {
     pct = Math.min(pct, 85);
   }
   if (measuredSuccessPct < 100) {
@@ -450,13 +522,14 @@ export function computeExamReadiness(input: {
 
   pct = Math.max(0, Math.min(100, pct));
 
+  // Yazılı deneme şart (20 Ekim 2026): çözülmemiş deneme "hazır" demeye yetmez.
   const claimFullyReady =
-    pct >= 100 &&
-    measuredSuccessPct >= 100 &&
     coveragePct >= 100 &&
+    allClaimTopicsSolid &&
+    misconceptionsKnown &&
     openMisconceptions === 0 &&
-    !anyWrong &&
-    (mockPct == null || mockPct >= target) &&
+    mockPct != null &&
+    mockPct >= target &&
     evidenceItems >= 3;
 
   if (!claimFullyReady && pct >= 100) {
@@ -545,6 +618,7 @@ export function buildLearningIndicators(input: {
   mockScorePct?: number | null;
   targetScore?: number | null;
   openMisconceptions?: number;
+  openMisconceptionsKnown?: boolean;
 }): LearningIndicators {
   const programProgress = computeProgramProgress(input.nodes);
   const topicMastery = computeTopicMasterySummary(
@@ -558,6 +632,7 @@ export function buildLearningIndicators(input: {
     mockScorePct: input.mockScorePct,
     targetScore: input.targetScore,
     openMisconceptions: input.openMisconceptions,
+    openMisconceptionsKnown: input.openMisconceptionsKnown,
   });
   return { programProgress, topicMastery, examReadiness };
 }
@@ -615,6 +690,8 @@ export function preferNextNodeForTracking<
     openMisconceptions: number;
     weakOrStaleTopicKeys: string[];
     now?: number;
+    /** Yolun kesin penceresi (şu anki + N adım); varsayılan `PATH_LOOKAHEAD`. */
+    window?: number;
   },
 ): T | null {
   const ready = nodes
@@ -637,8 +714,19 @@ export function preferNextNodeForTracking<
     "quiz",
   ]);
 
+  /*
+    20 Ekim 2026: yönlendirme yalnız yolun penceresinde (şu anki + PATH_LOOKAHEAD adım). Önceden
+    yolun herhangi bir yerinde açık duran düğüm seçilebiliyordu: erken çözülen yazılı deneme ya da
+    "Başka birini seç" sondaki "Kartlarla son tekrar"ı açınca "Devam et" sınav gününe atlıyordu.
+    Sınav günü türleri (son kartlar, son kontrol, hazırlık) ancak sırası gelince önerilir.
+  */
+  const first = ready[0];
+  const reach = first.sortOrder + Math.max(0, opts.window ?? PATH_LOOKAHEAD);
+  const examDayKinds = new Set<PlanNodeKind>(["flashcards", "final_check", "readiness"]);
   if (opts.openMisconceptions > 0 || weak.size > 0) {
     const biased = ready.find((n) => {
+      if (n.sortOrder > reach) return false;
+      if (n !== first && examDayKinds.has(n.kind)) return false;
       if (!reviewKinds.has(n.kind)) return false;
       const topic = normalizeTopicKey(n.sessionMeta?.topicTitle);
       return weak.size === 0 || weak.has(topic) || opts.openMisconceptions > 0;
@@ -669,7 +757,8 @@ export type TopicGain = { label: string; before: number; after: number };
 /**
  * Sonuç ekranından sonraki "+%X kazandın" kartı (19 Ekim 2026, Astra'da test sonrası
  * "Konu hakimiyeti %18" ekranı). Ölçüm bu etkinliğin kanıtıyla değişen konunun güveni:
- * önce kayıttaki değer, sonra katlanmış değer. Kanıt yoksa (ders, kart, podcast) null.
+ * önce kayıttaki değer, sonra katlanmış değer. Kanıt yoksa (ders, kart, kontrolsüz ya da kontrolü
+ * atlanmış podcast) null.
  */
 export function topicMasteryGain(input: {
   prior: TopicMasterySnapshot[];

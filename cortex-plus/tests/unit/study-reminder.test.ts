@@ -135,3 +135,50 @@ describe("pickReminder", () => {
     ).toBeNull();
   });
 });
+
+/*
+  Günü gelen tekrar (20 Ekim 2026, ürün sahibinin kararı): tekrar tarihe bağlı, öğrenci gün içinde
+  çalışmış olsa da 19:00'daki tek bildirim "N tekrar bekliyor" der. Günde en çok bir bildirim
+  kuralı sürer; yeni cron yok.
+*/
+describe("pickReminder: günü gelen tekrar", () => {
+  it("yolu bitmiş hazırlıkta da tekrar hatırlatılır", () => {
+    const reminder = pickReminder({ ...base, hasUnfinishedPath: false, dueReviews: 4 });
+    expect(reminder).toMatchObject({ kind: "review", title: "4 tekrar bekliyor" });
+  });
+
+  it("gün içinde çalışan öğrenciye de; boş günden ve seriden önce", () => {
+    expect(pickReminder({ ...base, hoursSinceActivity: 2, dueReviews: 1 })?.kind).toBe("review");
+    expect(pickReminder({ ...base, hoursSinceActivity: 26, dueReviews: 2 })?.kind).toBe("review");
+    expect(
+      pickReminder({ ...base, hoursSinceActivity: 26, streakDays: 5, streakBreaksToday: true, dueReviews: 2 })?.kind,
+    ).toBe("review");
+  });
+
+  it("sınav yaklaşıyorsa sınav konuşur, gövdede tekrar sayısı", () => {
+    const reminder = pickReminder({ ...base, daysUntilExam: 2, dueReviews: 3 });
+    expect(reminder?.kind).toBe("exam_soon");
+    expect(reminder?.body).toBe("Bugün 3 tekrarın var; sonra kaldığın yerden devam et.");
+    expect(pickReminder({ ...base, hasUnfinishedPath: false, daysUntilExam: 2, dueReviews: 3 })?.body).toBe(
+      "Bugün 3 tekrarın var; birkaç dakika sürer.",
+    );
+  });
+
+  it("günde ikinci bildirim yok; sınav günü akşamı tekrar hatırlatılmaz", () => {
+    expect(pickReminder({ ...base, alreadyNotifiedToday: true, dueReviews: 5 })).toBeNull();
+    expect(pickReminder({ ...base, hasUnfinishedPath: false, daysUntilExam: 0, dueReviews: 5 })).toBeNull();
+    expect(pickReminder({ ...base, hasUnfinishedPath: false, dueReviews: 0 })).toBeNull();
+  });
+
+  it("öğrencinin hazırlıkları arasında tekrar seriden ve boş günden acil, sınavdan değil", () => {
+    const review = { reminder: pickReminder({ ...base, dueReviews: 2 })!, daysUntilExam: 10 };
+    const streak = {
+      reminder: pickReminder({ ...base, hoursSinceActivity: 26, streakDays: 4, streakBreaksToday: true })!,
+      daysUntilExam: 5,
+    };
+    const exam = { reminder: pickReminder({ ...base, daysUntilExam: 2 })!, daysUntilExam: 2 };
+    expect(streak.reminder.kind).toBe("streak");
+    expect(moreUrgent(review, streak)).toBeLessThan(0);
+    expect(moreUrgent(exam, review)).toBeLessThan(0);
+  });
+});

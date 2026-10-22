@@ -54,6 +54,12 @@ const KNOWN = [
     description:
       "Global açarsan tüm adaptive kullanıcıları etkiler. gpt-4o yükseltme yolu; pilot için globali kapalı tutun.",
   },
+  {
+    key: "spaced_review",
+    label: "Aralıklı tekrar",
+    description:
+      "Açıkken yanlış yapılan sorular ve dersin sınav noktaları 1-3-7-14 gün sonra hazırlık sayfasında yeniden sorulur. Kapatırsan yeni tekrar yazılmaz, kart ve hatırlatma görünmez; kayıtlar silinmez.",
+  },
 ];
 
 /**

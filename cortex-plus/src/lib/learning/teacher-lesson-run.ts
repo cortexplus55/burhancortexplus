@@ -242,6 +242,29 @@ export async function teacherLessonPipeline(
       // İlk kavramda öğrenci bekliyor: iki tur. Sonrakiler öğrenci okurken düzelir: bir tur fazla.
       let rounds = index === 0 ? MAX_FIX_ROUNDS : MAX_FIX_ROUNDS + 1;
       let rewritten = false;
+      /*
+        Öğretim ölçütü turu (20 Ekim 2026, ürün sahibinin kararı: 'medium'). Yalnız ilk kavramdan sonra, yalnız ilk
+        denetimde yüksek sorun yokken ve en çok bir kez; düzeltme yüksek bir sorun getirirse önceki ekranlar geri gelir.
+        Bu tur bir kavramı asla attırmaz ya da baştan yazdırmaz ("atılan kavram 0").
+      */
+      let teachingSnapshot: {
+        screens: LessonScreen[];
+        headerPatch: Partial<Header>;
+        close: Closing | null;
+        issues: TeacherIssue[];
+      } | null = null;
+      const publishSnapshot = (snapshot: NonNullable<typeof teachingSnapshot>, note?: TeacherIssue): PartOutcome => {
+        screens = snapshot.screens;
+        if (current()) part.screens = screens;
+        return {
+          ok: true,
+          screens,
+          header: snapshot.headerPatch,
+          ...(snapshot.close ? { closing: snapshot.close } : {}),
+          low: note ? [...snapshot.issues, note] : snapshot.issues,
+          triggers,
+        };
+      };
       for (let round = 0; ; round += 1) {
         if (!current()) return { ok: false, high: [], triggers };
         const { lesson, part: span } = context(index, screens, { ...head, ...headerPatch }, close);
@@ -249,21 +272,72 @@ export async function teacherLessonPipeline(
         const structural = partStructureIssues(lesson, span, input).map((issue) => ({ ...issue, problem: `[yapı kuralı] ${issue.problem}` }));
         let factual: TeacherIssue[];
         try {
-          factual = parseIssues(await io.ask(verifySystem(mode), verifyPartUserPrompt(lesson, span, input, disputes), "verify"));
+          factual = parseIssues(await io.ask(verifySystem(mode), verifyPartUserPrompt(lesson, span, input, disputes), "verify"), {
+            medium: true,
+          });
         } catch (error) {
           // Denetçi düşerse kavram körlemesine yayımlanmaz.
           factual = [{ where: "ders", severity: "high", problem: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}` }];
         }
         const issues = [...structural, ...factual.filter((issue) => issueInPart(issue, span))];
         const high = issues.filter((issue) => issue.severity === "high");
-        if (!high.length) {
+        if (teachingSnapshot) {
+          // Öğretim turundan sonra: gerilediyse (yüksek sorun çıktı) önceki ekranlar yayımlanır; değilse yenisi.
+          if (high.length) {
+            return publishSnapshot(teachingSnapshot, {
+              where: "ders",
+              severity: "low",
+              problem: "Öğretim düzeltmesi yeni bir sorun getirdi; önceki hâli yayımlandı.",
+            });
+          }
           return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers };
+        }
+        if (!high.length) {
+          const medium = issues.filter((issue) => issue.severity === "medium");
+          const teachingRound =
+            medium.length > 0 && index > 0 && round === 0 && !rewritten && Date.now() - started < FIX_DEADLINE_MS && current();
+          if (!teachingRound) {
+            return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers };
+          }
+          teachingSnapshot = { screens, headerPatch, close, issues };
+          triggers.push(medium);
+          // Öğretim turuna düşük yapı kuralları gitmez (22 Ekim 2026 inceleme): "en fazla dokuz ekran" gibi son
+          // kavramın düzeltemeyeceği maddeler "mutlaka düzelt" diye gidince düzeltici kendi ekranlarını sıkıştırıyordu.
+          const forFixer = issues.filter((issue) => issue.severity !== "low" || !issue.problem.startsWith("[yapı kuralı]"));
+          let fixed: ReturnType<typeof parsePartFix> = null;
+          try {
+            fixed = parsePartFix(await io.ask(fixPartSystem(mode), fixPartUserPrompt(lesson, span, forFixer, input), "fix-careful"), lesson, input.upcomingTopics);
+          } catch {
+            fixed = null;
+          }
+          if (!fixed?.screens.length) return publishSnapshot(teachingSnapshot);
+          const merged = mergePartScreens(screens, fixed.screens);
+          // Ekran düşüren düzeltme gerilemedir: öğretim turu içerik eksiltmez, önceki hâli yayımlanır.
+          if (merged.length < screens.length) {
+            return publishSnapshot(teachingSnapshot, {
+              where: "ders",
+              severity: "low",
+              problem: "Öğretim düzeltmesi ekran düşürdü; önceki hâli yayımlandı.",
+            });
+          }
+          disputes = fixed.disputes;
+          screens = merged;
+          if (span.closing) {
+            close = {
+              ...(close ?? {}),
+              ...(fixed.commonMistake ? { commonMistake: fixed.commonMistake } : {}),
+              ...(fixed.summary ? { summary: fixed.summary } : {}),
+            };
+          }
+          if (current()) part.screens = screens;
+          continue;
         }
         // 19 Ekim 2026: yavaş derslerin çoğu yalnız ezber kodu yüzünden 5-7 tur döndü, kavram iki kez
         // atıldı. Kalan tek sorun ezber koduysa (fazla kod hemen; kötü kod bir düzeltme turundan sonra)
         // kutu çıkar, kavram yayımlanır. Parça düşer, istek düşmez; kod cümle yazmaz.
+        // 20 Ekim 2026: ilk kavramda kötü kod da hemen çıkar — kod isteğe bağlı, öğrenci ilk ekranı bekliyor.
         const onlyCount = high.every(isMnemonicCountIssue);
-        if ((onlyCount || round >= 1) && high.every((issue) => isMnemonicIssue(issue, lesson))) {
+        if ((onlyCount || round >= 1 || index === 0) && high.every((issue) => isMnemonicIssue(issue, lesson))) {
           const stripped = stripMnemonics(screens, { keepFirst: onlyCount });
           if (stripped.length) {
             screens = stripped;
@@ -272,7 +346,11 @@ export async function teacherLessonPipeline(
             const note: TeacherIssue = {
               where: "ders",
               severity: "low",
-              problem: onlyCount ? "Fazla ezber kodu çıkarıldı." : "Ezber kodu düzelmedi; kavram kodsuz yayımlandı.",
+              problem: onlyCount
+                ? "Fazla ezber kodu çıkarıldı."
+                : round === 0
+                  ? "Ezber kodu çıkarıldı (ayrım taşımıyordu)."
+                  : "Ezber kodu düzelmedi; kavram kodsuz yayımlandı.",
             };
             return {
               ok: true,

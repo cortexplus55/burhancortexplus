@@ -22,18 +22,24 @@ export type ReminderInput = {
   streakBreaksToday: boolean;
   /** Bu öğrenciye bugün zaten hatırlatma gönderildi mi? */
   alreadyNotifiedToday: boolean;
+  /**
+   * Bu hazırlıkta bugün günü gelen tekrar (20 Ekim 2026). Tekrar tarihe bağlı: öğrenci gün içinde
+   * çalışmış olsa da 19:00'daki tek bildirim "N tekrar bekliyor" der (ürün sahibinin kararı).
+   */
+  dueReviews?: number;
 };
 
 export type Reminder = {
-  kind: "exam_soon" | "streak" | "idle";
+  kind: "exam_soon" | "review" | "streak" | "idle";
   title: string;
   body: string;
 };
 
 const KIND_RANK: Record<Reminder["kind"], number> = {
   exam_soon: 0,
-  streak: 1,
-  idle: 2,
+  review: 1,
+  streak: 2,
+  idle: 3,
 };
 
 /**
@@ -46,7 +52,7 @@ const KIND_RANK: Record<Reminder["kind"], number> = {
  * yüzünden başka bir hazırlığın "kaldığın yer seni bekliyor" mesajını
  * alabiliyordu.
  *
- * Sıra kuralın kendi sırası: sınav yaklaşması > seri > boş geçen gün.
+ * Sıra kuralın kendi sırası: sınav yaklaşması > günü gelen tekrar > seri > boş geçen gün.
  * Aynı türden ikisi varsa sınavı yakın olan öne geçer.
  */
 export function moreUrgent(
@@ -72,7 +78,10 @@ const IDLE_HOURS = 24;
  */
 export function pickReminder(input: ReminderInput): Reminder | null {
   if (input.alreadyNotifiedToday) return null;
-  if (!input.hasUnfinishedPath) return null;
+  // Sınav günü akşamı tekrar hatırlatması geç; o gün tekrar sayılmaz.
+  const examDayOrPast = input.daysUntilExam !== null && input.daysUntilExam < 1;
+  const due = examDayOrPast ? 0 : Math.max(0, Math.floor(input.dueReviews ?? 0));
+  if (!input.hasUnfinishedPath && due === 0) return null;
 
   /**
    * SON ÜÇ GÜN, "tam olarak üçüncü gün" DEĞİL.
@@ -94,7 +103,21 @@ export function pickReminder(input: ReminderInput): Reminder | null {
     return {
       kind: "exam_soon",
       title: `Sınava ${input.daysUntilExam} gün kaldı`,
-      body: "Yolunda bitmemiş adımlar var. Kaldığın yerden devam et.",
+      body:
+        due > 0
+          ? input.hasUnfinishedPath
+            ? `Bugün ${due} tekrarın var; sonra kaldığın yerden devam et.`
+            : `Bugün ${due} tekrarın var; birkaç dakika sürer.`
+          : "Yolunda bitmemiş adımlar var. Kaldığın yerden devam et.",
+    };
+  }
+
+  // Günü gelen tekrar seriden ve boş günden önce: tarihi geçerse tekrar bir gün kayar.
+  if (due > 0) {
+    return {
+      kind: "review",
+      title: `${due} tekrar bekliyor`,
+      body: "Zorlandığın sorular ve dersin sınav noktaları bugün yeniden soruluyor; birkaç dakika sürer.",
     };
   }
 

@@ -190,6 +190,11 @@ export function prefetchVariant(
     oralQuestionCount?: number | null;
     oralScope?: string | null;
     mood?: string | null;
+    /**
+     * Konu testi konunun kaydedilmiş dersine göre yazılır (20 Ekim 2026, `lessonQuizContext().key`).
+     * Ders yokken anahtar eskisiyle aynı; ders kaydedilince dersten önce yazılan test verilmez.
+     */
+    lessonKey?: string | null;
   },
 ): string {
   if (kind === "lesson") return "lesson";
@@ -197,6 +202,12 @@ export function prefetchVariant(
   if (kind === "oral") {
     const topic = input.oralScope === "all" ? "*" : input.topicLabel.trim().toLocaleLowerCase("tr");
     return `oral:${input.oralQuestionCount ?? PREFETCH_DEFAULTS.oralQuestionCount}:${topic}:${input.mood ?? PREFETCH_DEFAULTS.oralMood}:${input.difficulty ?? PREFETCH_DEFAULTS.oralDifficulty}`;
+  }
+  if (kind === "quiz" && input.lessonKey) return `quiz:${input.difficulty ?? "orta"}:${input.lessonKey}`;
+  // "Kartlarla son tekrar" zayıf konuya yönelir (20 Ekim 2026): önceden yazılan deste başka konunun
+  // destesiyse atılır, yeniden yazılır.
+  if (kind === "flashcards") {
+    return `flashcards:${input.difficulty ?? "orta"}:${input.topicLabel.trim().toLocaleLowerCase("tr")}`;
   }
   return `${kind}:${input.difficulty ?? "orta"}`;
 }

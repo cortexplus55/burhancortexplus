@@ -69,6 +69,9 @@ export async function POST(request: Request) {
 
   // Öğretmen podcast motoru (3 Ekim 2026): dersin kendisi kaynak; belgeyle
   // eşleme ve modelin düzeltmesi. Eski tek-taslak zinciri kalktı.
+  // Dinleme kontrolü yok (20 Ekim 2026, bilerek; `listeningCheck` verilmez): bu sesli tekrar dersin
+  // sonunda açılıyor, ders zaten ekran ekran soru soruyor ve "Kendini test et" düğmesi hemen altında.
+  // Kontrol bu yolda ~20-35 sn bekleme ve model bedeli eklerdi, yeni bir şey ölçmezdi.
   const outcome = await runTeacherPodcast(service, {
     mode: "document",
     length: DEFAULT_PODCAST_LENGTH,

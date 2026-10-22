@@ -22,13 +22,22 @@ export type ReviewItem = {
   reviewNodeHref: string | null;
 };
 
+/** Çözülen yanılgı satırı (20 Ekim 2026): kural yanılgı çözümüyle aynı (misconception-resolution.ts). */
+export function resolvedLine(count: number): string | null {
+  if (count <= 0) return null;
+  return `${count} yanılgı çözüldü: aynı konuyu iki ayrı günde yardımsız doğru cevapladın.`;
+}
+
 export function ExamPrepReviews({
   prepId,
   items,
+  resolvedCount = 0,
 }: {
   prepId: string;
   items: ReviewItem[];
+  resolvedCount?: number;
 }) {
+  const resolved = resolvedLine(resolvedCount);
   return (
     <div className="cp-exam-page">
       <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
@@ -37,15 +46,20 @@ export function ExamPrepReviews({
       <header className="cp-exam-trail-head" style={{ marginTop: "1rem" }}>
         <h1>Yanlışlar ve tekrarlar</h1>
         <p className="text-sm text-[var(--cp-muted)]">
-          Bu liste oturumlarda yakalanan yanılgılardır. Renk tek başına durum
+          Bu liste oturumlarda yakalanan ve henüz çözülmemiş yanılgılardır. Renk tek başına durum
           değildir — her satırda tür etiketi vardır.
         </p>
+        {resolved ? (
+          <p className="text-sm text-[var(--cp-muted)]" role="status">
+            {resolved}
+          </p>
+        ) : null}
       </header>
 
       {!items.length ? (
         <div className="cp-exam-empty" role="status">
           <p>
-            <strong>Henüz kayıtlı yanılgı yok</strong>
+            <strong>{resolved ? "Açık yanılgın yok" : "Henüz kayıtlı yanılgı yok"}</strong>
           </p>
           <p className="text-sm text-[var(--cp-muted)]">
             Quiz veya doğru/yanlış oturumlarını bitirdikçe buraya düşer.

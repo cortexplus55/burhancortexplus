@@ -4,7 +4,14 @@ import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
-import { examPointsBlock } from "@/lib/learning/exam-points";
+import { EXAM_POINTS_MAX, examPointsBlock } from "@/lib/learning/exam-points";
+import {
+  LESSON_CHECKS_MAX,
+  LESSON_TERMS_MAX,
+  pointTaught,
+  wordKeys,
+  type LessonQuizContext,
+} from "@/lib/learning/lesson-quiz-context";
 
 /**
  * Öğretmen test motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
@@ -50,6 +57,17 @@ export type TeacherQuizInput = {
    * testinde 7 sorudan biri, kısmi puanla). Yalnız hazırlığın konu testi açar.
    */
   multi?: boolean;
+  /**
+   * "topic_test": yoldaki konu testi (20 Ekim 2026). KONU TESTİ kuralları (kapsam, kök kalıbı, tablo
+   * satırı, vaka, uyarı, ders) ve H-K denetimi yalnız burada. Motoru paylaşan öbür yüzeyler (zayıf
+   * nokta, test aracı, soru-cevap, odaklı pratik, son kontrol, düello, tanı, tanışma, yazılı deneme)
+   * bugünkü gibi kalır.
+   */
+  scope?: "topic_test";
+  /** Konunun kaydedilmiş ders(ler)i (`lessonQuizContext`). Yoksa test dersi bilmeden yazılır. */
+  lesson?: LessonQuizContext | null;
+  /** İkinci geçiş: testte zaten olan sorular; kalıpları ve maddeleri tekrar edilmez. Yalnız konu testinde. */
+  avoid?: QuizQuestion[];
 };
 
 export type QuizDifficulty = "kolay" | "orta" | "ileri";
@@ -134,31 +152,80 @@ const DESIGN =
   "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede', 'PDF', 'belirtilmiştir', 'belirtildiği gibi' — soru " +
   "bilgiyi kaynağa değil konuya sorar ('hangi gerekçe belirtilmiştir' değil 'neden uygun değildir').\n\n";
 
+/**
+ * Yoldaki konu testinin kuralları (20 Ekim 2026). Kör kıyasta Pediatri solunum testimiz kaynak
+ * tablosunun dört satırını aynı kalıpla sordu ("En olası tanı hangisidir?"; kök satırın "Bulgular"
+ * hücresiydi), uyarı ve tedavi cümlelerini hiç sormadı; KPSS testinde 5 sorudan 4'ü aynı bloktandı.
+ * Yazar, denetçi ve düzeltme aynı metni okur (denetçide "aynen"); denetçinin H-K maddeleri bunun
+ * aynası. "Vaka" tanımı da burada: zorluk satırı vaka istiyor ama P4'ün vakaları tablo satırıydı.
+ * Yalnız `scope: "topic_test"`; öbür yüzeyler bu metni görmez.
+ */
+export const TOPIC_TEST_RULE =
+  "KONU TESTİ (öğrenci bu testi konunun dersinden sonra çözer; sınavda bu konudan gelecek soruya hazırlar):\n" +
+  "- KAPSAM: Her soru tek bir SINAVDA SORULUR maddesini (madde yoksa kaynağın bir bölümünü) yoklar; \"point\" alanına " +
+  "maddenin numarasını (\"3\") ya da bölümün başlığını yaz. Sıra: önce '(derste işlendi)' yazan maddeler, sonra " +
+  "öbürleri; ders bilgisi yoksa bütün maddeler eşit. Sorulmamış madde varken hiçbir madde ikinci kez sorulmaz; aynı " +
+  "tablodan en çok 2 soru.\n" +
+  "- KÖK KALIBI: Aynı soru kalıbı ('En olası tanı hangisidir?', 'Bu yönetim biçimi hangisidir?') en çok 2 soruda. " +
+  "Ötekiler başka bir iş ister: sıradaki doğru adım, yapılmaması gereken, ağırlık ya da uyarı bulgusu, iki kardeş " +
+  "kavramı ayıran bulgu, istisna, koşul.\n" +
+  "- TABLO SATIRI SORU DEĞİLDİR: Kök, kaynaktaki bir tablo satırını ya da cümleyi aynen (ya da eş anlamlı " +
+  "kelimelerle birebir) verip satırın öteki hücresini sordurmaz. Bulguyu bir vakanın içinde ver; en az bir ayrıntı " +
+  "yorumlanmadan doğru şıkka gidilemesin.\n" +
+  "- VAKA: Vaka, kaynaktaki bilginin somut hâlidir (kaynak 'küçük bebek' diyorsa '5 aylık bebek'; 'tetikleyici: " +
+  "egzersiz' ise 'koşudan sonra başlayan hışıltı'). Tablo satırını ya da kaynak cümlesini kopyalamak vaka değildir. " +
+  "Vakaya kaynakta olmayan bulgu, eşik, sayı, yaş sınırı, etken ya da tedavi eklenmez; doğru cevap yalnız kaynaktaki " +
+  "bilgiyle bulunur.\n" +
+  "- UYARI: Kaynakta uyarı, yasak ya da yönetim cümlesi varsa ('… doğru değildir', '… kaçınılır', 'ciddi uyarı " +
+  "bulguları', SINAV İPUCU / DİKKAT / ALARM kutusu) en az bir soru bunlardan birini yoklar.\n" +
+  "- DERS: DERSTE SORULANLAR'daki soruları aynen ya da aynı kalıpla tekrar etme; aynı bilgiyi bir üst düzeyde " +
+  "(uygulama, ayırt etme) sor. Bir kavramın DERSTE GEÇEN TERİMLER'de adı varsa o adı kullan; kaynaktaki başka adını " +
+  "kullanırsan dersteki adı parantezde ver ('eş yönlü (koterminal)').\n";
+
+const POINT_FIELD_NOTE =
+  'Bu testte her soruya "point" alanı ekle (string): yokladığı SINAVDA SORULUR maddesinin numarası ("3") ya da ' +
+  "madde yoksa kaynak bölümünün başlığı.";
+
+/**
+ * Çok cevaplı sorunun çeldiricisi (20 Ekim 2026). P4'ün çok cevaplı sorusunda 4 şıktan 3'ü doğruydu,
+ * tek yanlış şık başka hastalığın (krup) bulgusuydu: konuyu bilmeyen eler. Yazar ve denetçi aynı metni okur.
+ */
+export const MULTI_DISTRACTOR_RULE =
+  "Çok cevaplı soruda yanlış şıklar sorulan durumla aynı bağlamdandır: aynı konuda geçen ama sorulan özelliği " +
+  "taşımayan öğeler (bronşiolitte görülen ama yatışı artırmayan bir bulgu gibi). Başka bir kavramın ya da hastalığın " +
+  "tipik özelliği çeldirici değildir; soru tahminle çözülür. Kaynak bir listeyi sayıyorsa doğrular o listeden, " +
+  "çeldiriciler aynı konunun öteki öğelerinden seçilir.";
+
 const MULTI_QUESTION =
   "ÇOK CEVAPLI SORU: Bu testte tam bir soru çok cevaplıdır (multi true) ve testin son sorularından biridir. 4 şık, " +
   "2 ya da 3'ü doğru; correct doğru şıkların metinlerinden oluşan dizidir. Kök 'hangileri' diye sorar ('Aşağıdakilerden " +
   "hangileri … ?'). Doğru şıkların her biri kendi başına kesin doğru, yanlış şıkların her biri kesin yanlıştır; " +
-  "yarı doğru şık yok. explanation hangi şıkların neden doğru, ötekilerin neden yanlış olduğunu söyler. Öteki bütün " +
-  "sorular tek doğru şıklıdır (multi false).\n\n";
+  `yarı doğru şık yok. ${MULTI_DISTRACTOR_RULE} explanation hangi şıkların neden doğru, ötekilerin neden yanlış ` +
+  "olduğunu söyler. Öteki bütün sorular tek doğru şıklıdır (multi false).\n\n";
 
 const GAPS_FOCUS =
   "BU TEST TUZAK SORULARI: her soru, kaynağın uyardığı ya da öğrencinin sık karıştırdığı bir ayrımı yoklar " +
   "(yakın iki kavram, istisna, koşul). misconceptionTag o tuzağın adıdır.\n\n";
 
-function system(mode: TeacherLessonMode, focus: TeacherQuizInput["focus"], multi = false): string {
+type QuizScope = TeacherQuizInput["scope"];
+
+function system(mode: TeacherLessonMode, focus: TeacherQuizInput["focus"], multi = false, scope?: QuizScope): string {
   const intro =
     mode === "topic"
       ? "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ama belge yüklemedi. Bu konudan, sınavdaki " +
         "gibi kısa bir test hazırlıyorsun.\n\n"
       : "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ve sana kendi ders belgesini verdi. Bu " +
         "belgeden, sınavdaki gibi kısa bir test hazırlıyorsun.\n\n";
+  const topicTest = scope === "topic_test";
   return (
     intro +
     (mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
     DESIGN +
+    (topicTest ? `${TOPIC_TEST_RULE}\n` : "") +
     (multi ? MULTI_QUESTION : "") +
     (focus === "gaps" ? GAPS_FOCUS : "") +
-    `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SCHEMA}`
+    `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SCHEMA}` +
+    (topicTest ? `\n${POINT_FIELD_NOTE}` : "")
   );
 }
 
@@ -166,8 +233,49 @@ export function quizSystem(
   mode: TeacherLessonMode = "document",
   focus: TeacherQuizInput["focus"] = "practice",
   multi = false,
+  scope?: QuizScope,
 ): string {
-  return system(mode, focus, multi);
+  return system(mode, focus, multi, scope);
+}
+
+/**
+ * Konu testinin madde listesi: önce derste işlenenler ("(derste işlendi)"), sonra öbürleri
+ * (20 Ekim 2026, ürün sahibinin kararı: önce dersin öğrettiği, sonra konunun öbür maddeleri; ders
+ * yoksa hepsi eşit). Yazar, denetçi ve kodun kapsam sayımı aynı sırayı ve numarayı okur.
+ */
+export function topicTestPoints(input: Pick<TeacherQuizInput, "examPoints" | "lesson" | "scope">): string[] {
+  const list = (input.examPoints ?? []).map((point) => point.trim()).filter(Boolean).slice(0, EXAM_POINTS_MAX);
+  const lessonText = input.lesson?.text ?? "";
+  if (input.scope !== "topic_test" || !lessonText) return list;
+  const taught = list.filter((point) => pointTaught(point, lessonText));
+  if (!taught.length) return list;
+  return [...taught.map((point) => `${point} (derste işlendi)`), ...list.filter((point) => !taught.includes(point))];
+}
+
+function quizPointsBlock(input: TeacherQuizInput): string {
+  return examPointsBlock(input.scope === "topic_test" ? topicTestPoints(input) : input.examPoints, "quiz");
+}
+
+/** Dersin sorduğu sorular ve terimleri; ders yoksa boş (istem bugünkü gibi). */
+function lessonBlock(input: TeacherQuizInput): string {
+  if (input.scope !== "topic_test" || !input.lesson) return "";
+  const checks = input.lesson.checks.slice(0, LESSON_CHECKS_MAX);
+  const terms = input.lesson.terms.slice(0, LESSON_TERMS_MAX);
+  return [
+    checks.length
+      ? `DERSTE SORULANLAR (öğrenci bunları derste çözdü; aynen ya da aynı kalıpla sorma):\n${checks.map((check) => `- ${check}`).join("\n")}`
+      : "",
+    terms.length ? `DERSTE GEÇEN TERİMLER: ${terms.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+const stemLine = (question: QuizQuestion) => `- ${question.text}${question.point ? ` (madde: ${question.point})` : ""}`;
+
+function avoidBlock(input: TeacherQuizInput): string {
+  if (input.scope !== "topic_test" || !input.avoid?.length) return "";
+  return `TESTTE ZATEN OLAN SORULAR (bunları, maddelerini ve kalıplarını tekrar etme):\n${input.avoid.map(stemLine).join("\n")}`;
 }
 
 function quizSource(input: TeacherQuizInput): string {
@@ -183,7 +291,10 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     input.difficulty ? `ZORLUK: ${DIFFICULTY_LINE[input.difficulty]}` : "",
     input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
-    examPointsBlock(input.examPoints, "quiz"),
+    quizPointsBlock(input),
+    // Kaynak sonda kalır: model en son okuduğu talimata daha sadık.
+    lessonBlock(input),
+    avoidBlock(input),
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu değildir: ${input.runningHeaders.join(" | ")}`
       : "",
@@ -196,7 +307,8 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
 // Çok cevaplı soruda "birden fazla doğru" sorun değil, şartı; anahtarın her parçası ayrı ayrı denetlenir.
 const MULTI_VERIFY =
   "multi true olan soruda (çok cevaplı) birden fazla doğru şık olması B değildir: işaretli doğruların her biri kesin " +
-  "doğru, işaretsiz şıkların her biri kesin yanlış olmalı; değilse A. Yarı doğru şık B'dir.\n";
+  "doğru, işaretsiz şıkların her biri kesin yanlış olmalı; değilse A. Yarı doğru şık B'dir. Yazarın çok cevaplı soru " +
+  `kuralı: ${MULTI_DISTRACTOR_RULE} Buna uymayan yanlış şık G'dir.\n`;
 
 const VERIFY_DOCUMENT =
   "Sen titiz bir sınav sorusu denetçisisin. Testi yazıldığı KAYNAK ile karşılaştırıyorsun. HER SORUYU ÖNCE KENDİN " +
@@ -208,12 +320,14 @@ const VERIFY_DOCUMENT =
   "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması; yanlış şıkkın " +
   "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara sırasıyla ya da harfiyle " +
-  "gönderme yapması (şıklar karıştırılıyor).\n" +
+  "gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
+  `${OPTION_ORDER_RULE}\n` +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
-  "çeldiricinin doğru şıkkın olumsuz kopyası olması (soru tahminle çözülüyor).\n" +
+  "çeldiricinin doğru şıkkın olumsuz kopyası olması; çok cevaplı soruda yanlış şıkkın sorulan bağlamdan değil başka " +
+  "bir kavramdan ya da hastalıktan gelmesi (soru tahminle çözülüyor).\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla kullanılması sorun değildir.\n" +
   MULTI_VERIFY +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
@@ -228,12 +342,14 @@ const VERIFY_TOPIC =
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
   "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara " +
-  "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor).\n" +
+  "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
+  `${OPTION_ORDER_RULE}\n` +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
-  "çeldiricinin doğru şıkkın olumsuz kopyası olması (soru tahminle çözülüyor).\n" +
+  "çeldiricinin doğru şıkkın olumsuz kopyası olması; çok cevaplı soruda yanlış şıkkın sorulan bağlamdan değil başka " +
+  "bir kavramdan ya da hastalıktan gelmesi (soru tahminle çözülüyor).\n" +
   MULTI_VERIFY +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
@@ -241,45 +357,112 @@ const VERIFY_JSON =
   'JSON döndür: {"issues":[{"question":0,"severity":"high","problem":"…","fix":"…"}]} — question, 0\'dan başlayan ' +
   "soru sırasıdır. Sorun yoksa issues boş dizi.";
 
-export function quizVerifySystem(mode: TeacherLessonMode = "document"): string {
-  return (mode === "topic" ? VERIFY_TOPIC : VERIFY_DOCUMENT) + VERIFY_JSON;
+/**
+ * Konu testi denetimi (20 Ekim 2026): yazarın KONU TESTİ kuralları aynen + aynası H-K. H-K pedagojik;
+ * kod bunları yumuşak sayar (düzeltilir ya da yedekle değişir; düzelmezse testi düşürmez), J kapsam
+ * eksiği bir düzeltme turu açar. Her sorunun harfi "code" alanında; harfsiz sorun bugünkü gibi engeller.
+ */
+function topicTestVerify(mode: TeacherLessonMode): string {
+  return (
+    (mode === "topic" ? "Belgesiz testte aşağıda 'kaynak' denen her yer konunun yerleşik bilgisidir.\n" : "") +
+    "Yazarın uyduğu KONU TESTİ kuralları (aynen):\n" +
+    TOPIC_TEST_RULE +
+    "Bunlara göre ayrıca şunları bul:\n" +
+    "H) Tablo/cümle tekrarı: kök kaynaktaki bir tablo satırını ya da cümleyi neredeyse aynen verip satırın öteki " +
+    "hücresini soruyor; yorumlanacak ayrıntı yok. Bulguları bir vakanın içinde verip ayırt ettiren ayrıntıyı yorumlatan " +
+    "soru H değildir.\n" +
+    "I) Tekrar: aynı kök kalıbı üçüncü kez geçiyor ya da aynı madde (point) sorulmamış madde varken ikinci kez " +
+    "soruluyor. Tekrarlayan (sonraki) soruyu yaz; fix: hangi madde ya da kalıp.\n" +
+    "J) Kapsam: kaynakta uyarı/yasak/yönetim cümlesi var ama hiçbir soru bunlardan birini yoklamıyor; ya da '(derste " +
+    "işlendi)' yazan bir madde hiç sorulmamışken işlenmemiş bir madde sorulmuş. TEST'te en çok tekrar eden soruyu yaz; " +
+    "fix: sorulması gereken uyarı ya da madde.\n" +
+    "K) Ders: soru DERSTE SORULANLAR'daki bir soruyu aynen ya da aynı kalıpla tekrar ediyor; ya da kavramın DERSTE " +
+    "GEÇEN TERİMLER'deki adı kullanılmamış ve parantezde de verilmemiş.\n" +
+    "C notu: Vakadaki ayrıntı kaynaktaki bilginin somut hâliyse (kaynak \"küçük bebek\", soru \"5 aylık bebek\") C " +
+    "değildir; doğru cevap kaynakta olmayan bir bilgiye (bulgu, eşik, sayı, tedavi) dayanıyorsa C'dir.\n" +
+    "TESTİN KABUL EDİLEN SORULARI verildiyse onları denetleme; yalnız tekrar ve kapsam için bak, sorunu TEST'teki " +
+    "soruya yaz.\n" +
+    "H-K 'high'. Her sorunun \"code\" alanına maddenin harfini yaz (A-K).\n"
+  );
 }
 
-export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQuizInput): string {
+const VERIFY_JSON_CODED =
+  'JSON döndür: {"issues":[{"question":0,"code":"A","severity":"high","problem":"…","fix":"…"}]} — question, ' +
+  "TEST'te 0'dan başlayan soru sırasıdır. Sorun yoksa issues boş dizi.";
+
+export function quizVerifySystem(mode: TeacherLessonMode = "document", scope?: QuizScope): string {
+  const base = mode === "topic" ? VERIFY_TOPIC : VERIFY_DOCUMENT;
+  return scope === "topic_test" ? base + topicTestVerify(mode) + VERIFY_JSON_CODED : base + VERIFY_JSON;
+}
+
+/**
+ * `accepted`: konu testinde testte kalan sorular (önceki geçiş ve kabul edilenler). Denetçi tekrar ve
+ * kapsamı bütün teste bakarak görür; sorun indeksleri yine yalnız TEST'e göre.
+ */
+export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQuizInput, accepted: QuizQuestion[] = []): string {
   const head =
     input.mode === "topic"
       ? `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n${input.brief ? `İSTEK: ${input.brief.slice(0, 600)}\n` : ""}(Belgesiz test.)`
-      : quizSource(input);
-  return `${head}\n\nTEST (JSON):\n${JSON.stringify({ questions: questions.map(publicShape) })}`;
+      : // Belgeli kipte de denetçi İSTEK'i görür (20 Ekim 2026): podcast dinleme kontrolünün kuralları
+        // ("Ada/Kerem geçmez", itiraf doğru şık olamaz) yalnız yazara gidiyordu.
+        `${quizSource(input)}${input.brief ? `
+İSTEK: ${input.brief.slice(0, 600)}` : ""}`;
+  const context =
+    input.scope === "topic_test"
+      ? [
+          quizPointsBlock(input),
+          lessonBlock(input),
+          accepted.length
+            ? `TESTİN KABUL EDİLEN SORULARI (bunları denetleme; yalnız tekrar ve kapsam için bak):\n${JSON.stringify({ questions: accepted.map(publicShape) })}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      : "";
+  return `${head}${context ? `\n\n${context}` : ""}\n\nTEST (JSON):\n${JSON.stringify({ questions: questions.map(publicShape) })}`;
 }
 
 export function quizFixSystem(
   mode: TeacherLessonMode = "document",
   focus: TeacherQuizInput["focus"] = "practice",
   multi = false,
+  scope?: QuizScope,
 ): string {
   return (
     "Sen aynı testi yazan öğretmensin. Denetçinin sorun bulduğu soruları düzelt: anahtarı düzelt, tek doğru şık kalacak " +
     "biçimde şıkları değiştir (multi true soruda işaretli doğrular kesin doğru, ötekiler kesin yanlış kalacak biçimde), " +
     "kaynakta dayanağı olmayan bilgiyi çıkar, gerekçeyi düzelt. Bir soru düzeltilemiyorsa aynı " +
-    "kavramı ölçen yeni bir soru yaz. Önerilen düzeltme ('→' sonrası) varsa uygula. Yalnız verilen soruları, aynı " +
+    "kavramı ölçen yeni bir soru yaz." +
+    (scope === "topic_test"
+      ? " Sorun [H] ise aynı maddeyi bir vakanın içinde, ayırt ettiren ayrıntıyı yorumlatarak sor. Sorun [I] ya da [J] " +
+        "ise fix'te adı geçen maddeyi ya da uyarıyı ölçen yeni bir soru yaz; KALAN SORULAR'ın kalıbını ve maddesini " +
+        "tekrar etme. Sorun [K] ise dersteki soruyu tekrar etmeden aynı bilgiyi bir üst düzeyde sor."
+      : "") +
+    " Önerilen düzeltme ('→' sonrası) varsa uygula. Yalnız verilen soruları, aynı " +
     "sayıda ve aynı sırayla döndür. Kurallar ve şema aynı:\n\n" +
-    system(mode, focus, multi)
+    system(mode, focus, multi, scope)
   );
 }
 
+/** `accepted`: konu testinde testte kalan sorular; düzeltme onların kalıbını ve maddesini tekrar etmesin. */
 export function quizFixUserPrompt(
   failing: { question: QuizQuestion; problems: string[] }[],
   input: TeacherQuizInput,
+  accepted: QuizQuestion[] = [],
 ): string {
   return [
     quizUserPrompt(input, failing.length),
+    accepted.length && input.scope === "topic_test"
+      ? `KALAN SORULAR (testte kalıyor; bunların kalıbını ve maddesini tekrar etme):\n${accepted.map(stemLine).join("\n")}`
+      : "",
     `DÜZELTİLECEK SORULAR (JSON):\n${JSON.stringify({ questions: failing.map((item) => publicShape(item.question)) })}`,
     `SORUNLAR:\n${failing
       .map((item, index) => `Soru ${index}: ${item.problems.map((problem) => problem).join(" | ")}`)
       .join("\n")}`,
     "Düzeltilmiş soruları aynı şemayla JSON olarak döndür.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function publicShape(question: QuizQuestion) {
@@ -294,6 +477,7 @@ function publicShape(question: QuizQuestion) {
     learningObjective: question.learningObjective,
     ...(question.steps?.length ? { steps: question.steps } : {}),
     ...(question.topic ? { topic: question.topic } : {}),
+    ...(question.point ? { point: question.point } : {}),
   };
 }
 
@@ -317,6 +501,8 @@ export function parseTeacherQuiz(raw: unknown): QuizQuestion[] | null {
       steps: Array.isArray(row.steps) ? row.steps.map((line) => String(line)) : undefined,
       // Tanı testi soruya konu kodu (definition/concept/application) yazdırıyor.
       topic: typeof row.topic === "string" ? row.topic : undefined,
+      // Konu testinin kapsam alanı (20 Ekim 2026): madde numarası ya da bölüm başlığı.
+      point: typeof row.point === "string" || typeof row.point === "number" ? String(row.point) : undefined,
     });
     return normalized ? [normalized] : [];
   });
@@ -360,7 +546,25 @@ export function shuffleOptions(question: QuizQuestion): QuizQuestion {
   };
 }
 
-export type QuizIssue = { question: number; severity: "high" | "low"; problem: string; fix?: string };
+/** `code`: denetçi maddesinin harfi (A-K). Yalnız konu testi denetçisi yazar; harfsiz sorun engeller. */
+export type QuizIssue = { question: number; severity: "high" | "low"; problem: string; fix?: string; code?: string };
+
+/**
+ * Konu testinde yumuşak sorunlar (20 Ekim 2026): pedagojik (H tablo satırı, I tekrar, J kapsam, K ders).
+ * Soru düzeltilir ya da yedekle değişir; düzelmezse sayıyı tamamlamak için geri konur. A-G (doğruluk,
+ * soru yazımı), yapı sorunları ve harfsiz sorunlar engeller: o soru öğrenciye hiç gitmez.
+ */
+export const SOFT_CODES: ReadonlySet<string> = new Set(["H", "I", "J", "K"]);
+/** Kapsam eksiği: yeterli soru olsa da bir düzeltme turu açar. */
+export const FORCE_FIX_CODES: ReadonlySet<string> = new Set(["J"]);
+
+function issueCode(row: Record<string, unknown>, problem: string): string | undefined {
+  const raw = typeof row.code === "string" ? row.code.trim().toUpperCase() : "";
+  if (/^[A-K]$/.test(raw)) return raw;
+  if (typeof row.code === "string" && raw) return undefined;
+  // Harf alanını unutan denetçi sorunu çoğu kez maddeyle başlatıyor ("H) …", "J: …").
+  return /^\s*\(?([A-K])(?:\)|:|\.)\s/.exec(problem)?.[1];
+}
 
 export function parseQuizIssues(raw: unknown): QuizIssue[] {
   const list = (raw as { issues?: unknown } | null)?.issues;
@@ -376,9 +580,121 @@ export function parseQuizIssues(raw: unknown): QuizIssue[] {
         severity: row.severity === "low" ? ("low" as const) : ("high" as const),
         problem: problem.slice(0, 400),
         fix: typeof row.fix === "string" ? row.fix.slice(0, 400) : undefined,
+        code: issueCode(row, problem),
       },
     ];
   });
+}
+
+/** Aynı kök kalıbı en çok bu kadar soruda (KONU TESTİ kuralı). */
+export const MAX_SAME_FRAME = 2;
+
+/**
+ * Sorunun kök kalıbı: son soru cümlesinin son üç kelimesi ("En olası tanı hangisidir?" →
+ * "olası tanı hangisidir"). P4'ün dört sorusu aynı kalıptaydı; denetçi tek tek bakınca görmedi.
+ */
+export function stemFrame(text: string): string {
+  const sentences = text
+    .split(/(?<=[.;:!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  const asked = [...sentences].reverse().find((sentence) => sentence.endsWith("?")) ?? sentences[sentences.length - 1] ?? "";
+  const words = asked
+    .toLocaleLowerCase("tr")
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+  return words.slice(-3).join(" ");
+}
+
+export type QuizSetIssue = { index: number; code: "I" | "J" | "K"; problem: string; forceFix: boolean };
+
+function pointNumber(question: QuizQuestion, available: number): number | null {
+  const match = /^\s*(?:madde\s*)?(\d{1,2})(?!\d)/i.exec(question.point ?? "");
+  const value = match ? Number(match[1]) : NaN;
+  return value >= 1 && value <= available ? value : null;
+}
+
+function overlap(left: Set<string>, right: Set<string>): number {
+  if (left.size < 3 || right.size < 3) return 0;
+  let shared = 0;
+  for (const key of left) if (right.has(key)) shared += 1;
+  return shared / (left.size + right.size - shared);
+}
+
+/**
+ * Konu testinin bütününe bakan kod denetimi (saf; metne dokunmaz, yalnız işaretler). Sıra testteki
+ * sıradır; hep sonraki soru işaretlenir.
+ * - I: aynı kök kalıbı üçüncü kez.
+ * - J: madde ikinci kez sorulmuş ama hiç sorulmamış madde var (kapsam; düzeltme turu açar).
+ * - K: derste sorulan soruyla neredeyse aynı (kelime köklerinde Jaccard ≥ 0,75).
+ * Tablo satırı tekrarı (H) burada yok: iyi bir tanı vakası da satırın bulgularını taşır; onu denetçi yargılar.
+ */
+export function quizSetIssues(
+  ordered: readonly QuizQuestion[],
+  opts: { pointsAvailable: number; lessonChecks?: readonly string[] },
+): QuizSetIssue[] {
+  const issues: QuizSetIssue[] = [];
+  const frames = new Map<string, number>();
+  const used = new Set(ordered.map((question) => pointNumber(question, opts.pointsAvailable)).filter((n): n is number => n !== null));
+  const unused = Array.from({ length: opts.pointsAvailable }, (_, i) => i + 1).filter((n) => !used.has(n));
+  const seenPoints = new Set<number>();
+  const checks = (opts.lessonChecks ?? []).map((check) => ({ check, keys: wordKeys(check) }));
+  ordered.forEach((question, index) => {
+    const frame = stemFrame(question.text);
+    if (frame) {
+      const seen = frames.get(frame) ?? 0;
+      frames.set(frame, seen + 1);
+      if (seen >= MAX_SAME_FRAME) {
+        issues.push({
+          index,
+          code: "I",
+          problem: `Aynı kök kalıbı ${seen + 1}. kez ("${frame}"); başka bir iş isteyen kalıp yaz (sıradaki adım, yapılmaması gereken, uyarı bulgusu, ayırt ettiren bulgu).`,
+          forceFix: false,
+        });
+      }
+    }
+    const point = pointNumber(question, opts.pointsAvailable);
+    if (point !== null) {
+      if (seenPoints.has(point) && unused.length) {
+        issues.push({
+          index,
+          code: "J",
+          problem: `Madde ${point} ikinci kez soruluyor; sorulmamış madde(ler): ${unused.join(", ")}. Bunlardan birini yokla.`,
+          forceFix: true,
+        });
+      }
+      seenPoints.add(point);
+    }
+    const keys = wordKeys(question.text);
+    const twin = checks.find((item) => overlap(keys, item.keys) >= 0.75);
+    if (twin) {
+      issues.push({
+        index,
+        code: "K",
+        problem: `Derste sorulan soruyla neredeyse aynı ("${twin.check.slice(0, 120)}"); aynı bilgiyi bir üst düzeyde sor.`,
+        forceFix: false,
+      });
+    }
+  });
+  return issues;
+}
+
+/**
+ * Yalnız ölçüm (günlüğe yazılır, kapı değil): kökü bir kaynak tablosu satırının ilk hücresini
+ * neredeyse aynen taşıyan (köklerinin %80'i) soru sayısı. P4'te 5 sorudan 3'ü; dördüncüsü
+ * "tetikleyici"yi egzersiz/alerjen diye açtığı için sayılmıyor.
+ */
+export function tableLookupLike(questions: readonly QuizQuestion[], pages: readonly { text: string }[]): number {
+  const firstCells = pages
+    .flatMap((page) => page.text.split(/\r?\n/))
+    .filter((line) => /^\s*\|/.test(line) && !/^\s*\|[\s|:-]+\|?\s*$/.test(line))
+    .map((line) => wordKeys(line.split("|")[1] ?? ""))
+    .filter((keys) => keys.size >= 2);
+  if (!firstCells.length) return 0;
+  return questions.filter((question) => {
+    const stem = wordKeys(question.text);
+    return firstCells.some((cell) => [...cell].filter((key) => stem.has(key)).length / cell.size >= 0.8);
+  }).length;
 }
 
 const BANNED_OPTION = /^(hepsi|hiçbiri|yukarıdaki|tümü|hiç biri)/i;

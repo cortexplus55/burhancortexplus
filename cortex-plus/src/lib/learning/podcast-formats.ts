@@ -84,8 +84,10 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         // 17 Ekim 2026, ürün sahibi: "Astra gibi iki ses de anlatsın". Kerem'in bütün sıraları tek
         // cümlelik soruydu (canlı ölçüm, solunum podcast'i); Astra'da iki sunucu da anlatıyor.
         style:
+          // 20 Ekim 2026 kör kıyas: "kaynaktaki bir örneği anlatır" Kerem'e dört kez "Notlarındaki örnekte …"
+          // dedirtti (istemdeki kapsam satırı da bunu istiyordu, `podcastGroundingBrief`). Örnek kaynağı anmadan anlatılır.
           "Ada öğretmen, Kerem konuya çalışmış bir öğrenci arkadaşı; ikisi de anlatır. Kerem yalnız soru sormaz: " +
-          "kaynaktaki bir örneği anlatır, duyduğunu kendi sözleriyle toparlar, iki kavramı karşılaştırır ya da Ada'nın " +
+          "bir örneği kaynağı anmadan anlatır, duyduğunu kendi sözleriyle toparlar, iki kavramı karşılaştırır ya da Ada'nın " +
           "açıklamasını bir adım ilerletir (1-3 cümle). Kerem'in konuşma sıralarının en az yarısı soru değil, bilgi taşır. " +
           "Ada açıklamanın ağırlığını taşır, Kerem'in eksik bıraktığını tamamlar. Kerem'in söylediği bilgi de doğru ve " +
           "kaynağa dayalıdır; yanlış bir cümleyi doğruymuş gibi söylemez. Konuşmayı Ada açar ve bitirir.",
@@ -131,6 +133,18 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
 export const DUO_NARRATOR_SCHEMA =
   'Her satırın speaker alanı "ada" (öğretmen) ya da "kerem" (öğrenci arkadaşı). İkisi de konuşur. Her satır bir konuşma sırasıdır: 1-4 cümle, her cümle en çok 25 kelime. Ada açıklarken nedenini ve sonucunu da söyler; Kerem\'in ne yaptığı BİÇİM satırında yazılı.';
 
+/**
+ * İki sunuculu türlerde konuşma sırası kuralı (20 Ekim 2026, kör kıyas). Canlı podcast'te Kerem doğru
+ * cevabı kendisi verip ardından "Ben tek ölçümü yeterli sanmışım" dedi; başka bir bölümde art arda iki
+ * soru sordu, Ada ilgisiz bir tanımla devam etti, soruyu sonunda Kerem kendisi cevapladı. Yazar
+ * (`podcastDuoBrief`) ve denetçi (G maddesi, `teacher-podcast.ts`) bu metni aynen okur.
+ */
+export const DUO_TURN_RULE =
+  "Bir konuşmacı soru sorarsa öbürü hemen sonraki konuşma sırasında o soruyu cevaplar; bir sırada en çok bir soru " +
+  "sorulur ve soruyu soran kendi sorusunu cevaplamaz ('Dur ve düşün:' dinleyene sorulur, cevabı 'Cevap:' satırıdır). " +
+  "Kerem bir yanılgıyı ('Ben … sanmışım / varsaymışım') yalnız doğrusu henüz söylenmemişken itiraf eder; doğru cevabı " +
+  "kendisi verdiyse aynı konuda yanılgı itiraf etmez. Hiçbir konuşmacı kendi önceki cümlesiyle çelişmez.";
+
 export function podcastDuoBrief(): string {
   return (
     "Ada (öğretmen) ile Kerem (öğrenci arkadaşı) gerçek bir sohbet gibi konuşarak akılda kalan bir ders anlatır. " +
@@ -140,6 +154,7 @@ export function podcastDuoBrief(): string {
     "Kerem doğal konuşur: merak eder, karıştırılan noktayı soru olarak sorar ('Yani … mı?'); Ada " +
     "nedenini söyleyerek cevaplar. Kerem her bölümde 'Ben … sanmışım / varsaymışım' diye hata itiraf etmez; " +
     "bu bütün podcast'te en çok bir kez olur. " +
+    `${DUO_TURN_RULE} ` +
     "Ada kaynaktan cümle okumaz; kendi sözleriyle, konuşur gibi anlatır ve bir açıklamayı art arda iki üç satırda " +
     "sürdürebilir. Aynı tanımı bir bölümde bir kez söyle; 'Tekrar edelim' yalnız son bölümde. " +
     "Bilgi taşımayan cümle kurma ('önemli nokta, … ele alınmasıdır', 'bu konu çok önemlidir' gibi); her cümle bir bilgi, " +

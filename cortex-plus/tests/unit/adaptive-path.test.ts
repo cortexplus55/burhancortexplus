@@ -139,7 +139,7 @@ describe("rota tarafı (sahte veritabanı)", () => {
     expect(route.indexOf("await adaptPathAfterResult(")).toBeGreaterThan(0);
     expect(route.indexOf("await adaptPathAfterResult(")).toBeLessThan(route.indexOf('service.rpc("complete_exam_prep_node"'));
     expect(route).toContain("pathChange,");
-    expect(route).toContain("focusTopic: adaptiveFocusTopic(kind, node.session_meta, topicLabel)");
+    expect(route).toContain('focusTopic: (kind === "focused" && requestedTopic) || adaptiveFocusTopic(kind, node.session_meta, topicLabel)');
     expect(read("src/lib/learning/exam-local-session.ts")).toContain("const weakTopics = focus");
   });
 });
