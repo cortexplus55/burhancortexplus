@@ -204,6 +204,11 @@ export function prefetchVariant(
     return `oral:${input.oralQuestionCount ?? PREFETCH_DEFAULTS.oralQuestionCount}:${topic}:${input.mood ?? PREFETCH_DEFAULTS.oralMood}:${input.difficulty ?? PREFETCH_DEFAULTS.oralDifficulty}`;
   }
   if (kind === "quiz" && input.lessonKey) return `quiz:${input.difficulty ?? "orta"}:${input.lessonKey}`;
+  // "Kartlarla son tekrar" zayıf konuya yönelir (20 Ekim 2026): önceden yazılan deste başka konunun
+  // destesiyse atılır, yeniden yazılır.
+  if (kind === "flashcards") {
+    return `flashcards:${input.difficulty ?? "orta"}:${input.topicLabel.trim().toLocaleLowerCase("tr")}`;
+  }
   return `${kind}:${input.difficulty ?? "orta"}`;
 }
 

@@ -18,6 +18,7 @@ import {
 } from "@/lib/learning/prep-corpus";
 import type { GradedClaim } from "@/lib/learning/tutor-quant";
 import { chatMisconceptionRow } from "@/lib/learning/tutor-reply";
+import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
 
 export type PrepPassage = {
   documentId: string;
@@ -246,13 +247,17 @@ export async function recordChatMisconception(
   input: { userId: string; prepId: string; grade: GradedClaim; question: string },
 ): Promise<void> {
   const row = chatMisconceptionRow(input.grade, input.question);
-  const { data: existing } = await service
-    .from("exam_prep_misconceptions")
-    .select("id")
-    .eq("user_id", input.userId)
-    .eq("exam_prep_id", input.prepId)
-    .eq("claim", row.claim)
-    .limit(1);
+  // Aynı iddianın yalnız AÇIK satırı tekrar yazımı engeller (20 Ekim 2026): çözülmüş yanılgıya
+  // yeniden düşen öğrencinin yanılgısı yeniden açılır. Sütun yoksa eskisi gibi bütün satırlar.
+  const { data: existing } = await withOpenMisconceptions((onlyOpen) => {
+    const query = service
+      .from("exam_prep_misconceptions")
+      .select("id")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.prepId)
+      .eq("claim", row.claim);
+    return (onlyOpen ? query.is("resolved_at", null) : query).limit(1);
+  });
   if (existing && existing.length > 0) return;
   await service.from("exam_prep_misconceptions").insert({
     user_id: input.userId,

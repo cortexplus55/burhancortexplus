@@ -49,7 +49,11 @@ export function sessionsToInsert(
   schedule: ScheduleBuildResult,
   doneNodes: PrepNodeForReschedule[],
 ): ScheduleSession[] {
+  // Bitmiş yazılı deneme varken deneme oturumu yeni düğüm olmaz (20 Ekim 2026): sırası kaymış
+  // olsa da (uyarlamalı ekleme) aynı iş; ikinci "Yazılı deneme" yazılmaz.
+  const mockDone = doneNodes.some((node) => node.status === "done" && node.kind === "written_exam");
   return schedule.sessions.filter((session) => {
+    if (mockDone && session.role === "mock") return false;
     return !doneNodes.some((node) => {
       if (node.status !== "done" || node.kind !== session.kind) return false;
       const meta =

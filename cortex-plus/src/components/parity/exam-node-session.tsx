@@ -345,8 +345,14 @@ export function ExamNodeSession({
     title: string;
     chapters: unknown[];
   } | null>(null);
-  /** Stage 6: which question indices showed a hint before submit. */
-  const hintsUsed: Record<string, boolean> = {};
+  /**
+   * Stage 6: cevaplanmadan önce eğitmenden yardım alınan sorular. 20 Ekim 2026'ya kadar her
+   * çizimde boş bir nesneydi ve hiç doldurulmuyordu: eğitmenle çözülen soru bağımsız doğru
+   * sayılıyordu. Yalnız bellekte; sayfa yenilenirse kaybolur (eski davranış).
+   */
+  const hintsUsedRef = useRef<Record<string, boolean>>({});
+  /** Testte "Kontrol et" ile kilitlenen sorular: sonrasındaki eğitmen açıklaması ipucu değil. */
+  const revealedRef = useRef<Set<string>>(new Set());
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
@@ -373,6 +379,12 @@ export function ExamNodeSession({
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
+
+  // Yeni deneme, yeni ipucu kaydı.
+  useEffect(() => {
+    hintsUsedRef.current = {};
+    revealedRef.current = new Set();
+  }, [attemptId]);
 
   useEffect(() => {
     if (!resumeEnabled) return;
@@ -762,7 +774,7 @@ export function ExamNodeSession({
             : undefined,
           answers: {
             ...base,
-            __meta: { hintsUsed },
+            __meta: { hintsUsed: hintsUsedRef.current },
           },
         }),
       });
@@ -1036,6 +1048,24 @@ export function ExamNodeSession({
     payload.type !== "voice" &&
     payload.type !== "podcast" &&
     !cinematicLesson;
+
+  /**
+   * Eğitmen cevap verdi: soru henüz kilitlenmediyse bu soru ipuçlu sayılır (20 Ekim 2026). Testte
+   * kilit "Kontrol et", doğru/yanlışta seçim; sözlüde cevap ilerleyince sonraki soruya geçilir.
+   * Cevaptan sonraki açıklama ipucu değil.
+   */
+  function markHint() {
+    if (payload.type !== "quiz" && payload.type !== "true_false" && payload.type !== "oral") return;
+    const key = String(index);
+    const locked =
+      payload.type === "quiz"
+        ? revealedRef.current.has(key)
+        : payload.type === "true_false"
+          ? answersRef.current[key] !== undefined
+          : false;
+    if (locked) return;
+    hintsUsedRef.current = { ...hintsUsedRef.current, [key]: true };
+  }
 
   return (
     <div className="cp-exam-page cp-exam-node">
@@ -1408,6 +1438,7 @@ export function ExamNodeSession({
             index={index}
             value={answers[String(index)]}
             onChange={(value) => updateAnswer(String(index), value)}
+            onReveal={() => revealedRef.current.add(String(index))}
             onContinue={() => {
               if (index + 1 < questions.length) setIndex(index + 1);
               else void finish();
@@ -2013,6 +2044,7 @@ export function ExamNodeSession({
           nodeId={nodeId}
           itemText={coachItem}
           returnPath={`/deneme-sinavlari/${prepId}`}
+          onUsed={markHint}
         />
       ) : null}
 

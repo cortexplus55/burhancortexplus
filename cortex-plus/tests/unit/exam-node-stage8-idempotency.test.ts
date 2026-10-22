@@ -46,6 +46,12 @@ function chain(result: { data: unknown; error?: unknown }) {
   builder.eq = self;
   builder.or = self;
   builder.gt = self;
+  // 20 Ekim 2026: yanılgı çözümü ve yol sırası okumaları (gte/in/neq/lt/not) izlemenin içinde.
+  builder.gte = self;
+  builder.in = self;
+  builder.neq = self;
+  builder.lt = self;
+  builder.not = self;
   builder.is = self;
   builder.order = self;
   builder.limit = self;

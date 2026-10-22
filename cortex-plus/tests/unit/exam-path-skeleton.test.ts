@@ -37,7 +37,7 @@ describe("study path skeleton", () => {
     expect(groups.map((group) => group.phase.title)).toEqual([
       "Bugün başla",
       "Öğren ve Pratik Yap",
-      "Aralıklı Tekrar",
+      "Kartlarla Tekrar",
       "Yazılı Deneme",
       "Sınav günü",
     ]);

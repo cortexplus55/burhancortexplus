@@ -59,6 +59,7 @@ const healthy = () =>
       exam_prep_prefetch: {},
       exam_prep_podcasts: {},
       exam_prep_review_items: {},
+      exam_prep_misconceptions: {},
     },
   });
 
@@ -109,12 +110,13 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(14);
+    expect(checks).toHaveLength(15);
     // 20 Ekim 2026: sonuca göre yol fonksiyonu da soruluyor.
     expect(find(checks, "Sonuca göre yol").ok).toBe(true);
     // 20 Ekim 2026: podcast önbelleğinin dinleme kontrolü sütunu; eksikse kritik değil.
     expect(find(checks, "Dinleme kontrolü önbelleği").ok).toBe(true);
     expect(find(checks, "Aralıklı tekrar").ok).toBe(true);
+    expect(find(checks, "Yanılgı çözümü").ok).toBe(true);
     expect(find(checks, "Öğretmen analizi").ok).toBe(true);
     expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 6, podcast 12 kredi");
   });
@@ -131,6 +133,16 @@ describe("diğer göç dosyaları", () => {
     expect(find(checks, "Kredi sistemi v2")).toMatchObject({ ok: false, critical: true });
     expect(find(checks, "Ders hatası kaydı").ok).toBe(false);
     expect(find(checks, "İade fonksiyonu").ok).toBe(false);
+  });
+
+  /* 20 Ekim 2026: resolved_at yoksa kod hepsini açık sayar (yanlışlıkla "Hazırsın" yok);
+     eksik göç sistem sayfasında görünür ama kritik değil. */
+  it("yanılgı çözümü sütunu yoksa kritik olmayan uyarı", async () => {
+    const checks = await probeSchema(service({ rows: { credit_rules: v2Rules } }));
+    const resolution = find(checks, "Yanılgı çözümü");
+    expect(resolution).toMatchObject({ ok: false, critical: false });
+    expect(resolution.detail).toContain("20261020170000");
+    expect(resolution.detail).toContain("hepsi açık");
   });
 
   it("eksik tabloyu ve eski çarpanı yakalıyor", async () => {

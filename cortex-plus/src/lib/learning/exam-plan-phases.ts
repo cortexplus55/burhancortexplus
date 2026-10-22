@@ -39,7 +39,8 @@ export const PLAN_PHASES: PhaseMeta[] = [
   },
   {
     id: "review",
-    title: "Aralıklı Tekrar",
+    // 20 Ekim 2026: aşamada yalnız kart destesi var (`PLAN_NODE_META.spaced`, "Kartlarla tekrar").
+    title: "Kartlarla Tekrar",
     blurb: "Öğrendiklerini tekrar et.",
     kinds: ["spaced"],
   },

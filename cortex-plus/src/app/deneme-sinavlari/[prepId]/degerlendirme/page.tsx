@@ -25,6 +25,7 @@ import {
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
+import { countOpenMisconceptions } from "@/lib/learning/misconception-store";
 
 export const metadata = { title: "Sınav öncesi değerlendirme" };
 export const dynamic = "force-dynamic";
@@ -84,10 +85,8 @@ export default async function ExamPrepAssessmentPage({
     .select("label")
     .eq("exam_prep_id", prepId);
 
-  const { count: misconceptionCount } = await supabase
-    .from("exam_prep_misconceptions")
-    .select("id", { count: "exact", head: true })
-    .eq("exam_prep_id", prepId);
+  // Yalnız çözülmemiş yanılgılar (20 Ekim 2026); sütun yoksa hepsi açık sayılır.
+  const misconceptionCount = await countOpenMisconceptions(supabase, { prepId });
 
   const topics: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
     topicKey: row.topic_key as string,
@@ -129,7 +128,7 @@ export default async function ExamPrepAssessmentPage({
     }
   }
 
-  const openMisconceptions = misconceptionCount ?? 0;
+  const openMisconceptions = misconceptionCount;
   const indicators = buildLearningIndicators({
     nodes,
     topics,

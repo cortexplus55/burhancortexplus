@@ -172,9 +172,16 @@ import {
   mergeAnswersForScoring,
   shouldReuseExistingStart,
 } from "@/lib/learning/attempt-lifecycle";
-import { buildLocalSessionPayload, spacedReviewGate } from "@/lib/learning/exam-local-session";
+import {
+  buildLocalSessionPayload,
+  gapsNothingOpenPayload,
+  isPathTurn,
+  spacedReviewGate,
+} from "@/lib/learning/exam-local-session";
 import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
 import { adaptiveFocusTopic } from "@/lib/learning/path-change";
+import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
+import { retargetNodeTopic } from "@/lib/learning/prep-wide-target-server";
 import {
   acceptFilledExplanations,
   buildWrittenExamReview,
@@ -529,13 +536,14 @@ async function handleNodeRequest(
   // Kredi ve plan sınırı üretimde durur.
   if (!openable && !prefetch) return errorResponse(403, "node_locked");
 
-  const sessionMeta = teachingV2 ? parseSessionMeta(node.session_meta) : null;
+  // `let`: hazırlık geneli düğüm zayıf konuya yönelebilir (aşağıda `retargetNodeTopic`).
+  let sessionMeta = teachingV2 ? parseSessionMeta(node.session_meta) : null;
   const topicLookupId = sessionMeta?.topicId ?? prep.active_topic_id;
   // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar; yalnız `id` ile arama konuyu bulmaz
   // (18 Ekim 2026: aşinalık kaydedilmiyor, konunun sayfa eşlemesi atlanıyordu).
   const topicMatch = topicLookupId ? prepTopicMatch(topicLookupId) : null;
 
-  const { data: topic } = topicMatch
+  let { data: topic } = topicMatch
     ? await service
         .from("exam_prep_topics")
         .select("id, label, measured_level, document_topic_node_id, source_refs")
@@ -553,7 +561,7 @@ async function handleNodeRequest(
 
   let topicDocumentId: string | null = null;
   let topicNodeId: string | null = null;
-  const topicSourceRefs = topic?.source_refs ?? null;
+  let topicSourceRefs = topic?.source_refs ?? null;
   if (topic?.id) {
     const nodeIdForTopic =
       typeof topic.document_topic_node_id === "string"
@@ -582,7 +590,7 @@ async function handleNodeRequest(
     ""
   ).slice(0, 400);
   if (requestedTopic) topicLabel = requestedTopic;
-  const topicWiden =
+  let topicWiden =
     (kind === "oral" && parsed.data.oralScope === "all") ||
     Boolean(requestedTopic && !topicLabelsMatch(requestedTopic, sessionMeta?.topicTitle));
   const difficulty = parsed.data.difficulty ?? "orta";
@@ -1343,6 +1351,11 @@ async function handleNodeRequest(
     } catch {
       return errorResponse(503, "generation_failed");
     }
+    // Yolda sırası gelen "Bilgi boşlukları" kilitli dönerse yol orada durur (20 Ekim 2026): adımı
+    // tamamlayacak düğme yok. Sırası gelmişse kapatılacak boşluk olmadığı söylenir, adım biter.
+    if (local.action === "serve" && local.payload.locked === true && kind === "gaps" && (await isPathTurn(service, prepId, node))) {
+      local = gapsNothingOpenPayload();
+    }
     if (local.action === "serve" && local.payload.locked === true) {
       // Kayıt açılmaz: kilit kalkınca düğüm temiz başlasın.
       return NextResponse.json({ ok: true, kind, title, topicLabel, voiceMode: false, payload: local.payload });
@@ -1396,6 +1409,42 @@ async function handleNodeRequest(
       });
     }
     practiceTopics = local.topics;
+  }
+
+  // Hazırlık geneli düğüm ve `?konu=` (20 Ekim 2026, prep-wide-target.ts): düğümün devraldığı 1.
+  // konu yerine öğrencinin zayıf konusu ya da seçtiği konu; istem, kaynak ve kanıt aynı konuyu
+  // söyler. Konu kaydı bulunamazsa düğüm devraldığı konuyla açılır — istek düşmez.
+  let retargetedTopic: string | null = null;
+  if (teachingV2) {
+    const retarget = await retargetNodeTopic(service, {
+      userId,
+      prepId,
+      kind,
+      requestedTopic,
+      adaptiveFocus: adaptiveFocusTopic(kind, node.session_meta, topicLabel),
+      practiceTopics,
+      inheritedTopicTitle: sessionMeta?.topicTitle ?? null,
+      currentTopicId: topic?.id ?? null,
+    }).catch(() => null);
+    if (retarget) {
+      topic = retarget.topic;
+      topicSourceRefs = retarget.topic.source_refs ?? null;
+      topicDocumentId = retarget.topicDocumentId;
+      topicNodeId = retarget.topicNodeId;
+      topicLabel = retarget.topic.label;
+      retargetedTopic = retarget.topic.label;
+      // Devralınan hedef ve ünite 1. konunundu; kaynak aramasına ve isteme girmesin.
+      sessionMeta = {
+        ...(sessionMeta ?? {}),
+        topicId: retarget.metaTopicId,
+        topicTitle: retarget.topic.label,
+        objective: undefined,
+        unitTitle: undefined,
+        sourcePages: retarget.sourcePages.length ? retarget.sourcePages : undefined,
+      };
+      topicWiden = kind === "oral" && parsed.data.oralScope === "all";
+      if (kind === "gaps" || kind === "focused" || kind === "final_check") practiceTopics = [retarget.topic.label];
+    }
   }
 
   const entitlements = await getUserEntitlements(service, userId);
@@ -2450,6 +2499,10 @@ async function handleNodeRequest(
     return errorResponse(502, "generation_failed", { refunded: true });
   }
 
+  // Zayıf konuya yönelen düğümün içeriği o konunun adını taşır (20 Ekim 2026): bitişteki kanıt ve
+  // yanılgı devralınan konuya değil sorulan konuya yazılır.
+  if (retargetedTopic && typeof payload.testedTopic !== "string") payload = { ...payload, testedTopic: retargetedTopic };
+
   const total = countTotal(kind, payload);
 
   if (kind === "lesson" && payload.type === "lesson" && payload.lesson && typeof payload.lesson === "object") {
@@ -3441,14 +3494,18 @@ async function loadLessonReviewCards(
   userId: string,
   prepId: string,
 ): Promise<LessonReviewCard[]> {
-  const { data, error } = await service
-    .from("exam_prep_misconceptions")
-    .select("question_preview, corrected, claim, source_kind")
-    .eq("user_id", userId)
-    .eq("exam_prep_id", prepId)
-    .eq("source_kind", "lesson_review")
-    .order("created_at", { ascending: false })
-    .limit(12);
+  // Çözülen yanılgı karta dönmez (20 Ekim 2026); sütun yoksa eskisi gibi hepsi.
+  const { data, error } = await withOpenMisconceptions((onlyOpen) => {
+    const query = service
+      .from("exam_prep_misconceptions")
+      .select("question_preview, corrected, claim, source_kind")
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("source_kind", "lesson_review");
+    return (onlyOpen ? query.is("resolved_at", null) : query)
+      .order("created_at", { ascending: false })
+      .limit(12);
+  });
   if (error || !data) return [];
   return cardsFromLessonReviews(data);
 }
@@ -3462,13 +3519,17 @@ async function unseenLessonReviews<
     .map((draft) => draft.questionPreview)
     .filter((preview): preview is string => Boolean(preview));
   if (!previews.length) return drafts;
-  const { data, error } = await service
-    .from("exam_prep_misconceptions")
-    .select("question_preview")
-    .eq("user_id", userId)
-    .eq("exam_prep_id", prepId)
-    .eq("source_kind", "lesson_review")
-    .in("question_preview", previews);
+  // Yalnız AÇIK satır engeller (20 Ekim 2026): çözüldükten sonra yine kaçırılan soru yeniden açılır.
+  const { data, error } = await withOpenMisconceptions((onlyOpen) => {
+    const query = service
+      .from("exam_prep_misconceptions")
+      .select("question_preview")
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("source_kind", "lesson_review")
+      .in("question_preview", previews);
+    return onlyOpen ? query.is("resolved_at", null) : query;
+  });
   if (error) return drafts;
   const seen = new Set((data ?? []).map((row) => row.question_preview as string));
   return [

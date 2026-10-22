@@ -267,18 +267,25 @@ export function orderTopicsByPrerequisites(
   return ordered;
 }
 
-/** Aynı türün tekrarı, öğrenciye aynı iş gibi görünmesin. */
+/**
+ * Aynı türün tekrarı, öğrenciye aynı iş gibi görünmesin.
+ *
+ * 20 Ekim 2026: ek testlerin adı "Tekrar testi (karışık)" ve "Zor sorular"dı; ikisi de olmayan bir
+ * şey vaat ediyordu. `practiceVariant` düğüme yazılmıyor, test motoru tek konunun sayfalarından
+ * öğrencinin seçtiği zorlukta yazıyor — ne karışık ne daha zor. Ad dürüstçe sırayı söyler (ürün
+ * sahibinin kararı: karışık/zor test kurulmaz).
+ */
 export function practiceActivity(variant: number): { label: string; reason: string | null } {
   if (variant <= 0) return { label: "Testler ve Doğru/Yanlış", reason: null };
   if (variant === 1) {
     return {
-      label: "Tekrar testi (karışık)",
-      reason: "Ağırlıklı konu olduğu için karışık bir tekrar.",
+      label: "İkinci test",
+      reason: "Sınavda ağırlıklı konu olduğu için ikinci bir test.",
     };
   }
   return {
-    label: "Zor sorular",
-    reason: "Sınavda ağırlıklı olduğu için daha zor sorular.",
+    label: "Üçüncü test",
+    reason: "Sınavda ağırlıklı konu olduğu için üçüncü bir test.",
   };
 }
 
@@ -674,7 +681,15 @@ export function redistributeRemainingSchedule(input: {
         : `${c.calendarDate}:${c.sortOrder}`,
     ),
   );
+  /*
+    Yazılı deneme bittiyse ikincisi kurulmaz (20 Ekim 2026). Notlanan deneme artık düğümü bitiriyor;
+    ardından takvim yeniden kuruluyor. Uyarlamalı ekleme ve şablon dolgusu düğüm sırasını
+    kaydırdığı için bitmiş denemenin sırası oturumunkiyle tutmuyor, oturum "kalan" sayılıyor ve
+    kurulum her zaman bir deneme koyduğundan yola ikinci "Yazılı deneme" giriyordu.
+  */
+  const mockDone = input.completed.some((c) => c.kind === "written_exam");
   const sessionDone = (session: ScheduleSession) =>
+    (mockDone && session.role === "mock") ||
     completedKeys.has(
       `${session.calendarDate}:${session.sortOrder}:${session.kind}`,
     ) ||
@@ -716,7 +731,7 @@ export function redistributeRemainingSchedule(input: {
   const merged = [
     ...keptCompleted,
     ...rebuilt.sessions
-      .filter((s) => !doneTopicRoles.has(doneKey(s)))
+      .filter((s) => !doneTopicRoles.has(doneKey(s)) && !(mockDone && s.role === "mock"))
       .map((s, i) => ({
         ...s,
         sortOrder: completedMaxSort + 1 + i,
@@ -741,7 +756,7 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
         : s.role === "practice"
           ? practice!.label
           : s.role === "review"
-            ? "Aralıklı tekrar"
+            ? "Kartlarla tekrar"
             : "Yazılı deneme";
     const titled =
       s.role === "mock"
