@@ -76,10 +76,10 @@ bölümünü değil komşusunu anlatıyordu (beslenme çiftinde Astra'nın dersi
 | Dinleme kontrolü | En az bir soru kısa bir durumda uygulatır | `PODCAST_CHECK_BRIEF` |
 | Konu testi | Aynı testte neredeyse aynı iki soru (I); "Bir öğrenci …" kurgusu, kaynağa gönderme, kökün cevabı vermesi kural metninde | `quizSetIssues`, `TOPIC_TEST_RULE` |
 
-Yerel doğrulama (aynı iki kaynak, eski ve yeni kod, ~0,08 $): ikisi de ders üretti, hiçbir kavram atılmadı;
+Yerel doğrulama (aynı iki kaynak, eski ve yeni kod, ~0,09 $): ikisi de ders üretti, hiçbir kavram atılmadı;
 yeni kodda yeni işaretlerden hiçbiri kalmadı; Büyüme dersinin vakası gerçek bir vakaya döndü ("son kontrolde
-ölçümler normal ama kendi eğrisinden uzaklaşmış"). Podcast'te "Evet;/Hayır;" açılışı 0, Kerem 15 sıranın 2'sinde
-soru soruyor. Süre bu iki örnekte uzadı (79 → 153 sn, 115 → 222 sn; ilk ekran 17-28 sn); örnek tek, oynak —
+ölçümler normal ama kendi eğrisinden uzaklaşmış"). Podcast'te "Evet;/Hayır;" açılışı 0 (Diyalog'da Kerem 15 sıranın 2'sinde soru soruyor;
+canlıda ölçülen tür olan Soru-Cevap'ta sorular "neden/nasıl" sorusu, cevaplarda örnek var). Süre bu iki örnekte uzadı (79 → 153 sn, 115 → 222 sn; ilk ekran 17-28 sn); örnek tek, oynak —
 canlıdaki ilk ekran p95 izlenmeli (`/admin/beta`, hedef < 20 sn).
 
 ## Düzeltilmeyen, açık kalan
@@ -88,8 +88,8 @@ canlıdaki ilk ekran p95 izlenmeli (`/admin/beta`, hedef < 20 sn).
   kaynakta nedeni olmayan bilgi ancak "Genel bilgi" kutusuyla açıklanabiliyor (ders başına en çok iki).
 - **İkinci sorunun doğru şıkkı ana soruyla aynı metin** (20 Ekim kuralı) ikinci soruyu dar tutuyor; anahtar hatasını
   önlemek için bilerek duruyor.
-- Canlıdaki podcast'in "Evet;/Hayır;" kalıbı yerelde (canlı girdiler olmadan) eski kodla da çıkmadı; kaynağı
-  canlı girdilerden biri olabilir. Kod denetimi ve kural iki yerde de koruyor.
+- Canlıda ölçülen podcast Soru-Cevap türündeydi; o türde Kerem tasarım gereği yalnız soru sorar. Yargıçlar onu
+  Astra'nın iki sunuculu anlatımıyla kıyasladı. Hazırlığın varsayılan türü Diyalog; üçüncü turda ikisi de ölçülmeli.
 
 ## Sıradaki ölçüm
 
