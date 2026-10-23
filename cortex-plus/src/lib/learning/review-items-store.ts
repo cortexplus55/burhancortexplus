@@ -373,6 +373,23 @@ export async function answerReviewItem(
     .eq("ask_count", row.ask_count)
     .select("id");
   if (error) return { error: "save_failed" };
+  if (Array.isArray(updated) && updated.length) {
+    // Tekrar doğruluğu basamak basamak (23 Ekim 2026): cevap anındaki basamak (0 = 1. gün … 3 = 14. gün).
+    // Ölçü kaydıdır; yazılamazsa (tablo yoksa) cevap yine geçerli.
+    try {
+      await service.from("exam_prep_review_answers").insert({
+        user_id: input.userId,
+        exam_prep_id: input.prepId,
+        item_id: row.id,
+        topic_label: row.topic_label ?? null,
+        step: Math.max(0, Math.min(3, row.interval_step ?? 0)),
+        correct,
+        answered_on: today,
+      });
+    } catch {
+      /* ölçü kaydı isteğe bağlı */
+    }
+  }
   if (!Array.isArray(updated) || !updated.length) {
     const again = await read();
     if (again && again.last_answered_on === today && again.ask_count > row.ask_count) {
