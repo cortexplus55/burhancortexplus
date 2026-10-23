@@ -117,7 +117,7 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
     expect(podcastVerifySystem("document")).toContain("F) 'Belgende geçmiyor ama bilmen iyi olur:' cümlesinde yanlış");
     // 20 Ekim 2026: kulak maddeleri G-I de yüksek.
-    expect(podcastVerifySystem("document")).toContain("A-I 'high'");
+    expect(podcastVerifySystem("document")).toContain("A-J 'high'");
     expect(podcastVerifySystem("document")).toContain("Kaynakta dayanağı olmayan");
   });
 
@@ -368,7 +368,7 @@ describe("podcast: konuşma ve kulak kuralları yazarda ve denetçide aynı meti
       expect(verify).toContain("G) (İki konuşmacılı metinde)");
       expect(verify).toContain('"rule"');
     }
-    expect(podcastVerifySystem("topic")).toContain("A-E ve G-I 'high'");
+    expect(podcastVerifySystem("topic")).toContain("A-E ve G-J 'high'");
     expect(podcastVerifySystem("document")).toContain("Şunlar 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.");
   });
 

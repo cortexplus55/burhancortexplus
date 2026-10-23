@@ -67,6 +67,25 @@ export const TABLE_RULE =
 export const REPEAT_RULE =
   "Aynı ifadeyi ya da aynı noktayı son bölüm dışında bütün podcast'te en çok iki kez söyle; üçüncü kez söyleyeceğin " +
   "yerde yeni bir bilgi, neden ya da örnek söyle.";
+/*
+  Sahne, neden, sıra (23 Ekim 2026, üçüncü kör ölçüm: podcast öğrenci gözünde 20+ puan geride). Yargıçların ortak
+  cümlesi "sesli okunan tablo": Kerem soruyor, Ada okuyor; neden-sonuç, örnek ve benzetme yok; yaşlar 9 → 2 → 6 → 12
+  diye karışık. Astra her bölümü bir sahne ve bir nedenle anlatıyor, özeti öğrencinin ağzından yaptırıyordu. Yazar
+  (AKIŞ) ve denetçi (J maddesi) üçünü aynen okur. J düzeltme turuna gider, kurtarmada satır silmez (I gibi).
+*/
+export const SCENE_RULE =
+  "Her bölüm (son tekrar bölümü hariç) somut bir sahneyle açılır: bir öğrencinin, hastanın, ülkenin ya da işlemin kısa " +
+  "durumu (kim, ne oluyor). Sahnedeki her ayrıntı kaynaktaki bilgiden gelir; yeni sayı, eşik ya da sonuç taşımaz. " +
+  "Bölümün geri kalanı sahneyi kavramla açıklar.";
+export const CAUSE_RULE =
+  "Her bölümde en az bir gerçek neden-sonuç cümlesi vardır: 'çünkü'den sonra gelen kısım ilk cümleyi başka sözle " +
+  "tekrar etmez, bir mekanizma söyler.";
+/** Yalnız belgeli yazara: belgesiz kipte etiketli genel bilgi yok. */
+const CAUSE_LABEL_NOTE =
+  "Kaynak nedeni vermiyorsa 'Belgende geçmiyor ama bilmen iyi olur:' ile tek cümle mekanizma söyleyebilirsin.";
+export const ORDER_RULE =
+  "Yaş, evre, sıra ya da basamak bildiren bilgiler kaynaktaki sırayla söylenir (2 ay, 6 ay, 9 ay, 12 ay); ileri geri " +
+  "atlanmaz.";
 /** Yalnız yazara: bölümün şekli serbest kalsın diye sıra dayatmaz ('Her bölüm: ne olduğu' kalıbı geri gelmesin). */
 const CHAPTER_RULE =
   "Her bölüm (son tekrar bölümü hariç) tek bir fikir taşır: fikrin kendisi, nedeni ve onu gösteren bir somut vaka " +
@@ -107,14 +126,18 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     "- İlk cümle dinleyeni düşündüren bir kanca; 'bu bölümde şunları öğreneceğiz' gibi boş cümle yok.\n" +
     "- Zıtlıkla anlat (X böyledir, Y ise şöyle); karıştırılan iki kavramı açıkça ayır.\n" +
     `- ${CHAPTER_RULE}\n` +
+    (length === "ozet" ? "" : `- ${SCENE_RULE}\n- ${CAUSE_RULE}${mode === "topic" ? "" : ` ${CAUSE_LABEL_NOTE}`}\n`) +
+    `- ${ORDER_RULE}\n` +
     `- ${TABLE_RULE}\n` +
     `- ${REPEAT_RULE}\n` +
-    "- Gündelik hayattan kısa, somut bir sahne kurabilirsin; yeni bilgi (sayı, kural, tarih, sonuç) taşımaz.\n" +
     (length === "ozet"
       ? ""
       : "- Bir ya da iki yerde dinleyene soru sor: satır 'Dur ve düşün:' ile başlar, hemen sonraki satır 'Cevap:' ile " +
         "başlar ve cevabı verir.\n" +
-        "- Son bölüm üç kısa tekrar satırıdır; her satır sınavda işe yarayan bir kesin bilgi.\n") +
+        (duo
+          ? "- Son bölümde Kerem dinlediklerini kendi sözleriyle üç kısa satırda toparlar (her satır sınavda işe yarayan bir " +
+            "kesin bilgi); Ada yalnız eksik ya da yanlışı tek satırla düzeltir.\n"
+          : "- Son bölüm üç kısa tekrar satırıdır; her satır sınavda işe yarayan bir kesin bilgi.\n")) +
     "- Örnek açarsan verileni, işlemi ve birimli sonucu aynı bölümde söyle; yarım bırakma. Eşitliğin iki tarafını hesapla.\n" +
     "- Formülü ve üssü simgeyle yaz (H₂O, 10²³, n = m/M); ondalık virgül kullan.\n\n" +
     // 20 Ekim 2026: Kerem bir podcast'te dört kez "Notlarındaki örnekte …" dedi. Kod da yakalar
@@ -185,11 +208,13 @@ const EAR_ITEMS =
   "anlıyorum' satırı); kendi önceki cümlesiyle çelişen satır.\n" +
   `H) Tekrar kuralı çiğnenmiş: «${REPEAT_RULE}» where: üçüncü ve sonraki geçişlerin satırları, ilk ikisi değil.\n` +
   `I) Kulak yükü kuralı çiğnenmiş: «${TABLE_RULE}» where: o konuşma sırasının ilk satırı.\n` +
-  "G, H ve I'da where her zaman tek satırdır: chapters[i].lines[j].\n";
+  "G, H ve I'da where her zaman tek satırdır: chapters[i].lines[j].\n" +
+  `J) Sahne, neden ya da sıra kuralı çiğnenmiş (son tekrar bölümü ve 1 dakikalık özet hariç): «${SCENE_RULE}» ` +
+  `«${CAUSE_RULE}» «${ORDER_RULE}» where: bölüm, chapters[i].\n`;
 
 function verifyJson(mode: TeacherLessonMode): string {
   return (
-    (mode === "topic" ? "A-E ve G-I 'high'." : "A-I 'high'.") +
+    (mode === "topic" ? "A-E ve G-J 'high'." : "A-J 'high'.") +
     " Şunlar 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.\n" +
     'JSON döndür: {"issues":[{"where":"chapters[1].lines[3]","rule":"G","severity":"high","problem":"…","fix":"…"}]}. ' +
     "rule: maddenin harfi. Sorun yoksa issues boş dizi."
@@ -214,7 +239,7 @@ export function parsePodcastIssues(raw: unknown): PodcastIssue[] {
     const parsed = parseIssues({ issues: [item] });
     if (!parsed.length) return [];
     const rule = (item as { rule?: unknown } | null)?.rule;
-    const letter = typeof rule === "string" && /^[A-I]$/i.test(rule.trim()) ? rule.trim().toUpperCase() : undefined;
+    const letter = typeof rule === "string" && /^[A-J]$/i.test(rule.trim()) ? rule.trim().toUpperCase() : undefined;
     return parsed.map((issue) => (letter ? { ...issue, rule: letter } : issue));
   });
 }
@@ -448,7 +473,7 @@ const LINE_HANDLED_PROBLEM =
 const LINE_REF = /chapters\[(\d+)\]\.lines\[(\d+)\]/g;
 const CHAPTER_ONLY_REF = /chapters\[(\d+)\](?!\.lines)/g;
 /** Denetçinin madde harfi (`podcastIssueLine` biçimi: `[where] (G) …`). */
-const ISSUE_RULE = /^\[.*?\] \(([A-I])\) /;
+const ISSUE_RULE = /^\[.*?\] \(([A-J])\) /;
 /** Bu kadar satırın altındaki podcast yayınlanmaz; ikinci taslak denenir. */
 const MIN_SALVAGED_LINES = 4;
 
@@ -474,7 +499,8 @@ export function salvagePodcast(
     // Kulak maddeleri (20 Ekim 2026): I (tablo okuma) silinmez, yalnız düzeltme turuna gider;
     // G ve H satırı çıkar. Satır numarası yoksa ikisi de yayını durdurmaz, bölüm de düşürmez.
     const ear = ISSUE_RULE.exec(problem)?.[1];
-    if (ear === "I") continue;
+    // J (sahne, neden, sıra; 23 Ekim 2026) da I gibi: düzeltme turuna gider, satır ya da bölüm silmez.
+    if (ear === "I" || ear === "J") continue;
     if (ear === "G" || ear === "H") {
       for (const match of problem.matchAll(LINE_REF)) dropLines.add(`${match[1]}:${match[2]}`);
       continue;
@@ -519,8 +545,14 @@ export function salvagePodcast(
         removed += chapter.lines.length;
         return null;
       }
+      // Hemen önceki satırı çıkan çıplak onay da gider (23 Ekim 2026, beşinci ölçüm: "Bu iki durumu aynı şey
+      // sanmışım" çıkınca Ada'nın "Aynen." satırı tek başına kaldı). Bilgi taşıyan satır kalır.
+      const orphan = (lineIndex: number) =>
+        lineIndex > 0 &&
+        dropLines.has(`${chapterIndex}:${lineIndex - 1}`) &&
+        BARE_REPLY.test(chapter.lines[lineIndex]!.text.trim());
       const lines = chapter.lines.filter((_, lineIndex) => {
-        const drop = dropLines.has(`${chapterIndex}:${lineIndex}`);
+        const drop = dropLines.has(`${chapterIndex}:${lineIndex}`) || orphan(lineIndex);
         if (drop) removed += 1;
         return !drop;
       });
