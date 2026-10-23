@@ -90,7 +90,7 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     }
     const duo = podcastSystem("document", "diyalog");
     expect(duo).toContain("'Tekrar edelim' yalnız son bölümde");
-    expect(duo).toContain("bu bütün podcast'te en çok bir kez olur");
+    expect(duo).toContain("Kerem 'Ben … sanmışım' diye itiraf etmez; yaygın hatayı 'Çoğu öğrenci … sanır' diye söyler");
     // Biçimin kendi kuralıyla çelişmez: Kerem yanlış cümleyi doğru gibi söylemez.
     expect(duo).not.toContain("yanlış tahmin");
     expect(podcastSystem("document", "basit")).toContain("'Tekrar edelim' kalıbı her bölümde kullanılmaz");
@@ -116,9 +116,15 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     expect(qa).toContain("Kerem yalnızca soru sorar");
     expect(qa).not.toContain("Kerem yalnız soru sormaz");
     // Belgede olmayan neden/bilgi: sesli etiketle, en çok iki yerde; denetçi doğruluğunu ayrıca denetler.
-    expect(podcastSystem("document", "diyalog")).toContain("'Belgende geçmiyor ama bilmen iyi olur:'");
-    expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
-    expect(podcastVerifySystem("document")).toContain("F) 'Belgende geçmiyor ama bilmen iyi olur:' cümlesinde yanlış");
+    // 23 Ekim 2026 (ürün sahibinin kararı): ders kitabı nedeni hafif etiketle, tipik örnek etiketsiz; sayı ve tanı kaynaktan.
+    expect(podcastSystem("document", "diyalog")).toContain("cümle şu açılışlardan biriyle başlar: 'Kitaplarda şöyle anlatılır:', 'Ders kitapları bunu şöyle açıklar:', 'Genel olarak şöyle açıklanır:'");
+    expect(podcastSystem("document", "diyalog")).toContain("örnek kuralı uygular, kuralın söylemediği bir sonuç eklemez");
+    expect(podcastSystem("topic", "diyalog")).not.toContain("Kitaplarda şöyle anlatılır");
+    expect(podcastVerifySystem("document")).toContain("F) Etiketli neden cümlesinde ya da ders kitabı örneğinde yanlış");
+    expect(podcastVerifySystem("document")).toContain("bu açılışlarla toplam 5'ten fazla cümle");
+    // Kapsam kalır, derinlik seçilir (1 dakikalık özette yok).
+    expect(podcastSystem("document", "diyalog")).toContain("Kaynağın sınavda sorulan bütün noktalarını kapsa: tablo satırları, eşikler ve uyarı bulguları dahil");
+    expect(podcastSystem("document", "ozet")).not.toContain("Kaynağın sınavda sorulan bütün noktalarını kapsa");
     // 23 Ekim 2026 (ürün sahibinin kararı): yalnız doğruluk yüksek; kulak maddeleri G-J düşük.
     expect(podcastVerifySystem("document")).toContain("A-F 'high'; G-J 'low'.");
     expect(podcastVerifySystem("document")).toContain("Kaynakta dayanağı olmayan");
@@ -221,7 +227,7 @@ describe("öğretmen podcast motoru: kurtarma", () => {
   it("döngü: ilk düzeltmeden sonra kalan sorun 1-2 satırsa ikinci tur yerine satır çıkar (hız)", async () => {
     const roles: (string | undefined)[] = [];
     let fix = 0;
-    const ask = vi.fn(async (system: string, _user: string, role?: "draft" | "verify" | "fix") => {
+    const ask = vi.fn(async (system: string, _user: string, role?: "draft" | "verify" | "fix" | "notes") => {
       roles.push(role);
       if (system.includes("denetçisisin")) return { issues: [{ where: "chapters[1].lines[1]", severity: "high", problem: "Organ satımı kaynakta yok" }] };
       if (system.startsWith("Sen aynı podcast")) {
@@ -328,8 +334,8 @@ describe("podcast: kaynağa gönderme yok (20 Ekim 2026)", () => {
       expect(podcastSystem(mode, length)).toContain("'notlarındaki'");
       expect(podcastSystem(mode, length)).toContain("Bilgiyi kaynağa değil konuya bağla");
     }
-    expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
-    expect(podcastSystem("document", "diyalog")).toContain("'Belgende geçmiyor ama bilmen iyi olur:' etiketi bu yasağın dışındadır");
+    expect(podcastSystem("topic", "diyalog")).not.toContain("Kitaplarda şöyle anlatılır");
+    expect(podcastSystem("document", "diyalog")).toContain("'Genel olarak şöyle açıklanır:' açılışları bu yasağın dışındadır");
     expect(podcastSystem("document", "diyalog")).not.toContain("kaynaktaki bir örneği anlatır");
     expect(podcastFixSystem("document", "diyalog")).toContain("kaynağa göndermeyi kaldır");
   });
@@ -362,7 +368,7 @@ describe("podcast: kaynağa gönderme yok (20 Ekim 2026)", () => {
 describe("podcast: konuşma ve kulak kuralları yazarda ve denetçide aynı metin", () => {
   it("konuşma sırası kuralı iki sunuculu yazarda ve iki kipteki denetçide", () => {
     for (const length of ["diyalog", "soru_cevap"] as const) expect(podcastSystem("document", length)).toContain(DUO_TURN_RULE);
-    expect(podcastSystem("document", "diyalog")).toContain("bu bütün podcast'te en çok bir kez olur");
+    expect(podcastSystem("document", "diyalog")).toContain("Kerem Ada'nın cümlesini tekrar etmez");
     for (const mode of ["document", "topic"] as const) {
       const verify = podcastVerifySystem(mode);
       expect(verify).toContain(DUO_TURN_RULE);
@@ -459,7 +465,7 @@ describe("podcast kurtarma: kulak kuralları (20 Ekim 2026)", () => {
     const roles: (string | undefined)[] = [];
     const fixPrompts: string[] = [];
     let fix = 0;
-    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix") => {
+    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "notes") => {
       roles.push(role);
       if (system.includes("denetçisisin")) {
         return { issues: [{ where: "chapters[1].lines[0]", rule: "I", severity: "high", problem: "Tablo satır satır okunuyor" }] };
@@ -472,6 +478,7 @@ describe("podcast kurtarma: kulak kuralları (20 Ekim 2026)", () => {
       return draft;
     });
     const loop = await teacherPodcastLoop(ask, { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], length: "basit" });
+
     expect(roles).toEqual(["draft", "verify", "fix", "verify"]);
     expect(fixPrompts[0]).toContain("[chapters[1].lines[0]] (I) Tablo satır satır okunuyor");
     expect(loop.problems).toEqual([]);

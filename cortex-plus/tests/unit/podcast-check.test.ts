@@ -34,6 +34,7 @@ const episode: PodcastEpisode = {
       title: "Kilo ve boy",
       lines: [
         { speaker: "ada", text: "Belgende geçmiyor ama bilmen iyi olur: büyüme eğrileri ülkeye göre değişir." },
+        { speaker: "ada", text: "Kitaplarda şöyle anlatılır: vücut kıtlıkta enerjiyi önce beyne ayırır." },
         { speaker: "kerem", text: "Kilo akut beslenmeyi, boy kronik süreçleri yansıtır." },
         { speaker: "ada", text: "Bebek bir hafta ishal olsa hangisi önce düşer?", beat: "ask" },
         { speaker: "ada", text: "Kilo; boy haftalarca değişmez.", beat: "reveal" },
@@ -83,6 +84,8 @@ describe("dinleme kontrolü: kaynak, okuma, puan", () => {
     expect(source).toContain("Öğretmen: Dur ve düşün: Bebek bir hafta ishal olsa hangisi önce düşer?");
     expect(source).toContain("Öğretmen: Cevap: Kilo; boy haftalarca değişmez.");
     expect(source).not.toContain("Belgende geçmiyor ama");
+    // 23 Ekim 2026: yeni hafif etiketli ders kitabı nedeni de sorulmaz.
+    expect(source).not.toContain("Kitaplarda şöyle anlatılır");
     expect(PODCAST_CHECK_BRIEF).toContain("yalnız yanlış şık olabilir");
     const single = podcastCheckSource({ ...episode, chapters: [{ title: "Tek", lines: [{ speaker: "ada", text: "Kilo hızlı değişir." }] }] });
     expect(single).toBe("Tek:\nKilo hızlı değişir.");
@@ -122,7 +125,7 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
   const input = { topicLabel: "Büyüme ve gelişme", prepTitle: "Pediatri", listeningCheck: true };
   const asker = (draft: unknown) => {
     const calls: { system: string; user: string; role?: string }[] = [];
-    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix") => {
+    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "notes") => {
       calls.push({ system, user, role });
       return system.includes("denetçisisin") ? { issues: [] } : draft;
     });

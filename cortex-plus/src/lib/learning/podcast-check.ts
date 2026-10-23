@@ -7,6 +7,7 @@ import {
 } from "@/lib/learning/exam-quiz";
 import { parsePodcastLength, type PodcastLength } from "@/lib/learning/podcast-formats";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
+import { TEXTBOOK_LINE } from "@/lib/learning/podcast-textbook";
 
 /**
  * Podcast'in dinleme kontrolü (20 Ekim 2026, kör kıyas): Astra'nın podcast'i sonda soru
@@ -40,11 +41,11 @@ export function podcastCheckEligible(length: PodcastLength): boolean {
   return length !== "ozet";
 }
 
-const GENERAL_KNOWLEDGE = /^Belgende geçmiyor ama/i;
+const GENERAL_KNOWLEDGE = TEXTBOOK_LINE;
 
 /**
  * Kontrolün KAYNAK'ı: bölüm bölüm konuşulanlar. Belgede olmayan, etiketli genel bilgi
- * ("Belgende geçmiyor ama …") sorulmaz. İki sunuculu türde satırın başında rolü yazar:
+ * ("Kitaplarda şöyle anlatılır: …", eski kayıtlarda "Belgende geçmiyor ama …") sorulmaz. İki sunuculu türde satırın başında rolü yazar:
  * Kerem'in itiraf ettiği yanılgı düz cümle gibi okunup doğru şık yapılmasın.
  */
 export function podcastCheckSource(episode: PodcastEpisode): string {
