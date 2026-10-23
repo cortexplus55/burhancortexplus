@@ -494,6 +494,14 @@ export function verifyPartUserPrompt(
     examPointsVerifyBlock(input.examPoints),
     `DENETLENECEK: yalnız ${partLabel(part)}. Dersin öbür kısımları ayrıca denetlendi ya da denetlenecek; onları ` +
       "yalnız tutarlılık (F) için oku, onlar için sorun yazma.",
+    // 23 Ekim 2026 (3. ölçüm): akışlı derste ilk kavram yazılırken sonrakiler henüz yok. Denetçi dersin başlığındaki
+    // ve SINAVDA SORULUR listesindeki öbür konuları ("YSK ekranda yok", "seçim ilkeleri yok") ilk kavramda eksik
+    // saydı; yazar onları ilk ekrana sıkıştırdı, ilk ekran 84-200 sn'ye çıktı ve aynı bilgi sonraki kavramda yeniden
+    // anlatıldı (ikinci kör ölçümün "aynı YSK paragrafı üç ekranda" bulgusu).
+    part.closing
+      ? ""
+      : "Bu kısım dersin son kısmı DEĞİL: başlıkta ya da SINAVDA SORULUR listesinde geçen öbür konular sonraki " +
+        "kavramlarda anlatılacak. Onları bu kısımda eksik sayma; yalnız bu kısmın kavramına ait eksikliği yaz.",
     disputes.length
       ? `YAZARIN İTİRAZLARI (önceki denetimdeki sorunlar için):\n${disputeLines(disputes)}\n` +
         "Her itirazı tart: yazar haklıysa o sorunu yeniden yazma; haksızsa sorunu nedeniyle birlikte yeniden yaz."
@@ -1321,7 +1329,14 @@ export function partStructureIssues(lesson: LessonV3, part: LessonPart, input: S
     const ownedEarlier =
       flattened && part.from > 0 && tableRowsMentioned(flattened, stemSet(JSON.stringify(lesson.screens.slice(0, part.from))));
     if (flattened && !ownedEarlier) {
-      issues.push({ where: `screens[${part.from}]`, severity: "high", problem: flattenedTableIssue(flattened, { split: !part.header }) });
+      // İlk kavramda tur açmaz (23 Ekim 2026): istem tabloyu ikinci kavrama koyduruyor, ilk kavramın metni tablonun
+      // değerlerini anınca bu kural yüksek yazıp tur döndürüyordu (Özel Açılar: 13 tur, iki kavram atıldı). Tablo
+      // hiç verilmezse dersin kapanışındaki kural yine yakalar.
+      issues.push({
+        where: `screens[${part.from}]`,
+        severity: part.header ? "low" : "high",
+        problem: flattenedTableIssue(flattened, { split: !part.header }),
+      });
     }
   }
   return issues;
@@ -1424,6 +1439,36 @@ function reviewInput(check: Check) {
     review: check.review,
     ...(check.corrected ? { corrected: check.corrected } : {}),
   };
+}
+
+/** İkinci soruya ait sorun: `screens[i].blocks[j].review` ya da `….check.review`. */
+const REVIEW_WHERE = /screens\[(\d+)\]\.blocks\[(\d+)\](?:\.check)?\.review\b/;
+
+export function isReviewIssue(issue: TeacherIssue): boolean {
+  return REVIEW_WHERE.test(issue.where);
+}
+
+/**
+ * Sorunlu ikinci soruları çıkarır (23 Ekim 2026). `from`: kısmın ilk ekranının dersteki sırası (sorunların
+ * yeri ders bütünündeki sırayla yazılı). İkinci sorusu olmayan kontrolde çalışma anı kendi yedeğini kurar
+ * (`reviewGateQuestion`: aynı olgu, ana sorunun anahtarı); öğrenci yine ikinci bir soru görür.
+ */
+export function stripReviews(screens: readonly LessonScreen[], from: number, issues: readonly TeacherIssue[]): LessonScreen[] {
+  const targets = new Set(
+    issues.flatMap((issue) => {
+      const at = REVIEW_WHERE.exec(issue.where);
+      return at ? [`${Number(at[1]) - from}:${at[2]}`] : [];
+    }),
+  );
+  return screens.map((screen, screenIndex) => ({
+    ...screen,
+    blocks: screen.blocks.map((block, blockIndex) => {
+      if (block.type !== "check" || !targets.has(`${screenIndex}:${blockIndex}`)) return block;
+      const { review: _dropped, ...check } = block.check;
+      void _dropped;
+      return { ...block, check };
+    }),
+  }));
 }
 
 /** Yapı kuralı: kavramda birden fazla ezber kodu (`partStructureIssues`). */
