@@ -251,7 +251,7 @@ export async function extractImageText(
   /*
     Görsel denetimden geçiyor.
 
-    `/api/ai/solve-image` bunu zaten yapıyor ve gerekçesi burada da geçerli:
+    `/api/ai/solve` bunu zaten yapıyor ve gerekçesi burada da geçerli:
     buraya yüklenen şeyin ders notu olduğunu varsayamayız, kamera açılan her
     yerden her şey gelebilir. Denetim veri URL'i üzerinden, yani ikinci bir
     indirme ya da ikinci bir kodlama maliyeti yok.

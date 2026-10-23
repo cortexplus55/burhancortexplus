@@ -229,7 +229,6 @@ describe("ücretsiz hesapta günlük fotoğraf tavanı", () => {
 
   it.each([
     "src/app/api/ai/chat/route.ts",
-    "src/app/api/ai/solve-image/route.ts",
   ])("%s tavanı uyguluyor", (file) => {
     const source = readFileSync(file, "utf8");
     // Yönetici bayrağı istek gövdesinden değil, `withUser` bağlamından geliyor.
@@ -243,11 +242,24 @@ describe("ücretsiz hesapta günlük fotoğraf tavanı", () => {
      sonra gelmeli. */
   it.each([
     "src/app/api/ai/chat/route.ts",
-    "src/app/api/ai/solve-image/route.ts",
   ])("%s tavanı denetimden sonra soruyor", (file) => {
     const source = readFileSync(file, "utf8");
     const cap = source.indexOf("freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId)))");
     expect(cap).toBeGreaterThan(-1);
     expect(source.indexOf("await moderate(")).toBeLessThan(cap);
+  });
+
+  /* Soru çözücü (23 Ekim 2026): ücretsiz fotoğraf günde 3, krediye dokunmadan; yönetici muafiyeti
+     `withUser` bağlamından; tavan denetimden sonra (denetim rotada, çözüm motoru ondan sonra çalışır). */
+  it("soru çözücü tavanı uyguluyor ve denetimden sonra soruyor", () => {
+    const run = readFileSync("src/lib/solve/solve-run.ts", "utf8");
+    expect(run).toContain("input.isAdmin ? billingExempt(service, userId)");
+    expect(run).toContain("const freePhoto = image && !premium && !exempt;");
+    expect(run).toContain("freeImageAllowed(userId, false, false)");
+    expect(run).toMatch(/code: "free_image_limit"[\s\S]{0,240}status: 429/);
+    const route = readFileSync("src/app/api/ai/solve/route.ts", "utf8");
+    expect(route).toMatch(/const \{[^}]*\bisAdmin\b[^}]*\} = guard\.ctx/);
+    expect(route.indexOf("await moderate(")).toBeGreaterThan(-1);
+    expect(route.indexOf("await moderate(")).toBeLessThan(route.indexOf("await runSolve("));
   });
 });

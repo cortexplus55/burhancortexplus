@@ -18,9 +18,9 @@ describe("Araçlar kısayolları", () => {
     }
   });
 
-  it("ücretsiz hesapta fotoğraf, podcast ve sözlü Plus rozetli", () => {
+  it("ücretsiz hesapta podcast ve sözlü Plus rozetli; fotoğraf günde 3 kez ücretsiz (23 Ekim 2026)", () => {
     const hub = readFileSync("src/components/parity/tools-hub.tsx", "utf8");
-    expect(hub).toContain(`"soru-coz": "IMAGE_SOLUTION"`);
+    expect(hub).not.toContain(`"soru-coz": "IMAGE_SOLUTION"`);
     expect(hub).toContain(`podcast: "PODCAST_GENERATE"`);
     expect(hub).toContain(`sozlu: "ORAL_EXAM_GENERATE"`);
     expect(hub).toContain(`<span className="tool-kind is-plus">Plus</span>`);

@@ -1,40 +1,54 @@
+import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { ImageSolver } from "@/components/learning/image-solver";
+import { QuestionSolver } from "@/components/learning/question-solver";
 import { requireUser } from "@/lib/auth/session";
-import { Camera } from "lucide-react";
-import "@/styles/cortex-premium.css";
+import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
+import "@/styles/question-solver.css";
 
 export const metadata = { title: "Soru çöz" };
+export const dynamic = "force-dynamic";
 
-export default async function SoruCozPage() {
-  await requireUser();
+/*
+  Soru çöz (23 Ekim 2026): fotoğraf ya da yazılı soru, her ders. Yeni motor `src/lib/solve/` (iki bağımsız çözüm, kod
+  kontrolü, denetim). Ücretsiz hesapta günde 3 fotoğraf (ürün sahibinin kararı). Hazırlık sayfasından gelince
+  (`?hazirlik=`) şıklı soru o hazırlığın tekrar listesine eklenebilir.
+*/
+export default async function SoruCozPage({ searchParams }: { searchParams: Promise<{ hazirlik?: string }> }) {
+  const { supabase, user } = await requireUser();
+  const { hazirlik } = await searchParams;
+
+  let prep: { id: string; title: string } | null = null;
+  if (hazirlik && /^[0-9a-f-]{36}$/i.test(hazirlik)) {
+    const { data } = await supabase
+      .from("exam_preps")
+      .select("id, title, exam_type")
+      .eq("id", hazirlik)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (data) {
+      prep = {
+        id: data.id as string,
+        title: (data.title as string | null) ?? (data.exam_type as string | null) ?? "Sınav hazırlığı",
+      };
+    }
+  }
 
   return (
     <AppShell title="Soru çöz">
-      <div className="cortex-premium space-y-4">
-        <div className="cortex-premium-tool-card relative overflow-hidden p-6">
-          <div
-            className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[var(--cx-gold-glow)] opacity-30 blur-3xl"
-            aria-hidden
-          />
-          <div className="relative flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f0b84d] to-[#c9851f] text-[#0c0a06]">
-              <Camera className="h-5 w-5" aria-hidden />
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--cx-text)]">
-                Fotoğraftan soru çöz
-              </h2>
-              <p className="mt-1 text-sm text-[var(--cx-muted)]">
-                Sorunun net bir fotoğrafını yükle; adım adım çözüm ve benzer bir soru
-                alırsın. Ücretsiz günlük haktan büyük bir iştir; Plus&apos;ta açık.
-              </p>
-            </div>
-          </div>
-          <div className="relative mt-5 rounded-2xl border border-dashed border-[var(--cx-border-gold)] bg-black/25 p-4">
-            <ImageSolver />
-          </div>
-        </div>
+      <div className="cp-solver-page">
+        {prep ? (
+          <Link href={examPrepHomeHref(prep.id)} className="cp-solver-back">
+            ← {prep.title}
+          </Link>
+        ) : null}
+        <header className="cp-solver-intro-head">
+          <h1>Soru çöz</h1>
+          <p>
+            Sorunun fotoğrafını çek ya da soruyu yaz. Birkaç saniyede adım adım çözüm, her şıkkın açıklaması ve
+            akılda kalacak kısa kural gelir. Ücretsiz hesapta günde 3 fotoğraf sorusu.
+          </p>
+        </header>
+        <QuestionSolver prep={prep} />
       </div>
     </AppShell>
   );

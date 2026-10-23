@@ -17,6 +17,7 @@ import {
   workCount,
 } from "@/lib/billing/plan-value";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE, PLAN_ALLOWANCES } from "@/lib/credits/price-table";
+import { FREE_IMAGE_DAILY_LIMIT } from "@/lib/ai/image-quota";
 
 /*
   20 Ekim 2026, ürün sahibi: "plus alan biri bütün bir plus hesabıyla neler yapabilir … kaç adet
@@ -69,10 +70,13 @@ describe("Plus'ın bir ayı: sayılar kredi tablosundan", () => {
 
   it("'Ücretsizde kapalı' tam olarak ücretsiz günlük haktan büyük işler", () => {
     for (const work of PLAN_WORK) {
-      expect(work.plusOnly, work.id).toBe(work.credits > FREE_DAILY);
+      // Fotoğraf günlük haktan büyük ama kendi sayacıyla ücretsizde açık (23 Ekim 2026: günde 3).
+      expect(work.plusOnly, work.id).toBe(work.credits > FREE_DAILY && work.freeDaily === undefined);
       if (work.plusOnly) expect(freeMonthlyCount(work), work.id).toBe(0);
     }
     expect(freeMonthlyCount(PLAN_WORK_BY_ID.lesson)).toBe(30);
+    expect(PLAN_WORK_BY_ID.photo.freeDaily).toBe(FREE_IMAGE_DAILY_LIMIT);
+    expect(freeMonthlyCount(PLAN_WORK_BY_ID.photo)).toBe(FREE_IMAGE_DAILY_LIMIT * 30);
   });
 
   it("hazır tempolar Plus hakkına sığar ve gittikçe yoğunlaşır", () => {

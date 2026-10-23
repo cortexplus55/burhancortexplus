@@ -233,7 +233,7 @@ export async function dueReviewCountForPrep(
   return countDueReviewItems(service, input);
 }
 
-const ROW_COLUMNS = "id, topic_label, source_kind, reason, item, interval_step, due_on, status, ask_count, lapse_count";
+const ROW_COLUMNS = "id, topic_label, source_kind, source_ref, reason, item, interval_step, due_on, status, ask_count, lapse_count";
 
 /** Bugünün oturumu: önce yanlışlar, konular arasında sırayla; bozuk satır sessizce atlanır. */
 export async function loadDueReviewItems(

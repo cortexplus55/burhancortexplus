@@ -70,6 +70,9 @@ import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
+import { SolutionView } from "@/components/learning/question-solver";
+import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
+import { solutionMarkdown } from "@/lib/solve/solution-markdown";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -82,7 +85,14 @@ type Message = {
   rating?: Rating;
   /** Bu oturumda gelen hesap cevabının süresi; "Problem N saniyede çözüldü". */
   solvedMs?: number;
+  /** Fotoğraftan çözüm (23 Ekim 2026): kart olarak çizilir; `content` sohbete kaydedilen metin. */
+  solve?: SolveDone;
+  solveKey?: string;
 };
+
+function isImageName(name: string): boolean {
+  return /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(name);
+}
 
 function SorTypingDots({ label }: { label?: string }) {
   return (
@@ -306,6 +316,7 @@ function ChatPanelSession({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [solveStage, setSolveStage] = useState<"solving" | "checking" | null>(null);
   /** Aynı kullanıcı mesajı yeniden denendiğinde (regenerate) çift ücret olmasın. */
   const chatOperationIds = useRef<Map<string, string>>(new Map());
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -521,6 +532,10 @@ function ChatPanelSession({
 
   async function handleAttachmentFile(file: File) {
     setAttachMenuOpen(false);
+    if (file.type.startsWith("image/")) {
+      await solvePhoto(file, "");
+      return;
+    }
     setLoading(true);
     try {
       const docId = await uploadAttachment(file);
@@ -695,12 +710,21 @@ function ChatPanelSession({
       setLoading(true);
       try {
         await send(prompt, false, docId, true);
+        // Görsel yalnız eklendiği mesajla gider (23 Ekim 2026): önceden sonraki her mesaj aynı görseli yeniden
+        // gönderiyor, fotoğraf çözümü fiyatından ücretleniyor ve ücretsiz fotoğraf hakkından düşüyordu.
+        if (isImageName(remote.fileName)) activeDocumentId.current = undefined;
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Dosya gönderilemedi.",
         );
         setLoading(false);
       }
+      return;
+    }
+    if (file && file.type.startsWith("image/")) {
+      clearPending();
+      setInput("");
+      await solvePhoto(file, text);
       return;
     }
     if (file) {
@@ -734,6 +758,72 @@ function ChatPanelSession({
         return `${mode.prefix}${text}`;
       })(),
     );
+  }
+
+  /*
+    Sohbetteki fotoğraf soru çözücüye gider (23 Ekim 2026): iki bağımsız çözüm, kod kontrolü, denetim. Cevap kart
+    olarak çizilir ve sohbete metin olarak kaydedilir (sunucu); sonraki mesajlar onu bağlam olarak okur. Fotoğraf
+    belgeye yüklenmez, sonraki mesajlarla da gitmez. İlk çözüm gelince yazma kutusu açılır; denetim arkada sürer.
+  */
+  async function solvePhoto(file: File, note: string) {
+    const key = crypto.randomUUID();
+    const controller = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = controller;
+    setLoading(true);
+    setStatus(null);
+    setSolveStage("solving");
+    setMessages((prev) => [...prev, { role: "user", content: note ? `📷 ${note}` : "📷 Fotoğraftaki soru" }]);
+    let phase: SolvePhase = { kind: "solving", stage: "solving" };
+    let placed = false;
+    const place = (done: SolveDone) => {
+      const message: Message = { role: "assistant", content: solutionMarkdown(done.solution, done.note), solve: done, solveKey: key };
+      setMessages((prev) => {
+        const at = prev.findIndex((m) => m.solveKey === key);
+        if (at < 0) return [...prev, message];
+        const copy = [...prev];
+        copy[at] = { ...copy[at], ...message, id: copy[at].id };
+        return copy;
+      });
+    };
+    try {
+      await requestSolve(
+        { file, text: note, toChat: true, conversationId: conversationId.current, signal: controller.signal },
+        (event) => {
+          if (event.type === "saved") {
+            conversationId.current = event.conversationId;
+            setMessages((prev) => prev.map((m) => (m.solveKey === key ? { ...m, id: event.messageId } : m)));
+            return;
+          }
+          if (event.type === "stage" && event.stage !== "verifying") setSolveStage(event.stage);
+          phase = solvePhaseAfter(phase, event);
+          if (phase.kind === "done") {
+            place(phase);
+            if (!placed) {
+              placed = true;
+              // Denetim arkada sürer; öğrenci bu arada yazabilir, yeni mesaj bu akışı kesmez.
+              if (abortRef.current === controller) abortRef.current = null;
+              setLoading(false);
+              setSolveStage(null);
+            }
+          } else if (phase.kind === "error") {
+            if (event.type === "error" && event.status === 402) setPaywall(true);
+            pushAssistantError(new Error(phase.message));
+          }
+        },
+      );
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) pushAssistantError(error);
+      else if (!placed) {
+        setMessages((prev) => [...prev, { role: "assistant", content: "Çözüm durduruldu.", isError: true }]);
+      }
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+      if (!placed) {
+        setLoading(false);
+        setSolveStage(null);
+      }
+    }
   }
 
   async function uploadAttachment(file: File): Promise<string | null> {
@@ -1001,7 +1091,9 @@ function ChatPanelSession({
 
   // Jenerik "yükleniyor" yerine ne beklediğini söylüyor — Astra'daki "Çözüm
   // arıyor" gibi. Ekstra istek yok, yalnızca zaten elimizdeki duruma göre metin.
-  const thinkingLabel = activeDocumentId.current
+  const thinkingLabel = solveStage
+    ? SOLVE_STAGE_LABEL[solveStage]
+    : activeDocumentId.current
     ? "Belgeni inceliyor…"
     : useDocuments
       ? "Notunu tarıyor…"
@@ -1301,6 +1393,16 @@ function ChatPanelSession({
                           onPrompt={() => undefined}
                         />
                         {renderRetry(index)}
+                      </div>
+                    ) : message.solve ? (
+                      <div className="cp-chat-solve">
+                        <SolutionView phase={message.solve} />
+                        <MessageActions
+                          content={message.content}
+                          messageId={feedbackEnabled ? message.id : undefined}
+                          rating={message.rating ?? null}
+                          onRated={(next) => setRating(index, next)}
+                        />
                       </div>
                     ) : (
                       <>
@@ -2062,6 +2164,8 @@ function ChatPanelSession({
                   >
                     {message.role === "user" ? (
                       displayUserText(message.content)
+                    ) : message.solve ? (
+                      <SolutionView phase={message.solve} />
                     ) : message.content ? (
                       <TutorReplyView
                         content={message.content}
@@ -2310,6 +2414,10 @@ function ChatPanelSession({
                 const file = event.target.files?.[0];
                 event.target.value = "";
                 if (!file) return;
+                if (file.type.startsWith("image/")) {
+                  await solvePhoto(file, "");
+                  return;
+                }
                 setLoading(true);
                 try {
                   const docId = await uploadAttachment(file);
@@ -2338,22 +2446,7 @@ function ChatPanelSession({
                 const file = event.target.files?.[0];
                 event.target.value = "";
                 if (!file) return;
-                setLoading(true);
-                try {
-                  const docId = await uploadAttachment(file);
-                  await send(
-                    "Fotoğraftaki soruyu adım adım çöz.",
-                    false,
-                    docId ?? undefined,
-                  );
-                } catch (error) {
-                  toast.error(
-                    error instanceof Error
-                      ? error.message
-                      : "Fotoğraf gönderilemedi.",
-                  );
-                  setLoading(false);
-                }
+                await solvePhoto(file, "");
               }}
             />
             <form

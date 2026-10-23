@@ -225,7 +225,9 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
     expect(screen.getByRole("button", { name: "Okulunla paylaş" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Hazırlık seçenekleri" }).textContent).toContain("Daha fazla");
     const toolbar = screen.getByRole("toolbar", { name: "Hazırlık işlemleri" });
-    expect(toolbar.querySelectorAll("a, button")).toHaveLength(2);
+    // 23 Ekim 2026: sohbet, soru çöz (ürün sahibinin kararı: hazırlık sayfasında da) ve +.
+    expect(toolbar.querySelectorAll("a, button")).toHaveLength(3);
+    expect(screen.getByRole("link", { name: "Soru çöz" }).getAttribute("href")).toBe("/soru-coz?hazirlik=prep-1");
     expect(screen.getByRole("button", { name: "Etkinlik oluştur" })).toBeTruthy();
   });
 

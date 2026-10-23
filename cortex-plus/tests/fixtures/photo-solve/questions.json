@@ -1,0 +1,97 @@
+{
+  "_note": "Fotoğraftan çözüm ölçüm seti (23 Ekim 2026). Sorular Cortex Plus için yazıldı; telif yok. 'answer' doğru şık ya da sayısal sonuç.",
+  "items": [
+    {
+      "id": "matematik-bileske",
+      "subject": "Matematik",
+      "lines": ["f(x) = 2x + 3 ve g(x) = x² − 1 olduğuna göre", "(f∘g)(2) değeri kaçtır?"],
+      "options": ["A) 7", "B) 9", "C) 11", "D) 13", "E) 15"],
+      "answer": "B",
+      "value": "9"
+    },
+    {
+      "id": "fizik-ivme-yol",
+      "subject": "Fizik",
+      "lines": ["Durgun hâlden harekete geçen bir araç, sabit ivmeyle", "4 saniyede 20 m/s hıza ulaşıyor.", "Bu sürede aracın aldığı yol kaç metredir?"],
+      "options": ["A) 20", "B) 40", "C) 60", "D) 80", "E) 100"],
+      "answer": "B",
+      "value": "40"
+    },
+    {
+      "id": "kimya-mol-kutle",
+      "subject": "Kimya",
+      "lines": ["0,5 mol CaCO₃ kaç gramdır?", "(Ca = 40, C = 12, O = 16)"],
+      "options": ["A) 25", "B) 50", "C) 75", "D) 100", "E) 125"],
+      "answer": "B",
+      "value": "50"
+    },
+    {
+      "id": "biyoloji-anafaz",
+      "subject": "Biyoloji",
+      "lines": ["Aşağıdakilerden hangisi mitoz bölünmenin", "anafaz evresinde gerçekleşir?"],
+      "options": [
+        "A) Kromozomların hücrenin ortasında dizilmesi",
+        "B) Kardeş kromatitlerin zıt kutuplara çekilmesi",
+        "C) Çekirdek zarının yeniden oluşması",
+        "D) Kromatinin kromozoma dönüşmesi",
+        "E) Sitoplazmanın bölünmesi"
+      ],
+      "answer": "B"
+    },
+    {
+      "id": "turkce-de-baglaci",
+      "subject": "Türkçe",
+      "lines": ["Aşağıdaki cümlelerin hangisinde \"de\" bağlacının", "yazımı yanlıştır?"],
+      "options": [
+        "A) Sen de bizimle gel.",
+        "B) Evde kimse yoktu.",
+        "C) Kitabıda masaya bırak.",
+        "D) O da bu işi bilir.",
+        "E) Yarın biz de gideceğiz."
+      ],
+      "answer": "C"
+    },
+    {
+      "id": "tarih-tanzimat",
+      "subject": "Tarih",
+      "lines": ["Tanzimat Fermanı hangi padişah döneminde", "ilan edilmiştir?"],
+      "options": ["A) II. Mahmut", "B) Abdülmecit", "C) Abdülaziz", "D) II. Abdülhamit", "E) III. Selim"],
+      "answer": "B"
+    },
+    {
+      "id": "cografya-yagis",
+      "subject": "Coğrafya",
+      "lines": ["Aşağıdaki illerin hangisinde yıllık ortalama", "yağış miktarı en fazladır?"],
+      "options": ["A) Konya", "B) Rize", "C) Iğdır", "D) Şanlıurfa", "E) Aksaray"],
+      "answer": "B"
+    },
+    {
+      "id": "ingilizce-kosul",
+      "subject": "İngilizce",
+      "lines": ["Choose the correct option:", "If I ______ more free time, I would travel more."],
+      "options": ["A) have", "B) had", "C) will have", "D) am having", "E) has had"],
+      "answer": "B"
+    },
+    {
+      "id": "tip-demir-eksikligi",
+      "subject": "Tıp (TUS)",
+      "lines": ["Aşağıdakilerden hangisi demir eksikliği", "anemisinde beklenen bir laboratuvar bulgusudur?"],
+      "options": [
+        "A) Serum ferritin düzeyinde artış",
+        "B) Ortalama eritrosit hacminde (MCV) artış",
+        "C) Total demir bağlama kapasitesinde artış",
+        "D) Retikülosit sayısında belirgin artış",
+        "E) Serum demir düzeyinde artış"
+      ],
+      "answer": "C"
+    },
+    {
+      "id": "geometri-yukseklik-acik",
+      "subject": "Geometri",
+      "lines": ["Bir dik üçgenin dik kenarları 6 cm ve 8 cm'dir.", "Bu üçgende hipotenüse ait yüksekliğin uzunluğu", "kaç cm'dir?"],
+      "options": [],
+      "answer": "4,8",
+      "value": "4,8"
+    }
+  ]
+}

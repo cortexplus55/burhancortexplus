@@ -37,7 +37,7 @@ const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
       { icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
       { icon: "dogru-yanlis", title: "Doğru / Yanlış", body: "Hızlı kontrol; yanlış cümlenin doğrusu yanında." },
       { icon: "tekrar", title: "Yanlışlar defteri", body: "Testlerde yanlış yaptığın soru konusuyla deftere yazılır; her gün defterinden 10 soruluk tur, üst üste iki doğruyla çıkar." },
-      { icon: "denklem", title: "Fotoğraftan çözüm", body: "Sorunun fotoğrafını çek; adım adım çözüm ve benzer bir soru.", plus: true },
+      { icon: "denklem", title: "Fotoğraftan çözüm", body: "Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta günde 3." },
     ],
   },
   {

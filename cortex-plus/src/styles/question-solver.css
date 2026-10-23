@@ -1,0 +1,536 @@
+/* Soru çözücü (23 Ekim 2026). Astra paleti ve yazı ölçeği (tokens.css, yeni ara boyut yok); durum renkleri altın değil:
+   eylem mavi, doğru yeşil, uyarı turuncu. Telefon 375 px: 16 px kenar, dokunma ≥ 44 px, yatay kayma yok. */
+
+.cp-solver {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 44rem;
+  margin: 0 auto;
+  overflow-wrap: anywhere;
+}
+
+.cp-solver-input,
+.cp-solver-result {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--r-2xl, 1.35rem);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+
+.cp-solver-pickers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cp-solver-pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 12px;
+  border-radius: var(--r-xl, 1rem);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  font: var(--t-button-l);
+  cursor: pointer;
+}
+
+.cp-solver-pick:hover {
+  background: var(--c-surface-3);
+}
+
+.cp-solver-pick svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cp-solver-preview {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.cp-solver-preview img {
+  max-width: min(100%, 22rem);
+  max-height: 16rem;
+  border-radius: var(--r-lg, 0.75rem);
+  border: 1px solid var(--c-border);
+  object-fit: contain;
+}
+
+.cp-solver-label {
+  font: var(--t-label-13);
+  color: var(--c-text-muted);
+}
+
+.cp-solver-text {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg, 0.75rem);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: var(--t-body-14);
+  resize: vertical;
+}
+
+.cp-solver-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font: var(--t-button-l);
+  cursor: pointer;
+}
+
+.cp-solver-go:hover:not(:disabled) {
+  background: var(--c-action-hover);
+}
+
+.cp-solver-go:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.cp-solver-go svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cp-solver-link {
+  border: 0;
+  background: none;
+  padding: 8px 4px;
+  min-height: 40px;
+  color: var(--c-action);
+  font: var(--t-label-13);
+  cursor: pointer;
+}
+
+.cp-solver-error {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  color: var(--c-danger);
+  font: var(--t-body-14);
+}
+
+.cp-solver-error svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.cp-solver-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cp-solver-subject {
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-3);
+  font: var(--t-label-11);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cp-solver-time {
+  font: var(--t-mono-s);
+  color: var(--c-text-subtle);
+}
+
+.cp-solver-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+  font: var(--t-label-13);
+}
+
+.cp-solver-badge svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.cp-solver-badge--ok {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+}
+
+.cp-solver-badge--warn {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+}
+
+.cp-solver-note {
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-solver-answer {
+  padding: 14px 16px;
+  border-radius: var(--r-xl, 1rem);
+  border: 1px solid var(--c-success);
+  background: var(--c-success-soft);
+}
+
+.cp-solver-answer-label {
+  margin: 0 0 4px;
+  font: var(--t-label-11);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-success);
+}
+
+.cp-solver-answer-value {
+  margin: 0;
+  font: var(--t-title-l);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-solver-answer-text,
+.cp-solver-intro {
+  margin: 6px 0 0;
+  font: var(--t-body-14);
+}
+
+.cp-solver-intro {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+.cp-solver-result h3 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font: var(--t-heading-s);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-solver-result h3 span {
+  font: var(--t-mono-s);
+  color: var(--c-text-subtle);
+}
+
+.cp-solver-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 12px;
+}
+
+.cp-solver-facts > div {
+  padding: 12px 14px;
+  border-radius: var(--r-lg, 0.75rem);
+  background: var(--c-surface-2);
+}
+
+.cp-solver-facts ul {
+  margin: 0;
+  padding-left: 18px;
+  font: var(--t-body-14);
+}
+
+.cp-solver-facts p {
+  margin: 0;
+  font: var(--t-body-14);
+}
+
+.cp-solver-board ol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.cp-solver-board li {
+  position: relative;
+  padding: 12px 14px 12px 44px;
+  border-radius: var(--r-lg, 0.75rem);
+  background: var(--c-surface-2);
+  counter-increment: step;
+  animation: cp-solver-in 220ms ease-out;
+}
+
+.cp-solver-board li::before {
+  content: counter(step);
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font: var(--t-label-11);
+}
+
+.cp-solver-math {
+  margin: 0;
+  overflow-x: auto;
+  font: var(--t-mono-m);
+  color: var(--c-text);
+  white-space: pre-wrap;
+}
+
+.cp-solver-say {
+  margin: 4px 0 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-solver-board-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.cp-solver-next {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--c-action);
+  background: transparent;
+  color: var(--c-action);
+  font: var(--t-button-s);
+  cursor: pointer;
+}
+
+.cp-solver-options ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-solver-options li {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg, 0.75rem);
+  border: 1px solid var(--c-border);
+}
+
+.cp-solver-options li.is-correct {
+  border-color: var(--c-success);
+  background: var(--c-success-soft);
+}
+
+.cp-solver-letter {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--c-surface-3);
+  font: var(--t-label-13);
+}
+
+.cp-solver-options li.is-correct .cp-solver-letter {
+  background: var(--c-success);
+  color: var(--c-bg);
+}
+
+.cp-solver-option-text {
+  margin: 0;
+  font: var(--t-label-15);
+}
+
+.cp-solver-option-why {
+  margin: 2px 0 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-solver-box {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg, 0.75rem);
+}
+
+.cp-solver-box svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.cp-solver-box p {
+  margin: 0;
+  font: var(--t-body-14);
+}
+
+.cp-solver-box-title {
+  font: var(--t-label-13) !important;
+  margin-bottom: 2px !important;
+}
+
+.cp-solver-box--trap {
+  background: var(--c-warning-soft);
+  color: var(--c-text);
+}
+
+.cp-solver-box--trap svg {
+  color: var(--c-warning);
+}
+
+.cp-solver-box--tip {
+  background: var(--c-info-soft);
+  color: var(--c-text);
+}
+
+.cp-solver-box--tip svg {
+  color: var(--c-info);
+}
+
+.cp-solver-check {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-solver-check svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.cp-solver-read summary {
+  min-height: 40px;
+  cursor: pointer;
+  font: var(--t-label-13);
+  color: var(--c-text-muted);
+}
+
+.cp-solver-read p,
+.cp-solver-read ul {
+  margin: 6px 0 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+@keyframes cp-solver-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-solver-board li {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .cp-solver-input,
+  .cp-solver-result {
+    padding: 14px;
+  }
+}
+
+.cp-solver-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding-block: 8px 32px;
+}
+
+.cp-solver-intro-head h1 {
+  margin: 0 0 6px;
+  font: var(--t-title-l);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-solver-intro-head p {
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-solver-back {
+  align-self: flex-start;
+  min-height: 32px;
+  font: var(--t-label-13);
+  color: var(--c-text-muted);
+  text-decoration: none;
+}
+
+.cp-solver-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cp-solver-next svg {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+}
+
+.cp-solver-added {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--c-success);
+  font: var(--t-label-13);
+}
+
+.cp-solver-added svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* Sohbette çözüm kartı: sohbet balonunun içinde, kenar boşluğu dar. */
+.cp-chat-solve {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cp-chat-solve .cp-solver-result {
+  padding: 14px;
+}

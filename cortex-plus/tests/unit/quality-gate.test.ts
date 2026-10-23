@@ -340,9 +340,9 @@ describe("denetçi kararı okunurken", () => {
     await expect(verifyEducationalContent(input)).resolves.toMatchObject({ content: "ilk taslak" });
   });
 
-  it("fotoğraf ucu denetçiye talimat değil betimleme verir", () => {
-    const route = readFileSync("src/app/api/ai/solve-image/route.ts", "utf8");
-    expect(route).toContain("verificationContext:");
-    expect(route).toContain("Öğrenci görseldeki soruyu yükledi.");
+  it("soru çözücünün denetçisi görevi karar olarak alır, soruyu baştan anlatmaz", () => {
+    const run = readFileSync("src/lib/solve/solve-run.ts", "utf8");
+    expect(run).toContain("Bu bir denetim isteğidir.");
+    expect(run).toContain("görev soruyu baştan");
   });
 });

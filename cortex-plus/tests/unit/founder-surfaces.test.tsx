@@ -14,7 +14,7 @@ import { FounderBadge, FounderChip } from "@/components/student/founder-chip";
 import { FounderCreditsView } from "@/components/student/founder-credits-view";
 import { OralTeacherCustomize } from "@/components/parity/oral-exam-flow";
 import { GeneratorForm } from "@/components/learning/generator-form";
-import { ImageSolver } from "@/components/learning/image-solver";
+import { QuestionSolver } from "@/components/learning/question-solver";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/krediler",
@@ -153,10 +153,10 @@ describe("maliyet etiketleri kurucuda görünmez", () => {
   });
 
   it("fotoğraftan çözüm düğmesi", () => {
-    const founderButton = inShell(founder, <ImageSolver />).container.querySelector("button[type='submit']");
+    const founderButton = inShell(founder, <QuestionSolver />).container.querySelector("button.cp-solver-go");
     expect(founderButton?.textContent).toBe("Çöz");
     cleanup();
-    const studentButton = inShell(student, <ImageSolver />).container.querySelector("button[type='submit']");
+    const studentButton = inShell(student, <QuestionSolver />).container.querySelector("button.cp-solver-go");
     expect(studentButton?.textContent).toBe("Çöz");
   });
 });

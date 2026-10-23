@@ -87,6 +87,8 @@ export type ReviewItemRow = {
   id: string;
   topic_label: string | null;
   source_kind: string;
+  /** "photo:…" — soru çözücüden eklenen soru (23 Ekim 2026). */
+  source_ref?: string | null;
   reason: string;
   item: unknown;
   interval_step: number;
@@ -548,7 +550,7 @@ export function sealReviewItem(row: ReviewItemRow): ServedReviewItem | null {
   const base = {
     id: row.id,
     topicLabel: row.topic_label?.trim() || null,
-    sourceLabel: REVIEW_SOURCE_LABEL[sourceKind] ?? "Tekrar",
+    sourceLabel: row.source_ref?.startsWith("photo:") ? "Çözdüğün soru" : (REVIEW_SOURCE_LABEL[sourceKind] ?? "Tekrar"),
     reasonLabel: row.reason === "exam_point" ? "Sınav noktası" : null,
   };
   if (item.mode === "recall") return { ...base, mode: "recall", front: item.front, back: item.back };

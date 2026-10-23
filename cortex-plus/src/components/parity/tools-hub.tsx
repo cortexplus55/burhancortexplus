@@ -25,9 +25,11 @@ import { exceedsFreeDaily } from "@/lib/billing/free-reach";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import type { ActionCode } from "@/lib/env";
 
-/** Ücretsiz günlük haktan büyük kısayollar (19 Ekim 2026): ücretsiz hesapta "Plus" rozeti. */
+/**
+ * Ücretsiz günlük haktan büyük kısayollar (19 Ekim 2026): ücretsiz hesapta "Plus" rozeti. Fotoğraftan çözüm 23 Ekim
+ * 2026'dan beri ücretsizde günde 3 (krediye dokunmadan); rozeti yok.
+ */
 const TOOL_ACTION: Partial<Record<string, ActionCode>> = {
-  "soru-coz": "IMAGE_SOLUTION",
   podcast: "PODCAST_GENERATE",
   sozlu: "ORAL_EXAM_GENERATE",
 };
