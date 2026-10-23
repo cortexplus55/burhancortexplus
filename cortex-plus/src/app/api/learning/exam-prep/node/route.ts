@@ -3197,6 +3197,26 @@ async function teacherLessonPayload(
     });
   }
   const lesson = outcome.lesson;
+  // Ders kalitesi örneği (23 Ekim 2026): denetçinin öğretim puanları, ek model çağrısı olmadan. Yanıtı beklemez;
+  // tablo yoksa (göçten önce) sessizce atlanır.
+  if (outcome.teachingScores?.length) {
+    const scores = outcome.teachingScores;
+    after(async () => {
+      try {
+        await input.service.from("lesson_quality_samples").insert({
+          source: "verifier",
+          user_id: input.userId,
+          exam_prep_id: input.prepId ?? null,
+          topic_label: input.topicLabel.slice(0, 200),
+          scores: { parts: scores },
+          total: Math.round((scores.reduce((sum, value) => sum + value, 0) / scores.length) * 10) / 10,
+          note: outcome.dropped.length ? `atılan kavram: ${outcome.dropped.length}` : null,
+        });
+      } catch {
+        /* kalite örneği isteğe bağlı */
+      }
+    });
+  }
   const payload = {
     type: "lesson",
     lesson,

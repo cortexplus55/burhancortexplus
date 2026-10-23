@@ -16,8 +16,11 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
 import { cleanupExpiredUploads } from "@/lib/documents/upload-cleanup";
 import { refundStalePendingReservations, refundAbandonedDocumentReservations } from "@/lib/credits/service";
 import { sendDailyDigest } from "@/lib/admin/daily-digest";
+import { sampleLessonQuality } from "@/lib/learning/lesson-quality-judge";
 
 export const dynamic = "force-dynamic";
+// Günlük kalite örneği (üç model çağrısı) özetten sonra çalışır; tur 300 sn'ye sığar.
+export const maxDuration = 300;
 
 /**
  * Yenileme hatırlatması ve dönem kapanışı.
@@ -210,6 +213,18 @@ export async function GET(request: Request) {
     logOpsEvent("subscription_sync_failed", { stage: "daily_digest" });
   }
 
+  /*
+    Günlük ders kalitesi örneği (23 Ekim 2026, ürün sahibinin kararı): önceki 24 saatin derslerinden üçü bağımsız
+    bir yargıca puanlatılır (günde birkaç sent). Hobby'de yeni cron açılamadığı için bu turun içinde; özet
+    e-postası gittikten sonra, ki yargıç gecikirse özet etkilenmesin.
+  */
+  let quality: { sampled: number; skipped: string | null } = { sampled: 0, skipped: "not_run" };
+  try {
+    quality = await sampleLessonQuality(service, { now, count: 3 });
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "lesson_quality_sample" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
@@ -218,6 +233,7 @@ export async function GET(request: Request) {
     deletion,
     expiredUploads,
     staleReservations,
+    quality,
     digest,
   });
 }
