@@ -1137,12 +1137,24 @@ Astra 31/75. Podcast'te Astra hâlâ önde (aşağıda). Yeniden açmayın:
 | Dinleme kontrolü | 5 soru, sonuncusu çok cevaplı (önce 3). Test motoruna **kontrolün kendi saati** verilir (en çok 120 sn geri): podcast'in saatiyle 150 sn'yi geçen podcast'te düzeltme turu kalmıyor, 5 sorudan 2'si geliyordu | `podcast-check.ts`, `teacher-podcast-run.ts` `CHECK_LOOP_HEADROOM_MS` |
 | Kök cevabı ele veriyor | Tek rakam da sayılır ("6 aylıkken … hangi yaş?" → "6 ay") | `teacher-quiz.ts` `answerOnlyWordInStem` |
 
-**Podcast'te açık kalan (altıncı ölçüm):** öğrenme 44 / 57, sınav 62 / 67, öğrenci 48 / 74, sadakat 78 / 62
-(Cortex / Astra). Sade istem ve "orta" düşünme denendi, fark çıkmadı; yargıcın dökümü bölme hatası düzeltildi,
-fark çıkmadı. Neden: kaynak sayfası neden anlatmıyor, Astra nedeni ders kitabından etiketsiz ekliyor. Kaynakta
-olmayan **neden/mekanizma** cümlesine daha geniş izin vermek ürün sahibinin kararı; sayı, eşik, tanı ve tedavi
-yine yalnız kaynaktan. Ölçüm betiği notu: podcast dökümü yargıca konuşma sırası olarak verilir (aynı
-konuşmacının cümleleri birleşir, "Dur ve düşün:" / "Cevap:" ön ekleri kalır).
+**Podcast: ders kitabı nedeni (ürün sahibinin kararı, 23 Ekim 2026: "Astra seviyesine taşımak için ne gerekiyorsa").**
+Sayı, eşik, yaş, tanı, tedavi ve sınıflandırma yine yalnız kaynaktan. Kaynak nedeni vermiyorsa ders kitabının nedeni üç
+açılıştan biriyle (`TEXTBOOK_MARKS`, en çok 5 cümle); açılış ekranda kalır, **seste okunmaz** (`withoutTextbookLabel`).
+Kaynaktaki kuralın tipik vakası etiketsiz örnek olabilir; denetçi F ikisinin de doğruluğuna bakar. Kapsam kalır,
+derinlik seçilir (`FOCUS_RULE`). 21. ölçüm (Cortex / Astra): öğrenme 57 / 58, sınav 73 / 65, öğrenci 58 / 73,
+sadakat 84 / 63 (6. ölçümde 44 / 62 / 48 / 78).
+
+| Yeniden denemeyin | Ölçülen sonuç |
+|---|---|
+| "3-5 nokta seç, gerisini sayma" | Gelişim tablosu ve alarm bulguları atıldı; sınav gözü 62 → 45-49 |
+| Daha büyük yazar (gpt-6-sol) ya da "orta" düşünme | Öğrenci gözü değişmedi (50-57); sol podcast başına ~$0,07-0,12, kredisi $0,012 |
+| Yazımdan önce ayrı "öğretmen notu" çağrısı | Puan aynı; podcast 20-30 sn uzadı, dinleme kontrolü 170 sn sınırına takılıp çıkmadı |
+| Başka konudan biçim örneği, "basamakları tek tek sordur" | Podcast kısaldı; öğrenci ve öğrenme gözü düştü |
+
+Kalan açık (öğrenci gözü): Astra basamakların bir kısmını atlayıp kaynakta olmayan iddialarla rahat bir sohbet
+kuruyor; bizimki bütün satırları doğru taşıyor. Ayrıntı: `PODCAST-OLCUM-23-EKIM.md`. Ölçüm betiği notu: yargıca giden
+döküm oynatıcının yaptığını gösterir (aynı konuşmacının cümleleri tek sıra, "Dur ve düşün" rozet + 4 sn ara,
+ders kitabı açılışı okunmaz).
 
 Bekçi: `teaching-quality-round2.test.ts`, `learning-signals.test.ts` (göçü PGlite'ta), `podcast-check.test.ts`,
-`teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap").
+`teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap"), `podcast-textbook.test.ts`.
