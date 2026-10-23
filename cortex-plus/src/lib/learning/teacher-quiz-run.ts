@@ -37,8 +37,9 @@ const SPARE = 2;
 /** Konu testinde pedagojik kurallar da eler (20 Ekim 2026): bir yedek fazla, düzeltme turu daha seyrek. */
 const SPARE_TOPIC_TEST = 3;
 const MAX_FIX_ROUNDS = 2;
-/** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). */
-const FIX_DEADLINE_MS = 200_000;
+/** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). Dinleme kontrolü saatini buna göre kurar. */
+export const QUIZ_FIX_DEADLINE_MS = 200_000;
+const FIX_DEADLINE_MS = QUIZ_FIX_DEADLINE_MS;
 
 export function minimumQuestions(count: number): number {
   return Math.max(3, count - 2);

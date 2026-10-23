@@ -13,6 +13,7 @@ import { isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import { parseIssues, sourceText, type TeacherIssue, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { examPointsBlock } from "@/lib/learning/exam-points";
+import { podcastScriptSystem, scriptToDraft, usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 
 /**
  * Öğretmen podcast motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik
@@ -42,11 +43,24 @@ export type TeacherPodcastInput = {
   runningHeaders?: string[];
 };
 
+/*
+  Ders kitabı bilgisi etiketsiz (23 Ekim 2026, ürün sahibinin kararı: "etiketsiz bilgi eklemek öğrenci tarafından bizi o
+  seviyeye taşıyacaksa onu da yapalım"). Yirmi bir kör ölçümde öğrenci gözü 58 / 73'te kaldı; yargıçların ortak cümlesi
+  Astra'nın nedeni, tipik vakayı ve benzetmeyi ders kitabından katıp rahat bir sohbet kurduğuydu. Etiket (önce ağır,
+  sonra hafif ve seste okunmayan) yazarı çekingen bıraktı. Sınır aynı kaldı: sayı, eşik, doz, tanı ölçütü ve
+  sınıflandırma yalnız kaynaktan; kaynakla çelişen ya da aciliyeti kaynaktan yükselten cümle yok. Denetçi (A, B, F)
+  eklenen her cümlenin doğruluğuna bakar. Yalnız podcast; ders, test ve sohbetin kaynak kuralı değişmedi.
+*/
 const RULE_DOCUMENT =
-  "KAYNAK KURALI (kesin): Her olgu, tanım, sayı, formül, tarih ve sınıflandırma yalnızca KAYNAK'tan (ve verilmişse " +
-  "öğrencinin aynı konudaki DERS'inden) gelir. Kaynakta yoksa söyleme; genel kültürden ekleme — tek istisna: kaynak bir " +
-  "olgunun nedenini ya da sınavda sorulan kesin bilgisini vermiyorsa en çok üç yerde, cümleye 'Belgende geçmiyor ama " +
-  "bilmen iyi olur:' diye başlayarak ders kitaplarında tartışmasız, güncel olarak değişmeyen bir bilgiyi söyleyebilirsin. " +
+  "KAYNAK KURALI (kesin): Sayı, eşik, yaş sınırı, süre, tarih, doz, formül, tanı ölçütü ve sınıflandırma yalnızca " +
+  "KAYNAK'tan (ve verilmişse öğrencinin aynı konudaki DERS'inden) gelir; kaynakta yoksa söyleme. Kaynaktaki her sınav " +
+  "noktası podcast'te geçer.\n" +
+  "DERS KİTABI BİLGİSİ: Konuyu ders kitaplarında tartışmasız olan bilgiyle açabilirsin, etiket koymadan: bir bilginin " +
+  "nedeni ve mekanizması, kuralın ders kitabındaki tipik vakası, gündelik bir benzetme, bir terimin " +
+  "anlamı, neyin neyle karıştırıldığı. Sınırlar: kaynakla çelişmez; yukarıdaki türden yeni bir sayı, eşik, yaş sınırı, " +
+  "doz, tanı ölçütü ya da sınıflandırma eklemez; aciliyeti ya da önemi kaynaktan yükseltmez (kaynak 'ayrıntılı " +
+  "değerlendirme' diyorsa 'acil' denmez); güncel olarak tartışmalı ya da değişebilecek bilgi taşımaz. Emin olmadığın " +
+  "bilgiyi söyleme.\n" +
   "Kaynaktaki bozuk ya da " +
   "yanlış yazılmış kelimeleri doğru Türkçeyle söyle; kaynakta açıkça bozuk bir cümle varsa kaynağın kendi örnekleriyle " +
   "tutarlı anlamını söyle ve bundan söz etme.\n\n";
@@ -64,6 +78,16 @@ const RULE_TOPIC =
 export const TABLE_RULE =
   "Tabloyu ya da listeyi satır satır okuma: bir konuşma sırası (tek öğretmende bir paragraf) en çok 3 liste öğesi " +
   "taşır. Tablonun bilgisini 2-3 karşılaştırmaya çevir (X'te şu, Y'de bu; fark şu, çünkü …).";
+/*
+  Kapsam ve derinlik (23 Ekim 2026, yedinci ölçüm). "Her satırı anlatma, 3-5 nokta seç" denendi: yazar gelişim
+  basamakları tablosunu ve alarm bulgularını tümden attı, sınav gözü 62'den 45-49'a düştü (yargıç: "sınavın en çok
+  sorduğu kısım yok"). Kapsam kalır, derinlik seçilir. Yalnız yazara.
+*/
+export const FOCUS_RULE =
+  "Kaynağın sınavda sorulan bütün noktalarını kapsa: tablo satırları, eşikler ve uyarı bulguları dahil; SINAVDA " +
+  "SORULUR maddelerinin hiçbiri atlanmaz. Ama hepsini aynı derinlikte anlatma: en önemli 3-4 noktayı nedeniyle, bir " +
+  "örnekle ve neyle karıştırıldığıyla derinlemesine anlat; geri kalanını bu noktaların yanında karşılaştırma olarak " +
+  "kısaca söyle.";
 export const REPEAT_RULE =
   "Aynı ifadeyi ya da aynı noktayı son bölüm dışında bütün podcast'te en çok iki kez söyle; üçüncü kez söyleyeceğin " +
   "yerde yeni bir bilgi, neden ya da örnek söyle.";
@@ -80,9 +104,8 @@ export const SCENE_RULE =
 export const CAUSE_RULE =
   "Her bölümde en az bir gerçek neden-sonuç cümlesi vardır: 'çünkü'den sonra gelen kısım ilk cümleyi başka sözle " +
   "tekrar etmez, bir mekanizma söyler.";
-/** Yalnız belgeli yazara: belgesiz kipte etiketli genel bilgi yok. */
-const CAUSE_LABEL_NOTE =
-  "Kaynak nedeni vermiyorsa 'Belgende geçmiyor ama bilmen iyi olur:' ile tek cümle mekanizma söyleyebilirsin.";
+/** Yalnız belgeli yazara (belgesiz kipte zaten konu bilgisiyle yazılır). */
+const CAUSE_LABEL_NOTE = "Kaynak nedeni vermiyorsa ders kitabındaki tartışmasız nedeni söyle.";
 export const ORDER_RULE =
   "Yaş, evre, sıra ya da basamak bildiren bilgiler kaynaktaki sırayla söylenir (2 ay, 6 ay, 9 ay, 12 ay); ileri geri " +
   "atlanmaz.";
@@ -95,16 +118,21 @@ const CHAPTER_RULE =
 // "text":"tek cümle" örneği yüzünden sıraların %83'ü tek cümleydi).
 // 17 Ekim 2026: örnekte Kerem yalnız "kısa soru" yazınca canlıda Kerem'in bütün sıraları tek cümle
 // soruydu; örnek Kerem'in anlattığı bir sırayı da gösterir.
+// Plan somut (23 Ekim 2026, yedinci ölçüm): "sahne / neden / benzetme" planı soyut kaldı ("bir çocuğun ölçümleri
+// değerlendiriliyor"), yazar ders kitabı nedenini bir kez kullandı. Plan artık bir nokta, onun nedeni, örneği ve
+// karıştırıldığı şey; satırlar bu dördünü söyler.
 const SCHEMA_DUO =
-  '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"scene":"bölümü açan somut durum","why":"bölümün asıl nedeni",' +
-  '"analogy":"varsa gündelik benzetme"},"lines":[' +
+  '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"point":"bu bölümün ana sınav noktası ve yanında kısaca geçecek satırlar",' +
+  '"why":"bu noktanın nedeni ya da mekanizması: kaynakta varsa kaynaktan, yoksa ders kitabından",' +
+  '"example":"somut bir durum: kaynaktaki ya da ders kitabındaki tipik örnek","confusedWith":"en çok neyle karıştırılır, fark ne"},"lines":[' +
   '{"speaker":"kerem","text":"soru ya da merak"},' +
   '{"speaker":"ada","text":"konuşma sırası: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"},' +
   '{"speaker":"kerem","text":"1-3 cümle: bir örnek (kaynağı anmadan), kendi sözleriyle toparlama ya da bir adım ileri"},' +
   '{"speaker":"ada","text":"tamamlar ya da yeni bilgiyi açar: 1-4 cümle"}]}]}';
 const SCHEMA_SINGLE =
-  '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"scene":"bölümü açan somut durum","why":"bölümün asıl nedeni",' +
-  '"analogy":"varsa gündelik benzetme"},"lines":[' +
+  '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"point":"bu bölümün ana sınav noktası ve yanında kısaca geçecek satırlar",' +
+  '"why":"bu noktanın nedeni ya da mekanizması: kaynakta varsa kaynaktan, yoksa ders kitabından",' +
+  '"example":"somut bir durum: kaynaktaki ya da ders kitabındaki tipik örnek","confusedWith":"en çok neyle karıştırılır, fark ne"},"lines":[' +
   '{"speaker":"ada","text":"paragraf: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"}]}]}';
 
 function system(mode: TeacherLessonMode, length: PodcastLength): string {
@@ -125,14 +153,28 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     "AKIŞ:\n" +
     // 23 Ekim 2026 (beşinci ölçüm, ürün sahibinin kararı: "konuşma önce, denetim yalnız doğruluk"): yazar her bölümün
     // planını satırlardan önce yazar; plan öğrenciye gitmez, sohbetin iskeletidir.
-    "- Önce her bölümün 'plan'ını yaz: bölümü açan somut sahne, bölümün asıl nedeni, varsa gündelik bir benzetme. " +
-    "Sonra satırları bu plana göre, iki insan konuşur gibi yaz: biri merak eder, öbürü sahneyi nedeniyle açıklar, " +
-    "benzetmeyle pekiştirir. Benzetme ve sahne yeni bilgi (sayı, kural, tarih, sonuç) taşımaz.\n" +
+    "- Önce her bölümün 'plan'ını yaz (son tekrar bölümü hariç): bölümün ana sınav noktası, o noktanın nedeni ya da " +
+    "mekanizması, somut bir örnek ve en çok neyle karıştırıldığı. Sonra satırları bu plana göre, iki insan konuşur gibi " +
+    "yaz: bölüm örnekle açılır, nedeni bir konuşma sırasında açıkça söylenir, karıştırılan şeyle fark konuşulur. " +
+    (mode === "topic"
+      ? ""
+      : "Kaynak nedeni vermiyorsa ders kitabındaki tartışmasız nedeni doğrudan söyle; bu, nedeni hiç söylememekten ve " +
+        "'çünkü farklıdır' demekten iyidir. ") +
+    // Yedinci ölçüm (23 Ekim 2026): planın "why" alanı noktayı başka sözle tekrar ediyordu ("Kilo değişimleri akut
+    // dengeye duyarlıdır"). Örnek başka konudan: model konunun nedenini kopyalamasın.
+    "Neden, noktayı başka sözle tekrar etmez; neyin neye yol açtığını söyler. Kötü: 'Enzim sıcaklığa duyarlıdır, " +
+    "çünkü sıcaklık enzimi etkiler.' İyi: 'Enzim bir proteindir; yüksek ateşte üç boyutlu şekli bozulur ve bağlanacağı " +
+    "molekülü tutamaz.' " +
+    "Benzetme yeni bilgi (sayı, kural, tarih, sonuç) taşımaz.\n" +
     `- ${spec.minChapters}-${spec.maxChapters} bölüm. Bölüm başlığı o bölümde konuşulan kavramın adı; 'Giriş', 'Tanım', ` +
     "'Örnek', 'Özet', 'Yaygın hata' başlık değildir.\n" +
     "- İlk cümle dinleyeni düşündüren bir kanca; 'bu bölümde şunları öğreneceğiz' gibi boş cümle yok.\n" +
     "- Zıtlıkla anlat (X böyledir, Y ise şöyle); karıştırılan iki kavramı açıkça ayır.\n" +
     `- ${CHAPTER_RULE}\n` +
+    // Dokuzuncu ölçüm: "pincer" hiç açıklanmadı. Basamakları tek tek sordurmak ve başka konudan biçim örneği de
+    // denendi (onuncu ölçüm): podcast kısaldı, öğrenci ve öğrenme gözü düştü; geri alındı.
+    "- Teknik ya da yabancı bir terimi ilk geçtiği yerde bir cümleyle açıkla (ne olduğu, nasıl görüldüğü).\n" +
+    (length === "ozet" ? "" : `- ${FOCUS_RULE}\n`) +
     (length === "ozet" ? "" : `- ${SCENE_RULE}\n- ${CAUSE_RULE}${mode === "topic" ? "" : ` ${CAUSE_LABEL_NOTE}`}\n`) +
     `- ${ORDER_RULE}\n` +
     `- ${TABLE_RULE}\n` +
@@ -143,7 +185,9 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
         "başlar ve cevabı verir.\n" +
         (duo
           ? "- Son bölümde Kerem dinlediklerini kendi sözleriyle üç kısa satırda toparlar (her satır sınavda işe yarayan bir " +
-            "kesin bilgi); Ada yalnız eksik ya da yanlışı tek satırla düzeltir.\n"
+            "kesin bilgi); bölümlerin cümlelerini aynen tekrarlamaz, en çok karıştırılan ayrımları kısa eşleşmelerle söyler " +
+            // Dokuzuncu ölçüm: "Bir düzeltme:" / "Düzeltilecek bir nokta yok" satırları boşta kaldı.
+            "(basamaklar ve eşikler dahil). Ada eksik kalan bir noktayı tek satırla ekleyerek kapatır; 'düzeltme' demez.\n"
           : "- Son bölüm üç kısa tekrar satırıdır; her satır sınavda işe yarayan bir kesin bilgi.\n")) +
     "- Örnek açarsan verileni, işlemi ve birimli sonucu aynı bölümde söyle; yarım bırakma. Eşitliğin iki tarafını hesapla.\n" +
     "- Formülü ve üssü simgeyle yaz (H₂O, 10²³, n = m/M); ondalık virgül kullan.\n\n" +
@@ -151,8 +195,7 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     // (`podcastStructureIssues`, düzeltme turuna yollar); burada yazara söylenir.
     "YAZMA: 'Kaynak:', sayfa numarası, 'PDF', 'belgede yazdığı gibi', 'belgende yazan', 'notlarında', 'notlarındaki', " +
     "'notlarına göre', iç not. Bilgiyi kaynağa değil konuya bağla ('Notlarındaki örnekte 9 ayda…' değil, " +
-    "'9 aylık bir bebek…')." +
-    (mode === "topic" ? "" : " 'Belgende geçmiyor ama bilmen iyi olur:' etiketi bu yasağın dışındadır.") +
+    "'9 aylık bir bebek…'). Kuralları ve yazım notlarını konuşmaya koyma ('Evet yerine …', 'tabloyu okumadan …' gibi)." +
     "\n\n" +
     `${CONTENT_STYLE}\n\n` +
     `Yalnızca bu şemada JSON döndür:\n${duo ? SCHEMA_DUO : SCHEMA_SINGLE}`
@@ -161,6 +204,14 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
 
 export function podcastSystem(mode: TeacherLessonMode = "document", length: PodcastLength): string {
   return system(mode, length);
+}
+
+/**
+ * Taslağı yazan istem (23 Ekim 2026 gecesi): iki sesli türler senarist yazarla (`podcast-script-writer.ts`), tek
+ * sesliler eski şemayla. Düzeltici her türde `podcastFixSystem` (eski şema) ile çalışır.
+ */
+export function podcastWriterSystem(mode: TeacherLessonMode = "document", length: PodcastLength): string {
+  return usesScriptWriter(length) ? podcastScriptSystem(mode, length) : system(mode, length);
 }
 
 export function podcastUserPrompt(input: TeacherPodcastInput): string {
@@ -183,16 +234,18 @@ export function podcastUserPrompt(input: TeacherPodcastInput): string {
 const VERIFY_DOCUMENT =
   "Sen titiz bir içerik denetçisisin. Bir podcast metnini, dayandığı KAYNAK (ve verilmişse DERS) ile karşılaştırıyorsun. " +
   "Şunları bul:\n" +
-  "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, formül ya da sınıflandırma (yeni bilgi taşımayan gündelik sahne sorun değil; " +
-  "'Belgende geçmiyor ama bilmen iyi olur:' diye başlayan cümle kaynakta olmayabilir, onu A'ya göre değil F'ye göre denetle; " +
-  "'bu konu sınavda ağırlıklı' ya da 'sınav kapsamında değil' cümlesi hazırlığın konu listesinden gelir, kaynak iddiası değildir, " +
-  "A sayma).\n" +
-  "B) Kaynakla çelişen ya da anlamı değiştiren ifade.\n" +
+  "A) Kaynakta dayanağı olmayan sayı, eşik, yaş sınırı, süre, tarih, doz, formül, tanı ölçütü ya da sınıflandırma " +
+  "(yeni bilgi taşımayan gündelik sahne sorun değil; ders kitabından katılan neden, mekanizma, tipik vaka, benzetme ve " +
+  "terim açıklaması kaynakta olmayabilir, onları A'ya göre değil F'ye göre denetle; 'bu konu sınavda ağırlıklı' ya da " +
+  "'sınav kapsamında değil' cümlesi hazırlığın konu listesinden gelir, kaynak iddiası değildir, A sayma).\n" +
+  "B) Kaynakla çelişen ya da anlamı değiştiren ifade; aciliyeti ya da önemi kaynaktan yükselten ifade (kaynak " +
+  "'ayrıntılı değerlendirme' derken 'acil').\n" +
   "C) Yanlış hesap, tutmayan eşitlik, yarım bırakılmış örnek.\n" +
   "D) 'Cevap:' satırının sorulan soruya yanlış ya da eksik cevap vermesi.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
-  "F) 'Belgende geçmiyor ama bilmen iyi olur:' cümlesinde yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; " +
-  "bu işaretle üçten fazla cümle; kaynakta olmayan bilginin bu işaret olmadan söylenmesi A'dır.\n" +
+  "F) Ders kitabından katılan bilgide yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; kaynaktaki kuralın " +
+  "söylemediği bir sonuca varan vaka; yeni sayı, eşik, yaş sınırı, doz, tanı ölçütü ya da sınıflandırma taşıyan cümle. " +
+  "Doğru ve tartışmasız ders kitabı bilgisi etiketsiz olsa da sorun değildir.\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla söylenmesi sorun değildir.\n";
 
 const VERIFY_TOPIC =
@@ -281,7 +334,9 @@ export function podcastFixSystem(mode: TeacherLessonMode = "document", length: P
     "Cevapsız soruyu cevaplat ya da çıkar, tablo okumasını karşılaştırmaya çevir, üçüncü tekrarı yeni bilgiyle " +
     "değiştir, kaynağa göndermeyi kaldır. Önerilen " +
     "düzeltme ('→' sonrası) varsa uygula. Listedeki her yeri mutlaka değiştir; metni aynen geri döndürme. Sorunsuz " +
-    "kısımları değiştirme. Kurallar ve şema aynı:\n\n" +
+    // 23 Ekim 2026: yalnız eksik 'Dur ve düşün' istenen düzeltici podcast'i baştan yazıp etiketli neden cümlesini sildi.
+    "kısımları değiştirme: listede adı geçmeyen bölüm ve satırlar, plan ve etiketli neden cümleleri olduğu gibi kalır; " +
+    "eksik bir şey isteniyorsa yalnız onu ekle. Kurallar ve şema aynı:\n\n" +
     system(mode, length)
   );
 }
@@ -311,7 +366,8 @@ function publicShape(episode: PodcastEpisode) {
 
 /** Taslağı bölüm/satır yapısına oturtur (cümlelere böler, gösterim/seslendirme biçimi). */
 export function parseTeacherPodcast(raw: unknown, input: Pick<TeacherPodcastInput, "length" | "topicLabel">): PodcastEpisode | null {
-  return coercePodcastDraft(raw, { length: input.length, topicLabel: input.topicLabel });
+  // Senarist yazarın düz senaryosu (`script`) ya da eski şemanın bölümleri (`chapters`).
+  return coercePodcastDraft(scriptToDraft(raw) ?? raw, { length: input.length, topicLabel: input.topicLabel });
 }
 
 /**

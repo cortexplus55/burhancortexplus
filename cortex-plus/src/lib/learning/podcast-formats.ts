@@ -89,8 +89,8 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
           "Ada öğretmen, Kerem konuya çalışmış bir öğrenci arkadaşı; ikisi de anlatır. Kerem yalnız soru sormaz: " +
           "bir örneği kaynağı anmadan anlatır, duyduğunu kendi sözleriyle toparlar, iki kavramı karşılaştırır ya da Ada'nın " +
           "açıklamasını bir adım ilerletir (1-3 cümle). Kerem'in konuşma sıralarının en az yarısı soru değil, bilgi taşır. " +
-          "Ada açıklamanın ağırlığını taşır, Kerem'in eksik bıraktığını tamamlar. Kerem'in söylediği bilgi de doğru ve " +
-          "kaynağa dayalıdır; yanlış bir cümleyi doğruymuş gibi söylemez. Konuşmayı Ada açar ve bitirir.",
+          "Ada açıklamanın ağırlığını taşır, Kerem'in eksik bıraktığını tamamlar. Kerem'in söylediği bilgi de doğrudur ve " +
+          "kaynakla çelişmez; yanlış bir cümleyi doğruymuş gibi söylemez. Konuşmayı Ada açar ve bitirir.",
       };
     case "soru_cevap":
       return {
@@ -152,12 +152,13 @@ export const DUO_TURN_RULE =
 export function podcastDuoBrief(): string {
   return (
     "Ada (öğretmen) ile Kerem (öğrenci arkadaşı) gerçek bir sohbet gibi konuşarak akılda kalan bir ders anlatır. " +
-    "Bütün podcast'te şunlar olsun: her kavramın ne olduğu ve neden önemli olduğu, kaynaktaki somut örnek, öğrencinin " +
+    "Bütün podcast'te şunlar olsun: her kavramın ne olduğu ve neden öyle olduğu, somut bir örnek, öğrencinin " +
     "gerçekten yaptığı bir iki hata, sınavda çıkan nokta. Bunları her bölümde aynı sırayla dizme; bölümler farklı açılsın " +
     "(bir vaka, Kerem'in merakı, iki kavramın karşılaştırması). " +
     "Kerem doğal konuşur: merak eder, karıştırılan noktayı soru olarak sorar ('Yani … mı?'); Ada " +
-    "nedenini söyleyerek cevaplar. Kerem her bölümde 'Ben … sanmışım / varsaymışım' diye hata itiraf etmez; " +
-    "bu bütün podcast'te en çok bir kez olur. " +
+    "nedenini söyleyerek cevaplar. Kerem 'Ben … sanmışım' diye itiraf etmez; yaygın hatayı 'Çoğu öğrenci … sanır' diye " +
+    "söyler, Ada nedenini açıklar. Kerem Ada'nın cümlesini tekrar etmez; duyduğunu kendi örneğiyle ya da bir sonuçla " +
+    "ileri taşır. Kerem konuşmayı kendi yaşadığı küçük bir anla açabilir (stajda, denemede, ders çalışırken). " +
     `${DUO_TURN_RULE} ` +
     "Ada kaynaktan cümle okumaz; kendi sözleriyle, konuşur gibi anlatır ve bir açıklamayı art arda iki üç satırda " +
     "sürdürebilir. Aynı tanımı bir bölümde bir kez söyle; 'Tekrar edelim' yalnız son bölümde. " +

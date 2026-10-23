@@ -8,7 +8,7 @@ import {
   podcastPayloadEpisode,
   scorePodcastCheck,
 } from "@/lib/learning/podcast-check";
-import { podcastListeningCheck } from "@/lib/learning/teacher-podcast-run";
+import { checkLoopClock, podcastListeningCheck } from "@/lib/learning/teacher-podcast-run";
 import { pathDecision } from "@/lib/learning/path-change";
 import { loadLevelHint } from "@/lib/learning/prep-level";
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
@@ -34,6 +34,7 @@ const episode: PodcastEpisode = {
       title: "Kilo ve boy",
       lines: [
         { speaker: "ada", text: "Belgende geçmiyor ama bilmen iyi olur: büyüme eğrileri ülkeye göre değişir." },
+        { speaker: "ada", text: "Kitaplarda şöyle anlatılır: vücut kıtlıkta enerjiyi önce beyne ayırır." },
         { speaker: "kerem", text: "Kilo akut beslenmeyi, boy kronik süreçleri yansıtır." },
         { speaker: "ada", text: "Bebek bir hafta ishal olsa hangisi önce düşer?", beat: "ask" },
         { speaker: "ada", text: "Kilo; boy haftalarca değişmez.", beat: "reveal" },
@@ -83,6 +84,8 @@ describe("dinleme kontrolü: kaynak, okuma, puan", () => {
     expect(source).toContain("Öğretmen: Dur ve düşün: Bebek bir hafta ishal olsa hangisi önce düşer?");
     expect(source).toContain("Öğretmen: Cevap: Kilo; boy haftalarca değişmez.");
     expect(source).not.toContain("Belgende geçmiyor ama");
+    // 23 Ekim 2026: yeni hafif etiketli ders kitabı nedeni de sorulmaz.
+    expect(source).not.toContain("Kitaplarda şöyle anlatılır");
     expect(PODCAST_CHECK_BRIEF).toContain("yalnız yanlış şık olabilir");
     const single = podcastCheckSource({ ...episode, chapters: [{ title: "Tek", lines: [{ speaker: "ada", text: "Kilo hızlı değişir." }] }] });
     expect(single).toBe("Tek:\nKilo hızlı değişir.");
@@ -122,7 +125,7 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
   const input = { topicLabel: "Büyüme ve gelişme", prepTitle: "Pediatri", listeningCheck: true };
   const asker = (draft: unknown) => {
     const calls: { system: string; user: string; role?: string }[] = [];
-    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix") => {
+    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "script" | "scriptfix") => {
       calls.push({ system, user, role });
       return system.includes("denetçisisin") ? { issues: [] } : draft;
     });
@@ -155,7 +158,8 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
     expect(await podcastListeningCheck(failing, episode, input, Date.now())).toEqual([]);
     const idle = asker(quizDraft);
     expect(await podcastListeningCheck(idle.ask, { ...episode, length: "ozet" }, input, Date.now())).toEqual([]);
-    expect(await podcastListeningCheck(idle.ask, episode, input, Date.now() - 171_000)).toEqual([]);
+    // 23 Ekim 2026: kontrol 210. sn'ye kadar başlar (önce 170).
+    expect(await podcastListeningCheck(idle.ask, episode, input, Date.now() - 211_000)).toEqual([]);
     expect(await podcastListeningCheck(idle.ask, episode, { ...input, listeningCheck: false }, Date.now())).toEqual([]);
     expect(await podcastListeningCheck(idle.ask, episode, { topicLabel: "x", prepTitle: "y" }, Date.now())).toEqual([]);
     expect(idle.ask).not.toHaveBeenCalled();
@@ -255,5 +259,17 @@ describe("düzey önerisi podcast kontrolünü saymaz", () => {
     const kinds = { p1: "podcast", p2: "podcast", q1: "quiz", q2: "quiz" };
     expect(await loadLevelHint(fake(attempts, kinds), "prep")).toBe("too_hard");
     expect(await loadLevelHint(fake(attempts.slice(0, 2), kinds), "prep")).toBeNull();
+  });
+});
+
+describe("dinleme kontrolünün saati (23 Ekim 2026)", () => {
+  it("düzeltme turları kontrolden en çok 80 sn sonrasına ve podcast'in 255. sn'sine kadar açılır", () => {
+    const fixUntil = (started: number, checkStarted: number) => checkLoopClock(started, checkStarted) + 200_000;
+    // Erken kontrol: podcast saati yeter, daha geniş pay.
+    expect(checkLoopClock(0, 60_000)).toBe(0);
+    // 170. sn: kontrolden 80 sn sonra (250).
+    expect(fixUntil(0, 170_000)).toBe(250_000);
+    // 210. sn: podcast'in 255. sn'si tavan.
+    expect(fixUntil(0, 210_000)).toBe(255_000);
   });
 });

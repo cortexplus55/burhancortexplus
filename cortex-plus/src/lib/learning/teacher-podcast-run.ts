@@ -17,7 +17,8 @@ import {
 } from "@/lib/learning/podcast-check";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
-import { teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
+import { QUIZ_FIX_DEADLINE_MS, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
+import { usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 import {
   parsePodcastIssues,
   parseTeacherPodcast,
@@ -25,7 +26,7 @@ import {
   podcastFixUserPrompt,
   podcastIssueLine,
   podcastStructureIssues,
-  podcastSystem,
+  podcastWriterSystem,
   podcastUserPrompt,
   podcastVerifySystem,
   podcastVerifyUserPrompt,
@@ -33,7 +34,15 @@ import {
   type TeacherPodcastInput,
 } from "@/lib/learning/teacher-podcast";
 
-export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
+/**
+ * "script" / "scriptfix": iki sesli podcast'in senarist taslağı ve düzeltmesi (23 Ekim 2026): taslak orta, düzeltme
+ * düşük düşünmeyle. Bütün çağrılar içerik modeliyle (luna; ürün sahibinin kararı: başka model kullanılmaz).
+ */
+export type AskJson = (
+  system: string,
+  user: string,
+  role?: "draft" | "verify" | "fix" | "script" | "scriptfix",
+) => Promise<unknown | null>;
 
 const MAX_FIX_ROUNDS = 2;
 /**
@@ -42,8 +51,12 @@ const MAX_FIX_ROUNDS = 2;
  * 126 sn sürdü; ikinci turdan sonra yine iki satır çıkarılmıştı.
  */
 const SALVAGE_INSTEAD_OF_FIX_LINES = 3;
-/** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). */
-const FIX_DEADLINE_MS = 200_000;
+/**
+ * Yeni düzeltme turu bu süreden sonra başlamaz; kalan sorun satır çıkarılarak çözülür (`salvagePodcast`).
+ * 23 Ekim 2026: 200 sn'ydi; senarist yazar (orta düşünme) ve kulak düzeltmesiyle iki tur alan podcast'te dinleme
+ * kontrolü 210. sn sınırına yetişmiyordu. Tur ~45 sn sürer: 150'de başlayan tur ~195'te biter, kontrol başlar.
+ */
+const FIX_DEADLINE_MS = 150_000;
 /** İkinci taslak ancak bu süreden önce başlar; sonrası rota tavanına sığmaz. */
 const SECOND_DRAFT_DEADLINE_MS = 150_000;
 /** Model çağrısı düşerse (ağ, sağlayıcı) döngü bu süreden önce bir kez baştan koşar. */
@@ -102,8 +115,9 @@ export async function teacherPodcastLoop(
   const attempt = async (
     fixRounds: number,
   ): Promise<{ episode: PodcastEpisode; problems: string[]; verified: boolean } | null> => {
-    let episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input), "draft"), input);
-    if (!episode) episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input), "draft"), input);
+    const writerRole = usesScriptWriter(input.length) ? "script" : "draft";
+    let episode = parseTeacherPodcast(await ask(podcastWriterSystem(mode, input.length), podcastUserPrompt(input), writerRole), input);
+    if (!episode) episode = parseTeacherPodcast(await ask(podcastWriterSystem(mode, input.length), podcastUserPrompt(input), writerRole), input);
     if (!episode) return null;
     drafts += 1;
 
@@ -117,7 +131,11 @@ export async function teacherPodcastLoop(
         if (cheap && cheap.removed <= SALVAGE_INSTEAD_OF_FIX_LINES) break;
       }
       const fixed = parseTeacherPodcast(
-        await ask(podcastFixSystem(mode, input.length), podcastFixUserPrompt(episode, reviewed.problems, input), "fix"),
+        await ask(
+          podcastFixSystem(mode, input.length),
+          podcastFixUserPrompt(episode, reviewed.problems, input),
+          usesScriptWriter(input.length) ? "scriptfix" : "fix",
+        ),
         input,
       );
       if (!fixed) break;
@@ -154,10 +172,21 @@ export async function teacherPodcastLoop(
   return { episode: first.episode, problems: first.problems, drafts, salvaged: 0, unverified: false, earIssues: ear };
 }
 
-/** Bu süreden sonra dinleme kontrolü başlamaz: test döngüsünün düzeltme tavanı (200 sn) aynı başlangıçtan sayılır. */
-const CHECK_DEADLINE_MS = 170_000;
-/** Kontrolün test motoruna verilen saat payı: düzeltme turu motorun 200. sn'sine kadar açılır → kontrolden 80 sn sonra. */
-const CHECK_LOOP_HEADROOM_MS = 120_000;
+/*
+  Dinleme kontrolünün saati (23 Ekim 2026). Önce kontrol podcast'in 170. sn'sinden sonra hiç başlamıyordu; ölçümde
+  podcast'ler 200-226 sn sürdü ve iki düzeltme turu alan podcast kontrolsüz geldi (öğrenci 5 soru yerine hiç soru
+  görmedi). Şimdi kontrol 210. sn'ye kadar başlar; düzeltme turları kontrolden en çok 80 sn sonrasına ve podcast'in
+  255. sn'sine kadar açılır. En geç başlayan kontrol: taslak + denetim ~50 sn → ~260. sn; rota tavanı 300 sn.
+*/
+export const CHECK_DEADLINE_MS = 210_000;
+const CHECK_FIX_WINDOW_MS = 80_000;
+const CHECK_FIX_CAP_MS = 255_000;
+
+/** Test motoruna verilecek saat: düzeltme turu motorun kendi tavanında (`QUIZ_FIX_DEADLINE_MS`) biter. */
+export function checkLoopClock(started: number, checkStarted: number): number {
+  const fixUntil = Math.min(checkStarted + CHECK_FIX_WINDOW_MS, started + CHECK_FIX_CAP_MS);
+  return Math.max(started, fixUntil - QUIZ_FIX_DEADLINE_MS);
+}
 
 /**
  * Dinleme kontrolü (20 Ekim 2026, kör kıyas: podcast'in sonunda soru yoktu). Denetlenmiş
@@ -176,10 +205,8 @@ export async function podcastListeningCheck(
   if (input.listeningCheck !== true || !podcastCheckEligible(episode.length)) return [];
   if (Date.now() - started > CHECK_DEADLINE_MS) return [];
   const checkStarted = Date.now();
-  // Test motorunun saati kontrolün kendi başlangıcından en çok 120 sn geride (23 Ekim 2026): podcast'in saatini
-  // verince 150 sn'yi geçen podcast'te düzeltme turu ve ikinci geçiş kalmıyor, 5 sorudan 2'si geliyordu.
-  // Üst sınır güvende: kontrol en geç 170. sn'de başlar, son düzeltme turu en geç ~250. sn'de açılır (işlev 300 sn).
-  const loopClock = Math.max(started, checkStarted - CHECK_LOOP_HEADROOM_MS);
+  // Podcast'in saatini verince 150 sn'yi geçen podcast'te düzeltme turu kalmıyor, 5 sorudan 2'si geliyordu.
+  const loopClock = checkLoopClock(started, checkStarted);
   try {
     const loop = await teacherQuizLoop(
       ask,
@@ -267,7 +294,8 @@ async function runTeacherPodcastInner(
       ...tier,
       // 19 Ekim 2026: özet podcast 126 sn sürdü. Testteki gibi yazar ve düzeltme düşük düşünmeyle;
       // her satırı kaynağa karşı okuyan denetçi varsayılanda kalır.
-      ...(role === "verify" ? {} : { reasoning_effort: "low" as const }),
+      // Senarist taslağı orta düşünmeyle (23 Ekim 2026, yirmi beşinci ölçüm: öğrenci gözü 63,5 → 65; yoğun sıralar azaldı).
+      ...(role === "verify" ? {} : { reasoning_effort: role === "script" ? ("medium" as const) : ("low" as const) }),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

@@ -7,6 +7,7 @@ import {
 } from "@/lib/learning/exam-quiz";
 import { parsePodcastLength, type PodcastLength } from "@/lib/learning/podcast-formats";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
+import { TEXTBOOK_LINE } from "@/lib/learning/podcast-textbook";
 
 /**
  * Podcast'in dinleme kontrolü (20 Ekim 2026, kör kıyas): Astra'nın podcast'i sonda soru
@@ -30,7 +31,9 @@ export const PODCAST_CHECK_BRIEF =
   "nedenini ya da bir karşılaştırmayı yoklar; tek bir sayıyı ya da kelimeyi ezberden sorma. En az bir soru bölümde " +
   // 22 Ekim 2026 kör kıyas (2. tur): "dinleme kontrolü 3 kolay hatırlama sorusu, sınav üslubunda değil".
   "anlatılan bilgiyi kısa, somut bir durumda uygulatır (bir hasta, bir olay); durumdaki her ayrıntı konuşmada geçer. " +
-  "Son soru çok cevaplıdır (birden fazla doğru şık); yanlış şıklar aynı bağlamdan. " +
+  "Son soru çok cevaplıdır (birden fazla doğru şık); yanlış şıklar aynı bağlamdan. Sorular farklı türde: en az biri " +
+  "bir nedeni sorar (neden önce bu etkilenir), konuşmada uyarı ya da alarm bulgusu geçtiyse biri onu yoklar; aynı " +
+  "kalıpta (yaş eşleştirme gibi) en çok bir soru. Doğru şık en uzun şık olmaz. " +
   "'Öğrenci:' satırında " +
   "itiraf edilen yanılgı ('… sanmışım') doğru bilgi değildir; yalnız yanlış şık olabilir. Kökte konuşmacıdan söz " +
   "edilmez: 'podcast'te', 'dinlediğin bölümde', 'Ada', 'Kerem', 'öğretmene göre' geçmez.";
@@ -40,11 +43,11 @@ export function podcastCheckEligible(length: PodcastLength): boolean {
   return length !== "ozet";
 }
 
-const GENERAL_KNOWLEDGE = /^Belgende geçmiyor ama/i;
+const GENERAL_KNOWLEDGE = TEXTBOOK_LINE;
 
 /**
  * Kontrolün KAYNAK'ı: bölüm bölüm konuşulanlar. Belgede olmayan, etiketli genel bilgi
- * ("Belgende geçmiyor ama …") sorulmaz. İki sunuculu türde satırın başında rolü yazar:
+ * ("Kitaplarda şöyle anlatılır: …", eski kayıtlarda "Belgende geçmiyor ama …") sorulmaz. İki sunuculu türde satırın başında rolü yazar:
  * Kerem'in itiraf ettiği yanılgı düz cümle gibi okunup doğru şık yapılmasın.
  */
 export function podcastCheckSource(episode: PodcastEpisode): string {

@@ -40,6 +40,7 @@ import {
 import { speakVerified, toDisplay } from "@/lib/learning/speech-normalizer";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { podcastCheckOf } from "@/lib/learning/podcast-check";
+import { withoutTextbookLabel } from "@/lib/learning/podcast-textbook";
 
 export {
   DEFAULT_PODCAST_LENGTH,
@@ -82,10 +83,10 @@ function conceptTitle(title: string, sample: string, topicLabel: string): string
   return topicLabel.trim().slice(0, 80) || "Konu";
 }
 
-/** Ekran simgeyi korur; sese giden metin ayrı durur. */
+/** Ekran simgeyi korur; sese giden metin ayrı durur. Ders kitabı etiketi ekranda kalır, okunmaz. */
 function notationLine(text: string): { text: string; spoken: string } {
   const display = toDisplay(text.replace(/\s+/g, " ").trim());
-  return { text: display, spoken: speakVerified(display) };
+  return { text: display, spoken: speakVerified(withoutTextbookLabel(display)) };
 }
 
 export function coercePodcastDraft(
