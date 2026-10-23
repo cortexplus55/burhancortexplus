@@ -14,6 +14,7 @@ import {
   fixPartUserPrompt,
   isMnemonicCountIssue,
   isMnemonicIssue,
+  isReviewIssue,
   parseIssues,
   parsePartFix,
   parseTeacherLesson,
@@ -22,6 +23,7 @@ import {
   rewritePartUserPrompt,
   shuffleLessonChecks,
   stripMnemonics,
+  stripReviews,
   teacherSystem,
   teacherUserPrompt,
   verifyPartUserPrompt,
@@ -361,6 +363,25 @@ export async function teacherLessonPipeline(
               triggers,
             };
           }
+        }
+        // 23 Ekim 2026 (3. ölçüm): "ikinci sorunun doğru şıkkı ana sorununkiyle aynı metin" kuralı tur döndürüyordu
+        // (Özel Açılar 13 turun 5'i). Kalan tek sorun ikinci soruysa (ilk kavramda hemen, sonra bir turdan sonra)
+        // ikinci soru çıkar; çalışma anı doğru anahtarlı yedeği kurar. Parça düşer, istek düşmez.
+        if ((round >= 1 || index === 0) && high.every(isReviewIssue)) {
+          screens = stripReviews(screens, span.from, high);
+          if (current()) part.screens = screens;
+          triggers.push(high);
+          return {
+            ok: true,
+            screens,
+            header: headerPatch,
+            ...(close ? { closing: close } : {}),
+            low: [
+              ...issues.filter((issue) => issue.severity !== "high"),
+              { where: "ders", severity: "low", problem: "İkinci soru düzelmedi; çalışma anının yedeği kullanılacak." },
+            ],
+            triggers,
+          };
         }
         const deadline = rewritten ? REWRITE_DEADLINE_MS : FIX_DEADLINE_MS;
         if (round >= rounds || Date.now() - started > deadline) {
