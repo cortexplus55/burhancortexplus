@@ -75,7 +75,12 @@ const lesson: LessonV3 = {
       heading: "Mutlak Butlan",
       concept: "Mutlak Butlan",
       lead: "Doğmuş ama sakat işlem",
-      blocks: [{ type: "text", text: "Kurucu unsurları olup emredici kurala aykırı işlem **mutlak butlan** ile geçersizdir." }, mcq("Amca ile yeğen arasındaki evlilik hangi türdür?")],
+      blocks: [
+        { type: "text", text: "Kurucu unsurları olup emredici kurala aykırı işlem **mutlak butlan** ile geçersizdir." },
+        mcq("Amca ile yeğen arasındaki evlilik hangi türdür?"),
+        // Derste en az bir "Neden böyle?" kutusu (23 Ekim 2026); yoksa kapanış bir öğretim turu açar.
+        { type: "note", note: { title: "Neden böyle?: Mutlak butlanı neden herkes ileri sürebilir?", body: "Emredici kural kamu düzenini korur; aykırılık yalnız tarafları ilgilendirmez.", tone: "general" } },
+      ],
     },
   ],
   summary: ["Hukuku ayıran maddi yaptırımdır.", "Kurucu unsur yoksa yokluk.", "Emredici kurala aykırılık mutlak butlan."],
@@ -638,5 +643,16 @@ describe("tablo biçimi kavram düşürmez (23 Ekim 2026, 4. ölçüm)", () => {
     expect(result.lesson?.screens).toHaveLength(3);
     expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
     expect(result.issues.some((issue) => /Tablo biçimi düzelmedi/.test(issue.problem))).toBe(true);
+  });
+});
+
+describe("derste en az bir 'Neden böyle?' (23 Ekim 2026, ürün sahibinin kararı)", () => {
+  it("belgeli derste kutu yoksa kapanışta öğretim önemiyle istenir; belgesiz derste istenmez", async () => {
+    const { lessonStructureIssues } = await import("@/lib/learning/teacher-lesson");
+    const without = { ...lesson, screens: lesson.screens.map((screen) => ({ ...screen, blocks: screen.blocks.filter((block) => block.type !== "note" || block.note.tone !== "general") })) } as LessonV3;
+    const asked = lessonStructureIssues(without, { runningHeaders: [], pages: input.pages }).filter((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem));
+    expect(asked.map((issue) => [issue.where, issue.severity])).toEqual([["screens[2]", "medium"]]);
+    expect(lessonStructureIssues(without, { runningHeaders: [], pages: [] }).some((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem))).toBe(false);
+    expect(lessonStructureIssues(lesson, { runningHeaders: [], pages: input.pages }).some((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem))).toBe(false);
   });
 });

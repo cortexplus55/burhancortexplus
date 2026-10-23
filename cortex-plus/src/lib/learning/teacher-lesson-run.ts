@@ -282,11 +282,12 @@ export async function teacherLessonPipeline(
         try {
           const verdict = await io.ask(verifySystem(mode), verifyPartUserPrompt(lesson, span, input, disputes), "verify");
           factual = parseIssues(verdict, { medium: true });
-          // Öğretim puanı (23 Ekim 2026): ilk kavram dışında 3'ün altı öğretim turunu açar; her kavramda kayda geçer.
+          // Öğretim puanı (23 Ekim 2026): ilk kavram dışında 3 ve altı öğretim turunu açar (ürün sahibi: önce "3'ün
+          // altı"ydı, 30 kısmın yalnız 2'sinde tur açtı; puanlar 3'te toplanıyordu); her kavramda kayda geçer.
           const teaching = parseTeachingScore(verdict);
           if (teaching && round === 0 && !teachingSnapshot) {
             teachingScores.push(teaching.score);
-            if (index > 0 && teaching.score < 3) {
+            if (index > 0 && teaching.score <= 3) {
               factual.push({
                 where: `screens[${span.from}]`,
                 severity: "medium",

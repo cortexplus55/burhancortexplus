@@ -1308,6 +1308,18 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     screen.blocks.filter((block) => block.type === "note" && block.note.tone === "general" && !isWhyNote(block)),
   );
   if (general.length > 2) add("screens", "En fazla iki 'Genel bilgi' kutusu; gerisini çıkar ya da kaynaktaki bilgiyle anlat.");
+  // "Neden böyle?" derste en az bir (23 Ekim 2026, ürün sahibinin kararı): yalnız istemle dokuz derste bir kez yazıldı.
+  // Öğretim önemi: kapanışta bir öğretim turu açar, kavram düşürmez. Belgesiz derste kaynak kuralı yok, kutu da yok.
+  if ((input.pages?.length ?? 0) > 0 && !screens.some((screen) => screen.blocks.some(isWhyNote))) {
+    issues.push({
+      where: `screens[${screens.length - 1}]`,
+      severity: "medium",
+      problem:
+        "Derste 'Neden böyle?' kutusu yok: kaynağın nedenini vermediği bir kilit bilgi için bu kavrama bir kutu ekle " +
+        "(tone 'general', başlık 'Neden böyle?: …', 1-2 cümle mekanizma, yeni sayı ya da kural yok). Kaynak her nedeni " +
+        "kendisi veriyorsa itiraz et.",
+    });
+  }
   // Tablonun satırları derste anılıyorsa tablo derste de tablo olmalı.
   if (!screens.some((screen) => screen.blocks.some((block) => block.type === "table"))) {
     const flattened = flattenedSourceTable(JSON.stringify(lesson), input.pages ?? []);
