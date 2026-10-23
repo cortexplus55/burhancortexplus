@@ -17,6 +17,7 @@ import {
   isReviewIssue,
   parseIssues,
   parsePartFix,
+  parseTeachingScore,
   parseTeacherLesson,
   parseTeacherScreen,
   partStructureIssues,
@@ -24,6 +25,7 @@ import {
   shuffleLessonChecks,
   stripMnemonics,
   stripReviews,
+  TEACHING_TAG,
   teacherSystem,
   teacherUserPrompt,
   verifyPartUserPrompt,
@@ -134,6 +136,8 @@ export type PipelineResult = {
   /** İlk kavram düzelmediyse onun yüksek sorunları. */
   failure: TeacherIssue[];
   timing: PipelineTiming;
+  /** Denetçinin kısımlara verdiği ilk öğretim puanları (1-5), yazım sırasıyla (23 Ekim 2026). */
+  teachingScores?: number[];
 };
 
 /** Sorunun yeri bu kısmın içinde mi: ekran numarası, giriş alanları ya da kapanış. */
@@ -190,6 +194,7 @@ export async function teacherLessonPipeline(
   const mode = input.mode ?? "document";
   const fixTriggers: TeacherIssue[][] = [];
   const dropped: string[] = [];
+  const teachingScores: number[] = [];
   let draftNote: string | null = null;
   const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null };
   const sinceStart = () => Date.now() - started;
@@ -274,9 +279,20 @@ export async function teacherLessonPipeline(
         const structural = partStructureIssues(lesson, span, input).map((issue) => ({ ...issue, problem: `[yapı kuralı] ${issue.problem}` }));
         let factual: TeacherIssue[];
         try {
-          factual = parseIssues(await io.ask(verifySystem(mode), verifyPartUserPrompt(lesson, span, input, disputes), "verify"), {
-            medium: true,
-          });
+          const verdict = await io.ask(verifySystem(mode), verifyPartUserPrompt(lesson, span, input, disputes), "verify");
+          factual = parseIssues(verdict, { medium: true });
+          // Öğretim puanı (23 Ekim 2026): ilk kavram dışında 3'ün altı öğretim turunu açar; her kavramda kayda geçer.
+          const teaching = parseTeachingScore(verdict);
+          if (teaching && round === 0 && !teachingSnapshot) {
+            teachingScores.push(teaching.score);
+            if (index > 0 && teaching.score < 3) {
+              factual.push({
+                where: `screens[${span.from}]`,
+                severity: "medium",
+                problem: `${TEACHING_TAG} Öğretim puanı ${teaching.score}/5: ${teaching.reason || "neden, örnek ya da ayırt eden ipucu ekle"}`,
+              });
+            }
+          }
         } catch (error) {
           // Denetçi düşerse kavram körlemesine yayımlanmaz.
           factual = [{ where: "ders", severity: "high", problem: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}` }];
@@ -601,7 +617,7 @@ export async function teacherLessonPipeline(
         dropped.length = 0;
         continue;
       }
-      return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing };
+      return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing, teachingScores };
     }
     const lesson: LessonV3 = {
       format: LESSON_V3_FORMAT,
@@ -609,9 +625,9 @@ export async function teacherLessonPipeline(
       screens: published,
       ...((publishedClosing as Closing | null) ?? {}),
     };
-    return { lesson, issues: lowIssues, fixTriggers, dropped, draftNote, failure: [], timing };
+    return { lesson, issues: lowIssues, fixTriggers, dropped, draftNote, failure: [], timing, teachingScores };
   }
-  return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure: [], timing };
+  return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure: [], timing, teachingScores };
 }
 
 /**
@@ -795,6 +811,8 @@ async function runTeacherLessonInner(
         round.slice(0, 2).map((issue) => `${issue.where}: ${issue.problem}`.slice(0, 140)),
       ),
       ...(result.dropped.length ? { droppedConcepts: result.dropped.slice(0, 4) } : {}),
+      // Öğretim puanı (23 Ekim 2026): kısım kısım, denetçinin ilk okuyuşu.
+      ...(result.teachingScores?.length ? { teaching: result.teachingScores } : {}),
     });
     if (!result.lesson) {
       await refund();

@@ -589,3 +589,40 @@ describe("ikinci soru kavramı düşürmez, denetçi sonraki kavramları bekleme
     expect(last.user).not.toContain("Bu kısım dersin son kısmı DEĞİL");
   });
 });
+
+/*
+  23 Ekim 2026, ürün sahibinin kararı: denetçi her kısma 1-5 öğretim puanı verir; ilk kavram dışında 3'ün altı bir
+  öğretim turu açar, ilk kavramda yalnız kayda geçer. "Neden böyle?" kutusu etiketli mekanizma; yazar ve denetçi aynı kural.
+*/
+describe("öğretim puanı ve 'Neden böyle?'", () => {
+  it("ilk kavram dışında 3'ün altındaki puan bir öğretim turu açar; ilk kavramda açmaz; puanlar kayda geçer", async () => {
+    const { result, calls } = await run({
+      verify: (user, round) => ({ issues: [], teaching: { score: round === 0 ? 2 : 4, reason: "Neden yok; mekanizmayı ekle." } }),
+      fix: (user) => {
+        const at = /DÜZELTİLECEK KISIM: screens\[(\d+)\]/.exec(user);
+        return { screens: [lesson.screens[Number(at?.[1] ?? 1)]], disputes: [] };
+      },
+    });
+    const fixes = calls.filter((call) => call.role === "fix-careful");
+    expect(fixes).toHaveLength(2);
+    expect(fixes.every((call) => call.user.includes("Öğretim puanı 2/5"))).toBe(true);
+    expect(fixes.some((call) => call.user.includes("screens[0]"))).toBe(false);
+    expect(result.teachingScores).toEqual([2, 2, 2]);
+    expect(result.dropped).toEqual([]);
+  });
+
+  it("yazar ve denetçi aynı 'Neden böyle?' kuralını okur; kutu etiketli sayılır, genel bilgi sınırına girmez", async () => {
+    const { teacherSystem, verifySystem, lessonStructureIssues, TOPIC_TEACHER_SYSTEM } = await import("@/lib/learning/teacher-lesson");
+    const { WHY_NOTE_RULE } = await import("@/lib/learning/teaching-rubric");
+    expect(teacherSystem("document")).toContain(WHY_NOTE_RULE);
+    expect(verifySystem("document")).toContain(WHY_NOTE_RULE);
+    expect(TOPIC_TEACHER_SYSTEM).not.toContain(WHY_NOTE_RULE);
+    const why = (title: string) => ({ type: "note", note: { title, body: "İnek sütündeki demir az emilir ve bağırsakta kan kaybı yapabilir.", tone: "general" } });
+    const withWhy: LessonV3 = {
+      ...lesson,
+      screens: lesson.screens.map((screen, i) => ({ ...screen, blocks: [...screen.blocks, ...(i < 3 ? [why("Neden böyle?: İnek sütü neden erken verilmez?")] : [])] })),
+    } as LessonV3;
+    const issues = lessonStructureIssues(withWhy, { runningHeaders: [] });
+    expect(issues.some((issue) => /Genel bilgi/.test(issue.problem))).toBe(false);
+  });
+});
