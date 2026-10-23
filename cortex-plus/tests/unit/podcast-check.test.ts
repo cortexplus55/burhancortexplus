@@ -98,8 +98,8 @@ describe("dinleme kontrolü: kaynak, okuma, puan", () => {
     expect(scorePodcastCheck({ type: "podcast", check }, {})).toEqual({ score: 1, total: 1 });
     expect(scorePodcastCheck({ type: "podcast", check }, { __meta: { hintsUsed: {} } })).toEqual({ score: 1, total: 1 });
     expect(scorePodcastCheck({ type: "podcast", check }, { "0": "x", "1": "x", "2": "x" })).toEqual({ score: 2, total: 3 });
-    // Bozuk öğe atılır; en çok üç soru.
-    expect(podcastCheckOf({ check: [...check, check[0], { text: 1 }, null] })).toHaveLength(3);
+    // Bozuk öğe atılır; en çok beş soru (23 Ekim 2026'dan beri; önce üç).
+    expect(podcastCheckOf({ check: [...check, check[0], check[1], check[2], { text: 1 }, null] })).toHaveLength(5);
     expect(podcastCheckOf({ check: "yok" })).toEqual([]);
   });
 
@@ -129,11 +129,12 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
     return { ask, calls };
   };
 
-  it("üç soru; kaynak senaryo, istek satırı kontrol notu, kip belgeli", async () => {
+  it("en çok beş soru; kaynak senaryo, istek satırı kontrol notu, kip belgeli", async () => {
     const { ask, calls } = asker(quizDraft);
     const check = await podcastListeningCheck(ask, episode, input, Date.now());
-    expect(check).toHaveLength(3);
-    expect(check.every((item) => item.options.length === 4 && item.correct.length === 1)).toBe(true);
+    expect(check.length).toBeGreaterThanOrEqual(3);
+    expect(check.length).toBeLessThanOrEqual(5);
+    expect(check.every((item) => item.options.length === 4 && item.correct.length >= 1)).toBe(true);
     const draft = calls.find((call) => call.role === "draft")!;
     expect(draft.user).toContain(PODCAST_CHECK_BRIEF);
     expect(draft.user).toContain("KAYNAK:\nPersentil eğrisi:");

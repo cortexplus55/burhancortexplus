@@ -1118,3 +1118,31 @@ eleştiri: "kaynağın tekrarı gibi okunuyor". Yeniden açmayın:
 | Podcast'te "Evet;/Hayır;" açılışı, yalnız soru soran Kerem, bağlamsız "Bu konu sınavda ağırlıklı." | `DUO_TURN_RULE` (yazar + denetçi); kod 3+ evet/hayır satırını ve diyalogda Kerem'in %60+ soru sırasını işaretler (yayını durdurmaz); sınav ağırlığı "hangi noktası soruluyor"la söylenir |
 
 Bekçi: `teaching-quality-round2.test.ts`. Sıradaki: yayından sonra aynı on çiftle üçüncü tur.
+
+### Üçüncü–altıncı kör ölçüm (23 Ekim 2026) — "Neden böyle?", öğrenci ölçüleri, podcast
+
+Ayrıntı: `cortex-plus/docs/delivery/OGRETIM-KALITESI-OLCUM-3-23-EKIM.md`, `ASTRA-KARSILASTIRMA-23-EKIM.md`
+(özellik özellik puanlı rapor), `PODCAST-OLCUM-23-EKIM.md`. Derslerde öğrenci gözü 4/18'den 13-15/18'e çıktı;
+öğrenme, sınav ve sadakat gözü 18/18 bizde; yalnız materyali okuyan öğrenci ajanının sınavı Cortex 61/75,
+Astra 31/75. Podcast'te Astra hâlâ önde (aşağıda). Yeniden açmayın:
+
+| Konu | Kural | Nerede |
+|---|---|---|
+| Kapanış kısmı olmayan kavram (#389) | Denetçi "Bu kısım dersin son kısmı DEĞİL" notunu görür; ders düzeyi kuralı (özet, tekrar) ara kavramda istenmez. Düzleşmiş tablo ilk kavramda düşük; yalnız ikinci soru sorunu kaldıysa ikinci sorular çıkar, kavram yayımlanır (`stripReviews`) | `teacher-lesson.ts`, `teacher-lesson-run.ts` |
+| "Neden böyle?" kutusu (#390, ürün sahibinin kararı) | Belgeli derste en az bir tane: `note`, tone `general`, başlık "Neden böyle…"; kaynaktaki iki bilgiyi bağlayan neden ya da etiketli ders kitabı nedeni (`WHY_NOTE_RULE`, yazar + denetçi H). Döngüsel kutu ("çünkü farklıdır") denetçide medium, **çıkarılır ve yenisi istenmez** (`whyDropped`) | `teaching-rubric.ts`, `isWhyNote`, `isCircularWhyIssue` |
+| Öğretim puanı (#390) | Denetçi her kavrama `teaching:{score,reason}` (1-5) yazar; **3'ün altı** ilk kavram dışında bir öğretim turu açar (≤3 denendi: yazım yavaşladı, kazanç yok) | `TEACHING_SCORE_RULE`, `parseTeachingScore` |
+| Kapanışta tablo kuralı son kavramı düşürüyordu | Düzleşmiş/yoğun tablo sorunu bir turdan sonra kabul edilir (`isLayoutIssue`) | `teacher-lesson-run.ts` |
+| Gerçek öğrenci ölçüleri (#391) | Üç kart `/admin/beta`'da: tekrar cevaplarının basamağa göre doğruluğu (`exam_prep_review_answers`), ders sonu puanı, günlük kalite örneği (`lesson_quality_samples`: her ders açılışında denetçinin puanı; günlük cron'da 3 dersi bağımsız yargıç 0-100 puanlar). Yeni cron yok: örnek `subscription-renewal` içinde, özetten sonra (`maxDuration=300`). Satırlara belge metni yazılmaz | göç `20261023120000_learning_signals.sql` (canlıda), `learning-signals.ts`, `lesson-quality-judge.ts` |
+| Podcast (ürün sahibinin kararı: "konuşma önce, denetim yalnız doğruluk") | Yazar bölüm planını (sahne, neden, benzetme) satırlardan önce yazar. Akış kuralları (tekrar, cevapsız soru, ikinci itiraf, evet/hayır, bağlamsız sınav satırı) **satır sildirmez, düzeltme turu açmaz**, yalnız kayda geçer (`podcastFlowNotes`); denetçide A-F yüksek, G-J düşük. Etiketli genel bilgi en çok üç yerde | `teacher-podcast.ts` |
+| Dinleme kontrolü | 5 soru, sonuncusu çok cevaplı (önce 3). Test motoruna **kontrolün kendi saati** verilir (en çok 120 sn geri): podcast'in saatiyle 150 sn'yi geçen podcast'te düzeltme turu kalmıyor, 5 sorudan 2'si geliyordu | `podcast-check.ts`, `teacher-podcast-run.ts` `CHECK_LOOP_HEADROOM_MS` |
+| Kök cevabı ele veriyor | Tek rakam da sayılır ("6 aylıkken … hangi yaş?" → "6 ay") | `teacher-quiz.ts` `answerOnlyWordInStem` |
+
+**Podcast'te açık kalan (altıncı ölçüm):** öğrenme 44 / 57, sınav 62 / 67, öğrenci 48 / 74, sadakat 78 / 62
+(Cortex / Astra). Sade istem ve "orta" düşünme denendi, fark çıkmadı; yargıcın dökümü bölme hatası düzeltildi,
+fark çıkmadı. Neden: kaynak sayfası neden anlatmıyor, Astra nedeni ders kitabından etiketsiz ekliyor. Kaynakta
+olmayan **neden/mekanizma** cümlesine daha geniş izin vermek ürün sahibinin kararı; sayı, eşik, tanı ve tedavi
+yine yalnız kaynaktan. Ölçüm betiği notu: podcast dökümü yargıca konuşma sırası olarak verilir (aynı
+konuşmacının cümleleri birleşir, "Dur ve düşün:" / "Cevap:" ön ekleri kalır).
+
+Bekçi: `teaching-quality-round2.test.ts`, `learning-signals.test.ts` (göçü PGlite'ta), `podcast-check.test.ts`,
+`teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap").

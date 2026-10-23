@@ -726,7 +726,8 @@ const COUNTING = /(?:^|\s)kaç\s+(?:\S+\s+){0,2}(tür|çeşit|başlık|madde|uns
  * Doğru şıkta olup çeldiricilerin hiçbirinde olmayan bir kelime kökte geçiyorsa
  * soru ele veriyor (16 Ekim 2026 Pediatri testi: "annede B12 eksikliği" deyip
  * "hangi mikrobesin" diye sordu; şıklarda yalnız doğru olanda "B12" vardı).
- * Türkçe ek için 5 harflik kök; rakamlı kelime (B12, D3) bütün olarak.
+ * Türkçe ek için 5 harflik kök; rakamlı kelime (B12, D3, 6) bütün olarak. Tek rakam da sayılır (23 Ekim 2026
+ * podcast kontrolü: "6 aylıkken … hangi yaş basamağıyla uyumludur?" doğrusu "6 ay" idi, çeldiriciler 2, 9, 12 ay).
  */
 function answerOnlyWordInStem(stem: string, answer: string, options: string[]): string | null {
   const keys = (text: string) =>
@@ -734,7 +735,7 @@ function answerOnlyWordInStem(stem: string, answer: string, options: string[]): 
       text
         .toLocaleLowerCase("tr")
         .split(/[^\p{L}\p{N}]+/u)
-        .filter((word) => (/\d/.test(word) ? word.length >= 2 : word.length >= 5))
+        .filter((word) => (/\d/.test(word) ? word.length >= 1 : word.length >= 5))
         .map((word) => [/\d/.test(word) ? word : word.slice(0, 5), word] as const),
     );
   const others = new Set(options.filter((option) => option !== answer).flatMap((option) => [...keys(option).keys()]));

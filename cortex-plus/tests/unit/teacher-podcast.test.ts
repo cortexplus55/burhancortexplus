@@ -9,6 +9,7 @@ import {
   parseTeacherPodcast,
   podcastFixSystem,
   podcastIssueLine,
+  podcastFlowNotes,
   podcastLineProblems,
   podcastStructureIssues,
   podcastSystem,
@@ -61,7 +62,9 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     )!;
     const issues = podcastStructureIssues(episode).join(" | ");
     expect(issues).toMatch(/Dur ve düşün/);
-    expect(issues).toMatch(/önceki cümlenin tekrarı/);
+    // Ardışık tekrar 23 Ekim 2026'dan beri akış gözlemi: düzeltme turu açmaz, satır sildirmez.
+    expect(issues).not.toMatch(/önceki cümlenin tekrarı/);
+    expect(podcastFlowNotes(episode).join(" | ")).toMatch(/önceki cümlenin tekrarı/);
     expect(issues).toMatch(/Son bölüm üç/);
     expect(issues).toMatch(/Tutmayan hesap/);
   });
@@ -116,8 +119,8 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     expect(podcastSystem("document", "diyalog")).toContain("'Belgende geçmiyor ama bilmen iyi olur:'");
     expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
     expect(podcastVerifySystem("document")).toContain("F) 'Belgende geçmiyor ama bilmen iyi olur:' cümlesinde yanlış");
-    // 20 Ekim 2026: kulak maddeleri G-I de yüksek.
-    expect(podcastVerifySystem("document")).toContain("A-J 'high'");
+    // 23 Ekim 2026 (ürün sahibinin kararı): yalnız doğruluk yüksek; kulak maddeleri G-J düşük.
+    expect(podcastVerifySystem("document")).toContain("A-F 'high'; G-J 'low'.");
     expect(podcastVerifySystem("document")).toContain("Kaynakta dayanağı olmayan");
   });
 
@@ -368,8 +371,8 @@ describe("podcast: konuşma ve kulak kuralları yazarda ve denetçide aynı meti
       expect(verify).toContain("G) (İki konuşmacılı metinde)");
       expect(verify).toContain('"rule"');
     }
-    expect(podcastVerifySystem("topic")).toContain("A-E ve G-J 'high'");
-    expect(podcastVerifySystem("document")).toContain("Şunlar 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.");
+    expect(podcastVerifySystem("topic")).toContain("A-E 'high'; G-J 'low'.");
+    expect(podcastVerifySystem("document")).toContain("Şunlar da 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.");
   });
 
   it("tablo ve tekrar kuralı her türün yazarında; bölüm kalıbı geri gelmez", () => {
@@ -438,10 +441,12 @@ describe("podcast kurtarma: kulak kuralları (20 Ekim 2026)", () => {
       },
       { length: "diyalog", topicLabel: "Büyüme" },
     )!;
-    const problems = podcastLineProblems(twice).map((item) => `${item.chapter}:${item.line}:${item.reason}`);
-    expect(problems).toContain("4:0:ikinci yanılgı itirafı");
-    expect(problems).toContain("4:2:cevapsız soru");
-    expect(podcastStructureIssues(twice)).toContain("chapters[4].lines[0]: ikinci yanılgı itirafı; çıkar ya da düzelt.");
+    // 23 Ekim 2026'dan beri akış gözlemi: kayda geçer, satır sildirmez, düzeltme turu açmaz.
+    const notes = podcastFlowNotes(twice);
+    expect(notes).toContain("chapters[4].lines[0]: ikinci yanılgı itirafı");
+    expect(notes).toContain("chapters[4].lines[2]: cevapsız soru");
+    expect(podcastLineProblems(twice)).toEqual([]);
+    expect(podcastStructureIssues(twice).some((issue) => issue.includes("ikinci yanılgı itirafı"))).toBe(false);
     // Tek öğretmende konuşma kuralı yok: bölüm sonundaki soru dinleyene sorulabilir.
     const single = parseTeacherPodcast(
       { ...draft, chapters: [...draft.chapters.slice(0, 3), { title: "Akılda kalacaklar", lines: [line("Yoklukta işlem doğmaz."), line("Mutlak butlanda işlem kesin geçersizdir."), line("Sence hangisi daha ağır?")] }] },

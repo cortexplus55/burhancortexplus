@@ -208,15 +208,17 @@ describe("podcast: evet/hayır kalıbı, yalnız soran Kerem, bağlamsız sınav
     ],
   };
 
-  it("kod üç evet/hayır açılışını ve soru ağırlıklı Kerem'i işaretler; ikisi de yayını durdurmaz", () => {
-    const found = podcastStructureIssues(robotic);
+  it("kod üç evet/hayır açılışını ve soru ağırlıklı Kerem'i kayda geçirir; düzeltme turu açmaz (23 Ekim 2026)", async () => {
+    const { podcastFlowNotes } = await import("@/lib/learning/teacher-podcast");
+    expect(podcastStructureIssues(robotic).some((issue) => issue.startsWith("Evet/Hayır"))).toBe(false);
+    const found = podcastFlowNotes(robotic);
     expect(found.some((issue) => issue.startsWith("Evet/Hayır kalıbı 3 satırda"))).toBe(true);
     expect(found.some((issue) => issue.startsWith("Kerem'in sıralarının 4/4'i soru"))).toBe(true);
     expect(found.some((issue) => issue.includes("bağlamsız 'sınavda ağırlıklı'"))).toBe(true);
   });
 
-  it("bağlamsız sınav satırı kurtarmada çıkarılabilir satırdır", () => {
-    expect(podcastLineProblems(robotic)).toContainEqual({ chapter: 0, line: 4, reason: "bağlamsız 'sınavda ağırlıklı' satırı" });
+  it("bağlamsız sınav satırı artık silinmez (akış gözlemi)", () => {
+    expect(podcastLineProblems(robotic)).toEqual([]);
   });
 
   it("yazar ve denetçi aynı konuşma kuralını okur; sınav ağırlığı kalıp cümleyle istenmez", () => {
