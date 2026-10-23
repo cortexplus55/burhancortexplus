@@ -156,6 +156,8 @@ export async function teacherPodcastLoop(
 
 /** Bu süreden sonra dinleme kontrolü başlamaz: test döngüsünün düzeltme tavanı (200 sn) aynı başlangıçtan sayılır. */
 const CHECK_DEADLINE_MS = 170_000;
+/** Kontrolün test motoruna verilen saat payı: düzeltme turu motorun 200. sn'sine kadar açılır → kontrolden 80 sn sonra. */
+const CHECK_LOOP_HEADROOM_MS = 120_000;
 
 /**
  * Dinleme kontrolü (20 Ekim 2026, kör kıyas: podcast'in sonunda soru yoktu). Denetlenmiş
@@ -174,6 +176,10 @@ export async function podcastListeningCheck(
   if (input.listeningCheck !== true || !podcastCheckEligible(episode.length)) return [];
   if (Date.now() - started > CHECK_DEADLINE_MS) return [];
   const checkStarted = Date.now();
+  // Test motorunun saati kontrolün kendi başlangıcından en çok 120 sn geride (23 Ekim 2026): podcast'in saatini
+  // verince 150 sn'yi geçen podcast'te düzeltme turu ve ikinci geçiş kalmıyor, 5 sorudan 2'si geliyordu.
+  // Üst sınır güvende: kontrol en geç 170. sn'de başlar, son düzeltme turu en geç ~250. sn'de açılır (işlev 300 sn).
+  const loopClock = Math.max(started, checkStarted - CHECK_LOOP_HEADROOM_MS);
   try {
     const loop = await teacherQuizLoop(
       ask,
@@ -186,9 +192,10 @@ export async function podcastListeningCheck(
         brief: PODCAST_CHECK_BRIEF,
         count: PODCAST_CHECK_COUNT,
         focus: "practice",
-        multi: false,
+        // Son soru çok cevaplı (23 Ekim 2026, ürün sahibinin kararı; konu testindeki gibi tek ve sonda).
+        multi: true,
       },
-      started,
+      loopClock,
     );
     const questions = loop.questions.slice(0, PODCAST_CHECK_COUNT);
     console.info("teacher_podcast_check", {

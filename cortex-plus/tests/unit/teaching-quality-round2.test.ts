@@ -208,15 +208,17 @@ describe("podcast: evet/hayır kalıbı, yalnız soran Kerem, bağlamsız sınav
     ],
   };
 
-  it("kod üç evet/hayır açılışını ve soru ağırlıklı Kerem'i işaretler; ikisi de yayını durdurmaz", () => {
-    const found = podcastStructureIssues(robotic);
+  it("kod üç evet/hayır açılışını ve soru ağırlıklı Kerem'i kayda geçirir; düzeltme turu açmaz (23 Ekim 2026)", async () => {
+    const { podcastFlowNotes } = await import("@/lib/learning/teacher-podcast");
+    expect(podcastStructureIssues(robotic).some((issue) => issue.startsWith("Evet/Hayır"))).toBe(false);
+    const found = podcastFlowNotes(robotic);
     expect(found.some((issue) => issue.startsWith("Evet/Hayır kalıbı 3 satırda"))).toBe(true);
     expect(found.some((issue) => issue.startsWith("Kerem'in sıralarının 4/4'i soru"))).toBe(true);
     expect(found.some((issue) => issue.includes("bağlamsız 'sınavda ağırlıklı'"))).toBe(true);
   });
 
-  it("bağlamsız sınav satırı kurtarmada çıkarılabilir satırdır", () => {
-    expect(podcastLineProblems(robotic)).toContainEqual({ chapter: 0, line: 4, reason: "bağlamsız 'sınavda ağırlıklı' satırı" });
+  it("bağlamsız sınav satırı artık silinmez (akış gözlemi)", () => {
+    expect(podcastLineProblems(robotic)).toEqual([]);
   });
 
   it("yazar ve denetçi aynı konuşma kuralını okur; sınav ağırlığı kalıp cümleyle istenmez", () => {
@@ -250,5 +252,56 @@ describe("konu testi: aynı testte iki soru aynı (K2 S3/S4)", () => {
     );
     expect(found.map((issue) => [issue.index, issue.code])).toEqual([[1, "I"]]);
     expect(TOPIC_TEST_RULE).toContain("'Bir öğrenci … diyor / savunuyor / yorumluyor' kalıbı vaka değildir");
+  });
+});
+
+describe("podcast: sahne, neden, sıra (23 Ekim 2026, 3. kör ölçüm)", () => {
+  it("yazar ve denetçi aynı kuralları okur; özette sahne yok; belgesiz kipte etiketli genel bilgi yok; J satır silmez", async () => {
+    const { SCENE_RULE, CAUSE_RULE, ORDER_RULE, podcastVerifySystem, salvagePodcast } = await import("@/lib/learning/teacher-podcast");
+    for (const rule of [SCENE_RULE, CAUSE_RULE, ORDER_RULE]) {
+      expect(podcastSystem("document", "diyalog")).toContain(rule);
+      expect(podcastVerifySystem("document")).toContain(rule);
+      expect(podcastVerifySystem("topic")).toContain(rule);
+    }
+    expect(podcastSystem("document", "ozet")).not.toContain(SCENE_RULE);
+    expect(podcastSystem("topic", "diyalog")).not.toContain("Belgende geçmiyor ama");
+    expect(podcastSystem("document", "diyalog")).toContain("Kerem dinlediklerini kendi sözleriyle");
+    const episode: PodcastEpisode = {
+      title: "Büyüme",
+      length: "diyalog",
+      chapters: [
+        { title: "Persentil", lines: [line("ada", "Çocuğun eğrisi önemlidir."), line("kerem", "Tek ölçüm yetmez mi?"), line("ada", "Yetmez, çünkü seyir görünmez.")] },
+        { title: "Tekrar", lines: [line("kerem", "Eğri tek ölçümden değerli."), line("kerem", "Kilo hızlı değişir."), line("kerem", "Gerileme ciddidir.")] },
+      ],
+    };
+    const salvaged = salvagePodcast(episode, ["[chapters[0]] (J) Bölüm sahneyle açılmıyor."]);
+    expect(salvaged?.removed).toBe(0);
+  });
+});
+
+describe("podcast kurtarma: soru silinince çıplak onay da gider (23 Ekim 2026)", () => {
+  it("'Aynen.' yalnız önceki satır karşı konuşmacının sorusuysa kalır", async () => {
+    const { salvagePodcast } = await import("@/lib/learning/teacher-podcast");
+    const episode: PodcastEpisode = {
+      title: "Büyüme",
+      length: "soru_cevap",
+      chapters: [
+        {
+          title: "Büyüme ve gelişme",
+          lines: [
+            line("kerem", "Boy uzaması ile beceri kazanmak aynı şey mi?"),
+            line("kerem", "Bu iki durumu aynı şey sanmışım."),
+            line("ada", "Aynen."),
+            line("ada", "Büyüme ölçülerdeki artış, gelişme becerilerin olgunlaşmasıdır."),
+          ],
+        },
+        { title: "Tekrar", lines: [line("kerem", "Büyüme ölçü artışıdır."), line("kerem", "Gelişme beceridir."), line("ada", "Gerileme ciddidir.")] },
+      ],
+    };
+    const salvaged = salvagePodcast(episode, ["[chapters[0].lines[1]] (G) Yanılgı itirafı yersiz."])!;
+    expect(salvaged.episode.chapters[0]!.lines.map((item) => item.text)).toEqual([
+      "Boy uzaması ile beceri kazanmak aynı şey mi?",
+      "Büyüme ölçülerdeki artış, gelişme becerilerin olgunlaşmasıdır.",
+    ]);
   });
 });

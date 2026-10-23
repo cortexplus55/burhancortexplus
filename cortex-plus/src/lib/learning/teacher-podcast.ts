@@ -45,7 +45,7 @@ export type TeacherPodcastInput = {
 const RULE_DOCUMENT =
   "KAYNAK KURALI (kesin): Her olgu, tanım, sayı, formül, tarih ve sınıflandırma yalnızca KAYNAK'tan (ve verilmişse " +
   "öğrencinin aynı konudaki DERS'inden) gelir. Kaynakta yoksa söyleme; genel kültürden ekleme — tek istisna: kaynak bir " +
-  "olgunun nedenini ya da sınavda sorulan kesin bilgisini vermiyorsa en çok iki yerde, cümleye 'Belgende geçmiyor ama " +
+  "olgunun nedenini ya da sınavda sorulan kesin bilgisini vermiyorsa en çok üç yerde, cümleye 'Belgende geçmiyor ama " +
   "bilmen iyi olur:' diye başlayarak ders kitaplarında tartışmasız, güncel olarak değişmeyen bir bilgiyi söyleyebilirsin. " +
   "Kaynaktaki bozuk ya da " +
   "yanlış yazılmış kelimeleri doğru Türkçeyle söyle; kaynakta açıkça bozuk bir cümle varsa kaynağın kendi örnekleriyle " +
@@ -67,6 +67,25 @@ export const TABLE_RULE =
 export const REPEAT_RULE =
   "Aynı ifadeyi ya da aynı noktayı son bölüm dışında bütün podcast'te en çok iki kez söyle; üçüncü kez söyleyeceğin " +
   "yerde yeni bir bilgi, neden ya da örnek söyle.";
+/*
+  Sahne, neden, sıra (23 Ekim 2026, üçüncü kör ölçüm: podcast öğrenci gözünde 20+ puan geride). Yargıçların ortak
+  cümlesi "sesli okunan tablo": Kerem soruyor, Ada okuyor; neden-sonuç, örnek ve benzetme yok; yaşlar 9 → 2 → 6 → 12
+  diye karışık. Astra her bölümü bir sahne ve bir nedenle anlatıyor, özeti öğrencinin ağzından yaptırıyordu. Yazar
+  (AKIŞ) ve denetçi (J maddesi) üçünü aynen okur. J düzeltme turuna gider, kurtarmada satır silmez (I gibi).
+*/
+export const SCENE_RULE =
+  "Her bölüm (son tekrar bölümü hariç) somut bir sahneyle açılır: bir öğrencinin, hastanın, ülkenin ya da işlemin kısa " +
+  "durumu (kim, ne oluyor). Sahnedeki her ayrıntı kaynaktaki bilgiden gelir; yeni sayı, eşik ya da sonuç taşımaz. " +
+  "Bölümün geri kalanı sahneyi kavramla açıklar.";
+export const CAUSE_RULE =
+  "Her bölümde en az bir gerçek neden-sonuç cümlesi vardır: 'çünkü'den sonra gelen kısım ilk cümleyi başka sözle " +
+  "tekrar etmez, bir mekanizma söyler.";
+/** Yalnız belgeli yazara: belgesiz kipte etiketli genel bilgi yok. */
+const CAUSE_LABEL_NOTE =
+  "Kaynak nedeni vermiyorsa 'Belgende geçmiyor ama bilmen iyi olur:' ile tek cümle mekanizma söyleyebilirsin.";
+export const ORDER_RULE =
+  "Yaş, evre, sıra ya da basamak bildiren bilgiler kaynaktaki sırayla söylenir (2 ay, 6 ay, 9 ay, 12 ay); ileri geri " +
+  "atlanmaz.";
 /** Yalnız yazara: bölümün şekli serbest kalsın diye sıra dayatmaz ('Her bölüm: ne olduğu' kalıbı geri gelmesin). */
 const CHAPTER_RULE =
   "Her bölüm (son tekrar bölümü hariç) tek bir fikir taşır: fikrin kendisi, nedeni ve onu gösteren bir somut vaka " +
@@ -77,13 +96,15 @@ const CHAPTER_RULE =
 // 17 Ekim 2026: örnekte Kerem yalnız "kısa soru" yazınca canlıda Kerem'in bütün sıraları tek cümle
 // soruydu; örnek Kerem'in anlattığı bir sırayı da gösterir.
 const SCHEMA_DUO =
-  '{"title":"…","chapters":[{"title":"kavramın adı","lines":[' +
+  '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"scene":"bölümü açan somut durum","why":"bölümün asıl nedeni",' +
+  '"analogy":"varsa gündelik benzetme"},"lines":[' +
   '{"speaker":"kerem","text":"soru ya da merak"},' +
   '{"speaker":"ada","text":"konuşma sırası: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"},' +
   '{"speaker":"kerem","text":"1-3 cümle: bir örnek (kaynağı anmadan), kendi sözleriyle toparlama ya da bir adım ileri"},' +
   '{"speaker":"ada","text":"tamamlar ya da yeni bilgiyi açar: 1-4 cümle"}]}]}';
 const SCHEMA_SINGLE =
-  '{"title":"…","chapters":[{"title":"kavramın adı","lines":[' +
+  '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"scene":"bölümü açan somut durum","why":"bölümün asıl nedeni",' +
+  '"analogy":"varsa gündelik benzetme"},"lines":[' +
   '{"speaker":"ada","text":"paragraf: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"}]}]}';
 
 function system(mode: TeacherLessonMode, length: PodcastLength): string {
@@ -102,19 +123,28 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     (duo ? DUO_NARRATOR_SCHEMA : SINGLE_NARRATOR_SCHEMA) +
     "\n\n" +
     "AKIŞ:\n" +
+    // 23 Ekim 2026 (beşinci ölçüm, ürün sahibinin kararı: "konuşma önce, denetim yalnız doğruluk"): yazar her bölümün
+    // planını satırlardan önce yazar; plan öğrenciye gitmez, sohbetin iskeletidir.
+    "- Önce her bölümün 'plan'ını yaz: bölümü açan somut sahne, bölümün asıl nedeni, varsa gündelik bir benzetme. " +
+    "Sonra satırları bu plana göre, iki insan konuşur gibi yaz: biri merak eder, öbürü sahneyi nedeniyle açıklar, " +
+    "benzetmeyle pekiştirir. Benzetme ve sahne yeni bilgi (sayı, kural, tarih, sonuç) taşımaz.\n" +
     `- ${spec.minChapters}-${spec.maxChapters} bölüm. Bölüm başlığı o bölümde konuşulan kavramın adı; 'Giriş', 'Tanım', ` +
     "'Örnek', 'Özet', 'Yaygın hata' başlık değildir.\n" +
     "- İlk cümle dinleyeni düşündüren bir kanca; 'bu bölümde şunları öğreneceğiz' gibi boş cümle yok.\n" +
     "- Zıtlıkla anlat (X böyledir, Y ise şöyle); karıştırılan iki kavramı açıkça ayır.\n" +
     `- ${CHAPTER_RULE}\n` +
+    (length === "ozet" ? "" : `- ${SCENE_RULE}\n- ${CAUSE_RULE}${mode === "topic" ? "" : ` ${CAUSE_LABEL_NOTE}`}\n`) +
+    `- ${ORDER_RULE}\n` +
     `- ${TABLE_RULE}\n` +
     `- ${REPEAT_RULE}\n` +
-    "- Gündelik hayattan kısa, somut bir sahne kurabilirsin; yeni bilgi (sayı, kural, tarih, sonuç) taşımaz.\n" +
     (length === "ozet"
       ? ""
       : "- Bir ya da iki yerde dinleyene soru sor: satır 'Dur ve düşün:' ile başlar, hemen sonraki satır 'Cevap:' ile " +
         "başlar ve cevabı verir.\n" +
-        "- Son bölüm üç kısa tekrar satırıdır; her satır sınavda işe yarayan bir kesin bilgi.\n") +
+        (duo
+          ? "- Son bölümde Kerem dinlediklerini kendi sözleriyle üç kısa satırda toparlar (her satır sınavda işe yarayan bir " +
+            "kesin bilgi); Ada yalnız eksik ya da yanlışı tek satırla düzeltir.\n"
+          : "- Son bölüm üç kısa tekrar satırıdır; her satır sınavda işe yarayan bir kesin bilgi.\n")) +
     "- Örnek açarsan verileni, işlemi ve birimli sonucu aynı bölümde söyle; yarım bırakma. Eşitliğin iki tarafını hesapla.\n" +
     "- Formülü ve üssü simgeyle yaz (H₂O, 10²³, n = m/M); ondalık virgül kullan.\n\n" +
     // 20 Ekim 2026: Kerem bir podcast'te dört kez "Notlarındaki örnekte …" dedi. Kod da yakalar
@@ -162,7 +192,7 @@ const VERIFY_DOCUMENT =
   "D) 'Cevap:' satırının sorulan soruya yanlış ya da eksik cevap vermesi.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "F) 'Belgende geçmiyor ama bilmen iyi olur:' cümlesinde yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; " +
-  "bu işaretle ikiden fazla cümle; kaynakta olmayan bilginin bu işaret olmadan söylenmesi A'dır.\n" +
+  "bu işaretle üçten fazla cümle; kaynakta olmayan bilginin bu işaret olmadan söylenmesi A'dır.\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla söylenmesi sorun değildir.\n";
 
 const VERIFY_TOPIC =
@@ -185,12 +215,15 @@ const EAR_ITEMS =
   "anlıyorum' satırı); kendi önceki cümlesiyle çelişen satır.\n" +
   `H) Tekrar kuralı çiğnenmiş: «${REPEAT_RULE}» where: üçüncü ve sonraki geçişlerin satırları, ilk ikisi değil.\n` +
   `I) Kulak yükü kuralı çiğnenmiş: «${TABLE_RULE}» where: o konuşma sırasının ilk satırı.\n` +
-  "G, H ve I'da where her zaman tek satırdır: chapters[i].lines[j].\n";
+  "G, H ve I'da where her zaman tek satırdır: chapters[i].lines[j].\n" +
+  `J) Sahne, neden ya da sıra kuralı çiğnenmiş (son tekrar bölümü ve 1 dakikalık özet hariç): «${SCENE_RULE}» ` +
+  `«${CAUSE_RULE}» «${ORDER_RULE}» where: bölüm, chapters[i].\n`;
 
 function verifyJson(mode: TeacherLessonMode): string {
   return (
-    (mode === "topic" ? "A-E ve G-I 'high'." : "A-I 'high'.") +
-    " Şunlar 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.\n" +
+    (mode === "topic" ? "A-E 'high'; G-J 'low'." : "A-F 'high'; G-J 'low'.") +
+    " G-J konuşma akışıdır: yanlış bir şey öğretmez, düzeltme turu açmaz, satır sildirmez; yine de yaz, kayda geçer. " +
+    "Şunlar da 'low': tekdüze anlatım, uzunluk, bilgi taşımayan cümle.\n" +
     'JSON döndür: {"issues":[{"where":"chapters[1].lines[3]","rule":"G","severity":"high","problem":"…","fix":"…"}]}. ' +
     "rule: maddenin harfi. Sorun yoksa issues boş dizi."
   );
@@ -214,7 +247,7 @@ export function parsePodcastIssues(raw: unknown): PodcastIssue[] {
     const parsed = parseIssues({ issues: [item] });
     if (!parsed.length) return [];
     const rule = (item as { rule?: unknown } | null)?.rule;
-    const letter = typeof rule === "string" && /^[A-I]$/i.test(rule.trim()) ? rule.trim().toUpperCase() : undefined;
+    const letter = typeof rule === "string" && /^[A-J]$/i.test(rule.trim()) ? rule.trim().toUpperCase() : undefined;
     return parsed.map((issue) => (letter ? { ...issue, rule: letter } : issue));
   });
 }
@@ -313,38 +346,36 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
     const last = episode.chapters[episode.chapters.length - 1];
     if (last && last.lines.length < 3) issues.push("Son bölüm üç kısa tekrar satırı olmalı.");
   }
-  // 22 Ekim 2026 kör kıyas (2. tur): cevaplar "Evet; …" / "Hayır; …" diye açılıyor, Kerem yalnız soru soruyordu.
-  // Satır numarası yok: cümleler bilgi taşıyor; yalnız düzeltme turuna gider.
+  const arithmetic = auditQuantitative(podcastScriptText(episode), "").issues.filter((issue) => issue.kind === "arithmetic");
+  for (const issue of arithmetic) issues.push(`Tutmayan hesap: ${issue.detail}`);
+  return issues;
+}
+
+/**
+ * Konuşma akışı gözlemleri (23 Ekim 2026, ürün sahibinin kararı: "konuşma önce, denetim yalnız doğruluk").
+ * Beşinci ölçümde bu kurallar düzeltme turu açıp satır sildiriyordu; Soru-Cevap'ta 10 satır çıktı, sohbet koptu
+ * ("Aynen." tek başına kaldı), podcast yavaşladı ve dinleme kontrolü süreye takıldı. Artık yalnız kayda geçer;
+ * yazar aynı kuralları istemde okur.
+ */
+export function podcastFlowNotes(episode: PodcastEpisode): string[] {
+  const notes: string[] = [];
+  const lines = episode.chapters.flatMap((chapter) => chapter.lines);
   const yesNo = lines.filter((line) => YES_NO_OPENER.test(line.text)).length;
-  if (yesNo >= 3) {
-    issues.push(`Evet/Hayır kalıbı ${yesNo} satırda; cevabı doğrudan bilgiyle ve nedeniyle başlat, soruyu 'neden/nasıl' sorusu yap.`);
-  }
+  if (yesNo >= 3) notes.push(`Evet/Hayır kalıbı ${yesNo} satırda`);
   const keremLines = lines.filter((line) => line.speaker === "kerem");
   const keremAsks = keremLines.filter((line) => QUESTION_END.test(line.text)).length;
   if (episode.length === "diyalog" && keremLines.length >= 4 && keremAsks / keremLines.length > 0.6) {
-    issues.push(
-      `Kerem'in sıralarının ${keremAsks}/${keremLines.length}'i soru; en az yarısı bilgi taşısın (bir örnek anlatır, toparlar, iki kavramı karşılaştırır).`,
-    );
+    notes.push(`Kerem'in sıralarının ${keremAsks}/${keremLines.length}'i soru`);
   }
-  const arithmetic = auditQuantitative(podcastScriptText(episode), "").issues.filter((issue) => issue.kind === "arithmetic");
-  for (const issue of arithmetic) issues.push(`Tutmayan hesap: ${issue.detail}`);
-  for (const item of duoTurnProblems(episode)) {
-    issues.push(`chapters[${item.chapter}].lines[${item.line}]: ${item.reason}; çıkar ya da düzelt.`);
-  }
-  // KPSS denemesi: "İptal, idari işlemi; cebri icra ise borcun ödenmesini
-  // sağlar." art arda iki kez, ufak farkla söylendi.
+  for (const item of duoTurnProblems(episode)) notes.push(`chapters[${item.chapter}].lines[${item.line}]: ${item.reason}`);
   episode.chapters.forEach((chapter, chapterIndex) => {
     chapter.lines.forEach((line, lineIndex) => {
       const previous = chapter.lines[lineIndex - 1];
-      if (previous && nearDuplicate(previous.text, line.text)) {
-        issues.push(`chapters[${chapterIndex}].lines[${lineIndex}]: bir önceki cümlenin tekrarı; çıkar ya da yeni bilgi söyle.`);
-      }
-      if (BARE_WEIGHT_LINE.test(line.text.trim())) {
-        issues.push(`chapters[${chapterIndex}].lines[${lineIndex}]: bağlamsız 'sınavda ağırlıklı' satırı; sınavda neyin sorulduğuyla bir cümlede birleştir ya da çıkar.`);
-      }
+      if (previous && nearDuplicate(previous.text, line.text)) notes.push(`chapters[${chapterIndex}].lines[${lineIndex}]: bir önceki cümlenin tekrarı`);
+      if (BARE_WEIGHT_LINE.test(line.text.trim())) notes.push(`chapters[${chapterIndex}].lines[${lineIndex}]: bağlamsız 'sınavda ağırlıklı' satırı`);
     });
   });
-  return issues;
+  return notes;
 }
 
 function wordSet(text: string): Set<string> {
@@ -417,22 +448,11 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
       }
       if (auditQuantitative(line.text, "").issues.some((issue) => issue.kind === "arithmetic")) {
         out.push({ chapter: chapterIndex, line: lineIndex, reason: "tutmayan hesap" });
-        return;
-      }
-      const previous = chapter.lines[lineIndex - 1];
-      if (previous && nearDuplicate(previous.text, line.text)) {
-        out.push({ chapter: chapterIndex, line: lineIndex, reason: "bir önceki cümlenin tekrarı" });
-        return;
-      }
-      if (BARE_WEIGHT_LINE.test(line.text.trim())) {
-        out.push({ chapter: chapterIndex, line: lineIndex, reason: "bağlamsız 'sınavda ağırlıklı' satırı" });
       }
     });
   });
-  const seen = new Set(out.map((item) => `${item.chapter}:${item.line}`));
-  for (const item of duoTurnProblems(episode)) {
-    if (!seen.has(`${item.chapter}:${item.line}`)) out.push(item);
-  }
+  // Akış sorunları (tekrar, cevapsız soru, ikinci itiraf, bağlamsız sınav satırı) 23 Ekim 2026'dan beri satır
+  // sildirmez: `podcastFlowNotes`.
   return out;
 }
 
@@ -448,7 +468,7 @@ const LINE_HANDLED_PROBLEM =
 const LINE_REF = /chapters\[(\d+)\]\.lines\[(\d+)\]/g;
 const CHAPTER_ONLY_REF = /chapters\[(\d+)\](?!\.lines)/g;
 /** Denetçinin madde harfi (`podcastIssueLine` biçimi: `[where] (G) …`). */
-const ISSUE_RULE = /^\[.*?\] \(([A-I])\) /;
+const ISSUE_RULE = /^\[.*?\] \(([A-J])\) /;
 /** Bu kadar satırın altındaki podcast yayınlanmaz; ikinci taslak denenir. */
 const MIN_SALVAGED_LINES = 4;
 
@@ -474,7 +494,8 @@ export function salvagePodcast(
     // Kulak maddeleri (20 Ekim 2026): I (tablo okuma) silinmez, yalnız düzeltme turuna gider;
     // G ve H satırı çıkar. Satır numarası yoksa ikisi de yayını durdurmaz, bölüm de düşürmez.
     const ear = ISSUE_RULE.exec(problem)?.[1];
-    if (ear === "I") continue;
+    // J (sahne, neden, sıra; 23 Ekim 2026) da I gibi: düzeltme turuna gider, satır ya da bölüm silmez.
+    if (ear === "I" || ear === "J") continue;
     if (ear === "G" || ear === "H") {
       for (const match of problem.matchAll(LINE_REF)) dropLines.add(`${match[1]}:${match[2]}`);
       continue;
@@ -519,8 +540,14 @@ export function salvagePodcast(
         removed += chapter.lines.length;
         return null;
       }
+      // Hemen önceki satırı çıkan çıplak onay da gider (23 Ekim 2026, beşinci ölçüm: "Bu iki durumu aynı şey
+      // sanmışım" çıkınca Ada'nın "Aynen." satırı tek başına kaldı). Bilgi taşıyan satır kalır.
+      const orphan = (lineIndex: number) =>
+        lineIndex > 0 &&
+        dropLines.has(`${chapterIndex}:${lineIndex - 1}`) &&
+        BARE_REPLY.test(chapter.lines[lineIndex]!.text.trim());
       const lines = chapter.lines.filter((_, lineIndex) => {
-        const drop = dropLines.has(`${chapterIndex}:${lineIndex}`);
+        const drop = dropLines.has(`${chapterIndex}:${lineIndex}`) || orphan(lineIndex);
         if (drop) removed += 1;
         return !drop;
       });

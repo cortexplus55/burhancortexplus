@@ -240,6 +240,17 @@ describe("kök cevabı ele vermez, kaynağa sormaz", () => {
     explanation: "Makrositoz ve nörolojik bulgu B12 eksikliğini düşündürür.",
     optionWhy: ["a", "b", "c", "d"],
   };
+  it("tek rakamlı cevap da kökte geçerse yakalanır (23 Ekim 2026 podcast kontrolü)", () => {
+    const leaky = {
+      ...base,
+      text: "Bir bebek 6 aylıkken destekli oturuyor ve dönüyor. Bu beceriler hangi yaş basamağıyla uyumludur?",
+      options: ["6 ay", "2 ay", "9 ay", "12 ay"],
+      correct: ["6 ay"],
+    };
+    expect(quizStructureIssues(leaky as never).some((issue) => /ele veren kelimeyi içeriyor \('6'\)/.test(issue))).toBe(true);
+    const clean = { ...leaky, text: "Bir bebek destekli oturuyor ve dönüyor. Bu beceriler hangi yaş basamağıyla uyumludur?" };
+    expect(quizStructureIssues(clean as never).some((issue) => /ele veren/.test(issue))).toBe(false);
+  });
   it("yalnız doğru şıkta olan kelime kökte geçerse yakalanır", () => {
     const leaky = {
       ...base,

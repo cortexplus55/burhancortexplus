@@ -18,7 +18,8 @@ import type { PodcastChapter } from "@/lib/learning/podcast-script";
  * Saf modül: istemci ve sunucu aynı okuyucuyu kullanır.
  */
 
-export const PODCAST_CHECK_COUNT = 3;
+// 23 Ekim 2026 (ürün sahibinin kararı): 3 → 5; yargıçlar her turda Astra'nın beş sorusunu (vaka ve çok cevaplı dahil) daha iyi buldu.
+export const PODCAST_CHECK_COUNT = 5;
 /** Bundan az soru kaldıysa kontrol yok (tek soruluk kontrol ölçmez). */
 export const MIN_CHECK_QUESTIONS = 2;
 
@@ -29,6 +30,7 @@ export const PODCAST_CHECK_BRIEF =
   "nedenini ya da bir karşılaştırmayı yoklar; tek bir sayıyı ya da kelimeyi ezberden sorma. En az bir soru bölümde " +
   // 22 Ekim 2026 kör kıyas (2. tur): "dinleme kontrolü 3 kolay hatırlama sorusu, sınav üslubunda değil".
   "anlatılan bilgiyi kısa, somut bir durumda uygulatır (bir hasta, bir olay); durumdaki her ayrıntı konuşmada geçer. " +
+  "Son soru çok cevaplıdır (birden fazla doğru şık); yanlış şıklar aynı bağlamdan. " +
   "'Öğrenci:' satırında " +
   "itiraf edilen yanılgı ('… sanmışım') doğru bilgi değildir; yalnız yanlış şık olabilir. Kökte konuşmacıdan söz " +
   "edilmez: 'podcast'te', 'dinlediğin bölümde', 'Ada', 'Kerem', 'öğretmene göre' geçmez.";
