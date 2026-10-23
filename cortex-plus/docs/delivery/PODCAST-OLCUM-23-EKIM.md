@@ -97,3 +97,29 @@ kaynak kuralıyla çelişiyor. Bugünkü dengede podcast sınava daha iyi hazır
 
 **Ölçüm notu:** yargıca giden döküm oynatıcının yaptığını gösterir: aynı konuşmacının cümleleri tek sıra, "Dur ve
 düşün" rozet + 4 sn ara, ders kitabı açılışı okunmaz (köşeli parantezle belirtilir), çok cevaplı soru işaretli.
+
+## Yirmi ikinci ölçüm (23 Ekim 2026 gecesi): ders kitabı bilgisi etiketsiz
+
+Ürün sahibi: "Etiketsiz bilgi eklemek öğrenci tarafından bizi o seviyeye taşıyacaksa onu da yapalım." Podcast'te
+neden, mekanizma, tipik vaka, benzetme ve terim açıklaması artık etiketsiz. Sınırlar aynı: sayı, eşik, yaş sınırı,
+doz, tanı ölçütü ve sınıflandırma yalnız kaynaktan; kaynakla çelişen ya da aciliyeti kaynaktan yükselten cümle yok
+(denetçi A, B, F). Ders, test ve sohbetin kaynak kuralı değişmedi.
+
+| Göz | 21. tur (etiketli) | 22. tur (etiketsiz) | Astra |
+|---|---|---|---|
+| Öğrenme bilimi | 57 | 54 | 55 |
+| Sınav koçu | 73 | 70 | 63 |
+| Öğrenci | 58 | 60 | 74 |
+| Kaynağa sadakat | 84 | 85 | 60 |
+
+Sadakat düşmedi; öğrenci gözü iki puan arttı, açık kapanmadı. Yazar izni geniş kullanmıyor: terimleri açıklıyor
+("pincer, küçük bir nesneyi parmak uçlarıyla kavrama hareketidir"), ama Astra'nın vakaları ve benzetmeleri kadar
+renkli değil. Yargıçların ortak cümlesi değişmedi: bizimki bütün tabloyu doğru taşıyor, Astra satır atlayıp sohbet
+kuruyor.
+
+**Aynı turda bulunan hata:** dinleme kontrolü podcast'in 170. sn'sinden sonra hiç başlamıyordu; iki düzeltme turu
+alan podcast (ölçümde soru-cevap) kontrolsüz geldi. Kontrol artık 210. sn'ye kadar başlar, düzeltme turları
+podcast'in 255. sn'sinde biter (`checkLoopClock`).
+
+Pazarlama metni de buna göre: ana sayfa "Hepsi senin notuna dayanır; notunda olmayan sayı ya da kural uydurmaz";
+güven kartı "Podcast konuyu ders kitabı bilgisiyle açar; sayı, eşik ve sınıflandırma yine notundan."

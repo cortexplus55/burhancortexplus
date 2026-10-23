@@ -8,7 +8,7 @@ import {
   podcastPayloadEpisode,
   scorePodcastCheck,
 } from "@/lib/learning/podcast-check";
-import { podcastListeningCheck } from "@/lib/learning/teacher-podcast-run";
+import { checkLoopClock, podcastListeningCheck } from "@/lib/learning/teacher-podcast-run";
 import { pathDecision } from "@/lib/learning/path-change";
 import { loadLevelHint } from "@/lib/learning/prep-level";
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
@@ -158,7 +158,8 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
     expect(await podcastListeningCheck(failing, episode, input, Date.now())).toEqual([]);
     const idle = asker(quizDraft);
     expect(await podcastListeningCheck(idle.ask, { ...episode, length: "ozet" }, input, Date.now())).toEqual([]);
-    expect(await podcastListeningCheck(idle.ask, episode, input, Date.now() - 171_000)).toEqual([]);
+    // 23 Ekim 2026: kontrol 210. sn'ye kadar başlar (önce 170).
+    expect(await podcastListeningCheck(idle.ask, episode, input, Date.now() - 211_000)).toEqual([]);
     expect(await podcastListeningCheck(idle.ask, episode, { ...input, listeningCheck: false }, Date.now())).toEqual([]);
     expect(await podcastListeningCheck(idle.ask, episode, { topicLabel: "x", prepTitle: "y" }, Date.now())).toEqual([]);
     expect(idle.ask).not.toHaveBeenCalled();
@@ -258,5 +259,17 @@ describe("düzey önerisi podcast kontrolünü saymaz", () => {
     const kinds = { p1: "podcast", p2: "podcast", q1: "quiz", q2: "quiz" };
     expect(await loadLevelHint(fake(attempts, kinds), "prep")).toBe("too_hard");
     expect(await loadLevelHint(fake(attempts.slice(0, 2), kinds), "prep")).toBeNull();
+  });
+});
+
+describe("dinleme kontrolünün saati (23 Ekim 2026)", () => {
+  it("düzeltme turları kontrolden en çok 80 sn sonrasına ve podcast'in 255. sn'sine kadar açılır", () => {
+    const fixUntil = (started: number, checkStarted: number) => checkLoopClock(started, checkStarted) + 200_000;
+    // Erken kontrol: podcast saati yeter, daha geniş pay.
+    expect(checkLoopClock(0, 60_000)).toBe(0);
+    // 170. sn: kontrolden 80 sn sonra (250).
+    expect(fixUntil(0, 170_000)).toBe(250_000);
+    // 210. sn: podcast'in 255. sn'si tavan.
+    expect(fixUntil(0, 210_000)).toBe(255_000);
   });
 });

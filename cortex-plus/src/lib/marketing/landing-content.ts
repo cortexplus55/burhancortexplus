@@ -17,7 +17,7 @@ export const HERO = {
   titleLead: "Notunu yükle,",
   titleAccent: "sınava hazır bir yol çıksın.",
   lead:
-    "Cortex Plus ders notunu konulara ayırır; her konu için ders, podcast, test ve sözlü pratik hazırlar. Hepsi senin notundan, notunda olmayanı uydurmadan.",
+    "Cortex Plus ders notunu konulara ayırır; her konu için ders, podcast, test ve sözlü pratik hazırlar. Hepsi senin notuna dayanır; notunda olmayan sayı ya da kural uydurmaz.",
   primary: { label: "Ücretsiz başla", href: "/kayit" },
   secondary: { label: "Nasıl çalışıyor?", href: "#nasil" },
   fineprint: "Kart istemiyoruz · Her gün bir ders ücretsiz",
@@ -150,7 +150,7 @@ export const STAGE = {
 export const TRUST = [
   {
     title: "Notuna sadık",
-    body: "Ders, test ve podcast notundaki sayfalardan yazılır. Belgende olmayan bir bilgi gerekiyorsa \"Genel bilgi\" diye ayrı kutuda gelir; soru ona dayanmaz.",
+    body: "Ders ve test notundaki sayfalardan yazılır; belgende olmayan bilgi \"Genel bilgi\" diye ayrı kutuda gelir, soru ona dayanmaz. Podcast konuyu ders kitabı bilgisiyle açar; sayı, eşik ve sınıflandırma yine notundan.",
   },
   {
     title: "Öğretmen gözüyle",
@@ -165,7 +165,7 @@ export const TRUST = [
 export const FAQ: { q: string; a: string }[] = [
   {
     q: "Cortex Plus tam olarak ne yapıyor?",
-    a: "Ders notunu yüklüyorsun; içinden çalışılacak konular çıkarılıyor ve her konu için ders, podcast, test, kartlar ve sözlü pratik hazırlanıyor. Hepsi senin notundan; genel bir ders anlatımı değil.",
+    a: "Ders notunu yüklüyorsun; içinden çalışılacak konular çıkarılıyor ve her konu için ders, podcast, test, kartlar ve sözlü pratik hazırlanıyor. Hepsi senin notuna dayanır; genel bir ders anlatımı değil.",
   },
   {
     q: "Ücretsiz neler yapabilirim?",

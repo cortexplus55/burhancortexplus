@@ -13,7 +13,6 @@ import { isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import { parseIssues, sourceText, type TeacherIssue, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { examPointsBlock } from "@/lib/learning/exam-points";
-import { TEXTBOOK_LIMIT, TEXTBOOK_MARK, TEXTBOOK_MARKS_TEXT } from "@/lib/learning/podcast-textbook";
 
 /**
  * Öğretmen podcast motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik
@@ -43,16 +42,24 @@ export type TeacherPodcastInput = {
   runningHeaders?: string[];
 };
 
+/*
+  Ders kitabı bilgisi etiketsiz (23 Ekim 2026, ürün sahibinin kararı: "etiketsiz bilgi eklemek öğrenci tarafından bizi o
+  seviyeye taşıyacaksa onu da yapalım"). Yirmi bir kör ölçümde öğrenci gözü 58 / 73'te kaldı; yargıçların ortak cümlesi
+  Astra'nın nedeni, tipik vakayı ve benzetmeyi ders kitabından katıp rahat bir sohbet kurduğuydu. Etiket (önce ağır,
+  sonra hafif ve seste okunmayan) yazarı çekingen bıraktı. Sınır aynı kaldı: sayı, eşik, doz, tanı ölçütü ve
+  sınıflandırma yalnız kaynaktan; kaynakla çelişen ya da aciliyeti kaynaktan yükselten cümle yok. Denetçi (A, B, F)
+  eklenen her cümlenin doğruluğuna bakar. Yalnız podcast; ders, test ve sohbetin kaynak kuralı değişmedi.
+*/
 const RULE_DOCUMENT =
-  "KAYNAK KURALI (kesin): Sayı, eşik, yaş, süre, tarih, formül, tanım, sınıflandırma, tanı, tedavi ve sınavda sorulan " +
-  "kesin bilgi yalnızca KAYNAK'tan (ve verilmişse öğrencinin aynı konudaki DERS'inden) gelir; kaynakta yoksa söyleme. " +
-  "İki istisna, ikisi de yeni sayı, eşik, tanı, tedavi ya da sınıflandırma taşımaz:\n" +
-  `(1) Kaynak bir bilginin nedenini ya da mekanizmasını anlatmıyorsa ders kitaplarında tartışmasız olan nedeni söyle: ` +
-  `cümle şu açılışlardan biriyle başlar: ${TEXTBOOK_MARKS_TEXT} (aynı açılışı art arda kullanma); bütün podcast'te en çok ${TEXTBOOK_LIMIT} cümle. ` +
-  "Açılıştan sonra yeni bir mekanizma gelir; söyleyecek gerçek bir neden yoksa açılışı kullanma. Nedeni olmayan bilgiyi " +
-  "'çünkü bunlar farklıdır' gibi kendini tekrar eden bir cümleyle geçiştirmek yerine bunu kullan.\n" +
-  "(2) Kaynaktaki bir kuralı, ders kitaplarında o kuralın tipik örneği olan bir durumla örnekle ('Örneğin birkaç " +
-  "gündür kusan bir bebek …'): örnek kuralı uygular, kuralın söylemediği bir sonuç eklemez; etiket gerekmez.\n" +
+  "KAYNAK KURALI (kesin): Sayı, eşik, yaş sınırı, süre, tarih, doz, formül, tanı ölçütü ve sınıflandırma yalnızca " +
+  "KAYNAK'tan (ve verilmişse öğrencinin aynı konudaki DERS'inden) gelir; kaynakta yoksa söyleme. Kaynaktaki her sınav " +
+  "noktası podcast'te geçer.\n" +
+  "DERS KİTABI BİLGİSİ: Konuyu ders kitaplarında tartışmasız olan bilgiyle açabilirsin, etiket koymadan: bir bilginin " +
+  "nedeni ve mekanizması, kuralın ders kitabındaki tipik vakası, gündelik bir benzetme, bir terimin " +
+  "anlamı, neyin neyle karıştırıldığı. Sınırlar: kaynakla çelişmez; yukarıdaki türden yeni bir sayı, eşik, yaş sınırı, " +
+  "doz, tanı ölçütü ya da sınıflandırma eklemez; aciliyeti ya da önemi kaynaktan yükseltmez (kaynak 'ayrıntılı " +
+  "değerlendirme' diyorsa 'acil' denmez); güncel olarak tartışmalı ya da değişebilecek bilgi taşımaz. Emin olmadığın " +
+  "bilgiyi söyleme.\n" +
   "Kaynaktaki bozuk ya da " +
   "yanlış yazılmış kelimeleri doğru Türkçeyle söyle; kaynakta açıkça bozuk bir cümle varsa kaynağın kendi örnekleriyle " +
   "tutarlı anlamını söyle ve bundan söz etme.\n\n";
@@ -96,8 +103,8 @@ export const SCENE_RULE =
 export const CAUSE_RULE =
   "Her bölümde en az bir gerçek neden-sonuç cümlesi vardır: 'çünkü'den sonra gelen kısım ilk cümleyi başka sözle " +
   "tekrar etmez, bir mekanizma söyler.";
-/** Yalnız belgeli yazara: belgesiz kipte etiketli genel bilgi yok. */
-const CAUSE_LABEL_NOTE = `Kaynak nedeni vermiyorsa '${TEXTBOOK_MARK}' ile ders kitabındaki nedeni söyle.`;
+/** Yalnız belgeli yazara (belgesiz kipte zaten konu bilgisiyle yazılır). */
+const CAUSE_LABEL_NOTE = "Kaynak nedeni vermiyorsa ders kitabındaki tartışmasız nedeni söyle.";
 export const ORDER_RULE =
   "Yaş, evre, sıra ya da basamak bildiren bilgiler kaynaktaki sırayla söylenir (2 ay, 6 ay, 9 ay, 12 ay); ileri geri " +
   "atlanmaz.";
@@ -115,7 +122,7 @@ const CHAPTER_RULE =
 // karıştırıldığı şey; satırlar bu dördünü söyler.
 const SCHEMA_DUO =
   '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"point":"bu bölümün ana sınav noktası ve yanında kısaca geçecek satırlar",' +
-  '"why":"bu noktanın nedeni ya da mekanizması: kaynakta varsa kaynaktan, yoksa ders kitabından (satırda etiketle söylenir)",' +
+  '"why":"bu noktanın nedeni ya da mekanizması: kaynakta varsa kaynaktan, yoksa ders kitabından",' +
   '"example":"somut bir durum: kaynaktaki ya da ders kitabındaki tipik örnek","confusedWith":"en çok neyle karıştırılır, fark ne"},"lines":[' +
   '{"speaker":"kerem","text":"soru ya da merak"},' +
   '{"speaker":"ada","text":"konuşma sırası: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"},' +
@@ -123,7 +130,7 @@ const SCHEMA_DUO =
   '{"speaker":"ada","text":"tamamlar ya da yeni bilgiyi açar: 1-4 cümle"}]}]}';
 const SCHEMA_SINGLE =
   '{"title":"…","chapters":[{"title":"kavramın adı","plan":{"point":"bu bölümün ana sınav noktası ve yanında kısaca geçecek satırlar",' +
-  '"why":"bu noktanın nedeni ya da mekanizması: kaynakta varsa kaynaktan, yoksa ders kitabından (satırda etiketle söylenir)",' +
+  '"why":"bu noktanın nedeni ya da mekanizması: kaynakta varsa kaynaktan, yoksa ders kitabından",' +
   '"example":"somut bir durum: kaynaktaki ya da ders kitabındaki tipik örnek","confusedWith":"en çok neyle karıştırılır, fark ne"},"lines":[' +
   '{"speaker":"ada","text":"paragraf: 2-4 cümle — olgu, nedeni, sonucu ya da örneği"}]}]}';
 
@@ -150,7 +157,7 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     "yaz: bölüm örnekle açılır, nedeni bir konuşma sırasında açıkça söylenir, karıştırılan şeyle fark konuşulur. " +
     (mode === "topic"
       ? ""
-      : `Kaynak nedeni vermiyorsa nedeni ${TEXTBOOK_MARKS_TEXT} açılışlarından biriyle söyle; bu, nedeni hiç söylememekten ve ` +
+      : "Kaynak nedeni vermiyorsa ders kitabındaki tartışmasız nedeni doğrudan söyle; bu, nedeni hiç söylememekten ve " +
         "'çünkü farklıdır' demekten iyidir. ") +
     // Yedinci ölçüm (23 Ekim 2026): planın "why" alanı noktayı başka sözle tekrar ediyordu ("Kilo değişimleri akut
     // dengeye duyarlıdır"). Örnek başka konudan: model konunun nedenini kopyalamasın.
@@ -188,7 +195,6 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     "YAZMA: 'Kaynak:', sayfa numarası, 'PDF', 'belgede yazdığı gibi', 'belgende yazan', 'notlarında', 'notlarındaki', " +
     "'notlarına göre', iç not. Bilgiyi kaynağa değil konuya bağla ('Notlarındaki örnekte 9 ayda…' değil, " +
     "'9 aylık bir bebek…'). Kuralları ve yazım notlarını konuşmaya koyma ('Evet yerine …', 'tabloyu okumadan …' gibi)." +
-    (mode === "topic" ? "" : ` ${TEXTBOOK_MARKS_TEXT} açılışları bu yasağın dışındadır.`) +
     "\n\n" +
     `${CONTENT_STYLE}\n\n` +
     `Yalnızca bu şemada JSON döndür:\n${duo ? SCHEMA_DUO : SCHEMA_SINGLE}`
@@ -219,20 +225,18 @@ export function podcastUserPrompt(input: TeacherPodcastInput): string {
 const VERIFY_DOCUMENT =
   "Sen titiz bir içerik denetçisisin. Bir podcast metnini, dayandığı KAYNAK (ve verilmişse DERS) ile karşılaştırıyorsun. " +
   "Şunları bul:\n" +
-  "A) Kaynakta dayanağı olmayan sayı, eşik, yaş, süre, tarih, formül, tanım, sınıflandırma, tanı ya da tedavi (yeni " +
-  "bilgi taşımayan gündelik sahne sorun değil; " +
-  `${TEXTBOOK_MARKS_TEXT} ya da 'Belgende geçmiyor ama' ile başlayan neden cümlesi ve kaynaktaki bir kuralı ders kitabındaki ` +
-  "tipik bir durumla uygulayan örnek kaynakta olmayabilir, onları A'ya göre değil F'ye göre denetle; " +
-  "'bu konu sınavda ağırlıklı' ya da 'sınav kapsamında değil' cümlesi hazırlığın konu listesinden gelir, kaynak iddiası değildir, " +
-  "A sayma).\n" +
-  "B) Kaynakla çelişen ya da anlamı değiştiren ifade.\n" +
+  "A) Kaynakta dayanağı olmayan sayı, eşik, yaş sınırı, süre, tarih, doz, formül, tanı ölçütü ya da sınıflandırma " +
+  "(yeni bilgi taşımayan gündelik sahne sorun değil; ders kitabından katılan neden, mekanizma, tipik vaka, benzetme ve " +
+  "terim açıklaması kaynakta olmayabilir, onları A'ya göre değil F'ye göre denetle; 'bu konu sınavda ağırlıklı' ya da " +
+  "'sınav kapsamında değil' cümlesi hazırlığın konu listesinden gelir, kaynak iddiası değildir, A sayma).\n" +
+  "B) Kaynakla çelişen ya da anlamı değiştiren ifade; aciliyeti ya da önemi kaynaktan yükselten ifade (kaynak " +
+  "'ayrıntılı değerlendirme' derken 'acil').\n" +
   "C) Yanlış hesap, tutmayan eşitlik, yarım bırakılmış örnek.\n" +
   "D) 'Cevap:' satırının sorulan soruya yanlış ya da eksik cevap vermesi.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
-  `F) Etiketli neden cümlesinde ya da ders kitabı örneğinde yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; ` +
-  "kaynaktaki kuralla çelişen ya da kuralın söylemediği bir sonuca varan örnek; neden cümlesinin yeni sayı, eşik, tanı, " +
-  `tedavi ya da sınıflandırma taşıması; bu açılışlarla toplam ${TEXTBOOK_LIMIT}'ten fazla cümle. Kaynakta olmayan ` +
-  "nedenin etiketsiz söylenmesi A'dır.\n" +
+  "F) Ders kitabından katılan bilgide yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; kaynaktaki kuralın " +
+  "söylemediği bir sonuca varan vaka; yeni sayı, eşik, yaş sınırı, doz, tanı ölçütü ya da sınıflandırma taşıyan cümle. " +
+  "Doğru ve tartışmasız ders kitabı bilgisi etiketsiz olsa da sorun değildir.\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla söylenmesi sorun değildir.\n";
 
 const VERIFY_TOPIC =

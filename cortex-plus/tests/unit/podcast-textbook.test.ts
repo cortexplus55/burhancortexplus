@@ -7,13 +7,14 @@ import { TEXTBOOK_LINE, TEXTBOOK_MARKS, withoutTextbookLabel } from "@/lib/learn
 import { coercePodcastDraft } from "@/lib/learning/podcast-episode";
 
 // 23 Ekim 2026 (ürün sahibi: "podcast'i Astra seviyesine taşımak için ne gerekiyorsa yap").
-describe("podcast: ders kitabı nedeni", () => {
-  it("yazar üç açılıştan birini kullanır; okuyucular üçünü ve eski etiketi tanır", () => {
+describe("podcast: ders kitabı bilgisi", () => {
+  it("yazar etiket koymaz; okuyucular kayıtlı podcast'lerdeki eski etiketleri yine tanır", () => {
     const system = podcastSystem("document", "diyalog");
-    for (const mark of TEXTBOOK_MARKS) expect(system).toContain(mark);
+    for (const mark of TEXTBOOK_MARKS) expect(system).not.toContain(mark);
+    expect(system).toContain("etiket koymadan");
     expect(system).toContain("Teknik ya da yabancı bir terimi ilk geçtiği yerde bir cümleyle açıkla");
     expect(system).toContain("'düzeltme' demez");
-    expect(podcastVerifySystem("document")).toContain("bu açılışlarla toplam 5'ten fazla cümle");
+    expect(podcastVerifySystem("document")).not.toContain("açılışlarla toplam");
     for (const mark of TEXTBOOK_MARKS) expect(TEXTBOOK_LINE.test(`${mark} örnek`)).toBe(true);
     expect(TEXTBOOK_LINE.test("Belgende geçmiyor ama bilmen iyi olur: x")).toBe(true);
     expect(TEXTBOOK_LINE.test("Kilo hızlı etkilenir.")).toBe(false);

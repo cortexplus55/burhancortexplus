@@ -17,7 +17,7 @@ import {
 } from "@/lib/learning/podcast-check";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
-import { teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
+import { QUIZ_FIX_DEADLINE_MS, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
 import {
   parsePodcastIssues,
   parseTeacherPodcast,
@@ -154,10 +154,21 @@ export async function teacherPodcastLoop(
   return { episode: first.episode, problems: first.problems, drafts, salvaged: 0, unverified: false, earIssues: ear };
 }
 
-/** Bu süreden sonra dinleme kontrolü başlamaz: test döngüsünün düzeltme tavanı (200 sn) aynı başlangıçtan sayılır. */
-const CHECK_DEADLINE_MS = 170_000;
-/** Kontrolün test motoruna verilen saat payı: düzeltme turu motorun 200. sn'sine kadar açılır → kontrolden 80 sn sonra. */
-const CHECK_LOOP_HEADROOM_MS = 120_000;
+/*
+  Dinleme kontrolünün saati (23 Ekim 2026). Önce kontrol podcast'in 170. sn'sinden sonra hiç başlamıyordu; ölçümde
+  podcast'ler 200-226 sn sürdü ve iki düzeltme turu alan podcast kontrolsüz geldi (öğrenci 5 soru yerine hiç soru
+  görmedi). Şimdi kontrol 210. sn'ye kadar başlar; düzeltme turları kontrolden en çok 80 sn sonrasına ve podcast'in
+  255. sn'sine kadar açılır. En geç başlayan kontrol: taslak + denetim ~50 sn → ~260. sn; rota tavanı 300 sn.
+*/
+export const CHECK_DEADLINE_MS = 210_000;
+const CHECK_FIX_WINDOW_MS = 80_000;
+const CHECK_FIX_CAP_MS = 255_000;
+
+/** Test motoruna verilecek saat: düzeltme turu motorun kendi tavanında (`QUIZ_FIX_DEADLINE_MS`) biter. */
+export function checkLoopClock(started: number, checkStarted: number): number {
+  const fixUntil = Math.min(checkStarted + CHECK_FIX_WINDOW_MS, started + CHECK_FIX_CAP_MS);
+  return Math.max(started, fixUntil - QUIZ_FIX_DEADLINE_MS);
+}
 
 /**
  * Dinleme kontrolü (20 Ekim 2026, kör kıyas: podcast'in sonunda soru yoktu). Denetlenmiş
@@ -176,10 +187,8 @@ export async function podcastListeningCheck(
   if (input.listeningCheck !== true || !podcastCheckEligible(episode.length)) return [];
   if (Date.now() - started > CHECK_DEADLINE_MS) return [];
   const checkStarted = Date.now();
-  // Test motorunun saati kontrolün kendi başlangıcından en çok 120 sn geride (23 Ekim 2026): podcast'in saatini
-  // verince 150 sn'yi geçen podcast'te düzeltme turu ve ikinci geçiş kalmıyor, 5 sorudan 2'si geliyordu.
-  // Üst sınır güvende: kontrol en geç 170. sn'de başlar, son düzeltme turu en geç ~250. sn'de açılır (işlev 300 sn).
-  const loopClock = Math.max(started, checkStarted - CHECK_LOOP_HEADROOM_MS);
+  // Podcast'in saatini verince 150 sn'yi geçen podcast'te düzeltme turu kalmıyor, 5 sorudan 2'si geliyordu.
+  const loopClock = checkLoopClock(started, checkStarted);
   try {
     const loop = await teacherQuizLoop(
       ask,

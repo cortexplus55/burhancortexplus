@@ -1139,7 +1139,7 @@ Astra 31/75. Podcast'te Astra hâlâ önde (aşağıda). Yeniden açmayın:
 
 **Podcast: ders kitabı nedeni (ürün sahibinin kararı, 23 Ekim 2026: "Astra seviyesine taşımak için ne gerekiyorsa").**
 Sayı, eşik, yaş, tanı, tedavi ve sınıflandırma yine yalnız kaynaktan. Kaynak nedeni vermiyorsa ders kitabının nedeni üç
-açılıştan biriyle (`TEXTBOOK_MARKS`, en çok 5 cümle); açılış ekranda kalır, **seste okunmaz** (`withoutTextbookLabel`).
+açılıştan biriyle (en çok 5 cümle); açılış ekranda kalır, seste okunmaz. **Aynı gece etiket tümden kalktı (aşağıda).**
 Kaynaktaki kuralın tipik vakası etiketsiz örnek olabilir; denetçi F ikisinin de doğruluğuna bakar. Kapsam kalır,
 derinlik seçilir (`FOCUS_RULE`). 21. ölçüm (Cortex / Astra): öğrenme 57 / 58, sınav 73 / 65, öğrenci 58 / 73,
 sadakat 84 / 63 (6. ölçümde 44 / 62 / 48 / 78).
@@ -1151,10 +1151,18 @@ sadakat 84 / 63 (6. ölçümde 44 / 62 / 48 / 78).
 | Yazımdan önce ayrı "öğretmen notu" çağrısı | Puan aynı; podcast 20-30 sn uzadı, dinleme kontrolü 170 sn sınırına takılıp çıkmadı |
 | Başka konudan biçim örneği, "basamakları tek tek sordur" | Podcast kısaldı; öğrenci ve öğrenme gözü düştü |
 
+**23 Ekim 2026 gecesi, ürün sahibinin kararı: podcast'te ders kitabı bilgisi etiketsiz.** Neden, mekanizma, tipik
+vaka, benzetme ve terim açıklaması etiket koymadan; sayı, eşik, yaş sınırı, doz, tanı ölçütü ve sınıflandırma yine
+yalnız kaynaktan, kaynakla çelişen ya da aciliyeti yükselten cümle yok (`RULE_DOCUMENT`, denetçi A/B/F). Yalnız
+podcast; ders, test, sohbet değişmedi. Eski etiketler kayıtlı podcast'lerde duruyor, `podcast-textbook.ts` onları
+tanır (kontrol sormaz, ses okumaz). 22. ölçüm: öğrenme 54 / 55, sınav 70 / 63, öğrenci 60 / 74, sadakat 85 / 60.
+Ana sayfa ve güven kartı buna göre ("notuna dayanır", "podcast ders kitabı bilgisiyle açar"). Dinleme kontrolü 210.
+sn'ye kadar başlar, düzeltme turları 255. sn'de biter (`checkLoopClock`; önce 170. sn'den sonra hiç başlamıyordu).
+
 Kalan açık (öğrenci gözü): Astra basamakların bir kısmını atlayıp kaynakta olmayan iddialarla rahat bir sohbet
 kuruyor; bizimki bütün satırları doğru taşıyor. Ayrıntı: `PODCAST-OLCUM-23-EKIM.md`. Ölçüm betiği notu: yargıca giden
 döküm oynatıcının yaptığını gösterir (aynı konuşmacının cümleleri tek sıra, "Dur ve düşün" rozet + 4 sn ara,
 ders kitabı açılışı okunmaz).
 
 Bekçi: `teaching-quality-round2.test.ts`, `learning-signals.test.ts` (göçü PGlite'ta), `podcast-check.test.ts`,
-`teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap"), `podcast-textbook.test.ts`.
+`teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap"), `podcast-textbook.test.ts`, `marketing-claims.test.ts`.

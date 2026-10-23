@@ -89,8 +89,8 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
           "Ada öğretmen, Kerem konuya çalışmış bir öğrenci arkadaşı; ikisi de anlatır. Kerem yalnız soru sormaz: " +
           "bir örneği kaynağı anmadan anlatır, duyduğunu kendi sözleriyle toparlar, iki kavramı karşılaştırır ya da Ada'nın " +
           "açıklamasını bir adım ilerletir (1-3 cümle). Kerem'in konuşma sıralarının en az yarısı soru değil, bilgi taşır. " +
-          "Ada açıklamanın ağırlığını taşır, Kerem'in eksik bıraktığını tamamlar. Kerem'in söylediği bilgi de doğru ve " +
-          "kaynağa dayalıdır; yanlış bir cümleyi doğruymuş gibi söylemez. Konuşmayı Ada açar ve bitirir.",
+          "Ada açıklamanın ağırlığını taşır, Kerem'in eksik bıraktığını tamamlar. Kerem'in söylediği bilgi de doğrudur ve " +
+          "kaynakla çelişmez; yanlış bir cümleyi doğruymuş gibi söylemez. Konuşmayı Ada açar ve bitirir.",
       };
     case "soru_cevap":
       return {

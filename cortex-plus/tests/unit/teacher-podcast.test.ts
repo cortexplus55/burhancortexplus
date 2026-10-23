@@ -115,13 +115,18 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     const qa = podcastSystem("document", "soru_cevap");
     expect(qa).toContain("Kerem yalnızca soru sorar");
     expect(qa).not.toContain("Kerem yalnız soru sormaz");
-    // Belgede olmayan neden/bilgi: sesli etiketle, en çok iki yerde; denetçi doğruluğunu ayrıca denetler.
-    // 23 Ekim 2026 (ürün sahibinin kararı): ders kitabı nedeni hafif etiketle, tipik örnek etiketsiz; sayı ve tanı kaynaktan.
-    expect(podcastSystem("document", "diyalog")).toContain("cümle şu açılışlardan biriyle başlar: 'Kitaplarda şöyle anlatılır:', 'Ders kitapları bunu şöyle açıklar:', 'Genel olarak şöyle açıklanır:'");
-    expect(podcastSystem("document", "diyalog")).toContain("örnek kuralı uygular, kuralın söylemediği bir sonuç eklemez");
-    expect(podcastSystem("topic", "diyalog")).not.toContain("Kitaplarda şöyle anlatılır");
-    expect(podcastVerifySystem("document")).toContain("F) Etiketli neden cümlesinde ya da ders kitabı örneğinde yanlış");
-    expect(podcastVerifySystem("document")).toContain("bu açılışlarla toplam 5'ten fazla cümle");
+    // Belgede olmayan bilgi: 20 Ekim etiketli (en çok iki), 23 Ekim gecesinden beri ders kitabı bilgisi etiketsiz.
+    // 23 Ekim 2026 gecesi (ürün sahibinin kararı): ders kitabı bilgisi etiketsiz; sayı, eşik, doz, tanı ölçütü kaynaktan.
+    const writer = podcastSystem("document", "diyalog");
+    expect(writer).toContain("DERS KİTABI BİLGİSİ: Konuyu ders kitaplarında tartışmasız olan bilgiyle açabilirsin, etiket koymadan");
+    expect(writer).toContain("Sayı, eşik, yaş sınırı, süre, tarih, doz, formül, tanı ölçütü ve sınıflandırma yalnızca");
+    expect(writer).toContain("kaynak 'ayrıntılı değerlendirme' diyorsa 'acil' denmez");
+    expect(writer).not.toContain("Kitaplarda şöyle anlatılır");
+    expect(podcastSystem("topic", "diyalog")).not.toContain("DERS KİTABI BİLGİSİ");
+    const verifier = podcastVerifySystem("document");
+    expect(verifier).toContain("F) Ders kitabından katılan bilgide yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi");
+    expect(verifier).toContain("Doğru ve tartışmasız ders kitabı bilgisi etiketsiz olsa da sorun değildir.");
+    expect(verifier).toContain("aciliyeti ya da önemi kaynaktan yükselten ifade");
     // Kapsam kalır, derinlik seçilir (1 dakikalık özette yok).
     expect(podcastSystem("document", "diyalog")).toContain("Kaynağın sınavda sorulan bütün noktalarını kapsa: tablo satırları, eşikler ve uyarı bulguları dahil");
     expect(podcastSystem("document", "ozet")).not.toContain("Kaynağın sınavda sorulan bütün noktalarını kapsa");
@@ -334,8 +339,8 @@ describe("podcast: kaynağa gönderme yok (20 Ekim 2026)", () => {
       expect(podcastSystem(mode, length)).toContain("'notlarındaki'");
       expect(podcastSystem(mode, length)).toContain("Bilgiyi kaynağa değil konuya bağla");
     }
-    expect(podcastSystem("topic", "diyalog")).not.toContain("Kitaplarda şöyle anlatılır");
-    expect(podcastSystem("document", "diyalog")).toContain("'Genel olarak şöyle açıklanır:' açılışları bu yasağın dışındadır");
+    expect(podcastSystem("topic", "diyalog")).not.toContain("DERS KİTABI BİLGİSİ");
+    expect(podcastSystem("document", "diyalog")).not.toContain("açılışları bu yasağın dışındadır");
     expect(podcastSystem("document", "diyalog")).not.toContain("kaynaktaki bir örneği anlatır");
     expect(podcastFixSystem("document", "diyalog")).toContain("kaynağa göndermeyi kaldır");
   });
