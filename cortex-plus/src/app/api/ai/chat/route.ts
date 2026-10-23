@@ -65,6 +65,7 @@ import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-q
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import {
   isAcceptableOutsideAnswer,
+  chatAnswerNeedsReview,
   isClearlyOffDocument,
   isOverviewQuestion,
   outsideMaterialReviewNote,
@@ -383,6 +384,8 @@ export async function POST(request: Request) {
       const teacherTutor = teacherPrepChat && Boolean(prepGrounding);
       // Öğrencinin seçtiği mod: Yalnızca belgem / Belgem + genel bilgi / Genel sohbet.
       const tutorMode = !grounded ? "general" : strict ? "document" : "mixed";
+      // 24 Ekim 2026 (ürün sahibi): denetim çağrısı yalnız belgeye dayanan cevapta.
+      const documentGrounded = grounded && evidence.length > 0;
       if (teacherTutor && prepGrounding) {
         const grounding = prepGrounding;
         const lastLesson = examContext?.lastLesson ?? null;
@@ -415,6 +418,7 @@ export async function POST(request: Request) {
               : item,
           ),
           message,
+          verify: tutorMode !== "general" && grounding.decision === "in",
           onUsage: async (usedIn, usedOut) => {
             tokensIn += usedIn;
             tokensOut += usedOut;
@@ -478,7 +482,9 @@ export async function POST(request: Request) {
             })
           : studentFacing;
         let checkedContent = "";
-        try {
+        const reviewAnswer = chatAnswerNeedsReview({ documentGrounded, hasImage: Boolean(imageUrl), strict, draft });
+        if (!reviewAnswer) checkedContent = draft;
+        else try {
           const verified = await verifyEducationalContent({ client,
             context: JSON.stringify({ history, message, contextBlock, sourceExcerpt: sourceText.slice(0, 8000) }),
             draft,
@@ -504,7 +510,7 @@ export async function POST(request: Request) {
           charge = false;
         } else {
           content = checkedContent;
-          if (grounded && !imageUrl) {
+          if (reviewAnswer && documentGrounded && !imageUrl) {
             const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal });
             await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
             if (!checked.ok) {

@@ -32,8 +32,8 @@ export const PROOF = [
   },
   {
     stat: "İki öğretmen",
-    title: "Her içerik denetlenir",
-    body: "Bir yapay zekâ yazar, ikincisi notuna karşı tek tek kontrol eder. Geçemeyen kısım sana gelmez.",
+    title: "Dersler notuna karşı denetlenir",
+    body: "Bir yapay zekâ yazar, ikincisi notuna karşı tek tek kontrol eder; sohbette notuna dayanan cevaplar da. Geçemeyen kısım sana gelmez.",
   },
   {
     stat: "Etiketli",
