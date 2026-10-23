@@ -35,8 +35,8 @@ import {
 } from "@/lib/learning/teacher-podcast";
 
 /**
- * "script" / "scriptfix": iki sesli podcast'in senarist taslağı ve düzeltmesi (23 Ekim 2026): yazar modeli
- * (`OPENAI_PODCAST_WRITER_MODEL`), taslak orta, düzeltme düşük düşünmeyle. Öbürleri içerik modeli; denetçi varsayılan.
+ * "script" / "scriptfix": iki sesli podcast'in senarist taslağı ve düzeltmesi (23 Ekim 2026): taslak orta, düzeltme
+ * düşük düşünmeyle. Bütün çağrılar içerik modeliyle (luna; ürün sahibinin kararı: başka model kullanılmaz).
  */
 export type AskJson = (
   system: string,
@@ -288,14 +288,10 @@ async function runTeacherPodcastInner(
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
   const ask: AskJson = async (system, user, role) => {
     calls += 1;
-    // Senarist yazar (23 Ekim 2026): 28. kör ölçümde gpt-6-sol ile öğrenci gözü Astra'yla başa baş (66 / 67), luna'yla
-    // 6-7 puan geride. Hızlı işlem yalnız içerik modelinde: yazar modelinin hızlı kademesi denenmedi, istek düşmesin.
-    const writer = role === "script" || role === "scriptfix";
-    const callModel = writer ? env.OPENAI_PODCAST_WRITER_MODEL : model;
     const response = await openai.chat.completions.create({
-      model: callModel,
+      model,
       response_format: { type: "json_object" },
-      ...(writer ? {} : tier),
+      ...tier,
       // 19 Ekim 2026: özet podcast 126 sn sürdü. Testteki gibi yazar ve düzeltme düşük düşünmeyle;
       // her satırı kaynağa karşı okuyan denetçi varsayılanda kalır.
       // Senarist taslağı orta düşünmeyle (23 Ekim 2026, yirmi beşinci ölçüm: öğrenci gözü 63,5 → 65; yoğun sıralar azaldı).
@@ -308,7 +304,7 @@ async function runTeacherPodcastInner(
     await recordUsage(service, {
       userId: input.userId,
       actionCode: free ? "CONTENT_PREFETCH" : input.actionCode,
-      model: billedModel(callModel, response.service_tier),
+      model: billedModel(model, response.service_tier),
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
       reservationId: reservation.reservationId,

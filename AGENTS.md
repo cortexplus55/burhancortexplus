@@ -1162,12 +1162,10 @@ sn'ye kadar başlar, düzeltme turları 255. sn'de biter (`checkLoopClock`; önc
 **Senarist yazar (23 Ekim 2026 gecesi; ürün sahibi: "öğrenci en az 70 olacak, ne varsa yap").** İki sesli türler
 (diyalog, soru-cevap) kısa bir senarist istemiyle **düz senaryo** yazar (`## Bölüm`, `Ada: …`, `Kerem: …`); kod bölümlere
 ayırır (`podcast-script-writer.ts`, `scriptToDraft`). Neden: 8.000 karakterlik kural listesi ve satır satır JSON şeması
-yazarı "tablo okuyan" bir forma itiyordu (22 turda öğrenci gözü 60'ı geçmedi). Yazar modeli `OPENAI_PODCAST_WRITER_MODEL`
-(varsayılan **gpt-6-sol**, orta düşünme, hızlı kademe yok; düzeltmesi de sol, düşük düşünme). Denetçi, kurtarma, dinleme
-kontrolü ve tek sesli türler luna ile, değişmedi. Podcast başına ~$0,07 (luna ile ~$0,015; kredi $0,012) — bedel kararı
-ürün sahibinde; `gpt-6-luna` yazınca öğrenci gözü 4-5 puan düşer. Düzeltme turu 150. sn'den sonra açılmaz.
-Ölçüm (28-29. tur, Cortex / Astra): öğrenme 63 / 54, sınav 69,5 / 63,5, öğrenci 64,6 / 69, sadakat 75,5 / 62; **70 hedefi
-tutmadı**.
+yazarı "tablo okuyan" bir forma itiyordu (22 turda öğrenci gözü 60'ı geçmedi). Senarist luna ile, orta düşünmeyle.
+**Yalnız luna (ürün sahibinin kararı, 23 Ekim 2026):** gpt-6-sol denendi (28-29. tur öğrenci 64,6 / 69, podcast başına
+~$0,07, kredi $0,012) ve bırakıldı; başka model kullanılmaz. Luna ile 25. tur öğrenci 65 / 72. Düzeltme turu 150. sn'den
+sonra açılmaz. **70 hedefi tutmadı.**
 
 | Yeniden denemeyin | Ölçülen sonuç |
 |---|---|

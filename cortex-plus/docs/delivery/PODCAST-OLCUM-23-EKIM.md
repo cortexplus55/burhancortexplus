@@ -155,9 +155,9 @@ etiketsiz klinik renk katıyor ("ishal", "%50'den %10'a", "anne su").
 **Bırakılanlar:** kulak düzeltmesi (öğrenci 49, sadakat 72; araya giren "Peki 9 ayda?" dolguları konuşmayı kopardı),
 "her satırdan yalnız ayırt edici bilgi" (model uymadı, puan düştü).
 
-**Bedel (karar ürün sahibinde):** senarist gpt-6-sol ile podcast başına ~$0,07 (luna ile ~$0,015; `PODCAST_GENERATE`
-12 kredi = $0,012). Ayar: `OPENAI_PODCAST_WRITER_MODEL` (varsayılan `gpt-6-sol`); `gpt-6-luna` yazılırsa yazar luna'ya
-döner, öğrenci gözü 4-5 puan düşer. Fiyat satırı canlıda (`20261023130000_gpt6_sol_price`).
+**Bedel ve karar:** senarist gpt-6-sol ile podcast başına ~$0,07 (luna ile ~$0,015; `PODCAST_GENERATE` 12 kredi =
+$0,012). **Ürün sahibinin kararı: yalnız luna, başka model kullanılmaz.** Yazar luna ile, orta düşünmeyle (25. tur:
+öğrenci 65 / 72). Sol'un fiyat satırı canlıda kaldı (`20261023130000_gpt6_sol_price`), zararsız.
 
 **Süre:** sol yazarla soğuk podcast 224-243 sn (dinleme kontrolü dahil). Düzeltme turu artık 150. sn'den sonra
 başlamaz (önce 200); kontrol 210. sn'ye kadar başlar.
