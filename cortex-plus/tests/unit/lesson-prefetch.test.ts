@@ -124,8 +124,8 @@ describe("ısınma yazımı: düğüm açılınca başlar (19 Ekim 2026)", () =>
     expect(session).toMatch(/stage !== "familiarity" && stage !== "mood"/);
     expect(route).toMatch(/if \(action === "warm"\) \{/);
     expect(route).toMatch(/requestNodePrefetch\([\s\S]*?\{ warm: true \},\s*\)/);
-    // Isınma yazımı hızlı işlemde: öğrenci kartlarda bekliyor.
-    expect(route).toMatch(/fast: input\.charge !== false \|\| input\.warm === true/);
+    // Isınma yazımı normal işlemde (23 Ekim 2026): açılmayan derste de ödeniyordu.
+    expect(route).toMatch(/fast: input\.charge !== false,/);
     // Bitmiş düğüm de ısıtılır; yalnız süren kayıt durdurur. Hazır ders saklanırken de aynı kural.
     expect(route).toMatch(/node\.status === "done" && !warm/);
     expect(route).toMatch(/warm \? await nodeHasOpenAttempt\(service, nodeId\) : await nodeHasAttempts\(service, nodeId\)/);
@@ -246,8 +246,8 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(route).toContain('outcome: "commit"');
     expect(route).toContain('outcome: "refund"');
     expect(route).toContain("publishPrefetchPartial(service, nodeId, partial)");
-    // Önceden yazımda bekleyen öğrenci yok: hızlı işlem yalnız açılışta — ve ısınma yazımında (öğrenci kartlarda).
-    expect(route).toContain("fast: input.charge !== false || input.warm === true,");
+    // Hızlı işlem yalnız öğrencinin açtığı soğuk derste; önceden yazım ve ısınma normal (23 Ekim 2026).
+    expect(route).toContain("fast: input.charge !== false,");
   });
 });
 
