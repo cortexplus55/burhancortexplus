@@ -75,7 +75,12 @@ const lesson: LessonV3 = {
       heading: "Mutlak Butlan",
       concept: "Mutlak Butlan",
       lead: "Doğmuş ama sakat işlem",
-      blocks: [{ type: "text", text: "Kurucu unsurları olup emredici kurala aykırı işlem **mutlak butlan** ile geçersizdir." }, mcq("Amca ile yeğen arasındaki evlilik hangi türdür?")],
+      blocks: [
+        { type: "text", text: "Kurucu unsurları olup emredici kurala aykırı işlem **mutlak butlan** ile geçersizdir." },
+        mcq("Amca ile yeğen arasındaki evlilik hangi türdür?"),
+        // Derste en az bir "Neden böyle?" kutusu (23 Ekim 2026); yoksa kapanış bir öğretim turu açar.
+        { type: "note", note: { title: "Neden böyle?: Mutlak butlanı neden herkes ileri sürebilir?", body: "Emredici kural kamu düzenini korur; aykırılık yalnız tarafları ilgilendirmez.", tone: "general" } },
+      ],
     },
   ],
   summary: ["Hukuku ayıran maddi yaptırımdır.", "Kurucu unsur yoksa yokluk.", "Emredici kurala aykırılık mutlak butlan."],
@@ -587,5 +592,87 @@ describe("ikinci soru kavramı düşürmez, denetçi sonraki kavramları bekleme
     const last = verifies.find((call) => call.user.includes("commonMistake, summary"))!;
     expect(first.user).toContain("Bu kısım dersin son kısmı DEĞİL");
     expect(last.user).not.toContain("Bu kısım dersin son kısmı DEĞİL");
+  });
+});
+
+/*
+  23 Ekim 2026, ürün sahibinin kararı: denetçi her kısma 1-5 öğretim puanı verir; ilk kavram dışında 3'ün altı bir
+  öğretim turu açar, ilk kavramda yalnız kayda geçer. "Neden böyle?" kutusu etiketli mekanizma; yazar ve denetçi aynı kural.
+*/
+describe("öğretim puanı ve 'Neden böyle?'", () => {
+  it("ilk kavram dışında 3'ün altındaki puan bir öğretim turu açar; ilk kavramda açmaz; puanlar kayda geçer", async () => {
+    const { result, calls } = await run({
+      verify: (user, round) => ({ issues: [], teaching: { score: round === 0 ? 2 : 4, reason: "Neden yok; mekanizmayı ekle." } }),
+      fix: (user) => {
+        const at = /DÜZELTİLECEK KISIM: screens\[(\d+)\]/.exec(user);
+        return { screens: [lesson.screens[Number(at?.[1] ?? 1)]], disputes: [] };
+      },
+    });
+    const fixes = calls.filter((call) => call.role === "fix-careful");
+    expect(fixes).toHaveLength(2);
+    expect(fixes.every((call) => call.user.includes("Öğretim puanı 2/5"))).toBe(true);
+    expect(fixes.some((call) => call.user.includes("screens[0]"))).toBe(false);
+    expect(result.teachingScores).toEqual([2, 2, 2]);
+    expect(result.dropped).toEqual([]);
+  });
+
+  it("yazar ve denetçi aynı 'Neden böyle?' kuralını okur; kutu etiketli sayılır, genel bilgi sınırına girmez", async () => {
+    const { teacherSystem, verifySystem, lessonStructureIssues, TOPIC_TEACHER_SYSTEM } = await import("@/lib/learning/teacher-lesson");
+    const { WHY_NOTE_RULE } = await import("@/lib/learning/teaching-rubric");
+    expect(teacherSystem("document")).toContain(WHY_NOTE_RULE);
+    expect(verifySystem("document")).toContain(WHY_NOTE_RULE);
+    expect(TOPIC_TEACHER_SYSTEM).not.toContain(WHY_NOTE_RULE);
+    const why = (title: string) => ({ type: "note", note: { title, body: "İnek sütündeki demir az emilir ve bağırsakta kan kaybı yapabilir.", tone: "general" } });
+    const withWhy: LessonV3 = {
+      ...lesson,
+      screens: lesson.screens.map((screen, i) => ({ ...screen, blocks: [...screen.blocks, ...(i < 3 ? [why("Neden böyle?: İnek sütü neden erken verilmez?")] : [])] })),
+    } as LessonV3;
+    const issues = lessonStructureIssues(withWhy, { runningHeaders: [] });
+    expect(issues.some((issue) => /Genel bilgi/.test(issue.problem))).toBe(false);
+  });
+});
+
+describe("tablo biçimi kavram düşürmez (23 Ekim 2026, 4. ölçüm)", () => {
+  it("bir turdan sonra yalnız tablo biçimi kaldıysa kavram yayımlanır", async () => {
+    const layout = { where: "screens", severity: "high", problem: "[yapı kuralı] Kaynaktaki tablo (Açı | 0° | 30°) derste paragrafa dökülmüş; onu 'table' bloğu olarak ver." };
+    const { result, calls } = await run({
+      verify: (user) => (user.includes("yalnız screens[2]") ? { issues: [layout] } : { issues: [] }),
+      fix: () => ({ screens: [lesson.screens[2]], disputes: [] }),
+    });
+    expect(result.dropped).toEqual([]);
+    expect(result.lesson?.screens).toHaveLength(3);
+    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
+    expect(result.issues.some((issue) => /Tablo biçimi düzelmedi/.test(issue.problem))).toBe(true);
+  });
+});
+
+describe("derste en az bir 'Neden böyle?' (23 Ekim 2026, ürün sahibinin kararı)", () => {
+  it("belgeli derste kutu yoksa kapanışta öğretim önemiyle istenir; belgesiz derste istenmez", async () => {
+    const { lessonStructureIssues } = await import("@/lib/learning/teacher-lesson");
+    const without = { ...lesson, screens: lesson.screens.map((screen) => ({ ...screen, blocks: screen.blocks.filter((block) => block.type !== "note" || block.note.tone !== "general") })) } as LessonV3;
+    const asked = lessonStructureIssues(without, { runningHeaders: [], pages: input.pages }).filter((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem));
+    expect(asked.map((issue) => [issue.where, issue.severity])).toEqual([["screens[2]", "medium"]]);
+    expect(lessonStructureIssues(without, { runningHeaders: [], pages: [] }).some((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem))).toBe(false);
+    expect(lessonStructureIssues(lesson, { runningHeaders: [], pages: input.pages }).some((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem))).toBe(false);
+  });
+});
+
+describe("döngüsel 'Neden böyle?' çıkar, yerine yenisi istenmez (23 Ekim 2026)", () => {
+  it("denetçi döngüsel kutu derse kapanış eksik-kutu kuralını düşürür", async () => {
+    const { isCircularWhyIssue, isMissingWhyIssue } = await import("@/lib/learning/teacher-lesson");
+    expect(isCircularWhyIssue({ where: "screens[2].blocks[2]", severity: "medium", problem: "[öğretim] Döngüsel Neden böyle?: kutu başlığı yeniden söylüyor." })).toBe(true);
+    expect(isMissingWhyIssue({ where: "screens[2]", severity: "medium", problem: "[yapı kuralı] Derste 'Neden böyle?' kutusu yok: …" })).toBe(true);
+    const withoutWhy = JSON.stringify({ ...lesson, screens: lesson.screens.map((screen) => ({ ...screen, blocks: screen.blocks.filter((block) => block.type !== "note" || (block as { note: { tone?: string } }).note.tone !== "general") })) });
+    const { calls } = await run({
+      drafts: [withoutWhy],
+      verify: (user) =>
+        user.includes("yalnız screens[1]")
+          ? { issues: [{ where: "screens[1].blocks[1]", severity: "medium", problem: "Döngüsel Neden böyle?: kendini tekrar ediyor.", fix: "kutuyu çıkar" }] }
+          : { issues: [] },
+      fix: (user) => ({ screens: [JSON.parse(withoutWhy).screens[Number(/DÜZELTİLECEK KISIM: screens\[(\d+)\]/.exec(user)?.[1] ?? 1)]], disputes: [] }),
+    });
+    const fixes = calls.filter((call) => call.role === "fix-careful");
+    expect(fixes.some((call) => call.user.includes("Döngüsel Neden böyle?"))).toBe(true);
+    expect(fixes.some((call) => call.user.includes("'Neden böyle?' kutusu yok"))).toBe(false);
   });
 });

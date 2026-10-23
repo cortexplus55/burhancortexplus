@@ -15,7 +15,7 @@ import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-re
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { studentTextParts } from "@/lib/learning/lesson-board";
 import { reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
-import { SOURCE_LINK_EXEMPTION, TEACHING_RUBRIC } from "@/lib/learning/teaching-rubric";
+import { SOURCE_LINK_EXEMPTION, TEACHING_RUBRIC, WHY_NOTE_RULE } from "@/lib/learning/teaching-rubric";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -95,6 +95,7 @@ const SCHEMA = `{
       "lead": "…",
       "blocks": [
         {"type": "text", "text": "…"},
+        {"type": "note", "note": {"title": "Neden böyle?: kaynağın nedenini vermediği kilit bilgi, soru olarak", "body": "1-2 cümle mekanizma; yeni sayı, eşik ya da kural yok (kaynak nedeni kendisi veriyorsa bu kutu yok)", "tone": "general"}},
         {"type": "formula", "formula": {"title": "…", "expression": "kaynaktaki bağıntı", "note": "harflerin anlamı"}},
         {"type": "check", "check": {"type": "mcq", "prompt": "…", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "doğru cevabın nedeni + her çeldiricinin gerçekte ne olduğu", "optionWhy": ["şık 1 için tek cümle", "şık 2", "şık 3", "şık 4"], "review": {"prompt": "en olası yanlış seçimi ölçen YENİ bir durum; doğru cevabı bu sorununkiyle aynı", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "doğru cevabın nedeni + en olası yanlışın neden uymadığı"}}}
       ]
@@ -211,6 +212,7 @@ export const TEACHER_SYSTEM =
   "'note' bloğunda ver: tone 'general', başlık 'Genel bilgi: …', tek iki cümle. Yalnız ders kitaplarında tartışmasız, " +
   "güncel olarak değişmeyen bilgi; emin değilsen yazma. Ders başına en fazla iki kutu. Kaynakta zaten olan bilgiyi " +
   "buraya koyma; bu kutudaki bilgiyi metin, soru, 'corrected' ya da özet bloğunda kullanma — sorular kaynaktan çözülür. " +
+  `${WHY_NOTE_RULE} ` +
   "Kavramı ayırt ettirmek için kısa bir örnek vaka ya da benzetme kullanabilirsin, ama o vaka yeni bir " +
   "bilgi (sayı, kural, yasa, tarih, sonuç) taşımaz ve kaynaktaki tanımla çelişmez. " +
   `${SOURCE_LINK_EXEMPTION} ` +
@@ -350,9 +352,29 @@ const CALIBRATION =
   "öğretimi zayıflatan ama yanlış bir şey öğretmeyen sorun; düzeltmesi bir cümleyi ya da bir soruyu değiştirmektir. " +
   "Emin değilsen 'low'. 'problem' ve 'fix' en çok 30 kelime.\n";
 
+/**
+ * Öğretim puanı (23 Ekim 2026, ürün sahibinin kararı): denetçi denetlediği kısma 1-5 verir. İlk kavram dışında 3'ün
+ * altı bir öğretim turu açar (`teacher-lesson-run.ts`); ilk kavramda yalnız kayda geçer (öğrenci ilk ekranı bekliyor).
+ */
+export const TEACHING_SCORE_RULE =
+  '"teaching": denetlenen kısmın öğretim puanı, {"score":1-5,"reason":"…"}. 5: öğretmen gibi anlatıyor — ne olduğu, ' +
+  "neden ya da nasıl öyle olduğu, somut bir örnek ya da vaka, neyle karıştığı ve kavramı gerçekten yoklayan bir soru. 3: " +
+  "doğru ama kaynağın cümlelerini yeniden diziyor; neden ya da örnek yok. 1: tekrar, boş cümle, kaynağın kopyası. " +
+  "Doğruluk sorunları puanı düşürmez (onlar issues'ta). reason en çok 25 kelime: puanı en çok yükseltecek tek değişiklik.";
+
 const VERIFY_JSON =
-  'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}]} — severity ' +
-  "'high', 'medium' ya da 'low'. Sorun yoksa issues boş dizi.";
+  'JSON döndür: {"issues":[{"where":"screens[1].blocks[3]","severity":"high","problem":"…","fix":"…"}],' +
+  '"teaching":{"score":4,"reason":"…"}} — severity ' +
+  "'high', 'medium' ya da 'low'. Sorun yoksa issues boş dizi. " +
+  TEACHING_SCORE_RULE;
+
+/** Denetçinin öğretim puanı; yoksa ya da tanınmıyorsa null. */
+export function parseTeachingScore(raw: unknown): { score: number; reason: string } | null {
+  const row = (raw as { teaching?: { score?: unknown; reason?: unknown } } | null)?.teaching;
+  const score = typeof row?.score === "number" ? Math.round(row.score) : Number.NaN;
+  if (!Number.isFinite(score) || score < 1 || score > 5) return null;
+  return { score, reason: typeof row?.reason === "string" ? row.reason.trim().slice(0, 300) : "" };
+}
 
 /**
  * İkinci sorunun (review) denetimi (20 Ekim 2026): yazar artık tam öğe yazıyor; denetçi onu da her soru gibi
@@ -391,8 +413,8 @@ const RUBRIC_VERIFY =
 export const VERIFY_SYSTEM =
   "Sen titiz bir ders denetçisisin. Bir dersi, yazıldığı KAYNAK ile karşılaştırıyorsun. Şunları bul:\n" +
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma. (Yeni bilgi taşımayan örnek " +
-  `vaka ya da benzetme sorun değildir. ${SOURCE_LINK_EXEMPTION} tone 'general' olan 'Genel bilgi' notu kaynakta ` +
-  "olmayabilir; onu A'ya göre değil H'ye göre denetle.)\n" +
+  `vaka ya da benzetme sorun değildir. ${SOURCE_LINK_EXEMPTION} tone 'general' olan 'Genel bilgi' ve 'Neden böyle?' ` +
+  "notu kaynakta olmayabilir; onu A'ya göre değil H'ye göre denetle.)\n" +
   "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade; kaynaktaki bir sayının, eşiğin ya da birimin yanlış " +
   "aktarılması ya da kaynak sayıyı açıkça verirken derste 'yüksek/düşük' gibi soyut sözle geçiştirilmesi.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
@@ -405,7 +427,13 @@ export const VERIFY_SYSTEM =
   "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
   "ya da bilgiyi kaynağa atfeden cümle ('kaynakta … diye açıklanır', 'metne göre', 'belgede belirtildiği gibi').\n" +
   "H) 'Genel bilgi' notunda (tone 'general') yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; kaynakta zaten " +
-  "olan bilginin bu nota konması; bu nottaki bilginin metinde, soruda, 'corrected'da ya da özette kullanılması.\n" +
+  "olan bilginin bu nota konması; bu nottaki bilginin metinde, soruda, 'corrected'da ya da özette kullanılması. " +
+  // 23 Ekim 2026 (4. ölçüm): hukuk derslerinde kutular döngüseldi ("Yargı yolu, … incelenmesini sağlar"). Döngüsel kutu
+  // öğretim sorunudur: medium, düzeltme kutuyu çıkarır; kapanış yerine yenisini istemez (`isCircularWhyIssue`).
+  "'Neden böyle?' kutusu başlıktaki bilgiyi başka sözlerle yeniden söylüyor, gerçek bir mekanizma (şu olduğu için şu " +
+  "olur) vermiyorsa 'medium' yaz; problem 'Döngüsel Neden böyle?' diye başlasın, fix 'kutuyu çıkar'. " +
+  "'Neden böyle?' notunda (tone 'general') yanlış ya da tartışmalı mekanizma; nota yeni sayı, eşik, kural, tarih ya da " +
+  `sonuç konması; kaynak nedeni kendisi verirken kutu açılması. Yazarın okuduğu kural: ${WHY_NOTE_RULE}\n` +
   `I) ${MNEMONIC_VERIFY}` +
   "==vurgulanan== ifade kaynakta yok ya da yanlış; kaynakta kavramın bir SINAV İPUCU / " +
   "AKILDA TUT / ALARM kutusu varken derste hiç geçmemesi.\n" +
@@ -993,8 +1021,11 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
         "Başlıkta yer tutucu var ('X ile Y', '<…>', '…', 'kardeş kavram'); karıştırılan kavramların gerçek adını yaz.",
       );
     }
-    if (block.type === "note" && block.note.tone === "general" && !/^genel bilgi\b/i.test(block.note.title.trim())) {
-      add(`${where}.blocks[${blockIndex}]`, "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı; öğrenci bilginin belgesinden gelmediğini görsün.");
+    if (block.type === "note" && block.note.tone === "general" && !/^genel bilgi\b/i.test(block.note.title.trim()) && !isWhyNote(block)) {
+      add(
+        `${where}.blocks[${blockIndex}]`,
+        "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı (mekanizma kutusuysa 'Neden böyle?: …'); öğrenci bilginin belgesinden gelmediğini görsün.",
+      );
     }
   });
   return issues;
@@ -1033,6 +1064,11 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
     screens[index]!.blocks.filter((block) => block.type === "note" && block.note.tone === "mnemonic").map(() => index),
   );
   if (codes.length > 1) add(`screens[${codes[1]}].blocks`, `'${group.concept}' kavramında ${codes.length} ezber kodu var; en çok bir tane bırak.`);
+  // "Neden böyle?" kavram başına en çok bir (23 Ekim 2026); düşük önem: fazlası yanlış bir şey öğretmez.
+  const whys = group.screens.flatMap((index) => screens[index]!.blocks.filter(isWhyNote).map(() => index));
+  if (whys.length > 1) {
+    issues.push({ where: `screens[${whys[1]}].blocks`, severity: "low", problem: `'${group.concept}' kavramında ${whys.length} 'Neden böyle?' kutusu var; en çok bir tane bırak.` });
+  }
   return issues;
 }
 
@@ -1102,6 +1138,21 @@ export function denseTableIssues(
 
 /** "Örnek vaka: …" başlığı (20 Ekim 2026). */
 const ORNEK_VAKA = /^örnek vaka\b/iu;
+
+/** Denetçinin döngüsel "Neden böyle?" sorunu: düzeltme kutuyu çıkarır, yerine yenisi istenmez. */
+export function isCircularWhyIssue(issue: TeacherIssue): boolean {
+  return /döngüsel\s+neden\s+böyle/iu.test(issue.problem);
+}
+
+/** Kapanışın "derste 'Neden böyle?' kutusu yok" kuralı. */
+export function isMissingWhyIssue(issue: TeacherIssue): boolean {
+  return /'Neden böyle\?' kutusu yok/u.test(issue.problem);
+}
+
+/** "Neden böyle?: …" mekanizma kutusu (tone 'general', 23 Ekim 2026). */
+export function isWhyNote(block: LessonBlock): boolean {
+  return block.type === "note" && block.note.tone === "general" && /^neden böyle\b/iu.test(block.note.title.trim());
+}
 
 function isCaseNote(block: LessonBlock): boolean {
   return block.type === "note" && block.note.tone === "info" && ORNEK_VAKA.test(block.note.title.trim());
@@ -1267,8 +1318,22 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     );
   }
   // Belgede olmayan, denetlenmiş genel bilgi (16 Ekim 2026): az ve etiketli olmalı.
-  const general = screens.flatMap((screen) => screen.blocks.filter((block) => block.type === "note" && block.note.tone === "general"));
+  const general = screens.flatMap((screen) =>
+    screen.blocks.filter((block) => block.type === "note" && block.note.tone === "general" && !isWhyNote(block)),
+  );
   if (general.length > 2) add("screens", "En fazla iki 'Genel bilgi' kutusu; gerisini çıkar ya da kaynaktaki bilgiyle anlat.");
+  // "Neden böyle?" derste en az bir (23 Ekim 2026, ürün sahibinin kararı): yalnız istemle dokuz derste bir kez yazıldı.
+  // Öğretim önemi: kapanışta bir öğretim turu açar, kavram düşürmez. Belgesiz derste kaynak kuralı yok, kutu da yok.
+  if ((input.pages?.length ?? 0) > 0 && !screens.some((screen) => screen.blocks.some(isWhyNote))) {
+    issues.push({
+      where: `screens[${screens.length - 1}]`,
+      severity: "medium",
+      problem:
+        "Derste 'Neden böyle?' kutusu yok: kaynağın nedenini vermediği bir kilit bilgi için bu kavrama bir kutu ekle " +
+        "(tone 'general', başlık 'Neden böyle?: …', 1-2 cümle mekanizma, yeni sayı ya da kural yok). Kaynak her nedeni " +
+        "kendisi veriyorsa itiraz et.",
+    });
+  }
   // Tablonun satırları derste anılıyorsa tablo derste de tablo olmalı.
   if (!screens.some((screen) => screen.blocks.some((block) => block.type === "table"))) {
     const flattened = flattenedSourceTable(JSON.stringify(lesson), input.pages ?? []);
@@ -1446,6 +1511,16 @@ const REVIEW_WHERE = /screens\[(\d+)\]\.blocks\[(\d+)\](?:\.check)?\.review\b/;
 
 export function isReviewIssue(issue: TeacherIssue): boolean {
   return REVIEW_WHERE.test(issue.where);
+}
+
+/**
+ * Biçim kuralı: tablonun paragrafa dökülmesi ya da yoğun tablonun bölünmemesi (23 Ekim 2026). Yanlış bir şey
+ * öğretmez; dördüncü ölçümde ilk kavramda bırakılan tablo kapanışta son kavramdan istendi, son kavram onu
+ * düzeltemedi ve Özel Açılar'da iki kavram atıldı. Bir turdan sonra yalnız bunlar (ve ikinci soru) kalırsa kavram
+ * yayımlanır.
+ */
+export function isLayoutIssue(issue: TeacherIssue): boolean {
+  return /^\[yapı kuralı\] (?:Kaynaktaki tablo \(|'[^']*' kavramının \d+ satırlık tablosu tek ekranda)/u.test(issue.problem);
 }
 
 /**
