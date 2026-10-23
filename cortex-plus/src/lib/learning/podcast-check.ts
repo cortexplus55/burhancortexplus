@@ -26,7 +26,10 @@ export const MIN_CHECK_QUESTIONS = 2;
 export const PODCAST_CHECK_BRIEF =
   "Bu sorular öğrencinin az önce dinlediği podcast'in dinleme kontrolüdür. KAYNAK podcast'te konuşulanların bölüm " +
   "bölüm metnidir; yalnız orada açıkça söylenen bilgiyi sor. Her soru farklı bir bölümden, o bölümün ana fikrini, " +
-  "nedenini ya da bir karşılaştırmayı yoklar; tek bir sayıyı ya da kelimeyi ezberden sorma. 'Öğrenci:' satırında " +
+  "nedenini ya da bir karşılaştırmayı yoklar; tek bir sayıyı ya da kelimeyi ezberden sorma. En az bir soru bölümde " +
+  // 22 Ekim 2026 kör kıyas (2. tur): "dinleme kontrolü 3 kolay hatırlama sorusu, sınav üslubunda değil".
+  "anlatılan bilgiyi kısa, somut bir durumda uygulatır (bir hasta, bir olay); durumdaki her ayrıntı konuşmada geçer. " +
+  "'Öğrenci:' satırında " +
   "itiraf edilen yanılgı ('… sanmışım') doğru bilgi değildir; yalnız yanlış şık olabilir. Kökte konuşmacıdan söz " +
   "edilmez: 'podcast'te', 'dinlediğin bölümde', 'Ada', 'Kerem', 'öğretmene göre' geçmez.";
 

@@ -143,7 +143,11 @@ export const DUO_TURN_RULE =
   "Bir konuşmacı soru sorarsa öbürü hemen sonraki konuşma sırasında o soruyu cevaplar; bir sırada en çok bir soru " +
   "sorulur ve soruyu soran kendi sorusunu cevaplamaz ('Dur ve düşün:' dinleyene sorulur, cevabı 'Cevap:' satırıdır). " +
   "Kerem bir yanılgıyı ('Ben … sanmışım / varsaymışım') yalnız doğrusu henüz söylenmemişken itiraf eder; doğru cevabı " +
-  "kendisi verdiyse aynı konuda yanılgı itiraf etmez. Hiçbir konuşmacı kendi önceki cümlesiyle çelişmez.";
+  "kendisi verdiyse aynı konuda yanılgı itiraf etmez. Hiçbir konuşmacı kendi önceki cümlesiyle çelişmez. " +
+  // 22 Ekim 2026 kör kıyas (2. tur): Kerem evet/hayır sorusu soruyor, Ada "Hayır; …" / "Evet; …" diye açıyordu;
+  // yargıçlar "sesli okunan bilgi kartı destesi" dedi.
+  "Cevap 'Evet;' ya da 'Hayır;' diye açılmaz: doğrudan bilgiyle, nedeniyle başlar. Sorular evet/hayır sorusu değil, " +
+  "'neden', 'nasıl', 'ne fark eder' sorusudur. 'Çünkü' gerçek bir neden söyler; cümlenin kendisini tekrar etmez.";
 
 export function podcastDuoBrief(): string {
   return (

@@ -1102,3 +1102,19 @@ Düzeltilmeyen (kozmetik, kabul): "Yanlış yaptığın N soru yarın yeniden so
 tamamlamada fazla sayabilir. Bekçi: `complete-node-in-order.test.ts` (PGlite), `retry-key.test.ts`,
 `lesson-teaching-quality.test.ts`, `lesson-stream-pipeline.test.ts` ("ekran düşürmez"), `learning-tracking.test.ts`,
 `learning-loop-readiness.test.ts`, `focused-practice.test.ts`, `mock-exam-prep-writeback.test.ts`.
+
+### İkinci kör ölçüm (22–23 Ekim 2026) — doğrulukta öndeyiz, öğrencinin gözünde değil
+
+Ayrıntı ve sayılar: `cortex-plus/docs/delivery/OGRETIM-KALITESI-OLCUM-2-22-EKIM.md`. 80 yargının (10 çift × 2 sıra × 4 göz)
+sadakatte 20'si, sınav gözünde 18'i bizden yana; öğrenci gözünde 12'si, podcast'te üç göz Astra'dan yana. Ortak
+eleştiri: "kaynağın tekrarı gibi okunuyor". Yeniden açmayın:
+
+| Yapmayın | Yapın |
+|---|---|
+| Aynı paragrafı ya da tabloyu ikinci ekranda yeniden vermek | Kod işaretler (öğretim önemi, `repetitionIssues`); ölçütün 1. maddesi |
+| Kuralı "Bir kişi …" diye yeniden söyleyen "Örnek vaka" | Kim, ne oldu, kavram yüzünden sonuç; kod sözcüklerin %80'i anlatılmışsa işaretler; ölçütün 10. maddesi |
+| "Genel oy için verilen bilgi 1934 yılıdır", "Notlarda … belirtiliyor" | Bilgiyi doğrudan söyle (`sourceFrameIssue`, ölçütün 9. maddesi); genel bilgi kutusu hariç |
+| İkinci soruda ana sorunun kökünü ya da "Doğrusu" cümlesini yeniden sormak | `nearSameQuestion` (sayılar aynı + içerik sözcüklerinin %85'i): yapı denetimi ve çalışma anı reddeder. Sayıları değişen hesap sorusu yeni sorudur |
+| Podcast'te "Evet;/Hayır;" açılışı, yalnız soru soran Kerem, bağlamsız "Bu konu sınavda ağırlıklı." | `DUO_TURN_RULE` (yazar + denetçi); kod 3+ evet/hayır satırını ve diyalogda Kerem'in %60+ soru sırasını işaretler (yayını durdurmaz); sınav ağırlığı "hangi noktası soruluyor"la söylenir |
+
+Bekçi: `teaching-quality-round2.test.ts`. Sıradaki: yayından sonra aynı on çiftle üçüncü tur.

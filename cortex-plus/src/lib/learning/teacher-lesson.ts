@@ -14,7 +14,7 @@ import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { studentTextParts } from "@/lib/learning/lesson-board";
-import { reviewItemProblems } from "@/lib/learning/teacher-brain";
+import { reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
 import { SOURCE_LINK_EXEMPTION, TEACHING_RUBRIC } from "@/lib/learning/teaching-rubric";
 
 /**
@@ -245,7 +245,10 @@ export const TEACHER_SYSTEM =
   "olmayan sayı, kural, yaş ya da sonuç yazma. Vaka tanımı tekrar etmez. Örnek biçimi: 'Resmi nikâh memuru önünde " +
   "yapılmayan bir evlilik hiç doğmamıştır: yokluk; memur önünde ama evlenmesi yasak akrabalar arasında yapılsaydı " +
   "mutlak butlan olurdu.' Bu cümleyi kopyalama; kendi konunun kavramları için benzer bir vaka kur. Konuyu yalnızca " +
-  "uygulayan birini anlatan durum ('ebeveyn ölçümleri eğriye işler', 'öğrenci tanımı ezberler') vaka sayılmaz.\n\n" +
+  "uygulayan birini anlatan durum ('ebeveyn ölçümleri eğriye işler', 'öğrenci tanımı ezberler') vaka sayılmaz. " +
+  "Kuralı 'Bir kişi …' diye yeniden söyleyen kutu da vaka değildir ('Bir kişi milletvekili seçildikten sonra " +
+  "yeterliliği olmadığı anlaşılırsa vekilliği düşer' kuralın kendisi): vaka en az bir somut ayrıntı (yaş, olay, " +
+  "sıra, iki kişinin farkı) ve o ayrıntıdan çıkan sonucu taşır.\n\n" +
   "AKIŞ:\n" +
   "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle. 'Önce dene' sorusundan önce " +
   "okunur: o sorunun cevabını vermez (soru 'temel risk etken mi?' diye soruyorsa kanca 'asıl risk sıvı kaybı' demez).\n" +
@@ -285,7 +288,8 @@ export const TEACHER_SYSTEM =
   "aileden. Ana sorunun kökünü tekrar etme; başka bir kavramın cevabını sorma. Durum sorusundaki olay tek kavrama " +
   "okunmalı: iki kavramla da açıklanabilen muğlak örnek kurma ('herkesten eşit oranda vergi' — oran mı, miktar mı?); " +
   "ayırt ettiren ayrıntıyı olayın içine yaz. Doğru/yanlış sorunun review'ı da doğru/yanlıştır (options " +
-  "['Doğru','Yanlış']): aynı yanılgıyı başka bir durumda ölçen ifade; ifade yanlışsa 'corrected' alanına doğrusunu " +
+  "['Doğru','Yanlış']): aynı yanılgıyı başka bir durumda ölçen ifade (ana sorunun 'corrected' cümlesini aynen ya da " +
+  "eş anlamlı sözcüklerle yeniden sorma; öğrenci onu az önce okudu); ifade yanlışsa 'corrected' alanına doğrusunu " +
   "yaz. review'ın explanation'ı da şıklara sırasıyla gönderme yapmaz.\n" +
   EXAMPLE_DOCUMENT +
   "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler, anahtar kelimeleriyle.\n" +
@@ -918,7 +922,7 @@ export function headerStructureIssues(lesson: LessonV3, input: StructureInput): 
 
 /** Tek ekranın kuralları; `index` ekranın dersteki yeri. */
 export function screenStructureIssues(screen: LessonV3["screens"][number], index: number, input: StructureInput): TeacherIssue[] {
-  const { issues, add, low } = collector();
+  const { issues, add, medium, low } = collector();
   const headers = input.runningHeaders ?? [];
   const where = `screens[${index}]`;
   // 20 Ekim 2026 kör kıyas: şemanın örnek değerleri ("X ile Y farkı") iki derste aynen ekrana çıktı.
@@ -940,6 +944,13 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   // KPSS altın denemesi: düzeltme turu "Kaynaktaki … ifadesi anlatım hatasıdır" diye derse not düştü.
   if (/kayna(?:kta|ktaki|ğın)\s[^.]{0,80}?(?:hata|yanlış|bozuk)/i.test(text)) {
     add(`${where}.blocks`, "Metinde kaynağın hatasından söz eden iç not var; düzeltmeyi sessizce yap, notu çıkar.");
+  }
+  const framed = sourceFrameIssue(screen);
+  if (framed) {
+    medium(
+      `${where}.blocks`,
+      `Kaynağa ya da kaynağın biçimine gönderme var ("${framed}"); bilgiyi öğretmen gibi doğrudan söyle (soru, açıklama ve ikinci soru dahil).`,
+    );
   }
   // Sınav vurgusu ekran başına en çok 2 (18 Ekim 2026): her şey turuncuysa hiçbir şey öne çıkmaz.
   const marks = studentTextParts(text).filter((part) => part.exam).length;
@@ -1084,6 +1095,139 @@ export function denseTableIssues(
 /** "Örnek vaka: …" başlığı (20 Ekim 2026). */
 const ORNEK_VAKA = /^örnek vaka\b/iu;
 
+function isCaseNote(block: LessonBlock): boolean {
+  return block.type === "note" && block.note.tone === "info" && ORNEK_VAKA.test(block.note.title.trim());
+}
+
+/** Vurgu ve koyu işaretleri olmadan, cümlelere bölünmüş metin; altı sözcükten kısa cümle sayılmaz. */
+function sentencesOf(text: string): string[] {
+  return text
+    .replace(/==|\*\*/g, "")
+    .split(/(?<=[.!?])\s+|\n+/u)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.split(/\s+/).length >= 6);
+}
+
+/** Ekranın öğreten cümleleri: metin blokları ve not gövdeleri (ezber kodu, genel bilgi ve örnek vaka hariç). */
+function taughtSentences(screen: LessonScreen): string[] {
+  return screen.blocks.flatMap((block) => {
+    if (block.type === "text") return sentencesOf(block.text);
+    if (block.type === "note" && !isCaseNote(block) && block.note.tone !== "mnemonic" && block.note.tone !== "general") {
+      return sentencesOf(block.note.body);
+    }
+    return [];
+  });
+}
+
+function stemsOf(text: string): Set<string> {
+  return new Set(
+    text
+      .toLocaleLowerCase("tr")
+      .replace(/==|\*\*/g, "")
+      .split(/[^\p{L}\d]+/u)
+      .filter((word) => word.length >= 3 && !CASE_FILLER.has(word))
+      .map((word) => word.slice(0, 5)),
+  );
+}
+
+/** Vakayı vaka yapmayan dolgu sözcükleri: "Bir kişi …" kuralı yeniden söyler. */
+const CASE_FILLER = new Set(["bir", "kişi", "kişinin", "biri", "birinin", "durumda", "durumu", "olursa", "ise"]);
+
+function tableRowKeys(table: { rows: string[][] }): Set<string> {
+  return new Set(table.rows.map((row) => row.join(" | ").toLocaleLowerCase("tr").replace(/\s+/g, " ").trim()));
+}
+
+/** Ekranların anlatılmış sözcükleri: metin blokları ve not gövdeleri (`except` dışında). */
+function toldStems(screens: readonly LessonScreen[], except: LessonBlock): Set<string> {
+  const parts = screens.flatMap((screen) => [
+    screenText(screen),
+    ...screen.blocks.flatMap((block) => (block.type === "note" && block !== except ? [block.note.body] : [])),
+  ]);
+  return stemsOf(parts.join(" "));
+}
+
+/**
+ * Ekranlar arası tekrar (22 Ekim 2026, kör kıyas 2. tur). Öğretim ölçütünün 1. maddesi istemde vardı ama on
+ * çiftin dokuzunda yargıçlar aynı şeyi yazdı: "aynı YSK paragrafı üç ekranda", "aynı tarih tablosu üç kez",
+ * "'eğri > tek ölçüm' derste 7 kez", "Örnek vaka kutusu vaka değil, metnin tekrarı". Kod yalnız işaretler
+ * (öğretim önemi: ilk kavramda tur açmaz); düzeltmeyi yazar yapar.
+ *
+ * - Bir ekranın öğreten cümlesi önceki bir ekranın cümlesiyle neredeyse aynıysa (içerik sözcüklerinin %85'i),
+ * - bir tablonun satırlarının yarısı önceki bir ekranın tablosunda aynen varsa,
+ * - "Örnek vaka" kutusunun sözcüklerinin %80'i zaten anlatılmışsa (aynı ya da önceki ekranlarda) vaka yeni bir
+ *   durum kurmuyor, kuralı "bir kişi" diye yeniden söylüyor demektir.
+ */
+export function repetitionIssues(screens: readonly LessonScreen[], indexes: readonly number[]): TeacherIssue[] {
+  const { issues, medium } = collector();
+  for (const index of indexes) {
+    const screen = screens[index];
+    if (!screen) continue;
+    const where = `screens[${index}]`;
+    const earlier = screens.slice(0, index);
+    const earlierSentences = earlier.flatMap(taughtSentences);
+    const repeated = taughtSentences(screen).find((sentence) =>
+      earlierSentences.some((prior) => stemOverlap(sentence, prior) >= 0.85),
+    );
+    if (repeated) {
+      medium(
+        `${where}.blocks`,
+        `Bu ekran önceki bir ekranda anlatılan bilgiyi yeniden anlatıyor ("${repeated.slice(0, 90)}"); tekrarı çıkar, ` +
+          "üstüne yeni bir şey kur (neden, ayırt eden ipucu, uygulama).",
+      );
+    }
+    screen.blocks.forEach((block, blockIndex) => {
+      if (block.type === "table") {
+        const rows = tableRowKeys(block.table);
+        const twin = earlier.findIndex((prior) =>
+          prior.blocks.some((other) => {
+            if (other.type !== "table") return false;
+            const seen = tableRowKeys(other.table);
+            const shared = [...rows].filter((row) => seen.has(row)).length;
+            return shared >= 2 && shared * 2 >= rows.size;
+          }),
+        );
+        if (twin >= 0) {
+          medium(
+            `${where}.blocks[${blockIndex}]`,
+            `Bu tablo ${twin + 1}. ekranda zaten verildi; ikinci kez koyma. Bu ekranda yalnız yeni satırlar ya da ` +
+              "tablonun ayırt ettirdiği kural kalsın.",
+          );
+        }
+      }
+      if (block.type === "note" && isCaseNote(block)) {
+        const told = toldStems([...earlier, screen], block);
+        const own = stemsOf(block.note.body);
+        const known = [...own].filter((stem) => told.has(stem)).length;
+        if (own.size >= 6 && known / own.size >= 0.8) {
+          medium(
+            `${where}.blocks[${blockIndex}]`,
+            "Örnek vaka anlatılan kuralı yeniden söylüyor, vaka kurmuyor. Somut bir durum yaz: kim, ne oldu, kavram " +
+              "yüzünden sonuç ne oldu (kavram değişse sonuç değişirdi); kaynakta olmayan sayı ya da sonuç ekleme.",
+          );
+        }
+      }
+    });
+  }
+  return issues;
+}
+
+/**
+ * Kaynağa ve kaynağın biçimine gönderme (22 Ekim 2026, kör kıyas 2. tur): "Genel oy için verilen bilgi 1934 yılıdır"
+ * beş kez, "Notlarda çok partili ilk seçimin 1946'da yapıldığı belirtiliyor", "kaynakta verilen uyarı". Öğretmen
+ * kaynağı anmaz, bilgiyi doğrudan söyler. Genel bilgi kutusu ("belgende geçmiyor") bunun dışında.
+ */
+const SOURCE_FRAME =
+  /(?:^|[^\p{L}])(?:notlar(?:da|ında|ındaki|daki|ına göre|a göre)|notların(?:da|daki)|kaynak(?:ta|taki|a göre)|belge(?:de|deki|nde|ndeki|ye göre)|metne göre)(?=[^\p{L}]|$)|için verilen (?:bilgi|yıl|tarih)/iu;
+
+export function sourceFrameIssue(screen: LessonScreen): string | null {
+  const said = screen.blocks
+    .filter((block) => !(block.type === "note" && block.note.tone === "general"))
+    .map((block) => JSON.stringify(block))
+    .join(" ");
+  const hit = SOURCE_FRAME.exec(said);
+  return hit ? hit[0].replace(/^[^\p{L}]+/u, "").trim() : null;
+}
+
 /** Dersin bütününe bakan kurallar: ekran ve kavram sayısı, sıra, örnek vaka, tablo, özet. */
 export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInput): TeacherIssue[] {
   const { issues, add, low } = collector();
@@ -1142,6 +1286,7 @@ export function lessonStructureIssues(lesson: LessonV3, input: StructureInput): 
     // Akışlı yoldaki gibi: ilk kavramda düşük, sonrakilerde yüksek.
     ...groups.flatMap((group, index) => denseTableIssues(lesson.screens, group, index === 0 ? "low" : "high")),
     ...lesson.screens.flatMap((screen, index) => screenStructureIssues(screen, index, input)),
+    ...repetitionIssues(lesson.screens, lesson.screens.map((_, index) => index)),
     ...lessonLevelStructureIssues(lesson, input),
   ];
 }
@@ -1161,6 +1306,7 @@ export function partStructureIssues(lesson: LessonV3, part: LessonPart, input: S
     // İlk kavramda öğrenci bekliyor: yoğun tablo kuralı tur açmaz (istem ilk kavramı zaten tek ekran ister).
     ...(group ? denseTableIssues(lesson.screens, group, part.header ? "low" : "high") : []),
     ...indexes.flatMap((index) => screenStructureIssues(lesson.screens[index]!, index, input)),
+    ...repetitionIssues(lesson.screens, indexes),
   ];
   if (part.closing) return [...issues, ...lessonLevelStructureIssues(lesson, input)];
   const hasTable = lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "table"));
@@ -1276,6 +1422,7 @@ function reviewInput(check: Check) {
     answerIndex: check.answerIndex ?? 0,
     explanation: check.explanation,
     review: check.review,
+    ...(check.corrected ? { corrected: check.corrected } : {}),
   };
 }
 

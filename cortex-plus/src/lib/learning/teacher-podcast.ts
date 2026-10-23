@@ -313,6 +313,19 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
     const last = episode.chapters[episode.chapters.length - 1];
     if (last && last.lines.length < 3) issues.push("Son bölüm üç kısa tekrar satırı olmalı.");
   }
+  // 22 Ekim 2026 kör kıyas (2. tur): cevaplar "Evet; …" / "Hayır; …" diye açılıyor, Kerem yalnız soru soruyordu.
+  // Satır numarası yok: cümleler bilgi taşıyor; yalnız düzeltme turuna gider.
+  const yesNo = lines.filter((line) => YES_NO_OPENER.test(line.text)).length;
+  if (yesNo >= 3) {
+    issues.push(`Evet/Hayır kalıbı ${yesNo} satırda; cevabı doğrudan bilgiyle ve nedeniyle başlat, soruyu 'neden/nasıl' sorusu yap.`);
+  }
+  const keremLines = lines.filter((line) => line.speaker === "kerem");
+  const keremAsks = keremLines.filter((line) => QUESTION_END.test(line.text)).length;
+  if (episode.length === "diyalog" && keremLines.length >= 4 && keremAsks / keremLines.length > 0.6) {
+    issues.push(
+      `Kerem'in sıralarının ${keremAsks}/${keremLines.length}'i soru; en az yarısı bilgi taşısın (bir örnek anlatır, toparlar, iki kavramı karşılaştırır).`,
+    );
+  }
   const arithmetic = auditQuantitative(podcastScriptText(episode), "").issues.filter((issue) => issue.kind === "arithmetic");
   for (const issue of arithmetic) issues.push(`Tutmayan hesap: ${issue.detail}`);
   for (const item of duoTurnProblems(episode)) {
@@ -325,6 +338,9 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
       const previous = chapter.lines[lineIndex - 1];
       if (previous && nearDuplicate(previous.text, line.text)) {
         issues.push(`chapters[${chapterIndex}].lines[${lineIndex}]: bir önceki cümlenin tekrarı; çıkar ya da yeni bilgi söyle.`);
+      }
+      if (BARE_WEIGHT_LINE.test(line.text.trim())) {
+        issues.push(`chapters[${chapterIndex}].lines[${lineIndex}]: bağlamsız 'sınavda ağırlıklı' satırı; sınavda neyin sorulduğuyla bir cümlede birleştir ya da çıkar.`);
       }
     });
   });
@@ -351,6 +367,10 @@ const ATTRIBUTION =
   /(?<!\p{L})not(?:lar)?(?:ın|ınız|un|unuz)(?:da|daki|dan|a\s+göre)(?!\p{L})|(?<!\p{L})belge(?:n)?de(?:ki)?\s+(?:yazan|yazdığı|yazıldığı|geçtiği\s+gibi|anlatıl\p{L}*|belirtil\p{L}*|örne\p{L}*)/iu;
 const CONFESSION = /(?<!\p{L})(?:sanmışım|varsaymışım|zannetmişim)(?!\p{L})/iu;
 const QUESTION_END = /\?\s*$/;
+/** "Evet; …", "Hayır, …": cevabın onayla açılması. */
+const YES_NO_OPENER = /^(?:evet|hayır)\s*[;,.:!—-]/iu;
+/** Bağlamsız tek satır: "Bu konu sınavda ağırlıklı." */
+const BARE_WEIGHT_LINE = /^bu konu sınavda (?:çok )?ağırlıklı\.?$/iu;
 /** Soruya yalnız onay veren çıplak cevap: soru düşünce anlamsız kalır. */
 const BARE_REPLY = /^(?:evet|hayır|doğru|aynen|kesinlikle)[.!]?$/iu;
 
@@ -402,6 +422,10 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
       const previous = chapter.lines[lineIndex - 1];
       if (previous && nearDuplicate(previous.text, line.text)) {
         out.push({ chapter: chapterIndex, line: lineIndex, reason: "bir önceki cümlenin tekrarı" });
+        return;
+      }
+      if (BARE_WEIGHT_LINE.test(line.text.trim())) {
+        out.push({ chapter: chapterIndex, line: lineIndex, reason: "bağlamsız 'sınavda ağırlıklı' satırı" });
       }
     });
   });
@@ -417,7 +441,7 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
  * uzunluğu, kaynağa gönderme (cümle çoğu zaman gerçek bilgi taşır; yalnız düzeltme turuna gider).
  */
 const COSMETIC_PROBLEM =
-  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme/;
+  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme|^Evet\/Hayır kalıbı|^Kerem'in sıralarının/;
 /** Satır taramasının karşıladığı yapı sorunları (`podcastLineProblems`). */
 const LINE_HANDLED_PROBLEM =
   /^Metinde kaynak\/sayfa notu var|^Tutmayan hesap:|bir önceki cümlenin tekrarı|cevapsız soru|ikinci yanılgı itirafı/;
