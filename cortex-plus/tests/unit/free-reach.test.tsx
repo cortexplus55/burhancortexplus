@@ -64,7 +64,7 @@ describe("ücretsiz hakkı aşan işler", () => {
 
   it("kapılar iş koduyla bağlı; deneme kurulumu 'Kredin yetersiz' demiyor", () => {
     expect(read("src/components/parity/exam-node-session.tsx")).toContain("gateCopy.message");
-    expect(read("src/components/learning/image-solver.tsx")).toContain(`action="IMAGE_SOLUTION"`);
+    expect(read("src/components/learning/question-solver.tsx")).toContain(`action="IMAGE_SOLUTION"`);
     expect(read("src/components/learning/studio/podcast-studio.tsx")).toContain(`action="PODCAST_GENERATE"`);
     expect(read("src/components/learning/studio/oral-studio.tsx")).toContain(`action="ORAL_EXAM_GENERATE"`);
     expect(read("src/components/parity/prep-podcast-session.tsx")).toContain(`action="PODCAST_GENERATE"`);

@@ -25,6 +25,8 @@ export type PlanWork = {
   credits: number;
   /** Ücretsiz günlük haktan büyük: ücretsizde kapalı. */
   plusOnly: boolean;
+  /** Ücretsizde günlük hak yerine kendi sayacıyla açık (fotoğraf: günde 3, `FREE_IMAGE_DAILY_LIMIT`). */
+  freeDaily?: number;
 };
 
 /** Podcast sesiyle dinlenir: senaryo + seslendirme (900 karakter başına). */
@@ -98,7 +100,9 @@ export const PLAN_WORK: readonly PlanWork[] = [
     blurb: "Takıldığın sorunun fotoğrafını çek; adım adım çözüm.",
     icon: "denklem",
     credits: CREDIT_PRICE_TABLE.IMAGE_SOLUTION.credits,
-    plusOnly: true,
+    // 23 Ekim 2026 (ürün sahibinin kararı): ücretsiz hesapta günde 3 fotoğraf, krediye dokunmadan (`solve-run.ts`).
+    plusOnly: false,
+    freeDaily: 3,
   },
   {
     id: "video",
@@ -129,7 +133,9 @@ export function workCount(allowance: number, work: PlanWork): number {
 
 /** Ücretsiz plan günlük hakla çalışır: bir günde sığan kadar, otuz gün. */
 export function freeMonthlyCount(work: PlanWork): number {
-  return work.plusOnly ? 0 : Math.floor(PLAN_ALLOWANCES.free / work.credits) * 30;
+  if (work.plusOnly) return 0;
+  if (work.freeDaily !== undefined) return work.freeDaily * 30;
+  return Math.floor(PLAN_ALLOWANCES.free / work.credits) * 30;
 }
 
 /** Belge: metinli sayfa başına bedel; fotoğraf ve taranmış sayfa ayrıca aylık sınırlı. */

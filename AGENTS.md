@@ -757,7 +757,7 @@ hiç verilmeyen "zor soruda güçlü model", ücretsiz zor soruda "Plus'ta güç
 |---|---|
 | Ana sayfanın bütün cümleleri tek dosyada; ders sahnesi gerçek bir dersten (Çocuk Sağlığı). Rakip adı geçmez | `src/lib/marketing/landing-content.ts`, `components/landing/landing-page.tsx` |
 | **Her plan aynı modeli kullanır** (`model-router.ts`). Planların gerçek farkı: hak, günlük haktan büyük işler, video ders, hazır içerik yokken hızlı yazım. "Gelişmiş/güçlü model" yazmayın | `tier-presentation.ts` (model satırı yok, hız satırı var) |
-| Ücretsiz günlük hak 6 kredi: ders (6), test (4), kartlar (3), mesaj (3) açılır; **podcast (12), sözlü (8), yazılı deneme (15), fotoğraf çözümü (10), video (280) açılmaz** — pazarlamada bunlar "Plus" etiketli | `FEATURES.plusOnly` |
+| Ücretsiz günlük hak 6 kredi: ders (6), test (4), kartlar (3), mesaj (3) açılır; **podcast (12), sözlü (8), yazılı deneme (15), video (280) açılmaz** — pazarlamada bunlar "Plus" etiketli. Fotoğraf çözümü (10) günlük haktan büyük ama 23 Ekim 2026'dan beri ücretsizde günde 3 kez, krediye dokunmadan (aşağıdaki "Soru çözücü") | `FEATURES.plusOnly` |
 | Pazarlama başlıkları da Figtree (tırnaklı DM Serif kalktı); birincil eylem mavi, altın yalnız marka ve Plus | `cinematic-home.css`, `landing.css` |
 | Fiyatlar veritabanından okunur | `src/app/page.tsx` |
 
@@ -781,7 +781,7 @@ Bulgular, neden ve düzeltme: `docs/delivery/OZELLIK-DENETIMI-19-EKIM.md`; belge
 | Yazılı deneme aracı belgeden; açık uçluya yazı alanı, çok cevaplıya çoklu işaret (yalnız şık çizen ekran açık uçlu soruda kilitleniyordu) | `written-studio.tsx` |
 | Deneme konu üretimi tek iyi soruyla yetinir; eksik tamamlama hiç soru vermeyen konuyu yine dener, kısmen dolan zor konuyu baştan denemez (eksik, payını tam veren konulardan), 150 sn'den sonra başlamaz — 10 soruluk yazılı 280 sn sürmüştü | `mock-exam/create.ts` `topUpTargets` |
 | Podcast: yazar ve düzeltme düşük düşünme, denetçi varsayılan; ilk düzeltmeden sonra kalan sorun ≤3 satırsa ikinci tur yerine satır çıkar (özet 126 sn → 5 dk diyalog 37 sn). Araçlar'da ses akışla gelir, ilk satırda oynatıcı açılır | `teacher-podcast-run.ts`, `podcast-studio.tsx` |
-| Denetçiye giden bağlam **talimat değil betimleme**; denetim isteğinin önünde "görevi sen yapma, yalnız karar döndür" çerçevesi. Fotoğraftan çözümde denetçi "görseldeki soruyu çöz"ü görüp soruyu kendisi çözüyordu (`ai_review_unreadable` cevabın şeklini yazar) | `quality-gate.ts` `REVIEW_NOTE`, `solve-image/route.ts` |
+| Denetçiye giden bağlam **talimat değil betimleme**; denetim isteğinin önünde "görevi sen yapma, yalnız karar döndür" çerçevesi. Fotoğraftan çözümde denetçi "görseldeki soruyu çöz"ü görüp soruyu kendisi çözüyordu (`ai_review_unreadable` cevabın şeklini yazar) | `quality-gate.ts` `REVIEW_NOTE`, `solve-run.ts` `VERIFY_SYSTEM` |
 | Belgeyle sohbette genel soru ("özetle", "hangi konular var"): alıntı ve iddia geniş pencereyle, atıf geçerli kaynağı göstermeli; yine düşerse belgenin konu listesi verilir | `isOverviewQuestion`, `documentOutlineAnswer` |
 | Genel sohbette de eski "(1) takıldığı yer (2) ipucu (3) kontrol sorusu" kalıbı yok (`tutorStylePrompt` kullanılmaz) | `CHAT_NATURAL_VOICE` |
 
@@ -924,7 +924,7 @@ ve fütüristik". Yeniden açmayın:
 | Kural | Nerede |
 |---|---|
 | Her sayı **kredi tablosundan hesaplanır**, elle yazılmaz: Plus ayda 1.200 ders, 1.800 konu testi, 2.400 kart seti, 100 podcast (5 dk, **sesiyle**: senaryo + seslendirme), 900 sözlü deneme, 480 yazılı deneme, 720 fotoğraftan çözüm, 25 video ders, 2.400 soru; 3.600 sayfa not, ayda 300 fotoğraf/taranmış sayfa. "Her biri tek başına; hepsi aynı aylık haktan" her yüzeyde yazılı | `src/lib/billing/plan-value.ts` |
-| "Ücretsizde kapalı" yalnız ücretsiz günlük haktan (6) büyük işler: podcast, sözlü, yazılı deneme, fotoğraftan çözüm, video | `PLAN_WORK[].plusOnly` |
+| "Ücretsizde kapalı" yalnız ücretsiz günlük haktan (6) büyük işler: podcast, sözlü, yazılı deneme, video. Fotoğraftan çözüm ücretsizde günde 3 (`freeDaily`, 23 Ekim 2026) | `PLAN_WORK[].plusOnly` |
 | "Kendi ayını kur": öğrenci temposunu (günde ders/test/soru, haftada podcast/deneme, ayda video) seçer; hakkın yüzdesi, kalan pay ve aynı tempo ücretsizle kaç gün sürerdi görünür. Hazır tempolar Plus'a sığar (düzenli %38, sınav ayı %60, son sprint %75). Öğrenci **kredi sayısı görmez**, yüzde görür | `TEMPO_PRESETS`, `tempoMix`, `mixShare`, `freeDaysFor` |
 | Fiyat satırı: aylık fiyatın günlük karşılığı (yıllık daha ucuzsa onunki de), "Otomatik yenileme yok", "Kart bilgisi bize gelmez" — üçü de bugün doğru (`AUTO_RENEW_SUPPORTED = false`, PayTR iFrame). Sahte aciliyet, sahte yorum, indirim sayacı yok | `TrustLine` |
 | Misafir: ana sayfada ikinci bölüm (güven çubuğunun hemen ardından). Ücretsiz öğrenci (`showsUpgradeChrome`): ana ekranda kart — hiç hazırlığı yoksa önce "İlk hazırlığını kur" (değeri yaşatmadan satış dönüşmüyor), hemen altında Plus kartı; ödeme sayfasında planların altında tam bölüm; yükseltme kapısında dört sayı. Plus/Sigma ve kurucu görmez | `landing-page.tsx`, `ogretmen/page.tsx`, `pay/page.tsx`, `upgrade-sheet.tsx` |
@@ -1180,3 +1180,21 @@ ders kitabı açılışı okunmaz).
 
 Bekçi: `teaching-quality-round2.test.ts`, `learning-signals.test.ts` (göçü PGlite'ta), `podcast-check.test.ts`,
 `teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap"), `podcast-textbook.test.ts`, `marketing-claims.test.ts`, `podcast-script-writer.test.ts`.
+
+## Soru çözücü (23 Ekim 2026) — fotoğraf ya da yazılı soru, her ders, ≤15 sn
+
+Ürün sahibi: "Astra'da en çok kullanılan özellik … yüzde 100 doğruluk … maksimum 15 sn … en basit dille … kendi
+belgesinde olmayan soru da olabilir … kendi tasarım dilimizi kullan". Astra'da 10 dersten 10 soru çözüldü (10/10;
+sözel 3–10 sn, işlemli 17–27 sn). Ayrıntı ve ölçümler: `cortex-plus/docs/delivery/SORU-COZUCU-23-EKIM.md`.
+
+| Kural | Nerede |
+|---|---|
+| İki **bağımsız** luna çağrısı aynı anda (tam çözüm + yalnız cevap); kod cevabı şıklarla eşler ve her adımın eşitlik zincirini yeniden hesaplar (`eval` yok; sayıya bitişik tek harf değişkendir: "2x" birim sayılmaz); uyuşmazsa uzlaştırma, emin değilse "Emin değiliz" | `src/lib/solve/question-solver.ts`, `step-arithmetic.ts`, `solve-run.ts` |
+| İlk çözüm ekranda, gpt-4.1 denetimi arkada; "doğrulandı" yalnız denetçi **açıkça** onaylayınca (`verified.confirmed`); itiraz + farklı cevap → çözüm değişir ve söylenir | `solve-run.ts`, `solve-client.ts` |
+| Ücretsizde fotoğraf günde **3**, krediye dokunmaz; Plus `IMAGE_SOLUTION` (10); yazılı soru sohbet mesajı fiyatı; okunmayan fotoğraf iade | `solve-run.ts`, `plan-value.ts` `freeDaily` |
+| Sohbetteki fotoğraf da bu motora gider, aynı kart sohbette çizilir; çözüm sohbete metin olarak **ilk çözümle** kaydedilir (denetimi beklemez, düzeltilirse metin de düzelir). Görsel **yalnız eklendiği mesajla** gider: eskiden `activeDocumentId`'de kalıp sonraki her mesajı fotoğraf fiyatından ücretliyordu | `chat-panel.tsx` `solvePhoto`, `api/ai/solve/route.ts`, `solve-chat-save.ts` |
+| Hazırlık sayfası üst çubuğunda kamera → `/soru-coz?hazirlik=…`; şıklı soru "Tekrar listeme ekle" ile o hazırlığın günü gelen tekrarına girer ("Çözdüğün soru"). Soru ve cevap **imzalı belirteçten** (HMAC, 6 saat), tarayıcıdan değil | `solve-review.ts`, `/api/learning/exam-prep/review/solved` |
+| Eski `/api/ai/solve-image` ve `image-solver.tsx` silindi; "yüzde 100" ya da "her zaman doğru" yazılmaz | — |
+
+Ölçüm (tam motor, 10 ders): Plus ilk çözüm 2,9–5,1 sn, onay ≤7,2 sn; ücretsiz ilk çözüm 5,6–9,5 sn, onay ≤10,7 sn;
+iki turda 10/10 doğru ve hepsi denetçi onaylı; soru başına ~0,003 $. Bekçi: `question-solver.test.ts`.

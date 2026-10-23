@@ -87,9 +87,8 @@ describe("ücretsiz önizleme", () => {
     expect(read("src/lib/documents/document-limits.ts")).toMatch(/if \(preview\) unlimited = false;/);
     expect(read("src/lib/credits/spendable-server.ts")).toMatch(/preview \? previewAllowanceLeft\(preview, now\) : Number\.POSITIVE_INFINITY/);
     expect(read("src/lib/learning/lesson-prefetch.ts")).toMatch(/spendableCredits\(service, userId, now\)\) >= cost/);
-    for (const route of ["src/app/api/ai/chat/route.ts", "src/app/api/ai/solve-image/route.ts"]) {
-      expect(read(route)).toMatch(/isAdmin && \(await billingExempt\(service, userId\)\)/);
-    }
+    expect(read("src/app/api/ai/chat/route.ts")).toMatch(/isAdmin && \(await billingExempt\(service, userId\)\)/);
+    expect(read("src/lib/solve/solve-run.ts")).toMatch(/input\.isAdmin \? billingExempt\(service, userId\)/);
     const account = read("src/lib/student/account-context.ts");
     expect(account).toMatch(/isAdmin: false,\s*freePreview: true,/);
     expect(read("src/components/parity/sor-shell.tsx")).toMatch(/account\?\.freePreview && chrome !== "session"/);

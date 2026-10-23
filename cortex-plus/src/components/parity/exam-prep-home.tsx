@@ -19,6 +19,7 @@ import {
   LineChart,
   Lock,
   MessageCircle,
+  Camera,
   MessagesSquare,
   Mic,
   MoreVertical,
@@ -452,6 +453,15 @@ export function ExamPrepHome({
           title="Bu sınav için sor"
         >
           <MessageCircle className="h-4 w-4" aria-hidden />
+        </Link>
+        {/* Soru çöz (23 Ekim 2026): fotoğraf ya da yazılı soru; şıklı soru bu hazırlığın tekrar listesine eklenebilir. */}
+        <Link
+          href={`/soru-coz?hazirlik=${prepId}`}
+          className="cp-prep-icon"
+          aria-label="Soru çöz"
+          title="Soru çöz"
+        >
+          <Camera className="h-4 w-4" aria-hidden />
         </Link>
         <button
           type="button"

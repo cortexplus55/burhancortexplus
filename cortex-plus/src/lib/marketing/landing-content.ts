@@ -169,7 +169,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Ücretsiz neler yapabilirim?",
-    a: "Kart istemiyoruz. Ücretsiz hesap her gün yenilenen bir hak alıyor: günde bir ders, bir test ya da iki sohbet mesajı. Bir sınav hazırlığı kurabilir, toplam 5 sayfa belge işletebilirsin. Podcast, sözlü ve yazılı deneme, fotoğraftan çözüm ve video ders bu günlük haktan büyük; onlar Plus'ta.",
+    a: "Kart istemiyoruz. Ücretsiz hesap her gün yenilenen bir hak alıyor: günde bir ders, bir test ya da iki sohbet mesajı. Bir sınav hazırlığı kurabilir, toplam 5 sayfa belge işletebilirsin. Fotoğraftan soru çözümü günde 3 kez ücretsiz. Podcast, sözlü ve yazılı deneme ve video ders bu günlük haktan büyük; onlar Plus'ta.",
   },
   {
     q: "Plus'ta ne değişiyor?",

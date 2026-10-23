@@ -87,8 +87,8 @@ export async function loadUsageLimits(
       label: "Günlük fotoğraf sorusu",
       used: Math.min(dailyPhotos as number, FREE_IMAGE_DAILY_LIMIT),
       limit: FREE_IMAGE_DAILY_LIMIT,
-      // 19 Ekim 2026: çözüm 10 kredi, ücretsiz günlük hak 6 — sayaç ancak davet hediyesiyle dolar.
-      hint: "Fotoğraftan çözüm ücretsiz günlük haktan büyük bir iş; davet hediyesi ya da Plus ile açılır. Hakkın varken günde en çok bu kadar.",
+      // 23 Ekim 2026: ücretsiz hesapta günde 3 fotoğraf, krediye dokunmadan (`solve-run.ts`).
+      hint: "Ücretsiz hesapta günde 3 fotoğraf sorusu çözülür; Plus'ta sınır yok.",
     });
   }
   /*
