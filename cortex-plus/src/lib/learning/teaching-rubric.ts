@@ -63,9 +63,12 @@ export const SOURCE_LINK_EXEMPTION =
  * taşımaz, denetçi doğruluğuna bakar (H). Etiketsiz dış bilgi hâlâ hata (A). Yazar ve denetçi bu metni aynen okur.
  */
 export const WHY_NOTE_RULE =
-  "NEDEN BÖYLE? KUTUSU: Kaynak bir bilgiyi nedenini vermeden söylüyorsa (bir eşik, bir yasak, bir sıralama, bir " +
-  "sınıflandırma) ve nedeni bilmek öğrencinin hatırlamasını ya da iki kavramı ayırt etmesini kolaylaştırıyorsa, o " +
-  "kavrama bir 'note' bloğu ekleyebilirsin: tone 'general', başlık 'Neden böyle?: <kısa soru>' ('Neden böyle?: İnek " +
+  // İlk denemede "ekleyebilirsin" dokuz dersin hiçbirinde kutu yazdırmadı (23 Ekim 2026): kural artık her kavrama
+  // bakmayı ister, emin olunmayan yerde yine yazdırmaz.
+  "NEDEN BÖYLE? KUTUSU: Her kavram için şunu sor: kaynak bu kavramın en önemli bilgisini (bir eşik, bir yasak, bir " +
+  "sıralama, bir sınıflandırma, bir hesap kuralı) nedenini vermeden mi söylüyor? Öyleyse ve nedeni bilmek öğrencinin " +
+  "hatırlamasını ya da iki kavramı ayırt etmesini kolaylaştırıyorsa o kavrama bir 'note' bloğu yaz: tone 'general', " +
+  "başlık 'Neden böyle?: <kısa soru>' ('Neden böyle?: İnek " +
   "sütü neden bir yaşından önce verilmez?'), gövde 1-2 cümle mekanizma. Yeni sayı, eşik, kural, tarih ya da sonuç " +
   "eklemez; yalnız kaynakta zaten olan bilginin nedenini anlatır. Yalnız ders kitaplarında tartışmasız mekanizma; emin " +
   "değilsen yazma. Kavram başına en çok bir. Soru, 'corrected' ve özet buna dayanmaz; sorular kaynaktan çözülür. " +

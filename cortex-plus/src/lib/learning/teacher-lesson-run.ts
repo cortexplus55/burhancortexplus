@@ -14,6 +14,7 @@ import {
   fixPartUserPrompt,
   isMnemonicCountIssue,
   isMnemonicIssue,
+  isLayoutIssue,
   isReviewIssue,
   parseIssues,
   parsePartFix,
@@ -383,8 +384,12 @@ export async function teacherLessonPipeline(
         // 23 Ekim 2026 (3. ölçüm): "ikinci sorunun doğru şıkkı ana sorununkiyle aynı metin" kuralı tur döndürüyordu
         // (Özel Açılar 13 turun 5'i). Kalan tek sorun ikinci soruysa (ilk kavramda hemen, sonra bir turdan sonra)
         // ikinci soru çıkar; çalışma anı doğru anahtarlı yedeği kurar. Parça düşer, istek düşmez.
-        if ((round >= 1 || index === 0) && high.every(isReviewIssue)) {
-          screens = stripReviews(screens, span.from, high);
+        // 23 Ekim 2026 (4. ölçüm): biçim kuralları (tablo) da kavram düşürmez; yalnız onlar kaldıysa bir turdan sonra
+        // yayımlanır. İlk kavramda tablo kuralı zaten düşük.
+        const onlyReview = high.every(isReviewIssue);
+        const styleOnly = high.every((issue) => isReviewIssue(issue) || isLayoutIssue(issue));
+        if ((onlyReview && (round >= 1 || index === 0)) || (styleOnly && round >= 1)) {
+          screens = stripReviews(screens, span.from, high.filter(isReviewIssue));
           if (current()) part.screens = screens;
           triggers.push(high);
           return {
@@ -394,7 +399,13 @@ export async function teacherLessonPipeline(
             ...(close ? { closing: close } : {}),
             low: [
               ...issues.filter((issue) => issue.severity !== "high"),
-              { where: "ders", severity: "low", problem: "İkinci soru düzelmedi; çalışma anının yedeği kullanılacak." },
+              {
+                where: "ders",
+                severity: "low",
+                problem: onlyReview
+                  ? "İkinci soru düzelmedi; çalışma anının yedeği kullanılacak."
+                  : "Tablo biçimi düzelmedi; kavram olduğu gibi yayımlandı.",
+              },
             ],
             triggers,
           };

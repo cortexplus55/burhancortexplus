@@ -95,6 +95,7 @@ const SCHEMA = `{
       "lead": "…",
       "blocks": [
         {"type": "text", "text": "…"},
+        {"type": "note", "note": {"title": "Neden böyle?: kaynağın nedenini vermediği kilit bilgi, soru olarak", "body": "1-2 cümle mekanizma; yeni sayı, eşik ya da kural yok (kaynak nedeni kendisi veriyorsa bu kutu yok)", "tone": "general"}},
         {"type": "formula", "formula": {"title": "…", "expression": "kaynaktaki bağıntı", "note": "harflerin anlamı"}},
         {"type": "check", "check": {"type": "mcq", "prompt": "…", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "doğru cevabın nedeni + her çeldiricinin gerçekte ne olduğu", "optionWhy": ["şık 1 için tek cümle", "şık 2", "şık 3", "şık 4"], "review": {"prompt": "en olası yanlış seçimi ölçen YENİ bir durum; doğru cevabı bu sorununkiyle aynı", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "doğru cevabın nedeni + en olası yanlışın neden uymadığı"}}}
       ]
@@ -1484,6 +1485,16 @@ const REVIEW_WHERE = /screens\[(\d+)\]\.blocks\[(\d+)\](?:\.check)?\.review\b/;
 
 export function isReviewIssue(issue: TeacherIssue): boolean {
   return REVIEW_WHERE.test(issue.where);
+}
+
+/**
+ * Biçim kuralı: tablonun paragrafa dökülmesi ya da yoğun tablonun bölünmemesi (23 Ekim 2026). Yanlış bir şey
+ * öğretmez; dördüncü ölçümde ilk kavramda bırakılan tablo kapanışta son kavramdan istendi, son kavram onu
+ * düzeltemedi ve Özel Açılar'da iki kavram atıldı. Bir turdan sonra yalnız bunlar (ve ikinci soru) kalırsa kavram
+ * yayımlanır.
+ */
+export function isLayoutIssue(issue: TeacherIssue): boolean {
+  return /^\[yapı kuralı\] (?:Kaynaktaki tablo \(|'[^']*' kavramının \d+ satırlık tablosu tek ekranda)/u.test(issue.problem);
 }
 
 /**

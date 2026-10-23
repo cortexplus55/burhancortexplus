@@ -626,3 +626,17 @@ describe("öğretim puanı ve 'Neden böyle?'", () => {
     expect(issues.some((issue) => /Genel bilgi/.test(issue.problem))).toBe(false);
   });
 });
+
+describe("tablo biçimi kavram düşürmez (23 Ekim 2026, 4. ölçüm)", () => {
+  it("bir turdan sonra yalnız tablo biçimi kaldıysa kavram yayımlanır", async () => {
+    const layout = { where: "screens", severity: "high", problem: "[yapı kuralı] Kaynaktaki tablo (Açı | 0° | 30°) derste paragrafa dökülmüş; onu 'table' bloğu olarak ver." };
+    const { result, calls } = await run({
+      verify: (user) => (user.includes("yalnız screens[2]") ? { issues: [layout] } : { issues: [] }),
+      fix: () => ({ screens: [lesson.screens[2]], disputes: [] }),
+    });
+    expect(result.dropped).toEqual([]);
+    expect(result.lesson?.screens).toHaveLength(3);
+    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
+    expect(result.issues.some((issue) => /Tablo biçimi düzelmedi/.test(issue.problem))).toBe(true);
+  });
+});
