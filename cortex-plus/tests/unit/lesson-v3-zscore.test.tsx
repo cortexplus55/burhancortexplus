@@ -143,10 +143,10 @@ const zscore: LessonV3 = {
             explanation: "(160 + 176 + 13) / 2 = 174,5 cm.",
             optionWhy: ["Doğru.", "Kız formülü.", "13 eklenmemiş.", "13 iki kez eklenmiş."],
             review: {
-              prompt: "Annesi 176 cm, babası 160 cm olan erkek çocuğun hedef boyu kaçtır?",
+              prompt: "Annesi 162 cm, babası 174 cm olan erkek çocuğun hedef boyu kaçtır?",
               options: ["161,5 cm", "168 cm", "174,5 cm", "181 cm"],
               answerIndex: 2,
-              explanation: "Formül anne ve babanın boyunu toplar; sıraları sonucu değiştirmez: (176 + 160 + 13) / 2 = 174,5 cm.",
+              explanation: "Erkekte 13 eklenir, sonra ikiye bölünür: (162 + 174 + 13) / 2 = 174,5 cm.",
             },
           },
         },

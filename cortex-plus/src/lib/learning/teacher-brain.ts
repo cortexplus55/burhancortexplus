@@ -1628,7 +1628,41 @@ function trueFalsePair(options: string[]): boolean {
  * Yapı denetimi (teacher-lesson.ts) aynı listeyi kullanır: yazar tam olarak çalışma anında reddedilecek
  * şeyi düzeltir. Boş dizi: öğe geçerli.
  */
-export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview | null }): string[] {
+/** Soru kalıbının ve bağlacın sözcükleri: iki sorunun aynı olup olmadığını söylemez. */
+const FRAME_WORD =
+  /^(?:hangi\p{L}*|ned(?:ir|en)|nasıl|m[ıiuü]d[ıiuü]r|m[ıiuü]|ol(?:an|ur|duğu|arak|ması|maz)\p{L}*|için|bir|ile|veya|gibi|daha|ise|kadar|bu|şu|ne)$/u;
+
+/**
+ * İki metnin içerik sözcükleri (ilk beş harf; Türkçe ek farkı takılmasın) ne kadar örtüşüyor, küçük kümeye
+ * oranla. Soru kalıbı sözcükleri sayılmaz; dörtten az sözcüklü metin karşılaştırılmaz (0).
+ */
+export function stemOverlap(a: string, b: string): number {
+  const stems = (text: string) =>
+    new Set(
+      text
+        .toLocaleLowerCase("tr")
+        .split(/[^\p{L}\d]+/u)
+        .filter((word) => word.length >= 3 && !FRAME_WORD.test(word))
+        .map((word) => word.slice(0, 5)),
+    );
+  const left = stems(a);
+  const right = stems(b);
+  if (left.size < 4 || right.size < 4) return 0;
+  let shared = 0;
+  for (const stem of left) if (right.has(stem)) shared += 1;
+  return shared / Math.min(left.size, right.size);
+}
+
+/**
+ * İkinci soru ana sorunun neredeyse aynısı mı: sayıları aynı ve içerik sözcüklerinin %85'i ortak. Sayıları
+ * değişen hesap sorusu ("104 cm" → "102 cm") yeni bir sorudur; durum ayrıntısı ekleyen soru da öyle.
+ */
+export function nearSameQuestion(a: string, b: string): boolean {
+  const numbers = (text: string) => (text.match(/\d+(?:[.,]\d+)?/g) ?? []).sort().join(" ");
+  return numbers(a) === numbers(b) && stemOverlap(a, b) >= 0.85;
+}
+
+export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview | null; corrected?: string }): string[] {
   const review = storedReview(check.review);
   if (!review) return ["yok; tam bir soru yaz: prompt, options, answerIndex ve explanation."];
   const problems: string[] = [];
@@ -1636,6 +1670,12 @@ export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview 
   const next = foldPrompt(review.prompt);
   if (next === original || next.includes(original) || /başka sözcüklerle|baska sozcuklerle/i.test(review.prompt)) {
     problems.push("ana sorunun kökünü tekrar ediyor; en olası yanlışı ölçen yeni bir durum kur.");
+  } else if (nearSameQuestion(review.prompt, check.prompt)) {
+    // 22 Ekim 2026 kör kıyas (2. tur): ikinci sorular ana sorunun neredeyse aynısıydı ("telafi değeri yok").
+    problems.push("ana sorunun neredeyse aynısı; aynı yanılgıyı yeni bir durumda (bir olay, bir vaka) ölç.");
+  } else if (check.type === "trueFalse" && check.corrected && nearSameQuestion(review.prompt, check.corrected)) {
+    // Aynı turda: doğru/yanlışın ikinci sorusu, öğrencinin az önce "Doğrusu" diye okuduğu cümlenin kendisiydi.
+    problems.push("ana sorunun 'Doğrusu' cümlesinin aynısı; öğrenci onu az önce okudu. Aynı yanılgıyı yeni bir durumda ölç.");
   } else if (retryStemBroken(review.prompt, check.explanation)) {
     problems.push("kökü bozuk (çözümü ya da açıklamayı taşıyor); yeni bir soru kökü yaz.");
   }

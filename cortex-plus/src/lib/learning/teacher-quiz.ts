@@ -180,7 +180,13 @@ export const TOPIC_TEST_RULE =
   "bulguları', SINAV İPUCU / DİKKAT / ALARM kutusu) en az bir soru bunlardan birini yoklar.\n" +
   "- DERS: DERSTE SORULANLAR'daki soruları aynen ya da aynı kalıpla tekrar etme; aynı bilgiyi bir üst düzeyde " +
   "(uygulama, ayırt etme) sor. Bir kavramın DERSTE GEÇEN TERİMLER'de adı varsa o adı kullan; kaynaktaki başka adını " +
-  "kullanırsan dersteki adı parantezde ver ('eş yönlü (koterminal)').\n";
+  "kullanırsan dersteki adı parantezde ver ('eş yönlü (koterminal)').\n" +
+  // 22 Ekim 2026 kör kıyas (2. tur): testte iki sorunun aynısı (S3/S4), "Bir öğrenci … yorumluyor" kurgusu,
+  // "kaynakta verilen uyarı" kökü, kökün cevabı vermesi ve kök-şık uyumsuzluğu.
+  "- TEKRAR VE KURGU: Testte iki soru aynı bilgiyi aynı yoldan sormaz. 'Bir öğrenci … diyor / savunuyor / " +
+  "yorumluyor' kalıbı vaka değildir; vakayı olayın kendisiyle kur. Kök kaynağı anmaz ('kaynakta verilen', 'notlarda " +
+  "belirtilen'). Kök cevabın sözcüklerini taşımaz; şıklar kökün sorduğu türden olur (kök bir yaklaşım soruyorsa " +
+  "şıklar yaklaşımdır).\n";
 
 const POINT_FIELD_NOTE =
   'Bu testte her soruya "point" alanı ekle (string): yokladığı SINAVDA SORULUR maddesinin numarası ("3") ya da ' +
@@ -666,6 +672,16 @@ export function quizSetIssues(
       seenPoints.add(point);
     }
     const keys = wordKeys(question.text);
+    // Aynı testte iki soru neredeyse aynı (22 Ekim 2026 kör kıyas: KPSS testinde S3 ve S4).
+    const sibling = ordered.slice(0, index).findIndex((other) => overlap(keys, wordKeys(other.text)) >= 0.8);
+    if (sibling >= 0) {
+      issues.push({
+        index,
+        code: "I",
+        problem: `${sibling + 1}. soruyla neredeyse aynı; aynı bilgiyi ikinci kez sorma, sorulmamış bir maddeyi yokla.`,
+        forceFix: false,
+      });
+    }
     const twin = checks.find((item) => overlap(keys, item.keys) >= 0.75);
     if (twin) {
       issues.push({

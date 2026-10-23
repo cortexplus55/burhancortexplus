@@ -201,7 +201,7 @@ export function podcastSyllabusLines(topicLabel: string, scope: SyllabusScope): 
   if (weighted) {
     const note = weighted.note.trim();
     lines.push(
-      `Bu konu sınavda ağırlıklı${note ? ` (${note})` : ""}. Bunu bir cümlede açıkça söyle: "bu konu sınavda ağırlıklı".`,
+      `Bu konu sınavda ağırlıklı${note ? ` (${note})` : ""}. Bunu bir kez, bu konunun sınavda hangi noktasının sorulduğuyla birlikte söyle ("bu konu sınavda ağırlıklı; özellikle … soruluyor"); tek başına kalıp cümle olarak kurma.`,
     );
   }
   const selfExcluded = scope.excluded.find((hit) => sameTopic(hit.topic, topicLabel));
@@ -272,7 +272,8 @@ export function podcastGroundingBrief(input: {
     );
   }
   if (input.priority === "important") {
-    lines.push('Bu konu sınavda ağırlıklı. Bunu bir cümlede açıkça söyle: "bu konu sınavda ağırlıklı".');
+    // 22 Ekim 2026 kör kıyas: "Bu konu sınavda ağırlıklı." bölüm sonunda bağlamsız tek satır olarak duruyordu.
+    lines.push('Bu konu sınavda ağırlıklı. Bunu bir kez, bu konunun sınavda hangi noktasının sorulduğuyla birlikte söyle ("bu konu sınavda ağırlıklı; özellikle … soruluyor"); tek başına kalıp cümle olarak kurma.');
   }
   if (input.excludedTopics.length) {
     lines.push(
