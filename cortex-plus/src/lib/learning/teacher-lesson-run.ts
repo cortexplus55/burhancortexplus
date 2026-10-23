@@ -71,6 +71,8 @@ export type TeacherLessonOutcome =
       dropped: string[];
       /** Taslak ayrıştırılamadıysa nedeni (yeniden yazıldı). */
       draftNote: string | null;
+      /** Denetçinin kısımlara verdiği öğretim puanları (1-5); kalite örneği olarak kaydedilir (23 Ekim 2026). */
+      teachingScores?: number[];
     }
   | { ok: false; status: number; error: string; reasons: string[]; draftNote?: string | null };
 
@@ -856,6 +858,7 @@ async function runTeacherLessonInner(
       fixTriggers: result.fixTriggers,
       dropped: result.dropped,
       draftNote: result.draftNote,
+      teachingScores: result.teachingScores ?? [],
     };
   } catch (error) {
     await refund();

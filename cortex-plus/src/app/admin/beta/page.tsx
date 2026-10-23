@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { collectBetaMetrics, evaluateBetaCriteria, type CriterionStatus } from "@/lib/admin/beta-metrics";
 import { REVIEW_REASK_TARGET, collectReviewMetrics, percentLabel } from "@/lib/admin/review-metrics";
+import { collectLearningSignals } from "@/lib/admin/learning-signals";
 
 export const metadata = { title: "Yönetim · Beta ölçütleri" };
 export const dynamic = "force-dynamic";
@@ -25,13 +26,17 @@ export default async function AdminBetaPage() {
   await requireAdmin();
   const service = createServiceClient();
   const now = new Date();
-  const [week, month, pending, reviewWeek, reviewMonth] = await Promise.all([
+  const [week, month, pending, reviewWeek, reviewMonth, signalsWeek, signalsMonth] = await Promise.all([
     collectBetaMetrics(service, { now, days: 7 }),
     collectBetaMetrics(service, { now, days: 30 }),
     countPendingApplications(service),
     collectReviewMetrics(service, { now, days: 7 }),
     collectReviewMetrics(service, { now, days: 30 }),
+    collectLearningSignals(service, { now, days: 7 }),
+    collectLearningSignals(service, { now, days: 30 }),
   ]);
+  const signals = [signalsWeek, signalsMonth];
+  const score = (value: number | null, digits = 0) => (value == null ? "Veri yok" : value.toFixed(digits).replace(".", ","));
   const reviewStatus = (share: number | null) =>
     share == null ? STATUS.nodata : share >= REVIEW_REASK_TARGET ? STATUS.pass : STATUS.fail;
   const rowsWeek = evaluateBetaCriteria(week);
@@ -98,6 +103,110 @@ export default async function AdminBetaPage() {
             ))}
           </tr>
         </AdminTableFrame>
+      </AdminCard>
+
+      {/* Gerçek öğrenme ölçüleri (23 Ekim 2026, ürün sahibinin kararı): tekrar doğruluğu, ders anketi, kalite örneği. */}
+      <AdminCard
+        title="Tekrar doğruluğu"
+        desc="Günü gelen tekrarda cevap anındaki basamağa göre doğru oranı. Öğrencinin bir hafta sonra hatırladığı, dersin gerçekten öğretip öğretmediğini söyler."
+        bodyless
+      >
+        <AdminTableFrame columns={["Basamak", "Son 7 gün", "Son 30 gün"]}>
+          {signalsWeek.steps.map((step, index) => (
+            <tr key={step.step}>
+              <td className="font-medium">{step.label}</td>
+              {signals.map((metrics) => {
+                const row = metrics.steps[index]!;
+                return (
+                  <td key={metrics.days} className="text-xs">
+                    {percentLabel(row.share)} · {row.correct} / {row.answered}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </AdminTableFrame>
+        {signalsMonth.weakTopics.length ? (
+          <AdminTableFrame columns={["En zayıf konular (30 gün, en az 5 cevap)", "Doğru", "Cevap"]}>
+            {signalsMonth.weakTopics.map((topic) => (
+              <tr key={topic.topic}>
+                <td className="text-xs">{topic.topic}</td>
+                <td className="adm-num">{percentLabel(topic.share)}</td>
+                <td className="adm-num">{topic.answered}</td>
+              </tr>
+            ))}
+          </AdminTableFrame>
+        ) : null}
+      </AdminCard>
+
+      <AdminCard title="Ders anketi" desc="Sonuç ekranındaki “Bu dersi nasıl buldun?” cevapları." bodyless>
+        <AdminTableFrame columns={["Cevap", "Son 7 gün", "Son 30 gün"]}>
+          {signalsWeek.ratings.counts.map((row, index) => (
+            <tr key={row.id}>
+              <td className="font-medium">{row.label}</td>
+              {signals.map((metrics) => (
+                <td key={metrics.days} className="adm-num">
+                  {metrics.ratings.counts[index]!.count}
+                </td>
+              ))}
+            </tr>
+          ))}
+          <tr>
+            <td className="font-medium">Anlaşılmadı payı (Mantıklı değildi + Başka bir şey)</td>
+            {signals.map((metrics) => (
+              <td key={metrics.days} className="adm-num">
+                {percentLabel(metrics.ratings.unclear)} · {metrics.ratings.total} cevap
+              </td>
+            ))}
+          </tr>
+        </AdminTableFrame>
+        {signalsMonth.unclearLessons.length ? (
+          <AdminTableFrame columns={["Anlaşılmadı denen etkinlik (30 gün)", "Cevap"]}>
+            {signalsMonth.unclearLessons.map((row, index) => (
+              <tr key={`${row.title}-${index}`}>
+                <td className="text-xs">{row.title}</td>
+                <td className="text-xs">{row.rating}</td>
+              </tr>
+            ))}
+          </AdminTableFrame>
+        ) : null}
+      </AdminCard>
+
+      <AdminCard
+        title="Ders kalitesi örneği"
+        desc="Her sabah önceki günün derslerinden üçü bağımsız bir yargıca puanlatılır (0-100: açıklık, neden-nasıl, örnek, tekrar yok, soru, akılda kalma). Denetçinin öğretim puanı yazım sırasında, 1-5."
+        bodyless
+      >
+        <AdminTableFrame columns={["Ölçü", "Son 7 gün", "Son 30 gün"]}>
+          <tr>
+            <td className="font-medium">Yargıç ortalaması (0-100)</td>
+            {signals.map((metrics) => (
+              <td key={metrics.days} className="adm-num">
+                {score(metrics.quality.judgeAverage, 1)} · {metrics.quality.judged} ders
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td className="font-medium">Denetçinin öğretim puanı (1-5)</td>
+            {signals.map((metrics) => (
+              <td key={metrics.days} className="adm-num">
+                {score(metrics.quality.verifierAverage, 2)} · {metrics.quality.scored} ders
+              </td>
+            ))}
+          </tr>
+        </AdminTableFrame>
+        {signalsMonth.quality.latest.length ? (
+          <AdminTableFrame columns={["Gün", "Ders", "Puan", "En çok iyileştirecek değişiklik"]}>
+            {signalsMonth.quality.latest.map((row, index) => (
+              <tr key={`${row.day}-${index}`}>
+                <td className="text-xs">{row.day}</td>
+                <td className="text-xs">{row.topic}</td>
+                <td className="adm-num">{score(row.total, 1)}</td>
+                <td className="text-xs">{row.note}</td>
+              </tr>
+            ))}
+          </AdminTableFrame>
+        ) : null}
       </AdminCard>
     </AdminShell>
   );
