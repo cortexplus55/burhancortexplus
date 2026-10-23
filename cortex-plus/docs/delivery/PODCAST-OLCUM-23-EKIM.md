@@ -123,3 +123,41 @@ podcast'in 255. sn'sinde biter (`checkLoopClock`).
 
 Pazarlama metni de buna göre: ana sayfa "Hepsi senin notuna dayanır; notunda olmayan sayı ya da kural uydurmaz";
 güven kartı "Podcast konuyu ders kitabı bilgisiyle açar; sayı, eşik ve sınıflandırma yine notundan."
+
+## Yirmi üçüncü–yirmi dokuzuncu ölçüm (23 Ekim 2026 gecesi): senarist yazar
+
+Ürün sahibi: "öğrenci en az 70 olacak; ne varsa planla, uygula." Plan: yazarın 8.000 karakterlik kural listesi ve
+satır satır JSON şeması sohbeti öldürüyordu; iki sesli türler (diyalog, soru-cevap) artık kısa bir senarist tarifiyle
+düz senaryo yazar ("## Bölüm", "Ada: …", "Kerem: …"), kod bölümlere ayırır (`podcast-script-writer.ts`). Doğruluk
+sınırları, denetçi, kurtarma ve dinleme kontrolü aynı; tek sesli türler eski yazarla.
+
+Öğrenci gözü (dört yargı ortalaması, aynı Astra podcast'i; Astra'nın kendi puanı yargıca göre 67-75 oynuyor):
+
+| Tur | Yazar | Cortex | Astra | Fark |
+|---|---|---|---|---|
+| 22 | eski yazar, luna | 60 | 74 | −14 |
+| 23 | senarist, luna düşük | 62 | 72 | −10 |
+| 24 | + vaka, neden, kısa özet, kontrol türleri | 63,5 | 69 | −5,5 |
+| 25 | + orta düşünme | 65 | 72 | −7 |
+| 26 | + kulak düzeltmesi (sıraları bölen ikinci çağrı) | 49 | 73 | −24 |
+| 27 | + "her satırdan yalnız ayırt edici bilgi" | 63 | 75,5 | −12 |
+| 28 | senarist **gpt-6-sol** | 66 | 67 | −1 |
+| 29 | sol + benzetme/kalıp/gönderme kuralları (son kod) | 63 | 71 | −8 |
+
+Öbür gözlerde (28 ve 29. turların ortalaması, Cortex / Astra): öğrenme 63 / 54, sınav 69,5 / 63,5, sadakat 75,5 / 62.
+Sadakat 85'ten düştü: etiketsiz ders kitabı bilgisi (ürün sahibinin izni). Yargıçların bulduğu bütün hatalar "düşük":
+doğru ama kaynakta olmayan ek, belirsiz gönderme ("bu yaşta"), kalıp tekrarı.
+
+**Hedef (70) tutmadı.** En iyi tur 66, son iki turun ortalaması 64,6 (Astra 69); öbür üç gözde öndeyiz. Yargıç oynaklığı tek turda ±5 puan.
+Kalan eleştiri her turda aynı: tablo hücreleri hâlâ yoğun, uyarı bulguları kalıpla sayılıyor; Astra satır atlayıp
+etiketsiz klinik renk katıyor ("ishal", "%50'den %10'a", "anne su").
+
+**Bırakılanlar:** kulak düzeltmesi (öğrenci 49, sadakat 72; araya giren "Peki 9 ayda?" dolguları konuşmayı kopardı),
+"her satırdan yalnız ayırt edici bilgi" (model uymadı, puan düştü).
+
+**Bedel (karar ürün sahibinde):** senarist gpt-6-sol ile podcast başına ~$0,07 (luna ile ~$0,015; `PODCAST_GENERATE`
+12 kredi = $0,012). Ayar: `OPENAI_PODCAST_WRITER_MODEL` (varsayılan `gpt-6-sol`); `gpt-6-luna` yazılırsa yazar luna'ya
+döner, öğrenci gözü 4-5 puan düşer. Fiyat satırı canlıda (`20261023130000_gpt6_sol_price`).
+
+**Süre:** sol yazarla soğuk podcast 224-243 sn (dinleme kontrolü dahil). Düzeltme turu artık 150. sn'den sonra
+başlamaz (önce 200); kontrol 210. sn'ye kadar başlar.

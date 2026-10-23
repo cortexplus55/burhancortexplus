@@ -59,6 +59,8 @@ export const envSchema = z.object({
    * görsel çözüm OPENAI_ADVANCED_MODEL'de.
    */
   OPENAI_CONTENT_MODEL: z.string().default("gpt-6-luna"),
+  /** İki sesli podcast'in senarist yazarı (23 Ekim 2026, 28. kör ölçüm: öğrenci gözü Astra'yla başa baş). */
+  OPENAI_PODCAST_WRITER_MODEL: z.string().default("gpt-6-sol"),
   /*
     Ders, test, podcast, kart, doğru/yanlış, sözlü içerik, hazırlık sohbeti ve
     kavram birimleri yalnız öğretmen motorlarından gelir. Eski yolları seçen
@@ -157,6 +159,7 @@ const parsed = envSchema.safeParse({
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
   OPENAI_CONTENT_MODEL: process.env.OPENAI_CONTENT_MODEL,
+  OPENAI_PODCAST_WRITER_MODEL: process.env.OPENAI_PODCAST_WRITER_MODEL,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,

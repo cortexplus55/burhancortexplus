@@ -13,6 +13,7 @@ import { isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import { parseIssues, sourceText, type TeacherIssue, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { examPointsBlock } from "@/lib/learning/exam-points";
+import { podcastScriptSystem, scriptToDraft, usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 
 /**
  * Öğretmen podcast motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik
@@ -205,6 +206,14 @@ export function podcastSystem(mode: TeacherLessonMode = "document", length: Podc
   return system(mode, length);
 }
 
+/**
+ * Taslağı yazan istem (23 Ekim 2026 gecesi): iki sesli türler senarist yazarla (`podcast-script-writer.ts`), tek
+ * sesliler eski şemayla. Düzeltici her türde `podcastFixSystem` (eski şema) ile çalışır.
+ */
+export function podcastWriterSystem(mode: TeacherLessonMode = "document", length: PodcastLength): string {
+  return usesScriptWriter(length) ? podcastScriptSystem(mode, length) : system(mode, length);
+}
+
 export function podcastUserPrompt(input: TeacherPodcastInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
@@ -357,7 +366,8 @@ function publicShape(episode: PodcastEpisode) {
 
 /** Taslağı bölüm/satır yapısına oturtur (cümlelere böler, gösterim/seslendirme biçimi). */
 export function parseTeacherPodcast(raw: unknown, input: Pick<TeacherPodcastInput, "length" | "topicLabel">): PodcastEpisode | null {
-  return coercePodcastDraft(raw, { length: input.length, topicLabel: input.topicLabel });
+  // Senarist yazarın düz senaryosu (`script`) ya da eski şemanın bölümleri (`chapters`).
+  return coercePodcastDraft(scriptToDraft(raw) ?? raw, { length: input.length, topicLabel: input.topicLabel });
 }
 
 /**

@@ -125,7 +125,7 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
   const input = { topicLabel: "Büyüme ve gelişme", prepTitle: "Pediatri", listeningCheck: true };
   const asker = (draft: unknown) => {
     const calls: { system: string; user: string; role?: string }[] = [];
-    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "notes") => {
+    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "script" | "scriptfix") => {
       calls.push({ system, user, role });
       return system.includes("denetçisisin") ? { issues: [] } : draft;
     });

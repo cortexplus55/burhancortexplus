@@ -1159,10 +1159,26 @@ tanır (kontrol sormaz, ses okumaz). 22. ölçüm: öğrenme 54 / 55, sınav 70 
 Ana sayfa ve güven kartı buna göre ("notuna dayanır", "podcast ders kitabı bilgisiyle açar"). Dinleme kontrolü 210.
 sn'ye kadar başlar, düzeltme turları 255. sn'de biter (`checkLoopClock`; önce 170. sn'den sonra hiç başlamıyordu).
 
+**Senarist yazar (23 Ekim 2026 gecesi; ürün sahibi: "öğrenci en az 70 olacak, ne varsa yap").** İki sesli türler
+(diyalog, soru-cevap) kısa bir senarist istemiyle **düz senaryo** yazar (`## Bölüm`, `Ada: …`, `Kerem: …`); kod bölümlere
+ayırır (`podcast-script-writer.ts`, `scriptToDraft`). Neden: 8.000 karakterlik kural listesi ve satır satır JSON şeması
+yazarı "tablo okuyan" bir forma itiyordu (22 turda öğrenci gözü 60'ı geçmedi). Yazar modeli `OPENAI_PODCAST_WRITER_MODEL`
+(varsayılan **gpt-6-sol**, orta düşünme, hızlı kademe yok; düzeltmesi de sol, düşük düşünme). Denetçi, kurtarma, dinleme
+kontrolü ve tek sesli türler luna ile, değişmedi. Podcast başına ~$0,07 (luna ile ~$0,015; kredi $0,012) — bedel kararı
+ürün sahibinde; `gpt-6-luna` yazınca öğrenci gözü 4-5 puan düşer. Düzeltme turu 150. sn'den sonra açılmaz.
+Ölçüm (28-29. tur, Cortex / Astra): öğrenme 63 / 54, sınav 69,5 / 63,5, öğrenci 64,6 / 69, sadakat 75,5 / 62; **70 hedefi
+tutmadı**.
+
+| Yeniden denemeyin | Ölçülen sonuç |
+|---|---|
+| Taslaktan sonra "kulak düzeltmesi" (uzun sıraları bölen ikinci çağrı) | Öğrenci 49, sadakat 72: "Peki 9 ayda?" dolguları konuşmayı kopardı |
+| "Her satırdan yalnız ayırt edici bilgi" | Model uymadı; öğrenci 63 |
+| Senarist luna "düşük" | Öğrenci 62-63,5; "orta" 65 |
+
 Kalan açık (öğrenci gözü): Astra basamakların bir kısmını atlayıp kaynakta olmayan iddialarla rahat bir sohbet
 kuruyor; bizimki bütün satırları doğru taşıyor. Ayrıntı: `PODCAST-OLCUM-23-EKIM.md`. Ölçüm betiği notu: yargıca giden
 döküm oynatıcının yaptığını gösterir (aynı konuşmacının cümleleri tek sıra, "Dur ve düşün" rozet + 4 sn ara,
 ders kitabı açılışı okunmaz).
 
 Bekçi: `teaching-quality-round2.test.ts`, `learning-signals.test.ts` (göçü PGlite'ta), `podcast-check.test.ts`,
-`teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap"), `podcast-textbook.test.ts`, `marketing-claims.test.ts`.
+`teacher-podcast.test.ts`, `teacher-quiz.test.ts` ("tek rakamlı cevap"), `podcast-textbook.test.ts`, `marketing-claims.test.ts`, `podcast-script-writer.test.ts`.

@@ -232,7 +232,7 @@ describe("öğretmen podcast motoru: kurtarma", () => {
   it("döngü: ilk düzeltmeden sonra kalan sorun 1-2 satırsa ikinci tur yerine satır çıkar (hız)", async () => {
     const roles: (string | undefined)[] = [];
     let fix = 0;
-    const ask = vi.fn(async (system: string, _user: string, role?: "draft" | "verify" | "fix" | "notes") => {
+    const ask = vi.fn(async (system: string, _user: string, role?: "draft" | "verify" | "fix" | "script" | "scriptfix") => {
       roles.push(role);
       if (system.includes("denetçisisin")) return { issues: [{ where: "chapters[1].lines[1]", severity: "high", problem: "Organ satımı kaynakta yok" }] };
       if (system.startsWith("Sen aynı podcast")) {
@@ -470,7 +470,7 @@ describe("podcast kurtarma: kulak kuralları (20 Ekim 2026)", () => {
     const roles: (string | undefined)[] = [];
     const fixPrompts: string[] = [];
     let fix = 0;
-    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "notes") => {
+    const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "script" | "scriptfix") => {
       roles.push(role);
       if (system.includes("denetçisisin")) {
         return { issues: [{ where: "chapters[1].lines[0]", rule: "I", severity: "high", problem: "Tablo satır satır okunuyor" }] };

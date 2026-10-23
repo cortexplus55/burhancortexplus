@@ -18,6 +18,7 @@ import {
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { QUIZ_FIX_DEADLINE_MS, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
+import { usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 import {
   parsePodcastIssues,
   parseTeacherPodcast,
@@ -25,7 +26,7 @@ import {
   podcastFixUserPrompt,
   podcastIssueLine,
   podcastStructureIssues,
-  podcastSystem,
+  podcastWriterSystem,
   podcastUserPrompt,
   podcastVerifySystem,
   podcastVerifyUserPrompt,
@@ -33,7 +34,15 @@ import {
   type TeacherPodcastInput,
 } from "@/lib/learning/teacher-podcast";
 
-export type AskJson = (system: string, user: string, role?: "draft" | "verify" | "fix") => Promise<unknown | null>;
+/**
+ * "script" / "scriptfix": iki sesli podcast'in senarist taslağı ve düzeltmesi (23 Ekim 2026): yazar modeli
+ * (`OPENAI_PODCAST_WRITER_MODEL`), taslak orta, düzeltme düşük düşünmeyle. Öbürleri içerik modeli; denetçi varsayılan.
+ */
+export type AskJson = (
+  system: string,
+  user: string,
+  role?: "draft" | "verify" | "fix" | "script" | "scriptfix",
+) => Promise<unknown | null>;
 
 const MAX_FIX_ROUNDS = 2;
 /**
@@ -42,8 +51,12 @@ const MAX_FIX_ROUNDS = 2;
  * 126 sn sürdü; ikinci turdan sonra yine iki satır çıkarılmıştı.
  */
 const SALVAGE_INSTEAD_OF_FIX_LINES = 3;
-/** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). */
-const FIX_DEADLINE_MS = 200_000;
+/**
+ * Yeni düzeltme turu bu süreden sonra başlamaz; kalan sorun satır çıkarılarak çözülür (`salvagePodcast`).
+ * 23 Ekim 2026: 200 sn'ydi; senarist yazar (orta düşünme) ve kulak düzeltmesiyle iki tur alan podcast'te dinleme
+ * kontrolü 210. sn sınırına yetişmiyordu. Tur ~45 sn sürer: 150'de başlayan tur ~195'te biter, kontrol başlar.
+ */
+const FIX_DEADLINE_MS = 150_000;
 /** İkinci taslak ancak bu süreden önce başlar; sonrası rota tavanına sığmaz. */
 const SECOND_DRAFT_DEADLINE_MS = 150_000;
 /** Model çağrısı düşerse (ağ, sağlayıcı) döngü bu süreden önce bir kez baştan koşar. */
@@ -102,8 +115,9 @@ export async function teacherPodcastLoop(
   const attempt = async (
     fixRounds: number,
   ): Promise<{ episode: PodcastEpisode; problems: string[]; verified: boolean } | null> => {
-    let episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input), "draft"), input);
-    if (!episode) episode = parseTeacherPodcast(await ask(podcastSystem(mode, input.length), podcastUserPrompt(input), "draft"), input);
+    const writerRole = usesScriptWriter(input.length) ? "script" : "draft";
+    let episode = parseTeacherPodcast(await ask(podcastWriterSystem(mode, input.length), podcastUserPrompt(input), writerRole), input);
+    if (!episode) episode = parseTeacherPodcast(await ask(podcastWriterSystem(mode, input.length), podcastUserPrompt(input), writerRole), input);
     if (!episode) return null;
     drafts += 1;
 
@@ -117,7 +131,11 @@ export async function teacherPodcastLoop(
         if (cheap && cheap.removed <= SALVAGE_INSTEAD_OF_FIX_LINES) break;
       }
       const fixed = parseTeacherPodcast(
-        await ask(podcastFixSystem(mode, input.length), podcastFixUserPrompt(episode, reviewed.problems, input), "fix"),
+        await ask(
+          podcastFixSystem(mode, input.length),
+          podcastFixUserPrompt(episode, reviewed.problems, input),
+          usesScriptWriter(input.length) ? "scriptfix" : "fix",
+        ),
         input,
       );
       if (!fixed) break;
@@ -270,13 +288,18 @@ async function runTeacherPodcastInner(
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
   const ask: AskJson = async (system, user, role) => {
     calls += 1;
+    // Senarist yazar (23 Ekim 2026): 28. kör ölçümde gpt-6-sol ile öğrenci gözü Astra'yla başa baş (66 / 67), luna'yla
+    // 6-7 puan geride. Hızlı işlem yalnız içerik modelinde: yazar modelinin hızlı kademesi denenmedi, istek düşmesin.
+    const writer = role === "script" || role === "scriptfix";
+    const callModel = writer ? env.OPENAI_PODCAST_WRITER_MODEL : model;
     const response = await openai.chat.completions.create({
-      model,
+      model: callModel,
       response_format: { type: "json_object" },
-      ...tier,
+      ...(writer ? {} : tier),
       // 19 Ekim 2026: özet podcast 126 sn sürdü. Testteki gibi yazar ve düzeltme düşük düşünmeyle;
       // her satırı kaynağa karşı okuyan denetçi varsayılanda kalır.
-      ...(role === "verify" ? {} : { reasoning_effort: "low" as const }),
+      // Senarist taslağı orta düşünmeyle (23 Ekim 2026, yirmi beşinci ölçüm: öğrenci gözü 63,5 → 65; yoğun sıralar azaldı).
+      ...(role === "verify" ? {} : { reasoning_effort: role === "script" ? ("medium" as const) : ("low" as const) }),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -285,7 +308,7 @@ async function runTeacherPodcastInner(
     await recordUsage(service, {
       userId: input.userId,
       actionCode: free ? "CONTENT_PREFETCH" : input.actionCode,
-      model: billedModel(model, response.service_tier),
+      model: billedModel(callModel, response.service_tier),
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
       reservationId: reservation.reservationId,
