@@ -187,6 +187,23 @@ export function paidChatAttempts(offDocument: boolean): number {
   return offDocument ? 1 : 2;
 }
 
+/**
+ * Sohbet cevabı ikinci bir model çağrısıyla denetlensin mi (24 Ekim 2026, ürün sahibinin kararı).
+ * Denetim yalnız öğrencinin belgesine dayanan cevapta: belge kanıtı var (ya da görsel ekli) ve cevap
+ * "belgede yok, genel bilgiden" diye etiketlenmiş bir dış cevap değil. Katı modda ("Yalnızca belgem")
+ * her cevap denetlenir. Genel bilgi cevabı tek çağrıyla gider; normal bir öğrencinin model giderinin
+ * yarısından fazlası sohbetteki bu ikinci çağrıydı (MALIYET-VERGI-24-EKIM.md).
+ */
+export function chatAnswerNeedsReview(input: {
+  documentGrounded: boolean;
+  hasImage: boolean;
+  strict: boolean;
+  draft: string;
+}): boolean {
+  if (!input.documentGrounded && !input.hasImage) return false;
+  return input.strict || !isAcceptableOutsideAnswer(input.draft);
+}
+
 function subjectMissing(question: string, source: string): boolean {
   const hay = source.toLocaleLowerCase("tr");
   const names = (question.match(/\p{Lu}[\p{L}\p{N}]{3,}/gu) ?? [])

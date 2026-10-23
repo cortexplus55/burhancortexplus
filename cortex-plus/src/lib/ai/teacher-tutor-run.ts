@@ -20,6 +20,9 @@ const MAX_ATTEMPTS = 2;
  * Öğretmen sohbeti: serbest metin taslak → belgeye karşı model denetimi →
  * sorun varsa notla bir kez yeniden yazım. Kod cevaba bir şey eklemez; iki
  * deneme de geçmezse çağıran dürüst bir geri dönüş verir ve kredi almaz.
+ *
+ * `verify: false` (24 Ekim 2026): cevap belgeye dayanmıyorsa (genel sohbet ya da soru belgede yok)
+ * denetim çağrısı yapılmaz; yalnız boş cevap bir kez yeniden istenir.
  */
 export async function runTeacherTutor(input: {
   client: OpenAI;
@@ -29,6 +32,8 @@ export async function runTeacherTutor(input: {
   history: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
   message: string;
   onUsage: (tokensIn: number, tokensOut: number) => Promise<void>;
+  /** Varsayılan true; sesli ders yolu değişmeden denetlenir. */
+  verify?: boolean;
 }): Promise<TutorRunOutcome> {
   const system = tutorSystemPrompt(input.context);
   let reasons: string[] = [];
@@ -51,6 +56,7 @@ export async function runTeacherTutor(input: {
       reasons = ["Cevap boş kaldı."];
       continue;
     }
+    if (input.verify === false) return { ok: true, content: answer, attempts: attempt + 1 };
 
     let issues: string[];
     try {

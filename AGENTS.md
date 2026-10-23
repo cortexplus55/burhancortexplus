@@ -1198,3 +1198,17 @@ sözel 3–10 sn, işlemli 17–27 sn). Ayrıntı ve ölçümler: `cortex-plus/d
 
 Ölçüm (tam motor, 10 ders): Plus ilk çözüm 2,9–5,1 sn, onay ≤7,2 sn; ücretsiz ilk çözüm 5,6–9,5 sn, onay ≤10,7 sn;
 iki turda 10/10 doğru ve hepsi denetçi onaylı; soru başına ~0,003 $. Bekçi: `question-solver.test.ts`.
+
+## Sohbette tek model çağrısı (24 Ekim 2026) — denetim yalnız belgeye dayanan cevapta
+
+Ürün sahibinin kararı, maliyet ölçümünden sonra (`cortex-plus/docs/delivery/MALIYET-VERGI-24-EKIM.md`): normal bir
+öğrencinin model giderinin %56'sı sohbet mesajıydı ve her mesaj en az iki çağrı yapıyordu (cevap + denetim).
+"Bütün içerik model denetiminden geçer" kuralının **tek istisnası** sohbetteki genel bilgi cevabıdır.
+
+| Cevap | Denetim |
+|---|---|
+| Genel sohbet; belge modunda kanıt bulunamadı; "belgede yok" diye etiketlenmiş dış cevap; hazırlık sohbetinde soru belgede yok (`decision` "out"/"unknown") ya da mod "Genel sohbet" | Yok, tek çağrı |
+| Belgeye dayanan cevap (kanıt var / `decision` "in"), "Yalnızca belgem" modu, görsel ekli soru, sesli ders | Bugünkü gibi (denetim + belge denetimi) |
+
+Ders, test, podcast, kartlar ve öteki içerik motorları değişmedi. Ana sayfa "Dersler notuna karşı denetlenir" der,
+"her içerik" demez. Bekçi: `chat-single-call.test.ts` (`chatAnswerNeedsReview`, `runTeacherTutor({ verify })`).
