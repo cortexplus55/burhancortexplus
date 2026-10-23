@@ -428,6 +428,10 @@ export const VERIFY_SYSTEM =
   "ya da bilgiyi kaynağa atfeden cümle ('kaynakta … diye açıklanır', 'metne göre', 'belgede belirtildiği gibi').\n" +
   "H) 'Genel bilgi' notunda (tone 'general') yanlış, tartışmalı ya da güncel olarak değişebilecek bilgi; kaynakta zaten " +
   "olan bilginin bu nota konması; bu nottaki bilginin metinde, soruda, 'corrected'da ya da özette kullanılması. " +
+  // 23 Ekim 2026 (4. ölçüm): hukuk derslerinde kutular döngüseldi ("Yargı yolu, … incelenmesini sağlar"). Döngüsel kutu
+  // öğretim sorunudur: medium, düzeltme kutuyu çıkarır; kapanış yerine yenisini istemez (`isCircularWhyIssue`).
+  "'Neden böyle?' kutusu başlıktaki bilgiyi başka sözlerle yeniden söylüyor, gerçek bir mekanizma (şu olduğu için şu " +
+  "olur) vermiyorsa 'medium' yaz; problem 'Döngüsel Neden böyle?' diye başlasın, fix 'kutuyu çıkar'. " +
   "'Neden böyle?' notunda (tone 'general') yanlış ya da tartışmalı mekanizma; nota yeni sayı, eşik, kural, tarih ya da " +
   `sonuç konması; kaynak nedeni kendisi verirken kutu açılması. Yazarın okuduğu kural: ${WHY_NOTE_RULE}\n` +
   `I) ${MNEMONIC_VERIFY}` +
@@ -1134,6 +1138,16 @@ export function denseTableIssues(
 
 /** "Örnek vaka: …" başlığı (20 Ekim 2026). */
 const ORNEK_VAKA = /^örnek vaka\b/iu;
+
+/** Denetçinin döngüsel "Neden böyle?" sorunu: düzeltme kutuyu çıkarır, yerine yenisi istenmez. */
+export function isCircularWhyIssue(issue: TeacherIssue): boolean {
+  return /döngüsel\s+neden\s+böyle/iu.test(issue.problem);
+}
+
+/** Kapanışın "derste 'Neden böyle?' kutusu yok" kuralı. */
+export function isMissingWhyIssue(issue: TeacherIssue): boolean {
+  return /'Neden böyle\?' kutusu yok/u.test(issue.problem);
+}
 
 /** "Neden böyle?: …" mekanizma kutusu (tone 'general', 23 Ekim 2026). */
 export function isWhyNote(block: LessonBlock): boolean {

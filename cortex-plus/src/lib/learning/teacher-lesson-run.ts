@@ -14,7 +14,9 @@ import {
   fixPartUserPrompt,
   isMnemonicCountIssue,
   isMnemonicIssue,
+  isCircularWhyIssue,
   isLayoutIssue,
+  isMissingWhyIssue,
   isReviewIssue,
   parseIssues,
   parsePartFix,
@@ -196,6 +198,8 @@ export async function teacherLessonPipeline(
   const fixTriggers: TeacherIssue[][] = [];
   const dropped: string[] = [];
   const teachingScores: number[] = [];
+  /** Denetçi döngüsel bir "Neden böyle?" kutusunu çıkarttıysa kapanış yenisini istemez (23 Ekim 2026). */
+  let whyDropped = false;
   let draftNote: string | null = null;
   const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null };
   const sinceStart = () => Date.now() - started;
@@ -282,12 +286,13 @@ export async function teacherLessonPipeline(
         try {
           const verdict = await io.ask(verifySystem(mode), verifyPartUserPrompt(lesson, span, input, disputes), "verify");
           factual = parseIssues(verdict, { medium: true });
-          // Öğretim puanı (23 Ekim 2026): ilk kavram dışında 3 ve altı öğretim turunu açar (ürün sahibi: önce "3'ün
-          // altı"ydı, 30 kısmın yalnız 2'sinde tur açtı; puanlar 3'te toplanıyordu); her kavramda kayda geçer.
+          // Öğretim puanı (23 Ekim 2026): ilk kavram dışında 3'ün altı öğretim turunu açar; her kavramda kayda geçer.
+          // Eşik bir ara "3 ve altı" oldu; dördüncü ölçümde kalite değişmedi, yazım ortanca 78 → 118 sn uzadı; ürün
+          // sahibi geri aldı.
           const teaching = parseTeachingScore(verdict);
           if (teaching && round === 0 && !teachingSnapshot) {
             teachingScores.push(teaching.score);
-            if (index > 0 && teaching.score <= 3) {
+            if (index > 0 && teaching.score < 3) {
               factual.push({
                 where: `screens[${span.from}]`,
                 severity: "medium",
@@ -299,7 +304,10 @@ export async function teacherLessonPipeline(
           // Denetçi düşerse kavram körlemesine yayımlanmaz.
           factual = [{ where: "ders", severity: "high", problem: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}` }];
         }
-        const issues = [...structural, ...factual.filter((issue) => issueInPart(issue, span))];
+        if (factual.some(isCircularWhyIssue)) whyDropped = true;
+        const issues = [...structural, ...factual.filter((issue) => issueInPart(issue, span))].filter(
+          (issue) => !(whyDropped && isMissingWhyIssue(issue)),
+        );
         const high = issues.filter((issue) => issue.severity === "high");
         if (teachingSnapshot) {
           // Öğretim turundan sonra: gerilediyse (yüksek sorun çıktı) önceki ekranlar yayımlanır; değilse yenisi.

@@ -656,3 +656,23 @@ describe("derste en az bir 'Neden böyle?' (23 Ekim 2026, ürün sahibinin karar
     expect(lessonStructureIssues(lesson, { runningHeaders: [], pages: input.pages }).some((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem))).toBe(false);
   });
 });
+
+describe("döngüsel 'Neden böyle?' çıkar, yerine yenisi istenmez (23 Ekim 2026)", () => {
+  it("denetçi döngüsel kutu derse kapanış eksik-kutu kuralını düşürür", async () => {
+    const { isCircularWhyIssue, isMissingWhyIssue } = await import("@/lib/learning/teacher-lesson");
+    expect(isCircularWhyIssue({ where: "screens[2].blocks[2]", severity: "medium", problem: "[öğretim] Döngüsel Neden böyle?: kutu başlığı yeniden söylüyor." })).toBe(true);
+    expect(isMissingWhyIssue({ where: "screens[2]", severity: "medium", problem: "[yapı kuralı] Derste 'Neden böyle?' kutusu yok: …" })).toBe(true);
+    const withoutWhy = JSON.stringify({ ...lesson, screens: lesson.screens.map((screen) => ({ ...screen, blocks: screen.blocks.filter((block) => block.type !== "note" || (block as { note: { tone?: string } }).note.tone !== "general") })) });
+    const { calls } = await run({
+      drafts: [withoutWhy],
+      verify: (user) =>
+        user.includes("yalnız screens[1]")
+          ? { issues: [{ where: "screens[1].blocks[1]", severity: "medium", problem: "Döngüsel Neden böyle?: kendini tekrar ediyor.", fix: "kutuyu çıkar" }] }
+          : { issues: [] },
+      fix: (user) => ({ screens: [JSON.parse(withoutWhy).screens[Number(/DÜZELTİLECEK KISIM: screens\[(\d+)\]/.exec(user)?.[1] ?? 1)]], disputes: [] }),
+    });
+    const fixes = calls.filter((call) => call.role === "fix-careful");
+    expect(fixes.some((call) => call.user.includes("Döngüsel Neden böyle?"))).toBe(true);
+    expect(fixes.some((call) => call.user.includes("'Neden böyle?' kutusu yok"))).toBe(false);
+  });
+});
