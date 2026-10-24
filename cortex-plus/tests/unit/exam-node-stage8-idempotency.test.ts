@@ -219,7 +219,8 @@ describe("stage 8 double complete", () => {
     expect(response.status).toBe(200);
     expect(body.score).toBe(1);
     expect(body.idempotent).toBe(true);
-    expect(rpc).not.toHaveBeenCalled();
+    // Yalnız plan okuması (is_admin; sıradaki adım ücretsizde Plus adımını atlar) — tamamlama yeniden koşmaz.
+    expect(rpc.mock.calls.filter(([name]) => name !== "is_admin")).toEqual([]);
   });
 
   it("rejects complete when generationId does not match the live attempt", async () => {

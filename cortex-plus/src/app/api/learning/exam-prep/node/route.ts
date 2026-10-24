@@ -82,7 +82,7 @@ import {
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
-import { freeMeterRemaining, nodeFreeMeter } from "@/lib/billing/node-free-meter";
+import { freeMeterRemaining, kindListFilter, nodeFreeMeter, pathSkipKinds } from "@/lib/billing/node-free-meter";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { billingExempt } from "@/lib/billing/free-preview";
 import {
@@ -863,6 +863,20 @@ async function handleNodeRequest(
 
     if (attemptError) return errorResponse(503, "attempt_lookup_failed");
     if (!attempt) return errorResponse(409, "active_attempt_required");
+    // Ücretsiz hesapta sıradaki Plus'a özel adım değil (24 Ekim 2026; tamamlama fonksiyonu da atlar).
+    // Yalnız sıradaki gerektiğinde okunur: reddedilen tamamlama plan okumaz.
+    let skipKindsRead: Promise<ReadonlySet<string>> | null = null;
+    const skipKinds = () => (skipKindsRead ??= pathSkipKinds(service, userId));
+    const nextAfter = async () => {
+      const skip = await skipKinds();
+      let query = service
+        .from("exam_prep_nodes")
+        .select("id")
+        .eq("exam_prep_id", prepId)
+        .gt("sort_order", node.sort_order);
+      if (skip.size) query = query.not("kind", "in", kindListFilter(skip));
+      return query.order("sort_order").limit(1).maybeSingle();
+    };
 
     // Stale complete from an older generation must not overwrite a newer attempt.
     if (
@@ -881,14 +895,7 @@ async function handleNodeRequest(
       attempt.status === "completed" &&
       attempt.complete_request_id === parsed.data.completeRequestId
     ) {
-      const { data: nextRow } = await service
-        .from("exam_prep_nodes")
-        .select("id")
-        .eq("exam_prep_id", prepId)
-        .gt("sort_order", node.sort_order)
-        .order("sort_order")
-        .limit(1)
-        .maybeSingle();
+      const { data: nextRow } = await nextAfter();
       const review = await writtenReviewForPayload(service, {
         userId,
         prepId,
@@ -922,14 +929,7 @@ async function handleNodeRequest(
     }
 
     if (teachingV2 && attempt.status === "completed") {
-      const { data: nextRow } = await service
-        .from("exam_prep_nodes")
-        .select("id")
-        .eq("exam_prep_id", prepId)
-        .gt("sort_order", node.sort_order)
-        .order("sort_order")
-        .limit(1)
-        .maybeSingle();
+      const { data: nextRow } = await nextAfter();
       const review = await writtenReviewForPayload(service, {
         userId,
         prepId,
@@ -1161,6 +1161,7 @@ async function handleNodeRequest(
           sessionObjective: sessionMeta?.objective ?? null,
           targetScore:
             typeof prep.target_score === "number" ? prep.target_score : null,
+          skipKinds: await skipKinds(),
         });
         learningTracking = tracked.tracking;
         topicGain = tracked.topicGain;

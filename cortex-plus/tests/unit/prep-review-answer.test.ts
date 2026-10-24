@@ -390,7 +390,7 @@ describe("node rotası: tamamlamadan sonra", () => {
         reason: "miss",
         item: { options: ["Doğru", "Yanlış"], correct: ["Yanlış"], trueFalse: true },
       });
-      expect(rpc.mock.calls.map(([name]) => name)).toEqual(["complete_exam_prep_node", "award_stars"]);
+      expect(rpc.mock.calls.map(([name]) => name).filter((name) => name !== "is_admin")).toEqual(["complete_exam_prep_node", "award_stars"]);
     } finally {
       vi.useRealTimers();
     }

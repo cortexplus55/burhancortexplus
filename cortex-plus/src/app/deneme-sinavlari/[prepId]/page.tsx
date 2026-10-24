@@ -25,6 +25,7 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
   preferNextNodeForTracking,
@@ -218,7 +219,9 @@ export default async function ExamPrepDetailPage({
   }));
 
   const progress = nodeProgress(nodes);
-  let ready = nodes.find((node) => node.status === "ready");
+  // Ücretsiz hesapta Plus'a özel adım "Sıradaki" olmaz: açamaz (24 Ekim 2026, `pathSkipKinds`).
+  const skipKinds = await pathSkipKinds(service, user.id);
+  let ready = nodes.find((node) => node.status === "ready" && !skipKinds.has(node.kind));
   // Astra: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
   // Eskiden önce "Konu seç", sonra zorunlu 8 soruluk tanı geliyordu. Etkin
   // konu yoksa ilk konu etkin olur; tanı yolun başında isteğe bağlı düğümdür.
@@ -323,6 +326,7 @@ export default async function ExamPrepDetailPage({
     const biased = preferNextNodeForTracking(nodes, {
       openMisconceptions,
       weakOrStaleTopicKeys: weakOrStaleTopicKeys(topics),
+      skipKinds,
     });
     if (biased) ready = biased;
   }

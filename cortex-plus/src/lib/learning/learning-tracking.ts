@@ -692,14 +692,20 @@ export function preferNextNodeForTracking<
     now?: number;
     /** Yolun kesin penceresi (şu anki + N adım); varsayılan `PATH_LOOKAHEAD`. */
     window?: number;
+    /**
+     * Öğrencinin açamayacağı adım türleri (ücretsiz hesapta Plus'a özel adımlar, `pathSkipKinds`):
+     * sıradaki olarak hiç seçilmez (24 Ekim 2026).
+     */
+    skipKinds?: ReadonlySet<string>;
   },
 ): T | null {
+  const usable = (n: T) => !opts.skipKinds?.has(n.kind);
   const ready = nodes
-    .filter((n) => n.status === "ready")
+    .filter((n) => n.status === "ready" && usable(n))
     .sort((a, b) => a.sortOrder - b.sortOrder);
   if (!ready.length) {
     return (
-      nodes.find((n) => n.status !== "done") ??
+      nodes.find((n) => n.status !== "done" && usable(n)) ??
       null
     );
   }

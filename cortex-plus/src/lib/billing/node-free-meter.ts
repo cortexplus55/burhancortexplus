@@ -1,6 +1,34 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { FREE_LIMITS, PLUS_ONLY_NODE_KINDS, freePeriodKey, type FreeMeter } from "@/lib/billing/free-meters";
+import { getUserEntitlements } from "@/lib/billing/entitlements";
+import { billingExempt } from "@/lib/billing/free-preview";
+
+const NO_SKIP: ReadonlySet<string> = new Set();
+
+/**
+ * Yolun "Sıradaki" ve "Devam et" seçiminde atlanacak adım türleri (24 Ekim 2026, lansman testi). Ücretsiz
+ * hesapta Plus'a özel adımlar (podcast, sözlü, yazılı deneme): yolda rozetle durur ama öğrenciyi oraya
+ * göndermeyiz — açamaz ve yol orada kilitlenirdi. Tamamlama fonksiyonu aynı kararı verir (göç
+ * 20261024130000, `credit_reserve_metered` ile aynı: önizlemedeki kurucu ücretsiz). Abone ve önizlemesi
+ * kapalı kurucu için boş küme; okuma düşerse boş küme (bugünkü gibi).
+ */
+export async function pathSkipKinds(service: SupabaseClient, userId: string): Promise<ReadonlySet<string>> {
+  try {
+    const [entitlements, exempt] = await Promise.all([
+      getUserEntitlements(service, userId),
+      billingExempt(service, userId),
+    ]);
+    return entitlements.isPremium || exempt ? NO_SKIP : PLUS_ONLY_NODE_KINDS;
+  } catch {
+    return NO_SKIP;
+  }
+}
+
+/** PostgREST `not in` süzgeci için tür listesi: `(podcast,oral,written_exam)`. */
+export function kindListFilter(kinds: ReadonlySet<string>): string {
+  return `(${[...kinds].join(",")})`;
+}
 
 /**
  * Hazırlık yolundaki adımın ücretsiz sayacı (24 Ekim 2026, ürün sahibinin kararı).
