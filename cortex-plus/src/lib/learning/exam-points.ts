@@ -42,15 +42,24 @@ export function examPointsBlock(points: readonly string[] | undefined, use: Exam
   ].join("\n");
 }
 
-/** Ders denetçisi: kavramına ait madde kısımda yoksa ya da yanlış aktarıldıysa ciddi sorun. */
+/**
+ * Ders denetçisi: kavramına ait madde yanlış aktarıldıysa ciddi sorun ('high'); kısımda hiç geçmiyorsa öğretim
+ * sorunu ('medium': ilk kavramda tur açmaz, sonrakilerde en çok bir tur, kavramı asla attırmaz).
+ *
+ * 24 Ekim 2026 lansman testi: "Homeostazi ve Geri Bildirim Temelleri" dersinde ilk kavramın adı konunun kendisiydi
+ * ("Homeostazi"); denetçi listedeki bütün maddeleri (dar sınırlar, reseptör–kontrol merkezi–efektör, geri bildirim)
+ * ona bağlayıp tek ekranlık ilk kavramda eksik saydı. Dört tur, ardından ana üç kavram atıldı: 257 sn, 21 çağrı.
+ * Eksik madde yanlış bilgi değildir (CALIBRATION); yanlış aktarılan madde yanlış bilgidir.
+ */
 export function examPointsVerifyBlock(points: readonly string[] | undefined): string {
   const list = (points ?? []).map((point) => point.trim()).filter(Boolean).slice(0, 8);
   if (!list.length) return "";
   return [
     "SINAVDA SORULUR listesi (öğretmen analizi):",
     ...list.map((point) => `* ${point}`),
-    "Denetlenen kısmın kavramına ait bir madde kısımda hiç geçmiyorsa ya da sayısı, yaşı, eşiği ya da terimi " +
-      "kaynaktan farklı aktarılmışsa 'high' yaz (where: kısmın ilk ekranı; fix: eksik maddeyi hangi blokla vereceği). " +
-      "Başka kavrama ait maddeyi bu kısımda arama.",
+    "Denetlenen kısımda bir maddenin sayısı, yaşı, eşiği ya da terimi kaynaktan farklı aktarılmışsa 'high' yaz. " +
+      "Kısmın kavramına ait bir madde kısımda hiç geçmiyorsa 'medium' yaz (where: kısmın ilk ekranı; fix: eksik " +
+      "maddeyi hangi blokla vereceği). Başka kavrama ait maddeyi bu kısımda arama; ilk kavram tek ekrandır, maddelerin " +
+      "çoğu sonraki kavramlarda gelir.",
   ].join("\n");
 }
