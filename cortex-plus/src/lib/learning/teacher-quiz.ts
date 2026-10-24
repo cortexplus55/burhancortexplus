@@ -68,6 +68,13 @@ export type TeacherQuizInput = {
   lesson?: LessonQuizContext | null;
   /** İkinci geçiş: testte zaten olan sorular; kalıpları ve maddeleri tekrar edilmez. Yalnız konu testinde. */
   avoid?: QuizQuestion[];
+  /**
+   * Öğrenci ekranda bekliyor (24 Ekim 2026). Konu testinde yalnız pedagojik sorun (H-K, kapsam) için düzeltme
+   * turu açılmaz; o sorular yumuşak kurtarmayla teslim edilir, doğruluk sorunu (A-G, yapı) yine düzeltilir.
+   * Canlıda ücretsiz öğrencinin soğuk konu testi 150-230 sn sürdü: her tur bir düzeltme + bir denetim çağrısı
+   * (~35 sn'lik iki çağrı) ekliyordu. Önceden yazım (öğrenci beklemiyor) bütün turları koşar.
+   */
+  urgent?: boolean;
 };
 
 export type QuizDifficulty = "kolay" | "orta" | "ileri";

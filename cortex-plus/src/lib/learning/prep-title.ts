@@ -12,14 +12,33 @@ export const PREP_TITLE_SYSTEM =
   "Bir öğrencinin sınav hazırlığına ad veriyorsun. Sana hazırlığın ana konuları verilir. Hazırlığın kapsamını " +
   "3-7 kelimeyle söyleyen, Türkçe yazımı doğru bir başlık yaz (ör. 'Üslü Sayılar ve Uygulamaları', " +
   "'Vatandaşlık ve Hukukun Temel Kavramları', 'Zemin Mekaniği Temelleri'). Normal yazım; BÜYÜK HARF değil. " +
+  "Üniteler verildiyse başlık hepsini kapsar, ilk birkaçını değil (on sistemi anlatan not 'İnsan Fizyolojisi' " +
+  "olur, 'Sinir ve Endokrin Sistemleri' değil). " +
   "Dosya adı, sınav kodu, 'Konu Anlatımı', 'Ders Notu', 'PDF', sayfa ya da ünite numarası yazma. " +
   'Yalnızca JSON döndür: {"title":"…"}';
 
-export function prepTitleUserPrompt(input: { subject?: string | null; topics: string[] }): string {
+/** İstemdeki en çok konu sayısı. */
+const TITLE_TOPIC_MAX = 15;
+
+/**
+ * Listenin tamamına yayılan en çok `max` konu (baştan, sondan ve aradan eşit aralıkla). 24 Ekim 2026 lansman
+ * testi: beş belgeli 10 sistemlik hazırlık (32 konu) "Sinir, Endokrin ve Duyu Sistemleri" adını aldı; istem
+ * yalnız ilk 15 konuyu taşıyordu ve onlar ilk üç sistemdi.
+ */
+export function spreadTopics(topics: readonly string[], max = TITLE_TOPIC_MAX): string[] {
+  if (topics.length <= max) return [...topics];
+  return Array.from({ length: max }, (_, i) => topics[Math.round((i * (topics.length - 1)) / (max - 1))]!);
+}
+
+export function prepTitleUserPrompt(input: { subject?: string | null; topics: string[]; units?: string[] }): string {
+  const units = (input.units ?? []).map((unit) => unit.trim()).filter(Boolean);
+  const byUnit = units.length >= 2;
   return [
     input.subject ? `Ders: ${input.subject}` : "",
-    "Ana konular:",
-    ...input.topics.slice(0, 15).map((topic, index) => `${index + 1}. ${topic}`),
+    byUnit ? "Üniteler (hazırlığın bütün kapsamı):" : "",
+    ...(byUnit ? units.slice(0, 20).map((unit, index) => `${index + 1}. ${unit}`) : []),
+    byUnit ? "Örnek konular:" : "Ana konular:",
+    ...spreadTopics(input.topics).map((topic, index) => `${index + 1}. ${topic}`),
   ]
     .filter(Boolean)
     .join("\n");

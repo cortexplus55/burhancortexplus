@@ -107,7 +107,8 @@ describe("completion transaction", () => {
     // Tamamlama bir kez; ardından yalnız yıldız kaydı (17 Ekim 2026), o da başarıdan sonra.
     const completes = rpc.mock.calls.filter(([name]) => name === "complete_exam_prep_node");
     expect(completes).toEqual([["complete_exam_prep_node", expect.objectContaining({ p_attempt_id: attemptId, p_score: 0, p_total: 1 })]]);
-    expect(rpc.mock.calls.filter(([name]) => name !== "complete_exam_prep_node").map(([name]) => name)).toEqual(failed ? [] : ["award_stars"]);
+    // is_admin: sıradaki adım için plan okuması (ücretsizde Plus adımı atlanır, 24 Ekim 2026).
+    expect(rpc.mock.calls.filter(([name]) => name !== "complete_exam_prep_node" && name !== "is_admin").map(([name]) => name)).toEqual(failed ? [] : ["award_stars"]);
     expect(update).not.toHaveBeenCalled();
   });
 });

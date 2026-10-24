@@ -348,7 +348,8 @@ const CALIBRATION =
   "ÖNEM: 'high' yalnız öğrenciye yanlış ya da yanıltıcı bir şey öğreten, cevabı yanlış ya da çözülemez kılan " +
   "sorunlar içindir. Bir ayrıntının derste geçmemesi (eksik bilgi, 'şunu da belirtmiyor') tek başına 'low'dur; " +
   "eksiklik yazılan ifadeyi yanlış yapıyorsa 'high'. Aynı bilginin eşdeğer söylenişi ('≥2 katı' ile '2 katı ve " +
-  "üzeri') sorun değildir. Emin olmadığın bir şeyi 'high' yazma. 'medium' yalnız ÖĞRETİM ÖLÇÜTÜ sorunları içindir: " +
+  "üzeri') sorun değildir. Emin olmadığın bir şeyi 'high' yazma. 'medium' yalnız ÖĞRETİM ÖLÇÜTÜ sorunları ve SINAVDA SORULUR maddesinin " +
+  "eksikliği içindir: " +
   "öğretimi zayıflatan ama yanlış bir şey öğretmeyen sorun; düzeltmesi bir cümleyi ya da bir soruyu değiştirmektir. " +
   "Emin değilsen 'low'. 'problem' ve 'fix' en çok 30 kelime.\n";
 
@@ -383,6 +384,9 @@ export function parseTeachingScore(raw: unknown): { score: number; reason: strin
 const REVIEW_VERIFY =
   "Bunlar her sorunun 'review' alanına (yanlış cevaptan sonra sorulan ikinci soru) da uygulanır; review başka bir " +
   "kavramı soruyorsa ya da çoktan seçmelide doğru şıkkı ana sorunun doğru şıkkıyla aynı metin değilse bu da C'dir. " +
+  // 24 Ekim 2026 lansman testi: denetçi doğru/yanlış sorunun ikinci sorusunu "doğru yanıtı Doğru, ana sorununki
+  // Yanlış" diye C saydı; ikinci soru yeni bir ifadedir, cevabı farklı olabilir (`reviewItemProblems` de aramıyor).
+  "Doğru/yanlış sorunun review'ı yeni bir ifadedir: cevabının ana sorunun cevabından farklı olması sorun değildir. " +
   // 22 Ekim 2026 inceleme: aynı belirti hem C (high) hem J (medium) diye yazılıydı; C'yi seçen denetçi öğretim
   // nitini düzeltme turuna, oradan yeniden yazıma taşıyordu. Yalnız öğretim ölçütü maddesi (medium).
   "(Kavramı bilmeden çözülebilen soru — kök üstündeki cümleyi geri soruyor ya da şıklardan yalnız biri sorulan " +
@@ -1507,7 +1511,9 @@ function reviewInput(check: Check) {
 }
 
 /** İkinci soruya ait sorun: `screens[i].blocks[j].review` ya da `….check.review`. */
-const REVIEW_WHERE = /screens\[(\d+)\]\.blocks\[(\d+)\](?:\.check)?\.review\b/;
+// Denetçi yeri bazen "….check.check.review" yazıyor (24 Ekim 2026 canlı kayıt); tanınmayan ikinci soru sorunu
+// kavramı tam düzeltme turuna sokuyordu.
+const REVIEW_WHERE = /screens\[(\d+)\]\.blocks\[(\d+)\](?:\.check)*\.review\b/;
 
 export function isReviewIssue(issue: TeacherIssue): boolean {
   return REVIEW_WHERE.test(issue.where);

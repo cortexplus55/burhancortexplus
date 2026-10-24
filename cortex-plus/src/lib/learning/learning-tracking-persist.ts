@@ -52,6 +52,8 @@ export async function recordLearningTrackingAfterComplete(
     topicLabel: string | null;
     sessionObjective: string | null;
     targetScore: number | null;
+    /** Sıradaki olarak seçilmeyecek adım türleri (ücretsiz hesapta Plus adımları, `pathSkipKinds`). */
+    skipKinds?: ReadonlySet<string>;
   },
 ): Promise<{ nextNodeId: string | null; tracking: ReturnType<typeof toPersistedTracking>; topicGain: TopicGain | null }> {
   const priorCount = await countPriorCompletedAttempts(service, {
@@ -243,6 +245,7 @@ export async function recordLearningTrackingAfterComplete(
   const next = preferNextNodeForTracking(nodes, {
     openMisconceptions: misconceptionCount ?? 0,
     weakOrStaleTopicKeys: weakOrStaleTopicKeys(folded),
+    skipKinds: input.skipKinds,
   });
 
   return { nextNodeId: next?.id ?? null, tracking, topicGain };

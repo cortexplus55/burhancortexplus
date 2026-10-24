@@ -94,7 +94,7 @@ import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { LevelSuggestCard } from "@/components/parity/level-suggest-card";
 import type { LevelHint } from "@/lib/learning/prep-level";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
-import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
+import { NodeGenerationProgress, preparingTitle } from "@/components/parity/node-generation-progress";
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
 import {
   difficultyFromFamiliarity,
@@ -1255,6 +1255,7 @@ export function ExamNodeSession({
 
       {stage === "setup" && loading && kind !== "readiness" ? (
         <NodeGenerationProgress
+          title={preparingTitle(kind)}
           sourceName={sourceName}
           note={queueNote ? BUSY_NOTE : undefined}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}

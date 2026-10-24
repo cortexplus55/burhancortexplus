@@ -58,7 +58,7 @@ const SELLER_BLOCK = () => {
 
 const SERVICE_DESC = [
   "Hizmetin konusu: Cortex Plus, öğrencinin yüklediği ders materyalinden ya da seçtiği konudan yapay zekâ ile çalışma içeriği üreten bir internet hizmetidir. Üretilen içerikler anlatım, konu haritası, test, sesli anlatım (podcast) ve sözlü pratiktir.",
-  "Hizmet, kredi adı verilen kullanım hakkı üzerinden sunulur. Her yapay zekâ işleminin kaç kredi harcayacağı, işlem yapılmadan önce ekranda gösterilir.",
+  "Hizmet, kullanım hakkı üzerinden sunulur. Ücretli planlarda dönem için tanımlı hak işlemlerde harcanır ve kalan hak yüzde olarak gösterilir. Ücretsiz hesapta haftalık ders, günlük sohbet mesajı ve günlük fotoğraftan çözüm sayısı sınırlıdır; podcast, sözlü ve yazılı deneme, video ders ve sesli kullanım ücretli planlarda sunulur.",
   "Abonelikler belirli bir dönem için satılır ve o dönemde tanımlı kullanım hakkını açar. Kredi paketleri tek seferlik alımdır ve bakiyeye eklenir.",
 ];
 

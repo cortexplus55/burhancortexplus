@@ -26,6 +26,7 @@ import {
   WIZARD_COPY,
   WIZARD_STEP_ORDER,
   fileProgressLine,
+  listSegments,
   redundantUnitHeader,
   topicSourcesChip,
 } from "@/lib/learning/exam-wizard-copy";
@@ -2155,30 +2156,24 @@ function TopicEditor({
       ) : null}
       <ul className="apw-topics">
         {unitHeaders.length
-          ? unitHeaders.map((unit) =>
-              redundantUnitHeader(
-                unit.title,
-                unit.topicIndexes.map((index) => topics[index] ?? ""),
-              ) ? (
-                renderTopicRow(unit.topicIndexes[0]!)
+          ? listSegments(unitHeaders, orphanIndexes).map((segment) =>
+              segment.kind === "topic" ? (
+                renderTopicRow(segment.index)
+              ) : redundantUnitHeader(
+                  segment.unit.title,
+                  segment.unit.topicIndexes.map((index) => topics[index] ?? ""),
+                ) ? (
+                renderTopicRow(segment.unit.topicIndexes[0]!)
               ) : (
-                <li key={unit.title} className="apw-topic-unit">
-                  <h3 className="apw-group">{unit.title}</h3>
+                <li key={segment.unit.title} className="apw-topic-unit">
+                  <h3 className="apw-group">{segment.unit.title}</h3>
                   <ul className="apw-topics">
-                    {unit.topicIndexes.map((index) => renderTopicRow(index))}
+                    {segment.unit.topicIndexes.map((index) => renderTopicRow(index))}
                   </ul>
                 </li>
               ),
             )
           : topics.map((_, index) => renderTopicRow(index))}
-        {orphanIndexes.length ? (
-          <li className="apw-topic-unit">
-            {unitHeaders.length ? <h3 className="apw-group">Diğer</h3> : null}
-            <ul className="apw-topics">
-              {orphanIndexes.map((index) => renderTopicRow(index))}
-            </ul>
-          </li>
-        ) : null}
       </ul>
       {missing.length ? (
         <ul className="apw-missing">

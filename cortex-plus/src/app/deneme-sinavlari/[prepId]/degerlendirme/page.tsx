@@ -8,6 +8,7 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import {
   daysUntilExam,
   type PlanNodeKind,
@@ -142,11 +143,13 @@ export default async function ExamPrepAssessmentPage({
 
   const hasTopic = Boolean(prep.active_topic_id);
   const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes, prep.intro_deferred_at);
+  const skipKinds = await pathSkipKinds(service, user.id);
   const ready =
     preferNextNodeForTracking(nodes, {
       openMisconceptions,
       weakOrStaleTopicKeys: weakOrStaleTopicKeys(topics),
-    }) ?? nodes.find((n) => n.status === "ready");
+      skipKinds,
+    }) ?? nodes.find((n) => n.status === "ready" && !skipKinds.has(n.kind));
 
   const nextHref = !hasTopic
     ? examPrepTopicHref(prepId)

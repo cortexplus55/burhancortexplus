@@ -183,6 +183,18 @@ describe("önceden hazırlama: geniş kapsam", () => {
     for (const kind of ["gaps", "focused", "final_check", "spaced", "readiness", "written_exam", "qa"]) expect(lib.PREFETCH_KINDS.has(kind)).toBe(false);
   });
 
+  // 24 Ekim 2026: ücretsiz hesapta pencere [podcast, soru-cevap] olunca sıradaki test hiç önceden yazılmıyordu.
+  it("ücretsiz hesapta Plus adımları pencerede sayılmaz", async () => {
+    const rows = [
+      { id: "n-podcast", kind: "podcast", status: "ready", session_meta: {} },
+      { id: "n-qa", kind: "qa", status: "locked", session_meta: {} },
+      { id: "n-quiz", kind: "quiz", status: "locked", session_meta: {} },
+    ];
+    const free = new Set(["podcast", "oral", "written_exam"]);
+    expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", afterSortOrder: 0 }))?.id).toBe("n-podcast");
+    expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", afterSortOrder: 0, skipKinds: free }))?.id).toBe("n-quiz");
+  });
+
   it("hazır içerik öğrencinin seçimine uyuyorsa verilir: zorluk, podcast süresi, sözlü ayarları", () => {
     const base = { topicLabel: "Akut Gastroenterit" };
     expect(lib.prefetchVariant("lesson", { ...base, difficulty: "kolay" })).toBe(lib.prefetchVariant("lesson", { ...base, difficulty: "ileri" }));
@@ -210,7 +222,8 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(create).toContain("await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId });");
     expect(route).toContain("requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number })");
     expect(route).toContain("if (!prefetch && action === \"start\") {");
-    expect(route).toContain("await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });");
+    // 24 Ekim 2026: aynı seçimle yazılan konu testi bitmek üzereyse daha uzun beklenir (launch-latency.test.ts).
+    expect(route).toContain("await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000, variant, matchedMaxMs: PREFETCH_MATCHED_WAIT_MS });");
     expect(route).toContain("storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant }, { warm })");
   });
 

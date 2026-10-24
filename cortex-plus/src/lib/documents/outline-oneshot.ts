@@ -895,6 +895,7 @@ SERT KURAL — UYDURMA YOK:
 - pageStart/pageEnd gerçek [d? s.N] işaretlerinden; o dosyanın sayfa aralığı dışında numara uydurma (en fazla ${input.maxPage}).
 - Sayfa aralığını dar tut: bir konu 8 sayfadan genişse gerçekten o sayfaların tamamını kapsamalı.
 - Kitabın/dosyaların kendi yapısını (içindekiler, bölüm başlıkları) dikkate al ama logolar, seri adları, sayfa üstbilgileri, soru numaraları, şıklar, OCR bozukluklarını konu yapma.
+- Konu başlığı içeriği adlandırır, materyalin biçimini değil: "Kartı", "Eşleştirme Kartı", "Şeması", "Tablosu", "Fotoğrafı", "Özet Notu" yazma. Bir dosya (fotoğraf, kart, şema, test sayfası) başka dosyada anlatılan bir konuyu tekrar ediyorsa ayrı konu açma; o konu tek kalır, fileIndex'i konuyu en çok anlatan dosya olur.
 - "Diğer Konular" kovası EKLEME. Ünite 1–${MAX_UNITS}, toplam konu ≤${MAX_TOPICS_TOTAL}.
 
 JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[]}]}]}${tocBlockSection(input.tocBlock)}${previousOutlineBlock(input.previousOutline)}

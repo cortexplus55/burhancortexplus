@@ -211,11 +211,13 @@ export async function teacherQuizLoop(
   let forced = false;
   while (bad.length && rounds < MAX_FIX_ROUNDS && Date.now() - started < FIX_DEADLINE_MS) {
     const short = have() < count;
-    const coverage = forcedInWindow();
+    // Öğrenci bekliyorsa kapsam eksiği tur açmaz (24 Ekim 2026; `urgent`).
+    const coverage = input.urgent ? [] : forcedInWindow();
     if (!short && !coverage.length) break;
     const toFix = short ? bad : coverage;
-    // Yalnız pedagojik sorun için en çok bir tur: düzelmezse soru yedekle değişir ya da geri konur.
-    if (scoped && rounds >= 1 && toFix.every(allSoft)) break;
+    // Yalnız pedagojik sorun için en çok bir tur: düzelmezse soru yedekle değişir ya da geri konur. Öğrenci
+    // bekliyorsa hiç tur yok: yumuşak kurtarma aşağıda sayıyı tamamlar.
+    if (scoped && toFix.every(allSoft) && (rounds >= 1 || input.urgent)) break;
     rounds += 1;
     if (coverage.length) forced = true;
     let answer: unknown;

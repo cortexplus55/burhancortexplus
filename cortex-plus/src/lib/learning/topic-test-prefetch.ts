@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dropPrefetch, nextPrefetchNode, requestNodePrefetch } from "@/lib/learning/lesson-prefetch";
+import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { lessonQuizContext, loadTopicLessons } from "@/lib/learning/lesson-quiz-context";
 
 /**
@@ -26,6 +27,43 @@ const storedVariant = (payload: unknown): string | null => {
   return typeof value === "string" ? value : null;
 };
 
+/** Dersin yazımı bu kadar yeniyse "sürüyor" sayılır (ders 120 sn ilerlemezse kapanır, `lesson-build.ts`). */
+const LESSON_IN_FLIGHT_MS = 10 * 60_000;
+
+/**
+ * Konunun dersi şu an yazılıyor mu (kaydedilmiş dersi yokken son 10 dakikada açılmış ders denemesi var mı).
+ * Öyleyse sıradaki konu testi önceden yazılmaz: dersi bilmeden yazılan test açılışta zaten verilmez
+ * (`prefetchVariant` ders anahtarı) ve ders kaydedilince `refreshQuizPrefetchAfterLesson` derse göre yenisini
+ * ister. 24 Ekim 2026 canlıda aynı EKG testi böyle iki kez önceden yazıldı (143 + 240 sn), ilki çöpe gitti.
+ * Okuma düşerse `false`: bugünkü gibi yazılır.
+ */
+export async function topicLessonInFlight(
+  service: SupabaseClient,
+  input: { prepId: string; userId: string; topicId: string },
+  now: number = Date.now(),
+): Promise<boolean> {
+  try {
+    const { data: lessons } = await service
+      .from("exam_prep_nodes")
+      .select("id")
+      .eq("exam_prep_id", input.prepId)
+      .eq("kind", "lesson");
+    const ids = ((lessons ?? []) as { id: string }[]).map((row) => row.id);
+    if (!ids.length) return false;
+    const { count } = await service
+      .from("exam_prep_node_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("exam_prep_id", input.prepId)
+      .eq("user_id", input.userId)
+      .eq("topic_id", input.topicId)
+      .in("node_id", ids)
+      .gte("created_at", new Date(now - LESSON_IN_FLIGHT_MS).toISOString());
+    return (count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 /** Sahiplenilen test yazımına anahtarını yaz (yazım sürerken satır `creating`, içerik yok). */
 export async function tagQuizPrefetchClaim(service: SupabaseClient, input: { nodeId: string; variant: string }): Promise<void> {
   await service
@@ -42,7 +80,11 @@ export async function refreshQuizPrefetchAfterLesson(
   input: { origin: string; userId: string; prepId: string; afterSortOrder: number; topicId: string },
 ): Promise<void> {
   try {
-    const next = await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: input.afterSortOrder });
+    const next = await nextPrefetchNode(service, {
+      prepId: input.prepId,
+      afterSortOrder: input.afterSortOrder,
+      skipKinds: await pathSkipKinds(service, input.userId),
+    });
     // Sıradaki bir ders parçasıysa ("Ders 2/3") onun kaydı yeniden tetikler.
     if (!next || next.kind !== "quiz") return;
     const context = lessonQuizContext((await loadTopicLessons(service, input.topicId)).lessons);

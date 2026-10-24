@@ -23,7 +23,7 @@ import {
   verifyPrefetchToken,
 } from "@/lib/learning/lesson-prefetch";
 import { lessonQuizContext, loadTopicLessons, type LessonQuizContext } from "@/lib/learning/lesson-quiz-context";
-import { quizPrefetchStorable, refreshQuizPrefetchAfterLesson, tagQuizPrefetchClaim } from "@/lib/learning/topic-test-prefetch";
+import { quizPrefetchStorable, refreshQuizPrefetchAfterLesson, tagQuizPrefetchClaim, topicLessonInFlight } from "@/lib/learning/topic-test-prefetch";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { loadTopicSupport, supportPagesForEngine, type SupportPage } from "@/lib/learning/topic-support-load";
@@ -82,7 +82,7 @@ import {
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
-import { freeMeterRemaining, nodeFreeMeter } from "@/lib/billing/node-free-meter";
+import { freeMeterRemaining, kindListFilter, nodeFreeMeter, pathSkipKinds } from "@/lib/billing/node-free-meter";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { billingExempt } from "@/lib/billing/free-preview";
 import {
@@ -214,6 +214,8 @@ import {
  * ve kredi iade edilir, ders kayda geçmez.
  */
 export const maxDuration = 300;
+/** Aynı seçimle yazılan önceden yazım sürüyorsa bekleme sınırı (konu testi; 24 Ekim 2026). */
+const PREFETCH_MATCHED_WAIT_MS = 100_000;
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -861,6 +863,20 @@ async function handleNodeRequest(
 
     if (attemptError) return errorResponse(503, "attempt_lookup_failed");
     if (!attempt) return errorResponse(409, "active_attempt_required");
+    // Ücretsiz hesapta sıradaki Plus'a özel adım değil (24 Ekim 2026; tamamlama fonksiyonu da atlar).
+    // Yalnız sıradaki gerektiğinde okunur: reddedilen tamamlama plan okumaz.
+    let skipKindsRead: Promise<ReadonlySet<string>> | null = null;
+    const skipKinds = () => (skipKindsRead ??= pathSkipKinds(service, userId));
+    const nextAfter = async () => {
+      const skip = await skipKinds();
+      let query = service
+        .from("exam_prep_nodes")
+        .select("id")
+        .eq("exam_prep_id", prepId)
+        .gt("sort_order", node.sort_order);
+      if (skip.size) query = query.not("kind", "in", kindListFilter(skip));
+      return query.order("sort_order").limit(1).maybeSingle();
+    };
 
     // Stale complete from an older generation must not overwrite a newer attempt.
     if (
@@ -879,14 +895,7 @@ async function handleNodeRequest(
       attempt.status === "completed" &&
       attempt.complete_request_id === parsed.data.completeRequestId
     ) {
-      const { data: nextRow } = await service
-        .from("exam_prep_nodes")
-        .select("id")
-        .eq("exam_prep_id", prepId)
-        .gt("sort_order", node.sort_order)
-        .order("sort_order")
-        .limit(1)
-        .maybeSingle();
+      const { data: nextRow } = await nextAfter();
       const review = await writtenReviewForPayload(service, {
         userId,
         prepId,
@@ -920,14 +929,7 @@ async function handleNodeRequest(
     }
 
     if (teachingV2 && attempt.status === "completed") {
-      const { data: nextRow } = await service
-        .from("exam_prep_nodes")
-        .select("id")
-        .eq("exam_prep_id", prepId)
-        .gt("sort_order", node.sort_order)
-        .order("sort_order")
-        .limit(1)
-        .maybeSingle();
+      const { data: nextRow } = await nextAfter();
       const review = await writtenReviewForPayload(service, {
         userId,
         prepId,
@@ -1159,6 +1161,7 @@ async function handleNodeRequest(
           sessionObjective: sessionMeta?.objective ?? null,
           targetScore:
             typeof prep.target_score === "number" ? prep.target_score : null,
+          skipKinds: await skipKinds(),
         });
         learningTracking = tracked.tracking;
         topicGain = tracked.topicGain;
@@ -1663,6 +1666,17 @@ async function handleNodeRequest(
   // terimlerini görür; önceden yazılan testin anahtarı dersin parmak izini taşır.
   const quizLesson: LessonQuizContext | null =
     kind === "quiz" && teachingV2 && topic?.id ? lessonQuizContext((await loadTopicLessons(service, topic.id)).lessons) : null;
+  // Dersi yazılırken konu testi önceden yazılmaz; ders kaydedilince derse göre istenir (24 Ekim 2026).
+  if (
+    prefetch &&
+    kind === "quiz" &&
+    teachingV2 &&
+    topic?.id &&
+    !quizLesson &&
+    (await topicLessonInFlight(service, { prepId, userId, topicId: topic.id }))
+  ) {
+    return NextResponse.json({ ok: true, skipped: "lesson_building" });
+  }
 
   // Önceden yazılmış etkinlik (18 Ekim 2026'dan beri her hazırlanabilir tür): beklemeden gelir,
   // kredi şimdi düşer. Seçim (zorluk, podcast süresi, sözlü ayarları) tutmazsa yeniden yazılır.
@@ -1677,9 +1691,10 @@ async function handleNodeRequest(
   });
   let prefetchWaitMs = 0;
   if (PREFETCH_KINDS.has(kind) && kind !== "lesson" && teachingV2 && !voiceSession && !prefetch) {
-    // Akışsız içerik kayda bütün düşer: yazımı sürüyorsa biraz bekle, ikinci kez yazma.
+    // Akışsız içerik kayda bütün düşer: yazımı sürüyorsa biraz bekle, ikinci kez yazma. Aynı seçimle yazılan
+    // konu testi bitmek üzereyse daha uzun beklenir: sıfırdan yazmak ondan uzun sürer (24 Ekim 2026).
     const waitStarted = Date.now();
-    await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });
+    await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000, variant, matchedMaxMs: PREFETCH_MATCHED_WAIT_MS });
     prefetchWaitMs = Date.now() - waitStarted;
   }
   if (
@@ -2292,6 +2307,7 @@ async function handleNodeRequest(
           userId,
           isPremium: premium,
           freeMeter,
+          requestStartedAt: requestStarted,
           onLessonPublish: progressive
             ? publishLesson
             : prefetch
@@ -2905,6 +2921,8 @@ async function generateNodePayload(input: {
   teachingV2: boolean;
   sessionMeta: SessionTeachingMeta | null;
   requireSourceSupport?: boolean;
+  /** İsteğin başladığı an: önceden yazımı bekleyen soğuk test turlarını rota tavanına göre keser. */
+  requestStartedAt?: number;
   /** Stage 8: stable key so double-click / retry does not double-charge. */
   idempotencyKey?: string;
   /** false: önceden yazılan ders; kredi öğrenci açınca düşer. */
@@ -3501,7 +3519,7 @@ async function teacherQuizPayload(
   core: LessonCore | null,
   count: number,
 ) {
-  const startedAt = Date.now();
+  const startedAt = input.requestStartedAt ?? Date.now();
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
   const clean = core
     ? await ensureCleanPages(input.service, {
@@ -3532,6 +3550,8 @@ async function teacherQuizPayload(
     // Yoldaki konu testinin kuralları ve dersi (20 Ekim 2026); tuzak testi (gaps) bugünkü gibi.
     scope: input.kind === "quiz" ? "topic_test" : undefined,
     lesson: input.kind === "quiz" ? (input.lessonQuiz ?? undefined) : undefined,
+    // Öğrenci bekliyor: pedagojik ince ayar turu yok (önceden yazım bütün turları koşar).
+    urgent: input.charge !== false,
     startedAt,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
