@@ -1243,3 +1243,21 @@ Eski `image-quota.ts` (Redis'te günde 3 fotoğraf) silindi; fotoğraf sayacı S
 sayaç "Bu haftaki ders 2/3" diye `/krediler`'de görünür. Bekçi: `free-tier-counts.test.ts` (göçleri yayın sırasıyla ve
 geri alma dosyasını PGlite'ta çalıştırır), `free-meters.test.ts`, `free-reach.test.tsx`, `plus-month.test.tsx`, `marketing-claims.test.ts`,
 `schema-probe.test.ts` ("Kredi v3 ve ücretsiz sayaçlar" kritik).
+
+## Lansman testi (24 Ekim 2026) — ücretsiz yol, tek test yazımı, ders denetçisi
+
+Ürün sahibi: "yarın lansman; fotoğraf, 4-5 belgeden yol, her özellik tek tek tam çalışıyor mu". Canlıda ücretsiz
+önizleme ve Plus ile (5 $ bütçe) gezildi; bulgular ve düzeltmeler PR #398. Yeniden açmayın:
+
+| Bulgu | Kural | Nerede |
+|---|---|---|
+| **Ücretsiz öğrencinin yolu 2. adımda kilitleniyordu**: şablon ilk dersin arkasına podcast ve sözlü koyuyor, ikisi Plus'ta; "önünde bitmemiş adım" kuralı gerisini açmıyordu (beta denemesi bitince de aynı) | Ücretsiz hesapta (`credit_reserve_metered` ile aynı karar: önizlemedeki kurucu ücretsiz) Plus adımı bitmemiş sayılmaz, açılırsa arkasındaki adım da açılır, `nextId` onu atlar. "Sıradaki", "Devam et" ve önceden yazım penceresi Plus adımını saymaz (`pathSkipKinds`). Düzeltmeden önce takılan yol hazırlık sayfasında bir kez açılır (`freePathUnblockIds`) | göç `20261024130000` (canlıda), `node-free-meter.ts`, `learning-tracking.ts` |
+| Konu testi üç kez yazılıyordu (dersten önce, ders kaydından sonra, soğuk istek): 150-230 sn | İstek aynı seçimle süren önceden yazımı 100 sn'ye kadar bekler; öğrenci beklerken yalnız pedagojik tur açılmaz (`urgent`); konunun dersi yazılırken test önceden yazılmaz | `waitForPrefetchReady`, `teacherQuizLoop`, `topicLessonInFlight` |
+| Ders 257 sn sürdü, ana üç kavram atıldı: ilk kavramın adı konunun kendisiydi, denetçi bütün "Sınavda sorulur" maddelerini tek ekranlık ilk kavramda eksik saydı | Eksik madde `medium`, yanlış aktarılan madde `high`; doğru/yanlışın ikinci sorusunun cevabı ana sorudan farklı olabilir; `….check.check.review` de ikinci soru sorunu | `exam-points.ts`, `teacher-lesson.ts` |
+| Çok sorulu fotoğraf ~90 sn sonra "tamamlanamadı" | Tek soru çözülür (nottaki numara, yoksa ilk soru); öbürleri adıyla söylenir | `ONE_QUESTION_RULE`, `otherQuestionsLine` |
+| Hazırlık adı ilk üç sistemden ("Sinir, Endokrin ve Duyu Sistemleri"): istem 32 konunun ilk 15'ini taşıyordu | Ünite adları + listeye yayılan 15 konu | `spreadTopics`, `prepTitleUserPrompt` |
+| Ünitesiz ilk konu kurulum listesinde "Diğer" altında en sonda | Liste yolun sırasıyla (`listSegments`) | `exam-wizard-copy.ts` |
+| Fotoğraflar notun konularını "…Eşleştirme Kartı", "…Şeması" diye ikinci kez açtı | Başlık içeriği adlandırır; tekrar eden dosya ayrı konu açmaz (yardımcı kaynak olarak bağlanır) | `outline-oneshot.ts` |
+
+Bekçi: `free-path-plus-skip.test.ts`, `complete-node-in-order.test.ts` (PGlite: ücretsiz, Plus, kurucu, önizleme),
+`launch-latency.test.ts`, `lesson-exam-point-severity.test.ts`, `lesson-prefetch.test.ts`, `prep-title.test.ts`.
