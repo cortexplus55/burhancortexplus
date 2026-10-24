@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dropPrefetch, nextPrefetchNode, requestNodePrefetch } from "@/lib/learning/lesson-prefetch";
+import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import { lessonQuizContext, loadTopicLessons } from "@/lib/learning/lesson-quiz-context";
 
 /**
@@ -79,7 +80,11 @@ export async function refreshQuizPrefetchAfterLesson(
   input: { origin: string; userId: string; prepId: string; afterSortOrder: number; topicId: string },
 ): Promise<void> {
   try {
-    const next = await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: input.afterSortOrder });
+    const next = await nextPrefetchNode(service, {
+      prepId: input.prepId,
+      afterSortOrder: input.afterSortOrder,
+      skipKinds: await pathSkipKinds(service, input.userId),
+    });
     // Sıradaki bir ders parçasıysa ("Ders 2/3") onun kaydı yeniden tetikler.
     if (!next || next.kind !== "quiz") return;
     const context = lessonQuizContext((await loadTopicLessons(service, input.topicId)).lessons);

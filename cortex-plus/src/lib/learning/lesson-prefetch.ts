@@ -8,6 +8,7 @@ import { difficultyFromFamiliarity } from "@/lib/learning/lesson-open";
 import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
+import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 
 /**
  * Sıradaki dersin önceden hazırlanması (3 Ekim 2026, ürün sahibinin kararı).
@@ -411,11 +412,16 @@ export async function nodeFamiliarity(service: SupabaseClient, prepId: string, s
  * Yolda bu sıradan sonra gelen ilk önceden hazırlanabilir etkinlik. Arada öğrencinin kayıtlarından
  * anında kurulan (zayıf nokta, son kontrol…) adımlar atlanır. Yalnız yolun kesin penceresine
  * (`PATH_LOOKAHEAD`, 2 adım) bakılır: sonrası sonuçlara göre değişebilir (20 Ekim 2026; önce 3).
+ *
+ * `skipKinds` (24 Ekim 2026): ücretsiz hesapta Plus adımları pencerede sayılmaz (`pathSkipKinds`). Şablon ilk
+ * dersin arkasına podcast ve soru-cevabı koyuyor; pencere [podcast, soru-cevap] olunca ücretsiz öğrencinin
+ * sıradaki testi hiç önceden yazılmıyordu.
  */
 export async function nextPrefetchNode(
   service: SupabaseClient,
-  input: { prepId: string; afterSortOrder: number },
+  input: { prepId: string; afterSortOrder: number; skipKinds?: ReadonlySet<string> },
 ): Promise<PathRow | null> {
+  const skip = input.skipKinds;
   const { data } = await service
     .from("exam_prep_nodes")
     .select("id, kind, status, session_meta")
@@ -423,8 +429,18 @@ export async function nextPrefetchNode(
     .gt("sort_order", input.afterSortOrder)
     .neq("status", "done")
     .order("sort_order")
-    .limit(PATH_LOOKAHEAD);
-  return ((data ?? []) as PathRow[]).find((row) => PREFETCH_KINDS.has(row.kind)) ?? null;
+    .limit(PATH_LOOKAHEAD + (skip?.size ? SKIP_SLACK : 0));
+  return (
+    usableWindow((data ?? []) as PathRow[], skip, PATH_LOOKAHEAD).find((row) => PREFETCH_KINDS.has(row.kind)) ?? null
+  );
+}
+
+/** Pencere için fazladan okunan satır: arada en çok bu kadar Plus adımı olur (podcast, sözlü, yazılı deneme). */
+const SKIP_SLACK = 4;
+
+/** Atlanan türler çıkarıldıktan sonra yolun ilk `size` adımı. */
+function usableWindow<T extends { kind: string }>(rows: T[], skip: ReadonlySet<string> | undefined, size: number): T[] {
+  return (skip?.size ? rows.filter((row) => !skip.has(row.kind)) : rows).slice(0, size);
 }
 
 /**
@@ -491,7 +507,10 @@ export async function requestNextPrefetch(
   service: SupabaseClient,
   input: { origin: string; userId: string; prepId: string; sortOrder: number },
 ) {
-  const next = await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: input.sortOrder }).catch(() => null);
+  const skipKinds = await pathSkipKinds(service, input.userId);
+  const next = await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: input.sortOrder, skipKinds }).catch(
+    () => null,
+  );
   if (next) await requestNodePrefetch(service, { ...input, node: next });
 }
 
@@ -504,18 +523,19 @@ export async function requestPrepPrefetch(
   input: { origin: string; userId: string; prepId: string },
 ) {
   try {
+    const skipKinds = await pathSkipKinds(service, input.userId);
     const { data } = await service
       .from("exam_prep_nodes")
       .select("id, kind, status, session_meta, sort_order")
       .eq("exam_prep_id", input.prepId)
       .neq("status", "done")
       .order("sort_order")
-      .limit(PATH_LOOKAHEAD + 1);
-    const rows = (data ?? []) as (PathRow & { sort_order: number })[];
+      .limit(PATH_LOOKAHEAD + 1 + (skipKinds.size ? SKIP_SLACK : 0));
+    const rows = usableWindow((data ?? []) as (PathRow & { sort_order: number })[], skipKinds, PATH_LOOKAHEAD + 1);
     const first = rows[0];
     if (!first) return;
     const target = (await nodeHasAttempts(service, first.id))
-      ? await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: first.sort_order })
+      ? await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: first.sort_order, skipKinds })
       : (rows.find((row) => PREFETCH_KINDS.has(row.kind)) ?? null);
     if (target) await requestNodePrefetch(service, { ...input, node: target });
   } catch (error) {
