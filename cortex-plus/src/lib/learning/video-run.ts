@@ -78,23 +78,54 @@ export async function videoScriptLoop(
   return found.high.length ? { script: null, problems: found.high } : { script, problems: [] };
 }
 
+/**
+ * Resim modeli merdiveni (24 Ekim 2026 lansman testi): canlıda video ders tümüyle düşüyordu —
+ * "400 The model 'gpt-image-1' does not exist." Canlı anahtarın projesi bu modeli görmüyor (yerel anahtar görüyor).
+ * Model yok derse sıradaki denenir; çalışan model süreç boyunca hatırlanır, sonraki sahneler ondan başlar.
+ */
+export const IMAGE_MODEL_FALLBACKS = ["gpt-image-1.5", "gpt-image-1-mini", "gpt-image-2"] as const;
+let workingImageModel: string | null = null;
+
+export function imageModelLadder(configured: string, working: string | null = workingImageModel): string[] {
+  return [...new Set([working, configured, ...IMAGE_MODEL_FALLBACKS].filter((model): model is string => Boolean(model)))];
+}
+
+/** Modelin bu projede olmadığını söyleyen hata (başka bir 400 — ör. parametre — sıradakine geçirmez). */
+export function isMissingModelError(error: unknown): boolean {
+  const row = error as { status?: unknown; code?: unknown; message?: unknown } | null;
+  const message = typeof row?.message === "string" ? row.message : "";
+  return row?.status === 404 || row?.code === "model_not_found" || /does not exist|model_not_found|not have access to model/i.test(message);
+}
+
 /** Tek sahne resmi. gpt-image modelleri b64 döner; dall-e-3 dikey boyutu farklı. */
-async function sceneImage(openai: OpenAI, prompt: string): Promise<Buffer> {
-  const model = env.OPENAI_IMAGE_MODEL;
-  const response = model.startsWith("dall-e")
-    ? await openai.images.generate({ model, prompt, size: "1024x1792", n: 1, response_format: "b64_json" })
-    : await openai.images.generate({
-        model,
-        prompt,
-        size: "1024x1536",
-        quality: "low",
-        n: 1,
-        output_format: "webp",
-        output_compression: 80,
-      });
-  const b64 = response.data?.[0]?.b64_json;
-  if (!b64) throw new Error("image_empty");
-  return Buffer.from(b64, "base64");
+async function sceneImage(openai: OpenAI, prompt: string): Promise<{ image: Buffer; model: string }> {
+  let lastError: unknown = null;
+  for (const model of imageModelLadder(env.OPENAI_IMAGE_MODEL)) {
+    try {
+      const response = model.startsWith("dall-e")
+        ? await openai.images.generate({ model, prompt, size: "1024x1792", n: 1, response_format: "b64_json" })
+        : await openai.images.generate({
+            model,
+            prompt,
+            size: "1024x1536",
+            quality: "low",
+            n: 1,
+            output_format: "webp",
+            output_compression: 80,
+          });
+      const b64 = response.data?.[0]?.b64_json;
+      if (!b64) throw new Error("image_empty");
+      if (workingImageModel !== model) {
+        workingImageModel = model;
+        if (model !== env.OPENAI_IMAGE_MODEL) console.warn("video_image_model_fallback", { configured: env.OPENAI_IMAGE_MODEL, used: model });
+      }
+      return { image: Buffer.from(b64, "base64"), model };
+    } catch (error) {
+      if (!isMissingModelError(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("image_model_unavailable");
 }
 
 /**
@@ -120,13 +151,14 @@ export async function runVideoLesson(
       const base = `video/${input.userId}/${videoId}`;
       const scenes = await Promise.all(
         script.scenes.map(async (scene, index): Promise<StoredVideoScene> => {
-          const [image, voice] = await Promise.all([
+          const [picture, voice] = await Promise.all([
             sceneImage(openai, videoImagePrompt(scene, input.style)),
             // Anahtar kelime işareti (**…**) seslendirilmez.
             synthesizeLine(speechText(scene.narration), "ada"),
           ]);
           if (!voice) throw new Error("speech_failed");
-          const imageType = env.OPENAI_IMAGE_MODEL.startsWith("dall-e") ? "png" : "webp";
+          const { image, model: imageModel } = picture;
+          const imageType = imageModel.startsWith("dall-e") ? "png" : "webp";
           const imagePath = `${base}/scene-${index}.${imageType}`;
           const audioPath = `${base}/scene-${index}.mp3`;
           const [up1, up2] = await Promise.all([
@@ -135,7 +167,7 @@ export async function runVideoLesson(
           ]);
           if (up1.error || up2.error) throw new Error("storage_failed");
           await Promise.all([
-            recordUsage(service, { userId: input.userId, actionCode: "VIDEO_GENERATE", model: env.OPENAI_IMAGE_MODEL, tokensIn: 1, tokensOut: 0 }),
+            recordUsage(service, { userId: input.userId, actionCode: "VIDEO_GENERATE", model: imageModel, tokensIn: 1, tokensOut: 0 }),
             recordUsage(service, { userId: input.userId, actionCode: "VIDEO_GENERATE", model: env.OPENAI_TTS_MODEL, tokensIn: voice.chars, tokensOut: 0 }),
           ]).catch(() => undefined);
           return { narration: scene.narration, imagePath, audioPath, durationMs: voice.durationMs, ...(scene.keyFact ? { keyFact: scene.keyFact } : {}) };

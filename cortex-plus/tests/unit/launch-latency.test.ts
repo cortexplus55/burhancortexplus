@@ -325,3 +325,15 @@ describe("anlatarak öğren belgeden de çalışır", () => {
     expect(readFileSync("src/app/studio/anlat/page.tsx", "utf8")).toContain("loadCompletedDocumentOptions");
   });
 });
+
+// 24 Ekim 2026 canlı: video ders "400 The model 'gpt-image-1' does not exist." ile tümüyle düşüyordu.
+describe("video: resim modeli yoksa sıradaki denenir", () => {
+  it("merdiven ayarlanan modelden başlar, çalışanı öne alır; yalnız 'model yok' hatası geçirir", async () => {
+    const { imageModelLadder, isMissingModelError } = await import("@/lib/learning/video-run");
+    expect(imageModelLadder("gpt-image-1", null)).toEqual(["gpt-image-1", "gpt-image-1.5", "gpt-image-1-mini", "gpt-image-2"]);
+    expect(imageModelLadder("gpt-image-1", "gpt-image-2")[0]).toBe("gpt-image-2");
+    expect(isMissingModelError({ status: 400, message: "400 The model 'gpt-image-1' does not exist." })).toBe(true);
+    expect(isMissingModelError({ status: 404, message: "not found" })).toBe(true);
+    expect(isMissingModelError({ status: 400, message: "Invalid size" })).toBe(false);
+  });
+});
