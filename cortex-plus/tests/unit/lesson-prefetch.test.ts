@@ -251,6 +251,44 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(await peek(row({ payload: null }))).toBeNull();
     expect(await peek({})).toBeNull();
   });
+  // 24 Ekim 2026 canlı: ısınma 20 sn içinde ilk kavramı yayımlamadı; istek vazgeçip dersi ikinci kez yazdı.
+  it("öğrenci isteği yeni başlamış yazımın ilk kavramını bekler, takılmış yazımı beklemez", async () => {
+    let clock = Date.parse("2026-10-18T10:00:00Z");
+    const claimed = (ago: number, publishAt: number | null) => {
+      const startedAt = clock;
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        maybeSingle: async () => {
+          clock += 1_000;
+          const published = publishAt !== null && clock - startedAt >= publishAt;
+          return {
+            data: {
+              familiarity: "basics",
+              status: "creating",
+              payload: published ? { type: "lesson", building: true } : null,
+              updated_at: new Date(startedAt - ago).toISOString(),
+            },
+          };
+        },
+      };
+      return { from: () => chain };
+    };
+    const realTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = ((fn: () => void) => realTimeout(fn, 0)) as typeof setTimeout;
+    try {
+      const peek = (service: unknown) =>
+        lib.peekBuildingPrefetch(service as never, { userId: "u", nodeId: "n", familiarity: "basics", waitMs: 20_000 }, () => clock);
+      // 5 sn önce başlamış, 30. saniyede yayımlıyor: 20 sn'de vazgeçmez, devralır.
+      expect(await peek(claimed(5_000, 30_000))).toMatchObject({ status: "building" });
+      // 2 dakikadır yayımlamayan yazım: yalnız eski 20 sn beklenir.
+      const started = clock;
+      expect(await peek(claimed(120_000, null))).toBeNull();
+      expect(clock - started).toBeLessThanOrEqual(22_000);
+    } finally {
+      globalThis.setTimeout = realTimeout;
+    }
+  });
 
   it("hazırlık kurulunca ilk ders yazılır; devralınan dersin kredisi yazım bitince kesinleşir, düşerse iade", () => {
     const create = read("src/app/api/learning/exam-prep/create/route.ts");

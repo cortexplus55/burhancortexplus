@@ -557,13 +557,14 @@ describe("öğretim turu ekran düşürmez (22 Ekim 2026 inceleme)", () => {
 describe("ikinci soru kavramı düşürmez, denetçi sonraki kavramları beklemez", () => {
   const badReview = (screen: number) => ({ where: `screens[${screen}].blocks[1].review`, severity: "high", problem: "[yapı kuralı] İkinci soru (review): doğru şıkkı aynı metin olmalı." });
 
-  it("sonraki kavramda yalnız ikinci soru kalırsa bir turdan sonra ikinci soru çıkar, kavram yayımlanır", async () => {
+  // 24 Ekim 2026: kodun ikinci soru kuralı düzeltmeyle düzelmiyordu; tur açılmadan çıkar.
+  it("sonraki kavramda kodun ikinci soru kuralı tur açmadan ikinci soruyu çıkarır, kavram yayımlanır", async () => {
     const { result, calls } = await run({
       verify: (user) => (user.includes("yalnız screens[1]") ? { issues: [badReview(1)] } : { issues: [] }),
       fix: () => ({ screens: [lesson.screens[1]], disputes: [] }),
     });
     expect(result.dropped).toEqual([]);
-    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
+    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(0);
     const check = result.lesson!.screens[1]!.blocks.find((block) => block.type === "check");
     expect(check && check.type === "check" ? check.check.review : "x").toBeUndefined();
     // Öbür kavramların ikinci soruları yerinde.

@@ -35,3 +35,25 @@ describe("ders denetçisi: sınav maddesi ve ikinci soru", () => {
     expect(isReviewIssue({ where: "screens[1].blocks[2]", severity: "high", problem: "x" })).toBe(false);
   });
 });
+
+// 24 Ekim 2026: maddeler Word notunun analizinden geldi, ders PDF'in 1. sayfasından yazıldı; denetçi "kaynakta
+// yer almıyor" diye tur açtı.
+describe("sınav maddeleri dersin kendi kaynağına göre süzülür", () => {
+  it("kaynakta geçen madde kalır, başka belgenin maddesi düşer", async () => {
+    const { examPointsInSource } = await import("@/lib/learning/exam-points");
+    const source = "Homeostazi iç ortamın dengede tutulmasıdır. Vücut sıcaklığı ve kan şekeri dar sınırlar içinde tutulur.";
+    const points = [
+      "Homeostazide vücut sıcaklığı ve kan şekeri dar sınırlar içinde tutulur",
+      "Reseptör uyarıyı algılar, kontrol merkezi değerlendirir, efektör yanıt verir",
+    ];
+    expect(examPointsInSource(points, source)).toEqual([points[0]]);
+    expect(examPointsInSource(points, "")).toEqual(points);
+    expect(examPointsInSource(undefined, source)).toEqual([]);
+  });
+
+  it("rota yalnız belgeli derste süzer", async () => {
+    const { readFileSync } = await import("node:fs");
+    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    expect(route).toContain("examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join(\"\\n\")) : input.examPoints,");
+  });
+});

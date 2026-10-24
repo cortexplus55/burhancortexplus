@@ -237,3 +237,28 @@ describe("fotoğrafta birden çok soru: tek soru çözülür, öbürleri söylen
     expect(read("src/components/learning/question-solver.tsx")).toContain("solution.otherQuestions?.length ?");
   });
 });
+
+// 24 Ekim 2026: Araçlar'da belgeden 10 soru istendi, 9 geldi (11 taslaktan 2'si elendi).
+describe("test motoru: yedek soru istenen sayıyla orantılı", () => {
+  it("küçük testte eski yedek, büyük testte dörtte bir", async () => {
+    const { quizSpareCount } = await import("@/lib/learning/teacher-quiz-run");
+    expect(quizSpareCount(5, false)).toBe(2);
+    expect(quizSpareCount(10, false)).toBe(3);
+    expect(quizSpareCount(20, false)).toBe(5);
+    expect(quizSpareCount(5, true)).toBe(3);
+    expect(quizSpareCount(10, true)).toBe(4);
+  });
+});
+
+// 24 Ekim 2026: 5 dakikalık diyalog yüklenirken "~3:00" gösterdi, ses 4:24 çıktı.
+describe("podcast süre tahmini ölçülen okuma hızından", () => {
+  it("iki seste 88 kelime/dk", async () => {
+    const { estimateEpisodeMinutes } = await import("@/components/learning/studio/podcast-studio");
+    const words = (n: number) => Array.from({ length: n }, () => "kelime").join(" ");
+    const chapters = [
+      { title: "A", lines: [{ speaker: "ada" as const, text: words(200) }, { speaker: "kerem" as const, text: words(188) }] },
+    ];
+    expect(estimateEpisodeMinutes(chapters)).toBe(4);
+    expect(estimateEpisodeMinutes([{ title: "B", lines: [{ speaker: "ada" as const, text: words(475) }] }])).toBe(5);
+  });
+});

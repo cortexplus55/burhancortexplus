@@ -42,6 +42,28 @@ export function examPointsBlock(points: readonly string[] | undefined, use: Exam
   ].join("\n");
 }
 
+const foldWord = (word: string) => word.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}]/gu, "");
+/** Sözcük kökü yerine ilk beş harf: Türkçe ekler sözcüğün sonunda ("reseptörler" ~ "reseptör"). */
+const stemOf = (word: string) => foldWord(word).slice(0, 5);
+
+/**
+ * Kaynağında geçen sınav maddeleri (24 Ekim 2026 lansman testi). Maddeler konu adıyla öbür belgelerin analizinden
+ * de gelebiliyor: beş dosyalı hazırlıkta "Homeostazi" dersi PDF'in 1. sayfasından yazılırken maddeler Word notunun
+ * analizinden geldi (reseptör–kontrol merkezi–efektör). Yazar maddeyi derse koydu, denetçi "kaynakta yer almıyor"
+ * diye tur açtı; dört tur, 181 sn. Madde, içerik sözcüklerinin (en az 5 harf) yarısı kaynakta geçiyorsa kalır;
+ * düşen madde yalnız yönlendirmeyi kaybeder, ders kaynaktan yazılmaya devam eder.
+ */
+export function examPointsInSource(points: readonly string[] | undefined, source: string): string[] {
+  const list = (points ?? []).map((point) => point.trim()).filter(Boolean);
+  if (!list.length || !source.trim()) return list;
+  const stems = new Set(source.split(/\s+/).filter((word) => foldWord(word).length >= 5).map(stemOf));
+  return list.filter((point) => {
+    const words = point.split(/\s+/).filter((word) => foldWord(word).length >= 5);
+    if (!words.length) return true;
+    return words.filter((word) => stems.has(stemOf(word))).length * 2 >= words.length;
+  });
+}
+
 /**
  * Ders denetçisi: kavramına ait madde yanlış aktarıldıysa ciddi sorun ('high'); kısımda hiç geçmiyorsa öğretim
  * sorunu ('medium': ilk kavramda tur açmaz, sonrakilerde en çok bir tur, kavramı asla attırmaz).

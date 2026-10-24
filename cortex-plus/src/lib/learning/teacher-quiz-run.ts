@@ -37,6 +37,16 @@ export type AskJson = (system: string, user: string, role?: "draft" | "verify" |
 const SPARE = 2;
 /** Konu testinde pedagojik kurallar da eler (20 Ekim 2026): bir yedek fazla, düzeltme turu daha seyrek. */
 const SPARE_TOPIC_TEST = 3;
+
+/**
+ * Yedek sayısı istenen sayıyla orantılı (24 Ekim 2026 lansman testi): Araçlar'da belgeden 10 soru istendi,
+ * 11 taslaktan 2'si elendi, öğrenciye 9 soru gitti (en az sayı 8 olduğu için ikinci geçiş açılmadı). Elenme payı
+ * ~%20; dörtte bir yedekle istenen sayı çoğu zaman ilk geçişte dolar.
+ */
+export function quizSpareCount(count: number, topicTest: boolean): number {
+  const proportional = Math.ceil(count / 4);
+  return topicTest ? Math.max(SPARE_TOPIC_TEST, proportional + 1) : Math.max(SPARE, proportional);
+}
 const MAX_FIX_ROUNDS = 2;
 /** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). Dinleme kontrolü saatini buna göre kurar. */
 export const QUIZ_FIX_DEADLINE_MS = 200_000;
@@ -179,7 +189,7 @@ export async function teacherQuizLoop(
     return rows;
   };
 
-  const draftCount = count + (scoped ? SPARE_TOPIC_TEST : SPARE);
+  const draftCount = count + quizSpareCount(count, scoped);
   let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
   if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
   if (!draft) return { questions: [], rejected: [], rounds: 0, softKept: 0, salvaged: [], forced: false, codes };

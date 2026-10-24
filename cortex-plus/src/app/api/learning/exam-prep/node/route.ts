@@ -186,6 +186,7 @@ import { adaptiveFocusTopic } from "@/lib/learning/path-change";
 import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { PREP_WIDE_TARGET_KINDS } from "@/lib/learning/prep-wide-target";
 import { retargetNodeTopic } from "@/lib/learning/prep-wide-target-server";
+import { examPointsInSource } from "@/lib/learning/exam-points";
 import {
   acceptFilledExplanations,
   buildWrittenExamReview,
@@ -3167,6 +3168,7 @@ async function teacherLessonPayload(
     pages: clean.length,
     cleanedByModelNow: clean.filter((item) => item.cleaned).length,
   });
+  const lessonPages = withSupport(clean, core);
   const outcome = await runTeacherLesson(input.service, {
     mode: core ? "document" : "topic",
     userId: input.userId,
@@ -3176,10 +3178,11 @@ async function teacherLessonPayload(
     // Kavram birimli konuda ders birimi anlatır: "Hukukun Temel Kavramları: Hükümsüzlüğün dereceleri".
     topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,
     prepTitle: input.prepTitle,
-    pages: withSupport(clean, core),
+    pages: lessonPages,
     upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
-    examPoints: input.examPoints,
+    // Belgeli derste yalnız dersin kaynağında geçen maddeler: başka belgenin maddesi "kaynakta yok" turu açıyordu.
+    examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
     startedAt,
     charge: input.charge,

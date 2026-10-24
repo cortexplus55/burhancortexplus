@@ -26,6 +26,10 @@ export const PREFETCH_HEADER = "x-cp-lesson-prefetch";
 const TOKEN_TTL_MS = 2 * 60_000;
 /** Yazımı yarıda kalmış kayıt bu süreden sonra yeniden denenebilir. */
 const STALE_CREATING_MS = 10 * 60_000;
+/** Süren ders yazımının ilk kavramı en geç bu kadarda yayımlaması beklenir (yazım başından). */
+const BUILD_FIRST_PUBLISH_MS = 55_000;
+/** Öğrenci isteğinin süren yazımı bekleme tavanı. */
+const BUILD_WAIT_CAP_MS = 45_000;
 
 function prefetchSecret(): string | null {
   return env.APP_SECRET || env.SUPABASE_SECRET_KEY || null;
@@ -312,7 +316,8 @@ export async function peekBuildingPrefetch(
   input: { userId: string; nodeId: string; familiarity: Familiarity; waitMs?: number },
   now: () => number = Date.now,
 ): Promise<{ status: "ready" } | { status: "building"; payload: Record<string, unknown> } | null> {
-  const deadline = now() + (input.waitMs ?? 0);
+  let deadline = now() + (input.waitMs ?? 0);
+  let extended = false;
   for (;;) {
     const { data } = await service
       .from("exam_prep_prefetch")
@@ -323,10 +328,19 @@ export async function peekBuildingPrefetch(
     if (!data) return null;
     if (familiarityBand(data.familiarity as Familiarity) !== familiarityBand(input.familiarity)) return null;
     if (data.status === "ready") return { status: "ready" };
-    const fresh = now() - Date.parse(String(data.updated_at ?? "")) < STALE_CREATING_MS;
+    const claimedAt = Date.parse(String(data.updated_at ?? ""));
+    const fresh = now() - claimedAt < STALE_CREATING_MS;
     if (!fresh) return null;
     if (data.payload && typeof data.payload === "object" && (data.payload as { type?: unknown }).type === "lesson") {
       return { status: "building", payload: data.payload as Record<string, unknown> };
+    }
+    // Yazım yeni başladıysa ilk kavramı yayımlayana kadar beklenir (24 Ekim 2026 canlı kayıt: ısınma 20 sn içinde
+    // yayımlamadı, istek vazgeçip aynı dersi sıfırdan ikinci kez yazdı; ilk ekran 52 sn). Yeni bir yazım ilk
+    // kavramı ~30 sn'de yayımlıyor: başlamış olanı beklemek her zaman daha kısa. Yazımın başlangıcından
+    // `BUILD_FIRST_PUBLISH_MS` sonrasına kadar; ondan eskiyse takılmış sayılır, beklenmez.
+    if (!extended && (input.waitMs ?? 0) > 0 && Number.isFinite(claimedAt)) {
+      extended = true;
+      deadline = Math.max(deadline, Math.min(now() + BUILD_WAIT_CAP_MS, claimedAt + BUILD_FIRST_PUBLISH_MS));
     }
     if (now() >= deadline) return null;
     await new Promise((resolve) => setTimeout(resolve, 1_000));
