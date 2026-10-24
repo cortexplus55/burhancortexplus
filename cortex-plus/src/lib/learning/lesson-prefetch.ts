@@ -240,19 +240,40 @@ export async function peekPrefetchedLesson(
  */
 export async function waitForPrefetchReady(
   service: SupabaseClient,
-  input: { userId: string; nodeId: string; maxMs: number },
+  input: {
+    userId: string;
+    nodeId: string;
+    maxMs: number;
+    /**
+     * İstenen seçim anahtarı (`prefetchVariant`). Yazım sürerken satıra kendi anahtarını yazan tür (konu testi,
+     * `tagQuizPrefetchClaim`): anahtar tutmuyorsa beklemek boşa, hemen dönülür; tutuyorsa `matchedMaxMs` kadar
+     * beklenir (24 Ekim 2026: istek 30 sn bekleyip aynı testi sıfırdan yazıyordu; önceden yazım 60 sn sonra
+     * bitti ve saklanmadı — öğrenci iki kez bekledi, test üç kez yazıldı).
+     */
+    variant?: string | null;
+    matchedMaxMs?: number;
+  },
   now: () => number = Date.now,
 ): Promise<boolean> {
-  const deadline = now() + input.maxMs;
+  let deadline = now() + input.maxMs;
+  let checkedTag = false;
   for (;;) {
     const { data } = await service
       .from("exam_prep_prefetch")
-      .select("status, updated_at")
+      .select("status, updated_at, payload")
       .eq("node_id", input.nodeId)
       .eq("user_id", input.userId)
       .maybeSingle();
     if (!data) return false;
     if (data.status === "ready") return true;
+    if (!checkedTag && input.variant) {
+      const tag = (data.payload as { prefetchVariant?: unknown } | null)?.prefetchVariant;
+      if (typeof tag === "string") {
+        checkedTag = true;
+        if (tag !== input.variant) return false;
+        if (input.matchedMaxMs) deadline = Math.max(deadline, now() + input.matchedMaxMs);
+      }
+    }
     if (now() - Date.parse(String(data.updated_at ?? "")) >= STALE_CREATING_MS) return false;
     if (now() >= deadline) return false;
     await new Promise((resolve) => setTimeout(resolve, 1_000));

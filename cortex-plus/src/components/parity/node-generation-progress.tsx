@@ -14,6 +14,26 @@ import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
  * sırayı anlatıyor; son adım gerçekten cevap gelene kadar döner.
  */
 
+/** Bekleme ekranının başlığı etkinliğin türüne göre; test açılırken "Dersin hazırlanıyor…" yazmasın. */
+const PREPARING_TITLE: Record<string, string> = {
+  lesson: "Dersin hazırlanıyor…",
+  quiz: "Testin hazırlanıyor…",
+  true_false: "Doğru/yanlış soruların hazırlanıyor…",
+  flashcards: "Kartların hazırlanıyor…",
+  spaced: "Kartların hazırlanıyor…",
+  podcast: "Podcast hazırlanıyor…",
+  qa: "Soru-cevap hazırlanıyor…",
+  focused: "Alıştırman hazırlanıyor…",
+  gaps: "Bilgi boşlukların hazırlanıyor…",
+  final_check: "Son kontrolün hazırlanıyor…",
+  written_exam: "Yazılı deneme hazırlanıyor…",
+  oral: "Sözlü deneme sınavı oluşturuluyor",
+};
+
+export function preparingTitle(kind: string | null | undefined): string {
+  return (kind && PREPARING_TITLE[kind]) || "Hazırlanıyor…";
+}
+
 export function NodeGenerationProgress({
   onClose,
   title = "Dersin hazırlanıyor…",

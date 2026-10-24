@@ -210,7 +210,8 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(create).toContain("await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId });");
     expect(route).toContain("requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number })");
     expect(route).toContain("if (!prefetch && action === \"start\") {");
-    expect(route).toContain("await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000 });");
+    // 24 Ekim 2026: aynı seçimle yazılan konu testi bitmek üzereyse daha uzun beklenir (launch-latency.test.ts).
+    expect(route).toContain("await waitForPrefetchReady(service, { userId, nodeId, maxMs: 30_000, variant, matchedMaxMs: PREFETCH_MATCHED_WAIT_MS });");
     expect(route).toContain("storePrefetchedLesson(service, nodeId, { ...payload, prefetchVariant: variant }, { warm })");
   });
 

@@ -57,6 +57,10 @@ export const SOLVER_SYSTEM = [
     "(math, sembolle: a = Δv / t = 20 / 4 = 5 m/s²) ve bir cümle açıklama (say). 3-7 adım.",
   "- Sözel soruda (kavram, kural, tarih, dil): önce cevap; optionsWhy: her şık için bir cümle, neden doğru ya da " +
     "neden yanlış (şık hangi kavrama/döneme/kurala ait). steps gerekmez.",
+  "- Şıklı işlemli soruda da optionsWhy her şık için bir cümle: yanlış şıkta, o sayıyı gerçekten veren tipik hatayı " +
+    "işlemiyle yaz (ör. \"son hızı bütün süreye uygularsan 20 × 4 = 80 bulursun\"); o sayıyı veren bir hata yoksa şıkkın " +
+    "neden olamayacağını doğru sonuçla karşılaştırarak söyle. \"Doğru yapıldığında elde edilmez\" gibi boş cümle yazma; " +
+    "yazdığın her işlem tutmalı.",
   "- trap: öğrencinin en çok karıştırdığı nokta (bir cümle). tip: akılda kalacak kısa kural ya da kısa yol (bir cümle). " +
     "check: işlemli soruda sonucun mantıklı olduğunu gösteren kısa kontrol (bir cümle); sözel soruda boş bırak.",
   "- intro: soruya nasıl yaklaşacağımızı söyleyen tek cümle.",
