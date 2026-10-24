@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 import {
   EXPLAIN_SCHEMA_HINT,
   buildExplainPrompt,
@@ -20,7 +21,12 @@ import {
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
   explanation: z.string().min(1).max(8000),
+  /** Belgeden (24 Ekim 2026): anlatım öğrencinin kendi notuna göre değerlendirilir. */
+  documentId: z.string().uuid().optional(),
 });
+
+/** Değerlendirmeye giden kaynak metnin üst sınırı (karakter). */
+const SOURCE_CHAR_CAP = 12_000;
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "explain", limit: 12 });
@@ -29,13 +35,18 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { topic, explanation } = parsed.data;
+  const { topic, explanation, documentId } = parsed.data;
 
   // Üç kelimelik bir anlatımı modele göndermek hem parayı hem öğrencinin
   // zamanını harcar; geri dönecek şey de "daha çok anlat" olurdu.
   if (!isLongEnough(explanation)) {
     return errorResponse(400, "too_short");
   }
+
+  // Hak ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
+  const source = documentId ? await studioTeacherSource(service, { userId, topic, documentId }) : null;
+  if (documentId && !source) return errorResponse(409, "document_not_ready");
+  const sourceText = source ? source.pages.map((page) => page.text).join("\n\n").slice(0, SOURCE_CHAR_CAP) : undefined;
 
   const outcome = await generateJson({
     service,
@@ -45,7 +56,7 @@ export async function POST(request: Request) {
     // ve Yanlışlarım'dan açılıyor, ders içi yardımcı değil — `freeMeter` verilmez, varsayılan "chat".
     isPremium: await isPremiumUser(service, userId),
     schemaHint: EXPLAIN_SCHEMA_HINT,
-    userPrompt: buildExplainPrompt(topic, explanation),
+    userPrompt: buildExplainPrompt(topic, explanation, sourceText),
     parse: (raw) => {
       const result = explainSchema.safeParse(raw);
       return result.success ? result.data : null;
@@ -59,5 +70,10 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(outcome.data);
+  return NextResponse.json({
+    ...outcome.data,
+    ...(source && documentId
+      ? { source: { kind: "document", documentId, fileName: source.fileName, wholeDocument: source.wholeDocument, matched: source.matched } }
+      : {}),
+  });
 }

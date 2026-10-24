@@ -310,3 +310,18 @@ describe("stüdyo yazılı deneme: sonuçtan soru incelemesine", () => {
     expect(readFileSync("src/components/learning/studio/studio-shared.tsx", "utf8")).toContain("Cevaplarını incele");
   });
 });
+
+// 24 Ekim 2026: "Anlatarak öğren" yalnız konu yazarak çalışıyordu; belgeden çalışan tek araç değildi.
+describe("anlatarak öğren belgeden de çalışır", () => {
+  it("kaynak verilince değerlendirme kaynağa göre", async () => {
+    const { buildExplainPrompt } = await import("@/lib/learning/explain-review");
+    const withSource = buildExplainPrompt("Aksiyon potansiyeli", "Anlatım", "Na kanalları açılır.");
+    expect(withSource).toContain("KAYNAK (öğrencinin kendi notu");
+    expect(withSource).toContain("Na kanalları açılır.");
+    expect(buildExplainPrompt("Aksiyon potansiyeli", "Anlatım")).not.toContain("KAYNAK");
+    const { readFileSync } = await import("node:fs");
+    const route = readFileSync("src/app/api/learning/explain/route.ts", "utf8");
+    expect(route).toContain("studioTeacherSource(service, { userId, topic, documentId })");
+    expect(readFileSync("src/app/studio/anlat/page.tsx", "utf8")).toContain("loadCompletedDocumentOptions");
+  });
+});
