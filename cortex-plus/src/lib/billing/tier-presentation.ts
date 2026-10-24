@@ -120,7 +120,8 @@ export function tierComparisonRows(): TierComparisonRow[] {
       sigma: "Belgenin tamamı",
     },
     {
-      label: "Fotoğraf / taranmış sayfa (ayda)",
+      // "Günde 1 fotoğraf" soru çözme hakkıyla karışıyordu (24 Ekim 2026): bu satır belgeye yüklenen resim sayfaları.
+      label: "Belgeye yüklenen fotoğraf / taranmış sayfa (ayda)",
       guest: "—",
       free: String(PHOTO_PAGE_LIMITS.free),
       plus: String(PHOTO_PAGE_LIMITS.plus),
