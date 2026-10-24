@@ -1289,4 +1289,5 @@ konuya yalnız kapak/özet sayfası bağlanınca (Homeostazi, PDF s.1) konu test
 
 Ölçülen (canlı): normal hızda ilk kavramın denetimi ~44 sn, hızlı işlemde ~4 sn. Ücretsiz öğrenci sıra dışı bir konu seçip
 hazır ders yokken açarsa ilk ekran ~50 sn; yolda sıradaki ders önceden yazılmış olduğu için normalde 2-3 sn. Ücretsizde
-ilk kavrama hızlı işlem vermek 19 Ekim kararına ters, ürün sahibine soruldu.
+ilk kavrama hızlı işlem verilmez (ürün sahibinin kararı, 24 Ekim 2026: "böyle kalsın"; 19 Ekim kararı aynen). Ücretsiz hesapta
+"Hazırsın" yazılı deneme (Plus) şartı yüzünden çıkmaz, en çok %99 — bu da bilerek böyle kalır (aynı gün, ürün sahibinin kararı).
