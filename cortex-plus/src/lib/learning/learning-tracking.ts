@@ -743,6 +743,33 @@ export function preferNextNodeForTracking<
   return ready[0];
 }
 
+/**
+ * Ücretsiz hesabın Plus adımında takılmış yolu (24 Ekim 2026). Tamamlama fonksiyonu (göç 20261024130000)
+ * bundan sonra Plus adımını atlıyor; ama düzeltmeden önce takılan yolda bitirilebilecek adım kalmadı
+ * (canlıda: ders bitti, podcast açık, gerisi kilitli). Açılabilir hazır adım yoksa fonksiyonun kuralıyla
+ * açılacak düğümler: önündeki her adım bitmiş ya da Plus'a özel olan ilk kilitli açılabilir adım ve
+ * yoldaki Plus adımları. Kural aynı: Plus adımı yolu tutmaz; başka hiçbir kilit kalkmaz.
+ */
+export function freePathUnblockIds<T extends { id: string; kind: string; status: NodeStatus; sortOrder: number }>(
+  nodes: T[],
+  skipKinds: ReadonlySet<string>,
+): string[] {
+  if (!skipKinds.size) return [];
+  const sorted = [...nodes].sort((a, b) => a.sortOrder - b.sortOrder);
+  if (sorted.some((n) => n.status === "ready" && !skipKinds.has(n.kind))) return [];
+  const ids: string[] = [];
+  for (const n of sorted) {
+    if (n.status === "done") continue;
+    if (skipKinds.has(n.kind)) {
+      if (n.status === "locked") ids.push(n.id);
+      continue;
+    }
+    // İlk bitmemiş açılabilir adım: kilitliyse açılır, yol devam eder.
+    return n.status === "locked" ? [...ids, n.id] : [];
+  }
+  return [];
+}
+
 export function weakOrStaleTopicKeys(
   topics: TopicMasterySnapshot[],
   now = Date.now(),

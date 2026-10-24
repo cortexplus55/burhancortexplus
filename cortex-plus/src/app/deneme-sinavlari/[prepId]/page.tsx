@@ -28,6 +28,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
+  freePathUnblockIds,
   preferNextNodeForTracking,
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
@@ -197,7 +198,7 @@ export default async function ExamPrepDetailPage({
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
-  const nodes = (nodeRows ?? []).map((row) => ({
+  const nodeList = (nodeRows ?? []).map((row) => ({
     id: row.id as string,
     kind: row.kind as PlanNodeKind,
     title: row.title as string,
@@ -218,9 +219,24 @@ export default async function ExamPrepDetailPage({
         : null,
   }));
 
-  const progress = nodeProgress(nodes);
-  // Ücretsiz hesapta Plus'a özel adım "Sıradaki" olmaz: açamaz (24 Ekim 2026, `pathSkipKinds`).
+  // Ücretsiz hesapta Plus'a özel adım "Sıradaki" olmaz: açamaz (24 Ekim 2026, `pathSkipKinds`). Düzeltmeden
+  // önce Plus adımında takılmış yol bir kez açılır (`freePathUnblockIds`, tamamlama fonksiyonunun kuralı).
   const skipKinds = await pathSkipKinds(service, user.id);
+  const unblock = freePathUnblockIds(nodeList, skipKinds);
+  if (unblock.length) {
+    const { error: unblockError } = await service
+      .from("exam_prep_nodes")
+      .update({ status: "ready" })
+      .eq("exam_prep_id", prep.id)
+      .eq("status", "locked")
+      .in("id", unblock);
+    if (unblockError) console.warn("free_path_unblock_failed", { code: unblockError.code });
+  }
+  const opened = new Set(unblock);
+  const nodes = nodeList.map((node) =>
+    opened.has(node.id) && node.status === "locked" ? { ...node, status: "ready" as const } : node,
+  );
+  const progress = nodeProgress(nodes);
   let ready = nodes.find((node) => node.status === "ready" && !skipKinds.has(node.kind));
   // Astra: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
   // Eskiden önce "Konu seç", sonra zorunlu 8 soruluk tanı geliyordu. Etkin
