@@ -317,7 +317,18 @@ export async function takePrefetchedLesson(
  */
 export async function peekBuildingPrefetch(
   service: SupabaseClient,
-  input: { userId: string; nodeId: string; familiarity: Familiarity; waitMs?: number },
+  input: {
+    userId: string;
+    nodeId: string;
+    familiarity: Familiarity;
+    waitMs?: number;
+    /**
+     * Yeni başlamış yazımın ilk kavramını bekle (`BUILD_FIRST_PUBLISH_MS`). Yalnız hızlı işlemi olmayan öğrenci için:
+     * onun soğuk yazımı da normal hızda, başlamış olanı beklemek kısa. Hızlı işlemli öğrencinin soğuk yazımı ilk
+     * kavramı ~14 sn'de yayımlıyor; normal hızdaki ısınmayı 35 sn beklemek onu yavaşlatıyordu (24 Ekim 2026 canlı).
+     */
+    extendForBuild?: boolean;
+  },
   now: () => number = Date.now,
 ): Promise<{ status: "ready" } | { status: "building"; payload: Record<string, unknown> } | null> {
   let deadline = now() + (input.waitMs ?? 0);
@@ -342,7 +353,7 @@ export async function peekBuildingPrefetch(
     // yayımlamadı, istek vazgeçip aynı dersi sıfırdan ikinci kez yazdı; ilk ekran 52 sn). Yeni bir yazım ilk
     // kavramı ~30 sn'de yayımlıyor: başlamış olanı beklemek her zaman daha kısa. Yazımın başlangıcından
     // `BUILD_FIRST_PUBLISH_MS` sonrasına kadar; ondan eskiyse takılmış sayılır, beklenmez.
-    if (!extended && (input.waitMs ?? 0) > 0 && Number.isFinite(claimedAt)) {
+    if (!extended && input.extendForBuild && (input.waitMs ?? 0) > 0 && Number.isFinite(claimedAt)) {
       extended = true;
       deadline = Math.max(deadline, Math.min(now() + BUILD_WAIT_CAP_MS, claimedAt + BUILD_FIRST_PUBLISH_MS));
     }

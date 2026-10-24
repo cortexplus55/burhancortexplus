@@ -187,6 +187,7 @@ import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { PREP_WIDE_TARGET_KINDS } from "@/lib/learning/prep-wide-target";
 import { retargetNodeTopic } from "@/lib/learning/prep-wide-target-server";
 import { examPointsInSource } from "@/lib/learning/exam-points";
+import { fastAllowedFor } from "@/lib/learning/fast-access";
 import {
   acceptFilledExplanations,
   buildWrittenExamReview,
@@ -1573,7 +1574,16 @@ async function handleNodeRequest(
   // denetlenmiş kısmı hemen görür; kalanı önceden yazım yazdıkça kaydına düşer.
   if (kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.lessonStream === true) {
     const peekStarted = Date.now();
-    const building = await peekBuildingPrefetch(service, { userId, nodeId, familiarity, waitMs: 20_000 });
+    // Hızlı işlemli öğrenci (Plus, kurucu) kısa bekler: soğuk yazımı ilk kavramı ~14 sn'de yayımlıyor; ısınma normal
+    // hızda. Ücretsiz öğrencinin yazımı da normal hızda: başlamış ısınmanın ilk kavramı beklenir (24 Ekim 2026).
+    const fastOpen = await fastAllowedFor(service, userId).catch(() => false);
+    const building = await peekBuildingPrefetch(service, {
+      userId,
+      nodeId,
+      familiarity,
+      waitMs: fastOpen ? 8_000 : 20_000,
+      extendForBuild: !fastOpen,
+    });
     peekBuildingMs = Date.now() - peekStarted;
     if (building?.status === "building") {
       const requestId = clientRequestId ?? crypto.randomUUID();
