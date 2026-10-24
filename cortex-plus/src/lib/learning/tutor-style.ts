@@ -46,7 +46,10 @@ export function parseTutorStyle(value: unknown): TutorStyle {
 /** Soru-cevap düğümü quiz üretir; sohbet disiplininin soru hâli. */
 export const QA_TEACHER_PROMPT =
   "Soru-cevap öğretimi: explanation cevabı ilk kelimede yapıştırmaz. Sıra: takılacağı yer, bir ipucu, sonra neden. " +
-  "Yanlış şık bir yanılgıdır; misconceptionTag dolu olur ve açıklama o şıkkı çürütür. Filler yok. Kaynak varsa ona bağlı kal.";
+  "Yanlış şık bir yanılgıdır; misconceptionTag dolu olur ve açıklama o şıkkı çürütür. Filler yok. Kaynak varsa ona bağlı kal. " +
+  // 24 Ekim 2026 lansman testi: beş sorunun beşi "algılayan yapı ile düzeltici yanıtı eşleştiren seçenek" kalıbıydı.
+  "Sorular farklı kalıplarda: aynı soru kökü kalıbı en çok iki soruda; tanım, durum (vaka), neden ve karşılaştırma " +
+  "sorularını karıştır, her soru konunun başka bir noktasını yoklar.";
 
 export const TUTOR_ANSWER_DISCIPLINE =
   "Cevabı baştan yapıştırma. Her yanıtta sırayla: (1) öğrencinin nerede takıldığı, (2) tek ipucu veya tek adım, (3) kontrol sorusu. Tam çözümü ancak öğrenci açıkça isterse yaz. " +
