@@ -13,7 +13,7 @@ import { PREP_TITLE_SYSTEM, prepTitleFromModel, prepTitleUserPrompt } from "@/li
  */
 export async function namePrepFromTopics(
   service: SupabaseClient,
-  input: { userId: string; topics: string[]; subject?: string | null },
+  input: { userId: string; topics: string[]; subject?: string | null; units?: string[] },
 ): Promise<string | null> {
   if (!env.OPENAI_API_KEY || input.topics.length < 2) return null;
   try {

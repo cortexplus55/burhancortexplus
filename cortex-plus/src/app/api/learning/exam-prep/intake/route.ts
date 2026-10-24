@@ -199,6 +199,7 @@ async function probeDocumentTitle(
   userId: string,
   documentId: string | undefined,
   topicTitles: string[],
+  unitTitles: string[] = [],
 ): Promise<string> {
   if (!documentId) return "";
   // Tek ana konu: ad o konudur. Ücretsizde 5 sayfa çoğu zaman tek konu
@@ -206,7 +207,7 @@ async function probeDocumentTitle(
   // düşülüyordu ("Uat 99 Sayfa Trigonometri", 8 Ekim 2026).
   const single = topicTitles.length === 1 ? prepTitleFromModel({ title: topicTitles[0] }) : null;
   if (single) return single;
-  const named = await namePrepFromTopics(service, { userId, topics: topicTitles });
+  const named = await namePrepFromTopics(service, { userId, topics: topicTitles, units: unitTitles });
   if (named) return named;
   const [{ data: doc }, { data: pages }] = await Promise.all([
     service
@@ -452,6 +453,7 @@ export async function POST(request: Request) {
               userId,
               documentIds[0] ?? parsed.data.documentId,
               merged.topics,
+              (consolidated?.units ?? intakeUnits).map((unit) => unit.title),
             ),
             examType: "Serbest",
             topics: merged.topics,

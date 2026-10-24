@@ -36,3 +36,20 @@ describe("tek konulu ünitenin başlığı", () => {
     expect(redundantUnitHeader("SOLUNUM SİSTEMİ", ["Solunum Yolları"])).toBe(false);
   });
 });
+
+// 24 Ekim 2026 lansman testi: ünitesiz ilk konu "Diğer" başlığıyla listenin sonuna düşüyordu.
+describe("kurulumun konu listesi yolun sırasıyla", () => {
+  it("ünitesiz konu kendi yerinde, ünite ilk konusunun yerinde", async () => {
+    const { listSegments } = await import("@/lib/learning/exam-wizard-copy");
+    const units = [
+      { title: "Sinir Sistemi", topicIndexes: [1, 2] },
+      { title: "Endokrin Sistem", topicIndexes: [4, 5] },
+    ];
+    expect(listSegments(units, [0, 3])).toEqual([
+      { kind: "topic", index: 0 },
+      { kind: "unit", unit: units[0] },
+      { kind: "topic", index: 3 },
+      { kind: "unit", unit: units[1] },
+    ]);
+  });
+});

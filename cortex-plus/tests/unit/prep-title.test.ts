@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PREP_TITLE_SYSTEM, prepTitleFromModel, prepTitleUserPrompt } from "@/lib/learning/prep-title";
+import { PREP_TITLE_SYSTEM, prepTitleFromModel, prepTitleUserPrompt, spreadTopics } from "@/lib/learning/prep-title";
 
 /*
   3 Ekim 2026: aynı KPSS kitabına Astra "Vatandaşlık ve Hukukun Temel
@@ -30,7 +30,22 @@ describe("hazırlığın adı içerikten", () => {
     expect(prompt).toContain("2. Anayasa Hukuku");
     expect(PREP_TITLE_SYSTEM).toContain("Konu Anlatımı");
     const intake = readFileSync("src/app/api/learning/exam-prep/intake/route.ts", "utf8");
-    expect(intake).toContain("const named = await namePrepFromTopics(service, { userId, topics: topicTitles });");
+    expect(intake).toContain("const named = await namePrepFromTopics(service, { userId, topics: topicTitles, units: unitTitles });");
+  });
+
+  // 24 Ekim 2026: 32 konunun ilk 15'i ilk üç sistemdi; ad "Sinir, Endokrin ve Duyu Sistemleri" oldu.
+  it("ad bütün kapsamdan: üniteler ve listeye yayılan konular", () => {
+    const topics = Array.from({ length: 32 }, (_, i) => `Konu ${i + 1}`);
+    const spread = spreadTopics(topics);
+    expect(spread).toHaveLength(15);
+    expect(spread[0]).toBe("Konu 1");
+    expect(spread.at(-1)).toBe("Konu 32");
+    const prompt = prepTitleUserPrompt({ topics, units: ["Sinir Sistemi", "Endokrin Sistem", "Boşaltım Sistemi"] });
+    expect(prompt).toContain("Üniteler (hazırlığın bütün kapsamı):");
+    expect(prompt).toContain("3. Boşaltım Sistemi");
+    expect(prompt).toContain("Konu 32");
+    expect(prepTitleUserPrompt({ topics: ["A", "B"] })).toContain("Ana konular:");
+    expect(PREP_TITLE_SYSTEM).toContain("Üniteler verildiyse başlık hepsini kapsar");
   });
 
   // 8 Ekim 2026: ücretsiz 5 sayfadan tek konu çıktı, ad dosya adına düştü.
@@ -45,5 +60,15 @@ describe("hazırlığın adı içerikten", () => {
   it("yol kartı kavram birimli derste dersin adını yazar", () => {
     const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
     expect(home).toContain('if (unit) return unit.replace(/^Ders \\d+\\/\\d+: /, "");');
+  });
+});
+
+// 24 Ekim 2026 lansman testi: beş dosyalı hazırlıkta fotoğraflar notun konularını "…Eşleştirme Kartı",
+// "…Şeması" adıyla ikinci kez açtı. Başlık içeriği adlandırır; tekrar eden dosya ayrı konu açmaz.
+describe("kurs haritası: materyalin biçimi konu adı olmaz", () => {
+  it("istem biçim adlarını ve tekrar eden dosyayı yasaklar", () => {
+    const prompt = readFileSync("src/lib/documents/outline-oneshot.ts", "utf8");
+    expect(prompt).toContain("Konu başlığı içeriği adlandırır, materyalin biçimini değil");
+    expect(prompt).toContain("ayrı konu açma");
   });
 });

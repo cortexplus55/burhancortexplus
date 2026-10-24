@@ -108,6 +108,22 @@ export function redundantUnitHeader(unitTitle: string, topicTitles: string[]): b
   return topicTitles.length === 1 && foldTitle(unitTitle) === foldTitle(topicTitles[0] ?? "");
 }
 
+/**
+ * Kurulumun konu listesi yolun sırasıyla (24 Ekim 2026 lansman testi): üniteye bağlı olmayan konu "Diğer"
+ * başlığıyla en sona düşüyordu; beş dosyalı hazırlıkta yolun ilk konusu (Homeostazi) listenin sonunda göründü.
+ * Ünite ilk konusunun yerinde, ünitesiz konu kendi yerinde ve başlıksız.
+ */
+export function listSegments(
+  units: readonly { title: string; topicIndexes: number[] }[],
+  orphanIndexes: readonly number[],
+): ({ kind: "unit"; unit: { title: string; topicIndexes: number[] } } | { kind: "topic"; index: number })[] {
+  const segments = [
+    ...units.map((unit) => ({ at: Math.min(...unit.topicIndexes), segment: { kind: "unit" as const, unit } })),
+    ...orphanIndexes.map((index) => ({ at: index, segment: { kind: "topic" as const, index } })),
+  ];
+  return segments.sort((a, b) => a.at - b.at).map((entry) => entry.segment);
+}
+
 /** Yükleme sırasında hangi dosyanın okunduğu. */
 export function fileProgressLine(
   done: number,
