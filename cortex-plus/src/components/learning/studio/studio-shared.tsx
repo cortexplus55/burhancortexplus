@@ -222,6 +222,7 @@ export function StudioResults({
   lead,
   onAgain,
   onNew,
+  reviewHref,
 }: {
   tool: StudioToolId;
   topic: string;
@@ -230,6 +231,8 @@ export function StudioResults({
   lead: string;
   onAgain: () => void;
   onNew: () => void;
+  /** Soru soru inceleme sayfası (yazılı deneme); verilirse ilk düğme o olur. */
+  reviewHref?: string;
 }) {
   const next = STUDIO_NEXT[tool];
   const isPlus = Boolean(useStudentShellAccount()?.isPremium);
@@ -244,7 +247,12 @@ export function StudioResults({
       <h2>{title}</h2>
       <p>{lead}</p>
       <div className="ls-actions">
-        <button type="button" className="ls-cta" onClick={onAgain}>
+        {reviewHref ? (
+          <Link href={reviewHref} className="ls-cta">
+            Cevaplarını incele
+          </Link>
+        ) : null}
+        <button type="button" className={reviewHref ? "ls-ghost" : "ls-cta"} onClick={onAgain}>
           Tekrar dene
         </button>
         <button type="button" className="ls-ghost" onClick={onNew}>

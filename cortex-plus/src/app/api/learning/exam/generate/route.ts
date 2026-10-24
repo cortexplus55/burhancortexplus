@@ -87,6 +87,8 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     examId: result.examId,
+    // Sonuçta soru soru inceleme (`/deneme-sinavlari/[prepId]/deneme/[examId]/incele`) için (24 Ekim 2026).
+    prepId: resolvedPrepId,
     title: examTitle(),
     source,
     durationMinutes: result.blueprint.durationMinutes,

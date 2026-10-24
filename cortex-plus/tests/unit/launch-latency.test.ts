@@ -282,3 +282,31 @@ describe("soru çözücü: uzlaştırılan çözüm 'aynı sonucu verdi' demez",
     expect(readFileSync("src/lib/solve/solve-run.ts", "utf8")).toContain("emit({ type: \"solution\", solution, status, ms: elapsed(), agreed });");
   });
 });
+
+// 24 Ekim 2026: Araçlar'da 5 soruluk yazılı 5 çoktan seçmeli çıktı; tür yerleri 10'luk plandan kalıyordu.
+describe("yazılı deneme: soru türleri seçilen sayıya göre", () => {
+  it("5 ve 15 soruda da açık uçlu ve çok cevaplı yer var", async () => {
+    const { defaultSlots } = await import("@/lib/learning/mock-exam");
+    for (const count of [5, 15]) {
+      const types = defaultSlots(count, false).map((slot) => slot.type);
+      expect(types).toHaveLength(count);
+      expect(types).toContain("open");
+      expect(types).toContain("multi_mcq");
+    }
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync("src/lib/learning/mock-exam/create.ts", "utf8")).toContain(
+      "blueprint.slots = defaultSlots(input.questionCount, allowNumeric);",
+    );
+  });
+});
+
+// 24 Ekim 2026: Araçlar'daki yazılı denemenin sonucunda soru soru inceleme yoktu.
+describe("stüdyo yazılı deneme: sonuçtan soru incelemesine", () => {
+  it("üretim hazırlık kimliğini döner, sonuç inceleme bağlantısı verir", async () => {
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync("src/app/api/learning/exam/generate/route.ts", "utf8")).toContain("prepId: resolvedPrepId,");
+    const studio = readFileSync("src/components/learning/studio/written-studio.tsx", "utf8");
+    expect(studio).toContain("/deneme/${examId}/incele");
+    expect(readFileSync("src/components/learning/studio/studio-shared.tsx", "utf8")).toContain("Cevaplarını incele");
+  });
+});

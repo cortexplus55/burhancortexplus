@@ -46,7 +46,7 @@ export const STUDIO_INTRO: Record<StudioToolId, StudioIntro> = {
   },
   yazili: {
     greeting:
-      "Yazılı hazırlayalım. Hangi konudan sekiz soru çıkarayım? Sonunda notunu ve eksik kaldığın yerleri de vereceğim.",
+      "Yazılı hazırlayalım. Hangi konudan soru çıkarayım? Sonunda notunu ve eksik kaldığın yerleri de vereceğim.",
     suggestions: ["Fonksiyonlar", "Elektrik devreleri", "Paragraf soruları"],
   },
   anlat: {
