@@ -226,6 +226,29 @@ describe("course map round (fake DB, real credit semantics)", () => {
       { title: "İkinci Ünite", topicIndexes: [2, 3, 4] },
     ]);
   });
+  // 24 Ekim 2026 lansman testi: ünitenin konuları yalnız bir dosyadaydı; öbür dosyadaki boş ünite kopyası sayfasız
+  // bir konu sayıldı, listenin başına "Diğer" olarak düştü ve dersi PDF'in 1. sayfasından yazıldı.
+  it("a unit whose topics live in another file is not read back as a pageless topic", async () => {
+    const { db, client } = mkDb([
+      { id: "dA", name: "a.pdf", pages: 12, file: 0 },
+      { id: "dB", name: "b.docx", pages: 6, file: 1 },
+    ]);
+    model.impl = () =>
+      outline([
+        { title: "Birinci Ünite", topics: [[1, 2]] },
+        { title: "İkinci Ünite", topics: [[0, 3], [0, 5]] },
+      ]);
+    await runRounds(client, ["dA", "dB"]);
+    const nodes = db.tables.document_topic_nodes as any[];
+    // Canlıdaki durum: dA'da "Birinci Ünite"nin boş kopyası (konusu ve sayfası yok, kurs etiketi aynı).
+    const unitB = nodes.find((n) => n.document_id === "dB" && !n.parent_id && n.title === "Birinci Ünite");
+    const unitA = nodes.find((n) => n.document_id === "dA" && !n.parent_id);
+    expect(unitB && unitA).toBeTruthy();
+    nodes.push({ ...unitA, id: "empty-unit-copy", title: "Birinci Ünite", sort_order: unitB.sort_order });
+    const intake = await loadOneshotIntakeTopics(client as any, "u1", ["dA", "dB"]);
+    expect(intake!.topics.map((t) => t.title)).toEqual([heading(1, 2), heading(0, 3), heading(0, 5)]);
+    expect(intake!.topics.every((t) => t.pages.length > 0)).toBe(true);
+  });
 
   it("#247 on the course map: overlapping pages go to one topic; the course order stays", async () => {
     const { db, client } = mkDb([{ id: "dA", name: "a.pdf", pages: 12, file: 0 }]);

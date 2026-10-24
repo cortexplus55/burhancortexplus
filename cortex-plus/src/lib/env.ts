@@ -98,8 +98,11 @@ export const envSchema = z.object({
    */
   OPENAI_OUTLINE_FALLBACK_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
-  /** Video dersin sahne resimleri (17 Ekim 2026). dall-e-3 de çalışır; boyut ona göre seçilir. */
-  OPENAI_IMAGE_MODEL: z.string().default("gpt-image-1"),
+  /**
+   * Video dersin sahne resimleri (17 Ekim 2026). dall-e-3 de çalışır; boyut ona göre seçilir. 24 Ekim 2026: canlı
+   * anahtarın projesi gpt-image-1'i görmüyor; varsayılan gpt-image-1.5 (yine yoksa `imageModelLadder`).
+   */
+  OPENAI_IMAGE_MODEL: z.string().default("gpt-image-1.5"),
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
   /** TypeSafe Jev decision engine (server-only; never expose to client). */
   TYPESAFE_API_KEY: z.string().optional(),
