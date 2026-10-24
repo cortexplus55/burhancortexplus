@@ -17,4 +17,12 @@ describe("görsel model fiyat satırı", () => {
     expect(sql).toContain("VALUES ('gpt-image-1', 16.0, 0)");
     expect(sql).toContain("ON CONFLICT (model) DO NOTHING");
   });
+
+  // 24 Ekim 2026: canlı anahtar gpt-image-1 görmüyor; varsayılan gpt-image-1.5, fiyatı da tabloda.
+  it("varsayılan resim modeli gpt-image-1.5 ve fiyat satırı var", () => {
+    expect(readFileSync("src/lib/env.ts", "utf8")).toContain('OPENAI_IMAGE_MODEL: z.string().default("gpt-image-1.5")');
+    const sql = readFileSync("supabase/migrations/20261024140000_image_model_15_price.sql", "utf8").replace(/^--.*$/gm, "");
+    expect(sql).toContain("VALUES ('gpt-image-1.5', 13.0, 0)");
+    expect(sql).toContain("ON CONFLICT (model) DO NOTHING");
+  });
 });

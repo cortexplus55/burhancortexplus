@@ -281,7 +281,7 @@ describe("önceden hazırlama: geniş kapsam", () => {
     globalThis.setTimeout = ((fn: () => void) => realTimeout(fn, 0)) as typeof setTimeout;
     try {
       const peek = (service: unknown) =>
-        lib.peekBuildingPrefetch(service as never, { userId: "u", nodeId: "n", familiarity: "basics", waitMs: 20_000 }, () => clock);
+        lib.peekBuildingPrefetch(service as never, { userId: "u", nodeId: "n", familiarity: "basics", waitMs: 20_000, extendForBuild: true }, () => clock);
       // 5 sn önce başlamış, 30. saniyede yayımlıyor: 20 sn'de vazgeçmez, devralır.
       expect(await peek(claimed(5_000, 30_000))).toMatchObject({ status: "building" });
       // 2 dakikadır yayımlamayan yazım: yalnız eski 20 sn beklenir.
@@ -295,7 +295,8 @@ describe("önceden hazırlama: geniş kapsam", () => {
 
   it("hazırlık kurulunca ilk ders yazılır; devralınan dersin kredisi yazım bitince kesinleşir, düşerse iade", () => {
     const create = read("src/app/api/learning/exam-prep/create/route.ts");
-    expect(route).toContain("peekBuildingPrefetch(service, { userId, nodeId, familiarity, waitMs: 20_000 })");
+    expect(route).toContain("waitMs: fastOpen ? 8_000 : 20_000,");
+    expect(route).toContain("extendForBuild: !fastOpen,");
     expect(route).toContain("payload: { ...building.payload, adoptedPrefetch: true }");
     expect(route).toContain('outcome: "commit"');
     expect(route).toContain('outcome: "refund"');

@@ -78,7 +78,13 @@ export async function loadOneshotIntakeTopics(
   const units: IntakeStudyUnit[] = [];
   for (const nodes of isCourse ? [perDoc.flat()] : perDoc) {
     const parentIds = new Set(nodes.map((n) => n.parent_id).filter(Boolean) as string[]);
-    const leaves = nodes.filter((n) => !parentIds.has(n.id as string)).sort(bySortOrder);
+    // Kursta ünite her dosyaya ayrı yazılıyor; konuları başka dosyada kalan ünitenin bu dosyadaki kopyası çocuksuz
+    // ve sayfasız. Konu sayılırsa listenin başına "Diğer" olarak düşüyor, dersi kaynaksız (PDF'in 1. sayfasından)
+    // yazılıyordu (24 Ekim 2026 lansman testi). Sayfası olmayan üst düğüm konu değildir.
+    const leaves = nodes
+      .filter((n) => !parentIds.has(n.id as string))
+      .filter((n) => !isCourse || n.parent_id != null || (pagesByTopic.get(n.id as string)?.length ?? 0) > 0)
+      .sort(bySortOrder);
     if (!leaves.length || leaves.length > 40) return null;
     // A course unit spanning files is stored once per file with the same order.
     const unitByOrder = new Map<number, { title: string; ids: Set<string> }>();

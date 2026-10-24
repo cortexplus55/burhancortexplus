@@ -121,7 +121,7 @@ export function NodeGenerationProgress({
       {slow && !note ? (
         <p className="apg-slow">
           Beklenenden uzun sürüyor — hâlâ üzerinde çalışıyoruz. Sayfayı kapatsan
-          da ders hazırlanmaya devam eder.
+          da hazırlanmaya devam eder.
         </p>
       ) : null}
       {hint ? (
