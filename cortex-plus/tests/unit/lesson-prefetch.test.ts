@@ -179,8 +179,8 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", afterSortOrder: 1 }))?.id).toBe("n-quiz");
     const none = [{ id: "n-final", kind: "final_check", status: "ready", session_meta: {} }];
     expect(await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: none }), { prepId: "p", afterSortOrder: 1 })).toBeNull();
-    for (const kind of ["lesson", "quiz", "true_false", "flashcards", "podcast", "oral"]) expect(lib.PREFETCH_KINDS.has(kind)).toBe(true);
-    for (const kind of ["gaps", "focused", "final_check", "spaced", "readiness", "written_exam", "qa"]) expect(lib.PREFETCH_KINDS.has(kind)).toBe(false);
+    for (const kind of ["lesson", "quiz", "true_false", "flashcards", "podcast", "oral", "qa"]) expect(lib.PREFETCH_KINDS.has(kind)).toBe(true);
+    for (const kind of ["gaps", "focused", "final_check", "spaced", "readiness", "written_exam"]) expect(lib.PREFETCH_KINDS.has(kind)).toBe(false);
   });
 
   // 24 Ekim 2026: ücretsiz hesapta pencere [podcast, soru-cevap] olunca sıradaki test hiç önceden yazılmıyordu.
@@ -192,7 +192,10 @@ describe("önceden hazırlama: geniş kapsam", () => {
     ];
     const free = new Set(["podcast", "oral", "written_exam"]);
     expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", afterSortOrder: 0 }))?.id).toBe("n-podcast");
-    expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", afterSortOrder: 0, skipKinds: free }))?.id).toBe("n-quiz");
+    expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: rows }), { prepId: "p", afterSortOrder: 0, skipKinds: free }))?.id).toBe("n-qa");
+    // Soru-cevap da önceden yazılır (24 Ekim 2026); onu bir Plus adımı ve hazırlanmayan adım izliyorsa test.
+    const later = [rows[0], { id: "n-gaps", kind: "gaps", status: "locked", session_meta: {} }, rows[2]];
+    expect((await lib.nextPrefetchNode(fakeService({ exam_prep_nodes: later }), { prepId: "p", afterSortOrder: 0, skipKinds: free }))?.id).toBe("n-quiz");
   });
 
   it("hazır içerik öğrencinin seçimine uyuyorsa verilir: zorluk, podcast süresi, sözlü ayarları", () => {

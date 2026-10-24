@@ -3025,6 +3025,7 @@ async function generateNodePayload(input: {
       count: Math.max(4, quizCount),
       topicLabel: input.topicLabel,
       prepTitle: input.prepTitle,
+      charge: input.charge,
       userPrompt: input.teachingV2
         ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,

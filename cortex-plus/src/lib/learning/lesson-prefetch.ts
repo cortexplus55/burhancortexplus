@@ -171,7 +171,11 @@ export async function storePrefetchedLesson(
  * model çağırmadan kurulur — erken kurulsa son yanlışları kaçırırdı. Yazılı deneme ve sohbet
  * kendi akışlarında.
  */
-export const PREFETCH_KINDS: ReadonlySet<string> = new Set(["lesson", "quiz", "true_false", "flashcards", "podcast", "oral"]);
+/**
+ * Önceden yazılan türler. Soru-cevap 24 Ekim 2026'dan beri (lansman testi): ücretsiz yolda dersin hemen arkasındaki
+ * adım o (podcast Plus'ta atlanıyor) ve soğuk yazımı 48 sn sürdü.
+ */
+export const PREFETCH_KINDS: ReadonlySet<string> = new Set(["lesson", "quiz", "true_false", "flashcards", "podcast", "oral", "qa"]);
 
 /** Seçimli etkinliklerin varsayılanları: önceden yazım bunlarla yazılır (istemcinin ilk seçimi). */
 export const PREFETCH_DEFAULTS = {
