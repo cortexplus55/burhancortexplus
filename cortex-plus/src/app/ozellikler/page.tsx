@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
+import { FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
 import "@/styles/landing.css";
 
 export const metadata = {
@@ -12,11 +13,17 @@ export const metadata = {
 
 /*
   19 Ekim 2026: sayfa "gelişmiş model", "çalışma planı ve günlük görevler", "her işlem öncesi kredi
-  gösterilir" diyordu; üçü de yoktu. Her kart bugün çalışan bir araca karşılık gelir; ücretsiz günlük
-  haktan büyük olanlar "Plus" etiketli (podcast 12, sözlü 8, deneme 15, fotoğraf 10 kredi; günlük hak 6).
+  gösterilir" diyordu; üçü de yoktu. Her kart bugün çalışan bir araca karşılık gelir.
+
+  24 Ekim 2026 (kredi v3): ücretsiz hesap sayaçla — haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf
+  (`free-meters.ts`). "Plus" etiketliler ücretsiz hesapta hiç açılmayan işler (`PLUS_ONLY_ACTIONS`:
+  podcast, sözlü, yazılı deneme, video, ses); sayılar koddan okunur, sayfaya elle yazılmaz.
 */
 
 type Feature = { icon: Icon3DName; title: string; body: string; plus?: boolean };
+
+/** "haftada 3 ders (testleri ve kartlarıyla), günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü" */
+const FREE_TIER_LOWER = `${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)}`;
 
 const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
   {
@@ -37,7 +44,7 @@ const GROUPS: { title: string; lead: string; items: Feature[] }[] = [
       { icon: "konu-testi", title: "Konu testi", body: "Her şıkkın neden doğru ya da yanlış olduğu ayrı ayrı açıklanır." },
       { icon: "dogru-yanlis", title: "Doğru / Yanlış", body: "Hızlı kontrol; yanlış cümlenin doğrusu yanında." },
       { icon: "tekrar", title: "Yanlışlar defteri", body: "Testlerde yanlış yaptığın soru konusuyla deftere yazılır; her gün defterinden 10 soruluk tur, üst üste iki doğruyla çıkar." },
-      { icon: "denklem", title: "Fotoğraftan çözüm", body: "Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta günde 3." },
+      { icon: "denklem", title: "Fotoğraftan çözüm", body: `Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY}.` },
     ],
   },
   {
@@ -72,8 +79,8 @@ export default function OzelliklerPage() {
               Her konu için birçok yol, hepsi kendi notundan
             </h1>
             <p className="lp-hero-lead">
-              Aşağıdaki her şey bugün çalışıyor. Etiketsizler ücretsiz günlük hakla açılır; &quot;Plus&quot; etiketliler
-              günlük haktan büyük, Plus&apos;ta açık.
+              Aşağıdaki her şey bugün çalışıyor. Etiketsizler ücretsiz hesapta da açık: {FREE_TIER_LOWER}.
+              &quot;Plus&quot; etiketliler Plus&apos;ta açık.
             </p>
             <div className="lp-cta-row">
               <Link href="/kayit" className="lp-btn lp-btn--primary">
@@ -121,7 +128,7 @@ export default function OzelliklerPage() {
             <h2 id="oz-final" className="lp-h2">
               Notunla dene
             </h2>
-            <p className="lp-muted">Kart istemiyoruz. Her gün bir ders ücretsiz.</p>
+            <p className="lp-muted">Kart istemiyoruz. Haftada {FREE_LESSONS_PER_WEEK} ders ücretsiz.</p>
             <Link href="/kayit" className="lp-btn lp-btn--primary">
               Ücretsiz başla
               <ArrowRight className="h-4 w-4" aria-hidden />

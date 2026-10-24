@@ -209,6 +209,11 @@ export async function verifyEducationalContent(input: {
   failClosedOnUnavailable?: boolean;
   /** Sohbetin belge dışı bölümü için ek denetim kuralı. Ders üretimi bunu geçmez. */
   reviewerAddendum?: string;
+  /**
+   * Denetçi modeli; varsayılan `OPENAI_ADVANCED_MODEL`. Sohbet 24 Ekim 2026'dan beri luna ile denetler
+   * (ürün sahibinin kararı: belge ekli mesaj gpt-4.1 denetimiyle ~$0,026 tutuyordu, luna ile ~$0,002).
+   */
+  model?: string;
   signal?: AbortSignal;
   /**
    * Üretim fonksiyonunun başlangıcı. Geçici 5xx yeniden denemesi
@@ -305,7 +310,7 @@ export async function verifyEducationalContent(input: {
           modelCalls += 1;
           return input.client.chat.completions.create(
         {
-          model: env.OPENAI_ADVANCED_MODEL,
+          model: input.model ?? env.OPENAI_ADVANCED_MODEL,
           response_format: { type: "json_object" },
           messages: [
             {
@@ -359,7 +364,7 @@ export async function verifyEducationalContent(input: {
         // tahmin ettim: kayıtta yalnızca "validator_unavailable" yazıyordu,
         // sağlayıcının ne dediği hiçbir yerde yoktu.
         console.error("ai_validator_unavailable", {
-          model: env.OPENAI_ADVANCED_MODEL,
+          model: input.model ?? env.OPENAI_ADVANCED_MODEL,
           contextChars: (input.context ?? "").length,
           draftChars: content.length,
           status: error instanceof OpenAI.APIError ? error.status : undefined,

@@ -22,6 +22,11 @@ vi.mock("@/lib/rag/pipeline", () => ({
   MIN_CHUNK_SIMILARITY: 0.25,
 }));
 vi.mock("@/lib/learning/exam-quiz-generate", () => ({ generateExamQuiz: mocks.quiz }));
+// Kaynak kapısı ölçülüyor; ücretsiz sayaç (24 Ekim 2026) bu testin konusu değil: kurucu gibi sayaçsız.
+vi.mock("@/lib/billing/free-preview", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing/free-preview")>()),
+  billingExempt: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("@/lib/learning/lesson-source-resolver", () => ({
   resolveLessonSource: (...args: unknown[]) => mocks.resolve(...args),
   enrichLessonSource: async (_s: unknown, _u: unknown, ctx: unknown) => ctx,

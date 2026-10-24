@@ -243,8 +243,9 @@ export function PodcastStudio({
               lines?: unknown;
             };
             if (event.type === "error") {
-              if (event.code === "insufficient_credits") openPaywall();
-              finish(event.code === "insufficient_credits" ? noCredits : failed);
+              const refused = event.code === "insufficient_credits" || event.code === "premium_required";
+              if (refused) openPaywall();
+              finish(refused ? noCredits : failed);
               return;
             }
             if (event.type === "line" && typeof event.index === "number") {

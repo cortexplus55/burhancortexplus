@@ -373,6 +373,8 @@ export function ExamIntroQuiz({
         onOpenChange={setPaywall}
         message="Tanışma testi için kullanım hakkın doldu."
         returnPath={home}
+        // Kurulum işi ücretsizde dahil (sunucu `freeMeter: "included"`); dolan, günlük adım sınırı.
+        meter="included"
       />
     </div>
   );

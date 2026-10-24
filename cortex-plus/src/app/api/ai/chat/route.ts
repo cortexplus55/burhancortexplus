@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { billingExempt } from "@/lib/billing/free-preview";
 import { after, NextResponse } from "next/server";
 import { samplingParams } from "@/lib/ai/model-params";
 import { z } from "zod";
@@ -8,9 +7,8 @@ import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
 import { EducationalVerificationError, verifyEducationalContent } from "@/lib/ai/quality-gate";
 import { chatFallbackMessage } from "@/lib/ai/chat-fallback";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { selectModel } from "@/lib/ai/model-router";
+import { selectModel, contentModel } from "@/lib/ai/model-router";
 import { claimHardUpgrade } from "@/lib/ai/model-upgrade";
-import { freeImageAllowed } from "@/lib/ai/image-quota";
 import { assessQuestionDifficulty } from "@/lib/ai/question-difficulty";
 import { SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
@@ -19,7 +17,7 @@ import { recordAbuse } from "@/lib/abuse/record";
 import { parseTutorStyle } from "@/lib/learning/tutor-style";
 import { moodPrompt, parseMood } from "@/lib/learning/session-signals";
 import { env, type ActionCode } from "@/lib/env";
-import { recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
+import { recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { titleConversation } from "@/lib/ai/conversation-title";
 import { searchDocumentChunks } from "@/lib/rag/pipeline";
 import { NO_SOURCE_CREDIT_NOTE, NO_SOURCE_MESSAGE, saidNoSource, stripNoSourceMarker } from "@/lib/ai/grounding";
@@ -95,7 +93,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "chat", limit: 40, trackSharing: true });
   if (!guard.ok) return guard.response;
-  const { userId, service, isAdmin } = guard.ctx;
+  const { userId, service } = guard.ctx;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
   const { message, useDocuments, documentsOnly, operationId: providedId, ...rest } = parsed.data;
@@ -171,7 +169,6 @@ export async function POST(request: Request) {
     });
     const entitlements = await getUserEntitlements(service, userId);
     const isPremium = entitlements.isPremium;
-    if (imageUrl && !(await freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId))))) return errorResponse(429, "free_image_limit");
 
     let priorUserTurns = 0;
     if (rest.conversationId) {
@@ -191,8 +188,11 @@ export async function POST(request: Request) {
     const routed = selectModel(routerInput);
     const { model, actionCode } = routed.upgrade === "difficulty" && !(await claimHardUpgrade(service, userId))
       ? selectModel({ ...routerInput, hardUpgradeAllowed: false }) : routed;
-    const reserved = await reserveCredits(service, userId, actionCode, `chat:${operationId}`);
-    if (!reserved.ok) return errorResponse(reserved.reason === "insufficient_credits" ? 402 : reserved.reason.startsWith("operation_") ? 409 : 503, reserved.reason);
+    // Sohbet kaydı yalnız sohbet işini kapatır (complete_chat_operation): görselli soru da mesaj olarak
+    // ayrılır, ücretsiz hesapta fotoğraf sayacından düşer (24 Ekim 2026).
+    const reserveAction: ActionCode = actionCode === "AI_CHAT_ADVANCED" ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD";
+    const reserved = await reserveCredits(service, userId, reserveAction, `chat:${operationId}`, 1, { freeMeter: imageUrl ? "photo" : "chat" });
+    if (!reserved.ok) return errorResponse(reserved.reason === "insufficient_credits" ? 402 : reserved.reason.startsWith("operation_") ? 409 : 503, refusalCode(reserved));
     reservationId = reserved.reservationId;
     if (!env.OPENAI_API_KEY) { await undoSpend(); return errorResponse(503, "ai_not_configured"); }
 
@@ -386,6 +386,8 @@ export async function POST(request: Request) {
       const tutorMode = !grounded ? "general" : strict ? "document" : "mixed";
       // 24 Ekim 2026 (ürün sahibi): denetim çağrısı yalnız belgeye dayanan cevapta.
       const documentGrounded = grounded && evidence.length > 0;
+      // Denetçi: luna (24 Ekim 2026). Görselli soruda gören model gerekir; gpt-4.1 kalır.
+      const reviewModel = imageUrl ? env.OPENAI_ADVANCED_MODEL : contentModel();
       if (teacherTutor && prepGrounding) {
         const grounding = prepGrounding;
         const lastLesson = examContext?.lastLesson ?? null;
@@ -490,9 +492,11 @@ export async function POST(request: Request) {
             draft,
             format: "Öğrenciye gösterilecek sohbet yanıtı. Metin ve matematik biçimlendirmesini koru.",
             reviewerAddendum: outsideMaterialReviewNote(),
+            // 24 Ekim 2026 (ürün sahibinin kararı): sohbet denetimi luna ile, hazırlık sohbetindeki gibi.
+            model: reviewModel,
             imageUrls: imageUrl ? [imageUrl] : [], failClosedOnUnavailable: true, signal: request.signal,
           });
-          await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId });
+          await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId });
           checkedContent = verified.content;
         } catch (error) {
           if (!(error instanceof EducationalVerificationError)) throw error;
@@ -511,8 +515,8 @@ export async function POST(request: Request) {
         } else {
           content = checkedContent;
           if (reviewAnswer && documentGrounded && !imageUrl) {
-            const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal });
-            await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
+            const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal, model: reviewModel });
+            await recordUsage(service, { userId, actionCode, model: reviewModel, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
             if (!checked.ok) {
               logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
               if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {

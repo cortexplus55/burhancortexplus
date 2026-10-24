@@ -49,15 +49,27 @@ describe("ücretsiz önizleme", () => {
     expect(previewing.showsUpgradeChrome).toBe(true);
   });
 
-  it("günlük hak: gün geçince yeniden dolu (6, kredi sistemi v2), değilse kalan", () => {
-    const preview = { startedAt: "2026-10-08T10:00:00Z", remaining: 0, periodEndsAt: "2026-10-09T00:00:00Z" };
-    expect(previewAllowanceLeft(preview, Date.parse("2026-10-08T12:00:00Z"))).toBe(0);
-    expect(previewAllowanceLeft(preview, Date.parse("2026-10-09T00:00:01Z"))).toBe(6);
-    expect(previewWallet(preview)).toMatchObject({ period_allowance: 6, period_kind: "daily" });
-    // Önizlemenin hakkı ücretsizle aynı: göçte de 6.
+  it("günlük kredi ücretsizle aynı: 24 Ekim 2026'dan beri 0 (sayaçlar ayrı), değilse kalan", () => {
+    const preview = { startedAt: "2026-10-08T10:00:00Z", remaining: 2, periodEndsAt: "2026-10-09T00:00:00Z" };
+    expect(previewAllowanceLeft(preview, Date.parse("2026-10-08T12:00:00Z"))).toBe(2);
+    expect(previewAllowanceLeft(preview, Date.parse("2026-10-09T00:00:01Z"))).toBe(0);
+    expect(previewWallet(preview)).toMatchObject({ period_allowance: 0, period_kind: "daily" });
+    // Önizlemenin hakkı ücretsizle aynı: v2'de ikisi de 6, v3'te ikisi de 0.
     const v2 = read("supabase/migrations/20261008120000_credit_system_v2.sql");
     expect(v2).toContain("v_preview.remaining := 6;");
     expect(v2).toContain("v_allowance := 6;");
+    // Kredi v3'te günlük hak 0 ayrı göçte (kod yayına çıktıktan sonra uygulanır); sayaçlar 20261024121000'de.
+    const v3 = read("supabase/migrations/20261024123000_free_daily_zero.sql");
+    expect(v3).toContain("v_preview.remaining := 0;");
+    expect(v3).toContain("v_allowance := 0;");
+    expect(v3).toContain("ALTER TABLE public.admin_free_preview ALTER COLUMN remaining SET DEFAULT 0;");
+    // Önizlemedeki yöneticinin sayacı dolunca kendi cüzdanına düşmez (hediye bakiyesi değil).
+    const counts = read("supabase/migrations/20261024121000_free_tier_counts.sql");
+    expect(counts).toContain("IF NOT v_preview AND v_wallet.balance >= v_cost THEN");
+    // Geri alma dosyası önizlemeyi de v2'nin 6'sına döndürür.
+    const rollback = read("supabase/rollback/20261024_kredi_v3_geri_al.sql");
+    expect(rollback).toContain("v_preview.remaining := 6;");
+    expect(rollback).toContain("ALTER TABLE public.admin_free_preview ALTER COLUMN remaining SET DEFAULT 6;");
   });
 
   it("SQL: yönetici kolu önizlemede ayrı hakkı düşer; iade aynı günün hakkını geri verir", () => {
@@ -87,8 +99,13 @@ describe("ücretsiz önizleme", () => {
     expect(read("src/lib/documents/document-limits.ts")).toMatch(/if \(preview\) unlimited = false;/);
     expect(read("src/lib/credits/spendable-server.ts")).toMatch(/preview \? previewAllowanceLeft\(preview, now\) : Number\.POSITIVE_INFINITY/);
     expect(read("src/lib/learning/lesson-prefetch.ts")).toMatch(/spendableCredits\(service, userId, now\)\) >= cost/);
-    expect(read("src/app/api/ai/chat/route.ts")).toMatch(/isAdmin && \(await billingExempt\(service, userId\)\)/);
-    expect(read("src/lib/solve/solve-run.ts")).toMatch(/input\.isAdmin \? billingExempt\(service, userId\)/);
+    // Sohbet ve soru çözücüde muafiyet SQL'de (credit_reserve_metered): yönetici önizlemedeyse sayaca girer.
+    expect(read("src/app/api/ai/chat/route.ts")).not.toContain("billingExempt");
+    expect(read("src/lib/solve/solve-run.ts")).not.toContain("billingExempt");
+    // Önizlemeye abonelikten önce bakılır: aboneliği olan kurucu da önizlemede sayaca girer.
+    expect(read("supabase/migrations/20261024121000_free_tier_counts.sql")).toContain(
+      "IF NOT v_preview AND (v_premium OR v_admin) THEN",
+    );
     const account = read("src/lib/student/account-context.ts");
     expect(account).toMatch(/isAdmin: false,\s*freePreview: true,/);
     expect(read("src/components/parity/sor-shell.tsx")).toMatch(/account\?\.freePreview && chrome !== "session"/);

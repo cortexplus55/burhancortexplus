@@ -59,6 +59,56 @@ async function probeCreditReserve(service: SupabaseClient): Promise<SchemaCheck>
 }
 
 /**
+ * `credit_reserve_metered` yerinde mi (24 Ekim 2026, kredi v3). Ücretsiz hesabın her ayırması bu
+ * fonksiyondan geçer; yoksa kod sessizce sayaçsız `credit_reserve`'e düşer (`reserveCredits`). Tablo ya
+ * da fiyat satırına bakmak yetmiyor: 20261024121000 yarım kalırsa (tablo var, bu fonksiyon yok) öteki
+ * satırlar yeşil görünür.
+ *
+ * `probeCreditReserve` gibi VAR OLMAYAN bir eylem koduyla ve sayaçsız (`p_meter: null`) sorulur: sıfır
+ * kimlik abone ya da yönetici değil, iş Plus'a özel değil; sayaçsız iş `credit_reserve`'e gider ve orada
+ * `invalid_action` ile çıkar — hiçbir satır yazılmaz. Herhangi bir iş hatası fonksiyonun çalıştığını
+ * kanıtlar; yalnız PostgREST işlevi bulamazsa (`PGRST202`) eksik.
+ */
+async function probeMeteredReserve(service: SupabaseClient): Promise<SchemaCheck> {
+  const { error } = await service.rpc("credit_reserve_metered", {
+    p_user_id: "00000000-0000-0000-0000-000000000000",
+    p_action_code: "__schema_probe__",
+    p_idempotency_key: "schema-probe",
+    p_quantity: 1,
+    p_meter: null,
+  });
+
+  const missing =
+    !!error && ((error as { code?: string }).code === "PGRST202" || /could not find the function|PGRST202/i.test(error.message));
+
+  return {
+    name: "Ücretsiz sayaçlı ayırma",
+    ok: !missing,
+    critical: true,
+    detail: missing
+      ? "credit_reserve_metered yok — 20261024121000 uygulanmamış ya da yarım kalmış. Ücretsiz hesabın ayırmaları sayaçsız credit_reserve'e düşüyor: haftada 3 ders, günde 3 mesaj, 1 fotoğraf çalışmıyor."
+      : "credit_reserve_metered yerinde: ücretsiz hesap sayaçla ayırıyor.",
+  };
+}
+
+/**
+ * 20261024123000 (ücretsiz günlük kredi 0) uygulandı mı. Fiyat (20261024120000) ve `free_usage`
+ * (20261024121000) bunu söylemez: (c) yarım yapıştırılırsa v2 `credit_reserve` canlıda kalır (ücretsiz
+ * günde 6, davetliye 18, abonede davet çarpanı, yeni cüzdan 50) ve satır yine yeşil görünürdü.
+ *
+ * `unverified_allowance()` argümansız, salt okunur bir SQL fonksiyonu (`SELECT n`); yetkisi hiç
+ * daraltılmadı (PUBLIC), sunucu rolü çağırabilir. v2'de 6, bu göçle 0, geri alma dosyasıyla yeniden 6.
+ * Okunamazsa `null`: bilinmeyen durum yeşil sayılmaz.
+ */
+async function probeFreeDailyZero(service: SupabaseClient): Promise<number | null> {
+  const { data, error } = await service.rpc("unverified_allowance");
+  if (error) return null;
+  // Boş cevap 0 sayılmasın (Number(null) === 0).
+  const value = typeof data === "number" ? data : typeof data === "string" && data.trim() ? Number(data) : NaN;
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
  * İade fonksiyonu yerinde mi. Boş argümanla sorulur: fonksiyon ilk satırda
  * `missing_args` döner, hiçbir satıra dokunmaz. Yoksa PostgREST bulamaz.
  */
@@ -113,7 +163,7 @@ export async function probeSchema(
     .from("document_teacher_analyses")
     .select("document_id")
     .limit(1);
-  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch, pathInsert, listeningCheck, reviewItems] = await Promise.all([
+  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch, pathInsert, listeningCheck, reviewItems, metered] = await Promise.all([
     probeCreditReserve(service),
     service
       .from("credit_rules")
@@ -142,7 +192,20 @@ export async function probeSchema(
     probePathInsert(service),
     probeListeningCheckColumn(service),
     hasTable(service, "exam_prep_review_items"),
+    probeMeteredReserve(service),
   ]);
+  // Kredi v3 + sayıya dayalı ücretsiz katman (24 Ekim 2026): göçler uygulanmadıysa ücretsiz hesap hiçbir
+  // işi açamaz (günlük kredi 0, sayaç tablosu yok) — kritik. Yeşil yalnız üçü birden tutunca: ders fiyatı
+  // (20261024120000), free_usage (20261024121000) ve günlük kredi 0 (20261024123000). Sayaç fonksiyonu
+  // ayrıca soruluyor (`probeMeteredReserve`).
+  const [lessonRule, freeUsage, dailyAllowance] = await Promise.all([
+    service.from("credit_rules").select("credit_cost").eq("action_code", "STUDY_PLAN_GENERATE").maybeSingle(),
+    hasTable(service, "free_usage"),
+    probeFreeDailyZero(service),
+  ]);
+  const lessonPrice = CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits;
+  const dailyZero = dailyAllowance === 0;
+  const v3 = lessonRule.data?.credit_cost === lessonPrice && freeUsage && dailyZero;
   // Yanılgı çözümü (20 Ekim 2026): sütun yoksa sayımlar eski davranışta, hepsi açık sayılır.
   const misconceptionResolution = await service
     .from("exam_prep_misconceptions")
@@ -174,6 +237,17 @@ export async function probeSchema(
         ? `Mesaj ${chatPrice}, ders ${CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits}, podcast ${CREDIT_PRICE_TABLE.PODCAST_GENERATE.credits} kredi`
         : "20261008120000 uygulanmamış — podcast, sözlü ve sesli sohbet düşer.",
     },
+    {
+      name: "Kredi v3 ve ücretsiz sayaçlar",
+      ok: v3,
+      critical: true,
+      detail: v3
+        ? `Ders ${lessonPrice}, test ${CREDIT_PRICE_TABLE.QUIZ_GENERATE.credits}, mesaj ${chatPrice} kredi; ücretsiz haftada 3 ders, günde 3 mesaj, 1 fotoğraf; günlük kredi 0`
+        : `Ders ${lessonRule.data?.credit_cost ?? "?"} kredi${freeUsage ? "" : ", free_usage yok"}${
+            dailyZero ? "" : `, günlük ücretsiz kredi ${dailyAllowance ?? "okunamadı"} (0 olmalı: 20261024123000)`
+          }. Sıra: 20261024121000 koddan önce; 20261024120000 ve 20261024123000 koddan sonra, tek çalıştırmada.`,
+    },
+    metered,
     {
       name: "Deneme üretimi fiyatı",
       ok: exam.data?.credit_cost === examPrice,

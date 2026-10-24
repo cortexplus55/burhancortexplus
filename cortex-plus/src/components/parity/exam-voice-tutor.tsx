@@ -433,6 +433,9 @@ export function ExamVoiceTutor({
           onOpenChange={setPaywall}
           message="Sesli ders için kullanım hakkın doldu."
           returnPath={returnPath}
+          // Ses ücretsiz hesapta açılmaz (VOICE_TURN Plus listesinde): kapı "doldu" demez, geri saymaz.
+          action="VOICE_TURN"
+          actionLabel="Sesli mod"
         />
       </section>
     );
@@ -499,6 +502,8 @@ export function ExamVoiceTutor({
         onOpenChange={setPaywall}
         message="Sesli ders için kullanım hakkın doldu."
         returnPath={returnPath}
+        action="VOICE_TURN"
+        actionLabel="Sesli mod"
       />
     </section>
   );

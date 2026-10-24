@@ -37,6 +37,13 @@ describe("quiz üretimi kredi sözleşmesi", () => {
     expect(read("src/lib/ai/generate.ts")).toContain("reserveCredits(");
   });
 
+  // Kredi v3 (24 Ekim 2026): Araçlar testi ders sayacından; 402'nin kodu (`free_lesson_limit`)
+  // kapıya gitsin, düz `insufficient_credits` sayacı ve "Pazartesi" yenilenmesini kaybettiriyordu.
+  it("402'de motorun ret kodunu olduğu gibi veriyor", () => {
+    expect(route).toContain('errorResponse(402, outcome.error || "insufficient_credits")');
+    expect(route).not.toContain('if (outcome.status === 402) return errorResponse(402, "insufficient_credits")');
+  });
+
   it("Studio quizi öğretmen test motorundan geçiyor (soruları önce kendi çözen denetim)", () => {
     expect(route).not.toContain("verifyEducationalContent");
     expect(read("src/lib/learning/exam-quiz-generate.ts")).toContain("runTeacherQuiz(");

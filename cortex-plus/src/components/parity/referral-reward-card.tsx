@@ -6,14 +6,22 @@ import { toast } from "sonner";
 import {
   referralPitch,
   referralStatus,
+  referralSteps,
   type ReferralSummary,
 } from "@/lib/credits/referral";
+import { REFERRAL_GIFT_LESSONS } from "@/lib/billing/free-meters";
 
 /**
  * Davet ödülü kartı.
  *
  * Kotanın hemen yanında duruyor, çünkü kullanıcı limitine baktığı anda
- * "nasıl artırırım" sorusunu soruyor. Çarpan sayıları veritabanından geliyor.
+ * "nasıl artırırım" sorusunu soruyor.
+ *
+ * 24 Ekim 2026: davet çarpanı kalktı (ürün sahibinin kararı). Arkadaş hesabını
+ * doğrulayıp ilk çalışmasını yapınca ikisine de bir kez 3 ders hediye; davet
+ * eden en çok 3 davet için alır (SQL `grant_referral_gift`). Kart çarpan
+ * alanlarını okumaz: başlık, adımlar ve durum hediyeyi anlatır, durum satırı
+ * yazılmış hediyeden gelir (`referral.ts`).
  */
 export function ReferralRewardCard({
   summary,
@@ -32,12 +40,14 @@ export function ReferralRewardCard({
   return (
     <div className="cp-ref-card">
       <span className="cp-ref-badge">
-        {summary.usedCount}/{summary.maxCount} davet sayıldı
+        {summary.giftsKnown
+          ? `${summary.giftsGranted}/${summary.maxCount} davet hediyesi`
+          : `${summary.usedCount}/${summary.maxCount} davet sayıldı`}
       </span>
 
       <Icon3D name="davet" size={64} className="cp-ref-art" />
 
-      <h2 className="cp-ref-title">Arkadaşını davet et, hakkın katlansın</h2>
+      <h2 className="cp-ref-title">Arkadaşını davet et, ikinize de {REFERRAL_GIFT_LESSONS} ders hediye</h2>
       <p className="cp-ref-body">{referralPitch(summary)}</p>
 
       {status ? <p className="cp-ref-status">{status}</p> : null}
@@ -70,19 +80,9 @@ export function ReferralRewardCard({
 
       {explaining ? (
         <ul className="cp-ref-steps">
-          <li>Bağlantını paylaş; arkadaşın kayıt olurken kodun işlenir.</li>
-          <li>
-            Kaydolduğu anda ikinizin de dönemlik hakkı{" "}
-            <strong>{summary.signupMultiplier} katına</strong> çıkar.
-          </li>
-          <li>
-            Arkadaşın aboneliğe geçerse senin hakkın{" "}
-            <strong>{summary.subscribedMultiplier} katına</strong> yükselir.
-          </li>
-          <li>
-            En fazla <strong>{summary.maxCount} davet</strong> sayılır ve en
-            yüksek çarpan geçerli olur — çarpanlar toplanmaz.
-          </li>
+          {referralSteps(summary).map((step) => (
+            <li key={step}>{step}</li>
+          ))}
         </ul>
       ) : null}
     </div>

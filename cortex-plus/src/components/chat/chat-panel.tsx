@@ -70,6 +70,9 @@ import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
+import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
+import { beyondFreeMessage } from "@/lib/billing/free-reach";
+import type { ActionCode } from "@/lib/env";
 import { SolutionView } from "@/components/learning/question-solver";
 import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
 import { solutionMarkdown } from "@/lib/solve/solution-markdown";
@@ -133,6 +136,23 @@ function plainForSpeech(content: string) {
     .replace(/[*_`#>|[\]()]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Sohbetteki kredi kapısı, 402'nin koduna göre (24 Ekim 2026). Ücretsiz hesapta mesaj ve fotoğraf ayrı
+ * sayaç: fotoğraf hakkı dolunca kapı "sohbet mesajı hakkın bitti" diyordu, mesaj hakkı dururken.
+ */
+export function chatGateProps(
+  code: string | null,
+  isPremium: boolean,
+): { message: string; meter?: FreeMeter; action?: ActionCode; beyondFreeDaily?: boolean } {
+  if (isPremium) return { message: "Kullanım hakkın doldu. Çalışman kayıtlı kalır." };
+  if (code === "free_photo_limit") {
+    return { message: freeLimitReachedLine("photo"), meter: "photo", action: "IMAGE_SOLUTION" };
+  }
+  // Plus'taki iş: beklemek çözmez, geri sayım yok.
+  if (code === "premium_required") return { message: beyondFreeMessage("Bu iş"), beyondFreeDaily: true };
+  return { message: freeLimitReachedLine("chat"), meter: "chat", action: "AI_CHAT_STANDARD" };
 }
 
 /** Sesli sohbet düğmesinin etiketi: ne olduğunu ve nasıl kapatılacağını söyler. */
@@ -293,10 +313,14 @@ function ChatPanelSession({
   const showUpgrade =
     !examChrome && (shellAccount ? shellAccount.showsUpgradeChrome : !isPremium);
   const allowAdvanced = shellAccount?.audience === "sigma";
+  // Kapı aboneyi kabuktan da tanır (CreditGate ile aynı sıra); cümle ona göre seçilir.
+  const gatePremium = isPremium ?? shellAccount?.isPremium ?? false;
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  /** 402'nin kodu: hangi ücretsiz sayacın dolduğu (mesaj ya da fotoğraf). */
+  const [paywallCode, setPaywallCode] = useState<string | null>(null);
   // `?belge=` ile gelen öğrenci belgesinden çalışmak istiyor: belge modu
   // açık başlar ve kilit görünür. Aksi hâlde konuşma sessizce genel bilgiye
   // düşerdi ve "belgemi okumadı" şikâyeti gelirdi.
@@ -807,7 +831,10 @@ function ChatPanelSession({
               setSolveStage(null);
             }
           } else if (phase.kind === "error") {
-            if (event.type === "error" && event.status === 402) setPaywall(true);
+            if (event.type === "error" && event.status === 402) {
+              setPaywallCode(event.code);
+              setPaywall(true);
+            }
             pushAssistantError(new Error(phase.message));
           }
         },
@@ -896,14 +923,15 @@ function ChatPanelSession({
 
       if (res.status === 402) {
         setMessages((prev) => prev.slice(0, -1));
+        const payload = await res.json().catch(() => ({}));
         if (audience === "parent") {
-          const payload = await res.json().catch(() => ({}));
           toast.error(
             payload.error ??
               "Ücretsiz Destek hakkın doldu. Plus gerekmez.",
           );
           return;
         }
+        setPaywallCode(typeof payload.code === "string" ? payload.code : null);
         setPaywall(true);
         return;
       }
@@ -1987,7 +2015,7 @@ function ChatPanelSession({
         <CreditGate
           open={paywall}
           onOpenChange={setPaywall}
-          message="Kullanım hakkın doldu. Çalışman kayıtlı kalır."
+          {...chatGateProps(paywallCode, gatePremium)}
           returnPath={returnPath}
           isPremium={isPremium}
         />
@@ -2538,7 +2566,7 @@ function ChatPanelSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Kullanım hakkın doldu. Çalışman kayıtlı kalır."
+        {...chatGateProps(paywallCode, gatePremium)}
         returnPath={returnPath}
         isPremium={isPremium}
       />

@@ -112,6 +112,8 @@ export async function POST(request: Request) {
     service,
     userId,
     actionCode: "AI_CHAT_STANDARD",
+    // Ders içi yardım: ücretsizde derse dahil (24 Ekim 2026).
+    freeMeter: "included",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'JSON: {"headline":string,"note":string,"gaps":string[],"nextFocus":string[]}. headline kısa. note 2-4 cümle, konuşma dili Türkçe. gaps yanlış/eksik noktalar. nextFocus somut sonraki adımlar.',

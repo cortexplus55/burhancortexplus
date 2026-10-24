@@ -1,3 +1,4 @@
+import type { FreeMeter } from "@/lib/billing/free-meters";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionCode } from "@/lib/env";
@@ -28,6 +29,8 @@ export async function generateExamQuiz(input: {
   sourcePages?: number[];
   /** Shared key if caller already reserved this user operation elsewhere. */
   idempotencyKey?: string;
+  /** Ücretsiz hesabın sayacı: yolda derse dahil testte "included", Araçlar/düelloda ders. */
+  freeMeter?: FreeMeter | null;
   /** Yazılı deneme motoru PRACTICE_EXAM_GENERATE ile tek ücret keser. */
   actionCode?: ActionCode;
   /**
@@ -75,6 +78,7 @@ export async function generateExamQuiz(input: {
     userId: input.userId,
     actionCode: input.actionCode ?? "QUIZ_GENERATE",
     idempotencyKey: input.idempotencyKey ?? `quiz:${randomUUID()}`,
+    freeMeter: input.freeMeter,
     topicLabel: input.topicLabel ?? "",
     prepTitle: input.prepTitle ?? "",
     pages: [],

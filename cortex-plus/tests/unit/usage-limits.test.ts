@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 /*
@@ -9,27 +9,24 @@ import { readFileSync } from "node:fs";
   Görünmeyen bir limit çarptığında sürpriz olur — öğrenci ne yaptığını değil,
   ürünün bozulduğunu düşünür. Kredi kotası `/krediler` sayfasında zaten
   vardı; eksik olan bu üç sayaçtı.
+
+  24 Ekim 2026: günlük fotoğraf tavanı Redis'ten SQL sayacına geçti; yanına haftalık ders ve günlük
+  mesaj sayacı geldi (sayıya dayalı ücretsiz katman).
 */
-
-const mocks = vi.hoisted(() => ({ peekCount: vi.fn() }));
-
-vi.mock("@/lib/rate-limit", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/rate-limit")>();
-  return { ...actual, peekCount: mocks.peekCount };
-});
 
 const { loadUsageLimits } = await import("@/lib/student/usage-limits");
 
 const NOW = new Date("2026-09-18T10:00:00Z");
 const THIS_PERIOD = "2026-09-01";
 
-/** `document_page_grants` / `model_upgrade_grants` için yeten kadarı. */
+/** `document_page_grants` / `model_upgrade_grants` ve ücretsiz sayaç tablosu (`free_usage`) için yeten kadarı. */
 function service(rows: Record<string, unknown>) {
   return {
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
           maybeSingle: () => Promise.resolve({ data: rows[table] ?? null }),
+          in: () => Promise.resolve({ data: rows[table] ?? [], error: null }),
         }),
       }),
     }),
@@ -38,25 +35,35 @@ function service(rows: Record<string, unknown>) {
 }
 
 describe("ücretsiz hesap", () => {
-  it("fotoğraf sayfası ve günlük fotoğrafı görüyor, yükseltmeyi görmüyor", async () => {
-    mocks.peekCount.mockResolvedValue(2);
+  /* 24 Ekim 2026: ücretsiz hesap sayaçla çalışıyor (haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf).
+     Üç sayaç da /krediler'de görünür; geçen haftanın ya da dünün satırı sayılmaz. */
+  it("fotoğraf sayfası, haftalık ders, günlük mesaj ve fotoğraf sayaçlarını görüyor", async () => {
     const limits = await loadUsageLimits(
-      service({ document_page_grants: { period_start: THIS_PERIOD, used: 1 } }),
+      service({
+        document_page_grants: { period_start: THIS_PERIOD, used: 1 },
+        free_usage: [
+          { meter: "lesson", period_key: "2026-W38", used: 2 },
+          { meter: "chat", period_key: "2026-09-18", used: 3 },
+          { meter: "photo", period_key: "2026-09-17", used: 1 },
+        ],
+      }),
       "u",
       "free",
       NOW,
     );
 
-    expect(limits.map((l) => l.key)).toEqual(["photo-pages", "daily-photos"]);
+    expect(limits.map((l) => l.key)).toEqual(["photo-pages", "weekly-lessons", "daily-chat", "daily-photos"]);
     expect(limits[0]).toMatchObject({ used: 1, limit: 2, label: "Fotoğraf ve PDF sayfa" });
     expect(limits[0]?.hint).toContain("PDF sayfa: 2");
-    expect(limits[1]).toMatchObject({ used: 2, limit: 3 });
+    expect(limits[1]).toMatchObject({ used: 2, limit: 3, label: "Bu haftaki ders" });
+    expect(limits[2]).toMatchObject({ used: 3, limit: 3 });
+    // Dünün fotoğrafı bugünün hakkını yemez.
+    expect(limits[3]).toMatchObject({ used: 0, limit: 1 });
   });
 
   /* Zor soru yükseltmesi zaten yalnızca premium'da çalışıyor; ücretsiz
      hesaba hiç geçerli olmayan bir sayaç göstermek kafa karıştırırdı. */
   it("premium olmayan hesapta yükseltme sayacı sorulmuyor", async () => {
-    mocks.peekCount.mockResolvedValue(0);
     const calls: string[] = [];
     const spy = {
       from: (table: string) => {

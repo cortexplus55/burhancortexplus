@@ -1,10 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { dailyKey, peekCount } from "@/lib/rate-limit";
-import {
-  FREE_IMAGE_DAILY_LIMIT,
-} from "@/lib/ai/image-quota";
 import { photoPageLimit, type PlanTier } from "@/lib/documents/photo-quota";
+import { loadFreeMeters } from "@/lib/billing/free-usage-server";
 
 /**
  * Krediden BAĞIMSIZ limitler.
@@ -56,15 +53,13 @@ export async function loadUsageLimits(
     ];
   }
 
-  const [photo, dailyPhotos] = await Promise.all([
+  const [photo, meters] = await Promise.all([
     service
       .from("document_page_grants")
       .select("period_start, used")
       .eq("user_id", userId)
       .maybeSingle(),
-    tier === "free"
-      ? peekCount(dailyKey(userId, "image-free", now))
-      : Promise.resolve(0),
+    tier === "free" ? loadFreeMeters(service, userId, now) : Promise.resolve([]),
   ]);
 
   const limits: UsageLimit[] = [];
@@ -81,15 +76,19 @@ export async function loadUsageLimits(
         : "Bu ay fotoğraf ve taranmış PDF sayfası. Metin katmanı olan PDF ve düz metin bu sayıya girmiyor.",
   });
 
-  if (tier === "free") {
-    limits.push({
-      key: "daily-photos",
-      label: "Günlük fotoğraf sorusu",
-      used: Math.min(dailyPhotos as number, FREE_IMAGE_DAILY_LIMIT),
-      limit: FREE_IMAGE_DAILY_LIMIT,
-      // 23 Ekim 2026: ücretsiz hesapta günde 3 fotoğraf, krediye dokunmadan (`solve-run.ts`).
-      hint: "Ücretsiz hesapta günde 3 fotoğraf sorusu çözülür; Plus'ta sınır yok.",
-    });
+  // Sayıya dayalı ücretsiz katman (24 Ekim 2026): haftalık ders, günlük mesaj ve fotoğraf sayaçları (SQL).
+  const meterRows: Record<string, { key: string; label: string; hint: string }> = {
+    lesson: {
+      key: "weekly-lessons",
+      label: "Bu haftaki ders",
+      hint: "Dersin ardından gelen test ve kartlar derse dahil. Araçlar'daki test ve kartlar da bu haktan düşer. Pazartesi 00:00'da yenilenir.",
+    },
+    chat: { key: "daily-chat", label: "Bugünkü sohbet mesajı", hint: "Yazılı soru çözümü de mesaj sayılır. Gece yarısı yenilenir." },
+    photo: { key: "daily-photos", label: "Bugünkü fotoğraftan çözüm", hint: "Okunmayan fotoğraf haktan düşmez. Gece yarısı yenilenir." },
+  };
+  for (const meter of meters) {
+    const row = meterRows[meter.meter];
+    if (row) limits.push({ ...row, used: meter.used, limit: meter.limit });
   }
   /*
     19 Ekim 2026: "Zor soruda güçlü model" satırı kalktı. `selectModel` hiçbir zaman yükseltme

@@ -153,7 +153,6 @@ export default async function OgretmenPage({
           <PlusMonth
             variant="compact"
             monthlyKurus={prices.plusMonthly}
-            yearlyKurus={prices.plusYearly}
             primary={{ label: "Plus'a geç", href: "/pay" }}
             secondary={{ label: "Bir ayda neler var?", href: "/pay#plus-ay" }}
           />

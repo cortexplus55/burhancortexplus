@@ -7,25 +7,27 @@ import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
 /**
  * Kredi sistemi v2 (8 Ekim 2026, ürün sahibinin kararı). 1 kredi = $0,001
  * ölçülen model maliyeti; Plus ayda 7.200 (Astra Plus ≈ 2.000 mesaj, bizde
- * 2.400), Sigma 60.000, ücretsiz günde 6. Göç gerçekten çalıştırılıyor.
- * Gerekçe: docs/delivery/KREDI-SISTEMI.md.
+ * 2.400), Sigma 60.000. Göç gerçekten çalıştırılıyor.
+ * Kredi v3 (24 Ekim 2026): hak aynı, işlerin fiyatı gerçek maliyete çekildi (ders 30, test 10);
+ * ücretsiz hesap krediyle değil sayaçla çalışır (`free-meters.ts`, günlük kredi 0).
+ * Gerekçe: docs/delivery/KREDI-SISTEMI.md, docs/delivery/MALIYET-VERGI-24-EKIM.md.
  */
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("kredi sistemi v2: sayılar", () => {
-  it("Plus Astra'dan fazla: ayda 2.400 mesaj, 1.200 ders", () => {
-    expect(allowanceInWork(PLAN_ALLOWANCES.plusMonthly)).toEqual({ messages: 2400, lessons: 1200 });
-    expect(allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly)).toEqual({ messages: 20000, lessons: 10000 });
-    expect(allowanceInWork(PLAN_ALLOWANCES.free)).toEqual({ messages: 2, lessons: 1 });
-    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)).toBe("Ayda yaklaşık 2.400 mesaj ya da 1.200 ders");
-    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusWeekly, "hafta")).toBe("Haftada yaklaşık 900 mesaj ya da 450 ders");
+  it("Plus Astra'dan fazla mesaj: ayda 2.400 mesaj ya da 240 ders (kredi v3)", () => {
+    expect(allowanceInWork(PLAN_ALLOWANCES.plusMonthly)).toEqual({ messages: 2400, lessons: 240 });
+    expect(allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly)).toEqual({ messages: 20000, lessons: 2000 });
+    expect(allowanceInWork(PLAN_ALLOWANCES.free)).toEqual({ messages: 0, lessons: 0 });
+    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)).toBe("Ayda yaklaşık 2.400 mesaj ya da 240 ders");
+    expect(allowanceWorkLine(PLAN_ALLOWANCES.plusWeekly, "hafta")).toBe("Haftada yaklaşık 900 mesaj ya da 90 ders");
   });
 
-  it("yoğun öğrencide aylık Plus %50'nin üstünde kalıyor; ek paketler tam kullanımda %50", () => {
+  it("hakkının tamamını kullanan Plus öğrencisi bile zarar ettirmiyor; ek paketler tam kullanımda %50", () => {
     const net = (priceTry: number) => priceTry / 1.2 - priceTry * 0.0295; // KDV %20, PayTR %2,95
     const tryPerCredit = 0.001 * 52;
-    const heavyMonth = 30 * (3 * 6 + 2 * 4 + 30 * 3 + 12); // günde 3 ders, 2 test, 30 mesaj, 1 podcast
-    expect(1 - (heavyMonth * tryPerCredit) / net(599)).toBeGreaterThan(0.5);
+    // v3'te kredi gerçek maliyet: hakkın tamamı model gideri. Altyapı ve vergi MALIYET-VERGI-24-EKIM.md'de.
+    expect(1 - (PLAN_ALLOWANCES.plusMonthly * tryPerCredit) / net(599)).toBeGreaterThan(0.2);
     for (const pack of ADDON_PACKS) {
       expect(1 - (pack.credits * tryPerCredit) / net(pack.priceTry)).toBeGreaterThanOrEqual(0.49);
     }

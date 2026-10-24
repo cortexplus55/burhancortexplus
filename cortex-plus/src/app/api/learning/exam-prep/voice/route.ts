@@ -4,7 +4,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { contentModel } from "@/lib/ai/model-router";
 import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
-import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
+import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
 import { env } from "@/lib/env";
@@ -110,7 +110,9 @@ export async function POST(request: Request) {
     `voice:${userId}:${parsed.data.nodeId}:${parsed.data.messages.length}:${crypto.randomUUID()}`,
   );
   if (!reservation.ok) {
-    return errorResponse(reservation.reason === "insufficient_credits" ? 402 : 409, reservation.reason);
+    // Sesli ders ücretsiz hesapta Plus'ta (24 Ekim 2026): SQL `plus_required` → `premium_required`; ekran
+    // "hakkın doldu" ve Pazartesi geri sayımı yerine Plus kapısını açar.
+    return errorResponse(reservation.reason === "insufficient_credits" ? 402 : 409, refusalCode(reservation));
   }
 
   const model = contentModel();

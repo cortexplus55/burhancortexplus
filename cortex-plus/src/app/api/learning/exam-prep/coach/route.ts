@@ -63,6 +63,8 @@ export async function POST(request: Request) {
     service,
     userId,
     actionCode: "AI_CHAT_STANDARD",
+    // Ders içi yardım: ücretsizde derse dahil (24 Ekim 2026).
+    freeMeter: "included",
     isPremium: await isPremiumUser(service, userId),
     schemaHint: 'JSON: {"reply":string}. Kısa Türkçe, 3-6 cümle. Filler yok.',
     userPrompt: `${TUTOR_ANSWER_DISCIPLINE}

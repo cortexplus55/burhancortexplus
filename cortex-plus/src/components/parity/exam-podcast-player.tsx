@@ -17,6 +17,7 @@ import {
 } from "@/lib/learning/podcast-script";
 import { cn } from "@/lib/utils";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 
 type AudioLine = {
   chapterIndex: number;
@@ -130,6 +131,13 @@ export function ExamPodcastPlayer({
   const [status, setStatus] = useState<
     "loading" | "ready" | "fallback" | "premium" | "credits"
   >("loading");
+  /*
+    "premium" iki hesapta farklı söylenir (24 Ekim 2026). Ücretsiz hesapta ses Plus'ta
+    (`premium_required`; v3 öncesi açılmış bir podcast denemesi düğümün Plus kapısından önce
+    sürdürülebiliyor): "hakkın yetmedi" deyip /krediler'e göndermek yanlıştı, orada ses sayacı yok.
+    Abone yine kendi hakkına bakar. Kabuk bağlamı yoksa abone sayılmaz.
+  */
+  const subscriber = useStudentShellAccount()?.isPremium === true;
   /**
    * Ses isteği düşerse (ağ, sağlayıcı) oynatıcı kendiliğinden yeniden dener; "üretilemedi"
    * ancak iki denemeden sonra ve bir "yeniden dene" düğmesiyle görünür (19 Ekim 2026,
@@ -277,7 +285,9 @@ export function ExamPodcastPlayer({
               creditsSpent?: number;
             };
             if (event.type === "error") {
-              throw new Error(event.code === "insufficient_credits" ? "credits" : "unavailable");
+              throw new Error(
+                event.code === "insufficient_credits" ? "credits" : event.code === "premium_required" ? "premium" : "unavailable",
+              );
             }
             if (event.type === "line" && event.url && event.durationMs && event.speaker && event.text != null && event.index != null) {
               place(event.index, {
@@ -772,12 +782,19 @@ export function ExamPodcastPlayer({
           <p className="cp-pod-state">
             Ses hazırlanıyor…{progress.total > 0 ? ` ${progress.ready}/${progress.total}` : ""}
           </p>
-        ) : status === "premium" ? (
+        ) : status === "premium" && subscriber ? (
           <p className="cp-pod-state">
             Bu seslendirme için hakkın yetmedi. Bölümleri transkriptten
             okuyabilirsin.{" "}
             <Link href="/krediler" className="cp-pod-upsell">
               Hakkını gör
+            </Link>
+          </p>
+        ) : status === "premium" ? (
+          <p className="cp-pod-state">
+            Sesli dinleme Plus&apos;ta; bölümleri metinden okuyabilirsin.{" "}
+            <Link href="/pay" className="cp-pod-upsell">
+              Plus&apos;a geç
             </Link>
           </p>
         ) : status === "credits" ? (

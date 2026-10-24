@@ -64,7 +64,6 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
           variant="full"
           headingLevel="h2"
           monthlyKurus={prices.plusMonthly}
-          yearlyKurus={prices.plusYearly}
           primary={{ label: "Plus'ı seç", href: "#planlar" }}
         />
       ) : null}

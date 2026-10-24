@@ -100,6 +100,8 @@ export function ExamNodeCoach({
         onOpenChange={setPaywall}
         message="Eğitmen sohbeti için kullanım hakkın doldu."
         returnPath={returnPath}
+        // Ders içi yardım ücretsizde derse dahil; dolan, günlük adım sınırı (gece yarısı).
+        meter="included"
       />
     </div>
   );

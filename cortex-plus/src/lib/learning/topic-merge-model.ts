@@ -55,6 +55,9 @@ export async function resolveAmbiguousMerges(
       service,
       userId,
       actionCode: "STUDY_PLAN_GENERATE",
+      // Kurulumun sistem işi: öğrenciden düşmez (24 Ekim 2026).
+      chargeCredits: false,
+      usageCode: "TOPIC_MAP_GROUP",
       isPremium: await isPremiumUser(service, userId),
       verificationMode: "schema",
       maxDraftAttempts: 1,

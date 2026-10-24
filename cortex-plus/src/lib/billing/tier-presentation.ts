@@ -3,6 +3,7 @@ import { periodLabel, type PeriodKind } from "@/lib/credits/period";
 import { formatDate } from "@/lib/format";
 
 import { FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
+import { FREE_CHAT_PER_DAY, FREE_LESSONS_PER_WEEK, freeMeterResetLine } from "@/lib/billing/free-meters";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 
 /**
@@ -70,7 +71,7 @@ export type TierComparisonRow = {
  *
  * 19 Ekim 2026: "Model: Standart / Standart / Gelişmiş" satırı kalktı — her plan aynı modeli kullanıyor
  * (`model-router.ts`), Sigma'nın "gelişmiş" bayrağı hiçbir yere bağlı değildi. Gerçek farklar: hak,
- * günlük haktan büyük işler (podcast 12, sözlü 8, deneme 15 kredi; ücretsiz günlük hak 6), video ders,
+ * ücretsizde kapalı işler (podcast, sözlü, yazılı deneme, video, ses; `PLUS_ONLY_ACTIONS`), video ders,
  * hazır içerik yokken hızlı yazım (`fast-access.ts`).
  */
 export function tierComparisonRows(): TierComparisonRow[] {
@@ -78,8 +79,8 @@ export function tierComparisonRows(): TierComparisonRow[] {
     {
       label: "AI kullanımı",
       guest: "Yok",
-      // Kredi sistemi v2 (8 Ekim 2026): günde 6 kredi — bir ders, bir test ya da iki mesaj.
-      free: "Günde 1 ders, 1 test ya da 2 mesaj",
+      // Sayıya dayalı ücretsiz katman (24 Ekim 2026).
+      free: "Haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf",
       plus: allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly),
       sigma: allowanceWorkLine(PLAN_ALLOWANCES.sigmaMonthly),
     },
@@ -93,7 +94,7 @@ export function tierComparisonRows(): TierComparisonRow[] {
     {
       label: "Podcast, sözlü ve yazılı deneme",
       guest: "—",
-      free: "Günlük hak yetmez",
+      free: "Plus'ta",
       plus: "Açık",
       sigma: "Açık",
     },
@@ -206,15 +207,26 @@ export function profilePlanView(account: {
       isPremium: true,
     };
   }
-  const period =
-    account.periodKind === "monthly"
-      ? "aylık"
-      : account.periodKind === "weekly"
-        ? "haftalık"
-        : "günlük";
+  // Ücretsiz hesap sayaçla (24 Ekim 2026): dönem türü ve cüzdanın yenilenme tarihi anlamsız. Eskiden
+  // "günlük hak, 26 Ekim 00:00 yenilenir" yazıyordu: günlük hak yok, tarih ders sayacının Pazartesi'si.
   return {
     label: "Temel",
-    hint: `Ücretsiz plan · ${period} hak, ${account.resetsAtLabel} yenilenir`,
+    hint: `Ücretsiz plan · haftada ${FREE_LESSONS_PER_WEEK} ders, günde ${FREE_CHAT_PER_DAY} mesaj · ${freeMeterResetLine("lesson")}`,
     isPremium: false,
   };
+}
+
+/**
+ * Ücretsiz hesaptaki cüzdan bakiyesi işle (24 Ekim 2026): "Ek hakkın: yaklaşık 3 ders". Öğrenci kredi
+ * sayısı görmez; bir derse yetmiyorsa mesaj sayısı, ona da yetmiyorsa hiçbir şey.
+ *
+ * "Hediye" yazılmaz: bakiye davet hediyesi olabildiği gibi aboneliği biten öğrencinin satın aldığı ek
+ * paket ya da eski bir promosyon da olabilir; hangisi olduğunu ayırmak defterden ayrı bir okuma ister.
+ */
+export function freeExtraLine(balance: number): string | null {
+  if (!(balance > 0)) return null;
+  const { lessons, messages } = allowanceInWork(balance);
+  if (lessons > 0) return `Ek hakkın: yaklaşık ${lessons} ders`;
+  if (messages > 0) return `Ek hakkın: yaklaşık ${messages} mesaj`;
+  return null;
 }

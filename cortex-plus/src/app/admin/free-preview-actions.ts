@@ -30,6 +30,8 @@ export async function setFreePreview(on: boolean): Promise<{ ok: boolean }> {
       })
     : await service.from("admin_free_preview").delete().eq("user_id", user.id);
   if (error) return { ok: false };
+  // Sayıya dayalı ücretsiz katman (24 Ekim 2026): her açılış yeni bir ücretsiz hesap gibi; sayaçlar sıfır.
+  if (on) await service.from("free_usage").delete().eq("user_id", user.id);
   await auditLog(service, {
     actorId: user.id,
     action: on ? "free_preview_on" : "free_preview_off",

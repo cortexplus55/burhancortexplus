@@ -477,6 +477,8 @@ export async function POST(request: Request) {
     service,
     userId,
     isPremium,
+    // Tanışma testi kurulumun parçası: ücretsizde derse dahil (24 Ekim 2026).
+    freeMeter: "included",
     maxDraftAttempts: 2,
     difficulty: "hard",
     sourceExcerpt: source.block,

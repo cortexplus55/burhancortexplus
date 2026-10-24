@@ -15,7 +15,8 @@ export const maxDuration = 300;
  * Kayıtlı her kademe bu ucu çağırabilir. Harcama özellik kilidi değil:
  * yalnızca gerçekten üretilen karakter faturalanıyor (900 karakter = 15 kredi, 19 Ekim 2026);
  * önbellekten gelen cümle bedava, çünkü bize de bir maliyeti yok. Hak bitince
- * 402 `insufficient_credits`. Misafir `withUser` ile 401 alır.
+ * 402 `insufficient_credits`; ücretsiz hesapta ses Plus'ta, 402 `premium_required`.
+ * Misafir `withUser` ile 401 alır.
  *
  * `stream: true` satırları bittiği anda NDJSON yazar. Tek ayırma tüm
  * senaryoyu kapsar; parçalamak krediyi artırmaz.
@@ -60,8 +61,8 @@ export async function POST(request: Request) {
 
   if (!parsed.data.stream) {
     const result = await synthesizeCharged(guard.ctx.service, guard.ctx.userId, speech);
-    if (!result.ok && result.reason === "insufficient_credits") {
-      return errorResponse(402, "insufficient_credits");
+    if (!result.ok && (result.reason === "insufficient_credits" || result.reason === "premium_required")) {
+      return errorResponse(402, result.reason);
     }
     if (!result.ok) return errorResponse(503, "audio_unavailable");
     return NextResponse.json({
@@ -101,8 +102,8 @@ export async function POST(request: Request) {
           });
         },
       });
-      if (!result.ok && result.reason === "insufficient_credits") {
-        send({ type: "error", code: "insufficient_credits" });
+      if (!result.ok && (result.reason === "insufficient_credits" || result.reason === "premium_required")) {
+        send({ type: "error", code: result.reason });
       } else if (!result.ok) {
         send({ type: "error", code: "audio_unavailable" });
       } else {

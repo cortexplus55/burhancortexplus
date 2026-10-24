@@ -2,10 +2,38 @@ import "server-only";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionCode } from "@/lib/env";
+import { defaultFreeMeter, type FreeMeter } from "@/lib/billing/free-meters";
+
+/**
+ * Ücretsiz hesabın reddi (24 Ekim 2026): sayaç doldu ya da iş Plus'ta. Sebep yine
+ * `insufficient_credits` (istemciler 402'yi ve bu kodu okuyor); ayrıntı `refusal`'da.
+ */
+export type FreeRefusal = { kind: "free_limit"; meter: FreeMeter } | { kind: "plus_required" };
 
 export type ReservationResult =
   | { ok: true; reservationId: string; cost: number }
-  | { ok: false; reason: "insufficient_credits" | "invalid_action" | "operation_in_progress" | "operation_completed" | "error" };
+  | {
+      ok: false;
+      reason: "insufficient_credits" | "invalid_action" | "operation_in_progress" | "operation_completed" | "error";
+      refusal?: FreeRefusal;
+    };
+
+const METERS: readonly FreeMeter[] = ["lesson", "chat", "photo", "included"];
+
+/** SQL hata metninden ücretsiz reddi okur. */
+export function parseFreeRefusal(message: string): FreeRefusal | null {
+  if (message.includes("plus_required")) return { kind: "plus_required" };
+  const match = message.match(/free_limit:([a-z]+)/);
+  const meter = match?.[1] as FreeMeter | undefined;
+  return meter && METERS.includes(meter) ? { kind: "free_limit", meter } : null;
+}
+
+/** Reddin HTTP karşılığı: hep 402; kod ekranın doğru kapıyı açması için. */
+export function refusalCode(result: { reason: string; refusal?: FreeRefusal }): string {
+  if (result.refusal?.kind === "plus_required") return "premium_required";
+  if (result.refusal?.kind === "free_limit") return `free_${result.refusal.meter}_limit`;
+  return result.reason;
+}
 
 export function newIdempotencyKey(prefix: string) {
   return `${prefix}_${randomUUID()}`;
@@ -38,6 +66,12 @@ export async function reserveCredits(
    * fiyatlar — bedava geleni faturalandırır, uzun üretimi zarara yazar.
    */
   quantity = 1,
+  /**
+   * Ücretsiz hesabın sayacı (24 Ekim 2026). Verilmezse işin varsayılanı (`defaultFreeMeter`):
+   * ders/test/kart → ders, sohbet → mesaj, fotoğraf → fotoğraf. Yolda derse dahil işler "included",
+   * sayaçsız iş (belge) `null`. Abone ve yönetici için yok sayılır.
+   */
+  options: { freeMeter?: FreeMeter | null } = {},
 ): Promise<ReservationResult> {
   // Miktar burada bir kez normalleşiyor ve RPC'ye de bu hâli gidiyor.
   // Ham değeri göndermek, sunucunun kırptığı bir sayıyla burada hesaplanan
@@ -46,14 +80,29 @@ export async function reserveCredits(
   // `credit_reserve` tek başına da doğru davranmalı.
   const units = Math.min(Math.max(Math.trunc(quantity) || 1, 1), 1000);
 
-  const { data, error } = await service.rpc("credit_reserve", {
+  const meter = options.freeMeter === undefined ? defaultFreeMeter(actionCode) : options.freeMeter;
+  let { data, error } = await service.rpc("credit_reserve_metered", {
     p_user_id: userId,
     p_action_code: actionCode,
     p_idempotency_key: idempotencyKey,
     p_quantity: units,
+    p_meter: meter,
   });
+  // Yayın sırası: kod göçten önce çıkarsa (fonksiyon yok) eski yola düşer. Sessiz kalmasın: ücretsiz hesabın
+  // sayacı bu yolda çalışmıyor, düşen ayırma düz `insufficient_credits` döner (inceleme, 24 Ekim 2026).
+  if (error && (error.code === "PGRST202" || /Could not find the function public.credit_reserve_metered/.test(error.message ?? ""))) {
+    console.warn("credit_reserve_metered_missing", { actionCode, meter });
+    ({ data, error } = await service.rpc("credit_reserve", {
+      p_user_id: userId,
+      p_action_code: actionCode,
+      p_idempotency_key: idempotencyKey,
+      p_quantity: units,
+    }));
+  }
 
   if (error) {
+    const refusal = parseFreeRefusal(error.message ?? "");
+    if (refusal) return { ok: false, reason: "insufficient_credits", refusal };
     if (error.message.includes("insufficient")) {
       return { ok: false, reason: "insufficient_credits" };
     }

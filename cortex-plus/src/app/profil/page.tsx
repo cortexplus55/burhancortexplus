@@ -16,7 +16,7 @@ export default async function ProfilPage() {
   const [shell, dashboard, referral, invite] = await Promise.all([
     loadParityShellProps(supabase, user.id, user.email),
     loadProfileDashboard(supabase, user.id),
-    loadReferralSummary(supabase),
+    loadReferralSummary(supabase, user.id),
     loadInviteLink(supabase, user.id),
   ]);
 

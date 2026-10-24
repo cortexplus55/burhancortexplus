@@ -24,6 +24,10 @@ const USER_CONTENT_TABLES = [
   // 20 Ekim 2026: günü gelen tekrar kayıtları. Hazırlık silinince CASCADE; hesap silinince burada
   // (silme işçisi hazırlığı değil profili anonimleştirir). Tablo canlıda olmadan bu satır yayına çıkmaz.
   "exam_prep_review_items",
+  // 24 Ekim 2026: ücretsiz katmanın sayaçları (haftalık ders, günlük mesaj/fotoğraf). Tablo koddan önce gelir:
+  // 20261024121000 yalnız ekleme yapar ve kod yayınından ÖNCE uygulanır (KREDI-SISTEMI.md, "Canlıya geçiş"
+  // a). Tablo yokken bu adım düşer ve silme isteği bekler; sıra bu yüzden önemli.
+  "free_usage",
 ] as const;
 
 /** Every step is checked and repeatable by the deletion worker. */

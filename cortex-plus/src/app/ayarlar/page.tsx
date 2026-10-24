@@ -1,3 +1,5 @@
+import { PLAN_WORK_BY_ID, workCount } from "@/lib/billing/plan-value";
+import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
@@ -56,7 +58,7 @@ export default async function AyarlarPage() {
             description={
               account.isPremium
                 ? "Plus aboneliğin aktif. Kullanımını ve ödemelerini Kullanım sayfasından takip edebilirsin."
-                : "Ücretsiz plandasın. Plus ile podcast, sözlü ve yazılı deneme, video ders ve ayda yaklaşık 1.200 ders hakkı açılır."
+                : `Ücretsiz plandasın. Plus ile podcast, sözlü ve yazılı deneme, video ders ve ayda yaklaşık ${workCount(PLAN_ALLOWANCES.plusMonthly, PLAN_WORK_BY_ID.lesson).toLocaleString("tr-TR")} ders hakkı açılır.`
             }
           >
             <Link

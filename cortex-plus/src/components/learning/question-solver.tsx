@@ -23,6 +23,8 @@ export function QuestionSolver({ prep = null }: { prep?: { id: string; title: st
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [paywall, setPaywall] = useState(false);
+  const [paywallMeter, setPaywallMeter] = useState<"photo" | "chat">("photo");
+  const [paywallMessage, setPaywallMessage] = useState("Bu soru için bugünkü hakkın yetmiyor.");
   const [seconds, setSeconds] = useState(0);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -58,7 +60,11 @@ export function QuestionSolver({ prep = null }: { prep?: { id: string; title: st
         setReviewToken(event.token);
         return;
       }
-      if (event.type === "error" && event.status === 402) setPaywall(true);
+      if (event.type === "error" && event.status === 402) {
+        setPaywallMeter(event.code === "free_chat_limit" ? "chat" : "photo");
+        setPaywallMessage(event.message);
+        setPaywall(true);
+      }
       setPhase((current) => solvePhaseAfter(current, event));
     });
   }
@@ -131,8 +137,9 @@ export function QuestionSolver({ prep = null }: { prep?: { id: string; title: st
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        action="IMAGE_SOLUTION"
-        message="Bu soru için bugünkü hakkın yetmiyor."
+        action={paywallMeter === "chat" ? "AI_CHAT_STANDARD" : "IMAGE_SOLUTION"}
+        meter={paywallMeter}
+        message={paywallMessage}
         returnPath="/soru-coz"
       />
     </div>

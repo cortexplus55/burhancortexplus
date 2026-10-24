@@ -36,3 +36,15 @@ export function isoWeekday(day: string): number {
   const js = new Date(`${day}T00:00:00Z`).getUTCDay();
   return js === 0 ? 7 : js;
 }
+
+/** İstanbul saatiyle ISO hafta: Pazartesi başlar, yılın ilk Perşembesini içeren hafta 1 ("2026-W43"). */
+export function isoWeekKey(now: Date = new Date(), timeZone = "Europe/Istanbul"): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  const date = new Date(Date.UTC(get("year"), get("month") - 1, get("day")));
+  const weekday = date.getUTCDay() || 7; // Pazartesi 1 … Pazar 7
+  date.setUTCDate(date.getUTCDate() + 4 - weekday); // haftanın Perşembesi
+  const year = date.getUTCFullYear();
+  const week = Math.ceil(((date.getTime() - Date.UTC(year, 0, 1)) / 86_400_000 + 1) / 7);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}

@@ -173,7 +173,8 @@ export function makeFakeDb(tables: Record<string, Row[]>, options?: { creditCost
   const credits = (): CreditRow[] => t("credit_reservations") as CreditRow[];
 
   async function rpc(name: string, args: Record<string, any>) {
-    if (name === "credit_reserve") {
+    // 24 Ekim 2026: uygulama sayaçlı ayırmayı çağırır; sahte veritabanında ikisi aynı.
+    if (name === "credit_reserve" || name === "credit_reserve_metered") {
       const existing = credits().find(
         (r) => r.user_id === args.p_user_id && r.idempotency_key === args.p_idempotency_key && r.status !== "refunded",
       );
