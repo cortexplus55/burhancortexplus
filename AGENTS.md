@@ -1277,3 +1277,16 @@ Bekçi: `free-path-plus-skip.test.ts`, `complete-node-in-order.test.ts` (PGlite:
 Canlıda doğrulanan (#398 sonrası): ücretsiz yolda dersten sonra sıradaki Soru-Cevap (podcast atlandı), %20 sonuçta odaklı pratik
 eklendi, konu testi önceden yazılmış olarak 2 sn'de açıldı (önce 150-230 sn), aynı derste atılan kavram 3 → 0. Açık kalan:
 konuya yalnız kapak/özet sayfası bağlanınca (Homeostazi, PDF s.1) konu testi 5 yerine 3 soru çıkıyor.
+
+**Üçüncü tur (aynı gün akşam; PR #400):**
+
+| Bulgu | Kural | Nerede |
+|---|---|---|
+| Kursta ünite her dosyaya ayrı yazılıyor; konuları başka dosyada olan ünitenin kopyası çocuksuz ve sayfasız. Okuma onu **sayfasız bir konu** saydı: listenin başına ("Diğer") düştü, dersi PDF'in 1. sayfasından kaynaksız yazıldı, konu testi 3 soru kaldı | Kurs okumasında sayfası olmayan üst düğüm konu değildir | `intake-outline.ts` `loadOneshotIntakeTopics` |
+| Canlı anahtar `gpt-image-1` görmüyor | Varsayılan `gpt-image-1.5` (merdiven duruyor); fiyat satırı 13/1.000 resim (göç `20261024140000`, canlıda) | `env.ts`, `ai_model_prices` |
+| Isınmayı uzun beklemek Plus açılışını yavaşlattı (35 sn bekleyip yine soğuk yazdı; hızlı soğuk yazım ilk kavramı 14 sn'de yayımlıyor) | Uzun bekleme yalnız hızlı işlemi olmayan öğrenciye; hızlı işlemli açılış 8 sn bakar, sonra soğuk | `peekBuildingPrefetch` `extendForBuild`, `fastAllowedFor` |
+| Ödeme tablosunda "günde 1 fotoğraf" ile "Fotoğraf / taranmış sayfa (ayda): 2" çelişir gibi okunuyordu | Satır belgeye yüklenen resim sayfalarını anlatır | `tier-presentation.ts` |
+
+Ölçülen (canlı): normal hızda ilk kavramın denetimi ~44 sn, hızlı işlemde ~4 sn. Ücretsiz öğrenci sıra dışı bir konu seçip
+hazır ders yokken açarsa ilk ekran ~50 sn; yolda sıradaki ders önceden yazılmış olduğu için normalde 2-3 sn. Ücretsizde
+ilk kavrama hızlı işlem vermek 19 Ekim kararına ters, ürün sahibine soruldu.
