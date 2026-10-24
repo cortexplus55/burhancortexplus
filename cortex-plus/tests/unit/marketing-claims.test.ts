@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FAQ, FEATURES, PROOF } from "@/lib/marketing/landing-content";
-import { CREDIT_PRICE_TABLE, PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
+import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { AUTO_RENEW_SUPPORTED } from "@/lib/payments/paytr-capability";
 import { tierComparisonRows } from "@/lib/billing/tier-presentation";
+import { FREE_LIMITS, isPlusOnlyAction } from "@/lib/billing/free-meters";
 
 /*
   19 Ekim 2026, ürün sahibi: "misafire sistemimizde olmayan bir şey gösteriyor muyuz, yalan vaat var
@@ -48,6 +49,15 @@ const SURFACES = [
   "src/lib/billing/tier-presentation.ts",
   "src/lib/ai/chat-fallback.ts",
   "src/lib/student/usage-limits.ts",
+  // Kredi v3 (24 Ekim 2026): öğrencinin hak ve davet hakkında okuduğu her yer.
+  "src/components/parity/referral-reward-card.tsx",
+  "src/lib/credits/referral.ts",
+  "src/app/krediler/page.tsx",
+  "src/components/paywall/credit-gate.tsx",
+  "src/lib/billing/free-meters.ts",
+  "src/lib/billing/free-reach.ts",
+  "src/lib/api/guards.ts",
+  "src/lib/solve/solve-run.ts",
 ];
 
 const BANNED: [RegExp, string][] = [
@@ -61,6 +71,18 @@ const BANNED: [RegExp, string][] = [
   [/kredi bedeli işlemden önce|harcanacak kredi gösterilir/i, "öğrenci kredi sayısı görmez"],
   [/interaktif problem/i, "simülasyonlar kaldırıldı"],
   [/kişisel çalışma planı|çalışma planı ve ilerleme/i, "çalışma planı ekranı emekli"],
+  // Kredi v3 (24 Ekim 2026). "Sınırsız hazırlık" doğru (hazırlık sayısı); "sınır yok" Plus'ın aylık hakkını yok sayar.
+  [/sınır yok/i, "Plus'ın aylık hakkı var (ayda yaklaşık 240 ders); 'Plus'a geçip beklemeden devam edebilirsin' yazın"],
+  [/katına|katlan/i, "davet çarpanı kalktı; iki tarafa bir kez 3 ders hediye"],
+  [/günlük hak/i, "ücretsiz günlük kredi yok; hak sayaçla: haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf"],
+  [
+    new RegExp(`günde (?!${FREE_LIMITS.photo}\\b)\\d+ (fotoğraf|foto)`, "i"),
+    `ücretsiz hesapta günde ${FREE_LIMITS.photo} fotoğraftan çözüm (FREE_PHOTO_PER_DAY)`,
+  ],
+  [
+    new RegExp(`fotoğraf[^.\\n]{0,120}\\.\\s*Ücretsiz hesapta günde (?!${FREE_LIMITS.photo}\\b)\\d`, "i"),
+    `ücretsiz hesapta günde ${FREE_LIMITS.photo} fotoğraftan çözüm (FREE_PHOTO_PER_DAY)`,
+  ],
 ];
 
 describe("yasak vaatler", () => {
@@ -73,6 +95,54 @@ describe("yasak vaatler", () => {
     });
   }
 
+  // Kredi v3'ten kalan eski cümleler: yasak listesi bunları gerçekten yakalıyor mu.
+  it("yasaklar v3 öncesi cümleleri yakalar, doğru cümlelere dokunmaz", () => {
+    const caught = (line: string) => BANNED.some(([pattern]) => pattern.test(line));
+    for (const line of [
+      "Bugünkü 3 ücretsiz mesajın bitti. Gece yarısı yenilenir; Plus'ta sınır yok.",
+      "Arkadaşını davet et, hakkın katlansın",
+      "Kaydolduğu anda ikinizin de dönemlik hakkı 3 katına çıkar.",
+      "Etiketsizler ücretsiz günlük hakla açılır.",
+      "Ücretsiz hesapta günde 3 fotoğraf sorusu çözülür.",
+      "Sorunun fotoğrafını çek ya da yaz; adım adım çözüm ve her şıkkın açıklaması. Ücretsiz hesapta günde 3.",
+    ]) {
+      expect(caught(line), line).toBe(true);
+    }
+    for (const line of [
+      "Belgenin tamamı, sınırsız hazırlık",
+      "Haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf",
+      "Ücretsiz hesapta haftada 3 ders, günde 3 mesaj ve 1 fotoğraf var.",
+      "Arkadaşını davet et, ikinize de 3 ders hediye",
+    ]) {
+      expect(caught(line), line).toBe(false);
+    }
+  });
+
+  it("özellikler sayfası ücretsiz sayıları koddan okur", () => {
+    const page = read("src/app/ozellikler/page.tsx");
+    expect(page).toContain("Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY}.");
+    expect(page).toContain("FREE_TIER_SENTENCE");
+    // Kart çarpan alanlarını okumuyor; davet hediyesi tek kaynaktan.
+    const card = read("src/components/parity/referral-reward-card.tsx");
+    expect(card).not.toMatch(/signupMultiplier|subscribedMultiplier/);
+    expect(card).toContain("referralSteps(summary)");
+  });
+
+  // Yükseltme kapısı "haftada 3 ders, günde 3 mesaj ve 1 fotoğraf … 3 ders hediye" diye elle yazıyordu.
+  it("yükseltme kapısı ücretsiz sayıları ve davet hediyesini koddan okur", () => {
+    const sheet = withoutComments(read("src/components/paywall/upgrade-sheet.tsx"));
+    expect(sheet).toContain("FREE_TIER_SENTENCE");
+    expect(sheet).toContain("REFERRAL_GIFT_LESSONS");
+    // Davet edenin hediyesi en çok 3 davetle sınırlı (SQL grant_referral_gift): kapı bunu da söyler.
+    expect(sheet).toContain("REFERRAL_MAX_INVITES");
+    // Hediyenin koşulu referralPitch ile aynı: arkadaş hesabını doğrulamadan hediye yok.
+    expect(sheet).toContain("hesabını doğrulayıp ilk çalışmasını yapınca");
+    expect(read("src/lib/credits/referral.ts")).toContain("hesabını doğrulayıp ilk çalışmasını yapınca");
+    // Elle yazılmış ücretsiz sayı ya da hediye sayısı yok.
+    expect(sheet).not.toMatch(/\b\d+\s+(ders|mesaj|sohbet|fotoğraf|foto)/i);
+    expect(sheet).not.toMatch(/(haftada|günde)\s+\d/i);
+  });
+
   it("emekli sayfa ve eski ana sayfa bileşenleri geri gelmedi", () => {
     const config = read("next.config.ts");
     expect(config).toContain(`{ source: "/yaratici-program", destination: "/iletisim", permanent: true }`);
@@ -81,18 +151,23 @@ describe("yasak vaatler", () => {
 });
 
 describe("ana sayfanın sayıları koddan", () => {
-  const FREE_DAILY = 6; // göç 20261008120000: v_allowance := 6
   const text = [...FAQ.map((item) => `${item.q} ${item.a}`), ...PROOF.map((item) => item.body)].join("\n");
 
-  it("ücretsiz günlük hak: bir ders, bir test ya da iki mesaj", () => {
-    expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBeLessThanOrEqual(FREE_DAILY);
-    expect(CREDIT_PRICE_TABLE.QUIZ_GENERATE.credits).toBeLessThanOrEqual(FREE_DAILY);
-    expect(CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits * 2).toBeLessThanOrEqual(FREE_DAILY);
-    expect(text).toContain("günde bir ders, bir test ya da iki sohbet mesajı");
-    expect(read("supabase/migrations/20261008120000_credit_system_v2.sql")).toContain("v_allowance := 6;");
+  // 24 Ekim 2026: ücretsiz hesap sayaçla — haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf (göç 20261024121000).
+  it("ücretsiz hak: haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf; SQL ve kopya aynı", () => {
+    expect(FREE_LIMITS).toMatchObject({ lesson: 3, chat: 3, photo: 1 });
+    const sql = read("supabase/migrations/20261024121000_free_tier_counts.sql");
+    expect(sql).toContain(`WHEN 'lesson' THEN ${FREE_LIMITS.lesson}`);
+    expect(sql).toContain(`WHEN 'chat' THEN ${FREE_LIMITS.chat}`);
+    expect(sql).toContain(`WHEN 'photo' THEN ${FREE_LIMITS.photo}`);
+    // Ücretsiz günlük kredi 0: credit_reserve'ün son hâli ayrı göçte (20261024123000).
+    expect(read("supabase/migrations/20261024123000_free_daily_zero.sql")).toContain("v_allowance := 0;");
+    expect(text).toContain("haftada 3 ders (testleri ve kartlarıyla), günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü");
+    expect(text).toContain("haftada 3 ders, günde 3 mesaj");
+    expect(text).not.toContain("günde bir ders");
   });
 
-  it("Plus etiketi: günlük haktan büyük işler", () => {
+  it("Plus etiketi: ücretsiz hesapta açılmayan işler (açık liste)", () => {
     const plusOnly = new Set(FEATURES.filter((feature) => feature.plusOnly).map((feature) => feature.title));
     for (const [title, code] of [
       ["Podcast", "PODCAST_GENERATE"],
@@ -100,7 +175,7 @@ describe("ana sayfanın sayıları koddan", () => {
       ["Yazılı deneme", "PRACTICE_EXAM_GENERATE"],
       ["Video ders", "VIDEO_GENERATE"],
     ] as const) {
-      expect(CREDIT_PRICE_TABLE[code].credits, title).toBeGreaterThan(FREE_DAILY);
+      expect(isPlusOnlyAction(code), title).toBe(true);
       expect(plusOnly.has(title), title).toBe(true);
     }
     for (const title of ["Ders", "Konu testi", "Kartlar ve tekrar", "Doğru / Yanlış"]) {
@@ -110,8 +185,10 @@ describe("ana sayfanın sayıları koddan", () => {
 
   it("Plus hakkı fiyat tablosuyla aynı", () => {
     const plus = allowanceInWork(PLAN_ALLOWANCES.plusMonthly);
-    expect(plus).toEqual({ messages: 2400, lessons: 1200 });
-    expect(text).toContain("1.200 ders ya da 2.400 mesaj");
+    // Kredi v3 (24 Ekim 2026): ders 30 kredi, mesaj 3.
+    expect(plus).toEqual({ messages: 2400, lessons: 240 });
+    expect(text).toContain("Ayda yaklaşık 2.400 mesaj ya da 240 ders");
+    expect(text).not.toContain("1.200 ders");
   });
 
   it("otomatik yenileme sözü verilmiyor", () => {

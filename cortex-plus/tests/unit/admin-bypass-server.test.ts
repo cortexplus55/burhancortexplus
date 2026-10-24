@@ -62,7 +62,6 @@ const { isAdminUser } = await import("@/lib/auth/roles");
 const { withUser, ADMIN_RATE_MULTIPLIER, ADMIN_RATE_MESSAGE } = await import("@/lib/api/guards");
 const { claimPhotoPages, releasePhotoPages } = await import("@/lib/documents/photo-quota");
 const { claimHardUpgrade } = await import("@/lib/ai/model-upgrade");
-const { freeImageAllowed } = await import("@/lib/ai/image-quota");
 
 function asClient(value: unknown) {
   return value as SupabaseClient;
@@ -214,12 +213,5 @@ describe("kotalar yöneticide sayılmaz", () => {
   it("zor soru yükseltmesi normal kullanıcıda sayılır", async () => {
     await claimHardUpgrade(serviceClient() as never, "u1");
     expect(auth.rpcCalls.map((c) => c.fn)).toContain("claim_model_upgrade");
-  });
-
-  it("günlük ücretsiz fotoğraf sayacı yöneticide hiç artmaz", async () => {
-    expect(await freeImageAllowed("u1", false, true)).toBe(true);
-    expect(rl.rateLimit).not.toHaveBeenCalled();
-    await freeImageAllowed("u1", false);
-    expect(rl.rateLimit).toHaveBeenCalledTimes(1);
   });
 });

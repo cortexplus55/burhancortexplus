@@ -294,7 +294,7 @@ bile ücretsiz hesap yeni hazırlık kuramıyordu.
 
 | Kural | Nerede |
 |---|---|
-| Günlük hak **6 kredi** (8 Ekim'den beri; önce 2) = bir ders ya da iki sohbet mesajı; her şey aynı haktan | `credit_reserve` (göç `20261008120000`), `period.ts` |
+| ~~Günlük hak 6 kredi~~ → **24 Ekim 2026'dan beri sayaç:** haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf; günlük kredi 0 (aşağıdaki "Kredi v3") | `free-meters.ts`, göç `20261024121000` |
 | **Bir** sınav hazırlığı ("Hedef puan" kaydı sayılmaz); ders seçilince kapı | `free-prep-limit.ts`, sihirbaz + sohbet + okul kopyası |
 | Hesap başına **toplam 5 sayfa** belge işleme (silinenler dahil); fazlası işlenmez, "ilk N sayfa işlendi" yazar | `free-pages.ts`, `pdf-ingestion.ts`, `pipeline.ts`, `documents.source_page_count` |
 | Resim sayfası hakkı dolunca belge **reddedilmez**; o sayfalar atlanır | `scan_pages_skipped` |
@@ -305,8 +305,8 @@ Sayılar tek yerde: `src/lib/billing/free-tier-copy.ts`. Kampanya bandı kurulma
 (karar: şimdilik değil; `/admin/promosyonlar` hazır). Bekçi: `free-tier.test.ts`.
 
 **Ücretsiz akışı denemek için test hesabı açmayın:** `/admin` → "Ücretsiz gibi gör"
-(8 Ekim 2026). Kurucu hesabı o an ücretsiz öğrenci gibi sınırlanır: günde 6 kredi
-(kredi sistemi v2'den beri; önce 2) ayrı bir tabloda düşer (cüzdana dokunmaz), belge ve hazırlık sınırı yalnız önizleme
+(8 Ekim 2026). Kurucu hesabı o an ücretsiz öğrenci gibi sınırlanır: 24 Ekim 2026'dan beri ücretsiz
+sayaçlarla (önizleme açılınca sıfırlanır; günlük kredi 0, cüzdana dokunmaz), belge ve hazırlık sınırı yalnız önizleme
 başladıktan sonra eklenenleri sayar. Kapatma düğmesi öğrenci ekranlarının üstündeki
 şeritte. Yeni bir yönetici muafiyeti eklerken `isAdminUser` değil `billingExempt`
 kullanın, yoksa önizleme o noktada sınırı atlar. Bekçi: `free-preview.test.ts`.
@@ -316,7 +316,8 @@ kullanın, yoksa önizleme o noktada sınırı atlar. Bekçi: `free-preview.test
 Ürün sahibinin kararı: tek sayaç, **Astra'dan fazla kullanım**, yoğun öğrencide
 **%50 kâr**. Astra Plus canlıda ölçüldü (1 mesaj aylık hakkın %0,05'i → ≈2.000 mesaj;
 1 ders %0,26–0,45 → 220–380 ders); bizde Plus ayda 2.400 mesaj ya da 1.200 ders.
-Hesap, tablo ve kararlar: `docs/delivery/KREDI-SISTEMI.md`.
+Hesap, tablo ve kararlar: `docs/delivery/KREDI-SISTEMI.md`. **24 Ekim 2026: fiyatlar v3** (ders 30, test 10,
+mesaj 3; Plus ayda 240 ders ya da 2.400 mesaj) — aşağıdaki "Kredi v3" bölümü.
 
 | Kural | Nerede |
 |---|---|
@@ -678,7 +679,7 @@ Yeni bir model zinciri eklerken bu dört kabuktan birini kullanın ya da `withGe
 |---|---|---|
 | **Hızlı işlem yalnız Plus/Sigma ve kurucuya** | 18 Ekim'deki "öğrenci beklerken herkese" kararı daraldı: ders $0,016 tutuyordu, kredisi $0,006. Ücretsiz öğrencinin soğuk içeriği normal hızda; abonelik okunamazsa hızlı işlem yok | `fast-access.ts` (`fastAllowedFor`), dört motor kabuğu |
 | **Seslendirme 15 kredi / 900 karakter** (önce 2) | Ölçülen maliyet ~$0,015 / 900 karakter; 5 dk podcast sesi ~60 kredi. Önbellekten gelen cümle yine bedava | göç `20261019130000`, `price-table.ts` |
-| Test (4) ve mesaj (3) kredisi **kalır** | Maliyetin ~1,5 katı eksik ama normal öğrencide marj ~%72; yoğun öğrenci azınlıkta varsayımı | — |
+| Test (4) ve mesaj (3) kredisi **kalır** (24 Ekim 2026: test 10'a çıktı, mesaj 3 kaldı — "Kredi v3") | Maliyetin ~1,5 katı eksik ama normal öğrencide marj ~%72; yoğun öğrenci azınlıkta varsayımı | — |
 
 ## Kapalı beta kodları (19 Ekim 2026) — tek kullanımlık, 14 gün Plus
 
@@ -757,7 +758,7 @@ hiç verilmeyen "zor soruda güçlü model", ücretsiz zor soruda "Plus'ta güç
 |---|---|
 | Ana sayfanın bütün cümleleri tek dosyada; ders sahnesi gerçek bir dersten (Çocuk Sağlığı). Rakip adı geçmez | `src/lib/marketing/landing-content.ts`, `components/landing/landing-page.tsx` |
 | **Her plan aynı modeli kullanır** (`model-router.ts`). Planların gerçek farkı: hak, günlük haktan büyük işler, video ders, hazır içerik yokken hızlı yazım. "Gelişmiş/güçlü model" yazmayın | `tier-presentation.ts` (model satırı yok, hız satırı var) |
-| Ücretsiz günlük hak 6 kredi: ders (6), test (4), kartlar (3), mesaj (3) açılır; **podcast (12), sözlü (8), yazılı deneme (15), video (280) açılmaz** — pazarlamada bunlar "Plus" etiketli. Fotoğraf çözümü (10) günlük haktan büyük ama 23 Ekim 2026'dan beri ücretsizde günde 3 kez, krediye dokunmadan (aşağıdaki "Soru çözücü") | `FEATURES.plusOnly` |
+| Ücretsiz hesap (24 Ekim 2026'dan beri sayaçla): haftada 3 ders (testleri ve kartlarıyla), günde 3 mesaj, günde 1 fotoğraftan çözüm; **podcast, sözlü, yazılı deneme, video Plus'ta** — pazarlamada bunlar "Plus" etiketli (açık liste `PLUS_ONLY_ACTIONS`) | `FEATURES.plusOnly`, `FREE_TIER_SENTENCE` |
 | Pazarlama başlıkları da Figtree (tırnaklı DM Serif kalktı); birincil eylem mavi, altın yalnız marka ve Plus | `cinematic-home.css`, `landing.css` |
 | Fiyatlar veritabanından okunur | `src/app/page.tsx` |
 
@@ -923,10 +924,10 @@ ve fütüristik". Yeniden açmayın:
 
 | Kural | Nerede |
 |---|---|
-| Her sayı **kredi tablosundan hesaplanır**, elle yazılmaz: Plus ayda 1.200 ders, 1.800 konu testi, 2.400 kart seti, 100 podcast (5 dk, **sesiyle**: senaryo + seslendirme), 900 sözlü deneme, 480 yazılı deneme, 720 fotoğraftan çözüm, 25 video ders, 2.400 soru; 3.600 sayfa not, ayda 300 fotoğraf/taranmış sayfa. "Her biri tek başına; hepsi aynı aylık haktan" her yüzeyde yazılı | `src/lib/billing/plan-value.ts` |
-| "Ücretsizde kapalı" yalnız ücretsiz günlük haktan (6) büyük işler: podcast, sözlü, yazılı deneme, video. Fotoğraftan çözüm ücretsizde günde 3 (`freeDaily`, 23 Ekim 2026) | `PLAN_WORK[].plusOnly` |
-| "Kendi ayını kur": öğrenci temposunu (günde ders/test/soru, haftada podcast/deneme, ayda video) seçer; hakkın yüzdesi, kalan pay ve aynı tempo ücretsizle kaç gün sürerdi görünür. Hazır tempolar Plus'a sığar (düzenli %38, sınav ayı %60, son sprint %75). Öğrenci **kredi sayısı görmez**, yüzde görür | `TEMPO_PRESETS`, `tempoMix`, `mixShare`, `freeDaysFor` |
-| Fiyat satırı: aylık fiyatın günlük karşılığı (yıllık daha ucuzsa onunki de), "Otomatik yenileme yok", "Kart bilgisi bize gelmez" — üçü de bugün doğru (`AUTO_RENEW_SUPPORTED = false`, PayTR iFrame). Sahte aciliyet, sahte yorum, indirim sayacı yok | `TrustLine` |
+| Her sayı **kredi tablosundan hesaplanır**, elle yazılmaz: Plus ayda (kredi v3, 24 Ekim 2026) 240 ders, 720 konu testi, 1.800 kart seti, 100 podcast (5 dk, **sesiyle**: senaryo + seslendirme), 1.200 sözlü deneme, 480 yazılı deneme, 1.800 fotoğraftan çözüm, 25 video ders, 2.400 soru; 1.440 sayfa not, ayda 300 fotoğraf/taranmış sayfa. "Her biri tek başına; hepsi aynı aylık haktan" her yüzeyde yazılı | `src/lib/billing/plan-value.ts` |
+| "Ücretsizde kapalı" = `PLUS_ONLY_ACTIONS`: podcast, sözlü, yazılı deneme, video. Ücretsizde ders ayda ~12 (haftada 3), test ve kartlar "Derse dahil", mesaj 90, fotoğraf 30 (`free`, 24 Ekim 2026) | `PLAN_WORK[].plusOnly`, `free` |
+| "Kendi ayını kur": öğrenci temposunu (günde ders/test/soru, haftada podcast/deneme, ayda video) seçer; hakkın yüzdesi, kalan pay ve aynı tempo ücretsizle kaç gün sürerdi görünür. Hazır tempolar Plus'a sığar (kredi v3: düzenli %45, sınav ayı %67, son sprint %72; en yoğunu %75'in altında). Öğrenci **kredi sayısı görmez**, yüzde görür | `TEMPO_PRESETS`, `tempoMix`, `mixShare`, `freeDaysFor` |
+| Fiyat satırı: aylık fiyatın günlük karşılığı (yıllık plan 24 Ekim 2026'da kalktı), "Otomatik yenileme yok", "Kart bilgisi bize gelmez" — üçü de bugün doğru (`AUTO_RENEW_SUPPORTED = false`, PayTR iFrame). Sahte aciliyet, sahte yorum, indirim sayacı yok | `TrustLine` |
 | Misafir: ana sayfada ikinci bölüm (güven çubuğunun hemen ardından). Ücretsiz öğrenci (`showsUpgradeChrome`): ana ekranda kart — hiç hazırlığı yoksa önce "İlk hazırlığını kur" (değeri yaşatmadan satış dönüşmüyor), hemen altında Plus kartı; ödeme sayfasında planların altında tam bölüm; yükseltme kapısında dört sayı. Plus/Sigma ve kurucu görmez | `landing-page.tsx`, `ogretmen/page.tsx`, `pay/page.tsx`, `upgrade-sheet.tsx` |
 | Tasarım: koyu zemin, yavaş mavi-altın ışık, ufka uzanan ızgara, tarama ışığı, dönen altın kenarlı kart; altın yalnız Plus. `overflow: clip` (hidden değil): hidden kaydırılabilir kutu kuruyor, #plus-ay bağlantısıyla gelince içerik telefonda 461 px sola kaçıyordu. Sayılar sunucuda son değerle yazılır, ekrana girince sayar; hareket azaltmada durur | `plus-month.tsx`, `plus-month.css` |
 
@@ -1191,7 +1192,7 @@ sözel 3–10 sn, işlemli 17–27 sn). Ayrıntı ve ölçümler: `cortex-plus/d
 |---|---|
 | İki **bağımsız** luna çağrısı aynı anda (tam çözüm + yalnız cevap); kod cevabı şıklarla eşler ve her adımın eşitlik zincirini yeniden hesaplar (`eval` yok; sayıya bitişik tek harf değişkendir: "2x" birim sayılmaz); uyuşmazsa uzlaştırma, emin değilse "Emin değiliz" | `src/lib/solve/question-solver.ts`, `step-arithmetic.ts`, `solve-run.ts` |
 | İlk çözüm ekranda, gpt-4.1 denetimi arkada; "doğrulandı" yalnız denetçi **açıkça** onaylayınca (`verified.confirmed`); itiraz + farklı cevap → çözüm değişir ve söylenir | `solve-run.ts`, `solve-client.ts` |
-| Ücretsizde fotoğraf günde **3**, krediye dokunmaz; Plus `IMAGE_SOLUTION` (10); yazılı soru sohbet mesajı fiyatı; okunmayan fotoğraf iade | `solve-run.ts`, `plan-value.ts` `freeDaily` |
+| Ücretsizde fotoğraf günde **1** (24 Ekim 2026'dan beri SQL sayacı; önce Redis'te günde 3), yazılı soru günde 3 mesajdan; Plus `IMAGE_SOLUTION` (4); okunmayan fotoğraf iade, hak geri döner | `solve-run.ts`, `credit_reserve_metered` |
 | Sohbetteki fotoğraf da bu motora gider, aynı kart sohbette çizilir; çözüm sohbete metin olarak **ilk çözümle** kaydedilir (denetimi beklemez, düzeltilirse metin de düzelir). Görsel **yalnız eklendiği mesajla** gider: eskiden `activeDocumentId`'de kalıp sonraki her mesajı fotoğraf fiyatından ücretliyordu | `chat-panel.tsx` `solvePhoto`, `api/ai/solve/route.ts`, `solve-chat-save.ts` |
 | Hazırlık sayfası üst çubuğunda kamera → `/soru-coz?hazirlik=…`; şıklı soru "Tekrar listeme ekle" ile o hazırlığın günü gelen tekrarına girer ("Çözdüğün soru"). Soru ve cevap **imzalı belirteçten** (HMAC, 6 saat), tarayıcıdan değil | `solve-review.ts`, `/api/learning/exam-prep/review/solved` |
 | Eski `/api/ai/solve-image` ve `image-solver.tsx` silindi; "yüzde 100" ya da "her zaman doğru" yazılmaz | — |
@@ -1212,3 +1213,33 @@ iki turda 10/10 doğru ve hepsi denetçi onaylı; soru başına ~0,003 $. Bekçi
 
 Ders, test, podcast, kartlar ve öteki içerik motorları değişmedi. Ana sayfa "Dersler notuna karşı denetlenir" der,
 "her içerik" demez. Bekçi: `chat-single-call.test.ts` (`chatAnswerNeedsReview`, `runTeacherTutor({ verify })`).
+
+Sohbet denetimi de 24 Ekim 2026'dan beri **luna** (ürün sahibinin kararı: "Denetimi luna'ya al, mesaj 3 kredi
+kalsın"): `verifyEducationalContent` ve `verifyDocumentAnswer` `model` alır; görselli soruda gören model (gpt-4.1)
+kalır. Belge ekli eski sohbet mesajı gpt-4.1 denetimiyle ~$0,026 tutuyordu.
+
+## Kredi v3 ve sayaçlı ücretsiz katman (24 Ekim 2026) — haftada 3 ders, günde 3 mesaj, 1 fotoğraf
+
+Ürün sahibinin kararları, maliyet ve vergi hesabından sonra (`cortex-plus/docs/delivery/MALIYET-VERGI-24-EKIM.md`;
+gerekçe ve tablo `docs/delivery/KREDI-SISTEMI.md` başı). v2'de ders, test ve mesaj ölçülen maliyetin 2-5 katı
+altındaydı; Plus'ın tamamını kullanan öğrenci ve ücretsiz katman zarar ettiriyordu. Yukarıdaki v2 bölümünün
+fiyatları, "Ücretsiz katman (3 Ekim)" bölümünün günlük hakkı ve "Plus'ın bir ayı" sayıları bununla değişti.
+
+| Kural | Nerede |
+|---|---|
+| Fiyat v3 (1 kredi ≈ $0,001 gerçek maliyet): ders **30**, test **10**, kart **4**, sayfa **5**, fotoğraf **4**, sözlü **6**; mesaj **3 kalır**; Plus ayda 7.200 / haftada 2.700 aynı → ayda 240 ders ya da 2.400 mesaj | göç `20261024120000`, `price-table.ts` |
+| Ücretsiz hesabın günlük kredisi **0** (yeni cüzdanın varsayılanı da 0); ders haftada 3 (Pazartesi 00:00 İstanbul, `2026-W43`), mesaj günde 3, fotoğraf günde 1 — sayaç `free_usage`, tek giriş `credit_reserve_metered` | sayaçlar göç `20261024121000`, günlük 0 göç `20261024123000`, `free-meters.ts` |
+| **Derse dahil olanlar sayılmaz, Araçlar dersten düşer:** ders içi yardım (koç, açıklama, geri bildirim, tanışma, tanı) ve yolda dersi açılmış konunun test/kartları `included` (günde 40, görünmez); Araçlar'daki test/kart/doğru-yanlış ve dersi açılmamış konunun testi ders hakkından; "Farklı anlat" yeni ders | `node-free-meter.ts` `nodeMeterFor`, çağıranlarda `freeMeter` |
+| Plus'ta (ücretsizde açılmaz): podcast, sözlü, yazılı deneme, video, sesli tur, **ses** — açık liste, fiyattan türetilmez (fiyat değişince kapı ters dönüyordu) | `PLUS_ONLY_ACTIONS` = SQL `plus_only_action`, `PLUS_ONLY_NODE_KINDS` |
+| Ret kodları 402: `free_lesson_limit`, `free_chat_limit`, `free_photo_limit`, `free_included_limit`, `premium_required`; kapı sayacın saatini gösterir, Plus işinde "doldu" ve geri sayım yok | `refusalCode`, `credit-gate.tsx`, `guards.ts` |
+| Sayaç dolunca hediye bakiyesi yetiyorsa iş onunla; iade aynı dönemde sayacı geri verir | `credit_reserve_metered`, `credit_refund` |
+| Davet: doğrulanmış davetli ilk işinde (ücretsiz, Plus ya da denemede) **iki tarafa bir kez 90 kredi** (3 ders), davet eden en çok 3 davetten; iki cüzdan ilk hediyeden önce kimlik sırasıyla birlikte kilitlenir (sınır aşılmaz, karşılıklı davet birbirini kilitlemez); çarpan kalktı | `grant_referral_gift`, `referral.ts` |
+| Yıllık planlar satıştan kalktı (`active = false`); elinde olan dönem sonuna kadar Plus, planını okur (`plans_held_by_user`). `20260906130000_subscription_billing.sql` yeniden uygulanmaz | göç `20261024122000`, `plan-prices.ts` |
+| **Yayın sırası** (hiçbir ara durum ücretsizi düşürmez): (a) `20261024121000` **koddan önce** (yalnız ekleme; eski kod v2 gibi çalışır, `free_usage` silme için hazır), **push'tan önce** `select to_regprocedure('public.credit_reserve_metered(uuid,text,text,integer,text)') is not null` `true` dönmeli (ya da `node cortex-plus/scripts/acilis-kapisi.mjs --db`); (b) kod yayına; (c) **tek SQL çalıştırmasında** `20261024120000` + `20261024123000` ve iki kayıt satırı; (d) `20261024122000` kod yayındayken herhangi bir an; (e) `/admin/sistem` yeşil (ders 30, `free_usage` ve `unverified_allowance()` 0 birlikte), sonra "Ücretsiz gibi gör". (c) ayrı ayrı çalıştırılmaz: yalnız fiyat göçüyle ders (30) v2 günlük hakkına (6) sığmaz. Kayıt satırları her yerde `on conflict (version) do nothing` ile (geri almadan sonra v3'e dönerken satırlar zaten var; düz insert duplicate key ile düşer, iki göç de uygulanmaz). PGRST202 düşüşü (`credit/service.ts`) yalnız emniyet: (a) atlanırsa ücretsiz fotoğraf v2 günlük hakkına sığmaz, tek iz `console.warn` | `KREDI-SISTEMI.md` "Canlıya geçiş" (kayıt satırları SQL olarak orada) |
+| **Kodu geri almak (c)'den sonra önce SQL ister:** `supabase/rollback/20261024_kredi_v3_geri_al.sql` (göç değil; v2 fiyatları, v2 `credit_reserve`, günlük 6, eski varsayılanlar; hiçbir şey silmez, sonuç (a)+(b) durumu), sonra Instant Rollback. Dosyasız geri alma ücretsiz katmanı kapatır: eski kod `credit_reserve`'ü doğrudan çağırır. **Kabul edilen boşluk:** (c) ile geri alma arasında yenilenen abone dönemi davet çarpansız kalır (davetli Plus 21.600 yerine 7.200), çarpan sonraki yenilemede döner; tamamlama bilerek yok — 24 Ekim 2026'da etkin ücretli abonelik ve artı bakiyeli cüzdan yoktu | `docs/ops/yayin-geri-alma.md` C |
+| "Ücretsiz gibi gör" ücretsiz sayaçlarla çalışır (açılınca sıfırlanır), önizlemeye abonelikten önce bakılır (aboneliği olan kurucu da sayaca girer), sayaç dolunca kurucunun cüzdanına düşmez; (c)'den önce açılmaz | `free-preview-actions.ts`, `credit_reserve_metered` |
+
+Eski `image-quota.ts` (Redis'te günde 3 fotoğraf) silindi; fotoğraf sayacı SQL'de. Öğrenci kredi sayısı görmez,
+sayaç "Bu haftaki ders 2/3" diye `/krediler`'de görünür. Bekçi: `free-tier-counts.test.ts` (göçleri yayın sırasıyla ve
+geri alma dosyasını PGlite'ta çalıştırır), `free-meters.test.ts`, `free-reach.test.tsx`, `plus-month.test.tsx`, `marketing-claims.test.ts`,
+`schema-probe.test.ts` ("Kredi v3 ve ücretsiz sayaçlar" kritik).

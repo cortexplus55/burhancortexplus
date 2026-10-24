@@ -1,14 +1,19 @@
 import type { ActionCode } from "@/lib/env";
-import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
-import { FREE_DAILY_ALLOWANCE } from "@/lib/credits/period";
+import {
+  FREE_TIER_SENTENCE,
+  PLUS_ONLY_NODE_KINDS,
+  freeLimitReachedLine,
+  isPlusOnlyAction,
+  type FreeMeter,
+} from "@/lib/billing/free-meters";
 
 /**
- * Ücretsiz günlük hakkın yetmediği işler (19 Ekim 2026).
+ * Ücretsiz hesabın neyi açamadığı (24 Ekim 2026, sayıya dayalı ücretsiz katman).
  *
- * Ücretsiz hesap günde 6 kredi alır; podcast 12, sözlü 8, yazılı deneme 15, fotoğraf çözümü 10, video
- * 280 kredi. Bu işler ücretsiz hakla hiçbir gün açılmaz. Önceden öğrenci podcast'i kurup "oluştur"a
- * basınca "Bu ders için kullanım hakkın doldu" ve yenilenme geri sayımı görüyordu — hakkını hiç
- * kullanmamış olsa da, ve beklemek hiçbir şeyi değiştirmiyordu.
+ * "Plus'ta" kararı artık fiyattan değil, açık listeden gelir (`PLUS_ONLY_ACTIONS`): podcast, sözlü,
+ * yazılı deneme, video ve ses. Fiyattan türetmek kredi fiyatı değişince kapıyı ters çeviriyordu (sözlü 6
+ * krediye inince ücretsizde açılırdı, ders 30 krediye çıkınca "Plus" rozeti alırdı). Öteki işler sayaçla
+ * açık: haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf.
  *
  * Eşleme düğüm rotasındaki `actionForKind` ile aynı (bekçi test karşılaştırır).
  */
@@ -24,8 +29,9 @@ export function actionForNodeKind(kind: string): ActionCode {
   return NODE_KIND_ACTION[kind] ?? "QUIZ_GENERATE";
 }
 
+/** İş ücretsiz hesapta hiç açılmıyor mu (Plus'ta). Adı eski; anlamı artık açık liste. */
 export function exceedsFreeDaily(code: ActionCode): boolean {
-  return CREDIT_PRICE_TABLE[code].credits > FREE_DAILY_ALLOWANCE;
+  return isPlusOnlyAction(code);
 }
 
 /** Araç seçicideki karolar: yazılı deneme ayrı rotadan (deneme ücreti), video yalnız Plus. */
@@ -46,28 +52,30 @@ const KIND_NAME: Record<string, string> = {
   lesson: "Ders",
   podcast: "Podcast",
   oral: "Sözlü deneme",
+  written_exam: "Yazılı deneme",
   flashcards: "Kartlar",
   spaced: "Tekrar",
   quiz: "Konu testi",
   true_false: "Doğru / yanlış",
 };
 
-/** Ücretsiz hakkı aşan işin kapı cümlesi: "doldu" denmez, ne yapılabileceği söylenir. */
+/** Plus'taki işin kapı cümlesi: "doldu" denmez, ücretsizde ne açık olduğu söylenir. */
 export function beyondFreeMessage(name: string): string {
-  return `${name}, ücretsiz günlük haktan büyük bir iş; Plus'ta açık. Ders, test ve kartlar ücretsiz hakla açılmaya devam ediyor.`;
+  return `${name} Plus'ta. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} açık.`;
 }
 
 /**
- * Kredi kapısının cümlesi. Ücretsiz hakkı aşan işte "doldu" denmez ve geri sayım gösterilmez
- * (`beyondFreeDaily`); diğerlerinde hakkın gerçekten dolmuştur.
+ * Kredi kapısının cümlesi. Plus'taki işte "doldu" denmez ve geri sayım gösterilmez (`beyondFreeDaily`);
+ * öteki işlerde ücretsiz hesabın ders sayacı dolmuştur (yolda test ve kartlar derse dahil).
  */
-export function creditGateCopy(kind: string, isPremium: boolean): { message: string; beyondFreeDaily: boolean } {
+export function creditGateCopy(
+  kind: string,
+  isPremium: boolean,
+): { message: string; beyondFreeDaily: boolean; meter?: FreeMeter } {
   const name = KIND_NAME[kind] ?? "Bu etkinlik";
-  if (!isPremium && exceedsFreeDaily(actionForNodeKind(kind))) {
+  if (isPremium) return { message: "Bu dönemki kullanım hakkın doldu.", beyondFreeDaily: false };
+  if (PLUS_ONLY_NODE_KINDS.has(kind) || exceedsFreeDaily(actionForNodeKind(kind))) {
     return { message: beyondFreeMessage(name), beyondFreeDaily: true };
   }
-  return {
-    message: isPremium ? "Bu dönemki kullanım hakkın doldu." : "Bugünkü ücretsiz hakkın doldu.",
-    beyondFreeDaily: false,
-  };
+  return { message: freeLimitReachedLine("lesson"), beyondFreeDaily: false, meter: "lesson" };
 }

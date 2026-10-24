@@ -1,11 +1,13 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements, type Audience } from "@/lib/billing/entitlements";
-import { freePreview, previewAllowanceLeft, previewWallet } from "@/lib/billing/free-preview";
+import { freePreview, previewWallet } from "@/lib/billing/free-preview";
 import { allowanceShare, formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
 import { type SubscriptionBadge } from "@/lib/student/subscription-badge";
 import { isAdminUser } from "@/lib/auth/roles";
 import { createServiceClient } from "@/lib/supabase/server";
+import { loadFreeMeters } from "@/lib/billing/free-usage-server";
+import type { FreeMeterView } from "@/lib/billing/free-meters";
 
 export type StudentAccountContext = {
   audience: Audience;
@@ -40,7 +42,21 @@ export type StudentAccountContext = {
   usedPercent: number;
   /** Satın alınmış ek paketin dönem hakkına oranı (%); yoksa null. */
   extraPercent: number | null;
+  /** Ücretsiz hesabın sayaçları (haftalık ders, günlük mesaj ve fotoğraf; 24 Ekim 2026). */
+  freeMeters?: FreeMeterView[];
 };
+
+/** Ücretsiz hesabın görünümü: kredi yüzdesi yerine ders sayacı, yenilenme haftanın başı. */
+function freeView(meters: FreeMeterView[]): Pick<StudentAccountContext, "freeMeters" | "usedPercent" | "resetsAtLabel" | "resetsAtIso"> {
+  const lesson = meters.find((item) => item.meter === "lesson");
+  const resetsAt = lesson ? new Date(lesson.resetsAtIso) : new Date();
+  return {
+    freeMeters: meters,
+    usedPercent: lesson ? Math.round((lesson.used / Math.max(1, lesson.limit)) * 100) : 0,
+    resetsAtLabel: formatResetAt(resetsAt),
+    resetsAtIso: resetsAt.toISOString(),
+  };
+}
 
 export async function getStudentAccountContext(
   supabase: SupabaseClient,
@@ -62,6 +78,7 @@ export async function getStudentAccountContext(
   const preview = isAdmin ? await freePreview(createServiceClient(), userId).catch(() => null) : null;
   if (preview) {
     const quota = quotaView(previewWallet(preview), false);
+    const meters = await loadFreeMeters(createServiceClient(), userId);
     return {
       audience: "free",
       balance: 0,
@@ -71,14 +88,13 @@ export async function getStudentAccountContext(
       subscriptionBadge: null,
       subscriptionAllowance: null,
       subscriptionPeriodEnd: null,
-      canSpend: previewAllowanceLeft(preview) > 0,
+      // Sayaçlar SQL'de; kapı kalan hakkı ve yenilenme saatini buradan okur.
+      canSpend: true,
       isAdmin: false,
       freePreview: true,
-      resetsAtLabel: formatResetAt(quota.resetsAt),
-      resetsAtIso: quota.resetsAt.toISOString(),
       periodKind: quota.kind,
-      usedPercent: quota.usedPercent,
       extraPercent: null,
+      ...freeView(meters),
     };
   }
 
@@ -93,6 +109,7 @@ export async function getStudentAccountContext(
     entitlements.monthlyAllowance ?? undefined,
   );
 
+  const meters = !isPremium && !isAdmin ? await loadFreeMeters(createServiceClient(), userId) : null;
   return {
     audience: entitlements.audience,
     balance,
@@ -109,5 +126,6 @@ export async function getStudentAccountContext(
     periodKind: quota.kind,
     usedPercent: quota.usedPercent,
     extraPercent: allowanceShare(balance, quota.allowance),
+    ...(meters ? { ...freeView(meters), canSpend: true } : {}),
   };
 }

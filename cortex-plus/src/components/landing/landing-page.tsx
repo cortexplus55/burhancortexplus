@@ -34,7 +34,6 @@ const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
 export function LandingPage({ prices }: { prices: LandingPrices }) {
   const plus = allowanceInWork(PLAN_ALLOWANCES.plusMonthly);
   const week = allowanceInWork(PLAN_ALLOWANCES.plusWeekly);
-  const yearlyPerMonth = prices.plusYearly ? Math.round(prices.plusYearly / 12 / 100) * 100 : null;
 
   return (
     <div className="lp">
@@ -84,7 +83,6 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
       <PlusMonth
         variant="full"
         monthlyKurus={prices.plusMonthly}
-        yearlyKurus={prices.plusYearly}
         primary={{ label: "Plus ile başla", href: "/kayit?next=%2Fpay" }}
         secondary={{ label: "Önce ücretsiz dene", href: "/kayit" }}
       />
@@ -158,7 +156,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
               <h3 className="lp-plan-name">Ücretsiz</h3>
               <p className="lp-plan-price">₺0</p>
               <ul className="lp-plan-list">
-                <li>Her gün bir ders, bir test ya da iki sohbet mesajı</li>
+                <li>Haftada 3 ders (testleri ve kartlarıyla), günde 3 mesaj</li>
                 <li>Bir sınav hazırlığı</li>
                 <li>Toplam {FREE_PAGE_TOTAL} sayfa belge</li>
                 <li>Ders, konu testi, kartlar, doğru/yanlış, AI öğretmen</li>
@@ -177,9 +175,6 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
                 {prices.plusMonthly ? formatTryWhole(prices.plusMonthly) : "—"}
                 <span> / ay</span>
               </p>
-              {yearlyPerMonth ? (
-                <p className="lp-plan-note">Yıllık alırsan ayda {formatTryWhole(yearlyPerMonth)}</p>
-              ) : null}
               <ul className="lp-plan-list">
                 <li>
                   Ayda yaklaşık {fmtCount(plus.lessons)} ders ya da {fmtCount(plus.messages)} mesaj

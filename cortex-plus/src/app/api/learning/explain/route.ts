@@ -41,6 +41,8 @@ export async function POST(request: Request) {
     service,
     userId,
     actionCode: "AI_CHAT_STANDARD",
+    // Ücretsizde sohbet mesajı sayılır (24 Ekim 2026, ürün sahibinin kararı): "Anlatarak öğren" Araçlar'dan
+    // ve Yanlışlarım'dan açılıyor, ders içi yardımcı değil — `freeMeter` verilmez, varsayılan "chat".
     isPremium: await isPremiumUser(service, userId),
     schemaHint: EXPLAIN_SCHEMA_HINT,
     userPrompt: buildExplainPrompt(topic, explanation),

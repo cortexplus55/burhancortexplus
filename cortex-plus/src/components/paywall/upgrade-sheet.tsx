@@ -5,9 +5,26 @@ import { useEffect, useState } from "react";
 import { Sparkles, Users, X } from "lucide-react";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import { PlusCountsInline } from "@/components/marketing/plus-month";
+import { FREE_TIER_SENTENCE, REFERRAL_GIFT_LESSONS, REFERRAL_MAX_INVITES } from "@/lib/billing/free-meters";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/upgrade-gate.css";
+
+/*
+  Kapının davet ve ücretsiz hak cümleleri sayılarını koddan alır (24 Ekim 2026): elle yazılmış
+  "haftada 3 ders" ya da "3 ders hediye" sayaç değişince sessizce yalan olurdu. Hediyenin koşulu
+  `referralPitch` ile aynı: arkadaş hesabını doğrulayıp ilk çalışmasını yapınca; davet eden en çok
+  `REFERRAL_MAX_INVITES` davet için alır (sınırı dolan davet edene "ikinize de" yalan olmasın).
+*/
+const GIFT_CONDITION = "hesabını doğrulayıp ilk çalışmasını yapınca";
+
+/** Davet bağlantısının yazısı. */
+export const UPGRADE_INVITE_LINE = `Ya da arkadaşını davet et — o ${GIFT_CONDITION} ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye (en çok ${REFERRAL_MAX_INVITES} davet)`;
+
+/** "Cortex Plus neden tamamen ücretsiz değil?" altındaki ücretsiz hak satırı. */
+export const UPGRADE_FREE_LINE =
+  `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; ` +
+  `davet ettiğin arkadaş ${GIFT_CONDITION} ikinize de ${REFERRAL_GIFT_LESSONS} ders hediye; en çok ${REFERRAL_MAX_INVITES} davet için.`;
 
 /**
  * Hak dolduğunda çıkan yükseltme ekranı.
@@ -95,15 +112,14 @@ export function UpgradeSheet({
         {/*
           Üçüncü yol — ve bugüne kadar bu ekranda hiç söylenmiyordu.
 
-          Davet sistemi kurulu, çarpanlar işliyor, kart da yazılmış; ama
-          yalnızca /krediler, /profil ve /davet sayfalarında duruyordu. Üçü de
-          öğrencinin BİLEREK gittiği yerler. Oysa "daha fazla hak istiyorum"
-          düşüncesi tam burada, hakkı dolduğu anda doğuyor.
+          Davet sistemi kurulu, kart da yazılmış; ama yalnızca /krediler,
+          /profil ve /davet sayfalarında duruyordu. Üçü de öğrencinin BİLEREK
+          gittiği yerler. Oysa "daha fazla hak istiyorum" düşüncesi tam burada,
+          hakkı dolduğu anda doğuyor.
 
-          Çarpanın kaç olduğu yazılmıyor: sayı veritabanından geliyor ve
-          değişebiliyor, kabuk bağlamında da taşınmıyor. Sırf bu satır için
-          her sayfa yüklemesine fazladan sorgu eklemek yerine, çarpan kaç
-          olursa olsun doğru kalan cümle kuruldu.
+          24 Ekim 2026: davet çarpanı kalktı; iki tarafa bir kez REFERRAL_GIFT_LESSONS
+          ders hediye (SQL `grant_referral_gift`), arkadaş hesabını doğrulayıp ilk
+          çalışmasını yapınca.
         */}
         <Link
           href="/davet"
@@ -111,13 +127,13 @@ export function UpgradeSheet({
           onClick={() => onOpenChange(false)}
         >
           <Users className="h-4 w-4" aria-hidden />
-          <span>Ya da arkadaşını davet et — ikinizin de hakkı katlanır</span>
+          <span>{UPGRADE_INVITE_LINE}</span>
         </Link>
 
         {/* Hakkı yenilenecek olan öğrenciye "beklersen de olur" demek dürüst
             olan. Abone olmadan da çözümü var ve bunu saklamıyoruz. */}
         {resetsAt ? (
-          <ResetCountdown resetsAt={resetsAt} />
+          <ResetCountdown resetsAt={resetsAt} hint={resetHint} />
         ) : resetHint ? (
           <p className="ug-reset">{resetHint}</p>
         ) : null}
@@ -139,7 +155,7 @@ export function UpgradeSheet({
             </li>
             <li>
               <strong>Ücretsiz hak</strong>
-              <span>Ücretsiz hesap her gün bir derslik hak alıyor; davet ettiğin arkadaşınla ikinizin hakkı katlanıyor.</span>
+              <span>{UPGRADE_FREE_LINE}</span>
             </li>
           </ol>
         ) : null}
@@ -149,29 +165,55 @@ export function UpgradeSheet({
 }
 
 /**
- * "Tekrar dene: 04 saat 21 dk 00 sn" — Astra'nın sohbet duvarındaki gibi.
+ * Geri sayımın parçaları. 24 saatten uzunsa gün ve saat ("5 gün 22 saat"): haftalık ders hakkı Salı
+ * biten öğrenciye "142 saat 10 dk 05 sn" yazıyordu. Bir günün altında Astra'nın duvarındaki gibi saat,
+ * dakika, saniye.
+ */
+export function countdownParts(leftSeconds: number): { value: string; unit: string }[] {
+  const left = Math.max(0, Math.floor(leftSeconds));
+  if (left > 24 * 3600) {
+    return [
+      { value: String(Math.floor(left / 86400)), unit: "gün" },
+      { value: String(Math.floor((left % 86400) / 3600)), unit: "saat" },
+    ];
+  }
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return [
+    { value: pad(Math.floor(left / 3600)), unit: "saat" },
+    { value: pad(Math.floor((left % 3600) / 60)), unit: "dk" },
+    { value: pad(left % 60), unit: "sn" },
+  ];
+}
+
+/**
+ * "Hakkın yenilenene kadar: 04 saat 21 dk 00 sn" — Astra'nın sohbet duvarındaki gibi. Yenilenme satırı
+ * ("Ders hakkın Pazartesi 00:00'da yenilenir.") hemen üstünde: eskiden geri sayım varken hiç çizilmiyordu.
  * Saniyede bir güncellenir; süre dolunca "Hakkın yenilendi" der.
  */
-function ResetCountdown({ resetsAt }: { resetsAt: string }) {
+function ResetCountdown({ resetsAt, hint }: { resetsAt: string; hint?: string }) {
   const target = new Date(resetsAt).getTime();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
-  if (!Number.isFinite(target)) return null;
+  if (!Number.isFinite(target)) return hint ? <p className="ug-reset">{hint}</p> : null;
   const left = Math.max(0, Math.floor((target - now) / 1000));
   if (left === 0) return <p className="ug-reset">Hakkın yenilendi; yeniden deneyebilirsin.</p>;
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const hours = Math.floor(left / 3600);
-  const minutes = Math.floor((left % 3600) / 60);
-  const seconds = left % 60;
   return (
-    <div className="ug-countdown" aria-live="off">
-      <span className="ug-countdown-label">Hakkın yenilenene kadar:</span>
-      <span className="ug-countdown-clock">
-        <b>{pad(hours)}</b> saat <b>{pad(minutes)}</b> dk <b>{pad(seconds)}</b> sn
-      </span>
-    </div>
+    <>
+      {hint ? <p className="ug-reset">{hint}</p> : null}
+      <div className="ug-countdown" aria-live="off">
+        <span className="ug-countdown-label">Hakkın yenilenene kadar:</span>
+        <span className="ug-countdown-clock">
+          {countdownParts(left).map((part, index) => (
+            <span key={part.unit}>
+              {index ? " " : null}
+              <b>{part.value}</b> {part.unit}
+            </span>
+          ))}
+        </span>
+      </div>
+    </>
   );
 }

@@ -43,7 +43,11 @@ const quiz = vi.hoisted(() => ({
 const ai = vi.hoisted(() => ({ reply: "{}", calls: 0 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/credits/service", () => credits);
+// Ret kodu gerçek `refusalCode`'dan: ücretsiz hesabın "Plus'ta" reddi kapıya doğru kodla gitsin.
+vi.mock("@/lib/credits/service", async (importOriginal) => ({
+  ...credits,
+  refusalCode: (await importOriginal<typeof import("@/lib/credits/service")>()).refusalCode,
+}));
 vi.mock("@/lib/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/env")>();
   return { ...actual, env: { ...actual.env, OPENAI_API_KEY: "k", OPENAI_CONTENT_MODEL: "luna-test" } };
@@ -248,6 +252,17 @@ describe("yazılı deneme: tek ücret, bütün konular", () => {
     credits.reserveCredits.mockResolvedValueOnce({ ok: false, reason: "insufficient_credits" } as never);
     const result = await createMockExam({ service: fakeService() as never, userId: "u1", isPremium: false, prepId: "p1", preset: "short" });
     expect(result).toEqual({ ok: false, status: 402, error: "insufficient_credits" });
+    expect(quiz.calls).toEqual([]);
+  });
+
+  it("ücretsiz hesapta deneme Plus'ta: 402 premium_required (geri sayımlı 'hakkın doldu' kapısı değil)", async () => {
+    credits.reserveCredits.mockResolvedValueOnce({
+      ok: false,
+      reason: "insufficient_credits",
+      refusal: { kind: "plus_required" },
+    } as never);
+    const result = await createMockExam({ service: fakeService() as never, userId: "u1", isPremium: false, prepId: "p1", preset: "short" });
+    expect(result).toEqual({ ok: false, status: 402, error: "premium_required" });
     expect(quiz.calls).toEqual([]);
   });
 });

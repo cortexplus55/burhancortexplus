@@ -89,7 +89,11 @@ export function MockExamSetup({
       if (!res.ok) {
         // 19 Ekim 2026: hak yetmezse kapı açılır (ücretsizde deneme günlük haktan büyük; "Kredin
         // yetersiz" yazısı ne yapılacağını söylemiyordu, öğrenci kredi sayısı da görmez).
-        if (payload.error === "insufficient_credits" || payload.code === "insufficient_credits") {
+        if (
+          payload.error === "insufficient_credits" ||
+          payload.code === "insufficient_credits" ||
+          payload.code === "premium_required"
+        ) {
           setPaywall(true);
         } else {
           toast.error("Deneme bu sefer tamamlanamadı; iki kez denedik. Hakkın iade edildi, birkaç saniye sonra yeniden dene.");

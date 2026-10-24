@@ -5,10 +5,7 @@ import {
   HARD_UPGRADE_MONTHLY_LIMIT,
   claimHardUpgrade,
 } from "@/lib/ai/model-upgrade";
-import {
-  FREE_IMAGE_DAILY_LIMIT,
-  freeImageAllowed,
-} from "@/lib/ai/image-quota";
+import { FREE_LIMITS, defaultFreeMeter } from "@/lib/billing/free-meters";
 
 /*
   18 Eylül 2026'da birlikte gelen üç maliyet freni: deneme üretiminin fiyatı,
@@ -197,68 +194,29 @@ describe("deneme üretimi fiyatı", () => {
   });
 });
 
-describe("ücretsiz hesapta günlük fotoğraf tavanı", () => {
-  /* Fotoğraf sistemdeki en pahalı eylem: gören tek model gelişmiş olan.
-     Normalde kredi frenliyor (6 kredi / 5 kredi = günde bir fotoğraf) ama
-     `referral_tiers` abone getiren daveti 400 katsayıyla ödüllendiriyor ve
-     orada fren tümüyle kayboluyordu. */
-  it("tavana kadar geçiriyor, sonra kapatıyor", async () => {
-    const user = `free-${Date.now()}`;
-    for (let i = 0; i < FREE_IMAGE_DAILY_LIMIT; i += 1) {
-      expect(await freeImageAllowed(user, false)).toBe(true);
-    }
-    expect(await freeImageAllowed(user, false)).toBe(false);
+describe("ücretsiz hesapta günlük fotoğraf sayacı", () => {
+  /* Fotoğraf en pahalı sohbet işi (gören model). 18 Eylül 2026'dan beri ayrı bir Redis tavanıyla (günde 3)
+     frenleniyordu; 24 Ekim 2026'dan beri ücretsiz hesap krediyle değil sayaçla çalışıyor ve fotoğraf
+     kredi ayırmasının kendi sayacında (`credit_reserve_metered`, günde 1). Tavan artık tek yerde. */
+  it("günde bir fotoğraf; IMAGE_SOLUTION fotoğraf sayacına düşer", () => {
+    expect(FREE_LIMITS.photo).toBe(1);
+    expect(defaultFreeMeter("IMAGE_SOLUTION")).toBe("photo");
   });
 
-  /* Abonelik kendi kotasını zaten ödüyor; sayaca dokunmak gereksiz bir tur. */
-  it("premium hesap sayaca hiç girmiyor", async () => {
-    const user = `plus-${Date.now()}`;
-    for (let i = 0; i < FREE_IMAGE_DAILY_LIMIT + 5; i += 1) {
-      expect(await freeImageAllowed(user, true)).toBe(true);
-    }
-    // Sayaç boş kaldığı için ücretsize düşse bile tavanı yeni baştan alıyor.
-    expect(await freeImageAllowed(user, false)).toBe(true);
+  it("sohbet ucu fotoğraflı mesajı fotoğraf sayacına yazar, denetimden sonra", () => {
+    const source = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
+    expect(source).not.toContain("freeImageAllowed");
+    const reserve = source.indexOf('{ freeMeter: imageUrl ? "photo" : "chat" }');
+    expect(reserve).toBeGreaterThan(-1);
+    expect(source.indexOf("await moderate(")).toBeLessThan(reserve);
   });
 
-  /* Davetle gelen öğrencinin çarpanı 3 ve 18 kredisi tam 3 fotoğraf ediyor;
-     tavan bu yüzden 3 — kimsenin elinden bir şey almıyor, yalnızca 400'lük
-     çarpanın açtığı deliği kapatıyor. */
-  it("davet çarpanının verdiği hakkı kesmiyor", () => {
-    expect(FREE_IMAGE_DAILY_LIMIT).toBe(3);
-  });
-
-  it.each([
-    "src/app/api/ai/chat/route.ts",
-  ])("%s tavanı uyguluyor", (file) => {
-    const source = readFileSync(file, "utf8");
-    // Yönetici bayrağı istek gövdesinden değil, `withUser` bağlamından geliyor.
-    expect(source).toContain("freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId)))");
-    expect(source).toMatch(/const \{[^}]*\bisAdmin\b[^}]*\} = guard\.ctx/);
-    expect(source).toContain('errorResponse(429, "free_image_limit")');
-  });
-
-  /* Denetimden geçemeyen istek öğrencinin hakkını yakmamalı — krediyi de
-     denetimden sonra ayırıyoruz. Tavan kontrolü `moderate` çağrısından
-     sonra gelmeli. */
-  it.each([
-    "src/app/api/ai/chat/route.ts",
-  ])("%s tavanı denetimden sonra soruyor", (file) => {
-    const source = readFileSync(file, "utf8");
-    const cap = source.indexOf("freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId)))");
-    expect(cap).toBeGreaterThan(-1);
-    expect(source.indexOf("await moderate(")).toBeLessThan(cap);
-  });
-
-  /* Soru çözücü (23 Ekim 2026): ücretsiz fotoğraf günde 3, krediye dokunmadan; yönetici muafiyeti
-     `withUser` bağlamından; tavan denetimden sonra (denetim rotada, çözüm motoru ondan sonra çalışır). */
-  it("soru çözücü tavanı uyguluyor ve denetimden sonra soruyor", () => {
+  it("soru çözücü ayırmayı denetimden sonra yapar; fotoğraf için ayrı tavan yok", () => {
     const run = readFileSync("src/lib/solve/solve-run.ts", "utf8");
-    expect(run).toContain("input.isAdmin ? billingExempt(service, userId)");
-    expect(run).toContain("const freePhoto = image && !premium && !exempt;");
-    expect(run).toContain("freeImageAllowed(userId, false, false)");
-    expect(run).toMatch(/code: "free_image_limit"[\s\S]{0,240}status: 429/);
+    expect(run).not.toContain("freeImageAllowed");
+    expect(run).toContain('const actionCode: ActionCode = image ? "IMAGE_SOLUTION" : "AI_CHAT_STANDARD";');
+    expect(run).toContain("reserveCredits(service, userId, actionCode, input.idempotencyKey)");
     const route = readFileSync("src/app/api/ai/solve/route.ts", "utf8");
-    expect(route).toMatch(/const \{[^}]*\bisAdmin\b[^}]*\} = guard\.ctx/);
     expect(route.indexOf("await moderate(")).toBeGreaterThan(-1);
     expect(route.indexOf("await moderate(")).toBeLessThan(route.indexOf("await runSolve("));
   });

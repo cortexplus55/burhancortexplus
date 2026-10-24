@@ -349,7 +349,7 @@ async function waitForInFlightAudio(
 
 export type ChargedAudio =
   | { ok: true; tracks: AudioTrack[]; creditsSpent: number }
-  | { ok: false; reason: "insufficient_credits" | "audio_unavailable" };
+  | { ok: false; reason: "insufficient_credits" | "premium_required" | "audio_unavailable" };
 
 /**
  * Ses üretiminin ücretli yolu — her iki ses ucu da buradan geçiyor.
@@ -394,9 +394,13 @@ export async function synthesizeCharged(
         const tracks = await waitForInFlightAudio(service, lines, userId, options);
         if (tracks) return { ok: true, tracks, creditsSpent: 0 };
       }
+      // Ücretsiz hesapta ses Plus'ta (24 Ekim 2026): ret `premium_required` döner, kapı
+      // "hakkın yenilenir" diye geri saymasın — beklemek sesi açmaz.
       return {
         ok: false,
-        reason: reservation.reason === "insufficient_credits" ? "insufficient_credits" : "audio_unavailable",
+        reason: reservation.refusal?.kind === "plus_required"
+          ? "premium_required"
+          : reservation.reason === "insufficient_credits" ? "insufficient_credits" : "audio_unavailable",
       };
     }
     reservationId = reservation.reservationId;

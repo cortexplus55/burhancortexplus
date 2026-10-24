@@ -21,6 +21,7 @@ import {
 } from "@/lib/billing/plan-value";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import { formatTry } from "@/lib/format";
+import { possessiveSuffix } from "@/lib/text/number-suffix";
 import { cn } from "@/lib/utils";
 import "@/styles/plus-month.css";
 
@@ -43,8 +44,6 @@ export type PlusMonthProps = {
   variant: "full" | "compact";
   /** Plus aylık fiyatı (kuruş); okunamazsa günlük fiyat satırı yazılmaz. */
   monthlyKurus: number | null;
-  /** Yıllık fiyat (kuruş): günlük karşılığı en düşük fiyat olarak yanına yazılır. */
-  yearlyKurus?: number | null;
   primary: Cta;
   secondary?: Cta;
   /** Ödeme sayfasında başlık seviyesi düşer (sayfanın h1'i planlar). */
@@ -61,7 +60,7 @@ export function PlusMonth(props: PlusMonthProps) {
   return props.variant === "compact" ? <PlusMonthCompact {...props} /> : <PlusMonthFull {...props} />;
 }
 
-function PlusMonthFull({ monthlyKurus, yearlyKurus, primary, secondary, headingLevel = "h2", id = "plus-ay" }: PlusMonthProps) {
+function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", id = "plus-ay" }: PlusMonthProps) {
   const Heading = headingLevel;
   const plus = PLAN_ALLOWANCES.plusMonthly;
   const lessons = workCount(plus, PLAN_WORK_BY_ID.lesson);
@@ -154,7 +153,7 @@ function PlusMonthFull({ monthlyKurus, yearlyKurus, primary, secondary, headingL
               </Link>
             ) : null}
           </div>
-          <TrustLine monthlyKurus={monthlyKurus} yearlyKurus={yearlyKurus ?? null} />
+          <TrustLine monthlyKurus={monthlyKurus} />
           <p className="pm-fine">
             Sayılar tek başına; hepsi aynı aylık haktan düşer. Podcast {PODCAST_MINUTES} dakikalık ve sesiyle
             birlikte sayıldı. Yapay zekâ modeli her planda aynı.
@@ -166,7 +165,7 @@ function PlusMonthFull({ monthlyKurus, yearlyKurus, primary, secondary, headingL
 }
 
 /** Ücretsiz öğrencinin ana ekranındaki kart: dört sayı, enerji halkası, tek düğme. */
-function PlusMonthCompact({ monthlyKurus, yearlyKurus, primary, secondary }: PlusMonthProps) {
+function PlusMonthCompact({ monthlyKurus, primary, secondary }: PlusMonthProps) {
   const plus = PLAN_ALLOWANCES.plusMonthly;
   const preset = TEMPO_PRESETS.find((item) => item.id === "sinav-ayi") ?? TEMPO_PRESETS[0]!;
   const share = Math.round(mixShare(tempoMix(preset.tempo)) * 100);
@@ -186,7 +185,8 @@ function PlusMonthCompact({ monthlyKurus, yearlyKurus, primary, secondary }: Plu
           Plus ile bu ay
         </p>
         <h2 id="pm-card-title" className="pm-card-title">
-          Günde 3 ders, 5 test ve her gün bir podcast — hakkının yalnız <span className="pm-gold">%{share}</span>&apos;i.
+          Günde {preset.tempo.lessonsPerDay} ders, {preset.tempo.quizzesPerDay} test ve haftada {preset.tempo.podcastsPerWeek} podcast — hakkının <span className="pm-gold">%{share}</span>
+          {possessiveSuffix(share)}.
         </h2>
         <ul className="pm-card-counts">
           {items.map((id) => {
@@ -213,28 +213,25 @@ function PlusMonthCompact({ monthlyKurus, yearlyKurus, primary, secondary }: Plu
             </Link>
           ) : null}
         </div>
-        <TrustLine monthlyKurus={monthlyKurus} yearlyKurus={yearlyKurus ?? null} compact />
+        <TrustLine monthlyKurus={monthlyKurus} compact />
       </div>
     </section>
   );
 }
 
 /**
- * Fiyat ve güven: aylık fiyatın günlük karşılığı (yıllık daha ucuzsa onunki de), sonra gerçekten
+ * Fiyat ve güven: aylık fiyatın günlük karşılığı (yıllık plan 24 Ekim 2026'da kalktı), sonra gerçekten
  * tuttuğumuz iki söz — abonelik kendiliğinden yenilenmez (`AUTO_RENEW_SUPPORTED = false`), kart
  * bilgisi PayTR'de kalır.
  */
 function TrustLine({
   monthlyKurus,
-  yearlyKurus,
   compact = false,
 }: {
   monthlyKurus: number | null;
-  yearlyKurus: number | null;
   compact?: boolean;
 }) {
   const monthlyDay = monthlyKurus ? perDayKurus(monthlyKurus) : null;
-  const yearlyDay = yearlyKurus ? Math.ceil(yearlyKurus / 365) : null;
   return (
     <ul className={cn("pm-trust", compact && "pm-trust--compact")}>
       {monthlyDay ? (
@@ -242,7 +239,6 @@ function TrustLine({
           <ShieldCheck className="h-4 w-4" aria-hidden />
           <span>
             Günde {formatTry(monthlyDay)}
-            {yearlyDay && yearlyDay < monthlyDay ? ` · yıllıkta ${formatTry(yearlyDay)}` : ""}
           </span>
         </li>
       ) : null}
@@ -336,7 +332,7 @@ function TempoMixer() {
               ? "Bu tempo bir aylık Plus hakkını aşıyor: ek paket ya da Sigma ile sürer."
               : percent <= 0
                 ? "Bir tempo seç; hakkının ne kadarının gittiğini gör."
-                : `Ay biterken hakkının %${100 - percent}'i hâlâ duruyor.`}
+                : `Ay biterken hakkının %${100 - percent}${possessiveSuffix(100 - percent)} hâlâ duruyor.`}
           </p>
           <p className="pm-meter-free">
             {freeDays == null
@@ -423,7 +419,7 @@ function CountUp({ value }: { value: number }) {
 
 /**
  * Yükseltme kapısındaki kısa satır: hakkı dolan öğrenciye Plus'ın bir ayında ne olduğunu dört sayıyla
- * söyler (eskiden yalnız "ayda yaklaşık 2.400 mesaj ya da 1.200 ders" yazıyordu).
+ * söyler (eskiden yalnız "ayda yaklaşık 2.400 mesaj ya da 1.200 ders" yazıyordu; sayılar kredi tablosundan).
  */
 export function PlusCountsInline() {
   const plus = PLAN_ALLOWANCES.plusMonthly;

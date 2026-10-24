@@ -238,6 +238,22 @@ describe("ücretli seslendirme yolu", () => {
     expect(mocks.synthesizeLine).not.toHaveBeenCalled();
   });
 
+  /* Kredi v3 (24 Ekim 2026): ücretsiz hesapta ses Plus'ta. Ret "hakkın doldu" değil, Plus kapısı. */
+  it("ücretsiz hesabın Plus reddi premium_required döner", async () => {
+    mocks.reserveCredits.mockResolvedValue({
+      ok: false,
+      reason: "insufficient_credits",
+      refusal: { kind: "plus_required" },
+    });
+    const service = fakeService();
+    const result = await synthesizeCharged(asService(service), "user-1", [
+      line("Yeni"),
+    ]);
+
+    expect(result).toEqual({ ok: false, reason: "premium_required" });
+    expect(mocks.synthesizeLine).not.toHaveBeenCalled();
+  });
+
   it("üretim başarısızsa krediyi iade ediyor", async () => {
     const service = fakeService({ uploadFails: true });
     const result = await synthesizeCharged(asService(service), "user-1", [
@@ -339,9 +355,12 @@ describe("ses uçları ücretli yoldan geçiyor", () => {
     expect(source).toMatch(/\bsynthesizeCharged\s*\(/);
   });
 
+  /* Ret kodu synthesizeCharged'dan olduğu gibi: `insufficient_credits` (hak bitti) ya da
+     `premium_required` (ücretsizde ses Plus'ta); ikisi farklı kapı açar. */
   it.each(routes)("%s kredi yetmediğinde ayrı kod dönüyor", (file) => {
     const source = readFileSync(file, "utf8");
-    expect(source).toContain('errorResponse(402, "insufficient_credits")');
+    expect(source).toContain('result.reason === "insufficient_credits" || result.reason === "premium_required"');
+    expect(source).toContain("errorResponse(402, result.reason)");
   });
 });
 
@@ -355,6 +374,7 @@ describe("oynatıcı iki ayrı 402'yi ayırıyor", () => {
      metni değiştiren ilk kişide sessizce kırılırdı. */
   it("kodu okuyor, metni değil", () => {
     expect(source).toContain('body?.code === "insufficient_credits"');
+    expect(source).toContain('event.code === "premium_required" ? "premium"');
   });
 
   it("kredisi bitene Plus üyeliği satmıyor", () => {

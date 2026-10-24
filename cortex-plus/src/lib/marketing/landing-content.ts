@@ -1,3 +1,6 @@
+import { FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
+import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import type { Icon3DName } from "@/components/ui/icon-3d";
 
 /**
@@ -20,7 +23,7 @@ export const HERO = {
     "Cortex Plus ders notunu konulara ayırır; her konu için ders, podcast, test ve sözlü pratik hazırlar. Hepsi senin notuna dayanır; notunda olmayan sayı ya da kural uydurmaz.",
   primary: { label: "Ücretsiz başla", href: "/kayit" },
   secondary: { label: "Nasıl çalışıyor?", href: "#nasil" },
-  fineprint: "Kart istemiyoruz · Her gün bir ders ücretsiz",
+  fineprint: "Kart istemiyoruz · Haftada 3 ders ücretsiz",
 } as const;
 
 /** Ölçülmüş ya da kodda kural olarak duran farklar; sayılar `docs/delivery/` ölçümlerinden. */
@@ -43,7 +46,7 @@ export const PROOF = [
   {
     stat: "₺0",
     title: "Kartsız başla",
-    body: "Ücretsiz hesap her gün yenilenir. Abonelik kendiliğinden yenilenmez, sürpriz çekim olmaz.",
+    body: "Ücretsiz hesapta haftada 3 ders, günde 3 mesaj. Abonelik kendiliğinden yenilenmez, sürpriz çekim olmaz.",
   },
 ] as const;
 
@@ -169,11 +172,11 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Ücretsiz neler yapabilirim?",
-    a: "Kart istemiyoruz. Ücretsiz hesap her gün yenilenen bir hak alıyor: günde bir ders, bir test ya da iki sohbet mesajı. Bir sınav hazırlığı kurabilir, toplam 5 sayfa belge işletebilirsin. Fotoğraftan soru çözümü günde 3 kez ücretsiz. Podcast, sözlü ve yazılı deneme ve video ders bu günlük haktan büyük; onlar Plus'ta.",
+    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam 5 sayfa belge işletebilirsin. Podcast, sözlü ve yazılı deneme, video ders ve sesli dinleme Plus'ta.`,
   },
   {
     q: "Plus'ta ne değişiyor?",
-    a: "Ayda yaklaşık 1.200 ders ya da 2.400 mesaj; podcast, sözlü ve yazılı deneme, video ders; belgenin tamamı, sınırsız hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark ne kadar ve ne kadar hızlı çalışabildiğinde.",
+    a: `${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly)}; podcast, sözlü ve yazılı deneme, video ders; belgenin tamamı, sınırsız hazırlık ve hazır içerik yokken daha hızlı yazım. Yapay zekâ modeli aynı; fark ne kadar ve ne kadar hızlı çalışabildiğinde.`,
   },
   {
     q: "Notumda olmayan bir şeyi sorarsam?",

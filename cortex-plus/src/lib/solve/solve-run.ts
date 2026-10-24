@@ -5,10 +5,9 @@ import type { ChatCompletionContentPart } from "openai/resources/chat/completion
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
-import { freeImageAllowed } from "@/lib/ai/image-quota";
 import { isPremiumUser } from "@/lib/billing/entitlements";
-import { billingExempt } from "@/lib/billing/free-preview";
-import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
+import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits, type ReservationResult } from "@/lib/credits/service";
+import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
@@ -28,8 +27,8 @@ import {
 
 /*
   Soru çözücünün sunucu akışı (23 Ekim 2026). Sıra:
-  1. Ücret: fotoğrafta Plus/Sigma `IMAGE_SOLUTION` (10 kredi); ücretsiz öğrenci günde 3 fotoğraf (ürün sahibinin
-     kararı), krediye dokunmadan, `freeImageAllowed` sayacıyla. Yazılı soru sohbet mesajı fiyatında (`AI_CHAT_STANDARD`).
+  1. Ücret: fotoğrafta Plus/Sigma `IMAGE_SOLUTION`; ücretsiz öğrenci günde 1 fotoğraf ve günde 3 mesaj (24 Ekim 2026,
+     ürün sahibinin kararı), kredi ayırmasının sayacıyla. Yazılı soru sohbet mesajı fiyatında (`AI_CHAT_STANDARD`).
   2. İki bağımsız luna çağrısı aynı anda: tam çözüm + yalnız cevap. Ölçüm (10 ders, 10 soru): 10/10 doğru, 7-9 sn.
   3. Cevaplar tutar ve kod hesabı doğrularsa çözüm gider; tutmazsa luna (orta düşünme) iki çözümü karşılaştırır.
   4. Çözüm gittikten sonra denetçi (gpt-4.1, ürün sahibinin kararı: denetçi kalır) bakar; yanlış derse luna yeniden
@@ -55,7 +54,6 @@ export type SolveEvent =
 export type SolveInput = {
   service: SupabaseClient;
   userId: string;
-  isAdmin: boolean;
   /** data:image/...;base64 — yoksa yazılı soru. */
   imageDataUrl?: string;
   text?: string;
@@ -79,6 +77,17 @@ function userContent(input: SolveInput, text: string): ChatCompletionContentPart
   ];
 }
 
+function solveRefusalMessage(result: Extract<ReservationResult, { ok: false }>): string {
+  const refusal = result.refusal;
+  if (refusal?.kind === "free_limit" && refusal.meter === "photo") {
+    return `Ücretsiz hesapta günde ${FREE_PHOTO_PER_DAY} fotoğraftan çözüm var; bugünkü hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
+  }
+  if (refusal?.kind === "free_limit" && refusal.meter === "chat") {
+    return `Bugünkü ${FREE_CHAT_PER_DAY} ücretsiz mesaj hakkın bitti; yazılı soru da mesaj sayılır. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
+  }
+  return result.reason === "insufficient_credits" ? "Bu soru için hakkın yetmiyor." : "Bu soru şu an çözülüyor; birkaç saniye sonra yeniden dene.";
+}
+
 /** Bir çözümü uçtan uca yürütür; olayları `emit` ile sırayla verir. */
 export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => void): Promise<void> {
   const started = Date.now();
@@ -86,37 +95,21 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
   const { service, userId } = input;
   const image = Boolean(input.imageDataUrl);
 
-  const [premium, exempt] = await Promise.all([
-    isPremiumUser(service, userId),
-    input.isAdmin ? billingExempt(service, userId) : Promise.resolve(false),
-  ]);
+  const premium = await isPremiumUser(service, userId);
   const actionCode: ActionCode = image ? "IMAGE_SOLUTION" : "AI_CHAT_STANDARD";
-  // Ücretsiz fotoğraf: günde 3, krediye dokunmadan. Yazılı soru herkes için kredili (sohbet mesajı fiyatı).
-  const freePhoto = image && !premium && !exempt;
-  if (freePhoto && !(await freeImageAllowed(userId, false, false))) {
+  // 24 Ekim 2026: ücretsiz hesapta günde 1 fotoğraf ve günde 3 mesaj, kredi ayırmasının sayacıyla
+  // (credit_reserve_metered). Okunmayan fotoğraf iade edilir, hak geri döner. Kurucu ve abone sayaçsız.
+  const reservation = await reserveCredits(service, userId, actionCode, input.idempotencyKey);
+  if (!reservation.ok) {
     emit({
       type: "error",
-      code: "free_image_limit",
-      message: "Ücretsiz hesapta günde 3 fotoğraf çözülüyor; bugünkü hakkın doldu. Yarın yine 3 hakkın olacak, Plus'ta sınır yok.",
-      status: 429,
-    });
-    return;
-  }
-  const charged = !freePhoto && !exempt;
-  const reservation = charged ? await reserveCredits(service, userId, actionCode, input.idempotencyKey) : null;
-  if (reservation && !reservation.ok) {
-    emit({
-      type: "error",
-      code: reservation.reason,
-      message:
-        reservation.reason === "insufficient_credits"
-          ? "Bu soru için hakkın yetmiyor."
-          : "Bu soru şu an çözülüyor; birkaç saniye sonra yeniden dene.",
+      code: refusalCode(reservation),
+      message: solveRefusalMessage(reservation),
       status: reservation.reason === "insufficient_credits" ? 402 : 409,
     });
     return;
   }
-  const reservationId = reservation?.ok ? reservation.reservationId : null;
+  const reservationId = reservation.reservationId;
   let settled = false;
   const settle = async (commit: boolean) => {
     if (settled || !reservationId) return;

@@ -93,6 +93,8 @@ export function ExplainStudio({
       open={paywall}
       onOpenChange={setPaywall}
       returnPath="/studio/anlat"
+      // Araçlar kartı, ders içi yardım değil: ücretsizde mesaj hakkından düşer (24 Ekim 2026).
+      meter="chat"
     />
   );
 

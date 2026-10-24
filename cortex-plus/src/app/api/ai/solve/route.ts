@@ -25,7 +25,7 @@ const UNCERTAIN_NOTE = "Emin değiliz: iki ayrı çözüm farklı sonuç verdi; 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "solve", limit: 8, trackSharing: true });
   if (!guard.ok) return guard.response;
-  const { userId, service, isAdmin } = guard.ctx;
+  const { userId, service } = guard.ctx;
 
   const form = await request.formData().catch(() => null);
   if (!form) return errorResponse(400, "invalid_input");
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
         );
       };
       try {
-        await runSolve({ service, userId, isAdmin, imageDataUrl, text: text || undefined, idempotencyKey: `solve:${userId}:${operationId}` }, (event) => {
+        await runSolve({ service, userId, imageDataUrl, text: text || undefined, idempotencyKey: `solve:${userId}:${operationId}` }, (event) => {
           emit(event);
           if (reviewable && (event.type === "solution" || event.type === "revised")) {
             const item = event.type === "solution" && event.status === "uncertain" ? null : solutionReviewItem(event.solution);

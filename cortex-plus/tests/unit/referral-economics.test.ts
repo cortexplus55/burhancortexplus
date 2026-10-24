@@ -91,15 +91,18 @@ describe("emniyet tavanı", () => {
   });
 });
 
-describe("arayüz sayıyı veritabanından okuyor", () => {
-  /* Tabloyu kısıp metni güncellemeyi unutma riski buradan kalkıyor — ilk
-     migration'ın `referral_summary` gerekçesi de buydu. */
-  it("çarpan metni sabit yazılmamış", () => {
+describe("arayüz davet hediyesini anlatıyor", () => {
+  /* 24 Ekim 2026: çarpan kalktı (credit_reserve artık referral_multiplier
+     çağırmıyor). Kart hâlâ "3 katına çıkar" deseydi olmayan bir ödül vaat
+     ederdi; hediye sayısı ve adımlar tek kaynaktan (`referral.ts`). */
+  it("kart çarpan vaat etmiyor, hediyeyi tek kaynaktan okuyor", () => {
     const card = readFileSync(
       "src/components/parity/referral-reward-card.tsx",
       "utf8",
     );
-    expect(card).toContain("{summary.subscribedMultiplier} katına");
-    expect(card).not.toMatch(/\b400 katına\b/);
+    expect(card).not.toMatch(/katına|katlan|çarpan geçerli/);
+    expect(card).not.toMatch(/signupMultiplier|subscribedMultiplier/);
+    expect(card).toContain("REFERRAL_GIFT_LESSONS");
+    expect(card).toContain("referralSteps(summary)");
   });
 });

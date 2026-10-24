@@ -1,3 +1,6 @@
+import { FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
+import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import Link from "next/link";
 import { LifeBuoy, Mail } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
@@ -18,7 +21,7 @@ const faqs = [
   },
   {
     question: "Ücretsiz olarak ne yapabilirim?",
-    answer: `Ücretsiz hesap her gün yenilenen bir hak alır: günde bir ders ya da iki sohbet mesajı. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin. Ders, podcast, test, kartlar ve sözlü deneme açık; video ders yalnız Plus'ta.`,
+    answer: `Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var; ders hakkı Pazartesi, mesaj ve fotoğraf hakkı gece yarısı yenilenir. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin. Podcast, sözlü ve yazılı deneme, video ders ve sesli dinleme Plus'ta.`,
   },
   {
     question: "Dosyalarım güvende mi?",
@@ -28,7 +31,7 @@ const faqs = [
   {
     question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      "Plus hacim ve hız satar: ayda yaklaşık 1.200 ders ya da 2.400 mesaj, belgenin tamamı, sınırsız hazırlık, video ders ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.",
+      `Plus hacim ve hız satar: ${allowanceWorkLine(PLAN_ALLOWANCES.plusMonthly).replace(/^A/, "a")}, belgenin tamamı, sınırsız hazırlık, podcast, sözlü ve yazılı deneme, video ders ve hazır içerik yokken daha hızlı yazım. Abonelik kendiliğinden yenilenmez.`,
   },
   {
     question: "Destek ne kadar sürede döner?",

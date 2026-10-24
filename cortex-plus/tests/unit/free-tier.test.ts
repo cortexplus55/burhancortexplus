@@ -23,10 +23,14 @@ import { tierComparisonRows } from "@/lib/billing/tier-presentation";
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("ücretsiz katman sınırları", () => {
-  // Kredi sistemi v2 (8 Ekim 2026): birim küçüldü, hak aynı iş — bir ders (6) ya da iki mesaj (3).
-  it("günlük hak bir ders: SQL ve arayüz aynı sayıyı söylüyor", () => {
-    expect(read("supabase/migrations/20261008120000_credit_system_v2.sql")).toContain("v_allowance := 6;");
-    expect(quotaView(null, false).allowance).toBe(6);
+  // Kredi v3 (24 Ekim 2026): ücretsiz hesabın günlük kredisi 0; ders, mesaj, fotoğraf sayaçla (free-meters.ts).
+  // Günlük hakkın 0'ı kodla birlikte yayına giren ayrı göçte; sayaçlar koddan önce gelen 20261024121000'de.
+  it("günlük kredi 0: SQL ve arayüz aynı sayıyı söylüyor", () => {
+    const zero = read("supabase/migrations/20261024123000_free_daily_zero.sql");
+    expect(zero).toContain("v_allowance := 0;");
+    expect(zero).toContain("ALTER TABLE public.credit_wallets ALTER COLUMN free_allowance_remaining SET DEFAULT 0;");
+    expect(read("supabase/migrations/20261024121000_free_tier_counts.sql")).not.toContain("v_allowance := 0;");
+    expect(quotaView(null, false).allowance).toBe(0);
   });
 
   it("bir hazırlık ve toplam 5 sayfa; fiyat tablosu aynı sayıları gösteriyor", () => {

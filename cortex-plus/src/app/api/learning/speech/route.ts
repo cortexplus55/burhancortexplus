@@ -46,8 +46,8 @@ export async function POST(request: Request) {
     guard.ctx.userId,
     sentences.map((text) => ({ text, speaker: parsed.data.speaker })),
   );
-  if (!result.ok && result.reason === "insufficient_credits") {
-    return errorResponse(402, "insufficient_credits");
+  if (!result.ok && (result.reason === "insufficient_credits" || result.reason === "premium_required")) {
+    return errorResponse(402, result.reason);
   }
   if (!result.ok) return errorResponse(503, "audio_unavailable");
 

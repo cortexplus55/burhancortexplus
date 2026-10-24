@@ -15,7 +15,7 @@ export default async function DavetPage() {
 
   const [{ code, url: inviteUrl }, referral] = await Promise.all([
     loadInviteLink(supabase, user.id),
-    loadReferralSummary(supabase),
+    loadReferralSummary(supabase, user.id),
   ]);
 
   // QR sunucuda uretilir; davet kodu dis servise gitmez.

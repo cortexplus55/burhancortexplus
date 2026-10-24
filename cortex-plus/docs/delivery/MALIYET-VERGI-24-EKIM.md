@@ -81,3 +81,19 @@ normal −15 · yoğun −14. Yıllık Plus ₺2.990'da ayda yalnız ₺200 bır
 | Derleme ücreti (~$31/ay) | Sabit gider | Belge değişikliklerinde önizleme derlemesi kapatılabilir |
 
 Hesap betiği: oturum çalışma alanındaki `pnl4.cjs` / `pnl5.cjs` (kalemler ve varsayımlar başta).
+
+## Kararlar (aynı gün, ürün sahibi)
+
+| Soru | Karar | Nerede |
+|---|---|---|
+| Krediler | Gerçek maliyete: ders 30, test 10, kart 4, sayfa 5, fotoğraf 4, sözlü 6 (B senaryosu) | `docs/delivery/KREDI-SISTEMI.md` (v3) |
+| Sohbet | Denetim yalnız belgeye dayanan cevapta (#396) ve luna ile; mesaj 3 kredi kalır (C senaryosu) | `AGENTS.md` "Sohbette tek model çağrısı" |
+| Ücretsiz katman | Haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf; derse dahil olanlar sayılmaz, Araçlar dersten düşer; ses Plus'ta (D senaryosundan sıkı) | `free-meters.ts` |
+| Davet | İki tarafa bir kez 3 ders (90 kredi); çarpan kalktı | `grant_referral_gift` |
+| Yıllık plan | Satıştan kaldırıldı; yalnız aylık ve haftalık (E senaryosunun yerine) | göç `20261024122000` |
+
+**Sohbet canlı ölçümü (24 Ekim, kurucu hesabıyla):** genel sohbet cevabı tek çağrı, ~$0,0002; hazırlık sohbetinde
+belgeye dayanan cevap luna denetimiyle ~$0,001-0,002; belge ekli eski sohbet yolu gpt-4.1 denetimiyle ~$0,026 idi (luna'ya
+alındı). Tablodaki "mesaj $0,0101" eski yolun (her mesajda ikinci çağrı) ölçümü; bugün normal öğrencinin sohbet payı
+tablodakinin çok altında kalıyor. Yeni krediler ve kararlarla senaryo tablosu yayından bir hafta sonra
+`ai_usage_events`'ten yeniden hesaplanmalı.

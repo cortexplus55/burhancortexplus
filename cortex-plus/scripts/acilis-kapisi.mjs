@@ -20,10 +20,24 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const SITE = (process.env.SITE ?? "https://cortexplus.app").replace(/\/$/, "");
 const WITH_DB = process.argv.includes("--db");
-const ROOT = process.cwd();
+// Uygulama klasörü (cortex-plus/), çalıştırılan yerden bağımsız: depo kökünden
+// `node cortex-plus/scripts/acilis-kapisi.mjs --db` da .env.local'ı ve kredi tablosunu bulur.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/*
+  Fiyat elle yazılmaz, kredi tablosundan okunur (src/lib/credits/price-table.ts; göçle birlikte değişir,
+  test ikisini karşılaştırır). Betik denemeyi 20260918100000'in fiyatında (5) bekliyordu:
+  20261008120000 15 yaptı ve her `--db` çalıştırması o satırda kırmızıydı.
+*/
+function tablePrice(code) {
+  const source = fs.readFileSync(path.join(ROOT, "src", "lib", "credits", "price-table.ts"), "utf8");
+  const match = source.match(new RegExp(`\\b${code}: \\{ credits: (\\d+)`));
+  return match ? Number(match[1]) : null;
+}
 
 let failed = 0;
 let skipped = 0;
@@ -242,13 +256,40 @@ if (!WITH_DB) {
       };
     });
 
-    await check("20260918100000 — deneme üretimi 5 kredi", async () => {
+    /*
+      Kredi v3 (24 Ekim 2026): ücretsiz hesabın her ayırması credit_reserve_metered'dan geçer; yoksa kod
+      sessizce sayaçsız credit_reserve'e düşer. /admin/sistem'deki yoklamayla aynı soru: var olmayan
+      eylem, sayaçsız iş → credit_reserve'de `invalid_action`, hiçbir satır yazılmaz.
+    */
+    await check("20261024121000 — credit_reserve_metered yerinde", async () => {
+      const { error } = await sb.rpc("credit_reserve_metered", {
+        p_user_id: "00000000-0000-0000-0000-000000000000",
+        p_action_code: "__schema_probe__",
+        p_idempotency_key: "__schema_probe__",
+        p_quantity: 1,
+        p_meter: null,
+      });
+      const missing =
+        error && /could not find the function|PGRST202/i.test(error.message);
+      return {
+        ok: !missing,
+        detail: missing ? "yok — ücretsiz hesap sayaçsız credit_reserve'e düşüyor" : "yerinde",
+      };
+    });
+
+    const examPrice = tablePrice("PRACTICE_EXAM_GENERATE");
+    await check(`20260918100000 + 20261008120000 — deneme üretimi ${examPrice ?? "?"} kredi`, async () => {
       const { data } = await sb
         .from("credit_rules")
         .select("credit_cost")
         .eq("action_code", "PRACTICE_EXAM_GENERATE")
         .maybeSingle();
-      return { ok: data?.credit_cost === 5, detail: `${data?.credit_cost ?? "?"} kredi` };
+      return {
+        ok: examPrice !== null && data?.credit_cost === examPrice,
+        detail: examPrice === null
+          ? "kredi tablosunda PRACTICE_EXAM_GENERATE bulunamadı"
+          : `${data?.credit_cost ?? "?"} kredi (kredi tablosu ${examPrice})`,
+      };
     });
 
     await check("20260918110000 — model_upgrade_grants tablosu", () =>

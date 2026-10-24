@@ -45,7 +45,8 @@ describe("beta kodu: üretim ve biçim", () => {
     const plus = redeemSuccessMessage({ plusDays: 14, plusUntil: "2026-11-02T10:00:00Z", credits: 0 });
     expect(plus).toBe("14 gün Plus açıldı · 2 Kasım tarihine kadar. Bitince ücretsiz hesapla devam edersin; ücret alınmaz.");
     const gift = redeemSuccessMessage({ plusDays: null, plusUntil: null, credits: 120 });
-    expect(gift).toBe("Hediye eklendi: yaklaşık 20 ders ya da 40 mesaj.");
+    // Kredi v3 (24 Ekim 2026): ders 30, mesaj 3 kredi.
+    expect(gift).toBe("Hediye eklendi: yaklaşık 4 ders ya da 40 mesaj.");
     expect(gift).not.toMatch(/kredi/);
     expect(redeemFailureMessage("trial_used")).toContain("bir kez");
     expect(redeemFailureMessage("whatever")).toBe(redeemFailureMessage("invalid_code"));

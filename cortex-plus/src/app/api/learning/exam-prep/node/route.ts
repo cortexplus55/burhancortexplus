@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { recordOpenTiming, servedOpenPath } from "@/lib/admin/beta-metrics";
 import { createServiceClient } from "@/lib/supabase/server";
-import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
+import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import {
   canAffordLesson,
   claimPrefetchSlot,
@@ -82,6 +82,9 @@ import {
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { freeMeterRemaining, nodeFreeMeter } from "@/lib/billing/node-free-meter";
+import type { FreeMeter } from "@/lib/billing/free-meters";
+import { billingExempt } from "@/lib/billing/free-preview";
 import {
   contentDifficultyLine,
   DEFAULT_MOOD,
@@ -181,6 +184,7 @@ import {
 import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
 import { adaptiveFocusTopic } from "@/lib/learning/path-change";
 import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
+import { PREP_WIDE_TARGET_KINDS } from "@/lib/learning/prep-wide-target";
 import { retargetNodeTopic } from "@/lib/learning/prep-wide-target-server";
 import {
   acceptFilledExplanations,
@@ -407,6 +411,7 @@ async function writtenReviewForPayload(
       service,
       userId: input.userId,
       actionCode: "AI_CHAT_STANDARD",
+      freeMeter: "included",
       isPremium: await isPremiumUser(service, input.userId),
       schemaHint: 'JSON: {"explanations":[{"index":number,"text":string}]}',
       userPrompt: explanationFillPrompt(working, missing),
@@ -1452,14 +1457,33 @@ async function handleNodeRequest(
 
   const entitlements = await getUserEntitlements(service, userId);
   const premium = entitlements.isPremium;
-  // Podcast adımı da kayıtlı ücretsizde açık. Hak bitince üretim
-  // credit_reserve ile 402 döner; özellik kilitli değil.
   if (kind === "podcast" && !requireFeature(entitlements, "podcast")) {
     return errorResponse(402, "premium_required");
   }
   const voiceSession = voiceMode && (kind === "qa" || kind === "oral");
+  // Ücretsiz katman sayıya dayalı (24 Ekim 2026): ders haftalık hakkı; konunun dersi açıldıysa ardındaki
+  // test/kartlar derse dahil; podcast, sözlü, yazılı deneme Plus'ta. Abone ve kurucu (önizleme kapalı) yok.
+  // Hazırlık geneli adımın kendi konusu yok: devraldığı 1. konu ya da yöneldiği zayıf konu sayacı
+  // belirlemez, hazırlıkta herhangi bir ders açıldıysa derse dahil (`topicId: null`). Öğrenci konu
+  // seçtiyse (`?konu=`) ya da uyarlamalı odaklı pratikse o konunun dersine bakılır.
+  const prepWideStep =
+    PREP_WIDE_TARGET_KINDS.has(kind) && !requestedTopic && !adaptiveFocusTopic(kind, node.session_meta, topicLabel);
+  const meterless = premium || (await billingExempt(service, userId).catch(() => false));
+  const nodeMeter = meterless
+    ? null
+    : await nodeFreeMeter(service, { userId, prepId, kind, topicId: prepWideStep ? null : (topic?.id ?? null) });
+  if (nodeMeter === "plus") {
+    if (prefetch) return NextResponse.json({ ok: true, skipped: "premium" });
+    return errorResponse(402, "premium_required");
+  }
+  const freeMeter: FreeMeter | null = nodeMeter;
 
-  if (prefetch) {
+  if (prefetch && freeMeter) {
+    // Ücretsiz öğrenciye açamayacağı dersi yazmıyoruz: haftalık ders hakkı bittiyse önceden yazım yok.
+    if (freeMeter === "lesson" && (await freeMeterRemaining(service, userId, "lesson")) === 0) {
+      return NextResponse.json({ ok: true, skipped: "free_limit" });
+    }
+  } else if (prefetch) {
     // Kredisi yetmeyen öğrenciye açamayacağı dersi yazmıyoruz.
     const { data: rule } = await service
       .from("credit_rules")
@@ -1554,10 +1578,12 @@ async function handleNodeRequest(
         userId,
         actionForKind(kind),
         `${creditIdempotencyKeyForStart({ userId, nodeId, clientRequestId: requestId })}_prefetched`,
+        1,
+        { freeMeter },
       );
       if (!reservation.ok) {
         return reservation.reason === "insufficient_credits"
-          ? errorResponse(402, "insufficient_credits")
+          ? errorResponse(402, refusalCode(reservation))
           : errorResponse(409, "generation_in_progress");
       }
       const { data: adoptedRow, error: adoptError } = await service
@@ -1669,10 +1695,12 @@ async function handleNodeRequest(
       userId,
       actionForKind(kind),
       `${creditIdempotencyKeyForStart({ userId, nodeId, clientRequestId: requestId })}_prefetched`,
+      1,
+      { freeMeter },
     );
     if (!reservation.ok) {
       return reservation.reason === "insufficient_credits"
-        ? errorResponse(402, "insufficient_credits")
+        ? errorResponse(402, refusalCode(reservation))
         : errorResponse(409, "generation_in_progress");
     }
     const taken = await takePrefetchedLesson(service, { userId, nodeId });
@@ -2263,6 +2291,7 @@ async function handleNodeRequest(
           service,
           userId,
           isPremium: premium,
+          freeMeter,
           onLessonPublish: progressive
             ? publishLesson
             : prefetch
@@ -2880,6 +2909,8 @@ async function generateNodePayload(input: {
   idempotencyKey?: string;
   /** false: önceden yazılan ders; kredi öğrenci açınca düşer. */
   charge?: boolean;
+  /** Ücretsiz hesabın sayacı (24 Ekim 2026); abonede null. */
+  freeMeter?: FreeMeter | null;
   /** Isınma yazımı (19 Ekim 2026): öğrenci kartlarda bekliyor sayılır, hızlı işlem. */
   warm?: boolean;
   /** Parça parça açılış: denetlenen her kavram, ders kaydı biçiminde öğrencinin kaydına yazılır. */
@@ -2971,6 +3002,7 @@ async function generateNodePayload(input: {
       requireSourceSupport: input.requireSourceSupport,
       sourcePages: input.sessionMeta?.sourcePages,
       idempotencyKey: input.idempotencyKey,
+      freeMeter: input.freeMeter,
       count: Math.max(4, quizCount),
       topicLabel: input.topicLabel,
       prepTitle: input.prepTitle,
@@ -3055,6 +3087,7 @@ async function generateNodePayload(input: {
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,
     idempotencyKey: input.idempotencyKey,
+    freeMeter: input.freeMeter,
     count: input.kind === "final_check" ? 4 : input.kind === "focused" ? 5 : Math.max(5, quizCount),
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
@@ -3121,6 +3154,7 @@ async function teacherLessonPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `lesson:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    freeMeter: input.freeMeter,
     // Kavram birimli konuda ders birimi anlatır: "Hukukun Temel Kavramları: Hükümsüzlüğün dereceleri".
     topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,
     prepTitle: input.prepTitle,
@@ -3289,6 +3323,7 @@ async function teacherPodcastEpisode(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `podcast:${input.prepId ?? "x"}:${input.topicLabel}:${length}:${Date.now()}`,
+    freeMeter: input.freeMeter,
     charge: input.charge,
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
@@ -3350,6 +3385,7 @@ async function teacherCardsPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `cards:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    freeMeter: input.freeMeter,
     charge: input.charge,
     startedAt,
     label: "teacher_cards",
@@ -3378,6 +3414,7 @@ async function teacherTrueFalsePayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `tf:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    freeMeter: input.freeMeter,
     charge: input.charge,
     startedAt,
     label: "teacher_true_false",
@@ -3419,6 +3456,7 @@ async function teacherOralPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `oral:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    freeMeter: input.freeMeter,
     charge: input.charge,
     startedAt,
     label: "teacher_oral",
@@ -3479,6 +3517,7 @@ async function teacherQuizPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `quiz:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    freeMeter: input.freeMeter,
     charge: input.charge,
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,

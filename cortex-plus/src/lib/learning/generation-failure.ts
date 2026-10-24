@@ -183,6 +183,20 @@ export function describeGenerationFailure(
      * Yenilenme zamanı biliniyorsa yazılıyor: beklemek de bir çözüm ve
      * bunu saklamak öğrenciyi yalnızca ödemeye itmek olur.
      */
+    case "free_lesson_limit":
+    case "free_chat_limit":
+    case "free_photo_limit":
+    case "free_included_limit":
+      return {
+        message:
+          code === "free_lesson_limit"
+            ? "Bu haftaki 3 ücretsiz dersin bitti. Ders hakkın Pazartesi 00:00'da yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin."
+            : "Bugünkü ücretsiz hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.",
+        retryMintsNewId: false,
+        canRetryNow: false,
+        action: { href: "/pay", label: "Plus'a bak" },
+      };
+
     case "insufficient_credits":
       return {
         message: resetsAtLabel

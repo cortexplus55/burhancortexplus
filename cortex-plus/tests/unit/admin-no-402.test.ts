@@ -53,7 +53,7 @@ function serverProducers(): Producer[] {
           ? "premium"
           : /photo_quota|PHOTO_QUOTA_CODE/.test(window)
             ? "photo"
-            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT/.test(window)
+            : /free_page_limit|FREE_PAGE_LIMIT_CODE|free_prep_limit|FREE_PREP_LIMIT|free_(lesson|chat|photo|included)_limit/.test(window)
               ? "free"
               : "unknown";
       found.push({ file: path.relative(ROOT, file).replaceAll("\\", "/"), line: index + 1, kind });

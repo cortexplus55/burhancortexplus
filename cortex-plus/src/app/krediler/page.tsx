@@ -20,8 +20,34 @@ import { planTier } from "@/lib/documents/photo-quota";
 import { loadUsageLimits } from "@/lib/student/usage-limits";
 import { FounderCreditsView } from "@/components/student/founder-credits-view";
 import { summarizeFounderUsage, turkeyMonthStart } from "@/lib/credits/founder-usage";
+import { loadFreeMeters } from "@/lib/billing/free-usage-server";
+import { FREE_TIER_SENTENCE, freeMeterResetLine } from "@/lib/billing/free-meters";
+import { freeExtraLine } from "@/lib/billing/tier-presentation";
 
 export const metadata = { title: "Limitler" };
+
+/**
+ * Ücretsiz hesabın ana kartı (24 Ekim 2026): kredi yüzdesi değil, sayaçlar. Ücretsiz günlük kredi 0
+ * olduğundan eski kart "%0 kullanıldı" ya da hediye düşünce "%100 · aylık hakkına +%9000" yazıyordu.
+ *
+ * Notlar hangi işin hangi sayaçtan düştüğünü söyler (`defaultFreeMeter`): aşağıdaki limit listesinde
+ * aynı satırlar gizlendiği için kural yalnız burada yazılı. Araçlar'daki test, kart ve doğru/yanlış
+ * dersten; "Anlatarak öğren" (ürün sahibinin kararı) ve yazılı soru çözümü mesajdan düşer.
+ */
+const FREE_METER_ROW: Record<string, { label: string; note?: string }> = {
+  lesson: {
+    label: "Bu haftaki ders",
+    note: "Dersin ardından gelen test ve kartlar derse dahil. Araçlar'daki test, kart ve doğru/yanlış da bu haktan düşer.",
+  },
+  chat: {
+    label: "Bugünkü sohbet mesajı",
+    note: `Yazılı soru çözümü ve Araçlar'daki "Anlatarak öğren" de mesaj sayılır.`,
+  },
+  photo: { label: "Bugünkü fotoğraftan çözüm", note: "Okunmayan fotoğraf haktan düşmez." },
+};
+
+/** `loadUsageLimits`'in ücretsiz sayaç satırları: ana kartta durdukları için aşağıda tekrar edilmez. */
+const FREE_METER_LIMIT_KEYS = new Set(["weekly-lessons", "daily-chat", "daily-photos"]);
 
 function LimitBar({
   label,
@@ -88,8 +114,11 @@ export default async function KredilerPage() {
     yazılabilir hâle getirme riskini doğururdu.
   */
   const service = createServiceClient();
+  const isPremium = Boolean(shell.account?.isPremium);
   const tier = await planTier(service, user.id);
-  const usageLimits = await loadUsageLimits(service, user.id, tier);
+  const allLimits = await loadUsageLimits(service, user.id, tier);
+  // Ücretsiz hesapta ders, mesaj ve fotoğraf sayaçları ana kartta; aşağıda yalnız ayrı sayılanlar kalır.
+  const usageLimits = isPremium ? allLimits : allLimits.filter((limit) => !FREE_METER_LIMIT_KEYS.has(limit.key));
 
   const [{ data: wallet }, referral, invite] = await Promise.all([
     supabase
@@ -99,11 +128,10 @@ export default async function KredilerPage() {
       )
       .eq("user_id", user.id)
       .maybeSingle(),
-    loadReferralSummary(supabase),
+    loadReferralSummary(supabase, user.id),
     loadInviteLink(supabase, user.id),
   ]);
 
-  const isPremium = Boolean(shell.account?.isPremium);
   // Yöneticinin ücretsiz önizlemesinde hak ayrı tabloda; cüzdan ve ek paket görünmez.
   const preview = shell.account?.freePreview ? await freePreview(service, user.id) : null;
   const quota = quotaView(
@@ -113,6 +141,11 @@ export default async function KredilerPage() {
     shell.account?.subscriptionAllowance ?? undefined,
   );
   const extraPercent = preview ? null : allowanceShare(wallet?.balance ?? 0, quota.allowance);
+  // Ücretsiz hesap (önizleme dahil): kredi yüzdesi yok, sayaçlar ve ek hak (24 Ekim 2026).
+  const freeMeters = isPremium
+    ? []
+    : (shell.account?.freeMeters ?? (await loadFreeMeters(service, user.id)));
+  const extra = isPremium || preview ? null : freeExtraLine(wallet?.balance ?? 0);
 
   return (
     <ParitySorShell {...shell}>
@@ -120,7 +153,9 @@ export default async function KredilerPage() {
         <div>
           <h1 className="text-xl font-semibold">Kullanım limitleri</h1>
           <p className="mt-1 text-sm text-[var(--cs-muted)]">
-            Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde.
+            {isPremium
+              ? "Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde."
+              : `${FREE_TIER_SENTENCE} ücretsiz. Podcast, sözlü ve yazılı deneme, video Plus'ta.`}
           </p>
         </div>
 
@@ -128,38 +163,69 @@ export default async function KredilerPage() {
             kullanıcı hemen ardından nasıl artıracağını görüyor. */}
         <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
 
-        <div className="cp-quota-card">
-          <div className="cp-quota-head">
-            <span className="cp-quota-plan">
-              {shell.account?.subscriptionBadge ?? "Temel"} — {periodLabel(quota.kind)}
-            </span>
-            <span className="cp-quota-pct">%{quota.usedPercent} kullanıldı</span>
-          </div>
-          <div
-            className="cp-quota-track"
-            role="progressbar"
-            aria-valuenow={quota.usedPercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label="Dönem kullanımı"
-          >
+        {isPremium ? (
+          <div className="cp-quota-card">
+            <div className="cp-quota-head">
+              <span className="cp-quota-plan">
+                {shell.account?.subscriptionBadge ?? "Temel"} — {periodLabel(quota.kind)}
+              </span>
+              <span className="cp-quota-pct">%{quota.usedPercent} kullanıldı</span>
+            </div>
             <div
-              className="cp-quota-fill"
-              style={{ width: `${Math.max(quota.usedPercent, quota.usedPercent > 0 ? 3 : 0)}%` }}
-            />
-          </div>
-          <p className="cp-quota-reset">
-            {formatResetAt(quota.resetsAt)} tarihinde sıfırlanır
-            {quota.pendingRefill ? " · hakkın yenilendi" : ""}
-          </p>
-          {/* Astra gibi sayı yok, yalnızca yüzde (29 Eylül 2026 kararı).
-              Ek paket de dönem hakkına oranla gösteriliyor. */}
-          {extraPercent ? (
-            <p className="cp-quota-detail">
-              Ek paketin: aylık hakkına <strong>+%{extraPercent}</strong>
+              className="cp-quota-track"
+              role="progressbar"
+              aria-valuenow={quota.usedPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Dönem kullanımı"
+            >
+              <div
+                className="cp-quota-fill"
+                style={{ width: `${Math.max(quota.usedPercent, quota.usedPercent > 0 ? 3 : 0)}%` }}
+              />
+            </div>
+            <p className="cp-quota-reset">
+              {formatResetAt(quota.resetsAt)} tarihinde sıfırlanır
+              {quota.pendingRefill ? " · hakkın yenilendi" : ""}
             </p>
-          ) : null}
-        </div>
+            {/* Astra gibi sayı yok, yalnızca yüzde (29 Eylül 2026 kararı).
+                Ek paket de dönem hakkına oranla gösteriliyor. */}
+            {extraPercent ? (
+              <p className="cp-quota-detail">
+                Ek paketin: aylık hakkına <strong>+%{extraPercent}</strong>
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="cp-quota-card">
+            <div className="cp-quota-head">
+              <span className="cp-quota-plan">Ücretsiz plan</span>
+            </div>
+            <div className="mt-3">
+              {freeMeters.map((meter) => {
+                const row = FREE_METER_ROW[meter.meter];
+                if (!row) return null;
+                return (
+                  <LimitBar
+                    key={meter.meter}
+                    label={row.label}
+                    value={meter.used}
+                    max={meter.limit}
+                    hint={[row.note, freeMeterResetLine(meter.meter)].filter(Boolean).join(" ")}
+                  />
+                );
+              })}
+            </div>
+            {/* Cüzdan bakiyesi (davet hediyesi, aboneliği biten öğrencinin ek paketi, eski promosyon):
+                ücretsiz hak dolunca buradan düşer (SQL credit_reserve_metered). Kaynağı ayrılmadığı
+                için "Hediye" değil, "Ek hakkın" yazılır. */}
+            {extra ? (
+              <p className="cp-quota-detail">
+                <strong>{extra}</strong> · ücretsiz hakkın dolunca buradan kullanılır
+              </p>
+            ) : null}
+          </div>
+        )}
 
         {!isPremium ? (
           <div className="cp-quota-upsell">
@@ -182,8 +248,12 @@ export default async function KredilerPage() {
             önce ana hakka, sonra buraya bakıyor. */}
         <SectionCard
           variant="parity"
-          title="Ayrı sayacı olan işler"
-          description="Bu işler ana kullanım hakkından düşmüyor; kendi sayaçları var."
+          title={isPremium ? "Ayrı sayacı olan işler" : "Belge sayfaları"}
+          description={
+            isPremium
+              ? "Bu işler ana kullanım hakkından düşmüyor; kendi sayaçları var."
+              : "Yüklediğin fotoğraf ve PDF sayfaları ders ve mesaj hakkından ayrı sayılır."
+          }
         >
           <div className="cp-limit-card">
             {usageLimits.map((limit) => (

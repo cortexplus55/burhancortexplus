@@ -76,9 +76,10 @@ describe("kredi fiyat tablosu", () => {
       expect(costs[code], code).toBe(price.credits);
     }
     expect(PLUS_CHAT_IS_FREE).toBe(false);
-    // Kredi sistemi v2 (8 Ekim 2026): 1 kredi = $0,001 ölçülen maliyet.
+    // Kredi v3 (24 Ekim 2026): 1 kredi ≈ $0,001 gerçek maliyet. Ders 6 → 30 (ölçülen ~$0,03);
+    // mesaj 3 kalır (ürün sahibinin kararı: denetim luna'da, genel cevap tek çağrı).
     expect(CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits).toBe(3);
-    expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBe(6);
+    expect(CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits).toBe(30);
     // 19 Ekim 2026: 2 → 15 (ölçülen maliyet 900 karakter ≈ $0,015, ürün sahibinin kararı).
     expect(CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits).toBe(15);
   });
@@ -96,7 +97,8 @@ describe("kredi fiyat tablosu", () => {
     const audioRoute = readFileSync("src/app/api/learning/podcast/audio/route.ts", "utf8");
     expect(audioRoute).not.toMatch(/\bensureAudio\s*\(/);
     expect(audioRoute.match(/synthesizeCharged\(/g)?.length).toBeGreaterThan(0);
-    expect(audioRoute).toContain('errorResponse(402, "insufficient_credits")');
+    // Ret kodu synthesizeCharged'dan: hak bitti `insufficient_credits`, ücretsizde Plus `premium_required`.
+    expect(audioRoute).toContain("errorResponse(402, result.reason)");
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).not.toMatch(/d* ?kr düşüldü|CREDIT_PRICE_TABLE/);
     expect(session).toContain("router.refresh()");

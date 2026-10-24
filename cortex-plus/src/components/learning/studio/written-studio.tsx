@@ -287,7 +287,13 @@ export function WrittenStudio({
         />
       ) : null}
 
-      <StudioPaywall open={paywall} onOpenChange={setPaywall} returnPath="/studio/yazili" />
+      <StudioPaywall
+        open={paywall}
+        onOpenChange={setPaywall}
+        returnPath="/studio/yazili"
+        action="PRACTICE_EXAM_GENERATE"
+        actionLabel="Yazılı deneme"
+      />
     </StudioFrame>
   );
 }

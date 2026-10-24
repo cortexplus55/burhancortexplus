@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import type { ActionCode } from "@/lib/env";
+import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
 import { CortexMark } from "@/components/brand/cortex-mark";
 import { STUDIO_INTRO } from "@/lib/learning/studio-intro";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
@@ -285,21 +286,31 @@ export function StudioPaywall({
   returnPath,
   action,
   actionLabel,
+  meter,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   returnPath: string;
-  /** Ücretsiz hakkı aşan iş (sözlü): kapı "doldu" demez, geri sayım göstermez. */
+  /** Ücretsiz hesapta açılmayan iş (sözlü, yazılı deneme): kapı "doldu" demez, geri sayım göstermez. */
   action?: ActionCode;
   actionLabel?: string;
+  /**
+   * Ücretsiz hesapta dolan sayaç (24 Ekim 2026). İş kodu verilmezse ders hakkı: Araçlar'daki test,
+   * kartlar ve doğru/yanlış dersten düşer. "Anlatarak öğren" mesaj hakkından.
+   */
+  meter?: FreeMeter;
 }) {
+  const account = useStudentShellAccount();
+  const gateMeter = meter ?? (action ? undefined : "lesson");
+  const free = account ? !account.isPremium : false;
   return (
     <CreditGate
       open={open}
       onOpenChange={onOpenChange}
-      message="Bu stüdyo için kullanım hakkın yetmiyor."
+      message={free && gateMeter ? freeLimitReachedLine(gateMeter) : "Bu stüdyo için kullanım hakkın yetmiyor."}
       action={action}
       actionLabel={actionLabel}
+      meter={gateMeter}
       returnPath={returnPath}
     />
   );

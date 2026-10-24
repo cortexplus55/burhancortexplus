@@ -312,7 +312,17 @@ export function errorResponse(
     AUTH_REQUIRED: "Bu işlem için giriş yapmalısın.",
     premium_required: "Bu özellik Plus aboneliğine özel.",
     free_image_limit:
-      "Ücretsiz hesapta günde 3 fotoğraf çözülebiliyor. Yarın devam edebilir ya da Plus'a geçebilirsin.",
+      "Ücretsiz hesapta günde 1 fotoğraftan çözüm var. Gece yarısı yenilenir ya da Plus'a geçebilirsin.",
+    // Sayıya dayalı ücretsiz katman (24 Ekim 2026): sayaç dolunca 402 ve bu kodlar. Plus limitsiz gibi
+    // anlatılmaz, Plus'ın da aylık hakkı var (generation-failure.ts ile aynı cümle).
+    free_lesson_limit:
+      "Bu haftaki 3 ücretsiz dersin bitti. Ders hakkın Pazartesi 00:00'da yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.",
+    free_chat_limit:
+      "Bugünkü 3 ücretsiz mesajın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.",
+    free_photo_limit:
+      "Bugünkü ücretsiz fotoğraftan çözüm hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.",
+    free_included_limit:
+      "Bugün çok sayıda çalışma adımı açtın; ücretsiz hesapta günlük sınır doldu. Gece yarısı yenilenir.",
   };
   /*
     `code` de gönderiliyor. Sebebi somut: podcast oynatıcısı 402'yi tek başına

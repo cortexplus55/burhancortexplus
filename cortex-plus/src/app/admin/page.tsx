@@ -99,7 +99,7 @@ export default async function AdminPage() {
         actions={<FreePreviewToggle on={Boolean(preview.data)} className="adm-btn adm-btn--primary" />}
       >
         <p className="text-sm text-[var(--adm-muted)]">
-          Açıkken günde 1 derslik hak, 1 sınav hazırlığı ve toplam 5 sayfa belge geçerli; yükseltme
+          Açıkken haftada 3 ders, günde 3 mesaj ve 1 fotoğraf, 1 sınav hazırlığı ve toplam 5 sayfa belge geçerli; yükseltme
           kapıları ücretsiz hesaptaki gibi çıkar. Kredin düşmez, eski belge ve hazırlıkların sayılmaz.
           Kapatmak için öğrenci ekranlarının üstündeki şeridi kullan.
         </p>

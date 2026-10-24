@@ -12,7 +12,9 @@ import {
   type GenerationFailure,
 } from "@/lib/learning/generation-failure";
 import { useIsFounder, useStudentShellAccount } from "@/lib/student/student-shell-context";
-import { creditGateCopy } from "@/lib/billing/free-reach";
+import { beyondFreeMessage, creditGateCopy } from "@/lib/billing/free-reach";
+import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
+import type { ActionCode } from "@/lib/env";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
@@ -162,6 +164,53 @@ type Payload = {
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
 const LESSON_PROGRESS_POLL_MS = 1_500;
 
+/** Kredi kapısının ne söyleyeceği: cümle, dolan ücretsiz sayaç ya da Plus'taki iş. */
+export type NodeGate = {
+  message: string;
+  beyondFreeDaily: boolean;
+  meter?: FreeMeter;
+  action?: ActionCode;
+  actionLabel?: string;
+};
+
+/** Ders sonundaki "Şimdi dinle" ve "Sesli mod": ikisi de ücretsiz hesapta açılmaz (24 Ekim 2026). */
+export const LESSON_PODCAST_GATE: NodeGate = {
+  message: "Sesli tekrar için hakkın yetmedi.",
+  beyondFreeDaily: true,
+  action: "PODCAST_GENERATE",
+  actionLabel: "Sesli tekrar",
+};
+export const VOICE_MODE_GATE: NodeGate = {
+  message: "Sesli mod için hakkın yetmedi.",
+  beyondFreeDaily: true,
+  action: "VOICE_TURN",
+  actionLabel: "Sesli mod",
+};
+
+/**
+ * 402'nin koduna göre kapı (24 Ekim 2026). Ücretsiz hesapta hangi sayacın dolduğunu sunucu söylüyor:
+ * haftalık ders hakkı, derse dahil adımların günlük sınırı ya da Plus'taki iş. Eskiden kod okunmuyor,
+ * her 402 etkinliğin varsayılan cümlesini ve ders sayacının Pazartesi geri sayımını açıyordu.
+ */
+export function nodeGateForCode(code: unknown, base: NodeGate, isPremium: boolean): NodeGate {
+  if (isPremium) return base;
+  if (code === "premium_required") {
+    return base.beyondFreeDaily ? base : { message: beyondFreeMessage("Bu etkinlik"), beyondFreeDaily: true };
+  }
+  if (code === "free_lesson_limit") {
+    return { message: freeLimitReachedLine("lesson"), beyondFreeDaily: false, meter: "lesson" };
+  }
+  if (code === "free_included_limit") {
+    // Sınırın sayısı yazılmaz: kötüye kullanım sınırı, öğrenciye gösterilen bir hak değil.
+    return {
+      message: "Bugün çok sayıda çalışma adımı açtın; ücretsiz hesapta bugünkü sınır doldu.",
+      beyondFreeDaily: false,
+      meter: "included",
+    };
+  }
+  return base;
+}
+
 export function ExamNodeSession({
   prepId,
   nodeId,
@@ -268,7 +317,10 @@ export function ExamNodeSession({
     initialFamiliarity ? difficultyFromFamiliarity(initialFamiliarity) : "orta",
   );
   const [podcastLength, setPodcastLength] = useState<PodcastLength>(DEFAULT_PODCAST_LENGTH);
-  const [voiceMode, setVoiceMode] = useState(meta.voice);
+  // Ses ücretsiz hesapta açılmaz (VOICE_TURN Plus'ta, 24 Ekim 2026): Soru-cevap yazılı başlar, satır
+  // "Plus'ta" der. Hesap bilinmiyorsa (kabuk yok) sunucu karar verir.
+  const voiceLocked = Boolean(meta.voice && shellAccount && !shellAccount.isPremium && !shellAccount.isAdmin);
+  const [voiceMode, setVoiceMode] = useState(meta.voice && !voiceLocked);
   const [oralSelected, setOralSelected] = useState<string[]>(() => {
     if (!requestedTopic) return [];
     const hit = oralTopics.find((topic) => topicLabelsMatch(requestedTopic, topic.label));
@@ -294,7 +346,9 @@ export function ExamNodeSession({
    */
   const [generationFailure, setGenerationFailure] = useState<GenerationFailure | null>(null);
   const [paywall, setPaywall] = useState(false);
-  const [paywallReason, setPaywallReason] = useState<"credit" | "premium">("credit");
+  /** 402'nin kodundan gelen kapı; yoksa etkinliğin varsayılanı (`gateCopy`). */
+  const [paywallGate, setPaywallGate] = useState<NodeGate | null>(null);
+  const isPremiumAccount = shellAccount?.isPremium ?? false;
   const [payload, setPayload] = useState<Payload>({});
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [generationId, setGenerationId] = useState<string | null>(null);
@@ -654,12 +708,12 @@ export function ExamNodeSession({
           ...(reqId ? { clientRequestId: reqId } : {}),
         }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setPaywallReason("credit");
+        setPaywallGate(nodeGateForCode(data.code, gateCopy, isPremiumAccount));
         setPaywall(true);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         // Kimlik HER gerçek hatada yenileniyor. Eskiden yalnızca
         // "generation_failed_retry" kodunda yenileniyordu; gerçek bir
@@ -876,7 +930,8 @@ export function ExamNodeSession({
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setPaywallReason(data.code === "premium_required" ? "premium" : "credit");
+        // Ücretsiz hesapta sesli tekrar Plus'ta: kapı "doldu" demez, Pazartesi'ye geri saymaz.
+        setPaywallGate(data.code === "premium_required" ? LESSON_PODCAST_GATE : gateCopy);
         setPaywall(true);
         return;
       }
@@ -900,12 +955,13 @@ export function ExamNodeSession({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prepId, nodeId }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setPaywallReason("credit");
+        // Eğitmen notu ders içi yardım: ücretsizde derse dahil, dolan günlük adım sınırı.
+        setPaywallGate(nodeGateForCode(data.code, gateCopy, isPremiumAccount));
         setPaywall(true);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data.error ?? "Geri bildirim alınamadı.");
         return;
@@ -1258,12 +1314,20 @@ export function ExamNodeSession({
             <label className="cp-exam-voice-row">
               <span>
                 Sesli mod
-                <em>Yazmak yerine konuş</em>
+                <em>{voiceLocked ? "Plus'ta · ücretsiz hesapta yazarak sorarsın" : "Yazmak yerine konuş"}</em>
               </span>
               <input
                 type="checkbox"
                 checked={voiceMode}
-                onChange={(event) => setVoiceMode(event.target.checked)}
+                onChange={(event) => {
+                  // Ücretsiz hesapta açmak kapıyı açar: hemen söylemek, ilk cevapta düşmekten iyi.
+                  if (event.target.checked && voiceLocked) {
+                    setPaywallGate(VOICE_MODE_GATE);
+                    setPaywall(true);
+                    return;
+                  }
+                  setVoiceMode(event.target.checked);
+                }}
               />
             </label>
           ) : null}
@@ -2051,8 +2115,11 @@ export function ExamNodeSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message={paywallReason === "premium" ? "Sesli tekrar için hakkın yetmedi." : gateCopy.message}
-        beyondFreeDaily={paywallReason !== "premium" && gateCopy.beyondFreeDaily}
+        message={paywallGate?.message ?? gateCopy.message}
+        beyondFreeDaily={(paywallGate ?? gateCopy).beyondFreeDaily}
+        meter={(paywallGate ?? gateCopy).meter}
+        action={paywallGate?.action}
+        actionLabel={paywallGate?.actionLabel}
         returnPath={`/deneme-sinavlari/${prepId}`}
       />
     </div>

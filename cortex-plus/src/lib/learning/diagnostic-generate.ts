@@ -199,6 +199,8 @@ Kurallar:
       service: input.service,
       userId: input.userId,
       isPremium: input.isPremium,
+      // Seviye tespiti yolun ilk adımı: ücretsizde derse dahil (24 Ekim 2026).
+      freeMeter: "included",
       difficulty: "hard",
       teachingV2: true,
       maxDraftAttempts: 3,

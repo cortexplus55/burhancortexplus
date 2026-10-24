@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /*
   Soru çöz (23 Ekim 2026): fotoğraf ya da yazılı soru, her ders. Yeni motor `src/lib/solve/` (iki bağımsız çözüm, kod
-  kontrolü, denetim). Ücretsiz hesapta günde 3 fotoğraf (ürün sahibinin kararı). Hazırlık sayfasından gelince
+  kontrolü, denetim). Ücretsiz hesapta günde 1 fotoğraf ve 3 mesaj (24 Ekim 2026). Hazırlık sayfasından gelince
   (`?hazirlik=`) şıklı soru o hazırlığın tekrar listesine eklenebilir.
 */
 export default async function SoruCozPage({ searchParams }: { searchParams: Promise<{ hazirlik?: string }> }) {
@@ -45,7 +45,7 @@ export default async function SoruCozPage({ searchParams }: { searchParams: Prom
           <h1>Soru çöz</h1>
           <p>
             Sorunun fotoğrafını çek ya da soruyu yaz. Birkaç saniyede adım adım çözüm, her şıkkın açıklaması ve
-            akılda kalacak kısa kural gelir. Ücretsiz hesapta günde 3 fotoğraf sorusu.
+            akılda kalacak kısa kural gelir. Ücretsiz hesapta günde 1 fotoğraf sorusu.
           </p>
         </header>
         <QuestionSolver prep={prep} />

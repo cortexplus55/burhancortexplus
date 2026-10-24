@@ -5,7 +5,8 @@ import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
-import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
+import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
+import type { FreeMeter } from "@/lib/billing/free-meters";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
@@ -315,6 +316,8 @@ async function runTeacherQuizInner(
     userId: string;
     actionCode: ActionCode;
     idempotencyKey: string;
+    /** Ücretsiz hesabın sayacı (`reserveCredits`); verilmezse işin varsayılanı. */
+    freeMeter?: FreeMeter | null;
     startedAt?: number;
     /**
      * Ücreti çağıran kessin (düello: soru kümesi kullanılamazsa iade).
@@ -343,12 +346,12 @@ async function runTeacherQuizInner(
     ? ({ ok: true, reservationId: held } as const)
     : free
       ? ({ ok: true, reservationId: null } as const)
-      : await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
+      : await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey, 1, { freeMeter: input.freeMeter });
   if (!reservation.ok) {
     return {
       ok: false,
       status: reservation.reason === "insufficient_credits" ? 402 : 409,
-      error: reservation.reason,
+      error: refusalCode(reservation),
       reasons: [],
     };
   }

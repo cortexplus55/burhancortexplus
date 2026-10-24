@@ -1,3 +1,4 @@
+import type { FreeMeter } from "@/lib/billing/free-meters";
 import "server-only";
 import OpenAI from "openai";
 import {
@@ -13,6 +14,7 @@ import {
   newIdempotencyKey,
   recordUsage,
   refundCredits,
+  refusalCode,
   reserveCredits,
 } from "@/lib/credits/service";
 import { recordValidationEvent, metricsFromFailure } from "@/lib/learning/validation-metrics";
@@ -72,6 +74,8 @@ type GenerateJsonParams<T> = {
   validationProfile?: "legacy" | "v2";
   /** Same user operation retries must reuse this key to avoid double-charge. */
   idempotencyKey?: string;
+  /** Ücretsiz hesabın sayacı (`reserveCredits`); ders içi yardımda "included". */
+  freeMeter?: FreeMeter | null;
   /**
    * Per-call OpenAI timeout (ms). Default 90_000.
    * Outline oneshot for large books needs ~240_000.
@@ -251,14 +255,14 @@ export async function generateJson<T>(
 
   const charge = params.chargeCredits !== false;
   const reservation = charge
-    ? await reserveCredits(params.service, params.userId, params.actionCode, idempotencyKey)
+    ? await reserveCredits(params.service, params.userId, params.actionCode, idempotencyKey, 1, { freeMeter: params.freeMeter })
     : ({ ok: true, reservationId: "", cost: 0 } as const);
   const reservationRef = charge && reservation.ok ? reservation.reservationId : null;
   const usageCode: UsageCode = charge ? actionCode : (params.usageCode ?? actionCode);
 
   if (!reservation.ok) {
     const status = reservation.reason === "insufficient_credits" ? 402 : 400;
-    return { ok: false, status, error: reservation.reason };
+    return { ok: false, status, error: refusalCode(reservation) };
   }
 
   if (!env.OPENAI_API_KEY) {

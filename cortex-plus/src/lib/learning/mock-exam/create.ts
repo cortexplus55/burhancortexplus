@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
+import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { loadMergedTopicContext, loadTopicSpanContext } from "@/lib/learning/source-context";
 import {
@@ -151,7 +151,8 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
   const chargeKey = `practice-exam:${prepId}:${userId}:${Date.now()}`;
   const charge = await reserveCredits(service, userId, "PRACTICE_EXAM_GENERATE", chargeKey);
   if (!charge.ok) {
-    return { ok: false, status: charge.reason === "insufficient_credits" ? 402 : 409, error: charge.reason };
+    // Ücretsizde deneme Plus'ta: kod `premium_required`, kapı geri sayımsız "Plus'ta açık" der (24 Ekim 2026).
+    return { ok: false, status: charge.reason === "insufficient_credits" ? 402 : 409, error: refusalCode(charge) };
   }
   const reservationId = charge.reservationId;
   const refund = () => refundCredits(service, reservationId).catch(() => undefined);

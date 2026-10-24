@@ -107,7 +107,9 @@ export async function POST(request: Request) {
       status: outcome.status,
       error: outcome.error,
     });
-    if (outcome.status === 402) return errorResponse(402, "insufficient_credits");
+    // Ücretsiz sayacın kodu (`free_lesson_limit` …) kapıya olduğu gibi gider; düz
+    // `insufficient_credits` doğru sayacı ve yenilenme saatini kaybettiriyordu (24 Ekim 2026).
+    if (outcome.status === 402) return errorResponse(402, outcome.error || "insufficient_credits");
     if (outcome.error === "operation_in_progress") return errorResponse(409, "operation_in_progress");
     if (outcome.error === "operation_completed") return errorResponse(409, "operation_completed");
     return NextResponse.json({ error: "generate_failed" }, { status: 500 });
