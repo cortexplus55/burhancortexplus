@@ -172,6 +172,13 @@ function StatusBadge({ status, verifying }: { status: SolveStatus | "verified" |
 }
 
 /** Çözüm kartı; soru çöz sayfası ve sohbet aynı kartı çizer. Sohbette "Yeni soru" düğmesi yok. */
+/** Fotoğrafta birden çok soru varsa hangisinin çözüldüğü ve öbürü nasıl istenir (24 Ekim 2026). */
+export function otherQuestionsLine(solution: { questionNumber?: string; otherQuestions: string[] }): string {
+  const solved = solution.questionNumber ? `${solution.questionNumber}. soruyu` : "İlk soruyu";
+  const others = solution.otherQuestions.slice(0, 8).join(", ");
+  return `Fotoğrafta başka sorular da var (${others}). ${solved} çözdüm; başka birini istersen fotoğrafı yeniden seç ve nota numarasını yaz, örneğin "${solution.otherQuestions[0]}. soru".`;
+}
+
 export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onReset?: () => void; extra?: ReactNode }) {
   const { solution } = phase;
   const [shown, setShown] = useState(1);
@@ -187,6 +194,7 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
       </header>
       <StatusBadge status={phase.status} verifying={phase.verifying} />
       {phase.note ? <p className="cp-solver-note">{phase.note}</p> : null}
+      {solution.otherQuestions?.length ? <p className="cp-solver-note">{otherQuestionsLine({ questionNumber: solution.questionNumber, otherQuestions: solution.otherQuestions })}</p> : null}
 
       <section className="cp-solver-answer">
         <p className="cp-solver-answer-label">Doğru cevap</p>

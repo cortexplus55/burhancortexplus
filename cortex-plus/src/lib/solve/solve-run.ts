@@ -64,6 +64,7 @@ const VERIFY_SYSTEM =
   "Bu bir denetim isteğidir. Bir öğretmenin sınav sorusuna yazdığı çözüm veriliyor; görev soruyu baştan " +
   "anlatmak değil, cevabın doğru olup olmadığına karar vermektir. Soruyu (görseldeki ya da metindeki) kendin dikkatle " +
   "çöz ve verilen cevapla karşılaştır. Okunuş kâğıttakiyle aynı mı, işlemler doğru mu, şıklı soruda doğru şık mı? " +
+  "Görselde birden çok soru varsa yalnız çözümde yazılı olan soruya bak; öbür soruları çözme. " +
   'Yalnız JSON: {"approved":true|false,"issue":"yanlışsa bir cümle: neyin yanlış olduğu ve doğrusu"}';
 
 const VERIFY_DEADLINE_MS = 40_000;

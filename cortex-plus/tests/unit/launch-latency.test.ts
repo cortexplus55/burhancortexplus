@@ -205,3 +205,35 @@ describe("bekleme ekranı etkinliğin adını söyler", () => {
     expect(read("src/components/parity/exam-node-session.tsx")).toContain("title={preparingTitle(kind)}");
   });
 });
+
+describe("fotoğrafta birden çok soru: tek soru çözülür, öbürleri söylenir", () => {
+  /* 24 Ekim 2026 canlı: 6 soruluk test sayfası ~90 sn sonra "tamamlanamadı" oldu (model bütün soruları çözmeye
+     çalışıp 45 sn'lik çağrı sınırını iki kez aştı). */
+  it("iki çözücü, uzlaştırıcı ve denetçi aynı seçim kuralını okur", async () => {
+    const solver = await import("@/lib/solve/question-solver");
+    expect(solver.SOLVER_SYSTEM).toContain(solver.ONE_QUESTION_RULE);
+    expect(solver.QUICK_SYSTEM).toContain(solver.ONE_QUESTION_RULE);
+    expect(solver.RECONCILE_SYSTEM).toContain(solver.ONE_QUESTION_RULE);
+    expect(solver.ONE_QUESTION_RULE).toContain("ilk tam soru");
+    expect(read("src/lib/solve/solve-run.ts")).toContain("Görselde birden çok soru varsa yalnız çözümde yazılı olan soruya bak");
+  });
+
+  it("çözüm öbür soruları taşır; ekran numarayla nasıl isteneceğini söyler", async () => {
+    const { parseSolution } = await import("@/lib/solve/question-solver");
+    const { otherQuestionsLine } = await import("@/components/learning/question-solver");
+    const solution = parseSolution({
+      readable: true,
+      question: "1. Homeostaziyi en iyi tanımlayan seçenek hangisidir?",
+      options: [{ letter: "A", text: "İç ortamın dengede tutulması" }, { letter: "B", text: "Büyüme" }],
+      answer: { letter: "A", text: "İç ortamın dengede tutulması." },
+      questionNumber: "1",
+      otherQuestions: [2, "3", "4", "5", "6"],
+    })!;
+    expect(solution.questionNumber).toBe("1");
+    expect(solution.otherQuestions).toEqual(["2", "3", "4", "5", "6"]);
+    expect(otherQuestionsLine({ questionNumber: "1", otherQuestions: solution.otherQuestions ?? [] })).toBe(
+      'Fotoğrafta başka sorular da var (2, 3, 4, 5, 6). 1. soruyu çözdüm; başka birini istersen fotoğrafı yeniden seç ve nota numarasını yaz, örneğin "2. soru".',
+    );
+    expect(read("src/components/learning/question-solver.tsx")).toContain("solution.otherQuestions?.length ?");
+  });
+});

@@ -33,9 +33,23 @@ export type Solution = {
   trap: string;
   tip: string;
   check: string;
+  /** Görselde birden çok soru varsa çözülen sorunun numarası (24 Ekim 2026; `ONE_QUESTION_RULE`). */
+  questionNumber?: string;
+  /** Görseldeki öbür soruların numaraları; öğrenciye "nota numarasını yaz" denir. */
+  otherQuestions?: string[];
 };
 
 export type QuickAnswer = { letter?: string; value?: string };
+
+/**
+ * Tek soru (24 Ekim 2026). Canlıda 6 soruluk bir test sayfasının fotoğrafı ~90 sn sonra "tamamlanamadı" oldu:
+ * model bütün soruları çözmeye çalışıp 45 sn'lik çağrı sınırını iki kez aştı. İki bağımsız çözücü, uzlaştırıcı ve
+ * denetçi aynı kuralla aynı soruyu seçer; yoksa cevaplar farklı sorulara ait olur.
+ */
+export const ONE_QUESTION_RULE =
+  "TEK SORU: Görselde ya da metinde birden çok soru varsa yalnız birini çöz, öbürlerini çözme ve yazma. Hangisi: " +
+  "öğrencinin notunda soru numarası ya da tarifi varsa o soru; yoksa sayfadaki ilk tam soru (numarası en küçük olan). " +
+  "Şıkların işaretlenmiş olması soruyu seçmek sayılmaz.";
 
 const PLAIN =
   "Dil: sınava hazırlanan, konuyu yeni öğrenen bir öğrenciye konuşur gibi; kısa cümleler, günlük kelimeler, terimi " +
@@ -48,6 +62,8 @@ export const SOLVER_SYSTEM = [
   "",
   "ÖNCE OKU: Soruyu ve şıkları kâğıttaki gibi aynen yaz; her şık kendi harfiyle. Görsel okunmuyorsa ya da soru eksikse " +
     "readable:false döndür ve çözüm uydurma.",
+  ONE_QUESTION_RULE +
+    " Birden çok soru varsa questionNumber çözdüğün sorunun numarası, otherQuestions görseldeki öbür soruların numaraları.",
   "",
   "SONRA ÇÖZ, DOĞRU ÇÖZ: Cevaptan emin olmadan yazma; işlemleri tek tek yap, sonucu soruda istenen birimle ver. Şıklı " +
     "soruda cevap mutlaka şıklardan biri olur ve answer.letter o şıkkın harfidir.",
@@ -70,13 +86,15 @@ export const SOLVER_SYSTEM = [
   'Yalnızca JSON döndür: {"readable":true,"subject":"Fizik","question":"…","options":[{"letter":"A","text":"…"}],' +
     '"kind":"mcq","intro":"…","given":["…"],"asked":"…","steps":[{"math":"…","say":"…"}],' +
     '"answer":{"letter":"B","value":"40 m","text":"Araç 4 saniyede 40 metre yol alır."},' +
-    '"optionsWhy":[{"letter":"A","why":"…","correct":false}],"trap":"…","tip":"…","check":"…"}',
+    '"optionsWhy":[{"letter":"A","why":"…","correct":false}],"trap":"…","tip":"…","check":"…",' +
+    '"questionNumber":"","otherQuestions":[]}',
 ].join("\n");
 
 export const QUICK_SYSTEM =
   "Sen sınav sorusu çözen bir öğretmensin. Soruyu dikkatle oku ve çöz; işlemleri tek tek yap. Yalnız cevabı ver. " +
   'Şıklı soruda şıkkın harfi, sayısal soruda sayı (birimsiz, ondalık virgülle). JSON: {"letter":"B","value":"40"}. ' +
-  "Şık yoksa letter boş, okunmuyorsa ikisi de boş.";
+  "Şık yoksa letter boş, okunmuyorsa ikisi de boş. " +
+  ONE_QUESTION_RULE;
 
 export function solverUserText(note?: string): string {
   return ["Görseldeki/aşağıdaki soruyu çöz.", note ? `Öğrencinin notu ya da sorusu: ${note.slice(0, 1500)}` : ""]
@@ -135,6 +153,11 @@ export function parseSolution(raw: unknown): Solution | null {
     trap: str(row.trap, 400),
     tip: str(row.tip, 400),
     check: str(row.check, 400),
+    questionNumber: str(row.questionNumber, 12) || undefined,
+    otherQuestions: (Array.isArray(row.otherQuestions) ? row.otherQuestions : [])
+      .map((item) => str(typeof item === "number" ? String(item) : item, 12))
+      .filter(Boolean)
+      .slice(0, 30),
   };
   if (!readable) return solution;
   if (!solution.question || !(answer.text || answer.letter || answer.value)) return null;
@@ -195,6 +218,8 @@ export const RECONCILE_SYSTEM = [
     "düzelt. Emin değilsen sure:false döndür.",
   "",
   PLAIN,
+  "",
+  ONE_QUESTION_RULE,
   "",
   "Aynı JSON şemasında tam çözüm döndür ve ek olarak \"sure\": true|false alanını ekle.",
 ].join("\n");
