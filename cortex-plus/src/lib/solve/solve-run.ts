@@ -39,7 +39,8 @@ import {
 export type SolveStatus = "checked" | "uncertain";
 export type SolveEvent =
   | { type: "stage"; stage: "solving" | "checking" | "verifying" }
-  | { type: "solution"; solution: Solution; status: SolveStatus; ms: number }
+  /** agreed: iki bağımsız çözüm aynı cevabı verdi (false: uzlaştırıldı; ekran "aynı sonucu verdi" demez). */
+  | { type: "solution"; solution: Solution; status: SolveStatus; ms: number; agreed?: boolean }
   /** Denetim bitti. `confirmed`: denetçi açıkça onayladı; yoksa (çağrı düştü, ya da itiraz edip düzeltme aynı
       cevabı verdi) ekran "denetim aynı sonucu verdi" demez. */
   | { type: "verified"; ms: number; confirmed: boolean }
@@ -172,7 +173,8 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
         const quick: QuickAnswer = parseQuick(rawQuick);
         let issues = solutionIssues(solution);
         let status: SolveStatus = "checked";
-        if (!answersAgree(solution, quick) || issues.length) {
+        const agreed = answersAgree(solution, quick) && !issues.length;
+        if (!agreed) {
           emit({ type: "stage", stage: "checking" });
           const reconciled = await ask(RECONCILE_SYSTEM, reconcileUserText(solution, quick, issues), { effort: "medium" }).catch(
             () => null,
@@ -185,7 +187,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
           }
           status = next && sure && !issues.length ? "checked" : "uncertain";
         }
-        emit({ type: "solution", solution, status, ms: elapsed() });
+        emit({ type: "solution", solution, status, ms: elapsed(), agreed });
         await settle(true);
 
         if (elapsed() > VERIFY_DEADLINE_MS) return;

@@ -262,3 +262,23 @@ describe("podcast süre tahmini ölçülen okuma hızından", () => {
     expect(estimateEpisodeMinutes([{ title: "B", lines: [{ speaker: "ada" as const, text: words(475) }] }])).toBe(5);
   });
 });
+
+// 24 Ekim 2026 canlı: çözümler uyuşmayıp uzlaştırıldığında kart "İki ayrı çözüm aynı sonucu verdi" dedi.
+describe("soru çözücü: uzlaştırılan çözüm 'aynı sonucu verdi' demez", () => {
+  it("olay agreed taşır, ekran durumu onu korur", async () => {
+    const { solvePhaseAfter } = await import("@/lib/solve/solve-client");
+    const solution = { readable: true } as never;
+    const done = solvePhaseAfter({ kind: "idle" }, { type: "solution", solution, status: "checked", ms: 1, agreed: false });
+    expect(done).toMatchObject({ kind: "done", agreed: false });
+    expect(solvePhaseAfter({ kind: "idle" }, { type: "solution", solution, status: "checked", ms: 1 })).toMatchObject({ agreed: true });
+  });
+
+  it("uzlaştırıcı karşılaştırmayı öğrenciye yazmaz; rozet ayrı cümle kullanır", async () => {
+    const { RECONCILE_SYSTEM } = await import("@/lib/solve/question-solver");
+    expect(RECONCILE_SYSTEM).toContain("'birinci/ikinci çözüm'");
+    const { readFileSync } = await import("node:fs");
+    const ui = readFileSync("src/components/learning/question-solver.tsx", "utf8");
+    expect(ui).toContain("İki çözüm karşılaştırılıp doğru cevap seçildi");
+    expect(readFileSync("src/lib/solve/solve-run.ts", "utf8")).toContain("emit({ type: \"solution\", solution, status, ms: elapsed(), agreed });");
+  });
+});
