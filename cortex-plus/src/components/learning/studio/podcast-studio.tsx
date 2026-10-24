@@ -31,6 +31,7 @@ import {
 import {
   DEFAULT_PODCAST_LENGTH,
   PODCAST_FORMAT_OPTIONS,
+  estimatedPodcastMinutes,
   type PodcastLength,
 } from "@/lib/learning/podcast-formats";
 import { cn } from "@/lib/utils";
@@ -74,8 +75,6 @@ export type SavedEpisode = {
 };
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
-/** 900 karakter ≈ 1 dakika konuşma (bkz. audio-cache.ts); bedeli fiyat tablosundan (19 Ekim 2026: 15 kredi). */
-const CHARS_PER_MINUTE = 900;
 /** Tür = süre (19 Ekim 2026'dan beri Araçlar'da da seçilir; önce hep 5 dakikalık diyalogdu). */
 const FORMAT_CHOICES = PODCAST_FORMAT_OPTIONS.map((option) => ({
   value: option.id,
@@ -720,11 +719,13 @@ export function PodcastStudio({
   );
 }
 
-/** Metin uzunluğundan dinleme süresi — kütüphane ve önizleme için. */
+/**
+ * Metin uzunluğundan dinleme süresi — kütüphane ve önizleme için; ölçülen okuma hızıyla (kelime/dk). 24 Ekim 2026
+ * lansman testi: 5 dakikalık diyalog yüklenirken "~3:00" gösterdi, ses 4:24 çıktı — tahmin faturalamanın
+ * 900 karakter/dk sabitini kullanıyordu (gerçek konuşma ~620 karakter/dk).
+ */
 export function estimateEpisodeMinutes(chapters: PodcastChapter[]): number {
-  const chars = chapters.reduce(
-    (sum, c) => sum + c.lines.reduce((s, l) => s + l.text.length, 0),
-    0,
-  );
-  return Math.max(1, Math.round(chars / CHARS_PER_MINUTE));
+  const lines = chapters.flatMap((chapter) => chapter.lines);
+  const words = lines.reduce((sum, line) => sum + line.text.split(/\s+/).filter(Boolean).length, 0);
+  return estimatedPodcastMinutes(words, new Set(lines.map((line) => line.speaker)).size > 1 ? "duo" : "single");
 }

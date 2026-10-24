@@ -9,7 +9,8 @@ import { describe, expect, it } from "vitest";
 describe("görsel model fiyat satırı", () => {
   it("video resmi birim = 1 resim yazılır; fiyat 1.000 resim başına", () => {
     const run = readFileSync("src/lib/learning/video-run.ts", "utf8");
-    expect(run).toContain('model: env.OPENAI_IMAGE_MODEL, tokensIn: 1, tokensOut: 0');
+    // 24 Ekim 2026: kayıt gerçekten kullanılan modelle (resim modeli merdiveni, `imageModelLadder`).
+    expect(run).toContain('model: imageModel, tokensIn: 1, tokensOut: 0');
     expect(run).toContain('quality: "low"');
     expect(run).toContain('size: "1024x1536"');
     const sql = readFileSync("supabase/migrations/20261019140000_image_model_price.sql", "utf8").replace(/^--.*$/gm, "");

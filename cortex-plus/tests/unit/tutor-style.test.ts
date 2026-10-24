@@ -22,6 +22,8 @@ describe("tutor prompt snapshot", () => {
     );
     expect(QA_TEACHER_PROMPT).toContain("misconceptionTag");
     expect(QA_TEACHER_PROMPT).toContain("Filler yok");
+    // 24 Ekim 2026: beş soru aynı kalıptaydı.
+    expect(QA_TEACHER_PROMPT).toContain("aynı soru kökü kalıbı en çok iki soruda");
   });
 });
 

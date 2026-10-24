@@ -9,7 +9,16 @@ import type { SolveEvent, SolveStatus } from "@/lib/solve/solve-run";
 export type SolvePhase =
   | { kind: "idle" }
   | { kind: "solving"; stage: "solving" | "checking" }
-  | { kind: "done"; solution: Solution; status: SolveStatus | "verified" | "revised"; ms: number; note?: string; verifying: boolean }
+  | {
+      kind: "done";
+      solution: Solution;
+      status: SolveStatus | "verified" | "revised";
+      ms: number;
+      note?: string;
+      verifying: boolean;
+      /** İki bağımsız çözüm aynı cevabı verdi; false ise uzlaştırıldı (24 Ekim 2026). */
+      agreed?: boolean;
+    }
   | { kind: "error"; message: string; status?: number };
 
 export type SolveDone = Extract<SolvePhase, { kind: "done" }>;
@@ -26,7 +35,7 @@ export function solvePhaseAfter(phase: SolvePhase, event: SolveEvent): SolvePhas
     return phase.kind === "solving" || phase.kind === "idle" ? { kind: "solving", stage: event.stage } : phase;
   }
   if (event.type === "solution") {
-    return { kind: "done", solution: event.solution, status: event.status, ms: event.ms, verifying: false };
+    return { kind: "done", solution: event.solution, status: event.status, ms: event.ms, verifying: false, agreed: event.agreed !== false };
   }
   if (event.type === "verified") {
     return phase.kind === "done"

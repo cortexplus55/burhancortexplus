@@ -156,7 +156,10 @@ describe("öğretmen motorunun kaynak metni", () => {
 
   it("düğüm rotası yardımcı sayfaları dört motor kurucusuna da verir", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(route.split("pages: withSupport(clean, core)").length - 1).toBe(4);
+    // Ders kurucusu sayfaları önce adlandırır (`lessonPages`): sınav maddeleri aynı sayfalara göre süzülür.
+    expect(route.split("pages: withSupport(clean, core)").length - 1).toBe(3);
+    expect(route).toContain("const lessonPages = withSupport(clean, core);");
+    expect(route).toContain("pages: lessonPages,");
     expect(route).toContain("support: supportPagesForEngine(await lessonSupport)");
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
     expect(page).toContain("loadTopicSupport(createServiceClient()");

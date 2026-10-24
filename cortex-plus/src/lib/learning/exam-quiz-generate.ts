@@ -60,6 +60,8 @@ export async function generateExamQuiz(input: {
   /** Öğretmen motorunun istemi için; yoksa çağıranın userPrompt'u bağlamı taşır. */
   topicLabel?: string;
   prepTitle?: string;
+  /** false: önceden yazım (24 Ekim 2026, yoldaki soru-cevap); kredi ayrılmaz, öğrenci açınca düşer. */
+  charge?: boolean;
 }): Promise<
   | { ok: true; questions: QuizQuestion[]; reservationId?: string }
   | { ok: false; status: number; error: string }
@@ -93,6 +95,7 @@ export async function generateExamQuiz(input: {
     deferCommit: input.deferCommit,
     heldReservationId: input.heldReservationId,
     multi: input.multi,
+    ...(input.charge === false ? { charge: false } : {}),
   });
   if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
   return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };

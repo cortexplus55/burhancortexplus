@@ -210,7 +210,10 @@ export function OralStudio({
       result.data.feedback ?? result.data.verdict ?? "Değerlendirme hazır.",
     ];
     if (missing.length) {
-      parts.push(`Eksik noktalar: ${missing.join("; ")}`);
+      // Puan cevap başına doğru/yanlış; doğru sayılan cevabın eksik noktası da gelebiliyor. "%100" yanında
+      // "Eksik noktalar" çelişki gibi okunuyordu (24 Ekim 2026 lansman testi).
+      const label = (result.data.score ?? 0) >= 100 ? "Cevabını daha da güçlendirecek nokta" : "Eksik noktalar";
+      parts.push(`${label}: ${missing.join("; ")}`);
     }
     // Önerilen cevap sorunun kopyasıysa gösterme (sunucu da temizler).
     if (suggested && !questions.some((q) => suggested.includes(q.prompt.slice(0, 24)))) {

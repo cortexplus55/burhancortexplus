@@ -308,9 +308,23 @@ export async function teacherLessonPipeline(
           factual = [{ where: "ders", severity: "high", problem: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}` }];
         }
         if (factual.some(isCircularWhyIssue)) whyDropped = true;
-        const issues = [...structural, ...factual.filter((issue) => issueInPart(issue, span))].filter(
+        let issues = [...structural, ...factual.filter((issue) => issueInPart(issue, span))].filter(
           (issue) => !(whyDropped && isMissingWhyIssue(issue)),
         );
+        // 24 Ekim 2026 canlı kayıt (Homeostazi, 4 tur): kodun ikinci soru kuralı ("doğru şıkkı ana sorununkiyle aynı
+        // metin") başka bir sorunla birlikte kalınca her turda yeniden çıktı; düzeltici onu düzeltmedi. Kural kodun:
+        // ikinci soru hemen çıkar, çalışma anı doğru anahtarlı yedeği kurar; tur yalnız öbür sorunlar için açılır.
+        const codeReviews = issues.filter(
+          (issue) => issue.severity === "high" && isReviewIssue(issue) && issue.problem.startsWith("[yapı kuralı]"),
+        );
+        if (codeReviews.length) {
+          screens = stripReviews(screens, span.from, codeReviews);
+          if (current()) part.screens = screens;
+          issues = [
+            ...issues.filter((issue) => !codeReviews.includes(issue)),
+            { where: "ders", severity: "low", problem: "İkinci soru yapı kuralına uymadı; çalışma anının yedeği kullanılacak." },
+          ];
+        }
         const high = issues.filter((issue) => issue.severity === "high");
         if (teachingSnapshot) {
           // Öğretim turundan sonra: gerilediyse (yüksek sorun çıktı) önceki ekranlar yayımlanır; değilse yenisi.

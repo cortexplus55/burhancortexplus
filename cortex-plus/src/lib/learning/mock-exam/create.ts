@@ -6,6 +6,7 @@ import { loadMergedTopicContext, loadTopicSpanContext } from "@/lib/learning/sou
 import {
   allocateQuestions,
   buildBlueprint,
+  defaultSlots,
   filterOverlappingQuestions,
   letterBalanceOk,
   parseExamFormatFromText,
@@ -141,6 +142,10 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
   if (input.questionCount != null && preset !== "real") {
     blueprint.questionCount = input.questionCount;
     blueprint.allocation = allocateQuestions(slots, input.questionCount);
+    // Soru türü yerleri de seçilen sayıya göre (24 Ekim 2026 lansman testi): yerler hazır planın sayısıyla
+    // (kısa 10, standart 20) kuruluyor, açık uçlu ve çok cevaplı yerler listenin sonunda kalıyordu; Araçlar'da
+    // 5 soruluk yazılı 5 çoktan seçmeli çıktı (15'lik de açık uçlusuz).
+    blueprint.slots = defaultSlots(input.questionCount, allowNumeric);
   }
   if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
 

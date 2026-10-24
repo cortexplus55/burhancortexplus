@@ -1261,3 +1261,19 @@ geri alma dosyasını PGlite'ta çalıştırır), `free-meters.test.ts`, `free-r
 
 Bekçi: `free-path-plus-skip.test.ts`, `complete-node-in-order.test.ts` (PGlite: ücretsiz, Plus, kurucu, önizleme),
 `launch-latency.test.ts`, `lesson-exam-point-severity.test.ts`, `lesson-prefetch.test.ts`, `prep-title.test.ts`.
+
+**İkinci tur (aynı gün, #398 yayındayken; PR #399):**
+
+| Bulgu | Kural | Nerede |
+|---|---|---|
+| **Video ders canlıda hiç çalışmıyordu**: `400 The model 'gpt-image-1' does not exist` (canlı anahtarın projesi bu modeli görmüyor, yerel anahtar görüyor) | Resim adımı yalnız "model yok" hatasında sıradakini dener (ayarlı model → `gpt-image-1.5` → `gpt-image-1-mini` → `gpt-image-2`), çalışanı hatırlar, kullanımı gerçek modelle yazar. Yedek modellerin fiyat satırı yok: `/admin/maliyetler` onları saymaz | `video-run.ts` `imageModelLadder` |
+| Ders açılışı süren ısınmayı 20 sn bekleyip **aynı dersi ikinci kez** yazıyordu (ilk ekran 52 sn) | 55 sn'den yeni başlamış yazımın ilk kavramı beklenir (tavan 45 sn) | `peekBuildingPrefetch` |
+| Konunun sınav maddeleri başka belgenin analizinden geldi; ders PDF'in 1. sayfasından yazılırken denetçi "kaynakta yok" diye tur açtı | Belgeli derse yalnız kendi sayfalarında geçen maddeler | `examPointsInSource` |
+| Kodun ikinci soru kuralı başka sorunla birlikte her turda geri geliyordu | Yapı kuralına takılan ikinci soru hemen çıkar, yedek doğru anahtarla kurulur | `teacher-lesson-run.ts` |
+| Ücretsiz yolda dersin arkasındaki Soru-Cevap önceden yazılmıyordu (48 sn); 5 sorunun 5'i aynı kalıp | Soru-cevap da önceden yazılır (kredisiz); istem kalıbı en çok iki soruda | `PREFETCH_KINDS`, `QA_TEACHER_PROMPT` |
+| Araçlar: 10 soru istendi 9 geldi; yazılı denemede 5 soruda açık uçlu/çok cevaplı yok, sonuçta soru incelemesi yok; "Anlatarak öğren" belgeden çalışmıyordu | Yedek soru sayıyla orantılı; tür yerleri seçilen sayıya göre; "Cevaplarını incele"; anlatım belgeye göre değerlendirilir | `quizSpareCount`, `mock-exam/create.ts`, `written-studio.tsx`, `explain/route.ts` |
+| Çok sorulu fotoğrafta iki çözücü farklı soruyu seçti; kart "aynı sonucu verdi" derken altında "ikinci çözümdeki C yanlış" yazıyordu | Notta numara yoksa her zaman 1. soru; uzlaştırılan çözüm "karşılaştırıldı" der; uzlaştırıcı iç süreci yazmaz | `ONE_QUESTION_RULE`, `agreed` |
+
+Canlıda doğrulanan (#398 sonrası): ücretsiz yolda dersten sonra sıradaki Soru-Cevap (podcast atlandı), %20 sonuçta odaklı pratik
+eklendi, konu testi önceden yazılmış olarak 2 sn'de açıldı (önce 150-230 sn), aynı derste atılan kavram 3 → 0. Açık kalan:
+konuya yalnız kapak/özet sayfası bağlanınca (Homeostazi, PDF s.1) konu testi 5 yerine 3 soru çıkıyor.

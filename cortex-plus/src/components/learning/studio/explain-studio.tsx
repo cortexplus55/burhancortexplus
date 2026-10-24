@@ -12,6 +12,14 @@ import {
   StudioPaywall,
 } from "@/components/learning/studio/studio-shared";
 import {
+  documentSuggestions,
+  sourceNotice,
+  StudioSetup,
+  StudioSourcePicker,
+  type StudioDocument,
+  type StudioSourceMode,
+} from "@/components/learning/studio/studio-setup";
+import {
   MIN_WORDS,
   VERDICT_HINT,
   VERDICT_LABEL,
@@ -40,10 +48,19 @@ const VERDICT_TONE: Record<string, string> = {
 export function ExplainStudio({
   creditCost,
   initialTopic = "",
+  documents = [],
+  initialDocumentId = null,
 }: {
   creditCost: number | null;
   initialTopic?: string;
+  documents?: StudioDocument[];
+  initialDocumentId?: string | null;
 }) {
+  // Belgeden de (24 Ekim 2026): anlatım öğrencinin kendi notuna göre değerlendirilir.
+  const [sourceMode, setSourceMode] = useState<StudioSourceMode>(initialDocumentId ? "document" : "topic");
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? documents[0]?.id ?? null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const sourceDocument = sourceMode === "document" ? documents.find((doc) => doc.id === documentId) ?? null : null;
   const [phase, setPhase] = useState<"entry" | "writing" | "loading" | "result">(
     "entry",
   );
@@ -59,9 +76,10 @@ export function ExplainStudio({
 
   async function submit() {
     setPhase("loading");
-    const result = await postStudio<ExplainReview>("/api/learning/explain", {
+    const result = await postStudio<ExplainReview & { source?: Parameters<typeof sourceNotice>[0] }>("/api/learning/explain", {
       topic,
       explanation: text,
+      ...(sourceDocument ? { documentId: sourceDocument.id } : {}),
     });
     if ("paywall" in result) {
       setPaywall(true);
@@ -72,12 +90,15 @@ export function ExplainStudio({
       toast.error(
         result.error === "too_short"
           ? "Anlatım çok kısa, biraz daha yaz."
-          : "Anlatım değerlendirilemedi.",
+          : result.error === "document_not_ready"
+            ? "Belge henüz hazır değil ya da içi boş. Hakkın düşmedi."
+            : "Anlatım değerlendirilemedi.",
       );
       setPhase("writing");
       return;
     }
     setReview(result.data);
+    setNotice(sourceNotice(result.data.source));
     setPhase("result");
   }
 
@@ -104,11 +125,28 @@ export function ExplainStudio({
         <StudioEntry
           tool="anlat"
           title="Anlatarak öğren"
-          placeholder="Hangi konuyu anlatacaksın?"
+          placeholder={sourceDocument ? "Belgendeki bir konu" : "Hangi konuyu anlatacaksın?"}
           submitLabel="Anlatmaya başla"
           creditCost={creditCost}
           initialTopic={initialTopic}
+          suggestions={documentSuggestions(sourceDocument)}
+          setup={
+            <StudioSetup>
+              <StudioSourcePicker
+                idPrefix="anlat"
+                documents={documents}
+                mode={sourceMode}
+                onModeChange={setSourceMode}
+                documentId={documentId}
+                onDocumentChange={setDocumentId}
+              />
+            </StudioSetup>
+          }
           onSubmit={(value) => {
+            if (sourceMode === "document" && !sourceDocument) {
+              toast.error(documentId ? "Belgen hâlâ hazırlanıyor; biter bitmez başlatabilirsin." : "Önce bir belge seç ya da yükle.");
+              return;
+            }
             setTopic(value);
             setPhase("writing");
           }}
@@ -131,6 +169,7 @@ export function ExplainStudio({
     return (
       <StudioFrame tool="anlat" kicker={topic}>
         <div className="space-y-5">
+          {notice ? <p className="ls-source-notice">{notice}</p> : null}
           <div
             className={`rounded-2xl border p-4 ${VERDICT_TONE[review.verdict] ?? VERDICT_TONE.kismen}`}
           >

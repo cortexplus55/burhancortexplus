@@ -146,7 +146,15 @@ export function QuestionSolver({ prep = null }: { prep?: { id: string; title: st
   );
 }
 
-function StatusBadge({ status, verifying }: { status: SolveStatus | "verified" | "revised"; verifying: boolean }) {
+function StatusBadge({
+  status,
+  verifying,
+  agreed = true,
+}: {
+  status: SolveStatus | "verified" | "revised";
+  verifying: boolean;
+  agreed?: boolean;
+}) {
   if (status === "uncertain") {
     return (
       <span className="cp-solver-badge cp-solver-badge--warn">
@@ -162,11 +170,23 @@ function StatusBadge({ status, verifying }: { status: SolveStatus | "verified" |
     );
   }
   if (verifying) {
-    return <span className="cp-solver-badge">İki çözüm aynı sonucu verdi · ikinci göz kontrol ediyor…</span>;
+    return (
+      <span className="cp-solver-badge">
+        {agreed ? "İki çözüm aynı sonucu verdi" : "İki çözüm karşılaştırıldı"} · ikinci göz kontrol ediyor…
+      </span>
+    );
   }
+  // 24 Ekim 2026: uzlaştırılan çözümde de "aynı sonucu verdi" yazıyordu; altında "ikinci çözümdeki C yanlış" vardı.
+  const label = agreed
+    ? status === "verified"
+      ? "İki ayrı çözüm ve denetim aynı sonucu verdi"
+      : "İki ayrı çözüm aynı sonucu verdi"
+    : status === "verified"
+      ? "İki çözüm karşılaştırıldı; denetim de onayladı"
+      : "İki çözüm karşılaştırılıp doğru cevap seçildi";
   return (
     <span className="cp-solver-badge cp-solver-badge--ok">
-      <CheckCircle2 aria-hidden /> {status === "verified" ? "İki ayrı çözüm ve denetim aynı sonucu verdi" : "İki ayrı çözüm aynı sonucu verdi"}
+      <CheckCircle2 aria-hidden /> {label}
     </span>
   );
 }
@@ -192,7 +212,7 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
         {solution.subject ? <span className="cp-solver-subject">{solution.subject}</span> : null}
         <span className="cp-solver-time">{Math.max(1, Math.round(phase.ms / 1000))} sn</span>
       </header>
-      <StatusBadge status={phase.status} verifying={phase.verifying} />
+      <StatusBadge status={phase.status} verifying={phase.verifying} agreed={phase.agreed} />
       {phase.note ? <p className="cp-solver-note">{phase.note}</p> : null}
       {solution.otherQuestions?.length ? <p className="cp-solver-note">{otherQuestionsLine({ questionNumber: solution.questionNumber, otherQuestions: solution.otherQuestions })}</p> : null}
 

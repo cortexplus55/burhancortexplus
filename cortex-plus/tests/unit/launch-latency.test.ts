@@ -237,3 +237,103 @@ describe("fotoğrafta birden çok soru: tek soru çözülür, öbürleri söylen
     expect(read("src/components/learning/question-solver.tsx")).toContain("solution.otherQuestions?.length ?");
   });
 });
+
+// 24 Ekim 2026: Araçlar'da belgeden 10 soru istendi, 9 geldi (11 taslaktan 2'si elendi).
+describe("test motoru: yedek soru istenen sayıyla orantılı", () => {
+  it("küçük testte eski yedek, büyük testte dörtte bir", async () => {
+    const { quizSpareCount } = await import("@/lib/learning/teacher-quiz-run");
+    expect(quizSpareCount(5, false)).toBe(2);
+    expect(quizSpareCount(10, false)).toBe(3);
+    expect(quizSpareCount(20, false)).toBe(5);
+    expect(quizSpareCount(5, true)).toBe(3);
+    expect(quizSpareCount(10, true)).toBe(4);
+  });
+});
+
+// 24 Ekim 2026: 5 dakikalık diyalog yüklenirken "~3:00" gösterdi, ses 4:24 çıktı.
+describe("podcast süre tahmini ölçülen okuma hızından", () => {
+  it("iki seste 88 kelime/dk", async () => {
+    const { estimateEpisodeMinutes } = await import("@/components/learning/studio/podcast-studio");
+    const words = (n: number) => Array.from({ length: n }, () => "kelime").join(" ");
+    const chapters = [
+      { title: "A", lines: [{ speaker: "ada" as const, text: words(200) }, { speaker: "kerem" as const, text: words(188) }] },
+    ];
+    expect(estimateEpisodeMinutes(chapters)).toBe(4);
+    expect(estimateEpisodeMinutes([{ title: "B", lines: [{ speaker: "ada" as const, text: words(475) }] }])).toBe(5);
+  });
+});
+
+// 24 Ekim 2026 canlı: çözümler uyuşmayıp uzlaştırıldığında kart "İki ayrı çözüm aynı sonucu verdi" dedi.
+describe("soru çözücü: uzlaştırılan çözüm 'aynı sonucu verdi' demez", () => {
+  it("olay agreed taşır, ekran durumu onu korur", async () => {
+    const { solvePhaseAfter } = await import("@/lib/solve/solve-client");
+    const solution = { readable: true } as never;
+    const done = solvePhaseAfter({ kind: "idle" }, { type: "solution", solution, status: "checked", ms: 1, agreed: false });
+    expect(done).toMatchObject({ kind: "done", agreed: false });
+    expect(solvePhaseAfter({ kind: "idle" }, { type: "solution", solution, status: "checked", ms: 1 })).toMatchObject({ agreed: true });
+  });
+
+  it("uzlaştırıcı karşılaştırmayı öğrenciye yazmaz; rozet ayrı cümle kullanır", async () => {
+    const { RECONCILE_SYSTEM } = await import("@/lib/solve/question-solver");
+    expect(RECONCILE_SYSTEM).toContain("'birinci/ikinci çözüm'");
+    const { readFileSync } = await import("node:fs");
+    const ui = readFileSync("src/components/learning/question-solver.tsx", "utf8");
+    expect(ui).toContain("İki çözüm karşılaştırılıp doğru cevap seçildi");
+    expect(readFileSync("src/lib/solve/solve-run.ts", "utf8")).toContain("emit({ type: \"solution\", solution, status, ms: elapsed(), agreed });");
+  });
+});
+
+// 24 Ekim 2026: Araçlar'da 5 soruluk yazılı 5 çoktan seçmeli çıktı; tür yerleri 10'luk plandan kalıyordu.
+describe("yazılı deneme: soru türleri seçilen sayıya göre", () => {
+  it("5 ve 15 soruda da açık uçlu ve çok cevaplı yer var", async () => {
+    const { defaultSlots } = await import("@/lib/learning/mock-exam");
+    for (const count of [5, 15]) {
+      const types = defaultSlots(count, false).map((slot) => slot.type);
+      expect(types).toHaveLength(count);
+      expect(types).toContain("open");
+      expect(types).toContain("multi_mcq");
+    }
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync("src/lib/learning/mock-exam/create.ts", "utf8")).toContain(
+      "blueprint.slots = defaultSlots(input.questionCount, allowNumeric);",
+    );
+  });
+});
+
+// 24 Ekim 2026: Araçlar'daki yazılı denemenin sonucunda soru soru inceleme yoktu.
+describe("stüdyo yazılı deneme: sonuçtan soru incelemesine", () => {
+  it("üretim hazırlık kimliğini döner, sonuç inceleme bağlantısı verir", async () => {
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync("src/app/api/learning/exam/generate/route.ts", "utf8")).toContain("prepId: resolvedPrepId,");
+    const studio = readFileSync("src/components/learning/studio/written-studio.tsx", "utf8");
+    expect(studio).toContain("/deneme/${examId}/incele");
+    expect(readFileSync("src/components/learning/studio/studio-shared.tsx", "utf8")).toContain("Cevaplarını incele");
+  });
+});
+
+// 24 Ekim 2026: "Anlatarak öğren" yalnız konu yazarak çalışıyordu; belgeden çalışan tek araç değildi.
+describe("anlatarak öğren belgeden de çalışır", () => {
+  it("kaynak verilince değerlendirme kaynağa göre", async () => {
+    const { buildExplainPrompt } = await import("@/lib/learning/explain-review");
+    const withSource = buildExplainPrompt("Aksiyon potansiyeli", "Anlatım", "Na kanalları açılır.");
+    expect(withSource).toContain("KAYNAK (öğrencinin kendi notu");
+    expect(withSource).toContain("Na kanalları açılır.");
+    expect(buildExplainPrompt("Aksiyon potansiyeli", "Anlatım")).not.toContain("KAYNAK");
+    const { readFileSync } = await import("node:fs");
+    const route = readFileSync("src/app/api/learning/explain/route.ts", "utf8");
+    expect(route).toContain("studioTeacherSource(service, { userId, topic, documentId })");
+    expect(readFileSync("src/app/studio/anlat/page.tsx", "utf8")).toContain("loadCompletedDocumentOptions");
+  });
+});
+
+// 24 Ekim 2026 canlı: video ders "400 The model 'gpt-image-1' does not exist." ile tümüyle düşüyordu.
+describe("video: resim modeli yoksa sıradaki denenir", () => {
+  it("merdiven ayarlanan modelden başlar, çalışanı öne alır; yalnız 'model yok' hatası geçirir", async () => {
+    const { imageModelLadder, isMissingModelError } = await import("@/lib/learning/video-run");
+    expect(imageModelLadder("gpt-image-1", null)).toEqual(["gpt-image-1", "gpt-image-1.5", "gpt-image-1-mini", "gpt-image-2"]);
+    expect(imageModelLadder("gpt-image-1", "gpt-image-2")[0]).toBe("gpt-image-2");
+    expect(isMissingModelError({ status: 400, message: "400 The model 'gpt-image-1' does not exist." })).toBe(true);
+    expect(isMissingModelError({ status: 404, message: "not found" })).toBe(true);
+    expect(isMissingModelError({ status: 400, message: "Invalid size" })).toBe(false);
+  });
+});

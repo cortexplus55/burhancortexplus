@@ -57,10 +57,20 @@ export function isLongEnough(text: string): boolean {
   return wordCount(text) >= MIN_WORDS;
 }
 
-export function buildExplainPrompt(topic: string, explanation: string): string {
+export function buildExplainPrompt(topic: string, explanation: string, source?: string): string {
   return [
     `Konu: ${topic}`,
     "",
+    // Belgeden (24 Ekim 2026): değerlendirme öğrencinin kendi notuna göre; notta olmayanı eksik saymaz.
+    ...(source?.trim()
+      ? [
+          "KAYNAK (öğrencinin kendi notu; değerlendirmeyi buna göre yap):",
+          `"""${source.trim()}"""`,
+          "- Kaynakla çelişen ifade `gaps` olur; `missed` yalnız KAYNAK'ta geçen ve konunun kalbindeki başlıklardan seçilir.",
+          "- Kaynağı, sayfayı ya da 'notunda' sözünü anmadan konuş.",
+          "",
+        ]
+      : []),
     "Öğrencinin kendi anlatımı:",
     `"""${explanation}"""`,
     "",

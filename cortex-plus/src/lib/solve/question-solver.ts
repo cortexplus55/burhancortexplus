@@ -48,8 +48,10 @@ export type QuickAnswer = { letter?: string; value?: string };
  */
 export const ONE_QUESTION_RULE =
   "TEK SORU: Görselde ya da metinde birden çok soru varsa yalnız birini çöz, öbürlerini çözme ve yazma. Hangisi: " +
-  "öğrencinin notunda soru numarası ya da tarifi varsa o soru; yoksa sayfadaki ilk tam soru (numarası en küçük olan). " +
-  "Şıkların işaretlenmiş olması soruyu seçmek sayılmaz.";
+  "öğrencinin notunda soru numarası ya da tarifi varsa o soru; yoksa HER ZAMAN sayfadaki ilk tam soru (numarası en " +
+  "küçük olan). Kâğıttaki işaret, çarpı, 'doğrusu …' ya da 'tekrar bak' notu soruyu seçmez; yine ilk soru çözülür.";
+// 24 Ekim 2026 canlı (Test-14, 6 soru): iki bağımsız çözücüden biri işaretli 2. soruyu, öbürü işaretli 6. soruyu
+// seçti; cevaplar uyuşmadı, uzlaştırma gerekti ve öbür sorular listesi boş kaldı. Seçim kesin olmalı.
 
 const PLAIN =
   "Dil: sınava hazırlanan, konuyu yeni öğrenen bir öğrenciye konuşur gibi; kısa cümleler, günlük kelimeler, terimi " +
@@ -63,7 +65,8 @@ export const SOLVER_SYSTEM = [
   "ÖNCE OKU: Soruyu ve şıkları kâğıttaki gibi aynen yaz; her şık kendi harfiyle. Görsel okunmuyorsa ya da soru eksikse " +
     "readable:false döndür ve çözüm uydurma.",
   ONE_QUESTION_RULE +
-    " Birden çok soru varsa questionNumber çözdüğün sorunun numarası, otherQuestions görseldeki öbür soruların numaraları.",
+    " Birden çok soru varsa questionNumber çözdüğün sorunun numarası, otherQuestions görseldeki öbür soruların " +
+    "numaraları (görselde başka soru varsa boş bırakma).",
   "",
   "SONRA ÇÖZ, DOĞRU ÇÖZ: Cevaptan emin olmadan yazma; işlemleri tek tek yap, sonucu soruda istenen birimle ver. Şıklı " +
     "soruda cevap mutlaka şıklardan biri olur ve answer.letter o şıkkın harfidir.",
@@ -216,6 +219,10 @@ export const RECONCILE_SYSTEM = [
   "Sen sınav sorularını çözen titiz bir öğretmensin. Aynı soru iki kez çözüldü ve sonuçlar farklı çıktı ya da hesapta " +
     "sorun bulundu. Soruyu baştan, dikkatle kendin çöz; iki çözümü ve sorunları kontrol et; doğru olanı seç ya da " +
     "düzelt. Emin değilsen sure:false döndür.",
+  // 24 Ekim 2026 lansman testi: öğrencinin kartına "İlk çözümdeki B cevabı doğrudur. İkinci çözümdeki C cevabı
+  // yanlıştır." yazıldı; karşılaştırma iç süreç, öğrenci yalnız soruyu görür.
+  "Çözümün hiçbir alanında 'birinci/ikinci çözüm', 'ilk çözüm', 'öbür çözüm' gibi karşılaştırmadan söz etme; öğrenciye " +
+    "yalnız sorunun çözümünü yaz.",
   "",
   PLAIN,
   "",

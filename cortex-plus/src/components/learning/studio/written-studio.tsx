@@ -61,6 +61,7 @@ export function WrittenStudio({
   );
   const [topic, setTopic] = useState(initialTopic);
   const [examId, setExamId] = useState<string | null>(null);
+  const [prepId, setPrepId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
@@ -84,6 +85,7 @@ export function WrittenStudio({
     setPhase("loading");
     const result = await postStudio<{
       examId?: string;
+      prepId?: string;
       title?: string;
       questions?: Question[];
       source?: { kind?: string; wholeDocument?: boolean; matched?: boolean; fileName?: string | null };
@@ -112,6 +114,7 @@ export function WrittenStudio({
     setTopic(topic);
     setNotice(sourceNotice(result.data.source));
     setExamId(result.data.examId);
+    setPrepId(result.data.prepId ?? null);
     setTitle(result.data.title ?? topic);
     setQuestions(result.data.questions);
     setIndex(0);
@@ -278,6 +281,8 @@ export function WrittenStudio({
           scoreLabel={score != null ? `%${score}` : undefined}
           title="Yazılı bitti."
           lead={analysis}
+          // 24 Ekim 2026 lansman testi: sonuçta yalnız yüzde vardı; hangi sorunun neden yanlış olduğu görünmüyordu.
+          reviewHref={prepId && examId ? `/deneme-sinavlari/${prepId}/deneme/${examId}/incele` : undefined}
           onAgain={() => {
             setIndex(0);
             setAnswers({});
