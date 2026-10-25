@@ -1,8 +1,10 @@
 import {
-  DEFAULT_TARGET_SCORE,
+  READY_HEADLINE,
   computeExamReadiness,
   computeProgramProgress,
+  effectiveTarget,
   normalizeTopicKey,
+  topicAccuracyPct,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
 import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -55,14 +57,14 @@ function detailFor(topic: TopicMasterySnapshot, openMisses: number): string {
 }
 
 /**
- * 20 Ekim 2026: konu "hazır" = sağlam (%85+, en az 3 öğe) ve açık yanlışı yok. Önceden bütün
- * geçmişte tek yanlış bile konuyu "çalışılacak"ta tutuyordu; düzelmiş yanlış artık tutmaz
- * (`openMissesByTopic` yalnız çözülmemiş yanılgılardan gelir).
+ * Baraj hedef puandır (25 Ekim 2026): doğruluğu hedefte ya da üstünde olan konu "Sağlam",
+ * yalnız altında kalan "Çalışılacak". Açık yanlış ayrıntıda yazılır ama konuyu tek başına
+ * barajın altına itmez — %90 doğrulukla "Çalışılacak" demek öğrenciyi yanıltıyordu.
  */
-function topicState(topic: TopicMasterySnapshot, openMisses: number): ReadinessTopicState {
-  if (!topic.measured || topic.evidenceCount === 0) return "unmeasured";
-  if (topic.level === "solid" && openMisses === 0) return "ready";
-  return "needs_work";
+export function topicState(topic: TopicMasterySnapshot, target: number): ReadinessTopicState {
+  const accuracy = topicAccuracyPct(topic);
+  if (accuracy == null) return "unmeasured";
+  return accuracy >= target ? "ready" : "needs_work";
 }
 
 export function buildReadinessScreen(input: {
@@ -87,6 +89,8 @@ export function buildReadinessScreen(input: {
     ? planned
     : input.mastery.map((topic) => topic.topicKey).filter((topic) => topic && topic !== "genel");
 
+  // Hedef girilmemişse karar %70'e göre verilir; ekran da aynı sayıyı söyler.
+  const target = effectiveTarget(input.targetScore);
   const topics: ReadinessTopicRow[] = labels.map((label) => {
     const snapshot = byKey.get(normalizeTopicKey(label)) ?? {
       topicKey: label,
@@ -103,16 +107,13 @@ export function buildReadinessScreen(input: {
     const open = misses.get(normalizeTopicKey(label)) ?? 0;
     return {
       topic: label,
-      state: topicState(snapshot, open),
+      state: topicState(snapshot, target),
       detail: detailFor(snapshot, open),
     };
   });
 
   const program = computeProgramProgress(input.nodes);
   const openMisconceptions = input.openMisconceptionsTotal ?? input.openMissesByTopic.reduce((sum, row) => sum + row.count, 0);
-  // Hedef girilmemişse karar %70'e göre verilir (computeExamReadiness); ekran da aynı sayıyı söyler
-  // (22 Ekim 2026 inceleme: deneme %65 iken "Hazırsın" kapalıydı ama neden görünmüyordu).
-  const target = input.targetScore == null ? DEFAULT_TARGET_SCORE : Math.round(input.targetScore);
   const verdict = computeExamReadiness({
     programPct: program.pct,
     topics: input.mastery,
@@ -130,8 +131,15 @@ export function buildReadinessScreen(input: {
   let headline = "Henüz hazırsın diyemeyiz";
   let lead = "Bu ekran kayıtlı cevaplarından hesaplanır.";
   if (ready) {
-    headline = "Hazırsın";
-    lead = "Ölçülen konular, hedef ve açık yanlışlar bunu destekliyor.";
+    headline = READY_HEADLINE;
+    const mock = input.mockScorePct;
+    lead =
+      mock != null && mock >= target
+        ? `Yazılı denemede %${Math.round(mock)} aldın; hedefin %${target}.`
+        : `Genel hazırlık skorun %${verdict.pct}; hedefin %${target}.`;
+    if (needsWork.length) {
+      lead += ` İstersen ${needsWork.length} konuyu bir tur daha pekiştirebilirsin.`;
+    }
   } else if (!topics.length || (readyTopics.length === 0 && needsWork.length === 0 && unmeasured.length === topics.length && input.mockScorePct == null)) {
     headline = "Henüz ölçüm yok";
     lead = "Hazır demek için önce konu konu cevap görmemiz gerekir.";
@@ -155,9 +163,10 @@ export function buildReadinessScreen(input: {
       href: input.links.focused,
     });
   }
-  if (!ready && input.mockScorePct == null && input.links.written) {
+  // Genel skorla hazır olan öğrenciye de deneme önerilir: karar değişmez, ölçüm güçlenir.
+  if (input.mockScorePct == null && input.links.written) {
     actions.push({ label: "Yazılı denemeyi çöz", href: input.links.written });
-  } else if (!ready && input.mockScorePct != null && input.mockScorePct < target && input.links.written) {
+  } else if (input.mockScorePct != null && input.mockScorePct < target && input.links.written) {
     actions.push({
       label: `Deneme hedefin altında (%${input.mockScorePct}). Bir tur daha çöz`,
       href: input.links.written,

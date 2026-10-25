@@ -35,7 +35,7 @@ describe("readiness screen", () => {
       nodes: done,
       links,
     });
-    expect(screen.headline).toBe("Hazırsın");
+    expect(screen.headline).toBe("🎉 Sınava Hazırsın! Hedefini Başarıyla Geçtin");
     expect(screen.ready).toBe(true);
     expect(screen.topics[0].state).toBe("ready");
   });
@@ -60,7 +60,7 @@ describe("readiness screen", () => {
       nodes: done,
       links,
     });
-    expect(screen.headline).not.toBe("Hazırsın");
+    expect(screen.headline).not.toContain("Hazırsın!");
     expect(screen.ready).toBe(false);
     expect(screen.topics.find((row) => row.topic === "Basınç")?.state).toBe("needs_work");
     expect(screen.topics.find((row) => row.topic === "Sıcaklık")?.state).toBe("unmeasured");

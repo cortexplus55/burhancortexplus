@@ -202,7 +202,7 @@ describe("rota yalnız konu testine kapsam ve ders verir", () => {
     expect(route).toContain('lesson: input.kind === "quiz" ? (input.lessonQuiz ?? undefined) : undefined,');
     expect(route).toContain('multi: input.kind === "quiz" && count >= 5,');
     expect(route).toContain("return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));");
-    expect(route).toContain("lessonQuizContext((await loadTopicLessons(service, topic.id)).lessons)");
+    expect(route).toContain("lessonQuizContext(topicLessons.lessons, topicLessons.missing)");
     expect(route).toContain("lessonKey: quizLesson?.key ?? null,");
     expect(route).toContain('reason: "pedagogy_salvaged"');
     // Motoru paylaşan öbür yüzeyler kapsam vermez.

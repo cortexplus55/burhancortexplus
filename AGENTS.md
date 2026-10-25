@@ -1291,3 +1291,18 @@ konuya yalnız kapak/özet sayfası bağlanınca (Homeostazi, PDF s.1) konu test
 hazır ders yokken açarsa ilk ekran ~50 sn; yolda sıradaki ders önceden yazılmış olduğu için normalde 2-3 sn. Ücretsizde
 ilk kavrama hızlı işlem verilmez (ürün sahibinin kararı, 24 Ekim 2026: "böyle kalsın"; 19 Ekim kararı aynen). Ücretsiz hesapta
 "Hazırsın" yazılı deneme (Plus) şartı yüzünden çıkmaz, en çok %99 — bu da bilerek böyle kalır (aynı gün, ürün sahibinin kararı).
+
+## Ders-bağımsız beş P0 (25 Ekim 2026)
+
+Ürün sahibi: "çözümler ders-bağımsız olmalı; tek derse özel sabit kelime yok". Beşi de yalnız ölçüyle karar verir.
+
+| Konu | Kural | Nerede |
+|---|---|---|
+| Geniş ünite tek konuya sıkışıyor | Dosyanın %15'inden fazlasını (≥8 sayfa) tutan, aralığında ≥2 yabancı bölüm başlığı ya da ≥4 alt bölüm olan ya da kardeşlerinin ortancasının 2 katından geniş konu kabul edilmez; **kod bölmez**, modelden 2-4 konuya ayıran onarım ister | `outline-oversize.ts`, `outline-oneshot.ts` |
+| Ders alt başlıkları atlıyor, test anlatılmayanı soruyor | Omurga = konunun kendi sayfalarındaki başlık satırları; yazara "her biri en az bir ekranda", kapanışta kapsanmayan başlık öğretim turu; ders içi soru tekrarı yok | `lesson-backbone.ts`, `teacher-lesson*.ts`, `lesson-quiz-context.ts` |
+| `/ilerleme` canlıda çöküyordu | Sebep: sunucu sayfası `"use client"` dosyasından fonksiyon çağırıyordu (yayında digest'li hata). Kopya metin `streak-freeze-copy.ts`'te; sayfanın 10 veri kaynağı `settle()` ile ayrı ayrı düşer; grafikler NaN çizmez. `/fiyatlar` → `/fiyatlandirma`. **Sunucu sayfasında istemci modülünden fonksiyon çağırmayın** — bekçi tarar | `ilerleme/page.tsx`, `chart-safe.ts`, `ilerleme-resilience.test.ts` |
+| "Hazırsın" deneme hedefi geçtiği hâlde çıkmıyordu | Tek kural `readyForTarget`: deneme ≥ hedef **ya da** (bütün konular ölçülmüşse) genel skor ≥ hedef. Konu ≥ hedef "✅ Sağlam", altı "Çalışılacak"; Hazırsın ekranı görülünce düğüm tamamlanır | `learning-tracking.ts`, `readiness-screen.ts`, `exam-node-session.tsx` |
+| Sözlüde ilk cevaptaki yanlış, takipte düzeltilince tam puan alıyordu; ekran ve yol farklı yüzde | İlk cevap `ilk:<i>` anahtarında ayrıca saklanır; anlam çağrısı `errors` (ilk cevaptan **birebir alıntı** + doğrusu) döndürür, alıntı cevapta yoksa yok sayılır; doğrulanan yanlış soruyu %50 tavana bağlar ve Eksikler'in başına "İlk yanıtta «X» yanlış ifade edildi; doğrusu «Y» olmalıdır." yazar. Kayıt `oralAttemptScore` (= raporun yüzdesi, x/100); yol kararı soru sayısıyla. Stüdyoda doğrulanan yanlış rubrik örtüşmesini de yener | `oral-first-answer.ts`, `oral-exam.ts`, `oral-review.ts`, node rotası |
+
+Bekçi: `outline-oversize.test.ts`, `lesson-coverage.test.ts`, `ilerleme-resilience.test.ts`, `ready-for-target.test.tsx`,
+`oral-first-answer.test.tsx`.

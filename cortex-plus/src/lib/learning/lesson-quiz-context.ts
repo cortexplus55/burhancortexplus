@@ -20,6 +20,8 @@ export type LessonQuizContext = {
   terms: string[];
   text: string;
   key: string;
+  /** Dersin hazırlanamayan kavramları (`missingConcepts`): konu testi bunları sormaz (25 Ekim 2026). */
+  missing?: string[];
 };
 
 export const LESSON_CHECKS_MAX = 12;
@@ -74,7 +76,7 @@ function sectionText(section: LessonV2["sections"][number]): string {
 }
 
 /** Kaydedilmiş derslerden (eskiden yeniye) yazarın okuyacağı bağlam. Ders yoksa ya da boşsa null. */
-export function lessonQuizContext(lessons: readonly LessonV2[]): LessonQuizContext | null {
+export function lessonQuizContext(lessons: readonly LessonV2[], missing: readonly string[] = []): LessonQuizContext | null {
   const checks: string[] = [];
   const terms: string[] = [];
   const seenChecks = new Set<string>();
@@ -99,7 +101,25 @@ export function lessonQuizContext(lessons: readonly LessonV2[]): LessonQuizConte
   const text = texts.filter(Boolean).join("\n").slice(0, LESSON_TEXT_MAX);
   if (!checks.length && !terms.length && !text) return null;
   const key = `L${fnv(`${checks.join("|")}#${terms.join("|")}#${text}`).toString(36).slice(0, 6)}`;
-  return { checks, terms, text, key };
+  const gaps = missing.map(clean).filter(Boolean).slice(0, 8);
+  return { checks, terms, text, key, ...(gaps.length ? { missing: gaps } : {}) };
+}
+
+/**
+ * Konu testinin madde listesinden dersin hazırlanamayan bölümüne ait maddeler çıkar: kavram adının kelime
+ * köklerinin en az %60'ı maddede geçiyor ve madde derste işlenmemiş. Ders anlatmadığı bölümden soru sordurmaz.
+ */
+export function withoutMissingPoints(points: readonly string[], missing: readonly string[], lessonText: string): string[] {
+  if (!missing.length) return [...points];
+  return points.filter(
+    (point) => pointTaught(point, lessonText) || !missing.some((concept) => pointTaught(concept, point)),
+  );
+}
+
+/** Kayıtlı dersin `missingConcepts` alanı (kayıt biçimine eklenir; okuyucular bilmez). */
+export function storedMissingConcepts(raw: unknown): string[] {
+  const list = (raw as { missingConcepts?: unknown } | null)?.missingConcepts;
+  return Array.isArray(list) ? list.map(clean).filter(Boolean).slice(0, 8) : [];
 }
 
 /** Kapsam sayımında kanıt sayılmayan genel kelimeler (5 harflik kök). */
@@ -139,7 +159,7 @@ export function pointTaught(point: string, lessonText: string): boolean {
 export async function loadTopicLessons(
   service: SupabaseClient,
   topicId: string,
-): Promise<{ lessons: LessonV2[]; savedAt: string | null }> {
+): Promise<{ lessons: LessonV2[]; savedAt: string | null; missing: string[] }> {
   try {
     const { data, error } = await service
       .from("exam_prep_lessons")
@@ -148,9 +168,10 @@ export async function loadTopicLessons(
       .not("content_json", "is", null)
       .order("created_at", { ascending: false })
       .limit(8);
-    if (error || !Array.isArray(data) || !data.length) return { lessons: [], savedAt: null };
+    if (error || !Array.isArray(data) || !data.length) return { lessons: [], savedAt: null, missing: [] };
     const seen = new Set<string>();
     const lessons: LessonV2[] = [];
+    const missing: string[] = [];
     for (const row of data as { title?: unknown; content_json?: unknown }[]) {
       const title = clean(row.title).toLocaleLowerCase("tr");
       if (title && seen.has(title)) continue;
@@ -158,11 +179,12 @@ export async function loadTopicLessons(
       if (!lesson) continue;
       if (title) seen.add(title);
       lessons.push(lesson);
+      missing.push(...storedMissingConcepts(row.content_json));
       if (lessons.length >= LESSONS_MAX) break;
     }
     const savedAt = typeof data[0]?.created_at === "string" ? (data[0].created_at as string) : null;
-    return { lessons: lessons.reverse(), savedAt };
+    return { lessons: lessons.reverse(), savedAt, missing };
   } catch {
-    return { lessons: [], savedAt: null };
+    return { lessons: [], savedAt: null, missing: [] };
   }
 }

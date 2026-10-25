@@ -32,6 +32,7 @@ const nextConfig: NextConfig = {
       { source: "/yaratici-program", destination: "/iletisim", permanent: true },
       // 20 Ekim 2026: okul sayfası hazırlıkların altında; kısa adres 404 veriyordu.
       { source: "/okulum", destination: "/deneme-sinavlari/okulum", permanent: true },
+      { source: "/fiyatlar", destination: "/fiyatlandirma", permanent: true },
     ];
   },
   /*

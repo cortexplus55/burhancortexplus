@@ -3,9 +3,15 @@
 import type { ReadinessScreen } from "@/lib/learning/readiness-screen";
 
 const STATE_LABEL = {
-  ready: "Hazır",
+  ready: "✅ Sağlam",
   needs_work: "Çalışılacak",
   unmeasured: "Ölçülmedi",
+} as const;
+
+const GROUP_TITLE = {
+  ready: "✅ Sağlam konular",
+  needs_work: "Çalışılacak / Tekrar edilecek",
+  unmeasured: "Henüz ölçülmedi",
 } as const;
 
 export function ExamReadinessScreen({
@@ -19,19 +25,20 @@ export function ExamReadinessScreen({
   continuing?: boolean;
   nextHref?: string;
 }) {
-  const readyTopics = screen.topics.filter((topic) => topic.state === "ready");
-  const leftTopics = screen.topics.filter((topic) => topic.state !== "ready");
+  const groups = (["ready", "needs_work", "unmeasured"] as const)
+    .map((state) => ({ state, topics: screen.topics.filter((topic) => topic.state === state) }))
+    .filter((group) => group.topics.length > 0);
   return (
-    <section className="cp-readiness">
+    <section className={screen.ready ? "cp-readiness cp-readiness--ready" : "cp-readiness"}>
       <p className="cp-lesson-kicker">Sınav günü</p>
       <h1>{screen.headline}</h1>
       <p>{screen.lead}</p>
       <p>{screen.mockLine}</p>
-      {readyTopics.length ? (
-        <div>
-          <h2>Hazır konular</h2>
+      {groups.map((group) => (
+        <div key={group.state}>
+          <h2>{GROUP_TITLE[group.state]}</h2>
           <ul>
-            {readyTopics.map((topic) => (
+            {group.topics.map((topic) => (
               <li key={topic.topic}>
                 <strong>
                   {topic.topic} · {STATE_LABEL[topic.state]}
@@ -41,22 +48,7 @@ export function ExamReadinessScreen({
             ))}
           </ul>
         </div>
-      ) : null}
-      {leftTopics.length ? (
-        <div>
-          <h2>Kalanlar</h2>
-          <ul>
-            {leftTopics.map((topic) => (
-              <li key={topic.topic}>
-                <strong>
-                  {topic.topic} · {STATE_LABEL[topic.state]}
-                </strong>
-                <span>{topic.detail}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      ))}
       <div className="cp-readiness-actions">
         {screen.actions.map((action) => (
           <a key={action.href + action.label} href={action.href} className="cp-exam-continue">
@@ -70,7 +62,7 @@ export function ExamReadinessScreen({
             disabled={continuing}
             onClick={onContinue}
           >
-            {continuing ? "Kaydediliyor…" : "Bu ekranı kaydet"}
+            {continuing ? "Kaydediliyor…" : "Adımı tamamla"}
           </button>
         ) : nextHref ? (
           <a href={nextHref} className="cp-exam-continue cp-exam-continue--primary">

@@ -350,6 +350,7 @@ export function OralResults({
   fullCount,
   total,
   minutesSpent,
+  firstAnswerErrors = [],
 }: {
   topicLabel: string;
   pct: number;
@@ -363,7 +364,11 @@ export function OralResults({
   fullCount?: number;
   total?: number;
   minutesSpent?: number;
+  /** İlk cevaptaki yanlış cümleleri; her zaman Eksikler'in başında. */
+  firstAnswerErrors?: string[];
 }) {
+  const errorLines = [...new Set(firstAnswerErrors.filter(Boolean))];
+  const gaps = [...new Set([...errorLines, ...weaknesses])].slice(0, Math.max(4, errorLines.length));
   return (
     <section className="cp-oral cp-oral-results">
       <h1 className="cp-oral-results-title">Sözlü deneme sonucu</h1>
@@ -416,12 +421,14 @@ export function OralResults({
             <Target className="h-4 w-4" aria-hidden />
             Eksikler
           </h2>
-          {weaknesses.length ? (
+          {gaps.length ? (
             <ul>
-              {weaknesses.slice(0, 4).map((item) => (
+              {gaps.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
+          ) : pct < 100 ? (
+            <p>Tam puan alamadığın sorular için cevaplarını gözden geçir.</p>
           ) : (
             <p>Bu denemede belirgin bir eksik görünmüyor.</p>
           )}

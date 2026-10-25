@@ -27,6 +27,18 @@ export async function loadNearestPrepInsights(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<NearestPrepInsights | null> {
+  try {
+    return await loadInsights(supabase, userId);
+  } catch (error) {
+    console.error("[ilerleme] prep_insights_failed", error);
+    return null;
+  }
+}
+
+async function loadInsights(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<NearestPrepInsights | null> {
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Istanbul",
     year: "numeric",

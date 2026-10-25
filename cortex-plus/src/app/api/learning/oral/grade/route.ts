@@ -9,6 +9,7 @@ import {
   sanitizeGap,
 } from "@/lib/learning/oral-review";
 import { examinerVibeGradeLine, parseExaminerVibe } from "@/lib/learning/examiner-vibe";
+import { oralFirstAnswerKey } from "@/lib/learning/oral-first-answer";
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,6 +19,8 @@ const bodySchema = z.object({
       z.object({
         prompt: z.string().min(1),
         answer: z.string().min(1),
+        /** Takip sorusundan önceki cevap; yoksa `answer` ilk cevaptır. */
+        firstAnswer: z.string().max(4000).optional(),
         expectedPoints: z.array(z.string()).optional(),
       }),
     )
@@ -37,6 +40,10 @@ const resultSchema = z.object({
         index: z.number().int().min(0),
         correct: z.boolean(),
         gap: z.string().max(400).optional().nullable(),
+        errors: z
+          .array(z.object({ wrong: z.string().max(240), correct: z.string().max(300) }))
+          .optional()
+          .nullable(),
       }),
     )
     .optional(),
@@ -58,6 +65,9 @@ export async function POST(request: Request) {
       (item, i) =>
         `${i + 1}. index=${i}\nSoru: ${item.prompt}\n` +
         (item.expectedPoints?.length ? `Beklenen noktalar: ${item.expectedPoints.join(" | ")}\n` : "") +
+        (item.firstAnswer?.trim() && item.firstAnswer.trim() !== item.answer.trim()
+          ? `İlk cevap (takip sorusundan önce): ${item.firstAnswer.trim()}\n`
+          : "") +
         `Cevap: ${item.answer}`,
     )
     .join("\n\n");
@@ -68,7 +78,7 @@ export async function POST(request: Request) {
     actionCode: "PRACTICE_EXAM_GRADE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON: {"items":[{"index":number,"correct":boolean,"gap":string|null}],"correctCount":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. Kaynakta hazır çözüm cümlesi yok diye 0 verme; rubriğe göre değerlendir. gap alanına soru metnini yazma.',
+      'Yalnızca şu JSON: {"items":[{"index":number,"correct":boolean,"gap":string|null,"errors":[{"wrong":string,"correct":string}]}],"correctCount":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. Kaynakta hazır çözüm cümlesi yok diye 0 verme; rubriğe göre değerlendir. gap alanına soru metnini yazma. errors: öğrencinin İLK cevabındaki (ilk cevap verilmediyse Cevap) kavramsal, matematiksel ya da olgusal yanlışlar; "wrong" o cevaptan birebir alıntı, "correct" doğrusu. Sonradan düzeltilmiş olsa da yaz; eksik bırakılan nokta yanlış değildir; yanlış yoksa boş dizi.',
     userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama. Cevap konuşma tanımasından gelmiş olabilir: bitişik veya ayrı yazım, sesçe yakın terim (mitokondri/mitokondiri) ve formülün konuşulan hali (x²/x kare, CO₂/karbondioksit, ATP/a te pe) aynı noktadır. Yanlış sayı, ters yön veya başka kavram yine eksiktir.\n\n${lines}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
@@ -81,6 +91,7 @@ export async function POST(request: Request) {
   const answers: Record<string, unknown> = {};
   parsedBody.data.items.forEach((item, index) => {
     answers[String(index)] = item.answer;
+    if (item.firstAnswer?.trim()) answers[oralFirstAnswerKey(index)] = item.firstAnswer;
   });
   const reconciled = reconcileOralGrade({
     questions: parsedBody.data.items.map((item) => ({

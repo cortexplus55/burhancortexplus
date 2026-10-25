@@ -1,10 +1,21 @@
 import type { ReadinessForecastSeries } from "@/lib/learning/prep-radar";
+import { safePct, safePositive } from "@/lib/learning/chart-safe";
 
 const VB_W = 360;
 const VB_H = 168;
 const PAD = { top: 18, right: 16, bottom: 28, left: 36 };
 
-export function PrepForecastChart({ series }: { series: ReadinessForecastSeries }) {
+export function PrepForecastChart({ series: raw }: { series: ReadinessForecastSeries }) {
+  if (!raw) return null;
+  const series: ReadinessForecastSeries = {
+    ...raw,
+    horizonDays: Math.round(safePositive(raw.horizonDays, 14)),
+    currentPct: safePct(raw.currentPct),
+    targetPct: safePct(raw.targetPct),
+    points: (Array.isArray(raw.points) ? raw.points : [])
+      .filter((point) => point && Number.isFinite(Number(point.day)))
+      .map((point) => ({ ...point, day: Number(point.day), pct: safePct(point.pct) })),
+  };
   const innerW = VB_W - PAD.left - PAD.right;
   const innerH = VB_H - PAD.top - PAD.bottom;
   const maxX = Math.max(1, series.horizonDays);

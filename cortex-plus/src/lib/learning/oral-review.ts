@@ -6,6 +6,12 @@
 import { contentStems, sentences, stemsOverlap } from "@/lib/learning/learner-fluency";
 import { isUnsupportedComparativeAbsolute } from "@/lib/learning/absolute-claims";
 import { speechNear } from "@/lib/learning/speech-tolerance";
+import {
+  firstAnswerErrorLine,
+  oralFirstAnswer,
+  validFirstAnswerErrors,
+  type OralAnswerError,
+} from "@/lib/learning/oral-first-answer";
 
 function fold(text: string): string {
   return text
@@ -161,6 +167,15 @@ export type OralGradeItem = {
   index: number;
   correct: boolean;
   gap?: string | null;
+  /** İlk cevaptaki yanlışlar (alıntı + doğrusu); doğrulanırsa soru doğru sayılmaz. */
+  errors?: OralAnswerError[] | null;
+};
+
+export type ReconciledOralItem = {
+  index: number;
+  correct: boolean;
+  gap: string | null;
+  firstAnswerErrors?: OralAnswerError[];
 };
 
 export type OralQuestionForGrade = {
@@ -223,10 +238,10 @@ export function reconcileOralGrade(input: {
   correctIndices: number[];
   correctCount: number;
   total: number;
-  items: { index: number; correct: boolean; gap: string | null }[];
+  items: ReconciledOralItem[];
 } {
   const total = input.questions.length || 1;
-  const items: { index: number; correct: boolean; gap: string | null }[] = [];
+  const items: ReconciledOralItem[] = [];
   const modelByIndex = new Map(
     (input.modelItems ?? []).map((item) => [item.index, item]),
   );
@@ -238,15 +253,26 @@ export function reconcileOralGrade(input: {
       answer,
       question.expectedPoints ?? [],
     );
+    const firstErrors = validFirstAnswerErrors(
+      oralFirstAnswer(input.answers, index),
+      model?.errors,
+    );
     let correct = Boolean(model?.correct);
     if (covers) correct = true;
+    // İlk cevaptaki doğrulanmış yanlış rubrik örtüşmesine de üstün gelir: sonradan doğruyu
+    // söylemek tam puan getirmez.
+    if (firstErrors.length) correct = false;
     // Model "doğrulanmış çözüm yok" diye eksik yazdıysa ve cevap rubriği
     // tutuyorsa zaten doğru; tutmuyorsa gap temizlensin.
     const rawGap = model?.gap ?? null;
-    const gap = correct ? null : sanitizeGap(rawGap, question.prompt);
-    // Gap yalnızca soru metniyse ve cevap boş değilse, modelin gerekçesini
-    // yok say; yine de covers false ise yanlış kalır.
-    items.push({ index, correct, gap });
+    const gap = firstErrors.length
+      ? firstAnswerErrorLine(firstErrors[0]!)
+      : correct
+        ? null
+        : sanitizeGap(rawGap, question.prompt);
+    items.push(
+      firstErrors.length ? { index, correct, gap, firstAnswerErrors: firstErrors } : { index, correct, gap },
+    );
   });
 
   // Model yalnızca sayı verdiyse ve madde listesi yoksa: rubrik örtüşmesi

@@ -74,7 +74,9 @@ import {
 import { parseExaminerVibe, vibeGivesHints } from "@/lib/learning/examiner-vibe";
 import {
   minutesForOralLength,
+  firstAnswerErrorLine,
   ORAL_ALL_TOPICS,
+  oralFirstAnswerKey,
   oralReviewItemFromGrade,
   type OralExamReport,
   type OralLength,
@@ -234,9 +236,12 @@ export function ExamNodeSession({
   subject = null,
   sources = [],
   unitTitle = null,
+  nodeDone = false,
 }: {
   /** Kavram birimli derste dersin kendi adı; kurulum ekranları bunu gösterir. */
   unitTitle?: string | null;
+  /** Düğüm daha önce bitirildiyse hazırlık ekranı kendiliğinden yeniden kaydedilmez. */
+  nodeDone?: boolean;
   prepId: string;
   nodeId: string;
   kind: PlanNodeKind;
@@ -543,6 +548,17 @@ export function ExamNodeSession({
     // start her render'da yeni; yalnız hazırlık ekranı kuruluma düşünce bir kez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, stage]);
+
+  // Hazırlık ekranı görüntülenince adım tamamlanır: yol %100'e ulaşabilsin (düğme beklenmez).
+  const readinessAutoDone = useRef(false);
+  useEffect(() => {
+    if (kind !== "readiness" || nodeDone || readinessAutoDone.current) return;
+    if (stage !== "play" || payload.type !== "readiness" || !payload.screen || loading) return;
+    readinessAutoDone.current = true;
+    void finish();
+    // finish her render'da yeni; ekran ilk kez göründüğünde bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, nodeDone, stage, payload, loading]);
 
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
@@ -1745,12 +1761,15 @@ export function ExamNodeSession({
           value={String(answers[String(index)] ?? "")}
           busy={loading}
           onChange={(text) => updateAnswer(String(index), text)}
-          onAdvance={(answer) => {
+          onAdvance={(answer, firstAnswer) => {
+            if (firstAnswer) updateAnswer(oralFirstAnswerKey(index), firstAnswer);
             updateAnswer(String(index), answer);
             setIndex(index + 1);
           }}
-          onFinish={(answer) => {
-            const next = { ...answersRef.current, [String(index)]: answer };
+          onFinish={(answer, firstAnswer) => {
+            const next: Record<string, unknown> = { ...answersRef.current, [String(index)]: answer };
+            if (firstAnswer) next[oralFirstAnswerKey(index)] = firstAnswer;
+            if (firstAnswer) updateAnswer(oralFirstAnswerKey(index), firstAnswer);
             updateAnswer(String(index), answer);
             void finish(next);
           }}
@@ -1784,6 +1803,9 @@ export function ExamNodeSession({
           }}
           strengths={oralReport?.strengths ?? []}
           weaknesses={oralReport?.weaknesses ?? []}
+          firstAnswerErrors={(oralReport?.items ?? []).flatMap((item) =>
+            (item.firstAnswerErrors ?? []).map(firstAnswerErrorLine),
+          )}
           practiceHref={oralReport?.nextStep?.href}
           practiceLabel={oralReport?.nextStep?.label}
           onRepeat={() => {
@@ -1865,11 +1887,11 @@ export function ExamNodeSession({
           {payload.type === "lesson" ? (
             <h1 className="cp-exam-result-title">{missingConcepts.length ? "Dersin hazır olan kısmı bu kadar" : "Dersin tamamı bu kadar"}</h1>
           ) : null}
-          {/* Baştan yazıma rağmen hazırlanamayan bölüm sessizce eksik kalmaz (18 Ekim 2026). */}
+          {/* Üç kez baştan yazıma rağmen süre dolduysa bölüm sessizce eksik kalmaz; konu testi onu sormaz (25 Ekim 2026). */}
           {payload.type === "lesson" && missingConcepts.length ? (
             <p className="cp-lesson-missing" role="status">
-              Bu derste yer almayan bölüm: <strong>{missingConcepts.join(", ")}</strong>. &quot;Farklı anlat&quot; ile yeniden
-              yazdırabilirsin.
+              Bu bölüm bu sefer yetişmedi: <strong>{missingConcepts.join(", ")}</strong>. Konu testi bu bölümden soru
+              sormaz; &quot;Farklı anlat&quot; ile bölümü yeniden yazdırabilirsin.
             </p>
           ) : null}
           {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,

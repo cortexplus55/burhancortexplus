@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatDayLong } from "@/lib/format";
 import type { LearningTrackingView } from "@/components/parity/exam-prep-home";
+import { READY_HEADLINE } from "@/lib/learning/learning-tracking";
 
 export type TopicMasteryRow = {
   topicKey: string;
@@ -93,7 +94,13 @@ export function ExamPrepAssessment({
 
       <section className="cp-exam-assessment-verdict" role="status">
         <p className="cp-lesson-kicker">Karar özeti</p>
-        <h2>{go ? "Denemeye hazır görünüyorsun" : "Önce zayıf noktaları kapat"}</h2>
+        <h2>
+          {tracking.claimFullyReady
+            ? READY_HEADLINE
+            : go
+              ? "Denemeye hazır görünüyorsun"
+              : "Önce zayıf noktaları kapat"}
+        </h2>
         <ul className="text-sm text-[var(--cp-muted)]" style={{ paddingLeft: "1.1rem" }}>
           <li>
             Açık yanılgı: {openMisconceptions}

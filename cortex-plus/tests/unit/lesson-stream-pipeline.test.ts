@@ -238,16 +238,18 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(second).toContain("ACOG: normalin 2 katı");
   });
 
-  it("düzelmeyen ara kavram baştan yazılır; o da geçmezse atılır, ders kalanla gider; ilk kavram da düşerse kalanla gider", async () => {
+  it("düzelmeyen ara kavram üç kez baştan yazılır; hiçbiri geçmezse atılır, ders kalanla gider; ilk kavram da düşerse kalanla gider", async () => {
     const stuck = (target: string) => (user: string) =>
       user.includes(`yalnız ${target}`) ? { issues: [{ where: target, severity: "high", problem: "Yanlış bilgi." }] } : { issues: [] };
     const middle = await run({ verify: stuck("screens[1]"), fix: () => ({ screens: [lesson.screens[1]], disputes: [] }) });
     expect(middle.result.dropped).toEqual(["Yokluk"]);
     expect(middle.result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Mutlak Butlan"]);
-    // Ara kavrama bir tur fazla hak (3), sonra bir kez baştan yazım ve bir düzeltme daha.
+    // Ara kavrama bir tur fazla hak (3), sonra üç kez baştan yazım (25 Ekim 2026), her birinin ardından bir düzeltme.
     const careful = middle.calls.filter((call) => call.role === "fix-careful");
-    expect(careful).toHaveLength(5);
-    expect(careful.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM: screens[1]"))).toHaveLength(1);
+    expect(careful).toHaveLength(9);
+    const rewrites = careful.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM: screens[1]"));
+    expect(rewrites).toHaveLength(3);
+    expect(rewrites[1]!.user).toContain("2. kez baştan yazılıyor; dersten atılmayacak");
 
     // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): ilk kavram da düşerse ders yine yazılır,
     // kavram atılır ve bitişte adıyla söylenir.

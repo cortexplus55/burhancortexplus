@@ -116,7 +116,7 @@ describe("konunun kaydedilmiş dersleri", () => {
   });
 
   it("okuma düşerse ya da ders yoksa boş: test bugünkü gibi dersi bilmeden yazılır", async () => {
-    expect(await loadTopicLessons(service(null, { message: "x" }), "t1")).toEqual({ lessons: [], savedAt: null });
-    expect(await loadTopicLessons(service([]), "t1")).toEqual({ lessons: [], savedAt: null });
+    expect(await loadTopicLessons(service(null, { message: "x" }), "t1")).toEqual({ lessons: [], savedAt: null, missing: [] });
+    expect(await loadTopicLessons(service([]), "t1")).toEqual({ lessons: [], savedAt: null, missing: [] });
   });
 });

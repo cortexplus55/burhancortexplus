@@ -27,6 +27,22 @@ import {
   sanitizeGap,
   textOverlapsPrompt,
 } from "@/lib/learning/oral-review";
+import {
+  firstAnswerErrorLine,
+  ORAL_FIRST_ERROR_CAP,
+  oralFirstAnswer,
+  validFirstAnswerErrors,
+  type OralAnswerError,
+} from "@/lib/learning/oral-first-answer";
+
+export {
+  firstAnswerErrorLine,
+  ORAL_FIRST_ERROR_CAP,
+  oralFirstAnswer,
+  oralFirstAnswerKey,
+  validFirstAnswerErrors,
+  type OralAnswerError,
+} from "@/lib/learning/oral-first-answer";
 
 /**
  * Sözlü denemenin notu, takip sorusu ve kaynak bağı.
@@ -68,6 +84,8 @@ export type OralPointCoverage = {
 export type OralSemanticItem = {
   index: number;
   points: OralPointCoverage[];
+  /** Takip sorusundan önceki cevaptaki kavramsal / sayısal / olgusal yanlışlar. */
+  errors?: OralAnswerError[];
 };
 
 export const APPROX_ORAL_GRADE_NOTE =
@@ -107,6 +125,8 @@ export type OralItemGrade = {
   objective: string;
   /** Model başarısız olup kelime örtüşmesi yedeği kullanıldıysa true. */
   approximate?: boolean;
+  /** İlk cevaptaki doğrulanmış yanlışlar; varsa puan `ORAL_FIRST_ERROR_CAP`'i geçmez. */
+  firstAnswerErrors?: OralAnswerError[];
 };
 
 export type OralExamReport = {
@@ -436,6 +456,7 @@ export function gradeOralAnswer(
   index: number,
   passages: OralGroundingPassage[] = [],
   semantic?: OralPointCoverage[] | null,
+  first?: { answer?: string; errors?: OralAnswerError[] | null } | null,
 ): OralItemGrade {
   const answer = answerRaw.trim();
   const prompt = polishLearnerText(question.prompt?.trim() || `Soru ${index + 1}`);
@@ -517,6 +538,22 @@ export function gradeOralAnswer(
     modelAnswer = modelPoints[0] ?? "";
   }
 
+  // İlk cevap (takip sorusundan önce). Takip yoksa cevabın kendisi.
+  const firstAnswer = first?.answer?.trim() || answer;
+  const firstErrors = dontKnow || !answer ? [] : validFirstAnswerErrors(firstAnswer, first?.errors);
+  if (!dontKnow && answer && firstAnswer !== answer && !firstErrors.length) {
+    // Model çağrısı olmasa da: takipten önceki cevaptaki sayısal iddia kaynağa ters düşüyorsa yanlıştır.
+    const firstClaim = gradeStudentClaim({ student: firstAnswer, context: ground });
+    if (firstClaim?.verdict === "yanlis") {
+      // Hükmün gerekçesi öğrencinin sözü değil; alıntı ilk cevabın sayı geçen cümlesinden.
+      const sentences = firstAnswer.split(/(?<=[.!?])\s+|\n+/).map((part) => part.trim()).filter(Boolean);
+      const wrong = sentences.find((part) => /\d/.test(part)) ?? sentences[0] ?? "";
+      const correct = firstClaim.conclusion?.trim() || modelAnswer;
+      firstErrors.push(...validFirstAnswerErrors(firstAnswer, [{ wrong, correct }]));
+    }
+  }
+  if (firstErrors.length) ratio = Math.min(ratio, ORAL_FIRST_ERROR_CAP);
+
   const quantNotes = [
     ...numeric,
     ...(sound ? [] : studentAudit?.issues.map((issue) => issue.detail) ?? []),
@@ -529,7 +566,9 @@ export function gradeOralAnswer(
       missed.find((part) => !isScoreLabel(part) && !textOverlapsPrompt(part, prompt)) ||
       hollowGap ||
       "");
-  const gap = sanitizeGap(rawGap, prompt) ?? "";
+  const gap = firstErrors.length
+    ? firstAnswerErrorLine(firstErrors[0])
+    : (sanitizeGap(rawGap, prompt) ?? "");
   const right = ratio >= 0.99
     ? (claim?.rightParts[0] || covered[0] || answer.slice(0, 180))
     : (claim?.rightParts[0] || covered[0] || "");
@@ -558,6 +597,7 @@ export function gradeOralAnswer(
     numericIssue: quantNotes.length ? [...new Set(quantNotes)].join(", ") : null,
     objective,
     ...(approximate ? { approximate: true } : {}),
+    ...(firstErrors.length ? { firstAnswerErrors: firstErrors } : {}),
   };
 }
 
@@ -568,7 +608,7 @@ export function gradeOralExam(
   passages: OralGroundingPassage[] = [],
   semantics: OralSemanticItem[] | null = null,
 ): OralExamReport {
-  const byIndex = new Map((semantics ?? []).map((row) => [row.index, row.points]));
+  const byIndex = new Map((semantics ?? []).map((row) => [row.index, row]));
   const items = questions.map((question, index) =>
     gradeOralAnswer(
       question,
@@ -576,7 +616,8 @@ export function gradeOralExam(
       source,
       index,
       passages,
-      byIndex.get(index) ?? null,
+      byIndex.get(index)?.points ?? null,
+      { answer: oralFirstAnswer(answers, index), errors: byIndex.get(index)?.errors ?? null },
     ),
   );
   const total = items.length || 1;
@@ -588,10 +629,14 @@ export function gradeOralExam(
     .filter((item) => item.ratio >= 0.8)
     .map((item) => item.objective)
     .slice(0, 4);
-  const weaknesses = items
-    .filter((item) => item.ratio < 0.5)
-    .map((item) => item.objective)
-    .slice(0, 4);
+  // İlk cevaptaki yanlış her zaman Eksikler'in başında: "Belirgin bir eksik görünmüyor" denmesin.
+  const firstErrorLines = items.flatMap((item) => (item.firstAnswerErrors ?? []).map(firstAnswerErrorLine));
+  const weaknesses = [
+    ...new Set([
+      ...firstErrorLines,
+      ...items.filter((item) => item.ratio < 0.5).map((item) => item.objective),
+    ]),
+  ].slice(0, Math.max(4, firstErrorLines.length));
   return {
     fullCount,
     total,
@@ -609,6 +654,15 @@ export function gradeOralExam(
     correctIndices: items.filter((item) => item.ratio >= 0.99).map((item) => item.index),
     nextStep: null,
   };
+}
+
+/**
+ * Sonuç ekranı ve yol aynı sayıyı gösterir (25 Ekim 2026): kayıt `pct / 100`. Önceden yol
+ * "tam doğru / soru" (2/3 = %67) yazıyor, ekran kısmi puanlı yüzdeyi (%94) gösteriyordu.
+ */
+export function oralAttemptScore(report: Pick<OralExamReport, "pct">): { score: number; total: number; retried: number } {
+  const pct = Number.isFinite(report.pct) ? Math.max(0, Math.min(100, Math.round(report.pct))) : 0;
+  return { score: pct, total: 100, retried: 0 };
 }
 
 export type OralMisconceptionDraft = {

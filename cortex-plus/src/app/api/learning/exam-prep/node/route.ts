@@ -73,6 +73,8 @@ import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import {
   gradeOralExam,
   isOralLength,
+  oralAttemptScore,
+  oralFirstAnswer,
   stampOralQuestions,
   syllabusWeightLineFromChecklist,
   type OralExamReport,
@@ -1023,7 +1025,7 @@ async function handleNodeRequest(
           label: report.weaknesses.length ? "Eksik konuda pratik" : "Çalışma yoluna dön",
           href: practiceHref(prepId, practiceId),
         };
-        scored = { score: report.fullCount, total: report.total, retried: 0 };
+        scored = oralAttemptScore(report);
         oralExtras = report;
       }
     }
@@ -1044,8 +1046,9 @@ async function handleNodeRequest(
                 node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as Record<string, unknown>) : null,
             },
             topicLabel,
-            score: scored.score,
-            total: scored.total,
+            // Sözlüde kayıt yüzde (x/100); yol kararı soru sayısıyla (en az 3 öğe kuralı) verilir.
+            score: oralExtras ? (oralExtras.pct / 100) * oralExtras.total : scored.score,
+            total: oralExtras ? oralExtras.total : scored.total,
           }).catch(() => null)
         : null;
 
@@ -1680,8 +1683,8 @@ async function handleNodeRequest(
 
   // Konu testi konunun kaydedilmiş dersini bilir (20 Ekim 2026): yazar dersin sorularını ve
   // terimlerini görür; önceden yazılan testin anahtarı dersin parmak izini taşır.
-  const quizLesson: LessonQuizContext | null =
-    kind === "quiz" && teachingV2 && topic?.id ? lessonQuizContext((await loadTopicLessons(service, topic.id)).lessons) : null;
+  const topicLessons = kind === "quiz" && teachingV2 && topic?.id ? await loadTopicLessons(service, topic.id) : null;
+  const quizLesson: LessonQuizContext | null = topicLessons ? lessonQuizContext(topicLessons.lessons, topicLessons.missing) : null;
   // Dersi yazılırken konu testi önceden yazılmaz; ders kaydedilince derse göre istenir (24 Ekim 2026).
   if (
     prefetch &&
@@ -3322,8 +3325,11 @@ async function saveTopicLesson(
       topic_id: input.topicId,
       title: lesson.title,
       content_md: lesson.overview ?? lesson.sections?.[0]?.body ?? lesson.title,
-      // Kayıt biçimi olduğu gibi (V3); okuyanlar readLessonV2/readLessonV3 ile çevirir.
-      content_json: input.payload.lesson,
+      // Kayıt biçimi olduğu gibi (V3); okuyanlar readLessonV2/readLessonV3 ile çevirir. Hazırlanamayan
+      // kavramlar kayda eklenir: konu testi o bölümü sormaz (`withoutMissingPoints`).
+      content_json: Array.isArray(input.payload.missingConcepts) && input.payload.missingConcepts.length
+        ? { ...(input.payload.lesson as Record<string, unknown>), missingConcepts: input.payload.missingConcepts }
+        : input.payload.lesson,
     })
     .then(undefined, () => undefined);
 }
@@ -3672,6 +3678,10 @@ const oralSemanticSchema = z.object({
           quote: z.string().max(240),
         }),
       ),
+      errors: z
+        .array(z.object({ wrong: z.string().max(240), correct: z.string().max(300) }))
+        .optional()
+        .default([]),
     }),
   ),
 });
@@ -3688,14 +3698,18 @@ async function gradeOralSemantics(input: {
   const lines = input.questions
     .map((question, index) => {
       const answer = String(input.answers[String(index)] ?? "").trim();
+      const first = oralFirstAnswer(input.answers, index);
       const points = (question.expectedPoints ?? []).join(" | ");
       return [
         `Soru ${index} index=${index}`,
         `Soru: ${question.prompt ?? ""}`,
         `Beklenen: ${points}`,
         `Örnek çözüm: ${question.modelAnswer ?? ""}`,
+        first && first !== answer ? `İlk cevap (takip sorusundan önce): ${first}` : "",
         `Cevap: ${answer || "(boş)"}`,
-      ].join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
     })
     .join("\n\n");
   const outcome = await generateJson({
@@ -3704,7 +3718,7 @@ async function gradeOralSemantics(input: {
     actionCode: "PRACTICE_EXAM_GRADE",
     isPremium: input.isPremium,
     schemaHint:
-      'Yalnızca JSON: {"items":[{"index":number,"points":[{"point":string,"status":"covered"|"partial"|"missing","quote":string}]}]}. Her nokta için öğrencinin cevabından birebir alıntı (quote) ver; alıntı yoksa status missing. Soru metnini gap veya quote yapma.',
+      'Yalnızca JSON: {"items":[{"index":number,"points":[{"point":string,"status":"covered"|"partial"|"missing","quote":string}],"errors":[{"wrong":string,"correct":string}]}]}. Her nokta için öğrencinin cevabından birebir alıntı (quote) ver; alıntı yoksa status missing. Soru metnini gap veya quote yapma. errors: öğrencinin İLK cevabındaki (ilk cevap verilmediyse Cevap) kavramsal, matematiksel ya da olgusal yanlışlar; "wrong" o cevaptan birebir alıntı, "correct" kaynağa ve beklenen noktalara göre doğrusu. Sonradan düzeltilmiş olsa da ilk cevaptaki yanlışı yaz. Eksik bırakılan nokta yanlış değildir; yanlış yoksa boş dizi.',
     userPrompt: `Sözlü deneme anlam değerlendirmesi. Kaynak özeti:\n${input.source.slice(0, 4000)}\n\n${lines}`,
     parse: (raw) => oralSemanticSchema.safeParse(raw).data ?? null,
   });
@@ -3712,6 +3726,7 @@ async function gradeOralSemantics(input: {
   return outcome.data.items.map((item) => ({
     index: item.index,
     points: item.points,
+    errors: item.errors,
   }));
 }
 

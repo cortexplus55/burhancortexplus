@@ -1,4 +1,5 @@
 import type { PrepRadarView } from "@/lib/learning/prep-radar";
+import { safePct } from "@/lib/learning/chart-safe";
 
 const SIZE = 280;
 const CX = SIZE / 2;
@@ -28,14 +29,21 @@ export function PrepRadarChart({
   view: PrepRadarView;
   compact?: boolean;
 }) {
-  const n = view.axes.length;
-  const valuePath = view.axes
+  const axes = (Array.isArray(view?.axes) ? view.axes : []).map((axis) => ({
+    ...axis,
+    pct: safePct(axis?.pct),
+  }));
+  const readinessPct = safePct(view?.readinessPct);
+  const targetScore = safePct(view?.targetScore);
+  const n = axes.length;
+  if (n < 3) return null;
+  const valuePath = axes
     .map((axis, index) => {
       const p = polar(index, n, axis.pct / 100);
       return `${index === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
     })
     .join(" ") + " Z";
-  const targetPath = ringPath(n, view.targetScore / 100);
+  const targetPath = ringPath(n, targetScore / 100);
 
   return (
     <figure className={compact ? "cp-radar cp-radar--compact" : "cp-radar"}>
@@ -43,14 +51,14 @@ export function PrepRadarChart({
         className="cp-radar-svg"
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         role="img"
-        aria-label={`Hazırlık skoru yüzde ${view.readinessPct}, hedef yüzde ${view.targetScore}. ${view.axes
+        aria-label={`Hazırlık skoru yüzde ${readinessPct}, hedef yüzde ${targetScore}. ${axes
           .map((axis) => `${axis.label} yüzde ${axis.pct}`)
           .join(", ")}`}
       >
         {RINGS.map((ratio) => (
           <path key={ratio} className="cp-radar-ring" d={ringPath(n, ratio)} />
         ))}
-        {view.axes.map((_, index) => {
+        {axes.map((_, index) => {
           const tip = polar(index, n, 1);
           return (
             <line
@@ -65,7 +73,7 @@ export function PrepRadarChart({
         })}
         <path className="cp-radar-target" d={targetPath} />
         <path className="cp-radar-fill" d={valuePath} />
-        {view.axes.map((axis, index) => {
+        {axes.map((axis, index) => {
           const p = polar(index, n, axis.pct / 100);
           const label = polar(index, n, 1.28);
           return (
@@ -84,10 +92,10 @@ export function PrepRadarChart({
           );
         })}
         <text className="cp-radar-score" x={CX} y={CY - 6} textAnchor="middle">
-          %{view.readinessPct}
+          %{readinessPct}
         </text>
         <text className="cp-radar-goal" x={CX} y={CY + 14} textAnchor="middle">
-          hedef %{view.targetScore}
+          hedef %{targetScore}
         </text>
       </svg>
       <figcaption className="cp-radar-caption">{view.label}</figcaption>

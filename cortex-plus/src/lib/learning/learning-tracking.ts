@@ -396,17 +396,50 @@ export function computeProgramProgress(
 /**
  * Exam readiness estimate — never equals program completion alone.
  *
- * "Hazırsın" (20 Ekim 2026, ürün sahibinin kararı): her planlı konu ölçülmüş ve sağlam (%85+,
- * en az 3 öğe), açık (çözülmemiş) yanılgı yok, yazılı deneme hedef puanda ya da üstünde, kapsam
- * %100. Önceden bütün geçmişte tek bir yanlış bile "Hazırsın"ı kapatıyordu (`!anyWrong`,
- * `measuredSuccessPct >= 100`): hâkimiyet birikimli ve azalmıyor, yani bir kez yanılan öğrenci
- * yanılgısını düzeltse de hiç hazır olamıyordu. Düzelmiş hata artık kapatmaz; açık hata kapatır.
- *
- * Yüzde dürüst kalır: tavanlar yerinde, "Hazırsın" %88'de de görünebilir; iddia yoksa en çok 99.
- * Bütün etkinlikleri yanlışlarla bitirmek yine 100 / "hazır" vermez.
+ * "Hazırsın" kararı `readyForTarget`: deneme ya da bu yüzde hedefi geçtiyse. Yüzde dürüst kalır:
+ * tavanlar yerinde (açık yanılgı, kapsam, ölçülen başarı); iddia yoksa en çok 99. Bütün
+ * etkinlikleri yanlışlarla bitirmek yine 100 / "hazır" vermez.
  */
 /** Hedef puan girilmemişse deneme bu hedefe göre ölçülür; ekran da aynı sayıyı söyler. */
 export const DEFAULT_TARGET_SCORE = 70;
+
+/** "Hazırsın" başlığı: karar ekranı, değerlendirme ve yol aynı metni gösterir. */
+export const READY_HEADLINE = "🎉 Sınava Hazırsın! Hedefini Başarıyla Geçtin";
+
+function finitePct(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+/** Hedef girilmemişse varsayılan; her yüzey aynı sayıyı kullanır. */
+export function effectiveTarget(targetScore: number | null | undefined): number {
+  return finitePct(targetScore ?? null) ?? DEFAULT_TARGET_SCORE;
+}
+
+/**
+ * "Hazırsın" kuralı (25 Ekim 2026, ürün sahibinin kararı) — tek ve deterministik: yazılı deneme
+ * skoru ya da genel hazırlık skoru hedefe ulaştıysa hazırsın. Ders, konu ya da sınav türü
+ * fark etmez. Önceden her konunun sağlam olması ve açık yanılgı olmaması da isteniyordu:
+ * denemede %89 alıp %80 hedefi geçen öğrenci "Henüz hazırsın diyemeyiz" görüyordu.
+ */
+export function readyForTarget(input: {
+  mockScorePct?: number | null;
+  overallPct?: number | null;
+  targetScore?: number | null;
+}): boolean {
+  const target = effectiveTarget(input.targetScore);
+  const mock = finitePct(input.mockScorePct);
+  const overall = finitePct(input.overallPct);
+  return (mock != null && mock >= target) || (overall != null && overall >= target);
+}
+
+/** Konunun doğruluğu (bağımsız deneme, yoksa ilk deneme); kayıt yoksa null. */
+export function topicAccuracyPct(topic: TopicMasterySnapshot): number | null {
+  if (!topic.measured || topic.evidenceCount === 0) return null;
+  if (topic.independentTotal > 0) return Math.round((topic.independentCorrect / topic.independentTotal) * 100);
+  if (topic.firstAttemptTotal > 0) return Math.round((topic.firstAttemptCorrect / topic.firstAttemptTotal) * 100);
+  return Number.isFinite(topic.confidence) ? Math.round(topic.confidence) : null;
+}
 
 export function computeExamReadiness(input: {
   programPct: number;
@@ -430,20 +463,13 @@ export function computeExamReadiness(input: {
   let unmeasured = 0;
   let successSum = 0;
   let successN = 0;
-  let evidenceItems = 0;
-  // "Hazırsın" için her planlı konu sağlam olmalı; plan yoksa ölçülen her konu.
-  const claimKeys = planned.length ? new Set(planned) : new Set(byKey.keys());
-  let allClaimTopicsSolid = claimKeys.size > 0;
-
   for (const key of keys.length ? keys : ["genel"]) {
     const t = byKey.get(key);
     if (!t || !t.measured || t.evidenceCount === 0) {
       unmeasured += 1;
-      if (claimKeys.has(key)) allClaimTopicsSolid = false;
       continue;
     }
     measured += 1;
-    evidenceItems += t.evidenceCount;
     const rate =
       t.independentTotal > 0
         ? t.independentCorrect / t.independentTotal
@@ -452,7 +478,6 @@ export function computeExamReadiness(input: {
           : 0;
     successSum += rate;
     successN += 1;
-    if (claimKeys.has(key) && scoreTopicMastery(t).level !== "solid") allClaimTopicsSolid = false;
   }
 
   void unmeasured;
@@ -471,11 +496,15 @@ export function computeExamReadiness(input: {
   if (measured === 0 || measuredSuccessPct == null) {
     // 19 Ekim 2026: 16 konulu yolda ilk ders bitince %1'in altı yuvarlanıp "%0" çıkıyordu; Astra
     // aynı anda %2 gösteriyor. İlerleme varsa en az %1 — ölçüm iddiası değil, sıfır değil işareti.
-    const pct = Math.min(15, Math.max(input.programPct > 0 ? 1 : 0, Math.round(input.programPct * 0.1)));
+    const base = Math.min(15, Math.max(input.programPct > 0 ? 1 : 0, Math.round(input.programPct * 0.1)));
+    const claimByMock = readyForTarget({ mockScorePct: mockPct, targetScore: input.targetScore });
+    const pct = claimByMock && mockPct != null ? Math.max(base, mockPct) : base;
     return {
       pct,
-      label: "Henüz ölçülmüş konu yok — hazırlık tahmini düşük",
-      claimFullyReady: false,
+      label: claimByMock
+        ? "Deneme skorun hedefi geçti"
+        : "Henüz ölçülmüş konu yok — hazırlık tahmini düşük",
+      claimFullyReady: claimByMock,
       components: {
         measuredSuccessPct: null,
         mockPct,
@@ -486,7 +515,7 @@ export function computeExamReadiness(input: {
     };
   }
 
-  const target = input.targetScore ?? DEFAULT_TARGET_SCORE;
+  const target = effectiveTarget(input.targetScore);
   const mockFactor =
     mockPct == null ? measuredSuccessPct : Math.round(0.6 * measuredSuccessPct + 0.4 * mockPct);
 
@@ -522,22 +551,21 @@ export function computeExamReadiness(input: {
 
   pct = Math.max(0, Math.min(100, pct));
 
-  // Yazılı deneme şart (20 Ekim 2026): çözülmemiş deneme "hazır" demeye yetmez.
-  const claimFullyReady =
-    coveragePct >= 100 &&
-    allClaimTopicsSolid &&
-    misconceptionsKnown &&
-    openMisconceptions === 0 &&
-    mockPct != null &&
-    mockPct >= target &&
-    evidenceItems >= 3;
+  // Genel skor ancak her planlı konu ölçüldüyse geneldir: 10 konudan biri ölçülmüşken "Hazırsın" denmez.
+  const claimFullyReady = readyForTarget({
+    mockScorePct: mockPct,
+    overallPct: coveragePct >= 100 ? pct : null,
+    targetScore: target,
+  });
+  // Hedefi geçen deneme yüzdeyi onun altında bırakmaz: ekran "Hazırsın" derken %60 yazmasın.
+  if (claimFullyReady && mockPct != null) pct = Math.max(pct, mockPct);
 
   if (!claimFullyReady && pct >= 100) {
     pct = 99;
   }
 
   let label = "Hazırlık tahmini oluşuyor";
-  if (claimFullyReady) label = "Ölçülen konulara göre hedefe yakınsın";
+  if (claimFullyReady) label = "Hedefini geçtin";
   else if (pct >= 80) label = "İyi gidiyorsun; eksikler var";
   else if (pct >= 50) label = "Orta hazırlık — zayıf konulara dön";
   else if (pct > 0) label = "Hazırlık henüz düşük";

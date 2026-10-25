@@ -45,8 +45,9 @@ export function OralAnswerDesk({
   value: string;
   busy?: boolean;
   onChange: (value: string) => void;
-  onAdvance: (answer: string) => void;
-  onFinish: (answer: string) => void;
+  /** `firstAnswer`: takip sorusu açıldıysa takipten önceki cevap (notta ayrıca değerlendirilir). */
+  onAdvance: (answer: string, firstAnswer?: string) => void;
+  onFinish: (answer: string, firstAnswer?: string) => void;
 }) {
   const [left, setLeft] = useState(minutes * 60);
   const [probe, setProbe] = useState<{ question: string; hint: string | null } | null>(null);
@@ -171,9 +172,10 @@ export function OralAnswerDesk({
   function submit() {
     if (busy) return;
     if (probe) {
-      const combined = [mainAnswer.current, follow.trim()].filter(Boolean).join("\n");
-      if (index + 1 < total) onAdvance(combined);
-      else onFinish(combined);
+      const first = mainAnswer.current;
+      const combined = [first, follow.trim()].filter(Boolean).join("\n");
+      if (index + 1 < total) onAdvance(combined, first);
+      else onFinish(combined, first);
       return;
     }
     if (isDontKnow(value)) {

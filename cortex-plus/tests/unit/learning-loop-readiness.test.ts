@@ -12,10 +12,11 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { fakeSupabase, has, type FakeCall, type FakeResult } from "./helpers/query-recorder";
 
 /*
-  Öğrenme döngüsü (20 Ekim 2026, ürün sahibinin kararı): "Hazırsın" düzelmiş hata yüzünden
-  kapanmaz. Her planlı konu sağlam (%85+, en az 3 öğe), açık yanılgı yok, yazılı deneme hedefte ya
-  da üstünde, kapsam %100 → Hazırsın. Yüzde dürüst kalır (%90'da da Hazırsın görünebilir).
+  "Hazırsın" (25 Ekim 2026, ürün sahibinin kararı; 20 Ekim kuralının yerine): yazılı deneme ya da
+  genel hazırlık skoru (her planlı konu ölçülmüşken) hedefe ulaştıysa Hazırsın. Konu "Sağlam" =
+  doğruluğu hedefte ya da üstünde. Yüzde dürüst kalır: açık yanılgı tavanı (85) yerinde.
 */
+const READY = "🎉 Sınava Hazırsın! Hedefini Başarıyla Geçtin";
 
 function topic(partial: Partial<TopicMasterySnapshot> & { topicKey: string }): TopicMasterySnapshot {
   return {
@@ -35,7 +36,7 @@ function topic(partial: Partial<TopicMasterySnapshot> & { topicKey: string }): T
 const done = (kinds: PlanNodeKind[]) => kinds.map((kind) => ({ kind, status: "done" as const }));
 const allDone = done(["lesson", "quiz", "written_exam", "flashcards", "final_check"]);
 
-describe("Hazırsın: düzelmiş hata kapatmaz, açık hata kapatır", () => {
+describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
   it("10 cevaptan 9'u doğru, açık yanılgı yok, deneme hedefte → Hazırsın, yüzde %90'ı geçmez", () => {
     const indicators = buildLearningIndicators({
       nodes: allDone,
@@ -50,7 +51,7 @@ describe("Hazırsın: düzelmiş hata kapatmaz, açık hata kapatır", () => {
     expect(indicators.examReadiness.pct).toBeGreaterThan(80);
   });
 
-  it("açık bir yanılgı Hazırsın'ı kapatır", () => {
+  it("açık yanılgı varken deneme hedefi geçtiyse yine Hazırsın; yüzde tavanı yerinde", () => {
     const indicators = buildLearningIndicators({
       nodes: allDone,
       topics: [topic({ topicKey: "basınç" })],
@@ -59,13 +60,13 @@ describe("Hazırsın: düzelmiş hata kapatmaz, açık hata kapatır", () => {
       mockScorePct: 80,
       targetScore: 70,
     });
-    expect(indicators.examReadiness.claimFullyReady).toBe(false);
+    expect(indicators.examReadiness.claimFullyReady).toBe(true);
     expect(indicators.examReadiness.pct).toBeLessThanOrEqual(85);
   });
 
-  it("deneme hedefin altında ya da hiç çözülmemişse Hazırsın yok", () => {
+  it("deneme hedefin altında ya da çözülmemişse genel skor karar verir", () => {
     for (const mockScorePct of [60, null]) {
-      const indicators = buildLearningIndicators({
+      const strong = buildLearningIndicators({
         nodes: allDone,
         topics: [topic({ topicKey: "basınç" })],
         plannedTopicKeys: ["Basınç"],
@@ -73,51 +74,52 @@ describe("Hazırsın: düzelmiş hata kapatmaz, açık hata kapatır", () => {
         mockScorePct,
         targetScore: 70,
       });
-      expect(indicators.examReadiness.claimFullyReady).toBe(false);
-      expect(indicators.examReadiness.pct).toBeLessThan(100);
+      expect(strong.examReadiness.claimFullyReady).toBe(true);
+      expect(strong.examReadiness.pct).toBeGreaterThanOrEqual(70);
+      const weak = buildLearningIndicators({
+        nodes: allDone,
+        topics: [topic({ topicKey: "basınç", independentCorrect: 5, firstAttemptCorrect: 5, level: "weak", confidence: 50 })],
+        plannedTopicKeys: ["Basınç"],
+        openMisconceptions: 0,
+        mockScorePct,
+        targetScore: 70,
+      });
+      expect(weak.examReadiness.claimFullyReady).toBe(false);
+      expect(weak.examReadiness.pct).toBeLessThan(70);
     }
   });
 
-  it("bir planlı konu sağlam değilse ya da ölçülmemişse Hazırsın yok", () => {
-    const emerging = buildLearningIndicators({
-      nodes: allDone,
-      topics: [
-        topic({ topicKey: "basınç" }),
-        topic({ topicKey: "sıcaklık", level: "emerging", independentCorrect: 7, firstAttemptCorrect: 7, confidence: 70 }),
-      ],
-      plannedTopicKeys: ["Basınç", "Sıcaklık"],
-      openMisconceptions: 0,
-      mockScorePct: 90,
-      targetScore: 70,
-    });
-    expect(emerging.examReadiness.claimFullyReady).toBe(false);
-    const unmeasured = buildLearningIndicators({
+  it("ölçülmemiş planlı konu varken genel skor Hazırsın demez; deneme hedefi geçerse der", () => {
+    const partial = {
       nodes: allDone,
       topics: [topic({ topicKey: "basınç" })],
-      plannedTopicKeys: ["Basınç", "Sıcaklık"],
+      plannedTopicKeys: ["Basınç", "Sıcaklık", "Hacim", "Kaldırma", "Akışkan"],
       openMisconceptions: 0,
-      mockScorePct: 90,
       targetScore: 70,
-    });
-    expect(unmeasured.examReadiness.claimFullyReady).toBe(false);
+    };
+    expect(buildLearningIndicators({ ...partial, mockScorePct: null }).examReadiness.claimFullyReady).toBe(false);
+    expect(buildLearningIndicators({ ...partial, mockScorePct: 89 }).examReadiness.claimFullyReady).toBe(true);
   });
 
-  it("hazırlık ekranı: çözülmüş yanlışları olan sağlam konu 'hazır'; açık yanlış 'çalışılacak'", () => {
-    const base = {
-      plannedTopics: ["Basınç"],
-      mastery: [topic({ topicKey: "basınç" })],
-      mockScorePct: 80,
-      targetScore: 70,
+  it("%89 deneme, %80 hedef: ekran Hazırsın der, düşük konu 'Çalışılacak', diğerleri 'Sağlam'", () => {
+    const screen = buildReadinessScreen({
+      plannedTopics: ["Basınç", "Sıcaklık"],
+      mastery: [
+        topic({ topicKey: "basınç" }),
+        topic({ topicKey: "sıcaklık", independentCorrect: 6, firstAttemptCorrect: 6, level: "emerging", confidence: 60 }),
+      ],
+      openMissesByTopic: [{ topic: "Basınç", count: 1 }],
+      mockScorePct: 89,
+      targetScore: 80,
       nodes: allDone,
       links: { focused: "/odak", written: "/deneme", quiz: "/test", home: "/ev" },
-    };
-    const ready = buildReadinessScreen({ ...base, openMissesByTopic: [] });
-    expect(ready.topics[0].state).toBe("ready");
-    expect(ready.headline).toBe("Hazırsın");
-    const open = buildReadinessScreen({ ...base, openMissesByTopic: [{ topic: "Basınç", count: 1 }] });
-    expect(open.topics[0].state).toBe("needs_work");
-    expect(open.headline).not.toBe("Hazırsın");
-    expect(open.topics[0].detail).toContain("1 açık yanlış");
+    });
+    expect(screen.ready).toBe(true);
+    expect(screen.headline).toBe(READY);
+    expect(screen.lead).toContain("%89");
+    expect(screen.topics.find((row) => row.topic === "Basınç")?.state).toBe("ready");
+    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("1 açık yanlış");
+    expect(screen.topics.find((row) => row.topic === "Sıcaklık")?.state).toBe("needs_work");
   });
 });
 
@@ -290,7 +292,7 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
   });
 
   // 22 Ekim 2026 inceleme.
-  it("açık yanılgı sayısı okunamadıysa Hazırsın kapalı, yüzde 85'i geçmez", () => {
+  it("açık yanılgı sayısı okunamadıysa yüzde 85'i geçmez; deneme hedefi geçtiyse karar Hazırsın", () => {
     const indicators = buildLearningIndicators({
       nodes: allDone,
       topics: [topic({ topicKey: "basınç" })],
@@ -300,7 +302,7 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
       mockScorePct: 80,
       targetScore: 70,
     });
-    expect(indicators.examReadiness.claimFullyReady).toBe(false);
+    expect(indicators.examReadiness.claimFullyReady).toBe(true);
     expect(indicators.examReadiness.pct).toBeLessThanOrEqual(85);
   });
 
@@ -330,7 +332,8 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
     const counted = fakeSupabase((call) => (isCount(call) ? { count: 3 } : handler(true)(call)));
     const plan = await buildLocalSessionPayload(counted.service as never, { ...prep, kind: "readiness" });
     expect(screenOf(plan).actions.map((action) => action.label)).not.toContain("Yazılı denemeyi çöz");
-    expect(screenOf(plan).ready).toBe(false);
+    // Deneme %80, hedef %70: 3 açık yanılgı kararı değiştirmez.
+    expect(screenOf(plan).ready).toBe(true);
     const failing = fakeSupabase((call) => (isCount(call) ? { error: { code: "57014", message: "timeout" } } : handler(true)(call)));
     await expect(buildLocalSessionPayload(failing.service as never, { ...prep, kind: "readiness" })).rejects.toThrow("tracking_read_failed");
   });

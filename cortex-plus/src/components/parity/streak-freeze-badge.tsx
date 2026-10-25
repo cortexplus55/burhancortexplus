@@ -1,26 +1,11 @@
 "use client";
 
-export type StreakFreezeBadgeState = {
-  remaining: number;
-  protected: boolean;
-  used: boolean;
-};
+import {
+  streakFreezeTitle,
+  type StreakFreezeBadgeState,
+} from "@/lib/learning/streak-freeze-copy";
 
-export const STREAK_FREEZE_COPY = {
-  saved: "Seri Kalkanı seni korudu!",
-  ready: "Seri Kalkanı hazır",
-  none: "Bu hafta kalkanın bitti",
-} as const;
-
-export function streakFreezeTitle(state: StreakFreezeBadgeState): string {
-  if (state.protected || state.used) return STREAK_FREEZE_COPY.saved;
-  if (state.remaining > 0) {
-    return state.remaining === 1
-      ? `${STREAK_FREEZE_COPY.ready} · bu hafta 1 hakkın var`
-      : `${STREAK_FREEZE_COPY.ready} · bu hafta ${state.remaining} hakkın var`;
-  }
-  return STREAK_FREEZE_COPY.none;
-}
+export type { StreakFreezeBadgeState };
 
 /** Üst çubuk ve ilerleme: 🧊 rozeti + ipucu. */
 export function StreakFreezeBadge({

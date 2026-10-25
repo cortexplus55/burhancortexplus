@@ -162,12 +162,12 @@ describe("yazar ve denetçi aynı metni okur (C2b, C4e, C5, C7)", () => {
     }
   });
 
-  it("yoğunluk: her ekran bir soruyla biter, 5+ satırlı tablo bölünür, ilk kavram tek ekran, en çok 9 ekran", () => {
+  it("yoğunluk: her ekran bir soruyla biter, 5+ satırlı tablo bölünür, ilk kavram tek ekran, en çok 12 ekran", () => {
     for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
       expect(system).toContain("Her ekran tek bir 'check' bloğuyla biter");
       expect(system).toContain("5 ya da daha çok satırlı");
       expect(system).toContain("İlk kavram tek ekrandır");
-      expect(system).toContain("En fazla 9 ekran");
+      expect(system).toContain("En fazla 12 ekran");
       expect(system).not.toContain("nasıl okunacağını");
     }
   });
@@ -266,15 +266,16 @@ describe("üst sınırlar son kavramı düşürmez (C3d)", () => {
     );
   const caps = (count: number) =>
     partStructureIssues(lesson(many(count)), { from: count - 1, to: count - 1, header: false, closing: true }, {}).filter((issue) =>
-      /En fazla (dokuz|beş)/.test(issue.problem),
+      /En fazla (on iki|altı)/.test(issue.problem),
     );
 
-  it("8 ekranlı ders sınırda değil; 10 ekranlı ders düşük önem (tur açmaz)", () => {
-    expect(caps(8)).toEqual([]);
-    const over = caps(10);
-    expect(over.some((issue) => /dokuz/.test(issue.problem))).toBe(true);
-    // Altı kavram: kavram sınırı da aşıldı; ikisi de düşük, mesajdaki sayı kodla aynı ("beş").
-    expect(over.some((issue) => /En fazla beş kavram/.test(issue.problem))).toBe(true);
+  // 25 Ekim 2026: tam kapsam için 9 → 12 ekran, 5 → 6 kavram.
+  it("10 ekranlı ders sınırda değil; 14 ekranlı ders düşük önem (tur açmaz)", () => {
+    expect(caps(10)).toEqual([]);
+    const over = caps(14);
+    expect(over.some((issue) => /on iki ekran/.test(issue.problem))).toBe(true);
+    // Sekiz kavram: kavram sınırı da aşıldı; ikisi de düşük, mesajdaki sayı kodla aynı ("altı").
+    expect(over.some((issue) => /En fazla altı kavram/.test(issue.problem))).toBe(true);
     expect(over.every((issue) => issue.severity === "low")).toBe(true);
   });
 });

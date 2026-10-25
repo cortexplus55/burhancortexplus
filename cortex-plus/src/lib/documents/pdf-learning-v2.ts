@@ -378,6 +378,7 @@ function corpusFile(fileName: string, analyses: PageAnalysis[]): MaterialFileCor
     pages: pagesForTopicMap(analyses).map((p) => ({
       pageNumber: p.pageNumber,
       text: p.pageKind === "toc" ? `İÇİNDEKİLER\n${p.textContent}` : p.textContent,
+      headings: p.pageKind === "toc" ? [] : p.headings,
     })),
   };
 }

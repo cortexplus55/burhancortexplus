@@ -14,8 +14,9 @@ import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { studentTextParts } from "@/lib/learning/lesson-board";
-import { reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
+import { nearSameQuestion, reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
 import { SOURCE_LINK_EXEMPTION, TEACHING_RUBRIC, WHY_NOTE_RULE } from "@/lib/learning/teaching-rubric";
+import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -284,7 +285,10 @@ export const TEACHER_SYSTEM =
   "AKIŞ:\n" +
   "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle. 'Önce dene' sorusundan önce " +
   "okunur: o sorunun cevabını vermez (soru 'temel risk etken mi?' diye soruyorsa kanca 'asıl risk sıvı kaybı' demez).\n" +
-  "2) Kavramlar ve ekranlar: 3-4 kavram (kaynak darsa 2). Bir kavram genelde tek ekrandır; hesap yolu, çok adımlı bir " +
+  "2) Kavramlar ve ekranlar: kaynağın bütün alt başlıklarını, kilit tanımlarını, sayısal kurallarını/formüllerini, " +
+  "istisnalarını, aşama/sıralamalarını ve klasik soru/problem tiplerini kapsayacak kadar kavram — genelde 3-6 kavram, " +
+  "6-10 ekran (kaynak darsa 2 kavram). OMURGA verildiyse her alt başlığı bir kavramda işle; yalnız terim sayıp " +
+  "dersi bitirme. Bir kavram genelde tek ekrandır; hesap yolu, çok adımlı bir " +
   "işlemi ya da uzun bir tablosu varsa 2-3 ekrana böl: önce kavram ve formül, sonra adımlar ve kaynaktaki sayılarla " +
   "çözümlü örnek. Aynı kavramın ekranları art arda gelir ve aynı 'concept' adını taşır; 'heading' ekranın kendi " +
   "odağıdır ('Z-skoru', 'Z-skoru: hesap'). Hesap, çok adımlı işlem ya da uzun tablo YOKSA kavramı bölme: ikinci " +
@@ -292,7 +296,8 @@ export const TEACHER_SYSTEM =
   "da daha çok satırlı bir tabloyu tek ekrana koyma: aynı kavramın 2-3 ekranına satır gruplarıyla böl (ör. yaş " +
   "aralığına göre); her ekranın 'table' bloğu yalnız kendi satırlarını taşır; satırları başka kavrama taşıma. İlk " +
   "kavram tek ekrandır (önce dene + kısa anlatım); bölünecek tablo ya da hesap ikinci kavramdan başlar. Bir tabloya " +
-  "gönderen cümle ('tabloda oku') yalnız o tablonun durduğu ekranda yazılır. En fazla 9 ekran. 'concept' ve " +
+  "gönderen cümle ('tabloda oku') yalnız o tablonun durduğu ekranda yazılır. En fazla 12 ekran. Dersteki iki soru " +
+  "aynı soruyu ya da aynı bilgiyi sormaz: her ekranın sorusu yeni bir ayrımı yoklar. 'concept' ve " +
   "'heading' kavramın adıdır. " +
   "Kaynakta başlık büyük harfle yazılmış olsa bile sen normal yazımla yaz ('MADDİ YAPTIRIMLAR' değil 'Maddi Yaptırımlar'). " +
   "Ekran numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok. Her ekranda en az bir 'text' " +
@@ -349,6 +354,12 @@ export function teacherSystem(mode: TeacherLessonMode = "document"): string {
   return mode === "topic" ? TOPIC_TEACHER_SYSTEM : TEACHER_SYSTEM;
 }
 
+/** Konunun kendi sayfalarından omurga; belgesiz derste yok. */
+export function inputBackbone(input: Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "runningHeaders" | "mode">>): string[] {
+  if (input.mode === "topic" || !input.pages?.length) return [];
+  return lessonBackbone(input.pages, { topicLabel: input.topicLabel, runningHeaders: input.runningHeaders });
+}
+
 export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
@@ -360,6 +371,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
       : "",
+    input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
     input.mode === "topic"
       ? "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
       : `KAYNAK:\n${sourceText(input.pages)}`,
@@ -597,8 +609,11 @@ export function fixPartUserPrompt(
   issues: TeacherIssue[],
   input: TeacherLessonInput,
 ): string {
+  const backbone = part.closing && issues.some((issue) => issue.problem.startsWith(BACKBONE_TAG));
   const fields = [
-    `"screens": [screens[${part.from}]…screens[${part.to}] düzeltilmiş hâli, aynı sırayla; kısmın BÜTÜN ekranları, değiştirmediklerin de; 1-3 ekran, aynı kavram]`,
+    backbone
+      ? `"screens": [screens[${part.from}]…screens[${part.to}] aynı sırayla (kısmın BÜTÜN ekranları), ardından işlenmemiş alt başlıklar için en çok ${BACKBONE_EXTRA_SCREENS} yeni ekran, her biri kendi 'concept' adıyla]`
+      : `"screens": [screens[${part.from}]…screens[${part.to}] düzeltilmiş hâli, aynı sırayla; kısmın BÜTÜN ekranları, değiştirmediklerin de; 1-3 ekran, aynı kavram]`,
     part.header ? '"title", "overview", "objective" (değiştirdiysen)' : "",
     part.closing ? '"commonMistake", "summary" (değiştirdiysen)' : "",
     '"disputes": [{"where": "…", "reason": "…"}]',
@@ -631,12 +646,17 @@ export function rewritePartUserPrompt(
   part: LessonPart,
   issues: TeacherIssue[],
   input: TeacherLessonInput,
+  attempt = 1,
 ): string {
   const concept = lesson.screens[part.from]?.concept || lesson.screens[part.from]?.heading || "bu kavram";
   return [
     teacherUserPrompt(input),
     `ŞU ANKİ DERS (JSON):\n${JSON.stringify(lesson)}`,
     `YENİDEN YAZILACAK KISIM: ${partLabel(part)} — kavram "${concept}".`,
+    attempt > 1
+      ? `Bu kavram ${attempt}. kez baştan yazılıyor; dersten atılmayacak. Sorunlu cümleyi kaynaktaki doğrusuyla yaz ` +
+        "ya da çıkar; emin olmadığın ayrıntıyı yazma, kavramın kaynaktaki kilit bilgisini koru."
+      : "",
     `Bu kavramın taslağı düzeltmelere rağmen denetimden geçmedi. Son sorunlar:\n${issues
       .map((issue, i) => `${i + 1}. [${issue.where}] ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`)
       .join("\n")}`,
@@ -650,7 +670,9 @@ export function rewritePartUserPrompt(
     `Yalnız şu alanları taşıyan bir JSON döndür: {"screens": [bu kavramın 1-3 ekranı, baştan yazılmış]${
       part.closing ? ', "commonMistake", "summary"' : ""
     }}.`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export type PartFix = {
@@ -691,7 +713,7 @@ export function parsePartFix(raw: unknown, base: LessonV3, upcomingTopics: strin
   if (!shaped) return null;
   if (!screens.length && !disputes.length) return null;
   return {
-    screens: screens.length ? shaped.screens.slice(0, 3) : [],
+    screens: screens.length ? shaped.screens.slice(0, 3 + BACKBONE_EXTRA_SCREENS) : [],
     ...(typeof row.title === "string" ? { title: shaped.title } : {}),
     ...(typeof row.overview === "string" ? { overview: shaped.overview } : {}),
     ...(typeof row.objective === "string" ? { objective: shaped.objective } : {}),
@@ -710,6 +732,9 @@ export type TeacherIssue = { where: string; severity: "high" | "medium" | "low";
 
 /** Öğretim ölçütü sorununun önü: düzeltme isteminde ve yönetim kaydında yanlış bilgiden ayrılsın. */
 export const TEACHING_TAG = "[öğretim]";
+/** Omurga eksiği: kapanış kısmına yeni kavram ekranları eklenebilir. */
+export const BACKBONE_TAG = "[omurga]";
+export const BACKBONE_EXTRA_SCREENS = 4;
 
 /**
  * Denetçinin sorunları. Bilinmeyen önem 'high' sayılır. `medium: true` yalnız ders denetiminde: öbür motorlar
@@ -950,7 +975,7 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
   return answer.filter((stem) => seen.has(stem)).length >= 2;
 }
 
-type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> & Partial<Pick<TeacherLessonInput, "pages">>;
+type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> & Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode">>;
 
 function collector() {
   const issues: TeacherIssue[] = [];
@@ -1267,6 +1292,85 @@ function toldStems(screens: readonly LessonScreen[], except: LessonBlock): Set<s
   return stemsOf(parts.join(" "));
 }
 
+const foldQuestion = (text: string) =>
+  text
+    .toLocaleLowerCase("tr")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+const questionNumbers = (text: string) => (text.match(/\d+(?:[.,]\d+)?/g) ?? []).sort().join(" ");
+
+/**
+ * İki soru aynı bilgiyi mi soruyor: aynı metin ya da aynı sayılarla içerik sözcüklerinin dörtte üçü ortak. Eşik
+ * ikinci sorudaki %85'ten (`nearSameQuestion`) düşük: aynı ifadenin olumsuzu ("iner" / "inmez") da aynı bilgidir.
+ */
+export function sameLessonQuestion(a: string, b: string): boolean {
+  const left = foldQuestion(a);
+  const right = foldQuestion(b);
+  if (!left || !right) return false;
+  if (left === right || nearSameQuestion(a, b)) return true;
+  return questionNumbers(a) === questionNumbers(b) && stemOverlap(a, b) >= 0.75;
+}
+
+/** Öğrencinin bir ekranda gördüğü sorular: ana soru, "Doğrusu" cümlesi ve yanlışta gelen ikinci soru. */
+function askedOn(screen: LessonScreen): string[] {
+  const check = screenCheck(screen);
+  if (!check) return [];
+  const review = (check as { review?: { prompt?: unknown } | null }).review;
+  return [
+    check.prompt,
+    (check as { corrected?: unknown }).corrected,
+    typeof review?.prompt === "string" ? review.prompt : "",
+  ].filter((text): text is string => typeof text === "string" && text.trim().length > 0);
+}
+
+/**
+ * Ders içi soru tekrarı (25 Ekim 2026): canlıda aynı doğru/yanlış ifadesi iki ekranda soruldu. Ekranın sorusu
+ * önceki ekranlardan birinde sorulan, "Doğrusu" diye gösterilen ya da ikinci soru olarak gelen soruyla aynıysa
+ * o önceki metin döner.
+ */
+export function repeatedCheck(earlier: readonly LessonScreen[], screen: LessonScreen): string | null {
+  const check = screenCheck(screen);
+  if (!check?.prompt) return null;
+  for (const prior of earlier) {
+    const hit = askedOn(prior).find((text) => sameLessonQuestion(text, check.prompt));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * Yayımdan önce son kapı (deterministik): önceki ekranlarda sorulmuş bir soruyu tekrar eden ekranın sorusu çıkar;
+ * ikinci sorusu tekrar ediyorsa yalnız ikinci soru çıkar (çalışma anı yedeği kurar). Metin yazılmaz.
+ */
+export function dropRepeatedChecks(earlier: readonly LessonScreen[], screens: readonly LessonScreen[]): LessonScreen[] {
+  const seen: LessonScreen[] = [...earlier];
+  const out: LessonScreen[] = [];
+  for (const screen of screens) {
+    let next = screen;
+    if (repeatedCheck(seen, screen)) {
+      next = { ...screen, blocks: screen.blocks.filter((block) => block.type !== "check") };
+    } else {
+      const check = screenCheck(screen) as (ReturnType<typeof screenCheck> & { review?: { prompt?: unknown } | null }) | undefined;
+      const reviewPrompt = typeof check?.review?.prompt === "string" ? check.review.prompt : "";
+      if (reviewPrompt && seen.some((prior) => askedOn(prior).some((text) => sameLessonQuestion(text, reviewPrompt)))) {
+        next = {
+          ...screen,
+          blocks: screen.blocks.map((block) => {
+            if (block.type !== "check") return block;
+            const { review: _dropped, ...rest } = block.check;
+            void _dropped;
+            return { ...block, check: rest };
+          }),
+        };
+      }
+    }
+    out.push(next);
+    seen.push(next);
+  }
+  return out;
+}
+
 /**
  * Ekranlar arası tekrar (22 Ekim 2026, kör kıyas 2. tur). Öğretim ölçütünün 1. maddesi istemde vardı ama on
  * çiftin dokuzunda yargıçlar aynı şeyi yazdı: "aynı YSK paragrafı üç ekranda", "aynı tarih tablosu üç kez",
@@ -1285,6 +1389,14 @@ export function repetitionIssues(screens: readonly LessonScreen[], indexes: read
     if (!screen) continue;
     const where = `screens[${index}]`;
     const earlier = screens.slice(0, index);
+    const twinCheck = repeatedCheck(earlier, screen);
+    if (twinCheck) {
+      medium(
+        `${where}.blocks`,
+        `Bu ekranın sorusu derste zaten soruldu ("${twinCheck.slice(0, 90)}"); aynı soruyu ya da aynı bilgiyi ikinci kez ` +
+          "sorma, bu ekranın yeni ayrımını yoklayan bir soru yaz.",
+      );
+    }
     const earlierSentences = earlier.flatMap(taughtSentences);
     const repeated = taughtSentences(screen).find((sentence) =>
       earlierSentences.some((prior) => stemOverlap(sentence, prior) >= 0.85),
@@ -1359,9 +1471,22 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     Üst sınırlar düşük önemde (20 Ekim 2026): sınır ancak dersin kapanışında denetleniyor ve aşımı önceki kavramlar
     yapıyor; yüksek olunca son kavram kendi ekranlarıyla düzeltemeyeceği bir sorun için üç tur dönüp baştan yazılıyor,
     sonra atılıyordu. Her ekranın soruyla bitmesi ve yoğun tablonun bölünmesi ekran sayısını artırdı: 7 → 9.
+    25 Ekim 2026: tam kapsam (omurganın her alt başlığı) için 9 → 12 ekran, 5 → 6 kavram.
   */
-  if (screens.length > 9) low("screens", "En fazla dokuz ekran; konuyu daralt ya da kavramı daha az ekrana sığdır.");
-  if (groups.length > 5) low("screens", "En fazla beş kavram; konuyu daralt.");
+  if (screens.length > 12) low("screens", "En fazla on iki ekran; kavramı daha az ekrana sığdır.");
+  if (groups.length > 6) low("screens", "En fazla altı kavram; kısa alt başlıkları komşusuyla birleştir.");
+  // Omurga (25 Ekim 2026): kaynağın alt başlığı derste hiç geçmiyorsa kapanışta bir öğretim turu; kavram düşürmez.
+  const missingHeads = uncoveredBackbone(screens, inputBackbone(input));
+  if (missingHeads.length) {
+    issues.push({
+      where: `screens[${screens.length - 1}]`,
+      severity: "medium",
+      problem:
+        `${BACKBONE_TAG} Kaynağın şu alt başlıkları derste işlenmedi: ${missingHeads.join(" · ")}. Her biri için bu kısmın ` +
+        "ardına kendi 'concept' adıyla bir ekran ekle (tanım, sayısal kural/formül, istisna ya da çözümlü örnek; ekran bir " +
+        "soruyla biter). Mevcut ekranları silme.",
+    });
+  }
   const seenConcepts = new Set<string>();
   for (const group of groups) {
     const key = group.concept.toLocaleLowerCase("tr");
@@ -1462,13 +1587,15 @@ export function lessonStructureIssues(lesson: LessonV3, input: StructureInput): 
  */
 export function partStructureIssues(lesson: LessonV3, part: LessonPart, input: StructureInput): TeacherIssue[] {
   const indexes = lesson.screens.map((_, index) => index).filter((index) => index >= part.from && index <= part.to);
-  const concept = conceptGroups(lesson.screens).find((group) => group.screens.includes(part.from));
-  const group = concept ? { concept: concept.concept, screens: indexes } : null;
+  // Kapanış kısmı omurga turunda yeni kavramlar ekleyebilir (25 Ekim 2026): her kavram kendi kuralıyla denetlenir.
+  const groups = conceptGroups(lesson.screens)
+    .map((group) => ({ concept: group.concept, screens: group.screens.filter((index) => indexes.includes(index)) }))
+    .filter((group) => group.screens.length);
   const issues = [
     ...(part.header ? headerStructureIssues(lesson, input) : []),
-    ...(group ? conceptStructureIssues(lesson.screens, group) : []),
+    ...groups.flatMap((group) => conceptStructureIssues(lesson.screens, group)),
     // İlk kavramda öğrenci bekliyor: yoğun tablo kuralı tur açmaz (istem ilk kavramı zaten tek ekran ister).
-    ...(group ? denseTableIssues(lesson.screens, group, part.header ? "low" : "high") : []),
+    ...groups.flatMap((group) => denseTableIssues(lesson.screens, group, part.header ? "low" : "high")),
     ...indexes.flatMap((index) => screenStructureIssues(lesson.screens[index]!, index, input)),
     ...repetitionIssues(lesson.screens, indexes),
   ];

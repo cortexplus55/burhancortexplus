@@ -9,6 +9,7 @@ import {
   LESSON_CHECKS_MAX,
   LESSON_TERMS_MAX,
   pointTaught,
+  withoutMissingPoints,
   wordKeys,
   type LessonQuizContext,
 } from "@/lib/learning/lesson-quiz-context";
@@ -257,8 +258,13 @@ export function quizSystem(
  * yoksa hepsi eşit). Yazar, denetçi ve kodun kapsam sayımı aynı sırayı ve numarayı okur.
  */
 export function topicTestPoints(input: Pick<TeacherQuizInput, "examPoints" | "lesson" | "scope">): string[] {
-  const list = (input.examPoints ?? []).map((point) => point.trim()).filter(Boolean).slice(0, EXAM_POINTS_MAX);
   const lessonText = input.lesson?.text ?? "";
+  const all = (input.examPoints ?? []).map((point) => point.trim()).filter(Boolean);
+  // Dersin hazırlanamayan bölümü sorulmaz (25 Ekim 2026).
+  const list = (input.scope === "topic_test" ? withoutMissingPoints(all, input.lesson?.missing ?? [], lessonText) : all).slice(
+    0,
+    EXAM_POINTS_MAX,
+  );
   if (input.scope !== "topic_test" || !lessonText) return list;
   const taught = list.filter((point) => pointTaught(point, lessonText));
   if (!taught.length) return list;

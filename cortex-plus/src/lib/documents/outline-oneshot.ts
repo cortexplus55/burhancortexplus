@@ -16,6 +16,7 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { env } from "@/lib/env";
 import type { OutlineUnitDraft } from "@/lib/documents/outline-clean";
 import { buildGroundingFile, groundTopic, type GroundingFile } from "@/lib/documents/outline-grounding";
+import { outlineOversizedTopics, oversizeRepairLines, spanTooWide, type OversizedTopic } from "@/lib/documents/outline-oversize";
 
 /**
  * Page threshold for the standard (mini) outline model; above it the strong
@@ -219,7 +220,8 @@ export const oneShotJsonSchema: Record<string, unknown> = {
 
 export type MaterialFileCorpus = {
   fileName: string;
-  pages: { pageNumber: number; text: string }[];
+  /** `headings`: sayfa çözümlemesinin başlıkları; geniş konu kapısı okur (yoksa metinden çıkarılır). */
+  pages: { pageNumber: number; text: string; headings?: string[] }[];
   /**
    * 0-based index in the whole course (`d1` → 0). Split parts keep it so a
    * part holding the second file still says [d2 s.N].
@@ -478,7 +480,9 @@ export type OneShotValidationIssue =
     }
   | { code: "diger_bucket"; title: string }
   /** Not a drop: a unit whose topics all failed grounding survived as one topic under its own title. */
-  | { code: "unit_rescued"; title: string };
+  | { code: "unit_rescued"; title: string }
+  /** Kurtarılacak aralık tek konu için fazla geniş: birleştirme yapılmaz, onarım istenir. */
+  | { code: "unit_rescue_blocked"; title: string; fileIndex: number; pageStart: number; pageEnd: number };
 
 /** Issue codes → counts, for the stage log ("ungrounded:absent_word": 12). */
 export function outlineIssueCounts(issues: OneShotValidationIssue[]): Record<string, number> {
@@ -685,7 +689,10 @@ export function validateOneShotOutline(
       const end = Math.max(...same.map((t) => t.end));
       const unitKey = unitTitle.toLocaleLowerCase("tr");
       const grounding = groundingFor(first.fileIndex);
-      if (
+      const filePages = filePageCounts[first.fileIndex] ?? 0;
+      if (spanTooWide(end - start + 1, filePages)) {
+        issues.push({ code: "unit_rescue_blocked", title: unitTitle, fileIndex: first.fileIndex, pageStart: start, pageEnd: end });
+      } else if (
         grounding &&
         !seen.has(unitKey) &&
         groundTopic(grounding, { title: unitTitle, pageStart: start, pageEnd: end }).grounded
@@ -860,6 +867,11 @@ function repairBlock(repairErrors?: string, invalidDraftJson?: string): string {
   return `\n\nÖnceki çıktı geçersizdi.${draftPart}${issuePart}\n\nAşağıdaki sayfa metni YALNIZCA bu konuların alıntıladığı sayfalardır. Her konuyu bu metinle doğrula: doğrulayamadığını sil, sayfa aralığını düzelt, uydurma ekleme. Yeniden üret.`;
 }
 
+/** Geniş ünite kuralı (25 Ekim 2026): yazar ve onarım turu aynı metni okur; kapı `outline-oversize.ts`. */
+export const OUTLINE_GRANULARITY_RULE =
+  "- GENİŞ ÜNİTE TEK KONU OLAMAZ: dosyanın sayfa/metin hacminin %15'inden fazlasını tutan ya da içinde birden fazla bağımsız alt başlık, kural/formül ailesi, tarihsel dönem, sınıflandırma veya problem/vaka tipi barındıran bölüm 2-4 ayrı konuya bölünür; her konunun sayfa aralığı ayrıktır.\n" +
+  "- Şemsiye başlık YASAK: \"Temel Kavramlar\", \"Temel Kavramlar ve İlkeler\", \"Genel Bilgiler\" gibi bir başlık altında alt dalları yutma. Her belirgin alt başlık, mekanizma, teorem/formül grubu ya da problem/analiz türü kendi konusu olur; belgenin hiçbir ana ya da alt dalı haritanın dışında kalmaz.";
+
 function studentOutlinePrompt(input: {
   examLabel?: string | null;
   examDate?: string | null;
@@ -894,6 +906,7 @@ SERT KURAL — UYDURMA YOK:
 - Sayfa işaretleri [d1 s.12] biçimindedir: d1 = birinci dosya (fileIndex 0), d2 = ikinci dosya (fileIndex 1). Konunun fileIndex'i alıntıladığın işaretle aynı dosyayı göstermeli.
 - pageStart/pageEnd gerçek [d? s.N] işaretlerinden; o dosyanın sayfa aralığı dışında numara uydurma (en fazla ${input.maxPage}).
 - Sayfa aralığını dar tut: bir konu 8 sayfadan genişse gerçekten o sayfaların tamamını kapsamalı.
+${OUTLINE_GRANULARITY_RULE}
 - Kitabın/dosyaların kendi yapısını (içindekiler, bölüm başlıkları) dikkate al ama logolar, seri adları, sayfa üstbilgileri, soru numaraları, şıklar, OCR bozukluklarını konu yapma.
 - Konu başlığı içeriği adlandırır, materyalin biçimini değil: "Kartı", "Eşleştirme Kartı", "Şeması", "Tablosu", "Fotoğrafı", "Özet Notu" yazma. Bir dosya (fotoğraf, kart, şema, test sayfası) başka dosyada anlatılan bir konuyu tekrar ediyorsa ayrı konu açma; o konu tek kalır, fileIndex'i konuyu en çok anlatan dosya olur.
 - "Diğer Konular" kovası EKLEME. Ünite 1–${MAX_UNITS}, toplam konu ≤${MAX_TOPICS_TOTAL}.
@@ -1228,6 +1241,33 @@ export function outlineCoverageTooLow(
   return outlineCoverage(candidate, material.pageCount) < MIN_MINI_COVERAGE;
 }
 
+/** Geniş konular: aday haritada tek kalamayacak konular (mini ve güçlü modelde onarım ister). */
+export function outlineOversized(
+  candidate: OutlineCandidate | null,
+  files: MaterialFileCorpus[],
+): OversizedTopic[] {
+  if (!candidate) return [];
+  return outlineOversizedTopics(candidate.units, files);
+}
+
+/** Onarım talimatı: doğrulama sorunları + bölünecek geniş konular + birleştirilmeyen üniteler. */
+export function outlineRepairErrors(
+  issues: OneShotValidationIssue[],
+  oversized: OversizedTopic[],
+): string {
+  const lines = issues.filter((issue) => issue.code !== "unit_rescue_blocked").map((issue) => JSON.stringify(issue));
+  const blocked = issues.filter(
+    (issue): issue is Extract<OneShotValidationIssue, { code: "unit_rescue_blocked" }> => issue.code === "unit_rescue_blocked",
+  );
+  for (const issue of blocked) {
+    lines.push(
+      `- "${issue.title}" ünitesi (d${issue.fileIndex + 1} s.${issue.pageStart}-${issue.pageEnd}) tek konuya birleştirilemez; konularını o sayfalardaki başlıklarla doğrulanabilir 2-4 ayrı konu olarak yeniden yaz.`,
+    );
+  }
+  if (oversized.length) lines.push("GENİŞ KONULAR — BÖL:", oversizeRepairLines(oversized));
+  return lines.join("\n");
+}
+
 /** First few dropped topics, for the stage log ("Yürütme [20-23] low_title_coverage"). */
 export function droppedTitlesFor(issues: OneShotValidationIssue[], limit = 6): string[] {
   const out: string[] = [];
@@ -1356,7 +1396,9 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       ...partReservations,
       ...(merged.reservationId ? [merged.reservationId] : []),
     ]);
-    if (goodEnough(candidate)) return { kind: "done", map: candidate, path: "merge", release: [] };
+    if (goodEnough(candidate) && !outlineOversized(candidate, material.files).length) {
+      return { kind: "done", map: candidate, path: "merge", release: [] };
+    }
     return {
       kind: "continue",
       progress: { stage: "repair", draft: merged.draft, draftModel: strong, best: candidate ?? undefined },
@@ -1374,7 +1416,8 @@ export async function runOutlineStep(input: OutlinePromptInput & {
         ? { kind: "done", map: best, path: "kept", release: [] }
         : { kind: "exhausted", release: [], reason: "rejected" };
     }
-    const { issues } = candidateFrom(draft, material.validation, progress.draftModel ?? strong, []);
+    const prior = candidateFrom(draft, material.validation, progress.draftModel ?? strong, []);
+    const repairErrors = outlineRepairErrors(prior.issues, outlineOversized(prior.candidate, material.files));
     const cited = buildCitedPagesCorpus(
       material.files,
       citedRefsFromDraft(draft, material.files.length === 1),
@@ -1389,7 +1432,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       corpus,
       model,
       idempotencyKey: input.keyFor("repair"),
-      repairErrors: issues.map((issue) => JSON.stringify(issue)).join("\n") || "Konuların çoğu alıntılanan sayfalarda doğrulanamadı.",
+      repairErrors: repairErrors || "Konuların çoğu alıntılanan sayfalarda doğrulanamadı.",
       invalidDraftJson: JSON.stringify(draft),
     });
     const repairedResult = repaired.draft
@@ -1478,7 +1521,11 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     (outlineTooThin(candidate, size) ||
       outlineCoverageTooLow(candidate, size) ||
       outlineDroppedByGrounding(issues, size));
-  if (goodEnough(candidate) && !thinMini) {
+  // Geniş konu (25 Ekim 2026): mini de güçlü de olsa tek konuya sıkışmış ünite kabul edilmez.
+  const needsSplit =
+    outlineOversized(candidate, material.files).length > 0 ||
+    issues.some((issue) => issue.code === "unit_rescue_blocked");
+  if (goodEnough(candidate) && !thinMini && !needsSplit) {
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best), diag };
   }
   const nextBest = better(best, candidate);

@@ -12,6 +12,7 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
+  dropRepeatedChecks,
   fixPartSystem,
   fixPartUserPrompt,
   isMnemonicCountIssue,
@@ -54,8 +55,8 @@ import {
   - Düzeltme yalnız sorunlu kavramı yeniden yazar; yazar haksız bulduğu itiraza gerekçe
     yazar, denetçi bir sonraki turda o gerekçeyi tartar.
   - Kavramlar sırayla yayımlanır (`onPublish`); öğrenci denetlenmemiş ekran görmez.
-    Düzeltilemeyen kavram bir kez BAŞTAN yazılır ve yeniden denetlenir (18 Ekim 2026); o da
-    geçmezse atılır ve öğrenciye söylenir (`missingConcepts`). İlk kavram düzelmezse ders yazılmaz.
+    Düzeltilemeyen kavram BAŞTAN yazılır ve yeniden denetlenir (18 Ekim 2026; 25 Ekim 2026'dan beri en çok
+    üç kez); yalnız süre dolarsa atılır ve öğrenciye söylenir (`missingConcepts`), konu testi o bölümü sormaz.
   - Öğrenci beklerken hızlı işlem (ürün sahibinin kararı: önce yalnız Plus, aynı gün herkese).
   Kod ders metnine hiçbir şey eklemez.
 */
@@ -86,8 +87,14 @@ const WRITE_TIMEOUT_MS = 120_000;
  * Düzelmeyen kavram atılmadan önce bir kez baştan yazılır (18 Ekim 2026, ürün sahibinin kararı).
  * Baştan yazım bu süreden sonra başlamaz; ardından gelen denetim/düzeltme ikinci sınıra kadar sürer.
  */
-const REWRITE_START_MS = 170_000;
-const REWRITE_DEADLINE_MS = 230_000;
+const REWRITE_START_MS = 200_000;
+const REWRITE_DEADLINE_MS = 255_000;
+/**
+ * Düzelmeyen kavram en çok bu kadar kez baştan yazılır (25 Ekim 2026: önce bir kez, sonra atılıyordu ve
+ * öğrenci "Bu derste yer almayan bölüm" görüyordu; testte o bölümden soru geliyordu). Atma yalnız süre
+ * dolunca olur.
+ */
+export const MAX_PART_REWRITES = 3;
 /**
  * Yeniden yazım sürerken ders "takıldı" sayılmasın (`BUILD_STALE_MS` 120 sn): yayımlanan kısım
  * aynı hâliyle tazelenir, giriş kartında kavram "hazırlanıyor" kalır.
@@ -258,6 +265,7 @@ export async function teacherLessonPipeline(
       // İlk kavramda öğrenci bekliyor: iki tur. Sonrakiler öğrenci okurken düzelir: bir tur fazla.
       let rounds = index === 0 ? MAX_FIX_ROUNDS : MAX_FIX_ROUNDS + 1;
       let rewritten = false;
+      let rewrites = 0;
       /*
         Öğretim ölçütü turu (20 Ekim 2026, ürün sahibinin kararı: 'medium'). Yalnız ilk kavramdan sonra, yalnız ilk
         denetimde yüksek sorun yokken ve en çok bir kez; düzeltme yüksek bir sorun getirirse önceki ekranlar geri gelir.
@@ -439,21 +447,29 @@ export async function teacherLessonPipeline(
         }
         const deadline = rewritten ? REWRITE_DEADLINE_MS : FIX_DEADLINE_MS;
         if (round >= rounds || Date.now() - started > deadline) {
-          // Atmadan önce bir kez baştan: yama aynı yerde takılıyordu (Pediatri, üç tur aynı sorun).
-          if (rewritten || Date.now() - started > REWRITE_START_MS || !current()) return { ok: false, high, triggers };
+          // Atmadan önce baştan: yama aynı yerde takılıyordu (Pediatri, üç tur aynı sorun). 25 Ekim 2026: en çok
+          // MAX_PART_REWRITES kez; kavram yalnız süre dolunca atılır.
+          if (rewrites >= MAX_PART_REWRITES || Date.now() - started > REWRITE_START_MS || !current()) {
+            return { ok: false, high, triggers };
+          }
           rewritten = true;
+          rewrites += 1;
           triggers.push(high);
           let fresh: ReturnType<typeof parsePartFix> = null;
           try {
             fresh = parsePartFix(
-              await io.ask(fixPartSystem(mode), rewritePartUserPrompt(lesson, span, high, input), "fix-careful"),
+              await io.ask(fixPartSystem(mode), rewritePartUserPrompt(lesson, span, high, input, rewrites), "fix-careful"),
               lesson,
               input.upcomingTopics,
             );
           } catch {
             fresh = null;
           }
-          if (!fresh?.screens.length) return { ok: false, high, triggers };
+          if (!fresh?.screens.length) {
+            // Bozuk yanıt yeniden yazım hakkını yer; hak kaldıysa bir sonraki turda yine baştan.
+            if (rewrites < MAX_PART_REWRITES) continue;
+            return { ok: false, high, triggers };
+          }
           // Yeni taslak eskisinin yerine geçer (yama değil); kavram adı korunur, ekranlar bir araya kalsın.
           screens = fresh.screens.map((screen) => ({ ...screen, concept: part.concept }));
           disputes = [];
@@ -596,7 +612,9 @@ export async function teacherLessonPipeline(
           failure = [];
         }
         if (outcome.closing) publishedClosing = outcome.closing;
-        published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: outcome.screens }).screens);
+        // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026).
+        const fresh = dropRepeatedChecks(published, outcome.screens);
+        published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
           await options.onPublish({
             lesson: { format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] },

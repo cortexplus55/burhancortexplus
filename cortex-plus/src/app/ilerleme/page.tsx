@@ -9,77 +9,133 @@ import { formatNumber } from "@/lib/format";
 import { countMistakes } from "@/lib/learning/mistake-notebook";
 import { ActivityHistory } from "@/components/student/activity-history";
 import { LearningTimeCard } from "@/components/student/learning-time-card";
-import { StreakFreezeBadge, streakFreezeTitle } from "@/components/parity/streak-freeze-badge";
+import { StreakFreezeBadge } from "@/components/parity/streak-freeze-badge";
+import { streakFreezeTitle } from "@/lib/learning/streak-freeze-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
 import { loadNearestPrepInsights } from "@/lib/learning/prep-insights-load";
 import { todayKey } from "@/lib/learning/daily-drill";
-import type { LearningTimeRow } from "@/lib/learning/learning-time";
+import { normalizeLearningRows, type LearningTimeRow } from "@/lib/learning/learning-time";
 
 export const metadata = { title: "Aktivitelerim" };
+export const dynamic = "force-dynamic";
+
+type CountResult = { count: number | null };
+type RowsResult<T> = { data: T[] | null };
+
+/**
+ * Bir kaynak düşerse sayfa düşmez: o kart boş görünür. Supabase sorgusu hata
+ * nesnesi döndürür, yardımcılar fırlatabilir — ikisi de burada yakalanır.
+ */
+async function settle<T>(label: string, work: PromiseLike<T> | (() => PromiseLike<T>), fallback: T): Promise<T> {
+  try {
+    const result = await (typeof work === "function" ? work() : work);
+    const error = (result as { error?: unknown } | null)?.error;
+    if (error) {
+      console.error(`[ilerleme] ${label}_failed`, error);
+      return fallback;
+    }
+    return result ?? fallback;
+  } catch (error) {
+    console.error(`[ilerleme] ${label}_failed`, error);
+    return fallback;
+  }
+}
+
+const NO_COUNT: CountResult = { count: 0 };
 
 export default async function IlerlemePage() {
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [conversations, quizzes, flashcards, attempts, weak, mistakes, activity, learningTime, prepInsights] =
+  const [shell, conversations, quizzes, flashcards, attempts, weak, mistakes, activity, learningTime, prepInsights] =
     await Promise.all([
-    supabase
-      .from("conversations")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
-    supabase
-      .from("quizzes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
-    supabase
-      .from("flashcard_sets")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
-    supabase
-      .from("practice_exam_attempts")
-      .select("score")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(10),
-    supabase
-      .from("weak_topics")
-      .select("id, topic_label, severity")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(10),
-    countMistakes(supabase, user.id),
+    settle("shell", () => loadParityShellProps(supabase, user.id, user.email), {} as Partial<
+      Awaited<ReturnType<typeof loadParityShellProps>>
+    >),
+    settle<CountResult>(
+      "conversations",
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      NO_COUNT,
+    ),
+    settle<CountResult>(
+      "quizzes",
+      supabase
+        .from("quizzes")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      NO_COUNT,
+    ),
+    settle<CountResult>(
+      "flashcards",
+      supabase
+        .from("flashcard_sets")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      NO_COUNT,
+    ),
+    settle<RowsResult<{ score: unknown }>>(
+      "attempts",
+      supabase
+        .from("practice_exam_attempts")
+        .select("score")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      { data: [] },
+    ),
+    settle<RowsResult<{ topic_label: unknown; severity: unknown }>>(
+      "weak_topics",
+      supabase
+        .from("weak_topics")
+        .select("id, topic_label, severity")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      { data: [] },
+    ),
+    settle("mistakes", () => countMistakes(supabase, user.id), { open: 0, mastered: 0 }),
     // Çalışma geçmişi: bitirilen etkinliklerin tarihleri. Son bir yıl
     // yeter; ısı haritası 52 hafta gösteriyor.
-    supabase
-      .from("exam_prep_node_attempts")
-      .select("updated_at")
-      .eq("user_id", user.id)
-      .eq("status", "completed")
-      .gte(
-        "updated_at",
-        new Date(Date.now() - 370 * 24 * 60 * 60 * 1000).toISOString(),
-      )
-      .order("updated_at", { ascending: false })
-      .limit(2000),
+    settle<RowsResult<{ updated_at: unknown }>>(
+      "activity",
+      supabase
+        .from("exam_prep_node_attempts")
+        .select("updated_at")
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .gte(
+          "updated_at",
+          new Date(Date.now() - 370 * 24 * 60 * 60 * 1000).toISOString(),
+        )
+        .order("updated_at", { ascending: false })
+        .limit(2000),
+      { data: [] },
+    ),
     // Aktif öğrenme süresi (ders, test, sohbet). Gün × ekran × ders satırı.
-    supabase
-      .from("learning_time")
-      .select("activity_date, subject, seconds")
-      .eq("user_id", user.id)
-      .order("activity_date", { ascending: false })
-      .limit(5000),
-    loadNearestPrepInsights(supabase, user.id),
+    settle<RowsResult<unknown>>(
+      "learning_time",
+      supabase
+        .from("learning_time")
+        .select("activity_date, subject, seconds")
+        .eq("user_id", user.id)
+        .order("activity_date", { ascending: false })
+        .limit(5000),
+      { data: [] },
+    ),
+    settle("prep_insights", () => loadNearestPrepInsights(supabase, user.id), null),
   ]);
-  const learningRows = (learningTime.data ?? []) as LearningTimeRow[];
+  const learningRows: LearningTimeRow[] = normalizeLearningRows(learningTime.data);
 
   const activityStamps = (activity.data ?? [])
-    .map((row) => row.updated_at as string)
-    .filter(Boolean);
+    .map((row) => (typeof row?.updated_at === "string" ? row.updated_at : ""))
+    .filter((stamp) => stamp && !Number.isNaN(Date.parse(stamp)));
 
   const scores = (attempts.data ?? [])
-    .map((row) => Number(row.score ?? 0))
-    .filter((score) => score > 0);
+    .map((row) => Number(row?.score ?? 0))
+    .filter((score) => Number.isFinite(score) && score > 0);
   const average = scores.length
     ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
     : null;
@@ -100,10 +156,12 @@ export default async function IlerlemePage() {
     },
   ];
 
-  const topicRows = (weak.data ?? []).map((topic) => ({
-    label: topic.topic_label ?? "Konu",
-    severity: Number(topic.severity ?? 0),
+  const topicRows = (weak.data ?? []).filter(Boolean).map((topic) => ({
+    label: typeof topic.topic_label === "string" && topic.topic_label.trim() ? topic.topic_label : "Konu",
+    severity: Number(topic.severity) || 0,
   }));
+  const openMistakes = Number(mistakes?.open) || 0;
+  const masteredMistakes = Number(mistakes?.mastered) || 0;
 
   const hasAnyActivity =
     learningRows.length > 0 ||
@@ -149,7 +207,7 @@ export default async function IlerlemePage() {
         >
           <p className="flex items-center gap-2 text-2xl font-semibold text-[var(--cs-text)]">
             <span aria-hidden>🔥</span>
-            <span>{shell.streak} gün</span>
+            <span>{Number(shell.streak) || 0} gün</span>
             {shell.streakFreeze ? <StreakFreezeBadge state={shell.streakFreeze} /> : null}
           </p>
         </SectionCard>
@@ -218,10 +276,10 @@ export default async function IlerlemePage() {
                 Yanlış defteri
               </span>
               <span className="mt-1 block text-xs text-[var(--cs-muted)]">
-                {mistakes.open > 0
-                  ? `${formatNumber(mistakes.open)} soru tekrar bekliyor`
-                  : mistakes.mastered > 0
-                    ? `Bekleyen soru yok · ${formatNumber(mistakes.mastered)} soruyu aştın`
+                {openMistakes > 0
+                  ? `${formatNumber(openMistakes)} soru tekrar bekliyor`
+                  : masteredMistakes > 0
+                    ? `Bekleyen soru yok · ${formatNumber(masteredMistakes)} soruyu aştın`
                     : "Yanlış yaptığın sorular burada birikir"}
               </span>
             </span>

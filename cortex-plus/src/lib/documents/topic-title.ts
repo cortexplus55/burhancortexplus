@@ -397,7 +397,7 @@ export function chapterHeadings(
  * Numarasız belgede boş dönüyor; o zaman bölümleri model seçmeye
  * devam ediyor. Eksik omurga, yanlış omurgadan iyidir.
  */
-export function sectionHeadings(pages: { headings: string[] }[]): string[] {
+export function sectionHeadings(pages: { headings: string[] }[], limit = 6): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const page of pages) {
@@ -413,8 +413,8 @@ export function sectionHeadings(pages: { headings: string[] }[]): string[] {
       out.push(title);
     }
   }
-  // lessonV2Schema en fazla altı bölüm kabul ediyor.
-  return out.slice(0, 6);
+  // lessonV2Schema en fazla altı bölüm kabul ediyor; omurga sayımı sınırsız ister.
+  return Number.isFinite(limit) ? out.slice(0, limit) : out;
 }
 
 /**
