@@ -95,7 +95,7 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
 }
 
 const HEADING = /^#{1,3}\s*(.+?)\s*$/;
-const SPEAKER = /^\**\s*(ada|kerem)(?:\s*\([^)]*\))?\s*\**\s*[:：]\s*\**\s*(.*)$/i;
+const SPEAKER = /^\**\s*(ada|kerem|öğretmen|ogretmen)(?:\s*\([^)]*\))?\s*\**\s*[:：]\s*\**\s*(.*)$/iu;
 
 /**
  * Düz senaryoyu bölüm ve satırlara ayırır (model yok). Konuşmacısız satır bir önceki satıra eklenir; başlıktan
@@ -122,7 +122,9 @@ export function scriptToDraft(raw: unknown): { title: string; chapters: { title:
     const spoken = line.match(SPEAKER);
     if (spoken) {
       const text = spoken[2]!.trim();
-      if (text) current.lines.push({ speaker: spoken[1]!.toLowerCase(), text });
+      const name = spoken[1]!.toLocaleLowerCase("tr-TR");
+      const speaker = name === "kerem" ? "kerem" : "ada";
+      if (text) current.lines.push({ speaker, text });
       continue;
     }
     const previous = current.lines[current.lines.length - 1];

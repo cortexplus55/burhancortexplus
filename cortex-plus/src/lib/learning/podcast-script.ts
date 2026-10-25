@@ -32,7 +32,7 @@ export function speakerLiveBadge(speaker: SpeakerId, beat?: PodcastBeat): string
 export type PodcastBeat = "ask" | "reveal";
 /** `text` ekranda simgedir. `spoken` sese gider; yoksa `text` okunur. */
 export type PodcastLine = { speaker: SpeakerId; text: string; beat?: PodcastBeat; spoken?: string };
-export type PodcastChapter = { title: string; lines: PodcastLine[] };
+export type PodcastChapter = { title: string; lines: PodcastLine[]; durationMs?: number };
 
 /** Zamanlama eklenmiş, oynatıcının üzerinde yürüdüğü birim. */
 export type TimedLine = PodcastLine & {
@@ -44,10 +44,10 @@ export type TimedLine = PodcastLine & {
 };
 
 function asSpeaker(value: unknown, fallback: SpeakerId): SpeakerId {
-  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return (SPEAKERS as readonly string[]).includes(raw)
-    ? (raw as SpeakerId)
-    : fallback;
+  const raw = typeof value === "string" ? value.trim().toLocaleLowerCase("tr-TR") : "";
+  if (raw === "kerem") return "kerem";
+  if (raw === "ada" || raw === "öğretmen" || raw === "ogretmen") return "ada";
+  return fallback;
 }
 
 /**
@@ -120,6 +120,10 @@ export function normalizeChapters(raw: unknown): PodcastChapter[] {
     if (!item || typeof item !== "object") continue;
     const row = item as Record<string, unknown>;
     const title = typeof row.title === "string" ? row.title.trim() : "";
+    const durationMs =
+      typeof row.durationMs === "number" && Number.isFinite(row.durationMs) && row.durationMs > 0
+        ? row.durationMs
+        : undefined;
 
     const lines: PodcastLine[] = [];
     if (Array.isArray(row.lines)) {
@@ -154,7 +158,7 @@ export function normalizeChapters(raw: unknown): PodcastChapter[] {
       }
     }
 
-    if (lines.length) chapters.push({ title: title || "Bölüm", lines });
+    if (lines.length) chapters.push({ title: title || "Bölüm", lines, ...(durationMs ? { durationMs } : {}) });
   }
 
   return chapters;

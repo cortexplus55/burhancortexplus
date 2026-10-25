@@ -9,6 +9,8 @@ import {
   sanitizeGap,
 } from "@/lib/learning/oral-review";
 import { examinerVibeGradeLine, parseExaminerVibe } from "@/lib/learning/examiner-vibe";
+import { collectOralFactFindings } from "@/lib/learning/oral-fact-run";
+import { confirmedFactHits, factWeaknessLine } from "@/lib/learning/oral-fact-check";
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -62,6 +64,22 @@ export async function POST(request: Request) {
     )
     .join("\n\n");
 
+  const answers: Record<string, unknown> = {};
+  parsedBody.data.items.forEach((item, index) => {
+    answers[String(index)] = item.answer;
+  });
+  const source = parsedBody.data.items
+    .map((item) => (item.expectedPoints ?? []).join(" "))
+    .filter(Boolean)
+    .join("\n");
+  const factPromise = collectOralFactFindings({
+    service,
+    userId,
+    questions: parsedBody.data.items,
+    answers,
+    source,
+  });
+
   const outcome = await generateJson({
     service,
     userId,
@@ -77,11 +95,8 @@ export async function POST(request: Request) {
   });
 
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
+  const findings = await factPromise;
 
-  const answers: Record<string, unknown> = {};
-  parsedBody.data.items.forEach((item, index) => {
-    answers[String(index)] = item.answer;
-  });
   const reconciled = reconcileOralGrade({
     questions: parsedBody.data.items.map((item) => ({
       prompt: item.prompt,
@@ -91,8 +106,20 @@ export async function POST(request: Request) {
     modelItems: outcome.data.items ?? null,
     modelCorrectCount: outcome.data.correctCount ?? null,
   });
-  const score = oralPercentScore(reconciled.correctCount, reconciled.total);
-  const missingPoints = reconciled.items
+  const items = reconciled.items.map((item) => {
+    const hits = confirmedFactHits(
+      String(answers[String(item.index)] ?? ""),
+      source,
+      parsedBody.data.items[item.index]?.expectedPoints,
+      findings.filter((finding) => finding.index == null || finding.index === item.index),
+    );
+    if (!hits.length) return item;
+    return { ...item, correct: false, gap: factWeaknessLine(hits[0]) };
+  });
+  const correctIndices = items.filter((item) => item.correct).map((item) => item.index);
+  const correctCount = correctIndices.length;
+  const score = oralPercentScore(correctCount, reconciled.total);
+  const missingPoints = items
     .filter((item) => !item.correct && item.gap)
     .map((item) => item.gap!)
     .filter(Boolean);
@@ -119,10 +146,10 @@ export async function POST(request: Request) {
     verdict: outcome.data.verdict ?? (score >= 70 ? "İyi" : "Geliştir"),
     feedback:
       outcome.data.feedback ??
-      `Doğru: ${reconciled.correctCount}/${reconciled.total}.`,
+      `Doğru: ${correctCount}/${reconciled.total}.`,
     missingPoints: cleanedMissing,
     suggestedAnswer: outcome.data.suggestedAnswer ?? "",
-    correctIndices: reconciled.correctIndices,
-    items: reconciled.items,
+    correctIndices,
+    items,
   });
 }

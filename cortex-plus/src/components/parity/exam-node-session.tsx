@@ -41,6 +41,8 @@ import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning
 import { unscoredResult } from "@/lib/learning/node-result";
 import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
 import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { localStepScore } from "@/lib/learning/local-step";
+import { slowPrepNotice } from "@/lib/learning/quiz-speed";
 import { reviewScheduledLine } from "@/lib/learning/review-copy";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
@@ -797,8 +799,70 @@ export function ExamNodeSession({
     }
   }
 
+  async function confirmStep(base: Record<string, unknown>) {
+    const delays = [0, 400, 1200];
+    for (const delay of delays) {
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      try {
+        if (!completeRequestIdRef.current) completeRequestIdRef.current = crypto.randomUUID();
+        const res = await fetch("/api/learning/exam-prep/node", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prepId,
+            nodeId,
+            action: "complete",
+            lessonFormat: 3,
+            attemptId: attemptId ?? undefined,
+            generationId: generationId ?? undefined,
+            clientRequestId: clientRequestId ?? undefined,
+            completeRequestId: resumeEnabled ? completeRequestIdRef.current : undefined,
+            answers: { ...base, __meta: { hintsUsed: hintsUsedRef.current } },
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) continue;
+        clearClientRequestId();
+        setSaveError(null);
+        completeRequestIdRef.current = null;
+        setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
+        const earned = Number(data.stars) || 0;
+        setStarsEarned(earned);
+        if (earned > 0) window.dispatchEvent(new Event(STARS_CHANGED_EVENT));
+        if (data.review) setWrittenReview(data.review);
+        if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
+        setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
+        setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
+        setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);
+        setPathChange(parsePathChange(data.pathChange));
+        setReviewScheduled(Number(data.reviewScheduled) || 0);
+        router.refresh();
+        if (typeof data.balance === "number") {
+          window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+        }
+        completeInFlight.current = false;
+        return;
+      } catch {
+        // Sessiz: öğrenci sonucu görür, kayıt arkadan yeniden denenir.
+      }
+    }
+    completeInFlight.current = false;
+  }
+
   async function finish(nextAnswers?: Record<string, unknown>) {
     if (completeInFlight.current || loading) return;
+    const base = nextAnswers ?? answersRef.current;
+    const instant =
+      payload && (payload.type === "quiz" || payload.type === "true_false") ? localStepScore(payload, base) : null;
+    if (instant) {
+      completeInFlight.current = true;
+      setScore({ score: instant.score, total: instant.total, retried: 0 });
+      setGainOpen(false);
+      setFeedback(null);
+      setStage("result");
+      void confirmStep(base);
+      return;
+    }
     completeInFlight.current = true;
     setLoading(true);
     try {
@@ -989,11 +1053,12 @@ export function ExamNodeSession({
     return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
   }, [payload]);
   const lessonBuilding = payload.type === "lesson" && payload.building === true;
+  const contentBuilding = lessonBuilding || (payload.type === "quiz" && payload.building === true);
 
   // Parça parça açılan ders: yazım sürerken yeni kavramlar kayıttan okunur. Öğrenci ilk
   // kavramı okurken sonrakiler denetlenip eklenir; bitince bayrak kalkar.
   useEffect(() => {
-    if (!lessonBuilding || !attemptId) return;
+    if (!contentBuilding || !attemptId) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     // Değişmeyen cevapla ekran yeniden çizilmesin.
@@ -1024,7 +1089,7 @@ export function ExamNodeSession({
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [lessonBuilding, attemptId, prepId, nodeId]);
+  }, [contentBuilding, attemptId, prepId, nodeId]);
   const cardIndex = cardRepeat ? (cardRepeat.list[cardRepeat.pos] ?? index) : index;
   const cardsPlaying = stage === "play" && payload.type === "cards" && !cardOffer;
   const coachItem =
@@ -1262,6 +1327,7 @@ export function ExamNodeSession({
           sourceName={sourceName}
           topic={topicLabel}
           note={queueNote ? BUSY_NOTE : undefined}
+          slowNotice={slowPrepNotice(kind)}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
         />
       ) : null}
@@ -1509,8 +1575,12 @@ export function ExamNodeSession({
             onChange={(value) => updateAnswer(String(index), value)}
             onReveal={() => revealedRef.current.add(String(index))}
             onContinue={() => {
-              if (index + 1 < questions.length) setIndex(index + 1);
-              else void finish();
+              if (index + 1 < questions.length) {
+                setIndex(index + 1);
+                return;
+              }
+              if (payload.building) return;
+              void finish();
             }}
             continueLabel={
               index + 1 < questions.length
@@ -1519,7 +1589,7 @@ export function ExamNodeSession({
                   ? "Sınavı bitir"
                   : "Testi bitir"
             }
-            disabled={loading}
+            moreComing={payload.building === true}
             examMode={isTimedExam}
           />
         </div>
@@ -1645,7 +1715,6 @@ export function ExamNodeSession({
             <button
               type="button"
               className="cp-exam-continue cp-exam-continue--primary"
-              disabled={loading}
               onClick={() => {
                 setCardRepeat({ list: cardOffer, pos: 0, known: [] });
                 setCardOffer(null);

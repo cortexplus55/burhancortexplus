@@ -1,0 +1,27 @@
+{
+  "subject": "history",
+  "source": "Kanun 1876 yılında yürürlüğe girdi. Meclis aynı yıl toplandı. Seçim iki dereceli yapıldı.",
+  "questions": [
+    {
+      "prompt": "Kanun hangi yılda yürürlüğe girdi?",
+      "learningObjective": "Yürürlük yılı",
+      "expectedPoints": ["Kanun 1876 yılında yürürlüğe girdi"],
+      "answer": "Kanun 1808 yılında yürürlüğe girdi.",
+      "wrong": true
+    },
+    {
+      "prompt": "Meclis ne zaman toplandı?",
+      "learningObjective": "Toplanma",
+      "expectedPoints": ["Meclis aynı yıl toplandı"],
+      "answer": "Meclis aynı yıl toplandı.",
+      "wrong": false
+    },
+    {
+      "prompt": "Seçim nasıl yapıldı?",
+      "learningObjective": "Seçim usulü",
+      "expectedPoints": ["Seçim iki dereceli yapıldı"],
+      "answer": "Seçim iki dereceli yapıldı.",
+      "wrong": false
+    }
+  ]
+}

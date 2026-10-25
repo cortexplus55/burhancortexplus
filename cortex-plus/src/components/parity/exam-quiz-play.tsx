@@ -16,6 +16,7 @@ export function ExamQuizPlay({
   disabled,
   examMode = false,
   onReveal,
+  moreComing = false,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -28,6 +29,8 @@ export function ExamQuizPlay({
   examMode?: boolean;
   /** "Kontrol et": cevap kilitlendi (20 Ekim 2026). Bundan sonraki eğitmen yardımı ipucu sayılmaz. */
   onReveal?: () => void;
+  /** Kalan sorular yolda. Son düğme testi bitirmez. */
+  moreComing?: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
   const question = questions[index];
@@ -239,7 +242,7 @@ export function ExamQuizPlay({
         <span>
           {!examMode && hasCorrect && !revealed
             ? "Kontrol et"
-            : revealed && index + 1 >= questions.length
+            : revealed && index + 1 >= questions.length && !moreComing
               ? "Testi bitir"
               : revealed
                 ? "Devam et"

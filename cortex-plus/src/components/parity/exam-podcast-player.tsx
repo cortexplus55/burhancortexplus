@@ -767,6 +767,12 @@ export function ExamPodcastPlayer({
               {normalized.map((chapter, chapterIndex) => {
                 const start =
                   timeline.find((line) => line.chapterIndex === chapterIndex)?.startMs ?? 0;
+                const chapterLines = timeline.filter((line) => line.chapterIndex === chapterIndex);
+                const measured =
+                  chapterLines.length > 0 && chapterLines.every((line) => line.endMs > line.startMs)
+                    ? chapterLines[chapterLines.length - 1]!.endMs - chapterLines[0]!.startMs
+                    : 0;
+                const chapterMs = measured > 0 ? measured : (chapter.durationMs ?? 0);
                 const current = (timeline[activeIndex]?.chapterIndex ?? 0) === chapterIndex;
                 return (
                   <button
@@ -777,6 +783,7 @@ export function ExamPodcastPlayer({
                     onClick={() => seekTo(start)}
                   >
                     {chapter.title}
+                    {chapterMs > 0 ? ` · ${formatClock(chapterMs)}` : ""}
                   </button>
                 );
               })}

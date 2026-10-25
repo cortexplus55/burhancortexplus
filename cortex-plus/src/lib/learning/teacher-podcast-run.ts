@@ -24,6 +24,7 @@ import { usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 import {
   parsePodcastIssues,
   parseTeacherPodcast,
+  podcastBlockingIssues,
   podcastFixSystem,
   podcastFixUserPrompt,
   podcastIssueLine,
@@ -35,6 +36,16 @@ import {
   salvagePodcast,
   type TeacherPodcastInput,
 } from "@/lib/learning/teacher-podcast";
+import {
+  durationMovesToward,
+  durationRoundNeeded,
+  durationRoundPrompt,
+  PODCAST_DURATION_ROUND_MS,
+  scriptWords,
+  stampEstimatedDurations,
+} from "@/lib/learning/podcast-duration";
+import { cleanSpeechChapters } from "@/lib/learning/praise-filter";
+import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 
 /**
  * "script" / "scriptfix": iki sesli podcast'in senarist taslağı ve düzeltmesi (23 Ekim 2026): taslak orta, düzeltme
@@ -188,6 +199,61 @@ const CHECK_FIX_CAP_MS = 255_000;
 export function checkLoopClock(started: number, checkStarted: number): number {
   const fixUntil = Math.min(checkStarted + CHECK_FIX_WINDOW_MS, started + CHECK_FIX_CAP_MS);
   return Math.max(started, fixUntil - QUIZ_FIX_DEADLINE_MS);
+}
+
+/**
+ * Söz verilen sürenin dışındaysa tek tur genişletir ya da kısaltır.
+ * Tur bütçesi ve tavanı aşarsa atlanır. Yayınlanan metinden övgü, talimat ve etiket çıkar.
+ */
+async function alignPodcastDuration(
+  ask: AskJson,
+  episode: PodcastEpisode,
+  input: TeacherPodcastInput & { userId: string },
+  started: number,
+  service: SupabaseClient,
+): Promise<PodcastEpisode> {
+  let next = episode;
+  const direction = durationRoundNeeded(next);
+  const withinBudget = Date.now() - started <= CHECK_DEADLINE_MS - PODCAST_DURATION_ROUND_MS;
+  let note: string | null = null;
+  if (direction && withinBudget) {
+    const beforeWords = scriptWords(next);
+    const prompt = durationRoundPrompt(next, direction);
+    const roundStarted = Date.now();
+    try {
+      const revisedRaw = await Promise.race([
+        ask(prompt.system, prompt.user, "fix"),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), PODCAST_DURATION_ROUND_MS)),
+      ]);
+      const revised = revisedRaw ? parseTeacherPodcast(revisedRaw, input) : null;
+      const afterWords = revised ? scriptWords(revised) : beforeWords;
+      if (
+        revised &&
+        durationMovesToward(beforeWords, afterWords, direction) &&
+        podcastBlockingIssues(revised).length <= podcastBlockingIssues(next).length
+      ) {
+        next = revised;
+      }
+      note = `${direction} ${beforeWords}→${scriptWords(next)} ${Date.now() - roundStarted} ms`;
+    } catch {
+      note = `${direction} düştü`;
+    }
+  } else if (direction) {
+    note = `${direction} bütçe`;
+  }
+  const cleaned = stampEstimatedDurations({ ...next, chapters: cleanSpeechChapters(next.chapters) });
+  if (note) {
+    console.info("podcast_duration", { topic: input.topicLabel.slice(0, 80), note });
+    void recordLessonGenerationFailure(service, {
+      userId: input.userId,
+      topicLabel: input.topicLabel,
+      kind: "podcast",
+      stage: "duration",
+      reason: "podcast_duration",
+      reasons: [note.slice(0, 200)],
+    }).catch(() => undefined);
+  }
+  return cleaned;
 }
 
 /**
@@ -353,6 +419,7 @@ async function runTeacherPodcastInner(
         reasons: loop.problems.slice(0, 6).map((problem) => problem.slice(0, 200)),
       };
     }
+    loop.episode = await alignPodcastDuration(ask, loop.episode, input, started, service);
     // Kontrol, kredi kesinleşmeden önce aynı `ask` ile: kullanımı aynı ayrılışa yazılır.
     const check = await podcastListeningCheck(ask, loop.episode, input, started);
     if (reservation.reservationId) await commitCredits(service, reservation.reservationId);

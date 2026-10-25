@@ -1,5 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
-import { normalizeQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
+import { normalizeQuizQuestion, type QuizQuestion, type QuizQuestionWithReview, type QuizReviewDraft } from "@/lib/learning/exam-quiz";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
@@ -495,7 +495,7 @@ function publicShape(question: QuizQuestion) {
 }
 
 /** Model çıktısını soru tipine oturtur. Metne bir şey eklemez; yalnız boşluk kırpar. */
-export function parseTeacherQuiz(raw: unknown): QuizQuestion[] | null {
+export function parseTeacherQuiz(raw: unknown): QuizQuestionWithReview[] | null {
   const list = (raw as { questions?: unknown } | null)?.questions;
   if (!Array.isArray(list)) return null;
   const questions = list.flatMap((item) => {
@@ -517,7 +517,12 @@ export function parseTeacherQuiz(raw: unknown): QuizQuestion[] | null {
       // Konu testinin kapsam alanı (20 Ekim 2026): madde numarası ya da bölüm başlığı.
       point: typeof row.point === "string" || typeof row.point === "number" ? String(row.point) : undefined,
     });
-    return normalized ? [normalized] : [];
+    if (!normalized) return [];
+    const review = row.review;
+    if (review && typeof review === "object" && !Array.isArray(review)) {
+      return [{ ...normalized, review: review as QuizReviewDraft }];
+    }
+    return [normalized];
   });
   return questions.length ? questions : null;
 }

@@ -19,10 +19,19 @@ export const FAILURE_REASON_LABEL: Record<string, string> = {
   // 18 Ekim 2026: akışlı motor. Taslak okunamadı (yeniden yazıldı) ya da düzelmeyen kavram atıldı.
   draft_unreadable: "Taslak okunamadı (yeniden yazıldı)",
   concept_dropped: "Kavram atıldı (düzelmedi)",
+  quiz_stages: "Test aşama süreleri",
+  oral_fact_check: "Sözlü olgu denetimi",
+  podcast_duration: "Podcast süre turu",
 };
 
 /**
  * Öğrenciye içerik yine de ulaşan kayıtlar: ders çıktı, yalnız yavaş ya da yeniden yazıldı.
  * Özet bunları "yavaş" sütununda ayrı sayar; "başarısız" sayısına girmezler.
  */
-export const SOFT_FAILURE_REASONS: ReadonlySet<string> = new Set(["slow_generation", "draft_unreadable"]);
+export const SOFT_FAILURE_REASONS: ReadonlySet<string> = new Set([
+  "slow_generation",
+  "draft_unreadable",
+  "quiz_stages",
+  "oral_fact_check",
+  "podcast_duration",
+]);

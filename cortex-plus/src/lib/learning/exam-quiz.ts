@@ -32,6 +32,20 @@ export type QuizQuestion = {
   needsSolver?: boolean;
 };
 
+/**
+ * Yazım taslağındaki ikinci soru. Öğrenci paketine girmez.
+ * `QuizQuestion` üzerinde durmaz: odaklı pratik `review` alanını ayrı tutar.
+ */
+export type QuizReviewDraft = {
+  prompt: string;
+  options?: string[];
+  answerIndex?: number;
+  explanation?: string;
+  corrected?: string;
+};
+
+export type QuizQuestionWithReview = QuizQuestion & { review?: QuizReviewDraft };
+
 export type PublicQuizQuestion = {
   text: string;
   options: string[];

@@ -14,6 +14,8 @@ import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import { parseIssues, sourceText, type TeacherIssue, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { examPointsBlock } from "@/lib/learning/exam-points";
 import { podcastScriptSystem, scriptToDraft, usesScriptWriter } from "@/lib/learning/podcast-script-writer";
+import { keremShareIssue } from "@/lib/learning/podcast-duration";
+import { hasExamInstruction, hasPraise, hasTeacherLabel } from "@/lib/learning/praise-filter";
 
 /**
  * Öğretmen podcast motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik
@@ -404,6 +406,12 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
   }
   const arithmetic = auditQuantitative(podcastScriptText(episode), "").issues.filter((issue) => issue.kind === "arithmetic");
   for (const issue of arithmetic) issues.push(`Tutmayan hesap: ${issue.detail}`);
+  const share = keremShareIssue(episode);
+  if (share) issues.push(share);
+  const speech = lines.map((line) => line.text).join("\n");
+  if (hasPraise(speech)) issues.push("Boş övgü var.");
+  if (hasExamInstruction(speech)) issues.push("Sınav talimatı var.");
+  if (hasTeacherLabel(speech)) issues.push("Konuşmacı etiketi oynatıcıdaki adla uyuşmuyor.");
   return issues;
 }
 
@@ -517,10 +525,17 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
  * uzunluğu, kaynağa gönderme (cümle çoğu zaman gerçek bilgi taşır; yalnız düzeltme turuna gider).
  */
 const COSMETIC_PROBLEM =
-  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme|^Evet\/Hayır kalıbı|^Kerem'in sıralarının/;
+  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme|^Evet\/Hayır kalıbı|^Kerem'in sıralarının|^Kerem'in payı|^Boş övgü|^Sınav talimatı|^Konuşmacı etiketi/;
 /** Satır taramasının karşıladığı yapı sorunları (`podcastLineProblems`). */
 const LINE_HANDLED_PROBLEM =
   /^Metinde kaynak\/sayfa notu var|^Tutmayan hesap:|bir önceki cümlenin tekrarı|cevapsız soru|ikinci yanılgı itirafı/;
+
+/** Kurtarmayı durduran yapı sorunları. Biçim, pay, övgü ve etiket yayını düşürmez. */
+export function podcastBlockingIssues(episode: PodcastEpisode): string[] {
+  return podcastStructureIssues(episode).filter(
+    (issue) => !COSMETIC_PROBLEM.test(issue) && !LINE_HANDLED_PROBLEM.test(issue),
+  );
+}
 const LINE_REF = /chapters\[(\d+)\]\.lines\[(\d+)\]/g;
 const CHAPTER_ONLY_REF = /chapters\[(\d+)\](?!\.lines)/g;
 /** Denetçinin madde harfi (`podcastIssueLine` biçimi: `[where] (G) …`). */

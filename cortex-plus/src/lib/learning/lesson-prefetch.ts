@@ -9,6 +9,7 @@ import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { blockPracticeTargets, type BlockPracticeNode } from "@/lib/learning/quiz-speed";
 
 /**
  * Sıradaki dersin önceden hazırlanması (3 Ekim 2026, ürün sahibinin kararı).
@@ -541,6 +542,34 @@ export async function requestNextPrefetch(
     () => null,
   );
   if (next) await requestNodePrefetch(service, { ...input, node: next });
+}
+
+/**
+ * Ders açılınca aynı bloğun testi, doğru/yanlış'ı ve kartları yazılır.
+ * Yol penceresinden ayrıdır: biten dersin hemen ardından oynanabilsinler.
+ */
+export async function requestBlockPracticePrefetch(
+  service: SupabaseClient,
+  input: {
+    origin: string;
+    userId: string;
+    prepId: string;
+    topicId?: string | null;
+    lessonPart?: string | null;
+  },
+) {
+  const { data, error } = await service
+    .from("exam_prep_nodes")
+    .select("id, kind, status, session_meta, sort_order")
+    .eq("exam_prep_id", input.prepId);
+  if (error || !data) return;
+  const targets = blockPracticeTargets(
+    { topicId: input.topicId, lessonPart: input.lessonPart },
+    data as BlockPracticeNode[],
+  );
+  for (const node of targets) {
+    await requestNodePrefetch(service, { origin: input.origin, userId: input.userId, prepId: input.prepId, node });
+  }
 }
 
 /**

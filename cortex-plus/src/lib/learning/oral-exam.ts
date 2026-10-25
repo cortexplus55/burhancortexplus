@@ -13,6 +13,12 @@ import {
   repairTurkishSurface,
 } from "@/lib/learning/learner-fluency";
 import {
+  confirmedFactHits,
+  FACT_RATIO_CAP,
+  factWeaknessLine,
+  type FactFinding,
+} from "@/lib/learning/oral-fact-check";
+import {
   auditQuantitative,
   gradeStudentClaim,
   repairQuantitative,
@@ -104,12 +110,14 @@ export type OralItemGrade = {
   dontKnow: boolean;
   numericIssue: string | null;
   objective: string;
+  /** Kaynakla çelişen iddia. Sonuçtaki "Eksikler" bunu gösterir. */
+  factNote?: string;
   /** Model başarısız olup kelime örtüşmesi yedeği kullanıldıysa true. */
   approximate?: boolean;
 };
 
 export type OralExamReport = {
-  /** Tam karşılanan soru sayısı. Kayıt bununla tutulur. */
+  /** Tam karşılanan soru sayısı. Yol ve sonuç `pct` ile tutulur. */
   fullCount: number;
   total: number;
   /** Kısmi puan dahil genel yüzde. */
@@ -434,6 +442,7 @@ export function gradeOralAnswer(
   index: number,
   passages: OralGroundingPassage[] = [],
   semantic?: OralPointCoverage[] | null,
+  findings: FactFinding[] = [],
 ): OralItemGrade {
   const answer = answerRaw.trim();
   const prompt = polishLearnerText(question.prompt?.trim() || `Soru ${index + 1}`);
@@ -495,6 +504,10 @@ export function gradeOralAnswer(
 
   if (hollow && ratio >= 0.99) ratio = 0.5;
 
+  const hits = !dontKnow && answer ? confirmedFactHits(answer, source, question.expectedPoints, findings) : [];
+  const factNote = hits[0] ? factWeaknessLine(hits[0]) : undefined;
+  if (hits.length) ratio = Math.min(ratio, FACT_RATIO_CAP);
+
   const readable = (text: string) =>
     Boolean(text.trim()) && !announcedExampleGap(text) && fluencyIssues(text).length === 0;
 
@@ -527,7 +540,7 @@ export function gradeOralAnswer(
       missed.find((part) => !isScoreLabel(part) && !textOverlapsPrompt(part, prompt)) ||
       hollowGap ||
       "");
-  const gap = sanitizeGap(rawGap, prompt) ?? "";
+  const gap = factNote || (sanitizeGap(rawGap, prompt) ?? "");
   const right = ratio >= 0.99
     ? (claim?.rightParts[0] || covered[0] || answer.slice(0, 180))
     : (claim?.rightParts[0] || covered[0] || "");
@@ -555,6 +568,7 @@ export function gradeOralAnswer(
     dontKnow,
     numericIssue: quantNotes.length ? [...new Set(quantNotes)].join(", ") : null,
     objective,
+    ...(factNote ? { factNote } : {}),
     ...(approximate ? { approximate: true } : {}),
   };
 }
@@ -565,6 +579,7 @@ export function gradeOralExam(
   source = "",
   passages: OralGroundingPassage[] = [],
   semantics: OralSemanticItem[] | null = null,
+  findings: FactFinding[] = [],
 ): OralExamReport {
   const byIndex = new Map((semantics ?? []).map((row) => [row.index, row.points]));
   const items = questions.map((question, index) =>
@@ -575,6 +590,7 @@ export function gradeOralExam(
       index,
       passages,
       byIndex.get(index) ?? null,
+      findings.filter((finding) => finding.index == null || finding.index === index),
     ),
   );
   const total = items.length || 1;
@@ -587,8 +603,8 @@ export function gradeOralExam(
     .map((item) => item.objective)
     .slice(0, 4);
   const weaknesses = items
-    .filter((item) => item.ratio < 0.5)
-    .map((item) => item.objective)
+    .filter((item) => item.factNote || item.ratio < 0.5)
+    .map((item) => item.factNote || item.objective)
     .slice(0, 4);
   return {
     fullCount,
