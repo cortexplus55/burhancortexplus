@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
+import { missingRelation } from "@/lib/learning/missing-column";
 
 // Financial records retain the anonymised profile key. Hard-deleting auth would
 // cascade through that profile and destroy the payment/credit audit trail.
@@ -28,7 +29,11 @@ const USER_CONTENT_TABLES = [
   // 20261024121000 yalnız ekleme yapar ve kod yayınından ÖNCE uygulanır (KREDI-SISTEMI.md, "Canlıya geçiş"
   // a). Tablo yokken bu adım düşer ve silme isteği bekler; sıra bu yüzden önemli.
   "free_usage",
+  // 25 Ekim 2026: anlatarak öğren geçmişi. Göç canlıda yoksa silme bu tabloyu atlar (missingRelation).
+  "explain_attempts",
 ] as const;
+
+const OPTIONAL_PURGE_TABLES = new Set(["explain_attempts"]);
 
 /** Every step is checked and repeatable by the deletion worker. */
 export async function purgeUserData(service: SupabaseClient, userId: string): Promise<
@@ -49,6 +54,7 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
     for (const table of USER_CONTENT_TABLES) {
       step = `purge_${table}`;
       const { error } = await service.from(table).delete().eq("user_id", userId);
+      if (error && OPTIONAL_PURGE_TABLES.has(table) && missingRelation(error)) continue;
       if (error) return { ok: false, error: step };
     }
     for (const table of ["classroom_members", "assignment_submissions"]) {

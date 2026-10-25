@@ -8,6 +8,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
+import { StreakFreezeBadge, type StreakFreezeBadgeState } from "@/components/parity/streak-freeze-badge";
 import { GamificationGate } from "@/components/parity/gamification";
 import { JourneyDialog, type JourneyTab } from "@/components/parity/journey-dialog";
 import { BadgeUnlockNotice } from "@/components/parity/badge-unlock-notice";
@@ -24,6 +25,8 @@ import { FounderChip } from "@/components/student/founder-chip";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
+import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
+import type { ExamCountdown } from "@/lib/learning/exam-countdown";
 import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
 
@@ -55,6 +58,7 @@ export function ParitySorShell({
   userInitial,
   avatarEmoji,
   streak = 0,
+  streakFreeze,
   account,
   promo = null,
   recentConversations = [],
@@ -62,14 +66,18 @@ export function ParitySorShell({
   backHref = "/deneme-sinavlari",
   conversationBaseHref,
   minimalTop = false,
+  countdown = null,
 }: {
   children: React.ReactNode;
   userInitial?: string;
   avatarEmoji?: string | null;
   streak?: number;
+  streakFreeze?: StreakFreezeBadgeState | null;
   account?: StudentAccountContext;
   promo?: PromoCampaign | null;
   recentConversations?: RecentConversation[];
+  /** Ana ekran ve sınav listesi üst barı: yaklaşan sınav geri sayımı. */
+  countdown?: ExamCountdown | null;
   /**
    * Sınav sohbeti: logo ve sekme çubuğu yerine geri, seri, menü ve avatar.
    * Diğer sayfalar `app` kabuğunda kalır.
@@ -100,6 +108,7 @@ export function ParitySorShell({
   }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
+  const [freezeState, setFreezeState] = useState<StreakFreezeBadgeState | null>(streakFreeze ?? null);
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [journeyTab, setJourneyTab] = useState<JourneyTab>("streak");
   // Pencere seriyi günlük kayıttan yeniden hesaplıyor; düğmedeki sayı da ona uysun.
@@ -143,6 +152,11 @@ export function ParitySorShell({
       .then((data) => {
         if (cancelled) return;
         const days = Number(data?.streak ?? 0);
+        setFreezeState({
+          remaining: Number(data?.freezeRemaining ?? 0),
+          protected: Boolean(data?.freezeProtected),
+          used: Boolean(data?.freezeUsed),
+        });
         if (days > 0) {
           setStreakCount(days);
           try {
@@ -275,6 +289,7 @@ export function ParitySorShell({
             >
               <Flame className="h-4 w-4 text-orange-500" aria-hidden />
               <span>{streakCount}</span>
+              {freezeState ? <StreakFreezeBadge state={freezeState} compact /> : null}
             </button>
             {/* Yıldızlar ve avatar tek cam kapsülde (Astra, 17 Ekim 2026). */}
             <div className="cp-sor-me">
@@ -310,6 +325,8 @@ export function ParitySorShell({
           </Link>
         </div>
       </header>}
+
+      {chrome === "app" ? <ExamCountdownBadge countdown={countdown} /> : null}
 
       {showPlusLimit ? (
         <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />

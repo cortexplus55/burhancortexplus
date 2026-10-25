@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { headers } from "next/headers";
 import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { ParitySorShell } from "@/components/parity/sor-shell";
-import { ExamPrepHome } from "@/components/parity/exam-prep-home";
+import { ExamPrepHome, type LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
@@ -42,6 +42,7 @@ import {
   type TopicContradiction,
 } from "@/lib/learning/source-contradictions";
 import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
+import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -249,17 +250,7 @@ export default async function ExamPrepDetailPage({
   const hasTopic = Boolean(activeTopicId);
   const needsIntro = false;
 
-  let learningTrackingView = null as null | {
-    programProgressPct: number;
-    programLabel: string;
-    topicMasteryPct: number | null;
-    topicMasteryLabel: string;
-    measuredTopicCount: number;
-    unmeasuredTopicCount: number;
-    examReadinessPct: number;
-    examReadinessLabel: string;
-    claimFullyReady: boolean;
-  };
+  let learningTrackingView = null as LearningTrackingView | null;
 
   let openMisconceptions = 0;
   let openMisconceptionsKnown = true;
@@ -337,6 +328,10 @@ export default async function ExamPrepDetailPage({
       examReadinessPct: indicators.examReadiness.pct,
       examReadinessLabel: indicators.examReadiness.label,
       claimFullyReady: indicators.examReadiness.claimFullyReady,
+      coveragePct: indicators.examReadiness.components.coveragePct,
+      measuredSuccessPct: indicators.examReadiness.components.measuredSuccessPct,
+      mockPct: indicators.examReadiness.components.mockPct,
+      retentionPct: retentionFromTopics(topics),
     };
 
     const biased = preferNextNodeForTracking(nodes, {

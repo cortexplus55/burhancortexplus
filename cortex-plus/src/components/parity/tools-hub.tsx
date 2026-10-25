@@ -7,6 +7,7 @@ import {
   BookOpen,
   Camera,
   FileText,
+  CircleDot,
   FlaskConical,
   Layers,
   LineChart,
@@ -20,7 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
-import { TOOLS, TOOL_SUBJECTS, type Tool } from "@/lib/parity/tools";
+import { TOOLS, TOOL_SUBJECTS, TOOL_CATEGORIES, type Tool, type ToolCategory } from "@/lib/parity/tools";
 import { exceedsFreeDaily } from "@/lib/billing/free-reach";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import type { ActionCode } from "@/lib/env";
@@ -51,6 +52,9 @@ const ICONS: Record<string, LucideIcon> = {
   integral: Sigma,
   periyodik: FlaskConical,
   birim: Ruler,
+  "birim-cember": CircleDot,
+  parabol: LineChart,
+  hucre: FlaskConical,
   "soru-coz": Camera,
   flashcard: Layers,
   quiz: BookOpen,
@@ -68,10 +72,12 @@ export function ToolsHub() {
   const freeAccount = shellAccount ? !shellAccount.isPremium : false;
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState<string>("Tümü");
+  const [category, setCategory] = useState<ToolCategory>("simulasyon");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr-TR");
     return TOOLS.filter((t) => {
+      if (t.category !== category) return false;
       if (subject !== "Tümü" && t.subject !== subject) return false;
       if (!q) return true;
       return (
@@ -79,19 +85,35 @@ export function ToolsHub() {
         t.blurb.toLocaleLowerCase("tr-TR").includes(q)
       );
     });
-  }, [query, subject]);
+  }, [query, subject, category]);
 
   const calculators = filtered.filter((t) => t.kind === "hesap");
   const shortcuts = filtered.filter((t) => t.kind === "kisayol");
+  const activeCategory = TOOL_CATEGORIES.find((item) => item.id === category);
 
   return (
     <div className="tools">
       <header className="tools-hero">
         <h1>Araçlar</h1>
         <p>
-          Hesaplayıcılar bu sayfada açılır. Kısayollar ise sohbet, deneme ya da belgeler gibi ilgili bölüme gider.
+          Üç kategori: canlı simülasyonlar bu sayfada açılır; stüdyolar ve odak araçları ilgili bölüme gider.
         </p>
       </header>
+
+      <div className="tools-tabs" role="tablist" aria-label="Araç kategorileri">
+        {TOOL_CATEGORIES.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={item.id === category}
+            className={cn("tools-tab", item.id === category && "is-on")}
+            onClick={() => setCategory(item.id)}
+          >
+            <span aria-hidden>{item.emoji}</span> {item.label}
+          </button>
+        ))}
+      </div>
 
       <div className="tools-bar">
         <input
@@ -120,7 +142,7 @@ export function ToolsHub() {
       {calculators.length ? (
         <section className="tools-section">
           <h2>
-            Hesap araçları
+            {category === "simulasyon" ? "İnteraktif laboratuvarlar" : "Hesap araçları"}
             <span>{calculators.length}</span>
           </h2>
           <div className="tools-grid">
@@ -134,7 +156,7 @@ export function ToolsHub() {
       {shortcuts.length ? (
         <section className="tools-section">
           <h2>
-            Çalışma kısayolları
+            {activeCategory?.id === "studio" ? "Stüdyolar" : "Kısayollar"}
             <span>{shortcuts.length}</span>
           </h2>
           <div className="tools-grid">

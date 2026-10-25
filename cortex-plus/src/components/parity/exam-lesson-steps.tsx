@@ -1,9 +1,12 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence } from "@/lib/text/turkish";
-import { Check, ChevronLeft, CornerDownLeft, Info, X } from "lucide-react";
+import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
+import { prepStars } from "@/lib/stars/rules";
+import { ComparisonCarousel, ExamTrapCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
@@ -150,13 +153,26 @@ function SourceBadge({ source }: { source: { file: string; page?: number } }) {
  * `.als-formula-card`.
  */
 function FormulaCard({ formula }: { formula: NonNullable<LessonV2["sections"][number]["formula"]> }) {
+  const symbols = "symbols" in formula && Array.isArray(formula.symbols) ? formula.symbols : [];
   return (
-    <div className="als-formula-card">
+    <div className="als-formula-card" role="group" aria-label="Formül ve kural">
+      <p className="als-kicker als-kicker--formula">Formül & Kural</p>
       <p className="als-formula-card-title">{formula.title}</p>
       <p className="als-formula-card-expr">
         <RichBody text={formula.expression} />
       </p>
-      {formula.note ? <p className="als-formula-card-note">{formula.note}</p> : null}
+      {symbols.length ? (
+        <ul className="als-formula-symbols">
+          {symbols.map((item) => (
+            <li key={`${item.symbol}-${item.meaning}`}>
+              <span>{item.symbol}</span>
+              {item.meaning}
+            </li>
+          ))}
+        </ul>
+      ) : formula.note ? (
+        <p className="als-formula-card-note">{formula.note}</p>
+      ) : null}
     </div>
   );
 }
@@ -336,6 +352,9 @@ function LessonBlocks({
           case "note":
             return (
               <aside key={key} className={`als-note als-note--${calloutTone(block.note)}`}>
+                {calloutTone(block.note) === "general" ? (
+                  <p className="als-kicker als-kicker--general">Genel bilgi</p>
+                ) : null}
                 <p className="als-note-title">{block.note.title}</p>
                 <p className="als-note-body">
                   <RichBody text={block.note.body} topicHint={topicHint} />
@@ -344,6 +363,12 @@ function LessonBlocks({
             );
           case "example":
             return <ExampleBlock key={key} example={block.example} topicHint={topicHint} />;
+          case "exam_trap_card":
+            return <ExamTrapCard key={key} trap={block.trap} topicHint={topicHint} />;
+          case "memory_hook_card":
+            return <MemoryHookCard key={key} hook={block.hook} topicHint={topicHint} />;
+          case "comparison_carousel":
+            return <ComparisonCarousel key={key} carousel={block.carousel} topicHint={topicHint} />;
           default:
             return null;
         }
@@ -708,6 +733,12 @@ export function ExamLessonSteps({
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const closeDialogRef = useRef<HTMLDivElement | null>(null);
   const mathTopicHint = play.title ?? "";
+  const reduceMotion = useReducedMotion();
+  const lessonStars = prepStars("lesson", null, null);
+  const readingMinutes = honestReadingMinutes(view);
+  const progressNow = Math.min(index + 1, Math.max(1, base.length));
+  const progressMax = Math.max(1, base.length);
+  const progressRatio = progressNow / progressMax;
 
   const steps = useMemo(() => {
     // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
@@ -959,6 +990,14 @@ export function ExamLessonSteps({
       </button>
     ) : null;
 
+  const countLabel = progressLabel(
+    index,
+    base.length,
+    step,
+    index - base.length,
+    Math.max(0, steps.length - base.length - 1),
+  );
+
   return (
     <article className="als">
       <header className="als-top">
@@ -974,31 +1013,30 @@ export function ExamLessonSteps({
           <span className="als-icon als-icon--ghost" aria-hidden />
         )}
         <div
-          className="als-segments"
+          className="als-progress"
           role="progressbar"
-          aria-valuenow={Math.min(index + 1, base.length)}
+          aria-valuenow={progressNow}
           aria-valuemin={1}
-          aria-valuemax={Math.max(1, base.length)}
+          aria-valuemax={progressMax}
           aria-label="Ders ilerlemesi"
         >
-          {base.map((_, segment) => (
-            <span
-              key={segment}
-              className={segment <= Math.min(index, base.length - 1) ? "is-on" : undefined}
+          <span className="als-progress-track">
+            <motion.span
+              className="als-progress-fill"
+              initial={false}
+              animate={{ scaleX: progressRatio }}
+              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 140, damping: 22 }}
             />
-          ))}
+          </span>
         </div>
         <p className="als-count" aria-live="polite">
-          <span>
-            {progressLabel(
-              index,
-              base.length,
-              step,
-              index - base.length,
-              Math.max(0, steps.length - base.length - 1),
-            )}
-          </span>
-          <span className="als-minutes">yaklaşık {honestReadingMinutes(view)} dk</span>
+          {/^\d+ \/ \d+$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
+          <span>{countLabel}</span>
+          <span className="als-minutes">~{readingMinutes} dk okuma</span>
+        </p>
+        <p className="als-stars" title={`Bu derste ${lessonStars} yıldız`}>
+          <Star className="h-3.5 w-3.5" aria-hidden />
+          {lessonStars}
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
@@ -1468,7 +1506,7 @@ export function ExamLessonSteps({
         </div>
       ) : revealed && check && hasVerdict ? (
         <div className={correct ? "als-feedback is-right" : "als-feedback is-wrong"} role="status">
-          <span>{correct ? "🎉 Doğru" : "🤔 Yanlış"}</span>
+          <span>{correct ? "🎉 Harika!" : "🤔 Yanlış"}</span>
           <button type="button" className="als-cta als-cta--inline" onClick={next}>
             Devam et <CornerDownLeft className="h-4 w-4" aria-hidden />
           </button>
@@ -1543,8 +1581,13 @@ function Explanation({
     ) : null;
   }
   return (
-    <div className="als-explain" aria-live="polite">
-      <p className="als-explain-kicker">AÇIKLAMA</p>
+    <div className={wrong ? "als-explain" : "als-explain als-explain--why"} aria-live="polite">
+      <p className="als-explain-kicker">{wrong ? "AÇIKLAMA" : "Neden Doğru? (Çözüm Mantığı)"}</p>
+      {wrong && hint?.trim() ? (
+        <p className="als-hint-first">
+          <span className="als-tag">İpucu</span> {hint.trim()}
+        </p>
+      ) : null}
       {wrong ? (
         <>
           {wrongBody ? (
@@ -1570,11 +1613,6 @@ function Explanation({
           {misconception?.trim() ? (
             <p>
               <span className="als-tag als-tag--warn">Yanılgı</span> {misconception.trim()}
-            </p>
-          ) : null}
-          {hint?.trim() ? (
-            <p>
-              <span className="als-tag">İpucu</span> {hint.trim()}
             </p>
           ) : null}
         </>

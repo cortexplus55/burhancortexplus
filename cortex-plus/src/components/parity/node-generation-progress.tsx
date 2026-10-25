@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Info, Loader2, X } from "lucide-react";
 import { CortexLogoMotion } from "@/components/brand/cortex-logo-motion";
+import { GenerationWarmup } from "@/components/parity/generation-warmup";
 import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
 
 /**
@@ -39,6 +40,7 @@ export function NodeGenerationProgress({
   title = "Dersin hazırlanıyor…",
   sourceChips = [],
   note,
+  topic,
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
@@ -49,6 +51,8 @@ export function NodeGenerationProgress({
   sourceChips?: string[];
   /** Ek durum notu (ör. üretim yuvaları dolu: "sıradasın", 19 Ekim 2026). */
   note?: string;
+  /** Isıtma kartlarının konu adı. */
+  topic?: string | null;
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
@@ -81,7 +85,7 @@ export function NodeGenerationProgress({
       </div>
       {/* 19 Ekim 2026: nokta küresinin yerine markanın kendisi — sinyal ağda dolaşır, artıda parlar. */}
       <div className="apg-brand" aria-hidden>
-        <CortexLogoMotion size={168} mode="loop" />
+        <CortexLogoMotion size={128} mode="loop" />
       </div>
       <ul className="apg-steps">
         {steps.map((label, index) => {
@@ -124,6 +128,7 @@ export function NodeGenerationProgress({
           da hazırlanmaya devam eder.
         </p>
       ) : null}
+      <GenerationWarmup topic={topic ?? ""} />
       {hint ? (
         <div className="apg-toast">
           <Info className="h-4 w-4" aria-hidden />

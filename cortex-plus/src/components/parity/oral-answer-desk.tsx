@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Loader2, Mic, Square, Timer, Volume2 } from "lucide-react";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import {
@@ -57,6 +57,7 @@ export function OralAnswerDesk({
   );
   const [recording, setRecording] = useState(false);
   const [recSec, setRecSec] = useState(0);
+  const [level, setLevel] = useState(0);
   const [status, setStatus] = useState<"speaking" | "listening" | "thinking">("speaking");
   const [confirmBlank, setConfirmBlank] = useState(false);
   const recorder = useRef<Recorder | null>(null);
@@ -134,7 +135,7 @@ export function OralAnswerDesk({
   async function listen() {
     setMicNote("");
     setStatus("listening");
-    const next = await startRecording({});
+    const next = await startRecording({ onLevel: setLevel });
     if (!next) {
       setMicNote("Mikrofon izni verilmedi. Cevaplarını yazarak verebilirsin.");
       return;
@@ -147,6 +148,7 @@ export function OralAnswerDesk({
     const current = recorder.current;
     recorder.current = null;
     setRecording(false);
+    setLevel(0);
     setStatus("thinking");
     if (!current) return;
     const blob = await current.stop();
@@ -214,12 +216,14 @@ export function OralAnswerDesk({
   }
 
   const currentValue = probe ? follow : value;
-  const statusLabel =
-    status === "speaking"
+  const statusLabel = recording
+    ? "🎙️ Seni dinliyorum..."
+    : status === "speaking"
       ? "Öğretmen konuşuyor…"
       : status === "thinking"
         ? "Öğretmen düşünüyor…"
         : "Öğretmen dinliyor";
+  const orbScale = recording ? 0.92 + Math.min(0.55, level * 1.4) : 1;
 
   return (
     <section className="cp-oral cp-oral-desk">
@@ -238,12 +242,21 @@ export function OralAnswerDesk({
         </button>
       </header>
 
-      <div className={`cp-oral-orb-wrap is-${status}`} aria-hidden>
+      <div
+        className={`cp-oral-orb-wrap is-${status}${recording ? " is-recording" : ""}`}
+        style={{ "--cp-oral-level": String(orbScale) } as CSSProperties}
+        aria-hidden
+      >
         <div className="pm-orb cp-oral-orb" />
       </div>
       <p className="cp-oral-status" aria-live="polite">
         {statusLabel}
       </p>
+      {recording ? (
+        <p className="cp-oral-listen-clock" aria-live="polite">
+          {clock(recSec)}
+        </p>
+      ) : null}
 
       <article className="cp-oral-question-card">
         <h1>{prompt}</h1>

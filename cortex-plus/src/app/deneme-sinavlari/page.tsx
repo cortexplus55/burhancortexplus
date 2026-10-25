@@ -4,6 +4,7 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadPrepCards } from "@/lib/learning/prep-cards";
+import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 
 export const metadata = { title: "Sınav hazırlığı" };
 
@@ -30,12 +31,14 @@ export default async function DenemeSinavlariPage({
   if (tab && TAB_PAGES[tab]) redirect(TAB_PAGES[tab]);
 
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
-  // Astra'daki gibi Yaklaşan / Geçmiş iki sütunlu ızgarada; hepsi "Sınav hazırlıklarım" sayfasında.
-  const cards = await loadPrepCards(supabase, user.id, 24);
+  const [shell, cards, countdown] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    loadPrepCards(supabase, user.id, 24),
+    loadNearestExamCountdown(supabase, user.id),
+  ]);
 
   return (
-    <ParitySorShell {...shell}>
+    <ParitySorShell {...shell} countdown={countdown}>
       <ParityExamPrep cards={cards} />
     </ParitySorShell>
   );

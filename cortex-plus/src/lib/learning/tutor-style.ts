@@ -28,6 +28,25 @@ export const TUTOR_STYLE_OPTIONS: {
 
 export const DEFAULT_TUTOR_STYLE: TutorStyle = "step_by_step";
 
+/** Sohbet yazı kutusunun üstündeki canlı anahtar; sıra Sokratik → adım adım → doğrudan. */
+export const LIVE_TUTOR_STYLE_OPTIONS: {
+  id: TutorStyle;
+  label: string;
+  short: string;
+  emoji: string;
+}[] = [
+  { id: "hints_first", label: "Sokratik (Önce İpucu)", short: "Sokratik", emoji: "💡" },
+  { id: "step_by_step", label: "Adım Adım", short: "Adım Adım", emoji: "🪜" },
+  { id: "direct_solve", label: "Doğrudan Çöz", short: "Çöz", emoji: "⚡" },
+];
+
+/** Sokratik yanıtın altındaki tek tık eylemler. */
+export const SOCRATIC_QUICK_CHIPS: { label: string; prompt: string }[] = [
+  { label: "💡 Bir ipucu daha ver", prompt: "Bir ipucu daha ver; cevabı söyleme." },
+  { label: "🤔 İlk adımı göster", prompt: "İlk adımı göster; sonrası ve cevap bende kalsın." },
+  { label: "⚡ Tam çözümü göster", prompt: "Tam çözümü göster." },
+];
+
 export function parseTutorStyle(value: unknown): TutorStyle {
   if (
     value === "step_by_step" ||

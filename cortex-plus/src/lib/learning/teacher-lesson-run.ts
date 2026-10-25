@@ -5,6 +5,7 @@ import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
+import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
@@ -677,6 +678,8 @@ export function createLessonIo(
   model: string,
   options: {
     fast?: boolean;
+    /** Öğrenci profili (`student-pedagogy.ts`): yazar, denetçi ve düzeltme isteminin sonuna aynı metin. */
+    profile?: string;
     onCall?: () => void;
     onUsage: (usage: OpenAI.CompletionUsage | null | undefined, servedTier: string | null | undefined) => Promise<void> | void;
     /** Her çağrının süresi (yazarda ilk jetona kadar geçen süre de), kayıt için. */
@@ -698,7 +701,7 @@ export function createLessonIo(
           reasoning_effort: "low",
           ...tier,
           messages: [
-            { role: "system", content: system },
+            { role: "system", content: withStudentProfile(system, options.profile ?? "") },
             { role: "user", content: user },
           ],
         },
@@ -737,7 +740,7 @@ export function createLessonIo(
         ...(role === "fix" ? { reasoning_effort: "low" as const } : {}),
         ...tier,
         messages: [
-          { role: "system", content: system },
+          { role: "system", content: withStudentProfile(system, options.profile ?? "") },
           { role: "user", content: user },
         ],
       });
@@ -816,9 +819,12 @@ async function runTeacherLessonInner(
   const callMs: Record<string, number[]> = {};
   let firstTokenMs: number | undefined;
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, ürün sahibinin kararı; `fast-access.ts`).
+  const profileLoad = studentPedagogyBlock(service, input.userId, "lesson");
   const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));
+  const profile = await profileLoad;
   const io = createLessonIo(openai, model, {
     fast,
+    profile,
     onCall: () => {
       calls += 1;
     },

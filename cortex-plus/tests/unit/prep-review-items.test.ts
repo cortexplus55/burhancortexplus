@@ -52,17 +52,17 @@ describe("merdiven ve sınav günü", () => {
     // Gün İstanbul'dan: UTC 22:30 Türkiye'de ertesi gün.
     const today = istanbulDay(new Date("2026-10-20T22:30:00Z"));
     expect(today).toBe("2026-10-21");
-    expect(nextReviewStep({ step: 0, correct: true, today, examDate: null })).toEqual({
+    expect(nextReviewStep({ step: 0, correct: true, today, examDate: null })).toMatchObject({
       step: 1,
-      dueOn: "2026-10-24",
+      dueOn: "2026-10-25",
       status: "active",
     });
-    expect(nextReviewStep({ step: 3, correct: true, today, examDate: null })).toEqual({
+    expect(nextReviewStep({ step: 3, correct: true, today, examDate: null })).toMatchObject({
       step: 3,
       dueOn: null,
       status: "learned",
     });
-    expect(nextReviewStep({ step: 2, correct: false, today, examDate: null })).toEqual({
+    expect(nextReviewStep({ step: 2, correct: false, today, examDate: null })).toMatchObject({
       step: 0,
       dueOn: "2026-10-22",
       status: "active",

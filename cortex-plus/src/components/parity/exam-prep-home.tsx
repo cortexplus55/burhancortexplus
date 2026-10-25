@@ -64,6 +64,13 @@ import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { formatDayLong } from "@/lib/format";
 import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
+import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
+import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
+import {
+  buildPrepRadarView,
+  tempoFromProgress,
+} from "@/lib/learning/prep-radar";
+import { prepStars } from "@/lib/stars/rules";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
@@ -185,6 +192,10 @@ export type LearningTrackingView = {
   examReadinessPct: number;
   examReadinessLabel: string;
   claimFullyReady: boolean;
+  coveragePct?: number;
+  measuredSuccessPct?: number | null;
+  mockPct?: number | null;
+  retentionPct?: number | null;
 };
 
 export function ExamPrepHome({
@@ -374,6 +385,28 @@ export function ExamPrepHome({
     [progressView, nodes, topicLabels, topicRows, examDate, learningTracking],
   );
   const labels = labelsFor(topicLabels, topicRows);
+  const radar = useMemo(
+    () =>
+      buildPrepRadarView({
+        readinessPct: progress.scorePct,
+        targetScore: targetScore ?? progress.targetPct,
+        coveragePct:
+          learningTracking?.coveragePct ??
+          (topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progress.scorePct),
+        accuracyPct: learningTracking?.measuredSuccessPct ?? learningTracking?.topicMasteryPct,
+        mockPct: learningTracking?.mockPct ?? progress.mocks[0]?.pct ?? null,
+        retentionPct: learningTracking?.retentionPct,
+        tempoPct: tempoFromProgress({
+          programPct: learningTracking?.programProgressPct ?? progress.scorePct,
+          thisWeekMinutes: progress.tempo.thisWeekMinutes,
+          dailyGoalMinutes: progress.tempo.dailyGoalMinutes,
+          weekActivities: progress.weekActivities,
+        }),
+      }),
+    [learningTracking, progress, targetScore, topicCount, topicsDone],
+  );
+  const nextMinutes = nextNode?.sessionMeta?.durationMinutes ?? 15;
+  const nextStars = nextNode ? prepStars(nextNode.kind, null, null) : 10;
 
   useEffect(() => {
     if (!optionsOpen) return;
@@ -606,6 +639,7 @@ export function ExamPrepHome({
           reviewsHref={uiV2 ? examPrepReviewsHref(prepId) : null}
           mockHref={mockNode ? examPrepNodeHref(prepId, mockNode.id) : null}
           onCreate={(label) => setHubTopic(label)}
+          radar={radar}
         />
       ) : null}
 
@@ -639,14 +673,10 @@ export function ExamPrepHome({
             onOpen={openNode}
             readinessClaim={readinessClaim}
           />
-          {/* Astra'da yolun sonu: beşgen "hazırlık düzeyi" ve deneme sınavı çağrısı. */}
           <section className="cp-prep-goal" aria-label="Hazırlık düzeyi">
-            <div className="cp-prep-goal-badge">
-              <span className="cp-prep-goal-spark" aria-hidden>
-                ✦
-              </span>
-              <strong>%{progress.scorePct}</strong>
-              <span>Hazırlık düzeyi</span>
+            <div className="cp-prep-insights">
+              <PrepRadarChart view={radar} />
+              <PrepForecastChart series={progress.forecastSeries} />
             </div>
             <h2>Gerçek sınavda nasıl yapacağını merak ediyor musun?</h2>
             <p>Hazır olduğunda öğren.</p>
@@ -688,16 +718,23 @@ export function ExamPrepHome({
           </div>
         </div>
       ) : view === "yol" && nodes.length ? (
-        <div className="cp-exam-start-card cp-path-next">
+        <div className="cp-exam-start-card cp-path-next cp-path-next--focus">
           {nextNode ? (
             <div className="cp-prep-badges">
-              <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>
+              <span className="cp-prep-badge cp-prep-badge--next">Sıradaki adım</span>
               <span className="cp-prep-badge">{PLAN_NODE_META[nextNode.kind].title}</span>
             </div>
           ) : null}
           <h2 className="cp-path-next-title">
             {nextNode ? nodeHeading(nextNode) : "Tüm etkinlikler bitti"}
           </h2>
+          {nextNode ? (
+            <p className="cp-path-next-meta">
+              <span>~{nextMinutes} dk</span>
+              <span aria-hidden>·</span>
+              <span>+{nextStars} ⭐</span>
+            </p>
+          ) : null}
           <div className="cp-path-next-actions">
             <button
               type="button"
@@ -990,9 +1027,33 @@ function StudyPath({
     return () => observer.disconnect();
   }, [currentId]);
 
+  const currentIndex = ordered.findIndex((node) => node.id === currentId);
+
   return (
     <div className="cp-zpath" style={{ height }}>
       <p className="sr-only">{STUDY_PATH_HINT}</p>
+      {points.length > 1 ? (
+        <svg className="cp-path-lines" viewBox={`0 0 ${PATH_WIDTH} ${height}`} aria-hidden>
+          {points.slice(1).map((point, index) => {
+            const prev = points[index]!;
+            const midY = (prev.y + point.y) / 2;
+            const pastCurrent = currentIndex >= 0 && index >= currentIndex;
+            const toCurrent = point.node.id === currentId;
+            const fromDone = prev.node.status === "done";
+            return (
+              <path
+                key={`${prev.node.id}-${point.node.id}`}
+                className={cn(
+                  fromDone && !pastCurrent && "is-done",
+                  toCurrent && "is-next",
+                  pastCurrent && !toCurrent && "is-upcoming",
+                )}
+                d={`M ${prev.x} ${prev.y} C ${prev.x} ${midY}, ${point.x} ${midY}, ${point.x} ${point.y}`}
+              />
+            );
+          })}
+        </svg>
+      ) : null}
       <ol className="cp-path-list" aria-label={PREP_HOME_COPY.path}>
         {points.map(({ node, x, y }) => {
           const meta = PLAN_NODE_META[node.kind];
@@ -1029,7 +1090,10 @@ function StudyPath({
                 <PathPuck state={node.status === "done" ? "done" : node.id === currentId ? "current" : node.status === "locked" ? "locked" : "ready"} />
                 {/* Astra: bitmişte onay, kilitlide kilit, sıradakinde simge huzmede, açıkta tür. */}
                 {node.id === currentId ? null : (
-                  <span className="cp-puck-glyph" aria-hidden>
+                  <span
+                    className={cn("cp-puck-glyph", node.status === "done" && "cp-puck-glyph--gold")}
+                    aria-hidden
+                  >
                     {node.status === "done" ? <Check className="h-6 w-6" strokeWidth={2.5} /> : <NodeGlyph node={node} />}
                   </span>
                 )}

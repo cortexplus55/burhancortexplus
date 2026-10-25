@@ -23,6 +23,11 @@ import {
   type StudioSourceMode,
 } from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_EXAMINER_VIBE,
+  EXAMINER_VIBE_OPTIONS,
+  type ExaminerVibe,
+} from "@/lib/learning/examiner-vibe";
 
 /** expectedPoints: belgeden beklenen noktalar; puanlama bunlara göre yapılır (19 Ekim 2026). */
 type Question = { prompt: string; hint?: string; expectedPoints?: string[] };
@@ -49,6 +54,7 @@ export function OralStudio({
   const [sourceMode, setSourceMode] = useState<StudioSourceMode>(initialDocumentId ? "document" : "topic");
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId ?? documents[0]?.id ?? null);
   const [count, setCount] = useState<number>(5);
+  const [examinerVibe, setExaminerVibe] = useState<ExaminerVibe>(DEFAULT_EXAMINER_VIBE);
   const [notice, setNotice] = useState<string | null>(null);
   const sourceDocument = sourceMode === "document" ? documents.find((doc) => doc.id === documentId) ?? null : null;
   const [phase, setPhase] = useState<"entry" | "loading" | "play" | "grading" | "results">(
@@ -105,6 +111,7 @@ export function OralStudio({
     }>("/api/learning/oral/generate", {
       topic,
       count,
+      examinerVibe,
       ...(sourceDocument ? { documentId: sourceDocument.id } : {}),
     });
     if ("paywall" in result) {
@@ -185,6 +192,7 @@ export function OralStudio({
       suggestedAnswer?: string;
     }>("/api/learning/oral/grade", {
       title,
+      examinerVibe,
       items: questions.map((q, i) => ({
         prompt: q.prompt,
         answer: nextAnswers[i] ?? "",
@@ -247,6 +255,27 @@ export function OralStudio({
                 onDocumentChange={setDocumentId}
               />
               <StudioChoices label="Kaç soru?" options={QUESTION_COUNTS} value={count} onChange={setCount} />
+              <div className="ls-setup-block">
+                <p className="ls-setup-label">Hoca karakteri</p>
+                <div className="ls-vibe-list" role="listbox" aria-label="Hoca karakteri">
+                  {EXAMINER_VIBE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="option"
+                      aria-selected={examinerVibe === option.id}
+                      className={cn("ls-vibe", examinerVibe === option.id && "is-on")}
+                      onClick={() => setExaminerVibe(option.id)}
+                    >
+                      <span aria-hidden>{option.emoji}</span>
+                      <span>
+                        <strong>{option.title}</strong>
+                        <em>{option.blurb}</em>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </StudioSetup>
           }
           onSubmit={(next) => void start(next)}
@@ -263,10 +292,10 @@ export function OralStudio({
           {notice && index === 0 ? <p className="ls-source-notice">{notice}</p> : null}
           <p className="ls-timer">{seconds}s</p>
           <h2 className="ls-question">{question.prompt}</h2>
-          {question.hint ? <p className="ls-entry-lead">{question.hint}</p> : null}
+          {question.hint && examinerVibe === "supportive" ? <p className="ls-entry-lead">{question.hint}</p> : null}
           <div className="ls-player">
             <div
-              className="ls-timer-ring"
+              className={cn("ls-timer-ring", listening && "is-listening")}
               style={{ "--ls-left": (seconds / TURN_SECONDS) * 100 } as CSSProperties}
             >
             <button
@@ -278,7 +307,8 @@ export function OralStudio({
               <Mic className="h-8 w-8" aria-hidden />
             </button>
             </div>
-            <p className="ls-credit">{listening ? "Dinleniyor…" : "Mikrofon veya yaz"}</p>
+            <p className="ls-credit">{listening ? "🎙️ Seni dinliyorum..." : "Mikrofon veya yaz"}</p>
+            {listening ? <p className="ls-listen-clock">{TURN_SECONDS - seconds}s</p> : null}
             <label className="sr-only" htmlFor="oral-answer">
               Cevabın
             </label>

@@ -116,6 +116,8 @@ describe("öğretmen sohbeti istemi", () => {
       const line = teacherStyleLine(style);
       expect(line).not.toMatch(/nerede takıldı|tek ipucu|kontrol sorusu|genel ilke/i);
     }
+    expect(teacherStyleLine("hints_first")).toMatch(/ASLA ilk mesajda verme/);
+    expect(teacherStyleLine("hints_first")).toMatch(/yönlendirici soru/);
     expect(tutorHistoryLine([])).toBe("");
     expect(tutorHistoryLine([{ label: "Deneme yanlışı", summary: "Nispi butlan" }])).toContain("- Deneme yanlışı: Nispi butlan");
   });
@@ -174,6 +176,8 @@ describe("sohbet uç noktası öğretmen yolunu kullanır", () => {
     expect(teacherBlock).not.toContain("tutorStylePrompt");
     expect(teacherBlock).not.toContain("polishPrep");
     expect(teacherBlock).toContain("teacherStyleLine");
+    expect(teacherBlock).toContain("teacherStyleLine(tutorStyle)");
+    expect(route).toContain('tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve"])');
     expect(teacherBlock).toContain("mode: tutorMode");
     // Kaynak satırı boş kalmasın: öğretmen yolu da citations doldurur.
     expect(teacherBlock).toContain("citations = grounding.passages.slice(0, 2)");

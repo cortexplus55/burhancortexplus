@@ -15,6 +15,7 @@ const bodySchema = z.object({
   itemId: z.string().uuid(),
   pick: z.union([z.string().min(1).max(400), z.array(z.string().min(1).max(400)).min(1).max(6)]).optional(),
   recalled: z.boolean().optional(),
+  quality: z.union([z.literal(1), z.literal(4), z.literal(5)]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -24,8 +25,8 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { prepId, itemId, pick, recalled } = parsed.data;
-  if (pick === undefined && recalled === undefined) return errorResponse(400, "invalid_input");
+  const { prepId, itemId, pick, recalled, quality } = parsed.data;
+  if (pick === undefined && recalled === undefined && quality === undefined) return errorResponse(400, "invalid_input");
 
   if (!(await isFeatureEnabled(service, SPACED_REVIEW_FLAG))) return errorResponse(404, "not_found");
 
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     userId,
     prepId,
     itemId,
-    answer: { pick, recalled },
+    answer: { pick, recalled, quality },
     examDate: (prep.exam_date as string | null) ?? null,
   });
   if ("error" in outcome) {

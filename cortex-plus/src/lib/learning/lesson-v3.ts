@@ -45,6 +45,48 @@ const diagramBlockSchema = z.object({ type: z.literal("diagram"), diagram: lesso
 const exampleBlockSchema = z.object({ type: z.literal("example"), example: lessonExampleSchema });
 const checkBlockSchema = z.object({ type: z.literal("check"), check: sectionCheckSchema });
 
+/*
+  Görsel kartlar (25 Ekim 2026, ürün sahibinin kararı). Üçü yeni bilgi taşımaz; kavramın zaten anlatılan bilgisini
+  sınavın vurduğu yerden gösterir. Formül kartı ve genel bilgi kutusu yeni tür değil: `formula` (simgeleriyle) ve
+  `note` (tone 'general') öyle çizilir; modelin yazabileceği `formula_card` / `general_knowledge_box` adları
+  okunurken onlara çevrilir (`blockAlias`) — denetim ve sayım kuralları tek yerde kalsın.
+*/
+
+/** Sınav tuzağı: öğrencinin sık düştüğü karışıklık (bilerek yanlış), doğrusu ve ayırt ettiren ipucu. */
+export const lessonTrapSchema = z.object({
+  title: z.string().min(3).max(90),
+  wrong: z.string().min(6).max(260),
+  right: z.string().min(6).max(320),
+  tell: z.string().min(4).max(220).optional().catch(undefined),
+});
+
+/** Hafıza çivisi: benzetme, zihinde canlandırma ya da beş saniyelik kısa yol (ezber kodu `note` tone 'mnemonic'). */
+export const lessonHookSchema = z.object({
+  kind: z.enum(["analogy", "image", "shortcut"]).catch("analogy"),
+  title: z.string().min(3).max(90),
+  body: z.string().min(8).max(360),
+});
+
+/** Kaydırılan karşılaştırma: iki-üç kavram yan yana ya da bir çözümün adımları; kaynağın tablosu `table` kalır. */
+export const lessonCarouselSchema = z.object({
+  title: z.string().min(2).max(100).optional().catch(undefined),
+  mode: z.enum(["compare", "steps"]).catch("compare"),
+  slides: z
+    .array(
+      z.object({
+        title: z.string().min(2).max(80),
+        body: z.string().min(4).max(420),
+        points: z.array(z.string().min(2).max(160)).min(1).max(5).optional().catch(undefined),
+      }),
+    )
+    .min(2)
+    .max(5),
+});
+
+const examTrapBlockSchema = z.object({ type: z.literal("exam_trap_card"), trap: lessonTrapSchema });
+const memoryHookBlockSchema = z.object({ type: z.literal("memory_hook_card"), hook: lessonHookSchema });
+const comparisonCarouselBlockSchema = z.object({ type: z.literal("comparison_carousel"), carousel: lessonCarouselSchema });
+
 export const lessonBlockSchema = z.discriminatedUnion("type", [
   textBlockSchema,
   formulaBlockSchema,
@@ -55,15 +97,55 @@ export const lessonBlockSchema = z.discriminatedUnion("type", [
   diagramBlockSchema,
   exampleBlockSchema,
   checkBlockSchema,
+  examTrapBlockSchema,
+  memoryHookBlockSchema,
+  comparisonCarouselBlockSchema,
 ]);
 
 export type LessonBlock = z.infer<typeof lessonBlockSchema>;
 export type LessonBlockType = LessonBlock["type"];
+export type LessonTrap = z.infer<typeof lessonTrapSchema>;
+export type LessonHook = z.infer<typeof lessonHookSchema>;
+export type LessonCarousel = z.infer<typeof lessonCarouselSchema>;
+
+/** Görsel kartların türleri: oynatma paketi ve ekran bunları tanır. */
+export const VISUAL_BLOCK_TYPES = ["exam_trap_card", "memory_hook_card", "comparison_carousel"] as const;
+
+/** `formula_card` → `formula`, `general_knowledge_box` → `note` (tone 'general'). Öbür bloklar aynen. */
+export function blockAlias(item: unknown): unknown {
+  if (!item || typeof item !== "object") return item;
+  const row = item as Record<string, unknown>;
+  if (row.type === "formula_card") return { type: "formula", formula: row.formula ?? row.card };
+  if (row.type === "general_knowledge_box") {
+    const note = row.note ?? row.box;
+    return { type: "note", note: note && typeof note === "object" ? { ...(note as object), tone: "general" } : note };
+  }
+  return item;
+}
+
+/**
+ * Görsel kartın düz metni (V2 görünümü, tekrar kaynağı, kalite yargıcı): metni okuyan hiçbir şey kartı kaybetmesin.
+ * Tuzaktaki yanlış inanç etiketli kalır ki düz metni okuyan onu bilgi sanmasın.
+ */
+export function visualBlockText(block: LessonBlock): string {
+  if (block.type === "exam_trap_card") {
+    const { title, wrong, right, tell } = block.trap;
+    return `Sınav tuzağı — ${title}: Sık yapılan yanlış: ${wrong} Doğrusu: ${right}${tell ? ` Ayırt ettiren ipucu: ${tell}` : ""}`;
+  }
+  if (block.type === "memory_hook_card") return `Hafıza çivisi — ${block.hook.title}: ${block.hook.body}`;
+  if (block.type === "comparison_carousel") {
+    const slides = block.carousel.slides.map(
+      (slide) => `${slide.title}: ${slide.body}${slide.points?.length ? ` (${slide.points.join("; ")})` : ""}`,
+    );
+    return [block.carousel.title, ...slides].filter(Boolean).join("\n");
+  }
+  return "";
+}
 
 /** Bozuk tek blok dersi düşürmez: yalnız o blok atılır (V2'deki `.catch` ile aynı ilke). */
 const blocksSchema = z.array(z.unknown()).transform((items, ctx): LessonBlock[] => {
   const blocks = items.flatMap((item): LessonBlock[] => {
-    const parsed = lessonBlockSchema.safeParse(item);
+    const parsed = lessonBlockSchema.safeParse(blockAlias(item));
     return parsed.success ? [parsed.data] : [];
   });
   if (!blocks.length) {
@@ -143,7 +225,7 @@ export function screenText(screen: { blocks: readonly { type: string }[] }): str
 }
 
 /**
- * Ekranın düz metni: metin blokları + ikinci ve sonraki formül/adım/tablo/örnek.
+ * Ekranın düz metni: metin blokları + ikinci ve sonraki formül/adım/tablo/örnek + görsel kartlar.
  * V2 görünümünde bölümün tek formülü/adım listesi/tablosu kendi alanında durur;
  * fazlası gövdeye metin olarak eklenir ki metni okuyan hiçbir şey kaybolmasın.
  */
@@ -155,6 +237,7 @@ function screenBodyForV2(screen: LessonScreen): string {
     seen.add(block.type);
     if (block.type === "text") parts.push(block.text.trim());
     else if (block.type === "example") parts.push(exampleLine(block.example));
+    else if (visualBlockText(block)) parts.push(visualBlockText(block));
     else if (!first && block.type === "formula") parts.push(`${block.formula.title}: ${block.formula.expression}`);
     else if (!first && block.type === "procedure") {
       parts.push(block.procedure.steps.map((step, index) => `${index + 1}. ${step.label}: ${step.detail}`).join("\n"));

@@ -121,13 +121,13 @@ describe("oral exam chrome screens", () => {
     );
     expect(screen.getByRole("heading", { name: "Öğretmenini özelleştir" })).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
-    expect(screen.getByText("Sıkı sınav görevlisi")).toBeTruthy();
-    expect(screen.getByText("Yardımcı öğretmen")).toBeTruthy();
-    expect(screen.getByText("Zorlayıcı öğretmen")).toBeTruthy();
+    expect(screen.getByText(/Resmi Sınav Jürisi/)).toBeTruthy();
+    expect(screen.getByText(/Destekleyici Hoca/)).toBeTruthy();
+    expect(screen.getByText(/Sıkıştıran Koç/)).toBeTruthy();
     const start = screen.getByRole("button", { name: "Sözlü Deneme Sınavını Başlat" }) as HTMLButtonElement;
     expect(start.disabled).toBe(false);
     expect(
-      screen.getByRole("option", { name: /Yardımcı öğretmen/ }).getAttribute("aria-selected"),
+      screen.getByRole("option", { name: /Destekleyici Hoca/ }).getAttribute("aria-selected"),
     ).toBe("true");
   });
 

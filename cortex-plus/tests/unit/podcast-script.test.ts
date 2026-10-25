@@ -5,6 +5,7 @@ import {
   formatClock,
   lineAt,
   normalizeChapters,
+  speakerLiveBadge,
   splitSentences,
   totalDurationMs,
 } from "@/lib/learning/podcast-script";
@@ -149,6 +150,15 @@ describe("zaman çizelgesi", () => {
     expect(lineAt(timeline, 3400)).toBe(2);
     expect(lineAt(timeline, 3500)).toBe(-1);
     expect(lineAt(timeline, -1)).toBe(-1);
+  });
+});
+
+describe("speakerLiveBadge", () => {
+  it("Ada anlatır, Kerem sorar", () => {
+    expect(speakerLiveBadge("ada")).toBe("🎙️ Ada anlatıyor");
+    expect(speakerLiveBadge("ada", "ask")).toBe("🎙️ Ada soruyor");
+    expect(speakerLiveBadge("kerem")).toBe("🎙️ Kerem soruyor");
+    expect(speakerLiveBadge("kerem", "reveal")).toBe("🎙️ Kerem anlatıyor");
   });
 });
 

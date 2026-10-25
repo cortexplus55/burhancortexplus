@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { TOOLS } from "@/lib/parity/tools";
+import { TOOLS, TOOL_CATEGORIES } from "@/lib/parity/tools";
 
 /*
   19 Ekim 2026: Araçlar'daki test ve kart kartları yalnız konu yazdıran eski sayfalara (/quizler,
@@ -24,5 +24,26 @@ describe("Araçlar kısayolları", () => {
     expect(hub).toContain(`podcast: "PODCAST_GENERATE"`);
     expect(hub).toContain(`sozlu: "ORAL_EXAM_GENERATE"`);
     expect(hub).toContain(`<span className="tool-kind is-plus">Plus</span>`);
+  });
+
+  it("üç kategori ve üç simülasyon laboratuvarı vardır", () => {
+    expect(TOOL_CATEGORIES.map((item) => item.id)).toEqual(["simulasyon", "studio", "odak"]);
+    expect(TOOLS.filter((tool) => tool.category === "simulasyon").map((tool) => tool.id)).toEqual([
+      "birim-cember",
+      "parabol",
+      "hucre",
+    ]);
+    expect(TOOL_CATEGORIES.map((item) => item.label)).toEqual([
+      "İnteraktif Simülasyonlar",
+      "Çalışma Stüdyoları",
+      "Zihin & Odak Araçları",
+    ]);
+    const hub = readFileSync("src/components/parity/tools-hub.tsx", "utf8");
+    expect(hub).toContain("TOOL_CATEGORIES");
+    expect(hub).toContain("tools-tabs");
+    for (const id of ["birim-cember", "parabol", "hucre"]) {
+      expect(existsSync(`src/app/araclar/[id]/page.tsx`)).toBe(true);
+      expect(readFileSync("src/app/araclar/[id]/page.tsx", "utf8")).toContain(id === "birim-cember" ? "BirimCemberLab" : id === "parabol" ? "ParabolKesif" : "HucreLab");
+    }
   });
 });

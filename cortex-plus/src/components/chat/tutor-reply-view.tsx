@@ -14,7 +14,8 @@ import {
 import { Markdown } from "@/components/markdown";
 import { MathText } from "@/components/learning/math-text";
 import { formatSourceSections } from "@/lib/ai/source-sections";
-import { splitTutorChrome, type ReplyQuote } from "@/lib/learning/tutor-reply";
+import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learning/tutor-reply";
+import { SOCRATIC_QUICK_CHIPS, type TutorStyle } from "@/lib/learning/tutor-style";
 
 function TutorBody({
   body,
@@ -65,6 +66,7 @@ export function TutorReplyView({
   error,
   onRetry,
   hideChips = false,
+  tutorStyle,
 }: {
   /** Ayarlar > Önerilen sorular kapalıysa devam çipleri çizilmez. */
   hideChips?: boolean;
@@ -74,12 +76,30 @@ export function TutorReplyView({
   onPrompt?: (prompt: string) => void;
   error?: boolean;
   onRetry?: () => void;
+  /** Sokratik modda ipucu / adım / tam çözüm çipleri her yanıtın altında durur. */
+  tutorStyle?: TutorStyle;
 }) {
   const checkRef = useRef<HTMLDivElement | null>(null);
   const view = useMemo(
     () => splitTutorChrome(formatSourceSections(content)),
     [content],
   );
+  const chips = useMemo(() => {
+    const socratic = tutorStyle === "hints_first" ? SOCRATIC_QUICK_CHIPS : [];
+    const extra = hideChips ? [] : view.chips;
+    const seen = new Set<string>();
+    const next: ReplyChip[] = [];
+    for (const chip of [...socratic, ...extra]) {
+      if (seen.has(chip.label) || seen.has(chip.prompt)) continue;
+      seen.add(chip.label);
+      seen.add(chip.prompt);
+      next.push(chip);
+    }
+    return next;
+  }, [hideChips, tutorStyle, view.chips]);
+  const socraticLabels = tutorStyle === "hints_first"
+    ? new Set(SOCRATIC_QUICK_CHIPS.map((chip) => chip.label))
+    : null;
 
   useEffect(() => {
     if (!view.check || typeof window === "undefined") return;
@@ -164,12 +184,17 @@ export function TutorReplyView({
             return (
               <a
                 key={`${item.href}-${item.documentName}`}
-                className="cp-tutor-cite"
+                className="cp-tutor-cite cp-tutor-cite--card"
                 href={item.href}
                 title={raw}
               >
                 <FileText size={14} aria-hidden />
-                {label}
+                <span>
+                  <span className="cp-tutor-cite-kicker">
+                    {item.slide ? "Slayt" : item.pageNumber != null ? `Sayfa ${item.pageNumber}` : "Kaynak"}
+                  </span>
+                  <span className="cp-tutor-cite-name">{label}</span>
+                </span>
               </a>
             );
           })}
@@ -191,13 +216,17 @@ export function TutorReplyView({
           {view.scope.label}
         </button>
       ) : null}
-      {view.chips.length && !hideChips ? (
+      {chips.length ? (
         <div className="cp-tutor-chips" role="group" aria-label="Devam önerileri">
-          {view.chips.map((chip) => (
+          {chips.map((chip) => (
             <button
               key={chip.label}
               type="button"
-              className="cp-tutor-chip"
+              className={
+                socraticLabels?.has(chip.label)
+                  ? "cp-tutor-chip cp-tutor-chip--socratic"
+                  : "cp-tutor-chip"
+              }
               disabled={disabled}
               onClick={() => onPrompt?.(chip.prompt)}
             >

@@ -69,6 +69,12 @@ import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { TutorReplyView } from "@/components/chat/tutor-reply-view";
+import { TutorModeSwitcher } from "@/components/chat/tutor-mode-switcher";
+import {
+  DEFAULT_TUTOR_STYLE,
+  parseTutorStyle,
+  type TutorStyle,
+} from "@/lib/learning/tutor-style";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters";
 import { beyondFreeMessage } from "@/lib/billing/free-reach";
@@ -260,6 +266,7 @@ function ChatPanelSession({
   returnPath = "/ogretmen",
   isPremium,
   tutorStyleLabel,
+  initialTutorStyle,
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
@@ -287,6 +294,8 @@ function ChatPanelSession({
   chatCreditCost?: number | null;
   isPremium?: boolean;
   tutorStyleLabel?: string;
+  /** Profildeki anlatım tarzı; yazı kutusunun üstündeki anahtar buradan başlar. */
+  initialTutorStyle?: TutorStyle;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
   /**
@@ -317,6 +326,9 @@ function ChatPanelSession({
   const gatePremium = isPremium ?? shellAccount?.isPremium ?? false;
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
+  const [tutorStyle, setTutorStyle] = useState<TutorStyle>(
+    parseTutorStyle(initialTutorStyle) || DEFAULT_TUTOR_STYLE,
+  );
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   /** 402'nin kodu: hangi ücretsiz sayacın dolduğu (mesaj ya da fotoğraf). */
@@ -446,6 +458,15 @@ function ChatPanelSession({
       cancelled = true;
     };
   }, [variant]);
+
+  function persistTutorStyle(next: TutorStyle) {
+    setTutorStyle(next);
+    void fetch("/api/profile/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tutor_style: next }),
+    }).catch(() => undefined);
+  }
 
   function openComposerDialog(dialog: "image_upload" | "sketch" | "profile") {
     const params = new URLSearchParams(
@@ -918,6 +939,7 @@ function ChatPanelSession({
           imageDocumentId: activeDocumentId.current,
           prepId,
           mood: chatMood === DEFAULT_MOOD ? undefined : chatMood,
+          tutorStyle,
         }),
       });
 
@@ -1419,12 +1441,17 @@ function ChatPanelSession({
                           variant="parity"
                           disabled
                           onPrompt={() => undefined}
+                          tutorStyle={tutorStyle}
                         />
                         {renderRetry(index)}
                       </div>
                     ) : message.solve ? (
                       <div className="cp-chat-solve">
-                        <SolutionView phase={message.solve} />
+                        <SolutionView
+                          phase={message.solve}
+                          initialTutorStyle={tutorStyle}
+                          onDiscuss={(prompt) => void send(prompt)}
+                        />
                         <MessageActions
                           content={message.content}
                           messageId={feedbackEnabled ? message.id : undefined}
@@ -1446,6 +1473,7 @@ function ChatPanelSession({
                           disabled={loading}
                           onPrompt={(prompt) => void send(prompt)}
                           hideChips={!showSuggestions}
+                          tutorStyle={tutorStyle}
                         />
                         <MessageActions
                           content={message.content}
@@ -1624,6 +1652,8 @@ function ChatPanelSession({
                 </button>
               </div>
             ) : null}
+
+            <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
 
             <form
               className="cp-sor-composer-box"
@@ -2193,13 +2223,18 @@ function ChatPanelSession({
                     {message.role === "user" ? (
                       displayUserText(message.content)
                     ) : message.solve ? (
-                      <SolutionView phase={message.solve} />
+                      <SolutionView
+                        phase={message.solve}
+                        initialTutorStyle={tutorStyle}
+                        onDiscuss={(prompt) => void send(prompt)}
+                      />
                     ) : message.content ? (
                       <TutorReplyView
                         content={message.content}
                         variant="parity"
                         disabled={loading}
                         onPrompt={(prompt) => void send(prompt)}
+                        tutorStyle={tutorStyle}
                       />
                     ) : null}
                   </div>
@@ -2250,6 +2285,7 @@ function ChatPanelSession({
                   variant={isParity ? "parity" : "default"}
                   disabled={loading}
                   onPrompt={(prompt) => void send(prompt)}
+                  tutorStyle={tutorStyle}
                 />
               )}
             </div>

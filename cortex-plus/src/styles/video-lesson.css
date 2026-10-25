@@ -249,25 +249,59 @@
   height: 100%;
   object-fit: cover;
   transform-origin: 50% 40%;
-  animation: cp-video-kenburns 12s ease-out forwards;
+  animation: cp-video-kb-in 14s ease-out forwards;
   animation-play-state: paused;
+}
+
+.cp-video-image.is-kb-1 {
+  animation-name: cp-video-kb-pan-right;
+}
+
+.cp-video-image.is-kb-2 {
+  animation-name: cp-video-kb-out;
+}
+
+.cp-video-image.is-kb-3 {
+  animation-name: cp-video-kb-pan-left;
 }
 
 .cp-video-image.is-moving {
   animation-play-state: running;
 }
 
-@keyframes cp-video-kenburns {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.09);
-  }
+.cp-video-image.is-fade-out {
+  z-index: 1;
+  animation: cp-video-crossfade-out 0.7s ease both;
+}
+
+@keyframes cp-video-kb-in {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.12) translate(-2%, -1%); }
+}
+
+@keyframes cp-video-kb-out {
+  from { transform: scale(1.1) translate(1%, 0); }
+  to { transform: scale(1) translate(0, 1%); }
+}
+
+@keyframes cp-video-kb-pan-right {
+  from { transform: scale(1.08) translateX(-3%); }
+  to { transform: scale(1.08) translateX(3%); }
+}
+
+@keyframes cp-video-kb-pan-left {
+  from { transform: scale(1.08) translateX(3%); }
+  to { transform: scale(1.08) translateX(-3%); }
+}
+
+@keyframes cp-video-crossfade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-video-image {
+  .cp-video-image,
+  .cp-video-image.is-fade-out {
     animation: none;
   }
 }
@@ -365,6 +399,12 @@
   bottom: 18%;
   z-index: 2;
   margin: 0;
+  padding: 0.65rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(12, 12, 16, 0.42);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: #fff;
   font-size: clamp(1rem, 4.5vw, 1.35rem);
   font-weight: 800;

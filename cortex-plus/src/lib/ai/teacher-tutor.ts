@@ -197,7 +197,12 @@ export const CHAT_NATURAL_VOICE =
 export function teacherStyleLine(style: TutorStyle): string {
   switch (style) {
     case "hints_first":
-      return "Öğrenci ipucu öncelikli anlatımı seçti: çözüm isteyen soruda önce ipucu ver, cevabı onun bulmasına fırsat bırak.";
+      return (
+        "SOKRATİK MOD (kesin): Öğrenci açıkça 'direkt çöz', 'cevabı ver' veya 'tam çözümü göster' demedikçe " +
+        "nihai cevabı, doğru şıkkı veya sayısal sonucu ASLA ilk mesajda verme. Sorunun hangi konu veya kavramla " +
+        "ilgili olduğunu belirt, kilit formülü veya 1. adım ipucunu ver ve öğrenciye tek bir yönlendirici soru " +
+        "sorarak cevabı onun bulmasını sağla."
+      );
     case "direct_solve":
       return "Öğrenci doğrudan çözümü seçti: çözüm isteyen soruda kısa ve gerekçeli tam çözümü ver; sonra anladığını tek soruyla yokla.";
     default:

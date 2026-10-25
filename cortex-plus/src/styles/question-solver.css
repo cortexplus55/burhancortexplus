@@ -377,6 +377,7 @@
   gap: 10px;
   padding: 12px 14px;
   border-radius: var(--r-lg, 0.75rem);
+  border: 1px solid var(--c-border);
 }
 
 .cp-solver-box svg {
@@ -533,4 +534,86 @@
 
 .cp-chat-solve .cp-solver-result {
   padding: 14px;
+}
+
+.cp-solver-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cp-solver-modes button {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: var(--r-lg, 0.75rem);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  font: var(--t-label-13);
+  cursor: pointer;
+}
+
+.cp-solver-modes button.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 14%, var(--c-surface-2));
+}
+
+.cp-solver-socratic {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cp-solver-box--hint {
+  border-color: color-mix(in srgb, var(--c-action) 35%, transparent);
+  background: color-mix(in srgb, var(--c-action) 8%, var(--c-surface-2));
+}
+
+.cp-solver-box--formula {
+  border-color: color-mix(in srgb, var(--c-success, #22c55e) 35%, transparent);
+  background: color-mix(in srgb, var(--c-success, #22c55e) 8%, var(--c-surface-2));
+}
+
+.cp-solver-answer--locked,
+.cp-solver-board--locked ol {
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+
+.cp-solver-lock {
+  position: relative;
+}
+
+.cp-solver-lock .cp-solver-next {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: auto;
+  height: fit-content;
+  width: fit-content;
+  max-width: calc(100% - 24px);
+}
+
+.cp-solver-why {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--c-action);
+  font: var(--t-label-11);
+}
+
+.cp-solver-discuss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  font: var(--t-button-s);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
 }

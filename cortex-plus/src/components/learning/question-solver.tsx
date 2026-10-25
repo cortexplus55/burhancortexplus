@@ -3,9 +3,17 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, CheckCircle2, ImageUp, Lightbulb, ListPlus, RotateCcw, ShieldAlert, Sparkles, TriangleAlert } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { MathText } from "@/components/learning/math-text";
 import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
 import { solutionAnswerLine } from "@/lib/solve/solution-markdown";
 import type { SolveStatus } from "@/lib/solve/solve-run";
+import {
+  socraticConcept,
+  socraticHint,
+  SOLVE_DISCUSS_STORAGE_KEY,
+  solveDiscussPrompt,
+} from "@/lib/solve/socratic-solve";
+import { parseTutorStyle, type TutorStyle } from "@/lib/learning/tutor-style";
 import "@/styles/question-solver.css";
 
 /*
@@ -17,7 +25,13 @@ import "@/styles/question-solver.css";
 
 type Phase = SolvePhase;
 
-export function QuestionSolver({ prep = null }: { prep?: { id: string; title: string } | null }) {
+export function QuestionSolver({
+  prep = null,
+  tutorStyle,
+}: {
+  prep?: { id: string; title: string } | null;
+  tutorStyle?: TutorStyle;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [reviewToken, setReviewToken] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -131,6 +145,7 @@ export function QuestionSolver({ prep = null }: { prep?: { id: string; title: st
         <SolutionView
           phase={phase}
           onReset={reset}
+          initialTutorStyle={tutorStyle}
           extra={prep && reviewToken ? <AddToReview key={reviewToken} prepId={prep.id} token={reviewToken} /> : null}
         />
       )}
@@ -199,12 +214,38 @@ export function otherQuestionsLine(solution: { questionNumber?: string; otherQue
   return `Fotoğrafta başka sorular da var (${others}). ${solved} çözdüm; başka birini istersen fotoğrafı yeniden seç ve nota numarasını yaz, örneğin "${solution.otherQuestions[0]}. soru".`;
 }
 
-export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onReset?: () => void; extra?: ReactNode }) {
+export function SolutionView({
+  phase,
+  onReset,
+  extra,
+  initialTutorStyle,
+  onDiscuss,
+}: {
+  phase: SolveDone;
+  onReset?: () => void;
+  extra?: ReactNode;
+  initialTutorStyle?: TutorStyle;
+  onDiscuss?: (prompt: string) => void;
+}) {
   const { solution } = phase;
-  const [shown, setShown] = useState(1);
+  const socraticDefault = parseTutorStyle(initialTutorStyle) === "hints_first";
+  const [view, setView] = useState<"socratic" | "full">(socraticDefault ? "socratic" : "full");
+  const [shown, setShown] = useState(socraticDefault ? 0 : 1);
   const answerLine = solutionAnswerLine(solution);
   const steps = solution.steps;
   const allShown = shown >= steps.length;
+  const locked = view === "socratic" && shown === 0;
+  const hint = socraticHint(solution);
+  const concept = socraticConcept(solution);
+
+  function openFull() {
+    setView("full");
+    setShown((current) => Math.max(current, 1));
+  }
+
+  function revealSteps() {
+    setShown((current) => (current === 0 ? 1 : current + 1));
+  }
 
   return (
     <article className="cp-solver-result" aria-live="polite">
@@ -216,13 +257,63 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
       {phase.note ? <p className="cp-solver-note">{phase.note}</p> : null}
       {solution.otherQuestions?.length ? <p className="cp-solver-note">{otherQuestionsLine({ questionNumber: solution.questionNumber, otherQuestions: solution.otherQuestions })}</p> : null}
 
+      <div className="cp-solver-modes" role="tablist" aria-label="Çözüm görünümü">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "socratic"}
+          className={view === "socratic" ? "is-on" : undefined}
+          onClick={() => {
+            setView("socratic");
+            setShown(0);
+          }}
+        >
+          💡 İpucuyla Kendin Çöz
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "full"}
+          className={view === "full" ? "is-on" : undefined}
+          onClick={openFull}
+        >
+          ⚡ Adım Adım Tam Çözüm
+        </button>
+      </div>
+
+      {view === "socratic" ? (
+        <section className="cp-solver-socratic">
+          <aside className="cp-solver-box cp-solver-box--hint">
+            <Lightbulb aria-hidden />
+            <div>
+              <p className="cp-solver-box-title">1. İpucu / Sorunun kilidi</p>
+              <p>{hint}</p>
+            </div>
+          </aside>
+          <aside className="cp-solver-box cp-solver-box--formula">
+            <Sparkles aria-hidden />
+            <div>
+              <p className="cp-solver-box-title">Kullanılacak formül / kavram</p>
+              <MathText text={concept} className="cp-solver-math" />
+            </div>
+          </aside>
+        </section>
+      ) : null}
+
+      {!locked ? (
       <section className="cp-solver-answer">
         <p className="cp-solver-answer-label">Doğru cevap</p>
         <p className="cp-solver-answer-value">{answerLine}</p>
         {solution.answer.text && solution.answer.text !== answerLine ? <p className="cp-solver-answer-text">{solution.answer.text}</p> : null}
       </section>
+      ) : (
+        <section className="cp-solver-answer cp-solver-answer--locked" aria-hidden>
+          <p className="cp-solver-answer-label">Doğru cevap</p>
+          <p className="cp-solver-answer-value">{answerLine}</p>
+        </section>
+      )}
 
-      {solution.intro ? <p className="cp-solver-intro">{solution.intro}</p> : null}
+      {view === "full" && solution.intro ? <p className="cp-solver-intro">{solution.intro}</p> : null}
 
       {solution.given.length || solution.asked ? (
         <section className="cp-solver-facts">
@@ -246,32 +337,59 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
       ) : null}
 
       {steps.length ? (
-        <section className="cp-solver-board">
+        <section className={locked ? "cp-solver-board cp-solver-board--locked" : "cp-solver-board"}>
           <h3>
-            Çözüm adımları <span>{Math.min(shown, steps.length)} / {steps.length}</span>
+            Çözüm adımları <span>{locked ? `0 / ${steps.length}` : `${Math.min(shown, steps.length)} / ${steps.length}`}</span>
           </h3>
-          <ol>
-            {steps.slice(0, shown).map((step, index) => (
-              <li key={index}>
-                {step.math ? <p className="cp-solver-math">{step.math}</p> : null}
-                {step.say ? <p className="cp-solver-say">{step.say}</p> : null}
-              </li>
-            ))}
-          </ol>
-          {!allShown ? (
-            <div className="cp-solver-board-nav">
-              <button type="button" className="cp-solver-next" onClick={() => setShown((n) => n + 1)}>
-                Sonraki adım
-              </button>
-              <button type="button" className="cp-solver-link" onClick={() => setShown(steps.length)}>
-                Hepsini göster
+          {locked ? (
+            <div className="cp-solver-lock">
+              <ol aria-hidden>
+                {steps.slice(0, 2).map((step, index) => (
+                  <li key={index}>
+                    {step.math ? <p className="cp-solver-math">{step.math}</p> : null}
+                    {step.say ? <p className="cp-solver-say">{step.say}</p> : null}
+                  </li>
+                ))}
+              </ol>
+              <button type="button" className="cp-solver-next" onClick={revealSteps}>
+                👀 Çözüm Adımlarını Göster
               </button>
             </div>
-          ) : null}
+          ) : (
+            <>
+              <ol>
+                {steps.slice(0, shown).map((step, index) => (
+                  <li key={index}>
+                    {step.math ? <MathText text={step.math} className="cp-solver-math" /> : null}
+                    {step.say ? (
+                      <p className="cp-solver-say">
+                        <span className="cp-solver-why">Neden bu adımı yaptık?</span>
+                        {step.say}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+              {!allShown ? (
+                <div className="cp-solver-board-nav">
+                  <button type="button" className="cp-solver-next" onClick={revealSteps}>
+                    Sonraki adım
+                  </button>
+                  <button type="button" className="cp-solver-link" onClick={() => setShown(steps.length)}>
+                    Hepsini göster
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
         </section>
+      ) : locked ? (
+        <button type="button" className="cp-solver-next" onClick={revealSteps}>
+          👀 Çözüm Adımlarını Göster
+        </button>
       ) : null}
 
-      {solution.optionsWhy.length ? (
+      {!locked && solution.optionsWhy.length ? (
         <section className="cp-solver-options">
           <h3>Şıklar</h3>
           <ul>
@@ -292,7 +410,7 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
         </section>
       ) : null}
 
-      {solution.trap ? (
+      {!locked && solution.trap ? (
         <aside className="cp-solver-box cp-solver-box--trap">
           <TriangleAlert aria-hidden />
           <div>
@@ -301,7 +419,7 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
           </div>
         </aside>
       ) : null}
-      {solution.tip ? (
+      {!locked && solution.tip ? (
         <aside className="cp-solver-box cp-solver-box--tip">
           <Lightbulb aria-hidden />
           <div>
@@ -310,7 +428,7 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
           </div>
         </aside>
       ) : null}
-      {solution.check ? (
+      {!locked && solution.check ? (
         <p className="cp-solver-check">
           <Sparkles aria-hidden /> {solution.check}
         </p>
@@ -331,6 +449,11 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
       </details>
 
       {extra}
+      <DiscussAction
+        question={solution.question}
+        subject={solution.subject}
+        onDiscuss={onDiscuss}
+      />
       {onReset ? (
         <button type="button" className="cp-solver-go" onClick={onReset}>
           <RotateCcw aria-hidden /> Yeni soru
@@ -344,6 +467,40 @@ export function SolutionView({ phase, onReset, extra }: { phase: SolveDone; onRe
   Hazırlıktan açılan çözücüde: şıklı soru hazırlığın tekrar listesine eklenir, yarın ve sonra 3-7-14 gün sonra
   yeniden sorulur. Belirteç sunucunun imzası; doğru cevap tarayıcıdan gelmez.
 */
+function DiscussAction({
+  question,
+  subject,
+  onDiscuss,
+}: {
+  question: string;
+  subject: string;
+  onDiscuss?: (prompt: string) => void;
+}) {
+  const prompt = solveDiscussPrompt({ question, subject });
+  if (onDiscuss) {
+    return (
+      <button type="button" className="cp-solver-discuss" onClick={() => onDiscuss(prompt)}>
+        🎯 Bu Soruyu Öğretmenle Tartış / Benzerini Sor
+      </button>
+    );
+  }
+  return (
+    <a
+      href="/ogretmen"
+      className="cp-solver-discuss"
+      onClick={() => {
+        try {
+          sessionStorage.setItem(SOLVE_DISCUSS_STORAGE_KEY, prompt);
+        } catch {
+          /* gizli pencerede depolama kapalı olabilir */
+        }
+      }}
+    >
+      🎯 Bu Soruyu Öğretmenle Tartış / Benzerini Sor
+    </a>
+  );
+}
+
 function AddToReview({ prepId, token }: { prepId: string; token: string }) {
   const [state, setState] = useState<"idle" | "saving" | "added" | "already" | "error">("idle");
 

@@ -9,6 +9,7 @@ import { formatNumber } from "@/lib/format";
 import { countMistakes } from "@/lib/learning/mistake-notebook";
 import { ActivityHistory } from "@/components/student/activity-history";
 import { LearningTimeCard } from "@/components/student/learning-time-card";
+import { StreakFreezeBadge, streakFreezeTitle } from "@/components/parity/streak-freeze-badge";
 import { todayKey } from "@/lib/learning/daily-drill";
 import type { LearningTimeRow } from "@/lib/learning/learning-time";
 
@@ -117,6 +118,20 @@ export default async function IlerlemePage() {
         <h1 className="cp-page-title">Aktivitelerim</h1>
       </div>
       <div className="space-y-6">
+        <SectionCard
+          title="Çalışma serin"
+          description={
+            shell.streakFreeze
+              ? streakFreezeTitle(shell.streakFreeze)
+              : "Üst üste çalıştığın günler. Bir gün boşlukta kalkan seriyi korur."
+          }
+        >
+          <p className="flex items-center gap-2 text-2xl font-semibold text-[var(--cs-text)]">
+            <span aria-hidden>🔥</span>
+            <span>{shell.streak} gün</span>
+            {shell.streakFreeze ? <StreakFreezeBadge state={shell.streakFreeze} /> : null}
+          </p>
+        </SectionCard>
         {!hasAnyActivity ? (
           <EmptyState
             variant="parity"

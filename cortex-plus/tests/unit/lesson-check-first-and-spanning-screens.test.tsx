@@ -75,7 +75,7 @@ describe("ExamLessonSteps — checkFirst (retrieval-practice ordering)", () => {
     });
     render(<ExamLessonSteps lesson={lesson} closeHref="/deneme-sinavlari/p" />);
     fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));
-    expect(screen.getByText("🎉 Doğru")).toBeTruthy();
+    expect(screen.getByText("🎉 Harika!")).toBeTruthy();
   });
 });
 

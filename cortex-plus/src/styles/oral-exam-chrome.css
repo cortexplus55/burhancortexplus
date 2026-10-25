@@ -880,6 +880,22 @@
   animation: cp-oral-listen 1.6s var(--pm-ease, cubic-bezier(0.16, 1, 0.3, 1)) infinite;
 }
 
+.cp-oral-orb-wrap.is-recording .cp-oral-orb {
+  transform: scale(var(--cp-oral-level, 1));
+  box-shadow:
+    0 0 0 8px rgba(67, 83, 243, 0.18),
+    0 0 48px rgba(110, 130, 255, 0.45);
+  animation: cp-oral-listen 1s ease-in-out infinite;
+}
+
+.cp-oral-listen-clock {
+  margin: 0 0 0.4rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
 .cp-oral-orb-wrap.is-speaking .cp-oral-orb {
   animation: cp-oral-speak 1.2s ease-in-out infinite;
 }
@@ -923,6 +939,7 @@
   .cp-oral-orb-wrap.is-listening .cp-oral-orb,
   .cp-oral-orb-wrap.is-speaking .cp-oral-orb,
   .cp-oral-orb-wrap.is-thinking .cp-oral-orb,
+  .cp-oral-orb-wrap.is-recording .cp-oral-orb,
   .cp-oral-probe {
     animation: none;
   }

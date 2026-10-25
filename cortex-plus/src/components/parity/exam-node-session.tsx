@@ -36,6 +36,7 @@ import {
   BUSY_RETRY_DELAY_MS,
 } from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
+import { ReviewGradeButtons } from "@/components/parity/review-grade-buttons";
 import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning/path-change";
 import { unscoredResult } from "@/lib/learning/node-result";
 import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
@@ -70,6 +71,7 @@ import {
   type OralMessage,
   type OralTeacherMoodId,
 } from "@/lib/learning/oral-exam-chrome";
+import { parseExaminerVibe, vibeGivesHints } from "@/lib/learning/examiner-vibe";
 import {
   minutesForOralLength,
   ORAL_ALL_TOPICS,
@@ -1215,6 +1217,7 @@ export function ExamNodeSession({
       {isOral && stage === "oral-customize" && loading ? (
         <NodeGenerationProgress
           title="Sözlü deneme sınavı oluşturuluyor"
+          topic={topicLabel}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
         />
       ) : null}
@@ -1257,6 +1260,7 @@ export function ExamNodeSession({
         <NodeGenerationProgress
           title={preparingTitle(kind)}
           sourceName={sourceName}
+          topic={topicLabel}
           note={queueNote ? BUSY_NOTE : undefined}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
         />
@@ -1691,25 +1695,12 @@ export function ExamNodeSession({
           ) : null}
           {revealedCard === cardIndex ? (
           <>
-          <p>Cevabı biliyor muydun?</p>
-          <div className="cp-exam-card-rate">
-            <button
-              type="button"
-              className="cp-exam-continue"
-              disabled={loading}
-              onClick={() => rateCard(false)}
-            >
-              Hayır
-            </button>
-            <button
-              type="button"
-              className="cp-exam-continue cp-exam-continue--primary"
-              disabled={loading}
-              onClick={() => rateCard(true)}
-            >
-              Evet
-            </button>
-          </div>
+          <p>Ne kadar hatırladın?</p>
+          <ReviewGradeButtons
+            className="cp-exam-card-rate"
+            disabled={loading}
+            onGrade={(quality) => rateCard(quality >= 4)}
+          />
           </>
           ) : null}
         </section>
@@ -1721,7 +1712,7 @@ export function ExamNodeSession({
           total={questions.length}
           prompt={questions[index].prompt ?? ""}
           probeKind={(questions[index].probeKind as OralProbeKind | undefined) ?? "detail"}
-          hint={oralMoodId === "helpful" ? questions[index].hint : null}
+          hint={vibeGivesHints(parseExaminerVibe(oralMoodId)) ? questions[index].hint : null}
           persona={oralMoodId}
           minutes={minutesForOralLength(questions.length)}
           value={String(answers[String(index)] ?? "")}

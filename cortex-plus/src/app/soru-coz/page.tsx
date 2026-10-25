@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { QuestionSolver } from "@/components/learning/question-solver";
 import { requireUser } from "@/lib/auth/session";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
+import { parseTutorStyle } from "@/lib/learning/tutor-style";
 import "@/styles/question-solver.css";
 
 export const metadata = { title: "Soru çöz" };
@@ -16,6 +17,13 @@ export const dynamic = "force-dynamic";
 export default async function SoruCozPage({ searchParams }: { searchParams: Promise<{ hazirlik?: string }> }) {
   const { supabase, user } = await requireUser();
   const { hazirlik } = await searchParams;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("tutor_style")
+    .eq("id", user.id)
+    .maybeSingle();
+  const tutorStyle = parseTutorStyle(profile?.tutor_style);
 
   let prep: { id: string; title: string } | null = null;
   if (hazirlik && /^[0-9a-f-]{36}$/i.test(hazirlik)) {
@@ -48,7 +56,7 @@ export default async function SoruCozPage({ searchParams }: { searchParams: Prom
             akılda kalacak kısa kural gelir. Ücretsiz hesapta günde 1 fotoğraf sorusu.
           </p>
         </header>
-        <QuestionSolver prep={prep} />
+        <QuestionSolver prep={prep} tutorStyle={tutorStyle} />
       </div>
     </AppShell>
   );

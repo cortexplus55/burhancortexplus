@@ -8,9 +8,37 @@ import { studentTextParts, stripEmphasis } from "@/lib/learning/lesson-board";
 import { oralItemReviewable, type OralExamReport } from "@/lib/learning/oral-exam";
 import type { SectionCheck } from "@/lib/learning/teaching-standards";
 
+import {
+  applySm2,
+  previewReviewIntervals,
+  qualityFromCorrect,
+  readSm2State,
+  sm2FromStep,
+  sm2Graduates,
+  stepFromInterval,
+  type ReviewQuality,
+  type Sm2Preview,
+  type Sm2State,
+} from "@/lib/learning/review-sm2";
+
+export {
+  REVIEW_GRADE,
+  applySm2,
+  dueInLabel,
+  previewReviewIntervals,
+  qualityFromCorrect,
+  readQuality,
+  readSm2State,
+  sm2FromStep,
+  type ReviewQuality,
+  type Sm2Preview,
+  type Sm2State,
+} from "@/lib/learning/review-sm2";
+
 /**
- * Günü gelen tekrar (20 Ekim 2026, ürün sahibinin kararı): yanlış yapılan sorular ve dersin sınav
- * noktaları 1-3-7-14 gün sonra kendiliğinden yeniden sorulur; hazırlık sayfasında "Bugün N tekrar".
+ * Günü gelen tekrar: SM-2 (25 Ekim 2026). Eski 1-3-7-14 merdiveni yalnız
+ * `interval_step` CHECK 0–3 uyumu ve göçsüz satırlar için kaba basamak.
+ * Kolaylık katsayısı `item.sm2` JSONB'de (canlıda yeni kolon yok).
  *
  * Bu dosya saf çekirdek: merdiven, sınav günü sınırı, sonraki adım, tamamlanan etkinlikten taslak
  * çıkarma, tekrar anahtarı, istemciye giden mühürlü biçim, notlama ve sıralama. Model çağrısı ve
@@ -22,7 +50,7 @@ import type { SectionCheck } from "@/lib/learning/teaching-standards";
  * yeniden yazan yardımcı buraya girmez: yedekleri kök cümleyi kodla kuruyor (bekçi testi adlarını arar).
  */
 
-/** `REVIEW_INTERVALS_DAYS_V1`'in ilk dört basamağı. 14. günde doğru → öğrenildi. */
+/** Eski merdiven — yeni satırda SM-2 günü `item.sm2.intervalDays`. */
 export const REVIEW_LADDER_DAYS = [1, 3, 7, 14] as const;
 /** Bir oturumda sorulan en çok öğe; kalanı yine günü gelmiş sayılır, "Kalan N tekrar". */
 export const REVIEW_SESSION_SIZE = 12;
@@ -59,8 +87,9 @@ export type StoredReviewItem =
       corrected?: string;
       /** Aynı üretim çağrısında yazılan, `acceptReviewVariant`'tan geçmiş kök. Çift sıradaki sorularda sorulur. */
       variant?: ChoiceForm;
+      sm2?: Sm2State;
     }
-  | { mode: "recall"; front: string; back: string };
+  | { mode: "recall"; front: string; back: string; sm2?: Sm2State };
 
 export type ServedReviewItem = {
   id: string;
@@ -68,6 +97,8 @@ export type ServedReviewItem = {
   sourceLabel: string;
   /** "Sınav noktası" yalnız doğru cevaplanmış ders sorusunda; yanlışta boş. */
   reasonLabel: string | null;
+  /** Üç derece düğmesinin canlı "N gün sonra" etiketi. */
+  sm2Preview?: Sm2Preview;
 } & (
   | { mode: "choice"; prompt: string; options: string[]; multi: boolean }
   | { mode: "recall"; front: string; back: string }
@@ -113,10 +144,19 @@ export function daysBetween(a: string, b: string): number {
 /**
  * Basamağın tarihi. Sınav varsa en geç sınavdan önceki gün; sınav yarınsa sınav günü (öğrenci sabah
  * bir kez daha görür). Sınav bugün ya da geçtiyse tekrar yok (null).
+ * `intervalDays` varsa SM-2 günü kullanılır; yoksa eski merdiven basamağı.
  */
-export function reviewDueOn(input: { today: string; step: number; examDate?: string | null }): string | null {
-  const step = Math.max(0, Math.min(REVIEW_LADDER_DAYS.length - 1, Math.floor(Number(input.step) || 0)));
-  let due = addDays(input.today, REVIEW_LADDER_DAYS[step]);
+export function reviewDueOn(input: {
+  today: string;
+  step?: number;
+  examDate?: string | null;
+  intervalDays?: number;
+}): string | null {
+  const days =
+    input.intervalDays != null
+      ? Math.max(1, Math.round(Number(input.intervalDays) || 1))
+      : REVIEW_LADDER_DAYS[Math.max(0, Math.min(REVIEW_LADDER_DAYS.length - 1, Math.floor(Number(input.step) || 0)))];
+  let due = addDays(input.today, days);
   const exam = dayOrNull(input.examDate);
   if (exam) {
     if (exam <= input.today) return null;
@@ -126,19 +166,32 @@ export function reviewDueOn(input: { today: string; step: number; examDate?: str
   return due;
 }
 
-/** Cevaptan sonra: doğru bir basamak çıkar (14. günde doğru → öğrenildi); yanlış 1. güne döner. */
+/**
+ * Cevaptan sonra SM-2. `correct: true` → kalite 4, `false` → kalite 1.
+ * Dört başarılı tekrardan sonra öğrenildi (eski 14. gün + doğru).
+ */
 export function nextReviewStep(input: {
   step: number;
-  correct: boolean;
+  correct?: boolean;
+  quality?: number;
   today: string;
   examDate?: string | null;
-}): { step: number; dueOn: string | null; status: ReviewStatus } {
-  const top = REVIEW_LADDER_DAYS.length - 1;
-  const current = Math.max(0, Math.min(top, Math.floor(Number(input.step) || 0)));
-  if (input.correct && current >= top) return { step: top, dueOn: null, status: "learned" };
-  const step = input.correct ? current + 1 : 0;
-  const dueOn = reviewDueOn({ today: input.today, step, examDate: input.examDate });
-  return { step, dueOn, status: dueOn ? "active" : "expired" };
+  sm2?: Sm2State | null;
+}): { step: number; dueOn: string | null; status: ReviewStatus; sm2: Sm2State } {
+  const quality = (input.quality ?? qualityFromCorrect(input.correct === true)) as ReviewQuality;
+  const current = input.sm2 ?? sm2FromStep(input.step);
+  const sm2 = applySm2(current, quality);
+  if (sm2Graduates(sm2, quality)) {
+    const exam = dayOrNull(input.examDate);
+    if (exam && exam <= input.today) return { step: 3, dueOn: null, status: "expired", sm2 };
+    return { step: 3, dueOn: null, status: "learned", sm2 };
+  }
+  const dueOn = reviewDueOn({ today: input.today, intervalDays: sm2.intervalDays, examDate: input.examDate });
+  return { step: stepFromInterval(sm2.intervalDays), dueOn, status: dueOn ? "active" : "expired", sm2 };
+}
+
+export function withSm2(item: StoredReviewItem, sm2: Sm2State): StoredReviewItem {
+  return { ...item, sm2 };
 }
 
 function fold(text: string): string {
@@ -169,13 +222,14 @@ export function reviewPromptKey(item: StoredReviewItem): string {
 }
 
 /**
- * Ekranda sınav noktası var mı: metinde `==…==` vurgusu ya da "Sınav ipucu" / "Akılda tut" kutusu.
- * Genel bilgi ve ezber kodu sayılmaz (sınavın sorduğu belgedeki bilgi değil).
+ * Ekranda sınav noktası var mı: metinde `==…==` vurgusu, "Sınav ipucu" / "Akılda tut" kutusu ya da sınav tuzağı
+ * kartı. Genel bilgi, ezber kodu ve hafıza çivisi sayılmaz (sınavın sorduğu belgedeki bilgi değil).
  */
 export function screenHasExamPoint(screen: Pick<LessonScreen, "blocks">): boolean {
   return screen.blocks.some((block) => {
     if (block.type === "text") return studentTextParts(block.text).some((part) => part.exam);
     if (block.type === "note") return block.note.tone === "exam" || block.note.tone === "remember";
+    if (block.type === "exam_trap_card") return true;
     return false;
   });
 }
@@ -185,6 +239,7 @@ function screenSource(screen: Pick<LessonScreen, "blocks">): string {
     .flatMap((block) => {
       if (block.type === "text") return [block.text];
       if (block.type === "note") return [block.note.title, block.note.body];
+      if (block.type === "exam_trap_card") return [block.trap.title, block.trap.right];
       return [];
     })
     .join("\n");
@@ -461,6 +516,15 @@ const choiceFormSchema = z.object({
   explanation: z.string().max(3000).optional().catch(undefined),
 });
 
+const sm2Field = z
+  .object({
+    easeFactor: z.number().min(1.3).max(4),
+    intervalDays: z.number().min(0).max(400),
+    repetitions: z.number().int().min(0).max(200),
+  })
+  .optional()
+  .catch(undefined);
+
 const storedItemSchema = z.discriminatedUnion("mode", [
   choiceFormSchema.extend({
     mode: z.literal("choice"),
@@ -470,8 +534,14 @@ const storedItemSchema = z.discriminatedUnion("mode", [
     optionWhy: z.record(z.string(), z.string()).optional(),
     corrected: z.string().max(3000).optional(),
     variant: choiceFormSchema.optional().catch(undefined),
+    sm2: sm2Field,
   }),
-  z.object({ mode: z.literal("recall"), front: z.string().min(2).max(4000), back: z.string().min(2).max(6000) }),
+  z.object({
+    mode: z.literal("recall"),
+    front: z.string().min(2).max(4000),
+    back: z.string().min(2).max(6000),
+    sm2: sm2Field,
+  }),
 ]);
 
 function formIsSound(form: ChoiceForm): boolean {
@@ -553,7 +623,8 @@ export function sealReviewItem(row: ReviewItemRow): ServedReviewItem | null {
     sourceLabel: row.source_ref?.startsWith("photo:") ? "Çözdüğün soru" : (REVIEW_SOURCE_LABEL[sourceKind] ?? "Tekrar"),
     reasonLabel: row.reason === "exam_point" ? "Sınav noktası" : null,
   };
-  if (item.mode === "recall") return { ...base, mode: "recall", front: item.front, back: item.back };
+  const sm2Preview = previewReviewIntervals(readSm2State(item, row.interval_step));
+  if (item.mode === "recall") return { ...base, mode: "recall", front: item.front, back: item.back, sm2Preview };
   const form = servedForm(item, row.ask_count);
   if (!form) return null;
   return {
@@ -563,10 +634,11 @@ export function sealReviewItem(row: ReviewItemRow): ServedReviewItem | null {
     options: servedOptions(row.id, row.ask_count, item),
     // Yazarın tekrar kökü yalnız tek doğrulu soruda var.
     multi: form.variant ? false : item.multi,
+    sm2Preview,
   };
 }
 
-export type ReviewAnswer = { pick?: string | string[]; recalled?: boolean };
+export type ReviewAnswer = { pick?: string | string[]; recalled?: boolean; quality?: ReviewQuality };
 
 /** Cevap ucunun döndürdüğü; istemci yalnız bunu görür. */
 export type ReviewAnswerOutcome = {
@@ -584,9 +656,12 @@ export type ReviewAnswerOutcome = {
   remaining: number;
 };
 
-/** Sunucuda not. Bozuk cevap null (kayıt yazılmaz). */
+/** Sunucuda not. Bozuk cevap null (kayıt yazılmaz). Kalite 1/4/5 hatırlamada `recalled` yerine geçebilir. */
 export function gradeReviewAnswer(item: StoredReviewItem, askCount: number, answer: ReviewAnswer): boolean | null {
-  if (item.mode === "recall") return typeof answer.recalled === "boolean" ? answer.recalled : null;
+  if (item.mode === "recall") {
+    if (typeof answer.quality === "number") return answer.quality >= 4;
+    return typeof answer.recalled === "boolean" ? answer.recalled : null;
+  }
   const form = servedForm(item, askCount);
   if (!form) return null;
   const picks = selectedOptions(answer.pick);

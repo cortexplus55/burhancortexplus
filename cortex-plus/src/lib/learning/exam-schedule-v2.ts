@@ -9,6 +9,14 @@ import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
 import { sourceCitation } from "@/lib/learning/path-source-label";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
+import {
+  extraPracticeForTarget,
+  masteryBarForTarget,
+  reviewPassesForTarget,
+  targetPlanMode,
+  targetTempoFactor,
+  type TargetPlanMode,
+} from "@/lib/learning/target-plan";
 
 export type ScheduleSessionRole = "learn" | "practice" | "review" | "mock";
 
@@ -146,6 +154,10 @@ export type ScheduleBuildResult = {
   orderedTopicIds: string[];
   studyDayDates: string[];
   summary: string;
+  /** Hedef puanın plan kipi. Eski kayıtlarda yok; o zaman solid. */
+  targetMode?: TargetPlanMode;
+  /** Konu hâkimiyeti eşiği: peak ≥85, solid 75, pass ≤65. */
+  masteryBar?: number;
 };
 
 /**
@@ -321,12 +333,15 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     input.fromDate,
   );
   const availableMinutes = studyDayDates.length * daily;
+  const targetMode = targetPlanMode(input.targetScore);
+  const masteryBar = masteryBarForTarget(input.targetScore);
+  const tempo = targetTempoFactor(input.targetScore);
   // Konular yolun sırasıyla gelir (kurulumda öğrencinin onayladığı liste, yeniden planlamada
   // hazırlığın konu sırası); takvim yeniden dizmez.
   const ordered = input.topics.slice();
   const loads = ordered.map((t) => ({
     topic: t,
-    minutes: estimateTopicMinutes(t),
+    minutes: Math.max(MIN_TOPIC_MINUTES, Math.round(estimateTopicMinutes(t) * tempo)),
   }));
 
   const mockBuffer = Math.min(45, daily);
@@ -577,7 +592,11 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     const { learnDay, practiceDay } = core[topicIndex]!;
     const practiceM = roleMinutes("practice", minutes);
     const reviewM = roleMinutes("review", minutes);
-    const practiceGoal = 1 + extraPracticeForTopic(topic, input.daysToExam);
+    const extras = extraPracticeForTarget(
+      extraPracticeForTopic(topic, input.daysToExam),
+      input.targetScore,
+    );
+    const practiceGoal = 1 + extras;
     let practiceCursor = practiceDay + 1;
     for (let variant = 1; variant < practiceGoal && practiceCursor < lastIdx; variant += 1) {
       let placed = false;
@@ -593,12 +612,21 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
 
     // Reviews prefer later days but not only last if we need mock room.
-    for (let d = Math.max(learnDay + 1, 0); d <= lastIdx; d += 1) {
-      if (d === lastIdx && dayBudget[d] < reviewM + 20) continue;
-      if (place(d, topic, "review", reviewM)) {
-        mark(topicIndex, 200);
-        break;
+    // Hedef kipi tekrar sayısını belirler: zirvede ağır konuya ikinci tur, barajda yalnız zayıf.
+    const reviewGoal = reviewPassesForTarget(input.targetScore, topic);
+    let reviewCursor = Math.max(learnDay + 1, 0);
+    for (let pass = 0; pass < reviewGoal; pass += 1) {
+      let placed = false;
+      for (let d = reviewCursor; d <= lastIdx; d += 1) {
+        if (d === lastIdx && dayBudget[d] < reviewM + 20) continue;
+        if (place(d, topic, "review", reviewM)) {
+          mark(topicIndex, 200 + pass);
+          reviewCursor = d + 1;
+          placed = true;
+          break;
+        }
       }
+      if (!placed) break;
     }
   }
 
@@ -634,9 +662,15 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
 
   // Planın birimi konu. Günlük dakika yalnızca etkinliklerin güne
   // sığması için içeride kalır; özette saat kotası yok.
+  const modeNote =
+    targetMode === "peak"
+      ? " · zirve hedefi: ekstra test ve tekrar"
+      : targetMode === "pass"
+        ? " · baraj hedefi: çekirdek yol"
+        : "";
   const summary = fits
-    ? `Planın ${kept.length}`
-    : `Planın ${kept.length} konu; süre dar, etkinlikler kısaltıldı`;
+    ? `Planın ${kept.length}${modeNote}`
+    : `Planın ${kept.length} konu; süre dar, etkinlikler kısaltıldı${modeNote}`;
 
   // Takvim günü yolu sıralamaz. Güne göre dizmek, dolu bir günden geriye
   // kayan sonraki konunun dersini önceki konunun dersinin önüne alıyordu.
@@ -651,6 +685,8 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     orderedTopicIds: kept.map((k) => k.topic.id),
     studyDayDates,
     summary,
+    targetMode,
+    masteryBar,
   };
 }
 
@@ -673,6 +709,7 @@ export function redistributeRemainingSchedule(input: {
   studyDays: number[];
   daysToExam: number;
   topics: ScheduleTopicInput[];
+  targetScore?: number | null;
 }): ScheduleBuildResult {
   const completedKeys = new Set(
     input.completed.map((c) =>
@@ -707,6 +744,7 @@ export function redistributeRemainingSchedule(input: {
     studyDays: input.studyDays,
     topics,
     fromDate: input.fromDate,
+    targetScore: input.targetScore,
   });
   const completedMaxSort = keptCompleted.reduce(
     (m, s) => Math.max(m, s.sortOrder),

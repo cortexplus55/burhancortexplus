@@ -5,6 +5,7 @@ import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
+import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
@@ -375,7 +376,9 @@ async function runTeacherQuizInner(
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
+  const profileLoad = studentPedagogyBlock(service, input.userId, "quiz");
   const tier = fastTier(!free && !held && (await fastAllowedFor(service, input.userId)));
+  const profile = await profileLoad;
   const ask: AskJson = async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -386,7 +389,7 @@ async function runTeacherQuizInner(
       // düzeltme düşük düşünmeyle; her soruyu kendisi çözen denetçi varsayılanda kalır.
       ...(role === "verify" ? {} : { reasoning_effort: "low" as const }),
       messages: [
-        { role: "system", content: system },
+        { role: "system", content: withStudentProfile(system, profile) },
         { role: "user", content: user },
       ],
     });

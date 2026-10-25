@@ -413,6 +413,16 @@ export const lessonFormulaSchema = z.object({
   title: z.string().min(2).max(60),
   expression: z.string().min(2).max(200),
   note: z.string().min(2).max(200).optional().catch(undefined),
+  /**
+   * Simgelerin anlamı (25 Ekim 2026): formül kartında küçük etiketler ("v · hız (m/s)"). Bozuk liste formülü
+   * düşürmez; yoksa kart `note`'u gösterir.
+   */
+  symbols: z
+    .array(z.object({ symbol: z.string().min(1).max(24), meaning: z.string().min(2).max(80) }))
+    .min(1)
+    .max(8)
+    .optional()
+    .catch(undefined),
 });
 
 /** Sıralı, uygulanabilir işlem (hesaplama, tanı basamağı): numaralı adımlar. */

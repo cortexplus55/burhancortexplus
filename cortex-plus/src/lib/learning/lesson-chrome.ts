@@ -4,13 +4,12 @@ import {
   type MaterialLanguage,
 } from "@/lib/learning/teacher-brain";
 
-/** Ders üretim ekranındaki beş adım — yakalanan yükleme listesi. */
+/** Ders üretim ekranındaki adımlar — sunucudaki gerçek sırayı anlatır; son adım cevap gelene kadar döner. */
 export const LESSON_PREP_STEPS = [
-  "Materyallerin okunuyor",
-  "Bilgi seviyen kontrol ediliyor",
-  "Uygun zorluk seviyesi ayarlanıyor",
-  "Sorular seviyene göre seçiliyor",
-  "Materyallerinle karşılaştırılıyor",
+  "📄 Notların taranıyor",
+  "🧠 Sınav tuzakları çıkarılıyor",
+  "🎨 Görsel kartlar ve sorular hazırlanıyor",
+  "✅ Çift denetim yapılıyor",
 ] as const;
 
 /** exam / remember / mnemonic: "Sınav ipucu", "Akılda tut", "Ezber kodu" (18 Ekim 2026). */

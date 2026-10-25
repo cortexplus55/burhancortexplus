@@ -50,6 +50,7 @@ export function resolveExamCountdown(input: {
   prepTitle?: string | null;
   goalTargetDate?: string | null;
   addHref?: string;
+  from?: Date;
 }): ExamCountdown {
   const addHref = input.addHref ?? "/deneme-sinavlari/olustur";
   const examDate = input.prepExamDate ?? input.goalTargetDate ?? null;
@@ -70,7 +71,7 @@ export function resolveExamCountdown(input: {
     };
   }
 
-  const daysLeft = daysUntilDate(examDate);
+  const daysLeft = daysUntilDate(examDate, input.from);
   if (daysLeft < 0) {
     return {
       state: "past",
@@ -93,4 +94,11 @@ export function resolveExamCountdown(input: {
         : `${name} · ${daysLeft} gün kaldı`,
     examTitle,
   };
+}
+
+/** Ana ekran / sınav listesi üst barı. Yalnız yaklaşan sınavda. */
+export function examCountdownHeadline(countdown: ExamCountdown): string | null {
+  if (countdown.state !== "countdown") return null;
+  if (countdown.daysLeft === 0) return "⏳ Sınavın Bugün — Bugünkü Hedefin Hazır";
+  return `⏳ Sınavına ${countdown.daysLeft} Gün Kaldı — Bugünkü Hedefin Hazır`;
 }

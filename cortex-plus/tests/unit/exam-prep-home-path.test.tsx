@@ -67,12 +67,11 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect(screen.queryByRole("heading", { name: "Bugün başla" })).toBeNull();
     const card = container.querySelector(".cp-path-next") as HTMLElement;
     // 17 Ekim 2026, Astra ile yan yana: kartta "SIRADAKİ" ve tür rozeti.
-    expect([...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki", "Giriş Dersi"]);
+    expect([...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki adım", "Giriş Dersi"]);
     const start = screen.getByRole("link", { name: "Devam et" });
     expect(start.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
-    // 17 Ekim 2026 (tasarım 5. adım, Astra): yolu birleştiren çizgi yok; düğüm üç boyutlu
-    // disk, sıradakinin üstünde tür simgeli ışık huzmesi.
-    expect(container.querySelectorAll(".cp-path-lines")).toHaveLength(0);
+    expect(container.querySelectorAll(".cp-path-lines")).toHaveLength(1);
+    expect(container.querySelectorAll(".cp-path-lines path").length).toBeGreaterThan(0);
     expect(container.querySelectorAll(".cp-puck").length).toBe(container.querySelectorAll(".cp-exam-trail-node").length);
     expect(container.querySelectorAll(".cp-puck--current")).toHaveLength(1);
     expect(container.querySelectorAll(".cp-path-beam")).toHaveLength(1);
@@ -119,7 +118,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     const card = container.querySelector(".cp-path-next") as HTMLElement;
     expect(card.querySelector(".cp-path-next-title")?.textContent).toBe("Kartlar");
     const badges = [...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent);
-    expect(badges[0]).toBe("Sıradaki");
+    expect(badges[0]).toBe("Sıradaki adım");
     expect(badges[1]).not.toBe("Podcast Dinle");
     expect(screen.getByRole("link", { name: "Devam et" }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/dugum/cards-3",
@@ -172,7 +171,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     renderHome();
     fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
     expect(screen.getByText("Hazırlık puanı")).toBeTruthy();
-    expect(screen.getByText("hedef %75")).toBeTruthy();
+    expect(screen.getAllByText("hedef %75").length).toBeGreaterThan(0);
     expect(screen.getByText("hedefe ulaşan konu")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Denemeler" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Tempo" })).toBeTruthy();
@@ -215,7 +214,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
 });
 
 // 17 Ekim 2026, Astra ile yan yana: başlık alanı, sıradaki etiketi, son sonuç kartı,
-// hazırlık düzeyi beşgeni ve "Deneme sınavı oluştur".
+// hazırlık düzeyi (radar + tahmin) ve "Deneme sınavı oluştur".
 describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
   it("başlık alanında ders etiketi ve etiketli Düello / Daha fazla; üst çubukta sohbet ve +", () => {
     const { container } = renderHome({ canShare: true });
@@ -252,6 +251,8 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
   it("yolun sonunda hazırlık düzeyi; 'Deneme sınavı oluştur' pencereyi Sınav sekmesinde açar", () => {
     renderHome();
     const goal = screen.getByRole("region", { name: "Hazırlık düzeyi" });
+    expect(goal.querySelector(".cp-radar-svg")).toBeTruthy();
+    expect(goal.querySelector(".cp-forecast-svg")).toBeTruthy();
     expect(goal.textContent).toContain("Gerçek sınavda nasıl yapacağını merak ediyor musun?");
     fireEvent.click(screen.getByRole("button", { name: /Deneme sınavı oluştur/ }));
     expect(screen.getByRole("tab", { name: /Sınav/ }).getAttribute("aria-selected")).toBe("true");

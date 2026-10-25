@@ -21,6 +21,14 @@ export const SPEAKER_LABEL: Record<SpeakerId, string> = {
   kerem: "Kerem",
 };
 
+/** Oynatıcı rozeti: o an kim konuşuyor, anlatıyor mu soruyor mu. */
+export function speakerLiveBadge(speaker: SpeakerId, beat?: PodcastBeat): string {
+  if (speaker === "kerem") {
+    return beat === "reveal" ? "🎙️ Kerem anlatıyor" : "🎙️ Kerem soruyor";
+  }
+  return beat === "ask" ? "🎙️ Ada soruyor" : "🎙️ Ada anlatıyor";
+}
+
 export type PodcastBeat = "ask" | "reveal";
 /** `text` ekranda simgedir. `spoken` sese gider; yoksa `text` okunur. */
 export type PodcastLine = { speaker: SpeakerId; text: string; beat?: PodcastBeat; spoken?: string };

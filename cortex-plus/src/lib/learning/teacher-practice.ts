@@ -2,6 +2,7 @@ import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { issuesByItem, teacherItemLoop, type Reviewed } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
+import { examinerVibeStyleLine, parseExaminerVibe, type ExaminerVibe } from "@/lib/learning/examiner-vibe";
 
 /**
  * Öğretmen motoru: doğru/yanlış önermeleri ve sözlü deneme soruları
@@ -24,6 +25,8 @@ export type PracticeSource = {
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri ve kimin okuduğu (18 Ekim 2026). */
   examPoints?: string[];
   examPointsUse?: "true_false" | "oral";
+  /** Sözlü: soru tonu. Yoksa destekleyici. */
+  examinerVibe?: ExaminerVibe;
 };
 
 export type AskJson = (system: string, user: string) => Promise<unknown | null>;
@@ -53,6 +56,9 @@ function userPrompt(input: PracticeSource, label: string, ask: number): string {
     `${label}: ${ask}`,
     input.brief ? `KAPSAM: ${input.brief}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
+    input.examPointsUse === "oral" || input.examinerVibe
+      ? examinerVibeStyleLine(parseExaminerVibe(input.examinerVibe))
+      : "",
     examPointsBlock(input.examPoints, input.examPointsUse ?? "true_false"),
     sourceLines(input),
   ]

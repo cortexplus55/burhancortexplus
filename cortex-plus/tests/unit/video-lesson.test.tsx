@@ -17,9 +17,12 @@ import {
   VIDEO_STYLES,
   captionChunks,
   parseVideoScript,
+  persistVideoStyle,
+  resolveVideoStyle,
   videoImagePrompt,
   videoStructureIssues,
   videoSystem,
+  videoStyle,
 } from "@/lib/learning/video-lesson";
 
 afterEach(cleanup);
@@ -35,15 +38,28 @@ const scene = (narration: string) => ({ narration, visual: "a child's lungs draw
 
 describe("video senaryosu", () => {
   it("Astra'nın beş stili; yazar 1 dakika ve sahne kurallarını alır", () => {
-    expect(VIDEO_STYLES.map((item) => item.label)).toEqual(["Gerçekçi", "Çizgi roman", "Beyaz tahta", "Brainrot", "Mem"]);
+    expect(VIDEO_STYLES.map((item) => item.label)).toEqual([
+      "Gerçekçi & Sinematik",
+      "Çizgi Roman / Anime",
+      "Beyaz Tahta & El Çizimi",
+      "Neon İnfografik & Şema",
+      "Hızlı Odak (Yüksek Enerji)",
+    ]);
     const system = videoSystem("document");
     expect(system).toContain("KAYNAK KURALI (kesin)");
     expect(system).toContain("6-8 sahne, toplam 85-115 kelime.");
     expect(system).toContain("en çok 18 kelime");
     expect(system).toContain("resimde YAZI, harf, sayı, etiket olmaz");
     expect(videoSystem("topic")).toContain("BİLGİ KURALI (belgesiz, kesin)");
-    expect(videoImagePrompt(scene("x"), "whiteboard")).toContain("whiteboard sketch");
+    expect(videoImagePrompt(scene("x"), "whiteboard")).toContain("whiteboard");
     expect(videoImagePrompt(scene("x"), "comic")).toContain("no text");
+    expect(videoImagePrompt(scene("x"), "cinematic")).toContain("cinematic");
+    expect(resolveVideoStyle("realistic")).toBe("cinematic");
+    expect(resolveVideoStyle("brainrot")).toBe("infographic");
+    expect(resolveVideoStyle("meme")).toBe("fast_focus");
+    expect(videoStyle("realistic").id).toBe("cinematic");
+    expect(persistVideoStyle("cinematic")).toBe("realistic");
+    expect(persistVideoStyle("infographic")).toBe("brainrot");
   });
 
   it("yapı: az sahne, uzun ya da kısa toplam, uzun sahne ve kaynağa atıf yakalanır", () => {
@@ -123,12 +139,14 @@ describe("video: kapı, kredi, yol", () => {
       CREATE TABLE public.credit_rules (action_code text PRIMARY KEY, credit_cost integer NOT NULL, model_tier text NOT NULL DEFAULT 'standard',
         description text, active boolean NOT NULL DEFAULT true, updated_at timestamptz NOT NULL DEFAULT now());`);
     await db.exec(read("supabase/migrations/20261017150000_prep_videos.sql"));
+    await db.exec(read("supabase/migrations/20261025120000_video_visual_styles.sql"));
     const rule = (await db.query<{ credit_cost: number }>("SELECT credit_cost FROM public.credit_rules WHERE action_code = 'VIDEO_GENERATE'")).rows[0];
     expect(rule?.credit_cost).toBe(280);
     await expect(
       db.exec(`INSERT INTO public.prep_videos (user_id, exam_prep_id, topic_label, style, title, scenes) VALUES
         (gen_random_uuid(), gen_random_uuid(), 'Krup', 'cartoon', 'x', '[]')`),
     ).rejects.toThrow();
+    expect(read("supabase/migrations/20261025120000_video_visual_styles.sql")).toContain("cinematic");
     await db.close();
   });
 });
@@ -142,7 +160,7 @@ describe("video ekranları", () => {
     expect(screen.getByText("1 dakikalık video dersi izle")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Videoyu ayarla" }));
     expect(screen.getByRole("heading", { name: "Video stili" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Beyaz tahta/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: /Gerçekçi & Sinematik/ }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Konu seç" }));
     expect(screen.getByRole("button", { name: /Krup/ })).toBeTruthy();
   });
@@ -181,6 +199,7 @@ describe("video ekranları", () => {
     expect(screen.getByRole("button", { name: "Tam ekran" })).toBeTruthy();
     // Dört kelimelik cümle tek parça; metin ayrıca "Anlatımın metni" listesinde.
     expect(container.querySelector(".cp-video-caption")?.textContent).toBe("Havlar öksürük krupu düşündürür.");
+    expect(container.querySelector(".cp-video-image")?.className).toMatch(/is-kb-0/);
     fireEvent.click(screen.getByRole("button", { name: "Oynat" }));
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
     // Ses daha yüklenmeden düğme "Duraklat" olur (ikinci dokunuş oynatmayı iptal etmesin).

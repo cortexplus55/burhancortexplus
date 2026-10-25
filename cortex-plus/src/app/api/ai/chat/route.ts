@@ -88,6 +88,8 @@ const bodySchema = z.object({
   prepId: z.string().uuid().optional(),
   /** "Bugünkü ruh hali" (Astra gibi yazı kutusunun ayar düğmesinden). */
   mood: z.string().max(20).optional(),
+  /** Canlı anlatım anahtarı; yoksa profildeki `tutor_style` okunur. */
+  tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -235,6 +237,7 @@ export async function POST(request: Request) {
       charge = false;
     } else {
       const { data: profile } = await service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle();
+      const tutorStyle = parseTutorStyle(rest.tutorStyle ?? profile?.tutor_style);
       const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
       const examContext = rest.prepId ? await loadExamChatContext(service, userId, rest.prepId) : null;
       if (rest.prepId) {
@@ -299,7 +302,7 @@ export async function POST(request: Request) {
       const chatMood = parseMood(rest.mood);
       const moodLine = chatMood === "neutral" ? "" : ` ${moodPrompt(chatMood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(parseTutorStyle(profile?.tutor_style))} ${CHAT_NATURAL_VOICE}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
       ];
@@ -400,7 +403,7 @@ export async function POST(request: Request) {
             daysLeft: examContext?.daysLeft ?? null,
             topic: lastLesson?.title ?? null,
             learnerLines: [
-              teacherStyleLine(parseTutorStyle(profile?.tutor_style)),
+              teacherStyleLine(tutorStyle),
               moodLine.trim(),
               tutorHistoryLine(examContext?.history ?? []),
             ],

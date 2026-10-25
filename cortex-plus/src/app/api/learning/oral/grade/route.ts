@@ -8,9 +8,11 @@ import {
   reconcileOralGrade,
   sanitizeGap,
 } from "@/lib/learning/oral-review";
+import { examinerVibeGradeLine, parseExaminerVibe } from "@/lib/learning/examiner-vibe";
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
+  examinerVibe: z.string().optional(),
   items: z
     .array(
       z.object({
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON: {"items":[{"index":number,"correct":boolean,"gap":string|null}],"correctCount":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. Kaynakta hazır çözüm cümlesi yok diye 0 verme; rubriğe göre değerlendir. gap alanına soru metnini yazma.',
-    userPrompt: `Sözlü: ${parsedBody.data.title}. Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama.\n\n${lines}`,
+    userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama.\n\n${lines}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

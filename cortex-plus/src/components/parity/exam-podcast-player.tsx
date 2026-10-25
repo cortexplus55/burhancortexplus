@@ -9,6 +9,7 @@ import {
   formatClock,
   lineAt,
   normalizeChapters,
+  speakerLiveBadge,
   totalDurationMs,
   wordAt,
   wordTimings,
@@ -158,7 +159,7 @@ export function ExamPodcastPlayer({
   const preloadRef = useRef<HTMLAudioElement | null>(null);
   const indexRef = useRef(0);
   const tokenRef = useRef(0);
-  const scriptRef = useRef<HTMLDivElement | null>(null);
+  const scriptRef = useRef<HTMLElement | null>(null);
   const linesRef = useRef<(AudioLine | null)[]>([]);
   const expectedRef = useRef(0);
   const completeRef = useRef(false);
@@ -673,7 +674,7 @@ export function ExamPodcastPlayer({
         {transcript ? (
           <article className="cp-pod-script-col">
             <h1 className="cp-pod-script-title">{heading}</h1>
-            <div className="cp-pod-script" ref={scriptRef}>
+            <div className="cp-pod-script" ref={(node) => { scriptRef.current = node; }}>
               {chaptersInOrder.map(({ chapter, lines }, chapterIndex) => (
                 <section key={chapterIndex}>
                   <h2>
@@ -699,7 +700,11 @@ export function ExamPodcastPlayer({
                       </span>
                       <button
                         type="button"
-                        className="cp-pod-line-jump"
+                        className={cn(
+                          "cp-pod-line-jump",
+                          `is-${line.speaker}`,
+                          ready && index === activeIndex && "is-now",
+                        )}
                         disabled={!ready}
                         onClick={() => seekTo(line.startMs)}
                       >
@@ -736,11 +741,28 @@ export function ExamPodcastPlayer({
           </article>
         ) : (
           <>
-            <div className={cn("cp-pod-orb", playing && "is-on")} aria-hidden>
+            <div
+              className={cn(
+                "cp-pod-orb",
+                `is-${activeLine?.speaker ?? "ada"}`,
+                playing && "is-on",
+              )}
+              aria-hidden
+            >
               <span className="cp-pod-orb-ring" />
+              <span className="cp-pod-orb-core" />
             </div>
+            {activeLine ? (
+              <p className={cn("cp-pod-who", `is-${activeLine.speaker}`)} aria-live="polite">
+                {speakerLiveBadge(activeLine.speaker, activeLine.beat)}
+              </p>
+            ) : null}
             {activeLine?.beat === "ask" ? <p className="cp-pod-beat">Dur ve düşün</p> : null}
             <p className="cp-pod-excerpt">{excerpt}</p>
+            <p className="cp-pod-line-meter" aria-hidden={!ready}>
+              Satır {timeline.length ? activeIndex + 1 : 0}/{timeline.length || "—"}
+              {chapterTitle ? ` · ${chapterTitle}` : ""}
+            </p>
             <nav className="cp-pod-chapters" aria-label="Bölümler">
               {normalized.map((chapter, chapterIndex) => {
                 const start =
@@ -759,6 +781,25 @@ export function ExamPodcastPlayer({
                 );
               })}
             </nav>
+            <ol className="cp-pod-live-script" ref={(node) => { scriptRef.current = node; }} aria-label="Transkript">
+              {timeline.map((line, index) => (
+                <li key={index}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "cp-pod-line-jump",
+                      `is-${line.speaker}`,
+                      ready && index === activeIndex && "is-now",
+                    )}
+                    disabled={!ready}
+                    onClick={() => seekTo(line.startMs)}
+                  >
+                    <span className="cp-pod-line-who">{SPEAKER_LABEL[line.speaker]}</span>
+                    {line.text}
+                  </button>
+                </li>
+              ))}
+            </ol>
             <div className="cp-pod-tools">
               <button
                 type="button"

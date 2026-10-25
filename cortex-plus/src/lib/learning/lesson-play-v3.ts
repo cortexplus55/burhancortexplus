@@ -20,6 +20,7 @@ import {
   readLessonV2,
   readLessonV3,
   v2ToV3,
+  VISUAL_BLOCK_TYPES,
   type LessonBlock,
   type LessonV3,
 } from "@/lib/learning/lesson-v3";
@@ -74,7 +75,18 @@ export const publicLessonV3Schema = z.object({
   qualityReport: publicLessonV2Schema.shape.qualityReport,
 });
 
-const KNOWN_BLOCKS = new Set(["text", "formula", "procedure", "table", "cards", "note", "diagram", "example", "check"]);
+const KNOWN_BLOCKS = new Set<string>([
+  "text",
+  "formula",
+  "procedure",
+  "table",
+  "cards",
+  "note",
+  "diagram",
+  "example",
+  "check",
+  ...VISUAL_BLOCK_TYPES,
+]);
 
 /** İstemci: paket V3 ise V3 olarak, eski V2 paketiyse çevrilerek okunur. */
 export function readPlayLessonV3(value: unknown): PublicLessonV3 | null {

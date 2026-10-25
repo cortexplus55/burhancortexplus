@@ -39,7 +39,7 @@ export async function maybeRescheduleMissedDays(
   const { data: preps } = await service
     .from("exam_preps")
     .select(
-      "id, exam_date, daily_minutes, study_days, hard_topics_self, schedule_v2",
+      "id, exam_date, daily_minutes, study_days, hard_topics_self, schedule_v2, target_score",
     )
     .eq("user_id", userId)
     .not("exam_date", "is", null)
@@ -77,6 +77,7 @@ export async function maybeRescheduleMissedDays(
         examDate: prep.exam_date as string,
         dailyMinutes: prepDailyMinutes(prep.daily_minutes),
         studyDays: prepStudyDays(prep.study_days),
+        targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
         topics,
         previous,
         nodes: (nodeRows ?? []).map((n) => ({

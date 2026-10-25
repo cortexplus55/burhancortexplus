@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
+import { BirimCemberLab } from "@/components/lab/tools/birim-cember";
 import { BirimDonusturucu } from "@/components/lab/tools/birim-donusturucu";
 import { DenklemCozucu } from "@/components/lab/tools/denklem-cozucu";
+import { HucreLab } from "@/components/lab/tools/hucre-lab";
 import { IntegralHesaplayici } from "@/components/lab/tools/integral-hesaplayici";
+import { ParabolKesif } from "@/components/lab/tools/parabol-kesif";
 import { PeriyodikTablo } from "@/components/lab/tools/periyodik-tablo";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -13,6 +16,9 @@ const TOOL_COMPONENTS: Record<string, () => React.ReactNode> = {
   integral: IntegralHesaplayici,
   periyodik: PeriyodikTablo,
   birim: BirimDonusturucu,
+  "birim-cember": BirimCemberLab,
+  parabol: ParabolKesif,
+  hucre: HucreLab,
 };
 
 export async function generateMetadata({

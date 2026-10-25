@@ -9,6 +9,7 @@ import {
   explainSchema,
   isLongEnough,
 } from "@/lib/learning/explain-review";
+import { saveExplainAttempt } from "@/lib/learning/explain-history-store";
 
 /**
  * Öğrencinin anlatımını değerlendirir.
@@ -23,6 +24,7 @@ const bodySchema = z.object({
   explanation: z.string().min(1).max(8000),
   /** Belgeden (24 Ekim 2026): anlatım öğrencinin kendi notuna göre değerlendirilir. */
   documentId: z.string().uuid().optional(),
+  probe: z.string().max(800).optional(),
 });
 
 /** Değerlendirmeye giden kaynak metnin üst sınırı (karakter). */
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { topic, explanation, documentId } = parsed.data;
+  const { topic, explanation, documentId, probe } = parsed.data;
 
   // Üç kelimelik bir anlatımı modele göndermek hem parayı hem öğrencinin
   // zamanını harcar; geri dönecek şey de "daha çok anlat" olurdu.
@@ -70,8 +72,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const saved = await saveExplainAttempt(service, {
+    userId,
+    topic,
+    explanation,
+    documentId,
+    probe,
+    review: outcome.data,
+  });
+
   return NextResponse.json({
     ...outcome.data,
+    attemptId: saved?.id ?? null,
+    createdAt: saved?.createdAt ?? new Date().toISOString(),
     ...(source && documentId
       ? { source: { kind: "document", documentId, fileName: source.fileName, wholeDocument: source.wholeDocument, matched: source.matched } }
       : {}),

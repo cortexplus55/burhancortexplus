@@ -4,6 +4,11 @@ import {
 } from "@/lib/learning/teacher-brain";
 import type { OralReviewItem, OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
 import {
+  parseExaminerVibe,
+  vibeGivesHints,
+  type ExaminerVibe,
+} from "@/lib/learning/examiner-vibe";
+import {
   fluencyIssues,
   repairTurkishSurface,
 } from "@/lib/learning/learner-fluency";
@@ -336,7 +341,7 @@ export function answerLooksIncomplete(question: string, answer: string): boolean
 export function visibleProbe(input: {
   answer: string;
   probeKind: OralProbeKind;
-  persona: OralTeacherMoodId;
+  persona: OralTeacherMoodId | ExaminerVibe;
   alreadyProbed: boolean;
   hint?: string | null;
   question?: string | null;
@@ -344,25 +349,25 @@ export function visibleProbe(input: {
   if (input.alreadyProbed) return null;
   const answer = input.answer.trim();
   if (!answer || isDontKnow(answer)) return null;
+  const vibe = parseExaminerVibe(input.persona);
+  const supportive = vibeGivesHints(vibe);
   const thin = answer.length < 80;
   let question: string | null = null;
   if (input.probeKind === "unit" && numbersIn(answer).length > 0 && !hasUnit(answer)) {
     question = "Birimi ne?";
   } else if (input.probeKind === "why" && thin) {
-    question = "Neden?";
+    question = vibe === "challenger" ? "Emin misin? Neden bu sonuç?" : "Neden?";
   } else if (input.probeKind === "detail" && answer.length < 40 && !/=/.test(answer)) {
-    question = "Biraz açar mısın?";
+    question = vibe === "challenger" ? "Emin misin? Ya soruda şu öncül değişseydi?" : "Biraz açar mısın?";
   } else if (thin && numbersIn(answer).length > 0 && !hasUnit(answer)) {
     question = "Birimi ne?";
-  } else if (
-    input.persona === "helpful" &&
-    answerLooksIncomplete(input.question ?? "", answer)
-  ) {
+  } else if (supportive && answerLooksIncomplete(input.question ?? "", answer)) {
     question = numbersIn(answer).length > 0 && !hasUnit(answer) ? "Birimi ne?" : "Eksik kalan adımı da yazar mısın?";
+  } else if (vibe === "challenger" && thin) {
+    question = "Emin misin? Ya soruda şu öncül değişseydi?";
   }
   if (!question) return null;
-  const hint =
-    input.persona === "helpful" ? input.hint?.trim() || null : null;
+  const hint = supportive ? input.hint?.trim() || null : null;
   return { question, hint };
 }
 

@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
-import { readLessonV3, type LessonV3 } from "@/lib/learning/lesson-v3";
+import { readLessonV3, visualBlockText, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 
 /**
@@ -66,6 +66,7 @@ export function lessonJudgeText(lesson: LessonV3): string {
       } else if (block.type === "formula") out.push(`Formül: ${block.formula.expression}`);
       else if (block.type === "procedure") out.push(block.procedure.steps.map((step) => `- ${step.label}: ${step.detail}`).join("\n"));
       else if (block.type === "example") out.push(`Çözümlü örnek: ${block.example.prompt} → ${block.example.result ?? ""}`);
+      else if (visualBlockText(block)) out.push(visualBlockText(block));
     }
   });
   if (lesson.summary?.length) out.push(`\n## Özet\n${lesson.summary.map((line) => `- ${line}`).join("\n")}`);

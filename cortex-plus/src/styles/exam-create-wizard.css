@@ -383,6 +383,34 @@
   font-size: 0.75rem;
 }
 
+.apw-target-hint {
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-2, var(--cp-surface));
+  color: var(--cp-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.apw-target-hint--peak {
+  border-color: rgba(246, 183, 60, 0.4);
+  background: rgba(246, 183, 60, 0.08);
+}
+
+.apw-target-hint--pass {
+  border-color: rgba(67, 83, 243, 0.35);
+  background: rgba(67, 83, 243, 0.08);
+}
+
+.apw-target-hint--solid {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.08);
+}
+
 /* --- Materyal adımı --- */
 
 .apw-drop {

@@ -32,7 +32,7 @@ export function VideoLessonSetup({
 }) {
   const router = useRouter();
   const [step, setStep] = useState<"intro" | "style" | "topic" | "making">("intro");
-  const [style, setStyle] = useState<VideoStyle>("whiteboard");
+  const [style, setStyle] = useState<VideoStyle>("cinematic");
   const [line, setLine] = useState(0);
   const lines = ["Senaryo yazılıyor…", "Kaynakla karşılaştırılıyor…", "Sahneler çiziliyor…", "Seslendiriliyor…", "Video birleştiriliyor…"];
 
@@ -229,7 +229,9 @@ export function VideoLessonPlayer({
   const [ended, setEnded] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [finishing, setFinishing] = useState(false);
+  const [outgoingUrl, setOutgoingUrl] = useState<string | null>(null);
   const pendingSeek = useRef<number | null>(null);
+  const prevSceneRef = useRef(0);
 
   const starts = useMemo(() => {
     const list: number[] = [];
@@ -245,6 +247,16 @@ export function VideoLessonPlayer({
   const elapsed = (starts.list[scene] ?? 0) + offset;
   const captionChunk = chunks[scene]?.find((chunk) => offset >= chunk.startMs && offset < chunk.endMs) ?? chunks[scene]?.at(-1);
   const caption = captionChunk?.text ?? "";
+
+  useEffect(() => {
+    if (prevSceneRef.current === scene) return;
+    const previous = scenes[prevSceneRef.current];
+    prevSceneRef.current = scene;
+    if (!previous?.imageUrl) return;
+    setOutgoingUrl(previous.imageUrl);
+    const timer = window.setTimeout(() => setOutgoingUrl(null), 700);
+    return () => window.clearTimeout(timer);
+  }, [scene, scenes]);
 
   useEffect(() => {
     const el = audio.current;
@@ -338,9 +350,18 @@ export function VideoLessonPlayer({
         <X className="h-5 w-5" aria-hidden />
       </Link>
       <div ref={frame} className="cp-video-frame">
+        {outgoingUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- imzalı depo adresi
+          <img src={outgoingUrl} alt="" className="cp-video-image is-fade-out" />
+        ) : null}
         {current ? (
           // eslint-disable-next-line @next/next/no-img-element -- imzalı depo adresi
-          <img key={scene} src={current.imageUrl} alt="" className={cn("cp-video-image", playing && "is-moving")} />
+          <img
+            key={scene}
+            src={current.imageUrl}
+            alt=""
+            className={cn("cp-video-image", `is-kb-${scene % 4}`, playing && "is-moving")}
+          />
         ) : null}
         <div className="cp-video-top">
           <p className="cp-video-title">{title}</p>

@@ -1,4 +1,10 @@
 import type { Mood } from "@/lib/learning/session-signals";
+import {
+  EXAMINER_VIBE_OPTIONS,
+  examinerVibeStyleLine,
+  parseExaminerVibe,
+  type ExaminerVibe,
+} from "@/lib/learning/examiner-vibe";
 
 /**
  * Sözlü deneme kabuğu — Astra sözlü sınav akışının konu, öğretmen,
@@ -22,39 +28,33 @@ export const EMPTY_ORAL_ANSWER_NOTE =
 export type OralTeacherMoodId = "strict" | "helpful" | "harsh";
 export type OralDifficulty = "kolay" | "orta" | "ileri";
 
+const VIBE_MOOD: Record<ExaminerVibe, { mood: Mood; difficulty: OralDifficulty; badge: "ÖNERİLEN" | "ÖNERİLMEZ" | null }> = {
+  supportive: { mood: "calm", difficulty: "orta", badge: null },
+  strict_jury: { mood: "ready", difficulty: "ileri", badge: "ÖNERİLEN" },
+  challenger: { mood: "stressed", difficulty: "ileri", badge: "ÖNERİLMEZ" },
+};
+
 export const ORAL_TEACHER_MOODS: {
   id: OralTeacherMoodId;
+  vibe: ExaminerVibe;
   badge: "ÖNERİLEN" | "ÖNERİLMEZ" | null;
   title: string;
   blurb: string;
   mood: Mood;
   difficulty: OralDifficulty;
-}[] = [
-  {
-    id: "strict",
-    badge: "ÖNERİLEN",
-    title: "Sıkı sınav görevlisi",
-    blurb: "Yardım yok, tıpkı gerçek sınavdaki gibi",
-    mood: "ready",
-    difficulty: "ileri",
-  },
-  {
-    id: "helpful",
-    badge: null,
-    title: "Yardımcı öğretmen",
-    blurb: "Takıldığında öğretmen yardım eder",
-    mood: "calm",
-    difficulty: "orta",
-  },
-  {
-    id: "harsh",
-    badge: "ÖNERİLMEZ",
-    title: "Zorlayıcı öğretmen",
-    blurb: "Daha derin sorar; saygılı ve net kalır",
-    mood: "stressed",
-    difficulty: "ileri",
-  },
-];
+}[] = EXAMINER_VIBE_OPTIONS.map((option) => {
+  const moodId = option.id === "supportive" ? "helpful" : option.id === "strict_jury" ? "strict" : "harsh";
+  const extra = VIBE_MOOD[option.id];
+  return {
+    id: moodId,
+    vibe: option.id,
+    badge: extra.badge,
+    title: `${option.emoji} ${option.title}`,
+    blurb: option.blurb,
+    mood: extra.mood,
+    difficulty: extra.difficulty,
+  };
+});
 
 export const DEFAULT_ORAL_TEACHER_MOOD: OralTeacherMoodId = "helpful";
 
@@ -119,19 +119,12 @@ export function formatTopicPct(pct: number): string {
 }
 
 export function oralTeacherById(id: OralTeacherMoodId) {
-  return ORAL_TEACHER_MOODS.find((item) => item.id === id) ?? ORAL_TEACHER_MOODS[1];
+  return ORAL_TEACHER_MOODS.find((item) => item.id === id) ?? ORAL_TEACHER_MOODS[0];
 }
 
-/** Sesli tur promptuna eklenen tek cümle. Hakaret yok; sert hava yalnızca netlik. */
-export function oralTeacherStyleLine(id: OralTeacherMoodId): string {
-  switch (id) {
-    case "strict":
-      return "Sıkı sınav görevlisi gibi sor: ipucu verme, cevabı söyleme, kısa ve resmi kal.";
-    case "harsh":
-      return "Zorlayıcı ol: eksik cevapta bir kez gerekçe iste. Aşağılama veya hakaret etme. İpucu verme.";
-    default:
-      return "Yardımcı öğretmen gibi sor: takıldığında kısa ipucu ver, cevabı doğrudan söyleme.";
-  }
+/** Sesli tur promptuna eklenen blok. Hakaret yok; sert hava yalnızca netlik. */
+export function oralTeacherStyleLine(id: OralTeacherMoodId | ExaminerVibe): string {
+  return examinerVibeStyleLine(parseExaminerVibe(id));
 }
 
 export function oralHeadline(pct: number): string {

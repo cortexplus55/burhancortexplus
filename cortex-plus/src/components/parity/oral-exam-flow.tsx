@@ -193,7 +193,7 @@ export function OralTeacherCustomize({
           );
         })}
       </div>
-      <h2 className="cp-oral-section-title">Öğretmen havasını seç</h2>
+      <h2 className="cp-oral-section-title">Hoca karakterini seç</h2>
       <div className="cp-oral-moods" role="listbox" aria-label="Öğretmen havasını seç">
         {ORAL_TEACHER_MOODS.map((mood) => {
           const Icon = MOOD_ICON[mood.id];

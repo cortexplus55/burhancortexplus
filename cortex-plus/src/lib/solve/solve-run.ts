@@ -9,6 +9,7 @@ import { isPremiumUser } from "@/lib/billing/entitlements";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits, type ReservationResult } from "@/lib/credits/service";
 import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
+import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import {
@@ -120,7 +121,12 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
   };
 
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
+  const profileLoad = studentPedagogyBlock(service, userId, "solve");
   const tier = fastTier(premium && (await fastAllowedFor(service, userId)));
+  const profile = await profileLoad;
+  // Profil çözümün anlatımını değiştirir (çözen ve uzlaştıran); hızlı cevap ve denetçi cevabın kendisine bakar.
+  const solverSystem = withStudentProfile(SOLVER_SYSTEM, profile);
+  const reconcileSystem = withStudentProfile(RECONCILE_SYSTEM, profile);
   const ask = async (
     system: string,
     text: string,
@@ -155,11 +161,11 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
       async () => {
         emit({ type: "stage", stage: "solving" });
         const [rawSolution, rawQuick] = await Promise.all([
-          ask(SOLVER_SYSTEM, solverUserText(), { effort: "low" }),
+          ask(solverSystem, solverUserText(), { effort: "low" }),
           ask(QUICK_SYSTEM, solverUserText(), { effort: "low" }).catch(() => null),
         ]);
         let solution = parseSolution(rawSolution);
-        if (!solution) solution = parseSolution(await ask(SOLVER_SYSTEM, solverUserText(), { effort: "low" }));
+        if (!solution) solution = parseSolution(await ask(solverSystem, solverUserText(), { effort: "low" }));
         if (!solution) {
           await settle(false);
           emit({ type: "error", code: "generation_failed", message: "Çözüm bu sefer tamamlanamadı; hakkın düşmedi. Yeniden dene.", status: 502 });
@@ -176,7 +182,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
         const agreed = answersAgree(solution, quick) && !issues.length;
         if (!agreed) {
           emit({ type: "stage", stage: "checking" });
-          const reconciled = await ask(RECONCILE_SYSTEM, reconcileUserText(solution, quick, issues), { effort: "medium" }).catch(
+          const reconciled = await ask(reconcileSystem, reconcileUserText(solution, quick, issues), { effort: "medium" }).catch(
             () => null,
           );
           const next = parseSolution(reconciled);
@@ -201,7 +207,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
         }
         const issue = typeof verdict.issue === "string" ? verdict.issue.slice(0, 400) : "";
         const fixed = parseSolution(
-          await ask(RECONCILE_SYSTEM, reconcileUserText(solution, quick, issue ? [`Denetçi: ${issue}`] : []), {
+          await ask(reconcileSystem, reconcileUserText(solution, quick, issue ? [`Denetçi: ${issue}`] : []), {
             effort: "medium",
           }).catch(() => null),
         );

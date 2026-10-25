@@ -261,6 +261,59 @@ describe("sohbet: ruh hali, periyodik tablo, ders etiketi", () => {
     expect(screen.queryByRole("dialog", { name: "Periyodik tablo" })).toBeNull();
   });
 
+  it("anlatım anahtarı isteğe tutorStyle yazar ve Sokratik çipleri gösterir", async () => {
+    const bodies: { tutorStyle?: string; message?: string }[] = [];
+    const patches: unknown[] = [];
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/ai/chat")) {
+        bodies.push(JSON.parse(String(init?.body ?? "{}")));
+        return new Response(new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("İpucu: önce denklemi yalnız bırak."));
+            controller.close();
+          },
+        }), {
+          status: 200,
+          headers: { "X-Conversation-Id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "X-Message-Id": "m-3" },
+        });
+      }
+      if (url.includes("/api/profile/me") && init?.method === "PATCH") {
+        patches.push(JSON.parse(String(init.body ?? "{}")));
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as typeof fetch;
+    try {
+      render(
+        <ChatPanel
+          variant="parity"
+          composerMode="parity"
+          examChrome
+          hasDocuments
+          showSubjectPicker={false}
+          greetingLine="Selam"
+          placeholder="Sor, konuş veya dosya gönder"
+          initialTutorStyle="step_by_step"
+          initialMessages={[{ role: "assistant", content: "Önce hangi kavram?" }]}
+        />,
+      );
+      expect(screen.getByRole("radiogroup", { name: "Anlatım modu" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("radio", { name: /Sokratik/ }));
+      await waitFor(() => expect(patches).toEqual([{ tutor_style: "hints_first" }]));
+      expect(screen.getByRole("button", { name: "💡 Bir ipucu daha ver" })).toBeTruthy();
+      fireEvent.change(screen.getByPlaceholderText("Sor, konuş veya dosya gönder"), {
+        target: { value: "x nedir?" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Gönder" }));
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      expect(bodies[0]?.tutorStyle).toBe("hints_first");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it("öğrenci balonunda [Matematik] etiketi görünmez", () => {
     renderExam([
       { role: "user", content: "[Matematik] Pisagor teoremi nedir?" },

@@ -248,10 +248,10 @@ describe("cevap", () => {
   it("doğru: basamak çıkar, yeni tarih, ask_count bekçisi, ilk tekrar bir kez yazılır", async () => {
     const db = fakeDb({ exam_prep_review_items: [itemRow()] });
     const outcome = await answerReviewItem(db.service, { userId: USER, prepId: PREP, itemId: ITEM, answer: { pick: "Karbondioksit" }, examDate: null, now: NOW });
-    expect(outcome).toMatchObject({ correct: true, step: 1, dueOn: "2026-10-23", status: "active", line: "Doğru · 3 gün sonra yeniden", correctAnswers: ["Karbondioksit"], remaining: 0 });
+    expect(outcome).toMatchObject({ correct: true, step: 1, dueOn: "2026-10-24", status: "active", line: "Doğru · 4 gün sonra yeniden", correctAnswers: ["Karbondioksit"], remaining: 0 });
     const update = db.calls.find((call) => call.op === "update")!;
     expect(update.filters).toContainEqual(["ask_count", 0]);
-    expect(update.values).toMatchObject({ interval_step: 1, due_on: "2026-10-23", ask_count: 1, correct_count: 1, first_reasked_on: "2026-10-20", first_reask_correct: true });
+    expect(update.values).toMatchObject({ interval_step: 1, due_on: "2026-10-24", ask_count: 1, correct_count: 1, first_reasked_on: "2026-10-20", first_reask_correct: true });
 
     // Aynı gün ikinci tıklama: kayıtlı sonuç, yeni yazım yok.
     const again = await answerReviewItem(db.service, { userId: USER, prepId: PREP, itemId: ITEM, answer: { pick: "Azot" }, examDate: null, now: NOW });

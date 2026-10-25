@@ -345,6 +345,34 @@ describe("exam-schedule-v2", () => {
     expect(drafts.some((d) => d.kind === "podcast")).toBe(false);
   });
 
+  it("tightens the path for a peak target and compacts it for a pass target", () => {
+    const from = new Date("2026-09-08T12:00:00");
+    const base = {
+      daysToExam: 21,
+      dailyMinutes: 60,
+      studyDays: [1, 2, 3, 4, 5, 6, 7],
+      topics: topics(3),
+      fromDate: from,
+    };
+    const solid = buildExamScheduleV2(base);
+    const peak = buildExamScheduleV2({ ...base, targetScore: 90 });
+    const pass = buildExamScheduleV2({ ...base, targetScore: 55 });
+    expect(solid.targetMode).toBe("solid");
+    expect(solid.masteryBar).toBe(75);
+    expect(peak.targetMode).toBe("peak");
+    expect(peak.masteryBar).toBe(90);
+    expect(pass.targetMode).toBe("pass");
+    expect(pass.masteryBar).toBe(55);
+    const practice = (plan: typeof solid) => plan.sessions.filter((s) => s.role === "practice").length;
+    const reviews = (plan: typeof solid) => plan.sessions.filter((s) => s.role === "review").length;
+    expect(practice(peak)).toBeGreaterThan(practice(solid));
+    expect(practice(pass)).toBeLessThanOrEqual(practice(solid));
+    expect(reviews(pass)).toBeLessThan(reviews(solid));
+    expect(peak.summary).toMatch(/zirve/);
+    expect(pass.summary).toMatch(/baraj/);
+    expect(solid.summary).not.toMatch(/zirve|baraj/);
+  });
+
   it("estimates higher load for weak/self-hard topics", () => {
     const weak = estimateTopicMinutes({
       id: "1",

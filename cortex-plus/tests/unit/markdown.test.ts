@@ -70,4 +70,9 @@ describe("markdown sanitization", () => {
     expect(html).toContain("<p>Sonra sor.</p>");
     expect(html).not.toContain("için:1.");
   });
+
+  it("blok formülü ve uyarı cümlesini renkli karta sarar", () => {
+    expect(renderMarkdownToHtml("$$a = \\frac{\\Delta v}{t}$$")).toContain('class="cp-md-formula"');
+    expect(renderMarkdownToHtml("Dikkat: paydayı sıfırlama.")).toContain('class="cp-md-warn"');
+  });
 });

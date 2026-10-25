@@ -144,7 +144,7 @@ describe("ExamLessonSteps", () => {
 
     expect(screen.getByText("HIZLI SINAV")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Kapalı Sistem/ }));
-    expect(screen.getByText("🎉 Doğru")).toBeTruthy();
+    expect(screen.getByText("🎉 Harika!")).toBeTruthy();
 
     // Kalan slaytlar: örnek, hata, bilgi kontrolü, özet, tekrar kapısı.
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));

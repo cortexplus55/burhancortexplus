@@ -197,6 +197,15 @@ describe("oral exam grading is grounded for every subject", () => {
         alreadyProbed: false,
       }),
     ).toBeNull();
+    const challenge = visibleProbe({
+      answer: "enzim",
+      probeKind: "detail",
+      persona: "challenger",
+      alreadyProbed: false,
+      hint: "Aktif bölgeyi düşün.",
+    });
+    expect(challenge?.question).toMatch(/Emin misin/);
+    expect(challenge?.hint).toBeNull();
   });
 
   it("weights the syllabus without dropping a less important topic", () => {

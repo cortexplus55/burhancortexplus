@@ -18,6 +18,7 @@ import { getUserStreak } from "@/lib/streak/record-activity";
 import { FirstPrepCard } from "@/components/parity/first-prep-card";
 import { PlusMonth } from "@/components/marketing/plus-month";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
+import { loadNearestExamCountdown } from "@/lib/learning/exam-countdown-load";
 
 export const metadata = { title: "Sor" };
 
@@ -40,6 +41,7 @@ export default async function OgretmenPage({
     { data: conversations },
     { count: prepCount },
     prices,
+    countdown,
   ] =
     await Promise.all([
       supabase
@@ -61,7 +63,7 @@ export default async function OgretmenPage({
       // Kayıt sırasında verilen hedef; başlangıç önerilerini buna göre yazıyoruz.
       supabase
         .from("learning_goals")
-        .select("goal_text")
+        .select("goal_text, target_date")
         .eq("user_id", user.id)
         .order("created_at")
         .limit(1)
@@ -81,6 +83,7 @@ export default async function OgretmenPage({
         .neq("exam_type", "hedef")
         .neq("exam_type", STUDIO_EXAM_TYPE),
       loadPlusPrices(supabase),
+      loadNearestExamCountdown(supabase, user.id),
     ]);
 
   // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın
@@ -167,6 +170,7 @@ export default async function OgretmenPage({
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}
+      countdown={countdown}
       recentConversations={(conversations ?? []).map((row) => ({
         id: row.id,
         title: row.title ?? "Yeni sohbet",
@@ -191,6 +195,7 @@ export default async function OgretmenPage({
         chatCreditCost={chatCost ?? undefined}
         isPremium={isPremium}
         tutorStyleLabel={tutorStyleLabel(style)}
+        initialTutorStyle={style}
       />
     </ParitySorShell>
   );

@@ -136,6 +136,7 @@ export default async function ExamPrepChatPage({
         chatCreditCost={chatCost ?? undefined}
         isPremium={isPremium}
         tutorStyleLabel={tutorStyleLabel(style)}
+        initialTutorStyle={style}
         starterPrompts={context.starters.length ? context.starters : EXAM_CHAT_STARTERS}
         initialConversationId={conversationId}
         initialMessages={initialMessages}

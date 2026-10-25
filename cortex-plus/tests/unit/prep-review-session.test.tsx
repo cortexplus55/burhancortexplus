@@ -116,16 +116,16 @@ describe("tekrar oturumu", () => {
     expect(sent[0]!.body.pick).toEqual(["HCl", "HNO3"]);
   });
 
-  it("hatırlama: önce cevap açılır, sonra Evet/Hayır gönderilir", async () => {
+  it("hatırlama: önce cevap açılır, sonra SM-2 derecesi gönderilir", async () => {
     const sent = stubFetch([{ status: 200, body: outcome({ mode: "recall", correct: false, line: "Hatırlamadın · yarın yeniden sorulacak", correctAnswers: undefined }) }]);
     render(<PrepReviewSession prepId={PREP} prepTitle="Biyoloji" items={[recall]} total={1} />);
     expect(screen.queryByText("İki özdeş hücre.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: PREP_REVIEW_COPY.reveal }));
     expect(screen.getByText("İki özdeş hücre.")).toBeTruthy();
     expect(screen.getByText(PREP_REVIEW_COPY.ask)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Hayır" }));
+    fireEvent.click(screen.getByRole("button", { name: /Zorlandım/ }));
     await screen.findByText("Hatırlamadın · yarın yeniden sorulacak");
-    expect(sent[0]!.body).toEqual({ prepId: PREP, itemId: "i-3", recalled: false });
+    expect(sent[0]!.body).toEqual({ prepId: PREP, itemId: "i-3", recalled: false, quality: 1 });
   });
 
   it("ağ düşerse soru geçilmez; yeniden denenince kaydedilir", async () => {
@@ -238,7 +238,7 @@ describe("hazırlık sayfası: Bugün N tekrar", () => {
     expect(before).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
     // Kart yolun "Sıradaki" kartının dışında; rozet sırası aynı.
     const next = container.querySelector(".cp-path-next") as HTMLElement;
-    expect([...next.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki", "Giriş Dersi"]);
+    expect([...next.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki adım", "Giriş Dersi"]);
   });
 
   it("kart geniş ekranda gizlenen sınıfı kullanmaz", () => {

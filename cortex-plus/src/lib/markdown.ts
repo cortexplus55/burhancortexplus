@@ -147,6 +147,14 @@ export function renderMarkdownToHtml(content: string): string {
         return renderTable(trimmed);
       }
 
+      const mathOnly = splitMath(trimmed);
+      if (mathOnly.length === 1 && mathOnly[0]?.type === "math" && mathOnly[0].display) {
+        return `<div class="cp-md-formula">${renderMath(mathOnly[0].value, true)}</div>`;
+      }
+      if (/^(?:dikkat|uyarı|alarm|önemli)\b/i.test(trimmed)) {
+        return `<aside class="cp-md-warn">${renderInline(trimmed, true)}</aside>`;
+      }
+
       if (trimmed.startsWith("```")) {
         const code = trimmed.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "");
         return `<pre class="overflow-x-auto rounded-md bg-muted p-3 text-xs"><code>${escapeHtml(

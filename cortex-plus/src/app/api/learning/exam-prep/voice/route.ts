@@ -21,7 +21,8 @@ const bodySchema = z.object({
   topicLabel: z.string().min(1).max(120),
   difficulty: z.enum(["kolay", "orta", "ileri"]).default("orta"),
   /** Sözlü kabuktaki öğretmen havası. Yoksa eski sohbet davranışı durur. */
-  teacherStyle: z.enum(["strict", "helpful", "harsh"]).optional(),
+  teacherStyle: z.enum(["strict", "helpful", "harsh", "supportive", "strict_jury", "challenger"]).optional(),
+  examinerVibe: z.string().optional(),
   messages: z
     .array(
       z.object({
@@ -92,7 +93,10 @@ export async function POST(request: Request) {
       : oral
         ? "SESLİ SÖZLÜ SINAV: kısa bir soru sor, cevabı dinle, gerekirse ipucu ver, sonra sonraki soruya geç. Konuşma dili, 2-4 cümle; başlık, madde, tablo, emoji yok."
         : "SESLİ DERS: bir adımı anlat, bir soru sor ve cevabı bekle. Konuşma dili, 2-4 cümle; başlık, madde, tablo, emoji yok.";
-  const style = parsed.data.teacherStyle ? oralTeacherStyleLine(parsed.data.teacherStyle) : "";
+  const style =
+    parsed.data.examinerVibe || parsed.data.teacherStyle
+      ? oralTeacherStyleLine((parsed.data.examinerVibe ?? parsed.data.teacherStyle) as "helpful")
+      : "";
 
   const history = parsed.data.messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
   const last = parsed.data.messages[parsed.data.messages.length - 1];

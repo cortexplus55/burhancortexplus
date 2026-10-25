@@ -11,9 +11,14 @@ import {
   readStoredReviewItem,
   reviewAfterLine,
   reviewDraftsFromAttempt,
+  qualityFromCorrect,
+  readQuality,
+  readSm2State,
   reviewDueOn,
   reviewReveal,
   sealReviewItem,
+  sm2FromStep,
+  withSm2,
   type ReviewAnswer,
   type ReviewAnswerOutcome,
   type ReviewDraft,
@@ -84,7 +89,8 @@ export async function recordReviewItems(
   for (const draft of input.drafts) {
     const row = existing.get(draft.promptKey);
     if (!row) {
-      const dueOn = reviewDueOn({ today, step: draft.reason === "miss" ? 0 : 1, examDate });
+      const step = draft.reason === "miss" ? 0 : 1;
+      const dueOn = reviewDueOn({ today, step, examDate });
       if (!dueOn) continue;
       fresh.push({
         user_id: input.userId,
@@ -97,8 +103,8 @@ export async function recordReviewItems(
         reason: draft.reason,
         source_ref: draft.sourceRef,
         prompt_key: draft.promptKey,
-        item: draft.item,
-        interval_step: draft.reason === "miss" ? 0 : 1,
+        item: withSm2(draft.item, sm2FromStep(step)),
+        interval_step: step,
         due_on: dueOn,
         first_missed_on: draft.reason === "miss" ? today : null,
       });
@@ -124,6 +130,7 @@ export async function recordReviewItems(
         status: "active",
         interval_step: 0,
         due_on: dueOn,
+        item: withSm2(draft.item, sm2FromStep(0)),
         reason: "miss",
         lapse_count: (row.lapse_count ?? 0) + 1,
         source_ref: draft.sourceRef,
@@ -352,7 +359,15 @@ export async function answerReviewItem(
 
   const correct = gradeReviewAnswer(item, row.ask_count, input.answer);
   if (correct === null) return { error: "invalid_answer" };
-  const next = nextReviewStep({ step: row.interval_step, correct, today, examDate });
+  const quality = readQuality(input.answer.quality) ?? qualityFromCorrect(correct);
+  const next = nextReviewStep({
+    step: row.interval_step,
+    correct,
+    quality,
+    today,
+    examDate,
+    sm2: readSm2State(item, row.interval_step),
+  });
   const firstReask = Boolean(row.first_missed_on && !row.first_reasked_on);
   const { data: updated, error } = await service
     .from(TABLE)
@@ -360,6 +375,7 @@ export async function answerReviewItem(
       interval_step: next.step,
       due_on: next.dueOn ?? row.due_on,
       status: next.status,
+      item: withSm2(item, next.sm2),
       ask_count: row.ask_count + 1,
       correct_count: (row.correct_count ?? 0) + (correct ? 1 : 0),
       lapse_count: (row.lapse_count ?? 0) + (correct ? 0 : 1),

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const { data: prep } = await service
     .from("exam_preps")
     .select(
-      "id, exam_date, daily_minutes, study_days, hard_topics_self, schedule_v2",
+      "id, exam_date, daily_minutes, study_days, hard_topics_self, schedule_v2, target_score",
     )
     .eq("id", parsed.data.prepId)
     .eq("user_id", userId)
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
     studyDays,
     topics,
     previous,
+    targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
     nodes: (nodeRows ?? []).map((n) => ({
       id: n.id as string,
       kind: n.kind as PlanNodeKind,

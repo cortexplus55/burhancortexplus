@@ -5,6 +5,9 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import type { PrepProgressView } from "@/lib/learning/prep-progress-view";
+import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
+import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
+import type { PrepRadarView } from "@/lib/learning/prep-radar";
 
 const TICKS = 40;
 
@@ -19,6 +22,7 @@ export function ExamPrepProgress({
   reviewsHref,
   mockHref,
   onCreate,
+  radar = null,
 }: {
   view: PrepProgressView;
   daysLabel: string;
@@ -28,6 +32,7 @@ export function ExamPrepProgress({
   /** Deneme başlatılacak yer (yazılı deneme düğümü). */
   mockHref: string | null;
   onCreate: (label: string) => void;
+  radar?: PrepRadarView | null;
 }) {
   const [pane, setPane] = useState<"duzey" | "denemeler" | "tempo">("duzey");
   const lit = Math.round((view.scorePct / 100) * TICKS);
@@ -102,6 +107,16 @@ export function ExamPrepProgress({
 
       {pane === "duzey" ? (
         <>
+          {radar ? (
+            <div className="cp-prep-insights cp-prep-insights--progress">
+              <PrepRadarChart view={radar} compact />
+              <PrepForecastChart series={view.forecastSeries} />
+            </div>
+          ) : (
+            <div className="cp-prep-insights cp-prep-insights--progress">
+              <PrepForecastChart series={view.forecastSeries} />
+            </div>
+          )}
           <div className="cp-prog-block">
             <p className="cp-prog-kicker">Sınav günü için tahmin</p>
             {view.forecast.kind === "ready" ? (

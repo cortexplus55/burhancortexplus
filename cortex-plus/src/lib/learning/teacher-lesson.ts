@@ -96,7 +96,10 @@ const SCHEMA = `{
       "blocks": [
         {"type": "text", "text": "…"},
         {"type": "note", "note": {"title": "Neden böyle?: kaynağın nedenini vermediği kilit bilgi, soru olarak", "body": "1-2 cümle mekanizma; yeni sayı, eşik ya da kural yok (kaynak nedeni kendisi veriyorsa bu kutu yok)", "tone": "general"}},
-        {"type": "formula", "formula": {"title": "…", "expression": "kaynaktaki bağıntı", "note": "harflerin anlamı"}},
+        {"type": "formula", "formula": {"title": "…", "expression": "kaynaktaki bağıntı", "symbols": [{"symbol": "v", "meaning": "hız (m/s)"}], "note": "harflerin anlamı"}},
+        {"type": "exam_trap_card", "trap": {"title": "Sınavın vurduğu karışıklık", "wrong": "öğrencinin sık inandığı yanlış", "right": "doğrusu, kaynaktaki hâliyle", "tell": "ayırt ettiren ipucu"}},
+        {"type": "memory_hook_card", "hook": {"kind": "analogy", "title": "Hafıza çivisi", "body": "5 saniyelik benzetme veya kısa yol; yeni sayı yok"}},
+        {"type": "comparison_carousel", "carousel": {"title": "İki kavram", "mode": "compare", "slides": [{"title": "A", "body": "…", "points": ["…"]}, {"title": "B", "body": "…", "points": ["…"]}]}},
         {"type": "check", "check": {"type": "mcq", "prompt": "…", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "doğru cevabın nedeni + her çeldiricinin gerçekte ne olduğu", "optionWhy": ["şık 1 için tek cümle", "şık 2", "şık 3", "şık 4"], "review": {"prompt": "en olası yanlış seçimi ölçen YENİ bir durum; doğru cevabı bu sorununkiyle aynı", "options": ["…","…","…","…"], "answerIndex": 0, "explanation": "doğru cevabın nedeni + en olası yanlışın neden uymadığı"}}}
       ]
     },
@@ -181,6 +184,23 @@ export const MNEMONIC_EXAMPLES =
   "cumhuriyete' (soy ile sınıfı karıştırıyor, ipucunu kategorisine bağlamıyor). Harf eşleşmesi Türkçe harfle " +
   "birebirdir: C ile Ç, G ile Ğ, I ile İ, O ile Ö, S ile Ş, U ile Ü ayrı harflerdir.";
 
+/**
+ * Görsel kartlar (25 Ekim 2026): kavramın zaten anlatılan bilgisini sınavın vurduğu yerden gösterir.
+ * Yeni sayı, kural, sonuç taşımazlar. Kart yokluğu dersi düşürmez; yazar ve denetçi aynı metni okur.
+ */
+export const VISUAL_BLOCK_RULE =
+  "GÖRSEL KARTLAR (yeni bilgi taşımaz): Kavramın anlattığın bilgisini sınavın vurduğu yerden göster. " +
+  "Hesaplanabilir bağıntıda 'formula' (type 'formula_card' de olur): expression kaynaktaki bağıntı, symbols her " +
+  "simgenin anlamı (en çok 6). Öğrencinin bu konuda sık düştüğü karışıklık varsa 'exam_trap_card': title, wrong " +
+  "(bilerek yanlış inanç — 'Sakın X ile Y'yi karıştırma' cümlesi), right (doğrusu, kaynaktaki hâliyle), tell " +
+  "(ayırt ettiren ipucu). Derste en az bir tuzak kartı yaz (kaynak bir karışıklık gösteriyorsa; yoksa uydurma). " +
+  "Akılda kalması gereken ayrım varsa 'memory_hook_card': kind analogy|image|shortcut, title, body — 5 saniyelik " +
+  "benzetme, zihinde canlandırma ya da kısa yol; ezber kodu (tone mnemonic) ayrıdır. Kavram başına en çok bir çivi. " +
+  "İki kavram yan yana ya da bir çözümün adımları varsa 'comparison_carousel': mode compare|steps, 2-5 slides " +
+  "(title, body, isteğe bağlı points). Kaynağın tablosu 'table' kalır; kaydırılan kart tabloyu satır satır kopyalamaz. " +
+  "Belge dışı tamamlayıcı bilgi yalnız 'note' tone 'general' (type 'general_knowledge_box' de olur); başlık " +
+  "'Genel bilgi: …'. Tuzak kartındaki wrong alanı bilerek yanlış inançtır, olgu değildir.\n\n";
+
 export const EMPHASIS_RULE =
   "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
   "kanıtlanana kadar' türü kural, SINAVDA SORULUR maddesi) metinde ==çift eşittir== arasına al; ekranda turuncu " +
@@ -239,6 +259,7 @@ export const TEACHER_SYSTEM =
   "Tablo kurduğun ekranda metin tablonun satırlarını yeniden saymaz; ayırt ettiren kuralı tek cümlede söyler. " +
   "Öğrencinin sık karıştırdığı iki kavram varsa ekrana 'note' bloğu (tone: warn) koy; başlık iki kavramın gerçek " +
   "adını taşır ('Üniter devlet ile bölgeli devlet farkı'), 'X ile Y' gibi yer tutucu yazılmaz.\n\n" +
+  VISUAL_BLOCK_RULE +
   EMPHASIS_RULE +
   "ÖRNEK VAKA (zorunlu): Derste EN AZ BİR ekranda, uyarı notu olmayan bir ekrana, 'note' bloğu (tone: info) koy; " +
   "başlık 'Örnek vaka: ' ile başlar ve vakayı adlandırır. Kısa, somut bir durum kur (bir hasta, bir ülke, bir açı, bir " +
@@ -445,8 +466,11 @@ export const VERIFY_SYSTEM =
   "Kaynakta açıkça bozuk bir cümlenin (olumsuzluk eki düşmüş, kelime kaymış, kendi açıklaması ve örnekleriyle " +
   "çelişen) derste kaynağın kendi açıklama ve örnekleriyle tutarlı anlamıyla yazılması SORUN DEĞİLDİR; bunu A ya da B " +
   "sayma.\n" +
+  `K) ${VISUAL_BLOCK_RULE}` +
+  "Görsel kart yeni sayı, kural ya da sonuç taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış " +
+  "inançtır, A sayma. Kartın yokluğu 'low'dur — dersi düşürme, kavramı atma.\n" +
   "A-I 'high'; J 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca, ekranda 2'den fazla ==vurgu== ya da " +
-  "sınavlık olmayan bilgiye vurgu.\n" +
+  "sınavlık olmayan bilgiye vurgu, görsel kartın yokluğu.\n" +
   CALIBRATION +
   VERIFY_JSON;
 
@@ -465,7 +489,10 @@ export const TOPIC_VERIFY_SYSTEM =
   "F) Ders içinde tutarsızlık.\n" +
   `G) ${MNEMONIC_VERIFY}\n` +
   `H) ${RUBRIC_VERIFY}` +
-  "A-G 'high'; H 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca.\n" +
+  `I) ${VISUAL_BLOCK_RULE}` +
+  "Görsel kart yanlış bilgi taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış inançtır. Kartın " +
+  "yokluğu 'low'dur.\n" +
+  "A-G 'high'; H 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca, görsel kartın yokluğu.\n" +
   CALIBRATION +
   "Kurumlar ya da kılavuz sürümleri arasında küçük farklar olan bir eşikte ders yaygın kabul gören değeri veriyorsa " +
   "bu A ya da B değildir.\n" +
@@ -1073,6 +1100,26 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
   if (whys.length > 1) {
     issues.push({ where: `screens[${whys[1]}].blocks`, severity: "low", problem: `'${group.concept}' kavramında ${whys.length} 'Neden böyle?' kutusu var; en çok bir tane bırak.` });
   }
+  const traps = group.screens.flatMap((index) =>
+    screens[index]!.blocks.filter((block) => block.type === "exam_trap_card").map(() => index),
+  );
+  if (traps.length > 1) {
+    issues.push({
+      where: `screens[${traps[1]}].blocks`,
+      severity: "low",
+      problem: `'${group.concept}' kavramında ${traps.length} sınav tuzağı kartı var; en çok bir tane bırak.`,
+    });
+  }
+  const hooks = group.screens.flatMap((index) =>
+    screens[index]!.blocks.filter((block) => block.type === "memory_hook_card").map(() => index),
+  );
+  if (hooks.length > 1) {
+    issues.push({
+      where: `screens[${hooks[1]}].blocks`,
+      severity: "low",
+      problem: `'${group.concept}' kavramında ${hooks.length} hafıza çivisi var; en çok bir tane bırak.`,
+    });
+  }
   return issues;
 }
 
@@ -1450,7 +1497,15 @@ function cellMentioned(cell: string, said: Set<string>): boolean {
 }
 
 /** Kavramın ikinci ve üçüncü ekranını haklı çıkaran parçalar. */
-const SPLIT_WORTHY = new Set<LessonBlock["type"]>(["formula", "procedure", "example", "table"]);
+const SPLIT_WORTHY = new Set<LessonBlock["type"]>([
+  "formula",
+  "procedure",
+  "example",
+  "table",
+  "exam_trap_card",
+  "memory_hook_card",
+  "comparison_carousel",
+]);
 
 /** "Tabloda … oku", "tablodaki değerlere bak": okuru bir tabloya gönderen cümle. */
 const POINTS_TO_TABLE = /(?:^|[^\p{L}])tablo(?:da|daki|yu|ya)(?=[^\p{L}])[^.]{0,80}?(?:oku|bak|incele|karşılaştır|gör)/iu;

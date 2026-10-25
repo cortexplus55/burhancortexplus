@@ -42,6 +42,7 @@ import {
   type WizardDraftStep,
 } from "@/lib/learning/exam-wizard-draft";
 import { setFocusPrepCookieClient } from "@/lib/learning/focus-prep";
+import { targetPlanHint } from "@/lib/learning/target-plan";
 import { WizardProcessingPanel } from "@/components/parity/wizard-processing-panel";
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
 import { filesAcceptedFromSelection } from "@/lib/learning/prep-file-cap";
@@ -1374,6 +1375,9 @@ export function ExamCreateWizard({
               <span>%50</span>
               <span>%100</span>
             </div>
+            <p className={`apw-target-hint apw-target-hint--${targetPlanHint(target).mode}`} role="status">
+              {targetPlanHint(target).badge}
+            </p>
           </div>
           <button
             type="button"

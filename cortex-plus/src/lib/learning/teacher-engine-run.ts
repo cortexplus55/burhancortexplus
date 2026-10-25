@@ -5,12 +5,21 @@ import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
+import { studentPedagogyBlock, withStudentProfile, type PedagogySurface } from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 
 export type AskJson = (system: string, user: string) => Promise<unknown | null>;
+
+/** Kabuğu paylaşan motorun profil yüzeyi, günlük adından ("teacher_cards", "studio_oral", "teacher_exam_open"). */
+function pedagogySurface(label: string): PedagogySurface {
+  if (label.endsWith("cards")) return "cards";
+  if (label.endsWith("true_false")) return "true_false";
+  if (label.endsWith("oral") || label.endsWith("exam_open")) return "oral";
+  return "lesson";
+}
 
 /** İlk geçiş düşerse ikinci geçiş ancak bu süreden önce başlar (rota tavanı 300 sn). */
 const RETRY_DEADLINE_MS = 90_000;
@@ -73,7 +82,9 @@ async function runWithTeacherModelInner<R>(
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
+  const profileLoad = studentPedagogyBlock(service, options.userId, pedagogySurface(options.label));
   const tier = fastTier(!free && !held && (await fastAllowedFor(service, options.userId)));
+  const profile = await profileLoad;
   const ask: AskJson = async (system, user) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -81,7 +92,7 @@ async function runWithTeacherModelInner<R>(
       response_format: { type: "json_object" },
       ...tier,
       messages: [
-        { role: "system", content: system },
+        { role: "system", content: withStudentProfile(system, profile) },
         { role: "user", content: user },
       ],
     });

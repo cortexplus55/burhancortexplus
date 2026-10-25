@@ -6,7 +6,7 @@ import { examPointsBlock } from "@/lib/learning/exam-points";
  * Video ders (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi).
  *
  * Astra'da canlı bakıldı: "1 dakikalık video dersi izle — Hızlı ve görsel", stil seçimi
- * (Gerçekçi · Çizgi roman · Beyaz tahta · Brainrot · Mem), konu seçimi; çıktı dikey,
+ * (Gerçekçi & Sinematik · Çizgi roman · Beyaz tahta · Neon infografik · Hızlı odak), konu seçimi; çıktı dikey,
  * 66 sn, 6-8 sahne, her sahnede ayrı bir çizim, 2-4 kelimelik akan alt yazı ve
  * anlatıcı sesi. Kararla bizde video oynatıcıda birleşir: sahne resimleri, sahne başına
  * ses ve alt yazı ayrı saklanır; yalnız Plus.
@@ -15,48 +15,80 @@ import { examPointsBlock } from "@/lib/learning/exam-points";
  * eşleyen denetim → gerekirse bir düzeltme. Kod anlatıma bir şey eklemez.
  */
 
-export type VideoStyle = "realistic" | "comic" | "whiteboard" | "brainrot" | "meme";
+export type VideoStyle = "cinematic" | "comic" | "whiteboard" | "infographic" | "fast_focus";
+
+/** Eski kayıtlar ve istemciler: realistic → cinematic, brainrot → infographic, meme → fast_focus. */
+export const VIDEO_STYLE_ALIASES: Record<string, VideoStyle> = {
+  realistic: "cinematic",
+  brainrot: "infographic",
+  meme: "fast_focus",
+};
+
+export const VIDEO_STYLE_IDS = ["cinematic", "comic", "whiteboard", "infographic", "fast_focus"] as const;
 
 export const VIDEO_STYLES: { id: VideoStyle; emoji: string; label: string; blurb: string; image: string }[] = [
   {
-    id: "realistic",
-    emoji: "🏞️",
-    label: "Gerçekçi",
-    blurb: "Gerçeğe yakın sahneler, zengin detay",
-    image: "photorealistic educational illustration, rich detail, soft natural light",
+    id: "cinematic",
+    emoji: "🎬",
+    label: "Gerçekçi & Sinematik",
+    blurb: "Detaylı, yüksek kontrastlı gerçekçi sahneler",
+    image: "photorealistic cinematic educational scene, high contrast, rich detail, dramatic lighting, film still",
   },
   {
     id: "comic",
     emoji: "💥",
-    label: "Çizgi roman",
-    blurb: "Kalın çizgiler, canlı renkler",
-    image: "comic book illustration, bold ink outlines, vivid flat colors, dynamic composition",
+    label: "Çizgi Roman / Anime",
+    blurb: "Canlı renkler, kalın konturlar, dinamik çizgi roman estetiği",
+    image: "comic book / anime illustration, bold ink outlines, vivid flat colors, dynamic composition",
   },
   {
     id: "whiteboard",
     emoji: "✏️",
-    label: "Beyaz tahta",
-    blurb: "Basit çizimler, beyaz arka plan",
-    image: "whiteboard sketch, simple black marker line drawing on a plain white background, minimal shading",
+    label: "Beyaz Tahta & El Çizimi",
+    blurb: "Akademik el çizimi diyagramlar, temiz şematik anlatım",
+    image: "academic hand-drawn whiteboard diagram, clean schematic, simple black marker line drawing on a plain white background, minimal shading",
   },
   {
-    id: "brainrot",
+    id: "infographic",
     emoji: "🧠",
-    label: "Brainrot",
-    blurb: "Oyun görselleri, hızlı tempo",
-    image: "video game style 3D render, saturated colors, playful exaggerated scene, energetic",
+    label: "Neon İnfografik & Şema",
+    blurb: "Koyu zeminde parlayan kavram haritaları ve görsel şemalar",
+    image: "neon infographic on a dark background, glowing concept map, luminous schematic, high-contrast educational diagram",
   },
   {
-    id: "meme",
-    emoji: "💀",
-    label: "Mem",
-    blurb: "Mem biçimleri, kalın yazılar",
-    image: "funny internet meme style illustration, expressive cartoon character reaction, simple background",
+    id: "fast_focus",
+    emoji: "⚡",
+    label: "Hızlı Odak (Yüksek Enerji)",
+    blurb: "Dikkat dağılmasını önleyen, çok canlı ve çarpıcı görsel metaforlar",
+    image: "high-energy visual metaphor, punchy saturated colors, single striking focal subject, no clutter, bold educational poster",
   },
 ];
 
+export function resolveVideoStyle(id: string | null | undefined): VideoStyle {
+  if (id && (VIDEO_STYLE_IDS as readonly string[]).includes(id)) return id as VideoStyle;
+  if (id && VIDEO_STYLE_ALIASES[id]) return VIDEO_STYLE_ALIASES[id]!;
+  return "cinematic";
+}
+
 export function videoStyle(id: string | null | undefined): (typeof VIDEO_STYLES)[number] {
-  return VIDEO_STYLES.find((item) => item.id === id) ?? VIDEO_STYLES[2]!;
+  const resolved = resolveVideoStyle(id);
+  return VIDEO_STYLES.find((item) => item.id === resolved) ?? VIDEO_STYLES[0]!;
+}
+
+/**
+ * Kayıt için stil. Göç `20261025120000` uygulanmadan yeni id'ler CHECK'e takılır;
+ * o yüzden eski beş değer yazılır, okurken alias ile yeni etikete döner.
+ */
+export function persistVideoStyle(id: string | null | undefined): string {
+  const resolved = resolveVideoStyle(id);
+  const stored: Record<VideoStyle, string> = {
+    cinematic: "realistic",
+    comic: "comic",
+    whiteboard: "whiteboard",
+    infographic: "brainrot",
+    fast_focus: "meme",
+  };
+  return stored[resolved];
 }
 
 /*
@@ -217,10 +249,10 @@ export function videoStructureIssues(script: VideoScript): VideoStructureIssue[]
   return issues;
 }
 
-/** Resim istemi: sahne tarifi + stil; yazısız, dikey. */
-export function videoImagePrompt(scene: VideoScene, style: VideoStyle): string {
+/** Resim istemi: sahne tarifi + güvenli stil yönergesi; yazısız, dikey. */
+export function videoImagePrompt(scene: VideoScene, style: string): string {
   const look = videoStyle(style).image;
-  return `${scene.visual}. Style: ${look}. Vertical 9:16 composition, single clear focal subject, no text, no letters, no numbers, no labels, no watermark.`;
+  return `${scene.visual}. Style: ${look}. Vertical 9:16 composition, single clear focal subject, no text, no letters, no numbers, no labels, no watermark, no logos, no real celebrities.`;
 }
 
 /**

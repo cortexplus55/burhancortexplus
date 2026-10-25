@@ -14,6 +14,10 @@ import {
   type NodeStatus,
   type PlanNodeKind,
 } from "@/lib/learning/exam-prep-plan";
+import {
+  buildReadinessForecastSeries,
+  type ReadinessForecastSeries,
+} from "@/lib/learning/prep-radar";
 
 export type ProgressNode = {
   id: string;
@@ -49,6 +53,8 @@ export type PrepProgressView = {
   forecast:
     | { kind: "waiting"; reason: string }
     | { kind: "ready"; pct: number; text: string };
+  /** 14 günlük (veya sınava kalan) hazırlık eğrisi — SVG çizgi grafik. */
+  forecastSeries: ReadinessForecastSeries;
   /**
    * Tempo kartı (19 Ekim 2026, Astra'daki gibi): bir ders ne kazandırıyor, hedefe kaç ders kaldı,
    * günde kaç ders gerekir. Ölçülen puan ve biten ders sayısından; ikisi de yoksa null.
@@ -261,6 +267,26 @@ export function buildPrepProgressView(input: {
     topicCount: labels.length,
     lessonsDone,
     forecast,
+    forecastSeries: buildReadinessForecastSeries({
+      currentPct: scorePct,
+      targetPct,
+      gainPerDay:
+        gainPerLessonPct > 0
+          ? Math.min(
+              6,
+              Math.max(
+                0.2,
+                gainPerLessonPct *
+                  (completed.filter((attempt) => {
+                    const time = Date.parse(attempt.createdAt);
+                    return Number.isFinite(time) && now - time <= 14 * DAY_MS;
+                  }).length /
+                    14),
+              ),
+            )
+          : 0.15,
+      daysRemaining: daysToExam,
+    }),
     pace,
     gapsMeasured,
     gaps: input.gaps.slice(0, 5),

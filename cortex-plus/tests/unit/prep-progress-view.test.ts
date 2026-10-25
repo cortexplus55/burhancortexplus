@@ -72,6 +72,8 @@ describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
   it("sınav tarihi yoksa tahmin beklemede", () => {
     const view = buildPrepProgressView(base);
     expect(view.forecast).toEqual({ kind: "waiting", reason: "Sınav tarihi girilince tahmin görünür." });
+    expect(view.forecastSeries.points[0]?.pct).toBe(view.scorePct);
+    expect(view.forecastSeries.targetPct).toBe(DEFAULT_TARGET_PCT);
   });
 
   it("tahmini son iki haftanın tamamlama temposundan kuruyor ve bunu söylüyor", () => {

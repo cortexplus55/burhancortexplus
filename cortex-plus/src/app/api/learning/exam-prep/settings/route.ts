@@ -104,6 +104,7 @@ export async function PATCH(request: Request) {
       topics,
       previous,
       settings: { hard_topics_self: nextHard, learning_preferences: nextPrefs },
+      targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
       nodes: (nodeRows ?? []).map((n) => ({
         id: n.id as string,
         kind: n.kind as PlanNodeKind,

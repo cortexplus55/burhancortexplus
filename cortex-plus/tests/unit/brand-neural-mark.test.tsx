@@ -59,7 +59,7 @@ describe("sinir ağı işareti", () => {
   });
 
   it("hazırlanıyor ekranı ve ana sayfanın son çağrısı hareketli logoyu kullanır", () => {
-    expect(read("src/components/parity/node-generation-progress.tsx")).toContain('<CortexLogoMotion size={168} mode="loop" />');
+    expect(read("src/components/parity/node-generation-progress.tsx")).toContain('<CortexLogoMotion size={128} mode="loop" />');
     expect(read("src/components/landing/landing-page.tsx")).toContain("<CortexLogoReveal");
   });
 

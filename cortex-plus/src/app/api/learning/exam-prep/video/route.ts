@@ -4,7 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { prepTopicSource } from "@/lib/learning/prep-topic-source";
-import { VIDEO_STYLES, type VideoStyle } from "@/lib/learning/video-lesson";
+import { resolveVideoStyle } from "@/lib/learning/video-lesson";
 import { runVideoLesson } from "@/lib/learning/video-run";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 
@@ -13,7 +13,8 @@ export const maxDuration = 300;
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
-  style: z.enum(VIDEO_STYLES.map((item) => item.id) as [VideoStyle, ...VideoStyle[]]),
+  style: z.string().optional(),
+  visualStyle: z.string().optional(),
   clientRequestId: z.string().uuid().optional(),
 });
 
@@ -33,7 +34,8 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { prepId, topicId, style } = parsed.data;
+  const { prepId, topicId } = parsed.data;
+  const style = resolveVideoStyle(parsed.data.visualStyle ?? parsed.data.style);
 
   const { data: prep } = await service
     .from("exam_preps")

@@ -20,13 +20,49 @@
   top: 0;
   z-index: 5;
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto auto;
   align-items: center;
   gap: 0.75rem;
   margin: 0 -0.25rem var(--sp-4, 1rem);
   padding: 0.65rem 0.25rem;
   background: color-mix(in srgb, var(--cp-bg, var(--c-bg)) 92%, transparent);
   backdrop-filter: blur(8px);
+}
+
+.als-progress {
+  min-width: 0;
+}
+
+.als-progress-track {
+  display: block;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.als-progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--als-action), #7c8cff);
+  transform-origin: left center;
+}
+
+.als-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--cp-gold, #e2b340) 45%, transparent);
+  background: rgba(226, 179, 64, 0.12);
+  color: var(--cp-gold, #e2b340);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .als-icon {
@@ -68,6 +104,10 @@
 }
 
 .als-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.15rem;
   margin: 0;
   color: var(--cp-muted);
   font-size: 0.8125rem;
@@ -116,10 +156,10 @@
 
 .als-heading {
   margin-top: 0.35rem;
-  font-size: 1.375rem;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
 }
 
 .als-subhead {
@@ -209,6 +249,7 @@
 
 .als-minutes {
   display: block;
+  flex-basis: 100%;
   margin-top: 0.15rem;
   color: var(--cp-muted);
   font-size: 0.75rem;
@@ -350,13 +391,15 @@
 }
 
 .als-option.is-right {
-  border-color: var(--als-right);
-  background: rgba(46, 158, 79, 0.16);
+  border-color: #3dffb0;
+  background: rgba(46, 158, 79, 0.18);
+  box-shadow: 0 0 0 1px rgba(61, 255, 176, 0.35), 0 0 18px rgba(61, 255, 176, 0.28);
 }
 
 .als-option.is-wrong {
   border-color: var(--als-wrong);
   background: rgba(192, 69, 59, 0.14);
+  animation: als-shake 0.42s ease;
 }
 
 .als-write {
@@ -398,11 +441,13 @@
 .als-check.is-wrong {
   border-color: #e05a4f;
   background: rgba(120, 28, 32, 0.45);
+  animation: als-shake 0.42s ease;
 }
 
 .als-check.is-right {
-  border-color: var(--als-right);
+  border-color: #3dffb0;
   background: rgba(20, 70, 40, 0.45);
+  box-shadow: 0 0 0 1px rgba(61, 255, 176, 0.35), 0 0 22px rgba(61, 255, 176, 0.22);
 }
 
 .als-tf {
@@ -471,7 +516,182 @@
 }
 
 .als-feedback.is-right {
-  border-color: var(--als-right);
+  border-color: #3dffb0;
+  box-shadow: 0 0 18px rgba(61, 255, 176, 0.22);
+}
+
+.als-explain--why {
+  border-color: rgba(45, 212, 191, 0.45);
+  background: rgba(12, 40, 36, 0.88);
+}
+
+.als-explain--why .als-explain-kicker {
+  color: #5eead4;
+}
+
+.als-hint-first {
+  margin: 0 0 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.75rem;
+  border: 1px dashed rgba(244, 174, 11, 0.45);
+  background: rgba(244, 174, 11, 0.08);
+}
+
+.als-formula-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.als-formula-symbols li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(226, 179, 64, 0.14);
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--c-text) 78%, var(--c-bg));
+}
+
+.als-formula-symbols span {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--cp-gold, #e2b340);
+}
+
+.als-kicker--formula {
+  background: rgba(226, 179, 64, 0.16);
+  color: #f0c96a;
+}
+
+.als-kicker--trap {
+  background: rgba(232, 93, 58, 0.18);
+  color: #ffb199;
+}
+
+.als-kicker--hook {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+}
+
+.als-kicker--carousel {
+  background: rgba(67, 83, 243, 0.18);
+  color: #a5b4fc;
+}
+
+.als-kicker--general {
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+}
+
+.als-visual {
+  margin-top: 0.95rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--c-surface-1) 72%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.als-visual-title {
+  margin: 0.15rem 0 0.55rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.als-visual--trap {
+  border-color: rgba(232, 93, 58, 0.55);
+  box-shadow: 0 0 0 1px rgba(232, 93, 58, 0.18), 0 10px 28px rgba(80, 16, 8, 0.22);
+}
+
+.als-visual--hook {
+  border-color: rgba(139, 92, 246, 0.55);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.18), 0 10px 28px rgba(40, 16, 80, 0.22);
+}
+
+.als-visual--carousel {
+  border-color: rgba(67, 83, 243, 0.45);
+}
+
+.als-visual-wrong,
+.als-visual-right,
+.als-visual-tell,
+.als-visual-body {
+  margin: 0.4rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.als-carousel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.55rem 0 0.7rem;
+}
+
+.als-carousel-tabs button {
+  border: 1px solid var(--cp-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  border-radius: 9999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.als-carousel-tabs button.is-on {
+  border-color: var(--als-action);
+  background: rgba(67, 83, 243, 0.22);
+}
+
+.als-carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.7rem;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.als-carousel-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+}
+
+.als-carousel-nav button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@keyframes als-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .als-option.is-wrong,
+  .als-check.is-wrong {
+    animation: none;
+  }
 }
 
 .als-card-grid {
@@ -697,10 +917,11 @@
 /* Bağıntı kartı: gövdeden ayrı, altın çerçeveli — özet değil, formül. */
 .als-formula-card {
   margin-top: 0.9rem;
-  padding: 0.85rem 1rem;
-  border-radius: 1rem;
-  border: 1px solid var(--cp-gold, var(--c-brand));
-  background: rgba(226, 179, 64, 0.08);
+  padding: 0.95rem 1.05rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(226, 179, 64, 0.7);
+  background: rgba(226, 179, 64, 0.1);
+  box-shadow: 0 0 0 1px rgba(226, 179, 64, 0.18), 0 10px 28px rgba(80, 50, 8, 0.18);
 }
 
 .als-formula-card-title {
@@ -713,10 +934,11 @@
 }
 
 .als-formula-card-expr {
-  margin: 0.4rem 0 0;
-  font-size: 1rem;
-  line-height: 1.5;
+  margin: 0.55rem 0 0;
+  font-size: 1.25rem;
+  line-height: 1.45;
   font-family: var(--font-mono);
+  text-align: center;
 }
 
 .als-formula-card-note {
@@ -979,7 +1201,8 @@
     scroll-snap-align: start;
   }
 
-  .als-minutes {
+  .als-minutes,
+  .als-count-label {
     display: none;
   }
 }

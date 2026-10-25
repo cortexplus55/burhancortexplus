@@ -17,6 +17,7 @@ import {
   flattenLines,
   formatClock,
   normalizeChapters,
+  speakerLiveBadge,
   type PodcastChapter,
 } from "@/lib/learning/podcast-script";
 import {
@@ -114,6 +115,7 @@ export function PodcastStudio({
   /** Ses gelmediğinde öğrenciye söylenen tek cümle; robot sese düşmüyoruz. */
   const [audioNote, setAudioNote] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
+  const [lineCursor, setLineCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -386,6 +388,7 @@ export function PodcastStudio({
         return;
       }
       cursorRef.current = cursor;
+      setLineCursor(cursor);
       setIndex(track.chapterIndex);
       element.src = track.url;
       applySpeed(element);
@@ -441,7 +444,7 @@ export function PodcastStudio({
   }
 
   /**
-   * 10 saniye ileri/geri. Satırlar ayrı ses dosyaları olduğu için sıçrama
+   * 15 saniye ileri/geri. Satırlar ayrı ses dosyaları olduğu için sıçrama
    * dosya sınırını aşarsa komşu satıra taşınır; zaman çizelgesi öğrenci için
    * tek bir bölüm gibi akar.
    */
@@ -490,6 +493,9 @@ export function PodcastStudio({
 
   const chapter = chapters[index];
   const progressPct = totalMs > 0 ? Math.min(100, (elapsedMs / totalMs) * 100) : 0;
+  const flatLines = flattenLines(chapters);
+  const activeFlat = flatLines[lineCursor];
+  const liveSpeaker = activeFlat?.speaker ?? chapter?.lines[0]?.speaker ?? "ada";
 
   return (
     <StudioFrame tool="podcast" kicker="Podcast">
@@ -574,7 +580,10 @@ export function PodcastStudio({
           {tracks?.length ? (
             <>
               <div className="ls-vinyl-wrap">
-                <div className={cn("ls-vinyl", playing && "is-on")} aria-hidden />
+                <div
+                  className={cn("ls-vinyl", `is-${liveSpeaker}`, playing && "is-on")}
+                  aria-hidden
+                />
                 <button
                   type="button"
                   className="ls-play-orb"
@@ -584,16 +593,21 @@ export function PodcastStudio({
                   {playing ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7" />}
                 </button>
               </div>
+              {activeFlat ? (
+                <p className={cn("ls-pod-who", `is-${liveSpeaker}`)} aria-live="polite">
+                  {speakerLiveBadge(liveSpeaker, activeFlat.beat)}
+                </p>
+              ) : null}
 
               <div className="ls-pod-transport">
                 <button
                   type="button"
                   className="ls-ghost ls-pod-skip"
-                  onClick={() => seek(-10)}
-                  aria-label="10 saniye geri"
+                  onClick={() => seek(-15)}
+                  aria-label="15 saniye geri"
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden />
-                  10
+                  15
                 </button>
                 <div
                   className="ls-pod-progress"
@@ -609,11 +623,11 @@ export function PodcastStudio({
                 <button
                   type="button"
                   className="ls-ghost ls-pod-skip"
-                  onClick={() => seek(10)}
-                  aria-label="10 saniye ileri"
+                  onClick={() => seek(15)}
+                  aria-label="15 saniye ileri"
                 >
                   <RotateCw className="h-4 w-4" aria-hidden />
-                  10
+                  15
                 </button>
               </div>
               <p className="ls-credit ls-pod-clock">
@@ -653,12 +667,25 @@ export function PodcastStudio({
           )}
 
           <p className="ls-flash-text">{chapter.title}</p>
-          <div className="ls-explain" style={{ textAlign: "left" }}>
-            {chapter.lines.map((line, i) => (
-              <p key={i} className="ls-pod-line">
-                <strong>{SPEAKER_LABEL[line.speaker]}</strong> {line.text}
-              </p>
-            ))}
+          <div className="ls-explain ls-pod-script" style={{ textAlign: "left" }}>
+            {chapter.lines.map((line, i) => {
+              const chapterStart = flatLines.findIndex((item) => item.chapterIndex === index);
+              const global = (chapterStart < 0 ? 0 : chapterStart) + i;
+              const current = global === lineCursor;
+              return (
+                <button
+                  key={`${line.speaker}-${i}`}
+                  type="button"
+                  className={cn("ls-pod-line", `is-${line.speaker}`, current && "is-now")}
+                  onClick={() => {
+                    if (!tracks?.length) return;
+                    playFrom(global);
+                  }}
+                >
+                  <strong>{SPEAKER_LABEL[line.speaker]}</strong> {line.text}
+                </button>
+              );
+            })}
           </div>
 
           <div className="ls-chapters">

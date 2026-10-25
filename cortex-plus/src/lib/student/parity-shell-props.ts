@@ -2,7 +2,7 @@ import {
   parityUserInitial,
 } from "@/components/parity/app-utils";
 import { getStudentAccountContext } from "@/lib/student/account-context";
-import { getUserStreak } from "@/lib/streak/record-activity";
+import { getUserStreakState } from "@/lib/streak/record-activity";
 import { loadPromoCampaign } from "@/lib/student/promo-campaign";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -11,14 +11,14 @@ export async function loadParityShellProps(
   userId: string,
   email?: string | null,
 ) {
-  const [{ data: profile }, account, streak, promo] = await Promise.all([
+  const [{ data: profile }, account, streakState, promo] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, avatar_url")
       .eq("id", userId)
       .maybeSingle(),
     getStudentAccountContext(supabase, userId),
-    getUserStreak(supabase, userId),
+    getUserStreakState(supabase, userId),
     loadPromoCampaign(supabase),
   ]);
 
@@ -35,7 +35,12 @@ export async function loadParityShellProps(
   return {
     userInitial: parityUserInitial(profile?.full_name, email),
     avatarEmoji: avatar && !avatar.startsWith("http") ? avatar : null,
-    streak,
+    streak: streakState.streak,
+    streakFreeze: {
+      remaining: streakState.remaining,
+      protected: streakState.protected,
+      used: streakState.used,
+    },
     account,
     promo,
     recentConversations: (conversations ?? []).map((row) => ({

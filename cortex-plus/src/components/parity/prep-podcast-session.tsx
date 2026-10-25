@@ -97,6 +97,7 @@ export function PrepPodcastSession({
     return (
       <NodeGenerationProgress
         title="Podcast hazırlanıyor…"
+        topic={topicLabel}
         note={queued ? BUSY_NOTE : undefined}
         onClose={() => router.push(home)}
       />

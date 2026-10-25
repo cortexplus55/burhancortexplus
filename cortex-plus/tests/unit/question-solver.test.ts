@@ -13,6 +13,7 @@ import { solvePhaseAfter, type SolvePhase } from "@/lib/solve/solve-client";
 import { solutionMarkdown, solveUserLine } from "@/lib/solve/solution-markdown";
 import { signReviewToken, solutionReviewItem, verifyReviewToken } from "@/lib/solve/solve-review";
 import { reviewPromptKey, sealReviewItem } from "@/lib/learning/review-items";
+import { socraticConcept, socraticHint, solveDiscussPrompt } from "@/lib/solve/socratic-solve";
 
 /*
   Soru çözücü (23 Ekim 2026, ürün sahibi: "yüzde 100 doğruluk, en çok 15 sn, Astra tarzı, bütün derslerde").
@@ -219,6 +220,18 @@ describe("tekrar listesine ekleme", () => {
     expect(sealed?.sourceLabel).toBe("Çözdüğün soru");
     expect(JSON.stringify(sealed)).not.toContain("optionWhy");
     expect(reviewPromptKey(item)).toMatch(/^[0-9a-f]{16}$/);
+  });
+});
+
+describe("sokratik kalkan", () => {
+  it("ipucu ve kavram mevcut çözüm alanlarından kurulur; tartışma /ogretmen'e gider", () => {
+    const solution = mcq();
+    expect(socraticHint(solution)).toBe("Denklemi x yalnız kalana kadar sadeleştiriyoruz.");
+    expect(socraticConcept(solution)).toBe("2x = 14 - 6 = 8");
+    expect(solveDiscussPrompt(solution)).toContain("Bu soruyu birlikte tartışalım.");
+    expect(solveDiscussPrompt(solution)).toContain("2x + 6 = 14");
+    expect(readFileSync("src/components/learning/question-solver.tsx", "utf8")).toContain("Çözüm Adımlarını Göster");
+    expect(readFileSync("src/app/soru-coz/page.tsx", "utf8")).toContain("tutorStyle={tutorStyle}");
   });
 });
 

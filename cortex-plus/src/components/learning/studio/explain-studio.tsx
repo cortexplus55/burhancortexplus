@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { toast } from "sonner";
 import { RotateCcw } from "lucide-react";
@@ -26,6 +26,15 @@ import {
   wordCount,
   type ExplainReview,
 } from "@/lib/learning/explain-review";
+import {
+  closedGaps,
+  latestAttemptForTopic,
+  mergeExplainHistory,
+  readLocalExplainHistory,
+  reviewToAttempt,
+  writeLocalExplainHistory,
+  type ExplainAttempt,
+} from "@/lib/learning/explain-history";
 
 /**
  * Anlatarak öğren.
@@ -70,15 +79,42 @@ export function ExplainStudio({
   const [paywall, setPaywall] = useState(false);
   /** Sonuç ekranından gelen sınama sorusu; yazma ekranının başında duruyor. */
   const [probe, setProbe] = useState<string | null>(null);
+  const [history, setHistory] = useState<ExplainAttempt[]>([]);
+  const [closed, setClosed] = useState<string[]>([]);
+  const [gapRetry, setGapRetry] = useState<{ point: string }[] | null>(null);
 
   const words = wordCount(text);
   const ready = words >= MIN_WORDS;
+  const topicHistory = useMemo(() => history.filter((row) => row.topic === topic || !topic), [history, topic]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const local = readLocalExplainHistory();
+    setHistory(local);
+    fetch("/api/learning/explain/history")
+      .then((res) => (res.ok ? res.json() : { attempts: [] }))
+      .then((data: { attempts?: ExplainAttempt[] }) => {
+        if (cancelled) return;
+        const merged = mergeExplainHistory(data.attempts ?? [], local);
+        setHistory(merged);
+        writeLocalExplainHistory(merged);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory(readLocalExplainHistory());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function submit() {
     setPhase("loading");
-    const result = await postStudio<ExplainReview & { source?: Parameters<typeof sourceNotice>[0] }>("/api/learning/explain", {
+    const result = await postStudio<
+      ExplainReview & { source?: Parameters<typeof sourceNotice>[0]; attemptId?: string | null; createdAt?: string }
+    >("/api/learning/explain", {
       topic,
       explanation: text,
+      probe: probe ?? undefined,
       ...(sourceDocument ? { documentId: sourceDocument.id } : {}),
     });
     if ("paywall" in result) {
@@ -97,15 +133,34 @@ export function ExplainStudio({
       setPhase("writing");
       return;
     }
+    const previous = gapRetry ?? latestAttemptForTopic(history, topic)?.gaps ?? [];
+    setClosed(closedGaps(previous, result.data.gaps));
+    const attempt = reviewToAttempt({
+      id: result.data.attemptId ?? undefined,
+      topic,
+      documentId: sourceDocument?.id ?? null,
+      explanation: text,
+      probe,
+      createdAt: result.data.createdAt,
+      ...result.data,
+    });
+    setHistory((current) => {
+      const next = mergeExplainHistory([attempt], current);
+      writeLocalExplainHistory(next);
+      return next;
+    });
     setReview(result.data);
     setNotice(sourceNotice(result.data.source));
+    setGapRetry(null);
     setPhase("result");
   }
 
-  function restart(nextProbe: string | null = null) {
+  function restart(nextProbe: string | null = null, nextGaps: { point: string }[] | null = null) {
     setText("");
     setReview(null);
+    setClosed([]);
     setProbe(nextProbe);
+    setGapRetry(nextGaps);
     setPhase("writing");
   }
 
@@ -151,6 +206,7 @@ export function ExplainStudio({
             setPhase("writing");
           }}
         />
+        {history.length ? <ExplainHistoryList attempts={history} /> : null}
         {paywallDialog}
       </>
     );
@@ -170,6 +226,12 @@ export function ExplainStudio({
       <StudioFrame tool="anlat" kicker={topic}>
         <div className="space-y-5">
           {notice ? <p className="ls-source-notice">{notice}</p> : null}
+          {closed.length ? (
+            <p className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300" role="status">
+              Önceki eksiğini kapattın!
+              <span className="mt-1 block font-normal opacity-90">{closed.join(" · ")}</span>
+            </p>
+          ) : null}
           <div
             className={`rounded-2xl border p-4 ${VERDICT_TONE[review.verdict] ?? VERDICT_TONE.kismen}`}
           >
@@ -243,6 +305,21 @@ export function ExplainStudio({
             </button>
           </section>
 
+          {review.gaps.length ? (
+            <button
+              type="button"
+              onClick={() =>
+                restart(
+                  `Eksiklerin: ${review.gaps.map((gap) => gap.point).join("; ")}. Bunları tamamlayarak yeniden anlat.`,
+                  review.gaps,
+                )
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+            >
+              Eksiklerimi tamamlayarak tekrar anlat
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={() => restart()}
@@ -251,6 +328,7 @@ export function ExplainStudio({
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
             Baştan anlat
           </button>
+          {topicHistory.length ? <ExplainHistoryList attempts={topicHistory} compact /> : null}
         </div>
       </StudioFrame>
     );
@@ -311,5 +389,34 @@ export function ExplainStudio({
       </div>
       {paywallDialog}
     </StudioFrame>
+  );
+}
+
+function ExplainHistoryList({ attempts, compact = false }: { attempts: ExplainAttempt[]; compact?: boolean }) {
+  return (
+    <section className={compact ? "mt-6 space-y-3" : "mx-auto mt-8 w-full max-w-2xl space-y-3 px-4 pb-10"}>
+      <h2 className="text-sm font-bold text-[var(--cs-text)]">
+        Önceki anlatımların ve gelişimin
+      </h2>
+      <ul className="space-y-2">
+        {attempts.slice(0, compact ? 5 : 12).map((row) => (
+          <li key={row.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--cs-text)]">
+              <span>{row.topic}</span>
+              <span className={`rounded-full border px-2 py-0.5 text-xs ${VERDICT_TONE[row.verdict] ?? VERDICT_TONE.kismen}`}>
+                {VERDICT_LABEL[row.verdict] ?? row.verdict}
+              </span>
+            </p>
+            <p className="mt-1 text-xs text-[var(--cs-muted)]">
+              {new Date(row.createdAt).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+              {row.gaps.length ? ` · ${row.gaps.length} eksik` : " · eksik yok"}
+            </p>
+            {row.gaps.length ? (
+              <p className="mt-1 text-xs text-[var(--cs-muted)]">{row.gaps.map((gap) => gap.point).join(" · ")}</p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

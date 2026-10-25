@@ -14,6 +14,7 @@
  */
 
 export type ToolKind = "hesap" | "kisayol";
+export type ToolCategory = "simulasyon" | "studio" | "odak";
 
 export type Tool = {
   id: string;
@@ -22,9 +23,43 @@ export type Tool = {
   subject: string;
   kind: ToolKind;
   href: string;
+  category: ToolCategory;
 };
 
+export const TOOL_CATEGORIES: { id: ToolCategory; label: string; emoji: string }[] = [
+  { id: "simulasyon", label: "İnteraktif Simülasyonlar", emoji: "🔬" },
+  { id: "studio", label: "Çalışma Stüdyoları", emoji: "🧠" },
+  { id: "odak", label: "Zihin & Odak Araçları", emoji: "🎮" },
+];
+
 export const TOOLS: Tool[] = [
+  {
+    id: "birim-cember",
+    title: "Birim çember laboratuvarı",
+    blurb: "Açıyı sürükle; sin, cos, tan uzunluklarını ve bölge işaretlerini canlı gör.",
+    subject: "Matematik",
+    kind: "hesap",
+    href: "/araclar/birim-cember",
+    category: "simulasyon",
+  },
+  {
+    id: "parabol",
+    title: "Parabol keşfedici",
+    blurb: "a, b, c kaydır; tepe noktası, diskriminant ve kökler birlikte hareket eder.",
+    subject: "Matematik",
+    kind: "hesap",
+    href: "/araclar/parabol",
+    category: "simulasyon",
+  },
+  {
+    id: "hucre",
+    title: "Hücre laboratuvarı",
+    blurb: "Organelleri yerleştir, doğru-yanlış geri bildirimi ve sınav ipuçlarını al.",
+    subject: "Biyoloji",
+    kind: "hesap",
+    href: "/araclar/hucre",
+    category: "simulasyon",
+  },
   // --- Hesap araçları -------------------------------------------------
   {
     id: "denklem",
@@ -33,6 +68,7 @@ export const TOOLS: Tool[] = [
     subject: "Matematik",
     kind: "hesap",
     href: "/araclar/denklem",
+    category: "odak",
   },
   {
     id: "integral",
@@ -41,6 +77,7 @@ export const TOOLS: Tool[] = [
     subject: "Matematik",
     kind: "hesap",
     href: "/araclar/integral",
+    category: "odak",
   },
   {
     id: "periyodik",
@@ -49,6 +86,7 @@ export const TOOLS: Tool[] = [
     subject: "Kimya",
     kind: "hesap",
     href: "/araclar/periyodik",
+    category: "odak",
   },
   {
     id: "birim",
@@ -57,6 +95,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "hesap",
     href: "/araclar/birim",
+    category: "odak",
   },
 
   // --- Kısayollar -----------------------------------------------------
@@ -67,6 +106,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/soru-coz",
+    category: "studio",
   },
   // 19 Ekim 2026: kartlar ve test belge seçebilen stüdyolara gider (eski /flashcardlar ve /quizler
   // yalnız konu yazdırıyordu); doğru/yanlış stüdyosu da listede.
@@ -77,6 +117,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/studio/flashcard",
+    category: "studio",
   },
   {
     id: "quiz",
@@ -85,6 +126,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/studio/quiz",
+    category: "studio",
   },
   {
     id: "dogru-yanlis",
@@ -93,6 +135,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/studio/dogru-yanlis",
+    category: "studio",
   },
   {
     id: "deneme",
@@ -101,6 +144,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/deneme-sinavlari",
+    category: "studio",
   },
   {
     id: "dokuman",
@@ -109,6 +153,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/dokumanlar",
+    category: "odak",
   },
   {
     id: "ilerleme",
@@ -117,6 +162,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/ilerleme",
+    category: "odak",
   },
   {
     id: "sohbetler",
@@ -125,6 +171,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/sohbetler",
+    category: "odak",
   },
   {
     id: "yanlislarim",
@@ -133,6 +180,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/yanlislarim",
+    category: "odak",
   },
   {
     id: "podcast",
@@ -141,6 +189,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/studio/podcast",
+    category: "studio",
   },
   {
     id: "sozlu",
@@ -149,6 +198,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/studio/sozlu",
+    category: "studio",
   },
   {
     id: "anlat",
@@ -157,6 +207,7 @@ export const TOOLS: Tool[] = [
     subject: "Genel",
     kind: "kisayol",
     href: "/studio/anlat",
+    category: "studio",
   },
 ];
 

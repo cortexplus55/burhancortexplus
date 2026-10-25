@@ -74,7 +74,7 @@ function account(over: Partial<StudentAccountContext> = {}): StudentAccountConte
     periodKind: "daily",
     usedPercent: 100,
     extraPercent: null,
-    freeMeters: meters(new Date()),
+    freeMeters: meters(TUESDAY),
     ...over,
   };
 }
@@ -113,10 +113,16 @@ describe("kapının yenilenme saati (#18, #19)", () => {
   });
 
   it("ders kapısı Pazartesi satırını ve günlü geri sayımı birlikte çizer", () => {
-    inShell(account(), <CreditGate open onOpenChange={() => undefined} message={freeLimitReachedLine("lesson")} meter="lesson" />);
-    expect(screen.getByText("Ders hakkın Pazartesi 00:00'da yenilenir.")).toBeTruthy();
-    expect(screen.getByText("Hakkın yenilenene kadar:")).toBeTruthy();
-    expect(screen.getByText("gün", { exact: false })).toBeTruthy();
+    vi.useFakeTimers();
+    vi.setSystemTime(TUESDAY);
+    try {
+      inShell(account(), <CreditGate open onOpenChange={() => undefined} message={freeLimitReachedLine("lesson")} meter="lesson" />);
+      expect(screen.getByText("Ders hakkın Pazartesi 00:00'da yenilenir.")).toBeTruthy();
+      expect(screen.getByText("Hakkın yenilenene kadar:")).toBeTruthy();
+      expect(screen.getByText("gün", { exact: false })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("sayaçsız kapı (kurulum, belge) geri saymaz", () => {

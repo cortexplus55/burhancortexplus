@@ -4,6 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
+import { parseExaminerVibe } from "@/lib/learning/examiner-vibe";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -11,6 +12,8 @@ const bodySchema = z.object({
   count: z.number().int().min(3).max(10).default(5),
   /** "Belgem": sorular ve beklenen noktalar yalnızca bu belgeden (19 Ekim 2026). */
   documentId: z.string().uuid().optional(),
+  /** Hoca karakteri. Yoksa destekleyici — mevcut çağrılar kırılmasın. */
+  examinerVibe: z.string().optional(),
 });
 
 /**
@@ -27,6 +30,7 @@ export async function POST(request: Request) {
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
   const { count, documentId } = parsedBody.data;
   const topic = parsedBody.data.topic.trim();
+  const examinerVibe = parseExaminerVibe(parsedBody.data.examinerVibe);
 
   const source = await studioTeacherSource(service, { userId, topic, documentId });
   if (!source) return errorResponse(409, "document_not_ready");
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
     work: async (ask, started) => {
       const loop = await teacherOralLoop(
         ask,
-        { topicLabel: topic, prepTitle: source.fileName ?? topic, pages: source.pages, mode: source.mode, count },
+        { topicLabel: topic, prepTitle: source.fileName ?? topic, pages: source.pages, mode: source.mode, count, examinerVibe },
         started,
       );
       const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds };

@@ -148,6 +148,7 @@ export async function rebuildPrepSchedule(
     previous: ScheduleBuildResult;
     nodes: PrepNodeForReschedule[];
     settings?: { hard_topics_self: string[]; learning_preferences: unknown };
+    targetScore?: number | null;
   },
 ): Promise<{ ok: true; summary: string } | { ok: false; error: string }> {
   const { data: attempts, error: attemptsError } = await service
@@ -168,6 +169,7 @@ export async function rebuildPrepSchedule(
     studyDays: input.studyDays,
     daysToExam: daysUntilExam(input.examDate),
     topics: input.topics,
+    targetScore: input.targetScore,
   });
 
   const replacement = replacementPlanForRebuild({

@@ -1,0 +1,191 @@
+.sim-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.sim-stats dt {
+  font-size: 0.7rem;
+  color: var(--cp-muted);
+}
+
+.sim-stats dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 1rem;
+}
+
+.sim-svg {
+  width: 100%;
+  max-width: 22rem;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  touch-action: none;
+}
+
+.sim-ring {
+  fill: rgba(67, 83, 243, 0.06);
+  stroke: #4353f3;
+  stroke-width: 2;
+}
+
+.sim-axis {
+  stroke: #303030;
+  stroke-width: 1;
+}
+
+.sim-cos {
+  stroke: #60a5fa;
+  stroke-width: 3;
+}
+
+.sim-sin {
+  stroke: #4ade80;
+  stroke-width: 3;
+}
+
+.sim-tan {
+  stroke: #fbbf24;
+  stroke-width: 3;
+}
+
+.sim-radius {
+  stroke: #e5e5e5;
+  stroke-width: 1.5;
+}
+
+.sim-arc {
+  fill: none;
+  stroke: #a5b4fc;
+  stroke-width: 2;
+}
+
+.sim-dot {
+  fill: #4353f3;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.sim-label {
+  fill: var(--cp-muted);
+  font-size: 11px;
+}
+
+.sim-caption,
+.sim-formula {
+  margin: 0.6rem 0 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+.sim-formula {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--cp-text);
+}
+
+.sim-curve {
+  fill: none;
+  stroke: #4353f3;
+  stroke-width: 2.4;
+}
+
+.sim-root {
+  fill: #4ade80;
+}
+
+.sim-vertex {
+  fill: #fbbf24;
+  stroke: #0d0d0d;
+  stroke-width: 1.5;
+}
+
+.sim-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sim-chip {
+  min-height: 40px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sim-chip.is-on {
+  border-color: #4353f3;
+  background: rgba(67, 83, 243, 0.16);
+}
+
+.sim-cell-wall {
+  fill: rgba(74, 222, 128, 0.08);
+  stroke: #4ade80;
+  stroke-width: 3;
+}
+
+.sim-cell-membrane {
+  fill: rgba(13, 13, 13, 0.35);
+  stroke: #22c55e;
+  stroke-width: 1.5;
+}
+
+.sim-slot {
+  fill: rgba(255, 255, 255, 0.06);
+  stroke: #303030;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.sim-slot.is-ok {
+  fill: rgba(74, 222, 128, 0.2);
+  stroke: #4ade80;
+}
+
+.sim-slot.is-bad {
+  fill: rgba(239, 68, 68, 0.16);
+  stroke: #ef4444;
+}
+
+.sim-slot-label {
+  fill: var(--cp-text);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.sim-tips {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sim-tips li {
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cp-border);
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+.sim-tips li.is-ok {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.sim-tips li.is-bad {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.sim-tips strong {
+  color: var(--cp-text);
+}

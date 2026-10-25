@@ -5,6 +5,7 @@ import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
+import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
@@ -288,7 +289,9 @@ async function runTeacherPodcastInner(
   let calls = 0;
   // Öğrenci bekliyor (önceden hazır podcast yok): hızlı işlem.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
+  const profileLoad = studentPedagogyBlock(service, input.userId, "podcast");
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
+  const profile = await profileLoad;
   const ask: AskJson = async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -300,7 +303,7 @@ async function runTeacherPodcastInner(
       // Senarist taslağı orta düşünmeyle (23 Ekim 2026, yirmi beşinci ölçüm: öğrenci gözü 63,5 → 65; yoğun sıralar azaldı).
       ...(role === "verify" ? {} : { reasoning_effort: role === "script" ? ("medium" as const) : ("low" as const) }),
       messages: [
-        { role: "system", content: system },
+        { role: "system", content: withStudentProfile(system, profile) },
         { role: "user", content: user },
       ],
     });

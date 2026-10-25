@@ -652,6 +652,51 @@
 
 .ls-mic-orb.is-live {
   animation: ls-pulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 10px rgba(67, 83, 243, 0.16), 0 0 36px rgba(110, 130, 255, 0.4);
+}
+
+.ls-timer-ring.is-listening {
+  animation: ls-pulse 1.1s ease-in-out infinite;
+}
+
+.ls-listen-clock {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.2rem;
+  font-weight: 750;
+}
+
+.ls-vibe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ls-vibe {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--cp-border, rgba(255, 255, 255, 0.1));
+  border-radius: 0.9rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ls-vibe.is-on {
+  border-color: var(--c-action, #4353f3);
+  background: color-mix(in srgb, var(--c-action, #4353f3) 12%, transparent);
+}
+
+.ls-vibe em {
+  display: block;
+  font-style: normal;
+  font-size: 0.78rem;
+  color: var(--cp-muted);
 }
 
 .ls-timer {
@@ -762,6 +807,73 @@
 
 .ls-vinyl.is-on {
   animation: ls-spin 7s linear infinite;
+}
+
+.ls-vinyl.is-ada {
+  box-shadow: 0 0 40px rgba(192, 80, 230, 0.4);
+  background:
+    radial-gradient(circle at 50% 50%, #2a1233 14%, transparent 15%),
+    repeating-radial-gradient(circle at 50% 50%, #1a0b22 0 5px, #6b1f8a 5px 6px);
+}
+
+.ls-vinyl.is-kerem {
+  box-shadow: 0 0 40px rgba(45, 180, 210, 0.4);
+  background:
+    radial-gradient(circle at 50% 50%, #06141a 14%, transparent 15%),
+    repeating-radial-gradient(circle at 50% 50%, #0c2a28 0 5px, #0c8a6a 5px 6px);
+}
+
+.ls-pod-who {
+  margin: 0.35rem 0 0;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ls-pod-who.is-ada {
+  background: rgba(168, 85, 247, 0.22);
+}
+
+.ls-pod-who.is-kerem {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.ls-pod-script {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.ls-pod-line {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ls-pod-line.is-now {
+  border-color: color-mix(in srgb, var(--ls-accent) 70%, #fff);
+  background: color-mix(in srgb, var(--ls-accent) 14%, transparent);
+}
+
+.ls-pod-line.is-ada.is-now {
+  border-color: rgba(232, 121, 249, 0.8);
+}
+
+.ls-pod-line.is-kerem.is-now {
+  border-color: rgba(52, 211, 183, 0.8);
 }
 
 .ls-timer-ring {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Check, X } from "lucide-react";
 import { RichBody } from "@/components/parity/lesson-rich-text";
+import { ReviewGradeButtons } from "@/components/parity/review-grade-buttons";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import type { ReviewAnswerOutcome, ServedReviewItem } from "@/lib/learning/review-items";
 import "@/styles/prep-review.css";
@@ -21,7 +22,7 @@ export const PREP_REVIEW_COPY = {
   next: "Sıradaki",
   finish: "Bitir",
   reveal: "Cevabı göster",
-  ask: "Hatırladın mı?",
+  ask: "Ne kadar hatırladın?",
   saveFailed: "Cevabın kaydedilemedi; yeniden dene.",
   retry: "Yeniden dene",
   gone: "Bu soru artık bugünkü listede değil.",
@@ -94,7 +95,7 @@ export function PrepReviewSession({
   const last = index + 1 >= items.length;
   const settled = Boolean(feedback) || gone;
 
-  async function send(body: { pick?: string | string[]; recalled?: boolean }) {
+  async function send(body: { pick?: string | string[]; recalled?: boolean; quality?: 1 | 4 | 5 }) {
     if (sending || settled) return;
     setSending(true);
     setFailed(false);
@@ -283,19 +284,11 @@ export function PrepReviewSession({
             {PREP_REVIEW_COPY.reveal}
           </button>
         ) : (
-          <>
-            <button
-              type="button"
-              className="cp-review-btn cp-review-btn--primary"
-              disabled={sending}
-              onClick={() => void send({ recalled: true })}
-            >
-              Evet
-            </button>
-            <button type="button" className="cp-review-btn" disabled={sending} onClick={() => void send({ recalled: false })}>
-              Hayır
-            </button>
-          </>
+          <ReviewGradeButtons
+            preview={item.sm2Preview}
+            disabled={sending}
+            onGrade={(quality) => void send({ recalled: quality >= 4, quality })}
+          />
         )}
       </div>
     </main>

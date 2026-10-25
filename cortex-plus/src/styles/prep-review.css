@@ -384,3 +384,72 @@
   flex: 0 0 auto;
   width: 100%;
 }
+
+.cp-review-grades,
+.cp-exam-card-rate {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.cp-review-grade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 72px;
+  padding: 10px 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-xl, 1rem);
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  cursor: pointer;
+  text-align: center;
+}
+
+.cp-review-grade:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cp-review-grade-emoji {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.cp-review-grade-label {
+  font: var(--t-label-15);
+  font-size: 0.75rem;
+}
+
+.cp-review-grade-when {
+  font: var(--t-body-14);
+  font-size: 0.6875rem;
+  color: var(--c-text-muted);
+}
+
+.cp-review-grade--hard {
+  border-color: color-mix(in srgb, var(--c-danger, #ef4444) 40%, var(--c-border));
+}
+
+.cp-review-grade--good {
+  border-color: color-mix(in srgb, var(--c-action, #4353f3) 45%, var(--c-border));
+}
+
+.cp-review-grade--easy {
+  border-color: color-mix(in srgb, var(--c-success, #22c55e) 45%, var(--c-border));
+}
+
+@media (max-width: 480px) {
+  .cp-review-grades,
+  .cp-exam-card-rate {
+    gap: 6px;
+  }
+
+  .cp-review-grade {
+    min-height: 68px;
+    padding: 8px 4px;
+  }
+}
