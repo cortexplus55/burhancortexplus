@@ -116,12 +116,21 @@ const diagramMatrixSchema = z.object({
   })).min(1).max(24),
 });
 
-export type DiagramTreeNode = { label: string; children?: DiagramTreeNode[] };
+export type DiagramTreeNode = {
+  label: string;
+  children?: DiagramTreeNode[];
+  /** İlişki ağacında kare ya da daire. Yoksa yuvarlatılmış kutu. */
+  shape?: "square" | "circle";
+  /** Dolu biçim. Yoksa içi boş yüzey. */
+  filled?: boolean;
+};
 
 const diagramTreeNodeSchema: z.ZodType<DiagramTreeNode> = z.lazy(() =>
   z.object({
     label: z.string().min(1).max(40),
     children: z.array(diagramTreeNodeSchema).max(6).optional(),
+    shape: z.enum(["square", "circle"]).optional().catch(undefined),
+    filled: z.boolean().optional().catch(undefined),
   }),
 );
 
@@ -382,6 +391,8 @@ export type DiagramPlacement = {
   y: number;
   label: string;
   id?: string;
+  shape?: "square" | "circle";
+  filled?: boolean;
 };
 
 export type DiagramLayout = {
@@ -481,10 +492,12 @@ function layoutTree(root: DiagramTreeNode): DiagramLayout {
   const positions = new Map<DiagramTreeNode, DiagramPlacement>();
   levels.forEach((level, depth) => {
     level.forEach((node, index) => {
-      const placed = {
+      const placed: DiagramPlacement = {
         label: node.label,
         x: (DIAGRAM_WIDTH * (index + 1)) / (level.length + 1),
         y: 24 + (depth * (height - 36)) / Math.max(1, levels.length - 1 || 1),
+        ...(node.shape ? { shape: node.shape } : {}),
+        ...(typeof node.filled === "boolean" ? { filled: node.filled } : {}),
       };
       positions.set(node, placed);
       nodes.push(placed);

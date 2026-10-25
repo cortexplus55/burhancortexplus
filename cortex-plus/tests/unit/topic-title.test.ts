@@ -173,6 +173,9 @@ describe("chapterHeadings", () => {
     expect(isProcedureStep("20. Açık Sistemlere Geçiş: Kütle Korunumu")).toBe(false);
     expect(isSatelliteSection("27. Bütünleşik Çözümlü Örnek I - Nozul + Kütle Debisi")).toBe(true);
     expect(isSatelliteSection("Vize Öncesi Son Tekrar")).toBe(true);
+    expect(isSatelliteSection("6. Sık Yapılan Hatalar")).toBe(true);
+    expect(isSatelliteSection("Hızlı Tekrar")).toBe(true);
+    expect(isSatelliteSection("Kısa Tekrar")).toBe(true);
     expect(isSatelliteSection("Nozul ve Difüzörler")).toBe(false);
   });
 });

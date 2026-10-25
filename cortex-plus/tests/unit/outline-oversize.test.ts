@@ -144,6 +144,49 @@ describe("geniş konu kapısı — ders bağımsız", () => {
   it("istem şemsiye başlığı ve %15 kuralını içerir", () => {
     expect(OUTLINE_GRANULARITY_RULE).toContain("%15");
     expect(OUTLINE_GRANULARITY_RULE).toContain("Şemsiye başlık YASAK");
+    expect(OUTLINE_GRANULARITY_RULE).toContain("metin/karakter payına");
+  });
+
+  it("dört sayfa ve dokuz içerik başlığı bölünür; tek başlık ve uydu başlık bölünmez", () => {
+    const titles = [
+      "Kuvvet Dengesi",
+      "Enerji Aktarımı",
+      "Borç İlişkisi",
+      "Eşya Hakkı",
+      "Meşrutiyet Düzeni",
+      "Anayasa Maddeleri",
+      "Türev Kuralları",
+      "Kesir İşlemleri",
+      "Dilbilgisi Kuralı",
+    ];
+    const body = "Bu aralıkta tanım, kural ve kısa bir uygulama cümlesi durur.";
+    const pages: { pageNumber: number; text: string }[] = [];
+    for (let page = 0; page < 4; page += 1) {
+      const lines = ["Konu Notu"];
+      for (let slot = 0; slot < 3 && page * 3 + slot < titles.length; slot += 1) {
+        const n = page * 3 + slot + 1;
+        lines.push(`${n}. ${titles[page * 3 + slot]}`, body);
+      }
+      if (page === 3) {
+        lines.push("10. Sık Yapılan Hatalar", body, "11. Hızlı Tekrar", body);
+      }
+      pages.push({ pageNumber: page + 1, text: lines.join("\n") });
+    }
+    const flagged = outlineOversizedTopics(umbrella(pages, "Genel Bakış"), [{ pages }]);
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0]!.reason).toBe("headings");
+    expect(flagged[0]!.headings).toHaveLength(8);
+    for (const title of titles.slice(0, 8)) expect(flagged[0]!.headings.some((heading) => heading.includes(title))).toBe(true);
+    expect(flagged[0]!.headings.some((heading) => /sık yapılan|hızlı tekrar|konu notu/i.test(heading))).toBe(false);
+    const repair = oversizeRepairLines(flagged);
+    expect(repair).toContain("karakter/metin payı");
+    expect(repair).toContain("2-4 ayrı konuya böl");
+
+    const one = [
+      { pageNumber: 1, text: `1. Tek Başlık\n${body}` },
+      { pageNumber: 2, text: "Aynı başlığın devamı. Ek cümle konu açmaz." },
+    ];
+    expect(outlineOversizedTopics(umbrella(one, "Tek Başlık"), [{ pages: one }])).toEqual([]);
   });
 });
 

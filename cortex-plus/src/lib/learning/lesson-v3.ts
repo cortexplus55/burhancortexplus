@@ -180,12 +180,15 @@ export type LessonScreen = z.infer<typeof lessonScreenSchema>;
 
 const v2 = lessonV2Schema.shape;
 
+/** Kapsam turunun ek ekranları sığsın. İstem hâlâ 12 ekran ister; bu tavan kayıt içindir. */
+export const LESSON_SCREEN_HARD_CAP = 16;
+
 export const lessonV3Schema = z.object({
   format: z.literal(LESSON_V3_FORMAT),
   title: v2.title,
   objective: v2.objective,
   overview: v2.overview,
-  screens: z.array(lessonScreenSchema).min(1).max(12),
+  screens: z.array(lessonScreenSchema).min(1).max(LESSON_SCREEN_HARD_CAP),
   /** Yalnız eski derslerden gelir; V3 yazarı çözümlü örneği ekranın `example` bloğuna koyar. */
   example: v2.example,
   commonMistake: v2.commonMistake,

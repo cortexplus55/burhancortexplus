@@ -870,7 +870,8 @@ function repairBlock(repairErrors?: string, invalidDraftJson?: string): string {
 /** Geniş ünite kuralı (25 Ekim 2026): yazar ve onarım turu aynı metni okur; kapı `outline-oversize.ts`. */
 export const OUTLINE_GRANULARITY_RULE =
   "- GENİŞ ÜNİTE TEK KONU OLAMAZ: dosyanın sayfa/metin hacminin %15'inden fazlasını tutan ya da içinde birden fazla bağımsız alt başlık, kural/formül ailesi, tarihsel dönem, sınıflandırma veya problem/vaka tipi barındıran bölüm 2-4 ayrı konuya bölünür; her konunun sayfa aralığı ayrıktır.\n" +
-  "- Şemsiye başlık YASAK: \"Temel Kavramlar\", \"Temel Kavramlar ve İlkeler\", \"Genel Bilgiler\" gibi bir başlık altında alt dalları yutma. Her belirgin alt başlık, mekanizma, teorem/formül grubu ya da problem/analiz türü kendi konusu olur; belgenin hiçbir ana ya da alt dalı haritanın dışında kalmaz.";
+  "- Şemsiye başlık YASAK: \"Temel Kavramlar\", \"Temel Kavramlar ve İlkeler\", \"Genel Bilgiler\" gibi bir başlık altında alt dalları yutma. Her belirgin alt başlık, mekanizma, teorem/formül grubu ya da problem/analiz türü kendi konusu olur; belgenin hiçbir ana ya da alt dalı haritanın dışında kalmaz.\n" +
+  "- Kısa dosyada (9 sayfadan az) sayfa payı tek başına konu açmaz. En az üç bağımsız, içerik taşıyan alt başlık varsa konu metin/karakter payına göre 2-4 ayrı konuya bölünür; sayfa başlığı, tekrar listesi ve hata listesi konu değildir.";
 
 function studentOutlinePrompt(input: {
   examLabel?: string | null;

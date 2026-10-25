@@ -1,4 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import { lessonV3Schema, blockAlias } from "@/lib/learning/lesson-v3";
 import { diagramIssues, layoutStructuredDiagram, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
 import { DIAGRAM_LAYOUT_RULE, TEACHER_SYSTEM, structuredDiagramIssue, verifySystem } from "@/lib/learning/teacher-lesson";
@@ -100,5 +103,64 @@ describe("evrensel görsel şema", () => {
     expect(verifySystem("document")).toContain(DIAGRAM_LAYOUT_RULE);
     expect(verifySystem("topic")).toContain(DIAGRAM_LAYOUT_RULE);
     expect(DIAGRAM_LAYOUT_RULE).not.toMatch(/matematik|fizik|tarih/i);
+    expect(DIAGRAM_LAYOUT_RULE).toContain("shape");
+    expect(DIAGRAM_LAYOUT_RULE).toContain("filled");
+    expect(DIAGRAM_LAYOUT_RULE).not.toMatch(/mitoz|mayoz|punnett|soy ağacı|kan grubu/i);
+  });
+
+  it("ilişki ağacı kare ve daireyi doldurur; bozuk şekil dersi düşürmez", () => {
+    const tree = lessonDiagramSchema.parse({
+      layout: "tree",
+      caption: "İlişki ağacının dalları",
+      root: {
+        label: "Kök",
+        children: [
+          { label: "Daire", shape: "circle", filled: false },
+          { label: "Kare", shape: "square", filled: true },
+        ],
+      },
+    });
+    if (tree.layout !== "tree") return;
+    const placed = layoutStructuredDiagram(tree);
+    expect(placed.nodes.map((node) => node.shape)).toEqual([undefined, "circle", "square"]);
+    expect(placed.nodes[2]?.filled).toBe(true);
+    const html = renderToStaticMarkup(createElement(LessonDiagramView, { diagram: tree, id: "agac" }));
+    expect(html).toContain("<ellipse");
+    expect(html).toContain('rx="2"');
+    expect(html).toContain('rx="8"');
+
+    const loose = lessonDiagramSchema.parse({
+      layout: "tree",
+      caption: "İlişki ağacının dalları",
+      root: { label: "Kök", shape: "triangle", filled: "yes", children: [{ label: "Dal" }] },
+    });
+    if (loose.layout !== "tree") return;
+    expect(loose.root.shape).toBeUndefined();
+    expect(loose.root.filled).toBeUndefined();
+  });
+
+  it("kaynak bir süreç, kısa tablo ya da ilişki ağacı taşıyorsa eksik şema yüksektir", () => {
+    const bare = { screens: [{ blocks: [{ type: "text", text: "Metin." }] }] } as unknown as LessonV3;
+    const flowPages = [{ text: "Hazırlık → Uygulama → Kontrol" }];
+    const flowGap = structuredDiagramIssue(bare, flowPages);
+    expect(flowGap?.severity).toBe("high");
+    expect(flowGap?.problem.startsWith("[kapsam]")).toBe(true);
+    expect(flowGap?.problem).toContain("flow");
+
+    const matrixPages = [{ text: "| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |" }];
+    expect(structuredDiagramIssue(bare, matrixPages)?.problem).toContain("matrix");
+
+    const treePages = [{ text: "□ Anne\n● Çocuk" }];
+    expect(structuredDiagramIssue(bare, treePages)?.problem).toContain("tree");
+
+    const withFlow = {
+      screens: [{
+        blocks: [{
+          type: "diagram",
+          diagram: { layout: "flow", caption, nodes: [{ id: "a", label: "Hazırlık" }, { id: "b", label: "Kontrol" }] },
+        }],
+      }],
+    } as unknown as LessonV3;
+    expect(structuredDiagramIssue(withFlow, flowPages)).toBeNull();
   });
 });
