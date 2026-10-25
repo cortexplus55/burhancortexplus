@@ -10,6 +10,8 @@ import {
 } from "@/lib/learning/oral-review";
 import { examinerVibeGradeLine, parseExaminerVibe } from "@/lib/learning/examiner-vibe";
 import { oralFirstAnswerKey } from "@/lib/learning/oral-first-answer";
+import { collectFactConflicts, factCheckUserPrompt, withFactConflicts } from "@/lib/learning/oral-fact-check";
+import type { OralGradeItem } from "@/lib/learning/oral-review";
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -26,6 +28,8 @@ const bodySchema = z.object({
     )
     .min(1)
     .max(8),
+  /** Kaynak sayfaları. Boşsa olgu denetimi çalışmaz. */
+  source: z.string().max(20_000).optional(),
 });
 
 const resultSchema = z.object({
@@ -72,14 +76,36 @@ export async function POST(request: Request) {
     )
     .join("\n\n");
 
+  const premium = await isPremiumUser(service, userId);
+  const source = parsedBody.data.source?.trim() ?? "";
+  const factAnswers = parsedBody.data.items.map((item, index) => ({
+    index,
+    answer: (item.firstAnswer?.trim() || item.answer).trim(),
+  }));
+  const conflictsTask = collectFactConflicts({
+    source,
+    answers: factAnswers,
+    model: source
+      ? generateJson({
+          service,
+          userId,
+          actionCode: "PRACTICE_EXAM_GRADE",
+          isPremium: premium,
+          schemaHint:
+            'Yalnızca JSON: {"items":[{"index":number,"errors":[{"wrong":string,"correct":string}]}]}. wrong öğrencinin cümlesinden birebir alıntı, correct kaynağın cümlesinden birebir alıntı. Eksik anlatım ve aynı anlamı başka sözle söylemek hata değildir.',
+          userPrompt: factCheckUserPrompt(factAnswers, source),
+          parse: (raw) => raw,
+        }).then((result) => (result.ok ? result.data : null))
+      : null,
+  });
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "PRACTICE_EXAM_GRADE",
-    isPremium: await isPremiumUser(service, userId),
+    isPremium: premium,
     schemaHint:
       'Yalnızca şu JSON: {"items":[{"index":number,"correct":boolean,"gap":string|null,"errors":[{"wrong":string,"correct":string}]}],"correctCount":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. Kaynakta hazır çözüm cümlesi yok diye 0 verme; rubriğe göre değerlendir. gap alanına soru metnini yazma. errors: öğrencinin İLK cevabındaki (ilk cevap verilmediyse Cevap) kavramsal, matematiksel ya da olgusal yanlışlar; "wrong" o cevaptan birebir alıntı, "correct" doğrusu. Sonradan düzeltilmiş olsa da yaz; eksik bırakılan nokta yanlış değildir; yanlış yoksa boş dizi.',
-    userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama. Cevap konuşma tanımasından gelmiş olabilir: bitişik veya ayrı yazım, sesçe yakın terim (mitokondri/mitokondiri) ve formülün konuşulan hali (x²/x kare, CO₂/karbondioksit, ATP/a te pe) aynı noktadır. Yanlış sayı, ters yön veya başka kavram yine eksiktir.\n\n${lines}`,
+    userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama. Cevap konuşma tanımasından gelmiş olabilir: bitişik veya ayrı yazım ve sesçe yakın terimler aynı noktadır. Yanlış sayı, ters yön (artar, azalır, değişmez), yanlış tarih, yanlış madde numarası veya yanlış sıra yine eksiktir.\n\n${lines}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;
@@ -87,6 +113,19 @@ export async function POST(request: Request) {
   });
 
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
+  const conflicts = await conflictsTask;
+  const mergedItems = withFactConflicts(outcome.data.items ?? null, conflicts);
+  const modelItems: OralGradeItem[] | null = mergedItems
+    ? mergedItems.map((item) => {
+        const row = item as OralGradeItem;
+        return {
+          index: row.index,
+          correct: typeof row.correct === "boolean" ? row.correct : false,
+          gap: row.gap ?? null,
+          errors: row.errors ?? [],
+        };
+      })
+    : null;
 
   const answers: Record<string, unknown> = {};
   parsedBody.data.items.forEach((item, index) => {
@@ -99,7 +138,7 @@ export async function POST(request: Request) {
       expectedPoints: item.expectedPoints,
     })),
     answers,
-    modelItems: outcome.data.items ?? null,
+    modelItems,
     modelCorrectCount: outcome.data.correctCount ?? null,
   });
   const score = oralPercentScore(reconciled.correctCount, reconciled.total);

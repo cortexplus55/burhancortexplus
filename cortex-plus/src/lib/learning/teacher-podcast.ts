@@ -432,6 +432,10 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
       );
     }
   }
+  // Satır başındaki etiket oynatıcıdaki adla aynı değil. Cümle içindeki rol sözü etiket değildir.
+  if (lines.some((line) => /^(?:öğretmen|ogretmen|öğrenci|ogrenci|sunucu)\s*:/iu.test(line.text.trim()))) {
+    issues.push("Konuşmacı adı oynatıcıdaki adla uyuşmuyor; satır başındaki etiket kalkmalı.");
+  }
   return issues;
 }
 
@@ -545,7 +549,7 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
  * uzunluğu, kaynağa gönderme (cümle çoğu zaman gerçek bilgi taşır; yalnız düzeltme turuna gider).
  */
 const COSMETIC_PROBLEM =
-  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme|^Evet\/Hayır kalıbı|^Kerem'in sıralarının|^Metin kısa|^Konuşma payı/;
+  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme|^Evet\/Hayır kalıbı|^Kerem'in sıralarının|^Metin kısa|^Konuşma payı|^Konuşmacı adı/;
 /** Satır taramasının karşıladığı yapı sorunları (`podcastLineProblems`). */
 const LINE_HANDLED_PROBLEM =
   /^Metinde kaynak\/sayfa notu var|^Tutmayan hesap:|bir önceki cümlenin tekrarı|cevapsız soru|ikinci yanılgı itirafı/;

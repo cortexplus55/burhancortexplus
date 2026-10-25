@@ -6,6 +6,8 @@ import { synthesizeCharged, type AudioTrack } from "@/lib/learning/audio-cache";
 import { speakVerified } from "@/lib/learning/speech-normalizer";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
 import { MAX_PODCAST_AUDIO_CHARS, MAX_PODCAST_AUDIO_LINES, MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
+import { durationVerdict, stampChapterDurations, sumDurationMs } from "@/lib/learning/podcast-duration";
+import { PODCAST_LENGTHS, type PodcastLength } from "@/lib/learning/podcast-formats";
 
 export const maxDuration = 300;
 
@@ -25,7 +27,28 @@ export const maxDuration = 300;
 const bodySchema = z.object({
   chapters: z.array(z.unknown()).min(1).max(8),
   stream: z.boolean().optional(),
+  length: z.enum(PODCAST_LENGTHS).optional(),
 });
+
+function logMeasuredDuration(
+  chapters: ReturnType<typeof normalizeChapters>,
+  durations: readonly number[],
+  length?: PodcastLength,
+) {
+  let cursor = 0;
+  const withLineDuration = chapters.map((chapter) => ({
+    ...chapter,
+    lines: chapter.lines.map((line) => ({ ...line, durationMs: durations[cursor++] ?? 0 })),
+  }));
+  const stamped = stampChapterDurations(withLineDuration);
+  const measuredMs = sumDurationMs(stamped.flatMap((chapter) => chapter.lines));
+  console.info("podcast_duration", {
+    measuredMs,
+    chapters: stamped.map((chapter) => ({ title: chapter.title, durationMs: chapter.durationMs })),
+    ...(length ? { length, verdict: durationVerdict(measuredMs, length) } : {}),
+  });
+  return { stamped, measuredMs };
+}
 
 function speechOf(line: { text: string; spoken?: string }): string {
   return line.spoken?.trim() || speakVerified(line.text);
@@ -65,8 +88,15 @@ export async function POST(request: Request) {
       return errorResponse(402, result.reason);
     }
     if (!result.ok) return errorResponse(503, "audio_unavailable");
+    const measured = logMeasuredDuration(
+      chapters,
+      result.tracks.map((track) => track.durationMs),
+      parsed.data.length,
+    );
     return NextResponse.json({
       creditsSpent: result.creditsSpent,
+      measuredMs: measured.measuredMs,
+      chapters: measured.stamped,
       lines: lines.map((line, i) => ({
         chapterIndex: line.chapterIndex,
         speaker: line.speaker,
@@ -107,10 +137,17 @@ export async function POST(request: Request) {
       } else if (!result.ok) {
         send({ type: "error", code: "audio_unavailable" });
       } else {
+        const measured = logMeasuredDuration(
+          chapters,
+          result.tracks.map((track) => track.durationMs),
+          parsed.data.length,
+        );
         send({
           type: "done",
           creditsSpent: result.creditsSpent,
           total: lines.length,
+          measuredMs: measured.measuredMs,
+          chapters: measured.stamped.map((chapter) => ({ title: chapter.title, durationMs: chapter.durationMs })),
           lines: lines.map((line, i) => ({
             chapterIndex: line.chapterIndex,
             speaker: line.speaker,

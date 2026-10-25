@@ -9,6 +9,7 @@ import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
 import { pathSkipKinds } from "@/lib/billing/node-free-meter";
+import { blockPracticeNodes, type PracticeNode } from "@/lib/learning/quiz-delivery";
 
 /**
  * Sıradaki dersin önceden hazırlanması (3 Ekim 2026, ürün sahibinin kararı).
@@ -526,6 +527,44 @@ export async function requestNodePrefetch(
     }).catch(() => undefined);
   } catch (error) {
     console.error("prefetch_request_failed", {
+      cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+    });
+  }
+}
+
+/**
+ * Ders açılınca aynı konunun, sonraki derse kadar olan testi, doğru/yanlış ve kartları yazılır.
+ * Yolun geri kalanı bu pencerenin dışındadır. Bitmiş adım ve başka konu atlanır.
+ */
+export async function requestBlockPracticePrefetch(
+  service: SupabaseClient,
+  input: { origin: string; userId: string; prepId: string; lessonSort: number; topicKey: string | null },
+) {
+  if (!input.topicKey) return;
+  try {
+    const { data } = await service
+      .from("exam_prep_nodes")
+      .select("id, kind, status, session_meta, sort_order")
+      .eq("exam_prep_id", input.prepId)
+      .gt("sort_order", input.lessonSort)
+      .order("sort_order")
+      .limit(80);
+    const targets = blockPracticeNodes((data ?? []) as PracticeNode[], input.lessonSort, input.topicKey);
+    for (const node of targets) {
+      await requestNodePrefetch(service, {
+        origin: input.origin,
+        userId: input.userId,
+        prepId: input.prepId,
+        node: {
+          id: node.id,
+          kind: node.kind,
+          status: node.status ?? null,
+          session_meta: node.session_meta,
+        },
+      });
+    }
+  } catch (error) {
+    console.error("block_prefetch_failed", {
       cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
     });
   }

@@ -157,23 +157,89 @@ export const KEREM_SHARE_RULE =
 export const SPOKEN_ONLY_RULE =
   "Bu bir dinleme, kâğıt sınavı değil: 'şıkları ele', 'işaretle', 'kâğıda yaz', 'boşluğu doldur', 'cevap kâğıdı', " +
   "'soruları cevaplayınız' gibi yazılı sınav talimatı verme. Boş övgü yok ('harika değindin', 'çok güzel soru', " +
-  "'aferin', 'süper'): onaylamak yerine doğrudan bilgiyle devam et.";
+  "'aferin', 'süper', 'great job', 'well done', cümlenin sonundaki 'muazzam bir özet oldu'): onaylamak yerine doğrudan bilgiyle devam et.";
 
 const PAPER_INSTRUCTION =
   /(?<!\p{L})(?:şıkları\s+ele\p{L}*|şık\s+eleme\p{L}*|eleme\s+yöntem\p{L}*|işaretle(?:yin|yiniz|yin\p{L}*)?|kâğıd?(?:ı|a|ına)\s+yaz\p{L}*|kağıd?(?:ı|a|ına)\s+yaz\p{L}*|cevap\s+kâğıd\p{L}*|cevap\s+kağıd\p{L}*|optik\s+form\p{L}*|boşlu(?:ğu|kları)\s+doldur\p{L}*|soruları\s+cevaplayınız|aşağıdaki\s+sorular\p{L}*)(?!\p{L})/iu;
-const EMPTY_PRAISE_OPENER =
-  /^(?:(?:çok\s+)?(?:harika|süper|güzel|mükemmel|müthiş|şahane)(?:\s+(?:bir\s+)?(?:soru|nokta|değindin|değinme|yakaladın|tespit|söyledin|gözlem|özet))?|aferin|tebrikler|bravo)(?:\s*,?\s*(?:kerem|ada))?\s*(?:[,;:.!…—-]+\s*|$)/iu;
+const SPEAKER_LABEL_PREFIX = /^(?:öğretmen|ogretmen|öğrenci|ogrenci|sunucu)\s*:\s*/iu;
+const TRAILING_PRAISE =
+  /(?:^|[\s,;])(?:çok\s+)?(?:muazzam|harika|süper|güzel|mükemmel|müthiş|şahane|great|awesome|amazing|excellent|perfect|brilliant|wonderful|superb)\s+(?:bir\s+|a\s+|an\s+)?(?:özet|soru|nokta|job|summary|point|work)\s*(?:oldu|idi|was)?[.!?…]*$/iu;
+
+const PRAISE_WORD = new Set([
+  "harika", "super", "guzel", "mukemmel", "muthis", "sahane", "muazzam", "aferin", "tebrikler", "bravo", "harikasin",
+  "great", "awesome", "amazing", "excellent", "perfect", "brilliant", "wonderful", "superb", "nice", "well", "good",
+  "congratulations", "congrats",
+]);
+const PRAISE_OBJECT = new Set([
+  "soru", "nokta", "degindin", "deginme", "yakaladin", "tespit", "soyledin", "gozlem", "ozet", "job", "work", "done",
+  "summary", "point", "question",
+]);
+const PRAISE_FILLER = new Set([
+  "bir", "cok", "the", "a", "an", "oldu", "idi", "bu", "ve", "and", "of", "was", "is", "that", "ya", "de", "da",
+]);
+const SPEAKER_NAME = new Set(["kerem", "ada"]);
+
+function praiseFold(word: string): string {
+  return word
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z]/g, "");
+}
+
+/** Bilgi taşımayan parça: yalnız övgü, boş nesne, dolgu veya konuşmacı adı. */
+function praiseOnlyClause(clause: string): boolean {
+  const tokens = clause.split(/\s+/).map(praiseFold).filter(Boolean);
+  if (!tokens.length) return true;
+  return tokens.every((token) => PRAISE_WORD.has(token) || PRAISE_OBJECT.has(token) || PRAISE_FILLER.has(token) || SPEAKER_NAME.has(token));
+}
+
+/** Virgül ve noktalı virgül övgü parçasını ayırır. Rakamlar arasındaki virgül ondalıktır, bölünmez. */
+function splitPraiseClauses(text: string): string[] {
+  const parts: string[] = [];
+  let buf = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (ch !== "," && ch !== ";") {
+      buf += ch;
+      continue;
+    }
+    const prevDigit = /\d/.test(buf.trimEnd().slice(-1));
+    let j = i + 1;
+    while (text[j] === " ") j += 1;
+    const nextDigit = /\d/.test(text[j] ?? "");
+    if (ch === "," && prevDigit && nextDigit) {
+      buf += text.slice(i, j + 1);
+      i = j;
+      continue;
+    }
+    const clause = buf.trim();
+    if (clause) parts.push(clause);
+    buf = "";
+  }
+  const last = buf.trim();
+  if (last) parts.push(last);
+  return parts;
+}
 
 /**
- * Konuşmaya girecek cümle (kod süzgeci): yazılı sınav talimatı taşıyan cümle düşer (null), baştaki boş övgü
- * kalıbı silinir; övgüden başka bir şey taşımayan cümle de düşer.
+ * Konuşmaya girecek cümle. Yazılı sınav talimatı düşer. Satır başındaki konuşmacı etiketi,
+ * baştaki ve cümle içindeki boş övgü düşer. Bilgi taşıyan parça kalır.
  */
 export function spokenSentence(text: string): string | null {
-  const trimmed = text.trim();
+  let trimmed = text.trim().replace(SPEAKER_LABEL_PREFIX, "").trim();
   if (!trimmed || PAPER_INSTRUCTION.test(trimmed)) return null;
-  const praise = trimmed.match(EMPTY_PRAISE_OPENER);
-  if (!praise) return trimmed;
-  const rest = trimmed.slice(praise[0].length).trim();
+  let previous = "";
+  while (trimmed && trimmed !== previous) {
+    previous = trimmed;
+    trimmed = trimmed.replace(TRAILING_PRAISE, "").trim();
+  }
+  const kept = splitPraiseClauses(trimmed).filter((clause) => clause && !praiseOnlyClause(clause));
+  const rest = kept.join(", ").trim();
   if (!/\p{L}{2,}/u.test(rest)) return null;
   return rest.charAt(0).toLocaleUpperCase("tr-TR") + rest.slice(1);
 }

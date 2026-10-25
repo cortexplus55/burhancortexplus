@@ -40,7 +40,8 @@ import { ReviewGradeButtons } from "@/components/parity/review-grade-buttons";
 import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning/path-change";
 import { unscoredResult } from "@/lib/learning/node-result";
 import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
-import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { scoreQuizAnswers, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { mergeStreamedQuestions, showsSlowWarning } from "@/lib/learning/quiz-delivery";
 import { reviewScheduledLine } from "@/lib/learning/review-copy";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
@@ -837,77 +838,131 @@ export function ExamNodeSession({
     }
   }
 
+  function localOptimisticScore(base: Record<string, unknown>): { score: number; total: number } | null {
+    if (payload.building) return null;
+    if (payload.type === "quiz") {
+      const questions = payload.questions ?? [];
+      if (!questions.length || questions.some((question) => !question.correct?.length)) return null;
+      return scoreQuizAnswers(
+        questions.map((question) => ({
+          text: question.text ?? "",
+          options: question.options ?? [],
+          correct: question.correct ?? [],
+          multi: Boolean(question.multi),
+        })),
+        base,
+      );
+    }
+    if (payload.type === "true_false") {
+      const items = payload.items ?? [];
+      if (!items.length) return null;
+      let score = 0;
+      items.forEach((item, itemIndex) => {
+        const value = base[String(itemIndex)];
+        if (value === item.correct || value === String(item.correct)) score += 1;
+      });
+      return { score, total: items.length };
+    }
+    return null;
+  }
+
+  function applyComplete(data: Record<string, unknown>, moveStage: boolean) {
+    clearClientRequestId();
+    setSaveError(null);
+    completeRequestIdRef.current = null;
+    setScore({
+      score: Number(data.score) || 0,
+      total: Number(data.total) || 1,
+      retried: Number(data.retried) || 0,
+    });
+    const earned = Number(data.stars) || 0;
+    setStarsEarned(earned);
+    if (earned > 0) window.dispatchEvent(new Event(STARS_CHANGED_EVENT));
+    const graded = data.oralGrade as { items?: { index: number; correct: boolean; gap: string | null }[]; scoreRationale?: string } | null;
+    setOralGrade(graded && Array.isArray(graded.items) ? { items: graded.items, scoreRationale: graded.scoreRationale } : null);
+    if (data.review) setWrittenReview(data.review as WrittenExamReview);
+    if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
+    setNextHref(typeof data.nextHref === "string" ? data.nextHref : `/deneme-sinavlari/${prepId}`);
+    setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
+    setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);
+    setPathChange(parsePathChange(data.pathChange));
+    setReviewScheduled(Number(data.reviewScheduled) || 0);
+    setGainOpen(false);
+    setFeedback(null);
+    if (moveStage) setStage(kind === "oral" ? "oral-review-time" : "result");
+    if (typeof data.balance === "number") {
+      window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+    }
+  }
+
+  async function postComplete(base: Record<string, unknown>) {
+    if (resumeEnabled && attemptId && generationId) {
+      try { await persistAnswers(base, index); }
+      catch (error) {
+        // A lost completion response can leave the server already completed.
+        // Let the idempotent complete endpoint return its saved result.
+        if (!(error && typeof error === "object" && "code" in error && error.code === "attempt_not_active")) throw error;
+      }
+    }
+    if (!completeRequestIdRef.current) {
+      completeRequestIdRef.current = crypto.randomUUID();
+    }
+    const res = await fetch("/api/learning/exam-prep/node", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prepId,
+        nodeId,
+        action: "complete",
+        lessonFormat: 3,
+        attemptId: attemptId ?? undefined,
+        generationId: generationId ?? undefined,
+        clientRequestId: clientRequestId ?? undefined,
+        completeRequestId: resumeEnabled
+          ? completeRequestIdRef.current
+          : undefined,
+        answers: {
+          ...base,
+          __meta: { hintsUsed: hintsUsedRef.current },
+        },
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    return { ok: res.ok, data };
+  }
+
   async function finish(nextAnswers?: Record<string, unknown>) {
     if (completeInFlight.current || loading) return;
+    const base = nextAnswers ?? answersRef.current;
+    const local =
+      payload.type === "quiz" || payload.type === "true_false" ? localOptimisticScore(base) : null;
+    if (local) {
+      completeInFlight.current = true;
+      setScore({ score: local.score, total: local.total, retried: 0 });
+      setStage("result");
+      void (async () => {
+        try {
+          let posted = await postComplete(base).catch(() => null);
+          if (!posted?.ok) posted = await postComplete(base).catch(() => null);
+          if (!posted?.ok) return;
+          applyComplete(posted.data, false);
+          router.refresh();
+        } finally {
+          completeInFlight.current = false;
+        }
+      })();
+      return;
+    }
     completeInFlight.current = true;
     setLoading(true);
     try {
-      const base = nextAnswers ?? answersRef.current;
-      if (resumeEnabled && attemptId && generationId) {
-        try { await persistAnswers(base, index); }
-        catch (error) {
-          // A lost completion response can leave the server already completed.
-          // Let the idempotent complete endpoint return its saved result.
-          if (!(error && typeof error === "object" && "code" in error && error.code === "attempt_not_active")) throw error;
-        }
-      }
-      if (!completeRequestIdRef.current) {
-        completeRequestIdRef.current = crypto.randomUUID();
-      }
-      const res = await fetch("/api/learning/exam-prep/node", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prepId,
-          nodeId,
-          action: "complete",
-          lessonFormat: 3,
-          attemptId: attemptId ?? undefined,
-          generationId: generationId ?? undefined,
-          clientRequestId: clientRequestId ?? undefined,
-          completeRequestId: resumeEnabled
-            ? completeRequestIdRef.current
-            : undefined,
-          answers: {
-            ...base,
-            __meta: { hintsUsed: hintsUsedRef.current },
-          },
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error ?? "Kaydedilemedi.");
+      const posted = await postComplete(base);
+      if (!posted.ok) {
+        toast.error(typeof posted.data.error === "string" ? posted.data.error : "Kaydedilemedi.");
         return;
       }
-      clearClientRequestId();
-      setSaveError(null);
-      completeRequestIdRef.current = null;
-      setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
-      const earned = Number(data.stars) || 0;
-      setStarsEarned(earned);
-      if (earned > 0) window.dispatchEvent(new Event(STARS_CHANGED_EVENT));
-      setOralGrade(
-        data.oralGrade && Array.isArray(data.oralGrade.items)
-          ? {
-              items: data.oralGrade.items,
-              scoreRationale: data.oralGrade.scoreRationale,
-            }
-          : null,
-      );
-      if (data.review) setWrittenReview(data.review);
-      if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
-      setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
-      setLevelHint(data.levelHint === "too_hard" || data.levelHint === "too_easy" ? data.levelHint : null);
-      setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);
-      setPathChange(parsePathChange(data.pathChange));
-      setReviewScheduled(Number(data.reviewScheduled) || 0);
-      setGainOpen(false);
-      setFeedback(null);
-      setStage(kind === "oral" ? "oral-review-time" : "result");
+      applyComplete(posted.data, true);
       router.refresh();
-      if (typeof data.balance === "number") {
-        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
-      }
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -1065,6 +1120,51 @@ export function ExamNodeSession({
       if (timer) clearTimeout(timer);
     };
   }, [lessonBuilding, attemptId, prepId, nodeId]);
+
+  const quizBuilding = payload.type === "quiz" && payload.building === true;
+  useEffect(() => {
+    if (!quizBuilding || !attemptId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let last = "";
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/learning/exam-prep/node", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prepId, nodeId, attemptId, action: "progress", lessonFormat: 3 }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; payload?: Payload };
+        if (!stopped && res.ok && data.payload) {
+          let building = data.payload.building === true;
+          setPayload((current) => {
+            const incoming = data.payload!;
+            const next =
+              incoming.type === "quiz" && current.type === "quiz"
+                ? {
+                    ...incoming,
+                    questions: mergeStreamedQuestions(current.questions ?? [], incoming.questions ?? []),
+                  }
+                : incoming;
+            building = next.building === true;
+            const seen = JSON.stringify(next);
+            if (seen === last) return current;
+            last = seen;
+            return next;
+          });
+          if (!building) return;
+        }
+      } catch {
+        // Bağlantı anlık koptu: bir sonraki turda yeniden sorulur.
+      }
+      if (!stopped) timer = setTimeout(poll, LESSON_PROGRESS_POLL_MS);
+    };
+    timer = setTimeout(poll, LESSON_PROGRESS_POLL_MS);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [quizBuilding, attemptId, prepId, nodeId]);
   const cardIndex = cardRepeat ? (cardRepeat.list[cardRepeat.pos] ?? index) : index;
   const cardsPlaying = stage === "play" && payload.type === "cards" && !cardOffer;
   const coachItem =
@@ -1311,6 +1411,7 @@ export function ExamNodeSession({
           sourceName={sourceName}
           topic={topicLabel}
           note={queueNote ? BUSY_NOTE : undefined}
+          warnSlow={showsSlowWarning(kind)}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
         />
       ) : null}
@@ -1501,6 +1602,7 @@ export function ExamNodeSession({
         <ExamPodcastPlayer
           title={payload.title ?? topicLabel ?? "Podcast"}
           chapters={chapters}
+          length={payload.length as PodcastLength | undefined}
           finishing={loading}
           resumeKey={`${prepId}:${nodeId}:${payload.length ?? podcastLength}`}
           scriptNote={
@@ -1550,15 +1652,21 @@ export function ExamNodeSession({
             onChange={(value) => updateAnswer(String(index), value)}
             onReveal={() => revealedRef.current.add(String(index))}
             onContinue={() => {
-              if (index + 1 < questions.length) setIndex(index + 1);
-              else void finish();
+              if (index + 1 < questions.length) {
+                setIndex(index + 1);
+                return;
+              }
+              if (quizBuilding) return;
+              void finish();
             }}
             continueLabel={
               index + 1 < questions.length
                 ? "Sonraki soru"
-                : isTimedExam
-                  ? "Sınavı bitir"
-                  : "Testi bitir"
+                : quizBuilding
+                  ? "Devam et"
+                  : isTimedExam
+                    ? "Sınavı bitir"
+                    : "Testi bitir"
             }
             disabled={loading}
             examMode={isTimedExam}
@@ -1652,16 +1760,13 @@ export function ExamNodeSession({
               <button
                 type="button"
                 className="cp-exam-continue cp-exam-continue--primary mt-2"
-                disabled={loading}
-                aria-busy={loading}
                 onClick={() => {
-                  if (loading) return;
                   setTfRevealed(false);
                   if (index + 1 < items.length) setIndex(index + 1);
                   else void finish();
                 }}
               >
-                {loading ? "Kaydediliyor…" : index + 1 < items.length ? "Sonraki soru" : "Bitir"}
+                {index + 1 < items.length ? "Sonraki soru" : "Bitir"}
               </button>
             </div>
           ) : null}

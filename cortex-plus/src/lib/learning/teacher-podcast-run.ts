@@ -8,7 +8,14 @@ import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
-import { balanceKerem, type PodcastEpisode } from "@/lib/learning/podcast-episode";
+import { balanceKerem, podcastWordCount, type PodcastEpisode } from "@/lib/learning/podcast-episode";
+import {
+  closerToBand,
+  DURATION_ROUND_TIMEOUT_MS,
+  durationRoundFor,
+  durationRoundInstruction,
+  withDeadline,
+} from "@/lib/learning/podcast-duration";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import {
   MIN_CHECK_QUESTIONS,
@@ -361,10 +368,12 @@ async function runTeacherPodcastInner(
         reasons: loop.problems.slice(0, 6).map((problem) => problem.slice(0, 200)),
       };
     }
+    // Söz verilen süreye bir tur. Düşünce veya bandın uzağına giderse eldeki bölüm kalır. İkinci ücret yok.
+    const episode = await ensurePodcastDuration(ask, loop.episode, input);
     // Kontrol, kredi kesinleşmeden önce aynı `ask` ile: kullanımı aynı ayrılışa yazılır.
-    const check = await podcastListeningCheck(ask, loop.episode, input, started);
+    const check = await podcastListeningCheck(ask, episode, input, started);
     if (reservation.reservationId) await commitCredits(service, reservation.reservationId);
-    return { ok: true, episode: loop.episode, check, calls, ms: Date.now() - started };
+    return { ok: true, episode, check, calls, ms: Date.now() - started };
   } catch (error) {
     if (reservation.reservationId) await refundCredits(service, reservation.reservationId).catch(() => undefined);
     console.error("teacher_podcast_failed", {
@@ -373,6 +382,49 @@ async function runTeacherPodcastInner(
       cause: error instanceof Error ? error.message.slice(0, 200) : "unknown",
     });
     return { ok: false, status: 503, error: "generation_failed", reasons: ["model_error"] };
+  }
+}
+
+/** Kelime bandının dışındaki her tür bir tur uzar veya kısalır. Ölçülen süre varsa o karar verir. */
+async function ensurePodcastDuration(
+  ask: AskJson,
+  episode: PodcastEpisode,
+  input: TeacherPodcastInput,
+): Promise<PodcastEpisode> {
+  const words = podcastWordCount(episode);
+  const round = durationRoundFor({ length: input.length, words });
+  const base = {
+    topic: input.topicLabel.slice(0, 80),
+    length: input.length,
+    words,
+    round: round ?? "none",
+  };
+  if (!round) {
+    console.info("podcast_duration", { ...base, accepted: false, verdict: "ok" });
+    return episode;
+  }
+  try {
+    const raw = await withDeadline(
+      ask(
+        "SÜRE TURU. Bu bir denetim değil. Konuşmayı istenen kelime bandına getir ve aynı JSON biçiminde bütün bölümü döndür. Sayı, tarih, madde numarası ve sıralı adım yalnız kaynakta geçiyorsa kalır.",
+        `${durationRoundInstruction(round, input.length)}\n\nBaşlık: ${input.topicLabel}\n\n${JSON.stringify(episode)}`,
+        "fix",
+      ),
+      DURATION_ROUND_TIMEOUT_MS,
+    );
+    const next = raw ? parseTeacherPodcast(raw, { length: input.length, topicLabel: input.topicLabel }) : null;
+    const nextWords = next ? podcastWordCount(next) : words;
+    const accepted = Boolean(next && closerToBand(words, nextWords, input.length));
+    console.info("podcast_duration", {
+      ...base,
+      nextWords,
+      accepted,
+      verdict: round === "expand" ? "short" : "long",
+    });
+    return accepted && next ? next : episode;
+  } catch {
+    console.info("podcast_duration", { ...base, accepted: false, verdict: round === "expand" ? "short" : "long" });
+    return episode;
   }
 }
 
