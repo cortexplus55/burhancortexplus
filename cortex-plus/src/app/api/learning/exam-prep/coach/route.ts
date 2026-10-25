@@ -4,6 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
 import { teacherPersona } from "@/lib/learning/teacher-brain";
+import { answerFirstLine } from "@/lib/learning/tutor-answer";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
     .map((m) => `${m.role === "user" ? "Öğrenci" : "Eğitmen"}: ${m.content}`)
     .join("\n");
 
+  const lastStudent = [...parsed.data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
   const outcome = await generateJson({
     service,
     userId,
@@ -68,8 +70,9 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint: 'JSON: {"reply":string}. Kısa Türkçe, 3-6 cümle. Filler yok.',
     userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
+${answerFirstLine(lastStudent)}
 ${teacherPersona()}
-Öğrenci dersin içinde takıldı. Doğru şıkkı açıkça söyleme. Yanlış denemesinde neyin tutmadığını söyle.
+Öğrenci dersin içinde yardım istedi. Kavram sorusuna ilk cümlede doğrudan cevap ver; üzerindeki sorunun doğru şıkkını harfiyle söyleme. Yanlış denemesinde neyin tutmadığını söyle.
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${topic?.label ?? prep.title}.
 Üzerindeki madde: ${parsed.data.itemText}
 ${transcript}`,

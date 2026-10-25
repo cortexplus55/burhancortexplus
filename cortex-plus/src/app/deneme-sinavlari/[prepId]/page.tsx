@@ -212,6 +212,7 @@ export default async function ExamPrepDetailPage({
             objective?: string;
             sourcePages?: number[];
             durationMinutes?: number;
+            activityMinutes?: number;
             role?: string;
             calendarDate?: string;
             topicId?: string;

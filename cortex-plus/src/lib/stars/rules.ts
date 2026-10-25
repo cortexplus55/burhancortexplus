@@ -28,24 +28,29 @@ export const LEADERBOARD_MIN_PEOPLE = 3;
 /** "İlk 20 arasına girmek için N yıldız". */
 export const LEADERBOARD_TOP = 20;
 
-const EXAM_KINDS = new Set(["written_exam", "final_check", "readiness"]);
-const QUIZ_KINDS = new Set(["quiz", "true_false", "gaps", "focused", "spaced"]);
+const EXAM_KINDS = new Set(["written_exam", "readiness"]);
+// Son kontrol test formülünde (25 Ekim 2026, P1-7): 3 soruluk kontrol deneme formülüyle +38 veriyordu.
+const QUIZ_KINDS = new Set(["quiz", "true_false", "gaps", "focused", "spaced", "final_check"]);
+
+/** Skor çarpanı olmayan adımların sabit yıldızı: yol kartı, ders çubuğu ve ödül aynı sayıyı yazar. */
+export const LEARNING_STEP_STARS = 10;
 
 /**
  * Bir hazırlık etkinliğinin yıldızı (Astra: "Dersler, testler, deneme sınavları 10–210").
- * Ders, podcast, kartlar gibi öğrenme adımları 10-20; test 10 + doğru başına 2 (en çok 40);
- * deneme 30 + doğru başına 4 (en çok 210). Puanı olmayan etkinlik tabanı alır.
+ * Test 10 + doğru başına 2 (en çok 40); deneme 30 + doğru başına 4 (en çok 210). Ders, kartlar, sözlü,
+ * soru-cevap gibi öğrenme adımları skor çarpanı olmadan tabanı alır (25 Ekim 2026, P1-7: kart +10 yazıp sonuç
+ * +17 veriyordu). `score` doğru sayısıdır; yüzde verilmez.
  */
 export function prepStars(kind: string, score: number | null | undefined, total: number | null | undefined): number {
   const correct = Math.max(0, Math.floor(Number(score ?? 0)));
   const count = Math.max(0, Math.floor(Number(total ?? 0)));
-  if (EXAM_KINDS.has(kind)) return Math.min(210, 30 + 4 * correct);
-  if (QUIZ_KINDS.has(kind)) return Math.min(40, 10 + 2 * correct);
+  const scored = count > 0 ? Math.min(correct, count) : correct;
+  if (EXAM_KINDS.has(kind)) return Math.min(210, 30 + 4 * scored);
+  if (QUIZ_KINDS.has(kind)) return Math.min(40, 10 + 2 * scored);
   // Podcast sabit 20 (20 Ekim 2026, ürün sahibinin kararı): dinleme kontrolünü atlayan (1/1) cevaplayandan
   // (2/3 → 17) fazla kazanmasın; kontrol yıldızı değiştirmez.
   if (kind === "podcast") return 20;
-  const ratio = count > 0 ? Math.min(1, correct / count) : 0;
-  return 10 + Math.round(10 * ratio);
+  return LEARNING_STEP_STARS;
 }
 
 /** Düello (Astra'daki okul maçının yeri): oynamak 30, doğru başına 10, en çok 130. */

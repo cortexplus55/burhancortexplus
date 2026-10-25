@@ -163,8 +163,8 @@ describe("ekran yüzdesi = yol düğümü yüzdesi (tek hesap)", () => {
 
   it("cevap masası takip sorusundan önceki cevabı ayrıca verir, oturum ilk:<i> anahtarına yazar", () => {
     const desk = readFileSync("src/components/parity/oral-answer-desk.tsx", "utf8");
-    expect(desk).toContain("onAdvance(combined, first)");
-    expect(desk).toContain("onFinish(combined, first)");
+    expect(desk).toContain("onAdvance(out.answer, out.firstAnswer)");
+    expect(desk).toContain("onFinish(out.answer, out.firstAnswer)");
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).toContain("oralFirstAnswerKey(index)");
   });

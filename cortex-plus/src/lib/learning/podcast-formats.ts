@@ -31,7 +31,7 @@ export const PODCAST_FORMAT_OPTIONS: PodcastFormatOption[] = [
   { id: "ozet", emoji: "⚡", label: "Özet", minutes: 1, blurb: "Sınavdan önce bir dakikalık tekrar" },
   { id: "soru_cevap", emoji: "❓", label: "Soru-Cevap", minutes: 7, blurb: "Kerem soruyor, Ada adım adım cevaplıyor" },
   { id: "basit", emoji: "🗣️", label: "Basit anlatım", minutes: 5, blurb: "Tek öğretmen, kısa cümleler, sakin tempo" },
-  { id: "derin", emoji: "📚", label: "Derinlemesine", minutes: 10, blurb: "Konunun tamamı, örnekleriyle" },
+  { id: "derin", emoji: "📚", label: "Derinlemesine", minutes: 9, blurb: "Ada ile Kerem konunun tamamını örnekleriyle konuşuyor" },
 ];
 
 export type PodcastLengthSpec = {
@@ -40,6 +40,8 @@ export type PodcastLengthSpec = {
   minChapters: number;
   maxChapters: number;
   brief: string;
+  /** Senaryonun kelime bandı; altı bir genişletme turu açar (`podcastStructureIssues`). */
+  words: { min: number; max: number };
   /** "duo": Ada ve Kerem konuşur; "single": yalnız Ada. */
   speakers: "single" | "duo";
   /** Türe özgü anlatım kuralı; boşsa yok. */
@@ -60,18 +62,24 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minChapters: 3,
         maxChapters: 4,
         brief: "Yaklaşık 1 dakika, 3 kısa bölüm, toplam 85-105 kelime. Sınav öncesi tekrar.",
+        words: { min: 85, max: 105 },
         speakers: "single",
         style: "",
       };
     case "derin":
+      // İki ses, 8-10 dakika: iki seste dakikada ~88 kelime → 750-880 kelime.
       return {
         label: "Derinlemesine",
-        minutes: 10,
+        minutes: 9,
         minChapters: 6,
         maxChapters: 8,
-        brief: "Yaklaşık 10 dakika, 6-8 bölüm, toplam 860-1000 kelime. Örnek ve bağlamla tam konu.",
-        speakers: "single",
-        style: "",
+        brief: "Yaklaşık 8-10 dakika, 6-8 bölüm, toplam 750-880 kelime. Örnek ve bağlamla tam konu.",
+        words: { min: 750, max: 880 },
+        speakers: "duo",
+        style:
+          "Ada öğretmen, Kerem konuya çalışmış bir öğrenci arkadaşı; ikisi de anlatır. Her bölüm bir kavramı derinlemesine " +
+          "işler: ne olduğu, nedeni, somut bir vaka ve neyle karıştırıldığı. Kerem örnek verir, duyduğunu kendi sözleriyle " +
+          "toparlar, iki kavramı karşılaştırır; Ada açıklamanın ağırlığını taşır. Konuşmayı Ada açar ve bitirir.",
       };
     case "diyalog":
       return {
@@ -80,6 +88,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minChapters: 4,
         maxChapters: 6,
         brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 400-480 kelime.",
+        words: { min: 400, max: 480 },
         speakers: "duo",
         // 17 Ekim 2026, ürün sahibi: "Astra gibi iki ses de anlatsın". Kerem'in bütün sıraları tek
         // cümlelik soruydu (canlı ölçüm, solunum podcast'i); Astra'da iki sunucu da anlatıyor.
@@ -99,10 +108,12 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minChapters: 5,
         maxChapters: 7,
         brief: "Yaklaşık 7 dakika, 5-7 bölüm, toplam 560-670 kelime.",
+        words: { min: 560, max: 670 },
         speakers: "duo",
         style:
-          "Her bölüm Kerem'in sınavda çıkabilecek bir sorusuyla açılır; Ada adım adım cevaplar. " +
-          "Kerem yalnızca soru sorar, açıklama yapmaz. Son bölümde Ada üç maddelik tekrar yapar.",
+          "Her bölüm Kerem'in sınavda çıkabilecek bir sorusuyla açılır; Ada adım adım cevaplar. Kerem cevabı dinledikten " +
+          "sonra duyduğunu kendi cümlesiyle toparlar ya da bir örnekle sınar; Ada eksik kalanı tamamlar. Son bölümde " +
+          "Kerem üç kısa tekrar cümlesi söyler, Ada kapatır.",
       };
     case "basit":
       return {
@@ -111,6 +122,7 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minChapters: 4,
         maxChapters: 6,
         brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 430-520 kelime.",
+        words: { min: 430, max: 520 },
         speakers: "single",
         style:
           "Sade anlat: günlük kelimeler, her cümle en fazla 15 kelime. Terimi kullanmadan önce tanımla. " +
@@ -123,10 +135,58 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         minChapters: 4,
         maxChapters: 6,
         brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 430-520 kelime.",
+        words: { min: 430, max: 520 },
         speakers: "single",
         style: "",
       };
   }
+}
+
+/** İki sesli türde Kerem'in satır payı (cümle sayısıyla): bu bandın dışı tek ses gibi duyuluyor. */
+export const KEREM_SHARE_MIN = 0.35;
+export const KEREM_SHARE_MAX = 0.5;
+
+export const KEREM_SHARE_RULE =
+  "Kerem'in cümleleri bütün cümlelerin %35-50'si: Kerem de bilgi taşır (örnek, toparlama, karşılaştırma); konuşmayı " +
+  "Ada açar ve bitirir.";
+
+/**
+ * Dinleme kuralı: podcast kulaktan dinlenir. Yazılı sınav talimatı ve boş övgü konuşmaya girmez; yazar (istem) ve
+ * kod (`spokenSentence`) aynı listeyi uygular.
+ */
+export const SPOKEN_ONLY_RULE =
+  "Bu bir dinleme, kâğıt sınavı değil: 'şıkları ele', 'işaretle', 'kâğıda yaz', 'boşluğu doldur', 'cevap kâğıdı', " +
+  "'soruları cevaplayınız' gibi yazılı sınav talimatı verme. Boş övgü yok ('harika değindin', 'çok güzel soru', " +
+  "'aferin', 'süper'): onaylamak yerine doğrudan bilgiyle devam et.";
+
+const PAPER_INSTRUCTION =
+  /(?<!\p{L})(?:şıkları\s+ele\p{L}*|şık\s+eleme\p{L}*|eleme\s+yöntem\p{L}*|işaretle(?:yin|yiniz|yin\p{L}*)?|kâğıd?(?:ı|a|ına)\s+yaz\p{L}*|kağıd?(?:ı|a|ına)\s+yaz\p{L}*|cevap\s+kâğıd\p{L}*|cevap\s+kağıd\p{L}*|optik\s+form\p{L}*|boşlu(?:ğu|kları)\s+doldur\p{L}*|soruları\s+cevaplayınız|aşağıdaki\s+sorular\p{L}*)(?!\p{L})/iu;
+const EMPTY_PRAISE_OPENER =
+  /^(?:(?:çok\s+)?(?:harika|süper|güzel|mükemmel|müthiş|şahane)(?:\s+(?:bir\s+)?(?:soru|nokta|değindin|değinme|yakaladın|tespit|söyledin|gözlem|özet))?|aferin|tebrikler|bravo)(?:\s*,?\s*(?:kerem|ada))?\s*(?:[,;:.!…—-]+\s*|$)/iu;
+
+/**
+ * Konuşmaya girecek cümle (kod süzgeci): yazılı sınav talimatı taşıyan cümle düşer (null), baştaki boş övgü
+ * kalıbı silinir; övgüden başka bir şey taşımayan cümle de düşer.
+ */
+export function spokenSentence(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed || PAPER_INSTRUCTION.test(trimmed)) return null;
+  const praise = trimmed.match(EMPTY_PRAISE_OPENER);
+  if (!praise) return trimmed;
+  const rest = trimmed.slice(praise[0].length).trim();
+  if (!/\p{L}{2,}/u.test(rest)) return null;
+  return rest.charAt(0).toLocaleUpperCase("tr-TR") + rest.slice(1);
+}
+
+/** Senaryodaki konuşmacı adı → ses kimliği; öğretmen/sunucu Ada, öğrenci Kerem. */
+export function speakerIdOf(raw: unknown): "ada" | "kerem" | null {
+  const name = String(raw ?? "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .replace(/[^\p{L}]/gu, "");
+  if (name === "kerem" || name === "öğrenci" || name === "ogrenci") return "kerem";
+  if (name === "ada" || name === "öğretmen" || name === "ogretmen" || name === "sunucu") return "ada";
+  return null;
 }
 
 /** İki sunuculu türlerin JSON kuralı (tek öğretmenli olanın karşılığı). */
@@ -159,7 +219,7 @@ export function podcastDuoBrief(): string {
     "nedenini söyleyerek cevaplar. Kerem 'Ben … sanmışım' diye itiraf etmez; yaygın hatayı 'Çoğu öğrenci … sanır' diye " +
     "söyler, Ada nedenini açıklar. Kerem Ada'nın cümlesini tekrar etmez; duyduğunu kendi örneğiyle ya da bir sonuçla " +
     "ileri taşır. Kerem konuşmayı kendi yaşadığı küçük bir anla açabilir (stajda, denemede, ders çalışırken). " +
-    `${DUO_TURN_RULE} ` +
+    `${DUO_TURN_RULE} ${KEREM_SHARE_RULE} ` +
     "Ada kaynaktan cümle okumaz; kendi sözleriyle, konuşur gibi anlatır ve bir açıklamayı art arda iki üç satırda " +
     "sürdürebilir. Aynı tanımı bir bölümde bir kez söyle; 'Tekrar edelim' yalnız son bölümde. " +
     "Bilgi taşımayan cümle kurma ('önemli nokta, … ele alınmasıdır', 'bu konu çok önemlidir' gibi); her cümle bir bilgi, " +

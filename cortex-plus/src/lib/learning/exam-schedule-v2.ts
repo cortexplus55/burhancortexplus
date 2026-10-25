@@ -3,7 +3,7 @@
  * Legacy buildExamPlan stays for pdf_learning_v2 OFF.
  */
 
-import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { MeasuredLevel } from "@/lib/learning/diagnostic";
 import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
 import { sourceCitation } from "@/lib/learning/path-source-label";
@@ -187,6 +187,25 @@ const ROLE_KIND: Record<ScheduleSessionRole, PlanNodeKind> = {
  */
 const MIN_TOPIC_MINUTES = 12;
 
+/**
+ * Her konu bloğunda konu testinin yanında iki adım (25 Ekim 2026, canlı test P1-2 ve P1-6):
+ *
+ * - Gerçek bir Doğru/Yanlış düğümü. İlk testin adı "Testler ve Doğru/Yanlış"tı ama test çoktan
+ *   seçmeliydi ve şablon `true_false` düğümünü "test zaten içerir" diye atlıyordu: söz tutulmuyordu.
+ * - Dönüşümlü bir etkileşimli ya da sesli adım (podcast → soru-cevap → sözlü → podcast …). Şablon
+ *   bu türleri yolun tamamına bir kez koyuyordu; konu bloklarının çoğu yalnız ders + test + kartlardı.
+ *
+ * Konu testinin gününe konur; günün bütçesinden düşmez: bütçe yeni dersleri güne dağıtmak için var,
+ * kısa pratik adımı onu kaydırıp dersleri son güne yığmasın.
+ */
+export const BLOCK_TRUE_FALSE_MINUTES = 10;
+export const BLOCK_INTERACTIVE_MINUTES = 10;
+export const BLOCK_INTERACTIVE_ROTATION: readonly PlanNodeKind[] = ["podcast", "qa", "oral"];
+
+export function blockInteractiveKind(topicIndex: number): PlanNodeKind {
+  return BLOCK_INTERACTIVE_ROTATION[Math.abs(topicIndex) % BLOCK_INTERACTIVE_ROTATION.length]!;
+}
+
 const LEVEL_LOAD: Record<MeasuredLevel, number> = {
   unknown: 1.15,
   weak: 1.35,
@@ -286,9 +305,13 @@ export function orderTopicsByPrerequisites(
  * şey vaat ediyordu. `practiceVariant` düğüme yazılmıyor, test motoru tek konunun sayfalarından
  * öğrencinin seçtiği zorlukta yazıyor — ne karışık ne daha zor. Ad dürüstçe sırayı söyler (ürün
  * sahibinin kararı: karışık/zor test kurulmaz).
+ *
+ * 25 Ekim 2026: `practiceVariant` artık düğümün `session_meta`'sına yazılır; test motoru varyanta
+ * göre konunun başka bir dilimini sorar (`practiceCoverage`) ve önceki testlerin köklerini tekrarlamaz.
+ * İlk testin adı "Konu testi": doğru/yanlış ayrı düğüm.
  */
 export function practiceActivity(variant: number): { label: string; reason: string | null } {
-  if (variant <= 0) return { label: "Testler ve Doğru/Yanlış", reason: null };
+  if (variant <= 0) return { label: "Konu testi", reason: null };
   if (variant === 1) {
     return {
       label: "İkinci test",
@@ -433,6 +456,26 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       ...partFields(chunk),
     });
     return true;
+  };
+
+  /** Konu testinin günündeki kısa adım (D/Y, dönüşümlü etkileşim); günün bütçesine dokunmaz. */
+  const companion = (dayIndex: number, topic: ScheduleTopicInput, kind: PlanNodeKind, minutes: number) => {
+    const pages = topic.pageNumbers ?? [];
+    const cited = cite(topic, pages);
+    sessions.push({
+      dayIndex: dayIndex + 1,
+      calendarDate: studyDayDates[dayIndex],
+      topicId: topic.id,
+      topicTitle: topic.title,
+      objective: objectiveFor(topic, "practice"),
+      sourcePages: cited.omitBarePages ? [] : [...pages],
+      durationMinutes: minutes,
+      role: "practice",
+      kind,
+      sortOrder: sortOrder++,
+      practiceVariant: null,
+      sourceLabel: cited.label,
+    });
   };
 
   /**
@@ -583,7 +626,13 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       });
       practiceDay = target;
     }
-    if (practiceDay >= 0) mark(topicIndex, 100);
+    if (practiceDay >= 0) {
+      mark(topicIndex, 100);
+      companion(practiceDay, topic, "true_false", BLOCK_TRUE_FALSE_MINUTES);
+      mark(topicIndex, 110);
+      companion(practiceDay, topic, blockInteractiveKind(topicIndex), BLOCK_INTERACTIVE_MINUTES);
+      mark(topicIndex, 115);
+    }
     core.push({ learnDay, practiceDay: Math.max(practiceDay, learnDay) });
   }
 
@@ -602,7 +651,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       let placed = false;
       for (let d = practiceCursor; d < lastIdx; d += 1) {
         if (place(d, topic, "practice", practiceM, variant)) {
-          mark(topicIndex, 100 + variant);
+          mark(topicIndex, 120 + variant);
           practiceCursor = d + 1;
           placed = true;
           break;
@@ -764,7 +813,8 @@ export function redistributeRemainingSchedule(input: {
    */
   // Büyük konunun her dersi ayrı iş: birinci dersi bitiren öğrencinin
   // ikinci dersi plandan düşmesin.
-  const doneKey = (s: ScheduleSession) => `${s.topicId}:${s.role}:${s.lessonPart ?? 0}`;
+  // Tür de anahtarda: konu testini bitiren öğrencinin aynı konudaki D/Y ve podcast adımı düşmesin.
+  const doneKey = (s: ScheduleSession) => `${s.topicId}:${s.role}:${s.kind}:${s.lessonPart ?? 0}`;
   const doneTopicRoles = new Set(keptCompleted.map(doneKey));
   const merged = [
     ...keptCompleted,
@@ -785,17 +835,19 @@ export function redistributeRemainingSchedule(input: {
 /** Map schedule sessions to legacy node drafts for create_exam_prep_graph. */
 export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
   return sessions.map((s) => {
-    const practice = s.role === "practice" ? practiceActivity(s.practiceVariant ?? 0) : null;
+    const practice = s.role === "practice" && s.kind === "quiz" ? practiceActivity(s.practiceVariant ?? 0) : null;
     const label =
       s.role === "learn"
         ? s.lessonPart && s.lessonParts && s.lessonParts > 1
           ? `Ders ${s.lessonPart}/${s.lessonParts}${s.unitTitle ? `: ${s.unitTitle}` : ""}`
           : "Ders"
-        : s.role === "practice"
-          ? practice!.label
-          : s.role === "review"
-            ? "Kartlarla tekrar"
-            : "Yazılı deneme";
+        : practice
+          ? practice.label
+          : s.role === "practice"
+            ? COMPANION_LABEL[s.kind] ?? PLAN_NODE_META[s.kind].title
+            : s.role === "review"
+              ? "Kartlarla tekrar"
+              : "Yazılı deneme";
     const titled =
       s.role === "mock"
         ? `${label} · Tüm konular`
@@ -815,7 +867,15 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
         calendarDate: s.calendarDate,
         ...(s.lessonPart && s.lessonParts ? { lessonPart: s.lessonPart, lessonParts: s.lessonParts } : {}),
         ...(s.unitTitle ? { unitTitle: s.unitTitle } : {}),
+        ...(practice ? { practiceVariant: Math.max(0, s.practiceVariant ?? 0) } : {}),
       },
     };
   });
 }
+
+const COMPANION_LABEL: Partial<Record<PlanNodeKind, string>> = {
+  true_false: "Doğru/Yanlış",
+  podcast: "Podcast",
+  qa: "Soru-Cevap",
+  oral: "Sözlü deneme",
+};

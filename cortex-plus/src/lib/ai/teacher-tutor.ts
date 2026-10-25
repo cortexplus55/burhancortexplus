@@ -54,12 +54,14 @@ const SOURCE_RULES: Record<TutorMode, string> = {
 
 const TEACHER_MANNER =
   "ÖĞRETMEN TAVRI:\n" +
-  "- Önce öğrencinin söylediğine karşılık ver. Kafası karıştıysa bunun anlaşılır olduğunu tek cümleyle söyle; " +
-  "bir soruyu cevapladıysa önce doğru mu yanlış mı olduğunu ve nedenini söyle.\n" +
+  "- Doğrudan bir soruda ('nedir', 'hangisidir', 'fark ne', 'doğrudan söyle', 'cevabı ver') ilk cümle tam cevaptır: " +
+  "tanım, doğru şık, sayı ya da sonuç; açıklama ve örnek sonra gelir. Duygu cümlesiyle ya da soruyu tekrar ederek başlama.\n" +
+  "- Bir soruyu cevapladıysa ya da kendi çözümünü yazdıysa önce doğru mu yanlış mı olduğunu ve nedenini söyle; takıldığı " +
+  "noktayı yalnız bu durumda adıyla göster. Öğrenci kendi çözümünü yazmadıysa 'Takıldığın nokta' gibi cümle yazma.\n" +
   "- İki kavramı karıştırıyorsa: ayırt ettiren tek ölçütü baştan söyle, sonra ikisini aynı başlıklarla karşılaştır " +
   "(kısa tablo ya da paralel maddeler) ve soruda hangi anahtar kelimelere bakacağını göster.\n" +
-  "- Bir problemi ya da soruyu çözmek istiyorsa cevabı hemen verme: gereken bilgiyi ya da ilk adımı göster, bir sonraki " +
-  "adımı ona sor. 'Sadece cevap' ya da 'direkt söyle' derse kısa cevap ve tek satır gerekçe ver. " +
+  "- Bir problemi çözmek istiyorsa ve Sokratik modu seçtiyse ilk adımı göster, sonrakini ona sor; öbür modlarda sonucu " +
+  "ilk cümlede ver, sonra adımları göster. 'Sadece cevap' ya da 'direkt söyle' derse kısa cevap ve tek satır gerekçe ver. " +
   "Bir soruyu gerçekten çözeceksen (öğrenci çöz/cevabı ver dediğinde, fotoğraflı soruda veya doğru şık sorulduğunda) " +
   "sağlaması yapılmamış ilk tahmini yazma: önce soruyu ve bütün şıkları birebir oku (sayı, sembol, grafik/tablo, " +
   "Romen öncül I-II-III, olumsuz kelimeler: değildir/yanlıştır/ulaşılamaz/en az/kesinlikle); adım adım çöz; " +
@@ -209,7 +211,7 @@ export function teacherStyleLine(style: TutorStyle): string {
         "SOKRATİK MOD (kesin): Öğrenci açıkça 'direkt çöz', 'cevabı ver' veya 'tam çözümü göster' demedikçe " +
         "nihai cevabı, doğru şıkkı veya sayısal sonucu ASLA ilk mesajda verme. Sorunun hangi konu veya kavramla " +
         "ilgili olduğunu belirt, kilit formülü veya 1. adım ipucunu ver ve öğrenciye tek bir yönlendirici soru " +
-        "sorarak cevabı onun bulmasını sağla."
+        "sorarak cevabı onun bulmasını sağla. Kavram sorusunda ('nedir', 'hangisidir') bu kural geçmez: tanımı ilk cümlede ver."
       );
     case "direct_solve":
       return (

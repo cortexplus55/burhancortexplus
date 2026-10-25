@@ -66,6 +66,7 @@ import {
 } from "@/lib/learning/tutor-reply";
 import { topWeightedTopic } from "@/lib/learning/prep-corpus";
 import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
+import { answerFirstLine, bestSourcePage } from "@/lib/learning/tutor-answer";
 import { CHAT_NATURAL_VOICE, teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
 import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
@@ -310,7 +311,7 @@ export async function POST(request: Request) {
       const chatMood = parseMood(rest.mood);
       const moodLine = chatMood === "neutral" ? "" : ` ${moodPrompt(chatMood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE} ${answerFirstLine(message, tutorStyle)}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
@@ -431,6 +432,7 @@ export async function POST(request: Request) {
               : item,
           ),
           message,
+          style: tutorStyle,
           verify: tutorMode !== "general" && grounding.decision === "in",
           onUsage: async (usedIn, usedOut) => {
             tokensIn += usedIn;
@@ -450,7 +452,15 @@ export async function POST(request: Request) {
           // Kaynak satırı ("Kaynak: KPSS.pdf · s.8") ve kaynak işaretleri bu
           // listeden gelir; boş kalırsa ekran belge modunda "belgede yok" yazıyordu.
           if (tutorMode !== "general" && grounding.decision === "in") {
-            citations = grounding.passages.slice(0, 2).map((item, index) => ({
+            // Kaynak işareti cevabın en çok dayandığı pasajla başlar (sunucu basar; model sayfa yazmaz).
+            const best = bestSourcePage(
+              outcome.content,
+              grounding.passages.map((item, index) => ({ page: index, text: item.content })),
+            );
+            const ranked = best
+              ? [grounding.passages[best.page]!, ...grounding.passages.filter((_, index) => index !== best.page)]
+              : grounding.passages;
+            citations = ranked.slice(0, 2).map((item, index) => ({
               reference: index + 1,
               documentId: item.documentId,
               documentName: item.documentName,

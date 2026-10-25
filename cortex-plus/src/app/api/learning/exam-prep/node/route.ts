@@ -35,6 +35,9 @@ import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { podcastCheckOf, podcastPayloadEpisode, scorePodcastCheck } from "@/lib/learning/podcast-check";
 import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
+import { lessonBackbone } from "@/lib/learning/lesson-backbone";
+import { loadPreviousItems } from "@/lib/learning/previous-items";
+import { practiceCoverage, practiceVariantFromTitle } from "@/lib/learning/practice-coverage";
 import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -136,10 +139,9 @@ import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
 import { buildingPayload, isBuilding, isStaleBuild, truncatedPayload } from "@/lib/learning/lesson-build";
 import { savedReviewPayload } from "@/lib/learning/saved-review";
 import { isAdminUser } from "@/lib/auth/roles";
-import {
-  honestReadingMinutes,
-  shouldReplacePlannedMinutes,
-} from "@/lib/learning/lesson-coherence";
+import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
+import { activityDurationMinutes } from "@/lib/learning/activity-duration";
+import { podcastLengthSpec } from "@/lib/learning/podcast-formats";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
   loadPodcastCorpus,
@@ -183,6 +185,8 @@ import {
   isPathTurn,
   spacedReviewGate,
 } from "@/lib/learning/exam-local-session";
+import { interleaveByTopic, roundRobinCounts } from "@/lib/learning/final-block";
+import { fillTopicQuestions, loadFinalCardTopics, loadTopicPages } from "@/lib/learning/prep-topic-fill";
 import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
 import { adaptiveFocusTopic } from "@/lib/learning/path-change";
 import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
@@ -1062,6 +1066,13 @@ async function handleNodeRequest(
       p_answers: answersForRpc,
     });
     if (completeError || !completed) return errorResponse(503, "completion_failed");
+    // Etkinlik bitince pencere bir adım kayar (25 Ekim 2026, canlı test P1-1): ders biter bitmez
+    // sıradaki test/kart yazılmaya başlar; öğrenci "Devam et"e bastığında hazırdır. Yazım varsa atlanır.
+    if (attempt.status !== "completed") {
+      afterResponse(() =>
+        requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number }),
+      );
+    }
 
     if (teachingV2 && parsed.data.completeRequestId) {
       await service
@@ -1346,6 +1357,7 @@ async function handleNodeRequest(
   }
 
   let practiceTopics: string[] | undefined;
+  let finalFill: { seed: QuizQuestion[]; topics: string[]; perTopic: number } | null = null;
   // Bilgi boşlukları ve Tekrar kilitliyse (Astra, 1 Ekim 2026) ücretsiz
   // "kilitli" cevabı döner. Bitmiş düğüm yeniden açılırken kilit sorulmaz.
   const lockable = (kind === "gaps" || kind === "spaced") && node.status !== "done";
@@ -1427,6 +1439,7 @@ async function handleNodeRequest(
       });
     }
     practiceTopics = local.topics;
+    if (local.fill) finalFill = { seed: local.fill.seed, topics: local.topics, perTopic: local.fill.perTopic };
   }
 
   // Hazırlık geneli düğüm ve `?konu=` (20 Ekim 2026, prep-wide-target.ts): düğümün devraldığı 1.
@@ -2393,6 +2406,8 @@ async function handleNodeRequest(
           idempotencyKey: creditKey,
           charge: !prefetch,
           warm,
+          nodeId,
+          nodeTitle: (node.title as string | null) ?? null,
           // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
           sectionBackbone:
             kind === "lesson" && teachingV2
@@ -2421,6 +2436,7 @@ async function handleNodeRequest(
           prepId,
           topicId: topic?.id ?? null,
           practiceTopics,
+          finalFill,
           oralQuestionCount: kind === "oral" ? oralCount : undefined,
           oralCitation:
             kind === "oral"
@@ -2572,17 +2588,25 @@ async function handleNodeRequest(
 
   const total = countTotal(kind, payload);
 
-  if (kind === "lesson" && payload.type === "lesson" && payload.lesson && typeof payload.lesson === "object") {
-    const honest = honestReadingMinutes(readLessonV2(payload.lesson) ?? { sections: [] });
-    const planned = sessionMeta?.durationMinutes;
-    if (typeof planned === "number" && shouldReplacePlannedMinutes(planned, honest)) {
-      const meta =
-        node.session_meta && typeof node.session_meta === "object" && !Array.isArray(node.session_meta)
-          ? { ...(node.session_meta as Record<string, unknown>) }
-          : {};
+  // Öğrenciye yazılan süre içerikten (25 Ekim 2026, P1-7): yol kartı ve kapı `activityMinutes`'ı okur; takvimin
+  // `durationMinutes` bütçesi değişmez (haftalık tempo onu sayar).
+  {
+    const activityMinutes = activityDurationMinutes(kind, {
+      readingMinutes:
+        payload.type === "lesson" && payload.lesson && typeof payload.lesson === "object"
+          ? honestReadingMinutes(readLessonV2(payload.lesson) ?? { sections: [] })
+          : null,
+      itemCount: payload.type === "lesson" || payload.type === "podcast" ? null : total,
+      minutes: payload.type === "podcast" ? podcastLengthSpec(parsePodcastLength(payload.length)).minutes : null,
+    });
+    const meta =
+      node.session_meta && typeof node.session_meta === "object" && !Array.isArray(node.session_meta)
+        ? { ...(node.session_meta as Record<string, unknown>) }
+        : {};
+    if (meta.activityMinutes !== activityMinutes) {
       await service
         .from("exam_prep_nodes")
-        .update({ session_meta: { ...meta, durationMinutes: honest } })
+        .update({ session_meta: { ...meta, activityMinutes } })
         .eq("id", nodeId)
         .then(undefined, () => undefined);
     }
@@ -2983,6 +3007,12 @@ async function generateNodePayload(input: {
   podcastLength?: PodcastLength;
   requestId?: string | null;
   grounding?: string;
+  /** Tekrar yasağı (25 Ekim 2026): önceki kayıtlar okunurken düğümün kendi önceden yazımı sayılmaz. */
+  nodeId?: string;
+  /** Eski düğümde varyant metada yok; başlıktan okunur. */
+  nodeTitle?: string | null;
+  /** Son kontrol: hazır sorular ve sorusu olmayan konular (konu başına üretim). */
+  finalFill?: { seed: QuizQuestion[]; topics: string[]; perTopic: number } | null;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -3044,8 +3074,9 @@ async function generateNodePayload(input: {
       topicLabel: input.topicLabel,
       prepTitle: input.prepTitle,
       charge: input.charge,
+      urgent: input.charge !== false,
       userPrompt: input.teachingV2
-        ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
+        ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; her explanation ilk cümlede doğru cevabı söylesin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
@@ -3115,6 +3146,31 @@ async function generateNodePayload(input: {
     return teacherTrueFalsePayload(input, activity, core);
   }
 
+  if (input.kind === "final_check" && input.finalFill && input.prepId) {
+    const fill = input.finalFill;
+    const filled = await fillTopicQuestions(input.service, {
+      userId: input.userId,
+      prepId: input.prepId,
+      prepTitle: input.prepTitle,
+      topics: fill.topics,
+      perTopic: fill.perTopic,
+      idempotencyKey: input.idempotencyKey ?? `final:${input.prepId}:${Date.now()}`,
+      freeMeter: input.freeMeter,
+      actionCode: actionForKind(input.kind),
+      charge: input.charge,
+      documentBacked: !input.lessonTopicOnly,
+    });
+    if (!filled.ok && !fill.seed.length) throw new NodeGenerationError(filled.status, filled.error);
+    const questions = [...fill.seed, ...(filled.ok ? filled.questions : [])];
+    if (!questions.length) throw new NodeGenerationError(503, "generation_failed");
+    return {
+      type: "quiz",
+      questions,
+      teachingStandard: activity,
+      uncoveredTopics: filled.ok ? filled.missing : fill.topics,
+    };
+  }
+
   const outcome = await generateExamQuiz({
     service: input.service,
     userId: input.userId,
@@ -3142,6 +3198,7 @@ async function generateNodePayload(input: {
         ? `Yalnızca şu zayıf konular: ${input.practiceTopics.join(", ")}. Listede olmayan konu yazma.`
         : ""
     }`,
+    urgent: input.charge !== false,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
@@ -3412,18 +3469,46 @@ async function teacherCardsPayload(
   core: LessonCore | null,
 ) {
   const startedAt = Date.now();
-  const source = await teacherPages(input, core);
+  // Kartlar yalnız konunun kendi sayfalarından (25 Ekim 2026, canlı test P1-2): yardımcı dosyanın
+  // sayfası başka konunun kartını getiriyordu. Önceki destelerin kartları yeniden yazılmaz.
+  const source = await teacherPages(input, core ? { ...core, support: [] } : core);
+  const avoid =
+    input.prepId && input.userId
+      ? await loadPreviousItems(input.service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          kind: "cards",
+          excludeNodeId: input.nodeId ?? null,
+        })
+      : [];
   const cardsInput = {
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
     pages: source.pages,
+    avoid,
     mode: core ? ("document" as const) : ("topic" as const),
     count: 8,
     focus: input.kind === "spaced" ? ("spaced" as const) : ("cards" as const),
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     examPoints: input.examPoints,
     runningHeaders: source.edges,
+    // Öğrenci bekliyor: kısa düzeltme bütçesi, paralel onarım (25 Ekim 2026).
+    urgent: input.charge !== false,
   };
+  // Son tekrar (hazırlık geneli "flashcards"): kartlar zayıf ve orta konulara sırayla dağılır, her konu kendi
+  // sayfalarından; 8 kartın hepsi devralınan 1. konudan gelmez.
+  const finalTopics =
+    input.kind === "flashcards" && input.prepId && input.userId
+      ? await loadFinalCardTopics(input.service, { userId: input.userId, prepId: input.prepId }).catch(() => [])
+      : [];
+  const finalSources =
+    finalTopics.length > 1 && input.prepId
+      ? await loadTopicPages(input.service, { userId: input.userId, prepId: input.prepId, labels: finalTopics })
+      : [];
+  const finalPlan = roundRobinCounts(
+    finalSources.filter((item) => item.pages.length || input.lessonTopicOnly).map((item) => item.label),
+    cardsInput.count,
+  );
   const outcome = await runWithTeacherModel(input.service, {
     userId: input.userId,
     actionCode: actionForKind(input.kind),
@@ -3434,6 +3519,34 @@ async function teacherCardsPayload(
     label: "teacher_cards",
     topic: input.topicLabel,
     work: async (ask, started) => {
+      if (finalPlan.length > 1) {
+        const loops = await Promise.all(
+          finalPlan.map((row) => {
+            const item = finalSources.find((sourceRow) => sourceRow.label === row.label)!;
+            return teacherCardsLoop(
+              ask,
+              {
+                ...cardsInput,
+                topicLabel: row.label,
+                pages: item.pages,
+                runningHeaders: item.edges,
+                mode: item.pages.length ? ("document" as const) : ("topic" as const),
+                count: row.count,
+                examPoints: undefined,
+              },
+              started,
+            );
+          }),
+        );
+        const cards = interleaveByTopic(
+          loops.map((loop, index) => loop.cards.slice(0, finalPlan[index]!.count + 1)),
+          cardsInput.count,
+        );
+        const log = { kept: cards.length, rejected: loops.reduce((sum, loop) => sum + loop.rejected.length, 0), topics: finalPlan.length };
+        return cards.length >= 6
+          ? { ok: true as const, result: cards, log }
+          : { ok: false as const, reasons: loops.flatMap((loop) => loop.rejected.slice(0, 2).map((row) => row.problems[0] ?? "sorun")), log };
+      }
       const loop = await teacherCardsLoop(ask, cardsInput, started);
       const log = { kept: loop.cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
       return loop.cards.length >= 6
@@ -3474,6 +3587,7 @@ async function teacherTrueFalsePayload(
           examPoints: input.examPoints,
           examPointsUse: "true_false",
           count: 8,
+          urgent: input.charge !== false,
         },
         started,
       );
@@ -3518,6 +3632,7 @@ async function teacherOralPayload(
           examPoints: input.examPoints,
           examPointsUse: "oral",
           count: asked,
+          urgent: input.charge !== false,
         },
         started,
       );
@@ -3554,9 +3669,27 @@ async function teacherQuizPayload(
         edges,
       })
     : [];
+  // Tekrar yasağı ve test dilimi (25 Ekim 2026, canlı test P1-2): önceki kökler yazara yasak listesi,
+  // konu testinin varyantı konunun alt başlıklarından başka bir dilim.
+  const previousStems =
+    input.prepId && input.userId
+      ? await loadPreviousItems(input.service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          kind: "quiz",
+          excludeNodeId: input.nodeId ?? null,
+        })
+      : [];
+  const variant = input.sessionMeta?.practiceVariant ?? practiceVariantFromTitle(input.nodeTitle);
+  const coverage =
+    input.kind === "quiz"
+      ? practiceCoverage(variant, lessonBackbone(clean, { topicLabel: input.topicLabel, runningHeaders: edges }))
+      : undefined;
   const outcome = await runTeacherQuiz(input.service, {
     mode: core ? "document" : "topic",
     focus: input.kind === "gaps" ? "gaps" : "practice",
+    previousStems,
+    ...(coverage ? { coverage } : {}),
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `quiz:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
@@ -3811,11 +3944,7 @@ function publicNodePayload(
 function countTotal(kind: PlanNodeKind, payload: Record<string, unknown>) {
   if (payload.type === "quiz") return ((payload.questions as unknown[]) ?? []).length;
   if (payload.type === "true_false") return ((payload.items as unknown[]) ?? []).length;
-  if (payload.type === "cards") {
-    // v2: participation total stays 1 (masteryClaim false); legacy uses card count.
-    if (payload.masteryClaim === false) return 1;
-    return ((payload.cards as unknown[]) ?? []).length;
-  }
+  if (payload.type === "cards") return Math.max(1, ((payload.cards as unknown[]) ?? []).length);
   if (payload.type === "oral") return ((payload.questions as unknown[]) ?? []).length;
   // Dinleme kontrolü varsa soru sayısı; atlanırsa tamamlama yine 1/1 yazar (`scorePodcastCheck`).
   if (payload.type === "podcast") return podcastCheckOf(payload).length || 1;

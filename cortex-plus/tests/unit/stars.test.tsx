@@ -29,7 +29,10 @@ describe("yıldız kuralları", () => {
   it("Astra'nın sayıları: hazırlık 10–210, düello 30–130, günlük hedef 50", () => {
     expect(DAILY_STAR_GOAL).toBe(50);
     expect(prepStars("lesson", null, null)).toBe(10);
-    expect(prepStars("lesson", 4, 4)).toBe(20);
+    // Skor çarpanı olmayan adım: kart ne yazıyorsa sonuç o (25 Ekim 2026, P1-7).
+    expect(prepStars("lesson", 4, 4)).toBe(10);
+    expect(prepStars("flashcards", 8, 8)).toBe(10);
+    expect(prepStars("final_check", 3, 3)).toBe(16);
     expect(prepStars("quiz", 7, 7)).toBe(24);
     expect(prepStars("quiz", 40, 40)).toBe(40);
     expect(prepStars("written_exam", 0, 20)).toBe(30);

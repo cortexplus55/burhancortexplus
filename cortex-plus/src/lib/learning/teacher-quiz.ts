@@ -5,6 +5,7 @@ import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { EXAM_POINTS_MAX, examPointsBlock } from "@/lib/learning/exam-points";
+import { avoidListBlock } from "@/lib/learning/item-dedup";
 import {
   LESSON_CHECKS_MAX,
   LESSON_TERMS_MAX,
@@ -76,6 +77,14 @@ export type TeacherQuizInput = {
    * (~35 sn'lik iki çağrı) ekliyordu. Önceden yazım (öğrenci beklemiyor) bütün turları koşar.
    */
   urgent?: boolean;
+  /**
+   * Aynı hazırlıkta daha önce üretilmiş soru kökleri (aynı konunun önceki testleri, önceki konuların testleri;
+   * 25 Ekim 2026, canlı test P1-2). Yazara "tekrarlama" listesi olarak gider; üretimden sonra aynı bilgiyi
+   * soran soru deterministik olarak elenir (`dropNearDuplicates`).
+   */
+  previousStems?: string[];
+  /** Bu testin kapsamı: kaçıncı test olduğu ve konunun hangi alt başlıkları (`practiceCoverageBlock`). */
+  coverage?: string;
 };
 
 export type QuizDifficulty = "kolay" | "orta" | "ileri";
@@ -314,6 +323,11 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     // Kaynak sonda kalır: model en son okuduğu talimata daha sadık.
     lessonBlock(input),
     avoidBlock(input),
+    input.coverage?.trim() ? `BU TESTİN KAPSAMI:\n${input.coverage.trim()}` : "",
+    avoidListBlock(
+      "DAHA ÖNCE SORULAN VE TEKRARLANMASI YASAK SORULAR (aynı bilgiyi başka kalıpla da sorma; konunun henüz sorulmamış noktalarına git):",
+      input.previousStems ?? [],
+    ),
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu değildir: ${input.runningHeaders.join(" | ")}`
       : "",

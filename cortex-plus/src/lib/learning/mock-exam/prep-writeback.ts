@@ -4,6 +4,8 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { recordLearningTrackingAfterComplete } from "@/lib/learning/learning-tracking-persist";
 import type { MockGradeItem } from "@/lib/learning/mock-exam";
 import { mockNodePayload, mockNodeRequestId } from "@/lib/learning/mock-exam/prep-node-link";
+import { awardStars } from "@/lib/stars/award";
+import { prepStars } from "@/lib/stars/rules";
 
 /**
  * Notlanan yazılı deneme hazırlığın yoluna yazılır (20 Ekim 2026).
@@ -31,7 +33,7 @@ export async function writeBackMockToPrep(
     scorePct: number;
     items: readonly MockGradeItem[];
   },
-): Promise<{ nodeId: string } | null> {
+): Promise<{ nodeId: string; stars?: number } | null> {
   // Hazırlıksız deneme, konu seçili deneme: yol değişmez. Eski kayıtta kapsam boş = tam deneme.
   if (!input.prepId) return null;
   if (input.scope != null && input.scope !== "all") return null;
@@ -127,5 +129,19 @@ export async function writeBackMockToPrep(
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
   }).catch(() => undefined);
 
-  return { nodeId };
+  // Yazılı deneme yıldızı (25 Ekim 2026, P1-7): yoldaki öbür adımlar gibi, doğru sayısıyla (yüzde değil).
+  const stars = await awardStars(service, {
+    userId: input.userId,
+    source: "prep",
+    ref: `attempt:${attempt.id}`,
+    amount: writtenExamStars(input.items),
+  });
+
+  return { nodeId, stars };
+}
+
+/** Deneme formülü doğru sayısını okur; kısmi puanlı açık uçlu soru doğru sayılmaz. */
+export function writtenExamStars(items: readonly MockGradeItem[]): number {
+  const correct = items.filter((item) => item.isCorrect).length;
+  return prepStars("written_exam", correct, items.length);
 }

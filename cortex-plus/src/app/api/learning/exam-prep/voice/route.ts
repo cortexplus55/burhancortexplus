@@ -13,6 +13,9 @@ import { oralTeacherStyleLine } from "@/lib/learning/oral-exam-chrome";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
+import { bestSourcePage } from "@/lib/learning/tutor-answer";
+import { citationMarker } from "@/lib/learning/tutor-reply";
+import { citationHref } from "@/lib/ai/chat-citations";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -150,9 +153,24 @@ export async function POST(request: Request) {
     }
     await commitCredits(service, reservation.reservationId);
     const teacherTurns = parsed.data.messages.filter((m) => m.role === "assistant").length + 1;
+    const reply = outcome.content.replace(/\s+/g, " ").trim().slice(0, VOICE_REPLY_MAX);
+    // Belgeden gelen yanıtın kaynağı sunucuda basılır; seslendirilmez, transkriptte görünür.
+    const sourcePage = documentId ? bestSourcePage(reply, pages) : null;
+    let source: string | null = null;
+    if (documentId && sourcePage) {
+      const { data: doc } = await service.from("documents").select("file_name").eq("id", documentId).maybeSingle();
+      const documentName = String((doc as { file_name?: string | null } | null)?.file_name ?? "Belgen");
+      source = citationMarker({
+        documentName,
+        pageNumber: sourcePage.page,
+        slide: false,
+        href: citationHref({ reference: 1, documentId, documentName, pageNumber: sourcePage.page, chunkId: null }),
+      });
+    }
     return NextResponse.json({
       ok: true,
-      reply: outcome.content.replace(/\s+/g, " ").trim().slice(0, VOICE_REPLY_MAX),
+      reply,
+      ...(source ? { source } : {}),
       done: oral && teacherTurns >= ORAL_TURNS,
     });
   } catch (error) {

@@ -8,18 +8,31 @@ import {
   collectWeakTopics,
   missedFromAttempt,
   questionsFromLessonChecks,
+  rewordPracticeQuestion,
   type StoredLessonCheck,
 } from "@/lib/learning/focused-practice";
+import { finalCardTopics, finalCheckSelection } from "@/lib/learning/final-block";
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
+import { normalizeTopicKey, type TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { prepLanguage, type StoredReview } from "@/lib/learning/teacher-brain";
 import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
 
 export type LocalSessionPlan =
   | { action: "serve"; payload: Record<string, unknown> }
-  | { action: "generate"; topics: string[] };
+  | {
+      action: "generate";
+      topics: string[];
+      /** Son kontrol: hazır sorular + eksik konular için konu başına üretim (`fillTopicQuestions`). */
+      fill?: { seed: QuizQuestion[]; perTopic: number };
+    };
+
+/** Ölçülmüş konunun güveni; ölçülmemişse null. */
+export function confidenceFor(mastery: readonly TopicMasterySnapshot[], label: string): number | null {
+  const row = mastery.find((item) => item.topicKey === normalizeTopicKey(label));
+  return row && row.measured ? row.confidence : null;
+}
 
 /** Kilitli araç: kayıt açılmaz, kredi düşmez; ekran nedenini söyler. */
 export function lockedToolPayload(kind: "gaps" | "spaced"): LocalSessionPlan {
@@ -417,23 +430,6 @@ export async function buildLocalSessionPayload(
       ? { action: "generate", topics: weakTopics.slice(0, 6) }
       : lockedToolPayload("gaps");
   }
-  const limit = input.kind === "final_check" ? 3 : 5;
-  if (!weakTopics.length) {
-    return {
-      action: "serve",
-      payload: {
-        type: "practice_empty",
-        practice: input.kind,
-        reason: "no_weak_topics",
-        message:
-          input.kind === "final_check"
-            ? "Son kontrol için kayıtlı zayıf konu yok. Hazırlık ekranı ölçülen konulardan hesaplanır."
-            : "Odaklı pratik için kayıtlı zayıf konu, yanlış deneme veya kısa tekrar kaçağı yok.",
-        topics: [],
-      },
-    };
-  }
-
   const checks: StoredLessonCheck[] = [];
   for (const lesson of lessonsRes.data ?? []) {
     const topic = topicById.get(String(lesson.topic_id ?? "")) || "";
@@ -441,6 +437,31 @@ export async function buildLocalSessionPayload(
     checks.push(...lessonChecks(lesson.content_json, topic));
   }
   const lessonQuestions = questionsFromLessonChecks(checks);
+
+  // Son kontrol bütün konuları yoklar (25 Ekim 2026, P1-4): konu başına bir soru, en zayıf önce; sorusu
+  // olmayan konu anında üretilir (`fill`).
+  if (input.kind === "final_check") {
+    const order = [...weakTopics, ...topicLabels];
+    const pool = [...lessonQuestions, ...missedQuestions].map((question) => rewordPracticeQuestion(question, language));
+    const selection = finalCheckSelection(order.length ? order : [input.prepTitle], pool);
+    if (!selection.missingTopics.length) {
+      return {
+        action: "serve",
+        payload: { type: "quiz", practice: input.kind, reused: true, questions: selection.questions, uncoveredTopics: [] },
+      };
+    }
+    return { action: "generate", topics: selection.missingTopics, fill: { seed: selection.questions, perTopic: 1 } };
+  }
+
+  // Kayıtlı zayıf konu yoksa odaklı pratik boş dönmez: en az ölçülmüş konudan hemen üretilir.
+  if (!weakTopics.length) {
+    const fallback = finalCardTopics(
+      topicLabels.map((label) => ({ label, confidence: confidenceFor(mastery, label) })),
+      1,
+    );
+    return { action: "generate", topics: fallback.length ? fallback : [input.prepTitle] };
+  }
+
   const assembled = assembleFocusedPractice({
     weakTopics,
     missed: missedQuestions,
@@ -448,7 +469,7 @@ export async function buildLocalSessionPayload(
     reviewPrompts: misconceptions
       .filter((row) => row.sourceKind === "lesson_review" || row.wrongType === "lesson_check_miss")
       .map((row) => row.questionPreview ?? ""),
-    limit,
+    limit: 5,
     language,
   });
 

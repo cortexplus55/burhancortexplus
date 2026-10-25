@@ -27,8 +27,12 @@ import {
   type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
 import {
+  KEREM_SHARE_MAX,
+  KEREM_SHARE_MIN,
   parsePodcastLength,
   podcastLengthSpec,
+  speakerIdOf,
+  spokenSentence,
   type PodcastLength,
 } from "@/lib/learning/podcast-formats";
 import {
@@ -112,12 +116,13 @@ export function coercePodcastDraft(
       const original = typeof line.text === "string" ? line.text : "";
       const marked = stripBeatMarker(original);
       if (!marked.text || emptyMistake(marked.text)) continue;
-      for (const sentence of splitSentences(marked.text)) {
+      for (const raw of splitSentences(marked.text)) {
+        const sentence = spokenSentence(raw);
+        if (!sentence) continue;
         const shown = notationLine(sentence);
         if (shown.text.length < 4) continue;
-        // İki sunuculu türde konuşmacı taslaktan gelir; tek öğretmende hep Ada.
-        const speaker =
-          spec.speakers === "duo" && String(line.speaker ?? "").trim().toLowerCase() === "kerem" ? "kerem" : "ada";
+        // İki sunuculu türde konuşmacı taslaktan gelir ("öğretmen"/"sunucu" Ada'dır); tek öğretmende hep Ada.
+        const speaker = spec.speakers === "duo" && speakerIdOf(line.speaker) === "kerem" ? "kerem" : "ada";
         const out: PodcastLine = { speaker, text: shown.text };
         if (shown.spoken !== shown.text) out.spoken = shown.spoken;
         if (marked.beat) out.beat = marked.beat;
@@ -153,6 +158,64 @@ export function podcastScriptText(episode: PodcastEpisode): string {
   return episode.chapters
     .flatMap((chapter) => chapter.lines.map((line) => line.text))
     .join("\n");
+}
+
+export function podcastWordCount(episode: PodcastEpisode): number {
+  return podcastScriptText(episode).split(/\s+/).filter(Boolean).length;
+}
+
+/** Kerem'in cümle payı (0-1). */
+export function keremShare(episode: PodcastEpisode): number {
+  const lines = episode.chapters.flatMap((chapter) => chapter.lines);
+  if (!lines.length) return 0;
+  return lines.filter((line) => line.speaker === "kerem").length / lines.length;
+}
+
+const ADDRESSES = { ada: /(?<!\p{L})kerem(?!\p{L})/iu, kerem: /(?<!\p{L})ada(?!\p{L})/iu } as const;
+
+/**
+ * İki sesli türde payı koda bağlar: düzeltme turu da Kerem'i %35-50 bandına getirmediyse konuşma sırasının (birden
+ * çok cümlelik) son cümlesi öbür konuşmacıya yazılır. Açılış ve kapanış Ada'da kalır; bir sıranın ilk cümlesi (soruya
+ * verilen cevap) yerinde kalır; soruyla biten cümle, ardından gelen konuşmacı kendi sorusunu cevaplamasın diye taşınmaz;
+ * karşısındakine adıyla seslenen cümle de taşınmaz. Kod cümle yazmaz, yalnız konuşmacı alanını değiştirir.
+ */
+export function balanceKerem(
+  episode: PodcastEpisode,
+  band: { min: number; max: number } = { min: KEREM_SHARE_MIN, max: KEREM_SHARE_MAX },
+): PodcastEpisode {
+  const spec = podcastLengthSpec(episode.length);
+  if (spec.speakers !== "duo") return episode;
+  const chapters = episode.chapters.map((chapter) => ({ ...chapter, lines: chapter.lines.map((line) => ({ ...line })) }));
+  const flat = chapters.flatMap((chapter) => chapter.lines);
+  if (flat.length < 3) return episode;
+  const total = flat.length;
+  const count = () => flat.filter((line) => line.speaker === "kerem").length;
+  const target = count() / total < band.min ? "kerem" : count() / total > band.max ? "ada" : null;
+  if (!target) return episode;
+  const from = target === "kerem" ? "ada" : "kerem";
+  const inBand = () => (target === "kerem" ? count() / total >= band.min : count() / total <= band.max);
+
+  // Önce yalnız sıranın sonundaki cümle; o da kalmadıysa (tek sesli taslak) sıranın ortasındaki cümleler.
+  const pass = (relaxed: boolean): boolean => {
+    let moved = false;
+    for (let index = flat.length - 2; index >= 1 && !inBand(); index -= 1) {
+      const line = flat[index]!;
+      const previous = flat[index - 1]!;
+      const next = flat[index + 1];
+      if (line.speaker !== from || previous.speaker !== from) continue;
+      if (next && next.speaker === from && !relaxed) continue;
+      if (/\?\s*$/.test(line.text) && next && next.speaker !== from) continue;
+      if (line.beat === "reveal" && previous.beat === "ask") continue;
+      if (ADDRESSES[from].test(line.text)) continue;
+      line.speaker = target;
+      moved = true;
+      if (relaxed) index -= 1;
+    }
+    return moved;
+  };
+  let progressed = true;
+  while (!inBand() && progressed) progressed = pass(false) || pass(true);
+  return { ...episode, chapters };
 }
 
 export async function podcastScopeBrief(

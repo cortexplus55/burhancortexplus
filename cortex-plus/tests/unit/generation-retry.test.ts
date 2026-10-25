@@ -61,7 +61,8 @@ describe("bütün içerik ekranları aynı kuralı kullanır", () => {
       "src/components/parity/prep-podcast-session.tsx",
       "src/components/learning/studio/studio-shared.tsx",
       "src/components/parity/video-lesson.tsx",
-      "src/components/parity/mock-exam-setup.tsx",
+      // Deneme kurulumu ilerlemeyi akıtan yardımcıdan geçer (25 Ekim 2026); yardımcı aynı kuralı kullanır.
+      "src/lib/learning/mock-exam/progress.ts",
       "src/components/parity/challenge-set-play.tsx",
       "src/components/parity/exam-node-session.tsx",
     ]) {

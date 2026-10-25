@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyClusterMerges, consolidateMaterials, dedupeStudentNotes, extraPracticeForTopic, isNonContentSection, isSyllabusText, parseExamDate, parseSyllabusRows, priorityFromImportance, priorityFromWeight, type MaterialCandidate, type MaterialDocument } from "@/lib/learning/cross-material-topics";
-import { buildExamScheduleV2, lessonPageChunks } from "@/lib/learning/exam-schedule-v2";
+import { BLOCK_INTERACTIVE_ROTATION, buildExamScheduleV2, lessonPageChunks } from "@/lib/learning/exam-schedule-v2";
 
 /**
  * Kimya seti, yüklenen dosyaların cevap anahtarından türetilmiş aday listesi.
@@ -409,7 +409,11 @@ describe("observed Cortex topic list", () => {
     const practice = (pattern: RegExp) =>
       plan.sessions.filter((session) => pattern.test(session.topicTitle) && session.role === "practice").length;
     expect(practice(/stokiyometri/i)).toBeGreaterThan(practice(/temel kanun/i));
-    expect(plan.sessions.length).toBeLessThan(40);
+    // Konu bloğundaki D/Y ve dönüşümlü etkileşim adımı (25 Ekim 2026) çekirdek sayıya girmez.
+    const companions = plan.sessions.filter((session) => session.kind === "true_false" || BLOCK_INTERACTIVE_ROTATION.includes(session.kind));
+    expect(companions).toHaveLength(result.topics.length * 2);
+    expect(plan.sessions.length - companions.length).toBeLessThan(40);
+    expect(plan.sessions.length).toBeLessThan(74);
     expect(plan.sessions.some((session) => /ara sınav|özet ve sık|genel tekrar/i.test(session.topicTitle))).toBe(
       false,
     );
@@ -597,7 +601,11 @@ describe("several files and no syllabus", () => {
     expect(learns.findIndex((title) => /mol/i.test(title))).toBeLessThan(
       learns.findIndex((title) => /stokiyometri/i.test(title)),
     );
-    expect(plan.sessions.length).toBeLessThan(40);
+    // Konu bloğundaki D/Y ve dönüşümlü etkileşim adımı (25 Ekim 2026) çekirdek sayıya girmez.
+    const companions = plan.sessions.filter((session) => session.kind === "true_false" || BLOCK_INTERACTIVE_ROTATION.includes(session.kind));
+    expect(companions).toHaveLength(result.topics.length * 2);
+    expect(plan.sessions.length - companions.length).toBeLessThan(40);
+    expect(plan.sessions.length).toBeLessThan(74);
     expect(plan.sessions.some((session) => /özet ve sık|genel tekrar/i.test(session.topicTitle))).toBe(false);
   });
 });

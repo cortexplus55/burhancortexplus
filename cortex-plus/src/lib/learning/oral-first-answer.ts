@@ -22,6 +22,22 @@ export function oralFirstAnswer(answers: Record<string, unknown>, index: number)
   return String(answers[String(index)] ?? "").trim();
 }
 
+/**
+ * Soru ekranından çıkan cevap: takip sorusu açıksa ilk cevap ayrıca, cevap anahtarı birleşik metin. "Cevabı
+ * gönder", süre bitimi ve "Sınavı bitir" aynı yoldan geçer; süre bitince ilk cevap kaybolmasın (P1-7).
+ */
+export function oralDeskAnswer(input: {
+  probeOpen: boolean;
+  firstAnswer: string;
+  follow: string;
+  value: string;
+}): { answer: string; firstAnswer?: string } {
+  if (!input.probeOpen) return { answer: input.value };
+  const first = input.firstAnswer.trim();
+  const answer = [first, input.follow.trim()].filter(Boolean).join("\n");
+  return first ? { answer, firstAnswer: first } : { answer };
+}
+
 export function firstAnswerErrorLine(error: OralAnswerError): string {
   return `İlk yanıtta «${error.wrong.trim()}» yanlış ifade edildi; doğrusu «${error.correct.trim()}» olmalıdır.`;
 }

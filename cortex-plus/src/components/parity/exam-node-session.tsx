@@ -109,6 +109,7 @@ import "@/styles/node-generation-progress.css";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
 import { knownCardCount, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
+import { elapsedMinutes } from "@/lib/learning/activity-duration";
 import { NodeSources, type NodeSource } from "@/components/parity/node-sources";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
 import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
@@ -379,6 +380,10 @@ export function ExamNodeSession({
   /** Bu etkinlikle kazanılan yıldız (Astra: sonuç ekranında "+17 yıldız"). */
   const [starsEarned, setStarsEarned] = useState(0);
   const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
+  // Harcanan zaman oturumun başından (P1-7): oynatma başlangıcı yazılmayan yolda (hazır ders, devralınan
+  // yazım) fark 0 çıkıp her etkinlik "1 dk" görünüyordu; sayfanın açılışı yedek başlangıçtır.
+  const openedAtRef = useRef(Date.now());
+  const spentMinutes = () => elapsedMinutes(playStartedAt ?? openedAtRef.current);
   const [oralGrade, setOralGrade] = useState<{
     items: { index: number; correct: boolean; gap: string | null }[];
     scoreRationale?: string;
@@ -1792,10 +1797,7 @@ export function ExamNodeSession({
           pct={oralPct}
           fullCount={oralReport?.fullCount}
           total={oralReport?.total ?? questions.length}
-          minutesSpent={Math.max(
-            1,
-            Math.round((Date.now() - (playStartedAt ?? Date.now())) / 60000),
-          )}
+          minutesSpent={spentMinutes()}
           onReview={() => {
             setOralReviewIndex(0);
             setOralReviewTab("ai");
@@ -1939,11 +1941,7 @@ export function ExamNodeSession({
             <div>
               <dt>Harcanan zaman</dt>
               <dd>
-                {Math.max(
-                  1,
-                  Math.round((Date.now() - (playStartedAt ?? Date.now())) / 60000),
-                )}{" "}
-                dk
+                {spentMinutes()} dk
               </dd>
             </div>
           </dl>

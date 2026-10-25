@@ -27,7 +27,7 @@ describe("ders giriş kartı", () => {
   it("okuma süresi, adım sayısı, bölüm planı ve soru notuyla açılır; Devam et ilk bölüme geçer", () => {
     render(<ExamLessonSteps lesson={lesson} closeHref="/deneme-sinavlari/p" />);
     expect(screen.getByRole("heading", { level: 1, name: "Birim Çember" })).toBeTruthy();
-    expect(screen.getByText(/dk okuma · \d+ adım/)).toBeTruthy();
+    expect(screen.getByText(/dk · \d+ adım/)).toBeTruthy();
     expect(screen.getByText("Trigonometrinin bütün tanımları tek bir çemberden çıkar.")).toBeTruthy();
     const plan = screen.getByRole("region", { name: "Bu derste neler var" });
     expect([...plan.querySelectorAll("li")].map((item) => item.textContent)).toEqual([

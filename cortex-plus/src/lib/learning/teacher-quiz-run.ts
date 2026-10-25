@@ -11,6 +11,8 @@ import type { FreeMeter } from "@/lib/billing/free-meters";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
+import { dropNearDuplicates } from "@/lib/learning/item-dedup";
+import { repairBudget, repairGroups } from "@/lib/learning/repair-budget";
 import {
   FORCE_FIX_CODES,
   blindKeyMismatches,
@@ -225,48 +227,59 @@ export async function teacherQuizLoop(
 
   let rounds = 0;
   let forced = false;
-  while (bad.length && rounds < MAX_FIX_ROUNDS && Date.now() - started < FIX_DEADLINE_MS) {
+  const budget = input.urgent ? repairBudget(true) : { ...repairBudget(false), deadlineMs: FIX_DEADLINE_MS, maxFixRounds: MAX_FIX_ROUNDS };
+  while (bad.length && rounds < budget.maxFixRounds && Date.now() - started < budget.deadlineMs) {
     const short = have() < count;
     // Öğrenci bekliyorsa kapsam eksiği tur açmaz (24 Ekim 2026; `urgent`).
     const coverage = input.urgent ? [] : forcedInWindow();
     if (!short && !coverage.length) break;
-    const toFix = short ? bad : coverage;
+    // Öğrenci bekliyorsa yalnız doğruluk sorunu olan soru onarılır; pedagojik olan aşağıda geri konur.
+    const toFix = short ? (input.urgent && scoped ? bad.filter((row) => !allSoft(row)) : bad) : coverage;
     // Yalnız pedagojik sorun için en çok bir tur: düzelmezse soru yedekle değişir ya da geri konur. Öğrenci
     // bekliyorsa hiç tur yok: yumuşak kurtarma aşağıda sayıyı tamamlar.
     if (scoped && toFix.every(allSoft) && (rounds >= 1 || input.urgent)) break;
     rounds += 1;
     if (coverage.length) forced = true;
-    let answer: unknown;
-    try {
-      answer = await ask(
-        quizFixSystem(mode, input.focus, multi, scope),
-        quizFixUserPrompt(
-          toFix.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),
-          input,
-          testSoFar(),
-        ),
-        "fix",
-      );
-    } catch (error) {
-      // Konu testinde düzeltme çağrısı düşerse test düşmez: elde kalanlar ve geri konacaklar teslim edilir.
-      if (!scoped) throw error;
-      break;
-    }
-    const fixed = parseTeacherQuiz(answer);
-    if (!fixed) break;
-    const candidates = fixed.slice(0, toFix.length).map((question, position) => ({ index: toFix[position].index, question }));
-    const replaced = new Set(candidates.map((slot) => slot.index));
-    const previous = new Map(toFix.map((row) => [row.index, row]));
-    const again = await review(candidates);
-    bad = bad.filter((row) => !replaced.has(row.index));
-    // Düzeltme doğruluk sorunu getirdiyse (ya da denetlenemediyse) elde yalnız pedagojik sorunu olan eski
-    // soru kalır: geri konabilsin, teslim edilen sayı düzeltme yüzünden düşmesin.
-    settle(
-      again.map((row) => {
-        const before = previous.get(row.index);
-        return scoped && before && allSoft(before) && !allSoft(row) ? before : row;
+    // Öğrenci bekliyorsa sorunlu sorular gruplar hâlinde aynı anda düzeltilip denetlenir (`repairBudget`).
+    const outcomes = await Promise.all(
+      repairGroups(toFix, budget.fixConcurrency).map(async (group) => {
+        let answer: unknown;
+        try {
+          answer = await ask(
+            quizFixSystem(mode, input.focus, multi, scope),
+            quizFixUserPrompt(
+              group.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),
+              input,
+              testSoFar(),
+            ),
+            "fix",
+          );
+        } catch (error) {
+          // Konu testinde düzeltme çağrısı düşerse test düşmez: elde kalanlar ve geri konacaklar teslim edilir.
+          if (!scoped) throw error;
+          return null;
+        }
+        const fixed = parseTeacherQuiz(answer);
+        if (!fixed) return null;
+        const candidates = fixed.slice(0, group.length).map((question, position) => ({ index: group[position].index, question }));
+        return { group, candidates, again: await review(candidates) };
       }),
     );
+    if (outcomes.every((outcome) => !outcome)) break;
+    for (const outcome of outcomes) {
+      if (!outcome) continue;
+      const replaced = new Set(outcome.candidates.map((slot) => slot.index));
+      const previous = new Map(outcome.group.map((row) => [row.index, row]));
+      bad = bad.filter((row) => !replaced.has(row.index));
+      // Düzeltme doğruluk sorunu getirdiyse (ya da denetlenemediyse) elde yalnız pedagojik sorunu olan eski
+      // soru kalır: geri konabilsin, teslim edilen sayı düzeltme yüzünden düşmesin.
+      settle(
+        outcome.again.map((row) => {
+          const before = previous.get(row.index);
+          return scoped && before && allSoft(before) && !allSoft(row) ? before : row;
+        }),
+      );
+    }
   }
 
   // Yumuşak kurtarma: sayı eksikse yalnız pedagojik sorunu kalan sorular, testteki sırayla geri konur.
@@ -411,14 +424,17 @@ async function runTeacherQuizInner(
 
   try {
     const loop = await teacherQuizLoop(ask, input, started);
-    let questions = loop.questions;
+    const previousStems = input.previousStems ?? [];
+    let questions = dropNearDuplicates(loop.questions, (question) => question.text, previousStems);
+    const repeated = loop.questions.length - questions.length;
     let passes = 1;
     let softKept = loop.softKept;
     const salvaged = [...loop.salvaged];
     const minimum = input.minimum ?? minimumQuestions(input.count);
+    const secondPassDeadline = input.urgent ? repairBudget(true).secondPassDeadlineMs : SECOND_PASS_DEADLINE_MS;
     // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): yetersiz soru hata değil, ikinci
     // taslak demek. İkinci geçişin yeni soruları eklenir; yine de iki sorunun altındaysa test yok.
-    if (questions.length < minimum && Date.now() - started < SECOND_PASS_DEADLINE_MS) {
+    if (questions.length < minimum && Date.now() - started < secondPassDeadline) {
       passes = 2;
       const again = await teacherQuizLoop(
         ask,
@@ -427,16 +443,14 @@ async function runTeacherQuizInner(
           count: Math.max(3, input.count - questions.length),
           // Konu testi: ikinci taslak ilk geçişin sorularını görür, kalıplarını ve maddelerini tekrar etmez (20 Ekim 2026).
           ...(input.scope === "topic_test" ? { avoid: questions } : {}),
+          previousStems: [...previousStems, ...questions.map((question) => question.text)],
         },
         started,
       );
-      const seen = new Set(questions.map((question) => question.text.trim().toLocaleLowerCase("tr-TR")));
-      const fresh = again.questions.filter((question) => {
-        const key = question.text.trim().toLocaleLowerCase("tr-TR");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+      const fresh = dropNearDuplicates(again.questions, (question) => question.text, [
+        ...previousStems,
+        ...questions.map((question) => question.text),
+      ]);
       questions = withOneMultiLast([...questions, ...fresh], input.count);
       softKept += again.softKept;
       salvaged.push(...again.salvaged);
@@ -449,6 +463,8 @@ async function runTeacherQuizInner(
       rejected: loop.rejected.length,
       rounds: loop.rounds,
       passes,
+      repeated,
+      urgent: Boolean(input.urgent),
       calls,
       ms: Date.now() - started,
       // Konu testi kuralları (20 Ekim 2026): etkisi ölçülmeden kural değişmesin.

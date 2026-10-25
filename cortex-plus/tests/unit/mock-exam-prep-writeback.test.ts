@@ -17,7 +17,7 @@ vi.mock("@/lib/learning/learning-tracking-persist", () => ({
   recordLearningTrackingAfterComplete: mocks.tracking,
 }));
 
-import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
+import { writeBackMockToPrep, writtenExamStars } from "@/lib/learning/mock-exam/prep-writeback";
 import { mockReviewHref } from "@/lib/learning/mock-exam/prep-node-link";
 import { extractAnswerEvidence } from "@/lib/learning/learning-tracking";
 import type { MockGradeItem } from "@/lib/learning/mock-exam";
@@ -70,7 +70,8 @@ describe("writeBackMockToPrep", () => {
   it("tam deneme: kilitli düğüm açılır, kayıt yazılır, düğüm tamamlanır, kanıt işlenir", async () => {
     const fake = fakeSupabase(handler());
     const result = await writeBackMockToPrep(fake.service as never, input);
-    expect(result).toEqual({ nodeId: "n-mock" });
+    // P1-7: yazılı deneme yıldızı da yazılır (sahte istemcide ödül 0 döner).
+    expect(result).toMatchObject({ nodeId: "n-mock" });
     const unlock = fake.calls.find((call) => call.table === "exam_prep_nodes" && call.op === "update")!;
     expect(unlock.payload).toEqual({ status: "ready" });
     expect(has(unlock, "eq", "status", "locked")).toBe(true);
@@ -97,6 +98,10 @@ describe("writeBackMockToPrep", () => {
       {
         name: "complete_exam_prep_node",
         args: { p_user_id: "u1", p_prep_id: "p1", p_node_id: "n-mock", p_attempt_id: "att-1", p_score: 72, p_total: 100, p_answers: {} },
+      },
+      {
+        name: "award_stars",
+        args: { p_user: "u1", p_source: "prep", p_ref: "attempt:att-1", p_amount: writtenExamStars(input.items) },
       },
     ]);
     expect(mocks.tracking).toHaveBeenCalledWith(

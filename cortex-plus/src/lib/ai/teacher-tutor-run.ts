@@ -9,6 +9,8 @@ import {
   tutorVerifyUserPrompt,
   type TutorContext,
 } from "@/lib/ai/teacher-tutor";
+import { answerFirstLine, stuckPointIssue } from "@/lib/learning/tutor-answer";
+import type { TutorStyle } from "@/lib/learning/tutor-style";
 
 export type TutorRunOutcome =
   | { ok: true; content: string; attempts: number }
@@ -34,8 +36,10 @@ export async function runTeacherTutor(input: {
   onUsage: (tokensIn: number, tokensOut: number) => Promise<void>;
   /** Varsayılan true; sesli ders yolu değişmeden denetlenir. */
   verify?: boolean;
+  /** Öğrencinin anlatım tarzı; doğrudan cevap yüklemi okur. */
+  style?: TutorStyle | null;
 }): Promise<TutorRunOutcome> {
-  const system = tutorSystemPrompt(input.context);
+  const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}`;
   let reasons: string[] = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const note = reasons.length ? `\n\n${tutorRetryNote(reasons)}` : "";
@@ -56,7 +60,14 @@ export async function runTeacherTutor(input: {
       reasons = ["Cevap boş kaldı."];
       continue;
     }
-    if (input.verify === false) return { ok: true, content: answer, attempts: attempt + 1 };
+    const stuck = stuckPointIssue(input.message, answer);
+    if (input.verify === false) {
+      if (stuck && attempt < MAX_ATTEMPTS - 1) {
+        reasons = [stuck];
+        continue;
+      }
+      return { ok: true, content: answer, attempts: attempt + 1 };
+    }
 
     let issues: string[];
     try {
@@ -82,6 +93,7 @@ export async function runTeacherTutor(input: {
       return { ok: false, reasons: ["verify_unavailable"] };
     }
     if (hasTemplateLabels(answer)) issues.push("Etiketli kalıp ('Nerede takıldığın:', 'Kontrol sorusu:' gibi) kullanılmış; doğal konuş.");
+    if (stuck) issues.push(stuck);
     if (!issues.length) return { ok: true, content: answer, attempts: attempt + 1 };
     reasons = issues;
   }

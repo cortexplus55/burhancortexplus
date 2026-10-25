@@ -89,7 +89,7 @@ describe("dürüst adlar", () => {
       const { label, reason } = practiceActivity(variant);
       expect(`${label} ${reason ?? ""}`.toLocaleLowerCase("tr")).not.toMatch(/karışık|zor/);
     }
-    // Varyant düğüme yazılmıyor; ad başka bir şey söyleyemez.
+    // 25 Ekim 2026: varyant düğüme yazılıyor (test motoru başka dilim sorar); yalnız testlerde.
     const plan = buildExamScheduleV2({
       daysToExam: 20,
       dailyMinutes: 90,
@@ -100,8 +100,10 @@ describe("dürüst adlar", () => {
     const drafts = scheduleSessionsToNodeDrafts(plan.sessions);
     expect(drafts.some((draft) => draft.title.includes("İkinci test"))).toBe(true);
     for (const draft of drafts) {
-      expect(draft.meta).not.toHaveProperty("practiceVariant");
+      if (draft.kind !== "quiz") expect(draft.meta).not.toHaveProperty("practiceVariant");
     }
+    expect(drafts.find((draft) => draft.title.includes("İkinci test"))?.meta).toMatchObject({ practiceVariant: 1 });
+    expect(drafts.find((draft) => draft.title.includes("Konu testi"))?.meta).toMatchObject({ practiceVariant: 0 });
   });
 
   it("'Aralıklı tekrar' adımı 'Kartlarla tekrar'; tür adı spaced kalır", () => {

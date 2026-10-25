@@ -54,6 +54,8 @@ export type SessionTeachingMeta = {
   calendarDate?: string;
   /** Kavram biriminin adı: ders bu birimi anlatır (2 Ekim 2026). */
   unitTitle?: string;
+  /** Konunun kaçıncı testi (0, 1, 2); yoksa ilk test sayılır (25 Ekim 2026). */
+  practiceVariant?: number;
 };
 
 export type MisconceptionDraft = {
@@ -100,6 +102,10 @@ export function parseSessionMeta(raw: unknown): SessionTeachingMeta | null {
     role,
     calendarDate: typeof row.calendarDate === "string" ? row.calendarDate : undefined,
     unitTitle: typeof row.unitTitle === "string" && row.unitTitle.trim() ? row.unitTitle.trim() : undefined,
+    practiceVariant:
+      typeof row.practiceVariant === "number" && Number.isInteger(row.practiceVariant) && row.practiceVariant >= 0
+        ? Math.min(2, row.practiceVariant)
+        : undefined,
   };
 }
 
@@ -2418,9 +2424,11 @@ export function scoreFlashcardsV2(
   for (let i = 0; i < cardCount; i += 1) {
     if (answers[String(i)] === true || answers[String(i)] === "true") knownCount += 1;
   }
+  // Yüzde = hatırlanan / kart (25 Ekim 2026, P1-7): "1/1" yazıp her desteyi %100 gösteriyordu. "Zorlandım"
+  // (kalite 1) istemcide false gelir, hatırlandı sayılmaz. Düğüm yine biter; hâkimiyet iddiası yok.
   return {
-    score: cardCount > 0 ? 1 : 0,
-    total: 1,
+    score: knownCount,
+    total: Math.max(1, cardCount),
     knownCount,
     masteryClaim: false,
   };

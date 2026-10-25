@@ -1,0 +1,126 @@
+/**
+ * Soru ve kart tekrarı süzgeci (25 Ekim 2026, canlı test P1-2).
+ *
+ * Canlıda aynı konunun üç testi neredeyse aynı on beş terim sorusundan oluştu, ileri konuların
+ * kartları önceki konunun kartlarını kelimesi kelimesine kopyaladı. Yazar önceki öğeleri görür
+ * ("tekrarlama" listesi), ama model listeyi her zaman tutmuyor; bu süzgeç üretimden sonra aynı
+ * bilgiyi soran öğeyi deterministik olarak eler. Ders, konu ya da terim adı taşımaz: yalnız metin.
+ */
+
+const STOPWORDS = new Set([
+  "aşağıdakilerden",
+  "aşağıdaki",
+  "hangisi",
+  "hangisidir",
+  "hangileri",
+  "hangisinde",
+  "nedir",
+  "nelerdir",
+  "olarak",
+  "olan",
+  "olur",
+  "için",
+  "ile",
+  "veya",
+  "ancak",
+  "gibi",
+  "daha",
+  "değildir",
+  "doğru",
+  "yanlış",
+  "ifade",
+  "ifadelerden",
+  "bilgi",
+  "bilgilerden",
+  "verilen",
+  "verilenlerden",
+  "durum",
+  "durumda",
+  "şekilde",
+  "kadar",
+  "bunun",
+  "şunun",
+  "hangi",
+  "neden",
+  "nasıl",
+  "kimdir",
+  "kavram",
+  "kavramı",
+]);
+
+export function normalizeItemText(text: string): string {
+  return text
+    .toLocaleLowerCase("tr-TR")
+    .replace(/[*_=`~>#[\]()"“”'’.,;:!?¿¡…\-–—/\\|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * İçerik kelimelerinin ilk beş harfi (Türkçe ekler kıyası bozmasın). Sayılar ve kısa büyük harfli
+ * ayırıcılar ("A", "B", "DNA", "pH" değil) da kök sayılır: "Hepatit A" ile "Hepatit B" ya da "2. ay"
+ * ile "6. ay" aynı soru değildir.
+ */
+export function itemStems(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const token of text.split(/[^\p{L}\p{N}]+/u)) {
+    if (!token) continue;
+    if (/^\p{N}+$/u.test(token)) {
+      out.add(`#${token}`);
+      continue;
+    }
+    if (token.length < 4) {
+      if (/^[\p{Lu}\p{N}]{1,3}$/u.test(token)) out.add(`^${token.toLocaleLowerCase("tr-TR")}`);
+      continue;
+    }
+    const word = token.toLocaleLowerCase("tr-TR");
+    if (STOPWORDS.has(word)) continue;
+    out.add(word.slice(0, 5));
+  }
+  return out;
+}
+
+/** Aynı metin ya da içerik kelimelerinin büyük kısmı ortak (Jaccard ≥ eşik, en az üç kelime). */
+export function nearDuplicate(left: string, right: string, threshold = 0.7): boolean {
+  const a = normalizeItemText(left);
+  const b = normalizeItemText(right);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const x = itemStems(left);
+  const y = itemStems(right);
+  // Sayı ya da kısa ayırıcı farklıysa başka soru (uzun ortak gövde oranı şişirmesin).
+  const markers = (set: Set<string>) => [...set].filter((stem) => stem.startsWith("#") || stem.startsWith("^")).sort().join("|");
+  if (markers(x) !== markers(y)) return false;
+  if (x.size < 3 || y.size < 3) return false;
+  let shared = 0;
+  for (const stem of x) if (y.has(stem)) shared += 1;
+  return shared / (x.size + y.size - shared) >= threshold;
+}
+
+/** Önceki öğelerle ya da listede kendinden öncekiyle aynı bilgiyi soran öğe düşer; sıra korunur. */
+export function dropNearDuplicates<T>(
+  items: readonly T[],
+  key: (item: T) => string,
+  previous: readonly string[] = [],
+  threshold = 0.7,
+): T[] {
+  const seen = previous.map((text) => text).filter((text) => text.trim());
+  const kept: T[] = [];
+  for (const item of items) {
+    const text = key(item);
+    if (seen.some((other) => nearDuplicate(text, other, threshold))) continue;
+    seen.push(text);
+    kept.push(item);
+  }
+  return kept;
+}
+
+/** Yazara giden "tekrarlama" listesi; en çok `limit` satır, kısaltılmış. */
+export function avoidListBlock(title: string, items: readonly string[], limit = 30): string {
+  const lines = items
+    .map((text) => text.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, limit)
+    .map((text) => `- ${text.slice(0, 160)}`);
+  return lines.length ? `${title}\n${lines.join("\n")}` : "";
+}

@@ -1,4 +1,10 @@
-import { podcastLengthSpec, type PodcastLength } from "@/lib/learning/podcast-formats";
+import {
+  KEREM_SHARE_RULE,
+  SPOKEN_ONLY_RULE,
+  podcastLengthSpec,
+  speakerIdOf,
+  type PodcastLength,
+} from "@/lib/learning/podcast-formats";
 import type { TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 
 /*
@@ -52,7 +58,7 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
       "bakmıyor; konuyu bu konuşmadan öğrenecek ve sınavda soruyu yapacak. " +
       (mode === "topic" ? "Belgesi yok; konuyu ondan duydun." : "Konuyu öğrencinin kendi ders notundan anlatıyorsun."),
     "",
-    `KİŞİLER: ${voice}`,
+    `KİŞİLER: ${voice} ${KEREM_SHARE_RULE}`,
     "",
     "NASIL YAZILIR:",
     "- Gerçek bir sohbet yaz. Kerem kendi yaşadığı küçük bir anla (stajda, denemede, ders çalışırken) ya da bir merakla " +
@@ -83,6 +89,7 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
     "- Benzetmeyi az ve yerinde kullan: bütün podcast'te en çok üç, her biri tek cümle; zorlama benzetme yok.",
     "- Her cevap sorulan soruya doğrudan cevap verir. 'Bu yaşta', 'o dönemde' gibi göndermelerde yaşı ya da evreyi " +
       "açıkça söyle.",
+    `- ${SPOKEN_ONLY_RULE}`,
     "",
     mode === "topic" ? ACCURACY_TOPIC : ACCURACY_DOCUMENT,
     "",
@@ -95,7 +102,7 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
 }
 
 const HEADING = /^#{1,3}\s*(.+?)\s*$/;
-const SPEAKER = /^\**\s*(ada|kerem)(?:\s*\([^)]*\))?\s*\**\s*[:：]\s*\**\s*(.*)$/i;
+const SPEAKER = /^\**\s*(ada|kerem|öğretmen|ogretmen|sunucu|öğrenci|ogrenci)(?:\s*\([^)]*\))?\s*\**\s*[:：]\s*\**\s*(.*)$/iu;
 
 /**
  * Düz senaryoyu bölüm ve satırlara ayırır (model yok). Konuşmacısız satır bir önceki satıra eklenir; başlıktan
@@ -122,7 +129,7 @@ export function scriptToDraft(raw: unknown): { title: string; chapters: { title:
     const spoken = line.match(SPEAKER);
     if (spoken) {
       const text = spoken[2]!.trim();
-      if (text) current.lines.push({ speaker: spoken[1]!.toLowerCase(), text });
+      if (text) current.lines.push({ speaker: speakerIdOf(spoken[1]) ?? "ada", text });
       continue;
     }
     const previous = current.lines[current.lines.length - 1];

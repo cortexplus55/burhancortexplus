@@ -18,6 +18,7 @@ import {
   type MockQuestionType,
   type MockTopicSlot,
 } from "@/lib/learning/mock-exam";
+import { mockProgressCounter, type MockExamProgress } from "@/lib/learning/mock-exam/progress";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 
@@ -34,6 +35,8 @@ export type CreateMockExamInput = {
   questionCount?: number;
   /** Öğrencinin seçtiği süre; 0 süresiz. Yoksa uzunluk seçeneğinin süresi. */
   durationMinutes?: number;
+  /** Her konunun üretimi bitince (25 Ekim 2026): ekran gerçek sayıyı gösterir, sahte sayaç yok. */
+  onProgress?: (progress: MockExamProgress) => void;
 };
 
 export type CreateMockExamResult =
@@ -113,12 +116,14 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
     };
   });
 
-  // Pasaj uzunluklarını doldur
-  for (const slot of slots) {
-    if (slot.outOfScope) continue;
-    const ctx = await topicContext(service, userId, prep.document_id as string | null, slot.topicLabel, topics);
-    slot.passageChars = Math.max(40, ctx.block.length);
-  }
+  // Pasaj uzunluklarını doldur (konular birbirini beklemez).
+  await Promise.all(
+    slots.map(async (slot) => {
+      if (slot.outOfScope) return;
+      const ctx = await topicContext(service, userId, prep.document_id as string | null, slot.topicLabel, topics);
+      slot.passageChars = Math.max(40, ctx.block.length);
+    }),
+  );
 
   const sampleSource = slots
     .filter((s) => !s.outOfScope)
@@ -166,8 +171,9 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
     const drafts: MockExamQuestionDraft[] = [];
     const allocation = blueprint.allocation.filter((a) => a.count > 0);
     const slotQueue = [...blueprint.slots];
+    const progress = mockProgressCounter(allocation.length, input.onProgress);
 
-    // Konu başına paralel üretim
+    // Konu başına paralel üretim; her biten konu ilerlemeyi bir artırır.
     for (let i = 0; i < allocation.length; i += TOPIC_GENERATE_CONCURRENCY) {
       const batch = allocation.slice(i, i + TOPIC_GENERATE_CONCURRENCY);
       const batchPlans = batch.map((row) => ({
@@ -187,7 +193,7 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
             allTopics: topics,
             chargeKey,
             reservationId,
-          }),
+          }).finally(() => progress(row.topicLabel)),
         ),
       );
       for (const part of parts) drafts.push(...part);
@@ -374,6 +380,8 @@ async function choiceDrafts(
     // Tek iyi soru bu konu için yeter: eksik kalan soruyu deneme kendisi tamamlar (motorun
     // kendi ikinci taslağı zor konuda süreyi ikiye katlıyordu, 19 Ekim 2026).
     minimum: 1,
+    // Öğrenci kurulum ekranında bekliyor: kısa düzeltme bütçesi (25 Ekim 2026).
+    urgent: true,
     multi: slots.some((slot) => slot.type === "multi_mcq"),
     topicLabel: input.topic.topicLabel,
     prepTitle: input.prepTitle,
@@ -440,6 +448,7 @@ async function openDrafts(
           sourceBlock: block,
           brief: "Yazılı deneme: öğrenci cevabı birkaç cümleyle kâğıda ya da uygulamaya yazacak.",
           count: slots.length,
+          urgent: true,
         },
         started,
       );

@@ -123,7 +123,7 @@ describe("study path order", () => {
     }
     const heavy = drafts.filter((node) => node.meta?.topicId === "1" && node.kind === "quiz");
     expect(heavy.map((node) => node.title)).toEqual([
-      "Mol kavramı ve Avogadro sayısı · Testler ve Doğru/Yanlış",
+      "Mol kavramı ve Avogadro sayısı · Konu testi",
       "Mol kavramı ve Avogadro sayısı · İkinci test",
       "Mol kavramı ve Avogadro sayısı · Üçüncü test",
     ]);
@@ -145,7 +145,11 @@ describe("study path order", () => {
       expect(node.meta?.topicTitle).toBeTruthy();
       expect(node.title).toContain(node.meta?.topicTitle);
     }
-    expect(merged.some((node) => node.kind === "true_false")).toBe(false);
+    // 25 Ekim 2026: test çoktan seçmeli; her konu bloğunun kendi Doğru/Yanlış adımı var.
+    const topicIds = new Set(CHEMISTRY.map((topic) => topic.id));
+    const trueFalse = merged.filter((node) => node.kind === "true_false");
+    expect(new Set(trueFalse.map((node) => node.meta?.topicId))).toEqual(topicIds);
+    expect(trueFalse).toHaveLength(topicIds.size);
     expect(merged.find((node) => node.kind === "podcast")?.title).toMatch(/Mol kavramı/);
     const mol = drafts.find((node) => node.meta?.topicId === "1");
     expect(mol?.meta?.sourcePages).toEqual([]);
@@ -153,7 +157,8 @@ describe("study path order", () => {
     const massDraft = drafts.find((node) => node.meta?.topicId === "2" && node.kind === "lesson");
     expect(massDraft?.title).toContain("pdf-12-sayfa s.4");
     expect(massDraft?.meta?.sourcePages).toEqual([]);
-    expect(plan.sessions.length).toBeLessThan(40);
+    // Konu başına iki kısa adım (D/Y ve dönüşümlü etkileşim) çekirdek sayıya girmez.
+    expect(plan.sessions.length - topicIds.size * 2).toBeLessThan(40);
     expect(plan.sessions.length).toBeGreaterThan(8);
   });
 

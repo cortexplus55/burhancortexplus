@@ -16,6 +16,7 @@ import {
   visibleProbe,
 } from "@/lib/learning/oral-exam";
 import type { OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
+import { oralDeskAnswer } from "@/lib/learning/oral-first-answer";
 
 /**
  * Sözlü soru ekranı: küre + soru metni + mikrofon + yazılı yedek.
@@ -106,8 +107,13 @@ export function OralAnswerDesk({
     return () => window.clearInterval(timer);
   }, [recording]);
 
+  function finishNow() {
+    const out = oralDeskAnswer({ probeOpen: Boolean(probe), firstAnswer: mainAnswer.current, follow, value });
+    onFinish(out.answer, out.firstAnswer);
+  }
+
   useEffect(() => {
-    if (left === 0) onFinish(value);
+    if (left === 0) finishNow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left]);
 
@@ -172,10 +178,9 @@ export function OralAnswerDesk({
   function submit() {
     if (busy) return;
     if (probe) {
-      const first = mainAnswer.current;
-      const combined = [first, follow.trim()].filter(Boolean).join("\n");
-      if (index + 1 < total) onAdvance(combined, first);
-      else onFinish(combined, first);
+      const out = oralDeskAnswer({ probeOpen: true, firstAnswer: mainAnswer.current, follow, value });
+      if (index + 1 < total) onAdvance(out.answer, out.firstAnswer);
+      else onFinish(out.answer, out.firstAnswer);
       return;
     }
     if (isDontKnow(value)) {
@@ -238,7 +243,7 @@ export function OralAnswerDesk({
         <button
           type="button"
           className="cp-oral-end-btn"
-          onClick={() => onFinish(value)}
+          onClick={finishNow}
         >
           Sınavı bitir
         </button>

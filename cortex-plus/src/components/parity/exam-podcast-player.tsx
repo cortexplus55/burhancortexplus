@@ -676,9 +676,6 @@ export function ExamPodcastPlayer({
             <h1 className="cp-pod-script-title">{heading}</h1>
             <div className="cp-pod-script" ref={(node) => { scriptRef.current = node; }}>
               {(() => {
-                const soloTeacher = chaptersInOrder.every(({ lines: chapterLines }) =>
-                  chapterLines.every((item) => item.line.speaker === "ada"),
-                );
                 return chaptersInOrder.map(({ chapter, lines }, chapterIndex) => (
                 <section key={chapterIndex}>
                   <h2>
@@ -705,7 +702,7 @@ export function ExamPodcastPlayer({
                         onClick={() => seekTo(line.startMs)}
                       >
                       <span className="cp-pod-line-who">
-                        {soloTeacher ? "Öğretmen" : SPEAKER_LABEL[line.speaker]}
+                        {SPEAKER_LABEL[line.speaker]}
                       </span>
                       {ready && index === activeIndex && activeWords.length ? (
                         activeWords.map((word, wordIndex) => (

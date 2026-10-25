@@ -308,9 +308,9 @@ describe("teaching standards contract", () => {
     expect(brokenSuperscript("Taban 3, üs 4")).toBe(false);
   });
 
-  it("scores flashcards as participation not mastery", () => {
+  it("scores flashcards as known / cards, without a mastery claim", () => {
     const scored = scoreFlashcardsV2(4, { "0": true, "1": true, "2": false, "3": true });
-    expect(scored).toMatchObject({ score: 1, total: 1, knownCount: 3, masteryClaim: false });
+    expect(scored).toMatchObject({ score: 3, total: 4, knownCount: 3, masteryClaim: false });
   });
 
   it("validates podcast phase structure and short lines", () => {

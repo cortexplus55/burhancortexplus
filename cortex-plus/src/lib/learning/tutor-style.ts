@@ -64,14 +64,17 @@ export function parseTutorStyle(value: unknown): TutorStyle {
  */
 /** Soru-cevap düğümü quiz üretir; sohbet disiplininin soru hâli. */
 export const QA_TEACHER_PROMPT =
-  "Soru-cevap öğretimi: explanation cevabı ilk kelimede yapıştırmaz. Sıra: takılacağı yer, bir ipucu, sonra neden. " +
+  // 25 Ekim 2026 (P1-5): açıklama cevabı saklıyordu ("takılacağı yer, bir ipucu, sonra neden").
+  "Soru-cevap öğretimi: explanation'ın ilk cümlesi doğru cevabı ve tek cümlelik nedenini söyler; sonra en güçlü yanlış şıkkın neden tutmadığı. " +
+  "'Takıldığın nokta' gibi kalıp yazma. " +
   "Yanlış şık bir yanılgıdır; misconceptionTag dolu olur ve açıklama o şıkkı çürütür. Filler yok. Kaynak varsa ona bağlı kal. " +
   // 24 Ekim 2026 lansman testi: beş sorunun beşi "algılayan yapı ile düzeltici yanıtı eşleştiren seçenek" kalıbıydı.
   "Sorular farklı kalıplarda: aynı soru kökü kalıbı en çok iki soruda; tanım, durum (vaka), neden ve karşılaştırma " +
   "sorularını karıştır, her soru konunun başka bir noktasını yoklar.";
 
 export const TUTOR_ANSWER_DISCIPLINE =
-  "Cevabı baştan yapıştırma. Her yanıtta sırayla: (1) öğrencinin nerede takıldığı, (2) tek ipucu veya tek adım, (3) kontrol sorusu. Tam çözümü ancak öğrenci açıkça isterse yaz. " +
+  "Doğrudan bir soruda ('nedir', 'hangisidir', 'doğrudan söyle', 'cevabı ver') ilk cümle tam cevaptır; gerekçe ve tek kontrol sorusu sonra gelir. " +
+  "Öğrencinin nerede takıldığını ('Takıldığın nokta') yalnız öğrenci kendi çözümünü yazdıysa söyle. " +
   "Yanlış bir denemede AÇIKLAMA ver: tutan kısmı öv, hatayı adıyla söyle, doğru çözümü göster, benzer mini soru sor. Doğruyu tekrarlayıp geçme. " +
   "Türkçe, sınav dili, net cümle. Boş alkış yok; sıcak ama somut geribildirim var (Tam isabet / Neredeyse / Tekrar bakalım). " +
   "Etiket yığını yazma: Hüküm:, Doğru parça:, Yanlış parça: kullanma. " +
@@ -81,11 +84,11 @@ export const TUTOR_ANSWER_DISCIPLINE =
 export function tutorStylePrompt(style: TutorStyle): string {
   switch (style) {
     case "hints_first":
-      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci ipucu öncelikli stili seçti: tam çözümü başta verme.`;
+      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci ipucu öncelikli stili seçti: problem çözümünde tam çözümü başta verme; kavram sorusunda yine ilk cümle cevaptır.`;
     case "direct_solve":
-      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci doğrudan çözüm istedi: ancak açıkça isterse tam çözümü kısa ve gerekçeli ver; istemediyse yine tek adım.`;
+      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci doğrudan çözüm istedi: ilk cümlede sonucu ver, sonra kısa ve gerekçeli çözüm.`;
     default:
-      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci adım adım stili seçti: her adımı gerekçelendir, bir seferde tüm çözümü dökme.`;
+      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci adım adım stili seçti: ilk cümlede sonucu ver, sonra her adımı gerekçesiyle ayrı satırda yaz.`;
   }
 }
 

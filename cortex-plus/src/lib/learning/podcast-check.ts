@@ -58,7 +58,7 @@ export function podcastCheckSource(episode: PodcastEpisode): string {
         .filter((line) => !GENERAL_KNOWLEDGE.test(line.text.trim()))
         .map((line) => {
           const text = line.beat === "ask" ? `Dur ve düşün: ${line.text}` : line.beat === "reveal" ? `Cevap: ${line.text}` : line.text;
-          return duo ? `${line.speaker === "kerem" ? "Öğrenci" : "Öğretmen"}: ${text}` : text;
+          return duo ? `${line.speaker === "kerem" ? "KEREM (öğrenci)" : "ADA"}: ${text}` : text;
         });
       return lines.length ? `${chapter.title}:\n${lines.join("\n")}` : "";
     })

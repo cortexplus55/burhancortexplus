@@ -80,9 +80,10 @@ describe("dinleme kontrolü: kaynak, okuma, puan", () => {
   it("kaynak bölüm bölüm; etiketli genel bilgi sorulmaz; iki sunucuda rol yazar", () => {
     const source = podcastCheckSource(episode);
     expect(source).toContain("Persentil eğrisi:\n");
-    expect(source).toContain("Öğrenci: Ben tek ölçümü yeterli sanmışım.");
-    expect(source).toContain("Öğretmen: Dur ve düşün: Bebek bir hafta ishal olsa hangisi önce düşer?");
-    expect(source).toContain("Öğretmen: Cevap: Kilo; boy haftalarca değişmez.");
+    expect(source).toContain("KEREM (öğrenci): Ben tek ölçümü yeterli sanmışım.");
+    expect(source).toContain("ADA: Dur ve düşün: Bebek bir hafta ishal olsa hangisi önce düşer?");
+    expect(source).toContain("ADA: Cevap: Kilo; boy haftalarca değişmez.");
+    expect(source).not.toMatch(/Öğretmen:|Sunucu:/);
     expect(source).not.toContain("Belgende geçmiyor ama");
     // 23 Ekim 2026: yeni hafif etiketli ders kitabı nedeni de sorulmaz.
     expect(source).not.toContain("Kitaplarda şöyle anlatılır");

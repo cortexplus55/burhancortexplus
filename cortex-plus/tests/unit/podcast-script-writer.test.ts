@@ -18,7 +18,8 @@ describe("podcast: senarist yazar", () => {
 
   it("istem kısa; doğruluk sınırları ve biçim yerinde", () => {
     const system = podcastScriptSystem("document", "diyalog");
-    expect(system.length).toBeLessThan(4_000);
+    // P1-3 konuşma payı ve yasak kuralları eklendi; istem yine kısa kalır.
+    expect(system.length).toBeLessThan(4_600);
     expect(system).toContain("Sayı, eşik, yaş, süre, tarih, doz, formül, tanı ölçütü ve sınıflandırma yalnızca KAYNAK'tan");
     expect(system).toContain("kaynak 'ayrıntılı değerlendirme' diyorsa 'acil' deme");
     expect(system).toContain("SINAVDA SORULUR maddelerinin hepsi ve tablonun her satırı (en az ayırt edici bilgisiyle) konuşmada");

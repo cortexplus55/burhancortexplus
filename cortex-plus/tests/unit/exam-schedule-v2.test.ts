@@ -342,7 +342,8 @@ describe("exam-schedule-v2", () => {
       .filter(({ session }) => session.role === "learn");
     expect(learn.length).toBeGreaterThan(0);
     for (const { draft } of learn) expect(draft.kind).toBe("lesson");
-    expect(drafts.some((d) => d.kind === "podcast")).toBe(false);
+    // 25 Ekim 2026: konu bloğunda dönüşümlü podcast adımı var, ama öğretme adımı değil (pratik rolünde).
+    expect(drafts.filter((d) => d.kind === "podcast").every((d) => d.meta.role === "practice")).toBe(true);
   });
 
   it("tightens the path for a peak target and compacts it for a pass target", () => {

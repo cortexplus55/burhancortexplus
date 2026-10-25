@@ -113,8 +113,8 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     expect(duo).toContain('{"speaker":"kerem","text":"1-3 cümle: bir örnek (kaynağı anmadan)');
     expect(duo).not.toContain("Kerem kesin bilgi vermez");
     const qa = podcastSystem("document", "soru_cevap");
-    expect(qa).toContain("Kerem yalnızca soru sorar");
-    expect(qa).not.toContain("Kerem yalnız soru sormaz");
+    expect(qa).not.toContain("Kerem yalnızca soru sorar");
+    expect(qa).toContain("Kerem cevabı dinledikten sonra");
     // Belgede olmayan bilgi: 20 Ekim etiketli (en çok iki), 23 Ekim gecesinden beri ders kitabı bilgisi etiketsiz.
     // 23 Ekim 2026 gecesi (ürün sahibinin kararı): ders kitabı bilgisi etiketsiz; sayı, eşik, doz, tanı ölçütü kaynaktan.
     const writer = podcastSystem("document", "diyalog");

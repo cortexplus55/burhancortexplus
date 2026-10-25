@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
+import { activityDurationMinutes, lessonStepTotal } from "@/lib/learning/activity-duration";
 import { prepStars } from "@/lib/stars/rules";
 import { ComparisonCarousel, ExamTrapCard, FormulaCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -703,9 +704,13 @@ export function ExamLessonSteps({
   const mathTopicHint = play.title ?? "";
   const reduceMotion = useReducedMotion();
   const lessonStars = prepStars("lesson", null, null);
-  const readingMinutes = honestReadingMinutes(view);
-  const progressNow = Math.min(index + 1, Math.max(1, base.length));
-  const progressMax = Math.max(1, base.length);
+  const readingMinutes = activityDurationMinutes("lesson", { readingMinutes: honestReadingMinutes(view) });
+  // Adım paydası baştan bilinen ekranlar + yazımı süren kavramlar; yalnız artar (P1-7: "1/2" → "5/5" atlıyordu).
+  const plannedSteps = lessonStepTotal(base.length, building ? upcoming.length : 0);
+  const [stepTotal, setStepTotal] = useState(plannedSteps);
+  if (plannedSteps > stepTotal) setStepTotal(plannedSteps);
+  const progressNow = Math.min(index + 1, Math.max(1, stepTotal));
+  const progressMax = Math.max(1, stepTotal);
   const progressRatio = progressNow / progressMax;
 
   const steps = useMemo(() => {
@@ -960,7 +965,7 @@ export function ExamLessonSteps({
 
   const countLabel = progressLabel(
     index,
-    base.length,
+    Math.max(stepTotal, base.length),
     step,
     index - base.length,
     Math.max(0, steps.length - base.length - 1),
@@ -1001,7 +1006,7 @@ export function ExamLessonSteps({
           <p className="als-count" aria-live="polite">
             {/^\d+ \/ \d+$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
             <span>{countLabel}</span>
-            <span className="als-minutes">~{readingMinutes} dk okuma</span>
+            <span className="als-minutes">~{readingMinutes} dk</span>
           </p>
           <p className="als-stars" title={`Bu derste ${lessonStars} yıldız`}>
             <Star className="h-3.5 w-3.5" aria-hidden />
@@ -1075,7 +1080,7 @@ export function ExamLessonSteps({
           {step.kind === "overview" ? (
             <p className="als-intro-meta">
               <span className="als-intro-tag">Ders</span>
-              yaklaşık {honestReadingMinutes(view)} dk okuma{building ? "" : ` · ${base.length} adım`}
+              yaklaşık {readingMinutes} dk · {progressMax} adım
             </p>
           ) : null}
           {step.kind === "section" && step.part ? (

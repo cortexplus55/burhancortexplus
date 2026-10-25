@@ -22,9 +22,11 @@ import {
   type OralTeacherMoodId,
 } from "@/lib/learning/oral-exam-chrome";
 import { X } from "lucide-react";
+import { splitTutorChrome } from "@/lib/learning/tutor-reply";
 import { CortexMark } from "@/components/brand/cortex-mark";
 
-type Msg = { role: "user" | "assistant"; content: string };
+/** `source`: sunucunun bastığı kaynak işareti; modele geri gönderilmez, seslendirilmez. */
+type Msg = { role: "user" | "assistant"; content: string; source?: string };
 
 export function ExamVoiceTutor({
   prepId,
@@ -133,7 +135,7 @@ export function ExamVoiceTutor({
           topicLabel,
           difficulty,
           ...(kind === "oral" && teacherStyle ? { teacherStyle } : {}),
-          messages: nextHistory,
+          messages: nextHistory.map(({ role, content }) => ({ role, content })),
         }),
       });
       if (res.status === 402) {
@@ -149,7 +151,8 @@ export function ExamVoiceTutor({
       }
       if (stopped.current) return;
       const reply = String(payload.reply ?? "");
-      const withReply = [...nextHistory, { role: "assistant" as const, content: reply }];
+      const source = typeof payload.source === "string" ? payload.source : undefined;
+      const withReply = [...nextHistory, { role: "assistant" as const, content: reply, ...(source ? { source } : {}) }];
       setMessages(withReply);
       // Bitirme penceresi açıkken yanıt kayda geçer ama ses başlamaz.
       if (paused.current) return;
@@ -450,14 +453,22 @@ export function ExamVoiceTutor({
       <p className="cp-tutor-caption">{caption}</p>
 
       <div className="cp-tutor-log">
-        {messages.map((message, index) => (
-          <p
-            key={`${message.role}-${index}`}
-            className={message.role === "user" ? "cp-exam-intake-user" : "cp-exam-intake-ai"}
-          >
-            {message.content}
-          </p>
-        ))}
+        {messages.map((message, index) => {
+          const cite = message.source ? splitTutorChrome(message.source).citations[0] : undefined;
+          return (
+            <p
+              key={`${message.role}-${index}`}
+              className={message.role === "user" ? "cp-exam-intake-user" : "cp-exam-intake-ai"}
+            >
+              {message.content}
+              {cite ? (
+                <a href={cite.href} className="cp-tutor-cite" target="_blank" rel="noreferrer">
+                  {` ${cite.documentName}${cite.pageNumber != null ? ` · s. ${cite.pageNumber}` : ""}`}
+                </a>
+              ) : null}
+            </p>
+          );
+        })}
       </div>
 
       <div className="cp-tutor-actions">

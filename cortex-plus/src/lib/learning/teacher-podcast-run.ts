@@ -8,7 +8,7 @@ import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
-import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
+import { balanceKerem, type PodcastEpisode } from "@/lib/learning/podcast-episode";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import {
   MIN_CHECK_QUESTIONS,
@@ -149,13 +149,21 @@ export async function teacherPodcastLoop(
     return { episode, ...reviewed };
   };
 
+  // Düzeltme turu da payı tutturmadıysa konuşmacı kodla dengelenir; iki sesli tür tek sesle yayınlanmaz.
   const finish = (outcome: { episode: PodcastEpisode; problems: string[]; verified: boolean }): PodcastLoopResult | null => {
     if (!outcome.problems.length) {
-      return { episode: outcome.episode, problems: [], drafts, salvaged: 0, unverified: !outcome.verified, earIssues: ear };
+      return { episode: balanceKerem(outcome.episode), problems: [], drafts, salvaged: 0, unverified: !outcome.verified, earIssues: ear };
     }
     const salvaged = salvagePodcast(outcome.episode, outcome.problems);
     if (!salvaged) return null;
-    return { episode: salvaged.episode, problems: [], drafts, salvaged: salvaged.removed, unverified: !outcome.verified, earIssues: ear };
+    return {
+      episode: balanceKerem(salvaged.episode),
+      problems: [],
+      drafts,
+      salvaged: salvaged.removed,
+      unverified: !outcome.verified,
+      earIssues: ear,
+    };
   };
 
   const first = await attempt(MAX_FIX_ROUNDS);

@@ -813,6 +813,52 @@ export function weakOrStaleTopicKeys(
     .map((t) => t.topicKey);
 }
 
+const LEVEL_RANK: Record<TopicMasterySnapshot["level"], number> = { unmeasured: 0, weak: 1, emerging: 2, solid: 3 };
+
+/**
+ * Başarılı etkinlik (P1-7): yardımsız doğrular kanıtın en az yarısı ya da kanıtsız (ders, kart, podcast).
+ * Başarılı bir etkinlik hâkimiyeti ve hazır olma yüzdesini düşürmez; başarısız test düşürebilir.
+ */
+export function activitySucceeded(evidence: Pick<AnswerEvidenceDraft, "correct" | "hintAssisted">[]): boolean {
+  if (!evidence.length) return true;
+  const independent = evidence.filter((row) => row.correct && !row.hintAssisted).length;
+  return independent * 2 >= evidence.length;
+}
+
+export function holdMasteryOnSuccess(
+  prior: TopicMasterySnapshot[],
+  folded: TopicMasterySnapshot[],
+  succeeded: boolean,
+): TopicMasterySnapshot[] {
+  if (!succeeded) return folded;
+  return folded.map((topic) => {
+    const before = prior.find((row) => normalizeTopicKey(row.topicKey) === normalizeTopicKey(topic.topicKey));
+    if (!before?.measured) return topic;
+    return {
+      ...topic,
+      confidence: Math.max(topic.confidence, before.confidence),
+      level: LEVEL_RANK[before.level] > LEVEL_RANK[topic.level] ? before.level : topic.level,
+    };
+  });
+}
+
+export function holdTrackingOnSuccess(
+  previous: TrackingPersisted | null,
+  next: TrackingPersisted,
+  succeeded: boolean,
+): TrackingPersisted {
+  if (!succeeded || !previous) return next;
+  return {
+    ...next,
+    programProgressPct: Math.max(next.programProgressPct, previous.programProgressPct),
+    topicMasteryPct:
+      next.topicMasteryPct == null || previous.topicMasteryPct == null
+        ? next.topicMasteryPct ?? previous.topicMasteryPct
+        : Math.max(next.topicMasteryPct, previous.topicMasteryPct),
+    examReadinessPct: Math.max(next.examReadinessPct, previous.examReadinessPct),
+  };
+}
+
 export type TopicGain = { label: string; before: number; after: number };
 
 /**

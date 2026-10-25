@@ -60,7 +60,8 @@ export function prepFamiliarity(values: unknown[]): Familiarity {
  * Düzey önerisini beslemeyen puanlı etkinlikler. Podcast'in dinleme kontrolü (20 Ekim 2026) az önce
  * duyulanı soran üç kolay soru: 3/3 "fazla kolay" önerisini tetiklemesin (ürün sahibinin kararı).
  */
-const LEVEL_HINT_EXCLUDED_KINDS: ReadonlySet<string> = new Set(["podcast"]);
+// Kartlar (25 Ekim 2026, P1-7): puanları artık hatırlanan / kart; öğrencinin kendi beyanı düzey önermez.
+const LEVEL_HINT_EXCLUDED_KINDS: ReadonlySet<string> = new Set(["podcast", "flashcards", "spaced"]);
 /** Dışarıda kalan türler araya girse de son iki puanlı sonuç bulunsun diye okunan kayıt. */
 const LEVEL_HINT_LOOKBACK = 8;
 

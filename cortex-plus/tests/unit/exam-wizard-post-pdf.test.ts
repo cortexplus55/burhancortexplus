@@ -100,12 +100,12 @@ describe("post-PDF wizard order", () => {
     expect(home).not.toContain("Planın {topicCount}");
   });
 
-  it("keeps the tutor on hint-first discipline", () => {
+  it("keeps the tutor answer-first on direct questions (P1-5)", () => {
     for (const style of ["step_by_step", "hints_first", "direct_solve"] as const) {
       const prompt = tutorStylePrompt(style);
       expect(prompt).toContain(TUTOR_ANSWER_DISCIPLINE);
-      expect(prompt).toContain("Cevabı baştan yapıştırma");
-      expect(prompt).toContain("tek ipucu veya tek adım");
+      expect(prompt).not.toContain("Cevabı baştan yapıştırma");
+      expect(prompt).toContain("ilk cümle tam cevaptır");
       expect(prompt).toContain("Boş alkış");
       expect(prompt).toContain("Tam isabet");
     }

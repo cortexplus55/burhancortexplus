@@ -5,9 +5,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanNodeKind, NodeStatus } from "@/lib/learning/exam-prep-plan";
 import {
+  activitySucceeded,
   buildLearningIndicators,
   extractAnswerEvidence,
   foldTopicMastery,
+  holdMasteryOnSuccess,
+  holdTrackingOnSuccess,
+  parsePersistedTracking,
   preferNextNodeForTracking,
   stripAnswerMeta,
   toPersistedTracking,
@@ -148,7 +152,8 @@ export async function recordLearningTrackingAfterComplete(
     lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
   }));
 
-  const folded = foldTopicMastery(evidence, prior);
+  const succeeded = activitySucceeded(evidence);
+  const folded = holdMasteryOnSuccess(prior, foldTopicMastery(evidence, prior), succeeded);
   // "+%X kazandın" kartı (19 Ekim 2026): bu etkinliğin kanıtıyla değişen konunun güveni.
   // Zayıf konuya yönelen hazırlık geneli düğümde (20 Ekim 2026) kartın adı sorulan konu.
   const tested = (input.payload as { testedTopic?: unknown } | null)?.testedTopic;
@@ -230,7 +235,17 @@ export async function recordLearningTrackingAfterComplete(
     openMisconceptions: misconceptionCount ?? 0,
     openMisconceptionsKnown: misconceptionCount != null,
   });
-  const tracking = toPersistedTracking(indicators);
+  const { data: prepRow } = await service
+    .from("exam_preps")
+    .select("learning_tracking")
+    .eq("id", input.prepId)
+    .eq("user_id", input.userId)
+    .maybeSingle();
+  const tracking = holdTrackingOnSuccess(
+    parsePersistedTracking((prepRow as { learning_tracking?: unknown } | null)?.learning_tracking),
+    toPersistedTracking(indicators),
+    succeeded,
+  );
 
   await service
     .from("exam_preps")

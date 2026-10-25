@@ -1,6 +1,7 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { issuesByItem, teacherItemLoop, type Reviewed } from "@/lib/learning/teacher-item-loop";
+import { repairBudget } from "@/lib/learning/repair-budget";
 import { examPointsBlock } from "@/lib/learning/exam-points";
 import { examinerVibeStyleLine, parseExaminerVibe, type ExaminerVibe } from "@/lib/learning/examiner-vibe";
 
@@ -27,6 +28,8 @@ export type PracticeSource = {
   examPointsUse?: "true_false" | "oral";
   /** Sözlü: soru tonu. Yoksa destekleyici. */
   examinerVibe?: ExaminerVibe;
+  /** Öğrenci bekliyor: kısa düzeltme bütçesi, gruplar aynı anda (`repairBudget`). */
+  urgent?: boolean;
 };
 
 export type AskJson = (system: string, user: string) => Promise<unknown | null>;
@@ -166,11 +169,13 @@ export function trueFalseStructureIssues(item: TrueFalseItem): string[] {
 
 export async function teacherTrueFalseLoop(ask: AskJson, input: PracticeSource & { count: number }, started = Date.now()) {
   const mode = input.mode ?? "document";
+  const budget = repairBudget(input.urgent);
   const loop = await teacherItemLoop<TrueFalseItem>({
     count: input.count,
     started,
-    deadlineMs: 200_000,
-    maxFixRounds: 2,
+    deadlineMs: budget.deadlineMs,
+    maxFixRounds: budget.maxFixRounds,
+    fixConcurrency: budget.fixConcurrency,
     draft: async () => parseTrueFalse(await ask(tfSystem(mode), userPrompt(input, "ÖNERME SAYISI", input.count + 2))),
     review: async (items) => {
       const structural = items.map(trueFalseStructureIssues);
@@ -300,11 +305,13 @@ export function oralStructureIssues(item: OralItem): string[] {
 
 export async function teacherOralLoop(ask: AskJson, input: PracticeSource & { count: number }, started = Date.now()) {
   const mode = input.mode ?? "document";
+  const budget = repairBudget(input.urgent);
   return teacherItemLoop<OralItem>({
     count: input.count,
     started,
-    deadlineMs: 200_000,
-    maxFixRounds: 2,
+    deadlineMs: budget.deadlineMs,
+    maxFixRounds: budget.maxFixRounds,
+    fixConcurrency: budget.fixConcurrency,
     draft: async () => parseOral(await ask(oralSystem(mode), userPrompt(input, "SORU SAYISI", input.count + 1))),
     review: async (items) => {
       const structural = items.map(oralStructureIssues);

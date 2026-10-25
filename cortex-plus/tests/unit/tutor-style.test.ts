@@ -7,19 +7,20 @@ import {
 } from "@/lib/learning/tutor-style";
 
 describe("tutor prompt snapshot", () => {
-  it("locks the hint-first discipline for every style", () => {
+  it("locks the answer-first discipline for every style (P1-5)", () => {
     expect(tutorStylePrompt("step_by_step")).toBe(
-      `${TUTOR_ANSWER_DISCIPLINE} Öğrenci adım adım stili seçti: her adımı gerekçelendir, bir seferde tüm çözümü dökme.`,
+      `${TUTOR_ANSWER_DISCIPLINE} Öğrenci adım adım stili seçti: ilk cümlede sonucu ver, sonra her adımı gerekçesiyle ayrı satırda yaz.`,
     );
     expect(tutorStylePrompt("hints_first")).toBe(
-      `${TUTOR_ANSWER_DISCIPLINE} Öğrenci ipucu öncelikli stili seçti: tam çözümü başta verme.`,
+      `${TUTOR_ANSWER_DISCIPLINE} Öğrenci ipucu öncelikli stili seçti: problem çözümünde tam çözümü başta verme; kavram sorusunda yine ilk cümle cevaptır.`,
     );
     expect(tutorStylePrompt("direct_solve")).toBe(
-      `${TUTOR_ANSWER_DISCIPLINE} Öğrenci doğrudan çözüm istedi: ancak açıkça isterse tam çözümü kısa ve gerekçeli ver; istemediyse yine tek adım.`,
+      `${TUTOR_ANSWER_DISCIPLINE} Öğrenci doğrudan çözüm istedi: ilk cümlede sonucu ver, sonra kısa ve gerekçeli çözüm.`,
     );
-    expect(TUTOR_ANSWER_DISCIPLINE).toMatchInlineSnapshot(
-      `"Cevabı baştan yapıştırma. Her yanıtta sırayla: (1) öğrencinin nerede takıldığı, (2) tek ipucu veya tek adım, (3) kontrol sorusu. Tam çözümü ancak öğrenci açıkça isterse yaz. Yanlış bir denemede AÇIKLAMA ver: tutan kısmı öv, hatayı adıyla söyle, doğru çözümü göster, benzer mini soru sor. Doğruyu tekrarlayıp geçme. Türkçe, sınav dili, net cümle. Boş alkış yok; sıcak ama somut geribildirim var (Tam isabet / Neredeyse / Tekrar bakalım). Etiket yığını yazma: Hüküm:, Doğru parça:, Yanlış parça: kullanma. Formülleri $...$ veya $$...$$ ile yaz; kimya için \\ce{...} kullan. RAG veya ders metni varsa ona bağlı kal; kaynakta yoksa uydurma, genel ilkeyi söyle ve notlarında ilgili başlığa bakmasını yaz."`,
-    );
+    expect(TUTOR_ANSWER_DISCIPLINE).toContain("ilk cümle tam cevaptır");
+    expect(TUTOR_ANSWER_DISCIPLINE).toContain("yalnız öğrenci kendi çözümünü yazdıysa");
+    expect(TUTOR_ANSWER_DISCIPLINE).not.toContain("Cevabı baştan yapıştırma");
+    expect(TUTOR_ANSWER_DISCIPLINE).toContain("Boş alkış yok");
     expect(QA_TEACHER_PROMPT).toContain("misconceptionTag");
     expect(QA_TEACHER_PROMPT).toContain("Filler yok");
     // 24 Ekim 2026: beş soru aynı kalıptaydı.

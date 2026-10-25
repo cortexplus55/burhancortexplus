@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import "@/styles/paper-exam.css";
-import { postJsonWithRetry } from "@/lib/learning/generation-retry";
+import {
+  mockProgressLine,
+  postMockExamWithProgress,
+  type MockExamProgress,
+} from "@/lib/learning/mock-exam/progress";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import {
   MOCK_MINUTES_MAX,
@@ -50,7 +54,7 @@ export function MockExamSetup({
   );
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
-  const [progress, setProgress] = useState<string[]>([]);
+  const [progress, setProgress] = useState<MockExamProgress | null>(null);
   const presetMinutes = (value: "short" | "standard" | "real") =>
     value === "real" ? (realMinutes ?? PRESET_MINUTES.standard) : PRESET_MINUTES[value];
   // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
@@ -73,10 +77,10 @@ export function MockExamSetup({
 
   async function start() {
     setLoading(true);
-    setProgress(["Konular okunuyor…"]);
+    setProgress(null);
     try {
-      // Üretim düşünce bir kez kendiliğinden yeniden (19 Ekim 2026).
-      const { res, data: payload } = await postJsonWithRetry<{ error?: string; code?: string; note?: string; examId?: string }>(
+      // Üretim düşünce bir kez kendiliğinden yeniden (19 Ekim 2026); ilerleme biten konulardan (25 Ekim 2026).
+      const { status, data } = await postMockExamWithProgress(
         "/api/learning/exam-prep/mock-exam",
         () => ({
           prepId,
@@ -85,8 +89,10 @@ export function MockExamSetup({
           topicIds: scope === "topics" ? [...selected] : undefined,
           durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
         }),
+        setProgress,
       );
-      if (!res.ok) {
+      const payload = data as { error?: string; code?: string; note?: string; examId?: string };
+      if (status >= 300) {
         // 19 Ekim 2026: hak yetmezse kapı açılır (ücretsizde deneme günlük haktan büyük; "Kredin
         // yetersiz" yazısı ne yapılacağını söylemiyordu, öğrenci kredi sayısı da görmez).
         if (
@@ -102,7 +108,6 @@ export function MockExamSetup({
         return;
       }
       if (payload.note) toast.message(payload.note);
-      setProgress((p) => [...p, "Sorular hazır."]);
       router.push(`/deneme-sinavlari/${prepId}/deneme/${payload.examId}${answerMode === "paper" ? "?kagit=1" : ""}`);
     } catch {
       toast.error("Bağlantı hatası.");
@@ -110,26 +115,24 @@ export function MockExamSetup({
     }
   }
 
-  useEffect(() => {
-    if (!loading) return;
-    const id = setInterval(() => {
-      setProgress((p) =>
-        p.length >= 4 ? p : [...p, `Konu ${p.length} hazırlanıyor…`],
-      );
-    }, 1800);
-    return () => clearInterval(id);
-  }, [loading]);
-
   if (loading) {
+    const share = progress?.total ? Math.round((progress.done / progress.total) * 100) : 0;
     return (
       <div className="mx-auto max-w-[640px] px-4 py-16 text-center">
         <Loader2 className="mx-auto h-8 w-8 animate-spin text-[var(--c-action)]" />
         <h1 className="mt-4 text-xl font-semibold">Deneme sınavın hazırlanıyor…</h1>
-        <ul className="mt-6 space-y-2 text-left text-sm text-[color:var(--cp-muted)]">
-          {progress.map((line) => (
-            <li key={line}>✓ {line}</li>
-          ))}
-        </ul>
+        <div
+          className="mx-auto mt-6 h-2 w-full max-w-[360px] overflow-hidden rounded-full bg-[color:var(--cp-surface-2,#1f1f1f)]"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={progress?.total ?? 0}
+          aria-valuenow={progress?.done ?? 0}
+        >
+          <div className="h-full bg-[var(--c-action)] transition-[width] duration-500" style={{ width: `${share}%` }} />
+        </div>
+        <p className="mt-3 text-sm text-[color:var(--cp-muted)]" aria-live="polite">
+          {mockProgressLine(progress ?? { done: 0, total: 0, label: null })}
+        </p>
       </div>
     );
   }

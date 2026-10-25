@@ -1,8 +1,17 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
-import { coercePodcastDraft, podcastScriptText, type PodcastEpisode } from "@/lib/learning/podcast-episode";
+import {
+  coercePodcastDraft,
+  keremShare,
+  podcastScriptText,
+  podcastWordCount,
+  type PodcastEpisode,
+} from "@/lib/learning/podcast-episode";
 import {
   DUO_NARRATOR_SCHEMA,
   DUO_TURN_RULE,
+  KEREM_SHARE_MAX,
+  KEREM_SHARE_MIN,
+  SPOKEN_ONLY_RULE,
   podcastDuoBrief,
   podcastLengthSpec,
   type PodcastLength,
@@ -195,7 +204,8 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     // (`podcastStructureIssues`, düzeltme turuna yollar); burada yazara söylenir.
     "YAZMA: 'Kaynak:', sayfa numarası, 'PDF', 'belgede yazdığı gibi', 'belgende yazan', 'notlarında', 'notlarındaki', " +
     "'notlarına göre', iç not. Bilgiyi kaynağa değil konuya bağla ('Notlarındaki örnekte 9 ayda…' değil, " +
-    "'9 aylık bir bebek…'). Kuralları ve yazım notlarını konuşmaya koyma ('Evet yerine …', 'tabloyu okumadan …' gibi)." +
+    "'9 aylık bir bebek…'). Kuralları ve yazım notlarını konuşmaya koyma ('Evet yerine …', 'tabloyu okumadan …' gibi). " +
+    SPOKEN_ONLY_RULE +
     "\n\n" +
     `${CONTENT_STYLE}\n\n` +
     `Yalnızca bu şemada JSON döndür:\n${duo ? SCHEMA_DUO : SCHEMA_SINGLE}`
@@ -404,6 +414,24 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
   }
   const arithmetic = auditQuantitative(podcastScriptText(episode), "").issues.filter((issue) => issue.kind === "arithmetic");
   for (const issue of arithmetic) issues.push(`Tutmayan hesap: ${issue.detail}`);
+  if (episode.length === "derin") {
+    const words = podcastWordCount(episode);
+    if (words < spec.words.min) {
+      issues.push(
+        `Metin kısa: ${words} kelime; ${spec.words.min}-${spec.words.max} olmalı. Her bölümü yeni bir vaka, neden ya da ` +
+          "karşılaştırmayla genişlet; var olan cümleleri tekrar etme.",
+      );
+    }
+  }
+  if (spec.speakers === "duo") {
+    const share = keremShare(episode);
+    if (share < KEREM_SHARE_MIN || share > KEREM_SHARE_MAX) {
+      issues.push(
+        `Konuşma payı: Kerem cümlelerin %${Math.round(share * 100)}'ini söylüyor; %${KEREM_SHARE_MIN * 100}-${KEREM_SHARE_MAX * 100} olmalı. ` +
+          "Kerem'e örnek, toparlama ya da karşılaştırma taşıyan sıralar ver; açılış ve kapanış Ada'da kalsın.",
+      );
+    }
+  }
   return issues;
 }
 
@@ -517,7 +545,7 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
  * uzunluğu, kaynağa gönderme (cümle çoğu zaman gerçek bilgi taşır; yalnız düzeltme turuna gider).
  */
 const COSMETIC_PROBLEM =
-  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme|^Evet\/Hayır kalıbı|^Kerem'in sıralarının/;
+  /^Bölüm sayısı|şablon başlık|^En az bir 'Dur ve düşün:'|^Her 'Dur ve düşün:'|^Son bölüm üç kısa tekrar|^Kaynağa gönderme|^Evet\/Hayır kalıbı|^Kerem'in sıralarının|^Metin kısa|^Konuşma payı/;
 /** Satır taramasının karşıladığı yapı sorunları (`podcastLineProblems`). */
 const LINE_HANDLED_PROBLEM =
   /^Metinde kaynak\/sayfa notu var|^Tutmayan hesap:|bir önceki cümlenin tekrarı|cevapsız soru|ikinci yanılgı itirafı/;

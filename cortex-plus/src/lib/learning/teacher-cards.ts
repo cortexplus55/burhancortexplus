@@ -2,6 +2,8 @@ import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { issuesByItem, teacherItemLoop, type Reviewed } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
+import { avoidListBlock, dropNearDuplicates } from "@/lib/learning/item-dedup";
+import { repairBudget } from "@/lib/learning/repair-budget";
 
 /**
  * Öğretmen kart motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
@@ -25,6 +27,10 @@ export type TeacherCardsInput = {
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
   examPoints?: string[];
   runningHeaders?: string[];
+  /** Aynı hazırlıkta daha önce yazılmış kart ön yüzleri: tekrarlanmaz, süzgeç de eler (25 Ekim 2026). */
+  avoid?: string[];
+  /** Öğrenci bekliyor: kısa düzeltme bütçesi (`repairBudget`). */
+  urgent?: boolean;
 };
 
 const SCHEMA = `{
@@ -71,6 +77,10 @@ export function cardsUserPrompt(input: TeacherCardsInput, ask = input.count): st
     `KART SAYISI: ${ask}`,
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "cards"),
+    avoidListBlock(
+      "DAHA ÖNCE YAZILAN KARTLAR (aynı bilgiyi yeniden sorma; yalnız bu KONU'nun KAYNAK'ındaki başka bilgilerden yaz):",
+      input.avoid ?? [],
+    ),
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu değildir: ${input.runningHeaders.join(" | ")}`
       : "",
@@ -165,11 +175,14 @@ export const CARD_SPARE = 2;
 export async function teacherCardsLoop(ask: AskJson, input: TeacherCardsInput, started = Date.now()) {
   const mode = input.mode ?? "document";
   const focus = input.focus ?? "cards";
+  const budget = repairBudget(input.urgent);
   const loop = await teacherItemLoop<TeacherCard>({
-    count: input.count,
+    // Süzgeç önceki kartlarla aynı olanları eleyecek: döngü fazlasını tutar.
+    count: input.avoid?.length ? input.count + CARD_SPARE : input.count,
     started,
-    deadlineMs: 200_000,
-    maxFixRounds: 2,
+    deadlineMs: budget.deadlineMs,
+    maxFixRounds: budget.maxFixRounds,
+    fixConcurrency: budget.fixConcurrency,
     draft: async () => parseTeacherCards(await ask(cardsSystem(mode, focus), cardsUserPrompt(input, input.count + CARD_SPARE))),
     review: async (cards) => {
       const structural = cards.map(cardStructureIssues);
@@ -183,5 +196,6 @@ export async function teacherCardsLoop(ask: AskJson, input: TeacherCardsInput, s
     },
     fix: async (failing) => parseTeacherCards(await ask(cardsFixSystem(mode, focus), cardsFixUserPrompt(failing, input))),
   });
-  return { cards: hardFirst(loop.items), rejected: loop.rejected, rounds: loop.rounds };
+  const fresh = dropNearDuplicates(loop.items, (card) => `${card.front} ${card.back}`, input.avoid ?? []);
+  return { cards: hardFirst(fresh.slice(0, input.count)), rejected: loop.rejected, rounds: loop.rounds };
 }

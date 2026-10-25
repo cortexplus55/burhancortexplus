@@ -27,6 +27,8 @@ export type PlanNodeSessionMeta = {
   durationMinutes?: number;
   role?: "learn" | "practice" | "review" | "mock";
   calendarDate?: string;
+  /** Konunun kaçıncı testi (0 konu testi, 1 ikinci, 2 üçüncü); test motoru başka dilim sorar (25 Ekim 2026). */
+  practiceVariant?: number;
 };
 
 export type PlanNodeDraft = {
@@ -60,8 +62,9 @@ export const PLAN_NODE_META: Record<
     voice: true,
   },
   quiz: {
-    title: "Testler ve Doğru/Yanlış",
-    blurb: "Çoktan seçmeli ve doğru/yanlış pratik.",
+    // 25 Ekim 2026: "Testler ve Doğru/Yanlış" diyordu ama test çoktan seçmeliydi; D/Y artık ayrı düğüm.
+    title: "Konu testi",
+    blurb: "Çoktan seçmeli konu testi.",
     setupLabel: "Testler",
     voice: false,
   },
@@ -255,9 +258,7 @@ export function mergeStudyPathTemplate<T extends PlanNodeDraft>(
   const out = [...nodes];
   for (const kind of CORE_ORDER) {
     if (present.has(kind)) continue;
-    // Test zaten doğru/yanlış içerir. Aynı konu için ikinci bir
-    // "Doğru/Yanlış" düğümü aynı işi bir daha yazar.
-    if (kind === "true_false" && present.has("quiz")) continue;
+    // 25 Ekim 2026: test doğru/yanlış içermiyor (çoktan seçmeli); D/Y düğümü atlanmaz.
     const slot = CORE_ORDER.indexOf(kind);
     const at = out.findIndex((node) => CORE_ORDER.indexOf(node.kind) > slot);
     const idx = at < 0 ? out.length : at;

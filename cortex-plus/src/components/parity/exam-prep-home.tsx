@@ -71,6 +71,7 @@ import {
   tempoFromProgress,
 } from "@/lib/learning/prep-radar";
 import { prepStars } from "@/lib/stars/rules";
+import { activityDurationMinutes, LESSON_MIN_MINUTES } from "@/lib/learning/activity-duration";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
@@ -94,6 +95,8 @@ export type HomeNode = {
     objective?: string;
     sourcePages?: number[];
     durationMinutes?: number;
+    /** İçerikten ölçülen süre (`activityDurationMinutes`); öğrenciye yazılan tek süre. */
+    activityMinutes?: number;
     role?: string;
     calendarDate?: string;
     topicId?: string;
@@ -408,7 +411,9 @@ export function ExamPrepHome({
       }),
     [learningTracking, progress, targetScore, topicCount, topicsDone],
   );
-  const nextMinutes = nextNode?.sessionMeta?.durationMinutes ?? 15;
+  const nextMinutes = nextNode
+    ? activityDurationMinutes(nextNode.kind, { known: nextNode.sessionMeta?.activityMinutes })
+    : LESSON_MIN_MINUTES;
   const nextStars = nextNode ? prepStars(nextNode.kind, null, null) : 10;
 
   useEffect(() => {
@@ -1258,7 +1263,8 @@ function StudyPath({
                   <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>
                   <span className="cp-path-current-title">{nodeHeading(node)}</span>
                   <span className="cp-path-current-meta">
-                    ~{node.sessionMeta?.durationMinutes ?? 15} dk · +{prepStars(node.kind, null, null)} ⭐
+                    ~{activityDurationMinutes(node.kind, { known: node.sessionMeta?.activityMinutes })} dk · +
+                    {prepStars(node.kind, null, null)} ⭐
                   </span>
                 </span>
               ) : null}

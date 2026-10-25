@@ -28,7 +28,9 @@ describe("öğretmen sohbeti istemi", () => {
     expect(TUTOR_RULES).toContain("KAYNAK KURALI");
     expect(TUTOR_RULES).toContain("Bu senin belgende geçmiyor");
     expect(TUTOR_RULES).toContain("ayırt ettiren tek ölçütü");
-    expect(TUTOR_RULES).toContain("cevabı hemen verme");
+    // P1-5: doğrudan soruda ilk cümle tam cevap; adım adım yalnız Sokratik modda.
+    expect(TUTOR_RULES).toContain("ilk cümle tam cevaptır");
+    expect(TUTOR_RULES).toContain("Sokratik modu seçtiyse ilk adımı göster");
     expect(TUTOR_RULES).toContain("sağlaması yapılmamış ilk tahmini yazma");
     expect(TUTOR_RULES).toContain("değildir/yanlıştır/ulaşılamaz");
     expect(TUTOR_RULES).toContain("TEK bir soruyla bitir");
@@ -186,7 +188,9 @@ describe("sohbet uç noktası öğretmen yolunu kullanır", () => {
     expect(route).toContain('tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve"])');
     expect(teacherBlock).toContain("mode: tutorMode");
     // Kaynak satırı boş kalmasın: öğretmen yolu da citations doldurur.
-    expect(teacherBlock).toContain("citations = grounding.passages.slice(0, 2)");
+    // P1-5: en iyi eşleşen sayfa önce (bestSourcePage).
+    expect(teacherBlock).toContain("citations = ranked.slice(0, 2)");
+    expect(teacherBlock).toContain("bestSourcePage(");
     // Hazırlık sohbetinde tüm belgelerde arama ve erken "kaynak yok" dönüşü yok.
     expect(route).toContain("if (strict && !evidence.length && !imageUrl && !teacherPrepChat)");
   });

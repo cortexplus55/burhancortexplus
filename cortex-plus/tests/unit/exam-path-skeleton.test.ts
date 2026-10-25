@@ -13,9 +13,14 @@ import {
   replacementPlanForRebuild,
 } from "@/lib/learning/exam-prep-reschedule-apply";
 import {
+  BLOCK_INTERACTIVE_ROTATION,
   buildExamScheduleV2,
   scheduleSessionsToNodeDrafts,
+  type ScheduleSession,
 } from "@/lib/learning/exam-schedule-v2";
+
+const withoutCompanions = (sessions: ScheduleSession[]) =>
+  sessions.filter((session) => session.kind !== "true_false" && !BLOCK_INTERACTIVE_ROTATION.includes(session.kind));
 
 describe("study path skeleton", () => {
   it("keeps the same activity kinds for a short and a long calendar", () => {
@@ -54,9 +59,7 @@ describe("study path skeleton", () => {
       { kind: "written_exam", title: "Yazılı", dayIndex: 3, sortOrder: 3 },
     ];
     const merged = mergeStudyPathTemplate(scheduled);
-    expect(merged.map((node) => node.kind)).toEqual(
-      CORE_ORDER.filter((kind) => kind !== "true_false"),
-    );
+    expect(merged.map((node) => node.kind)).toEqual(CORE_ORDER);
     expect(merged[0]).toMatchObject({ kind: "lesson", title: "A · Ders" });
     expect(merged.map((node) => node.sortOrder)).toEqual(
       merged.map((_, index) => index),
@@ -84,11 +87,10 @@ describe("study path skeleton", () => {
       topics: [topic],
       fromDate: new Date("2026-09-08T12:00:00"),
     });
-    const scheduled = scheduleSessionsToNodeDrafts(plan.sessions);
+    // Şablonun komşu metası kopyalaması: konu bloğunun kendi D/Y ve etkileşim adımları (25 Ekim 2026) dışarıda.
+    const scheduled = scheduleSessionsToNodeDrafts(withoutCompanions(plan.sessions));
     const merged = mergeStudyPathTemplate(scheduled);
-    expect(merged.map((node) => node.kind)).toEqual(
-      CORE_ORDER.filter((kind) => kind !== "true_false"),
-    );
+    expect(merged.map((node) => node.kind)).toEqual(CORE_ORDER);
 
     const donor = (kind: PlanNodeDraft["kind"]) =>
       scheduled.find((node) => node.kind === kind);
@@ -136,7 +138,7 @@ describe("study path skeleton", () => {
     );
     expect(doneRefs).toHaveLength(templateNodes.length);
 
-    const aligned = alignNewSessionSortOrders(plan.sessions, merged, []);
+    const aligned = alignNewSessionSortOrders(withoutCompanions(plan.sessions), merged, []);
     const sortBefore = aligned.map((session) => session.sortOrder);
     for (const session of aligned) {
       const node = merged.find(
@@ -158,7 +160,7 @@ describe("study path skeleton", () => {
       fromDate: new Date("2026-09-09T12:00:00"),
     });
     const replacement = replacementPlanForRebuild({
-      sessions: rebuilt.sessions,
+      sessions: withoutCompanions(rebuilt.sessions),
       previousSessions: aligned,
       preservedNodes: [
         {
@@ -166,7 +168,7 @@ describe("study path skeleton", () => {
           sortOrder: podcastNode?.sortOrder ?? 0,
         },
       ],
-      insertSessions: rebuilt.sessions,
+      insertSessions: withoutCompanions(rebuilt.sessions),
     });
     expect(aligned.map((session) => session.sortOrder)).toEqual(sortBefore);
     expect(replacement.drafts.some((node) => node.kind === "podcast")).toBe(false);

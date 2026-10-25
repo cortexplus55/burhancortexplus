@@ -17,8 +17,8 @@ export const SPEAKERS = ["ada", "kerem"] as const;
 export type SpeakerId = (typeof SPEAKERS)[number];
 
 export const SPEAKER_LABEL: Record<SpeakerId, string> = {
-  ada: "Ada",
-  kerem: "Kerem",
+  ada: "ADA",
+  kerem: "KEREM",
 };
 
 /** Oynatıcı rozeti: o an kim konuşuyor, anlatıyor mu soruyor mu. */

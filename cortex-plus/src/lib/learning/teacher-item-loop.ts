@@ -4,6 +4,7 @@
  * sorunlu öğeler modelin düzeltmesine gider. Kod öğe metnine dokunmaz.
  * Test motoru (teacher-quiz-run.ts) aynı akışı kendi içinde taşıyor.
  */
+import { repairGroups } from "@/lib/learning/repair-budget";
 
 export type Reviewed<T> = { item: T; problems: string[] };
 
@@ -18,6 +19,8 @@ export async function teacherItemLoop<T>(options: {
   review: (items: T[]) => Promise<string[][]>;
   /** Yalnız sorunlu öğeler, aynı sayıda ve sırada düzeltilmiş döner; olmazsa null. */
   fix: (failing: Reviewed<T>[]) => Promise<T[] | null>;
+  /** Sorunlu öğeler bu kadar grupta aynı anda düzeltilir (öğrenci beklerken 4; bkz. `repairBudget`). */
+  fixConcurrency?: number;
 }): Promise<{ items: T[]; rejected: Reviewed<T>[]; rounds: number }> {
   let draft = await options.draft();
   if (!draft) draft = await options.draft();
@@ -39,11 +42,24 @@ export async function teacherItemLoop<T>(options: {
     Date.now() - options.started < options.deadlineMs
   ) {
     rounds += 1;
-    const fixed = await options.fix(bad);
-    if (!fixed?.length) break;
-    const again = await classify(fixed);
-    good.push(...again.filter((row) => !row.problems.length).map((row) => row.item));
-    bad = again.filter((row) => row.problems.length);
+    const groups = repairGroups(bad, options.fixConcurrency ?? 1);
+    const outcomes = await Promise.all(
+      groups.map(async (group) => {
+        const fixed = await options.fix(group);
+        return fixed?.length ? classify(fixed) : null;
+      }),
+    );
+    if (outcomes.every((outcome) => !outcome)) break;
+    const next: Reviewed<T>[] = [];
+    outcomes.forEach((again, index) => {
+      if (!again) {
+        next.push(...groups[index]);
+        return;
+      }
+      good.push(...again.filter((row) => !row.problems.length).map((row) => row.item));
+      next.push(...again.filter((row) => row.problems.length));
+    });
+    bad = next;
   }
   return { items: good.slice(0, options.count), rejected: bad, rounds };
 }

@@ -1,5 +1,6 @@
 import { PLAN_PHASES, phaseForKind } from "@/lib/learning/exam-plan-phases";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { FINAL_SECTION_TITLE, inFinalSection } from "@/lib/learning/final-block";
 
 /**
  * Çalışma yolunu konu (yoksa aşama) kartlarına böler (25 Ekim 2026).
@@ -11,7 +12,7 @@ export type PathSectionNode = {
   kind: PlanNodeKind;
   sortOrder: number;
   status: string;
-  sessionMeta?: { topicTitle?: string | null } | null;
+  sessionMeta?: { topicTitle?: string | null; adaptive?: unknown } | null;
 };
 
 export type PathSection<T extends PathSectionNode> = {
@@ -36,11 +37,22 @@ export function buildPathSections<T extends PathSectionNode>(
   const ordered = [...nodes].sort((a, b) => a.sortOrder - b.sortOrder);
   let introPlaced = false;
   const groups: { key: string; id: string; title: string; nodes: T[] }[] = [];
-  for (const node of ordered) {
-    const topic = node.sessionMeta?.topicTitle?.trim();
+  // Son konu bloğundan sonraki hazırlık geneli adımlar tek son bölümde; devraldıkları 1. konunun adını taşımaz.
+  // Yolun ortasındaki hazırlık geneli adım sırasını korur ve aşama adıyla görünür.
+  let lastTopicIndex = -1;
+  ordered.forEach((node, index) => {
+    if (!inFinalSection(node.kind, node.sessionMeta)) lastTopicIndex = index;
+  });
+  const finalNodes: T[] = [];
+  for (const [index, node] of ordered.entries()) {
+    const prepWide = inFinalSection(node.kind, node.sessionMeta);
+    const topic = prepWide ? undefined : node.sessionMeta?.topicTitle?.trim();
     let key: string;
     let title: string;
-    if (topic) {
+    if (prepWide && index > lastTopicIndex) {
+      finalNodes.push(node);
+      continue;
+    } else if (topic) {
       key = `topic:${topicKey(topic)}`;
       title = topic;
     } else {
@@ -58,6 +70,9 @@ export function buildPathSections<T extends PathSectionNode>(
     const last = groups[groups.length - 1];
     if (last && last.key === key) last.nodes.push(node);
     else groups.push({ key, id: `${key}:${groups.length}`, title, nodes: [node] });
+  }
+  if (finalNodes.length) {
+    groups.push({ key: "final", id: `final:${groups.length}`, title: FINAL_SECTION_TITLE, nodes: finalNodes });
   }
   return groups.map((group) => {
     const done = group.nodes.filter((node) => node.status === "done").length;

@@ -11,6 +11,18 @@ const credits = vi.hoisted(() => ({
   refundCredits: vi.fn(async () => undefined),
   recordUsage: vi.fn(async () => undefined),
 }));
+const QUESTION_STEMS = vi.hoisted(() => [
+  "Kurucu unsuru eksik işlem hangi durumdadır?",
+  "Sözleşmenin şekil şartına aykırılığı hangi sonucu doğurur?",
+  "Ehliyetsiz kişinin yaptığı satış nasıl nitelendirilir?",
+  "Yanılma nedeniyle iptal süresi ne zaman başlar?",
+  "Aşırı yararlanmada zarar gören taraf neyi isteyebilir?",
+  "Korkutma altında verilen onay hukuken neyi etkiler?",
+  "Muvazaalı işlemde gizli sözleşmenin geçerliliği neye bağlıdır?",
+  "Ahlaka aykırı edimin ifası geri istenebilir mi?",
+  "Kısmi butlanda geri kalan hükümler ne olur?",
+  "Temsil yetkisi olmadan yapılan işlem kime karşı bağlayıcıdır?",
+]);
 /** Her taslak çağrısında modelin döndüreceği soru sayısı (sırayla). */
 const ai = vi.hoisted(() => ({ drafts: 0, verifies: 0, draftSizes: [] as number[], efforts: [] as { verify: boolean; effort: unknown }[] }));
 
@@ -36,7 +48,8 @@ vi.mock("openai", () => ({
             ai.drafts += 1;
             content = JSON.stringify({
               questions: Array.from({ length: size }, (_, i) => ({
-                text: `Taslak ${ai.drafts}, soru ${i}: kurucu unsuru eksik işlem hangi durumdadır?`,
+                // Her soru başka bir ifade: tekrar süzgeci (`dropNearDuplicates`, 25 Ekim 2026) aynı kökü eler.
+                text: `${QUESTION_STEMS[(ai.drafts - 1) * 5 + i] ?? `Soru ${ai.drafts}-${i}`}`,
                 options: ["Yokluk", "Mutlak butlan", "Nispi butlan", "Tek taraflı bağlamazlık"],
                 correct: "Yokluk",
                 multi: false,
