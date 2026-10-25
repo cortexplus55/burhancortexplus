@@ -77,6 +77,25 @@ const lesson: LessonV3 = {
       lead: "Doğmuş ama sakat işlem",
       blocks: [
         { type: "text", text: "Kurucu unsurları olup emredici kurala aykırı işlem **mutlak butlan** ile geçersizdir." },
+        {
+          type: "memory_hook_card",
+          hook: {
+            kind: "analogy",
+            title: "Doğmuş ama düşmüş bina",
+            body: "Mutlak butlan, temeli atılmış ama taşıyıcı kuralı çiğnenmiş bir bina gibi: duruyor görünür, hüküm doğurmaz.",
+          },
+        },
+        {
+          type: "comparison_carousel",
+          carousel: {
+            title: "Yokluk ve mutlak butlan",
+            mode: "compare",
+            slides: [
+              { title: "Yokluk", body: "Kurucu unsur hiç yoktur.", points: ["İşlem doğmaz"] },
+              { title: "Mutlak butlan", body: "Unsurlar vardır, emredici kural çiğnenir.", points: ["Herkes ileri sürer"] },
+            ],
+          },
+        },
         mcq("Amca ile yeğen arasındaki evlilik hangi türdür?"),
         // Derste en az bir "Neden böyle?" kutusu (23 Ekim 2026); yoksa kapanış bir öğretim turu açar.
         { type: "note", note: { title: "Neden böyle?: Mutlak butlanı neden herkes ileri sürebilir?", body: "Emredici kural kamu düzenini korur; aykırılık yalnız tarafları ilgilendirmez.", tone: "general" } },

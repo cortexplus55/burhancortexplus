@@ -6,7 +6,13 @@ import {
   visualBlockText,
   type LessonV3,
 } from "@/lib/learning/lesson-v3";
-import { TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM, VISUAL_BLOCK_RULE, verifySystem } from "@/lib/learning/teacher-lesson";
+import {
+  TEACHER_SYSTEM,
+  TOPIC_TEACHER_SYSTEM,
+  VISUAL_BLOCK_RULE,
+  verifySystem,
+  visualCardQuotaIssue,
+} from "@/lib/learning/teacher-lesson";
 
 const lesson: LessonV3 = {
   format: 3,
@@ -99,5 +105,22 @@ describe("LessonV3 görsel kartlar", () => {
     expect(TOPIC_TEACHER_SYSTEM).toContain(VISUAL_BLOCK_RULE);
     expect(verifySystem("document")).toContain(VISUAL_BLOCK_RULE);
     expect(verifySystem("topic")).toContain(VISUAL_BLOCK_RULE);
+    expect(VISUAL_BLOCK_RULE).toContain("en az 2");
+    expect(VISUAL_BLOCK_RULE).toContain("hedef 3");
+    expect(VISUAL_BLOCK_RULE).toContain("exam_trap_card");
+    expect(verifySystem("document")).toContain("Görsel kart eksik");
+    expect(verifySystem("topic")).toContain("Görsel kart eksik");
+    expect(verifySystem("document")).not.toContain("görsel kartın yokluğu");
+    expect(verifySystem("topic")).not.toContain("görsel kartın yokluğu");
+  });
+
+  it("iki karttan azsa ya da yalnız formül varsa öğretim önemiyle ister", () => {
+    const bare = { screens: [{ blocks: [{ type: "text" }, { type: "formula" }] }] } as unknown as LessonV3;
+    const asked = visualCardQuotaIssue(bare);
+    expect(asked?.severity).toBe("medium");
+    expect(asked?.problem.startsWith("Görsel kart eksik")).toBe(true);
+    const formulasOnly = { screens: [{ blocks: [{ type: "formula" }, { type: "formula" }] }] } as unknown as LessonV3;
+    expect(visualCardQuotaIssue(formulasOnly)?.severity).toBe("medium");
+    expect(visualCardQuotaIssue(lesson)).toBeNull();
   });
 });

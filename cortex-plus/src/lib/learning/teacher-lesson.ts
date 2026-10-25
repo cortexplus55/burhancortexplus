@@ -186,20 +186,29 @@ export const MNEMONIC_EXAMPLES =
 
 /**
  * Görsel kartlar (25 Ekim 2026): kavramın zaten anlatılan bilgisini sınavın vurduğu yerden gösterir.
- * Yeni sayı, kural, sonuç taşımazlar. Kart yokluğu dersi düşürmez; yazar ve denetçi aynı metni okur.
+ * Yeni sayı, kural, sonuç taşımazlar. Canlıdaki son 40 dersin 36'sında bu kartlar yoktu; ikisi yalnız
+ * formüldü, tuzak / çivi / kaydırma hiç yazılmamıştı. Kota artık zorunlu: ders düşmez, kapanış bir
+ * öğretim turu açar. Yazar ve denetçi aynı metni okur.
  */
 export const VISUAL_BLOCK_RULE =
-  "GÖRSEL KARTLAR (yeni bilgi taşımaz): Kavramın anlattığın bilgisini sınavın vurduğu yerden göster. " +
-  "Hesaplanabilir bağıntıda 'formula' (type 'formula_card' de olur): expression kaynaktaki bağıntı, symbols her " +
-  "simgenin anlamı (en çok 6). Öğrencinin bu konuda sık düştüğü karışıklık varsa 'exam_trap_card': title, wrong " +
-  "(bilerek yanlış inanç — 'Sakın X ile Y'yi karıştırma' cümlesi), right (doğrusu, kaynaktaki hâliyle), tell " +
-  "(ayırt ettiren ipucu). Derste en az bir tuzak kartı yaz (kaynak bir karışıklık gösteriyorsa; yoksa uydurma). " +
-  "Akılda kalması gereken ayrım varsa 'memory_hook_card': kind analogy|image|shortcut, title, body — 5 saniyelik " +
-  "benzetme, zihinde canlandırma ya da kısa yol; ezber kodu (tone mnemonic) ayrıdır. Kavram başına en çok bir çivi. " +
-  "İki kavram yan yana ya da bir çözümün adımları varsa 'comparison_carousel': mode compare|steps, 2-5 slides " +
-  "(title, body, isteğe bağlı points). Kaynağın tablosu 'table' kalır; kaydırılan kart tabloyu satır satır kopyalamaz. " +
-  "Belge dışı tamamlayıcı bilgi yalnız 'note' tone 'general' (type 'general_knowledge_box' de olur); başlık " +
-  "'Genel bilgi: …'. Tuzak kartındaki wrong alanı bilerek yanlış inançtır, olgu değildir.\n\n";
+  "GÖRSEL KARTLAR (zorunlu; yeni bilgi taşımaz): Her ders en az 2, hedef 3 görsel kart üretir. Düz paragraf " +
+  "kartın yerine geçmez. İlk kavram tek ekran ve kısa kalır; kartları sonraki kavramlara dağıt, ilk ekranı " +
+  "kartla şişirme. Türleri karıştır ve şemadaki ikinci kavramdaki kartlar örnektir:\n" +
+  "(1) Hesaplanabilir bağıntı varsa 'formula' (type 'formula_card' de olur): expression kaynaktaki bağıntı, " +
+  "symbols en az 2 simgenin anlamı (en çok 6).\n" +
+  "(2) 'exam_trap_card' her derste en az bir: title, wrong (öğrencinin sık inandığı yanlışın kendisi; " +
+  "'Sakın karıştırma' cümlesi değil), right (doğrusu, kaynaktaki hâliyle), tell (ayırt ettiren ipucu, bir cümle). " +
+  "Kaynak karışıklığı açık yazmıyorsa bile bu konunun en sık düşülen tek yanılgısını göster; yeni sayı, eşik " +
+  "ya da kural uydurma.\n" +
+  "(3) 'memory_hook_card': kind analogy|image|shortcut, title, body — 5 saniyelik sahne (benzetme, zihin resmi " +
+  "ya da kısa yol). Ezber kodu (tone mnemonic) ayrıdır ve çivinin yerine geçmez. Kavram başına en çok bir çivi.\n" +
+  "(4) 'comparison_carousel': mode compare|steps, 2-4 slides; her slaytta title, body ve en az bir point. İki " +
+  "kavramı ya da bir çözümün adımlarını kaydır. Kaynağın tablosu 'table' kalır; kaydırılan kart tabloyu satır " +
+  "satır kopyalamaz.\n" +
+  "Formül yoksa tuzak + çivi + kaydırma ile 3 karta çık. İki kart yetmezse üçüncüyü eksik türden yaz. En az " +
+  "biri tuzak, çivi ya da kaydırma olsun; yalnız formül kotayı doldurmaz. Belge dışı tamamlayıcı bilgi yalnız " +
+  "'note' tone 'general' (type 'general_knowledge_box' de olur); başlık 'Genel bilgi: …'. Tuzak kartındaki " +
+  "wrong alanı bilerek yanlış inançtır, olgu değildir.\n\n";
 
 export const EMPHASIS_RULE =
   "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
@@ -468,9 +477,10 @@ export const VERIFY_SYSTEM =
   "sayma.\n" +
   `K) ${VISUAL_BLOCK_RULE}` +
   "Görsel kart yeni sayı, kural ya da sonuç taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış " +
-  "inançtır, A sayma. Kartın yokluğu 'low'dur — dersi düşürme, kavramı atma.\n" +
-  "A-I 'high'; J 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca, ekranda 2'den fazla ==vurgu== ya da " +
-  "sınavlık olmayan bilgiye vurgu, görsel kartın yokluğu.\n" +
+  "inançtır, A sayma. 2 karttan azsa ya da tuzak, çivi ve kaydırma hiç yoksa 'medium' yaz; problem 'Görsel kart " +
+  "eksik' diye başlasın. Kartlar duruyorsa yokluk yazma. Dersi düşürme, kavramı atma.\n" +
+  "A-I 'high'; J ve görsel kart eksiği 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca, ekranda 2'den fazla " +
+  "==vurgu== ya da sınavlık olmayan bilgiye vurgu.\n" +
   CALIBRATION +
   VERIFY_JSON;
 
@@ -490,9 +500,10 @@ export const TOPIC_VERIFY_SYSTEM =
   `G) ${MNEMONIC_VERIFY}\n` +
   `H) ${RUBRIC_VERIFY}` +
   `I) ${VISUAL_BLOCK_RULE}` +
-  "Görsel kart yanlış bilgi taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış inançtır. Kartın " +
-  "yokluğu 'low'dur.\n" +
-  "A-G 'high'; H 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca, görsel kartın yokluğu.\n" +
+  "Görsel kart yanlış bilgi taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış inançtır. 2 karttan " +
+  "azsa ya da tuzak, çivi ve kaydırma hiç yoksa 'medium' yaz; problem 'Görsel kart eksik' diye başlasın. Kartlar " +
+  "duruyorsa yokluk yazma.\n" +
+  "A-G 'high'; H 'medium'. Görsel kart eksiği de 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca.\n" +
   CALIBRATION +
   "Kurumlar ya da kılavuz sürümleri arasında küçük farklar olan bir eşikte ders yaygın kabul gören değeri veriyorsa " +
   "bu A ya da B değildir.\n" +
@@ -1392,7 +1403,36 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   }
   const summary = lesson.summary ?? [];
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
+  const quota = visualCardQuotaIssue(lesson);
+  if (quota) issues.push(quota);
   return issues;
+}
+
+/** Formül tek başına kota değildir: tuzak, çivi ya da kaydırma da gerekir. */
+const VISUAL_QUOTA_TYPES = new Set<LessonBlock["type"]>([
+  "formula",
+  "exam_trap_card",
+  "memory_hook_card",
+  "comparison_carousel",
+]);
+
+/**
+ * Ders başına en az 2 görsel kart, en az biri tuzak / çivi / kaydırma (25 Ekim 2026).
+ * Orta önem: kapanışta bir öğretim turu açar, kavramı düşürmez. İlk kavram beklerken tur açılmaz.
+ */
+export function visualCardQuotaIssue(lesson: LessonV3): TeacherIssue | null {
+  if (!lesson.screens.length) return null;
+  const cards = lesson.screens.flatMap((screen) => screen.blocks.filter((block) => VISUAL_QUOTA_TYPES.has(block.type)));
+  const rich = cards.filter((block) => block.type !== "formula");
+  if (cards.length >= 2 && rich.length >= 1) return null;
+  return {
+    where: `screens[${lesson.screens.length - 1}]`,
+    severity: "medium",
+    problem:
+      "Görsel kart eksik: derste en az 2 kart olsun (hedef 3). Türler formula, exam_trap_card, memory_hook_card, " +
+      "comparison_carousel; en az biri tuzak, hafıza çivisi ya da karşılaştırma kaydırması. Yeni sayı, kural ya da " +
+      "sonuç ekleme; anlatılan bilgiyi kartın alanlarına koy. Düz paragraf kartın yerine geçmez. İlk ekranı şişirme.",
+  };
 }
 
 /**

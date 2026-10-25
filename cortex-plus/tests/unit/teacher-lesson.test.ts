@@ -137,7 +137,26 @@ const good: LessonV2 = {
 
 describe("yapı denetimi", () => {
   it("Astra tarzı ders geçer", () => {
-    expect(structureOf(good, { runningHeaders: [KPSS_HEADER] })).toEqual([]);
+    const lesson = v2ToV3(good);
+    const screen = lesson.screens.at(-1)!;
+    const at = screen.blocks.findIndex((block) => block.type === "check");
+    screen.blocks.splice(at < 0 ? screen.blocks.length : at, 0, {
+      type: "exam_trap_card",
+      trap: {
+        title: "Hapis tek yaptırım değildir",
+        wrong: "Hukuk kuralını yalnız hapis cezası ayırır.",
+        right: "Ayıran şey maddi yaptırımdır; hapis bunlardan biridir.",
+        tell: "Tazminat ve haciz de devlet zoruyla uygulanan yaptırımdır.",
+      },
+    }, {
+      type: "memory_hook_card",
+      hook: {
+        kind: "analogy",
+        title: "Doğmamış bina",
+        body: "Kurucu unsuru olmayan işlem hiç doğmamış binadır; bu yokluktur. Doğup da çürük olan bina butlandır.",
+      },
+    });
+    expect(lessonStructureIssues(lesson, { runningHeaders: [KPSS_HEADER] })).toEqual([]);
   });
 
   it("eski KPSS dersinin kusurları yakalanır", () => {

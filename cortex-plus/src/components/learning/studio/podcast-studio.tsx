@@ -14,6 +14,7 @@ import {
 import { CreditGate } from "@/components/paywall/credit-gate";
 import {
   SPEAKER_LABEL,
+  SPEAKERS,
   flattenLines,
   formatClock,
   normalizeChapters,
@@ -136,6 +137,7 @@ export function PodcastStudio({
   const completeRef = useRef(true);
   const waitingRef = useRef<(() => void) | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
+  const scriptBoxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -143,6 +145,13 @@ export function PodcastStudio({
       audioRef.current?.pause();
     };
   }, []);
+
+  useEffect(() => {
+    const node = scriptBoxRef.current?.querySelector(".ls-pod-line.is-now");
+    if (node && "scrollIntoView" in node) {
+      node.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [lineCursor, index]);
 
   // Kayıtlı bölüm: senaryo hazır, yalnızca ses isteniyor (önbellekteyse bedava).
   useEffect(() => {
@@ -579,20 +588,27 @@ export function PodcastStudio({
 
           {tracks?.length ? (
             <>
-              <div className="ls-vinyl-wrap">
-                <div
-                  className={cn("ls-vinyl", `is-${liveSpeaker}`, playing && "is-on")}
-                  aria-hidden
-                />
-                <button
-                  type="button"
-                  className="ls-play-orb"
-                  onClick={toggle}
-                  aria-label={playing ? "Duraklat" : "Oynat"}
-                >
-                  {playing ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7" />}
-                </button>
+              <div className="ls-duo" aria-hidden>
+                {SPEAKERS.map((speaker) => {
+                  const live = liveSpeaker === speaker;
+                  return (
+                    <div
+                      key={speaker}
+                      className={cn("ls-duo-orb", `is-${speaker}`, live && "is-live", live && playing && "is-on", !live && "is-dim")}
+                    >
+                      <span>{SPEAKER_LABEL[speaker]}</span>
+                    </div>
+                  );
+                })}
               </div>
+              <button
+                type="button"
+                className="ls-play-orb"
+                onClick={toggle}
+                aria-label={playing ? "Duraklat" : "Oynat"}
+              >
+                {playing ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7" />}
+              </button>
               {activeFlat ? (
                 <p className={cn("ls-pod-who", `is-${liveSpeaker}`)} aria-live="polite">
                   {speakerLiveBadge(liveSpeaker, activeFlat.beat)}
@@ -667,7 +683,7 @@ export function PodcastStudio({
           )}
 
           <p className="ls-flash-text">{chapter.title}</p>
-          <div className="ls-explain ls-pod-script" style={{ textAlign: "left" }}>
+          <div className="ls-explain ls-pod-script" style={{ textAlign: "left" }} ref={scriptBoxRef}>
             {chapter.lines.map((line, i) => {
               const chapterStart = flatLines.findIndex((item) => item.chapterIndex === index);
               const global = (chapterStart < 0 ? 0 : chapterStart) + i;

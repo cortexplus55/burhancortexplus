@@ -31,7 +31,9 @@ describe("podcast oynatıcı kabuğu", () => {
     expect(player).toContain("mediaSession");
     expect(player).toContain("resumeKey");
     expect(player).toContain("speakerLiveBadge");
+    expect(player).toContain("cp-pod-orbs");
     expect(player).toContain("cp-pod-orb");
+    expect(player).toContain('(["ada", "kerem"] as const)');
     expect(player).toContain("is-${activeLine?.speaker ?? \"ada\"}");
     expect(player).toContain("cp-pod-live-script");
   });

@@ -123,6 +123,23 @@ const zscore: LessonV3 = {
       blocks: [
         { type: "text", text: "**Hedef boy**, anne ve babanın boyundan hesaplanan beklenen yetişkin boyudur. Erkekte 13 cm eklenir, kızda çıkarılır." },
         {
+          type: "exam_trap_card",
+          trap: {
+            title: "Eşik kısa boy değildir",
+            wrong: "Z-skoru tam −2 ise çocuk kısa boydur.",
+            right: "Kısa boy −2 SD'nin altıdır; −2 eşiktir.",
+            tell: "Soruda 'altı' varsa −2 yetmez, daha küçük olmalıdır.",
+          },
+        },
+        {
+          type: "memory_hook_card",
+          hook: {
+            kind: "analogy",
+            title: "Merdivenin alt basamağı",
+            body: "Z-skoru, çocuğun boyunun yaşıt ortalamasından kaç basamak aşağıda olduğunu söyler; −2'nin altı kısa boydur.",
+          },
+        },
+        {
           type: "table",
           table: {
             caption: "Hedef boy",
@@ -165,7 +182,8 @@ describe("LessonV3 — Z-skoru ve hedef boy örneği", () => {
 
   it("V3 kuralları: ekran başına bir soru, kavram soruyla biter, kavramın ekranları art arda, metinsiz ekran yok", () => {
     const [first, second, third] = zscore.screens as [LessonV3["screens"][number], LessonV3["screens"][number], LessonV3["screens"][number]];
-    const twoChecks: LessonV3 = { ...zscore, screens: [first, { ...second, blocks: [...second.blocks, third.blocks[2]!] }, third] };
+    const hedefCheck = third.blocks.find((block) => block.type === "check")!;
+    const twoChecks: LessonV3 = { ...zscore, screens: [first, { ...second, blocks: [...second.blocks, hedefCheck] }, third] };
     expect(lessonStructureIssues(twoChecks, {}).some((issue) => /tek 'check'/.test(issue.problem))).toBe(true);
     const openEnded: LessonV3 = { ...zscore, screens: [first, { ...second, blocks: second.blocks.slice(0, 3) }, third] };
     expect(lessonStructureIssues(openEnded, {}).some((issue) => /'Z-skoru' kavramı bir soruyla bitmeli/.test(issue.problem))).toBe(true);

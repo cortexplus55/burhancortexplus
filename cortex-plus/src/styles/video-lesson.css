@@ -123,6 +123,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .cp-video-style em {
@@ -314,7 +316,9 @@
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.8rem 0.8rem 1.6rem;
+  /* Kapat düğmesi çerçevenin sağ üstüne biniyor; uzun konu satırı 375 px'te
+     "1 kaynak"ı düğmenin altında kesiyordu. */
+  padding: 0.85rem 2.5rem 1.3rem;
   background: linear-gradient(rgba(0, 0, 0, 0.62), transparent);
   color: #fff;
   text-align: center;
@@ -329,7 +333,10 @@
 
 .cp-video-meta {
   margin: 0;
+  max-width: 100%;
   font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: break-word;
   opacity: 0.85;
 }
 
@@ -352,6 +359,8 @@
   position: absolute;
   left: 0.9rem;
   right: 0.9rem;
+  max-width: calc(100% - 1.8rem);
+  overflow-wrap: break-word;
   /* Telefonda (375 px) üst blok %21'de bitiyor, orta oynat düğmesi %45'te başlıyor; %34'te
      iki satırlık kutu duraklatınca düğmeye biniyordu (18 Ekim 2026 denetimi). */
   top: 24%;
@@ -396,7 +405,9 @@
   position: absolute;
   left: 0.75rem;
   right: 0.75rem;
+  max-width: calc(100% - 1.5rem);
   bottom: 18%;
+  overflow-wrap: break-word;
   z-index: 2;
   margin: 0;
   padding: 0.65rem 0.95rem;

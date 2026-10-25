@@ -279,7 +279,7 @@ export function ExamQuestionReviewClient({
                     <div
                       key={option}
                       className={cn(
-                        "w-full flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl text-left text-sm transition-all border",
+                        "w-full flex flex-wrap items-center gap-2 sm:gap-3.5 p-3.5 sm:p-4 rounded-2xl text-left text-sm transition-all border min-w-0",
                         isOptionCorrect
                           ? "bg-emerald-950/30 border-emerald-500/60 text-emerald-200 shadow-sm shadow-emerald-900/20"
                           : isOptionUserAnswer && !isOptionCorrect
@@ -301,19 +301,19 @@ export function ExamQuestionReviewClient({
                         {letter}
                       </div>
 
-                      <span className="flex-1 font-normal leading-snug">
+                      <span className="min-w-0 flex-1 basis-[9rem] break-words font-normal leading-snug">
                         {option}
                       </span>
 
                       {/* Status Badges */}
                       {isOptionCorrect ? (
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">
+                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">
                           Doğru Yanıt
                         </span>
                       ) : null}
 
                       {isOptionUserAnswer && !isOptionCorrect ? (
-                        <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-bold">
+                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-bold">
                           Senin Yanıtın
                         </span>
                       ) : null}

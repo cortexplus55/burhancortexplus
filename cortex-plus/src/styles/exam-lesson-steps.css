@@ -557,11 +557,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.2rem 0.55rem;
   border-radius: 9999px;
   background: rgba(226, 179, 64, 0.14);
   font-size: 0.75rem;
   color: color-mix(in srgb, var(--c-text) 78%, var(--c-bg));
+  overflow-wrap: anywhere;
 }
 
 .als-formula-symbols span {
@@ -626,9 +629,16 @@
 .als-visual-right,
 .als-visual-tell,
 .als-visual-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
   margin: 0.4rem 0 0;
+  min-width: 0;
+  max-width: 100%;
   font-size: 0.9375rem;
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .als-carousel-tabs {
@@ -643,10 +653,13 @@
   background: rgba(255, 255, 255, 0.04);
   color: inherit;
   border-radius: 9999px;
-  padding: 0.28rem 0.7rem;
+  min-height: 2rem;
+  max-width: 100%;
+  padding: 0.35rem 0.7rem;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  overflow-wrap: anywhere;
 }
 
 .als-carousel-tabs button.is-on {
@@ -729,13 +742,6 @@
 .als-card--peek {
   flex: 0 0 4.5rem;
   overflow: hidden;
-}
-
-.als-carousel-nav {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  margin-top: 0.55rem;
 }
 
 .als-cta {
@@ -938,10 +944,12 @@
 
 .als-formula-card-expr {
   margin: 0.55rem 0 0;
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 4.6vw, 1.25rem);
   line-height: 1.45;
   font-family: var(--font-mono);
   text-align: center;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .als-formula-card-note {

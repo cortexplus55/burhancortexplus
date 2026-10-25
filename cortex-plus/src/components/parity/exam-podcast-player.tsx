@@ -675,7 +675,11 @@ export function ExamPodcastPlayer({
           <article className="cp-pod-script-col">
             <h1 className="cp-pod-script-title">{heading}</h1>
             <div className="cp-pod-script" ref={(node) => { scriptRef.current = node; }}>
-              {chaptersInOrder.map(({ chapter, lines }, chapterIndex) => (
+              {(() => {
+                const soloTeacher = chaptersInOrder.every(({ lines: chapterLines }) =>
+                  chapterLines.every((item) => item.line.speaker === "ada"),
+                );
+                return chaptersInOrder.map(({ chapter, lines }, chapterIndex) => (
                 <section key={chapterIndex}>
                   <h2>
                     <button
@@ -690,14 +694,6 @@ export function ExamPodcastPlayer({
                   <div className="cp-pod-script-lines">
                   {lines.map(({ line, index }) => (
                     <span key={index}>
-                      <span className="cp-pod-who-sr">
-                        {chaptersInOrder.every(({ lines: chapterLines }) =>
-                          chapterLines.every((item) => item.line.speaker === "ada"),
-                        )
-                          ? "Öğretmen"
-                          : SPEAKER_LABEL[line.speaker]}
-                        :{" "}
-                      </span>
                       <button
                         type="button"
                         className={cn(
@@ -708,6 +704,9 @@ export function ExamPodcastPlayer({
                         disabled={!ready}
                         onClick={() => seekTo(line.startMs)}
                       >
+                      <span className="cp-pod-line-who">
+                        {soloTeacher ? "Öğretmen" : SPEAKER_LABEL[line.speaker]}
+                      </span>
                       {ready && index === activeIndex && activeWords.length ? (
                         activeWords.map((word, wordIndex) => (
                           <span
@@ -736,21 +735,29 @@ export function ExamPodcastPlayer({
                   ))}
                   </div>
                 </section>
-              ))}
+              ));
+              })()}
             </div>
           </article>
         ) : (
           <>
             <div
-              className={cn(
-                "cp-pod-orb",
-                `is-${activeLine?.speaker ?? "ada"}`,
-                playing && "is-on",
-              )}
+              className={cn("cp-pod-orbs", `is-${activeLine?.speaker ?? "ada"}`, playing && "is-on")}
               aria-hidden
             >
-              <span className="cp-pod-orb-ring" />
-              <span className="cp-pod-orb-core" />
+              {(["ada", "kerem"] as const).map((speaker) => {
+                const live = (activeLine?.speaker ?? "ada") === speaker;
+                return (
+                  <div
+                    key={speaker}
+                    className={cn("cp-pod-orb", `is-${speaker}`, live && "is-live", live && playing && "is-on", !live && "is-dim")}
+                  >
+                    <span className="cp-pod-orb-ring" />
+                    <span className="cp-pod-orb-core" />
+                    <span className="cp-pod-orb-name">{SPEAKER_LABEL[speaker]}</span>
+                  </div>
+                );
+              })}
             </div>
             {activeLine ? (
               <p className={cn("cp-pod-who", `is-${activeLine.speaker}`)} aria-live="polite">
