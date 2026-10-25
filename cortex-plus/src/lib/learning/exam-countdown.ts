@@ -1,8 +1,15 @@
 /**
  * Sınav geri sayımı — dashboard ve NBA için tek kaynak.
  *
- * Öncelik: en yakın gelecekteki exam_preps.exam_date → learning_goals.target_date.
+ * Öncelik: gelecekteki hazırlık (en yakın gün, aynı günde en son kurulan).
+ * Bugünkü sınav yalnız gelecekte hazırlık yoksa. Hedef kaydı hazırlık yoksa.
  */
+
+export type CountdownCandidate = {
+  examDate: string;
+  title?: string | null;
+  createdAt?: string | null;
+};
 
 export type ExamCountdown =
   | {
@@ -45,18 +52,46 @@ export function daysUntilDate(examDate: string, from = new Date()): number {
   return Math.round((b.getTime() - a.getTime()) / 86_400_000);
 }
 
+/**
+ * Gelecek sınav (`daysRemaining > 0`) bugünkü sınavı ezer. Aynı günde en son
+ * kurulan hazırlık kazanır. Gelecek yoksa ve bugün bir sınav varsa o seçilir.
+ */
+export function pickCountdownCandidate(
+  candidates: readonly CountdownCandidate[],
+  from = new Date(),
+): CountdownCandidate | null {
+  const scored = candidates
+    .filter((candidate) => typeof candidate.examDate === "string" && candidate.examDate.length >= 10)
+    .map((candidate) => ({ candidate, days: daysUntilDate(candidate.examDate, from) }))
+    .filter((row) => row.days >= 0);
+  const future = scored.filter((row) => row.days > 0);
+  const pool = future.length ? future : scored.filter((row) => row.days === 0);
+  if (!pool.length) return null;
+  pool.sort((a, b) => {
+    if (a.days !== b.days) return a.days - b.days;
+    return (b.candidate.createdAt ?? "").localeCompare(a.candidate.createdAt ?? "");
+  });
+  return pool[0]!.candidate;
+}
+
 export function resolveExamCountdown(input: {
-  prepExamDate: string | null;
+  prepExamDate?: string | null;
   prepTitle?: string | null;
   goalTargetDate?: string | null;
+  /** Öğrencinin hazırlıkları. Doluysa seçim `pickCountdownCandidate` ile yapılır. */
+  candidates?: readonly CountdownCandidate[];
   addHref?: string;
   from?: Date;
 }): ExamCountdown {
   const addHref = input.addHref ?? "/deneme-sinavlari/olustur";
-  const examDate = input.prepExamDate ?? input.goalTargetDate ?? null;
-  const examTitle = input.prepExamDate
-    ? (input.prepTitle ?? null)
-    : input.goalTargetDate
+  const picked = input.candidates ? pickCountdownCandidate(input.candidates, input.from) : null;
+  const prepExamDate = input.candidates ? (picked?.examDate ?? null) : (input.prepExamDate ?? null);
+  const prepTitle = input.candidates ? (picked?.title ?? null) : input.prepTitle;
+  const goalTargetDate = input.candidates && input.candidates.length > 0 ? null : input.goalTargetDate;
+  const examDate = prepExamDate ?? goalTargetDate ?? null;
+  const examTitle = prepExamDate
+    ? (prepTitle ?? null)
+    : goalTargetDate
       ? "Hedef sınav"
       : null;
 

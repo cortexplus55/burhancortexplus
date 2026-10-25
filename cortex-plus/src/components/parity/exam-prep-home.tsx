@@ -55,6 +55,8 @@ import {
 import { STUDY_PATH_HINT, studyNodeAria, studyNodeOpenable, type StudyToolGroup } from "@/lib/learning/study-tools";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
 import { buildPathSections, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
+import { applyDisplayDates, pathDayLabel, pathOriginDay, sectionWhenLabel } from "@/lib/learning/path-dates";
+import { isLevelNode, LEVEL_NODE_ID, levelNodeAria } from "@/lib/learning/path-level";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
 import { PrepDueReviewCard } from "@/components/parity/prep-review-card";
@@ -82,7 +84,7 @@ import {
 
 /** Kabuğun "focus" başlığındaki simge yeri (sor-shell). */
 export const PREP_TOP_SLOT_ID = "cp-sor-top-slot";
-const INTRO_NODE_ID = "__intro";
+const INTRO_NODE_ID = LEVEL_NODE_ID;
 
 export type HomeNode = {
   id: string;
@@ -110,6 +112,7 @@ export type HomeNode = {
  * okunuyor. Test düğümleri harfle (AB / ABCD), podcast altıgenle ayrılıyor.
  */
 function NodeGlyph({ node }: { node: HomeNode }) {
+  if (isLevelNode(node.id)) return <Flag className="h-6 w-6" aria-hidden />;
   if (node.status === "locked") return <Lock className="h-5 w-5" aria-hidden />;
   const icon = "h-6 w-6";
   switch (node.kind) {
@@ -153,9 +156,10 @@ function NodeGlyph({ node }: { node: HomeNode }) {
 }
 
 /** Düğüm biçimi: podcast altıgen, test kare, geri kalanı daire. */
-function nodeShape(kind: PlanNodeKind): "hex" | "square" | "round" {
-  if (kind === "podcast") return "hex";
-  if (kind === "quiz" || kind === "true_false") return "square";
+function nodeShape(node: Pick<HomeNode, "id" | "kind">): "hex" | "square" | "round" {
+  if (isLevelNode(node.id)) return "round";
+  if (node.kind === "podcast") return "hex";
+  if (node.kind === "quiz" || node.kind === "true_false") return "square";
   return "round";
 }
 
@@ -239,6 +243,7 @@ export function ExamPrepHome({
   nodeScores = {},
   lockedPickId = null,
   dueReviews = 0,
+  createdAt = null,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -296,6 +301,8 @@ export function ExamPrepHome({
   lockedPickId?: string | null;
   /** Bu hazırlıkta bugün sorulacak tekrar (20 Ekim 2026); yolu kilitlemez. */
   dueReviews?: number;
+  /** Yol etiketlerinin hafta başlangıcı. Yoksa bugün. */
+  createdAt?: string | null;
 }) {
   const router = useRouter();
   /** Yolda seçilen kilitli adım: açılmaz, alt kartta "öncekileri bitirince açılır" yazar. */
@@ -695,6 +702,8 @@ export function ExamPrepHome({
             scores={nodeScores}
             onOpen={openNode}
             readinessClaim={readinessClaim}
+            examDate={examDate}
+            pathOrigin={pathOriginDay(createdAt)}
           />
           <section className="cp-prep-goal" aria-label="Hazırlık düzeyi">
             <h2>Gerçek sınavda nasıl yapacağını merak ediyor musun?</h2>
@@ -1026,6 +1035,8 @@ function PathSections({
   scores = {},
   onOpen,
   readinessClaim,
+  examDate = null,
+  pathOrigin,
 }: {
   nodes: HomeNode[];
   lead?: HomeNode | null;
@@ -1034,11 +1045,18 @@ function PathSections({
   scores?: Record<string, number>;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
+  examDate?: string | null;
+  pathOrigin: string;
 }) {
-  const sections = useMemo(() => buildPathSections(nodes, currentId), [nodes, currentId]);
+  const today = pathOriginDay(null);
+  const dated = useMemo(
+    () => applyDisplayDates(nodes, { origin: pathOrigin, examDate }),
+    [nodes, pathOrigin, examDate],
+  );
+  const sections = useMemo(() => buildPathSections(dated, currentId), [dated, currentId]);
   const far = useMemo(
-    () => farNodeIds([...nodes].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
-    [nodes, currentId],
+    () => farNodeIds([...dated].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
+    [dated, currentId],
   );
   const [opened, setOpened] = useState<Record<string, boolean>>({});
   const [tailOpen, setTailOpen] = useState(false);
@@ -1059,6 +1077,11 @@ function PathSections({
         const open = isOpen(section, index);
         const mastery = section.complete ? sectionMasteryPct(section.nodes, scores) : null;
         const line = sectionStatusLine(section, mastery);
+        const when = sectionWhenLabel(
+          section.nodes.map((node) => node.sessionMeta?.calendarDate ?? ""),
+          pathOrigin,
+          today,
+        );
         return (
           <section
             key={section.id}
@@ -1078,7 +1101,11 @@ function PathSections({
             >
               <span className="cp-path-section-copy">
                 <strong>{section.title}</strong>
-                <span className="cp-path-section-meta">{line}</span>
+                <span className="cp-path-section-meta">
+                  {when ? <span className="cp-path-section-when">{when}</span> : null}
+                  {when ? " · " : null}
+                  {line}
+                </span>
               </span>
               <ChevronDown className={cn("cp-path-section-chevron", open && "is-open")} aria-hidden />
             </button>
@@ -1093,6 +1120,7 @@ function PathSections({
                 readinessClaim={readinessClaim}
                 farIds={far}
                 keepOrder
+                today={today}
               />
             ) : null}
           </section>
@@ -1119,6 +1147,7 @@ function StudyPath({
   readinessClaim,
   farIds,
   keepOrder = false,
+  today,
 }: {
   nodes: HomeNode[];
   /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
@@ -1134,6 +1163,7 @@ function StudyPath({
   farIds?: Set<string>;
   /** Konu kartı düğümleri zaten yürüme sırasında. */
   keepOrder?: boolean;
+  today: string;
 }) {
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
   // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları Astra'daki gibi yok.
@@ -1198,6 +1228,10 @@ function StudyPath({
       <ol className="cp-path-list" aria-label={PREP_HOME_COPY.path}>
         {points.map(({ node, x, y }) => {
           const meta = PLAN_NODE_META[node.kind];
+          const level = isLevelNode(node.id);
+          const dayLabel = node.sessionMeta?.calendarDate
+            ? pathDayLabel(node.sessionMeta.calendarDate, today)
+            : "";
           const readinessNote =
             node.kind === "readiness" && readinessClaim === true
               ? ", ölçülen verilere göre hazırsın"
@@ -1216,16 +1250,22 @@ function StudyPath({
                 className={cn(
                   "cp-exam-trail-node",
                   `cp-exam-trail-node--${node.status}`,
-                  `cp-path-node--${nodeShape(node.kind)}`,
+                  `cp-path-node--${nodeShape(node)}`,
                   node.kind === "podcast" && "cp-exam-trail-node--podcast",
                   node.id === currentId && "is-current",
                   node.id === pickedId && "is-picked",
                 )}
                 aria-pressed={node.id === pickedId ? true : undefined}
-                aria-label={`${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${
-                  node.status === "done" && scores[node.id] != null ? `, %${scores[node.id]}` : ""
-                }${readinessNote}${far.has(node.id) ? `, ${PATH_FAR_NOTE.toLocaleLowerCase("tr")}` : ""}`}
-                title={`${nodeHeading(node)} · ${meta.title}`}
+                aria-label={
+                  level
+                    ? `${levelNodeAria(studyNodeAria(node.status))}${dayLabel ? `, ${dayLabel}` : ""}`
+                    : `${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${
+                        node.status === "done" && scores[node.id] != null ? `, %${scores[node.id]}` : ""
+                      }${readinessNote}${far.has(node.id) ? `, ${PATH_FAR_NOTE.toLocaleLowerCase("tr")}` : ""}${
+                        dayLabel ? `, ${dayLabel}` : ""
+                      }`
+                }
+                title={level ? "Seviye tespiti" : `${nodeHeading(node)} · ${meta.title}`}
                 onClick={() => onOpen(node)}
               >
                 <PathPuck state={node.status === "done" ? "done" : node.id === currentId ? "current" : node.status === "locked" ? "locked" : "ready"} />
@@ -1238,12 +1278,17 @@ function StudyPath({
                     {node.status === "done" ? <Check className="h-6 w-6" strokeWidth={2.5} /> : <NodeGlyph node={node} />}
                   </span>
                 )}
-              </button>
-              {node.id === currentId ? (
-                <span className="cp-path-beam" aria-hidden>
-                  <span className="cp-path-beam-icon">
-                    <NodeGlyph node={node} />
+                {node.id === currentId ? (
+                  <span className="cp-path-beam">
+                    <span className="cp-path-beam-icon">
+                      <NodeGlyph node={node} />
+                    </span>
                   </span>
+                ) : null}
+              </button>
+              {dayLabel && node.id !== currentId ? (
+                <span className="cp-path-when" aria-hidden>
+                  {dayLabel}
                 </span>
               ) : null}
               {node.status === "done" && node.id !== currentId ? (
@@ -1263,7 +1308,8 @@ function StudyPath({
                   <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>
                   <span className="cp-path-current-title">{nodeHeading(node)}</span>
                   <span className="cp-path-current-meta">
-                    ~{activityDurationMinutes(node.kind, { known: node.sessionMeta?.activityMinutes })} dk · +
+                    {dayLabel ? `${dayLabel} · ` : null}~
+                    {activityDurationMinutes(node.kind, { known: node.sessionMeta?.activityMinutes })} dk · +
                     {prepStars(node.kind, null, null)} ⭐
                   </span>
                 </span>

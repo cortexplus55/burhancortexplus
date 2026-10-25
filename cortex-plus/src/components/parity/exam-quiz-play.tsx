@@ -30,6 +30,7 @@ export function ExamQuizPlay({
   onReveal?: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const [acting, setActing] = useState(false);
   const question = questions[index];
 
   useEffect(() => {
@@ -56,12 +57,15 @@ export function ExamQuizPlay({
     onChange(option);
   }
 
+  const finishing = index + 1 >= questions.length && (examMode || revealed);
   function handleAction() {
+    if (disabled || acting) return;
     if (!examMode && hasCorrect && !revealed) {
       setRevealed(true);
       onReveal?.();
       return;
     }
+    if (finishing) setActing(true);
     onContinue();
   }
 
@@ -232,18 +236,21 @@ export function ExamQuizPlay({
 
       <button
         type="button"
-        disabled={disabled || selected.length === 0}
+        disabled={disabled || acting || selected.length === 0}
+        aria-busy={disabled || acting || undefined}
         onClick={handleAction}
         className="cp-exam-continue cp-exam-continue--primary w-full inline-flex items-center justify-center gap-2 min-h-11"
       >
         <span>
-          {!examMode && hasCorrect && !revealed
-            ? "Kontrol et"
-            : revealed && index + 1 >= questions.length
-              ? "Testi bitir"
-              : revealed
-                ? "Devam et"
-                : finishLabel}
+          {disabled || acting
+            ? "Kaydediliyor…"
+            : !examMode && hasCorrect && !revealed
+              ? "Kontrol et"
+              : revealed && index + 1 >= questions.length
+                ? "Testi bitir"
+                : revealed
+                  ? "Devam et"
+                  : finishLabel}
         </span>
       </button>
     </div>
@@ -330,7 +337,7 @@ export function ExamQuizResults({
       <div className="flex flex-col gap-3">
         {lessonHref ? (
           <a href={lessonHref} className="cp-exam-continue text-center">
-            Dersi tekrarla
+            Testi tekrarla
           </a>
         ) : null}
         <a href={nextHref} className="cp-exam-continue cp-exam-continue--primary text-center">

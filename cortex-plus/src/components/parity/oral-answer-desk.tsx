@@ -17,6 +17,7 @@ import {
 } from "@/lib/learning/oral-exam";
 import type { OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
 import { oralDeskAnswer } from "@/lib/learning/oral-first-answer";
+import { cleanFeedbackText, feedbackKicker } from "@/lib/learning/feedback-copy";
 
 /**
  * Sözlü soru ekranı: küre + soru metni + mikrofon + yazılı yedek.
@@ -287,7 +288,11 @@ export function OralAnswerDesk({
         <div className="cp-oral-probe" role="status">
           <p className="cp-oral-probe-label">Öğretmen soruyor</p>
           <strong>{probe.question}</strong>
-          {probe.hint ? <p>İpucu: {probe.hint}</p> : null}
+          {cleanFeedbackText(probe.hint ?? "") ? (
+            <p>
+              {feedbackKicker(false)}: {cleanFeedbackText(probe.hint ?? "")}
+            </p>
+          ) : null}
         </div>
       ) : null}
 

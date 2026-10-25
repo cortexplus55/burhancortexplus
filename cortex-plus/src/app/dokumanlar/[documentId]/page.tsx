@@ -8,7 +8,7 @@ import { DocumentReanalyzeButton } from "@/components/documents/document-reanaly
 import { isAdminUser } from "@/lib/auth/roles";
 import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
 import { processErrorLabel } from "@/lib/documents/error-labels";
-import { isProcessingStale } from "@/lib/documents/processing-stale";
+import { isProcessingStuck } from "@/lib/documents/processing-stale";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import {
@@ -275,13 +275,13 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
             </p>
             <DocumentRetryButton documentId={documentId} />
           </section>
-        ) : doc.status === "processing" && isProcessingStale(doc.status, doc.updated_at as string | null) ? (
+        ) : doc.status === "processing" && isProcessingStuck(doc.status, doc.updated_at as string | null) ? (
           <section className="cs-pay-card space-y-3 p-5">
             <p className="text-sm text-amber-200" role="status">
-              İşleme takıldı — belge yarım saatten uzun süredir hazırlanamadı.
+              İşleme takıldı — belge 5 dakikadır hazırlanamadı.
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <DocumentRetryButton documentId={documentId} />
+              <DocumentRetryButton documentId={documentId} autoOnce />
               <Link
                 href="/dokumanlar"
                 className="text-xs text-[var(--cs-muted)] underline underline-offset-2"

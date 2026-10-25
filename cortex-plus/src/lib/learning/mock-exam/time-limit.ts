@@ -26,3 +26,17 @@ export function mockDurationLabel(durationMinutes: number | null | undefined): s
   if (durationMinutes == null) return "—";
   return durationMinutes === UNTIMED_MINUTES ? "Süresiz" : `${durationMinutes} dk`;
 }
+
+/** Sınavın süre sınırı değil, başlangıç ile bitiş arasındaki gerçek süre. */
+export function mockElapsedLabel(
+  startedAt: string | null | undefined,
+  completedAt: string | null | undefined,
+): string {
+  if (!startedAt || !completedAt) return "—";
+  const start = new Date(startedAt).getTime();
+  const end = new Date(completedAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return "—";
+  const ms = end - start;
+  if (ms < 60_000) return `${Math.max(1, Math.round(ms / 1000))} sn`;
+  return `${Math.max(1, Math.round(ms / 60_000))} dk`;
+}

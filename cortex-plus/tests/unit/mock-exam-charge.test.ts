@@ -437,19 +437,18 @@ describe("yazılı deneme: eksik tamamlama", () => {
     { topicLabel: "Para politikası", count: 2 },
     { topicLabel: "Miktar teorisi", count: 2 },
   ];
-  it("kısmen dolan zor konu baştan denenmez; eksik, payını tam veren konulardan gelir", () => {
+  it("kısmen dolan konunun eksiği kendi kotasından kapanır; dolu konuya eklenmez", () => {
     const have = new Map([["Enflasyon", 3], ["Türleri", 1], ["Para politikası", 2], ["Miktar teorisi", 2]]);
     const targets = topUpTargets(rows, have, 2);
-    expect(targets.map((t) => t.row.topicLabel)).not.toContain("Türleri");
-    expect(targets.reduce((sum, t) => sum + t.missing, 0)).toBe(2);
+    expect(targets).toEqual([{ row: rows[1], missing: 2 }]);
   });
   it("hiç soru vermeyen konu yine kendisi denenir", () => {
     const have = new Map([["Enflasyon", 3], ["Para politikası", 2], ["Miktar teorisi", 2]]);
     expect(topUpTargets(rows, have, 3)).toEqual([{ row: rows[1], missing: 3 }]);
   });
-  it("payını tam veren konu yoksa eksik konular", () => {
+  it("eksik en büyük açığı kapatır; kotası dolmuş konu almaz", () => {
     const have = new Map([["Enflasyon", 1], ["Türleri", 1], ["Para politikası", 1], ["Miktar teorisi", 1]]);
-    expect(topUpTargets(rows, have, 2).map((t) => t.row.topicLabel)).toEqual(["Enflasyon", "Türleri"]);
+    expect(topUpTargets(rows, have, 2)).toEqual([{ row: rows[0], missing: 2 }]);
   });
   it("konu üretimi tek iyi soruyla yetinir; tamamlama süre sınırlı", async () => {
     const { readFileSync } = await import("node:fs");

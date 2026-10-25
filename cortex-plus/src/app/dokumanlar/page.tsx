@@ -18,7 +18,7 @@ import {
   topicMapErrorLabel,
 } from "@/lib/documents/error-labels";
 import { DOCUMENT_EMPTY_DESCRIPTION } from "@/lib/documents/upload-labels";
-import { isProcessingStale } from "@/lib/documents/processing-stale";
+import { isProcessingStuck } from "@/lib/documents/processing-stale";
 
 export const metadata = { title: "Belgelerim" };
 
@@ -182,7 +182,7 @@ export default async function DokumanlarPage() {
                       {document.status === "failed" ||
                       mapStopped ||
                       (document.status === "processing" &&
-                        isProcessingStale(document.status, document.updated_at)) ? (
+                        isProcessingStuck(document.status, document.updated_at)) ? (
                         <DocumentRetryButton documentId={document.id} />
                       ) : null}
                       <DocumentDeleteButton documentId={document.id} />

@@ -9,6 +9,21 @@
  */
 export const STALE_PROCESSING_MS = 30 * 60 * 1000;
 
+/** 5 dakika kımıldamayan işlem takılı sayılır; kurtarma düğmesi bunu kullanır. */
+export const STUCK_PROCESSING_MS = 5 * 60 * 1000;
+
+export function isProcessingStuck(
+  status: string | null | undefined,
+  updatedAt: string | null | undefined,
+  now = new Date(),
+): boolean {
+  if (status !== "processing" && status !== "pending") return false;
+  if (!updatedAt) return true;
+  const t = new Date(updatedAt).getTime();
+  if (Number.isNaN(t)) return true;
+  return now.getTime() - t > STUCK_PROCESSING_MS;
+}
+
 export function isProcessingStale(
   status: string | null | undefined,
   updatedAt: string | null | undefined,

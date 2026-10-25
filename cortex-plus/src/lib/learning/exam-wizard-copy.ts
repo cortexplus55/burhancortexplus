@@ -4,6 +4,26 @@ import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
  * PDF sonrası sihirbaz ve hazırlık evi kopyası.
  * Bileşenler bu sabitleri kullanır; metin ikinci bir yerde yazılmaz.
  */
+/** Hedef sınav türü. `exam_type` ders adı olarak kalır; bu alan tercihlerin içine yazılır. */
+export const EXAM_TRACKS = [
+  { id: "tyt", label: "TYT" },
+  { id: "ayt", label: "AYT" },
+  { id: "yks", label: "YKS (TYT+AYT)" },
+  { id: "kpss", label: "KPSS" },
+  { id: "tus", label: "TUS" },
+  { id: "lgs", label: "LGS" },
+  { id: "ales", label: "ALES" },
+  { id: "uni", label: "Üniversite Vize/Final" },
+] as const;
+
+export type ExamTrackId = (typeof EXAM_TRACKS)[number]["id"];
+
+export const DEFAULT_EXAM_LEAD_DAYS = 30;
+
+export function isExamTrack(value: unknown): value is ExamTrackId {
+  return typeof value === "string" && EXAM_TRACKS.some((track) => track.id === value);
+}
+
 export const WIZARD_STEP_ORDER = [
   "subject",
   "date",

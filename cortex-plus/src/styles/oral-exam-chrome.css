@@ -338,6 +338,12 @@
   backdrop-filter: blur(8px);
 }
 
+.cp-oral-modal-back[hidden],
+.cp-oral-modal-back.is-closed {
+  display: none;
+  pointer-events: none;
+}
+
 .cp-oral-modal {
   width: min(100%, 26rem);
   padding: 1.35rem 1.25rem 1.15rem;

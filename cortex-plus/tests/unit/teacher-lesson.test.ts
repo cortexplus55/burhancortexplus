@@ -141,6 +141,16 @@ describe("yapı denetimi", () => {
     const screen = lesson.screens.at(-1)!;
     const at = screen.blocks.findIndex((block) => block.type === "check");
     screen.blocks.splice(at < 0 ? screen.blocks.length : at, 0, {
+      type: "diagram",
+      diagram: {
+        layout: "flow",
+        caption: "Sakat işlem türlerinin sırası",
+        nodes: [
+          { id: "yok", label: "Yokluk" },
+          { id: "but", label: "Butlan" },
+        ],
+      },
+    }, {
       type: "exam_trap_card",
       trap: {
         title: "Hapis tek yaptırım değildir",

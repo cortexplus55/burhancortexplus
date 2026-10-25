@@ -137,7 +137,7 @@ describe("ExamLessonSteps", () => {
 
     expect(screen.getByText("2 / 7")).toBeTruthy();
     expect(screen.queryByText(/\/ 9/)).toBeNull();
-    expect(screen.getByText("AÇIKLAMA")).toBeTruthy();
+    expect(screen.getByText("İpucu")).toBeTruthy();
     expect(screen.getByText("Dersin sonunda buna geri döneceğiz.")).toBeTruthy();
     expect(screen.getByText("🤔 Yanlış")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));

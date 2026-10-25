@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { mockDurationLabel } from "@/lib/learning/mock-exam/time-limit";
+import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
 import { notFound } from "next/navigation";
 import { ArrowRight, BookOpen, ListChecks, RotateCcw } from "lucide-react";
 import { ParitySorShell } from "@/components/parity/sor-shell";
@@ -213,8 +213,11 @@ export default async function ExamPrepSonucPage({
             ["Yanlış", wrong],
             ["Boş", blank],
             [
-              "Süre",
-              mockDurationLabel(examRow?.duration_minutes as number | null | undefined),
+              "Harcanan süre",
+              mockElapsedLabel(
+                examRow?.started_at as string | null | undefined,
+                attempt.completed_at,
+              ),
             ],
           ].map(([label, value]) => (
             <div

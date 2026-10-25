@@ -250,18 +250,21 @@ export function OralTeacherCustomize({
 }
 
 export function OralPreflightDialog({
+  open = true,
   onConfirm,
   onCancel,
   questionCount = 3,
   minutes = 7,
   copy,
 }: {
+  open?: boolean;
   onConfirm: () => void;
   onCancel?: () => void;
   questionCount?: number;
   minutes?: number;
   copy?: { title: string; body: string; items: readonly string[]; confirm: string };
 }) {
+  if (!open) return null;
   const resolved = copy ?? oralPreflightCopy(questionCount, minutes);
   return (
     <div className="cp-oral-modal-back">
@@ -291,18 +294,21 @@ export function OralPreflightDialog({
 }
 
 export function OralEndDialog({
+  open = true,
   busy,
   answered = 0,
   total = 0,
   onStay,
   onConfirm,
 }: {
+  open?: boolean;
   busy?: boolean;
   answered?: number;
   total?: number;
   onStay: () => void;
   onConfirm: () => void;
 }) {
+  if (!open) return null;
   return (
     <div className="cp-oral-modal-back">
       <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="oral-end-title">
@@ -323,7 +329,14 @@ export function OralEndDialog({
   );
 }
 
-export function OralReviewTimeDialog({ onSeeResults }: { onSeeResults: () => void }) {
+export function OralReviewTimeDialog({
+  open = true,
+  onSeeResults,
+}: {
+  open?: boolean;
+  onSeeResults: () => void;
+}) {
+  if (!open) return null;
   return (
     <div className="cp-oral-modal-back">
       <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="oral-review-time-title">

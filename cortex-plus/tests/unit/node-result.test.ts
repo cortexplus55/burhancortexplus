@@ -68,7 +68,7 @@ describe("bitmiş etkinliğin sonucu", () => {
     const page = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
     expect(page).toContain('.eq("user_id", user.id)');
     expect(page).toContain('.eq("status", "completed")');
-    expect(page).toContain("Dersi tekrarla");
+    expect(page).toContain("replayLabel(node.kind)");
   });
 });
 
@@ -81,7 +81,7 @@ describe("podcast oturumunun sonuç ekranı puan göstermez", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     // 20 Ekim 2026: dinleme kontrolü cevaplanınca podcast de puanlı (2/3); atlanınca yine puansız.
     expect(session).toContain("const unscored = unscoredResult(kind, score.total);");
-    expect(session).toContain('{kind === "podcast" ? "Yeniden dinle" : "Dersi tekrarla"}');
+    expect(session).toContain("replayLabel(kind)");
     expect(session).toMatch(/\{unscored \? null : \(\s*<div>\s*<dt>Doğruluk<\/dt>/);
   });
 });

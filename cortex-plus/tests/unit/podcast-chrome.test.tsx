@@ -96,7 +96,7 @@ describe("konu seç ve yol", () => {
     // 29 Eylül 2026: Astra düzeni — alt kart her türü (podcast dahil) aynı
     // biçimde gösteriyor; ayrı "ÖNERİLEN DERS" kartı yok.
     expect(home).toContain("PLAN_NODE_META[nextNode.kind].title");
-    expect(home).toContain('if (kind === "podcast") return "hex"');
+    expect(home).toContain('if (node.kind === "podcast") return "hex"');
     expect(home).toContain("cp-exam-trail-node--podcast");
     expect(home).toContain("PREP_HOME_COPY.materials");
   });

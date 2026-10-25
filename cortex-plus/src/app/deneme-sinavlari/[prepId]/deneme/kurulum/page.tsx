@@ -7,7 +7,7 @@ import { isAdminUser } from "@/lib/auth/roles";
 import {
   allocateQuestions,
   parseExamFormatFromText,
-  type MockTopicSlot,
+  slotFromTopicRow,
 } from "@/lib/learning/mock-exam";
 
 export const metadata = { title: "Yazılı deneme" };
@@ -37,14 +37,13 @@ export default async function MockExamSetupPage({
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
-  const slots: MockTopicSlot[] = (topics ?? []).map((t) => ({
-    topicId: t.id as string,
-    topicLabel: t.label as string,
-    weightPercent: null,
-    examHeavy: false,
-    outOfScope: false,
-    passageChars: 100,
-  }));
+  const slots = (topics ?? []).map((t) =>
+    slotFromTopicRow({
+      id: t.id as string,
+      label: t.label as string,
+      sourceRefs: t.source_refs,
+    }),
+  );
 
   // Biçim özeti: ilk sayfa metinlerinden (hafif)
   let formatSummary: string | null = null;

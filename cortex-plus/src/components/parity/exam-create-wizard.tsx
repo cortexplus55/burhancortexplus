@@ -20,7 +20,9 @@ import {
   X,
 } from "lucide-react";
 import {
+  DEFAULT_EXAM_LEAD_DAYS,
   DOCUMENT_ANALYSIS_STAGES,
+  EXAM_TRACKS,
   PREP_HOME_COPY,
   STUDY_MODALITY_CHOICES,
   WIZARD_COPY,
@@ -289,7 +291,8 @@ export function ExamCreateWizard({
 
   const [subject, setSubject] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
-  const [examDate, setExamDate] = useState("");
+  const [examTrack, setExamTrack] = useState<(typeof EXAM_TRACKS)[number]["id"] | null>(null);
+  const [examDate, setExamDate] = useState(() => isoOf(addDays(DEFAULT_EXAM_LEAD_DAYS)));
   const [target, setTarget] = useState(75);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
   const [modalities, setModalities] = useState<ChosenModality[]>([]);
@@ -1164,6 +1167,7 @@ export function ExamCreateWizard({
             modality: modalities[0] ?? "auto",
             modalities,
             language,
+            ...(examTrack ? { examTrack } : {}),
           },
         }),
       });
@@ -1284,6 +1288,19 @@ export function ExamCreateWizard({
         <section className="apw-step">
           <h1>Hangi ders?</h1>
           <p className="apw-lead">Sınav hazırlığın bu dersin altında toplanır.</p>
+          <div className="apw-quick" role="group" aria-label="Sınav türü">
+            {EXAM_TRACKS.map((track) => (
+              <button
+                key={track.id}
+                type="button"
+                className={examTrack === track.id ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
+                aria-pressed={examTrack === track.id}
+                onClick={() => setExamTrack(track.id)}
+              >
+                {track.label}
+              </button>
+            ))}
+          </div>
           <input
             className="apw-search"
             value={subjectQuery}
@@ -2281,6 +2298,7 @@ function DateStep({
     { label: "3 gün sonra", days: 3 },
     { label: "1 hafta sonra", days: 7 },
     { label: "2 hafta sonra", days: 14 },
+    { label: "30 gün sonra", days: DEFAULT_EXAM_LEAD_DAYS },
   ];
 
   const todayIso = isoOf(new Date());

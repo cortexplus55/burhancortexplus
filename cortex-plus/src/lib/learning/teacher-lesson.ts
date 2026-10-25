@@ -191,6 +191,18 @@ export const MNEMONIC_EXAMPLES =
  * formüldü, tuzak / çivi / kaydırma hiç yazılmamıştı. Kota artık zorunlu: ders düşmez, kapanış bir
  * öğretim turu açar. Yazar ve denetçi aynı metni okur.
  */
+/**
+ * Yapılandırılmış şema (P2-5). Yazar ve denetçi aynı metni okur.
+ * Düzen konunun yapısından seçilir; ders adına göre dal yoktur.
+ * Koordinat yok. Etiket kaynaktaki terimdir; yeni sayı ya da kural eklenmez.
+ */
+export const DIAGRAM_LAYOUT_RULE =
+  "YAPILANDIRILMIŞ ŞEMA (zorunlu, her derste en az bir): Konunun yapısına uyan bir diagram bloğu yaz " +
+  "(type diagram_card de olur). layout yalnız flow (süreç, evre, kronoloji, adım; düğümler sırayla), " +
+  "cycle (döngü; son düğüm başa döner), matrix (satır ve sütun başlıklı ilişki; hücre etiketi) ya da " +
+  "tree (kökten dallanan sınıflandırma). Koordinat yazma. Etiketler kaynaktaki terimler; kaynakta olmayan " +
+  "sayı, kural ya da sonuç ekleme. İlk ekranı şişirme; şemayı sonraki kavrama koy.\n\n";
+
 export const VISUAL_BLOCK_RULE =
   "GÖRSEL KARTLAR (zorunlu; yeni bilgi taşımaz): Her ders en az 2, hedef 3 görsel kart üretir. Düz paragraf " +
   "kartın yerine geçmez. İlk kavram tek ekran ve kısa kalır; kartları sonraki kavramlara dağıt, ilk ekranı " +
@@ -209,7 +221,8 @@ export const VISUAL_BLOCK_RULE =
   "Formül yoksa tuzak + çivi + kaydırma ile 3 karta çık. İki kart yetmezse üçüncüyü eksik türden yaz. En az " +
   "biri tuzak, çivi ya da kaydırma olsun; yalnız formül kotayı doldurmaz. Belge dışı tamamlayıcı bilgi yalnız " +
   "'note' tone 'general' (type 'general_knowledge_box' de olur); başlık 'Genel bilgi: …'. Tuzak kartındaki " +
-  "wrong alanı bilerek yanlış inançtır, olgu değildir.\n\n";
+  "wrong alanı bilerek yanlış inançtır, olgu değildir.\n\n" +
+  DIAGRAM_LAYOUT_RULE;
 
 export const EMPHASIS_RULE =
   "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
@@ -490,7 +503,8 @@ export const VERIFY_SYSTEM =
   `K) ${VISUAL_BLOCK_RULE}` +
   "Görsel kart yeni sayı, kural ya da sonuç taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış " +
   "inançtır, A sayma. 2 karttan azsa ya da tuzak, çivi ve kaydırma hiç yoksa 'medium' yaz; problem 'Görsel kart " +
-  "eksik' diye başlasın. Kartlar duruyorsa yokluk yazma. Dersi düşürme, kavramı atma.\n" +
+  "eksik' diye başlasın. Kartlar duruyorsa yokluk yazma. flow, cycle, matrix ya da tree şeması yoksa 'medium' yaz; " +
+  "problem 'Yapılandırılmış şema eksik' diye başlasın. Dersi düşürme, kavramı atma.\n" +
   "A-I 'high'; J ve görsel kart eksiği 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca, ekranda 2'den fazla " +
   "==vurgu== ya da sınavlık olmayan bilgiye vurgu.\n" +
   CALIBRATION +
@@ -514,7 +528,8 @@ export const TOPIC_VERIFY_SYSTEM =
   `I) ${VISUAL_BLOCK_RULE}` +
   "Görsel kart yanlış bilgi taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış inançtır. 2 karttan " +
   "azsa ya da tuzak, çivi ve kaydırma hiç yoksa 'medium' yaz; problem 'Görsel kart eksik' diye başlasın. Kartlar " +
-  "duruyorsa yokluk yazma.\n" +
+  "duruyorsa yokluk yazma. flow, cycle, matrix ya da tree şeması yoksa 'medium' yaz; problem 'Yapılandırılmış şema eksik' " +
+  "diye başlasın.\n" +
   "A-G 'high'; H 'medium'. Görsel kart eksiği de 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca.\n" +
   CALIBRATION +
   "Kurumlar ya da kılavuz sürümleri arasında küçük farklar olan bir eşikte ders yaygın kabul gören değeri veriyorsa " +
@@ -1530,6 +1545,8 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
   const quota = visualCardQuotaIssue(lesson);
   if (quota) issues.push(quota);
+  const diagram = structuredDiagramIssue(lesson);
+  if (diagram) issues.push(diagram);
   return issues;
 }
 
@@ -1545,6 +1562,27 @@ const VISUAL_QUOTA_TYPES = new Set<LessonBlock["type"]>([
  * Ders başına en az 2 görsel kart, en az biri tuzak / çivi / kaydırma (25 Ekim 2026).
  * Orta önem: kapanışta bir öğretim turu açar, kavramı düşürmez. İlk kavram beklerken tur açılmaz.
  */
+/** En az bir flow / cycle / matrix / tree. Serbest şekil bu kotayı doldurmaz. Önem orta: ders düşmez. */
+export function structuredDiagramIssue(lesson: LessonV3): TeacherIssue | null {
+  if (!lesson.screens.length) return null;
+  const found = lesson.screens.some((screen) =>
+    screen.blocks.some(
+      (block) =>
+        block.type === "diagram" &&
+        (block.diagram.layout === "flow" ||
+          block.diagram.layout === "cycle" ||
+          block.diagram.layout === "matrix" ||
+          block.diagram.layout === "tree"),
+    ),
+  );
+  if (found) return null;
+  return {
+    where: `screens[${lesson.screens.length - 1}]`,
+    severity: "medium",
+    problem: `Yapılandırılmış şema eksik. ${DIAGRAM_LAYOUT_RULE}`,
+  };
+}
+
 export function visualCardQuotaIssue(lesson: LessonV3): TeacherIssue | null {
   if (!lesson.screens.length) return null;
   const cards = lesson.screens.flatMap((screen) => screen.blocks.filter((block) => VISUAL_QUOTA_TYPES.has(block.type)));

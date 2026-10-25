@@ -37,6 +37,8 @@ export type ProgressAttempt = {
 export type ProgressGap = {
   claim: string;
   topicLabel: string | null;
+  /** Öğrencinin ham cevabı. Başlık değildir. */
+  detail?: string | null;
 };
 
 export type PrepProgressView = {

@@ -209,10 +209,13 @@ describe("Soru-cevap ücretsizde yazılı başlar (#10, #12)", () => {
     expect(screen.queryByText("Hakkın yenilenene kadar:")).toBeNull();
   });
 
-  it("Plus'ta sesli mod açık başlar", () => {
+  it("Plus'ta da soru-cevap metinle başlar; mikrofon sesi açar", () => {
     renderQa(account({ audience: "plus", isPremium: true, freeMeters: undefined }));
-    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+    const toggle = screen.getByRole("checkbox") as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
     expect(screen.getByText("Yazmak yerine konuş")).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(toggle.checked).toBe(true);
   });
 });
 

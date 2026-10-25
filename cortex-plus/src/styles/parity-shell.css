@@ -10821,6 +10821,11 @@
   font-size: 0.8rem;
 }
 
+.cp-path-section-when {
+  color: var(--cp-text);
+  font-weight: 600;
+}
+
 .cp-path-section-chevron {
   flex: none;
   transition: transform 0.2s ease;
@@ -13862,7 +13867,7 @@ a.cp-exam-search {
   border-radius: 12px 12px 0 0;
   background: linear-gradient(to top, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
   transform: translateX(-50%);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .cp-path-beam-icon {
@@ -13883,6 +13888,18 @@ a.cp-exam-search {
 
 .cp-path-beam-icon .cp-path-letters {
   font-size: 0.55rem;
+}
+
+.cp-path-when {
+  position: absolute;
+  top: calc(50% + 2.35rem);
+  left: 50%;
+  font: var(--t-label-13);
+  letter-spacing: var(--ls-label);
+  color: var(--c-text-muted);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .cp-path-done-label {

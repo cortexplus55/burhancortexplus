@@ -110,6 +110,7 @@ import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
 import { knownCardCount, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { elapsedMinutes } from "@/lib/learning/activity-duration";
+import { replayLabel, startActionLabel } from "@/lib/learning/feedback-copy";
 import { NodeSources, type NodeSource } from "@/components/parity/node-sources";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
 import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
@@ -331,7 +332,7 @@ export function ExamNodeSession({
   // Ses ücretsiz hesapta açılmaz (VOICE_TURN Plus'ta, 24 Ekim 2026): Soru-cevap yazılı başlar, satır
   // "Plus'ta" der. Hesap bilinmiyorsa (kabuk yok) sunucu karar verir.
   const voiceLocked = Boolean(meta.voice && shellAccount && !shellAccount.isPremium && !shellAccount.isAdmin);
-  const [voiceMode, setVoiceMode] = useState(meta.voice && !voiceLocked);
+  const [voiceMode, setVoiceMode] = useState(kind === "oral" && meta.voice && !voiceLocked);
   const [oralSelected, setOralSelected] = useState<string[]>(() => {
     if (!requestedTopic) return [];
     const hit = oralTopics.find((topic) => topicLabelsMatch(requestedTopic, topic.label));
@@ -1391,15 +1392,7 @@ export function ExamNodeSession({
               disabled={loading}
               onClick={() => void start()}
             >
-              {loading
-                ? "Hazırlanıyor…"
-                : kind === "podcast"
-                  ? "Podcast oluştur"
-                  : kind === "flashcards"
-                    ? "Kartları oluştur"
-                    : kind === "written_exam"
-                      ? "Denemeyi oluştur"
-                      : "Testi oluştur"}
+              {loading ? "Hazırlanıyor…" : startActionLabel(kind)}
             </button>
           )}
           {generationError ? (
@@ -1490,8 +1483,8 @@ export function ExamNodeSession({
           <section>
             <h1>{payload.title}</h1>
             <ExamLessonBody content={payload.contentMd ?? ""} />
-            <button type="button" className="cp-exam-continue cp-exam-continue--primary" onClick={() => void finish()}>
-              Bitir
+            <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} aria-busy={loading} onClick={() => void finish()}>
+              {loading ? "Kaydediliyor…" : "Bitir"}
             </button>
           </section>
         )
@@ -1659,13 +1652,16 @@ export function ExamNodeSession({
               <button
                 type="button"
                 className="cp-exam-continue cp-exam-continue--primary mt-2"
+                disabled={loading}
+                aria-busy={loading}
                 onClick={() => {
+                  if (loading) return;
                   setTfRevealed(false);
                   if (index + 1 < items.length) setIndex(index + 1);
                   else void finish();
                 }}
               >
-                {index + 1 < items.length ? "Sonraki soru" : "Bitir"}
+                {loading ? "Kaydediliyor…" : index + 1 < items.length ? "Sonraki soru" : "Bitir"}
               </button>
             </div>
           ) : null}
@@ -2012,7 +2008,7 @@ export function ExamNodeSession({
               // Ders aynı haliyle yeniden açılır (anında, kredisiz); öbür etkinlikler yeniden kurulur.
               if (kind === "lesson") void start({ replay: true });
             }}>
-              {kind === "podcast" ? "Yeniden dinle" : "Dersi tekrarla"}
+              {replayLabel(kind)}
             </button>
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" onClick={() => {
@@ -2110,7 +2106,7 @@ export function ExamNodeSession({
             </p>
           ) : null}
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
-          {attemptId ? <LessonRatingCard attemptId={attemptId} /> : null}
+          {attemptId ? <LessonRatingCard attemptId={attemptId} kind={kind} /> : null}
           {/* Astra her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
               2026). Düello sayfasına gider; kurmak öğrencinin kararı. */}
           <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-exam-challenge">

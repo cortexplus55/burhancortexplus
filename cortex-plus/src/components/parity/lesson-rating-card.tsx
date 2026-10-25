@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { ratingPrompt } from "@/lib/learning/feedback-copy";
 
 const OPTIONS = [
   { id: "great", emoji: "👍", label: "Harikaydı" },
@@ -15,7 +16,8 @@ const OPTIONS = [
  * "Bu dersi nasıl buldun?" — Astra'nın sonuç ekranındaki anket.
  * Cevap denemenin kaydına yazılıyor (`/api/learning/exam-prep/rating`).
  */
-export function LessonRatingCard({ attemptId }: { attemptId: string }) {
+export function LessonRatingCard({ attemptId, kind = "lesson" }: { attemptId: string; kind?: string }) {
+  const question = ratingPrompt(kind);
   const [chosen, setChosen] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -38,13 +40,13 @@ export function LessonRatingCard({ attemptId }: { attemptId: string }) {
   return (
     <div className="cp-rating-card">
       <p className="cp-rating-lead">Öğrenme planını geliştirmemize yardım et</p>
-      <p className="cp-rating-question">Bu dersi nasıl buldun?</p>
+      <p className="cp-rating-question">{question}</p>
       {chosen ? (
         <p className="cp-rating-thanks" role="status">
           Teşekkürler, kaydettik.
         </p>
       ) : (
-        <div className="cp-rating-options" role="group" aria-label="Bu dersi nasıl buldun?">
+        <div className="cp-rating-options" role="group" aria-label={question}>
           {OPTIONS.map((option) => (
             <button
               key={option.id}

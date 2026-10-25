@@ -7,6 +7,40 @@ import type { MockExamBlueprint, MockTopicSlot } from "@/lib/learning/mock-exam/
 import { presetPlan, type ParsedExamFormat } from "@/lib/learning/mock-exam/blueprint";
 import type { MockLengthPreset } from "@/lib/learning/mock-exam/types";
 
+/** Kaynak kaydındaki sınav ağırlığı. Kurulum önizlemesi ve üretim aynı fonksiyonu okur. */
+export function weightFromTopicRefs(raw: unknown): { percent: number | null; heavy: boolean } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const list = Array.isArray(raw) ? raw : [raw];
+  for (const item of list) {
+    if (item && typeof item === "object" && "weightPercent" in item) {
+      const percent = Number((item as { weightPercent?: unknown }).weightPercent);
+      return {
+        percent: Number.isFinite(percent) ? percent : null,
+        heavy: Boolean((item as { examHeavy?: unknown }).examHeavy),
+      };
+    }
+  }
+  return null;
+}
+
+/** Duyurulan kota ile üretim aynı slottan başlar. */
+export function slotFromTopicRow(row: {
+  id: string;
+  label: string;
+  sourceRefs?: unknown;
+  passageChars?: number;
+}): MockTopicSlot {
+  const weight = weightFromTopicRefs(row.sourceRefs);
+  return {
+    topicId: row.id === "studio" ? null : row.id,
+    topicLabel: row.label,
+    weightPercent: weight?.percent ?? null,
+    examHeavy: weight?.heavy ?? false,
+    outOfScope: false,
+    passageChars: row.passageChars && row.passageChars > 0 ? row.passageChars : 100,
+  };
+}
+
 export function allocateQuestions(
   topics: MockTopicSlot[],
   totalQuestions: number,

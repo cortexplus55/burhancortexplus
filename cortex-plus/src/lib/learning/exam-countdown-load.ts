@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
-import { resolveExamCountdown, type ExamCountdown } from "@/lib/learning/exam-countdown";
+import { resolveExamCountdown, type CountdownCandidate, type ExamCountdown } from "@/lib/learning/exam-countdown";
 
 /**
  * Aktif `exam_preps.exam_date` varsa onu, yoksa `learning_goals.target_date`.
@@ -18,18 +18,17 @@ export async function loadNearestExamCountdown(
     day: "2-digit",
   }).format(new Date());
 
-  const [{ data: prep }, { data: goal }] = await Promise.all([
+  const [{ data: preps }, { data: goal }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("title, exam_date")
+      .select("title, exam_date, created_at")
       .eq("user_id", userId)
       .neq("exam_type", "hedef")
       .neq("exam_type", STUDIO_EXAM_TYPE)
       .not("exam_date", "is", null)
       .gte("exam_date", today)
       .order("exam_date", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
+      .limit(20),
     supabase
       .from("learning_goals")
       .select("target_date")
@@ -40,9 +39,17 @@ export async function loadNearestExamCountdown(
       .maybeSingle(),
   ]);
 
+  const candidates: CountdownCandidate[] = (preps ?? []).flatMap((row) => {
+    if (typeof row.exam_date !== "string") return [];
+    return [{
+      examDate: row.exam_date,
+      title: typeof row.title === "string" ? row.title : null,
+      createdAt: typeof row.created_at === "string" ? row.created_at : null,
+    }];
+  });
+
   return resolveExamCountdown({
-    prepExamDate: typeof prep?.exam_date === "string" ? prep.exam_date : null,
-    prepTitle: typeof prep?.title === "string" ? prep.title : null,
-    goalTargetDate: typeof goal?.target_date === "string" ? goal.target_date : null,
+    candidates,
+    goalTargetDate: candidates.length ? null : typeof goal?.target_date === "string" ? goal.target_date : null,
   });
 }

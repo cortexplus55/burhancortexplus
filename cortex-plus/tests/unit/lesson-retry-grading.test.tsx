@@ -134,8 +134,8 @@ describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve 
     await waitFor(() => expect(screen.getByText(/Doğru/i)).toBeTruthy());
     expect(gradeCheck).toHaveBeenCalledWith(0, expect.objectContaining({ pick: expect.any(Number) }), "retry");
     expect(screen.queryByText(/🤔 Yanlış/)).toBeNull();
-    expect(screen.getByText(/Neden Doğru/i)).toBeTruthy();
-    const explain = screen.getByText(/Neden Doğru/i).parentElement;
+    expect(screen.getByText("Çözüm Mantığı")).toBeTruthy();
+    const explain = screen.getByText("Çözüm Mantığı").parentElement;
     expect(explain?.textContent?.replace(/\s+/g, " ").trim().length).toBeGreaterThan(20);
   });
 

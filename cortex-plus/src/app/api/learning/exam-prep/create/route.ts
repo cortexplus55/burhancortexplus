@@ -51,6 +51,7 @@ const prefsSchema = z
       .optional(),
     modalities: z.array(z.enum(["reading", "listening", "watching", "practice"])).max(4).optional(),
     language: z.enum(["tr", "en"]).optional(),
+    examTrack: z.enum(["tyt", "ayt", "yks", "kpss", "tus", "lgs", "ales", "uni"]).optional(),
   })
   .optional();
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import type { PrepProgressView } from "@/lib/learning/prep-progress-view";
+import { gapLines } from "@/lib/learning/feedback-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
 import type { PrepRadarView } from "@/lib/learning/prep-radar";
@@ -162,12 +163,15 @@ export function ExamPrepProgress({
               <>
                 <h3>{view.gaps.length} eksik belirlendi</h3>
                 <ul className="cp-prog-gaps">
-                  {view.gaps.map((gap, index) => (
-                    <li key={`${gap.claim}-${index}`}>
-                      {gap.topicLabel ? <span>{gap.topicLabel}</span> : null}
-                      {gap.claim}
-                    </li>
-                  ))}
+                  {view.gaps.map((gap, index) => {
+                    const lines = gapLines(gap);
+                    return (
+                      <li key={`${lines.title}-${index}`}>
+                        <strong>{lines.title}</strong>
+                        {lines.detail ? <p>{lines.detail}</p> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
                 {reviewsHref ? (
                   <Link href={reviewsHref} className="cp-back-pill">

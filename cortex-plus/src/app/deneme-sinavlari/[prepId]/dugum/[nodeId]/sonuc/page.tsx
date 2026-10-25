@@ -9,6 +9,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepLessonReplayHref, examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
 import { nodeResultView } from "@/lib/learning/node-result";
+import { replayLabel } from "@/lib/learning/feedback-copy";
 import { mockReviewHref } from "@/lib/learning/mock-exam/prep-node-link";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -102,7 +103,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
             className="cp-node-result-pill"
           >
             <RotateCcw className="h-4 w-4" aria-hidden />
-            Dersi tekrarla
+            {replayLabel(node.kind)}
           </Link>
           {node.kind === "lesson" ? (
             <Link href={examPrepNodeHref(prepId, nodeId)} className="cp-node-result-pill">
@@ -117,7 +118,7 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
         </div>
         <div className="cp-node-result-rating">
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
-          <LessonRatingCard attemptId={attempt.id as string} />
+          <LessonRatingCard attemptId={attempt.id as string} kind={node.kind} />
         </div>
         <Link href={back} className="cp-node-result-go">
           Devam et

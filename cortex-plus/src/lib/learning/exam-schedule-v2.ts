@@ -9,6 +9,7 @@ import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
 import { sourceCitation } from "@/lib/learning/path-source-label";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
+import { pinFinalSessionsInPlace } from "@/lib/learning/path-dates";
 import {
   extraPracticeForTarget,
   masteryBarForTarget,
@@ -698,6 +699,9 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       );
     }
   }
+
+  // Hazırlık geneli oturum (deneme) son yedi çalışma gününde. Konu sırası değişmez.
+  pinFinalSessionsInPlace(sessions, studyDayDates);
 
   // Yolun sırası konu konu (dersler, testler, tekrar), en sonda deneme. İki geçiş oturumları
   // karışık sırayla üretti; sıra numarası burada konu sırasına göre yeniden verilir.

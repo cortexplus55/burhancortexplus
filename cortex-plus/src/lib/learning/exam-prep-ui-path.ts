@@ -76,6 +76,8 @@ export type LearningPreferencesView = {
    */
   modalities?: Exclude<StudyModality, "auto">[];
   language?: "tr" | "en";
+  /** TYT, AYT, KPSS… Ders adından ayrı. */
+  examTrack?: "tyt" | "ayt" | "yks" | "kpss" | "tus" | "lgs" | "ales" | "uni";
 };
 
 const CHOSEN_MODALITIES = ["reading", "listening", "watching", "practice"] as const;
@@ -105,6 +107,17 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
       ? o.modality
       : undefined;
   const language = o.language === "tr" || o.language === "en" ? o.language : undefined;
+  const examTrack =
+    o.examTrack === "tyt" ||
+    o.examTrack === "ayt" ||
+    o.examTrack === "yks" ||
+    o.examTrack === "kpss" ||
+    o.examTrack === "tus" ||
+    o.examTrack === "lgs" ||
+    o.examTrack === "ales" ||
+    o.examTrack === "uni"
+      ? o.examTrack
+      : undefined;
   const listed: Exclude<StudyModality, "auto">[] = Array.isArray(o.modalities)
     ? [...new Set((o.modalities as unknown[]).filter(isChosenModality))]
     : [];
@@ -114,7 +127,7 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
     : isChosenModality(single)
       ? [single]
       : [];
-  return { style, pace, notes, modality, modalities, language };
+  return { style, pace, notes, modality, modalities, language, examTrack };
 }
 
 export type TopicProgress = {

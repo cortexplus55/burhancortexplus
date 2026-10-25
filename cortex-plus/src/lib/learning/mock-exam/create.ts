@@ -5,6 +5,7 @@ import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { loadMergedTopicContext, loadTopicSpanContext } from "@/lib/learning/source-context";
 import {
   allocateQuestions,
+  slotFromTopicRow,
   buildBlueprint,
   defaultSlots,
   filterOverlappingQuestions,
@@ -21,6 +22,7 @@ import {
 import { mockProgressCounter, type MockExamProgress } from "@/lib/learning/mock-exam/progress";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
+import { dropNearDuplicates } from "@/lib/learning/item-dedup";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -104,16 +106,9 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
   const excluded = exclusionTitles(syllabusText);
 
   const slots: MockTopicSlot[] = topics.map((t) => {
-    const weight = weightFromRefs(t.source_refs);
-    const outOfScope = excluded.some((ex) => titlesAlign(ex, t.label));
-    return {
-      topicId: t.id === "studio" ? null : t.id,
-      topicLabel: t.label,
-      weightPercent: weight?.percent ?? null,
-      examHeavy: weight?.heavy ?? false,
-      outOfScope,
-      passageChars: 100,
-    };
+    const slot = slotFromTopicRow({ id: t.id, label: t.label, sourceRefs: t.source_refs });
+    slot.outOfScope = excluded.some((ex) => titlesAlign(ex, t.label));
+    return slot;
   });
 
   // Pasaj uzunluklarını doldur (konular birbirini beklemez).
@@ -199,7 +194,7 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
       for (const part of parts) drafts.push(...part);
     }
 
-    let questions = filterOverlappingQuestions(drafts);
+    let questions = dropNearDuplicates(filterOverlappingQuestions(drafts), (question) => question.text);
     // Kaynaksız soru yayımlama
     questions = questions.filter((q) => q.source.label.trim().length > 0);
 
@@ -235,10 +230,13 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
           }),
         ),
       );
-      questions = filterOverlappingQuestions([
-        ...questions,
-        ...extra.flat().filter((q) => q.source.label.trim()),
-      ]).slice(0, planned);
+      questions = dropNearDuplicates(
+        filterOverlappingQuestions([
+          ...questions,
+          ...extra.flat().filter((q) => q.source.label.trim()),
+        ]),
+        (question) => question.text,
+      ).slice(0, planned);
     }
 
     const ready = questions.length;
@@ -479,8 +477,8 @@ async function openDrafts(
 const TOPUP_DEADLINE_MS = 150_000;
 
 /**
- * Eksik soruların kimden isteneceği: hiç soru vermeyen konu kendisi (konu denemede yer alsın);
- * öteki eksikler kendi payını tam veren konulara sırayla dağılır. Tam veren konu yoksa eksik konular.
+ * Eksik soru kotası dolmamış konuda tamamlanır. Kotası dolmuş konuya soru eklenmez.
+ * Duyurulan dağılım böylece üretimde korunur (P2-7).
  */
 export function topUpTargets<R extends { topicLabel: string; count: number }>(
   allocation: R[],
@@ -488,21 +486,17 @@ export function topUpTargets<R extends { topicLabel: string; count: number }>(
   missingTotal: number,
 ): { row: R; missing: number }[] {
   const got = (row: R) => have.get(row.topicLabel) ?? 0;
-  const empty = allocation.filter((row) => row.count > 0 && got(row) === 0);
-  const healthy = allocation.filter((row) => row.count > 0 && got(row) >= row.count);
-  const partial = allocation.filter((row) => got(row) > 0 && got(row) < row.count);
+  const short = allocation
+    .map((row, index) => ({ row, index, deficit: row.count - got(row) }))
+    .filter((item) => item.row.count > 0 && item.deficit > 0)
+    .sort((a, b) => b.deficit - a.deficit || a.index - b.index);
   const counts = new Map<R, number>();
   let left = missingTotal;
-  for (const row of empty) {
+  for (const item of short) {
     if (left <= 0) break;
-    const take = Math.min(row.count, left);
-    counts.set(row, take);
+    const take = Math.min(item.deficit, left);
+    counts.set(item.row, take);
     left -= take;
-  }
-  const pool = healthy.length ? healthy : partial.length ? partial : allocation.slice(0, 1);
-  for (let index = 0; left > 0 && pool.length; index += 1, left -= 1) {
-    const row = pool[index % pool.length]!;
-    counts.set(row, (counts.get(row) ?? 0) + 1);
   }
   return [...counts].map(([row, missing]) => ({ row, missing }));
 }
@@ -575,22 +569,6 @@ async function loadSyllabusSnippet(
   } catch {
     return "";
   }
-}
-
-function weightFromRefs(raw: unknown): { percent: number | null; heavy: boolean } | null {
-  if (!raw || typeof raw !== "object") return null;
-  if (Array.isArray(raw)) {
-    for (const item of raw) {
-      if (item && typeof item === "object" && "weightPercent" in item) {
-        const percent = Number((item as { weightPercent?: unknown }).weightPercent);
-        return {
-          percent: Number.isFinite(percent) ? percent : null,
-          heavy: Boolean((item as { examHeavy?: unknown }).examHeavy),
-        };
-      }
-    }
-  }
-  return null;
 }
 
 function asRefs(raw: unknown): Array<{ documentId?: string; pages?: number[]; nodeId?: string }> {

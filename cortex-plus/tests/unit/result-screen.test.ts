@@ -16,7 +16,7 @@ describe("sonuç ekranı (Astra düzeni, 30 Eylül 2026)", () => {
   it("büyük skor, doğruluk ve süre satırları ile anket çiziliyor", () => {
     expect(session).toContain('className="cp-result-hero"');
     expect(session).toContain("<dt>Harcanan zaman</dt>");
-    expect(session).toContain("<LessonRatingCard attemptId={attemptId} />");
+    expect(session).toContain("<LessonRatingCard attemptId={attemptId} kind={kind} />");
   });
 
   it("anket yalnızca öğrencinin kendi denemesine yazılıyor", () => {

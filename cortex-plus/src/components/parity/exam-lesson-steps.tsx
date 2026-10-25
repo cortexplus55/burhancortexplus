@@ -10,6 +10,7 @@ import { prepStars } from "@/lib/stars/rules";
 import { ComparisonCarousel, ExamTrapCard, FormulaCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
+import { cleanFeedbackText, feedbackKicker } from "@/lib/learning/feedback-copy";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import {
   calloutTone,
@@ -691,6 +692,7 @@ export function ExamLessonSteps({
   const [written, setWritten] = useState("");
   const [recallDraft, setRecallDraft] = useState("");
   const [grading, setGrading] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [gradeResult, setGradeResult] = useState<GradeCheckResult | null>(null);
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
@@ -800,8 +802,9 @@ export function ExamLessonSteps({
 
   function next() {
     // Bekleme kartında ilerlenmez: sıradaki kavram gelince kart onun yerini alır.
-    if (step.kind === "building") return;
+    if (step.kind === "building" || advancing) return;
     if (last) {
+      setAdvancing(true);
       onFinish?.(missed, lessonAnswers, retryAnswers);
       return;
     }
@@ -1475,21 +1478,21 @@ export function ExamLessonSteps({
       {revealed && check && ungradable ? (
         <div className="als-feedback" role="status">
           <span>{gradeResult?.message ?? "Notlandırılamadı. Yeniden dene."}</span>
-          <button type="button" className="als-cta als-cta--inline" onClick={next}>
-            Devam et <CornerDownLeft className="h-4 w-4" aria-hidden />
+          <button type="button" className="als-cta als-cta--inline" onClick={next} disabled={advancing} aria-busy={advancing}>
+            {advancing ? "Kaydediliyor…" : "Devam et"} {!advancing ? <CornerDownLeft className="h-4 w-4" aria-hidden /> : null}
           </button>
         </div>
       ) : revealed && check && hasVerdict ? (
         <div className={correct ? "als-feedback is-right" : "als-feedback is-wrong"} role="status">
           <span>{correct ? "🎉 Harika!" : "🤔 Yanlış"}</span>
-          <button type="button" className="als-cta als-cta--inline" onClick={next}>
-            Devam et <CornerDownLeft className="h-4 w-4" aria-hidden />
+          <button type="button" className="als-cta als-cta--inline" onClick={next} disabled={advancing} aria-busy={advancing}>
+            {advancing ? "Kaydediliyor…" : "Devam et"} {!advancing ? <CornerDownLeft className="h-4 w-4" aria-hidden /> : null}
           </button>
         </div>
       ) : mustAnswer || step.kind === "building" ? null : (
-        <button type="button" className="als-cta" onClick={next}>
-          {step.kind === "review-gate" ? "Başla" : last ? "Dersi bitir" : "Devam et"}
-          <CornerDownLeft className="h-4 w-4" aria-hidden />
+        <button type="button" className="als-cta" onClick={next} disabled={advancing} aria-busy={advancing}>
+          {advancing ? "Kaydediliyor…" : step.kind === "review-gate" ? "Başla" : last ? "Dersi bitir" : "Devam et"}
+          {!advancing ? <CornerDownLeft className="h-4 w-4" aria-hidden /> : null}
         </button>
       )}
 
@@ -1544,7 +1547,7 @@ function Explanation({
   const options = check.options ?? ("lines" in check ? check.lines : undefined) ?? [];
   const wrongBody = (pickedWhy || whyWrong || explanation).trim();
   const rightBody = (answerWhy || (structured && whyRight ? whyRight : explanation)).trim();
-  const body = wrong ? wrongBody : rightBody;
+  const body = cleanFeedbackText(wrong ? wrongBody : rightBody);
   // "Doğrusu" açıklamanın kendisini tekrar ediyorsa gösterilmez (19 Ekim 2026, canlı ders).
   const showCorrected = Boolean(corrected) && !nearDuplicateSentence(corrected, body);
   // Boş AÇIKLAMA kutusu gösterme (28 Eyl olayı).
@@ -1557,10 +1560,10 @@ function Explanation({
   }
   return (
     <div className={wrong ? "als-explain" : "als-explain als-explain--why"} aria-live="polite">
-      <p className="als-explain-kicker">{wrong ? "AÇIKLAMA" : "Neden Doğru? (Çözüm Mantığı)"}</p>
-      {wrong && hint?.trim() ? (
+      <p className="als-explain-kicker">{feedbackKicker(!wrong)}</p>
+      {wrong && cleanFeedbackText(hint ?? "") ? (
         <p className="als-hint-first">
-          <span className="als-tag">İpucu</span> {hint.trim()}
+          <span className="als-tag">{feedbackKicker(false)}</span> {cleanFeedbackText(hint ?? "")}
         </p>
       ) : null}
       {wrong ? (

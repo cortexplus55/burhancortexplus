@@ -36,6 +36,7 @@ import {
 import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
 import { prepDailyMinutes, prepStudyDays } from "@/lib/learning/exam-schedule-v2";
+import { shouldShowLevelNode } from "@/lib/learning/path-level";
 import { materialKindLabel, prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import {
   formatContradictions,
@@ -98,7 +99,7 @@ export default async function ExamPrepDetailPage({
   const { data: prep } = await supabase
     .from("exam_preps")
     .select(
-      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, intro_deferred_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences",
+      "id, title, exam_type, study_plan_id, exam_date, created_at, active_topic_id, intro_completed_at, intro_deferred_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences",
     )
     .eq("id", prepId)
     .eq("user_id", user.id)
@@ -357,7 +358,7 @@ export default async function ExamPrepDetailPage({
     withOpenMisconceptions((onlyOpen) => {
       const query = supabase
         .from("exam_prep_misconceptions")
-        .select("claim, topic_label")
+        .select("claim, topic_label, question_preview")
         .eq("exam_prep_id", prepId);
       return (onlyOpen ? query.is("resolved_at", null) : query)
         .order("created_at", { ascending: false })
@@ -397,6 +398,7 @@ export default async function ExamPrepDetailPage({
     gaps: (gapRows ?? []).map((row) => ({
       claim: String(row.claim ?? ""),
       topicLabel: (row.topic_label as string | null) ?? null,
+      detail: (row.question_preview as string | null) ?? null,
     })),
     examDate: (prep.exam_date as string | null) ?? null,
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
@@ -471,7 +473,8 @@ export default async function ExamPrepDetailPage({
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}
-        introPending={!prep.intro_completed_at}
+        introPending={shouldShowLevelNode(prep.intro_completed_at as string | null)}
+        createdAt={(prep.created_at as string | null) ?? null}
         startHref={startHref}
         canShare={Boolean(profile?.school_id)}
         initialShared={shareRow?.visibility === "school"}

@@ -11,8 +11,8 @@ describe("Devam et dersi doğrudan açar", () => {
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/page.tsx", "utf8");
     expect(page).toContain("activeTopicId = prepTopics[0].id;");
     expect(page).toContain("const needsIntro = false;");
-    // Seviye tespiti tamamlanana kadar yolun ilk düğümü.
-    expect(page).toContain("introPending={!prep.intro_completed_at}");
+    // Seviye tespiti tamamlanana kadar yolun ilk düğümü. Bitince düğüm kalkar.
+    expect(page).toContain("introPending={shouldShowLevelNode(prep.intro_completed_at as string | null)}");
   });
 
   it("düğüm sayfası tanıya yönlendirmez; ölçümü erteler", () => {

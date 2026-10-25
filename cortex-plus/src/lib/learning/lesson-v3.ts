@@ -116,6 +116,7 @@ export function blockAlias(item: unknown): unknown {
   if (!item || typeof item !== "object") return item;
   const row = item as Record<string, unknown>;
   if (row.type === "formula_card") return { type: "formula", formula: row.formula ?? row.card };
+  if (row.type === "diagram_card") return { type: "diagram", diagram: row.diagram ?? row.card };
   if (row.type === "general_knowledge_box") {
     const note = row.note ?? row.box;
     return { type: "note", note: note && typeof note === "object" ? { ...(note as object), tone: "general" } : note };
@@ -138,6 +139,16 @@ export function visualBlockText(block: LessonBlock): string {
       (slide) => `${slide.title}: ${slide.body}${slide.points?.length ? ` (${slide.points.join("; ")})` : ""}`,
     );
     return [block.carousel.title, ...slides].filter(Boolean).join("\n");
+  }
+  if (block.type === "diagram") {
+    const diagram = block.diagram;
+    if (diagram.layout === "flow" || diagram.layout === "cycle") {
+      return `${diagram.caption}: ${diagram.nodes.map((node) => node.label).join(" → ")}`;
+    }
+    if (diagram.layout === "matrix") {
+      return `${diagram.caption}: ${diagram.cells.map((cell) => cell.label).join(", ")}`;
+    }
+    if (diagram.layout === "tree") return `${diagram.caption}: ${diagram.root.label}`;
   }
   return "";
 }

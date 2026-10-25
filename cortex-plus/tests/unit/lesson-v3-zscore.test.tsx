@@ -151,6 +151,17 @@ const zscore: LessonV3 = {
           },
         },
         {
+          type: "diagram",
+          diagram: {
+            layout: "flow",
+            caption: "Hedef boy hesabının adımları",
+            nodes: [
+              { id: "topla", label: "Anne + baba" },
+              { id: "bol", label: "İkiye böl" },
+            ],
+          },
+        },
+        {
           type: "check",
           check: {
             type: "mcq",
