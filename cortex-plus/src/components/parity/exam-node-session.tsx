@@ -224,6 +224,7 @@ export function ExamNodeSession({
   initialFamiliarity,
   todayMood = null,
   replayLesson = false,
+  reviewSaved = false,
   resumeEnabled = false,
   openAttempt = true,
   sourceName = null,
@@ -251,6 +252,8 @@ export function ExamNodeSession({
   todayMood?: Mood | null;
   /** Sonuç sayfasından "Dersi tekrarla" (?tekrar=1): aynı ders yeniden açılır. */
   replayLesson?: boolean;
+  /** Yoldan "Tekrar incele" (?incele=1): kayıtlı gövde, kredi yok. */
+  reviewSaved?: boolean;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
   resumeEnabled?: boolean;
   /**
@@ -303,7 +306,7 @@ export function ExamNodeSession({
     | "oral-customize"
     | "oral-review-time"
     | "oral-review"
-  >(resumeEnabled && openAttempt ? "restoring" : opensReadiness ? "setup" : isOral ? "oral-topics" : signalStage);
+  >(resumeEnabled && openAttempt ? "restoring" : reviewSaved || opensReadiness ? "setup" : isOral ? "oral-topics" : signalStage);
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
@@ -446,11 +449,11 @@ export function ExamNodeSession({
     if (!resumeEnabled) return;
     let cancelled = false;
     (async () => {
-      if (!openAttempt) {
+        if (!openAttempt) {
         // Açık oturum yok: doğrudan açılış (tekrar isteği de burada başlar).
-        if (kind === "lesson" && replayLesson) {
+        if (reviewSaved || (kind === "lesson" && replayLesson)) {
           setStage("setup");
-          void start({ replay: true });
+          void start(reviewSaved ? { review: true } : { replay: true });
         }
         return;
       }
@@ -490,7 +493,10 @@ export function ExamNodeSession({
         // Fall through to normal setup.
       }
       if (!cancelled) {
-        if (kind === "lesson" && replayLesson) {
+        if (reviewSaved) {
+          setStage("setup");
+          void start({ review: true });
+        } else if (kind === "lesson" && replayLesson) {
           // Sonuç sayfasından "Dersi tekrarla": soru kartları olmadan aynı ders.
           setStage("setup");
           void start({ replay: true });
@@ -504,14 +510,23 @@ export function ExamNodeSession({
     };
     // start her render'da yeni; yalnız açılışta, kayıtlı oturum yoksa bir kez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeEnabled, openAttempt, prepId, nodeId, kind, signalStage, replayLesson]);
+  }, [resumeEnabled, openAttempt, prepId, nodeId, kind, signalStage, replayLesson, reviewSaved]);
+
+  // Özellik kapalıyken de kayıtlı içerik açılsın; kurulum kartı üretim başlatmasın.
+  useEffect(() => {
+    if (!reviewSaved || resumeEnabled) return;
+    setStage("setup");
+    void start({ review: true });
+    // start her render'da yeni; yalnız açılışta bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewSaved, resumeEnabled]);
 
   // Isınma (19 Ekim 2026): ders düğümü açılıp ruh hali / aşinalık ekranı görününce yazım sunucuda
   // hemen başlar; öğrenci kartlara bakarken ilk kavram hazırlanır, "Ders oluştur" devralır.
   // Bir kez; "Dersi tekrarla" hariç (o yazdırmaz). Sunucu süren kayıt ya da hazır ders varsa atlar.
   const warmedRef = useRef(false);
   useEffect(() => {
-    if (kind !== "lesson" || replayLesson || warmedRef.current) return;
+    if (kind !== "lesson" || replayLesson || reviewSaved || warmedRef.current) return;
     // Ruh hali bugün verildiyse açılış doğrudan öneri kartıdır; ısınma orada da başlar.
     if (stage !== "familiarity" && stage !== "mood" && stage !== "recommend") return;
     warmedRef.current = true;
@@ -520,7 +535,7 @@ export function ExamNodeSession({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prepId, nodeId, action: "warm", familiarity, lessonFormat: 3 }),
     }).catch(() => undefined);
-  }, [kind, replayLesson, stage, prepId, nodeId, familiarity]);
+  }, [kind, replayLesson, reviewSaved, stage, prepId, nodeId, familiarity]);
 
   useEffect(() => {
     if (kind !== "readiness" || stage !== "setup" || startInFlight.current) return;
@@ -661,6 +676,8 @@ export function ExamNodeSession({
     mood?: Mood;
     /** "Dersi tekrarla": son ders yeniden açılır, yeniden yazılmaz. */
     replay?: boolean;
+    /** Kayıtlı gövdeyi kredi düşmeden aç. */
+    review?: boolean;
     /** Sunucu düşünce ekranın kendi kendine yaptığı ikinci deneme (bir kez). */
     autoRetried?: boolean;
     /** Üretim yuvaları doluyken ("sıradasın") yapılan bekleme denemelerinin sayısı. */
@@ -684,8 +701,9 @@ export function ExamNodeSession({
           // Bu ekran LessonV3 (ekran → blok) okuyor; eski sekme göndermez, V2 alır.
           lessonFormat: 3,
           // Ders parça parça açılır: ilk denetlenmiş kavram gelince ekran açılır (18 Ekim 2026).
-          ...(kind === "lesson" ? { lessonStream: true } : {}),
+          ...(kind === "lesson" && !overrides?.review ? { lessonStream: true } : {}),
           ...(kind === "lesson" && overrides?.replay ? { replay: true } : {}),
+          ...(overrides?.review ? { review: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
@@ -1162,7 +1180,7 @@ export function ExamNodeSession({
         </section>
       ) : null}
 
-      {stage === "familiarity" || stage === "mood" ? (
+      {!reviewSaved && (stage === "familiarity" || stage === "mood") ? (
         <LessonOpenChrome
           step={stage}
           familiarity={familiarity}
@@ -1183,7 +1201,7 @@ export function ExamNodeSession({
         />
       ) : null}
 
-      {stage === "recommend" ? (
+      {!reviewSaved && stage === "recommend" ? (
         <LessonOpenChrome
           step="recommend"
           recommendedTitle={meta.setupLabel}
@@ -1256,9 +1274,18 @@ export function ExamNodeSession({
         </>
       ) : null}
 
-      {stage === "setup" && loading && kind !== "readiness" ? (
+      {stage === "setup" && !loading && reviewSaved && generationError ? (
+        <section className="cp-exam-empty" role="status">
+          <p>{generationError}</p>
+          <Link href={`/deneme-sinavlari/${prepId}/dugum/${nodeId}/sonuc`} className="cp-exam-continue">
+            Sonuca dön
+          </Link>
+        </section>
+      ) : null}
+
+      {stage === "setup" && (loading || (reviewSaved && !generationError)) && kind !== "readiness" ? (
         <NodeGenerationProgress
-          title={preparingTitle(kind)}
+          title={reviewSaved ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}
           sourceName={sourceName}
           topic={topicLabel}
           note={queueNote ? BUSY_NOTE : undefined}
@@ -1273,7 +1300,7 @@ export function ExamNodeSession({
         </section>
       ) : null}
 
-      {stage === "setup" && !loading && kind === "lesson" ? (
+      {stage === "setup" && !loading && kind === "lesson" && !reviewSaved ? (
         <LessonOpenChrome
           step="create"
           recommendedTitle={meta.setupLabel}
@@ -1291,7 +1318,7 @@ export function ExamNodeSession({
         />
       ) : null}
 
-      {stage === "setup" && !loading && kind !== "lesson" ? (
+      {stage === "setup" && !loading && kind !== "lesson" && !reviewSaved ? (
         <article className="cp-exam-setup-card">
           <p className="cp-lesson-kicker">{prepTitle}</p>
           <h1>{meta.setupLabel}</h1>

@@ -25,6 +25,11 @@ export function examPrepLessonReplayHref(prepId: string, nodeId: string) {
   return `${examPrepNodeHref(prepId, nodeId)}?tekrar=1`;
 }
 
+/** Bitmiş adımın kayıtlı ekranı. Yeni üretim yok, kredi düşmez (25 Ekim 2026). */
+export function examPrepSavedReviewHref(prepId: string, nodeId: string) {
+  return `${examPrepNodeHref(prepId, nodeId)}?incele=1`;
+}
+
 /** Bitmiş etkinliğin sonucu (Astra: "Sonuçları gör" önceki sonucu açar, etkinliği baştan kurmaz). */
 export function examPrepNodeResultHref(prepId: string, nodeId: string) {
   return `/deneme-sinavlari/${prepId}/dugum/${nodeId}/sonuc`;

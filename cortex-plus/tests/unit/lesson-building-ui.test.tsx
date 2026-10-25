@@ -78,7 +78,7 @@ describe("parça parça açılan ders ekranı", () => {
 
   it("ekran yazım sürerken kaydı sorar; açılış isteği parça parça okuyabildiğini söyler", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
-    expect(session).toContain('...(kind === "lesson" ? { lessonStream: true } : {})');
+    expect(session).toContain('...(kind === "lesson" && !overrides?.review ? { lessonStream: true } : {})');
     expect(session).toContain('action: "progress"');
     expect(session).toContain("building={lessonBuilding}");
     // Windows çalışma kopyası CRLF olabilir; satır atlamalı arama satır sonundan bağımsız olsun.

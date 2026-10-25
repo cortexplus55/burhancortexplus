@@ -1289,8 +1289,8 @@ function ChatPanelSession({
     return (
       <div
         className={cn(
-          "flex flex-wrap items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs",
-          compact ? "cp-sor-source-mode mb-2 justify-center" : "mb-2 gap-2 px-3 py-2",
+          "cp-sor-source-mode flex min-w-0 max-w-full flex-wrap items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs",
+          compact ? "mb-2 justify-center" : "mb-2 gap-2 px-3 py-2",
         )}
         role="group"
         aria-label="Kaynak modu"
@@ -1299,23 +1299,27 @@ function ChatPanelSession({
           type="button"
           className={useDocuments && documentsOnly ? on : off}
           aria-pressed={useDocuments && documentsOnly}
+          aria-label="Yalnızca belgem"
           onClick={() => {
             setUseDocuments(true);
             setDocumentsOnly(true);
           }}
         >
-          🔒 Yalnızca belgem
+          <span className="cp-source-full" aria-hidden>🔒 Yalnızca belgem</span>
+          <span className="cp-source-short" aria-hidden>📄 Yalnız Belgem</span>
         </button>
         <button
           type="button"
           className={useDocuments && !documentsOnly ? on : off}
           aria-pressed={useDocuments && !documentsOnly}
+          aria-label="Belgem + genel bilgi"
           onClick={() => {
             setUseDocuments(true);
             setDocumentsOnly(false);
           }}
         >
-          🌐 Belgem + genel bilgi
+          <span className="cp-source-full" aria-hidden>🌐 Belgem + genel bilgi</span>
+          <span className="cp-source-short" aria-hidden>📄+🌐 Belgem + Genel</span>
         </button>
         <button
           type="button"
@@ -1325,9 +1329,11 @@ function ChatPanelSession({
               : off
           }
           aria-pressed={!useDocuments}
+          aria-label="Genel sohbet"
           onClick={() => setUseDocuments(false)}
         >
-          Genel sohbet
+          <span className="cp-source-full" aria-hidden>Genel sohbet</span>
+          <span className="cp-source-short" aria-hidden>🌐 Genel</span>
         </button>
       </div>
     );
@@ -1602,6 +1608,9 @@ function ChatPanelSession({
             {/* Ana sayfa ilk mesaja kadar sade; varsayılan genel sohbet.
                 Bir belgeden gelindiyse seçim baştan görünür. */}
             {showParityEmpty && !examChrome && !initialDocumentId ? null : renderSourceMode(true)}
+            {/* Mod şeridi ders sekmesinin üstünde durur. Sekme, alttaki yazı kutusuna
+                yapışacak biçimde eksi kenar boşluğu taşır; araya girerse şeritlerin üstüne biner. */}
+            <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
             {showSubjectPicker ? (
               <div className="cp-sor-subject-wrap">
                 <button
@@ -1652,8 +1661,6 @@ function ChatPanelSession({
                 </button>
               </div>
             ) : null}
-
-            <TutorModeSwitcher value={tutorStyle} onChange={persistTutorStyle} disabled={loading} />
 
             <form
               className="cp-sor-composer-box"

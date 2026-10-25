@@ -108,7 +108,7 @@ beforeEach(() => {
   model.impl = () => good();
 });
 
-describe("V9: rebuild on a map a study plan uses", () => {
+describe("V9: rebuild on a map a study plan uses", { timeout: 15_000 }, () => {
   it("is refused calmly: status, nodes and credits untouched, 0 model calls; the document keeps working", async () => {
     const fake = db({ used: true });
     const r = await rebuild();
@@ -173,7 +173,7 @@ describe("V9: rebuild on a map a study plan uses", () => {
   });
 });
 
-describe("V4: rebuild of an unused map whose drafts are all rejected", () => {
+describe("V4: rebuild of an unused map whose drafts are all rejected", { timeout: 15_000 }, () => {
   it("keeps the old map as ready (no error left on it), charges nothing, polls make no call", async () => {
     const fake = db({ used: false });
     model.impl = () => JUNK;

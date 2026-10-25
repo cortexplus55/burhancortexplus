@@ -13,12 +13,15 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import {
   FORCE_FIX_CODES,
+  blindKeyMismatches,
   parseQuizIssues,
   parseTeacherQuiz,
   quizFixSystem,
   quizFixUserPrompt,
   quizSetIssues,
   quizStructureIssues,
+  quizAdvocateSystem,
+  quizAdvocateUserPrompt,
   quizSystem,
   quizUserPrompt,
   quizVerifySystem,
@@ -138,18 +141,20 @@ export async function teacherQuizLoop(
     const kept = accepted();
     const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi }));
     let factual: QuizIssue[] = [];
+    const reviewed = candidates.map((slot) => slot.question);
+    // Asıl denetçi açıklamayla birlikte anahtarı da görür. Bağımsız çözücü yalnız kök ve şıkları
+    // alır; duvar saati artmasın diye ikisi aynı anda gider (25 Ekim 2026).
+    const verifyPromise = ask(
+      quizVerifySystem(mode, scope),
+      quizVerifyUserPrompt(reviewed, input, testSoFar()),
+      "verify",
+    );
+    const advocatePromise = ask(quizAdvocateSystem(), quizAdvocateUserPrompt(reviewed), "verify").catch(() => null);
     try {
-      factual = parseQuizIssues(
-        await ask(
-          quizVerifySystem(mode, scope),
-          quizVerifyUserPrompt(
-            candidates.map((slot) => slot.question),
-            input,
-            testSoFar(),
-          ),
-          "verify",
-        ),
-      );
+      factual = [
+        ...parseQuizIssues(await verifyPromise),
+        ...blindKeyMismatches(reviewed, await advocatePromise),
+      ];
     } catch (error) {
       // Denetlenemeyen soru öğrenciye gitmez.
       return candidates.map((slot) => ({

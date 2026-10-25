@@ -6,6 +6,13 @@ import OpenAI from "openai";
 import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
 import { EducationalVerificationError, verifyEducationalContent } from "@/lib/ai/quality-gate";
 import { chatFallbackMessage } from "@/lib/ai/chat-fallback";
+import {
+  chatSolveNeedsGuard,
+  independentSolvePrompt,
+  mergeIndependentSolve,
+  parseIndependentSolve,
+  prepareChatSolution,
+} from "@/lib/ai/chat-solve-check";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { selectModel, contentModel } from "@/lib/ai/model-router";
 import { claimHardUpgrade } from "@/lib/ai/model-upgrade";
@@ -550,6 +557,44 @@ export async function POST(request: Request) {
           : chatFallbackMessage({ isPremium, difficulty: difficulty.level }));
         charge = false;
         citations = [];
+      }
+      // Fotoğraf veya şıklı/sayısal çözüm: cevap yazılmadan aritmetik kural ve,
+      // fotoğrafta, bağımsız sağlama (25 Ekim 2026). İpucu modu ve red cevapları dışarıda.
+      if (charge && chatSolveNeedsGuard({ tutorStyle, hasImage: Boolean(imageUrl), message })) {
+        content = prepareChatSolution(content);
+        try {
+          const checkModel = imageUrl ? env.OPENAI_ADVANCED_MODEL : contentModel();
+          const prompt = independentSolvePrompt(message);
+          const checkUser = imageUrl
+            ? [
+                { type: "text" as const, text: prompt.user },
+                { type: "image_url" as const, image_url: visionImage(imageUrl) },
+              ]
+            : prompt.user;
+          const check = await client.chat.completions.create({
+            model: checkModel,
+            ...samplingParams(checkModel, { temperature: 0, maxTokens: 700 }),
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: prompt.system },
+              { role: "user", content: checkUser },
+            ],
+          }, { signal: request.signal, timeout: 25_000, maxRetries: 0 });
+          tokensIn += check.usage?.prompt_tokens ?? 0;
+          tokensOut += check.usage?.completion_tokens ?? 0;
+          await recordUsage(service, {
+            userId,
+            actionCode,
+            model: checkModel,
+            tokensIn: check.usage?.prompt_tokens ?? 0,
+            tokensOut: check.usage?.completion_tokens ?? 0,
+            reservationId,
+          });
+          const parsed = parseIndependentSolve(check.choices[0]?.message?.content ?? "");
+          if (parsed) content = mergeIndependentSolve(content, parsed, { preferWhenUnclaimed: Boolean(imageUrl) });
+        } catch {
+          // Bağımsız çağrı düşerse aritmetiği tutmayan satır zaten çıkarılmış cevap durur.
+        }
       }
     }
     // Only server-verified metadata becomes a navigable source, never model URLs.

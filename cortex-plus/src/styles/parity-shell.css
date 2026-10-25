@@ -781,6 +781,8 @@
   display: flex;
   align-items: center;
   gap: 0.15rem;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .cp-sor-tool {
@@ -8933,16 +8935,18 @@
 
 .cp-tutor-mode {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.35rem;
   margin: 0 0.15rem 0.5rem;
+  overflow-x: auto;
 }
 
 .cp-tutor-mode-pill {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 0.28rem;
-  min-height: 34px;
+  min-height: 36px;
   padding: 0.28rem 0.7rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -9530,6 +9534,19 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cp-gold, var(--c-brand)) 35%, transparent);
 }
 
+/* Telefon yüksekliğinde küre dördüncü öneri çipini bestecinin arkasına itiyordu. */
+@media (max-height: 840px) {
+  .cp-exam-empty-hero {
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  .cp-exam-empty-orb {
+    width: 64px;
+    height: 64px;
+  }
+}
+
 .cp-exam-empty-title {
   margin: 0;
   font-family: var(--font-display, inherit);
@@ -9569,6 +9586,20 @@
 .cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-hero,
 .cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-messages {
   padding-bottom: calc(var(--cp-sor-composer-clearance) + 1rem);
+}
+
+/*
+  Sınav sohbetinin boş ekranı (.cp-exam-empty) bu ölçüme girmiyordu: sabit
+  12.5rem, kaynak kilidi + mod seçiciyle ~310px olan bestecinin altında kalıyor,
+  son öneri çipi "Yalnızca belgem"in üstüne biniyordu (25 Ekim 2026, 375px).
+  Boşluk bestecinin dışında, kaydırma kutusunun altında kalsın.
+*/
+.cp-sor-root .cp-sor-view.cp-exam-chat[data-composer-measured] {
+  padding-bottom: calc(var(--cp-sor-composer-clearance) + 0.5rem);
+}
+
+.cp-sor-root .cp-sor-view.cp-exam-chat[data-composer-measured] .cp-exam-empty {
+  padding-bottom: 0.75rem;
 }
 
 @media (max-width: 767px) {
@@ -10601,6 +10632,15 @@
   .cp-sor-root--exam .cp-founder-chip {
     display: none;
   }
+
+  .cp-sor-root .cp-founder-chip {
+    display: none;
+  }
+
+  .cp-sor-root .cp-sor-top-actions {
+    min-width: 0;
+    flex-shrink: 1;
+  }
 }
 
 .cp-prep-icon {
@@ -10645,6 +10685,91 @@
    SVG ile düğüm merkezlerinden geçiyor (bkz. StudyPath). Genişlik 280px:
    320px'lik telefonda 16px kenar boşluğuyla sığıyor. Sınıf adı cp-zpath:
    .cp-path sohbet kabuğunda başka bir kutu için zaten kullanılıyor. */
+.cp-path-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: min(100%, 36rem);
+  margin: 1rem auto 0;
+}
+
+.cp-path-section {
+  border: 1px solid var(--cp-border, #242424);
+  border-radius: 16px;
+  background: #141414;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cp-path-section.is-active {
+  border-color: rgba(67, 83, 243, 0.55);
+}
+
+.cp-path-section.is-locked {
+  opacity: 0.82;
+}
+
+.cp-path-section-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 52px;
+  padding: 0.45rem 0.85rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-path-section-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cp-path-section-copy strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-path-section-more {
+  min-height: 48px;
+  border: 1px solid var(--cp-border, #242424);
+  border-radius: 16px;
+  background: #141414;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cp-path-section-meta {
+  color: var(--cp-muted);
+  font-size: 0.8rem;
+}
+
+.cp-path-section-chevron {
+  flex: none;
+  transition: transform 0.2s ease;
+}
+
+.cp-path-section-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.cp-path-section .cp-zpath {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
 .cp-zpath {
   position: relative;
   width: 280px;
@@ -10827,6 +10952,19 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.cp-path-next-actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.cp-path-next-actions--stack .cp-exam-continue,
+.cp-path-next-actions--stack .cp-path-next-custom {
+  width: 100%;
+  flex: none;
+  white-space: normal;
+  text-align: center;
 }
 
 .cp-path-next-actions .cp-exam-continue {
@@ -12131,7 +12269,47 @@ html[data-readable="1"] main li {
 }
 
 .cp-sor-composer-zone .cp-sor-source-mode {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
   background: var(--c-surface-2);
+}
+
+.cp-sor-composer-zone .cp-sor-source-mode button {
+  flex: none;
+  min-height: 36px;
+}
+
+.cp-source-short {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .cp-sor-source-mode,
+  .cp-sor-composer-zone .cp-sor-source-mode {
+    flex-wrap: wrap;
+    overflow: hidden;
+    justify-content: center;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .cp-sor-source-mode button,
+  .cp-sor-composer-zone .cp-sor-source-mode button {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+  }
+
+  .cp-source-full {
+    display: none;
+  }
+
+  .cp-source-short {
+    display: inline;
+  }
 }
 
 /* "Sınav hazırlıklarında ara" — Astra'daki arama sayfası (1 Ekim 2026). */

@@ -435,6 +435,68 @@ export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQu
   return `${head}${context ? `\n\n${context}` : ""}\n\nTEST (JSON):\n${JSON.stringify({ questions: questions.map(publicShape) })}`;
 }
 
+/**
+ * Anahtarı görmeden çözen ikinci geçiş (25 Ekim 2026). Asıl denetçi açıklamayı
+ * da okuduğu için anahtarı görür ve onu onaylayabilir. Bu çağrıya yalnız kök ve
+ * şıklar gider; kod, dönen şıkkı anahtarla karşılaştırır.
+ */
+export function quizAdvocateSystem(): string {
+  return (
+    "Sen titiz bir sınav sorusu denetçisisin ve anahtarı görmeden çözen bağımsız bir çözücüsün. " +
+    "Sana yalnız kök ve şıklar verilir; doğru şık, gerekçe ve adım yoktur. Her soruyu kendin çöz. " +
+    "Çok cevaplı soruda doğru olan bütün şıkları seç. Şık metnini listedeki yazımla birebir yaz. " +
+    "Emin değilsen o sorunun choice alanını boş dizi bırak; tahmin etme. " +
+    'Yalnız JSON: {"solved":[{"question":0,"choice":["şık metni"]}]}'
+  );
+}
+
+export function quizAdvocateUserPrompt(questions: QuizQuestion[]): string {
+  const blind = questions.map((question) => ({
+    text: question.text,
+    options: question.options,
+    multi: Boolean(question.multi),
+  }));
+  return `SORULAR (anahtar yok):\n${JSON.stringify({ questions: blind })}`;
+}
+
+function foldOption(text: string): string {
+  return text.trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
+}
+
+/** Bağımsız çözümün anahtarla uyuşmadığı sorular. Emin olunmayan satır sorun yazmaz. */
+export function blindKeyMismatches(questions: QuizQuestion[], raw: unknown): QuizIssue[] {
+  const solved = (raw as { solved?: unknown } | null)?.solved;
+  if (!Array.isArray(solved)) return [];
+  const issues: QuizIssue[] = [];
+  for (const item of solved) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as { question?: unknown; choice?: unknown };
+    const index = typeof row.question === "number" ? row.question : Number(row.question);
+    if (!Number.isInteger(index) || index < 0 || index >= questions.length) continue;
+    const choice = Array.isArray(row.choice)
+      ? row.choice.map((part) => String(part))
+      : typeof row.choice === "string"
+        ? [row.choice]
+        : [];
+    const picked = [...new Set(choice.map(foldOption).filter(Boolean))];
+    if (!picked.length) continue;
+    const question = questions[index];
+    const options = new Set(question.options.map(foldOption));
+    if (!picked.every((option) => options.has(option))) continue;
+    const key = new Set(question.correct.map(foldOption));
+    const same = picked.length === key.size && picked.every((option) => key.has(option));
+    if (same) continue;
+    issues.push({
+      question: index,
+      severity: "high",
+      code: "A",
+      problem: `Bağımsız çözüm farklı şık verdi (${choice.join(" · ")}). Anahtar bu çözümle uyuşmuyor.`,
+      fix: "Anahtarı bağımsız çözümle aynı yap ya da kökü tek doğruya indir.",
+    });
+  }
+  return issues;
+}
+
 export function quizFixSystem(
   mode: TeacherLessonMode = "document",
   focus: TeacherQuizInput["focus"] = "practice",

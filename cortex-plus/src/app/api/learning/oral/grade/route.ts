@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON: {"items":[{"index":number,"correct":boolean,"gap":string|null}],"correctCount":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. Kaynakta hazır çözüm cümlesi yok diye 0 verme; rubriğe göre değerlendir. gap alanına soru metnini yazma.',
-    userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama.\n\n${lines}`,
+    userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama. Cevap konuşma tanımasından gelmiş olabilir: bitişik veya ayrı yazım, sesçe yakın terim (mitokondri/mitokondiri) ve formülün konuşulan hali (x²/x kare, CO₂/karbondioksit, ATP/a te pe) aynı noktadır. Yanlış sayı, ters yön veya başka kavram yine eksiktir.\n\n${lines}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

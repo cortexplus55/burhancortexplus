@@ -47,12 +47,14 @@ import {
   examPrepNodeHref,
   examPrepNodeResultHref,
   examPrepReviewsHref,
+  examPrepSavedReviewHref,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
 import { STUDY_PATH_HINT, studyNodeAria, studyNodeOpenable, type StudyToolGroup } from "@/lib/learning/study-tools";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
+import { buildPathSections, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
 import { PrepDueReviewCard } from "@/components/parity/prep-review-card";
@@ -64,8 +66,6 @@ import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { formatDayLong } from "@/lib/format";
 import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
-import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
-import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -299,6 +299,9 @@ export function ExamPrepHome({
   const [lockedPick, setLockedPick] = useState<HomeNode | null>(
     () => nodes.find((node) => node.id === lockedPickId && !studyNodeOpenable(node.status, node.kind)) ?? null,
   );
+  /** Bitmiş adım: kayıtlı içeriği aç ya da sıradaki etkinliğe geç. */
+  const [donePick, setDonePick] = useState<HomeNode | null>(null);
+  const doneCardRef = useRef<HTMLDivElement | null>(null);
   const ready = nodes.find((node) => node.status === "ready");
   const hasProgress = nodes.some((node) => node.status === "done");
   const firstPlayable = nodes.find((node) => node.status !== "locked");
@@ -417,6 +420,11 @@ export function ExamPrepHome({
     return () => window.removeEventListener("keydown", onKey);
   }, [optionsOpen]);
 
+  useEffect(() => {
+    if (!donePick) return;
+    doneCardRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+  }, [donePick]);
+
   function openOptions(pane: "menu" | "kaynaklar" | "ayarlar" = "menu") {
     setOptionsPane(pane);
     setOptionsOpen(true);
@@ -429,10 +437,16 @@ export function ExamPrepHome({
     }
     // Astra: kilitli adım açılmaz, seçilir; alt kart neden açılmadığını söyler (18 Ekim 2026).
     if (!studyNodeOpenable(node.status, node.kind)) {
+      setDonePick(null);
       setLockedPick(node);
       return;
     }
     setLockedPick(null);
+    if (node.status === "done") {
+      setDonePick(node);
+      return;
+    }
+    setDonePick(null);
     if (!hasTopic) {
       router.push(`/deneme-sinavlari/${prepId}/konu`);
       return;
@@ -441,8 +455,12 @@ export function ExamPrepHome({
       router.push(`/deneme-sinavlari/${prepId}/tanisma`);
       return;
     }
-    // Astra: bitmiş düğüm önce sonucunu açar; "Dersi tekrarla" oradan yeniden başlatır.
-    router.push(node.status === "done" ? examPrepNodeResultHref(prepId, node.id) : examPrepNodeHref(prepId, node.id));
+    router.push(examPrepNodeHref(prepId, node.id));
+  }
+
+  function savedHref(node: HomeNode) {
+    if (node.kind === "written_exam") return examPrepNodeResultHref(prepId, node.id);
+    return examPrepSavedReviewHref(prepId, node.id);
   }
 
   // Paylaşım yalnızca konu başlıklarını görünür kılar; ilerleme ve cevaplar
@@ -664,20 +682,16 @@ export function ExamPrepHome({
         </div>
       ) : view === "yol" ? (
         <>
-          <StudyPath
+          <PathSections
             nodes={nodes}
             lead={introPending ? introNode : null}
             currentId={nextNode?.id ?? null}
-            pickedId={lockedPick?.id ?? null}
+            pickedId={lockedPick?.id ?? donePick?.id ?? null}
             scores={nodeScores}
             onOpen={openNode}
             readinessClaim={readinessClaim}
           />
           <section className="cp-prep-goal" aria-label="Hazırlık düzeyi">
-            <div className="cp-prep-insights">
-              <PrepRadarChart view={radar} />
-              <PrepForecastChart series={progress.forecastSeries} />
-            </div>
             <h2>Gerçek sınavda nasıl yapacağını merak ediyor musun?</h2>
             <p>Hazır olduğunda öğren.</p>
             <button type="button" className="cp-prep-goal-go" onClick={() => setHubGroup("exam")}>
@@ -690,7 +704,29 @@ export function ExamPrepHome({
 
       {/* Astra'nın alt kartı (18 Ekim 2026, yan yana bakıldı): kilitli adım seçiliyse neden
           açılmadığı; değilse "SIRADAKİ" + tür etiketi, başlık, "Başka birini seç" ve "Devam et". */}
-      {view === "yol" && nodes.length && lockedPick ? (
+      {view === "yol" && nodes.length && donePick ? (
+        <div
+          ref={doneCardRef}
+          className="cp-exam-start-card cp-path-next cp-path-next--focus"
+          role="region"
+          aria-label="Tamamlanan adım"
+        >
+          <div className="cp-prep-badges">
+            <span className="cp-prep-badge">Tamamlandı</span>
+            <span className="cp-prep-badge">{PLAN_NODE_META[donePick.kind].title}</span>
+          </div>
+          <h2 className="cp-path-next-title">{nodeHeading(donePick)}</h2>
+          <p className="cp-path-next-note">Kayıtlı içerik yeniden açılır; kredi düşmez.</p>
+          <div className="cp-path-next-actions cp-path-next-actions--stack">
+            <Link href={savedHref(donePick)} className="cp-exam-continue cp-exam-continue--primary">
+              📖 Dersi / İçeriği Tekrar İncele (Kredisiz)
+            </Link>
+            <Link href={primaryHref} className="cp-path-next-custom">
+              ⏭️ Sıradaki Etkinliğe Git
+            </Link>
+          </div>
+        </div>
+      ) : view === "yol" && nodes.length && lockedPick ? (
         <div className="cp-exam-start-card cp-path-next cp-path-next--locked" role="status">
           <div className="cp-prep-badges">
             <span className="cp-prep-badge">
@@ -977,6 +1013,97 @@ const PATH_STEP = 56;
 const PATH_WIDTH = 280;
 const PATH_PATTERN = [0, 1, 0, -1] as const;
 
+function PathSections({
+  nodes,
+  lead = null,
+  currentId,
+  pickedId = null,
+  scores = {},
+  onOpen,
+  readinessClaim,
+}: {
+  nodes: HomeNode[];
+  lead?: HomeNode | null;
+  currentId: string | null;
+  pickedId?: string | null;
+  scores?: Record<string, number>;
+  onOpen: (node: HomeNode) => void;
+  readinessClaim: boolean | null;
+}) {
+  const sections = useMemo(() => buildPathSections(nodes, currentId), [nodes, currentId]);
+  const far = useMemo(
+    () => farNodeIds([...nodes].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
+    [nodes, currentId],
+  );
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  const [tailOpen, setTailOpen] = useState(false);
+  const activeIndex = sections.findIndex((section) => section.active);
+  const tailAt = activeIndex < 0 ? sections.length : activeIndex + 1 + 2;
+  const hidden = tailOpen ? [] : sections.slice(tailAt);
+  function isOpen(section: (typeof sections)[number], index: number) {
+    if (Object.prototype.hasOwnProperty.call(opened, section.id)) return opened[section.id]!;
+    if (section.active) return true;
+    if (lead && index === 0) return true;
+    if (!sections.some((item) => item.active) && index === sections.length - 1) return true;
+    return false;
+  }
+  return (
+    <div className="cp-path-sections">
+      {sections.map((section, index) => {
+        if (index >= tailAt && !tailOpen) return null;
+        const open = isOpen(section, index);
+        const mastery = section.complete ? sectionMasteryPct(section.nodes, scores) : null;
+        const line = sectionStatusLine(section, mastery);
+        return (
+          <section
+            key={section.id}
+            className={cn(
+              "cp-path-section",
+              section.active && "is-active",
+              section.complete && "is-done",
+              section.locked && "is-locked",
+              open && "is-open",
+            )}
+          >
+            <button
+              type="button"
+              className="cp-path-section-toggle"
+              aria-expanded={open}
+              onClick={() => setOpened((current) => ({ ...current, [section.id]: !open }))}
+            >
+              <span className="cp-path-section-copy">
+                <strong>{section.title}</strong>
+                <span className="cp-path-section-meta">{line}</span>
+              </span>
+              <ChevronDown className={cn("cp-path-section-chevron", open && "is-open")} aria-hidden />
+            </button>
+            {open ? (
+              <StudyPath
+                nodes={section.nodes}
+                lead={index === 0 ? lead : null}
+                currentId={currentId}
+                pickedId={pickedId}
+                scores={scores}
+                onOpen={onOpen}
+                readinessClaim={readinessClaim}
+                farIds={far}
+                keepOrder
+              />
+            ) : null}
+          </section>
+        );
+      })}
+      {hidden.length ? (
+        <button type="button" className="cp-path-section-more" onClick={() => setTailOpen(true)}>
+          {hidden.every((section) => section.locked)
+            ? `Kalan kilitli konular (${hidden.length} konu)`
+            : `Kalan konular (${hidden.length} konu)`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function StudyPath({
   nodes,
   lead = null,
@@ -985,6 +1112,8 @@ function StudyPath({
   scores = {},
   onOpen,
   readinessClaim,
+  farIds,
+  keepOrder = false,
 }: {
   nodes: HomeNode[];
   /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
@@ -996,12 +1125,19 @@ function StudyPath({
   scores?: Record<string, number>;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
+  /** Yolun tamamına göre uzak adımlar. Bölüm yalnız kendi düğümlerini çizer. */
+  farIds?: Set<string>;
+  /** Konu kartı düğümleri zaten yürüme sırasında. */
+  keepOrder?: boolean;
 }) {
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
   // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları Astra'daki gibi yok.
   const ordered = useMemo(
-    () => [...(lead ? [lead] : []), ...groupNodesByPhase(nodes).flatMap((group) => group.nodes)],
-    [nodes, lead],
+    () => [
+      ...(lead ? [lead] : []),
+      ...(keepOrder ? nodes : groupNodesByPhase(nodes).flatMap((group) => group.nodes)),
+    ],
+    [nodes, lead, keepOrder],
   );
   const points = ordered.map((node, index) => ({
     node,
@@ -1012,8 +1148,8 @@ function StudyPath({
   // 2 adım ileri (20 Ekim 2026): sonrası sonuçlara göre değişebilir, soluk çizilir; not ilkinde.
   // Pencere kilidin açıldığı sırayla (sort_order, konu konu) sayılır; yol aşamaya göre çiziliyor.
   const far = useMemo(
-    () => farNodeIds([...nodes].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
-    [nodes, currentId],
+    () => farIds ?? farNodeIds([...nodes].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
+    [farIds, nodes, currentId],
   );
   const firstFarId = ordered.find((node) => far.has(node.id))?.id ?? null;
   // Astra'daki aşağı ok: sıradaki düğüm ekranın dışındaysa oraya kaydırır.

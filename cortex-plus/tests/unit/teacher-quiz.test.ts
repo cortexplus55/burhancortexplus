@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
+  blindKeyMismatches,
   parseQuizIssues,
+  quizAdvocateUserPrompt,
   quizDifficulty,
   parseTeacherQuiz,
   quizStructureIssues,
@@ -121,7 +123,8 @@ describe("öğretmen test motoru: döngü", () => {
     expect(loop.questions).toHaveLength(5);
     expect(loop.rounds).toBe(0);
     expect(loop.questions.map((q) => q.text)).not.toContain("Soru 2: nikâh memuru olmadan yapılan evlilik?");
-    expect(ask).toHaveBeenCalledTimes(2);
+    // Taslak + anahtarı gören denetçi + anahtarsız bağımsız çözüm.
+    expect(ask).toHaveBeenCalledTimes(3);
   });
 
   it("yeterli soru kalmazsa yalnız sorunlu sorular düzeltmeye gider", async () => {
@@ -137,6 +140,28 @@ describe("öğretmen test motoru: döngü", () => {
     const loop = await teacherQuizLoop(ask, input);
     expect(loop.rounds).toBe(1);
     expect(loop.questions).toHaveLength(5);
+  });
+
+  it("anahtarsız çözüm farklı şık verirse o soru öğrenciye gitmez", async () => {
+    const ask = vi.fn(async (system: string) => {
+      if (system.includes("anahtarı görmeden")) {
+        return { solved: [{ question: 0, choice: ["Mutlak butlan"] }] };
+      }
+      if (system.includes("denetçisisin")) return { issues: [] };
+      return draft(7);
+    });
+    const loop = await teacherQuizLoop(ask, input);
+    expect(loop.questions.map((question) => question.text)).not.toContain("Soru 1: nikâh memuru olmadan yapılan evlilik?");
+    expect(loop.rounds).toBe(0);
+    const [question] = parseTeacherQuiz({ questions: [raw("Nikâh memuru olmadan yapılan evlilik hangi durumdadır?")] })!;
+    const prompt = quizAdvocateUserPrompt([question]);
+    const body = JSON.parse(prompt.slice(prompt.indexOf("{")));
+    expect(body.questions[0].correct).toBeUndefined();
+    expect(body.questions[0].explanation).toBeUndefined();
+    expect(body.questions[0].options).toEqual(question.options);
+    expect(blindKeyMismatches([question], { solved: [{ question: 0, choice: ["Yokluk"] }] })).toEqual([]);
+    expect(blindKeyMismatches([question], { solved: [{ question: 0, choice: [] }] })).toEqual([]);
+    expect(blindKeyMismatches([question], { solved: [{ question: 0, choice: ["Mutlak butlan"] }] })[0]?.code).toBe("A");
   });
 
   it("asgari soru sayısı", () => {

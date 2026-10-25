@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
 import { PATH_FAR_NOTE, PATH_LOOKAHEAD, farNodeIds } from "@/lib/learning/study-path-window";
 
@@ -64,11 +64,12 @@ describe("2 adım ileri: pencere", () => {
     );
     const items = [...container.querySelectorAll(".cp-path-list .cp-exam-trail-item")];
     const far = items.map((item) => item.classList.contains("is-far"));
-    // n0 bitti, n1 sıradaki, n2-n3 sonraki iki adım; n4 ve n5 uzak.
-    expect(far).toEqual([false, false, false, false, true, true]);
+    // Biten giriş dersi kapalı kartta. Açık bölüm: n1 sıradaki, n2-n3 sonraki iki adım, n4-n5 uzak.
+    expect(screen.getByRole("button", { name: /Bugün başla/ }).getAttribute("aria-expanded")).toBe("false");
+    expect(far).toEqual([false, false, false, true, true]);
     const notes = container.querySelectorAll(".cp-path-far-note");
     expect(notes).toHaveLength(1);
     expect(notes[0]?.textContent).toBe(PATH_FAR_NOTE);
-    expect(items[4]?.querySelector("button")?.getAttribute("aria-label")).toContain("plan sonuçlarına göre değişebilir");
+    expect(items[3]?.querySelector("button")?.getAttribute("aria-label")).toContain("plan sonuçlarına göre değişebilir");
   });
 });

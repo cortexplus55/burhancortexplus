@@ -191,6 +191,7 @@ export function tutorHistoryText(content: string): string {
 export const CHAT_NATURAL_VOICE =
   "Etiketli kalıp kullanma ('Nerede takıldığın:', 'Tek ipucu:', 'Kontrol sorusu:' gibi başlıklar yok); doğal konuş. " +
   "Öğrencinin takıldığı yer hakkında yorum yazma ('takıldığın bir nokta belirtilmedi' gibi); sorulanı yap. " +
+  "Cevabı tek uzun paragraf yapma: adımlar ayrı satırlarda, her adım en çok iki kısa cümle. " +
   "Gerekiyorsa sonda tek kısa soru sor, başlıksız. " +
   "Sınav sorusu (yazılı veya fotoğraf) sorulduğunda: önce soruyu ve şıkları birebir oku (sayı, sembol, grafik/tablo, " +
   "Romen öncül, değildir/yanlıştır/ulaşılamaz/en az/kesinlikle); adım adım çöz; cevabı yerine koyarak sağlamasını yap; " +
@@ -217,7 +218,7 @@ export function teacherStyleLine(style: TutorStyle): string {
         "sonra anladığını tek soruyla yokla."
       );
     default:
-      return "Öğrenci adım adım anlatımı seçti: adımları gerekçesiyle sırayla göster, hepsini tek seferde dökme.";
+      return "Öğrenci adım adım anlatımı seçti: her adım ayrı satırda ve en çok iki kısa cümle; hepsini tek paragrafta dökme.";
   }
 }
 

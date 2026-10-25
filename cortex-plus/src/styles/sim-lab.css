@@ -136,6 +136,14 @@
   stroke-width: 1.5;
 }
 
+.sim-cell g[role="button"] {
+  cursor: pointer;
+}
+
+.sim-cell g[role="button"]:focus-visible .sim-slot {
+  stroke: #4353f3;
+}
+
 .sim-slot {
   fill: rgba(255, 255, 255, 0.06);
   stroke: #303030;

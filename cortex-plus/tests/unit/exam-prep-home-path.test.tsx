@@ -3,11 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  push.mockReset();
+});
 
 const lesson: HomeNode = {
   id: "lesson-1",
@@ -70,8 +74,8 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect([...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki adım", "Giriş Dersi"]);
     const start = screen.getByRole("link", { name: "Devam et" });
     expect(start.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
-    expect(container.querySelectorAll(".cp-path-lines")).toHaveLength(1);
-    expect(container.querySelectorAll(".cp-path-lines path").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Öğren ve Pratik Yap/ }).getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelectorAll(".cp-exam-trail-item")).toHaveLength(1);
     expect(container.querySelectorAll(".cp-puck").length).toBe(container.querySelectorAll(".cp-exam-trail-node").length);
     expect(container.querySelectorAll(".cp-puck--current")).toHaveLength(1);
     expect(container.querySelectorAll(".cp-path-beam")).toHaveLength(1);
@@ -85,7 +89,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect(aside.querySelector(".cp-prep-hero-action--lesson")?.textContent).toBe("Ders");
     expect(aside.querySelectorAll(".cp-prep-tab-icon")).toHaveLength(2);
     expect(container.querySelector(".cp-prep-main .cp-path-next")).toBeTruthy();
-    expect(container.querySelector(".cp-path-done-label")?.textContent).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Bugün başla/ }).textContent).toMatch(/Tamamlandı/);
   });
 
   it("keeps Devam et on the next step once a node is done", () => {
@@ -149,6 +153,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
         { id: "topic-enerji", label: "Enerji" },
       ],
     });
+    fireEvent.click(screen.getByRole("button", { name: /Öğren ve Pratik Yap/ }));
     const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
     expect(locked.getAttribute("aria-label")).toMatch(/kilitli/);
     // Astra (18 Ekim 2026): kilitli adım açılmaz, seçilir; alt kart nedenini söyler.
@@ -183,12 +188,14 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
 
   it("shows a lock icon (not a step number) on a locked trail node", () => {
     renderHome();
+    fireEvent.click(screen.getByRole("button", { name: /Öğren ve Pratik Yap/ }));
     const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
     expect(locked.querySelector("svg.lucide-lock")).toBeTruthy();
   });
 
   it("shows the activity glyph on a done node, marked done", () => {
     renderHome({ nodes: [{ ...lesson, status: "done" }, podcast] });
+    fireEvent.click(screen.getByRole("button", { name: /Bugün başla/ }));
     const done = screen.getByRole("button", { name: /Giriş Dersi/ });
     expect(done.className).toMatch(/cp-exam-trail-node--done/);
     expect(done.querySelector("svg.lucide-lock")).toBeNull();
@@ -196,13 +203,17 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
   });
 
   it("zig-zags the nodes and marks the next one as current", () => {
-    const { container } = renderHome();
+    const quiz: HomeNode = { ...podcast, id: "quiz-1", kind: "quiz", title: "Test", status: "locked", sortOrder: 2 };
+    const { container } = renderHome({
+      nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }, quiz],
+    });
     const items = Array.from(container.querySelectorAll<HTMLElement>(".cp-exam-trail-item"));
     expect(items).toHaveLength(2);
     expect(items[0].style.left).not.toBe(items[1].style.left);
     expect(container.querySelector(".cp-exam-trail-item--left")).toBeNull();
+    expect(container.querySelectorAll(".cp-path-lines path").length).toBeGreaterThan(0);
     const current = container.querySelector(".cp-exam-trail-node.is-current");
-    expect(current?.getAttribute("aria-label")).toMatch(/Giriş Dersi/);
+    expect(current?.getAttribute("aria-label")).toMatch(/Podcast Dinle/);
   });
 
   it("uses letters for tests and a hexagon for podcasts", () => {
@@ -248,12 +259,18 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
     expect(screen.getByRole("link", { name: "Sonuçları gör" }).getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1/sonuc");
   });
 
-  it("yolun sonunda hazırlık düzeyi; 'Deneme sınavı oluştur' pencereyi Sınav sekmesinde açar", () => {
-    renderHome();
+  it("yolun sonunda hazırlık düzeyi; radar ve tahmin ilerleme sekmesinde", () => {
+    const { container } = renderHome();
     const goal = screen.getByRole("region", { name: "Hazırlık düzeyi" });
-    expect(goal.querySelector(".cp-radar-svg")).toBeTruthy();
-    expect(goal.querySelector(".cp-forecast-svg")).toBeTruthy();
+    expect(goal.querySelector(".cp-radar-svg")).toBeNull();
+    expect(goal.querySelector(".cp-forecast-svg")).toBeNull();
     expect(goal.textContent).toContain("Gerçek sınavda nasıl yapacağını merak ediyor musun?");
+    fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
+    const progress = screen.getByRole("region", { name: "İlerleme" });
+    expect(progress.querySelector(".cp-radar-svg")).toBeTruthy();
+    expect(progress.querySelector(".cp-forecast-svg")).toBeTruthy();
+    expect(container.querySelector(".cp-prep-goal .cp-radar-svg")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Çalışma yolu" }));
     fireEvent.click(screen.getByRole("button", { name: /Deneme sınavı oluştur/ }));
     expect(screen.getByRole("tab", { name: /Sınav/ }).getAttribute("aria-selected")).toBe("true");
   });
@@ -270,7 +287,8 @@ describe("path labels like Astra", () => {
       nodeScores: { "lesson-1": 80 },
     });
     expect(screen.getByRole("heading", { name: "Hücre zarı ve madde geçişi" })).toBeTruthy();
-    expect(screen.getByText("%80")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Bugün başla/ }).textContent).toMatch(/%80/);
+    fireEvent.click(screen.getByRole("button", { name: /Bugün başla/ }));
     expect(screen.getByRole("button", { name: /Giriş Dersi · Giriş Dersi, tamamlandı, %80/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Başka birini seç" })).toBeTruthy();
   });
@@ -278,5 +296,60 @@ describe("path labels like Astra", () => {
   it("shows the lock card when a locked node's address was opened", () => {
     renderHome({ lockedPickId: "pod-1" });
     expect(screen.getByText("Bu adım, öncekileri bitirince açılır.")).toBeTruthy();
+  });
+});
+
+describe("kompakt yol ve bitmiş adım (25 Ekim 2026)", () => {
+  it("bitmiş dersi yoldan seçince kredisiz inceleme ve sıradaki adımı sunar", () => {
+    renderHome({
+      nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Bugün başla/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Giriş Dersi/ }));
+    expect(screen.getByRole("region", { name: "Tamamlanan adım" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "📖 Dersi / İçeriği Tekrar İncele (Kredisiz)" }).getAttribute("href")).toBe(
+      "/deneme-sinavlari/prep-1/dugum/lesson-1?incele=1",
+    );
+    expect(screen.getByRole("link", { name: "⏭️ Sıradaki Etkinliğe Git" }).getAttribute("href")).toBe(
+      "/deneme-sinavlari/prep-1/sonraki",
+    );
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("yalnız aktif konunun düğümlerini açık tutar", () => {
+    const topics = ["Hücre", "Doku", "Organ", "Sistem", "Enerji", "Kalıtım"];
+    const kinds = ["lesson", "quiz", "podcast", "oral"] as const;
+    const nodes: HomeNode[] = topics.flatMap((topic, topicIndex) =>
+      kinds.map((kind, step) => ({
+        id: `${topic}-${kind}`,
+        kind,
+        title: `${topic} ${kind}`,
+        dayIndex: topicIndex + 1,
+        sortOrder: topicIndex * 4 + step,
+        status: topicIndex === 0 && step === 0 ? "ready" : "locked",
+        sessionMeta: { topicTitle: topic },
+      })),
+    );
+    const { container } = renderHome({ nodes, topicCount: 6, topicLabels: topics });
+    expect(container.querySelectorAll(".cp-path-section")).toHaveLength(3);
+    expect(container.querySelectorAll(".cp-exam-trail-item")).toHaveLength(4);
+    expect(screen.getByRole("button", { name: "Kalan kilitli konular (3 konu)" })).toBeTruthy();
+    const collapsed = screen.getByRole("button", { name: /Doku/ });
+    expect(collapsed.getAttribute("aria-expanded")).toBe("false");
+    expect(collapsed.textContent).toMatch(/4 adım · Kilitli/);
+    fireEvent.click(collapsed);
+    expect(container.querySelectorAll(".cp-exam-trail-item")).toHaveLength(8);
+    fireEvent.click(screen.getByRole("button", { name: "Kalan kilitli konular (3 konu)" }));
+    expect(container.querySelectorAll(".cp-path-section")).toHaveLength(6);
+  });
+
+  it("ilerleme listesi ilk 8 konudan sonrasını açılır tutar", () => {
+    const topicLabels = Array.from({ length: 10 }, (_, index) => `Konu ${index + 1}`);
+    renderHome({ topicLabels, topicCount: 10 });
+    fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
+    expect(screen.getByRole("button", { name: "Konu 8 için ders oluştur" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Konu 9 için ders oluştur" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Tüm Konuları Göster (10 konu)" }));
+    expect(screen.getByRole("button", { name: "Konu 10 için ders oluştur" })).toBeTruthy();
   });
 });

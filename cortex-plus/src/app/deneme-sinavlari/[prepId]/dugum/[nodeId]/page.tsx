@@ -32,10 +32,10 @@ export default async function ExamNodePage({
   searchParams,
 }: {
   params: Promise<{ prepId: string; nodeId: string }>;
-  searchParams: Promise<{ konu?: string; tekrar?: string }>;
+  searchParams: Promise<{ konu?: string; tekrar?: string; incele?: string }>;
 }) {
   const { prepId, nodeId } = await params;
-  const { konu, tekrar } = await searchParams;
+  const { konu, tekrar, incele } = await searchParams;
   const requestedTopic = typeof konu === "string" ? konu.trim().slice(0, 400) : "";
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
@@ -234,6 +234,7 @@ export default async function ExamNodePage({
         initialFamiliarity={topicFamiliarity}
         todayMood={todayMood}
         replayLesson={tekrar === "1"}
+        reviewSaved={incele === "1"}
         resumeEnabled={resumeEnabled}
         openAttempt={openAttempt}
         sourceName={sourceName}

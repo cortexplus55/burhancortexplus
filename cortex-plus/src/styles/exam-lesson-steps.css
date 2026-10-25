@@ -20,13 +20,20 @@
   top: 0;
   z-index: 5;
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.75rem;
   margin: 0 -0.25rem var(--sp-4, 1rem);
   padding: 0.65rem 0.25rem;
   background: color-mix(in srgb, var(--cp-bg, var(--c-bg)) 92%, transparent);
   backdrop-filter: blur(8px);
+}
+
+.als-top-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
 }
 
 .als-progress {
@@ -121,7 +128,7 @@
   background:
     radial-gradient(120% 80% at 50% 0%, rgba(76, 111, 255, 0.16), transparent 55%),
     var(--c-surface-1);
-  padding: var(--sp-5, 1.25rem);
+  padding: 1.5rem 1.35rem 1.4rem;
 }
 
 /* checkFirst: soru anlatımdan önce sorulur ("önce dene" / geri getirme) —
@@ -173,9 +180,9 @@
   margin-top: var(--sp-3, 0.75rem);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2, 0.5rem);
+  gap: 0.85rem;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.7;
   color: #dcdcdc;
 }
 
@@ -589,12 +596,11 @@
 }
 
 .als-visual {
-  margin-top: 0.95rem;
-  padding: 0.95rem 1.05rem;
+  margin-top: 1.25rem;
+  padding: 1.15rem 1.2rem;
   border-radius: 1.15rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: color-mix(in srgb, var(--c-surface-1) 72%, transparent);
-  backdrop-filter: blur(12px);
 }
 
 .als-visual-title {
@@ -606,12 +612,10 @@
 
 .als-visual--trap {
   border-color: rgba(232, 93, 58, 0.55);
-  box-shadow: 0 0 0 1px rgba(232, 93, 58, 0.18), 0 10px 28px rgba(80, 16, 8, 0.22);
 }
 
 .als-visual--hook {
   border-color: rgba(139, 92, 246, 0.55);
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.18), 0 10px 28px rgba(40, 16, 80, 0.22);
 }
 
 .als-visual--carousel {
@@ -916,12 +920,11 @@
 
 /* Bağıntı kartı: gövdeden ayrı, altın çerçeveli — özet değil, formül. */
 .als-formula-card {
-  margin-top: 0.9rem;
-  padding: 0.95rem 1.05rem;
+  margin-top: 1.25rem;
+  padding: 1.15rem 1.2rem;
   border-radius: 1.15rem;
-  border: 1px solid rgba(226, 179, 64, 0.7);
-  background: rgba(226, 179, 64, 0.1);
-  box-shadow: 0 0 0 1px rgba(226, 179, 64, 0.18), 0 10px 28px rgba(80, 50, 8, 0.18);
+  border: 1px solid rgba(226, 179, 64, 0.55);
+  background: rgba(226, 179, 64, 0.08);
 }
 
 .als-formula-card-title {
@@ -1187,6 +1190,35 @@
 }
 
 @media (max-width: 640px) {
+  .als-top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "back progress close"
+      "meta meta meta";
+    row-gap: 0.4rem;
+  }
+
+  .als-top > :nth-child(1) {
+    grid-area: back;
+  }
+
+  .als-progress {
+    grid-area: progress;
+  }
+
+  .als-top-meta {
+    grid-area: meta;
+    justify-content: space-between;
+  }
+
+  .als-top > :nth-child(4) {
+    grid-area: close;
+  }
+
+  .als-slide {
+    padding: 1.2rem 1rem 1.15rem;
+  }
+
   .als-card-grid {
     display: flex;
     overflow-x: auto;

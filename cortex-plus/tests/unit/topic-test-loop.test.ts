@@ -66,6 +66,7 @@ function fakeAsk(opts: { draft: unknown; fixes?: unknown[]; verifies: unknown[] 
   let fix = 0;
   let verify = 0;
   const ask = vi.fn(async (system: string, user: string) => {
+    if (system.includes("anahtarı görmeden")) return { solved: [] };
     if (system.includes("denetçisisin")) {
       prompts.verify.push(user);
       return opts.verifies[verify++] ?? { issues: [] };
@@ -137,8 +138,9 @@ describe("döngü: yumuşak sorun düzelir, yedekle değişir ya da geri konur",
     expect(prompts.fix).toHaveLength(1);
     expect(prompts.fix[0]).toContain("KALAN SORULAR");
     expect(prompts.fix[0]).toContain(SPARES[0].text);
-    // Düzeltmenin denetimi testte kalanları görür.
-    expect(prompts.verify[1]).toContain("TESTİN KABUL EDİLEN SORULARI");
+    // Düzeltmenin denetimi testte kalanları görür. Bağımsız çözüm de "denetçisisin" sayılır;
+    // o çağrının isteminde kabul edilen sorular yoktur.
+    expect(prompts.verify.some((prompt) => prompt.includes("TESTİN KABUL EDİLEN SORULARI"))).toBe(true);
     expect(loop.questions.map((question) => question.text)).toEqual([...FIXED.map((item) => item.text), P4[4].text]);
     expect(loop.softKept).toBe(0);
     expect(loop.codes).toMatchObject({ H: 4, set_I: 2 });
@@ -204,6 +206,7 @@ describe("döngü: yumuşak sorun düzelir, yedekle değişir ya da geri konur",
     // Model çağrısı düşerse konu testi düşmez.
     const thrown = fakeAsk({ draft, verifies: [h] });
     thrown.ask.mockImplementation(async (system: string) => {
+      if (system.includes("anahtarı görmeden")) return { solved: [] };
       if (system.startsWith("Sen aynı testi yazan")) throw new Error("timeout");
       if (system.includes("denetçisisin")) return h;
       return draft;
@@ -221,7 +224,7 @@ describe("döngü: yumuşak sorun düzelir, yedekle değişir ya da geri konur",
     const { ask } = fakeAsk({ draft: same, verifies: [{ issues: [] }] });
     const loop = await teacherQuizLoop(ask, unscoped);
     expect(loop.questions).toHaveLength(5);
-    expect(ask).toHaveBeenCalledTimes(2);
+    expect(ask).toHaveBeenCalledTimes(3);
     expect(loop.codes).toEqual({});
     const blocked = fakeAsk({ draft: same, fixes: [null], verifies: [issues([[0, "H"], [1, "H"], [2, "H"]])] });
     const strict = await teacherQuizLoop(blocked.ask, unscoped);

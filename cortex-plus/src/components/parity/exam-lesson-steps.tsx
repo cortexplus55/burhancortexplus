@@ -997,15 +997,17 @@ export function ExamLessonSteps({
             />
           </span>
         </div>
-        <p className="als-count" aria-live="polite">
-          {/^\d+ \/ \d+$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
-          <span>{countLabel}</span>
-          <span className="als-minutes">~{readingMinutes} dk okuma</span>
-        </p>
-        <p className="als-stars" title={`Bu derste ${lessonStars} yıldız`}>
-          <Star className="h-3.5 w-3.5" aria-hidden />
-          {lessonStars}
-        </p>
+        <div className="als-top-meta">
+          <p className="als-count" aria-live="polite">
+            {/^\d+ \/ \d+$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
+            <span>{countLabel}</span>
+            <span className="als-minutes">~{readingMinutes} dk okuma</span>
+          </p>
+          <p className="als-stars" title={`Bu derste ${lessonStars} yıldız`}>
+            <Star className="h-3.5 w-3.5" aria-hidden />
+            {lessonStars}
+          </p>
+        </div>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
       {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}

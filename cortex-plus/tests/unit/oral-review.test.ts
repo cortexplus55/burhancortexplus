@@ -119,6 +119,14 @@ describe("reconcileOralGrade", () => {
     );
   });
 
+  it("konuşma tanımasının yazdığı formülü ve terimi doğru sayar, başka kavramı saymaz", () => {
+    expect(answerCoversExpectedPoints("x kare artı 1", ["x² + 1"])).toBe(true);
+    expect(answerCoversExpectedPoints("mitokondiride a te pe sentezlenir", ["Mitokondride ATP sentezlenir"])).toBe(true);
+    expect(answerCoversExpectedPoints("karbon dioksit açığa çıkar", ["karbondioksit"])).toBe(true);
+    expect(answerCoversExpectedPoints("fruktoz", ["glukoz"])).toBe(false);
+    expect(answerCoversExpectedPoints("yıl 1838", ["1839"])).toBe(false);
+  });
+
   it("does not treat unsupported absolute claims as covering the rubric", () => {
     expect(
       answerCoversExpectedPoints("Yalnızca bir sınırlayıcı olabilir.", [

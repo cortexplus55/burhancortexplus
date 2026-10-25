@@ -18,6 +18,7 @@ import {
   repairQuantitative,
 } from "@/lib/learning/tutor-quant";
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/example-completeness";
+import { speechNear } from "@/lib/learning/speech-tolerance";
 import {
   isScoreLabel,
   polishLearnerText,
@@ -175,8 +176,9 @@ function tokens(text: string): string[] {
     .filter((token) => token.length >= 4);
 }
 
-/** Beklenen noktanın anlamlı sözcükleri cevapta var mı. */
+/** Beklenen noktanın anlamlı sözcükleri cevapta var mı. Konuşma tanımasının yazımı da sayılır. */
 export function answerCoversPoint(answer: string, point: string): boolean {
+  if (speechNear(answer, point)) return true;
   const needed = tokens(point);
   const hay = fold(answer);
   const pointNumbers = numbersIn(point);
@@ -394,11 +396,11 @@ function asksQuantity(prompt: string): boolean {
   return /(kac|hesapla|calculate|how many|how much)/.test(fold(prompt));
 }
 
-/** Alıntı, cevabın içinde birebir (veya katlanmış) geçiyor mu? */
+/** Alıntı, cevabın içinde birebir, katlanmış ya da sesçe yakın geçiyor mu? */
 function quoteInAnswer(answer: string, quote: string): boolean {
   const q = quote.trim();
   if (q.length < 3) return false;
-  return fold(answer).includes(fold(q));
+  return fold(answer).includes(fold(q)) || speechNear(answer, q);
 }
 
 /**

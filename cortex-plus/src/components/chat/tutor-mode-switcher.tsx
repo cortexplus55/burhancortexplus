@@ -23,6 +23,7 @@ export function TutorModeSwitcher({
             aria-checked={selected}
             disabled={disabled}
             title={option.label}
+            aria-label={option.label}
             className={selected ? "cp-tutor-mode-pill is-on" : "cp-tutor-mode-pill"}
             onClick={() => {
               if (!selected) onChange(option.id);

@@ -5,6 +5,7 @@
 
 import { contentStems, sentences, stemsOverlap } from "@/lib/learning/learner-fluency";
 import { isUnsupportedComparativeAbsolute } from "@/lib/learning/absolute-claims";
+import { speechNear } from "@/lib/learning/speech-tolerance";
 
 function fold(text: string): string {
   return text
@@ -194,6 +195,10 @@ export function answerCoversExpectedPoints(
   const answerStems = contentStems(answerText);
   let hits = 0;
   for (const point of usable) {
+    if (speechNear(answerText, point)) {
+      hits += 1;
+      continue;
+    }
     const pointStems = contentStems(point);
     if (!pointStems.length) continue;
     const shared = pointStems.filter((stem) =>

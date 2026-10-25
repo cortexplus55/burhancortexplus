@@ -51,6 +51,7 @@ function fakeAsk(verifies: unknown[]) {
   const calls = { draft: 0, fix: 0, verify: 0 };
   let verify = 0;
   const ask = vi.fn(async (system: string) => {
+    if (system.includes("anahtarı görmeden")) return { solved: [] };
     if (system.includes("denetçisisin")) {
       calls.verify += 1;
       return verifies[verify++] ?? { issues: [] };
@@ -202,7 +203,9 @@ describe("bekleme ekranı etkinliğin adını söyler", () => {
     expect(preparingTitle("lesson")).toBe("Dersin hazırlanıyor…");
     expect(preparingTitle("flashcards")).toBe("Kartların hazırlanıyor…");
     expect(preparingTitle(undefined)).toBe("Hazırlanıyor…");
-    expect(read("src/components/parity/exam-node-session.tsx")).toContain("title={preparingTitle(kind)}");
+    expect(read("src/components/parity/exam-node-session.tsx")).toContain(
+      'title={reviewSaved ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}',
+    );
   });
 });
 

@@ -12,6 +12,14 @@ import {
 } from "@/lib/lab/simulations";
 import "@/styles/sim-lab.css";
 
+const SHORT_NAME: Record<OrganelleId, string> = {
+  nucleus: "Çekirdek",
+  mito: "Mito",
+  ribo: "Ribozom",
+  golgi: "Golgi",
+  er: "ER",
+};
+
 const SLOTS: { id: SlotId; x: number; y: number; label: string }[] = [
   { id: "center", x: 160, y: 150, label: "Merkez" },
   { id: "top", x: 160, y: 48, label: "Üst" },
@@ -25,6 +33,10 @@ export function HucreLab() {
   const [placed, setPlaced] = useState<Partial<Record<SlotId, OrganelleId>>>({});
   const score = useMemo(() => scoreCellPlacement(placed), [placed]);
   const placedCount = Object.keys(placed).length;
+  const place = (slotId: SlotId) => {
+    if (!selected) return;
+    setPlaced((current) => ({ ...current, [slotId]: selected }));
+  };
 
   return (
     <ToolShell
@@ -59,20 +71,28 @@ export function HucreLab() {
               const got = placed[slot.id];
               const expected = organelleForSlot(slot.id);
               const ok = got === expected.id;
+              const name = got ? CELL_ORGANELLES.find((item) => item.id === got)?.name : null;
               return (
-                <g key={slot.id}>
+                <g
+                  key={slot.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={name ? `${slot.label} yuvası: ${name}` : `${slot.label} yuvasına yerleştir`}
+                  onClick={() => place(slot.id)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    place(slot.id);
+                  }}
+                >
                   <motion.circle
                     cx={slot.x}
                     cy={slot.y}
                     r={28}
                     className={`sim-slot${got ? (ok ? " is-ok" : " is-bad") : ""}`}
-                    onClick={() => {
-                      if (!selected) return;
-                      setPlaced((current) => ({ ...current, [slot.id]: selected }));
-                    }}
                   />
                   <text x={slot.x} y={slot.y + 4} textAnchor="middle" className="sim-slot-label">
-                    {got ? CELL_ORGANELLES.find((item) => item.id === got)?.name.slice(0, 8) : slot.label}
+                    {got ? SHORT_NAME[got] : slot.label}
                   </text>
                 </g>
               );

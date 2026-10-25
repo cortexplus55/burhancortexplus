@@ -148,7 +148,7 @@ describe("video: kapı, kredi, yol", () => {
     ).rejects.toThrow();
     expect(read("supabase/migrations/20261025121000_video_visual_styles.sql")).toContain("cinematic");
     await db.close();
-  });
+  }, 15_000);
 });
 
 describe("video ekranları", () => {

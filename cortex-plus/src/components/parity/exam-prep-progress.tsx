@@ -10,6 +10,8 @@ import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
 import type { PrepRadarView } from "@/lib/learning/prep-radar";
 
 const TICKS = 40;
+/** İlerleme listesinde ilk bakışta görünen konu. Gerisi açılır. */
+const TOPIC_PREVIEW = 8;
 
 /**
  * Hazırlığın İlerleme sekmesi — Astra düzeni (29 Eylül 2026).
@@ -35,6 +37,7 @@ export function ExamPrepProgress({
   radar?: PrepRadarView | null;
 }) {
   const [pane, setPane] = useState<"duzey" | "denemeler" | "tempo">("duzey");
+  const [topicsOpen, setTopicsOpen] = useState(false);
   const lit = Math.round((view.scorePct / 100) * TICKS);
   const maxWeek = Math.max(1, ...view.tempo.weeks.map((week) => week.activities));
 
@@ -192,7 +195,7 @@ export function ExamPrepProgress({
             </h3>
             {view.topics.length ? (
               <ul className="cp-prog-topics" aria-label={PREP_HOME_COPY.skillTree}>
-                {view.topics.map((topic) => (
+                {(topicsOpen ? view.topics : view.topics.slice(0, TOPIC_PREVIEW)).map((topic) => (
                   <li key={topic.label}>
                     <div className="cp-prog-topic-row">
                       <strong>{topic.label}</strong>
@@ -223,6 +226,11 @@ export function ExamPrepProgress({
             ) : (
               <p>{PREP_HOME_COPY.noTopics}</p>
             )}
+            {!topicsOpen && view.topics.length > TOPIC_PREVIEW ? (
+              <button type="button" className="cp-prog-topic-create" onClick={() => setTopicsOpen(true)}>
+                {`Tüm Konuları Göster (${view.topics.length} konu)`}
+              </button>
+            ) : null}
           </div>
 
           {view.weeks.rows.length ? (

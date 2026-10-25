@@ -9,6 +9,22 @@ const W = 360;
 const H = 260;
 const PAD = 24;
 
+/** 1, -2, -3 → "x² − 2x − 3". Katsayı 1 gizlenir, eksi işaret çift artıya dönmez. */
+function formatQuadratic(a: number, b: number, c: number): string {
+  const pieces: string[] = [];
+  const push = (coef: number, body: string) => {
+    if (Math.abs(coef) < 1e-9) return;
+    const mag = Math.abs(Math.round(coef * 1000) / 1000);
+    const head = body && Math.abs(mag - 1) < 1e-9 ? "" : String(mag);
+    const text = `${head}${body}`;
+    pieces.push(pieces.length === 0 ? (coef < 0 ? `−${text}` : text) : `${coef < 0 ? "−" : "+"} ${text}`);
+  };
+  push(a, "x²");
+  push(b, "x");
+  push(c, "");
+  return pieces.length ? pieces.join(" ") : "0";
+}
+
 export function ParabolKesif() {
   const [a, setA] = useState(1);
   const [b, setB] = useState(-2);
@@ -75,7 +91,7 @@ export function ParabolKesif() {
       result={
         <div>
           <p className="sim-formula">
-            f(x) = {a}x² + {b}x + {c}
+            f(x) = {formatQuadratic(a, b, c)}
           </p>
           <svg viewBox={`0 0 ${W} ${H}`} className="sim-svg" role="img" aria-label="Parabol grafiği">
             <line x1={PAD} y1={path.axisX} x2={W - PAD} y2={path.axisX} className="sim-axis" />

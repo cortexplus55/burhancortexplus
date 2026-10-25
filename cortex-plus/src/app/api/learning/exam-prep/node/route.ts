@@ -132,7 +132,7 @@ import {
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
 import { buildingPayload, isBuilding, isStaleBuild, truncatedPayload } from "@/lib/learning/lesson-build";
-import { replayLessonPayload } from "@/lib/learning/lesson-replay";
+import { savedReviewPayload } from "@/lib/learning/saved-review";
 import { isAdminUser } from "@/lib/auth/roles";
 import {
   honestReadingMinutes,
@@ -276,6 +276,8 @@ const bodySchema = z.object({
   lessonStream: z.boolean().optional(),
   /** "Dersi tekrarla": aynı ders yeniden açılır, yeniden yazılmaz (18 Ekim 2026). */
   replay: z.boolean().optional(),
+  /** Bitmiş adımın kayıtlı gövdesi. Üretim ve kredi yok (25 Ekim 2026). */
+  review: z.boolean().optional(),
 });
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
@@ -1504,9 +1506,11 @@ async function handleNodeRequest(
     }
   }
 
-  // "Dersi tekrarla" (18 Ekim 2026, ürün sahibinin kararı): son ders yeni bir kayıtta açılır —
-  // anında, kredisiz; şıklar başka sırayla, cevaplar sıfırdan. Ders yoksa normal açılış sürer.
-  if (kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.replay === true) {
+  // "Dersi tekrarla" (18 Ekim 2026) ve "Tekrar incele" (25 Ekim 2026): kayıtlı gövde
+  // yeni bir denemede açılır — anında, kredisiz. Kayıt yoksa inceleme üretim başlatmaz.
+  const reopenSaved = parsed.data.review === true && !voiceSession && !prefetch && kind !== "written_exam";
+  const replayLesson = kind === "lesson" && teachingV2 && !voiceSession && !prefetch && parsed.data.replay === true;
+  if (reopenSaved || replayLesson) {
     const { data: previous } = await service
       .from("exam_prep_node_attempts")
       .select("payload")
@@ -1518,7 +1522,7 @@ async function handleNodeRequest(
       .limit(5);
     const requestId = clientRequestId ?? crypto.randomUUID();
     const replayed = (previous ?? [])
-      .map((row) => replayLessonPayload(row.payload, requestId))
+      .map((row) => savedReviewPayload(row.payload, requestId))
       .find((item): item is Record<string, unknown> => Boolean(item));
     if (replayed) {
       const { data: replayAttempt, error: replayError } = await service
@@ -1568,6 +1572,7 @@ async function handleNodeRequest(
         });
       }
     }
+    if (reopenSaved) return errorResponse(404, "not_found");
   }
 
   // Yazımı süren hazır ders (18 Ekim 2026): ikinci kez yazılmaz, devralınır. Öğrenci

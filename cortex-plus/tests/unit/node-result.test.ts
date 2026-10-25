@@ -61,7 +61,10 @@ describe("bitmiş etkinliğin sonucu", () => {
     expect(examPrepNodeResultHref("p1", "n1")).toBe("/deneme-sinavlari/p1/dugum/n1/sonuc");
     const home = read("src/components/parity/exam-prep-home.tsx");
     expect(home).toContain('<Link href={examPrepNodeResultHref(prepId, lastNode.id)} className="cp-prep-last-go">');
-    expect(home).toContain('node.status === "done" ? examPrepNodeResultHref(prepId, node.id)');
+    expect(home).toContain("📖 Dersi / İçeriği Tekrar İncele (Kredisiz)");
+    expect(home).toContain("⏭️ Sıradaki Etkinliğe Git");
+    expect(home).toContain("examPrepSavedReviewHref(prepId, node.id)");
+    expect(home).not.toContain('node.status === "done" ? examPrepNodeResultHref(prepId, node.id)');
     const page = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
     expect(page).toContain('.eq("user_id", user.id)');
     expect(page).toContain('.eq("status", "completed")');
