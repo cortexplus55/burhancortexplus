@@ -350,7 +350,6 @@ export async function requestParentPayment(planId: string, message?: string) {
   }
 
   revalidatePath("/paketler");
-  revalidatePath("/veli/plus");
   return { ok: true };
 }
 
@@ -367,8 +366,6 @@ export async function linkChildByCode(rawCode: string) {
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
 
   const result = await createCodeLink(user.id, parsed.data);
-  revalidatePath("/veli");
-  revalidatePath("/onboarding/veli");
   return result.ok ? { ok: true } : { ok: false, error: result.error };
 }
 
@@ -385,8 +382,6 @@ export async function inviteChildByEmail(
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
 
   const result = await createEmailInvite(user.id, parsed.data);
-  revalidatePath("/veli");
-  revalidatePath("/onboarding/veli");
   return result;
 }
 
@@ -409,7 +404,6 @@ export async function completeParentOnboardingIfLinked() {
 
   if (error) return { ok: false, error: "Devam edilemedi." };
   revalidatePath("/", "layout");
-  revalidatePath("/veli");
   return { ok: true };
 }
 
@@ -455,8 +449,6 @@ export async function cancelParentLink(linkId: string) {
     .eq("status", "pending");
 
   if (error) return { ok: false, error: "İstek iptal edilemedi." };
-  revalidatePath("/veli");
-  revalidatePath("/onboarding/veli");
   return { ok: true };
 }
 
@@ -483,9 +475,6 @@ export async function unlinkParentChild(linkId: string) {
     return { ok: false, error: "Bağlantı kaldırılamadı." };
   }
 
-  revalidatePath("/veli");
-  revalidatePath("/veli/plus");
   revalidatePath("/profil");
-  revalidatePath("/onboarding/veli");
   return { ok: true };
 }

@@ -1121,6 +1121,9 @@ function StudyPath({
                 <span className="cp-path-current-label" aria-hidden>
                   <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>
                   <span className="cp-path-current-title">{nodeHeading(node)}</span>
+                  <span className="cp-path-current-meta">
+                    ~{node.sessionMeta?.durationMinutes ?? 15} dk · +{prepStars(node.kind, null, null)} ⭐
+                  </span>
                 </span>
               ) : null}
             </li>

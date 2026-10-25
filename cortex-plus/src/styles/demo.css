@@ -896,6 +896,152 @@
   opacity: 0.66;
 }
 
+.dm-feast {
+  margin: 0 0 2.4rem;
+  padding: 1.4rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dm-feast-kicker {
+  margin: 0 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--pm-amber-500, #f4ae0b);
+}
+
+.dm-feast-title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  letter-spacing: -0.02em;
+}
+
+.dm-feast-lead {
+  margin: 0 0 1.25rem;
+  max-width: 52ch;
+  color: var(--dm-muted);
+}
+
+.dm-feast-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
+}
+
+.dm-feast-card {
+  min-width: 0;
+  padding: 1rem 1.05rem 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  background: rgba(20, 20, 22, 0.72);
+}
+
+.dm-feast-card h3 {
+  margin: 0 0 0.7rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.dm-feast-card .als-visual,
+.dm-feast-card .als-formula-card {
+  margin-top: 0;
+}
+
+.dm-socratic {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.dm-socratic-q {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.dm-socratic-box {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(253, 179, 0, 0.28);
+  background: rgba(253, 179, 0, 0.08);
+}
+
+.dm-socratic-box--concept {
+  border-color: rgba(139, 92, 246, 0.35);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.dm-socratic-label {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dm-muted);
+}
+
+.dm-socratic-box p:last-child,
+.dm-socratic-answer {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.dm-feast-sim-lead {
+  margin: 0 0 0.75rem;
+  color: var(--dm-muted);
+  font-size: 0.92rem;
+}
+
+.dm-feast-sim {
+  position: relative;
+  width: 7.5rem;
+  height: 7.5rem;
+  margin: 0 auto 0.9rem;
+}
+
+.dm-feast-sim-circle {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(67, 83, 243, 0.7);
+  border-radius: 50%;
+}
+
+.dm-feast-sim-arm {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  height: 2px;
+  background: #f4ae0b;
+  transform: rotate(-28deg);
+  transform-origin: left center;
+}
+
+.dm-feast-sim-dot {
+  position: absolute;
+  top: 18%;
+  right: 12%;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: #4353f3;
+}
+
+.dm-feast-sim-link {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.dm-feast-sim-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  color: var(--dm-muted);
+}
+
 /* ORNEK_MOBILE_RAIL: yatay ray mobilde 3. adımı kesiyor + scrollbar üretiyor */
 @media (max-width: 640px) {
   .dm-rail {

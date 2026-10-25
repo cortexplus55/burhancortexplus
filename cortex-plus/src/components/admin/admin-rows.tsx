@@ -76,11 +76,16 @@ export function FeatureFlagRow({
   label,
   description,
   enabled,
+  locked = false,
+  statusLabel,
 }: {
   flagKey: string;
   label: string;
   description: string;
   enabled: boolean;
+  /** Kodun okumadığı eski bayrak: anahtar yanıltmasın. */
+  locked?: boolean;
+  statusLabel?: string;
 }) {
   const [checked, setChecked] = useState(enabled);
   const [pending, startTransition] = useTransition();
@@ -92,35 +97,43 @@ export function FeatureFlagRow({
         <div className="whitespace-normal text-xs text-[var(--adm-muted)]">{description}</div>
       </td>
       <td>
-        <span className={`adm-badge adm-badge--${checked ? "ok" : "mute"}`}>
-          {checked ? "Açık" : "Kapalı"}
-        </span>
+        {locked ? (
+          <span className="adm-badge adm-badge--warn">{statusLabel ?? "Kod okumuyor"}</span>
+        ) : (
+          <span className={`adm-badge adm-badge--${checked ? "ok" : "mute"}`}>
+            {checked ? "Açık" : "Kapalı"}
+          </span>
+        )}
       </td>
       <td className="text-xs text-[var(--adm-muted)]">{flagKey}</td>
       <td>
         <div className="flex justify-end">
-          <button
-            type="button"
-            className="adm-btn"
-            disabled={pending}
-            onClick={() => {
-              const nextValue = !checked;
-              setChecked(nextValue);
-              startTransition(async () => {
-                const result = await toggleFeatureFlag(flagKey, nextValue);
-                if (result.ok) {
-                  toast.success(nextValue ? "Özellik açıldı." : "Özellik kapatıldı.");
-                } else {
-                  // Sunucu reddettiyse anahtarı eski hâline döndür; ekranda
-                  // açık görünüp aslında kapalı kalması en kötüsü.
-                  setChecked(!nextValue);
-                  toast.error("Değiştirilemedi.");
-                }
-              });
-            }}
-          >
-            {pending ? "…" : checked ? "Kapat" : "Aç"}
-          </button>
+          {locked ? (
+            <span className="adm-badge adm-badge--mute">Salt okunur</span>
+          ) : (
+            <button
+              type="button"
+              className="adm-btn"
+              disabled={pending}
+              onClick={() => {
+                const nextValue = !checked;
+                setChecked(nextValue);
+                startTransition(async () => {
+                  const result = await toggleFeatureFlag(flagKey, nextValue);
+                  if (result.ok) {
+                    toast.success(nextValue ? "Özellik açıldı." : "Özellik kapatıldı.");
+                  } else {
+                    // Sunucu reddettiyse anahtarı eski hâline döndür; ekranda
+                    // açık görünüp aslında kapalı kalması en kötüsü.
+                    setChecked(!nextValue);
+                    toast.error("Değiştirilemedi.");
+                  }
+                });
+              }}
+            >
+              {pending ? "…" : checked ? "Kapat" : "Aç"}
+            </button>
+          )}
         </div>
       </td>
     </tr>

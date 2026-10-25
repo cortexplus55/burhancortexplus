@@ -11,6 +11,9 @@ describe("Aktivitelerim", () => {
     const page = readFileSync("src/app/ilerleme/page.tsx", "utf8");
     expect(page).toContain('title: "Aktivitelerim"');
     expect(page).toContain(">Aktivitelerim</h1>");
+    expect(page).toContain("PrepRadarChart");
+    expect(page).toContain("PrepForecastChart");
+    expect(page).toContain("loadNearestPrepInsights");
   });
 
   it("gün etiketleri ham ISO tarih değil", () => {

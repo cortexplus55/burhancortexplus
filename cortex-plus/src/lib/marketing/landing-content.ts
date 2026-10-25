@@ -22,7 +22,7 @@ export const HERO = {
   lead:
     "Cortex Plus ders notunu konulara ayırır; her konu için ders, podcast, test ve sözlü pratik hazırlar. Hepsi senin notuna dayanır; notunda olmayan sayı ya da kural uydurmaz.",
   primary: { label: "Ücretsiz başla", href: "/kayit" },
-  secondary: { label: "Nasıl çalışıyor?", href: "#nasil" },
+  secondary: { label: "Önce örnek bir dersi incele →", href: "/ornek" },
   fineprint: "Kart istemiyoruz · Haftada 3 ders ücretsiz",
 } as const;
 

@@ -14,6 +14,7 @@ import {
   type LandingFeature,
 } from "@/lib/marketing/landing-content";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
+import { WEEKLY_PLUS_PLAN_NAME } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { formatTryWhole } from "@/lib/format";
 import { PlusMonth } from "@/components/marketing/plus-month";
@@ -34,6 +35,7 @@ const fmtCount = (n: number) => new Intl.NumberFormat("tr-TR").format(n);
 export function LandingPage({ prices }: { prices: LandingPrices }) {
   const plus = allowanceInWork(PLAN_ALLOWANCES.plusMonthly);
   const week = allowanceInWork(PLAN_ALLOWANCES.plusWeekly);
+  const sigma = allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly);
 
   return (
     <div className="lp">
@@ -56,9 +58,9 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
               {HERO.primary.label}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
-            <a href={HERO.secondary.href} className="lp-btn lp-btn--ghost">
+            <Link href={HERO.secondary.href} className="lp-btn lp-btn--ghost">
               {HERO.secondary.label}
-            </a>
+            </Link>
           </div>
           <p className="lp-fineprint">{HERO.fineprint}</p>
         </div>
@@ -188,7 +190,7 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
               </Link>
             </article>
             <article className="lp-plan">
-              <h3 className="lp-plan-name">Sınav haftası</h3>
+              <h3 className="lp-plan-name">{WEEKLY_PLUS_PLAN_NAME}</h3>
               <p className="lp-plan-price">
                 {prices.plusWeekly ? formatTryWhole(prices.plusWeekly) : "—"}
                 <span> / 7 gün</span>
@@ -205,6 +207,13 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
               </Link>
             </article>
           </div>
+          <Link href="/fiyatlandirma" className="lp-sigma-strip">
+            <span>
+              🔥 Çok yoğun çalışanlar için: Sigma Paketi (Ayda {fmtCount(sigma.lessons)}{" "}
+              ders / {fmtCount(sigma.messages)} mesaj)
+            </span>
+            <span>Tüm planları karşılaştır →</span>
+          </Link>
           <p className="lp-plans-foot">
             Abonelik kendiliğinden yenilenmez. Ödeme PayTR ile; kart bilgisi bize gelmez.{" "}
             <Link href="/fiyatlandirma">Bütün planları karşılaştır</Link>

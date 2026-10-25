@@ -26,6 +26,7 @@ import {
   type PodcastChapter,
   type SpeakerId,
 } from "@/lib/learning/podcast-script";
+import { DemoVisualFeast } from "@/components/demo/demo-visual-feast";
 import { SourceUpload } from "@/components/demo/source-upload";
 import type { DemoPipeline } from "@/lib/demo/lesson";
 
@@ -223,6 +224,8 @@ export function DemoWalkthrough({
           <span aria-hidden>{subject.icon}</span> {subject.label}
         </span>
       </header>
+
+      <DemoVisualFeast />
 
       <ol ref={railRef} className="dm-rail" aria-label="Adımlar">
         {STEPS.map((s, i) => (

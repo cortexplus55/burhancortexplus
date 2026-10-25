@@ -294,6 +294,7 @@ export function SignupWizard() {
               ))}
             </div>
             <ContinueButton disabled={!draft.gradeLevel} onClick={next} />
+            <PreviewLessonLink />
           </StepShell>
         ) : null}
 
@@ -410,6 +411,7 @@ export function SignupWizard() {
                 <span className="font-medium text-amber-50">&ldquo;{entryPrompt}&rdquo;</span>
               </p>
             ) : null}
+            <PreviewLessonLink />
             <form onSubmit={submitAccount} className="signup-account-panel space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Ad soyad</Label>
@@ -506,6 +508,19 @@ export function SignupWizard() {
         ) : null}
       </div>
     </SignupPremiumShell>
+  );
+}
+
+function PreviewLessonLink() {
+  return (
+    <p className="mt-4 text-center text-sm">
+      <Link
+        href="/ornek"
+        className="text-[var(--cx-muted)] underline-offset-4 hover:text-[var(--cx-gold-hover)] hover:underline"
+      >
+        Önce örnek bir dersi incele →
+      </Link>
+    </p>
   );
 }
 

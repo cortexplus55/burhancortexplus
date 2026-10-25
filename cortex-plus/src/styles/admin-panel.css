@@ -349,6 +349,18 @@
 .adm-btn--danger { color: var(--adm-bad); border-color: rgba(248, 113, 113, 0.35); }
 .adm-btn--danger:hover:not(:disabled) { background: var(--adm-bad-soft); color: var(--adm-bad); border-color: var(--adm-bad); }
 
+.adm-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 1.1rem;
+  border-top: 1px solid var(--adm-line);
+  color: var(--adm-muted);
+  font-size: 0.85rem;
+}
+
 /* ---------- Uyarı kutusu ---------- */
 
 .adm-note {

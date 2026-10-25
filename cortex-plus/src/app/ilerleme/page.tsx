@@ -10,6 +10,9 @@ import { countMistakes } from "@/lib/learning/mistake-notebook";
 import { ActivityHistory } from "@/components/student/activity-history";
 import { LearningTimeCard } from "@/components/student/learning-time-card";
 import { StreakFreezeBadge, streakFreezeTitle } from "@/components/parity/streak-freeze-badge";
+import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
+import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
+import { loadNearestPrepInsights } from "@/lib/learning/prep-insights-load";
 import { todayKey } from "@/lib/learning/daily-drill";
 import type { LearningTimeRow } from "@/lib/learning/learning-time";
 
@@ -19,7 +22,7 @@ export default async function IlerlemePage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [conversations, quizzes, flashcards, attempts, weak, mistakes, activity, learningTime] =
+  const [conversations, quizzes, flashcards, attempts, weak, mistakes, activity, learningTime, prepInsights] =
     await Promise.all([
     supabase
       .from("conversations")
@@ -66,6 +69,7 @@ export default async function IlerlemePage() {
       .eq("user_id", user.id)
       .order("activity_date", { ascending: false })
       .limit(5000),
+    loadNearestPrepInsights(supabase, user.id),
   ]);
   const learningRows = (learningTime.data ?? []) as LearningTimeRow[];
 
@@ -118,6 +122,23 @@ export default async function IlerlemePage() {
         <h1 className="cp-page-title">Aktivitelerim</h1>
       </div>
       <div className="space-y-6">
+        {prepInsights ? (
+          <SectionCard
+            title="Hazırlık düzeyi"
+            description={`${prepInsights.title} · 5 eksen ve 14 günlük tahmin. Uydurma yükseliş yok.`}
+          >
+            <div className="cp-prep-insights">
+              <PrepRadarChart view={prepInsights.radar} compact />
+              <PrepForecastChart series={prepInsights.forecastSeries} />
+            </div>
+            <Link
+              href={prepInsights.href}
+              className="mt-4 inline-flex text-sm font-semibold text-[var(--cs-primary)]"
+            >
+              Hazırlık yoluna git →
+            </Link>
+          </SectionCard>
+        ) : null}
         <SectionCard
           title="Çalışma serin"
           description={

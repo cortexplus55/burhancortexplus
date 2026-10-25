@@ -13,6 +13,15 @@ import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 
 export const BENEFITS_LEAD = "Ücretsiz plandaki her şey ve:";
 
+/** Haftalık Plus — ana sayfa ve /fiyatlandirma aynı adı kullanır. */
+export const WEEKLY_PLUS_PLAN_NAME = "Sınav Haftası (7 Günlük Plus)";
+
+/** Kayıtsız sütunun görünen adı. Eski "Misafir" yanıltıyordu: gidecek yer yoktu. */
+export const GUEST_PREVIEW_COLUMN = "Ön İzleme (Kayıtsız)";
+export const GUEST_PREVIEW_OPEN = "Açık (Ön izleme)";
+export const GUEST_PREVIEW_HREF = "/ornek";
+export const GUEST_PREVIEW_CTA = "👀 Kayıt Olmadan Örnek Dersi Gör";
+
 /**
  * Hak somut sayıyla anlatılır (8 Ekim 2026, ürün sahibinin kararı): "kat"
  * değil, ne kadar iş. Sayılar kredi tablosundan; tablo değişirse cümle de.
@@ -140,6 +149,27 @@ export function tierComparisonRows(): TierComparisonRow[] {
       free: "Yok",
       plus: "Var",
       sigma: "Var",
+    },
+    {
+      label: "Örnek ders",
+      guest: GUEST_PREVIEW_OPEN,
+      free: "Açık",
+      plus: "Açık",
+      sigma: "Açık",
+    },
+    {
+      label: "İnteraktif simülasyonlar",
+      guest: GUEST_PREVIEW_OPEN,
+      free: "Açık",
+      plus: "Açık",
+      sigma: "Açık",
+    },
+    {
+      label: "Paylaşılan düello",
+      guest: GUEST_PREVIEW_OPEN,
+      free: "Açık",
+      plus: "Açık",
+      sigma: "Açık",
     },
   ];
 }

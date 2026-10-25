@@ -99,7 +99,6 @@ export async function updateProfile(formData: FormData) {
       .eq("id", user.id);
 
     revalidatePath("/profil");
-    revalidatePath("/veli");
     revalidatePath("/ayarlar");
     return { ok: !error, error: error ? "Kaydedilemedi." : undefined };
   }

@@ -21,6 +21,9 @@ import {
   type StudioSourceMode,
 } from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
+import { ReviewGradeButtons } from "@/components/parity/review-grade-buttons";
+import { defaultSm2 } from "@/lib/learning/review-sm2";
+import "@/styles/prep-review.css";
 
 type Card = { id: string; front: string; back: string };
 
@@ -174,14 +177,14 @@ export function FlashcardStudio({
               </div>
             </div>
           </button>
-          <div className="ls-actions">
-            <button type="button" className="ls-ghost" onClick={() => mark(false)}>
-              Tekrar
-            </button>
-            <button type="button" className="ls-cta" onClick={() => mark(true)}>
-              Biliyorum
-            </button>
-          </div>
+          {flipped ? (
+            <ReviewGradeButtons
+              state={defaultSm2()}
+              onGrade={(quality) => mark(quality >= 4)}
+            />
+          ) : (
+            <p className="ls-credit">Cevabı görünce ne kadar hatırladığını işaretle.</p>
+          )}
         </>
       ) : null}
 

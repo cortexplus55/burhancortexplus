@@ -4,6 +4,7 @@ import { FeatureFlagRow } from "@/components/admin/admin-rows";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
+import { paytrMode } from "@/lib/payments/paytr";
 
 export const metadata = { title: "Yönetim · Özellik anahtarları" };
 
@@ -12,18 +13,6 @@ export const metadata = { title: "Yönetim · Özellik anahtarları" };
  * teknik bir açıklama duruyor; asıl önemli olan "kapatırsam ne olur" cevabı.
  */
 const KNOWN = [
-  {
-    key: "rag_sources",
-    label: "Sohbette kaynak gösterimi",
-    description:
-      "Açıkken yapay zekâ, yüklenen dokümandan yararlandığında hangi sayfadan aldığını gösterir. Kapatırsan yanıtlar gelmeye devam eder ama kaynak bağlantısı görünmez.",
-  },
-  {
-    key: "paytr_live",
-    label: "Ödeme canlı modu",
-    description:
-      "Açıkken kartlardan gerçekten para çekilir. Test bitmeden açma — açık kalırsa deneme alışverişleri gerçek tahsilat olur.",
-  },
   {
     key: "pdf_learning_v2",
     label: "PDF öğrenme v2 (konu haritası)",
@@ -60,18 +49,44 @@ const KNOWN = [
     description:
       "Açıkken yanlış yapılan sorular ve dersin sınav noktaları 1-3-7-14 gün sonra hazırlık sayfasında yeniden sorulur. Kapatırsan yeni tekrar yazılmaz, kart ve hatırlatma görünmez; kayıtlar silinmez.",
   },
+  {
+    key: "weekly_survey",
+    label: "Haftalık kısa anket",
+    description:
+      "Açıkken Sınavlar sayfasında o hafta çalışan öğrenciye dört soruluk kart çıkar. Kapatırsan kart görünmez; eski cevaplar durur.",
+  },
 ];
+
+/**
+ * Kodun okumadığı eski bayraklar. Panelde anahtar gibi dururlarsa yönetici
+ * canlı ödemeyi buradan açtığını sanır. Gerçek kontrol ortam değişkeninde.
+ */
+const INEFFECTIVE = [
+  {
+    key: "paytr_live",
+    label: "Ödeme canlı modu",
+    description:
+      "Bu bayrak kodda okunmuyor. Canlı tahsilat `PAYTR_TEST_MODE` ortam değişkeniyle kontrol edilir (0 = canlı, 1 veya boş = test). Anahtarı açmak veya kapatmak hiçbir şeyi değiştirmez.",
+  },
+  {
+    key: "rag_sources",
+    label: "Sohbette kaynak gösterimi",
+    description:
+      "Bu bayrak kodda okunmuyor. Belgeye dayanan cevaplarda kaynak gösterimi her zaman çalışır; buradaki anahtar onu kapatmaz.",
+  },
+] as const;
 
 /**
  * Üründen kaldırılmış özelliklerin eski veritabanı kayıtları bilerek kalabilir.
  * Bunları "tanımsız anahtar" olarak göstermek, yöneticiye artık var olmayan bir
  * özelliği açabileceği izlenimini verir.
  */
-const RETIRED = new Set(["teacher_panel"]);
+const RETIRED = new Set(["teacher_panel", ...INEFFECTIVE.map((flag) => flag.key)]);
 
 export default async function AdminOzellikAnahtarlariPage() {
   await requireAdmin();
   const service = createServiceClient();
+  const mode = paytrMode();
 
   const [{ data: flags }, pending] = await Promise.all([
     service.from("feature_flags").select("key, enabled, description"),
@@ -103,12 +118,19 @@ export default async function AdminOzellikAnahtarlariPage() {
       })),
   ];
 
+  const paytrStatus =
+    mode === "live" ? "Canlı (PAYTR_TEST_MODE=0)" : mode === "test" ? "Test (PAYTR_TEST_MODE≠0)" : "Kurulu değil";
+
   return (
     <AdminShell href="/admin/feature-flags" pendingApplications={pending}>
       <AdminNote tone="warn">
         Bir anahtarı değiştirdiğinde <strong>tüm kullanıcılar anında</strong>
         etkilenir; sayfayı yenilemelerine bile gerek kalmaz. Emin değilsen
         dokunma.
+      </AdminNote>
+      <AdminNote tone="info">
+        Canlı ödeme bu listedeki <code>paytr_live</code> ile açılmaz. Gerçek kip{" "}
+        <code>PAYTR_TEST_MODE</code>: şu an <strong>{paytrStatus}</strong>.
       </AdminNote>
 
       <AdminCard
@@ -124,6 +146,17 @@ export default async function AdminOzellikAnahtarlariPage() {
               label={flag.label}
               description={flag.description}
               enabled={flag.enabled}
+            />
+          ))}
+          {INEFFECTIVE.map((flag) => (
+            <FeatureFlagRow
+              key={flag.key}
+              flagKey={flag.key}
+              label={flag.label}
+              description={flag.description}
+              enabled={false}
+              locked
+              statusLabel={flag.key === "paytr_live" ? paytrStatus : "Kod okumuyor"}
             />
           ))}
         </AdminTableFrame>

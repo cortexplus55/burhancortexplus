@@ -6,7 +6,7 @@ import { nearDuplicateSentence } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import { prepStars } from "@/lib/stars/rules";
-import { ComparisonCarousel, ExamTrapCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
+import { ComparisonCarousel, ExamTrapCard, FormulaCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
@@ -140,38 +140,6 @@ function SourceBadge({ source }: { source: { file: string; page?: number } }) {
         <span id={detailId} role="note" className="als-source-detail">
           {label}
         </span>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * Bağıntı gövdeye gömülmez, ayrı bir kart olarak durur — Astra
- * karşılaştırmasında gövdeye sıkışan formüllerin gövdeyi hem uzatıp hem
- * okunaksızlaştırdığı görüldü. `.als-formula` adı `RichBody`'nin satır içi
- * matematik bloğu tarafından zaten kullanılıyor; çakışmasın diye bu kart
- * `.als-formula-card`.
- */
-function FormulaCard({ formula }: { formula: NonNullable<LessonV2["sections"][number]["formula"]> }) {
-  const symbols = "symbols" in formula && Array.isArray(formula.symbols) ? formula.symbols : [];
-  return (
-    <div className="als-formula-card" role="group" aria-label="Formül ve kural">
-      <p className="als-kicker als-kicker--formula">Formül & Kural</p>
-      <p className="als-formula-card-title">{formula.title}</p>
-      <p className="als-formula-card-expr">
-        <RichBody text={formula.expression} />
-      </p>
-      {symbols.length ? (
-        <ul className="als-formula-symbols">
-          {symbols.map((item) => (
-            <li key={`${item.symbol}-${item.meaning}`}>
-              <span>{item.symbol}</span>
-              {item.meaning}
-            </li>
-          ))}
-        </ul>
-      ) : formula.note ? (
-        <p className="als-formula-card-note">{formula.note}</p>
       ) : null}
     </div>
   );

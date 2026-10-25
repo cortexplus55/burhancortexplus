@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -15,11 +16,15 @@ import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
 import {
   BENEFITS_LEAD,
+  GUEST_PREVIEW_COLUMN,
+  GUEST_PREVIEW_CTA,
+  GUEST_PREVIEW_HREF,
   parentPlusBenefitLines,
   parentSigmaBenefitLines,
   plusBenefitLines,
   sigmaBenefitLines,
   tierComparisonRows,
+  WEEKLY_PLUS_PLAN_NAME,
 } from "@/lib/billing/tier-presentation";
 
 export { BENEFITS_LEAD };
@@ -417,7 +422,7 @@ export function SubscriptionCards({
 
       <div className="tier-compare mx-auto mb-6 w-full">
         <p id="tier-compare-title" className="tier-compare-caption">
-          Misafir, ücretsiz ve premium
+          Ön izleme, ücretsiz ve premium
         </p>
         <div className="tier-compare-cards" aria-labelledby="tier-compare-title">
           {comparison.map((row) => (
@@ -426,7 +431,7 @@ export function SubscriptionCards({
               <dl className="tier-compare-grid">
                 {(
                   [
-                    ["Misafir", row.guest],
+                    [GUEST_PREVIEW_COLUMN, row.guest],
                     ["Ücretsiz", row.free],
                     ["Plus", row.plus],
                     ["Sigma", row.sigma],
@@ -449,7 +454,7 @@ export function SubscriptionCards({
                   Özellik
                 </th>
                 <th className="font-medium" scope="col">
-                  Misafir
+                  {GUEST_PREVIEW_COLUMN}
                 </th>
                 <th className="font-medium" scope="col">
                   Ücretsiz
@@ -477,6 +482,16 @@ export function SubscriptionCards({
             </tbody>
           </table>
         </div>
+        {guestMode ? (
+          <p className="mt-4 text-center">
+            <Link
+              href={GUEST_PREVIEW_HREF}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[var(--cs-border)] px-4 py-2 text-sm font-medium text-[var(--cs-text)]"
+            >
+              {GUEST_PREVIEW_CTA}
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       {/*
@@ -560,12 +575,12 @@ export function SubscriptionCards({
                 >
                   {loadingId === plusWeekly.id
                     ? "Hazırlanıyor…"
-                    : `Bir hafta dene · ${formatTryWhole(plusWeekly.price_try)}`}
+                    : `${WEEKLY_PLUS_PLAN_NAME} · ${formatTryWhole(plusWeekly.price_try)}`}
                 </button>
               ) : null}
               {plusWeekly && !plusOwned && !isParent ? (
                 <p className="mt-1.5 text-center text-xs text-[var(--cs-muted)]">
-                  Sınav haftası için tek ödeme, abonelik açılmaz.
+                  {WEEKLY_PLUS_PLAN_NAME} için tek ödeme, abonelik açılmaz.
                 </p>
               ) : null}
               <button

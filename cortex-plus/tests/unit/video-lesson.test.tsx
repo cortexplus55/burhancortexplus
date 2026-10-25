@@ -139,14 +139,14 @@ describe("video: kapı, kredi, yol", () => {
       CREATE TABLE public.credit_rules (action_code text PRIMARY KEY, credit_cost integer NOT NULL, model_tier text NOT NULL DEFAULT 'standard',
         description text, active boolean NOT NULL DEFAULT true, updated_at timestamptz NOT NULL DEFAULT now());`);
     await db.exec(read("supabase/migrations/20261017150000_prep_videos.sql"));
-    await db.exec(read("supabase/migrations/20261025120000_video_visual_styles.sql"));
+    await db.exec(read("supabase/migrations/20261025121000_video_visual_styles.sql"));
     const rule = (await db.query<{ credit_cost: number }>("SELECT credit_cost FROM public.credit_rules WHERE action_code = 'VIDEO_GENERATE'")).rows[0];
     expect(rule?.credit_cost).toBe(280);
     await expect(
       db.exec(`INSERT INTO public.prep_videos (user_id, exam_prep_id, topic_label, style, title, scenes) VALUES
         (gen_random_uuid(), gen_random_uuid(), 'Krup', 'cartoon', 'x', '[]')`),
     ).rejects.toThrow();
-    expect(read("supabase/migrations/20261025120000_video_visual_styles.sql")).toContain("cinematic");
+    expect(read("supabase/migrations/20261025121000_video_visual_styles.sql")).toContain("cinematic");
     await db.close();
   });
 });

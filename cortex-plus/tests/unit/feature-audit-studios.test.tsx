@@ -157,6 +157,12 @@ describe("araç kurulumu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Belgenin tamamı" }));
     await waitFor(() => expect(calls.length).toBe(1));
     expect(calls[0]).toMatchObject({ topic: "Belgenin tamamı", count: 20, documentId: "d1" });
+    await waitFor(() => expect(screen.getByText("Ön")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Kartı cevaba çevir" }));
+    expect(screen.getByRole("group", { name: "Ne kadar hatırladın?" })).toBeTruthy();
+    expect(screen.getByText(/Zorlandım/)).toBeTruthy();
+    expect(screen.getByText(/Hatırladım/)).toBeTruthy();
+    expect(screen.getByText(/Çok Kolaydı/)).toBeTruthy();
     vi.unstubAllGlobals();
   });
 
