@@ -22,7 +22,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 /*
   Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi). Astra canlıda:
-  "Yıldızlar: bugün 11 / 50", Okul arkadaşları / Türkiye / Okullar, Bu hafta / Tüm
+  "Yıldızlar: bugün 11 · hedef 50", Okul arkadaşları / Türkiye / Okullar, Bu hafta / Tüm
   zamanlar, "Nasıl yıldız kazanılır", test sonucunda "+17 yıldız".
 */
 describe("yıldız kuralları", () => {
@@ -45,7 +45,7 @@ describe("yıldız kuralları", () => {
     expect(duelStars(7)).toBe(100);
     expect(duelStars(20)).toBe(130);
     expect(STAR_RULES.map((rule) => rule.amount)).toEqual(["300", "10–210", "30–130", "100", "100 + 50", "50", "25", "15"]);
-    expect(todayLine(11)).toBe("Yıldızlar: bugün 11 / 50");
+    expect(todayLine(11)).toBe("Yıldızlar: bugün 11 · hedef 50");
   });
 
   it("'İlk 20 arasına girmek için N yıldız' yalnız öğrenci ilk 20'de değilse", () => {
@@ -101,7 +101,7 @@ describe("Yıldızlar penceresi", () => {
     render(<StarsDialog open onClose={() => {}} />);
     await waitFor(() => expect(screen.getByText("Ayşe K.")).toBeTruthy());
     expect(screen.getByText("Mert D. (sen)")).toBeTruthy();
-    expect(screen.getByText("Yıldızlar: bugün 11 / 50")).toBeTruthy();
+    expect(screen.getByText("Yıldızlar: bugün 11 · hedef 50")).toBeTruthy();
     expect(screen.getByRole("tab", { name: /Okul arkadaşları/ }).getAttribute("aria-selected")).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: /Türkiye/ }));

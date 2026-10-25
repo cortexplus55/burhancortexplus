@@ -32,6 +32,7 @@ export function LessonOpenChrome({
   onContinue,
   onCreate,
   onChangeLevel,
+  minutes = null,
 }: {
   step: LessonOpenStep;
   familiarity?: Familiarity;
@@ -49,6 +50,8 @@ export function LessonOpenChrome({
   onCreate: () => void;
   /** Aşinalık kurulumdan geldiyse soru sorulmaz; burada görünür ve değiştirilebilir. */
   onChangeLevel?: () => void;
+  /** Yol kartıyla aynı süre. */
+  minutes?: number | null;
 }) {
   if (step === "familiarity" || step === "mood") {
     return (
@@ -111,6 +114,7 @@ export function LessonOpenChrome({
         <p className="cp-exam-reco-kicker">{LESSON_OPEN_COPY.recommendedKicker}</p>
         <h2>{recommendedTitle}</h2>
         {blurb ? <p className="cp-signal-lead">{blurb}</p> : null}
+        {minutes ? <p className="text-sm text-[var(--cp-muted)]">~{minutes} dk</p> : null}
         {topicLabel ? <p className="text-sm text-[var(--cp-muted)]">{topicLabel}</p> : null}
         <button type="button" className="cp-exam-reco-go" onClick={onContinue}>
           {LESSON_OPEN_COPY.recommendedContinue}
@@ -124,6 +128,7 @@ export function LessonOpenChrome({
       <p className="cp-lesson-kicker">{LESSON_OPEN_COPY.recommendedKicker}</p>
       <h1>{LESSON_OPEN_COPY.exploreTitle}</h1>
       <p className="cp-signal-lead">{LESSON_OPEN_COPY.exploreLead}</p>
+      {minutes ? <p className="text-sm text-[var(--cp-muted)]">~{minutes} dk</p> : null}
       {topicLabel ? <p className="text-sm text-[var(--cp-muted)]">{topicLabel}</p> : null}
       {onChangeLevel && familiarity ? (
         <p className="cp-open-level text-sm text-[var(--cp-muted)]">

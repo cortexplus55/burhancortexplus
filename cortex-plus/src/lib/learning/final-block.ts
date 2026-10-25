@@ -1,5 +1,6 @@
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
+import { nearDuplicate } from "@/lib/learning/item-dedup";
 import { normalizeTopicKey } from "@/lib/learning/learning-tracking";
 
 /**
@@ -28,12 +29,14 @@ export const FINAL_CHECK_LIMIT = 12;
 
 /**
  * Son kontrol: konu başına bir soru, en çok 12. Konular zayıftan güçlüye sıralı gelir; 12'den fazlaysa ilk 12
- * konu birer hak alır. Havuzda sorusu olmayan konu `missingTopics`e düşer ve anında üretilir.
+ * konu birer hak alır. Öğrencinin daha önce cevapladığı kökle aynı bilgiyi soran madde alınmaz; havuzda
+ * görülmemiş soru kalmadıysa konu `missingTopics`e düşer ve anında üretilir.
  */
 export function finalCheckSelection(
   topics: readonly string[],
   pool: readonly QuizQuestion[],
   limit = FINAL_CHECK_LIMIT,
+  seenStems: readonly string[] = [],
 ): { questions: QuizQuestion[]; missingTopics: string[] } {
   const seen = new Set<string>();
   const wanted = topics
@@ -50,12 +53,17 @@ export function finalCheckSelection(
     const key = normalizeTopicKey(question.topic);
     byTopic.set(key, [...(byTopic.get(key) ?? []), question]);
   }
+  const picked = seenStems.map((stem) => stem.trim()).filter(Boolean);
   const questions: QuizQuestion[] = [];
   const missingTopics: string[] = [];
   for (const topic of wanted) {
-    const first = byTopic.get(normalizeTopicKey(topic))?.[0];
-    if (first) questions.push({ ...first, topic });
-    else missingTopics.push(topic);
+    const fresh = (byTopic.get(normalizeTopicKey(topic)) ?? []).find(
+      (question) => !picked.some((stem) => nearDuplicate(question.text, stem)),
+    );
+    if (fresh) {
+      questions.push({ ...fresh, topic });
+      picked.push(fresh.text);
+    } else missingTopics.push(topic);
   }
   return { questions, missingTopics };
 }

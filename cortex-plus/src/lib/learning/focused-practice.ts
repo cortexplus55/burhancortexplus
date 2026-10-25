@@ -90,6 +90,49 @@ export function collectWeakTopics(input: {
   return out;
 }
 
+/**
+ * Yalnız ölçülüp zayıf bulunan konular, en düşük güvenden başlayarak. Gelişmekte olan konu, açık yanılgı
+ * ve kaçırılan başlık bu listeye girmez: zayıf nokta ve odaklı pratik ölçülmüş zayıf konudan kurulur.
+ */
+export function measuredWeakTopics(input: {
+  mastery: readonly { topicKey: string; level: string; measured: boolean; confidence?: number }[];
+  plannedTopics: readonly string[];
+}): string[] {
+  const planned = input.plannedTopics.map((topic) => topic.trim()).filter(Boolean);
+  const display = (key: string) =>
+    planned.find((topic) => normalizeTopicKey(topic) === normalizeTopicKey(key)) ?? key.trim();
+  const ranked = input.mastery
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => row.measured && row.level === "weak" && row.topicKey.trim())
+    .sort(
+      (a, b) =>
+        (a.row.confidence ?? 0) - (b.row.confidence ?? 0) || a.index - b.index,
+    );
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const { row } of ranked) {
+    const text = display(row.topicKey).trim();
+    const key = normalizeTopicKey(text);
+    if (!text || seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+  }
+  return out;
+}
+
+/** Soruların konusu, verilen konu kümesinin içinde mi. Küme boşsa yalnız boş liste uyar. */
+export function questionsStayOnTopics(
+  questions: readonly { topic?: string | null }[],
+  topics: readonly string[],
+): boolean {
+  if (!topics.length) return questions.length === 0;
+  const allowed = new Set(topics.map((topic) => normalizeTopicKey(topic)));
+  return questions.every((question) => {
+    const topic = question.topic?.trim();
+    return Boolean(topic) && allowed.has(normalizeTopicKey(topic));
+  });
+}
+
 export function rewordPracticeQuestion(
   question: QuizQuestion & { review?: StoredReview | null },
   language: MaterialLanguage = "tr",

@@ -1,5 +1,6 @@
 import type { MockQuestionType } from "@/lib/learning/mock-exam/types";
-import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { studentSafeText } from "@/lib/learning/student-safe-text";
 
 export const QUESTION_TYPE_LABEL: Record<MockQuestionType, string> = {
   mcq: "Tek seçim",
@@ -17,8 +18,7 @@ export function questionTypeChip(type: MockQuestionType, points?: number): strin
 
 export function polishMockCopy(text: string): string {
   const repaired = repairTurkishSurface(text.trim());
-  if (fluencyIssues(repaired).length) return repaired;
-  return repaired;
+  return studentSafeText(repaired);
 }
 
 export function scoreBandLabel(

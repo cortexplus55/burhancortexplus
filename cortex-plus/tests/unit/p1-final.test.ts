@@ -9,6 +9,8 @@ import {
   interleaveByTopic,
   roundRobinCounts,
 } from "@/lib/learning/final-block";
+import { measuredWeakTopics, questionsStayOnTopics } from "@/lib/learning/focused-practice";
+import { weakPracticeTitle } from "@/lib/learning/exam-prep-plan";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { buildPathSections, type PathSectionNode } from "@/lib/learning/path-sections";
 
@@ -84,9 +86,46 @@ describe("P1-4 son kontrol", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toMatch(/kind === "final_check" && input\.finalFill/);
     expect(route).toMatch(/fillTopicQuestions\(/);
+    expect(route).toMatch(/previousStems/);
     const fill = readFileSync("src/lib/learning/prep-topic-fill.ts", "utf8");
     expect(fill).toMatch(/heldReservationId: held/);
     expect(fill).toMatch(/reserveCredits\(/);
+    const session = readFileSync("src/lib/learning/exam-local-session.ts", "utf8");
+    expect(session).toMatch(/loadPreviousItems\(/);
+    expect(session).toMatch(/measuredWeakTopics\(/);
+  });
+
+  it("daha önce cevaplanan kök atlanır; hepsi görüldüyse konu üretime düşer", () => {
+    const seen = "Meclis üye sayısı 600'dür ve görev süresi 5 yıldır.";
+    const fresh = "Bütçe kanunu görüşmesi komisyonda başlar.";
+    const pool = [question("Anayasa", seen), question("Anayasa", fresh), question("Mol", "Mol kütlesi gram bölü mol ile yazılır.")];
+    const picked = finalCheckSelection(["Anayasa", "Mol", "Türev"], pool, 12, [seen]);
+    expect(picked.questions.map((item) => item.text)).toEqual([fresh, "Mol kütlesi gram bölü mol ile yazılır."]);
+    expect(picked.missingTopics).toEqual(["Türev"]);
+    const none = finalCheckSelection(["Present perfect"], [question("Present perfect", "Have ile geçmiş bağlanır.")], 12, [
+      "Have ile geçmiş bağlanır.",
+    ]);
+    expect(none.questions).toEqual([]);
+    expect(none.missingTopics).toEqual(["Present perfect"]);
+  });
+
+  it("zayıf nokta yalnız ölçülmüş zayıf konunun adını taşır; soru başka konudaysa düşer", () => {
+    expect(
+      measuredWeakTopics({
+        mastery: [
+          { topicKey: "anayasa", level: "weak", measured: true, confidence: 0.4 },
+          { topicKey: "mol", level: "emerging", measured: true, confidence: 0.2 },
+          { topicKey: "turev", level: "weak", measured: false, confidence: 0.1 },
+          { topicKey: "present perfect", level: "weak", measured: true, confidence: 0.2 },
+        ],
+        plannedTopics: ["Anayasa", "Mol", "Türev", "Present perfect"],
+      }),
+    ).toEqual(["Present perfect", "Anayasa"]);
+    expect(weakPracticeTitle("gaps", ["Anayasa"])).toBe("Anayasa · Zayıf nokta");
+    expect(weakPracticeTitle("focused", ["Mol", "Türev"])).toBe("Mol, Türev · Odaklı pratik");
+    expect(questionsStayOnTopics([{ topic: "Anayasa" }, { topic: "Mol" }], ["Anayasa"])).toBe(false);
+    expect(questionsStayOnTopics([{ topic: "Anayasa" }], ["Anayasa"])).toBe(true);
+    expect(questionsStayOnTopics([{ topic: "Present perfect" }], ["Mol"])).toBe(false);
   });
 });
 

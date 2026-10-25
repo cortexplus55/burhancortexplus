@@ -4,6 +4,42 @@ import { dueInLabel, previewReviewIntervals, REVIEW_GRADE, type Sm2Preview, type
 
 const GRADES = [REVIEW_GRADE.hard, REVIEW_GRADE.good, REVIEW_GRADE.easy] as const;
 
+const CARD_GRADES = [
+  { quality: 1 as const, label: "Bilemedim", emoji: "😕" },
+  { quality: 3 as const, label: "Zorlandım", emoji: "🤔" },
+  { quality: 5 as const, label: "Bildim", emoji: "😊" },
+];
+
+/** Hazırlık kartı: Bildim tam, Zorlandım kısmi, Bilemedim sıfır. Aralıklı tekrar düğmeleri ayrı kalır. */
+export function CardGradeButtons({
+  disabled,
+  onGrade,
+  className,
+}: {
+  disabled?: boolean;
+  onGrade: (quality: 1 | 3 | 5) => void;
+  className?: string;
+}) {
+  return (
+    <div className={className ?? "cp-review-grades"} role="group" aria-label="Ne kadar bildin?">
+      {CARD_GRADES.map((grade) => (
+        <button
+          key={grade.quality}
+          type="button"
+          className={`cp-review-grade cp-review-grade--${grade.quality === 1 ? "hard" : grade.quality === 3 ? "good" : "easy"}`}
+          disabled={disabled}
+          onClick={() => onGrade(grade.quality)}
+        >
+          <span className="cp-review-grade-emoji" aria-hidden>
+            {grade.emoji}
+          </span>
+          <span className="cp-review-grade-label">{grade.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ReviewGradeButtons({
   preview,
   state,

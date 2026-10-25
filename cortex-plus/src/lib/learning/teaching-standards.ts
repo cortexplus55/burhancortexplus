@@ -8,6 +8,7 @@ import { z } from "zod";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
 import { lessonV3SectionsView } from "@/lib/learning/lesson-v3-view";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { cardAnswerCredit } from "@/lib/learning/flashcard-round";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
@@ -56,6 +57,8 @@ export type SessionTeachingMeta = {
   unitTitle?: string;
   /** Konunun kaçıncı testi (0, 1, 2); yoksa ilk test sayılır (25 Ekim 2026). */
   practiceVariant?: number;
+  /** Öğrenciye yazılan süre. Yol, kapı ve ders çubuğu aynı sayıyı okur. */
+  activityMinutes?: number;
 };
 
 export type MisconceptionDraft = {
@@ -105,6 +108,10 @@ export function parseSessionMeta(raw: unknown): SessionTeachingMeta | null {
     practiceVariant:
       typeof row.practiceVariant === "number" && Number.isInteger(row.practiceVariant) && row.practiceVariant >= 0
         ? Math.min(2, row.practiceVariant)
+        : undefined,
+    activityMinutes:
+      typeof row.activityMinutes === "number" && Number.isFinite(row.activityMinutes) && row.activityMinutes > 0
+        ? Math.round(row.activityMinutes)
         : undefined,
   };
 }
@@ -2420,15 +2427,29 @@ export function scoreFlashcardsV2(
   cardCount: number,
   answers: Record<string, unknown>,
 ): { score: number; total: number; knownCount: number; masteryClaim: false } {
-  let knownCount = 0;
+  const credits: number[] = [];
+  let weighted = false;
   for (let i = 0; i < cardCount; i += 1) {
-    if (answers[String(i)] === true || answers[String(i)] === "true") knownCount += 1;
+    const raw = answers[String(i)];
+    if (typeof raw === "number" || (typeof raw === "string" && /^[1-5]$/.test(raw))) weighted = true;
+    credits.push(cardAnswerCredit(raw) ?? 0);
   }
-  // Yüzde = hatırlanan / kart (25 Ekim 2026, P1-7): "1/1" yazıp her desteyi %100 gösteriyordu. "Zorlandım"
-  // (kalite 1) istemcide false gelir, hatırlandı sayılmaz. Düğüm yine biter; hâkimiyet iddiası yok.
+  const knownCount = credits.filter((credit) => credit >= 1).length;
+  // Eski true/false kayıtları tam sayı kalır (3/4). Kalite (Bildim 1, Zorlandım 0,6, Bilemedim 0)
+  // onda birlik krediye çevrilir ki p_score tam sayı ve tavanı aşmasın: 5 tam + 3 zor = 68/80, %100 değil.
+  if (!weighted) {
+    return {
+      score: knownCount,
+      total: Math.max(1, cardCount),
+      knownCount,
+      masteryClaim: false,
+    };
+  }
+  const sum = credits.reduce((total, credit) => total + credit, 0);
+  const scaledTotal = Math.max(1, cardCount) * 10;
   return {
-    score: knownCount,
-    total: Math.max(1, cardCount),
+    score: Math.min(scaledTotal, Math.round(sum * 10)),
+    total: scaledTotal,
     knownCount,
     masteryClaim: false,
   };

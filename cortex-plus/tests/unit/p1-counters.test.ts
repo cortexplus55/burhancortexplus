@@ -90,10 +90,11 @@ describe("P1-7 tek süre kayna??", () => {
 
 describe("P1-7 ad?m paydas? yaln?z artar", () => {
   it("yaz?m? süren kavramlar paydaya ba?tan girer", () => {
-    expect(lessonStepTotal(2, 3)).toBe(5);
+    expect(lessonStepTotal(2, 3)).toBe(2);
     expect(lessonStepTotal(0, 0)).toBe(1);
     const steps = read("src/components/parity/exam-lesson-steps.tsx");
-    expect(steps).toMatch(/if \(plannedSteps > stepTotal\) setStepTotal\(plannedSteps\)/);
+    expect(steps).toMatch(/lessonStepTotal\(base\.length\)/);
+    expect(steps).not.toMatch(/setStepTotal/);
   });
 });
 
@@ -119,7 +120,22 @@ describe("P1-7 hâkimiyet ve haz?r olma ba?ar?l? etkinlikte dü?mez", () => {
     expect(held[0]).toMatchObject({ confidence: 70, level: "solid" });
     expect(holdMasteryOnSuccess(prior, folded, false)[0]).toMatchObject({ confidence: 62, level: "emerging" });
     const gain = topicMasteryGain({ prior, folded: held, evidenceKeys: ["solunum"], topicLabel: "Solunum" });
-    expect(gain).toMatchObject({ before: 70, after: 70 });
+    expect(gain).toBeNull();
+    const rose = topicMasteryGain({
+      prior,
+      folded: [topic("solunum", 78, "solid")],
+      evidenceKeys: ["solunum"],
+      topicLabel: "Solunum",
+    });
+    expect(rose).toMatchObject({ before: 70, after: 78 });
+    expect(
+      topicMasteryGain({
+        prior,
+        folded: [topic("solunum", 61, "emerging")],
+        evidenceKeys: ["solunum"],
+        topicLabel: "Solunum",
+      }),
+    ).toBeNull();
   });
 
   it("haz?r olma yüzdesi ba?ar?l? etkinlikte geri gitmez", () => {
@@ -141,6 +157,25 @@ describe("P1-7 kart yüzdesi ve y?ld?zlar", () => {
       score: 2,
       total: 5,
     });
+  });
+
+  it("8 kartta 3 Zorland?m yüzde 100 de?ildir; y?ld?z rozeti verilen say?d?r", () => {
+    const answers: Record<string, number> = {};
+    for (let index = 0; index < 8; index += 1) answers[String(index)] = index < 3 ? 3 : 5;
+    const scored = scoreFlashcardsV2(8, answers);
+    expect(scored.score).toBeLessThan(scored.total);
+    expect(Math.round((scored.score / scored.total) * 100)).toBe(85);
+    expect(scored.score).toBeLessThanOrEqual(scored.total);
+    const home = read("src/components/parity/exam-prep-home.tsx");
+    const lesson = read("src/components/parity/exam-lesson-steps.tsx");
+    const route = read("src/app/api/learning/exam-prep/node/route.ts");
+    expect(home).toMatch(/prepStars\(node\.kind, null, null\)/);
+    expect(lesson).toMatch(/prepStars\("lesson", null, null\)/);
+    expect(route).toMatch(/prepStars\(kind, completed\.score, completed\.total\)/);
+    expect(read("src/lib/stars/view.ts")).toMatch(/hedef/);
+    expect(read("src/components/parity/exam-node-session.tsx")).toMatch(/activityDurationMinutes\(kind, \{ known: activityMinutes \}\)/);
+    expect(lesson).toMatch(/known: knownMinutes/);
+    expect(home).toMatch(/activityDurationMinutes\(node\.kind/);
   });
 
   it("puans?z ö?renme ad?mlar? sabit y?ld?z; podcast 20; son kontrol s?nav y?ld?z?", () => {

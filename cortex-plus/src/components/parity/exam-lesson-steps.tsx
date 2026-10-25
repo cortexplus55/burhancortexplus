@@ -656,6 +656,7 @@ export function ExamLessonSteps({
   closeHref,
   gradeCheck,
   toolbar,
+  plannedMinutes = null,
 }: {
   lesson: PlayLesson;
   /** Parça parça açılan ders: sonraki kavramlar hâlâ yazılıyor (18 Ekim 2026). */
@@ -674,6 +675,8 @@ export function ExamLessonSteps({
   ) => void;
   onClose?: () => void;
   closeHref?: string;
+  /** Yol ve kapıyla aynı süre (`activityMinutes`). Varsa okuma süresi yeniden hesaplanmaz. */
+  plannedMinutes?: number | null;
   /** Sunucu notlandırması. Yoksa (eski paket) istemci notlar. */
   gradeCheck?: (
     sectionIndex: number,
@@ -706,13 +709,15 @@ export function ExamLessonSteps({
   const mathTopicHint = play.title ?? "";
   const reduceMotion = useReducedMotion();
   const lessonStars = prepStars("lesson", null, null);
-  const readingMinutes = activityDurationMinutes("lesson", { readingMinutes: honestReadingMinutes(view) });
-  // Adım paydası baştan bilinen ekranlar + yazımı süren kavramlar; yalnız artar (P1-7: "1/2" → "5/5" atlıyordu).
-  const plannedSteps = lessonStepTotal(base.length, building ? upcoming.length : 0);
-  const [stepTotal, setStepTotal] = useState(plannedSteps);
-  if (plannedSteps > stepTotal) setStepTotal(plannedSteps);
-  const progressNow = Math.min(index + 1, Math.max(1, stepTotal));
-  const progressMax = Math.max(1, stepTotal);
+  const knownMinutes = typeof plannedMinutes === "number" && plannedMinutes > 0 ? plannedMinutes : null;
+  const readingMinutes = activityDurationMinutes("lesson", {
+    known: knownMinutes,
+    readingMinutes: knownMinutes ? null : honestReadingMinutes(view),
+  });
+  // Payda yalnız yazılmış ekran listesi. Gelecek kavram adları ekran sayılmaz.
+  const screenCount = lessonStepTotal(base.length);
+  const progressNow = Math.min(index + 1, screenCount);
+  const progressMax = screenCount;
   const progressRatio = progressNow / progressMax;
 
   const steps = useMemo(() => {
@@ -968,7 +973,7 @@ export function ExamLessonSteps({
 
   const countLabel = progressLabel(
     index,
-    Math.max(stepTotal, base.length),
+    base.length,
     step,
     index - base.length,
     Math.max(0, steps.length - base.length - 1),
@@ -1067,7 +1072,7 @@ export function ExamLessonSteps({
         <div className="als-slide als-building" role="status" aria-live="polite">
           <p className="als-kicker">HAZIRLANIYOR</p>
           <h1 className="als-heading">{step.heading}</h1>
-          <p className="als-body">Öğretmenin bu bölümü yazıyor ve denetliyor. Birkaç saniye içinde burada olacak.</p>
+          <p className="als-body">Öğretmenin bu bölümü yazıyor. Birkaç saniye içinde burada olacak.</p>
           <span className="als-building-dots" aria-hidden>
             <i />
             <i />

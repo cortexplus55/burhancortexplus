@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { loadMergedTopicContext, loadTopicSpanContext } from "@/lib/learning/source-context";
+import { assignExamCoverage, coverageAsk, topicCoveragePoints } from "@/lib/learning/mock-exam/fact-coverage";
 import {
   allocateQuestions,
   slotFromTopicRow,
@@ -326,6 +327,13 @@ type TopicGenInput = {
 
 type DraftBase = Pick<MockExamQuestionDraft, "topicId" | "topicLabel" | "source" | "difficulty">;
 
+/** Konunun kilit bilgisi ve alt başlığı, kota kadar ayrı noktaya bölünür. */
+function coverageBlock(block: string, topicLabel: string, count: number): string {
+  const points = topicCoveragePoints([{ text: block }], topicLabel);
+  const assigned = assignExamCoverage([{ topicLabel, count }], new Map([[topicLabel, points]]));
+  return coverageAsk(assigned.map((slot) => slot.point));
+}
+
 /**
  * Bir konunun soruları: çoktan seçmeli yerler öğretmen test motorundan, açık uçlu yerler
  * öğretmen sözlü motorundan. Her öğeyi kendi denetçisi çözer; kod soruyu başka türe
@@ -390,7 +398,10 @@ async function choiceDrafts(
       "Sınav disiplini: ipucu yok, doğru cevabı soru metnine koyma.",
       "Her soruda explanation ve optionWhy zorunlu.",
       "Kaynakta olmayan olgu yazma.",
-    ].join(" "),
+      coverageBlock(block, input.topic.topicLabel, slots.length),
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
   if (!outcome.ok) return [];
 
@@ -444,7 +455,12 @@ async function openDrafts(
           mode: "document",
           pages: [],
           sourceBlock: block,
-          brief: "Yazılı deneme: öğrenci cevabı birkaç cümleyle kâğıda ya da uygulamaya yazacak.",
+          brief: [
+            "Yazılı deneme: öğrenci cevabı birkaç cümleyle kâğıda ya da uygulamaya yazacak.",
+            coverageBlock(block, input.topic.topicLabel, slots.length),
+          ]
+            .filter(Boolean)
+            .join("\n"),
           count: slots.length,
           urgent: true,
         },

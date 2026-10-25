@@ -36,7 +36,7 @@ import {
   BUSY_RETRY_DELAY_MS,
 } from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
-import { ReviewGradeButtons } from "@/components/parity/review-grade-buttons";
+import { CardGradeButtons } from "@/components/parity/review-grade-buttons";
 import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning/path-change";
 import { unscoredResult } from "@/lib/learning/node-result";
 import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
@@ -109,8 +109,8 @@ import {
 import "@/styles/node-generation-progress.css";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
-import { knownCardCount, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
-import { elapsedMinutes } from "@/lib/learning/activity-duration";
+import { cardDeckCredit, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
+import { activityDurationMinutes, elapsedMinutes } from "@/lib/learning/activity-duration";
 import { replayLabel, startActionLabel } from "@/lib/learning/feedback-copy";
 import { NodeSources, type NodeSource } from "@/components/parity/node-sources";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
@@ -240,11 +240,14 @@ export function ExamNodeSession({
   sources = [],
   unitTitle = null,
   nodeDone = false,
+  activityMinutes = null,
 }: {
   /** Kavram birimli derste dersin kendi adı; kurulum ekranları bunu gösterir. */
   unitTitle?: string | null;
   /** Düğüm daha önce bitirildiyse hazırlık ekranı kendiliğinden yeniden kaydedilmez. */
   nodeDone?: boolean;
+  /** Yol kartındaki süre. Kapı ve ders çubuğu aynı sayıyı gösterir. */
+  activityMinutes?: number | null;
   prepId: string;
   nodeId: string;
   kind: PlanNodeKind;
@@ -978,9 +981,9 @@ export function ExamNodeSession({
     scheduleSave(next, Number(key) || index);
   }
 
-  function finishCards(base: Record<string, unknown>, recovered: number[]) {
+  function finishCards(base: Record<string, unknown>) {
     setCardSummary({
-      known: knownCardCount(base, cards.length, recovered),
+      known: cardDeckCredit(base, cards.length),
       total: cards.length,
       repeated: missedCards(base, cards.length).length,
     });
@@ -988,32 +991,29 @@ export function ExamNodeSession({
   }
 
   /**
-   * Kartı değerlendir. İlk turun sonunda "Hayır" denen kart varsa tekrar
-   * turu teklif edilir; tekrar turundaki cevap kayda yazılmaz.
+   * Kartı değerlendir. Bildim tam, Zorlandım kısmi, Bilemedim sıfır kredi.
+   * İlk turda hiç bilinmeyen kart sonda bir kez daha gelir; tekrar turu skoru değiştirmez.
    */
-  function rateCard(known: boolean) {
+  function rateCard(quality: 1 | 3 | 5) {
     setFlipped(false);
     setRevealedCard(-1);
     if (cardRepeat) {
-      const current = cardRepeat.list[cardRepeat.pos];
-      const recovered = known ? [...cardRepeat.known, current] : cardRepeat.known;
       if (cardRepeat.pos + 1 < cardRepeat.list.length) {
-        setCardRepeat({ ...cardRepeat, pos: cardRepeat.pos + 1, known: recovered });
+        setCardRepeat({ ...cardRepeat, pos: cardRepeat.pos + 1 });
       } else {
-        setCardRepeat({ ...cardRepeat, known: recovered });
-        finishCards(answersRef.current, recovered);
+        finishCards(answersRef.current);
       }
       return;
     }
-    const nextAnswers = { ...answersRef.current, [String(index)]: known };
-    updateAnswer(String(index), known);
+    const nextAnswers = { ...answersRef.current, [String(index)]: quality };
+    updateAnswer(String(index), quality);
     if (index + 1 < cards.length) {
       setIndex(index + 1);
       return;
     }
     const missed = missedCards(nextAnswers, cards.length);
     if (missed.length) setCardOffer(missed);
-    else finishCards(nextAnswers, []);
+    else finishCards(nextAnswers);
   }
 
   async function loadLessonPodcast() {
@@ -1328,6 +1328,11 @@ export function ExamNodeSession({
           step="recommend"
           recommendedTitle={meta.setupLabel}
           blurb={meta.blurb}
+          minutes={
+            typeof activityMinutes === "number" && activityMinutes > 0
+              ? activityDurationMinutes(kind, { known: activityMinutes })
+              : null
+          }
           topicLabel={unitTitle ?? topicLabel}
           onFamiliarity={() => undefined}
           onMood={() => undefined}
@@ -1427,6 +1432,11 @@ export function ExamNodeSession({
         <LessonOpenChrome
           step="create"
           recommendedTitle={meta.setupLabel}
+          minutes={
+            typeof activityMinutes === "number" && activityMinutes > 0
+              ? activityDurationMinutes(kind, { known: activityMinutes })
+              : null
+          }
           topicLabel={unitTitle ?? topicLabel}
           familiarity={familiarity}
           onChangeLevel={() => setStage("familiarity")}
@@ -1537,6 +1547,7 @@ export function ExamNodeSession({
             lesson={structuredLesson}
             building={lessonBuilding}
             upcoming={lessonBuilding ? (payload.upcoming ?? []) : []}
+            plannedMinutes={activityMinutes}
             language={language}
             gradeCheck={
               attemptId
@@ -1787,7 +1798,7 @@ export function ExamNodeSession({
               type="button"
               className="cp-exam-continue"
               disabled={loading}
-              onClick={() => finishCards(answersRef.current, [])}
+              onClick={() => finishCards(answersRef.current)}
             >
               Atla
             </button>
@@ -1845,10 +1856,10 @@ export function ExamNodeSession({
           {revealedCard === cardIndex ? (
           <>
           <p>Ne kadar hatırladın?</p>
-          <ReviewGradeButtons
+          <CardGradeButtons
             className="cp-exam-card-rate"
             disabled={loading}
-            onGrade={(quality) => rateCard(quality >= 4)}
+            onGrade={(quality) => rateCard(quality)}
           />
           </>
           ) : null}

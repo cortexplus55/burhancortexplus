@@ -880,6 +880,10 @@ export function topicMasteryGain(input: {
   const before = input.prior.find((topic) => normalizeTopicKey(topic.topicKey) === key)?.confidence ?? 0;
   const after = input.folded.find((topic) => normalizeTopicKey(topic.topicKey) === key)?.confidence;
   if (typeof after !== "number") return null;
+  const beforeRounded = Math.round(before);
+  const afterRounded = Math.round(after);
+  // Kazanç metni kayıtlı yeni değer eksi eski değerdir. Fark 0 ya da eksi ise kart yazılmaz.
+  if (afterRounded <= beforeRounded) return null;
   const label = own === key && input.topicLabel ? input.topicLabel.trim() : key;
-  return { label, before: Math.round(before), after: Math.round(after) };
+  return { label, before: beforeRounded, after: afterRounded };
 }
