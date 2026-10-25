@@ -59,7 +59,11 @@ const TEACHER_MANNER =
   "- İki kavramı karıştırıyorsa: ayırt ettiren tek ölçütü baştan söyle, sonra ikisini aynı başlıklarla karşılaştır " +
   "(kısa tablo ya da paralel maddeler) ve soruda hangi anahtar kelimelere bakacağını göster.\n" +
   "- Bir problemi ya da soruyu çözmek istiyorsa cevabı hemen verme: gereken bilgiyi ya da ilk adımı göster, bir sonraki " +
-  "adımı ona sor. 'Sadece cevap' ya da 'direkt söyle' derse kısa cevap ve tek satır gerekçe ver.\n" +
+  "adımı ona sor. 'Sadece cevap' ya da 'direkt söyle' derse kısa cevap ve tek satır gerekçe ver. " +
+  "Bir soruyu gerçekten çözeceksen (öğrenci çöz/cevabı ver dediğinde, fotoğraflı soruda veya doğru şık sorulduğunda) " +
+  "sağlaması yapılmamış ilk tahmini yazma: önce soruyu ve bütün şıkları birebir oku (sayı, sembol, grafik/tablo, " +
+  "Romen öncül I-II-III, olumsuz kelimeler: değildir/yanlıştır/ulaşılamaz/en az/kesinlikle); adım adım çöz; " +
+  "bulduğun şıkkı denklemde veya öncülde yerine koy; diğer şıkların neden yanlış olduğunu tek tek ele.\n" +
   "- Tanım ya da ezber sorusunda: kısa tanım, belgedeki örnek, sınavda nasıl sorulduğu.\n" +
   "- Liste ya da takvim sorusunda ('nelerdir', 'hangi … hangi yaşlarda') listeyi yarıda kesme: bütün basamakları kısa " +
   "maddelerle ver; emin olmadığın ya da yere göre değişen basamağı öyle olduğunu söyleyerek yaz.\n" +
@@ -187,7 +191,10 @@ export function tutorHistoryText(content: string): string {
 export const CHAT_NATURAL_VOICE =
   "Etiketli kalıp kullanma ('Nerede takıldığın:', 'Tek ipucu:', 'Kontrol sorusu:' gibi başlıklar yok); doğal konuş. " +
   "Öğrencinin takıldığı yer hakkında yorum yazma ('takıldığın bir nokta belirtilmedi' gibi); sorulanı yap. " +
-  "Gerekiyorsa sonda tek kısa soru sor, başlıksız.";
+  "Gerekiyorsa sonda tek kısa soru sor, başlıksız. " +
+  "Sınav sorusu (yazılı veya fotoğraf) sorulduğunda: önce soruyu ve şıkları birebir oku (sayı, sembol, grafik/tablo, " +
+  "Romen öncül, değildir/yanlıştır/ulaşılamaz/en az/kesinlikle); adım adım çöz; cevabı yerine koyarak sağlamasını yap; " +
+  "diğer şıkları ele. Sağlaması yapılmamış ilk tahmini yazma.";
 
 /**
  * Öğrencinin profilde seçtiği anlatım tarzı. Eski `tutorStylePrompt` her
@@ -204,7 +211,11 @@ export function teacherStyleLine(style: TutorStyle): string {
         "sorarak cevabı onun bulmasını sağla."
       );
     case "direct_solve":
-      return "Öğrenci doğrudan çözümü seçti: çözüm isteyen soruda kısa ve gerekçeli tam çözümü ver; sonra anladığını tek soruyla yokla.";
+      return (
+        "Öğrenci doğrudan çözümü seçti: çözüm isteyen soruda kısa ve gerekçeli tam çözümü ver. " +
+        "Önce soruyu/şıkları tam oku, adım adım çöz, bulduğun şıkkın sağlamasını yap ve diğer şıkları ele; " +
+        "sonra anladığını tek soruyla yokla."
+      );
     default:
       return "Öğrenci adım adım anlatımı seçti: adımları gerekçesiyle sırayla göster, hepsini tek seferde dökme.";
   }

@@ -26,6 +26,7 @@ import {
 } from "@/lib/learning/validation-pipeline";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { withTransientRetry } from "@/lib/ai/transient-retry";
+import { visionImage } from "@/lib/ai/vision";
 
 export const SYSTEM_GUARDRAIL =
   "Sen Cortex Plus eğitim asistanısın. Türkçe yanıt ver. Yalnızca eğitim amaçlı içerik üret. " +
@@ -386,7 +387,7 @@ export async function generateJson<T>(
       ...(params.imageUrls ?? []).map(
         (url): OpenAI.Chat.Completions.ChatCompletionContentPart => ({
           type: "image_url",
-          image_url: { url },
+          image_url: visionImage(url),
         }),
       ),
     ];

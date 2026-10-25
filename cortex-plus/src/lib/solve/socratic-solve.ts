@@ -23,10 +23,27 @@ export function socraticConcept(solution: Pick<Solution, "steps" | "tip" | "aske
   return solution.subject.trim() || "Bu sorunun kilit kavramı.";
 }
 
-export function solveDiscussPrompt(solution: Pick<Solution, "question" | "subject">): string {
+export function solveDiscussPrompt(
+  solution: Pick<Solution, "question" | "subject" | "answer" | "steps" | "trap">,
+): string {
   const subject = solution.subject.trim() ? `${solution.subject.trim()}: ` : "";
   const question = solution.question.trim().slice(0, 500);
-  return `Bu soruyu birlikte tartışalım. ${subject}${question}\nBana benzer bir soru da sor; cevabı bende kalsın.`;
+  const answer = (solution.answer.text || solution.answer.value || solution.answer.letter || "").trim().slice(0, 200);
+  const steps = (solution.steps ?? [])
+    .slice(0, 4)
+    .map((step, i) => `${i + 1}. ${[step.title, step.math, step.say].filter(Boolean).join(" — ")}`)
+    .join("\n")
+    .slice(0, 600);
+  const trap = solution.trap?.trim() ? `Dikkat: ${solution.trap.trim().slice(0, 160)}` : "";
+  return [
+    `Bu soruyu birlikte tartışalım. ${subject}${question}`,
+    answer ? `Çözümün sonucu: ${answer}` : "",
+    steps ? `Adımlar:\n${steps}` : "",
+    trap,
+    "Anlamadığım yeri soracağım; benzer bir soru da sor, cevabı bende kalsın.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export const SOLVE_DISCUSS_STORAGE_KEY = "cortex-entry-prompt";

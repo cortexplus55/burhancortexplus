@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  CHAT_NATURAL_VOICE,
   TUTOR_RULES,
   TUTOR_VERIFY_SYSTEM,
   hasTemplateLabels,
@@ -28,6 +29,8 @@ describe("öğretmen sohbeti istemi", () => {
     expect(TUTOR_RULES).toContain("Bu senin belgende geçmiyor");
     expect(TUTOR_RULES).toContain("ayırt ettiren tek ölçütü");
     expect(TUTOR_RULES).toContain("cevabı hemen verme");
+    expect(TUTOR_RULES).toContain("sağlaması yapılmamış ilk tahmini yazma");
+    expect(TUTOR_RULES).toContain("değildir/yanlıştır/ulaşılamaz");
     expect(TUTOR_RULES).toContain("TEK bir soruyla bitir");
     expect(TUTOR_RULES).toContain("Etiketli kalıp kullanma");
     // Faz 5 ikinci tur (16 Ekim 2026): tarama takvimi cevabı 1 yaşta kesildi.
@@ -50,6 +53,7 @@ describe("öğretmen sohbeti istemi", () => {
     expect(prompt).toContain("Öğrenci stresli");
     expect(prompt).toContain("beklenen cevabı: Nispi butlan");
     expect(prompt).toContain("[KPSS.pdf s.9]");
+    expect(prompt).toContain("sağlaması yapılmamış ilk tahmini yazma");
   });
 
   it("öğretmen öğrencinin seçtiği moda göre davranır", () => {
@@ -118,6 +122,8 @@ describe("öğretmen sohbeti istemi", () => {
     }
     expect(teacherStyleLine("hints_first")).toMatch(/ASLA ilk mesajda verme/);
     expect(teacherStyleLine("hints_first")).toMatch(/yönlendirici soru/);
+    expect(teacherStyleLine("direct_solve")).toMatch(/sağlamasını yap/);
+    expect(CHAT_NATURAL_VOICE).toMatch(/Sağlaması yapılmamış ilk tahmini yazma/);
     expect(tutorHistoryLine([])).toBe("");
     expect(tutorHistoryLine([{ label: "Deneme yanlışı", summary: "Nispi butlan" }])).toContain("- Deneme yanlışı: Nispi butlan");
   });

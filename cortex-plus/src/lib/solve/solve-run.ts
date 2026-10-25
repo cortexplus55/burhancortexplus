@@ -5,6 +5,7 @@ import type { ChatCompletionContentPart } from "openai/resources/chat/completion
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
+import { visionImage } from "@/lib/ai/vision";
 import { isPremiumUser } from "@/lib/billing/entitlements";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits, type ReservationResult } from "@/lib/credits/service";
 import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
@@ -13,12 +14,13 @@ import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import {
-  QUICK_SYSTEM,
+  ADVOCATE_SYSTEM,
   RECONCILE_SYSTEM,
   SOLVER_SYSTEM,
+  advocateUserText,
   answersAgree,
-  parseQuick,
   parseSolution,
+  quickFrom,
   reconcileUserText,
   solutionIssues,
   solverUserText,
@@ -27,14 +29,15 @@ import {
 } from "@/lib/solve/question-solver";
 
 /*
-  Soru çözücünün sunucu akışı (23 Ekim 2026). Sıra:
-  1. Ücret: fotoğrafta Plus/Sigma `IMAGE_SOLUTION`; ücretsiz öğrenci günde 1 fotoğraf ve günde 3 mesaj (24 Ekim 2026,
-     ürün sahibinin kararı), kredi ayırmasının sayacıyla. Yazılı soru sohbet mesajı fiyatında (`AI_CHAT_STANDARD`).
-  2. İki bağımsız luna çağrısı aynı anda: tam çözüm + yalnız cevap. Ölçüm (10 ders, 10 soru): 10/10 doğru, 7-9 sn.
-  3. Cevaplar tutar ve kod hesabı doğrularsa çözüm gider; tutmazsa luna (orta düşünme) iki çözümü karşılaştırır.
-  4. Çözüm gittikten sonra denetçi (gpt-4.1, ürün sahibinin kararı: denetçi kalır) bakar; yanlış derse luna yeniden
-     çözer ve "düzeltildi" olarak güncellenir. İlk çözüm 15 sn içinde, denetim arkadan.
-  Okunamayan fotoğraf ücret almaz (eski yolda 10 kredi düşüyordu).
+  Soru çözücünün sunucu akışı (25 Ekim 2026, sıfır-hata). Sıra:
+  1. Ücret: fotoğrafta Plus/Sigma `IMAGE_SOLUTION`; ücretsiz öğrenci günde 1 fotoğraf ve günde 3 mesaj
+     (credit_reserve_metered). Yazılı soru sohbet mesajı fiyatında (`AI_CHAT_STANDARD`). Değişmez.
+  2. İki bağımsız luna çağrısı aynı anda, farklı açı: analitik adım adım + şeytanın avukatı / şık eleyici.
+     İkisi de görseli `detail: "high"` ile okur; çözmeden önce soruyu birebir döker.
+  3. Cevaplar tutar ve kod hesabı doğrularsa o çözüm gider (çift sağlama). Tutmazsa ya da işlemde çelişki
+     varsa hakem (gpt-4.1) soruyu baştan kendisi çözer — ilk tahmin gösterilmez.
+  4. Çift sağlama tuttuysa denetçi arkadan bakar; yanlış derse çözüm "düzeltildi" olarak güncellenir.
+  Okunamayan fotoğraf ücret almaz.
 */
 
 export type SolveStatus = "checked" | "uncertain";
@@ -65,7 +68,8 @@ export type SolveInput = {
 const VERIFY_SYSTEM =
   "Bu bir denetim isteğidir. Bir öğretmenin sınav sorusuna yazdığı çözüm veriliyor; görev soruyu baştan " +
   "anlatmak değil, cevabın doğru olup olmadığına karar vermektir. Soruyu (görseldeki ya da metindeki) kendin dikkatle " +
-  "çöz ve verilen cevapla karşılaştır. Okunuş kâğıttakiyle aynı mı, işlemler doğru mu, şıklı soruda doğru şık mı? " +
+  "çöz ve verilen cevapla karşılaştır. Okunuş kâğıttakiyle aynı mı, işlemler doğru mu, şıklı soruda doğru şık mı, " +
+  "tersine sağlama tutuyor mu, olumsuz/kritik kelime (değildir, yanlıştır, ulaşılamaz) atlanmış mı? " +
   "Görselde birden çok soru varsa yalnız çözümde yazılı olan soruya bak; öbür soruları çözme. " +
   'Yalnız JSON: {"approved":true|false,"issue":"yanlışsa bir cümle: neyin yanlış olduğu ve doğrusu"}';
 
@@ -76,7 +80,7 @@ function userContent(input: SolveInput, text: string): ChatCompletionContentPart
   if (!input.imageDataUrl) return `${text}\n\nSORU:\n${input.text ?? ""}`;
   return [
     { type: "text", text: input.text ? `${text}\nÖğrencinin notu: ${input.text.slice(0, 1500)}` : text },
-    { type: "image_url", image_url: { url: input.imageDataUrl, detail: "high" } },
+    { type: "image_url", image_url: visionImage(input.imageDataUrl) },
   ];
 }
 
@@ -89,6 +93,11 @@ function solveRefusalMessage(result: Extract<ReservationResult, { ok: false }>):
     return `Bugünkü ${FREE_CHAT_PER_DAY} ücretsiz mesaj hakkın bitti; yazılı soru da mesaj sayılır. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.`;
   }
   return result.reason === "insufficient_credits" ? "Bu soru için hakkın yetmiyor." : "Bu soru şu an çözülüyor; birkaç saniye sonra yeniden dene.";
+}
+
+function sameAnswer(a: Solution, b: Solution): boolean {
+  if (a.kind === "mcq" || b.kind === "mcq") return a.answer.letter === b.answer.letter;
+  return (a.answer.value ?? a.answer.text) === (b.answer.value ?? b.answer.text);
 }
 
 /** Bir çözümü uçtan uca yürütür; olayları `emit` ile sırayla verir. */
@@ -126,6 +135,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
   const profile = await profileLoad;
   // Profil çözümün anlatımını değiştirir (çözen ve uzlaştıran); hızlı cevap ve denetçi cevabın kendisine bakar.
   const solverSystem = withStudentProfile(SOLVER_SYSTEM, profile);
+  const advocateSystem = withStudentProfile(ADVOCATE_SYSTEM, profile);
   const reconcileSystem = withStudentProfile(RECONCILE_SYSTEM, profile);
   const ask = async (
     system: string,
@@ -160,9 +170,9 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
       "student",
       async () => {
         emit({ type: "stage", stage: "solving" });
-        const [rawSolution, rawQuick] = await Promise.all([
+        const [rawSolution, rawAdvocate] = await Promise.all([
           ask(solverSystem, solverUserText(), { effort: "low" }),
-          ask(QUICK_SYSTEM, solverUserText(), { effort: "low" }).catch(() => null),
+          ask(advocateSystem, advocateUserText(), { effort: "low" }).catch(() => null),
         ]);
         let solution = parseSolution(rawSolution);
         if (!solution) solution = parseSolution(await ask(solverSystem, solverUserText(), { effort: "low" }));
@@ -176,15 +186,21 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
           emit({ type: "error", code: "unreadable", message: UNREADABLE_MESSAGE, status: 422 });
           return;
         }
-        const quick: QuickAnswer = parseQuick(rawQuick);
-        let issues = solutionIssues(solution);
+        const advocate = parseSolution(rawAdvocate);
+        const quick: QuickAnswer = quickFrom(rawAdvocate);
+        let issues = [
+          ...solutionIssues(solution),
+          ...(advocate?.readable ? solutionIssues(advocate) : []),
+        ];
         let status: SolveStatus = "checked";
         const agreed = answersAgree(solution, quick) && !issues.length;
         if (!agreed) {
+          // Hakem bitmeden ilk tahmini gösterme: iki açı çelişiyorsa gpt-4.1 soruyu baştan çözer.
           emit({ type: "stage", stage: "checking" });
-          const reconciled = await ask(reconcileSystem, reconcileUserText(solution, quick, issues), { effort: "medium" }).catch(
-            () => null,
-          );
+          const reconciled = await ask(reconcileSystem, reconcileUserText(solution, quick, issues, advocate), {
+            effort: "medium",
+            model: env.OPENAI_ADVANCED_MODEL,
+          }).catch(() => null);
           const next = parseSolution(reconciled);
           const sure = (reconciled as { sure?: unknown } | null)?.sure !== false;
           if (next?.readable) {
@@ -196,7 +212,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
         emit({ type: "solution", solution, status, ms: elapsed(), agreed });
         await settle(true);
 
-        if (elapsed() > VERIFY_DEADLINE_MS) return;
+        if (!agreed || elapsed() > VERIFY_DEADLINE_MS) return;
         emit({ type: "stage", stage: "verifying" });
         const verdict = (await ask(VERIFY_SYSTEM, `ÇÖZÜM (JSON):\n${JSON.stringify(solution)}`, {
           model: env.OPENAI_ADVANCED_MODEL,
@@ -207,8 +223,9 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
         }
         const issue = typeof verdict.issue === "string" ? verdict.issue.slice(0, 400) : "";
         const fixed = parseSolution(
-          await ask(reconcileSystem, reconcileUserText(solution, quick, issue ? [`Denetçi: ${issue}`] : []), {
+          await ask(reconcileSystem, reconcileUserText(solution, quick, issue ? [`Denetçi: ${issue}`] : [], advocate), {
             effort: "medium",
+            model: env.OPENAI_ADVANCED_MODEL,
           }).catch(() => null),
         );
         if (fixed?.readable && !solutionIssues(fixed).length && !sameAnswer(fixed, solution)) {
@@ -229,9 +246,4 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
     if (!settled && reservationId) await settle(false);
     emit({ type: "done", ms: elapsed() });
   }
-}
-
-function sameAnswer(a: Solution, b: Solution): boolean {
-  if (a.kind === "mcq" || b.kind === "mcq") return a.answer.letter === b.answer.letter;
-  return (a.answer.value ?? a.answer.text) === (b.answer.value ?? b.answer.text);
 }

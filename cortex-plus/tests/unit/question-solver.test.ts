@@ -1,10 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  ADVOCATE_SYSTEM,
+  BACKCHECK_RULE,
+  READ_FIRST_RULE,
   answersAgree,
   numericOf,
   parseQuick,
   parseSolution,
+  quickFrom,
   solutionIssues,
   type Solution,
 } from "@/lib/solve/question-solver";
@@ -59,11 +63,14 @@ describe("model çıktısının okunması", () => {
       question: "Soru?",
       options: [{ letter: "a)", text: "Bir" }, { letter: "B", text: "İki" }, { letter: "", text: "boş harf" }],
       answer: { letter: "B", text: "İki" },
-      steps: [{ say: "" }, { math: "1+1=2", say: "Topladık" }],
+      criticalWords: ["değildir"],
+      steps: [{ say: "" }, { title: "Toplama", math: "1+1=2", say: "Topladık" }],
     });
     expect(parsed?.kind).toBe("mcq");
     expect(parsed?.options.map((o) => o.letter)).toEqual(["A", "B"]);
     expect(parsed?.steps).toHaveLength(1);
+    expect(parsed?.steps[0]?.title).toBe("Toplama");
+    expect(parsed?.criticalWords).toEqual(["değildir"]);
   });
 
   it("okunamayan fotoğraf: readable false döner (iade yolu), cevapsız çözüm null", () => {
@@ -88,6 +95,23 @@ describe("iki bağımsız çözüm", () => {
     const open = mcq({ kind: "open", options: [], answer: { value: "4,8", text: "4,8 cm" } });
     expect(answersAgree(open, parseQuick({ value: "4.8" }))).toBe(true);
     expect(answersAgree(open, parseQuick({ value: "4.9" }))).toBe(false);
+  });
+
+  it("ikinci çözücü tam JSON döndürse de cevabı okunur", () => {
+    expect(quickFrom({ answer: { letter: "C", value: "4" }, question: "x?", readable: true })).toEqual({
+      letter: "C",
+      value: "4",
+    });
+    expect(parseQuick({ answer: { letter: "B" } }).letter).toBe("B");
+  });
+
+  it("analitik ve şeytanın avukatı farklı kural okur; ikisi de önce okur ve sağlamayı zorunlu tutar", () => {
+    expect(READ_FIRST_RULE).toContain("criticalWords");
+    expect(READ_FIRST_RULE).toContain("I, II, III");
+    expect(BACKCHECK_RULE).toContain("back-substitution");
+    expect(ADVOCATE_SYSTEM).toContain("BAĞIMSIZ");
+    expect(ADVOCATE_SYSTEM).toContain(BACKCHECK_RULE);
+    expect(ADVOCATE_SYSTEM).toContain(READ_FIRST_RULE);
   });
 });
 
@@ -265,5 +289,21 @@ describe("bağlantılar", () => {
   it("eski fotoğraf ucu ve bileşeni kalktı", () => {
     expect(() => read("src/app/api/ai/solve-image/route.ts")).toThrow();
     expect(() => read("src/components/learning/image-solver.tsx")).toThrow();
+  });
+
+  it("görsel çağrıları high detail kullanır; çelişince hakem çözümden önce çalışır", () => {
+    const run = read("src/lib/solve/solve-run.ts");
+    const chat = read("src/app/api/ai/chat/route.ts");
+    expect(run).toContain("visionImage");
+    expect(run).toContain("ADVOCATE_SYSTEM");
+    expect(run).toContain("advocateUserText");
+    const arbiter = run.indexOf("Hakem bitmeden");
+    const firstEmit = run.indexOf('emit({ type: "solution"');
+    expect(arbiter).toBeGreaterThan(-1);
+    expect(firstEmit).toBeGreaterThan(arbiter);
+    expect(chat).toContain("visionImage(imageUrl)");
+    expect(read("src/lib/ai/generate.ts")).toContain("visionImage(url)");
+    expect(read("src/lib/ai/quality-gate.ts")).toContain("visionImage(url)");
+    expect(read("src/lib/ai/vision.ts")).toContain('detail: "high"');
   });
 });

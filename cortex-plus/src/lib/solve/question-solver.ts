@@ -1,20 +1,17 @@
 import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
 
 /*
-  Soru çözücü (23 Ekim 2026; ürün sahibi: "fotoğraftan ya da yazılı her soru, en çok 15 sn, en anlaşılır dil,
-  Astra tarzı, kendi tasarımımızla; doğruluk %100'e yakın").
+  Soru çözücü (23 Ekim 2026; 25 Ekim 2026: sıfır-hata / zorunlu sağlama).
 
-  Astra'da on dersten on soru çözdürüldü (`docs/delivery/SORU-COZUCU-23-EKIM.md`): hepsi doğru; sözel sorular 3-10 sn,
-  işlemli sorular 17-27 sn. Yaklaşımı derse göre değişiyor: işlemli soruda "verilenler → istenen → adım adım çözüm
-  tahtası → cevap"; sözel soruda "cevap önce → her şık neden doğru/yanlış → karıştırılan nokta / unutma kutusu".
-
-  Bizde doğruluk tek çağrıya bırakılmaz: aynı soru iki bağımsız çağrıyla çözülür (biri tam anlatım, biri yalnız
-  cevap). Cevaplar tutarsa ve kod hesabı doğrularsa çözüm gösterilir; tutmazsa üçüncü çağrı iki çözümü karşılaştırır,
-  yine tutmazsa öğrenciye "emin değiliz" denir. Model yalnız luna (ürün sahibinin kararı); denetçi ayrı.
+  Doğruluk tek çağrıya bırakılmaz. İki bağımsız çözücü aynı ezber hatasına düşmesin diye
+  farklı açıdan çalışır (analitik adım adım + şeytanın avukatı / tersine sağlama). Cevaplar
+  tutar ve kod hesabı doğrularsa öğrenciye o çözüm gider; tutmazsa ya da işlemde çelişki
+  varsa hakem (gpt-4.1) soruyu baştan kendisi çözer — sağlaması yapılmamış ilk tahmin
+  gösterilmez.
 */
 
 export type SolverOption = { letter: string; text: string };
-export type SolverStep = { math?: string; say: string };
+export type SolverStep = { title?: string; math?: string; say: string };
 export type SolverAnswer = { letter?: string; value?: string; text: string };
 export type SolverOptionWhy = { letter: string; why: string; correct?: boolean };
 
@@ -37,6 +34,8 @@ export type Solution = {
   questionNumber?: string;
   /** Görseldeki öbür soruların numaraları; öğrenciye "nota numarasını yaz" denir. */
   otherQuestions?: string[];
+  /** Kökteki olumsuz/kritik kelimeler: değildir, yanlıştır, ulaşılamaz, en az, kesinlikle… */
+  criticalWords?: string[];
 };
 
 export type QuickAnswer = { letter?: string; value?: string };
@@ -57,50 +56,95 @@ const PLAIN =
   "Dil: sınava hazırlanan, konuyu yeni öğrenen bir öğrenciye konuşur gibi; kısa cümleler, günlük kelimeler, terimi " +
   "ilk geçtiği yerde bir cümleyle açıkla. Gereksiz giriş, övgü ve 'harika soru' yok.";
 
+/** Çözüme başlamadan önce kâğıdı birebir metne dök; yüzeysel okuma yasak. */
+export const READ_FIRST_RULE =
+  "ÖNCE TAM OKU (çözüme geçme): Sorudaki bütün sayıları, birimleri, sembolleri, grafik/tablo değerlerini, Romen " +
+  "rakamlı öncülleri (I, II, III, IV…) ve bütün şıkları (A, B, C, D, E) kâğıttaki gibi birebir question + options'a yaz. " +
+  "Her şık kendi harfiyle; harf uydurma, şık atlama, kelime düzeltme. Kökteki olumsuz/kritik kelimeleri " +
+  "(değildir, yanlıştır, ulaşılamaz, en az, en çok, kesinlikle, yalnızca, hariç, değilse) criticalWords dizisine yaz; " +
+  "bunlar cevabı tersine çevirir, atlama. Görsel okunmuyorsa ya da soru eksikse readable:false döndür ve çözüm uydurma.";
+
+/** Bulunan cevabı yerine koy; diğer şıkları tek tek ele. İlk tahmini yazma. */
+export const BACKCHECK_RULE =
+  "ZORUNLU SAĞLAMA: Cevabı yazmadan önce (1) bulduğun değeri/şıkkı denklemde, öncülde veya tanıma yerine koy " +
+  "(back-substitution) ve check alanına bir cümleyle yaz; (2) şıklı soruda diğer her şıkkın neden yanlış olduğunu " +
+  "optionsWhy'da tek tek işle — yanlış şıkta o sayıyı gerçekten veren tipik hatayı yaz, boş 'doğru olsa bu olmaz' " +
+  "cümlesi yok; (3) sağlaması tutmuyorsa cevabı değiştir, ilk tahmini bırakma.";
+
+const SOLUTION_JSON =
+  'Yalnızca JSON döndür: {"readable":true,"subject":"Fizik","question":"…","options":[{"letter":"A","text":"…"}],' +
+  '"kind":"mcq","intro":"…","given":["…"],"asked":"…","criticalWords":["değildir"],' +
+  '"steps":[{"title":"Kuvvetleri bileşenlerine ayıralım","math":"…","say":"…"}],' +
+  '"answer":{"letter":"B","value":"40 m","text":"Araç 4 saniyede 40 metre yol alır."},' +
+  '"optionsWhy":[{"letter":"A","why":"…","correct":false}],"trap":"…","tip":"…","check":"…",' +
+  '"questionNumber":"","otherQuestions":[]}';
+
 export const SOLVER_SYSTEM = [
-  "Sen sınav sorularını çözen ve öğrenciye en anlaşılır biçimde anlatan bir öğretmensin. Soru bir fotoğraftan ya da " +
-    "yazılı metinden gelir; her ders olabilir (matematik, fizik, kimya, biyoloji, Türkçe, tarih, coğrafya, felsefe, " +
-    "yabancı dil, tıp, hukuk, KPSS, YKS, TUS…).",
+  "Sen sınav sorularını çözen titiz bir öğretmensin. AÇIN: standart akademik / formül yolu — verilenler, istenen, " +
+    "ilgili yasa veya kural, adım adım işlem. Soru fotoğraftan ya da yazılı metinden gelir; her ders olabilir " +
+    "(matematik, fizik, kimya, biyoloji, Türkçe, tarih, coğrafya, felsefe, yabancı dil, tıp, hukuk, KPSS, YKS, TUS…).",
   "",
-  "ÖNCE OKU: Soruyu ve şıkları kâğıttaki gibi aynen yaz; her şık kendi harfiyle. Görsel okunmuyorsa ya da soru eksikse " +
-    "readable:false döndür ve çözüm uydurma.",
+  READ_FIRST_RULE,
   ONE_QUESTION_RULE +
     " Birden çok soru varsa questionNumber çözdüğün sorunun numarası, otherQuestions görseldeki öbür soruların " +
     "numaraları (görselde başka soru varsa boş bırakma).",
   "",
-  "SONRA ÇÖZ, DOĞRU ÇÖZ: Cevaptan emin olmadan yazma; işlemleri tek tek yap, sonucu soruda istenen birimle ver. Şıklı " +
-    "soruda cevap mutlaka şıklardan biri olur ve answer.letter o şıkkın harfidir.",
+  "SONRA ÇÖZ: İşlemleri tek tek yap, sonucu soruda istenen birimle ver. Şıklı soruda cevap mutlaka şıklardan biri " +
+    "olur ve answer.letter o şıkkın harfidir. Cevaptan emin olmadan yazma.",
+  BACKCHECK_RULE,
   "",
   "ANLATIM (soruya göre):",
-  "- İşlemli soruda (hesap, formül, problem): given (verilenler), asked (istenen), steps: her adım bir satır işlem " +
-    "(math, sembolle: a = Δv / t = 20 / 4 = 5 m/s²) ve bir cümle açıklama (say). 3-7 adım.",
-  "- Sözel soruda (kavram, kural, tarih, dil): önce cevap; optionsWhy: her şık için bir cümle, neden doğru ya da " +
-    "neden yanlış (şık hangi kavrama/döneme/kurala ait). steps gerekmez.",
-  "- Şıklı işlemli soruda da optionsWhy her şık için bir cümle: yanlış şıkta, o sayıyı gerçekten veren tipik hatayı " +
-    "işlemiyle yaz (ör. \"son hızı bütün süreye uygularsan 20 × 4 = 80 bulursun\"); o sayıyı veren bir hata yoksa şıkkın " +
-    "neden olamayacağını doğru sonuçla karşılaştırarak söyle. \"Doğru yapıldığında elde edilmez\" gibi boş cümle yazma; " +
-    "yazdığın her işlem tutmalı.",
-  "- trap: öğrencinin en çok karıştırdığı nokta (bir cümle). tip: akılda kalacak kısa kural ya da kısa yol (bir cümle). " +
-    "check: işlemli soruda sonucun mantıklı olduğunu gösteren kısa kontrol (bir cümle); sözel soruda boş bırak.",
-  "- intro: soruya nasıl yaklaşacağımızı söyleyen tek cümle.",
+  "- İşlemli soruda: given, asked, steps. Her adımın kısa bir title'ı (ör. \"Kuvvetleri bileşenlerine ayıralım\"), " +
+    "bir satır işlemi (math: a = Δv / t = 20 / 4 = 5 m/s²) ve bir cümle mantığı (say) olsun. 3-7 adım.",
+  "- Sözel soruda: önce cevap; optionsWhy her şık için bir cümle. steps gerekmez ama kök uzunsa 2-4 adım yaz.",
+  "- Şıklı işlemli soruda da optionsWhy her şık için bir cümle.",
+  "- trap: öğrencinin en çok karıştırdığı nokta (bir cümle). tip: akılda kalacak kısa kural. " +
+    "check: tersine sağlamanın bir cümlesi. intro: nasıl yaklaşacağımızı söyleyen tek cümle.",
   "",
   PLAIN,
   "",
-  'Yalnızca JSON döndür: {"readable":true,"subject":"Fizik","question":"…","options":[{"letter":"A","text":"…"}],' +
-    '"kind":"mcq","intro":"…","given":["…"],"asked":"…","steps":[{"math":"…","say":"…"}],' +
-    '"answer":{"letter":"B","value":"40 m","text":"Araç 4 saniyede 40 metre yol alır."},' +
-    '"optionsWhy":[{"letter":"A","why":"…","correct":false}],"trap":"…","tip":"…","check":"…",' +
-    '"questionNumber":"","otherQuestions":[]}',
+  SOLUTION_JSON,
 ].join("\n");
 
-export const QUICK_SYSTEM =
-  "Sen sınav sorusu çözen bir öğretmensin. Soruyu dikkatle oku ve çöz; işlemleri tek tek yap. Yalnız cevabı ver. " +
-  'Şıklı soruda şıkkın harfi, sayısal soruda sayı (birimsiz, ondalık virgülle). JSON: {"letter":"B","value":"40"}. ' +
-  "Şık yoksa letter boş, okunmuyorsa ikisi de boş. " +
-  ONE_QUESTION_RULE;
+/** İkinci çözücü: aynı ezbere düşmesin diye bağımsız açı + şık eleyici. */
+export const ADVOCATE_SYSTEM = [
+  "Sen aynı sınav sorusunu BAĞIMSIZ çözen ikinci bir öğretmensin. Birinci çözümü görmüyorsun. AÇIN: şeytanın avukatı " +
+    "ve şık eleyici — varsayımları tersinden yokla, cevabı denklemde/öncülde yerine koy, diğer şıkları tek tek ele.",
+  "",
+  READ_FIRST_RULE,
+  ONE_QUESTION_RULE,
+  "",
+  "ÇÖZÜM YOLU (birinciden farklı düşün):",
+  "- Şıklı soruda mümkünse eleme ile git: her şıkkı kökteki koşula (özellikle criticalWords) vur; kalan tek şıkkı " +
+    "işlemle veya tanımla doğrula.",
+  "- İşlemli soruda sonucu başka yoldan bul (ters işlem, birim analizi, uç değer, yerine koyma) ve birinci yolla " +
+    "aynı sayıya inip inmediğini check'e yaz.",
+  "- Sözel/öncüllü soruda I-II-III öncüllerini tek tek doğru/yanlış işaretle, sonra bileşik şıkkı seç.",
+  BACKCHECK_RULE,
+  "",
+  PLAIN,
+  "",
+  SOLUTION_JSON,
+].join("\n");
+
+/** Eski ad: yalnız-cevap çağrısı. Artık tam bağımsız çözüm (şık eleyici); testler bu adı okur. */
+export const QUICK_SYSTEM = ADVOCATE_SYSTEM;
 
 export function solverUserText(note?: string): string {
-  return ["Görseldeki/aşağıdaki soruyu çöz.", note ? `Öğrencinin notu ya da sorusu: ${note.slice(0, 1500)}` : ""]
+  return [
+    "Görseldeki/aşağıdaki soruyu standart akademik yolla, adım adım çöz. Önce soruyu birebir yaz, sonra çöz, sonra sağlamasını yap.",
+    note ? `Öğrencinin notu ya da sorusu: ${note.slice(0, 1500)}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function advocateUserText(note?: string): string {
+  return [
+    "Görseldeki/aşağıdaki soruyu BAĞIMSIZ çöz. Şeytanın avukatı ol: cevabı yerine koy, diğer şıkları ele. " +
+      "Başka bir çözümden kopyalama; sen görmüyorsun.",
+    note ? `Öğrencinin notu ya da sorusu: ${note.slice(0, 1500)}` : "",
+  ]
     .filter(Boolean)
     .join("\n");
 }
@@ -131,7 +175,7 @@ export function parseSolution(raw: unknown): Solution | null {
   const steps = (Array.isArray(row.steps) ? row.steps : [])
     .map((item) => {
       const s = (item ?? {}) as Record<string, unknown>;
-      return { math: str(s.math, 400) || undefined, say: str(s.say, 400) };
+      return { title: str(s.title, 80) || undefined, math: str(s.math, 400) || undefined, say: str(s.say, 400) };
     })
     .filter((s) => s.say || s.math)
     .slice(0, 10);
@@ -161,6 +205,10 @@ export function parseSolution(raw: unknown): Solution | null {
       .map((item) => str(typeof item === "number" ? String(item) : item, 12))
       .filter(Boolean)
       .slice(0, 30),
+    criticalWords: (Array.isArray(row.criticalWords) ? row.criticalWords : [])
+      .map((item) => str(item, 40))
+      .filter(Boolean)
+      .slice(0, 12),
   };
   if (!readable) return solution;
   if (!solution.question || !(answer.text || answer.letter || answer.value)) return null;
@@ -169,7 +217,18 @@ export function parseSolution(raw: unknown): Solution | null {
 
 export function parseQuick(raw: unknown): QuickAnswer {
   const row = (raw ?? {}) as Record<string, unknown>;
-  return { letter: letterOf(row.letter), value: str(row.value, 60) || undefined };
+  const nested = (row.answer ?? {}) as Record<string, unknown>;
+  return {
+    letter: letterOf(row.letter) ?? letterOf(nested.letter),
+    value: str(row.value, 60) || str(nested.value, 60) || undefined,
+  };
+}
+
+/** İkinci tam çözümden hızlı cevap; yoksa parseQuick. */
+export function quickFrom(raw: unknown): QuickAnswer {
+  const solution = parseSolution(raw);
+  if (solution?.readable) return { letter: solution.answer.letter, value: solution.answer.value };
+  return parseQuick(raw);
 }
 
 /** "4,8 cm" → 4.8; "1/2" → 0.5; sayı yoksa null. */
@@ -216,9 +275,12 @@ export function solutionIssues(solution: Solution): string[] {
 }
 
 export const RECONCILE_SYSTEM = [
-  "Sen sınav sorularını çözen titiz bir öğretmensin. Aynı soru iki kez çözüldü ve sonuçlar farklı çıktı ya da hesapta " +
-    "sorun bulundu. Soruyu baştan, dikkatle kendin çöz; iki çözümü ve sorunları kontrol et; doğru olanı seç ya da " +
-    "düzelt. Emin değilsen sure:false döndür.",
+  "Sen sınav sorularının hakemisin. Aynı soru iki farklı açıdan çözüldü (analitik yol ve şık eleyici / tersine " +
+    "sağlama) ve sonuçlar farklı çıktı ya da hesapta/öncülde çelişki bulundu. İki çözümü ve ara işlemleri karşılaştır; " +
+    "en ufak aritmetik, işaret veya öncül çelişkisi varsa soruyu baştan, yüksek dikkatle KENDİN çöz ve doğru sonucu " +
+    "kesinleştir. Sağlaması yapılmamış tahmini seçme. Emin değilsen sure:false döndür.",
+  READ_FIRST_RULE,
+  BACKCHECK_RULE,
   // 24 Ekim 2026 lansman testi: öğrencinin kartına "İlk çözümdeki B cevabı doğrudur. İkinci çözümdeki C cevabı
   // yanlıştır." yazıldı; karşılaştırma iç süreç, öğrenci yalnız soruyu görür.
   "Çözümün hiçbir alanında 'birinci/ikinci çözüm', 'ilk çözüm', 'öbür çözüm' gibi karşılaştırmadan söz etme; öğrenciye " +
@@ -231,12 +293,15 @@ export const RECONCILE_SYSTEM = [
   "Aynı JSON şemasında tam çözüm döndür ve ek olarak \"sure\": true|false alanını ekle.",
 ].join("\n");
 
-export function reconcileUserText(solution: Solution, quick: QuickAnswer, issues: string[]): string {
+export function reconcileUserText(solution: Solution, quick: QuickAnswer, issues: string[], advocate?: Solution | null): string {
   return [
-    "BİRİNCİ ÇÖZÜM (JSON):",
+    "ANALİTİK ÇÖZÜM (JSON):",
     JSON.stringify(solution),
-    `İKİNCİ ÇÖZÜMÜN CEVABI: ${quick.letter ?? "-"} ${quick.value ?? ""}`.trim(),
+    advocate
+      ? `ŞEYTANIN AVUKATI ÇÖZÜMÜ (JSON):\n${JSON.stringify(advocate)}`
+      : `İKİNCİ ÇÖZÜMÜN CEVABI: ${quick.letter ?? "-"} ${quick.value ?? ""}`.trim(),
     issues.length ? `KODUN BULDUĞU SORUNLAR:\n${issues.map((i) => `- ${i}`).join("\n")}` : "",
+    "İki sonuç farklıysa veya işlemde çelişki varsa soruyu baştan kendin çöz; ilk tahmini seçme.",
   ]
     .filter(Boolean)
     .join("\n\n");

@@ -1,14 +1,13 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CheckCircle2, ImageUp, Lightbulb, ListPlus, RotateCcw, ShieldAlert, Sparkles, TriangleAlert } from "lucide-react";
+import { Camera, CheckCircle2, ImageUp, ListPlus, ShieldAlert, TriangleAlert } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { MathText } from "@/components/learning/math-text";
 import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
 import { solutionAnswerLine } from "@/lib/solve/solution-markdown";
 import type { SolveStatus } from "@/lib/solve/solve-run";
 import {
-  socraticConcept,
   socraticHint,
   SOLVE_DISCUSS_STORAGE_KEY,
   solveDiscussPrompt,
@@ -17,10 +16,9 @@ import { parseTutorStyle, type TutorStyle } from "@/lib/learning/tutor-style";
 import "@/styles/question-solver.css";
 
 /*
-  Soru çözücü ekranı (23 Ekim 2026). Fotoğraf çek / galeriden seç / yaz → "Çöz". Astra'nın yaklaşımı, bizim tasarım
-  dilimizle: işlemli soruda verilenler, istenen ve adım adım açılan çözüm tahtası; sözel soruda her şıkkın neden doğru
-  ya da yanlış olduğu; karıştırılan nokta, akılda tut, kontrol. Durum rozeti dürüst: "İki ayrı çözüm aynı sonucu
-  verdi", "Kontrol ediliyor", "Doğrulandı", "Emin değiliz".
+  Soru çözücü ekranı (25 Ekim 2026). Dört ferah bölüm: (1) fotoğraf + "soruyu böyle okudum",
+  (2) tek satırlık mod anahtarı, (3) dikey adım akışı, (4) sonuç kartı ve iki aksiyon.
+  Varsayılan: bütün adımlar açık. Yalnız `hints_first` profili veya öğrencinin tıklaması ipucu modunu açar.
 */
 
 type Phase = SolvePhase;
@@ -144,6 +142,7 @@ export function QuestionSolver({
       ) : (
         <SolutionView
           phase={phase}
+          imageSrc={previewUrl}
           onReset={reset}
           initialTutorStyle={tutorStyle}
           extra={prep && reviewToken ? <AddToReview key={reviewToken} prepId={prep.id} token={reviewToken} /> : null}
@@ -161,7 +160,7 @@ export function QuestionSolver({
   );
 }
 
-function StatusBadge({
+function TrustBadge({
   status,
   verifying,
   agreed = true,
@@ -173,7 +172,7 @@ function StatusBadge({
   if (status === "uncertain") {
     return (
       <span className="cp-solver-badge cp-solver-badge--warn">
-        <ShieldAlert aria-hidden /> Emin değiliz: iki çözüm farklı sonuç verdi, cevabı kitabınla karşılaştır
+        <ShieldAlert aria-hidden /> Emin değiliz: cevabı kitabınla karşılaştır
       </span>
     );
   }
@@ -191,22 +190,22 @@ function StatusBadge({
       </span>
     );
   }
-  // 24 Ekim 2026: uzlaştırılan çözümde de "aynı sonucu verdi" yazıyordu; altında "ikinci çözümdeki C yanlış" vardı.
-  const label = agreed
-    ? status === "verified"
-      ? "İki ayrı çözüm ve denetim aynı sonucu verdi"
-      : "İki ayrı çözüm aynı sonucu verdi"
-    : status === "verified"
-      ? "İki çözüm karşılaştırıldı; denetim de onayladı"
-      : "İki çözüm karşılaştırılıp doğru cevap seçildi";
+  // 24 Ekim 2026: uzlaştırılan çözümde de "aynı sonucu verdi" yazıyordu.
+  if (!agreed) {
+    return (
+      <span className="cp-solver-badge cp-solver-badge--ok">
+        <CheckCircle2 aria-hidden />{" "}
+        {status === "verified" ? "İki çözüm karşılaştırıldı; denetim de onayladı" : "İki çözüm karşılaştırılıp doğru cevap seçildi"}
+      </span>
+    );
+  }
   return (
-    <span className="cp-solver-badge cp-solver-badge--ok">
-      <CheckCircle2 aria-hidden /> {label}
+    <span className="cp-solver-shield" title={status === "verified" ? "İki ayrı çözüm ve denetim aynı sonucu verdi" : "İki ayrı çözüm aynı sonucu verdi"}>
+      🛡️ Çift AI Sağlaması Yapıldı
     </span>
   );
 }
 
-/** Çözüm kartı; soru çöz sayfası ve sohbet aynı kartı çizer. Sohbette "Yeni soru" düğmesi yok. */
 /** Fotoğrafta birden çok soru varsa hangisinin çözüldüğü ve öbürü nasıl istenir (24 Ekim 2026). */
 export function otherQuestionsLine(solution: { questionNumber?: string; otherQuestions: string[] }): string {
   const solved = solution.questionNumber ? `${solution.questionNumber}. soruyu` : "İlk soruyu";
@@ -214,273 +213,211 @@ export function otherQuestionsLine(solution: { questionNumber?: string; otherQue
   return `Fotoğrafta başka sorular da var (${others}). ${solved} çözdüm; başka birini istersen fotoğrafı yeniden seç ve nota numarasını yaz, örneğin "${solution.otherQuestions[0]}. soru".`;
 }
 
+function stepTitle(step: { title?: string; say: string; math?: string }, index: number): string {
+  if (step.title?.trim()) return step.title.trim();
+  const fromSay = step.say.trim().split(/[.?!]/)[0] ?? "";
+  if (fromSay && fromSay.length <= 56) return fromSay;
+  return `${index + 1}. adım`;
+}
+
+/** Çözüm kartı; soru çöz sayfası ve sohbet aynı kartı çizer. Sohbette "Yeni soru" düğmesi yok. */
 export function SolutionView({
   phase,
   onReset,
   extra,
   initialTutorStyle,
   onDiscuss,
+  imageSrc,
 }: {
   phase: SolveDone;
   onReset?: () => void;
   extra?: ReactNode;
   initialTutorStyle?: TutorStyle;
   onDiscuss?: (prompt: string) => void;
+  imageSrc?: string | null;
 }) {
   const { solution } = phase;
   const socraticDefault = parseTutorStyle(initialTutorStyle) === "hints_first";
   const [view, setView] = useState<"socratic" | "full">(socraticDefault ? "socratic" : "full");
-  const [shown, setShown] = useState(socraticDefault ? 0 : 1);
+  const [shown, setShown] = useState(socraticDefault ? 0 : solution.steps.length);
+  const [lightbox, setLightbox] = useState(false);
   const answerLine = solutionAnswerLine(solution);
   const steps = solution.steps;
   const allShown = shown >= steps.length;
-  const locked = view === "socratic" && shown === 0;
+  const locked = view === "socratic" && !allShown;
   const hint = socraticHint(solution);
-  const concept = socraticConcept(solution);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   function openFull() {
     setView("full");
-    setShown((current) => Math.max(current, 1));
+    setShown(steps.length);
   }
 
   function revealSteps() {
-    setShown((current) => (current === 0 ? 1 : current + 1));
+    setShown((current) => Math.min(steps.length, current === 0 ? 1 : current + 1));
   }
 
   return (
     <article className="cp-solver-result" aria-live="polite">
-      <header className="cp-solver-head">
-        {solution.subject ? <span className="cp-solver-subject">{solution.subject}</span> : null}
-        <span className="cp-solver-time">{Math.max(1, Math.round(phase.ms / 1000))} sn</span>
-      </header>
-      <StatusBadge status={phase.status} verifying={phase.verifying} agreed={phase.agreed} />
-      {phase.note ? <p className="cp-solver-note">{phase.note}</p> : null}
-      {solution.otherQuestions?.length ? <p className="cp-solver-note">{otherQuestionsLine({ questionNumber: solution.questionNumber, otherQuestions: solution.otherQuestions })}</p> : null}
-
-      <div className="cp-solver-modes" role="tablist" aria-label="Çözüm görünümü">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "socratic"}
-          className={view === "socratic" ? "is-on" : undefined}
-          onClick={() => {
-            setView("socratic");
-            setShown(0);
-          }}
-        >
-          💡 İpucuyla Kendin Çöz
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "full"}
-          className={view === "full" ? "is-on" : undefined}
-          onClick={openFull}
-        >
-          ⚡ Adım Adım Tam Çözüm
-        </button>
-      </div>
-
-      {view === "socratic" ? (
-        <section className="cp-solver-socratic">
-          <aside className="cp-solver-box cp-solver-box--hint">
-            <Lightbulb aria-hidden />
-            <div>
-              <p className="cp-solver-box-title">1. İpucu / Sorunun kilidi</p>
-              <p>{hint}</p>
-            </div>
-          </aside>
-          <aside className="cp-solver-box cp-solver-box--formula">
-            <Sparkles aria-hidden />
-            <div>
-              <p className="cp-solver-box-title">Kullanılacak formül / kavram</p>
-              <MathText text={concept} className="cp-solver-math" />
-            </div>
-          </aside>
-        </section>
-      ) : null}
-
-      {!locked ? (
-      <section className="cp-solver-answer">
-        <p className="cp-solver-answer-label">Doğru cevap</p>
-        <p className="cp-solver-answer-value">{answerLine}</p>
-        {solution.answer.text && solution.answer.text !== answerLine ? <p className="cp-solver-answer-text">{solution.answer.text}</p> : null}
-      </section>
-      ) : (
-        <section className="cp-solver-answer cp-solver-answer--locked" aria-hidden>
-          <p className="cp-solver-answer-label">Doğru cevap</p>
-          <p className="cp-solver-answer-value">{answerLine}</p>
-        </section>
-      )}
-
-      {view === "full" && solution.intro ? <p className="cp-solver-intro">{solution.intro}</p> : null}
-
-      {solution.given.length || solution.asked ? (
-        <section className="cp-solver-facts">
-          {solution.given.length ? (
-            <div>
-              <h3>Verilenler</h3>
-              <ul>
-                {solution.given.map((g) => (
-                  <li key={g}>{g}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {solution.asked ? (
-            <div>
-              <h3>İstenen</h3>
-              <p>{solution.asked}</p>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {steps.length ? (
-        <section className={locked ? "cp-solver-board cp-solver-board--locked" : "cp-solver-board"}>
-          <h3>
-            Çözüm adımları <span>{locked ? `0 / ${steps.length}` : `${Math.min(shown, steps.length)} / ${steps.length}`}</span>
-          </h3>
-          {locked ? (
-            <div className="cp-solver-lock">
-              <ol aria-hidden>
-                {steps.slice(0, 2).map((step, index) => (
-                  <li key={index}>
-                    {step.math ? <p className="cp-solver-math">{step.math}</p> : null}
-                    {step.say ? <p className="cp-solver-say">{step.say}</p> : null}
-                  </li>
-                ))}
-              </ol>
-              <button type="button" className="cp-solver-next" onClick={revealSteps}>
-                👀 Çözüm Adımlarını Göster
-              </button>
-            </div>
-          ) : (
-            <>
-              <ol>
-                {steps.slice(0, shown).map((step, index) => (
-                  <li key={index}>
-                    {step.math ? <MathText text={step.math} className="cp-solver-math" /> : null}
-                    {step.say ? (
-                      <p className="cp-solver-say">
-                        <span className="cp-solver-why">Neden bu adımı yaptık?</span>
-                        {step.say}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-              {!allShown ? (
-                <div className="cp-solver-board-nav">
-                  <button type="button" className="cp-solver-next" onClick={revealSteps}>
-                    Sonraki adım
-                  </button>
-                  <button type="button" className="cp-solver-link" onClick={() => setShown(steps.length)}>
-                    Hepsini göster
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </section>
-      ) : locked ? (
-        <button type="button" className="cp-solver-next" onClick={revealSteps}>
-          👀 Çözüm Adımlarını Göster
-        </button>
-      ) : null}
-
-      {!locked && solution.optionsWhy.length ? (
-        <section className="cp-solver-options">
-          <h3>Şıklar</h3>
-          <ul>
-            {solution.optionsWhy.map((o) => {
-              const correct = o.correct || o.letter === solution.answer.letter;
-              const label = solution.options.find((x) => x.letter === o.letter)?.text;
-              return (
-                <li key={o.letter} className={correct ? "is-correct" : undefined}>
-                  <span className="cp-solver-letter">{o.letter}</span>
-                  <div>
-                    {label ? <p className="cp-solver-option-text">{label}</p> : null}
-                    <p className="cp-solver-option-why">{o.why}</p>
-                  </div>
+      <header className="cp-solver-readback">
+        {imageSrc ? (
+          <button type="button" className="cp-solver-thumb" onClick={() => setLightbox(true)} aria-label="Fotoğrafı büyüt">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageSrc} alt="" />
+          </button>
+        ) : null}
+        <div className="cp-solver-readback-body">
+          <div className="cp-solver-readback-meta">
+            {solution.subject ? <span className="cp-solver-subject">{solution.subject}</span> : null}
+            <span className="cp-solver-time">{Math.max(1, Math.round(phase.ms / 1000))} sn</span>
+          </div>
+          <p className="cp-solver-readback-label">Soruyu böyle okudum</p>
+          <p className="cp-solver-readback-q">{solution.question}</p>
+          {solution.options.length ? (
+            <ul className="cp-solver-readback-opts">
+              {solution.options.map((option) => (
+                <li key={option.letter}>
+                  <span>{option.letter}</span>
+                  {option.text}
                 </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
-
-      {!locked && solution.trap ? (
-        <aside className="cp-solver-box cp-solver-box--trap">
-          <TriangleAlert aria-hidden />
-          <div>
-            <p className="cp-solver-box-title">Karıştırılan nokta</p>
-            <p>{solution.trap}</p>
-          </div>
-        </aside>
-      ) : null}
-      {!locked && solution.tip ? (
-        <aside className="cp-solver-box cp-solver-box--tip">
-          <Lightbulb aria-hidden />
-          <div>
-            <p className="cp-solver-box-title">Akılda tut</p>
-            <p>{solution.tip}</p>
-          </div>
-        </aside>
-      ) : null}
-      {!locked && solution.check ? (
-        <p className="cp-solver-check">
-          <Sparkles aria-hidden /> {solution.check}
+              ))}
+            </ul>
+          ) : null}
+          {solution.criticalWords?.length ? (
+            <p className="cp-solver-flags">
+              {solution.criticalWords.map((word) => (
+                <span key={word}>{word}</span>
+              ))}
+            </p>
+          ) : null}
+        </div>
+      </header>
+      {phase.note ? <p className="cp-solver-note">{phase.note}</p> : null}
+      {solution.otherQuestions?.length ? (
+        <p className="cp-solver-note">
+          {otherQuestionsLine({ questionNumber: solution.questionNumber, otherQuestions: solution.otherQuestions })}
         </p>
       ) : null}
 
-      <details className="cp-solver-read">
-        <summary>Sorunun okunuşu</summary>
-        <p>{solution.question}</p>
-        {solution.options.length ? (
-          <ul>
-            {solution.options.map((o) => (
-              <li key={o.letter}>
-                {o.letter}) {o.text}
-              </li>
-            ))}
-          </ul>
+      <div className="cp-solver-toolbar">
+        <div className="cp-solver-modes" role="tablist" aria-label="Çözüm görünümü">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "full"}
+            className={view === "full" ? "is-on" : undefined}
+            onClick={openFull}
+          >
+            ⚡ Adım Adım Çözüm
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "socratic"}
+            className={view === "socratic" ? "is-on" : undefined}
+            onClick={() => {
+              setView("socratic");
+              setShown(0);
+            }}
+          >
+            💡 Kendim Deneyeyim (İpucu Modu)
+          </button>
+        </div>
+      </div>
+
+      {view === "socratic" ? (
+        <p className="cp-solver-hintline">
+          💡 {hint}
+        </p>
+      ) : null}
+
+      {steps.length ? (
+        <ol className={locked && shown === 0 ? "cp-solver-timeline cp-solver-board--locked" : "cp-solver-timeline"}>
+          {(view === "full" ? steps : steps.slice(0, Math.max(shown, 0))).map((step, index) => (
+            <li key={index}>
+              <span className="cp-solver-step-num" aria-hidden>
+                {index + 1}
+              </span>
+              <div className="cp-solver-step">
+                <h3>{stepTitle(step, index)}</h3>
+                {step.math ? <MathText text={step.math} className="cp-solver-math" /> : null}
+                {step.say ? (
+                  <p className="cp-solver-say">
+                    <span className="cp-solver-why">💡 Mantığı:</span> {step.say}
+                  </p>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      {view === "socratic" && !allShown ? (
+        <button type="button" className="cp-solver-next" onClick={revealSteps}>
+          {shown === 0 ? "Çözüm Adımlarını Göster" : "Sonraki adım"}
+        </button>
+      ) : null}
+
+      <section className={locked ? "cp-solver-answer cp-solver-answer--locked" : "cp-solver-answer"} aria-hidden={locked || undefined}>
+        <div className="cp-solver-answer-top">
+          <p className="cp-solver-answer-label">Doğru cevap</p>
+          {!locked ? <TrustBadge status={phase.status} verifying={phase.verifying} agreed={phase.agreed} /> : null}
+        </div>
+        <p className="cp-solver-answer-value">{answerLine}</p>
+        {!locked && solution.answer.text && solution.answer.text !== answerLine ? (
+          <p className="cp-solver-answer-text">{solution.answer.text}</p>
         ) : null}
-      </details>
+        {!locked && solution.trap ? (
+          <p className="cp-solver-trap">⚠️ Sınav tuzağı / dikkat: {solution.trap}</p>
+        ) : null}
+      </section>
 
       {extra}
-      <DiscussAction
-        question={solution.question}
-        subject={solution.subject}
-        onDiscuss={onDiscuss}
-      />
-      {onReset ? (
-        <button type="button" className="cp-solver-go" onClick={onReset}>
-          <RotateCcw aria-hidden /> Yeni soru
-        </button>
+      <div className="cp-solver-actions">
+        <DiscussAction solution={solution} onDiscuss={onDiscuss} />
+        {onReset ? (
+          <button type="button" className="cp-solver-secondary" onClick={onReset}>
+            📸 Yeni Soru Yükle
+          </button>
+        ) : null}
+      </div>
+
+      {lightbox && imageSrc ? (
+        <div
+          className="cp-solver-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Soru fotoğrafı"
+          onClick={() => setLightbox(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageSrc} alt="Soru fotoğrafı" />
+        </div>
       ) : null}
     </article>
   );
 }
 
-/*
-  Hazırlıktan açılan çözücüde: şıklı soru hazırlığın tekrar listesine eklenir, yarın ve sonra 3-7-14 gün sonra
-  yeniden sorulur. Belirteç sunucunun imzası; doğru cevap tarayıcıdan gelmez.
-*/
 function DiscussAction({
-  question,
-  subject,
+  solution,
   onDiscuss,
 }: {
-  question: string;
-  subject: string;
+  solution: Parameters<typeof solveDiscussPrompt>[0];
   onDiscuss?: (prompt: string) => void;
 }) {
-  const prompt = solveDiscussPrompt({ question, subject });
+  const prompt = solveDiscussPrompt(solution);
   if (onDiscuss) {
     return (
       <button type="button" className="cp-solver-discuss" onClick={() => onDiscuss(prompt)}>
-        🎯 Bu Soruyu Öğretmenle Tartış / Benzerini Sor
+        💬 Anlamadığım Yeri Öğretmene Sor
       </button>
     );
   }
@@ -496,7 +433,7 @@ function DiscussAction({
         }
       }}
     >
-      🎯 Bu Soruyu Öğretmenle Tartış / Benzerini Sor
+      💬 Anlamadığım Yeri Öğretmene Sor
     </a>
   );
 }
@@ -536,7 +473,7 @@ function AddToReview({ prepId, token }: { prepId: string; token: string }) {
   }
   return (
     <div className="cp-solver-review">
-      <button type="button" className="cp-solver-next" disabled={state === "saving"} onClick={() => void add()}>
+      <button type="button" className="cp-solver-link" disabled={state === "saving"} onClick={() => void add()}>
         <ListPlus aria-hidden /> {state === "saving" ? "Ekleniyor…" : "Tekrar listeme ekle"}
       </button>
       {state === "error" ? <span className="cp-solver-note">Eklenemedi; bir daha dene.</span> : null}

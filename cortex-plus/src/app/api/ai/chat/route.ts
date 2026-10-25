@@ -11,6 +11,7 @@ import { selectModel, contentModel } from "@/lib/ai/model-router";
 import { claimHardUpgrade } from "@/lib/ai/model-upgrade";
 import { assessQuestionDifficulty } from "@/lib/ai/question-difficulty";
 import { SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
+import { visionImage } from "@/lib/ai/vision";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
@@ -304,7 +305,7 @@ export async function POST(request: Request) {
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${teacherStyleLine(tutorStyle)} ${CHAT_NATURAL_VOICE}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
         ...history,
-        { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
+        { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: visionImage(imageUrl) }] : message },
       ];
       const sourceText = [contextBlock, examContext?.block ?? "", attachedBrief, prepGrounding?.corpus ?? ""].join("\n");
       const offDocument = prepGrounding

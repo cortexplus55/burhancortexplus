@@ -3,6 +3,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { withTransientRetry } from "@/lib/ai/transient-retry";
+import { visionImage } from "@/lib/ai/vision";
 import {
   partitionVerifierIssues,
   settleRejectedLesson,
@@ -336,7 +337,7 @@ export async function verifyEducationalContent(input: {
                 },
                 ...(input.imageUrls ?? []).map((url) => ({
                   type: "image_url" as const,
-                  image_url: { url },
+                  image_url: visionImage(url),
                 })),
               ],
             },

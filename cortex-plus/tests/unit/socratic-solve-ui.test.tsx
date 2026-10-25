@@ -36,19 +36,21 @@ const done: SolveDone = {
 describe("fotoğraftan çözüm Sokratik kalkan", () => {
   it("hints_first ile ipucu açık, cevap ve adımlar kapalı başlar", () => {
     render(<SolutionView phase={done} initialTutorStyle="hints_first" />);
-    expect(screen.getByText("1. İpucu / Sorunun kilidi")).toBeTruthy();
-    expect(screen.getByText("Denklemi sadeleştir.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "👀 Çözüm Adımlarını Göster" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Kendim Deneyeyim/ })).toBeTruthy();
+    expect(screen.getByText(/Denklemi sadeleştir/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Çözüm Adımlarını Göster" })).toBeTruthy();
     expect(document.querySelector(".cp-solver-answer--locked")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "👀 Çözüm Adımlarını Göster" }));
-    expect(screen.getByText("Neden bu adımı yaptık?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Çözüm Adımlarını Göster" }));
+    expect(screen.getByText(/Mantığı/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Sonraki adım" }));
     expect(document.querySelector(".cp-solver-answer--locked")).toBeNull();
   });
 
   it("doğrudan çözümde tam görünüm açılır; tartışma öğretmen sohbetine gider", () => {
     render(<SolutionView phase={done} initialTutorStyle="direct_solve" />);
-    expect(screen.queryByRole("button", { name: "👀 Çözüm Adımlarını Göster" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Çözüm Adımlarını Göster" })).toBeNull();
     expect(screen.getByText("Doğru cevap")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Öğretmenle Tartış/ }).getAttribute("href")).toBe("/ogretmen");
+    expect(screen.getByText(/Çift AI Sağlaması/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Öğretmene Sor/ }).getAttribute("href")).toBe("/ogretmen");
   });
 });
