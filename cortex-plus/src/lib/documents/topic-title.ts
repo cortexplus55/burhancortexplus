@@ -282,7 +282,10 @@ export function isSatelliteSection(heading: string): boolean {
     /denklem secme/.test(folded) ||
     /son tekrar/.test(folded) ||
     /vize oncesi/.test(folded) ||
-    /bolum \d+ tekrar/.test(folded)
+    /bolum \d+ tekrar/.test(folded) ||
+    /sik yapilan hata/.test(folded) ||
+    /hizli tekrar/.test(folded) ||
+    /kisa tekrar/.test(folded)
   );
 }
 

@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { backboneBlock, headingOfLine, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
 import {
   BACKBONE_TAG,
+  COVERAGE_TAG,
   TEACHER_SYSTEM,
+  stripLessonIssueTags,
   dropRepeatedChecks,
   fixPartUserPrompt,
   lessonLevelStructureIssues,
@@ -140,6 +142,7 @@ describe("omurga: konunun kendi alt başlıkları (ders bağımsız)", () => {
     expect(TEACHER_SYSTEM).toContain("6-10 ekran");
     expect(TEACHER_SYSTEM).toContain("klasik soru/problem tiplerini");
     expect(TEACHER_SYSTEM).toContain("En fazla 12 ekran");
+    expect(TEACHER_SYSTEM).toContain("16 ekranı geçme");
     expect(TEACHER_SYSTEM).not.toContain("3-4 kavram (kaynak darsa 2)");
     expect(TEACHER_SYSTEM).toContain("aynı soruyu ya da aynı bilgiyi sormaz");
   });
@@ -159,12 +162,27 @@ describe("kapsanmayan alt başlık kapanışta öğretim turu açar, kavram dü�
     expect(uncoveredBackbone(all, lessonBackbone(pages))).toEqual([]);
   });
 
-  it("dersin bütününe medium [omurga] sorunu yazılır; belgesiz derste yazılmaz", () => {
+  it("dersin bütününe yüksek [omurga] sorunu yazılır; belgesiz derste yazılmaz", () => {
     const issues = lessonLevelStructureIssues(lesson(covered), { pages, runningHeaders: [] });
     const gap = issues.find((issue) => issue.problem.startsWith(BACKBONE_TAG));
-    expect(gap?.severity).toBe("medium");
+    expect(gap?.severity).toBe("high");
     expect(gap?.problem).toContain("Meşrutiyetin İlanı");
     expect(lessonLevelStructureIssues(lesson(covered), { pages, runningHeaders: [], mode: "topic" }).some((issue) => issue.problem.startsWith(BACKBONE_TAG))).toBe(false);
+  });
+
+  it("kilit bilgi eksiği yüksek [kapsam] yazar; etiket öğrenci metninde durmaz", () => {
+    const ratioPages = [{ page: 1, text: "Karışım 5:2 oranındadır." }];
+    const issues = lessonLevelStructureIssues(lesson([screen("Oran", [text("Karışım anlatılır."), mcq("Oran hangi paydadır?")])]), {
+      pages: ratioPages,
+      runningHeaders: [],
+    });
+    const gap = issues.find((issue) => issue.problem.startsWith(COVERAGE_TAG));
+    expect(gap?.severity).toBe("high");
+    expect(gap?.problem).toContain("5:2");
+    const tagged = { body: "[kapsam] [omurga] [öğretim] [yapı kuralı] gizli" };
+    expect(stripLessonIssueTags(tagged).body).toBe("gizli");
+    const clean = { body: "düz metin" };
+    expect(stripLessonIssueTags(clean)).toBe(clean);
   });
 
   it("kapanış düzeltmesi yeni kavram ekranları ekleyebilir ve hepsi okunur", () => {

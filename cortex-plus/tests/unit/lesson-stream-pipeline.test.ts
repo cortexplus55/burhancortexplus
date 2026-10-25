@@ -139,6 +139,8 @@ async function run(options: {
   fix?: (user: string) => unknown;
   drafts?: string[];
   started?: number;
+  pages?: { page: number; text: string }[];
+  coverageBudget?: "student" | "prefetch";
 }) {
   const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
   const drafts = options.drafts ?? [JSON.stringify(lesson)];
@@ -161,7 +163,11 @@ async function run(options: {
         return options.verify(user, round);
       },
     },
-    input,
+    {
+      ...input,
+      ...(options.pages ? { pages: options.pages } : {}),
+      ...(options.coverageBudget ? { coverageBudget: options.coverageBudget } : {}),
+    },
     {
       started: options.started,
       onPublish: (item) => void published.push({ screens: item.lesson.screens.length, done: item.done, upcoming: item.upcoming }),
@@ -215,6 +221,23 @@ describe("kavram kavram denetim ve yayım", () => {
     expect([firstScreenMs, firstPartMs, firstPublishMs, writeMs].every((v) => typeof v === "number" && v >= 0)).toBe(true);
     expect(firstScreenMs!).toBeLessThanOrEqual(firstPartMs!);
     expect(firstPartMs!).toBeLessThanOrEqual(firstPublishMs!);
+  });
+
+  it("kilit bilgi eksiği ilk ekranı bekletmez; öğrenci metninde etiket kalmaz", async () => {
+    const pages = [{ page: 1, text: "Pay 7:2 olarak yazılır. Tanım satırı yeterince uzundur." }];
+    const { result, calls, published } = await run({
+      verify: () => ({ issues: [] }),
+      fix: () => null,
+      pages,
+    });
+    expect(published.map((item) => item.screens)).toEqual([1, 2]);
+    expect(published.every((item) => item.done === false)).toBe(true);
+    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
+    const fixes = calls.filter((call) => call.role === "fix-careful");
+    expect(fixes.length).toBeGreaterThan(0);
+    expect(fixes.some((call) => call.user.includes("[kapsam]"))).toBe(true);
+    expect(JSON.stringify(result.lesson)).not.toMatch(/\[(?:omurga|kapsam|öğretim|yapı kuralı)\]/);
+    expect(result.done).toBe(false);
   });
 
   it("sorunlu kavram yalnız kendisi düzeltilir; dersin tamamı yeniden yazılmaz", async () => {

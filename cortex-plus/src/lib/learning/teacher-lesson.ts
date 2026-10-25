@@ -1,4 +1,5 @@
 import {
+  LESSON_SCREEN_HARD_CAP,
   LESSON_V3_FORMAT,
   conceptGroups,
   lessonScreenSchema,
@@ -17,6 +18,15 @@ import { studentTextParts } from "@/lib/learning/lesson-board";
 import { nearSameQuestion, reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
 import { SOURCE_LINK_EXEMPTION, TEACHING_RUBRIC, WHY_NOTE_RULE } from "@/lib/learning/teaching-rubric";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
+import {
+  keyFactsBlock,
+  lessonKeyFacts,
+  lessonScreenCap,
+  missingStructures,
+  sourceHasWorkedProblem,
+  sourceStructures,
+  uncoveredKeyFacts,
+} from "@/lib/learning/lesson-key-facts";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -55,6 +65,8 @@ export type TeacherLessonInput = {
    * yerine doğruluk kuralı; denetçi doğruluğa bakar.
    */
   mode?: TeacherLessonMode;
+  /** Önceden yazımda kapsam turu bir kez daha açılabilir. Öğrenci yolunda bir tur. */
+  coverageBudget?: "student" | "prefetch";
 };
 
 export type TeacherLessonMode = "document" | "topic";
@@ -200,8 +212,11 @@ export const DIAGRAM_LAYOUT_RULE =
   "YAPILANDIRILMIŞ ŞEMA (zorunlu, her derste en az bir): Konunun yapısına uyan bir diagram bloğu yaz " +
   "(type diagram_card de olur). layout yalnız flow (süreç, evre, kronoloji, adım; düğümler sırayla), " +
   "cycle (döngü; son düğüm başa döner), matrix (satır ve sütun başlıklı ilişki; hücre etiketi) ya da " +
-  "tree (kökten dallanan sınıflandırma). Koordinat yazma. Etiketler kaynaktaki terimler; kaynakta olmayan " +
-  "sayı, kural ya da sonuç ekleme. İlk ekranı şişirme; şemayı sonraki kavrama koy.\n\n";
+  "tree (kökten dallanan sınıflandırma ya da ilişki ağacı). Kaynakta sıralı adım ya da süreç varsa flow, " +
+  "döngü varsa cycle, kısa hücreli çapraz tablo varsa matrix, dallanan liste ya da ilişki ağacı varsa tree yaz; " +
+  "birden çok yapı varsa her biri ayrı şema. İlişki ağacında düğüm shape 'square' ya da 'circle' ve filled " +
+  "true (dolu) ya da false (boş) olabilir; etiket kaynaktaki addır. Koordinat yazma. Etiketler kaynaktaki terimler; " +
+  "kaynakta olmayan sayı, kural ya da sonuç ekleme. İlk ekranı şişirme; şemayı sonraki kavrama koy.\n\n";
 
 export const VISUAL_BLOCK_RULE =
   "GÖRSEL KARTLAR (zorunlu; yeni bilgi taşımaz): Her ders en az 2, hedef 3 görsel kart üretir. Düz paragraf " +
@@ -309,7 +324,8 @@ export const TEACHER_SYSTEM =
   "da daha çok satırlı bir tabloyu tek ekrana koyma: aynı kavramın 2-3 ekranına satır gruplarıyla böl (ör. yaş " +
   "aralığına göre); her ekranın 'table' bloğu yalnız kendi satırlarını taşır; satırları başka kavrama taşıma. İlk " +
   "kavram tek ekrandır (önce dene + kısa anlatım); bölünecek tablo ya da hesap ikinci kavramdan başlar. Bir tabloya " +
-  "gönderen cümle ('tabloda oku') yalnız o tablonun durduğu ekranda yazılır. En fazla 12 ekran. Dersteki iki soru " +
+  "gönderen cümle ('tabloda oku') yalnız o tablonun durduğu ekranda yazılır. En fazla 12 ekran. Kapsanmayan kilit " +
+  "bilgi için en çok 4 ekran daha eklenebilir; 16 ekranı geçme. Dersteki iki soru " +
   "aynı soruyu ya da aynı bilgiyi sormaz: her ekranın sorusu yeni bir ayrımı yoklar. 'concept' ve " +
   "'heading' kavramın adıdır. " +
   "Kaynakta başlık büyük harfle yazılmış olsa bile sen normal yazımla yaz ('MADDİ YAPTIRIMLAR' değil 'Maddi Yaptırımlar'). " +
@@ -385,6 +401,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
       : "",
     input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
+    input.mode === "topic" ? "" : keyFactsBlock(lessonKeyFacts(input.pages)),
     input.mode === "topic"
       ? "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
       : `KAYNAK:\n${sourceText(input.pages)}`,
@@ -624,10 +641,13 @@ export function fixPartUserPrompt(
   issues: TeacherIssue[],
   input: TeacherLessonInput,
 ): string {
-  const backbone = part.closing && issues.some((issue) => issue.problem.startsWith(BACKBONE_TAG));
+  const backbone = part.closing && issues.some((issue) => issue.problem.includes(BACKBONE_TAG));
+  const coverage = part.closing && issues.some((issue) => issue.problem.includes(COVERAGE_TAG));
   const fields = [
-    backbone
-      ? `"screens": [screens[${part.from}]…screens[${part.to}] aynı sırayla (kısmın BÜTÜN ekranları), ardından işlenmemiş alt başlıklar için en çok ${BACKBONE_EXTRA_SCREENS} yeni ekran, her biri kendi 'concept' adıyla]`
+    backbone || coverage
+      ? `"screens": [screens[${part.from}]…screens[${part.to}] aynı sırayla (kısmın BÜTÜN ekranları), ardından ${
+          backbone ? "işlenmemiş alt başlıklar" : "işlenmemiş kilit bilgiler"
+        }${backbone && coverage ? " ve kilit bilgiler" : ""} için en çok ${BACKBONE_EXTRA_SCREENS} yeni ekran, her biri kendi 'concept' adıyla]`
       : `"screens": [screens[${part.from}]…screens[${part.to}] düzeltilmiş hâli, aynı sırayla; kısmın BÜTÜN ekranları, değiştirmediklerin de; 1-3 ekran, aynı kavram]`,
     part.header ? '"title", "overview", "objective" (değiştirdiysen)' : "",
     part.closing ? '"commonMistake", "summary" (değiştirdiysen)' : "",
@@ -728,7 +748,7 @@ export function parsePartFix(raw: unknown, base: LessonV3, upcomingTopics: strin
   if (!shaped) return null;
   if (!screens.length && !disputes.length) return null;
   return {
-    screens: screens.length ? shaped.screens.slice(0, 3 + BACKBONE_EXTRA_SCREENS) : [],
+    screens: screens.length ? shaped.screens.slice(0, LESSON_SCREEN_HARD_CAP) : [],
     ...(typeof row.title === "string" ? { title: shaped.title } : {}),
     ...(typeof row.overview === "string" ? { overview: shaped.overview } : {}),
     ...(typeof row.objective === "string" ? { objective: shaped.objective } : {}),
@@ -749,7 +769,22 @@ export type TeacherIssue = { where: string; severity: "high" | "medium" | "low";
 export const TEACHING_TAG = "[öğretim]";
 /** Omurga eksiği: kapanış kısmına yeni kavram ekranları eklenebilir. */
 export const BACKBONE_TAG = "[omurga]";
+/** Kilit bilgi, çözümlü örnek ya da kaynak yapısının şeması eksik. Kavramı düşürmez. */
+export const COVERAGE_TAG = "[kapsam]";
 export const BACKBONE_EXTRA_SCREENS = 4;
+
+/** Kapsam eksiği: omurga, kilit bilgi ya da istenen şema. Yüksek olsa da kavram atılmaz. */
+export function isCoverageIssue(issue: TeacherIssue): boolean {
+  const problem = issue.problem.replace(/^\[yapı kuralı\]\s*/, "");
+  return problem.startsWith(BACKBONE_TAG) || problem.startsWith(COVERAGE_TAG);
+}
+
+/** Öğrenci metninden denetim etiketlerini siler. Etiket yoksa aynı nesneyi döner. */
+export function stripLessonIssueTags<T>(value: T): T {
+  const raw = JSON.stringify(value);
+  if (!/\[(?:omurga|kapsam|öğretim|yapı kuralı)\]/.test(raw)) return value;
+  return JSON.parse(raw.replace(/\[(?:omurga|kapsam|öğretim|yapı kuralı)\]\s*/g, "")) as T;
+}
 
 /**
  * Denetçinin sorunları. Bilinmeyen önem 'high' sayılır. `medium: true` yalnız ders denetiminde: öbür motorlar
@@ -1488,18 +1523,44 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     sonra atılıyordu. Her ekranın soruyla bitmesi ve yoğun tablonun bölünmesi ekran sayısını artırdı: 7 → 9.
     25 Ekim 2026: tam kapsam (omurganın her alt başlığı) için 9 → 12 ekran, 5 → 6 kavram.
   */
-  if (screens.length > 12) low("screens", "En fazla on iki ekran; kavramı daha az ekrana sığdır.");
+  const documentPages = input.mode === "topic" ? [] : (input.pages ?? []);
+  const facts = lessonKeyFacts(documentPages);
+  const cap = lessonScreenCap(facts.length);
+  if (screens.length > cap) {
+    low("screens", cap === 12 ? "En fazla on iki ekran; kavramı daha az ekrana sığdır." : `En fazla ${cap} ekran; kavramı daha az ekrana sığdır.`);
+  }
   if (groups.length > 6) low("screens", "En fazla altı kavram; kısa alt başlıkları komşusuyla birleştir.");
-  // Omurga (25 Ekim 2026): kaynağın alt başlığı derste hiç geçmiyorsa kapanışta bir öğretim turu; kavram düşürmez.
+  // Omurga ve kilit bilgi (yüksek): kavram düşmez; kapanışta sessiz bir ekran turu açar.
   const missingHeads = uncoveredBackbone(screens, inputBackbone(input));
   if (missingHeads.length) {
     issues.push({
       where: `screens[${screens.length - 1}]`,
-      severity: "medium",
+      severity: "high",
       problem:
         `${BACKBONE_TAG} Kaynağın şu alt başlıkları derste işlenmedi: ${missingHeads.join(" · ")}. Her biri için bu kısmın ` +
         "ardına kendi 'concept' adıyla bir ekran ekle (tanım, sayısal kural/formül, istisna ya da çözümlü örnek; ekran bir " +
         "soruyla biter). Mevcut ekranları silme.",
+    });
+  }
+  const missingFacts = uncoveredKeyFacts(screens, facts);
+  if (missingFacts.length) {
+    issues.push({
+      where: `screens[${screens.length - 1}]`,
+      severity: "high",
+      problem:
+        `${COVERAGE_TAG} Kaynakta duran kilit bilgiler derste yok: ${missingFacts
+          .slice(0, 6)
+          .map((fact) => fact.text)
+          .join(" · ")}. Her birini sayı imzasıyla yaz; sıralı adımlar aynı sırada kalsın. Mevcut ekranları silme.`,
+    });
+  }
+  const sourceText = documentPages.map((page) => page.text).join("\n");
+  if (sourceHasWorkedProblem(sourceText) && !screens.some((screen) => screen.blocks.some((block) => block.type === "example"))) {
+    issues.push({
+      where: `screens[${screens.length - 1}]`,
+      severity: "high",
+      problem:
+        `${COVERAGE_TAG} Kaynakta çözümlü bir problem var. Derste en az bir example bloğu olsun; sayılar kaynaktaki gibi, yeni sayı yok.`,
     });
   }
   const seenConcepts = new Set<string>();
@@ -1545,7 +1606,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
   const quota = visualCardQuotaIssue(lesson);
   if (quota) issues.push(quota);
-  const diagram = structuredDiagramIssue(lesson);
+  const diagram = structuredDiagramIssue(lesson, documentPages);
   if (diagram) issues.push(diagram);
   return issues;
 }
@@ -1562,8 +1623,12 @@ const VISUAL_QUOTA_TYPES = new Set<LessonBlock["type"]>([
  * Ders başına en az 2 görsel kart, en az biri tuzak / çivi / kaydırma (25 Ekim 2026).
  * Orta önem: kapanışta bir öğretim turu açar, kavramı düşürmez. İlk kavram beklerken tur açılmaz.
  */
-/** En az bir flow / cycle / matrix / tree. Serbest şekil bu kotayı doldurmaz. Önem orta: ders düşmez. */
-export function structuredDiagramIssue(lesson: LessonV3): TeacherIssue | null {
+/**
+ * En az bir flow / cycle / matrix / tree. Serbest şekil bu kotayı doldurmaz.
+ * Kaynak bir süreç, tablo ya da ağaç taşıyorsa eksik şema yüksek; kavram yine düşmez.
+ * Kaynak yapısı yoksa önem orta kalır.
+ */
+export function structuredDiagramIssue(lesson: LessonV3, pages?: readonly { text: string }[]): TeacherIssue | null {
   if (!lesson.screens.length) return null;
   const found = lesson.screens.some((screen) =>
     screen.blocks.some(
@@ -1575,6 +1640,14 @@ export function structuredDiagramIssue(lesson: LessonV3): TeacherIssue | null {
           block.diagram.layout === "tree"),
     ),
   );
+  const missing = pages?.length ? missingStructures(lesson.screens, sourceStructures(pages)) : [];
+  if (missing.length) {
+    return {
+      where: `screens[${lesson.screens.length - 1}]`,
+      severity: "high",
+      problem: `${COVERAGE_TAG} Yapılandırılmış şema eksik (${missing.join(", ")}). ${DIAGRAM_LAYOUT_RULE}`,
+    };
+  }
   if (found) return null;
   return {
     where: `screens[${lesson.screens.length - 1}]`,

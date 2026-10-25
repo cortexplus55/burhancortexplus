@@ -129,14 +129,39 @@ function StructuredDiagram({ diagram, id }: { diagram: LessonDiagram; id: string
           {header.label}
         </text>
       ))}
-      {layout.nodes.map((node) => (
-        <g key={node.id ?? node.label}>
-          <rect x={node.x - 42} y={node.y - 14} width={84} height={28} rx={8} fill={TONE_VAR.surface} stroke={TONE_VAR.line} />
-          <text x={node.x} y={node.y + 4} fill={TONE_VAR.ink} fontSize={10} textAnchor="middle">
-            {node.label}
-          </text>
-        </g>
-      ))}
+      {layout.nodes.map((node) => {
+        const filled = node.filled === true;
+        const fill = filled ? TONE_VAR.ink : TONE_VAR.surface;
+        const ink = filled ? TONE_VAR.surface : TONE_VAR.ink;
+        if (node.shape === "circle") {
+          return (
+            <g key={node.id ?? node.label}>
+              <ellipse cx={node.x} cy={node.y} rx={18} ry={14} fill={fill} stroke={TONE_VAR.line} />
+              <text x={node.x} y={node.y + 4} fill={ink} fontSize={10} textAnchor="middle">
+                {node.label}
+              </text>
+            </g>
+          );
+        }
+        if (node.shape === "square") {
+          return (
+            <g key={node.id ?? node.label}>
+              <rect x={node.x - 16} y={node.y - 16} width={32} height={32} rx={2} fill={fill} stroke={TONE_VAR.line} />
+              <text x={node.x} y={node.y + 4} fill={ink} fontSize={10} textAnchor="middle">
+                {node.label}
+              </text>
+            </g>
+          );
+        }
+        return (
+          <g key={node.id ?? node.label}>
+            <rect x={node.x - 42} y={node.y - 14} width={84} height={28} rx={8} fill={TONE_VAR.surface} stroke={TONE_VAR.line} />
+            <text x={node.x} y={node.y + 4} fill={TONE_VAR.ink} fontSize={10} textAnchor="middle">
+              {node.label}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

@@ -9,7 +9,7 @@ import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
-import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
+import { LESSON_SCREEN_HARD_CAP, LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
   dropRepeatedChecks,
@@ -18,9 +18,11 @@ import {
   isMnemonicCountIssue,
   isMnemonicIssue,
   isCircularWhyIssue,
+  isCoverageIssue,
   isLayoutIssue,
   isMissingWhyIssue,
   isReviewIssue,
+  lessonLevelStructureIssues,
   parseIssues,
   parsePartFix,
   parseTeachingScore,
@@ -29,6 +31,7 @@ import {
   partStructureIssues,
   rewritePartUserPrompt,
   shuffleLessonChecks,
+  stripLessonIssueTags,
   stripMnemonics,
   stripReviews,
   TEACHING_TAG,
@@ -74,9 +77,11 @@ export type TeacherLessonOutcome =
       dropped: string[];
       /** Taslak ayrıştırılamadıysa nedeni (yeniden yazıldı). */
       draftNote: string | null;
-      /** Denetçinin kısımlara verdiği öğretim puanları (1-5); kalite örneği olarak kaydedilir (23 Ekim 2026). */
-      teachingScores?: number[];
-    }
+  /** Denetçinin kısımlara verdiği öğretim puanları (1-5); kalite örneği olarak kaydedilir (23 Ekim 2026). */
+  teachingScores?: number[];
+  /** Kilit bilgi ve omurga kapandıysa true. Açık kapsam öğrencinin metnine yazılmaz. */
+  done?: boolean;
+}
   | { ok: false; status: number; error: string; reasons: string[]; draftNote?: string | null };
 
 /** Yeni düzeltme turu isteğin başından bu kadar süre geçtiyse başlamaz (300 sn fonksiyon sınırı). */
@@ -123,7 +128,15 @@ type Closing = Pick<LessonV3, "commonMistake" | "summary" | "nextFocus">;
 type Part = { concept: string; key: string; screens: LessonScreen[]; last: boolean };
 
 type PartOutcome =
-  | { ok: true; screens: LessonScreen[]; header?: Partial<Header>; closing?: Closing; low: TeacherIssue[]; triggers: TeacherIssue[][] }
+  | {
+      ok: true;
+      screens: LessonScreen[];
+      header?: Partial<Header>;
+      closing?: Closing;
+      low: TeacherIssue[];
+      triggers: TeacherIssue[][];
+      coveragePending?: boolean;
+    }
   | { ok: false; high: TeacherIssue[]; triggers: TeacherIssue[][] };
 
 /**
@@ -152,6 +165,8 @@ export type PipelineResult = {
   timing: PipelineTiming;
   /** Denetçinin kısımlara verdiği ilk öğretim puanları (1-5), yazım sırasıyla (23 Ekim 2026). */
   teachingScores?: number[];
+  /** Kapsam kapısı kapandıysa true. Öğrenciye etiket ya da eksik bölüm cümlesi yazılmaz. */
+  done: boolean;
 };
 
 /** Sorunun yeri bu kısmın içinde mi: ekran numarası, giriş alanları ya da kapanış. */
@@ -211,6 +226,9 @@ export async function teacherLessonPipeline(
   const teachingScores: number[] = [];
   /** Denetçi döngüsel bir "Neden böyle?" kutusunu çıkarttıysa kapanış yenisini istemez (23 Ekim 2026). */
   let whyDropped = false;
+  /** Kapsam turu: öğrenci yolunda bir, önceden yazımda iki. İlk ekrandan önce açılmaz. */
+  let coverageLeft = (input.coverageBudget ?? "student") === "prefetch" ? 2 : 1;
+  let announced = false;
   let draftNote: string | null = null;
   const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null };
   const sinceStart = () => Date.now() - started;
@@ -335,23 +353,63 @@ export async function teacherLessonPipeline(
           ];
         }
         const high = issues.filter((issue) => issue.severity === "high");
+        const blockingHigh = high.filter((issue) => !isCoverageIssue(issue));
+        const coverageHigh = high.filter(isCoverageIssue);
+        const coveragePending = span.closing && coverageHigh.length > 0;
         if (teachingSnapshot) {
           // Öğretim turundan sonra: gerilediyse (yüksek sorun çıktı) önceki ekranlar yayımlanır; değilse yenisi.
-          if (high.length) {
+          // Kapsam eksiği gerileme sayılmaz: kavram durur, eksik ekran ayrı turda eklenir.
+          if (blockingHigh.length) {
             return publishSnapshot(teachingSnapshot, {
               where: "ders",
               severity: "low",
               problem: "Öğretim düzeltmesi yeni bir sorun getirdi; önceki hâli yayımlandı.",
             });
           }
-          return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers };
+          return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers, coveragePending };
         }
-        if (!high.length) {
+        if (!blockingHigh.length) {
+          if (
+            coveragePending &&
+            index > 0 &&
+            coverageLeft > 0 &&
+            Date.now() - started < FIX_DEADLINE_MS &&
+            current()
+          ) {
+            coverageLeft -= 1;
+            triggers.push(coverageHigh);
+            let covered: ReturnType<typeof parsePartFix> = null;
+            try {
+              covered = parsePartFix(
+                await io.ask(fixPartSystem(mode), fixPartUserPrompt(lesson, span, coverageHigh, input), "fix-careful"),
+                lesson,
+                input.upcomingTopics,
+              );
+            } catch {
+              covered = null;
+            }
+            if (covered?.screens.length) {
+              const merged = mergePartScreens(screens, covered.screens);
+              if (merged.length >= screens.length) {
+                screens = merged.slice(0, LESSON_SCREEN_HARD_CAP);
+                disputes = covered.disputes;
+                if (span.closing) {
+                  close = {
+                    ...(close ?? {}),
+                    ...(covered.commonMistake ? { commonMistake: covered.commonMistake } : {}),
+                    ...(covered.summary ? { summary: covered.summary } : {}),
+                  };
+                }
+                if (current()) part.screens = screens;
+                continue;
+              }
+            }
+          }
           const medium = issues.filter((issue) => issue.severity === "medium");
           const teachingRound =
             medium.length > 0 && index > 0 && round === 0 && !rewritten && Date.now() - started < FIX_DEADLINE_MS && current();
           if (!teachingRound) {
-            return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers };
+            return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers, coveragePending };
           }
           teachingSnapshot = { screens, headerPatch, close, issues };
           triggers.push(medium);
@@ -616,8 +674,9 @@ export async function teacherLessonPipeline(
         const fresh = dropRepeatedChecks(published, outcome.screens);
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
+          announced = true;
           await options.onPublish({
-            lesson: { format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] },
+            lesson: stripLessonIssueTags({ format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] }),
             done: false,
             upcoming: parts.slice(index + 1).map((item) => item.concept),
           });
@@ -673,17 +732,65 @@ export async function teacherLessonPipeline(
         dropped.length = 0;
         continue;
       }
-      return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing, teachingScores };
+      return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing, teachingScores, done: false };
     }
-    const lesson: LessonV3 = {
+    let finished: LessonV3 = {
       format: LESSON_V3_FORMAT,
       ...(publishedHeader as Header),
       screens: published,
       ...((publishedClosing as Closing | null) ?? {}),
     };
-    return { lesson, issues: lowIssues, fixTriggers, dropped, draftNote, failure: [], timing, teachingScores };
+    // Kapsam turu ilk ekrandan sonra, öğrenci metni çoktan açılmışken. Yeni yayım yok.
+    if (announced) {
+      while (coverageLeft > 0 && Date.now() - started < FIX_DEADLINE_MS) {
+        const coverage = lessonLevelStructureIssues(finished, input).filter(isCoverageIssue);
+        if (!coverage.length) break;
+        coverageLeft -= 1;
+        fixTriggers.push(coverage);
+        let covered: ReturnType<typeof parsePartFix> = null;
+        try {
+          covered = parsePartFix(
+            await io.ask(
+              fixPartSystem(mode),
+              fixPartUserPrompt(
+                finished,
+                { from: 0, to: Math.max(0, finished.screens.length - 1), header: false, closing: true },
+                coverage,
+                input,
+              ),
+              "fix-careful",
+            ),
+            finished,
+            input.upcomingTopics,
+          );
+        } catch {
+          covered = null;
+        }
+        if (!covered?.screens.length) break;
+        const merged = mergePartScreens(finished.screens, covered.screens);
+        if (merged.length < finished.screens.length) break;
+        finished = {
+          ...finished,
+          screens: merged.slice(0, LESSON_SCREEN_HARD_CAP),
+          ...(covered.commonMistake ? { commonMistake: covered.commonMistake } : {}),
+          ...(covered.summary ? { summary: covered.summary } : {}),
+        };
+      }
+    }
+    const done = !lessonLevelStructureIssues(finished, input).some(isCoverageIssue);
+    return {
+      lesson: stripLessonIssueTags(finished),
+      issues: lowIssues,
+      fixTriggers,
+      dropped,
+      draftNote,
+      failure: [],
+      timing,
+      teachingScores,
+      done,
+    };
   }
-  return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure: [], timing, teachingScores };
+  return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure: [], timing, teachingScores, done: false };
 }
 
 /**
@@ -854,11 +961,17 @@ async function runTeacherLessonInner(
   });
 
   try {
-    const result = await teacherLessonPipeline(io, input, { started, onPublish: input.onPublish });
+    const result = await teacherLessonPipeline(
+      io,
+      { ...input, coverageBudget: input.coverageBudget ?? (charge ? "student" : "prefetch") },
+      { started, onPublish: input.onPublish },
+    );
     console.info("teacher_lesson", {
       topic: input.topicLabel.slice(0, 80),
       pages: input.pages.map((item) => item.page),
       calls,
+      screens: result.lesson?.screens.length ?? 0,
+      coveragePending: Boolean(result.lesson) && !result.done,
       ms: Date.now() - started,
       fast,
       rounds: result.fixTriggers.length,
@@ -900,6 +1013,7 @@ async function runTeacherLessonInner(
       dropped: result.dropped,
       draftNote: result.draftNote,
       teachingScores: result.teachingScores ?? [],
+      done: result.done,
     };
   } catch (error) {
     await refund();
