@@ -6,7 +6,17 @@ import {
   podcastLengthSpec,
   speakerIdOf,
   spokenSentence,
+  type PodcastLength,
 } from "@/lib/learning/podcast-formats";
+import {
+  closerToBand,
+  deliverableMinutes,
+  durationRoundFor,
+  durationVerdict,
+  estimatedDurationMs,
+  promisedMs,
+  stampChapterDurations,
+} from "@/lib/learning/podcast-duration";
 import { balanceKerem, coercePodcastDraft, keremShare, type PodcastEpisode } from "@/lib/learning/podcast-episode";
 import { SPEAKER_LABEL } from "@/lib/learning/podcast-script";
 import { scriptToDraft, usesScriptWriter } from "@/lib/learning/podcast-script-writer";
@@ -129,6 +139,14 @@ describe("P1-3 kâğıt talimatı ve boş övgü süzgeci", () => {
     expect(spokenSentence("Çok güzel soru!")).toBeNull();
     expect(spokenSentence("Aferin.")).toBeNull();
     expect(spokenSentence("Güzel bir örnek: 9 aylık bebek desteksiz oturur.")).toBe("Güzel bir örnek: 9 aylık bebek desteksiz oturur.");
+    expect(spokenSentence("Kuralın özeti muazzam bir özet oldu")).toBe("Kuralın özeti");
+    expect(spokenSentence("Oran sabit, muazzam bir özet oldu.")).toBe("Oran sabit");
+    expect(spokenSentence("Great job, the ratio stays 2:1.")).toBe("The ratio stays 2:1.");
+    expect(spokenSentence("Well done.")).toBeNull();
+    expect(spokenSentence("Good morning, the ratio stays 2:1.")).toBe("Good morning, the ratio stays 2:1.");
+    expect(spokenSentence("ÖĞRETMEN: Oran sabit kaldı.")).toBe("Oran sabit kaldı.");
+    expect(spokenSentence("İş 59,7 kJ, oran 0,287 kalır.")).toBe("İş 59,7 kJ, oran 0,287 kalır.");
+    expect(spokenSentence("Bu öğretmen anlatır ve oran sabit kalır.")).toBe("Bu öğretmen anlatır ve oran sabit kalır.");
   });
 
   it("taslaktan gelen övgü ve talimat satırları konuşmaya girmez", () => {
@@ -150,5 +168,59 @@ describe("P1-3 kâğıt talimatı ve boş övgü süzgeci", () => {
     const texts = parsed!.chapters.flatMap((chapter) => chapter.lines.map((line) => line.text)).join(" ");
     expect(texts).not.toMatch(/Harika değindin|Şıkları eleyerek/);
     expect(texts).toContain("Çocuğun kendi eğrisi önemlidir");
+  });
+});
+
+describe("süre sözü her türde aynı kapı", () => {
+  const formats = ["diyalog", "ozet", "soru_cevap", "basit", "derin"] as const satisfies readonly PodcastLength[];
+
+  it("kelime bandının iki ucu söz verilen sürenin ±%20'sinde kalır", () => {
+    for (const length of formats) {
+      const spec = podcastLengthSpec(length);
+      for (const words of [spec.words.min, spec.words.max]) {
+        expect(durationVerdict(estimatedDurationMs(words, spec.speakers), length)).toBe("ok");
+      }
+      expect(durationRoundFor({ length, words: spec.words.min - 1 })).toBe("expand");
+      expect(durationRoundFor({ length, words: spec.words.max + 1 })).toBe("shorten");
+      expect(durationRoundFor({ length, words: Math.round((spec.words.min + spec.words.max) / 2) })).toBeNull();
+      expect(deliverableMinutes(length)).toBe(spec.minutes);
+    }
+  });
+
+  it("ölçülen süre kelime bandını ezer; banda yaklaşan tur kabul edilir", () => {
+    expect(durationRoundFor({ length: "diyalog", words: 440, measuredMs: promisedMs("diyalog") * 0.5 })).toBe("expand");
+    expect(durationRoundFor({ length: "basit", words: 470, measuredMs: promisedMs("basit") * 1.4 })).toBe("shorten");
+    expect(durationVerdict(promisedMs("derin"), "derin")).toBe("ok");
+    expect(closerToBand(80, 95, "ozet")).toBe(true);
+    expect(closerToBand(95, 40, "ozet")).toBe(false);
+    const stamped = stampChapterDurations([{ title: "A", lines: [{ durationMs: 1000 }, { durationMs: 500 }] }]);
+    expect(stamped[0]?.durationMs).toBe(1500);
+  });
+
+  it("satır başındaki konuşmacı etiketi işaretlenir, cümle içindeki rol sözü değil", () => {
+    const labeled = episode("basit", [["ada", "ada", "ada", "ada"]]);
+    labeled.chapters[0]!.lines[0]!.text = "ÖĞRETMEN: Oran sabit kaldı.";
+    expect(podcastStructureIssues(labeled).some((issue) => issue.startsWith("Konuşmacı adı"))).toBe(true);
+    const inline = episode("basit", [["ada", "ada", "ada", "ada"]]);
+    inline.chapters[0]!.lines[0]!.text = "Bu öğretmen anlatır ve oran sabit kalır.";
+    expect(podcastStructureIssues(inline).some((issue) => issue.startsWith("Konuşmacı adı"))).toBe(false);
+  });
+
+  it("süre turu döngünün dışında, dinleme kontrolünden önce, tek tur", async () => {
+    const { readFileSync } = await import("node:fs");
+    const run = readFileSync("src/lib/learning/teacher-podcast-run.ts", "utf8");
+    const loop = run.indexOf("export async function teacherPodcastLoop");
+    const inner = run.indexOf("const episode = await ensurePodcastDuration");
+    const check = run.indexOf("podcastListeningCheck(ask, episode");
+    expect(loop).toBeGreaterThan(-1);
+    expect(inner).toBeGreaterThan(loop);
+    expect(check).toBeGreaterThan(inner);
+    expect(run).toContain("SÜRE TURU. Bu bir denetim değil.");
+    expect(run).toContain("DURATION_ROUND_TIMEOUT_MS");
+    const picker = readFileSync("src/components/parity/podcast-format-picker.tsx", "utf8");
+    expect(picker).toContain("deliverableMinutes(option.id)");
+    const audio = readFileSync("src/app/api/learning/podcast/audio/route.ts", "utf8");
+    expect(audio).toContain("durationVerdict");
+    expect(audio).not.toContain("ensurePodcastDuration");
   });
 });

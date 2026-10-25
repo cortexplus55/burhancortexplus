@@ -169,7 +169,10 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
   it("motor kabuğu: kontrol kredi kesinleşmeden önce, aynı ayrılışla; ek ücret yok", () => {
     const run = readFileSync("src/lib/learning/teacher-podcast-run.ts", "utf8");
     const inner = run.slice(run.indexOf("async function runTeacherPodcastInner"));
-    expect(inner.indexOf("await podcastListeningCheck(ask, loop.episode, input, started)")).toBeGreaterThan(0);
+    expect(inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input)")).toBeGreaterThan(0);
+    expect(inner.indexOf("await podcastListeningCheck(ask, episode, input, started)")).toBeGreaterThan(
+      inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input)"),
+    );
     expect(inner.indexOf("await podcastListeningCheck(ask,")).toBeLessThan(inner.indexOf("await commitCredits("));
     expect(run.match(/reserveCredits\(/g)).toHaveLength(1);
     // Döngünün kendisi kontrolü bilmez: döngü testleri (taslak → denetim → düzeltme) değişmeden geçer.

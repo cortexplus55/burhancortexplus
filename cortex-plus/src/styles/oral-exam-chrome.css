@@ -339,9 +339,11 @@
 }
 
 .cp-oral-modal-back[hidden],
-.cp-oral-modal-back.is-closed {
-  display: none;
-  pointer-events: none;
+.cp-oral-modal-back.is-closed,
+.cp-oral-modal-back[aria-hidden="true"] {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 .cp-oral-modal {

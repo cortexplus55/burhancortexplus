@@ -15,6 +15,19 @@ import {
   splitNdjson,
   type MockExamProgress,
 } from "@/lib/learning/mock-exam/progress";
+import {
+  QUIZ_PLAYABLE_TARGET_MS,
+  QUIZ_PREFETCHED_TARGET_MS,
+  QUIZ_STREAM_COUNT,
+  blockPracticeNodes,
+  mergeStreamedQuestions,
+  playableQuestions,
+  practiceTopicKey,
+  quizOpenStagesLog,
+  settledQuizPayload,
+  showsSlowWarning,
+} from "@/lib/learning/quiz-delivery";
+import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -160,6 +173,90 @@ describe("deneme ilerlemesi gerçek konu sayısından", () => {
   });
 });
 
+function practiceQuestion(text: string): QuizQuestion {
+  return {
+    text,
+    options: ["Uygulanır", "Ertelenir", "Düşer", "Askıdadır"],
+    correct: ["Uygulanır"],
+    multi: false,
+    explanation: "Koşul tamamsa işlem yürür.",
+  };
+}
+
+describe("aynı konunun bloğu ve akan ilk pencere", () => {
+  const node = (
+    id: string,
+    kind: string,
+    sort: number,
+    topicId: string,
+    status?: string,
+  ) => ({ id, kind, sort_order: sort, status: status ?? null, session_meta: { topicId } });
+
+  it("dersin ardından sonraki derse kadar yalnız aynı konunun test, doğru/yanlış ve kartları", () => {
+    const nodes = [
+      node("lesson", "lesson", 1, "t1"),
+      node("quiz", "quiz", 2, "t1"),
+      node("tf", "true_false", 3, "t1"),
+      node("cards", "flashcards", 4, "t1"),
+      node("done", "quiz", 5, "t1", "done"),
+      node("other", "quiz", 6, "t2"),
+      node("pod", "podcast", 7, "t1"),
+      node("next-lesson", "lesson", 8, "t1"),
+      node("after", "quiz", 9, "t1"),
+    ];
+    expect(blockPracticeNodes(nodes, 1, "id:t1").map((row) => row.id)).toEqual(["quiz", "tf", "cards"]);
+    expect(blockPracticeNodes(nodes, 1, null)).toEqual([]);
+    for (const topicId of ["vatandaslik", "derisim", "dizi", "article"]) {
+      const mixed = [
+        node("lesson", "lesson", 1, topicId),
+        node("own", "quiz", 2, topicId),
+        node("foreign", "true_false", 3, "baska"),
+        node("stop", "lesson", 4, topicId),
+        node("later", "flashcards", 5, topicId),
+      ];
+      expect(blockPracticeNodes(mixed, 1, `id:${topicId}`).map((row) => row.id)).toEqual(["own"]);
+    }
+  });
+
+  it("konu anahtarı kimlik, yoksa başlık; bitmiş adım completed da atlanır", () => {
+    expect(practiceTopicKey({ topicId: "  abc  " })).toBe("id:abc");
+    expect(practiceTopicKey({ topicTitle: "Madde Bir" })).toBe("title:madde bir");
+    expect(practiceTopicKey(null)).toBeNull();
+    const done = [{ id: "x", kind: "quiz", sort_order: 2, status: "completed", session_meta: { topicTitle: "Madde Bir" } }];
+    expect(blockPracticeNodes(done, 1, "title:madde bir")).toEqual([]);
+  });
+
+  it("ilk pencere üç soru, tekrar elenir, cevaplanan önek yerinde kalır", () => {
+    const questions = ["alfa kuralı", "beta eşiği", "gama sırası", "delta istisnası", "epsilon tanımı"].map(practiceQuestion);
+    expect(playableQuestions(questions)).toHaveLength(QUIZ_STREAM_COUNT);
+    expect(playableQuestions([...questions, practiceQuestion("alfa kuralı")]).map((row) => row.text)).toEqual([
+      "alfa kuralı",
+      "beta eşiği",
+      "gama sırası",
+    ]);
+    const shown = [practiceQuestion("alfa kuralı")];
+    const merged = mergeStreamedQuestions(shown, questions);
+    expect(merged[0]).toBe(shown[0]);
+    expect(merged.map((row) => row.text)).toEqual(["alfa kuralı", "beta eşiği", "gama sırası", "delta istisnası", "epsilon tanımı"]);
+  });
+
+  it("yavaş uyarı test, kart ve tekrarda yok; takılı test kesik sayılmaz", () => {
+    expect(showsSlowWarning("quiz")).toBe(false);
+    expect(showsSlowWarning("true_false")).toBe(false);
+    expect(showsSlowWarning("flashcards")).toBe(false);
+    expect(showsSlowWarning("spaced")).toBe(false);
+    expect(showsSlowWarning("oral")).toBe(true);
+    expect(showsSlowWarning("lesson")).toBe(true);
+    const settled = settledQuizPayload({ building: true, builtAt: 1, upcoming: ["a"], questions: [practiceQuestion("alfa kuralı")], type: "quiz" });
+    expect(settled.building).toBeUndefined();
+    expect(settled.truncated).toBeUndefined();
+    expect(settled.questions).toHaveLength(1);
+    expect(QUIZ_PLAYABLE_TARGET_MS).toBe(45_000);
+    expect(QUIZ_PREFETCHED_TARGET_MS).toBe(3_000);
+    expect(quizOpenStagesLog({ topic: "Konu", kind: "quiz", stages: { draftMs: 1, reviewMs: 2, repairMs: 3 }, kept: 5, streamed: true }).playableTargetMs).toBe(45_000);
+  });
+});
+
 describe("kablolama", () => {
   const read = (file: string) => readFileSync(file, "utf8");
 
@@ -187,5 +284,29 @@ describe("kablolama", () => {
     expect(run).toContain("repairBudget(true)");
     expect(run).toContain("repairGroups(toFix, budget.fixConcurrency)");
     expect(run).toContain("secondPassDeadline");
+    expect(run).toContain("onPlayable");
+    expect(run).toContain("playableQuestions");
+  });
+
+  it("ders açılınca bloktaki test, doğru/yanlış ve kartlar yazılır; ilk pencere akar", () => {
+    const node = read("src/app/api/learning/exam-prep/node/route.ts");
+    expect(node).toContain("requestBlockPracticePrefetch");
+    expect(node).toContain("streamQuiz");
+    expect(node).toContain("settledQuizPayload");
+    expect(node).toContain("quiz_open_stages");
+    expect(node).toContain(
+      "requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number })",
+    );
+    const session = read("src/components/parity/exam-node-session.tsx");
+    expect(session).toContain("warnSlow={showsSlowWarning(kind)}");
+    expect(session).toContain("mergeStreamedQuestions");
+    const finish = session.slice(session.indexOf("async function finish"), session.indexOf("function updateAnswer"));
+    const optimistic = finish.slice(0, finish.indexOf("setLoading(true)"));
+    expect(optimistic.indexOf('setStage("result")')).toBeGreaterThan(-1);
+    expect(optimistic.indexOf('setStage("result")')).toBeLessThan(optimistic.indexOf("postComplete"));
+    expect(optimistic).not.toContain("toast.error");
+    const progress = read("src/components/parity/node-generation-progress.tsx");
+    expect(progress).toContain("slow && warnSlow && !note");
+    expect(progress).toContain("Bu işlem birkaç dakika sürebilir.");
   });
 });

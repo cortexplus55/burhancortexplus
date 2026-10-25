@@ -12,6 +12,7 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { dropNearDuplicates } from "@/lib/learning/item-dedup";
+import { playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
 import { repairBudget, repairGroups } from "@/lib/learning/repair-budget";
 import {
   FORCE_FIX_CODES,
@@ -87,6 +88,13 @@ export type TeacherQuizLoopResult = {
   forced: boolean;
   /** Denetçi ve kod sorunlarının harf sayımı (yalnız konu testi). */
   codes: Record<string, number>;
+  /** Taslak, ilk denetim ve onarım süreleri. Yönetim günlüğüne yazılır. */
+  stages: QuizStageMs;
+};
+
+export type TeacherQuizLoopHooks = {
+  /** Denetimden geçmiş sorular. Çağıran pencereyi keser; turlar sürer. */
+  onPlayable?: (questions: QuizQuestion[]) => void;
 };
 
 /** withOneMultiLast'in seçtiği yerler: tek cevaplılar sırayla (count−1), çok cevaplı soru sonda. */
@@ -115,6 +123,7 @@ export async function teacherQuizLoop(
   ask: AskJson,
   input: TeacherQuizInput,
   started = Date.now(),
+  hooks?: TeacherQuizLoopHooks,
 ): Promise<TeacherQuizLoopResult> {
   const mode = input.mode ?? "document";
   const scope = input.scope;
@@ -197,10 +206,19 @@ export async function teacherQuizLoop(
     return rows;
   };
 
+  const emitPlayable = () => {
+    const kept = accepted().map((slot) => slot.question);
+    if (kept.length) hooks?.onPlayable?.(kept);
+  };
+
   const draftCount = count + quizSpareCount(count, scoped);
+  const draftStarted = Date.now();
   let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
   if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
-  if (!draft) return { questions: [], rejected: [], rounds: 0, softKept: 0, salvaged: [], forced: false, codes };
+  const draftMs = Date.now() - draftStarted;
+  if (!draft) {
+    return { questions: [], rejected: [], rounds: 0, softKept: 0, salvaged: [], forced: false, codes, stages: { draftMs, reviewMs: 0, repairMs: 0 } };
+  }
 
   slots.push(...draft.map(() => null));
   let bad: Pending[] = [];
@@ -211,7 +229,10 @@ export async function teacherQuizLoop(
     }
     bad.sort(byIndex);
   };
+  const reviewStarted = Date.now();
   settle(await review(draft.map((question, index) => ({ index, question }))));
+  const reviewMs = Date.now() - reviewStarted;
+  emitPlayable();
 
   // Konu testinde "yeterli" öğrenciye gidecek sayıdır (tek çok cevaplı soru sayılır); öbür yüzeylerde bugünkü gibi.
   const have = () => {
@@ -228,6 +249,7 @@ export async function teacherQuizLoop(
   let rounds = 0;
   let forced = false;
   const budget = input.urgent ? repairBudget(true) : { ...repairBudget(false), deadlineMs: FIX_DEADLINE_MS, maxFixRounds: MAX_FIX_ROUNDS };
+  const repairStarted = Date.now();
   while (bad.length && rounds < budget.maxFixRounds && Date.now() - started < budget.deadlineMs) {
     const short = have() < count;
     // Öğrenci bekliyorsa kapsam eksiği tur açmaz (24 Ekim 2026; `urgent`).
@@ -279,6 +301,7 @@ export async function teacherQuizLoop(
           return scoped && before && allSoft(before) && !allSoft(row) ? before : row;
         }),
       );
+      emitPlayable();
     }
   }
 
@@ -301,6 +324,8 @@ export async function teacherQuizLoop(
       bad = bad.filter((item) => item !== row);
     }
   }
+  const repairMs = Date.now() - repairStarted;
+  emitPlayable();
   const questions = withOneMultiLast(
     slots.filter((question): question is QuizQuestion => question !== null),
     count,
@@ -313,6 +338,7 @@ export async function teacherQuizLoop(
     salvaged,
     forced,
     codes,
+    stages: { draftMs, reviewMs, repairMs },
   };
 }
 
@@ -337,6 +363,7 @@ export type TeacherQuizOutcome =
       /** Konu testi: pedagojik sorunu düzelmeden geri konan soru sayısı ve sorunları (20 Ekim 2026). */
       softKept?: number;
       salvaged?: string[];
+      stages: QuizStageMs;
     }
   | { ok: false; status: number; error: string; reasons: string[] };
 
@@ -365,6 +392,8 @@ async function runTeacherQuizInner(
     minimum?: number;
     /** false: önceden yazım (18 Ekim 2026); kredi ayrılmaz, öğrenci açınca düşer. */
     charge?: boolean;
+    /** Denetimden geçmiş ilk pencere. Turlar sürer; çağıran keser. */
+    onPlayable?: (questions: QuizQuestion[]) => void;
   },
 ): Promise<TeacherQuizOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
@@ -423,8 +452,26 @@ async function runTeacherQuizInner(
   };
 
   try {
-    const loop = await teacherQuizLoop(ask, input, started);
     const previousStems = input.previousStems ?? [];
+    const shown = new Map<string, QuizQuestion>();
+    let opened = false;
+    const publish = input.onPlayable
+      ? (raw: QuizQuestion[]) => {
+          for (const question of raw) {
+            const key = question.text.trim();
+            if (!key || shown.has(key)) continue;
+            shown.set(key, shuffleOptions(question));
+          }
+          const all = dropNearDuplicates([...shown.values()], (question) => question.text, previousStems);
+          const window = opened ? all : playableQuestions(all, previousStems);
+          if (!window.length) return;
+          opened = true;
+          input.onPlayable!(window);
+        }
+      : undefined;
+    const hooks = publish ? { onPlayable: publish } : undefined;
+    const loop = await teacherQuizLoop(ask, input, started, hooks);
+    let stages: QuizStageMs = { ...loop.stages };
     let questions = dropNearDuplicates(loop.questions, (question) => question.text, previousStems);
     const repeated = loop.questions.length - questions.length;
     let passes = 1;
@@ -446,7 +493,13 @@ async function runTeacherQuizInner(
           previousStems: [...previousStems, ...questions.map((question) => question.text)],
         },
         started,
+        hooks,
       );
+      stages = {
+        draftMs: stages.draftMs + again.stages.draftMs,
+        reviewMs: stages.reviewMs + again.stages.reviewMs,
+        repairMs: stages.repairMs + again.stages.repairMs,
+      };
       const fresh = dropNearDuplicates(again.questions, (question) => question.text, [
         ...previousStems,
         ...questions.map((question) => question.text),
@@ -467,6 +520,9 @@ async function runTeacherQuizInner(
       urgent: Boolean(input.urgent),
       calls,
       ms: Date.now() - started,
+      draftMs: stages.draftMs,
+      reviewMs: stages.reviewMs,
+      repairMs: stages.repairMs,
       // Konu testi kuralları (20 Ekim 2026): etkisi ölçülmeden kural değişmesin.
       ...(input.scope === "topic_test"
         ? {
@@ -490,10 +546,10 @@ async function runTeacherQuizInner(
     }
     const kept = softKept ? { softKept, salvaged: salvaged.slice(0, 6) } : {};
     if (input.deferCommit || held || !reservation.reservationId) {
-      return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId ?? undefined, ...kept };
+      return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId ?? undefined, stages, ...kept };
     }
     await commitCredits(service, reservation.reservationId);
-    return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId, ...kept };
+    return { ok: true, questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId, stages, ...kept };
   } catch (error) {
     await refund();
     console.error("teacher_quiz_failed", {

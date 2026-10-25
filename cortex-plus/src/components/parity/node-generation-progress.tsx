@@ -41,6 +41,7 @@ export function NodeGenerationProgress({
   sourceChips = [],
   note,
   topic,
+  warnSlow = true,
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
@@ -53,6 +54,8 @@ export function NodeGenerationProgress({
   note?: string;
   /** Isıtma kartlarının konu adı. */
   topic?: string | null;
+  /** Test, kart ve tekrar kendi hedefiyle akar; uzun uyarı yalnız ölçülmeyen beklemelerde. */
+  warnSlow?: boolean;
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
@@ -122,7 +125,7 @@ export function NodeGenerationProgress({
           {note}
         </p>
       ) : null}
-      {slow && !note ? (
+      {slow && warnSlow && !note ? (
         <p className="apg-slow">
           Beklenenden uzun sürüyor — hâlâ üzerinde çalışıyoruz. Sayfayı kapatsan
           da hazırlanmaya devam eder.

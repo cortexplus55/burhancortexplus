@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import type { PodcastLength } from "@/lib/learning/podcast-formats";
 
 type AudioLine = {
   chapterIndex: number;
@@ -91,6 +92,7 @@ export function ExamPodcastPlayer({
   resumeKey,
   scriptNote,
   onCreditsSpent,
+  length,
 }: {
   title: string;
   chapters: unknown[];
@@ -106,6 +108,8 @@ export function ExamPodcastPlayer({
   scriptNote?: string;
   /** Ses üretimi bitince düşen kredi. 0 önbellektir. */
   onCreditsSpent?: (credits: number) => void;
+  /** Söz verilen süre. Ses ölçülünce yönetim günlüğüne yazılır; ikinci yazım başlatmaz. */
+  length?: PodcastLength;
 }) {
   // İçerik anahtarı: üst bileşen aynı bölümleri yeni bir diziyle verince (kayıt tazelendi,
   // ekran yeniden çizildi) ses isteği baştan başlamasın. 19 Ekim 2026'da canlıda aynı sese
@@ -116,6 +120,8 @@ export function ExamPodcastPlayer({
   // Kaldığı yer anahtarı ses isteğini yeniden başlatmaz; yalnız okunur.
   const resumeKeyRef = useRef(resumeKey);
   resumeKeyRef.current = resumeKey;
+  const lengthRef = useRef(length);
+  lengthRef.current = length;
   const [audio, setAudio] = useState<(AudioLine | null)[] | null>(null);
   const [progress, setProgress] = useState({ ready: 0, total: 0 });
   /*
@@ -243,7 +249,11 @@ export function ExamPodcastPlayer({
     void fetch("/api/learning/podcast/audio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapters: normalized, stream: true }),
+      body: JSON.stringify({
+        chapters: normalized,
+        stream: true,
+        ...(lengthRef.current ? { length: lengthRef.current } : {}),
+      }),
       signal: controller.signal,
     })
       .then(async (res) => {
@@ -676,7 +686,11 @@ export function ExamPodcastPlayer({
             <h1 className="cp-pod-script-title">{heading}</h1>
             <div className="cp-pod-script" ref={(node) => { scriptRef.current = node; }}>
               {(() => {
-                return chaptersInOrder.map(({ chapter, lines }, chapterIndex) => (
+                return chaptersInOrder.map(({ chapter, lines }, chapterIndex) => {
+                const chapterMs = lines.length
+                  ? (lines[lines.length - 1]?.line.endMs ?? 0) - (lines[0]?.line.startMs ?? 0)
+                  : 0;
+                return (
                 <section key={chapterIndex}>
                   <h2>
                     <button
@@ -686,6 +700,7 @@ export function ExamPodcastPlayer({
                       onClick={() => seekTo(lines[0]?.line.startMs ?? 0)}
                     >
                       {chapter.title}
+                      {chapterMs > 0 ? <span className="cp-pod-chapter-clock"> {padClock(chapterMs)}</span> : null}
                     </button>
                   </h2>
                   <div className="cp-pod-script-lines">
@@ -732,7 +747,8 @@ export function ExamPodcastPlayer({
                   ))}
                   </div>
                 </section>
-              ));
+                );
+              });
               })()}
             </div>
           </article>

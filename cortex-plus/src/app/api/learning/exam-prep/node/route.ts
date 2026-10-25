@@ -11,6 +11,7 @@ import {
   peekPrefetchedLesson,
   PREFETCH_HEADER,
   requestNextPrefetch,
+  requestBlockPracticePrefetch,
   requestNodePrefetch,
   PREFETCH_KINDS,
   prefetchVariant,
@@ -137,6 +138,8 @@ import {
 import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
 import { buildingPayload, isBuilding, isStaleBuild, truncatedPayload } from "@/lib/learning/lesson-build";
+import { practiceTopicKey, quizOpenStagesLog, settledQuizPayload } from "@/lib/learning/quiz-delivery";
+import { collectFactConflicts, factCheckUserPrompt, withFactConflicts } from "@/lib/learning/oral-fact-check";
 import { savedReviewPayload } from "@/lib/learning/saved-review";
 import { isAdminUser } from "@/lib/auth/roles";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
@@ -660,12 +663,41 @@ async function handleNodeRequest(
       requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number }),
     );
   }
+  // Aynı konunun bloğu: test, doğru/yanlış ve kartlar ders açılınca yazılır. Test, ders kaydı
+  // varken yazılır; ders sürerken rota o isteği boş çevirir, kayıt bitince aşağıdaki yenileme yazar.
+  if (!prefetch && action === "start" && kind === "lesson") {
+    const topicKey = practiceTopicKey(node.session_meta) ?? (topic?.id ? `id:${topic.id}` : null);
+    afterResponse(() =>
+      requestBlockPracticePrefetch(service, {
+        origin: options.origin,
+        userId,
+        prepId,
+        lessonSort: node.sort_order as number,
+        topicKey,
+      }),
+    );
+  }
   // Konu testi dersi bilir (20 Ekim 2026): ders kaydedilince sıradaki test derse göre yeniden hazırlanır.
+  // Yenileme bitince bloktaki öbür test, doğru/yanlış ve kartlar yazılır. Sıradaki testin satırı
+  // yenilemede açıldığı için ikinci kez üretilmez.
   const refreshTopicQuiz = (topicId: string | null | undefined) => {
     if (!topicId || !teachingV2) return;
-    afterResponse(() =>
-      refreshQuizPrefetchAfterLesson(service, { origin: options.origin, userId, prepId, afterSortOrder: node.sort_order as number, topicId }),
-    );
+    afterResponse(async () => {
+      await refreshQuizPrefetchAfterLesson(service, {
+        origin: options.origin,
+        userId,
+        prepId,
+        afterSortOrder: node.sort_order as number,
+        topicId,
+      }).catch(() => undefined);
+      await requestBlockPracticePrefetch(service, {
+        origin: options.origin,
+        userId,
+        prepId,
+        lessonSort: node.sort_order as number,
+        topicKey: `id:${topicId}`,
+      });
+    });
   };
 
   if (action === "review") {
@@ -751,9 +783,9 @@ async function handleNodeRequest(
     return NextResponse.json({ ok: true, ...result });
   }
 
-  // Parça parça açılan ders (18 Ekim 2026): yazım sürerken ekran yeni kavramları buradan alır.
+  // Parça parça açılan ders veya test (18 Ekim 2026): yazım sürerken ekran buradan okur.
   if (action === "progress") {
-    if (kind !== "lesson") return errorResponse(400, "invalid_input");
+    if (kind !== "lesson" && kind !== "quiz") return errorResponse(400, "invalid_input");
     const attemptId = parsed.data.attemptId;
     if (!attemptId) return errorResponse(400, "invalid_input");
     const { data: attempt } = await service
@@ -767,6 +799,15 @@ async function handleNodeRequest(
     if (!attempt?.payload || typeof attempt.payload !== "object") return errorResponse(404, "not_found");
     let stored = attempt.payload as Record<string, unknown>;
     if (isStaleBuild(stored)) {
+      if (kind === "quiz") {
+        // Takılı test: eldeki sorular durur, kesik ders sayılmaz, kredi burada iade edilmez.
+        stored = settledQuizPayload(stored);
+        await service
+          .from("exam_prep_node_attempts")
+          .update({ payload: stored })
+          .eq("id", attempt.id)
+          .eq("generation_id", attempt.generation_id as string);
+      } else {
       // Yazımı yürüten fonksiyon düştü: ders olduğu kadarıyla kapanır, kredi iade.
       stored = truncatedPayload(stored);
       await service
@@ -789,6 +830,7 @@ async function handleNodeRequest(
         reason: "build_stalled",
         reasons: ["yazım ilerlemedi; ders olduğu kadarıyla kapandı"],
       });
+      }
     }
     return NextResponse.json({
       ok: true,
@@ -988,20 +1030,44 @@ async function handleNodeRequest(
         const source = await reviewSourceBlock(service, userId, prepId, nodeId);
         const grounding = await oralCorpus(service, userId, prepId, questions, topicLabel);
         const sourceBlob = [source, grounding.corpus].filter((part) => part.trim()).join("\n\n");
-        const semantics = await gradeOralSemantics({
-          service,
-          userId,
-          isPremium: await isPremiumUser(service, userId),
-          questions,
-          answers: mergedAnswers,
+        const premiumNow = await isPremiumUser(service, userId);
+        const factAnswers = questions.map((_, index) => ({
+          index,
+          answer: oralFirstAnswer(mergedAnswers, index) || String(mergedAnswers[String(index)] ?? ""),
+        }));
+        const conflictsTask = collectFactConflicts({
           source: sourceBlob,
+          answers: factAnswers,
+          model: sourceBlob.trim()
+            ? generateJson({
+                service,
+                userId,
+                actionCode: "PRACTICE_EXAM_GRADE",
+                isPremium: premiumNow,
+                schemaHint:
+                  'Yalnızca JSON: {"items":[{"index":number,"errors":[{"wrong":string,"correct":string}]}]}. wrong öğrencinin cümlesinden birebir alıntı, correct kaynağın cümlesinden birebir alıntı. Eksik anlatım ve aynı anlamı başka sözle söylemek hata değildir.',
+                userPrompt: factCheckUserPrompt(factAnswers, sourceBlob),
+                parse: (raw) => raw,
+              }).then((result) => (result.ok ? result.data : null))
+            : null,
         });
+        const [semantics, conflicts] = await Promise.all([
+          gradeOralSemantics({
+            service,
+            userId,
+            isPremium: premiumNow,
+            questions,
+            answers: mergedAnswers,
+            source: sourceBlob,
+          }),
+          conflictsTask,
+        ]);
         const report = gradeOralExam(
           questions,
           mergedAnswers,
           sourceBlob,
           grounding.passages,
-          semantics,
+          withFactConflicts(semantics, conflicts),
         );
         const { data: practiceNodes } = await service
           .from("exam_prep_nodes")
@@ -2293,13 +2359,20 @@ async function handleNodeRequest(
   // Parça parça açılış (18 Ekim 2026, ürün sahibinin kararı): ilk denetlenmiş kavram kayda
   // yazılınca öğrenciye dönülür; kalan kavramlar arka planda (`after`) aynı kayda eklenir.
   // Öğrencinin cevap kaydı ayrı alanlara yazıyor (answers, content_version); yalnız payload değişir.
-  const progressive =
-    kind === "lesson" &&
+  const streamQuiz =
+    kind === "quiz" &&
     teachingV2 &&
     !prefetch &&
     !voiceSession &&
-    parsed.data.lessonStream === true &&
-    Boolean(creatingAttemptId && generationId && clientRequestId);
+    Boolean(creatingAttemptId && generationId);
+  const progressive =
+    (kind === "lesson" &&
+      teachingV2 &&
+      !prefetch &&
+      !voiceSession &&
+      parsed.data.lessonStream === true &&
+      Boolean(creatingAttemptId && generationId && clientRequestId)) ||
+    streamQuiz;
   let shownFirst = false;
   let announceFirst: (payload: Record<string, unknown>) => void = () => undefined;
   const firstShown = new Promise<Record<string, unknown>>((resolve) => (announceFirst = resolve));
@@ -2817,7 +2890,7 @@ async function handleNodeRequest(
           firstPublishedMs,
           respondedMs: Date.now() - requestStarted,
         });
-        { const ms = Date.now() - requestStarted; after(() => recordOpenTiming(service, { userId, kind: "lesson", path: "cold", ms })); }
+        { const ms = Date.now() - requestStarted; after(() => recordOpenTiming(service, { userId, kind, path: "cold", ms })); }
         return NextResponse.json({
           ...attemptStartResponse(activeAttempt, {
             kind,
@@ -3711,7 +3784,31 @@ async function teacherQuizPayload(
     // Öğrenci bekliyor: pedagojik ince ayar turu yok (önceden yazım bütün turları koşar).
     urgent: input.charge !== false,
     startedAt,
+    onPlayable:
+      input.kind === "quiz" && input.onLessonPublish && input.charge !== false
+        ? (questions) => {
+            void input.onLessonPublish?.({
+              type: "quiz",
+              questions,
+              teachingStandard: activity,
+              engine: "teacher",
+            });
+          }
+        : undefined,
   });
+  if (outcome.ok) {
+    console.info(
+      "quiz_open_stages",
+      quizOpenStagesLog({
+        topic: input.topicLabel,
+        kind: input.kind,
+        stages: outcome.stages,
+        kept: outcome.questions.length,
+        streamed: Boolean(input.kind === "quiz" && input.onLessonPublish && input.charge !== false),
+        prefetched: input.charge === false,
+      }),
+    );
+  }
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
   // Pedagojik sorunu düzelmeden geri konan soru: test öğrenciye gider, neden yönetimde görünsün.
   if (outcome.softKept) {
