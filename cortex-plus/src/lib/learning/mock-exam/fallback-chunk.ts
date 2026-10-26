@@ -30,6 +30,8 @@ export type FallbackRecord<T> = {
   modelIndexes: Record<string, number>;
   /** Bu kâğıtta biten dalga. Eski kayıtlarda yoksa 0. */
   wave?: number;
+  /** Dalga tavanından sonraki zorlamalı doldurma denendi. */
+  forced?: boolean;
   failError: string | null;
 };
 
@@ -129,6 +131,7 @@ export async function pumpFallbackChunk<T>(input: {
       items: T[];
       topicsAttempted: string[];
       modelIndexes?: Record<string, number>;
+      wave?: number;
     }) => Promise<void>;
   }) => Promise<{
     items: T[];
@@ -138,6 +141,9 @@ export async function pumpFallbackChunk<T>(input: {
     topicTotal?: number;
     modelIndexes?: Record<string, number>;
     wave?: number;
+    forced?: boolean;
+    /** Tavan doldu ve zorlama da yetmedi. Yeni dalga açılmaz. */
+    stopped?: boolean;
   }>;
   publish: (record: FallbackRecord<T>) => Promise<{ ok: true; examId: string } | { ok: false }>;
 }): Promise<ChunkOutcome> {
@@ -164,8 +170,18 @@ export async function pumpFallbackChunk<T>(input: {
       refunded: false,
       startedAt: input.now,
       reservationId: null,
+      wave: 0,
+      forced: false,
     };
-    await input.store.save(record.id, record);
+    await input.store.save(record.id, {
+      failed: false,
+      failError: null,
+      refunded: false,
+      startedAt: input.now,
+      reservationId: null,
+      wave: 0,
+      forced: false,
+    });
   }
 
   if (!record.reservationId) {
@@ -194,8 +210,25 @@ export async function pumpFallbackChunk<T>(input: {
   report(record);
 
   if (record.startedAt > 0 && input.now - record.startedAt >= budgetMs) {
-    await refundOnce(input.store, input.refund, record);
-    return { ok: false, status: 500, error: "budget_exceeded", resumeId: record.id };
+    if (record.promised > 0 && record.items.length >= record.promised) {
+      const saved = await input.publish(record);
+      if (saved.ok) {
+        record = { ...record, examId: saved.examId, building: false, publishedAt: input.now, failed: false };
+        await input.store.save(record.id, {
+          examId: saved.examId,
+          building: false,
+          publishedAt: input.now,
+          failed: false,
+          leaseUntil: 0,
+          leaseToken: "",
+        });
+        return outcomeOf(record, false, true);
+      }
+    }
+    if (record.forced) {
+      await refundOnce(input.store, input.refund, record);
+      return { ok: false, status: 500, error: "budget_exceeded", resumeId: record.id };
+    }
   }
   if (input.signal?.aborted) {
     await input.store.save(record.id, { leaseUntil: 0, leaseToken: "" });
@@ -212,6 +245,8 @@ export async function pumpFallbackChunk<T>(input: {
   let topicTotal = record.topicTotal;
   let modelIndexes = record.modelIndexes;
   let buildWave = record.wave ?? 0;
+  let forced = record.forced === true;
+  let stopped = false;
   try {
     const wave = await input.runWave({
       record,
@@ -225,10 +260,12 @@ export async function pumpFallbackChunk<T>(input: {
         waveItems = unionItems(fresh?.items ?? waveItems, patch.items);
         attempted = [...new Set([...(fresh?.topicsAttempted ?? attempted), ...patch.topicsAttempted])];
         modelIndexes = { ...(fresh?.modelIndexes ?? modelIndexes), ...(patch.modelIndexes ?? {}) };
+        if (typeof patch.wave === "number") buildWave = patch.wave;
         await input.store.save(record!.id, {
           items: waveItems,
           topicsAttempted: attempted,
           modelIndexes,
+          wave: buildWave,
           leaseToken: token,
         });
         report({ ...record!, items: waveItems, topicsAttempted: attempted, modelIndexes });
@@ -241,6 +278,8 @@ export async function pumpFallbackChunk<T>(input: {
     if (wave.topicTotal && wave.topicTotal > 0) topicTotal = wave.topicTotal;
     if (wave.modelIndexes) modelIndexes = wave.modelIndexes;
     if (typeof wave.wave === "number") buildWave = wave.wave;
+    if (wave.forced) forced = true;
+    if (wave.stopped) stopped = true;
   } catch {
     const fresh = await input.store.load(record.id);
     if (fresh) {
@@ -264,6 +303,7 @@ export async function pumpFallbackChunk<T>(input: {
     topicTotal,
     modelIndexes,
     wave: buildWave,
+    forced,
     leaseUntil: 0,
     leaseToken: "",
   };
@@ -274,10 +314,22 @@ export async function pumpFallbackChunk<T>(input: {
     topicTotal,
     modelIndexes,
     wave: buildWave,
+    forced,
     leaseUntil: 0,
     leaseToken: "",
   });
   report(record);
+
+  if (stopped && !done) {
+    await input.store.save(record.id, {
+      failed: true,
+      failError: "budget_exceeded",
+      building: true,
+      leaseUntil: 0,
+      leaseToken: "",
+    });
+    return { ok: false, status: 500, error: "budget_exceeded", resumeId: record.id };
+  }
 
   if (!done) return outcomeOf(record, false, false);
 

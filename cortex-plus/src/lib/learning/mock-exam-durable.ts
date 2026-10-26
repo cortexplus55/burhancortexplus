@@ -7,6 +7,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
+import { MOCK_EXAM_BUDGET_MS, MOCK_EXAM_WAVE_CAP } from "@/lib/learning/exam-assembly";
 import { pumpJob, type PureJob } from "@/lib/learning/generation-job";
 import {
   claimGenerationJob,
@@ -60,6 +61,7 @@ type Checkpoint = {
   topicsAttempted?: string[];
   modelIndexes?: Record<string, number>;
   wave?: number;
+  forced?: boolean;
 };
 
 function specOf(row: GenerationJobRow): MockSpec {
@@ -104,6 +106,7 @@ function checkpointOf(row: GenerationJobRow): Checkpoint {
           )
         : undefined,
     wave: typeof progress.wave === "number" ? progress.wave : 0,
+    forced: progress.forced === true,
   };
 }
 
@@ -135,9 +138,15 @@ function toPure(row: GenerationJobRow, checkpoint: Checkpoint, now: number): Pur
 
 /** Tablo yoksa null. Varsa bekleyen iş; ikinci ücret yok. */
 export async function startDurableMockExam(input: CreateMockExamInput): Promise<DurableMockStart | null> {
-  if (!(await generationJobsReady(input.service))) return null;
+  if (!(await generationJobsReady(input.service))) {
+    console.info("generation_job", { event: "fallback", reason: "jobs_unavailable" });
+    return null;
+  }
   const active = await findActivePrepJob(input.service, input.userId, input.prepId, "mock_exam");
-  if (active === "missing") return null;
+  if (active === "missing") {
+    console.info("generation_job", { event: "fallback", reason: "schema_missing" });
+    return null;
+  }
   if (active) return pending(active);
 
   const spec: MockSpec = {
@@ -156,13 +165,19 @@ export async function startDurableMockExam(input: CreateMockExamInput): Promise<
     kind: "mock_exam",
     spec,
   });
-  if ("missing" in inserted) return null;
+  if ("missing" in inserted) {
+    console.info("generation_job", { event: "fallback", reason: "schema_missing" });
+    return null;
+  }
   if ("duplicate" in inserted) {
     const again = await findActivePrepJob(input.service, input.userId, input.prepId, "mock_exam");
     if (again && again !== "missing") return pending(again);
     return { ok: false, status: 503, error: "generation_failed" };
   }
-  if ("error" in inserted) return { ok: false, status: 503, error: "generation_failed" };
+  if ("error" in inserted) {
+    console.info("generation_job", { event: "fallback", reason: "insert_failed" });
+    return null;
+  }
 
   const job = inserted.row;
   const chargeKey = `practice-exam:${input.prepId}:${input.userId}:${job.id}`;
@@ -204,11 +219,14 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
   const checkpoint = checkpointOf(claimed.row);
   const spec = specOf(claimed.row);
   const stash: Checkpoint = { ...checkpoint };
-  const pure = toPure(claimed.row, checkpoint, now);
+  if (!stash.startedAt) stash.startedAt = checkpoint.startedAt && checkpoint.startedAt > 0 ? checkpoint.startedAt : now;
+  const pure = toPure(claimed.row, { ...checkpoint, startedAt: stash.startedAt }, now);
   const reservationId = claimed.row.charge_reservation_id;
+  let stopJob = false;
 
-  const next = await pumpJob(pure, {
+  let next = await pumpJob(pure, {
     now,
+    budgetMs: MOCK_EXAM_BUDGET_MS,
     generate: async (items) => {
       const fresh = await loadGenerationJob(service, jobId);
       if (fresh?.result_ref && fresh.result_ref !== "pending") {
@@ -266,6 +284,8 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
           maxWaves: 1,
           examId: jobId,
           wave: stash.wave ?? 0,
+          startedAt: stash.startedAt,
+          forced: stash.forced === true,
           blocks: blocks ? new Map(Object.entries(blocks)) : undefined,
           initialTopics: stash.topicsAttempted,
           modelIndexes: stash.modelIndexes,
@@ -274,6 +294,7 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
             stash.items = snapshot.items;
             stash.topicsAttempted = snapshot.topicsAttempted;
             stash.ready = snapshot.items.length;
+            if (typeof snapshot.wave === "number") stash.wave = snapshot.wave;
             const kept = await patchGenerationJob(
               service,
               jobId,
@@ -290,7 +311,9 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
       stash.topicsAttempted = assembled.topicsAttempted;
       stash.modelIndexes = assembled.modelIndexes;
       stash.wave = assembled.wave;
+      stash.forced = assembled.forced;
       if (!assembled.ok) {
+        if (assembled.forced && assembled.wave >= MOCK_EXAM_WAVE_CAP) stopJob = true;
         return { items: assembled.questions, done: false, promised: blueprint.questionCount };
       }
       const locked = await patchGenerationJob(
@@ -328,6 +351,14 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
       void refundCredits(service, id).catch(() => undefined);
     },
   });
+
+  if (stopJob && next.state !== "done") {
+    if (!next.refunded && next.chargeReservationId) {
+      void refundCredits(service, next.chargeReservationId).catch(() => undefined);
+      next = { ...next, refunded: true };
+    }
+    next = { ...next, state: "failed", leaseUntil: null };
+  }
 
   const keptItems = stash.items.length >= next.items.length ? stash.items : next.items;
   const savedProgress: Checkpoint = {

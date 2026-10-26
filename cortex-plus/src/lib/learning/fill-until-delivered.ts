@@ -6,7 +6,8 @@
  * Süre dolunca eldeki geçerli öğeler durur; kısa liste yayımlanmaz.
  */
 
-import { selectDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
+import { sameTopic, selectDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
+import { countAccepted, publishReady } from "@/lib/learning/exam-assembly";
 import {
   replaceShortSlots,
   tallyDrafts,
@@ -24,6 +25,10 @@ export type FillRequest = {
   topicLabel: string;
   slots: DeliverySlot[];
   modelIndex: number;
+  /** Kabul edilmiş kökler. Sıradaki soru başka alt başlık ya da açı olsun. */
+  avoid?: string[];
+  /** Dalga tavanından sonra: eksik sayı, tür serbest (çoktan seçmeli yer). */
+  relaxed?: boolean;
 };
 
 const realClock = (): FillClock => ({
@@ -71,6 +76,13 @@ export async function fillUntilDelivered<T>(input: {
    * eksik konular hemen, daha küçük bir grupla yeniden istenir.
    */
   followUpWaves?: number;
+  /** Mutlak dalga tavanı. Dolunca bir kez zorlamalı doldurma, sonra durur. */
+  waveCap?: number;
+  /** Duvar saati. `startedAt` ile birlikte; aşılınca normal dalga açılmaz. */
+  budgetMs?: number;
+  startedAt?: number;
+  /** Zorlamalı doldurma bu kâğıtta denendi. İkinci kez açılmaz. */
+  forced?: boolean;
 }): Promise<{
   items: T[];
   ok: boolean;
@@ -85,6 +97,7 @@ export async function fillUntilDelivered<T>(input: {
   modelIndex: number;
   modelIndexes: Record<string, number>;
   stalled: string[];
+  forced: boolean;
 }> {
   const clock = input.clock ?? realClock();
   const started = clock.now();
@@ -103,6 +116,22 @@ export async function fillUntilDelivered<T>(input: {
   const blockedDonors = () =>
     [...modelByTopic.entries()].filter(([, index]) => index >= 2).map(([key]) => key);
   const stalledTopics = () => [...stallByTopic];
+  const waveCap = input.waveCap;
+  const origin = input.startedAt ?? started;
+  let forced = input.forced === true;
+  const room = () => (waveCap == null ? Number.POSITIVE_INFINITY : Math.max(0, waveCap - (input.initialWave ?? 0)));
+  const clampCeiling = (value: number) => Math.min(value, room());
+  ceiling = clampCeiling(ceiling);
+  const overBudget = () => input.budgetMs != null && clock.now() - origin >= input.budgetMs;
+  const capped = () => waveCap != null && completed >= waveCap;
+  const avoidFor = (slots: readonly DeliverySlot[]) => {
+    const texts = items
+      .map((item) => input.read(item))
+      .filter((view) => slots.some((slot) => sameTopic(view, slot)))
+      .map((view) => view.text.trim())
+      .filter(Boolean);
+    return texts.slice(-20);
+  };
   const reportWave = (planReplacement: boolean, promised: number) => {
     const tally = tallyDrafts(working, items, input.read);
     input.onWave?.({
@@ -115,30 +144,74 @@ export async function fillUntilDelivered<T>(input: {
       replacement: planReplacement,
     });
   };
-  const finish = (ok: boolean, publishable: T[] | null) => {
-    const verdict = selectDeliverable(working, items, input.read);
+  const readyPaper = () => publishReady(input.slots, items, input.read);
+  const finish = (ok: boolean, publishable: T[] | null, fitted: DeliverySlot[] | null) => {
+    const verdict = selectDeliverable(fitted ?? working, items, input.read);
+    const paper = ok ? readyPaper() : { ok: false as const, items: [] as T[], slots: working };
+    const published = ok && paper.ok ? paper : null;
     return {
-      items: ok && publishable ? publishable : verdict.ok ? verdict.publishable : verdict.delivered,
-      ok: ok || verdict.ok,
+      items: published ? published.items : ok && publishable ? publishable : verdict.ok ? verdict.publishable : verdict.delivered,
+      ok: Boolean(published) || ok || verdict.ok,
       waves,
       completedWave: completed,
-      slots: working,
+      slots: published ? published.slots : fitted ?? working,
       elapsedMs: clock.now() - started,
       note: null as null,
-      coverage: verdict.coverage,
+      coverage: published
+        ? published.slots.map((slot) => slot.signature).filter((signature): signature is string => Boolean(signature))
+        : verdict.coverage,
       modelIndex: Math.max(highestModel, ...modelByTopic.values(), 0),
       modelIndexes: Object.fromEntries(modelByTopic),
       stalled: [...stallByTopic],
+      forced,
     };
   };
 
+  const forceFill = async () => {
+    if (forced || input.signal?.aborted) return;
+    forced = true;
+    if (readyPaper().ok) return;
+    const missing = input.slots.length - countAccepted(input.slots, items, input.read);
+    if (missing <= 0) return;
+    const accepted = items.map((item) => input.read(item)).filter((view) => input.slots.some((slot) => sameTopic(view, slot)));
+    const donors = accepted.length
+      ? accepted
+      : input.slots.map((slot) => ({ topicId: slot.topicId, topicLabel: slot.topicLabel }));
+    const relaxed: DeliverySlot[] = Array.from({ length: missing }, (_, index) => {
+      const donor = donors[index % donors.length]!;
+      return {
+        topicId: donor.topicId ?? null,
+        topicLabel: donor.topicLabel,
+        type: "mcq",
+        points: 4,
+      };
+    });
+    const host = relaxed[0]!;
+    try {
+      const generated = await input.generate({
+        topicId: host.topicId ?? null,
+        topicLabel: host.topicLabel,
+        slots: relaxed,
+        modelIndex: modelByTopic.get(topicKey(host)) ?? 0,
+        avoid: avoidFor(input.slots),
+        relaxed: true,
+      });
+      items = [...items, ...generated];
+    } catch {
+      // Zorlama düşerse dalga açılmaz. Kısa liste yine yayımlanmaz.
+    }
+  };
+
   for (; waves < ceiling; ) {
+    const paper = readyPaper();
+    if (paper.ok) return finish(true, paper.items, paper.slots);
+    if (capped() || overBudget()) break;
     const plan = replaceShortSlots(input.slots, items, input.read, completed, blockedDonors(), stalledTopics());
     working = plan.slots;
     const verdict = selectDeliverable(working, items, input.read);
     if (verdict.ok) {
       if (plan.replacement) reportWave(true, working.length);
-      return finish(true, verdict.publishable);
+      return finish(true, verdict.publishable, working);
     }
     if (input.signal?.aborted) break;
     waves += 1;
@@ -161,6 +234,7 @@ export async function fillUntilDelivered<T>(input: {
               topicLabel: label,
               slots,
               modelIndex,
+              avoid: avoidFor(slots),
             });
             const after = selectDeliverable(working, [...items, ...generated], input.read);
             const afterMissing = after.deficits.filter((slot) => topicKey(slot) === key).length;
@@ -184,11 +258,16 @@ export async function fillUntilDelivered<T>(input: {
     completed += 1;
     reportWave(plan.replacement, working.length);
     if (!input.signal?.aborted) clock.advance(waveMs);
-    if (waves >= maxWaves && ceiling === maxWaves) {
-      const after = selectDeliverable(working, items, input.read);
-      if (!after.ok && after.delivered.length > 0) ceiling = maxWaves + followUpWaves;
+    if (waves >= maxWaves && ceiling === maxWaves && !readyPaper().ok) {
+      ceiling = clampCeiling(maxWaves + followUpWaves);
     }
+    if (readyPaper().ok) return finish(true, null, null);
   }
 
-  return finish(false, null);
+  if (readyPaper().ok) return finish(true, null, null);
+  if (!input.signal?.aborted && (capped() || overBudget())) {
+    await forceFill();
+  }
+  if (readyPaper().ok) return finish(true, null, null);
+  return finish(false, null, null);
 }

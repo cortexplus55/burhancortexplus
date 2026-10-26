@@ -6,7 +6,7 @@
  * sağlamsa sayılır. Kısa liste yayımlanamaz. `note` her zaman null.
  */
 
-import { itemStems, nearDuplicate } from "@/lib/learning/item-dedup";
+import { examFactOverlap, itemStems, nearDuplicate } from "@/lib/learning/item-dedup";
 import { foldValidity, itemValidity, validityKind } from "@/lib/learning/item-validity";
 import { measurableTokens } from "@/lib/learning/source-quantities";
 
@@ -105,8 +105,10 @@ export function semanticDuplicate(left: DeliveryItem, right: DeliveryItem): bool
   const rightFact = factSignature(right.text);
   if (leftFact && leftFact === rightFact) return true;
   if (nearDuplicate(left.text, right.text, 0.7)) return true;
+  if (examFactOverlap(left.text, right.text, left.topicLabel, right.topicLabel)) return true;
   const leftAnswer = answerKey(left);
   const rightAnswer = answerKey(right);
+  if (leftAnswer && rightAnswer && leftAnswer.length >= 8 && leftAnswer === rightAnswer) return true;
   if (leftAnswer && rightAnswer && leftAnswer === rightAnswer && nearDuplicate(left.text, right.text, 0.55)) return true;
   return false;
 }

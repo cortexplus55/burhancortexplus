@@ -80,6 +80,33 @@ export function itemStems(text: string): Set<string> {
   return out;
 }
 
+/**
+ * Sınav kâğıdında aynı olgu. Sayılar ayırıcı sayılmaz: kökün içerik kelimeleri
+ * örtüşüyorsa soru kopyadır. Şablonun ortak kelimeleri (konu adı dahil) tek başına yetmez.
+ */
+export function examFactOverlap(left: string, right: string, leftTopic = "", rightTopic = ""): boolean {
+  const dropTopic = (text: string, topic: string) => {
+    const stems = itemStems(text);
+    for (const stem of itemStems(topic)) stems.delete(stem);
+    const out = new Set<string>();
+    for (const stem of stems) {
+      if (stem.startsWith("#") || stem.startsWith("^")) continue;
+      out.add(stem);
+    }
+    return out;
+  };
+  const a = dropTopic(left, leftTopic);
+  const b = dropTopic(right, rightTopic);
+  if (a.size < 3 || b.size < 3) return false;
+  let shared = 0;
+  for (const stem of a) if (b.has(stem)) shared += 1;
+  const union = a.size + b.size - shared;
+  // Dört ortak kök, yalnız sayı değişen kalıp soruyu (seçenek 3 / seçenek 4) kopya saymasın.
+  if (shared >= 5 && shared / union >= 0.72) return true;
+  const smaller = Math.min(a.size, b.size);
+  return shared >= 5 && shared / smaller >= 0.85;
+}
+
 /** Aynı metin ya da içerik kelimelerinin büyük kısmı ortak (Jaccard ≥ eşik, en az üç kelime). */
 export function nearDuplicate(left: string, right: string, threshold = 0.7): boolean {
   const a = normalizeItemText(left);

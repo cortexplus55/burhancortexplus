@@ -48,10 +48,29 @@ export function jobSchemaMissing(error: DbError): boolean {
   return missingRelation(error);
 }
 
-/** Boş tablo dizi döner. Hata ya da dizi olmayan cevap tablo yok sayılır. */
+function clipMessage(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  return value.slice(0, 180);
+}
+
+function logJob(event: string, fields: Record<string, unknown>): void {
+  const message = clipMessage(fields.message);
+  const payload: Record<string, unknown> = { event };
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === "message") continue;
+    payload[key] = value;
+  }
+  if (message) payload.message = message;
+  console.info("generation_job", payload);
+}
+
+/** Boş tablo dizi döner ve hazırdır. Hata ya da dizi olmayan cevap tablo yok sayılır. */
 export async function generationJobsReady(service: SupabaseClient): Promise<boolean> {
   const { data, error } = await service.from("generation_jobs").select("id").limit(1);
-  if (error || !Array.isArray(data)) return false;
+  if (error || !Array.isArray(data)) {
+    logJob("probe_failed", { code: error?.code ?? null, message: error?.message ?? "not_array" });
+    return false;
+  }
   return true;
 }
 
@@ -105,10 +124,21 @@ export async function insertGenerationJob(
     })
     .select("*")
     .single();
-  if (jobSchemaMissing(error)) return { missing: true };
+  if (jobSchemaMissing(error)) {
+    logJob("create_failed", { code: error?.code ?? null, message: error?.message ?? "missing", kind: row.kind, reason: "missing" });
+    return { missing: true };
+  }
   if (error && String(error.code) === "23505") return { duplicate: true };
   const parsed = asRow(data);
-  if (error || !parsed) return { error: true };
+  if (error || !parsed) {
+    logJob("create_failed", {
+      code: error?.code ?? null,
+      message: error?.message ?? "empty",
+      kind: row.kind,
+      reason: "insert",
+    });
+    return { error: true };
+  }
   return { row: parsed };
 }
 
@@ -150,7 +180,14 @@ export async function claimGenerationJob(
     .in("state", ["queued", "running"]);
   query = current.lease_until ? query.eq("lease_until", current.lease_until) : query.is("lease_until", null);
   const { data, error } = await query.select("*");
-  if (error || !Array.isArray(data) || !data.length) return null;
+  if (error) {
+    logJob("claim_failed", { code: error.code ?? null, message: error.message ?? "", jobId: id });
+    return null;
+  }
+  if (!Array.isArray(data) || !data.length) {
+    logJob("claim_empty", { jobId: id });
+    return null;
+  }
   const row = asRow(data[0]);
   if (!row) return null;
   return { row, leaseUntil };
