@@ -7,7 +7,18 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
-import { JOB_BUDGET_MS } from "@/lib/learning/generation-job";
+import type { DeliveryItem } from "@/lib/learning/deliverable";
+import {
+  EXAM_BUILD_VERSION,
+  MOCK_EXAM_BUDGET_MS,
+  MOCK_EXAM_WAVE_CAP,
+  STALE_CHECKPOINT_MS,
+  checkpointDecision,
+  countAccepted,
+  nextCheckpointAction,
+  publishReady,
+  slotsFromPlan,
+} from "@/lib/learning/exam-assembly";
 import type { MockExamBlueprint, MockExamQuestionDraft, MockLengthPreset } from "@/lib/learning/mock-exam";
 import {
   assembleMockExamQuestions,
@@ -27,7 +38,7 @@ import {
 type TopicRow = { id: string; label: string; status: string | null; source_refs: unknown };
 
 type StoredBuild = {
-  v: 1;
+  v: number;
   prepKey: string;
   specKey: string;
   items: MockExamQuestionDraft[];
@@ -45,6 +56,7 @@ type StoredBuild = {
   publishedAt: number | null;
   modelIndexes: Record<string, number>;
   wave: number;
+  forced: boolean;
   failError: string | null;
   attempts: number;
   prepTitle: string;
@@ -92,10 +104,10 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function readBuild(blueprint: unknown): StoredBuild | null {
   const host = asRecord(blueprint);
   const raw = asRecord(host?.cpBuild);
-  if (!raw || raw.v !== 1 || typeof raw.prepKey !== "string") return null;
+  if (!raw || typeof raw.v !== "number" || typeof raw.prepKey !== "string") return null;
   const plan = asRecord(raw.plan) as MockExamBlueprint | null;
   return {
-    v: 1,
+    v: raw.v,
     prepKey: raw.prepKey,
     specKey: typeof raw.specKey === "string" ? raw.specKey : "",
     items: Array.isArray(raw.items) ? (raw.items as MockExamQuestionDraft[]) : [],
@@ -118,6 +130,7 @@ function readBuild(blueprint: unknown): StoredBuild | null {
         : {};
     })(),
     wave: typeof raw.wave === "number" ? raw.wave : 0,
+    forced: raw.forced === true,
     failError: typeof raw.failError === "string" ? raw.failError : null,
     attempts: typeof raw.attempts === "number" ? raw.attempts : 0,
     prepTitle: typeof raw.prepTitle === "string" ? raw.prepTitle : "",
@@ -170,6 +183,7 @@ function toRecord(id: string, build: StoredBuild): FallbackRecord<MockExamQuesti
     publishedAt: build.publishedAt,
     modelIndexes: build.modelIndexes,
     wave: build.wave,
+    forced: build.forced,
     failError: build.failError,
   };
 }
@@ -252,9 +266,47 @@ async function writeBuild(service: SupabaseClient, id: string, build: StoredBuil
   await service.from("practice_exams").update({ blueprint: pack(build) }).eq("id", id);
 }
 
+function draftView(question: MockExamQuestionDraft): DeliveryItem {
+  return {
+    topicId: question.topicId,
+    topicLabel: question.topicLabel,
+    type: question.type,
+    text: question.text,
+    options: question.options,
+    correctAnswers: question.correctAnswers,
+    explanation: question.explanation,
+    sourceLabel: question.source?.label,
+  };
+}
+
+function slotsForBuild(build: StoredBuild) {
+  const promised = build.promised || build.plan?.questionCount || 0;
+  if (build.plan && promised > 0) {
+    return slotsFromPlan({
+      questionCount: promised,
+      slots: build.plan.slots,
+      allocation: build.plan.allocation,
+    });
+  }
+  return slotsFromPlan({ questionCount: promised, slots: [], allocation: [] });
+}
+
+function buildIsFresh(build: StoredBuild, now: number): boolean {
+  if (!build.building || build.examId) return false;
+  return (
+    checkpointDecision({
+      version: build.v,
+      startedAt: build.startedAt,
+      now,
+      accepted: build.items.length,
+      promised: build.promised,
+    }) === "resume"
+  );
+}
+
 function activeRow(row: { id: string; build: StoredBuild }, prepKey: string, now: number): boolean {
   if (row.build.prepKey !== prepKey) return false;
-  if (row.build.building && !row.build.examId) return true;
+  if (buildIsFresh(row.build, now)) return true;
   return Boolean(row.build.examId && row.build.publishedAt && now - row.build.publishedAt < PUBLISHED_GRACE_MS);
 }
 
@@ -267,7 +319,7 @@ export async function hasInFlightMockBuild(
 ): Promise<boolean> {
   const rows = await listRecent(service, userId, prepId, now);
   return rows.some((row) => {
-    if (row.build.building && !row.build.examId) return true;
+    if (buildIsFresh(row.build, now)) return true;
     return Boolean(row.build.examId && row.build.publishedAt && now - row.build.publishedAt < PUBLISHED_GRACE_MS);
   });
 }
@@ -379,7 +431,7 @@ async function createExam(
   if (!planned.ok) return planned;
   const allocation = planned.plan.blueprint.allocation.filter((row) => row.count > 0);
   const build: StoredBuild = {
-    v: 1,
+    v: EXAM_BUILD_VERSION,
     prepKey,
     specKey,
     items: [],
@@ -397,6 +449,7 @@ async function createExam(
     publishedAt: null,
     modelIndexes: {},
     wave: 0,
+    forced: false,
     failError: null,
     attempts: 0,
     prepTitle: planned.plan.prepTitle,
@@ -427,13 +480,22 @@ async function createExam(
 }
 
 async function publishExam(
-  input: FallbackExamInput,
+  input: { service: SupabaseClient; userId: string; prepId: string },
   record: FallbackRecord<MockExamQuestionDraft>,
+  options?: { allowFailed?: boolean },
 ): Promise<{ ok: true; examId: string } | { ok: false }> {
   const stored = await loadStored(input.service, record.id, input.userId, input.prepId);
-  if (!stored || !stored.building || stored.failed) return { ok: false };
+  if (!stored || !stored.building) return { ok: false };
+  if (stored.failed && !options?.allowFailed) return { ok: false };
   if (stored.examId) return { ok: true, examId: stored.examId };
-  if (record.promised < 1 || record.items.length !== record.promised) return { ok: false };
+  const bag = record.items.length ? record.items : stored.items;
+  const paper = publishReady(slotsForBuild({ ...stored, promised: record.promised || stored.promised }), bag, draftView);
+  if (!paper.ok) return { ok: false };
+  const questions = paper.items.map((item, index) => ({
+    ...item,
+    points: paper.slots[index]?.points ?? item.points,
+  }));
+  if (record.promised < 1 || questions.length !== record.promised) return { ok: false };
   const { count, error } = await input.service
     .from("practice_exam_questions")
     .select("id", { count: "exact", head: true })
@@ -444,11 +506,12 @@ async function publishExam(
     if (deleteError) return { ok: false };
   }
   if ((count ?? 0) < record.promised) {
-    const inserted = await insertMockExamQuestions(input.service, record.id, record.items);
+    const inserted = await insertMockExamQuestions(input.service, record.id, questions);
     if (!inserted) return { ok: false };
   }
   const published: StoredBuild = {
     ...stored,
+    v: EXAM_BUILD_VERSION,
     items: [],
     topics: [],
     blocks: {},
@@ -463,19 +526,123 @@ async function publishExam(
   };
   const { error: updateError } = await input.service.from("practice_exams").update({ blueprint: pack(published) }).eq("id", record.id);
   if (updateError) return { ok: false };
-  if (stored.reservationId) await commitCredits(input.service, stored.reservationId).catch(() => undefined);
+  if (stored.reservationId && !stored.refunded) await commitCredits(input.service, stored.reservationId).catch(() => undefined);
   return { ok: true, examId: record.id };
+}
+
+function logCheckpoint(fields: {
+  action: string;
+  version: number;
+  accepted: number;
+  promised: number;
+  ageMs: number;
+  examId: string;
+}): void {
+  console.info("mock_exam_checkpoint", { event: "recover", ...fields });
+}
+
+/**
+ * Eski sürüm ya da 15 dakikayı geçmiş kayıt sürdürülmez.
+ * Kabul edilen soru söz verilene yetiyorsa hemen yayımlanır; yetmiyorsa atılır.
+ * Canlı kira bu kararı değiştirmez.
+ */
+export async function recoverStaleMockBuilds(input: {
+  service: SupabaseClient;
+  userId: string;
+  prepId: string;
+  resumeId?: string | null;
+  now?: number;
+}): Promise<
+  | { kind: "published"; examId: string; planned: number; topicTotal: number; resumeId: string }
+  | { kind: "cleared"; droppedResume: boolean }
+> {
+  const now = input.now ?? Date.now();
+  const rows = await listRecent(input.service, input.userId, input.prepId, now);
+  let droppedResume = false;
+  for (const row of rows) {
+    if (!row.build.building || row.build.examId) continue;
+    const slots = slotsForBuild(row.build);
+    const decision = nextCheckpointAction({
+      version: row.build.v,
+      startedAt: row.build.startedAt,
+      now,
+      promised: row.build.promised,
+      slots,
+      items: row.build.items,
+      read: draftView,
+    });
+    if (decision.action === "resume") continue;
+    const ageMs = row.build.startedAt > 0 ? now - row.build.startedAt : STALE_CHECKPOINT_MS + 1;
+    logCheckpoint({
+      action: decision.action,
+      version: row.build.v,
+      accepted: countAccepted(slots, row.build.items, draftView),
+      promised: row.build.promised,
+      ageMs,
+      examId: row.id,
+    });
+    if (decision.action === "publish") {
+      const published = await publishExam(input, toRecord(row.id, { ...row.build, failed: false, building: true }), {
+        allowFailed: true,
+      });
+      if (published.ok) {
+        return {
+          kind: "published",
+          examId: published.examId,
+          planned: row.build.promised,
+          topicTotal: row.build.topicTotal,
+          resumeId: row.id,
+        };
+      }
+      continue;
+    }
+    if (row.build.reservationId && !row.build.refunded) {
+      await refundCredits(input.service, row.build.reservationId).catch(() => undefined);
+    }
+    await writeBuild(input.service, row.id, {
+      ...row.build,
+      building: true,
+      failed: true,
+      failError: "stale",
+      refunded: true,
+      reservationId: null,
+      leaseUntil: 0,
+      leaseToken: "stale",
+    });
+    if (input.resumeId && input.resumeId === row.id) droppedResume = true;
+  }
+  return { kind: "cleared", droppedResume };
 }
 
 /** Tablo olsun olmasın: bir HTTP parçası, kayıt `practice_exams` satırında. */
 export async function runFallbackMockExam(input: FallbackExamInput): Promise<ChunkOutcome> {
   const now = Date.now();
+  const recovery = await recoverStaleMockBuilds({
+    service: input.service,
+    userId: input.userId,
+    prepId: input.prepId,
+    resumeId: input.resumeId,
+    now,
+  });
+  if (recovery.kind === "published") {
+    return {
+      ok: true,
+      resumeId: recovery.resumeId,
+      examId: recovery.examId,
+      topicsReady: recovery.topicTotal,
+      topicTotal: recovery.topicTotal,
+      promised: recovery.planned,
+      done: true,
+      running: false,
+    };
+  }
+  const resumeId = recovery.droppedResume ? undefined : input.resumeId;
   const specKey = mockExamSpecKey(input);
   const prepKey = `${input.userId}:${input.prepId}:${specKey}`;
-  if (input.explicitRetry && input.resumeId) {
-    const stored = await loadStored(input.service, input.resumeId, input.userId, input.prepId);
+  if (input.explicitRetry && resumeId) {
+    const stored = await loadStored(input.service, resumeId, input.userId, input.prepId);
     if (stored?.failed) {
-      await writeBuild(input.service, input.resumeId, {
+      await writeBuild(input.service, resumeId, {
         ...stored,
         attempts: stored.attempts + 1,
         reservationId: null,
@@ -483,16 +650,17 @@ export async function runFallbackMockExam(input: FallbackExamInput): Promise<Chu
         failError: null,
       });
     }
-  } else if (!input.resumeId) {
+  } else if (!resumeId) {
     await abandonOtherSpecs(input.service, input.userId, input.prepId, specKey, now);
   }
   const store = examStore(input.service, { userId: input.userId, prepId: input.prepId, prepKey });
   return pumpFallbackChunk({
     now,
     prepKey,
-    resumeId: input.resumeId,
+    resumeId,
     explicitRetry: input.explicitRetry,
     signal: input.signal,
+    budgetMs: MOCK_EXAM_BUDGET_MS,
     store,
     onProgress: input.onProgress,
     charge: async (record) => {
@@ -525,12 +693,18 @@ export async function runFallbackMockExam(input: FallbackExamInput): Promise<Chu
         maxWaves: 1,
         examId: ctx.record.id,
         wave: ctx.record.wave ?? 0,
+        startedAt: ctx.record.startedAt,
+        forced: ctx.record.forced === true,
         blocks: new Map(Object.entries(stored.blocks)),
         initialTopics: ctx.record.topicsAttempted,
         modelIndexes: ctx.record.modelIndexes,
         signal: ctx.signal,
         onCheckpoint: async (snapshot) => {
-          await ctx.checkpoint({ items: snapshot.items, topicsAttempted: snapshot.topicsAttempted });
+          await ctx.checkpoint({
+            items: snapshot.items,
+            topicsAttempted: snapshot.topicsAttempted,
+            wave: snapshot.wave,
+          });
         },
         onProgress: (progress) =>
           input.onProgress?.({
@@ -548,6 +722,8 @@ export async function runFallbackMockExam(input: FallbackExamInput): Promise<Chu
         topicTotal: assembled.topicTotal,
         modelIndexes: assembled.modelIndexes,
         wave: assembled.wave,
+        forced: assembled.forced,
+        stopped: !assembled.ok && assembled.forced && assembled.wave >= MOCK_EXAM_WAVE_CAP,
       };
     },
     publish: (record) => publishExam(input, record),
@@ -573,8 +749,16 @@ export async function sweepAbandonedMockBuilds(service: SupabaseClient, now = Da
     if (typeof row.id !== "string") continue;
     const build = readBuild(row.blueprint);
     if (!build?.building || build.examId || build.publishedAt) continue;
-    if (build.leaseUntil > now) continue;
-    if (build.startedAt > 0 && now - build.startedAt < JOB_BUDGET_MS) continue;
+    const action = nextCheckpointAction({
+      version: build.v,
+      startedAt: build.startedAt,
+      now,
+      promised: build.promised,
+      slots: slotsForBuild(build),
+      items: build.items,
+      read: draftView,
+    });
+    if (action.action === "publish" || action.action === "resume") continue;
     if (build.failed && build.refunded && !build.reservationId) continue;
     if (build.reservationId && !build.refunded) {
       await refundCredits(service, build.reservationId).catch(() => undefined);

@@ -23,7 +23,9 @@ import { mockProgressCounter, type MockExamProgress } from "@/lib/learning/mock-
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 import { assertDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
+import { MOCK_EXAM_BUDGET_MS, MOCK_EXAM_WAVE_CAP, publishReady } from "@/lib/learning/exam-assembly";
 import { fillUntilDelivered } from "@/lib/learning/fill-until-delivered";
+import { avoidListBlock } from "@/lib/learning/item-dedup";
 import { logMockExamWave } from "@/lib/learning/mock-exam/topup";
 import { modelForAttempt } from "@/lib/learning/model-ladder";
 import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities";
@@ -259,6 +261,8 @@ type TopicGenInput = {
   /** Denemenin ayrılmış kredisi; konu üretimi kendi ayırmaz (bkz. createMockExam). */
   reservationId: string;
   modelIndex?: number;
+  /** Kabul edilmiş kökler. Aynı olgu yeniden sorulmasın. */
+  avoid?: string[];
 };
 
 type DraftBase = Pick<MockExamQuestionDraft, "topicId" | "topicLabel" | "source" | "difficulty">;
@@ -334,11 +338,15 @@ export async function assembleMockExamQuestions(input: {
   modelIndexes?: Record<string, number>;
   signal?: AbortSignal;
   /** Konu biter bitmez. İstek düşse de bu sorular kalır. */
-  onCheckpoint?: (snapshot: { items: MockExamQuestionDraft[]; topicsAttempted: string[] }) => Promise<void>;
+  onCheckpoint?: (snapshot: { items: MockExamQuestionDraft[]; topicsAttempted: string[]; wave?: number }) => Promise<void>;
   /** Günlük satırı. Soru metni yazılmaz. */
   examId?: string | null;
   /** Bu çağrıdan önce biten dalga. Parça parça istek bunu saklar. */
   wave?: number;
+  /** Kâğıdın başladığı an. Duvar saati buna göre. */
+  startedAt?: number;
+  /** Zorlamalı doldurma daha önce denendi. */
+  forced?: boolean;
 }): Promise<
   | {
       ok: true;
@@ -349,6 +357,7 @@ export async function assembleMockExamQuestions(input: {
       topicsAttempted: string[];
       topicTotal: number;
       modelIndexes: Record<string, number>;
+      forced: boolean;
     }
   | {
       ok: false;
@@ -359,6 +368,7 @@ export async function assembleMockExamQuestions(input: {
       topicsAttempted: string[];
       topicTotal: number;
       modelIndexes: Record<string, number>;
+      forced: boolean;
     }
 > {
   const allocation = input.blueprint.allocation.filter((row) => row.count > 0);
@@ -372,6 +382,7 @@ export async function assembleMockExamQuestions(input: {
     tick(label);
   };
   const bag = [...(input.prior ?? [])];
+  let liveWave = input.wave ?? 0;
   let chain = Promise.resolve();
   const exclusive = (task: () => Promise<void>) => {
     const run = chain.then(task, task);
@@ -385,8 +396,17 @@ export async function assembleMockExamQuestions(input: {
     slots,
     prior: input.prior,
     maxWaves: input.maxWaves ?? 4,
+    followUpWaves: input.maxWaves === 1 ? MOCK_EXAM_WAVE_CAP : undefined,
+    waveCap: MOCK_EXAM_WAVE_CAP,
+    budgetMs: MOCK_EXAM_BUDGET_MS,
+    startedAt: input.startedAt,
+    forced: input.forced,
     initialWave: input.wave ?? 0,
-    onWave: (report) => logMockExamWave({ examId: input.examId ?? null, ...report }),
+    onWave: (report) => {
+      liveWave = report.wave;
+      logMockExamWave({ examId: input.examId ?? null, ...report });
+      void input.onCheckpoint?.({ items: bag.slice(), topicsAttempted: [...reported], wave: report.wave });
+    },
     parallelism: TOPIC_GENERATE_CONCURRENCY,
     signal: input.signal,
     modelIndexes: input.modelIndexes,
@@ -394,7 +414,7 @@ export async function assembleMockExamQuestions(input: {
       if (input.signal?.aborted) return Promise.resolve([]);
       const row = { topicId: request.topicId, topicLabel: request.topicLabel, count: request.slots.length };
       const typed = request.slots.map((slot) => ({
-        type: slot.type as MockQuestionType,
+        type: (request.relaxed ? "mcq" : slot.type) as MockQuestionType,
         points: slot.points ?? 4,
       }));
       return generateForTopic({
@@ -409,12 +429,13 @@ export async function assembleMockExamQuestions(input: {
         chargeKey: input.chargeKey,
         reservationId: input.reservationId,
         modelIndex: request.modelIndex,
+        avoid: request.avoid,
       })
         .then((produced) =>
           exclusive(async () => {
             bag.push(...produced);
             const topicsAttempted = reported.has(row.topicLabel) ? [...reported] : [...reported, row.topicLabel];
-            await input.onCheckpoint?.({ items: bag.slice(), topicsAttempted });
+            await input.onCheckpoint?.({ items: bag.slice(), topicsAttempted, wave: liveWave });
           }).then(() => produced),
         )
         .finally(() => progress(row.topicLabel));
@@ -429,12 +450,28 @@ export async function assembleMockExamQuestions(input: {
     topicsAttempted: [...reported],
     topicTotal: allocation.length,
     modelIndexes: filled.modelIndexes,
+    forced: filled.forced,
   };
   if (!filled.ok) return { ok: false, questions: bag.slice(), ...meta };
-  let questions = filled.items;
+  let questions = filled.items.map((question, index) => ({
+    ...question,
+    points: filled.slots[index]?.points ?? question.points,
+  }));
   if (!letterBalanceOk(questions)) questions = rotateCorrectOptions(questions);
   const gate = assertDeliverable(filled.slots, questions, readDraft);
-  if (!gate.canPublish) return { ok: false, questions: bag.slice(), ...meta };
+  if (!gate.canPublish) {
+    const again = publishReady(filled.slots, questions, readDraft);
+    if (!again.ok) return { ok: false, questions: bag.slice(), ...meta };
+    return {
+      ok: true,
+      questions: again.items.map((question, index) => ({
+        ...question,
+        points: again.slots[index]?.points ?? question.points,
+      })),
+      ...meta,
+      slots: again.slots,
+    };
+  }
   return { ok: true, questions: gate.publishable, ...meta };
 }
 
@@ -557,6 +594,7 @@ async function choiceDrafts(
     multi: slots.some((slot) => slot.type === "multi_mcq"),
     topicLabel: input.topic.topicLabel,
     prepTitle: input.prepTitle,
+    previousStems: input.avoid,
     userPrompt: [
       `Sınav: ${input.prepTitle}.`,
       `Konu: ${input.topic.topicLabel}.`,
@@ -564,7 +602,9 @@ async function choiceDrafts(
       "Sınav disiplini: ipucu yok, doğru cevabı soru metnine koyma.",
       "Her soruda explanation ve optionWhy zorunlu.",
       "Soru doğru kalsın ve yalnız bu konudan olsun. Cümleyi aynen kopyalamak zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin. Yanlış olgu yazma.",
+      "Aynı olguyu, aynı cevabı ya da aynı kökü ikinci kez sorma. Sıradaki soru farklı bir alt başlık ya da açı olsun.",
       coverageBlock(block, input.topic.topicLabel, slots.length),
+      avoidListBlock("KABUL EDİLMİŞ SORULAR (bununla örtüşen olgu, cevap ya da kök yazma):", input.avoid ?? []),
     ]
       .filter(Boolean)
       .join("\n"),
@@ -624,7 +664,9 @@ async function openDrafts(
           brief: [
             "Yazılı deneme: öğrenci cevabı birkaç cümleyle kâğıda ya da uygulamaya yazacak.",
             "Soru doğru kalsın ve bu konuda kalsın. Cümleyi aynen kopyalamak zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin.",
+            "Aynı olguyu, aynı cevabı ya da aynı kökü ikinci kez sorma. Sıradaki soru farklı bir alt başlık ya da açı olsun.",
             coverageBlock(block, input.topic.topicLabel, slots.length),
+            avoidListBlock("KABUL EDİLMİŞ SORULAR (bununla örtüşen olgu, cevap ya da kök yazma):", input.avoid ?? []),
           ]
             .filter(Boolean)
             .join("\n"),

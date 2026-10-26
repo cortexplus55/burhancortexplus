@@ -248,6 +248,7 @@ describe("yazılı deneme: tablo yokken süre dolunca", () => {
     seeded.startedAt = now - JOB_BUDGET_MS;
     seeded.promised = 20;
     seeded.topicTotal = 5;
+    seeded.forced = true;
     seeded.items = [item(slots(1, 1)[0]!, 1)];
     seeded.topicsAttempted = ["Alfa"];
     const created = mustRecord(await store.create(seeded));

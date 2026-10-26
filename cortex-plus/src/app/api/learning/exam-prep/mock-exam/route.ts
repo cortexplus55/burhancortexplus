@@ -5,6 +5,7 @@ import { isPremiumUser } from "@/lib/ai/generate";
 import { pumpMockExamJob, startDurableMockExam } from "@/lib/learning/mock-exam-durable";
 import {
   hasInFlightMockBuild,
+  recoverStaleMockBuilds,
   runFallbackMockExam,
   type FallbackExamInput,
 } from "@/lib/learning/mock-exam/fallback-exam";
@@ -26,6 +27,20 @@ const bodySchema = z.object({
   /** Bütçe bitince öğrenci aynı kâğıdı sürdürür. */
   retry: z.boolean().optional(),
 });
+
+function publishedData(recovery: { examId: string; planned: number; topicTotal: number; resumeId: string }) {
+  return {
+    ok: true as const,
+    examId: recovery.examId,
+    resumeId: recovery.resumeId,
+    running: false,
+    planned: recovery.planned,
+    ready: recovery.topicTotal,
+    note: null,
+    topicsReady: recovery.topicTotal,
+    topicTotal: recovery.topicTotal,
+  };
+}
 
 function chunkData(result: Extract<ChunkOutcome, { ok: true }>) {
   return {
@@ -82,7 +97,23 @@ export async function POST(request: Request) {
     signal: request.signal,
   };
   const stream = request.headers.get("accept")?.includes("application/x-ndjson") === true;
-  const inFlight = Boolean(parsed.data.resumeId) || (await hasInFlightMockBuild(service, userId, parsed.data.prepId));
+  const recovery = await recoverStaleMockBuilds({
+    service,
+    userId,
+    prepId: fields.prepId,
+    resumeId: fields.resumeId,
+  });
+  if (recovery.kind === "published") {
+    const body = publishedData(recovery);
+    if (stream) {
+      return ndjsonResponse(async (write) => {
+        write({ type: "done", status: 200, data: body });
+      });
+    }
+    return NextResponse.json(body);
+  }
+  if (recovery.droppedResume) fields.resumeId = undefined;
+  const inFlight = Boolean(fields.resumeId) || (await hasInFlightMockBuild(service, userId, parsed.data.prepId));
 
   if (!inFlight) {
     const durable = await startDurableMockExam({

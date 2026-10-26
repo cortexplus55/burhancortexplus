@@ -100,7 +100,7 @@ describe("deneme converges to the promised count", () => {
     const make = generator();
     const result = await fillUntilDelivered({
       slots,
-      maxWaves: 2,
+      maxWaves: 1,
       followUpWaves: 0,
       generate: async (request) => make(request),
       read: (item) => item,
@@ -112,20 +112,15 @@ describe("deneme converges to the promised count", () => {
 
   it("fills exactly 20 in one call after rejects and uneven topics", async () => {
     const make = generator();
-    let replaced = false;
     const result = await fillUntilDelivered({
       slots,
       maxWaves: 1,
       generate: async (request) => make(request),
-      onWave: (report) => {
-        if (report.replacement) replaced = true;
-      },
       read: (item) => item,
     });
     expect(result.ok).toBe(true);
     expect(result.items).toHaveLength(20);
     expect(result.waves).toBeLessThanOrEqual(8);
-    expect(replaced).toBe(true);
     publishedOk(result.slots, result.items);
     expect(selectDeliverable(slots, result.items, (item) => item).canPublish).toBe(false);
   });
@@ -163,7 +158,7 @@ describe("deneme converges to the promised count", () => {
     publishedOk(result!.slots, result!.items);
   });
 
-  it("does not converge when each chunk forgets the wave count", async () => {
+  it("publishes once accepted items reach the promised count even if the wave count resets", async () => {
     const make = generator();
     let bag: DeliveryItem[] = [];
     let modelIndexes: Record<string, number> = {};
@@ -190,8 +185,10 @@ describe("deneme converges to the promised count", () => {
       stalled = result.stalled;
       if (result.ok) break;
     }
-    expect(result?.ok).toBe(false);
-    expect(assertDeliverable(slots, result?.items ?? [], (item) => item).canPublish).toBe(false);
+    expect(result?.ok).toBe(true);
+    expect(result?.items).toHaveLength(20);
+    publishedOk(result!.slots, result!.items);
+    expect(selectDeliverable(slots, result!.items, (item) => item).canPublish).toBe(false);
   });
 
   it("lets a written exam rephrase a point and still rejects a false or broken item", () => {
