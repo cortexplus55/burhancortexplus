@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /*
-  19 Ekim 2026, ürün sahibi: "oluşturulamadı gibi uyarılar olmasın". Test motorunda yetersiz soru
-  (asgari count−2, en az 3) doğrudan `generation_failed` oluyordu. Şimdi ikinci taslak yazılır,
-  yeni sorular eklenir; iki geçişten sonra bile iki sorunun altındaysa test yok.
+  Söz verilen sayı dolmadan test yayımlanmaz. İlk taslak kısa kalırsa sonraki taslaklar
+  eklenir. Sayı yine tutmazsa test yok, kredi iade. Kısa liste öğrenciye gitmez.
 */
 const credits = vi.hoisted(() => ({
   reserveCredits: vi.fn(async () => ({ ok: true, reservationId: "res-1", cost: 4 })),
@@ -90,17 +89,17 @@ beforeEach(() => {
   ai.verifies = 0;
 });
 
-describe("test motoru: yetersiz soru ikinci taslak demek", () => {
-  it("ilk taslak 1 soru verirse ikinci taslak eklenir; test 4 soruyla açılır, kredi bir kez kesinleşir", async () => {
-    ai.draftSizes = [1, 3];
+describe("test motoru: yetersiz soru sonraki taslak demek", () => {
+  it("ilk taslak 1, ikinci 3 verirse üçüncü eksiği kapatır; test 5 soruyla açılır, kredi bir kez kesinleşir", async () => {
+    ai.draftSizes = [1, 3, 1];
     const out = await runTeacherQuiz({} as never, input);
-    expect(out.ok && out.questions.length).toBe(4);
-    expect(ai.drafts).toBe(2);
+    expect(out.ok && out.questions.length).toBe(5);
+    expect(ai.drafts).toBe(3);
     expect(credits.commitCredits).toHaveBeenCalledTimes(1);
     expect(credits.refundCredits).not.toHaveBeenCalled();
   });
 
-  it("iki geçişten sonra bile iki sorunun altındaysa test yok, kredi iade", async () => {
+  it("söz verilen sayıya ulaşılmazsa test yok, kredi iade", async () => {
     ai.draftSizes = [1, 0];
     const out = await runTeacherQuiz({} as never, input);
     expect(out.ok).toBe(false);

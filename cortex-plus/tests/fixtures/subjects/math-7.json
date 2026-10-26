@@ -1,0 +1,12 @@
+{
+  "id": "math-7",
+  "level": "grade-7",
+  "language": "tr",
+  "material": "Bir dikdörtgenin kısa kenarı 3 cm ve uzun kenarı 8 cm olan bir şekildir. Bu şeklin alanı 24 cm karedir. Çevre hesabı için iki kenar toplanır. Bir oranın değeri %40 olabilir. İç açı 60 derece olan bir üçgende bu ilişki kurulur.",
+  "topics": [
+    { "id": "perimeter", "label": "Çevre", "points": ["kısa kenar 3 cm", "uzun kenar 8 cm"] },
+    { "id": "area", "label": "Alan", "points": ["alan 24 cm", "kare bölge 24 cm"] },
+    { "id": "ratio", "label": "Oran", "points": ["değer %40", "payda oranı 40"] },
+    { "id": "angle", "label": "Açı", "points": ["iç açı 60", "tümler açı 30"] }
+  ]
+}

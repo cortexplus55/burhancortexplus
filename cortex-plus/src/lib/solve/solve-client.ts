@@ -78,7 +78,7 @@ export async function requestSolve(request: SolveRequest, onEvent: (event: Solve
     response = await fetch("/api/ai/solve", { method: "POST", body: form, signal: request.signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    onEvent({ type: "error", code: "network", message: "Bağlantı kurulamadı. İnternetini kontrol edip yeniden dene.", status: 0 });
+    onEvent({ type: "error", code: "network", message: "Çevrimdışısın. Yeniden dene.", status: 0 });
     return;
   }
   if (!response.ok || !response.body) {

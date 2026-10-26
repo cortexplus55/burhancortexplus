@@ -1,0 +1,12 @@
+{
+  "id": "english-grammar",
+  "level": "grade-9",
+  "language": "en",
+  "material": "The subject and the verb is to agree for a singular noun with the ending. A student is to use the past form for a finished action and the article is the word before a noun. The form of the verb is regular with the ending.",
+  "topics": [
+    { "id": "agreement", "label": "Agreement", "points": ["the verb agrees", "the subject is singular"] },
+    { "id": "past", "label": "Past forms", "points": ["the past form", "a finished action"] },
+    { "id": "article", "label": "Articles", "points": ["the article is the", "a noun takes the"] },
+    { "id": "regular", "label": "Endings", "points": ["the ending is regular", "the form is regular"] }
+  ]
+}

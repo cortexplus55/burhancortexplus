@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { createMockExam, type CreateMockExamResult } from "@/lib/learning/mock-exam/create";
+import { pumpMockExamJob, startDurableMockExam } from "@/lib/learning/mock-exam-durable";
 import type { MockExamProgress } from "@/lib/learning/mock-exam/progress";
 import { clampMockMinutes, MOCK_MINUTES_MAX } from "@/lib/learning/mock-exam/time-limit";
 
@@ -37,18 +38,33 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
+  const fields = {
+    service,
+    userId,
+    isPremium: await isPremiumUser(service, userId),
+    prepId: parsed.data.prepId,
+    preset: parsed.data.preset,
+    scope: parsed.data.scope,
+    topicIds: parsed.data.topicIds,
+    durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
+  };
+  const durable = await startDurableMockExam(fields);
+  if (durable && durable.ok) {
+    after(() => pumpMockExamJob(service, durable.jobId).catch(() => undefined));
+  }
+  const pendingBody = durable && durable.ok
+    ? {
+        ok: true as const,
+        jobId: durable.jobId,
+        planned: durable.planned,
+        ready: durable.progress.ready,
+        note: null,
+        progress: durable.progress,
+      }
+    : null;
+
   const run = async (onProgress?: (progress: MockExamProgress) => void) =>
-    createMockExam({
-      service,
-      userId,
-      isPremium: await isPremiumUser(service, userId),
-      prepId: parsed.data.prepId,
-      preset: parsed.data.preset,
-      scope: parsed.data.scope,
-      topicIds: parsed.data.topicIds,
-      durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
-      onProgress,
-    });
+    createMockExam({ ...fields, onProgress });
 
   // Kurulum ekranı biten konu sayısını canlı gösterir (25 Ekim 2026): NDJSON, son satır sonuç.
   if (request.headers.get("accept")?.includes("application/x-ndjson")) {
@@ -57,6 +73,20 @@ export async function POST(request: Request) {
       async start(controller) {
         const write = (line: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
         try {
+          if (durable && !durable.ok) {
+            write({ type: "done", status: durable.status, data: { error: durable.error, code: durable.error } });
+            return;
+          }
+          if (pendingBody) {
+            write({
+              type: "progress",
+              done: pendingBody.progress.ready,
+              total: pendingBody.progress.promised,
+              label: null,
+            });
+            write({ type: "done", status: 200, data: pendingBody });
+            return;
+          }
           const result = await run((progress) => write({ type: "progress", ...progress }));
           write(
             result.ok
@@ -75,6 +105,8 @@ export async function POST(request: Request) {
     });
   }
 
+  if (durable && !durable.ok) return errorResponse(durable.status, durable.error);
+  if (pendingBody) return NextResponse.json(pendingBody);
   const result = await run();
   if (!result.ok) return errorResponse(result.status, result.error);
   return NextResponse.json(resultBody(result));

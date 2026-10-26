@@ -114,6 +114,21 @@
   to { transform: rotateY(360deg); }
 }
 
+.apg-meter {
+  width: min(18rem, 100%);
+  height: 0.5rem;
+  margin: 1.25rem auto 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1f1f1f;
+}
+
+.apg-meter > span {
+  display: block;
+  height: 100%;
+  background: #4353f3;
+}
+
 .apg-steps {
   display: flex;
   flex-direction: column;

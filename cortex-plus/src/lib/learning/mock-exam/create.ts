@@ -9,7 +9,6 @@ import {
   slotFromTopicRow,
   buildBlueprint,
   defaultSlots,
-  filterOverlappingQuestions,
   letterBalanceOk,
   parseExamFormatFromText,
   polishMockCopy,
@@ -23,7 +22,10 @@ import {
 import { mockProgressCounter, type MockExamProgress } from "@/lib/learning/mock-exam/progress";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
-import { dropNearDuplicates } from "@/lib/learning/item-dedup";
+import { assertDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
+import { fillUntilDelivered } from "@/lib/learning/fill-until-delivered";
+import { modelForAttempt } from "@/lib/learning/model-ladder";
+import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -60,9 +62,85 @@ type TopicRow = {
   source_refs: unknown;
 };
 
+export type MockExamPlan = {
+  prepTitle: string;
+  documentId: string | null;
+  topics: TopicRow[];
+  blueprint: MockExamBlueprint;
+  blocks: Map<string, string>;
+};
+
 export async function createMockExam(input: CreateMockExamInput): Promise<CreateMockExamResult> {
+  const planned = await planMockExam(input);
+  if (!planned.ok) return planned;
   const { service, userId, prepId } = input;
-  const startedAt = Date.now();
+  const { plan } = planned;
+
+  // Deneme başına tek ücret: kredi burada bir kez ayrılır, konu üretimleri bu ayrılışı
+  // kullanır. 17 Ekim 2026'ya kadar her konu aynı anahtarla kendi ayırmaya çalışıyordu;
+  // yalnız ilk konu geçiyor, ötekiler "işlem sürüyor/bitti" ile boş dönüyordu (Pediatri'de
+  // 10 sorudan 1'i).
+  const chargeKey = `practice-exam:${prepId}:${userId}:${Date.now()}`;
+  const charge = await reserveCredits(service, userId, "PRACTICE_EXAM_GENERATE", chargeKey);
+  if (!charge.ok) {
+    // Ücretsizde deneme Plus'ta: kod `premium_required`, kapı geri sayımsız "Plus'ta açık" der (24 Ekim 2026).
+    return { ok: false, status: charge.reason === "insufficient_credits" ? 402 : 409, error: refusalCode(charge) };
+  }
+  const reservationId = charge.reservationId;
+  const refund = () => refundCredits(service, reservationId).catch(() => undefined);
+
+  try {
+    const assembled = await assembleMockExamQuestions({
+      service,
+      userId,
+      isPremium: input.isPremium,
+      prepTitle: plan.prepTitle,
+      documentId: plan.documentId,
+      topics: plan.topics,
+      blueprint: plan.blueprint,
+      reservationId,
+      chargeKey,
+      onProgress: input.onProgress,
+      blocks: plan.blocks,
+    });
+    if (!assembled.ok) {
+      await refund();
+      return { ok: false, status: 500, error: "generation_failed" };
+    }
+    const saved = await persistMockExam({
+      service,
+      userId,
+      prepId,
+      prepTitle: plan.prepTitle,
+      blueprint: plan.blueprint,
+      questions: assembled.questions,
+      slots: assembled.slots,
+      scope: input.scope,
+      topicIds: input.topicIds,
+    });
+    if (!saved.ok) {
+      await refund();
+      return { ok: false, status: 500, error: "generation_failed" };
+    }
+    await commitCredits(service, reservationId);
+    return {
+      ok: true,
+      examId: saved.examId,
+      blueprint: plan.blueprint,
+      planned: assembled.planned,
+      ready: assembled.planned,
+      note: null,
+    };
+  } catch (error) {
+    await refund();
+    throw error;
+  }
+}
+
+export async function planMockExam(
+  input: CreateMockExamInput,
+): Promise<{ ok: true; plan: MockExamPlan } | { ok: false; status: number; error: string }> {
+  const { service, userId, prepId } = input;
 
   const { data: prep } = await service
     .from("exam_preps")
@@ -112,11 +190,13 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
     return slot;
   });
 
-  // Pasaj uzunluklarını doldur (konular birbirini beklemez).
+  // Pasaj uzunluklarını doldur (konular birbirini beklemez). Aynı okuma kapsam noktalarını da kurar.
+  const blocks = new Map<string, string>();
   await Promise.all(
     slots.map(async (slot) => {
       if (slot.outOfScope) return;
       const ctx = await topicContext(service, userId, prep.document_id as string | null, slot.topicLabel, topics);
+      blocks.set(slot.topicLabel, ctx.block);
       slot.passageChars = Math.max(40, ctx.block.length);
     }),
   );
@@ -125,7 +205,7 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
     .filter((s) => !s.outOfScope)
     .map((s) => s.topicLabel)
     .join(" ");
-  const allowNumeric = subjectAllowsNumeric(String(prep.exam_type ?? ""), sampleSource + syllabusText);
+  const allowNumeric = sourceHasMeasurableQuantities(sampleSource + syllabusText);
 
   let preset: MockLengthPreset = input.preset ?? (syllabus ? "real" : "standard");
   if (input.questionCount != null) {
@@ -150,162 +230,16 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
   }
   if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
 
-  // Deneme başına tek ücret: kredi burada bir kez ayrılır, konu üretimleri bu ayrılışı
-  // kullanır. 17 Ekim 2026'ya kadar her konu aynı anahtarla kendi ayırmaya çalışıyordu;
-  // yalnız ilk konu geçiyor, ötekiler "işlem sürüyor/bitti" ile boş dönüyordu (Pediatri'de
-  // 10 sorudan 1'i).
-  const chargeKey = `practice-exam:${prepId}:${userId}:${Date.now()}`;
-  const charge = await reserveCredits(service, userId, "PRACTICE_EXAM_GENERATE", chargeKey);
-  if (!charge.ok) {
-    // Ücretsizde deneme Plus'ta: kod `premium_required`, kapı geri sayımsız "Plus'ta açık" der (24 Ekim 2026).
-    return { ok: false, status: charge.reason === "insufficient_credits" ? 402 : 409, error: refusalCode(charge) };
-  }
-  const reservationId = charge.reservationId;
-  const refund = () => refundCredits(service, reservationId).catch(() => undefined);
-
-  try {
-    const drafts: MockExamQuestionDraft[] = [];
-    const allocation = blueprint.allocation.filter((a) => a.count > 0);
-    const slotQueue = [...blueprint.slots];
-    const progress = mockProgressCounter(allocation.length, input.onProgress);
-
-    // Konu başına paralel üretim; her biten konu ilerlemeyi bir artırır.
-    for (let i = 0; i < allocation.length; i += TOPIC_GENERATE_CONCURRENCY) {
-      const batch = allocation.slice(i, i + TOPIC_GENERATE_CONCURRENCY);
-      const batchPlans = batch.map((row) => ({
-        row,
-        slots: slotQueue.splice(0, row.count),
-      }));
-      const parts = await Promise.all(
-        batchPlans.map(({ row, slots }) =>
-          generateForTopic({
-            service,
-            userId,
-            isPremium: input.isPremium,
-            prepTitle: String(prep.title),
-            documentId: prep.document_id as string | null,
-            topic: row,
-            slots: slots.length ? slots : [{ type: "mcq", points: 4 }],
-            allTopics: topics,
-            chargeKey,
-            reservationId,
-          }).finally(() => progress(row.topicLabel)),
-        ),
-      );
-      for (const part of parts) drafts.push(...part);
-    }
-
-    let questions = dropNearDuplicates(filterOverlappingQuestions(drafts), (question) => question.text);
-    // Kaynaksız soru yayımlama
-    questions = questions.filter((q) => q.source.label.trim().length > 0);
-
-    // Harf dengesi bozuksa mcq'ları karıştır (yeniden üretmek yerine)
-    if (!letterBalanceOk(questions)) {
-      questions = rotateCorrectOptions(questions);
-    }
-
-    // Eksikse bir kez daha dene: eksik kalan konular, çoktan seçmeli (17 Ekim 2026'ya kadar her
-    // zaman listenin ilk konusu deneniyordu; Nefroloji boş kalınca yerine Büyüme'den ikinci soru geldi).
-    // 19 Ekim 2026: hiç soru vermeyen konu yine yeniden denenir; kısmen dolan zor konu ise baştan
-    // denenmez, eksik soru kendi sorularını sorunsuz veren konulardan gelir. Araçlar'daki 10 soruluk
-    // Ekonomi yazılısında tek konu 143 sn uğraşıp 1 soru verdi, tamamlama aynı konuyu 132 sn daha
-    // denedi; deneme 280 sn sürdü (tavan 300). Tamamlama ancak TOPUP_DEADLINE_MS'den önce başlar.
-    const planned = blueprint.questionCount;
-    if (questions.length < planned && allocation.length && Date.now() - startedAt < TOPUP_DEADLINE_MS) {
-      const have = new Map<string, number>();
-      for (const q of questions) have.set(q.topicLabel, (have.get(q.topicLabel) ?? 0) + 1);
-      const targets = topUpTargets(allocation, have, planned - questions.length).slice(0, TOPIC_GENERATE_CONCURRENCY);
-      const extra = await Promise.all(
-        targets.map(({ row, missing }) =>
-          generateForTopic({
-            service,
-            userId,
-            isPremium: input.isPremium,
-            prepTitle: String(prep.title),
-            documentId: prep.document_id as string | null,
-            topic: row,
-            slots: Array.from({ length: Math.min(4, missing) }, () => ({ type: "mcq" as const, points: 4 })),
-            allTopics: topics,
-            chargeKey,
-            reservationId,
-          }),
-        ),
-      );
-      questions = dropNearDuplicates(
-        filterOverlappingQuestions([
-          ...questions,
-          ...extra.flat().filter((q) => q.source.label.trim()),
-        ]),
-        (question) => question.text,
-      ).slice(0, planned);
-    }
-
-    const ready = questions.length;
-    if (!ready) {
-      await refund();
-      return { ok: false, status: 500, error: "generation_failed" };
-    }
-
-    const note =
-      ready < planned
-        ? polishMockCopy(`Planlanan ${planned} sorudan ${ready}'si hazırlandı.`)
-        : null;
-
-    const { data: exam, error: examError } = await service
-      .from("practice_exams")
-      .insert({
-        user_id: userId,
-        title: `${prep.title} · yazılı deneme`,
-        duration_minutes: blueprint.durationMinutes,
-        exam_prep_id: prepId,
-        blueprint,
-        scope: input.scope ?? "all",
-        topic_ids: input.topicIds ?? null,
-      })
-      .select("id")
-      .single();
-
-    if (examError || !exam) {
-      await refund();
-      return { ok: false, status: 500, error: "generation_failed" };
-    }
-
-    await service.from("practice_exam_questions").insert(
-      questions.map((q, sort_order) => ({
-        exam_id: exam.id,
-        question_text: q.text,
-        question_type: q.type,
-        options: q.options.length ? q.options : null,
-        correct_answer: q.correctAnswers[0] ?? null,
-        correct_answers: q.correctAnswers,
-        points: q.points,
-        sort_order,
-        topic_id: q.topicId,
-        topic_label: q.topicLabel,
-        explanation: q.explanation,
-        option_why: q.optionWhy.length ? q.optionWhy : null,
-        rubric: q.rubric.length ? q.rubric : null,
-        model_answer: q.modelAnswer || null,
-        source_document_id: q.source.documentId,
-        source_page: q.source.page,
-        source_label: q.source.label,
-        difficulty: q.difficulty,
-      })),
-    );
-
-    await commitCredits(service, reservationId);
-    return {
-      ok: true,
-      examId: exam.id as string,
+  return {
+    ok: true,
+    plan: {
+      prepTitle: String(prep.title),
+      documentId: (prep.document_id as string | null) ?? null,
+      topics,
       blueprint,
-      planned,
-      ready,
-      note,
-    };
-  } catch (error) {
-    await refund();
-    throw error;
-  }
+      blocks,
+    },
+  };
 }
 
 /** Açık uçlu yerler (Astra'nın kâğıdındaki yazma yeri) sözlü deneme motorundan gelir. */
@@ -323,6 +257,7 @@ type TopicGenInput = {
   chargeKey: string;
   /** Denemenin ayrılmış kredisi; konu üretimi kendi ayırmaz (bkz. createMockExam). */
   reservationId: string;
+  modelIndex?: number;
 };
 
 type DraftBase = Pick<MockExamQuestionDraft, "topicId" | "topicLabel" | "source" | "difficulty">;
@@ -332,6 +267,167 @@ function coverageBlock(block: string, topicLabel: string, count: number): string
   const points = topicCoveragePoints([{ text: block }], topicLabel);
   const assigned = assignExamCoverage([{ topicLabel, count }], new Map([[topicLabel, points]]));
   return coverageAsk(assigned.map((slot) => slot.point));
+}
+
+function readDraft(question: MockExamQuestionDraft): DeliveryItem {
+  return {
+    topicId: question.topicId,
+    topicLabel: question.topicLabel,
+    type: question.type,
+    text: question.text,
+    options: question.options,
+    correctAnswers: question.correctAnswers,
+    explanation: question.explanation,
+    sourceLabel: question.source.label,
+  };
+}
+
+function buildDeliverySlots(blueprint: MockExamBlueprint, blocks: Map<string, string> | undefined): DeliverySlot[] {
+  const allocation = blueprint.allocation.filter((row) => row.count > 0);
+  const queue = [...blueprint.slots];
+  const points = new Map<string, ReturnType<typeof topicCoveragePoints>>();
+  for (const row of allocation) {
+    points.set(row.topicLabel, topicCoveragePoints([{ text: blocks?.get(row.topicLabel) ?? "" }], row.topicLabel));
+  }
+  const coverage = assignExamCoverage(
+    allocation.map((row) => ({ topicLabel: row.topicLabel, count: row.count })),
+    points,
+  );
+  const slots: DeliverySlot[] = [];
+  let cursor = 0;
+  for (const row of allocation) {
+    const planned = queue.splice(0, row.count);
+    const typed = planned.length ? planned : [{ type: "mcq" as const, points: 4 }];
+    for (const plan of typed) {
+      const point = coverage[cursor];
+      cursor += 1;
+      slots.push({
+        topicId: row.topicId,
+        topicLabel: row.topicLabel,
+        type: plan.type,
+        points: plan.points,
+        point: point?.point ?? null,
+        signature: point?.signature ?? "",
+      });
+    }
+  }
+  return slots;
+}
+
+export async function assembleMockExamQuestions(input: {
+  service: SupabaseClient;
+  userId: string;
+  isPremium: boolean;
+  prepTitle: string;
+  documentId: string | null;
+  topics: TopicRow[];
+  blueprint: MockExamBlueprint;
+  reservationId: string;
+  chargeKey: string;
+  prior?: MockExamQuestionDraft[];
+  maxWaves?: number;
+  onProgress?: (progress: MockExamProgress) => void;
+  blocks?: Map<string, string>;
+}): Promise<
+  | { ok: true; questions: MockExamQuestionDraft[]; planned: number; slots: DeliverySlot[] }
+  | { ok: false; questions: MockExamQuestionDraft[]; planned: number; slots: DeliverySlot[] }
+> {
+  const allocation = input.blueprint.allocation.filter((row) => row.count > 0);
+  const slots = buildDeliverySlots(input.blueprint, input.blocks);
+  const tick = mockProgressCounter(allocation.length, input.onProgress);
+  const reported = new Set<string>();
+  const progress = (label: string) => {
+    if (reported.has(label)) return;
+    reported.add(label);
+    tick(label);
+  };
+  const filled = await fillUntilDelivered({
+    slots,
+    prior: input.prior,
+    maxWaves: input.maxWaves ?? 4,
+    parallelism: TOPIC_GENERATE_CONCURRENCY,
+    generate: (request) => {
+      const row = { topicId: request.topicId, topicLabel: request.topicLabel, count: request.slots.length };
+      const typed = request.slots.map((slot) => ({
+        type: slot.type as MockQuestionType,
+        points: slot.points ?? 4,
+      }));
+      return generateForTopic({
+        service: input.service,
+        userId: input.userId,
+        isPremium: input.isPremium,
+        prepTitle: input.prepTitle,
+        documentId: input.documentId,
+        topic: row,
+        slots: typed.length ? typed : [{ type: "mcq", points: 4 }],
+        allTopics: input.topics,
+        chargeKey: input.chargeKey,
+        reservationId: input.reservationId,
+        modelIndex: request.modelIndex,
+      }).finally(() => progress(row.topicLabel));
+    },
+    read: readDraft,
+  });
+  const planned = input.blueprint.questionCount;
+  if (!filled.ok) return { ok: false, questions: filled.items, planned, slots };
+  let questions = filled.items;
+  if (!letterBalanceOk(questions)) questions = rotateCorrectOptions(questions);
+  const gate = assertDeliverable(slots, questions, readDraft);
+  if (!gate.canPublish) return { ok: false, questions, planned, slots };
+  return { ok: true, questions: gate.publishable, planned, slots };
+}
+
+export async function persistMockExam(input: {
+  service: SupabaseClient;
+  userId: string;
+  prepId: string;
+  prepTitle: string;
+  blueprint: MockExamBlueprint;
+  questions: MockExamQuestionDraft[];
+  slots: DeliverySlot[];
+  scope?: "all" | "topics";
+  topicIds?: string[];
+}): Promise<{ ok: true; examId: string } | { ok: false }> {
+  const gate = assertDeliverable(input.slots, input.questions, readDraft);
+  if (!gate.canPublish || gate.publishable.length !== input.blueprint.questionCount) return { ok: false };
+  const questions = gate.publishable;
+  const { data: exam, error: examError } = await input.service
+    .from("practice_exams")
+    .insert({
+      user_id: input.userId,
+      title: `${input.prepTitle} · yazılı deneme`,
+      duration_minutes: input.blueprint.durationMinutes,
+      exam_prep_id: input.prepId,
+      blueprint: input.blueprint,
+      scope: input.scope ?? "all",
+      topic_ids: input.topicIds ?? null,
+    })
+    .select("id")
+    .single();
+  if (examError || !exam) return { ok: false };
+  await input.service.from("practice_exam_questions").insert(
+    questions.map((q, sort_order) => ({
+      exam_id: exam.id,
+      question_text: q.text,
+      question_type: q.type,
+      options: q.options.length ? q.options : null,
+      correct_answer: q.correctAnswers[0] ?? null,
+      correct_answers: q.correctAnswers,
+      points: q.points,
+      sort_order,
+      topic_id: q.topicId,
+      topic_label: q.topicLabel,
+      explanation: q.explanation,
+      option_why: q.optionWhy.length ? q.optionWhy : null,
+      rubric: q.rubric.length ? q.rubric : null,
+      model_answer: q.modelAnswer || null,
+      source_document_id: q.source.documentId,
+      source_page: q.source.page,
+      source_label: q.source.label,
+      difficulty: q.difficulty,
+    })),
+  );
+  return { ok: true, examId: exam.id as string };
 }
 
 /**
@@ -383,11 +479,9 @@ async function choiceDrafts(
     idempotencyKey: input.chargeKey,
     heldReservationId: input.reservationId,
     count: slots.length,
-    // Tek iyi soru bu konu için yeter: eksik kalan soruyu deneme kendisi tamamlar (motorun
-    // kendi ikinci taslağı zor konuda süreyi ikiye katlıyordu, 19 Ekim 2026).
-    minimum: 1,
     // Öğrenci kurulum ekranında bekliyor: kısa düzeltme bütçesi (25 Ekim 2026).
     urgent: true,
+    model: modelForAttempt(input.modelIndex ?? 0),
     multi: slots.some((slot) => slot.type === "multi_mcq"),
     topicLabel: input.topic.topicLabel,
     prepTitle: input.prepTitle,
@@ -488,9 +582,6 @@ async function openDrafts(
     };
   });
 }
-
-/** Eksik tamamlama ancak denemenin başından bu kadar süre geçmeden başlar (rota tavanı 300 sn). */
-const TOPUP_DEADLINE_MS = 150_000;
 
 /**
  * Eksik soru kotası dolmamış konuda tamamlanır. Kotası dolmuş konuya soru eklenmez.
@@ -612,14 +703,6 @@ function titlesAlign(a: string, b: string): boolean {
   const left = fold(a);
   const right = fold(b);
   return left.includes(right) || right.includes(left);
-}
-
-function subjectAllowsNumeric(examType: string, sample: string): boolean {
-  const folded = fold(`${examType} ${sample.slice(0, 400)}`);
-  if (/tarih|edebiyat|dil\b|felsefe|inkilap|sosyal\s*bilgi|anayasa/.test(folded)) {
-    return false;
-  }
-  return /\d/.test(sample);
 }
 
 function sourceLabelFromBlock(block: string, documentName: string | null): string {

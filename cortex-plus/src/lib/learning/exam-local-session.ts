@@ -492,7 +492,7 @@ export async function buildLocalSessionPayload(
     language,
   });
 
-  if (assembled.questions.length) {
+  if (assembled.questions.length >= 5 && assembled.uncoveredTopics.length === 0) {
     return {
       action: "serve",
       topics: weakTopics,
@@ -501,7 +501,7 @@ export async function buildLocalSessionPayload(
         practice: input.kind,
         reused: true,
         questions: assembled.questions,
-        uncoveredTopics: assembled.uncoveredTopics,
+        uncoveredTopics: [],
       },
     };
   }

@@ -75,6 +75,29 @@ export async function postMockExamWithProgress(
   return once();
 }
 
+/** Arka plan işi bitene kadar yalnız ilerleme. Ağ hatası fırlatılır. */
+export async function pollGenerationJob(
+  jobId: string,
+  onProgress: (progress: MockExamProgress) => void,
+): Promise<{ examId?: string; failed?: boolean }> {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const res = await fetch(`/api/learning/jobs/${jobId}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("job_poll_failed");
+    const data = (await res.json().catch(() => ({}))) as {
+      state?: string;
+      examId?: string | null;
+      progress?: { ready?: number; promised?: number };
+    };
+    const ready = data.progress?.ready ?? 0;
+    const promised = data.progress?.promised ?? 0;
+    onProgress({ done: ready, total: promised || ready, label: null });
+    if (data.state === "done" && data.examId) return { examId: data.examId };
+    if (data.state === "failed") return { failed: true };
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  return { failed: true };
+}
+
 /** NDJSON gövdesini satır satır okur; tam satırları döndürür, yarım kalanı biriktirir. */
 export function splitNdjson(buffer: string): { lines: MockStreamLine[]; rest: string } {
   const parts = buffer.split("\n");

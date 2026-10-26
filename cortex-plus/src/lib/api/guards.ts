@@ -289,7 +289,7 @@ export function errorResponse(
     invalid_ai_response: "Yanıt bu sefer tamamlanamadı; birkaç saniye sonra yeniden dene.",
     podcast_script_rejected:
       "Podcast metni doğrulanamadı. Tutmayan sayı yayınlanmadı; yeniden deneyebilirsin.",
-    generation_failed: "İçerik bu sefer tamamlanamadı; birkaç saniye sonra yeniden dene. Hakkından düşülmedi.",
+    generation_failed: "Hazırlık sürüyor. Yeniden dene.",
     generation_busy: "Şu an çok yoğun; sıradaydın ama yer açılmadı. Birkaç dakika sonra yeniden dene. Hakkından düşülmedi.",
     save_failed: "Değişiklik kaydedilemedi. Lütfen tekrar dene.",
     invalid_input: "Gönderilen bilgiler geçersiz.",

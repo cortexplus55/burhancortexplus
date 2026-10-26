@@ -149,9 +149,7 @@ export function describeGenerationFailure(
     // ikinci deneme de düşünce görünür (ürün sahibi: "oluşturulamadı" gibi uyarılar olmasın).
     case "generation_failed":
       return {
-        message: podcast
-          ? `Podcast bu sefer tamamlanamadı; iki kez denedik.${refundNote} Birkaç saniye sonra yeniden dene.`
-          : `Ders bu sefer tamamlanamadı; iki kez denedik.${refundNote} Birkaç saniye sonra yeniden dene.`,
+        message: `Hazırlık sürüyor.${refundNote} Birkaç saniye sonra yeniden dene.`,
         retryMintsNewId: true,
         canRetryNow: true,
       };
@@ -217,9 +215,7 @@ export function describeGenerationFailure(
 
     default:
       return {
-        message: podcast
-          ? "Podcast bu sefer tamamlanamadı. Birkaç saniye sonra yeniden dene."
-          : "Ders bu sefer tamamlanamadı. Birkaç saniye sonra yeniden dene.",
+        message: `Hazırlık sürüyor.${refundNote} Birkaç saniye sonra yeniden dene.`,
         retryMintsNewId: true,
         canRetryNow: true,
       };

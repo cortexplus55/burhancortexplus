@@ -46,7 +46,7 @@ export function DocumentDeleteButton({ documentId }: { documentId: string }) {
               : "Belge ve bağlı çalışma içerikleri silindi.");
             router.refresh();
             } catch {
-              toast.error("Bağlantı kurulamadı. Silme işlemini yeniden deneyebilirsin.");
+              toast.error("Silme iletilemedi. Yeniden deneyebilirsin.");
             }
           })
         }

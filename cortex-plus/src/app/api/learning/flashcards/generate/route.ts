@@ -33,7 +33,6 @@ export async function POST(request: Request) {
   const source = await studioTeacherSource(service, { userId, topic, documentId });
   if (!source) return errorResponse(409, "document_not_ready");
 
-  const minimum = Math.min(4, count);
   const outcome = await runWithTeacherModel(service, {
     userId,
     actionCode: "FLASHCARD_GENERATE",
@@ -54,10 +53,11 @@ export async function POST(request: Request) {
         started,
       );
       const loop = await run(count);
-      // İstenen sayı tutmadıysa ikinci geçiş eksik kadar yazar; aynı ön yüz iki kez girmez
-      // (19 Ekim 2026: istek sayısı "en az 4"e kadar sessizce düşebiliyordu).
+      // Söz verilen sayı dolana kadar eklenir. Kısa deste yayımlanmaz.
       let cards = loop.cards;
-      if (cards.length < count && Date.now() - started < 110_000) {
+      let tries = 1;
+      while (cards.length < count && tries < 4) {
+        tries += 1;
         const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
         const extra = await run(count - cards.length + 1).catch(() => null);
         for (const card of extra?.cards ?? []) {
@@ -68,8 +68,8 @@ export async function POST(request: Request) {
         }
       }
       const log = { kept: cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
-      return cards.length >= minimum
-        ? { ok: true as const, result: cards, log }
+      return cards.length >= count
+        ? { ok: true as const, result: cards.slice(0, count), log }
         : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
     },
   });
