@@ -42,6 +42,8 @@ export function NodeGenerationProgress({
   note,
   topic,
   warnSlow = true,
+  ready,
+  promised,
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
@@ -56,6 +58,9 @@ export function NodeGenerationProgress({
   topic?: string | null;
   /** Test, kart ve tekrar kendi hedefiyle akar; uzun uyarı yalnız ölçülmeyen beklemelerde. */
   warnSlow?: boolean;
+  /** Söz verilen sayıya göre çubuk. Adımlar durur. */
+  ready?: number;
+  promised?: number;
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
@@ -120,6 +125,18 @@ export function NodeGenerationProgress({
           );
         })}
       </ul>
+      {promised && promised > 0 ? (
+        <div
+          className="apg-meter"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={promised}
+          aria-valuenow={Math.min(promised, ready ?? 0)}
+          aria-label="Hazırlanıyor"
+        >
+          <span style={{ width: `${Math.min(100, Math.round(((ready ?? 0) / promised) * 100))}%` }} />
+        </div>
+      ) : null}
       {note ? (
         <p className="apg-slow" role="status">
           {note}

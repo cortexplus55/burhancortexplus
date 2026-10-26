@@ -1,0 +1,12 @@
+{
+  "id": "history-10",
+  "level": "grade-10",
+  "language": "tr",
+  "material": "1923 yılında cumhuriyet ilan edildi ve bir meclis bu kararı onayladı. 1876 yılında meşrutiyet ilan edildi. Islahat fermanı ile olan haklar bir metinde toplandı. Değil denilen iddialar belgede ayrıca açıklanır.",
+  "topics": [
+    { "id": "mesrutiyet", "label": "Meşrutiyet", "points": ["meşrutiyet ilan edildi", "padişah fermanı açıkladı"] },
+    { "id": "cumhuriyet", "label": "Cumhuriyet", "points": ["cumhuriyet ilan edildi", "egemenlik millete geçti"] },
+    { "id": "meclis", "label": "Meclis", "points": ["meclis kararı onayladı", "yasama mecliste toplandı"] },
+    { "id": "islahat", "label": "Islahat", "points": ["ıslahat fermanı hakları toplar", "eşitlik vaadi yazıldı"] }
+  ]
+}

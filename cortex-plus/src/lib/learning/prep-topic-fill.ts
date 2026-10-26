@@ -129,7 +129,6 @@ export async function fillTopicQuestions(
             runningHeaders: source.edges,
             mode: source.pages.length ? "document" : "topic",
             count: input.perTopic,
-            minimum: 1,
             focus: "practice",
             urgent: !free,
             ...(input.previousStems?.length ? { previousStems: input.previousStems } : {}),
@@ -141,13 +140,18 @@ export async function fillTopicQuestions(
       results.push(...parts);
     }
     const questions = results.flat();
-    const covered = new Set(questions.map((question) => normalizeTopicKey(question.topic)));
-    const missing = input.topics.filter((topic) => !covered.has(normalizeTopicKey(topic)));
-    if (held) {
-      if (questions.length) await commitCredits(service, held);
-      else await refundCredits(service, held).catch(() => undefined);
+    const counts = new Map<string, number>();
+    for (const question of questions) {
+      const key = normalizeTopicKey(question.topic);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-    return { ok: true, questions, missing };
+    const complete = input.topics.every((topic) => (counts.get(normalizeTopicKey(topic)) ?? 0) >= input.perTopic);
+    if (!complete) {
+      if (held) await refundCredits(service, held).catch(() => undefined);
+      return { ok: false, status: 503, error: "generation_failed" };
+    }
+    if (held) await commitCredits(service, held);
+    return { ok: true, questions, missing: [] };
   } catch (error) {
     if (held) await refundCredits(service, held).catch(() => undefined);
     throw error;

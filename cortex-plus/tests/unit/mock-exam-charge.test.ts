@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
   ödeme anahtarını veriyordu; kredi sistemi anahtarı yalnız ilk işe veriyor, ötekiler
   "işlem sürüyor / bitti" ile boş dönüyordu. Hata 2 Ekim'de deneme öğretmen motoruna
   geçtiğinden beri vardı. Şimdi kredi deneme başında bir kez ayrılır; konu üretimleri o
-  ayrılışı kullanır, en az bir soru çıkarsa kesinleşir, çıkmazsa iade edilir.
+  ayrılışı kullanır. Söz verilen sayı dolunca kesinleşir; kısa kâğıt yazılmaz, dolmazsa iade edilir.
 
   Aynı denemede 10 sorunun 4'ü bozuktu: kod çoktan seçmeli soruyu şıklarını silip
   doğru/yanlış ("hangi grupta sınıflanır?" + Doğru/Yanlış), sayısal ve açık uçlu yapıyordu.
@@ -450,10 +450,13 @@ describe("yazılı deneme: eksik tamamlama", () => {
     const have = new Map([["Enflasyon", 1], ["Türleri", 1], ["Para politikası", 1], ["Miktar teorisi", 1]]);
     expect(topUpTargets(rows, have, 2)).toEqual([{ row: rows[0], missing: 2 }]);
   });
-  it("konu üretimi tek iyi soruyla yetinir; tamamlama süre sınırlı", async () => {
+  it("kısa kâğıt yazılmaz; kapı söz verilen sayıyı ister", async () => {
     const { readFileSync } = await import("node:fs");
     const source = readFileSync("src/lib/learning/mock-exam/create.ts", "utf8");
-    expect(source).toContain("minimum: 1,");
-    expect(source).toContain("Date.now() - startedAt < TOPUP_DEADLINE_MS");
+    expect(source).not.toContain("minimum: 1,");
+    expect(source).not.toContain("TOPUP_DEADLINE_MS");
+    expect(source).not.toContain("Planlanan ");
+    expect(source).toContain("assertDeliverable");
+    expect(source).toContain("note: null");
   });
 });

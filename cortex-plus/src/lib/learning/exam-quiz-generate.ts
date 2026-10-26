@@ -42,8 +42,10 @@ export async function generateExamQuiz(input: {
   heldReservationId?: string;
   /** Tam bir çok cevaplı soru, sonda (yazılı denemede çok cevaplı yer bu konudaysa). */
   multi?: boolean;
-  /** Bu kadar soru çıkmazsa motor ikinci taslak yazar (varsayılan en çok 3). */
+  /** Eski çağıranlar geçirir. Yayın eşiği `count`'tur. */
   minimum?: number;
+  /** Sessiz model yedeği. Yoksa içerik modeli. */
+  model?: string;
   /**
    * Ayrıştırıcı ve doğrulayıcı en fazla bu kadar soru tutar (varsayılan 8).
    * Düello 7 soru gösteriyor; 8 adaydan 7'sinin doğrulamayı geçmesi
@@ -91,7 +93,8 @@ export async function generateExamQuiz(input: {
     sourceBlock: source || undefined,
     mode: source ? "document" : "topic",
     count,
-    minimum: input.minimum ?? Math.min(3, count),
+    minimum: input.minimum ?? count,
+    ...(input.model ? { model: input.model } : {}),
     brief: [input.userPrompt, input.schemaHintExtra].filter(Boolean).join("\n"),
     // Yalnız öğrencinin kendi seçimi; "difficulty" eski zincirden kalma sabit
     // ("hard" tanı ve tanışma testinde) ve yazara gitmez.

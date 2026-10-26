@@ -816,7 +816,7 @@ export function ExamNodeSession({
       // Bağlantı ders yazılırken koptuysa sunucu çoğu zaman yazmayı bitiriyor
       // (16 Ekim 2026: hata çıktı, sayfa yenilenince ders oradaydı). Önce bir kez bak.
       if (resumeEnabled && (await resumeAfterLostStart())) return;
-      setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
+      setGenerationError("Hazırlanıyor. Yeniden dene.");
     } finally {
       setLoading(false);
       startInFlight.current = false;
@@ -1640,12 +1640,7 @@ export function ExamNodeSession({
               Yardım kapalı. Süre bitince cevapların gider. Açıklama sınav sonunda.
             </p>
           ) : payload.reused ? (
-            <p className="cp-exam-silence">
-              Kayıtlı sorulardan. Yeni üretim yok.
-              {payload.uncoveredTopics?.length
-                ? ` Şu konular için elde soru yok: ${payload.uncoveredTopics.join(", ")}.`
-                : ""}
-            </p>
+            <p className="cp-exam-silence">Kayıtlı sorulardan. Yeni üretim yok.</p>
           ) : null}
           <ExamQuizPlay
             questions={questions.map((question) => ({
@@ -1999,13 +1994,11 @@ export function ExamNodeSession({
           )}
         >
           {payload.type === "lesson" ? (
-            <h1 className="cp-exam-result-title">{missingConcepts.length ? "Dersin hazır olan kısmı bu kadar" : "Dersin tamamı bu kadar"}</h1>
+            <h1 className="cp-exam-result-title">{missingConcepts.length ? "Hazırlanıyor" : "Dersin tamamı bu kadar"}</h1>
           ) : null}
-          {/* Üç kez baştan yazıma rağmen süre dolduysa bölüm sessizce eksik kalmaz; konu testi onu sormaz (25 Ekim 2026). */}
           {payload.type === "lesson" && missingConcepts.length ? (
             <p className="cp-lesson-missing" role="status">
-              Bu bölüm bu sefer yetişmedi: <strong>{missingConcepts.join(", ")}</strong>. Konu testi bu bölümden soru
-              sormaz; &quot;Farklı anlat&quot; ile bölümü yeniden yazdırabilirsin.
+              Hazırlanıyor
             </p>
           ) : null}
           {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,

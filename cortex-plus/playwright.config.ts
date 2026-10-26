@@ -46,6 +46,7 @@ export default defineConfig({
         "https://dgjfyewgrukglsehyntc.supabase.co",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb-e2e-local-only",
+      E2E_FIXTURE: "1",
     },
   },
   projects: [

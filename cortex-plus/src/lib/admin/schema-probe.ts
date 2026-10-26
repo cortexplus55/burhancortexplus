@@ -211,9 +211,10 @@ export async function probeSchema(
     .from("exam_prep_misconceptions")
     .select("resolved_at")
     .limit(1);
-  const [explainAttempts, prepVideos] = await Promise.all([
+  const [explainAttempts, prepVideos, generationJobs] = await Promise.all([
     hasTable(service, "explain_attempts"),
     hasTable(service, "prep_videos"),
+    hasTable(service, "generation_jobs"),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -363,8 +364,16 @@ export async function probeSchema(
       ok: prepVideos,
       critical: false,
       detail: prepVideos
-        ? "prep_videos okunuyor. Yeni stil listesi salt okumayla doğrulanamaz (20261025121000)."
+        ? "prep_videos okunuyor. video_visual_styles (20261025121000) kısıtı salt okumayla doğrulanamaz."
         : "Tablo yok — video ders kaydı yazılamaz (20261017150000 / 20261025121000).",
+    },
+    {
+      name: "Üretim işleri",
+      ok: generationJobs,
+      critical: false,
+      detail: generationJobs
+        ? "generation_jobs yerinde (20261026120000). Kısa sonuç yazılmaz; kira düşünce iş sürer."
+        : "Tablo yok — deneme eşzamanlı dolar, kısa kâğıt yine yazılmaz (20261026120000).",
     },
   ];
 }
@@ -387,6 +396,28 @@ let cached: { at: number; ok: boolean } | null = null;
  * gereksiz bilgi verir; "uyuşuyor / uyuşmuyor" sorunun tamamını cevaplıyor,
  * gerisi `/admin/sistem`'de.
  */
+let schemaGapsLogged = false;
+
+/** Örnek başına bir kez: eksik göç adları. Sayfayı bekletmez; anahtar yoksa susar. */
+export function logSchemaGaps(): void {
+  if (schemaGapsLogged) return;
+  schemaGapsLogged = true;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) return;
+  const timeout = new Promise<void>((resolve) => {
+    setTimeout(resolve, 2500);
+  });
+  const work = (async () => {
+    try {
+      const checks = await probeSchema(createServiceClient());
+      const missing = checks.filter((check) => !check.ok).map((check) => check.name);
+      if (missing.length) console.warn(JSON.stringify({ event: "schema_missing", missing }));
+    } catch {
+      // Anahtar var ama veritabanı cevap vermedi. Sayfa yine açılır.
+    }
+  })();
+  void Promise.race([work, timeout]);
+}
+
 export async function schemaMatchesCode(): Promise<boolean | null> {
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.ok;
 

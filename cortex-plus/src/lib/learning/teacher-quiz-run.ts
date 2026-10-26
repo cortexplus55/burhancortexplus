@@ -65,7 +65,7 @@ export function minimumQuestions(count: number): number {
 
 /** İkinci taslak ancak bu süreden önce başlar (rota tavanı 300 sn). */
 const SECOND_PASS_DEADLINE_MS = 150_000;
-/** İki geçişten sonra bile bu kadar soru yoksa test yok (19 Ekim 2026). */
+/** Eski kısa yayın eşiği. Yayımlama bunu kullanmaz; söz verilen sayı tutulur. */
 export const MIN_DELIVERABLE_QUESTIONS = 2;
 
 type Reviewed = { question: QuizQuestion; problems: string[] };
@@ -388,8 +388,10 @@ async function runTeacherQuizInner(
      * bu ayrılışa yazılır. Aynı anahtarla her konu kendi ayırsaydı yalnız ilki geçerdi.
      */
     heldReservationId?: string;
-    /** Asgari soru sayısı; yoksa count − 2 (en az 3). */
+    /** Eski çağıranlar geçirir. Yayın eşiği söz verilen `count`'tur. */
     minimum?: number;
+    /** Sessiz yedek. Yoksa içerik modeli. */
+    model?: string;
     /** false: önceden yazım (18 Ekim 2026); kredi ayrılmaz, öğrenci açınca düşer. */
     charge?: boolean;
     /** Denetimden geçmiş ilk pencere. Turlar sürer; çağıran keser. */
@@ -418,7 +420,7 @@ async function runTeacherQuizInner(
   const refund = () =>
     held || !reservation.reservationId ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined);
   const started = input.startedAt ?? Date.now();
-  const model = contentModel();
+  const model = input.model ?? contentModel();
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
@@ -464,9 +466,9 @@ async function runTeacherQuizInner(
           }
           const all = dropNearDuplicates([...shown.values()], (question) => question.text, previousStems);
           const window = opened ? all : playableQuestions(all, previousStems);
-          if (!window.length) return;
+          if (window.length < input.count) return;
           opened = true;
-          input.onPlayable!(window);
+          input.onPlayable!(window.slice(0, input.count));
         }
       : undefined;
     const hooks = publish ? { onPlayable: publish } : undefined;
@@ -477,18 +479,16 @@ async function runTeacherQuizInner(
     let passes = 1;
     let softKept = loop.softKept;
     const salvaged = [...loop.salvaged];
-    const minimum = input.minimum ?? minimumQuestions(input.count);
     const secondPassDeadline = input.urgent ? repairBudget(true).secondPassDeadlineMs : SECOND_PASS_DEADLINE_MS;
-    // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): yetersiz soru hata değil, ikinci
-    // taslak demek. İkinci geçişin yeni soruları eklenir; yine de iki sorunun altındaysa test yok.
-    if (questions.length < minimum && Date.now() - started < secondPassDeadline) {
-      passes = 2;
+    // Söz verilen sayı dolana kadar yeni taslak eklenir. Kısa liste yayımlanmaz.
+    while (questions.length < input.count && passes < 4 && Date.now() - started < secondPassDeadline) {
+      passes += 1;
       const again = await teacherQuizLoop(
         ask,
         {
           ...input,
-          count: Math.max(3, input.count - questions.length),
-          // Konu testi: ikinci taslak ilk geçişin sorularını görür, kalıplarını ve maddelerini tekrar etmez (20 Ekim 2026).
+          count: Math.max(1, input.count - questions.length),
+          // Konu testi: sonraki taslak ilk geçişin sorularını görür, kalıplarını ve maddelerini tekrar etmez (20 Ekim 2026).
           ...(input.scope === "topic_test" ? { avoid: questions } : {}),
           previousStems: [...previousStems, ...questions.map((question) => question.text)],
         },
@@ -535,7 +535,7 @@ async function runTeacherQuizInner(
           }
         : {}),
     });
-    if (questions.length < Math.min(minimum, MIN_DELIVERABLE_QUESTIONS)) {
+    if (questions.length < input.count) {
       await refund();
       return {
         ok: false,

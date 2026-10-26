@@ -51,8 +51,11 @@ describe("a concept that could not be written is not hidden", () => {
     expect(readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8")).toContain("missingConcepts: outcome.dropped");
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).not.toContain("Bu derste yer almayan bölüm");
-    expect(session).toContain("Bu bölüm bu sefer yetişmedi");
-    expect(session).toContain("Konu testi bu bölümden soru");
-    expect(session).toContain("Dersin hazır olan kısmı bu kadar");
+    expect(session).toContain("Hazırlanıyor");
+    expect(session).toContain("Dersin tamamı bu kadar");
+    expect(session).not.toContain("Bu bölüm bu sefer yetişmedi");
+    expect(session).not.toContain("Konu testi bu bölümden soru");
+    expect(session).not.toContain("Dersin hazır olan kısmı bu kadar");
+    expect(session).not.toContain("Ders bu sefer tamamlanamadı");
   });
 });

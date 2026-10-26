@@ -82,7 +82,7 @@ export function TrueFalseStudio({
       return;
     }
     if (!result.ok || !result.data.items?.length) {
-      toast.error(result.ok ? "Tur bu sefer tamamlanamadı; yeniden dene." : result.error);
+      toast.error(result.ok ? "Yeniden dene." : result.error);
       setPhase("entry");
       return;
     }

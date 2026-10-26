@@ -1,0 +1,12 @@
+{
+  "id": "kpss-citizenship",
+  "level": "kpss",
+  "language": "tr",
+  "material": "Seçme ve seçilme hakkı bir vatandaş için temel olan haktır. Bu hak ile değil denilen sınırlar anayasada yazılır. Yasama organı kanun yapar ve yürütme bu kanunu uygular. Yargı bağımsızdır.",
+  "topics": [
+    { "id": "vote", "label": "Seçme hakkı", "points": ["seçme hakkı temeldir", "seçilme de haktır"] },
+    { "id": "legislature", "label": "Yasama", "points": ["yasama kanun yapar", "meclis kanun çıkarır"] },
+    { "id": "executive", "label": "Yürütme", "points": ["yürütme kanunu uygular", "idare işlemi yapar"] },
+    { "id": "judiciary", "label": "Yargı", "points": ["yargı bağımsızdır", "mahkeme hüküm kurar"] }
+  ]
+}

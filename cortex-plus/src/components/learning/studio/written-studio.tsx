@@ -105,7 +105,7 @@ export function WrittenStudio({
         !result.ok && result.error === "document_not_ready"
           ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
           : result.ok
-            ? "Yazılı bu sefer tamamlanamadı; yeniden dene."
+            ? "Yeniden dene."
             : result.error,
       );
       setPhase("entry");

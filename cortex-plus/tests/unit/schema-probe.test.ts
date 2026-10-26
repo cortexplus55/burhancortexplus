@@ -66,6 +66,7 @@ const healthyRows: Rows = {
   free_usage: {},
   explain_attempts: {},
   prep_videos: {},
+  generation_jobs: {},
 };
 
 const healthy = () => service({ rows: healthyRows });
@@ -163,7 +164,7 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(19);
+    expect(checks).toHaveLength(20);
     expect(find(checks, "Anlatım geçmişi")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Video görsel stilleri").detail).toContain("salt okumayla doğrulanamaz");
     // 24 Ekim 2026: ücretsiz sayaç fonksiyonu da soruluyor.
@@ -178,6 +179,16 @@ describe("diğer göç dosyaları", () => {
     expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 30, podcast 12 kredi");
     expect(find(checks, "Kredi v3").detail).toContain("ücretsiz haftada 3 ders, günde 3 mesaj, 1 fotoğraf");
     expect(find(checks, "Kredi v3").detail).toContain("günlük kredi 0");
+    expect(find(checks, "Üretim işleri")).toMatchObject({ ok: true, critical: false });
+    expect(find(checks, "Üretim işleri").detail).toContain("20261026120000");
+  });
+
+  it("üretim işi tablosu yoksa kırmızı ama kritik değil", async () => {
+    const rows = { ...healthyRows };
+    delete rows.generation_jobs;
+    const checks = await probeSchema(service({ rows }));
+    expect(find(checks, "Üretim işleri")).toMatchObject({ ok: false, critical: false });
+    expect(checks.filter((check) => check.critical && !check.ok)).toEqual([]);
   });
 
   /* Yeniden inceleme #4: satır yalnız fiyata ve free_usage'a bakıyordu. 20261024120000 ile 20261024123000

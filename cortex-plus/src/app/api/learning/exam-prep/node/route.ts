@@ -3273,14 +3273,19 @@ async function generateNodePayload(input: {
       documentBacked: !input.lessonTopicOnly,
       previousStems: [...(fill.previousStems ?? []), ...fill.seed.map((question) => question.text)].filter(Boolean),
     });
-    if (!filled.ok && !fill.seed.length) throw new NodeGenerationError(filled.status, filled.error);
-    const questions = [...fill.seed, ...(filled.ok ? filled.questions : [])];
-    if (!questions.length) throw new NodeGenerationError(503, "generation_failed");
+    const needed = fill.topics.length * fill.perTopic;
+    if (!fill.topics.length) {
+      if (!fill.seed.length) throw new NodeGenerationError(503, "generation_failed");
+      return { type: "quiz", questions: fill.seed, teachingStandard: activity, uncoveredTopics: [] };
+    }
+    if (!filled.ok || filled.questions.length < needed) {
+      throw new NodeGenerationError(filled.ok ? 503 : filled.status, filled.ok ? "generation_failed" : filled.error);
+    }
     return {
       type: "quiz",
-      questions,
+      questions: [...fill.seed, ...filled.questions],
       teachingStandard: activity,
-      uncoveredTopics: filled.ok ? filled.missing : fill.topics,
+      uncoveredTopics: [],
     };
   }
 
@@ -3314,6 +3319,7 @@ async function generateNodePayload(input: {
     urgent: input.charge !== false,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
+  const promised = input.kind === "final_check" ? 4 : input.kind === "focused" ? 5 : Math.max(5, quizCount);
   let questions = outcome.questions;
   if ((input.kind === "gaps" || input.kind === "focused") && input.practiceTopics?.length) {
     const allowed = input.practiceTopics;
@@ -3321,10 +3327,9 @@ async function generateNodePayload(input: {
       ...question,
       topic: question.topic?.trim() || allowed[0]!,
     }));
-    const onTopic = stamped.filter((question) => questionsStayOnTopics([question], allowed));
-    if (!onTopic.length) throw new NodeGenerationError(503, "generation_failed");
-    questions = onTopic;
+    questions = stamped.filter((question) => questionsStayOnTopics([question], allowed));
   }
+  if (questions.length < promised) throw new NodeGenerationError(503, "generation_failed");
   return { type: "quiz", questions, teachingStandard: activity };
 }
 
@@ -3662,20 +3667,63 @@ async function teacherCardsPayload(
             );
           }),
         );
-        const cards = interleaveByTopic(
+        let cards = interleaveByTopic(
           loops.map((loop, index) => loop.cards.slice(0, finalPlan[index]!.count + 1)),
           cardsInput.count,
         );
-        const log = { kept: cards.length, rejected: loops.reduce((sum, loop) => sum + loop.rejected.length, 0), topics: finalPlan.length };
-        return cards.length >= 6
-          ? { ok: true as const, result: cards, log }
+        let tries = 1;
+        while (cards.length < cardsInput.count && tries < 4) {
+          tries += 1;
+          const more = await Promise.all(
+            finalPlan.map((row) => {
+              const item = finalSources.find((sourceRow) => sourceRow.label === row.label)!;
+              return teacherCardsLoop(
+                ask,
+                {
+                  ...cardsInput,
+                  topicLabel: row.label,
+                  pages: item.pages,
+                  runningHeaders: item.edges,
+                  mode: item.pages.length ? ("document" as const) : ("topic" as const),
+                  count: row.count,
+                  examPoints: undefined,
+                },
+                started,
+              );
+            }),
+          );
+          const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
+          for (const card of more.flatMap((loop) => loop.cards)) {
+            const key = card.front.trim().toLocaleLowerCase("tr");
+            if (cards.length >= cardsInput.count || seen.has(key)) continue;
+            seen.add(key);
+            cards = [...cards, card];
+          }
+        }
+        const log = { kept: cards.length, rejected: loops.reduce((sum, loop) => sum + loop.rejected.length, 0), topics: finalPlan.length, tries };
+        return cards.length >= cardsInput.count
+          ? { ok: true as const, result: cards.slice(0, cardsInput.count), log }
           : { ok: false as const, reasons: loops.flatMap((loop) => loop.rejected.slice(0, 2).map((row) => row.problems[0] ?? "sorun")), log };
       }
-      const loop = await teacherCardsLoop(ask, cardsInput, started);
-      const log = { kept: loop.cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
-      return loop.cards.length >= 6
-        ? { ok: true as const, result: loop.cards, log }
-        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
+      let cards = (await teacherCardsLoop(ask, cardsInput, started)).cards;
+      let rejected = 0;
+      let tries = 1;
+      while (cards.length < cardsInput.count && tries < 4) {
+        tries += 1;
+        const again = await teacherCardsLoop(ask, { ...cardsInput, count: cardsInput.count - cards.length + 1 }, started);
+        rejected += again.rejected.length;
+        const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
+        for (const card of again.cards) {
+          const key = card.front.trim().toLocaleLowerCase("tr");
+          if (cards.length >= cardsInput.count || seen.has(key)) continue;
+          seen.add(key);
+          cards = [...cards, card];
+        }
+      }
+      const log = { kept: cards.length, rejected, rounds: tries };
+      return cards.length >= cardsInput.count
+        ? { ok: true as const, result: cards.slice(0, cardsInput.count), log }
+        : { ok: false as const, reasons: ["short"], log };
     },
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
@@ -3700,24 +3748,37 @@ async function teacherTrueFalsePayload(
     label: "teacher_true_false",
     topic: input.topicLabel,
     work: async (ask, started) => {
-      const loop = await teacherTrueFalseLoop(
-        ask,
-        {
-          topicLabel: input.topicLabel,
-          prepTitle: input.prepTitle,
-          pages: source.pages,
-          mode: core ? "document" : "topic",
-          learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
-          examPoints: input.examPoints,
-          examPointsUse: "true_false",
-          count: 8,
-          urgent: input.charge !== false,
-        },
-        started,
-      );
-      const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds, mixed: loop.mixed };
-      return loop.items.length >= 5 && loop.mixed
-        ? { ok: true as const, result: loop.items, log }
+      const asked = 8;
+      const tfInput = {
+        topicLabel: input.topicLabel,
+        prepTitle: input.prepTitle,
+        pages: source.pages,
+        mode: core ? ("document" as const) : ("topic" as const),
+        learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+        examPoints: input.examPoints,
+        examPointsUse: "true_false" as const,
+        count: asked,
+        urgent: input.charge !== false,
+      };
+      const loop = await teacherTrueFalseLoop(ask, tfInput, started);
+      let items = loop.items;
+      let tries = 1;
+      const mixedOf = (rows: typeof items) => rows.some((item) => item.correct) && rows.some((item) => !item.correct);
+      while ((items.length < asked || !mixedOf(items)) && tries < 4) {
+        tries += 1;
+        const again = await teacherTrueFalseLoop(ask, { ...tfInput, count: Math.max(1, asked - items.length + 1) }, started);
+        const seen = new Set(items.map((item) => item.text.trim().toLocaleLowerCase("tr")));
+        for (const item of again.items) {
+          const key = item.text.trim().toLocaleLowerCase("tr");
+          if (items.length >= asked || seen.has(key)) continue;
+          seen.add(key);
+          items = [...items, item];
+        }
+      }
+      const mixed = mixedOf(items);
+      const log = { kept: items.length, rejected: loop.rejected.length, rounds: tries, mixed };
+      return items.length >= asked && mixed
+        ? { ok: true as const, result: items.slice(0, asked), log }
         : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
     },
   });
@@ -3838,9 +3899,10 @@ async function teacherQuizPayload(
     onPlayable:
       input.kind === "quiz" && input.onLessonPublish && input.charge !== false
         ? (questions) => {
+            if (questions.length < count) return;
             void input.onLessonPublish?.({
               type: "quiz",
-              questions,
+              questions: questions.slice(0, count),
               teachingStandard: activity,
               engine: "teacher",
             });

@@ -6,6 +6,7 @@ import "katex/dist/katex.min.css";
 // Premium tasarım sistemi (sınıflar; token kaynağı tokens.css).
 import "@/styles/premium-design-system.css";
 import { Providers } from "@/components/providers";
+import { logSchemaGaps } from "@/lib/admin/schema-probe";
 
 const figtree = Figtree({
   variable: "--font-ui",
@@ -103,6 +104,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  logSchemaGaps();
   return (
     <html lang="tr" suppressHydrationWarning>
       <body

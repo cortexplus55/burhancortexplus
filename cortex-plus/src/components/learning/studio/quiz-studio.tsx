@@ -124,7 +124,7 @@ export function QuizStudio({
       const friendly =
         !result.ok && result.error === "document_not_ready"
           ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
-          : "Test bu sefer tamamlanamadı; iki kez denedik. Kredin düşmedi, yeniden dene.";
+          : "Yeniden dene.";
       toast.error(friendly);
       setPhase("entry");
       return;

@@ -5,6 +5,20 @@ import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherTrueFalseLoop, type TrueFalseItem } from "@/lib/learning/teacher-practice";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
+function takeMixed(items: TrueFalseItem[], count: number): TrueFalseItem[] | null {
+  if (items.length < count) return null;
+  const yes = items.filter((item) => item.correct);
+  const no = items.filter((item) => !item.correct);
+  if (!yes.length || !no.length) return null;
+  const picked: TrueFalseItem[] = [yes[0]!, no[0]!];
+  for (const item of items) {
+    if (picked.length >= count) break;
+    if (picked.includes(item)) continue;
+    picked.push(item);
+  }
+  return picked.length === count ? picked : null;
+}
+
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
   /** Öğrenci 8 / 12 / 16 seçer (19 Ekim 2026; önce hep 8). */
@@ -47,20 +61,23 @@ export async function POST(request: Request) {
       );
       const loop = await run(count);
       let items: TrueFalseItem[] = loop.items;
-      if (items.length < count && Date.now() - started < 110_000) {
+      let tries = 1;
+      const mixed = (list: TrueFalseItem[]) => list.some((item) => item.correct) && list.some((item) => !item.correct);
+      while ((items.length < count || !mixed(items)) && tries < 4) {
+        tries += 1;
         const seen = new Set(items.map((item) => item.text.trim().toLocaleLowerCase("tr")));
-        const extra = await run(count - items.length + 1).catch(() => null);
+        const extra = await run(Math.max(1, count - items.length + 1)).catch(() => null);
         for (const item of extra?.items ?? []) {
           const key = item.text.trim().toLocaleLowerCase("tr");
-          if (items.length >= count || seen.has(key)) continue;
+          if (seen.has(key)) continue;
           seen.add(key);
           items = [...items, item];
         }
       }
-      const mixed = items.some((item) => item.correct) && items.some((item) => !item.correct);
-      const log = { kept: items.length, rejected: loop.rejected.length, rounds: loop.rounds, mixed };
-      return items.length >= Math.min(4, count) && mixed
-        ? { ok: true as const, result: items, log }
+      const delivered = takeMixed(items, count);
+      const log = { kept: delivered?.length ?? items.length, rejected: loop.rejected.length, rounds: loop.rounds, mixed: Boolean(delivered) };
+      return delivered
+        ? { ok: true as const, result: delivered, log }
         : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
     },
   });

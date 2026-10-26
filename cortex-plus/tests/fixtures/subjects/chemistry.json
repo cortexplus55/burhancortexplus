@@ -1,0 +1,12 @@
+{
+  "id": "chemistry",
+  "level": "grade-11",
+  "language": "tr",
+  "material": "Suyun mol kütlesi 18 g değerindedir ve bir mol için bu sayı kullanılır. Derişim 0,5 M olan bir çözeltide olan tanecik sayısı değişir. pH 7 nötr bir sudur. Tepkime sıcaklığı 25 derece olabilir.",
+  "topics": [
+    { "id": "mole", "label": "Mol kütlesi", "points": ["kütle 18 g", "bir mol 18 g"] },
+    { "id": "concentration", "label": "Derişim", "points": ["derişim 0,5 M", "çözelti 0,5 M"] },
+    { "id": "ph", "label": "Nötr çözelti", "points": ["pH 7", "nötr değer 7"] },
+    { "id": "heat", "label": "Tepkime ısısı", "points": ["sıcaklık 25", "ortam 25 derece"] }
+  ]
+}

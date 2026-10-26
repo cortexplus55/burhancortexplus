@@ -7,7 +7,7 @@ export const SURFACE_COPY = {
   errorTitle: "Bir şeyler ters gitti",
   errorBody: "Bir şeyler ters gitti. Yeniden dene.",
   retry: "Yeniden dene",
-  offline: "Bağlantı kurulamadı. İnternetini kontrol edip yeniden dene.",
+  offline: "Çevrimdışısın. Yeniden dene.",
   saveFailed: "Kaydedilemedi.",
   copied: "Kopyalandı",
   leaveTitle: "Çıkmak istiyor musun?",

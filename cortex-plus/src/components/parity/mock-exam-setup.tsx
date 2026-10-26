@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import "@/styles/paper-exam.css";
 import {
   mockProgressLine,
+  pollGenerationJob,
   postMockExamWithProgress,
   type MockExamProgress,
 } from "@/lib/learning/mock-exam/progress";
@@ -55,6 +56,8 @@ export function MockExamSetup({
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [progress, setProgress] = useState<MockExamProgress | null>(null);
+  const [retryJobId, setRetryJobId] = useState<string | null>(null);
+  const [barOnly, setBarOnly] = useState(false);
   const presetMinutes = (value: "short" | "standard" | "real") =>
     value === "real" ? (realMinutes ?? PRESET_MINUTES.standard) : PRESET_MINUTES[value];
   // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
@@ -75,9 +78,61 @@ export function MockExamSetup({
     return allocationPreview.filter((row) => labels.has(row.topicLabel));
   }, [scope, selected, topics, allocationPreview]);
 
+  function examHref(examId: string) {
+    return `/deneme-sinavlari/${prepId}/deneme/${examId}${answerMode === "paper" ? "?kagit=1" : ""}`;
+  }
+
+  async function followJob(jobId: string) {
+    setBarOnly(true);
+    setLoading(true);
+    setRetryJobId(null);
+    try {
+      const waited = await pollGenerationJob(jobId, setProgress);
+      if (waited.examId) {
+        router.push(examHref(waited.examId));
+        return;
+      }
+      setRetryJobId(jobId);
+    } catch {
+      setRetryJobId(jobId);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function retryJob(jobId: string) {
+    setLoading(true);
+    setRetryJobId(null);
+    setBarOnly(true);
+    try {
+      const res = await fetch(`/api/learning/jobs/${jobId}/retry`, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { jobId?: string; code?: string; error?: string };
+      if (
+        data.code === "insufficient_credits" ||
+        data.error === "insufficient_credits" ||
+        data.code === "premium_required"
+      ) {
+        setPaywall(true);
+        setLoading(false);
+        return;
+      }
+      if (!res.ok || !data.jobId) {
+        setRetryJobId(jobId);
+        setLoading(false);
+        return;
+      }
+      await followJob(data.jobId);
+    } catch {
+      setRetryJobId(jobId);
+      setLoading(false);
+    }
+  }
+
   async function start() {
     setLoading(true);
     setProgress(null);
+    setRetryJobId(null);
+    setBarOnly(false);
     try {
       // Üretim düşünce bir kez kendiliğinden yeniden (19 Ekim 2026); ilerleme biten konulardan (25 Ekim 2026).
       const { status, data } = await postMockExamWithProgress(
@@ -91,7 +146,7 @@ export function MockExamSetup({
         }),
         setProgress,
       );
-      const payload = data as { error?: string; code?: string; note?: string; examId?: string };
+      const payload = data as { error?: string; code?: string; examId?: string; jobId?: string };
       if (status >= 300) {
         // 19 Ekim 2026: hak yetmezse kapı açılır (ücretsizde deneme günlük haktan büyük; "Kredin
         // yetersiz" yazısı ne yapılacağını söylemiyordu, öğrenci kredi sayısı da görmez).
@@ -102,20 +157,23 @@ export function MockExamSetup({
         ) {
           setPaywall(true);
         } else {
-          toast.error("Deneme bu sefer tamamlanamadı; iki kez denedik. Hakkın iade edildi, birkaç saniye sonra yeniden dene.");
+          toast.error("Yeniden dene.");
         }
         setLoading(false);
         return;
       }
-      if (payload.note) toast.message(payload.note);
-      router.push(`/deneme-sinavlari/${prepId}/deneme/${payload.examId}${answerMode === "paper" ? "?kagit=1" : ""}`);
+      if (payload.jobId && !payload.examId) {
+        await followJob(payload.jobId);
+        return;
+      }
+      if (payload.examId) router.push(examHref(payload.examId));
     } catch {
-      toast.error("Bağlantı hatası.");
+      toast.error("Yeniden dene.");
       setLoading(false);
     }
   }
 
-  if (loading) {
+  if (loading || retryJobId) {
     const share = progress?.total ? Math.round((progress.done / progress.total) * 100) : 0;
     return (
       <div className="mx-auto max-w-[640px] px-4 py-16 text-center">
@@ -127,12 +185,18 @@ export function MockExamSetup({
           aria-valuemin={0}
           aria-valuemax={progress?.total ?? 0}
           aria-valuenow={progress?.done ?? 0}
+          aria-label="Hazırlanıyor"
         >
           <div className="h-full bg-[var(--c-action)] transition-[width] duration-500" style={{ width: `${share}%` }} />
         </div>
         <p className="mt-3 text-sm text-[color:var(--cp-muted)]" aria-live="polite">
-          {mockProgressLine(progress ?? { done: 0, total: 0, label: null })}
+          {barOnly ? "Hazırlanıyor…" : mockProgressLine(progress ?? { done: 0, total: 0, label: null })}
         </p>
+        {retryJobId ? (
+          <button type="button" className="cp-exam-continue cp-exam-continue--primary mt-6 h-12 rounded-full px-5 text-sm font-semibold" onClick={() => void retryJob(retryJobId)}>
+            Yeniden dene
+          </button>
+        ) : null}
       </div>
     );
   }
