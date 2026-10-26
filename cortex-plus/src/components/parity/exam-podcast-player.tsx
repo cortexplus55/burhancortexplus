@@ -17,6 +17,7 @@ import {
   type TimedLine,
 } from "@/lib/learning/podcast-script";
 import { cn } from "@/lib/utils";
+import { studentSafeText } from "@/lib/learning/student-safe-text";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import type { PodcastLength } from "@/lib/learning/podcast-formats";
@@ -588,7 +589,7 @@ export function ExamPodcastPlayer({
 
   async function downloadEpisode() {
     const transcriptText = normalized
-      .map((chapter) => `${chapter.title}\n${chapter.lines.map((line) => line.text).join("\n")}`)
+      .map((chapter) => `${studentSafeText(chapter.title)}\n${chapter.lines.map((line) => studentSafeText(line.text)).join("\n")}`)
       .join("\n\n");
     const save = (blob: Blob, name: string) => {
       const url = URL.createObjectURL(blob);
@@ -699,7 +700,7 @@ export function ExamPodcastPlayer({
                       disabled={!ready}
                       onClick={() => seekTo(lines[0]?.line.startMs ?? 0)}
                     >
-                      {chapter.title}
+                      {studentSafeText(chapter.title)}
                       {chapterMs > 0 ? <span className="cp-pod-chapter-clock"> {padClock(chapterMs)}</span> : null}
                     </button>
                   </h2>
@@ -739,7 +740,7 @@ export function ExamPodcastPlayer({
                             ready && index === activeIndex && "is-line",
                           )}
                         >
-                          {line.text}{" "}
+                          {studentSafeText(line.text)}{" "}
                         </span>
                       )}
                       </button>
@@ -796,7 +797,7 @@ export function ExamPodcastPlayer({
                     disabled={!ready}
                     onClick={() => seekTo(start)}
                   >
-                    {chapter.title}
+                    {studentSafeText(chapter.title)}
                   </button>
                 );
               })}
@@ -815,7 +816,7 @@ export function ExamPodcastPlayer({
                     onClick={() => seekTo(line.startMs)}
                   >
                     <span className="cp-pod-line-who">{SPEAKER_LABEL[line.speaker]}</span>
-                    {line.text}
+                    {studentSafeText(line.text)}
                   </button>
                 </li>
               ))}

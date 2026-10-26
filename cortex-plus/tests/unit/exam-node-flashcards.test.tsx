@@ -58,7 +58,8 @@ describe("exam-prep flashcards — reveal before self-assessment", () => {
   it("does not offer Evet/Hayır before the card has been flipped", async () => {
     renderResumedDeck();
     await screen.findByText("Hedef boy nasıl hesaplanır?");
-    expect(screen.queryByRole("button", { name: /Hatırladım/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Bildim/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Bilemedim/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Zorlandım/ })).toBeNull();
     expect(screen.getByText(/Önce kendin hatırlamaya çalış/)).toBeTruthy();
   });
@@ -69,8 +70,9 @@ describe("exam-prep flashcards — reveal before self-assessment", () => {
     fireEvent.click(screen.getByRole("button", { name: /Kartı çevir, cevabı göster/ }));
     expect(screen.getByText(/13 cm düzeltilir/)).toBeTruthy();
     expect(screen.getByText("Cevap")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Hatırladım/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Bildim/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Zorlandım/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Bilemedim/ })).toBeTruthy();
   });
 
   it("keeps the self-assessment available if the student flips back to the question side", async () => {
@@ -79,17 +81,17 @@ describe("exam-prep flashcards — reveal before self-assessment", () => {
     fireEvent.click(screen.getByRole("button", { name: /Kartı çevir, cevabı göster/ }));
     fireEvent.click(screen.getByRole("button", { name: /Kartı soru yüzüne çevir/ }));
     expect(screen.getByText("Hedef boy nasıl hesaplanır?")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Hatırladım/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Bildim/ })).toBeTruthy();
   });
 
   it("moves to the next card with the question side and self-assessment hidden again", async () => {
     renderResumedDeck();
     await screen.findByText("Hedef boy nasıl hesaplanır?");
     fireEvent.click(screen.getByRole("button", { name: /Kartı çevir, cevabı göster/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Hatırladım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bildim/ }));
     expect(await screen.findByText("3. persentil kaç SD'ye denk gelir?")).toBeTruthy();
     expect(screen.getByText("2 / 2")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Hatırladım/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Bildim/ })).toBeNull();
   });
 });
 
@@ -102,10 +104,10 @@ describe("exam-prep flashcards — Astra gibi tekrar turu ve kaynak", () => {
     const { fetchMock } = renderResumedDeck();
     await screen.findByText("Hedef boy nasıl hesaplanır?");
     flip();
-    fireEvent.click(screen.getByRole("button", { name: /Zorlandım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bilemedim/ }));
     await screen.findByText("3. persentil kaç SD'ye denk gelir?");
     flip();
-    fireEvent.click(screen.getByRole("button", { name: /Hatırladım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Bildim/ }));
 
     expect(await screen.findByText("Bilmediğin kartlara bir kez daha bakalım")).toBeTruthy();
     expect(screen.getByText(/Tekrarlanacak kartlar/).textContent).toContain("1");
@@ -116,16 +118,16 @@ describe("exam-prep flashcards — Astra gibi tekrar turu ve kaynak", () => {
     // Boşluk tuşu kartı çevirir.
     fireEvent.keyDown(window, { key: " " });
     expect(screen.getByText(/13 cm düzeltilir/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Hatırladım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Bildim/ }));
 
     expect(await screen.findByText("Bildiğin kartlar")).toBeTruthy();
-    expect(screen.getByLabelText("2 karttan 2 biliniyor")).toBeTruthy();
+    expect(screen.getByLabelText("2 karttan 1 biliniyor")).toBeTruthy();
     expect(screen.getByText(/1 kart ilk turda bilinmedi/)).toBeTruthy();
     const complete = fetchMock.mock.calls
       .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
       .find((body) => body.action === "complete");
-    expect(complete.answers["0"]).toBe(false);
-    expect(complete.answers["1"]).toBe(true);
+    expect(complete.answers["0"]).toBe(1);
+    expect(complete.answers["1"]).toBe(5);
     expect(screen.getByRole("link", { name: /Arkadaşına meydan oku/ }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/duello",
     );
@@ -135,10 +137,10 @@ describe("exam-prep flashcards — Astra gibi tekrar turu ve kaynak", () => {
     renderResumedDeck();
     await screen.findByText("Hedef boy nasıl hesaplanır?");
     flip();
-    fireEvent.click(screen.getByRole("button", { name: /Zorlandım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bilemedim/ }));
     await screen.findByText("3. persentil kaç SD'ye denk gelir?");
     flip();
-    fireEvent.click(screen.getByRole("button", { name: /Hatırladım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Bildim/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Atla" }));
     expect(await screen.findByLabelText("2 karttan 1 biliniyor")).toBeTruthy();
   });
@@ -147,10 +149,10 @@ describe("exam-prep flashcards — Astra gibi tekrar turu ve kaynak", () => {
     renderResumedDeck();
     await screen.findByText("Hedef boy nasıl hesaplanır?");
     flip();
-    fireEvent.click(screen.getByRole("button", { name: /Hatırladım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Bildim/ }));
     await screen.findByText("3. persentil kaç SD'ye denk gelir?");
     flip();
-    fireEvent.click(screen.getByRole("button", { name: /Hatırladım/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Bildim/ }));
     expect(await screen.findByLabelText("2 karttan 2 biliniyor")).toBeTruthy();
     expect(screen.queryByText("Bilmediğin kartlara bir kez daha bakalım")).toBeNull();
   });

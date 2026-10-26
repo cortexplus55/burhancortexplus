@@ -66,9 +66,13 @@ export function activityDurationMinutes(kind: PlanNodeKind, content: ActivityCon
   return KIND_MINUTES[kind];
 }
 
-/** Dersin adım paydası: yazılmış ekranlar + yazımı süren her kavram için en az bir ekran. */
-export function lessonStepTotal(writtenSteps: number, pendingConcepts: number): number {
-  return Math.max(1, Math.max(0, writtenSteps) + Math.max(0, pendingConcepts));
+/**
+ * Dersin adım paydası: yalnız yazılmış ekran listesi. Gelecek kavram adları ekran değildir;
+ * paydaya eklenirse sayaç 1/2 iken 5/5'e sıçrar.
+ */
+export function lessonStepTotal(writtenSteps: number, _pendingConcepts = 0): number {
+  void _pendingConcepts;
+  return Math.max(1, Math.max(0, Math.floor(writtenSteps)));
 }
 
 /** Harcanan zaman: oturumun başlangıcından bitişine; boş ya da geçersiz başlangıç 1 dk sayılır. */

@@ -243,6 +243,7 @@ export default async function ExamNodePage({
         language={prepLanguage(prep.learning_preferences)}
         subject={(prep.exam_type as string | null) ?? null}
         unitTitle={sessionMeta?.unitTitle ?? null}
+        activityMinutes={sessionMeta?.activityMinutes ?? null}
         nodeDone={node.status === "done"}
       />
     </ParitySorShell>

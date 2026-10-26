@@ -70,7 +70,9 @@ import {
   topicFence,
 } from "@/lib/learning/prep-source";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
+import { PLAN_NODE_META, weakPracticeTitle } from "@/lib/learning/exam-prep-plan";
+import { questionsStayOnTopics } from "@/lib/learning/focused-practice";
+import { studentSafePayload } from "@/lib/learning/student-safe-text";
 import { pickPracticeNodeId, practiceHref, studyNodeOpenable, topicLabelsMatch } from "@/lib/learning/study-tools";
 import { loadLevelHint } from "@/lib/learning/prep-level";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
@@ -617,7 +619,7 @@ async function handleNodeRequest(
   const voiceMode = parsed.data.voiceMode ?? false;
   const familiarity = parseFamiliarity(parsed.data.familiarity);
   const mood = parseMood(parsed.data.mood);
-  const title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
+  let title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
   const lessonReviewCards =
     kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
 
@@ -1423,7 +1425,7 @@ async function handleNodeRequest(
   }
 
   let practiceTopics: string[] | undefined;
-  let finalFill: { seed: QuizQuestion[]; topics: string[]; perTopic: number } | null = null;
+  let finalFill: { seed: QuizQuestion[]; topics: string[]; perTopic: number; previousStems?: string[] } | null = null;
   // Bilgi boşlukları ve Tekrar kilitliyse (Astra, 1 Ekim 2026) ücretsiz
   // "kilitli" cevabı döner. Bitmiş düğüm yeniden açılırken kilit sorulmaz.
   const lockable = (kind === "gaps" || kind === "spaced") && node.status !== "done";
@@ -1451,6 +1453,9 @@ async function handleNodeRequest(
     // tamamlayacak düğme yok. Sırası gelmişse kapatılacak boşluk olmadığı söylenir, adım biter.
     if (local.action === "serve" && local.payload.locked === true && kind === "gaps" && (await isPathTurn(service, prepId, node))) {
       local = gapsNothingOpenPayload();
+    }
+    if ((kind === "gaps" || kind === "focused") && local.topics?.length) {
+      title = weakPracticeTitle(kind, local.topics);
     }
     if (local.action === "serve" && local.payload.locked === true) {
       // Kayıt açılmaz: kilit kalkınca düğüm temiz başlasın.
@@ -1491,7 +1496,19 @@ async function handleNodeRequest(
       }
       if (insertError || !created) return errorResponse(500, "generation_failed");
       if (node.status !== "done") {
-        await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+        const meta =
+          node.session_meta && typeof node.session_meta === "object" && !Array.isArray(node.session_meta)
+            ? { ...(node.session_meta as Record<string, unknown>) }
+            : {};
+        await service
+          .from("exam_prep_nodes")
+          .update({
+            status: "ready",
+            ...((kind === "gaps" || kind === "focused") && local.topics?.length
+              ? { title, session_meta: { ...meta, topicTitle: local.topics[0] } }
+              : {}),
+          })
+          .eq("id", nodeId);
       }
       return NextResponse.json({
         ok: true,
@@ -1505,7 +1522,14 @@ async function handleNodeRequest(
       });
     }
     practiceTopics = local.topics;
-    if (local.fill) finalFill = { seed: local.fill.seed, topics: local.topics, perTopic: local.fill.perTopic };
+    if (local.fill) {
+      finalFill = {
+        seed: local.fill.seed,
+        topics: local.topics,
+        perTopic: local.fill.perTopic,
+        previousStems: local.fill.previousStems,
+      };
+    }
   }
 
   // Hazırlık geneli düğüm ve `?konu=` (20 Ekim 2026, prep-wide-target.ts): düğümün devraldığı 1.
@@ -1540,7 +1564,10 @@ async function handleNodeRequest(
         sourcePages: retarget.sourcePages.length ? retarget.sourcePages : undefined,
       };
       topicWiden = kind === "oral" && parsed.data.oralScope === "all";
-      if (kind === "gaps" || kind === "focused" || kind === "final_check") practiceTopics = [retarget.topic.label];
+      if (kind === "gaps" || kind === "focused" || kind === "final_check") {
+        practiceTopics = [retarget.topic.label];
+        if (kind === "gaps" || kind === "focused") title = weakPracticeTitle(kind, practiceTopics);
+      }
     }
   }
 
@@ -2676,12 +2703,24 @@ async function handleNodeRequest(
       node.session_meta && typeof node.session_meta === "object" && !Array.isArray(node.session_meta)
         ? { ...(node.session_meta as Record<string, unknown>) }
         : {};
-    if (meta.activityMinutes !== activityMinutes) {
-      await service
-        .from("exam_prep_nodes")
-        .update({ session_meta: { ...meta, activityMinutes } })
-        .eq("id", nodeId)
-        .then(undefined, () => undefined);
+    const namedTitle =
+      (kind === "gaps" || kind === "focused") && practiceTopics?.length
+        ? weakPracticeTitle(kind, practiceTopics)
+        : null;
+    if (namedTitle) title = namedTitle;
+    const namedTopic = retargetedTopic || (namedTitle ? practiceTopics?.[0] ?? null : null);
+    const nextMeta = {
+      ...meta,
+      activityMinutes,
+      ...(namedTopic ? { topicTitle: namedTopic } : {}),
+    };
+    const patch: { session_meta?: Record<string, unknown>; title?: string } = {};
+    if (meta.activityMinutes !== activityMinutes || (namedTopic && meta.topicTitle !== namedTopic)) {
+      patch.session_meta = nextMeta;
+    }
+    if (namedTitle && node.title !== namedTitle) patch.title = namedTitle;
+    if (patch.session_meta || patch.title) {
+      await service.from("exam_prep_nodes").update(patch).eq("id", nodeId).then(undefined, () => undefined);
     }
   }
 
@@ -3085,7 +3124,7 @@ async function generateNodePayload(input: {
   /** Eski düğümde varyant metada yok; başlıktan okunur. */
   nodeTitle?: string | null;
   /** Son kontrol: hazır sorular ve sorusu olmayan konular (konu başına üretim). */
-  finalFill?: { seed: QuizQuestion[]; topics: string[]; perTopic: number } | null;
+  finalFill?: { seed: QuizQuestion[]; topics: string[]; perTopic: number; previousStems?: string[] } | null;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -3232,6 +3271,7 @@ async function generateNodePayload(input: {
       actionCode: actionForKind(input.kind),
       charge: input.charge,
       documentBacked: !input.lessonTopicOnly,
+      previousStems: [...(fill.previousStems ?? []), ...fill.seed.map((question) => question.text)].filter(Boolean),
     });
     if (!filled.ok && !fill.seed.length) throw new NodeGenerationError(filled.status, filled.error);
     const questions = [...fill.seed, ...(filled.ok ? filled.questions : [])];
@@ -3274,7 +3314,18 @@ async function generateNodePayload(input: {
     urgent: input.charge !== false,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-  return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
+  let questions = outcome.questions;
+  if ((input.kind === "gaps" || input.kind === "focused") && input.practiceTopics?.length) {
+    const allowed = input.practiceTopics;
+    const stamped = questions.map((question) => ({
+      ...question,
+      topic: question.topic?.trim() || allowed[0]!,
+    }));
+    const onTopic = stamped.filter((question) => questionsStayOnTopics([question], allowed));
+    if (!onTopic.length) throw new NodeGenerationError(503, "generation_failed");
+    questions = onTopic;
+  }
+  return { type: "quiz", questions, teachingStandard: activity };
 }
 
 /**
@@ -3979,7 +4030,9 @@ async function publicPayloadForUser(
 ) {
   const isLesson = payload.type === "lesson";
   const isAdmin = isLesson ? await isAdminUser(service, userId) : false;
-  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language, lessonFormat });
+  return studentSafePayload(publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language, lessonFormat }), {
+    keepQualityReport: isAdmin,
+  });
 }
 
 function publicNodePayload(

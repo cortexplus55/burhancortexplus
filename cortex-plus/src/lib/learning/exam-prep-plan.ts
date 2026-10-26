@@ -239,6 +239,17 @@ export function studyPathItemTitle(
 }
 
 /**
+ * Zayıf nokta ve odaklı pratik, ölçülen konu bilinince o konunun adını taşır. Kurulumda konu henüz
+ * ölçülmediği için şablon başlığı "Tüm konular" kalır; ad oturum açılınca yazılır.
+ */
+export function weakPracticeTitle(kind: "gaps" | "focused", topics: readonly string[]): string {
+  const base = PLAN_NODE_META[kind].title;
+  const names = [...new Set(topics.map((topic) => topic.trim()).filter(Boolean))];
+  if (!names.length) return base;
+  return `${names.join(", ")} · ${base}`;
+}
+
+/**
  * Takvim yerleştirmesi bazı türleri (podcast, sözlü, kart) hiç
  * üretmezse şablondaki eksik türleri birer kez araya koyar.
  * Var olan düğümlerin sırası ve ek alanları durur. Eklenen düğüm,

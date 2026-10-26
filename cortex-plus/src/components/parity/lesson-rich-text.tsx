@@ -1,6 +1,7 @@
 "use client";
 
 import { studentTextParts } from "@/lib/learning/lesson-board";
+import { studentSafeText } from "@/lib/learning/student-safe-text";
 import { renderMath, splitMath } from "@/lib/learning/math-text";
 import { normalizeMathIdentifiers, isProgrammingContext } from "@/lib/learning/math-identifiers";
 import "@/styles/exam-lesson-steps.css";
@@ -12,7 +13,8 @@ import "@/styles/exam-lesson-steps.css";
  * `$\frac{a}{b}$` olarak kalırdı. Artık üçü de buradan geçiyor.
  */
 export function RichBody({ text, topicHint = "" }: { text: string; topicHint?: string }) {
-  const normalized = normalizeMathIdentifiers(text, {
+  const safe = studentSafeText(text);
+  const normalized = normalizeMathIdentifiers(safe, {
     topicHint,
     programming: isProgrammingContext("", topicHint),
   });

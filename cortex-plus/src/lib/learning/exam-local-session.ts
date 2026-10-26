@@ -6,12 +6,14 @@ import { normalizeQuizQuestion } from "@/lib/learning/exam-quiz";
 import {
   assembleFocusedPractice,
   collectWeakTopics,
+  measuredWeakTopics,
   missedFromAttempt,
   questionsFromLessonChecks,
   rewordPracticeQuestion,
   type StoredLessonCheck,
 } from "@/lib/learning/focused-practice";
-import { finalCardTopics, finalCheckSelection } from "@/lib/learning/final-block";
+import { FINAL_CHECK_LIMIT, finalCheckSelection } from "@/lib/learning/final-block";
+import { loadPreviousItems } from "@/lib/learning/previous-items";
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { normalizeTopicKey, type TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
@@ -20,12 +22,12 @@ import { prepLanguage, type StoredReview } from "@/lib/learning/teacher-brain";
 import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
 
 export type LocalSessionPlan =
-  | { action: "serve"; payload: Record<string, unknown> }
+  | { action: "serve"; payload: Record<string, unknown>; topics?: string[] }
   | {
       action: "generate";
       topics: string[];
       /** Son kontrol: hazır sorular + eksik konular için konu başına üretim (`fillTopicQuestions`). */
-      fill?: { seed: QuizQuestion[]; perTopic: number };
+      fill?: { seed: QuizQuestion[]; perTopic: number; previousStems?: string[] };
     };
 
 /** Ölçülmüş konunun güveni; ölçülmemişse null. */
@@ -415,19 +417,13 @@ export async function buildLocalSessionPayload(
   }
 
   const focus = input.kind === "focused" ? input.focusTopic?.trim() : "";
-  const weakTopics = focus
-    ? [focus]
-    : collectWeakTopics({
-        mastery,
-        misconceptions,
-        missedTopics,
-        plannedTopics: topicLabels,
-      });
-  // Bilgi boşlukları zayıf nokta yoksa kilitli; varsa yeni sorular yalnız
-  // o konulardan üretilir (Astra, 1 Ekim 2026).
+  const measuredWeak = measuredWeakTopics({ mastery, plannedTopics: topicLabels });
+  // Uyarlamalı seçim kendi konusunda kalır. Diğer zayıf nokta ve odaklı pratik yalnız ölçülmüş
+  // zayıf konulardan kurulur; yanılgı ya da kaçırılan başlık tek başına konu açmaz.
+  const weakTopics = focus ? [focus] : measuredWeak;
   if (input.kind === "gaps") {
-    return weakTopics.length
-      ? { action: "generate", topics: weakTopics.slice(0, 6) }
+    return measuredWeak.length
+      ? { action: "generate", topics: measuredWeak.slice(0, 6) }
       : lockedToolPayload("gaps");
   }
   const checks: StoredLessonCheck[] = [];
@@ -441,25 +437,48 @@ export async function buildLocalSessionPayload(
   // Son kontrol bütün konuları yoklar (25 Ekim 2026, P1-4): konu başına bir soru, en zayıf önce; sorusu
   // olmayan konu anında üretilir (`fill`).
   if (input.kind === "final_check") {
-    const order = [...weakTopics, ...topicLabels];
+    const order = [...measuredWeak, ...topicLabels];
     const pool = [...lessonQuestions, ...missedQuestions].map((question) => rewordPracticeQuestion(question, language));
-    const selection = finalCheckSelection(order.length ? order : [input.prepTitle], pool);
+    const seenStems = await loadPreviousItems(service, {
+      userId: input.userId,
+      prepId: input.prepId,
+      kind: "quiz",
+    }).catch(() => [] as string[]);
+    const selection = finalCheckSelection(
+      order.length ? order : [input.prepTitle],
+      pool,
+      FINAL_CHECK_LIMIT,
+      seenStems,
+    );
     if (!selection.missingTopics.length) {
       return {
         action: "serve",
         payload: { type: "quiz", practice: input.kind, reused: true, questions: selection.questions, uncoveredTopics: [] },
       };
     }
-    return { action: "generate", topics: selection.missingTopics, fill: { seed: selection.questions, perTopic: 1 } };
+    return {
+      action: "generate",
+      topics: selection.missingTopics,
+      fill: {
+        seed: selection.questions,
+        perTopic: 1,
+        previousStems: [...seenStems, ...selection.questions.map((question) => question.text)],
+      },
+    };
   }
 
-  // Kayıtlı zayıf konu yoksa odaklı pratik boş dönmez: en az ölçülmüş konudan hemen üretilir.
-  if (!weakTopics.length) {
-    const fallback = finalCardTopics(
-      topicLabels.map((label) => ({ label, confidence: confidenceFor(mastery, label) })),
-      1,
-    );
-    return { action: "generate", topics: fallback.length ? fallback : [input.prepTitle] };
+  if (input.kind === "focused" && !focus && !measuredWeak.length) {
+    return {
+      action: "serve",
+      topics: [],
+      payload: {
+        type: "practice_empty",
+        practice: "focused",
+        reason: "no_weak_topics",
+        message: "Ölçülmüş zayıf konun yok. Bu adımı tamamlayıp yola devam edebilirsin.",
+        topics: [],
+      },
+    };
   }
 
   const assembled = assembleFocusedPractice({
@@ -476,6 +495,7 @@ export async function buildLocalSessionPayload(
   if (assembled.questions.length) {
     return {
       action: "serve",
+      topics: weakTopics,
       payload: {
         type: "quiz",
         practice: input.kind,

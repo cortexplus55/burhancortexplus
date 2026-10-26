@@ -68,7 +68,7 @@ export function starsToTop(rows: LeaderboardRow[], top = LEADERBOARD_TOP): numbe
   return Math.max(1, cutoff.stars - (me?.stars ?? 0) + 1);
 }
 
-/** Üst çubuk yazısı: "Yıldızlar: bugün 11 / 50". */
+/** Üst çubuk yazısı: "Yıldızlar: bugün 11 · hedef 50". 50 bir tavan değil, hedeftir. */
 export function todayLine(today: number): string {
-  return `Yıldızlar: bugün ${today} / ${DAILY_STAR_GOAL}`;
+  return `Yıldızlar: bugün ${today} · hedef ${DAILY_STAR_GOAL}`;
 }

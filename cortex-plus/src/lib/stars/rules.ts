@@ -19,7 +19,7 @@ export type StarSource =
   | "invite_subscribed"
   | "prep_joined";
 
-/** Günlük yıldız hedefi; üst çubukta "bugün N / 50". */
+/** Günlük yıldız hedefi; üst çubukta "bugün N · hedef 50". Tavan değildir, kazanç kesilmez. */
 export const DAILY_STAR_GOAL = 50;
 
 /** Sıralama bu kadar kişi yıldız kazanınca başlar; o zamana dek geçen haftanın kazananları. */

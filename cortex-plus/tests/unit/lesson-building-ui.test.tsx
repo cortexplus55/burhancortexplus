@@ -60,9 +60,9 @@ describe("parça parça açılan ders ekranı", () => {
     const plan = container.querySelector(".als-intro-plan")!;
     expect(plan.querySelectorAll("li")).toHaveLength(3);
     expect(plan.querySelectorAll("li.als-intro-pending")).toHaveLength(2);
-    // Payda yazımı süren kavramları da sayar; ders tamamlanınca atlamaz (P1-7).
+    // Payda yalnız yazılmış adımlar (giriş + ekran). Gelecek kavram adları planda durur, paydaya eklenmez.
     const planned = Number(container.querySelector(".als-intro-meta")!.textContent!.match(/(\d+) adım/)?.[1]);
-    expect(planned).toBeGreaterThanOrEqual(3);
+    expect(planned).toBe(2);
 
     fireEvent.click(screen.getByRole("button", { name: /Devam et/ }));
     fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));

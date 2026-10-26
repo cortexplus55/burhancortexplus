@@ -211,6 +211,10 @@ export async function probeSchema(
     .from("exam_prep_misconceptions")
     .select("resolved_at")
     .limit(1);
+  const [explainAttempts, prepVideos] = await Promise.all([
+    hasTable(service, "explain_attempts"),
+    hasTable(service, "prep_videos"),
+  ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
   const v2 = Boolean(podcastRule.data) && chatRule.data?.credit_cost === chatPrice;
@@ -345,6 +349,22 @@ export async function probeSchema(
       detail: analysisTable.error
         ? "document_teacher_analyses yok — yeni yükleme analiz satırı yazamıyor (20260924200000)."
         : "document_teacher_analyses yerinde. Hazır satır yüklemede bir kez yazılır.",
+    },
+    {
+      name: "Anlatım geçmişi",
+      ok: explainAttempts,
+      critical: false,
+      detail: explainAttempts
+        ? "explain_attempts yerinde (20261025120000)."
+        : "Tablo yok — anlatım geçmişi sessizce boş kalır (20261025120000).",
+    },
+    {
+      name: "Video görsel stilleri",
+      ok: prepVideos,
+      critical: false,
+      detail: prepVideos
+        ? "prep_videos okunuyor. Yeni stil listesi salt okumayla doğrulanamaz (20261025121000)."
+        : "Tablo yok — video ders kaydı yazılamaz (20261017150000 / 20261025121000).",
     },
   ];
 }

@@ -64,6 +64,8 @@ const healthyRows: Rows = {
   exam_prep_review_items: {},
   exam_prep_misconceptions: {},
   free_usage: {},
+  explain_attempts: {},
+  prep_videos: {},
 };
 
 const healthy = () => service({ rows: healthyRows });
@@ -161,7 +163,9 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(17);
+    expect(checks).toHaveLength(19);
+    expect(find(checks, "Anlatım geçmişi")).toMatchObject({ ok: true, critical: false });
+    expect(find(checks, "Video görsel stilleri").detail).toContain("salt okumayla doğrulanamaz");
     // 24 Ekim 2026: ücretsiz sayaç fonksiyonu da soruluyor.
     expect(find(checks, "Ücretsiz sayaçlı ayırma")).toMatchObject({ ok: true, critical: true });
     // 20 Ekim 2026: sonuca göre yol fonksiyonu da soruluyor.
