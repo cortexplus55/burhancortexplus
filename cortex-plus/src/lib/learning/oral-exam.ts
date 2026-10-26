@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { expectsUnit } from "@/lib/learning/unit-expect";
 import {
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
@@ -213,9 +214,7 @@ export function answerCoversPoint(answer: string, point: string): boolean {
 
 export function probeKindForPoints(points: string[]): OralProbeKind {
   const text = points.join(" ");
-  if (UNIT_RE.test(` ${text}`) || (/\d/.test(text) && /mol|birim|kg|gram|litre/i.test(text))) {
-    return "unit";
-  }
+  if (expectsUnit(text)) return "unit";
   if (/neden|çünkü|cunku|sebep|gerek/i.test(text)) return "why";
   return "detail";
 }
@@ -318,7 +317,7 @@ export function syllabusWeightLine(
   }
   const lines = [...seen.entries()]
     .sort((a, b) => rank[a[1]] - rank[b[1]] || a[0].localeCompare(b[0], "tr"))
-    .map(([title, emphasis]) => `${title} (${emphasis})`);
+    .map(([title]) => title);
   return `Soru ağırlığı şu sırayla, çekirdek daha çok: ${lines.join("; ")}. Az önemli konuyu eleme, daha az sor. Bu listede olmayan konu sorma.`;
 }
 
@@ -360,6 +359,10 @@ export function answerLooksIncomplete(question: string, answer: string): boolean
   return false;
 }
 
+function answerHasUnit(text: string): boolean {
+  return hasUnit(text) || expectsUnit(text);
+}
+
 export function visibleProbe(input: {
   answer: string;
   probeKind: OralProbeKind;
@@ -367,6 +370,8 @@ export function visibleProbe(input: {
   alreadyProbed: boolean;
   hint?: string | null;
   question?: string | null;
+  /** Beklenen cevap veya kilit bilgi. Boşsa eski birim yoklaması durur. */
+  expected?: string | null;
 }): { question: string; hint: string | null } | null {
   if (input.alreadyProbed) return null;
   const answer = input.answer.trim();
@@ -374,17 +379,21 @@ export function visibleProbe(input: {
   const vibe = parseExaminerVibe(input.persona);
   const supportive = vibeGivesHints(vibe);
   const thin = answer.length < 80;
+  const expected = input.expected?.trim() ?? "";
+  const missingUnit = numbersIn(answer).length > 0 && !answerHasUnit(answer);
+  const wantsUnit = expected ? expectsUnit(expected) && missingUnit : false;
   let question: string | null = null;
-  if (input.probeKind === "unit" && numbersIn(answer).length > 0 && !hasUnit(answer)) {
+  if (wantsUnit || (!expected && input.probeKind === "unit" && missingUnit)) {
     question = "Birimi ne?";
   } else if (input.probeKind === "why" && thin) {
     question = vibe === "challenger" ? "Emin misin? Neden bu sonuç?" : "Neden?";
   } else if (input.probeKind === "detail" && answer.length < 40 && !/=/.test(answer)) {
     question = vibe === "challenger" ? "Emin misin? Ya soruda şu öncül değişseydi?" : "Biraz açar mısın?";
-  } else if (thin && numbersIn(answer).length > 0 && !hasUnit(answer)) {
+  } else if (!expected && thin && missingUnit) {
     question = "Birimi ne?";
   } else if (supportive && answerLooksIncomplete(input.question ?? "", answer)) {
-    question = numbersIn(answer).length > 0 && !hasUnit(answer) ? "Birimi ne?" : "Eksik kalan adımı da yazar mısın?";
+    question =
+      !expected && missingUnit ? "Birimi ne?" : "Eksik kalan adımı da yazar mısın?";
   } else if (vibe === "challenger" && thin) {
     question = "Emin misin? Ya soruda şu öncül değişseydi?";
   }

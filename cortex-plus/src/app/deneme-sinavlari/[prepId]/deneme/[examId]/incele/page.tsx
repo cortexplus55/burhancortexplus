@@ -8,14 +8,15 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
 export const metadata = { title: "Soru inceleme" };
 
-/** Açık uçlu notun ölçütleri (grade-exam: met / missed). Eski kayıtta yok. */
-function reviewFeedback(raw: unknown): { met: string[]; missed: string[] } | null {
-  const row = raw && typeof raw === "object" ? (raw as { met?: unknown; missed?: unknown }) : null;
+/** Açık uçlu notun ölçütleri (grade-exam: met / missed / fix). Eski kayıtta yok. */
+function reviewFeedback(raw: unknown): { met: string[]; missed: string[]; fix: string } | null {
+  const row = raw && typeof raw === "object" ? (raw as { met?: unknown; missed?: unknown; fix?: unknown }) : null;
   if (!row) return null;
   const list = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : []);
   const met = list(row.met);
   const missed = list(row.missed);
-  return met.length || missed.length ? { met, missed } : null;
+  const fix = typeof row.fix === "string" ? row.fix.trim() : "";
+  return met.length || missed.length || fix ? { met, missed, fix } : null;
 }
 
 export default async function ExamQuestionReviewPage({

@@ -8,5 +8,10 @@
     { "id": "cumhuriyet", "label": "Cumhuriyet", "points": ["cumhuriyet ilan edildi", "egemenlik millete geçti"] },
     { "id": "meclis", "label": "Meclis", "points": ["meclis kararı onayladı", "yasama mecliste toplandı"] },
     { "id": "islahat", "label": "Islahat", "points": ["ıslahat fermanı hakları toplar", "eşitlik vaadi yazıldı"] }
-  ]
+  ],
+  "checks": {
+    "source": "Olay 29 Mayıs 1453'te alındı.",
+    "accept": ["1453'te"],
+    "reject": [{ "answer": "1071'de alındı", "correctIncludes": "1453" }]
+  }
 }

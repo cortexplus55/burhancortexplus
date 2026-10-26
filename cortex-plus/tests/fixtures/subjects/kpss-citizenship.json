@@ -8,5 +8,10 @@
     { "id": "legislature", "label": "Yasama", "points": ["yasama kanun yapar", "meclis kanun çıkarır"] },
     { "id": "executive", "label": "Yürütme", "points": ["yürütme kanunu uygular", "idare işlemi yapar"] },
     { "id": "judiciary", "label": "Yargı", "points": ["yargı bağımsızdır", "mahkeme hüküm kurar"] }
-  ]
+  ],
+  "checks": {
+    "source": "Anayasa m.10 eşitlik ilkesini düzenler.",
+    "accept": ["Anayasa m.10 eşitlik"],
+    "reject": []
+  }
 }

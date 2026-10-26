@@ -1,5 +1,6 @@
 import { lessonKeyFacts, type KeyFact } from "@/lib/learning/lesson-key-facts";
 import { validFirstAnswerErrors, type OralAnswerError } from "@/lib/learning/oral-first-answer";
+import { claimVerdict, sourceSentences } from "@/lib/learning/same-fact";
 
 /**
  * Sözlüden önce olgu denetimi. Kaynakla çelişen sayı, yön, tarih, madde, sıra, tanım ve istisna.
@@ -8,19 +9,6 @@ import { validFirstAnswerErrors, type OralAnswerError } from "@/lib/learning/ora
 export const FACT_CHECK_TIMEOUT_MS = 12_000;
 
 export type FactAnswer = { index: number; answer: string };
-
-type Dir = "up" | "down" | "flat";
-
-const DIRECTIONS: { dir: Dir; re: RegExp }[] = [
-  { dir: "up", re: /\b(?:artar|artti|artmis|yukselir|yukselmis|cogalir|cogalmis|doubles|increases|rises|grows)\b|\biki\s+kat/gi },
-  { dir: "down", re: /\b(?:azalir|azalmis|duser|dusmus|iner|inmis|decreases|falls|drops|halves)\b/gi },
-  {
-    dir: "flat",
-    re: /\b(?:degismez|degismedi|ayni\s+kalir|sabit\s+kalir|unchanged|stays\s+the\s+same|does\s+not\s+change|remains\s+the\s+same|no\s+change)\b/gi,
-  },
-];
-
-const STOP = new Set(["icin", "olan", "olarak", "daha", "gibi", "veya", "anda", "ile", "bir", "bu", "the", "and", "for", "with", "that", "this", "from"]);
 
 function fold(text: string): string {
   return text
@@ -35,13 +23,6 @@ function fold(text: string): string {
     .trim();
 }
 
-function sentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+|\n+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length >= 3);
-}
-
 function words(text: string): string[] {
   return fold(text)
     .replace(/[^a-z0-9 ]+/g, " ")
@@ -49,120 +30,10 @@ function words(text: string): string[] {
     .filter(Boolean);
 }
 
-function stemsOf(text: string): string[] {
-  const out: string[] = [];
-  for (const word of words(text)) {
-    if (word.length < 5 || STOP.has(word) || /^\d+$/.test(word)) continue;
-    const stem = word.slice(0, 5);
-    if (!out.includes(stem)) out.push(stem);
-  }
-  return out;
-}
-
-function distinctiveShared(a: string, b: string): boolean {
-  const foldedB = ` ${fold(b)} `;
-  const foldedA = ` ${fold(a)} `;
-  const hit = (from: string, into: string) =>
-    words(from).some((word) => word.length >= 8 && into.includes(word.slice(0, 5)));
-  return hit(a, foldedB) || hit(b, foldedA);
-}
-
-function overlapScore(a: string, b: string): number {
-  const right = new Set(stemsOf(b));
-  const shared = stemsOf(a).filter((stem) => right.has(stem)).length;
-  if (shared >= 2) return shared;
-  if (distinctiveShared(a, b)) return Math.max(shared, 2);
-  return shared;
-}
-
-function related(a: string, b: string): boolean {
-  return overlapScore(a, b) >= 2;
-}
-
-function lastDirection(text: string): Dir | null {
-  const folded = fold(text);
-  let best: { dir: Dir; at: number } | null = null;
-  for (const row of DIRECTIONS) {
-    for (const match of folded.matchAll(row.re)) {
-      const at = match.index ?? 0;
-      if (!best || at >= best.at) best = { dir: row.dir, at };
-    }
-  }
-  return best?.dir ?? null;
-}
-
-function years(text: string): string[] {
-  return [...new Set([...text.matchAll(/\b(?:1[0-9]{3}|20[0-9]{2})\b/g)].map((match) => match[0]))];
-}
-
-function articles(text: string): string[] {
-  const folded = fold(text);
-  return [...new Set([...folded.matchAll(/\b(?:madde|md|article|art)\.?\s*(\d{1,4})\b/g)].map((match) => match[1]!))];
-}
-
-function salientNumbers(text: string): string[] {
-  const out: string[] = [];
-  for (const match of text.matchAll(/\d+(?:[.,]\d+)?/g)) {
-    const token = match[0].replace(",", ".");
-    if (token === "0" || token === "1") continue;
-    if (!out.includes(token)) out.push(token);
-  }
-  return out;
-}
-
-function exclusive(left: readonly string[], right: readonly string[]): boolean {
-  if (!left.length || !right.length) return false;
-  const a = new Set(left);
-  const b = new Set(right);
-  return [...a].some((item) => !b.has(item)) && [...b].some((item) => !a.has(item));
-}
-
 function clip(text: string, max: number): string {
   const flat = text.replace(/\s+/g, " ").trim();
   if (flat.length <= max) return flat;
   return `${flat.slice(0, max - 1).trimEnd()}…`;
-}
-
-function bestSentence(claim: string, sourceSentences: readonly string[]): string | null {
-  let best: { text: string; score: number } | null = null;
-  for (const text of sourceSentences) {
-    const score = overlapScore(claim, text);
-    if (!best || score > best.score) best = { text, score };
-  }
-  if (!best || best.score < 2) return null;
-  return best.text;
-}
-
-function pairError(claim: string, sourceSentence: string): OralAnswerError {
-  return { wrong: clip(claim, 160), correct: clip(sourceSentence, 200) };
-}
-
-function contradictSentence(claim: string, sourceSentence: string): OralAnswerError | null {
-  if (!related(claim, sourceSentence)) return null;
-  const claimDir = lastDirection(claim);
-  const sourceDir = lastDirection(sourceSentence);
-  if (claimDir && sourceDir && claimDir !== sourceDir) return pairError(claim, sourceSentence);
-  if (exclusive(articles(claim), articles(sourceSentence))) return pairError(claim, sourceSentence);
-  if (exclusive(years(claim), years(sourceSentence))) return pairError(claim, sourceSentence);
-  if (exclusive(salientNumbers(claim), salientNumbers(sourceSentence))) return pairError(claim, sourceSentence);
-  return null;
-}
-
-function signatureClash(claim: string, sourceFacts: readonly KeyFact[]): KeyFact | null {
-  const claimFacts = lessonKeyFacts([{ text: claim }]);
-  for (const left of sourceFacts) {
-    if (left.kind === "sequence" || !left.signatures.length) continue;
-    for (const right of claimFacts) {
-      if (right.kind !== left.kind || !right.signatures.length) continue;
-      const stems = new Set(left.stems);
-      const shared = right.stems.some((stem) => stems.has(stem));
-      if (!shared && !related(left.text, right.text)) continue;
-      const leftSig = left.signatures.map((item) => fold(item).replace(/\s+/g, ""));
-      const rightSig = right.signatures.map((item) => fold(item).replace(/\s+/g, ""));
-      if (exclusive(leftSig, rightSig)) return left;
-    }
-  }
-  return null;
 }
 
 function stepAt(text: string, step: string): number {
@@ -196,26 +67,19 @@ function sequenceConflict(answer: string, facts: readonly KeyFact[], sourceSente
 export function deterministicFactConflicts(source: string, answers: readonly FactAnswer[]): Map<number, OralAnswerError[]> {
   const map = new Map<number, OralAnswerError[]>();
   if (!source.trim()) return map;
-  const sourceSentences = sentences(source);
+  const lines = sourceSentences(source);
   const facts = lessonKeyFacts([{ text: source }]);
   for (const row of answers) {
     const answer = row.answer.trim();
     if (!answer) continue;
     const found: OralAnswerError[] = [];
-    for (const claim of sentences(answer)) {
-      const sourceSentence = bestSentence(claim, sourceSentences);
-      const direct = sourceSentence ? contradictSentence(claim, sourceSentence) : null;
-      if (direct) {
-        found.push(direct);
-        continue;
-      }
-      const clash = signatureClash(claim, facts);
-      if (clash) {
-        const home = sourceSentences.find((sentence) => sentence.includes(clash.text.slice(0, 24))) ?? clash.text;
-        found.push({ wrong: clip(claim, 160), correct: clip(home, 200) });
+    for (const claim of sourceSentences(answer)) {
+      const verdict = claimVerdict(claim, lines);
+      if (verdict.kind === "conflict") {
+        found.push({ wrong: clip(claim, 160), correct: verdict.correct });
       }
     }
-    const order = sequenceConflict(answer, facts, sourceSentences);
+    const order = sequenceConflict(answer, facts, lines);
     if (order) found.push(order);
     const valid = validFirstAnswerErrors(answer, found);
     if (valid.length) map.set(row.index, valid);
@@ -233,7 +97,8 @@ export function factCheckUserPrompt(answers: readonly FactAnswer[], source: stri
     "",
     "Her cevap için kaynağa aykırı iddiaları yaz.",
     "Aykırı olan: sayı, yön (artar, azalır veya değişmez), tarih, madde numarası, sıralı adım, tanım veya istisna kaynağın tersini söylüyorsa.",
-    "Eksik anlatım ve aynı anlamı başka sözle söylemek aykırı değildir.",
+    "Eksik anlatım, aynı anlamı başka sözle söylemek, eşdeğer biçim ve birim dönüşümü aykırı değildir.",
+    "Emin değilsen errors yazma. correct yalnız aynı olgunun kaynak cümlesidir.",
     "wrong öğrencinin cümlesinden birebir alıntıdır. correct kaynağın cümlesinden birebir alıntıdır.",
     'JSON: {"items":[{"index":0,"errors":[{"wrong":"...","correct":"..."}]}]}',
   ].join("\n");
@@ -311,8 +176,36 @@ export async function collectFactConflicts(input: {
   if (!input.source.trim()) return new Map();
   const backup = deterministicFactConflicts(input.source, input.answers);
   const raw = input.model ? await withDeadline(input.model, FACT_CHECK_TIMEOUT_MS) : null;
-  const parsed = parseFactCheckPayload(raw, input.answers);
+  const parsed = confirmModelConflicts(input.source, parseFactCheckPayload(raw, input.answers));
   return mergeFactConflicts(parsed, backup);
+}
+
+/** Model çelişkisi yalnız aynı olgu cümlesiyle kalır. Uzlaşılan iddia düşer. */
+function confirmModelConflicts(
+  source: string,
+  parsed: Map<number, OralAnswerError[]>,
+): Map<number, OralAnswerError[]> {
+  const lines = sourceSentences(source);
+  const out = new Map<number, OralAnswerError[]>();
+  for (const [index, errors] of parsed) {
+    const kept: OralAnswerError[] = [];
+    for (const error of errors) {
+      const verdict = claimVerdict(error.wrong, lines);
+      if (verdict.kind === "agree") continue;
+      if (verdict.kind === "conflict") {
+        kept.push({ wrong: error.wrong, correct: verdict.correct });
+        continue;
+      }
+      const home = lines.find((sentence) => {
+        const folded = fold(sentence);
+        const quote = fold(error.correct);
+        return quote.length >= 8 && (folded.includes(quote.slice(0, 48)) || quote.includes(folded.slice(0, 48)));
+      });
+      if (home) kept.push({ wrong: error.wrong, correct: clip(home, 200) });
+    }
+    if (kept.length) out.set(index, kept);
+  }
+  return out;
 }
 
 function withDeadline<T>(work: Promise<T>, ms: number): Promise<T | null> {

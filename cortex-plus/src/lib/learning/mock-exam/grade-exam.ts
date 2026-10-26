@@ -5,6 +5,12 @@ import { contentModel } from "@/lib/ai/model-router";
 import { recordUsage } from "@/lib/credits/service";
 import { env } from "@/lib/env";
 import { recordMistakes } from "@/lib/learning/mistake-notebook";
+import { missingColumn } from "@/lib/learning/missing-column";
+import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
+import { acceptRubric, isRubricLabel } from "@/lib/learning/open-rubric";
+import { planFromModelAnswer, validSolutionPlan } from "@/lib/learning/solution-plan";
+import { parseModelJson } from "@/lib/learning/teaching-standards";
+import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
 import {
   OPEN_GRADE_SYSTEM,
   openGradeUserPrompt,
@@ -12,9 +18,6 @@ import {
   type OpenGradeItem,
   type OpenJudgement,
 } from "@/lib/learning/mock-exam/open-grade";
-import { parseModelJson } from "@/lib/learning/teaching-standards";
-import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
-import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import {
   buildTopicReport,
@@ -101,15 +104,19 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     // Geç gönderim: kayıtlı son cevaplarla notlandır (answers body yok sayılmaz — zaten geldiyse kullan)
   }
 
-  const { data: rows } = await service
+  const questionColumns =
+    "id, question_text, question_type, options, correct_answer, correct_answers, points, explanation, topic_id, topic_label, rubric, model_answer, option_why, source_label";
+  const withPlan = await service
     .from("practice_exam_questions")
-    .select(
-      "id, question_text, question_type, options, correct_answer, correct_answers, points, explanation, topic_id, topic_label, rubric, model_answer, option_why, source_label",
-    )
+    .select(`${questionColumns}, solution_plan`)
     .eq("exam_id", examId)
     .order("sort_order");
+  const planColumn = !missingColumn(withPlan.error);
+  const loaded = planColumn
+    ? withPlan
+    : await service.from("practice_exam_questions").select(questionColumns).eq("exam_id", examId).order("sort_order");
 
-  const list = (rows ?? []) as Array<Record<string, unknown>>;
+  const list = (loaded.data ?? []) as Array<Record<string, unknown>>;
   const gradeables: GradeableQuestion[] = list.map((row) => {
     const type = (row.question_type as MockQuestionType) || "mcq";
     const correctAnswers = Array.isArray(row.correct_answers)
@@ -130,6 +137,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
       numericExpected: extractNum(row.model_answer ?? row.correct_answer),
       numericUnit: extractUnit(String(row.model_answer ?? row.correct_answer ?? "")),
       numericTolerance: null,
+      solutionPlan: planColumn ? row.solution_plan : null,
     };
   });
 
@@ -137,92 +145,31 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     const raw = normalizeSubmittedAnswer(answers[q.id], q.type);
     return Array.isArray(raw) ? raw.join(" ") : String(raw ?? "");
   };
-  const rubricOf = (q: GradeableQuestion) => (q.rubric?.length ? q.rubric : [{ criterion: "Ana nokta", points: q.points }]);
-  const openQuestions = gradeables.filter(
-    (q) => (q.type === "short_answer" || q.type === "open") && answerTextOf(q).trim(),
-  );
+  const openForJudge = gradeables.filter((q) => {
+    if (q.type !== "short_answer" && q.type !== "open") return false;
+    if (!answerTextOf(q).trim()) return false;
+    if (validSolutionPlan(q.solutionPlan) || planFromModelAnswer(q.modelAnswer)) return false;
+    return true;
+  });
   const judged = await judgeOpenAnswers(
     service,
     userId,
-    openQuestions.map((q) => ({
-      question: list.find((row) => row.id === q.id)?.question_text as string,
-      criteria: rubricOf(q).map((row) => row.criterion),
+    openForJudge.map((q) => ({
+      question: String(list.find((row) => row.id === q.id)?.question_text ?? ""),
+      criteria: rubricRows(q).map((row) => row.criterion),
       modelAnswer: q.modelAnswer ?? "",
       answer: answerTextOf(q),
     })),
   );
-  const judgementFor = new Map(openQuestions.map((q, index) => [q.id, judged.get(index)]));
+  const judgementFor = new Map(openForJudge.map((q, index) => [q.id, judged.get(index)]));
 
   const items: MockGradeItem[] = gradeables.map((q) => {
     const raw = normalizeSubmittedAnswer(answers[q.id], q.type);
     if (q.type === "short_answer" || q.type === "open") {
-      const answerText = Array.isArray(raw) ? raw.join(" ") : String(raw ?? "");
-      const rubric = rubricOf(q);
-      const judgement = judgementFor.get(q.id);
-      if (judgement) {
-        // Yapay zekâ notu: karşılanan ölçütün alıntısı cevapta birebir yoksa sayılmaz.
-        const graded = gradeRubricAnswer(answerText, rubric, judgement.quotes);
-        const verdict: MockGradeItem["verdict"] =
-          graded.invalid || graded.earned === 0 ? "yanlis" : graded.earned >= graded.max ? "dogru" : "kismen";
-        return {
-          questionId: q.id,
-          userAnswer: answerText,
-          isCorrect: verdict === "dogru",
-          pointsEarned: graded.earned,
-          pointsMax: graded.max,
-          verdict,
-          explanation: q.explanation ?? "",
-          feedback: { met: graded.met, missed: graded.missed, invalid: false, quotes: judgement.quotes },
-          topicId: q.topicId ?? null,
-          topicLabel: q.topicLabel?.trim() || "Konu",
-        };
+      if (validSolutionPlan(q.solutionPlan) || planFromModelAnswer(q.modelAnswer)) {
+        return gradeDeterministicItem(q, raw);
       }
-      // Alıntı: model_answer / rubrik maddelerinden cevapta geçen parçalar
-      const quotes = rubric
-        .map((r) => {
-          const seed = (q.modelAnswer || r.criterion).slice(0, 80);
-          const quote = findQuote(answerText, seed) || findQuote(answerText, r.criterion);
-          return quote ? { criterion: r.criterion, quote } : null;
-        })
-        .filter((x): x is { criterion: string; quote: string } => Boolean(x));
-      // Rubrik maddesi için öğrencinin cevabından kısa alıntı yoksa kelime örtüşmesi
-      const expanded = rubric.map((r) => {
-        const existing = quotes.find((qte) => qte.criterion === r.criterion);
-        if (existing) return existing;
-        const hit = answerText
-          .split(/[.!?\n]/)
-          .map((s) => s.trim())
-          .find((s) => s.length >= 8 && fold(s).includes(fold(r.criterion).slice(0, 12)));
-        return hit ? { criterion: r.criterion, quote: hit.slice(0, 120) } : null;
-      }).filter((x): x is { criterion: string; quote: string } => Boolean(x));
-
-      const graded = gradeRubricAnswer(answerText, rubric, expanded);
-      const verdict: MockGradeItem["verdict"] = !answerText.trim()
-        ? "bos"
-        : graded.invalid
-          ? "yanlis"
-          : graded.earned >= graded.max
-            ? "dogru"
-            : graded.earned > 0
-              ? "kismen"
-              : "yanlis";
-      return {
-        questionId: q.id,
-        userAnswer: answerText,
-        isCorrect: verdict === "dogru",
-        pointsEarned: graded.invalid ? 0 : graded.earned,
-        pointsMax: graded.max,
-        verdict,
-        explanation: q.explanation ?? "",
-        feedback: {
-          met: graded.met,
-          missed: graded.missed,
-          invalid: graded.invalid,
-          quotes: expanded,
-        },
-        topicId: q.topicId ?? null,
-        topicLabel: q.topicLabel?.trim() || "Konu",
-      };
+      return gradeOpenQuoted(q, answerTextOf(q), judgementFor.get(q.id));
     }
     return gradeDeterministicItem(q, raw);
   });
@@ -372,15 +319,128 @@ function extractUnit(text: string): string | null {
   return m?.[1] ?? null;
 }
 
+function rubricRows(question: GradeableQuestion): MockRubricItem[] {
+  const rows = (question.rubric ?? []).filter(
+    (row) => row.criterion.trim() && !isRubricLabel(row.criterion) && row.points > 0,
+  );
+  if (rows.length) return rows;
+  const seeds = (question.modelAnswer ?? "")
+    .split(/[.!?\n]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 8 && !isRubricLabel(part));
+  return acceptRubric(seeds, question.points || 1).map(({ criterion, points }) => ({ criterion, points }));
+}
+
+function visiblePoints(rows: string[]): string[] {
+  return rows.map((row) => row.trim()).filter((row) => row && !isRubricLabel(row));
+}
+
+function fixLine(missed: string[]): string {
+  const point = visiblePoints(missed)[0];
+  return point ? `Eksik kalan noktayı kendi cümlenle ekle: ${point}` : "";
+}
+
+/** Alıntılı açık uçlu not. Planlı işlem sorusu buraya gelmez. */
+function gradeOpenQuoted(
+  question: GradeableQuestion,
+  answerText: string,
+  judgement: OpenJudgement | undefined,
+): MockGradeItem {
+  const topicLabel = question.topicLabel?.trim() || "Konu";
+  const rubric = rubricRows(question);
+  if (!answerText.trim()) {
+    return {
+      questionId: question.id,
+      userAnswer: "",
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: rubric.reduce((sum, row) => sum + row.points, 0) || question.points || 1,
+      verdict: "bos",
+      explanation: question.explanation ?? "",
+      feedback: null,
+      topicId: question.topicId ?? null,
+      topicLabel,
+    };
+  }
+  if (judgement) {
+    const graded = gradeRubricAnswer(answerText, rubric, judgement.quotes);
+    const verdict: MockGradeItem["verdict"] =
+      graded.invalid || graded.earned === 0 ? "yanlis" : graded.earned >= graded.max ? "dogru" : "kismen";
+    const missed = visiblePoints(graded.missed);
+    return {
+      questionId: question.id,
+      userAnswer: answerText,
+      isCorrect: verdict === "dogru",
+      pointsEarned: graded.earned,
+      pointsMax: graded.max,
+      verdict,
+      explanation: question.explanation ?? "",
+      feedback: {
+        met: visiblePoints(graded.met),
+        missed,
+        fix: fixLine(missed),
+        invalid: false,
+        quotes: judgement.quotes,
+      },
+      topicId: question.topicId ?? null,
+      topicLabel,
+    };
+  }
+  const quotes = rubric
+    .map((row) => {
+      const seed = (question.modelAnswer || row.criterion).slice(0, 80);
+      const quote = findQuote(answerText, seed) || findQuote(answerText, row.criterion);
+      return quote ? { criterion: row.criterion, quote } : null;
+    })
+    .filter((row): row is { criterion: string; quote: string } => Boolean(row));
+  const expanded = rubric
+    .map((row) => {
+      const existing = quotes.find((quote) => quote.criterion === row.criterion);
+      if (existing) return existing;
+      const hit = answerText
+        .split(/[.!?\n]/)
+        .map((part) => part.trim())
+        .find((part) => part.length >= 8 && fold(part).includes(fold(row.criterion).slice(0, 12)));
+      return hit ? { criterion: row.criterion, quote: hit.slice(0, 120) } : null;
+    })
+    .filter((row): row is { criterion: string; quote: string } => Boolean(row));
+  const graded = gradeRubricAnswer(answerText, rubric, expanded);
+  const verdict: MockGradeItem["verdict"] = graded.invalid
+    ? "yanlis"
+    : graded.earned >= graded.max
+      ? "dogru"
+      : graded.earned > 0
+        ? "kismen"
+        : "yanlis";
+  const missed = visiblePoints(graded.missed);
+  return {
+    questionId: question.id,
+    userAnswer: answerText,
+    isCorrect: verdict === "dogru",
+    pointsEarned: graded.invalid ? 0 : graded.earned,
+    pointsMax: graded.max,
+    verdict,
+    explanation: question.explanation ?? "",
+    feedback: {
+      met: visiblePoints(graded.met),
+      missed,
+      fix: fixLine(missed),
+      invalid: graded.invalid,
+      quotes: expanded,
+    },
+    topicId: question.topicId ?? null,
+    topicLabel,
+  };
+}
+
 function findQuote(answer: string, seed: string): string | null {
   const foldedAnswer = fold(answer);
   const foldedSeed = fold(seed);
   if (!foldedSeed || foldedSeed.length < 3) return null;
   if (!foldedAnswer.includes(foldedSeed.slice(0, Math.min(20, foldedSeed.length)))) {
-    // Sayısal alıntı
     const nums = seed.match(/\d+(?:[.,]\d+)?/g) ?? [];
-    for (const n of nums) {
-      if (answer.includes(n)) return n;
+    for (const num of nums) {
+      if (answer.includes(num)) return num;
     }
     return null;
   }
@@ -389,17 +449,13 @@ function findQuote(answer: string, seed: string): string | null {
   return answer.slice(Math.max(0, idx), Math.min(answer.length, idx + 80)).trim() || null;
 }
 
-function fold(s: string) {
-  return s
-    .toLocaleLowerCase("tr")
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
+function fold(value: string) {
+  return value.toLocaleLowerCase("tr").normalize("NFD").replace(/\p{M}/gu, "");
 }
 
 /**
- * Açık uçlu cevapları tek çağrıda notlatır (bkz. open-grade.ts). Değerlendirme denemenin
- * ücretine dahil: kullanım yazılır, kredi düşmez. Çağrı düşerse boş döner; o cevaplar
- * eski yerel yöntemle (alıntı / kelime örtüşmesi) notlanır, not kaybolmaz.
+ * Açık uçlu cevapları tek çağrıda notlatır. Kullanım yazılır, kredi düşmez.
+ * Çağrı düşerse boş döner; o cevaplar alıntı ve örtüşmeyle notlanır.
  */
 async function judgeOpenAnswers(
   service: SupabaseClient,
@@ -434,3 +490,4 @@ async function judgeOpenAnswers(
     return new Map();
   }
 }
+

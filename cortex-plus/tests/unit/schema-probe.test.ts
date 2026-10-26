@@ -67,6 +67,7 @@ const healthyRows: Rows = {
   explain_attempts: {},
   prep_videos: {},
   generation_jobs: {},
+  practice_exam_questions: {},
 };
 
 const healthy = () => service({ rows: healthyRows });
@@ -164,7 +165,7 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(20);
+    expect(checks).toHaveLength(21);
     expect(find(checks, "Anlatım geçmişi")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Video görsel stilleri").detail).toContain("salt okumayla doğrulanamaz");
     // 24 Ekim 2026: ücretsiz sayaç fonksiyonu da soruluyor.
@@ -181,6 +182,8 @@ describe("diğer göç dosyaları", () => {
     expect(find(checks, "Kredi v3").detail).toContain("günlük kredi 0");
     expect(find(checks, "Üretim işleri")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Üretim işleri").detail).toContain("20261026120000");
+    expect(find(checks, "Çözüm planı")).toMatchObject({ ok: true, critical: false });
+    expect(find(checks, "Çözüm planı").detail).toContain("20261026130000");
   });
 
   it("üretim işi tablosu yoksa kırmızı ama kritik değil", async () => {
