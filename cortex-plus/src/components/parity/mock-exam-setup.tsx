@@ -94,7 +94,7 @@ export function MockExamSetup({
         router.push(examHref(waited.examId));
         return;
       }
-      setRetryJobId(jobId);
+      if (waited.failed) setRetryJobId(jobId);
     } catch {
       setRetryJobId(jobId);
     } finally {

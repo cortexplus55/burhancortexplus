@@ -24,6 +24,7 @@ import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 import { assertDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
 import { fillUntilDelivered } from "@/lib/learning/fill-until-delivered";
+import { logMockExamWave } from "@/lib/learning/mock-exam/topup";
 import { modelForAttempt } from "@/lib/learning/model-ladder";
 import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities";
 
@@ -334,12 +335,17 @@ export async function assembleMockExamQuestions(input: {
   signal?: AbortSignal;
   /** Konu biter bitmez. İstek düşse de bu sorular kalır. */
   onCheckpoint?: (snapshot: { items: MockExamQuestionDraft[]; topicsAttempted: string[] }) => Promise<void>;
+  /** Günlük satırı. Soru metni yazılmaz. */
+  examId?: string | null;
+  /** Bu çağrıdan önce biten dalga. Parça parça istek bunu saklar. */
+  wave?: number;
 }): Promise<
   | {
       ok: true;
       questions: MockExamQuestionDraft[];
       planned: number;
       slots: DeliverySlot[];
+      wave: number;
       topicsAttempted: string[];
       topicTotal: number;
       modelIndexes: Record<string, number>;
@@ -349,6 +355,7 @@ export async function assembleMockExamQuestions(input: {
       questions: MockExamQuestionDraft[];
       planned: number;
       slots: DeliverySlot[];
+      wave: number;
       topicsAttempted: string[];
       topicTotal: number;
       modelIndexes: Record<string, number>;
@@ -378,6 +385,8 @@ export async function assembleMockExamQuestions(input: {
     slots,
     prior: input.prior,
     maxWaves: input.maxWaves ?? 4,
+    initialWave: input.wave ?? 0,
+    onWave: (report) => logMockExamWave({ examId: input.examId ?? null, ...report }),
     parallelism: TOPIC_GENERATE_CONCURRENCY,
     signal: input.signal,
     modelIndexes: input.modelIndexes,
@@ -415,16 +424,17 @@ export async function assembleMockExamQuestions(input: {
   const planned = input.blueprint.questionCount;
   const meta = {
     planned,
-    slots,
+    slots: filled.slots,
+    wave: filled.completedWave,
     topicsAttempted: [...reported],
     topicTotal: allocation.length,
     modelIndexes: filled.modelIndexes,
   };
-  if (!filled.ok) return { ok: false, questions: filled.items, ...meta };
+  if (!filled.ok) return { ok: false, questions: bag.slice(), ...meta };
   let questions = filled.items;
   if (!letterBalanceOk(questions)) questions = rotateCorrectOptions(questions);
-  const gate = assertDeliverable(slots, questions, readDraft);
-  if (!gate.canPublish) return { ok: false, questions, ...meta };
+  const gate = assertDeliverable(filled.slots, questions, readDraft);
+  if (!gate.canPublish) return { ok: false, questions: bag.slice(), ...meta };
   return { ok: true, questions: gate.publishable, ...meta };
 }
 
@@ -507,8 +517,6 @@ async function generateForTopic(input: TopicGenInput): Promise<MockExamQuestionD
     input.topic.topicLabel,
     input.allTopics,
   );
-  if (!ctx.block.trim()) return [];
-
   const sourceLabel = sourceLabelFromBlock(ctx.block, ctx.documentName);
   const base: DraftBase = {
     topicId: input.topic.topicId,
@@ -544,6 +552,7 @@ async function choiceDrafts(
     count: slots.length,
     // Öğrenci kurulum ekranında bekliyor: kısa düzeltme bütçesi (25 Ekim 2026).
     urgent: true,
+    rephrase: true,
     model: modelForAttempt(input.modelIndex ?? 0),
     multi: slots.some((slot) => slot.type === "multi_mcq"),
     topicLabel: input.topic.topicLabel,
@@ -554,7 +563,7 @@ async function choiceDrafts(
       `Tam ${slots.length} çoktan seçmeli soru yaz; yalnız bu konudan.`,
       "Sınav disiplini: ipucu yok, doğru cevabı soru metnine koyma.",
       "Her soruda explanation ve optionWhy zorunlu.",
-      "Kaynakta olmayan olgu yazma.",
+      "Soru doğru kalsın ve yalnız bu konudan olsun. Cümleyi aynen kopyalamak zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin. Yanlış olgu yazma.",
       coverageBlock(block, input.topic.topicLabel, slots.length),
     ]
       .filter(Boolean)
@@ -614,6 +623,7 @@ async function openDrafts(
           sourceBlock: block,
           brief: [
             "Yazılı deneme: öğrenci cevabı birkaç cümleyle kâğıda ya da uygulamaya yazacak.",
+            "Soru doğru kalsın ve bu konuda kalsın. Cümleyi aynen kopyalamak zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin.",
             coverageBlock(block, input.topic.topicLabel, slots.length),
           ]
             .filter(Boolean)

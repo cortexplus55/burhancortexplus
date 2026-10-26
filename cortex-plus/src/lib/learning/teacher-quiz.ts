@@ -46,6 +46,11 @@ export type TeacherQuizInput = {
    * testi gibi eski çağıranların kaynağı). Varsa KAYNAK budur.
    */
   sourceBlock?: string;
+  /**
+   * Yazılı deneme (26 Ekim 2026): soru kaynak cümlesini aynen taşımak zorunda değildir.
+   * Yanlış olgu, bozuk öğe, kopya ve konu dışı yine düşer.
+   */
+  rephrase?: boolean;
   /** Çağıranın isteği: soru türü planı, konu kodları, kapsam. */
   brief?: string;
   runningHeaders?: string[];
@@ -129,6 +134,12 @@ const RULE_DOCUMENT =
   "sorma; genel kültürden ekleme. Kaynaktaki bozuk ya da yanlış yazılmış kelimeleri doğru Türkçeyle yaz. Kaynakta " +
   "açıkça bozuk bir cümle varsa (olumsuzluk eki düşmüş, kendi örnekleriyle çelişiyor) kaynağın kendi açıklama ve " +
   "örneklerinden anlaşılan anlamı kullan; bundan söz etme.\n\n";
+
+const RULE_EXAM =
+  "KONU KURALI (yazılı deneme): Sorular belgenin konularını kapsar ve doğrudur. Cümleyi aynen kopyalamak " +
+  "zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin. Yanlış olgu, " +
+  "konunun dışına çıkan soru, boş kök ve anahtarı şıklarda olmayan soru yazma. Kaynak bir iddiayı açıkça " +
+  "söylüyorsa onunla çelişme.\n\n";
 
 const RULE_TOPIC =
   "BİLGİ KURALI (belgesiz, kesin): Öğrencinin belgesi yok. Soruları sınav müfredatındaki yerleşik, ders kitaplarında " +
@@ -232,9 +243,17 @@ const GAPS_FOCUS =
 
 type QuizScope = TeacherQuizInput["scope"];
 
-function system(mode: TeacherLessonMode, focus: TeacherQuizInput["focus"], multi = false, scope?: QuizScope): string {
-  const intro =
-    mode === "topic"
+function system(
+  mode: TeacherLessonMode,
+  focus: TeacherQuizInput["focus"],
+  multi = false,
+  scope?: QuizScope,
+  rephrase = false,
+): string {
+  const intro = rephrase
+    ? "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor. Belgesindeki konulardan, sınavdaki " +
+      "gibi kısa bir test hazırlıyorsun.\n\n"
+    : mode === "topic"
       ? "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ama belge yüklemedi. Bu konudan, sınavdaki " +
         "gibi kısa bir test hazırlıyorsun.\n\n"
       : "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ve sana kendi ders belgesini verdi. Bu " +
@@ -242,7 +261,7 @@ function system(mode: TeacherLessonMode, focus: TeacherQuizInput["focus"], multi
   const topicTest = scope === "topic_test";
   return (
     intro +
-    (mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
+    (rephrase ? RULE_EXAM : mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
     DESIGN +
     (topicTest ? `${TOPIC_TEST_RULE}\n` : "") +
     (multi ? MULTI_QUESTION : "") +
@@ -257,8 +276,9 @@ export function quizSystem(
   focus: TeacherQuizInput["focus"] = "practice",
   multi = false,
   scope?: QuizScope,
+  rephrase = false,
 ): string {
-  return system(mode, focus, multi, scope);
+  return system(mode, focus, multi, scope, rephrase);
 }
 
 /**
@@ -386,6 +406,12 @@ const VERIFY_TOPIC =
   MULTI_VERIFY +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
+const VERIFY_EXAM = VERIFY_DOCUMENT.replace(
+  "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n",
+  "C) Yanlış olgu ya da konunun dışında kalan bilgi (kök, şık ya da gerekçede); kaynağın açık iddiasıyla çelişen bilgi. " +
+    "Kaynak cümlesini aynen taşımamak, aynı noktayı başka sayı, bağlam ya da açıyla sormak C değildir.\n",
+);
+
 const VERIFY_JSON =
   'JSON döndür: {"issues":[{"question":0,"severity":"high","problem":"…","fix":"…"}]} — question, 0\'dan başlayan ' +
   "soru sırasıdır. Sorun yoksa issues boş dizi.";
@@ -423,8 +449,8 @@ const VERIFY_JSON_CODED =
   'JSON döndür: {"issues":[{"question":0,"code":"A","severity":"high","problem":"…","fix":"…"}]} — question, ' +
   "TEST'te 0'dan başlayan soru sırasıdır. Sorun yoksa issues boş dizi.";
 
-export function quizVerifySystem(mode: TeacherLessonMode = "document", scope?: QuizScope): string {
-  const base = mode === "topic" ? VERIFY_TOPIC : VERIFY_DOCUMENT;
+export function quizVerifySystem(mode: TeacherLessonMode = "document", scope?: QuizScope, rephrase = false): string {
+  const base = rephrase ? VERIFY_EXAM : mode === "topic" ? VERIFY_TOPIC : VERIFY_DOCUMENT;
   return scope === "topic_test" ? base + topicTestVerify(mode) + VERIFY_JSON_CODED : base + VERIFY_JSON;
 }
 
@@ -522,12 +548,19 @@ export function quizFixSystem(
   focus: TeacherQuizInput["focus"] = "practice",
   multi = false,
   scope?: QuizScope,
+  rephrase = false,
 ): string {
+  const lead = rephrase
+    ? "Sen aynı testi yazan öğretmensin. Denetçinin sorun bulduğu soruları düzelt: anahtarı düzelt, tek doğru şık kalacak " +
+      "biçimde şıkları değiştir (multi true soruda işaretli doğrular kesin doğru, ötekiler kesin yanlış kalacak biçimde), " +
+      "yanlış ya da konu dışı bilgiyi çıkar, gerekçeyi düzelt. Kaynak cümlesini aynen taşımayan doğru soruyu silme. " +
+      "Bir soru düzeltilemiyorsa aynı kavramı ölçen yeni bir soru yaz."
+    : "Sen aynı testi yazan öğretmensin. Denetçinin sorun bulduğu soruları düzelt: anahtarı düzelt, tek doğru şık kalacak " +
+      "biçimde şıkları değiştir (multi true soruda işaretli doğrular kesin doğru, ötekiler kesin yanlış kalacak biçimde), " +
+      "kaynakta dayanağı olmayan bilgiyi çıkar, gerekçeyi düzelt. Bir soru düzeltilemiyorsa aynı " +
+      "kavramı ölçen yeni bir soru yaz.";
   return (
-    "Sen aynı testi yazan öğretmensin. Denetçinin sorun bulduğu soruları düzelt: anahtarı düzelt, tek doğru şık kalacak " +
-    "biçimde şıkları değiştir (multi true soruda işaretli doğrular kesin doğru, ötekiler kesin yanlış kalacak biçimde), " +
-    "kaynakta dayanağı olmayan bilgiyi çıkar, gerekçeyi düzelt. Bir soru düzeltilemiyorsa aynı " +
-    "kavramı ölçen yeni bir soru yaz." +
+    lead +
     (scope === "topic_test"
       ? " Sorun [H] ise aynı maddeyi bir vakanın içinde, ayırt ettiren ayrıntıyı yorumlatarak sor. Sorun [I] ya da [J] " +
         "ise fix'te adı geçen maddeyi ya da uyarıyı ölçen yeni bir soru yaz; KALAN SORULAR'ın kalıbını ve maddesini " +
@@ -535,7 +568,7 @@ export function quizFixSystem(
       : "") +
     " Önerilen düzeltme ('→' sonrası) varsa uygula. Yalnız verilen soruları, aynı " +
     "sayıda ve aynı sırayla döndür. Kurallar ve şema aynı:\n\n" +
-    system(mode, focus, multi, scope)
+    system(mode, focus, multi, scope, rephrase)
   );
 }
 

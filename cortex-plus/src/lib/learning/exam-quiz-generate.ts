@@ -68,6 +68,8 @@ export async function generateExamQuiz(input: {
   urgent?: boolean;
   /** Aynı hazırlıkta daha önce sorulan kökler; tekrarlanmaz (`dropNearDuplicates`). */
   previousStems?: string[];
+  /** Yazılı deneme: kaynak cümlesini aynen taşımayan doğru soru da geçer. */
+  rephrase?: boolean;
 }): Promise<
   | { ok: true; questions: QuizQuestion[]; reservationId?: string }
   | { ok: false; status: number; error: string }
@@ -105,6 +107,7 @@ export async function generateExamQuiz(input: {
     ...(input.urgent ? { urgent: true } : {}),
     ...(input.previousStems?.length ? { previousStems: input.previousStems } : {}),
     ...(input.charge === false ? { charge: false } : {}),
+    ...(input.rephrase ? { rephrase: true } : {}),
   });
   if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
   return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };

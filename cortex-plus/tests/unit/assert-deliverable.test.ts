@@ -186,7 +186,7 @@ describe("promised count is the delivered count", () => {
     },
   );
 
-  it("does not publish a short list", async () => {
+  it("publishes only when every slot is filled", async () => {
     const fixture = subjects[0]!;
     const slots = slotsFor(fixture, [5, 0, 0, 0]);
     let wave = 0;
@@ -200,22 +200,29 @@ describe("promised count is the delivered count", () => {
       },
       read: (item) => item,
     });
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
     expect(result.note).toBeNull();
-    expect(result.items.length).toBeLessThan(slots.length);
-    const gate = assertDeliverable(slots, result.items, (item) => item);
-    expect(gate.canPublish).toBe(false);
-    expect(gate.publishable).toEqual([]);
-    expect(gate.note).toBeNull();
+    expect(result.items).toHaveLength(slots.length);
+    const gate = assertDeliverable(result.slots, result.items, (item) => item);
+    expect(gate.canPublish).toBe(true);
+    expect(gate.publishable).toHaveLength(slots.length);
+    const prefix = assertDeliverable(result.slots, result.items.slice(0, -1), (item) => item);
+    expect(prefix.canPublish).toBe(false);
+    expect(prefix.publishable).toEqual([]);
+    expect(prefix.note).toBeNull();
   });
 
-  it("rejects a measured point that the item does not carry", () => {
+  it("does not reject a question for missing the source number", () => {
     const slot: DeliverySlot = { topicLabel: "Alan", type: "mcq", point: "alan 24 cm", signature: "area" };
     const missing = goodItem(math as Fixture, { ...slot, point: null, signature: null }, 4);
     expect(coversPoint(missing, slot)).toBe(false);
     expect(coversPoint({ ...missing, explanation: "alan 24 cm" }, slot)).toBe(true);
     expect(coversPoint(missing, { ...slot, signature: "" })).toBe(true);
     expect(coversPoint(missing, { ...slot, point: "yıl 1923", signature: "year" })).toBe(true);
+    const gate = assertDeliverable([slot], [missing], (item) => item);
+    expect(gate.canPublish).toBe(true);
+    expect(gate.publishable).toHaveLength(1);
+    expect(gate.note).toBeNull();
   });
 
   it("counts one item when two stems share a fact signature", () => {
