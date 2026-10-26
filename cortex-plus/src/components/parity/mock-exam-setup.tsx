@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
@@ -57,7 +57,9 @@ export function MockExamSetup({
   const [paywall, setPaywall] = useState(false);
   const [progress, setProgress] = useState<MockExamProgress | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
+  const [retryResumeId, setRetryResumeId] = useState<string | null>(null);
   const [barOnly, setBarOnly] = useState(false);
+  const bodyRef = useRef<Record<string, unknown> | null>(null);
   const presetMinutes = (value: "short" | "standard" | "real") =>
     value === "real" ? (realMinutes ?? PRESET_MINUTES.standard) : PRESET_MINUTES[value];
   // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
@@ -128,52 +130,88 @@ export function MockExamSetup({
     }
   }
 
+  function requestBody(extra?: { resumeId?: string; retry?: boolean }) {
+    return {
+      prepId,
+      preset,
+      scope,
+      topicIds: scope === "topics" ? [...selected] : undefined,
+      durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
+      ...extra,
+    };
+  }
+
+  function applyResult(status: number, data: Record<string, unknown>) {
+    const payload = data as { error?: string; code?: string; examId?: string; jobId?: string; resumeId?: string };
+    if (
+      payload.error === "insufficient_credits" ||
+      payload.code === "insufficient_credits" ||
+      payload.code === "premium_required" ||
+      payload.error === "premium_required"
+    ) {
+      setPaywall(true);
+      setLoading(false);
+      return;
+    }
+    if (payload.jobId && !payload.examId) {
+      void followJob(payload.jobId);
+      return;
+    }
+    if (payload.examId) {
+      router.push(examHref(payload.examId));
+      return;
+    }
+    const resume = typeof payload.resumeId === "string" ? payload.resumeId : null;
+    if (resume && (payload.code === "budget_exceeded" || payload.error === "budget_exceeded" || status < 300)) {
+      setRetryResumeId(resume);
+      setLoading(false);
+      return;
+    }
+    if (status >= 300) toast.error("Yeniden dene.");
+    setLoading(false);
+  }
+
+  async function continueResume(resumeId: string) {
+    setLoading(true);
+    setRetryResumeId(null);
+    setBarOnly(false);
+    const base = bodyRef.current ?? requestBody();
+    try {
+      const { status, data } = await postMockExamWithProgress(
+        "/api/learning/exam-prep/mock-exam",
+        () => ({ ...base, resumeId, retry: true }),
+        setProgress,
+      );
+      applyResult(status, data);
+    } catch {
+      setRetryResumeId(resumeId);
+      setLoading(false);
+    }
+  }
+
   async function start() {
     setLoading(true);
     setProgress(null);
     setRetryJobId(null);
+    setRetryResumeId(null);
     setBarOnly(false);
+    const body = requestBody();
+    bodyRef.current = body;
     try {
-      // Üretim düşünce bir kez kendiliğinden yeniden (19 Ekim 2026); ilerleme biten konulardan (25 Ekim 2026).
+      // Üretim düşünce aynı kâğıt sürer (26 Ekim 2026). Yeni istek yalnız kâğıt yoksa açılır.
       const { status, data } = await postMockExamWithProgress(
         "/api/learning/exam-prep/mock-exam",
-        () => ({
-          prepId,
-          preset,
-          scope,
-          topicIds: scope === "topics" ? [...selected] : undefined,
-          durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
-        }),
+        () => body,
         setProgress,
       );
-      const payload = data as { error?: string; code?: string; examId?: string; jobId?: string };
-      if (status >= 300) {
-        // 19 Ekim 2026: hak yetmezse kapı açılır (ücretsizde deneme günlük haktan büyük; "Kredin
-        // yetersiz" yazısı ne yapılacağını söylemiyordu, öğrenci kredi sayısı da görmez).
-        if (
-          payload.error === "insufficient_credits" ||
-          payload.code === "insufficient_credits" ||
-          payload.code === "premium_required"
-        ) {
-          setPaywall(true);
-        } else {
-          toast.error("Yeniden dene.");
-        }
-        setLoading(false);
-        return;
-      }
-      if (payload.jobId && !payload.examId) {
-        await followJob(payload.jobId);
-        return;
-      }
-      if (payload.examId) router.push(examHref(payload.examId));
+      applyResult(status, data);
     } catch {
       toast.error("Yeniden dene.");
       setLoading(false);
     }
   }
 
-  if (loading || retryJobId) {
+  if (loading || retryJobId || retryResumeId) {
     const share = progress?.total ? Math.round((progress.done / progress.total) * 100) : 0;
     return (
       <div className="mx-auto max-w-[640px] px-4 py-16 text-center">
@@ -194,6 +232,10 @@ export function MockExamSetup({
         </p>
         {retryJobId ? (
           <button type="button" className="cp-exam-continue cp-exam-continue--primary mt-6 h-12 rounded-full px-5 text-sm font-semibold" onClick={() => void retryJob(retryJobId)}>
+            Yeniden dene
+          </button>
+        ) : retryResumeId ? (
+          <button type="button" className="cp-exam-continue cp-exam-continue--primary mt-6 h-12 rounded-full px-5 text-sm font-semibold" onClick={() => void continueResume(retryResumeId)}>
             Yeniden dene
           </button>
         ) : null}

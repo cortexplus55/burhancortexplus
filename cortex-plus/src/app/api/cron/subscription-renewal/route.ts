@@ -18,6 +18,7 @@ import { refundStalePendingReservations, refundAbandonedDocumentReservations } f
 import { sendDailyDigest } from "@/lib/admin/daily-digest";
 import { sampleLessonQuality } from "@/lib/learning/lesson-quality-judge";
 import { pumpDueGenerationJobs } from "@/lib/learning/mock-exam-durable";
+import { sweepAbandonedMockBuilds } from "@/lib/learning/mock-exam/fallback-exam";
 
 export const dynamic = "force-dynamic";
 // Günlük kalite örneği (üç model çağrısı) özetten sonra çalışır; tur 300 sn'ye sığar.
@@ -233,6 +234,13 @@ export async function GET(request: Request) {
     logOpsEvent("subscription_sync_failed", { stage: "generation_jobs" });
   }
 
+  let abandonedBuilds = 0;
+  try {
+    abandonedBuilds = await sweepAbandonedMockBuilds(service);
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "abandoned_mock_builds" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
@@ -244,5 +252,6 @@ export async function GET(request: Request) {
     quality,
     digest,
     generationJobs,
+    abandonedBuilds,
   });
 }

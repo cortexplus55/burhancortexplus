@@ -2,7 +2,7 @@
  * Yazılı deneme arka plan işi.
  *
  * İstek hemen döner. Parça parça dolar, kira düşünce kaldığı yerden sürer.
- * Kısa kâğıt practice_exams'e yazılmaz. Tablo yoksa çağıran eşzamanlı yola döner.
+ * Kısa kâğıt practice_exams'e yazılmaz. Tablo yoksa çağıran blueprint kaydına döner.
  */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -57,6 +57,8 @@ type Checkpoint = {
   documentId?: string | null;
   topics?: Array<{ id: string; label: string; status: string | null; source_refs: unknown }>;
   blocks?: Record<string, string>;
+  topicsAttempted?: string[];
+  modelIndexes?: Record<string, number>;
 };
 
 function specOf(row: GenerationJobRow): MockSpec {
@@ -89,6 +91,17 @@ function checkpointOf(row: GenerationJobRow): Checkpoint {
       ? (progress.topics as Checkpoint["topics"])
       : undefined,
     blocks: progress.blocks && typeof progress.blocks === "object" ? (progress.blocks as Record<string, string>) : undefined,
+    topicsAttempted: Array.isArray(progress.topicsAttempted)
+      ? progress.topicsAttempted.filter((item): item is string => typeof item === "string")
+      : undefined,
+    modelIndexes:
+      progress.modelIndexes && typeof progress.modelIndexes === "object"
+        ? Object.fromEntries(
+            Object.entries(progress.modelIndexes as Record<string, unknown>).filter(
+              (entry): entry is [string, number] => typeof entry[1] === "number",
+            ),
+          )
+        : undefined,
   };
 }
 
@@ -178,7 +191,7 @@ function kickTick(): void {
   }).catch(() => undefined);
 }
 
-export async function pumpMockExamJob(service: SupabaseClient, jobId: string): Promise<void> {
+export async function pumpMockExamJob(service: SupabaseClient, jobId: string, signal?: AbortSignal): Promise<void> {
   const existing = await loadGenerationJob(service, jobId);
   if (!existing || existing.kind !== "mock_exam") return;
   if (existing.state === "done" || existing.state === "failed") return;
@@ -232,21 +245,46 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string): P
         stash.blocks = blocks;
         stash.promised = blueprint.questionCount;
       }
-      const assembled = await assembleMockExamQuestions({
-        service,
-        userId: claimed.row.user_id,
-        isPremium: spec.isPremium,
-        prepTitle,
-        documentId,
-        topics,
-        blueprint,
-        reservationId,
-        chargeKey: `practice-exam:${spec.prepId}:${claimed.row.user_id}:${jobId}`,
-        prior: items,
-        maxWaves: 1,
-        blocks: blocks ? new Map(Object.entries(blocks)) : undefined,
-      });
+      const abort = new AbortController();
+      const onAbort = () => abort.abort();
+      signal?.addEventListener("abort", onAbort, { once: true });
+      let assembled: Awaited<ReturnType<typeof assembleMockExamQuestions>>;
+      try {
+        assembled = await assembleMockExamQuestions({
+          service,
+          userId: claimed.row.user_id,
+          isPremium: spec.isPremium,
+          prepTitle,
+          documentId,
+          topics,
+          blueprint,
+          reservationId,
+          chargeKey: `practice-exam:${spec.prepId}:${claimed.row.user_id}:${jobId}`,
+          prior: items,
+          maxWaves: 1,
+          blocks: blocks ? new Map(Object.entries(blocks)) : undefined,
+          initialTopics: stash.topicsAttempted,
+          modelIndexes: stash.modelIndexes,
+          signal: abort.signal,
+          onCheckpoint: async (snapshot) => {
+            stash.items = snapshot.items;
+            stash.topicsAttempted = snapshot.topicsAttempted;
+            stash.ready = snapshot.items.length;
+            const kept = await patchGenerationJob(
+              service,
+              jobId,
+              { progress: { ...stash } },
+              { leaseUntil: claimed.leaseUntil },
+            );
+            if (!kept) abort.abort();
+          },
+        });
+      } finally {
+        signal?.removeEventListener("abort", onAbort);
+      }
       stash.items = assembled.questions;
+      stash.topicsAttempted = assembled.topicsAttempted;
+      stash.modelIndexes = assembled.modelIndexes;
       if (!assembled.ok) {
         return { items: assembled.questions, done: false, promised: blueprint.questionCount };
       }
@@ -286,11 +324,12 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string): P
     },
   });
 
+  const keptItems = stash.items.length >= next.items.length ? stash.items : next.items;
   const savedProgress: Checkpoint = {
     ...stash,
-    ready: next.ready,
+    ready: Math.max(next.ready, keptItems.length),
     promised: next.promised,
-    items: next.items,
+    items: keptItems,
     startedAt: next.startedAt,
     refunded: next.refunded,
   };
@@ -302,7 +341,8 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string): P
       attempts: next.attempts,
       progress: savedProgress,
       result_ref: next.resultRef,
-      lease_until: next.state === "running" ? new Date(now + 60_000).toISOString() : null,
+      // Parça bitti: kira düşsün, sıradaki istek aynı kaydı sürdürsün. Dalga sırasında kira CHUNK_LEASE_MS.
+      lease_until: next.state === "running" ? new Date(Date.now()).toISOString() : null,
       charge_reservation_id: next.chargeReservationId,
     },
     { leaseUntil: claimed.leaseUntil },

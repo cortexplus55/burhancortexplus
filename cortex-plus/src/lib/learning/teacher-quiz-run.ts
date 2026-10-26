@@ -12,6 +12,7 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { dropNearDuplicates } from "@/lib/learning/item-dedup";
+import { runTopicTestShards } from "@/lib/learning/quiz-shards";
 import { playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
 import { repairBudget, repairGroups } from "@/lib/learning/repair-budget";
 import {
@@ -353,6 +354,68 @@ export function withOneMultiLast(questions: QuizQuestion[], count: number): Quiz
   return [...single.slice(0, Math.max(0, count - 1)), multi];
 }
 
+function shardBrief(brief: string | undefined, index: number, shards: number): string {
+  const line = `Bu üretim ${index + 1}/${shards}. Aynı konunun ayrı bir noktasını sor.`;
+  return brief ? `${brief}\n${line}` : line;
+}
+
+/** Öğrenci beklerken konu testi parçaları aynı anda yazılır. Duvar saati bir parçanın süresi. */
+async function runShardedTopicQuiz(
+  ask: AskJson,
+  input: TeacherQuizInput,
+  started: number,
+  hooks?: TeacherQuizLoopHooks,
+): Promise<TeacherQuizLoopResult> {
+  const parts: TeacherQuizLoopResult[] = [];
+  const sharded = await runTopicTestShards({
+    count: input.count,
+    runShard: async (count, index, shards) => {
+      const loop = await teacherQuizLoop(
+        ask,
+        {
+          ...input,
+          count,
+          multi: Boolean(input.multi) && index === shards - 1,
+          brief: shardBrief(input.brief, index, shards),
+        },
+        started,
+        hooks,
+      );
+      parts[index] = loop;
+      return loop.questions;
+    },
+  });
+  const codes: Record<string, number> = {};
+  let softKept = 0;
+  let forced = false;
+  let rounds = 0;
+  const rejected: Reviewed[] = [];
+  const salvaged: string[] = [];
+  const stages = { draftMs: 0, reviewMs: 0, repairMs: 0 };
+  for (const part of parts) {
+    if (!part) continue;
+    softKept += part.softKept;
+    forced = forced || part.forced;
+    rounds = Math.max(rounds, part.rounds);
+    rejected.push(...part.rejected);
+    salvaged.push(...part.salvaged);
+    stages.draftMs = Math.max(stages.draftMs, part.stages.draftMs);
+    stages.reviewMs = Math.max(stages.reviewMs, part.stages.reviewMs);
+    stages.repairMs = Math.max(stages.repairMs, part.stages.repairMs);
+    for (const [code, count] of Object.entries(part.codes)) codes[code] = (codes[code] ?? 0) + count;
+  }
+  return {
+    questions: withOneMultiLast(sharded.questions, input.count),
+    rejected,
+    rounds,
+    softKept,
+    salvaged,
+    forced,
+    codes,
+    stages,
+  };
+}
+
 export type TeacherQuizOutcome =
   | {
       ok: true;
@@ -472,7 +535,10 @@ async function runTeacherQuizInner(
         }
       : undefined;
     const hooks = publish ? { onPlayable: publish } : undefined;
-    const loop = await teacherQuizLoop(ask, input, started, hooks);
+    const loop =
+      input.urgent && input.scope === "topic_test" && input.count > 1
+        ? await runShardedTopicQuiz(ask, input, started, hooks)
+        : await teacherQuizLoop(ask, input, started, hooks);
     let stages: QuizStageMs = { ...loop.stages };
     let questions = dropNearDuplicates(loop.questions, (question) => question.text, previousStems);
     const repeated = loop.questions.length - questions.length;

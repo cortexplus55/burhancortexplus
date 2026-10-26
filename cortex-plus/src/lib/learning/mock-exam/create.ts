@@ -328,25 +328,61 @@ export async function assembleMockExamQuestions(input: {
   maxWaves?: number;
   onProgress?: (progress: MockExamProgress) => void;
   blocks?: Map<string, string>;
+  /** Daha önce biten konular. Sayaç sıfırdan başlamasın. */
+  initialTopics?: string[];
+  modelIndexes?: Record<string, number>;
+  signal?: AbortSignal;
+  /** Konu biter bitmez. İstek düşse de bu sorular kalır. */
+  onCheckpoint?: (snapshot: { items: MockExamQuestionDraft[]; topicsAttempted: string[] }) => Promise<void>;
 }): Promise<
-  | { ok: true; questions: MockExamQuestionDraft[]; planned: number; slots: DeliverySlot[] }
-  | { ok: false; questions: MockExamQuestionDraft[]; planned: number; slots: DeliverySlot[] }
+  | {
+      ok: true;
+      questions: MockExamQuestionDraft[];
+      planned: number;
+      slots: DeliverySlot[];
+      topicsAttempted: string[];
+      topicTotal: number;
+      modelIndexes: Record<string, number>;
+    }
+  | {
+      ok: false;
+      questions: MockExamQuestionDraft[];
+      planned: number;
+      slots: DeliverySlot[];
+      topicsAttempted: string[];
+      topicTotal: number;
+      modelIndexes: Record<string, number>;
+    }
 > {
   const allocation = input.blueprint.allocation.filter((row) => row.count > 0);
   const slots = buildDeliverySlots(input.blueprint, input.blocks);
-  const tick = mockProgressCounter(allocation.length, input.onProgress);
-  const reported = new Set<string>();
+  const seeded = new Set(input.initialTopics ?? []);
+  const tick = mockProgressCounter(allocation.length, input.onProgress, seeded.size);
+  const reported = new Set(seeded);
   const progress = (label: string) => {
     if (reported.has(label)) return;
     reported.add(label);
     tick(label);
+  };
+  const bag = [...(input.prior ?? [])];
+  let chain = Promise.resolve();
+  const exclusive = (task: () => Promise<void>) => {
+    const run = chain.then(task, task);
+    chain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   };
   const filled = await fillUntilDelivered({
     slots,
     prior: input.prior,
     maxWaves: input.maxWaves ?? 4,
     parallelism: TOPIC_GENERATE_CONCURRENCY,
+    signal: input.signal,
+    modelIndexes: input.modelIndexes,
     generate: (request) => {
+      if (input.signal?.aborted) return Promise.resolve([]);
       const row = { topicId: request.topicId, topicLabel: request.topicLabel, count: request.slots.length };
       const typed = request.slots.map((slot) => ({
         type: slot.type as MockQuestionType,
@@ -364,17 +400,32 @@ export async function assembleMockExamQuestions(input: {
         chargeKey: input.chargeKey,
         reservationId: input.reservationId,
         modelIndex: request.modelIndex,
-      }).finally(() => progress(row.topicLabel));
+      })
+        .then((produced) =>
+          exclusive(async () => {
+            bag.push(...produced);
+            const topicsAttempted = reported.has(row.topicLabel) ? [...reported] : [...reported, row.topicLabel];
+            await input.onCheckpoint?.({ items: bag.slice(), topicsAttempted });
+          }).then(() => produced),
+        )
+        .finally(() => progress(row.topicLabel));
     },
     read: readDraft,
   });
   const planned = input.blueprint.questionCount;
-  if (!filled.ok) return { ok: false, questions: filled.items, planned, slots };
+  const meta = {
+    planned,
+    slots,
+    topicsAttempted: [...reported],
+    topicTotal: allocation.length,
+    modelIndexes: filled.modelIndexes,
+  };
+  if (!filled.ok) return { ok: false, questions: filled.items, ...meta };
   let questions = filled.items;
   if (!letterBalanceOk(questions)) questions = rotateCorrectOptions(questions);
   const gate = assertDeliverable(slots, questions, readDraft);
-  if (!gate.canPublish) return { ok: false, questions, planned, slots };
-  return { ok: true, questions: gate.publishable, planned, slots };
+  if (!gate.canPublish) return { ok: false, questions, ...meta };
+  return { ok: true, questions: gate.publishable, ...meta };
 }
 
 export async function persistMockExam(input: {
@@ -405,29 +456,41 @@ export async function persistMockExam(input: {
     .select("id")
     .single();
   if (examError || !exam) return { ok: false };
-  await input.service.from("practice_exam_questions").insert(
-    questions.map((q, sort_order) => ({
-      exam_id: exam.id,
-      question_text: q.text,
-      question_type: q.type,
-      options: q.options.length ? q.options : null,
-      correct_answer: q.correctAnswers[0] ?? null,
-      correct_answers: q.correctAnswers,
-      points: q.points,
-      sort_order,
-      topic_id: q.topicId,
-      topic_label: q.topicLabel,
-      explanation: q.explanation,
-      option_why: q.optionWhy.length ? q.optionWhy : null,
-      rubric: q.rubric.length ? q.rubric : null,
-      model_answer: q.modelAnswer || null,
-      source_document_id: q.source.documentId,
-      source_page: q.source.page,
-      source_label: q.source.label,
-      difficulty: q.difficulty,
-    })),
-  );
+  const inserted = await insertMockExamQuestions(input.service, exam.id as string, questions);
+  if (!inserted) return { ok: false };
   return { ok: true, examId: exam.id as string };
+}
+
+export function mockQuestionRows(examId: string, questions: MockExamQuestionDraft[]) {
+  return questions.map((q, sort_order) => ({
+    exam_id: examId,
+    question_text: q.text,
+    question_type: q.type,
+    options: q.options.length ? q.options : null,
+    correct_answer: q.correctAnswers[0] ?? null,
+    correct_answers: q.correctAnswers,
+    points: q.points,
+    sort_order,
+    topic_id: q.topicId,
+    topic_label: q.topicLabel,
+    explanation: q.explanation,
+    option_why: q.optionWhy.length ? q.optionWhy : null,
+    rubric: q.rubric.length ? q.rubric : null,
+    model_answer: q.modelAnswer || null,
+    source_document_id: q.source.documentId,
+    source_page: q.source.page,
+    source_label: q.source.label,
+    difficulty: q.difficulty,
+  }));
+}
+
+export async function insertMockExamQuestions(
+  service: SupabaseClient,
+  examId: string,
+  questions: MockExamQuestionDraft[],
+): Promise<boolean> {
+  const { error } = await service.from("practice_exam_questions").insert(mockQuestionRows(examId, questions));
+  return !error;
 }
 
 /**

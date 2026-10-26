@@ -49,6 +49,10 @@ export async function fillUntilDelivered<T>(input: {
   parallelism?: number;
   waveMs?: number;
   clock?: FillClock;
+  /** İstek düşünce sonraki konu başlamasın. */
+  signal?: AbortSignal;
+  /** Konu anahtarı → denenen model basamağı. Parça parça süren iş bunu saklar. */
+  modelIndexes?: Record<string, number>;
   onTopicAttempt?: (label: string, wave: number) => void;
 }): Promise<{
   items: T[];
@@ -58,6 +62,7 @@ export async function fillUntilDelivered<T>(input: {
   note: null;
   coverage: string[];
   modelIndex: number;
+  modelIndexes: Record<string, number>;
 }> {
   const clock = input.clock ?? realClock();
   const started = clock.now();
@@ -65,28 +70,31 @@ export async function fillUntilDelivered<T>(input: {
   const parallelism = Math.max(1, input.parallelism ?? 8);
   const waveMs = input.waveMs ?? 0;
   let items: T[] = [...(input.prior ?? [])];
-  const modelByTopic = new Map<string, number>();
+  const modelByTopic = new Map<string, number>(Object.entries(input.modelIndexes ?? {}));
   let waves = 0;
   let highestModel = 0;
-  let coverage: string[] = [];
+  const finish = (ok: boolean, publishable: T[] | null) => {
+    const verdict = selectDeliverable(input.slots, items, input.read);
+    return {
+      items: ok && publishable ? publishable : verdict.ok ? verdict.publishable : verdict.delivered,
+      ok: ok || verdict.ok,
+      waves,
+      elapsedMs: clock.now() - started,
+      note: null as null,
+      coverage: verdict.coverage,
+      modelIndex: Math.max(highestModel, ...modelByTopic.values(), 0),
+      modelIndexes: Object.fromEntries(modelByTopic),
+    };
+  };
 
   for (; waves < maxWaves; ) {
     const verdict = selectDeliverable(input.slots, items, input.read);
-    coverage = verdict.coverage;
-    if (verdict.ok) {
-      return {
-        items: verdict.publishable,
-        ok: true,
-        waves,
-        elapsedMs: clock.now() - started,
-        note: null,
-        coverage,
-        modelIndex: highestModel,
-      };
-    }
+    if (verdict.ok) return finish(true, verdict.publishable);
+    if (input.signal?.aborted) break;
     waves += 1;
     const groups = groupDeficits(verdict.deficits);
     for (let index = 0; index < groups.length; index += parallelism) {
+      if (input.signal?.aborted) break;
       const batch = groups.slice(index, index + parallelism);
       const parts = await Promise.all(
         batch.map(async (slots) => {
@@ -117,17 +125,8 @@ export async function fillUntilDelivered<T>(input: {
       );
       for (const part of parts) items = [...items, ...part];
     }
-    clock.advance(waveMs);
+    if (!input.signal?.aborted) clock.advance(waveMs);
   }
 
-  const final = selectDeliverable(input.slots, items, input.read);
-  return {
-    items: final.ok ? final.publishable : final.delivered,
-    ok: final.ok,
-    waves,
-    elapsedMs: clock.now() - started,
-    note: null,
-    coverage: final.coverage,
-    modelIndex: Math.max(highestModel, ...modelByTopic.values(), 0),
-  };
+  return finish(false, null);
 }
