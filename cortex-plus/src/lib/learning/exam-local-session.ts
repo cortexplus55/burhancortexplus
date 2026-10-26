@@ -12,7 +12,7 @@ import {
   rewordPracticeQuestion,
   type StoredLessonCheck,
 } from "@/lib/learning/focused-practice";
-import { FINAL_CHECK_LIMIT, finalCheckSelection } from "@/lib/learning/final-block";
+import { FINAL_CHECK_LIMIT, finalCardTopics, finalCheckSelection } from "@/lib/learning/final-block";
 import { loadPreviousItems } from "@/lib/learning/previous-items";
 import { buildReadinessScreen } from "@/lib/learning/readiness-screen";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -450,18 +450,34 @@ export async function buildLocalSessionPayload(
       FINAL_CHECK_LIMIT,
       seenStems,
     );
-    if (!selection.missingTopics.length) {
+    if (selection.questions.length) {
       return {
         action: "serve",
         payload: { type: "quiz", practice: input.kind, reused: true, questions: selection.questions, uncoveredTopics: [] },
       };
     }
+    if (pool.length) {
+      return {
+        action: "serve",
+        payload: {
+          type: "quiz",
+          practice: input.kind,
+          reused: true,
+          questions: pool.slice(0, 5),
+          uncoveredTopics: [],
+        },
+      };
+    }
+    const fallbackTopics = finalCardTopics(
+      topicLabels.map((label) => ({ label, confidence: confidenceFor(mastery, label) })),
+      2,
+    );
     return {
       action: "generate",
-      topics: selection.missingTopics,
+      topics: selection.missingTopics.length ? selection.missingTopics : fallbackTopics.length ? fallbackTopics : topicLabels.slice(0, 2),
       fill: {
         seed: selection.questions,
-        perTopic: 1,
+        perTopic: selection.missingTopics.length ? 1 : 5,
         previousStems: [...seenStems, ...selection.questions.map((question) => question.text)],
       },
     };

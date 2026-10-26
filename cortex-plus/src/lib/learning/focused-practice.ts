@@ -18,6 +18,8 @@ export type PracticeMastery = {
   topicKey: string;
   level: string;
   measured: boolean;
+  /** 0–100 ya da 0–1. Ölçülmemiş konu 0 sayılır. */
+  confidence?: number;
   independentCorrect?: number;
   independentTotal?: number;
 };
@@ -39,7 +41,26 @@ export type StoredLessonCheck = {
   review?: StoredReview | null;
 };
 
-const WEAK_SOURCES = new Set(["lesson_review", "written_exam", "quiz", "gaps", "focused"]);
+const WEAK_SOURCES = new Set([
+  "lesson",
+  "lesson_review",
+  "quiz",
+  "true_false",
+  "oral",
+  "written_exam",
+  "mock_exam",
+  "gaps",
+  "focused",
+]);
+
+function masteryPercent(row: PracticeMastery | undefined): number {
+  if (!row?.measured) return 0;
+  if (typeof row.confidence === "number") return row.confidence <= 1 ? row.confidence * 100 : row.confidence;
+  if (row.independentTotal) return ((row.independentCorrect ?? 0) / row.independentTotal) * 100;
+  if (row.level === "solid") return 100;
+  if (row.level === "emerging") return 60;
+  return 40;
+}
 
 export function collectWeakTopics(input: {
   mastery: PracticeMastery[];
@@ -65,12 +86,21 @@ export function collectWeakTopics(input: {
   // "en zayıf konu" değil "ilk zayıf satır"a yöneliyordu. Zayıf (weak) konular güvene göre, sonra başarısı
   // düşük gelişmekte olan (emerging) konular başarı oranına göre; eşitlikte satır sırası.
   const ranked: { key: string; rank: number }[] = [];
-  for (const row of input.mastery) {
-    if (!row.measured) continue;
-    const total = row.independentTotal ?? 0;
-    const rate = total > 0 ? (row.independentCorrect ?? 0) / total : 1;
-    if (row.level === "weak") ranked.push({ key: row.topicKey, rank: (row as { confidence?: number }).confidence ?? 0 });
-    else if (row.level === "emerging" && total > 0 && rate < 0.5) ranked.push({ key: row.topicKey, rank: 100 + rate * 100 });
+  const byKey = new Map(input.mastery.map((row) => [normalizeTopicKey(row.topicKey), row]));
+  const pool = planned.length ? planned : input.mastery.map((row) => row.topicKey);
+  for (const label of pool) {
+    const row = byKey.get(normalizeTopicKey(label));
+    if (!row?.measured) {
+      ranked.push({ key: label, rank: 1000 });
+      continue;
+    }
+    const pct = masteryPercent(row);
+    const rate =
+      (row.independentTotal ?? 0) > 0 ? (row.independentCorrect ?? 0) / (row.independentTotal ?? 1) : 1;
+    const emergingLate = row.level === "emerging" && rate < 0.5;
+    if (row.level === "weak" || emergingLate || pct < 85) {
+      ranked.push({ key: label, rank: row.level === "weak" || typeof row.confidence === "number" ? pct : 100 + pct });
+    }
   }
   ranked.sort((a, b) => a.rank - b.rank);
   for (const row of ranked) push(row.key);

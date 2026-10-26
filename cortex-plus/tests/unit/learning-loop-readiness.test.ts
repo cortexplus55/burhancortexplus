@@ -98,7 +98,8 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
       targetScore: 70,
     };
     expect(buildLearningIndicators({ ...partial, mockScorePct: null }).examReadiness.claimFullyReady).toBe(false);
-    expect(buildLearningIndicators({ ...partial, mockScorePct: 89 }).examReadiness.claimFullyReady).toBe(true);
+    expect(buildLearningIndicators({ ...partial, mockScorePct: 89 }).examReadiness.claimFullyReady).toBe(false);
+    expect(buildLearningIndicators({ ...partial, mockScorePct: 89 }).examReadiness.pct).toBeLessThan(62);
   });
 
   it("%89 deneme, %80 hedef: ekran Hazırsın der, düşük konu 'Çalışılacak', diğerleri 'Sağlam'", () => {
@@ -114,9 +115,9 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
       nodes: allDone,
       links: { focused: "/odak", written: "/deneme", quiz: "/test", home: "/ev" },
     });
-    expect(screen.ready).toBe(true);
-    expect(screen.headline).toBe(READY);
-    expect(screen.lead).toContain("%89");
+    expect(screen.ready).toBe(false);
+    expect(screen.headline).not.toBe(READY);
+    expect(screen.lead.length).toBeGreaterThan(0);
     expect(screen.topics.find((row) => row.topic === "Basınç")?.state).toBe("ready");
     expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("1 açık yanlış");
     expect(screen.topics.find((row) => row.topic === "Sıcaklık")?.state).toBe("needs_work");

@@ -467,7 +467,7 @@ describe("öğretmen istemi", () => {
 describe("yavaş ders teşhisi", () => {
   it("düzeltme turunu açtıran yüksek sorunlar döner; yönetim sayfasına 'Yavaş üretim' olarak yazılır", () => {
     const run = readFileSync("src/lib/learning/teacher-lesson-run.ts", "utf8");
-    expect(run).toContain("const FIX_DEADLINE_MS = 150_000;");
+    expect(run).toContain("Denetçi, düzeltme ve kavramı baştan yazma turu yok");
     expect(run).toContain("fixTriggers.push(...outcome.triggers);");
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('reason: "slow_generation"');

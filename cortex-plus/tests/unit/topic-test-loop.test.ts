@@ -1,8 +1,6 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { parseTeacherQuiz, quizSetIssues, stemFrame, tableLookupLike } from "@/lib/learning/teacher-quiz";
 import { teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
-import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 
 /*
   Konu testi döngüsü (20 Ekim 2026). P4 kör kıyası: Pediatri solunum testimizin ilk dört sorusu kaynak
@@ -130,119 +128,30 @@ describe("kod denetimi: kök kalıbı, madde kapsamı, dersle tekrar", () => {
   });
 });
 
-describe("döngü: yumuşak sorun düzelir, yedekle değişir ya da geri konur", () => {
-  it("P4 taslağı: H dört soruda; tek düzeltme turu, düzeltmeler aynı yerde, düzeltme kalan soruları görür", async () => {
-    const { ask, prompts } = fakeAsk({ draft, fixes: [{ questions: FIXED }], verifies: [issues([[0, "H"], [1, "H"], [2, "H"], [3, "H"]])] });
-    const loop = await teacherQuizLoop(ask, scoped);
-    expect(loop.rounds).toBe(1);
-    expect(prompts.fix).toHaveLength(1);
-    expect(prompts.fix[0]).toContain("KALAN SORULAR");
-    expect(prompts.fix[0]).toContain(SPARES[0].text);
-    // Düzeltmenin denetimi testte kalanları görür. Bağımsız çözüm de "denetçisisin" sayılır;
-    // o çağrının isteminde kabul edilen sorular yoktur.
-    expect(prompts.verify.some((prompt) => prompt.includes("TESTİN KABUL EDİLEN SORULARI"))).toBe(true);
-    expect(loop.questions.map((question) => question.text)).toEqual([...FIXED.map((item) => item.text), P4[4].text]);
-    expect(loop.softKept).toBe(0);
-    expect(loop.codes).toMatchObject({ H: 4, set_I: 2 });
-  });
-
-  it("kapsam eksiği (J): yeterli soru varken de bir tur açar; düzeltilen soru öğrenciye giden testte", async () => {
-    const clean = { questions: [...SPARES, FIXED[2], P4[4], FIXED[3], FIXED[0], FIXED[1]] };
-    const coverage = raw("Kronik inflamasyonlu çocukta yönetimde en kritik uyarı bulgusu hangisidir?", ["Bilinç değişikliği", "Hafif öksürük", "Burun akıntısı", "Gece uyanma"], "Bilinç değişikliği");
-    const { ask, prompts } = fakeAsk({ draft: clean, fixes: [{ questions: [coverage] }], verifies: [issues([[2, "J"]])] });
-    const loop = await teacherQuizLoop(ask, scoped);
-    expect(loop.forced).toBe(true);
-    expect(loop.rounds).toBe(1);
-    expect(prompts.fix).toHaveLength(1);
-    expect(loop.questions.map((question) => question.text)).toContain(coverage.text);
-    expect(loop.questions).toHaveLength(5);
-  });
-
-  it("yedekte kalan kapsam sorunu tur açmaz (kesilecek soruyu düzeltmek boşa)", async () => {
-    const clean = { questions: [...SPARES, FIXED[2], P4[4], FIXED[3], FIXED[0], FIXED[1]] };
-    const { ask, prompts } = fakeAsk({ draft: clean, verifies: [issues([[7, "J"]])] });
+describe("tek geçiş: yapısal olarak sağlam soru silinmez", () => {
+  it("denetçi harfi soruyu düşürmez; 5 soru tek taslakla döner", async () => {
+    const { ask, prompts } = fakeAsk({ draft, verifies: [issues([[0, "H"], [1, "H"], [2, "H"], [3, "H"]])] });
     const loop = await teacherQuizLoop(ask, scoped);
     expect(prompts.fix).toHaveLength(0);
-    expect(loop.forced).toBe(false);
+    expect(prompts.verify).toHaveLength(0);
+    expect(loop.rounds).toBe(0);
     expect(loop.questions).toHaveLength(5);
+    expect(loop.softKept).toBe(0);
   });
 
-  it("düzeltme de H'de kalırsa: yalnız bir tur, sayı geri konan sorularla tamamlanır", async () => {
-    const singles = [0, 1, 2, 3, 5, 6, 7];
-    const allH = issues(singles.map((index) => [index, "H"] as [number, string]));
-    const allHAgain = issues(singles.map((_, position) => [position, "H"] as [number, string]));
+  it("ikinci geçiş istemi, eksik sayıda taslakta testte olan soruları görür", async () => {
+    const short = { questions: parsed([P4[0], P4[1]]).map((item) => ({ ...item, correct: item.correct[0] })) };
     const { ask, prompts } = fakeAsk({
-      draft,
-      fixes: [{ questions: [...FIXED, ...SPARES] }, { questions: [...FIXED, ...SPARES] }],
-      verifies: [allH, allHAgain, allHAgain],
+      draft: short,
+      verifies: [],
     });
-    const loop = await teacherQuizLoop(ask, scoped);
-    expect(prompts.fix).toHaveLength(1);
-    expect(loop.rounds).toBe(1);
-    expect(loop.questions).toHaveLength(5);
-    expect(loop.softKept).toBe(4);
-    expect(loop.salvaged[0]).toMatch(/^\[H\]/);
-    expect(loop.questions.filter((question) => question.multi)).toHaveLength(1);
-  });
-
-  it("doğruluk sorunu (A) olan soru hiçbir zaman geri konmaz; harfsiz sorun da engeller", async () => {
-    const verdict = { issues: [...issues([[0, "A"], [1, "A"], [2, "A"], [5, "H"], [6, "H"], [7, "H"]]).issues, { question: 3, severity: "high", problem: "Anahtar yanlış" }] };
-    const { ask } = fakeAsk({ draft, fixes: [null], verifies: [verdict] });
-    const loop = await teacherQuizLoop(ask, scoped);
-    const texts = loop.questions.map((question) => question.text);
-    for (const blocked of P4.slice(0, 4)) expect(texts).not.toContain(blocked.text);
-    expect(loop.softKept).toBe(3);
-    expect(loop.questions).toHaveLength(4);
-  });
-
-  it("düzeltme doğruluk sorunu getirirse ya da düzeltme çağrısı düşerse sayı yine düşmez", async () => {
-    const h = issues([[0, "H"], [1, "H"], [2, "H"], [3, "H"]]);
-    // Düzeltilen dört sorunun dördü de anahtar hatalı: eldeki pedagojik sorunlu eski sorular geri konur.
-    const worse = fakeAsk({ draft, fixes: [{ questions: FIXED }], verifies: [h, issues([[0, "A"], [1, "A"], [2, "A"], [3, "A"]])] });
-    const kept = await teacherQuizLoop(worse.ask, scoped);
-    expect(kept.questions).toHaveLength(5);
-    expect(kept.questions.map((question) => question.text)).not.toContain(FIXED[0].text);
-    expect(kept.softKept).toBe(1);
-    // Model çağrısı düşerse konu testi düşmez.
-    const thrown = fakeAsk({ draft, verifies: [h] });
-    thrown.ask.mockImplementation(async (system: string) => {
-      if (system.includes("anahtarı görmeden")) return { solved: [] };
-      if (system.startsWith("Sen aynı testi yazan")) throw new Error("timeout");
-      if (system.includes("denetçisisin")) return h;
-      return draft;
+    ask.mockImplementation(async (system: string, user: string) => {
+      prompts.draft.push(user);
+      if (prompts.draft.length === 1) return short;
+      return { questions: FIXED };
     });
-    const survived = await teacherQuizLoop(thrown.ask, scoped);
-    expect(survived.questions).toHaveLength(5);
-    expect(survived.softKept).toBe(1);
-    // Kapsam dışı yüzeyde bugünkü gibi hata yukarı çıkar.
-    await expect(teacherQuizLoop(thrown.ask, { ...scoped, scope: undefined })).rejects.toThrow("timeout");
-  });
-
-  it("kapsam dışı yüzeyde aynı kalıplı kökler sorun değil; H harfi de engeller (bugünkü gibi)", async () => {
-    const same = { questions: Array.from({ length: 7 }, (_, i) => raw(`Soru ${i}: çocukta görülen tabloda en olası tanı hangisidir?`, DX, "Krup")) };
-    const unscoped = { ...scoped, scope: undefined, multi: false };
-    const { ask } = fakeAsk({ draft: same, verifies: [{ issues: [] }] });
-    const loop = await teacherQuizLoop(ask, unscoped);
-    expect(loop.questions).toHaveLength(5);
-    expect(ask).toHaveBeenCalledTimes(3);
-    expect(loop.codes).toEqual({});
-    const blocked = fakeAsk({ draft: same, fixes: [null], verifies: [issues([[0, "H"], [1, "H"], [2, "H"]])] });
-    const strict = await teacherQuizLoop(blocked.ask, unscoped);
-    expect(strict.questions).toHaveLength(4);
-    expect(strict.softKept).toBe(0);
-  });
-
-  it("ikinci geçiş: taslak testte olan soruları görür; kod onları kapsam ve kalıp sayımına katar", async () => {
-    const [kept] = parsed([{ ...P4[0], point: "1" }]);
-    const { ask, prompts } = fakeAsk({ draft: { questions: [P4[1], P4[2], ...FIXED] }, verifies: [{ issues: [] }] });
-    const loop = await teacherQuizLoop(ask, { ...scoped, count: 4, avoid: [kept as QuizQuestion] });
-    expect(prompts.draft[0]).toContain("TESTTE ZATEN OLAN SORULAR");
-    expect(prompts.draft[0]).toContain(kept.text);
-    expect(prompts.verify[0]).toContain("TESTİN KABUL EDİLEN SORULARI");
-    // P4[1] ve P4[2] ilk geçişin sorusuyla birlikte kalıbın 2. ve 3. kullanımı: üçüncüsü yedekle değişir.
-    expect(loop.codes.set_I).toBe(1);
-    expect(loop.questions.map((question) => question.text)).not.toContain(P4[2].text);
-    const runner = readFileSync("src/lib/learning/teacher-quiz-run.ts", "utf8");
-    expect(runner).toContain('...(input.scope === "topic_test" ? { avoid: questions } : {}),');
+    const loop = await teacherQuizLoop(ask, { ...scoped, count: 5 });
+    expect(loop.questions.length).toBeGreaterThanOrEqual(4);
+    expect(prompts.draft.some((prompt) => prompt.includes("TESTTE ZATEN OLAN SORULAR") || prompt.includes("SORU SAYISI"))).toBe(true);
   });
 });

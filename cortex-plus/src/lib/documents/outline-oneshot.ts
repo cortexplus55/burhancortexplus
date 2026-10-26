@@ -140,6 +140,8 @@ const topicSchema = z.object({
     .max(MAX_PREREQS)
     .optional()
     .default([]),
+  /** Belgede sıkışmış çekirdek alt konu. Temellendirme bu satırı düşürmez. */
+  origin: z.enum(["document", "curriculum"]).optional(),
 });
 
 const unitSchema = z.object({
@@ -189,6 +191,7 @@ export const oneShotJsonSchema: Record<string, unknown> = {
                 "examWeight",
                 "likelyAsked",
                 "prerequisiteIds",
+                "origin",
               ],
               properties: {
                 id: { type: "string" },
@@ -209,6 +212,7 @@ export const oneShotJsonSchema: Record<string, unknown> = {
                   maxItems: MAX_PREREQS,
                   items: { type: "string" },
                 },
+                origin: { type: "string", enum: ["document", "curriculum"] },
               },
             },
           },
@@ -552,6 +556,8 @@ export function validateOneShotOutline(
   }
 
   const seen = new Set<string>();
+  let curriculumKept = 0;
+  const CURRICULUM_CAP = 4;
   const idToTitle = new Map<string, string>();
   let autoId = 0;
   for (const unit of draft.units) {
@@ -639,7 +645,9 @@ export function validateOneShotOutline(
       ].slice(0, MAX_LIKELY_ASKED);
 
       const grounding = groundingFor(fileIndex);
-      const verdict = grounding ? groundTopic(grounding, { title, pageStart: start, pageEnd: end }) : null;
+      const curriculum = topic.origin === "curriculum" && curriculumKept < CURRICULUM_CAP;
+      const verdict = curriculum || !grounding ? null : groundTopic(grounding, { title, pageStart: start, pageEnd: end });
+      if (curriculum) curriculumKept += 1;
       if (verdict && !verdict.grounded) {
         issues.push({
           code: "ungrounded_topic",
@@ -904,6 +912,7 @@ SERT KURAL — UYDURMA YOK:
 - Yalnızca verilen materyali kullan. Materyalde olmayan konu, madde veya sayfa ekleme.
 - Her konu ve her likelyAsked maddesi, fileIndex + pageStart–pageEnd aralığındaki [d? s.N] metniyle desteklenmeli.
 - Materyal bir şeyi kapsamıyorsa onu ekleme.
+- MÜFREDAT TAMAMLAMA: Belge bir çekirdek alt konuyu tek başlığa sıkıştırmış ya da üstünkörü geçmişse, o dersin sınavda kesin olan alt konularını ayrı konu aç ve origin alanına "curriculum" yaz. Örnekler: devrede Kirchhoff, çevre/düğüm, Thévenin/Norton; tarihte kuruluş ve İstanbul'un fethi; biyolojide Mendel, kan grupları, eşeye bağlı kalıtım; matematikte tam sayılar, rasyonel sayılar, cebirsel ifadeler, denklemler. Yalnız belgenin kendi dersinden, en çok 4 konu. pageStart/pageEnd o başlığın gerçek sayfalarıdır; olmayan sayfa uydurulmaz. Belgede zaten ayrı duran konu "document" kalır.
 - Sayfa işaretleri [d1 s.12] biçimindedir: d1 = birinci dosya (fileIndex 0), d2 = ikinci dosya (fileIndex 1). Konunun fileIndex'i alıntıladığın işaretle aynı dosyayı göstermeli.
 - pageStart/pageEnd gerçek [d? s.N] işaretlerinden; o dosyanın sayfa aralığı dışında numara uydurma (en fazla ${input.maxPage}).
 - Sayfa aralığını dar tut: bir konu 8 sayfadan genişse gerçekten o sayfaların tamamını kapsamalı.
@@ -912,7 +921,7 @@ ${OUTLINE_GRANULARITY_RULE}
 - Konu başlığı içeriği adlandırır, materyalin biçimini değil: "Kartı", "Eşleştirme Kartı", "Şeması", "Tablosu", "Fotoğrafı", "Özet Notu" yazma. Bir dosya (fotoğraf, kart, şema, test sayfası) başka dosyada anlatılan bir konuyu tekrar ediyorsa ayrı konu açma; o konu tek kalır, fileIndex'i konuyu en çok anlatan dosya olur.
 - "Diğer Konular" kovası EKLEME. Ünite 1–${MAX_UNITS}, toplam konu ≤${MAX_TOPICS_TOTAL}.
 
-JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[]}]}]}${tocBlockSection(input.tocBlock)}${previousOutlineBlock(input.previousOutline)}
+JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document|curriculum"}]}]}${tocBlockSection(input.tocBlock)}${previousOutlineBlock(input.previousOutline)}
 
 Materyal:
 ${input.corpus}${repairBlock(input.repairErrors, input.invalidDraftJson)}`;

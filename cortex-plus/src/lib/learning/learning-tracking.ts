@@ -85,7 +85,7 @@ export type TrackingPersisted = {
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function normalizeTopicKey(raw: string | null | undefined): string {
-  const t = (raw ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const t = (raw ?? "").trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
   return t || "genel";
 }
 
@@ -463,8 +463,12 @@ export function computeExamReadiness(input: {
   let unmeasured = 0;
   let successSum = 0;
   let successN = 0;
-  for (const key of keys.length ? keys : ["genel"]) {
+  let confidenceSum = 0;
+  const plannedKeys = keys.length ? keys : ["genel"];
+  for (const key of plannedKeys) {
     const t = byKey.get(key);
+    const confidence = t?.measured && t.evidenceCount > 0 && Number.isFinite(t.confidence) ? t.confidence : 0;
+    confidenceSum += confidence;
     if (!t || !t.measured || t.evidenceCount === 0) {
       unmeasured += 1;
       continue;
@@ -480,9 +484,10 @@ export function computeExamReadiness(input: {
     successN += 1;
   }
 
-  void unmeasured;
   const measuredSuccessPct =
     successN > 0 ? Math.round((successSum / successN) * 100) : null;
+  /** Çalışılmamış konu 0: 9 konudan 2'si çalışılmışken yüzde 2/9 bandındadır. */
+  const topicMean = Math.round(confidenceSum / plannedKeys.length);
   const coveragePct =
     keys.length > 0 ? Math.round((measured / keys.length) * 100) : measured > 0 ? 100 : 0;
   const mockPct =
@@ -494,17 +499,10 @@ export function computeExamReadiness(input: {
 
   // No measured evidence → low readiness, never high confidence.
   if (measured === 0 || measuredSuccessPct == null) {
-    // 19 Ekim 2026: 16 konulu yolda ilk ders bitince %1'in altı yuvarlanıp "%0" çıkıyordu; Astra
-    // aynı anda %2 gösteriyor. İlerleme varsa en az %1 — ölçüm iddiası değil, sıfır değil işareti.
-    const base = Math.min(15, Math.max(input.programPct > 0 ? 1 : 0, Math.round(input.programPct * 0.1)));
-    const claimByMock = readyForTarget({ mockScorePct: mockPct, targetScore: input.targetScore });
-    const pct = claimByMock && mockPct != null ? Math.max(base, mockPct) : base;
     return {
-      pct,
-      label: claimByMock
-        ? "Deneme skorun hedefi geçti"
-        : "Henüz ölçülmüş konu yok — hazırlık tahmini düşük",
-      claimFullyReady: claimByMock,
+      pct: topicMean,
+      label: "Henüz ölçülmüş konu yok — hazırlık tahmini düşük",
+      claimFullyReady: false,
       components: {
         measuredSuccessPct: null,
         mockPct,
@@ -516,49 +514,18 @@ export function computeExamReadiness(input: {
   }
 
   const target = effectiveTarget(input.targetScore);
-  const mockFactor =
-    mockPct == null ? measuredSuccessPct : Math.round(0.6 * measuredSuccessPct + 0.4 * mockPct);
 
-  let pct = Math.round(
-    0.45 * measuredSuccessPct +
-      0.25 * mockFactor +
-      0.2 * coveragePct +
-      0.1 * input.programPct,
-  );
+  let pct = topicMean;
 
-  // Hard caps — completion ≠ readiness.
-  // Açık yanılgı varken %85 üstü yok. Düzelmiş eski yanlış bu tavanı getirmez (20 Ekim 2026):
-  // onun payını ölçülen başarı tavanı (aşağıda) zaten dürüstçe düşürüyor.
   if (openMisconceptions > 0 || !misconceptionsKnown) {
     pct = Math.min(pct, 85);
-  }
-  if (measuredSuccessPct < 100) {
-    pct = Math.min(pct, measuredSuccessPct);
-  }
-  if (coveragePct < 100) {
-    pct = Math.min(pct, 90);
-  }
-  if (input.programPct >= 100 && measuredSuccessPct < 70) {
-    pct = Math.min(pct, Math.max(10, measuredSuccessPct - 5));
-  }
-  // Absolute: all activities done with mostly wrongs → not "ready".
-  if (input.programPct >= 100 && measuredSuccessPct <= 40) {
-    pct = Math.min(pct, 25);
-  }
-  if (mockPct != null && mockPct < target) {
-    pct = Math.min(pct, Math.max(mockPct, measuredSuccessPct - 10));
   }
 
   pct = Math.max(0, Math.min(100, pct));
 
-  // Genel skor ancak her planlı konu ölçüldüyse geneldir: 10 konudan biri ölçülmüşken "Hazırsın" denmez.
-  const claimFullyReady = readyForTarget({
-    mockScorePct: mockPct,
-    overallPct: coveragePct >= 100 ? pct : null,
-    targetScore: target,
-  });
-  // Hedefi geçen deneme yüzdeyi onun altında bırakmaz: ekran "Hazırsın" derken %60 yazmasın.
-  if (claimFullyReady && mockPct != null) pct = Math.max(pct, mockPct);
+  // Hazırsın: bütün konular ölçülmüş ve ortalama hedefi geçmiş. Deneme, çalışılmamış konuyu 0'dan çıkarmaz.
+  const claimFullyReady =
+    unmeasured === 0 && readyForTarget({ mockScorePct: null, overallPct: pct, targetScore: target });
 
   if (!claimFullyReady && pct >= 100) {
     pct = 99;

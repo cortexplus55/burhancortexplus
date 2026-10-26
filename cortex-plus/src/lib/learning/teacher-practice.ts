@@ -1,7 +1,6 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
-import { issuesByItem, teacherItemLoop, type Reviewed } from "@/lib/learning/teacher-item-loop";
-import { repairBudget } from "@/lib/learning/repair-budget";
+import { singlePassItems } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
 import { examinerVibeStyleLine, parseExaminerVibe, type ExaminerVibe } from "@/lib/learning/examiner-vibe";
 
@@ -67,12 +66,6 @@ function userPrompt(input: PracticeSource, label: string, ask: number): string {
   ]
     .filter(Boolean)
     .join("\n\n");
-}
-
-function verifyHead(input: PracticeSource): string {
-  return input.mode === "topic"
-    ? `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n(Belgesiz.)`
-    : sourceLines(input);
 }
 
 const VERIFY_JSON =
@@ -168,45 +161,17 @@ export function trueFalseStructureIssues(item: TrueFalseItem): string[] {
 }
 
 export async function teacherTrueFalseLoop(ask: AskJson, input: PracticeSource & { count: number }, started = Date.now()) {
+  void started;
   const mode = input.mode ?? "document";
-  const budget = repairBudget(input.urgent);
-  const loop = await teacherItemLoop<TrueFalseItem>({
+  const loop = await singlePassItems<TrueFalseItem>({
     count: input.count,
-    started,
-    deadlineMs: budget.deadlineMs,
-    maxFixRounds: budget.maxFixRounds,
-    fixConcurrency: budget.fixConcurrency,
-    draft: async () => parseTrueFalse(await ask(tfSystem(mode), userPrompt(input, "ÖNERME SAYISI", input.count + 2))),
-    review: async (items) => {
-      const structural = items.map(trueFalseStructureIssues);
-      try {
-        const factual = issuesByItem(
-          await ask(trueFalseVerifySystem(mode), `${verifyHead(input)}\n\nÖNERMELER (JSON):\n${JSON.stringify({ items })}`),
-          items.length,
-        );
-        return items.map((_, index) => [...structural[index], ...factual[index]]);
-      } catch (error) {
-        const note = `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}`;
-        return items.map(() => [note]);
-      }
-    },
-    fix: async (failing: Reviewed<TrueFalseItem>[]) =>
-      parseTrueFalse(
-        await ask(
-          "Sen aynı önermeleri yazan öğretmensin. Denetçinin sorun bulduğu önermeleri düzelt; düzeltilemiyorsa aynı " +
-            "kavramı yoklayan yeni önerme yaz. Önerilen düzeltme ('→' sonrası) varsa uygula. Yalnız verilen önermeleri, " +
-            "aynı sayıda ve sırayla döndür. Kurallar ve şema aynı:\n\n" +
-            tfSystem(mode),
-          [
-            userPrompt(input, "ÖNERME SAYISI", failing.length),
-            `DÜZELTİLECEK ÖNERMELER (JSON):\n${JSON.stringify({ items: failing.map((row) => row.item) })}`,
-            `SORUNLAR:\n${failing.map((row, index) => `Önerme ${index}: ${row.problems.join(" | ")}`).join("\n")}`,
-          ].join("\n\n"),
-        ),
-      ),
+    spare: 2,
+    draft: async (n) => parseTrueFalse(await ask(tfSystem(mode), userPrompt(input, "ÖNERME SAYISI", n))),
+    issues: trueFalseStructureIssues,
   });
-  const mixed = loop.items.some((item) => item.correct) && loop.items.some((item) => !item.correct);
-  return { items: loop.items, rejected: loop.rejected, rounds: loop.rounds, mixed };
+  const items = loop.items.slice(0, input.count);
+  const mixed = items.some((item) => item.correct) && items.some((item) => !item.correct);
+  return { items, rejected: loop.rejected, rounds: loop.rounds, mixed };
 }
 
 /* ───────────────────────── Sözlü deneme ───────────────────────── */
@@ -304,41 +269,13 @@ export function oralStructureIssues(item: OralItem): string[] {
 }
 
 export async function teacherOralLoop(ask: AskJson, input: PracticeSource & { count: number }, started = Date.now()) {
+  void started;
   const mode = input.mode ?? "document";
-  const budget = repairBudget(input.urgent);
-  return teacherItemLoop<OralItem>({
+  const loop = await singlePassItems<OralItem>({
     count: input.count,
-    started,
-    deadlineMs: budget.deadlineMs,
-    maxFixRounds: budget.maxFixRounds,
-    fixConcurrency: budget.fixConcurrency,
-    draft: async () => parseOral(await ask(oralSystem(mode), userPrompt(input, "SORU SAYISI", input.count + 1))),
-    review: async (items) => {
-      const structural = items.map(oralStructureIssues);
-      try {
-        const factual = issuesByItem(
-          await ask(oralVerifySystem(mode), `${verifyHead(input)}\n\nSORULAR (JSON):\n${JSON.stringify({ questions: items })}`),
-          items.length,
-        );
-        return items.map((_, index) => [...structural[index], ...factual[index]]);
-      } catch (error) {
-        const note = `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}`;
-        return items.map(() => [note]);
-      }
-    },
-    fix: async (failing: Reviewed<OralItem>[]) =>
-      parseOral(
-        await ask(
-          "Sen aynı sözlü soruları yazan öğretmensin. Denetçinin sorun bulduğu soruları düzelt; düzeltilemiyorsa aynı " +
-            "kavramı ölçen yeni soru yaz. Önerilen düzeltme ('→' sonrası) varsa uygula. Yalnız verilen soruları, aynı " +
-            "sayıda ve sırayla döndür. Kurallar ve şema aynı:\n\n" +
-            oralSystem(mode),
-          [
-            userPrompt(input, "SORU SAYISI", failing.length),
-            `DÜZELTİLECEK SORULAR (JSON):\n${JSON.stringify({ questions: failing.map((row) => row.item) })}`,
-            `SORUNLAR:\n${failing.map((row, index) => `Soru ${index}: ${row.problems.join(" | ")}`).join("\n")}`,
-          ].join("\n\n"),
-        ),
-      ),
+    spare: 1,
+    draft: async (n) => parseOral(await ask(oralSystem(mode), userPrompt(input, "SORU SAYISI", n))),
+    issues: oralStructureIssues,
   });
+  return { items: loop.items.slice(0, input.count), rejected: loop.rejected, rounds: loop.rounds };
 }

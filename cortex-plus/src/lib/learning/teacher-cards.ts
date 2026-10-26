@@ -1,9 +1,8 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
-import { issuesByItem, teacherItemLoop, type Reviewed } from "@/lib/learning/teacher-item-loop";
+import { singlePassItems, type Reviewed } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
-import { avoidListBlock, dropNearDuplicates } from "@/lib/learning/item-dedup";
-import { repairBudget } from "@/lib/learning/repair-budget";
+import { avoidListBlock, dropNearDuplicatesKeepingCount } from "@/lib/learning/item-dedup";
 
 /**
  * Öğretmen kart motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
@@ -154,6 +153,9 @@ export function cardStructureIssues(card: TeacherCard): string[] {
   const issues: string[] = [];
   const front = card.front.toLocaleLowerCase("tr");
   const back = card.back.toLocaleLowerCase("tr").replace(/[.!]+$/, "");
+  if (/^aşağıdakilerden hangisi\b/i.test(card.front.trim())) {
+    issues.push("Kartta şıksız çoktan seçmeli kök ('Aşağıdakilerden hangisi') olmaz.");
+  }
   if (front === back) issues.push("Ön ve arka yüz aynı.");
   else if (back.length > 3 && back.split(/\s+/).length <= 4 && front.includes(back)) issues.push("Ön yüz cevabı içeriyor.");
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede/i.test(`${card.front} ${card.back}`)) {
@@ -173,29 +175,20 @@ export type AskJson = (system: string, user: string) => Promise<unknown | null>;
 export const CARD_SPARE = 2;
 
 export async function teacherCardsLoop(ask: AskJson, input: TeacherCardsInput, started = Date.now()) {
+  void started;
   const mode = input.mode ?? "document";
   const focus = input.focus ?? "cards";
-  const budget = repairBudget(input.urgent);
-  const loop = await teacherItemLoop<TeacherCard>({
-    // Süzgeç önceki kartlarla aynı olanları eleyecek: döngü fazlasını tutar.
-    count: input.avoid?.length ? input.count + CARD_SPARE : input.count,
-    started,
-    deadlineMs: budget.deadlineMs,
-    maxFixRounds: budget.maxFixRounds,
-    fixConcurrency: budget.fixConcurrency,
-    draft: async () => parseTeacherCards(await ask(cardsSystem(mode, focus), cardsUserPrompt(input, input.count + CARD_SPARE))),
-    review: async (cards) => {
-      const structural = cards.map(cardStructureIssues);
-      try {
-        const factual = issuesByItem(await ask(cardsVerifySystem(mode), cardsVerifyUserPrompt(cards, input)), cards.length);
-        return cards.map((_, index) => [...structural[index], ...factual[index]]);
-      } catch (error) {
-        const note = `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}`;
-        return cards.map(() => [note]);
-      }
-    },
-    fix: async (failing) => parseTeacherCards(await ask(cardsFixSystem(mode, focus), cardsFixUserPrompt(failing, input))),
+  const loop = await singlePassItems<TeacherCard>({
+    count: input.count,
+    spare: CARD_SPARE,
+    draft: async (n) => parseTeacherCards(await ask(cardsSystem(mode, focus), cardsUserPrompt(input, n))),
+    issues: cardStructureIssues,
   });
-  const fresh = dropNearDuplicates(loop.items, (card) => `${card.front} ${card.back}`, input.avoid ?? []);
+  const fresh = dropNearDuplicatesKeepingCount(
+    loop.items,
+    (card) => `${card.front} ${card.back}`,
+    input.count,
+    input.avoid ?? [],
+  );
   return { cards: hardFirst(fresh.slice(0, input.count)), rejected: loop.rejected, rounds: loop.rounds };
 }

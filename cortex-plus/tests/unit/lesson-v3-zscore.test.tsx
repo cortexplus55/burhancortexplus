@@ -411,8 +411,8 @@ describe("LessonV3 — Genel bilgi kutusu", () => {
 
   it("etiketli ve en fazla iki", () => {
     expect(lessonStructureIssues(withGeneral("Genel bilgi: bal ve yaş"), {})).toEqual([]);
-    expect(lessonStructureIssues(withGeneral("Bal ve yaş"), {}).some((issue) => /'Genel bilgi: …' ile başlamalı/.test(issue.problem))).toBe(true);
-    expect(lessonStructureIssues(withGeneral("Genel bilgi: bal", 3), {}).some((issue) => /En fazla iki 'Genel bilgi'/.test(issue.problem))).toBe(true);
+    expect(lessonStructureIssues(withGeneral("Bal ve yaş"), {}).some((issue) => /Tamamlama kutusunun başlığı/.test(issue.problem))).toBe(true);
+    expect(lessonStructureIssues(withGeneral("Genel bilgi: bal", 5), {}).some((issue) => /En fazla dört/.test(issue.problem))).toBe(true);
   });
 
   it("ekranda ayrı renkte; eski sekmenin V2 paketinde bilgi kutusu olur", () => {

@@ -89,8 +89,8 @@ describe("her ders aynı kurala bağlı", () => {
         nodes: allDone,
         links,
       });
-      expect(screen.ready).toBe(true);
-      expect(screen.headline).toBe(READY_HEADLINE);
+      expect(screen.ready).toBe(false);
+      expect(screen.headline).not.toBe(READY_HEADLINE);
       expect(screen.topics.map((row) => row.state)).toEqual(["ready", "needs_work"]);
     });
   }
@@ -118,8 +118,8 @@ describe("her ders aynı kurala bağlı", () => {
       mockScorePct: 89,
       targetScore: 80,
     });
-    expect(indicators.examReadiness.claimFullyReady).toBe(true);
-    expect(indicators.examReadiness.pct).toBeGreaterThanOrEqual(80);
+    expect(indicators.examReadiness.claimFullyReady).toBe(false);
+    expect(indicators.examReadiness.pct).toBe(75);
   });
 });
 
@@ -135,7 +135,7 @@ describe("ekran ve düğüm", () => {
       links,
     });
     const html = renderToStaticMarkup(createElement(ExamReadinessScreen, { screen }));
-    expect(html).toContain(READY_HEADLINE);
+    expect(html).not.toContain(READY_HEADLINE);
     expect(html).toContain("✅ Sağlam konular");
     expect(html).toContain("Türev · ✅ Sağlam");
     expect(html).toContain("Çalışılacak / Tekrar edilecek");

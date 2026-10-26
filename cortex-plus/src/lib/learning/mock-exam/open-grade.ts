@@ -26,7 +26,9 @@ export const OPEN_GRADE_SYSTEM =
   "cevaptan o noktayı söyleyen kısa parça, BİREBİR kopya, en çok 15 kelime.\n" +
   "- Söylemiyorsa ya da yanlış, çelişkili söylüyorsa met: false, quote boş.\n" +
   "Cevapta olmayanı varsayma; ölçütü yalnız tekrar eden içi boş cümle karşılamaz. Yazım ve el yazısı okuma hatalarını " +
-  "cezalandırma. Fazladan doğru bilgi puan getirmez; bir noktayı yanlış söyleyen cevap o ölçütü karşılamaz.\n" +
+  "cezalandırma. Fazladan doğru bilgi puan getirmez; bir noktayı yanlış söyleyen cevap o ölçütü karşılamaz. " +
+  "Yöntem, formül ve denklem kurulumu doğruysa o ölçüt met: true olur; son aritmetik hata yalnız sonuç ölçütünü düşürür. " +
+  "Yalnız son sayıyı yazan cevap yöntem ölçütünü karşılamaz. Açık tarih ya da olgu hatası o ölçütte met: false.\n" +
   'Yalnızca JSON döndür: {"items":[{"index":0,"criteria":[{"index":0,"met":true,"quote":"…"}]}]}';
 
 export function openGradeUserPrompt(items: OpenGradeItem[]): string {

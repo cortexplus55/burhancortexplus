@@ -52,6 +52,8 @@ const prefsSchema = z
     modalities: z.array(z.enum(["reading", "listening", "watching", "practice"])).max(4).optional(),
     language: z.enum(["tr", "en"]).optional(),
     examTrack: z.enum(["tyt", "ayt", "yks", "kpss", "tus", "lgs", "ales", "uni"]).optional(),
+    studyBand: z.enum(["ortaokul", "lise", "sinav", "universite"]).optional(),
+    examOccasion: z.enum(["okul", "vize", "genel"]).optional(),
   })
   .optional();
 
@@ -176,6 +178,19 @@ export async function POST(request: Request) {
   // Öğrenci günleri hazırlık ayarlarından daraltabilir; seçim kayda geçer.
   const studyDays = prepStudyDays(parsed.data.studyDays);
   const dailyMinutes = prepDailyMinutes(parsed.data.dailyMinutes);
+  const bandGrade = {
+    ortaokul: "7. sınıf",
+    lise: "10. sınıf",
+    sinav: "12. sınıf",
+    universite: "Mezun",
+  } as const;
+  const studyBand = parsed.data.learningPreferences?.studyBand;
+  if (studyBand) {
+    const { data: profile } = await service.from("profiles").select("grade_level").eq("id", userId).maybeSingle();
+    if (!profile?.grade_level) {
+      await service.from("profiles").update({ grade_level: bandGrade[studyBand] }).eq("id", userId);
+    }
+  }
 
   let scheduleSummary: ReturnType<typeof buildExamScheduleV2> | null = null;
   let scheduleDrafts: ReturnType<typeof scheduleSessionsToNodeDrafts> | null = null;

@@ -1,15 +1,38 @@
 import { speechNear } from "@/lib/learning/speech-tolerance";
 
 /**
- * Sözlüde ilk cevaptaki yanlış (25 Ekim 2026, ürün sahibinin kararı; ders-bağımsız): takip sorusunda
- * düzeltse de o sorudan tam puan alınmaz ve eksikler listesinde yanlış adıyla yazılır.
+ * Sözlü yanlış kaydı (26 Ekim 2026): kesinti yalnız beklenen cevapla doğrudan çelişen
+ * bilgi içindir. Rubriği karşılayan ya da doğru bilgiyi içeren cevap düşürülmez.
  */
 
 /** `wrong` öğrencinin cümlesinden birebir alıntı, `correct` doğrusu. */
-export type OralAnswerError = { wrong: string; correct: string };
+export type OralAnswerError = { wrong: string; correct: string; turn?: "first" | "follow" };
 
-/** İlk cevabında temel bir yanlış söyleyen öğrencinin o sorudaki puan tavanı. */
+/** Eski tavan. Tek geçişte bütün soruyu buna yapıştırma; yalnız gerçek çelişkide ölçüt düşer. */
 export const ORAL_FIRST_ERROR_CAP = 0.5;
+
+const PROTECTED_END =
+  /^(?:I{1,3}|IV|VI{0,3}|IX|X{1,3}|\d+|yy|vb|Dr|Prof|Bkz|vs|No|Mad)\.$/i;
+
+/** "II. Mehmed" ve "Dr." gibi kısaltma noktalarında cümle bölünmez. */
+export function splitAnswerSentences(text: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  const pattern = /([.!?])(\s+)|\n+/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text))) {
+    if (match[1]) {
+      const token = text.slice(start, match.index + 1).trim().match(/(\S+)$/)?.[1] ?? "";
+      if (PROTECTED_END.test(token)) continue;
+    }
+    const chunk = text.slice(start, match.index + (match[1]?.length ?? 0)).trim();
+    if (chunk) out.push(chunk);
+    start = match.index + match[0].length;
+  }
+  const tail = text.slice(start).trim();
+  if (tail) out.push(tail);
+  return out;
+}
 
 /** Takip sorusu açıldıysa ilk cevap bu anahtarla ayrıca saklanır; cevap anahtarı birleşik metni tutar. */
 export function oralFirstAnswerKey(index: number): string {
@@ -39,7 +62,35 @@ export function oralDeskAnswer(input: {
 }
 
 export function firstAnswerErrorLine(error: OralAnswerError): string {
-  return `İlk yanıtta «${error.wrong.trim()}» yanlış ifade edildi; doğrusu «${error.correct.trim()}» olmalıdır.`;
+  const label = error.turn === "follow" ? "Takip yanıtında" : "İlk yanıtta";
+  return `${label} «${error.wrong.trim()}» yanlış ifade edildi; doğrusu «${error.correct.trim()}» olmalıdır.`;
+}
+
+function numbersIn(text: string): string[] {
+  return [...fold(text).matchAll(/\d+(?:[.,]\d+)?/g)].map((match) => match[0].replace(",", "."));
+}
+
+function negated(text: string): boolean {
+  return /\b(degil|yoktur|olmaz|yanlis|hayir)\b/.test(fold(text));
+}
+
+/** Alıntı, doğrusuyla aynı bilgiyi söylüyorsa çelişki değildir. */
+export function contradictsExpected(wrong: string, correct: string): boolean {
+  const w = fold(wrong);
+  const c = fold(correct);
+  if (!w || !c || w === c) return false;
+  if (c.includes(w) || w.includes(c)) return false;
+  const wn = numbersIn(wrong);
+  const cn = numbersIn(correct);
+  if (wn.length && cn.length && (wn.some((n) => !cn.includes(n)) || cn.some((n) => !wn.includes(n)))) return true;
+  if (negated(wrong) !== negated(correct)) return true;
+  const words = (text: string) => new Set(fold(text).split(" ").filter((word) => word.length > 2));
+  const left = words(wrong);
+  const right = words(correct);
+  let shared = 0;
+  for (const word of left) if (right.has(word)) shared += 1;
+  const overlap = shared / Math.max(1, Math.min(left.size, right.size));
+  return overlap < 0.5;
 }
 
 function fold(text: string): string {
@@ -80,6 +131,7 @@ function quoted(answer: string, quote: string): boolean {
 export function validFirstAnswerErrors(
   firstAnswer: string,
   errors: OralAnswerError[] | null | undefined,
+  followAnswer = "",
 ): OralAnswerError[] {
   const out: OralAnswerError[] = [];
   for (const row of errors ?? []) {
@@ -87,9 +139,16 @@ export function validFirstAnswerErrors(
     const correct = typeof row?.correct === "string" ? row.correct.trim() : "";
     if (!wrong || !correct || scoreLabel(correct)) continue;
     if (fold(wrong) === fold(correct)) continue;
-    if (!quoted(firstAnswer, wrong)) continue;
+    if (!contradictsExpected(wrong, correct)) continue;
+    const inFirst = quoted(firstAnswer, wrong);
+    const inFollow = Boolean(followAnswer.trim()) && quoted(followAnswer, wrong);
+    if (!inFirst && !inFollow) continue;
     if (out.some((have) => fold(have.wrong) === fold(wrong))) continue;
-    out.push({ wrong: wrong.slice(0, 160), correct: correct.slice(0, 200) });
+    out.push({
+      wrong: wrong.slice(0, 160),
+      correct: correct.slice(0, 200),
+      turn: inFirst ? "first" : "follow",
+    });
     if (out.length >= 2) break;
   }
   return out;

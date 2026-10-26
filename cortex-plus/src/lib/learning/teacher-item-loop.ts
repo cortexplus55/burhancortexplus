@@ -64,6 +64,42 @@ export async function teacherItemLoop<T>(options: {
   return { items: good.slice(0, options.count), rejected: bad, rounds };
 }
 
+/**
+ * Tek geçiş (26 Ekim 2026): bir taslak, deterministik yapı kapısı, eksikse yalnız eksik N için
+ * bir çağrı. JSON ayrışmazsa o çağrı bir kez yinelenir. Model denetçisi ve onarım turu yok.
+ */
+export async function singlePassItems<T>(options: {
+  count: number;
+  spare?: number;
+  draft: (n: number) => Promise<T[] | null>;
+  issues: (item: T) => string[];
+}): Promise<{ items: T[]; rejected: Reviewed<T>[]; rounds: number }> {
+  const pull = async (n: number) => {
+    const first = await options.draft(n);
+    if (first?.length) return first;
+    return (await options.draft(n)) ?? [];
+  };
+  const rejected: Reviewed<T>[] = [];
+  const accept = (rows: T[]) => {
+    const valid: T[] = [];
+    for (const item of rows) {
+      const problems = options.issues(item);
+      if (problems.length) rejected.push({ item, problems });
+      else valid.push(item);
+    }
+    return valid;
+  };
+  let valid = accept(await pull(options.count + (options.spare ?? 0)));
+  let rounds = 0;
+  if (valid.length < options.count) {
+    rounds = 1;
+    const missing = options.count - valid.length;
+    const more = await options.draft(missing);
+    valid = [...valid, ...accept(more ?? (await options.draft(missing)) ?? [])];
+  }
+  return { items: valid, rejected, rounds };
+}
+
 /** Denetçinin { issues: [{ item, severity, problem, fix }] } cevabını öğe sırasına göre toplar. */
 export function issuesByItem(raw: unknown, count: number): string[][] {
   const out: string[][] = Array.from({ length: count }, () => []);

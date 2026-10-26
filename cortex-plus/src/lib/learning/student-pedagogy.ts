@@ -178,12 +178,26 @@ const EXAM_LINES: Record<TargetExam, Partial<Record<PedagogySurface | "default",
 };
 
 function gradeLine(grade: GradeLevel): string {
-  if (grade === "Mezun") return "Mezun öğrenci: yetişkin dili; gereksiz basitleştirme yok.";
+  if (grade === "Mezun") {
+    return "Üniversite / mezun düzeyi: doğrudan teknik yöntem, teorem ya da kanun adımları ve sınav veya vaka çözümü. Edebi giriş yok.";
+  }
   const n = Number.parseInt(grade, 10);
-  if (n <= 6) return `${grade} öğrencisi: çok kısa cümleler, gündelik kelimeler; her yeni terim tanıdık bir örnekle açılır.`;
-  if (n <= 8) return `${grade} öğrencisi: somut örnekler ve kısa cümleler; terimi önce örnekle aç, sonra adını ver.`;
-  if (n <= 10) return `${grade} öğrencisi: temel kavramları sağlam kur; terimi ilk geçtiği yerde tanımıyla ver.`;
-  return `${grade} öğrencisi: sınav odaklı; kavramlar arası bağlantı ve yorum.`;
+  if (n >= 5 && n <= 8) {
+    return `${grade} (ortaokul): ağır cebir adı ve akademik jargon yok. Somut günlük modeller (terazi, sayı doğrusu, örüntü) ve çok kısa cümleler. Edebi giriş yok.`;
+  }
+  if (n >= 9 && n <= 12) {
+    return `${grade} (lise): MEB ve ÖSYM kazanımı, öncül tuzağı ve kısa çözüm yolu. Edebi giriş yok.`;
+  }
+  return `${grade} öğrencisi: sınav odaklı. Edebi giriş yok.`;
+}
+
+function bandLine(exam: TargetExam | null): string | null {
+  if (exam === "TUS" || exam === "KPSS" || exam === "ALES") {
+    return "Üniversite / sınav düzeyi: doğrudan teknik yöntem, teorem veya kanun adımları ve vaka. Edebi giriş ve boş laf yok.";
+  }
+  if (exam === "YKS") return "Lise / YKS: kazanım, öncül tuzağı ve pratik çözüm yolu. Edebi giriş yok.";
+  if (exam === "LGS") return "Ortaokul: somut model (terazi, sayı doğrusu, örüntü), kısa cümle, ağır cebir adı yok. Edebi giriş yok.";
+  return null;
 }
 
 const STYLE_LINES: Record<TutorStyle, Record<"teach" | "ask" | "solve", string>> = {
@@ -239,6 +253,7 @@ export function pedagogyPromptBlock(context: StudentPedagogicalContext | null, s
       "sayı, bulgu, kural ya da sonuç yazılmaz. İsteğin kendisi başka bir sınavı söylüyorsa (hazırlığın SINAV satırı) o sınavın " +
       "biçimini izle. Denetliyorsan profil bir denetim maddesi değildir: profile uymamak sorun sayılmaz.",
     context.targetExam ? examLine(context.targetExam, surface) : null,
+    bandLine(context.targetExam),
     context.gradeLevel ? gradeLine(context.gradeLevel) : null,
     context.focusSubject
       ? `Odak ders ${context.focusSubject}: örnekleri ve terimleri bu dersin dilinden kur; başka derse sapma.`

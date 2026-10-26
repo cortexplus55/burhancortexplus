@@ -183,7 +183,7 @@ describe("kablolama", () => {
   });
 
   it("motorlar üretimden sonra süzer", () => {
-    expect(readFileSync("src/lib/learning/teacher-quiz-run.ts", "utf8")).toContain("dropNearDuplicates(loop.questions");
-    expect(readFileSync("src/lib/learning/teacher-cards.ts", "utf8")).toContain("dropNearDuplicates(");
+    expect(readFileSync("src/lib/learning/teacher-quiz-run.ts", "utf8")).toContain("dropNearDuplicatesKeepingCount(loop.questions");
+    expect(readFileSync("src/lib/learning/teacher-cards.ts", "utf8")).toContain("dropNearDuplicatesKeepingCount(");
   });
 });

@@ -176,7 +176,9 @@ const DESIGN =
   "- Açı ya da sayı aralığı veriyorsan uç noktaların dahil olup olmadığını açıkça yaz (0° ≤ x < 360° gibi); " +
   "'0° ile 360° arasında' uçları belirsiz bırakır ve iki cevabı doğru yapar.\n" +
   "- Yazmadan önce her soruyu kendin çöz: tek doğru cevap var mı, anahtar doğru mu, diğer şıkların her biri kesin " +
-  "yanlış mı?\n\n" +
+  "yanlış mı? Adım adım çözümü `steps` alanına, doğru şıkkın sağlamasını `explanation` alanına aynı çağrıda yaz.\n" +
+  "- Kök kendi içinde tamdır: ekranda olmayan şekle, denkleme ya da 'derste verilen' ifadeye gönderme yok; " +
+  "çözmek için gereken her sayı ve ilişki kökte yazılır.\n\n" +
   "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede', 'PDF', 'belirtilmiştir', 'belirtildiği gibi' — soru " +
   "bilgiyi kaynağa değil konuya sorar ('hangi gerekçe belirtilmiştir' değil 'neden uygun değildir').\n\n";
 
@@ -868,6 +870,13 @@ function answerOnlyWordInStem(stem: string, answer: string, options: string[]): 
   return null;
 }
 
+/** Ekranda durmayan şekil, denklem ya da "derste verilen" göndermesi. "Bu şekilde" (tarz) sayılmaz. */
+export function unseenStemReference(text: string): boolean {
+  return /derste verilen|şekildeki|verilen şekilde|yukarıdaki (?:şekil|denklem|grafik|tablo)|aşağıdaki (?:şekilde|grafikte|tabloda)|şekilde gösterilen/i.test(
+    text,
+  );
+}
+
 export function quizStructureIssues(question: QuizQuestion, options: { multi?: boolean } = {}): string[] {
   const issues: string[] = [];
   if (question.options.length !== 4) issues.push(`Şık sayısı ${question.options.length}; 4 olmalı.`);
@@ -896,6 +905,9 @@ export function quizStructureIssues(question: QuizQuestion, options: { multi?: b
   }
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
     issues.push("Kökte kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
+  }
+  if (unseenStemReference(question.text)) {
+    issues.push("Kök ekranda olmayan şekle, denkleme ya da derste verilen ifadeye gönderme yapıyor.");
   }
   const keyed = {
     type: "mcq",
@@ -930,6 +942,9 @@ function multiQuestionIssues(question: QuizQuestion): string[] {
   }
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
     issues.push("Kökte kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
+  }
+  if (unseenStemReference(question.text)) {
+    issues.push("Kök ekranda olmayan şekle, denkleme ya da derste verilen ifadeye gönderme yapıyor.");
   }
   const wrong = question.options.filter((option) => !correct.includes(option));
   for (const answer of correct) {

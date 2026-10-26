@@ -30,6 +30,7 @@ export default async function ExamCreatePage({
   const initialPrompt = clip(params.istem, 300);
 
   // Ders seçiminde en üste öğrencinin hâlihazırda çalıştığı dersler gelsin.
+  const { data: profile } = await supabase.from("profiles").select("grade_level").eq("id", user.id).maybeSingle();
   const { data: recentRows } = await supabase
     .from("exam_preps")
     .select("exam_type")
@@ -58,6 +59,7 @@ export default async function ExamCreatePage({
         initialSubject={initialSubject}
         initialPrompt={initialPrompt}
         prepLimitReached={await freePrepLimitReached(createServiceClient(), user.id)}
+        gradeLevel={typeof profile?.grade_level === "string" ? profile.grade_level : null}
       />
     </ParitySorShell>
   );

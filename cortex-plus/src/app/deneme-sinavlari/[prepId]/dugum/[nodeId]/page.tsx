@@ -10,6 +10,7 @@ import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
+import { normalizeTopicKey } from "@/lib/learning/learning-tracking";
 import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
 import { studyNodeOpenable } from "@/lib/learning/study-tools";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
@@ -149,15 +150,23 @@ export default async function ExamNodePage({
   // vermemek için.
   let oralTopics: { id: string; label: string; pct: number }[] = [];
   if (node.kind === "oral") {
-    const { data: topicRows } = await supabase
-      .from("exam_prep_topics")
-      .select("id, label, sort_order, status")
-      .eq("exam_prep_id", prepId)
-      .order("sort_order");
+    const [{ data: topicRows }, { data: masteryRows }] = await Promise.all([
+      supabase.from("exam_prep_topics").select("id, label, sort_order, status").eq("exam_prep_id", prepId).order("sort_order"),
+      supabase
+        .from("exam_prep_topic_mastery")
+        .select("topic_key, confidence, evidence_count")
+        .eq("user_id", user.id)
+        .eq("exam_prep_id", prepId),
+    ]);
+    const masteryPct = new Map(
+      (masteryRows ?? [])
+        .filter((row) => Number(row.evidence_count ?? 0) > 0)
+        .map((row) => [normalizeTopicKey(String(row.topic_key ?? "")), Number(row.confidence ?? 0)]),
+    );
     oralTopics = (topicRows ?? []).map((topic) => ({
       id: topic.id,
       label: topic.label,
-      pct: topicStatusPct(topic.status),
+      pct: topicStatusPct(topic.status, masteryPct.get(normalizeTopicKey(topic.label)) ?? 0),
     }));
   }
 

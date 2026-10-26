@@ -112,6 +112,7 @@ import type { LearningSurface } from "@/lib/learning/learning-time";
 import { cardDeckCredit, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { activityDurationMinutes, elapsedMinutes } from "@/lib/learning/activity-duration";
 import { replayLabel, startActionLabel } from "@/lib/learning/feedback-copy";
+import { sanitizeStudentCopy } from "@/lib/learning/student-copy";
 import { NodeSources, type NodeSource } from "@/components/parity/node-sources";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
 import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
@@ -1082,11 +1083,6 @@ export function ExamNodeSession({
   // Şema tutmazsa düz markdown'a düşülür; ders hiç açılmamasındansa
   // biçimsiz açılsın.
   const structuredLesson = useMemo(() => (payload.lesson ? readPlayLessonV3(payload.lesson) : null), [payload.lesson]);
-  /** Baştan yazıma rağmen hazırlanamayan kavramlar (sunucu `missingConcepts`). */
-  const missingConcepts = useMemo(() => {
-    const raw = (payload as { missingConcepts?: unknown }).missingConcepts;
-    return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
-  }, [payload]);
   const lessonBuilding = payload.type === "lesson" && payload.building === true;
 
   // Parça parça açılan ders: yazım sürerken yeni kavramlar kayıttan okunur. Öğrenci ilk
@@ -1649,13 +1645,15 @@ export function ExamNodeSession({
             <p className="cp-exam-silence">
               Yardım kapalı. Süre bitince cevapların gider. Açıklama sınav sonunda.
             </p>
-          ) : payload.reused ? (
-            <p className="cp-exam-silence">Kayıtlı sorulardan. Yeni üretim yok.</p>
+          ) : payload.uncoveredTopics?.length ? (
+            <p className="cp-exam-silence">
+              Şu konular için elde soru yok: {payload.uncoveredTopics.join(", ")}.
+            </p>
           ) : null}
           <ExamQuizPlay
             questions={questions.map((question) => ({
-              text: question.text ?? "",
-              options: question.options ?? [],
+              text: sanitizeStudentCopy(question.text ?? ""),
+              options: (question.options ?? []).map((option) => sanitizeStudentCopy(option)),
               multi: Boolean(question.multi),
               correct: isTimedExam ? undefined : question.correct,
               explanation: isTimedExam ? undefined : question.explanation,
@@ -2004,12 +2002,7 @@ export function ExamNodeSession({
           )}
         >
           {payload.type === "lesson" ? (
-            <h1 className="cp-exam-result-title">{missingConcepts.length ? "Hazırlanıyor" : "Dersin tamamı bu kadar"}</h1>
-          ) : null}
-          {payload.type === "lesson" && missingConcepts.length ? (
-            <p className="cp-lesson-missing" role="status">
-              Hazırlanıyor
-            </p>
+            <h1 className="cp-exam-result-title">Dersin tamamı bu kadar</h1>
           ) : null}
           {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,
               altında doğruluk ve süre satırları. */}

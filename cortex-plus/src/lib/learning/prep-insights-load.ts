@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { normalizeTopicKey } from "@/lib/learning/learning-tracking";
 import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
 import {
   buildPrepRadarView,
@@ -73,7 +74,7 @@ async function loadInsights(
   }
   if (!prep?.id) return null;
 
-  const [{ data: nodeRows }, { data: attemptRows }, { data: topicRows }] = await Promise.all([
+  const [{ data: nodeRows }, { data: attemptRows }, { data: topicRows }, { data: masteryRows }] = await Promise.all([
     supabase
       .from("exam_prep_nodes")
       .select("id, kind, title, status, session_meta")
@@ -86,7 +87,12 @@ async function loadInsights(
       .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(500),
-    supabase.from("exam_prep_topics").select("label").eq("exam_prep_id", prep.id),
+    supabase.from("exam_prep_topics").select("id, label").eq("exam_prep_id", prep.id),
+    supabase
+      .from("exam_prep_topic_mastery")
+      .select("topic_key, confidence, evidence_count")
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prep.id),
   ]);
 
   const nodes = (nodeRows ?? []).map((row) => ({
@@ -103,7 +109,19 @@ async function loadInsights(
   const topicLabels = (topicRows ?? [])
     .map((row) => String(row.label ?? "").trim())
     .filter(Boolean);
-  const topicsDone = nodes.filter((node) => node.status === "done").length;
+  const masteryByKey = new Map(
+    (masteryRows ?? [])
+      .filter((row) => Number(row.evidence_count ?? 0) > 0)
+      .map((row) => [normalizeTopicKey(String(row.topic_key ?? "")), Number(row.confidence ?? 0)]),
+  );
+  const topicMastery = topicLabels.map((label) => ({
+    label,
+    confidence: masteryByKey.get(normalizeTopicKey(label)) ?? 0,
+  }));
+  const readinessMean = topicLabels.length
+    ? Math.round(topicMastery.reduce((sum, row) => sum + row.confidence, 0) / topicLabels.length)
+    : 0;
+  const measuredTopics = topicMastery.filter((row) => masteryByKey.has(normalizeTopicKey(row.label))).length;
 
   const progress = buildPrepProgressView({
     nodes,
@@ -118,15 +136,14 @@ async function loadInsights(
     examDate: typeof prep.exam_date === "string" ? prep.exam_date : null,
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
     dailyMinutes: typeof prep.daily_minutes === "number" ? prep.daily_minutes : null,
-    measuredReadinessPct: null,
+    measuredReadinessPct: topicLabels.length ? readinessMean : null,
+    topicMastery,
   });
 
   const radar = buildPrepRadarView({
     readinessPct: progress.scorePct,
     targetScore: progress.targetPct,
-    coveragePct: topicLabels.length
-      ? Math.round((topicsDone / Math.max(1, nodes.length)) * 100)
-      : progress.scorePct,
+    coveragePct: topicLabels.length ? Math.round((measuredTopics / topicLabels.length) * 100) : progress.scorePct,
     accuracyPct: null,
     mockPct: progress.mocks[0]?.pct ?? null,
     retentionPct: null,

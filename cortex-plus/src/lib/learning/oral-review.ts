@@ -253,25 +253,24 @@ export function reconcileOralGrade(input: {
       answer,
       question.expectedPoints ?? [],
     );
-    const firstErrors = validFirstAnswerErrors(
-      oralFirstAnswer(input.answers, index),
-      model?.errors,
-    );
+    const firstText = oralFirstAnswer(input.answers, index);
+    const followText = firstText && answer.startsWith(firstText) ? answer.slice(firstText.length).trim() : "";
+    const firstErrors = validFirstAnswerErrors(firstText, model?.errors, followText);
     let correct = Boolean(model?.correct);
     if (covers) correct = true;
-    // İlk cevaptaki doğrulanmış yanlış rubrik örtüşmesine de üstün gelir: sonradan doğruyu
-    // söylemek tam puan getirmez.
-    if (firstErrors.length) correct = false;
+    // Doğrudan çelişki, rubriği karşılamayan cevapta yanlış sayılır. Rubrik tutuyorsa tam puan kalır.
+    if (firstErrors.length && !covers) correct = false;
     // Model "doğrulanmış çözüm yok" diye eksik yazdıysa ve cevap rubriği
     // tutuyorsa zaten doğru; tutmuyorsa gap temizlensin.
     const rawGap = model?.gap ?? null;
-    const gap = firstErrors.length
-      ? firstAnswerErrorLine(firstErrors[0]!)
-      : correct
-        ? null
-        : sanitizeGap(rawGap, question.prompt);
+    const gap =
+      firstErrors.length && !correct
+        ? firstAnswerErrorLine(firstErrors[0]!)
+        : correct
+          ? null
+          : sanitizeGap(rawGap, question.prompt);
     items.push(
-      firstErrors.length ? { index, correct, gap, firstAnswerErrors: firstErrors } : { index, correct, gap },
+      firstErrors.length && !correct ? { index, correct, gap, firstAnswerErrors: firstErrors } : { index, correct, gap },
     );
   });
 

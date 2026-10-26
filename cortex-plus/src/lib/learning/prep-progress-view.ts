@@ -106,6 +106,17 @@ function pct(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
 }
 
+/** Aynı düğümün tekrarları soruyu bir kez sayar (son tamamlanan oturum). */
+function uniqueSolved(attempts: ProgressAttempt[], ids: Set<string>): number {
+  const latest = new Map<string, ProgressAttempt>();
+  for (const attempt of attempts) {
+    if (!ids.has(attempt.nodeId)) continue;
+    const prev = latest.get(attempt.nodeId);
+    if (!prev || Date.parse(attempt.createdAt) >= Date.parse(prev.createdAt)) latest.set(attempt.nodeId, attempt);
+  }
+  return [...latest.values()].reduce((sum, attempt) => sum + Math.max(0, attempt.total ?? 0), 0);
+}
+
 /** H1…H4, şimdi: en eski hafta başta. `index` 0 = bu hafta. */
 function weekIndex(createdAt: string, now: number): number | null {
   const time = Date.parse(createdAt);
@@ -130,6 +141,8 @@ export function buildPrepProgressView(input: {
   dailyMinutes: number | null;
   /** Ölçülen sınava hazırlık tahmini (pdf_learning_v2). Yoksa null. */
   measuredReadinessPct: number | null;
+  /** Konu hâkimiyeti (0–100). Varsa çubuk tamamlanan adımdan değil buradan gelir; listede olmayan konu 0. */
+  topicMastery?: { label: string; confidence: number }[];
   now?: Date;
 }): PrepProgressView {
   const now = (input.now ?? new Date()).getTime();
@@ -152,16 +165,18 @@ export function buildPrepProgressView(input: {
     ? input.topicLabels
     : [...new Set(input.nodes.map(topicOf).filter((t): t is string => Boolean(t)))];
 
+  const masteryByLabel = input.topicMastery
+    ? new Map(input.topicMastery.map((row) => [row.label, Math.max(0, Math.min(100, Math.round(row.confidence)))]))
+    : null;
   const topics = labels.map((label) => {
     const topicNodes = input.nodes.filter((node) => topicOf(node) === label);
     const done = topicNodes.filter((node) => node.status === "done").length;
     const ids = new Set(topicNodes.map((node) => node.id));
-    const solved = completed
-      .filter((attempt) => ids.has(attempt.nodeId))
-      .reduce((sum, attempt) => sum + Math.max(0, attempt.total ?? 0), 0);
+    const solved = uniqueSolved(completed, ids);
+    const mastery = masteryByLabel?.get(label);
     return {
       label,
-      pct: pct(done, topicNodes.length),
+      pct: masteryByLabel ? (mastery ?? 0) : pct(done, topicNodes.length),
       solved,
       lessons: topicNodes.filter((node) => LESSON_KINDS.has(node.kind)).length,
     };

@@ -143,11 +143,8 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
     expect(draft.user).toContain(PODCAST_CHECK_BRIEF);
     expect(draft.user).toContain("KAYNAK:\nPersentil eğrisi:");
     expect(draft.user).not.toContain("Belgende geçmiyor ama");
-    expect(calls.some((call) => call.role === "verify")).toBe(true);
-    // Denetçi de kuralları görür (20 Ekim inceleme): yalnız yazar görüyordu.
-    const verify = calls.find((call) => call.role === "verify")!;
-    expect(verify.user).toContain("İSTEK:");
-    expect(verify.user).toContain(PODCAST_CHECK_BRIEF.slice(0, 80));
+    expect(draft.user).toContain("İSTEK");
+    expect(calls.some((call) => call.role === "verify")).toBe(false);
   });
 
   it("kontrol hiçbir zaman podcast'i düşürmez: yazılamazsa, azsa, süre geçtiyse, istenmediyse boş", async () => {

@@ -69,23 +69,23 @@ function fakeAsk(verifies: unknown[]) {
 const softOnly = { issues: [0, 1, 2, 3, 4, 5].map((question) => ({ question, code: "H", severity: "high", problem: "vaka yok" })) };
 
 describe("konu testi: öğrenci beklerken yalnız pedagojik sorun için tur açılmaz", () => {
-  it("önceden yazım (urgent yok): bugünkü gibi bir düzeltme turu", async () => {
+  it("önceden yazım da tek taslak çağrısıdır; pedagojik sorun soruyu silmez", async () => {
     const { ask, calls } = fakeAsk([softOnly]);
     const loop = await teacherQuizLoop(ask, input);
-    expect(calls.fix).toBe(1);
-    expect(loop.rounds).toBe(1);
-  });
-
-  it("öğrenci bekliyor (urgent): düzeltme çağrısı yok, sayı yumuşak kurtarmayla tamamlanır", async () => {
-    const { ask, calls } = fakeAsk([softOnly]);
-    const loop = await teacherQuizLoop(ask, { ...input, urgent: true });
-    expect(calls).toEqual({ draft: 1, verify: 1, fix: 0 });
+    expect(calls).toEqual({ draft: 1, verify: 0, fix: 0 });
     expect(loop.rounds).toBe(0);
     expect(loop.questions).toHaveLength(5);
-    expect(loop.softKept).toBeGreaterThan(0);
   });
 
-  it("öğrenci bekliyor ama doğruluk sorunu var (A): yine düzeltilir, yanlış soru asla geri konmaz", async () => {
+  it("öğrenci bekliyor (urgent): denetçi yok, 5 soru durur", async () => {
+    const { ask, calls } = fakeAsk([softOnly]);
+    const loop = await teacherQuizLoop(ask, { ...input, urgent: true });
+    expect(calls).toEqual({ draft: 1, verify: 0, fix: 0 });
+    expect(loop.questions).toHaveLength(5);
+    expect(loop.questions.map((question) => question.text)).toContain(draftQuestions[0].text);
+  });
+
+  it("doğruluk itirazı da yapısal olarak sağlam soruyu silmez", async () => {
     const hard = {
       issues: [
         { question: 0, code: "A", severity: "high", problem: "anahtar yanlış" },
@@ -94,8 +94,9 @@ describe("konu testi: öğrenci beklerken yalnız pedagojik sorun için tur aç�
     };
     const { ask, calls } = fakeAsk([hard]);
     const loop = await teacherQuizLoop(ask, { ...input, urgent: true });
-    expect(calls.fix).toBe(1);
-    expect(loop.questions.map((question) => question.text)).not.toContain(draftQuestions[0].text);
+    expect(calls.fix).toBe(0);
+    expect(loop.questions.map((question) => question.text)).toContain(draftQuestions[0].text);
+    expect(loop.questions).toHaveLength(5);
   });
 
   it("node rotası: öğrenci isteği urgent, önceden yazım değil; deadline istek saatinden", () => {

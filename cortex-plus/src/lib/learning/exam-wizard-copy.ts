@@ -20,6 +20,21 @@ export type ExamTrackId = (typeof EXAM_TRACKS)[number]["id"];
 
 export const DEFAULT_EXAM_LEAD_DAYS = 30;
 
+export const STUDY_BANDS = [
+  { id: "ortaokul", label: "5–8. Sınıf", grade: "7. sınıf" },
+  { id: "lise", label: "9–12. Sınıf / Lise", grade: "10. sınıf" },
+  { id: "sinav", label: "YKS / KPSS / ALES", grade: "12. sınıf" },
+  { id: "universite", label: "Üniversite / TUS", grade: "Mezun" },
+] as const;
+
+export const EXAM_OCCASIONS = [
+  { id: "okul", label: "Okul Yazılısı" },
+  { id: "vize", label: "Vize / Final" },
+  { id: "genel", label: "Genel Sınav" },
+] as const;
+
+export const DAILY_MINUTE_CHOICES = [25, 45, 60, 90] as const;
+
 export function isExamTrack(value: unknown): value is ExamTrackId {
   return typeof value === "string" && EXAM_TRACKS.some((track) => track.id === value);
 }

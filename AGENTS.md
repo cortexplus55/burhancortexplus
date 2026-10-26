@@ -373,6 +373,10 @@ göremez — hepsi yeşildi.
 
 Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası".
 
+## Tek geçiş (26 Ekim 2026) — bölüm ve soru silinmez
+
+Yazar tek çağrıda yazar. Denetçi, avukat ve kavramı baştan yazma turu yok. JSON bozulursa o parça bir kez daha istenir; sayı eksikse yalnız eksik kadar bir çağrı daha yapılır. Ayrışan taslak öğrenciye gider: `missingConcepts` ve "Bu bölüm bu sefer yetişmedi" üretilmez. İnce notta `origin: "curriculum"` alt konu açılır; belge dışı sınav bilgisi "Sınav Müfredatı Tamamlaması" kutusundadır. Hazırlık yüzdesi çalışılmamış konuyu 0 sayan hâkimiyet ortalamasıdır. Sözlü kesinti yalnız beklenen cevapla doğrudan çelişen bilgi içindir.
+
 ## Öğretmen ders motoru (2 Ekim 2026) — eski onarım zinciri silindi (3 Ekim 2026)
 
 Belgeli sınav hazırlığı dersleri öğretmen motorundan geliyor: temiz sayfa metni (`document_pages.clean_text`) → tek öğretmen

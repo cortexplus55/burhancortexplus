@@ -20,6 +20,7 @@ import {
   buildTopicReport,
   DEADLINE_GRACE_SEC,
   deadlinePassed,
+  adjustScoredAnswer,
   gradeDeterministicItem,
   gradeRubricAnswer,
   normalizeSubmittedAnswer,
@@ -162,17 +163,26 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
       if (judgement) {
         // Yapay zekâ notu: karşılanan ölçütün alıntısı cevapta birebir yoksa sayılmaz.
         const graded = gradeRubricAnswer(answerText, rubric, judgement.quotes);
+        const tuned = adjustScoredAnswer({
+          answer: answerText,
+          expected: q.numericExpected ?? null,
+          tolerance: q.numericTolerance,
+          maxPoints: graded.max,
+          modelAnswer: q.modelAnswer,
+          criteria: rubric.map((row) => row.criterion),
+          earned: graded.invalid ? 0 : graded.earned,
+        });
         const verdict: MockGradeItem["verdict"] =
-          graded.invalid || graded.earned === 0 ? "yanlis" : graded.earned >= graded.max ? "dogru" : "kismen";
+          tuned.earned <= 0 ? "yanlis" : tuned.earned >= graded.max ? "dogru" : "kismen";
         return {
           questionId: q.id,
           userAnswer: answerText,
           isCorrect: verdict === "dogru",
-          pointsEarned: graded.earned,
+          pointsEarned: tuned.earned,
           pointsMax: graded.max,
           verdict,
           explanation: q.explanation ?? "",
-          feedback: { met: graded.met, missed: graded.missed, invalid: false, quotes: judgement.quotes },
+          feedback: { met: graded.met, missed: graded.missed, invalid: false, quotes: judgement.quotes, ...(tuned.step ? { step: tuned.step } : {}) },
           topicId: q.topicId ?? null,
           topicLabel: q.topicLabel?.trim() || "Konu",
         };
@@ -197,20 +207,29 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
       }).filter((x): x is { criterion: string; quote: string } => Boolean(x));
 
       const graded = gradeRubricAnswer(answerText, rubric, expanded);
+      const tuned = answerText.trim()
+        ? adjustScoredAnswer({
+            answer: answerText,
+            expected: q.numericExpected ?? null,
+            tolerance: q.numericTolerance,
+            maxPoints: graded.max,
+            modelAnswer: q.modelAnswer,
+            criteria: rubric.map((row) => row.criterion),
+            earned: graded.invalid ? 0 : graded.earned,
+          })
+        : { earned: 0 as number, step: undefined as string | undefined };
       const verdict: MockGradeItem["verdict"] = !answerText.trim()
         ? "bos"
-        : graded.invalid
+        : tuned.earned <= 0
           ? "yanlis"
-          : graded.earned >= graded.max
+          : tuned.earned >= graded.max
             ? "dogru"
-            : graded.earned > 0
-              ? "kismen"
-              : "yanlis";
+            : "kismen";
       return {
         questionId: q.id,
         userAnswer: answerText,
         isCorrect: verdict === "dogru",
-        pointsEarned: graded.invalid ? 0 : graded.earned,
+        pointsEarned: tuned.earned,
         pointsMax: graded.max,
         verdict,
         explanation: q.explanation ?? "",
@@ -219,6 +238,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
           missed: graded.missed,
           invalid: graded.invalid,
           quotes: expanded,
+          ...(tuned.step ? { step: tuned.step } : {}),
         },
         topicId: q.topicId ?? null,
         topicLabel: q.topicLabel?.trim() || "Konu",

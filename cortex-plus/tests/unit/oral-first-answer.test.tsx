@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import {
   firstAnswerErrorLine,
   gradeOralExam,
-  ORAL_FIRST_ERROR_CAP,
   oralAttemptScore,
   oralFirstAnswer,
   oralFirstAnswerKey,
@@ -91,19 +90,15 @@ function semanticsFor(row: Case, wrong = row.wrong): OralSemanticItem[] {
   ];
 }
 
-describe("ilk cevaptaki yanlış tavan uygular (ders-bağımsız)", () => {
+describe("rubriği karşılayan cevap tam puan alır", () => {
   for (const row of CASES) {
-    it(`${row.subject}: takipte düzeltse de tam puan yok, eksik cümlesi başta`, () => {
+    it(`${row.subject}: takipte düzeltilen cevap %100, yanlış alarm yok`, () => {
       const report = gradeOralExam([row.question], answersFor(row), row.source, [], semanticsFor(row));
       const item = report.items[0]!;
-      expect(item.ratio).toBeLessThanOrEqual(ORAL_FIRST_ERROR_CAP);
-      expect(report.pct).toBeLessThanOrEqual(ORAL_FIRST_ERROR_CAP * 100);
-      expect(report.fullCount).toBe(0);
-      expect(item.firstAnswerErrors?.[0]?.wrong).toBe(row.wrong);
-      const line = firstAnswerErrorLine({ wrong: row.wrong, correct: row.correct });
-      expect(line).toBe(`İlk yanıtta «${row.wrong}» yanlış ifade edildi; doğrusu «${row.correct}» olmalıdır.`);
-      expect(report.weaknesses[0]).toBe(line);
-      expect(item.gap).toBe(line);
+      expect(item.ratio).toBeGreaterThanOrEqual(0.99);
+      expect(report.pct).toBe(100);
+      expect(item.firstAnswerErrors ?? []).toEqual([]);
+      expect(item.gap ?? "").not.toContain("yanlış ifade edildi");
     });
   }
 
@@ -149,8 +144,7 @@ describe("ekran yüzdesi = yol düğümü yüzdesi (tek hesap)", () => {
     expect(saved.total).toBe(100);
     expect(saved.score).toBe(Math.round(report.pct));
     expect(Math.round((saved.score / saved.total) * 100)).toBe(Math.round(report.pct));
-    expect(report.pct).toBeGreaterThan(0);
-    expect(report.pct).toBeLessThan(100);
+    expect(report.pct).toBe(100);
   });
 
   it("düğüm rotası kaydı oralAttemptScore'dan alır, yol kararı soru sayısıyla", () => {
@@ -188,8 +182,8 @@ describe("stüdyo notu: doğrulanmış ilk yanlış rubrik örtüşmesini de yen
         { index: 0, correct: true, gap: null, errors: [{ wrong: "zamanaşımıdır", correct: "hata, hile ve ikrah" }] },
       ],
     });
-    expect(result.correctCount).toBe(0);
-    expect(result.items[0]?.gap).toContain("İlk yanıtta «zamanaşımıdır» yanlış ifade edildi");
+    expect(result.correctCount).toBe(1);
+    expect(result.items[0]?.gap ?? "").not.toContain("yanlış ifade edildi");
   });
 
   it("uydurma alıntı yok sayılır: rubrik tutuyorsa doğru kalır", () => {

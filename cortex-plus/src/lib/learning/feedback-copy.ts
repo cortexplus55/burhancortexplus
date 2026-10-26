@@ -28,13 +28,17 @@ export function startActionLabel(kind: string): string {
 
 export function replayLabel(kind: string): string {
   if (kind === "podcast") return "Yeniden dinle";
-  if (kind === "quiz" || kind === "true_false") return "Testi tekrarla";
+  if (kind === "quiz" || kind === "true_false" || kind === "final_check") return "Testi tekrarla";
+  if (kind === "flashcards" || kind === "cards" || kind === "spaced") return "Kartları tekrarla";
+  if (kind === "qa") return "Soru-cevabı tekrarla";
   if (kind === "oral") return "Sözlüyü tekrarla";
   return "Dersi tekrarla";
 }
 
 export function ratingPrompt(kind: string): string {
-  if (kind === "quiz" || kind === "true_false") return "Bu testi nasıl buldun?";
+  if (kind === "quiz" || kind === "true_false" || kind === "final_check") return "Bu testi nasıl buldun?";
+  if (kind === "flashcards" || kind === "cards" || kind === "spaced") return "Bu kartları nasıl buldun?";
+  if (kind === "qa") return "Bu soru-cevabı nasıl buldun?";
   if (kind === "oral") return "Bu sözlüyü nasıl buldun?";
   if (kind === "podcast") return "Bu podcasti nasıl buldun?";
   return "Bu dersi nasıl buldun?";

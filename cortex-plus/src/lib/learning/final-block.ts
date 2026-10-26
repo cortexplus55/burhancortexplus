@@ -76,8 +76,10 @@ export type TopicStrength = { label: string; confidence: number | null };
  */
 export function finalCardTopics(topics: readonly TopicStrength[], max = 4): string[] {
   const usable = topics.filter((topic) => topic.label.trim());
-  const rank = (topic: TopicStrength) => (topic.confidence == null ? 0.65 : topic.confidence);
-  const notStrong = usable.filter((topic) => topic.confidence == null || topic.confidence < 0.8);
+  const asPercent = (confidence: number | null) =>
+    confidence == null ? 65 : confidence <= 1 ? confidence * 100 : confidence;
+  const rank = (topic: TopicStrength) => asPercent(topic.confidence);
+  const notStrong = usable.filter((topic) => asPercent(topic.confidence) < 85);
   const list = (notStrong.length ? notStrong : usable)
     .map((topic, index) => ({ topic, index }))
     .sort((a, b) => rank(a.topic) - rank(b.topic) || a.index - b.index)

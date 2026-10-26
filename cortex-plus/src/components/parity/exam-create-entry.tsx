@@ -15,8 +15,10 @@ export function ExamCreateEntry({
   initialSubject = null,
   initialPrompt = null,
   prepLimitReached = false,
+  gradeLevel = null,
 }: {
   initialDocumentId?: string | null;
+  gradeLevel?: string | null;
   recentSubjects?: string[];
   /** Katalog kartından gelen ders (Müfredatım / Resmî sınavlar). */
   initialSubject?: string | null;
@@ -65,6 +67,7 @@ export function ExamCreateEntry({
         setMode("chat");
       }}
       prepLimitReached={prepLimitReached}
+      gradeLevel={gradeLevel}
     />
   );
 }

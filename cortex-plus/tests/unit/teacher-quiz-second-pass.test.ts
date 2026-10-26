@@ -125,7 +125,6 @@ describe("test motoru: düşünme ayarı", () => {
     const verify = ai.efforts.filter((call) => call.verify);
     expect(draft.length).toBeGreaterThan(0);
     expect(draft.every((call) => call.effort === "low")).toBe(true);
-    expect(verify.length).toBeGreaterThan(0);
-    expect(verify.every((call) => call.effort === undefined)).toBe(true);
+    expect(verify).toHaveLength(0);
   });
 });

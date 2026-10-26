@@ -265,11 +265,11 @@ export const TEACHER_SYSTEM =
   "KAYNAK KURALI (kesin): Her olgu, tanım, sayı, tarih, madde numarası, kural, sınıflandırma ve olay örneği yalnızca " +
   "KAYNAK metninden gelir. Kaynakta yoksa yazma; tahmin etme, genel kültürden ekleme — tek istisna aşağıdaki " +
   "'Genel bilgi' kutusu. " +
-  "GENEL BİLGİ KUTUSU: Kaynak bir konuyu sınavda sorulan kesin bilgisini vermeden geçiyorsa (yaş sınırı, eşik, " +
-  "neden — örn. kaynak 'bal konusunda aile eğitimi önemlidir' deyip yaşı ve nedeni vermiyor) o bilgiyi yalnız bir " +
-  "'note' bloğunda ver: tone 'general', başlık 'Genel bilgi: …', tek iki cümle. Yalnız ders kitaplarında tartışmasız, " +
-  "güncel olarak değişmeyen bilgi; emin değilsen yazma. Ders başına en fazla iki kutu. Kaynakta zaten olan bilgiyi " +
-  "buraya koyma; bu kutudaki bilgiyi metin, soru, 'corrected' ya da özet bloğunda kullanma — sorular kaynaktan çözülür. " +
+  "SINAV MÜFREDATI TAMAMLAMASI (GENEL BİLGİ KUTUSU): Kaynak bir formülü, ara adımı, neden-sonuç ilişkisini ya da klasik soru tipini " +
+  "vermeden geçiyorsa, o konudan sınavda gereken tartışmasız bilgiyi yalnız bir 'note' bloğunda tamamla: tone 'general', " +
+  "başlık 'Sınav Müfredatı Tamamlaması: …' (eski 'Genel bilgi:' başlığı da kabul). Kavram başına en çok bir, ders başına " +
+  "en çok dört kutu; her kutu bir iki cümle. Emin olmadığın sayı, eşik ya da güncel bilgiyi yazma. Kaynakta zaten olan " +
+  "bilgiyi bu kutuya koyma. Kontrol sorusu kutunun görülmeyen şekline güvenemez: veri soru kökünde yazılır. " +
   `${WHY_NOTE_RULE} ` +
   "Kavramı ayırt ettirmek için kısa bir örnek vaka ya da benzetme kullanabilirsin, ama o vaka yeni bir " +
   "bilgi (sayı, kural, yasa, tarih, sonuç) taşımaz ve kaynaktaki tanımla çelişmez. " +
@@ -280,8 +280,10 @@ export const TEACHER_SYSTEM =
   "öngördüğü şekilde yapılması durumunda hüküm doğurmamasıdır' bozuk; kastedilen 'yapılmaması nedeniyle'. " +
   "Bu yeni bilgi değil, kaynağın düzeltilmesidir. Düzeltmeyi sessizce yap: derste kaynağın hatasından, " +
   "'kaynakta yanlış yazılmış' gibi bir nottan hiç söz etme.\n\n" +
-  "ANLATIM: 'Sen' diye konuşan, sakin, sınav odaklı bir öğretmen. Kısa cümleler. Önce kavramın ne olduğunu, sonra neyle " +
-  "karıştırıldığını, sonra sınavda nasıl tanınacağını söyle. Zıtlıkla anlat (X böyledir, Y ise şöyle). " +
+  "ANLATIM: 'Sen' diye konuşan, sakin, sınav odaklı bir öğretmen. Kısa cümleler. Edebi giriş, boş laf ve gereksiz bilgi yok. " +
+  "Her kavram dört parçadır: (1) net tanım, (2) kural, formül ya da şema (sayı doğrusu ve devre sırayla akan bir flow " +
+  "şeması, tablo ilişkisi matrix), (3) çözümlü klasik sınav örneği, (4) öğrencinin çözeceği kontrol sorusu. " +
+  "Önce kavramın ne olduğunu, sonra neyle karıştırıldığını, sonra sınavda nasıl tanınacağını söyle. Zıtlıkla anlat (X böyledir, Y ise şöyle). " +
   "SAYILAR: Kaynak bir sayı, eşik, aralık, oran ya da birim veriyorsa onu aynen yaz ('2 SD'nin altı', '%3', '13 cm'); " +
   "'yüksek', 'düşük', 'belirli bir değer' diye geçiştirme. Kaynakta olmayan sayıyı ekleme.\n\n" +
   `${TEACHING_RUBRIC}\n\n` +
@@ -1138,10 +1140,15 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
         "Başlıkta yer tutucu var ('X ile Y', '<…>', '…', 'kardeş kavram'); karıştırılan kavramların gerçek adını yaz.",
       );
     }
-    if (block.type === "note" && block.note.tone === "general" && !/^genel bilgi\b/i.test(block.note.title.trim()) && !isWhyNote(block)) {
+    if (
+      block.type === "note" &&
+      block.note.tone === "general" &&
+      !/^(genel bilgi|sınav müfredatı tamamlaması)\b/i.test(block.note.title.trim()) &&
+      !isWhyNote(block)
+    ) {
       add(
         `${where}.blocks[${blockIndex}]`,
-        "Genel bilgi kutusunun başlığı 'Genel bilgi: …' ile başlamalı (mekanizma kutusuysa 'Neden böyle?: …'); öğrenci bilginin belgesinden gelmediğini görsün.",
+        "Tamamlama kutusunun başlığı 'Sınav Müfredatı Tamamlaması:' ya da 'Genel bilgi:' ile başlamalı (mekanizma kutusuysa 'Neden böyle?: …').",
       );
     }
   });
@@ -1584,7 +1591,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   const general = screens.flatMap((screen) =>
     screen.blocks.filter((block) => block.type === "note" && block.note.tone === "general" && !isWhyNote(block)),
   );
-  if (general.length > 2) add("screens", "En fazla iki 'Genel bilgi' kutusu; gerisini çıkar ya da kaynaktaki bilgiyle anlat.");
+  if (general.length > 4) add("screens", "En fazla dört 'Sınav Müfredatı Tamamlaması' kutusu; kavram başına bir.");
   // "Neden böyle?" derste en az bir (23 Ekim 2026, ürün sahibinin kararı): yalnız istemle dokuz derste bir kez yazıldı.
   // Öğretim önemi: kapanışta bir öğretim turu açar, kavram düşürmez. Belgesiz derste kaynak kuralı yok, kutu da yok.
   if ((input.pages?.length ?? 0) > 0 && !screens.some((screen) => screen.blocks.some(isWhyNote))) {

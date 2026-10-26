@@ -20,7 +20,10 @@ import {
   X,
 } from "lucide-react";
 import {
+  DAILY_MINUTE_CHOICES,
   DEFAULT_EXAM_LEAD_DAYS,
+  EXAM_OCCASIONS,
+  STUDY_BANDS,
   DOCUMENT_ANALYSIS_STAGES,
   EXAM_TRACKS,
   PREP_HOME_COPY,
@@ -259,8 +262,11 @@ export function ExamCreateWizard({
   recentSubjects = [],
   onUseChat,
   prepLimitReached = false,
+  gradeLevel = null,
 }: {
   initialDocumentId?: string | null;
+  /** Profilde sınıf yoksa tarih adımında bant ve sınav türü sorulur. */
+  gradeLevel?: string | null;
   /**
    * Ücretsiz hesabın tek hazırlık hakkı dolu (3 Ekim 2026). Astra'daki gibi
    * ders seçilince yükseltme kapısı açılır; sunucu da kurulumu reddeder.
@@ -293,6 +299,9 @@ export function ExamCreateWizard({
   const [subjectQuery, setSubjectQuery] = useState("");
   const [examTrack, setExamTrack] = useState<(typeof EXAM_TRACKS)[number]["id"] | null>(null);
   const [examDate, setExamDate] = useState(() => isoOf(addDays(DEFAULT_EXAM_LEAD_DAYS)));
+  const [dailyMinutes, setDailyMinutes] = useState(45);
+  const [studyBand, setStudyBand] = useState<(typeof STUDY_BANDS)[number]["id"] | null>(null);
+  const [examOccasion, setExamOccasion] = useState<(typeof EXAM_OCCASIONS)[number]["id"]>("okul");
   const [target, setTarget] = useState(75);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
   const [modalities, setModalities] = useState<ChosenModality[]>([]);
@@ -1157,6 +1166,7 @@ export function ExamCreateWizard({
           topics,
           examDate,
           targetScore: target,
+          dailyMinutes,
           documentId: documentIds[0],
           documentIds,
           topicOrderManual: orderEdited,
@@ -1168,6 +1178,8 @@ export function ExamCreateWizard({
             modalities,
             language,
             ...(examTrack ? { examTrack } : {}),
+            ...(!gradeLevel && studyBand ? { studyBand } : {}),
+            ...(!gradeLevel ? { examOccasion } : {}),
           },
         }),
       });
@@ -1368,6 +1380,13 @@ export function ExamCreateWizard({
           value={examDate}
           onPick={(iso) => setExamDate(iso)}
           onNext={() => setStep("target")}
+          askLevel={!gradeLevel}
+          studyBand={studyBand}
+          onStudyBand={setStudyBand}
+          examOccasion={examOccasion}
+          onExamOccasion={setExamOccasion}
+          dailyMinutes={dailyMinutes}
+          onDailyMinutes={setDailyMinutes}
         />
       ) : null}
 
@@ -2283,10 +2302,24 @@ function DateStep({
   value,
   onPick,
   onNext,
+  askLevel,
+  studyBand,
+  onStudyBand,
+  examOccasion,
+  onExamOccasion,
+  dailyMinutes,
+  onDailyMinutes,
 }: {
   value: string;
   onPick: (iso: string) => void;
   onNext: () => void;
+  askLevel: boolean;
+  studyBand: (typeof STUDY_BANDS)[number]["id"] | null;
+  onStudyBand: (id: (typeof STUDY_BANDS)[number]["id"]) => void;
+  examOccasion: (typeof EXAM_OCCASIONS)[number]["id"];
+  onExamOccasion: (id: (typeof EXAM_OCCASIONS)[number]["id"]) => void;
+  dailyMinutes: number;
+  onDailyMinutes: (minutes: number) => void;
 }) {
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T12:00:00`) : new Date();
@@ -2308,7 +2341,53 @@ function DateStep({
   return (
     <section className="apw-step">
       <h1>Sınav ne zaman?</h1>
-      <p className="apw-lead">Kalan güne göre planın sıkışır ya da rahatlar.</p>
+      <p className="apw-lead">Kalan güne göre planın sıkışır ya da rahatlar. 30 gün sonrası seçili gelir.</p>
+      {askLevel ? (
+        <>
+          <h2 className="apw-group">Sınıf / seviye</h2>
+          <div className="apw-quick" role="group" aria-label="Sınıf veya seviye">
+            {STUDY_BANDS.map((band) => (
+              <button
+                key={band.id}
+                type="button"
+                className={studyBand === band.id ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
+                aria-pressed={studyBand === band.id}
+                onClick={() => onStudyBand(band.id)}
+              >
+                {band.label}
+              </button>
+            ))}
+          </div>
+          <h2 className="apw-group">Sınav türü</h2>
+          <div className="apw-quick" role="group" aria-label="Sınav türü">
+            {EXAM_OCCASIONS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={examOccasion === item.id ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
+                aria-pressed={examOccasion === item.id}
+                onClick={() => onExamOccasion(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+      <h2 className="apw-group">Günlük çalışma süresi</h2>
+      <div className="apw-quick" role="group" aria-label="Günlük çalışma süresi">
+        {DAILY_MINUTE_CHOICES.map((minutes) => (
+          <button
+            key={minutes}
+            type="button"
+            className={dailyMinutes === minutes ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
+            aria-pressed={dailyMinutes === minutes}
+            onClick={() => onDailyMinutes(minutes)}
+          >
+            {minutes} dk
+          </button>
+        ))}
+      </div>
 
       <div className="apw-quick">
         {quick.map((option) => {

@@ -72,6 +72,88 @@ export function gradeNumericAnswer(
   return { earned: maxPoints, verdict: "dogru", unitMissing: false };
 }
 
+function markerHit(answer: string, marker: string): boolean {
+  const compact = (text: string) => fold(text).replace(/\s+/g, "");
+  const a = compact(answer);
+  const m = compact(marker);
+  if (m.length >= 4 && a.includes(m)) return true;
+  const left = m.split("=")[0] ?? "";
+  return left.length >= 2 && a.includes(left) && a.includes("=");
+}
+
+/** Çözüm satırından formül ya da denklem kurulumu. */
+export function methodMarkers(modelAnswer: string, criteria: string[] = []): string[] {
+  return [...modelAnswer.split(/\n+/), ...criteria]
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 3 && line.length <= 160 && (/[=]/.test(line) || /formül|denklem|kirchhoff|thévenin|thevenin|ohm/i.test(line)))
+    .slice(0, 6);
+}
+
+/**
+ * Sayısal/fen: yöntem ve kurulum doğru, son aritmetik yanlışsa %50–%80.
+ * Yalnız son sayıyı yazan cevap 7/10 ve üzerine çıkmaz.
+ */
+export function partialWorkCredit(input: {
+  answer: string;
+  expected: number | null;
+  tolerance?: number | null;
+  maxPoints: number;
+  modelAnswer?: string | null;
+  criteria?: string[];
+  alreadyEarned: number;
+}): { earned: number; step: string } | null {
+  const answer = input.answer.trim();
+  if (!answer || input.expected == null || !Number.isFinite(input.expected)) return null;
+  const markers = methodMarkers(input.modelAnswer ?? "", input.criteria ?? []);
+  const hits = markers.filter((marker) => markerHit(answer, marker));
+  const matches = [...answer.replace(/,/g, ".").matchAll(/-?\d+(?:\.\d+)?/g)];
+  const claimed = Number(matches.at(-1)?.[0]);
+  const num = Number.isFinite(claimed) ? claimed : parseStudentNumber(answer);
+  const tol = input.tolerance ?? Math.max(1e-6, Math.abs(input.expected) * 0.01);
+  const inRange = num != null && Math.abs(num - input.expected) <= tol;
+  const bare = num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer);
+  if (inRange && markers.length && bare) {
+    const cap = Math.round(input.maxPoints * 0.6 * 1000) / 1000;
+    if (input.alreadyEarned <= cap) return null;
+    return { earned: cap, step: "Yöntem yazılmadan yalnız sonuç verilmiş." };
+  }
+  if (!inRange && hits.length) {
+    const ratio = Math.min(0.8, 0.5 + 0.3 * (hits.length / Math.max(1, markers.length)));
+    const earned = Math.round(input.maxPoints * ratio * 1000) / 1000;
+    if (earned <= input.alreadyEarned) return null;
+    return { earned, step: "Kurulum doğru; son aritmetik adım hatalı." };
+  }
+  if (!inRange && num != null && !hits.length && input.alreadyEarned >= input.maxPoints * 0.7) {
+    return { earned: 0, step: "Sonuç beklenen değerle çelişiyor." };
+  }
+  return null;
+}
+
+function trailingNumber(text: string): number | null {
+  const matches = [...text.matchAll(/-?\d+(?:[.,]\d+)?/g)];
+  const raw = matches.at(-1)?.[0]?.replace(",", ".");
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+/** Açık uçlu puanı: yöntem doğruysa kısmi, çıplak tahmin ve çelişen sonuç cömert puan almaz. */
+export function adjustScoredAnswer(input: {
+  answer: string;
+  expected: number | null;
+  tolerance?: number | null;
+  maxPoints: number;
+  modelAnswer?: string | null;
+  criteria?: string[];
+  earned: number;
+}): { earned: number; step?: string } {
+  const expected =
+    input.expected ?? (/=/.test(input.modelAnswer ?? "") ? trailingNumber(input.modelAnswer ?? "") : null);
+  const partial = partialWorkCredit({ ...input, expected, alreadyEarned: input.earned });
+  if (!partial) return { earned: input.earned };
+  return { earned: partial.earned, step: partial.step };
+}
+
 /**
  * Rubrik: karşılanan madde sayısı / toplam × puan.
  * Alıntı yoksa karar geçersiz (0).
@@ -168,16 +250,34 @@ export function gradeDeterministicItem(
   }
 
   if (question.type === "numeric" && question.numericExpected != null) {
-    const { earned, verdict, unitMissing } = gradeNumericAnswer(
-      selected[0] ?? joined,
+    const rawAnswer = selected[0] ?? joined;
+    const base = gradeNumericAnswer(
+      rawAnswer,
       question.numericExpected,
       question.numericUnit,
       question.numericTolerance,
       pointsMax,
     );
+    const partial = partialWorkCredit({
+      answer: rawAnswer,
+      expected: question.numericExpected,
+      tolerance: question.numericTolerance,
+      maxPoints: pointsMax,
+      modelAnswer: question.modelAnswer,
+      criteria: question.rubric?.map((row) => row.criterion) ?? [],
+      alreadyEarned: base.earned,
+    });
+    const earned = partial?.earned ?? base.earned;
+    const verdict: MockGradeItem["verdict"] =
+      earned <= 0 ? base.verdict : earned >= pointsMax ? "dogru" : "kismen";
     return {
-      ...baseItem(question, selected[0] ?? joined, earned, pointsMax, verdict, explanation, topicLabel),
-      feedback: { unitMissing, expected: question.numericExpected, unit: question.numericUnit },
+      ...baseItem(question, rawAnswer, earned, pointsMax, verdict, explanation, topicLabel),
+      feedback: {
+        unitMissing: base.unitMissing,
+        expected: question.numericExpected,
+        unit: question.numericUnit,
+        ...(partial ? { step: partial.step } : {}),
+      },
     };
   }
 

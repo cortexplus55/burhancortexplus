@@ -73,8 +73,8 @@ describe("öğretmen kart motoru", () => {
     const ask = vi.fn(async (system: string) => (system.includes("denetçisisin") ? { issues: [{ item: 3, problem: "kaynakta yok" }] } : draft));
     const loop = await teacherCardsLoop(ask, { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "…" }], count: 8 });
     expect(loop.cards).toHaveLength(8);
-    expect(loop.cards.map((card) => card.front)).not.toContain("Kart 3 ön yüz sorusu?");
-    expect(ask).toHaveBeenCalledTimes(2);
+    expect(loop.cards.map((card) => card.front)).toContain("Kart 3 ön yüz sorusu?");
+    expect(ask).toHaveBeenCalledTimes(1);
   });
 });
 

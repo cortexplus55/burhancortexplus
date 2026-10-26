@@ -85,7 +85,11 @@ export type OralReviewItem = {
   verdict?: "dogru" | "kismen" | "yanlis" | "bos";
 };
 
-export function topicStatusPct(status: string | null | undefined): number {
+export function topicStatusPct(status: string | null | undefined, confidence?: number | null): number {
+  if (typeof confidence === "number" && Number.isFinite(confidence)) {
+    const pct = confidence <= 1 ? confidence * 100 : confidence;
+    return Math.max(0, Math.min(100, Math.round(pct)));
+  }
   if (status === "done") return 100;
   if (status === "in_progress") return 50;
   return 0;

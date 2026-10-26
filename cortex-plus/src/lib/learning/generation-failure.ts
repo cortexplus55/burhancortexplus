@@ -111,7 +111,9 @@ export function describeGenerationFailure(
       return {
         message: podcast
           ? "Podcast hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak."
-          : "Dersin hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak.",
+          : kind === "quiz" || kind === "true_false" || kind === "final_check"
+            ? "Test hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak."
+            : "Dersin hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak.",
         retryMintsNewId: false,
         canRetryNow: false,
       };

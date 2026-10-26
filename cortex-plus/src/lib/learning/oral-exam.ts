@@ -29,8 +29,8 @@ import {
 } from "@/lib/learning/oral-review";
 import {
   firstAnswerErrorLine,
-  ORAL_FIRST_ERROR_CAP,
   oralFirstAnswer,
+  splitAnswerSentences,
   validFirstAnswerErrors,
   type OralAnswerError,
 } from "@/lib/learning/oral-first-answer";
@@ -540,19 +540,24 @@ export function gradeOralAnswer(
 
   // İlk cevap (takip sorusundan önce). Takip yoksa cevabın kendisi.
   const firstAnswer = first?.answer?.trim() || answer;
-  const firstErrors = dontKnow || !answer ? [] : validFirstAnswerErrors(firstAnswer, first?.errors);
+  const followText =
+    firstAnswer && answer.startsWith(firstAnswer) ? answer.slice(firstAnswer.length).trim() : "";
+  const firstErrors = dontKnow || !answer ? [] : validFirstAnswerErrors(firstAnswer, first?.errors, followText);
   if (!dontKnow && answer && firstAnswer !== answer && !firstErrors.length) {
     // Model çağrısı olmasa da: takipten önceki cevaptaki sayısal iddia kaynağa ters düşüyorsa yanlıştır.
     const firstClaim = gradeStudentClaim({ student: firstAnswer, context: ground });
     if (firstClaim?.verdict === "yanlis") {
       // Hükmün gerekçesi öğrencinin sözü değil; alıntı ilk cevabın sayı geçen cümlesinden.
-      const sentences = firstAnswer.split(/(?<=[.!?])\s+|\n+/).map((part) => part.trim()).filter(Boolean);
+      const sentences = splitAnswerSentences(firstAnswer);
       const wrong = sentences.find((part) => /\d/.test(part)) ?? sentences[0] ?? "";
       const correct = firstClaim.conclusion?.trim() || modelAnswer;
       firstErrors.push(...validFirstAnswerErrors(firstAnswer, [{ wrong, correct }]));
     }
   }
-  if (firstErrors.length) ratio = Math.min(ratio, ORAL_FIRST_ERROR_CAP);
+  // Rubrik karşılandıysa nitpick puanı düşürmez. Gerçek çelişki yalnız o ölçütü kırpar.
+  if (firstErrors.length && ratio < 0.99) {
+    ratio = Math.max(0, ratio - 0.2 * Math.min(firstErrors.length, 2));
+  }
 
   const quantNotes = [
     ...numeric,
@@ -566,8 +571,9 @@ export function gradeOralAnswer(
       missed.find((part) => !isScoreLabel(part) && !textOverlapsPrompt(part, prompt)) ||
       hollowGap ||
       "");
-  const gap = firstErrors.length
-    ? firstAnswerErrorLine(firstErrors[0])
+  const appliedErrors = ratio < 0.99 ? firstErrors : [];
+  const gap = appliedErrors.length
+    ? firstAnswerErrorLine(appliedErrors[0])
     : (sanitizeGap(rawGap, prompt) ?? "");
   const right = ratio >= 0.99
     ? (claim?.rightParts[0] || covered[0] || answer.slice(0, 180))
@@ -597,7 +603,7 @@ export function gradeOralAnswer(
     numericIssue: quantNotes.length ? [...new Set(quantNotes)].join(", ") : null,
     objective,
     ...(approximate ? { approximate: true } : {}),
-    ...(firstErrors.length ? { firstAnswerErrors: firstErrors } : {}),
+    ...(appliedErrors.length ? { firstAnswerErrors: appliedErrors } : {}),
   };
 }
 

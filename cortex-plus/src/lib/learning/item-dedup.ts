@@ -124,6 +124,23 @@ export function nearDuplicate(left: string, right: string, threshold = 0.7): boo
   return shared / (x.size + y.size - shared) >= threshold;
 }
 
+/**
+ * Kopyayı yalnız yerine başka sağlam öğe varken çıkarır. Eleme vaat edilen sayının altına
+ * düşürecekse kopya da kalır (26 Ekim 2026, tek geçiş: soru sayısı eksilmez).
+ */
+export function dropNearDuplicatesKeepingCount<T>(
+  items: readonly T[],
+  key: (item: T) => string,
+  count: number,
+  previous: readonly string[] = [],
+  threshold = 0.7,
+): T[] {
+  const unique = dropNearDuplicates(items, key, previous, threshold);
+  if (unique.length >= Math.min(count, items.length)) return unique;
+  const skipped = items.filter((item) => !unique.includes(item));
+  return [...unique, ...skipped].slice(0, Math.max(unique.length, Math.min(count, items.length)));
+}
+
 /** Önceki öğelerle ya da listede kendinden öncekiyle aynı bilgiyi soran öğe düşer; sıra korunur. */
 export function dropNearDuplicates<T>(
   items: readonly T[],
