@@ -148,6 +148,16 @@ async function probeListeningCheckColumn(service: SupabaseClient): Promise<boole
   return !(code === "42703" || code === "PGRST204");
 }
 
+async function probeVideoStyle(service: SupabaseClient): Promise<boolean> {
+  const { error } = await service.from("prep_videos").select("style").limit(1);
+  return !error;
+}
+
+async function probeSolutionPlan(service: SupabaseClient): Promise<boolean> {
+  const { error } = await service.from("practice_exam_questions").select("solution_plan").limit(1);
+  return !error;
+}
+
 async function hasTable(
   service: SupabaseClient,
   table: string,
@@ -211,10 +221,11 @@ export async function probeSchema(
     .from("exam_prep_misconceptions")
     .select("resolved_at")
     .limit(1);
-  const [explainAttempts, prepVideos, generationJobs] = await Promise.all([
+  const [explainAttempts, prepVideos, generationJobs, solutionPlan] = await Promise.all([
     hasTable(service, "explain_attempts"),
-    hasTable(service, "prep_videos"),
+    probeVideoStyle(service),
     hasTable(service, "generation_jobs"),
+    probeSolutionPlan(service),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -374,6 +385,14 @@ export async function probeSchema(
       detail: generationJobs
         ? "generation_jobs yerinde (20261026120000). Kısa sonuç yazılmaz; kira düşünce iş sürer."
         : "Tablo yok — deneme eşzamanlı dolar, kısa kâğıt yine yazılmaz (20261026120000).",
+    },
+    {
+      name: "Çözüm planı",
+      ok: solutionPlan,
+      critical: false,
+      detail: solutionPlan
+        ? "practice_exam_questions.solution_plan yerinde (20261026130000). Eksik sütunda plan örnek cevap eşitliğinden okunur."
+        : "Sütun yok — adım puanı örnek cevap eşitliğinden okunur (20261026130000).",
     },
   ];
 }

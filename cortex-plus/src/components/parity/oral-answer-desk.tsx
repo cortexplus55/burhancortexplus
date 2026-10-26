@@ -29,6 +29,7 @@ export function OralAnswerDesk({
   prompt,
   probeKind,
   hint,
+  expected,
   persona,
   minutes,
   value,
@@ -42,6 +43,8 @@ export function OralAnswerDesk({
   prompt: string;
   probeKind: OralProbeKind;
   hint?: string | null;
+  /** Beklenen cevap. Birim yoklaması yalnız burada birim varken sorulur. */
+  expected?: string | null;
   persona: OralTeacherMoodId;
   minutes: number;
   value: string;
@@ -197,6 +200,7 @@ export function OralAnswerDesk({
       alreadyProbed: false,
       hint,
       question: prompt,
+      expected,
     });
     if (next) {
       mainAnswer.current = value.trim();

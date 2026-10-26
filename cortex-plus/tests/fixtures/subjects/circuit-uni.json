@@ -8,5 +8,10 @@
     { "id": "series", "label": "Seri bağlama", "points": ["akım 2 amper", "aynı akım 2"] },
     { "id": "parallel", "label": "Paralel bağlama", "points": ["gerilim 12 volt", "ortak gerilim 12"] },
     { "id": "power", "label": "Güç", "points": ["güç 48 watt", "tüketim 48 watt"] }
-  ]
+  ],
+  "checks": {
+    "source": "İşlem 64 / 16 eşit 4 W olur. Kondansatör gerilimi ani değişemez. Kondansatör akımı ani değişebilir.",
+    "accept": ["64/16 = 4 W", "kondansatör gerilimi ani değişemez", "vC ani değişemez"],
+    "reject": [{ "answer": "akım kondansatörde ani değişemez", "correctIncludes": "akımı", "correctExcludes": "gerilim" }]
+  }
 }

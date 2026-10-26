@@ -61,5 +61,7 @@ describe("öğrenci metni iç etiket taşımaz", () => {
     const student = studentSafePayload(raw);
     expect(student).not.toHaveProperty("qualityReport");
     expect(studentSafeText("Denetim yetkisi saklıdır.")).toBe("Denetim yetkisi saklıdır.");
+    expect(studentSafeText("Ağırlık (core) burada durur.")).toBe("Ağırlık burada durur.");
+    expect(studentSafeText("İkinci (support) ve üçüncü (skim).")).toBe("İkinci ve üçüncü.");
   });
 });

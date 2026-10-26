@@ -8,5 +8,10 @@
     { "id": "past", "label": "Past forms", "points": ["the past form", "a finished action"] },
     { "id": "article", "label": "Articles", "points": ["the article is the", "a noun takes the"] },
     { "id": "regular", "label": "Endings", "points": ["the ending is regular", "the form is regular"] }
-  ]
+  ],
+  "checks": {
+    "source": "has gone is the present perfect.",
+    "accept": ["has gone"],
+    "reject": [{ "answer": "has gone is the past simple", "correctIncludes": "present perfect" }]
+  }
 }

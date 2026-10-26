@@ -1868,6 +1868,7 @@ export function ExamNodeSession({
           prompt={questions[index].prompt ?? ""}
           probeKind={(questions[index].probeKind as OralProbeKind | undefined) ?? "detail"}
           hint={vibeGivesHints(parseExaminerVibe(oralMoodId)) ? questions[index].hint : null}
+          expected={(questions[index].expectedPoints ?? []).join(" ")}
           persona={oralMoodId}
           minutes={minutesForOralLength(questions.length)}
           value={String(answers[String(index)] ?? "")}

@@ -10,6 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { ReviewTools } from "@/components/parity/review-tools";
+import { isRubricLabel } from "@/lib/learning/open-rubric";
 import { cn } from "@/lib/utils";
 
 type ReviewItem = {
@@ -24,7 +25,7 @@ type ReviewItem = {
   points_earned?: number | null;
   points_max?: number | null;
   /** Açık uçlu cevapta karşılanan ve eksik kalan ölçütler. */
-  feedback?: { met: string[]; missed: string[] } | null;
+  feedback?: { met: string[]; missed: string[]; fix?: string } | null;
 };
 
 type Verdict = "dogru" | "kismen" | "yanlis" | "bos";
@@ -331,11 +332,11 @@ export function ExamQuestionReviewClient({
                       {review?.user_answer?.trim() || "Boş bıraktın."}
                     </p>
                   </div>
-                  {review?.feedback?.met.length ? (
+                  {review?.feedback?.met.filter((point) => !isRubricLabel(point)).length ? (
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Karşıladığın noktalar</p>
                       <ul className="mt-1.5 space-y-1 text-sm text-[var(--c-text-muted)]">
-                        {review.feedback.met.map((point) => (
+                        {review.feedback.met.filter((point) => !isRubricLabel(point)).map((point) => (
                           <li key={point} className="flex gap-2">
                             <CheckCircle2 className="mt-0.5 w-4 h-4 flex-shrink-0 text-emerald-400" aria-hidden />
                             <span>{point}</span>
@@ -344,11 +345,11 @@ export function ExamQuestionReviewClient({
                       </ul>
                     </div>
                   ) : null}
-                  {review?.feedback?.missed.length ? (
+                  {review?.feedback?.missed.filter((point) => !isRubricLabel(point)).length ? (
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-rose-400">Eksik kalanlar</p>
                       <ul className="mt-1.5 space-y-1 text-sm text-[var(--c-text-muted)]">
-                        {review.feedback.missed.map((point) => (
+                        {review.feedback.missed.filter((point) => !isRubricLabel(point)).map((point) => (
                           <li key={point} className="flex gap-2">
                             <XCircle className="mt-0.5 w-4 h-4 flex-shrink-0 text-rose-400" aria-hidden />
                             <span>{point}</span>
@@ -356,6 +357,9 @@ export function ExamQuestionReviewClient({
                         ))}
                       </ul>
                     </div>
+                  ) : null}
+                  {review?.feedback?.fix && !isRubricLabel(review.feedback.fix) ? (
+                    <p className="text-sm leading-relaxed text-[var(--cp-text)]">{review.feedback.fix}</p>
                   ) : null}
                 </div>
               ) : null}

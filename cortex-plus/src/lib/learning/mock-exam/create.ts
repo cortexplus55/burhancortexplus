@@ -24,7 +24,11 @@ import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 import { assertDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
 import { fillUntilDelivered } from "@/lib/learning/fill-until-delivered";
+import { detectLanguage } from "@/lib/learning/item-validity";
+import { missingColumn } from "@/lib/learning/missing-column";
 import { modelForAttempt } from "@/lib/learning/model-ladder";
+import { acceptRubric } from "@/lib/learning/open-rubric";
+import { derivationQuestion, type DerivedQuestion } from "@/lib/learning/solution-plan";
 import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities";
 
 export type CreateMockExamInput = {
@@ -279,6 +283,7 @@ function readDraft(question: MockExamQuestionDraft): DeliveryItem {
     correctAnswers: question.correctAnswers,
     explanation: question.explanation,
     sourceLabel: question.source.label,
+    plan: question.solutionPlan,
   };
 }
 
@@ -405,28 +410,34 @@ export async function persistMockExam(input: {
     .select("id")
     .single();
   if (examError || !exam) return { ok: false };
-  await input.service.from("practice_exam_questions").insert(
-    questions.map((q, sort_order) => ({
-      exam_id: exam.id,
-      question_text: q.text,
-      question_type: q.type,
-      options: q.options.length ? q.options : null,
-      correct_answer: q.correctAnswers[0] ?? null,
-      correct_answers: q.correctAnswers,
-      points: q.points,
-      sort_order,
-      topic_id: q.topicId,
-      topic_label: q.topicLabel,
-      explanation: q.explanation,
-      option_why: q.optionWhy.length ? q.optionWhy : null,
-      rubric: q.rubric.length ? q.rubric : null,
-      model_answer: q.modelAnswer || null,
-      source_document_id: q.source.documentId,
-      source_page: q.source.page,
-      source_label: q.source.label,
-      difficulty: q.difficulty,
-    })),
-  );
+  const rows = questions.map((q, sort_order) => ({
+    exam_id: exam.id,
+    question_text: q.text,
+    question_type: q.type,
+    options: q.options.length ? q.options : null,
+    correct_answer: q.correctAnswers[0] ?? null,
+    correct_answers: q.correctAnswers,
+    points: q.points,
+    sort_order,
+    topic_id: q.topicId,
+    topic_label: q.topicLabel,
+    explanation: q.explanation,
+    option_why: q.optionWhy.length ? q.optionWhy : null,
+    rubric: q.rubric.length ? q.rubric : null,
+    model_answer: q.modelAnswer || null,
+    source_document_id: q.source.documentId,
+    source_page: q.source.page,
+    source_label: q.source.label,
+    difficulty: q.difficulty,
+  }));
+  const withPlan = rows.map((row, index) => ({
+    ...row,
+    solution_plan: questions[index]?.solutionPlan ?? null,
+  }));
+  const inserted = await input.service.from("practice_exam_questions").insert(withPlan);
+  if (missingColumn(inserted.error)) {
+    await input.service.from("practice_exam_questions").insert(rows);
+  }
   return { ok: true, examId: exam.id as string };
 }
 
@@ -527,7 +538,38 @@ async function choiceDrafts(
   return drafts;
 }
 
+function derivationDraft(base: DraftBase, slot: TopicGenInput["slots"][number], derived: DerivedQuestion): MockExamQuestionDraft {
+  return {
+    ...base,
+    text: derived.prompt,
+    type: "open",
+    options: [],
+    correctAnswers: [],
+    points: slot.points,
+    explanation: derived.modelAnswer,
+    optionWhy: [],
+    rubric: [],
+    modelAnswer: derived.modelAnswer,
+    solutionPlan: derived.plan,
+    numericExpected: derived.value,
+    numericUnit: derived.unit,
+  };
+}
+
 async function openDrafts(
+  input: TopicGenInput,
+  block: string,
+  slots: TopicGenInput["slots"],
+  base: DraftBase,
+): Promise<MockExamQuestionDraft[]> {
+  const derived = derivationQuestion(block, detectLanguage(block));
+  const modelSlots = derived ? slots.slice(1) : slots;
+  const modeled = modelSlots.length ? await modelOpenDrafts(input, block, modelSlots, base) : [];
+  const head = derived && slots[0] ? [derivationDraft(base, slots[0], derived)] : [];
+  return [...head, ...modeled].slice(0, slots.length);
+}
+
+async function modelOpenDrafts(
   input: TopicGenInput,
   block: string,
   slots: TopicGenInput["slots"],
@@ -608,13 +650,12 @@ export function topUpTargets<R extends { topicLabel: string; count: number }>(
   return [...counts].map(([row, missing]) => ({ row, missing }));
 }
 
-/** Beklenen noktalar rubriğe: puan noktalara tam sayı olarak bölünür, artan ilk noktalara. */
+/** Beklenen noktalar rubriğe. Ölçüt öğrenciye giden metindir; etiket yazılmaz. */
 export function rubricFromPoints(points: string[], total: number): { criterion: string; points: number }[] {
-  const list = points.map((point) => point.trim()).filter(Boolean).slice(0, Math.max(1, total));
-  if (!list.length) return [{ criterion: "Ana nokta", points: total }];
-  const each = Math.floor(total / list.length);
-  const extra = total - each * list.length;
-  return list.map((criterion, index) => ({ criterion, points: each + (index < extra ? 1 : 0) }));
+  return acceptRubric(
+    points.map((point) => point.trim()).filter(Boolean),
+    total,
+  ).map(({ criterion, points: weight }) => ({ criterion, points: weight }));
 }
 
 async function topicContext(

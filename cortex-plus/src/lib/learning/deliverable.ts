@@ -28,6 +28,8 @@ export type DeliveryItem = {
   explanation?: string;
   sourceLabel?: string;
   material?: string;
+  /** Varsa çözüm planı. Geçersiz plan kapıdan geçmez. */
+  plan?: unknown;
 };
 
 export type DeliveryVerdict<T> = {
@@ -113,6 +115,7 @@ function accept(item: DeliveryItem, slots: readonly DeliverySlot[]): boolean {
     correct: item.correctAnswers,
     material: item.material,
     payload: blob(item),
+    plan: item.plan,
   });
   if (!verdict.ok) return false;
   if (item.sourceLabel !== undefined && !item.sourceLabel.trim()) return false;

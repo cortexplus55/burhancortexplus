@@ -3,6 +3,8 @@
  */
 
 import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
+import { acceptRubric, gradeOpenAnswer, isRubricLabel } from "@/lib/learning/open-rubric";
+import { gradeSolution, planFromModelAnswer, validSolutionPlan } from "@/lib/learning/solution-plan";
 import type { MockGradeItem, MockQuestionType, MockRubricItem } from "@/lib/learning/mock-exam/types";
 
 export type GradeableQuestion = {
@@ -20,6 +22,8 @@ export type GradeableQuestion = {
   numericTolerance?: number | null;
   rubric?: MockRubricItem[] | null;
   modelAnswer?: string | null;
+  /** Adım planı. Sütun yoksa örnek cevap eşitliğinden okunur. */
+  solutionPlan?: unknown;
 };
 
 /**
@@ -167,10 +171,17 @@ export function gradeDeterministicItem(
     };
   }
 
-  if (question.type === "numeric" && question.numericExpected != null) {
+  if (question.type === "numeric" && (validSolutionPlan(question.solutionPlan) || question.numericExpected != null)) {
+    if (validSolutionPlan(question.solutionPlan)) {
+      const graded = gradeSolution(selected[0] ?? joined, question.solutionPlan, pointsMax, "numeric");
+      return {
+        ...baseItem(question, selected[0] ?? joined, graded.earned, pointsMax, graded.verdict, explanation, topicLabel),
+        feedback: workFeedback(graded.verdict),
+      };
+    }
     const { earned, verdict, unitMissing } = gradeNumericAnswer(
       selected[0] ?? joined,
-      question.numericExpected,
+      question.numericExpected!,
       question.numericUnit,
       question.numericTolerance,
       pointsMax,
@@ -181,8 +192,69 @@ export function gradeDeterministicItem(
     };
   }
 
-  // short_answer / open: çağıran rubrik / oral hibrit ile doldurur
+  if (question.type === "short_answer" || question.type === "open") {
+    return gradeOpenItem(question, answerRaw);
+  }
+
   return baseItem(question, selected[0] ?? joined, 0, pointsMax, "yanlis", explanation, topicLabel);
+}
+
+function workFeedback(verdict: MockGradeItem["verdict"]): Record<string, unknown> | null {
+  if (verdict === "dogru" || verdict === "bos") return null;
+  return {
+    met: [],
+    missed: [],
+    fix: verdict === "kismen" ? "Son adımı yeniden hesapla." : "İşlemi yeniden yaz.",
+  };
+}
+
+function openCriteria(question: GradeableQuestion): { criterion: string; points: number }[] {
+  const raw = (question.rubric ?? [])
+    .map((row) => row.criterion.trim())
+    .filter((text) => text && !isRubricLabel(text));
+  const seeds = raw.length
+    ? raw
+    : (question.modelAnswer ?? "")
+        .split(/[.!?\n]/)
+        .map((part) => part.trim())
+        .filter((part) => part.length >= 8 && !isRubricLabel(part));
+  const built = acceptRubric(seeds, question.points || 1).filter((row) => !isRubricLabel(row.criterion));
+  if (built.length >= 2) return built.map(({ criterion, points }) => ({ criterion, points }));
+  return (question.rubric ?? []).filter((row) => row.criterion.trim() && !isRubricLabel(row.criterion) && row.points > 0);
+}
+
+/** Açık uçlu not. Aynı cevap her zaman aynı puanı alır. Ölçüt etiketi yazılmaz. */
+export function gradeOpenItem(question: GradeableQuestion, answerRaw: unknown): MockGradeItem {
+  const pointsMax = question.points || 1;
+  const topicLabel = question.topicLabel?.trim() || "Konu";
+  const explanation = question.explanation?.trim() || "";
+  const selected = selectedOptions(answerRaw);
+  const answerText = (selected[0] && selected.length === 1 ? selected[0] : selected.join(" ")).trim();
+  if (!answerText) return baseItem(question, "", 0, pointsMax, "bos", explanation, topicLabel);
+
+  const plan = validSolutionPlan(question.solutionPlan) ? question.solutionPlan : planFromModelAnswer(question.modelAnswer);
+  if (plan) {
+    const mode = question.type === "mcq" || question.type === "numeric" ? question.type : "open";
+    const graded = gradeSolution(answerText, plan, pointsMax, mode);
+    return {
+      ...baseItem(question, answerText, graded.earned, pointsMax, graded.verdict, explanation, topicLabel),
+      feedback: workFeedback(graded.verdict),
+    };
+  }
+
+  const rubric = openCriteria(question);
+  const graded = gradeOpenAnswer(answerText, rubric);
+  const earned = Math.min(pointsMax, graded.earned);
+  const verdict: MockGradeItem["verdict"] =
+    rubric.length === 0 ? "yanlis" : earned >= pointsMax ? "dogru" : earned > 0 ? "kismen" : "yanlis";
+  return {
+    ...baseItem(question, answerText, earned, pointsMax, verdict, explanation, topicLabel),
+    feedback: {
+      met: graded.met,
+      missed: graded.missed,
+      fix: graded.fix,
+    },
+  };
 }
 
 function baseItem(

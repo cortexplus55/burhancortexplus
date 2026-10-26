@@ -13,6 +13,8 @@ const META_SENTENCE =
 
 const DROP_KEYS = new Set(["issues", "disputes", "fixTriggers"]);
 
+const EMPHASIS = /\s*\((?:core|support|skim)\)/gi;
+
 function needsFilter(text: string): boolean {
   return (
     /\[(?:omurga|öğretim|ogretim|kapsam)/i.test(text) ||
@@ -24,10 +26,14 @@ function needsFilter(text: string): boolean {
 
 /** Öğrenci metninden iç etiketi ve denetim cümlesini çıkarır. Temiz metne dokunmaz. */
 export function studentSafeText(text: string): string {
-  if (!text || !needsFilter(text)) return text;
+  if (!text) return text;
+  const emphasis = EMPHASIS.test(text);
+  EMPHASIS.lastIndex = 0;
+  if (!needsFilter(text) && !emphasis) return text;
   return text
     .replace(INTERNAL_TAG, " ")
     .replace(META_SENTENCE, " ")
+    .replace(EMPHASIS, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")

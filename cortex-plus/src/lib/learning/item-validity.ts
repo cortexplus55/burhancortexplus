@@ -6,6 +6,7 @@
  */
 
 import { measurableTokens } from "@/lib/learning/source-quantities";
+import { validSolutionPlan } from "@/lib/learning/solution-plan";
 
 export type ItemKind = "mcq" | "multi_mcq" | "true_false" | "open" | "short_answer" | "numeric" | "card";
 
@@ -18,7 +19,8 @@ export type ValidityIssue =
   | "wrong_language"
   | "unseen_reference"
   | "markup"
-  | "hint";
+  | "hint"
+  | "missing_plan";
 
 export type ValidityInput = {
   kind: ItemKind;
@@ -29,6 +31,8 @@ export type ValidityInput = {
   material?: string;
   /** Denklem göndermesi, eşitlik bu metindeyse kabul. */
   payload?: string;
+  /** Sayısal veya türetme öğesinin adım planı. */
+  plan?: unknown;
 };
 
 const TR_MARKERS = new Set(["ve", "bir", "bu", "icin", "ile", "olan", "degil"]);
@@ -160,6 +164,9 @@ export function itemValidity(input: ValidityInput): { ok: boolean; issues: Valid
   } else if (trimmed.length < 8 || words.length < 3) {
     issues.push("short");
   }
+
+  if (input.kind === "numeric" && !validSolutionPlan(input.plan)) issues.push("missing_plan");
+  else if (input.plan != null && !validSolutionPlan(input.plan)) issues.push("missing_plan");
 
   const material = input.material?.trim() ?? "";
   if (material) {

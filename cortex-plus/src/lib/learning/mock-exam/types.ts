@@ -75,6 +75,8 @@ export type MockExamQuestionDraft = {
   numericExpected?: number | null;
   numericUnit?: string | null;
   numericTolerance?: number | null;
+  /** Adım planı. Öğrenciye gösterilmez; notlandırma ara değeri buradan okur. */
+  solutionPlan?: unknown;
   trueFalseStatement?: string | null;
   correctedStatement?: string | null;
 };

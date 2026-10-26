@@ -8,5 +8,10 @@
     { "id": "concentration", "label": "Derişim", "points": ["derişim 0,5 M", "çözelti 0,5 M"] },
     { "id": "ph", "label": "Nötr çözelti", "points": ["pH 7", "nötr değer 7"] },
     { "id": "heat", "label": "Tepkime ısısı", "points": ["sıcaklık 25", "ortam 25 derece"] }
-  ]
+  ],
+  "checks": {
+    "source": "Miktar 1/2 mol olarak yazılır.",
+    "accept": ["0,5 mol"],
+    "reject": []
+  }
 }

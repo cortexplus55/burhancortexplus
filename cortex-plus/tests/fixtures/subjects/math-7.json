@@ -8,5 +8,10 @@
     { "id": "area", "label": "Alan", "points": ["alan 24 cm", "kare bölge 24 cm"] },
     { "id": "ratio", "label": "Oran", "points": ["değer %40", "payda oranı 40"] },
     { "id": "angle", "label": "Açı", "points": ["iç açı 60", "tümler açı 30"] }
-  ]
+  ],
+  "checks": {
+    "source": "−3 + 5 işleminin sonucu 2 olur.",
+    "accept": ["−3 + 5 = 2"],
+    "reject": []
+  }
 }
