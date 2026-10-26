@@ -20,7 +20,7 @@ export async function GET(
 
   const leaseOpen = !row.lease_until || Date.parse(row.lease_until) <= Date.now();
   if ((row.state === "queued" || row.state === "running") && leaseOpen && row.kind === "mock_exam") {
-    await pumpMockExamJob(guard.ctx.service, id).catch(() => undefined);
+    await pumpMockExamJob(guard.ctx.service, id, request.signal).catch(() => undefined);
     row = (await loadGenerationJob(guard.ctx.service, id)) ?? row;
   }
 

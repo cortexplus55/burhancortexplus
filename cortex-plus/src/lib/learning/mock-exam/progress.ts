@@ -12,13 +12,20 @@ export type MockExamProgress = { done: number; total: number; label: string | nu
 export function mockProgressCounter(
   total: number,
   onProgress?: (progress: MockExamProgress) => void,
+  initialDone = 0,
 ): (label: string | null) => void {
-  let done = 0;
-  onProgress?.({ done: 0, total, label: null });
+  let done = Math.max(0, Math.min(total, initialDone));
+  onProgress?.({ done, total, label: null });
   return (label) => {
     done = Math.min(total, done + 1);
     onProgress?.({ done, total, label });
   };
+}
+
+/** Aynı toplamda sayı geri gitmez. Yeni istek 0 yazsa da ekran kaldığı yerde kalır. */
+export function monotonicProgress(previous: MockExamProgress | null, next: MockExamProgress): MockExamProgress | null {
+  if (previous && previous.total === next.total && next.done < previous.done) return previous;
+  return next;
 }
 
 /** Ekrandaki satır: hangi konu bitti, kaç konudan kaçı hazır. */
@@ -30,7 +37,7 @@ export function mockProgressLine(progress: MockExamProgress): string {
 }
 
 export type MockStreamLine =
-  | ({ type: "progress" } & MockExamProgress)
+  | ({ type: "progress" } & MockExamProgress & { resumeId?: string })
   | { type: "done"; status: number; data: Record<string, unknown> };
 
 /**
@@ -41,16 +48,28 @@ export async function postMockExamWithProgress(
   url: string,
   body: () => unknown,
   onProgress: (progress: MockExamProgress) => void,
-  options: { delayMs?: number } = {},
+  options: { delayMs?: number; pollMs?: number } = {},
 ): Promise<{ status: number; data: Record<string, unknown> }> {
+  let resumeId: string | null = null;
+  let floor: MockExamProgress | null = null;
+  const emit = (progress: MockExamProgress) => {
+    const next = monotonicProgress(floor, progress);
+    if (!next) return;
+    floor = next;
+    if (next === progress) onProgress(next);
+  };
   const once = async () => {
+    const base = (body() ?? {}) as Record<string, unknown>;
+    const payload = resumeId ? { ...base, resumeId } : base;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
-      body: JSON.stringify(body()),
+      body: JSON.stringify(payload),
     });
     if (!res.body || !(res.headers.get("content-type") ?? "").includes("ndjson")) {
-      return { status: res.status, data: ((await res.json().catch(() => ({}))) ?? {}) as Record<string, unknown> };
+      const data = ((await res.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+      if (typeof data.resumeId === "string") resumeId = data.resumeId;
+      return { status: res.status, data };
     }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -62,17 +81,65 @@ export async function postMockExamWithProgress(
       const split = splitNdjson(done ? `${buffer}\n` : buffer);
       buffer = split.rest;
       for (const line of split.lines) {
-        if (line.type === "progress") onProgress({ done: line.done, total: line.total, label: line.label ?? null });
-        else if (line.type === "done") final = line;
+        if (line.type === "progress") {
+          if (line.resumeId) resumeId = line.resumeId;
+          emit({ done: line.done, total: line.total, label: line.label ?? null });
+        } else if (line.type === "done") final = line;
       }
       if (done) break;
     }
-    return final ? { status: final.status, data: final.data } : { status: 500, data: { code: "generation_failed" } };
+    if (final) {
+      if (typeof final.data.resumeId === "string") resumeId = final.data.resumeId;
+      return { status: final.status, data: final.data };
+    }
+    return { status: 500, data: { code: "generation_failed", ...(resumeId ? { resumeId } : {}) } };
   };
-  const first = await once();
-  if (first.status < 300 || !isRetryableFailure(first.status, first.data.code ?? first.data.error)) return first;
-  await new Promise((resolve) => setTimeout(resolve, options.delayMs ?? AUTO_RETRY_DELAY_MS));
-  return once();
+
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  let freshRetries = 0;
+  let runningPolls = 0;
+  let chunkSteps = 0;
+  let streamErrors = 0;
+  let last: { status: number; data: Record<string, unknown> } = { status: 500, data: { code: "generation_failed" } };
+  while (chunkSteps <= 48) {
+    try {
+      last = await once();
+    } catch (error) {
+      if (!resumeId) throw error;
+      streamErrors += 1;
+      if (streamErrors > 8) throw error;
+      await wait(options.delayMs ?? AUTO_RETRY_DELAY_MS);
+      continue;
+    }
+    if (typeof last.data.resumeId === "string") resumeId = last.data.resumeId;
+    if (resumeId && typeof last.data.resumeId !== "string") last = { ...last, data: { ...last.data, resumeId } };
+    if (last.status < 300 && last.data.examId) return last;
+    if (last.status < 300 && last.data.resumeId && !last.data.examId) {
+      if (last.data.running === true) {
+        runningPolls += 1;
+        if (runningPolls > 180) return last;
+        await wait(options.pollMs ?? 2000);
+        continue;
+      }
+      runningPolls = 0;
+      chunkSteps += 1;
+      if (chunkSteps > 48) return last;
+      await wait(options.delayMs ?? 40);
+      continue;
+    }
+    const code = last.data.code ?? last.data.error;
+    if (!isRetryableFailure(last.status, code)) return last;
+    if (resumeId) {
+      chunkSteps += 1;
+      if (chunkSteps > 48) return last;
+      await wait(options.delayMs ?? AUTO_RETRY_DELAY_MS);
+      continue;
+    }
+    if (freshRetries >= 1) return last;
+    freshRetries += 1;
+    await wait(options.delayMs ?? AUTO_RETRY_DELAY_MS);
+  }
+  return last;
 }
 
 /** Arka plan işi bitene kadar yalnız ilerleme. Ağ hatası fırlatılır. */

@@ -5,7 +5,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { missingRelation } from "@/lib/learning/missing-column";
-import { JOB_LEASE_MS } from "@/lib/learning/generation-job";
+import { CHUNK_LEASE_MS } from "@/lib/learning/generation-job";
 
 export type GenerationJobKind =
   | "mock_exam"
@@ -138,7 +138,7 @@ export async function claimGenerationJob(
   if (!current) return null;
   if (current.state === "done" || current.state === "failed") return null;
   if (current.lease_until && Date.parse(current.lease_until) > now) return null;
-  const leaseUntil = new Date(now + JOB_LEASE_MS).toISOString();
+  const leaseUntil = new Date(now + CHUNK_LEASE_MS).toISOString();
   let query = service
     .from("generation_jobs")
     .update({

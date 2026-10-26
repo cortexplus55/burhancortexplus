@@ -4,7 +4,13 @@
  */
 
 export const JOB_BUDGET_MS = 10 * 60 * 1000;
+/** Bellekteki pompanın kendi turu. Veritabanı kirası bu değil. */
 export const JOB_LEASE_MS = 60_000;
+/**
+ * HTTP parçası sürerken ikinci pompa açılmasın. İşlev tavanı 300 sn;
+ * kira ondan uzun, düşünce sıradaki istek aynı kaydı sürdürür.
+ */
+export const CHUNK_LEASE_MS = 330_000;
 
 export type JobPhase = "queued" | "running" | "done" | "failed";
 

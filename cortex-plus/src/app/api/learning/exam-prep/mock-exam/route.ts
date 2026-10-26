@@ -2,12 +2,16 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
-import { createMockExam, type CreateMockExamResult } from "@/lib/learning/mock-exam/create";
 import { pumpMockExamJob, startDurableMockExam } from "@/lib/learning/mock-exam-durable";
-import type { MockExamProgress } from "@/lib/learning/mock-exam/progress";
+import {
+  hasInFlightMockBuild,
+  runFallbackMockExam,
+  type FallbackExamInput,
+} from "@/lib/learning/mock-exam/fallback-exam";
+import type { ChunkOutcome } from "@/lib/learning/mock-exam/fallback-chunk";
 import { clampMockMinutes, MOCK_MINUTES_MAX } from "@/lib/learning/mock-exam/time-limit";
 
-/** Konu başına öğretmen motoru (yazar + denetim + düzeltme), sekizli dalgalar. */
+/** Konu başına öğretmen motoru (yazar + denetim + düzeltme). Parça parça, aynı kâğıtta. */
 export const maxDuration = 300;
 
 const bodySchema = z.object({
@@ -17,17 +21,43 @@ const bodySchema = z.object({
   topicIds: z.array(z.string().uuid()).max(40).optional(),
   /** Serbest süre (dk). 0 süresiz. */
   durationMinutes: z.number().int().min(0).max(MOCK_MINUTES_MAX).optional(),
+  /** Süregelen kâğıt. Yeni istek açılmaz. */
+  resumeId: z.string().uuid().optional(),
+  /** Bütçe bitince öğrenci aynı kâğıdı sürdürür. */
+  retry: z.boolean().optional(),
 });
 
-function resultBody(result: Extract<CreateMockExamResult, { ok: true }>) {
+function chunkData(result: Extract<ChunkOutcome, { ok: true }>) {
   return {
-    ok: true,
+    ok: true as const,
     examId: result.examId,
-    planned: result.planned,
-    ready: result.ready,
-    note: result.note,
-    durationMinutes: result.blueprint.durationMinutes,
+    resumeId: result.resumeId,
+    running: result.running,
+    planned: result.promised,
+    ready: result.topicsReady,
+    note: null,
+    topicsReady: result.topicsReady,
+    topicTotal: result.topicTotal,
   };
+}
+
+function ndjsonResponse(run: (write: (line: unknown) => void) => Promise<void>) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const write = (line: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
+      try {
+        await run(write);
+      } catch {
+        write({ type: "done", status: 500, data: { error: "generation_failed", code: "generation_failed" } });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" },
+  });
 }
 
 export async function POST(request: Request) {
@@ -38,7 +68,7 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
-  const fields = {
+  const fields: FallbackExamInput = {
     service,
     userId,
     isPremium: await isPremiumUser(service, userId),
@@ -47,67 +77,83 @@ export async function POST(request: Request) {
     scope: parsed.data.scope,
     topicIds: parsed.data.topicIds,
     durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
+    resumeId: parsed.data.resumeId,
+    explicitRetry: parsed.data.retry === true,
+    signal: request.signal,
   };
-  const durable = await startDurableMockExam(fields);
-  if (durable && durable.ok) {
-    after(() => pumpMockExamJob(service, durable.jobId).catch(() => undefined));
-  }
-  const pendingBody = durable && durable.ok
-    ? {
+  const stream = request.headers.get("accept")?.includes("application/x-ndjson") === true;
+  const inFlight = Boolean(parsed.data.resumeId) || (await hasInFlightMockBuild(service, userId, parsed.data.prepId));
+
+  if (!inFlight) {
+    const durable = await startDurableMockExam({
+      service,
+      userId,
+      isPremium: fields.isPremium,
+      prepId: fields.prepId,
+      preset: fields.preset,
+      scope: fields.scope,
+      topicIds: fields.topicIds,
+      durationMinutes: fields.durationMinutes,
+    });
+    if (durable && !durable.ok) {
+      if (stream) {
+        return ndjsonResponse(async (write) => {
+          write({ type: "done", status: durable.status, data: { error: durable.error, code: durable.error } });
+        });
+      }
+      return errorResponse(durable.status, durable.error);
+    }
+    if (durable && durable.ok) {
+      after(() => pumpMockExamJob(service, durable.jobId, request.signal).catch(() => undefined));
+      const pendingBody = {
         ok: true as const,
         jobId: durable.jobId,
         planned: durable.planned,
         ready: durable.progress.ready,
         note: null,
         progress: durable.progress,
+      };
+      if (stream) {
+        return ndjsonResponse(async (write) => {
+          write({
+            type: "progress",
+            done: pendingBody.progress.ready,
+            total: pendingBody.progress.promised,
+            label: null,
+          });
+          write({ type: "done", status: 200, data: pendingBody });
+        });
       }
-    : null;
+      return NextResponse.json(pendingBody);
+    }
+  }
 
-  const run = async (onProgress?: (progress: MockExamProgress) => void) =>
-    createMockExam({ ...fields, onProgress });
-
-  // Kurulum ekranı biten konu sayısını canlı gösterir (25 Ekim 2026): NDJSON, son satır sonuç.
-  if (request.headers.get("accept")?.includes("application/x-ndjson")) {
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        const write = (line: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
-        try {
-          if (durable && !durable.ok) {
-            write({ type: "done", status: durable.status, data: { error: durable.error, code: durable.error } });
-            return;
-          }
-          if (pendingBody) {
-            write({
-              type: "progress",
-              done: pendingBody.progress.ready,
-              total: pendingBody.progress.promised,
-              label: null,
-            });
-            write({ type: "done", status: 200, data: pendingBody });
-            return;
-          }
-          const result = await run((progress) => write({ type: "progress", ...progress }));
-          write(
-            result.ok
-              ? { type: "done", status: 200, data: resultBody(result) }
-              : { type: "done", status: result.status, data: { error: result.error, code: result.error } },
-          );
-        } catch {
-          write({ type: "done", status: 500, data: { error: "generation_failed", code: "generation_failed" } });
-        } finally {
-          controller.close();
-        }
-      },
-    });
-    return new Response(stream, {
-      headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" },
+  if (stream) {
+    return ndjsonResponse(async (write) => {
+      const result = await runFallbackMockExam({
+        ...fields,
+        onProgress: (progress) =>
+          write({
+            type: "progress",
+            done: progress.done,
+            total: progress.total,
+            label: progress.label ?? null,
+            resumeId: progress.resumeId,
+          }),
+      });
+      write(
+        result.ok
+          ? { type: "done", status: 200, data: chunkData(result) }
+          : {
+              type: "done",
+              status: result.status,
+              data: { error: result.error, code: result.error, ...(result.resumeId ? { resumeId: result.resumeId } : {}) },
+            },
+      );
     });
   }
 
-  if (durable && !durable.ok) return errorResponse(durable.status, durable.error);
-  if (pendingBody) return NextResponse.json(pendingBody);
-  const result = await run();
-  if (!result.ok) return errorResponse(result.status, result.error);
-  return NextResponse.json(resultBody(result));
+  const result = await runFallbackMockExam(fields);
+  if (!result.ok) return errorResponse(result.status, result.error, result.resumeId ? { resumeId: result.resumeId } : {});
+  return NextResponse.json(chunkData(result));
 }
