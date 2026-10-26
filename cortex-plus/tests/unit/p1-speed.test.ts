@@ -282,7 +282,8 @@ describe("kablolama", () => {
   it("test motoru bütçesi urgent'a bağlı, onarım paralel", () => {
     const run = read("src/lib/learning/teacher-quiz-run.ts");
     expect(run).toContain("repairBudget(true)");
-    expect(run).toContain("repairGroups(toFix, budget.fixConcurrency)");
+    expect(run).toContain("passes < 2");
+    expect(run).not.toContain("repairGroups(");
     expect(run).toContain("secondPassDeadline");
     expect(run).toContain("onPlayable");
     expect(run).toContain("playableQuestions");

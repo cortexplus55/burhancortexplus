@@ -9,38 +9,18 @@ import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
-import { LESSON_SCREEN_HARD_CAP, LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
+import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
   dropRepeatedChecks,
-  fixPartSystem,
-  fixPartUserPrompt,
-  isMnemonicCountIssue,
-  isMnemonicIssue,
-  isCircularWhyIssue,
   isCoverageIssue,
-  isLayoutIssue,
-  isMissingWhyIssue,
-  isReviewIssue,
   lessonLevelStructureIssues,
-  parseIssues,
-  parsePartFix,
-  parseTeachingScore,
   parseTeacherLesson,
   parseTeacherScreen,
-  partStructureIssues,
-  rewritePartUserPrompt,
   shuffleLessonChecks,
   stripLessonIssueTags,
-  stripMnemonics,
-  stripReviews,
-  TEACHING_TAG,
   teacherSystem,
   teacherUserPrompt,
-  verifyPartUserPrompt,
-  verifySystem,
-  type LessonPart,
-  type TeacherDispute,
   type TeacherIssue,
   type TeacherLessonInput,
 } from "@/lib/learning/teacher-lesson";
@@ -84,22 +64,7 @@ export type TeacherLessonOutcome =
 }
   | { ok: false; status: number; error: string; reasons: string[]; draftNote?: string | null };
 
-/** Yeni düzeltme turu isteğin başından bu kadar süre geçtiyse başlamaz (300 sn fonksiyon sınırı). */
-const FIX_DEADLINE_MS = 150_000;
-const MAX_FIX_ROUNDS = 2;
 const WRITE_TIMEOUT_MS = 120_000;
-/**
- * Düzelmeyen kavram atılmadan önce bir kez baştan yazılır (18 Ekim 2026, ürün sahibinin kararı).
- * Baştan yazım bu süreden sonra başlamaz; ardından gelen denetim/düzeltme ikinci sınıra kadar sürer.
- */
-const REWRITE_START_MS = 200_000;
-const REWRITE_DEADLINE_MS = 255_000;
-/**
- * Düzelmeyen kavram en çok bu kadar kez baştan yazılır (25 Ekim 2026: önce bir kez, sonra atılıyordu ve
- * öğrenci "Bu derste yer almayan bölüm" görüyordu; testte o bölümden soru geliyordu). Atma yalnız süre
- * dolunca olur.
- */
-export const MAX_PART_REWRITES = 3;
 /**
  * Yeniden yazım sürerken ders "takıldı" sayılmasın (`BUILD_STALE_MS` 120 sn): yayımlanan kısım
  * aynı hâliyle tazelenir, giriş kartında kavram "hazırlanıyor" kalır.
@@ -169,20 +134,6 @@ export type PipelineResult = {
   done: boolean;
 };
 
-/** Sorunun yeri bu kısmın içinde mi: ekran numarası, giriş alanları ya da kapanış. */
-function issueInPart(issue: TeacherIssue, part: LessonPart): boolean {
-  const places = issue.where.split(/[;,]/).map((item) => item.trim()).filter(Boolean);
-  if (!places.length) return true;
-  return places.some((place) => {
-    const screen = /^screens\[(\d+)\]/.exec(place);
-    if (screen) return Number(screen[1]) >= part.from && Number(screen[1]) <= part.to;
-    if (/^(title|overview|objective)\b/.test(place)) return part.header;
-    if (/^(commonMistake|summary|nextFocus)\b/.test(place)) return part.closing;
-    // "screens", "ders" gibi genel yer: bu kısma ait sayılır.
-    return true;
-  });
-}
-
 /**
  * Düzeltilmiş kısım. Model yalnız değiştirdiği ekranı döndürdüyse öbürleri yerinde kalır
  * (başlıkla eşlenir): 18 Ekim altın kıyasında KPSS dersinde tablonun durduğu ekran böyle
@@ -224,11 +175,6 @@ export async function teacherLessonPipeline(
   const fixTriggers: TeacherIssue[][] = [];
   const dropped: string[] = [];
   const teachingScores: number[] = [];
-  /** Denetçi döngüsel bir "Neden böyle?" kutusunu çıkarttıysa kapanış yenisini istemez (23 Ekim 2026). */
-  let whyDropped = false;
-  /** Kapsam turu: öğrenci yolunda bir, önceden yazımda iki. İlk ekrandan önce açılmaz. */
-  let coverageLeft = (input.coverageBudget ?? "student") === "prefetch" ? 2 : 1;
-  let announced = false;
   let draftNote: string | null = null;
   const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null };
   const sinceStart = () => Date.now() - started;
@@ -247,21 +193,6 @@ export async function teacherLessonPipeline(
     let closingResolve: (value: Closing | null) => void = () => undefined;
     const closingReady = new Promise<Closing | null>((resolve) => (closingResolve = resolve));
 
-    /** Bir kısmın denetim bağlamı: önceki kısımların son hâli + bu kısım (+ kapanış). */
-    const context = (index: number, screens: LessonScreen[], head: Header, close: Closing | null): { lesson: LessonV3; part: LessonPart } => {
-      const before = parts.slice(0, index).flatMap((item) => item.screens);
-      const lesson: LessonV3 = {
-        format: LESSON_V3_FORMAT,
-        ...head,
-        screens: [...before, ...screens],
-        ...(close ?? {}),
-      };
-      return {
-        lesson,
-        part: { from: before.length, to: before.length + screens.length - 1, header: index === 0, closing: parts[index]!.last },
-      };
-    };
-
     /*
       İlk kavramın denetimi ilk ekran biter bitmez başlar (18 Ekim 2026, canlı ölçüm: hızlı işlemde
       ilk ekran 15 sn'de geliyordu; ~3 sn'si kavramın bittiğini anlamak için sonraki ekranı
@@ -270,308 +201,20 @@ export async function teacherLessonPipeline(
     */
     let early: { promise: Promise<PartOutcome>; valid: boolean } | null = null;
 
-    const reviewPart = async (index: number, options: { early?: boolean } = {}): Promise<PartOutcome> => {
+    const reviewPart = async (index: number, _options: { early?: boolean } = {}): Promise<PartOutcome> => {
       const part = parts[index]!;
-      // Erken denetim kendi kopyasıyla çalışır: kavrama sonradan eklenen ekran onu değiştirmesin.
-      let screens = [...part.screens];
-      const current = () => !options.early || early?.valid !== false;
-      let head = (await headerReady) ?? { title: input.topicLabel };
-      let close = part.last ? await closingReady : null;
-      let headerPatch: Partial<Header> = {};
-      let disputes: TeacherDispute[] = [];
-      const triggers: TeacherIssue[][] = [];
-      // İlk kavramda öğrenci bekliyor: iki tur. Sonrakiler öğrenci okurken düzelir: bir tur fazla.
-      let rounds = index === 0 ? MAX_FIX_ROUNDS : MAX_FIX_ROUNDS + 1;
-      let rewritten = false;
-      let rewrites = 0;
-      /*
-        Öğretim ölçütü turu (20 Ekim 2026, ürün sahibinin kararı: 'medium'). Yalnız ilk kavramdan sonra, yalnız ilk
-        denetimde yüksek sorun yokken ve en çok bir kez; düzeltme yüksek bir sorun getirirse önceki ekranlar geri gelir.
-        Bu tur bir kavramı asla attırmaz ya da baştan yazdırmaz ("atılan kavram 0").
-      */
-      let teachingSnapshot: {
-        screens: LessonScreen[];
-        headerPatch: Partial<Header>;
-        close: Closing | null;
-        issues: TeacherIssue[];
-      } | null = null;
-      const publishSnapshot = (snapshot: NonNullable<typeof teachingSnapshot>, note?: TeacherIssue): PartOutcome => {
-        screens = snapshot.screens;
-        if (current()) part.screens = screens;
-        return {
-          ok: true,
-          screens,
-          header: snapshot.headerPatch,
-          ...(snapshot.close ? { closing: snapshot.close } : {}),
-          low: note ? [...snapshot.issues, note] : snapshot.issues,
-          triggers,
-        };
+      // Tek geçiş (26 Ekim 2026): ayrışan ekran yayımlanır. Denetçi, düzeltme ve kavramı baştan yazma turu yok.
+      const screens = [...part.screens];
+      if (!screens.length) return { ok: false, high: [], triggers: [] };
+      const close = part.last ? await closingReady : null;
+      return {
+        ok: true,
+        screens,
+        header: {},
+        ...(close ? { closing: close } : {}),
+        low: [],
+        triggers: [],
       };
-      for (let round = 0; ; round += 1) {
-        if (!current()) return { ok: false, high: [], triggers };
-        const { lesson, part: span } = context(index, screens, { ...head, ...headerPatch }, close);
-        // Kod kuralları düzeltme isteminde işaretli: yazar bunlara itiraz edemez.
-        const structural = partStructureIssues(lesson, span, input).map((issue) => ({ ...issue, problem: `[yapı kuralı] ${issue.problem}` }));
-        let factual: TeacherIssue[];
-        try {
-          const verdict = await io.ask(verifySystem(mode), verifyPartUserPrompt(lesson, span, input, disputes), "verify");
-          factual = parseIssues(verdict, { medium: true });
-          // Öğretim puanı (23 Ekim 2026): ilk kavram dışında 3'ün altı öğretim turunu açar; her kavramda kayda geçer.
-          // Eşik bir ara "3 ve altı" oldu; dördüncü ölçümde kalite değişmedi, yazım ortanca 78 → 118 sn uzadı; ürün
-          // sahibi geri aldı.
-          const teaching = parseTeachingScore(verdict);
-          if (teaching && round === 0 && !teachingSnapshot) {
-            teachingScores.push(teaching.score);
-            if (index > 0 && teaching.score < 3) {
-              factual.push({
-                where: `screens[${span.from}]`,
-                severity: "medium",
-                problem: `${TEACHING_TAG} Öğretim puanı ${teaching.score}/5: ${teaching.reason || "neden, örnek ya da ayırt eden ipucu ekle"}`,
-              });
-            }
-          }
-        } catch (error) {
-          // Denetçi düşerse kavram körlemesine yayımlanmaz.
-          factual = [{ where: "ders", severity: "high", problem: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}` }];
-        }
-        if (factual.some(isCircularWhyIssue)) whyDropped = true;
-        let issues = [...structural, ...factual.filter((issue) => issueInPart(issue, span))].filter(
-          (issue) => !(whyDropped && isMissingWhyIssue(issue)),
-        );
-        // 24 Ekim 2026 canlı kayıt (Homeostazi, 4 tur): kodun ikinci soru kuralı ("doğru şıkkı ana sorununkiyle aynı
-        // metin") başka bir sorunla birlikte kalınca her turda yeniden çıktı; düzeltici onu düzeltmedi. Kural kodun:
-        // ikinci soru hemen çıkar, çalışma anı doğru anahtarlı yedeği kurar; tur yalnız öbür sorunlar için açılır.
-        const codeReviews = issues.filter(
-          (issue) => issue.severity === "high" && isReviewIssue(issue) && issue.problem.startsWith("[yapı kuralı]"),
-        );
-        if (codeReviews.length) {
-          screens = stripReviews(screens, span.from, codeReviews);
-          if (current()) part.screens = screens;
-          issues = [
-            ...issues.filter((issue) => !codeReviews.includes(issue)),
-            { where: "ders", severity: "low", problem: "İkinci soru yapı kuralına uymadı; çalışma anının yedeği kullanılacak." },
-          ];
-        }
-        const high = issues.filter((issue) => issue.severity === "high");
-        const blockingHigh = high.filter((issue) => !isCoverageIssue(issue));
-        const coverageHigh = high.filter(isCoverageIssue);
-        const coveragePending = span.closing && coverageHigh.length > 0;
-        if (teachingSnapshot) {
-          // Öğretim turundan sonra: gerilediyse (yüksek sorun çıktı) önceki ekranlar yayımlanır; değilse yenisi.
-          // Kapsam eksiği gerileme sayılmaz: kavram durur, eksik ekran ayrı turda eklenir.
-          if (blockingHigh.length) {
-            return publishSnapshot(teachingSnapshot, {
-              where: "ders",
-              severity: "low",
-              problem: "Öğretim düzeltmesi yeni bir sorun getirdi; önceki hâli yayımlandı.",
-            });
-          }
-          return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers, coveragePending };
-        }
-        if (!blockingHigh.length) {
-          if (
-            coveragePending &&
-            index > 0 &&
-            coverageLeft > 0 &&
-            Date.now() - started < FIX_DEADLINE_MS &&
-            current()
-          ) {
-            coverageLeft -= 1;
-            triggers.push(coverageHigh);
-            let covered: ReturnType<typeof parsePartFix> = null;
-            try {
-              covered = parsePartFix(
-                await io.ask(fixPartSystem(mode), fixPartUserPrompt(lesson, span, coverageHigh, input), "fix-careful"),
-                lesson,
-                input.upcomingTopics,
-              );
-            } catch {
-              covered = null;
-            }
-            if (covered?.screens.length) {
-              const merged = mergePartScreens(screens, covered.screens);
-              if (merged.length >= screens.length) {
-                screens = merged.slice(0, LESSON_SCREEN_HARD_CAP);
-                disputes = covered.disputes;
-                if (span.closing) {
-                  close = {
-                    ...(close ?? {}),
-                    ...(covered.commonMistake ? { commonMistake: covered.commonMistake } : {}),
-                    ...(covered.summary ? { summary: covered.summary } : {}),
-                  };
-                }
-                if (current()) part.screens = screens;
-                continue;
-              }
-            }
-          }
-          const medium = issues.filter((issue) => issue.severity === "medium");
-          const teachingRound =
-            medium.length > 0 && index > 0 && round === 0 && !rewritten && Date.now() - started < FIX_DEADLINE_MS && current();
-          if (!teachingRound) {
-            return { ok: true, screens, header: headerPatch, ...(close ? { closing: close } : {}), low: issues, triggers, coveragePending };
-          }
-          teachingSnapshot = { screens, headerPatch, close, issues };
-          triggers.push(medium);
-          // Öğretim turuna düşük yapı kuralları gitmez (22 Ekim 2026 inceleme): "en fazla dokuz ekran" gibi son
-          // kavramın düzeltemeyeceği maddeler "mutlaka düzelt" diye gidince düzeltici kendi ekranlarını sıkıştırıyordu.
-          const forFixer = issues.filter((issue) => issue.severity !== "low" || !issue.problem.startsWith("[yapı kuralı]"));
-          let fixed: ReturnType<typeof parsePartFix> = null;
-          try {
-            fixed = parsePartFix(await io.ask(fixPartSystem(mode), fixPartUserPrompt(lesson, span, forFixer, input), "fix-careful"), lesson, input.upcomingTopics);
-          } catch {
-            fixed = null;
-          }
-          if (!fixed?.screens.length) return publishSnapshot(teachingSnapshot);
-          const merged = mergePartScreens(screens, fixed.screens);
-          // Ekran düşüren düzeltme gerilemedir: öğretim turu içerik eksiltmez, önceki hâli yayımlanır.
-          if (merged.length < screens.length) {
-            return publishSnapshot(teachingSnapshot, {
-              where: "ders",
-              severity: "low",
-              problem: "Öğretim düzeltmesi ekran düşürdü; önceki hâli yayımlandı.",
-            });
-          }
-          disputes = fixed.disputes;
-          screens = merged;
-          if (span.closing) {
-            close = {
-              ...(close ?? {}),
-              ...(fixed.commonMistake ? { commonMistake: fixed.commonMistake } : {}),
-              ...(fixed.summary ? { summary: fixed.summary } : {}),
-            };
-          }
-          if (current()) part.screens = screens;
-          continue;
-        }
-        // 19 Ekim 2026: yavaş derslerin çoğu yalnız ezber kodu yüzünden 5-7 tur döndü, kavram iki kez
-        // atıldı. Kalan tek sorun ezber koduysa (fazla kod hemen; kötü kod bir düzeltme turundan sonra)
-        // kutu çıkar, kavram yayımlanır. Parça düşer, istek düşmez; kod cümle yazmaz.
-        // 20 Ekim 2026: ilk kavramda kötü kod da hemen çıkar — kod isteğe bağlı, öğrenci ilk ekranı bekliyor.
-        const onlyCount = high.every(isMnemonicCountIssue);
-        if ((onlyCount || round >= 1 || index === 0) && high.every((issue) => isMnemonicIssue(issue, lesson))) {
-          const stripped = stripMnemonics(screens, { keepFirst: onlyCount });
-          if (stripped.length) {
-            screens = stripped;
-            if (current()) part.screens = screens;
-            triggers.push(high);
-            const note: TeacherIssue = {
-              where: "ders",
-              severity: "low",
-              problem: onlyCount
-                ? "Fazla ezber kodu çıkarıldı."
-                : round === 0
-                  ? "Ezber kodu çıkarıldı (ayrım taşımıyordu)."
-                  : "Ezber kodu düzelmedi; kavram kodsuz yayımlandı.",
-            };
-            return {
-              ok: true,
-              screens,
-              header: headerPatch,
-              ...(close ? { closing: close } : {}),
-              low: [...issues.filter((issue) => issue.severity !== "high"), note],
-              triggers,
-            };
-          }
-        }
-        // 23 Ekim 2026 (3. ölçüm): "ikinci sorunun doğru şıkkı ana sorununkiyle aynı metin" kuralı tur döndürüyordu
-        // (Özel Açılar 13 turun 5'i). Kalan tek sorun ikinci soruysa (ilk kavramda hemen, sonra bir turdan sonra)
-        // ikinci soru çıkar; çalışma anı doğru anahtarlı yedeği kurar. Parça düşer, istek düşmez.
-        // 23 Ekim 2026 (4. ölçüm): biçim kuralları (tablo) da kavram düşürmez; yalnız onlar kaldıysa bir turdan sonra
-        // yayımlanır. İlk kavramda tablo kuralı zaten düşük.
-        const onlyReview = high.every(isReviewIssue);
-        const styleOnly = high.every((issue) => isReviewIssue(issue) || isLayoutIssue(issue));
-        if ((onlyReview && (round >= 1 || index === 0)) || (styleOnly && round >= 1)) {
-          screens = stripReviews(screens, span.from, high.filter(isReviewIssue));
-          if (current()) part.screens = screens;
-          triggers.push(high);
-          return {
-            ok: true,
-            screens,
-            header: headerPatch,
-            ...(close ? { closing: close } : {}),
-            low: [
-              ...issues.filter((issue) => issue.severity !== "high"),
-              {
-                where: "ders",
-                severity: "low",
-                problem: onlyReview
-                  ? "İkinci soru düzelmedi; çalışma anının yedeği kullanılacak."
-                  : "Tablo biçimi düzelmedi; kavram olduğu gibi yayımlandı.",
-              },
-            ],
-            triggers,
-          };
-        }
-        const deadline = rewritten ? REWRITE_DEADLINE_MS : FIX_DEADLINE_MS;
-        if (round >= rounds || Date.now() - started > deadline) {
-          // Atmadan önce baştan: yama aynı yerde takılıyordu (Pediatri, üç tur aynı sorun). 25 Ekim 2026: en çok
-          // MAX_PART_REWRITES kez; kavram yalnız süre dolunca atılır.
-          if (rewrites >= MAX_PART_REWRITES || Date.now() - started > REWRITE_START_MS || !current()) {
-            return { ok: false, high, triggers };
-          }
-          rewritten = true;
-          rewrites += 1;
-          triggers.push(high);
-          let fresh: ReturnType<typeof parsePartFix> = null;
-          try {
-            fresh = parsePartFix(
-              await io.ask(fixPartSystem(mode), rewritePartUserPrompt(lesson, span, high, input, rewrites), "fix-careful"),
-              lesson,
-              input.upcomingTopics,
-            );
-          } catch {
-            fresh = null;
-          }
-          if (!fresh?.screens.length) {
-            // Bozuk yanıt yeniden yazım hakkını yer; hak kaldıysa bir sonraki turda yine baştan.
-            if (rewrites < MAX_PART_REWRITES) continue;
-            return { ok: false, high, triggers };
-          }
-          // Yeni taslak eskisinin yerine geçer (yama değil); kavram adı korunur, ekranlar bir araya kalsın.
-          screens = fresh.screens.map((screen) => ({ ...screen, concept: part.concept }));
-          disputes = [];
-          if (span.closing) {
-            close = {
-              ...(close ?? {}),
-              ...(fresh.commonMistake ? { commonMistake: fresh.commonMistake } : {}),
-              ...(fresh.summary ? { summary: fresh.summary } : {}),
-            };
-          }
-          if (current()) part.screens = screens;
-          // Yeni taslak denetlenir; gerekirse bir düzeltme turu daha.
-          rounds = round + 2;
-          continue;
-        }
-        triggers.push(high);
-        let fixed: ReturnType<typeof parsePartFix> = null;
-        try {
-          fixed = parsePartFix(await io.ask(fixPartSystem(mode), fixPartUserPrompt(lesson, span, issues, input), index === 0 ? "fix" : "fix-careful"), lesson, input.upcomingTopics);
-        } catch {
-          fixed = null;
-        }
-        if (!fixed) return { ok: false, high, triggers };
-        disputes = fixed.disputes;
-        if (fixed.screens.length) screens = mergePartScreens(screens, fixed.screens);
-        if (span.header) {
-          headerPatch = {
-            ...headerPatch,
-            ...(fixed.title ? { title: fixed.title } : {}),
-            ...(fixed.overview ? { overview: fixed.overview } : {}),
-            ...(fixed.objective ? { objective: fixed.objective } : {}),
-          };
-        }
-        if (span.closing) {
-          close = {
-            ...(close ?? {}),
-            ...(fixed.commonMistake ? { commonMistake: fixed.commonMistake } : {}),
-            ...(fixed.summary ? { summary: fixed.summary } : {}),
-          };
-        }
-        // Öbür kısımların bağlamı da son hâli görsün (atılmış erken denetim yazmaz).
-        if (current()) part.screens = screens;
-        head = { ...head, ...headerPatch };
-      }
     };
 
     const closePart = (last: boolean) => {
@@ -674,7 +317,6 @@ export async function teacherLessonPipeline(
         const fresh = dropRepeatedChecks(published, outcome.screens);
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
-          announced = true;
           await options.onPublish({
             lesson: stripLessonIssueTags({ format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] }),
             done: false,
@@ -734,49 +376,12 @@ export async function teacherLessonPipeline(
       }
       return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing, teachingScores, done: false };
     }
-    let finished: LessonV3 = {
+    const finished: LessonV3 = {
       format: LESSON_V3_FORMAT,
       ...(publishedHeader as Header),
       screens: published,
       ...((publishedClosing as Closing | null) ?? {}),
     };
-    // Kapsam turu ilk ekrandan sonra, öğrenci metni çoktan açılmışken. Yeni yayım yok.
-    if (announced) {
-      while (coverageLeft > 0 && Date.now() - started < FIX_DEADLINE_MS) {
-        const coverage = lessonLevelStructureIssues(finished, input).filter(isCoverageIssue);
-        if (!coverage.length) break;
-        coverageLeft -= 1;
-        fixTriggers.push(coverage);
-        let covered: ReturnType<typeof parsePartFix> = null;
-        try {
-          covered = parsePartFix(
-            await io.ask(
-              fixPartSystem(mode),
-              fixPartUserPrompt(
-                finished,
-                { from: 0, to: Math.max(0, finished.screens.length - 1), header: false, closing: true },
-                coverage,
-                input,
-              ),
-              "fix-careful",
-            ),
-            finished,
-            input.upcomingTopics,
-          );
-        } catch {
-          covered = null;
-        }
-        if (!covered?.screens.length) break;
-        const merged = mergePartScreens(finished.screens, covered.screens);
-        if (merged.length < finished.screens.length) break;
-        finished = {
-          ...finished,
-          screens: merged.slice(0, LESSON_SCREEN_HARD_CAP),
-          ...(covered.commonMistake ? { commonMistake: covered.commonMistake } : {}),
-          ...(covered.summary ? { summary: covered.summary } : {}),
-        };
-      }
-    }
     const done = !lessonLevelStructureIssues(finished, input).some(isCoverageIssue);
     return {
       lesson: stripLessonIssueTags(finished),

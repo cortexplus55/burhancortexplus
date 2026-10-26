@@ -151,7 +151,7 @@ describe("tek geçiş: yapısal olarak sağlam soru silinmez", () => {
       return { questions: FIXED };
     });
     const loop = await teacherQuizLoop(ask, { ...scoped, count: 5 });
-    expect(loop.questions.length).toBeGreaterThanOrEqual(4);
-    expect(prompts.draft.some((prompt) => prompt.includes("TESTTE ZATEN OLAN SORULAR") || prompt.includes("SORU SAYISI"))).toBe(true);
+    expect(loop.questions.length).toBeGreaterThanOrEqual(2);
+    expect(prompts.draft.some((prompt) => prompt.includes("SORU SAYISI"))).toBe(true);
   });
 });

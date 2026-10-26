@@ -29,6 +29,7 @@ import {
 } from "@/lib/learning/oral-review";
 import {
   firstAnswerErrorLine,
+  ORAL_FIRST_ERROR_CAP,
   oralFirstAnswer,
   splitAnswerSentences,
   validFirstAnswerErrors,
@@ -554,10 +555,8 @@ export function gradeOralAnswer(
       firstErrors.push(...validFirstAnswerErrors(firstAnswer, [{ wrong, correct }]));
     }
   }
-  // Rubrik karşılandıysa nitpick puanı düşürmez. Gerçek çelişki yalnız o ölçütü kırpar.
-  if (firstErrors.length && ratio < 0.99) {
-    ratio = Math.max(0, ratio - 0.2 * Math.min(firstErrors.length, 2));
-  }
+  // Doğrudan çelişki (farklı sayı, ters yön) puanı tavanlar. Aynı bilgiyi başka sözle söylemek çelişki sayılmaz.
+  if (firstErrors.length) ratio = Math.min(ratio, ORAL_FIRST_ERROR_CAP);
 
   const quantNotes = [
     ...numeric,
@@ -571,7 +570,7 @@ export function gradeOralAnswer(
       missed.find((part) => !isScoreLabel(part) && !textOverlapsPrompt(part, prompt)) ||
       hollowGap ||
       "");
-  const appliedErrors = ratio < 0.99 ? firstErrors : [];
+  const appliedErrors = firstErrors;
   const gap = appliedErrors.length
     ? firstAnswerErrorLine(appliedErrors[0])
     : (sanitizeGap(rawGap, prompt) ?? "");

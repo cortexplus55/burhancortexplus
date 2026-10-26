@@ -90,13 +90,12 @@ beforeEach(() => {
 });
 
 describe("test motoru: yetersiz soru sonraki taslak demek", () => {
-  it("ilk taslak 1, ikinci 3 verirse üçüncü eksiği kapatır; test 5 soruyla açılır, kredi bir kez kesinleşir", async () => {
+  it("eksik sayı için tek tamamlama çağrısı yapılır; hâlâ kısaysa test açılmaz", async () => {
     ai.draftSizes = [1, 3, 1];
     const out = await runTeacherQuiz({} as never, input);
-    expect(out.ok && out.questions.length).toBe(5);
-    expect(ai.drafts).toBe(3);
-    expect(credits.commitCredits).toHaveBeenCalledTimes(1);
-    expect(credits.refundCredits).not.toHaveBeenCalled();
+    expect(out.ok).toBe(false);
+    expect(ai.drafts).toBe(2);
+    expect(credits.refundCredits).toHaveBeenCalledTimes(1);
   });
 
   it("söz verilen sayıya ulaşılmazsa test yok, kredi iade", async () => {

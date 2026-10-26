@@ -14,22 +14,14 @@ import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { dropNearDuplicates } from "@/lib/learning/item-dedup";
 import { runTopicTestShards } from "@/lib/learning/quiz-shards";
 import { playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
-import { repairBudget, repairGroups } from "@/lib/learning/repair-budget";
+import { repairBudget } from "@/lib/learning/repair-budget";
 import {
   FORCE_FIX_CODES,
-  blindKeyMismatches,
-  parseQuizIssues,
   parseTeacherQuiz,
-  quizFixSystem,
-  quizFixUserPrompt,
   quizSetIssues,
   quizStructureIssues,
-  quizAdvocateSystem,
-  quizAdvocateUserPrompt,
   quizSystem,
   quizUserPrompt,
-  quizVerifySystem,
-  quizVerifyUserPrompt,
   shuffleOptions,
   SOFT_CODES,
   tableLookupLike,
@@ -55,10 +47,8 @@ export function quizSpareCount(count: number, topicTest: boolean): number {
   const proportional = Math.ceil(count / 4);
   return topicTest ? Math.max(SPARE_TOPIC_TEST, proportional + 1) : Math.max(SPARE, proportional);
 }
-const MAX_FIX_ROUNDS = 2;
-/** 300 sn tavanı: yeni düzeltme turu bu süreden sonra başlamaz (temizlik dahil). Dinleme kontrolü saatini buna göre kurar. */
+/** Dinleme kontrolü saatini buna göre kurar. Soru düzeltme turu yok. */
 export const QUIZ_FIX_DEADLINE_MS = 200_000;
-const FIX_DEADLINE_MS = QUIZ_FIX_DEADLINE_MS;
 
 export function minimumQuestions(count: number): number {
   return Math.max(3, count - 2);
@@ -98,14 +88,6 @@ export type TeacherQuizLoopHooks = {
   onPlayable?: (questions: QuizQuestion[]) => void;
 };
 
-/** withOneMultiLast'in seçtiği yerler: tek cevaplılar sırayla (count−1), çok cevaplı soru sonda. */
-function deliveryWindow(slots: readonly Slot[], count: number): Set<number> {
-  const multi = slots.find((slot) => slot.question.multi);
-  const single = slots.filter((slot) => !slot.question.multi);
-  const chosen = multi ? [...single.slice(0, Math.max(0, count - 1)), multi] : single.slice(0, count);
-  return new Set(chosen.map((slot) => slot.index));
-}
-
 const byIndex = (left: Slot, right: Slot) => left.index - right.index;
 const allSoft = (row: Pending) => row.problems.every((problem) => problem.soft);
 
@@ -137,7 +119,6 @@ export async function teacherQuizLoop(
   const codes: Record<string, number> = {};
   const slots: (QuizQuestion | null)[] = [];
   const accepted = (): Slot[] => slots.flatMap((question, index) => (question ? [{ index, question }] : []));
-  const testSoFar = () => (scoped ? [...prior, ...accepted().map((slot) => slot.question)] : []);
 
   const fromIssue = (issue: QuizIssue): Problem => {
     const soft = scoped && Boolean(issue.code && SOFT_CODES.has(issue.code));
@@ -152,30 +133,8 @@ export async function teacherQuizLoop(
   const review = async (candidates: Slot[]): Promise<Pending[]> => {
     const kept = accepted();
     const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi }));
-    let factual: QuizIssue[] = [];
-    const reviewed = candidates.map((slot) => slot.question);
-    // Asıl denetçi açıklamayla birlikte anahtarı da görür. Bağımsız çözücü yalnız kök ve şıkları
-    // alır; duvar saati artmasın diye ikisi aynı anda gider (25 Ekim 2026).
-    const verifyPromise = ask(
-      quizVerifySystem(mode, scope, input.rephrase),
-      quizVerifyUserPrompt(reviewed, input, testSoFar()),
-      "verify",
-    );
-    const advocatePromise = ask(quizAdvocateSystem(), quizAdvocateUserPrompt(reviewed), "verify").catch(() => null);
-    try {
-      factual = [
-        ...parseQuizIssues(await verifyPromise),
-        ...blindKeyMismatches(reviewed, await advocatePromise),
-      ];
-    } catch (error) {
-      // Denetlenemeyen soru öğrenciye gitmez.
-      return candidates.map((slot) => ({
-        ...slot,
-        problems: [
-          { text: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}`, soft: false, forceFix: false },
-        ],
-      }));
-    }
+    // Tek geçiş (26 Ekim 2026): ikinci denetçi ve kör çözücü yok. Kapı deterministik.
+    const factual: QuizIssue[] = [];
     const rows: Pending[] = candidates.map((slot, position) => ({
       ...slot,
       problems: [
@@ -246,71 +205,10 @@ export async function teacherQuizLoop(
     const kept = slots.filter((question): question is QuizQuestion => question !== null);
     return scoped ? withOneMultiLast(kept, count).length : kept.length;
   };
-  // Kapsam eksiği yalnız öğrenciye gidecek sorulardaysa tur açar; kesilecek yedeği düzeltmek boşa.
-  const forcedInWindow = () => {
-    if (!scoped) return [];
-    const window = deliveryWindow([...accepted(), ...bad.filter(allSoft)].sort(byIndex), count);
-    return bad.filter((row) => window.has(row.index) && row.problems.some((problem) => problem.forceFix));
-  };
-
-  let rounds = 0;
-  let forced = false;
-  const budget = input.urgent ? repairBudget(true) : { ...repairBudget(false), deadlineMs: FIX_DEADLINE_MS, maxFixRounds: MAX_FIX_ROUNDS };
+  const rounds = 0;
+  const forced = false;
   const repairStarted = Date.now();
-  while (bad.length && rounds < budget.maxFixRounds && Date.now() - started < budget.deadlineMs) {
-    const short = have() < count;
-    // Öğrenci bekliyorsa kapsam eksiği tur açmaz (24 Ekim 2026; `urgent`).
-    const coverage = input.urgent ? [] : forcedInWindow();
-    if (!short && !coverage.length) break;
-    // Öğrenci bekliyorsa yalnız doğruluk sorunu olan soru onarılır; pedagojik olan aşağıda geri konur.
-    const toFix = short ? (input.urgent && scoped ? bad.filter((row) => !allSoft(row)) : bad) : coverage;
-    // Yalnız pedagojik sorun için en çok bir tur: düzelmezse soru yedekle değişir ya da geri konur. Öğrenci
-    // bekliyorsa hiç tur yok: yumuşak kurtarma aşağıda sayıyı tamamlar.
-    if (scoped && toFix.every(allSoft) && (rounds >= 1 || input.urgent)) break;
-    rounds += 1;
-    if (coverage.length) forced = true;
-    // Öğrenci bekliyorsa sorunlu sorular gruplar hâlinde aynı anda düzeltilip denetlenir (`repairBudget`).
-    const outcomes = await Promise.all(
-      repairGroups(toFix, budget.fixConcurrency).map(async (group) => {
-        let answer: unknown;
-        try {
-          answer = await ask(
-            quizFixSystem(mode, input.focus, multi, scope, input.rephrase),
-            quizFixUserPrompt(
-              group.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),
-              input,
-              testSoFar(),
-            ),
-            "fix",
-          );
-        } catch (error) {
-          // Konu testinde düzeltme çağrısı düşerse test düşmez: elde kalanlar ve geri konacaklar teslim edilir.
-          if (!scoped) throw error;
-          return null;
-        }
-        const fixed = parseTeacherQuiz(answer);
-        if (!fixed) return null;
-        const candidates = fixed.slice(0, group.length).map((question, position) => ({ index: group[position].index, question }));
-        return { group, candidates, again: await review(candidates) };
-      }),
-    );
-    if (outcomes.every((outcome) => !outcome)) break;
-    for (const outcome of outcomes) {
-      if (!outcome) continue;
-      const replaced = new Set(outcome.candidates.map((slot) => slot.index));
-      const previous = new Map(outcome.group.map((row) => [row.index, row]));
-      bad = bad.filter((row) => !replaced.has(row.index));
-      // Düzeltme doğruluk sorunu getirdiyse (ya da denetlenemediyse) elde yalnız pedagojik sorunu olan eski
-      // soru kalır: geri konabilsin, teslim edilen sayı düzeltme yüzünden düşmesin.
-      settle(
-        outcome.again.map((row) => {
-          const before = previous.get(row.index);
-          return scoped && before && allSoft(before) && !allSoft(row) ? before : row;
-        }),
-      );
-      emitPlayable();
-    }
-  }
+  // Tek geçiş: yapı kapısı bozuk satırı tutmaz. Eksik sayı dışarıda tek tamamlama çağrısıyla dolar.
 
   // Yumuşak kurtarma: sayı eksikse yalnız pedagojik sorunu kalan sorular, testteki sırayla geri konur.
   let softKept = 0;
@@ -555,7 +453,7 @@ async function runTeacherQuizInner(
     const salvaged = [...loop.salvaged];
     const secondPassDeadline = input.urgent ? repairBudget(true).secondPassDeadlineMs : SECOND_PASS_DEADLINE_MS;
     // Söz verilen sayı dolana kadar yeni taslak eklenir. Kısa liste yayımlanmaz.
-    while (questions.length < input.count && passes < 4 && Date.now() - started < secondPassDeadline) {
+    while (questions.length < input.count && passes < 2 && Date.now() - started < secondPassDeadline) {
       passes += 1;
       const again = await teacherQuizLoop(
         ask,

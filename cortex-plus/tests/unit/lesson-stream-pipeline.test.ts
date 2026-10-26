@@ -203,131 +203,21 @@ describe("akış okuyucu", () => {
 });
 
 describe("kavram kavram denetim ve yayım", () => {
-  it("her kavram ayrı denetlenir ve sırayla yayımlanır; düzeltme çağrısı yok", async () => {
-    const { result, calls, published } = await run({ verify: () => ({ issues: [] }) });
+  it("ayrışan taslak sırayla yayımlanır; denetçi ve düzeltme çağrısı yok", async () => {
+    const { result, calls, published } = await run({
+      verify: () => ({ issues: [{ where: "screens[1]", severity: "high", problem: "Yanlış bilgi." }] }),
+      fix: () => ({ screens: [], disputes: [] }),
+    });
     expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
     expect(result.lesson?.summary).toEqual(lesson.summary);
-    expect(calls.filter((call) => call.role === "verify")).toHaveLength(3);
-    expect(calls.some((call) => call.role !== "verify")).toBe(false);
-    // İlk yayım giriş kartı + ilk kavram; son kavram dersin bütünüyle (çağıran kaydeder).
+    expect(result.dropped).toEqual([]);
+    expect(calls.filter((call) => call.role === "verify" || call.role === "fix" || call.role === "fix-careful")).toHaveLength(0);
     expect(published[0]).toMatchObject({ screens: 1, done: false });
     expect(published.map((item) => item.screens)).toEqual([1, 2]);
-    // Denetçi yalnız kendi kısmını denetler; ilk kısım giriş alanlarını, son kısım özeti taşır.
-    const verifies = calls.filter((call) => call.role === "verify").map((call) => call.user);
-    expect(verifies[0]).toContain("DENETLENECEK: yalnız screens[0], title, overview, objective");
-    expect(verifies[2]).toContain("DENETLENECEK: yalnız screens[2], commonMistake, summary");
-    // Zaman çizgisi kayda gidiyor (19 Ekim 2026): ilk ekran ≤ ilk kavram ≤ ilk yayım; akış sonu dolu.
     const { firstScreenMs, firstPartMs, firstPublishMs, writeMs } = result.timing;
     expect([firstScreenMs, firstPartMs, firstPublishMs, writeMs].every((v) => typeof v === "number" && v >= 0)).toBe(true);
     expect(firstScreenMs!).toBeLessThanOrEqual(firstPartMs!);
     expect(firstPartMs!).toBeLessThanOrEqual(firstPublishMs!);
-  });
-
-  it("kilit bilgi eksiği ilk ekranı bekletmez; öğrenci metninde etiket kalmaz", async () => {
-    const pages = [{ page: 1, text: "Pay 7:2 olarak yazılır. Tanım satırı yeterince uzundur." }];
-    const { result, calls, published } = await run({
-      verify: () => ({ issues: [] }),
-      fix: () => null,
-      pages,
-    });
-    expect(published.map((item) => item.screens)).toEqual([1, 2]);
-    expect(published.every((item) => item.done === false)).toBe(true);
-    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
-    const fixes = calls.filter((call) => call.role === "fix-careful");
-    expect(fixes.length).toBeGreaterThan(0);
-    expect(fixes.some((call) => call.user.includes("[kapsam]"))).toBe(true);
-    expect(JSON.stringify(result.lesson)).not.toMatch(/\[(?:omurga|kapsam|öğretim|yapı kuralı)\]/);
-    expect(result.done).toBe(false);
-  });
-
-  it("sorunlu kavram yalnız kendisi düzeltilir; dersin tamamı yeniden yazılmaz", async () => {
-    const fixedScreen = { ...lesson.screens[1], blocks: [{ type: "text", text: "Kurucu unsuru hiç olmayan işlem **yokluk**tur; hiç doğmamıştır." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")] };
-    const { result, calls } = await run({
-      verify: (user, round) =>
-        user.includes("yalnız screens[1]") && round === 0
-          ? { issues: [{ where: "screens[1].blocks[0]", severity: "high", problem: "Yokluğun sonucu söylenmiyor, yanıltıcı." }] }
-          : { issues: [] },
-      fix: () => ({ screens: [fixedScreen], disputes: [] }),
-    });
-    expect(result.lesson?.screens[1]!.blocks[0]).toMatchObject({ text: expect.stringContaining("hiç doğmamıştır") });
-    expect(result.fixTriggers).toHaveLength(1);
-    const fix = calls.find((call) => call.role !== "verify")!.user;
-    // İlk kavramdan sonrası öğrenci okurken düzelir: dikkatli düzeltme.
-    expect(calls.find((call) => call.role !== "verify")!.role).toBe("fix-careful");
-    expect(fix).toContain("DÜZELTİLECEK KISIM: screens[1]");
-    expect(fix).toContain("Dersin tamamını DEĞİL");
-  });
-
-  it("yazar haksız itiraza gerekçe yazar; denetçi gerekçeyi görür ve ders düşmez", async () => {
-    const { result, calls } = await run({
-      verify: (user, round) =>
-        user.includes("yalnız screens[0]") && round === 0
-          ? { issues: [{ where: "screens[0].blocks[1]", severity: "high", problem: "Eşik ACOG'a göre farklı." }] }
-          : { issues: [] },
-      fix: () => ({ screens: [], disputes: [{ where: "screens[0].blocks[1]", reason: "ACOG: normalin 2 katı; ders aynısını söylüyor." }] }),
-    });
-    expect(result.lesson?.screens[0]).toEqual(expect.objectContaining({ heading: "Maddi Yaptırım" }));
-    const second = calls.filter((call) => call.role === "verify" && call.user.includes("yalnız screens[0]"))[1]!.user;
-    expect(second).toContain("YAZARIN İTİRAZLARI");
-    expect(second).toContain("ACOG: normalin 2 katı");
-  });
-
-  it("düzelmeyen ara kavram üç kez baştan yazılır; hiçbiri geçmezse atılır, ders kalanla gider; ilk kavram da düşerse kalanla gider", async () => {
-    const stuck = (target: string) => (user: string) =>
-      user.includes(`yalnız ${target}`) ? { issues: [{ where: target, severity: "high", problem: "Yanlış bilgi." }] } : { issues: [] };
-    const middle = await run({ verify: stuck("screens[1]"), fix: () => ({ screens: [lesson.screens[1]], disputes: [] }) });
-    expect(middle.result.dropped).toEqual(["Yokluk"]);
-    expect(middle.result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Mutlak Butlan"]);
-    // Ara kavrama bir tur fazla hak (3), sonra üç kez baştan yazım (25 Ekim 2026), her birinin ardından bir düzeltme.
-    const careful = middle.calls.filter((call) => call.role === "fix-careful");
-    expect(careful).toHaveLength(9);
-    const rewrites = careful.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM: screens[1]"));
-    expect(rewrites).toHaveLength(3);
-    expect(rewrites[1]!.user).toContain("2. kez baştan yazılıyor; dersten atılmayacak");
-
-    // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): ilk kavram da düşerse ders yine yazılır,
-    // kavram atılır ve bitişte adıyla söylenir.
-    const first = await run({ verify: stuck("screens[0]"), fix: () => ({ screens: [lesson.screens[0]], disputes: [] }) });
-    expect(first.result.dropped).toEqual(["Maddi Yaptırım"]);
-    expect(first.result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Yokluk", "Mutlak Butlan"]);
-    expect(first.result.failure).toEqual([]);
-    expect(first.published.length).toBeGreaterThan(0);
-  });
-
-  it("hiçbir kavram geçmezse ders bir kez baştan yazılır; yine geçmezse ders yok", async () => {
-    const flagAll = (user: string) => ({
-      issues: [{ where: /yalnız (screens\[\d+\])/.exec(user)?.[1] ?? "screens[0]", severity: "high", problem: "Yanlış bilgi." }],
-    });
-    const { result, calls } = await run({
-      verify: flagAll,
-      fix: () => ({ screens: [lesson.screens[0]], disputes: [] }),
-      drafts: [JSON.stringify(lesson), JSON.stringify(lesson)],
-    });
-    expect(result.lesson).toBeNull();
-    expect(result.dropped).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
-    expect(result.failure[0]!.problem).toBe("Yanlış bilgi.");
-    // İki tam taslak: ilk turda hiçbir kavram geçmeyince ders baştan yazıldı.
-    expect(calls.filter((call) => call.role === "verify").length).toBeGreaterThanOrEqual(6);
-  });
-
-  // 18 Ekim 2026, Pediatri: aynı taslağı yamalayan üç tur aynı yerde takıldı, sınavın en önemli
-  // kavramı (gelişim basamakları) atıldı. Ürün sahibi: "arkada yeniden yazılsın".
-  it("baştan yazılan kavram denetimden geçerse derste yerinde kalır", async () => {
-    const rewritten = { ...lesson.screens[1]!, heading: "Yokluk: hiç doğmamış işlem", blocks: [{ type: "text", text: "Kurucu unsuru eksik işlem hukuken **hiç doğmamıştır**: yokluk." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")] };
-    const { result, calls, published } = await run({
-      verify: (user) =>
-        user.includes("yalnız screens[1]") && !user.includes("hiç doğmamıştır")
-          ? { issues: [{ where: "screens[1]", severity: "high", problem: "Tablo yok." }] }
-          : { issues: [] },
-      fix: (user) => (user.includes("YENİDEN YAZILACAK KISIM") ? { screens: [rewritten] } : { screens: [lesson.screens[1]], disputes: [] }),
-    });
-    expect(result.dropped).toEqual([]);
-    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk: hiç doğmamış işlem", "Mutlak Butlan"]);
-    // Kavram adı korunur: giriş kartı ve yayım sırası bozulmaz.
-    expect(result.lesson?.screens[1]?.concept).toBe("Yokluk");
-    expect(calls.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM"))).toHaveLength(1);
-    // Beklerken kavram "hazırlanıyor" olarak duyurulur, ilk kavram yalnız başına yayımlanmıştı.
-    expect(published[0]).toEqual(expect.objectContaining({ screens: 1, upcoming: ["Yokluk", "Mutlak Butlan"] }));
   });
 
   it("taslak okunamazsa nedeni kaydedilir ve bir kez baştan yazılır", async () => {
@@ -373,362 +263,57 @@ describe("düzeltilen kısım", () => {
   });
 });
 
-describe("ilk kavramın erken denetimi", () => {
-  async function slowRun(draft: LessonV3) {
-    const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
-    const events: string[] = [];
-    const result = await teacherLessonPipeline(
-      {
-        write: async (_system, _user, onDelta) => {
-          const text = JSON.stringify(draft);
-          // Akış gerçekteki gibi parça parça ve zamana yayılı gelsin.
-          for (const piece of chunks(text)) {
-            onDelta(piece);
-            await new Promise((resolve) => setTimeout(resolve, 0));
-          }
-          events.push("yazım bitti");
-          return { text, finish: "stop" };
-        },
-        ask: async (_system, user) => {
-          events.push(/DENETLENECEK: yalnız ([^.]*)\./.exec(user)?.[1] ?? "?");
-          return { issues: [] };
-        },
-      },
-      input,
-    );
-    return { result, events };
-  }
-
-  it("tek ekranlı ilk kavram yazım bitmeden denetlenir; fazladan çağrı yok", async () => {
-    const { result, events } = await slowRun(lesson);
-    expect(result.lesson?.screens).toHaveLength(3);
-    const first = events.findIndex((event) => event.startsWith("screens[0],"));
-    expect(first).toBeGreaterThan(-1);
-    expect(first).toBeLessThan(events.indexOf("yazım bitti"));
-    expect(events.filter((event) => event !== "yazım bitti")).toHaveLength(3);
-    // Parça başına bir zamanlayıcı turu: tam ikinci sorulu fikstür (20 Ekim 2026) daha uzun; tam pakette yük altında 5 sn'yi aşıyordu.
-  }, 15_000);
-
-  it("ilk kavram iki ekranlıysa erken denetim atılır, iki ekran birlikte denetlenir", async () => {
-    const second = { ...lesson.screens[0]!, heading: "Maddi Yaptırım: türleri", blocks: [{ type: "text", text: "Ceza, tazminat ve cebri icra maddi yaptırımdır." }, { type: "table", table: { caption: "Türler", columns: ["Tür", "Örnek"], rows: [["Ceza", "Hapis"], ["Tazminat", "Zarar ödemesi"]] } }, mcq("Hangisi maddi yaptırımdır?")] };
-    const draft = { ...lesson, screens: [lesson.screens[0]!, second, ...lesson.screens.slice(1)] } as LessonV3;
-    const { result, events } = await slowRun(draft);
-    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Maddi Yaptırım: türleri", "Yokluk", "Mutlak Butlan"]);
-    expect(events.some((event) => event.startsWith("screens[0]–screens[1]"))).toBe(true);
-  }, 15_000);
-});
-
-/*
-  19 Ekim 2026, canlı (/admin/ders-hatalari, KPSS): yavaş derslerin çoğu yalnız ezber kodu yüzünden
-  5-7 tur döndü ("Ün-Bö-Fed-Kon", "Ülke İnsan Otorite", "Çalış" ↔ C), "Demokrasi türleri" kavramı iki
-  kez atıldı. Kalan tek sorun ezber koduysa kutu çıkar, kavram yayımlanır; fazla kod hemen çıkar.
-*/
-describe("ezber kodu kavramı düşürmez", () => {
-  const code = (title: string) => ({ type: "note", note: { title: `Ezber kodu: ${title}`, body: "Y = Yokluk, M = Mutlak butlan.", tone: "mnemonic" } });
-  const withCodes = (count: number) =>
-    JSON.stringify({
-      ...lesson,
-      screens: lesson.screens.map((screen, index) =>
-        index === 1 ? { ...screen, blocks: [...screen.blocks, ...Array.from({ length: count }, (_, i) => code(`Kod${i}`))] } : screen,
-      ),
-    });
-
-  it("kötü kod bir düzeltme turundan sonra çıkar; kavram atılmaz, baştan yazılmaz", async () => {
+describe("tek geçiş yayımlar", () => {
+  it("denetçi itirazı kavramı silmez ve ikinci model turu açmaz", async () => {
     const { result, calls } = await run({
-      drafts: [withCodes(1)],
-      verify: (user) =>
-        user.includes("yalnız screens[1]")
-          ? { issues: [{ where: "screens[1].blocks[2]", severity: "high", problem: "Kod öğe adlarının art arda yazılmasından ibaret." }] }
-          : { issues: [] },
-      fix: () => ({ screens: [JSON.parse(withCodes(1)).screens[1]], disputes: [] }),
+      verify: () => ({ issues: [{ where: "screens[0]", severity: "high", problem: "Yanlış bilgi." }] }),
+      fix: () => ({ screens: [], disputes: [] }),
     });
     expect(result.dropped).toEqual([]);
-    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
-    const yokluk = result.lesson!.screens[1]!;
-    expect(yokluk.blocks.some((block) => block.type === "note" && block.note.tone === "mnemonic")).toBe(false);
-    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
-    expect(calls.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM"))).toHaveLength(0);
+    expect(result.lesson?.screens).toHaveLength(3);
+    expect(calls).toHaveLength(0);
   });
+});
 
-  it("fazla ezber kodu hiç tur dönmeden çıkar; ilki kalır", async () => {
-    const { result, calls } = await run({ drafts: [withCodes(2)], verify: () => ({ issues: [] }) });
-    const yokluk = result.lesson!.screens[1]!;
-    expect(yokluk.blocks.filter((block) => block.type === "note" && block.note.tone === "mnemonic")).toHaveLength(1);
-    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
-  });
-
+describe("ezber kodu ve öğretim kuralları istemde kalır", () => {
   it("yazar ve denetçi aynı ezber kodu örneklerini görür", async () => {
     const { verifySystem, teacherSystem, MNEMONIC_EXAMPLES } = await import("@/lib/learning/teacher-lesson");
     expect(MNEMONIC_EXAMPLES).toContain("C ile Ç");
     expect(teacherSystem("document")).toContain(MNEMONIC_EXAMPLES);
     expect(verifySystem("document")).toContain(MNEMONIC_EXAMPLES);
   });
-});
 
-/*
-  20 Ekim 2026 (kör kıyas; ürün sahibinin kararı): ezber kodu isteğe bağlı. İlk kavramda öğrenci ilk ekranı bekliyor:
-  ayrım taşımayan kod tur açmadan çıkar. Sonraki kavramlarda bir tur kalır (iyi bir ayrım kodu çıkabilsin).
-*/
-describe("ilk kavramda kötü ezber kodu hemen çıkar", () => {
-  it("screens[0]'daki kötü kod düzeltme turu açmadan çıkar, kavram yayımlanır", async () => {
-    const draft = JSON.stringify({
-      ...lesson,
-      screens: lesson.screens.map((screen, index) =>
-        index === 0
-          ? { ...screen, blocks: [...screen.blocks, { type: "note", note: { title: "Ezber kodu: MY", body: "M = maddi, Y = yaptırım.", tone: "mnemonic" } }] }
-          : screen,
-      ),
-    });
-    const { result, calls } = await run({
-      drafts: [draft],
-      verify: (user) =>
-        user.includes("yalnız screens[0]")
-          ? { issues: [{ where: "screens[0].blocks[3]", severity: "high", problem: "Kod yalnız baş harfleri taşıyor; ayrım yok." }] }
-          : { issues: [] },
-    });
-    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
-    expect(result.dropped).toEqual([]);
-    const first = result.lesson!.screens[0]!;
-    expect(first.blocks.some((block) => block.type === "note" && block.note.tone === "mnemonic")).toBe(false);
-    expect(result.issues.some((issue) => /ayrım taşımıyordu/.test(issue.problem))).toBe(true);
-  });
-});
-
-/*
-  Öğretim ölçütü ('medium', 20 Ekim 2026, ürün sahibinin kararı): yanlış bir şey öğretmeyen ama öğretimi zayıflatan
-  sorun. İlk kavramda tur açmaz (soğuk ilk ekran p95 < 20 sn); sonraki kavramda en çok bir kavram içi tur; düzeltme
-  yüksek bir sorun getirirse önceki ekranlar yayımlanır; asla atma ya da baştan yazma ("atılan kavram 0").
-*/
-describe("öğretim ölçütü turu", () => {
-  const medium = (target: string) => (user: string) =>
-    user.includes(`yalnız ${target}`)
-      ? { issues: [{ where: target, severity: "medium", problem: "Aynı bilgi önceki ekranda da anlatılıyor." }] }
-      : { issues: [] };
-
-  it("ilk kavramda 'medium' tur açmaz", async () => {
-    const { result, calls } = await run({ verify: medium("screens[0]") });
-    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
-    expect(result.lesson?.screens).toHaveLength(3);
-    expect(result.issues.some((issue) => issue.problem.startsWith("[öğretim]"))).toBe(true);
-  });
-
-  it("sonraki kavramda tek bir dikkatli düzeltme; 'medium' kalsa da yayımlanır", async () => {
-    const improved = {
-      ...lesson.screens[1]!,
-      blocks: [{ type: "text", text: "Kurucu unsuru olmayan işlem hiç doğmaz: **yokluk**." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")],
-    };
-    const { result, calls } = await run({ verify: medium("screens[1]"), fix: () => ({ screens: [improved], disputes: [] }) });
-    const fixes = calls.filter((call) => call.role !== "verify");
-    expect(fixes.map((call) => call.role)).toEqual(["fix-careful"]);
-    expect(fixes[0]!.user).toContain("[öğretim]");
-    expect(fixes[0]!.user).toContain("ÖĞRETİM ÖLÇÜTÜ sorunlarıdır");
-    expect(result.dropped).toEqual([]);
-    expect(result.lesson?.screens[1]!.blocks[0]).toMatchObject({ text: expect.stringContaining("hiç doğmaz") });
-    expect(result.fixTriggers).toHaveLength(1);
-  });
-
-  it("düzeltme yüksek bir sorun getirirse önceki ekranlar yayımlanır; kavram atılmaz, baştan yazılmaz", async () => {
-    const broken = {
-      ...lesson.screens[1]!,
-      blocks: [{ type: "text", text: "Yokluk sonradan iptal edilebilir." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")],
-    };
-    const { result, calls } = await run({
-      verify: (user, round) =>
-        user.includes("yalnız screens[1]")
-          ? round === 0
-            ? { issues: [{ where: "screens[1]", severity: "medium", problem: "Neden söylenmiyor." }] }
-            : { issues: [{ where: "screens[1].blocks[0]", severity: "high", problem: "Yokluk iptal edilemez; yanlış." }] }
-          : { issues: [] },
-      fix: () => ({ screens: [broken], disputes: [] }),
-    });
-    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(1);
-    expect(result.dropped).toEqual([]);
-    expect(result.lesson?.screens[1]!.blocks[0]).toMatchObject({ text: "Kurucu unsuru hiç olmayan işlem **yokluk** ile sakattır." });
-    expect(calls.filter((call) => call.user.includes("YENİDEN YAZILACAK KISIM"))).toHaveLength(0);
-  });
-
-  it("süre sınırından sonra 'medium' tur açmaz", async () => {
-    const { calls, result } = await run({ verify: medium("screens[1]"), started: Date.now() - 160_000 });
-    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
-    expect(result.lesson?.screens).toHaveLength(3);
-  });
-});
-
-describe("öğretim turu ekran düşürmez (22 Ekim 2026 inceleme)", () => {
-  it("düzeltici kısmı daha az ekranla yeniden kurarsa önceki hâli yayımlanır", async () => {
-    const split = {
-      ...lesson,
-      screens: [
-        lesson.screens[0]!,
-        lesson.screens[1]!,
-        {
-          heading: "Yokluk: sonuç",
-          concept: "Yokluk",
-          lead: "Hiç doğmamış işlemin sonucu",
-          // Aynı kavramın ikinci ekranı yalnız adım/tablo/örnek taşıyorsa bölünebilir (yapı kuralı).
-          blocks: [
-            { type: "text", text: "Yok sayılan işlem hiçbir hüküm doğurmaz; herkes ileri sürebilir." },
-            {
-              type: "procedure",
-              procedure: {
-                title: "Yokluğu ileri sürme",
-                steps: [
-                  { label: "Kurucu unsura bak", detail: "Evlenme iradesi ya da memur önünde beyan var mı?" },
-                  { label: "Eksikse işlem yok", detail: "Hiç doğmamış sayılır, hüküm doğurmaz." },
-                  { label: "Herkes ileri sürer", detail: "Süre ve dava şartı aranmaz." },
-                ],
-              },
-            },
-            mcq("Yokluğu kim ileri sürebilir?"),
-          ],
-        },
-        lesson.screens[2]!,
-      ],
-    } as LessonV3;
-    const merged = {
-      heading: "Yokluk (tek ekran)",
-      concept: "Yokluk",
-      lead: "Hiç doğmamış işlem",
-      blocks: [{ type: "text", text: "Kurucu unsuru olmayan işlem **yokluk** ile sakattır; hiçbir hüküm doğurmaz." }, mcq("Nikâh memuru önünde yapılmayan evlilik hangi türdür?")],
-    };
-    const { result, calls } = await run({
-      drafts: [JSON.stringify(split)],
-      verify: (user) =>
-        user.includes("yalnız screens[1]") ? { issues: [{ where: "screens[1]", severity: "medium", problem: "Aynı bilgi iki ekranda." }] } : { issues: [] },
-      fix: () => ({ screens: [merged], disputes: [] }),
-    });
-    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
-    expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Yokluk: sonuç", "Mutlak Butlan"]);
-    expect(result.issues.some((issue) => issue.problem.includes("ekran düşürdü"))).toBe(true);
-    expect(result.dropped).toEqual([]);
-  });
-});
-
-/*
-  23 Ekim 2026 (üçüncü ölçüm, canlı girdilerle yerel üretim): Özel Açılar dersi 13 tur döndü, iki kavram atıldı.
-  Turların biri "ikinci sorunun doğru şıkkı ana sorununkiyle aynı metin" kuralıydı; ikincisi ilk kavramda tablo
-  kuralı; üçüncüsü denetçinin sonraki kavramların maddelerini ilk kavramda eksik sayması (ilk ekran 84-200 sn).
-*/
-describe("ikinci soru kavramı düşürmez, denetçi sonraki kavramları beklemez", () => {
-  const badReview = (screen: number) => ({ where: `screens[${screen}].blocks[1].review`, severity: "high", problem: "[yapı kuralı] İkinci soru (review): doğru şıkkı aynı metin olmalı." });
-
-  // 24 Ekim 2026: kodun ikinci soru kuralı düzeltmeyle düzelmiyordu; tur açılmadan çıkar.
-  it("sonraki kavramda kodun ikinci soru kuralı tur açmadan ikinci soruyu çıkarır, kavram yayımlanır", async () => {
-    const { result, calls } = await run({
-      verify: (user) => (user.includes("yalnız screens[1]") ? { issues: [badReview(1)] } : { issues: [] }),
-      fix: () => ({ screens: [lesson.screens[1]], disputes: [] }),
-    });
-    expect(result.dropped).toEqual([]);
-    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(0);
-    const check = result.lesson!.screens[1]!.blocks.find((block) => block.type === "check");
-    expect(check && check.type === "check" ? check.check.review : "x").toBeUndefined();
-    // Öbür kavramların ikinci soruları yerinde.
-    const other = result.lesson!.screens[2]!.blocks.find((block) => block.type === "check");
-    expect(other && other.type === "check" ? other.check.review?.prompt : "").toContain("hangi türdür");
-    expect(result.issues.some((issue) => /çalışma anının yedeği/.test(issue.problem))).toBe(true);
-  });
-
-  it("ilk kavramda ikinci soru sorunu tur açmaz", async () => {
-    const { result, calls } = await run({
-      verify: (user) =>
-        user.includes("yalnız screens[0]")
-          ? { issues: [{ where: "screens[0].blocks[0].check.review", severity: "high", problem: "Review başka kavramı soruyor." }] }
-          : { issues: [] },
-    });
-    expect(calls.filter((call) => call.role !== "verify")).toHaveLength(0);
-    expect(result.dropped).toEqual([]);
-    const opener = result.lesson!.screens[0]!.blocks[0]!;
-    expect(opener.type === "check" ? opener.check.review : "x").toBeUndefined();
-  });
-
-  it("son kavram dışında denetçiye 'öbür konular sonra gelecek' denir", async () => {
-    const { calls } = await run({ verify: () => ({ issues: [] }) });
-    const verifies = calls.filter((call) => call.role === "verify");
-    const first = verifies.find((call) => call.user.includes("yalnız screens[0]"))!;
-    const last = verifies.find((call) => call.user.includes("commonMistake, summary"))!;
-    expect(first.user).toContain("Bu kısım dersin son kısmı DEĞİL");
-    expect(last.user).not.toContain("Bu kısım dersin son kısmı DEĞİL");
-  });
-});
-
-/*
-  23 Ekim 2026, ürün sahibinin kararı: denetçi her kısma 1-5 öğretim puanı verir; ilk kavram dışında 3'ün altı bir
-  öğretim turu açar, ilk kavramda yalnız kayda geçer. "Neden böyle?" kutusu etiketli mekanizma; yazar ve denetçi aynı kural.
-*/
-describe("öğretim puanı ve 'Neden böyle?'", () => {
-  it("ilk kavram dışında 3'ün altındaki puan bir öğretim turu açar; ilk kavramda açmaz; puanlar kayda geçer", async () => {
-    const { result, calls } = await run({
-      verify: (user, round) => ({ issues: [], teaching: { score: round === 0 ? 2 : 4, reason: "Neden yok; mekanizmayı ekle." } }),
-      fix: (user) => {
-        const at = /DÜZELTİLECEK KISIM: screens\[(\d+)\]/.exec(user);
-        return { screens: [lesson.screens[Number(at?.[1] ?? 1)]], disputes: [] };
-      },
-    });
-    const fixes = calls.filter((call) => call.role === "fix-careful");
-    expect(fixes).toHaveLength(2);
-    expect(fixes.every((call) => call.user.includes("Öğretim puanı 2/5"))).toBe(true);
-    expect(fixes.some((call) => call.user.includes("screens[0]"))).toBe(false);
-    expect(result.teachingScores).toEqual([2, 2, 2]);
-    expect(result.dropped).toEqual([]);
-  });
-
-  it("yazar ve denetçi aynı 'Neden böyle?' kuralını okur; kutu etiketli sayılır, genel bilgi sınırına girmez", async () => {
+  it("yazar ve denetçi aynı Neden böyle kuralını okur", async () => {
     const { teacherSystem, verifySystem, lessonStructureIssues, TOPIC_TEACHER_SYSTEM } = await import("@/lib/learning/teacher-lesson");
     const { WHY_NOTE_RULE } = await import("@/lib/learning/teaching-rubric");
     expect(teacherSystem("document")).toContain(WHY_NOTE_RULE);
     expect(verifySystem("document")).toContain(WHY_NOTE_RULE);
     expect(TOPIC_TEACHER_SYSTEM).not.toContain(WHY_NOTE_RULE);
     const why = (title: string) => ({ type: "note", note: { title, body: "İnek sütündeki demir az emilir ve bağırsakta kan kaybı yapabilir.", tone: "general" } });
-    const withWhy: LessonV3 = {
+    const withWhy = {
       ...lesson,
       screens: lesson.screens.map((screen, i) => ({ ...screen, blocks: [...screen.blocks, ...(i < 3 ? [why("Neden böyle?: İnek sütü neden erken verilmez?")] : [])] })),
     } as LessonV3;
     const issues = lessonStructureIssues(withWhy, { runningHeaders: [] });
     expect(issues.some((issue) => /Genel bilgi/.test(issue.problem))).toBe(false);
   });
-});
 
-describe("tablo biçimi kavram düşürmez (23 Ekim 2026, 4. ölçüm)", () => {
-  it("bir turdan sonra yalnız tablo biçimi kaldıysa kavram yayımlanır", async () => {
-    const layout = { where: "screens", severity: "high", problem: "[yapı kuralı] Kaynaktaki tablo (Açı | 0° | 30°) derste paragrafa dökülmüş; onu 'table' bloğu olarak ver." };
-    const { result, calls } = await run({
-      verify: (user) => (user.includes("yalnız screens[2]") ? { issues: [layout] } : { issues: [] }),
-      fix: () => ({ screens: [lesson.screens[2]], disputes: [] }),
-    });
-    expect(result.dropped).toEqual([]);
-    expect(result.lesson?.screens).toHaveLength(3);
-    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(1);
-    expect(result.issues.some((issue) => /Tablo biçimi düzelmedi/.test(issue.problem))).toBe(true);
-  });
-});
-
-describe("derste en az bir 'Neden böyle?' (23 Ekim 2026, ürün sahibinin kararı)", () => {
-  it("belgeli derste kutu yoksa kapanışta öğretim önemiyle istenir; belgesiz derste istenmez", async () => {
+  it("belgeli derste kutu yoksa kapanışta istenir; belgesiz derste istenmez", async () => {
     const { lessonStructureIssues } = await import("@/lib/learning/teacher-lesson");
     const without = { ...lesson, screens: lesson.screens.map((screen) => ({ ...screen, blocks: screen.blocks.filter((block) => block.type !== "note" || block.note.tone !== "general") })) } as LessonV3;
     const asked = lessonStructureIssues(without, { runningHeaders: [], pages: input.pages }).filter((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem));
     expect(asked.map((issue) => [issue.where, issue.severity])).toEqual([["screens[2]", "medium"]]);
     expect(lessonStructureIssues(without, { runningHeaders: [], pages: [] }).some((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem))).toBe(false);
-    expect(lessonStructureIssues(lesson, { runningHeaders: [], pages: input.pages }).some((issue) => /Neden böyle\?' kutusu yok/.test(issue.problem))).toBe(false);
   });
-});
 
-describe("döngüsel 'Neden böyle?' çıkar, yerine yenisi istenmez (23 Ekim 2026)", () => {
-  it("denetçi döngüsel kutu derse kapanış eksik-kutu kuralını düşürür", async () => {
+  it("döngüsel kutu ve eksik kutu ayırt edilir; yayım ikinci tur açmaz", async () => {
     const { isCircularWhyIssue, isMissingWhyIssue } = await import("@/lib/learning/teacher-lesson");
     expect(isCircularWhyIssue({ where: "screens[2].blocks[2]", severity: "medium", problem: "[öğretim] Döngüsel Neden böyle?: kutu başlığı yeniden söylüyor." })).toBe(true);
     expect(isMissingWhyIssue({ where: "screens[2]", severity: "medium", problem: "[yapı kuralı] Derste 'Neden böyle?' kutusu yok: …" })).toBe(true);
-    const withoutWhy = JSON.stringify({ ...lesson, screens: lesson.screens.map((screen) => ({ ...screen, blocks: screen.blocks.filter((block) => block.type !== "note" || (block as { note: { tone?: string } }).note.tone !== "general") })) });
-    const { calls } = await run({
-      drafts: [withoutWhy],
-      verify: (user) =>
-        user.includes("yalnız screens[1]")
-          ? { issues: [{ where: "screens[1].blocks[1]", severity: "medium", problem: "Döngüsel Neden böyle?: kendini tekrar ediyor.", fix: "kutuyu çıkar" }] }
-          : { issues: [] },
-      fix: (user) => ({ screens: [JSON.parse(withoutWhy).screens[Number(/DÜZELTİLECEK KISIM: screens\[(\d+)\]/.exec(user)?.[1] ?? 1)]], disputes: [] }),
+    const { calls, result } = await run({
+      verify: () => ({ issues: [{ where: "screens[1]", severity: "medium", problem: "Döngüsel Neden böyle?: kendini tekrar ediyor." }] }),
     });
-    const fixes = calls.filter((call) => call.role === "fix-careful");
-    expect(fixes.some((call) => call.user.includes("Döngüsel Neden böyle?"))).toBe(true);
-    expect(fixes.some((call) => call.user.includes("'Neden böyle?' kutusu yok"))).toBe(false);
+    expect(calls.filter((call) => call.role === "fix-careful")).toHaveLength(0);
+    expect(result.dropped).toEqual([]);
   });
 });

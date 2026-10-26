@@ -1647,7 +1647,7 @@ export function ExamNodeSession({
             </p>
           ) : payload.uncoveredTopics?.length ? (
             <p className="cp-exam-silence">
-              Şu konular için elde soru yok: {payload.uncoveredTopics.join(", ")}.
+              Şu konular bu turda yok: {payload.uncoveredTopics.join(", ")}.
             </p>
           ) : null}
           <ExamQuizPlay

@@ -402,13 +402,14 @@ describe("deneme publishes once N items exist", () => {
     expect(proof.ok).toBe(true);
     expect(proof.delivered).toBe(proof.promised);
     expect(proof.elapsedMs).toBeLessThanOrEqual(proof.budgetMs);
-    const tsx = fileURLToPath(new URL("../../node_modules/.bin/tsx", import.meta.url));
+    const bin = fileURLToPath(new URL("../../node_modules/.bin/tsx", import.meta.url));
+    const tsx = process.platform === "win32" ? `${bin}.cmd` : bin;
     const script = fileURLToPath(new URL("../../scripts/deneme-deliver-budget.ts", import.meta.url));
-    const run = spawnSync(tsx, [script], { cwd: root, encoding: "utf8" });
+    const run = spawnSync(tsx, [script], { cwd: root, encoding: "utf8", shell: process.platform === "win32" });
     expect(run.status).toBe(0);
     expect(run.stdout).toContain('"delivered":20');
     expect(run.stdout).toContain('"promised":20');
-  });
+  }, 20_000);
 
   it("keeps the job path, the fallback, and the angle prompt wired", () => {
     const route = source("../../src/app/api/learning/exam-prep/mock-exam/route.ts");

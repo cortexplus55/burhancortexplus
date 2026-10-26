@@ -84,6 +84,9 @@ export function contradictsExpected(wrong: string, correct: string): boolean {
   const cn = numbersIn(correct);
   if (wn.length && cn.length && (wn.some((n) => !cn.includes(n)) || cn.some((n) => !wn.includes(n)))) return true;
   if (negated(wrong) !== negated(correct)) return true;
+  const up = /\b(artar|arttirir|cogalir|yukselir|doubles)\b/;
+  const down = /\b(azalir|azaltir|degismez|sabit|dusmez|degistirmez)\b/;
+  if ((up.test(w) && down.test(c)) || (down.test(w) && up.test(c))) return true;
   const words = (text: string) => new Set(fold(text).split(" ").filter((word) => word.length > 2));
   const left = words(wrong);
   const right = words(correct);
@@ -140,6 +143,8 @@ export function validFirstAnswerErrors(
     if (!wrong || !correct || scoreLabel(correct)) continue;
     if (fold(wrong) === fold(correct)) continue;
     if (!contradictsExpected(wrong, correct)) continue;
+    // Takip cevabı doğrusunu söylüyorsa ilk cümledeki çelişki puanı düşürmez.
+    if (followAnswer.trim() && (fold(followAnswer).includes(fold(correct)) || speechNear(followAnswer, correct))) continue;
     const inFirst = quoted(firstAnswer, wrong);
     const inFollow = Boolean(followAnswer.trim()) && quoted(followAnswer, wrong);
     if (!inFirst && !inFollow) continue;
