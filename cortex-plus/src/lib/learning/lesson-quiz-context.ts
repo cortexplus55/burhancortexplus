@@ -20,7 +20,7 @@ export type LessonQuizContext = {
   terms: string[];
   text: string;
   key: string;
-  /** Dersin hazırlanamayan kavramları (`missingConcepts`): konu testi bunları sormaz (25 Ekim 2026). */
+  /** Eski kayıtlardaki `missingConcepts` artık soru elemez (26 Ekim 2026). Alan okunmaz. */
   missing?: string[];
 };
 
@@ -116,10 +116,9 @@ export function withoutMissingPoints(points: readonly string[], missing: readonl
   );
 }
 
-/** Kayıtlı dersin `missingConcepts` alanı (kayıt biçimine eklenir; okuyucular bilmez). */
-export function storedMissingConcepts(raw: unknown): string[] {
-  const list = (raw as { missingConcepts?: unknown } | null)?.missingConcepts;
-  return Array.isArray(list) ? list.map(clean).filter(Boolean).slice(0, 8) : [];
+/** Eski `missingConcepts` alanı konu testini daraltmaz. Liste her zaman boştur. */
+export function storedMissingConcepts(_raw: unknown): string[] {
+  return [];
 }
 
 /** Kapsam sayımında kanıt sayılmayan genel kelimeler (5 harflik kök). */

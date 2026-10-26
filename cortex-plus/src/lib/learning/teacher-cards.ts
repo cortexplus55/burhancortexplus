@@ -153,8 +153,8 @@ export function cardStructureIssues(card: TeacherCard): string[] {
   const issues: string[] = [];
   const front = card.front.toLocaleLowerCase("tr");
   const back = card.back.toLocaleLowerCase("tr").replace(/[.!]+$/, "");
-  if (/^aşağıdakilerden hangisi\b/i.test(card.front.trim())) {
-    issues.push("Kartta şıksız çoktan seçmeli kök ('Aşağıdakilerden hangisi') olmaz.");
+  if (/^(?:aşağıdakilerden hangisi|hangi sıralama doğrudur)\b/i.test(card.front.trim())) {
+    issues.push("Kartta şıksız çoktan seçmeli kök olmaz.");
   }
   if (front === back) issues.push("Ön ve arka yüz aynı.");
   else if (back.length > 3 && back.split(/\s+/).length <= 4 && front.includes(back)) issues.push("Ön yüz cevabı içeriyor.");

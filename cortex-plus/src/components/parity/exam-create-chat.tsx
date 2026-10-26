@@ -252,7 +252,7 @@ export function ExamCreateChat({
         return;
       }
       if (!res.ok) {
-        toast.error(payload.error ?? "Plan bu sefer tamamlanamadı; yeniden dene.");
+        toast.error(payload.error ?? "Plan bu sefer gelmedi. Yeniden dene.");
         return;
       }
       if (payload.schedule?.summary) {

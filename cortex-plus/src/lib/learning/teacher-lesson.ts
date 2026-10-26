@@ -262,14 +262,13 @@ export const EMPHASIS_RULE =
 /** Öğretmen istemi — Astra'nın aynı belgeyle gözlenen ders akışı. */
 export const TEACHER_SYSTEM =
   INTRO_DOCUMENT +
-  "KAYNAK KURALI (kesin): Her olgu, tanım, sayı, tarih, madde numarası, kural, sınıflandırma ve olay örneği yalnızca " +
-  "KAYNAK metninden gelir. Kaynakta yoksa yazma; tahmin etme, genel kültürden ekleme — tek istisna aşağıdaki " +
-  "'Genel bilgi' kutusu. " +
-  "SINAV MÜFREDATI TAMAMLAMASI (GENEL BİLGİ KUTUSU): Kaynak bir formülü, ara adımı, neden-sonuç ilişkisini ya da klasik soru tipini " +
-  "vermeden geçiyorsa, o konudan sınavda gereken tartışmasız bilgiyi yalnız bir 'note' bloğunda tamamla: tone 'general', " +
-  "başlık 'Sınav Müfredatı Tamamlaması: …' (eski 'Genel bilgi:' başlığı da kabul). Kavram başına en çok bir, ders başına " +
-  "en çok dört kutu; her kutu bir iki cümle. Emin olmadığın sayı, eşik ya da güncel bilgiyi yazma. Kaynakta zaten olan " +
-  "bilgiyi bu kutuya koyma. Kontrol sorusu kutunun görülmeyen şekline güvenemez: veri soru kökünde yazılır. " +
+  "KAYNAK KURALI: Belgede geçen olgu, sayı, tarih, madde ve kural aynen kalır; belgeyle çelişme. " +
+  "SINAV MÜFREDATI TAMAMLAMASI: Belge bir formülü, ara adımı, neden-sonuç ilişkisini ya da klasik soru tipini vermeden geçiyorsa, " +
+  "o konudan sınavda gereken standart müfredat bilgisini yaz. Belge dışı her bilgi 'note' bloğunda durur: tone 'general', " +
+  "başlık 'Sınav Müfredatı Tamamlaması: …' (eski 'Genel bilgi:' başlığı da kabul). Kutu kısa bir hatırlatma değildir: " +
+  "tanım, kural ya da formül ve klasik çözümlü örnek o kavramın ekranlarında da anlatılır; kutu onları etiketler. " +
+  "Kutu sayısı ve cümle sayısı sınırlı değildir. Emin olunmayan güncel eşik, yönetmelik ya da tartışmalı sayı yazılmaz. " +
+  "Kaynakta zaten olan bilgi bu kutuya konmaz. Kontrol sorusu kutunun görülmeyen şekline güvenemez: veri soru kökünde yazılır. " +
   `${WHY_NOTE_RULE} ` +
   "Kavramı ayırt ettirmek için kısa bir örnek vaka ya da benzetme kullanabilirsin, ama o vaka yeni bir " +
   "bilgi (sayı, kural, yasa, tarih, sonuç) taşımaz ve kaynaktaki tanımla çelişmez. " +
@@ -285,7 +284,8 @@ export const TEACHER_SYSTEM =
   "şeması, tablo ilişkisi matrix), (3) çözümlü klasik sınav örneği, (4) öğrencinin çözeceği kontrol sorusu. " +
   "Önce kavramın ne olduğunu, sonra neyle karıştırıldığını, sonra sınavda nasıl tanınacağını söyle. Zıtlıkla anlat (X böyledir, Y ise şöyle). " +
   "SAYILAR: Kaynak bir sayı, eşik, aralık, oran ya da birim veriyorsa onu aynen yaz ('2 SD'nin altı', '%3', '13 cm'); " +
-  "'yüksek', 'düşük', 'belirli bir değer' diye geçiştirme. Kaynakta olmayan sayıyı ekleme.\n\n" +
+  "'yüksek', 'düşük', 'belirli bir değer' diye geçiştirme. Belgede olmayan standart müfredat sayısı yalnız " +
+  "'Sınav Müfredatı Tamamlaması' kutusunda ve o kutunun çözümlü örneğinde yazılır.\n\n" +
   `${TEACHING_RUBRIC}\n\n` +
   "BLOKLAR: Her ekran sıralı bloklardan oluşur ve ekranda yukarıdan aşağı bu sırayla görünür; anlatım sırasıyla diz " +
   "(formül, onu açıklayan metnin hemen ardından gelebilir). KAYNAK'ta konuna ait bir tablo varsa ('| … |' satırları) " +
@@ -1216,6 +1216,22 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
   return issues;
 }
 
+const RULE_BLOCK = new Set(["formula", "diagram", "table", "procedure", "cards"]);
+
+/** Her kavram: tanım, kural/şema, çözümlü örnek, kontrol sorusu. Eksikler yayın öncesi tek tamamlama çağrısına gider. */
+export function fourPartGaps(lesson: LessonV3): string[] {
+  const gaps: string[] = [];
+  for (const group of conceptGroups(lesson.screens)) {
+    const blocks = group.screens.flatMap((index) => lesson.screens[index]?.blocks ?? []);
+    const name = group.concept || "Kavram";
+    if (!blocks.some((block) => block.type === "text")) gaps.push(`${name}: net tanım (text bloğu)`);
+    if (!blocks.some((block) => RULE_BLOCK.has(block.type))) gaps.push(`${name}: kural, formül ya da şema`);
+    if (!blocks.some((block) => block.type === "example")) gaps.push(`${name}: çözümlü sınav örneği (example bloğu)`);
+    if (!blocks.some((block) => block.type === "check")) gaps.push(`${name}: kontrol sorusu (check bloğu)`);
+  }
+  return gaps;
+}
+
 /**
  * Kaynağın tablosu derste paragrafa dökülmüş mü (16 Ekim 2026 Pediatri solunum dersi:
  * 5 satırlık "Bulgular | Düşündürür | Ayırıcı ipucu" tablosu paragrafa döküldü, "ince
@@ -1591,7 +1607,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   const general = screens.flatMap((screen) =>
     screen.blocks.filter((block) => block.type === "note" && block.note.tone === "general" && !isWhyNote(block)),
   );
-  if (general.length > 4) add("screens", "En fazla dört 'Sınav Müfredatı Tamamlaması' kutusu; kavram başına bir.");
+  if (general.length > 12) add("screens", "Sınav Müfredatı Tamamlaması kutuları kavram başına birden fazla olmasın; aynı kavramın kutularını birleştir.");
   // "Neden böyle?" derste en az bir (23 Ekim 2026, ürün sahibinin kararı): yalnız istemle dokuz derste bir kez yazıldı.
   // Öğretim önemi: kapanışta bir öğretim turu açar, kavram düşürmez. Belgesiz derste kaynak kuralı yok, kutu da yok.
   if ((input.pages?.length ?? 0) > 0 && !screens.some((screen) => screen.blocks.some(isWhyNote))) {

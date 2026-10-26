@@ -452,7 +452,46 @@ export async function assembleMockExamQuestions(input: {
     modelIndexes: filled.modelIndexes,
     forced: filled.forced,
   };
-  if (!filled.ok) return { ok: false, questions: bag.slice(), ...meta };
+  if (!filled.ok) {
+    const have = new Map<string, number>();
+    for (const item of bag) have.set(item.topicLabel, (have.get(item.topicLabel) ?? 0) + 1);
+    const missingTotal = Math.max(0, planned - bag.length);
+    const targets = topUpTargets(allocation, have, missingTotal);
+    if (targets.length) {
+      const extra = (
+        await Promise.all(
+          targets.map((target) =>
+            generateForTopic({
+              service: input.service,
+              userId: input.userId,
+              isPremium: input.isPremium,
+              prepTitle: input.prepTitle,
+              documentId: input.documentId,
+              topic: { topicId: target.row.topicId, topicLabel: target.row.topicLabel, count: target.missing },
+              slots: Array.from({ length: target.missing }, () => ({ type: "mcq" as const, points: 4 })),
+              allTopics: input.topics,
+              chargeKey: input.chargeKey,
+              reservationId: input.reservationId,
+              modelIndex: 0,
+              avoid: bag.map((item) => item.text),
+            }),
+          ),
+        )
+      ).flat();
+      bag.push(...extra);
+    }
+    const recovered = publishReady(slots, bag, readDraft);
+    if (recovered.ok) {
+      return {
+        ok: true,
+        questions: recovered.items,
+        ...meta,
+        slots: recovered.slots,
+        forced: true,
+      };
+    }
+    return { ok: false, questions: bag.slice(), ...meta };
+  }
   let questions = filled.items.map((question, index) => ({
     ...question,
     points: filled.slots[index]?.points ?? question.points,

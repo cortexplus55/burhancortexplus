@@ -40,7 +40,7 @@ export function FounderCreditsView({
         </span>
         <div>
           <h2 id="founder-card-title" className="cp-founder-card__title">
-            Kurucu hesabı
+            Kredi sınırı yok
           </h2>
           <p className="cp-founder-card__body">{FOUNDER_CARD_BODY}</p>
         </div>

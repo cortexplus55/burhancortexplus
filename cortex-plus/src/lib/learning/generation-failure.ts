@@ -107,16 +107,27 @@ export function describeGenerationFailure(
         (code === "generation_failed" || code === "content_verification_failed")));
   const refundNote = showRefund ? " Kredin iade edildi." : "";
   switch (code) {
-    case "generation_in_progress":
+    case "generation_in_progress": {
+      const preparing =
+        podcast || kind === "podcast"
+          ? "Podcast"
+          : kind === "quiz" || kind === "true_false" || kind === "final_check" || kind === "focused" || kind === "gaps"
+            ? "Test"
+            : kind === "flashcards" || kind === "cards" || kind === "spaced"
+              ? "Kartlar"
+              : kind === "oral"
+                ? "Sözlü"
+                : kind === "video"
+                  ? "Video"
+                  : kind === "written_exam"
+                    ? "Deneme"
+                    : "Ders";
       return {
-        message: podcast
-          ? "Podcast hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak."
-          : kind === "quiz" || kind === "true_false" || kind === "final_check"
-            ? "Test hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak."
-            : "Dersin hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak.",
+        message: `${preparing} hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak.`,
         retryMintsNewId: false,
         canRetryNow: false,
       };
+    }
 
     case "source_unavailable": {
       const detail = sourceUnavailableMessage(options.reason);

@@ -14,6 +14,7 @@ import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
   dropRepeatedChecks,
   isCoverageIssue,
+  fourPartGaps,
   lessonLevelStructureIssues,
   parseTeacherLesson,
   parseTeacherScreen,
@@ -32,14 +33,11 @@ import {
   17 Ekim canlı ölçümü: taslak 43 sn + denetim 22 sn + iki düzeltme turu (her biri dersin
   TAMAMINI baştan yazıyordu) 35+22, 35+30 sn → ~4 dk ve tek bir eşik itirazıyla ders atıldı.
 
-  Yeni yol:
-  - Yazar dersi akışla yazar (düşük düşünme: aynı derste denetçi daha fazla sorun bulmadı,
-    ilk ekran 6-14 sn'de bitiyor). Her kavramın ekranları biter bitmez denetime gider.
-  - Düzeltme yalnız sorunlu kavramı yeniden yazar; yazar haksız bulduğu itiraza gerekçe
-    yazar, denetçi bir sonraki turda o gerekçeyi tartar.
-  - Kavramlar sırayla yayımlanır (`onPublish`); öğrenci denetlenmemiş ekran görmez.
-    Düzeltilemeyen kavram BAŞTAN yazılır ve yeniden denetlenir (18 Ekim 2026; 25 Ekim 2026'dan beri en çok
-    üç kez); yalnız süre dolarsa atılır ve öğrenciye söylenir (`missingConcepts`), konu testi o bölümü sormaz.
+  Yeni yol (26 Ekim 2026, tek geçiş):
+  - Yazar dersi bir kez, akışla yazar. Denetçi, düzeltme ve dersi baştan yazma turu yok.
+  - Ayrışan her kavram yayımlanır. Kavram atılmaz, öğrenciye eksik bölüm cümlesi yazılmaz.
+  - JSON ekran ekran akmazsa aynı metin bir kez daha ayrıştırılır.
+  - Dört parçadan biri eksikse bir tamamlama çağrısı yapılır; tutmazsa ilk taslak kalır.
   - Öğrenci beklerken hızlı işlem (ürün sahibinin kararı: önce yalnız Plus, aynı gün herkese).
   Kod ders metnine hiçbir şey eklemez.
 */
@@ -80,11 +78,8 @@ export type PublishedLesson = {
 };
 
 export type LessonIo = {
-  /** Yazar: akışla. Her parça `onDelta`'ya; dönen bütün metin ve bitiş nedeni. */
+  /** Yazar: akışla, tek çağrı. Her parça `onDelta`'ya; dönen bütün metin ve bitiş nedeni. */
   write: (system: string, user: string, onDelta: (delta: string) => void) => Promise<{ text: string; finish: string | null }>;
-  /** Denetçi ve düzeltme: tek seferlik JSON. */
-  /** `fix`: ilk kavram (öğrenci bekliyor), düşük düşünme. `fix-careful`: sonraki kavramlar, varsayılan düşünme. */
-  ask: (system: string, user: string, role: "verify" | "fix" | "fix-careful") => Promise<unknown | null>;
 };
 
 type Header = { title: string; overview?: string; objective?: string };
@@ -179,7 +174,7 @@ export async function teacherLessonPipeline(
   const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null };
   const sinceStart = () => Date.now() - started;
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  {
     const reader = new LessonStreamReader();
     const parts: Part[] = [];
     const outcomes: Promise<PartOutcome>[] = [];
@@ -203,9 +198,8 @@ export async function teacherLessonPipeline(
 
     const reviewPart = async (index: number, _options: { early?: boolean } = {}): Promise<PartOutcome> => {
       const part = parts[index]!;
-      // Tek geçiş (26 Ekim 2026): ayrışan ekran yayımlanır. Denetçi, düzeltme ve kavramı baştan yazma turu yok.
+      // Tek geçiş: ayrışan ekran yayımlanır. Boş kavram da atılmaz; ekranı varsa öğrenciye gider.
       const screens = [...part.screens];
-      if (!screens.length) return { ok: false, high: [], triggers: [] };
       const close = part.last ? await closingReady : null;
       return {
         ok: true,
@@ -298,14 +292,7 @@ export async function teacherLessonPipeline(
           if (heartbeat) clearInterval(heartbeat);
         });
         fixTriggers.push(...outcome.triggers);
-        if (!outcome.ok) {
-          // 19 Ekim 2026 (ürün sahibi: "oluşturulamadı olmasın"): ilk kavram da düşerse ders yine
-          // yazılır — kavram atılır, bitişte adıyla söylenir. Yalnız hiçbir kavram geçmezse ders yok;
-          // o zaman `failure` ilk kavramın itirazlarını taşır (kayıt için).
-          if (!publishedHeader && !failure.length) failure = outcome.high;
-          dropped.push(parts[index]!.concept);
-          continue;
-        }
+        if (!outcome.ok || !outcome.screens.length) continue;
         lowIssues.push(...outcome.low);
         if (!publishedHeader) {
           publishedHeader = { ...((await headerReady) ?? { title: input.topicLabel }), ...outcome.header };
@@ -335,9 +322,9 @@ export async function teacherLessonPipeline(
       header = headerOf(whole) ?? headerOf(reader.header);
       headerResolve(header);
     }
-    // Akışta yakalanamayan ekranlar (ayrıştırılamayan parça) bütün metinden tamamlanır.
+    // Akışta kaçan ekranlar aynı metinden alınır. İkinci model çağrısı yok.
     const streamed = parts.reduce((sum, item) => sum + item.screens.length, 0);
-    if (whole && whole.screens.length > streamed && reader.broken) {
+    if (whole && whole.screens.length > streamed) {
       for (const screen of whole.screens.slice(streamed)) addScreen(screen);
     }
     closing = whole ? { commonMistake: whole.commonMistake, summary: whole.summary, nextFocus: whole.nextFocus } : null;
@@ -356,24 +343,13 @@ export async function teacherLessonPipeline(
       ]
         .filter(Boolean)
         .join(" · ");
-      console.error("teacher_lesson_draft_unreadable", { attempt, note: draftNote });
+      console.error("teacher_lesson_draft_unreadable", { note: draftNote });
       await publishing.catch(() => false);
-      // Hiçbir şey yayımlanmadı: bir kez baştan yazdır.
-      continue;
+      return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing, teachingScores, done: false };
     }
 
     const ok = await publishing;
     if (!ok || !published.length || !publishedHeader) {
-      // Hiçbir kavram denetimden geçmedi: öğrenciye söylemeden önce ders bir kez baştan yazılır.
-      if (attempt === 0) {
-        console.warn("teacher_lesson_rewrite_all", {
-          topic: input.topicLabel.slice(0, 80),
-          dropped: dropped.slice(0, 6),
-          failure: failure.slice(0, 2).map((issue) => issue.problem.slice(0, 120)),
-        });
-        dropped.length = 0;
-        continue;
-      }
       return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure, timing, teachingScores, done: false };
     }
     const finished: LessonV3 = {
@@ -382,9 +358,22 @@ export async function teacherLessonPipeline(
       screens: published,
       ...((publishedClosing as Closing | null) ?? {}),
     };
-    const done = !lessonLevelStructureIssues(finished, input).some(isCoverageIssue);
+    const gaps = fourPartGaps(finished);
+    let delivered = finished;
+    if (gaps.length) {
+      const again = await io.write(
+        teacherSystem(mode),
+        `${teacherUserPrompt(input)}\n\nEKSİK PARÇALAR: aynı dersi JSON olarak döndür. Mevcut ekranları silme. Yalnız şunları ekle:\n${gaps.join("\n")}`,
+        () => undefined,
+      );
+      const repaired = parseTeacherLesson(parseModelJson(again.text), input.upcomingTopics);
+      if (repaired && repaired.screens.length >= finished.screens.length && fourPartGaps(repaired).length < gaps.length) {
+        delivered = repaired;
+      }
+    }
+    const done = !lessonLevelStructureIssues(delivered, input).some(isCoverageIssue);
     return {
-      lesson: stripLessonIssueTags(finished),
+      lesson: stripLessonIssueTags(delivered),
       issues: lowIssues,
       fixTriggers,
       dropped,
@@ -395,25 +384,23 @@ export async function teacherLessonPipeline(
       done,
     };
   }
-  return { lesson: null, issues: [], fixTriggers, dropped, draftNote, failure: [], timing, teachingScores, done: false };
 }
 
 /**
- * OpenAI çağrıları: yazar akışla ve düşük düşünmeyle (17 Ekim ölçümü: ilk ekran 6-14 sn, denetçi
- * daha fazla sorun bulmadı), denetçi varsayılan düşünmeyle, düzeltme düşük düşünmeyle. Öğrenci
- * beklerken hızlı işlem. Yerel ölçüm betiği de bunu kullanır: canlıyla aynı ayar.
+ * OpenAI çağrısı: yazar akışla ve düşük düşünmeyle, tek sefer. Öğrenci beklerken hızlı işlem.
+ * Yerel ölçüm betiği de bunu kullanır: canlıyla aynı ayar.
  */
 export function createLessonIo(
   openai: OpenAI,
   model: string,
   options: {
     fast?: boolean;
-    /** Öğrenci profili (`student-pedagogy.ts`): yazar, denetçi ve düzeltme isteminin sonuna aynı metin. */
+    /** Öğrenci profili (`student-pedagogy.ts`): yazar isteminin sonuna eklenir. */
     profile?: string;
     onCall?: () => void;
     onUsage: (usage: OpenAI.CompletionUsage | null | undefined, servedTier: string | null | undefined) => Promise<void> | void;
-    /** Her çağrının süresi (yazarda ilk jetona kadar geçen süre de), kayıt için. */
-    onTiming?: (event: { role: "write" | "verify" | "fix" | "fix-careful"; ms: number; firstTokenMs?: number }) => void;
+    /** Yazım süresi ve ilk jetona kadar geçen süre, kayıt için. */
+    onTiming?: (event: { role: "write"; ms: number; firstTokenMs?: number }) => void;
   },
 ): LessonIo {
   const tier = options.fast ? ({ service_tier: "fast" } as const) : {};
@@ -459,24 +446,6 @@ export function createLessonIo(
       await options.onUsage(usage, served);
       options.onTiming?.({ role: "write", ms: Date.now() - callStarted, firstTokenMs });
       return { text, finish };
-    },
-    ask: async (system, user, role) => {
-      options.onCall?.();
-      const callStarted = Date.now();
-      const response = await openai.chat.completions.create({
-        model,
-        response_format: { type: "json_object" },
-        // Denetçi ölçer: varsayılan düşünme. Düzeltme yazar işi: düşük.
-        ...(role === "fix" ? { reasoning_effort: "low" as const } : {}),
-        ...tier,
-        messages: [
-          { role: "system", content: withStudentProfile(system, options.profile ?? "") },
-          { role: "user", content: user },
-        ],
-      });
-      await options.onUsage(response.usage, response.service_tier);
-      options.onTiming?.({ role, ms: Date.now() - callStarted });
-      return parseModelJson(response.choices[0]?.message?.content ?? "");
     },
   };
 }

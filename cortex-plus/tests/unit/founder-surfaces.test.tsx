@@ -100,7 +100,7 @@ describe("kurucu çipi", () => {
     const { container } = render(<FounderChip />);
     const link = container.querySelector("a")!;
     expect(link.getAttribute("href")).toBe("/krediler");
-    expect(link.getAttribute("aria-label")).toBe("Kurucu hesabı, kredi sınırı yok");
+    expect(link.getAttribute("aria-label")).toBe("Kredi sınırı yok");
     expect(link.getAttribute("data-tip")).toBe("Bu hesapta hiçbir işlem kredi düşürmez.");
     expect(link.querySelector(".cp-founder-chip__full")?.textContent).toBe("Kurucu · Sınırsız");
     expect(link.querySelector(".cp-founder-chip__short")?.textContent).toBe("Sınırsız");
@@ -121,7 +121,7 @@ describe("sözlü kurulum notu", () => {
 
   it("kurucuda kredinin düşmediğini söyler", () => {
     const { container } = inShell(founder, customize());
-    expect(container.textContent).toContain("Kurucu hesabı: bu oturum hakkından düşmez.");
+    expect(container.textContent).toContain("Bu oturum kredi sınırından düşmez.");
     expect(container.textContent).not.toContain("çalışma hakkını kullanır");
   });
 
@@ -172,7 +172,7 @@ describe("kredi sayfası — kurucu görünümü", () => {
       <FounderCreditsView failed={false} summary={{ nominalTotal: 46, count: 23, topAction: "Quiz" }} recent={rows} />,
     );
     const text = container.textContent ?? "";
-    expect(text).toContain("Kurucu hesabı");
+    expect(text).toContain("Kredi sınırı yok");
     expect(text).toContain("46 kredi");
     expect(text).toContain("23");
     expect(container.querySelectorAll("tbody tr")).toHaveLength(2);

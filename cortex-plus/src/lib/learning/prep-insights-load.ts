@@ -4,7 +4,7 @@ import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { normalizeTopicKey } from "@/lib/learning/learning-tracking";
-import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
+import { attemptStems, buildPrepProgressView } from "@/lib/learning/prep-progress-view";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -82,7 +82,7 @@ async function loadInsights(
       .order("sort_order"),
     supabase
       .from("exam_prep_node_attempts")
-      .select("node_id, score, total, created_at")
+      .select("node_id, score, total, created_at, payload")
       .eq("exam_prep_id", prep.id)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
@@ -130,6 +130,7 @@ async function loadInsights(
       score: typeof row.score === "number" ? row.score : null,
       total: typeof row.total === "number" ? row.total : null,
       createdAt: row.created_at as string,
+      stems: attemptStems(row.payload),
     })),
     topicLabels,
     gaps: [],

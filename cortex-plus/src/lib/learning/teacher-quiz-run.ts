@@ -451,6 +451,7 @@ async function runTeacherQuizInner(
     let passes = 1;
     let softKept = loop.softKept;
     const salvaged = [...loop.salvaged];
+    const rejected = [...loop.rejected];
     const secondPassDeadline = input.urgent ? repairBudget(true).secondPassDeadlineMs : SECOND_PASS_DEADLINE_MS;
     // Söz verilen sayı dolana kadar yeni taslak eklenir. Kısa liste yayımlanmaz.
     while (questions.length < input.count && passes < 2 && Date.now() - started < secondPassDeadline) {
@@ -479,7 +480,23 @@ async function runTeacherQuizInner(
       questions = withOneMultiLast([...questions, ...fresh], input.count);
       softKept += again.softKept;
       salvaged.push(...again.salvaged);
+      rejected.push(...again.rejected);
       for (const [code, n] of Object.entries(again.codes)) loop.codes[code] = (loop.codes[code] ?? 0) + n;
+    }
+    if (questions.length < input.count) {
+      const playable = rejected
+        .map((item) => item.question)
+        .filter(
+          (question) =>
+            question.text.trim().length > 0 &&
+            question.options.length >= 2 &&
+            question.correct.some((answer) => question.options.includes(answer)),
+        );
+      const spare = dropNearDuplicates(playable, (question) => question.text, [
+        ...previousStems,
+        ...questions.map((question) => question.text),
+      ]);
+      questions = withOneMultiLast([...questions, ...spare], input.count);
     }
     console.info("teacher_quiz", {
       topic: input.topicLabel.slice(0, 80),
@@ -513,7 +530,7 @@ async function runTeacherQuizInner(
         ok: false,
         status: 503,
         error: "generation_failed",
-        reasons: loop.rejected.slice(0, 4).map((item) => item.problems[0]?.slice(0, 200) ?? "sorun"),
+        reasons: rejected.slice(0, 4).map((item) => item.problems[0]?.slice(0, 200) ?? "sorun"),
       };
     }
     const kept = softKept ? { softKept, salvaged: salvaged.slice(0, 6) } : {};

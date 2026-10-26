@@ -69,7 +69,7 @@ export function MockExamSetup({
   const [answerMode, setAnswerMode] = useState<"app" | "paper" | null>(null);
 
   const creditNote = isAdmin
-    ? "Kurucu hesabı: bu deneme hakkından düşmez."
+    ? "Bu deneme kredi sınırından düşmez."
     : "Değerlendirme dahildir.";
 
   const preview = useMemo(() => {

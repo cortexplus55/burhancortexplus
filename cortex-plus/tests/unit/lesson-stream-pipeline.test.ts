@@ -132,10 +132,8 @@ function chunks(text: string, seed = 7): string[] {
   return out;
 }
 
-type Call = { role: "verify" | "fix" | "fix-careful"; user: string };
-
 async function run(options: {
-  verify: (user: string, round: number) => unknown;
+  verify?: (user: string, round: number) => unknown;
   fix?: (user: string) => unknown;
   drafts?: string[];
   started?: number;
@@ -144,23 +142,15 @@ async function run(options: {
 }) {
   const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
   const drafts = options.drafts ?? [JSON.stringify(lesson)];
-  const calls: Call[] = [];
+  const writes: string[] = [];
   const published: { screens: number; done: boolean; upcoming: string[] }[] = [];
-  const verifyRounds = new Map<string, number>();
   const result = await teacherLessonPipeline(
     {
-      write: async (_system, _user, onDelta) => {
+      write: async (_system, user, onDelta) => {
+        writes.push(user);
         const text = drafts.shift() ?? "";
         for (const piece of chunks(text)) onDelta(piece);
         return { text, finish: "stop" };
-      },
-      ask: async (_system, user, role) => {
-        calls.push({ role, user });
-        if (role !== "verify") return options.fix?.(user) ?? null;
-        const key = /DENETLENECEK: yalnız (screens\[\d+\])/.exec(user)?.[1] ?? "?";
-        const round = verifyRounds.get(key) ?? 0;
-        verifyRounds.set(key, round + 1);
-        return options.verify(user, round);
       },
     },
     {
@@ -173,7 +163,7 @@ async function run(options: {
       onPublish: (item) => void published.push({ screens: item.lesson.screens.length, done: item.done, upcoming: item.upcoming }),
     },
   );
-  return { result, calls, published };
+  return { result, calls: [] as { role: string; user: string }[], published, writes };
 }
 
 describe("akış okuyucu", () => {
@@ -211,7 +201,7 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(result.lesson?.screens.map((screen) => screen.heading)).toEqual(["Maddi Yaptırım", "Yokluk", "Mutlak Butlan"]);
     expect(result.lesson?.summary).toEqual(lesson.summary);
     expect(result.dropped).toEqual([]);
-    expect(calls.filter((call) => call.role === "verify" || call.role === "fix" || call.role === "fix-careful")).toHaveLength(0);
+    expect(calls).toHaveLength(0);
     expect(published[0]).toMatchObject({ screens: 1, done: false });
     expect(published.map((item) => item.screens)).toEqual([1, 2]);
     const { firstScreenMs, firstPartMs, firstPublishMs, writeMs } = result.timing;
@@ -220,9 +210,10 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(firstPartMs!).toBeLessThanOrEqual(firstPublishMs!);
   });
 
-  it("taslak okunamazsa nedeni kaydedilir ve bir kez baştan yazılır", async () => {
-    const { result } = await run({ verify: () => ({ issues: [] }), drafts: ['{"error": "konu çok geniş"}', JSON.stringify(lesson)] });
-    expect(result.lesson?.screens).toHaveLength(3);
+  it("taslak okunamazsa nedeni kaydedilir ve ikinci kez yazılmaz", async () => {
+    const { result, writes } = await run({ drafts: ['{"error": "konu çok geniş"}', JSON.stringify(lesson)] });
+    expect(result.lesson).toBeNull();
+    expect(writes).toHaveLength(1);
     expect(result.draftNote).toContain("0 ekran okundu");
     expect(result.draftNote).toContain("konu çok geniş");
   });
@@ -233,7 +224,7 @@ describe("motor ayarları", () => {
   it("yazar akışla ve düşük düşünmeyle; denetçi varsayılan düşünmeyle; öğrenci beklerken hızlı işlem", () => {
     expect(run).toContain("stream: true");
     expect(run).toMatch(/reasoning_effort: "low",\s*\.\.\.tier/);
-    expect(run).toContain('...(role === "fix" ? { reasoning_effort: "low" as const } : {})');
+    expect(run).not.toContain('role === "fix"');
     expect(run).toContain('const tier = options.fast ? ({ service_tier: "fast" } as const) : {};');
     expect(run).toContain('const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));');
     // Öğrenci beklerken hızlı işlem; ısınma 23 Ekim 2026'dan beri normal işlemde.

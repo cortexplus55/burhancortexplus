@@ -10,7 +10,7 @@ export const FOUNDER_CREDIT_SHORT = "Sınırsız";
 export const FOUNDER_CREDIT_TIP = "Bu hesapta hiçbir işlem kredi düşürmez.";
 
 /** Ekran okuyucu etiketi. */
-export const FOUNDER_CREDIT_ARIA = "Kurucu hesabı, kredi sınırı yok";
+export const FOUNDER_CREDIT_ARIA = "Kredi sınırı yok";
 
 /**
  * Üst çubuk metni.

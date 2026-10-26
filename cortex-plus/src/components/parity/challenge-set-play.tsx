@@ -25,7 +25,7 @@ export function ChallengeSetPlay({ prepId }: { prepId: string }) {
         () => ({ prepId }),
       );
       if (!res.ok) {
-        setError(payload.error ?? "Zor sorular bu sefer tamamlanamadı; birkaç saniye sonra yeniden dene.");
+        setError(payload.error ?? "Zor sorular bu sefer gelmedi. Birkaç saniye sonra yeniden dene.");
         return;
       }
       const next = Array.isArray(payload.questions) ? (payload.questions as PublicQuizQuestion[]) : [];

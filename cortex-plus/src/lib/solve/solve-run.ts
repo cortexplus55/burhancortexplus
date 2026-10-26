@@ -178,7 +178,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
         if (!solution) solution = parseSolution(await ask(solverSystem, solverUserText(), { effort: "low" }));
         if (!solution) {
           await settle(false);
-          emit({ type: "error", code: "generation_failed", message: "Çözüm bu sefer tamamlanamadı; hakkın düşmedi. Yeniden dene.", status: 502 });
+          emit({ type: "error", code: "generation_failed", message: "Çözüm bu sefer gelmedi. Hakkın düşmedi. Yeniden dene.", status: 502 });
           return;
         }
         if (!solution.readable) {
@@ -241,7 +241,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
   } catch (error) {
     console.warn("solve_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown", image });
     await settle(false);
-    emit({ type: "error", code: "generation_failed", message: "Çözüm bu sefer tamamlanamadı; hakkın düşmedi. Yeniden dene.", status: 502 });
+    emit({ type: "error", code: "generation_failed", message: "Çözüm bu sefer gelmedi. Hakkın düşmedi. Yeniden dene.", status: 502 });
   } finally {
     if (!settled && reservationId) await settle(false);
     emit({ type: "done", ms: elapsed() });

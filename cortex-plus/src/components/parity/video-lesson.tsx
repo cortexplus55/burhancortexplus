@@ -59,7 +59,7 @@ export function VideoLessonSetup({
       if (!res.ok || !body.videoId) throw new Error();
       router.replace(`/deneme-sinavlari/${prepId}/video?v=${body.videoId}`);
     } catch {
-      toast.error("Video bu sefer tamamlanamadı; iki kez denedik. Hakkın iade edildi, birkaç saniye sonra yeniden dene.");
+      toast.error("Video bu sefer gelmedi. İki kez denedik. Hakkın iade edildi, birkaç saniye sonra yeniden dene.");
       setStep("topic");
     }
   }

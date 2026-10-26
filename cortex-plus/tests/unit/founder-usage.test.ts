@@ -76,9 +76,9 @@ describe("yeni arayüz metinleri doğal Türkçe", () => {
     FOUNDER_ERROR,
     FOUNDER_CREDIT_TIP,
     ADMIN_RATE_MESSAGE,
-    "Kurucu hesabı: bu oturum kredinden düşmez.",
-    "Kurucu hesabı: işlemler kredinden düşmez.",
-    "Kurucu hesabı. Kredi sınırı yok.",
+    "Bu oturum kredi sınırından düşmez.",
+    "İşlemler kredi sınırından düşmez.",
+    "Kredi sınırı yok.",
     "Bakiye sıfırın altına inemez.",
   ];
   const labels = [
@@ -86,7 +86,7 @@ describe("yeni arayüz metinleri doğal Türkçe", () => {
     FOUNDER_CREDIT_SHORT,
     FOUNDER_CREDIT_ARIA,
     "Krediler",
-    "Kurucu hesabı",
+    "Kredi sınırı yok",
     "Bu ay nominal kullanım",
     "Bu ay işlem sayısı",
     "En çok kullanılan",

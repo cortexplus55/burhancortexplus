@@ -16,10 +16,12 @@ export type OutlineTopicPerspective = {
   likelyAsked: string[];
   whyLearn: string | null;
   prerequisiteTitles: string[];
+  origin: "document" | "curriculum";
 };
 
 const WEIGHT_PREFIX = "exam_weight:";
 const COURSE_PREFIX = "course:";
+const ORIGIN_PREFIX = "origin:";
 
 /** Unit nodes of one course outline share this tag across its documents. */
 export function packCourseRelation(courseId: string): string {
@@ -65,6 +67,7 @@ export function packTopicPerspective(input: {
   likelyAsked?: string[] | null;
   whyLearn?: string | null;
   prerequisiteTitles?: string[] | null;
+  origin?: "document" | "curriculum" | null;
 }): {
   learning_objective: string | null;
   prerequisites: string[];
@@ -80,11 +83,12 @@ export function packTopicPerspective(input: {
     ...new Set((input.prerequisiteTitles ?? []).map((s) => s.trim()).filter(Boolean)),
   ].slice(0, 8);
   const weight = normalizeExamWeight(input.examWeight ?? "medium");
+  const origin = input.origin === "curriculum" ? "curriculum" : "document";
   return {
     learning_objective: why,
     prerequisites: prereqs,
     key_definitions: likely,
-    key_relations: [packExamWeightRelation(weight)],
+    key_relations: [packExamWeightRelation(weight), `${ORIGIN_PREFIX}${origin}`],
   };
 }
 
@@ -108,7 +112,18 @@ export function unpackTopicPerspective(row: {
       .slice(0, 4),
     whyLearn: (row.learning_objective ?? "").trim() || null,
     prerequisiteTitles: prereqs.map((s) => s.trim()).filter(Boolean).slice(0, 8),
+    origin: readOriginFromRelations(row.key_relations),
   };
+}
+
+export function readOriginFromRelations(relations: unknown): "document" | "curriculum" {
+  if (!Array.isArray(relations)) return "document";
+  for (const item of relations) {
+    if (typeof item === "string" && item.startsWith(ORIGIN_PREFIX) && item.slice(ORIGIN_PREFIX.length) === "curriculum") {
+      return "curriculum";
+    }
+  }
+  return "document";
 }
 
 export function examWeightToEmphasis(

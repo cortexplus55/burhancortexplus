@@ -42,7 +42,7 @@ import {
   formatContradictions,
   type TopicContradiction,
 } from "@/lib/learning/source-contradictions";
-import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
+import { attemptStems, buildPrepProgressView } from "@/lib/learning/prep-progress-view";
 import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
@@ -350,7 +350,7 @@ export default async function ExamPrepDetailPage({
   const [{ data: attemptRows }, { data: gapRows }] = await Promise.all([
     supabase
       .from("exam_prep_node_attempts")
-      .select("node_id, score, total, created_at")
+      .select("node_id, score, total, created_at, payload")
       .eq("exam_prep_id", prepId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
@@ -393,6 +393,7 @@ export default async function ExamPrepDetailPage({
       score: typeof row.score === "number" ? row.score : null,
       total: typeof row.total === "number" ? row.total : null,
       createdAt: row.created_at as string,
+      stems: attemptStems(row.payload),
     })),
     topicLabels: prepTopics.map((topic) => topic.label),
     gaps: (gapRows ?? []).map((row) => ({

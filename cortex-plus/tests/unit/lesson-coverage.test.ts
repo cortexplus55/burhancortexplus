@@ -266,10 +266,10 @@ describe("hazırlanamayan bölüm konu testinde sorulmaz", () => {
     expect(list).toHaveLength(2);
   });
 
-  it("kayıtlı dersin missingConcepts alanı okunur ve kayda yazılır", () => {
-    expect(storedMissingConcepts({ format: 3, missingConcepts: [" Tenkis davası ", 3, ""] })).toEqual(["Tenkis davası"]);
+  it("kayıtlı dersin missingConcepts alanı soru elemez ve kayda yazılmaz", () => {
+    expect(storedMissingConcepts({ format: 3, missingConcepts: [" Tenkis davası ", 3, ""] })).toEqual([]);
     expect(storedMissingConcepts({ format: 3 })).toEqual([]);
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(route).toContain("missingConcepts: input.payload.missingConcepts");
+    expect(route).not.toContain("missingConcepts: input.payload.missingConcepts");
   });
 });

@@ -59,6 +59,8 @@ export type OutlineUnitDraft = {
     prerequisiteIds?: string[];
     /** Resolved prerequisite titles (after validation). */
     prerequisiteTitles?: string[];
+    /** Belgede ayrı durmuyorsa "curriculum"; sonraki motor müfredat tamamlaması yazar. */
+    origin?: "document" | "curriculum";
   }[];
 };
 

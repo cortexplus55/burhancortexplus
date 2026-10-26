@@ -556,8 +556,6 @@ export function validateOneShotOutline(
   }
 
   const seen = new Set<string>();
-  let curriculumKept = 0;
-  const CURRICULUM_CAP = 4;
   const idToTitle = new Map<string, string>();
   let autoId = 0;
   for (const unit of draft.units) {
@@ -645,9 +643,8 @@ export function validateOneShotOutline(
       ].slice(0, MAX_LIKELY_ASKED);
 
       const grounding = groundingFor(fileIndex);
-      const curriculum = topic.origin === "curriculum" && curriculumKept < CURRICULUM_CAP;
+      const curriculum = topic.origin === "curriculum";
       const verdict = curriculum || !grounding ? null : groundTopic(grounding, { title, pageStart: start, pageEnd: end });
-      if (curriculum) curriculumKept += 1;
       if (verdict && !verdict.grounded) {
         issues.push({
           code: "ungrounded_topic",
@@ -684,6 +681,7 @@ export function validateOneShotOutline(
         likelyAsked,
         prerequisiteIds: topic.prerequisiteIds ?? [],
         prerequisiteTitles,
+        ...(curriculum ? { origin: "curriculum" as const } : { origin: "document" as const }),
       });
     }
     if (!topics.length && ungroundedInUnit.length && kept < MAX_TOPICS_TOTAL) {
@@ -908,11 +906,10 @@ function studentOutlinePrompt(input: {
 - Her konu için whyLearn: öğrenciye seslenen tek cümle, ne öğreneceği ve neden önemli ("… ayırt edersin", "… sınavda sık sorulur"). Birinci tekil yazma ("öğreneceğim", "bilgim" yok).
 - Her konuya kısa id ver (ör. "t1") ve prerequisiteIds ile önceki konu id'lerini bağla.
 
-SERT KURAL — UYDURMA YOK:
-- Yalnızca verilen materyali kullan. Materyalde olmayan konu, madde veya sayfa ekleme.
-- Her konu ve her likelyAsked maddesi, fileIndex + pageStart–pageEnd aralığındaki [d? s.N] metniyle desteklenmeli.
-- Materyal bir şeyi kapsamıyorsa onu ekleme.
-- MÜFREDAT TAMAMLAMA: Belge bir çekirdek alt konuyu tek başlığa sıkıştırmış ya da üstünkörü geçmişse, o dersin sınavda kesin olan alt konularını ayrı konu aç ve origin alanına "curriculum" yaz. Örnekler: devrede Kirchhoff, çevre/düğüm, Thévenin/Norton; tarihte kuruluş ve İstanbul'un fethi; biyolojide Mendel, kan grupları, eşeye bağlı kalıtım; matematikte tam sayılar, rasyonel sayılar, cebirsel ifadeler, denklemler. Yalnız belgenin kendi dersinden, en çok 4 konu. pageStart/pageEnd o başlığın gerçek sayfalarıdır; olmayan sayfa uydurulmaz. Belgede zaten ayrı duran konu "document" kalır.
+SERT KURAL:
+- Belgedeki konu, sayfa aralığı belgedeki gerçek [d? s.N] işaretlerindendir. Olmayan sayfa uydurma.
+- Belgede zaten ayrı duran konu origin "document" kalır.
+- MÜFREDAT TAMAMLAMA: Belge bir çekirdek alt konuyu tek başlığa sıkıştırmış, üstünkörü geçmiş ya da hiç açmamışsa, o dersin standart akademik, MEB veya üniversite müfredatında sınavda kesin olan alt konularını ayrı konu aç ve origin "curriculum" yaz. Örnekler: devrede Kirchhoff, çevre ve düğüm, Thévenin ve Norton, maksimum güç; tarihte kuruluş, Orhan Bey, İstanbul'un fethi; biyolojide Mendel, kan grupları ve Rh, eşeye bağlı kalıtım; matematikte tam sayılar, rasyonel sayılar, cebirsel ifadeler, denklemler. Yalnız belgenin kendi dersinden. Sayı tavanı yok; haritanın toplam konu sınırı geçilmez. pageStart/pageEnd, konunun bağlandığı belgedeki başlığın gerçek sayfalarıdır.
 - Sayfa işaretleri [d1 s.12] biçimindedir: d1 = birinci dosya (fileIndex 0), d2 = ikinci dosya (fileIndex 1). Konunun fileIndex'i alıntıladığın işaretle aynı dosyayı göstermeli.
 - pageStart/pageEnd gerçek [d? s.N] işaretlerinden; o dosyanın sayfa aralığı dışında numara uydurma (en fazla ${input.maxPage}).
 - Sayfa aralığını dar tut: bir konu 8 sayfadan genişse gerçekten o sayfaların tamamını kapsamalı.

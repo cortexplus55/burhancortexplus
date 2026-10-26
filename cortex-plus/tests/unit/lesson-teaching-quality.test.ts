@@ -138,7 +138,7 @@ describe("yazar ve denetçi aynı metni okur (C2b, C4e, C5, C7)", () => {
   it("kaynak kuralının dar istisnası yazarda ve denetçinin A maddesinde aynı cümle; belgesiz derste yok", () => {
     expect(TEACHER_SYSTEM).toContain(SOURCE_LINK_EXEMPTION);
     expect(VERIFY_SYSTEM).toContain(SOURCE_LINK_EXEMPTION);
-    expect(SOURCE_LINK_EXEMPTION).toContain("yalnız 'Genel bilgi' kutusunda");
+    expect(SOURCE_LINK_EXEMPTION).toContain("Sınav Müfredatı Tamamlaması");
     expect(TOPIC_TEACHER_SYSTEM).not.toContain(SOURCE_LINK_EXEMPTION);
   });
 

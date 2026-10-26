@@ -1038,12 +1038,12 @@ export function ExamNodeSession({
         return;
       }
       if (!res.ok || !Array.isArray(data.chapters)) {
-        toast.error("Sesli tekrar bu sefer tamamlanamadı; yeniden dene.");
+        toast.error("Sesli tekrar bu sefer gelmedi. Yeniden dene.");
         return;
       }
       setLessonPodcast({ title: data.title ?? topicLabel ?? "Sesli tekrar", chapters: data.chapters });
     } catch {
-      toast.error("Sesli tekrar bu sefer tamamlanamadı; yeniden dene.");
+      toast.error("Sesli tekrar bu sefer gelmedi. Yeniden dene.");
     } finally {
       setPodcastLoading(false);
     }

@@ -37,7 +37,7 @@ import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { podcastCheckOf, podcastPayloadEpisode, scorePodcastCheck } from "@/lib/learning/podcast-check";
 import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { lessonBackbone } from "@/lib/learning/lesson-backbone";
-import { loadPreviousItems } from "@/lib/learning/previous-items";
+import { loadPreviousItems, loadStoredCards, loadStoredQuiz } from "@/lib/learning/previous-items";
 import { practiceCoverage, practiceVariantFromTitle } from "@/lib/learning/practice-coverage";
 import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
@@ -3300,20 +3300,23 @@ async function generateNodePayload(input: {
       documentBacked: !input.lessonTopicOnly,
       previousStems: [...(fill.previousStems ?? []), ...fill.seed.map((question) => question.text)].filter(Boolean),
     });
-    const needed = fill.topics.length * fill.perTopic;
-    if (!fill.topics.length) {
-      if (!fill.seed.length) throw new NodeGenerationError(503, "generation_failed");
-      return { type: "quiz", questions: fill.seed, teachingStandard: activity, uncoveredTopics: [] };
+    const produced = filled.ok ? filled.questions : [];
+    const questions = [...fill.seed, ...produced];
+    if (questions.length) {
+      return {
+        type: "quiz",
+        questions,
+        teachingStandard: activity,
+        uncoveredTopics: [],
+      };
     }
-    if (!filled.ok || filled.questions.length < needed) {
-      throw new NodeGenerationError(filled.ok ? 503 : filled.status, filled.ok ? "generation_failed" : filled.error);
+    if (input.prepId && input.userId) {
+      const stored = await loadStoredQuiz(input.service, { userId: input.userId, prepId: input.prepId });
+      if (stored.length) {
+        return { type: "quiz", questions: stored, teachingStandard: activity, uncoveredTopics: [] };
+      }
     }
-    return {
-      type: "quiz",
-      questions: [...fill.seed, ...filled.questions],
-      teachingStandard: activity,
-      uncoveredTopics: [],
-    };
+    throw new NodeGenerationError(503, "generation_failed");
   }
 
   const outcome = await generateExamQuiz({
@@ -3356,7 +3359,14 @@ async function generateNodePayload(input: {
     }));
     questions = stamped.filter((question) => questionsStayOnTopics([question], allowed));
   }
-  if (questions.length < promised) throw new NodeGenerationError(503, "generation_failed");
+  if (questions.length < promised) {
+    if ((input.kind === "final_check" || input.kind === "focused" || input.kind === "gaps") && input.prepId && input.userId) {
+      const stored = await loadStoredQuiz(input.service, { userId: input.userId, prepId: input.prepId });
+      const merged = [...questions, ...stored].slice(0, Math.max(promised, questions.length || stored.length));
+      if (merged.length) return { type: "quiz", questions: merged, teachingStandard: activity };
+    }
+    throw new NodeGenerationError(503, "generation_failed");
+  }
   return { type: "quiz", questions, teachingStandard: activity };
 }
 
@@ -3535,11 +3545,8 @@ async function saveTopicLesson(
       topic_id: input.topicId,
       title: lesson.title,
       content_md: lesson.overview ?? lesson.sections?.[0]?.body ?? lesson.title,
-      // Kayıt biçimi olduğu gibi (V3); okuyanlar readLessonV2/readLessonV3 ile çevirir. Hazırlanamayan
-      // kavramlar kayda eklenir: konu testi o bölümü sormaz (`withoutMissingPoints`).
-      content_json: Array.isArray(input.payload.missingConcepts) && input.payload.missingConcepts.length
-        ? { ...(input.payload.lesson as Record<string, unknown>), missingConcepts: input.payload.missingConcepts }
-        : input.payload.lesson,
+      // Kayıt biçimi olduğu gibi (V3). Eksik kavram listesi yazılmaz; konu testi dersin bütününü sorar.
+      content_json: input.payload.lesson,
     })
     .then(undefined, () => undefined);
 }
@@ -3750,7 +3757,15 @@ async function teacherCardsPayload(
         : { ok: false as const, reasons: ["short"], log };
     },
   });
-  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  if (!outcome.ok) {
+    if (input.kind === "flashcards" && input.prepId && input.userId) {
+      const stored = await loadStoredCards(input.service, { userId: input.userId, prepId: input.prepId });
+      if (stored.length) {
+        return { type: "cards", cards: stored, teachingStandard: activity, masteryClaim: false, engine: "teacher" };
+      }
+    }
+    throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  }
   return { type: "cards", cards: outcome.result, teachingStandard: activity, masteryClaim: false, engine: "teacher" };
 }
 

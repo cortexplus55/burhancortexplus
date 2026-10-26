@@ -120,15 +120,17 @@ describe("rubriği karşılayan cevap tam puan alır", () => {
     expect(oralFirstAnswer({ "0": "a\nb", "ilk:0": "a" }, 0)).toBe("a");
   });
 
-  it("doğrulama: boş / aynı / puan etiketi doğrusu kabul edilmez, en çok iki yanlış", () => {
+  it("doğrulama: boş / aynı / puan etiketi ve düşük örtüşmeli doğru söyleyiş düşmez; doğrudan sayı çelişkisi en çok iki yanlış", () => {
     const first = "Bir iki üç dört beş altı yedi sekiz.";
     expect(validFirstAnswerErrors(first, [{ wrong: "iki üç", correct: "" }])).toEqual([]);
     expect(validFirstAnswerErrors(first, [{ wrong: "iki üç", correct: "İki üç" }])).toEqual([]);
     expect(validFirstAnswerErrors(first, [{ wrong: "iki üç", correct: "tam puan" }])).toEqual([]);
-    const many = validFirstAnswerErrors(first, [
-      { wrong: "iki üç", correct: "x" },
-      { wrong: "dört beş", correct: "y" },
-      { wrong: "altı yedi", correct: "z" },
+    expect(validFirstAnswerErrors("Fatih İstanbul'u aldı.", [{ wrong: "Fatih İstanbul'u aldı", correct: "II. Mehmed şehri fethetti" }])).toEqual([]);
+    const dated = "Fetih 1453, cumhuriyet 1923, Malazgirt 1071.";
+    const many = validFirstAnswerErrors(dated, [
+      { wrong: "1453", correct: "1454" },
+      { wrong: "1923", correct: "1920" },
+      { wrong: "1071", correct: "1072" },
     ]);
     expect(many).toHaveLength(2);
   });

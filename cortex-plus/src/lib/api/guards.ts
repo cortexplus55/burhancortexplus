@@ -286,7 +286,7 @@ export function errorResponse(
     operation_in_progress: "Bu işlem hâlâ hazırlanıyor. Biraz sonra yeniden dene; ikinci kez kredi düşmedi.",
     operation_completed: "Bu işlem zaten tamamlandı. Kaydedilmiş sonucu açabilirsin; tekrar kredi düşmedi.",
     ai_not_configured: "AI servisi henüz yapılandırılmadı.",
-    invalid_ai_response: "Yanıt bu sefer tamamlanamadı; birkaç saniye sonra yeniden dene.",
+    invalid_ai_response: "Yanıt bu sefer gelmedi. Birkaç saniye sonra yeniden dene.",
     podcast_script_rejected:
       "Podcast metni doğrulanamadı. Tutmayan sayı yayınlanmadı; yeniden deneyebilirsin.",
     generation_failed: "Hazırlık sürüyor. Yeniden dene.",

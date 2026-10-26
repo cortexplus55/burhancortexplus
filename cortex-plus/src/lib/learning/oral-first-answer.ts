@@ -87,13 +87,7 @@ export function contradictsExpected(wrong: string, correct: string): boolean {
   const up = /\b(artar|arttirir|cogalir|yukselir|doubles)\b/;
   const down = /\b(azalir|azaltir|degismez|sabit|dusmez|degistirmez)\b/;
   if ((up.test(w) && down.test(c)) || (down.test(w) && up.test(c))) return true;
-  const words = (text: string) => new Set(fold(text).split(" ").filter((word) => word.length > 2));
-  const left = words(wrong);
-  const right = words(correct);
-  let shared = 0;
-  for (const word of left) if (right.has(word)) shared += 1;
-  const overlap = shared / Math.max(1, Math.min(left.size, right.size));
-  return overlap < 0.5;
+  return false;
 }
 
 function fold(text: string): string {

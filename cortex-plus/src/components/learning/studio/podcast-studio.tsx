@@ -339,7 +339,7 @@ export function PodcastStudio({
       toast.error(
         !script.ok && script.error === "document_not_ready"
           ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
-          : "Podcast bu sefer tamamlanamadı; iki kez denedik. Kredin düşmedi, yeniden dene.",
+          : "Podcast bu sefer gelmedi. İki kez denedik. Kredin düşmedi, yeniden dene.",
       );
       setPhase("entry");
       return;
@@ -348,7 +348,7 @@ export function PodcastStudio({
     setNotice(sourceNotice(script.data.source));
     const normalized = normalizeChapters(script.data.chapters);
     if (!normalized.length) {
-      toast.error("Podcast bu sefer tamamlanamadı; yeniden dene.");
+      toast.error("Podcast bu sefer gelmedi. Yeniden dene.");
       setPhase("entry");
       return;
     }

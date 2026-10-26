@@ -78,15 +78,32 @@ function markerHit(answer: string, marker: string): boolean {
   const m = compact(marker);
   if (m.length >= 4 && a.includes(m)) return true;
   const left = m.split("=")[0] ?? "";
-  return left.length >= 2 && a.includes(left) && a.includes("=");
+  if (left.length >= 2 && a.includes(left) && a.includes("=")) return true;
+  const words = fold(marker)
+    .split(" ")
+    .filter((word) => word.length > 3);
+  if (words.length < 2) return false;
+  const hits = words.filter((word) => fold(answer).includes(word));
+  return hits.length >= 2;
+}
+
+const YEARS = /\b(?:1[0-9]{3}|20[0-9]{2})\b/g;
+
+/** Cevaptaki yıl, beklenen metindeki yıl kümesiyle çelişirse olgu hatasıdır. */
+export function dateContradiction(answer: string, expected: string): boolean {
+  const left = [...answer.matchAll(YEARS)].map((match) => match[0]);
+  const right = [...expected.matchAll(YEARS)].map((match) => match[0]);
+  if (!left.length || !right.length) return false;
+  return left.some((year) => !right.includes(year));
 }
 
 /** Çözüm satırından formül ya da denklem kurulumu. */
 export function methodMarkers(modelAnswer: string, criteria: string[] = []): string[] {
-  return [...modelAnswer.split(/\n+/), ...criteria]
+  const lines = [...modelAnswer.split(/\n+/), ...criteria]
     .map((line) => line.trim())
-    .filter((line) => line.length >= 3 && line.length <= 160 && (/[=]/.test(line) || /formül|denklem|kirchhoff|thévenin|thevenin|ohm/i.test(line)))
-    .slice(0, 6);
+    .filter((line) => line.length >= 8 && line.length <= 180 && !/^-?\d+(?:[.,]\d+)?$/.test(line));
+  const marked = lines.filter((line) => /[=]/.test(line) || /formül|denklem|kirchhoff|thévenin|thevenin|ohm|adım|yöntem|kural|çünkü|once|önce/i.test(line));
+  return (marked.length ? marked : lines).slice(0, 6);
 }
 
 /**
@@ -149,6 +166,11 @@ export function adjustScoredAnswer(input: {
 }): { earned: number; step?: string } {
   const expected =
     input.expected ?? (/=/.test(input.modelAnswer ?? "") ? trailingNumber(input.modelAnswer ?? "") : null);
+  const corpus = `${input.modelAnswer ?? ""}\n${(input.criteria ?? []).join("\n")}`;
+  if (dateContradiction(input.answer, corpus)) {
+    const cap = Math.round(input.maxPoints * 0.4 * 1000) / 1000;
+    return { earned: Math.min(input.earned, cap), step: "Tarih beklenenle çelişiyor." };
+  }
   const partial = partialWorkCredit({ ...input, expected, alreadyEarned: input.earned });
   if (!partial) return { earned: input.earned };
   return { earned: partial.earned, step: partial.step };

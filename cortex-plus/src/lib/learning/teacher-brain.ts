@@ -2113,7 +2113,7 @@ function meaningfulRetryStem(prompt: string, generic = true): string {
   if (!generic) return next.replace(/\s+/g, " ").trim().slice(0, 300);
   if (foldPrompt(next) === foldPrompt(trimmed)) {
     const core = trimmed.replace(/[?.!\s]+$/g, "");
-    next = `${core} için geçerli ifade hangisidir?`;
+    next = `${core} hangi durumda geçerlidir?`;
   }
   return next.replace(/\s+/g, " ").trim().slice(0, 300);
 }

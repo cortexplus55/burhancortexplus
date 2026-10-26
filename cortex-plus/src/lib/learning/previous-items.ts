@@ -28,10 +28,30 @@ export function quizStemsFromPayload(payload: Payload): string[] {
 
 /** Kart destelerinin ön yüzleri (ön + arka birlikte: aynı bilgi başka ön yüzle de tekrar sayılır). */
 export function cardTextsFromPayload(payload: Payload): string[] {
-  if (!payload || payload.type !== "cards") return [];
-  return texts(payload.cards, (row) =>
-    typeof row.front === "string" ? `${row.front} ${typeof row.back === "string" ? row.back : ""}`.trim() : null,
-  );
+  return cardsFromPayload(payload).map((card) => `${card.front} ${card.back}`.trim());
+}
+
+export function cardsFromPayload(payload: Payload): { front: string; back: string }[] {
+  if (!payload || payload.type !== "cards" || !Array.isArray(payload.cards)) return [];
+  return payload.cards.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const card = row as { front?: unknown; back?: unknown };
+    const front = typeof card.front === "string" ? card.front.trim() : "";
+    const back = typeof card.back === "string" ? card.back.trim() : "";
+    return front && back ? [{ front, back }] : [];
+  });
+}
+
+export function questionsFromPayload(payload: Payload): { text: string; options: string[]; correct: string[] }[] {
+  if (!payload || payload.type !== "quiz" || !Array.isArray(payload.questions)) return [];
+  return payload.questions.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const question = row as { text?: unknown; options?: unknown; correct?: unknown };
+    const text = typeof question.text === "string" ? question.text.trim() : "";
+    const options = Array.isArray(question.options) ? question.options.filter((item): item is string => typeof item === "string") : [];
+    const correct = Array.isArray(question.correct) ? question.correct.filter((item): item is string => typeof item === "string") : [];
+    return text && options.length >= 2 && correct.length ? [{ text, options, correct }] : [];
+  });
 }
 
 /** Yeniden eskiye, tekrarsız, en çok `limit`. */
@@ -77,6 +97,78 @@ export async function loadPreviousItems(
     const [done, waiting] = await Promise.all([attempts, ready.limit(10)]);
     const payloads = [...(done.data ?? []), ...(waiting.data ?? [])].map((row) => row.payload as Payload);
     return collectPreviousItems(payloads, input.kind === "quiz" ? quizStemsFromPayload : cardTextsFromPayload);
+  } catch {
+    return [];
+  }
+}
+
+async function loadPayloads(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string },
+): Promise<Payload[]> {
+  const [done, waiting] = await Promise.all([
+    service
+      .from("exam_prep_node_attempts")
+      .select("payload")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.prepId)
+      .not("payload", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    service
+      .from("exam_prep_prefetch")
+      .select("payload")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.prepId)
+      .eq("status", "ready")
+      .limit(10),
+  ]);
+  return [...(done.data ?? []), ...(waiting.data ?? [])].map((row) => row.payload as Payload);
+}
+
+/** Üretim düşünce son tekrar bu desteden açılır. */
+export async function loadStoredCards(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string },
+): Promise<{ front: string; back: string }[]> {
+  try {
+    const payloads = await loadPayloads(service, input);
+    const seen = new Set<string>();
+    const cards: { front: string; back: string }[] = [];
+    for (const payload of payloads) {
+      for (const card of cardsFromPayload(payload)) {
+        const key = card.front.toLocaleLowerCase("tr");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        cards.push(card);
+        if (cards.length >= 8) return cards;
+      }
+    }
+    return cards;
+  } catch {
+    return [];
+  }
+}
+
+/** Üretim düşünce son kontrol bu sorulardan açılır. */
+export async function loadStoredQuiz(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string },
+): Promise<{ text: string; options: string[]; correct: string[] }[]> {
+  try {
+    const payloads = await loadPayloads(service, input);
+    const seen = new Set<string>();
+    const questions: { text: string; options: string[]; correct: string[] }[] = [];
+    for (const payload of payloads) {
+      for (const question of questionsFromPayload(payload)) {
+        const key = question.text.toLocaleLowerCase("tr");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        questions.push(question);
+        if (questions.length >= 12) return questions;
+      }
+    }
+    return questions;
   } catch {
     return [];
   }

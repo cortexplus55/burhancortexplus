@@ -248,10 +248,10 @@ export function pedagogyPromptBlock(context: StudentPedagogicalContext | null, s
   const styleKey = surface === "solve" ? "solve" : surface === "quiz" || surface === "true_false" || surface === "oral" ? "ask" : "teach";
   const lines = [
     `ÖĞRENCİ PROFİLİ (kayıt bilgisi): ${facts.join(" · ")}.`,
-    "Profil yalnız anlatımın dilini, derinliğini, örnek türünü ve soru biçimini belirler. Kaynak, doğruluk, şema, sayı ve " +
-      "biçim kuralları aynen geçerlidir: profil yüzünden kaynakta (belgesiz içerikte konunun yerleşik bilgisinde) olmayan " +
-      "sayı, bulgu, kural ya da sonuç yazılmaz. İsteğin kendisi başka bir sınavı söylüyorsa (hazırlığın SINAV satırı) o sınavın " +
-      "biçimini izle. Denetliyorsan profil bir denetim maddesi değildir: profile uymamak sorun sayılmaz.",
+    "Profil anlatımın dilini, derinliğini ve örnek türünü belirler ve buna uyulur. Ortaokulda ağır cebir adı ve akademik jargon yok; " +
+      "lisede kazanım ve kısa çözüm; üniversitede teknik yöntem. Edebi giriş ve boş laf yok. " +
+      "Belgede olmayan standart sınav bilgisi 'Sınav Müfredatı Tamamlaması' kutusunda etiketli kalır; profil bu kutuyu yasaklamaz. " +
+      "Hazırlığın SINAV satırı başka bir sınav söylüyorsa o sınavın biçimini izle.",
     context.targetExam ? examLine(context.targetExam, surface) : null,
     bandLine(context.targetExam),
     context.gradeLevel ? gradeLine(context.gradeLevel) : null,

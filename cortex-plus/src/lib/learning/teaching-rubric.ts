@@ -53,8 +53,8 @@ export const TEACHING_RUBRIC =
 export const SOURCE_LINK_EXEMPTION =
   "Kaynaktaki iki bilgiyi birbirine bağlayan neden cümlesi ve yabancı bir terimin birebir Türkçe karşılığı yeni " +
   "bilgi sayılmaz — sayı, eşik, kural ya da sonuç eklemedikleri sürece. Kaynakta tanımı olmayan bir terimin ne " +
-  "olduğunu dışarıdan açıklamak ise yeni bilgidir: yalnız 'Genel bilgi' kutusunda (başlık 'Sınav Müfredatı Tamamlaması:' de olur; " +
-  "kavram başına bir, ders başına en çok dört). Kaynağın " +
+  "olduğunu dışarıdan açıklamak ise yeni bilgidir: 'Sınav Müfredatı Tamamlaması' kutusunda etiketle " +
+  "(başlık 'Sınav Müfredatı Tamamlaması:' de olur). Kaynağın " +
   "nedenini vermediği bir bilginin mekanizması da yeni bilgidir: yalnız 'Neden böyle?' kutusunda.";
 
 /**

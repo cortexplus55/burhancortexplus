@@ -50,7 +50,7 @@ export default async function AyarlarPage() {
               <span className="text-sm text-[var(--cp-text)]">Hesap türü</span>
               <FounderBadge />
             </div>
-            <p className="cp-founder-note">Kurucu hesabı. Kredi sınırı yok.</p>
+            <p className="cp-founder-note">Kredi sınırı yok.</p>
           </SectionCard>
         ) : (
           <SectionCard

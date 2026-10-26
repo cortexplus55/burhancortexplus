@@ -653,6 +653,7 @@ async function persistCourseOutline(
               likelyAsked: topic.likelyAsked,
               whyLearn: topic.whyLearn ?? topic.description,
               prerequisiteTitles: topic.prerequisiteTitles,
+              origin: topic.origin,
             });
             return {
               document_id: documentId,

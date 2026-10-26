@@ -89,7 +89,7 @@ export async function requestSolve(request: SolveRequest, onEvent: (event: Solve
       message:
         response.status === 400
           ? "Bir soru fotoğrafı seç ya da soruyu yaz (en az birkaç kelime)."
-          : (payload.error ?? "Çözüm bu sefer tamamlanamadı; hakkın düşmedi. Yeniden dene."),
+          : (payload.error ?? "Çözüm bu sefer gelmedi. Hakkın düşmedi. Yeniden dene."),
       status: response.status,
     });
     return;

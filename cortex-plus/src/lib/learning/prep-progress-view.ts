@@ -27,11 +27,24 @@ export type ProgressNode = {
   sessionMeta?: { topicTitle?: string; durationMinutes?: number } | null;
 };
 
+export function attemptStems(payload: unknown): string[] {
+  if (!payload || typeof payload !== "object") return [];
+  const questions = (payload as { questions?: unknown }).questions;
+  if (!Array.isArray(questions)) return [];
+  return questions.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const text = (row as { text?: unknown }).text;
+    return typeof text === "string" && text.trim() ? [text.trim()] : [];
+  });
+}
+
 export type ProgressAttempt = {
   nodeId: string;
   score: number | null;
   total: number | null;
   createdAt: string;
+  /** Varsa aynı soru kökü bir kez sayılır. */
+  stems?: string[];
 };
 
 export type ProgressGap = {
@@ -106,15 +119,43 @@ function pct(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
 }
 
-/** Aynı düğümün tekrarları soruyu bir kez sayar (son tamamlanan oturum). */
-function uniqueSolved(attempts: ProgressAttempt[], ids: Set<string>): number {
+const SOLVED_KINDS = new Set<PlanNodeKind>([
+  "quiz",
+  "true_false",
+  "final_check",
+  "focused",
+  "gaps",
+  "oral",
+  "written_exam",
+  "qa",
+]);
+
+/** Soru üreten düğümlerin son oturumu. Ders, kart ve podcast "çözüldü"ye girmez. Aynı kök bir kez sayılır. */
+function uniqueSolved(attempts: ProgressAttempt[], ids: Set<string>, nodes: Map<string, ProgressNode>): number {
   const latest = new Map<string, ProgressAttempt>();
   for (const attempt of attempts) {
     if (!ids.has(attempt.nodeId)) continue;
     const prev = latest.get(attempt.nodeId);
     if (!prev || Date.parse(attempt.createdAt) >= Date.parse(prev.createdAt)) latest.set(attempt.nodeId, attempt);
   }
-  return [...latest.values()].reduce((sum, attempt) => sum + Math.max(0, attempt.total ?? 0), 0);
+  const seen = new Set<string>();
+  let count = 0;
+  for (const attempt of latest.values()) {
+    const kind = nodes.get(attempt.nodeId)?.kind;
+    if (kind && !SOLVED_KINDS.has(kind)) continue;
+    const stems = attempt.stems ?? [];
+    if (stems.length) {
+      for (const stem of stems) {
+        const key = stem.trim().toLocaleLowerCase("tr");
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        count += 1;
+      }
+      continue;
+    }
+    count += Math.max(0, attempt.total ?? 0);
+  }
+  return count;
 }
 
 /** H1…H4, şimdi: en eski hafta başta. `index` 0 = bu hafta. */
@@ -172,7 +213,7 @@ export function buildPrepProgressView(input: {
     const topicNodes = input.nodes.filter((node) => topicOf(node) === label);
     const done = topicNodes.filter((node) => node.status === "done").length;
     const ids = new Set(topicNodes.map((node) => node.id));
-    const solved = uniqueSolved(completed, ids);
+    const solved = uniqueSolved(completed, ids, nodeById);
     const mastery = masteryByLabel?.get(label);
     return {
       label,
