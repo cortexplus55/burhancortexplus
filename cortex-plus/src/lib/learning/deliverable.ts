@@ -1,8 +1,9 @@
 /**
  * Söz verilen sayı = teslim edilen sayı.
  *
- * Kapıdan geçmeyen, konu dışı, kopya ya da noktası tutmayan öğe slota yazılmaz.
- * Kısa liste yayımlanamaz. `note` her zaman null.
+ * Bozuk, konu dışı ya da kopya öğe slota yazılmaz. Kaynak cümlesini ya da
+ * kaynaktaki sayıyı aynen taşımamak öğeyi düşürmez: konu doğru ve soru
+ * sağlamsa sayılır. Kısa liste yayımlanamaz. `note` her zaman null.
  */
 
 import { itemStems, nearDuplicate } from "@/lib/learning/item-dedup";
@@ -70,6 +71,11 @@ function typeOk(itemType: string, slotType: string): boolean {
   return itemType === slotType;
 }
 
+/**
+ * Noktanın ölçülebilir parçaları öğede var mı? Yalnız ölçüm.
+ * Teslim kapısı bunu ret sebebi yapmaz: soru aynı konuyu başka sayı ve
+ * başka bağlamla da sorabilir (26 Ekim 2026).
+ */
 export function coversPoint(item: DeliveryItem, slot: DeliverySlot): boolean {
   const point = (slot.point ?? "").trim();
   const tokens = point ? measurableTokens(point) : [];
@@ -146,7 +152,6 @@ export function selectDeliverable<T>(
       const item = pool[index]!;
       if (!typeOk(item.view.type, slot.type)) continue;
       if (!sameTopic(item.view, slot)) continue;
-      if (!coversPoint(item.view, slot)) continue;
       found = index;
       break;
     }

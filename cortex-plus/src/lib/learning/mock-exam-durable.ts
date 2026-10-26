@@ -59,6 +59,7 @@ type Checkpoint = {
   blocks?: Record<string, string>;
   topicsAttempted?: string[];
   modelIndexes?: Record<string, number>;
+  wave?: number;
 };
 
 function specOf(row: GenerationJobRow): MockSpec {
@@ -102,6 +103,7 @@ function checkpointOf(row: GenerationJobRow): Checkpoint {
             ),
           )
         : undefined,
+    wave: typeof progress.wave === "number" ? progress.wave : 0,
   };
 }
 
@@ -262,6 +264,8 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
           chargeKey: `practice-exam:${spec.prepId}:${claimed.row.user_id}:${jobId}`,
           prior: items,
           maxWaves: 1,
+          examId: jobId,
+          wave: stash.wave ?? 0,
           blocks: blocks ? new Map(Object.entries(blocks)) : undefined,
           initialTopics: stash.topicsAttempted,
           modelIndexes: stash.modelIndexes,
@@ -285,6 +289,7 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
       stash.items = assembled.questions;
       stash.topicsAttempted = assembled.topicsAttempted;
       stash.modelIndexes = assembled.modelIndexes;
+      stash.wave = assembled.wave;
       if (!assembled.ok) {
         return { items: assembled.questions, done: false, promised: blueprint.questionCount };
       }

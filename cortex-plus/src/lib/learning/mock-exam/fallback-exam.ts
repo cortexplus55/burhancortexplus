@@ -44,6 +44,7 @@ type StoredBuild = {
   examId: string | null;
   publishedAt: number | null;
   modelIndexes: Record<string, number>;
+  wave: number;
   failError: string | null;
   attempts: number;
   prepTitle: string;
@@ -116,6 +117,7 @@ function readBuild(blueprint: unknown): StoredBuild | null {
         ? Object.fromEntries(Object.entries(indexes).filter((entry): entry is [string, number] => typeof entry[1] === "number"))
         : {};
     })(),
+    wave: typeof raw.wave === "number" ? raw.wave : 0,
     failError: typeof raw.failError === "string" ? raw.failError : null,
     attempts: typeof raw.attempts === "number" ? raw.attempts : 0,
     prepTitle: typeof raw.prepTitle === "string" ? raw.prepTitle : "",
@@ -167,6 +169,7 @@ function toRecord(id: string, build: StoredBuild): FallbackRecord<MockExamQuesti
     examId: build.examId,
     publishedAt: build.publishedAt,
     modelIndexes: build.modelIndexes,
+    wave: build.wave,
     failError: build.failError,
   };
 }
@@ -393,6 +396,7 @@ async function createExam(
     examId: null,
     publishedAt: null,
     modelIndexes: {},
+    wave: 0,
     failError: null,
     attempts: 0,
     prepTitle: planned.plan.prepTitle,
@@ -519,6 +523,8 @@ export async function runFallbackMockExam(input: FallbackExamInput): Promise<Chu
         chargeKey: `practice-exam:${input.prepId}:${input.userId}:${ctx.record.id}`,
         prior: ctx.record.items,
         maxWaves: 1,
+        examId: ctx.record.id,
+        wave: ctx.record.wave ?? 0,
         blocks: new Map(Object.entries(stored.blocks)),
         initialTopics: ctx.record.topicsAttempted,
         modelIndexes: ctx.record.modelIndexes,
@@ -541,6 +547,7 @@ export async function runFallbackMockExam(input: FallbackExamInput): Promise<Chu
         promised: assembled.planned,
         topicTotal: assembled.topicTotal,
         modelIndexes: assembled.modelIndexes,
+        wave: assembled.wave,
       };
     },
     publish: (record) => publishExam(input, record),

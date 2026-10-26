@@ -802,8 +802,13 @@ async function handleNodeRequest(
     let stored = attempt.payload as Record<string, unknown>;
     if (isStaleBuild(stored)) {
       if (kind === "quiz") {
-        // Takılı test: eldeki sorular durur, kesik ders sayılmaz, kredi burada iade edilmez.
-        stored = settledQuizPayload(stored);
+        const promised = typeof stored.promised === "number" ? stored.promised : 0;
+        const got = Array.isArray(stored.questions) ? stored.questions.length : 0;
+        // Söz verilen sayı dolmadan kapanan test öğrenciye bitmiş sınav gibi açılmaz.
+        stored =
+          promised > 0 && got < promised
+            ? { type: "quiz", questions: [], generationFailed: true }
+            : settledQuizPayload(stored);
         await service
           .from("exam_prep_node_attempts")
           .update({ payload: stored })
@@ -2580,6 +2585,28 @@ async function handleNodeRequest(
     const status = error instanceof NodeGenerationError ? error.status : 502;
     const reasons = error instanceof NodeGenerationError ? error.reasons.slice(0, 6) : [];
     if (shownFirst && creatingAttemptId && generationId) {
+      if (kind === "quiz") {
+        await service
+          .from("exam_prep_node_attempts")
+          .update({
+            status: "failed",
+            payload: { type: "quiz", questions: [], generationFailed: true },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", creatingAttemptId)
+          .eq("generation_id", generationId);
+        await recordLessonGenerationFailure(service, {
+          userId,
+          prepId,
+          topicId: topic?.id ?? null,
+          topicLabel,
+          kind,
+          stage: "generation",
+          reason: code,
+          reasons: ["yayımlanmış test söz verilen sayıya varmadan kapandı", ...reasons],
+        });
+        return errorResponse(status, code, { refunded: true });
+      }
       // Öğrenci dersin baş kısmını okuyor: kayıt başarısız sayılmaz, ders olduğu kadarıyla kapanır.
       const { data: current } = await service
         .from("exam_prep_node_attempts")
@@ -3899,10 +3926,11 @@ async function teacherQuizPayload(
     onPlayable:
       input.kind === "quiz" && input.onLessonPublish && input.charge !== false
         ? (questions) => {
-            if (questions.length < count) return;
+            if (!questions.length) return;
             void input.onLessonPublish?.({
               type: "quiz",
               questions: questions.slice(0, count),
+              promised: count,
               teachingStandard: activity,
               engine: "teacher",
             });

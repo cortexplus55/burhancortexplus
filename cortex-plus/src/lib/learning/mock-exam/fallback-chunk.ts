@@ -28,6 +28,8 @@ export type FallbackRecord<T> = {
   examId: string | null;
   publishedAt: number | null;
   modelIndexes: Record<string, number>;
+  /** Bu kâğıtta biten dalga. Eski kayıtlarda yoksa 0. */
+  wave?: number;
   failError: string | null;
 };
 
@@ -72,6 +74,7 @@ export function emptyFallback<T>(prepKey: string, now: number): FallbackRecord<T
     examId: null,
     publishedAt: null,
     modelIndexes: {},
+    wave: 0,
     failError: null,
   };
 }
@@ -134,6 +137,7 @@ export async function pumpFallbackChunk<T>(input: {
     promised?: number;
     topicTotal?: number;
     modelIndexes?: Record<string, number>;
+    wave?: number;
   }>;
   publish: (record: FallbackRecord<T>) => Promise<{ ok: true; examId: string } | { ok: false }>;
 }): Promise<ChunkOutcome> {
@@ -207,6 +211,7 @@ export async function pumpFallbackChunk<T>(input: {
   let promised = record.promised;
   let topicTotal = record.topicTotal;
   let modelIndexes = record.modelIndexes;
+  let buildWave = record.wave ?? 0;
   try {
     const wave = await input.runWave({
       record,
@@ -235,12 +240,14 @@ export async function pumpFallbackChunk<T>(input: {
     if (wave.promised && wave.promised > 0) promised = wave.promised;
     if (wave.topicTotal && wave.topicTotal > 0) topicTotal = wave.topicTotal;
     if (wave.modelIndexes) modelIndexes = wave.modelIndexes;
+    if (typeof wave.wave === "number") buildWave = wave.wave;
   } catch {
     const fresh = await input.store.load(record.id);
     if (fresh) {
       waveItems = fresh.items;
       attempted = fresh.topicsAttempted;
       modelIndexes = fresh.modelIndexes;
+      if (typeof fresh.wave === "number") buildWave = fresh.wave;
       promised = fresh.promised || promised;
       topicTotal = fresh.topicTotal || topicTotal;
     }
@@ -256,6 +263,7 @@ export async function pumpFallbackChunk<T>(input: {
     promised,
     topicTotal,
     modelIndexes,
+    wave: buildWave,
     leaseUntil: 0,
     leaseToken: "",
   };
@@ -265,6 +273,7 @@ export async function pumpFallbackChunk<T>(input: {
     promised,
     topicTotal,
     modelIndexes,
+    wave: buildWave,
     leaseUntil: 0,
     leaseToken: "",
   });

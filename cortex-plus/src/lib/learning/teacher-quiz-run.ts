@@ -157,7 +157,7 @@ export async function teacherQuizLoop(
     // Asıl denetçi açıklamayla birlikte anahtarı da görür. Bağımsız çözücü yalnız kök ve şıkları
     // alır; duvar saati artmasın diye ikisi aynı anda gider (25 Ekim 2026).
     const verifyPromise = ask(
-      quizVerifySystem(mode, scope),
+      quizVerifySystem(mode, scope, input.rephrase),
       quizVerifyUserPrompt(reviewed, input, testSoFar()),
       "verify",
     );
@@ -214,8 +214,14 @@ export async function teacherQuizLoop(
 
   const draftCount = count + quizSpareCount(count, scoped);
   const draftStarted = Date.now();
-  let draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
-  if (!draft) draft = parseTeacherQuiz(await ask(quizSystem(mode, input.focus, multi, scope), quizUserPrompt(input, draftCount), "draft"));
+  let draft = parseTeacherQuiz(
+    await ask(quizSystem(mode, input.focus, multi, scope, input.rephrase), quizUserPrompt(input, draftCount), "draft"),
+  );
+  if (!draft) {
+    draft = parseTeacherQuiz(
+      await ask(quizSystem(mode, input.focus, multi, scope, input.rephrase), quizUserPrompt(input, draftCount), "draft"),
+    );
+  }
   const draftMs = Date.now() - draftStarted;
   if (!draft) {
     return { questions: [], rejected: [], rounds: 0, softKept: 0, salvaged: [], forced: false, codes, stages: { draftMs, reviewMs: 0, repairMs: 0 } };
@@ -269,7 +275,7 @@ export async function teacherQuizLoop(
         let answer: unknown;
         try {
           answer = await ask(
-            quizFixSystem(mode, input.focus, multi, scope),
+            quizFixSystem(mode, input.focus, multi, scope, input.rephrase),
             quizFixUserPrompt(
               group.map((row) => ({ question: row.question, problems: row.problems.map((problem) => problem.text) })),
               input,
@@ -528,10 +534,12 @@ async function runTeacherQuizInner(
             shown.set(key, shuffleOptions(question));
           }
           const all = dropNearDuplicates([...shown.values()], (question) => question.text, previousStems);
-          const window = opened ? all : playableQuestions(all, previousStems);
-          if (window.length < input.count) return;
+          const preview = playableQuestions(all, previousStems);
+          if (!preview.length && !all.length) return;
+          const window = all.slice(0, opened ? input.count : 1);
+          if (!window.length) return;
           opened = true;
-          input.onPlayable!(window.slice(0, input.count));
+          input.onPlayable!(window);
         }
       : undefined;
     const hooks = publish ? { onPlayable: publish } : undefined;

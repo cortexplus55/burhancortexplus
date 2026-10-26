@@ -101,7 +101,7 @@ export function coverageAsk(points: readonly (string | null | undefined)[]): str
   const lines = points.map((point) => (point ?? "").replace(/\s+/g, " ").trim()).filter(Boolean);
   if (!lines.length) return "";
   return [
-    "KAYNAK NOKTALARI: her soru listedeki ayrı bir noktayı sorsun. Aynı noktayı ikinci kez sorma. Listede olmayan noktayı uydurma.",
+    "KAPSAM: her soru listedeki ayrı bir noktayı yoklasın. Cümleyi aynen kopyalama; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin. Soru doğru kalsın ve konunun dışına çıkmasın.",
     ...lines.map((line, index) => `${index + 1}) ${line}`),
   ].join("\n");
 }

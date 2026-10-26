@@ -142,12 +142,16 @@ export async function postMockExamWithProgress(
   return last;
 }
 
-/** Arka plan işi bitene kadar yalnız ilerleme. Ağ hatası fırlatılır. */
+/** Arka plan işi bitene kadar yalnız ilerleme. Ağ hatası fırlatılır. Süren iş başarısız sayılmaz. */
 export async function pollGenerationJob(
   jobId: string,
   onProgress: (progress: MockExamProgress) => void,
+  options?: { waitMs?: number; maxMs?: number },
 ): Promise<{ examId?: string; failed?: boolean }> {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  const waitMs = options?.waitMs ?? 2000;
+  const maxMs = options?.maxMs ?? 12 * 60 * 1000;
+  const started = Date.now();
+  for (let attempt = 0; attempt < 1000; attempt += 1) {
     const res = await fetch(`/api/learning/jobs/${jobId}`, { cache: "no-store" });
     if (!res.ok) throw new Error("job_poll_failed");
     const data = (await res.json().catch(() => ({}))) as {
@@ -160,9 +164,10 @@ export async function pollGenerationJob(
     onProgress({ done: ready, total: promised || ready, label: null });
     if (data.state === "done" && data.examId) return { examId: data.examId };
     if (data.state === "failed") return { failed: true };
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (Date.now() - started >= maxMs) return {};
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
-  return { failed: true };
+  return {};
 }
 
 /** NDJSON gövdesini satır satır okur; tam satırları döndürür, yarım kalanı biriktirir. */

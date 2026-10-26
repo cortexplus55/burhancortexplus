@@ -164,6 +164,10 @@ type Payload = {
   screen?: ReadinessScreen;
   /** Parça parça açılan ders: sonraki kavramlar yazılıyor (18 Ekim 2026). */
   building?: boolean;
+  /** Söz verilen soru sayısı. Kısa liste bitmiş test sayılmaz. */
+  promised?: number;
+  /** Yazım söz verilen sayıya varmadan kapandı. */
+  generationFailed?: boolean;
   /** Henüz gelmemiş kavramların adları (giriş kartı planı). */
   upcoming?: string[];
 };
@@ -1136,6 +1140,12 @@ export function ExamNodeSession({
         });
         const data = (await res.json().catch(() => ({}))) as { ok?: boolean; payload?: Payload };
         if (!stopped && res.ok && data.payload) {
+          if (data.payload.generationFailed) {
+            setPayload({ ...data.payload, type: "quiz", questions: [], building: false, generationFailed: true });
+            setGenerationError("Hazırlanıyor. Yeniden dene.");
+            setStage("setup");
+            return;
+          }
           let building = data.payload.building === true;
           setPayload((current) => {
             const incoming = data.payload!;
