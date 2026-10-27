@@ -638,7 +638,9 @@ export function ExamNodeSession({
       setAnswers(data.answers);
       answersRef.current = data.answers;
     }
-    if (typeof data.cursorIndex === "number") setIndex(data.cursorIndex);
+    if (typeof data.cursorIndex === "number") {
+      setIndex((current) => Math.max(current, data.cursorIndex ?? 0));
+    }
     if (typeof data.voiceMode === "boolean") setVoiceMode(data.voiceMode);
     if (typeof data.timeLeftSec === "number") {
       setTimeLeft(data.timeLeftSec);
@@ -983,7 +985,8 @@ export function ExamNodeSession({
     const next = { ...answersRef.current, [key]: value };
     answersRef.current = next;
     setAnswers(next);
-    scheduleSave(next, Number(key) || index);
+    const parsed = /^\d+$/.test(key) ? Number(key) : index;
+    scheduleSave(next, Math.max(parsed, index));
   }
 
   function finishCards(base: Record<string, unknown>) {

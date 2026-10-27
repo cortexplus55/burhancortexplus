@@ -157,7 +157,7 @@ function arrowSteps(line: string): string[] | null {
   if (!/(?:→|->|⇒)/.test(line)) return null;
   const parts = line
     .split(/\s*(?:→|->|⇒)\s*/)
-    .map((part) => part.trim())
+    .map((part) => part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").trim())
     .filter(Boolean);
   if (parts.length < 2 || parts.some((part) => part.length > 48)) return null;
   return parts;

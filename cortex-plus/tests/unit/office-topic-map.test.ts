@@ -62,7 +62,7 @@ describe("office documents through the course pipeline", () => {
       const res = await mapUntilDone();
       expect(res.status).toBe(200);
       expect(model.calls).toHaveLength(1);
-      expect(model.calls[0]!.model).toBe("gpt-4o-mini");
+      expect(model.calls[0]!.model).toBe("gpt-4.1");
       expect(model.calls[0]!.prompt).toContain("[d1 s.1]");
       expect(fake.db.tables.documents![0]).toMatchObject({ status: "completed", topic_map_status: "ready" });
       expect(fake.db.tables.document_topic_nodes!.filter((n: any) => n.parent_id).map((n: any) => n.title)).toEqual([title]);

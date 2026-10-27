@@ -263,9 +263,9 @@ export const EMPHASIS_RULE =
 export const TEACHER_SYSTEM =
   INTRO_DOCUMENT +
   "KAYNAK KURALI: Belgede geçen olgu, sayı, tarih, madde ve kural aynen kalır; belgeyle çelişme. " +
-  "SINAV MÜFREDATI TAMAMLAMASI: Belge bir formülü, ara adımı, neden-sonuç ilişkisini ya da klasik soru tipini vermeden geçiyorsa, " +
+  "GENEL BİLGİ KUTUSU: Belge bir formülü, ara adımı, neden-sonuç ilişkisini ya da klasik soru tipini vermeden geçiyorsa, " +
   "o konudan sınavda gereken standart müfredat bilgisini yaz. Belge dışı her bilgi 'note' bloğunda durur: tone 'general', " +
-  "başlık 'Sınav Müfredatı Tamamlaması: …' (eski 'Genel bilgi:' başlığı da kabul). Kutu kısa bir hatırlatma değildir: " +
+  "başlık kavramın kendi adıdır. 'Sınav Müfredatı Tamamlaması' veya 'Genel bilgi' diye bir önek yazma. Kutu kısa bir hatırlatma değildir: " +
   "tanım, kural ya da formül ve klasik çözümlü örnek o kavramın ekranlarında da anlatılır; kutu onları etiketler. " +
   "Kutu sayısı ve cümle sayısı sınırlı değildir. Emin olunmayan güncel eşik, yönetmelik ya da tartışmalı sayı yazılmaz. " +
   "Kaynakta zaten olan bilgi bu kutuya konmaz. Kontrol sorusu kutunun görülmeyen şekline güvenemez: veri soru kökünde yazılır. " +

@@ -340,7 +340,7 @@ export function ExamCreateWizard({
   const fileRef = useRef<HTMLInputElement>(null);
   const documentIds = materials.map((item) => item.id);
 
-  const [buildStage, setBuildStage] = useState(0);
+  const [buildStage, setBuildStage] = useState(-1);
   const [topics, setTopics] = useState<string[]>([]);
   /** Her konunun dayandığı sayfalar; öğrenci neye dayandığını görsün. */
   const [topicPages, setTopicPages] = useState<number[][]>([]);
@@ -630,7 +630,7 @@ export function ExamCreateWizard({
       setIntakeAlert(null);
       setMapRetry(false);
       setStep("building");
-      setBuildStage(0);
+      setBuildStage(-1);
       const ticker = setInterval(
         () => setBuildStage((s) => Math.min(s + 1, BUILD_STAGES.length - 1)),
         1400,
@@ -841,7 +841,7 @@ export function ExamCreateWizard({
         clearInterval(ticker);
         if (!alive.current) return;
         if (intakeFailed) return;
-        setBuildStage(BUILD_STAGES.length - 1);
+        setBuildStage(BUILD_STAGES.length);
         setStep("shaping");
         if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
         shapeTimer.current = window.setTimeout(() => {
@@ -1628,10 +1628,10 @@ export function ExamCreateWizard({
             {BUILD_STAGES.map((label, index) => (
               <li
                 key={label}
-                className={index <= buildStage ? "is-done" : undefined}
+                className={index < buildStage ? "is-done" : undefined}
               >
                 <span className="apw-stage-dot" aria-hidden>
-                  {index <= buildStage ? <Check className="h-3 w-3" /> : null}
+                  {index < buildStage ? <Check className="h-3 w-3" /> : null}
                 </span>
                 {label}
               </li>

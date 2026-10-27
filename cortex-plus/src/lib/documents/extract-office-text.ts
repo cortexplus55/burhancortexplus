@@ -78,6 +78,65 @@ function pageBreakStyles(files: Record<string, Uint8Array>): Set<string> {
   return out;
 }
 
+/**
+ * Sayfa başına karakter. 25 sayfalık bir ders notu ~2.200 karakter/sayfa;
+ * daha yüksek bir bölen aynı dosyayı ~13 sayfa sayıyordu.
+ */
+export const DOCX_CHARS_PER_PAGE = 2_200;
+
+function declaredDocxPages(files: Record<string, Uint8Array>): number | null {
+  const app = files["docProps/app.xml"];
+  if (!app) return null;
+  const match = strFromU8(app).match(/<Pages>(\d+)<\/Pages>/);
+  const count = match ? Number(match[1]) : 0;
+  return Number.isFinite(count) && count > 0 ? count : null;
+}
+
+function splitNearMiddle(text: string): [string, string] | null {
+  const paras = text.split("\n");
+  if (paras.length >= 2) {
+    let best = 1;
+    let bestGap = Number.POSITIVE_INFINITY;
+    let acc = 0;
+    const total = text.length;
+    for (let i = 1; i < paras.length; i += 1) {
+      acc += paras[i - 1]!.length + 1;
+      const gap = Math.abs(acc - total / 2);
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = i;
+      }
+    }
+    const left = paras.slice(0, best).join("\n").trim();
+    const right = paras.slice(best).join("\n").trim();
+    if (left && right) return [left, right];
+  }
+  if (text.length < 80) return null;
+  const mid = Math.floor(text.length / 2);
+  const left = text.slice(0, mid).trim();
+  const right = text.slice(mid).trim();
+  if (!left || !right) return null;
+  return [left, right];
+}
+
+/** İşaret sayısı gerçek sayfanın altındaysa metni hedef sayfa sayısına yayar. */
+export function expandDocxPages(pages: string[], target: number): string[] {
+  const out = pages.map((page) => page.trim()).filter(Boolean);
+  if (target <= out.length) return out;
+  let guard = 0;
+  while (out.length < target && guard < target * 2) {
+    guard += 1;
+    let longest = 0;
+    for (let i = 1; i < out.length; i += 1) {
+      if (out[i]!.length > out[longest]!.length) longest = i;
+    }
+    const parts = splitNearMiddle(out[longest]!);
+    if (!parts) break;
+    out.splice(longest, 1, parts[0], parts[1]);
+  }
+  return out;
+}
+
 function readDocx(files: Record<string, Uint8Array>): string[] {
   const doc = files["word/document.xml"];
   if (!doc) return [];
@@ -94,10 +153,15 @@ function readDocx(files: Record<string, Uint8Array>): string[] {
     .replace(/<\/w:p>/g, "\n");
 
   const text = decodeEntities(xml.replace(/<[^>]+>/g, ""));
-  return text
+  const marked = text
     .split("\u000c")
     .map(cleanup)
     .filter((page) => page.length > 0);
+  const chars = marked.reduce((sum, page) => sum + page.replace(/\s+/g, "").length, 0);
+  const estimated = Math.max(1, Math.ceil(chars / DOCX_CHARS_PER_PAGE));
+  const declared = declaredDocxPages(files);
+  const target = Math.max(marked.length, declared ?? estimated);
+  return expandDocxPages(marked, target);
 }
 
 /**
@@ -150,6 +214,7 @@ export function extractOfficeText(
       const wanted =
         name === "word/document.xml" ||
         name === "word/styles.xml" ||
+        name === "docProps/app.xml" ||
         /^ppt\/slides\/slide\d+\.xml$/.test(name);
       if (!wanted) continue;
       unzipped += data.byteLength;

@@ -35,6 +35,13 @@ export const OCR_MIN_CONCURRENCY = 4;
  * route chains steps in one process), so each step does not fall back to
  * OCR_START_CONCURRENCY. A cold instance starts over at the start value.
  */
+/** Metin katmanı bundan kısaysa sayfa taranmış sayılır ve okunur (boş el yazısı dahil). */
+export const TEXT_LAYER_MIN_CHARS = 40;
+
+export function textLayerNeedsOcr(text: string): boolean {
+  return text.trim().length < TEXT_LAYER_MIN_CHARS;
+}
+
 const OCR_POOL_MEMORY_MS = 15 * 60_000;
 const ocrPoolMemory = new Map<string, { limit: number; at: number }>();
 
@@ -261,10 +268,10 @@ async function ocrOneBlankPage(input: {
     onReleased?.(pageNumber);
   };
 
-  let read = await extractImageText(png, "image/png", { deadlineMs });
+  let read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber });
   let usage = read.usage;
   if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
-    read = await extractImageText(png, "image/png", { deadlineMs });
+    read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber });
     usage = mergeUsage(usage, read.usage);
   }
 
@@ -339,16 +346,16 @@ export async function readPdfBatch(
 
   const pages: PagePersist[] = extracted.pages.map((text) => ({
     text,
-    extractionOk: Boolean(text.trim()),
-    extractionMethod: text.trim() ? "text_layer" as const : "none" as const,
-    pageKind: text.trim() ? "content" as const : "unreadable" as const,
+    extractionOk: Boolean(text.trim()) && !textLayerNeedsOcr(text),
+    extractionMethod: text.trim() && !textLayerNeedsOcr(text) ? "text_layer" as const : "none" as const,
+    pageKind: text.trim() && !textLayerNeedsOcr(text) ? "content" as const : "unreadable" as const,
   }));
-  const done = pages.map((page) => Boolean(page.text.trim()));
+  const done = pages.map((page) => page.extractionMethod === "text_layer");
   const failedPages: number[] = [];
   const ocrPageNumbers: number[] = [];
   const scanSkipped: number[] = [];
 
-  const blankIndexes = pages.flatMap((page, index) => page.text.trim() ? [] : [index]);
+  const blankIndexes = pages.flatMap((page, index) => (textLayerNeedsOcr(page.text) ? [index] : []));
   if (!blankIndexes.length) {
     return { pages, total: extracted.total, ocrPageNumbers, failedPages, scanSkipped };
   }

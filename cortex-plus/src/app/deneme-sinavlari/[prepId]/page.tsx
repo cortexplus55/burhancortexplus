@@ -474,7 +474,11 @@ export default async function ExamPrepDetailPage({
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}
-        introPending={shouldShowLevelNode(prep.intro_completed_at as string | null)}
+        introPending={shouldShowLevelNode(
+          prep.intro_completed_at as string | null,
+          nodes,
+          prep.intro_deferred_at as string | null,
+        )}
         createdAt={(prep.created_at as string | null) ?? null}
         startHref={startHref}
         canShare={Boolean(profile?.school_id)}

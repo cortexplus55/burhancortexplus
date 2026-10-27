@@ -152,7 +152,7 @@ describe("yol: konu testi adı, gerçek D/Y, dönüşümlü etkileşim", () => {
       expect(block.find((node) => node.kind === "true_false")?.title).toBe(`${topic.title} · Doğru/Yanlış`);
     }
     expect(BLOCK_INTERACTIVE_ROTATION).toEqual(["podcast", "qa", "oral"]);
-    expect([0, 1, 2, 3].map(blockInteractiveKind)).toEqual(["podcast", "qa", "oral", "podcast"]);
+    expect([0, 1, 2, 3].map((index) => blockInteractiveKind(index))).toEqual(["podcast", "qa", "oral", "podcast"]);
   });
 
   it("şablon D/Y'yi atlamaz ve aynı türü ikinci kez koymaz", () => {

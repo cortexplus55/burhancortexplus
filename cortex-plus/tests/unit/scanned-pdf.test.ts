@@ -123,7 +123,7 @@ describe("sayfa çizimi", () => {
   }, 30_000);
 
   it("tavan varsayılanı zaman bütçesine göre seçilmiş", () => {
-    expect(MAX_SCAN_PAGES).toBeLessThanOrEqual(20);
+    expect(MAX_SCAN_PAGES).toBe(40);
   });
 });
 

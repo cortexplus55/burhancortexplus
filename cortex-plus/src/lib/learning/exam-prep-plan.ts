@@ -244,9 +244,9 @@ export function studyPathItemTitle(
  */
 export function weakPracticeTitle(kind: "gaps" | "focused", topics: readonly string[]): string {
   const base = PLAN_NODE_META[kind].title;
-  const names = [...new Set(topics.map((topic) => topic.trim()).filter(Boolean))];
-  if (!names.length) return base;
-  return `${names.join(", ")} · ${base}`;
+  const name = topics.map((topic) => topic.trim()).find(Boolean);
+  if (!name) return base;
+  return `${name} · ${base}`;
 }
 
 /**
@@ -262,13 +262,14 @@ export function weakPracticeTitle(kind: "gaps" | "focused", topics: readonly str
  */
 export function mergeStudyPathTemplate<T extends PlanNodeDraft>(
   nodes: T[],
-  options?: { alreadyPresent?: Iterable<PlanNodeKind> },
+  options?: { alreadyPresent?: Iterable<PlanNodeKind>; skipKinds?: Iterable<PlanNodeKind> },
 ): T[] {
   const present = new Set<PlanNodeKind>(options?.alreadyPresent ?? []);
+  const skip = new Set<PlanNodeKind>(options?.skipKinds ?? []);
   for (const node of nodes) present.add(node.kind);
   const out = [...nodes];
   for (const kind of CORE_ORDER) {
-    if (present.has(kind)) continue;
+    if (present.has(kind) || skip.has(kind)) continue;
     // 25 Ekim 2026: test doğru/yanlış içermiyor (çoktan seçmeli); D/Y düğümü atlanmaz.
     const slot = CORE_ORDER.indexOf(kind);
     const at = out.findIndex((node) => CORE_ORDER.indexOf(node.kind) > slot);

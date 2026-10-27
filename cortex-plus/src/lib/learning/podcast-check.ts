@@ -99,7 +99,8 @@ export function podcastCheckAnswered(check: QuizQuestion[], answers: Record<stri
 /** Kontrol yoksa ya da atlandıysa bugünkü gibi 1/1 (puansız); cevaplandıysa doğru sayısı / soru sayısı. */
 export function scorePodcastCheck(payload: unknown, answers: Record<string, unknown>): { score: number; total: number } {
   const check = podcastCheckOf(payload);
-  if (!check.length || !podcastCheckAnswered(check, answers)) return { score: 1, total: 1 };
+  if (!check.length) return { score: 0, total: 0 };
+  if (!podcastCheckAnswered(check, answers)) return { score: 0, total: check.length };
   return scoreQuizAnswers(check, answers);
 }
 

@@ -7,7 +7,7 @@ import {
   type ModelUsage,
 } from "@/lib/documents/extract-image-text";
 import { visionReadyImage } from "@/lib/documents/vision-image";
-import { renderPdfPages } from "@/lib/documents/render-pdf-pages";
+import { BLANK_INK_RATIO, MAX_SCAN_PAGES, renderPdfPages } from "@/lib/documents/render-pdf-pages";
 import {
   extractOfficeText,
   isOfficeDocument,
@@ -221,15 +221,29 @@ export async function processDocument(
         ÇİZİMDEN SONRA isteniyor: kaç sayfa okunacağını ancak o zaman
         biliyoruz ve öğrenci gerçekten okunacak sayfa kadar ödüyor.
       */
-      const rendered = await renderPdfPages(buffer);
-      if (!rendered.pages.length) return fail("text_extraction_unsupported");
+      const pngs: Buffer[] = [];
+      const scanOrdinals: number[] = [];
+      let start = 1;
+      let total = 1;
+      while (start <= total) {
+        const rendered = await renderPdfPages(buffer, MAX_SCAN_PAGES, start);
+        total = Math.max(rendered.total, 1);
+        for (const page of rendered.pages) {
+          if (page.scanRenderFailed) continue;
+          if (page.inkRatio < BLANK_INK_RATIO && !page.hasImageContent) continue;
+          pngs.push(page.png);
+          scanOrdinals.push(page.pageNumber);
+        }
+        if (!rendered.pages.length) break;
+        start += rendered.pages.length;
+      }
+      if (!pngs.length) return fail("text_extraction_unsupported");
 
-      if (!(await claim(rendered.pages.length))) {
+      if (!(await claim(pngs.length))) {
         return fail("photo_quota_exhausted");
       }
 
-      const pngs = rendered.pages.map((page) => page.png);
-      const read = await extractImagePages(pngs);
+      const read = await extractImagePages(pngs, "image/png", { scanOrdinals });
       recordVision(read.usage);
 
       if (read.blocked) {
@@ -245,14 +259,14 @@ export async function processDocument(
       pages = read.pages.filter((page) => page.trim().length > 0);
 
       // Okunamayan sayfalar kota yakmasın.
-      const unread = rendered.pages.length - read.readCount;
+      const unread = pngs.length - read.readCount;
       if (unread > 0) {
         await releasePhotoPages(service, userId, unread);
         claimedPages -= unread;
       }
 
-      if (rendered.total > rendered.pages.length) {
-        notice = `${rendered.total} sayfalık belgenin ilk ${rendered.pages.length} sayfası okundu.`;
+      if (total > pngs.length && read.readCount < total) {
+        notice = `${total} sayfalık belgenin ${read.readCount} sayfası okundu.`;
       }
     } else {
       return fail("text_extraction_unsupported");

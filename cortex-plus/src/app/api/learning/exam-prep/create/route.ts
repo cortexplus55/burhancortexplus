@@ -205,15 +205,24 @@ export async function POST(request: Request) {
     | undefined;
 
   if (v2 && scheduleTopics.length) {
+    const modalities = parsed.data.learningPreferences?.modalities ?? [];
+    const includeAudio = !(
+      modalities.includes("reading") &&
+      modalities.includes("practice") &&
+      !modalities.includes("listening") &&
+      !modalities.includes("watching")
+    );
     scheduleSummary = buildExamScheduleV2({
       daysToExam: daysUntilExam(parsed.data.examDate),
       dailyMinutes,
       studyDays,
       topics: scheduleTopics,
       targetScore: parsed.data.targetScore,
+      includeAudio,
     });
     scheduleDrafts = mergeStudyPathTemplate(
       scheduleSessionsToNodeDrafts(scheduleSummary.sessions),
+      includeAudio ? undefined : { skipKinds: ["podcast", "oral"] },
     );
     v2Nodes = scheduleDrafts.map((d, index) => ({
       kind: d.kind,

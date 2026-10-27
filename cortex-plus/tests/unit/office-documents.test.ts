@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { zipSync, strToU8 } from "fflate";
 import {
+  DOCX_CHARS_PER_PAGE,
+  expandDocxPages,
   extractOfficeText,
   isOfficeDocument,
   OFFICE_MIME_TYPES,
@@ -103,6 +105,19 @@ describe("Word", () => {
     );
     // Elle sonu izleyen çizim işareti ikinci bir sayfa üretmez.
     expect(result.pages).toEqual(["Birinci sayfa", "İkinci sayfa", "Üçüncü sayfa"]);
+  });
+
+  it("Word'ün sayfa sayısı işaretlerden azsa app.xml ile tamamlanır", () => {
+    const body = Array.from({ length: 13 }, (_, i) => para(`Sayfa ${i + 1} ` + "kelime ".repeat(80))).join(
+      '<w:p><w:r><w:lastRenderedPageBreak/></w:r></w:p>',
+    );
+    const result = extractOfficeText(
+      docx(body, { "docProps/app.xml": "<Properties><Pages>25</Pages></Properties>" }),
+      DOCX,
+    );
+    expect(DOCX_CHARS_PER_PAGE).toBe(2_200);
+    expect(result.pages.length).toBeGreaterThanOrEqual(25);
+    expect(expandDocxPages(["a\nb", "c"], 4).length).toBeGreaterThanOrEqual(3);
   });
 
   it("stilinde ya da paragrafında 'sayfa öncesi kes' olan paragraf yeni sayfa açar", () => {

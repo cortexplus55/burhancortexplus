@@ -411,10 +411,10 @@ describe("boru hattı", () => {
      çizimden SONRA isteniyor — kaç sayfa okunacağını ancak o zaman biliyoruz
      ve öğrenci gerçekten okunacak sayfa kadar ödüyor. */
   it("taramada çizimden sonra, okumadan önce kota alıyor", () => {
-    const render = source.indexOf("await renderPdfPages(buffer)");
-    const claim = source.indexOf("await claim(rendered.pages.length)");
-    expect(source).toContain("rendered.pages.map((page) => page.png)");
-    const read = source.indexOf("await extractImagePages(pngs)");
+    const render = source.indexOf("await renderPdfPages(buffer, MAX_SCAN_PAGES, start)");
+    const claim = source.indexOf("await claim(pngs.length)");
+    expect(source).toContain("pngs.push(page.png)");
+    const read = source.indexOf("await extractImagePages(pngs, \"image/png\", { scanOrdinals })");
     expect(render).toBeLessThan(claim);
     expect(claim).toBeLessThan(read);
   });
@@ -422,7 +422,7 @@ describe("boru hattı", () => {
   /* Okunamayan sayfa kota yakmamalı — taranmış bir kitabın boş arka yüzü
      için öğrenciden hak kesmek yanlış olurdu. */
   it("okunamayan tarama sayfalarının hakkını geri veriyor", () => {
-    expect(source).toContain("const unread = rendered.pages.length - read.readCount");
+    expect(source).toContain("const unread = pngs.length - read.readCount");
     expect(source).toContain("await releasePhotoPages(service, userId, unread)");
   });
 

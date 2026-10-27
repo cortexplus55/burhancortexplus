@@ -57,6 +57,11 @@ export type ScheduleBuildInput = {
   targetScore?: number | null;
   /** Calendar start (its Europe/Istanbul day); defaults to now. */
   fromDate?: Date;
+  /**
+   * Okuyarak + pratik (ses yok) seçildiyse podcast ve sözlü konmaz.
+   * Varsayılan true: eski çağrılar sesli adımı korur.
+   */
+  includeAudio?: boolean;
 };
 
 /**
@@ -203,7 +208,8 @@ export const BLOCK_TRUE_FALSE_MINUTES = 10;
 export const BLOCK_INTERACTIVE_MINUTES = 10;
 export const BLOCK_INTERACTIVE_ROTATION: readonly PlanNodeKind[] = ["podcast", "qa", "oral"];
 
-export function blockInteractiveKind(topicIndex: number): PlanNodeKind {
+export function blockInteractiveKind(topicIndex: number, includeAudio?: boolean): PlanNodeKind {
+  if (includeAudio === false) return "quiz";
   return BLOCK_INTERACTIVE_ROTATION[Math.abs(topicIndex) % BLOCK_INTERACTIVE_ROTATION.length]!;
 }
 
@@ -495,10 +501,9 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
    * darsa yeni konular deneme gününe kadar bütün döneme yayılır.
    */
   const tight = optionsIfTight.length > 0;
-  const learnWindow = tight
-    ? Math.max(1, lastIdx - 1)
-    : Math.max(1, Math.floor(Math.max(1, lastIdx) * 0.6));
-  const spreadStep = kept.length > 0 ? learnWindow / kept.length : 0;
+  const learnEnd = Math.max(1, lastIdx - Math.min(3, Math.max(0, lastIdx)));
+  const learnWindow = learnEnd;
+  const spreadStep = kept.length > 1 ? learnWindow / (kept.length - 1) : 0;
 
   /** Yolun sırası konu konu: ders(ler), testler, tekrar. Takvim günü sırayı belirlemez. */
   const sequence = new Map<ScheduleSession, number>();
@@ -631,7 +636,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       mark(topicIndex, 100);
       companion(practiceDay, topic, "true_false", BLOCK_TRUE_FALSE_MINUTES);
       mark(topicIndex, 110);
-      companion(practiceDay, topic, blockInteractiveKind(topicIndex), BLOCK_INTERACTIVE_MINUTES);
+      companion(practiceDay, topic, blockInteractiveKind(topicIndex, input.includeAudio !== false), BLOCK_INTERACTIVE_MINUTES);
       mark(topicIndex, 115);
     }
     core.push({ learnDay, practiceDay: Math.max(practiceDay, learnDay) });

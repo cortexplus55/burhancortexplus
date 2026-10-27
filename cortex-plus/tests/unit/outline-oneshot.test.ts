@@ -153,34 +153,22 @@ describe("buildMaterialCorpus", () => {
 });
 
 describe("selectOutlineModel", () => {
-  it("routes short notes (≤12 pages) to gpt-4o-mini", () => {
-    const choice = selectOutlineModel({ pageCount: OUTLINE_MINI_PAGE_LIMIT, corpusChars: 10_000 });
-    expect(choice.tier).toBe("standard");
-    expect(choice.model).toBe("gpt-4o-mini");
+  it("maps every document with the strong model, including short notes", () => {
+    for (const pageCount of [1, OUTLINE_MINI_PAGE_LIMIT, 20, 30]) {
+      const choice = selectOutlineModel({ pageCount, corpusChars: 10_000 });
+      expect(choice.tier).toBe("strong");
+      expect(choice.model).toBe("gpt-4.1");
+      expect(choice.reason).toBe("page_count");
+    }
   });
 
-  it("routes a 20-30 page note straight to the strong model (19 Ekim 2026: mini's page citations drift there)", () => {
-    expect(OUTLINE_MINI_PAGE_LIMIT).toBe(12);
-    expect(selectOutlineModel({ pageCount: 20, corpusChars: 28_000 }).tier).toBe("strong");
-    expect(selectOutlineModel({ pageCount: 30, corpusChars: 54_000 }).tier).toBe("strong");
-  });
-
-  it("routes >12 pages to gpt-4.1", () => {
-    const choice = selectOutlineModel({
-      pageCount: OUTLINE_MINI_PAGE_LIMIT + 1,
-      corpusChars: 10_000,
-    });
-    expect(choice.tier).toBe("strong");
-    expect(choice.model).toBe("gpt-4.1");
-    expect(choice.reason).toBe("page_count");
-  });
-
-  it("routes oversized corpus to gpt-4.1 even under the page limit", () => {
+  it("still names an oversized corpus, and still uses the strong model", () => {
     const choice = selectOutlineModel({
       pageCount: 10,
       corpusChars: ONESHOT_MAX_INPUT_CHARS + 1,
     });
     expect(choice.tier).toBe("strong");
+    expect(choice.model).toBe("gpt-4.1");
     expect(choice.reason).toBe("corpus_size");
   });
 });
@@ -362,7 +350,35 @@ describe("validateOneShotOutline", () => {
     }
   });
 
-  it("a unit whose topics all fail grounding survives as one topic under its own title (KPSS 'Siyasi partiler', 19 Ekim 2026)", () => {
+  it("a single ungrounded topic still survives under the unit title", () => {
+    const pageTexts = pageTextMapFromFiles([
+      {
+        fileName: "x.pdf",
+        pages: [
+          { pageNumber: 1, text: "Siyasi partiler önceden izin almadan kurulur. Parti üyesi olamayacaklar arasında hâkimler sayılır." },
+        ],
+      },
+    ]);
+    const draft = {
+      units: [
+        {
+          title: "Siyasi Partiler",
+          topics: [
+            { title: "Uzay hukuku antlaşmaları", whyLearn: "Antlaşmaları öğreneceksin.", pageStart: 1, pageEnd: 1, likelyAsked: ["Antlaşma"] },
+          ],
+        },
+      ],
+    } as OneShotOutlineDraft;
+    const result = validateOneShotOutline(draft, { filePageCounts: [1], pageTexts });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.normalized[0]!.topics).toHaveLength(1);
+    expect(result.normalized[0]!.topics[0]!.title).toBe("Siyasi Partiler");
+    expect(result.dropped.some((i) => i.code === "unit_rescued")).toBe(true);
+    expect(result.dropped.some((i) => i.code === "unit_split_required")).toBe(false);
+  });
+
+  it("a unit with several ungrounded subheadings is not collapsed into one topic", () => {
     const filler = (n: number) => ({ pageNumber: n, text: `Sayfa ${n}: mol kavramı, Avogadro sayısı ve kütle hesapları anlatılır. Çözümlü örnekler verilir.` });
     const pageTexts = pageTextMapFromFiles([
       {
@@ -392,13 +408,11 @@ describe("validateOneShotOutline", () => {
     const result = validateOneShotOutline(draft, { filePageCounts: [6], pageTexts });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.normalized.map((u) => u.title)).toEqual(["Kimya", "Siyasi Partiler"]);
-    const rescued = result.normalized[1]!.topics;
-    expect(rescued).toHaveLength(1);
-    expect(rescued[0]).toMatchObject({ title: "Siyasi Partiler", pageNumbers: [6], likelyAsked: ["Kapatma davası", "Üye olamayacaklar"] });
+    expect(result.normalized.map((u) => u.title)).toEqual(["Kimya"]);
     expect(result.dropped.filter((i) => i.code === "ungrounded_topic")).toHaveLength(2);
-    expect(result.dropped.some((i) => i.code === "unit_rescued")).toBe(true);
-    expect(result.dropped.some((i) => i.code === "empty_unit")).toBe(false);
+    expect(result.dropped.some((i) => i.code === "unit_rescued")).toBe(false);
+    expect(result.dropped.some((i) => i.code === "unit_split_required")).toBe(true);
+    expect(result.dropped.some((i) => i.code === "empty_unit")).toBe(true);
   });
 
   it("bounds page ranges per file and records the topic's fileIndex", () => {
@@ -547,9 +561,9 @@ describe("runOutlineStep (one course outline)", () => {
     mockedGenerate.mockReset();
   });
 
-  it("uses gpt-4o-mini for short material with teacher+student fields", async () => {
+  it("uses the strong model for short material with teacher+student fields", async () => {
     mockedGenerate.mockImplementation(async (params) => {
-      expect(params.modelOverride).toBe("gpt-4o-mini");
+      expect(params.modelOverride).toBe("gpt-4.1");
       expect(params.callTimeoutMs).toBe(OUTLINE_CALL_TIMEOUT_MS);
       expect(params.stream).toBe(true);
       expect(params.deferCommit).toBe(true);
@@ -577,7 +591,7 @@ describe("runOutlineStep (one course outline)", () => {
     expect(result.kind).toBe("done");
     if (result.kind !== "done") return;
     expect(result.path).toBe("first");
-    expect(result.map.model).toBe("gpt-4o-mini");
+    expect(result.map.model).toBe("gpt-4.1");
     expect(result.map.reservationIds).toEqual(["r-first"]);
     const topics = result.map.units[0]!.topics;
     expect(result.map.units[0]!.examWeight).toBe("high");
@@ -591,23 +605,23 @@ describe("runOutlineStep (one course outline)", () => {
     expect(models).toEqual(["gpt-4.1"]);
   });
 
-  it("routes on summed pages across files: 5 + 6 = 11 stays on mini", async () => {
+  it("routes on summed pages across files: 5 + 6 = 11 still uses the strong model", async () => {
     // The fixture pages carry one short line each, so the one-topic draft is not
     // "thin" for this little text (outline-thin-map.test.ts covers full pages).
-    expect(await runSummedRouting([5, 6])).toEqual(["gpt-4o-mini"]);
+    expect(await runSummedRouting([5, 6])).toEqual(["gpt-4.1"]);
   });
 
   it("routes on summed pages across files: 7 + 6 = 13 goes strong", async () => {
     expect(await runSummedRouting([7, 6])).toEqual(["gpt-4.1"]);
   });
 
-  it("escalates to gpt-4.1 when the mini draft is rejected, releasing the mini draft", async () => {
+  it("repairs on the strong model when the first draft is rejected", async () => {
     const models: string[] = [];
     let release: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
-      if (models.length === 1) return { ok: true, data: params.parse(JUNK), reservationId: "r-mini" } as never;
-      return { ok: true, data: params.parse(groundedDraft()), reservationId: "r-strong" } as never;
+      if (models.length === 1) return { ok: true, data: params.parse(JUNK), reservationId: "r-first" } as never;
+      return { ok: true, data: params.parse(groundedDraft()), reservationId: "r-repair" } as never;
     });
     const material = prepareOutlineMaterial(DEMO);
     const keyFor = (stage: string) => `k:${stage}`;
@@ -617,21 +631,21 @@ describe("runOutlineStep (one course outline)", () => {
     expect(first.kind).toBe("continue");
     if (first.kind === "continue") {
       release = first.release;
-      expect(first.progress.stage).toBe("escalate");
+      expect(first.progress.stage).toBe("repair");
       const second = await runOutlineStep({
         service: {} as never, userId: "u1", material, progress: first.progress, keyFor, deadlineAt: Date.now() + 300_000,
       });
       expect(second.kind).toBe("done");
       if (second.kind === "done") {
-        expect(second.path).toBe("escalate");
-        expect(second.map.reservationIds).toEqual(["r-strong"]);
+        expect(second.path).toBe("repair");
+        expect(second.map.reservationIds).toEqual(["r-repair"]);
       }
     }
-    expect(release).toEqual(["r-mini"]);
-    expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
+    expect(release).toEqual(["r-first"]);
+    expect(models).toEqual(["gpt-4.1", "gpt-4.1"]);
   });
 
-  it("runs one repair on the strong model after escalation still fails", async () => {
+  it("runs one repair on the strong model when the first draft still fails", async () => {
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
@@ -641,7 +655,7 @@ describe("runOutlineStep (one course outline)", () => {
     const { result } = await runToEnd(DEMO);
     expect(result.kind).toBe("done");
     if (result.kind === "done") expect(result.path).toBe("repair");
-    expect(models).toEqual(["gpt-4o-mini", "gpt-4.1", "gpt-4.1"]);
+    expect(models).toEqual(["gpt-4.1", "gpt-4.1"]);
   });
 
   it("repairs against the cited pages only, with the invalid draft attached", async () => {

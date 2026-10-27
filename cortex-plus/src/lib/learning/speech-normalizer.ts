@@ -307,9 +307,14 @@ function prettifyAscii(text: string): string {
   return next;
 }
 
+/** İngilizce binlik ayıracı (12,000 / 1/20,000) Türkçe noktaya döner. Ondalık virgül (3,14) durur. */
+export function turkishThousands(text: string): string {
+  return text.replace(/\b\d{1,3}(?:,\d{3})+\b/g, (group) => group.replace(/,/g, "."));
+}
+
 /** Öğrencinin göreceği simge. Konuşma diline çevirmez. */
 export function toDisplay(text: string): string {
-  const clean = text.replace(/\s+/g, " ").trim();
+  const clean = turkishThousands(text.replace(/\s+/g, " ").trim());
   if (!clean) return "";
   return collapse(prettifyAscii(recoverUzeri(recoverSpokenFormulas(recoverSmashedPowers(clean)))));
 }

@@ -148,6 +148,41 @@ export async function loadPrepChatGrounding(
     };
   });
 
+  // Hazırlıktaki her dosyadan en az bir sayfa: taranmış not aramada boş kalsa da "paylaşılmadı" denmesin.
+  const coveredDocs = new Set(passages.map((item) => item.documentId));
+  const missingDocs = documentIds.filter((id) => !coveredDocs.has(id));
+  if (missingDocs.length) {
+    const { data: fallbackPages } = await service
+      .from("document_pages")
+      .select("document_id, page_number, text_content, clean_text")
+      .in("document_id", missingDocs)
+      .limit(Math.max(24, missingDocs.length * 4));
+    const seenDoc = new Set<string>();
+    for (const row of fallbackPages ?? []) {
+      const documentId = row.document_id as string;
+      if (seenDoc.has(documentId)) continue;
+      const text = ((row.clean_text as string | null) || (row.text_content as string | null) || "").trim();
+      if (text.length < 40) continue;
+      seenDoc.add(documentId);
+      const doc = meta.get(documentId);
+      const name = (doc?.file_name as string | undefined) ?? "Belge";
+      passages.push({
+        documentId,
+        documentName: name,
+        pageNumber: row.page_number as number,
+        slide: slideMime(doc?.mime_type as string | null),
+        content: text.slice(0, 900),
+        href: citationHref({
+          reference: 0,
+          documentId,
+          documentName: name,
+          pageNumber: row.page_number as number,
+          chunkId: null,
+        }),
+      });
+    }
+  }
+
   // Kelime araması: anlam araması kaçırdığında belgedeki kesin cümleyi bul.
   const stems = searchStems(message);
   if (stems.length) {

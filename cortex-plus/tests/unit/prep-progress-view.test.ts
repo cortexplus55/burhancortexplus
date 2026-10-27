@@ -116,9 +116,9 @@ describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
       attempts: [{ nodeId: "q1", score: 4, total: 6, createdAt: daysAgo(2) }],
     });
     const circle = view.topics.find((t) => t.label === "Birim Çember")!;
-    expect(circle).toMatchObject({ pct: 100, solved: 6, lessons: 1 });
+    expect(circle).toMatchObject({ pct: 67, solved: 6, lessons: 1 });
     expect(view.topics.find((t) => t.label === "Sinüs")).toMatchObject({ pct: 0, lessons: 1 });
-    expect(view.topicsAtTarget).toBe(1);
+    expect(view.topicsAtTarget).toBe(0);
     expect(view.lessonsDone).toBe(2);
   });
 

@@ -37,7 +37,7 @@ import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { podcastCheckOf, podcastPayloadEpisode, scorePodcastCheck } from "@/lib/learning/podcast-check";
 import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { lessonBackbone } from "@/lib/learning/lesson-backbone";
-import { loadPreviousItems, loadStoredCards, loadStoredQuiz } from "@/lib/learning/previous-items";
+import { loadPreviousItems, loadStoredQuiz } from "@/lib/learning/previous-items";
 import { practiceCoverage, practiceVariantFromTitle } from "@/lib/learning/practice-coverage";
 import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
@@ -190,8 +190,7 @@ import {
   isPathTurn,
   spacedReviewGate,
 } from "@/lib/learning/exam-local-session";
-import { interleaveByTopic, roundRobinCounts } from "@/lib/learning/final-block";
-import { fillTopicQuestions, loadFinalCardTopics, loadTopicPages } from "@/lib/learning/prep-topic-fill";
+import { fillTopicQuestions } from "@/lib/learning/prep-topic-fill";
 import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
 import { adaptiveFocusTopic } from "@/lib/learning/path-change";
 import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
@@ -1460,7 +1459,11 @@ async function handleNodeRequest(
       local = gapsNothingOpenPayload();
     }
     if ((kind === "gaps" || kind === "focused") && local.topics?.length) {
-      title = weakPracticeTitle(kind, local.topics);
+      const served = local.action === "serve" ? local.payload : null;
+      const asked = ((served as { questions?: { topic?: string; topicLabel?: string }[] } | null)?.questions ?? [])
+        .map((question) => (question.topicLabel || question.topic || "").trim())
+        .filter(Boolean);
+      title = weakPracticeTitle(kind, asked.length ? asked : local.topics.slice(0, 1));
     }
     if (local.action === "serve" && local.payload.locked === true) {
       // Kayıt açılmaz: kilit kalkınca düğüm temiz başlasın.
@@ -2732,7 +2735,7 @@ async function handleNodeRequest(
         : {};
     const namedTitle =
       (kind === "gaps" || kind === "focused") && practiceTopics?.length
-        ? weakPracticeTitle(kind, practiceTopics)
+        ? weakPracticeTitle(kind, practiceTopics.slice(0, 1))
         : null;
     if (namedTitle) title = namedTitle;
     const namedTopic = retargetedTopic || (namedTitle ? practiceTopics?.[0] ?? null : null);
@@ -3655,20 +3658,6 @@ async function teacherCardsPayload(
     // Öğrenci bekliyor: kısa düzeltme bütçesi, paralel onarım (25 Ekim 2026).
     urgent: input.charge !== false,
   };
-  // Son tekrar (hazırlık geneli "flashcards"): kartlar zayıf ve orta konulara sırayla dağılır, her konu kendi
-  // sayfalarından; 8 kartın hepsi devralınan 1. konudan gelmez.
-  const finalTopics =
-    input.kind === "flashcards" && input.prepId && input.userId
-      ? await loadFinalCardTopics(input.service, { userId: input.userId, prepId: input.prepId }).catch(() => [])
-      : [];
-  const finalSources =
-    finalTopics.length > 1 && input.prepId
-      ? await loadTopicPages(input.service, { userId: input.userId, prepId: input.prepId, labels: finalTopics })
-      : [];
-  const finalPlan = roundRobinCounts(
-    finalSources.filter((item) => item.pages.length || input.lessonTopicOnly).map((item) => item.label),
-    cardsInput.count,
-  );
   const outcome = await runWithTeacherModel(input.service, {
     userId: input.userId,
     actionCode: actionForKind(input.kind),
@@ -3679,63 +3668,6 @@ async function teacherCardsPayload(
     label: "teacher_cards",
     topic: input.topicLabel,
     work: async (ask, started) => {
-      if (finalPlan.length > 1) {
-        const loops = await Promise.all(
-          finalPlan.map((row) => {
-            const item = finalSources.find((sourceRow) => sourceRow.label === row.label)!;
-            return teacherCardsLoop(
-              ask,
-              {
-                ...cardsInput,
-                topicLabel: row.label,
-                pages: item.pages,
-                runningHeaders: item.edges,
-                mode: item.pages.length ? ("document" as const) : ("topic" as const),
-                count: row.count,
-                examPoints: undefined,
-              },
-              started,
-            );
-          }),
-        );
-        let cards = interleaveByTopic(
-          loops.map((loop, index) => loop.cards.slice(0, finalPlan[index]!.count + 1)),
-          cardsInput.count,
-        );
-        let tries = 1;
-        while (cards.length < cardsInput.count && tries < 4) {
-          tries += 1;
-          const more = await Promise.all(
-            finalPlan.map((row) => {
-              const item = finalSources.find((sourceRow) => sourceRow.label === row.label)!;
-              return teacherCardsLoop(
-                ask,
-                {
-                  ...cardsInput,
-                  topicLabel: row.label,
-                  pages: item.pages,
-                  runningHeaders: item.edges,
-                  mode: item.pages.length ? ("document" as const) : ("topic" as const),
-                  count: row.count,
-                  examPoints: undefined,
-                },
-                started,
-              );
-            }),
-          );
-          const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
-          for (const card of more.flatMap((loop) => loop.cards)) {
-            const key = card.front.trim().toLocaleLowerCase("tr");
-            if (cards.length >= cardsInput.count || seen.has(key)) continue;
-            seen.add(key);
-            cards = [...cards, card];
-          }
-        }
-        const log = { kept: cards.length, rejected: loops.reduce((sum, loop) => sum + loop.rejected.length, 0), topics: finalPlan.length, tries };
-        return cards.length >= cardsInput.count
-          ? { ok: true as const, result: cards.slice(0, cardsInput.count), log }
-          : { ok: false as const, reasons: loops.flatMap((loop) => loop.rejected.slice(0, 2).map((row) => row.problems[0] ?? "sorun")), log };
-      }
       let cards = (await teacherCardsLoop(ask, cardsInput, started)).cards;
       let rejected = 0;
       let tries = 1;
@@ -3752,18 +3684,12 @@ async function teacherCardsPayload(
         }
       }
       const log = { kept: cards.length, rejected, rounds: tries };
-      return cards.length >= cardsInput.count
+      return cards.length
         ? { ok: true as const, result: cards.slice(0, cardsInput.count), log }
         : { ok: false as const, reasons: ["short"], log };
     },
   });
   if (!outcome.ok) {
-    if (input.kind === "flashcards" && input.prepId && input.userId) {
-      const stored = await loadStoredCards(input.service, { userId: input.userId, prepId: input.prepId });
-      if (stored.length) {
-        return { type: "cards", cards: stored, teachingStandard: activity, masteryClaim: false, engine: "teacher" };
-      }
-    }
     throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
   }
   return { type: "cards", cards: outcome.result, teachingStandard: activity, masteryClaim: false, engine: "teacher" };

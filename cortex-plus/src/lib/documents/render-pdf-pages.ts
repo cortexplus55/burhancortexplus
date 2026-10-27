@@ -25,7 +25,8 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
  * görüntü modeli çağrısı. Uzun belgeye sonraki turda startPage verilerek
  * devam edilir; bir sayfa bile sessizce atlanmaz.
  */
-export const MAX_SCAN_PAGES = 20;
+/** İlk turda luna ile okunan taranmış sayfa. Üstü hızlı görme modeline gider, atlanmaz. */
+export const MAX_SCAN_PAGES = 40;
 
 /**
  * Çizimin uzun kenarı. Görüntü modeli zaten karelere bölüyor; daha büyüğü

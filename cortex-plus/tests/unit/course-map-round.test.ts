@@ -107,13 +107,14 @@ describe("course map round (fake DB, real credit semantics)", () => {
     }
   });
 
-  it("a rejected mini draft really calls gpt-4.1 in the next round; only the kept call is charged", async () => {
+  it("a rejected first draft is repaired on the strong model; only the kept call is charged", async () => {
     const { db, client, chargedCredits } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
-    model.impl = (p) => (p.modelOverride === "gpt-4o-mini" ? JUNK : oneFile([1, 2, 3, 4]));
+    let n = 0;
+    model.impl = () => (++n === 1 ? JUNK : oneFile([1, 2, 3, 4]));
     const rounds = await runRounds(client, ["d1"]);
     expect(rounds.map((r) => r.pending ?? false)).toEqual([true, false]);
-    expect(rounds[0]!.stage).toBe("escalate");
-    expect(calls.map((c) => c.model)).toEqual(["gpt-4o-mini", "gpt-4.1"]);
+    expect(rounds[0]!.stage).toBe("repair");
+    expect(calls.map((c) => c.model)).toEqual(["gpt-4.1", "gpt-4.1"]);
     expect(calls[0]!.key).not.toBe(calls[1]!.key);
     const statuses = (db.tables.credit_reservations as any[]).map((r) => r.status);
     expect(statuses).toEqual(["refunded", "committed"]);
@@ -147,7 +148,7 @@ describe("course map round (fake DB, real credit semantics)", () => {
     expect(meta).toMatchObject({ phase: "course", stage: "first", failures: 1 });
     const rounds = await runRounds(client, ["d1"]);
     expect(rounds.at(-1)).toMatchObject({ ok: true, topics: 2 });
-    expect(calls.map((c) => c.model)).toEqual(["gpt-4o-mini", "gpt-4o-mini"]);
+    expect(calls.map((c) => c.model)).toEqual(["gpt-4.1", "gpt-4.1"]);
     expect(chargedCredits("u1")).toBe(COST);
   });
 
@@ -172,22 +173,21 @@ describe("course map round (fake DB, real credit semantics)", () => {
     expect(chargedCredits("u1")).toBe(0);
   });
 
-  it("validation rejecting every draft is final after ONE first → escalate → repair cycle", async () => {
+  it("validation rejecting every draft is final after ONE first → repair cycle", async () => {
     const { db, client, chargedCredits } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
     model.impl = () => JUNK;
     const rounds = await runRounds(client, ["d1"], {}, 12);
     expect(rounds.at(-1)).toMatchObject({ ok: false, error: "topic_map_unavailable" });
     expect(calls.map((c) => `${c.model}:${c.key.split(":").pop()}`)).toEqual([
-      "gpt-4o-mini:first",
-      "gpt-4.1:escalate",
+      "gpt-4.1:first",
       "gpt-4.1:repair",
     ]);
     expect(db.tables.documents![0]).toMatchObject({ topic_map_status: "failed" });
     expect(chargedCredits("u1")).toBe(0);
   });
 
-  it("5 + 6 pages → one call on gpt-4o-mini; 7 + 6 → one call on gpt-4.1 (limit 12 since 19 Ekim 2026)", async () => {
-    for (const [pagesA, pagesB, routed] of [[5, 6, "gpt-4o-mini"], [7, 6, "gpt-4.1"]] as const) {
+  it("5 + 6 and 7 + 6 pages both map on the strong model in one call", async () => {
+    for (const [pagesA, pagesB, routed] of [[5, 6, "gpt-4.1"], [7, 6, "gpt-4.1"]] as const) {
       calls.length = 0;
       const { client, chargedCredits } = mkDb([
         { id: "dA", name: "a.pdf", pages: pagesA, file: 0 },

@@ -206,18 +206,18 @@ export function buildPrepProgressView(input: {
     ? input.topicLabels
     : [...new Set(input.nodes.map(topicOf).filter((t): t is string => Boolean(t)))];
 
-  const masteryByLabel = input.topicMastery
-    ? new Map(input.topicMastery.map((row) => [row.label, Math.max(0, Math.min(100, Math.round(row.confidence)))]))
-    : null;
   const topics = labels.map((label) => {
     const topicNodes = input.nodes.filter((node) => topicOf(node) === label);
-    const done = topicNodes.filter((node) => node.status === "done").length;
     const ids = new Set(topicNodes.map((node) => node.id));
     const solved = uniqueSolved(completed, ids, nodeById);
-    const mastery = masteryByLabel?.get(label);
+    const scored = completed.filter((attempt) => ids.has(attempt.nodeId) && (attempt.total ?? 0) > 0);
+    const earned = scored.reduce((sum, attempt) => sum + Math.max(0, attempt.score ?? 0), 0);
+    const possible = scored.reduce((sum, attempt) => sum + (attempt.total ?? 0), 0);
+    const accuracy = possible > 0 ? Math.round((earned / possible) * 100) : null;
+    const mastery = input.topicMastery?.find((row) => row.label === label);
     return {
       label,
-      pct: masteryByLabel ? (mastery ?? 0) : pct(done, topicNodes.length),
+      pct: accuracy ?? (typeof mastery?.confidence === "number" ? Math.round(mastery.confidence) : 0),
       solved,
       lessons: topicNodes.filter((node) => LESSON_KINDS.has(node.kind)).length,
     };

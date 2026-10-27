@@ -213,6 +213,8 @@ export const TOPIC_TEST_RULE =
   "kullanırsan dersteki adı parantezde ver ('eş yönlü (koterminal)').\n" +
   // 22 Ekim 2026 kör kıyas (2. tur): testte iki sorunun aynısı (S3/S4), "Bir öğrenci … yorumluyor" kurgusu,
   // "kaynakta verilen uyarı" kökü, kökün cevabı vermesi ve kök-şık uyumsuzluğu.
+  "- YUVA: 5 soruluk testte sorular 1'den 5'e ayrı yuvalardır. Her yuva konunun ayrı bir alt kavramını veya ayrı bir " +
+  "soru tipini yoklar. Aynı formülü yalnız sayıları değiştirerek ikinci kez sorma.\n" +
   "- TEKRAR VE KURGU: Testte iki soru aynı bilgiyi aynı yoldan sormaz. 'Bir öğrenci … diyor / savunuyor / " +
   "yorumluyor' kalıbı vaka değildir; vakayı olayın kendisiyle kur. Kök kaynağı anmaz ('kaynakta verilen', 'notlarda " +
   "belirtilen'). Kök cevabın sözcüklerini taşımaz; şıklar kökün sorduğu türden olur (kök bir yaklaşım soruyorsa " +
@@ -684,7 +686,7 @@ export type QuizIssue = { question: number; severity: "high" | "low"; problem: s
  * Soru düzeltilir ya da yedekle değişir; düzelmezse sayıyı tamamlamak için geri konur. A-G (doğruluk,
  * soru yazımı), yapı sorunları ve harfsiz sorunlar engeller: o soru öğrenciye hiç gitmez.
  */
-export const SOFT_CODES: ReadonlySet<string> = new Set(["H", "I", "J", "K"]);
+export const SOFT_CODES: ReadonlySet<string> = new Set(["H", "I", "J", "K", "L"]);
 /** Kapsam eksiği: yeterli soru olsa da bir düzeltme turu açar. */
 export const FORCE_FIX_CODES: ReadonlySet<string> = new Set(["J"]);
 
@@ -736,7 +738,7 @@ export function stemFrame(text: string): string {
   return words.slice(-3).join(" ");
 }
 
-export type QuizSetIssue = { index: number; code: "I" | "J" | "K"; problem: string; forceFix: boolean };
+export type QuizSetIssue = { index: number; code: "I" | "J" | "K" | "L"; problem: string; forceFix: boolean };
 
 function pointNumber(question: QuizQuestion, available: number): number | null {
   const match = /^\s*(?:madde\s*)?(\d{1,2})(?!\d)/i.exec(question.point ?? "");
@@ -815,6 +817,25 @@ export function quizSetIssues(
         forceFix: false,
       });
     }
+  });
+  const formulaSeen = new Map<string, number>();
+  ordered.forEach((question, index) => {
+    if (!/\d/.test(question.text) || !/[=+×*/]/.test(question.text)) return;
+    const key = question.text
+      .toLocaleLowerCase("tr")
+      .replace(/\d+(?:[.,]\d+)?/g, "#")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (key.length < 24) return;
+    const prior = formulaSeen.get(key);
+    formulaSeen.set(key, index);
+    if (prior === undefined) return;
+    issues.push({
+      index,
+      code: "L",
+      problem: `${prior + 1}. soruyla aynı formül, yalnız sayılar değişmiş. Başka bir alt kavram ya da soru tipi yaz.`,
+      forceFix: false,
+    });
   });
   return issues;
 }

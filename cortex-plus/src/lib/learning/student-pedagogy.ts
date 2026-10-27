@@ -250,7 +250,7 @@ export function pedagogyPromptBlock(context: StudentPedagogicalContext | null, s
     `ÖĞRENCİ PROFİLİ (kayıt bilgisi): ${facts.join(" · ")}.`,
     "Profil anlatımın dilini, derinliğini ve örnek türünü belirler ve buna uyulur. Ortaokulda ağır cebir adı ve akademik jargon yok; " +
       "lisede kazanım ve kısa çözüm; üniversitede teknik yöntem. Edebi giriş ve boş laf yok. " +
-      "Belgede olmayan standart sınav bilgisi 'Sınav Müfredatı Tamamlaması' kutusunda etiketli kalır; profil bu kutuyu yasaklamaz. " +
+      "Kaynak, doğruluk ve biçim kuralları aynen kalır. Belgede olmayan standart sınav bilgisi etiketli kutuda kalır; profil bu kutuyu yasaklamaz. " +
       "Hazırlığın SINAV satırı başka bir sınav söylüyorsa o sınavın biçimini izle.",
     context.targetExam ? examLine(context.targetExam, surface) : null,
     bandLine(context.targetExam),

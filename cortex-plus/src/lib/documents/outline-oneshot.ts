@@ -2,11 +2,12 @@
  * One-shot study outline: one model call over the whole material returns
  * units→topics + learning path (teacher + student perspectives).
  *
- * Routing: ≤30 page entries (summed across every uploaded file) → gpt-4o-mini;
- * more (or corpus too large for mini) → gpt-4.1. Validation drops bad topics
- * instead of rejecting the whole map; a draft that keeps nothing escalates to
- * the strong model and then gets one repair pass over the cited pages only.
- * Total failure → empty retryable result (no fake list).
+ * Routing (27 Ekim 2026): every document, whatever its page count, is read by
+ * the strong model (gpt-6-luna). The old "≤12 pages → gpt-4o-mini" shortcut
+ * collapsed multi-heading units into one topic. Validation still drops bad
+ * topics; a draft that keeps nothing goes to the fallback model and then one
+ * repair pass over the cited pages only. Total failure → empty retryable
+ * result (no fake list).
  */
 
 import "server-only";
@@ -19,17 +20,9 @@ import { buildGroundingFile, groundTopic, type GroundingFile } from "@/lib/docum
 import { outlineOversizedTopics, oversizeRepairLines, spanTooWide, type OversizedTopic } from "@/lib/documents/outline-oversize";
 
 /**
- * Page threshold for the standard (mini) outline model; above it the strong
- * model reads the file directly.
- *
- * 19 Ekim 2026: was 30. On real 20–30 page notes mini's maps kept failing in
- * ways the gates catch only after the fact — one topic for a 20-page
- * trigonometry note, "Yürütme" cited on pages 15–18 of a KPSS note whose
- * executive chapter is on 22–25 (dropped by grounding, the chapter vanished
- * from the path). The strong model (gpt-6-luna) is cheaper per token than
- * gpt-4o-mini and cited the same note correctly; its only cost is ~40 s more
- * in the wizard, which the escalate path was paying anyway whenever mini
- * failed. Mini keeps the short notes, where it is fast and accurate.
+ * Retired routing threshold (19 Ekim 2026: 30 → 12). 27 Ekim 2026: no longer
+ * consulted. `selectOutlineModel` always returns the strong model. Kept so
+ * older logs and tests can still name the old gate.
  */
 export const OUTLINE_MINI_PAGE_LIMIT = 12;
 /** ~100k tokens — stay under mini context with prompt margin. */
@@ -86,25 +79,19 @@ export type OutlineModelChoice = {
   reason: "page_count" | "corpus_size" | "escalation" | "repair";
 };
 
-/** Pick outline model from material size (total pages + corpus chars). */
+/**
+ * Every document is mapped by the strong model. Page count used to pick
+ * gpt-4o-mini for short notes; that shortcut is gone (27 Ekim 2026).
+ */
 export function selectOutlineModel(input: {
   pageCount: number;
   corpusChars: number;
 }): OutlineModelChoice {
-  if (
-    input.pageCount > OUTLINE_MINI_PAGE_LIMIT ||
-    input.corpusChars > ONESHOT_MAX_INPUT_CHARS
-  ) {
-    return {
-      model: outlineStrongModel(),
-      tier: "strong",
-      reason: input.pageCount > OUTLINE_MINI_PAGE_LIMIT ? "page_count" : "corpus_size",
-    };
-  }
+  const oversizedCorpus = input.corpusChars > ONESHOT_MAX_INPUT_CHARS;
   return {
-    model: outlineStandardModel(),
-    tier: "standard",
-    reason: "page_count",
+    model: outlineStrongModel(),
+    tier: "strong",
+    reason: oversizedCorpus ? "corpus_size" : "page_count",
   };
 }
 
@@ -483,10 +470,12 @@ export type OneShotValidationIssue =
       reason?: string;
     }
   | { code: "diger_bucket"; title: string }
-  /** Not a drop: a unit whose topics all failed grounding survived as one topic under its own title. */
+  /** Not a drop: a unit with a single ungrounded topic survived under its own title. */
   | { code: "unit_rescued"; title: string }
   /** Kurtarılacak aralık tek konu için fazla geniş: birleştirme yapılmaz, onarım istenir. */
-  | { code: "unit_rescue_blocked"; title: string; fileIndex: number; pageStart: number; pageEnd: number };
+  | { code: "unit_rescue_blocked"; title: string; fileIndex: number; pageStart: number; pageEnd: number }
+  /** Birden çok alt başlık tek konuya indirilmez; onarım her başlığı ayrı konu yazar. */
+  | { code: "unit_split_required"; title: string; fileIndex: number; pageStart: number; pageEnd: number; topics: number };
 
 /** Issue codes → counts, for the stage log ("ungrounded:absent_word": 12). */
 export function outlineIssueCounts(issues: OneShotValidationIssue[]): Record<string, number> {
@@ -684,11 +673,10 @@ export function validateOneShotOutline(
         ...(curriculum ? { origin: "curriculum" as const } : { origin: "document" as const }),
       });
     }
-    if (!topics.length && ungroundedInUnit.length && kept < MAX_TOPICS_TOTAL) {
-      // Birim kurtarma (19 Ekim 2026). KPSS notunda "Siyasi partiler" biriminin iki konusu da
-      // temellendirmede düştü ("üyelik" kökü sayfada "üye", "kapatılması" ham metinde yok) ve
-      // bölüm yoldan kayboldu. Birimin kendi başlığı o sayfalarda duruyorsa, bölüm modelin
-      // verdiği birim adıyla tek konu olarak kalır; kod başlık uydurmaz, sayfa eklemez.
+    if (!topics.length && ungroundedInUnit.length === 1 && kept < MAX_TOPICS_TOTAL) {
+      // Birim kurtarma yalnız gerçekten tek konulu ünitede (27 Ekim 2026). Birden çok ana alt
+      // başlık temellendirmede düşünce hepsi tek konuya indirilmez — o kısayol Newton/Vergi/
+      // Poisson/Rüzgâr gibi üniteleri yutuyordu. Tek konu, başlığı sayfada duruyorsa kalır.
       const first = ungroundedInUnit[0]!;
       const same = ungroundedInUnit.filter((t) => t.fileIndex === first.fileIndex);
       const start = Math.min(...same.map((t) => t.start));
@@ -724,6 +712,30 @@ export function validateOneShotOutline(
       }
     }
     if (!topics.length) {
+      if (ungroundedInUnit.length > 1) {
+        const first = ungroundedInUnit[0]!;
+        const same = ungroundedInUnit.filter((t) => t.fileIndex === first.fileIndex);
+        const start = Math.min(...same.map((t) => t.start));
+        const end = Math.max(...same.map((t) => t.end));
+        const filePages = filePageCounts[first.fileIndex] ?? 0;
+        if (spanTooWide(end - start + 1, filePages)) {
+          issues.push({
+            code: "unit_rescue_blocked",
+            title: unitTitle,
+            fileIndex: first.fileIndex,
+            pageStart: start,
+            pageEnd: end,
+          });
+        }
+        issues.push({
+          code: "unit_split_required",
+          title: unitTitle,
+          fileIndex: first.fileIndex,
+          pageStart: start,
+          pageEnd: end,
+          topics: same.length,
+        });
+      }
       issues.push({ code: "empty_unit", title: unitTitle });
       continue;
     }
@@ -876,6 +888,7 @@ function repairBlock(repairErrors?: string, invalidDraftJson?: string): string {
 /** Geniş ünite kuralı (25 Ekim 2026): yazar ve onarım turu aynı metni okur; kapı `outline-oversize.ts`. */
 export const OUTLINE_GRANULARITY_RULE =
   "- GENİŞ ÜNİTE TEK KONU OLAMAZ: dosyanın sayfa/metin hacminin %15'inden fazlasını tutan ya da içinde birden fazla bağımsız alt başlık, kural/formül ailesi, tarihsel dönem, sınıflandırma veya problem/vaka tipi barındıran bölüm 2-4 ayrı konuya bölünür; her konunun sayfa aralığı ayrıktır.\n" +
+  "- 1 ÜNİTE = 1 KONU YASAK: ünitede birden fazla ana alt başlık, kanun, dağılım veya test türü varsa her biri ayrı konu olur. Örnekler (ayrı konular): Newton ve Düşey Atış; Vergi ve Taban Fiyat; Poisson, Medyan/Mod, ki-kare bağımsızlık, eşleştirilmiş t ve bağımsız t; Rüzgâr, Yağış ve Yerel Saat. Bunları ünitenin adına indirgeme.\n" +
   "- Şemsiye başlık YASAK: \"Temel Kavramlar\", \"Temel Kavramlar ve İlkeler\", \"Genel Bilgiler\" gibi bir başlık altında alt dalları yutma. Her belirgin alt başlık, mekanizma, teorem/formül grubu ya da problem/analiz türü kendi konusu olur; belgenin hiçbir ana ya da alt dalı haritanın dışında kalmaz.\n" +
   "- Kısa dosyada (9 sayfadan az) sayfa payı tek başına konu açmaz. En az üç bağımsız, içerik taşıyan alt başlık varsa konu metin/karakter payına göre 2-4 ayrı konuya bölünür; sayfa başlığı, tekrar listesi ve hata listesi konu değildir.";
 
@@ -1262,13 +1275,23 @@ export function outlineRepairErrors(
   issues: OneShotValidationIssue[],
   oversized: OversizedTopic[],
 ): string {
-  const lines = issues.filter((issue) => issue.code !== "unit_rescue_blocked").map((issue) => JSON.stringify(issue));
+  const lines = issues
+    .filter((issue) => issue.code !== "unit_rescue_blocked" && issue.code !== "unit_split_required")
+    .map((issue) => JSON.stringify(issue));
   const blocked = issues.filter(
     (issue): issue is Extract<OneShotValidationIssue, { code: "unit_rescue_blocked" }> => issue.code === "unit_rescue_blocked",
   );
   for (const issue of blocked) {
     lines.push(
       `- "${issue.title}" ünitesi (d${issue.fileIndex + 1} s.${issue.pageStart}-${issue.pageEnd}) tek konuya birleştirilemez; konularını o sayfalardaki başlıklarla doğrulanabilir 2-4 ayrı konu olarak yeniden yaz.`,
+    );
+  }
+  const split = issues.filter(
+    (issue): issue is Extract<OneShotValidationIssue, { code: "unit_split_required" }> => issue.code === "unit_split_required",
+  );
+  for (const issue of split) {
+    lines.push(
+      `- "${issue.title}" ünitesinin ${issue.topics} alt başlığı tek konuya indirilemez (d${issue.fileIndex + 1} s.${issue.pageStart}-${issue.pageEnd}). Her ana alt başlığı ayrı konu olarak yeniden yaz.`,
     );
   }
   if (oversized.length) lines.push("GENİŞ KONULAR — BÖL:", oversizeRepairLines(oversized));
@@ -1531,7 +1554,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
   // Geniş konu (25 Ekim 2026): mini de güçlü de olsa tek konuya sıkışmış ünite kabul edilmez.
   const needsSplit =
     outlineOversized(candidate, material.files).length > 0 ||
-    issues.some((issue) => issue.code === "unit_rescue_blocked");
+    issues.some((issue) => issue.code === "unit_rescue_blocked" || issue.code === "unit_split_required");
   if (goodEnough(candidate) && !thinMini && !needsSplit) {
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best), diag };
   }

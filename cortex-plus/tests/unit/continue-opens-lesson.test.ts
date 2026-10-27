@@ -12,7 +12,8 @@ describe("Devam et dersi doğrudan açar", () => {
     expect(page).toContain("activeTopicId = prepTopics[0].id;");
     expect(page).toContain("const needsIntro = false;");
     // Seviye tespiti tamamlanana kadar yolun ilk düğümü. Bitince düğüm kalkar.
-    expect(page).toContain("introPending={shouldShowLevelNode(prep.intro_completed_at as string | null)}");
+    expect(page).toContain("introPending={shouldShowLevelNode(");
+    expect(page).toContain("prep.intro_deferred_at as string | null");
   });
 
   it("düğüm sayfası tanıya yönlendirmez; ölçümü erteler", () => {

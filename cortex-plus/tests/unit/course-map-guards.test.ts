@@ -71,10 +71,13 @@ beforeEach(() => {
 
 describe("M3: wizard-deferred files wait for the ONE course outline", () => {
   it("poller posts make no call before or during the course; one course call; one outline charge", async () => {
-    // 5 + 6 = 11 pages: under OUTLINE_MINI_PAGE_LIMIT (12 since 19 Ekim 2026), so mini goes first.
+    // 5 + 6 = 11 pages. The map is always the strong model; a rejected first draft takes a repair round.
     const fake = db([{ id: A, name: "kimya5.pdf", pages: pages(0, 5) }, { id: B, name: "kimya6.pdf", pages: pages(1, 6) }]);
-    // Mini's draft is rejected, so the course needs a second round (escalate).
-    model.impl = (p) => (p.modelOverride === "gpt-4o-mini" ? JUNK : courseOutline);
+    let round = 0;
+    model.impl = () => {
+      round += 1;
+      return round === 1 ? JUNK : courseOutline;
+    };
 
     expect((await post({ documentId: A, deferMap: true })).body).toMatchObject({ mapDeferred: true });
     expect((await post({ documentId: B, deferMap: true })).body).toMatchObject({ mapDeferred: true });
@@ -101,7 +104,7 @@ describe("M3: wizard-deferred files wait for the ONE course outline", () => {
     expect(done.status).toBe(200);
     // Main's background page clean: once per file, only by the round that saved the map.
     expect(afterCalls.n - cleansBefore).toBe(2);
-    expect(model.calls.map((c) => c.model)).toEqual(["gpt-4o-mini", "gpt-4.1"]);
+    expect(model.calls.map((c) => c.model)).toEqual(["gpt-4.1", "gpt-4.1"]);
     expect(model.calls[1]!.prompt).toContain("kimya6.pdf");
     expect(outlineCharges(fake)).toBe(1);
     expect(fake.chargedCredits("u1")).toBe(5 + 5 + COST);
@@ -140,7 +143,7 @@ describe("M2: running out of attempts is final until the student retries", () =>
     const exhausted = await until({ documentId: A });
     expect(exhausted.status).toBe(422);
     expect(exhausted.body).toMatchObject({ code: "topic_map_unavailable", retryable: false, canRetry: true });
-    expect(model.calls).toHaveLength(3); // first → escalate → repair, then final
+    expect(model.calls).toHaveLength(2); // first → repair, then final
     expect(fake.db.tables.documents![0]).toMatchObject({
       status: "processing",
       topic_map_status: "failed",
@@ -151,18 +154,18 @@ describe("M2: running out of attempts is final until the student retries", () =>
       const r = await post({ documentId: A });
       expect(r.status).toBe(422);
     }
-    expect(model.calls).toHaveLength(3);
+    expect(model.calls).toHaveLength(2);
     expect(fake.chargedCredits("u1")).toBe(0);
 
     model.impl = () => titledOutline([[heading(0, 2), 2, 2], [heading(0, 7), 7, 7]]);
     const retried = await until({ documentId: A, retryMap: true });
     expect(retried.status).toBe(200);
-    expect(model.calls).toHaveLength(4);
+    expect(model.calls).toHaveLength(3);
     expect(fake.db.tables.documents![0]).toMatchObject({ status: "completed", topic_map_status: "ready" });
 
     const reupload = await until({ documentId: C });
     expect(reupload.status).toBe(200);
-    expect(model.calls).toHaveLength(5);
+    expect(model.calls).toHaveLength(4);
     expect(outlineCharges(fake)).toBe(2);
   });
 });
@@ -174,7 +177,11 @@ describe("rebuild button", () => {
     expect((await until({ documentId: A })).status).toBe(200);
     const firstNodes = fake.db.tables.document_topic_nodes!.map((n: any) => n.title);
 
-    model.impl = (p) => (p.modelOverride === "gpt-4o-mini" ? JUNK : titledOutline([[heading(0, 4), 4, 4], [heading(0, 9), 9, 9]]));
+    let rebuildRound = 0;
+    model.impl = () => {
+      rebuildRound += 1;
+      return rebuildRound === 1 ? JUNK : titledOutline([[heading(0, 4), 4, 4], [heading(0, 9), 9, 9]]);
+    };
     const { POST } = await import("@/app/api/documents/[documentId]/topic-map/route");
     const rebuild = await POST(
       new Request(`http://test.local/api/documents/${A}/topic-map`, {

@@ -16,7 +16,7 @@ export type OpenGradeItem = {
   answer: string;
 };
 
-export type OpenJudgement = { quotes: { criterion: string; quote: string }[] };
+export type OpenJudgement = { quotes: { criterion: string; quote: string }[]; trustedCriteria: string[] };
 
 export const OPEN_GRADE_SYSTEM =
   "Sen titiz ve adil bir öğretmensin; yazılı sınavın açık uçlu cevaplarını notluyorsun. Her soruda ÖLÇÜTLER iyi bir " +
@@ -28,7 +28,9 @@ export const OPEN_GRADE_SYSTEM =
   "Cevapta olmayanı varsayma; ölçütü yalnız tekrar eden içi boş cümle karşılamaz. Yazım ve el yazısı okuma hatalarını " +
   "cezalandırma. Fazladan doğru bilgi puan getirmez; bir noktayı yanlış söyleyen cevap o ölçütü karşılamaz. " +
   "Yöntem, formül ve denklem kurulumu doğruysa o ölçüt met: true olur; son aritmetik hata yalnız sonuç ölçütünü düşürür. " +
-  "Yalnız son sayıyı yazan cevap yöntem ölçütünü karşılamaz. Açık tarih ya da olgu hatası o ölçütte met: false.\n" +
+  "Öğrencinin cevabı beklenen sonucu ve yöntemi birlikte veriyorsa bütün ölçütler met: true olur ve tam puan verilir; " +
+  "alıntı birebir olmasa da kesinti yapma. Yalnız son sayıyı yazan cevap yöntem ölçütünü karşılamaz. " +
+  "Açık tarih ya da olgu hatası o ölçütte met: false.\n" +
   'Yalnızca JSON döndür: {"items":[{"index":0,"criteria":[{"index":0,"met":true,"quote":"…"}]}]}';
 
 export function openGradeUserPrompt(items: OpenGradeItem[]): string {
@@ -63,7 +65,7 @@ export function parseOpenGrade(raw: unknown, items: OpenGradeItem[]): Map<number
       const quote = typeof cell.quote === "string" ? cell.quote.trim() : "";
       return cell.met === true && criterion && quote ? [{ criterion, quote }] : [];
     });
-    out.set(index, { quotes });
+    out.set(index, { quotes, trustedCriteria: [] });
   }
   return out;
 }

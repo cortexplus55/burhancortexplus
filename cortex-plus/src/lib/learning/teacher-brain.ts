@@ -2087,12 +2087,7 @@ function restateBinaryPrompt(prompt: string, sameFactOnly = false): string {
     const asked = `${purpose[2].replace(/[?.!\s]+$/g, "")} ne için yapılır?`;
     if (foldPrompt(asked) !== foldPrompt(trimmed)) return asked.slice(0, 300);
   }
-  const head = core.split(/[,:;]/)[0]?.trim() || core;
-  const angled = `${head} hangi durumda geçerlidir?`;
-  if (foldPrompt(angled) !== foldPrompt(trimmed) && !/yargısı doğru mudur/i.test(angled)) {
-    return angled.slice(0, 300);
-  }
-  return "Bu yargının tersi hangi durumda doğrudur?";
+  return core.slice(0, 300);
 }
 
 /**
@@ -2102,7 +2097,7 @@ function restateBinaryPrompt(prompt: string, sameFactOnly = false): string {
 function meaningfulRetryStem(prompt: string, generic = true): string {
   const trimmed = prompt.replace(/\s+/g, " ").trim();
   let next = trimmed
-    .replace(/(.+?)\s+aşağıdakilerden hangisi için doğrudur\??$/i, "$1 hangi durumda geçerlidir?")
+    .replace(/(.+?)\s+aşağıdakilerden hangisi için doğrudur\??$/i, "$1")
     .replace(/aşağıdakilerden hangisi/gi, "hangi seçenek")
     .replace(/hangisi doğrudur\??/gi, "hangi ifade geçerlidir?")
     .replace(/ne denir\??/gi, "hangi adla anılır?");
@@ -2112,8 +2107,7 @@ function meaningfulRetryStem(prompt: string, generic = true): string {
   // olurdu; kök aynı kalır, şıklar kayar.
   if (!generic) return next.replace(/\s+/g, " ").trim().slice(0, 300);
   if (foldPrompt(next) === foldPrompt(trimmed)) {
-    const core = trimmed.replace(/[?.!\s]+$/g, "");
-    next = `${core} hangi durumda geçerlidir?`;
+    next = trimmed.replace(/[?.!\s]+$/g, "");
   }
   return next.replace(/\s+/g, " ").trim().slice(0, 300);
 }

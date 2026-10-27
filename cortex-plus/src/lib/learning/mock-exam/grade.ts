@@ -344,7 +344,7 @@ export function scoreFromItems(items: MockGradeItem[]): {
   const blank = items.filter((i) => i.verdict === "bos").length;
   const wrong = items.length - correct - blank;
   return {
-    scorePct: Math.round((earned / max) * 100),
+    scorePct: Math.min(100, Math.round((earned / max) * 100)),
     earned,
     max,
     correct,
@@ -387,9 +387,7 @@ export function buildTopicReport(
   return [...map.values()]
     .map((row) => ({
       ...row,
-      percent: row.pointsMax
-        ? Math.round((row.pointsEarned / row.pointsMax) * 100)
-        : 0,
+      percent: row.total ? Math.round((row.correct / row.total) * 100) : 0,
       examHeavy: heavyLabels.has(row.topicLabel),
     }))
     .sort((a, b) => a.percent - b.percent || a.topicLabel.localeCompare(b.topicLabel, "tr"));

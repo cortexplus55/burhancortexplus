@@ -6,8 +6,14 @@
 
 export const LEVEL_NODE_ID = "__intro";
 
-export function shouldShowLevelNode(introCompletedAt: string | null | undefined): boolean {
-  return !introCompletedAt;
+export function shouldShowLevelNode(
+  introCompletedAt: string | null | undefined,
+  nodes: { status: string }[] = [],
+  introDeferredAt?: string | null,
+): boolean {
+  if (introCompletedAt || introDeferredAt) return false;
+  if (nodes.some((node) => node.status === "done")) return false;
+  return nodes.length > 0;
 }
 
 export function isLevelNode(id: string | null | undefined): boolean {

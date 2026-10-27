@@ -87,6 +87,21 @@ export function contradictsExpected(wrong: string, correct: string): boolean {
   const up = /\b(artar|arttirir|cogalir|yukselir|doubles)\b/;
   const down = /\b(azalir|azaltir|degismez|sabit|dusmez|degistirmez)\b/;
   if ((up.test(w) && down.test(c)) || (down.test(w) && up.test(c))) return true;
+  const steps = (text: string) =>
+    text
+      .split(/→|->/)
+      .map((part) => part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").trim())
+      .filter(Boolean);
+  const wrongSteps = steps(w);
+  const correctSteps = steps(c);
+  if (
+    wrongSteps.length >= 2 &&
+    wrongSteps.length === correctSteps.length &&
+    wrongSteps.join("|") !== correctSteps.join("|") &&
+    [...wrongSteps].sort().join("|") === [...correctSteps].sort().join("|")
+  ) {
+    return true;
+  }
   return false;
 }
 

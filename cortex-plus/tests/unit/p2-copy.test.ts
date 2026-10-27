@@ -32,9 +32,10 @@ describe("etkinlik metinleri", () => {
 
   it("bilgi eksiğinin başlığı konu, alt satırı öğrencinin cevabı", () => {
     expect(gapLines({ claim: "B seçeneği", topicLabel: "Hücre zarı", detail: "Enerji üretir" })).toEqual({
-      title: "Hücre zarı",
+      title: "Hücre zarı — B seçeneği",
       detail: "Enerji üretir",
     });
+    expect(gapLines({ claim: "Doğru", topicLabel: "Basınç", detail: "12 °C" }).title).toBe("Basınç");
     expect(gapLines({ claim: "B seçeneği", topicLabel: null }).title).toBe("Bu konu");
     const drafts = extractMisconceptions({
       kind: "quiz",

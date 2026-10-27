@@ -122,7 +122,7 @@ describe("P1-4 son kontrol", () => {
       }),
     ).toEqual(["Present perfect", "Anayasa"]);
     expect(weakPracticeTitle("gaps", ["Anayasa"])).toBe("Anayasa · Zayıf nokta");
-    expect(weakPracticeTitle("focused", ["Mol", "Türev"])).toBe("Mol, Türev · Odaklı pratik");
+    expect(weakPracticeTitle("focused", ["Mol", "Türev"])).toBe("Mol · Odaklı pratik");
     expect(questionsStayOnTopics([{ topic: "Anayasa" }, { topic: "Mol" }], ["Anayasa"])).toBe(false);
     expect(questionsStayOnTopics([{ topic: "Anayasa" }], ["Anayasa"])).toBe(true);
     expect(questionsStayOnTopics([{ topic: "Present perfect" }], ["Mol"])).toBe(false);
@@ -149,7 +149,7 @@ describe("P1-4 son tekrar kartları", () => {
 
   it("rota son tekrar kartlarını konu konu yazar", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(route).toMatch(/loadFinalCardTopics\(/);
-    expect(route).toMatch(/interleaveByTopic\(/);
+    expect(route).not.toMatch(/loadFinalCardTopics\(/);
+    expect(route).not.toMatch(/loadStoredCards\(/);
   });
 });

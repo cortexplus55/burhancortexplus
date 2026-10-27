@@ -141,6 +141,16 @@ export function imageReadLadder(): string[] {
   return [...new Set(models.filter(Boolean))];
 }
 
+/** Belge başına bu kadar taranmış sayfa luna + yüksek ayrıntı. Sonrası tek hızlı model. */
+export const SCAN_LUNA_PAGE_CAP = 40;
+
+/** Sayfa 40'tan sonraysa merdiven tek modele iner; sayfa yine okunur. */
+export function imageReadLadderForScan(pageNumber: number): string[] {
+  if (!Number.isFinite(pageNumber) || pageNumber <= SCAN_LUNA_PAGE_CAP) return imageReadLadder();
+  const fast = env.OPENAI_ADVANCED_MODEL?.trim() || contentModel();
+  return fast ? [fast] : imageReadLadder();
+}
+
 function isRateLimitError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const status = (error as { status?: number }).status;
@@ -240,7 +250,7 @@ export type ImageReadResult = {
 export async function extractImageText(
   buffer: Buffer,
   mimeType: string,
-  options?: { deadlineMs?: number },
+  options?: { deadlineMs?: number; scanOrdinal?: number },
 ): Promise<ImageReadResult> {
   const empty = { pages: [], ok: false as const, model: null, tokensIn: 0, tokensOut: 0, usage: [] };
   if (!env.OPENAI_API_KEY) return { ...empty, reason: "not_configured" };
@@ -268,7 +278,7 @@ export async function extractImageText(
     maxRetries: 0,
   });
 
-  const ladder = imageReadLadder();
+  const ladder = imageReadLadderForScan(options?.scanOrdinal ?? 1);
   const usage: ModelUsage[] = [];
   let rateLimited = false;
 
@@ -326,7 +336,7 @@ export type ImagePagesResult = {
 export async function extractImagePages(
   images: Buffer[],
   mimeType = "image/png",
-  options?: { deadlineMs?: number },
+  options?: { deadlineMs?: number; scanOrdinals?: number[] },
 ): Promise<ImagePagesResult> {
   const pages: string[] = new Array(images.length).fill("");
   let readCount = 0;
@@ -337,7 +347,12 @@ export async function extractImagePages(
     const wave = images.slice(start, start + PAGE_CONCURRENCY);
     // Per-page extractImageText keeps moderation.
     const results = await Promise.all(
-      wave.map((image) => extractImageText(image, mimeType, options)),
+      wave.map((image, offset) =>
+        extractImageText(image, mimeType, {
+          deadlineMs: options?.deadlineMs,
+          scanOrdinal: options?.scanOrdinals?.[start + offset] ?? start + offset + 1,
+        }),
+      ),
     );
 
     results.forEach((result, offset) => {

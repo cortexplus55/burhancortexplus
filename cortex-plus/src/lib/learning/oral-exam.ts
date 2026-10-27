@@ -31,7 +31,6 @@ import {
   firstAnswerErrorLine,
   ORAL_FIRST_ERROR_CAP,
   oralFirstAnswer,
-  splitAnswerSentences,
   validFirstAnswerErrors,
   type OralAnswerError,
 } from "@/lib/learning/oral-first-answer";
@@ -181,6 +180,15 @@ export function isDontKnow(answer: string): boolean {
 
 export function dontKnowNote(): string {
   return "Tamam. Bilmediğini kaydettim; bu soru eksik sayılacak. Sonraki soruya geçebilirsin.";
+}
+
+function clipAnswerSentences(text: string): string {
+  const parts = text
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!parts.length) return text.trim();
+  return parts.slice(0, 2).join(" ");
 }
 
 function numbersIn(text: string): string[] {
@@ -457,7 +465,7 @@ export function gradeOralAnswer(
   index: number,
   passages: OralGroundingPassage[] = [],
   semantic?: OralPointCoverage[] | null,
-  first?: { answer?: string; errors?: OralAnswerError[] | null } | null,
+  _first?: { answer?: string; errors?: OralAnswerError[] | null } | null,
 ): OralItemGrade {
   const answer = answerRaw.trim();
   const prompt = polishLearnerText(question.prompt?.trim() || `Soru ${index + 1}`);
@@ -486,6 +494,11 @@ export function gradeOralAnswer(
 
   if (dontKnow || !answer) {
     ratio = 0;
+  } else if (semantic && semantic.length) {
+    const valid = validSemanticPoints(answer, semantic);
+    ratio = ratioFromSemantic(valid);
+    covered = valid.filter((row) => row.status === "covered" || row.status === "partial").map((row) => row.point);
+    missed = valid.filter((row) => row.status === "missing").map((row) => row.point);
   } else if (numericLock === "dogru") {
     ratio = 1;
     covered = points.length ? points : [answer.slice(0, 120)];
@@ -496,11 +509,6 @@ export function gradeOralAnswer(
     missed = points;
   } else if (numericLock === "kismen") {
     ratio = 0.5;
-  } else if (semantic && semantic.length) {
-    const valid = validSemanticPoints(answer, semantic);
-    ratio = ratioFromSemantic(valid);
-    covered = valid.filter((row) => row.status === "covered" || row.status === "partial").map((row) => row.point);
-    missed = valid.filter((row) => row.status === "missing").map((row) => row.point);
   } else if (
     (sound || completeWork) && (asksQuantity(prompt) || points.length === 0)
   ) {
@@ -522,41 +530,37 @@ export function gradeOralAnswer(
   const readable = (text: string) =>
     Boolean(text.trim()) && !announcedExampleGap(text) && fluencyIssues(text).length === 0;
 
-  const storedModel = question.modelAnswer?.trim() ?? "";
+  // Gösterilen doğru cevap bu sorunun kendi örnek çözümü. Kaynakta durmayan sayı elenir;
+  // hesabı bozuk örnek çözüm düzeltilir. Ham sayfa metni buraya yazılmaz.
+  const storedModel = clipAnswerSentences(question.modelAnswer?.trim() ?? "");
   const modelPoints = points
     .map((point) => groundedPoint(point, source))
-    .filter((point): point is string => typeof point === "string" && !isScoreLabel(point) && readable(point));
-
+    .filter((point): point is string => typeof point === "string" && !isScoreLabel(point) && readable(point))
+    .slice(0, 2);
   let modelAnswer = "";
   if (storedModel && readable(storedModel) && !textOverlapsPrompt(storedModel, prompt)) {
-    modelAnswer = repairModelAnswer(storedModel, source);
+    modelAnswer = clipAnswerSentences(repairModelAnswer(storedModel, source));
   } else if (modelPoints.length) {
     modelAnswer = modelPoints.join(" ");
-  } else if (claim?.conclusion?.trim() && readable(claim.conclusion)) {
-    modelAnswer = claim.conclusion.trim();
+  } else if (claim?.conclusion?.trim() && readable(claim.conclusion) && !textOverlapsPrompt(claim.conclusion, prompt)) {
+    modelAnswer = clipAnswerSentences(claim.conclusion.trim());
   }
   if (!modelAnswer || isScoreLabel(modelAnswer) || textOverlapsPrompt(modelAnswer, prompt)) {
     modelAnswer = modelPoints[0] ?? "";
   }
 
-  // İlk cevap (takip sorusundan önce). Takip yoksa cevabın kendisi.
-  const firstAnswer = first?.answer?.trim() || answer;
+  const firstAnswer = _first?.answer?.trim() || answer;
   const followText =
     firstAnswer && answer.startsWith(firstAnswer) ? answer.slice(firstAnswer.length).trim() : "";
-  const firstErrors = dontKnow || !answer ? [] : validFirstAnswerErrors(firstAnswer, first?.errors, followText);
-  if (!dontKnow && answer && firstAnswer !== answer && !firstErrors.length) {
-    // Model çağrısı olmasa da: takipten önceki cevaptaki sayısal iddia kaynağa ters düşüyorsa yanlıştır.
-    const firstClaim = gradeStudentClaim({ student: firstAnswer, context: ground });
-    if (firstClaim?.verdict === "yanlis") {
-      // Hükmün gerekçesi öğrencinin sözü değil; alıntı ilk cevabın sayı geçen cümlesinden.
-      const sentences = splitAnswerSentences(firstAnswer);
-      const wrong = sentences.find((part) => /\d/.test(part)) ?? sentences[0] ?? "";
-      const correct = firstClaim.conclusion?.trim() || modelAnswer;
-      firstErrors.push(...validFirstAnswerErrors(firstAnswer, [{ wrong, correct }]));
-    }
+  const firstErrors = dontKnow || !answer ? [] : validFirstAnswerErrors(firstAnswer, _first?.errors, followText);
+  const matchesSolution = Boolean(answer && modelAnswer && answerCoversPoint(answer, modelAnswer));
+  if (!semantic?.length && matchesSolution) {
+    ratio = 1;
+    covered = points.length ? points : covered;
+    missed = [];
+  } else if (firstErrors.length && !matchesSolution) {
+    ratio = Math.min(ratio, ORAL_FIRST_ERROR_CAP);
   }
-  // Doğrudan çelişki (farklı sayı, ters yön) puanı tavanlar. Aynı bilgiyi başka sözle söylemek çelişki sayılmaz.
-  if (firstErrors.length) ratio = Math.min(ratio, ORAL_FIRST_ERROR_CAP);
 
   const quantNotes = [
     ...numeric,

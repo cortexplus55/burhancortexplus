@@ -279,7 +279,7 @@ function introduceFormula(lead: string): string {
   if (verbEnding(trimmed)) return `${trimmed}:`;
   // Çözüm etiketi yüklem istemez: "Yerine koyma:" yeter.
   if (/^(?:Verilen|İstenen|Bağıntı|Yerine koyma|Sonuç|Adım\s*\d+)$/i.test(trimmed)) return `${trimmed}:`;
-  return `${trimmed} şöyle hesaplanır:`;
+  return `${trimmed}:`;
 }
 
 function phraseBeforeFormula(phrase: string, lead: string): string {
@@ -291,7 +291,7 @@ function phraseBeforeFormula(phrase: string, lead: string): string {
   if (/^olarak\s+/i.test(core)) {
     const rest = core.replace(/^olarak\s+/i, "");
     const joined = calmFormulaLead(`${lead} ${rest}`.trim());
-    return verbEnding(joined) ? `${joined}:` : `${joined} şöyle hesaplanır:`;
+    return `${joined}:`;
   }
   if (/^ile\s+/i.test(core)) {
     if (!lead || /\b(?:ise|ile)\s*$/i.test(lead)) return "";

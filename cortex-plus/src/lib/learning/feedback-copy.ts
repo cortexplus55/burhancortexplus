@@ -44,7 +44,14 @@ export function ratingPrompt(kind: string): string {
   return "Bu dersi nasıl buldun?";
 }
 
-/** Başlık konu ya da kavram; öğrencinin ham cevabı alt satır. */
+function looksLikeChoice(text: string): boolean {
+  const value = text.trim();
+  if (!value) return true;
+  if (/^(doğru|yanlış|dogru|yanlis|evet|hayır|hayir)$/i.test(value)) return true;
+  return /^-?\d+(?:[.,]\d+)?(?:\s*°\s*[cCfF])?$/.test(value);
+}
+
+/** Başlık konu ve kavram; şık metni ("Doğru", "12 °C") başlık olmaz. */
 export function gapLines(gap: {
   claim: string;
   topicLabel?: string | null;
@@ -53,7 +60,10 @@ export function gapLines(gap: {
   const topic = gap.topicLabel?.trim() ?? "";
   const claim = gap.claim.trim();
   const detail = gap.detail?.trim() ?? "";
-  if (topic) return { title: topic, detail: detail || claim };
-  if (detail) return { title: claim || "Bu konu", detail };
-  return { title: "Bu konu", detail: claim };
+  const concept = looksLikeChoice(claim) ? "" : claim;
+  const title = topic && concept ? `${topic} — ${concept.slice(0, 90)}` : topic || "Bu konu";
+  const extra = [looksLikeChoice(claim) ? claim : "", detail && detail !== concept ? detail : ""]
+    .filter(Boolean)
+    .join(" · ");
+  return { title, detail: extra };
 }

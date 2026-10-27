@@ -4,9 +4,10 @@ import { isLevelNode, levelNodeAria, shouldShowLevelNode } from "@/lib/learning/
 
 describe("seviye tespiti düğümü", () => {
   it("tanı bitince sahte düğüm kalkar; açıkken etiket seviye tespitidir", () => {
-    expect(shouldShowLevelNode(null)).toBe(true);
-    expect(shouldShowLevelNode(undefined)).toBe(true);
-    expect(shouldShowLevelNode("2026-10-25T12:00:00Z")).toBe(false);
+    expect(shouldShowLevelNode(null, [{ status: "ready" }])).toBe(true);
+    expect(shouldShowLevelNode(null, [{ status: "done" }])).toBe(false);
+    expect(shouldShowLevelNode(null)).toBe(false);
+    expect(shouldShowLevelNode("2026-10-25T12:00:00Z", [{ status: "ready" }])).toBe(false);
     expect(isLevelNode("__intro")).toBe(true);
     expect(isLevelNode("node-1")).toBe(false);
     expect(levelNodeAria("sırada")).toBe("Seviye tespiti, sırada");

@@ -80,8 +80,8 @@ export const envSchema = z.object({
   /** Yalnız aboneye açık işler (model-router). gpt-4o'dan ucuz: $2/$8 vs $2,5/$10. */
   OPENAI_ADVANCED_MODEL: z.string().default("gpt-4.1"),
   /**
-   * One-shot konu haritası (≤12 sayfa, OUTLINE_MINI_PAGE_LIMIT). Boşsa OPENAI_STANDARD_MODEL.
-   * Öğrenci model seçimini görmez; yalnızca sunucu yönlendirir.
+   * Eski kısa-not harita modeli. 27 Ekim 2026: konu haritası sayfa sayısından
+   * bağımsız güçlü modeli kullanır; bu anahtar artık yönlendirmede okunmaz.
    */
   OPENAI_OUTLINE_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   /**

@@ -714,12 +714,6 @@ export function ExamLessonSteps({
     known: knownMinutes,
     readingMinutes: knownMinutes ? null : honestReadingMinutes(view),
   });
-  // Payda yalnız yazılmış ekran listesi. Gelecek kavram adları ekran sayılmaz.
-  const screenCount = lessonStepTotal(base.length);
-  const progressNow = Math.min(index + 1, screenCount);
-  const progressMax = screenCount;
-  const progressRatio = progressNow / progressMax;
-
   const steps = useMemo(() => {
     // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
     if (building) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
@@ -768,6 +762,10 @@ export function ExamLessonSteps({
       ...retries,
     ];
   }, [base, missed, view, language, serverRetries, building, upcoming]);
+
+  const progressMax = lessonStepTotal(base.length);
+  const progressNow = Math.min(index + 1, progressMax);
+  const progressRatio = progressNow / progressMax;
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
@@ -973,7 +971,7 @@ export function ExamLessonSteps({
 
   const countLabel = progressLabel(
     index,
-    base.length,
+    progressMax,
     step,
     index - base.length,
     Math.max(0, steps.length - base.length - 1),
