@@ -45,12 +45,12 @@ describe("P1-3 iki ses: Diyalog, Soru-Cevap, Derinlemesine", () => {
     expect(podcastLengthSpec("basit").speakers).toBe("single");
   });
 
-  it("Derinlemesine 8-10 dakikalık kelime bandında (88 kelime/dk)", () => {
+  // Paket A (28 Ekim 2026): uzunluk konunun yoğunluğuna göre; taban var, tavan ~10 dakika, sabit bant yok.
+  it("Derinlemesine tabanı ~6 dakika, tavanı ~10 dakika (88 kelime/dk)", () => {
     const spec = podcastLengthSpec("derin");
-    expect(spec.words).toEqual({ min: 750, max: 880 });
-    expect(spec.words.min / 88).toBeGreaterThanOrEqual(8);
+    expect(spec.words.min / 88).toBeGreaterThanOrEqual(6);
     expect(spec.words.max / 88).toBeLessThanOrEqual(10.1);
-    expect(spec.brief).toContain("750-880");
+    expect(spec.brief).toContain("Uzunluğu konunun yoğunluğu belirler");
     expect(PODCAST_FORMAT_OPTIONS.find((option) => option.id === "derin")?.blurb).toMatch(/Ada ile Kerem/);
   });
 
@@ -75,23 +75,33 @@ describe("P1-3 Kerem payı kodda", () => {
     expect(podcastStructureIssues(fair).some((issue) => issue.startsWith("Konuşma payı"))).toBe(false);
   });
 
-  it("tek sesli taslak dengelenir; açılış ve kapanış Ada'da", () => {
+  // Paket A (28 Ekim 2026): V6'da Ada'nın açıklaması cümle ortasında Kerem'in sesine geçti. Kod artık bir
+  // konuşma sırasını bölmez; tek sesli taslak dokunulmadan kalır, pay sorunu düzeltme turuna gider.
+  it("tek sesli taslak bölünmez; pay sorunu düzeltme turuna gider", () => {
     const solo = episode("derin", Array.from({ length: 6 }, () => ["ada", "ada", "ada", "ada", "ada"]));
     const balanced = balanceKerem(solo);
+    expect(balanced.chapters.flatMap((chapter) => chapter.lines.map((line) => line.speaker))).toEqual(
+      solo.chapters.flatMap((chapter) => chapter.lines.map((line) => line.speaker)),
+    );
+    expect(podcastStructureIssues(solo).some((issue) => issue.startsWith("Konuşma payı"))).toBe(true);
+  });
+
+  it("az Kerem'li taslakta yalnız bütün sıra taşınır; açılış ve kapanış Ada'da", () => {
+    const draft = episode("diyalog", Array.from({ length: 4 }, () => ["kerem", "ada", "ada", "ada", "ada"]));
+    draft.chapters[0]!.lines.unshift({ speaker: "ada", text: "Bugün büyüme izlemini konuşacağız." });
+    const balanced = balanceKerem(draft);
     const share = keremShare(balanced);
     expect(share).toBeGreaterThanOrEqual(KEREM_SHARE_MIN);
     expect(share).toBeLessThanOrEqual(KEREM_SHARE_MAX);
     const lines = balanced.chapters.flatMap((chapter) => chapter.lines);
     expect(lines[0]!.speaker).toBe("ada");
     expect(lines[lines.length - 1]!.speaker).toBe("ada");
-    expect(lines.map((line) => line.text)).toEqual(solo.chapters.flatMap((chapter) => chapter.lines.map((line) => line.text)));
-  });
-
-  it("az Kerem'li taslakta sıranın ilk cümlesi (cevap) Ada'da kalır", () => {
-    const draft = episode("diyalog", Array.from({ length: 4 }, () => ["kerem", "ada", "ada", "ada", "ada"]));
-    const balanced = balanceKerem(draft);
-    expect(keremShare(balanced)).toBeGreaterThanOrEqual(KEREM_SHARE_MIN);
-    for (const chapter of balanced.chapters) expect(chapter.lines[1]!.speaker).toBe("ada");
+    expect(lines.map((line) => line.text)).toEqual(draft.chapters.flatMap((chapter) => chapter.lines.map((line) => line.text)));
+    // Her bölümdeki dört cümlelik Ada sırası ya bütünüyle Ada'da kalır ya bütünüyle Kerem'e geçer.
+    for (const chapter of balanced.chapters) {
+      const turn = chapter.lines.slice(-4).map((line) => line.speaker);
+      expect(new Set(turn).size).toBe(1);
+    }
   });
 
   it("Kerem'e adıyla seslenen cümle Kerem'e taşınmaz; tek sesli tür dokunulmaz", () => {
@@ -139,8 +149,9 @@ describe("P1-3 kâğıt talimatı ve boş övgü süzgeci", () => {
     expect(spokenSentence("Çok güzel soru!")).toBeNull();
     expect(spokenSentence("Aferin.")).toBeNull();
     expect(spokenSentence("Güzel bir örnek: 9 aylık bebek desteksiz oturur.")).toBe("Güzel bir örnek: 9 aylık bebek desteksiz oturur.");
-    expect(spokenSentence("Kuralın özeti muazzam bir özet oldu")).toBe("Kuralın özeti");
-    expect(spokenSentence("Oran sabit, muazzam bir özet oldu.")).toBe("Oran sabit");
+    // Ayraçsız kuyruk silinmez: "Kuralın özeti" yarım cümle olurdu (Paket A, 28 Ekim 2026).
+    expect(spokenSentence("Kuralın özeti muazzam bir özet oldu")).toBe("Kuralın özeti muazzam bir özet oldu");
+    expect(spokenSentence("Oran sabit, muazzam bir özet oldu.")).toBe("Oran sabit.");
     expect(spokenSentence("Great job, the ratio stays 2:1.")).toBe("The ratio stays 2:1.");
     expect(spokenSentence("Well done.")).toBeNull();
     expect(spokenSentence("Good morning, the ratio stays 2:1.")).toBe("Good morning, the ratio stays 2:1.");
@@ -189,7 +200,10 @@ describe("süre sözü her türde aynı kapı", () => {
 
   it("ölçülen süre kelime bandını ezer; banda yaklaşan tur kabul edilir", () => {
     expect(durationRoundFor({ length: "diyalog", words: 440, measuredMs: promisedMs("diyalog") * 0.5 })).toBe("expand");
-    expect(durationRoundFor({ length: "basit", words: 470, measuredMs: promisedMs("basit") * 1.4 })).toBe("shorten");
+    // Tavan ~10 dakika: tipik sürenin 1,4 katı artık uzun değil; tavanın %20 üstü uzun.
+    expect(durationRoundFor({ length: "basit", words: 470, measuredMs: promisedMs("basit") * 1.4 })).toBeNull();
+    const basitCeiling = estimatedDurationMs(podcastLengthSpec("basit").words.max, "single");
+    expect(durationRoundFor({ length: "basit", words: 470, measuredMs: basitCeiling * 1.3 })).toBe("shorten");
     expect(durationVerdict(promisedMs("derin"), "derin")).toBe("ok");
     expect(closerToBand(80, 95, "ozet")).toBe(true);
     expect(closerToBand(95, 40, "ozet")).toBe(false);
@@ -218,7 +232,7 @@ describe("süre sözü her türde aynı kapı", () => {
     expect(run).toContain("SÜRE TURU. Bu bir denetim değil.");
     expect(run).toContain("DURATION_ROUND_TIMEOUT_MS");
     const picker = readFileSync("src/components/parity/podcast-format-picker.tsx", "utf8");
-    expect(picker).toContain("deliverableMinutes(option.id)");
+    expect(picker).toContain("podcastMinutesLabel(option.id)");
     const audio = readFileSync("src/app/api/learning/podcast/audio/route.ts", "utf8");
     expect(audio).toContain("durationVerdict");
     expect(audio).not.toContain("ensurePodcastDuration");

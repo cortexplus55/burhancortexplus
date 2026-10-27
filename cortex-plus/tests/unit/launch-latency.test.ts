@@ -45,6 +45,7 @@ const input = {
   pages: [{ page: 44, text: "SA → AV → His → Purkinje. PR 0,12–0,20 sn; QRS < 0,12 sn." }],
   count: 5,
   scope: "topic_test" as const,
+  optionCount: 4 as const,
 };
 
 function fakeAsk(verifies: unknown[]) {
@@ -298,8 +299,9 @@ describe("yazılı deneme: soru türleri seçilen sayıya göre", () => {
       expect(types).toContain("multi_mcq");
     }
     const { readFileSync } = await import("node:fs");
-    expect(readFileSync("src/lib/learning/mock-exam/create.ts", "utf8")).toContain(
-      "blueprint.slots = defaultSlots(input.questionCount, allowNumeric);",
+    // Paket A (28 Ekim 2026): tür karışımı söz verilen (gerekirse büyümüş) sayıya göre, plan kurulurken.
+    expect(readFileSync("src/lib/learning/mock-exam/allocate.ts", "utf8")).toContain(
+      ": defaultSlots(questionCount, input.allowNumeric);",
     );
   });
 });

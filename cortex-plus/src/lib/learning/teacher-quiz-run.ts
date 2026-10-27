@@ -5,7 +5,12 @@ import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
-import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
+import {
+  DEFAULT_OPTION_COUNT,
+  studentOptionCount,
+  studentPedagogyBlock,
+  withStudentProfile,
+} from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
@@ -113,6 +118,7 @@ export async function teacherQuizLoop(
   const scoped = scope === "topic_test";
   const count = input.count;
   const multi = Boolean(input.multi);
+  const optionCount = input.optionCount ?? DEFAULT_OPTION_COUNT;
   // İkinci geçişte birinci geçişin soruları testin başı sayılır.
   const prior = scoped ? (input.avoid ?? []) : [];
   const pointsAvailable = scoped ? topicTestPoints(input).length : 0;
@@ -132,7 +138,7 @@ export async function teacherQuizLoop(
 
   const review = async (candidates: Slot[]): Promise<Pending[]> => {
     const kept = accepted();
-    const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi }));
+    const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi, optionCount }));
     // Tek geçiş (26 Ekim 2026): ikinci denetçi ve kör çözücü yok. Kapı deterministik.
     const factual: QuizIssue[] = [];
     const rows: Pending[] = candidates.map((slot, position) => ({
@@ -173,13 +179,10 @@ export async function teacherQuizLoop(
 
   const draftCount = count + quizSpareCount(count, scoped);
   const draftStarted = Date.now();
-  let draft = parseTeacherQuiz(
-    await ask(quizSystem(mode, input.focus, multi, scope, input.rephrase), quizUserPrompt(input, draftCount), "draft"),
-  );
+  const writer = quizSystem(mode, input.focus, multi, scope, input.rephrase, optionCount);
+  let draft = parseTeacherQuiz(await ask(writer, quizUserPrompt(input, draftCount), "draft"));
   if (!draft) {
-    draft = parseTeacherQuiz(
-      await ask(quizSystem(mode, input.focus, multi, scope, input.rephrase), quizUserPrompt(input, draftCount), "draft"),
-    );
+    draft = parseTeacherQuiz(await ask(writer, quizUserPrompt(input, draftCount), "draft"));
   }
   const draftMs = Date.now() - draftStarted;
   if (!draft) {
@@ -393,8 +396,12 @@ async function runTeacherQuizInner(
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
   const profileLoad = studentPedagogyBlock(service, input.userId, "quiz");
+  const optionCountLoad = input.optionCount
+    ? Promise.resolve(input.optionCount)
+    : studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && !held && (await fastAllowedFor(service, input.userId)));
   const profile = await profileLoad;
+  input = { ...input, optionCount: await optionCountLoad };
   const ask: AskJson = async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -484,12 +491,14 @@ async function runTeacherQuizInner(
       for (const [code, n] of Object.entries(again.codes)) loop.codes[code] = (loop.codes[code] ?? 0) + n;
     }
     if (questions.length < input.count) {
+      // İki doğru şıklı soru (eşdeğer ya da tekrar şık) sayı tamamlamak için de geri konmaz.
       const playable = rejected
+        .filter((item) => !item.problems.some((problem) => /İki şık eşdeğer|Aynı şık iki kez|İki şık aynı cevap/.test(problem)))
         .map((item) => item.question)
         .filter(
           (question) =>
             question.text.trim().length > 0 &&
-            question.options.length >= 2 &&
+            question.options.length === input.optionCount &&
             question.correct.some((answer) => question.options.includes(answer)),
         );
       const spare = dropNearDuplicates(playable, (question) => question.text, [

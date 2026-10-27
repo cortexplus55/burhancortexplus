@@ -127,6 +127,7 @@ describe("tek geçiş — Elif, Mert, Zeynep", () => {
       pages: [{ page: 1, text: "x + 2 = 5" }],
       count: 5,
       scope: "topic_test",
+      optionCount: 4,
     });
     expect(loop.questions).toHaveLength(5);
     expect(ask.mock.calls.length).toBeLessThanOrEqual(2);

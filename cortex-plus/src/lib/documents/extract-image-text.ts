@@ -97,6 +97,7 @@ const PROMPT = [
   "Kâğıttaki işaretleri de aktar: daire içine alınmış, karalanmış ya da tiklenmiş şıkkın sonuna (işaretli) yaz; el yazısıyla eklenmiş notları ve düzeltmeleri bulundukları yere olduğu gibi yaz.",
   "Matematiksel ifadeleri LaTeX ile yaz; kimyasal formülleri ve birimleri (CO₂, H₂O, Na⁺, mmHg) LaTeX'e çevirmeden olduğu gibi yaz.",
   "El yazısını da oku.",
+  "Sayfanın başındaki ya da köşesindeki kısa el yazısı başlıkları, yer adlarını ve köşe notlarını (ör. 'Amfi 2', 'Taksi: 40 TL + 25 TL/km', 'LV duvarı 8-12 mm') atlama: bunlar sayfanın bilgisidir, süs ya da gürültü değildir; sayfadaki yerlerine göre (başlık en üstte, köşe notu ait olduğu bölümün yanında) ayrı satır olarak yaz, sayıyı ve birimi olduğu gibi aktar.",
   "Markdown, kod bloğu veya ``` kullanma; düz metin yaz.",
   `Görselde okunacak hiçbir yazı yoksa yalnızca ${NO_TEXT} yaz.`,
 ].join(" ");

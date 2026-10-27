@@ -182,7 +182,7 @@ describe("ücretli seslendirme yolu", () => {
     const lines = Array.from({ length: 112 }, (_, i) => line(`Cümle ${i}.`));
     const result = await synthesizeCharged(asService(fakeService()), "user-1", lines);
     expect(result.ok && result.tracks.length).toBe(112);
-    expect(peak).toBeLessThanOrEqual(8);
+    expect(peak).toBeLessThanOrEqual(10);
     expect(mocks.reserveCredits).toHaveBeenCalledTimes(1);
     expect(mocks.reserveCredits.mock.calls[0][4]).toBe(audioCreditUnits(lines.reduce((s, l) => s + l.text.length, 0)));
     expect(mocks.commitCredits).toHaveBeenCalledTimes(1);

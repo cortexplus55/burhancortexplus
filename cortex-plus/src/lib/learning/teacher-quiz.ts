@@ -1,5 +1,7 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
-import { STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
+import { EQUIVALENT_OPTIONS_RULE, SOURCE_NUMBER_PRIORITY, STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
+import { DEFAULT_OPTION_COUNT, type OptionCount } from "@/lib/learning/student-pedagogy";
+import { equivalentOptionPair } from "@/lib/learning/option-equivalence";
 import { normalizeQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
@@ -92,7 +94,18 @@ export type TeacherQuizInput = {
   previousStems?: string[];
   /** Bu testin kapsamı: kaçıncı test olduğu ve konunun hangi alt başlıkları (`practiceCoverageBlock`). */
   coverage?: string;
+  /**
+   * Şık sayısı (28 Ekim 2026, Paket A): ortaokul/LGS 4, lise/YKS/KPSS/TUS/üniversite 5 (`resolveOptionCount`).
+   * Verilmezse `runTeacherQuiz` öğrencinin profilinden bulur.
+   */
+  optionCount?: OptionCount;
 };
+
+const OPTION_LETTERS = ["A", "B", "C", "D", "E"] as const;
+
+function optionLetters(count: OptionCount): string {
+  return OPTION_LETTERS.slice(0, count).join(", ");
+}
 
 export type QuizDifficulty = "kolay" | "orta" | "ileri";
 
@@ -115,55 +128,60 @@ const DIFFICULTY_LINE: Record<QuizDifficulty, string> = {
     "sıradaki doğru adım; tanım sorusu yok.",
 };
 
-const SCHEMA = `{
+function schema(optionCount: OptionCount): string {
+  const options = Array.from({ length: optionCount }, () => '"…"').join(",");
+  const why = Array.from({ length: optionCount }, (_, index) => (index === 0 ? '"şık 1 için tek cümle"' : `"şık ${index + 1}"`)).join(", ");
+  return `{
   "questions": [
     {
       "text": "soru kökü; cevabı içinde vermez",
-      "options": ["…","…","…","…"],
+      "options": [${options}],
       "correct": "doğru şıkkın metni, options içinden aynen",
       "multi": false,
       "explanation": "doğru cevabın nedeni + her çeldiricinin gerçekte ne olduğu, 1-3 cümle",
-      "optionWhy": ["şık 1 için tek cümle", "şık 2", "şık 3", "şık 4"],
+      "optionWhy": [${why}],
       "misconceptionTag": "bu sorunun yakaladığı yanılgının adı",
       "learningObjective": "bu soru neyi ölçüyor, tek cümle",
       "steps": ["yalnız hesap sorusunda 2-5 kısa adım; son adım doğru şıkka varır"]
     }
   ]
 }`;
+}
 
 const RULE_DOCUMENT =
   "KAYNAK KURALI (kesin): Her soru, her şık ve her gerekçe yalnızca KAYNAK metnindeki bilgiye dayanır. Kaynakta yoksa " +
   "sorma; genel kültürden ekleme. Kaynaktaki bozuk ya da yanlış yazılmış kelimeleri doğru Türkçeyle yaz. Kaynakta " +
   "açıkça bozuk bir cümle varsa (olumsuzluk eki düşmüş, kendi örnekleriyle çelişiyor) kaynağın kendi açıklama ve " +
-  "örneklerinden anlaşılan anlamı kullan; bundan söz etme.\n\n";
+  `örneklerinden anlaşılan anlamı kullan; bundan söz etme.\n${SOURCE_NUMBER_PRIORITY}\n\n`;
 
 const RULE_EXAM =
   "KONU KURALI (yazılı deneme): Sorular belgenin konularını kapsar ve doğrudur. Cümleyi aynen kopyalamak " +
   "zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin. Yanlış olgu, " +
   "konunun dışına çıkan soru, boş kök ve anahtarı şıklarda olmayan soru yazma. Kaynak bir iddiayı açıkça " +
-  "söylüyorsa onunla çelişme.\n\n";
+  `söylüyorsa onunla çelişme.\n${SOURCE_NUMBER_PRIORITY}\n\n`;
 
 const RULE_TOPIC =
   "BİLGİ KURALI (belgesiz, kesin): Öğrencinin belgesi yok. Soruları sınav müfredatındaki yerleşik, ders kitaplarında " +
   "tartışmasız bilgiden yaz. Emin olmadığın sayı, tarih, madde numarası, eşik ya da kuralı sorma; güncel olarak " +
   "değişebilecek bilgiyi sorma. Aşağıda 'kaynak' denen her yer bu testte konunun yerleşik bilgisi anlamına gelir.\n\n";
 
-const DESIGN =
+const design = (optionCount: OptionCount) =>
   "SORU TASARIMI:\n" +
   "- Sınavdaki gibi, düşündüren sorular yaz; ezber cümlesini kopyalayıp boşluk açma.\n" +
   "- Türleri karıştır: bir durumdan (olaydan) kavramı buldurma; birbirine karıştırılan iki kardeş kavramı ayırt " +
   "ettirme; bir özelliğin hangi kavrama ait olduğunu sorma; kaynakta sayı ya da bağıntı varsa hesap.\n" +
   "- Her soru tek kavramı ölçer. Kolaydan zora sırala.\n" +
-  "- 4 şık. Tek doğru şık (multi false); aşağıda ÇOK CEVAPLI SORU kuralı varsa yalnız o soru istisna. Çeldiriciler aynı ailedeki kardeş terimler ya da öğrencinin gerçekten " +
+  `- ŞIK SAYISI: her soruda tam ${optionCount} şık (${optionLetters(optionCount)}); öğrencinin sınavı bu biçimde. ` +
+  "Tek doğru şık (multi false); aşağıda ÇOK CEVAPLI SORU kuralı varsa yalnız o soru istisna. Çeldiriciler aynı ailedeki kardeş terimler ya da öğrencinin gerçekten " +
   "yaptığı hata; şıklar aynı türden ve benzer uzunlukta. 'Hepsi', 'hiçbiri', 'yukarıdakilerin' şıkkı yok.\n" +
-  "- Dört şık da sorulan kategoriden olur: ölçüm soruluyorsa dördü de ölçüm, yaklaşım soruluyorsa dördü de aynı işe " +
+  "- Bütün şıklar sorulan kategoriden olur: ölçüm soruluyorsa hepsi ölçüm, yaklaşım soruluyorsa hepsi aynı işe " +
   "dönük yaklaşım. Konuyu bilmeyen birinin eleyebileceği şık ('Sosyal gülümseme' bir ölçüm sorusunda, 'Yalnızca dil " +
   "becerilerini değerlendirmek' bir büyüme sorusunda) çeldirici değildir; soruyu tahminle çözdürür.\n" +
   "- Kök, doğru şıkkı ötekilerden ayıran ipucunu vermez ('kilo akut etkilenir' deyip 'kronik olanı hangisi' diye sorup " +
   "şıklara kiloyu koymak gibi).\n" +
   "- Şıkların biçimi cevabı ele vermez: doğru şık en uzun ya da tek ayrıntılı şık olmaz; çeldirici doğru şıkkın " +
   "olumsuz kopyası olmaz ('uygun oranlı ORS' karşısında 'uygun oranı gözetilmeyen karışım'); bulgu kümesi sorusunda " +
-  "tek 'ağır' şık üç 'hafif' şıkkın arasında durmaz — yanlış kümeler de karışık ve gerçekçi olur.\n" +
+  "tek 'ağır' şık 'hafif' şıkların arasında durmaz — yanlış kümeler de karışık ve gerçekçi olur.\n" +
   "- Kök cevabı vermez; doğru şıkkın kelimeleri kökte geçmez. Sayma sorusu ('kaç tür vardır') yok. Olumsuz kök " +
   "('hangisi değildir') en fazla bir soruda ve olumsuz ek **koyu** yazılır.\n" +
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
@@ -174,6 +192,7 @@ const DESIGN =
   "90°'nin noktası (0, 1)'dir'). Şıkkı tekrar edip yalnız 'olamaz / değildir' demek gerekçe değildir.\n" +
   "- İki şık aynı şeyi söylemez: aynı noktaları ya da öğeleri farklı sırayla ('(1, 0) ve (0, 1)' ile '(0, 1) ve " +
   "(1, 0)'), aynı değeri farklı yazımla ('1/2' ile '0,5').\n" +
+  `- ${EQUIVALENT_OPTIONS_RULE}\n` +
   "- 'Hangisi doğrudur / hangisi özelliğidir' diye soruyorsan iki doğru kuralı yan yana şık yapma; kural bir koşula " +
   "bağlıysa (aynı taban, aynı üs gibi) koşulu kökte ya da şıkta yaz.\n" +
   "- Açı ya da sayı aralığı veriyorsan uç noktaların dahil olup olmadığını açıkça yaz (0° ≤ x < 360° gibi); " +
@@ -237,8 +256,8 @@ export const MULTI_DISTRACTOR_RULE =
   "tipik özelliği çeldirici değildir; soru tahminle çözülür. Kaynak bir listeyi sayıyorsa doğrular o listeden, " +
   "çeldiriciler aynı konunun öteki öğelerinden seçilir.";
 
-const MULTI_QUESTION =
-  "ÇOK CEVAPLI SORU: Bu testte tam bir soru çok cevaplıdır (multi true) ve testin son sorularından biridir. 4 şık, " +
+const multiQuestion = (optionCount: OptionCount) =>
+  `ÇOK CEVAPLI SORU: Bu testte tam bir soru çok cevaplıdır (multi true) ve testin son sorularından biridir. ${optionCount} şık, ` +
   "2 ya da 3'ü doğru; correct doğru şıkların metinlerinden oluşan dizidir. Kök 'hangileri' diye sorar ('Aşağıdakilerden " +
   "hangileri … ?'). Doğru şıkların her biri kendi başına kesin doğru, yanlış şıkların her biri kesin yanlıştır; " +
   `yarı doğru şık yok. ${MULTI_DISTRACTOR_RULE} explanation hangi şıkların neden doğru, ötekilerin neden yanlış ` +
@@ -256,6 +275,7 @@ function system(
   multi = false,
   scope?: QuizScope,
   rephrase = false,
+  optionCount: OptionCount = DEFAULT_OPTION_COUNT,
 ): string {
   const intro = rephrase
     ? "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor. Belgesindeki konulardan, sınavdaki " +
@@ -269,11 +289,11 @@ function system(
   return (
     intro +
     (rephrase ? RULE_EXAM : mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
-    DESIGN +
+    design(optionCount) +
     (topicTest ? `${TOPIC_TEST_RULE}\n` : "") +
-    (multi ? MULTI_QUESTION : "") +
+    (multi ? multiQuestion(optionCount) : "") +
     (focus === "gaps" ? GAPS_FOCUS : "") +
-    `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SCHEMA}` +
+    `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${schema(optionCount)}` +
     (topicTest ? `\n${POINT_FIELD_NOTE}` : "") +
     `\n\n${STUDENT_LEAK_BAN}`
   );
@@ -285,8 +305,9 @@ export function quizSystem(
   multi = false,
   scope?: QuizScope,
   rephrase = false,
+  optionCount: OptionCount = DEFAULT_OPTION_COUNT,
 ): string {
-  return system(mode, focus, multi, scope, rephrase);
+  return system(mode, focus, multi, scope, rephrase, optionCount);
 }
 
 /**
@@ -377,8 +398,10 @@ const VERIFY_DOCUMENT =
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
   "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
   "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor; iki şık aynı şeyi farklı sırayla ya da " +
-  "farklı yazımla söylüyor.\n" +
+  `farklı yazımla söylüyor. Yazarın okuduğu kural (aynen): ${EQUIVALENT_OPTIONS_RULE}\n` +
   "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n" +
+  `Sayı önceliği (yazarın kuralı, aynen): ${SOURCE_NUMBER_PRIORITY} Notun sayısıyla, aralığıyla ya da adıyla çelişen anahtar, ` +
+  "şık ya da gerekçe C'dir ('high').\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması; yanlış şıkkın " +
   "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara sırasıyla ya da harfiyle " +
   "gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
@@ -399,7 +422,7 @@ const VERIFY_TOPIC =
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
   "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
   "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor; iki şık aynı şeyi farklı sırayla ya da " +
-  "farklı yazımla söylüyor.\n" +
+  `farklı yazımla söylüyor. Yazarın okuduğu kural (aynen): ${EQUIVALENT_OPTIONS_RULE}\n` +
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
   "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara " +
@@ -557,6 +580,7 @@ export function quizFixSystem(
   multi = false,
   scope?: QuizScope,
   rephrase = false,
+  optionCount: OptionCount = DEFAULT_OPTION_COUNT,
 ): string {
   const lead = rephrase
     ? "Sen aynı testi yazan öğretmensin. Denetçinin sorun bulduğu soruları düzelt: anahtarı düzelt, tek doğru şık kalacak " +
@@ -576,7 +600,7 @@ export function quizFixSystem(
       : "") +
     " Önerilen düzeltme ('→' sonrası) varsa uygula. Yalnız verilen soruları, aynı " +
     "sayıda ve aynı sırayla döndür. Kurallar ve şema aynı:\n\n" +
-    system(mode, focus, multi, scope, rephrase)
+    system(mode, focus, multi, scope, rephrase, optionCount)
   );
 }
 
@@ -902,9 +926,40 @@ export function unseenStemReference(text: string): boolean {
   );
 }
 
-export function quizStructureIssues(question: QuizQuestion, options: { multi?: boolean } = {}): string[] {
+/**
+ * Şık sayısı sorunu. `optionCount` verilmezse sınav biçimlerinden biri (4 ya da 5) kabul edilir; motor her zaman
+ * öğrencinin sayısını verir.
+ */
+export function optionCountIssue(question: QuizQuestion, optionCount?: OptionCount): string | null {
+  const n = question.options.length;
+  if (optionCount) return n === optionCount ? null : `Şık sayısı ${n}; ${optionCount} olmalı (${optionLetters(optionCount)}).`;
+  return n === 4 || n === 5 ? null : `Şık sayısı ${n}; 4 ya da 5 olmalı.`;
+}
+
+/** Aynı şık iki kez (büyük/küçük harf, boşluk ve son noktalama yok sayılır). */
+function duplicateOption(options: readonly string[]): boolean {
+  const seen = new Set<string>();
+  for (const option of options) {
+    const key = option
+      .toLocaleLowerCase("tr")
+      .replace(/[.!?;:,]+$/u, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!key) continue;
+    if (seen.has(key)) return true;
+    seen.add(key);
+  }
+  return false;
+}
+
+export function quizStructureIssues(
+  question: QuizQuestion,
+  options: { multi?: boolean; optionCount?: OptionCount } = {},
+): string[] {
   const issues: string[] = [];
-  if (question.options.length !== 4) issues.push(`Şık sayısı ${question.options.length}; 4 olmalı.`);
+  const countIssue = optionCountIssue(question, options.optionCount);
+  if (countIssue) issues.push(countIssue);
+  if (duplicateOption(question.options)) issues.push("Aynı şık iki kez yazılmış.");
   const said = [question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
   if (reversedFunctionNotation(said.join("\n")).length) issues.push(FUNCTION_NOTATION_ISSUE);
   if (question.multi && options.multi) {
@@ -946,6 +1001,10 @@ export function quizStructureIssues(question: QuizQuestion, options: { multi?: b
     issues.push("Cevap anahtarı hesapla çelişiyor.");
   } else if (mathOptionsAmbiguous(keyed)) {
     issues.push("İki şık aynı cevap: aynı değer ya da aynı öğeler farklı sırayla.");
+  }
+  const twins = equivalentOptionPair(question.options, question.text);
+  if (twins) {
+    issues.push(`İki şık eşdeğer ('${twins[0]}' = '${twins[1]}'); tek doğrulu soruda biri doğruysa öteki de doğru olur.`);
   }
   return issues;
 }

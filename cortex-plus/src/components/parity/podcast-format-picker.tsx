@@ -3,9 +3,9 @@
 import {
   DEFAULT_PODCAST_LENGTH,
   PODCAST_FORMAT_OPTIONS,
+  podcastMinutesLabel,
   type PodcastLength,
 } from "@/lib/learning/podcast-formats";
-import { deliverableMinutes } from "@/lib/learning/podcast-duration";
 import { cn } from "@/lib/utils";
 
 /** Podcast türü — Astra'daki beş tür; ilki önerilen (1 Ekim 2026). */
@@ -32,7 +32,7 @@ export function PodcastFormatPicker({
           </span>
           <span className="cp-pod-format-text">
             <strong>
-              {option.label} <em>~{deliverableMinutes(option.id)} dk</em>
+              {option.label} <em>{podcastMinutesLabel(option.id)}</em>
             </strong>
             <span>{option.blurb}</span>
           </span>

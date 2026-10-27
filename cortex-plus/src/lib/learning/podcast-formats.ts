@@ -25,33 +25,59 @@ export type PodcastFormatOption = {
   blurb: string;
 };
 
-/** Seçicide görünen beş tür, Astra'nın sırasıyla. */
+/** Seçicide görünen beş tür, Astra'nın sırasıyla. `minutes` tipik süre; etiket aralığı `podcastMinutesLabel`. */
 export const PODCAST_FORMAT_OPTIONS: PodcastFormatOption[] = [
-  { id: "diyalog", emoji: "💬", label: "Diyalog", minutes: 5, blurb: "Ada ile Kerem konuyu konuşarak anlatıyor" },
+  { id: "diyalog", emoji: "💬", label: "Diyalog", minutes: 6, blurb: "Ada ile Kerem konuyu konuşarak anlatıyor" },
   { id: "ozet", emoji: "⚡", label: "Özet", minutes: 1, blurb: "Sınavdan önce bir dakikalık tekrar" },
   { id: "soru_cevap", emoji: "❓", label: "Soru-Cevap", minutes: 7, blurb: "Kerem soruyor, Ada adım adım cevaplıyor" },
-  { id: "basit", emoji: "🗣️", label: "Basit anlatım", minutes: 5, blurb: "Tek öğretmen, kısa cümleler, sakin tempo" },
-  { id: "derin", emoji: "📚", label: "Derinlemesine", minutes: 9, blurb: "Ada ile Kerem konunun tamamını örnekleriyle konuşuyor" },
+  { id: "basit", emoji: "🗣️", label: "Basit anlatım", minutes: 6, blurb: "Tek öğretmen, kısa cümleler, sakin tempo" },
+  { id: "derin", emoji: "📚", label: "Derinlemesine", minutes: 8, blurb: "Ada ile Kerem konunun tamamını örnekleriyle konuşuyor" },
 ];
 
 export type PodcastLengthSpec = {
   label: string;
+  /** Tipik süre (oturum kaydı ve tahmin); söz değil. Söz `words` aralığıdır. */
   minutes: number;
   minChapters: number;
   maxChapters: number;
   brief: string;
-  /** Senaryonun kelime bandı; altı bir genişletme turu açar (`podcastStructureIssues`). */
+  /**
+   * Kelime aralığı (28 Ekim 2026, Paket A): `min` taban (altı çökmüş podcast; düzeltme ve kurtarma oraya inemez,
+   * tamamlama turu açılır), `max` tavan (~10 dk). Arası konunun yoğunluğuna kalır.
+   */
   words: { min: number; max: number };
+  /** Taban konuşma sırası (iki seste konuşmacı değişimi, tek seste cümle); 0: yok. */
+  minTurns: number;
   /** "duo": Ada ve Kerem konuşur; "single": yalnız Ada. */
   speakers: "single" | "duo";
   /** Türe özgü anlatım kuralı; boşsa yok. */
   style: string;
 };
 
+/** Tavan: ~10 dakika, ölçülen okuma hızıyla (iki ses 88, tek ses 95 kelime/dk). */
+export const PODCAST_CEILING_WORDS = { duo: 880, single: 950 } as const;
+
+/**
+ * Uzunluk kuralı (28 Ekim 2026, Paket A; ürün sahibi: "konu içeriğiyle kendi ayarlasın; konu çok detaysa gerekirse
+ * 10 dk bile olur"). Sabit kelime bandı yazar 50 saniyelik metin verdiğinde de "bant tuttu" sayılıyordu; şimdi taban
+ * çöküşe karşı, tavan ~10 dk, arası konunun yoğunluğu.
+ */
+function contentLengthBrief(words: { min: number; max: number }, minTurns: number, chapters: string, speakers: "single" | "duo"): string {
+  const perMinute = speakers === "duo" ? DUO_WORDS_PER_MINUTE : SINGLE_WORDS_PER_MINUTE;
+  const turns = speakers === "duo" ? `${minTurns} konuşma sırası` : `${minTurns} cümle`;
+  return (
+    `UZUNLUK: Uzunluğu konunun yoğunluğu belirler; ayrıntılı konu (çok kavram, tablo, eşik, karıştırılan çift) ` +
+    `${Math.round(words.max / perMinute)} dakikaya (${words.max} kelime) kadar uzayabilir, sade konu daha kısa kalır. ` +
+    `Tabanın altına inme: en az ${words.min} kelime ve ${turns} (~${Math.round(words.min / perMinute)} dk). ` +
+    `${chapters} bölüm. Uzatmak için tekrar etme; yeni bir vaka, neden ya da karşılaştırma ekle.`
+  );
+}
+
 /*
   Kelime aralıkları ölçülen okuma hızından (19 Ekim 2026): canlıda iki sesli 657 kelimelik bölüm
   7:29 sürdü — dakikada ~88 kelime (sesler arası duraklarla); tek seste ~95. Önceki aralıklar
   dakikada 130 kelime varsayıyordu: "~5 dk" diye sunulan podcast 7,5 dakika çıkıyordu.
+  28 Ekim 2026 (Paket A): bant taban/tavan oldu; V6'da Diyalog 0:50'ye çöktü, bant bunu durdurmuyordu.
 */
 export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
   switch (length) {
@@ -63,18 +89,19 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         maxChapters: 4,
         brief: "Yaklaşık 1 dakika, 3 kısa bölüm, toplam 85-105 kelime. Sınav öncesi tekrar.",
         words: { min: 85, max: 105 },
+        minTurns: 0,
         speakers: "single",
         style: "",
       };
     case "derin":
-      // İki ses, 8-10 dakika: iki seste dakikada ~88 kelime → 750-880 kelime.
       return {
         label: "Derinlemesine",
-        minutes: 9,
+        minutes: 8,
         minChapters: 6,
-        maxChapters: 8,
-        brief: "Yaklaşık 8-10 dakika, 6-8 bölüm, toplam 750-880 kelime. Örnek ve bağlamla tam konu.",
-        words: { min: 750, max: 880 },
+        maxChapters: 10,
+        brief: `${contentLengthBrief({ min: 550, max: PODCAST_CEILING_WORDS.duo }, 16, "6-10", "duo")} Örnek ve bağlamla tam konu.`,
+        words: { min: 550, max: PODCAST_CEILING_WORDS.duo },
+        minTurns: 16,
         speakers: "duo",
         style:
           "Ada öğretmen, Kerem konuya çalışmış bir öğrenci arkadaşı; ikisi de anlatır. Her bölüm bir kavramı derinlemesine " +
@@ -84,11 +111,12 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
     case "diyalog":
       return {
         label: "Diyalog",
-        minutes: 5,
+        minutes: 6,
         minChapters: 4,
-        maxChapters: 6,
-        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 400-480 kelime.",
-        words: { min: 400, max: 480 },
+        maxChapters: 9,
+        brief: contentLengthBrief({ min: 350, max: PODCAST_CEILING_WORDS.duo }, 12, "4-9", "duo"),
+        words: { min: 350, max: PODCAST_CEILING_WORDS.duo },
+        minTurns: 12,
         speakers: "duo",
         // 17 Ekim 2026, ürün sahibi: "Astra gibi iki ses de anlatsın". Kerem'in bütün sıraları tek
         // cümlelik soruydu (canlı ölçüm, solunum podcast'i); Astra'da iki sunucu da anlatıyor.
@@ -106,9 +134,10 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         label: "Soru-Cevap",
         minutes: 7,
         minChapters: 5,
-        maxChapters: 7,
-        brief: "Yaklaşık 7 dakika, 5-7 bölüm, toplam 560-670 kelime.",
-        words: { min: 560, max: 670 },
+        maxChapters: 10,
+        brief: contentLengthBrief({ min: 420, max: PODCAST_CEILING_WORDS.duo }, 14, "5-10", "duo"),
+        words: { min: 420, max: PODCAST_CEILING_WORDS.duo },
+        minTurns: 14,
         speakers: "duo",
         style:
           "Her bölüm Kerem'in sınavda çıkabilecek bir sorusuyla açılır; Ada adım adım cevaplar. Kerem cevabı dinledikten " +
@@ -118,11 +147,12 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
     case "basit":
       return {
         label: "Basit anlatım",
-        minutes: 5,
+        minutes: 6,
         minChapters: 4,
-        maxChapters: 6,
-        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 430-520 kelime.",
-        words: { min: 430, max: 520 },
+        maxChapters: 9,
+        brief: contentLengthBrief({ min: 350, max: PODCAST_CEILING_WORDS.single }, 12, "4-9", "single"),
+        words: { min: 350, max: PODCAST_CEILING_WORDS.single },
+        minTurns: 12,
         speakers: "single",
         style:
           "Sade anlat: günlük kelimeler, her cümle en fazla 15 kelime. Terimi kullanmadan önce tanımla. " +
@@ -131,11 +161,12 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
     default:
       return {
         label: "Standart",
-        minutes: 5,
+        minutes: 6,
         minChapters: 4,
-        maxChapters: 6,
-        brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 430-520 kelime.",
-        words: { min: 430, max: 520 },
+        maxChapters: 9,
+        brief: contentLengthBrief({ min: 350, max: PODCAST_CEILING_WORDS.single }, 12, "4-9", "single"),
+        words: { min: 350, max: PODCAST_CEILING_WORDS.single },
+        minTurns: 12,
         speakers: "single",
         style: "",
       };
@@ -161,9 +192,13 @@ export const SPOKEN_ONLY_RULE =
 
 const PAPER_INSTRUCTION =
   /(?<!\p{L})(?:şıkları\s+ele\p{L}*|şık\s+eleme\p{L}*|eleme\s+yöntem\p{L}*|işaretle(?:yin|yiniz|yin\p{L}*)?|kâğıd?(?:ı|a|ına)\s+yaz\p{L}*|kağıd?(?:ı|a|ına)\s+yaz\p{L}*|cevap\s+kâğıd\p{L}*|cevap\s+kağıd\p{L}*|optik\s+form\p{L}*|boşlu(?:ğu|kları)\s+doldur\p{L}*|soruları\s+cevaplayınız|aşağıdaki\s+sorular\p{L}*)(?!\p{L})/iu;
-const SPEAKER_LABEL_PREFIX = /^(?:öğretmen|ogretmen|öğrenci|ogrenci|sunucu|ece|deniz)\s*:\s*/iu;
+const SPEAKER_LABEL_PREFIX = /^(?:öğretmen|ogretmen|öğrenci|ogrenci|sunucu|ece|deniz|ada|kerem)\s*[:：]\s*/iu;
+/**
+ * Sondaki boş övgü yalnız virgül/noktalı virgülle ayrılmış parçaysa düşer (28 Ekim 2026, Paket A): "Kuralın özeti
+ * muazzam bir özet oldu" cümlesinden övgüyü kesmek "Kuralın özeti" yarım cümlesini bırakıyordu.
+ */
 const TRAILING_PRAISE =
-  /(?:^|[\s,;])(?:çok\s+)?(?:muazzam|harika|süper|güzel|mükemmel|müthiş|şahane|great|awesome|amazing|excellent|perfect|brilliant|wonderful|superb)\s+(?:bir\s+|a\s+|an\s+)?(?:özet|soru|nokta|job|summary|point|work)\s*(?:oldu|idi|was)?[.!?…]*$/iu;
+  /(?:^|[,;]\s*)(?:çok\s+)?(?:muazzam|harika|süper|güzel|mükemmel|müthiş|şahane|great|awesome|amazing|excellent|perfect|brilliant|wonderful|superb)\s+(?:bir\s+|a\s+|an\s+)?(?:özet|soru|nokta|job|summary|point|work)\s*(?:oldu|idi|was)?[.!?…]*$/iu;
 
 const PRAISE_WORD = new Set([
   "harika", "super", "guzel", "mukemmel", "muthis", "sahane", "muazzam", "aferin", "tebrikler", "bravo", "harikasin",
@@ -239,8 +274,11 @@ export function spokenSentence(text: string): string | null {
     trimmed = trimmed.replace(TRAILING_PRAISE, "").trim();
   }
   const kept = splitPraiseClauses(trimmed).filter((clause) => clause && !praiseOnlyClause(clause));
-  const rest = kept.join(", ").trim();
+  let rest = kept.join(", ").trim();
   if (!/\p{L}{2,}/u.test(rest)) return null;
+  // Övgü parçası düşünce cümlenin bitiş işareti de gidiyordu ("Oran sabit"); asıl cümlenin işareti geri konur.
+  const end = text.trim().match(/[.!?…]+$/)?.[0];
+  if (end && !/[.!?…]$/.test(rest)) rest = `${rest.replace(/[,;:\s]+$/, "")}${end}`;
   return rest.charAt(0).toLocaleUpperCase("tr-TR") + rest.slice(1);
 }
 
@@ -271,8 +309,11 @@ export const NO_FABRICATED_MEMORY_RULE =
 export const FABRICATED_MEMORY =
   /geçen gün|lisedeyken|ben sınava girerken|arkadaşım|dün girdiğim deneme|kendi yaşadığım/iu;
 
-/** Podcast satır sesleri aynı anda bu kadar üretilir. Sıralı bekleme bölümü dakikalarca tutuyordu. */
-export const PODCAST_TTS_CONCURRENCY = 6;
+/**
+ * Podcast satır sesleri aynı anda bu kadar üretilir. Sıralı bekleme bölümü dakikalarca tutuyordu.
+ * 28 Ekim 2026 (Paket A): 6 → 10; 10 dakikaya uzayabilen podcast'te ~120 satır var, oynatıcı bölüm bölüm istiyor.
+ */
+export const PODCAST_TTS_CONCURRENCY = 10;
 
 /**
  * İşleri `limit` şerit halinde birlikte çalıştırır. Bir şerit bitince sıradakini alır.
@@ -348,4 +389,12 @@ export const SINGLE_WORDS_PER_MINUTE = 95;
 export function estimatedPodcastMinutes(words: number, speakers: "single" | "duo"): number {
   const perMinute = speakers === "duo" ? DUO_WORDS_PER_MINUTE : SINGLE_WORDS_PER_MINUTE;
   return Math.max(1, Math.round(words / perMinute));
+}
+
+/** Seçicinin süre etiketi: tabandan tavana aralık ("~4-10 dk"); Özet tek değer. Gerçek süre senaryodan hesaplanır. */
+export function podcastMinutesLabel(length: PodcastLength): string {
+  const spec = podcastLengthSpec(length);
+  const low = estimatedPodcastMinutes(spec.words.min, spec.speakers);
+  const high = estimatedPodcastMinutes(spec.words.max, spec.speakers);
+  return low === high ? `~${low} dk` : `~${low}-${high} dk`;
 }

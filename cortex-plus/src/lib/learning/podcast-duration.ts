@@ -5,14 +5,19 @@ import {
   type PodcastLength,
 } from "@/lib/learning/podcast-formats";
 
-/** Söz verilen süreye göre sapma. Her tür ve her ders için aynı oran. */
+/** Taban ve tavana göre sapma payı (ölçülen ses süresi). Her tür ve her ders için aynı oran. */
 export const DURATION_TOLERANCE = 0.2;
-/** Tek süre turu. Öğrenci ikinci kez ücretlenmez; tur düşünce eldeki metin kalır. */
-export const DURATION_ROUND_TIMEOUT_MS = 22_000;
+/**
+ * Tek süre turu (yalnız tavanı aşan metni kısaltır). 28 Ekim 2026 (Paket A): 22 sn'ydi; 7 dakikalık metnin JSON'u
+ * bu sürede yeniden yazılamıyor, tur hep zaman aşımına düşüyordu. Öğrenci ikinci kez ücretlenmez; tur düşünce eldeki
+ * metin kalır.
+ */
+export const DURATION_ROUND_TIMEOUT_MS = 60_000;
 
 export type DurationRound = "expand" | "shorten";
 export type DurationVerdict = "short" | "long" | "ok";
 
+/** Tipik süre (oturum kaydı); söz değil. */
 export function promisedMs(length: PodcastLength): number {
   return podcastLengthSpec(length).minutes * 60_000;
 }
@@ -23,11 +28,14 @@ export function estimatedDurationMs(words: number, speakers: "single" | "duo"): 
   return Math.round((Math.max(0, words) / perMinute) * 60_000);
 }
 
+/** Ölçülen süre taban/tavan aralığıyla karşılaştırılır (28 Ekim 2026: uzunluk konuya göre, tek bir söz yok). */
 export function durationVerdict(measuredMs: number, length: PodcastLength): DurationVerdict {
-  const target = promisedMs(length);
-  if (target <= 0 || measuredMs <= 0) return "ok";
-  if (measuredMs < target * (1 - DURATION_TOLERANCE)) return "short";
-  if (measuredMs > target * (1 + DURATION_TOLERANCE)) return "long";
+  if (measuredMs <= 0) return "ok";
+  const spec = podcastLengthSpec(length);
+  const floor = estimatedDurationMs(spec.words.min, spec.speakers);
+  const ceiling = estimatedDurationMs(spec.words.max, spec.speakers);
+  if (floor > 0 && measuredMs < floor * (1 - DURATION_TOLERANCE)) return "short";
+  if (ceiling > 0 && measuredMs > ceiling * (1 + DURATION_TOLERANCE)) return "long";
   return "ok";
 }
 
@@ -63,23 +71,30 @@ export function deliverableMinutes(length: PodcastLength): number {
   return Math.max(1, Math.round(midMinutes));
 }
 
+/** Aralığa uzaklık (içindeyse 0). */
+function bandDistance(words: number, band: { min: number; max: number }): number {
+  if (words < band.min) return band.min - words;
+  if (words > band.max) return words - band.max;
+  return 0;
+}
+
+/** Tur sonucu aralığa yaklaştıysa (ya da içine girdiyse) kabul edilir. */
 export function closerToBand(before: number, after: number, length: PodcastLength): boolean {
   const band = podcastLengthSpec(length).words;
-  const mid = (band.min + band.max) / 2;
-  return Math.abs(after - mid) < Math.abs(before - mid);
+  return bandDistance(after, band) < bandDistance(before, band);
 }
 
 export function durationRoundInstruction(round: DurationRound, length: PodcastLength): string {
   const band = podcastLengthSpec(length).words;
   if (round === "expand") {
     return (
-      `Konuşma söz verilen süreden kısa. Toplam kelime ${band.min}-${band.max} bandına gelsin. ` +
+      `Konuşma tabanın altında. Toplam kelime en az ${band.min} olsun (en çok ${band.max}). ` +
       "Yeni bir neden, örnek veya karşılaştırma ekle; var olan cümleleri tekrar etme. " +
       "Sayı, eşik, tarih, madde numarası ve sıralı adım yalnız kaynakta geçenlerden olsun."
     );
   }
   return (
-    `Konuşma söz verilen süreden uzun. Toplam kelime ${band.min}-${band.max} bandına gelsin. ` +
+    `Konuşma tavanı (~10 dakika) aşıyor. Toplam kelime en çok ${band.max} olsun (en az ${band.min}). ` +
     "Tekrar eden cümleleri ve bilgi taşımayan onayları çıkar. Kalan her cümle bir bilgi, bir neden veya bir örnek taşısın."
   );
 }

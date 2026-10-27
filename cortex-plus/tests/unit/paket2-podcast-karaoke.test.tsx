@@ -74,13 +74,14 @@ describe("paket 2 podcast karaoke ve hız", () => {
     expect(problems).toEqual([{ chapter: 0, line: 0, reason: "uydurma kişisel anı" }]);
   });
 
-  it("ses satırları altı şeritte Promise.all ile üretilir", async () => {
-    expect(PODCAST_TTS_CONCURRENCY).toBeGreaterThanOrEqual(4);
-    expect(PODCAST_TTS_CONCURRENCY).toBeLessThanOrEqual(6);
+  // Paket A (28 Ekim 2026): 6 şerit 10 dakikalık podcast'te rota sınırına yaklaşıyordu; satır başı 30 sn
+  // zaman aşımıyla 10 şerit.
+  it("ses satırları on şeritte Promise.all ile üretilir", async () => {
+    expect(PODCAST_TTS_CONCURRENCY).toBe(10);
     let active = 0;
     let peak = 0;
     const seen: number[] = [];
-    await mapWithConcurrency(Array.from({ length: 8 }, (_, index) => index), PODCAST_TTS_CONCURRENCY, async (item) => {
+    await mapWithConcurrency(Array.from({ length: 14 }, (_, index) => index), PODCAST_TTS_CONCURRENCY, async (item) => {
       active += 1;
       peak = Math.max(peak, active);
       await new Promise((resolve) => setTimeout(resolve, 30));
@@ -88,7 +89,7 @@ describe("paket 2 podcast karaoke ve hız", () => {
       seen.push(item);
     });
     expect(peak).toBe(PODCAST_TTS_CONCURRENCY);
-    expect(seen).toHaveLength(8);
+    expect(seen).toHaveLength(14);
 
     const audio = read("src/lib/learning/audio-cache.ts");
     expect(audio).toContain("mapWithConcurrency(missing, PODCAST_TTS_CONCURRENCY");

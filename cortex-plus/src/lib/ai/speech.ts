@@ -41,6 +41,12 @@ export function audioHash(text: string, speaker: SpeakerId): string {
 /** `chars` = API'ye gonderilen karakter sayisi; TTS faturasi bununla olculuyor. */
 export type SynthResult = { audio: Buffer; durationMs: number; chars: number };
 
+/**
+ * Satır başına üst sınır (28 Ekim 2026, Paket A). SDK varsayılanı 10 dakika ve 2 yeniden deneme: takılan tek satır
+ * bütün podcast'in sesini 7 dakikada zaman aşımına düşürdü. Yeniden denemeyi biz yapıyoruz (`audio-cache.ts`, 3 deneme).
+ */
+export const TTS_LINE_TIMEOUT_MS = 30_000;
+
 export async function synthesizeLine(
   text: string,
   speaker: SpeakerId,
@@ -52,14 +58,14 @@ export async function synthesizeLine(
   const input = clean;
 
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: TTS_LINE_TIMEOUT_MS, maxRetries: 0 });
     const response = await openai.audio.speech.create({
       model: env.OPENAI_TTS_MODEL,
       voice: voiceFor(speaker),
       input,
       instructions: SPEAKER_STYLE[speaker],
       response_format: "mp3",
-    });
+    }, { signal: AbortSignal.timeout(TTS_LINE_TIMEOUT_MS) });
 
     const audio = Buffer.from(await response.arrayBuffer());
     const durationMs = mp3DurationMs(audio);

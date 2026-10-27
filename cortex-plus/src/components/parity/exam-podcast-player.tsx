@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { studentSafeText } from "@/lib/learning/student-safe-text";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
-import type { PodcastLength } from "@/lib/learning/podcast-formats";
+import { mapWithConcurrency, type PodcastLength } from "@/lib/learning/podcast-formats";
 
 type AudioLine = {
   chapterIndex: number;
@@ -69,13 +69,42 @@ function SkipSeconds({ direction }: { direction: "back" | "forward" }) {
   );
 }
 
-/** Ses isteği düşünce kendiliğinden yeniden deneme sayısı ve ilk bekleme (ikincide iki katı). */
+/** Bir bölümün ses isteği düşünce kendiliğinden yeniden deneme sayısı ve ilk bekleme (ikincide iki katı). */
 const AUDIO_AUTO_RETRIES = 2;
 const AUDIO_RETRY_MS = 2_500;
+/**
+ * Ses bölüm bölüm istenir (28 Ekim 2026, Paket A): önce ilk bölüm (oynatma hemen başlasın), sonra kalanlar ikişer.
+ * Tek istek bütün podcast'i taşıyordu; 7 dakikalık seste rota sınırına takıldı, gelen kadarı "bitti" sayıldı.
+ */
+const AUDIO_CHAPTER_PARALLEL = 2;
+/** Henüz gelmemiş satırın süresi karakterden tahmin edilir (~900 karakter/dk); gelen satırlar oranı düzeltir. */
+const ESTIMATED_MS_PER_CHAR = 60_000 / 900;
 
 function padClock(ms: number): string {
   const [minutes, seconds] = formatClock(ms).split(":");
   return `${(minutes ?? "0").padStart(2, "0")}:${seconds ?? "00"}`;
+}
+
+/** Satır süreleri: gelen satır ölçülen süresiyle, gelmeyen satır gelenlerin karakter oranıyla tahmin. */
+export function estimatedDurations(
+  chapters: { lines: { text: string }[] }[],
+  audio: readonly ({ durationMs: number } | null | undefined)[],
+): number[] {
+  const texts = chapters.flatMap((chapter) => chapter.lines.map((line) => line.text));
+  let knownMs = 0;
+  let knownChars = 0;
+  texts.forEach((text, index) => {
+    const ms = audio[index]?.durationMs ?? 0;
+    if (ms > 0) {
+      knownMs += ms;
+      knownChars += text.length;
+    }
+  });
+  const perChar = knownChars >= 200 ? knownMs / knownChars : ESTIMATED_MS_PER_CHAR;
+  return texts.map((text, index) => {
+    const ms = audio[index]?.durationMs ?? 0;
+    return ms > 0 ? ms : Math.round(text.length * perChar);
+  });
 }
 
 function scriptHeading(title: string, chapterTitle: string): string {
@@ -93,7 +122,6 @@ export function ExamPodcastPlayer({
   resumeKey,
   scriptNote,
   onCreditsSpent,
-  length,
 }: {
   title: string;
   chapters: unknown[];
@@ -109,7 +137,7 @@ export function ExamPodcastPlayer({
   scriptNote?: string;
   /** Ses üretimi bitince düşen kredi. 0 önbellektir. */
   onCreditsSpent?: (credits: number) => void;
-  /** Söz verilen süre. Ses ölçülünce yönetim günlüğüne yazılır; ikinci yazım başlatmaz. */
+  /** Podcast türü. Ses bölüm bölüm istendiğinden süre günlüğü sunucuda tür başına tutulmaz. */
   length?: PodcastLength;
 }) {
   // İçerik anahtarı: üst bileşen aynı bölümleri yeni bir diziyle verince (kayıt tazelendi,
@@ -121,8 +149,6 @@ export function ExamPodcastPlayer({
   // Kaldığı yer anahtarı ses isteğini yeniden başlatmaz; yalnız okunur.
   const resumeKeyRef = useRef(resumeKey);
   resumeKeyRef.current = resumeKey;
-  const lengthRef = useRef(length);
-  lengthRef.current = length;
   const [audio, setAudio] = useState<(AudioLine | null)[] | null>(null);
   const [progress, setProgress] = useState({ ready: 0, total: 0 });
   /*
@@ -152,8 +178,10 @@ export function ExamPodcastPlayer({
    * ürün sahibi: "podcast istendiyse üretilsin").
    */
   const [audioAttempt, setAudioAttempt] = useState(0);
-  const audioRetriesRef = useRef(0);
-  const lastNormalizedRef = useRef<typeof normalized | null>(null);
+  /** Bir bölümün sesi üç denemede de gelmedi; gelen kısım çalar, düğme eksik bölümü yeniden ister. */
+  const [audioGap, setAudioGap] = useState(false);
+  /** Eksik bölüm yeniden istenince oynatma baştan değil, kalınan satırdan sürer (önbellekteki satırlar anında gelir). */
+  const retryFromRef = useRef<number | null>(null);
   const onCreditsSpentRef = useRef(onCreditsSpent);
   onCreditsSpentRef.current = onCreditsSpent;
   const [playing, setPlaying] = useState(false);
@@ -175,8 +203,9 @@ export function ExamPodcastPlayer({
   const timelineRef = useRef<TimedLine[]>([]);
   const totalRef = useRef(0);
 
+  // Gelmemiş satırın süresi tahmin: toplam süre 0:50 diye görünüp ses geldikçe büyümesin.
   const timeline: TimedLine[] = useMemo(
-    () => buildTimeline(normalized, (audio ?? []).map((line) => line?.durationMs ?? 0)),
+    () => buildTimeline(normalized, estimatedDurations(normalized, audio ?? [])),
     [normalized, audio],
   );
   const totalMs = totalDurationMs(timeline);
@@ -205,6 +234,7 @@ export function ExamPodcastPlayer({
     setPlaying(false);
     setPositionMs(0);
     setHeard(false);
+    setAudioGap(false);
     setStatus("loading");
     if (!normalized.length) {
       setStatus("fallback");
@@ -213,10 +243,6 @@ export function ExamPodcastPlayer({
     let alive = true;
     let started = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    if (lastNormalizedRef.current !== normalized) {
-      lastNormalizedRef.current = normalized;
-      audioRetriesRef.current = 0;
-    }
     const controller = new AbortController();
     const place = (index: number, line: AudioLine, total: number) => {
       if (!alive || index < 0) return;
@@ -231,119 +257,136 @@ export function ExamPodcastPlayer({
       if (!started && index === 0) {
         started = true;
         setStatus("ready");
+        const retryFrom = retryFromRef.current;
+        retryFromRef.current = null;
         const key = resumeKeyRef.current;
         const saved = key ? Number(window.localStorage.getItem(`cp-pod-pos:${key}`)) : 0;
-        if (!(Number.isFinite(saved) && saved > 800)) playRef.current(0);
+        if (retryFrom != null) playRef.current(retryFrom);
+        else if (!(Number.isFinite(saved) && saved > 800)) playRef.current(0);
       } else if (waitingRef.current && index === indexRef.current) {
         waitingRef.current = false;
         playRef.current(index);
       }
     };
-    void fetch("/api/learning/podcast/audio", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chapters: normalized,
-        stream: true,
-        ...(lengthRef.current ? { length: lengthRef.current } : {}),
-      }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
-        // olmayan öğrenci ile kredisi biten abone. Ayrım yanıttaki `code`
-        // alanından; Türkçe metni karşılaştırmak, metni değiştiren ilk
-        // kişide sessizce kırılırdı.
-        if (res.status === 402) {
-          const body = (await res.json().catch(() => null)) as
-            | { code?: string }
-            | null;
-          throw new Error(
-            body?.code === "insufficient_credits" ? "credits" : "premium",
-          );
-        }
-        if (!res.ok) throw new Error("unavailable");
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error("unavailable");
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (alive) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          const parts = buffer.split("\n");
-          buffer = parts.pop() ?? "";
-          for (const part of parts) {
-            if (!part.trim()) continue;
-            const event = JSON.parse(part) as {
-              type?: string;
-              code?: string;
-              index?: number;
-              total?: number;
-              chapterIndex?: number;
-              speaker?: AudioLine["speaker"];
-              text?: string;
-              url?: string;
-              durationMs?: number;
-              lines?: AudioLine[];
-              creditsSpent?: number;
-            };
-            if (event.type === "error") {
-              throw new Error(
-                event.code === "insufficient_credits" ? "credits" : event.code === "premium_required" ? "premium" : "unavailable",
-              );
-            }
-            if (event.type === "line" && event.url && event.durationMs && event.speaker && event.text != null && event.index != null) {
-              place(event.index, {
-                chapterIndex: event.chapterIndex ?? 0,
-                speaker: event.speaker,
-                text: event.text,
-                url: event.url,
-                durationMs: event.durationMs,
-              }, event.total ?? expectedRef.current);
-            }
-            if (event.type === "done" && event.lines) {
-              if (typeof event.creditsSpent === "number") {
-                onCreditsSpentRef.current?.(event.creditsSpent);
-              }
-              const verified = validatePodcastAudio(normalized, event.lines);
-              if (!verified) throw new Error("unavailable");
-              linesRef.current = verified;
-              expectedRef.current = verified.length;
-              completeRef.current = true;
-              setAudio(verified);
-              setProgress({ ready: verified.length, total: verified.length });
-              if (!started && verified[0]) {
-                started = true;
-                setStatus("ready");
-                playRef.current(0);
-              }
-            }
+    const total = normalized.reduce((sum, chapter) => sum + chapter.lines.length, 0);
+    const offsets = normalized.map((_, chapterIndex) =>
+      normalized.slice(0, chapterIndex).reduce((sum, chapter) => sum + chapter.lines.length, 0),
+    );
+    expectedRef.current = total;
+    let creditsSpent = 0;
+
+    // Bir bölümün sesi. Akış "done" yazmadan biterse (rota sınırı, ağ) bölüm eksik sayılır ve yeniden istenir;
+    // gelen kadarını "bitti" saymak sesi ortada kesiyordu. Önbellekteki satır ikinci istekte bedava ve anında gelir.
+    const fetchChapter = async (chapterIndex: number): Promise<void> => {
+      const chapter = normalized[chapterIndex]!;
+      const offset = offsets[chapterIndex]!;
+      const res = await fetch("/api/learning/podcast/audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapters: [chapter], stream: true }),
+        signal: controller.signal,
+      });
+      // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
+      // olmayan öğrenci ile kredisi biten abone. Ayrım yanıttaki `code`
+      // alanından; Türkçe metni karşılaştırmak, metni değiştiren ilk
+      // kişide sessizce kırılırdı.
+      if (res.status === 402) {
+        const body = (await res.json().catch(() => null)) as { code?: string } | null;
+        throw new Error(body?.code === "insufficient_credits" ? "credits" : "premium");
+      }
+      if (!res.ok) throw new Error("unavailable");
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("unavailable");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (alive) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        const parts = buffer.split("\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!part.trim()) continue;
+          const event = JSON.parse(part) as {
+            type?: string;
+            code?: string;
+            index?: number;
+            speaker?: AudioLine["speaker"];
+            text?: string;
+            url?: string;
+            durationMs?: number;
+            lines?: AudioLine[];
+            creditsSpent?: number;
+          };
+          if (event.type === "error") {
+            throw new Error(
+              event.code === "insufficient_credits" ? "credits" : event.code === "premium_required" ? "premium" : "unavailable",
+            );
+          }
+          if (event.type === "line" && event.url && event.durationMs && event.speaker && event.text != null && event.index != null) {
+            place(offset + event.index, {
+              chapterIndex,
+              speaker: event.speaker,
+              text: event.text,
+              url: event.url,
+              durationMs: event.durationMs,
+            }, total);
+          }
+          if (event.type === "done" && event.lines) {
+            const verified = validatePodcastAudio([chapter], event.lines);
+            if (!verified) throw new Error("unavailable");
+            if (typeof event.creditsSpent === "number") creditsSpent += event.creditsSpent;
+            verified.forEach((line, index) => place(offset + index, { ...line, chapterIndex }, total));
+            return;
           }
         }
-        if (alive && !completeRef.current && !linesRef.current.some(Boolean)) {
-          throw new Error("unavailable");
+      }
+      throw new Error("incomplete");
+    };
+
+    const runChapter = async (chapterIndex: number): Promise<void> => {
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          await fetchChapter(chapterIndex);
+          return;
+        } catch (error) {
+          const code = error instanceof Error ? error.message : "unavailable";
+          if (!alive || code === "credits" || code === "premium" || attempt >= AUDIO_AUTO_RETRIES) throw error;
+          await new Promise<void>((resolve) => {
+            retryTimer = setTimeout(resolve, AUDIO_RETRY_MS * (attempt + 1));
+          });
+          if (!alive) throw error;
         }
+      }
+    };
+
+    void (async () => {
+      await runChapter(0);
+      await mapWithConcurrency(
+        normalized.slice(1).map((_, index) => index + 1),
+        AUDIO_CHAPTER_PARALLEL,
+        (chapterIndex) => runChapter(chapterIndex),
+      );
+    })()
+      .then(() => {
+        if (!alive) return;
         completeRef.current = true;
+        onCreditsSpentRef.current?.(creditsSpent);
       })
       .catch((error: Error) => {
-        // Hangi sebep olursa olsun ders sessiz kalmasın diye senaryo
-        // açık kalıyor; zaman çizelgesi olmadığı için senkron kapanıyor.
+        // Hangi sebep olursa olsun ders sessiz kalmasın diye senaryo açık kalıyor.
         if (!alive) return;
-        if (linesRef.current.some(Boolean) && error.message !== "credits" && error.message !== "premium") {
-          completeRef.current = true;
-          setStatus("ready");
-          return;
-        }
+        if (creditsSpent > 0) onCreditsSpentRef.current?.(creditsSpent);
         if (error.message === "premium" || error.message === "credits") {
           setStatus(error.message);
           return;
         }
-        if (audioRetriesRef.current < AUDIO_AUTO_RETRIES) {
-          audioRetriesRef.current += 1;
-          retryTimer = setTimeout(() => {
-            if (alive) setAudioAttempt((value) => value + 1);
-          }, AUDIO_RETRY_MS * audioRetriesRef.current);
+        if (linesRef.current.some(Boolean)) {
+          // Bir bölüm üç denemede de gelmedi: gelen kadarı çalar, eksik bölüm için yeniden deneme düğmesi görünür.
+          completeRef.current = true;
+          setAudioGap(true);
+          setStatus("ready");
+          if (waitingRef.current) playRef.current(indexRef.current);
           return;
         }
         setStatus("fallback");
@@ -379,6 +422,12 @@ export function ExamPodcastPlayer({
         waitingRef.current = true;
         indexRef.current = index;
         if (completeRef.current) {
+          // Gelmeyen bölüm atlanır: sesin kalanı yine çalar.
+          const later = linesRef.current.findIndex((item, at) => at > index && Boolean(item));
+          if (later >= 0) {
+            playRef.current(later);
+            return;
+          }
           setPlaying(false);
           setHeard(true);
         }
@@ -428,12 +477,12 @@ export function ExamPodcastPlayer({
         const advance = () => {
           if (token !== tokenRef.current) return;
           if (!linesRef.current[index + 1]) {
+            if (completeRef.current) {
+              playRef.current(index + 1);
+              return;
+            }
             waitingRef.current = true;
             indexRef.current = index + 1;
-            if (completeRef.current) {
-              setPlaying(false);
-              setHeard(true);
-            }
             return;
           }
           playRef.current(index + 1);
@@ -858,8 +907,19 @@ export function ExamPodcastPlayer({
             <button
               type="button"
               className="cp-pod-upsell cp-pod-retry"
+              onClick={() => setAudioAttempt((value) => value + 1)}
+            >
+              Sesi yeniden dene
+            </button>
+          </p>
+        ) : status === "ready" && audioGap ? (
+          <p className="cp-pod-state">
+            Bir bölümün sesi bu sefer gelmedi; o bölüm atlanıyor.{" "}
+            <button
+              type="button"
+              className="cp-pod-upsell cp-pod-retry"
               onClick={() => {
-                audioRetriesRef.current = 0;
+                retryFromRef.current = indexRef.current;
                 setAudioAttempt((value) => value + 1);
               }}
             >

@@ -61,7 +61,7 @@ describe("kâğıttan okunan cevaplar", () => {
 
 describe("kurulumda çözüm yolu", () => {
   it("önce 'Nasıl çözmek istiyorsun?'; kâğıt seçilince kurulum kâğıt notuyla açılır", () => {
-    render(<MockExamSetup prepId="p1" topics={[]} formatSummary={null} isAdmin={false} allocationPreview={[]} />);
+    render(<MockExamSetup prepId="p1" topics={[]} formatSummary={null} isAdmin={false} />);
     expect(screen.getByRole("heading", { name: "Nasıl çözmek istiyorsun?" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Kâğıtta/ }));
     expect(screen.getByText(/Kâğıdı yazdırıp süre tutarak çözersin/)).toBeTruthy();

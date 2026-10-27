@@ -44,8 +44,30 @@ type QuestionItem = {
   question_text: string;
   options: string[];
   correct_answer: string | null;
+  /** Çok cevaplı soruda bütün doğrular. Eski kayıtta yok; o zaman `correct_answer`. */
+  correct_answers?: string[] | null;
+  question_type?: string | null;
   sort_order?: number;
 };
+
+/**
+ * Sorunun doğru şıkları (28 Ekim 2026, Paket A). İnceleme yalnız eski `correct_answer` sütununu
+ * okuyordu: çok cevaplı soruda yalnız ilk doğru "Doğru yanıt" rozetini alıyor, öğrencinin işaretlediği
+ * ikinci doğru şık "Senin yanıtın" diye kırmızı görünüyordu.
+ */
+export function correctOptionSet(question: Pick<QuestionItem, "correct_answer" | "correct_answers">): Set<string> {
+  const list = (question.correct_answers ?? []).map((answer) => answer.trim()).filter(Boolean);
+  if (list.length) return new Set(list);
+  return new Set(question.correct_answer?.trim() ? [question.correct_answer.trim()] : []);
+}
+
+/** Öğrencinin işaretledikleri: çok cevaplıda "a|b" olarak kayıtlı. */
+export function userAnswerSet(answer: string | null | undefined, multi: boolean): Set<string> {
+  const raw = (answer ?? "").trim();
+  if (!raw) return new Set();
+  if (!multi) return new Set([raw]);
+  return new Set(raw.split("|").map((part) => part.trim()).filter(Boolean));
+}
 
 export function ExamQuestionReviewClient({
   prepId,
@@ -222,9 +244,14 @@ export function ExamQuestionReviewClient({
             review?.points_max != null && review.points_earned != null
               ? `${Number.isInteger(review.points_earned) ? review.points_earned : review.points_earned.toFixed(1)}/${review.points_max} puan`
               : null;
+          const correctSet = correctOptionSet(question);
+          const multi = question.question_type === "multi_mcq" || correctSet.size > 1;
+          const picked = userAnswerSet(review?.user_answer, multi);
           const explanation =
             review?.explanation ||
-            `Doğru yanıt: ${question.correct_answer ?? "—"}`;
+            (correctSet.size > 1
+              ? `Doğru yanıtlar: ${[...correctSet].join(" · ")}`
+              : `Doğru yanıt: ${[...correctSet][0] ?? "—"}`);
           const speakText = `${question.question_text}. ${explanation}`;
 
           // Find original index in all questions
@@ -272,8 +299,8 @@ export function ExamQuestionReviewClient({
               <div className="space-y-2.5">
                 {options.map((option, optIdx) => {
                   const letter = String.fromCharCode(65 + optIdx);
-                  const isOptionCorrect = option === question.correct_answer;
-                  const isOptionUserAnswer = option === review?.user_answer;
+                  const isOptionCorrect = correctSet.has(option.trim());
+                  const isOptionUserAnswer = picked.has(option.trim());
 
                   return (
                     <div
@@ -309,6 +336,12 @@ export function ExamQuestionReviewClient({
                       {isOptionCorrect ? (
                         <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">
                           Doğru Yanıt
+                        </span>
+                      ) : null}
+
+                      {isOptionCorrect && isOptionUserAnswer && multi ? (
+                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[11px] font-bold">
+                          İşaretledin
                         </span>
                       ) : null}
 

@@ -98,7 +98,7 @@ export async function refreshQuizPrefetchAfterLesson(
       // Başka konunun testi: bu dersten etkilenmez.
       if (row.topic_id && row.topic_id !== input.topicId) return;
       // Hazır ya da yazılmakta olan test zaten bu derse göre.
-      if (storedVariant(row.payload)?.endsWith(`:${context.key}`)) return;
+      if (storedVariant(row.payload)?.split(":").includes(context.key)) return;
       await dropPrefetch(service, next.id);
     }
     await requestNodePrefetch(service, { origin: input.origin, userId: input.userId, prepId: input.prepId, node: next });

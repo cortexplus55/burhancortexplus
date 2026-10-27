@@ -105,21 +105,23 @@ describe("belge kaynağı seçimi", () => {
 });
 
 describe("podcast süresi ölçülen okuma hızıyla", () => {
-  it("5 dakikalık diyaloğun kelime aralığı 5 dakikada okunur", () => {
-    const brief = podcastLengthSpec("diyalog").brief;
-    const [low, high] = (brief.match(/(\d+)-(\d+) kelime/) ?? []).slice(1).map(Number);
-    expect(estimatedPodcastMinutes(low, "duo")).toBeGreaterThanOrEqual(4);
-    expect(estimatedPodcastMinutes(high, "duo")).toBeLessThanOrEqual(6);
+  // Paket A (28 Ekim 2026, ürün sahibi): uzunluğu konu belirler; taban ~4 dk, tavan ~10 dk. Özet 1 dk kalır.
+  it("diyaloğun tabanı en az 4, tavanı en çok 10 dakikada okunur", () => {
+    const { words } = podcastLengthSpec("diyalog");
+    expect(estimatedPodcastMinutes(words.min, "duo")).toBeGreaterThanOrEqual(4);
+    expect(estimatedPodcastMinutes(words.max, "duo")).toBeLessThanOrEqual(10);
     // Canlıdaki ölçüm: 657 kelime, iki ses, 7:29.
     expect(estimatedPodcastMinutes(657, "duo")).toBe(7);
   });
-  it("her türün aralığı kendi dakikasına oturur", () => {
-    for (const id of ["ozet", "diyalog", "soru_cevap", "basit", "derin"] as const) {
+  it("her türün tabanı ve tavanı içerik payına oturur; özet yaklaşık 1 dakika", () => {
+    for (const id of ["diyalog", "soru_cevap", "basit", "derin"] as const) {
       const spec = podcastLengthSpec(id);
-      const [low, high] = (spec.brief.match(/(\d+)-(\d+) kelime/) ?? []).slice(1).map(Number);
-      const mid = estimatedPodcastMinutes((low + high) / 2, spec.speakers);
-      expect(Math.abs(mid - spec.minutes), id).toBeLessThanOrEqual(1);
+      expect(estimatedPodcastMinutes(spec.words.min, spec.speakers), id).toBeGreaterThanOrEqual(4);
+      expect(estimatedPodcastMinutes(spec.words.max, spec.speakers), id).toBeLessThanOrEqual(10);
+      expect(spec.brief, id).toContain("Uzunluğu konunun yoğunluğu belirler");
     }
+    const ozet = podcastLengthSpec("ozet");
+    expect(estimatedPodcastMinutes((ozet.words.min + ozet.words.max) / 2, ozet.speakers)).toBe(1);
   });
 });
 

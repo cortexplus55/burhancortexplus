@@ -75,6 +75,25 @@ export const WHY_NOTE_RULE =
   "değilsen yazma. Kavram başına en çok bir. Soru, 'corrected' ve özet buna dayanmaz; sorular kaynaktan çözülür. " +
   "Kaynak nedeni kendisi veriyorsa kutu açma, nedeni metinde anlat.";
 
+/**
+ * Öğrencinin notundaki sayının mutlak önceliği (28 Ekim 2026, Paket A). Taranmış el notunda "sol ventrikül 8-12 mm"
+ * yazıyordu; konu testi genel bilgiden "yaklaşık 15 mm"yi doğru cevap yaptı. Yazar ve denetçi bu metni aynen okur.
+ */
+export const SOURCE_NUMBER_PRIORITY =
+  "KAYNAK BELGE / EL NOTU MUTLAK ÖNCELİĞİ: Öğrencinin yüklediği ders notunda ya da el yazısı taramasında bir kavram " +
+  "için belirli bir sayı, aralık, birim (8-12 mm, 40 TL + 25 TL/km) ya da özel ad/yer (Amfi 2) verilmişse, genel " +
+  "literatürde farklı bir yaklaşık değer geçse bile notun sayısı, aralığı ve adı doğrudur. Notun aralığıyla çelişen " +
+  "bir değeri doğru cevap, doğru ifade ya da anlatılan bilgi yapma; notun değerini genel bilgiyle 'düzeltme'.";
+
+/**
+ * Eşdeğer iki doğru şık (28 Ekim 2026, Paket A). Tek doğru istenen soruda "örten olması" ile "tersinin fonksiyon
+ * olması" birlikte şıktı; ikisi de doğruydu. Yazar ve denetçi bu metni aynen okur.
+ */
+export const EQUIVALENT_OPTIONS_RULE =
+  "EŞDEĞER ŞIK YASAĞI: Tek doğru cevaplı soruda matematiksel ya da kavramsal olarak eşdeğer iki ifade (bir " +
+  "fonksiyonun tersinin fonksiyon olması = birebir ve örten olması; resesif = çekinik; dominant = baskın) asla iki " +
+  "ayrı şık olamaz. Biri doğruysa öteki de doğru olur ve soru iki cevaplı kalır; eşdeğerlerden yalnız biri şık olur.";
+
 /** Ders, test ve podcast istemlerinin sonuna eklenir. Model bu adları kendi cümlesi gibi yazmasın. */
 export const STUDENT_LEAK_BAN =
   "ÇIKTI YASAĞI: İç kural adlarını ve şu ifadeleri çıktına yazma: sayı uydurma, kapsamı dışındadır, " +

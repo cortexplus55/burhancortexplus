@@ -1,11 +1,11 @@
 /**
  * Yazılı denemenin yayımlama kapısı (26 Ekim 2026).
  *
- * Kabul edilmiş soru sayısı söz verilene varınca kâğıt hemen çıkar.
+ * Her konunun söz verilen sayısı kabul edilmiş soruyla dolunca kâğıt hemen çıkar.
  * Tür karışımı tercihtir: çok cevaplı ya da açık uçlu yer dolmazsa yerin türü
- * eldeki geçerli soruya çevrilir, puan toplamı aynı kalır. Dalga tavanından
- * sonra delik herhangi bir kabul edilmiş konudan dolar. Eski sürüm ya da
- * 15 dakikayı geçmiş kayıt sonsuza kadar sürdürülmez.
+ * aynı konunun geçerli sorusuna çevrilir, puan toplamı aynı kalır. Konu başı sayı
+ * tercih değildir: bir konunun deliği başka konudan dolmaz (28 Ekim 2026, Paket A).
+ * Eski sürüm ya da 15 dakikayı geçmiş kayıt sonsuza kadar sürdürülmez.
  */
 
 import {
@@ -16,8 +16,11 @@ import {
 } from "@/lib/learning/deliverable";
 import { itemValidity, validityKind } from "@/lib/learning/item-validity";
 
-/** Checkpoint sürümü. Eski `v: 1` kayıtları bu sürümle sürdürülmez. */
-export const EXAM_BUILD_VERSION = 2;
+/**
+ * Checkpoint sürümü. Eski kayıtlar bu sürümle sürdürülmez. 3 (28 Ekim 2026, Paket A): dağılım artık
+ * konu metninin uzunluğuna bakmıyor; eski planla süren kâğıt kurulumun gösterdiği dağılım değil.
+ */
+export const EXAM_BUILD_VERSION = 3;
 /** Bu yaştan eski kayıt ya yayımlanır ya atılır. */
 export const STALE_CHECKPOINT_MS = 15 * 60 * 1000;
 /** Normal üretim dalgası. Sonrasında bir zorlamalı doldurma. */
@@ -86,7 +89,8 @@ export type FittedPaper<T> = {
 
 /**
  * Söz verilen sayı doluysa kâğıdı kurar. Önce konu ve tür, sonra aynı konuda
- * herhangi bir tür (yerin türü değişir), sayı yetiyorsa herhangi bir konu.
+ * herhangi bir tür (yerin türü değişir). Yer asla başka konunun sorusuyla dolmaz
+ * (28 Ekim 2026, Paket A): kurulumun söylediği konu başı sayı kâğıtta aynen kalır.
  */
 export function publishReady<T>(
   slots: readonly DeliverySlot[],
@@ -114,7 +118,6 @@ export function publishReady<T>(
   };
   take((view, slot) => sameTopic(view, slot) && typeOk(view.type, slot.type));
   take((view, slot) => sameTopic(view, slot));
-  take(() => true);
   if (chosen.some((index) => index == null)) return { ok: false, items: [], slots: copy };
   const items: T[] = [];
   const fitted = copy.map((slot, slotIndex) => {
@@ -173,7 +176,38 @@ export function nextCheckpointAction<T>(input: {
   return { action: "discard" };
 }
 
-/** Planın yerleri. Tür karışımı burada tercihtir; yayımlama bunu kapı yapmaz. */
+/**
+ * Planın türlerini konulara dağıtır. Çok cevaplı ve açık uçlu yerler tur tur, en çok sorusu olan
+ * konudan başlayarak birer birer verilir (28 Ekim 2026, Paket A). Eskiden plan sırayla kesiliyordu:
+ * bütün açık uçlu yerler son konulara düşüyor, o konunun tek sorusu açık uçlu oluyordu.
+ */
+export function spreadSlotTypes<P extends { type: string; points: number }>(
+  counts: readonly number[],
+  planned: readonly P[],
+  filler: P,
+): P[][] {
+  const total = counts.reduce((sum, count) => sum + Math.max(0, count), 0);
+  const plan = planned.slice(0, total);
+  while (plan.length < total) plan.push(filler);
+  const queue = [...plan.filter((slot) => slot.type !== "mcq"), ...plan.filter((slot) => slot.type === "mcq")];
+  const order = counts
+    .map((count, index) => ({ count, index }))
+    .sort((a, b) => b.count - a.count || a.index - b.index)
+    .map((row) => row.index);
+  const out: P[][] = counts.map(() => []);
+  let cursor = 0;
+  for (let round = 0; cursor < total; round += 1) {
+    for (const topic of order) {
+      if ((counts[topic] ?? 0) > round && cursor < total) {
+        out[topic]!.push(queue[cursor]!);
+        cursor += 1;
+      }
+    }
+  }
+  return out;
+}
+
+/** Planın yerleri, konu başı sayı plandaki gibi. Tür karışımı burada tercihtir; yayımlama bunu kapı yapmaz. */
 export function slotsFromPlan(plan: {
   questionCount: number;
   slots: readonly { type: string; points: number }[];
@@ -181,29 +215,37 @@ export function slotsFromPlan(plan: {
 }): DeliverySlot[] {
   const promised = plan.questionCount;
   if (promised < 1) return [];
-  const queue = [...plan.slots];
+  const rows = plan.allocation.filter((row) => row.count > 0);
+  const typed = spreadSlotTypes(
+    rows.map((row) => row.count),
+    plan.slots,
+    { type: "mcq", points: 4 },
+  );
   const slots: DeliverySlot[] = [];
-  for (const row of plan.allocation) {
-    if (row.count <= 0) continue;
-    for (let index = 0; index < row.count; index += 1) {
-      const planned = queue.shift() ?? { type: "mcq", points: 4 };
-      slots.push({
-        topicId: row.topicId,
-        topicLabel: row.topicLabel,
-        type: planned.type,
-        points: planned.points,
-      });
+  rows.forEach((row, index) => {
+    for (const planned of typed[index] ?? []) {
+      slots.push({ topicId: row.topicId, topicLabel: row.topicLabel, type: planned.type, points: planned.points });
     }
-  }
-  while (slots.length < promised) {
-    const planned = queue.shift() ?? { type: "mcq", points: 4 };
-    const host = slots[0];
-    slots.push({
-      topicId: host?.topicId ?? null,
-      topicLabel: host?.topicLabel ?? "",
-      type: planned.type,
-      points: planned.points,
-    });
-  }
+  });
   return slots.slice(0, promised);
+}
+
+/**
+ * Kâğıdın konu başı sayısı planla birebir mi? Yayın kapısı (Paket A): toplam tutsa da bir konu
+ * fazla, öbürü eksikse kâğıt yazılmaz.
+ */
+export function topicCountsMatch(
+  allocation: readonly { topicId: string | null; topicLabel: string; count: number }[],
+  questions: readonly { topicId?: string | null; topicLabel: string }[],
+): boolean {
+  const rows = allocation.filter((row) => row.count > 0);
+  if (!rows.length) return true;
+  const key = (item: { topicId?: string | null; topicLabel: string }) => item.topicId || `label:${item.topicLabel}`;
+  const want = new Map<string, number>();
+  for (const row of rows) want.set(key(row), (want.get(key(row)) ?? 0) + row.count);
+  const have = new Map<string, number>();
+  for (const question of questions) have.set(key(question), (have.get(key(question)) ?? 0) + 1);
+  if (have.size !== want.size) return false;
+  for (const [topic, count] of want) if (have.get(topic) !== count) return false;
+  return true;
 }

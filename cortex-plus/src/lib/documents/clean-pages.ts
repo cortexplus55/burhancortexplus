@@ -24,6 +24,7 @@ export const CLEAN_SYSTEM =
   "Bir PDF'in metin katmanından çıkmış ders kitabı sayfalarını temizliyorsun. " +
   "Yalnızca şunları yap: tanıma ve yazım hatalarını düzelt (bölünmüş ya da yapışmış kelimeler, yanlış harfler), " +
   "her sayfanın başında ya da sonunda tekrar eden kitap/bölüm başlığını ve sayfa numarasını at, " +
+  "ama yalnız o sayfada geçen kısa başlık, yer adı ve köşe notu (ör. 'Amfi 2', 'Taksi: 40 TL + 25 TL/km') bilgidir: atma, " +
   "tabloları Markdown tablo olarak, madde işaretlerini madde olarak koru, başlıkları ayrı satırda bırak. " +
   "Bilgi EKLEME, ÇIKARMA, ÖZETLEME, YORUMLAMA. Sayı, tarih, madde numarası, terim aynen kalsın. " +
   "Bir kelimeden emin değilsen olduğu gibi bırak. Sayfaları birleştirme, sıralarını değiştirme. " +

@@ -5,6 +5,7 @@ import { isPremiumUser } from "@/lib/ai/generate";
 import { pumpMockExamJob, startDurableMockExam } from "@/lib/learning/mock-exam-durable";
 import {
   hasInFlightMockBuild,
+  mockExamSpecKey,
   recoverStaleMockBuilds,
   runFallbackMockExam,
   type FallbackExamInput,
@@ -102,6 +103,7 @@ export async function POST(request: Request) {
     userId,
     prepId: fields.prepId,
     resumeId: fields.resumeId,
+    specKey: mockExamSpecKey(fields),
   });
   if (recovery.kind === "published") {
     const body = publishedData(recovery);

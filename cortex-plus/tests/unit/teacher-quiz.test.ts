@@ -110,7 +110,7 @@ describe("öğretmen test motoru: biçim ve yapı", () => {
 
 describe("öğretmen test motoru: döngü", () => {
   const draft = (n: number) => ({ questions: Array.from({ length: n }, (_, i) => raw(`Soru ${i + 1}: nikâh memuru olmadan yapılan evlilik?`)) });
-  const input = { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], count: 5 };
+  const input = { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], count: 5, optionCount: 4 as const };
 
   it("yedekli taslak: denetçinin elediği sorular yerine yedekler geçer, düzeltme turu gerekmez", async () => {
     const calls: string[] = [];
@@ -238,7 +238,7 @@ describe("zorluk ve çeldirici kategorisi", () => {
 
   it("yazar ve iki denetçi çeldiricinin aynı kategoriden olmasını biliyor", () => {
     for (const mode of ["document", "topic"] as const) {
-      expect(quizSystem(mode)).toContain("Dört şık da sorulan kategoriden olur");
+      expect(quizSystem(mode)).toContain("Bütün şıklar sorulan kategoriden olur");
       expect(quizVerifySystem(mode)).toContain("G) Çeldiricinin sorulan kategoriden olmaması");
       expect(quizVerifySystem(mode)).toContain("A-G 'high'");
       // Canlı Pediatri testi (16 Ekim): doğru şık en uzundu; tek "ağır" küme üç "hafif"in arasındaydı.

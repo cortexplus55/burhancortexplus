@@ -7,7 +7,7 @@
  */
 
 import { sameTopic, selectDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
-import { countAccepted, publishReady } from "@/lib/learning/exam-assembly";
+import { acceptedItems, publishReady } from "@/lib/learning/exam-assembly";
 import {
   replaceShortSlots,
   tallyDrafts,
@@ -171,35 +171,40 @@ export async function fillUntilDelivered<T>(input: {
     if (forced || input.signal?.aborted) return;
     forced = true;
     if (readyPaper().ok) return;
-    const missing = input.slots.length - countAccepted(input.slots, items, input.read);
-    if (missing <= 0) return;
-    const accepted = items.map((item) => input.read(item)).filter((view) => input.slots.some((slot) => sameTopic(view, slot)));
-    const donors = accepted.length
-      ? accepted
-      : input.slots.map((slot) => ({ topicId: slot.topicId, topicLabel: slot.topicLabel }));
-    const relaxed: DeliverySlot[] = Array.from({ length: missing }, (_, index) => {
-      const donor = donors[index % donors.length]!;
-      return {
-        topicId: donor.topicId ?? null,
-        topicLabel: donor.topicLabel,
-        type: "mcq",
-        points: 4,
-      };
-    });
-    const host = relaxed[0]!;
-    try {
-      const generated = await input.generate({
-        topicId: host.topicId ?? null,
-        topicLabel: host.topicLabel,
-        slots: relaxed,
-        modelIndex: modelByTopic.get(topicKey(host)) ?? 0,
-        avoid: avoidFor(input.slots),
-        relaxed: true,
-      });
-      items = [...items, ...generated];
-    } catch {
-      // Zorlama düşerse dalga açılmaz. Kısa liste yine yayımlanmaz.
-    }
+    // Her konunun eksiği kendi konusundan, tür serbest (Paket A): delik başka konunun sorusuyla dolmaz.
+    const accepted = acceptedItems(input.slots, items, input.read).map((row) => row.view);
+    const short = groupDeficits(input.slots)
+      .map((group) => {
+        const have = accepted.filter((view) => sameTopic(view, group[0]!)).length;
+        return { group, missing: group.length - have };
+      })
+      .filter((row) => row.missing > 0);
+    if (!short.length) return;
+    const parts = await Promise.all(
+      short.map(async ({ group, missing }) => {
+        const host = group[0]!;
+        const relaxed: DeliverySlot[] = Array.from({ length: missing }, () => ({
+          topicId: host.topicId ?? null,
+          topicLabel: host.topicLabel,
+          type: "mcq",
+          points: 4,
+        }));
+        try {
+          return await input.generate({
+            topicId: host.topicId ?? null,
+            topicLabel: host.topicLabel,
+            slots: relaxed,
+            modelIndex: modelByTopic.get(topicKey(host)) ?? 0,
+            avoid: avoidFor(group),
+            relaxed: true,
+          });
+        } catch {
+          // Zorlama düşerse dalga açılmaz. Kısa liste yine yayımlanmaz.
+          return [] as T[];
+        }
+      }),
+    );
+    for (const part of parts) items = [...items, ...part];
   };
 
   for (; waves < ceiling; ) {

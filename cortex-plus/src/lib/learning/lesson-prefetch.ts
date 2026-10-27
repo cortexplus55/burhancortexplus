@@ -205,21 +205,28 @@ export function prefetchVariant(
      * Ders yokken anahtar eskisiyle aynı; ders kaydedilince dersten önce yazılan test verilmez.
      */
     lessonKey?: string | null;
+    /** Şık sayısı (28 Ekim 2026, Paket A): 4 şıkla yazılmış hazır test 5 şıklı öğrenciye verilmez. */
+    optionCount?: number | null;
   },
 ): string {
+  const options = input.optionCount ? `:o${input.optionCount}` : "";
+  if (kind === "quiz") return prefetchQuizVariant(input) + options;
   if (kind === "lesson") return "lesson";
   if (kind === "podcast") return `podcast:${input.podcastLength ?? PREFETCH_DEFAULTS.podcastLength}`;
   if (kind === "oral") {
     const topic = input.oralScope === "all" ? "*" : input.topicLabel.trim().toLocaleLowerCase("tr");
     return `oral:${input.oralQuestionCount ?? PREFETCH_DEFAULTS.oralQuestionCount}:${topic}:${input.mood ?? PREFETCH_DEFAULTS.oralMood}:${input.difficulty ?? PREFETCH_DEFAULTS.oralDifficulty}`;
   }
-  if (kind === "quiz" && input.lessonKey) return `quiz:${input.difficulty ?? "orta"}:${input.lessonKey}`;
   // "Kartlarla son tekrar" zayıf konuya yönelir (20 Ekim 2026): önceden yazılan deste başka konunun
   // destesiyse atılır, yeniden yazılır.
   if (kind === "flashcards" || kind === "spaced") {
     return `${kind}:${input.difficulty ?? "orta"}:${input.topicLabel.trim().toLocaleLowerCase("tr")}`;
   }
   return `${kind}:${input.difficulty ?? "orta"}`;
+}
+
+function prefetchQuizVariant(input: { difficulty?: string | null; lessonKey?: string | null }): string {
+  return input.lessonKey ? `quiz:${input.difficulty ?? "orta"}:${input.lessonKey}` : `quiz:${input.difficulty ?? "orta"}`;
 }
 
 /** Hazır içerik var mı, öğrencinin seçimine uyuyor mu — henüz almadan bakar. */

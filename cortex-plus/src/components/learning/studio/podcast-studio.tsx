@@ -35,6 +35,7 @@ import {
   DEFAULT_PODCAST_LENGTH,
   PODCAST_FORMAT_OPTIONS,
   estimatedPodcastMinutes,
+  podcastMinutesLabel,
   type PodcastLength,
 } from "@/lib/learning/podcast-formats";
 import { cn } from "@/lib/utils";
@@ -81,7 +82,7 @@ const SPEEDS = [1, 1.25, 1.5, 2] as const;
 /** Tür = süre (19 Ekim 2026'dan beri Araçlar'da da seçilir; önce hep 5 dakikalık diyalogdu). */
 const FORMAT_CHOICES = PODCAST_FORMAT_OPTIONS.map((option) => ({
   value: option.id,
-  label: `${option.label} · ${option.minutes} dk`,
+  label: `${option.label} · ${podcastMinutesLabel(option.id)}`,
 }));
 
 export function PodcastStudio({
@@ -551,7 +552,7 @@ export function PodcastStudio({
             </div>
             <div>
               <dt>Tahmini süre</dt>
-              <dd>~{format.minutes} dk · {format.blurb}</dd>
+              <dd>{podcastMinutesLabel(format.id)} · {format.blurb}</dd>
             </div>
           </dl>
 

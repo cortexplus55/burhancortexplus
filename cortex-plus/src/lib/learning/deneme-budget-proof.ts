@@ -122,11 +122,14 @@ export async function replayWaveCap(): Promise<{
   elapsedMs: number;
   completedWave: number;
   forced: boolean;
+  /** Zorlamalı doldurma her eksik konu için ayrı istek (Paket A): delik başka konudan dolmaz. */
   relaxedCalls: number;
+  topics: number;
   emptyCalls: number;
   relaxedCount: number;
 }> {
   const slots = promisedPaper();
+  const topics = new Set(slots.map((slot) => slot.topicId ?? slot.topicLabel)).size;
   let serial = 100;
   let relaxedCalls = 0;
   let emptyCalls = 0;
@@ -147,7 +150,7 @@ export async function replayWaveCap(): Promise<{
         return [];
       }
       relaxedCalls += 1;
-      relaxedCount = request.slots.length;
+      relaxedCount += request.slots.length;
       return request.slots.map((slot) => {
         serial += 1;
         return distinctMcq(slot.topicLabel, slot.topicId ?? null, serial);
@@ -163,6 +166,7 @@ export async function replayWaveCap(): Promise<{
     completedWave: result.completedWave,
     forced: result.forced,
     relaxedCalls,
+    topics,
     emptyCalls,
     relaxedCount,
   };
@@ -253,7 +257,7 @@ export async function replayPublishCap(): Promise<{
     capped.ok &&
     capped.delivered === capped.promised &&
     capped.forced &&
-    capped.relaxedCalls === 1 &&
+    capped.relaxedCalls === capped.topics &&
     capped.relaxedCount === capped.promised &&
     capped.completedWave === MOCK_EXAM_WAVE_CAP &&
     capped.elapsedMs <= MOCK_EXAM_BUDGET_MS &&

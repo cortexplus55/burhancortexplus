@@ -3,7 +3,9 @@ import { STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
 import {
   coercePodcastDraft,
   keremShare,
+  podcastBelowFloor,
   podcastScriptText,
+  podcastTurnCount,
   podcastWordCount,
   type PodcastEpisode,
 } from "@/lib/learning/podcast-episode";
@@ -364,6 +366,60 @@ export function podcastFixUserPrompt(episode: PodcastEpisode, problems: string[]
   ].join("\n\n");
 }
 
+/*
+  Tamamlama turu (28 Ekim 2026, Paket A). V6'da Diyalog 0:50'ye çöktü; eski süre turu bütün JSON'u yeniden yazdırıyordu
+  ve 22 sn'de hep zaman aşımına düşüyordu. Tamamlama yalnız eksik bölümleri yazar; var olan, denetlenmiş satırlara
+  dokunmaz. Yeni bölümler son tekrar bölümünden önce girer ve aynı denetçiden geçer.
+*/
+export function podcastCompletionSystem(mode: TeacherLessonMode = "document", length: PodcastLength): string {
+  return (
+    "Sen aynı podcast'i yazan öğretmensin. Podcast tabanın altında kaldı. Var olan bölümleri yeniden yazma, " +
+    "tekrar etme; yalnız EK bölümler yaz: konunun henüz konuşulmamış noktaları, ikinci bir vaka, en çok karıştırılan " +
+    "ayrım, bir neden ya da mekanizma. Son tekrar bölümünü yazma; o zaten var. Ek bölümler var olan konuşmanın " +
+    "devamı gibi akar. Kurallar ve şema aynı (yalnız ek bölümleri döndür):\n\n" +
+    system(mode, length)
+  );
+}
+
+export function podcastCompletionUserPrompt(episode: PodcastEpisode, input: TeacherPodcastInput): string {
+  const spec = podcastLengthSpec(input.length);
+  const words = podcastWordCount(episode);
+  const turns = podcastTurnCount(episode);
+  const room = Math.max(1, spec.maxChapters - episode.chapters.length);
+  return [
+    podcastUserPrompt(input),
+    `ŞU ANKİ PODCAST (JSON):\n${JSON.stringify(publicShape(episode))}`,
+    `TAMAMLAMA: Şu an ${words} kelime ve ${turns} konuşma sırası; taban ${spec.words.min} kelime ve ${spec.minTurns} ` +
+      `sıra. En az ${Math.max(spec.words.min - words, 60)} kelime ve en az ${Math.max(spec.minTurns - turns, 2)} ` +
+      `konuşma sırası ekle (toplam ${spec.words.max} kelimeyi geçme). En çok ${Math.min(room, 3)} yeni bölüm.`,
+    'Yalnız ek bölümleri aynı şemayla JSON olarak döndür: {"title":"…","chapters":[…]}.',
+  ].join("\n\n");
+}
+
+/** Tamamlama turunun bölümleri (taban bölüm sayısı istenmez). */
+export function parsePodcastAddition(
+  raw: unknown,
+  input: Pick<TeacherPodcastInput, "length" | "topicLabel">,
+): PodcastEpisode | null {
+  return coercePodcastDraft(scriptToDraft(raw) ?? raw, { length: input.length, topicLabel: input.topicLabel, minChapters: 1 });
+}
+
+/** Ek bölümler son tekrar bölümünden önce girer; bölüm tavanı aşılmaz. Kod satır yazmaz. */
+export function insertPodcastChapters(episode: PodcastEpisode, addition: PodcastEpisode): PodcastEpisode {
+  const spec = podcastLengthSpec(episode.length);
+  const room = Math.max(1, spec.maxChapters - episode.chapters.length);
+  const known = new Set(episode.chapters.map((chapter) => chapter.title.toLocaleLowerCase("tr-TR")));
+  const fresh = addition.chapters
+    .filter((chapter) => !known.has(chapter.title.toLocaleLowerCase("tr-TR")))
+    .slice(0, room);
+  if (!fresh.length) return episode;
+  const recapAt = episode.chapters.length > 1 ? episode.chapters.length - 1 : episode.chapters.length;
+  return {
+    ...episode,
+    chapters: [...episode.chapters.slice(0, recapAt), ...fresh, ...episode.chapters.slice(recapAt)],
+  };
+}
+
 /** Model ve denetçi "Dur ve düşün:" / "Cevap:" işaretli düz metni görür. */
 function publicShape(episode: PodcastEpisode) {
   return {
@@ -408,6 +464,9 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
           `chapters[${chapterIndex}].lines[${lineIndex}]: uydurma kişisel anı; konuşmacının hayatı değil, konunun kuralı.`,
         );
       }
+      if (incompleteSentence(line.text)) {
+        issues.push(`chapters[${chapterIndex}].lines[${lineIndex}]: yarım cümle; cümleyi tamamla ya da çıkar.`);
+      }
     });
   });
   // Satır numarası bilerek yok: kurtarma satır numarasını silme sayar, bu cümle çoğu zaman gerçek
@@ -427,14 +486,13 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
   }
   const arithmetic = auditQuantitative(podcastScriptText(episode), "").issues.filter((issue) => issue.kind === "arithmetic");
   for (const issue of arithmetic) issues.push(`Tutmayan hesap: ${issue.detail}`);
-  if (episode.length === "derin") {
-    const words = podcastWordCount(episode);
-    if (words < spec.words.min) {
-      issues.push(
-        `Metin kısa: ${words} kelime; ${spec.words.min}-${spec.words.max} olmalı. Her bölümü yeni bir vaka, neden ya da ` +
-          "karşılaştırmayla genişlet; var olan cümleleri tekrar etme.",
-      );
-    }
+  // Taban her türde (Özet hariç; 28 Ekim 2026, Paket A). Satırsız: kurtarma silmez, tamamlama turu ekler.
+  if (podcastBelowFloor(episode)) {
+    issues.push(
+      `Metin kısa: ${podcastWordCount(episode)} kelime, ${podcastTurnCount(episode)} konuşma sırası; taban ` +
+        `${spec.words.min} kelime ve ${spec.minTurns} sıra (tavan ${spec.words.max}). Yeni bir vaka, neden ya da ` +
+        "karşılaştırma ekle; var olan cümleleri tekrar etme.",
+    );
   }
   if (spec.speakers === "duo") {
     const share = keremShare(episode);
@@ -505,6 +563,20 @@ const YES_NO_OPENER = /^(?:evet|hayır)\s*[;,.:!—-]/iu;
 const BARE_WEIGHT_LINE = /^bu konu sınavda (?:çok )?ağırlıklı\.?$/iu;
 /** Soruya yalnız onay veren çıplak cevap: soru düşünce anlamsız kalır. */
 const BARE_REPLY = /^(?:evet|hayır|doğru|aynen|kesinlikle)[.!]?$/iu;
+/** Bağlaçla biten cümle: devamı kesilmiş ("… çünkü.", "… ve"). */
+const DANGLING_CONNECTOR =
+  /(?<!\p{L})(?:ve|ama|çünkü|yani|ancak|fakat|veya|ya\s+da|ile|bu\s+yüzden|bu\s+nedenle|dolayısıyla|örneğin|mesela)[\s,;:—–-]*[.…]?\s*$/iu;
+
+/**
+ * Cümle kapısı (28 Ekim 2026, Paket A): V6'da yarım cümleler sese gitti. Satır `.`, `?`, `!` ya da `…` ile bitmeli ve
+ * bağlaçla bitmemeli; soruyla biten kısa "Yani?" serbest. Sorunlu satır düzeltme turuna, olmazsa kurtarmada çıkar.
+ */
+export function incompleteSentence(text: string): boolean {
+  const trimmed = text.trim();
+  if (!/[.?!…]["'”’»)]*$/u.test(trimmed)) return true;
+  if (/\?["'”’»)]*$/u.test(trimmed)) return false;
+  return DANGLING_CONNECTOR.test(trimmed);
+}
 
 /**
  * İki sunuculu metinde kodun kesin görebildiği konuşma sorunları (20 Ekim 2026, `DUO_TURN_RULE`):
@@ -553,6 +625,9 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
       if (FABRICATED_MEMORY.test(line.text)) {
         out.push({ chapter: chapterIndex, line: lineIndex, reason: "uydurma kişisel anı" });
       }
+      if (incompleteSentence(line.text)) {
+        out.push({ chapter: chapterIndex, line: lineIndex, reason: "yarım cümle" });
+      }
     });
   });
   // Akış sorunları (tekrar, cevapsız soru, ikinci itiraf, bağlamsız sınav satırı) 23 Ekim 2026'dan beri satır
@@ -589,6 +664,18 @@ const MIN_SALVAGED_LINES = 4;
  * kaldıysa (ör. satırlar arası tutmayan hesap) kurtarma yok: null → ikinci taslak.
  */
 export function salvagePodcast(
+  episode: PodcastEpisode,
+  problems: string[],
+): { episode: PodcastEpisode; removed: number; belowFloor: boolean } | null {
+  const result = salvageLines(episode, problems);
+  if (!result) return null;
+  // Taban (28 Ekim 2026, Paket A): silme podcast'i tabanın altına indirdiyse çağıran ikinci taslağı dener;
+  // bu sonuç yalnız son çare adayıdır (`teacherPodcastLoop`).
+  const belowFloor = result.removed > 0 && podcastBelowFloor(result.episode) && !podcastBelowFloor(episode);
+  return { ...result, belowFloor };
+}
+
+function salvageLines(
   episode: PodcastEpisode,
   problems: string[],
 ): { episode: PodcastEpisode; removed: number } | null {
@@ -670,7 +757,7 @@ export function salvagePodcast(
   const leftover = podcastLineProblems(next);
   if (leftover.length) {
     if (!removed) return null;
-    const again = salvagePodcast(
+    const again = salvageLines(
       next,
       leftover.map((item) => `chapters[${item.chapter}].lines[${item.line}]: ${item.reason}`),
     );

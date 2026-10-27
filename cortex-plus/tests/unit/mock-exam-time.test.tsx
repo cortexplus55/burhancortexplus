@@ -46,7 +46,6 @@ describe("yazılı deneme süresi", () => {
         topics={[{ id: "t1", label: "Birim Çember" }]}
         formatSummary={null}
         isAdmin={false}
-        allocationPreview={[{ topicLabel: "Birim Çember", count: 20, examHeavy: false }]}
       />,
     );
     // 17 Ekim 2026: önce çözüm yolu soruluyor (Astra: "Nasıl çözmek istiyorsun?").

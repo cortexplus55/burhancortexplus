@@ -58,7 +58,13 @@ function align(left: string, right: string): boolean {
   return false;
 }
 
+/**
+ * İkisinin de konu kimliği varsa kimlik eşleşmeli (28 Ekim 2026, Paket A). Ad benzerliği
+ * ("Fonksiyonlar" ⊂ "Ters Fonksiyonlar") bir konunun sorusunu öbürünün yerine oturtuyordu: kurulum
+ * K1'e 3 soru dedi, kâğıtta 5 çıktı. Kimlik tutsa da başka başlığı taşıyan öğe o konunun değildir.
+ */
 export function sameTopic(item: DeliveryItem, slot: DeliverySlot): boolean {
+  if (item.topicId && slot.topicId && item.topicId !== slot.topicId) return false;
   if (item.topicLabel.trim() && slot.topicLabel.trim()) return align(item.topicLabel, slot.topicLabel);
   if (!slot.topicLabel.trim()) return true;
   return align(item.text, slot.topicLabel);

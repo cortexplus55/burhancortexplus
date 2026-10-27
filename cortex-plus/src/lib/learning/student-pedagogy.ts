@@ -33,7 +33,62 @@ export type StudentPedagogicalContext = {
   tutorStyle: TutorStyle;
   /** Kayıtta seçilen odak ders ("Matematik", "Tarih"); yoksa null. */
   focusSubject: string | null;
+  /** Kayıttaki hedef metni ("Tıp fakültesi sınavları"); şık sayısı için okunur. */
+  goalText?: string | null;
 };
+
+/** Çoktan seçmeli sorunun şık sayısı: ortaokul ve LGS 4 (A-D), lise, YKS, KPSS, ALES, TUS ve üniversite 5 (A-E). */
+export type OptionCount = 4 | 5;
+export const DEFAULT_OPTION_COUNT: OptionCount = 5;
+
+function examOptionCount(text: string | null | undefined): OptionCount | null {
+  if (!text) return null;
+  const lower = text.toLocaleLowerCase("tr");
+  if (/(?:^|[^\p{L}])lgs(?:$|[^\p{L}])|liseye geçiş|ortaokul/u.test(lower)) return 4;
+  if (
+    /(?:^|[^\p{L}])(?:yks|tyt|ayt|ydt|kpss|ales|tus|dus|yds|msü)(?:$|[^\p{L}])|üniversite|fakülte|tıp(?!kı)|lise|mezun|lisans/u.test(lower)
+  ) {
+    return 5;
+  }
+  return null;
+}
+
+/**
+ * Şık sayısı (28 Ekim 2026, Paket A): Türkiye'de LGS ve ortaokul yazılıları 4 şıklı, lise, YKS, KPSS, ALES,
+ * TUS ve üniversite sınavları 5 şıklı. Hazırlığın adı bir sınav söylüyorsa o sınavın biçimi geçerli (profil
+ * blokundaki "SINAV satırı başka bir sınav söylüyorsa" kuralıyla aynı); sonra hedef sınav, sınıf, hedef metni.
+ * Bilgi yoksa 5.
+ */
+export function resolveOptionCount(input: {
+  gradeLevel?: GradeLevel | null;
+  targetExam?: TargetExam | null;
+  goalText?: string | null;
+  prepTitle?: string | null;
+}): OptionCount {
+  const fromTitle = examOptionCount(input.prepTitle);
+  if (fromTitle) return fromTitle;
+  if (input.targetExam === "LGS") return 4;
+  if (input.targetExam && input.targetExam !== "Okul sınavları") return 5;
+  if (input.gradeLevel) {
+    const n = Number.parseInt(input.gradeLevel, 10);
+    return n >= 5 && n <= 8 ? 4 : 5;
+  }
+  return examOptionCount(input.goalText) ?? DEFAULT_OPTION_COUNT;
+}
+
+/** Öğrencinin profilinden şık sayısı; profil okunamazsa hazırlık adı ya da varsayılan. Hiçbir zaman atmaz. */
+export async function studentOptionCount(
+  client: SupabaseClient,
+  userId: string,
+  prepTitle?: string | null,
+): Promise<OptionCount> {
+  try {
+    const context = await getStudentPedagogicalContext(userId, client);
+    return resolveOptionCount({ ...(context ?? {}), prepTitle });
+  } catch {
+    return resolveOptionCount({ prepTitle });
+  }
+}
 
 /** Profilin okunduğu yüzey: aynı profil derste anlatımı, testte soru kökünü, çözümde adımı değiştirir. */
 export type PedagogySurface = "lesson" | "quiz" | "true_false" | "podcast" | "cards" | "oral" | "solve";
@@ -113,9 +168,10 @@ export async function getStudentPedagogicalContext(
       const targetExam = detectTargetExam(goal?.data?.goal_text);
       const tutorStyle = parseTutorStyle(profile?.data?.tutor_style);
       const focusSubject = parseFocusSubject(profile?.data?.focus_subject);
+      const goalText = typeof goal?.data?.goal_text === "string" ? goal.data.goal_text.slice(0, 200) : null;
       const told =
         gradeLevel || targetExam || focusSubject || (profile?.data?.tutor_style && tutorStyle !== DEFAULT_TUTOR_STYLE);
-      value = told ? { gradeLevel, targetExam, tutorStyle, focusSubject } : null;
+      value = told ? { gradeLevel, targetExam, tutorStyle, focusSubject, goalText } : null;
     }
   } catch {
     value = null;

@@ -18,6 +18,7 @@ import {
   nextCheckpointAction,
   publishReady,
   slotsFromPlan,
+  topicCountsMatch,
 } from "@/lib/learning/exam-assembly";
 import type { MockExamBlueprint, MockExamQuestionDraft, MockLengthPreset } from "@/lib/learning/mock-exam";
 import {
@@ -496,6 +497,7 @@ async function publishExam(
     points: paper.slots[index]?.points ?? item.points,
   }));
   if (record.promised < 1 || questions.length !== record.promised) return { ok: false };
+  if (stored.plan && !topicCountsMatch(stored.plan.allocation, questions)) return { ok: false };
   const { count, error } = await input.service
     .from("practice_exam_questions")
     .select("id", { count: "exact", head: true })
@@ -552,6 +554,8 @@ export async function recoverStaleMockBuilds(input: {
   prepId: string;
   resumeId?: string | null;
   now?: number;
+  /** İstenen kâğıdın ayarları. Verilirse yalnız aynı ayarlı eski kâğıt yayımlanır. */
+  specKey?: string;
 }): Promise<
   | { kind: "published"; examId: string; planned: number; topicTotal: number; resumeId: string }
   | { kind: "cleared"; droppedResume: boolean }
@@ -562,7 +566,7 @@ export async function recoverStaleMockBuilds(input: {
   for (const row of rows) {
     if (!row.build.building || row.build.examId) continue;
     const slots = slotsForBuild(row.build);
-    const decision = nextCheckpointAction({
+    let decision = nextCheckpointAction({
       version: row.build.v,
       startedAt: row.build.startedAt,
       now,
@@ -572,6 +576,10 @@ export async function recoverStaleMockBuilds(input: {
       read: draftView,
     });
     if (decision.action === "resume") continue;
+    // Başka uzunluk/kapsamla kurulmuş eski kâğıt öğrencinin şimdi istediği kâğıt değil (Paket A): yayımlanmaz, atılır.
+    if (decision.action === "publish" && input.specKey && row.build.specKey !== input.specKey) {
+      decision = { action: "discard" };
+    }
     const ageMs = row.build.startedAt > 0 ? now - row.build.startedAt : STALE_CHECKPOINT_MS + 1;
     logCheckpoint({
       action: decision.action,
@@ -623,6 +631,7 @@ export async function runFallbackMockExam(input: FallbackExamInput): Promise<Chu
     prepId: input.prepId,
     resumeId: input.resumeId,
     now,
+    specKey: mockExamSpecKey(input),
   });
   if (recovery.kind === "published") {
     return {

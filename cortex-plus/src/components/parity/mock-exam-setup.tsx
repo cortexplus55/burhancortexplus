@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,11 @@ import {
   MOCK_MINUTES_STEP,
   UNTIMED_MINUTES,
 } from "@/lib/learning/mock-exam/time-limit";
+import {
+  expandedAllocationNote,
+  presetQuestionCount,
+  promisedAllocation,
+} from "@/lib/learning/mock-exam/allocate";
 
 /** Uzunluk seçeneğinin önerdiği süre; öğrenci değiştirebilir. */
 const PRESET_MINUTES = { short: 20, standard: 40 } as const;
@@ -36,16 +41,17 @@ export function MockExamSetup({
   topics,
   formatSummary,
   realMinutes = null,
+  realQuestionCount = null,
   isAdmin,
-  allocationPreview,
 }: {
   prepId: string;
   topics: Topic[];
   formatSummary: string | null;
   /** Belgedeki sınav biçiminin süresi ("Gerçek sınav biçimi"). */
   realMinutes?: number | null;
+  /** Belgedeki sınav biçiminin soru sayısı. */
+  realQuestionCount?: number | null;
   isAdmin: boolean;
-  allocationPreview: Array<{ topicLabel: string; count: number; examHeavy: boolean }>;
 }) {
   const router = useRouter();
   const [scope, setScope] = useState<"all" | "topics">("all");
@@ -72,13 +78,24 @@ export function MockExamSetup({
     ? "Bu deneme kredi sınırından düşmez."
     : "Değerlendirme dahildir.";
 
-  const preview = useMemo(() => {
-    if (scope === "all") return allocationPreview;
-    const labels = new Set(
-      topics.filter((t) => selected.has(t.id) && !t.outOfScope).map((t) => t.label),
+  // Önizleme üretimin okuduğu fonksiyondan, seçilen uzunluk ve kapsamla (Paket A): gösterilen dağılım teslim edilir.
+  const promisedFor = (value: "short" | "standard" | "real") => {
+    const pool = scope === "all" ? topics : topics.filter((t) => selected.has(t.id));
+    return promisedAllocation(
+      pool.map((t) => ({
+        topicId: t.id,
+        topicLabel: t.label,
+        weightPercent: t.weightPercent ?? null,
+        examHeavy: t.examHeavy ?? false,
+        outOfScope: t.outOfScope ?? false,
+        passageChars: 100,
+      })),
+      presetQuestionCount(value, realQuestionCount),
     );
-    return allocationPreview.filter((row) => labels.has(row.topicLabel));
-  }, [scope, selected, topics, allocationPreview]);
+  };
+  const promised = promisedFor(preset);
+  const preview = promised.rows;
+  const overflowNote = expandedAllocationNote(promised);
 
   function examHref(examId: string) {
     return `/deneme-sinavlari/${prepId}/deneme/${examId}${answerMode === "paper" ? "?kagit=1" : ""}`;
@@ -349,11 +366,15 @@ export function MockExamSetup({
         <div className="mt-2 grid gap-3 sm:grid-cols-3">
           {(
             [
-              ["short", "Kısa · 10 soru · 20 dk", null],
-              ["standard", "Standart · 20 soru · 40 dk", null],
+              ["short", `Kısa · ${promisedFor("short").total || 10} soru · 20 dk`, null],
+              ["standard", `Standart · ${promisedFor("standard").total || 20} soru · 40 dk`, null],
               [
                 "real",
-                formatSummary ? `Gerçek sınav biçimi · ${formatSummary}` : null,
+                formatSummary
+                  ? promisedFor("real").expanded
+                    ? `Gerçek sınav biçimi · ${formatSummary} · ${promisedFor("real").total} soru`
+                    : `Gerçek sınav biçimi · ${formatSummary}`
+                  : null,
                 "ÖNERİLEN",
               ],
             ] as const
@@ -383,6 +404,11 @@ export function MockExamSetup({
               </button>
             ))}
         </div>
+        {overflowNote ? (
+          <p className="mt-3 text-sm text-[color:var(--cp-muted)]" role="note">
+            {overflowNote}
+          </p>
+        ) : null}
       </section>
 
       <section className="mt-8" aria-labelledby="mock-time-title">
@@ -437,7 +463,7 @@ export function MockExamSetup({
 
       {preview.length ? (
         <section className="mt-8">
-          <h2 className="text-sm font-semibold">Soru dağılımı</h2>
+          <h2 className="text-sm font-semibold">Soru dağılımı · toplam {promised.total} soru</h2>
           <ul className="mt-3 space-y-2">
             {preview.map((row) => (
               <li key={row.topicLabel} className="text-sm">

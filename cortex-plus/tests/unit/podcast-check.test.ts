@@ -123,7 +123,8 @@ describe("dinleme kontrolü: kaynak, okuma, puan", () => {
 });
 
 describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
-  const input = { topicLabel: "Büyüme ve gelişme", prepTitle: "Pediatri", listeningCheck: true };
+  // Şık sayısı öğrencinin sınavı (Paket A); taslaktaki sorular dört şıklı.
+  const input = { topicLabel: "Büyüme ve gelişme", prepTitle: "Pediatri", listeningCheck: true, optionCount: 4 as const };
   const asker = (draft: unknown) => {
     const calls: { system: string; user: string; role?: string }[] = [];
     const ask = vi.fn(async (system: string, user: string, role?: "draft" | "verify" | "fix" | "script" | "scriptfix") => {
@@ -166,9 +167,9 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
   it("motor kabuğu: kontrol kredi kesinleşmeden önce, aynı ayrılışla; ek ücret yok", () => {
     const run = readFileSync("src/lib/learning/teacher-podcast-run.ts", "utf8");
     const inner = run.slice(run.indexOf("async function runTeacherPodcastInner"));
-    expect(inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input)")).toBeGreaterThan(0);
-    expect(inner.indexOf("await podcastListeningCheck(ask, episode, input, started)")).toBeGreaterThan(
-      inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input)"),
+    expect(inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input, started)")).toBeGreaterThan(0);
+    expect(inner.indexOf("await podcastListeningCheck(ask, episode, { ...input, optionCount: await optionCountLoad }, started)")).toBeGreaterThan(
+      inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input, started)"),
     );
     expect(inner.indexOf("await podcastListeningCheck(ask,")).toBeLessThan(inner.indexOf("await commitCredits("));
     expect(run.match(/reserveCredits\(/g)).toHaveLength(1);

@@ -3,7 +3,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const OPTION_LETTERS = ["A", "B", "C", "D"] as const;
+const OPTION_LETTERS = ["A", "B", "C", "D", "E"] as const;
 
 const optionCardVariants = cva(
   [

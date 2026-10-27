@@ -5,6 +5,7 @@ import { isPremiumUser } from "@/lib/ai/generate";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { DUEL_QUESTIONS, duelCode, toDuelQuestions } from "@/lib/learning/duel";
 import { commitCredits, refundCredits } from "@/lib/credits/service";
+import { studentOptionCount } from "@/lib/learning/student-pedagogy";
 import { EMPTY_SOURCE_CONTEXT, loadSourceContext } from "@/lib/learning/source-context";
 import {
   resolvePrepSourceMode,
@@ -98,9 +99,11 @@ export async function POST(request: Request) {
       ? topicFence({ topic, examTitle: prep.title as string | null, examType: prep.exam_type as string })
       : "";
 
+  const optionCount = await studentOptionCount(service, userId, (prep.title as string | null) ?? subject);
   const outcome = await generateExamQuiz({
     service,
     userId,
+    optionCount,
     isPremium: await isPremiumUser(service, userId),
     maxDraftAttempts: 2,
     deferCommit: true,
@@ -115,7 +118,7 @@ export async function POST(request: Request) {
     requireSourceSupport: sourceMode !== "topic_only",
     idempotencyKey: `duel:${prepId}:${Date.now()}`,
     userPrompt: `Sınav: ${subject}. Konu: ${topic}.${source.block}${topicBlock}
-Düello için ${DUEL_CANDIDATES} çoktan seçmeli soru yaz. Her soruda 4 şık.
+Düello için ${DUEL_CANDIDATES} çoktan seçmeli soru yaz. Her soruda ${optionCount} şık.
 Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
 Soru kökü kısa olsun; 20 saniyede okunup cevaplanabilsin. Uzun hesap isteyen soru yazma.
 Soruların hepsi "${topic}" konusundan olsun; alıntıda başka konu geçiyorsa onu sorma.

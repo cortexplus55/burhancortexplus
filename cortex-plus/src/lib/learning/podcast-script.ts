@@ -76,6 +76,9 @@ export function splitSentences(text: string): string[] {
     if (ch === "." && /\d\.$/.test(buffer) && afterNext && !/[A-ZÇĞİÖŞÜ]/.test(afterNext)) {
       continue;
     }
+    // 28 Ekim 2026 (Paket A): "1. Dünya Savaşı", "II. Meşrutiyet" büyük harfle sürüyor; Türkçe cümle çıplak bir
+    // sayıyla ya da Roma rakamıyla nadiren biter, bölünce ses parçası "Dünya Savaşı…" diye ortadan başlıyordu.
+    if (ch === "." && afterNext && /(?:^|[\s(])(?:\d{1,4}|[IVX]{1,5}|[IVXLC]{2,6})\.$/.test(buffer)) continue;
 
     out.push(buffer.trim());
     buffer = "";
@@ -105,7 +108,9 @@ const ABBREVIATIONS = [
 
 function isAbbreviation(buffer: string): boolean {
   const tail = buffer.toLowerCase();
-  return ABBREVIATIONS.some((abbr) => tail.endsWith(abbr));
+  if (ABBREVIATIONS.some((abbr) => tail.endsWith(abbr))) return true;
+  // Noktalı baş harf kısaltması: "T.C.", "A.Ş.", "A.B.D." (en az iki harf-nokta çifti).
+  return /(?:^|[\s("'])(?:\p{Lu}\.){2,}$/u.test(buffer);
 }
 
 /**

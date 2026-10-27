@@ -164,6 +164,12 @@ export function ExamQuizPlay({
               <span className="flex-1 text-sm sm:text-base font-normal leading-snug">
                 <RichBody text={option} />
               </span>
+              {/* Çok cevaplıda her doğru şık adıyla (Paket A): kaçırılan doğru yalnız renkle kalmasın. */}
+              {showFeedback && isThisCorrect && question.multi ? (
+                <span className="cp-quiz-correct-badge shrink-0 rounded-full bg-[rgba(34,197,94,.18)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--pm-success,#22c55e)]">
+                  Doğru yanıt
+                </span>
+              ) : null}
             </button>
           );
         })}

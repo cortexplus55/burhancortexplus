@@ -156,6 +156,9 @@ describe("yazılı deneme her dersin alt başlığını ve kilit bilgisini kapsa
     expect(allocation).toHaveLength(7);
     expect(allocation.reduce((sum, row) => sum + row.count, 0)).toBe(20);
     expect(allocation.every((row) => row.count >= 1)).toBe(true);
+    // Paket A (28 Ekim 2026): dağılım metin uzunluğuna bakmaz; kurulumun gösterdiği eşit paylaşım (3+3+…+2).
+    const counts = allocation.map((row) => row.count);
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
 
     const pointsByTopic = new Map(
       topics.map((topic) => [topic.label, topicCoveragePoints(topic.pages, topic.label)]),
@@ -167,17 +170,19 @@ describe("yazılı deneme her dersin alt başlığını ve kilit bilgisini kapsa
 
     const wide = assigned.filter((slot) => slot.topicLabel === course.wide);
     expect(wide).toHaveLength(allocation.find((row) => row.topicLabel === course.wide)!.count);
-    for (const point of course.points) {
-      expect(wide.filter((slot) => slot.point === point)).toHaveLength(1);
-    }
-    expect(wide.some((slot) => slot.point === "3:2")).toBe(true);
+    // Geniş konunun yerleri kendi alt başlıklarından ve kilit bilgisinden, her biri bir kez.
+    const own = [...course.points, "3:2"];
+    expect(wide.every((slot) => own.includes(slot.point ?? ""))).toBe(true);
+    expect(new Set(wide.map((slot) => slot.point)).size).toBe(wide.length);
 
     const report = buildTopicReport(assigned.map((slot, index) => gradeItem(slot.topicLabel, index)));
     for (const row of allocation) {
       expect(report.find((item) => item.topicLabel === row.topicLabel)?.total).toBe(row.count);
     }
-    const ask = coverageAsk(wide.map((slot) => slot.point));
-    for (const point of course.points) expect(ask).toContain(` ${point}`);
-    expect(ask.match(new RegExp(course.points[0]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))).toHaveLength(1);
+    const asked = wide.map((slot) => slot.point).filter((point): point is string => Boolean(point));
+    const ask = coverageAsk(asked);
+    for (const point of asked) expect(ask).toContain(` ${point}`);
+    const first = asked[0]!;
+    expect(ask.match(new RegExp(first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))).toHaveLength(1);
   });
 });

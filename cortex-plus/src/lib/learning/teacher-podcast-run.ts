@@ -5,10 +5,15 @@ import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
-import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
+import {
+  studentOptionCount,
+  studentPedagogyBlock,
+  withStudentProfile,
+  type OptionCount,
+} from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
-import { balanceKerem, podcastWordCount, type PodcastEpisode } from "@/lib/learning/podcast-episode";
+import { balanceKerem, podcastBelowFloor, podcastTurnCount, podcastWordCount, type PodcastEpisode } from "@/lib/learning/podcast-episode";
 import { PODCAST_TTS_CONCURRENCY } from "@/lib/learning/podcast-formats";
 import {
   closerToBand,
@@ -30,8 +35,12 @@ import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { QUIZ_FIX_DEADLINE_MS, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
 import { usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 import {
+  insertPodcastChapters,
+  parsePodcastAddition,
   parsePodcastIssues,
   parseTeacherPodcast,
+  podcastCompletionSystem,
+  podcastCompletionUserPrompt,
   podcastFixSystem,
   podcastFixUserPrompt,
   podcastIssueLine,
@@ -82,7 +91,17 @@ export type PodcastLoopResult = {
   unverified: boolean;
   /** Son denetimin kulak maddeleri (20 Ekim 2026): G/H/I kaç kez yüksek çıktı. */
   earIssues?: { G: number; H: number; I: number };
+  /** Tabanın altına inen düzeltme sayısı: bu düzeltmeler reddedildi, önceki sürüm kaldı (28 Ekim 2026). */
+  floorRejected?: number;
+  /** Hiçbir aday tabanı tutmadı; en uzun geçerli aday yayınlandı (`short_shipped`). */
+  shortShipped?: boolean;
 };
+
+/** Taban sorunu düzeltme turu açmaz: tamamlama turu yalnız eksik bölümleri ekler (`ensurePodcastDuration`). */
+const SHORT_PROBLEM = /^Metin kısa/;
+/** Tabanın altındaki düzeltme en çok bu oranda kısalabilir. */
+const FIX_SHRINK_LIMIT = 0.85;
+const blocking = (problems: string[]) => problems.filter((problem) => !SHORT_PROBLEM.test(problem));
 
 /**
  * Taslak → yapı + belge denetimi → modelin düzeltmesi → (gerekirse) kurtarma → (gerekirse)
@@ -102,6 +121,7 @@ export async function teacherPodcastLoop(
 ): Promise<PodcastLoopResult> {
   const mode = input.mode ?? "document";
   let drafts = 0;
+  let floorRejected = 0;
   /** Son denetimin kulak maddeleri (G/H/I): ek düzeltme turunun bedeli ölçülsün. */
   let ear = { G: 0, H: 0, I: 0 };
 
@@ -134,22 +154,29 @@ export async function teacherPodcastLoop(
     let reviewed = await review(episode);
     // Denetçi bir kez ulaşılamadıysa bir daha sorulur; denetimsiz yayın son çaredir.
     if (!reviewed.verified) reviewed = await review(episode);
-    for (let round = 0; round < fixRounds && reviewed.problems.length; round += 1) {
+    for (let round = 0; round < fixRounds && blocking(reviewed.problems).length; round += 1) {
       if (Date.now() - started > FIX_DEADLINE_MS) break;
       if (round > 0) {
         const cheap = salvagePodcast(episode, reviewed.problems);
-        if (cheap && cheap.removed <= SALVAGE_INSTEAD_OF_FIX_LINES) break;
+        if (cheap && !cheap.belowFloor && cheap.removed <= SALVAGE_INSTEAD_OF_FIX_LINES) break;
       }
       const fixed = parseTeacherPodcast(
         await ask(
           podcastFixSystem(mode, input.length),
-          podcastFixUserPrompt(episode, reviewed.problems, input),
+          podcastFixUserPrompt(episode, blocking(reviewed.problems), input),
           usesScriptWriter(input.length) ? "scriptfix" : "fix",
         ),
         input,
       );
       if (!fixed) break;
       if (JSON.stringify(fixed) === JSON.stringify(episode)) break;
+      // Taban (28 Ekim 2026, Paket A): V6'da düzeltici Diyalog'u yarıya indirip 0:50'ye düşürdü. Tabanın altına inen
+      // ve metnin %15'inden fazlasını atan düzeltme reddedilir, önceki sürüm kalır; kalan sorun kurtarmaya gider.
+      // Yalnız uydurma cümleyi değiştiren dar düzeltme kabul edilir; eksik uzunluğu tamamlama turu kapatır.
+      if (podcastBelowFloor(fixed) && podcastWordCount(fixed) < podcastWordCount(episode) * FIX_SHRINK_LIMIT) {
+        floorRejected += 1;
+        break;
+      }
       episode = fixed;
       drafts += 1;
       reviewed = await review(episode);
@@ -157,21 +184,46 @@ export async function teacherPodcastLoop(
     return { episode, ...reviewed };
   };
 
+  /** Kurtarma tabanın altına indirdiyse ikinci taslak denenir; bu sonuç son çare adayı olarak saklanır. */
+  const shortCandidates: PodcastLoopResult[] = [];
+
   // Düzeltme turu da payı tutturmadıysa konuşmacı kodla dengelenir; iki sesli tür tek sesle yayınlanmaz.
   const finish = (outcome: { episode: PodcastEpisode; problems: string[]; verified: boolean }): PodcastLoopResult | null => {
-    if (!outcome.problems.length) {
-      return { episode: balanceKerem(outcome.episode), problems: [], drafts, salvaged: 0, unverified: !outcome.verified, earIssues: ear };
+    if (!blocking(outcome.problems).length) {
+      return {
+        episode: balanceKerem(outcome.episode),
+        problems: [],
+        drafts,
+        salvaged: 0,
+        unverified: !outcome.verified,
+        earIssues: ear,
+        floorRejected,
+      };
     }
     const salvaged = salvagePodcast(outcome.episode, outcome.problems);
     if (!salvaged) return null;
-    return {
+    const result: PodcastLoopResult = {
       episode: balanceKerem(salvaged.episode),
       problems: [],
       drafts,
       salvaged: salvaged.removed,
       unverified: !outcome.verified,
       earIssues: ear,
+      floorRejected,
     };
+    if (salvaged.belowFloor) {
+      shortCandidates.push(result);
+      return null;
+    }
+    return result;
+  };
+
+  /** "Üretilemedi demez": hiçbir aday tabanı tutmadıysa en uzun geçerli aday gider ve kayda geçer. */
+  const longestShort = (): PodcastLoopResult | null => {
+    const best = [...shortCandidates].sort(
+      (a, b) => podcastWordCount(b.episode!) - podcastWordCount(a.episode!),
+    )[0];
+    return best ? { ...best, drafts, floorRejected, shortShipped: true } : null;
   };
 
   const first = await attempt(MAX_FIX_ROUNDS);
@@ -184,10 +236,14 @@ export async function teacherPodcastLoop(
     if (second) {
       const doneSecond = finish(second);
       if (doneSecond) return doneSecond;
-      return { episode: second.episode, problems: second.problems, drafts, salvaged: 0, unverified: false, earIssues: ear };
+      const fallback = longestShort();
+      if (fallback) return fallback;
+      return { episode: second.episode, problems: second.problems, drafts, salvaged: 0, unverified: false, earIssues: ear, floorRejected };
     }
   }
-  return { episode: first.episode, problems: first.problems, drafts, salvaged: 0, unverified: false, earIssues: ear };
+  const fallback = longestShort();
+  if (fallback) return fallback;
+  return { episode: first.episode, problems: first.problems, drafts, salvaged: 0, unverified: false, earIssues: ear, floorRejected };
 }
 
 /*
@@ -217,7 +273,7 @@ export function checkLoopClock(started: number, checkStarted: number): number {
 export async function podcastListeningCheck(
   ask: AskJson,
   episode: PodcastEpisode,
-  input: Pick<TeacherPodcastInput, "topicLabel" | "prepTitle"> & { listeningCheck?: boolean },
+  input: Pick<TeacherPodcastInput, "topicLabel" | "prepTitle"> & { listeningCheck?: boolean; optionCount?: OptionCount },
   started: number,
 ): Promise<QuizQuestion[]> {
   if (input.listeningCheck !== true || !podcastCheckEligible(episode.length)) return [];
@@ -239,6 +295,7 @@ export async function podcastListeningCheck(
         focus: "practice",
         // Son soru çok cevaplı (23 Ekim 2026, ürün sahibinin kararı; konu testindeki gibi tek ve sonda).
         multi: true,
+        ...(input.optionCount ? { optionCount: input.optionCount } : {}),
       },
       loopClock,
     );
@@ -306,6 +363,7 @@ async function runTeacherPodcastInner(
   // Öğrenci bekliyor (önceden hazır podcast yok): hızlı işlem.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
   const profileLoad = studentPedagogyBlock(service, input.userId, "podcast");
+  const optionCountLoad = studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
   const profile = await profileLoad;
   const ask: AskJson = async (system, user, role) => {
@@ -358,6 +416,8 @@ async function runTeacherPodcastInner(
       salvaged: loop.salvaged,
       unverified: loop.unverified,
       earIssues: loop.earIssues ?? null,
+      floorRejected: loop.floorRejected ?? 0,
+      words: loop.episode ? podcastWordCount(loop.episode) : 0,
       calls,
       ms: Date.now() - started,
     });
@@ -370,10 +430,19 @@ async function runTeacherPodcastInner(
         reasons: loop.problems.slice(0, 6).map((problem) => problem.slice(0, 200)),
       };
     }
-    // Söz verilen süreye bir tur. Düşünce veya bandın uzağına giderse eldeki bölüm kalır. İkinci ücret yok.
-    const episode = await ensurePodcastDuration(ask, loop.episode, input);
-    // Kontrol, kredi kesinleşmeden önce aynı `ask` ile: kullanımı aynı ayrılışa yazılır.
-    const check = await podcastListeningCheck(ask, episode, input, started);
+    // Tabanın altındaysa tamamlama, tavanın üstündeyse kısaltma turu. Düşerse eldeki bölüm kalır. İkinci ücret yok.
+    const episode = await ensurePodcastDuration(ask, loop.episode, input, started);
+    if (podcastBelowFloor(episode)) {
+      console.warn("podcast_short_shipped", {
+        topic: input.topicLabel.slice(0, 80),
+        length: input.length,
+        words: podcastWordCount(episode),
+        turns: podcastTurnCount(episode),
+        salvageFloor: loop.shortShipped === true,
+      });
+    }
+    // Kontrol, kredi kesinleşmeden önce aynı `ask` ile: kullanımı aynı ayrılışa yazılır. Şık sayısı öğrencinin sınavı.
+    const check = await podcastListeningCheck(ask, episode, { ...input, optionCount: await optionCountLoad }, started);
     if (reservation.reservationId) await commitCredits(service, reservation.reservationId);
     return { ok: true, episode, check, calls, ms: Date.now() - started };
   } catch (error) {
@@ -387,47 +456,119 @@ async function runTeacherPodcastInner(
   }
 }
 
-/** Kelime bandının dışındaki her tür bir tur uzar veya kısalır. Ölçülen süre varsa o karar verir. */
+/** Tamamlama ve kısaltma turu bu süreden sonra başlamaz; rota tavanı 300 sn, ses ve kontrol de sığmalı. */
+const DURATION_START_DEADLINE_MS = 170_000;
+const DURATION_END_DEADLINE_MS = 240_000;
+/** Tamamlama turunun ek bölümlerini denetleyen çağrının üst sınırı. */
+const COMPLETION_REVIEW_TIMEOUT_MS = 40_000;
+
+function roundBudget(started: number, cap: number): number {
+  return Math.max(0, Math.min(cap, started + DURATION_END_DEADLINE_MS - Date.now()));
+}
+
+/**
+ * Tabanın altındaki podcast tamamlanır (yalnız eksik bölümler yazılır, son tekrar bölümünden önce girer, aynı denetçiden
+ * geçer), tavanı aşan kısaltılır. 28 Ekim 2026 (Paket A): eski tur bütün JSON'u yeniden yazdırıyor ve 22 sn'de zaman
+ * aşımına düşüyordu; kısa podcast olduğu gibi gidiyordu.
+ */
 async function ensurePodcastDuration(
   ask: AskJson,
   episode: PodcastEpisode,
   input: TeacherPodcastInput,
+  started: number,
 ): Promise<PodcastEpisode> {
   const words = podcastWordCount(episode);
-  const round = durationRoundFor({ length: input.length, words });
+  const short = podcastBelowFloor(episode);
+  const round = short ? "expand" : durationRoundFor({ length: input.length, words }) === "shorten" ? "shorten" : null;
   const base = {
     topic: input.topicLabel.slice(0, 80),
     length: input.length,
     words,
+    turns: podcastTurnCount(episode),
     round: round ?? "none",
   };
   if (!round) {
     console.info("podcast_duration", { ...base, accepted: false, verdict: "ok" });
     return episode;
   }
+  if (Date.now() - started > DURATION_START_DEADLINE_MS) {
+    console.info("podcast_duration", { ...base, accepted: false, verdict: "late" });
+    return episode;
+  }
+  if (round === "expand") {
+    const completed = await completePodcast(ask, episode, input, started);
+    console.info("podcast_duration", {
+      ...base,
+      nextWords: podcastWordCount(completed.episode),
+      accepted: completed.episode !== episode,
+      verdict: completed.verdict,
+    });
+    return completed.episode;
+  }
   try {
     const raw = await withDeadline(
       ask(
-        "SÜRE TURU. Bu bir denetim değil. Konuşmayı istenen kelime bandına getir ve aynı JSON biçiminde bütün bölümü döndür. Sayı, tarih, madde numarası ve sıralı adım yalnız kaynakta geçiyorsa kalır.",
+        "SÜRE TURU. Bu bir denetim değil. Konuşmayı istenen kelime aralığına getir ve aynı JSON biçiminde bütün bölümü döndür. Sayı, tarih, madde numarası ve sıralı adım yalnız kaynakta geçiyorsa kalır.",
         `${durationRoundInstruction(round, input.length)}\n\nBaşlık: ${input.topicLabel}\n\n${JSON.stringify(episode)}`,
         "fix",
       ),
-      DURATION_ROUND_TIMEOUT_MS,
+      roundBudget(started, DURATION_ROUND_TIMEOUT_MS),
     );
     const next = raw ? parseTeacherPodcast(raw, { length: input.length, topicLabel: input.topicLabel }) : null;
     const nextWords = next ? podcastWordCount(next) : words;
-    const accepted = Boolean(next && closerToBand(words, nextWords, input.length));
-    console.info("podcast_duration", {
-      ...base,
-      nextWords,
-      accepted,
-      verdict: round === "expand" ? "short" : "long",
-    });
-    return accepted && next ? next : episode;
+    const accepted = Boolean(next && !podcastBelowFloor(next) && closerToBand(words, nextWords, input.length));
+    console.info("podcast_duration", { ...base, nextWords, accepted, verdict: "long" });
+    return accepted && next ? balanceKerem(next) : episode;
   } catch {
-    console.info("podcast_duration", { ...base, accepted: false, verdict: round === "expand" ? "short" : "long" });
+    console.info("podcast_duration", { ...base, accepted: false, verdict: "long" });
     return episode;
   }
+}
+
+/**
+ * Tamamlama turu: model yalnız ek bölümleri yazar, kod onları son tekrar bölümünden önce yerleştirir; denetçi birleşik
+ * podcast'i okur, yalnız yeni bölümlerdeki sorunlar sayılır (eskiler zaten denetimden geçti). Denetçiye ulaşılamazsa
+ * ya da yeni bölümde yere bağlanamayan doğruluk sorunu varsa ek atılır: denetlenmemiş satır öğrenciye gitmez.
+ */
+export async function completePodcast(
+  ask: AskJson,
+  episode: PodcastEpisode,
+  input: TeacherPodcastInput,
+  started: number,
+): Promise<{ episode: PodcastEpisode; verdict: string }> {
+  const mode = input.mode ?? "document";
+  const raw = await withDeadline(
+    ask(podcastCompletionSystem(mode, input.length), podcastCompletionUserPrompt(episode, input), "fix"),
+    roundBudget(started, DURATION_ROUND_TIMEOUT_MS),
+  );
+  const addition = raw ? parsePodcastAddition(raw, input) : null;
+  if (!addition) return { episode, verdict: "no_addition" };
+  const merged = insertPodcastChapters(episode, addition);
+  const added = merged.chapters.length - episode.chapters.length;
+  if (!added) return { episode, verdict: "no_addition" };
+  const firstNew = Math.max(0, episode.chapters.length > 1 ? episode.chapters.length - 1 : episode.chapters.length);
+  const isNew = (index: number) => index >= firstNew && index < firstNew + added;
+
+  const verdict = await withDeadline(
+    ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(merged, input), "verify"),
+    roundBudget(started, COMPLETION_REVIEW_TIMEOUT_MS),
+  );
+  if (verdict === null) return { episode, verdict: "unverified" };
+  const high = parsePodcastIssues(verdict).filter((issue) => issue.severity === "high");
+  const located = (where: string) => /chapters\[(\d+)\]/.exec(where);
+  const unplaced = high.filter((issue) => !located(issue.where) && !["G", "H", "I", "J"].includes(issue.rule ?? ""));
+  if (unplaced.length) return { episode, verdict: "rejected" };
+  const problems = high
+    .filter((issue) => {
+      const match = located(issue.where);
+      return match ? isNew(Number(match[1])) : false;
+    })
+    .map(podcastIssueLine);
+  const salvaged = problems.length ? salvagePodcast(merged, problems) : { episode: merged, removed: 0 };
+  if (!salvaged) return { episode, verdict: "rejected" };
+  const next = balanceKerem(salvaged.episode);
+  if (podcastWordCount(next) <= podcastWordCount(episode)) return { episode, verdict: "no_gain" };
+  return { episode: next, verdict: podcastBelowFloor(next) ? "still_short" : "completed" };
 }
 
 /** Üretim yuvasıyla (19 Ekim 2026, Faz 3.2); bkz. `withGenerationSlot`. */

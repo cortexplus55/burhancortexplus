@@ -47,6 +47,7 @@ describe("akan test: denetimden geçmiş ilk pencere", () => {
         pages: [{ page: 1, text: "Koşul tamamsa işlem yürür." }],
         count: 5,
         urgent: true,
+        optionCount: 4,
       },
       Date.now(),
       { onPlayable: (questions) => seen.push(questions.map((question) => question.text)) },

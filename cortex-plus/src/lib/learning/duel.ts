@@ -27,7 +27,7 @@ export function duelRules(count: number = DUEL_QUESTIONS): string[] {
 
 export const DUEL_RULES = duelRules();
 
-/** Tek doğrulu, dört şıklı sorulara çevirir; uymayanı atar. */
+/** Tek doğrulu, 4 ya da 5 şıklı (öğrencinin sınav biçimi) sorulara çevirir; uymayanı atar. */
 export function toDuelQuestions(
   questions: { text: string; options: string[]; correct: string[]; multi: boolean }[],
 ): DuelQuestion[] {

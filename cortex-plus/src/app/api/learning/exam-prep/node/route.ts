@@ -23,6 +23,7 @@ import {
   takePrefetchedLesson,
   verifyPrefetchToken,
 } from "@/lib/learning/lesson-prefetch";
+import { studentOptionCount } from "@/lib/learning/student-pedagogy";
 import { lessonQuizContext, loadTopicLessons, type LessonQuizContext } from "@/lib/learning/lesson-quiz-context";
 import { quizPrefetchStorable, refreshQuizPrefetchAfterLesson, tagQuizPrefetchClaim, topicLessonInFlight } from "@/lib/learning/topic-test-prefetch";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
@@ -1828,6 +1829,7 @@ async function handleNodeRequest(
   // kredi şimdi düşer. Seçim (zorluk, podcast süresi, sözlü ayarları) tutmazsa yeniden yazılır.
   const variant = prefetchVariant(kind, {
     lessonKey: quizLesson?.key ?? null,
+    optionCount: kind === "quiz" ? await studentOptionCount(service, userId, prep.title) : null,
     topicLabel,
     difficulty,
     podcastLength: parsed.data.podcastLength ?? null,

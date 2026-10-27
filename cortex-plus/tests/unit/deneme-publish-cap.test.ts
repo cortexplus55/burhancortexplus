@@ -204,7 +204,9 @@ describe("deneme publishes once N items exist", () => {
     expect(result.emptyCalls).toBeGreaterThan(0);
     expect(result.completedWave).toBe(6);
     expect(result.forced).toBe(true);
-    expect(result.relaxedCalls).toBe(1);
+    // Paket A (28 Ekim 2026): her eksik konu kendi konusundan doldurulur; toplam yine 20.
+    expect(result.relaxedCalls).toBe(result.topics);
+    expect(result.topics).toBeGreaterThan(1);
     expect(result.relaxedCount).toBe(20);
     expect(result.delivered).toBe(20);
     expect(result.elapsedMs).toBe(120_000);
@@ -220,7 +222,7 @@ describe("deneme publishes once N items exist", () => {
     expect(stale.fresh).toBe("resume");
     expect(stale.agedFull).toBe("publish");
     expect(stale.agedShort).toBe("discard");
-    expect(EXAM_BUILD_VERSION).toBe(2);
+    expect(EXAM_BUILD_VERSION).toBe(3);
   });
 
   it("publishes the stuck 59-item row on the next open and drops a short leased row", async () => {
@@ -256,7 +258,7 @@ describe("deneme publishes once N items exist", () => {
       0,
     );
     expect(points).toBe(pointTotal(promisedPaper()));
-    expect(math.rows[0]?.blueprint.cpBuild.v).toBe(2);
+    expect(math.rows[0]?.blueprint.cpBuild.v).toBe(EXAM_BUILD_VERSION);
     expect(math.rows[0]?.blueprint.cpBuild.building).toBe(false);
     expect(math.rows[0]?.blueprint.cpBuild.items).toEqual([]);
 

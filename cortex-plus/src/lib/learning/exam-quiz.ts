@@ -63,7 +63,7 @@ export const quizQuestionSchema = z.object({
 });
 
 function stripChoicePrefix(text: string) {
-  return text.replace(/^[A-Da-d][).:\-]\s*/, "").trim();
+  return text.replace(/^[A-Ea-e][).:\-]\s*/, "").trim();
 }
 
 function resolveCorrects(options: string[], raw: unknown): string[] {

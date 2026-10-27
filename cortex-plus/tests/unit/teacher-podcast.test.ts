@@ -44,7 +44,10 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     const beats = episode.chapters[0].lines.map((item) => item.beat ?? "");
     expect(beats).toContain("ask");
     expect(beats).toContain("reveal");
-    expect(podcastStructureIssues(episode)).toEqual([]);
+    // Paket A (28 Ekim 2026): her tür tabana bakar; 62 kelimelik taslak "Metin kısa" alır (tamamlama turu kapatır).
+    const issues = podcastStructureIssues(episode);
+    expect(issues.filter((issue) => !issue.startsWith("Metin kısa"))).toEqual([]);
+    expect(issues.some((issue) => issue.startsWith("Metin kısa"))).toBe(true);
   });
 
   it("soru-cevap eksikliği, tekrar eden cümle, kısa tekrar bölümü ve tutmayan hesap yakalanır", () => {

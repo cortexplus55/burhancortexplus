@@ -26,6 +26,7 @@ import {
   type CreateMockExamInput,
 } from "@/lib/learning/mock-exam/create";
 import type { MockExamBlueprint, MockExamQuestionDraft, MockLengthPreset } from "@/lib/learning/mock-exam";
+import { mockExamSpecKey } from "@/lib/learning/mock-exam/fallback-exam";
 
 export type DurableMockStart =
   | {
@@ -147,8 +148,6 @@ export async function startDurableMockExam(input: CreateMockExamInput): Promise<
     console.info("generation_job", { event: "fallback", reason: "schema_missing" });
     return null;
   }
-  if (active) return pending(active);
-
   const spec: MockSpec = {
     prepId: input.prepId,
     preset: input.preset,
@@ -159,6 +158,17 @@ export async function startDurableMockExam(input: CreateMockExamInput): Promise<
     topicLabel: input.topicLabel,
     questionCount: input.questionCount,
   };
+  if (active) {
+    // Aynı ayarla süren iş sürdürülür. Başka uzunluk/kapsamla süren iş öğrencinin seçtiği kâğıt değil
+    // (Paket A: "Kısa" seçen öğrenciye süren "Standart" işin 22 sorusu gidiyordu): iade edilip kapanır.
+    if (mockExamSpecKey(specOf(active)) === mockExamSpecKey(spec)) return pending(active);
+    if (active.charge_reservation_id) await refundCredits(input.service, active.charge_reservation_id).catch(() => undefined);
+    await patchGenerationJob(input.service, active.id, {
+      state: "failed",
+      lease_until: null,
+      charge_reservation_id: null,
+    });
+  }
   const inserted = await insertGenerationJob(input.service, {
     userId: input.userId,
     prepId: input.prepId,

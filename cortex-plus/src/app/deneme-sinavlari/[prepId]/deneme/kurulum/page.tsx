@@ -4,11 +4,7 @@ import { MockExamSetup } from "@/components/parity/mock-exam-setup";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { isAdminUser } from "@/lib/auth/roles";
-import {
-  allocateQuestions,
-  parseExamFormatFromText,
-  slotFromTopicRow,
-} from "@/lib/learning/mock-exam";
+import { loadMockExamSetup } from "@/lib/learning/mock-exam/create";
 
 export const metadata = { title: "Yazılı deneme" };
 export const dynamic = "force-dynamic";
@@ -37,57 +33,31 @@ export default async function MockExamSetupPage({
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
-  const slots = (topics ?? []).map((t) =>
-    slotFromTopicRow({
-      id: t.id as string,
-      label: t.label as string,
-      sourceRefs: t.source_refs,
-    }),
-  );
-
-  // Biçim özeti: ilk sayfa metinlerinden (hafif)
-  let formatSummary: string | null = null;
-  let realMinutes: number | null = null;
-  try {
-    const { data: docs } = await supabase
-      .from("exam_prep_source_documents")
-      .select("document_id")
-      .eq("exam_prep_id", prepId)
-      .limit(3);
-    const ids = (docs ?? []).map((d) => d.document_id as string);
-    if (ids.length) {
-      const { data: pages } = await supabase
-        .from("document_pages")
-        .select("text_content")
-        .in("document_id", ids)
-        .limit(8);
-      const text = (pages ?? []).map((p) => String(p.text_content ?? "")).join("\n");
-      const parsedFormat = parseExamFormatFromText(text);
-      formatSummary = parsedFormat?.summary ?? null;
-      realMinutes = parsedFormat?.durationMinutes ?? null;
-    }
-  } catch {
-    formatSummary = null;
-  }
-
-  const allocation = allocateQuestions(slots, formatSummary ? 22 : 20).map((row) => ({
-    topicLabel: row.topicLabel,
-    count: row.count,
-    examHeavy: row.examHeavy,
+  const rows = (topics ?? []).map((t) => ({
+    id: t.id as string,
+    label: t.label as string,
+    source_refs: t.source_refs as unknown,
   }));
+  // Üretimle aynı okuma: aynı konu yerleri, aynı kapsam dışı işareti, aynı sınav biçimi (Paket A).
+  const setup = await loadMockExamSetup(supabase, user.id, prepId, rows).catch(() => null);
+  const slots = setup?.slots ?? [];
+  const syllabus = setup?.syllabus ?? null;
 
   return (
     <ParitySorShell {...shell}>
       <MockExamSetup
         prepId={prepId}
-        topics={(topics ?? []).map((t) => ({
-          id: t.id as string,
-          label: t.label as string,
+        topics={rows.map((row, index) => ({
+          id: row.id,
+          label: row.label,
+          outOfScope: slots[index]?.outOfScope ?? false,
+          examHeavy: slots[index]?.examHeavy ?? false,
+          weightPercent: slots[index]?.weightPercent ?? null,
         }))}
-        formatSummary={formatSummary}
-        realMinutes={realMinutes}
+        formatSummary={syllabus?.summary ?? null}
+        realMinutes={syllabus?.durationMinutes ?? null}
+        realQuestionCount={syllabus?.slots.length ?? null}
         isAdmin={admin}
-        allocationPreview={allocation}
       />
     </ParitySorShell>
   );

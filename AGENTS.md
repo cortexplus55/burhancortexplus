@@ -1310,3 +1310,23 @@ ilk kavrama hızlı işlem verilmez (ürün sahibinin kararı, 24 Ekim 2026: "b�
 
 Bekçi: `outline-oversize.test.ts`, `lesson-coverage.test.ts`, `ilerleme-resilience.test.ts`, `ready-for-target.test.tsx`,
 `oral-first-answer.test.tsx`.
+
+## Paket A (28 Ekim 2026) — sınav, podcast ve doğruluk kusurları
+
+Canlıda beş kusur: lise/YKS/Tıp öğrencisine 4 şık; deneme kurulumu 3+3+3+3+2+2+2+2 deyip K1'e 5, K2'ye 1 soru
+verdi; çok cevaplı soruda yalnız ilk doğru etiketli; Diyalog podcast'i düzeltmede 0:50'ye çöktü, ses 7 dk'da zaman
+aşımına düştü; notun "8-12 mm"si genel bilgiyle "düzeltildi", OCR köşe notunu attı. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Şık sayısı sınavın biçimi**: 5-8. sınıf ve LGS 4 (A-D); lise, YKS, KPSS, ALES, TUS, üniversite ve bilgi yoksa 5 (A-E). Hazırlığın adı bir sınav söylüyorsa o geçerli. Yazar "tam N şık", kod tam N ister; motor kabuğu öğrencinin sayısını okur (`studentOptionCount`), dinleme kontrolü de | `student-pedagogy.ts` `resolveOptionCount`, `teacher-quiz.ts` `optionCountIssue`, `teacher-podcast-run.ts` |
+| **Denemenin sözü = teslim**: dağılım yalnız sınav ağırlığından (yoksa eşit); konu metninin uzunluğu girmez. Konu sayısı seçilen sayıyı aşarsa her konu 1 soru, toplam büyür ve kurulum bunu söyler. Üretim konu başına sabit: başka konunun sorusu boşluğu doldurmaz (`sameTopic` önce `topicId`), eksik konuya kendi gevşek isteği | `mock-exam/allocate.ts` `promisedAllocation`, `deliverable.ts`, `mock-exam/create.ts` (`EXAM_BUILD_VERSION = 3`) |
+| **Çok cevaplı inceleme**: bütün doğrular `correct_answers`'tan, her biri "Doğru Yanıt"; öğrencinin işaretlediği doğru kırmızı olmaz | `exam-question-review-client.tsx` `correctOptionSet` |
+| **Eşdeğer şık yasağı** (resesif = çekinik; tersi fonksiyon = birebir ve örten): yazar ve denetçi aynı metni okur, kod çifti yakalar | `EQUIVALENT_OPTIONS_RULE`, `option-equivalence.ts` |
+| **Podcast uzunluğu konuya göre** (ürün sahibi: "illa şu kadar olacak diye bir şey yok; konu çok detaysa 10 dk bile olur"): her türde taban (~4 dk, özet 1 dk) ve tavan (~10 dk), sabit bant yok. "Metin kısa" düzeltme turu açmaz; tabanın altına inip metnin %15'inden fazlasını atan düzeltme reddedilir; kısa metni **tamamlama turu** kapatır (yalnız ek bölüm, son tekrar bölümünden önce, aynı denetçi) | `podcast-formats.ts`, `teacher-podcast-run.ts` (`FIX_SHRINK_LIMIT`, `completePodcast`) |
+| **Roller karışmaz**: Kerem payı yalnız **bütün konuşma sırası** taşınarak dengelenir (bağlaçla başlayan, soru/cevap, adıyla seslenen sıra taşınmaz); ayraçsız övgü kuyruğu silinmez (yarım cümle kalmasın) | `podcast-episode.ts` `balanceKerem`, `podcast-formats.ts` `spokenSentence` |
+| **Ses bölüm bölüm**: oynatıcı her bölümü ayrı ister (önce ilki, sonra 2'şer), yarım akış bölüm başına yeniden denenir; gelmeyen bölüm atlanır ve "Sesi yeniden dene" kalır. TTS satırı 30 sn zaman aşımı, SDK yeniden denemesi kapalı, eşzamanlılık 10 | `exam-podcast-player.tsx`, `speech.ts`, `PODCAST_TTS_CONCURRENCY` |
+| **Kaynak sayı önceliği**: `SOURCE_NUMBER_PRIORITY` ders, test, deneme, doğru/yanlış ve sözlüde yazar ve denetçide **aynı metin**; OCR ve sayfa temizliği kısa başlık, yer adı ve köşe notunu ("Amfi 2", "Taksi: 40 TL + 25 TL/km") atmaz | `teaching-rubric.ts`, `teacher-lesson.ts`, `teacher-quiz.ts`, `teacher-practice.ts`, `extract-image-text.ts`, `clean-pages.ts` |
+
+Bekçi: `paket-a-exam-podcast.test.ts`, `p2-mock-exam.test.ts`, `deneme-publish-cap.test.ts`, `p1-podcast.test.ts`,
+`teacher-podcast.test.ts`, `podcast-audio-once.test.tsx`.

@@ -105,6 +105,7 @@ describe("öğrenci pedagojik profili", () => {
       targetExam: "YKS",
       tutorStyle: "direct_solve",
       focusSubject: "Fizik",
+      goalText: "YKS hazırlık",
     });
     expect(second).toEqual(first);
     expect(maybeSingle).toHaveBeenCalledTimes(1);

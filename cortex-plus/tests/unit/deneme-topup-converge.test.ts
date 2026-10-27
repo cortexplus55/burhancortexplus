@@ -38,6 +38,9 @@ function generator() {
   let attempt = 0;
   let serial = 3;
   const firstTopic: string[] = [];
+  // Alfa iki kez kendi sorusunu tekrarlar (elenir), sonra yeni soru yazar. Paket A (28 Ekim 2026): konunun deliği
+  // başka konudan dolmaz; hiç yeni soru yazamayan konu kâğıdı yayımlatmaz (aşağıdaki "short wave" testi).
+  let repeats = 0;
   const nextN = () => {
     while (String(serial).includes("24")) serial += 1;
     const n = serial;
@@ -50,7 +53,9 @@ function generator() {
       const n = nextN();
       const label = request.topicLabel;
       const invalid = attempt % 5 === 0;
-      let text = label === LABELS[0] && firstTopic.length >= 2 ? firstTopic[0]! : `${label} için bu ifade doğru mudur ${n}?`;
+      const repeat = label === LABELS[0] && firstTopic.length >= 2 && repeats < 2;
+      if (repeat) repeats += 1;
+      let text = repeat ? firstTopic[0]! : `${label} için bu ifade doğru mudur ${n}?`;
       if (label === LABELS[0] && firstTopic.length < 2 && !invalid) firstTopic.push(text);
       if (invalid) text = `==${text}==`;
       const correct = `Doğru ${label} ${n}`;

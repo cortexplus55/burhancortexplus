@@ -81,6 +81,7 @@ const input = {
   prepTitle: "KPSS",
   pages: [{ page: 8, text: "Yokluk: kurucu unsur eksikse işlem hiç doğmamıştır." }],
   count: 5,
+  optionCount: 4 as const,
 };
 
 beforeEach(() => {

@@ -5,10 +5,8 @@ import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { loadMergedTopicContext, loadTopicSpanContext } from "@/lib/learning/source-context";
 import { assignExamCoverage, coverageAsk, topicCoveragePoints } from "@/lib/learning/mock-exam/fact-coverage";
 import {
-  allocateQuestions,
   slotFromTopicRow,
   buildBlueprint,
-  defaultSlots,
   letterBalanceOk,
   parseExamFormatFromText,
   polishMockCopy,
@@ -23,12 +21,20 @@ import { mockProgressCounter, type MockExamProgress } from "@/lib/learning/mock-
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherOralLoop } from "@/lib/learning/teacher-practice";
 import { assertDeliverable, type DeliveryItem, type DeliverySlot } from "@/lib/learning/deliverable";
-import { MOCK_EXAM_BUDGET_MS, MOCK_EXAM_WAVE_CAP, publishReady } from "@/lib/learning/exam-assembly";
+import {
+  MOCK_EXAM_BUDGET_MS,
+  MOCK_EXAM_WAVE_CAP,
+  acceptedItems,
+  publishReady,
+  spreadSlotTypes,
+  topicCountsMatch,
+} from "@/lib/learning/exam-assembly";
 import { fillUntilDelivered } from "@/lib/learning/fill-until-delivered";
 import { avoidListBlock } from "@/lib/learning/item-dedup";
 import { logMockExamWave } from "@/lib/learning/mock-exam/topup";
 import { modelForAttempt } from "@/lib/learning/model-ladder";
 import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities";
+import { studentOptionCount, type OptionCount } from "@/lib/learning/student-pedagogy";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -183,24 +189,16 @@ export async function planMockExam(
 
   if (!topics.length) return { ok: false, status: 400, error: "no_topics" };
 
-  const syllabusText = await loadSyllabusSnippet(service, userId, prepId);
-  const syllabus = parseExamFormatFromText(syllabusText);
-  const excluded = exclusionTitles(syllabusText);
+  const { slots, syllabus, syllabusText } = await loadMockExamSetup(service, userId, prepId, topics);
 
-  const slots: MockTopicSlot[] = topics.map((t) => {
-    const slot = slotFromTopicRow({ id: t.id, label: t.label, sourceRefs: t.source_refs });
-    slot.outOfScope = excluded.some((ex) => titlesAlign(ex, t.label));
-    return slot;
-  });
-
-  // Pasaj uzunluklarını doldur (konular birbirini beklemez). Aynı okuma kapsam noktalarını da kurar.
+  // Konu metinleri (konular birbirini beklemez). Aynı okuma kapsam noktalarını da kurar. Dağılıma girmez:
+  // kurulum ekranı metni bilmiyor, söz verdiği dağılım üretimde aynen kalmalı (Paket A).
   const blocks = new Map<string, string>();
   await Promise.all(
     slots.map(async (slot) => {
       if (slot.outOfScope) return;
       const ctx = await topicContext(service, userId, prep.document_id as string | null, slot.topicLabel, topics);
       blocks.set(slot.topicLabel, ctx.block);
-      slot.passageChars = Math.max(40, ctx.block.length);
     }),
   );
 
@@ -216,21 +214,15 @@ export async function planMockExam(
     preset = input.questionCount <= 12 ? "short" : "standard";
   }
 
+  // Soru türü yerleri de seçilen sayıya göre (24 Ekim 2026 lansman testi): Araçlar'da 5 soruluk yazılı
+  // 5 çoktan seçmeli çıkmıştı. Dağılım ve yerler kurulum ekranının okuduğu `promisedAllocation`'dan.
   const blueprint = buildBlueprint({
     topics: slots,
     preset,
     syllabus: preset === "real" ? syllabus : null,
     allowNumeric,
+    questionCount: input.questionCount ?? undefined,
   });
-
-  if (input.questionCount != null && preset !== "real") {
-    blueprint.questionCount = input.questionCount;
-    blueprint.allocation = allocateQuestions(slots, input.questionCount);
-    // Soru türü yerleri de seçilen sayıya göre (24 Ekim 2026 lansman testi): yerler hazır planın sayısıyla
-    // (kısa 10, standart 20) kuruluyor, açık uçlu ve çok cevaplı yerler listenin sonunda kalıyordu; Araçlar'da
-    // 5 soruluk yazılı 5 çoktan seçmeli çıktı (15'lik de açık uçlusuz).
-    blueprint.slots = defaultSlots(input.questionCount, allowNumeric);
-  }
   if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
 
   return {
@@ -243,6 +235,28 @@ export async function planMockExam(
       blocks,
     },
   };
+}
+
+/**
+ * Kurulum ekranı ve üretim aynı konu yerlerini ve aynı sınav biçimini okur (Paket A, 28 Ekim 2026).
+ * Kurulum eskiden ilk 3 belgenin 8 sayfasına bakıyor, "kapsam dışı" konuları bilmiyordu; üretim 8 belgenin
+ * 12 sayfasına bakıyordu — iki ekran farklı biçim ve farklı dağılım görebiliyordu.
+ */
+export async function loadMockExamSetup(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+  topics: Array<{ id: string; label: string; source_refs: unknown }>,
+): Promise<{ slots: MockTopicSlot[]; syllabus: ReturnType<typeof parseExamFormatFromText>; syllabusText: string }> {
+  const syllabusText = await loadSyllabusSnippet(service, userId, prepId);
+  const syllabus = parseExamFormatFromText(syllabusText);
+  const excluded = exclusionTitles(syllabusText);
+  const slots: MockTopicSlot[] = topics.map((t) => {
+    const slot = slotFromTopicRow({ id: t.id, label: t.label, sourceRefs: t.source_refs });
+    slot.outOfScope = excluded.some((ex) => titlesAlign(ex, t.label));
+    return slot;
+  });
+  return { slots, syllabus, syllabusText };
 }
 
 /** Açık uçlu yerler (Astra'nın kâğıdındaki yazma yeri) sözlü deneme motorundan gelir. */
@@ -263,6 +277,8 @@ type TopicGenInput = {
   modelIndex?: number;
   /** Kabul edilmiş kökler. Aynı olgu yeniden sorulmasın. */
   avoid?: string[];
+  /** Öğrencinin sınıfı/sınavı: 4 ya da 5 şık. Kâğıdın bütün soruları aynı sayıda (Paket A). */
+  optionCount?: OptionCount;
 };
 
 type DraftBase = Pick<MockExamQuestionDraft, "topicId" | "topicLabel" | "source" | "difficulty">;
@@ -289,7 +305,11 @@ function readDraft(question: MockExamQuestionDraft): DeliveryItem {
 
 function buildDeliverySlots(blueprint: MockExamBlueprint, blocks: Map<string, string> | undefined): DeliverySlot[] {
   const allocation = blueprint.allocation.filter((row) => row.count > 0);
-  const queue = [...blueprint.slots];
+  const typedByTopic = spreadSlotTypes(
+    allocation.map((row) => row.count),
+    blueprint.slots,
+    { type: "mcq" as MockQuestionType, points: 4 },
+  );
   const points = new Map<string, ReturnType<typeof topicCoveragePoints>>();
   for (const row of allocation) {
     points.set(row.topicLabel, topicCoveragePoints([{ text: blocks?.get(row.topicLabel) ?? "" }], row.topicLabel));
@@ -300,10 +320,8 @@ function buildDeliverySlots(blueprint: MockExamBlueprint, blocks: Map<string, st
   );
   const slots: DeliverySlot[] = [];
   let cursor = 0;
-  for (const row of allocation) {
-    const planned = queue.splice(0, row.count);
-    const typed = planned.length ? planned : [{ type: "mcq" as const, points: 4 }];
-    for (const plan of typed) {
+  for (const [rowIndex, row] of allocation.entries()) {
+    for (const plan of typedByTopic[rowIndex] ?? []) {
       const point = coverage[cursor];
       cursor += 1;
       slots.push({
@@ -373,6 +391,7 @@ export async function assembleMockExamQuestions(input: {
 > {
   const allocation = input.blueprint.allocation.filter((row) => row.count > 0);
   const slots = buildDeliverySlots(input.blueprint, input.blocks);
+  const optionCount = await studentOptionCount(input.service, input.userId, input.prepTitle);
   const seeded = new Set(input.initialTopics ?? []);
   const tick = mockProgressCounter(allocation.length, input.onProgress, seeded.size);
   const reported = new Set(seeded);
@@ -430,6 +449,7 @@ export async function assembleMockExamQuestions(input: {
         reservationId: input.reservationId,
         modelIndex: request.modelIndex,
         avoid: request.avoid,
+        optionCount,
       })
         .then((produced) =>
           exclusive(async () => {
@@ -453,9 +473,12 @@ export async function assembleMockExamQuestions(input: {
     forced: filled.forced,
   };
   if (!filled.ok) {
+    // Yalnız kapıdan geçmiş, kopya olmayan sorular sayılır: bozuk soru konunun kotasını dolu göstermesin.
     const have = new Map<string, number>();
-    for (const item of bag) have.set(item.topicLabel, (have.get(item.topicLabel) ?? 0) + 1);
-    const missingTotal = Math.max(0, planned - bag.length);
+    for (const { raw } of acceptedItems(slots, bag, readDraft)) {
+      have.set(raw.topicLabel, (have.get(raw.topicLabel) ?? 0) + 1);
+    }
+    const missingTotal = allocation.reduce((sum, row) => sum + Math.max(0, row.count - (have.get(row.topicLabel) ?? 0)), 0);
     const targets = topUpTargets(allocation, have, missingTotal);
     if (targets.length) {
       const extra = (
@@ -474,6 +497,7 @@ export async function assembleMockExamQuestions(input: {
               reservationId: input.reservationId,
               modelIndex: 0,
               avoid: bag.map((item) => item.text),
+              optionCount,
             }),
           ),
         )
@@ -528,6 +552,8 @@ export async function persistMockExam(input: {
   const gate = assertDeliverable(input.slots, input.questions, readDraft);
   if (!gate.canPublish || gate.publishable.length !== input.blueprint.questionCount) return { ok: false };
   const questions = gate.publishable;
+  // Kurulumun söylediği konu başı sayı (Paket A): toplam tutsa da konular kaydıysa kâğıt yazılmaz.
+  if (!topicCountsMatch(input.blueprint.allocation, questions)) return { ok: false };
   const { data: exam, error: examError } = await input.service
     .from("practice_exams")
     .insert({
@@ -626,6 +652,7 @@ async function choiceDrafts(
     idempotencyKey: input.chargeKey,
     heldReservationId: input.reservationId,
     count: slots.length,
+    optionCount: input.optionCount,
     // Öğrenci kurulum ekranında bekliyor: kısa düzeltme bütçesi (25 Ekim 2026).
     urgent: true,
     rephrase: true,

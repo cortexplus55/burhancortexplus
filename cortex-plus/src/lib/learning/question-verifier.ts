@@ -464,7 +464,7 @@ function repairLimiting(question: VerifiedChoice): VerifiedChoice | null {
     if (!want) return null;
     correct = [want];
   }
-  options = [...new Set(options)].slice(0, 4);
+  options = [...new Set(options)].slice(0, Math.max(4, Math.min(5, question.options.length)));
   if (options.length < 2 || !correct.every((item) => options.includes(item))) return null;
   const explanation = settleExplanation(grade.conclusion, blob);
   return {

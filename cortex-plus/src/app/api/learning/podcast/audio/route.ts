@@ -25,7 +25,7 @@ export const maxDuration = 300;
  */
 
 const bodySchema = z.object({
-  chapters: z.array(z.unknown()).min(1).max(8),
+  chapters: z.array(z.unknown()).min(1).max(10),
   stream: z.boolean().optional(),
   length: z.enum(PODCAST_LENGTHS).optional(),
 });

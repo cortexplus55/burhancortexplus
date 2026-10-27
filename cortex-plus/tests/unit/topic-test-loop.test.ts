@@ -55,6 +55,7 @@ const scoped = {
   count: 5,
   multi: true,
   scope: "topic_test" as const,
+  optionCount: 4 as const,
 };
 const parsed = (items: unknown[]) => parseTeacherQuiz({ questions: items })!;
 

@@ -219,7 +219,9 @@ describe("yazılı deneme: tek ücret, bütün konular", () => {
     const saved = service.inserted.practice_exam_questions?.[0] as Array<{ question_type: string; options: unknown; rubric: Array<{ criterion: string; points: number }> | null; model_answer: string | null; points: number }>;
     // Öğretmenin çok cevaplı sorusu eski kural süzgecine takılmadan çok cevaplı kalır.
     expect(new Set(saved.map((row) => row.question_type))).toEqual(new Set(["mcq", "multi_mcq", "open"]));
-    expect(saved.filter((row) => row.question_type === "multi_mcq")).toHaveLength(1);
+    // Paket A (28 Ekim 2026): 16 konu kısa denemeyi 16 soruya büyütür (her konudan 1); çok cevaplı payı %10.
+    const multiPlanned = Math.max(1, Math.round(result.planned * 0.1));
+    expect(saved.filter((row) => row.question_type === "multi_mcq")).toHaveLength(multiPlanned);
     const open = saved.filter((row) => row.question_type === "open");
     expect(open.length).toBe(quiz.oral.reduce((sum, call) => sum + call.count, 0));
     expect(open[0]?.options).toBeNull();
@@ -227,7 +229,7 @@ describe("yazılı deneme: tek ücret, bütün konular", () => {
     expect(open[0]?.rubric?.reduce((sum, row) => sum + row.points, 0)).toBe(open[0]?.points);
     expect(open[0]?.model_answer).toContain("alarm bulguları");
     // Çok cevaplı yer hangi konudaysa test motoruna "tam bir çok cevaplı" diye gider.
-    expect(quiz.calls.filter((call) => call.multi).length).toBe(1);
+    expect(quiz.calls.filter((call) => call.multi).length).toBe(multiPlanned);
 
     expect(credits.reserveCredits).toHaveBeenCalledTimes(1);
     const reservationId = `res:${String(credits.reserveCredits.mock.calls[0]?.[3])}`;

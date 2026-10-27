@@ -4,8 +4,8 @@
  */
 
 import type { MockExamBlueprint, MockTopicSlot } from "@/lib/learning/mock-exam/types";
-import { presetPlan, type ParsedExamFormat } from "@/lib/learning/mock-exam/blueprint";
-import type { MockLengthPreset } from "@/lib/learning/mock-exam/types";
+import { defaultSlots, presetPlan, type ParsedExamFormat } from "@/lib/learning/mock-exam/blueprint";
+import { DEFAULT_SHORT, DEFAULT_STANDARD, type MockLengthPreset } from "@/lib/learning/mock-exam/types";
 
 /** Kaynak kaydındaki sınav ağırlığı. Kurulum önizlemesi ve üretim aynı fonksiyonu okur. */
 export function weightFromTopicRefs(raw: unknown): { percent: number | null; heavy: boolean } | null {
@@ -41,28 +41,31 @@ export function slotFromTopicRow(row: {
   };
 }
 
-export function allocateQuestions(
-  topics: MockTopicSlot[],
-  totalQuestions: number,
-): Array<{
+export type AllocationRow = {
   topicId: string | null;
   topicLabel: string;
   count: number;
   weightPercent: number | null;
   examHeavy: boolean;
-}> {
+};
+
+/**
+ * Kurulumda öğrenciye gösterilen dağılım = üretimin teslim ettiği dağılım (28 Ekim 2026, Paket A).
+ * Ağırlık yalnız kayıttaki sınav ağırlığı (`weightPercent`); yoksa konular eşit. Konu metninin uzunluğu
+ * (`passageChars`) dağılıma girmez: önizleme onu bilmiyordu, üretim biliyordu — Selin'in kurulumu 3+3+3+3+2+2+2+2
+ * dedi, deneme K1'e 5, K2'ye 1 soru verdi. Her kapsam içi konu en az 1 soru alır; konu sayısı seçilen sayıdan
+ * fazlaysa toplam konu sayısı olur ve kurulum bunu baştan söyler (ürün sahibinin kararı).
+ */
+export function allocateQuestions(topics: MockTopicSlot[], totalQuestions: number): AllocationRow[] {
   const inScope = topics.filter((t) => !t.outOfScope && t.topicLabel.trim());
   if (!inScope.length || totalQuestions < 1) return [];
 
+  const total = Math.max(totalQuestions, inScope.length);
   // Her konuya 1 soru rezervi
-  const reserved = Math.min(inScope.length, totalQuestions);
-  const remaining = totalQuestions - reserved;
+  const remaining = total - inScope.length;
 
   const hasWeights = inScope.some((t) => t.weightPercent != null && t.weightPercent > 0);
-  const weights = inScope.map((t) => {
-    if (hasWeights) return Math.max(0, t.weightPercent ?? 0);
-    return Math.max(1, t.passageChars);
-  });
+  const weights = inScope.map((t) => (hasWeights ? Math.max(0, t.weightPercent ?? 0) : 1));
   const weightSum = weights.reduce((a, b) => a + b, 0) || inScope.length;
 
   const exact = weights.map((w) => (remaining * w) / weightSum);
@@ -89,21 +92,54 @@ export function allocateQuestions(
   }));
 }
 
+export type PromisedAllocation = {
+  rows: AllocationRow[];
+  /** Teslim edilecek toplam: konu başı sayıların toplamı. */
+  total: number;
+  /** Öğrencinin seçtiği uzunluğun sayısı. */
+  chosen: number;
+  /** Konu sayısı seçilen sayıyı aştı; her konudan 1 soruyla toplam büyüdü. */
+  expanded: boolean;
+  topicCount: number;
+};
+
+/** Uzunluk seçeneğinin soru sayısı ("Gerçek sınav biçimi" belgedeki biçimin sayısı). */
+export function presetQuestionCount(preset: MockLengthPreset, realQuestionCount: number | null): number {
+  if (preset === "real" && realQuestionCount && realQuestionCount > 0) return realQuestionCount;
+  return preset === "short" ? DEFAULT_SHORT.questionCount : DEFAULT_STANDARD.questionCount;
+}
+
+/** Kurulum ekranı ve üretim yalnız bunu okur: aynı konular + aynı sayı → aynı dağılım. */
+export function promisedAllocation(topics: MockTopicSlot[], questionCount: number): PromisedAllocation {
+  const rows = allocateQuestions(topics, questionCount);
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  return { rows, total, chosen: questionCount, expanded: total > questionCount, topicCount: rows.length };
+}
+
+/** Konu fazlaysa kurulumun söylediği cümle; değilse null. */
+export function expandedAllocationNote(promised: Pick<PromisedAllocation, "expanded" | "topicCount" | "total">): string | null {
+  if (!promised.expanded) return null;
+  return `${promised.topicCount} konu olduğu için her konudan 1 soru (toplam ${promised.total} soru) sorulacak.`;
+}
+
 export function buildBlueprint(input: {
   topics: MockTopicSlot[];
   preset: MockLengthPreset;
   syllabus: ParsedExamFormat | null;
   allowNumeric: boolean;
+  /** Seçilen soru sayısı (stüdyo); yoksa uzunluk seçeneğinin sayısı. */
+  questionCount?: number;
 }): MockExamBlueprint {
   const plan = presetPlan(input.preset, input.syllabus, input.allowNumeric);
-  const allocation = allocateQuestions(input.topics, plan.questionCount);
-  const allocated = allocation.reduce((sum, row) => sum + row.count, 0);
-  // Dağıtım toplamı planı aşmaz; eksikse slots kırpılır
-  const questionCount = allocated > 0 ? allocated : plan.questionCount;
-  const slots =
-    allocated > 0 && allocated !== plan.slots.length
-      ? resizeSlots(plan.slots, questionCount)
-      : plan.slots.slice(0, questionCount);
+  const chosen = input.questionCount ?? plan.questionCount;
+  const promised = promisedAllocation(input.topics, chosen);
+  const allocation = promised.rows;
+  const allocated = promised.total;
+  // Dağıtım toplamı söz verilen sayıdır: konu fazlaysa büyür, tür karışımı yeni sayıya göre kurulur.
+  const questionCount = allocated > 0 ? allocated : chosen;
+  const slots = plan.fromSyllabus
+    ? resizeSlots(plan.slots, questionCount)
+    : defaultSlots(questionCount, input.allowNumeric);
 
   return {
     preset: input.preset,

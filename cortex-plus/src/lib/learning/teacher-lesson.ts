@@ -17,7 +17,13 @@ import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotati
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { studentTextParts } from "@/lib/learning/lesson-board";
 import { nearSameQuestion, reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
-import { SOURCE_LINK_EXEMPTION, STUDENT_LEAK_BAN, TEACHING_RUBRIC, WHY_NOTE_RULE } from "@/lib/learning/teaching-rubric";
+import {
+  SOURCE_LINK_EXEMPTION,
+  SOURCE_NUMBER_PRIORITY,
+  STUDENT_LEAK_BAN,
+  TEACHING_RUBRIC,
+  WHY_NOTE_RULE,
+} from "@/lib/learning/teaching-rubric";
 import { splitTableCells } from "@/lib/learning/interval-text";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
 import {
@@ -283,6 +289,7 @@ export const EMPHASIS_RULE =
 export const TEACHER_SYSTEM =
   INTRO_DOCUMENT +
   "KAYNAK KURALI: Belgede geçen olgu, sayı, tarih, madde ve kural aynen kalır; belgeyle çelişme. " +
+  `${SOURCE_NUMBER_PRIORITY} ` +
   "GENEL BİLGİ KUTUSU: Belge bir formülü, ara adımı, neden-sonuç ilişkisini ya da klasik soru tipini vermeden geçiyorsa, " +
   "o konudan sınavda gereken standart müfredat bilgisini yaz. Belge dışı her bilgi 'note' bloğunda durur: tone 'general', " +
   "başlık kavramın kendi adıdır. 'Sınav Müfredatı Tamamlaması' veya 'Genel bilgi' diye bir önek yazma. Kutu kısa bir hatırlatma değildir: " +
@@ -514,7 +521,9 @@ export const VERIFY_SYSTEM =
   `vaka ya da benzetme sorun değildir. ${SOURCE_LINK_EXEMPTION} tone 'general' olan 'Genel bilgi' ve 'Neden böyle?' ` +
   "notu kaynakta olmayabilir; onu A'ya göre değil H'ye göre denetle.)\n" +
   "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade; kaynaktaki bir sayının, eşiğin ya da birimin yanlış " +
-  "aktarılması ya da kaynak sayıyı açıkça verirken derste 'yüksek/düşük' gibi soyut sözle geçiştirilmesi.\n" +
+  "aktarılması ya da kaynak sayıyı açıkça verirken derste 'yüksek/düşük' gibi soyut sözle geçiştirilmesi; genel bilgi " +
+  "kutusu da dahil, notun sayısı, aralığı ya da adıyla çelişen değer B'dir. " +
+  `Sayı önceliği (yazarın kuralı, aynen): ${SOURCE_NUMBER_PRIORITY}\n` +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
   `iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik). ${REVIEW_VERIFY}\n` +
   "D) explanation, optionWhy, corrected'da (yanlış ifadenin doğrusu) ya da çözümlü örnekte yanlış bilgi veya hesap " +

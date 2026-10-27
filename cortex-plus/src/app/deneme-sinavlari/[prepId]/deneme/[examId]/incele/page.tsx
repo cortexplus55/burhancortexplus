@@ -55,7 +55,7 @@ export default async function ExamQuestionReviewPage({
   const [{ data: questions }, { data: reviews }] = await Promise.all([
     supabase
       .from("practice_exam_questions")
-      .select("id, question_text, options, correct_answer, sort_order")
+      .select("id, question_text, question_type, options, correct_answer, correct_answers, sort_order")
       .eq("exam_id", examId)
       .order("sort_order"),
     attempt
@@ -71,6 +71,11 @@ export default async function ExamQuestionReviewPage({
     question_text: q.question_text as string,
     options: (q.options as string[]) ?? [],
     correct_answer: q.correct_answer as string | null,
+    // Çok cevaplı soruda bütün doğrular (Paket A): eski sütun yalnız ilk doğruyu tutuyor.
+    correct_answers: Array.isArray(q.correct_answers)
+      ? (q.correct_answers as unknown[]).filter((item): item is string => typeof item === "string")
+      : null,
+    question_type: (q.question_type as string | null) ?? null,
     sort_order: (q.sort_order as number) ?? 0,
   }));
 

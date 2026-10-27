@@ -106,6 +106,24 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
 
 const HEADING = /^#{1,3}\s*(.+?)\s*$/;
 const SPEAKER = /^\**\s*(ada|kerem|öğretmen|ogretmen|sunucu|öğrenci|ogrenci)(?:\s*\([^)]*\))?\s*\**\s*[:：]\s*\**\s*(.*)$/iu;
+/** Satır içinde ikinci konuşmacı: "… Kerem: …" (ad büyük harfle, önünde boşluk). */
+const INLINE_TURN = /\s+\**(?=(?:Ada|Kerem|ADA|KEREM)\**\s*[:：]\s)/u;
+
+/**
+ * Tek satıra sıkışmış "Ada: … Kerem: …" (28 Ekim 2026, Paket A): V6'da Kerem'in sırası Ada'nın sesiyle okundu.
+ * Satır konuşmacı adlarından bölünür; her parça kendi konuşmacısıyla ayrı satır olur.
+ */
+function splitCrammedTurns(speaker: string, text: string): { speaker: string; text: string }[] {
+  const parts = text.split(INLINE_TURN);
+  const out: { speaker: string; text: string }[] = [];
+  for (const [index, part] of parts.entries()) {
+    const spoken = index === 0 ? null : part.match(SPEAKER);
+    const who = spoken ? (speakerIdOf(spoken[1]) ?? speaker) : speaker;
+    const body = (spoken ? spoken[2]! : part).trim();
+    if (body) out.push({ speaker: who, text: body });
+  }
+  return out;
+}
 
 /**
  * Düz senaryoyu bölüm ve satırlara ayırır (model yok). Konuşmacısız satır bir önceki satıra eklenir; başlıktan
@@ -131,12 +149,15 @@ export function scriptToDraft(raw: unknown): { title: string; chapters: { title:
     }
     const spoken = line.match(SPEAKER);
     if (spoken) {
-      const text = spoken[2]!.trim();
-      if (text) current.lines.push({ speaker: speakerIdOf(spoken[1]) ?? "ada", text });
+      current.lines.push(...splitCrammedTurns(speakerIdOf(spoken[1]) ?? "ada", spoken[2]!.trim()));
       continue;
     }
     const previous = current.lines[current.lines.length - 1];
-    if (previous) previous.text = `${previous.text} ${line}`;
+    if (previous) {
+      const [head, ...rest] = splitCrammedTurns(previous.speaker, line);
+      if (head) previous.text = `${previous.text} ${head.text}`;
+      current.lines.push(...rest);
+    }
   }
   const kept = chapters.filter((chapter) => chapter.lines.length);
   if (!kept.length) return null;

@@ -42,10 +42,12 @@ describe("design tokens contrast", () => {
 });
 
 describe("option letters", () => {
-  it("maps 0..3 to A..D", () => {
-    expect(OPTION_LETTERS).toEqual(["A", "B", "C", "D"]);
+  // Paket A (28 Ekim 2026): lise/YKS/KPSS/TUS soruları beş şıklı; beşinci şık E harfini alır.
+  it("maps 0..4 to A..E", () => {
+    expect(OPTION_LETTERS).toEqual(["A", "B", "C", "D", "E"]);
     expect(optionLetter(0)).toBe("A");
     expect(optionLetter(3)).toBe("D");
+    expect(optionLetter(4)).toBe("E");
   });
 });
 

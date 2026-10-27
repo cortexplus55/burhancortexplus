@@ -3,6 +3,7 @@ import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesso
 import { singlePassItems } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
 import { examinerVibeStyleLine, parseExaminerVibe, type ExaminerVibe } from "@/lib/learning/examiner-vibe";
+import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
 
 /**
  * Öğretmen motoru: doğru/yanlış önermeleri ve sözlü deneme soruları
@@ -36,7 +37,11 @@ export type AskJson = (system: string, user: string) => Promise<unknown | null>;
 const RULE_DOCUMENT =
   "KAYNAK KURALI (kesin): Her öğe yalnızca KAYNAK'taki bilgiye dayanır; kaynakta yoksa yazma, genel kültürden ekleme. " +
   "Kaynaktaki bozuk ya da yanlış yazılmış kelimeleri doğru Türkçeyle yaz; açıkça bozuk bir kaynak cümlesinin kaynağın " +
-  "kendi örnekleriyle tutarlı anlamını kullan ve bundan söz etme.\n\n";
+  "kendi örnekleriyle tutarlı anlamını kullan ve bundan söz etme.\n" +
+  `${SOURCE_NUMBER_PRIORITY}\n\n`;
+
+/** Denetçi yazarın sayı kuralını aynen okur; çelişirse düzeltme turu hiçbir şey değiştirmez. */
+const VERIFY_NUMBER_PRIORITY = ` Sayı önceliği (yazarın kuralı, aynen): ${SOURCE_NUMBER_PRIORITY}`;
 
 const RULE_TOPIC =
   "BİLGİ KURALI (belgesiz, kesin): Öğrencinin belgesi yok. Sınav müfredatındaki yerleşik, tartışmasız bilgiden yaz; " +
@@ -114,7 +119,7 @@ export function trueFalseVerifySystem(mode: TeacherLessonMode = "document"): str
     "B) Önerme belirsiz: bağlama göre hem doğru hem yanlış okunabiliyor.\n" +
     (mode === "topic"
       ? "C) Yanlış ya da tartışmalı bilgi.\n"
-      : "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi.\n") +
+      : `C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi.${VERIFY_NUMBER_PRIORITY}\n`) +
     "D) explanation ya da correctedStatement yanlış; yanlış önermede correctedStatement yok.\n" +
     "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
     "A-E 'high'. 'low': kolay önerme.\n" +
@@ -217,7 +222,7 @@ export function oralVerifySystem(mode: TeacherLessonMode = "document"): string {
     "Her soruyu önce kendin cevapla, sonra expectedPoints ve modelAnswer ile karşılaştır. Şunları bul:\n" +
     (mode === "topic"
       ? "A) expectedPoints ya da modelAnswer'da yanlış ya da tartışmalı bilgi.\n"
-      : "A) expectedPoints ya da modelAnswer'da kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi.\n") +
+      : `A) expectedPoints ya da modelAnswer'da kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi.${VERIFY_NUMBER_PRIORITY}\n`) +
     "B) Soru belirsiz ya da tek bir iyi cevabı yok; soru kaynakta kurulmamış bir ilişkiyi varsayıyor.\n" +
     "C) modelAnswer soruyu cevaplamıyor, expectedPoints'i içermiyor ya da hesabı yanlış.\n" +
     "D) expectedPoints soruyu tekrar ediyor ya da puan etiketi.\n" +

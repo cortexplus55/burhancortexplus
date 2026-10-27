@@ -6,6 +6,7 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { randomUUID } from "node:crypto";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 import { quizDifficulty } from "@/lib/learning/teacher-quiz";
+import type { OptionCount } from "@/lib/learning/student-pedagogy";
 
 export async function generateExamQuiz(input: {
   service: SupabaseClient;
@@ -70,6 +71,8 @@ export async function generateExamQuiz(input: {
   previousStems?: string[];
   /** Yazılı deneme: kaynak cümlesini aynen taşımayan doğru soru da geçer. */
   rephrase?: boolean;
+  /** Şık sayısı; yoksa öğretmen motoru öğrencinin profilinden bulur (`resolveOptionCount`). */
+  optionCount?: OptionCount;
 }): Promise<
   | { ok: true; questions: QuizQuestion[]; reservationId?: string }
   | { ok: false; status: number; error: string }
@@ -108,6 +111,7 @@ export async function generateExamQuiz(input: {
     ...(input.previousStems?.length ? { previousStems: input.previousStems } : {}),
     ...(input.charge === false ? { charge: false } : {}),
     ...(input.rephrase ? { rephrase: true } : {}),
+    ...(input.optionCount ? { optionCount: input.optionCount } : {}),
   });
   if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
   return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };

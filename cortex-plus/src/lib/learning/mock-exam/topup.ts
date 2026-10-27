@@ -9,11 +9,11 @@
  * yazılmıyor çünkü kısa kâğıt reddediliyor.
  *
  * İki dalgadan sonra delik kâğıdın yarısını geçmiyorsa, o dalgada yeni soru
- * kabul etmeyen konuların yeri, kabul edilmiş sorusu olan konulara kayar.
- * İlerleyen konu yerini korur: eksik konular daha küçük grupla yeniden
- * istenir. Sayı söz verilen sayıda kalır. Delik büyükse iki dalga daha aynı
- * konu denenir, sonra yine bu konulara geçilir; boş kâğıtta (hiç kabul yok)
- * yer değiştirilmez.
+ * kabul etmeyen konuların yeri kendi konusunda çoktan seçmeliye gevşer; konu
+ * değişmez (28 Ekim 2026, Paket A). İlerleyen konu yerini korur: eksik konular
+ * daha küçük grupla yeniden istenir. Sayı ve konu başı dağılım söz verildiği
+ * gibi kalır. Delik büyükse iki dalga daha aynı yer denenir, sonra gevşer; boş
+ * kâğıtta (hiç kabul yok) yer değiştirilmez.
  */
 
 import {
@@ -122,35 +122,12 @@ export function tallyDrafts<T>(
   };
 }
 
-type Donor = { topicId: string | null; topicLabel: string; type: string; key: string; count: number };
-
-function donorsFrom<T>(delivered: readonly T[], read: (item: T) => DeliveryItem): Donor[] {
-  const byKey = new Map<string, Donor>();
-  for (const raw of delivered) {
-    const view = read(raw);
-    const key = topicSlotKey(view);
-    const existing = byKey.get(key);
-    if (!existing) {
-      byKey.set(key, {
-        topicId: view.topicId ?? null,
-        topicLabel: view.topicLabel,
-        type: view.type,
-        key,
-        count: 1,
-      });
-      continue;
-    }
-    existing.count += 1;
-    if (view.type === "mcq") existing.type = "mcq";
-  }
-  return [...byKey.values()].sort((a, b) => b.count - a.count || a.topicLabel.localeCompare(b.topicLabel, "tr"));
-}
-
 /**
- * Eksik slotları, kabul edilmiş sorusu olan konulara taşır. Dolu slot durur.
- * Taşınan yerin türü, o konunun geçirdiği türdür (çoktan seçmeli geçtiyse o).
- * Kapsam imzası temizlenir: eski nokta yeni soruyu elemesin. Atama, yalnız
- * özgün slota oturan sorulardan hesaplanır; böylece her dalga aynı yere gider.
+ * Takılan eksik yer kendi konusunda kalır, yalnız türü gevşer: çok cevaplı ya da açık
+ * uçlu yer çoktan seçmeliye döner, kapsam imzası temizlenir (eski nokta yeni soruyu
+ * elemesin). Yer başka konuya taşınmaz (28 Ekim 2026, Paket A): eskiden kabul görmüş
+ * konulara kayıyordu, kurulum K2'ye 3 soru dedi, kâğıtta 1 çıktı. `blocked` artık
+ * kullanılmıyor; imza eski çağıranlar için.
  */
 export function replaceShortSlots<T>(
   slots: readonly DeliverySlot[],
@@ -173,23 +150,16 @@ export function replaceShortSlots<T>(
   const stalledSet = new Set(stalled);
   const movable = (slot: DeliverySlot) => forced || stalledSet.has(topicSlotKey(slot));
   if (!verdict.deficits.some(movable)) return { slots: copy(), replacement: false, shortfall };
-  const blockedSet = new Set(blocked);
-  const ranked = donorsFrom(verdict.delivered, read);
-  const donors = ranked.filter((donor) => !blockedSet.has(donor.key));
-  const usable = donors.length ? donors : ranked;
-  if (!usable.length) return { slots: copy(), replacement: false, shortfall };
   const open = new Set<DeliverySlot>(verdict.deficits);
-  let cursor = 0;
   let moved = 0;
   const next = slots.map((slot) => {
     if (!open.has(slot) || !movable(slot)) return { ...slot };
-    const donor = usable[cursor % usable.length]!;
-    cursor += 1;
+    if (slot.type === "mcq" && !slot.signature && !slot.point) return { ...slot };
     moved += 1;
     return {
-      topicId: donor.topicId,
-      topicLabel: donor.topicLabel,
-      type: donor.type,
+      topicId: slot.topicId ?? null,
+      topicLabel: slot.topicLabel,
+      type: "mcq",
       point: null,
       signature: "",
       points: slot.points,

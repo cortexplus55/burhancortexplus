@@ -95,9 +95,21 @@ function notationLine(text: string): { text: string; spoken: string } {
   return { text: display, spoken: speakVerified(withoutTextbookLabel(display)) };
 }
 
+const INLINE_SPEAKER = /^\**\s*(ada|kerem)\s*\**\s*[:：]/iu;
+
+/**
+ * Satırın son cümlesi harf ya da rakamla bitiyorsa nokta konur (yazım biçimi; kelime eklenmez). Virgül, iki nokta ya
+ * da bağlaçla biten cümle olduğu gibi kalır: cümle kapısı onu yarım sayar (`podcastStructureIssues`).
+ */
+function withTerminalStop(sentence: string): string {
+  const trimmed = sentence.trim();
+  if (/[.!?…]["'”’»)]*$/u.test(trimmed)) return trimmed;
+  return /[\p{L}\p{N})"'”’»]$/u.test(trimmed) ? `${trimmed}.` : trimmed;
+}
+
 export function coercePodcastDraft(
   raw: unknown,
-  input: { length: PodcastLength; topicLabel: string },
+  input: { length: PodcastLength; topicLabel: string; minChapters?: number },
 ): PodcastEpisode | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
@@ -118,13 +130,17 @@ export function coercePodcastDraft(
       const original = typeof line.text === "string" ? line.text : "";
       const marked = stripBeatMarker(original);
       if (!marked.text || emptyMistake(marked.text)) continue;
-      for (const raw of splitSentences(marked.text)) {
-        const sentence = spokenSentence(raw);
+      // İki sunuculu türde konuşmacı taslaktan gelir ("öğretmen"/"sunucu" Ada'dır); tek öğretmende hep Ada.
+      let speaker: PodcastLine["speaker"] = spec.speakers === "duo" && speakerIdOf(line.speaker) === "kerem" ? "kerem" : "ada";
+      const sentences = splitSentences(marked.text);
+      for (const [index, raw] of sentences.entries()) {
+        // Tek satıra sıkışmış "… Kerem: …" (28 Ekim 2026, Paket A): adın ardındaki cümleler o konuşmacının.
+        const label = raw.match(INLINE_SPEAKER);
+        if (label && spec.speakers === "duo") speaker = speakerIdOf(label[1]) ?? speaker;
+        const sentence = spokenSentence(index === sentences.length - 1 ? withTerminalStop(raw) : raw);
         if (!sentence) continue;
         const shown = notationLine(sentence);
         if (shown.text.length < 4) continue;
-        // İki sunuculu türde konuşmacı taslaktan gelir ("öğretmen"/"sunucu" Ada'dır); tek öğretmende hep Ada.
-        const speaker = spec.speakers === "duo" && speakerIdOf(line.speaker) === "kerem" ? "kerem" : "ada";
         const out: PodcastLine = { speaker, text: shown.text };
         if (shown.spoken !== shown.text) out.spoken = shown.spoken;
         if (marked.beat) out.beat = marked.beat;
@@ -151,7 +167,7 @@ export function coercePodcastDraft(
     merged.push({ ...chapter, lines: [...chapter.lines] });
   }
   const ready = merged.filter((chapter) => chapter.lines.length >= 2);
-  if (ready.length < spec.minChapters) return null;
+  if (ready.length < (input.minChapters ?? spec.minChapters)) return null;
   if (spec.speakers === "single" && podcastDialogueIssues(ready).length) return null;
   return { title: toDisplay(title).slice(0, 120), chapters: ready, length: input.length };
 }
@@ -166,6 +182,23 @@ export function podcastWordCount(episode: PodcastEpisode): number {
   return podcastScriptText(episode).split(/\s+/).filter(Boolean).length;
 }
 
+/** Konuşma sırası: iki seste konuşmacı her değiştiğinde yeni sıra; tek seste her cümle. */
+export function podcastTurnCount(episode: PodcastEpisode): number {
+  const lines = episode.chapters.flatMap((chapter) => chapter.lines);
+  if (podcastLengthSpec(episode.length).speakers === "single") return lines.length;
+  return lines.reduce((turns, line, index) => (index === 0 || lines[index - 1]!.speaker !== line.speaker ? turns + 1 : turns), 0);
+}
+
+/**
+ * Taban (28 Ekim 2026, Paket A): V6'da Diyalog düzeltme ve kurtarmadan sonra 0:50'ye çöktü. Tabanın altındaki podcast
+ * çökmüş sayılır: düzeltme ve kurtarma oraya inemez, tamamlama turu açılır. Özet tabansız (zaten 1 dakika).
+ */
+export function podcastBelowFloor(episode: PodcastEpisode): boolean {
+  const spec = podcastLengthSpec(episode.length);
+  if (episode.length === "ozet") return false;
+  return podcastWordCount(episode) < spec.words.min || podcastTurnCount(episode) < spec.minTurns;
+}
+
 /** Kerem'in cümle payı (0-1). */
 export function keremShare(episode: PodcastEpisode): number {
   const lines = episode.chapters.flatMap((chapter) => chapter.lines);
@@ -175,11 +208,17 @@ export function keremShare(episode: PodcastEpisode): number {
 
 const ADDRESSES = { ada: /(?<!\p{L})kerem(?!\p{L})/iu, kerem: /(?<!\p{L})ada(?!\p{L})/iu } as const;
 
+/** Önceki cümleye yaslanan açılış: bu cümle başka sese verilirse cümle yarım kalır. */
+const CONNECTOR_OPENER =
+  /^(?:çünkü|bu\s+yüzden|bu\s+nedenle|yani|ama|ancak|fakat|ve|veya|ayrıca|dolayısıyla|üstelik|oysa|halbuki|bunun\s+için|sonuçta|örneğin)(?!\p{L})/iu;
+
 /**
- * İki sesli türde payı koda bağlar: düzeltme turu da Kerem'i %35-50 bandına getirmediyse konuşma sırasının (birden
- * çok cümlelik) son cümlesi öbür konuşmacıya yazılır. Açılış ve kapanış Ada'da kalır; bir sıranın ilk cümlesi (soruya
- * verilen cevap) yerinde kalır; soruyla biten cümle, ardından gelen konuşmacı kendi sorusunu cevaplamasın diye taşınmaz;
- * karşısındakine adıyla seslenen cümle de taşınmaz. Kod cümle yazmaz, yalnız konuşmacı alanını değiştirir.
+ * İki sesli türde payı koda bağlar: düzeltme turu da Kerem'i %35-50 bandına getirmediyse **bütün bir konuşma sırası**
+ * öbür konuşmacıya yazılır. 28 Ekim 2026 (Paket A): eski kod sıranın ortasındaki ve "Çünkü / Bu yüzden" ile başlayan
+ * cümleleri taşıyordu; V6'da Ada'nın açıklaması cümle ortasında Kerem'in sesine geçti, roller karıştı. Şimdi taşınmaz:
+ * açılış ve kapanış sırası; bağlaçla başlayan sıra; soruyla biten sıra (sonraki konuşmacı kendi sorusunu cevaplamasın);
+ * soruya verilen cevap sırası (önceki sıra soruyla bitiyorsa); "Cevap:" sırası; karşısındakine adıyla seslenen sıra;
+ * bandı öbür yönde aşacak sıra. Kod cümle yazmaz, yalnız konuşmacı alanını değiştirir.
  */
 export function balanceKerem(
   episode: PodcastEpisode,
@@ -196,27 +235,44 @@ export function balanceKerem(
   if (!target) return episode;
   const from = target === "kerem" ? "ada" : "kerem";
   const inBand = () => (target === "kerem" ? count() / total >= band.min : count() / total <= band.max);
-
-  // Önce yalnız sıranın sonundaki cümle; o da kalmadıysa (tek sesli taslak) sıranın ortasındaki cümleler.
-  const pass = (relaxed: boolean): boolean => {
-    let moved = false;
-    for (let index = flat.length - 2; index >= 1 && !inBand(); index -= 1) {
-      const line = flat[index]!;
-      const previous = flat[index - 1]!;
-      const next = flat[index + 1];
-      if (line.speaker !== from || previous.speaker !== from) continue;
-      if (next && next.speaker === from && !relaxed) continue;
-      if (/\?\s*$/.test(line.text) && next && next.speaker !== from) continue;
-      if (line.beat === "reveal" && previous.beat === "ask") continue;
-      if (ADDRESSES[from].test(line.text)) continue;
-      line.speaker = target;
-      moved = true;
-      if (relaxed) index -= 1;
-    }
-    return moved;
+  const overshoots = (size: number) => {
+    const after = (count() + (target === "kerem" ? size : -size)) / total;
+    return target === "kerem" ? after > band.max : after < band.min;
   };
+
+  type Turn = { start: number; end: number };
+  const turns = (): Turn[] => {
+    const out: Turn[] = [];
+    flat.forEach((line, index) => {
+      const last = out[out.length - 1];
+      if (last && flat[last.end]!.speaker === line.speaker) last.end = index;
+      else out.push({ start: index, end: index });
+    });
+    return out;
+  };
+
   let progressed = true;
-  while (!inBand() && progressed) progressed = pass(false) || pass(true);
+  while (!inBand() && progressed) {
+    progressed = false;
+    const list = turns();
+    for (let t = list.length - 2; t >= 1 && !inBand(); t -= 1) {
+      const turn = list[t]!;
+      const first = flat[turn.start]!;
+      const last = flat[turn.end]!;
+      const before = flat[turn.start - 1];
+      if (first.speaker !== from) continue;
+      if (CONNECTOR_OPENER.test(first.text.trim())) continue;
+      if (/\?\s*$/.test(last.text)) continue;
+      if (before && /\?\s*$/.test(before.text)) continue;
+      if (first.beat === "reveal" || last.beat === "ask") continue;
+      const lines = flat.slice(turn.start, turn.end + 1);
+      if (lines.some((line) => ADDRESSES[from].test(line.text))) continue;
+      if (overshoots(lines.length)) continue;
+      for (const line of lines) line.speaker = target;
+      progressed = true;
+      break;
+    }
+  }
   return { ...episode, chapters };
 }
 
