@@ -75,6 +75,21 @@ export function videoStyle(id: string | null | undefined): (typeof VIDEO_STYLES)
   return VIDEO_STYLES.find((item) => item.id === resolved) ?? VIDEO_STYLES[0]!;
 }
 
+/** Kayıtlı stilin öğrenciye görünen adı. Çizimli özet resim stillerinden ayrıdır. */
+export function videoStyleLabel(id: string | null | undefined): string {
+  if (id === "sketch_reel") return "1 Dk Çizimli Video";
+  return videoStyle(id).label;
+}
+
+/** Çizimli özet: stil adı ya da resimsiz şema sahnesi. Eski CHECK beyaz tahtaya düşerse de tanınır. */
+export function isSketchStored(
+  style: string | null | undefined,
+  scenes: { imagePath?: string; diagram?: unknown; visualSchema?: unknown }[] | null | undefined,
+): boolean {
+  if (style === "sketch_reel") return true;
+  return (scenes ?? []).some((scene) => !scene.imagePath && Boolean(scene.diagram ?? scene.visualSchema));
+}
+
 /**
  * Kayıt için stil. Göç `20261025120000` uygulanmadan yeni id'ler CHECK'e takılır;
  * o yüzden eski beş değer yazılır, okurken alias ile yeni etikete döner.
@@ -121,6 +136,11 @@ export type VideoInput = {
   style: VideoStyle;
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri: kilit bilgiler bunlardan seçilir. */
   examPoints?: string[];
+  /**
+   * `sketch_reel`: sahne resmi yok. Parametrik SVG + KaTeX + paralel ses.
+   * `image`: mevcut gpt-image sahne resmi.
+   */
+  renderMode?: "image" | "sketch_reel";
 };
 
 const SCHEMA =
@@ -306,4 +326,218 @@ export function captionChunks(
     cursor += chunk.length;
     return { text: chunk.map((item) => item.word).join(" "), words: chunk, startMs, endMs: Math.round(cursor * perWord) };
   });
+}
+
+/**
+ * 1 dakikalık çizimli video (27 Ekim 2026). Sahne resmi üretilmez.
+ * Her sahne: başlık, vurucu formül, parametrik SVG şema, ses.
+ * 4–5 sahne, toplam yaklaşık 60 saniye.
+ */
+export const SKETCH_REEL_ID = "sketch_reel" as const;
+export const SKETCH_REEL_LABEL = "1 Dk Çizimli Video";
+export const SKETCH_MIN_SCENES = 4;
+export const SKETCH_MAX_SCENES = 5;
+export const SKETCH_SCENE_MAX_WORDS = 26;
+export const SKETCH_TOTAL_WORDS = { min: 72, max: 110 } as const;
+export const SKETCH_HARD_LIMITS = { minScenes: 4, sceneWords: 34, totalWords: { min: 55, max: 140 } } as const;
+
+export const SKETCH_DIAGRAM_KINDS = ["balance_scale", "number_line", "function_curve", "timeline", "process_network"] as const;
+export type SketchDiagramKind = (typeof SKETCH_DIAGRAM_KINDS)[number];
+
+export type SketchDiagramItem = {
+  label: string;
+  value?: string | number;
+  detail?: string;
+  highlight?: boolean;
+};
+
+export type SketchDiagram = {
+  diagramKind: SketchDiagramKind;
+  title: string;
+  caption?: string;
+  items: SketchDiagramItem[];
+};
+
+export type SketchScene = {
+  narration: string;
+  sceneTitle: string;
+  formula?: string;
+  keyFact?: string;
+  voice: "ada" | "kerem";
+  diagram: SketchDiagram;
+};
+
+export type SketchScript = { title: string; scenes: SketchScene[] };
+
+const SKETCH_SCHEMA =
+  '{"title":"videonun kısa adı","scenes":[{"sceneTitle":"sahne başlığı","narration":"1-2 cümle anlatım","formula":"KaTeX, kaynaktaki kural","keyFact":"en çok 8 kelime","voice":"ada veya kerem","diagram":{"diagramKind":"balance_scale | number_line | function_curve | timeline | process_network","title":"şemanın adı","caption":"isteğe bağlı","items":[{"label":"kaynaktaki terim","value":"sayı ya da kısa değer","detail":"isteğe bağlı","highlight":false}]}}]}';
+
+export function sketchSystem(mode: TeacherLessonMode): string {
+  return (
+    "Sen Cortex Plus'ın usta öğretmenisin. Öğrenci konuyu yaklaşık 1 dakikalık çizimli bir video özette izleyecek. " +
+    "Ekranda sahne resmi yok: kara tahtada sahne başlığı, vurucu formül ve parametrik bir şema belirir; sen anlatırsın.\n\n" +
+    (mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
+    "AKIŞ:\n" +
+    `- ${SKETCH_MIN_SCENES}-${SKETCH_MAX_SCENES} sahne, toplam ${SKETCH_TOTAL_WORDS.min}-${SKETCH_TOTAL_WORDS.max} kelime (yaklaşık 60 saniye).\n` +
+    `- Her sahnenin anlatımı 1-2 kısa cümle, en çok ${SKETCH_SCENE_MAX_WORDS} kelime; konuşur gibi, 'sen' diye.\n` +
+    "- İlk sahne bir kanca; son sahne sınavda akılda kalacak tek cümle. Aradaki sahneler konunun en önemli 2-3 noktasını anlatır.\n" +
+    "- Boş cümle yok. Kaynağa atıf yok ('metne göre', 'belgede', 'bu videoda').\n" +
+    "- sceneTitle: o sahnenin tahta başlığı, en çok 6 kelime.\n" +
+    "- formula: sahnenin vurucu kuralı, KaTeX ile (ör. F_1 d_1 = F_2 d_2). Kaynakta formül yoksa kuralı kısa bir eşitlik ya da okla yaz " +
+    "(ör. sağa kayma \\rightarrow x artar). Dolar işareti koyma. Uydurma sayı yazma.\n" +
+    "- keyFact: sınavda sorulacak kilit ifade, en çok 8 kelime. Yoksa boş bırak.\n" +
+    "- voice: sahneleri Ada (ada) ve Kerem (kerem) arasında dağıt; art arda aynı ses en çok iki sahne.\n" +
+    "- diagram.diagramKind yalnız şunlardan biri: number_line (sayı, eşitsizlik), balance_scale (iki kefeli denge, denklem), " +
+    "function_curve (eğri ve kritik nokta), timeline (zaman sırası), process_network (devre, evre, sistem). " +
+    "items 2-6 öğe. label kaynaktaki terimdir. Koordinat yazma. Kaynakta olmayan sayı ekleme.\n" +
+    "- Resim tarifi yazma. Yalnız şema verisi.\n\n" +
+    `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SKETCH_SCHEMA}`
+  );
+}
+
+export function sketchVerifySystem(mode: TeacherLessonMode): string {
+  return (
+    "Sen titiz bir çizimli video denetçisisin. Senaryoyu yazıldığı KAYNAK ile (belgesizse konunun yerleşik bilgisiyle) karşılaştır.\n" +
+    "A) Kaynakta dayanağı olmayan ya da kaynakla çelişen olgu, sayı, tanım, kural.\n" +
+    "B) Bozuk Türkçe.\n" +
+    "C) Boş cümle ya da kaynağa atıf.\n" +
+    "D) formula ya da diagram.items kaynağın dışında sayı veya kural taşıyor.\n" +
+    "E) diagramKind izinli beş türden biri değil ya da öğe sayısı 2'nin altında.\n" +
+    "A, B ve D'deki yanlış bilgi 'high'; C ve E 'low'.\n" +
+    (mode === "topic" ? "Belgesiz konuda emin olunmayan güncel eşiği high say.\n" : "") +
+    'JSON döndür: {"issues":[{"scene":0,"severity":"high","problem":"…","fix":"…"}]}. Sorun yoksa boş dizi.'
+  );
+}
+
+export function sketchFixUserPrompt(script: SketchScript, problems: string[], input: VideoInput): string {
+  return [videoUserPrompt(input), `SENARYO (JSON):\n${JSON.stringify(script)}`, `SORUNLAR:\n${problems.join("\n")}`].join("\n\n");
+}
+
+const SKETCH_KIND_SET = new Set<string>(SKETCH_DIAGRAM_KINDS);
+
+function sketchItem(raw: unknown): SketchDiagramItem | null {
+  if (typeof raw === "string" && raw.trim()) return { label: raw.trim().slice(0, 80) };
+  const row = (raw ?? {}) as Record<string, unknown>;
+  const labelRaw = typeof row.label === "string" ? row.label : typeof row.name === "string" ? row.name : "";
+  const label = labelRaw.replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!label) return null;
+  const rawValue = row.value ?? row.amount;
+  let value: string | number | undefined;
+  if (typeof rawValue === "number" && Number.isFinite(rawValue)) value = rawValue;
+  else if (typeof rawValue === "string" && rawValue.trim()) value = rawValue.trim().slice(0, 40);
+  const detailRaw = typeof row.detail === "string" ? row.detail : "";
+  const detail = detailRaw.replace(/\s+/g, " ").trim().slice(0, 120);
+  return {
+    label,
+    ...(value !== undefined ? { value } : {}),
+    ...(detail ? { detail } : {}),
+    ...(row.highlight === true ? { highlight: true } : {}),
+  };
+}
+
+function sketchDiagram(raw: unknown, fallbackTitle: string): SketchDiagram | null {
+  const row = (raw ?? {}) as Record<string, unknown>;
+  const kind = typeof row.diagramKind === "string" ? row.diagramKind : typeof row.kind === "string" ? row.kind : "";
+  if (!SKETCH_KIND_SET.has(kind)) return null;
+  const items = (Array.isArray(row.items) ? row.items : []).flatMap((item) => {
+    const next = sketchItem(item);
+    return next ? [next] : [];
+  });
+  if (items.length < 2) return null;
+  const titleRaw = typeof row.title === "string" ? row.title.replace(/\s+/g, " ").trim() : "";
+  const captionRaw = typeof row.caption === "string" ? row.caption.replace(/\s+/g, " ").trim() : "";
+  return {
+    diagramKind: kind as SketchDiagramKind,
+    title: (titleRaw || fallbackTitle).slice(0, 120),
+    ...(captionRaw ? { caption: captionRaw.slice(0, 200) } : {}),
+    items: items.slice(0, 8),
+  };
+}
+
+/** Kayıttaki şema verisini oynatıcıya verir. Bozuk kayıt tahtayı açmaz. */
+export function readSketchDiagram(raw: unknown): SketchDiagram | null {
+  const diagram = sketchDiagram(raw, "Şema");
+  return diagram && diagram.items.length >= 2 ? diagram : null;
+}
+
+/** Model çıktısını çizimli senaryoya oturtur. Resim tarifi aramaz. Geçersiz sahneyi düşürür. */
+export function parseSketchScript(raw: unknown, fallbackTitle: string): SketchScript | null {
+  const row = (raw ?? {}) as Record<string, unknown>;
+  const list = Array.isArray(row.scenes) ? row.scenes : [];
+  const scenes = list.flatMap((item, index) => {
+    const scene = (item ?? {}) as Record<string, unknown>;
+    const narration = typeof scene.narration === "string" ? scene.narration.replace(/\s+/g, " ").trim() : "";
+    const titleRaw = typeof scene.sceneTitle === "string" ? scene.sceneTitle : typeof scene.title === "string" ? scene.title : "";
+    const sceneTitle = titleRaw.replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!narration || !sceneTitle) return [];
+    const diagram = sketchDiagram(scene.diagram ?? scene.visualSchema, sceneTitle);
+    if (!diagram) return [];
+    const fact = typeof scene.keyFact === "string" ? scene.keyFact.replace(/\s+/g, " ").trim() : "";
+    const keyFact = fact && words(fact) <= 12 ? fact.slice(0, 90) : undefined;
+    const formulaRaw = typeof scene.formula === "string" ? scene.formula.replace(/^\$+|\$+$/g, "").trim() : "";
+    const formula = formulaRaw ? formulaRaw.slice(0, 240) : undefined;
+    const voice = scene.voice === "kerem" || scene.speaker === "kerem" ? "kerem" : scene.voice === "ada" || scene.speaker === "ada" ? "ada" : index % 2 === 0 ? "ada" : "kerem";
+    return [
+      {
+        narration,
+        sceneTitle,
+        voice,
+        diagram,
+        ...(formula ? { formula } : {}),
+        ...(keyFact ? { keyFact } : {}),
+      } satisfies SketchScene,
+    ];
+  });
+  if (!scenes.length) return null;
+  const title = typeof row.title === "string" && row.title.trim() ? row.title.trim().slice(0, 120) : fallbackTitle;
+  return { title, scenes: scenes.slice(0, SKETCH_MAX_SCENES) };
+}
+
+export function sketchStructureIssues(script: SketchScript): VideoStructureIssue[] {
+  const issues: VideoStructureIssue[] = [];
+  const count = script.scenes.length;
+  if (count < SKETCH_MIN_SCENES) {
+    issues.push({
+      severity: count < SKETCH_HARD_LIMITS.minScenes ? "high" : "low",
+      problem: `Sahne sayısı ${count}; ${SKETCH_MIN_SCENES}-${SKETCH_MAX_SCENES} olmalı.`,
+    });
+  }
+  const total = script.scenes.reduce((sum, scene) => sum + words(scene.narration), 0);
+  if (total < SKETCH_TOTAL_WORDS.min || total > SKETCH_TOTAL_WORDS.max) {
+    const hard = SKETCH_HARD_LIMITS.totalWords;
+    issues.push({
+      severity: total < hard.min || total > hard.max ? "high" : "low",
+      problem: `Toplam ${total} kelime; ${SKETCH_TOTAL_WORDS.min}-${SKETCH_TOTAL_WORDS.max} olmalı (yaklaşık 1 dakika).`,
+    });
+  }
+  script.scenes.forEach((scene, index) => {
+    const sceneWords = words(scene.narration);
+    if (sceneWords > SKETCH_SCENE_MAX_WORDS) {
+      issues.push({
+        severity: sceneWords > SKETCH_HARD_LIMITS.sceneWords ? "high" : "low",
+        problem: `scenes[${index}]: anlatım ${sceneWords} kelime; en çok ${SKETCH_SCENE_MAX_WORDS}.`,
+      });
+    }
+    if (/metne göre|belgede|kaynakta|bu videoda/i.test(scene.narration)) {
+      issues.push({ severity: "low", problem: `scenes[${index}]: kaynağa atıf ya da boş giriş cümlesi; çıkar.` });
+    }
+    if (!scene.formula) {
+      issues.push({ severity: "low", problem: `scenes[${index}]: vurucu formül ya da kural (formula) yok.` });
+    }
+    if (!SKETCH_KIND_SET.has(scene.diagram.diagramKind) || scene.diagram.items.length < 2) {
+      issues.push({ severity: "high", problem: `scenes[${index}]: parametrik şema eksik.` });
+    }
+  });
+  return issues;
+}
+
+/** Formülü tahtada adım adım açmak için böler. */
+export function sketchFormulaSteps(formula: string): string[] {
+  const clean = formula.replace(/^\$+|\$+$/g, "").trim();
+  if (!clean) return [];
+  const parts = clean
+    .split(/\s*(?:\\\\|;|→)\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length ? parts : [clean];
 }

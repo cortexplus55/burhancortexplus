@@ -291,6 +291,16 @@ export function studyVideoHref(
   return match ? `/deneme-sinavlari/${prepId}/video?topicId=${match.id}` : `/deneme-sinavlari/${prepId}/video`;
 }
 
+/** Çizimli 1 dakikalık özet. Konu seçiliyse üretim sayfası o konuyla açılır. */
+export function studySketchVideoHref(
+  prepId: string,
+  topicLabel: string | null,
+  topics: { id: string; label: string }[] = [],
+): string {
+  const base = studyVideoHref(prepId, topicLabel, topics);
+  return `${base}${base.includes("?") ? "&" : "?"}mode=sketch_reel`;
+}
+
 export function studyPodcastHref(
   prepId: string,
   topicLabel: string | null,
@@ -334,12 +344,14 @@ export const FREE_PICK_TOOLS: { id: StudyToolId; label: string }[] = [
   { id: "true_false", label: "Doğru / Yanlış" },
   { id: "flashcards", label: "Kartlar" },
   { id: "podcast", label: "Podcast" },
+  { id: "video", label: "🎬 1 Dk Çizimli Video Özeti" },
   { id: "oral", label: "Sözlü" },
 ];
 
 export type FreeActivityPick =
   | { ok: true; kind: "node"; nodeId: string; href: string }
   | { ok: true; kind: "podcast"; href: string }
+  | { ok: true; kind: "video"; href: string }
   | { ok: false; reason: "missing" };
 
 /**
@@ -356,6 +368,9 @@ export function freeActivityPick<T extends StudyNodeRef>(
   const label = topic?.label?.trim() || null;
   if (tool === "podcast") {
     return { ok: true, kind: "podcast", href: studyPodcastHref(prepId, label, topicOptions) };
+  }
+  if (tool === "video") {
+    return { ok: true, kind: "video", href: studySketchVideoHref(prepId, label, topicOptions) };
   }
   const matched = resolveStudyToolNode(nodes, tool, { id: topic?.id, label });
   if (!matched) return { ok: false, reason: "missing" };

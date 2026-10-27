@@ -1,5 +1,6 @@
 import {
   KEREM_SHARE_RULE,
+  NO_FABRICATED_MEMORY_RULE,
   SPOKEN_ONLY_RULE,
   podcastLengthSpec,
   speakerIdOf,
@@ -61,8 +62,8 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
     `KİŞİLER: ${voice} ${KEREM_SHARE_RULE}`,
     "",
     "NASIL YAZILIR:",
-    "- Gerçek bir sohbet yaz. Kerem kendi yaşadığı küçük bir anla (stajda, denemede, ders çalışırken) ya da bir merakla " +
-      "açar. Konuşma sıraları doğal uzunlukta: bazen tek cümle, bazen kısa bir paragraf.",
+    `- Gerçek bir sohbet yaz. Kerem bir merakla açar. ${NO_FABRICATED_MEMORY_RULE} Konuşma sıraları doğal uzunlukta: ` +
+      "bazen tek cümle, bazen kısa bir paragraf.",
     "- Her önemli bilgiyi nedeniyle anlat: neden böyle, ne olursa ne olur. 'Çünkü farklıdır' gibi kendini tekrar eden " +
       "cümle yok.",
     "- Her bölümde en az bir somut vaka ya da kısa hikâye (kim, kaç yaşında, ne oldu) ve dinleyenin aklında kalacak bir " +

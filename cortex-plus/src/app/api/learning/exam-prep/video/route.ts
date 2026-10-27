@@ -15,6 +15,7 @@ const bodySchema = z.object({
   topicId: z.string().uuid(),
   style: z.string().optional(),
   visualStyle: z.string().optional(),
+  mode: z.enum(["image", "sketch_reel"]).optional(),
   clientRequestId: z.string().uuid().optional(),
 });
 
@@ -35,7 +36,9 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
   const { prepId, topicId } = parsed.data;
-  const style = resolveVideoStyle(parsed.data.visualStyle ?? parsed.data.style);
+  const requested = parsed.data.visualStyle ?? parsed.data.style ?? "";
+  const sketch = parsed.data.mode === "sketch_reel" || requested === "sketch_reel";
+  const imageStyle = resolveVideoStyle(sketch ? "cinematic" : requested);
 
   const { data: prep } = await service
     .from("exam_preps")
@@ -82,8 +85,9 @@ export async function POST(request: Request) {
     mode: source.mode,
     pages: source.pages,
     examPoints: teaching?.examPoints ?? [],
-    style,
-    idempotencyKey: `video:${userId}:${prepId}:${topicId}:${style}:${parsed.data.clientRequestId ?? crypto.randomUUID()}`,
+    style: sketch ? "whiteboard" : imageStyle,
+    renderMode: sketch ? "sketch_reel" : "image",
+    idempotencyKey: `video:${userId}:${prepId}:${topicId}:${sketch ? "sketch_reel" : imageStyle}:${parsed.data.clientRequestId ?? crypto.randomUUID()}`,
   });
   if (!outcome.ok) {
     console.error("video_generation_failed", { code: outcome.error, reasons: outcome.reasons });

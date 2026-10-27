@@ -12,6 +12,7 @@ import {
   StudioResults,
 } from "@/components/learning/studio/studio-shared";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { PodcastKaraokeLine } from "@/components/parity/podcast-karaoke";
 import {
   SPEAKER_LABEL,
   SPEAKERS,
@@ -117,6 +118,7 @@ export function PodcastStudio({
   const [audioNote, setAudioNote] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [lineCursor, setLineCursor] = useState(0);
+  const [lineClock, setLineClock] = useState({ offsetMs: 0, durationMs: 0 });
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -398,6 +400,7 @@ export function PodcastStudio({
       }
       cursorRef.current = cursor;
       setLineCursor(cursor);
+      setLineClock({ offsetMs: startAt * 1000, durationMs: track.durationMs });
       setIndex(track.chapterIndex);
       element.src = track.url;
       applySpeed(element);
@@ -406,6 +409,7 @@ export function PodcastStudio({
       };
       element.ontimeupdate = () => {
         if (token !== tokenRef.current) return;
+        setLineClock({ offsetMs: element.currentTime * 1000, durationMs: track.durationMs });
         setElapsedMs(offsetOf(cursor) + element.currentTime * 1000);
       };
       element.onended = () => step(cursor + 1, 0);
@@ -698,7 +702,12 @@ export function PodcastStudio({
                     playFrom(global);
                   }}
                 >
-                  <strong>{SPEAKER_LABEL[line.speaker]}</strong> {line.text}
+                  <strong>{SPEAKER_LABEL[line.speaker]}</strong>{" "}
+                  {current && lineClock.durationMs > 0 ? (
+                    <PodcastKaraokeLine text={line.text} currentTime={lineClock.offsetMs} duration={lineClock.durationMs} />
+                  ) : (
+                    line.text
+                  )}
                 </button>
               );
             })}

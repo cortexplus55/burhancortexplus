@@ -260,6 +260,51 @@ export const DUO_NARRATOR_SCHEMA =
   'Her satırın speaker alanı "ada" (öğretmen) ya da "kerem" (öğrenci arkadaşı). İkisi de konuşur. Her satır bir konuşma sırasıdır: 1-4 cümle, her cümle en çok 25 kelime. Ada açıklarken nedenini ve sonucunu da söyler; Kerem\'in ne yaptığı BİÇİM satırında yazılı.';
 
 /**
+ * Ada ve Kerem konuşmacıdır; öğrencinin hayatını uydurmazlar (27 Ekim 2026).
+ * Yazar (`podcastDuoBrief`, senarist) ve satır taraması aynı yasakları okur.
+ */
+export const NO_FABRICATED_MEMORY_RULE =
+  "SIFIR UYDURMA KİŞİSEL ANI (kesin): Ada ve Kerem ASLA \"geçen gün denemede\", \"lisedeyken\", \"ben sınava girerken\" veya \"arkadaşım\" diye uydurma kişisel hayat hikayesi ya da anı anlatamaz. " +
+  "Doğrudan konunun özünü, formülün ve kavramın mantığını ve gerçek sınav sorularında dikkat edilecek noktayı konuşurlar. Örnek varsa üçüncü kişidir.";
+
+/** Konuşmacının kendi hayatını anlattığı satır. Kurtarma bu satırı çıkarır. */
+export const FABRICATED_MEMORY =
+  /geçen gün|lisedeyken|ben sınava girerken|arkadaşım|dün girdiğim deneme|kendi yaşadığım/iu;
+
+/** Podcast satır sesleri aynı anda bu kadar üretilir. Sıralı bekleme bölümü dakikalarca tutuyordu. */
+export const PODCAST_TTS_CONCURRENCY = 6;
+
+/**
+ * İşleri `limit` şerit halinde birlikte çalıştırır. Bir şerit bitince sıradakini alır.
+ * `Promise.all` şeritleri bekler; satırlar tek tek `for await` ile sıralanmaz.
+ */
+export async function mapWithConcurrency<T>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  if (!items.length) return;
+  let next = 0;
+  let failed = false;
+  const lanes = Math.max(1, Math.min(limit, items.length));
+  async function runLane(): Promise<void> {
+    for (;;) {
+      if (failed) return;
+      const index = next;
+      next += 1;
+      if (index >= items.length) return;
+      try {
+        await worker(items[index]!, index);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: lanes }, () => runLane()));
+}
+
+/**
  * İki sunuculu türlerde konuşma sırası kuralı (20 Ekim 2026, kör kıyas). Canlı podcast'te Kerem doğru
  * cevabı kendisi verip ardından "Ben tek ölçümü yeterli sanmışım" dedi; başka bir bölümde art arda iki
  * soru sordu, Ada ilgisiz bir tanımla devam etti, soruyu sonunda Kerem kendisi cevapladı. Yazar
@@ -278,13 +323,14 @@ export const DUO_TURN_RULE =
 export function podcastDuoBrief(): string {
   return (
     "Ada (öğretmen) ile Kerem (öğrenci arkadaşı) gerçek bir sohbet gibi konuşarak akılda kalan bir ders anlatır. " +
-    "Bütün podcast'te şunlar olsun: her kavramın ne olduğu ve neden öyle olduğu, somut bir örnek, öğrencinin " +
-    "gerçekten yaptığı bir iki hata, sınavda çıkan nokta. Bunları her bölümde aynı sırayla dizme; bölümler farklı açılsın " +
+    "Bütün podcast'te şunlar olsun: her kavramın ne olduğu ve neden öyle olduğu, somut bir örnek, sık yapılan " +
+    "bir iki hata, sınavda çıkan nokta. Bunları her bölümde aynı sırayla dizme; bölümler farklı açılsın " +
     "(bir vaka, Kerem'in merakı, iki kavramın karşılaştırması). " +
     "Kerem doğal konuşur: merak eder, karıştırılan noktayı soru olarak sorar ('Yani … mı?'); Ada " +
     "nedenini söyleyerek cevaplar. Kerem 'Ben … sanmışım' diye itiraf etmez; yaygın hatayı 'Çoğu öğrenci … sanır' diye " +
     "söyler, Ada nedenini açıklar. Kerem Ada'nın cümlesini tekrar etmez; duyduğunu kendi örneğiyle ya da bir sonuçla " +
-    "ileri taşır. Kerem konuşmayı kendi yaşadığı küçük bir anla açabilir (stajda, denemede, ders çalışırken). " +
+    "ileri taşır. Kerem merakla ya da bir kavramı karıştırarak açar; kendi hayatından anı anlatmaz. " +
+    `${NO_FABRICATED_MEMORY_RULE} ` +
     `${DUO_TURN_RULE} ${KEREM_SHARE_RULE} ` +
     "Ada kaynaktan cümle okumaz; kendi sözleriyle, konuşur gibi anlatır ve bir açıklamayı art arda iki üç satırda " +
     "sürdürebilir. Aynı tanımı bir bölümde bir kez söyle; 'Tekrar edelim' yalnız son bölümde. " +

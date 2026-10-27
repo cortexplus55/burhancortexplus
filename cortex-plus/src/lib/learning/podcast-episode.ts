@@ -35,6 +35,8 @@ import {
   spokenSentence,
   type PodcastLength,
 } from "@/lib/learning/podcast-formats";
+
+export { PODCAST_TTS_CONCURRENCY, mapWithConcurrency } from "@/lib/learning/podcast-formats";
 import {
   splitSentences,
   type PodcastBeat,

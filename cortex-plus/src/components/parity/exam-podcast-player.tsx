@@ -11,11 +11,11 @@ import {
   normalizeChapters,
   speakerLiveBadge,
   totalDurationMs,
-  wordAt,
-  wordTimings,
+  karaokeWordIndex,
   type SpeakerId,
   type TimedLine,
 } from "@/lib/learning/podcast-script";
+import { PodcastKaraokeLine } from "@/components/parity/podcast-karaoke";
 import { cn } from "@/lib/utils";
 import { studentSafeText } from "@/lib/learning/student-safe-text";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
@@ -183,19 +183,11 @@ export function ExamPodcastPlayer({
   const located = playing || positionMs > 0 ? lineAt(timeline, positionMs) : 0;
   const activeIndex = located < 0 ? Math.max(0, timeline.length - 1) : located;
 
-  // Kelime vurgusu yalnızca çalan cümle için hesaplanıyor. Cümle sınırları
-  // gerçek ses süresinden geliyor; cümle içi dağılım tahmin (bkz. wordTimings).
+  // Kelime vurgusu çalan satırın kendi süresiyle: currentTime / duration.
   const activeLine = timeline[activeIndex];
-  const activeWords = useMemo(
-    () =>
-      activeLine
-        ? wordTimings(activeLine.text, activeLine.endMs - activeLine.startMs)
-        : [],
-    [activeLine],
-  );
-  const activeWordIndex = activeLine
-    ? wordAt(activeWords, positionMs - activeLine.startMs)
-    : -1;
+  const lineDurationMs = activeLine ? Math.max(1, activeLine.endMs - activeLine.startMs) : 0;
+  const lineOffsetMs = activeLine ? Math.max(0, positionMs - activeLine.startMs) : 0;
+  const activeWordIndex = activeLine ? karaokeWordIndex(activeLine.text, lineOffsetMs, lineDurationMs) : -1;
   timelineRef.current = timeline;
   totalRef.current = totalMs;
 
@@ -720,19 +712,8 @@ export function ExamPodcastPlayer({
                       <span className="cp-pod-line-who">
                         {SPEAKER_LABEL[line.speaker]}
                       </span>
-                      {ready && index === activeIndex && activeWords.length ? (
-                        activeWords.map((word, wordIndex) => (
-                          <span
-                            key={wordIndex}
-                            className={cn(
-                              "cp-pod-word",
-                              wordIndex === activeWordIndex && "is-now",
-                              wordIndex < activeWordIndex && "is-said",
-                            )}
-                          >
-                            {word.text}{" "}
-                          </span>
-                        ))
+                      {ready && index === activeIndex ? (
+                        <PodcastKaraokeLine text={studentSafeText(line.text)} currentTime={lineOffsetMs} duration={lineDurationMs} />
                       ) : (
                         <span
                           className={cn(
@@ -816,7 +797,11 @@ export function ExamPodcastPlayer({
                     onClick={() => seekTo(line.startMs)}
                   >
                     <span className="cp-pod-line-who">{SPEAKER_LABEL[line.speaker]}</span>
-                    {studentSafeText(line.text)}
+                    {ready && index === activeIndex ? (
+                      <PodcastKaraokeLine text={studentSafeText(line.text)} currentTime={lineOffsetMs} duration={lineDurationMs} />
+                    ) : (
+                      studentSafeText(line.text)
+                    )}
                   </button>
                 </li>
               ))}

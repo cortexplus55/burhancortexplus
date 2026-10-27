@@ -3,12 +3,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Expand, Loader2, Pause, Play, RotateCcw, RotateCw, Smartphone, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
-import { VIDEO_STYLES, captionChunks, speechText, type VideoStyle } from "@/lib/learning/video-lesson";
+import { DiagramCard } from "@/components/parity/diagram-card";
+import { renderMath } from "@/lib/learning/math-text";
+import {
+  VIDEO_STYLES,
+  captionChunks,
+  sketchFormulaSteps,
+  speechText,
+  type SketchDiagram,
+  type VideoStyle,
+} from "@/lib/learning/video-lesson";
 import "@/styles/video-lesson.css";
 
 type Topic = { id: string; label: string };
@@ -22,36 +32,66 @@ export function VideoLessonSetup({
   entitled,
   topics,
   initialTopicId,
+  initialMode = "image",
   previous,
 }: {
   prepId: string;
   entitled: boolean;
   topics: Topic[];
   initialTopicId: string | null;
+  initialMode?: "image" | "sketch_reel";
   previous: { id: string; title: string; topicLabel: string; styleLabel: string }[];
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<"intro" | "style" | "topic" | "making">("intro");
+  const sketchEntry = initialMode === "sketch_reel";
+  const [step, setStep] = useState<"intro" | "style" | "topic" | "making">(
+    sketchEntry && entitled && initialTopicId ? "making" : sketchEntry && entitled ? "topic" : "intro",
+  );
   const [style, setStyle] = useState<VideoStyle>("cinematic");
+  const [sketchJob, setSketchJob] = useState(sketchEntry);
   const [line, setLine] = useState(0);
-  const lines = ["Senaryo yazılıyor…", "Kaynakla karşılaştırılıyor…", "Sahneler çiziliyor…", "Seslendiriliyor…", "Video birleştiriliyor…"];
+  const lines = sketchJob
+    ? ["Senaryo yazılıyor…", "Şema ve formül kuruluyor…", "Sesler birlikte üretiliyor…", "Video birleştiriliyor…"]
+    : ["Senaryo yazılıyor…", "Kaynakla karşılaştırılıyor…", "Sahneler çiziliyor…", "Seslendiriliyor…", "Video birleştiriliyor…"];
+  const sketchStarted = useRef(false);
 
   useEffect(() => {
     if (step !== "making") return;
-    const id = window.setInterval(() => setLine((value) => Math.min(lines.length - 1, value + 1)), 9000);
+    const id = window.setInterval(() => setLine((value) => Math.min(lines.length - 1, value + 1)), sketchJob ? 5000 : 9000);
     return () => window.clearInterval(id);
-  }, [step, lines.length]);
+  }, [step, lines.length, sketchJob]);
 
-  async function make(topicId: string) {
+  useEffect(() => {
+    if (!sketchEntry || !entitled || !initialTopicId || sketchStarted.current) return;
+    const lock = `cp-sketch:${prepId}:${initialTopicId}`;
+    const previous = Number(window.sessionStorage.getItem(lock) || 0);
+    if (Date.now() - previous < 15_000) return;
+    sketchStarted.current = true;
+    window.sessionStorage.setItem(lock, String(Date.now()));
+    void make(initialTopicId, "sketch_reel");
+    // Konu bağlantısı üretimi bir kez açar. Kısa kilit, katı modun ikinci kurulumunu keser.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sketchEntry, entitled, initialTopicId, prepId]);
+
+  async function make(topicId: string, chosen: VideoStyle | "sketch_reel" = style) {
+    const sketch = chosen === "sketch_reel";
+    setSketchJob(sketch);
     setStep("making");
     setLine(0);
     try {
       // Üretim düşünce bir kez kendiliğinden, yeni istek kimliğiyle (19 Ekim 2026).
       const { res, data: body } = await postJsonWithRetry<{ videoId?: string; error?: string; code?: string }>(
         "/api/learning/exam-prep/video",
-        () => ({ prepId, topicId, style, clientRequestId: crypto.randomUUID() }),
+        () => ({
+          prepId,
+          topicId,
+          style: chosen,
+          mode: sketch ? "sketch_reel" : "image",
+          clientRequestId: crypto.randomUUID(),
+        }),
       );
       if (res.status === 402) {
+        if (sketch) window.sessionStorage.removeItem(`cp-sketch:${prepId}:${topicId}`);
         toast.error(body.error === "insufficient_credits" ? "Bu ayki hakkın video için yetmiyor." : "Video ders Plus'ta.");
         setStep("intro");
         return;
@@ -59,6 +99,7 @@ export function VideoLessonSetup({
       if (!res.ok || !body.videoId) throw new Error();
       router.replace(`/deneme-sinavlari/${prepId}/video?v=${body.videoId}`);
     } catch {
+      if (sketch) window.sessionStorage.removeItem(`cp-sketch:${prepId}:${topicId}`);
       toast.error("Video bu sefer gelmedi. İki kez denedik. Hakkın iade edildi, birkaç saniye sonra yeniden dene.");
       setStep("topic");
     }
@@ -76,7 +117,7 @@ export function VideoLessonSetup({
             </li>
           ))}
         </ul>
-        <p>Bu işlem bir iki dakika sürebilir.</p>
+        <p>{sketchJob ? "Yaklaşık 15–25 saniye sürer." : "Bu işlem bir iki dakika sürebilir."}</p>
       </section>
     );
   }
@@ -113,7 +154,7 @@ export function VideoLessonSetup({
           type="button"
           className="cp-video-primary"
           onClick={() => {
-            if (presetTopic) void make(presetTopic.id);
+            if (presetTopic) void make(presetTopic.id, style);
             else setStep("topic");
           }}
         >
@@ -131,7 +172,7 @@ export function VideoLessonSetup({
         <ol className="cp-video-topics">
           {topics.map((topic, index) => (
             <li key={topic.id}>
-              <button type="button" onClick={() => void make(topic.id)}>
+              <button type="button" onClick={() => void make(topic.id, sketchEntry ? "sketch_reel" : style)}>
                 <span className="cp-video-topic-n">{index + 1}</span>
                 {topic.label}
               </button>
@@ -189,7 +230,18 @@ export function VideoLessonSetup({
   );
 }
 
-type PlayerScene = { narration: string; durationMs: number; imageUrl: string; audioUrl: string; keyFact?: string };
+type PlayerScene = {
+  narration: string;
+  durationMs: number;
+  imageUrl: string;
+  audioUrl: string;
+  keyFact?: string;
+  sceneTitle?: string;
+  formula?: string;
+  diagram?: SketchDiagram;
+};
+
+type FrameRatio = "9:16" | "16:9";
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
 
@@ -230,6 +282,7 @@ export function VideoLessonPlayer({
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [finishing, setFinishing] = useState(false);
   const [outgoingUrl, setOutgoingUrl] = useState<string | null>(null);
+  const [ratio, setRatio] = useState<FrameRatio>("9:16");
   const pendingSeek = useRef<number | null>(null);
   const prevSceneRef = useRef(0);
 
@@ -247,6 +300,10 @@ export function VideoLessonPlayer({
   const elapsed = (starts.list[scene] ?? 0) + offset;
   const captionChunk = chunks[scene]?.find((chunk) => offset >= chunk.startMs && offset < chunk.endMs) ?? chunks[scene]?.at(-1);
   const caption = captionChunk?.text ?? "";
+  const sketch = Boolean(current?.diagram) && !current?.imageUrl;
+  const draw = current && current.durationMs > 0 ? Math.max(0, Math.min(1, offset / current.durationMs)) : 0;
+  const formulaSteps = current?.formula ? sketchFormulaSteps(current.formula) : [];
+  const formulaShown = formulaSteps.length ? Math.max(1, Math.ceil(draw * formulaSteps.length)) : 0;
 
   useEffect(() => {
     if (prevSceneRef.current === scene) return;
@@ -349,20 +406,43 @@ export function VideoLessonPlayer({
       <Link href={`/deneme-sinavlari/${prepId}`} className="cp-video-close" aria-label="Kapat">
         <X className="h-5 w-5" aria-hidden />
       </Link>
-      <div ref={frame} className="cp-video-frame">
-        {outgoingUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- imzalı depo adresi
-          <img src={outgoingUrl} alt="" className="cp-video-image is-fade-out" />
-        ) : null}
-        {current ? (
-          // eslint-disable-next-line @next/next/no-img-element -- imzalı depo adresi
-          <img
+      <div className="cp-video-ratio" role="group" aria-label="Görünüm oranı">
+        <button type="button" aria-pressed={ratio === "9:16"} onClick={() => setRatio("9:16")}>
+          📱 Dikey (9:16)
+        </button>
+        <button type="button" aria-pressed={ratio === "16:9"} onClick={() => setRatio("16:9")}>
+          🖥️ Yatay (16:9)
+        </button>
+      </div>
+      <div ref={frame} className={cn("cp-video-frame", ratio === "16:9" ? "is-landscape" : "is-portrait")} data-ratio={ratio}>
+        {sketch && current?.diagram ? (
+          <SketchBoard
             key={scene}
-            src={current.imageUrl}
-            alt=""
-            className={cn("cp-video-image", `is-kb-${scene % 4}`, playing && "is-moving")}
+            title={current.sceneTitle || title}
+            diagram={current.diagram}
+            sceneKey={scene}
+            draw={draw}
+            playing={playing}
+            formulaSteps={formulaSteps}
+            formulaShown={formulaShown}
           />
-        ) : null}
+        ) : (
+          <>
+            {outgoingUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- imzalı depo adresi
+              <img src={outgoingUrl} alt="" className="cp-video-image is-fade-out" />
+            ) : null}
+            {current?.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- imzalı depo adresi
+              <img
+                key={scene}
+                src={current.imageUrl}
+                alt=""
+                className={cn("cp-video-image", `is-kb-${scene % 4}`, playing && "is-moving")}
+              />
+            ) : null}
+          </>
+        )}
         <div className="cp-video-top">
           <p className="cp-video-title">{title}</p>
           <p className="cp-video-meta">
@@ -450,6 +530,67 @@ export function VideoLessonPlayer({
           }
         }}
       />
+    </div>
+  );
+}
+
+function SketchBoard({
+  title,
+  diagram,
+  sceneKey,
+  draw,
+  playing,
+  formulaSteps,
+  formulaShown,
+}: {
+  title: string;
+  diagram: SketchDiagram;
+  sceneKey: number;
+  draw: number;
+  playing: boolean;
+  formulaSteps: string[];
+  formulaShown: number;
+}) {
+  return (
+    <div
+      className={cn("cp-video-board", playing && "is-playing")}
+      style={{ ["--draw" as string]: String(draw) }}
+      data-sketch="reel"
+    >
+      <motion.h2 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+        {title}
+      </motion.h2>
+      <motion.div
+        className="cp-sketch-stage"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45, delay: 0.08 }}
+      >
+        <DiagramCard
+          id={`sketch-${sceneKey}`}
+          card={{
+            type: "diagram_card",
+            diagramKind: diagram.diagramKind,
+            title: diagram.title,
+            ...(diagram.caption ? { caption: diagram.caption } : {}),
+            items: diagram.items,
+          }}
+        />
+      </motion.div>
+      {formulaSteps.length ? (
+        <div className="cp-sketch-formulas">
+          {formulaSteps.map((step, index) => (
+            <motion.p
+              key={`${sceneKey}-${index}`}
+              className={cn("cp-sketch-formula", index < formulaShown ? "is-on" : "is-wait")}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: index < formulaShown ? 1 : 0.18 }}
+              transition={{ duration: 0.3 }}
+              dangerouslySetInnerHTML={{ __html: renderMath(step, true) }}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

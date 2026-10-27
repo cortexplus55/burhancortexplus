@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { createServiceClient } from "@/lib/supabase/server";
 import { audioHash, synthesizeLine } from "@/lib/ai/speech";
+import { PODCAST_TTS_CONCURRENCY, mapWithConcurrency } from "@/lib/learning/podcast-formats";
 import type { SpeakerId } from "@/lib/learning/podcast-script";
 import { env } from "@/lib/env";
 import {
@@ -218,70 +219,50 @@ async function ensureAudio(
     if (cache.has(hashes[index] ?? "")) await emit(index);
   }
 
-  // Tek ayırma tüm senaryoyu kapsar. Sağlayıcıya aynı anda en fazla 8 istek
-  // gider; biten satır bekleyenlerin tamamını beklemeden oynatıcıya yazılır.
-  const concurrency = 8;
-  let cursor = 0;
-  let failed = false;
-
-  async function produceOne() {
-    while (!failed) {
-      const job = missing[cursor];
-      cursor += 1;
-      if (!job) return;
-      // Sağlayıcı bir satırda takılırsa bütün podcast sessiz kalmasın: satır üç kez denenir
-      // (19 Ekim 2026). Yükleme de bir kez daha.
-      const result = await retrying(() => synthesizeLine(job.line.text, job.line.speaker), SYNTH_RETRY_MS);
-      if (!result || failed) {
-        failed = true;
-        return;
-      }
-      const path = `${job.hash.slice(0, 2)}/${job.hash}.mp3`;
-      const upload = () =>
-        service.storage.from(AUDIO_BUCKET).upload(path, result.audio, { contentType: "audio/mpeg", upsert: true });
-      let { error } = await upload();
-      if (error) ({ error } = await upload());
-      if (error || failed) {
-        failed = true;
-        return;
-      }
-      const { error: writeError } = await service.from("lesson_audio").upsert(
-        [{
-          hash: job.hash,
-          storage_path: path,
-          duration_ms: result.durationMs,
-          voice: job.line.speaker,
-          chars: result.chars,
-          last_used_at: new Date().toISOString(),
-        }],
-        { onConflict: "hash" },
-      );
-      if (writeError || failed) {
-        failed = true;
-        return;
-      }
-      cache.set(job.hash, { path, durationMs: result.durationMs });
-      if (userId) {
-        void recordUsage(service, {
-          userId,
-          actionCode: "TTS_SYNTHESIZE",
-          model: env.OPENAI_TTS_MODEL,
-          tokensIn: result.chars,
-          tokensOut: 0,
-        });
-      }
-      for (let index = 0; index < lines.length; index += 1) {
-        if (hashes[index] === job.hash) await emit(index);
-      }
+  // Satırlar sırayla beklenmez: aynı anda PODCAST_TTS_CONCURRENCY (6) ses üretilir.
+  // Biten satır, bekleyenlerin tamamını beklemeden oynatıcıya yazılır.
+  if (missing.length) {
+    try {
+      await mapWithConcurrency(missing, PODCAST_TTS_CONCURRENCY, async (job) => {
+        // Sağlayıcı bir satırda takılırsa satır üç kez denenir (19 Ekim 2026). Yükleme de bir kez daha.
+        const result = await retrying(() => synthesizeLine(job.line.text, job.line.speaker), SYNTH_RETRY_MS);
+        if (!result) throw new Error("speech_failed");
+        const path = `${job.hash.slice(0, 2)}/${job.hash}.mp3`;
+        const upload = () =>
+          service.storage.from(AUDIO_BUCKET).upload(path, result.audio, { contentType: "audio/mpeg", upsert: true });
+        let { error } = await upload();
+        if (error) ({ error } = await upload());
+        if (error) throw new Error("storage_failed");
+        const { error: writeError } = await service.from("lesson_audio").upsert(
+          [{
+            hash: job.hash,
+            storage_path: path,
+            duration_ms: result.durationMs,
+            voice: job.line.speaker,
+            chars: result.chars,
+            last_used_at: new Date().toISOString(),
+          }],
+          { onConflict: "hash" },
+        );
+        if (writeError) throw new Error("cache_write_failed");
+        cache.set(job.hash, { path, durationMs: result.durationMs });
+        if (userId) {
+          void recordUsage(service, {
+            userId,
+            actionCode: "TTS_SYNTHESIZE",
+            model: env.OPENAI_TTS_MODEL,
+            tokensIn: result.chars,
+            tokensOut: 0,
+          });
+        }
+        for (let index = 0; index < lines.length; index += 1) {
+          if (hashes[index] === job.hash) await emit(index);
+        }
+      });
+    } catch {
+      return null;
     }
   }
-
-  if (missing.length) {
-    await Promise.all(
-      Array.from({ length: Math.min(concurrency, missing.length) }, () => produceOne()),
-    );
-  }
-  if (failed) return null;
 
   const resolved = hashes.map((hash) => cache.get(hash));
   if (resolved.some((entry) => !entry || !Number.isFinite(entry.durationMs) || entry.durationMs <= 0)) return null;

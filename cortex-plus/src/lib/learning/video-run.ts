@@ -9,7 +9,12 @@ import { runWithTeacherModel, type AskJson } from "@/lib/learning/teacher-engine
 import {
   VIDEO_FIX_PREFIX,
   VIDEO_VERIFY_SYSTEM,
+  parseSketchScript,
   parseVideoScript,
+  sketchFixUserPrompt,
+  sketchStructureIssues,
+  sketchSystem,
+  sketchVerifySystem,
   speechText,
   videoFixUserPrompt,
   persistVideoStyle,
@@ -18,13 +23,30 @@ import {
   videoSystem,
   videoUserPrompt,
   videoVerifyUserPrompt,
+  type SketchDiagram,
+  type SketchScript,
   type VideoInput,
   type VideoScript,
 } from "@/lib/learning/video-lesson";
 
 /** Bir sahnenin saklanan hâli: anlatım, resim ve ses yolu, sesin süresi. */
 /** keyFact: resmin üstünde büyük yazılan kilit bilgi (18 Ekim 2026; eski videolarda yok). */
-export type StoredVideoScene = { narration: string; imagePath: string; audioPath: string; durationMs: number; keyFact?: string };
+/**
+ * Çizimli özette `imagePath` boştur. `diagram` / `visualSchema` parametrik SVG verisidir.
+ * Eski videolar yalnız resim yolu taşır.
+ */
+export type StoredVideoScene = {
+  narration: string;
+  imagePath: string;
+  audioPath: string;
+  durationMs: number;
+  keyFact?: string;
+  sceneTitle?: string;
+  formula?: string;
+  voice?: "ada" | "kerem";
+  diagram?: SketchDiagram;
+  visualSchema?: SketchDiagram;
+};
 
 type Issue = { scene: number; severity: "high" | "low"; problem: string; fix?: string };
 
@@ -69,6 +91,41 @@ export async function videoScriptLoop(
   if (found.all.length) {
     const fixed = parseVideoScript(
       await ask(VIDEO_FIX_PREFIX + videoSystem(input.mode), videoFixUserPrompt(script, found.all, input)),
+      input.topicLabel,
+    );
+    if (fixed) {
+      script = fixed;
+      found = await review(script);
+    }
+  }
+  return found.high.length ? { script: null, problems: found.high } : { script, problems: [] };
+}
+
+/** Çizimli özet: aynı denetim halkası, resim şeması yok. */
+export async function sketchScriptLoop(
+  ask: AskJson,
+  input: VideoInput,
+): Promise<{ script: SketchScript | null; problems: string[] }> {
+  let script = parseSketchScript(await ask(sketchSystem(input.mode), videoUserPrompt(input)), input.topicLabel);
+  if (!script) return { script: null, problems: ["Senaryo kurulamadı."] };
+  const review = async (draft: SketchScript) => {
+    const structural = sketchStructureIssues(draft);
+    const factual = parseIssues(
+      await ask(sketchVerifySystem(input.mode), `${videoUserPrompt(input)}\n\nSENARYO (JSON):\n${JSON.stringify(draft)}`),
+    );
+    const line = (issue: Issue) => `scenes[${issue.scene}]: ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`;
+    return {
+      high: [
+        ...structural.filter((issue) => issue.severity === "high").map((issue) => issue.problem),
+        ...factual.filter((issue) => issue.severity === "high").map(line),
+      ],
+      all: [...structural.map((issue) => issue.problem), ...factual.map(line)],
+    };
+  };
+  let found = await review(script);
+  if (found.all.length) {
+    const fixed = parseSketchScript(
+      await ask(VIDEO_FIX_PREFIX + sketchSystem(input.mode), sketchFixUserPrompt(script, found.all, input)),
       input.topicLabel,
     );
     if (fixed) {
@@ -130,8 +187,53 @@ async function sceneImage(openai: OpenAI, prompt: string): Promise<{ image: Buff
 }
 
 /**
+ * Çizimli özetin sahneleri. Resim modeli çağrılmaz.
+ * Bütün sahnelerin sesi tek `Promise.all` ile birlikte üretilir.
+ */
+async function synthesizeSketchReel(
+  service: SupabaseClient,
+  input: VideoInput & { userId: string },
+  script: SketchScript,
+  videoId: string,
+): Promise<StoredVideoScene[]> {
+  const base = `video/${input.userId}/${videoId}`;
+  return Promise.all(
+    script.scenes.map(async (scene, index): Promise<StoredVideoScene> => {
+      const voice = await synthesizeLine(speechText(scene.narration), scene.voice);
+      if (!voice) throw new Error("speech_failed");
+      const audioPath = `${base}/scene-${index}.mp3`;
+      const uploaded = await service.storage.from(AUDIO_BUCKET).upload(audioPath, voice.audio, {
+        contentType: "audio/mpeg",
+        upsert: true,
+      });
+      if (uploaded.error) throw new Error("storage_failed");
+      await recordUsage(service, {
+        userId: input.userId,
+        actionCode: "VIDEO_GENERATE",
+        model: env.OPENAI_TTS_MODEL,
+        tokensIn: voice.chars,
+        tokensOut: 0,
+      }).catch(() => undefined);
+      return {
+        narration: scene.narration,
+        imagePath: "",
+        audioPath,
+        durationMs: voice.durationMs,
+        sceneTitle: scene.sceneTitle,
+        voice: scene.voice,
+        diagram: scene.diagram,
+        visualSchema: scene.diagram,
+        ...(scene.formula ? { formula: scene.formula } : {}),
+        ...(scene.keyFact ? { keyFact: scene.keyFact } : {}),
+      };
+    }),
+  );
+}
+
+/**
  * Video ders üretimi: kredi bir kez ayrılır (VIDEO_GENERATE); senaryo, sahne resimleri ve
  * sahne sesleri hazırsa video kaydedilir ve kredi kesinleşir, biri olmazsa iade.
+ * `renderMode: "sketch_reel"` resim modeli çağırmaz.
  */
 export async function runVideoLesson(
   service: SupabaseClient,
@@ -144,6 +246,31 @@ export async function runVideoLesson(
     label: "teacher_video",
     topic: input.topicLabel,
     work: async (ask) => {
+      if (input.renderMode === "sketch_reel") {
+        const { script, problems } = await sketchScriptLoop(ask, input);
+        if (!script) return { ok: false, reasons: problems };
+        const videoId = crypto.randomUUID();
+        const scenes = await synthesizeSketchReel(service, input, script, videoId);
+        const row = {
+          id: videoId,
+          user_id: input.userId,
+          exam_prep_id: input.prepId,
+          topic_id: input.topicId,
+          topic_label: input.topicLabel,
+          title: script.title,
+          scenes,
+          duration_ms: scenes.reduce((sum, scene) => sum + scene.durationMs, 0),
+        };
+        let { error } = await service.from("prep_videos").insert({ ...row, style: "sketch_reel" });
+        // Göç `20261027190000` uygulanmadan CHECK sketch_reel'i reddeder. Sahne şeması kaydı çizimli tutar.
+        const message = `${error?.code ?? ""} ${error?.message ?? ""}`;
+        if (error && /23514|style_check|check constraint/i.test(message)) {
+          ({ error } = await service.from("prep_videos").insert({ ...row, style: "whiteboard" }));
+        }
+        if (error) return { ok: false, reasons: ["save_failed"] };
+        return { ok: true, result: videoId, log: { scenes: scenes.length, renderMode: "sketch_reel" } };
+      }
+
       const { script, problems } = await videoScriptLoop(ask, input);
       if (!script) return { ok: false, reasons: problems };
 

@@ -52,7 +52,7 @@ import {
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
-import { STUDY_PATH_HINT, nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, type StudyToolGroup } from "@/lib/learning/study-tools";
+import { STUDY_PATH_HINT, nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, studySketchVideoHref, type StudyToolGroup } from "@/lib/learning/study-tools";
 import { chooseStudyNode } from "@/lib/learning/choose-study-node";
 import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
@@ -732,6 +732,8 @@ export function ExamPrepHome({
             readinessClaim={readinessClaim}
             examDate={examDate}
             pathOrigin={pathOriginDay(createdAt)}
+            prepId={prepId}
+            topics={topicOptions}
           />
           <section className="cp-prep-goal" aria-label="Hazırlık düzeyi">
             <h2>Gerçek sınavda nasıl yapacağını merak ediyor musun?</h2>
@@ -1093,6 +1095,8 @@ function PathSections({
   readinessClaim,
   examDate = null,
   pathOrigin,
+  prepId,
+  topics = [],
 }: {
   nodes: HomeNode[];
   lead?: HomeNode | null;
@@ -1103,6 +1107,8 @@ function PathSections({
   readinessClaim: boolean | null;
   examDate?: string | null;
   pathOrigin: string;
+  prepId: string;
+  topics?: { id: string; label: string }[];
 }) {
   const today = pathOriginDay(null);
   const dated = useMemo(
@@ -1138,6 +1144,11 @@ function PathSections({
           pathOrigin,
           today,
         );
+        const topicId =
+          section.nodes.find((node) => node.sessionMeta?.topicId)?.sessionMeta?.topicId ||
+          topics.find((topic) => topic.label.trim().toLocaleLowerCase("tr-TR") === section.title.trim().toLocaleLowerCase("tr-TR"))?.id ||
+          "";
+        const sketchHref = topicId ? studySketchVideoHref(prepId, section.title, topics.some((topic) => topic.id === topicId) ? topics : [...topics, { id: topicId, label: section.title }]) : "";
         return (
           <section
             key={section.id}
@@ -1165,6 +1176,11 @@ function PathSections({
               </span>
               <ChevronDown className={cn("cp-path-section-chevron", open && "is-open")} aria-hidden />
             </button>
+            {sketchHref ? (
+              <Link href={sketchHref} className="cp-path-sketch">
+                🎬 1 Dk Çizimli Video Özeti
+              </Link>
+            ) : null}
             {open ? (
               <StudyPath
                 nodes={section.nodes}

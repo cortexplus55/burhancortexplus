@@ -12,7 +12,7 @@ export type PathSectionNode = {
   kind: PlanNodeKind;
   sortOrder: number;
   status: string;
-  sessionMeta?: { topicTitle?: string | null; adaptive?: unknown } | null;
+  sessionMeta?: { topicTitle?: string | null; topicId?: string | null; adaptive?: unknown } | null;
 };
 
 export type PathSection<T extends PathSectionNode> = {

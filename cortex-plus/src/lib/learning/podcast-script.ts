@@ -271,6 +271,18 @@ export function wordTimings(text: string, durationMs: number): TimedWord[] {
 }
 
 /** Cümle içindeki `ms` anına denk gelen kelime; hiçbiri yoksa -1. */
+/**
+ * Aktif satırda okunan kelime. `progress = currentTime / duration`,
+ * `activeWordIndex = floor(progress * words.length)`.
+ */
+export function karaokeWordIndex(text: string, currentTime: number, duration: number): number {
+  const words = text.split(/\s+/).filter((word) => word.length > 0);
+  if (!words.length || !(duration > 0)) return -1;
+  const progress = currentTime / duration;
+  if (!Number.isFinite(progress) || progress <= 0) return 0;
+  return Math.min(words.length - 1, Math.floor(progress * words.length));
+}
+
 export function wordAt(words: TimedWord[], ms: number): number {
   if (ms < 0) return -1;
   for (let i = 0; i < words.length; i += 1) {

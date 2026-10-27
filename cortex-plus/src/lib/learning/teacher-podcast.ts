@@ -9,6 +9,8 @@ import {
 import {
   DUO_NARRATOR_SCHEMA,
   DUO_TURN_RULE,
+  FABRICATED_MEMORY,
+  NO_FABRICATED_MEMORY_RULE,
   KEREM_SHARE_MAX,
   KEREM_SHARE_MIN,
   SPOKEN_ONLY_RULE,
@@ -202,6 +204,7 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     "- Formülü ve üssü simgeyle yaz (H₂O, 10²³, n = m/M); ondalık virgül kullan.\n\n" +
     // 20 Ekim 2026: Kerem bir podcast'te dört kez "Notlarındaki örnekte …" dedi. Kod da yakalar
     // (`podcastStructureIssues`, düzeltme turuna yollar); burada yazara söylenir.
+    `${NO_FABRICATED_MEMORY_RULE}\n` +
     "YAZMA: 'Kaynak:', sayfa numarası, 'PDF', 'belgede yazdığı gibi', 'belgende yazan', 'notlarında', 'notlarındaki', " +
     "'notlarına göre', iç not. Bilgiyi kaynağa değil konuya bağla ('Notlarındaki örnekte 9 ayda…' değil, " +
     "'9 aylık bir bebek…'). Kuralları ve yazım notlarını konuşmaya koyma ('Evet yerine …', 'tabloyu okumadan …' gibi). " +
@@ -397,6 +400,15 @@ export function podcastStructureIssues(episode: PodcastEpisode): string[] {
   if (lines.some((line) => /kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b/i.test(line.text))) {
     issues.push("Metinde kaynak/sayfa notu var; çıkar.");
   }
+  episode.chapters.forEach((chapter, chapterIndex) => {
+    chapter.lines.forEach((line, lineIndex) => {
+      if (FABRICATED_MEMORY.test(line.text)) {
+        issues.push(
+          `chapters[${chapterIndex}].lines[${lineIndex}]: uydurma kişisel anı; konuşmacının hayatı değil, konunun kuralı.`,
+        );
+      }
+    });
+  });
   // Satır numarası bilerek yok: kurtarma satır numarasını silme sayar, bu cümle çoğu zaman gerçek
   // bir bilgi taşıyor ("Notlarındaki örnekte 9 ayda desteksiz oturur"). Yalnız düzeltme turuna gider.
   const attributed = lines.filter((line) => ATTRIBUTION.test(line.text)).slice(0, 3);
@@ -536,6 +548,9 @@ export function podcastLineProblems(episode: PodcastEpisode): { chapter: number;
       }
       if (auditQuantitative(line.text, "").issues.some((issue) => issue.kind === "arithmetic")) {
         out.push({ chapter: chapterIndex, line: lineIndex, reason: "tutmayan hesap" });
+      }
+      if (FABRICATED_MEMORY.test(line.text)) {
+        out.push({ chapter: chapterIndex, line: lineIndex, reason: "uydurma kişisel anı" });
       }
     });
   });

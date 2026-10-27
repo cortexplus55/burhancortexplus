@@ -894,6 +894,15 @@
   border-color: rgba(52, 211, 183, 0.8);
 }
 
+.ls-pod-line .cp-pod-word.is-spoken {
+  color: #f7f7f7;
+}
+
+.ls-pod-line .cp-pod-word.is-current-word {
+  color: #f4ae0b;
+  font-weight: 700;
+}
+
 .ls-timer-ring {
   display: grid;
   place-items: center;

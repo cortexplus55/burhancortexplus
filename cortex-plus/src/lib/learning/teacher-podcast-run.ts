@@ -9,6 +9,7 @@ import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { balanceKerem, podcastWordCount, type PodcastEpisode } from "@/lib/learning/podcast-episode";
+import { PODCAST_TTS_CONCURRENCY } from "@/lib/learning/podcast-formats";
 import {
   closerToBand,
   DURATION_ROUND_TIMEOUT_MS,
@@ -351,6 +352,7 @@ async function runTeacherPodcastInner(
       topic: input.topicLabel.slice(0, 80),
       length: input.length,
       mode: input.mode ?? "document",
+      ttsConcurrency: PODCAST_TTS_CONCURRENCY,
       drafts: loop.drafts,
       problems: loop.problems.length,
       salvaged: loop.salvaged,

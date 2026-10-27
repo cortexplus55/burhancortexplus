@@ -6866,9 +6866,15 @@
   color: #d5dbe6;
 }
 
-.cp-pod-word.is-now {
-  color: #f0b429;
-  font-weight: 650;
+.cp-pod-word.is-now,
+.cp-pod-word.is-current-word {
+  color: #f4ae0b;
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(244, 174, 11, 0.45);
+}
+
+.cp-pod-word.is-spoken {
+  color: #f7f7f7;
 }
 
 .cp-pod-said.is-line {
@@ -10787,6 +10793,20 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.cp-path-sketch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  margin: 0 0.85rem 0.55rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(67, 83, 243, 0.16);
+  color: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-decoration: none;
 }
 
 .cp-path-section-copy {
