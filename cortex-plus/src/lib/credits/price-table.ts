@@ -39,6 +39,8 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
    * işin büyük kısmı (Astra: "Aylık limitinden daha fazlasını kullanır"); yalnız Plus.
    */
   VIDEO_GENERATE: { credits: 280, per: "video ders" },
+  /** Çizimli özet resim modeli çağırmaz; senaryo + şema + ses (27 Ekim 2026). */
+  SKETCH_VIDEO_GENERATE: { credits: 25, per: "çizimli video" },
   EXPORT_PDF: { credits: 0, per: "dışa aktarma" },
   /** 19 Ekim 2026: 2 → 15 (ölçülen maliyet 900 karakter ≈ $0,015; göç 20261019130000). */
   AUDIO_SYNTHESIZE: { credits: 15, per: "900 karakter" },

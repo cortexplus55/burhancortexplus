@@ -209,7 +209,7 @@ async function synthesizeSketchReel(
       if (uploaded.error) throw new Error("storage_failed");
       await recordUsage(service, {
         userId: input.userId,
-        actionCode: "VIDEO_GENERATE",
+        actionCode: "SKETCH_VIDEO_GENERATE",
         model: env.OPENAI_TTS_MODEL,
         tokensIn: voice.chars,
         tokensOut: 0,
@@ -231,17 +231,18 @@ async function synthesizeSketchReel(
 }
 
 /**
- * Video ders üretimi: kredi bir kez ayrılır (VIDEO_GENERATE); senaryo, sahne resimleri ve
- * sahne sesleri hazırsa video kaydedilir ve kredi kesinleşir, biri olmazsa iade.
- * `renderMode: "sketch_reel"` resim modeli çağırmaz.
+ * Video ders üretimi: kredi bir kez ayrılır. Resimli video VIDEO_GENERATE (280).
+ * Çizimli özet SKETCH_VIDEO_GENERATE (25): sahne resmi yok. Senaryo ve ses hazırsa
+ * kredi kesinleşir, biri olmazsa iade.
  */
 export async function runVideoLesson(
   service: SupabaseClient,
   input: VideoInput & { userId: string; prepId: string; topicId: string | null; idempotencyKey: string },
 ): Promise<{ ok: true; videoId: string } | { ok: false; status: number; error: string; reasons: string[] }> {
+  const sketch = input.renderMode === "sketch_reel";
   const outcome = await runWithTeacherModel(service, {
     userId: input.userId,
-    actionCode: "VIDEO_GENERATE",
+    actionCode: sketch ? "SKETCH_VIDEO_GENERATE" : "VIDEO_GENERATE",
     idempotencyKey: input.idempotencyKey,
     label: "teacher_video",
     topic: input.topicLabel,

@@ -24,6 +24,8 @@ export const FOUNDER_ACTION_LABELS: Record<string, string> = {
   STUDY_PLAN_GENERATE: "Ders ve içerik üretimi",
   EXPORT_PDF: "PDF dışa aktarma",
   AUDIO_SYNTHESIZE: "Seslendirme",
+  VIDEO_GENERATE: "Video ders",
+  SKETCH_VIDEO_GENERATE: "Çizimli video",
 };
 
 export function founderActionLabel(code: string | null | undefined): string {

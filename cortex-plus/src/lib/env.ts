@@ -205,4 +205,6 @@ export type ActionCode =
   | "VOICE_TURN"
   | "DOCUMENT_SCAN_PAGE"
   /** Video ders (17 Ekim 2026): senaryo + sahne resimleri + seslendirme. */
-  | "VIDEO_GENERATE";
+  | "VIDEO_GENERATE"
+  /** Çizimli 1 dk video: şema + ses. Sahne resmi yok (27 Ekim 2026). */
+  | "SKETCH_VIDEO_GENERATE";

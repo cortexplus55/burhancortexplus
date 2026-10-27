@@ -10,6 +10,8 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: v
 
 import { ExamPrepHome } from "@/components/parity/exam-prep-home";
 import { VideoLessonPlayer } from "@/components/parity/video-lesson";
+import { PLUS_ONLY_ACTIONS } from "@/lib/billing/free-meters";
+import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { freeActivityPick, studySketchVideoHref } from "@/lib/learning/study-tools";
 import {
   parseSketchScript,
@@ -78,6 +80,11 @@ describe("paket 2 çizimli video", () => {
     expect(body).not.toContain("gpt-image");
     expect(source).toContain('renderMode === "sketch_reel"');
     expect(source).toContain('style: "sketch_reel"');
+    expect(source).toContain('sketch ? "SKETCH_VIDEO_GENERATE" : "VIDEO_GENERATE"');
+    expect(CREDIT_PRICE_TABLE.VIDEO_GENERATE.credits).toBe(280);
+    expect(CREDIT_PRICE_TABLE.SKETCH_VIDEO_GENERATE.credits).toBe(25);
+    expect(PLUS_ONLY_ACTIONS).toContain("SKETCH_VIDEO_GENERATE");
+    expect(read("supabase/migrations/20261027193000_sketch_video_credits.sql")).toContain("('SKETCH_VIDEO_GENERATE', 25,");
   });
 
   it("oynatıcı çizimli sahneyi 9:16 ve 16:9 arasında değiştirir", () => {
