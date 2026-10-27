@@ -27,14 +27,47 @@ export type ProgressNode = {
   sessionMeta?: { topicTitle?: string; durationMinutes?: number } | null;
 };
 
+export type SolvedQuestion = {
+  /** Konusu yazılıysa sayaç o konuya gider; yoksa düğümün konusuna. */
+  topic: string | null;
+  key: string;
+};
+
+function questionText(row: unknown): string {
+  if (!row || typeof row !== "object") return "";
+  const bag = row as { text?: unknown; prompt?: unknown };
+  const text = typeof bag.text === "string" ? bag.text : typeof bag.prompt === "string" ? bag.prompt : "";
+  return text.trim();
+}
+
+/** Quiz kökü, sözlü sorusu ve doğru/yanlış maddesi. Yüzde paydası (100) soru değildir. */
 export function attemptStems(payload: unknown): string[] {
+  return solvedQuestions(payload).map((item) => item.key);
+}
+
+function rowTopic(row: unknown): string | null {
+  if (!row || typeof row !== "object") return null;
+  const topic = (row as { topic?: unknown }).topic;
+  return typeof topic === "string" && topic.trim() ? topic.trim() : null;
+}
+
+export function solvedQuestions(payload: unknown): SolvedQuestion[] {
   if (!payload || typeof payload !== "object") return [];
-  const questions = (payload as { questions?: unknown }).questions;
-  if (!Array.isArray(questions)) return [];
-  return questions.flatMap((row) => {
-    if (!row || typeof row !== "object") return [];
-    const text = (row as { text?: unknown }).text;
-    return typeof text === "string" && text.trim() ? [text.trim()] : [];
+  const data = payload as { type?: unknown; questions?: unknown; items?: unknown };
+  if (data.type === "mock_exam" && Array.isArray(data.items)) {
+    return data.items.map((row, index) => ({
+      topic: rowTopic(row),
+      key: `mock:${index}:${rowTopic(row) ?? ""}`,
+    }));
+  }
+  const rows = [
+    ...(Array.isArray(data.questions) ? data.questions : []),
+    ...(Array.isArray(data.items) ? data.items : []),
+  ];
+  return rows.flatMap((row) => {
+    const text = questionText(row);
+    if (!text) return [];
+    return [{ topic: rowTopic(row), key: text }];
   });
 }
 
@@ -45,6 +78,8 @@ export type ProgressAttempt = {
   createdAt: string;
   /** Varsa aynı soru kökü bir kez sayılır. */
   stems?: string[];
+  /** Konusu belli sorular. Yazılı denemenin 100'lük paydası burada sayılmaz. */
+  solved?: SolvedQuestion[];
 };
 
 export type ProgressGap = {
@@ -78,6 +113,8 @@ export type PrepProgressView = {
     gainPerLessonPct: number;
     lessonsToTarget: number;
     perDay: number | null;
+    /** `Math.ceil(kalanDers / günlükDers)` — grafikteki "~X günde" ile aynı. */
+    daysToFinish: number | null;
     todayLessons: number;
   } | null;
   /** En az bir etkinlik puanlandı: "eksik yok" artık bir ölçüm sonucudur, boşluk değil. */
@@ -130,19 +167,47 @@ const SOLVED_KINDS = new Set<PlanNodeKind>([
   "qa",
 ]);
 
-/** Soru üreten düğümlerin son oturumu. Ders, kart ve podcast "çözüldü"ye girmez. Aynı kök bir kez sayılır. */
-function uniqueSolved(attempts: ProgressAttempt[], ids: Set<string>, nodes: Map<string, ProgressNode>): number {
+function sameTopic(left: string | null | undefined, right: string | null | undefined): boolean {
+  const a = (left ?? "").trim().toLocaleLowerCase("tr");
+  const b = (right ?? "").trim().toLocaleLowerCase("tr");
+  return Boolean(a) && a === b;
+}
+
+/**
+ * Soru üreten düğümlerin son oturumu. Ders, kart ve podcast "çözüldü"ye girmez.
+ * Aynı kök bir kez sayılır. Yazılı deneme ve sözlüdeki 100'lük yüzde paydası soru sayısı değildir.
+ * Deneme maddesi, düğümün konusuna değil maddenin kendi konusuna yazılır.
+ */
+function uniqueSolved(
+  attempts: ProgressAttempt[],
+  ids: Set<string>,
+  nodes: Map<string, ProgressNode>,
+  topicLabel: string,
+): number {
   const latest = new Map<string, ProgressAttempt>();
   for (const attempt of attempts) {
-    if (!ids.has(attempt.nodeId)) continue;
     const prev = latest.get(attempt.nodeId);
     if (!prev || Date.parse(attempt.createdAt) >= Date.parse(prev.createdAt)) latest.set(attempt.nodeId, attempt);
   }
   const seen = new Set<string>();
   let count = 0;
   for (const attempt of latest.values()) {
-    const kind = nodes.get(attempt.nodeId)?.kind;
+    const node = nodes.get(attempt.nodeId);
+    const kind = node?.kind;
     if (kind && !SOLVED_KINDS.has(kind)) continue;
+    const onTopicNode = ids.has(attempt.nodeId);
+    const solved = attempt.solved ?? [];
+    if (solved.length) {
+      for (const item of solved) {
+        const belongs = item.topic ? sameTopic(item.topic, topicLabel) : onTopicNode;
+        const key = item.key.trim().toLocaleLowerCase("tr");
+        if (!belongs || !key || seen.has(key)) continue;
+        seen.add(key);
+        count += 1;
+      }
+      continue;
+    }
+    if (!onTopicNode) continue;
     const stems = attempt.stems ?? [];
     if (stems.length) {
       for (const stem of stems) {
@@ -153,7 +218,8 @@ function uniqueSolved(attempts: ProgressAttempt[], ids: Set<string>, nodes: Map<
       }
       continue;
     }
-    count += Math.max(0, attempt.total ?? 0);
+    const total = attempt.total ?? 0;
+    if (total > 0 && total !== 100) count += total;
   }
   return count;
 }
@@ -209,15 +275,16 @@ export function buildPrepProgressView(input: {
   const topics = labels.map((label) => {
     const topicNodes = input.nodes.filter((node) => topicOf(node) === label);
     const ids = new Set(topicNodes.map((node) => node.id));
-    const solved = uniqueSolved(completed, ids, nodeById);
-    const scored = completed.filter((attempt) => ids.has(attempt.nodeId) && (attempt.total ?? 0) > 0);
+    const solved = uniqueSolved(completed, ids, nodeById, label);
+    const scored = completed.filter((attempt) => ids.has(attempt.nodeId) && (attempt.total ?? 0) > 0 && attempt.total !== 100);
     const earned = scored.reduce((sum, attempt) => sum + Math.max(0, attempt.score ?? 0), 0);
     const possible = scored.reduce((sum, attempt) => sum + (attempt.total ?? 0), 0);
     const accuracy = possible > 0 ? Math.round((earned / possible) * 100) : null;
     const mastery = input.topicMastery?.find((row) => row.label === label);
+    const masteryPct = typeof mastery?.confidence === "number" ? Math.round(mastery.confidence) : null;
     return {
       label,
-      pct: accuracy ?? (typeof mastery?.confidence === "number" ? Math.round(mastery.confidence) : 0),
+      pct: masteryPct ?? accuracy ?? 0,
       solved,
       lessons: topicNodes.filter((node) => LESSON_KINDS.has(node.kind)).length,
     };
@@ -247,46 +314,21 @@ export function buildPrepProgressView(input: {
 
   const weekActivities = tempoWeeks[WEEK_COUNT - 1].activities;
 
-  // Sınav günü tahmini: yalnızca tamamlama temposundan, açıkça öyle yazarak.
-  let forecast: PrepProgressView["forecast"];
-  const total = input.nodes.length;
-  const done = input.nodes.filter((node) => node.status === "done").length;
   const examTime = input.examDate ? Date.parse(input.examDate) : Number.NaN;
-  if (lessonsDone < FORECAST_MIN_LESSONS) {
-    forecast = {
-      kind: "waiting",
-      reason: "İlerleme eğilimin ve tahminin, bu hazırlıktaki ilk dersten sonra görünür.",
-    };
-  } else if (!Number.isFinite(examTime)) {
-    forecast = { kind: "waiting", reason: "Sınav tarihi girilince tahmin görünür." };
-  } else {
-    const recent = completed.filter((attempt) => {
-      const time = Date.parse(attempt.createdAt);
-      return Number.isFinite(time) && now - time <= 14 * DAY_MS;
-    }).length;
-    const perDay = recent / 14;
-    const daysLeft = Math.max(0, Math.ceil((examTime - now) / DAY_MS));
-    const projected = Math.min(total, done + Math.round(perDay * daysLeft));
-    const projectedPct = pct(projected, total);
-    forecast = {
-      kind: "ready",
-      pct: projectedPct,
-      text: `Son iki haftanın temposu sürerse sınav günü çalışma yolunda %${projectedPct} tamamlanmış olur.`,
-    };
-  }
-
-  // Tempo kartı: ölçülen puanı biten derse bölerek "bir ders yaklaşık +%X"; hedefe kalan puan /
-  // kazanç = kaç ders; sınav tarihi varsa günde kaç. Astra'daki kartın karşılığı, aynı sayılarla.
   const daysToExam = Number.isFinite(examTime) ? Math.max(1, Math.ceil((examTime - now) / DAY_MS)) : null;
   const gainPerLessonPct = lessonsDone > 0 && scorePct > 0 ? Math.max(1, Math.round(scorePct / lessonsDone)) : 0;
   const pace: PrepProgressView["pace"] =
     gainPerLessonPct > 0
       ? (() => {
           const lessonsToTarget = Math.max(0, Math.ceil(Math.max(0, targetPct - scorePct) / gainPerLessonPct));
+          const perDay = daysToExam ? Math.ceil(lessonsToTarget / daysToExam) : lessonsToTarget > 0 ? 1 : null;
+          const daily = perDay && perDay > 0 ? perDay : lessonsToTarget > 0 ? 1 : null;
+          const daysToFinish = lessonsToTarget === 0 ? 0 : daily ? Math.ceil(lessonsToTarget / daily) : null;
           return {
             gainPerLessonPct,
             lessonsToTarget,
-            perDay: daysToExam ? Math.ceil(lessonsToTarget / daysToExam) : null,
+            perDay,
+            daysToFinish,
             // Ayrı ders sayısı: aynı dersin tekrar kayıtları bir kez sayılır — kahraman alanındaki
             // "1 ders tamamlandı" ile çelişmesin (canlıda "Bugün 4 ders" çıkmıştı, 19 Ekim 2026).
             todayLessons: new Set(
@@ -301,6 +343,40 @@ export function buildPrepProgressView(input: {
           };
         })()
       : null;
+
+  // Tahmin hazırlık yüzdesinden başlar. Gün sayısı tempo kartıyla aynı bölme: kalan ders / günde ders.
+  let forecast: PrepProgressView["forecast"];
+  if (lessonsDone < FORECAST_MIN_LESSONS) {
+    forecast = {
+      kind: "waiting",
+      reason: "İlerleme eğilimin ve tahminin, bu hazırlıktaki ilk dersten sonra görünür.",
+    };
+  } else if (!Number.isFinite(examTime)) {
+    forecast = { kind: "waiting", reason: "Sınav tarihi girilince tahmin görünür." };
+  } else if (!pace || pace.daysToFinish == null) {
+    forecast = {
+      kind: "ready",
+      pct: scorePct,
+      text: `Hazırlık %${scorePct}. Hedefin %${targetPct}.`,
+    };
+  } else if (pace.daysToFinish === 0 || scorePct >= targetPct) {
+    forecast = {
+      kind: "ready",
+      pct: scorePct,
+      text: `Hazırlık %${scorePct}. Hedefin %${targetPct}.`,
+    };
+  } else {
+    const daysLeft = daysToExam ?? pace.daysToFinish;
+    const span = Math.max(1, pace.daysToFinish);
+    const projected = Math.round(
+      Math.min(targetPct, scorePct + ((targetPct - scorePct) * Math.min(daysLeft, span)) / span),
+    );
+    forecast = {
+      kind: "ready",
+      pct: projected,
+      text: `Bu tempoyla yaklaşık ${pace.daysToFinish} günde hazırlık %${projected} olur. ${pace.lessonsToTarget} ders, günde ${pace.perDay}.`,
+    };
+  }
   const gapsMeasured = completed.some((attempt) => (attempt.total ?? 0) > 0);
 
   const mocks = completed
@@ -328,22 +404,9 @@ export function buildPrepProgressView(input: {
     forecastSeries: buildReadinessForecastSeries({
       currentPct: scorePct,
       targetPct,
-      gainPerDay:
-        gainPerLessonPct > 0
-          ? Math.min(
-              6,
-              Math.max(
-                0.2,
-                gainPerLessonPct *
-                  (completed.filter((attempt) => {
-                    const time = Date.parse(attempt.createdAt);
-                    return Number.isFinite(time) && now - time <= 14 * DAY_MS;
-                  }).length /
-                    14),
-              ),
-            )
-          : 0.15,
+      gainPerDay: gainPerLessonPct > 0 ? Math.min(6, gainPerLessonPct) : 0,
       daysRemaining: daysToExam,
+      daysToTarget: pace?.daysToFinish ?? null,
     }),
     pace,
     gapsMeasured,

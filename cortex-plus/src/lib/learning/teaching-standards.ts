@@ -2501,6 +2501,14 @@ export function lessonMissDrafts(input: {
 }
 
 /** Aralıklı tekrar destesinin sonuna eklenecek kartlar. Aynı yüz iki kez girmez. */
+function reviewTopicKey(value: string | null | undefined): string {
+  return (value ?? "").trim().toLocaleLowerCase("tr").replace(/\s+/g, " ");
+}
+
+/**
+ * `topicLabel` verilirse yalnız o konunun dersinde kaçırılan sorular karta döner; konusu yazılmamış
+ * satır da girmez. K4'te kaçırılan soru K5–K8'in kart düğümüne eklenmesin.
+ */
 export function cardsFromLessonReviews(
   rows: {
     question_preview?: string | null;
@@ -2509,13 +2517,18 @@ export function cardsFromLessonReviews(
     claim?: string | null;
     source_kind?: string | null;
     sourceKind?: string | null;
+    topic_label?: string | null;
+    topicLabel?: string | null;
   }[],
+  topicLabel?: string | null,
 ): LessonReviewCard[] {
   const cards: LessonReviewCard[] = [];
   const seen = new Set<string>();
+  const wanted = reviewTopicKey(topicLabel);
   for (const row of rows) {
     const kind = row.sourceKind ?? row.source_kind;
     if (kind && kind !== "lesson_review") continue;
+    if (wanted && reviewTopicKey(row.topicLabel ?? row.topic_label) !== wanted) continue;
     const front = (row.questionPreview ?? row.question_preview ?? "").trim();
     const back = (row.corrected ?? row.claim ?? "").trim();
     if (front.length < 8 || back.length < 2) continue;

@@ -101,6 +101,45 @@ const PROMPT = [
   `Görselde okunacak hiçbir yazı yoksa yalnızca ${NO_TEXT} yaz.`,
 ].join(" ");
 
+/**
+ * Slayt, Word resmi ve metin katmanı olan PDF sayfasındaki şekil.
+ * Kısa koordinat listesi de geçerlidir; 40 karakter eşiği burada yok.
+ */
+export const FIGURE_READ_PROMPT = [
+  "Bu görsel bir ders sayfası, slayt veya şekildir.",
+  "Gördüğün yazıyı aktar.",
+  "Bu sayfadaki tüm grafiklerin eksen kesişimlerini, f(x) ve g(x) gibi fonksiyonların işaretli tüm (x, y) koordinat çiftlerini, küme eşleme oklarını (1 → b gibi), şema ve harita etiketlerini ve tablo sayılarını tek tek, hatasız listele.",
+  "Görmediğin sayıyı, noktayı veya oku yazma.",
+  "Şekil görünmüyor, görünmediği için belirlenemez, sayı uydurma gibi cümle yazma.",
+  "Markdown, kod bloğu veya ``` kullanma; düz metin yaz.",
+  `Okunacak hiçbir yazı, sayı veya etiket yoksa yalnızca ${NO_TEXT} yaz.`,
+].join(" ");
+
+export const FIGURE_APPENDIX_LABEL = "Şekilde işaretli değerler:";
+
+/** Şekil okumasından mazeret cümlesini düşürür. Değer kalmazsa boş döner. */
+export function figureTranscript(raw: string): string | null {
+  const cleaned = cleanOcrPageText(raw);
+  if (!cleaned || isNoTextOcrResponse(cleaned)) return null;
+  const kept = cleaned
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence && !/görünmediği için|burada görünmedi/i.test(sentence))
+    .join("\n")
+    .trim();
+  if (!kept || isNoTextOcrResponse(kept)) return null;
+  return kept;
+}
+
+/** Metin katmanının sonuna şekil okumasını ekler. Boş okuma sayfayı değiştirmez. */
+export function appendFigureTranscript(page: string, transcript: string | null | undefined): string {
+  const body = transcript?.trim() ?? "";
+  if (!body) return page;
+  const block = `${FIGURE_APPENDIX_LABEL}\n${body}`;
+  const base = page.trim();
+  return base ? `${base}\n\n${block}` : block;
+}
+
 type Attempt = { text: string | null; tokensIn: number; tokensOut: number; rateLimited: boolean };
 
 /** Bir modelin harcadığı jetonlar; kullanım kaydı model başına bir satır. */
@@ -177,6 +216,8 @@ async function readWith(
   model: string,
   dataUrl: string,
   deadlineMs: number,
+  prompt: string,
+  accept: (raw: string) => string | null,
 ): Promise<Attempt> {
   let rateLimited = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -192,7 +233,7 @@ async function readWith(
             {
               role: "user",
               content: [
-                { type: "text", text: PROMPT },
+                { type: "text", text: prompt },
                 { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
               ],
             },
@@ -204,9 +245,7 @@ async function readWith(
       const tokensIn = completion.usage?.prompt_tokens ?? 0;
       const tokensOut = completion.usage?.completion_tokens ?? 0;
       const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-      const cleaned = cleanOcrPageText(raw);
-      const usable = isUsableOcrText(cleaned);
-      return { text: usable ? cleaned : null, tokensIn, tokensOut, rateLimited };
+      return { text: accept(raw), tokensIn, tokensOut, rateLimited };
     } catch (error) {
       if (!isRateLimitError(error)) break;
       rateLimited = true;
@@ -250,7 +289,7 @@ export type ImageReadResult = {
 export async function extractImageText(
   buffer: Buffer,
   mimeType: string,
-  options?: { deadlineMs?: number; scanOrdinal?: number },
+  options?: { deadlineMs?: number; scanOrdinal?: number; purpose?: "page" | "figure" },
 ): Promise<ImageReadResult> {
   const empty = { pages: [], ok: false as const, model: null, tokensIn: 0, tokensOut: 0, usage: [] };
   if (!env.OPENAI_API_KEY) return { ...empty, reason: "not_configured" };
@@ -287,7 +326,19 @@ export async function extractImageText(
     // Skip expensive fallback when the step deadline is near.
     if (i > 0 && Date.now() + 25_000 >= pageDeadlineMs) break;
     if (Date.now() >= pageDeadlineMs) break;
-    const attempt = await readWith(openai, model, dataUrl, pageDeadlineMs);
+    const purpose = options?.purpose ?? "page";
+    const attempt = await readWith(
+      openai,
+      model,
+      dataUrl,
+      pageDeadlineMs,
+      purpose === "figure" ? FIGURE_READ_PROMPT : PROMPT,
+      (raw) => {
+        if (purpose === "figure") return figureTranscript(raw);
+        const cleaned = cleanOcrPageText(raw);
+        return isUsableOcrText(cleaned) ? cleaned : null;
+      },
+    );
     if (attempt.tokensIn || attempt.tokensOut) {
       usage.push({ model, tokensIn: attempt.tokensIn, tokensOut: attempt.tokensOut });
     }

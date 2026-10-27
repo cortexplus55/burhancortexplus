@@ -13,6 +13,7 @@ import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } fro
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
   dropRepeatedChecks,
+  dropRepeatedScreens,
   isCoverageIssue,
   lessonCompletionGaps,
   lessonLevelStructureIssues,
@@ -301,7 +302,7 @@ export async function teacherLessonPipeline(
         }
         if (outcome.closing) publishedClosing = outcome.closing;
         // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026).
-        const fresh = dropRepeatedChecks(published, outcome.screens);
+        const fresh = dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens));
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
           await options.onPublish({
@@ -367,8 +368,24 @@ export async function teacherLessonPipeline(
         () => undefined,
       );
       const repaired = parseTeacherLesson(parseModelJson(again.text), input.upcomingTopics);
-      if (repaired && repaired.screens.length >= finished.screens.length && lessonCompletionGaps(repaired).length < gaps.length) {
-        delivered = repaired;
+      if (repaired) {
+        // Öğrenci yayımlanan ekranları karışık şık sırasıyla görüp cevapladı; onarım yalnız sona ekler.
+        // Dersi onarımla değiştirmek şık sırasını sıfırlıyor, doğru cevap yanlış sayılıyordu (V6).
+        const extra = dropRepeatedScreens(
+          published,
+          dropRepeatedChecks(published, repaired.screens.slice(finished.screens.length)),
+        );
+        const merged: LessonV3 = {
+          ...finished,
+          screens: [
+            ...finished.screens,
+            ...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: extra }).screens,
+          ],
+          commonMistake: finished.commonMistake ?? repaired.commonMistake,
+          summary: finished.summary ?? repaired.summary,
+          nextFocus: finished.nextFocus ?? repaired.nextFocus,
+        };
+        if (lessonCompletionGaps(merged).length < gaps.length) delivered = merged;
       }
     }
     const done = !lessonLevelStructureIssues(delivered, input).some(isCoverageIssue);

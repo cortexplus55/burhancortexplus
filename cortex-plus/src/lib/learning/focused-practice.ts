@@ -240,6 +240,33 @@ function fold(text: string): string {
   return text.trim().toLocaleLowerCase("tr").replace(/\s+/g, " ");
 }
 
+/** Odaklı pratik çoktan seçmelidir: en az 4 gerçek şık. */
+export const FOCUSED_MIN_OPTIONS = 4;
+
+const BINARY_WORDS = new Set(["doğru", "yanlış", "true", "false", "evet", "hayır"]);
+
+/** ["Doğru","Yanlış"] gibi iki şıklı ya da yalnız doğru/yanlış sözcüklerinden oluşan şık seti. */
+export function isBinaryChoice(options: readonly string[]): boolean {
+  const cleaned = options.map((option) => fold(option).replace(/[.!]+$/, "")).filter(Boolean);
+  return cleaned.length < FOCUSED_MIN_OPTIONS || cleaned.every((option) => BINARY_WORDS.has(option));
+}
+
+/**
+ * Odaklı pratiğe girebilir mi: 4+ şık, doğru/yanlış değil, kökü daha önce sorulmuş bir sorunun aynısı değil.
+ * Konu testinin sorusunu birebir yeniden sormak pratik değildir (V6).
+ */
+export function focusedQuestionAllowed(
+  question: Pick<QuizQuestion, "text" | "options">,
+  askedStems: ReadonlySet<string>,
+): boolean {
+  if (!question.text?.trim() || isBinaryChoice(question.options)) return false;
+  return !askedStems.has(fold(question.text));
+}
+
+export function foldedStems(stems: readonly string[]): Set<string> {
+  return new Set(stems.map(fold).filter((text) => text.length >= 8));
+}
+
 export function assembleFocusedPractice(input: {
   weakTopics: string[];
   missed: (QuizQuestion & { review?: StoredReview | null })[];
@@ -265,6 +292,7 @@ export function assembleFocusedPractice(input: {
     const key = fold(reworded.text);
     if (key.length < 8 || seen.has(key)) return;
     if (!wanted(reworded.topic)) return;
+    if (!focusedQuestionAllowed(reworded, foldedStems([question.text]))) return;
     seen.add(key);
     ranked.push({ question: reworded, rank });
   };

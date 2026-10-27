@@ -13,10 +13,12 @@ import {
 } from "@/lib/learning/lesson-v3";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
+import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotation } from "@/lib/learning/function-notation";
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { studentTextParts } from "@/lib/learning/lesson-board";
 import { nearSameQuestion, reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
-import { SOURCE_LINK_EXEMPTION, TEACHING_RUBRIC, WHY_NOTE_RULE } from "@/lib/learning/teaching-rubric";
+import { SOURCE_LINK_EXEMPTION, STUDENT_LEAK_BAN, TEACHING_RUBRIC, WHY_NOTE_RULE } from "@/lib/learning/teaching-rubric";
+import { splitTableCells } from "@/lib/learning/interval-text";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
 import {
   keyFactsBlock,
@@ -303,7 +305,7 @@ export const TEACHER_SYSTEM =
   "Önce kavramın ne olduğunu, sonra neyle karıştırıldığını, sonra sınavda nasıl tanınacağını söyle. Zıtlıkla anlat (X böyledir, Y ise şöyle). " +
   "SAYILAR: Kaynak bir sayı, eşik, aralık, oran ya da birim veriyorsa onu aynen yaz ('2 SD'nin altı', '%3', '13 cm'); " +
   "'yüksek', 'düşük', 'belirli bir değer' diye geçiştirme. Belgede olmayan standart müfredat sayısı yalnız " +
-  "'Sınav Müfredatı Tamamlaması' kutusunda ve o kutunun çözümlü örneğinde yazılır.\n\n" +
+  "kavramın adını taşıyan genel bilgi kutusunda ve o kutunun çözümlü örneğinde yazılır.\n\n" +
   `${TEACHING_RUBRIC}\n\n` +
   "BLOKLAR: Her ekran sıralı bloklardan oluşur ve ekranda yukarıdan aşağı bu sırayla görünür; anlatım sırasıyla diz " +
   "(formül, onu açıklayan metnin hemen ardından gelebilir). KAYNAK'ta konuna ait bir tablo varsa ('| … |' satırları) " +
@@ -366,7 +368,7 @@ export const TEACHER_SYSTEM =
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). " +
-  `${OPTION_ORDER_RULE} ` +
+  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ` +
   "review: öğrenci bu soruyu yanlış yaparsa ders sonunda sorulan ikinci sorudur; tam bir soru yaz (prompt, options, " +
   "answerIndex, explanation). Önce düşün: en olası yanlış seçim hangisi, öğrenci neyi neyle karıştırdı? O karışıklığı " +
   "ölçen YENİ bir durum kur — tanımdan terim soruldaysa bu kez bir durumdan (olaydan) terim sorulur. Çoktan seçmelide " +
@@ -384,7 +386,7 @@ export const TEACHER_SYSTEM =
   "iç not. Metinde başlığı tekrar etme. Bilgiyi kaynağa atfetme ('kaynakta … diye açıklanır', 'metne göre', " +
   "'belgede belirtildiği gibi' yok): öğretmen gibi doğrudan söyle.\n\n" +
   `${CONTENT_STYLE}\n\n` +
-  `Yalnızca bu şemada JSON döndür (kullanmadığın isteğe bağlı alanları yazma):\n${SCHEMA}`;
+  `Yalnızca bu şemada JSON döndür (kullanmadığın isteğe bağlı alanları yazma):\n${SCHEMA}\n\n${STUDENT_LEAK_BAN}`;
 
 /**
  * Belgesiz ders istemi: aynı akış ve anlatım; giriş, kaynak kuralı ve çözümlü
@@ -517,7 +519,7 @@ export const VERIFY_SYSTEM =
   `iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik). ${REVIEW_VERIFY}\n` +
   "D) explanation, optionWhy, corrected'da (yanlış ifadenin doğrusu) ya da çözümlü örnekte yanlış bilgi veya hesap " +
   "hatası (review'un explanation ve corrected'ı dahil); explanation ya da optionWhy'ın şıklara sırasıyla ya da " +
-  `harfiyle gönderme yapması. Yazarın okuduğu kural: ${OPTION_ORDER_RULE}\n` +
+  `harfiyle gönderme yapması. Yazarın okuduğu kural: ${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle; kaynağın bozuk kelimesinin ya da bozuk cümlesinin kopyası.\n" +
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
   "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
@@ -558,7 +560,7 @@ export const TOPIC_VERIFY_SYSTEM =
   `iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik). ${REVIEW_VERIFY}\n` +
   "D) explanation, optionWhy ya da corrected'da (yanlış ifadenin doğrusu) yanlış bilgi (review'un explanation ve " +
   "corrected'ı dahil); çözümlü örnekte hesap hatası; explanation ya da optionWhy'ın şıklara sırasıyla ya da harfiyle " +
-  `gönderme yapması. Yazarın okuduğu kural: ${OPTION_ORDER_RULE}\n` +
+  `gönderme yapması. Yazarın okuduğu kural: ${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "F) Ders içinde tutarsızlık.\n" +
   `G) ${MNEMONIC_VERIFY}\n` +
@@ -1129,6 +1131,7 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   // Sınav vurgusu ekran başına en çok 2 (18 Ekim 2026): her şey turuncuysa hiçbir şey öne çıkmaz.
   const marks = studentTextParts(text).filter((part) => part.exam).length;
   if (marks > 3) add(`${where}.blocks`, `Ekranda ${marks} sınav vurgusu (==…==) var; yalnız sınavda soru olacak en önemli iki bilgiyi işaretle.`);
+  if (reversedFunctionNotation(text).length) add(`${where}.blocks`, FUNCTION_NOTATION_ISSUE);
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words > 220) {
     add(`${where}.blocks`, `Ekranın metni çok uzun (${words} kelime); 60-140 kelimeye indir, ayrıntıyı karta/tabloya ya da ikinci ekrana taşı.`);
@@ -1162,12 +1165,12 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
     if (
       block.type === "note" &&
       block.note.tone === "general" &&
-      !/^(genel bilgi|sınav müfredatı tamamlaması)\b/i.test(block.note.title.trim()) &&
-      !isWhyNote(block)
+      !isWhyNote(block) &&
+      /sınav müfredatı tamamlaması/i.test(block.note.title)
     ) {
       add(
         `${where}.blocks[${blockIndex}]`,
-        "Tamamlama kutusunun başlığı 'Sınav Müfredatı Tamamlaması:' ya da 'Genel bilgi:' ile başlamalı (mekanizma kutusuysa 'Neden böyle?: …').",
+        "Tamamlama kutusunun başlığı kavramın adıdır. 'Sınav Müfredatı Tamamlaması' yazma.",
       );
     }
   });
@@ -1474,6 +1477,51 @@ export function dropRepeatedChecks(earlier: readonly LessonScreen[], screens: re
   return out;
 }
 
+function blockSignature(block: LessonBlock): string {
+  return JSON.stringify(block).toLocaleLowerCase("tr").replace(/\s+/g, " ");
+}
+
+/** Öğreten blok önceki ekranlarda var mı: aynı blok ya da cümlelerinin hepsi (%85 ortak sözcük) anlatılmış. */
+function blockAlreadyTaught(block: LessonBlock, priorBlocks: Set<string>, priorSentences: string[]): boolean {
+  if (priorBlocks.has(blockSignature(block))) return true;
+  const text = block.type === "text" ? block.text : block.type === "note" ? block.note.body : null;
+  if (text == null) return false;
+  const sentences = sentencesOf(text);
+  return (
+    sentences.length > 0 &&
+    sentences.every((sentence) => priorSentences.some((prior) => stemOverlap(sentence, prior) >= 0.85))
+  );
+}
+
+/**
+ * Art arda aynı adım (V6: "Adım 4 = Adım 3"). Bütün öğreten blokları önceki ekranlarda anlatılmış ekran düşer;
+ * yeni bir sorusu varsa yalnız soru kalır (sorudan önce aynı metin ikinci kez okunmaz). Yayımlanmış ekranlara
+ * dokunulmaz: ekran i = bölüm i, kayıtlı cevaplar kaymaz.
+ */
+export function dropRepeatedScreens(earlier: readonly LessonScreen[], screens: readonly LessonScreen[]): LessonScreen[] {
+  const seen: LessonScreen[] = [...earlier];
+  const out: LessonScreen[] = [];
+  for (const screen of screens) {
+    const priorBlocks = new Set(
+      seen.flatMap((prior) => prior.blocks.filter((block) => block.type !== "check").map(blockSignature)),
+    );
+    const priorSentences = seen.flatMap(taughtSentences);
+    const teaching = screen.blocks.filter((block) => block.type !== "check");
+    const copy = teaching.length > 0 && teaching.every((block) => blockAlreadyTaught(block, priorBlocks, priorSentences));
+    if (!copy) {
+      out.push(screen);
+      seen.push(screen);
+      continue;
+    }
+    if (screenCheck(screen) && !repeatedCheck(seen, screen)) {
+      const onlyCheck = { ...screen, blocks: screen.blocks.filter((block) => block.type === "check") };
+      out.push(onlyCheck);
+      seen.push(onlyCheck);
+    }
+  }
+  return out;
+}
+
 /**
  * Ekranlar arası tekrar (22 Ekim 2026, kör kıyas 2. tur). Öğretim ölçütünün 1. maddesi istemde vardı ama on
  * çiftin dokuzunda yargıçlar aynı şeyi yazdı: "aynı YSK paragrafı üç ekranda", "aynı tarih tablosu üç kez",
@@ -1637,7 +1685,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   const general = screens.flatMap((screen) =>
     screen.blocks.filter((block) => block.type === "note" && block.note.tone === "general" && !isWhyNote(block)),
   );
-  if (general.length > 12) add("screens", "Sınav Müfredatı Tamamlaması kutuları kavram başına birden fazla olmasın; aynı kavramın kutularını birleştir.");
+  if (general.length > 12) add("screens", "Genel bilgi kutuları kavram başına birden fazla olmasın; aynı kavramın kutularını birleştir.");
   // "Neden böyle?" derste en az bir (23 Ekim 2026, ürün sahibinin kararı): yalnız istemle dokuz derste bir kez yazıldı.
   // Öğretim önemi: kapanışta bir öğretim turu açar, kavram düşürmez. Belgesiz derste kaynak kuralı yok, kutu da yok.
   if ((input.pages?.length ?? 0) > 0 && !screens.some((screen) => screen.blocks.some(isWhyNote))) {
@@ -1814,7 +1862,7 @@ export function sourceTables(pages: readonly { text: string }[]): { columns: str
     for (const raw of [...page.text.split(/\r?\n/), ""]) {
       const line = raw.trim();
       if (line.length > 2 && line.startsWith("|") && line.endsWith("|")) {
-        const cells = line.slice(1, -1).split("|").map((cell) => cell.trim());
+        const cells = splitTableCells(line);
         if (!cells.every((cell) => /^:?-{2,}:?$/.test(cell))) current.push(cells);
         continue;
       }
@@ -1887,6 +1935,8 @@ function checkIssues(
       add(where, "Açıklama şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
     }
   }
+  const checkText = [check.prompt, check.explanation, ...(check.options ?? []), ...(check.optionWhy ?? [])].join("\n");
+  if (reversedFunctionNotation(checkText).length) add(where, FUNCTION_NOTATION_ISSUE);
   if (check.type === "trueFalse") {
     const options = check.options ?? [];
     if (options.length !== 2 || typeof check.answerIndex !== "number" || check.answerIndex > 1) {

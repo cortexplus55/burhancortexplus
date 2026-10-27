@@ -10,6 +10,7 @@ import { z } from "zod";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import { refersToOptionOrder } from "@/lib/learning/option-reference";
+import { FUNCTION_NOTATION_ISSUE, reversedFunctionNotation } from "@/lib/learning/function-notation";
 
 export const ANALYSIS_CHUNK_CHARS = 4800;
 export const MAX_ANALYSIS_CHUNKS = 3;
@@ -1701,6 +1702,7 @@ export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview 
   if (refersToOptionOrder(review.explanation)) {
     problems.push("açıklaması şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
   }
+  if (reversedFunctionNotation(review.explanation).length) problems.push(FUNCTION_NOTATION_ISSUE);
   return problems;
 }
 

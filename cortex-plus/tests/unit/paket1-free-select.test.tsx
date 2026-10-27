@@ -44,14 +44,21 @@ describe("paket 1 serbest seçim", () => {
     expect(route).not.toContain('if (!openable && !prefetch) return errorResponse(403, "node_locked")');
   });
 
-  it("seçici kilitli giriş dersini açar, olmayan türü uydurmaz", () => {
+  it("seçici kilitli giriş dersini açar, konunun olmayan düğümünü ekletir (başka konuya düşmez)", () => {
     const lesson = freeActivityPick(nodes, "prep-1", { id: "t2", label: "Konu 2" }, "lesson", [
       { id: "t2", label: "Konu 2" },
     ]);
     expect(lesson.ok).toBe(true);
     if (lesson.ok && lesson.kind === "node") expect(lesson.nodeId).toBe("lesson-2");
     const oral = freeActivityPick(nodes, "prep-1", { id: "t2", label: "Konu 2" }, "oral");
-    expect(oral).toEqual({ ok: false, reason: "missing" });
+    expect(oral).toEqual({
+      ok: true,
+      kind: "create",
+      tool: "oral",
+      nodeKind: "oral",
+      topicId: "t2",
+      topicLabel: "Konu 2",
+    });
 
     render(
       <FreeActivityPicker

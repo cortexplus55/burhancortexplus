@@ -29,7 +29,10 @@ import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
   freePathUnblockIds,
+  normalizeTopicKey,
   preferNextNodeForTracking,
+  scoreTopicMastery,
+  topicMasteryPercent,
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
@@ -42,7 +45,7 @@ import {
   formatContradictions,
   type TopicContradiction,
 } from "@/lib/learning/source-contradictions";
-import { attemptStems, buildPrepProgressView } from "@/lib/learning/prep-progress-view";
+import { buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
 import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
@@ -253,6 +256,7 @@ export default async function ExamPrepDetailPage({
   const needsIntro = false;
 
   let learningTrackingView = null as LearningTrackingView | null;
+  let masterySnapshots: TopicMasterySnapshot[] = [];
 
   let openMisconceptions = 0;
   let openMisconceptionsKnown = true;
@@ -275,7 +279,7 @@ export default async function ExamPrepDetailPage({
     openMisconceptions = openCount ?? 0;
     openMisconceptionsKnown = openCount != null;
 
-    const topics: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
+    masterySnapshots = (masteryRows ?? []).map((row) => ({
       topicKey: row.topic_key as string,
       measured: Number(row.evidence_count ?? 0) > 0,
       level: row.measured_level as TopicMasterySnapshot["level"],
@@ -287,6 +291,7 @@ export default async function ExamPrepDetailPage({
       independentTotal: Number(row.independent_total ?? 0),
       lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
     }));
+    const topics = masterySnapshots;
 
     const plannedTopicKeys = (topicRows ?? [])
       .map((t) => String(t.label ?? "").trim())
@@ -386,6 +391,14 @@ export default async function ExamPrepDetailPage({
       nodeScores[id] = Math.round((row.score / row.total) * 100);
     }
   }
+  const topicLabels = prepTopics.map((topic) => topic.label);
+  const masteryByKey = new Map(
+    masterySnapshots.map((topic) => [normalizeTopicKey(topic.topicKey), topicMasteryPercent(scoreTopicMastery(topic))]),
+  );
+  const topicPercents: Record<string, number> = {};
+  for (const label of topicLabels) {
+    topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = masteryByKey.get(normalizeTopicKey(label)) ?? 0;
+  }
   const progressView = buildPrepProgressView({
     nodes,
     attempts: (attemptRows ?? []).map((row) => ({
@@ -393,9 +406,13 @@ export default async function ExamPrepDetailPage({
       score: typeof row.score === "number" ? row.score : null,
       total: typeof row.total === "number" ? row.total : null,
       createdAt: row.created_at as string,
-      stems: attemptStems(row.payload),
+      solved: solvedQuestions(row.payload),
     })),
-    topicLabels: prepTopics.map((topic) => topic.label),
+    topicLabels,
+    topicMastery: topicLabels.map((label) => ({
+      label,
+      confidence: topicPercents[label.trim().toLocaleLowerCase("tr-TR")] ?? 0,
+    })),
     gaps: (gapRows ?? []).map((row) => ({
       claim: String(row.claim ?? ""),
       topicLabel: (row.topic_label as string | null) ?? null,
@@ -506,6 +523,7 @@ export default async function ExamPrepDetailPage({
         joinCount={Number((shareRow as { view_count?: number } | null)?.view_count ?? 0)}
         lastResult={lastResult}
         nodeScores={nodeScores}
+        topicPercents={topicPercents}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
         dueReviews={await dueReviewCountForPrep(service, {
           userId: user.id,

@@ -55,7 +55,10 @@ import {
   loadSourceContext,
   pagesMarkedInSource,
   widenSourcePages,
+  type SourceContext,
 } from "@/lib/learning/source-context";
+import { oralPlanBrief, oralQuestionPlan, oralScopeSources, type OralScopeTopic } from "@/lib/learning/oral-scope";
+import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
 import {
   enrichLessonSource,
   resolveLessonSource,
@@ -71,7 +74,12 @@ import {
 } from "@/lib/learning/prep-source";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META, weakPracticeTitle } from "@/lib/learning/exam-prep-plan";
-import { questionsStayOnTopics } from "@/lib/learning/focused-practice";
+import {
+  focusedQuestionAllowed,
+  foldedStems,
+  questionsStayOnTopics,
+  rewordPracticeQuestion,
+} from "@/lib/learning/focused-practice";
 import { studentSafePayload } from "@/lib/learning/student-safe-text";
 import { nodeNeedsStudentUnlock, pickPracticeNodeId, practiceHref, studentMayStartNode, topicLabelsMatch } from "@/lib/learning/study-tools";
 import { loadLevelHint } from "@/lib/learning/prep-level";
@@ -621,7 +629,9 @@ async function handleNodeRequest(
   const mood = parseMood(parsed.data.mood);
   let title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
   const lessonReviewCards =
-    kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
+    kind === "spaced"
+      ? await loadLessonReviewCards(service, userId, prepId, requestedTopic || sessionMeta?.topicTitle?.trim() || topic?.label || null)
+      : [];
 
   // Önceden yazım yalnız açılmamış ders düğümü için; öğrenci açtıysa gerek yok.
   // Isınma yazımı (warm) bitmiş düğümü de yazar; yalnız süren bir kayıt varsa durur.
@@ -1106,6 +1116,8 @@ async function handleNodeRequest(
         oralExtras = report;
       }
     }
+    // Tamamlama fonksiyonu `p_total < 1`'i `invalid_score` ile reddeder; öğrenci 503 görmesin.
+    if (!(scored.total >= 1)) scored = { ...scored, score: 0, total: 1 };
     const answersForRpc = teachingV2 ? stripAnswerMeta(mergedAnswers) : mergedAnswers;
 
     // Sonuca göre yol (20 Ekim 2026): düşük sonuçta konunun odaklı pratiği araya girer, yüksekte
@@ -2016,6 +2028,8 @@ async function handleNodeRequest(
   let lessonCorePages: number[] = [];
   // Belgesiz hazırlık dersi: öğretmen motoru doğruluk kuralıyla yazar.
   let lessonTopicOnly = false;
+  // Sözlü "Tüm sınav": soru i → konu (K1..KN boyunca eşit aralık).
+  let oralAllPlan: string[] = [];
   try {
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
@@ -2110,6 +2124,22 @@ async function handleNodeRequest(
             prepDocs,
           )
         : resolved.context;
+    } else if (kind === "oral" && parsed.data.oralScope === "all" && !voiceSession && hasPrepDocuments) {
+      const balanced = await loadOralAllSource(service, {
+        userId,
+        prepId,
+        count: oralCount ?? 5,
+        fallbackDocumentIds: pageDocumentIds,
+        sourceBoundaryMode,
+      });
+      oralAllPlan = balanced.plan;
+      source = balanced.source.block.trim()
+        ? balanced.source
+        : await loadSourceContext(service, userId, sourceQuery, {
+            documentId: prepSource?.document_id ?? null,
+            sourceBoundaryMode: teachingV2 ? sourceBoundaryMode : null,
+            limit: 12,
+          });
     } else {
       let pageSource =
         teachingV2 && !voiceSession
@@ -2564,7 +2594,9 @@ async function handleNodeRequest(
                 }
               : null,
           syllabusLine:
-            kind === "oral" ? syllabusWeightLineFromChecklist(teachingPlan.checklist) : "",
+            kind === "oral"
+              ? [syllabusWeightLineFromChecklist(teachingPlan.checklist), oralPlanBrief(oralAllPlan)].filter(Boolean).join("\n")
+              : "",
           podcastLength: parsePodcastLength(parsed.data.podcastLength),
           requestId: clientRequestId ?? parsed.data.clientRequestId ?? null,
           grounding:
@@ -3363,9 +3395,30 @@ async function generateNodePayload(input: {
     }));
     questions = stamped.filter((question) => questionsStayOnTopics([question], allowed));
   }
+  // Odaklı pratik: iki şıklı doğru/yanlış ve konu testinden birebir kök elenir; eksik, saklı sorunun
+  // yeniden yazılmış biçimiyle tamamlanır, kopyasıyla değil.
+  const asked =
+    input.kind === "focused" && input.prepId && input.userId
+      ? foldedStems(
+          await loadPreviousItems(input.service, {
+            userId: input.userId,
+            prepId: input.prepId,
+            kind: "quiz",
+            excludeNodeId: input.nodeId ?? null,
+          }).catch(() => [] as string[]),
+        )
+      : null;
+  if (asked) questions = questions.filter((question) => focusedQuestionAllowed(question, asked));
   if (questions.length < promised) {
     if ((input.kind === "final_check" || input.kind === "focused" || input.kind === "gaps") && input.prepId && input.userId) {
-      const stored = await loadStoredQuiz(input.service, { userId: input.userId, prepId: input.prepId });
+      const storedRaw = await loadStoredQuiz(input.service, { userId: input.userId, prepId: input.prepId });
+      const stored = asked
+        ? storedRaw
+            .map((question) =>
+              rewordPracticeQuestion({ ...question, multi: question.correct.length > 1 }, prepLanguage(input.learningPreferences)),
+            )
+            .filter((question) => focusedQuestionAllowed(question, asked))
+        : storedRaw;
       const merged = [...questions, ...stored].slice(0, Math.max(promised, questions.length || stored.length));
       if (merged.length) return { type: "quiz", questions: merged, teachingStandard: activity };
     }
@@ -3906,25 +3959,88 @@ async function teacherQuizPayload(
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity, engine: "teacher" };
 }
 
+/**
+ * Sözlü "Tüm sınav": konular sort_order ile K1..KN; soru sayısı kadar konu eşit aralıkla seçilir, her
+ * birinin kendi belgesinden kendi sayfaları (konu kaynağı, yoksa konunun dersinin sayfaları) okunur.
+ */
+async function loadOralAllSource(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    prepId: string;
+    count: number;
+    fallbackDocumentIds: Array<string | null | undefined>;
+    sourceBoundaryMode: "documents_only" | "allow_supporting" | null;
+  },
+): Promise<{ source: SourceContext; plan: string[] }> {
+  const [{ data: topicRows }, { data: nodeRows }] = await Promise.all([
+    service.from("exam_prep_topics").select("id, label, sort_order, source_refs").eq("exam_prep_id", input.prepId).order("sort_order"),
+    service.from("exam_prep_nodes").select("kind, session_meta").eq("exam_prep_id", input.prepId).order("sort_order"),
+  ]);
+  const nodePages = new Map<string, number[]>();
+  for (const row of nodeRows ?? []) {
+    const meta = parseSessionMeta(row.session_meta);
+    const key = (meta?.topicId ?? meta?.topicTitle ?? "").trim().toLocaleLowerCase("tr");
+    if (!key || !meta?.sourcePages?.length || nodePages.has(key)) continue;
+    nodePages.set(key, meta.sourcePages);
+  }
+  const topics: OralScopeTopic[] = (topicRows ?? []).map((row) => {
+    const label = String(row.label ?? "").trim();
+    const ref = parseTopicSourceRefs(row.source_refs)[0];
+    const pages =
+      ref?.pages?.length
+        ? ref.pages
+        : nodePages.get(String(row.id).toLocaleLowerCase("tr")) ?? nodePages.get(label.toLocaleLowerCase("tr")) ?? [];
+    return { label, documentId: ref?.documentId ?? null, pages };
+  });
+  const chosen = oralScopeSources(topics, input.count);
+  const plan = oralQuestionPlan(
+    chosen.map((topic) => topic.label),
+    input.count,
+  );
+  const blocks: string[] = [];
+  let documentName: string | null = null;
+  for (const topic of chosen) {
+    if (!topic.pages.length) continue;
+    try {
+      const loaded = await loadPageSourceAcrossDocuments(
+        service,
+        input.userId,
+        [topic.documentId, ...input.fallbackDocumentIds],
+        topic.pages,
+        { sourceBoundaryMode: input.sourceBoundaryMode, topicLabel: topic.label, mode: "tolerant" },
+      );
+      if (loaded.block.trim()) {
+        blocks.push(`### Konu: ${topic.label}\n${loaded.block.trim()}`);
+        documentName ??= loaded.documentName;
+      }
+    } catch {
+      // Konunun sayfası okunamadı: öbür konular yine gelir.
+    }
+  }
+  return { source: { ...EMPTY_SOURCE_CONTEXT, block: blocks.join("\n\n"), documentName }, plan };
+}
+
 async function loadLessonReviewCards(
   service: SupabaseClient,
   userId: string,
   prepId: string,
+  topicLabel: string | null,
 ): Promise<LessonReviewCard[]> {
   // Çözülen yanılgı karta dönmez (20 Ekim 2026); sütun yoksa eskisi gibi hepsi.
   const { data, error } = await withOpenMisconceptions((onlyOpen) => {
     const query = service
       .from("exam_prep_misconceptions")
-      .select("question_preview, corrected, claim, source_kind")
+      .select("question_preview, corrected, claim, source_kind, topic_label")
       .eq("user_id", userId)
       .eq("exam_prep_id", prepId)
       .eq("source_kind", "lesson_review");
     return (onlyOpen ? query.is("resolved_at", null) : query)
       .order("created_at", { ascending: false })
-      .limit(12);
+      .limit(60);
   });
   if (error || !data) return [];
-  return cardsFromLessonReviews(data);
+  return cardsFromLessonReviews(data, topicLabel);
 }
 
 async function unseenLessonReviews<

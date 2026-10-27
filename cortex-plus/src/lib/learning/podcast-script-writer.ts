@@ -7,6 +7,7 @@ import {
   type PodcastLength,
 } from "@/lib/learning/podcast-formats";
 import type { TeacherLessonMode } from "@/lib/learning/teacher-lesson";
+import { STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
 
 /*
   Senarist yazar (23 Ekim 2026 gecesi; ürün sahibi: "öğrenci en az 70 olacak, ne varsa planla ve uygula").
@@ -91,6 +92,7 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
     "- Her cevap sorulan soruya doğrudan cevap verir. 'Bu yaşta', 'o dönemde' gibi göndermelerde yaşı ya da evreyi " +
       "açıkça söyle.",
     `- ${SPOKEN_ONLY_RULE}`,
+    `- ${STUDENT_LEAK_BAN}`,
     "",
     mode === "topic" ? ACCURACY_TOPIC : ACCURACY_DOCUMENT,
     "",

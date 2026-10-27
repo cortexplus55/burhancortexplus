@@ -14,6 +14,7 @@ import {
   type LessonV2,
   type SectionCheck,
 } from "@/lib/learning/teaching-standards";
+import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 
 /**
  * LessonV3 — Ders → Ekran → Blok dizisi (16 Ekim 2026, ürün sahibinin kararı).
@@ -361,7 +362,9 @@ function screenBodyForV2(screen: LessonScreen): string {
     else if (!first && block.type === "procedure") {
       parts.push(block.procedure.steps.map((step, index) => `${index + 1}. ${step.label}: ${step.detail}`).join("\n"));
     } else if (!first && block.type === "table") {
-      parts.push([block.table.columns.join(" | "), ...block.table.rows.map((row) => row.join(" | "))].join("\n"));
+      const columns = rejoinIntervalCells(block.table.columns);
+      const rows = block.table.rows.map((row) => rejoinIntervalCells(row));
+      parts.push([columns.join(" | "), ...rows.map((row) => row.join(" | "))].join("\n"));
     }
   }
   return parts.filter(Boolean).join("\n\n");

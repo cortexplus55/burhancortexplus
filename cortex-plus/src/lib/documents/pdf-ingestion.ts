@@ -1,10 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractText } from "@/lib/documents/extract-text";
-import { renderPdfPages, BLANK_INK_RATIO } from "@/lib/documents/render-pdf-pages";
+import { renderPdfPages, BLANK_INK_RATIO, FIGURE_VECTOR_MIN } from "@/lib/documents/render-pdf-pages";
 
 type RenderedPage = Awaited<ReturnType<typeof renderPdfPages>>["pages"][number];
-import { extractImageText, mergeUsage, type ModelUsage } from "@/lib/documents/extract-image-text";
+import { appendFigureTranscript, extractImageText, mergeUsage, type ModelUsage } from "@/lib/documents/extract-image-text";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import { AdminCheckError } from "@/lib/auth/roles";
 import { billingExempt } from "@/lib/billing/free-preview";
@@ -40,6 +40,18 @@ export const TEXT_LAYER_MIN_CHARS = 40;
 
 export function textLayerNeedsOcr(text: string): boolean {
   return text.trim().length < TEXT_LAYER_MIN_CHARS;
+}
+
+/**
+ * Metin katmanı dolu olsa da şeklin okunması gerekir.
+ * "tablo" yalnız "yandaki/aşağıdaki tablo" gibi bir işaretle; tek başına her sayfayı çizmez.
+ */
+const FIGURE_WORD = /şekil|sekil|grafik|diyagram|diagram|şema|sema|harita|figure|chart|graph/iu;
+const FIGURE_POINTER =
+  /(?:yandaki|aşağıdaki|asagidaki).{0,48}(?:şekil|sekil|grafik|diyagram|diagram|şema|sema|harita|tablo|figure|chart)/iu;
+
+export function pageNeedsFigureRead(text: string): boolean {
+  return FIGURE_WORD.test(text) || FIGURE_POINTER.test(text);
 }
 
 const OCR_POOL_MEMORY_MS = 15 * 60_000;
@@ -197,6 +209,10 @@ async function ocrOneBlankPage(input: {
   onClaimed?: (pageNumber: number) => void;
   /** Fired after release_document_ocr_page so the pool does not double-release. */
   onReleased?: (pageNumber: number) => void;
+  /** Figure pages use the coordinate prompt. Blank scans stay on the transcription prompt. */
+  purpose?: "page" | "figure";
+  /** Text layer to keep. Figure values are appended; a miss does not wipe the page. */
+  keepText?: string;
 }): Promise<{
   page: PagePersist;
   claimed: boolean;
@@ -211,7 +227,16 @@ async function ocrOneBlankPage(input: {
   const {
     service, documentId, userId, pageNumber, png, inkRatio,
     founder, limit, deadlineMs, maxOcrPages, onClaimed, onReleased,
+    purpose = "page", keepText,
   } = input;
+  const preserved = keepText
+    ? {
+        text: keepText,
+        extractionOk: true,
+        extractionMethod: "text_layer" as const,
+        pageKind: "content" as const,
+      }
+    : null;
 
   if (typeof maxOcrPages === "number" && maxOcrPages >= 0) {
     const { count } = await service.from("document_ocr_claims")
@@ -220,7 +245,7 @@ async function ocrOneBlankPage(input: {
     if ((count ?? 0) >= maxOcrPages) {
       // Tavan (kredi ya da istek) doldu: bu resim sayfası okunmadan atlanır.
       return {
-        page: {
+        page: preserved ?? {
           text: "",
           extractionOk: false,
           extractionMethod: "ocr",
@@ -228,7 +253,7 @@ async function ocrOneBlankPage(input: {
         },
         claimed: false,
         ocrSuccess: false,
-        failed: true,
+        failed: !preserved,
         quotaSkipped: true,
         usage: [],
       };
@@ -247,10 +272,10 @@ async function ocrOneBlankPage(input: {
       // hesabın KPSS PDF'i birkaç resim sayfası yüzünden düştü). Artık
       // yalnız bu sayfa okunmuyor; metinli sayfalar işleniyor.
       return {
-        page: { text: "", extractionOk: false, extractionMethod: "ocr", pageKind: "unreadable" },
+        page: preserved ?? { text: "", extractionOk: false, extractionMethod: "ocr", pageKind: "unreadable" },
         claimed: false,
         ocrSuccess: false,
-        failed: true,
+        failed: !preserved,
         quotaSkipped: true,
         usage: [],
       };
@@ -268,17 +293,17 @@ async function ocrOneBlankPage(input: {
     onReleased?.(pageNumber);
   };
 
-  let read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber });
+  let read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber, purpose });
   let usage = read.usage;
   if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
-    read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber });
+    read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber, purpose });
     usage = mergeUsage(usage, read.usage);
   }
 
   if (read.reason === "blocked") {
     await releaseClaim();
     return {
-      page: {
+      page: preserved ?? {
         text: "",
         extractionOk: false,
         extractionMethod: "ocr",
@@ -286,12 +311,39 @@ async function ocrOneBlankPage(input: {
       },
       claimed: false,
       ocrSuccess: false,
-      failed: true,
+      failed: !preserved,
       usage,
     };
   }
 
-  const text = read.ok && read.pages[0] ? read.pages[0].trim() : "";
+  const transcript = read.ok && read.pages[0] ? read.pages[0].trim() : "";
+  if (preserved) {
+    if (!transcript) {
+      await releaseClaim();
+      return {
+        page: preserved,
+        claimed: false,
+        ocrSuccess: false,
+        failed: false,
+        usage,
+        rateLimited: read.rateLimited,
+      };
+    }
+    return {
+      page: {
+        text: appendFigureTranscript(preserved.text, transcript),
+        extractionOk: true,
+        extractionMethod: "text_layer",
+        pageKind: "content",
+      },
+      claimed,
+      ocrSuccess: true,
+      failed: false,
+      usage,
+      rateLimited: read.rateLimited,
+    };
+  }
+  const text = transcript;
   if (text) {
     return {
       page: { text, extractionOk: true, extractionMethod: "ocr", pageKind: "content" },
@@ -356,8 +408,9 @@ export async function readPdfBatch(
   const scanSkipped: number[] = [];
 
   const blankIndexes = pages.flatMap((page, index) => (textLayerNeedsOcr(page.text) ? [index] : []));
-  if (!blankIndexes.length) {
-    return { pages, total: extracted.total, ocrPageNumbers, failedPages, scanSkipped };
+  // Şekil ipucu olan sayfa, metin katmanı dolu olsa da bitmiş sayılmaz.
+  for (let index = 0; index < pages.length; index += 1) {
+    if (pageNeedsFigureRead(pages[index]!.text)) done[index] = false;
   }
 
   let founder = false;
@@ -376,27 +429,51 @@ export async function readPdfBatch(
     const blank = new Set(blankIndexes);
     const metas = new Map<number, RenderedPage>();
     const queue: number[] = [];
+    const visionMode = new Map<number, { purpose: "page" | "figure"; keepText?: string }>();
     let wake: (() => void) | null = null;
     const notify = () => {
       const resume = wake;
       wake = null;
       resume?.();
     };
+    const enqueue = (index: number, purpose: "page" | "figure", keepText?: string) => {
+      if (visionMode.has(index)) return;
+      visionMode.set(index, { purpose, keepText });
+      done[index] = false;
+      queue.push(index);
+      notify();
+    };
     const takePage = (meta: RenderedPage, index: number) => {
-      if (!blank.has(index) || metas.has(index)) return;
+      if (metas.has(index)) return;
+      const original = pages[index]?.text ?? "";
+      const isBlank = blank.has(index);
+      // Boş taramadaki tek resim operatörü sayfanın kendisidir; şık kuralı bozulmasın.
+      // Metinli sayfada gömülü resim veya yoğun çizim şekil okumasıdır.
+      const figure = pageNeedsFigureRead(original)
+        || (!isBlank && meta.figureGraphics === true)
+        || (isBlank && (meta.vectorOps ?? 0) >= FIGURE_VECTOR_MIN);
+      if (!isBlank && !figure) {
+        done[index] = true;
+        return;
+      }
       metas.set(index, meta);
-      // Classify without OCR first — blank / render-failed are done immediately.
-      if (meta.inkRatio < BLANK_INK_RATIO && !meta.hasImageContent) {
+      if (!isBlank && figure && meta.scanRenderFailed) {
+        done[index] = true;
+        return;
+      }
+      if (isBlank && !figure && meta.inkRatio < BLANK_INK_RATIO && !meta.hasImageContent) {
         pages[index] = { text: "", extractionOk: true, extractionMethod: "none", pageKind: "blank" };
         done[index] = true;
-      } else if (meta.scanRenderFailed) {
+        return;
+      }
+      if (isBlank && !figure && meta.scanRenderFailed) {
         pages[index] = { text: "", extractionOk: false, extractionMethod: "ocr", pageKind: "unreadable" };
         done[index] = true;
         failedPages.push(firstPage + index);
-      } else {
-        queue.push(index);
-        notify();
+        return;
       }
+      // Boş sayfa da şekilse tek okuma, şekil istemiyle. Metinli sayfada değerler eklenir.
+      enqueue(index, figure ? "figure" : "page", isBlank ? undefined : original);
     };
     const renderStarted = Date.now();
     let renderMs = 0;
@@ -430,10 +507,13 @@ export async function readPdfBatch(
       const meta = metas.get(index)!;
       const number = firstPage + index;
       const work = (async () => {
+        const mode = visionMode.get(index);
         const result = await ocrOneBlankPage({
           service, documentId, userId, pageNumber: number,
           png: meta.png, inkRatio: meta.inkRatio,
           founder, limit, deadlineMs, maxOcrPages,
+          purpose: mode?.purpose ?? "page",
+          keepText: mode?.keepText,
           onClaimed: (pageNumber) => { claimed.add(pageNumber); },
           onReleased: (pageNumber) => { claimed.delete(pageNumber); },
         });
@@ -494,7 +574,13 @@ export async function readPdfBatch(
       concurrencyStart: limitStart, concurrencyEnd: limitNow, rateLimitedPages,
     });
     if (poolError) throw poolError;
-    if (renderError) throw renderError;
+    if (renderError) {
+      const pendingBlank = pages.some((page, index) => textLayerNeedsOcr(page.text) && !done[index]);
+      if (pendingBlank) throw renderError;
+      for (let index = 0; index < pages.length; index += 1) {
+        if (!textLayerNeedsOcr(pages[index]!.text)) done[index] = true;
+      }
+    }
   } catch (error) {
     if (!founder) {
       // Batch is abandoning — release every held claim (text was not saved).

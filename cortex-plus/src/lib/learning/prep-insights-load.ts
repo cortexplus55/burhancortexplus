@@ -3,8 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { normalizeTopicKey } from "@/lib/learning/learning-tracking";
-import { attemptStems, buildPrepProgressView } from "@/lib/learning/prep-progress-view";
+import { MASTERY_ROW_COLUMNS, normalizeTopicKey, topicPercentsByKey } from "@/lib/learning/learning-tracking";
+import { buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -90,7 +90,7 @@ async function loadInsights(
     supabase.from("exam_prep_topics").select("id, label").eq("exam_prep_id", prep.id),
     supabase
       .from("exam_prep_topic_mastery")
-      .select("topic_key, confidence, evidence_count")
+      .select(MASTERY_ROW_COLUMNS)
       .eq("user_id", userId)
       .eq("exam_prep_id", prep.id),
   ]);
@@ -109,11 +109,10 @@ async function loadInsights(
   const topicLabels = (topicRows ?? [])
     .map((row) => String(row.label ?? "").trim())
     .filter(Boolean);
-  const masteryByKey = new Map(
-    (masteryRows ?? [])
-      .filter((row) => Number(row.evidence_count ?? 0) > 0)
-      .map((row) => [normalizeTopicKey(String(row.topic_key ?? "")), Number(row.confidence ?? 0)]),
+  const measuredRows = ((masteryRows ?? []) as Record<string, unknown>[]).filter(
+    (row) => Number(row.evidence_count ?? 0) > 0,
   );
+  const masteryByKey = topicPercentsByKey(measuredRows);
   const topicMastery = topicLabels.map((label) => ({
     label,
     confidence: masteryByKey.get(normalizeTopicKey(label)) ?? 0,
@@ -130,7 +129,7 @@ async function loadInsights(
       score: typeof row.score === "number" ? row.score : null,
       total: typeof row.total === "number" ? row.total : null,
       createdAt: row.created_at as string,
-      stems: attemptStems(row.payload),
+      solved: solvedQuestions(row.payload),
     })),
     topicLabels,
     gaps: [],

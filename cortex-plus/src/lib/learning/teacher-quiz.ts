@@ -1,8 +1,10 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
 import { normalizeQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
+import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotation } from "@/lib/learning/function-notation";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { EXAM_POINTS_MAX, examPointsBlock } from "@/lib/learning/exam-points";
 import { avoidListBlock } from "@/lib/learning/item-dedup";
@@ -167,6 +169,7 @@ const DESIGN =
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle, options ile aynı sırada. Hesap sorusunda steps: her adım tek işlem, kendi içinde doğru.\n" +
   `- ${OPTION_ORDER_RULE}\n` +
+  `- ${FUNCTION_NOTATION_RULE}\n` +
   "- Yanlış şıkkın optionWhy'ı o şıkkın gerçekte neye karşılık geldiğini söyler ('(√2/2, √2/2) 45°'nin noktasıdır; " +
   "90°'nin noktası (0, 1)'dir'). Şıkkı tekrar edip yalnız 'olamaz / değildir' demek gerekçe değildir.\n" +
   "- İki şık aynı şeyi söylemez: aynı noktaları ya da öğeleri farklı sırayla ('(1, 0) ve (0, 1)' ile '(0, 1) ve " +
@@ -271,7 +274,8 @@ function system(
     (multi ? MULTI_QUESTION : "") +
     (focus === "gaps" ? GAPS_FOCUS : "") +
     `${CONTENT_STYLE}\n\nYalnızca bu şemada JSON döndür:\n${SCHEMA}` +
-    (topicTest ? `\n${POINT_FIELD_NOTE}` : "")
+    (topicTest ? `\n${POINT_FIELD_NOTE}` : "") +
+    `\n\n${STUDENT_LEAK_BAN}`
   );
 }
 
@@ -378,7 +382,7 @@ const VERIFY_DOCUMENT =
   "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması; yanlış şıkkın " +
   "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara sırasıyla ya da harfiyle " +
   "gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
-  `${OPTION_ORDER_RULE}\n` +
+  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
@@ -400,7 +404,7 @@ const VERIFY_TOPIC =
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
   "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara " +
   "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
-  `${OPTION_ORDER_RULE}\n` +
+  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
@@ -901,6 +905,8 @@ export function unseenStemReference(text: string): boolean {
 export function quizStructureIssues(question: QuizQuestion, options: { multi?: boolean } = {}): string[] {
   const issues: string[] = [];
   if (question.options.length !== 4) issues.push(`Şık sayısı ${question.options.length}; 4 olmalı.`);
+  const said = [question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
+  if (reversedFunctionNotation(said.join("\n")).length) issues.push(FUNCTION_NOTATION_ISSUE);
   if (question.multi && options.multi) {
     return [...issues, ...multiQuestionIssues(question)];
   }

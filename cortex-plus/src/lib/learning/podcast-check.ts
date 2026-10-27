@@ -96,11 +96,13 @@ export function podcastCheckAnswered(check: QuizQuestion[], answers: Record<stri
   return check.some((_, index) => selectedOptions(answers[String(index)]).length > 0);
 }
 
-/** Kontrol yoksa ya da atlandıysa bugünkü gibi 1/1 (puansız); cevaplandıysa doğru sayısı / soru sayısı. */
+/**
+ * Kontrol yoksa ya da atlandıysa 1/1 (puansız); cevaplandıysa doğru sayısı / soru sayısı.
+ * Tamamlama fonksiyonu `p_total < 1`'i reddeder: 0/0 "Dinledim, devam"ı 503 yapıyordu (V6).
+ */
 export function scorePodcastCheck(payload: unknown, answers: Record<string, unknown>): { score: number; total: number } {
   const check = podcastCheckOf(payload);
-  if (!check.length) return { score: 0, total: 0 };
-  if (!podcastCheckAnswered(check, answers)) return { score: 0, total: check.length };
+  if (!check.length || !podcastCheckAnswered(check, answers)) return { score: 1, total: 1 };
   return scoreQuizAnswers(check, answers);
 }
 

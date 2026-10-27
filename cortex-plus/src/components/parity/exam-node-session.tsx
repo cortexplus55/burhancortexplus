@@ -80,6 +80,7 @@ import {
   ORAL_ALL_TOPICS,
   oralFirstAnswerKey,
   oralReviewItemFromGrade,
+  oralScoreFraction,
   type OralExamReport,
   type OralLength,
   type OralProbeKind,
@@ -1221,6 +1222,7 @@ export function ExamNodeSession({
     : payload.type === "oral"
       ? reviewItemsFromQuestions(questions, answers)
       : reviewItemsFromTranscript(oralTranscript);
+  const oralFraction = oralReport?.items?.length ? oralScoreFraction(oralReport) : null;
   const oralPct =
     oralReport?.pct ??
     (payload.type === "oral"
@@ -1597,7 +1599,7 @@ export function ExamNodeSession({
               if (retryAnswers && Object.keys(retryAnswers).length) {
                 payloadAnswers.retryAnswers = retryAnswers as Record<string, LessonCheckAnswer>;
               }
-              void finish(Object.keys(payloadAnswers).length ? payloadAnswers : undefined);
+              return finish(Object.keys(payloadAnswers).length ? payloadAnswers : undefined);
             }}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
             toolbar={sources.length ? <NodeSources sources={sources} /> : null}
@@ -1917,7 +1919,8 @@ export function ExamNodeSession({
       {stage === "result" && isOral ? (
         <OralResults
           topicLabel={oralTopicLabel}
-          pct={oralPct}
+          pct={oralFraction?.pct ?? oralPct}
+          scoreFraction={oralFraction?.label ?? null}
           fullCount={oralReport?.fullCount}
           total={oralReport?.total ?? questions.length}
           minutesSpent={spentMinutes()}

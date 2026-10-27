@@ -568,12 +568,14 @@ function briefScopeSummary(text: string, quote: string): string {
     .replace(/\[\[alinti:[^\]]+\]\]/g, "")
     .replace(/^>.*$/gm, "")
     .replace(/^\s*Bu konu sınav kapsamı dışındadır\.?\s*/i, "")
+    .replace(/^\s*Bu hazırlık bu konuyu işlemiyor\.?\s*/i, "")
     .replace(/\*\*[^*]{1,80}\*\*/g, "");
   const sentences = cleaned
     .split(/(?<=[.!?])\s+|\n+/)
     .map((sentence) => sentence.replace(/^[-*•]\s*/, "").trim())
     .filter((sentence) => sentence.length >= 25)
     .filter((sentence) => !/sınav kapsamı dışındadır/i.test(sentence))
+    .filter((sentence) => !/bu hazırlık bu konuyu işlemiyor/i.test(sentence))
     .filter((sentence) => !quote || !sentence.includes(quote.slice(0, 24)));
   return sentences.slice(0, 2).join(" ");
 }
@@ -585,13 +587,13 @@ function ensureScope(text: string, quote: string, documentName: string, weighted
     if (!next.includes("[[alinti:") && !next.includes(quote.slice(0, 24))) {
       next = `${marker}\n\n${next}`.trim();
     }
-    if (!/kapsam dışı/.test(next.toLocaleLowerCase("tr"))) {
-      next = `Bu konu sınav kapsamı dışındadır.\n\n${next}`.trim();
+    if (!/kapsam dışı|bu hazırlık bu konuyu işlemiyor/.test(next.toLocaleLowerCase("tr"))) {
+      next = `Bu hazırlık bu konuyu işlemiyor.\n\n${next}`.trim();
     }
     return next;
   }
   const summary = briefScopeSummary(text, quote);
-  const parts = ["Bu konu sınav kapsamı dışındadır.", marker];
+  const parts = ["Bu hazırlık bu konuyu işlemiyor.", marker];
   if (summary) parts.push(summary);
   if (weighted) parts.push(`Sınavda ağırlığı yüksek olan konu: **${weighted}**.`);
   return parts.join("\n\n");

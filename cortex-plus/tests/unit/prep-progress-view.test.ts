@@ -63,7 +63,8 @@ describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
     });
     expect(one.forecast.kind).toBe("ready");
     // Tempo kartı: 1 ders → +%2; hedef 75'e 37 ders; 14 güne 3/gün; bugün 1 ders.
-    expect(one.pace).toEqual({ gainPerLessonPct: 2, lessonsToTarget: 37, perDay: 3, todayLessons: 1 });
+    // "~X günde" aynı bölmeden: ceil(37 / 3) = 13.
+    expect(one.pace).toEqual({ gainPerLessonPct: 2, lessonsToTarget: 37, perDay: 3, daysToFinish: 13, todayLessons: 1 });
     // Puanlanmış etkinlik var ve eksik yok: "0 eksik" bir ölçüm sonucu.
     expect(one.gapsMeasured).toBe(true);
     expect(none.gapsMeasured).toBe(false);
@@ -76,7 +77,9 @@ describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
     expect(view.forecastSeries.targetPct).toBe(DEFAULT_TARGET_PCT);
   });
 
-  it("tahmini son iki haftanın tamamlama temposundan kuruyor ve bunu söylüyor", () => {
+  // V6 (28 Ekim 2026): tahmin tamamlama sayısından 100'e tırmanmaz; bugünkü hazırlıktan başlar, hedefte durur
+  // ve gün sayısı tempo kartıyla aynı bölmedir (`Math.ceil(kalanDers / günlükDers)`).
+  it("tahmin bugünkü hazırlıktan başlar, hedefi aşmaz, günü tempo kartıyla aynı", () => {
     const view = buildPrepProgressView({
       ...base,
       examDate: "2026-10-13",
@@ -84,12 +87,19 @@ describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
         { nodeId: "l1", score: null, total: null, createdAt: daysAgo(10) },
         { nodeId: "q1", score: 5, total: 6, createdAt: daysAgo(6) },
       ],
+      measuredReadinessPct: 20,
     });
     expect(view.forecast.kind).toBe("ready");
+    expect(view.forecastSeries.points[0]?.pct).toBe(view.scorePct);
     if (view.forecast.kind === "ready") {
-      // 4/6 bitti; 14 günde 2 etkinlik → günde 1/7; 14 gün kaldı → +2 → 6/6.
-      expect(view.forecast.pct).toBe(100);
-      expect(view.forecast.text).toMatch(/temposu sürerse/);
+      expect(view.forecast.pct).toBeGreaterThanOrEqual(view.scorePct);
+      expect(view.forecast.pct).toBeLessThanOrEqual(view.targetPct);
+      expect(view.forecast.pct).not.toBe(100);
+      const pace = view.pace!;
+      expect(pace.daysToFinish).toBe(Math.ceil(pace.lessonsToTarget / pace.perDay!));
+      expect(view.forecast.text).toContain(`yaklaşık ${pace.daysToFinish} günde`);
+      expect(view.forecast.text).toContain(`${pace.lessonsToTarget} ders, günde ${pace.perDay}`);
+      expect(view.forecastSeries.hitsTargetOn).toBe(pace.daysToFinish);
     }
   });
 

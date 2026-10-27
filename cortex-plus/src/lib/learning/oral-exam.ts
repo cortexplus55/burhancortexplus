@@ -133,7 +133,9 @@ export type OralExamReport = {
   /** Tam karşılanan soru sayısı. Kayıt bununla tutulur. */
   fullCount: number;
   total: number;
-  /** Kısmi puan dahil genel yüzde. */
+  /** Kısmi puanların toplamı (bir ondalık). Ekrandaki "Puan X/Y" kesri ve yüzde bundan. */
+  points?: number;
+  /** `round(points / total * 100)`: kesirle aynı pay ve payda. */
   pct: number;
   items: OralItemGrade[];
   strengths: string[];
@@ -610,6 +612,29 @@ export function gradeOralAnswer(
   };
 }
 
+/** Soru başına 0–1 kısmi puanların toplamı, bir ondalığa yuvarlı. */
+export function oralPoints(items: readonly { ratio: number }[]): number {
+  const sum = items.reduce((acc, item) => acc + (Number.isFinite(item.ratio) ? Math.max(0, Math.min(1, item.ratio)) : 0), 0);
+  return Math.round(sum * 10) / 10;
+}
+
+export function oralPctFromPoints(points: number, total: number): number {
+  return total > 0 ? Math.max(0, Math.min(100, Math.round((points / total) * 100))) : 0;
+}
+
+/** Ekrandaki kesir: "7,4/8". Eski kayıtta `points` yoksa maddelerden hesaplanır. */
+export function oralScoreFraction(report: Pick<OralExamReport, "items" | "total" | "points">): {
+  points: number;
+  total: number;
+  label: string;
+  pct: number;
+} {
+  const total = report.total || report.items.length || 1;
+  const points = typeof report.points === "number" ? report.points : oralPoints(report.items);
+  const shown = Number.isInteger(points) ? String(points) : points.toFixed(1).replace(".", ",");
+  return { points, total, label: `${shown}/${total}`, pct: oralPctFromPoints(points, total) };
+}
+
 export function gradeOralExam(
   questions: OralQuestionDraft[],
   answers: Record<string, unknown>,
@@ -631,9 +656,8 @@ export function gradeOralExam(
   );
   const total = items.length || 1;
   const fullCount = items.filter((item) => item.ratio >= 0.99).length;
-  const pct = items.length
-    ? Math.round((items.reduce((sum, item) => sum + item.ratio, 0) / items.length) * 100)
-    : 0;
+  const points = oralPoints(items);
+  const pct = items.length ? oralPctFromPoints(points, total) : 0;
   const strengths = items
     .filter((item) => item.ratio >= 0.8)
     .map((item) => item.objective)
@@ -649,6 +673,7 @@ export function gradeOralExam(
   return {
     fullCount,
     total,
+    points,
     pct,
     items,
     strengths,

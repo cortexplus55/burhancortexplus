@@ -40,11 +40,12 @@ describe("focused practice from stored work", () => {
   // 20 Ekim 2026: ikinci soru tam öğe; kendi açıklamasıyla gelir. Yalnız kök (şıksız) tekrar artık kullanılmaz:
   // anahtarı denetlenemiyordu, kör kıyasta üç tekrarın üçü doğru ikinci cevabı yanlış saydı.
   it("reuses the stored review item and does not keep the original option order", () => {
+    const options = ["Basınç", "Kuvvet", "Enerji", "Yoğunluk"];
     const base = {
       topic: "Basınç",
       heading: "Tanım",
-      prompt: "Basınç kuvvetin alana oranı mıdır?",
-      options: ["Evet", "Hayır", "Bazen"],
+      prompt: "Kuvvetin alana oranı hangi büyüklüktür?",
+      options,
       answerIndex: 0,
       explanation: "Basınç kuvvetin alana bölümüdür.",
     };
@@ -52,8 +53,8 @@ describe("focused practice from stored work", () => {
       {
         ...base,
         review: {
-          prompt: "Kuvvet alana bölününce çıkan büyüklük basınç mıdır?",
-          options: ["Evet", "Hayır", "Bazen"],
+          prompt: "Kuvvet alana bölününce hangi büyüklük çıkar?",
+          options,
           answerIndex: 0,
           explanation: "Kuvvetin alana bölümü basınçtır; bu her yüzey için geçerlidir.",
         },
@@ -63,23 +64,44 @@ describe("focused practice from stored work", () => {
       weakTopics: ["Basınç"],
       missed: [],
       lessonQuestions: lesson,
-      reviewPrompts: ["Kuvvet alana bölününce çıkan büyüklük basınç mıdır?"],
+      reviewPrompts: ["Kuvvet alana bölününce hangi büyüklük çıkar?"],
       limit: 3,
     });
     expect(assembled.reused).toBe(true);
     expect(assembled.questions).toHaveLength(1);
-    expect(assembled.questions[0].text).toBe("Kuvvet alana bölününce çıkan büyüklük basınç mıdır?");
-    expect(assembled.questions[0].correct).toEqual(["Evet"]);
-    expect(assembled.questions[0].options[0]).not.toBe("Evet");
+    expect(assembled.questions[0].text).toBe("Kuvvet alana bölününce hangi büyüklük çıkar?");
+    expect(assembled.questions[0].correct).toEqual(["Basınç"]);
+    expect(assembled.questions[0].options[0]).not.toBe("Basınç");
     expect(assembled.questions[0].explanation).toBe("Kuvvetin alana bölümü basınçtır; bu her yüzey için geçerlidir.");
     expect(assembled.uncoveredTopics).toEqual([]);
 
     const promptOnly = questionsFromLessonChecks([
-      { ...base, review: { prompt: "Kuvvet alana bölününce çıkan büyüklük basınç mıdır?" } },
+      { ...base, review: { prompt: "Kuvvet alana bölününce hangi büyüklük çıkar?" } },
     ]);
     const reworded = assembleFocusedPractice({ weakTopics: ["Basınç"], missed: [], lessonQuestions: promptOnly, reviewPrompts: [], limit: 3 });
-    expect(reworded.questions[0]?.text).not.toBe("Kuvvet alana bölününce çıkan büyüklük basınç mıdır?");
-    expect(reworded.questions[0]?.correct).toEqual(["Evet"]);
+    expect(reworded.questions[0]?.text).not.toBe("Kuvvet alana bölününce hangi büyüklük çıkar?");
+    expect(reworded.questions[0]?.correct).toEqual(["Basınç"]);
+  });
+
+  // V6: iki şıklı Doğru/Yanlış ya da Evet/Hayır sorusu odaklı pratiğe girmez (gerçek 4-5 şık).
+  it("rejects yes/no and two-option items", () => {
+    const assembled = assembleFocusedPractice({
+      weakTopics: ["Basınç"],
+      missed: [],
+      lessonQuestions: questionsFromLessonChecks([
+        {
+          topic: "Basınç",
+          heading: "Tanım",
+          prompt: "Basınç kuvvetin alana oranı mıdır?",
+          options: ["Evet", "Hayır"],
+          answerIndex: 0,
+          explanation: "Kuvvetin alana bölümüdür.",
+        },
+      ]),
+      limit: 4,
+    });
+    expect(assembled.questions).toEqual([]);
+    expect(assembled.uncoveredTopics).toEqual(["Basınç"]);
   });
 
   it("does not invent questions for a topic that has no stored item", () => {
@@ -90,8 +112,8 @@ describe("focused practice from stored work", () => {
         {
           topic: "Basınç",
           heading: "Tanım",
-          prompt: "Basınç kuvvetin alana oranı mıdır?",
-          options: ["Evet", "Hayır"],
+          prompt: "Kuvvetin alana oranı hangi büyüklüktür?",
+          options: ["Basınç", "Kuvvet", "Enerji", "Yoğunluk"],
           answerIndex: 0,
           explanation: "Kuvvetin alana bölümüdür.",
         },

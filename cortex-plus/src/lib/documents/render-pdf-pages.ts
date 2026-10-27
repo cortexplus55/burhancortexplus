@@ -37,12 +37,36 @@ const TARGET_LONG_EDGE = 1600;
 /** Share of non-near-white pixels below which a page with image ops is blank. */
 export const BLANK_INK_RATIO = 0.002;
 
+/** Yol, çizgi ve dolgu bu kadarsa sayfa grafik sayılır (metin katmanı olsa da). */
+export const FIGURE_VECTOR_MIN = 30;
+
+const VECTOR_OP_NAMES = [
+  "constructPath",
+  "stroke",
+  "closeStroke",
+  "fill",
+  "eoFill",
+  "fillStroke",
+  "eoFillStroke",
+  "closeFillStroke",
+  "closeEOFillStroke",
+  "rectangle",
+  "endPath",
+] as const;
+
+export function pageHasFigureGraphics(probe: { hasImage: boolean; vectorOps: number }): boolean {
+  return probe.hasImage || probe.vectorOps >= FIGURE_VECTOR_MIN;
+}
+
 export type RenderedPdfPage = {
   png: Buffer;
   /** 0–1 share of non-white pixels at a cheap sample scale. */
   inkRatio: number;
-  /** Operator list contained an image paint. */
+  /** Operator list contained an image paint, or the ink fallback said the page is not blank. */
   hasImageContent: boolean;
+  /** Embedded image or enough vector drawing to read the figure. Ink alone does not count. */
+  figureGraphics: boolean;
+  vectorOps: number;
   /** Image content present but render is ~blank → do not OCR. */
   scanRenderFailed: boolean;
   pageNumber: number;
@@ -84,25 +108,35 @@ export function inkRatioFromRgba(
   return ink / pixels;
 }
 
-async function pageHasImageContent(page: {
+async function probePageGraphics(page: {
   getOperatorList: () => Promise<{ fnArray: number[] }>;
-}): Promise<boolean> {
+}): Promise<{ hasImage: boolean; vectorOps: number }> {
+  const empty = { hasImage: false, vectorOps: 0 };
   try {
     const ops = await Promise.race([
       page.getOperatorList(),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 2_000)),
     ]);
-    if (!ops) return false;
+    if (!ops) return empty;
     const { OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const opsTable = OPS as Record<string, number | undefined>;
     const imageCodes = new Set(
       [OPS.paintImageXObject, OPS.paintInlineImageXObject, OPS.paintImageMaskXObject].filter(
         (n): n is number => typeof n === "number",
       ),
     );
-    if (imageCodes.size && ops.fnArray.some((fn) => imageCodes.has(fn))) return true;
-    return false;
+    const vectorCodes = new Set(
+      VECTOR_OP_NAMES.map((name) => opsTable[name]).filter((n): n is number => typeof n === "number"),
+    );
+    let hasImage = false;
+    let vectorOps = 0;
+    for (const fn of ops.fnArray) {
+      if (imageCodes.has(fn)) hasImage = true;
+      if (vectorCodes.has(fn)) vectorOps += 1;
+    }
+    return { hasImage, vectorOps };
   } catch {
-    return false;
+    return empty;
   }
 }
 
@@ -173,7 +207,10 @@ export async function renderPdfPages(
 
       // getOperatorList BEFORE render hangs on Node 20 (transferToFixedLength).
       // Probe after paint, with a timeout; fall back to ink/size heuristics.
-      let hasImageContent = await pageHasImageContent(page);
+      const graphics = await probePageGraphics(page);
+      let hasImageContent = graphics.hasImage;
+      const vectorOps = graphics.vectorOps;
+      const figureGraphics = pageHasFigureGraphics(graphics);
 
       // Cheap ink metric at reduced resolution (sample every Nth pixel via getImageData).
       const sampleScale = Math.min(1, 200 / Math.max(canvas.width, canvas.height));
@@ -207,7 +244,7 @@ export async function renderPdfPages(
         });
       }
 
-      const rendered = { png, inkRatio, hasImageContent, scanRenderFailed, pageNumber: number };
+      const rendered = { png, inkRatio, hasImageContent, figureGraphics, vectorOps, scanRenderFailed, pageNumber: number };
       pages.push(rendered);
       page.cleanup();
       options?.onPage?.(rendered, pages.length - 1);

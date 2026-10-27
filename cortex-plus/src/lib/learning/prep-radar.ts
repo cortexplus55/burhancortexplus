@@ -127,6 +127,11 @@ export function buildReadinessForecastSeries(input: {
   gainPerDay: number;
   daysRemaining?: number | null;
   horizon?: number;
+  /**
+   * Tempo kartıyla aynı gün: `Math.ceil(kalanDers / günlükDers)`.
+   * Verilirse eğri bugünkü hazırlıktan hedefe bu günde varır; 100'e tırmanmaz.
+   */
+  daysToTarget?: number | null;
 }): ReadinessForecastSeries {
   const currentPct = pct(input.currentPct);
   const targetPct = pct(input.targetPct) || 75;
@@ -135,17 +140,32 @@ export function buildReadinessForecastSeries(input: {
       ? Math.max(1, Math.round(input.daysRemaining))
       : 14;
   const horizonDays = Math.max(1, Math.min(14, input.horizon ?? remaining, remaining));
+  const ceiling = Math.max(currentPct, targetPct);
+  const sharedDays =
+    typeof input.daysToTarget === "number" && Number.isFinite(input.daysToTarget)
+      ? Math.max(0, Math.round(input.daysToTarget))
+      : null;
+  const points: ReadinessForecastPoint[] = [];
+  let hitsTargetOn: number | null = currentPct >= targetPct ? 0 : sharedDays && sharedDays > 0 ? sharedDays : null;
+  if (sharedDays != null) {
+    for (let day = 0; day <= horizonDays; day += 1) {
+      const value =
+        currentPct >= targetPct || sharedDays <= 0
+          ? currentPct
+          : Math.round(currentPct + (targetPct - currentPct) * Math.min(1, day / sharedDays));
+      points.push({ day, pct: Math.max(currentPct, Math.min(ceiling, value)) });
+    }
+    return { points, currentPct, targetPct, horizonDays, hitsTargetOn };
+  }
   const gain = Math.max(0, Math.min(8, input.gainPerDay));
+  // Eğri 100'e doğru kurulur ama hedefte kesilir: hedefe göre kurulan eğri hedefe hiç varmıyordu.
   const room = Math.max(0, 100 - currentPct);
   const rate = room <= 0 ? 0 : Math.min(0.22, gain / Math.max(room * 0.22, 5));
-  const points: ReadinessForecastPoint[] = [];
-  let hitsTargetOn: number | null = currentPct >= targetPct ? 0 : null;
+  hitsTargetOn = currentPct >= targetPct ? 0 : null;
   for (let day = 0; day <= horizonDays; day += 1) {
     const next =
-      room <= 0
-        ? 100
-        : Math.round(currentPct + room * (1 - Math.pow(1 - rate, day)));
-    const value = Math.max(currentPct, Math.min(100, next));
+      room <= 0 ? currentPct : Math.round(currentPct + room * (1 - Math.pow(1 - rate, day)));
+    const value = Math.max(currentPct, Math.min(ceiling, next));
     points.push({ day, pct: value });
     if (hitsTargetOn == null && value >= targetPct) hitsTargetOn = day;
   }

@@ -1,4 +1,4 @@
-import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { PLAN_NODE_META, type NodeStatus, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepNodeHref, examPrepPodcastHref } from "@/lib/learning/exam-prep-hrefs";
 
 /**
@@ -352,11 +352,44 @@ export type FreeActivityPick =
   | { ok: true; kind: "node"; nodeId: string; href: string }
   | { ok: true; kind: "podcast"; href: string }
   | { ok: true; kind: "video"; href: string }
+  /** Konunun bu etkinlik düğümü yok: sunucu konunun bölümüne ekler, sonra açılır. */
+  | { ok: true; kind: "create"; tool: StudyToolId; nodeKind: PlanNodeKind; topicId: string | null; topicLabel: string }
   | { ok: false; reason: "missing" };
 
 /**
- * Seçilen konunun kendi düğümü. Başka konunun düğümü açılmaz.
- * Podcast yoldaki düğüm değilse podcast sayfasına gider.
+ * Karo → aranacak düğüm türleri ve yoksa eklenecek tür. Konunun kart destesi "Kartlarla tekrar"
+ * (`spaced`); hazırlık geneli `flashcards` konuya bağlı değildir.
+ */
+export const FREE_PICK_NODE_KINDS: Record<string, { search: StudyToolId[]; create: PlanNodeKind }> = {
+  lesson: { search: ["lesson"], create: "lesson" },
+  quiz: { search: ["quiz"], create: "quiz" },
+  true_false: { search: ["true_false"], create: "true_false" },
+  flashcards: { search: ["spaced", "flashcards"], create: "spaced" },
+  oral: { search: ["oral"], create: "oral" },
+};
+
+function ownTopicNode<T extends StudyNodeRef>(
+  nodes: T[],
+  tool: StudyToolId,
+  topic: { id?: string | null; label: string | null },
+): T | null {
+  const ownKind = studyToolById(tool).kind;
+  const matched = resolveStudyToolNode(
+    nodes.filter((node) => node.kind === ownKind),
+    tool,
+    { id: topic.id, label: topic.label },
+  );
+  if (!matched) return null;
+  const same =
+    !topic.label ||
+    topicLabelsMatch(topic.label, matched.sessionMeta?.topicTitle) ||
+    (Boolean(topic.id) && matched.sessionMeta?.topicId === topic.id);
+  return same ? matched : null;
+}
+
+/**
+ * Seçilen konunun kendi düğümü. Başka konunun düğümü açılmaz; konunun düğümü yoksa eklenir (`create`).
+ * Podcast ve video kendi sayfalarına gider. Yedi karonun yedisi açılır.
  */
 export function freeActivityPick<T extends StudyNodeRef>(
   nodes: T[],
@@ -372,12 +405,54 @@ export function freeActivityPick<T extends StudyNodeRef>(
   if (tool === "video") {
     return { ok: true, kind: "video", href: studySketchVideoHref(prepId, label, topicOptions) };
   }
-  const matched = resolveStudyToolNode(nodes, tool, { id: topic?.id, label });
-  if (!matched) return { ok: false, reason: "missing" };
-  const sameTopic =
-    !label ||
-    topicLabelsMatch(label, matched.sessionMeta?.topicTitle) ||
-    (Boolean(topic?.id) && matched.sessionMeta?.topicId === topic?.id);
-  if (!sameTopic) return { ok: false, reason: "missing" };
-  return { ok: true, kind: "node", nodeId: matched.id, href: studyActivityHref(prepId, matched.id, null) };
+  const plan = FREE_PICK_NODE_KINDS[tool] ?? { search: [tool], create: studyToolById(tool).kind as PlanNodeKind };
+  for (const search of plan.search) {
+    const matched = ownTopicNode(nodes, search, { id: topic?.id, label });
+    if (matched) {
+      return { ok: true, kind: "node", nodeId: matched.id, href: studyActivityHref(prepId, matched.id, null) };
+    }
+  }
+  if (!label) return { ok: false, reason: "missing" };
+  return { ok: true, kind: "create", tool, nodeKind: plan.create, topicId: topic?.id?.trim() || null, topicLabel: label };
+}
+
+export type ActivityInsertNode = {
+  id: string;
+  kind: string;
+  sortOrder: number;
+  dayIndex: number;
+  sessionMeta?: Record<string, unknown> | null;
+};
+
+/**
+ * Eklenecek düğümün yeri ve konusu: konunun son düğümünün hemen arkası, kaynağı (sayfalar, konu kimliği)
+ * konunun dersinden. Konunun hiç düğümü yoksa yolun sonu. Saf: sunucu bunu `exam_path_insert_after`'a verir.
+ */
+export function planActivityInsert(
+  nodes: readonly ActivityInsertNode[],
+  topic: { id?: string | null; label: string },
+  kind: PlanNodeKind,
+): { afterSort: number; dayIndex: number; sessionMeta: Record<string, unknown>; title: string } {
+  const label = topic.label.trim();
+  const ofTopic = nodes
+    .filter((node) => {
+      const meta = node.sessionMeta ?? {};
+      const metaId = typeof meta.topicId === "string" ? meta.topicId : null;
+      const metaTitle = typeof meta.topicTitle === "string" ? meta.topicTitle : null;
+      return (topic.id && metaId === topic.id) || topicLabelsMatch(label, metaTitle);
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const source = ofTopic.find((node) => node.kind === "lesson") ?? ofTopic[0] ?? null;
+  const last = ofTopic[ofTopic.length - 1] ?? [...nodes].sort((a, b) => b.sortOrder - a.sortOrder)[0] ?? null;
+  const meta = source?.sessionMeta ?? {};
+  const sessionMeta: Record<string, unknown> = {
+    topicTitle: (typeof meta.topicTitle === "string" && meta.topicTitle.trim()) || label,
+    ...(typeof meta.topicId === "string" ? { topicId: meta.topicId } : topic.id ? { topicId: topic.id } : {}),
+    ...(Array.isArray(meta.sourcePages) ? { sourcePages: meta.sourcePages } : {}),
+    ...(typeof meta.unitTitle === "string" ? { unitTitle: meta.unitTitle } : {}),
+    role: kind === "lesson" ? "learn" : kind === "spaced" ? "review" : "practice",
+    studentPicked: true,
+  };
+  const title = `${PLAN_NODE_META[kind]?.setupLabel ?? kind} · ${sessionMeta.topicTitle as string}`;
+  return { afterSort: last?.sortOrder ?? 0, dayIndex: last?.dayIndex ?? 1, sessionMeta, title };
 }

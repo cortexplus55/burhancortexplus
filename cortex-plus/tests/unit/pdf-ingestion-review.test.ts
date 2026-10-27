@@ -19,6 +19,7 @@ vi.mock("@/lib/documents/extract-text", () => ({ extractText: mocks.extractText 
 vi.mock("@/lib/documents/render-pdf-pages", () => ({
   renderPdfPages: mocks.renderPdfPages,
   BLANK_INK_RATIO: 0.002,
+  FIGURE_VECTOR_MIN: 30,
 }));
 vi.mock("@/lib/documents/extract-image-text", () => ({
   extractImageText: mocks.extractImageText,

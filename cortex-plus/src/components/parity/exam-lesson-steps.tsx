@@ -31,6 +31,8 @@ import {
   type BoardLine,
 } from "@/lib/learning/lesson-board";
 import { RichBody } from "@/components/parity/lesson-rich-text";
+import { rejoinIntervalCells } from "@/lib/learning/interval-text";
+import { sanitizeStudentContent } from "@/lib/learning/student-safe-text";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
@@ -169,6 +171,8 @@ function ProcedureList({ procedure }: { procedure: NonNullable<LessonV2["section
 
 /** Küçük referans tablosu (persentil↔SD gibi karşılıklar). */
 function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][number]["table"]> }) {
+  const columns = rejoinIntervalCells(table.columns);
+  const rows = table.rows.map((row) => rejoinIntervalCells(row));
   return (
     <div className="als-reference-table">
       {table.caption ? <p className="als-reference-table-caption">{table.caption}</p> : null}
@@ -176,15 +180,15 @@ function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][num
         <table>
           <thead>
             <tr>
-              {table.columns.map((column, index) => (
+              {columns.map((column, index) => (
                 <th key={index}>{column}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row, rowIndex) => (
+            {rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
-                {table.columns.map((_column, colIndex) => (
+                {columns.map((_column, colIndex) => (
                   <td key={colIndex}>{row[colIndex] ?? ""}</td>
                 ))}
               </tr>
@@ -330,7 +334,7 @@ function LessonBlocks({
                 {calloutTone(block.note) === "general" ? (
                   <p className="als-kicker als-kicker--general">Genel bilgi</p>
                 ) : null}
-                <p className="als-note-title">{block.note.title}</p>
+                <p className="als-note-title">{sanitizeStudentContent(block.note.title)}</p>
                 <p className="als-note-body">
                   <RichBody text={block.note.body} topicHint={topicHint} />
                 </p>
@@ -414,6 +418,8 @@ type Step =
     };
 
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
+/** "Dersi bitir" kaydı en çok bu kadar kilitli tutar; sonra öğrenci yeniden basabilir. */
+export const ADVANCE_UNLOCK_MS = 3000;
 
 function checkKicker(type: string | undefined): string {
   if (type === "trueFalse") return "DOĞRU MU YANLIŞ MI?";
@@ -680,7 +686,7 @@ export function ExamLessonSteps({
     missedSectionIndexes?: number[],
     lessonAnswers?: Record<string, LessonCheckAnswer>,
     retryAnswers?: Record<string, LessonCheckAnswer>,
-  ) => void;
+  ) => void | Promise<unknown>;
   onClose?: () => void;
   closeHref?: string;
   /** Yol ve kapıyla aynı süre (`activityMinutes`). Varsa okuma süresi yeniden hesaplanmaz. */
@@ -811,12 +817,21 @@ export function ExamLessonSteps({
     resetAnswer();
   }
 
-  function next() {
+  async function next() {
     // Bekleme kartında ilerlenmez: sıradaki kavram gelince kart onun yerini alır.
     if (step.kind === "building" || advancing) return;
     if (last) {
       setAdvancing(true);
-      onFinish?.(missed, lessonAnswers, retryAnswers);
+      // Kayıt düşerse ya da asılı kalırsa düğme kilitli kalmasın; çift kaydı `finish` kendisi engeller.
+      const unlock = window.setTimeout(() => setAdvancing(false), ADVANCE_UNLOCK_MS);
+      try {
+        await onFinish?.(missed, lessonAnswers, retryAnswers);
+      } catch {
+        // Hata bildirimi `onFinish`in işi; burada yalnız kilit açılır.
+      } finally {
+        window.clearTimeout(unlock);
+        setAdvancing(false);
+      }
       return;
     }
     go(index + 1);
@@ -1236,10 +1251,12 @@ export function ExamLessonSteps({
             <div className="als-mistake">
               <p className="als-mistake-claim">
                 <span className="als-tag als-tag--warn">Yanlış</span>
+                {" · "}
                 <RichBody text={step.claim}  topicHint={mathTopicHint} />
               </p>
               <p className="als-mistake-fix">
                 <span className="als-tag als-tag--ok">Doğrusu</span>
+                {" · "}
                 <RichBody text={step.correction}  topicHint={mathTopicHint} />
               </p>
             </div>
@@ -1579,7 +1596,9 @@ function Explanation({
       <p className="als-explain-kicker">{feedbackKicker(!wrong)}</p>
       {wrong && cleanFeedbackText(hint ?? "") ? (
         <p className="als-hint-first">
-          <span className="als-tag">{feedbackKicker(false)}</span> {cleanFeedbackText(hint ?? "")}
+          <span className="als-tag">{feedbackKicker(false)}</span>
+          {" · "}
+          {cleanFeedbackText(hint ?? "")}
         </p>
       ) : null}
       {wrong ? (
@@ -1606,7 +1625,9 @@ function Explanation({
             : null}
           {misconception?.trim() ? (
             <p>
-              <span className="als-tag als-tag--warn">Yanılgı</span> {misconception.trim()}
+              <span className="als-tag als-tag--warn">Yanılgı</span>
+              {" · "}
+              {misconception.trim()}
             </p>
           ) : null}
         </>
@@ -1617,7 +1638,9 @@ function Explanation({
       ) : null}
       {showCorrected ? (
         <p>
-          <span className="als-tag als-tag--ok">Doğrusu</span> {corrected}
+          <span className="als-tag als-tag--ok">Doğrusu</span>
+          {" · "}
+          {corrected}
         </p>
       ) : null}
       {wrong && revisit ? (

@@ -4,10 +4,14 @@ import { zipSync, strToU8 } from "fflate";
 import {
   DOCX_CHARS_PER_PAGE,
   expandDocxPages,
+  extractOfficePackage,
   extractOfficeText,
   isOfficeDocument,
+  OFFICE_IMAGE_MIN_BYTES,
   OFFICE_MIME_TYPES,
+  resolveOfficeTarget,
 } from "@/lib/documents/extract-office-text";
+import { appendFigureTranscript, figureTranscript } from "@/lib/documents/extract-image-text";
 
 /*
   Astra vitrininde "slaytlar ve ders kitapları" diyor; bizde `.pptx` ve
@@ -216,6 +220,101 @@ describe("PowerPoint", () => {
   });
 });
 
+describe("gömülü resimler", () => {
+  const png = new Uint8Array(OFFICE_IMAGE_MIN_BYTES + 8);
+  png.set([0x89, 0x50, 0x4e, 0x47]);
+
+  it("pptx slayt ilişkisinden resmi sayfaya bağlar", () => {
+    const result = extractOfficePackage(
+      Buffer.from(
+        zipSync({
+          "ppt/slides/slide1.xml": strToU8(
+            `<?xml version="1.0"?><p:sld><a:p><a:r><a:t>Grafik</a:t></a:r></a:p><a:blip r:embed="rId2"/></p:sld>`,
+          ),
+          "ppt/slides/_rels/slide1.xml.rels": strToU8(
+            `<Relationships><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/></Relationships>`,
+          ),
+          "ppt/slides/slide2.xml": strToU8(`<?xml version="1.0"?><p:sld><a:blip r:embed="rId1"/></p:sld>`),
+          "ppt/slides/_rels/slide2.xml.rels": strToU8(
+            `<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/photo.jpeg"/></Relationships>`,
+          ),
+          "ppt/media/image1.png": png,
+          "ppt/media/photo.jpeg": png,
+        }),
+      ),
+      PPTX,
+    );
+    expect(result.ok).toBe(true);
+    expect(result.pages).toEqual(["Grafik", ""]);
+    expect(result.images.map((image) => [image.pageIndex, image.name, image.mimeType])).toEqual([
+      [0, "ppt/media/image1.png", "image/png"],
+      [1, "ppt/media/photo.jpeg", "image/jpeg"],
+    ]);
+  });
+
+  it("docx sayfa kırığından sonraki resmi ikinci sayfaya yazar", () => {
+    const result = extractOfficePackage(
+      Buffer.from(
+        zipSync({
+          "word/document.xml": strToU8(
+            `<?xml version="1.0"?><w:document><w:body><w:p><w:r><w:t>Birinci</w:t></w:r></w:p><w:p><w:r><w:br w:type="page"/></w:r></w:p><w:p><w:r><w:t>İkinci</w:t></w:r><w:drawing><a:blip r:embed="rId1"/></w:drawing></w:p></w:body></w:document>`,
+          ),
+          "word/_rels/document.xml.rels": strToU8(
+            `<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/></Relationships>`,
+          ),
+          "word/media/image1.png": png,
+        }),
+      ),
+      DOCX,
+    );
+    expect(result.pages[0]).toContain("Birinci");
+    expect(result.pages[1]).toContain("İkinci");
+    expect(result.images).toHaveLength(1);
+    expect(result.images[0]?.pageIndex).toBe(1);
+    expect(result.images[0]?.name).toBe("word/media/image1.png");
+  });
+
+  it("1 KB altındaki simgeyi listeye almaz", () => {
+    const result = extractOfficePackage(
+      Buffer.from(
+        zipSync({
+          "word/document.xml": strToU8(
+            `<?xml version="1.0"?><w:document><w:body><w:p><w:r><w:t>Kısa metin</w:t></w:r><a:blip r:embed="rId1"/></w:p></w:body></w:document>`,
+          ),
+          "word/_rels/document.xml.rels": strToU8(
+            `<Relationships><Relationship Id="rId1" Target="media/icon.png"/></Relationships>`,
+          ),
+          "word/media/icon.png": new Uint8Array(32),
+        }),
+      ),
+      DOCX,
+    );
+    expect(result.ok).toBe(true);
+    expect(result.images).toHaveLength(0);
+    expect(result.pages[0]).toBe("Kısa metin");
+  });
+
+  it("ilişki hedefini parçanın klasöründen çözer", () => {
+    expect(resolveOfficeTarget("ppt/slides/_rels/slide1.xml.rels", "../media/image1.png")).toBe(
+      "ppt/media/image1.png",
+    );
+    expect(resolveOfficeTarget("word/_rels/document.xml.rels", "media/image1.png")).toBe(
+      "word/media/image1.png",
+    );
+  });
+
+  it("boş şekil okuması sayfaya mazeret yazmaz", () => {
+    expect(figureTranscript("Şekil burada görünmediği için belirlenemez.")).toBeNull();
+    expect(figureTranscript("[METIN_YOK]")).toBeNull();
+    expect(figureTranscript("g(4) = -2\n1 → b")).toContain("g(4) = -2");
+    const appended = appendFigureTranscript("Grafik", "g(4) = -2\n1 → b");
+    expect(appended).toContain("Şekilde işaretli değerler:");
+    expect(appended).toContain("g(4) = -2");
+    expect(appended).toContain("1 → b");
+    expect(appendFigureTranscript("Grafik", null)).toBe("Grafik");
+  });
+});
+
 describe("kötü dosyalar", () => {
   it("zip olmayan dosyayı reddediyor", () => {
     const result = extractOfficeText(Buffer.from("bu bir zip değil"), DOCX);
@@ -279,13 +378,15 @@ describe("yükleme yolu", () => {
     expect(labels).toContain("görsel");
   });
 
-  /* Model çağrısı yok, kota yok: metin dosyanın içinde zaten duruyor. */
-  it("boru hattı kota istemiyor", () => {
+  /* Metin kotasız kalır. Gömülü resim taranmış sayfa gibi tek tek hak ister. */
+  it("boru hattı gömülü resmi kota ile okur", () => {
     const source = readFileSync("src/lib/rag/pipeline.ts", "utf8");
     const start = source.indexOf("} else if (isOfficeDocument(doc.mime_type)) {");
     const end = source.search(/\}\s*else\s*\{\s*let extracted;/);
     const branch = source.slice(start, end);
-    expect(branch).toContain("extractOfficeText(buffer, doc.mime_type)");
-    expect(branch).not.toContain("claim(");
+    expect(branch).toContain("extractOfficePackage(buffer, doc.mime_type)");
+    expect(branch).toContain("attachOfficeFigures");
+    expect(branch).toContain("claim(1)");
+    expect(source).toContain('scannedPages: claimedPages');
   });
 });

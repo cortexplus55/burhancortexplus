@@ -42,6 +42,7 @@ export function ExamReadinessScreen({
               <li key={topic.topic}>
                 <strong>
                   {topic.topic} · {STATE_LABEL[topic.state]}
+                  {topic.state === "unmeasured" ? null : ` · %${topic.pct}`}
                 </strong>
                 <span>{topic.detail}</span>
               </li>

@@ -353,6 +353,61 @@ export function foldTopicMastery(
   return [...map.values()].map(scoreTopicMastery);
 }
 
+/** Sağlam sayılmak ve sönümün kalkması için gereken kanıt. Bir soru yetmez. */
+export const MASTERY_EVIDENCE_FLOOR = 3;
+
+/** Bağımsız doğruluk; yoksa ilk deneme. Kayıt yoksa 0. */
+export function topicSuccessRate(topic: TopicMasterySnapshot): number {
+  if (topic.independentTotal > 0) return topic.independentCorrect / topic.independentTotal;
+  if (topic.firstAttemptTotal > 0) return topic.firstAttemptCorrect / topic.firstAttemptTotal;
+  return 0;
+}
+
+/**
+ * Konu yüzdesi — yol, sözlü seçici, İlerleme ve Hazırsın aynı fonksiyonu okur.
+ * Ölçülmemiş konu 0. Kanıt 3'ten azsa yüzde `evidence / 3` ile söner (1 doğru → en çok %33).
+ */
+export function topicMasteryPercent(topic: TopicMasterySnapshot): number {
+  if (!topic.measured || topic.evidenceCount <= 0) return 0;
+  const damp = Math.min(1, topic.evidenceCount / MASTERY_EVIDENCE_FLOOR);
+  return Math.max(0, Math.min(100, Math.round(topicSuccessRate(topic) * 100 * damp)));
+}
+
+/** "Sağlam": en az 3 kanıt ve sönümlü yüzde hedefin üstünde. Tek doğru cevap yetmez. */
+export function topicIsSolid(topic: TopicMasterySnapshot, target: number): boolean {
+  return topic.evidenceCount >= MASTERY_EVIDENCE_FLOOR && topicMasteryPercent(topic) >= target;
+}
+
+/** `exam_prep_topic_mastery` okuyan her sayfa bu sütunları ister; yüzde kayıtlı `confidence`'tan değil ham sayılardan. */
+export const MASTERY_ROW_COLUMNS =
+  "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at";
+
+export function masterySnapshotFromRow(row: Record<string, unknown>): TopicMasterySnapshot {
+  const evidenceCount = Number(row.evidence_count ?? 0);
+  return {
+    topicKey: String(row.topic_key ?? ""),
+    measured: evidenceCount > 0,
+    level: ((row.measured_level as TopicMasterySnapshot["level"] | null) ?? "unmeasured"),
+    confidence: Number(row.confidence ?? 0),
+    evidenceCount,
+    firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
+    firstAttemptTotal: Number(row.first_attempt_total ?? 0),
+    independentCorrect: Number(row.independent_correct ?? 0),
+    independentTotal: Number(row.independent_total ?? 0),
+    lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
+  };
+}
+
+/** Konu adı → yüzde. Kaydı olmayan konu yok sayılır (çağıran 0 yazar). */
+export function topicPercentsByKey(rows: Record<string, unknown>[] | null | undefined): Map<string, number> {
+  return new Map(
+    (rows ?? []).map((row) => {
+      const snapshot = masterySnapshotFromRow(row);
+      return [normalizeTopicKey(snapshot.topicKey), topicMasteryPercent(snapshot)] as const;
+    }),
+  );
+}
+
 export function scoreTopicMastery(topic: TopicMasterySnapshot): TopicMasterySnapshot {
   if (!topic.measured || topic.evidenceCount === 0) {
     return {
@@ -363,21 +418,13 @@ export function scoreTopicMastery(topic: TopicMasterySnapshot): TopicMasterySnap
     };
   }
 
-  const rate =
-    topic.independentTotal > 0
-      ? topic.independentCorrect / topic.independentTotal
-      : topic.firstAttemptTotal > 0
-        ? topic.firstAttemptCorrect / topic.firstAttemptTotal
-        : 0;
+  const rate = topicSuccessRate(topic);
+  const confidence = topicMasteryPercent({ ...topic, measured: true });
 
   let level: TopicMasterySnapshot["level"] = "weak";
-  if (rate >= 0.85 && topic.evidenceCount >= 3) level = "solid";
+  if (topicIsSolid(topic, 85)) level = "solid";
   else if (rate >= 0.55) level = "emerging";
   else level = "weak";
-
-  // Confidence scales with evidence; unmeasured stays 0.
-  const sampleFactor = Math.min(1, topic.evidenceCount / 5);
-  const confidence = Math.round(rate * 100 * sampleFactor);
 
   return { ...topic, level, confidence };
 }
@@ -467,7 +514,8 @@ export function computeExamReadiness(input: {
   const plannedKeys = keys.length ? keys : ["genel"];
   for (const key of plannedKeys) {
     const t = byKey.get(key);
-    const confidence = t?.measured && t.evidenceCount > 0 && Number.isFinite(t.confidence) ? t.confidence : 0;
+    const scored = t ? scoreTopicMastery(t) : null;
+    const confidence = scored ? topicMasteryPercent(scored) : 0;
     confidenceSum += confidence;
     if (!t || !t.measured || t.evidenceCount === 0) {
       unmeasured += 1;

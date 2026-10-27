@@ -53,8 +53,8 @@ export const TEACHING_RUBRIC =
 export const SOURCE_LINK_EXEMPTION =
   "Kaynaktaki iki bilgiyi birbirine bağlayan neden cümlesi ve yabancı bir terimin birebir Türkçe karşılığı yeni " +
   "bilgi sayılmaz — sayı, eşik, kural ya da sonuç eklemedikleri sürece. Kaynakta tanımı olmayan bir terimin ne " +
-  "olduğunu dışarıdan açıklamak ise yeni bilgidir: 'Sınav Müfredatı Tamamlaması' kutusunda etiketle " +
-  "(başlık 'Sınav Müfredatı Tamamlaması:' de olur). Kaynağın " +
+  "olduğunu dışarıdan açıklamak ise yeni bilgidir: kavramın adını taşıyan 'note' kutusunda (tone 'general') yaz. " +
+  "Başlığa 'Sınav Müfredatı Tamamlaması' yazma. Kaynağın " +
   "nedenini vermediği bir bilginin mekanizması da yeni bilgidir: yalnız 'Neden böyle?' kutusunda.";
 
 /**
@@ -74,3 +74,10 @@ export const WHY_NOTE_RULE =
   "eklemez; yalnız kaynakta zaten olan bilginin nedenini anlatır. Yalnız ders kitaplarında tartışmasız mekanizma; emin " +
   "değilsen yazma. Kavram başına en çok bir. Soru, 'corrected' ve özet buna dayanmaz; sorular kaynaktan çözülür. " +
   "Kaynak nedeni kendisi veriyorsa kutu açma, nedeni metinde anlat.";
+
+/** Ders, test ve podcast istemlerinin sonuna eklenir. Model bu adları kendi cümlesi gibi yazmasın. */
+export const STUDENT_LEAK_BAN =
+  "ÇIKTI YASAĞI: İç kural adlarını ve şu ifadeleri çıktına yazma: sayı uydurma, kapsamı dışındadır, " +
+  "Sınav Müfredatı Tamamlaması, görünmediği için, burada görünmedi, Ders: … Dönem …. " +
+  "Şekildeki değer kaynakta yoksa o değeri kullanma ve görünmüyor diye de yazma. " +
+  "Açıklamada 'cevap B'dir' veya 'doğru şık B' yazma; şıkkı içeriğiyle an.";

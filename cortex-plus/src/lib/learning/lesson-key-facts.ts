@@ -1,4 +1,5 @@
 import { LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
+import { splitTableCells } from "@/lib/learning/interval-text";
 
 /**
  * Kilit bilgiler (ders bağımsız).
@@ -197,10 +198,7 @@ function markdownTables(text: string): string[][][] {
   for (const raw of text.split(/\n+/)) {
     const line = raw.trim();
     if (line.length > 2 && line.startsWith("|") && line.endsWith("|")) {
-      const cells = line
-        .slice(1, -1)
-        .split("|")
-        .map((cell) => cell.trim());
+      const cells = splitTableCells(line);
       if (cells.every((cell) => /^:?-{2,}:?$/.test(cell))) continue;
       current.push(cells);
       continue;

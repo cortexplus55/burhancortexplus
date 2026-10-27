@@ -98,9 +98,9 @@ describe("dinleme kontrolü: kaynak, okuma, puan", () => {
       { text: "B?", options: ["x", "y"], correct: ["y"], multi: false },
       { text: "C?", options: ["x", "y"], correct: ["x"], multi: false },
     ];
-    expect(scorePodcastCheck({ type: "podcast" }, { "0": "x" })).toEqual({ score: 0, total: 0 });
-    expect(scorePodcastCheck({ type: "podcast", check }, {})).toEqual({ score: 0, total: 3 });
-    expect(scorePodcastCheck({ type: "podcast", check }, { __meta: { hintsUsed: {} } })).toEqual({ score: 0, total: 3 });
+    expect(scorePodcastCheck({ type: "podcast" }, { "0": "x" })).toEqual({ score: 1, total: 1 });
+    expect(scorePodcastCheck({ type: "podcast", check }, {})).toEqual({ score: 1, total: 1 });
+    expect(scorePodcastCheck({ type: "podcast", check }, { __meta: { hintsUsed: {} } })).toEqual({ score: 1, total: 1 });
     expect(scorePodcastCheck({ type: "podcast", check }, { "0": "x", "1": "x", "2": "x" })).toEqual({ score: 2, total: 3 });
     // Bozuk öğe atılır; en çok beş soru (23 Ekim 2026'dan beri; önce üç).
     expect(podcastCheckOf({ check: [...check, check[0], check[1], check[2], { text: 1 }, null] })).toHaveLength(5);

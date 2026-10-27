@@ -9,9 +9,11 @@ import {
 import { visionReadyImage } from "@/lib/documents/vision-image";
 import { BLANK_INK_RATIO, MAX_SCAN_PAGES, renderPdfPages } from "@/lib/documents/render-pdf-pages";
 import {
-  extractOfficeText,
+  extractOfficePackage,
   isOfficeDocument,
+  type OfficeEmbeddedImage,
 } from "@/lib/documents/extract-office-text";
+import { attachOfficeFigures } from "@/lib/documents/office-figures";
 import {
   claimPhotoPages,
   planTier,
@@ -173,6 +175,8 @@ export async function processDocument(
 
   let pages: string[];
   let notice: string | undefined;
+  /** Kota yüzünden okunmayan gömülü resim. Belge metni yine kaydolur. */
+  let officeSkipped = 0;
 
   if (isImageDocument(doc.mime_type)) {
     if (!(await claim(1))) return fail("photo_quota_exhausted");
@@ -193,14 +197,35 @@ export async function processDocument(
     pages = read.pages;
   } else if (isOfficeDocument(doc.mime_type)) {
     /*
-      Slayt ve Word. Model çağrısı yok, kota yok: metin dosyanın içinde zaten
-      duruyor, okunması yeter — PDF'in metin katmanını okumaktan farkı yok.
+      Metin XML'den gelir. ppt/media ve word/media resimleri slayt/sayfa ile
+      eşlenir ve taranmış sayfa gibi okunur: kota resim başına, ücret
+      DOCUMENT_SCAN_PAGE. Kota dolunca metin kaydolur, resim atlanır.
     */
-    const read = extractOfficeText(buffer, doc.mime_type);
+    const read = extractOfficePackage(buffer, doc.mime_type);
     if (!read.ok) {
       return fail(read.reason === "too_large" ? "office_too_large" : "office_unreadable");
     }
-    pages = read.pages;
+    const claimedImages: OfficeEmbeddedImage[] = [];
+    for (const image of read.images) {
+      if (!(await claim(1))) {
+        officeSkipped += 1;
+        continue;
+      }
+      claimedImages.push(image);
+    }
+    const attached = await attachOfficeFigures(read.pages, claimedImages);
+    recordVision(attached.usage);
+    const missed = claimedImages.length - attached.readCount;
+    if (missed > 0) {
+      await releasePhotoPages(service, userId, missed);
+      claimedPages -= missed;
+    }
+    if (attached.blocked) reportBlocked();
+    pages = attached.pages.filter((page) => page.trim().length > 0);
+    if (!pages.length) {
+      if (officeSkipped > 0 && officeSkipped === read.images.length) return fail("photo_quota_exhausted");
+      return failAndRelease(attached.blocked ? "image_blocked" : "office_unreadable");
+    }
   } else {
     let extracted;
     try {
@@ -285,7 +310,12 @@ export async function processDocument(
 
   await service
     .from("documents")
-    .update({ status: "processing", page_count: pages.length, source_page_count: sourcePages })
+    .update({
+      status: "processing",
+      page_count: pages.length,
+      source_page_count: sourcePages,
+      ...(officeSkipped > 0 ? { scan_pages_skipped: officeSkipped } : {}),
+    })
     .eq("id", documentId);
 
   // A request can be interrupted after writing only part of the derived data.
@@ -388,6 +418,7 @@ export async function processDocument(
       chunks: allChunks.length,
       notice,
       pageCount: pages.length,
+      scannedPages: claimedPages,
       deferred: true,
     };
   }

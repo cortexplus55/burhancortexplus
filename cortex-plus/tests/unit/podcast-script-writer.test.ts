@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import { podcastScriptSystem, scriptToDraft, usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 import { parseTeacherPodcast, podcastSystem, podcastWriterSystem } from "@/lib/learning/teacher-podcast";
+import { STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
 
 // 23 Ekim 2026 gecesi: iki sesli türler kısa senarist istemiyle düz senaryo yazar; kod bölümlere ayırır.
 describe("podcast: senarist yazar", () => {
@@ -18,8 +19,10 @@ describe("podcast: senarist yazar", () => {
 
   it("istem kısa; doğruluk sınırları ve biçim yerinde", () => {
     const system = podcastScriptSystem("document", "diyalog");
-    // Kişisel anı yasağı eklendi; istem yine kısa kalır (eski onarım listesi ~8.000 karakterdi).
-    expect(system.length).toBeLessThan(4_800);
+    // Kişisel anı yasağı ve öğrenciye sızıntı yasağı (28 Ekim 2026) eklendi; istem yine kısa kalır
+    // (eski onarım listesi ~8.000 karakterdi).
+    expect(system.length).toBeLessThan(5_200);
+    expect(system).toContain(STUDENT_LEAK_BAN);
     expect(system).toContain("Sayı, eşik, yaş, süre, tarih, doz, formül, tanı ölçütü ve sınıflandırma yalnızca KAYNAK'tan");
     expect(system).toContain("kaynak 'ayrıntılı değerlendirme' diyorsa 'acil' deme");
     expect(system).toContain("SINAVDA SORULUR maddelerinin hepsi ve tablonun her satırı (en az ayırt edici bilgisiyle) konuşmada");

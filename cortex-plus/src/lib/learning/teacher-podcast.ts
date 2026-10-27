@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
 import {
   coercePodcastDraft,
   keremShare,
@@ -211,7 +212,7 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     SPOKEN_ONLY_RULE +
     "\n\n" +
     `${CONTENT_STYLE}\n\n` +
-    `Yalnızca bu şemada JSON döndür:\n${duo ? SCHEMA_DUO : SCHEMA_SINGLE}`
+    `Yalnızca bu şemada JSON döndür:\n${duo ? SCHEMA_DUO : SCHEMA_SINGLE}\n\n${STUDENT_LEAK_BAN}`
   );
 }
 

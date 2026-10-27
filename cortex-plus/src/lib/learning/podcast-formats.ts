@@ -161,7 +161,7 @@ export const SPOKEN_ONLY_RULE =
 
 const PAPER_INSTRUCTION =
   /(?<!\p{L})(?:şıkları\s+ele\p{L}*|şık\s+eleme\p{L}*|eleme\s+yöntem\p{L}*|işaretle(?:yin|yiniz|yin\p{L}*)?|kâğıd?(?:ı|a|ına)\s+yaz\p{L}*|kağıd?(?:ı|a|ına)\s+yaz\p{L}*|cevap\s+kâğıd\p{L}*|cevap\s+kağıd\p{L}*|optik\s+form\p{L}*|boşlu(?:ğu|kları)\s+doldur\p{L}*|soruları\s+cevaplayınız|aşağıdaki\s+sorular\p{L}*)(?!\p{L})/iu;
-const SPEAKER_LABEL_PREFIX = /^(?:öğretmen|ogretmen|öğrenci|ogrenci|sunucu)\s*:\s*/iu;
+const SPEAKER_LABEL_PREFIX = /^(?:öğretmen|ogretmen|öğrenci|ogrenci|sunucu|ece|deniz)\s*:\s*/iu;
 const TRAILING_PRAISE =
   /(?:^|[\s,;])(?:çok\s+)?(?:muazzam|harika|süper|güzel|mükemmel|müthiş|şahane|great|awesome|amazing|excellent|perfect|brilliant|wonderful|superb)\s+(?:bir\s+|a\s+|an\s+)?(?:özet|soru|nokta|job|summary|point|work)\s*(?:oldu|idi|was)?[.!?…]*$/iu;
 

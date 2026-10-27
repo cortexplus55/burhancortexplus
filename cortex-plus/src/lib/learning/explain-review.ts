@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FUNCTION_NOTATION_RULE } from "@/lib/learning/function-notation";
 
 /**
  * Anlatarak öğrenme — anlatımın değerlendirilmesi.
@@ -80,6 +81,7 @@ export function buildExplainPrompt(topic: string, explanation: string, source?: 
     "- `missed`: hiç değinmediği ama konunun kalbinde olan başlıklar. En fazla 4 tane, kısa.",
     "- `verdict`: kendi cümleleriyle bağ kurmuşsa \"anladin\"; parçalar doğru ama bağ zayıfsa \"kismen\"; tanım tekrarı gibiyse \"ezber\".",
     "- `followUp`: anlattığı şeyi başka bir açıdan sınayan TEK soru. Anlatımda geçen bir cümleyi tekrar sordurma.",
+    `- ${FUNCTION_NOTATION_RULE} Öğrenci tanımı tersine çevirdiyse bu bir \`gaps\` maddesidir.`,
     "- Türkçe yaz, kısa ve doğrudan konuş. Övgü cümlesi kurma.",
     // Ürünün tamamı öğrenciye \"sen\" diye hitap ediyor; model kendi başına
     // \"siz\"e kayıyordu ve tek ekranda iki farklı ses duyuluyordu.

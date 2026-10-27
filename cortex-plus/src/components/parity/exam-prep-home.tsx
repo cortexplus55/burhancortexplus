@@ -243,6 +243,7 @@ export function ExamPrepHome({
   joinCount = 0,
   lastResult = null,
   nodeScores = {},
+  topicPercents = {},
   lockedPickId = null,
   dueReviews = 0,
   createdAt = null,
@@ -299,6 +300,8 @@ export function ExamPrepHome({
   lastResult?: { nodeId: string; pct: number | null } | null;
   /** Biten adımların son yüzdesi; yolda adımın altında yazar (Astra "30% Podcast"). */
   nodeScores?: Record<string, number>;
+  /** Konu başlığı (küçük harf) → topicMasteryPercent. Yol bölümü bu sayıyı gösterir. */
+  topicPercents?: Record<string, number>;
   /** Kilitli adımın adresi açıldıysa o adım seçili gelir. */
   lockedPickId?: string | null;
   /** Bu hazırlıkta bugün sorulacak tekrar (20 Ekim 2026); yolu kilitlemez. */
@@ -728,6 +731,7 @@ export function ExamPrepHome({
             currentId={nextNode?.id ?? null}
             pickedId={lockedPick?.id ?? donePick?.id ?? null}
             scores={nodeScores}
+            topicPercents={topicPercents}
             onOpen={openNode}
             readinessClaim={readinessClaim}
             examDate={examDate}
@@ -1091,6 +1095,7 @@ function PathSections({
   currentId,
   pickedId = null,
   scores = {},
+  topicPercents = {},
   onOpen,
   readinessClaim,
   examDate = null,
@@ -1103,6 +1108,7 @@ function PathSections({
   currentId: string | null;
   pickedId?: string | null;
   scores?: Record<string, number>;
+  topicPercents?: Record<string, number>;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
   examDate?: string | null;
@@ -1137,7 +1143,16 @@ function PathSections({
       {sections.map((section, index) => {
         if (index >= tailAt && !tailOpen) return null;
         const open = isOpen(section, index);
-        const mastery = section.complete ? sectionMasteryPct(section.nodes, scores) : null;
+        const topicKey = section.title.trim().toLocaleLowerCase("tr-TR");
+        const topicPct = Object.prototype.hasOwnProperty.call(topicPercents, topicKey)
+          ? topicPercents[topicKey]
+          : null;
+        const mastery =
+          typeof topicPct === "number"
+            ? topicPct
+            : section.complete
+              ? sectionMasteryPct(section.nodes, scores)
+              : null;
         const line = sectionStatusLine(section, mastery);
         const when = sectionWhenLabel(
           section.nodes.map((node) => node.sessionMeta?.calendarDate ?? ""),

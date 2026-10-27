@@ -111,7 +111,9 @@ describe("yükleme türleri tek kaynaktan", () => {
   it("sohbet Word ve PowerPoint'i belgeli sohbete alır, işlenmemişse modelsiz okur", () => {
     const route = read("src/app/api/ai/chat/route.ts");
     expect(route).toContain('doc.mime_type === "text/plain" || isOfficeDocument(doc.mime_type)');
-    expect(route).toContain("extractOfficeText(buffer, doc.mime_type)");
+    // Adım 1 (28 Ekim 2026): metinle birlikte gömülü resimler de okunur.
+    expect(route).toContain("extractOfficePackage(buffer, doc.mime_type)");
+    expect(route).toContain("attachOfficeFigures(packaged.pages, packaged.images)");
   });
 });
 

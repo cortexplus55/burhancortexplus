@@ -550,6 +550,9 @@ export async function POST(request: Request) {
   }
 
   if (result.deferred) {
+    if (!freeTier && (result.scannedPages ?? 0) > 0) {
+      await chargeNow(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_${doc.id}`, result.scannedPages ?? 0);
+    }
     if (deferMap) await markMapDeferred(service, doc.id);
     return NextResponse.json(
       {

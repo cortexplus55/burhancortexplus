@@ -6,6 +6,38 @@
  * "Denetim" tek başına kalır: bir konunun kendi cümlesi olabilir.
  */
 
+const LEAK_SENTENCE =
+  /[^.!?\n]*(?:görünmediği için|burada görünmedi|sayı uydurma)[^.!?\n]*[.!?]?/gi;
+
+const ANSWER_LETTER =
+  /\b(?:cevap|doğru şık)\s+[A-E](?:\s|['’'"]){0,3}(?:dir|dır|dur|dür)\b/gi;
+
+const CORRECT_CHOICE = /\bdoğru şık\s+[A-E]\b/gi;
+
+const COURSE_HEADER = /^[ \t]*Ders:\s+\S.{0,80}?\bDönem\s+20\d{2}\b.*$/gim;
+
+const BOILERPLATE_SCOPE = /(?:^|(?<=[.!?\n]\s))Bu konu sınav kapsamı dışındadır\.?\s*/gi;
+
+/**
+ * Öğrenciye gidecek metinden iç kural cümlelerini siler.
+ * Belge alıntısındaki "X sınav kapsamı dışındadır" cümlesi durur; modelin kendi
+ * "Bu konu sınav kapsamı dışındadır" kalıbı durmaz.
+ */
+export function sanitizeStudentContent(text: string): string {
+  if (!text) return text;
+  let out = text.replace(COURSE_HEADER, "");
+  out = out.replace(BOILERPLATE_SCOPE, "");
+  out = out.replace(/s[iıİI]nav\s+m[uüÜU]fredat[iıİI]\s+tamamlamas[iıİI]\s*:?\s*/gi, "");
+  out = out.replace(LEAK_SENTENCE, " ");
+  out = out.replace(ANSWER_LETTER, "");
+  out = out.replace(CORRECT_CHOICE, "");
+  return out
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 const INTERNAL_TAG = /\[(?:omurga|öğretim|ogretim|kapsam)[^\]]*\]/gi;
 
 const META_SENTENCE =
@@ -24,8 +56,9 @@ function needsFilter(text: string): boolean {
 
 /** Öğrenci metninden iç etiketi ve denetim cümlesini çıkarır. Temiz metne dokunmaz. */
 export function studentSafeText(text: string): string {
-  if (!text || !needsFilter(text)) return text;
-  return text
+  const stripped = sanitizeStudentContent(text);
+  if (!stripped || !needsFilter(stripped)) return stripped;
+  return stripped
     .replace(INTERNAL_TAG, " ")
     .replace(META_SENTENCE, " ")
     .replace(/[ \t]{2,}/g, " ")

@@ -216,8 +216,8 @@ export function prefetchVariant(
   if (kind === "quiz" && input.lessonKey) return `quiz:${input.difficulty ?? "orta"}:${input.lessonKey}`;
   // "Kartlarla son tekrar" zayıf konuya yönelir (20 Ekim 2026): önceden yazılan deste başka konunun
   // destesiyse atılır, yeniden yazılır.
-  if (kind === "flashcards") {
-    return `flashcards:${input.difficulty ?? "orta"}:${input.topicLabel.trim().toLocaleLowerCase("tr")}`;
+  if (kind === "flashcards" || kind === "spaced") {
+    return `${kind}:${input.difficulty ?? "orta"}:${input.topicLabel.trim().toLocaleLowerCase("tr")}`;
   }
   return `${kind}:${input.difficulty ?? "orta"}`;
 }

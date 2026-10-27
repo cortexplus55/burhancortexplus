@@ -4,7 +4,8 @@ import {
   computeProgramProgress,
   effectiveTarget,
   normalizeTopicKey,
-  topicAccuracyPct,
+  topicIsSolid,
+  topicMasteryPercent,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
 import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -14,6 +15,8 @@ export type ReadinessTopicState = "ready" | "needs_work" | "unmeasured";
 export type ReadinessTopicRow = {
   topic: string;
   state: ReadinessTopicState;
+  /** `topicMasteryPercent`: yol, sözlü seçici ve İlerleme'deki sayıyla aynı. */
+  pct: number;
   detail: string;
 };
 
@@ -57,14 +60,17 @@ function detailFor(topic: TopicMasterySnapshot, openMisses: number): string {
 }
 
 /**
- * Baraj hedef puandır (25 Ekim 2026): doğruluğu hedefte ya da üstünde olan konu "Sağlam",
- * yalnız altında kalan "Çalışılacak". Açık yanlış ayrıntıda yazılır ama konuyu tek başına
- * barajın altına itmez — %90 doğrulukla "Çalışılacak" demek öğrenciyi yanıltıyordu.
+ * Baraj hedef puandır. "Sağlam" `topicIsSolid`: en az 3 kanıt ve sönümlü yüzde hedefte.
+ * Bir deneme sorusu (kanıt 1, sönüm %33) Sağlam sayılmaz. Kayıt yoksa ölçülmedi.
  */
 export function topicState(topic: TopicMasterySnapshot, target: number): ReadinessTopicState {
-  const accuracy = topicAccuracyPct(topic);
-  if (accuracy == null) return "unmeasured";
-  return accuracy >= target ? "ready" : "needs_work";
+  if (!topic.measured || topic.evidenceCount === 0) return "unmeasured";
+  return topicIsSolid(topic, target) ? "ready" : "needs_work";
+}
+
+/** Hazırsın satırının yüzdesi. Yol, sözlü ve İlerleme aynı sayıyı gösterir. */
+export function readinessTopicPercent(topic: TopicMasterySnapshot): number {
+  return topicMasteryPercent(topic);
 }
 
 export function buildReadinessScreen(input: {
@@ -108,6 +114,7 @@ export function buildReadinessScreen(input: {
     return {
       topic: label,
       state: topicState(snapshot, target),
+      pct: readinessTopicPercent(snapshot),
       detail: detailFor(snapshot, open),
     };
   });

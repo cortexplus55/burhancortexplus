@@ -37,7 +37,8 @@ import {
   teacherTurnGuidance,
 } from "@/lib/learning/teacher-brain";
 import { extractText } from "@/lib/documents/extract-text";
-import { extractOfficeText, isOfficeDocument } from "@/lib/documents/extract-office-text";
+import { extractOfficePackage, isOfficeDocument } from "@/lib/documents/extract-office-text";
+import { attachOfficeFigures } from "@/lib/documents/office-figures";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import { awardChatStars } from "@/lib/stars/chat";
@@ -155,11 +156,30 @@ export async function POST(request: Request) {
           const { data, error: downloadError } = await service.storage.from("documents").download(doc.storage_path);
           if (downloadError || !data) throw new Error("source_unavailable");
           const buffer = Buffer.from(await data.arrayBuffer());
-          const extracted = isOfficeDocument(doc.mime_type)
-            ? extractOfficeText(buffer, doc.mime_type)
-            : await extractText(buffer, doc.mime_type);
-          if (!extracted.ok) return errorResponse(422, "Belge henüz okunamıyor. Belgeler ekranından işlem durumunu kontrol et.");
-          sourcePages = extracted.pages.map((text, i) => ({ page: i + 1, text }));
+          if (isOfficeDocument(doc.mime_type)) {
+            const packaged = extractOfficePackage(buffer, doc.mime_type);
+            if (!packaged.ok) return errorResponse(422, "Belge henüz okunamıyor. Belgeler ekranından işlem durumunu kontrol et.");
+            // İşleme bitmeden gelen sohbet, resimleri de görsün. Kota ve tarama
+            // ücreti belge işlenirken düşer; burada ikinci kez düşmez.
+            const attached = packaged.images.length
+              ? await attachOfficeFigures(packaged.pages, packaged.images)
+              : { pages: packaged.pages, usage: [], readCount: 0, blocked: false };
+            for (const entry of attached.usage) {
+              if (!entry.tokensIn && !entry.tokensOut) continue;
+              await recordUsage(service, {
+                userId,
+                actionCode: "DOCUMENT_PAGE_PROCESS",
+                model: entry.model,
+                tokensIn: entry.tokensIn,
+                tokensOut: entry.tokensOut,
+              });
+            }
+            sourcePages = attached.pages.map((text, i) => ({ page: i + 1, text }));
+          } else {
+            const extracted = await extractText(buffer, doc.mime_type);
+            if (!extracted.ok) return errorResponse(422, "Belge henüz okunamıyor. Belgeler ekranından işlem durumunu kontrol et.");
+            sourcePages = extracted.pages.map((text, i) => ({ page: i + 1, text }));
+          }
         }
         documentPages = sourcePages.length;
         if (sourcePages.reduce((n, p) => n + p.text.length, 0) > 80000) {

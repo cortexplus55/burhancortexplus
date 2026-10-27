@@ -2,15 +2,14 @@ import "server-only";
 import { unzipSync, strFromU8 } from "fflate";
 
 /**
- * Word ve PowerPoint belgelerinden metin çıkarır.
+ * Word ve PowerPoint belgelerinden metin ve gömülü resim çıkarır.
  *
  * Neden var: Astra vitrininde "slaytlar ve ders kitapları" diyor; bizde
  * `.pptx` ve `.docx` yüklenemiyordu bile. Öğrenciye "slaytı PDF'e çevir"
  * dedirtmek, ürünün işini öğrenciye yaptırmak.
  *
- * Model çağrısı YOK. İkisi de içinde XML taşıyan zip dosyaları; metin zaten
- * orada duruyor, okunması yeter. Fotoğraf ve taranmış PDF'ten farkı bu —
- * onlarda metin yok, burada var.
+ * Metin XML'dedir; bu dosya modele gitmez. `ppt/media` ve `word/media`
+ * içindeki resimler slayt/sayfa ile eşlenir, Vision okuması çağırana kalır.
  */
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -30,6 +29,91 @@ export function isOfficeDocument(mimeType: string | null | undefined): boolean {
  * belge süreci düşürürdü.
  */
 const MAX_UNZIPPED_BYTES = 80 * 1024 * 1024;
+
+/** Vision'a gitmeyecek kadar küçük (kurşun simgesi) veya sağlayıcı sınırının üstü. */
+export const OFFICE_IMAGE_MIN_BYTES = 1024;
+export const OFFICE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+const RASTER_MEDIA = /^(?:word|ppt)\/media\/.+\.(png|jpe?g|webp)$/i;
+
+export type OfficeImageMime = "image/png" | "image/jpeg" | "image/webp";
+
+export type OfficeEmbeddedImage = {
+  /** `pages` dizisindeki 0 tabanlı sayfa. */
+  pageIndex: number;
+  name: string;
+  mimeType: OfficeImageMime;
+  bytes: Uint8Array;
+};
+
+function imageToken(index: number): string {
+  return `\uE000${index}\uE001`;
+}
+
+function stripImageTokens(text: string, onIndex?: (index: number) => void): string {
+  return text.replace(/\uE000(\d+)\uE001/g, (_all, rawIndex: string) => {
+    onIndex?.(Number(rawIndex));
+    return "";
+  });
+}
+
+function mimeForMedia(path: string): OfficeImageMime | null {
+  const lower = path.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return null;
+}
+
+function isKeptOfficePart(name: string): boolean {
+  return (
+    name === "word/document.xml" ||
+    name === "word/styles.xml" ||
+    name === "word/_rels/document.xml.rels" ||
+    name === "docProps/app.xml" ||
+    /^ppt\/slides\/slide\d+\.xml$/.test(name) ||
+    /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(name) ||
+    RASTER_MEDIA.test(name)
+  );
+}
+
+/** `.rels` hedefi, ilişki dosyasının ait olduğu parçanın klasörüne göredir. */
+export function resolveOfficeTarget(relsPath: string, target: string): string | null {
+  const decoded = decodeEntities(target).trim();
+  if (!decoded || /^[a-z]+:/i.test(decoded)) return null;
+  if (decoded.startsWith("/")) return decoded.replace(/^\/+/, "");
+  const marker = "/_rels/";
+  const at = relsPath.lastIndexOf(marker);
+  const base = (at === -1 ? "" : relsPath.slice(0, at)).split("/").filter(Boolean);
+  for (const segment of decoded.split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") base.pop();
+    else base.push(segment);
+  }
+  return base.join("/");
+}
+
+function relationshipTargets(relsXml: string, relsPath: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const match of relsXml.matchAll(/<Relationship\b[^>]*>/gi)) {
+    const tag = match[0];
+    const id = /(?:\s)Id="([^"]+)"/i.exec(tag)?.[1];
+    const target = /(?:\s)Target="([^"]+)"/i.exec(tag)?.[1];
+    const mode = /(?:\s)TargetMode="([^"]+)"/i.exec(tag)?.[1];
+    if (!id || !target || /^external$/i.test(mode ?? "")) continue;
+    const path = resolveOfficeTarget(relsPath, target);
+    if (path && RASTER_MEDIA.test(path)) map.set(id, path);
+  }
+  return map;
+}
+
+function rasterBytes(files: Record<string, Uint8Array>, path: string): Uint8Array | null {
+  const data = files[path];
+  if (!data) return null;
+  if (data.byteLength < OFFICE_IMAGE_MIN_BYTES || data.byteLength > OFFICE_IMAGE_MAX_BYTES) return null;
+  if (!mimeForMedia(path)) return null;
+  return data;
+}
 
 /** XML varlıkları — çıkarılan metin ekrana ve gömmeye gidiyor, ham kalmamalı. */
 function decodeEntities(text: string): string {
@@ -137,12 +221,63 @@ export function expandDocxPages(pages: string[], target: number): string[] {
   return out;
 }
 
-function readDocx(files: Record<string, Uint8Array>): string[] {
-  const doc = files["word/document.xml"];
-  if (!doc) return [];
-  const breakStyles = pageBreakStyles(files);
+function stampDrawings(
+  xml: string,
+  rels: Map<string, string>,
+  files: Record<string, Uint8Array>,
+  images: OfficeEmbeddedImage[],
+): string {
+  return xml.replace(/<(?:a:blip|v:imagedata)\b[^>]*\/?>/gi, (tag) => {
+    const id = /(?:r:embed|r:id)="([^"]+)"/i.exec(tag)?.[1];
+    if (!id) return "";
+    const path = rels.get(id);
+    if (!path) return "";
+    const bytes = rasterBytes(files, path);
+    const mimeType = mimeForMedia(path);
+    if (!bytes || !mimeType) return "";
+    const index = images.length;
+    images.push({ pageIndex: 0, name: path, mimeType, bytes });
+    return `\n${imageToken(index)}\n`;
+  });
+}
 
-  const xml = strFromU8(doc)
+/** Sayfa yayılınca resim, yer tutucunun kaldığı parçada kalır; boş metinli resim sayfası durur. */
+function placeImageTokens(
+  pages: string[],
+  images: OfficeEmbeddedImage[],
+): { pages: string[]; images: OfficeEmbeddedImage[] } {
+  const grouped: OfficeEmbeddedImage[][] = pages.map(() => []);
+  const stripped = pages.map((page, pageIndex) =>
+    cleanup(
+      stripImageTokens(page, (rawIndex) => {
+        const image = images[rawIndex];
+        if (image) grouped[pageIndex]!.push(image);
+      }),
+    ),
+  );
+  const outPages: string[] = [];
+  const outImages: OfficeEmbeddedImage[] = [];
+  stripped.forEach((text, index) => {
+    const here = grouped[index] ?? [];
+    if (!text && !here.length) return;
+    const pageIndex = outPages.length;
+    outPages.push(text);
+    for (const image of here) outImages.push({ ...image, pageIndex });
+  });
+  return { pages: outPages, images: outImages };
+}
+
+function readDocx(files: Record<string, Uint8Array>): { pages: string[]; images: OfficeEmbeddedImage[] } {
+  const doc = files["word/document.xml"];
+  if (!doc) return { pages: [], images: [] };
+  const breakStyles = pageBreakStyles(files);
+  const relsPath = "word/_rels/document.xml.rels";
+  const rels = files[relsPath]
+    ? relationshipTargets(strFromU8(files[relsPath]), relsPath)
+    : new Map<string, string>();
+  const images: OfficeEmbeddedImage[] = [];
+
+  const xml = stampDrawings(strFromU8(doc), rels, files, images)
     .replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?<\/w:pPr>/g, (head) => {
       const direct = /<w:pageBreakBefore(?:\s*\/>|\s+w:val="(?:1|true|on)"\s*\/>)/.test(head);
       const style = head.match(/<w:pStyle\s+w:val="([^"]+)"/)?.[1];
@@ -155,13 +290,13 @@ function readDocx(files: Record<string, Uint8Array>): string[] {
   const text = decodeEntities(xml.replace(/<[^>]+>/g, ""));
   const marked = text
     .split("\u000c")
-    .map(cleanup)
+    .map((page) => page.trim())
     .filter((page) => page.length > 0);
-  const chars = marked.reduce((sum, page) => sum + page.replace(/\s+/g, "").length, 0);
+  const chars = marked.reduce((sum, page) => sum + stripImageTokens(page).replace(/\s+/g, "").length, 0);
   const estimated = Math.max(1, Math.ceil(chars / DOCX_CHARS_PER_PAGE));
   const declared = declaredDocxPages(files);
   const target = Math.max(marked.length, declared ?? estimated);
-  return expandDocxPages(marked, target);
+  return placeImageTokens(expandDocxPages(marked, target), images);
 }
 
 /**
@@ -171,7 +306,7 @@ function readDocx(files: Record<string, Uint8Array>): string[] {
  * geliyor ve orada `slide10` `slide2`'den önce çıkıyor. Sırayı bozmak,
  * slaytları karışık bir kaynağa çevirirdi.
  */
-function readPptx(files: Record<string, Uint8Array>): string[] {
+function readPptx(files: Record<string, Uint8Array>): { pages: string[]; images: OfficeEmbeddedImage[] } {
   const slides = Object.keys(files)
     .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
     .sort((a, b) => {
@@ -179,14 +314,24 @@ function readPptx(files: Record<string, Uint8Array>): string[] {
       return order(a) - order(b);
     });
 
-  return slides
-    .map((name) => {
-      // `<a:t>` metin çalıştırmaları; aralarına boşluk konmazsa kelimeler
-      // birbirine yapışıyor.
-      const xml = strFromU8(files[name]).replace(/<\/a:p>/g, "\n");
-      return cleanup(decodeEntities(xml.replace(/<[^>]+>/g, " ")));
-    })
-    .filter((page) => page.length > 0);
+  const pages: string[] = [];
+  const images: OfficeEmbeddedImage[] = [];
+  for (const name of slides) {
+    const slideNo = name.match(/slide(\d+)\.xml$/)?.[1];
+    const relsPath = `ppt/slides/_rels/slide${slideNo}.xml.rels`;
+    const rels = files[relsPath]
+      ? relationshipTargets(strFromU8(files[relsPath]), relsPath)
+      : new Map<string, string>();
+    const slideImages: OfficeEmbeddedImage[] = [];
+    // `<a:t>` metin çalıştırmaları; aralarına boşluk konmazsa kelimeler yapışıyor.
+    const xml = stampDrawings(strFromU8(files[name]!), rels, files, slideImages).replace(/<\/a:p>/g, "\n");
+    const text = cleanup(decodeEntities(stripImageTokens(xml).replace(/<[^>]+>/g, " ")));
+    if (!text && !slideImages.length) continue;
+    const pageIndex = pages.length;
+    pages.push(text);
+    for (const image of slideImages) images.push({ ...image, pageIndex });
+  }
+  return { pages, images };
 }
 
 export type OfficeReadResult = {
@@ -195,38 +340,52 @@ export type OfficeReadResult = {
   reason?: "unsupported" | "corrupt" | "too_large" | "empty";
 };
 
-export function extractOfficeText(
-  buffer: Buffer,
-  mimeType: string,
-): OfficeReadResult {
+export type OfficePackage = OfficeReadResult & {
+  images: OfficeEmbeddedImage[];
+};
+
+function openOfficeZip(buffer: Buffer): Record<string, Uint8Array> {
+  // fflate unzipSync artık filter kabul etmiyor; açtıktan sonra
+  // yalnız okunan parçaları tutup boyutu sınırlıyoruz.
+  const all = unzipSync(new Uint8Array(buffer));
+  let unzipped = 0;
+  const files: Record<string, Uint8Array> = {};
+  for (const [name, data] of Object.entries(all)) {
+    if (!isKeptOfficePart(name)) continue;
+    // Sınırın üstündeki resim belgeyi düşürmez; modele de gitmez.
+    if (RASTER_MEDIA.test(name) && (data.byteLength < OFFICE_IMAGE_MIN_BYTES || data.byteLength > OFFICE_IMAGE_MAX_BYTES)) {
+      continue;
+    }
+    unzipped += data.byteLength;
+    if (unzipped > MAX_UNZIPPED_BYTES) throw new Error("too_large");
+    files[name] = data;
+  }
+  return files;
+}
+
+/** Metin sayfaları ve her resmin ait olduğu sayfa. Model çağrısı yok. */
+export function extractOfficePackage(buffer: Buffer, mimeType: string): OfficePackage {
   if (!isOfficeDocument(mimeType)) {
-    return { pages: [], ok: false, reason: "unsupported" };
+    return { pages: [], images: [], ok: false, reason: "unsupported" };
   }
 
   let files: Record<string, Uint8Array>;
   try {
-    // fflate unzipSync artık filter kabul etmiyor; açtıktan sonra
-    // yalnız metin parçalarını tutup boyutu sınırlıyoruz.
-    const all = unzipSync(new Uint8Array(buffer));
-    let unzipped = 0;
-    files = {};
-    for (const [name, data] of Object.entries(all)) {
-      const wanted =
-        name === "word/document.xml" ||
-        name === "word/styles.xml" ||
-        name === "docProps/app.xml" ||
-        /^ppt\/slides\/slide\d+\.xml$/.test(name);
-      if (!wanted) continue;
-      unzipped += data.byteLength;
-      if (unzipped > MAX_UNZIPPED_BYTES) throw new Error("too_large");
-      files[name] = data;
-    }
+    files = openOfficeZip(buffer);
   } catch (error) {
     const tooLarge = error instanceof Error && error.message === "too_large";
-    return { pages: [], ok: false, reason: tooLarge ? "too_large" : "corrupt" };
+    return { pages: [], images: [], ok: false, reason: tooLarge ? "too_large" : "corrupt" };
   }
 
-  const pages = mimeType === DOCX ? readDocx(files) : readPptx(files);
-  if (!pages.length) return { pages: [], ok: false, reason: "empty" };
-  return { pages, ok: true };
+  const read = mimeType === DOCX ? readDocx(files) : readPptx(files);
+  if (!read.pages.length) return { pages: [], images: [], ok: false, reason: "empty" };
+  return { pages: read.pages, images: read.images, ok: true };
+}
+
+export function extractOfficeText(
+  buffer: Buffer,
+  mimeType: string,
+): OfficeReadResult {
+  const read = extractOfficePackage(buffer, mimeType);
+  return { pages: read.pages, ok: read.ok, reason: read.reason };
 }

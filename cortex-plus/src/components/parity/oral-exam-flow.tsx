@@ -362,11 +362,14 @@ export function OralResults({
   practiceLabel,
   fullCount,
   total,
+  scoreFraction = null,
   minutesSpent,
   firstAnswerErrors = [],
 }: {
   topicLabel: string;
   pct: number;
+  /** `oralScoreFraction().label` ("7,4/8"); halka yüzdesi aynı paydan. */
+  scoreFraction?: string | null;
   onReview: () => void;
   onRepeat: () => void;
   nextHref: string;
@@ -398,10 +401,8 @@ export function OralResults({
           <strong>{minutesSpent ?? 1} dk</strong>
         </article>
         <article>
-          <span>Tam doğru</span>
-          <strong>
-            {fullCount ?? "—"}/{total ?? "—"}
-          </strong>
+          <span>{scoreFraction ? "Puan" : "Tam doğru"}</span>
+          <strong>{scoreFraction ?? `${fullCount ?? "—"}/${total ?? "—"}`}</strong>
         </article>
         <article>
           <span>Önceki deneme</span>

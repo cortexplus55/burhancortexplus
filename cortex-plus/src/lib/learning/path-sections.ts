@@ -112,7 +112,8 @@ export function sectionStatusLine(
     return masteryPct != null ? `${count} · Tamamlandı · %${masteryPct}` : `${count} · Tamamlandı`;
   }
   if (section.locked) return `${count} · Kilitli`;
-  if (section.active) return `${count} · Devam ediyor`;
-  if (section.done > 0) return `${count} · ${section.done}/${section.total} tamam`;
+  const measured = section.done > 0 && masteryPct != null ? ` · %${masteryPct}` : "";
+  if (section.active) return `${count} · Devam ediyor${measured}`;
+  if (section.done > 0) return `${count} · ${section.done}/${section.total} tamam${measured}`;
   return `${count} · Sırada`;
 }

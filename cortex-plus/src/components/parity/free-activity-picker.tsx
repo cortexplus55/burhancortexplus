@@ -26,16 +26,38 @@ export function FreeActivityPicker({
 }) {
   const [topicId, setTopicId] = useState(topics[0]?.id ?? "");
   const [missing, setMissing] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const topic = topics.find((item) => item.id === topicId) ?? topics[0] ?? null;
 
-  function choose(tool: StudyToolId, label: string) {
+  async function choose(tool: StudyToolId, label: string) {
     const pick = freeActivityPick(nodes, prepId, topic, tool, topics);
     if (!pick.ok) {
-      setMissing(`${topic?.label ?? "Bu konu"} için ${label.toLocaleLowerCase("tr-TR")} yok.`);
+      setMissing(`Önce bir konu seç.`);
       return;
     }
     setMissing(null);
-    onOpen({ nodeId: pick.kind === "node" ? pick.nodeId : null, href: pick.href });
+    if (pick.kind !== "create") {
+      onOpen({ nodeId: pick.kind === "node" ? pick.nodeId : null, href: pick.href });
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await fetch("/api/learning/exam-prep/activity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prepId, tool, topicId: pick.topicId, topicLabel: pick.topicLabel }),
+      });
+      const data = (await res.json().catch(() => null)) as { nodeId?: string; href?: string } | null;
+      if (!res.ok || !data?.nodeId || !data.href) {
+        setMissing(`${label} şu an açılamadı. Bir kez daha dene.`);
+        return;
+      }
+      onOpen({ nodeId: data.nodeId, href: data.href });
+    } catch {
+      setMissing(`${label} şu an açılamadı. Bir kez daha dene.`);
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
@@ -72,7 +94,7 @@ export function FreeActivityPicker({
         <ul className="cp-study-hub-grid">
           {FREE_PICK_TOOLS.map((tool) => (
             <li key={tool.id}>
-              <button type="button" className="cp-study-hub-tile" disabled={busy || !topic} onClick={() => choose(tool.id, tool.label)}>
+              <button type="button" className="cp-study-hub-tile" disabled={busy || creating || !topic} onClick={() => void choose(tool.id, tool.label)}>
                 <strong>{tool.label}</strong>
                 <em>Şimdi başlat</em>
               </button>

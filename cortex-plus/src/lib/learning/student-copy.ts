@@ -1,3 +1,5 @@
+import { sanitizeStudentContent } from "@/lib/learning/student-safe-text";
+
 /**
  * Öğrenciye görünen metinden iç etiketleri temizler (26 Ekim 2026).
  * Yönetim ekranları bu süzgeci kullanmaz.
@@ -15,7 +17,7 @@ const LEAKS: RegExp[] = [
 ];
 
 export function sanitizeStudentCopy(text: string): string {
-  let out = text;
+  let out = sanitizeStudentContent(text);
   for (const pattern of LEAKS) out = out.replace(pattern, "");
   out = out.replace(/\bemerging\b/gi, "Gelişiyor");
   out = out.replace(/[İIıi]pucu[:,]\s*/gi, "");
