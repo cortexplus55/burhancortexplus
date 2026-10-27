@@ -12,7 +12,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { normalizeTopicKey } from "@/lib/learning/learning-tracking";
 import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
-import { studyNodeOpenable } from "@/lib/learning/study-tools";
+import { nodeNeedsStudentUnlock, studentMayStartNode } from "@/lib/learning/study-tools";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
@@ -61,9 +61,17 @@ export default async function ExamNodePage({
   ]);
 
   if (!prep || !node) notFound();
-  // Kilitli adım adresten açılmaz (18 Ekim 2026, Astra'daki gibi): hazırlık sayfası o adımı
-  // seçili gösterir, "Başka birini seç" oradan.
-  if (!studyNodeOpenable(node.status, node.kind)) redirect(examPrepLockedHref(prepId, nodeId));
+  // Gizli düğüm açılmaz. Kilitli düğüm öğrencinin kendi hazırlığındaysa ready olur ve açılır
+  // (27 Ekim 2026). Bitirme fonksiyonu kilitli satırı reddeder.
+  if (!studentMayStartNode(node.status, node.kind)) redirect(examPrepLockedHref(prepId, nodeId));
+  if (nodeNeedsStudentUnlock(node.status)) {
+    await createServiceClient()
+      .from("exam_prep_nodes")
+      .update({ status: "ready" })
+      .eq("id", nodeId)
+      .eq("exam_prep_id", prepId)
+      .eq("status", "locked");
+  }
 
   // Yazılı deneme tek motor: kurulum → practice_exams.
   if (node.kind === "written_exam") {

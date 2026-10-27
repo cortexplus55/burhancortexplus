@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CreditGate } from "@/components/paywall/credit-gate";
 
-type Msg = { role: "user" | "assistant"; content: string };
+export type CoachMessage = { role: "user" | "assistant" | "marker"; content: string };
 
 const ASK = "Bilmiyorum, sen anlat.";
+
+function wireMessages(messages: CoachMessage[]): { role: "user" | "assistant"; content: string }[] {
+  return messages
+    .filter((message): message is { role: "user" | "assistant"; content: string } => message.role === "user" || message.role === "assistant")
+    .slice(-12);
+}
 
 export function ExamNodeCoach({
   prepId,
@@ -14,6 +20,9 @@ export function ExamNodeCoach({
   itemText,
   returnPath,
   onUsed,
+  messages,
+  onMessagesChange,
+  questionIndex,
 }: {
   prepId: string;
   nodeId: string;
@@ -24,18 +33,31 @@ export function ExamNodeCoach({
    * işaretler; o cevap bağımsız başarı sayılmaz. Hak yetmediğinde ya da hata olduğunda çağrılmaz.
    */
   onUsed?: () => void;
+  /** Oturum boyunca durur. Soru indeksi bunu silmez. */
+  messages: CoachMessage[];
+  onMessagesChange: (update: CoachMessage[] | ((current: CoachMessage[]) => CoachMessage[])) => void;
+  questionIndex: number;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(messages.length > 0);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  const lastIndex = useRef(questionIndex);
+
+  useEffect(() => {
+    if (lastIndex.current === questionIndex) return;
+    const shown = questionIndex + 1;
+    lastIndex.current = questionIndex;
+    onMessagesChange((current) =>
+      current.length ? [...current, { role: "marker", content: `📌 Soru ${shown} için soruluyor` }] : current,
+    );
+  }, [questionIndex, onMessagesChange]);
 
   async function send(text: string) {
     const clean = text.trim();
     if (!clean || loading) return;
     const next = [...messages, { role: "user" as const, content: clean }];
-    setMessages(next);
+    onMessagesChange(next);
     setInput("");
     setOpen(true);
     setLoading(true);
@@ -43,7 +65,7 @@ export function ExamNodeCoach({
       const res = await fetch("/api/learning/exam-prep/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, nodeId, itemText, messages: next }),
+        body: JSON.stringify({ prepId, nodeId, itemText, messages: wireMessages(next) }),
       });
       if (res.status === 402) {
         setPaywall(true);
@@ -54,7 +76,7 @@ export function ExamNodeCoach({
         toast.error(data.error ?? "Eğitmen yanıtlayamadı.");
         return;
       }
-      setMessages([...next, { role: "assistant", content: data.reply ?? "" }]);
+      onMessagesChange([...next, { role: "assistant", content: data.reply ?? "" }]);
       onUsed?.();
     } catch {
       toast.error("Bağlantı hatası.");
@@ -87,12 +109,18 @@ export function ExamNodeCoach({
       </form>
       {open && messages.length ? (
         <ol className="cp-exam-coach-log">
-          {messages.map((msg, index) => (
-            <li key={`${msg.role}-${index}`} className={`cp-exam-coach-msg cp-exam-coach-msg--${msg.role}`}>
-              <em>{msg.role === "user" ? "Sen" : "Eğitmen"}</em>
-              <p>{msg.content}</p>
-            </li>
-          ))}
+          {messages.map((msg, index) =>
+            msg.role === "marker" ? (
+              <li key={`marker-${index}`} className="cp-exam-coach-mark">
+                {msg.content}
+              </li>
+            ) : (
+              <li key={`${msg.role}-${index}`} className={`cp-exam-coach-msg cp-exam-coach-msg--${msg.role}`}>
+                <em>{msg.role === "user" ? "Sen" : "Eğitmen"}</em>
+                <p>{msg.content}</p>
+              </li>
+            ),
+          )}
         </ol>
       ) : null}
       <CreditGate

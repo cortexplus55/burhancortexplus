@@ -73,7 +73,7 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META, weakPracticeTitle } from "@/lib/learning/exam-prep-plan";
 import { questionsStayOnTopics } from "@/lib/learning/focused-practice";
 import { studentSafePayload } from "@/lib/learning/student-safe-text";
-import { pickPracticeNodeId, practiceHref, studyNodeOpenable, topicLabelsMatch } from "@/lib/learning/study-tools";
+import { nodeNeedsStudentUnlock, pickPracticeNodeId, practiceHref, studentMayStartNode, topicLabelsMatch } from "@/lib/learning/study-tools";
 import { loadLevelHint } from "@/lib/learning/prep-level";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import {
@@ -545,17 +545,18 @@ async function handleNodeRequest(
     .eq("exam_prep_id", prepId)
     .maybeSingle();
   if (!node) return errorResponse(404, "not_found");
-  const openable = studyNodeOpenable(node.status, node.kind as string);
-  // "Başka birini seç" / "+" (18 Ekim 2026, Astra'daki gibi): öğrencinin seçtiği kilitli adım açılır.
+  // Öğrencinin kendi düğümü kilitliyken açılır (27 Ekim 2026). Gizli düğüm açılmaz.
+  // Önceden yazım durumu değiştirmez. Bitirme kilitli düğümü reddettiği için giriş önce ready yapar.
   if (action === "choose") {
-    if (!openable) {
+    if (nodeNeedsStudentUnlock(node.status)) {
       await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).eq("status", "locked");
     }
     return NextResponse.json({ ok: true });
   }
-  // Yol sırayla açılır; kilitli adımı yalnız önceden yazım (öğrenci açmadan) hazırlar.
-  // Kredi ve plan sınırı üretimde durur.
-  if (!openable && !prefetch) return errorResponse(403, "node_locked");
+  if (!prefetch && nodeNeedsStudentUnlock(node.status)) {
+    await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).eq("status", "locked");
+  }
+  if (!studentMayStartNode(node.status, node.kind as string) && !prefetch) return errorResponse(403, "node_locked");
 
   // `let`: hazırlık geneli düğüm zayıf konuya yönelebilir (aşağıda `retargetNodeTopic`).
   let sessionMeta = teachingV2 ? parseSessionMeta(node.session_meta) : null;

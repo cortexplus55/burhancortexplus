@@ -83,6 +83,7 @@ const KNOWN_BLOCKS = new Set<string>([
   "cards",
   "note",
   "diagram",
+  "diagram_card",
   "example",
   "check",
   ...VISUAL_BLOCK_TYPES,

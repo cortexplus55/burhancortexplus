@@ -11,7 +11,7 @@ import {
   syllabusWeightLine,
   visibleProbe,
 } from "@/lib/learning/oral-exam";
-import { studyNodeAria, studyNodeOpenable } from "@/lib/learning/study-tools";
+import { nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, studyNodeOpenable } from "@/lib/learning/study-tools";
 
 const chemistrySource = "Sınırlayıcı bileşen bulunur: mol sayısı stokiyometrik katsayıya bölünür. Verim %80.";
 const lawSource = "Borçlar hukukunda irade sakatlığı hata, hile ve ikrahtır. İrade fesadı sözleşmeyi sakatlar.";
@@ -425,33 +425,43 @@ describe("oral exam grading is grounded for every subject", () => {
   });
 });
 
-// 18 Ekim 2026, ürün sahibinin kararı (Astra'daki gibi): yol sırayla açılır. Önceki kural
-// ("kilit bir öneridir", #107) geri alındı; başka etkinlik "Başka birini seç" / "+" ile seçilir.
+// 27 Ekim 2026: sıradaki adım öneridir. Öğrenci kendi kilitli düğümünü açar.
+// Gizli düğüm kapalı kalır. Önceden yazım durumu değiştirmez. Sırası gelmeden biten
+// düğüm sonrakini kendiliğinden açmaz.
 describe("study path opens in order", () => {
-  it("keeps a locked node closed except the written exam", () => {
-    expect(studyNodeOpenable("locked")).toBe(false);
-    expect(studyNodeOpenable("locked", "quiz")).toBe(false);
+  it("lets the student start a locked node and keeps a hidden node closed", () => {
+    expect(studentMayStartNode("locked")).toBe(true);
+    expect(studentMayStartNode("locked", "quiz")).toBe(true);
+    expect(studentMayStartNode("locked", "lesson")).toBe(true);
+    expect(studentMayStartNode("ready")).toBe(true);
+    expect(studentMayStartNode("done")).toBe(true);
+    expect(studentMayStartNode("hidden")).toBe(false);
+    expect(nodeNeedsStudentUnlock("locked")).toBe(true);
+    expect(nodeNeedsStudentUnlock("ready")).toBe(false);
     expect(studyNodeOpenable("locked", "written_exam")).toBe(true);
-    expect(studyNodeOpenable("ready")).toBe(true);
-    expect(studyNodeOpenable("done")).toBe(true);
     expect(studyNodeOpenable("hidden")).toBe(false);
     expect(studyNodeAria("locked")).toBe("kilitli");
   });
 
-  it("lets the student's own choice unlock a node, and only prefetch writes a locked one", () => {
+  it("unlocks on the student's start and leaves prefetch status alone", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('"choose"');
-    expect(route).toContain('if (!openable && !prefetch) return errorResponse(403, "node_locked")');
+    expect(route).toContain("nodeNeedsStudentUnlock");
+    expect(route).toContain("if (!prefetch && nodeNeedsStudentUnlock(node.status))");
+    expect(route).toContain('if (!studentMayStartNode(node.status, node.kind as string) && !prefetch) return errorResponse(403, "node_locked")');
+    expect(route).not.toContain('if (!openable && !prefetch) return errorResponse(403, "node_locked")');
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
+    expect(page).toContain("studentMayStartNode");
+    expect(page).toContain("nodeNeedsStudentUnlock");
     expect(page).toContain("redirect(examPrepLockedHref(prepId, nodeId))");
   });
 
-  it("keeps the page and the node route on the same openable check", () => {
+  it("keeps the page and the node route on the same start check", () => {
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(page).toContain("studyNodeOpenable");
+    expect(page).toContain("studentMayStartNode");
     expect(page).not.toContain('node.status === "locked"');
-    expect(route).toContain("studyNodeOpenable");
+    expect(route).toContain("studentMayStartNode");
     expect(route).not.toContain('node.status === "locked"');
     expect(route).toContain("gradeOralExam");
     expect(route).toContain("loadPrepChatGrounding");

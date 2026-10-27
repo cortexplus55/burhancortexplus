@@ -162,6 +162,15 @@ const zscore: LessonV3 = {
           },
         },
         {
+          type: "diagram_card",
+          diagramKind: "function_curve",
+          title: "Hedef boy",
+          items: [
+            { label: "Kız", value: 161.5 },
+            { label: "Erkek", value: 174.5, highlight: true },
+          ],
+        },
+        {
           type: "check",
           check: {
             type: "mcq",

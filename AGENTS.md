@@ -517,7 +517,7 @@ ders önceden yazılmıyor. Bizde hazır ders 3 sn, hazır test 1,3 sn, soğuk d
 
 | Kural | Nerede |
 |---|---|
-| **Yol sırayla açılır** (#107'deki "kilit bir öneridir" kararı geri alındı): kilitli adım yoldan tıklanınca açılmaz, alt kart "Bu adım, öncekileri bitirince açılır" der; adresi açılırsa hazırlık sayfasına seçili döner; uç `node_locked` verir. Yalnız önceden yazım kilitli adımı yazar | `studyNodeOpenable`, düğüm sayfası, `exam-prep-home.tsx` |
+| **Öğrenci kendi düğümünü açar** (27 Ekim 2026): sıradaki adım öneridir. Kilitli düğüm "Bu Etkinliği Şimdi Başlat" ve konu seçiciyle açılır; giriş `locked` → `ready` yapar. `hidden` açılmaz. Önceden yazım durumu değiştirmez. Sırası gelmeden biten düğüm sonrakini kendiliğinden açmaz. Her derste en az bir parametrik `diagram_card` (sayı doğrusu, terazi, eğri, zaman çizgisi, süreç ağı); eksik kart orta önem, kavram düşmez | `studentMayStartNode`, `node/route.ts`, `diagram-card.tsx`, `PARAMETRIC_DIAGRAM_RULE` |
 | Başka etkinlik "Başka birini seç" / "+" ile: seçim kilidi kaldırır (`action: "choose"`). Sözlüden sonraki önerilen pratik, konu seçimi ve tanı da seçili adımı açar. Yazılı deneme her zaman açık | `chooseStudyNode`, `study-tools-hub.tsx` |
 | Sıradaki kartta türden başka başlık yoksa konunun adı; biten adımda yüzde ("%40 · Konu testi") | `nodeHeading`, `nodeScores` |
 | Son iki puanlı sonuç %50 altı → "Bu hazırlık sana fazla zor gelebilir", ikisi %90+ → "kolay gelebilir"; seçim bütün konuların aşinalığını bir basamak kaydırır, hazır bekleyen içerik atılıp yeni düzeyde yazılır | `prep-level.ts`, `/api/learning/exam-prep/level` |

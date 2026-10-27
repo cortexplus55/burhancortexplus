@@ -12,6 +12,9 @@ import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
 import { cleanFeedbackText, feedbackKicker } from "@/lib/learning/feedback-copy";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
+import { DiagramCard } from "@/components/parity/diagram-card";
+import { SourcePageButton } from "@/components/parity/source-page-drawer";
+import { matchLessonSource, type SourceDocRef } from "@/lib/learning/source-preview";
 import {
   calloutTone,
   checkPresentation,
@@ -319,6 +322,8 @@ function LessonBlocks({
             return <ReferenceTable key={key} table={block.table} />;
           case "diagram":
             return <LessonDiagramView key={key} diagram={block.diagram} id={key} />;
+          case "diagram_card":
+            return <DiagramCard key={key} card={block} id={key} />;
           case "note":
             return (
               <aside key={key} className={`als-note als-note--${calloutTone(block.note)}`}>
@@ -657,6 +662,7 @@ export function ExamLessonSteps({
   gradeCheck,
   toolbar,
   plannedMinutes = null,
+  sourceDocs = [],
 }: {
   lesson: PlayLesson;
   /** Parça parça açılan ders: sonraki kavramlar hâlâ yazılıyor (18 Ekim 2026). */
@@ -665,6 +671,8 @@ export function ExamLessonSteps({
   upcoming?: string[];
   /** İlerleme çubuğunun altında duran küçük denetimler ("N kaynak"). */
   toolbar?: ReactNode;
+  /** Oturumun kaynak belgeleri. Sayfa ön izlemesi bunlardan açılır. */
+  sourceDocs?: SourceDocRef[];
   /** Hazırlığın dili. Tekrar sorusu bu dilde yeniden kurulur. */
   language?: MaterialLanguage;
   /** Kaçırılan bölüm indeksleri. Metin sunucuda dersin kendisinden kurulur. */
@@ -969,6 +977,8 @@ export function ExamLessonSteps({
       </button>
     ) : null;
 
+  const sourcePreview = matchLessonSource(step.kind === "section" ? step.source : undefined, sourceDocs);
+
   const countLabel = progressLabel(
     index,
     progressMax,
@@ -1022,6 +1032,9 @@ export function ExamLessonSteps({
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
       {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}
+      {sourcePreview ? (
+        <SourcePageButton documentId={sourcePreview.documentId} page={sourcePreview.page} fileName={sourcePreview.fileName} />
+      ) : null}
 
       {closeConfirmOpen ? (
         <div

@@ -2,14 +2,14 @@ import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepNodeHref, examPrepPodcastHref } from "@/lib/learning/exam-prep-hrefs";
 
 /**
- * Çalışma yolu sırayla açılır (18 Ekim 2026, ürün sahibinin kararı, Astra'daki gibi): kilitli
- * adım yoldan da adresten de açılmaz. Başka bir etkinlik isteyen "Başka birini seç" ya da "+"
- * ile seçer; seçim kilidi açar (düğüm ucunda `action: "choose"`). Yazılı deneme kendi
- * düğmesinden her zaman açılır. Kredi ve plan sınırı burada değil; düğüm üretilirken durur.
+ * Yolun sıradaki adımı öneridir (27 Ekim 2026). Öğrenci kendi hazırlığındaki kilitli düğümü
+ * açabilir; giriş `locked` → `ready` yapar. `hidden` açılmaz. Sırası gelmeden biten düğüm
+ * sonrakini kendiliğinden açmaz. Yazılı deneme kendi düğmesinden her zaman açılır.
+ * Kredi ve plan sınırı burada değil; düğüm üretilirken durur.
  */
 
 export const STUDY_PATH_HINT =
-  "Etkinlikler sırayla açılır. Başka bir etkinlik için \"Başka birini seç\".";
+  "Sıradaki adım öneridir. İstediğin konunun dersini, testini veya başka etkinliğini şimdi açabilirsin.";
 
 /** "Ders oluştur" / "Başka birini seç" penceresi: seçilen etkinlik sırası gelmeden açılır. */
 export const STUDY_HUB_HINT = "Seçtiğin etkinlik hemen açılır; yoldaki sıra değişmez.";
@@ -157,6 +157,17 @@ function toolPool<T extends { kind: string; sortOrder: number }>(nodes: T[], id:
 export function studyNodeOpenable(status: string | null | undefined, kind?: string | null): boolean {
   if (status === "ready" || status === "done") return true;
   return status === "locked" && kind === "written_exam";
+}
+
+/** Öğrenci kendi düğümünü başlatabilir. Gizli ve bilinmeyen durum kapalı kalır. Yazılı deneme de bu yoldan açılır. */
+export function studentMayStartNode(status: string | null | undefined, kind?: string | null): boolean {
+  if (status === "locked" && kind === "written_exam") return true;
+  return status === "ready" || status === "done" || status === "locked";
+}
+
+/** Bitirme fonksiyonu kilitli düğümü reddeder; öğrenci girişi önce ready yapar. Önceden yazım bunu çağırmaz. */
+export function nodeNeedsStudentUnlock(status: string | null | undefined): boolean {
+  return status === "locked";
 }
 
 export function studyNodeAria(status: NodeStatus | string): string {
@@ -315,4 +326,43 @@ export function pickPracticeNodeId(
 
 export function practiceHref(prepId: string, nodeId: string | null): string {
   return nodeId ? examPrepNodeHref(prepId, nodeId) : `/deneme-sinavlari/${prepId}`;
+}
+
+export const FREE_PICK_TOOLS: { id: StudyToolId; label: string }[] = [
+  { id: "lesson", label: "Giriş dersi" },
+  { id: "quiz", label: "Konu testi" },
+  { id: "true_false", label: "Doğru / Yanlış" },
+  { id: "flashcards", label: "Kartlar" },
+  { id: "podcast", label: "Podcast" },
+  { id: "oral", label: "Sözlü" },
+];
+
+export type FreeActivityPick =
+  | { ok: true; kind: "node"; nodeId: string; href: string }
+  | { ok: true; kind: "podcast"; href: string }
+  | { ok: false; reason: "missing" };
+
+/**
+ * Seçilen konunun kendi düğümü. Başka konunun düğümü açılmaz.
+ * Podcast yoldaki düğüm değilse podcast sayfasına gider.
+ */
+export function freeActivityPick<T extends StudyNodeRef>(
+  nodes: T[],
+  prepId: string,
+  topic: { id?: string | null; label?: string | null } | null,
+  tool: StudyToolId,
+  topicOptions: { id: string; label: string }[] = [],
+): FreeActivityPick {
+  const label = topic?.label?.trim() || null;
+  if (tool === "podcast") {
+    return { ok: true, kind: "podcast", href: studyPodcastHref(prepId, label, topicOptions) };
+  }
+  const matched = resolveStudyToolNode(nodes, tool, { id: topic?.id, label });
+  if (!matched) return { ok: false, reason: "missing" };
+  const sameTopic =
+    !label ||
+    topicLabelsMatch(label, matched.sessionMeta?.topicTitle) ||
+    (Boolean(topic?.id) && matched.sessionMeta?.topicId === topic?.id);
+  if (!sameTopic) return { ok: false, reason: "missing" };
+  return { ok: true, kind: "node", nodeId: matched.id, href: studyActivityHref(prepId, matched.id, null) };
 }

@@ -218,6 +218,23 @@ export const DIAGRAM_LAYOUT_RULE =
   "true (dolu) ya da false (boş) olabilir; etiket kaynaktaki addır. Koordinat yazma. Etiketler kaynaktaki terimler; " +
   "kaynakta olmayan sayı, kural ya da sonuç ekleme. İlk ekranı şişirme; şemayı sonraki kavrama koy.\n\n";
 
+/**
+ * Sayı doğrusu, terazi, eğri, zaman çizgisi ve süreç ağı (27 Ekim 2026).
+ * Yazar ve denetçi aynı metni okur. Ders adı `DIAGRAM_LAYOUT_RULE` içinde yoktur;
+ * konu doğası bu kuraldadır.
+ */
+export const PARAMETRIC_DIAGRAM_RULE =
+  "PARAMETRİK ŞEMA (zorunlu, her derste en az bir diagram_card): Konunun doğasına uyan bir kart yaz. " +
+  "diagramKind yalnız number_line (sayı doğrusu: nokta ve sıçrama; sayı, eşitsizlik, tam sayı, matematik), " +
+  "balance_scale (terazi: ilk öğe sol kefe, ikinci öğe sağ kefe; denklem), " +
+  "function_curve (koordinat ekseni, eğri ve kritik nokta; fonksiyon, istatistik, iktisat veya fizik grafiği), " +
+  "timeline (tarih, edebiyat, kronoloji, neden-sonuç) ya da " +
+  "process_network (bileşen veya evre kutuları ve aralarında yönlü bağ; devre, biyoloji, kimya, hukuk, sistem). " +
+  "Alanlar: title, isteğe bağlı caption, items (2-8). Her öğede label, isteğe bağlı value, detail ve highlight. " +
+  "Koordinat yazma. Etiket kaynaktaki terimdir; kaynakta olmayan sayı, kural ya da sonuç ekleme. " +
+  "İlk ekranı şişirme; kartı sonraki kavrama koy. Kart yoksa medium yaz; problem 'Parametrik şema eksik' diye başlar. " +
+  "Dersi düşürme, kavramı atma.\n\n";
+
 export const VISUAL_BLOCK_RULE =
   "GÖRSEL KARTLAR (zorunlu; yeni bilgi taşımaz): Her ders en az 2, hedef 3 görsel kart üretir. Düz paragraf " +
   "kartın yerine geçmez. İlk kavram tek ekran ve kısa kalır; kartları sonraki kavramlara dağıt, ilk ekranı " +
@@ -237,7 +254,8 @@ export const VISUAL_BLOCK_RULE =
   "biri tuzak, çivi ya da kaydırma olsun; yalnız formül kotayı doldurmaz. Belge dışı tamamlayıcı bilgi yalnız " +
   "'note' tone 'general' (type 'general_knowledge_box' de olur); başlık 'Genel bilgi: …'. Tuzak kartındaki " +
   "wrong alanı bilerek yanlış inançtır, olgu değildir.\n\n" +
-  DIAGRAM_LAYOUT_RULE;
+  DIAGRAM_LAYOUT_RULE +
+  PARAMETRIC_DIAGRAM_RULE;
 
 export const EMPHASIS_RULE =
   "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
@@ -523,7 +541,8 @@ export const VERIFY_SYSTEM =
   "Görsel kart yeni sayı, kural ya da sonuç taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış " +
   "inançtır, A sayma. 2 karttan azsa ya da tuzak, çivi ve kaydırma hiç yoksa 'medium' yaz; problem 'Görsel kart " +
   "eksik' diye başlasın. Kartlar duruyorsa yokluk yazma. flow, cycle, matrix ya da tree şeması yoksa 'medium' yaz; " +
-  "problem 'Yapılandırılmış şema eksik' diye başlasın. Dersi düşürme, kavramı atma.\n" +
+  "problem 'Yapılandırılmış şema eksik' diye başlasın. diagram_card yoksa 'medium' yaz; problem " +
+  "'Parametrik şema eksik' diye başlasın. Dersi düşürme, kavramı atma.\n" +
   "A-I 'high'; J ve görsel kart eksiği 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca, ekranda 2'den fazla " +
   "==vurgu== ya da sınavlık olmayan bilgiye vurgu.\n" +
   CALIBRATION +
@@ -548,7 +567,7 @@ export const TOPIC_VERIFY_SYSTEM =
   "Görsel kart yanlış bilgi taşıyorsa A gibi 'high'. Tuzak kartındaki wrong alanı bilerek yanlış inançtır. 2 karttan " +
   "azsa ya da tuzak, çivi ve kaydırma hiç yoksa 'medium' yaz; problem 'Görsel kart eksik' diye başlasın. Kartlar " +
   "duruyorsa yokluk yazma. flow, cycle, matrix ya da tree şeması yoksa 'medium' yaz; problem 'Yapılandırılmış şema eksik' " +
-  "diye başlasın.\n" +
+  "diye başlasın. diagram_card yoksa 'medium' yaz; problem 'Parametrik şema eksik' diye başlasın.\n" +
   "A-G 'high'; H 'medium'. Görsel kart eksiği de 'medium'. Şunlar 'low': gereksiz uzunluk, zayıf kanca.\n" +
   CALIBRATION +
   "Kurumlar ya da kılavuz sürümleri arasında küçük farklar olan bir eşikte ders yaygın kabul gören değeri veriyorsa " +
@@ -1216,7 +1235,7 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
   return issues;
 }
 
-const RULE_BLOCK = new Set(["formula", "diagram", "table", "procedure", "cards"]);
+const RULE_BLOCK = new Set(["formula", "diagram", "diagram_card", "table", "procedure", "cards"]);
 
 /** Her kavram: tanım, kural/şema, çözümlü örnek, kontrol sorusu. Eksikler yayın öncesi tek tamamlama çağrısına gider. */
 export function fourPartGaps(lesson: LessonV3): string[] {
@@ -1228,6 +1247,17 @@ export function fourPartGaps(lesson: LessonV3): string[] {
     if (!blocks.some((block) => RULE_BLOCK.has(block.type))) gaps.push(`${name}: kural, formül ya da şema`);
     if (!blocks.some((block) => block.type === "example")) gaps.push(`${name}: çözümlü sınav örneği (example bloğu)`);
     if (!blocks.some((block) => block.type === "check")) gaps.push(`${name}: kontrol sorusu (check bloğu)`);
+  }
+  return gaps;
+}
+
+/** Dört parça ve ders başına bir parametrik şema. Tek tamamlama çağrısı bunu okur. */
+export function lessonCompletionGaps(lesson: LessonV3): string[] {
+  const gaps = fourPartGaps(lesson);
+  if (parametricDiagramIssue(lesson)) {
+    gaps.push(
+      "Derste en az bir diagram_card: konu doğasına göre number_line, balance_scale, function_curve, timeline veya process_network. Koordinat yok.",
+    );
   }
   return gaps;
 }
@@ -1631,6 +1661,8 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   if (quota) issues.push(quota);
   const diagram = structuredDiagramIssue(lesson, documentPages);
   if (diagram) issues.push(diagram);
+  const parametric = parametricDiagramIssue(lesson);
+  if (parametric) issues.push(parametric);
   return issues;
 }
 
@@ -1656,11 +1688,12 @@ export function structuredDiagramIssue(lesson: LessonV3, pages?: readonly { text
   const found = lesson.screens.some((screen) =>
     screen.blocks.some(
       (block) =>
-        block.type === "diagram" &&
-        (block.diagram.layout === "flow" ||
-          block.diagram.layout === "cycle" ||
-          block.diagram.layout === "matrix" ||
-          block.diagram.layout === "tree"),
+        block.type === "diagram_card" ||
+        (block.type === "diagram" &&
+          (block.diagram.layout === "flow" ||
+            block.diagram.layout === "cycle" ||
+            block.diagram.layout === "matrix" ||
+            block.diagram.layout === "tree")),
     ),
   );
   const missing = pages?.length ? missingStructures(lesson.screens, sourceStructures(pages)) : [];
@@ -1676,6 +1709,20 @@ export function structuredDiagramIssue(lesson: LessonV3, pages?: readonly { text
     where: `screens[${lesson.screens.length - 1}]`,
     severity: "medium",
     problem: `Yapılandırılmış şema eksik. ${DIAGRAM_LAYOUT_RULE}`,
+  };
+}
+
+/** Ders başına en az bir parametrik şema. Orta önem: kavram düşmez, tamamlama çağrısı ister. */
+export function parametricDiagramIssue(lesson: LessonV3): TeacherIssue | null {
+  if (!lesson.screens.length) return null;
+  const found = lesson.screens.some((screen) => screen.blocks.some((block) => block.type === "diagram_card"));
+  if (found) return null;
+  return {
+    where: `screens[${lesson.screens.length - 1}]`,
+    severity: "medium",
+    problem:
+      "Parametrik şema eksik. Konunun doğasına uyan bir diagram_card yaz: number_line, balance_scale, " +
+      "function_curve, timeline veya process_network. Koordinat yok; etiket kaynaktaki terimdir.",
   };
 }
 

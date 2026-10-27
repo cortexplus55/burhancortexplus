@@ -151,6 +151,14 @@ describe("yapı denetimi", () => {
         ],
       },
     }, {
+      type: "diagram_card",
+      diagramKind: "process_network",
+      title: "Sakat işlem",
+      items: [
+        { label: "Yokluk", detail: "doğmaz" },
+        { label: "Butlan", detail: "sakat" },
+      ],
+    }, {
       type: "exam_trap_card",
       trap: {
         title: "Hapis tek yaptırım değildir",

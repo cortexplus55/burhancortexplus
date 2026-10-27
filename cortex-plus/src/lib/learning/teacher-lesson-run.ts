@@ -14,7 +14,7 @@ import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
   dropRepeatedChecks,
   isCoverageIssue,
-  fourPartGaps,
+  lessonCompletionGaps,
   lessonLevelStructureIssues,
   parseTeacherLesson,
   parseTeacherScreen,
@@ -358,7 +358,7 @@ export async function teacherLessonPipeline(
       screens: published,
       ...((publishedClosing as Closing | null) ?? {}),
     };
-    const gaps = fourPartGaps(finished);
+    const gaps = lessonCompletionGaps(finished);
     let delivered = finished;
     if (gaps.length) {
       const again = await io.write(
@@ -367,7 +367,7 @@ export async function teacherLessonPipeline(
         () => undefined,
       );
       const repaired = parseTeacherLesson(parseModelJson(again.text), input.upcomingTopics);
-      if (repaired && repaired.screens.length >= finished.screens.length && fourPartGaps(repaired).length < gaps.length) {
+      if (repaired && repaired.screens.length >= finished.screens.length && lessonCompletionGaps(repaired).length < gaps.length) {
         delivered = repaired;
       }
     }

@@ -12,6 +12,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ScratchPad } from "@/components/parity/scratch-pad";
 import { cn } from "@/lib/utils";
 import {
   ANSWER_SAVE_DEBOUNCE_MS,
@@ -355,6 +356,7 @@ export function ParityExamRunner({
             {speaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             Dinle
           </button>
+          <ScratchPad />
         </div>
 
         <p className="text-[19px] font-medium leading-[1.6] text-[color:var(--cp-text)]">

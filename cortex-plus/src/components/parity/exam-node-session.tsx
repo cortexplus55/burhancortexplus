@@ -17,7 +17,8 @@ import { freeLimitReachedLine, type FreeMeter } from "@/lib/billing/free-meters"
 import type { ActionCode } from "@/lib/env";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
-import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
+import { ExamNodeCoach, type CoachMessage } from "@/components/parity/exam-node-coach";
+import { ScratchPad } from "@/components/parity/scratch-pad";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import {
@@ -376,6 +377,7 @@ export function ExamNodeSession({
   const [contentVersion, setContentVersion] = useState(1);
   const [clientRequestId, setClientRequestId] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
+  const [tutorMessages, setTutorMessages] = useState<CoachMessage[]>([]);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
   /** Cevabı en az bir kez görülen kartın sırası — değerlendirme ancak ondan sonra açılır. */
@@ -1599,6 +1601,7 @@ export function ExamNodeSession({
             }}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
             toolbar={sources.length ? <NodeSources sources={sources} /> : null}
+            sourceDocs={sources}
           />
         ) : (
           <section>
@@ -1653,6 +1656,7 @@ export function ExamNodeSession({
               Şu konular bu turda yok: {payload.uncoveredTopics.join(", ")}.
             </p>
           ) : null}
+          <ScratchPad />
           <ExamQuizPlay
             questions={questions.map((question) => ({
               text: sanitizeStudentCopy(question.text ?? ""),
@@ -1717,6 +1721,7 @@ export function ExamNodeSession({
 
       {stage === "play" && payload.type === "true_false" && items[index] ? (
         <section>
+          <ScratchPad />
           <p className="cp-lesson-kicker">
             {index + 1}/{items.length}
           </p>
@@ -2253,12 +2258,14 @@ export function ExamNodeSession({
 
       {showCoach && coachItem ? (
         <ExamNodeCoach
-          key={`${payload.type}-${index}`}
           prepId={prepId}
           nodeId={nodeId}
           itemText={coachItem}
           returnPath={`/deneme-sinavlari/${prepId}`}
           onUsed={markHint}
+          messages={tutorMessages}
+          onMessagesChange={setTutorMessages}
+          questionIndex={payload.type === "cards" ? cardIndex : index}
         />
       ) : null}
 

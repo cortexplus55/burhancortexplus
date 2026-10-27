@@ -1385,3 +1385,83 @@
     opacity: 0.6;
   }
 }
+
+.als-diagram-card {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid var(--cp-border, #303030);
+  border-radius: 16px;
+  background: var(--cp-surface, #141414);
+}
+
+.als-diagram-card figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.5rem;
+  color: var(--cp-text, #fff);
+  font-size: 0.9rem;
+}
+
+.als-diagram-card figcaption span,
+.als-diagram-card svg text {
+  color: var(--cp-muted, #a3a3a3);
+}
+
+.als-diagram-card svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.als-source-page {
+  min-height: 32px;
+  margin: 0.5rem 0 0;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--cp-border, #303030);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-text, #fff);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.als-source-drawer-back {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.als-source-drawer {
+  width: min(42rem, 100%);
+  max-height: min(80dvh, 720px);
+  overflow: auto;
+  padding: 1rem 1rem 1.5rem;
+  border-radius: 18px 18px 0 0;
+  background: var(--cp-surface, #141414);
+  color: var(--cp-text, #fff);
+}
+
+.als-source-drawer header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.als-source-drawer h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.als-source-drawer-text {
+  white-space: pre-wrap;
+  font: inherit;
+  line-height: 1.5;
+}

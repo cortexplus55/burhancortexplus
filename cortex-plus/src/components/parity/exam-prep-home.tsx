@@ -52,7 +52,9 @@ import {
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
-import { STUDY_PATH_HINT, studyNodeAria, studyNodeOpenable, type StudyToolGroup } from "@/lib/learning/study-tools";
+import { STUDY_PATH_HINT, nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, type StudyToolGroup } from "@/lib/learning/study-tools";
+import { chooseStudyNode } from "@/lib/learning/choose-study-node";
+import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
 import { buildPathSections, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
 import { applyDisplayDates, pathDayLabel, pathOriginDay, sectionWhenLabel } from "@/lib/learning/path-dates";
@@ -305,10 +307,12 @@ export function ExamPrepHome({
   createdAt?: string | null;
 }) {
   const router = useRouter();
-  /** Yolda seçilen kilitli adım: açılmaz, alt kartta "öncekileri bitirince açılır" yazar. */
+  /** Yolda seçilen kilitli adım: kart "şimdi başlat" der. */
   const [lockedPick, setLockedPick] = useState<HomeNode | null>(
-    () => nodes.find((node) => node.id === lockedPickId && !studyNodeOpenable(node.status, node.kind)) ?? null,
+    () => nodes.find((node) => node.id === lockedPickId && nodeNeedsStudentUnlock(node.status)) ?? null,
   );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
   /** Bitmiş adım: kayıtlı içeriği aç ya da sıradaki etkinliğe geç. */
   const [donePick, setDonePick] = useState<HomeNode | null>(null);
   const doneCardRef = useRef<HTMLDivElement | null>(null);
@@ -442,13 +446,37 @@ export function ExamPrepHome({
     setOptionsOpen(true);
   }
 
+  const pickTopics = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { id: string; label: string }[] = [];
+    function add(id: string, label: string) {
+      const key = label.trim().toLocaleLowerCase("tr-TR");
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      list.push({ id: id || key, label: label.trim() });
+    }
+    for (const topic of topicOptions) add(topic.id, topic.label);
+    for (const label of topicLabels) add(label, label);
+    for (const node of nodes) {
+      const label = node.sessionMeta?.topicTitle;
+      if (label) add(node.sessionMeta?.topicId || label, label);
+    }
+    return list;
+  }, [topicOptions, topicLabels, nodes]);
+
+  async function startNode(nodeId: string, href: string) {
+    if (starting) return;
+    setStarting(true);
+    await chooseStudyNode(prepId, nodeId);
+    router.push(href);
+  }
+
   function openNode(node: HomeNode) {
     if (node.id === INTRO_NODE_ID) {
       router.push(examPrepIntroHref(prepId));
       return;
     }
-    // Astra: kilitli adım açılmaz, seçilir; alt kart neden açılmadığını söyler (18 Ekim 2026).
-    if (!studyNodeOpenable(node.status, node.kind)) {
+    if (!studentMayStartNode(node.status, node.kind) || nodeNeedsStudentUnlock(node.status)) {
       setDonePick(null);
       setLockedPick(node);
       return;
@@ -749,18 +777,28 @@ export function ExamPrepHome({
             <span className="cp-prep-badge">{PLAN_NODE_META[lockedPick.kind].title}</span>
           </div>
           <h2 className="cp-path-next-title">{nodeHeading(lockedPick)}</h2>
-          <p className="cp-path-next-note">Bu adım, öncekileri bitirince açılır.</p>
+          {nodeNeedsStudentUnlock(lockedPick.status) ? (
+            <p className="cp-path-next-note">Bu adım sıranın önünde. İstersen şimdi açılır.</p>
+          ) : (
+            <p className="cp-path-next-note">Bu adım, öncekileri bitirince açılır.</p>
+          )}
           <div className="cp-path-next-actions">
-            <button
-              type="button"
-              className="cp-path-next-custom"
-              onClick={() => setHubTopic(lockedPick.sessionMeta?.topicTitle ?? null)}
-            >
-              Başka birini seç
+            {nodeNeedsStudentUnlock(lockedPick.status) ? (
+              <button
+                type="button"
+                className="cp-exam-continue cp-exam-continue--primary"
+                disabled={starting}
+                onClick={() => void startNode(lockedPick.id, examPrepNodeHref(prepId, lockedPick.id))}
+              >
+                Bu Etkinliği Şimdi Başlat
+              </button>
+            ) : null}
+            <button type="button" className="cp-path-next-custom" onClick={() => setPickerOpen(true)}>
+              Başka Bir Konu veya Etkinlik Seç
             </button>
             <button
               type="button"
-              className="cp-exam-continue cp-exam-continue--primary"
+              className="cp-exam-continue"
               onClick={() => setLockedPick(null)}
             >
               Sıradakine dön
@@ -792,6 +830,9 @@ export function ExamPrepHome({
               onClick={() => setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null)}
             >
               Başka birini seç
+            </button>
+            <button type="button" className="cp-path-next-custom" onClick={() => setPickerOpen(true)}>
+              Başka Bir Konu veya Etkinlik Seç
             </button>
             <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
               {PREP_HOME_COPY.continue}
@@ -956,6 +997,21 @@ export function ExamPrepHome({
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {pickerOpen ? (
+        <FreeActivityPicker
+          prepId={prepId}
+          nodes={nodes}
+          topics={pickTopics}
+          busy={starting}
+          onClose={() => setPickerOpen(false)}
+          onOpen={(pick) => {
+            setPickerOpen(false);
+            if (pick.nodeId) void startNode(pick.nodeId, pick.href);
+            else router.push(pick.href);
+          }}
+        />
       ) : null}
 
       {hubTopic !== undefined ? (

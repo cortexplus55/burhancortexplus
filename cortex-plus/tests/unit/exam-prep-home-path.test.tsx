@@ -158,10 +158,10 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect(locked.getAttribute("aria-label")).toMatch(/kilitli/);
     // Astra (18 Ekim 2026): kilitli adım açılmaz, seçilir; alt kart nedenini söyler.
     fireEvent.click(locked);
-    expect(screen.getByText("Bu adım, öncekileri bitirince açılır.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bu Etkinliği Şimdi Başlat" })).toBeTruthy();
     expect(locked.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Sıradakine dön" }));
-    expect(screen.queryByText("Bu adım, öncekileri bitirince açılır.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Bu Etkinliği Şimdi Başlat" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Podcast oluştur" })).toBeNull();
     openOptions();
     fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
@@ -295,7 +295,7 @@ describe("path labels like Astra", () => {
 
   it("shows the lock card when a locked node's address was opened", () => {
     renderHome({ lockedPickId: "pod-1" });
-    expect(screen.getByText("Bu adım, öncekileri bitirince açılır.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bu Etkinliği Şimdi Başlat" })).toBeTruthy();
   });
 });
 

@@ -1,7 +1,6 @@
 /**
- * "Başka birini seç" / "+" (18 Ekim 2026, Astra'daki gibi): yol sırayla açılır, öğrencinin
- * kendi seçtiği etkinlik ise sırası gelmeden açılır. Seçim kilidi sunucuda kaldırır; düğüm
- * sayfası kilitli adımı açmaz, bu yüzden gitmeden önce çağrılır.
+ * Öğrencinin seçtiği etkinlik sırası gelmeden açılır. Seçim kilidi sunucuda kaldırır
+ * (`locked` → `ready`). Sayfa da aynı geçişi yapar; gitmeden önce çağırmak yarışı kapatır.
  */
 export async function chooseStudyNode(prepId: string, nodeId: string): Promise<boolean> {
   try {

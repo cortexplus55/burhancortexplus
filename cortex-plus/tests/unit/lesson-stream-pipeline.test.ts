@@ -107,6 +107,15 @@ const lesson: LessonV3 = {
             ],
           },
         },
+        {
+          type: "diagram_card",
+          diagramKind: "process_network",
+          title: "Sakat işlem",
+          items: [
+            { label: "Yokluk", detail: "doğmaz" },
+            { label: "Butlan", detail: "sakat" },
+          ],
+        },
         mcq("Amca ile yeğen arasındaki evlilik hangi türdür?"),
         // Derste en az bir "Neden böyle?" kutusu (23 Ekim 2026); yoksa kapanış bir öğretim turu açar.
         { type: "note", note: { title: "Neden böyle?: Mutlak butlanı neden herkes ileri sürebilir?", body: "Emredici kural kamu düzenini korur; aykırılık yalnız tarafları ilgilendirmez.", tone: "general" } },

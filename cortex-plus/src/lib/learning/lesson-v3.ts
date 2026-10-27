@@ -87,6 +87,25 @@ const examTrapBlockSchema = z.object({ type: z.literal("exam_trap_card"), trap: 
 const memoryHookBlockSchema = z.object({ type: z.literal("memory_hook_card"), hook: lessonHookSchema });
 const comparisonCarouselBlockSchema = z.object({ type: z.literal("comparison_carousel"), carousel: lessonCarouselSchema });
 
+/** Parametrik şema (27 Ekim 2026). Model koordinat yazmaz; SVG'yi ekran kurar. */
+export const DIAGRAM_KINDS = ["number_line", "balance_scale", "function_curve", "timeline", "process_network"] as const;
+export type DiagramKind = (typeof DIAGRAM_KINDS)[number];
+
+export const diagramCardItemSchema = z.object({
+  label: z.string().min(1).max(80),
+  value: z.union([z.number().finite(), z.string().min(1).max(40)]).optional(),
+  detail: z.string().min(1).max(120).optional(),
+  highlight: z.boolean().optional(),
+});
+
+export const diagramCardBlockSchema = z.object({
+  type: z.literal("diagram_card"),
+  diagramKind: z.enum(DIAGRAM_KINDS),
+  title: z.string().min(2).max(120),
+  caption: z.string().min(1).max(200).optional(),
+  items: z.array(diagramCardItemSchema).min(2).max(8),
+});
+
 export const lessonBlockSchema = z.discriminatedUnion("type", [
   textBlockSchema,
   formulaBlockSchema,
@@ -100,6 +119,7 @@ export const lessonBlockSchema = z.discriminatedUnion("type", [
   examTrapBlockSchema,
   memoryHookBlockSchema,
   comparisonCarouselBlockSchema,
+  diagramCardBlockSchema,
 ]);
 
 export type LessonBlock = z.infer<typeof lessonBlockSchema>;
@@ -111,12 +131,93 @@ export type LessonCarousel = z.infer<typeof lessonCarouselSchema>;
 /** Görsel kartların türleri: oynatma paketi ve ekran bunları tanır. */
 export const VISUAL_BLOCK_TYPES = ["exam_trap_card", "memory_hook_card", "comparison_carousel"] as const;
 
+const STRUCTURED_LAYOUTS = new Set(["flow", "cycle", "matrix", "tree", "free"]);
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function diagramItem(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "number" && Number.isFinite(value)) return { label: String(value), value };
+  if (typeof value === "string" && value.trim()) return { label: value.trim().slice(0, 80) };
+  const row = asRecord(value);
+  if (!row) return null;
+  const labelRaw =
+    typeof row.label === "string" ? row.label : typeof row.name === "string" ? row.name : typeof row.text === "string" ? row.text : "";
+  const label = labelRaw.trim().slice(0, 80);
+  if (!label) return null;
+  const rawValue = row.value ?? row.amount ?? row.date;
+  let parsed: string | number | undefined;
+  if (typeof rawValue === "number" && Number.isFinite(rawValue)) parsed = rawValue;
+  else if (typeof rawValue === "string" && rawValue.trim()) parsed = rawValue.trim().slice(0, 40);
+  const detailRaw = typeof row.detail === "string" ? row.detail : typeof row.note === "string" ? row.note : "";
+  const detail = detailRaw.trim().slice(0, 120);
+  return {
+    label,
+    ...(parsed !== undefined ? { value: parsed } : {}),
+    ...(detail ? { detail } : {}),
+    ...(row.highlight === true ? { highlight: true } : {}),
+  };
+}
+
+function diagramItems(bag: Record<string, unknown>): Record<string, unknown>[] {
+  const direct = Array.isArray(bag.items) ? bag.items.flatMap((item) => { const next = diagramItem(item); return next ? [next] : []; }) : [];
+  if (direct.length >= 2) return direct.slice(0, 8);
+  const left = bag.leftSide ?? bag.left;
+  const right = bag.rightSide ?? bag.right;
+  if (left !== undefined || right !== undefined) {
+    const pair = [left, right].flatMap((item) => { const next = diagramItem(item); return next ? [next] : []; });
+    if (pair.length >= 2) return pair.slice(0, 8);
+  }
+  if (Array.isArray(bag.nodes)) {
+    const nodes = bag.nodes.flatMap((item) => { const next = diagramItem(item); return next ? [next] : []; });
+    if (nodes.length >= 2) return nodes.slice(0, 8);
+  }
+  return direct.slice(0, 8);
+}
+
+/** `diagram_card` + `diagramKind` parametrik kart kalır. Eski `layout: flow|…` hâlâ `diagram` olur. */
+function parametricFromDiagramCard(row: Record<string, unknown>): Record<string, unknown> | null {
+  const card = asRecord(row.card) ?? asRecord(row.diagram);
+  const bag = { ...(card ?? {}), ...row };
+  const layout = typeof bag.layout === "string" ? bag.layout : "";
+  const kindRaw = typeof bag.diagramKind === "string" ? bag.diagramKind : typeof bag.kind === "string" ? bag.kind : "";
+  const known = (DIAGRAM_KINDS as readonly string[]).includes(kindRaw);
+  const structured = STRUCTURED_LAYOUTS.has(layout);
+  const kind = known
+    ? kindRaw
+    : !structured && (bag.leftSide !== undefined || bag.rightSide !== undefined || bag.left !== undefined || bag.right !== undefined)
+      ? "balance_scale"
+      : !structured && Array.isArray(bag.nodes)
+        ? "process_network"
+        : "";
+  if (!kind) return null;
+  const items = diagramItems(bag);
+  if (items.length < 2) return null;
+  const caption = typeof bag.caption === "string" ? bag.caption.trim().slice(0, 200) : "";
+  const title =
+    typeof bag.title === "string" && bag.title.trim().length >= 2
+      ? bag.title.trim().slice(0, 120)
+      : caption.length >= 2
+        ? caption.slice(0, 120)
+        : "Şema";
+  return {
+    type: "diagram_card",
+    diagramKind: kind,
+    title,
+    ...(caption && caption !== title ? { caption } : {}),
+    items,
+  };
+}
+
 /** `formula_card` → `formula`, `general_knowledge_box` → `note` (tone 'general'). Öbür bloklar aynen. */
 export function blockAlias(item: unknown): unknown {
   if (!item || typeof item !== "object") return item;
   const row = item as Record<string, unknown>;
   if (row.type === "formula_card") return { type: "formula", formula: row.formula ?? row.card };
-  if (row.type === "diagram_card") return { type: "diagram", diagram: row.diagram ?? row.card };
+  if (row.type === "diagram_card") {
+    return parametricFromDiagramCard(row) ?? { type: "diagram", diagram: row.diagram ?? row.card };
+  }
   if (row.type === "general_knowledge_box") {
     const note = row.note ?? row.box;
     return { type: "note", note: note && typeof note === "object" ? { ...(note as object), tone: "general" } : note };
@@ -149,6 +250,10 @@ export function visualBlockText(block: LessonBlock): string {
       return `${diagram.caption}: ${diagram.cells.map((cell) => cell.label).join(", ")}`;
     }
     if (diagram.layout === "tree") return `${diagram.caption}: ${diagram.root.label}`;
+  }
+  if (block.type === "diagram_card") {
+    const bits = block.items.map((item) => [item.label, item.value, item.detail].filter((part) => part != null && part !== "").join(" "));
+    return [block.title, block.caption, bits.join(" → ")].filter(Boolean).join(": ");
   }
   return "";
 }
