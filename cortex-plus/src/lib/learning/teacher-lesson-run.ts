@@ -76,6 +76,8 @@ export type PublishedLesson = {
   done: boolean;
   /** Henüz yayımlanmamış ama yazılmış kavramların adları (giriş kartı planı). */
   upcoming: string[];
+  /** Yazarın baştaki planı: kaç ekran yazacağı. Yazım sürerken sayacın paydası (28 Ekim 2026). */
+  plannedScreens?: number;
 };
 
 export type LessonIo = {
@@ -145,6 +147,13 @@ export function mergePartScreens(current: LessonScreen[], fixed: LessonScreen[])
   return current.map((screen) => byHeading.get(key(screen)) ?? screen);
 }
 
+/** Başlıktaki ekran planı; 1-12 dışı ya da sayı olmayan değer yok sayılır. */
+export function plannedScreensOf(raw: unknown): number | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const value = Number((raw as Record<string, unknown>).plannedScreens);
+  return Number.isInteger(value) && value >= 1 && value <= 12 ? value : undefined;
+}
+
 function headerOf(raw: unknown): Header | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
@@ -180,6 +189,7 @@ export async function teacherLessonPipeline(
     const parts: Part[] = [];
     const outcomes: Promise<PartOutcome>[] = [];
     let header: Header | null = null;
+    let plannedScreens: number | undefined;
     let closing: Closing | null = null;
     let streamEnded = false;
     let wake: () => void = () => undefined;
@@ -254,6 +264,7 @@ export async function teacherLessonPipeline(
         for (const raw of reader.feed(delta)) {
           if (!header) {
             header = headerOf(reader.header);
+            plannedScreens ??= plannedScreensOf(reader.header);
             if (header) headerResolve(header);
           }
           addScreen(raw);
@@ -285,6 +296,7 @@ export async function teacherLessonPipeline(
                     lesson: { format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] },
                     done: false,
                     upcoming: parts.slice(index).map((item) => item.concept),
+                    ...(plannedScreens ? { plannedScreens } : {}),
                   }),
                 ).catch(() => undefined);
               }, HEARTBEAT_MS)
@@ -309,6 +321,7 @@ export async function teacherLessonPipeline(
             lesson: stripLessonIssueTags({ format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] }),
             done: false,
             upcoming: parts.slice(index + 1).map((item) => item.concept),
+            ...(plannedScreens ? { plannedScreens } : {}),
           });
         }
       }

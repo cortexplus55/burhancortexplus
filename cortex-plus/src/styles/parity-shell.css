@@ -5541,6 +5541,11 @@
   font-weight: 700;
 }
 
+/* Resmî tatil (esnek gün), 28 Ekim 2026: durum değil bilgi, kesik çerçeve. */
+.cp-cal-day--holiday {
+  border: 1px dashed var(--c-border-strong);
+}
+
 .cp-cal-dot {
   position: absolute;
   bottom: 0.3rem;
@@ -13991,6 +13996,15 @@ a.cp-exam-search {
 .cp-prep-badge--score {
   background: var(--c-success-soft);
   color: var(--c-success);
+}
+
+/* Resmî tatil esnek günü (28 Ekim 2026): durum değil bilgi; gri, büyük harfe çevrilmez (bayram adı). */
+.cp-prep-badge--holiday {
+  margin-right: 0.4rem;
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+  text-transform: none;
+  letter-spacing: var(--ls-label);
 }
 
 .cp-prep-hero-meta {

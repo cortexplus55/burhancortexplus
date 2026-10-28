@@ -100,6 +100,7 @@ const SCHEMA = `{
   "title": "konunun içerikten adı, en fazla 9 kelime",
   "overview": "kanca: 1-2 cümle; konunun neden önemli olduğunu kaynaktaki bir gerçekle söyler",
   "objective": "bu dersten sonra öğrencinin YAPABİLECEĞİ tek şey",
+  "plannedScreens": "yazacağın ekran sayısı, tam sayı (ör. 7); öğrencinin adım sayacı bunu gösterir",
   "screens": [
     {
       "heading": "ekranın odağı: kavramın adı",

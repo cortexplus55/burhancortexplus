@@ -16,6 +16,6 @@ test.describe("Kayıt ve marketing", { tag: ["@smoke", "@public"] }, () => {
 
   test("mobil uygulama marketing sayfası", async ({ page }) => {
     await page.goto("/mobil-uygulama");
-    await expect(page.getByRole("heading", { name: "Telefondan Cortex" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Telefonuna Uygulama Olarak Kur" })).toBeVisible();
   });
 });

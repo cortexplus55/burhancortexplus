@@ -10,6 +10,7 @@ import { sourceCitation } from "@/lib/learning/path-source-label";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
 import { pinFinalSessionsInPlace } from "@/lib/learning/path-dates";
+import { HOLIDAY_LOAD_SHARE, turkishHolidayOn, type ScheduleCheckpoint } from "@/lib/learning/tr-calendar";
 import {
   extraPracticeForTarget,
   masteryBarForTarget,
@@ -62,6 +63,11 @@ export type ScheduleBuildInput = {
    * Varsayılan true: eski çağrılar sesli adımı korur.
    */
   includeAudio?: boolean;
+  /**
+   * Final sınavından önceki ara sınavlar (vize, quiz …): belgeden ya da öğrencinin takviminden
+   * (`tr-calendar.ts`). Her birinin bir gün öncesine "Ara Deneme / Kontrol" adımı konur.
+   */
+  checkpoints?: ScheduleCheckpoint[];
 };
 
 /**
@@ -106,7 +112,26 @@ export type ScheduleSession = {
   lessonParts?: number;
   /** Kavram biriminin adı (birimli konuda). */
   unitTitle?: string;
+  /** Resmî tatile düşen oturum: tatilin adı (gün esnek, yük yarıya iner). */
+  holiday?: string;
+  /** Ara sınav öncesi kontrol adımı: ara sınavın adı ve günü. */
+  checkpoint?: string;
+  checkpointDate?: string;
 };
+
+/** Ara sınav öncesi kontrolün süresi; günün bütçesinden düşmez (kısa karışık pratik). */
+export const CHECKPOINT_MINUTES = 20;
+
+/**
+ * Günlük bütçe (28 Ekim 2026): resmî tatil esnek gündür, yükün yarısı komşu günlere kayar. Son gün
+ * (deneme günü) tatil olsa da tam kalır.
+ */
+export function studyDayBudgets(studyDayDates: readonly string[], daily: number): number[] {
+  const lastIdx = studyDayDates.length - 1;
+  return studyDayDates.map((date, index) =>
+    index !== lastIdx && turkishHolidayOn(date) ? Math.max(10, Math.round(daily * HOLIDAY_LOAD_SHARE)) : daily,
+  );
+}
 
 /**
  * Bir dersin okuduğu sayfa sayısı.
@@ -164,6 +189,8 @@ export type ScheduleBuildResult = {
   targetMode?: TargetPlanMode;
   /** Konu hâkimiyeti eşiği: peak ≥85, solid 75, pass ≤65. */
   masteryBar?: number;
+  /** Takvimin ara sınavları; yeniden planlama bunları korur. */
+  checkpoints?: ScheduleCheckpoint[];
 };
 
 /**
@@ -362,7 +389,8 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     input.studyDays,
     input.fromDate,
   );
-  const availableMinutes = studyDayDates.length * daily;
+  const capacity = studyDayBudgets(studyDayDates, daily);
+  const availableMinutes = capacity.reduce((sum, minutes) => sum + minutes, 0);
   const targetMode = targetPlanMode(input.targetScore);
   const masteryBar = masteryBarForTarget(input.targetScore);
   const tempo = targetTempoFactor(input.targetScore);
@@ -418,7 +446,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   let sortOrder = 0;
 
   // Day budgets
-  const dayBudget = studyDayDates.map(() => daily);
+  const dayBudget = [...capacity];
   const lastIdx = studyDayDates.length - 1;
 
   const cite = (topic: ScheduleTopicInput, pages: number[] = topic.pageNumbers ?? []) =>
@@ -685,6 +713,38 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
   }
 
+  // Ara sınav öncesi kontrol (28 Ekim 2026): ara sınavdan önceki son çalışma gününe, o güne kadar dersi
+  // işlenmiş konular bitince. Ara sınavdan önce hiç ders yoksa ya da gün deneme günüyse konmaz.
+  for (const checkpoint of input.checkpoints ?? []) {
+    let target = -1;
+    for (let d = 0; d < lastIdx; d += 1) if (studyDayDates[d]! < checkpoint.date) target = d;
+    if (target < 0) continue;
+    let topicIndex = -1;
+    core.forEach((entry, index) => {
+      if (entry.learnDay >= 0 && entry.learnDay <= target) topicIndex = index;
+    });
+    if (topicIndex < 0) continue;
+    const topic = kept[topicIndex]!.topic;
+    const label = checkpoint.label.trim() || "Ara sınav";
+    sessions.push({
+      dayIndex: target + 1,
+      calendarDate: studyDayDates[target]!,
+      topicId: topic.id,
+      topicTitle: topic.title,
+      objective: `${label} (${checkpoint.date}) öncesi: o güne kadar işlediğin konulardan karışık kontrol.`,
+      sourcePages: [],
+      durationMinutes: CHECKPOINT_MINUTES,
+      role: "practice",
+      kind: "focused",
+      sortOrder: sortOrder++,
+      practiceVariant: null,
+      sourceLabel: null,
+      checkpoint: label,
+      checkpointDate: checkpoint.date,
+    });
+    mark(topicIndex, 900);
+  }
+
   // Last day: mock only (no new learn). Use a synthetic topic if needed.
   const mockTopic: ScheduleTopicInput = kept[0]?.topic ?? {
     id: "mock",
@@ -706,7 +766,15 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   }
 
   // Hazırlık geneli oturum (deneme) son yedi çalışma gününde. Konu sırası değişmez.
-  pinFinalSessionsInPlace(sessions, studyDayDates);
+  pinFinalSessionsInPlace(
+    sessions.filter((session) => !session.checkpoint),
+    studyDayDates,
+  );
+  // Resmî tatile düşen oturum işaretlenir (takvimde "Resmî Tatil (Esnek Gün)" rozeti).
+  for (const session of sessions) {
+    const holiday = turkishHolidayOn(session.calendarDate);
+    if (holiday) session.holiday = holiday;
+  }
 
   // Yolun sırası konu konu (dersler, testler, tekrar), en sonda deneme. İki geçiş oturumları
   // karışık sırayla üretti; sıra numarası burada konu sırasına göre yeniden verilir.
@@ -745,6 +813,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     summary,
     targetMode,
     masteryBar,
+    ...(input.checkpoints?.length ? { checkpoints: [...input.checkpoints] } : {}),
   };
 }
 
@@ -796,6 +865,10 @@ export function redistributeRemainingSchedule(input: {
       .map((s) => s.topicId),
   );
   const topics = input.topics.filter((t) => remainingTopicIds.has(t.id));
+  // Ara sınav kontrolü korunur; bitirilmiş kontrol yeniden konmaz (28 Ekim 2026).
+  const checkpoints = (input.previous.checkpoints ?? []).filter(
+    (checkpoint) => !keptCompleted.some((session) => session.checkpointDate === checkpoint.date),
+  );
   const rebuilt = buildExamScheduleV2({
     daysToExam: input.daysToExam,
     dailyMinutes: input.dailyMinutes,
@@ -803,6 +876,7 @@ export function redistributeRemainingSchedule(input: {
     topics,
     fromDate: input.fromDate,
     targetScore: input.targetScore,
+    checkpoints,
   });
   const completedMaxSort = keptCompleted.reduce(
     (m, s) => Math.max(m, s.sortOrder),
@@ -858,12 +932,14 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
               ? "Kartlarla tekrar"
               : "Yazılı deneme";
     const titled =
-      s.role === "mock"
-        ? `${label} · Tüm konular`
-        : `${s.topicTitle} · ${label}`;
+      s.checkpoint
+        ? `Ara Deneme / Kontrol · ${s.checkpoint}`
+        : s.role === "mock"
+          ? `${label} · Tüm konular`
+          : `${s.topicTitle} · ${label}`;
     return {
       kind: s.kind,
-      title: s.sourceLabel ? `${titled} · ${s.sourceLabel}` : titled,
+      title: s.sourceLabel && !s.checkpoint ? `${titled} · ${s.sourceLabel}` : titled,
       dayIndex: s.dayIndex,
       sortOrder: s.sortOrder,
       meta: {
@@ -877,6 +953,7 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
         ...(s.lessonPart && s.lessonParts ? { lessonPart: s.lessonPart, lessonParts: s.lessonParts } : {}),
         ...(s.unitTitle ? { unitTitle: s.unitTitle } : {}),
         ...(practice ? { practiceVariant: Math.max(0, s.practiceVariant ?? 0) } : {}),
+        ...(s.checkpoint ? { checkpoint: s.checkpoint } : {}),
       },
     };
   });

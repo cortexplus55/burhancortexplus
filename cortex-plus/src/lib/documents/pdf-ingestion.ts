@@ -199,7 +199,8 @@ async function ocrOneBlankPage(input: {
   documentId: string;
   userId: string;
   pageNumber: number;
-  png: Buffer;
+  image: Buffer;
+  mime: string;
   inkRatio: number;
   founder: boolean;
   limit: number;
@@ -225,7 +226,7 @@ async function ocrOneBlankPage(input: {
   rateLimited?: boolean;
 }> {
   const {
-    service, documentId, userId, pageNumber, png, inkRatio,
+    service, documentId, userId, pageNumber, image, mime, inkRatio,
     founder, limit, deadlineMs, maxOcrPages, onClaimed, onReleased,
     purpose = "page", keepText,
   } = input;
@@ -293,10 +294,10 @@ async function ocrOneBlankPage(input: {
     onReleased?.(pageNumber);
   };
 
-  let read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber, purpose });
+  let read = await extractImageText(image, mime, { deadlineMs, scanOrdinal: pageNumber, purpose });
   let usage = read.usage;
   if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
-    read = await extractImageText(png, "image/png", { deadlineMs, scanOrdinal: pageNumber, purpose });
+    read = await extractImageText(image, mime, { deadlineMs, scanOrdinal: pageNumber, purpose });
     usage = mergeUsage(usage, read.usage);
   }
 
@@ -510,7 +511,7 @@ export async function readPdfBatch(
         const mode = visionMode.get(index);
         const result = await ocrOneBlankPage({
           service, documentId, userId, pageNumber: number,
-          png: meta.png, inkRatio: meta.inkRatio,
+          image: meta.image, mime: meta.mime, inkRatio: meta.inkRatio,
           founder, limit, deadlineMs, maxOcrPages,
           purpose: mode?.purpose ?? "page",
           keepText: mode?.keepText,

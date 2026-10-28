@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
-import { activityDurationMinutes, lessonStepTotal } from "@/lib/learning/activity-duration";
+import { activityDurationMinutes, lessonStepCounter, type LessonStepCounter } from "@/lib/learning/activity-duration";
 import { prepStars } from "@/lib/stars/rules";
 import { ComparisonCarousel, ExamTrapCard, FormulaCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -645,16 +645,14 @@ function lessonHasExamMarks(lesson: PlayLessonV3): boolean {
 }
 
 function progressLabel(
-  index: number,
-  lessonCount: number,
+  counter: LessonStepCounter,
   step: Step,
   retryOrdinal = 0,
   retryTotal = 0,
 ): string {
   if (step.kind === "review-gate") return "Tekrar";
   if (step.kind === "retry") return `Tekrar ${retryOrdinal} / ${Math.max(1, retryTotal)}`;
-  const total = Math.max(1, lessonCount);
-  return `${Math.min(index + 1, total)} / ${total}`;
+  return counter.label;
 }
 
 export function ExamLessonSteps({
@@ -668,6 +666,7 @@ export function ExamLessonSteps({
   gradeCheck,
   toolbar,
   plannedMinutes = null,
+  plannedScreens = null,
   sourceDocs = [],
 }: {
   lesson: PlayLesson;
@@ -691,6 +690,8 @@ export function ExamLessonSteps({
   closeHref?: string;
   /** Yol ve kapıyla aynı süre (`activityMinutes`). Varsa okuma süresi yeniden hesaplanmaz. */
   plannedMinutes?: number | null;
+  /** Yazım sürerken yazarın ekran planı: sayacın paydası, kavramlar geldikçe sıçramasın. */
+  plannedScreens?: number | null;
   /** Sunucu notlandırması. Yoksa (eski paket) istemci notlar. */
   gradeCheck?: (
     sectionIndex: number,
@@ -777,8 +778,9 @@ export function ExamLessonSteps({
     ];
   }, [base, missed, view, language, serverRetries, building, upcoming]);
 
-  const progressMax = lessonStepTotal(base.length);
-  const progressNow = Math.min(index + 1, progressMax);
+  const counter = lessonStepCounter({ index, writtenSteps: base.length, building, plannedScreens });
+  const progressMax = counter.max;
+  const progressNow = counter.now;
   const progressRatio = progressNow / progressMax;
 
   const step = steps[Math.min(index, steps.length - 1)];
@@ -995,8 +997,7 @@ export function ExamLessonSteps({
   const sourcePreview = matchLessonSource(step.kind === "section" ? step.source : undefined, sourceDocs);
 
   const countLabel = progressLabel(
-    index,
-    progressMax,
+    counter,
     step,
     index - base.length,
     Math.max(0, steps.length - base.length - 1),
@@ -1035,7 +1036,7 @@ export function ExamLessonSteps({
         </div>
         <div className="als-top-meta">
           <p className="als-count" aria-live="polite">
-            {/^\d+ \/ \d+$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
+            {/^\d+( \/ \d+)?$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
             <span>{countLabel}</span>
             <span className="als-minutes">~{readingMinutes} dk</span>
           </p>
@@ -1114,7 +1115,7 @@ export function ExamLessonSteps({
           {step.kind === "overview" ? (
             <p className="als-intro-meta">
               <span className="als-intro-tag">Ders</span>
-              yaklaşık {readingMinutes} dk · {progressMax} adım
+              yaklaşık {readingMinutes} dk{counter.label.includes("/") ? ` · ${progressMax} adım` : ""}
             </p>
           ) : null}
           {step.kind === "section" && step.part ? (

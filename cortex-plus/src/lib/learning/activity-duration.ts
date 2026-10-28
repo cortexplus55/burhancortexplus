@@ -75,6 +75,40 @@ export function lessonStepTotal(writtenSteps: number, _pendingConcepts = 0): num
   return Math.max(1, Math.max(0, Math.floor(writtenSteps)));
 }
 
+export type LessonStepCounter = {
+  now: number;
+  /** İlerleme çubuğunun paydası. */
+  max: number;
+  /** "3 / 8" ya da payda henüz bilinmiyorsa "3". */
+  label: string;
+};
+
+/**
+ * Ders yazılırken adım sayacı (28 Ekim 2026). Kavramlar geldikçe payda büyüyordu: öğrenci "1 / 2"
+ * görüp bir sonraki tazelemede "1 / 8" görüyordu. Yazım sürerken payda yazarın baştaki planıdır
+ * (giriş kartı + planlanan ekranlar + özet) ve yazılan adımlar onu geçmedikçe değişmez; plan yoksa
+ * ya da yazılanlar planı geçtiyse sayaç yalnız "Adım N" der. Yazım bitince payda yazılan adımlardır.
+ */
+export function lessonStepCounter(input: {
+  index: number;
+  writtenSteps: number;
+  building: boolean;
+  plannedScreens?: number | null;
+}): LessonStepCounter {
+  const written = lessonStepTotal(input.writtenSteps);
+  if (!input.building) {
+    const now = Math.min(Math.max(0, input.index) + 1, written);
+    return { now, max: written, label: `${now} / ${written}` };
+  }
+  const screens = input.plannedScreens;
+  const planned = typeof screens === "number" && Number.isInteger(screens) && screens > 0 ? screens + 2 : null;
+  // Yazım sürerken bir "hazırlanıyor" adımı daha var: yazılan + 1.
+  const reach = written + 1;
+  const max = planned && planned >= reach ? planned : reach;
+  const now = Math.min(Math.max(0, input.index) + 1, max);
+  return { now, max, label: planned && planned >= reach ? `${now} / ${planned}` : `${now}` };
+}
+
 /** Harcanan zaman: oturumun başlangıcından bitişine; boş ya da geçersiz başlangıç 1 dk sayılır. */
 export function elapsedMinutes(startedAt: string | number | null | undefined, endedAt: number = Date.now()): number {
   const start = typeof startedAt === "number" ? startedAt : startedAt ? Date.parse(startedAt) : NaN;

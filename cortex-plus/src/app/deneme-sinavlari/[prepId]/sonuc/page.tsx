@@ -43,6 +43,7 @@ export default async function ExamPrepSonucPage({
     topic_report: unknown;
     exam_id: string;
     completed_at?: string | null;
+    duration_seconds?: number | null;
   };
 
   let attempt: AttemptRow | null = null;
@@ -50,7 +51,7 @@ export default async function ExamPrepSonucPage({
   if (query.examId) {
     const { data } = await supabase
       .from("practice_exam_attempts")
-      .select("id, score, analysis, topic_report, exam_id, completed_at")
+      .select("id, score, analysis, topic_report, exam_id, completed_at, duration_seconds")
       .eq("exam_id", query.examId)
       .eq("user_id", user.id)
       .not("completed_at", "is", null)
@@ -63,7 +64,7 @@ export default async function ExamPrepSonucPage({
   if (!attempt) {
     const { data } = await supabase
       .from("practice_exam_attempts")
-      .select("id, score, analysis, topic_report, exam_id, completed_at")
+      .select("id, score, analysis, topic_report, exam_id, completed_at, duration_seconds")
       .eq("user_id", user.id)
       .not("completed_at", "is", null)
       .order("created_at", { ascending: false })
@@ -217,6 +218,7 @@ export default async function ExamPrepSonucPage({
               mockElapsedLabel(
                 examRow?.started_at as string | null | undefined,
                 attempt.completed_at,
+                attempt.duration_seconds ?? null,
               ),
             ],
           ].map(([label, value]) => (

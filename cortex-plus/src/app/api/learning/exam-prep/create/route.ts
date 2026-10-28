@@ -34,6 +34,7 @@ import {
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
+import { loadScheduleCheckpoints } from "@/lib/learning/schedule-checkpoints";
 import type { TopicContradiction } from "@/lib/learning/source-contradictions";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
@@ -212,6 +213,12 @@ export async function POST(request: Request) {
       !modalities.includes("listening") &&
       !modalities.includes("watching")
     );
+    // Ara sınavlar (vize, quiz): belgeden ve öğrencinin takviminden; okuma düşerse kontrol adımı konmaz.
+    const checkpoints = await loadScheduleCheckpoints(service, {
+      userId,
+      documentIds,
+      examDate: parsed.data.examDate,
+    }).catch(() => []);
     scheduleSummary = buildExamScheduleV2({
       daysToExam: daysUntilExam(parsed.data.examDate),
       dailyMinutes,
@@ -219,6 +226,7 @@ export async function POST(request: Request) {
       topics: scheduleTopics,
       targetScore: parsed.data.targetScore,
       includeAudio,
+      checkpoints,
     });
     scheduleDrafts = mergeStudyPathTemplate(
       scheduleSessionsToNodeDrafts(scheduleSummary.sessions),

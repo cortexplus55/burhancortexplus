@@ -4,6 +4,7 @@ import { singlePassItems } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
 import { examinerVibeStyleLine, parseExaminerVibe, type ExaminerVibe } from "@/lib/learning/examiner-vibe";
 import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
+import { sameTrueFalseFact, trueFalseExplanation } from "@/lib/learning/true-false-quality";
 
 /**
  * Öğretmen motoru: doğru/yanlış önermeleri ve sözlü deneme soruları
@@ -97,8 +98,12 @@ function tfSystem(mode: TeacherLessonMode): string {
     "- Yanlış önermeler öğrencinin GERÇEKTEN yaptığı hatayı taşır: iki kardeş kavramı yer değiştirmek, koşulu ya da " +
     "istisnayı düşürmek, sonucu tersine çevirmek. Bariz saçma önerme yok.\n" +
     "- Doğru ve yanlış önermeler yaklaşık yarı yarıya; her önerme farklı bir kavramı yoklar.\n" +
+    "- ÇİFT YOK: aynı bilgiyi iki kez sorma. Bir önermeyi olumsuzlayıp ikinci önerme yapma ('X, Y'dir' ile " +
+    "'X, Y değildir'); bir yanlış önermenin doğru hâlini ayrı bir doğru önerme olarak yazma. Her önerme başka " +
+    "bir alt bilgiyi ya da başka bir yanılgıyı yoklar.\n" +
     "- 'Her zaman / asla / genelde' gibi belirsiz genelleme ve bağlamı eksik sayı yok.\n" +
-    "- explanation: neden doğru ya da yanlış olduğunu söyler; yanlışsa iddiayı çürütür. Yanlış önermede " +
+    "- explanation: neden doğru ya da yanlış olduğunu söyler; yanlışsa '✏️ Doğrusu: <doğru hâli>' ile başlar ve " +
+    "iddiayı çürütür. Yanlış önermede " +
     "correctedStatement önermenin doğru hâlidir. misconceptionTag: yokladığı yanılgının kısa adı.\n\n" +
     "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede'.\n\n" +
     `${CONTENT_STYLE}\n\n` +
@@ -165,16 +170,30 @@ export function trueFalseStructureIssues(item: TrueFalseItem): string[] {
   return issues;
 }
 
+/** Setteki bir önermeyle aynı alt bilgiyi ya da yanılgıyı yoklayan önerme kabul edilmez (28 Ekim 2026). */
+export const TF_DUPLICATE_ISSUE =
+  "Aynı alt bilgiyi ya da yanılgıyı setteki başka bir önerme yokluyor (çift ya da ters önerme).";
+
 export async function teacherTrueFalseLoop(ask: AskJson, input: PracticeSource & { count: number }, started = Date.now()) {
   void started;
   const mode = input.mode ?? "document";
+  const kept: TrueFalseItem[] = [];
   const loop = await singlePassItems<TrueFalseItem>({
     count: input.count,
     spare: 2,
     draft: async (n) => parseTrueFalse(await ask(tfSystem(mode), userPrompt(input, "ÖNERME SAYISI", n))),
-    issues: trueFalseStructureIssues,
+    // Çift ya da ters önerme eksik sayılır; motor eksik kadar yenisini ister.
+    issues: (item) => {
+      const problems = trueFalseStructureIssues(item);
+      if (problems.length) return problems;
+      if (kept.some((other) => sameTrueFalseFact(item, other))) return [TF_DUPLICATE_ISSUE];
+      kept.push(item);
+      return [];
+    },
   });
-  const items = loop.items.slice(0, input.count);
+  const items = loop.items
+    .slice(0, input.count)
+    .map((item) => ({ ...item, explanation: trueFalseExplanation(item) }));
   const mixed = items.some((item) => item.correct) && items.some((item) => !item.correct);
   return { items, rejected: loop.rejected, rounds: loop.rounds, mixed };
 }

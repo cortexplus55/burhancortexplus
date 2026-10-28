@@ -24,6 +24,8 @@ import {
   type StudioSourceMode,
 } from "@/components/learning/studio/studio-setup";
 import { cn } from "@/lib/utils";
+import { useTrueFalseKeys } from "@/components/learning/true-false-focus-card";
+import { trueFalseExplanation } from "@/lib/learning/true-false-quality";
 
 type Item = { id: string; text: string; correct: boolean; explanation: string; correctedStatement?: string };
 
@@ -114,6 +116,9 @@ export function TrueFalseStudio({
     setPhase("play");
   }
 
+  // ← / D Doğru, → / Y Yanlış; cevaptan sonra Enter sonraki iddia (28 Ekim 2026).
+  useTrueFalseKeys({ active: phase === "play" || phase === "reveal", revealed: phase === "reveal", onPick: choose, onNext: next });
+
   return (
     <StudioFrame tool="tf" kicker="Doğru / Yanlış">
       {phase === "entry" ? (
@@ -183,10 +188,8 @@ export function TrueFalseStudio({
           </div>
           {phase === "reveal" ? (
             <>
-              {!item.correct && item.correctedStatement ? (
-                <p className="ls-explain"><strong>Doğru ifade:</strong> {item.correctedStatement}</p>
-              ) : null}
-              <p className="ls-explain">{item.explanation}</p>
+              {/* Yanlış önermede açıklama "✏️ Doğrusu: …" ile başlar. */}
+              <p className="ls-explain">{trueFalseExplanation(item)}</p>
               <div className="ls-actions">
                 <button type="button" className="ls-cta" onClick={next}>
                   {index + 1 >= items.length ? "Sonucu gör" : "Sonraki iddia"}

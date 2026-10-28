@@ -11,7 +11,14 @@
  */
 export const BUILD_STALE_MS = 120_000;
 
-export type BuildFlags = { building?: boolean; builtAt?: string; upcoming?: string[]; truncated?: boolean };
+export type BuildFlags = {
+  building?: boolean;
+  builtAt?: string;
+  upcoming?: string[];
+  /** Yazarın ekran planı: yazım sürerken sayacın paydası. */
+  plannedScreens?: number;
+  truncated?: boolean;
+};
 
 export function isBuilding(payload: unknown): boolean {
   return Boolean(payload && typeof payload === "object" && (payload as BuildFlags).building === true);
@@ -31,9 +38,10 @@ export function isStaleBuild(payload: unknown, now = Date.now()): boolean {
 
 /** Ders olduğu kadarıyla kapanır: öğrenci okuduğunu kaybetmez, sonu özetsiz biter. */
 export function truncatedPayload(payload: Record<string, unknown>): Record<string, unknown> {
-  const { building, builtAt, upcoming, ...rest } = payload as Record<string, unknown> & BuildFlags;
+  const { building, builtAt, upcoming, plannedScreens, ...rest } = payload as Record<string, unknown> & BuildFlags;
   void building;
   void builtAt;
   void upcoming;
+  void plannedScreens;
   return { ...rest, truncated: true };
 }

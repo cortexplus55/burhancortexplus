@@ -65,6 +65,8 @@ export function ParityExamRunner({
   const [liveMsg, setLiveMsg] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submitting = useRef(false);
+  /** Çözümün başladığı an: sayfanın açılışı ya da sunucunun kayıtlı başlangıcı (hangisi önceyse). */
+  const startedAtRef = useRef<number>(Date.now());
 
   const current = questions[index];
   const type = (current?.question_type || "mcq") as MockQuestionType;
@@ -87,6 +89,10 @@ export function ParityExamRunner({
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) return;
+    const serverStart = Date.parse(String(payload.startedAt ?? ""));
+    if (Number.isFinite(serverStart) && serverStart <= Date.now()) {
+      startedAtRef.current = Math.min(startedAtRef.current, serverStart);
+    }
     setUntimed(payload.untimed === true);
     setTimeLeft(typeof payload.timeLeftSec === "number" ? payload.timeLeftSec : null);
     if (payload.answers && typeof payload.answers === "object") {
@@ -183,6 +189,7 @@ export function ParityExamRunner({
           examId,
           answers,
           flaggedIds: [...flagged],
+          elapsedSeconds: Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000)),
         }),
       });
       // 402 beklenmez; yine de yakala

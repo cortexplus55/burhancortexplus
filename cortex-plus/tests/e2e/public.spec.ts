@@ -25,7 +25,7 @@ const PUBLIC_ROUTES: [string, string][] = [
   ["/kayit", "Hangi sınıftasın?"],
   ["/sifremi-unuttum", "Şifremi unuttum"],
   ["/email-dogrula", "E-posta doğrulama"],
-  ["/mobil-uygulama", "Telefondan Cortex"],
+  ["/mobil-uygulama", "Telefonuna Uygulama Olarak Kur"],
 ];
 
 test.describe("public pages", { tag: ["@public"] }, () => {

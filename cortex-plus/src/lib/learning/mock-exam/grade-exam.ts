@@ -16,6 +16,7 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
 import { recordUserActivity } from "@/lib/streak/record-activity";
+import { recordedElapsedSeconds } from "@/lib/learning/mock-exam/time-limit";
 import {
   buildTopicReport,
   DEADLINE_GRACE_SEC,
@@ -37,6 +38,8 @@ export type GradeMockExamInput = {
   examId: string;
   answers: Record<string, unknown>;
   flaggedIds?: string[];
+  /** İstemcinin ölçtüğü çözüm süresi; yalnız sunucuda başlangıç kaydı yoksa kullanılır. */
+  elapsedSeconds?: number | null;
 };
 
 export type GradeMockExamResult =
@@ -58,10 +61,12 @@ export type GradeMockExamResult =
  */
 export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMockExamResult> {
   const { service, userId, examId, answers } = input;
+  // Gönderim anı: açık uçlu notlandırma uzun sürebilir, süre ona eklenmez.
+  const submittedAt = Date.now();
 
   const { data: exam } = await service
     .from("practice_exams")
-    .select("id, title, user_id, deadline_at, blueprint, exam_prep_id, scope")
+    .select("id, title, user_id, started_at, deadline_at, blueprint, exam_prep_id, scope")
     .eq("id", examId)
     .maybeSingle();
 
@@ -270,6 +275,12 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
       score: scored.scorePct,
       analysis,
       completed_at: new Date().toISOString(),
+      // Gerçek çözüm süresi (28 Ekim 2026): sonuç ekranı dakikaya yuvarlanmış farkı gösteriyordu.
+      duration_seconds: recordedElapsedSeconds({
+        startedAt: exam.started_at as string | null,
+        submittedAt,
+        clientSeconds: input.elapsedSeconds ?? null,
+      }),
       answers,
       topic_report: topicReport,
       flagged_ids: input.flaggedIds ?? null,

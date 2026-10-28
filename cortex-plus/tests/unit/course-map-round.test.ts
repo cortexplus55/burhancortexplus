@@ -301,8 +301,10 @@ describe("course map round (fake DB, real credit semantics)", () => {
     expect(rounds.at(-1)).toMatchObject({ ok: true, topics: 2 });
     const parts = calls.filter((c) => c.key.includes(":part"));
     expect(parts.length).toBeGreaterThan(1);
-    // Page lines start with the page's (capitalised) heading.
-    expect(parts.some((c) => /\[d2 s\.\d+\] \p{Lu}/u.test(c.prompt) && !/\[d1 s\.\d+\] \p{Lu}/u.test(c.prompt))).toBe(true);
+    // 1.200 sayfa: parçalar sayfa dizinini okur; satırın metni sayfanın (büyük harfli) başlığıyla açılır.
+    const d2 = /\[d2 s\.\d+\][^\n]*(?:başlık|baş|metin): \p{Lu}/u;
+    const d1 = /\[d1 s\.\d+\][^\n]*(?:başlık|baş|metin): \p{Lu}/u;
+    expect(parts.some((c) => d2.test(c.prompt) && !d1.test(c.prompt))).toBe(true);
     expect(calls.filter((c) => c.key.endsWith(":merge"))).toHaveLength(1);
     const leaves = (db.tables.document_topic_nodes as any[]).filter((n) => n.parent_id);
     expect(leaves.find((n) => n.title === heading(1, 450))!.document_id).toBe("dB");

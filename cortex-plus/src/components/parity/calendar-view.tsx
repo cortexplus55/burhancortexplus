@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CalendarPlus, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
+import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import {
   filterCalendar,
   formatDayLabel,
   monthGrid,
   toIsoDate,
   upcoming,
+  upcomingHolidays,
   type CalendarFilter,
   type CalendarItem,
 } from "@/lib/learning/calendar";
@@ -53,6 +55,8 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
     [cursor.year, cursor.month],
   );
   const next = useMemo(() => upcoming(visible, today).slice(0, 8), [visible, today]);
+  // Resmî tatiller esnek gün (28 Ekim 2026): planın yükü o gün yarıya iner.
+  const holidays = useMemo(() => upcomingHolidays(today, 60).slice(0, 4), [today]);
   const todayIso = toIsoDate(today);
 
   const monthLabel = new Date(cursor.year, cursor.month, 1).toLocaleDateString("tr-TR", {
@@ -163,6 +167,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
             const inMonth = Number(iso.slice(5, 7)) - 1 === cursor.month;
             const isToday = iso === todayIso;
             const hasExam = dayItems.some((i) => i.kind === "exam");
+            const holiday = turkishHolidayOn(iso);
             return (
               <div
                 key={iso}
@@ -171,10 +176,11 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                   inMonth ? "" : "cp-cal-day--muted",
                   isToday ? "cp-cal-day--today" : "",
                   dayItems.length ? "cp-cal-day--has" : "",
+                  holiday ? "cp-cal-day--holiday" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                title={dayItems.map((i) => i.title).join(", ") || undefined}
+                title={[holiday ? `${holiday} · ${HOLIDAY_BADGE}` : "", ...dayItems.map((i) => i.title)].filter(Boolean).join(", ") || undefined}
               >
                 <span>{Number(iso.slice(8, 10))}</span>
                 {dayItems.length ? (
@@ -188,6 +194,30 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
           })}
         </div>
       </section>
+
+      {holidays.length ? (
+        <section>
+          <h2 className="cp-cal-section-title">Resmî tatiller</h2>
+          <ul className="cp-cal-list">
+            {holidays.map((day) => (
+              <li key={day.date} className="cp-cal-item">
+                <span className="cp-cal-date">
+                  <strong>{Number(day.date.slice(8, 10))}</strong>
+                  <em>
+                    {new Date(`${day.date}T00:00:00`).toLocaleDateString("tr-TR", { month: "short" })}
+                  </em>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="cp-cal-item-title">{day.name}</span>
+                  <span className="cp-cal-item-meta">
+                    {HOLIDAY_BADGE} · {formatDayLabel(day.date, today)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section>
         <h2 className="cp-cal-section-title">Yaklaşan</h2>
