@@ -27,16 +27,58 @@ export function mockDurationLabel(durationMinutes: number | null | undefined): s
   return durationMinutes === UNTIMED_MINUTES ? "Süresiz" : `${durationMinutes} dk`;
 }
 
-/** Sınavın süre sınırı değil, başlangıç ile bitiş arasındaki gerçek süre. */
+/** Gerçek çözüm süresinin üst sınırı: bundan uzun ölçüm (sekme günlerce açık) kayda geçmez. */
+export const MAX_ELAPSED_SECONDS = 12 * 60 * 60;
+
+/** Başlangıç ile gönderim arasındaki saniye; ölçülemiyorsa null. */
+export function examElapsedSeconds(
+  startedAt: string | number | null | undefined,
+  submittedAt: string | number | null | undefined,
+): number | null {
+  if (startedAt == null || submittedAt == null) return null;
+  const start = typeof startedAt === "number" ? startedAt : Date.parse(startedAt);
+  const end = typeof submittedAt === "number" ? submittedAt : Date.parse(submittedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  const seconds = Math.round((end - start) / 1000);
+  return seconds <= MAX_ELAPSED_SECONDS ? Math.max(1, seconds) : null;
+}
+
+/**
+ * Kayda geçen süre (28 Ekim 2026). Sunucu saati esastır: `practice_exams.started_at` ile gönderim anı.
+ * Başlangıç kaydı yoksa (eski deneme) istemcinin ölçtüğü süre, sınırlar içindeyse.
+ */
+export function recordedElapsedSeconds(input: {
+  startedAt: string | null | undefined;
+  submittedAt: number;
+  clientSeconds?: number | null;
+}): number | null {
+  const server = examElapsedSeconds(input.startedAt ?? null, input.submittedAt);
+  if (server != null) return server;
+  const client = input.clientSeconds;
+  if (typeof client !== "number" || !Number.isFinite(client) || client < 1) return null;
+  return Math.min(MAX_ELAPSED_SECONDS, Math.round(client));
+}
+
+/** "6 dk 24 sn", "45 sn", "1 sa 5 dk". Dakikaya yuvarlanmaz: 82 sn "1 dk" görünüyordu. */
+export function formatElapsedSeconds(seconds: number | null | undefined): string {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) return "—";
+  const total = Math.max(1, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  if (hours) return minutes ? `${hours} sa ${minutes} dk` : `${hours} sa`;
+  if (!minutes) return `${secs} sn`;
+  return secs ? `${minutes} dk ${secs} sn` : `${minutes} dk`;
+}
+
+/** Sınavın süre sınırı değil, gerçek çözüm süresi: önce kayıtlı saniye, yoksa başlangıç–bitiş farkı. */
 export function mockElapsedLabel(
   startedAt: string | null | undefined,
   completedAt: string | null | undefined,
+  durationSeconds?: number | null,
 ): string {
-  if (!startedAt || !completedAt) return "—";
-  const start = new Date(startedAt).getTime();
-  const end = new Date(completedAt).getTime();
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return "—";
-  const ms = end - start;
-  if (ms < 60_000) return `${Math.max(1, Math.round(ms / 1000))} sn`;
-  return `${Math.max(1, Math.round(ms / 60_000))} dk`;
+  if (typeof durationSeconds === "number" && Number.isFinite(durationSeconds) && durationSeconds > 0) {
+    return formatElapsedSeconds(durationSeconds);
+  }
+  return formatElapsedSeconds(examElapsedSeconds(startedAt ?? null, completedAt ?? null));
 }

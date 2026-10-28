@@ -93,7 +93,7 @@ describe("P1-7 ad?m paydas? yaln?z artar", () => {
     expect(lessonStepTotal(2, 3)).toBe(2);
     expect(lessonStepTotal(0, 0)).toBe(1);
     const steps = read("src/components/parity/exam-lesson-steps.tsx");
-    expect(steps).toMatch(/lessonStepTotal\(base\.length\)/);
+    expect(steps).toMatch(/lessonStepCounter\(\{ index, writtenSteps: base\.length/);
     expect(steps).not.toMatch(/setStepTotal/);
   });
 });

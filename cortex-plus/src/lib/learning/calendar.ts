@@ -1,3 +1,5 @@
+import { turkishHolidayOn } from "@/lib/learning/tr-calendar";
+
 /**
  * Takvim görünümü.
  *
@@ -79,6 +81,20 @@ export function toIsoDate(date: Date): string {
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
+}
+
+/** Bugünden itibaren `days` gün içindeki resmî tatiller (Takvimim'in "Yaklaşan" listesi, 28 Ekim 2026). */
+export function upcomingHolidays(today = new Date(), days = 60): { date: string; name: string }[] {
+  const out: { date: string; name: string }[] = [];
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  for (let offset = 0; offset < days; offset += 1) {
+    const day = new Date(base);
+    day.setDate(base.getDate() + offset);
+    const iso = toIsoDate(day);
+    const name = turkishHolidayOn(iso);
+    if (name) out.push({ date: iso, name });
+  }
+  return out;
 }
 
 /** Ay ızgarası — pazartesi başlangıçlı, önceki/sonraki ayın günleriyle doldurulmuş. */

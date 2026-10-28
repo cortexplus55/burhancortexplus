@@ -97,13 +97,13 @@ describe("taranmış PDF tanınıyor", () => {
 });
 
 describe("sayfa çizimi", () => {
-  it("her sayfayı PNG olarak çiziyor", async () => {
+  it("her sayfayı JPEG olarak çiziyor", async () => {
     const rendered = await renderPdfPages(scannedPdf(2));
     expect(rendered.total).toBe(2);
     expect(rendered.pages).toHaveLength(2);
     for (const page of rendered.pages) {
-      expect(page.png.subarray(1, 4).toString()).toBe("PNG");
-      expect(page.png.byteLength).toBeGreaterThan(100);
+      expect([...page.image.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+      expect(page.image.byteLength).toBeGreaterThan(100);
       expect(page.pageNumber).toBeGreaterThan(0);
     }
   }, 30_000);
@@ -119,7 +119,7 @@ describe("sayfa çizimi", () => {
     const rendered = await renderPdfPages(scannedPdf(99), 6, 95);
     expect(rendered.total).toBe(99);
     expect(rendered.pages).toHaveLength(5);
-    expect(rendered.pages[4].png.subarray(1, 4).toString()).toBe("PNG");
+    expect([...rendered.pages[4].image.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
   }, 30_000);
 
   it("tavan varsayılanı zaman bütçesine göre seçilmiş", () => {
@@ -152,8 +152,8 @@ describe("CCITT G4 ofis taraması (fixture)", () => {
       expect(page.hasImageContent).toBe(true);
       expect(page.scanRenderFailed).toBe(false);
       expect(page.inkRatio).toBeGreaterThan(0.01);
-      expect(page.png.subarray(1, 4).toString()).toBe("PNG");
-      expect(page.png.byteLength).toBeGreaterThan(2_000);
+      expect([...page.image.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+      expect(page.image.byteLength).toBeGreaterThan(2_000);
     }
   }, 60_000);
 });

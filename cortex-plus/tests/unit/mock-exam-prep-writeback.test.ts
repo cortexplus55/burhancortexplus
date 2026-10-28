@@ -145,7 +145,7 @@ describe("writeBackMockToPrep", () => {
 
   it("notlandırma yola, takvim yeniden kurulmadan önce yazar", () => {
     const grade = readFileSync("src/lib/learning/mock-exam/grade-exam.ts", "utf8");
-    expect(grade).toContain('.select("id, title, user_id, deadline_at, blueprint, exam_prep_id, scope")');
+    expect(grade).toContain('.select("id, title, user_id, started_at, deadline_at, blueprint, exam_prep_id, scope")');
     expect(grade.indexOf("await writeBackMockToPrep(service, {")).toBeGreaterThan(0);
     expect(grade.indexOf("await writeBackMockToPrep(service, {")).toBeLessThan(grade.indexOf("await maybeRescheduleMissedDays(service"));
   });

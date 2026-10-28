@@ -208,7 +208,8 @@ describe("readPdfBatch deadline prefix", () => {
     mocks.renderPdfPages.mockResolvedValue({
       total: 99,
       pages: Array.from({ length: 6 }, (_, i) => ({
-        png: Buffer.from(`png-${i}`),
+        image: Buffer.from(`img-${i}`),
+        mime: "image/jpeg",
         inkRatio: 0.05,
         hasImageContent: true,
         scanRenderFailed: false,
@@ -287,7 +288,8 @@ describe("readPdfBatch OCR claim release on quota failure (B5)", () => {
     mocks.renderPdfPages.mockResolvedValue({
       total: 4,
       pages: Array.from({ length: 4 }, (_, i) => ({
-        png: Buffer.from(`png-${i}`),
+        image: Buffer.from(`img-${i}`),
+        mime: "image/jpeg",
         inkRatio: 0.05,
         hasImageContent: true,
         scanRenderFailed: false,

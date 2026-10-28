@@ -23,7 +23,7 @@ vi.mock("@/lib/observability/ops-log", () => ({ logOpsEvent: vi.fn() }));
 
 const { readPdfBatch, rememberedOcrLimit, OCR_START_CONCURRENCY, OCR_MIN_CONCURRENCY, OCR_PAGE_CONCURRENCY } = await import("@/lib/documents/pdf-ingestion");
 
-const scanned = (n: number) => ({ png: Buffer.from(`p${n}`), inkRatio: 0.05, hasImageContent: true, scanRenderFailed: false, pageNumber: n });
+const scanned = (n: number) => ({ image: Buffer.from(`p${n}`), mime: "image/jpeg", inkRatio: 0.05, hasImageContent: true, scanRenderFailed: false, pageNumber: n });
 const ok = (rateLimited = false) => ({ pages: ["Taranmış sayfanın okunan metni yeterince uzun bir paragraf."], ok: true, model: "m", tokensIn: 0, tokensOut: 0, usage: [], rateLimited });
 const service = { rpc: vi.fn(async () => ({ data: true, error: null })) };
 

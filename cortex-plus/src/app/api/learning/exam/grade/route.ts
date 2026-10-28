@@ -7,6 +7,9 @@ const bodySchema = z.object({
   examId: z.string().uuid(),
   answers: z.record(z.string().uuid(), z.union([z.string(), z.array(z.string())])),
   flaggedIds: z.array(z.string().uuid()).optional(),
+  /** İstemcinin ölçtüğü çözüm süresi (sn). Sunucu saati esastır. */
+  // Geçersiz ölçüm notlandırmayı asla durdurmaz: yok sayılır.
+  elapsedSeconds: z.number().finite().nonnegative().optional().catch(undefined),
 });
 
 export async function POST(request: Request) {
@@ -23,6 +26,7 @@ export async function POST(request: Request) {
     examId: parsedBody.data.examId,
     answers: parsedBody.data.answers,
     flaggedIds: parsedBody.data.flaggedIds,
+    elapsedSeconds: parsedBody.data.elapsedSeconds ?? null,
   });
 
   if (!result.ok) return errorResponse(result.status, result.error);

@@ -18,6 +18,7 @@ import { env } from "@/lib/env";
 import type { OutlineUnitDraft } from "@/lib/documents/outline-clean";
 import { buildGroundingFile, groundTopic, type GroundingFile } from "@/lib/documents/outline-grounding";
 import { outlineOversizedTopics, oversizeRepairLines, spanTooWide, type OversizedTopic } from "@/lib/documents/outline-oversize";
+import { buildPageIndexCorpus, usesPageIndex } from "@/lib/documents/outline-page-index";
 
 /**
  * Retired routing threshold (19 Ekim 2026: 30 → 12). 27 Ekim 2026: no longer
@@ -1056,14 +1057,18 @@ export type OutlineMaterial = {
   routed: OutlineModelChoice;
   /** Huge corpus → parallel parts on file/page boundaries, then one merge. */
   parts: MaterialFileCorpus[][] | null;
+  /** 100+ sayfa: model ham metin değil sayfa dizini okur (`outline-page-index.ts`). */
+  indexed: boolean;
   contentHash: string;
 };
 
 export function prepareOutlineMaterial(input: MaterialFileCorpus[]): OutlineMaterial {
   const files = input.map((file, fileIndex) => ({ ...file, fileIndex }));
-  const corpus = buildMaterialCorpus(files);
+  const fullCorpus = buildMaterialCorpus(files);
   const bounds = filePageBounds(files);
   const pageCount = files.reduce((total, file) => total + file.pages.length, 0);
+  const indexed = usesPageIndex(pageCount);
+  const corpus = indexed ? buildPageIndexCorpus(files) : fullCorpus;
   const split = needsForceSplit({ pageCount, corpusChars: corpus.length });
   const parts = split ? splitFilesForOutline(files) : null;
   return {
@@ -1075,8 +1080,9 @@ export function prepareOutlineMaterial(input: MaterialFileCorpus[]): OutlineMate
     fileGuide: fileGuideBlock(files, bounds),
     validation: { filePageCounts: bounds, pageTexts: pageTextMapFromFiles(files) },
     routed: selectOutlineModel({ pageCount, corpusChars: corpus.length }),
+    indexed,
     parts: parts && parts.length > 1 ? parts : null,
-    contentHash: fnv1a(corpus),
+    contentHash: fnv1a(fullCorpus),
   };
 }
 
@@ -1381,7 +1387,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     const parts = material.parts;
     const done = parts.map((_, i) => progress.parts?.[i] ?? null);
     const todo = parts.map((_, i) => i).filter((i) => !done[i]);
-    const corpora = parts.map((files) => buildMaterialCorpus(files));
+    const corpora = parts.map((files) => (material.indexed ? buildPageIndexCorpus(files) : buildMaterialCorpus(files)));
     const needMs = fits(Math.max(0, ...todo.map((i) => corpora[i]!.length)));
     if (needMs) return { kind: "wait", needMs };
     await input.onCallStart?.(todo.map((i) => input.keyFor("first", i + 1)));
@@ -1452,7 +1458,9 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       material.files,
       citedRefsFromDraft(draft, material.files.length === 1),
     );
-    const corpus = (cited || material.corpus).slice(0, ONESHOT_STRONG_MAX_CHARS);
+    // Dizinli büyük belgede alıntılanan sayfaların tam metni de çok büyükse onarım dizini okur.
+    const citedText = material.indexed && cited.length > ONESHOT_MAX_INPUT_CHARS ? "" : cited;
+    const corpus = (citedText || material.corpus).slice(0, ONESHOT_STRONG_MAX_CHARS);
     const needMs = fits(corpus.length + JSON.stringify(draft).length);
     if (needMs) return { kind: "wait", needMs };
     const model = progress.viaFallback ? fallback : strong;

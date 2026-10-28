@@ -1,0 +1,179 @@
+/* Doğru/yanlış odak kartı (28 Ekim 2026): tek önerme, geniş kart, iki büyük düğme. */
+
+.tf-focus {
+  display: flex;
+  width: min(100%, 42rem);
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tf-focus-count {
+  font: var(--t-mono-m);
+  letter-spacing: var(--ls-label);
+  color: var(--cp-muted);
+}
+
+.tf-focus-card {
+  display: flex;
+  min-height: 11rem;
+  align-items: center;
+  border: 1px solid var(--cp-border-strong);
+  border-radius: 1.5rem;
+  background: var(--cp-surface);
+  padding: 2rem 1.75rem;
+}
+
+.tf-focus-statement {
+  font: var(--t-heading-s);
+  letter-spacing: var(--ls-heading);
+  color: var(--cp-text);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.tf-focus-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.tf-focus-choice {
+  position: relative;
+  display: flex;
+  min-height: 6.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.25rem;
+  background: var(--cp-surface-2);
+  color: var(--cp-text);
+  font: var(--t-title-l);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.tf-focus-choice:hover:not(:disabled) {
+  border-color: var(--cp-border-strong);
+}
+
+.tf-focus-choice:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tf-focus-choice:focus-visible,
+.tf-focus-next:focus-visible {
+  outline: 2px solid var(--cp-action);
+  outline-offset: 2px;
+}
+
+.tf-focus-choice:disabled {
+  cursor: default;
+}
+
+.tf-focus-choice kbd,
+.tf-focus-next kbd {
+  font: var(--t-mono-s);
+  color: var(--cp-muted);
+}
+
+.tf-focus-choice kbd {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+}
+
+.tf-focus-choice.is-picked {
+  border-color: var(--cp-action);
+}
+
+.tf-focus-choice.is-correct {
+  border-color: var(--cp-success);
+  background: var(--c-success-soft);
+}
+
+.tf-focus-choice.is-wrong {
+  border-color: var(--cp-danger);
+  background: var(--c-danger-soft);
+}
+
+.tf-focus-hint {
+  font: var(--t-label-13);
+  color: var(--cp-muted);
+  text-align: center;
+}
+
+.tf-focus-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid var(--cp-border);
+  border-left-width: 3px;
+  border-radius: 1rem;
+  background: var(--cp-surface);
+  padding: 1rem 1.25rem;
+}
+
+.tf-focus-feedback.is-right {
+  border-left-color: var(--cp-success);
+}
+
+.tf-focus-feedback.is-off {
+  border-left-color: var(--cp-danger);
+}
+
+.tf-focus-verdict {
+  font: var(--t-title-m);
+  color: var(--cp-text);
+}
+
+.tf-focus-explain {
+  font: var(--t-body-14);
+  color: var(--cp-text);
+  line-height: 1.6;
+}
+
+.tf-focus-next {
+  display: inline-flex;
+  align-self: flex-end;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 9999px;
+  background: var(--cp-action);
+  color: #fff;
+  padding: 0.7rem 1.4rem;
+  font: var(--t-button-l);
+  cursor: pointer;
+}
+
+.tf-focus-next kbd {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 480px) {
+  .tf-focus-card {
+    min-height: 9rem;
+    padding: 1.5rem 1.25rem;
+  }
+
+  .tf-focus-statement {
+    font: var(--t-title-l);
+  }
+
+  .tf-focus-choice {
+    min-height: 5.5rem;
+  }
+
+  .tf-focus-choice kbd,
+  .tf-focus-next kbd {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-focus-choice {
+    transition: none;
+  }
+}

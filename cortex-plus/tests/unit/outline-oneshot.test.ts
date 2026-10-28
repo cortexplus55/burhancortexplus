@@ -763,7 +763,8 @@ describe("runOutlineStep (one course outline)", () => {
     expect(keys.some((k) => k.includes(":part"))).toBe(true);
     expect(keys.some((k) => k.endsWith(":merge"))).toBe(true);
     // A part holding only the second file still labels its pages d2.
-    expect(partPrompts.some((p) => /\[d2 s\.\d+\] Hukuk/.test(p) && !/\[d1 s\.\d+\] Hukuk/.test(p))).toBe(true);
+    // 1.200 sayfa: parçalar sayfa dizinini okur ("[d2 s.N] dolu (… krk) | baş: Hukuk …").
+    expect(partPrompts.some((p) => /\[d2 s\.\d+\][^\n]*Hukuk/.test(p) && !/\[d1 s\.\d+\][^\n]*Hukuk/.test(p))).toBe(true);
     expect(mergePrompt).not.toMatch(/\[d1 s\.500\]/);
     expect(result.map.units[0]!.topics[0]!.fileIndex).toBe(1);
   });

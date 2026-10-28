@@ -29,7 +29,17 @@ export type PlanNodeSessionMeta = {
   calendarDate?: string;
   /** Konunun kaçıncı testi (0 konu testi, 1 ikinci, 2 üçüncü); test motoru başka dilim sorar (25 Ekim 2026). */
   practiceVariant?: number;
+  /**
+   * Ara sınavdan bir gün önceki "Ara Deneme / Kontrol" adımı (28 Ekim 2026): sınavın adı. Bu adım yolun
+   * ortasında durur; Sınav Finali'ne taşınmaz ve şablonun hazırlık geneli adımlarının yerini tutmaz.
+   */
+  checkpoint?: string;
 };
+
+/** Ara sınav öncesi kontrol adımı mı (yolun ortasında, finale ait değil). */
+export function isCheckpointMeta(meta: unknown): boolean {
+  return Boolean(meta && typeof meta === "object" && typeof (meta as { checkpoint?: unknown }).checkpoint === "string");
+}
 
 export type PlanNodeDraft = {
   kind: PlanNodeKind;
@@ -266,13 +276,15 @@ export function mergeStudyPathTemplate<T extends PlanNodeDraft>(
 ): T[] {
   const present = new Set<PlanNodeKind>(options?.alreadyPresent ?? []);
   const skip = new Set<PlanNodeKind>(options?.skipKinds ?? []);
-  for (const node of nodes) present.add(node.kind);
+  // Ara sınav kontrolü yolun ortasındaki bir odaklı pratiktir: finaldeki odaklı pratiğin yerini tutmaz,
+  // şablon adımlarının yerini de belirlemez (28 Ekim 2026).
+  for (const node of nodes) if (!isCheckpointMeta(node.meta)) present.add(node.kind);
   const out = [...nodes];
   for (const kind of CORE_ORDER) {
     if (present.has(kind) || skip.has(kind)) continue;
     // 25 Ekim 2026: test doğru/yanlış içermiyor (çoktan seçmeli); D/Y düğümü atlanmaz.
     const slot = CORE_ORDER.indexOf(kind);
-    const at = out.findIndex((node) => CORE_ORDER.indexOf(node.kind) > slot);
+    const at = out.findIndex((node) => !isCheckpointMeta(node.meta) && CORE_ORDER.indexOf(node.kind) > slot);
     const idx = at < 0 ? out.length : at;
     const anchor = out[Math.min(idx, Math.max(0, out.length - 1))];
     const meta = sessionMetaFromAnchor(anchor);

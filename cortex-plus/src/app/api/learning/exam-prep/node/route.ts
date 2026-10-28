@@ -41,6 +41,7 @@ import { lessonBackbone } from "@/lib/learning/lesson-backbone";
 import { loadPreviousItems, loadStoredQuiz } from "@/lib/learning/previous-items";
 import { practiceCoverage, practiceVariantFromTitle } from "@/lib/learning/practice-coverage";
 import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
+import { sameTrueFalseFact } from "@/lib/learning/true-false-quality";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -3503,6 +3504,8 @@ async function teacherLessonPayload(
             engine: "teacher",
             // Giriş kartı planı: henüz yayımlanmamış kavramların yalnız adları.
             upcoming: published.upcoming,
+            // Sayacın paydası: yazarın ekran planı (28 Ekim 2026).
+            ...(published.plannedScreens ? { plannedScreens: published.plannedScreens } : {}),
           })
       : undefined,
   });
@@ -3788,11 +3791,9 @@ async function teacherTrueFalsePayload(
       while ((items.length < asked || !mixedOf(items)) && tries < 4) {
         tries += 1;
         const again = await teacherTrueFalseLoop(ask, { ...tfInput, count: Math.max(1, asked - items.length + 1) }, started);
-        const seen = new Set(items.map((item) => item.text.trim().toLocaleLowerCase("tr")));
+        // Ek turun önermesi setteki bir önermenin çifti ya da tersiyse alınmaz (28 Ekim 2026).
         for (const item of again.items) {
-          const key = item.text.trim().toLocaleLowerCase("tr");
-          if (items.length >= asked || seen.has(key)) continue;
-          seen.add(key);
+          if (items.length >= asked || items.some((other) => sameTrueFalseFact(item, other))) continue;
           items = [...items, item];
         }
       }

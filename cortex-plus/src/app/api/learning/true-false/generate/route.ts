@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { teacherTrueFalseLoop, type TrueFalseItem } from "@/lib/learning/teacher-practice";
+import { sameTrueFalseFact } from "@/lib/learning/true-false-quality";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
 function takeMixed(items: TrueFalseItem[], count: number): TrueFalseItem[] | null {
@@ -65,12 +66,10 @@ export async function POST(request: Request) {
       const mixed = (list: TrueFalseItem[]) => list.some((item) => item.correct) && list.some((item) => !item.correct);
       while ((items.length < count || !mixed(items)) && tries < 4) {
         tries += 1;
-        const seen = new Set(items.map((item) => item.text.trim().toLocaleLowerCase("tr")));
         const extra = await run(Math.max(1, count - items.length + 1)).catch(() => null);
+        // Ek turun önermesi setteki bir önermenin çifti ya da tersiyse alınmaz (28 Ekim 2026).
         for (const item of extra?.items ?? []) {
-          const key = item.text.trim().toLocaleLowerCase("tr");
-          if (seen.has(key)) continue;
-          seen.add(key);
+          if (items.some((other) => sameTrueFalseFact(item, other))) continue;
           items = [...items, item];
         }
       }

@@ -1330,3 +1330,23 @@ aşımına düştü; notun "8-12 mm"si genel bilgiyle "düzeltildi", OCR köşe 
 
 Bekçi: `paket-a-exam-podcast.test.ts`, `p2-mock-exam.test.ts`, `deneme-publish-cap.test.ts`, `p1-podcast.test.ts`,
 `teacher-podcast.test.ts`, `podcast-audio-once.test.tsx`.
+
+## Paket B (28 Ekim 2026) — hız, sayaç, doğru/yanlış, takvim, telefona kurulum
+
+Ölçülerek karar verildi. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Taranmış sayfa: OCR zaten paralel** (havuz 12'den başlar, 24'e çıkar, 429'da yarıya iner). Darboğaz tek çekirdekte sayfa çizimi: 20 sayfalık taramada sırayla 12,4 sn, 4 ya da 8 eşzamanlı çizimle 12,2 sn (yerel ölçüm; Hobby işlevi 1 vCPU). "Sayfaları 8'li gruplarla çiz" kazandırmaz, yazmayın. Kazanç OCR görüntüsünde: **JPEG** (q 88) — kodlama sayfa başına 89 ms → 16 ms, dosya 620 KB → 170 KB. PNG yalnız boş sayfa sınaması gerekince çizilir | `render-pdf-pages.ts` `OCR_JPEG_QUALITY`, `pdf-ingestion.ts`, `rag/pipeline.ts` |
+| **100+ sayfa: konu haritası sayfa dizini okur**, ham metni değil: her sayfa için yoğunluk (karakter), başlıklar, ilk ve son cümle (`SAYFA DİZİNİ` başlığıyla). Temellendirme yine sayfaların **tam metnine** bakar; onarım turu alıntılanan sayfaların tam metni 280 bin karakteri geçince dizini okur. Kayıtta `indexed` | `outline-page-index.ts`, `outline-oneshot.ts` `prepareOutlineMaterial`, `pdf-learning-v2.ts` |
+| **Ders sayacı sıçramaz**: yazar başlıkta `plannedScreens` yazar; yazım sürerken payda giriş + plan + özettir, yazılanlar planı geçmedikçe değişmez; plan yoksa (ya da geçildiyse) yalnız "Adım N". Yazım bitince payda yazılan adımlardır | `lessonStepCounter` (`activity-duration.ts`), `plannedScreensOf`, `exam-lesson-steps.tsx` |
+| **Deneme süresi gerçek**: canlıda başlangıç doğruydu (son 15 deneme 70–140 sn), kusur dakikaya yuvarlamaydı (82 sn "1 dk") ve süre hiç kaydedilmiyordu. Notlandırma `duration_seconds = gönderim − practice_exams.started_at` yazar (sunucu saati; başlangıç yoksa istemcinin ölçümü, 12 saat tavan). Ekran "6 dk 24 sn"; sonuç ve inceleme sayfası önce kayıtlı saniyeyi okur. Geçersiz istemci ölçümü notlandırmayı durdurmaz | `time-limit.ts`, `grade-exam.ts`, `exam/grade/route.ts`, `exam-runner.tsx`, `sonuc`, `incele` |
+| **Doğru/yanlışta çift yok**: aynı alt bilgiyi ya da yanılgıyı yoklayan ikinci önerme (olumsuzlukla ters çevrilmiş aynı cümle, yanlışın doğru hâli olan doğru önerme, en az üç sözcüklü aynı yanılgı etiketi) kabul edilmez; motor eksik kadar yenisini ister, ek turlar da aynı denetimle birleşir. Kod önermeyi yeniden yazmaz | `true-false-quality.ts` `sameTrueFalseFact`, `teacherTrueFalseLoop`, node rotası, `true-false/generate` |
+| Yanlış önermenin açıklaması **"✏️ Doğrusu: …"** ile başlar (yazarın `correctedStatement`'ı; biçim, yeni bilgi değil); eski kayıtlar ekranda aynı biçimle gösterilir | `trueFalseExplanation` |
+| Hazırlık yolunda doğru/yanlış **odak kartı**: geniş önerme, tek dokunuşla cevap; klavyede ← / D Doğru, → / Y Yanlış, cevaptan sonra Enter sonraki. Araçlar'daki stüdyo aynı tuşlarla | `true-false-focus-card.tsx`, `true-false-focus.css` |
+| **Resmî tatil esnek gündür**: o günün bütçesi yarıya iner (yük komşu günlere kayar), son gün (deneme) tam kalır; oturum `holiday` taşır, yolda ve Takvimim'de "🇹🇷 Resmî Tatil (Esnek Gün)". Sabit tatiller her yıl; dinî bayramlar Diyanet takviminden **2027 sonuna kadar** (sonraki yıl açıklanınca tabloya eklenir) | `tr-calendar.ts`, `studyDayBudgets`, `exam-prep-home.tsx`, `calendar-view.tsx` |
+| **Ara sınavdan bir gün önce "Ara Deneme / Kontrol"**: vize, ara sınav, quiz, kısa sınav tarihi belgenin aynı satırında ya da öğrencinin Takvimim etkinliğinde (başlıkta) geçerse. Adım bir odaklı pratik (`session_meta.checkpoint`), o güne kadar dersi işlenen son konunun ardında; Sınav Finali'ne taşınmaz, şablonun finaldeki odaklı pratiğinin yerini tutmaz. Kontrol noktaları takvim kaydında durur, yeniden planlama korur (bitirileni yeniden koymaz) | `tr-calendar.ts` `detectCheckpointDates`, `schedule-checkpoints.ts`, `exam-schedule-v2.ts`, `final-block.ts`, `exam-prep-plan.ts` |
+| **Telefona kurulum**: manifest (`standalone`, 192/512 + maskeli), `apple-icon`, `appleWebApp` + `apple-mobile-web-app-capable`. `/mobil-uygulama` Android/Chrome'da "Uygulamayı kur" (`beforeinstallprompt`), iOS'ta Safari'nin "Ana Ekrana Ekle" adımları, Instagram tarayıcısında "önce tarayıcıda aç". Bildirim ve çevrimdışı çalışma sözü verilmez; servis çalışanı yok | `manifest.ts`, `layout.tsx`, `install-platform.ts`, `install-app.tsx`, `mobil-uygulama/page.tsx` |
+
+Bekçi: `paket-b-speed-schedule-tf.test.ts`, `paket-b-true-false-card.test.tsx`, `scanned-pdf.test.ts`, `outline-oneshot.test.ts`, `lesson-building-ui.test.tsx`,
+`p1-counters.test.ts`, `teacher-practice.test.ts`.

@@ -5,6 +5,7 @@ import { parseExamAnalysis } from "@/lib/learning/exam-analysis";
 import { ExamQuestionReviewClient } from "@/components/parity/exam-question-review-client";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
 
 export const metadata = { title: "Soru inceleme" };
 
@@ -29,7 +30,7 @@ export default async function ExamQuestionReviewPage({
 
   const { data: exam } = await supabase
     .from("practice_exams")
-    .select("id, title, exam_prep_id")
+    .select("id, title, exam_prep_id, started_at")
     .eq("id", examId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -38,7 +39,7 @@ export default async function ExamQuestionReviewPage({
 
   const { data: attempt } = await supabase
     .from("practice_exam_attempts")
-    .select("id, score, analysis")
+    .select("id, score, analysis, completed_at, duration_seconds")
     .eq("exam_id", examId)
     .eq("user_id", user.id)
     // Yalnız notlanmış kayıt (22 Ekim 2026 inceleme): notlandıktan sonra kaydedilen taslak satırı en yeni
@@ -93,6 +94,13 @@ export default async function ExamQuestionReviewPage({
   }));
 
   const wrongCount = mappedReviews.filter((r) => !r.is_correct).length;
+  const elapsed = attempt
+    ? mockElapsedLabel(
+        exam.started_at as string | null,
+        attempt.completed_at as string | null,
+        (attempt.duration_seconds as number | null) ?? null,
+      )
+    : "—";
 
   return (
     <ParitySorShell {...shell}>
@@ -145,6 +153,12 @@ export default async function ExamQuestionReviewPage({
             </Link>
           ) : null}
         </section>
+      ) : null}
+
+      {elapsed !== "—" ? (
+        <p className="mb-4 text-sm text-[var(--cs-muted)]">
+          Çözüm süresi: <span className="font-semibold tabular-nums text-[var(--cs-text)]">{elapsed}</span>
+        </p>
       ) : null}
 
       <ExamQuestionReviewClient

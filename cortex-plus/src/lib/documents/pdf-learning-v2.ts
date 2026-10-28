@@ -945,6 +945,7 @@ export async function runCourseMapRound(
         calls: meta.calls ?? 0,
         pages: material.pageCount,
         corpusChars: material.corpus.length,
+        indexed: material.indexed,
         routedModel: material.routed.model,
         parts: material.parts?.length ?? 1,
         ...(step.kind === "done"

@@ -20,8 +20,13 @@ export const PREP_WIDE_SECTION_KINDS: ReadonlySet<PlanNodeKind> = new Set<PlanNo
   "readiness",
 ]);
 
-export function inFinalSection(kind: PlanNodeKind, sessionMeta?: { adaptive?: unknown } | null): boolean {
+export function inFinalSection(
+  kind: PlanNodeKind,
+  sessionMeta?: { adaptive?: unknown; checkpoint?: unknown } | null,
+): boolean {
   if (!PREP_WIDE_SECTION_KINDS.has(kind)) return false;
+  // Ara sınav öncesi kontrol (28 Ekim 2026) yolun ortasında, sınavın gününden önce kalır.
+  if (kind === "focused" && typeof sessionMeta?.checkpoint === "string") return false;
   return !(kind === "focused" && sessionMeta?.adaptive === "low");
 }
 

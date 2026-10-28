@@ -246,7 +246,7 @@ export async function processDocument(
         ÇİZİMDEN SONRA isteniyor: kaç sayfa okunacağını ancak o zaman
         biliyoruz ve öğrenci gerçekten okunacak sayfa kadar ödüyor.
       */
-      const pngs: Buffer[] = [];
+      const images: Buffer[] = [];
       const scanOrdinals: number[] = [];
       let start = 1;
       let total = 1;
@@ -256,19 +256,19 @@ export async function processDocument(
         for (const page of rendered.pages) {
           if (page.scanRenderFailed) continue;
           if (page.inkRatio < BLANK_INK_RATIO && !page.hasImageContent) continue;
-          pngs.push(page.png);
+          images.push(page.image);
           scanOrdinals.push(page.pageNumber);
         }
         if (!rendered.pages.length) break;
         start += rendered.pages.length;
       }
-      if (!pngs.length) return fail("text_extraction_unsupported");
+      if (!images.length) return fail("text_extraction_unsupported");
 
-      if (!(await claim(pngs.length))) {
+      if (!(await claim(images.length))) {
         return fail("photo_quota_exhausted");
       }
 
-      const read = await extractImagePages(pngs, "image/png", { scanOrdinals });
+      const read = await extractImagePages(images, "image/jpeg", { scanOrdinals });
       recordVision(read.usage);
 
       if (read.blocked) {
@@ -284,13 +284,13 @@ export async function processDocument(
       pages = read.pages.filter((page) => page.trim().length > 0);
 
       // Okunamayan sayfalar kota yakmasın.
-      const unread = pngs.length - read.readCount;
+      const unread = images.length - read.readCount;
       if (unread > 0) {
         await releasePhotoPages(service, userId, unread);
         claimedPages -= unread;
       }
 
-      if (total > pngs.length && read.readCount < total) {
+      if (total > images.length && read.readCount < total) {
         notice = `${total} sayfalık belgenin ${read.readCount} sayfası okundu.`;
       }
     } else {

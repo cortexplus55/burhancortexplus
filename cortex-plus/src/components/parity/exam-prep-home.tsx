@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -1319,6 +1320,8 @@ function StudyPath({
           const dayLabel = node.sessionMeta?.calendarDate
             ? pathDayLabel(node.sessionMeta.calendarDate, today)
             : "";
+          // Resmî tatil esnek gündür (28 Ekim 2026): yük yarıya iner, rozet söyler.
+          const holiday = node.sessionMeta?.calendarDate ? turkishHolidayOn(node.sessionMeta.calendarDate) : null;
           const readinessNote =
             node.kind === "readiness" && readinessClaim === true
               ? ", ölçülen verilere göre hazırsın"
@@ -1374,8 +1377,9 @@ function StudyPath({
                 ) : null}
               </button>
               {dayLabel && node.id !== currentId ? (
-                <span className="cp-path-when" aria-hidden>
+                <span className="cp-path-when" aria-hidden title={holiday ?? undefined}>
                   {dayLabel}
+                  {holiday ? " · 🇹🇷 Esnek gün" : null}
                 </span>
               ) : null}
               {node.status === "done" && node.id !== currentId ? (
@@ -1395,6 +1399,11 @@ function StudyPath({
                   <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>
                   <span className="cp-path-current-title">{nodeHeading(node)}</span>
                   <span className="cp-path-current-meta">
+                    {holiday ? (
+                      <span className="cp-prep-badge cp-prep-badge--holiday" title={holiday}>
+                        {HOLIDAY_BADGE}
+                      </span>
+                    ) : null}
                     {dayLabel ? `${dayLabel} · ` : null}~
                     {activityDurationMinutes(node.kind, { known: node.sessionMeta?.activityMinutes })} dk · +
                     {prepStars(node.kind, null, null)} ⭐

@@ -1,9 +1,11 @@
 import { Flame, Camera, Wallet, Smartphone } from "lucide-react";
 import { MarketingCta, MarketingPage } from "@/components/layout/marketing-page";
+import { InstallApp } from "@/components/pwa/install-app";
 
 export const metadata = {
   title: "Telefondan Cortex",
-  description: "Cortex Plus’ı mobil tarayıcıdan kullan — mağaza uygulaması yok, web tam çalışır.",
+  description:
+    "Cortex Plus'ı tek dokunuşla telefonuna uygulama olarak kur (iOS ve Android) — mağaza uygulaması yok, web tam çalışır.",
 };
 
 const perks = [
@@ -24,27 +26,31 @@ const perks = [
   },
 ];
 
+/**
+ * Telefona kurulum (28 Ekim 2026): site PWA olarak kurulur (manifest, `display: standalone`, ana ekran
+ * simgesi). Android/Chrome'da "Uygulamayı kur" tarayıcının kurulum penceresini açar; iOS'ta Safari'nin
+ * "Ana Ekrana Ekle" adımları gösterilir. Bildirim ve çevrimdışı çalışma sözü verilmez.
+ */
 export default function MobilUygulamaPage() {
   return (
     <MarketingPage
-      title="Telefondan Cortex"
-      description="Ders, podcast, test ve AI öğretmen telefonunun tarayıcısında."
+      title="📲 Tek Tıkla Telefonuna Uygulama Olarak Kur (iOS & Android)"
+      description="Ders, podcast, test ve AI öğretmen telefonunun ana ekranında — mağazadan indirmeye gerek yok."
     >
-      <div className="mk-card flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+      <div className="mk-card flex flex-col gap-5 p-6 sm:p-8">
         <div className="flex items-start gap-4">
           <span className="mk-icon shrink-0" aria-hidden>
             <Smartphone className="h-5 w-5" />
           </span>
-          <div>
-            <p className="font-semibold text-[var(--mk-text)]">
-              Mobilde Cortex — mağaza uygulaması yok
-            </p>
+          <div className="min-w-0">
+            <p className="font-semibold text-[var(--mk-text)]">Mağaza uygulaması yok, gerek de yok</p>
             <p className="mt-1 text-sm leading-relaxed text-[var(--mk-muted)]">
-              Web sürümü telefonda tam çalışıyor. Ana ekrana ekleyip uygulama
-              gibi kullanabilirsin.
+              Cortex Plus ana ekranına uygulama olarak eklenir; adres çubuğu olmadan, kendi penceresinde açılır.
+              Dersler canlı hazırlandığı için internet bağlantısı gerekir.
             </p>
           </div>
         </div>
+        <InstallApp />
       </div>
 
       <p className="mk-eyebrow mt-12">Telefonda ne değişiyor</p>
@@ -54,12 +60,8 @@ export default function MobilUygulamaPage() {
             <span className="mk-icon" aria-hidden>
               <Icon className="h-5 w-5" />
             </span>
-            <h2 className="mt-4 text-lg font-semibold text-[var(--mk-text)]">
-              {title}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--mk-muted)]">
-              {body}
-            </p>
+            <h2 className="mt-4 text-lg font-semibold text-[var(--mk-text)]">{title}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--mk-muted)]">{body}</p>
           </article>
         ))}
       </div>

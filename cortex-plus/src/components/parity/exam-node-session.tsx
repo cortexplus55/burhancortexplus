@@ -117,6 +117,8 @@ import { replayLabel, startActionLabel } from "@/lib/learning/feedback-copy";
 import { sanitizeStudentCopy } from "@/lib/learning/student-copy";
 import { NodeSources, type NodeSource } from "@/components/parity/node-sources";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
+import { TrueFalseFocusCard } from "@/components/learning/true-false-focus-card";
+import { trueFalseExplanation } from "@/lib/learning/true-false-quality";
 import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
 
 /** Aktif süre hangi başlıkta sayılır: ders, test ya da sınav. */
@@ -173,6 +175,8 @@ type Payload = {
   generationFailed?: boolean;
   /** Henüz gelmemiş kavramların adları (giriş kartı planı). */
   upcoming?: string[];
+  /** Yazarın ekran planı; yazım sürerken sayacın paydası. */
+  plannedScreens?: number;
 };
 
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
@@ -1560,6 +1564,7 @@ export function ExamNodeSession({
             lesson={structuredLesson}
             building={lessonBuilding}
             upcoming={lessonBuilding ? (payload.upcoming ?? []) : []}
+            plannedScreens={lessonBuilding ? (payload.plannedScreens ?? null) : null}
             plannedMinutes={activityMinutes}
             language={language}
             gradeCheck={
@@ -1724,76 +1729,29 @@ export function ExamNodeSession({
       {stage === "play" && payload.type === "true_false" && items[index] ? (
         <section>
           <ScratchPad />
-          <p className="cp-lesson-kicker">
-            {index + 1}/{items.length}
-          </p>
-          <h1>
-            <RichBody text={items[index].text} />
-          </h1>
-          <div className="flex gap-2">
-            {([true, false] as const).map((value) => {
-              const isSelected = answers[String(index)] === value;
-              const isItemCorrect = items[index].correct === value;
-              const showGreen = tfRevealed && isItemCorrect;
-              const showRed = tfRevealed && isSelected && !isItemCorrect;
-
-              return (
-                <button
-                  key={String(value)}
-                  type="button"
-                  disabled={tfRevealed}
-                  className={cn(
-                    "cp-exam-continue",
-                    isSelected && "cp-exam-continue--primary",
-                    showGreen && "border-emerald-500 bg-emerald-500/20 text-emerald-300",
-                    showRed && "border-rose-500 bg-rose-500/20 text-rose-300",
-                  )}
-                  onClick={() => {
-                    updateAnswer(String(index), value);
-                    setTfRevealed(true);
-                  }}
-                >
-                  {value ? "Doğru" : "Yanlış"}
-                </button>
-              );
-            })}
-          </div>
-
-          {tfRevealed ? (
-            <div className="cp-exam-quiz-feedback">
-              <div
-                className={cn(
-                  "cp-exam-quiz-verdict",
-                  answers[String(index)] === items[index].correct
-                    ? "cp-exam-quiz-verdict--ok"
-                    : "cp-exam-quiz-verdict--bad",
-                )}
-              >
-                {answers[String(index)] === items[index].correct ? "✓ Doğru!" : "✕ Yanlış"}
-              </div>
-              {!items[index].correct && items[index].correctedStatement ? (
-                <p className="cp-exam-quiz-explain">
-                  <strong>Doğru ifade:</strong> <RichBody text={items[index].correctedStatement} />
-                </p>
-              ) : null}
-              {items[index].explanation ? (
-                <p className="cp-exam-quiz-explain">
-                  <RichBody text={items[index].explanation} />
-                </p>
-              ) : null}
-              <button
-                type="button"
-                className="cp-exam-continue cp-exam-continue--primary mt-2"
-                onClick={() => {
-                  setTfRevealed(false);
-                  if (index + 1 < items.length) setIndex(index + 1);
-                  else void finish();
-                }}
-              >
-                {index + 1 < items.length ? "Sonraki soru" : "Bitir"}
-              </button>
-            </div>
-          ) : null}
+          {/* Odak kartı (28 Ekim 2026): geniş önerme, tek dokunuşla cevap, ← / → / Enter klavye akışı. */}
+          <TrueFalseFocusCard
+            index={index}
+            total={items.length}
+            statement={<RichBody text={items[index].text} />}
+            picked={typeof answers[String(index)] === "boolean" ? (answers[String(index)] as boolean) : null}
+            correct={items[index].correct}
+            revealed={tfRevealed}
+            // Yanlış önermede açıklama "✏️ Doğrusu: …" ile başlar; eski kayıtlar da aynı biçimde gösterilir.
+            explanation={<RichBody text={trueFalseExplanation(items[index])} />}
+            nextLabel={index + 1 < items.length ? "Sonraki önerme" : "Bitir"}
+            onPick={(value) => {
+              if (tfRevealed) return;
+              updateAnswer(String(index), value);
+              setTfRevealed(true);
+            }}
+            onNext={() => {
+              if (!tfRevealed || loading) return;
+              setTfRevealed(false);
+              if (index + 1 < items.length) setIndex(index + 1);
+              else void finish();
+            }}
+          />
         </section>
       ) : null}
 
