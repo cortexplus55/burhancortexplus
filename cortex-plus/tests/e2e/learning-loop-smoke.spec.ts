@@ -31,7 +31,7 @@ test.describe("learning loop surfaces", { tag: ["@smoke"] }, () => {
   test("telefondan cortex page", async ({ page }) => {
     await page.goto("/mobil-uygulama");
     await expect(
-      page.getByRole("heading", { name: "Telefondan Cortex" }),
+      page.getByRole("heading", { name: "Telefonuna Uygulama Olarak Kur" }),
     ).toBeVisible();
   });
 
