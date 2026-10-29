@@ -294,10 +294,12 @@ async function ocrOneBlankPage(input: {
     onReleased?.(pageNumber);
   };
 
-  let read = await extractImageText(image, mime, { deadlineMs, scanOrdinal: pageNumber, purpose });
+  // Şekil okumasına metin katmanı gider (29 Ekim 2026): sayfada zaten yazan satır eke girmez.
+  const readOptions = { deadlineMs, scanOrdinal: pageNumber, purpose, textLayer: keepText ?? null };
+  let read = await extractImageText(image, mime, readOptions);
   let usage = read.usage;
   if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
-    read = await extractImageText(image, mime, { deadlineMs, scanOrdinal: pageNumber, purpose });
+    read = await extractImageText(image, mime, readOptions);
     usage = mergeUsage(usage, read.usage);
   }
 

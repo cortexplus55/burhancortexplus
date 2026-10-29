@@ -1,8 +1,20 @@
 /**
  * Tahta düzeni. Formül ve çözülmüş adım kendi satırına iner.
  * Saklanan metin değişmez; öğrenci okurken cümle yığını açılır.
+ *
+ * Bölücüler ayraç içine bakmaz (29 Ekim 2026): liste imi, cümle sonu, bağıntı, ":" ";" ","
+ * kesmeleri ve sıra sayısı adayları yalnız derinlik 0'da aranır (`bracket-spans.ts`). Canlıda
+ * "A = {1, 2, 3} kümesinden B = {a, b} kümesine 1 → a, 1 → b, 2 → a …" küme virgüllerinden
+ * satırlara kırılmış, "(0, 2)" koordinatındaki "2)" liste imi sanılıp silinmiş, harfsiz "2"
+ * parçasına iki nokta eklenip "2:" çıkmıştı.
  */
 
+import {
+  bracketSpans,
+  firstIndexOutsideBrackets,
+  matchesOutsideBrackets,
+  splitOutsideBrackets,
+} from "@/lib/text/bracket-spans";
 
 export type BoardLine = { kind: "prose" | "formula"; text: string };
 
@@ -173,7 +185,8 @@ const RELATION_RE =
   /[A-Za-z](?:_[A-Za-z0-9]+)?\s*(?:>=|<=|>|<|≥|≤)\s*[A-Za-z0-9_]*sat[A-Za-z0-9_]*(?:\([^)]*\))?(?:\s*(?:→|->|⇒)\s*[A-Za-zÇĞİÖŞÜçğıöşü]+(?:\s+[A-Za-zÇĞİÖŞÜçğıöşü]+){0,3})?/gi;
 
 function splitRelations(sentence: string): string[] {
-  const matches = [...sentence.matchAll(new RegExp(RELATION_RE.source, "gi"))];
+  // Parantez içindeki bağıntı ("(T < T_sat(P) koşulu)") dışarı çekilmez; yalnız derinlik 0.
+  const matches = matchesOutsideBrackets(sentence, RELATION_RE);
   if (!matches.length) return [sentence];
   const pieces: string[] = [];
   let cursor = 0;
@@ -215,8 +228,11 @@ function stripListMarker(text: string): string {
   return text.replace(LIST_MARKER, "").trim();
 }
 
+const NUMBERED_BREAK = /\s+(?=\d{1,2}\)\s+|\d{1,2}\.\s+[^\sa-zçğıöşü])/;
+
 function splitNumbered(text: string): string[] {
-  const parts = text.split(/\s+(?=\d{1,2}\)\s+|\d{1,2}\.\s+[^\sa-zçğıöşü])/);
+  // "(−1, 4), (0, 2)" ve "[−1, 2)" içindeki "2)" liste imi değildir: yalnız derinlik 0'da bölünür.
+  const parts = splitOutsideBrackets(text, NUMBERED_BREAK);
   return parts.map(stripListMarker).filter(Boolean);
 }
 
@@ -274,6 +290,9 @@ function calmFormulaLead(lead: string): string {
 function introduceFormula(lead: string): string {
   // "İstenen: işlemin sonucu" kendi satırıdır; arkasındaki bağıntıyı tanıtmaz.
   if (/^(?:Verilen|İstenen|Bağıntı|Yerine koyma|Sonuç|Adım\s*\d+)\s*:\s*\S/i.test(lead.trim())) return lead;
+  // Harfsiz parça ("2", "θ", "%5") cümle değildir: iki nokta eklenmez. Bölücü bir yerde yine
+  // kaçırırsa canlıdaki "2:" doğmasın (29 Ekim 2026).
+  if (!/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(lead)) return lead;
   const trimmed = calmFormulaLead(lead.replace(/[.:;\s]+$/g, ""));
   if (!trimmed) return lead;
   if (verbEnding(trimmed)) return `${trimmed}:`;
@@ -300,11 +319,34 @@ function phraseBeforeFormula(phrase: string, lead: string): string {
   return lead ? `${lead} ${core}:` : `${core}:`;
 }
 
+const RELATION_SIGN = /[=<>≤≥]/;
+
+/**
+ * "Özellik y = … şeklinde" → lead "Özellik", bağıntı "y = …". İşaret derinlik 0'da aranır; sol
+ * işlenen işaretten geriye boşluksuz koşudur ve bir çiftin içinden başlıyorsa çift bütünüyle
+ * işlenendir ("f(x) = 2x" → "f(x)", "(5²)³ = 5⁶" → "(5²)³"). İşaret yalnız ayraç içindeyse
+ * ("Küme {x | x = 2k} şeklinde yazılır") bağıntı bütün kümedir, lead "Küme".
+ */
 function splitLeadAndRelation(head: string): { lead: string; relation: string } {
-  const match = head.match(/^(.*?)((?:[A-Za-zρΔμP_][A-Za-z0-9_]*|\d|\()\s*[=<>≤≥].*)$/);
-  if (!match) return { lead: "", relation: head.trim() };
-  const lead = match[1].replace(/[.:;\s]+$/g, "").trim();
-  const relation = match[2].trim();
+  let at = firstIndexOutsideBrackets(head, RELATION_SIGN);
+  if (at < 0) at = head.search(RELATION_SIGN);
+  if (at < 0) return { lead: "", relation: head.trim() };
+  let end = at;
+  while (end > 0 && /\s/.test(head[end - 1]!)) end -= 1;
+  let start = end;
+  while (start > 0 && !/\s/.test(head[start - 1]!)) start -= 1;
+  const spans = bracketSpans(head);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [open, close] of spans) {
+      if (open < start && close >= start && open <= at) {
+        start = open;
+        grew = true;
+      }
+    }
+  }
+  const lead = head.slice(0, start).replace(/[.:;\s]+$/g, "").trim();
+  const relation = head.slice(start).trim();
   if (lead.length < 2) return { lead: "", relation: head.trim() };
   return { lead, relation };
 }
@@ -320,35 +362,94 @@ function detachTrailingFormulaPhrase(sentence: string): string[] | null {
   return [phraseBeforeFormula(match[1], lead), relation].filter((part) => part.trim().length > 0);
 }
 
+/**
+ * Formülü tanıtan iki nokta: derinlik 0'da ("{x : x > 0}" değil), oran ya da saat değil
+ * ("1:3", "14:30" atlanır, sonraki denenir), sağı tanımlayıcı, rakam ya da "(" ile başlar.
+ */
+function formulaColonIndex(sentence: string): number {
+  for (const match of matchesOutsideBrackets(sentence, /:/)) {
+    const at = match.index;
+    if (/\d/.test(sentence[at - 1] ?? "") && /\d/.test(sentence[at + 1] ?? "")) continue;
+    const right = sentence.slice(at + 1).replace(/^\s+/, "");
+    if (/^(?:[A-Za-zρΔμP_][A-Za-z0-9_]*|\d|\()/.test(right)) return at;
+  }
+  return -1;
+}
+
+/**
+ * Eşitlik listesi: "1 kPa = 1000 Pa, 1 MPa = 1000 kPa" iki satırdır; "n = 1, 2, 3 için a_n = 2n"
+ * ve "kümesine 1 → a, 1 → b, 2 → a" tek satırdır. Komşuluk kuralı (29 Ekim 2026): aday virgül
+ * ayraç dışında olmalı ve kesmenin iki yanındaki bölütler (ardışık aday virgüller arası) de
+ * bağıntı işareti taşımalı. Taşımayan kesme yapılmaz.
+ */
+function splitEqualityList(sentence: string): string[] {
+  const cuts = matchesOutsideBrackets(sentence, /,\s+(?=\d)/);
+  if (!cuts.length) return [sentence];
+  const segments = cuts.map((cut, index) => {
+    const previous = cuts[index - 1];
+    const from = previous ? previous.index + previous[0].length : 0;
+    return sentence.slice(from, cut.index);
+  });
+  const last = cuts[cuts.length - 1]!;
+  segments.push(sentence.slice(last.index + last[0].length));
+  const parts: string[] = [];
+  let cursor = 0;
+  cuts.forEach((cut, index) => {
+    if (!RELATION_SIGN.test(segments[index]!) || !RELATION_SIGN.test(segments[index + 1]!)) return;
+    parts.push(sentence.slice(cursor, cut.index));
+    cursor = cut.index + cut[0].length;
+  });
+  parts.push(sentence.slice(cursor));
+  return parts;
+}
+
 function peelFormulas(sentence: string): string[] {
   const detached = detachTrailingFormulaPhrase(sentence);
   if (detached) return detached.flatMap((part) => peelFormulas(part));
-  const colon = sentence.match(/^(.*?):\s*((?:[A-Za-zρΔμP_][A-Za-z0-9_]*|\d|\().*)$/);
-  if (colon && /[=<>≤≥]/.test(colon[2]) && colon[1].trim().length >= 8 && !/=/.test(colon[1])) {
-    return [cleanPiece(colon[1]), ...peelFormulas(colon[2])];
+  const colonAt = formulaColonIndex(sentence);
+  if (colonAt >= 0) {
+    const left = sentence.slice(0, colonAt);
+    const right = sentence.slice(colonAt + 1).replace(/^\s+/, "");
+    if (RELATION_SIGN.test(right) && left.trim().length >= 8 && !/=/.test(left)) {
+      return [cleanPiece(left), ...peelFormulas(right)];
+    }
   }
   if (/;/.test(sentence) && (sentence.match(/=/g) ?? []).length >= 1) {
-    const bits = sentence
-      .split(/\s*;\s*/)
+    // "(1,5; 2) noktası" ve "[0; 1]" içindeki ";" ayırıcı değildir.
+    const bits = splitOutsideBrackets(sentence, /\s*;\s*/)
       .map((part) => part.trim())
       .filter(Boolean);
     if (bits.length > 1) return bits.flatMap((bit) => peelFormulas(bit));
   }
   if ((sentence.match(/=/g) ?? []).length >= 2 && /,\s*\d/.test(sentence)) {
-    return sentence
-      .split(/,\s+(?=\d)/)
+    return splitEqualityList(sentence)
       .map((part) => cleanPiece(part))
       .filter(Boolean);
   }
   return [cleanPiece(sentence)];
 }
 
+/**
+ * "TBK m. 27", "s. 12", "md. 5": 1-3 küçük harf + nokta + rakam biçimi kısaltmadır, cümle sonu
+ * değil. Biçim tabanlı; sözcük listesi yok (ders-bağımsız). Rakamla başlamayan cümle ("vb. Bunlar")
+ * yine bölünür.
+ */
+function abbreviationBeforeNumber(text: string, match: RegExpExecArray): boolean {
+  const before = text.slice(0, match.index);
+  const token = before.slice(before.search(/\S*$/));
+  return /^[a-zçğıöşü]{1,3}\.$/.test(token) && /^\d/.test(text.slice(match.index + match[0].length));
+}
+
 function splitBlock(block: string): string[] {
   const pieces: string[] = [];
   for (const chunk of splitNumbered(block)) {
     // Korunan vurgunun sonu (U+E101) da cümle sonu sayılır: "….== Son kolları …" ayrı cümledir.
-    const sentences = chunk
-      .split(/(?<=[.!?])\s+(?=\*{0,2}[A-ZÇĞİÖŞÜ0-9“"(])/)
+    // Parantez içindeki "(bkz. Şekil 2)" noktası cümle sonu değildir: yalnız derinlik 0.
+    const sentences = splitOutsideBrackets(
+      chunk,
+      /(?<=[.!?])\s+(?=\*{0,2}[A-ZÇĞİÖŞÜ0-9“"(])/,
+      (match) => !abbreviationBeforeNumber(chunk, match),
+    )
       .map((part) => part.trim())
       .filter(Boolean);
     for (const sentence of sentences) {
@@ -371,9 +472,16 @@ const ORDINAL_DOT = "";
  * sayısıdır: noktası saklanır, ne silinir ne cümle sonu sayılır.
  */
 function guardOrdinals(text: string): string {
-  const numbers = [...text.matchAll(/(?:^|\s)(\d{1,2})[.)]\s/g)].map((match) => Number(match[1]));
+  // Ayraç içindeki "(0, 2)" aday değildir: "1. … (0, 2) … 2. …" gerçek listesi liste kalır.
+  const numbers = matchesOutsideBrackets(text, /(?:^|\s)(\d{1,2})[.)]\s/).map((match) => Number(match[1]));
   if (numbers.every((value, index) => value === index + 1)) return text;
-  return text.replace(/(^|\s)(\d{1,2})\.(?=\s)/g, `$1$2${ORDINAL_DOT}`);
+  let out = "";
+  let cursor = 0;
+  for (const match of matchesOutsideBrackets(text, /(^|\s)(\d{1,2})\.(?=\s)/)) {
+    out += `${text.slice(cursor, match.index)}${match[1]}${match[2]}${ORDINAL_DOT}`;
+    cursor = match.index + match[0].length;
+  }
+  return out + text.slice(cursor);
 }
 
 export function layoutBoard(text: string): BoardLine[] {

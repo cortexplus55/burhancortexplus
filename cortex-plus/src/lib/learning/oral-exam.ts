@@ -29,25 +29,38 @@ import {
 } from "@/lib/learning/oral-review";
 import {
   firstAnswerErrorLine,
-  ORAL_FIRST_ERROR_CAP,
-  oralFirstAnswer,
-  validFirstAnswerErrors,
   type OralAnswerError,
 } from "@/lib/learning/oral-first-answer";
 
 export {
   firstAnswerErrorLine,
-  ORAL_FIRST_ERROR_CAP,
   oralFirstAnswer,
   oralFirstAnswerKey,
-  validFirstAnswerErrors,
+  oralFollowAnswer,
+  oralFollowQuestion,
+  oralFollowQuestionKey,
   type OralAnswerError,
 } from "@/lib/learning/oral-first-answer";
 
 /**
  * Sözlü denemenin notu, takip sorusu ve kaynak bağı.
  * Sayısal kısım kodla; anlam kısmı sınav sonunda tek model çağrısıyla.
+ *
+ * 29 Ekim 2026, ürün sahibinin kararı: doğruluk kararı tek hakemde. Hakem varsa oran yalnız
+ * onun nokta kararlarından çıkar; kod hiçbir koşulda düşürmez (eski ilk-cevap tavanı, yarım örnek
+ * tavanı ve yedek yoldaki sayı tavanları kalktı). Yükseltmeler (örnek çözümle örtüşme) ve
+ * hakemin alıntısının cevapta bulunması şartı (kanıt şartı, puan kuralı değil) duruyor.
  */
+
+/**
+ * Hakem istemi kuralı — yol düğümü ve Araçlar stüdyosu aynı metni okur (yazar ve denetçiye aynı
+ * kural ilkesi). Soru bloğu dışındaki metin (kaynak özeti, başka sorunun cümlesi) "doğrusu" olamaz.
+ */
+export const ORAL_JUDGE_RULES =
+  "Her soruyu yalnız kendi bloğuyla değerlendir; dış metin ya da başka sorunun cümlesini doğrusu diye yazma. " +
+  "Not İLK cevaba verilir: beklenen noktayı ilk cevap karşılıyorsa covered; ilk cevap beklenen noktayla DOĞRUDAN " +
+  "çelişiyorsa o nokta missing kalır ve firstAnswerIssue {wrong: ilk cevaptan BİREBİR alıntı, correct: bu sorunun " +
+  "beklenen cevabından} yazılır; takipte düzeltme noktayı geri kazandırmaz. Çelişki yoksa firstAnswerIssue yok.";
 
 export const ORAL_LENGTH_OPTIONS = [
   { questions: 3, minutes: 7 },
@@ -84,8 +97,8 @@ export type OralPointCoverage = {
 export type OralSemanticItem = {
   index: number;
   points: OralPointCoverage[];
-  /** Takip sorusundan önceki cevaptaki kavramsal / sayısal / olgusal yanlışlar. */
-  errors?: OralAnswerError[];
+  /** Hakemin ilk cevap notu: beklenen noktayla doğrudan çelişen ilk cevap. Çelişki yoksa yok. */
+  firstAnswerIssue?: OralAnswerError | null;
 };
 
 export const APPROX_ORAL_GRADE_NOTE =
@@ -125,8 +138,8 @@ export type OralItemGrade = {
   objective: string;
   /** Model başarısız olup kelime örtüşmesi yedeği kullanıldıysa true. */
   approximate?: boolean;
-  /** İlk cevaptaki doğrulanmış yanlışlar; varsa puan `ORAL_FIRST_ERROR_CAP`'i geçmez. */
-  firstAnswerErrors?: OralAnswerError[];
+  /** Hakemin ilk cevap notu, biçimlenmiş; yalnız oran 0,99'un altındayken dolu. Puanı değiştirmez. */
+  firstAnswerNote?: string;
 };
 
 export type OralExamReport = {
@@ -460,6 +473,10 @@ function ratioFromSemantic(points: OralPointCoverage[]): number {
   return score / points.length;
 }
 
+/**
+ * `judgeNote`: hakemin ilk cevap notu. Yalnız oran 0,99'un altındaysa gösterilir; oranı değiştirmez
+ * (hakem çelişkiyi zaten o noktayı missing bırakarak puanlar).
+ */
 export function gradeOralAnswer(
   question: OralQuestionDraft,
   answerRaw: string,
@@ -467,7 +484,7 @@ export function gradeOralAnswer(
   index: number,
   passages: OralGroundingPassage[] = [],
   semantic?: OralPointCoverage[] | null,
-  _first?: { answer?: string; errors?: OralAnswerError[] | null } | null,
+  judgeNote?: OralAnswerError | null,
 ): OralItemGrade {
   const answer = answerRaw.trim();
   const prompt = polishLearnerText(question.prompt?.trim() || `Soru ${index + 1}`);
@@ -518,16 +535,13 @@ export function gradeOralAnswer(
     covered = points.length ? points : [answer.slice(0, 120)];
     missed = [];
   } else {
-    // Model çağrısı yok/başarısız: kelime örtüşmesi yedeği.
+    // Model çağrısı yok/başarısız: kelime örtüşmesi yedeği. Sayı ve yarım örnek notu `numericIssue` /
+    // `gap`te bilgi olarak kalır; oranı düşürmez (29 Ekim 2026).
     approximate = true;
     covered = points.filter((point) => answerCoversPoint(answer, point));
     missed = points.filter((point) => !covered.includes(point));
-    ratio = !points.length ? 0 : (covered.length + 0.5 * 0) / points.length;
-    if (studentAudit && !studentAudit.ok) ratio = Math.min(ratio, 0.5);
-    if (numeric.length) ratio = Math.min(ratio, 0.5);
+    ratio = !points.length ? 0 : covered.length / points.length;
   }
-
-  if (hollow && ratio >= 0.99) ratio = 0.5;
 
   const readable = (text: string) =>
     Boolean(text.trim()) && !announcedExampleGap(text) && fluencyIssues(text).length === 0;
@@ -551,17 +565,12 @@ export function gradeOralAnswer(
     modelAnswer = modelPoints[0] ?? "";
   }
 
-  const firstAnswer = _first?.answer?.trim() || answer;
-  const followText =
-    firstAnswer && answer.startsWith(firstAnswer) ? answer.slice(firstAnswer.length).trim() : "";
-  const firstErrors = dontKnow || !answer ? [] : validFirstAnswerErrors(firstAnswer, _first?.errors, followText);
+  // Yükseltme kalır: hakem yokken örnek çözümle örtüşen cevap tam puan.
   const matchesSolution = Boolean(answer && modelAnswer && answerCoversPoint(answer, modelAnswer));
   if (!semantic?.length && matchesSolution) {
     ratio = 1;
     covered = points.length ? points : covered;
     missed = [];
-  } else if (firstErrors.length && !matchesSolution) {
-    ratio = Math.min(ratio, ORAL_FIRST_ERROR_CAP);
   }
 
   const quantNotes = [
@@ -576,10 +585,9 @@ export function gradeOralAnswer(
       missed.find((part) => !isScoreLabel(part) && !textOverlapsPrompt(part, prompt)) ||
       hollowGap ||
       "");
-  const appliedErrors = firstErrors;
-  const gap = appliedErrors.length
-    ? firstAnswerErrorLine(appliedErrors[0])
-    : (sanitizeGap(rawGap, prompt) ?? "");
+  // Hakemin ilk cevap notu yalnız tam puan almayan soruda; tam puanda etiket yok.
+  const firstAnswerNote = ratio < 0.99 && !dontKnow && answer ? firstAnswerErrorLine(judgeNote) : "";
+  const gap = firstAnswerNote || (sanitizeGap(rawGap, prompt) ?? "");
   const right = ratio >= 0.99
     ? (claim?.rightParts[0] || covered[0] || answer.slice(0, 180))
     : (claim?.rightParts[0] || covered[0] || "");
@@ -608,7 +616,7 @@ export function gradeOralAnswer(
     numericIssue: quantNotes.length ? [...new Set(quantNotes)].join(", ") : null,
     objective,
     ...(approximate ? { approximate: true } : {}),
-    ...(appliedErrors.length ? { firstAnswerErrors: appliedErrors } : {}),
+    ...(firstAnswerNote ? { firstAnswerNote } : {}),
   };
 }
 
@@ -651,7 +659,7 @@ export function gradeOralExam(
       index,
       passages,
       byIndex.get(index)?.points ?? null,
-      { answer: oralFirstAnswer(answers, index), errors: byIndex.get(index)?.errors ?? null },
+      byIndex.get(index)?.firstAnswerIssue ?? null,
     ),
   );
   const total = items.length || 1;
@@ -662,14 +670,15 @@ export function gradeOralExam(
     .filter((item) => item.ratio >= 0.8)
     .map((item) => item.objective)
     .slice(0, 4);
-  // İlk cevaptaki yanlış her zaman Eksikler'in başında: "Belirgin bir eksik görünmüyor" denmesin.
-  const firstErrorLines = items.flatMap((item) => (item.firstAnswerErrors ?? []).map(firstAnswerErrorLine));
+  // Hakemin ilk cevap notları Eksikler'in başında (yalnız tam puan almayan sorularda dolu), sonra
+  // yarıdan az karşılanan hedefler.
+  const noteLines = items.map((item) => item.firstAnswerNote ?? "").filter(Boolean);
   const weaknesses = [
     ...new Set([
-      ...firstErrorLines,
+      ...noteLines,
       ...items.filter((item) => item.ratio < 0.5).map((item) => item.objective),
     ]),
-  ].slice(0, Math.max(4, firstErrorLines.length));
+  ].slice(0, Math.max(4, noteLines.length));
   return {
     fullCount,
     total,

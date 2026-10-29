@@ -77,36 +77,40 @@ export function lessonStepTotal(writtenSteps: number, _pendingConcepts = 0): num
 
 export type LessonStepCounter = {
   now: number;
-  /** İlerleme çubuğunun paydası. */
+  /** İlerleme çubuğunun paydası (yazım sürerken yalnız çubuk için: yazılan + 1). */
   max: number;
-  /** "3 / 8" ya da payda henüz bilinmiyorsa "3". */
+  /** Mühürlü derste "3 / 8"; yazım sürerken çıplak "3". */
   label: string;
+  /** Yazım sürüyor: toplam bilinmiyor, çubuk belirsiz, `aria-valuemax` yazılmaz. */
+  indeterminate: boolean;
 };
 
 /**
- * Ders yazılırken adım sayacı (28 Ekim 2026). Kavramlar geldikçe payda büyüyordu: öğrenci "1 / 2"
- * görüp bir sonraki tazelemede "1 / 8" görüyordu. Yazım sürerken payda yazarın baştaki planıdır
- * (giriş kartı + planlanan ekranlar + özet) ve yazılan adımlar onu geçmedikçe değişmez; plan yoksa
- * ya da yazılanlar planı geçtiyse sayaç yalnız "Adım N" der. Yazım bitince payda yazılan adımlardır.
+ * Ders adım sayacı (29 Ekim 2026, Paket H). 28 Ekim'de payda yazarın ekran planından geliyordu;
+ * plan "ekran" sayar, adım listesi ekran dışı adımları (örnek, sık hata, özet) ve onarım
+ * ekranlarını da içerir — her tahmin bir noktada yalanlanıyordu ("2/7" sonra "3/9"). Akışlı
+ * yazımda toplam gerçekten bilinmez: yazım sürerken payda YOK, etiket çıplak "N"; yazım bitince
+ * payda yazılan adımdır ve ekran bunu ilk mühürlü değerde kilitler (`lockedTotal`): sonradan
+ * tazeleme ya da onarım ekranı payload'u büyütse de "/ N" sabit kalır.
  */
 export function lessonStepCounter(input: {
   index: number;
   writtenSteps: number;
   building: boolean;
-  plannedScreens?: number | null;
+  /** Ekranın ilk mühürlü toplamı; verilirse payda odur, yazılan değişse de değişmez. */
+  lockedTotal?: number | null;
 }): LessonStepCounter {
   const written = lessonStepTotal(input.writtenSteps);
-  if (!input.building) {
-    const now = Math.min(Math.max(0, input.index) + 1, written);
-    return { now, max: written, label: `${now} / ${written}` };
+  if (input.building) {
+    // Yazım sürerken bir "hazırlanıyor" adımı daha var: çubuk yazılan + 1'e göre dolar.
+    const reach = written + 1;
+    const now = Math.min(Math.max(0, input.index) + 1, reach);
+    return { now, max: reach, label: `${now}`, indeterminate: true };
   }
-  const screens = input.plannedScreens;
-  const planned = typeof screens === "number" && Number.isInteger(screens) && screens > 0 ? screens + 2 : null;
-  // Yazım sürerken bir "hazırlanıyor" adımı daha var: yazılan + 1.
-  const reach = written + 1;
-  const max = planned && planned >= reach ? planned : reach;
-  const now = Math.min(Math.max(0, input.index) + 1, max);
-  return { now, max, label: planned && planned >= reach ? `${now} / ${planned}` : `${now}` };
+  const locked = input.lockedTotal;
+  const total = typeof locked === "number" && Number.isInteger(locked) && locked > 0 ? locked : written;
+  const now = Math.min(Math.max(0, input.index) + 1, total);
+  return { now, max: total, label: `${now} / ${total}`, indeterminate: false };
 }
 
 /** Harcanan zaman: oturumun başlangıcından bitişine; boş ya da geçersiz başlangıç 1 dk sayılır. */

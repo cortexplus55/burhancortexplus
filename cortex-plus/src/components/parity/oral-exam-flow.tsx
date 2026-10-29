@@ -364,7 +364,6 @@ export function OralResults({
   total,
   scoreFraction = null,
   minutesSpent,
-  firstAnswerErrors = [],
 }: {
   topicLabel: string;
   pct: number;
@@ -380,11 +379,10 @@ export function OralResults({
   fullCount?: number;
   total?: number;
   minutesSpent?: number;
-  /** İlk cevaptaki yanlış cümleleri; her zaman Eksikler'in başında. */
-  firstAnswerErrors?: string[];
 }) {
-  const errorLines = [...new Set(firstAnswerErrors.filter(Boolean))];
-  const gaps = [...new Set([...errorLines, ...weaknesses])].slice(0, Math.max(4, errorLines.length));
+  // Eksikler yalnız raporun `weaknesses`i: hakemin ilk cevap notları başta, sonra zayıf hedefler
+  // (`gradeOralExam` sırayı ve sayıyı belirler; 29 Ekim 2026).
+  const gaps = [...new Set(weaknesses.filter(Boolean))];
   return (
     <section className="cp-oral cp-oral-results">
       <h1 className="cp-oral-results-title">Sözlü deneme sonucu</h1>

@@ -8,7 +8,9 @@ import {
   oralAttemptScore,
   oralFirstAnswer,
   oralFirstAnswerKey,
-  validFirstAnswerErrors,
+  oralFollowAnswer,
+  oralFollowQuestion,
+  oralFollowQuestionKey,
   type OralQuestionDraft,
   type OralSemanticItem,
 } from "@/lib/learning/oral-exam";
@@ -16,8 +18,9 @@ import { reconcileOralGrade } from "@/lib/learning/oral-review";
 import { OralResults } from "@/components/parity/oral-exam-flow";
 
 /**
- * P0-5 (25 Ekim 2026): ilk cevaptaki yanlış, takip sorusunda düzeltilse de tavan uygular,
- * Eksikler'e "İlk yanıtta … doğrusu …" yazılır; ekran ve yol aynı yüzdeyi okur. Ders-bağımsız.
+ * P0-5 (25 Ekim 2026) → 29 Ekim 2026 kararı: ilk cevabın notunu yalnız hakem verir. Kod tavan
+ * uygulamaz, "İlk yanıtta … doğrusu …" satırını üretmez; hakemin notunu yalnız biçimler ve tam puan
+ * almayan soruda gösterir. Ekran ve yol aynı yüzdeyi okur. Ders-bağımsız.
  */
 
 type Case = {
@@ -76,7 +79,8 @@ function answersFor(row: Case): Record<string, unknown> {
   return { "0": `${row.first}\n${row.follow}`, [oralFirstAnswerKey(0)]: row.first };
 }
 
-function semanticsFor(row: Case, wrong = row.wrong): OralSemanticItem[] {
+/** Hakem noktayı covered saydı; nota rağmen (yanlış alarm) puan değişmez. */
+function coveredBy(row: Case, wrong = row.wrong): OralSemanticItem[] {
   return [
     {
       index: 0,
@@ -85,54 +89,70 @@ function semanticsFor(row: Case, wrong = row.wrong): OralSemanticItem[] {
         status: "covered" as const,
         quote: row.follow.replace(/^[^:,]*[:,]\s*/, "").replace(/\.$/, ""),
       })),
-      errors: [{ wrong, correct: row.correct }],
+      firstAnswerIssue: { wrong, correct: row.correct },
     },
   ];
 }
 
-describe("rubriği karşılayan cevap tam puan alır", () => {
+/** Hakem ilk cevaptaki çelişkiyi puanladı: nokta missing, not yazılı. */
+function missedBy(row: Case): OralSemanticItem[] {
+  return [
+    {
+      index: 0,
+      points: (row.question.expectedPoints ?? []).map((point) => ({ point, status: "missing" as const, quote: "" })),
+      firstAnswerIssue: { wrong: row.wrong, correct: row.correct },
+    },
+  ];
+}
+
+describe("hakemin covered dediği cevap tam puan alır; kod not basmaz", () => {
   for (const row of CASES) {
-    it(`${row.subject}: takipte düzeltilen cevap %100, yanlış alarm yok`, () => {
-      const report = gradeOralExam([row.question], answersFor(row), row.source, [], semanticsFor(row));
+    it(`${row.subject}: hakem covered → %100, nota rağmen etiket yok`, () => {
+      const report = gradeOralExam([row.question], answersFor(row), row.source, [], coveredBy(row));
       const item = report.items[0]!;
       expect(item.ratio).toBeGreaterThanOrEqual(0.99);
       expect(report.pct).toBe(100);
-      expect(item.firstAnswerErrors ?? []).toEqual([]);
+      expect(item.firstAnswerNote).toBeUndefined();
       expect(item.gap ?? "").not.toContain("yanlış ifade edildi");
+      expect(report.weaknesses).toEqual([]);
+    });
+
+    it(`${row.subject}: hakem missing + not → oran hakemin, Eksikler'in başında hakemin satırı`, () => {
+      const report = gradeOralExam([row.question], answersFor(row), row.source, [], missedBy(row));
+      const item = report.items[0]!;
+      const line = firstAnswerErrorLine({ wrong: row.wrong, correct: row.correct });
+      expect(item.ratio).toBe(0);
+      expect(item.verdict).toBe("yanlis");
+      expect(item.firstAnswerNote).toBe(line);
+      expect(item.gap).toBe(line);
+      expect(report.weaknesses[0]).toBe(line);
     });
   }
 
-  it("modelin uydurduğu alıntı (ilk cevapta geçmeyen) yok sayılır, puan düşmez", () => {
+  it("hakemin alıntısı cevapta geçmese de kod puanı düşürmez (not yalnız bilgi)", () => {
     const row = CASES[0]!;
-    const report = gradeOralExam(
-      [row.question],
-      answersFor(row),
-      row.source,
-      [],
-      semanticsFor(row, "fotosentez klorofilde olur"),
-    );
-    expect(report.items[0]?.firstAnswerErrors ?? []).toEqual([]);
+    const report = gradeOralExam([row.question], answersFor(row), row.source, [], coveredBy(row, "fotosentez klorofilde olur"));
+    expect(report.items[0]?.firstAnswerNote).toBeUndefined();
     expect(report.pct).toBe(100);
   });
 
-  it("takip sorusu açılmadıysa ilk cevap birleşik cevaptır", () => {
+  it("takip sorusu açılmadıysa ilk cevap birleşik cevaptır; takip anahtarları ayrı okunur", () => {
     expect(oralFirstAnswer({ "0": "tek cevap" }, 0)).toBe("tek cevap");
     expect(oralFirstAnswer({ "0": "a\nb", "ilk:0": "a" }, 0)).toBe("a");
+    expect(oralFollowAnswer({ "0": "a\nb", "ilk:0": "a" }, 0)).toBe("b");
+    expect(oralFollowAnswer({ "0": "tek cevap" }, 0)).toBe("");
+    expect(oralFollowQuestionKey(2)).toBe("takip:2");
+    expect(oralFollowQuestion({ "takip:2": " Neden? " }, 2)).toBe("Neden?");
+    expect(oralFollowQuestion({}, 2)).toBe("");
   });
 
-  it("doğrulama: boş / aynı / puan etiketi ve düşük örtüşmeli doğru söyleyiş düşmez; doğrudan sayı çelişkisi en çok iki yanlış", () => {
-    const first = "Bir iki üç dört beş altı yedi sekiz.";
-    expect(validFirstAnswerErrors(first, [{ wrong: "iki üç", correct: "" }])).toEqual([]);
-    expect(validFirstAnswerErrors(first, [{ wrong: "iki üç", correct: "İki üç" }])).toEqual([]);
-    expect(validFirstAnswerErrors(first, [{ wrong: "iki üç", correct: "tam puan" }])).toEqual([]);
-    expect(validFirstAnswerErrors("Fatih İstanbul'u aldı.", [{ wrong: "Fatih İstanbul'u aldı", correct: "II. Mehmed şehri fethetti" }])).toEqual([]);
-    const dated = "Fetih 1453, cumhuriyet 1923, Malazgirt 1071.";
-    const many = validFirstAnswerErrors(dated, [
-      { wrong: "1453", correct: "1454" },
-      { wrong: "1923", correct: "1920" },
-      { wrong: "1071", correct: "1072" },
-    ]);
-    expect(many).toHaveLength(2);
+  it("firstAnswerErrorLine yalnız biçimler: boş alanlı not satır vermez", () => {
+    expect(firstAnswerErrorLine({ wrong: "1081", correct: "1071" })).toBe(
+      "İlk yanıtta «1081» yanlış ifade edildi; doğrusu «1071» olmalıdır.",
+    );
+    expect(firstAnswerErrorLine({ wrong: "", correct: "1071" })).toBe("");
+    expect(firstAnswerErrorLine({ wrong: "1081", correct: "  " })).toBe("");
+    expect(firstAnswerErrorLine(null)).toBe("");
   });
 });
 
@@ -141,7 +161,7 @@ describe("ekran yüzdesi = yol düğümü yüzdesi (tek hesap)", () => {
     const row = CASES[1]!;
     const questions = [row.question, CASES[0]!.question];
     const answers = { ...answersFor(row), "1": "Hata, hile ve ikrah irade sakatlığıdır." };
-    const report = gradeOralExam(questions, answers, `${row.source}\n${CASES[0]!.source}`, [], semanticsFor(row));
+    const report = gradeOralExam(questions, answers, `${row.source}\n${CASES[0]!.source}`, [], coveredBy(row));
     const saved = oralAttemptScore(report);
     expect(saved.total).toBe(100);
     expect(saved.score).toBe(Math.round(report.pct));
@@ -149,24 +169,34 @@ describe("ekran yüzdesi = yol düğümü yüzdesi (tek hesap)", () => {
     expect(report.pct).toBe(100);
   });
 
-  it("düğüm rotası kaydı oralAttemptScore'dan alır, yol kararı soru sayısıyla", () => {
+  it("düğüm rotası kaydı oralAttemptScore'dan alır; hakem istemi soru başına kapalı blok, kaynak özeti yok", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain("scored = oralAttemptScore(report)");
     expect(route).not.toContain("score: report.fullCount");
-    expect(route).toContain("İlk cevap (takip sorusundan önce)");
-    expect(route).toMatch(/errors: z\s*\.array/);
+    expect(route).toContain("İlk cevap:");
+    expect(route).toContain("Takip sorusu:");
+    expect(route).toContain("Takip cevabı:");
+    expect(route).toContain("Rubrik:");
+    expect(route).toContain("ORAL_JUDGE_RULES");
+    expect(route).toContain("firstAnswerIssue");
+    expect(route).not.toContain("Kaynak özeti");
+    expect(route).not.toMatch(/errors: z\s*\.array/);
+    expect(route).not.toContain("oral-fact-check");
   });
 
-  it("cevap masası takip sorusundan önceki cevabı ayrıca verir, oturum ilk:<i> anahtarına yazar", () => {
+  it("cevap masası takip sorusundan önceki cevabı ayrıca verir, oturum ilk:<i> ve takip:<i> anahtarlarına yazar", () => {
     const desk = readFileSync("src/components/parity/oral-answer-desk.tsx", "utf8");
     expect(desk).toContain("onAdvance(out.answer, out.firstAnswer)");
     expect(desk).toContain("onFinish(out.answer, out.firstAnswer)");
+    expect(desk).toContain("onProbe?.(next.question)");
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).toContain("oralFirstAnswerKey(index)");
+    expect(session).toContain("oralFollowQuestionKey(index)");
+    expect(session).not.toContain("firstAnswerErrors");
   });
 });
 
-describe("stüdyo notu: doğrulanmış ilk yanlış rubrik örtüşmesini de yener", () => {
+describe("stüdyo notu: hakemin kararı aynen, not yalnız gerekçe", () => {
   const question = {
     prompt: "İrade sakatlığı halleri nelerdir?",
     expectedPoints: ["hata, hile ve ikrah"],
@@ -175,30 +205,39 @@ describe("stüdyo notu: doğrulanmış ilk yanlış rubrik örtüşmesini de yen
     "0": "İrade sakatlığı hata ve zamanaşımıdır. Düzeltiyorum: hata, hile ve ikrah.",
     [oralFirstAnswerKey(0)]: "İrade sakatlığı hata ve zamanaşımıdır.",
   };
+  const issue = { wrong: "zamanaşımıdır", correct: "hata, hile ve ikrah" };
 
-  it("yanlış doğrulanınca soru doğru sayılmaz, gerekçe eksik cümlesidir", () => {
+  it("hakem doğru dediyse not puanı düşürmez, gerekçe yok", () => {
     const result = reconcileOralGrade({
       questions: [question],
       answers,
-      modelItems: [
-        { index: 0, correct: true, gap: null, errors: [{ wrong: "zamanaşımıdır", correct: "hata, hile ve ikrah" }] },
-      ],
+      modelItems: [{ index: 0, correct: true, gap: null, firstAnswerIssue: issue }],
     });
     expect(result.correctCount).toBe(1);
-    expect(result.items[0]?.gap ?? "").not.toContain("yanlış ifade edildi");
+    expect(result.items[0]?.gap).toBeNull();
   });
 
-  it("uydurma alıntı yok sayılır: rubrik tutuyorsa doğru kalır", () => {
+  it("hakem yanlış dediyse ve rubrik tutmuyorsa gerekçe hakemin satırıdır", () => {
+    const result = reconcileOralGrade({
+      questions: [question],
+      answers: { "0": "Yalnızca zamanaşımı.", [oralFirstAnswerKey(0)]: "Yalnızca zamanaşımı." },
+      modelItems: [{ index: 0, correct: false, gap: "Haller eksik.", firstAnswerIssue: issue }],
+    });
+    expect(result.correctCount).toBe(0);
+    expect(result.items[0]?.gap).toBe(firstAnswerErrorLine(issue));
+  });
+
+  it("uydurma not rubriği karşılayan cevabı düşürmez (yükseltme kalır)", () => {
     const result = reconcileOralGrade({
       questions: [question],
       answers,
-      modelItems: [{ index: 0, correct: true, gap: null, errors: [{ wrong: "mitokondri", correct: "x" }] }],
+      modelItems: [{ index: 0, correct: false, gap: null, firstAnswerIssue: { wrong: "mitokondri", correct: "x" } }],
     });
     expect(result.correctCount).toBe(1);
   });
 });
 
-describe("sonuç ekranı ilk yanlışta 'belirgin bir eksik görünmüyor' demez", () => {
+describe("sonuç ekranı Eksikler'i raporun satırlarıyla çizer", () => {
   const base = {
     topicLabel: "Konu",
     onReview: () => {},
@@ -206,11 +245,9 @@ describe("sonuç ekranı ilk yanlışta 'belirgin bir eksik görünmüyor' demez
     nextHref: "/x",
   };
 
-  it("ilk yanlış varsa Eksikler'de cümlesi görünür", () => {
+  it("hakemin ilk cevap notu weaknesses'ın başındaysa görünür, 'eksik görünmüyor' yazılmaz", () => {
     const line = firstAnswerErrorLine({ wrong: "zamanaşımıdır", correct: "hata, hile ve ikrah" });
-    const html = renderToStaticMarkup(
-      createElement(OralResults, { ...base, pct: 50, weaknesses: [], firstAnswerErrors: [line] }),
-    );
+    const html = renderToStaticMarkup(createElement(OralResults, { ...base, pct: 50, weaknesses: [line] }));
     expect(html).not.toContain("belirgin bir eksik görünmüyor");
     expect(html).toContain("İlk yanıtta «zamanaşımıdır» yanlış ifade edildi");
   });

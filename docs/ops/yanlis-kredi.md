@@ -4,6 +4,10 @@
 - "Kredim düştü ama ders/test açılmadı", "aynı iş iki kez kesildi", "hakkım bitti diyor ama bugün hiç
   çalışmadım".
 - Ücretsiz öğrencide günlük 6 kredi erken bitti.
+- 409 "Geçersiz işlem tanımı" (`invalid_action`) → `/admin/sistem` "Kredi kuralı satırları": eylem kodunun
+  `credit_rules` satırı yok ya da kapalı (göç atlanmış). Eksik satırı kod ilk istekte fiyat tablosundan ekler
+  ve sayfa "Koddan eklenmiş kural" uyarısı gösterir; göç ve `schema_migrations` kayıt satırı yine yazılmalı.
+  Kapalı satırı kod açmaz (29 Ekim 2026).
 
 ## Bakılacak yer
 - `credit_wallets` (`balance`, `reserved`), `credit_ledger` (hareket satırları), `credit_reservations`
@@ -26,6 +30,9 @@
 
 ## Önleme
 - Bir işin bedelini değiştirirken önce `ai_usage_events`'ten yeniden ölç; göç ve `price-table.ts` birlikte
-  değişir (`credit-system-v2.test.ts`).
+  değişir (`credit-system-v2.test.ts`). Fiyat yalnız göçle: kod var olan satırı ezmez, fark sayfada
+  "Kredi bedeli kod ile canlı ayrışıyor" uyarısı olarak kalır.
+- Yeni eylem kodu = `price-table.ts` + göç (`ON CONFLICT (action_code) DO UPDATE`) + Plus'taysa
+  `plus_only_action` + kayıt satırı (KREDI-SISTEMI.md "Değişirse").
 - Paralel parçalara aynı anahtar verme: krediyi bir kez ayır, parçalara `heldReservationId` ver
   (AGENTS.md "Paralel işler aynı ödeme anahtarını paylaşmaz").

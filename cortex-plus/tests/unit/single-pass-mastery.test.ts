@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { splitAnswerSentences, validFirstAnswerErrors } from "@/lib/learning/oral-first-answer";
+import { gradeOralExam, type OralSemanticItem } from "@/lib/learning/oral-exam";
 import { adjustScoredAnswer } from "@/lib/learning/mock-exam/grade";
 import { computeExamReadiness } from "@/lib/learning/learning-tracking";
 import { sanitizeStudentCopy } from "@/lib/learning/student-copy";
@@ -18,24 +18,43 @@ const question = (text: string, correct = "12") => ({
   learningObjective: "Denklemi kurar.",
 });
 
+// 29 Ekim 2026: sözlü notu yalnız hakem verir; kod hakemin covered'ını hiçbir notla düşürmez.
+function judged(point: string, quote: string, issue?: { wrong: string; correct: string }): OralSemanticItem[] {
+  return [{ index: 0, points: [{ point, status: "covered", quote }], ...(issue ? { firstAnswerIssue: issue } : {}) }];
+}
+
 describe("tek geçiş — Elif, Mert, Zeynep", () => {
-  it("Elif: doğru sözlü cevap yanlış sayılmaz", () => {
-    const errors = validFirstAnswerErrors(
-      "Negatif sayılar sıfırın solundadır. Eksi ile eksi çarpımı artıdır.",
-      [{ wrong: "Eksi ile eksi çarpımı artıdır", correct: "Eksi ile eksi çarpımı pozitiftir" }],
+  it("Elif: hakemin covered dediği doğru sözlü cevap, eşanlamlı 'doğrusu' notuna rağmen %100", () => {
+    const answer = "Negatif sayılar sıfırın solundadır. Eksi ile eksi çarpımı artıdır.";
+    const report = gradeOralExam(
+      [{ prompt: "İki negatif sayının çarpımının işareti nedir?", expectedPoints: ["eksi ile eksi çarpımı pozitiftir"] }],
+      { "0": answer },
+      "Eksi ile eksi çarpımı pozitiftir.",
+      [],
+      judged("eksi ile eksi çarpımı pozitiftir", "Eksi ile eksi çarpımı artıdır", {
+        wrong: "Eksi ile eksi çarpımı artıdır",
+        correct: "Eksi ile eksi çarpımı pozitiftir",
+      }),
     );
-    expect(errors).toEqual([]);
+    expect(report.pct).toBe(100);
+    expect(report.items[0]?.firstAnswerNote).toBeUndefined();
+    expect(report.weaknesses).toEqual([]);
   });
 
-  it("Mert: II. Mehmed cümlesi bölünmez ve doğru fetih %100 kalır", () => {
+  it("Mert: II. Mehmed cümlesi kodda bölünmez, hakem covered dediyse fetih %100 kalır", () => {
     const text = "II. Mehmed İstanbul'u 1453'te fethetti. Osmanlı bu tarihten sonra imparatorluk oldu.";
-    const sentences = splitAnswerSentences(text);
-    expect(sentences.some((sentence) => sentence === "II.")).toBe(false);
-    expect(sentences[0]).toContain("II. Mehmed");
-    const errors = validFirstAnswerErrors(text, [
-      { wrong: "II. Mehmed İstanbul'u 1453'te fethetti", correct: "II. Mehmed İstanbul'u 1453 yılında aldı" },
-    ]);
-    expect(errors).toEqual([]);
+    const report = gradeOralExam(
+      [{ prompt: "İstanbul'u kim, hangi yıl fethetti?", expectedPoints: ["II. Mehmed 1453"] }],
+      { "0": text },
+      "II. Mehmed İstanbul'u 1453 yılında aldı.",
+      [],
+      judged("II. Mehmed 1453", "II. Mehmed İstanbul'u 1453'te fethetti", {
+        wrong: "II. Mehmed İstanbul'u 1453'te fethetti",
+        correct: "II. Mehmed İstanbul'u 1453 yılında aldı",
+      }),
+    );
+    expect(report.pct).toBe(100);
+    expect(report.items[0]?.gap).toBe("");
   });
 
   it("Zeynep: doğru kurulum ve aritmetik hata %50–%80; çıplak tahmin 7/10 olmaz", () => {

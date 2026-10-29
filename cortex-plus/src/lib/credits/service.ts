@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionCode } from "@/lib/env";
 import { defaultFreeMeter, type FreeMeter } from "@/lib/billing/free-meters";
+import { CREDIT_PRICE_TABLE, creditRuleSeed } from "@/lib/credits/price-table";
 
 /**
  * Ücretsiz hesabın reddi (24 Ekim 2026): sayaç doldu ya da iş Plus'ta. Sebep yine
@@ -39,17 +40,64 @@ export function newIdempotencyKey(prefix: string) {
   return `${prefix}_${randomUUID()}`;
 }
 
-export async function getActionCost(
-  service: SupabaseClient,
-  actionCode: ActionCode,
-): Promise<number | null> {
-  const { data } = await service
+/**
+ * Kredi kuralı yedeği (29 Ekim 2026). Fiyatın iki kopyası var: kodda `CREDIT_PRICE_TABLE`, canlıda
+ * `credit_rules`; ikisini bağlayan tek şey elle uygulanan göç. Yeni bir eylem kodunun göçü atlanınca SQL
+ * `invalid_action` fırlatıyor ve iş 409 ile düşüyordu — oysa hata hiçbir yazımdan önce atılır, eksik satırı
+ * koddaki bedelle ekleyip bir kez yeniden denemek güvenli.
+ *
+ * Kural: göç DEĞİŞİKLİĞİN kaynağı kalır. Kod yalnız EKSİK satırı ekler (`ignoreDuplicates` = INSERT … ON
+ * CONFLICT DO NOTHING); var olan satır — yöneticinin /admin/kredi-kurallari'nda değiştirdiği bedel ya da
+ * bilerek kapatılmış kural — asla güncellenmez. Eklenen satır `CODE_SEEDED_RULE_NOTE` ile işaretli;
+ * `/admin/sistem` onu "göç yazılmalı" uyarısıyla gösterir. Örnek başına kod başına bir kez uyarı yazılır.
+ */
+const seededRuleCodes = new Set<string>();
+
+/** Test: "kod başına bir kez uyarı" sayacını sıfırlar. */
+export function resetCreditRuleSeedForTests() {
+  seededRuleCodes.clear();
+}
+
+/** Eksik kuralı fiyat tablosundan ekler. `true` = yeniden denemeye değer (ekleme hatasız bitti). */
+async function seedMissingCreditRule(service: SupabaseClient, actionCode: ActionCode): Promise<boolean> {
+  if (!(actionCode in CREDIT_PRICE_TABLE)) return false;
+  const seed = creditRuleSeed(actionCode);
+  const { error } = await service
+    .from("credit_rules")
+    .upsert(seed, { onConflict: "action_code", ignoreDuplicates: true });
+  if (error) {
+    console.warn("credit_rule_seed_failed", { actionCode, code: error.code, message: error.message });
+    return false;
+  }
+  if (!seededRuleCodes.has(actionCode)) {
+    seededRuleCodes.add(actionCode);
+    console.warn("credit_rule_seeded_from_code", { actionCode, credits: seed.credit_cost });
+  }
+  return true;
+}
+
+async function readActionCost(service: SupabaseClient, actionCode: ActionCode) {
+  return service
     .from("credit_rules")
     .select("credit_cost")
     .eq("action_code", actionCode)
     .eq("active", true)
     .maybeSingle();
-  return data?.credit_cost ?? null;
+}
+
+export async function getActionCost(
+  service: SupabaseClient,
+  actionCode: ActionCode,
+): Promise<number | null> {
+  const first = await readActionCost(service, actionCode);
+  if (first.data?.credit_cost != null) return first.data.credit_cost;
+  // Okuma düştüyse yazmayız: satır yok mu, bağlantı mı yok bilinmiyor.
+  if (first.error) return null;
+  // Satır yok: aynı yedek — eksikse fiyat tablosundan ekle, bir kez daha oku. Kapalı satır eklenmez,
+  // okuma yine boş döner (çağıranlar kendi varsayılanına düşer).
+  if (!(await seedMissingCreditRule(service, actionCode))) return null;
+  const second = await readActionCost(service, actionCode);
+  return second.data?.credit_cost ?? null;
 }
 
 export async function reserveCredits(
@@ -81,23 +129,34 @@ export async function reserveCredits(
   const units = Math.min(Math.max(Math.trunc(quantity) || 1, 1), 1000);
 
   const meter = options.freeMeter === undefined ? defaultFreeMeter(actionCode) : options.freeMeter;
-  let { data, error } = await service.rpc("credit_reserve_metered", {
-    p_user_id: userId,
-    p_action_code: actionCode,
-    p_idempotency_key: idempotencyKey,
-    p_quantity: units,
-    p_meter: meter,
-  });
-  // Yayın sırası: kod göçten önce çıkarsa (fonksiyon yok) eski yola düşer. Sessiz kalmasın: ücretsiz hesabın
-  // sayacı bu yolda çalışmıyor, düşen ayırma düz `insufficient_credits` döner (inceleme, 24 Ekim 2026).
-  if (error && (error.code === "PGRST202" || /Could not find the function public.credit_reserve_metered/.test(error.message ?? ""))) {
-    console.warn("credit_reserve_metered_missing", { actionCode, meter });
-    ({ data, error } = await service.rpc("credit_reserve", {
+  // Sıra her çağrıda aynı: sayaçlı ayırma → (fonksiyon yoksa) eski `credit_reserve`.
+  const callReserve = async () => {
+    let { data, error } = await service.rpc("credit_reserve_metered", {
       p_user_id: userId,
       p_action_code: actionCode,
       p_idempotency_key: idempotencyKey,
       p_quantity: units,
-    }));
+      p_meter: meter,
+    });
+    // Yayın sırası: kod göçten önce çıkarsa (fonksiyon yok) eski yola düşer. Sessiz kalmasın: ücretsiz hesabın
+    // sayacı bu yolda çalışmıyor, düşen ayırma düz `insufficient_credits` döner (inceleme, 24 Ekim 2026).
+    if (error && (error.code === "PGRST202" || /Could not find the function public.credit_reserve_metered/.test(error.message ?? ""))) {
+      console.warn("credit_reserve_metered_missing", { actionCode, meter });
+      ({ data, error } = await service.rpc("credit_reserve", {
+        p_user_id: userId,
+        p_action_code: actionCode,
+        p_idempotency_key: idempotencyKey,
+        p_quantity: units,
+      }));
+    }
+    return { data, error };
+  };
+
+  let { data, error } = await callReserve();
+  // Kredi kuralı yedeği: satır yoksa fiyat tablosundan ekle ve TAM BİR KEZ yeniden dene. `invalid_action`
+  // hiçbir yazımdan önce atılır (kilit yok, cüzdana dokunulmamış); ikinci cevap da hataysa bugünkü eşleme.
+  if (error && (error.message ?? "").includes("invalid_action") && (await seedMissingCreditRule(service, actionCode))) {
+    ({ data, error } = await callReserve());
   }
 
   if (error) {
