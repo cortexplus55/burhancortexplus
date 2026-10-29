@@ -4,6 +4,14 @@ import { topicMatchKey } from "@/lib/learning/topic-merge";
 /**
  * Aynı kavram için iki kaynak farklı sayı, formül ya da yön söylüyorsa
  * ikisi de saklanır. Sessizce biri seçilmez.
+ *
+ * Formül karşılaştırması (29 Ekim 2026, Paket H): canlıda matematik notu ile sunumu aynı tanımı
+ * `f(x) = ax + b (a ≠ 0)` ve `f(x) = ax + b, a ≠ 0` diye yazdı; eski kural "eşittir içeren iki
+ * kısa metin birebir aynı değilse çelişki" dediği için öğrenciye "kaynaklar çelişiyor" çıktı.
+ * Şimdi metin önce matematikçe normalize edilir (Unicode işleçler, ondalık virgül, LaTeX, koşul
+ * ayracı), eşitlik/eşitsizlik taşıyan parçalar ayrılır ve çelişki yalnız **aynı büyüklük** için
+ * (parçanın sol tarafı aynı) farklı sağ taraf yazılınca sayılır. Bir tarafta olup ötekinde olmayan
+ * tamamlayıcı not (koşul, özel durum, birim) çelişki de aday da değildir.
  */
 
 export type ContradictionClaim = {
@@ -59,10 +67,6 @@ function polarityConflicts(left: string, right: string): boolean {
     if ((a.has(up) && b.has(down)) || (a.has(down) && b.has(up))) return true;
   }
   return false;
-}
-
-function normExpr(expression: string): string {
-  return foldTr(expression).replace(/\s+/g, "").replace(/\\/g, "");
 }
 
 function pagesOverlap(left: number[], right: number[]): boolean {
@@ -177,15 +181,264 @@ function closeEnough(left: Measure, right: Measure): boolean {
   return relative <= 0.005;
 }
 
+/* ------------------------------------------------------------------------------------------------
+ * Matematik normalizasyonu ve parçalar (29 Ekim 2026)
+ * ---------------------------------------------------------------------------------------------- */
+
+/** `≠` gibi işleçler NFKD'de "=" + birleşik işarete ayrışır; foldTr işareti atınca `a≠0` `a=0` olurdu. Önce ASCII. */
+const UNICODE_OPERATORS: [RegExp, string][] = [
+  [/≠/g, "!="],
+  [/≤/g, "<="],
+  [/≥/g, ">="],
+  [/[×·∗⋅]/g, "*"],
+  [/[−–—]/g, "-"],
+  [/÷/g, "/"],
+  [/≈/g, "~"],
+];
+
+const LATEX: [RegExp, string][] = [
+  [/\\(?:left|right)\b/g, ""],
+  [/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "$1/$2"],
+  [/\\(?:cdot|times)\b/g, "*"],
+  [/\\(?:neq|ne)\b/g, "!="],
+  [/\\(?:leq|le)\b/g, "<="],
+  [/\\(?:geq|ge)\b/g, ">="],
+  [/\\pm\b/g, "+-"],
+  [/\\(?:mathrm|text|textrm|operatorname)\{([^{}]*)\}/g, "$1"],
+];
+
+const COMPARISON = /(!=|<=|>=|=|<|>)/;
+/** Köprü olamayacak kısa sözcükler: "x = 2 ve y = 3" iki ayrı parçadır. */
+const SHORT_NON_MATH = new Set(["ve", "ya", "da", "de", "ile", "mi", "mu", "ki"]);
+const FUNCTION_WORDS = /^(sin|cos|tan|cot|sec|csc|log|ln|exp|sqrt|lim|max|min|pi|mod|det)$/;
+/** Düz metin köklerinde sayılmayan işlev sözcükleri (dersten bağımsız). */
+const PROSE_STOPWORDS = new Set([
+  "ve", "ile", "bir", "bu", "su", "o", "da", "de", "ki", "icin", "olan", "olarak", "gibi", "ya", "veya",
+  "ise", "her", "en", "cok", "daha", "ama", "fakat", "ancak", "yani", "ne", "mi", "mu", "ya", "hem",
+]);
+
+/** Boşlukları koruyan ortak normalizasyon; parçalama ve kök çıkarma bunun üstünde çalışır. */
+function mathNormalizeLoose(text: string): string {
+  let out = unfoldSuperscripts(text);
+  for (const [pattern, replacement] of UNICODE_OPERATORS) out = out.replace(pattern, replacement);
+  out = out.normalize("NFKC");
+  for (const [pattern, replacement] of LATEX) out = out.replace(pattern, replacement);
+  out = out.replace(/[\\$]/g, "");
+  out = out.replace(/(\d),(\d)/g, "$1.$2");
+  out = foldTr(out);
+  return out.replace(/\s+/g, " ").trim();
+}
+
+/** Boşluksuz parça: açık çarpım harfin önünde düşer (`m*a` = `ma`), koşul ayracı virgül olur. */
+function denseNormalize(dense: string): string {
+  let out = dense.replace(/\s+/g, "").replace(/;/g, ",");
+  out = out.replace(/\*(?=[a-z(])/g, "");
+  out = out.replace(/\(([^()]*(?:!=|<=|>=|=|<|>)[^()]*)\)/g, ",$1");
+  out = out.replace(/[.,:]+$/g, "").replace(/,+/g, ",").replace(/^,/, "");
+  return out;
+}
+
+/**
+ * `mathNormalize("f(x) = ax + b (a ≠ 0)") === mathNormalize("f(x) = ax + b, a ≠ 0")`.
+ * NFKC, Unicode işleçler ASCII, ondalık virgül nokta, boşluk / ters bölü / $ yok, `\frac{a}{b}` → a/b,
+ * `\cdot` → *, üst simge → ^n, koşul ayracı virgül, küçük harf.
+ */
+export function mathNormalize(expression: string): string {
+  return denseNormalize(mathNormalizeLoose(expression));
+}
+
+type Word = { core: string; math: boolean; closes: boolean; comma: boolean };
+
+function isMathWord(core: string): boolean {
+  if (!core) return false;
+  if (!/^[a-z0-9()+\-*/^=!<>|~%.,]+$/.test(core)) return false;
+  if (/\d/.test(core)) return true;
+  if (/[=!<>^*+]/.test(core)) return true;
+  const letters = core.replace(/[^a-z]/g, "");
+  // "m/s", "a-b" matematik; "mmol/l", "ve/veya" düz metin.
+  if (/[/-]/.test(core)) return letters.length <= 3;
+  if (letters.length === 1) return true;
+  if (/^[a-z]{1,2}\(/.test(core)) return true;
+  return FUNCTION_WORDS.test(letters);
+}
+
+function classifyWords(text: string): Word[] {
+  const out: Word[] = [];
+  for (const raw of mathNormalizeLoose(text).split(" ")) {
+    if (!raw) continue;
+    let core = raw;
+    let closes = false;
+    let comma = false;
+    const tail = core.match(/[.;:]+$/);
+    if (tail) {
+      closes = true;
+      core = core.slice(0, -tail[0].length);
+    }
+    if (core.endsWith(",")) {
+      comma = true;
+      core = core.slice(0, -1);
+    }
+    // Türkçe ek: "22,4 L'dir" → "22.4" ve "l"; ek düz metne de gitmez.
+    const apostrophe = core.search(/['’]/);
+    if (apostrophe > 0) core = core.slice(0, apostrophe);
+    out.push({ core, math: isMathWord(core), closes, comma });
+  }
+  // Kısa köprü: "f(x) = ax + b" içindeki "ax" iki matematik sözcüğün arasında ya da bir işlecin
+  // hemen yanındaysa ("F = ma") matematiktir. "ve", "ile" gibi bağlaçlar köprü olmaz.
+  const operatorToken = (word: Word | undefined) => Boolean(word && /^(!=|<=|>=|[=+\-*/^<>])$/.test(word.core));
+  for (let index = 0; index < out.length; index += 1) {
+    const word = out[index]!;
+    const before = index > 0 ? out[index - 1] : undefined;
+    const after = out[index + 1];
+    if (word.math || !/^[a-z]{1,3}$/.test(word.core) || SHORT_NON_MATH.has(word.core)) continue;
+    const bridged = Boolean(before?.math && !before.closes && after?.math);
+    if (bridged || (operatorToken(before) && !before?.closes) || (operatorToken(after) && !word.closes)) word.math = true;
+  }
+  return out;
+}
+
+/** "(0" ya da "1)" gibi yarım kalan sarmal ayraç parçanın kendisinden değildir. */
+function trimUnbalanced(piece: string): string {
+  let out = piece;
+  const count = (char: string) => out.split(char).length - 1;
+  while (out.startsWith("(") && count("(") > count(")")) out = out.slice(1);
+  while (out.endsWith(")") && count(")") > count("(")) out = out.slice(0, -1);
+  return out;
+}
+
+/** Eşitlik ya da eşitsizlik taşıyan, boşluksuz, normalize parçalar; sırayla ve tekrarsız. */
+export function mathSegments(text: string): string[] {
+  const runs: string[] = [];
+  let current = "";
+  const flush = () => {
+    if (current) runs.push(current);
+    current = "";
+  };
+  for (const word of classifyWords(text)) {
+    if (!word.math) {
+      flush();
+      continue;
+    }
+    current += word.core + (word.comma ? "," : "");
+    if (word.closes) flush();
+  }
+  flush();
+  const segments: string[] = [];
+  for (const run of runs) {
+    for (const piece of denseNormalize(run).split(",")) {
+      const segment = trimUnbalanced(piece);
+      const match = segment.match(COMPARISON);
+      if (!match || match.index === undefined) continue;
+      const head = segment.slice(0, match.index);
+      const body = segment.slice(match.index + match[0].length);
+      if (!/[a-z0-9]/.test(head) || !/[a-z0-9]/.test(body)) continue;
+      if (!segments.includes(segment)) segments.push(segment);
+    }
+  }
+  return segments;
+}
+
+type ClaimParts = { segments: Set<string>; numbers: Set<string>; stems: Set<string> };
+
+function stemOf(word: string): string | null {
+  const letters = word.replace(/[^a-z]/g, "");
+  if (letters.length < 2 || PROSE_STOPWORDS.has(letters)) return null;
+  return letters.slice(0, 5);
+}
+
+function analyzeClaim(text: string): ClaimParts {
+  const words = classifyWords(text);
+  const stems = new Set<string>();
+  for (const word of words) {
+    if (word.math) continue;
+    const stem = stemOf(word.core);
+    if (stem) stems.add(stem);
+  }
+  const numbers = new Set<string>();
+  for (const match of mathNormalizeLoose(text).matchAll(/\d+(?:\.\d+)?/g)) {
+    const value = Number(match[0]);
+    if (Number.isFinite(value)) numbers.add(String(value));
+  }
+  return { segments: new Set(mathSegments(text)), numbers, stems };
+}
+
+function isSubset<T>(small: Set<T>, big: Set<T>): boolean {
+  for (const item of small) if (!big.has(item)) return false;
+  return true;
+}
+
+function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  return a.size === b.size && isSubset(a, b);
+}
+
+function segmentHead(segment: string): string | null {
+  const match = segment.match(COMPARISON);
+  if (!match || match.index === undefined) return null;
+  return segment.slice(0, match.index) || null;
+}
+
+/**
+ * Aynı büyüklük (parçanın sol tarafı) için iki taraf farklı şey yazıyorsa çelişki: sayı farkı
+ * (`1kpa=1000` / `1kpa=100`), işaret farkı (`a!=0` / `a=0`), yapı farkı (`d=m/v` / `d=m/v*2`).
+ * Yalnız bir tarafta geçen büyüklük tamamlayıcı nottur, kıyaslanmaz.
+ */
+function formulasDisagree(left: Set<string>, right: Set<string>): boolean {
+  const byHead = (segments: Set<string>) => {
+    const map = new Map<string, Set<string>>();
+    for (const segment of segments) {
+      const head = segmentHead(segment);
+      if (!head) continue;
+      const have = map.get(head) ?? new Set<string>();
+      have.add(segment);
+      map.set(head, have);
+    }
+    return map;
+  };
+  const a = byHead(left);
+  const b = byHead(right);
+  for (const [head, segmentsA] of a) {
+    const segmentsB = b.get(head);
+    if (!segmentsB) continue;
+    if (!isSubset(segmentsA, segmentsB) && !isSubset(segmentsB, segmentsA)) return true;
+  }
+  return false;
+}
+
+/** Kısa taraf uzun tarafın içinde: kök, sayı ve parça olarak. Uzun taraf yalnız not ekliyor. */
+function complements(left: ClaimParts, right: ClaimParts): boolean {
+  const contained = (small: ClaimParts, big: ClaimParts) =>
+    isSubset(small.stems, big.stems) && isSubset(small.numbers, big.numbers) && isSubset(small.segments, big.segments);
+  return contained(left, right) || contained(right, left);
+}
+
+function stemShare(a: Set<string>, b: Set<string>): number {
+  const size = Math.max(a.size, b.size);
+  if (!size) return 1;
+  let shared = 0;
+  for (const item of a) if (b.has(item)) shared += 1;
+  return shared / size;
+}
+
+/** Formül ve sayılar aynıyken düz metin bu kadar örtüşüyorsa aynı iddia. */
+const SAME_PROSE_SHARE = 0.8;
+
 export type ClaimRelation = "conflict" | "same" | "candidate";
 
 /** İki cümle aynı iddia mı, gerçekten uyumsuz mu, yoksa modele mi kalmalı. */
 export function relateClaims(left: string, right: string): ClaimRelation {
   if (polarityConflicts(left, right) && !explicitlyDifferentConditions(left, right)) return "conflict";
-  const leftExpr = normExpr(left);
-  const rightExpr = normExpr(right);
-  const formulaLike = (expr: string) => /=/.test(expr) && expr.length < 80;
-  if (formulaLike(leftExpr) && formulaLike(rightExpr) && leftExpr !== rightExpr) return "conflict";
+  const l = analyzeClaim(left);
+  const r = analyzeClaim(right);
+  if (formulasDisagree(l.segments, r.segments)) return "conflict";
+  if (complements(l, r)) return "same";
+  if (
+    l.segments.size > 0 &&
+    setsEqual(l.segments, r.segments) &&
+    setsEqual(l.numbers, r.numbers) &&
+    stemShare(l.stems, r.stems) >= SAME_PROSE_SHARE
+  ) {
+    return "same";
+  }
 
   const a = claimMeasures(left);
   const b = claimMeasures(right);
