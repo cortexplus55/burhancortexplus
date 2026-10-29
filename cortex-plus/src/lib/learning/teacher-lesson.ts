@@ -1,12 +1,16 @@
 import {
   LESSON_SCREEN_HARD_CAP,
   LESSON_V3_FORMAT,
+  blockAlias,
   conceptGroups,
+  diagramCardBlockSchema,
   lessonScreenSchema,
   readLessonV3,
   screenCheck,
   screenChecksFirst,
+  screenConcept,
   screenText,
+  visualBlockText,
   type LessonBlock,
   type LessonScreen,
   type LessonV3,
@@ -17,8 +21,17 @@ import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotati
 import type { OptionCount } from "@/lib/learning/student-pedagogy";
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { studentTextParts } from "@/lib/learning/lesson-board";
-import { nearSameQuestion, reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
+import { nearSameQuestion, questionSignature, reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
 import {
+  explanationAnswerMismatch,
+  inlineCarriers,
+  mcqAnswerMismatch,
+  unresolvedVisualReference,
+} from "@/lib/learning/answer-consistency";
+import { numbersIn, sameNumber } from "@/lib/learning/result-values";
+import {
+  KEY_CONSISTENCY_RULE,
+  SELF_CONTAINED_STEM_RULE,
   SOURCE_LINK_EXEMPTION,
   SOURCE_NUMBER_PRIORITY,
   STUDENT_LEAK_BAN,
@@ -394,7 +407,8 @@ export const TEACHER_SYSTEM =
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). " +
-  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ` +
+  // 29 Ekim 2026 (Paket H): kök tamlığı ve anahtar–açıklama kuralı ders, test ve deneme yazarında aynı metin.
+  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ${SELF_CONTAINED_STEM_RULE} ${KEY_CONSISTENCY_RULE} ` +
   "review: öğrenci bu soruyu yanlış yaparsa ders sonunda sorulan ikinci sorudur; tam bir soru yaz (prompt, options, " +
   "answerIndex, explanation). Önce düşün: en olası yanlış seçim hangisi, öğrenci neyi neyle karıştırdı? O karışıklığı " +
   "ölçen YENİ bir durum kur — tanımdan terim soruldaysa bu kez bir durumdan (olaydan) terim sorulur. Çoktan seçmelide " +
@@ -545,10 +559,13 @@ export const VERIFY_SYSTEM =
   "kutusu da dahil, notun sayısı, aralığı ya da adıyla çelişen değer B'dir. " +
   `Sayı önceliği (yazarın kuralı, aynen): ${SOURCE_NUMBER_PRIORITY}\n` +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
-  `iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik). ${REVIEW_VERIFY}\n` +
+  "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik); kökün ekranda olmayan bir şekle, grafiğe, haritaya, " +
+  "tabloya ya da şemaya gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): " +
+  `${SELF_CONTAINED_STEM_RULE} ${REVIEW_VERIFY}\n` +
   "D) explanation, optionWhy, corrected'da (yanlış ifadenin doğrusu) ya da çözümlü örnekte yanlış bilgi veya hesap " +
   "hatası (review'un explanation ve corrected'ı dahil); explanation ya da optionWhy'ın şıklara sırasıyla ya da " +
-  `harfiyle gönderme yapması. Yazarın okuduğu kural: ${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
+  "harfiyle gönderme yapması; explanation, optionWhy ya da hint'in vardığı sonucun answerIndex'in şıkkından başka bir " +
+  `şıkta yazması. Yazarın okuduğu kurallar (aynen): ${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ${KEY_CONSISTENCY_RULE}\n` +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle; kaynağın bozuk kelimesinin ya da bozuk cümlesinin kopyası.\n" +
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
   "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
@@ -586,10 +603,13 @@ export const TOPIC_VERIFY_SYSTEM =
   "B) Emin olunamayacak kadar ayrıntılı ya da güncel olarak değişebilecek bilgi (yürürlükteki oran, son düzenleme), " +
   "tartışmalı bir görüşün kesin doğru gibi sunulması.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
-  `iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik). ${REVIEW_VERIFY}\n` +
+  "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik); kökün ekranda olmayan bir şekle, grafiğe, haritaya, " +
+  "tabloya ya da şemaya gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): " +
+  `${SELF_CONTAINED_STEM_RULE} ${REVIEW_VERIFY}\n` +
   "D) explanation, optionWhy ya da corrected'da (yanlış ifadenin doğrusu) yanlış bilgi (review'un explanation ve " +
   "corrected'ı dahil); çözümlü örnekte hesap hatası; explanation ya da optionWhy'ın şıklara sırasıyla ya da harfiyle " +
-  `gönderme yapması. Yazarın okuduğu kural: ${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
+  "gönderme yapması; explanation, optionWhy ya da hint'in vardığı sonucun answerIndex'in şıkkından başka bir şıkta " +
+  `yazması. Yazarın okuduğu kurallar (aynen): ${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ${KEY_CONSISTENCY_RULE}\n` +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "F) Ders içinde tutarsızlık.\n" +
   `G) ${MNEMONIC_VERIFY}\n` +
@@ -1171,7 +1191,8 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   // "önce dene" + "kavram soruyla biter" iki soru yazdırıyordu. Ekran yalnız ilk soruyu
   // gösterir, notlandırma da ilk soruya bakar; ikincisi öğrenciye zarar vermez.
   if (checks.length > 1) low(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu çıkar (ekran yalnız ilkini gösterir).");
-  for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low, lessonOptionCount(input));
+  const carriers = screen.blocks.map((block) => block.type);
+  for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low, lessonOptionCount(input), carriers);
   screen.blocks.forEach((block, blockIndex) => {
     // 20 Ekim 2026 kör kıyas: şemadaki örnek başlık "X ile Y farkı" iki derste aynen ekrana çıktı.
     const titles =
@@ -1437,26 +1458,51 @@ const foldQuestion = (text: string) =>
 const questionNumbers = (text: string) => (text.match(/\d+(?:[.,]\d+)?/g) ?? []).sort().join(" ");
 
 /**
+ * Kısa hesap sorusunda iki kökü ayırmayan genel sözcükler ("kaçtır", "değeri", "sonucu", "bulunur"): konu terimi
+ * değil, soru kalıbı. Ders kelimesi yok.
+ */
+const GENERIC_ASK = /^(?:kaç\p{L}*|değer\p{L}*|sonu[cç]\p{L}*|bul\p{L}*|hesap\p{L}*|eşit\p{L}*|olur|elde|verir|çıkar|ifade\p{L}*|işlem\p{L}*|cevap\p{L}*|doğru\p{L}*|yanlış\p{L}*|aşağı\p{L}*|yukarı\p{L}*|göre|buna|için)$/u;
+
+const setEqual = (left: Set<string>, right: Set<string>) => left.size === right.size && [...left].every((item) => right.has(item));
+
+/**
  * İki soru aynı bilgiyi mi soruyor: aynı metin ya da aynı sayılarla içerik sözcüklerinin dörtte üçü ortak. Eşik
  * ikinci sorudaki %85'ten (`nearSameQuestion`) düşük: aynı ifadenin olumsuzu ("iner" / "inmez") da aynı bilgidir.
+ *
+ * Kısa soru yolu (29 Ekim 2026, Paket H): iki tarafta da dörtten az içerik kökü varsa ("k=8,5 için f(6) kaçtır?"
+ * / "k = 8,5 için f(6) değeri nedir?") `stemOverlap` 0 döner ve tekrar kaçardı. O zaman sayı çok kümesi VE
+ * sembolik atom kümesi (`questionSignature`) eşit, köklerin farkı yalnız kalıp sözcüğüyse aynı sorudur; sayısı ya
+ * da atomu değişen hesap ("f(6)" → "f(3)") yeni sorudur.
  */
 export function sameLessonQuestion(a: string, b: string): boolean {
   const left = foldQuestion(a);
   const right = foldQuestion(b);
   if (!left || !right) return false;
   if (left === right || nearSameQuestion(a, b)) return true;
-  return questionNumbers(a) === questionNumbers(b) && stemOverlap(a, b) >= 0.75;
+  if (questionNumbers(a) === questionNumbers(b) && stemOverlap(a, b) >= 0.75) return true;
+  const first = questionSignature(a);
+  const second = questionSignature(b);
+  if (first.stems.size >= 4 || second.stems.size >= 4) return false;
+  if (!first.numbers && !first.atoms.size) return false;
+  if (first.numbers !== second.numbers || !setEqual(first.atoms, second.atoms)) return false;
+  const differing = [...first.stems, ...second.stems].filter((stem) => !(first.stems.has(stem) && second.stems.has(stem)));
+  return differing.every((stem) => GENERIC_ASK.test(stem));
 }
 
-/** Öğrencinin bir ekranda gördüğü sorular: ana soru, "Doğrusu" cümlesi ve yanlışta gelen ikinci soru. */
+/**
+ * Öğrencinin bir ekranda gördüğü sorular: ana soru, "Doğrusu" cümlesi, yanlışta gelen ikinci soru ve çözülmüş
+ * örneğin sorusu (29 Ekim 2026: çözülen örnek soru olarak yeniden sorulmaz).
+ */
 function askedOn(screen: LessonScreen): string[] {
+  const examples = screen.blocks.flatMap((block) => (block.type === "example" ? [block.example.prompt] : []));
   const check = screenCheck(screen);
-  if (!check) return [];
+  if (!check) return examples;
   const review = (check as { review?: { prompt?: unknown } | null }).review;
   return [
     check.prompt,
     (check as { corrected?: unknown }).corrected,
     typeof review?.prompt === "string" ? review.prompt : "",
+    ...examples,
   ].filter((text): text is string => typeof text === "string" && text.trim().length > 0);
 }
 
@@ -1505,6 +1551,78 @@ export function dropRepeatedChecks(earlier: readonly LessonScreen[], screens: re
     seen.push(next);
   }
   return out;
+}
+
+type CheckBlock = Extract<LessonBlock, { type: "check" }>;
+
+/**
+ * Yayımdan önce anahtar kapısı (29 Ekim 2026, Paket H; ürün sahibinin kararı: "anahtarı açıklama ile birebir
+ * hizala"). Model çağrısı yok, metin yazılmaz; "Tek geçiş" kuralı korunur.
+ * - Çoktan seçmeli soruda (ve tam ikinci soruda) açıklamanın vardığı değer tam olarak BİR şıkta ve o şık anahtar
+ *   değilse `answerIndex` o şıkka alınır (`lesson_check_key_realigned`); eşleşme yoksa ya da birden çoksa dokunulmaz.
+ * - Kökü ekranda olmayan bir görsele gönderen ve veriyi taşımayan soru bloğu ekrandan çıkar
+ *   (`lesson_check_dropped_visual_ref`); ekran sorusuz yayımlanır. İkinci sorunun köküyse yalnız ikinci soru çıkar.
+ * `dropRepeatedChecks`ten sonra, `shuffleLessonChecks`ten önce çağrılır: hizalama metin tabanlı, karıştırma sırayı
+ * değiştirse de aynı şıkkı bulur.
+ */
+export function settleCheckKeys(screens: readonly LessonScreen[], options: { concept?: string } = {}): LessonScreen[] {
+  const concept = options.concept ?? null;
+  return screens.map((screen) => {
+    const carriers = screen.blocks.map((block) => block.type);
+    let changed = false;
+    const blocks = screen.blocks.flatMap((block): LessonBlock[] => {
+      if (block.type !== "check") return [block];
+      const check = block.check;
+      const visual = unresolvedVisualReference(check.prompt, [...carriers, ...inlineCarriers(check.prompt)]);
+      if (visual) {
+        console.info("lesson_check_dropped_visual_ref", { concept, prompt: check.prompt.slice(0, 80), reference: visual });
+        changed = true;
+        return [];
+      }
+      let next: CheckBlock["check"] = check;
+      if (next.type === "mcq") {
+        const mismatch = mcqAnswerMismatch(next);
+        if (mismatch) {
+          console.info("lesson_check_key_realigned", {
+            concept,
+            prompt: next.prompt.slice(0, 80),
+            from: mismatch.keyed[0] ?? null,
+            to: mismatch.expected,
+            value: mismatch.value,
+            source: mismatch.source,
+          });
+          next = { ...next, answerIndex: mismatch.expectedIndex };
+        }
+      }
+      const review = next.review;
+      if (review?.prompt) {
+        const reviewVisual = unresolvedVisualReference(review.prompt, [...carriers, ...inlineCarriers(review.prompt)]);
+        if (reviewVisual) {
+          console.info("lesson_check_dropped_visual_ref", { concept, prompt: review.prompt.slice(0, 80), reference: reviewVisual, review: true });
+          const { review: _dropped, ...rest } = next;
+          void _dropped;
+          next = rest;
+        } else if (next.type === "mcq" && review.options && typeof review.answerIndex === "number") {
+          const mismatch = explanationAnswerMismatch({ options: review.options, keyed: [review.answerIndex], explanation: review.explanation });
+          if (mismatch) {
+            console.info("lesson_check_key_realigned", {
+              concept,
+              prompt: review.prompt.slice(0, 80),
+              from: mismatch.keyed[0] ?? null,
+              to: mismatch.expected,
+              value: mismatch.value,
+              source: mismatch.source,
+              review: true,
+            });
+            next = { ...next, review: { ...review, answerIndex: mismatch.expectedIndex } };
+          }
+        }
+      }
+      if (next !== check) changed = true;
+      return [{ ...block, check: next }];
+    });
+    return changed ? { ...screen, blocks } : screen;
+  });
 }
 
 function blockSignature(block: LessonBlock): string {
@@ -1744,6 +1862,152 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   return issues;
 }
 
+/* ───────────── Parametrik şema tamamlaması (29 Ekim 2026, Paket H) ───────────── */
+
+/**
+ * Ders yazıldı, diagram_card yok: tek küçük ek çağrı yalnız kartı ister (podcast `completePodcast` emsali). Eski yol
+ * dersi görmeyen tam yeniden yazımdı (pahalı, kör, doğrulanmıyordu). Kart yeni bilgi taşımaz: etiket ve sayı yalnız
+ * derste ya da kaynakta geçenden; kod temellendirir (`parseDiagramCompletion`), geçmezse ders aynen yayımlanır.
+ * Tür seçimi örnektir, sabit kural değildir (ders-bağımsız).
+ */
+export const DIAGRAM_COMPLETION_SYSTEM =
+  "Sen Cortex Plus'ın usta öğretmenisin. Yazılmış bir dersi okuyup ona TEK bir parametrik şema kartı (diagram_card) " +
+  "ekliyorsun. Kart yeni bilgi taşımaz: her etiket, sayı ve ayrıntı yalnız DERS metninde ya da (varsa) KAYNAK'ta zaten " +
+  "geçenden gelir; kaynakta ya da derste olmayan sayı, kural ya da sonuç yazma. Koordinat yazma. İlk kavrama koyma: " +
+  "afterConcept KAVRAMLAR listesindeki ikinci ya da sonraki bir kavramın adıdır, aynen. " +
+  "Tür seçimi konunun doğasına göredir, sabit kural değil; örnekler: kronoloji ya da neden-sonuç zinciri anlatan bir " +
+  "ders (tarih, edebiyat) timeline; bileşen ve evreler arası yönlü ilişki anlatan ders (hukuk süreci, biyoloji, tıp, " +
+  "mühendislik) process_network; iki büyüklük arasındaki ilişkiyi anlatan ders (iktisat, istatistik, fen) " +
+  "function_curve; sayısal karşılaştırma ya da aralık anlatan ders (matematik, fizik) number_line ya da balance_scale " +
+  "(ilk öğe sol kefe, ikinci öğe sağ kefe). Alanlar: diagramKind (number_line | balance_scale | function_curve | " +
+  "timeline | process_network), title (en çok 12 kelime), isteğe bağlı caption, items (2-8; her öğede label, isteğe " +
+  "bağlı value, detail, highlight), afterConcept. Etiketler kaynaktaki ya da dersteki terimdir.\n\n" +
+  'Yalnızca şu JSON\'u döndür: {"type":"diagram_card","diagramKind":"…","title":"…","caption":"…",' +
+  '"items":[{"label":"…","value":"…","detail":"…","highlight":false}],"afterConcept":"<kavram adı>"}\n\n' +
+  STUDENT_LEAK_BAN;
+
+const DIAGRAM_SCREEN_CHARS = 600;
+const DIAGRAM_SOURCE_CHARS = 2500;
+
+/** Ekranın düz metni: metin blokları, formül, adımlar, tablo satırları, kartlar, notlar, örnek ve görsel kartlar. */
+function screenPlainText(screen: LessonScreen): string {
+  const parts: string[] = [];
+  for (const block of screen.blocks) {
+    if (block.type === "text") parts.push(block.text);
+    else if (block.type === "formula") parts.push(`${block.formula.title}: ${block.formula.expression}`);
+    else if (block.type === "procedure") parts.push(block.procedure.steps.map((step) => `${step.label}: ${step.detail}`).join("; "));
+    else if (block.type === "table") parts.push([block.table.columns.join(" | "), ...block.table.rows.map((row) => row.join(" | "))].join("\n"));
+    else if (block.type === "cards") parts.push(block.cards.map((card) => `${card.title}: ${card.body}`).join("; "));
+    else if (block.type === "note") parts.push(`${block.note.title}: ${block.note.body}`);
+    else if (block.type === "example") parts.push(`Örnek: ${block.example.prompt} ${block.example.result ?? ""}`);
+    else if (block.type === "check") parts.push(block.check.prompt);
+    else {
+      const visual = visualBlockText(block);
+      if (visual) parts.push(visual);
+    }
+  }
+  return parts
+    .join("\n")
+    .replace(/==|\*\*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function diagramCompletionUserPrompt(lesson: LessonV3, input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel">): string {
+  const groups = conceptGroups(lesson.screens);
+  const concepts = groups.map((group, index) => `- ${group.concept}${index === 0 ? " (ilk kavram — kart buraya konmaz)" : ""}`);
+  const screens = lesson.screens.map(
+    (screen, index) => `[${index + 1}] ${screen.heading} (${screenConcept(screen)}): ${screenPlainText(screen).slice(0, DIAGRAM_SCREEN_CHARS)}`,
+  );
+  const source =
+    input.mode === "topic" || !input.pages.length
+      ? "KAYNAK: (yok — belgesiz ders; yalnız derste geçen etiket ve sayılar)"
+      : `KAYNAK (ilk ${DIAGRAM_SOURCE_CHARS} karakter):\n${sourceText(input.pages).slice(0, DIAGRAM_SOURCE_CHARS)}`;
+  return [
+    `DERS: ${lesson.title}`,
+    `KONU: ${input.topicLabel}`,
+    `KAVRAMLAR:\n${concepts.join("\n")}`,
+    `EKRANLAR:\n${screens.join("\n")}`,
+    source,
+  ].join("\n\n");
+}
+
+export type DiagramCompletionVerdict = "added" | "ungrounded" | "unparsed" | "placement" | "timeout" | "error";
+
+export type DiagramCompletion =
+  | { verdict: "added"; lesson: LessonV3; kind: string; concept: string }
+  | { verdict: Exclude<DiagramCompletionVerdict, "added">; lesson: null; kind?: string; concept?: string };
+
+function groundingStems(text: string): Set<string> {
+  return new Set(
+    text
+      .toLocaleLowerCase("tr")
+      .split(/[^\p{L}\d]+/u)
+      .filter((word) => word.length >= 3)
+      .map((word) => word.slice(0, 5)),
+  );
+}
+
+/**
+ * Kartın etiketleri ve sayıları derste ya da kaynakta geçiyor mu. Etiket: içerik köklerinden en az biri (kök
+ * yoksa etiketin kendisi) bütünde geçer; sayı: her sayı bütünde geçer (hoşgörülü eşitlik).
+ */
+function diagramGrounded(block: Extract<LessonBlock, { type: "diagram_card" }>, corpus: string): boolean {
+  const lower = corpus.toLocaleLowerCase("tr");
+  const stems = groundingStems(corpus);
+  const numbers = numbersIn(corpus);
+  const numbersOk = (text: string) => numbersIn(text).every((value) => numbers.some((item) => sameNumber(item, value)));
+  const labelOk = (label: string) => {
+    const own = [...groundingStems(label)];
+    if (!own.length) return lower.includes(label.toLocaleLowerCase("tr").trim());
+    return own.some((stem) => stems.has(stem));
+  };
+  if (!numbersOk(block.title) || (block.caption && !numbersOk(block.caption))) return false;
+  return block.items.every((item) => {
+    const value = item.value == null ? "" : String(item.value);
+    return labelOk(item.label) && numbersOk(item.label) && numbersOk(value) && numbersOk(item.detail ?? "");
+  });
+}
+
+/**
+ * Modelin döndürdüğü kartı ayrıştırır, temellendirir ve derse yerleştirir. `raw` çözülmüş JSON (ya da null).
+ * Kart `afterConcept` kavramının son ekranına, ekran soruyla bitiyorsa sorunun önüne girer (soru ekranın kapanışı
+ * kalır; soru ve şık sırasına dokunulmaz). İlk kavrama konmaz; kavram bulunamazsa son kavram.
+ */
+export function parseDiagramCompletion(raw: unknown, lesson: LessonV3, input: Pick<TeacherLessonInput, "pages" | "mode">): DiagramCompletion {
+  const row = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  if (!row) return { verdict: "unparsed", lesson: null };
+  const nested = row.type === "diagram_card" ? row : (row.diagram_card ?? row.card ?? row.block ?? row.diagram);
+  const candidate = nested && typeof nested === "object" && !Array.isArray(nested) ? (nested as Record<string, unknown>) : null;
+  if (!candidate) return { verdict: "unparsed", lesson: null };
+  const parsed = diagramCardBlockSchema.safeParse(blockAlias({ ...candidate, type: "diagram_card" }));
+  if (!parsed.success) return { verdict: "unparsed", lesson: null };
+  const block = parsed.data;
+  const afterConceptRaw = typeof row.afterConcept === "string" ? row.afterConcept : typeof candidate.afterConcept === "string" ? candidate.afterConcept : "";
+  const corpus = [
+    lesson.title,
+    ...lesson.screens.map(screenPlainText),
+    ...(lesson.summary ?? []),
+    input.mode === "topic" ? "" : input.pages.map((page) => page.text).join("\n"),
+  ].join("\n");
+  if (!diagramGrounded(block, corpus)) return { verdict: "ungrounded", lesson: null, kind: block.diagramKind };
+  const groups = conceptGroups(lesson.screens);
+  if (groups.length < 2) return { verdict: "placement", lesson: null, kind: block.diagramKind };
+  const fold = (text: string) => text.trim().toLocaleLowerCase("tr");
+  const wanted = groups.findIndex((group, index) => index > 0 && fold(group.concept) === fold(afterConceptRaw));
+  const group = groups[wanted > 0 ? wanted : groups.length - 1]!;
+  const screenIndex = group.screens[group.screens.length - 1]!;
+  const screens = lesson.screens.map((screen, index) => {
+    if (index !== screenIndex) return screen;
+    const blocks = [...screen.blocks];
+    const last = blocks[blocks.length - 1];
+    if (last && last.type === "check" && blocks.length > 1) blocks.splice(blocks.length - 1, 0, block);
+    else blocks.push(block);
+    return { ...screen, blocks };
+  });
+  return { verdict: "added", lesson: { ...lesson, screens }, kind: block.diagramKind, concept: group.concept };
+}
+
 /** Formül tek başına kota değildir: tuzak, çivi ya da kaydırma da gerekir. */
 const VISUAL_QUOTA_TYPES = new Set<LessonBlock["type"]>([
   "formula",
@@ -1936,13 +2200,21 @@ const SPLIT_WORTHY = new Set<LessonBlock["type"]>([
 /** "Tabloda … oku", "tablodaki değerlere bak": okuru bir tabloya gönderen cümle. */
 const POINTS_TO_TABLE = /(?:^|[^\p{L}])tablo(?:da|daki|yu|ya)(?=[^\p{L}])[^.]{0,80}?(?:oku|bak|incele|karşılaştır|gör)/iu;
 
+/** Sayı, öğrenciye yazıldığı biçimde (ondalık virgül). */
+const shownValue = (value: number) => String(Number(value.toFixed(6))).replace(".", ",");
+
 function checkIssues(
   check: Check,
   where: string,
   add: (where: string, problem: string) => void,
   low: (where: string, problem: string) => void,
   optionCount: OptionCount = 4,
+  /** Ekrandaki blok türleri: tablo, şema, formül kökteki görsel atfını karşılar (29 Ekim 2026). */
+  carriers: readonly string[] = [],
 ) {
+  // Kök kendi içinde tam mı (29 Ekim 2026, Paket H): ekranda olmayan şekle/haritaya/tabloya gönderme, veri yok.
+  const visual = unresolvedVisualReference(check.prompt, [...carriers, ...inlineCarriers(check.prompt)]);
+  if (visual) add(where, `Kök '${visual}' diye ekranda olmayan bir görsele gönderme yapıyor; çözmek için gereken veriyi kökün içine yaz.`);
   if (check.type === "mcq") {
     const options = check.options ?? [];
     if (options.length !== optionCount) {
@@ -1950,6 +2222,14 @@ function checkIssues(
     }
     if (typeof check.answerIndex !== "number" || check.answerIndex < 0 || check.answerIndex >= options.length) {
       add(where, "answerIndex şıklarla uyuşmuyor.");
+    }
+    // Açıklamanın vardığı değer anahtarın şıkkında değil (29 Ekim 2026, Paket H).
+    const mismatch = mcqAnswerMismatch(check);
+    if (mismatch) {
+      add(
+        where,
+        `Açıklama ${shownValue(mismatch.value)} sonucuna varıyor; answerIndex '${mismatch.keyed.join("', '")}' şıkkında, '${mismatch.expected}' olmalı ya da açıklama yanlış.`,
+      );
     }
     if (!check.optionWhy || check.optionWhy.length !== options.length) add(where, "optionWhy her şık için bir cümle olmalı.");
     if (new Set(options.map((option) => option.trim().toLocaleLowerCase("tr"))).size !== options.length) {
