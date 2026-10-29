@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("server-only", () => ({}));
 
@@ -14,7 +15,8 @@ import {
   URL_IMPORT_MESSAGES,
 } from "@/lib/documents/url-import";
 import { CURRICULUM_LEVELS, curriculumPick } from "@/lib/learning/exam-catalog";
-import { pastedTextFile, PASTE_MIN_CHARS } from "@/components/parity/paste-text-panel";
+import { PasteTextPanel, pastedTextFile, PASTE_MIN_CHARS } from "@/components/parity/paste-text-panel";
+import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
 import { WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -179,5 +181,45 @@ describe("Paket D · hazır müfredattan başlangıç", () => {
     expect(chat).toMatch(/if \(!autoStart \|\| !initialPrompt \|\| autoStarted\.current\) return;[\s\S]*void send\(\);/);
     const wizard = read("src/components/parity/exam-create-wizard.tsx");
     expect(wizard).toContain("onPick={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}");
+  });
+});
+
+/* ───────────── Paneller gerçekten çiziliyor ───────────── */
+
+
+describe("Paket D · paneller çizilir ve seçim geri döner", () => {
+  afterEach(cleanup);
+
+  it("müfredat seçici: öğrencinin sınıfı önseçili, ders seçilince düğme açılır, seçim ders + istem döner", () => {
+    const onPick = vi.fn();
+    render(<CurriculumPickPanel gradeLevel="9. sınıf" onClose={() => undefined} onPick={onPick} />);
+    expect(screen.getByRole("radio", { name: "9. sınıf" }).getAttribute("aria-checked")).toBe("true");
+    const submit = screen.getByRole("button", { name: WIZARD_COPY.curriculumSubmit }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+    fireEvent.click(screen.getByRole("radio", { name: "Fizik" }));
+    expect(submit.disabled).toBe(false);
+    fireEvent.click(submit);
+    expect(onPick).toHaveBeenCalledWith({ subject: "Fizik", prompt: "9. sınıf Fizik müfredatındaki konulara çalışmak istiyorum." });
+    // Üniversite: serbest ders adı.
+    fireEvent.click(screen.getByRole("radio", { name: "Üniversite" }));
+    fireEvent.change(screen.getByPlaceholderText(WIZARD_COPY.curriculumFree), { target: { value: "Mikroekonomi" } });
+    fireEvent.click(submit);
+    expect(onPick).toHaveBeenLastCalledWith({ subject: "Mikroekonomi", prompt: "Mikroekonomi dersinin üniversite müfredatındaki konulara çalışmak istiyorum." });
+  });
+
+  it("metin paneli: kısa metinde uyarı, yeterli metinde .txt dosyası döner ve panel kapanır", () => {
+    const onFile = vi.fn();
+    const onClose = vi.fn();
+    render(<PasteTextPanel onClose={onClose} onFile={onFile} />);
+    const area = screen.getByPlaceholderText("Buraya yapıştır…");
+    fireEvent.change(area, { target: { value: "kısa" } });
+    fireEvent.click(screen.getByRole("button", { name: WIZARD_COPY.pasteSubmit }));
+    expect(screen.getByRole("alert").textContent).toBe(WIZARD_COPY.pasteTooShort);
+    expect(onFile).not.toHaveBeenCalled();
+    fireEvent.change(area, { target: { value: "Osmoz suyun yarı geçirgen zardan geçişidir. ".repeat(4) } });
+    fireEvent.click(screen.getByRole("button", { name: WIZARD_COPY.pasteSubmit }));
+    expect(onFile).toHaveBeenCalledTimes(1);
+    expect((onFile.mock.calls[0]![0] as File).name).toBe("Yapıştırılan not.txt");
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
