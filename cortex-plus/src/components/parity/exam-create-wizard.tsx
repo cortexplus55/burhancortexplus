@@ -82,6 +82,9 @@ import {
   type Familiarity,
 } from "@/lib/learning/session-signals";
 import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
+import { PasteTextPanel } from "@/components/parity/paste-text-panel";
+import { UrlImportPanel } from "@/components/parity/url-import-panel";
+import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -276,7 +279,8 @@ export function ExamCreateWizard({
   recentSubjects?: string[];
   /** "Materyalim yok" yolu: sohbetle kurulum. */
   /** "Belgem yok": seçilen ders, tarih ve hedef sohbete taşınır (yeniden sorulmaz). */
-  onUseChat: (picked: { subject: string; examDate: string; target: number }) => void;
+  /** `prompt`: hazır müfredat seçiminden gelen ilk mesaj; sohbet onu kendiliğinden gönderir (29 Ekim 2026). */
+  onUseChat: (picked: { subject: string; examDate: string; target: number; prompt?: string }) => void;
 }) {
   const router = useRouter();
   const account = useStudentShellAccount();
@@ -337,6 +341,8 @@ export function ExamCreateWizard({
   } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  /** Genişlik panelleri (29 Ekim 2026): metin yapıştır, bağlantı ekle, hazır müfredat. */
+  const [importPanel, setImportPanel] = useState<"none" | "paste" | "url" | "curriculum">("none");
   const fileRef = useRef<HTMLInputElement>(null);
   const documentIds = materials.map((item) => item.id);
 
@@ -1548,6 +1554,25 @@ export function ExamCreateWizard({
               <Smartphone className="h-4 w-4" aria-hidden />
               {WIZARD_COPY.uploadFromPhone}
             </button>
+            {/* Genişlik (29 Ekim 2026): dosyası olmayan öğrenci de materyal ekler. */}
+            <button
+              type="button"
+              className="apw-drop-pick"
+              disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+              aria-expanded={importPanel === "paste"}
+              onClick={() => setImportPanel((current) => (current === "paste" ? "none" : "paste"))}
+            >
+              {WIZARD_COPY.pasteText}
+            </button>
+            <button
+              type="button"
+              className="apw-drop-pick"
+              disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+              aria-expanded={importPanel === "url"}
+              onClick={() => setImportPanel((current) => (current === "url" ? "none" : "url"))}
+            >
+              {WIZARD_COPY.addUrl}
+            </button>
           </div>
 
           {phoneOpen ? (
@@ -1563,6 +1588,24 @@ export function ExamCreateWizard({
               }}
             />
           ) : null}
+          {importPanel === "paste" ? (
+            <PasteTextPanel onClose={() => setImportPanel("none")} onFile={(file) => void takeFiles([file])} />
+          ) : null}
+          {importPanel === "url" ? (
+            <UrlImportPanel
+              onClose={() => setImportPanel("none")}
+              onReady={(remote) =>
+                void processAndRemember({ documentId: remote.documentId, fileName: remote.fileName, sizeBytes: remote.sizeBytes })
+              }
+            />
+          ) : null}
+          {importPanel === "curriculum" ? (
+            <CurriculumPickPanel
+              gradeLevel={gradeLevel}
+              onClose={() => setImportPanel("none")}
+              onPick={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}
+            />
+          ) : null}
 
           <button
             type="button"
@@ -1571,6 +1614,14 @@ export function ExamCreateWizard({
             onClick={() => setStep("language")}
           >
             {WIZARD_COPY.continue}
+          </button>
+          <button
+            type="button"
+            className="apw-drop-pick"
+            aria-expanded={importPanel === "curriculum"}
+            onClick={() => setImportPanel((current) => (current === "curriculum" ? "none" : "curriculum"))}
+          >
+            {WIZARD_COPY.pickCurriculum}
           </button>
           <button type="button" className="apw-ghost" onClick={() => onUseChat({ subject, examDate, target })}>
             Belgem yok, konudan çalışayım

@@ -137,6 +137,58 @@ export function curriculumFor(gradeLevel: string | null | undefined): {
   };
 }
 
+/**
+ * Hazır müfredat seçici (29 Ekim 2026): sihirbazın materyal adımında "Dosyam yok — hazır
+ * müfredattan seç". Düzey ve ders seçilince sohbetli kuruluma dolu istemle devredilir; konu listesini
+ * kurulum çıkarır ve öğrenci onaylar. Burada yalnız sınav/düzey adları ve dersler var — konu listesi
+ * iddiası yok (İÇERİK EV STİLİ).
+ */
+export type CurriculumLevel = {
+  id: string;
+  label: string;
+  /** Hazırlığın dersi; boşsa seçilen ders adı kullanılır. */
+  examType?: string;
+  subjects: string[];
+  /** Serbest ders adı (üniversite). */
+  freeSubject?: boolean;
+};
+
+const LGS_SUBJECTS = ["Matematik", "Fen Bilimleri", "Türkçe", "T.C. İnkılap Tarihi ve Atatürkçülük", "Din Kültürü ve Ahlak Bilgisi", "İngilizce"];
+const TYT_SUBJECTS = ["Türkçe", "Temel Matematik", "Geometri", "Fizik", "Kimya", "Biyoloji", "Tarih", "Coğrafya", "Felsefe", "Din Kültürü"];
+const AYT_SUBJECTS = ["Matematik", "Fizik", "Kimya", "Biyoloji", "Türk Dili ve Edebiyatı", "Tarih", "Coğrafya", "Felsefe"];
+const KPSS_SUBJECTS = ["Türkçe", "Matematik", "Tarih", "Coğrafya", "Vatandaşlık", "Güncel Bilgiler", "Eğitim Bilimleri"];
+const TUS_SUBJECTS = ["Anatomi", "Fizyoloji", "Biyokimya", "Mikrobiyoloji", "Patoloji", "Farmakoloji", "Dahiliye", "Pediatri", "Genel Cerrahi", "Kadın Doğum", "Küçük Stajlar"];
+const DUS_SUBJECTS = ["Temel Bilimler", "Klinik Bilimler"];
+
+export const CURRICULUM_LEVELS: CurriculumLevel[] = [
+  ...[5, 6, 7, 8].map((grade) => ({ id: `sinif-${grade}`, label: `${grade}. sınıf`, subjects: MIDDLE_SCHOOL })),
+  ...[9, 10, 11, 12].map((grade) => ({ id: `sinif-${grade}`, label: `${grade}. sınıf`, subjects: HIGH_SCHOOL })),
+  { id: "lgs", label: "LGS", examType: "LGS", subjects: LGS_SUBJECTS },
+  { id: "tyt", label: "TYT", examType: "TYT", subjects: TYT_SUBJECTS },
+  { id: "ayt", label: "AYT", examType: "AYT", subjects: AYT_SUBJECTS },
+  { id: "kpss", label: "KPSS", examType: "KPSS", subjects: KPSS_SUBJECTS },
+  { id: "ales", label: "ALES", examType: "ALES", subjects: ["Sayısal", "Sözel"] },
+  { id: "dgs", label: "DGS", examType: "DGS", subjects: ["Sayısal", "Sözel"] },
+  { id: "yds", label: "YDS / YÖKDİL", examType: "YDS", subjects: ["İngilizce", "Almanca", "Fransızca"] },
+  { id: "tus", label: "TUS", examType: "TUS", subjects: TUS_SUBJECTS },
+  { id: "dus", label: "DUS", examType: "DUS", subjects: DUS_SUBJECTS },
+  { id: "universite", label: "Üniversite", subjects: [], freeSubject: true },
+];
+
+/** Seçimden kurulumun dersi ve ilk mesajı; `curriculumFor` ile aynı cümle kalıbı. */
+export function curriculumPick(levelId: string, subject: string): { subject: string; prompt: string } | null {
+  const level = CURRICULUM_LEVELS.find((item) => item.id === levelId);
+  const name = subject.trim();
+  if (!level || !name) return null;
+  if (level.freeSubject) {
+    return { subject: name, prompt: `${name} dersinin üniversite müfredatındaki konulara çalışmak istiyorum.` };
+  }
+  if (level.examType) {
+    return { subject: `${level.examType} ${name}`, prompt: `${level.examType} ${name} müfredatındaki konulara çalışmak istiyorum.` };
+  }
+  return { subject: name, prompt: `${level.label} ${name} müfredatındaki konulara çalışmak istiyorum.` };
+}
+
 /** Kurulumu ders ve ilk mesaj dolu açan adres. */
 export function catalogCreateHref(item: CatalogItem): string {
   const params = new URLSearchParams({ ders: item.subject, istem: item.prompt });
