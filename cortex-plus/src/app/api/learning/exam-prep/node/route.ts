@@ -89,8 +89,11 @@ import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import {
   gradeOralExam,
   isOralLength,
+  ORAL_JUDGE_RULES,
   oralAttemptScore,
   oralFirstAnswer,
+  oralFollowAnswer,
+  oralFollowQuestion,
   stampOralQuestions,
   syllabusWeightLineFromChecklist,
   type OralExamReport,
@@ -151,7 +154,6 @@ import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import { sealStoredLesson } from "@/lib/learning/lesson-play-v3";
 import { buildingPayload, isBuilding, isStaleBuild, truncatedPayload } from "@/lib/learning/lesson-build";
 import { practiceTopicKey, quizOpenStagesLog, settledQuizPayload } from "@/lib/learning/quiz-delivery";
-import { collectFactConflicts, factCheckUserPrompt, withFactConflicts } from "@/lib/learning/oral-fact-check";
 import { savedReviewPayload } from "@/lib/learning/saved-review";
 import { isAdminUser } from "@/lib/auth/roles";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
@@ -1050,44 +1052,17 @@ async function handleNodeRequest(
         const grounding = await oralCorpus(service, userId, prepId, questions, topicLabel);
         const sourceBlob = [source, grounding.corpus].filter((part) => part.trim()).join("\n\n");
         const premiumNow = await isPremiumUser(service, userId);
-        const factAnswers = questions.map((_, index) => ({
-          index,
-          answer: oralFirstAnswer(mergedAnswers, index) || String(mergedAnswers[String(index)] ?? ""),
-        }));
-        const conflictsTask = collectFactConflicts({
-          source: sourceBlob,
-          answers: factAnswers,
-          model: sourceBlob.trim()
-            ? generateJson({
-                service,
-                userId,
-                actionCode: "PRACTICE_EXAM_GRADE",
-                isPremium: premiumNow,
-                schemaHint:
-                  'Yalnızca JSON: {"items":[{"index":number,"errors":[{"wrong":string,"correct":string}]}]}. wrong öğrencinin cümlesinden birebir alıntı, correct kaynağın cümlesinden birebir alıntı. Eksik anlatım ve aynı anlamı başka sözle söylemek hata değildir.',
-                userPrompt: factCheckUserPrompt(factAnswers, sourceBlob),
-                parse: (raw) => raw,
-              }).then((result) => (result.ok ? result.data : null))
-            : null,
-        });
-        const [semantics, conflicts] = await Promise.all([
-          gradeOralSemantics({
-            service,
-            userId,
-            isPremium: premiumNow,
-            questions,
-            answers: mergedAnswers,
-            source: sourceBlob,
-          }),
-          conflictsTask,
-        ]);
-        const report = gradeOralExam(
+        // Tek hakem (29 Ekim 2026): soru bağlamsız olgu denetimi kalktı. Hakem düşerse bir kez daha
+        // istenir; yine düşerse kelime örtüşmesi yedeği (APPROX notu) çalışır.
+        const judgeInput = {
+          service,
+          userId,
+          isPremium: premiumNow,
           questions,
-          mergedAnswers,
-          sourceBlob,
-          grounding.passages,
-          withFactConflicts(semantics, conflicts),
-        );
+          answers: mergedAnswers,
+        };
+        const semantics = (await gradeOralSemantics(judgeInput)) ?? (await gradeOralSemantics(judgeInput));
+        const report = gradeOralExam(questions, mergedAnswers, sourceBlob, grounding.passages, semantics);
         const { data: practiceNodes } = await service
           .from("exam_prep_nodes")
           .select("id, kind, sort_order, session_meta")
@@ -4117,55 +4092,62 @@ const oralSemanticSchema = z.object({
           quote: z.string().max(240),
         }),
       ),
-      errors: z
-        .array(z.object({ wrong: z.string().max(240), correct: z.string().max(300) }))
-        .optional()
-        .default([]),
+      firstAnswerIssue: z
+        .object({ wrong: z.string().min(1).max(240), correct: z.string().min(1).max(300) })
+        .nullable()
+        .optional(),
     }),
   ),
 });
 
-/** Sınav sonunda tek anlam çağrısı. Başarısızsa null → kelime örtüşmesi yedeği. */
+/**
+ * Hakemin soru bloğu (29 Ekim 2026): soru, beklenen noktalar, rubrik, örnek çözüm, ilk cevap, varsa
+ * takip sorusu ve cevabı. Ham kaynak metni isteme girmez — hakem "doğrusu"nu yalnız bu bloktan yazar.
+ */
+function oralJudgeBlock(question: OralQuestionDraft, answers: Record<string, unknown>, index: number): string {
+  const first = oralFirstAnswer(answers, index);
+  const followQuestion = oralFollowQuestion(answers, index);
+  const followAnswer = oralFollowAnswer(answers, index);
+  const rubric = (question.rubricCriteria ?? []).map((item) => item.trim()).filter(Boolean);
+  return [
+    `--- Soru ${index} (index=${index}) başı ---`,
+    `Soru: ${question.prompt ?? ""}`,
+    `Beklenen noktalar: ${(question.expectedPoints ?? []).join(" | ")}`,
+    rubric.length ? `Rubrik: ${rubric.join(" | ")}` : "",
+    question.modelAnswer?.trim() ? `Örnek çözüm: ${question.modelAnswer.trim()}` : "",
+    `İlk cevap: ${first || "(boş)"}`,
+    followQuestion || followAnswer ? `Takip sorusu: ${followQuestion || "(kaydedilmedi)"}` : "",
+    followQuestion || followAnswer ? `Takip cevabı: ${followAnswer || "(boş)"}` : "",
+    `--- Soru ${index} sonu ---`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** Sınav sonunda tek hakem çağrısı. Başarısızsa null → kelime örtüşmesi yedeği. */
 async function gradeOralSemantics(input: {
   service: SupabaseClient;
   userId: string;
   isPremium: boolean;
   questions: OralQuestionDraft[];
   answers: Record<string, unknown>;
-  source: string;
 }): Promise<OralSemanticItem[] | null> {
-  const lines = input.questions
-    .map((question, index) => {
-      const answer = String(input.answers[String(index)] ?? "").trim();
-      const first = oralFirstAnswer(input.answers, index);
-      const points = (question.expectedPoints ?? []).join(" | ");
-      return [
-        `Soru ${index} index=${index}`,
-        `Soru: ${question.prompt ?? ""}`,
-        `Beklenen: ${points}`,
-        `Örnek çözüm: ${question.modelAnswer ?? ""}`,
-        first && first !== answer ? `İlk cevap (takip sorusundan önce): ${first}` : "",
-        `Cevap: ${answer || "(boş)"}`,
-      ]
-        .filter(Boolean)
-        .join("\n");
-    })
-    .join("\n\n");
+  const blocks = input.questions.map((question, index) => oralJudgeBlock(question, input.answers, index)).join("\n\n");
   const outcome = await generateJson({
     service: input.service,
     userId: input.userId,
     actionCode: "PRACTICE_EXAM_GRADE",
     isPremium: input.isPremium,
     schemaHint:
-      'Yalnızca JSON: {"items":[{"index":number,"points":[{"point":string,"status":"covered"|"partial"|"missing","quote":string}],"errors":[{"wrong":string,"correct":string}]}]}. Her nokta için öğrencinin cevabından birebir alıntı (quote) ver; alıntı yoksa status missing. Soru metnini gap veya quote yapma. errors: öğrencinin İLK cevabındaki (ilk cevap verilmediyse Cevap) kavramsal, matematiksel ya da olgusal yanlışlar; "wrong" o cevaptan birebir alıntı, "correct" kaynağa ve beklenen noktalara göre doğrusu. Sonradan düzeltilmiş olsa da ilk cevaptaki yanlışı yaz. Eksik bırakılan nokta yanlış değildir; yanlış yoksa boş dizi.',
-    userPrompt: `Sözlü deneme anlam değerlendirmesi. Kaynak özeti:\n${input.source.slice(0, 4000)}\n\n${lines}`,
+      'Yalnızca JSON: {"items":[{"index":number,"points":[{"point":string,"status":"covered"|"partial"|"missing","quote":string}],"firstAnswerIssue":{"wrong":string,"correct":string}|null}]}. Her nokta için öğrencinin cevabından birebir alıntı (quote) ver; alıntı yoksa status missing. Soru metnini quote yapma. Cevap konuşma tanımasından gelmiş olabilir: bitişik veya ayrı yazım ve sesçe yakın terimler aynı noktadır.',
+    userPrompt: `Sözlü deneme anlam değerlendirmesi. ${ORAL_JUDGE_RULES}\n\n${blocks}`,
     parse: (raw) => oralSemanticSchema.safeParse(raw).data ?? null,
   });
   if (!outcome.ok || !outcome.data?.items?.length) return null;
   return outcome.data.items.map((item) => ({
     index: item.index,
     points: item.points,
-    errors: item.errors,
+    firstAnswerIssue: item.firstAnswerIssue ?? null,
   }));
 }
 

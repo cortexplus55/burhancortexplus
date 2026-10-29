@@ -9,9 +9,14 @@ import {
   sanitizeGap,
 } from "@/lib/learning/oral-review";
 import { examinerVibeGradeLine, parseExaminerVibe } from "@/lib/learning/examiner-vibe";
+import { ORAL_JUDGE_RULES } from "@/lib/learning/oral-exam";
 import { oralFirstAnswerKey } from "@/lib/learning/oral-first-answer";
-import { collectFactConflicts, factCheckUserPrompt, withFactConflicts } from "@/lib/learning/oral-fact-check";
 import type { OralGradeItem } from "@/lib/learning/oral-review";
+
+/**
+ * Araçlar sözlü stüdyosunun notu. 29 Ekim 2026: tek hakem; soru başına kapalı blok, kural metni yol
+ * düğümüyle aynı sabitten (`ORAL_JUDGE_RULES`). Soru bağlamsız olgu denetimi ve kod tavanı kalktı.
+ */
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -28,7 +33,7 @@ const bodySchema = z.object({
     )
     .min(1)
     .max(8),
-  /** Kaynak sayfaları. Boşsa olgu denetimi çalışmaz. */
+  /** Eski istemciler gönderiyor; hakem yalnız soru bloğunu okur. */
   source: z.string().max(20_000).optional(),
 });
 
@@ -44,8 +49,8 @@ const resultSchema = z.object({
         index: z.number().int().min(0),
         correct: z.boolean(),
         gap: z.string().max(400).optional().nullable(),
-        errors: z
-          .array(z.object({ wrong: z.string().max(240), correct: z.string().max(300) }))
+        firstAnswerIssue: z
+          .object({ wrong: z.string().min(1).max(240), correct: z.string().min(1).max(300) })
           .optional()
           .nullable(),
       }),
@@ -53,6 +58,14 @@ const resultSchema = z.object({
     .optional(),
   correctCount: z.number().int().min(0).optional(),
 });
+
+/** Takip açıldıysa birleşik cevabın ilk cevaptan sonraki kısmı; yoksa boş. */
+function followAnswerOf(item: { answer: string; firstAnswer?: string }): string {
+  const first = item.firstAnswer?.trim() ?? "";
+  const combined = item.answer.trim();
+  if (!first || first === combined) return "";
+  return combined.startsWith(first) ? combined.slice(first.length).trim() : "";
+}
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "oral-grade", limit: 8 });
@@ -64,48 +77,32 @@ export async function POST(request: Request) {
 
   // Beklenen noktalar (belgeden) varsa değerlendirme onlara göre yapılır (19 Ekim 2026; önce yalnız
   // soru ve cevap gidiyordu, belgeli sözlü de modelin genel bilgisiyle notlanıyordu).
-  const lines = parsedBody.data.items
-    .map(
-      (item, i) =>
-        `${i + 1}. index=${i}\nSoru: ${item.prompt}\n` +
-        (item.expectedPoints?.length ? `Beklenen noktalar: ${item.expectedPoints.join(" | ")}\n` : "") +
-        (item.firstAnswer?.trim() && item.firstAnswer.trim() !== item.answer.trim()
-          ? `İlk cevap (takip sorusundan önce): ${item.firstAnswer.trim()}\n`
-          : "") +
-        `Cevap: ${item.answer}`,
-    )
+  const blocks = parsedBody.data.items
+    .map((item, i) => {
+      const first = item.firstAnswer?.trim() || item.answer.trim();
+      const follow = followAnswerOf(item);
+      return [
+        `--- Soru ${i} (index=${i}) başı ---`,
+        `Soru: ${item.prompt}`,
+        item.expectedPoints?.length ? `Beklenen noktalar: ${item.expectedPoints.join(" | ")}` : "",
+        `İlk cevap: ${first}`,
+        follow ? `Takip cevabı: ${follow}` : "",
+        `--- Soru ${i} sonu ---`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
     .join("\n\n");
 
   const premium = await isPremiumUser(service, userId);
-  const source = parsedBody.data.source?.trim() ?? "";
-  const factAnswers = parsedBody.data.items.map((item, index) => ({
-    index,
-    answer: (item.firstAnswer?.trim() || item.answer).trim(),
-  }));
-  const conflictsTask = collectFactConflicts({
-    source,
-    answers: factAnswers,
-    model: source
-      ? generateJson({
-          service,
-          userId,
-          actionCode: "PRACTICE_EXAM_GRADE",
-          isPremium: premium,
-          schemaHint:
-            'Yalnızca JSON: {"items":[{"index":number,"errors":[{"wrong":string,"correct":string}]}]}. wrong öğrencinin cümlesinden birebir alıntı, correct kaynağın cümlesinden birebir alıntı. Eksik anlatım ve aynı anlamı başka sözle söylemek hata değildir.',
-          userPrompt: factCheckUserPrompt(factAnswers, source),
-          parse: (raw) => raw,
-        }).then((result) => (result.ok ? result.data : null))
-      : null,
-  });
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "PRACTICE_EXAM_GRADE",
     isPremium: premium,
     schemaHint:
-      'Yalnızca şu JSON: {"items":[{"index":number,"correct":boolean,"gap":string|null,"errors":[{"wrong":string,"correct":string}]}],"correctCount":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. Kaynakta hazır çözüm cümlesi yok diye 0 verme; rubriğe göre değerlendir. gap alanına soru metnini yazma. errors: öğrencinin İLK cevabındaki (ilk cevap verilmediyse Cevap) kavramsal, matematiksel ya da olgusal yanlışlar; "wrong" o cevaptan birebir alıntı, "correct" doğrusu. Sonradan düzeltilmiş olsa da yaz; eksik bırakılan nokta yanlış değildir; yanlış yoksa boş dizi.',
-    userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama. Cevap konuşma tanımasından gelmiş olabilir: bitişik veya ayrı yazım ve sesçe yakın terimler aynı noktadır. Yanlış sayı, ters yön (artar, azalır, değişmez), yanlış tarih, yanlış madde numarası veya yanlış sıra yine eksiktir.\n\n${lines}`,
+      'Yalnızca şu JSON: {"items":[{"index":number,"correct":boolean,"gap":string|null,"firstAnswerIssue":{"wrong":string,"correct":string}|null}],"correctCount":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. Kaynakta hazır çözüm cümlesi yok diye 0 verme; rubriğe göre değerlendir. gap alanına soru metnini yazma.',
+    userPrompt: `Sözlü: ${parsedBody.data.title}. ${examinerVibeGradeLine(parseExaminerVibe(parsedBody.data.examinerVibe))} Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama. Cevap konuşma tanımasından gelmiş olabilir: bitişik veya ayrı yazım ve sesçe yakın terimler aynı noktadır. Yanlış sayı, ters yön (artar, azalır, değişmez), yanlış tarih, yanlış madde numarası veya yanlış sıra yine eksiktir. ${ORAL_JUDGE_RULES}\n\n${blocks}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;
@@ -113,18 +110,13 @@ export async function POST(request: Request) {
   });
 
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
-  const conflicts = await conflictsTask;
-  const mergedItems = withFactConflicts(outcome.data.items ?? null, conflicts);
-  const modelItems: OralGradeItem[] | null = mergedItems
-    ? mergedItems.map((item) => {
-        const row = item as OralGradeItem;
-        return {
-          index: row.index,
-          correct: typeof row.correct === "boolean" ? row.correct : false,
-          gap: row.gap ?? null,
-          errors: row.errors ?? [],
-        };
-      })
+  const modelItems: OralGradeItem[] | null = outcome.data.items
+    ? outcome.data.items.map((item) => ({
+        index: item.index,
+        correct: item.correct,
+        gap: item.gap ?? null,
+        firstAnswerIssue: item.firstAnswerIssue ?? null,
+      }))
     : null;
 
   const answers: Record<string, unknown> = {};
