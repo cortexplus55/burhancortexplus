@@ -40,6 +40,25 @@ export const OVERSIZE_MIN_CHAPTERS = 2;
 export const OVERSIZE_MIN_SECTIONS = 4;
 export const OVERSIZE_SECTIONS_MIN_SPAN = 6;
 
+/**
+ * Yutulan alt başlık (29 Ekim 2026, Paket G). 15 sayfalık 10. sınıf matematik notunda
+ * "Parçalı Fonksiyon" iki sayfalık kendi bölümüyle duruyordu; harita onu "Fonksiyonlar"ın içinde
+ * eritti ("Düşey Atış", "Taban Fiyat" aynı). Yukarıdaki kapılar 8+ sayfa ya da 4+ alt bölüm arıyordu;
+ * 1-3 sayfalık bağımsız alt bölüm hiçbir kurala takılmıyordu. Ölçü yine ders bağımsız: aralıktaki
+ * başlığın kendi gövdesi var (`SWALLOWED_BODY_MIN`) ve gövde ya tam sayfalık metin taşıyor ya da
+ * tanım/kural/formül/örnek/soru gibi öğretim işareti içeriyor; başlık haritada hiçbir konunun adı
+ * değil; konunun o başlık dışında da içeriği var. Kod bölmez; modelden alt bölümü ayrı konu yazmasını ister.
+ */
+export const SWALLOWED_BODY_MIN = 450;
+/** Bu kadar metin taşıyan alt başlık öğretim işareti aranmadan bağımsız sayılır (~tam sayfa). */
+export const SWALLOWED_PAGE_BODY = 1_200;
+/** Tek sayfalık konu alt başlık yutmuş sayılmaz. */
+export const SWALLOWED_MIN_SPAN = 2;
+/** Belge yapısı sözcükleri (katlanmış metinde aranır); ders terimi değil. */
+const TEACHING_MARK_WORDS =
+  /\b(tanim|tanimi|kural|kurali|ozellik|ozellikleri|teorem|formul|formulu|baginti|denklem|ornek|ornegin|soru|alistirma|cozum|ispat|yontem|uyari)\b/;
+const TEACHING_MARK_SYMBOLS = /[=⇒→≤≥]|\d\s*[+\-*/×·:]\s*\d/;
+
 export type OversizePage = { pageNumber: number; text: string; headings?: string[] };
 export type OversizeFile = { fileIndex?: number; pages: OversizePage[] };
 
@@ -56,7 +75,7 @@ export type OversizedTopic = {
   fileIndex: number;
   pageStart: number;
   pageEnd: number;
-  reason: "share" | "chapters" | "sections" | "density" | "headings";
+  reason: "share" | "chapters" | "sections" | "density" | "headings" | "subsection";
   headings: string[];
 };
 
@@ -115,13 +134,22 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-/** Başlığın altındaki gövde: sonraki numaralı başlığa kadar biriken metin. */
-function headingBodies(pages: OversizePage[]): Map<string, string> {
-  const map = new Map<string, string>();
-  let current: { key: string; body: string } | null = null;
+type HeadingBody = { body: string; onOwnPage: number };
+
+/**
+ * Başlığın altındaki gövde: sonraki numaralı başlığa kadar biriken metin; `onOwnPage` başlığın
+ * kendi sayfasında kalan kısmı (adım listesinin son maddesi sonraki sayfanın metnini üstlenmesin).
+ */
+function headingBodyDetails(pages: OversizePage[]): Map<string, HeadingBody> {
+  const map = new Map<string, HeadingBody>();
+  let current: { key: string; body: string; page: number; onOwnPage: number } | null = null;
   const flush = () => {
     if (!current) return;
-    map.set(current.key, `${map.get(current.key) ?? ""} ${current.body}`.trim());
+    const prior = map.get(current.key);
+    map.set(current.key, {
+      body: `${prior?.body ?? ""} ${current.body}`.trim(),
+      onOwnPage: (prior?.onOwnPage ?? 0) + current.onOwnPage,
+    });
     current = null;
   };
   for (const page of pages) {
@@ -130,14 +158,21 @@ function headingBodies(pages: OversizePage[]): Map<string, string> {
       if (!text) continue;
       if (TEXT_HEADING.test(text) && text.length <= 90) {
         flush();
-        current = { key: fold(text), body: "" };
+        current = { key: fold(text), body: "", page: page.pageNumber, onOwnPage: 0 };
         continue;
       }
-      if (current) current.body += ` ${text}`;
+      if (current) {
+        current.body += ` ${text}`;
+        if (page.pageNumber === current.page) current.onOwnPage += text.length;
+      }
     }
   }
   flush();
   return map;
+}
+
+function headingBodies(pages: OversizePage[]): Map<string, string> {
+  return new Map([...headingBodyDetails(pages)].map(([key, detail]) => [key, detail.body]));
 }
 
 /**
@@ -189,6 +224,81 @@ export function shortFileContentHeadings(file: OversizeFile, pageNumbers: number
   return candidates;
 }
 
+/** Başlığın kendi sayfasında en az bu kadar gövdesi olmalı; yoksa sayfa sonuna düşmüş etiket ya da liste maddesidir. */
+const SWALLOWED_OWN_PAGE_MIN = 120;
+
+function carriesOwnTeaching(detail: HeadingBody | undefined): boolean {
+  if (!detail || detail.body.length < SWALLOWED_BODY_MIN || detail.onOwnPage < SWALLOWED_OWN_PAGE_MIN) return false;
+  if (detail.body.length >= SWALLOWED_PAGE_BODY) return true;
+  return TEACHING_MARK_WORDS.test(fold(detail.body)) || TEACHING_MARK_SYMBOLS.test(detail.body);
+}
+
+/** Başlığın ilk geçtiği sayfa (katlanmış anahtarla). */
+function headingPages(pages: OversizePage[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const page of pages) {
+    for (const heading of pageHeadings(page)) {
+      const key = fold(heading);
+      if (key && !map.has(key)) map.set(key, page.pageNumber);
+    }
+  }
+  return map;
+}
+
+/**
+ * Konunun aralığında kendi başlığı ve içeriği olan, haritada adı geçmeyen alt bölümler.
+ * Üst konunun kendi adı (ya da ünitesi) yutulmuş sayılmaz; tek kelimelik üst ad alt başlığı
+ * kapsamaz ("Fonksiyon" ⊄ "Parçalı Fonksiyon"). Aralığın son sayfasındaki BÖLÜM başlığı modelin
+ * sınır sayfası taşmasıdır, sayılmaz; alt bölüm (2.3) son sayfada da sayılır. Yutulan bölümler
+ * dışında konunun kendi metni yoksa model başlığı başka adla yazmıştır, yutma yok.
+ */
+export function swallowedSubsections(
+  file: OversizeFile,
+  topic: OversizeTopic,
+  options: { own: Iterable<string>; siblingTitles: Iterable<string> },
+): string[] {
+  if (topic.pageNumbers.length < SWALLOWED_MIN_SPAN) return [];
+  const wanted = new Set(topic.pageNumbers);
+  const pages = file.pages.filter((page) => wanted.has(page.pageNumber) && !isTocPage(page));
+  if (!pages.length) return [];
+  const lastPage = Math.max(...topic.pageNumbers);
+  const titles = pageTitleKeys(pages);
+  const bodies = headingBodyDetails(pages);
+  const firstPageOf = headingPages(pages);
+  const { chapters, sections } = headingsInRange(file, topic.pageNumbers);
+  const chapterKeys = new Set(chapters.map(fold));
+  const ownKeys = [...options.own].map(fold).filter(Boolean);
+  const siblingKeys = [...options.siblingTitles].map(fold).filter(Boolean);
+  const coveredByOwn = (key: string) =>
+    ownKeys.some((own) => own === key || own.includes(key) || (own.includes(" ") && key.includes(own)));
+  const coveredBySibling = (key: string) => siblingKeys.some((title) => title === key || title.includes(key));
+  const stems = (key: string) => key.split(" ").filter((word) => word.length >= 4);
+  const sharesStem = (key: string) =>
+    ownKeys.some((own) => stems(own).some((a) => stems(key).some((b) => a.startsWith(b) || b.startsWith(a))));
+
+  const candidates = preferSpecific([...chapters, ...sections]).filter((heading) => {
+    if (isSatelliteSection(heading) || isRunningHeader(heading)) return false;
+    const key = fold(heading);
+    if (!key || titles.has(key)) return false;
+    return carriesOwnTeaching(bodies.get(key));
+  });
+  // Aralığın ilk içerik başlığı üst adla kök paylaşıyorsa ("Fonksiyon" ~ "Fonksiyonlar ve Grafikleri")
+  // konunun kendi bölümüdür; sonraki "Parçalı Fonksiyon" aynı kökü taşısa da ayrı alt bölümdür.
+  const firstKey = [...candidates]
+    .map((heading) => fold(heading))
+    .sort((a, b) => (firstPageOf.get(a) ?? Infinity) - (firstPageOf.get(b) ?? Infinity))[0];
+  const foreign = candidates.filter((heading) => {
+    const key = fold(heading);
+    if (coveredByOwn(key) || coveredBySibling(key)) return false;
+    if (key === firstKey && sharesStem(key)) return false;
+    return !(chapterKeys.has(key) && firstPageOf.get(key) === lastPage);
+  });
+  if (!foreign.length) return [];
+  const rangeChars = pages.reduce((sum, page) => sum + (page.text ?? "").length, 0);
+  const swallowedChars = foreign.reduce((sum, heading) => sum + (bodies.get(fold(heading))?.body.length ?? 0), 0);
+  return rangeChars - swallowedChars >= SWALLOWED_BODY_MIN ? foreign : [];
+}
+
 /** Aralık dosyanın tek konusu olamayacak kadar geniş mi (yalnız sayfa payı). */
 export function spanTooWide(span: number, filePages: number): boolean {
   if (filePages < OVERSIZE_MIN_FILE_PAGES) return false;
@@ -224,12 +334,19 @@ export function outlineOversizedTopics(
       return key && ![...own].some((title) => title && (title === key || title.includes(key) || key.includes(title)));
     });
     const base = { title: topic.title, unitTitle: unit, fileIndex: topic.fileIndex, pageStart, pageEnd };
+    const siblingTitles = all.filter((row) => row.topic !== topic).map((row) => row.topic.title);
+    const pushSwallowed = () => {
+      const swallowed = swallowedSubsections(file, topic, { own, siblingTitles });
+      if (swallowed.length) out.push({ ...base, reason: "subsection", headings: swallowed.slice(0, 8) });
+    };
 
     if (filePages < OVERSIZE_MIN_FILE_PAGES) {
       const heads = shortFileContentHeadings(file, topic.pageNumbers).filter((heading) => fold(heading) !== fold(topic.title));
       if (heads.length >= OVERSIZE_SHORT_MIN_HEADINGS) {
         out.push({ ...base, reason: "headings", headings: heads.slice(0, 8) });
+        continue;
       }
+      pushSwallowed();
       continue;
     }
 
@@ -254,7 +371,9 @@ export function outlineOversizedTopics(
       span > OVERSIZE_MEDIAN_FACTOR * median(siblings)
     ) {
       out.push({ ...base, reason: "density", headings: [...foreignChapters, ...sections].slice(0, 8) });
+      continue;
     }
+    pushSwallowed();
   }
   return out;
 }
@@ -265,12 +384,20 @@ const REASON_TR: Record<OversizedTopic["reason"], string> = {
   sections: "aralığında dörtten çok alt bölüm var",
   density: "kardeş konuların iki katından fazla sayfa tutuyor",
   headings: "kısa belgede en az üç bağımsız, içerik taşıyan alt başlık var",
+  subsection: "aralığında kendi başlığı ve içeriği olan bağımsız alt bölüm var",
 };
 
-/** Onarım turuna giden talimat: konuyu 2–4 ayrı, ayrık aralıklı konuya böl. */
+/** Onarım turuna giden talimat: konuyu 2–4 ayrı, ayrık aralıklı konuya böl; yutulan alt bölüm ayrı konu olur. */
 export function oversizeRepairLines(topics: OversizedTopic[]): string {
   return topics
     .map((topic) => {
+      if (topic.reason === "subsection") {
+        return (
+          `- "${topic.title}" (d${topic.fileIndex + 1} s.${topic.pageStart}-${topic.pageEnd}) ${REASON_TR.subsection}: ${topic.headings.join(" · ")}. ` +
+          "Bu alt bölümlerin her birini AYRI konu olarak yaz (1-2 sayfa bile olsa): başlığı belgedeki başlığa dayansın, " +
+          "sayfa aralığı yalnız o alt bölümün sayfaları olsun; üst konunun kalan sayfaları üst konuda kalır. Şemsiye başlık kullanma."
+        );
+      }
       const heads = topic.headings.length ? ` Aralıktaki başlıklar: ${topic.headings.join(" · ")}.` : "";
       const byShare =
         topic.reason === "headings"

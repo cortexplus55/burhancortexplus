@@ -9,14 +9,15 @@ import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
 
 export const metadata = { title: "Soru inceleme" };
 
-/** Açık uçlu notun ölçütleri (grade-exam: met / missed). Eski kayıtta yok. */
-function reviewFeedback(raw: unknown): { met: string[]; missed: string[] } | null {
-  const row = raw && typeof raw === "object" ? (raw as { met?: unknown; missed?: unknown }) : null;
+/** Açık uçlu notun ölçütleri (grade-exam: met / missed) ve puan notu (`step`). Eski kayıtta yok. */
+function reviewFeedback(raw: unknown): { met: string[]; missed: string[]; note?: string } | null {
+  const row = raw && typeof raw === "object" ? (raw as { met?: unknown; missed?: unknown; step?: unknown }) : null;
   if (!row) return null;
   const list = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : []);
   const met = list(row.met);
   const missed = list(row.missed);
-  return met.length || missed.length ? { met, missed } : null;
+  const note = typeof row.step === "string" && row.step.trim() ? row.step.trim() : undefined;
+  return met.length || missed.length || note ? { met, missed, ...(note ? { note } : {}) } : null;
 }
 
 export default async function ExamQuestionReviewPage({

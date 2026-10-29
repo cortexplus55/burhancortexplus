@@ -16,7 +16,12 @@ export type OpenGradeItem = {
   answer: string;
 };
 
-export type OpenJudgement = { quotes: { criterion: string; quote: string }[]; trustedCriteria: string[] };
+export type OpenJudgement = {
+  quotes: { criterion: string; quote: string }[];
+  trustedCriteria: string[];
+  /** Öğrencinin AÇIKÇA yanlış söylediği ölçütler (eksik bırakılan değil): tam puan kuralını kapatır. */
+  contradicted: string[];
+};
 
 export const OPEN_GRADE_SYSTEM =
   "Sen titiz ve adil bir öğretmensin; yazılı sınavın açık uçlu cevaplarını notluyorsun. Her soruda ÖLÇÜTLER iyi bir " +
@@ -31,7 +36,11 @@ export const OPEN_GRADE_SYSTEM =
   "Öğrencinin cevabı beklenen sonucu ve yöntemi birlikte veriyorsa bütün ölçütler met: true olur ve tam puan verilir; " +
   "alıntı birebir olmasa da kesinti yapma. Yalnız son sayıyı yazan cevap yöntem ölçütünü karşılamaz. " +
   "Açık tarih ya da olgu hatası o ölçütte met: false.\n" +
-  'Yalnızca JSON döndür: {"items":[{"index":0,"criteria":[{"index":0,"met":true,"quote":"…"}]}]}';
+  "- Öğrenci o noktayı AÇIKÇA yanlış söylüyorsa (yanlış işlem, yanlış kavram, çelişen sayı ya da tarih) met: false ve wrong: true; " +
+  "yalnız eksik bıraktıysa wrong: false.\n" +
+  "Çözümün kısa ya da özet olması kesinti sebebi değildir: sonuç doğru ve kurduğu bağıntı/gerekçe doğruysa \"adımları gösterir\", " +
+  "\"ara işlemleri yazar\" türü ölçütler de met: true olur.\n" +
+  'Yalnızca JSON döndür: {"items":[{"index":0,"criteria":[{"index":0,"met":true,"wrong":false,"quote":"…"}]}]}';
 
 export function openGradeUserPrompt(items: OpenGradeItem[]): string {
   return items
@@ -65,7 +74,12 @@ export function parseOpenGrade(raw: unknown, items: OpenGradeItem[]): Map<number
       const quote = typeof cell.quote === "string" ? cell.quote.trim() : "";
       return cell.met === true && criterion && quote ? [{ criterion, quote }] : [];
     });
-    out.set(index, { quotes, trustedCriteria: [] });
+    const contradicted = criteria.flatMap((value) => {
+      const cell = (value ?? {}) as Record<string, unknown>;
+      const criterion = item.criteria[Number(cell.index)];
+      return cell.met !== true && cell.wrong === true && criterion ? [criterion] : [];
+    });
+    out.set(index, { quotes, trustedCriteria: [], contradicted });
   }
   return out;
 }

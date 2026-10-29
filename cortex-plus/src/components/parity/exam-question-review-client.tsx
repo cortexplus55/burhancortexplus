@@ -24,7 +24,7 @@ type ReviewItem = {
   points_earned?: number | null;
   points_max?: number | null;
   /** Açık uçlu cevapta karşılanan ve eksik kalan ölçütler. */
-  feedback?: { met: string[]; missed: string[] } | null;
+  feedback?: { met: string[]; missed: string[]; note?: string } | null;
 };
 
 type Verdict = "dogru" | "kismen" | "yanlis" | "bos";
@@ -389,6 +389,9 @@ export function ExamQuestionReviewClient({
                         ))}
                       </ul>
                     </div>
+                  ) : null}
+                  {review?.feedback?.note ? (
+                    <p className="text-xs text-[var(--cp-muted)]">{review.feedback.note}</p>
                   ) : null}
                 </div>
               ) : null}

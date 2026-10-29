@@ -1425,3 +1425,15 @@ kuralının **tek istisnası**: veli hesap açmaz, panel görmez; yalnız öğre
 
 Yapılmayan: otomatik yenileme yine yok (`AUTO_RENEW_SUPPORTED = false`); bağlantı tek kullanımlık değil (3 gün içinde
 ikinci ödeme ikinci dönem açar, bu bilinçli: aynı veli iki kez ödemez, öderse dönem uzar). Bekçi: `paket-f-veli-odeme.test.ts`.
+
+## Paket G (29 Ekim 2026) — son cila: yutulan alt başlık, kısa doğru çözüm, çizimli video
+
+Grok v6 raporunun kalan üç maddesi; ürün sahibi onayladı. Canlı model çağrısı yok, yalnız birim testleri.
+
+| Kural | Nerede |
+|---|---|
+| **Yutulan alt başlık**: 15 sayfalık 10. sınıf matematik notunda "Parçalı Fonksiyon" iki sayfalık kendi bölümüyle dururken harita onu "Fonksiyonlar"ın içinde eritti ("Düşey Atış", "Taban Fiyat" aynı); geniş konu kapısı 8+ sayfa ya da 4+ alt bölüm arıyordu. Yeni sebep `subsection`, ölçü ders bağımsız: aralıktaki numaralı başlığın kendi gövdesi ≥ 450 karakter ve kendi sayfasında ≥ 120 (sayfa sonuna düşmüş etiket, adım listesi sayılmaz); gövde ya tam sayfa (≥ 1.200) ya da tanım/kural/formül/örnek/soru gibi **belge yapısı** işareti taşır; başlık haritada hiçbir konunun adı değil; aralığın **ilk** içerik başlığı üst adla kök paylaşıyorsa konunun kendisidir ("Fonksiyon" ~ "Fonksiyonlar ve Grafikleri"), sonraki "Parçalı Fonksiyon" aynı kökü taşısa da alt bölümdür; son sayfadaki BÖLÜM başlığı modelin sınır taşmasıdır (alt bölüm son sayfada da sayılır); yutulanlar dışında konunun ≥ 450 karakter kendi metni olmalı (yoksa model başlığı başka adla yazmıştır). Kod bölmez; onarım satırı "her birini AYRI konu olarak yaz (1-2 sayfa bile olsa)" der; yazar istemi aynı kuralı okur (`KISA ALT BÖLÜM DE KONUDUR`) | `outline-oversize.ts` `swallowedSubsections`, `oversizeRepairLines`, `OUTLINE_GRANULARITY_RULE` |
+| **Kısa ama doğru çözüm tam puan** (Selin'in 18. sorusu: doğru sonuç + doğru bağıntı, 5/10 almıştı): sonuç doğru ve bağıntı/gerekçe var (örnek cevabın yöntem işareti tutuyor, "=" ya da işlem yazılmış ya da denetçi en az bir ölçütü alıntıyla karşılamış) → tam puan, not "Sonuç ve bağıntı doğru; çözümün kısa olması puan düşürmez". Kesinti yalnız: sonuç yanlış; hesap zinciri tutmuyor (`arithmeticSlips`, `step-arithmetic`); denetçi ölçütü **açıkça yanlış** işaretledi (`wrong: true` → `contradicted`; eksik bırakmak wrong değil); çıplak sayı (6/10 tavanı kalır); tarih çelişkisi. **Sonuç, örnek cevabın sonuç değişkeninin zinciridir** (`finalResults`: "Pmax = … = 10 W" sonuç, "Rth = 12 Ω" ara değer; "x = 3/2" 1,5; cümle ve bağlaç — çünkü, ise, ve — ayrı zincir). Eski kod cevaptaki **son sayıyı** okuyordu: parantezdeki kenar uzunluğu sonuç sanılıyor, kesir bölen olarak okunuyordu. Tam puanda eksik ölçüt listesi boşalır; puan notu inceleme sayfasında görünür | `mock-exam/grade.ts`, `open-grade.ts` (`OPEN_GRADE_SYSTEM` aynı kuralı söyler), `grade-exam.ts`, `incele/page.tsx` |
+| **Çizimli 1 dk video 25 kredi**: 28 Ekim'den beri böyle (`SKETCH_VIDEO_GENERATE: 25`, göç `20261027193000`); tam video 280 kalır. Paket G'de yalnız doğrulandı | `price-table.ts`, `video-run.ts` |
+
+Bekçi: `paket-g-son-cila.test.ts` (onarım turunu sahte modelle uçtan uca koşar; Zeynep/Selin notları).
