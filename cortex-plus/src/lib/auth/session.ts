@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { homePathForRole } from "@/lib/parity/signup";
-import { isAccountActive } from "@/lib/auth/active-account";
+import { accountActiveOrUnknown } from "@/lib/auth/active-account";
 
 export async function requireUser() {
   const supabase = await createClient();
@@ -9,7 +9,10 @@ export async function requireUser() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/giris");
-  if (!(await isAccountActive(supabase))) redirect("/giris");
+  // Durum iki okumada da gelmezse sayfa 500 vermez, geçer (29 Ekim 2026); askı (`false`) aynen girişe.
+  const active = await accountActiveOrUnknown(supabase);
+  if (active === false) redirect("/giris");
+  if (active === null) console.warn("account_status_unavailable", { where: "requireUser" });
   return { supabase, user };
 }
 

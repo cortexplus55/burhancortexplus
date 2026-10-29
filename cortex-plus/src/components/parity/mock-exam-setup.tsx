@@ -1,16 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import "@/styles/paper-exam.css";
 import {
+  clearStoredMockRun,
   mockProgressLine,
+  monotonicProgress,
   pollGenerationJob,
+  pollMockExamStatus,
   postMockExamWithProgress,
+  readStoredMockRun,
+  writeStoredMockRun,
   type MockExamProgress,
+  type MockExamStatus,
+  type StoredMockRun,
 } from "@/lib/learning/mock-exam/progress";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import {
@@ -66,6 +73,9 @@ export function MockExamSetup({
   const [retryResumeId, setRetryResumeId] = useState<string | null>(null);
   const [barOnly, setBarOnly] = useState(false);
   const bodyRef = useRef<Record<string, unknown> | null>(null);
+  /** Süren kurulumun kimlikleri (29 Ekim 2026): tarayıcıya da yazılır, yenilemede yoklama sürer. */
+  const runRef = useRef<StoredMockRun | null>(null);
+  const watchRef = useRef<{ stop: () => void } | null>(null);
   const presetMinutes = (value: "short" | "standard" | "real") =>
     value === "real" ? (realMinutes ?? PRESET_MINUTES.standard) : PRESET_MINUTES[value];
   // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
@@ -73,6 +83,8 @@ export function MockExamSetup({
   const [untimed, setUntimed] = useState(false);
   /** Astra: "Nasıl çözmek istiyorsun?" — uygulamada ya da kâğıtta (17 Ekim 2026). */
   const [answerMode, setAnswerMode] = useState<"app" | "paper" | null>(null);
+  const answerModeRef = useRef<"app" | "paper" | null>(null);
+  answerModeRef.current = answerMode;
 
   const creditNote = isAdmin
     ? "Bu deneme kredi sınırından düşmez."
@@ -97,18 +109,127 @@ export function MockExamSetup({
   const preview = promised.rows;
   const overflowNote = expandedAllocationNote(promised);
 
-  function examHref(examId: string) {
+  // Çözüm yolu ref'ten: yenilemeden sonra yoklama bitince de doğru adrese gidilsin.
+  function examHref(examId: string, answerMode: "app" | "paper" | null = answerModeRef.current) {
     return `/deneme-sinavlari/${prepId}/deneme/${examId}${answerMode === "paper" ? "?kagit=1" : ""}`;
   }
+
+  /** Kimlikleri hem bellekte hem tarayıcıda tutar; `null` kaydı siler. */
+  function rememberRun(patch: Partial<StoredMockRun> | null) {
+    if (!patch) {
+      runRef.current = null;
+      clearStoredMockRun(prepId);
+      return;
+    }
+    const next: StoredMockRun = {
+      startedAt: runRef.current?.startedAt ?? new Date().toISOString(),
+      ...runRef.current,
+      ...patch,
+    };
+    runRef.current = next;
+    writeStoredMockRun(prepId, next);
+  }
+
+  function stopWatch() {
+    watchRef.current?.stop();
+    watchRef.current = null;
+  }
+
+  /** Kâğıt hazır: kayıt silinir, yoklama durur, sınav açılır. */
+  function openExam(examId: string) {
+    stopWatch();
+    rememberRun(null);
+    router.push(examHref(examId));
+  }
+
+  /** Durum ucunun konu sayısı ekrana; sayı geri gitmez. */
+  function applyStatusProgress(state: MockExamStatus) {
+    if (state.state !== "running" || typeof state.topicTotal !== "number" || !state.topicTotal) return;
+    const done = state.topicsReady ?? 0;
+    setProgress((previous) => {
+      const next = monotonicProgress(previous, { done, total: state.topicTotal ?? 0, label: previous?.label ?? null });
+      return next ?? previous;
+    });
+  }
+
+  /** Üretim POST'una paralel koşan durum yoklaması; `published` gelince POST döngüsü kesilir. */
+  function statusWatch() {
+    return {
+      ids: () => ({
+        prepId,
+        since: runRef.current?.startedAt ?? new Date().toISOString(),
+        resumeId: runRef.current?.resumeId ?? null,
+        jobId: runRef.current?.jobId ?? null,
+      }),
+      onState: applyStatusProgress,
+      onResume: (resumeId: string) => rememberRun({ resumeId }),
+    };
+  }
+
+  /**
+   * Sayfa yenilendi, kurulum sürüyordu: yalnız yoklanır. Kimse yazmıyorsa (`leaseAlive:false`)
+   * aynı kâğıt bir POST ile devralınır — yeni kâğıt açılmaz, ikinci ücret yok.
+   */
+  function resumeWatch(run: StoredMockRun) {
+    runRef.current = run;
+    if (run.body && typeof run.body === "object") bodyRef.current = run.body;
+    if (run.answerMode) {
+      answerModeRef.current = run.answerMode;
+      setAnswerMode(run.answerMode);
+    }
+    setLoading(true);
+    setBarOnly(false);
+    setRetryJobId(null);
+    setRetryResumeId(null);
+    if (run.jobId) {
+      void followJob(run.jobId);
+      return;
+    }
+    stopWatch();
+    const watch = pollMockExamStatus(statusWatch().ids, (state) => {
+      if (state.state === "running") {
+        applyStatusProgress(state);
+        if (state.leaseAlive === false && state.resumeId && watchRef.current === watch) {
+          stopWatch();
+          void continueResume(state.resumeId);
+        }
+        return;
+      }
+      if (state.state === "failed" && watchRef.current === watch) {
+        stopWatch();
+        if (state.resumeId) setRetryResumeId(state.resumeId);
+        setLoading(false);
+      }
+    });
+    watchRef.current = watch;
+    void watch.done.then((hit) => {
+      if (hit) {
+        openExam(hit.examId);
+        return;
+      }
+      if (watchRef.current !== watch) return;
+      watchRef.current = null;
+      setLoading(false);
+    });
+  }
+
+  useEffect(() => {
+    const stored = readStoredMockRun(prepId);
+    if (stored) resumeWatch(stored);
+    return () => stopWatch();
+    // Yalnız açılışta: kayıt varsa yoklama sürer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prepId]);
 
   async function followJob(jobId: string) {
     setBarOnly(true);
     setLoading(true);
     setRetryJobId(null);
+    rememberRun({ jobId });
     try {
       const waited = await pollGenerationJob(jobId, setProgress);
       if (waited.examId) {
-        router.push(examHref(waited.examId));
+        openExam(waited.examId);
         return;
       }
       if (waited.failed) setRetryJobId(jobId);
@@ -131,6 +252,7 @@ export function MockExamSetup({
         data.error === "insufficient_credits" ||
         data.code === "premium_required"
       ) {
+        rememberRun(null);
         setPaywall(true);
         setLoading(false);
         return;
@@ -166,6 +288,7 @@ export function MockExamSetup({
       payload.code === "premium_required" ||
       payload.error === "premium_required"
     ) {
+      rememberRun(null);
       setPaywall(true);
       setLoading(false);
       return;
@@ -175,11 +298,12 @@ export function MockExamSetup({
       return;
     }
     if (payload.examId) {
-      router.push(examHref(payload.examId));
+      openExam(payload.examId);
       return;
     }
     const resume = typeof payload.resumeId === "string" ? payload.resumeId : null;
     if (resume && (payload.code === "budget_exceeded" || payload.error === "budget_exceeded" || status < 300)) {
+      rememberRun({ resumeId: resume });
       setRetryResumeId(resume);
       setLoading(false);
       return;
@@ -192,12 +316,14 @@ export function MockExamSetup({
     setLoading(true);
     setRetryResumeId(null);
     setBarOnly(false);
-    const base = bodyRef.current ?? requestBody();
+    const base = bodyRef.current ?? runRef.current?.body ?? requestBody();
+    rememberRun({ resumeId, body: base, answerMode: answerModeRef.current });
     try {
       const { status, data } = await postMockExamWithProgress(
         "/api/learning/exam-prep/mock-exam",
         () => ({ ...base, resumeId, retry: true }),
         setProgress,
+        { status: statusWatch() },
       );
       applyResult(status, data);
     } catch {
@@ -214,12 +340,18 @@ export function MockExamSetup({
     setBarOnly(false);
     const body = requestBody();
     bodyRef.current = body;
+    stopWatch();
+    // Yoklama bu andan sonraki kâğıda bakar; eski kâğıtlar bu isteğin değil.
+    runRef.current = null;
+    rememberRun({ startedAt: new Date().toISOString(), body, answerMode: answerModeRef.current, resumeId: null, jobId: null });
     try {
       // Üretim düşünce aynı kâğıt sürer (26 Ekim 2026). Yeni istek yalnız kâğıt yoksa açılır.
+      // Durum yoklaması paralel (29 Ekim 2026): POST takılsa da yayımlanan kâğıt açılır.
       const { status, data } = await postMockExamWithProgress(
         "/api/learning/exam-prep/mock-exam",
         () => body,
         setProgress,
+        { status: statusWatch() },
       );
       applyResult(status, data);
     } catch {
