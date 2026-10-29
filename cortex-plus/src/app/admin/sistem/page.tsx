@@ -191,7 +191,8 @@ export default async function AdminSistemPage() {
                   <AdminBadge tone="warn">eksik</AdminBadge>
                 )}
               </td>
-              <td className="max-w-md whitespace-normal text-xs text-[var(--adm-muted)]">
+              {/* Kredi kuralı satırları virgüllü uzun kod listesi yazabilir; hücre taşmasın. */}
+              <td className="max-w-md whitespace-normal break-words text-xs text-[var(--adm-muted)]">
                 {check.detail}
               </td>
             </tr>

@@ -11,6 +11,12 @@ import type { ActionCode } from "@/lib/env";
  * Ücretsiz hesap krediyle değil sayaçla çalışır (`free-meters.ts`).
  *
  * Gelişmiş sohbet de luna'da çalışıyor; fiyatı standartla aynı.
+ *
+ * Kredi kuralı yedeği (29 Ekim 2026): göç DEĞİŞİKLİĞİN kaynağıdır; kod yalnız EKSİK satırı ekler, var olanı
+ * ezmez. Yeni bir eylem kodunun göçü canlıda atlanırsa SQL `invalid_action` fırlatıyor ve iş 409 ile
+ * düşüyordu. `reserveCredits` o anda satırı `creditRuleSeed` ile ekler (yalnız ekleme, `ignoreDuplicates`)
+ * ve bir kez yeniden dener; `/admin/sistem` koddan eklenmiş satırı `CODE_SEEDED_RULE_NOTE` ile tanıyıp
+ * "göç yazılmalı" uyarısı gösterir. Fiyat değişikliği yine yalnız göçle.
  */
 export type CreditPrice = {
   credits: number;
@@ -45,6 +51,32 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
   /** 19 Ekim 2026: 2 → 15 (ölçülen maliyet 900 karakter ≈ $0,015; göç 20261019130000). */
   AUDIO_SYNTHESIZE: { credits: 15, per: "900 karakter" },
 };
+
+/** Çalışma zamanındaki tek eylem kodu listesi; tip (`Record<ActionCode, …>`) eksiksizliği zaten zorlar. */
+export const ACTION_CODES = Object.keys(CREDIT_PRICE_TABLE) as readonly ActionCode[];
+
+/**
+ * Koddan eklenen kuralın açıklaması. `/admin/sistem` bu önekle başlayan satırı "göç ve kayıt satırı
+ * yazılmalı" uyarısıyla gösterir; göç gelince `ON CONFLICT … DO UPDATE` açıklamayı kendi metniyle ezer.
+ */
+export const CODE_SEEDED_RULE_NOTE = "Koddan eklendi (fiyat tablosu): ilgili göç canlıda yoktu";
+
+/** `credit_rules`'a yalnız EKSİK satır olarak girecek tohum; var olan satır buna göre güncellenmez. */
+export function creditRuleSeed(code: ActionCode): {
+  action_code: ActionCode;
+  credit_cost: number;
+  model_tier: "standard";
+  description: string;
+  active: true;
+} {
+  return {
+    action_code: code,
+    credit_cost: CREDIT_PRICE_TABLE[code].credits,
+    model_tier: "standard",
+    description: CODE_SEEDED_RULE_NOTE,
+    active: true,
+  };
+}
 
 export const AUDIO_CHARS_PER_CREDIT_PRICE = 900;
 
