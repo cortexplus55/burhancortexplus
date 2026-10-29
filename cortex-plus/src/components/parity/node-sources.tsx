@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { FileText, Library, X } from "lucide-react";
 
 /** pages: konuya bağlı etkinlikte kullanılan sayfalar ("s.5–6"); yoksa dosyanın tamamı. */
-export type NodeSource = { id: string; name: string; href: string; pages?: string };
+export type NodeSource = { id: string; name: string; href: string; pages?: string; figurePages?: number[] };
 
 /**
  * "N kaynak" — çalışmanın hangi materyallerden üretildiği (Astra, 1 Ekim

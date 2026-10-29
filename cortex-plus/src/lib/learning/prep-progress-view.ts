@@ -18,6 +18,7 @@ import {
   buildReadinessForecastSeries,
   type ReadinessForecastSeries,
 } from "@/lib/learning/prep-radar";
+import type { TopicMasteryState } from "@/lib/learning/learning-tracking";
 
 export type ProgressNode = {
   id: string;
@@ -120,7 +121,7 @@ export type PrepProgressView = {
   /** En az bir etkinlik puanlandı: "eksik yok" artık bir ölçüm sonucudur, boşluk değil. */
   gapsMeasured: boolean;
   gaps: ProgressGap[];
-  topics: { label: string; pct: number; solved: number; lessons: number }[];
+  topics: { label: string; pct: number; solved: number; lessons: number; state?: TopicMasteryState }[];
   weeks: {
     labels: string[];
     rows: { label: string; counts: number[]; pct: number }[];
@@ -249,7 +250,8 @@ export function buildPrepProgressView(input: {
   /** Ölçülen sınava hazırlık tahmini (pdf_learning_v2). Yoksa null. */
   measuredReadinessPct: number | null;
   /** Konu hâkimiyeti (0–100). Varsa çubuk tamamlanan adımdan değil buradan gelir; listede olmayan konu 0. */
-  topicMastery?: { label: string; confidence: number }[];
+  /** `confidence`: `topicMasteryPercent` (sönümlü yüzde); `state`: aynı kaynaktan "Sağlam / Çalışılacak" (29 Ekim 2026). */
+  topicMastery?: { label: string; confidence: number; state?: TopicMasteryState }[];
   now?: Date;
 }): PrepProgressView {
   const now = (input.now ?? new Date()).getTime();
@@ -287,6 +289,7 @@ export function buildPrepProgressView(input: {
       pct: masteryPct ?? accuracy ?? 0,
       solved,
       lessons: topicNodes.filter((node) => LESSON_KINDS.has(node.kind)).length,
+      ...(mastery?.state ? { state: mastery.state } : {}),
     };
   });
 

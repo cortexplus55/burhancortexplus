@@ -26,7 +26,14 @@ import { blockPracticeNodes, type PracticeNode } from "@/lib/learning/quiz-deliv
 export const PREFETCH_HEADER = "x-cp-lesson-prefetch";
 const TOKEN_TTL_MS = 2 * 60_000;
 /** Yazımı yarıda kalmış kayıt bu süreden sonra yeniden denenebilir. */
-const STALE_CREATING_MS = 10 * 60_000;
+/**
+ * İlerlemeyen "creating" satırı bu kadar sonra ölü sayılır (29 Ekim 2026: 10 dk → 3 dk). İşlev
+ * kesilince satır takılı kalıyor, öğrencinin isteği 100 sn'ye kadar boşuna bekliyordu. Ölçü:
+ * normal işlemde soğuk konu testi tek yazımla ~100 sn, ders ilk kavramını 55 sn'de yayımlar ve her
+ * yayımda `updated_at` tazelenir; 3 dk hiç ilerlemeyen yazım bitmez. Ölü satır beklenmez (istek
+ * soğuk yazıma geçer, önceden yazım kredisizdi: yakılan kredi yok) ve sıradaki önceden yazım onu devralır.
+ */
+export const STALE_CREATING_MS = 3 * 60_000;
 /** Süren ders yazımının ilk kavramı en geç bu kadarda yayımlaması beklenir (yazım başından). */
 const BUILD_FIRST_PUBLISH_MS = 55_000;
 /** Öğrenci isteğinin süren yazımı bekleme tavanı. */

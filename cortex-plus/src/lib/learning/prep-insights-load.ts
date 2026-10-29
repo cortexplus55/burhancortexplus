@@ -3,7 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { MASTERY_ROW_COLUMNS, normalizeTopicKey, topicPercentsByKey } from "@/lib/learning/learning-tracking";
+import {
+  MASTERY_ROW_COLUMNS,
+  masterySnapshotFromRow,
+  normalizeTopicKey,
+  scoreTopicMastery,
+  topicMasteryView,
+  topicPercentsByKey,
+} from "@/lib/learning/learning-tracking";
 import { buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
 import {
   buildPrepRadarView,
@@ -113,9 +120,18 @@ async function loadInsights(
     (row) => Number(row.evidence_count ?? 0) > 0,
   );
   const masteryByKey = topicPercentsByKey(measuredRows);
+  // "Sağlam / Çalışılacak" ana sayfadaki özette de aynı kaynaktan (29 Ekim 2026).
+  const target = typeof prep.target_score === "number" ? prep.target_score : null;
+  const stateByKey = new Map(
+    measuredRows.map((row) => {
+      const snapshot = masterySnapshotFromRow(row);
+      return [normalizeTopicKey(snapshot.topicKey), topicMasteryView(scoreTopicMastery(snapshot), target).state] as const;
+    }),
+  );
   const topicMastery = topicLabels.map((label) => ({
     label,
     confidence: masteryByKey.get(normalizeTopicKey(label)) ?? 0,
+    state: stateByKey.get(normalizeTopicKey(label)) ?? ("unmeasured" as const),
   }));
   const readinessMean = topicLabels.length
     ? Math.round(topicMastery.reduce((sum, row) => sum + row.confidence, 0) / topicLabels.length)
