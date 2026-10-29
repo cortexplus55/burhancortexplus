@@ -11,7 +11,8 @@ import {
   studentOutputText,
   studentSafeText,
 } from "@/lib/learning/student-output-firewall";
-import { quizStructureIssues, stepsAnswerMismatch, type QuizQuestion } from "@/lib/learning/teacher-quiz";
+import { quizStructureIssues, stepsAnswerMismatch } from "@/lib/learning/teacher-quiz";
+import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { lessonOptionCountLine, screenStructureIssues, teacherUserPrompt } from "@/lib/learning/teacher-lesson";
 import { DiagramCard, labelStyle, labelTiers, estimateLabelWidth, CHAR_W } from "@/components/parity/diagram-card";
 import { STALE_CREATING_MS, waitForPrefetchReady } from "@/lib/learning/lesson-prefetch";
