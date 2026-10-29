@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Copy, Swords, Timer } from "lucide-react";
+import { Bot, Copy, Swords, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -11,6 +11,15 @@ import {
   type DuelAnswer,
   type DuelPublicQuestion,
 } from "@/lib/learning/duel";
+import {
+  BOT_LEVEL_IDS,
+  BOT_LEVELS,
+  botComboUntil,
+  botScoreUntil,
+  headToHead,
+  type BotLevel,
+  type BotStep,
+} from "@/lib/learning/duel-bot";
 
 type BoardRow = { name: string; score: number; correct: number };
 
@@ -23,11 +32,18 @@ type RunResult = {
   leaderboard: BoardRow[];
 };
 
+/** Sunucudan gelen bot turu: cevap yok, soru başına süre ve doğru/yanlış. */
+type BotTimeline = { level: BotLevel; name: string; steps: BotStep[]; correct: number; score: number; total: number };
+
 const LETTERS = ["A", "B", "C", "D", "E"];
 
 /**
  * Düello oyunu — Astra'nın kurallarıyla (bkz. `@/lib/learning/duel`).
  * Doğru cevaplar istemcide yok; tur bitince sunucu puanlayıp gösteriyor.
+ *
+ * Bot rakip (29 Ekim 2026): arkadaş beklemeden "AI derece öğrencisiyle" kapışılır. Botun turu
+ * sunucuda hazır gelir; oyun sırasında üst çubukta botun o soruya kaç saniyede cevap verdiği ve
+ * serisi akar, sonunda kafa kafaya tablo. Bot sıralamaya yazılmaz.
  */
 export function DuelPlay({
   code,
@@ -37,6 +53,7 @@ export function DuelPlay({
   questions,
   initialBoard,
   signedIn,
+  initialBot = null,
 }: {
   code: string;
   title: string;
@@ -45,6 +62,8 @@ export function DuelPlay({
   questions: DuelPublicQuestion[];
   initialBoard: BoardRow[];
   signedIn: boolean;
+  /** Hazırlıktan "AI rakiple hemen başla" ile gelince bu düzey seçili açılır. */
+  initialBot?: BotLevel | null;
 }) {
   const [stage, setStage] = useState<"intro" | "play" | "sending" | "result">("intro");
   const [name, setName] = useState("");
@@ -52,8 +71,12 @@ export function DuelPlay({
   const [answers, setAnswers] = useState<DuelAnswer[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<RunResult | null>(null);
+  const [level, setLevel] = useState<BotLevel>(initialBot ?? "derece");
+  const [bot, setBot] = useState<BotTimeline | null>(null);
+  const [botLoading, setBotLoading] = useState(false);
   const startedAt = useRef(0);
   const answered = useRef(false);
+  const autoBot = useRef(false);
 
   const limitMs = DUEL_SECONDS * 1000;
   const shareUrl =
@@ -77,6 +100,14 @@ export function DuelPlay({
     // record her çizimde yeniden kuruluyor; tetikleyici soru değişimi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, index]);
+
+  // Hazırlıktan bot düzeyiyle gelen oturumlu öğrenci beklemeden başlar.
+  useEffect(() => {
+    if (!initialBot || !signedIn || autoBot.current) return;
+    autoBot.current = true;
+    void startWithBot(initialBot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function record(answer: DuelAnswer) {
     const next = [...answers, answer];
@@ -114,15 +145,46 @@ export function DuelPlay({
     }
   }
 
-  function start() {
+  function nameMissing(): boolean {
     if (!signedIn && name.trim().length < 2) {
       toast.error("Sıralamada görünecek adını yaz.");
-      return;
+      return true;
     }
+    return false;
+  }
+
+  function start() {
+    if (nameMissing()) return;
+    setBot(null);
     setAnswers([]);
     setIndex(0);
     setResult(null);
     setStage("play");
+  }
+
+  /** Bot turu sunucudan alınır, sonra oyun başlar. Her başlatma yeni bir bot (tohum sunucuda). */
+  async function startWithBot(chosen: BotLevel) {
+    if (nameMissing()) return;
+    setLevel(chosen);
+    setBotLoading(true);
+    try {
+      const res = await fetch(`/api/duels/${code}/bot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level: chosen }),
+      });
+      const data = (await res.json().catch(() => ({}))) as BotTimeline & { error?: string };
+      if (!res.ok || !Array.isArray(data.steps)) throw new Error(data?.error ?? "Bot rakip hazırlanamadı.");
+      setBot(data);
+      setAnswers([]);
+      setIndex(0);
+      setResult(null);
+      setStage("play");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bot rakip hazırlanamadı.");
+    } finally {
+      setBotLoading(false);
+    }
   }
 
   async function copyLink() {
@@ -138,8 +200,34 @@ export function DuelPlay({
     const question = questions[Math.min(index, questions.length - 1)];
     const left = Math.max(0, Math.ceil((limitMs - elapsed) / 1000));
     const isLast = index === questions.length - 1;
+    const botScore = bot ? botScoreUntil(bot.steps, index, elapsed) : 0;
+    const botCombo = bot ? botComboUntil(bot.steps, index, elapsed) : 0;
+    const botStep = bot?.steps[index];
+    const botDone = Boolean(botStep && botStep.ms <= elapsed);
     return (
       <section className="cp-duel-card" aria-live="polite">
+        {bot ? (
+          <div className="cp-duel-bot" data-bot-level={bot.level}>
+            <span className="cp-duel-bot-name">
+              <Bot className="h-4 w-4" aria-hidden /> {bot.name}
+            </span>
+            <span className="cp-duel-bot-score" aria-label={`${bot.name} puanı ${botScore}`}>
+              {botScore} puan
+            </span>
+            {botCombo >= 2 ? <span className="cp-duel-bot-combo">🔥 x{botCombo}</span> : null}
+            <ol className="cp-duel-bot-track" aria-label="Botun ilerleyişi">
+              {bot.steps.map((step, i) => {
+                const state = i < index || (i === index && botDone) ? (step.correct ? "right" : "wrong") : i === index ? "live" : "wait";
+                return <li key={i} className={`is-${state}`} aria-hidden />;
+              })}
+            </ol>
+            <span className="cp-duel-bot-status">
+              {botDone && botStep
+                ? `${botStep.correct ? "✓ bildi" : "✗ yanıldı"} · ${(botStep.ms / 1000).toFixed(1)} sn`
+                : "düşünüyor…"}
+            </span>
+          </div>
+        ) : null}
         <div className="cp-duel-play-head">
           <span>
             Soru {Math.min(index + 1, questions.length)} / {questions.length}
@@ -173,13 +261,46 @@ export function DuelPlay({
   }
 
   if (stage === "result" && result) {
+    const versus = bot ? headToHead({ studentScore: result.score, studentAnswers: answers, correctIndexes: result.answers, bot }) : null;
     return (
       <section className="cp-duel-card">
-        <p className="cp-duel-kicker">Puanın</p>
+        {versus ? <p className="cp-duel-kicker">{versus.headline}</p> : <p className="cp-duel-kicker">Puanın</p>}
         <p className="cp-duel-score">{result.score}</p>
         <p className="cp-duel-muted">
           {result.total} soruda {result.correct} doğru · {result.rank}. sıradasın
         </p>
+        {versus && bot ? (
+          <div className="cp-duel-versus" data-winner={versus.winner}>
+            <div className="cp-duel-versus-head">
+              <span>
+                <b>Sen</b>
+                <strong>{result.score}</strong>
+                <em>
+                  {result.correct} doğru{versus.studentAvgMs != null ? ` · ort. ${(versus.studentAvgMs / 1000).toFixed(1)} sn` : ""}
+                </em>
+              </span>
+              <span className="cp-duel-versus-vs" aria-hidden>
+                vs
+              </span>
+              <span>
+                <b>{bot.name}</b>
+                <strong>{bot.score}</strong>
+                <em>
+                  {bot.correct} doğru · ort. {(versus.botAvgMs / 1000).toFixed(1)} sn
+                </em>
+              </span>
+            </div>
+            <ol className="cp-duel-versus-rows">
+              {versus.rows.map((row) => (
+                <li key={row.question}>
+                  <b>{row.question}</b>
+                  <span className={`is-${row.student}`}>{row.student === "right" ? "✓" : row.student === "wrong" ? "✗" : "—"}</span>
+                  <span className={`is-${row.bot}`}>{row.bot === "right" ? "✓" : "✗"}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
         <ol className="cp-duel-review">
           {questions.map((question, i) => {
             const mine = answers[i]?.choice;
@@ -200,9 +321,15 @@ export function DuelPlay({
           <button type="button" className="cp-duel-secondary" onClick={() => void copyLink()}>
             <Copy className="h-4 w-4" aria-hidden /> Bağlantıyı kopyala
           </button>
-          <button type="button" className="cp-duel-primary" onClick={start}>
-            Tekrar oyna
-          </button>
+          {bot ? (
+            <button type="button" className="cp-duel-primary" disabled={botLoading} onClick={() => void startWithBot(level)}>
+              <Bot className="h-4 w-4" aria-hidden /> {botLoading ? "Bot hazırlanıyor…" : "Botla yeniden"}
+            </button>
+          ) : (
+            <button type="button" className="cp-duel-primary" onClick={start}>
+              Tekrar oyna
+            </button>
+          )}
         </div>
         {signedIn ? null : (
           <p className="cp-duel-muted">
@@ -248,6 +375,28 @@ export function DuelPlay({
       <button type="button" className="cp-duel-primary" onClick={start}>
         Düelloya başla
       </button>
+      <div className="cp-duel-bot-pick" role="group" aria-labelledby="cp-duel-bot-title">
+        <p id="cp-duel-bot-title" className="cp-duel-kicker">
+          🤖 Hemen şimdi AI rakiple kapış
+        </p>
+        <div className="cp-duel-bot-levels" role="radiogroup" aria-label="Zorluk">
+          {BOT_LEVEL_IDS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={level === id}
+              className={cn("cp-duel-bot-level", level === id && "is-on")}
+              onClick={() => setLevel(id)}
+            >
+              {BOT_LEVELS[id].label}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="cp-duel-secondary" disabled={botLoading} onClick={() => void startWithBot(level)}>
+          <Bot className="h-4 w-4" aria-hidden /> {botLoading ? "Bot hazırlanıyor…" : `${BOT_LEVELS[level].name} ile başla`}
+        </button>
+      </div>
       {initialBoard.length ? <Leaderboard rows={initialBoard} /> : null}
       <button type="button" className="cp-duel-secondary" onClick={() => void copyLink()}>
         <Copy className="h-4 w-4" aria-hidden /> Bağlantıyı kopyala

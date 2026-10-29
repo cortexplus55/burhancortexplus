@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DuelPlay } from "@/components/duel/duel-play";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { publicQuestions, type DuelQuestion } from "@/lib/learning/duel";
+import { isBotLevel } from "@/lib/learning/duel-bot";
 import "@/styles/duel.css";
 
 export const metadata = {
@@ -16,10 +17,19 @@ export const dynamic = "force-dynamic";
  * Sayfa servis anahtarıyla okur ama tarayıcıya yalnızca soru metni ve
  * şıklar gider; doğru cevaplar sunucuda kalır.
  */
-export default async function DuelPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function DuelPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ bot?: string }>;
+}) {
   // Kod küçük harfle üretiliyor; elle büyük harfle yazılan adres de aynı düelloyu açsın.
   const code = (await params).code.toLowerCase();
   if (!/^[a-z0-9]{6,16}$/.test(code)) notFound();
+  // Hazırlıktan "AI rakiple hemen başla" (29 Ekim 2026): bot düzeyi seçili açılır.
+  const botParam = (await searchParams).bot;
+  const initialBot = isBotLevel(botParam) ? botParam : null;
 
   const service = createServiceClient();
   const { data: duel } = await service
@@ -71,6 +81,7 @@ export default async function DuelPage({ params }: { params: Promise<{ code: str
           correct: row.correct as number,
         }))}
         signedIn={signedIn}
+        initialBot={initialBot}
       />
     </main>
   );
