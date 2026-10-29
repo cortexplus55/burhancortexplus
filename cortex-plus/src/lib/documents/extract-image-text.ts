@@ -5,6 +5,7 @@ import { moderate } from "@/lib/ai/moderation";
 import { isReasoningModel } from "@/lib/ai/model-params";
 import { contentModel } from "@/lib/ai/model-router";
 import { cleanOcrPageText } from "@/lib/documents/outline-clean";
+import { FIGURE_APPENDIX_LABEL, repeatsTextLayer, textLayerKeys } from "@/lib/learning/figure-pages";
 
 /**
  * Fotoğraftan metin okuma.
@@ -108,7 +109,9 @@ const PROMPT = [
  */
 export const FIGURE_READ_PROMPT = [
   "Bu görsel bir ders sayfası, slayt veya şekildir.",
-  "Gördüğün yazıyı aktar.",
+  // 29 Ekim 2026: model sayfanın düz metnini geri yazıyor, ek metnin kopyası oluyordu;
+  // içindekiler sayfası bile "şekil sayfası" sayılıyordu. Ek yalnız YENİ bilgi taşır.
+  "Sayfanın düz metnini tekrar yazma; yalnız şekil, grafik, eksen, ok, etiket ve tablo değerlerini yaz.",
   "Bu sayfadaki tüm grafiklerin eksen kesişimlerini, f(x) ve g(x) gibi fonksiyonların işaretli tüm (x, y) koordinat çiftlerini, küme eşleme oklarını (1 → b gibi), şema ve harita etiketlerini ve tablo sayılarını tek tek, hatasız listele.",
   "Görmediğin sayıyı, noktayı veya oku yazma.",
   "Şekil görünmüyor, görünmediği için belirlenemez, sayı uydurma gibi cümle yazma.",
@@ -116,16 +119,26 @@ export const FIGURE_READ_PROMPT = [
   `Okunacak hiçbir yazı, sayı veya etiket yoksa yalnızca ${NO_TEXT} yaz.`,
 ].join(" ");
 
-export const FIGURE_APPENDIX_LABEL = "Şekilde işaretli değerler:";
+/** Ek etiketi tek yerde (`figure-pages.ts`); buradan da okunur. */
+export { FIGURE_APPENDIX_LABEL };
 
-/** Şekil okumasından mazeret cümlesini düşürür. Değer kalmazsa boş döner. */
-export function figureTranscript(raw: string): string | null {
+/**
+ * Şekil okumasından mazeret cümlesini ve metin katmanının tekrarını düşürür. Değer kalmazsa null.
+ *
+ * `textLayer` verilmişse (metin katmanı olan PDF sayfası, slayt, Word sayfası) sayfada zaten
+ * yazan satır eke girmez: aynı satır anahtarı (`normalizeFigureLine`) ya da uzun bir parça
+ * olarak metinde geçen satır tekrar sayılır. Kabul edilen bedel: eksende yazan sayı paragrafta
+ * da geçiyorsa düşer — ek yalnız yeni bilgi taşır, şekil kararı ekten verilir.
+ */
+export function figureTranscript(raw: string, opts?: { textLayer?: string | null }): string | null {
   const cleaned = cleanOcrPageText(raw);
   if (!cleaned || isNoTextOcrResponse(cleaned)) return null;
+  const layer = opts?.textLayer?.trim() ? textLayerKeys(opts.textLayer) : null;
   const kept = cleaned
     .split(/\n+|(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
     .filter((sentence) => sentence && !/görünmediği için|burada görünmedi/i.test(sentence))
+    .filter((sentence) => !layer || !repeatsTextLayer(sentence, layer))
     .join("\n")
     .trim();
   if (!kept || isNoTextOcrResponse(kept)) return null;
@@ -278,6 +291,8 @@ export type ImageReadResult = {
   reason?: "not_configured" | "too_large" | "unreadable" | "blocked";
   /** The provider answered 429 at least once — the OCR pool slows down. */
   rateLimited?: boolean;
+  /** Şekil okuması (`purpose: "figure"`) dolu döndü: ek yeni değer taşıyor (29 Ekim 2026). */
+  figureRead?: boolean;
 };
 
 /**
@@ -290,7 +305,13 @@ export type ImageReadResult = {
 export async function extractImageText(
   buffer: Buffer,
   mimeType: string,
-  options?: { deadlineMs?: number; scanOrdinal?: number; purpose?: "page" | "figure" },
+  options?: {
+    deadlineMs?: number;
+    scanOrdinal?: number;
+    purpose?: "page" | "figure";
+    /** Şekil okumasında sayfanın metin katmanı: metinde zaten yazan satır eke girmez. */
+    textLayer?: string | null;
+  },
 ): Promise<ImageReadResult> {
   const empty = { pages: [], ok: false as const, model: null, tokensIn: 0, tokensOut: 0, usage: [] };
   if (!env.OPENAI_API_KEY) return { ...empty, reason: "not_configured" };
@@ -335,7 +356,7 @@ export async function extractImageText(
       pageDeadlineMs,
       purpose === "figure" ? FIGURE_READ_PROMPT : PROMPT,
       (raw) => {
-        if (purpose === "figure") return figureTranscript(raw);
+        if (purpose === "figure") return figureTranscript(raw, { textLayer: options?.textLayer });
         const cleaned = cleanOcrPageText(raw);
         return isUsableOcrText(cleaned) ? cleaned : null;
       },
@@ -345,7 +366,15 @@ export async function extractImageText(
     }
     rateLimited ||= attempt.rateLimited;
     if (attempt.text) {
-      return { pages: [attempt.text], ok: true, model, ...usageTotals(usage), usage, rateLimited };
+      return {
+        pages: [attempt.text],
+        ok: true,
+        model,
+        ...usageTotals(usage),
+        usage,
+        rateLimited,
+        ...(purpose === "figure" ? { figureRead: true } : {}),
+      };
     }
   }
 

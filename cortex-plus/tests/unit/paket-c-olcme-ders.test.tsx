@@ -334,7 +334,9 @@ describe("Paket C · belgedeki şekil derse gömülür", () => {
     expect(isFigurePage({ documentId: "d1", page: 5, fileName: "fizyoloji.pdf" }, docs)).toBe(false);
     expect(isFigurePage(null, docs)).toBe(false);
     const steps = read("src/components/parity/exam-lesson-steps.tsx");
-    expect(steps).toContain("isFigurePage(sourcePreview, sourceDocs) ? (");
+    // 29 Ekim 2026 (Paket H): kart adımın sayfasına değil konunun şekil sayfalarına bağlı (`planFigureSources`).
+    expect(steps).toContain("{figureSource ? (");
+    expect(steps).toContain("planFigureSources(");
     expect(steps).toContain("<SourceFigureCard");
     const drawer = read("src/components/parity/source-page-drawer.tsx");
     expect(drawer).toContain("📌 Belgedeki Şema — Sayfa {page}");

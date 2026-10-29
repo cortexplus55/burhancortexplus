@@ -19,6 +19,7 @@ import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
 import { formatPageList } from "@/lib/learning/path-source-label";
 import { loadTopicSupport } from "@/lib/learning/topic-support-load";
 import { FIGURE_APPENDIX_LABEL } from "@/lib/documents/extract-image-text";
+import { figureHintsFromRows, type FigureHint } from "@/lib/learning/figure-pages";
 
 /**
  * Konuya bağlı etkinlikler: "N kaynak" konunun kendi dosyalarını ve sayfalarını gösterir. Deneme,
@@ -212,25 +213,38 @@ export default async function ExamNodePage({
       ? await loadTopicSupport(createServiceClient(), { userId: user.id, prepId, topicId: topicRowId })
       : [];
   const supportByDoc = new Map<string, string[]>();
+  const supportPagesByDoc = new Map<string, Set<number>>();
   for (const excerpt of support) {
     const where = excerpt.part ? `parça ${excerpt.part}` : excerpt.pageCount > 1 ? `s.${excerpt.page}` : "";
     supportByDoc.set(excerpt.documentId, [...(supportByDoc.get(excerpt.documentId) ?? []), where]);
+    if (Number.isInteger(excerpt.page) && excerpt.page > 0) {
+      const set = supportPagesByDoc.get(excerpt.documentId) ?? new Set<number>();
+      set.add(excerpt.page);
+      supportPagesByDoc.set(excerpt.documentId, set);
+    }
   }
   const shownSourceIds = topicPages.size
     ? sourceIds.filter((id) => topicPages.has(id) || supportByDoc.has(id))
     : sourceIds;
   // Şekil okunmuş sayfalar (29 Ekim 2026): dersin adımı bu sayfadaysa belgedeki şema derse gömülür.
-  const figurePagesByDoc = new Map<string, number[]>();
+  // Sorgu eke bakar, karar kodda (Paket H): ekte sayfanın metninde geçmeyen, veri taşıyan satır
+  // yoksa sayfa şekil sayfası değildir — eski kayıtlardaki sahte ekler (içindekiler) böylece elenir.
+  // Belge kümesi aynen shownSourceIds; anahtar document_id (görsel belgenin 1. sayfası PDF'inkiyle
+  // karışmaz). Konuya bağlı etkinlikte yalnız konunun (ve yardımcı kaynağın) sayfaları.
+  const figureHintsByDoc = new Map<string, FigureHint[]>();
   if (shownSourceIds.length) {
     const { data: figureRows } = await supabase
       .from("document_pages")
-      .select("document_id, page_number")
+      .select("document_id, page_number, text_content")
       .in("document_id", shownSourceIds)
       .ilike("text_content", `%${FIGURE_APPENDIX_LABEL}%`)
       .limit(300);
-    for (const row of figureRows ?? []) {
-      const id = String(row.document_id);
-      figurePagesByDoc.set(id, [...(figurePagesByDoc.get(id) ?? []), Number(row.page_number)]);
+    for (const [id, hints] of figureHintsFromRows(figureRows ?? [])) {
+      const own = topicPages.get(id);
+      const extra = supportPagesByDoc.get(id);
+      const scope = own?.length || extra?.size ? new Set<number>([...(own ?? []), ...(extra ?? [])]) : null;
+      const kept = scope ? hints.filter((hint) => scope.has(hint.page)) : hints;
+      if (kept.length) figureHintsByDoc.set(id, kept);
     }
   }
   const sources = shownSourceIds.flatMap((id) => {
@@ -239,7 +253,7 @@ export default async function ExamNodePage({
     const extra = [...new Set((supportByDoc.get(id) ?? []).filter(Boolean))];
     const extraText = extra.length ? `ek: ${extra.join(", ")}` : supportByDoc.has(id) ? "ek kaynak" : "";
     const pages = [own ? `s.${own}` : "", extraText].filter(Boolean).join(" · ");
-    const figurePages = figurePagesByDoc.get(id);
+    const figureHints = figureHintsByDoc.get(id);
     return row
       ? [
           {
@@ -247,7 +261,9 @@ export default async function ExamNodePage({
             name: (row.file_name as string) || "Belge",
             href: `/dokumanlar/${id}`,
             ...(pages ? { pages } : {}),
-            ...(figurePages?.length ? { figurePages } : {}),
+            ...(figureHints?.length
+              ? { figurePages: figureHints.map((hint) => hint.page), figureHints }
+              : {}),
           },
         ]
       : [];

@@ -3,8 +3,19 @@
 import { useEffect, useState } from "react";
 import { FileText, Library, X } from "lucide-react";
 
-/** pages: konuya bağlı etkinlikte kullanılan sayfalar ("s.5–6"); yoksa dosyanın tamamı. */
-export type NodeSource = { id: string; name: string; href: string; pages?: string; figurePages?: number[] };
+/**
+ * pages: konuya bağlı etkinlikte kullanılan sayfalar ("s.5–6"); yoksa dosyanın tamamı.
+ * figureHints: şekil sayfalarının ek satırları (29 Ekim 2026) — kart, değeri anan ekrana yerleşir;
+ * PDF dışı kaynakta kartın gövdesi bu satırlardır. Aynı biçim `SourceDocRef`te.
+ */
+export type NodeSource = {
+  id: string;
+  name: string;
+  href: string;
+  pages?: string;
+  figurePages?: number[];
+  figureHints?: { page: number; lines: string[] }[];
+};
 
 /**
  * "N kaynak" — çalışmanın hangi materyallerden üretildiği (Astra, 1 Ekim
