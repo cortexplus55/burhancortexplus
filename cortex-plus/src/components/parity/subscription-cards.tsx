@@ -14,6 +14,7 @@ import { allowanceShare } from "@/lib/credits/period";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
+import { ParentPayLinkButton } from "@/components/billing/parent-pay-link-button";
 import {
   BENEFITS_LEAD,
   GUEST_PREVIEW_COLUMN,
@@ -561,6 +562,10 @@ export function SubscriptionCards({
                   planId={plusPlan.id}
                   planName={plusPlan.name}
                 />
+              ) : null}
+              {/* Velime ödeme linki (29 Ekim 2026): kartı yanında olmayan öğrenci; veli hesap açmadan öder. */}
+              {checkoutEnabled && plusPlan && !plusOwned && !guestMode && !isParent ? (
+                <ParentPayLinkButton planId={plusPlan.id} planName={plusPlan.name} />
               ) : null}
               {checkoutEnabled && plusWeekly && !plusOwned && !isParent ? (
                 <button

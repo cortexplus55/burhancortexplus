@@ -275,12 +275,14 @@ describe("ödeme öncesi onay", () => {
   });
 
   it("onay kanıt olarak kaydediliyor", () => {
-    // Dosyada "legal_consent" iki kez geçiyor: biri hata kodu
-    // (legal_consent_required), diğeri denetim kaydı. Aranan ikincisi.
-    const meta = route.slice(route.indexOf("legal_consent: {"));
+    // Denetim kaydı 29 Ekim 2026'dan beri ortak kabukta (`createPaytrCheckout`): hem öğrencinin
+    // kendi ödemesi hem velinin bağlantıyla ödemesi aynı yerden geçer. Rota kabuğu çağırır.
+    expect(route).toContain("createPaytrCheckout(service, {");
+    const shell = readFileSync("src/lib/payments/checkout.ts", "utf8");
+    const meta = shell.slice(shell.indexOf("legal_consent: {"));
     expect(meta.length).toBeGreaterThan(0);
     expect(meta.slice(0, 300)).toContain("at:");
-    expect(meta.slice(0, 300)).toContain("ip: userIp");
+    expect(meta.slice(0, 300)).toContain("ip: input.userIp");
     expect(meta.slice(0, 300)).toContain("documents:");
   });
 });

@@ -110,6 +110,7 @@ export const DISTANCE_SALES_SECTIONS = [
     body: [
       ...SELLER_BLOCK(),
       "Alıcı: Hizmeti satın alan ve kayıt sırasında bildirdiği bilgilerle tanımlanan gerçek kişi.",
+      "Alıcı, hizmeti bir başka kullanıcının (örneğin velisi olduğu öğrencinin) hesabı için de satın alabilir. Bu durumda ödemeyi yapan alıcı, kullanım hakkının tanımlandığı hesap ise ödeme bağlantısında belirtilen öğrenci hesabıdır; sözleşmenin tarafı ödemeyi yapan alıcıdır.",
       "Alıcı, ödeme adımındaki onay kutusunu işaretleyerek bu sözleşmeyi ve Ön Bilgilendirme Formu'nu okuduğunu ve kabul ettiğini beyan eder.",
     ],
   },
@@ -130,7 +131,7 @@ export const DISTANCE_SALES_SECTIONS = [
   {
     heading: "İfa şekli ve süresi",
     body: [
-      "Hizmet dijitaldir; fiziki teslimat yapılmaz. Ödeme onaylandığı anda kullanım hakkı alıcının hesabına tanımlanır ve hizmet derhal kullanıma açılır.",
+      "Hizmet dijitaldir; fiziki teslimat yapılmaz. Ödeme onaylandığı anda kullanım hakkı alıcının hesabına (bir öğrenci için ödendiyse o öğrencinin hesabına) tanımlanır ve hizmet derhal kullanıma açılır.",
       "Abonelik süresi, ödemenin onaylandığı tarihte başlar ve satın alınan paketin süresi kadar devam eder. Süre sonunda kendiliğinden yenilenmez.",
       "Mücbir sebep, altyapı sağlayıcısı kaynaklı kesinti ya da alıcının internet erişiminden kaynaklanan aksaklıklar nedeniyle hizmete erişilememesi hâlinde satıcı, makul sürede gidermek için gereken özeni gösterir.",
     ],

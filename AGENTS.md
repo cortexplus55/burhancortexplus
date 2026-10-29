@@ -209,6 +209,7 @@ Bugün geriye kalanlar (4 Eylül 2026 itibarıyla doğrulandı):
 | `verified_teacher` rolü | Hâlâ iş görüyor (quiz üretiminde daha yüksek sınır). Yalnızca yönetim panelinden elle veriliyor. |
 | `/admin/ogretmen-basvurulari` | Duruyor ama **yeni başvuru gelmiyor** — form ve API kaldırıldı. Bekleyen kayıt yok (20 Ekim 2026'da bakıldı: tek kayıt 28 Ağustos'ta onaylanmış). |
 | `parent_payment_requests` | Yaşıyor ve öğrenci tarafı: "veliden ödeme iste". Astra'da bu yok, bizde çalışıyor — bilerek duruyor. |
+| **Velime ödeme linki** (29 Ekim 2026, ürün sahibinin kararı) | Öğrenci-only kuralının tek istisnası: veli **hesap açmadan**, imzalı 3 günlük bağlantıyla öğrencinin planını öder (`/odeme/veli/[token]`). Veli paneli yok; veli hiçbir öğrenci verisini görmez (yalnız ad ve plan). Ayrıntı: "Paket F" bölümü. |
 | `src/lib/parent/link-status.ts`, `profile.ts` | Canlı: veli bağlama ve veli profili kaydı hâlâ kullanılıyor. |
 
 **Astra karşılaştırması (4 Eylül 2026, siteden doğrulandı):** Astra'da veli
@@ -1408,3 +1409,19 @@ kurallar, karşıda bir bot.
 | Hazırlıktaki Düellolar sayfasında ikinci düğme "🤖 AI rakiple hemen başla": düelloyu kurar, sayfayı `?bot=derece` ile açar; oturumlu öğrencide bot kendiliğinden başlar, misafir önce adını yazar | `new-duel-button.tsx`, `duello/[code]/page.tsx` `initialBot` |
 
 Bekçi: `paket-e-duello-bot.test.tsx` (tohum, doğruluk aralığı 150 tohumda ±%8, sızıntı yok, canlı puan/seri, kafa kafaya, ekran akışı).
+
+## Paket F (29 Ekim 2026) — velime ödeme linki
+
+Ürün sahibi 29 Ekim'de "yapılsın" dedi (19 Ekim'de "alıcısı yok" diye siteden kaldırılan sözün karşılığı). Öğrenci-only
+kuralının **tek istisnası**: veli hesap açmaz, panel görmez; yalnız öğrencinin adını ve seçilen planı görüp öder.
+
+| Kural | Nerede |
+|---|---|
+| Öğrenci Abonelik sayfasında "👨‍👩‍👧 Kartım yanımda değil — velime ödeme linki gönder": `POST /api/payments/parent-link` {planId} → imzalı bağlantı (`veli.<öğrenci>.<plan>.<bitiş>.<nonce>.<HMAC>`, `APP_SECRET`, **3 gün**), WhatsApp metni ve kopyala. Dakikada 5, günde 20. Kayıt `parent_payment_requests` (student, plan, "link") | `parent-link.ts`, `parent-link/route.ts`, `parent-pay-link-button.tsx` |
+| `/odeme/veli/[token]` **herkese açık**: imza ve süre doğrulanır; e-posta (yalnız PayTR makbuzu, bizde saklanmaz), ad (isteğe bağlı), sözleşme onayı (sunucu `legalAccepted` zorunlu tutar) → `POST /api/payments/parent-link/checkout` → PayTR iFrame aynı sayfada. Süresi dolan bağlantı 410 | `odeme/veli/[token]/page.tsx`, `parent-pay-form.tsx`, `parent-link/checkout/route.ts` |
+| Ödeme satırı **öğrencinin adına** (`payments.user_id` = `beneficiary_user_id` = öğrenci); geri çağrı (`finalize_paytr_payment`) değişmedi, planı öğrencinin hesabına yazar. Veli yıldız almaz, hesap açılmaz. Dönüş sayfaları `/odeme/veli/tesekkurler` ve `/odeme/veli/basarisiz` (öğrenci sayfalarına yönlendirmez) | `checkout.ts` |
+| PayTR oturumu ortak kabukta (`createPaytrCheckout`): ödeme satırı, token isteği, düşüşte `failed`, `payment.token.created` + `legal_consent` denetim kaydı (`via`: self / parent_account / parent_link). `create-token` rotası da bunu kullanır | `src/lib/payments/checkout.ts` |
+| Sözleşme: "Taraflar"a alıcının başka bir kullanıcının (öğrencinin) hesabı için satın alabileceği, "İfa"ya hakkın o öğrencinin hesabına tanımlandığı eklendi | `legal/texts.ts` |
+
+Yapılmayan: otomatik yenileme yine yok (`AUTO_RENEW_SUPPORTED = false`); bağlantı tek kullanımlık değil (3 gün içinde
+ikinci ödeme ikinci dönem açar, bu bilinçli: aynı veli iki kez ödemez, öderse dönem uzar). Bekçi: `paket-f-veli-odeme.test.ts`.
