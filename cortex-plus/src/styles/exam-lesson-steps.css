@@ -1515,6 +1515,23 @@
   font: var(--t-body-14);
 }
 
+/* PDF dışı kaynakta (slayt, Word, fotoğraf) kartın gövdesi: şekil ekinin satırları (Paket H). */
+.als-source-figure-hints {
+  margin: 0;
+  padding: 0.5rem 0.75rem 0.75rem;
+  list-style: none;
+  border-top: 1px solid var(--cp-border, #303030);
+  font: var(--t-body-14);
+  color: var(--cp-text, #fff);
+}
+
+.als-source-figure-hints li {
+  padding: 0.2rem 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
 .als-source-page {
   min-height: 32px;
   margin: 0.5rem 0 0;

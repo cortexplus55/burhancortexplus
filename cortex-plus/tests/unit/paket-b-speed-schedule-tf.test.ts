@@ -102,29 +102,32 @@ describe("Paket B · 1 büyük belgenin konu haritası sayfa dizini okur", () =>
 
 /* ───────────── 2. Adım sayacı ve deneme süresi ───────────── */
 
+/*
+  29 Ekim 2026 (Paket H): "payda baştan sabit = yazarın planı + 2" tasarımı değişti. Plan ekran
+  sayar, adım listesi ekran dışı adımları ve onarım ekranlarını da içerir; her tahmin bir noktada
+  yalanlanıyordu. Yazım sürerken payda YOK (çıplak "N"), mühürde payda ilk mühürlü toplamda kilitli.
+*/
 describe("Paket B · 2 adım sayacı sıçramaz", () => {
-  it("planlı derste payda baştan sabit: 1/9 → 1/9 → 3/9, kavramlar geldikçe 1/2 → 1/8 olmaz", () => {
-    const plannedScreens = 7;
+  it("yazım sürerken payda yok: 2 → 4 → 8 yazılırken etiket çıplak, çubuk belirsiz", () => {
     const seen = [2, 4, 8].map((written) =>
-      lessonStepCounter({ index: written === 8 ? 2 : 0, writtenSteps: written, building: true, plannedScreens }),
+      lessonStepCounter({ index: written === 8 ? 2 : 0, writtenSteps: written, building: true }),
     );
-    expect(seen.map((c) => c.max)).toEqual([9, 9, 9]);
-    expect(seen.map((c) => c.label)).toEqual(["1 / 9", "1 / 9", "3 / 9"]);
+    expect(seen.map((c) => c.label)).toEqual(["1", "1", "3"]);
+    expect(seen.every((c) => c.indeterminate)).toBe(true);
+    expect(seen.every((c) => !c.label.includes("/"))).toBe(true);
   });
 
-  it("plan yoksa yazım sürerken yalnız 'Adım N'; yazım bitince gerçek payda", () => {
-    const early = lessonStepCounter({ index: 0, writtenSteps: 2, building: true });
-    const later = lessonStepCounter({ index: 0, writtenSteps: 8, building: true });
-    expect(early.label).toBe("1");
-    expect(later.label).toBe("1");
+  it("yazım bitince gerçek payda; kilitli toplam sonradan büyüyen payload'u görmez", () => {
     expect(lessonStepCounter({ index: 3, writtenSteps: 8, building: false }).label).toBe("4 / 8");
+    const locked = lessonStepCounter({ index: 0, writtenSteps: 10, building: false, lockedTotal: 9 });
+    expect(locked.label).toBe("1 / 9");
+    expect(locked.max).toBe(9);
+    expect(locked.indeterminate).toBe(false);
+    // Kilitli toplamın ötesine geçen adım paydayı aşmaz.
+    expect(lessonStepCounter({ index: 9, writtenSteps: 10, building: false, lockedTotal: 9 }).label).toBe("9 / 9");
   });
 
-  it("yazılanlar planı geçerse payda gösterilmez (küçülen ya da büyüyen payda yok)", () => {
-    expect(lessonStepCounter({ index: 5, writtenSteps: 9, building: true, plannedScreens: 4 }).label).toBe("6");
-  });
-
-  it("plan başlıktan okunur; bozuk değer yok sayılır", () => {
+  it("plan başlıktan okunur (kayıt amaçlı); bozuk değer yok sayılır", () => {
     expect(plannedScreensOf({ title: "Ders", plannedScreens: 7 })).toBe(7);
     expect(plannedScreensOf({ title: "Ders", plannedScreens: "6" })).toBe(6);
     expect(plannedScreensOf({ title: "Ders", plannedScreens: 0 })).toBeUndefined();

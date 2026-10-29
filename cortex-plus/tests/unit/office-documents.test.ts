@@ -313,6 +313,12 @@ describe("gömülü resimler", () => {
     expect(appended).toContain("1 → b");
     expect(appendFigureTranscript("Grafik", null)).toBe("Grafik");
   });
+
+  it("şekil okuması slaydın metnini tekrarlıyorsa o satırlar eke girmez (29 Ekim 2026)", () => {
+    const slide = "Fonksiyon Grafikleri\nf ve g fonksiyonlarının grafiği aşağıdadır.";
+    expect(figureTranscript("Fonksiyon Grafikleri\nf ve g fonksiyonlarının grafiği aşağıdadır.", { textLayer: slide })).toBeNull();
+    expect(figureTranscript("FONKSİYON GRAFİKLERİ\ng(4) = -2\n1 → b", { textLayer: slide })).toBe("g(4) = -2\n1 → b");
+  });
 });
 
 describe("kötü dosyalar", () => {

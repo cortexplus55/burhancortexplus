@@ -27,6 +27,8 @@ export async function attachOfficeFigures(
       deadlineMs: options?.deadlineMs,
       scanOrdinal: index + 1,
       purpose: "figure",
+      // Slaydın/sayfanın metni zaten XML'den geldi: resim okuması onu tekrarlamasın (29 Ekim 2026).
+      textLayer: next[image.pageIndex] ?? null,
     });
     usage = mergeUsage(usage, read.usage);
     if (read.reason === "blocked") {
