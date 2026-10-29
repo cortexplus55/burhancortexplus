@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { after, NextResponse } from "next/server";
+import { studentOutputText } from "@/lib/learning/student-output-firewall";
 import { samplingParams } from "@/lib/ai/model-params";
 import { z } from "zod";
 import OpenAI from "openai";
@@ -510,11 +511,13 @@ export async function POST(request: Request) {
         const rawDraft = response.choices[0]?.message?.content ?? "";
         // JSON çıktıyı öğrenci metnine çevir; doğrulayıcı serbest metin bekler.
         const structuredEarly = parseTutorStructured(rawDraft);
-        const studentFacing = structuredEarly
+        const studentFacingRaw = structuredEarly
           ? serializeStructuredReply(structuredEarly, {
               context: `${historyText}\n${prepGrounding?.corpus ?? ""}`,
             }).content
           : rawDraft;
+        // Sohbet cevabı da öğrenci metninin tek süzgecinden geçer (29 Ekim 2026).
+        const studentFacing = studentOutputText(studentFacingRaw);
         const stampOutside = !strict && (!prepGrounding || prepGrounding.decision === "out");
         const draft = stampOutside
           ? presentOutsideMaterialAnswer({

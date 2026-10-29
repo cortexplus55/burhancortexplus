@@ -140,3 +140,120 @@
 .cp-node-result-go:hover {
   background: var(--c-action-hover);
 }
+
+/*
+  Dört aşamalı sonuç (29 Ekim 2026): (1) yıldız ve seri, (2) konu hâkimiyeti artışı, (3) kapanan ve
+  kalan eksik, (4) sıradaki etkinlik / tekrar incele. Aşamalar sırayla belirir; hareket azaltmada durur.
+*/
+.cp-node-result-stages {
+  display: grid;
+  gap: 0.75rem;
+  width: min(100%, 32rem);
+  margin: 1.25rem auto 0;
+}
+
+.cp-node-result-stage {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--cp-border, #303030);
+  border-radius: 1rem;
+  background: var(--cp-surface, #141414);
+  text-align: left;
+  animation: cp-node-result-stage-in 0.45s ease both;
+}
+
+.cp-node-result-stage:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.cp-node-result-stage:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.cp-node-result-stage:nth-child(4) {
+  animation-delay: 0.36s;
+}
+
+.cp-node-result-stage-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.cp-node-result-stage-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cp-node-result-stage-title {
+  font: var(--t-label-13);
+  letter-spacing: var(--ls-label);
+  color: var(--cp-muted, #a3a3a3);
+}
+
+.cp-node-result-stage-value {
+  font: var(--t-title-m);
+  color: var(--cp-text, #fff);
+}
+
+.cp-node-result-stage-note {
+  font: var(--t-body-14);
+  color: var(--cp-muted, #a3a3a3);
+}
+
+.cp-node-result-stage-gain {
+  color: var(--cp-success, #22c55e);
+}
+
+.cp-node-result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.cp-node-result-actions a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--cp-border, #303030);
+  border-radius: 9999px;
+  padding: 0.5rem 0.75rem;
+  font: var(--t-button-s);
+  color: var(--cp-text, #fff);
+  text-decoration: none;
+}
+
+.cp-node-result-actions a.is-primary {
+  background: var(--cp-action, #4353f3);
+  border-color: var(--cp-action, #4353f3);
+  color: #fff;
+}
+
+@keyframes cp-node-result-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-node-result-stage {
+    animation: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .cp-node-result-actions {
+    grid-template-columns: 1fr;
+  }
+}

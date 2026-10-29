@@ -33,6 +33,7 @@ import {
   preferNextNodeForTracking,
   scoreTopicMastery,
   topicMasteryPercent,
+  topicMasteryView,
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
@@ -395,6 +396,13 @@ export default async function ExamPrepDetailPage({
   const masteryByKey = new Map(
     masterySnapshots.map((topic) => [normalizeTopicKey(topic.topicKey), topicMasteryPercent(scoreTopicMastery(topic))]),
   );
+  // "Sağlam / Çalışılacak" İlerleme'de de aynı kaynaktan (29 Ekim 2026).
+  const masteryStateByKey = new Map(
+    masterySnapshots.map((topic) => [
+      normalizeTopicKey(topic.topicKey),
+      topicMasteryView(scoreTopicMastery(topic), typeof prep.target_score === "number" ? prep.target_score : null).state,
+    ]),
+  );
   const topicPercents: Record<string, number> = {};
   for (const label of topicLabels) {
     topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = masteryByKey.get(normalizeTopicKey(label)) ?? 0;
@@ -412,6 +420,7 @@ export default async function ExamPrepDetailPage({
     topicMastery: topicLabels.map((label) => ({
       label,
       confidence: topicPercents[label.trim().toLocaleLowerCase("tr-TR")] ?? 0,
+      state: masteryStateByKey.get(normalizeTopicKey(label)) ?? "unmeasured",
     })),
     gaps: (gapRows ?? []).map((row) => ({
       claim: String(row.claim ?? ""),

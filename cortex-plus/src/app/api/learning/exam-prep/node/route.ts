@@ -1270,6 +1270,14 @@ async function handleNodeRequest(
         });
         learningTracking = tracked.tracking;
         topicGain = tracked.topicGain;
+        // Sonuç sayfası "+%X" aşamasını kayıttan okur (29 Ekim 2026); kazanç yoksa kayda bir şey yazılmaz.
+        if (tracked.topicGain) {
+          await service
+            .from("exam_prep_node_attempts")
+            .update({ payload: { ...((payloadForEvidence as object) ?? {}), topicGain: tracked.topicGain } })
+            .eq("id", attempt.id)
+            .then(undefined, () => undefined);
+        }
         if (tracked.nextNodeId) {
           nextHref = `/deneme-sinavlari/${prepId}/dugum/${tracked.nextNodeId}`;
         }
@@ -3481,6 +3489,8 @@ async function teacherLessonPayload(
     topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,
     prepTitle: input.prepTitle,
     pages: lessonPages,
+    // Ders içi sorunun şık sayısı testle aynı kuraldan (29 Ekim 2026): ortaokul/LGS 4, lise ve üstü 5.
+    optionCount: await studentOptionCount(input.service, input.userId, input.prepTitle),
     upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     // Belgeli derste yalnız dersin kaynağında geçen maddeler: başka belgenin maddesi "kaynakta yok" turu açıyordu.

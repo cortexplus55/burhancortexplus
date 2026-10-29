@@ -46,11 +46,9 @@ export function ExamPrepAssessment({
   nextHref: string;
   mockNodeHref: string | null;
 }) {
-  const go =
-    tracking.claimFullyReady ||
-    (tracking.examReadinessPct >= 70 &&
-      tracking.measuredTopicCount > 0 &&
-      openMisconceptions === 0);
+  // Tek karar (29 Ekim 2026): "Hazırsın" ekranıyla aynı iddia. Buradaki ayrı %70 eşiği değerlendirme
+  // sayfasını "hazır" derken yolun Hazırsın düğümünü kapalı bırakıyordu.
+  const go = tracking.claimFullyReady;
 
   return (
     <div className="cp-exam-page">

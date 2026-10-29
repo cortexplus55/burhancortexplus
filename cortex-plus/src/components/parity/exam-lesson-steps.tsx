@@ -13,8 +13,8 @@ import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
 import { cleanFeedbackText, feedbackKicker } from "@/lib/learning/feedback-copy";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import { DiagramCard } from "@/components/parity/diagram-card";
-import { SourcePageButton } from "@/components/parity/source-page-drawer";
-import { matchLessonSource, type SourceDocRef } from "@/lib/learning/source-preview";
+import { SourceFigureCard, SourcePageButton } from "@/components/parity/source-page-drawer";
+import { isFigurePage, matchLessonSource, type SourceDocRef } from "@/lib/learning/source-preview";
 import {
   calloutTone,
   checkPresentation,
@@ -1048,7 +1048,9 @@ export function ExamLessonSteps({
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
       {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}
-      {sourcePreview ? (
+      {sourcePreview && isFigurePage(sourcePreview, sourceDocs) ? (
+        <SourceFigureCard documentId={sourcePreview.documentId} page={sourcePreview.page} fileName={sourcePreview.fileName} />
+      ) : sourcePreview ? (
         <SourcePageButton documentId={sourcePreview.documentId} page={sourcePreview.page} fileName={sourcePreview.fileName} />
       ) : null}
 

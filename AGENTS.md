@@ -1350,3 +1350,29 @@ Bekçi: `paket-a-exam-podcast.test.ts`, `p2-mock-exam.test.ts`, `deneme-publish-
 
 Bekçi: `paket-b-speed-schedule-tf.test.ts`, `paket-b-true-false-card.test.tsx`, `scanned-pdf.test.ts`, `outline-oneshot.test.ts`, `lesson-building-ui.test.tsx`,
 `p1-counters.test.ts`, `teacher-practice.test.ts`.
+
+## Paket C (29 Ekim 2026) — ölçme ve ders: tek süzgeç, tek yüzde, şema etiketleri, sonuç kartı
+
+29 Ekim'de gelen "10 mimari sütun" istemi ürün sahibine soruldu; cevaplar: **simülasyon laboratuvarı kapalı kalır**
+(üçüncü kez), **palet Astra'yla birebir kalır** (yalnız kusurlar düzeltilir), **velime ödeme linki yapılacak**
+(öğrenci-only kuralının tek istisnası; ayrı PR), sıra ölçme → genişlik → bot düello → veli ödeme. Zaten yayında
+olduğu için yeniden yapılmayanlar: çizimli video 25 kredi, takvim tatil/ara sınav, D/Y odak kartı, sabit adım,
+deneme süresi, eşdeğer şık, vaat = teslim, çoklu doğru rozeti, açık uçluda kısmi puan, bileşke/ters fonksiyon
+denetimi, soru soru sözlü notu, veri silme (günlük cron'un içinde; **üçüncü cron asla**).
+
+| Kural | Nerede |
+|---|---|
+| **Öğrenci metninin tek süzgeci**: `studentOutputText` / `studentOutputPayload`; eski `studentSafeText`, `sanitizeStudentCopy`, `studentSafePayload` adları buraya yönlendirir. Düğüm kaydı (node rotası), ders metni (`RichBody`), podcast satırı, sohbet cevabı (`studentFacing`) ve Araçlar çıktısı (`postStudio`) aynı yerden geçer. Yeni kurallar: satır başındaki konuşmacı adı ("Ada:", "Ece:", "ÖĞRETMEN:"), uydurma anı cümlesi ("geçen gün denemede…"); "İpucu:" ham öneki metnin ortasında da düşer (26 Ekim bekçisi) | `student-output-firewall.ts` |
+| **Ders içi sorunun şık sayısı testle aynı kuraldan**: ortaokul/LGS 4, lise/YKS/KPSS/TUS/üniversite 5 (`resolveOptionCount`). Yazar `ŞIK SAYISI` satırını okur (düzeltme istemi de aynı satırı taşır), yapı denetimi o sayıyı ister; sayı yoksa 4 | `TeacherLessonInput.optionCount`, `lessonOptionCountLine`, node rotası `teacherLessonPayload` |
+| **Çözüm adımı ↔ doğru şık**: son adımın (eşittirden sonraki) sayısı doğru şıkta yoksa ve BAŞKA bir şıkta varsa yapı sorunu; birim/ölçek farkı (başka şıkka düşmeyen) işaretlenmez | `stepsAnswerMismatch`, `quizStructureIssues` |
+| **Şema etiketleri HTML'de**: çizgi, ok, eğri SVG; etiket yüzdeyle yerleşen rozet, kendi yazı boyutunda, satır sarar; yakın komşular `labelTiers` ile ayrı katlara. Genişlik tahmini telefon ölçüsünden (`CHAR_W` 12 birim/harf). `data-diagram` SVG'de durur (bekçi) | `diagram-card.tsx`, `exam-lesson-steps.css` `.als-diagram-stage` |
+| **Belgedeki şema derse gömülü**: şekil okunmuş sayfa (`text_content` içinde `Şekilde işaretli değerler:`) adımın kaynağıysa "📌 Belgedeki Şema — Sayfa N" kartı ders içinde açılır (PDF sayfası canvas'ta, öbür türlerde metin); "Kaynak Sayfayı Gör" büyütür | `SourceDocRef.figurePages`, `isFigurePage`, `SourceFigureCard`, `dugum/[nodeId]/page.tsx` |
+| **Tek yüzde kaynağı**: `topicMasteryView` → yüzde (`topicMasteryPercent`), durum (`ready` / `needs_work` / `unmeasured`), "Sağlam / Çalışılacak" etiketi, çözülen sayı. İlerleme satırı rozeti bundan; değerlendirme sayfasının ayrı `%70` eşiği kalktı (`go = claimFullyReady`) | `learning-tracking.ts`, `prep-progress-view.ts` `state`, `exam-prep-assessment.tsx` |
+| **Asılı yazım 3 dk'da ölü**: `STALE_CREATING_MS` 10 dk → 3 dk. Ölçü: soğuk test tek yazımla ~100 sn, dersin ilk kavramı 55 sn'de yayımlanır ve her yayım `updated_at` tazeler. Ölü satır beklenmez (istek soğuk yazıma geçer; önceden yazım kredisizdi), sıradaki önceden yazım devralır. 90 sn istenmişti: normal işlemdeki testi öldürürdü | `lesson-prefetch.ts` |
+| **Dört aşamalı sonuç**: (1) yıldız `prepStars` ile ödül kuralından + seri, (2) "+%X" tamamlama kaydındaki `topicGain`'den (rota kayda yazar), (3) açık yanılgı + çalışılacak/sağlam konu, (4) "⏭️ Sıradaki etkinliğe geç" / "📖 Tekrar incele". Okunamayan veri "okunamadı" yazar, sayfa düşmez. Sunucu sayfası istemci modülünden fonksiyon almaz | `result-stages.ts`, `sonuc/page.tsx`, `node-result.css` |
+
+Bulunamayanlar (istemdeki örnekler bu kod tabanında yok): "YanlışÖğrenci" bitişik etiket, "[−3: | 5]" aralık; test
+inceleme ekranı şık harfini zaten ✓ ile birlikte gösteriyor; `sonner` sabit konumlu, sayfayı kaydırmıyor; başlat/bitir
+düğmeleri `finally` ile açılıyor (3 sn'lik zorla açma yazılmadı: 20 sn'lik üretim sürerken çift gönderime yol açar).
+
+Bekçi: `paket-c-olcme-ders.test.tsx`.

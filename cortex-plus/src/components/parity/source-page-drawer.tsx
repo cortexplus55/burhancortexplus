@@ -86,3 +86,56 @@ export function SourcePageButton({ documentId, page, fileName }: { documentId: s
     </>
   );
 }
+
+/**
+ * Belgedeki şema derse gömülü (29 Ekim 2026). Şekil okunmuş sayfadaki adımda "Kaynak Sayfayı Gör"
+ * düğmesi yerine sayfanın kendisi ders içinde açılır; dokununca aynı pencerede büyür.
+ */
+export function SourceFigureCard({ documentId, page, fileName }: { documentId: string; page: number; fileName: string }) {
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/documents/${documentId}/page-preview?page=${page}`)
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as Preview & { error?: string };
+        if (!alive) return;
+        if (!res.ok) {
+          setFailed(true);
+          return;
+        }
+        setPreview({
+          page: data.page ?? page,
+          fileName: data.fileName ?? fileName,
+          signedUrl: data.signedUrl ?? null,
+          text: data.text ?? null,
+        });
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [documentId, page, fileName]);
+
+  if (failed) return <SourcePageButton documentId={documentId} page={page} fileName={fileName} />;
+  return (
+    <figure className="als-source-figure">
+      <figcaption>
+        <span>📌 Belgedeki Şema — Sayfa {page}</span>
+        <SourcePageButton documentId={documentId} page={page} fileName={fileName} />
+      </figcaption>
+      {preview?.signedUrl ? (
+        <div className="als-source-figure-stage">
+          <DocumentPdfPreview signedUrl={preview.signedUrl} initialPage={preview.page} />
+        </div>
+      ) : preview ? (
+        <pre className="als-source-drawer-text">{preview.text ?? "Bu sayfanın metni yok."}</pre>
+      ) : (
+        <p className="als-source-figure-wait">Şema yükleniyor…</p>
+      )}
+    </figure>
+  );
+}

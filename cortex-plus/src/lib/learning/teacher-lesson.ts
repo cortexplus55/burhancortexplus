@@ -14,6 +14,7 @@ import {
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotation } from "@/lib/learning/function-notation";
+import type { OptionCount } from "@/lib/learning/student-pedagogy";
 import { examPointsBlock, examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { studentTextParts } from "@/lib/learning/lesson-board";
 import { nearSameQuestion, reviewItemProblems, stemOverlap } from "@/lib/learning/teacher-brain";
@@ -75,7 +76,24 @@ export type TeacherLessonInput = {
   mode?: TeacherLessonMode;
   /** Önceden yazımda kapsam turu bir kez daha açılabilir. Öğrenci yolunda bir tur. */
   coverageBudget?: "student" | "prefetch";
+  /**
+   * Ders içi çoktan seçmeli sorunun şık sayısı (29 Ekim 2026): testle aynı kural, ortaokul/LGS 4,
+   * lise/YKS/KPSS/TUS/üniversite 5 (`resolveOptionCount`). Yoksa 4.
+   */
+  optionCount?: OptionCount;
 };
+
+const OPTION_LETTER_LIST = ["A", "B", "C", "D", "E"] as const;
+
+export function lessonOptionCount(input: Pick<TeacherLessonInput, "optionCount">): OptionCount {
+  return input.optionCount ?? 4;
+}
+
+/** İstemin ŞIK SAYISI satırı; yazar ve düzeltici aynı satırı okur. */
+export function lessonOptionCountLine(input: Pick<TeacherLessonInput, "optionCount">): string {
+  const n = lessonOptionCount(input);
+  return `ŞIK SAYISI: ${n} (${OPTION_LETTER_LIST.slice(0, n).join("–")}) — çoktan seçmeli her soruda tam ${n} şık ve ${n} optionWhy; şemadaki "…" sayısı temsilidir.`;
+}
 
 export type TeacherLessonMode = "document" | "topic";
 
@@ -372,7 +390,7 @@ export const TEACHER_SYSTEM =
   "tek ekransa onun sorusu 'önce dene' sorusudur — o ekrana ikinci soru yazma. Öbür ekranlarda soru ekranın son " +
   "bloğudur. Bölünmüş bir tablonun her ekranındaki soru o ekrandaki komşu satırları ayırt ettirir (komşu iki satırı " +
   "karıştıran öğrenciyi yakalar: '9 ayda mı, 12 ayda mı?'). " +
-  "Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
+  "Çoktan seçmeli soruda ŞIK SAYISI satırındaki kadar şık (satır yoksa 4); çeldiriciler aynı ailedeki kardeş terimler ya da " +
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). " +
@@ -423,6 +441,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
+    lessonOptionCountLine(input),
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "lesson"),
@@ -1058,7 +1077,8 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
   return answer.filter((stem) => seen.has(stem)).length >= 2;
 }
 
-type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> & Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode">>;
+type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> &
+  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount">>;
 
 function collector() {
   const issues: TeacherIssue[] = [];
@@ -1151,7 +1171,7 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   // "önce dene" + "kavram soruyla biter" iki soru yazdırıyordu. Ekran yalnız ilk soruyu
   // gösterir, notlandırma da ilk soruya bakar; ikincisi öğrenciye zarar vermez.
   if (checks.length > 1) low(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu çıkar (ekran yalnız ilkini gösterir).");
-  for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low);
+  for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low, lessonOptionCount(input));
   screen.blocks.forEach((block, blockIndex) => {
     // 20 Ekim 2026 kör kıyas: şemadaki örnek başlık "X ile Y farkı" iki derste aynen ekrana çıktı.
     const titles =
@@ -1921,10 +1941,13 @@ function checkIssues(
   where: string,
   add: (where: string, problem: string) => void,
   low: (where: string, problem: string) => void,
+  optionCount: OptionCount = 4,
 ) {
   if (check.type === "mcq") {
     const options = check.options ?? [];
-    if (options.length !== 4) add(where, "Çoktan seçmeli soruda 4 şık olmalı.");
+    if (options.length !== optionCount) {
+      add(where, `Çoktan seçmeli soruda ${optionCount} şık olmalı (${OPTION_LETTER_LIST.slice(0, optionCount).join("–")}).`);
+    }
     if (typeof check.answerIndex !== "number" || check.answerIndex < 0 || check.answerIndex >= options.length) {
       add(where, "answerIndex şıklarla uyuşmuyor.");
     }

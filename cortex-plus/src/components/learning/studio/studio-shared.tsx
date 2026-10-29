@@ -12,6 +12,7 @@ import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { STUDIO_NEXT, studioHref, type StudioToolId } from "@/lib/learning/studio-next";
 import { playPlusTone } from "@/lib/learning/studio-sound";
 import { downloadStudioCard } from "@/lib/learning/studio-share-card";
+import { studentOutputPayload } from "@/lib/learning/student-output-firewall";
 import { cn } from "@/lib/utils";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
 import { postJsonWithRetry } from "@/lib/learning/generation-retry";
@@ -39,7 +40,8 @@ export async function postStudio<T>(
     if (res.status === 402) return { paywall: true, code: payload.code };
     if (!res.ok) return { ok: false, error: payload.error ?? "İşlem tamamlanamadı." };
     onGenerationSucceeded();
-    return { ok: true, data: payload };
+    // Araçlar'ın her çıktısı aynı süzgeçten (29 Ekim 2026): kart, önerme, sözlü ve podcast metni.
+    return { ok: true, data: studentOutputPayload(payload) };
   } catch {
     return { ok: false, error: "Bağlantı hatası." };
   }

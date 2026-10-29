@@ -378,6 +378,35 @@ export function topicIsSolid(topic: TopicMasterySnapshot, target: number): boole
   return topic.evidenceCount >= MASTERY_EVIDENCE_FLOOR && topicMasteryPercent(topic) >= target;
 }
 
+export type TopicMasteryState = "ready" | "needs_work" | "unmeasured";
+
+export type TopicMasteryView = {
+  /** `topicMasteryPercent`: sönümlü yüzde. */
+  percent: number;
+  state: TopicMasteryState;
+  /** Ekrandaki rozet: "Sağlam" / "Çalışılacak" / "Ölçülmedi". */
+  label: string;
+  /** Kayıtlı cevap (kanıt) sayısı: "N çözüldü". */
+  solved: number;
+};
+
+export const MASTERY_STATE_LABEL: Record<TopicMasteryState, string> = {
+  ready: "Sağlam",
+  needs_work: "Çalışılacak",
+  unmeasured: "Ölçülmedi",
+};
+
+/**
+ * Konunun ekrandaki hâli — tek kaynak (29 Ekim 2026). Yol, İlerleme, sözlü konu seçici ve Hazırsın
+ * yüzdeyi ve "Sağlam / Çalışılacak" rozetini buradan okur; biri kayıtlı `confidence`'ı, öteki sönümlü
+ * yüzdeyi gösterince aynı konu iki ekranda iki sayıyla çıkıyordu. Baraj hedef puandır (yoksa 70).
+ */
+export function topicMasteryView(topic: TopicMasterySnapshot, target: number | null | undefined): TopicMasteryView {
+  const measured = topic.measured && topic.evidenceCount > 0;
+  const state: TopicMasteryState = !measured ? "unmeasured" : topicIsSolid(topic, effectiveTarget(target)) ? "ready" : "needs_work";
+  return { percent: topicMasteryPercent(topic), state, label: MASTERY_STATE_LABEL[state], solved: topic.evidenceCount };
+}
+
 /** `exam_prep_topic_mastery` okuyan her sayfa bu sütunları ister; yüzde kayıtlı `confidence`'tan değil ham sayılardan. */
 export const MASTERY_ROW_COLUMNS =
   "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at";

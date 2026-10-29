@@ -18,6 +18,7 @@ import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
 import { formatPageList } from "@/lib/learning/path-source-label";
 import { loadTopicSupport } from "@/lib/learning/topic-support-load";
+import { FIGURE_APPENDIX_LABEL } from "@/lib/documents/extract-image-text";
 
 /**
  * Konuya bağlı etkinlikler: "N kaynak" konunun kendi dosyalarını ve sayfalarını gösterir. Deneme,
@@ -218,14 +219,37 @@ export default async function ExamNodePage({
   const shownSourceIds = topicPages.size
     ? sourceIds.filter((id) => topicPages.has(id) || supportByDoc.has(id))
     : sourceIds;
+  // Şekil okunmuş sayfalar (29 Ekim 2026): dersin adımı bu sayfadaysa belgedeki şema derse gömülür.
+  const figurePagesByDoc = new Map<string, number[]>();
+  if (shownSourceIds.length) {
+    const { data: figureRows } = await supabase
+      .from("document_pages")
+      .select("document_id, page_number")
+      .in("document_id", shownSourceIds)
+      .ilike("text_content", `%${FIGURE_APPENDIX_LABEL}%`)
+      .limit(300);
+    for (const row of figureRows ?? []) {
+      const id = String(row.document_id);
+      figurePagesByDoc.set(id, [...(figurePagesByDoc.get(id) ?? []), Number(row.page_number)]);
+    }
+  }
   const sources = shownSourceIds.flatMap((id) => {
     const row = sourceById.get(id);
     const own = formatPageList(topicPages.get(id) ?? []);
     const extra = [...new Set((supportByDoc.get(id) ?? []).filter(Boolean))];
     const extraText = extra.length ? `ek: ${extra.join(", ")}` : supportByDoc.has(id) ? "ek kaynak" : "";
     const pages = [own ? `s.${own}` : "", extraText].filter(Boolean).join(" · ");
+    const figurePages = figurePagesByDoc.get(id);
     return row
-      ? [{ id, name: (row.file_name as string) || "Belge", href: `/dokumanlar/${id}`, ...(pages ? { pages } : {}) }]
+      ? [
+          {
+            id,
+            name: (row.file_name as string) || "Belge",
+            href: `/dokumanlar/${id}`,
+            ...(pages ? { pages } : {}),
+            ...(figurePages?.length ? { figurePages } : {}),
+          },
+        ]
       : [];
   });
   const sourceName =

@@ -952,6 +952,43 @@ function duplicateOption(options: readonly string[]): boolean {
   return false;
 }
 
+const NUMBER_TOKEN = /-?\d+(?:[.,]\d+)?/g;
+
+function numbersIn(text: string): number[] {
+  return (text.match(NUMBER_TOKEN) ?? [])
+    .map((token) => Number(token.replace(",", ".")))
+    .filter((value) => Number.isFinite(value));
+}
+
+function sameNumber(a: number, b: number): boolean {
+  return Math.abs(a - b) <= Math.max(1e-9, Math.abs(b) * 1e-6);
+}
+
+/**
+ * Çözüm adımlarının vardığı sayı doğru şıkta olmalı (29 Ekim 2026). Yazar "son adım doğru şıkka varır"
+ * kuralını okur ama adımlar 12'ye varıp anahtar 15'i gösterebiliyordu. Son adımın (varsa eşittirden
+ * sonraki) son sayısı doğru şıkta yoksa ve BAŞKA bir şıkta varsa anahtar yanlıştır. Birimi ya da
+ * ölçeği farklı yazılmış sonuç (0,5 m / 50 cm) başka şıkka düşmedikçe işaretlenmez: yanlış alarm yok.
+ */
+export function stepsAnswerMismatch(question: Pick<QuizQuestion, "options" | "correct" | "steps">): string | null {
+  const steps = (question.steps ?? []).map((line) => line.trim()).filter(Boolean);
+  if (!steps.length) return null;
+  const last = steps[steps.length - 1]!;
+  const tail = last.includes("=") ? last.slice(last.lastIndexOf("=") + 1) : last;
+  const finals = numbersIn(tail);
+  const final = finals[finals.length - 1];
+  if (final == null) return null;
+  const answer = Array.isArray(question.correct) ? question.correct[0] : question.correct;
+  if (!answer) return null;
+  const answerNumbers = numbersIn(answer);
+  if (!answerNumbers.length || answerNumbers.some((value) => sameNumber(value, final))) return null;
+  const elsewhere = question.options.find(
+    (option) => option !== answer && numbersIn(option).some((value) => sameNumber(value, final)),
+  );
+  if (!elsewhere) return null;
+  return `Çözüm adımları ${tail.trim()} sonucuna varıyor; doğru şık '${answer}' değil '${elsewhere}' olmalı ya da adımlar yanlış.`;
+}
+
 export function quizStructureIssues(
   question: QuizQuestion,
   options: { multi?: boolean; optionCount?: OptionCount } = {},
@@ -959,6 +996,8 @@ export function quizStructureIssues(
   const issues: string[] = [];
   const countIssue = optionCountIssue(question, options.optionCount);
   if (countIssue) issues.push(countIssue);
+  const mismatch = stepsAnswerMismatch(question);
+  if (mismatch) issues.push(mismatch);
   if (duplicateOption(question.options)) issues.push("Aynı şık iki kez yazılmış.");
   const said = [question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
   if (reversedFunctionNotation(said.join("\n")).length) issues.push(FUNCTION_NOTATION_ISSUE);

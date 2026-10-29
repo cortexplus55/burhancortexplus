@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import type { PrepProgressView } from "@/lib/learning/prep-progress-view";
+import { MASTERY_STATE_LABEL } from "@/lib/learning/learning-tracking";
 import { gapLines } from "@/lib/learning/feedback-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
@@ -206,7 +207,12 @@ export function ExamPrepProgress({
                   <li key={topic.label}>
                     <div className="cp-prog-topic-row">
                       <strong>{topic.label}</strong>
-                      <span>%{topic.pct}</span>
+                      <span>
+                        {topic.state && topic.state !== "unmeasured" ? (
+                          <em className={cn("cp-prog-topic-state", `is-${topic.state}`)}>{MASTERY_STATE_LABEL[topic.state]}</em>
+                        ) : null}
+                        %{topic.pct}
+                      </span>
                     </div>
                     <div className="cp-prog-topic-bar" aria-hidden>
                       <span style={{ width: `${topic.pct}%` }} />

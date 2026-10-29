@@ -1,8 +1,21 @@
 /** Ders adımındaki kaynak künyesini öğrencinin belgesine bağlar. Yeni sekme açılmaz. */
 
-export type SourceDocRef = { id: string; name: string; pages?: string };
+export type SourceDocRef = {
+  id: string;
+  name: string;
+  pages?: string;
+  /** Şekil okunmuş sayfalar (29 Ekim 2026): adım bu sayfadaysa şekil derse gömülü gösterilir. */
+  figurePages?: number[];
+};
 
 export type LessonSourceMatch = { documentId: string; page: number; fileName: string };
+
+/** Adımın kaynak sayfası belgenin şekil sayfalarından biri mi. */
+export function isFigurePage(match: LessonSourceMatch | null, docs: readonly SourceDocRef[]): boolean {
+  if (!match) return false;
+  const doc = docs.find((item) => item.id === match.documentId);
+  return Boolean(doc?.figurePages?.includes(match.page));
+}
 
 function fold(value: string): string {
   return value.trim().toLocaleLowerCase("tr-TR");
