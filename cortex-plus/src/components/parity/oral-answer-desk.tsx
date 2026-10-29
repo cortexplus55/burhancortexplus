@@ -34,6 +34,7 @@ export function OralAnswerDesk({
   value,
   busy,
   onChange,
+  onProbe,
   onAdvance,
   onFinish,
 }: {
@@ -47,6 +48,8 @@ export function OralAnswerDesk({
   value: string;
   busy?: boolean;
   onChange: (value: string) => void;
+  /** Takip sorusu açılınca metni (hakem takip cevabının neye verildiğini görsün; 29 Ekim 2026). */
+  onProbe?: (question: string) => void;
   /** `firstAnswer`: takip sorusu açıldıysa takipten önceki cevap (notta ayrıca değerlendirilir). */
   onAdvance: (answer: string, firstAnswer?: string) => void;
   onFinish: (answer: string, firstAnswer?: string) => void;
@@ -201,6 +204,7 @@ export function OralAnswerDesk({
     if (next) {
       mainAnswer.current = value.trim();
       setProbe(next);
+      onProbe?.(next.question);
       setFollow("");
       setStatus("speaking");
       speakTurkish(next.question, {
