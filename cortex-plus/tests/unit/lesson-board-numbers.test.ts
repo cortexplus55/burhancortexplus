@@ -32,6 +32,9 @@ describe("lesson board keeps capitalised ordinals", () => {
   it("still drops the numbers of a real 1, 2, 3 formula list", () => {
     const shown = layoutBoard(["1. P = F/A", "2. W = F · d"].join("\n")).map((line) => line.text);
     expect(shown.some((line) => /^\d\.\s/.test(line))).toBe(false);
+    // 29 Ekim 2026: parantez içindeki "(0, 2)" sıra sayısı adayı değildir; liste yine listedir.
+    const withPoint = layoutBoard("1. P = F/A (0, 2) noktası 2. W = F · d").map((line) => line.text);
+    expect(withPoint).toEqual(["P = F/A (0, 2) noktası", "W = F · d"]);
   });
 });
 
