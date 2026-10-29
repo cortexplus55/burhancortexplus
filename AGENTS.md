@@ -1393,3 +1393,18 @@ Yapılmayan: 15 ve 284 sayfalık belgelerde "ince başlık ayrı konu" istemi �
 PDF şekilleri zaten okunuyor; kota dolunca atlanan resim Belgelerim'de yazıyor ("N resim sayfası okunmadı").
 
 Bekçi: `paket-d-genislik.test.tsx`.
+
+## Paket E (29 Ekim 2026) — bot rakipli düello
+
+Düello yalnız eşzamansızdı: arkadaş gelene kadar öğrenci tek başına oynuyordu. Şimdi aynı 7 soru, aynı
+kurallar, karşıda bir bot.
+
+| Kural | Nerede |
+|---|---|
+| **Botun turu sunucuda üretilir** (`POST /api/duels/[code]/bot` {level}); doğru cevaplar bilinerek, tohum rastgele (her başlatma yeni bot). İstemciye soru başına yalnız süre ve doğru/yanlış gider — hangi şık olduğu değil. **Kayıt yok**: bot sıralama tablosuna yazılmaz, yıldız almaz | `duel-bot.ts` `botRun`, `botTimeline`; `bot/route.ts` |
+| Üç zorluk: Sınıf arkadaşı (%60, 6–15 sn), Derece öğrencisi (%80, 4–11 sn), Şampiyon (%93, 2,5–7,5 sn). Yanlışta botun seçimi doğru şıktan başka bir şık; puan kuralı öğrencininkiyle aynı (`questionPoints`) | `BOT_LEVELS` |
+| Oyun sırasında üst çubuk: botun adı, o ana kadarki puanı, soru başına nokta (yeşil/kırmızı/yanıp sönen), "✓ bildi · 4,2 sn", seri ≥2'de "🔥 x3". Görünürlük kuralı: önceki sorular + bu soruda süresi geçtiyse | `botScoreUntil`, `botComboUntil`, `duel-play.tsx` |
+| Sonuçta kafa kafaya: puan, doğru, ortalama süre, soru soru ✓/✗; "Kazandın! 🏆 / Berabere / Bu sefer bot önde"; "Botla yeniden" yeni bot getirir | `headToHead` |
+| Hazırlıktaki Düellolar sayfasında ikinci düğme "🤖 AI rakiple hemen başla": düelloyu kurar, sayfayı `?bot=derece` ile açar; oturumlu öğrencide bot kendiliğinden başlar, misafir önce adını yazar | `new-duel-button.tsx`, `duello/[code]/page.tsx` `initialBot` |
+
+Bekçi: `paket-e-duello-bot.test.tsx` (tohum, doğruluk aralığı 150 tohumda ±%8, sızıntı yok, canlı puan/seri, kafa kafaya, ekran akışı).

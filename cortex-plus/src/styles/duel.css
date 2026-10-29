@@ -375,3 +375,212 @@
   font-size: 0.78rem;
   color: var(--cp-muted, #9aa3b8);
 }
+
+/* Bot rakip (29 Ekim 2026): üst çubukta botun ilerleyişi, girişte zorluk seçimi, sonda kafa kafaya. */
+.cp-duel-bot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.cp-duel-bot-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  color: var(--c-text, #f4f4f5);
+}
+
+.cp-duel-bot-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text, #f4f4f5);
+  justify-self: end;
+}
+
+.cp-duel-bot-combo {
+  grid-column: 1 / -1;
+  font-weight: 700;
+  color: var(--c-brand, #f4ae0b);
+}
+
+.cp-duel-bot-track {
+  grid-column: 1;
+  display: flex;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-duel-bot-track li {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.cp-duel-bot-track li.is-right {
+  background: var(--c-success, #22c55e);
+}
+
+.cp-duel-bot-track li.is-wrong {
+  background: var(--c-danger, #ef4444);
+}
+
+.cp-duel-bot-track li.is-live {
+  background: var(--c-action, #4353f3);
+  animation: cp-duel-bot-pulse 0.9s ease-in-out infinite;
+}
+
+.cp-duel-bot-status {
+  grid-column: 2;
+  justify-self: end;
+  color: var(--c-muted, #9aa3b8);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes cp-duel-bot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-duel-bot-track li.is-live {
+    animation: none;
+  }
+}
+
+.cp-duel-bot-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.cp-duel-bot-levels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.cp-duel-bot-level {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: var(--c-text, #f4f4f5);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cp-duel-bot-level.is-on {
+  border-color: var(--c-action, #4353f3);
+  background: rgba(67, 83, 243, 0.18);
+}
+
+.cp-duel-versus {
+  text-align: left;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cp-duel-versus[data-winner="student"] {
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.cp-duel-versus-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cp-duel-versus-head > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.cp-duel-versus-head > span:last-child {
+  text-align: right;
+}
+
+.cp-duel-versus-head b {
+  font-size: 0.8rem;
+  color: var(--c-muted, #9aa3b8);
+}
+
+.cp-duel-versus-head strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-duel-versus-head em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--c-muted, #9aa3b8);
+}
+
+.cp-duel-versus-vs {
+  font-size: 0.75rem;
+  color: var(--c-muted, #9aa3b8);
+}
+
+.cp-duel-versus-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(3.2rem, 1fr));
+  gap: 0.3rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-duel-versus-rows li {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.cp-duel-versus-rows b {
+  color: var(--c-muted, #9aa3b8);
+}
+
+.cp-duel-versus-rows .is-right {
+  color: var(--c-success, #22c55e);
+}
+
+.cp-duel-versus-rows .is-wrong {
+  color: var(--c-danger, #ef4444);
+}
+
+.cp-duel-versus-rows .is-none {
+  color: var(--c-muted, #9aa3b8);
+}
