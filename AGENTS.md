@@ -1376,3 +1376,20 @@ inceleme ekranı şık harfini zaten ✓ ile birlikte gösteriyor; `sonner` sabi
 düğmeleri `finally` ile açılıyor (3 sn'lik zorla açma yazılmadı: 20 sn'lik üretim sürerken çift gönderime yol açar).
 
 Bekçi: `paket-c-olcme-ders.test.tsx`.
+
+## Paket D (29 Ekim 2026) — genişlik: metin yapıştır, bağlantı ekle, hazır müfredat
+
+Öğrencinin elinde dosya yoksa da kurulum başlar. Üçü de sihirbazın materyal adımında; hiçbiri yeni bir işleme
+yolu açmaz, bildiğimiz belge yolundan geçer (kota, sayfa sınırı, konu haritası aynı).
+
+| Kural | Nerede |
+|---|---|
+| **Metin / konu listesi yapıştır**: metin istemcide `.txt` dosyası olur (`text/plain` zaten yükleniyor ve okunuyor), aynı `takeFiles` yolundan yüklenir. En az 80 karakter | `paste-text-panel.tsx` `pastedTextFile` |
+| **Web / ders bağlantısı**: `POST /api/documents/from-url` sayfayı sunucuda okur, metni `.txt` (başlık + "Kaynak: URL" satırıyla) ya da bağlantının PDF'ini `storeUserDocument` ile yüklenmiş dosya gibi kaydeder; işleme telefon yüklemesiyle aynı (`processAndRemember`). **Dışarıya istek atan tek uç**: yalnız http(s), kimlik bilgisiz, 80/443; `localhost`, `.internal`, `.local`, bulut üst veri adresi ve özel ağa çözülen her ad reddedilir (IPv4 özel/ayrılmış bloklar, ::1, fc00::/7, fe80::/10, IPv4'e eşlenmiş IPv6); yönlendirme en çok 3 ve her adım yeniden denetlenir; gövde 15 MB, süre 20 sn; 401/403 "site kapatmış", 200 karakterden az metin "okunacak metin yok" (ikisi de "Metin yapıştır"a yönlendirir). Dakikada 4, günde 30. Sayfa metni `htmlToText`: `<article>`/`<main>` varsa yalnız o; script, style, nav, footer, header, aside, form düşer | `url-import.ts`, `from-url/route.ts`, `url-import-panel.tsx` |
+| **Hazır müfredattan seç**: düzey (5–12. sınıf, LGS, TYT, AYT, KPSS, ALES, DGS, YDS, TUS, DUS, Üniversite) + ders → sohbetli kurulum dolu istemle açılır ve istem **kendiliğinden gönderilir** (`autoStart`); konu listesini kurulum çıkarır, öğrenci onaylar. **Kodda konu/ünite listesi yok** (İÇERİK EV STİLİ: konu listesi iddiası kaynağa bağlanır); yalnız sınav/düzey adları ve dersler | `exam-catalog.ts` `CURRICULUM_LEVELS`, `curriculumPick`; `curriculum-pick-panel.tsx`; `exam-create-chat.tsx` `autoStart` |
+
+Yapılmayan: 15 ve 284 sayfalık belgelerde "ince başlık ayrı konu" istemi — konu haritası kuralları ölçümle değişir
+(18, 19, 25 Ekim turları); canlı model çağrısına onay yok, istem körlemesine değiştirilmedi. Office içi resimler ve
+PDF şekilleri zaten okunuyor; kota dolunca atlanan resim Belgelerim'de yazıyor ("N resim sayfası okunmadı").
+
+Bekçi: `paket-d-genislik.test.tsx`.

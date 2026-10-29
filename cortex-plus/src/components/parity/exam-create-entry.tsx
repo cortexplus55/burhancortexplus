@@ -32,7 +32,7 @@ export function ExamCreateEntry({
   );
   // 19 Ekim 2026: sihirbazdan "Belgem yok" ile gelince ders, tarih ve hedef taşınır; sohbet bunları
   // yeniden sormuyordu ama sorduğunu sanıyordu ("sonra tarihi seçip"), eski belgeleri de listeliyordu.
-  const [picked, setPicked] = useState<{ subject: string; examDate: string; target: number } | null>(null);
+  const [picked, setPicked] = useState<{ subject: string; examDate: string; target: number; prompt?: string } | null>(null);
 
   if (mode === "chat") {
     return (
@@ -48,7 +48,9 @@ export function ExamCreateEntry({
           initialDocumentId={initialDocumentId}
           recentSubjects={recentSubjects}
           initialSubject={picked?.subject || initialSubject}
-          initialPrompt={initialPrompt}
+          initialPrompt={picked?.prompt ?? initialPrompt}
+          // Hazır müfredat seçimi (29 Ekim 2026): dolu istem kendiliğinden gönderilir.
+          autoStart={Boolean(picked?.prompt)}
           initialExamDate={picked?.examDate || undefined}
           initialTarget={picked?.target}
           topicOnly={Boolean(picked)}

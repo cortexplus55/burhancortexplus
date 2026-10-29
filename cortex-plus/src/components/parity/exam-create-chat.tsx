@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { dropExamWizardDraft } from "@/lib/learning/exam-wizard-draft";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ export function ExamCreateChat({
   recentSubjects = [],
   initialSubject = null,
   initialPrompt = null,
+  autoStart = false,
   initialExamDate,
   initialTarget,
   topicOnly = false,
@@ -48,6 +49,8 @@ export function ExamCreateChat({
   initialSubject?: string | null;
   /** Katalog kartından gelen ilk mesaj; kutuya yazılı gelir, öğrenci gönderir. */
   initialPrompt?: string | null;
+  /** Hazır müfredat seçiminden gelince ilk istem kendiliğinden gönderilir (29 Ekim 2026). */
+  autoStart?: boolean;
   /** Ücretsiz hesabın tek hazırlık hakkı dolu: ilk mesajda kapı açılır. */
   prepLimitReached?: boolean;
   /** Sihirbazda seçilen sınav tarihi (YYYY-MM-DD): yeniden sorulmaz. */
@@ -160,6 +163,15 @@ export function ExamCreateChat({
       prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
     );
   }
+
+  // Hazır müfredat seçici dolu istemle gelir: öğrenci bir de "gönder"e basmasın, konu listesi hemen çıksın.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStart || !initialPrompt || autoStarted.current) return;
+    autoStarted.current = true;
+    void send();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function send(nextDate?: string) {
     const text = input.trim();

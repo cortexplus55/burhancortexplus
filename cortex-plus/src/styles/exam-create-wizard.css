@@ -569,6 +569,76 @@
   background: #fff;
 }
 
+/* Genişlik panelleri (29 Ekim 2026): metin yapıştır, bağlantı ekle, hazır müfredat. */
+.apw-import {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  padding: 0.9rem;
+  min-width: 0;
+}
+
+.apw-import-input,
+.apw-import-textarea {
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.6rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  padding: 0.6rem 0.75rem;
+  font: var(--t-body-14);
+  font-size: 0.9375rem;
+}
+
+.apw-import-textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.apw-import-input:focus-visible,
+.apw-import-textarea:focus-visible {
+  outline: 2px solid var(--cp-action);
+  outline-offset: 1px;
+}
+
+.apw-import-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.apw-import-row .apw-ghost {
+  margin-top: 0;
+}
+
+.apw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.apw-chip {
+  min-height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-2);
+  color: var(--cp-text);
+  padding: 0.35rem 0.8rem;
+  font: var(--t-label-13);
+  cursor: pointer;
+}
+
+.apw-chip--on {
+  border-color: var(--cp-action);
+  background: var(--c-action-soft, rgba(67, 83, 243, 0.18));
+}
+
 .apw-topic-actions {
   display: flex;
   flex-wrap: wrap;
