@@ -891,7 +891,8 @@ export const OUTLINE_GRANULARITY_RULE =
   "- GENİŞ ÜNİTE TEK KONU OLAMAZ: dosyanın sayfa/metin hacminin %15'inden fazlasını tutan ya da içinde birden fazla bağımsız alt başlık, kural/formül ailesi, tarihsel dönem, sınıflandırma veya problem/vaka tipi barındıran bölüm 2-4 ayrı konuya bölünür; her konunun sayfa aralığı ayrıktır.\n" +
   "- 1 ÜNİTE = 1 KONU YASAK: ünitede birden fazla ana alt başlık, kanun, dağılım veya test türü varsa her biri ayrı konu olur. Örnekler (ayrı konular): Newton ve Düşey Atış; Vergi ve Taban Fiyat; Poisson, Medyan/Mod, ki-kare bağımsızlık, eşleştirilmiş t ve bağımsız t; Rüzgâr, Yağış ve Yerel Saat. Bunları ünitenin adına indirgeme.\n" +
   "- Şemsiye başlık YASAK: \"Temel Kavramlar\", \"Temel Kavramlar ve İlkeler\", \"Genel Bilgiler\" gibi bir başlık altında alt dalları yutma. Her belirgin alt başlık, mekanizma, teorem/formül grubu ya da problem/analiz türü kendi konusu olur; belgenin hiçbir ana ya da alt dalı haritanın dışında kalmaz.\n" +
-  "- Kısa dosyada (9 sayfadan az) sayfa payı tek başına konu açmaz. En az üç bağımsız, içerik taşıyan alt başlık varsa konu metin/karakter payına göre 2-4 ayrı konuya bölünür; sayfa başlığı, tekrar listesi ve hata listesi konu değildir.";
+  "- Kısa dosyada (9 sayfadan az) sayfa payı tek başına konu açmaz. En az üç bağımsız, içerik taşıyan alt başlık varsa konu metin/karakter payına göre 2-4 ayrı konuya bölünür; sayfa başlığı, tekrar listesi ve hata listesi konu değildir.\n" +
+  "- KISA ALT BÖLÜM DE KONUDUR: belgede kendi başlığıyla duran ve kendi tanımı, kuralı, formülü ya da örnek/soru tipi olan alt bölüm 1-2 sayfa bile olsa ayrı konu olur (\"Parçalı Fonksiyon\", \"Düşey Atış\", \"Taban Fiyat\" gibi); üst başlığın içinde eritilmez. Yalnız başlığı olup gövdesi olmayan etiket, çözümlü örnek ve tekrar bölümü konu değildir.";
 
 function studentOutlinePrompt(input: {
   examLabel?: string | null;

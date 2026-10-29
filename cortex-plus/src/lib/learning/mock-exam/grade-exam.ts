@@ -22,6 +22,7 @@ import {
   DEADLINE_GRACE_SEC,
   deadlinePassed,
   adjustScoredAnswer,
+  SHORT_SOLUTION_FULL_CREDIT,
   gradeDeterministicItem,
   gradeRubricAnswer,
   normalizeSubmittedAnswer,
@@ -176,9 +177,12 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
           modelAnswer: q.modelAnswer,
           criteria: rubric.map((row) => row.criterion),
           earned: graded.invalid ? 0 : graded.earned,
+          conceptErrors: judgement.contradicted.length,
         });
         const verdict: MockGradeItem["verdict"] =
           tuned.earned <= 0 ? "yanlis" : tuned.earned >= graded.max ? "dogru" : "kismen";
+        // Tam puan kuralı çalıştıysa "eksik" ölçüt kalmaz: kısa çözümün ölçütleri karşılanmış sayılır.
+        const full = tuned.earned >= graded.max && tuned.step === SHORT_SOLUTION_FULL_CREDIT;
         return {
           questionId: q.id,
           userAnswer: answerText,
@@ -187,7 +191,14 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
           pointsMax: graded.max,
           verdict,
           explanation: q.explanation ?? "",
-          feedback: { met: graded.met, missed: graded.missed, invalid: false, quotes: judgement.quotes, ...(tuned.step ? { step: tuned.step } : {}) },
+          feedback: {
+            met: full ? [...graded.met, ...graded.missed] : graded.met,
+            missed: full ? [] : graded.missed,
+            invalid: false,
+            quotes: judgement.quotes,
+            contradicted: judgement.contradicted,
+            ...(tuned.step ? { step: tuned.step } : {}),
+          },
           topicId: q.topicId ?? null,
           topicLabel: q.topicLabel?.trim() || "Konu",
         };

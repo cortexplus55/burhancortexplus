@@ -4,6 +4,7 @@
 
 import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
 import type { MockGradeItem, MockQuestionType, MockRubricItem } from "@/lib/learning/mock-exam/types";
+import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
 
 export type GradeableQuestion = {
   id: string;
@@ -106,9 +107,120 @@ export function methodMarkers(modelAnswer: string, criteria: string[] = []): str
   return (marked.length ? marked : lines).slice(0, 6);
 }
 
+const NUMBER_SRC = String.raw`-?\d+(?:[.,]\d+)?`;
+const LEADING_VALUE = new RegExp(String.raw`^\s*(${NUMBER_SRC})(?:\s*\/\s*(${NUMBER_SRC}))?`, "u");
+const TRAILING_FRACTION = new RegExp(String.raw`(${NUMBER_SRC})\s*\/\s*(${NUMBER_SRC})\s*\D*$`, "u");
+
+function toNumber(raw: string): number | null {
+  const value = Number(raw.replace(",", "."));
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Eşitlik kuyruğunun başındaki değer: "= 12 cm²", "= 3/2", "= 10 W." sonuçtur;
+ * "= 24^2 / (4*12)" işlem, "= 2x" ifadedir — sonuç değil.
+ */
+function leadingValue(part: string): number | null {
+  const match = part.match(LEADING_VALUE);
+  if (!match) return null;
+  const rest = part.slice(match[0].length);
+  if (/^\s*[+\-*/^(·×÷√:]/.test(rest)) return null;
+  const glued = rest.match(/^([a-zA-ZçğıöşüÇĞİÖŞÜµΩ°]+)/u)?.[1];
+  if (glued && glued.length === 1 && !/[mgsNJWVALKΩ°]/.test(glued)) return null;
+  const whole = toNumber(match[1] ?? "");
+  if (whole == null) return null;
+  if (match[2] == null) return whole;
+  const divisor = toNumber(match[2]);
+  return divisor ? whole / divisor : null;
+}
+
+/** Cevabın sonundaki değer: kesirse bölümü ("x = 3/2" → 1,5), yoksa son sayı. */
+function trailingValue(answer: string): number | null {
+  const fraction = answer.match(TRAILING_FRACTION);
+  if (fraction) {
+    const whole = toNumber(fraction[1] ?? "");
+    const divisor = toNumber(fraction[2] ?? "");
+    if (whole != null && divisor) return whole / divisor;
+  }
+  const matches = [...answer.replace(/,/g, ".").matchAll(/-?\d+(?:\.\d+)?/g)];
+  const last = Number(matches.at(-1)?.[0]);
+  return Number.isFinite(last) ? last : null;
+}
+
+/** Cümle, satır, ";" ve bağlaç ("çünkü", "ise", "ve") ayrı eşitlik zinciri açar. */
+const CLAUSE_SPLIT =
+  /\n+|;|(?<=\D)\.\s+|\.\s+(?=\p{Lu})|[!?]\s+|,\s+|⇒|→|(?<![\p{L}\p{N}])(?:çünkü|cunku|ise|dolayısıyla|dolayisiyla|buradan|yani|ve|öyleyse|o halde)(?![\p{L}\p{N}])/iu;
+
+type EqualityChain = { left: string; values: number[] };
+
+const variableKey = (text: string) => text.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}]/gu, "");
+
+function chainsOf(text: string): EqualityChain[] {
+  const out: EqualityChain[] = [];
+  for (const clause of text.split(CLAUSE_SPLIT)) {
+    if (!clause.includes("=")) continue;
+    const parts = clause.split("=");
+    const values = parts.slice(1).map(leadingValue).filter((value): value is number => value != null);
+    out.push({ left: variableKey(parts[0] ?? ""), values });
+  }
+  return out;
+}
+
+/** Örnek cevabın sonuç değişkeni: son zincirin sol tarafı ("Pmax", "x", "Alan"); uzun ifade sayılmaz. */
+function resultVariable(modelAnswer: string): string | null {
+  const left = chainsOf(modelAnswer).at(-1)?.left ?? "";
+  return /^\p{L}[\p{L}\p{N}]{0,19}$/u.test(left) ? left : null;
+}
+
+/**
+ * Cevapta "sonuç" diye okunan sayılar (29 Ekim 2026): her eşitlik kuyruğunun değeri (kesir dahil)
+ * ve cevabın son sayısı. Eskiden yalnız son sayı okunuyordu: "Alan = 3·4 = 12 cm² (3 ve 4 kenarlar)"
+ * 4 sayılıp doğru cevap çelişkili görünüyor, "x = 3/2" 2 okunuyordu.
+ */
+export function claimedResults(answer: string): number[] {
+  const values = chainsOf(answer).flatMap((chain) => chain.values);
+  const tail = trailingValue(answer);
+  if (tail != null) values.push(tail);
+  return values;
+}
+
+/**
+ * Öğrencinin SON sonucu: örnek cevabın sonuç değişkeniyle başlayan zincirin son değeri
+ * ("Pmax = 24²/(4·12) = 10 W" → 10; "Rth = 12 Ω" ara değerdir, sonuç değil); değişken
+ * eşleşmezse son zincirin son değeri ve cevabın son sayısı.
+ */
+export function finalResults(answer: string, modelAnswer: string | null | undefined): number[] {
+  const chains = chainsOf(answer).filter((chain) => chain.values.length);
+  const variable = resultVariable(modelAnswer ?? "");
+  const named = variable ? chains.filter((chain) => chain.left === variable).map((chain) => chain.values.at(-1)!) : [];
+  if (named.length) return named;
+  const out: number[] = [];
+  const last = chains.at(-1)?.values.at(-1);
+  if (last != null) out.push(last);
+  const tail = trailingValue(answer);
+  if (tail != null) out.push(tail);
+  return out;
+}
+
+/** Cevaptaki eşitlik zincirlerinde tutmayan hesap: açık işlem hatası. Cümle, satır ve ";" ayrı zincir. */
+export function arithmeticSlips(answer: string): string[] {
+  return answer.split(/\n+|;|(?<=\D)\.\s+|\.\s+(?=\p{Lu})|[!?]\s+/u).flatMap((piece) => stepArithmeticIssues(piece));
+}
+
+/** Kurulum ya da hesap yazılmış mı (yalnız sonuç değil). */
+function showsRelation(answer: string): boolean {
+  return /[=⇒→]/.test(answer) || /\d\s*[+\-*/×·÷:]\s*\d/.test(answer);
+}
+
+/** Kısa ama doğru çözümün notu (Paket G, 29 Ekim 2026). */
+export const SHORT_SOLUTION_FULL_CREDIT = "Sonuç ve bağıntı doğru; çözümün kısa olması puan düşürmez.";
+
 /**
  * Sayısal/fen: yöntem ve kurulum doğru, son aritmetik yanlışsa %50–%80.
  * Yalnız son sayıyı yazan cevap 7/10 ve üzerine çıkmaz.
+ * Sonuç doğru ve bağıntı/gerekçe doğruysa çözüm kısa diye kesinti yok (29 Ekim 2026: Selin'in 18. sorusu
+ * doğru sonuç + doğru bağıntıyla 5/10 almıştı); kesinti yalnız sonuç yanlışsa, hesap zinciri tutmuyorsa
+ * ya da denetçi açık kavram hatası (`conceptErrors`) işaretlediyse.
  */
 export function partialWorkCredit(input: {
   answer: string;
@@ -118,21 +230,30 @@ export function partialWorkCredit(input: {
   modelAnswer?: string | null;
   criteria?: string[];
   alreadyEarned: number;
+  /** Denetçinin "açıkça yanlış söylüyor" dediği ölçüt sayısı (open-grade `wrong`). */
+  conceptErrors?: number;
 }): { earned: number; step: string } | null {
   const answer = input.answer.trim();
-  if (!answer || input.expected == null || !Number.isFinite(input.expected)) return null;
+  const expected = input.expected;
+  if (!answer || expected == null || !Number.isFinite(expected)) return null;
   const markers = methodMarkers(input.modelAnswer ?? "", input.criteria ?? []);
   const hits = markers.filter((marker) => markerHit(answer, marker));
-  const matches = [...answer.replace(/,/g, ".").matchAll(/-?\d+(?:\.\d+)?/g)];
-  const claimed = Number(matches.at(-1)?.[0]);
-  const num = Number.isFinite(claimed) ? claimed : parseStudentNumber(answer);
-  const tol = input.tolerance ?? Math.max(1e-6, Math.abs(input.expected) * 0.01);
-  const inRange = num != null && Math.abs(num - input.expected) <= tol;
+  const finals = finalResults(answer, input.modelAnswer);
+  const num = finals.at(-1) ?? parseStudentNumber(answer);
+  const tol = input.tolerance ?? Math.max(1e-6, Math.abs(expected) * 0.01);
+  const within = (value: number) => Math.abs(value - expected) <= tol;
+  const inRange = finals.length ? finals.some(within) : num != null && within(num);
   const bare = num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer);
   if (inRange && markers.length && bare) {
     const cap = Math.round(input.maxPoints * 0.6 * 1000) / 1000;
     if (input.alreadyEarned <= cap) return null;
     return { earned: cap, step: "Yöntem yazılmadan yalnız sonuç verilmiş." };
+  }
+  if (inRange && !bare) {
+    const justified = hits.length > 0 || showsRelation(answer) || input.alreadyEarned > 0;
+    if (!justified || input.conceptErrors || input.alreadyEarned >= input.maxPoints) return null;
+    if (arithmeticSlips(answer).length) return null;
+    return { earned: input.maxPoints, step: SHORT_SOLUTION_FULL_CREDIT };
   }
   if (!inRange && hits.length) {
     const ratio = Math.min(0.8, 0.5 + 0.3 * (hits.length / Math.max(1, markers.length)));
@@ -163,6 +284,7 @@ export function adjustScoredAnswer(input: {
   modelAnswer?: string | null;
   criteria?: string[];
   earned: number;
+  conceptErrors?: number;
 }): { earned: number; step?: string } {
   const expected =
     input.expected ?? (/=/.test(input.modelAnswer ?? "") ? trailingNumber(input.modelAnswer ?? "") : null);
