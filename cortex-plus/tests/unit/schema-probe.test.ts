@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { probeSchema } from "@/lib/admin/schema-probe";
+import { ACTION_CODES, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 
 /*
   18 Eylül 2026'da bu dal yayına çıktı ve "göç dosyaları uygulandı mı" sorusu
@@ -20,7 +21,12 @@ function service(options: { rpcError?: { message: string }; rows?: Rows; dailyAl
   const daily = "dailyAllowance" in options ? options.dailyAllowance : 0;
   return {
     rpc: vi.fn(async (name: string) =>
-      name === "unverified_allowance" ? { data: daily, error: null } : { error: options.rpcError ?? null },
+      name === "unverified_allowance"
+        ? { data: daily, error: null }
+        : // 29 Ekim 2026: plus_only_action(text) → boolean; sağlıklı canlıda Plus işleri için true.
+          name === "plus_only_action"
+          ? { data: true, error: null }
+          : { error: options.rpcError ?? null },
     ),
     from: (table: string) => ({
       select: () => ({
@@ -32,9 +38,22 @@ function service(options: { rpcError?: { message: string }; rows?: Rows; dailyAl
             return Promise.resolve({ data: byCode ?? row ?? null });
           },
         }),
+        // 29 Ekim 2026: credit_rules tek sorguyla bütün satırlar (probeCreditRules); öteki tablolarda
+        // yalnız "var mı" sorusu.
         limit: () =>
           Promise.resolve(
-            table in rows ? { error: null } : { error: { message: "missing" } },
+            table === "credit_rules" && table in rows
+              ? {
+                  data: Object.entries(rows.credit_rules as Rows).map(([action_code, rule]) => ({
+                    action_code,
+                    active: true,
+                    ...(rule as Rows),
+                  })),
+                  error: null,
+                }
+              : table in rows
+                ? { data: [], error: null }
+                : { error: { message: "missing" } },
           ),
       }),
     }),
@@ -42,17 +61,14 @@ function service(options: { rpcError?: { message: string }; rows?: Rows; dailyAl
   } as any;
 }
 
-// Kredi sistemi v2 (8 Ekim 2026): fiyatlar price-table'dan. Kredi v3 (24 Ekim 2026): ders 30.
-const v2Rules = {
-  AUDIO_SYNTHESIZE: { credit_cost: 2 },
-  PRACTICE_EXAM_GENERATE: { credit_cost: 15 },
-  AI_CHAT_STANDARD: { credit_cost: 3 },
-  PODCAST_GENERATE: { credit_cost: 12 },
-  STUDY_PLAN_GENERATE: { credit_cost: 30 },
-};
+// Kredi sistemi v2 (8 Ekim 2026) ve v3 (24 Ekim 2026): fiyatlar price-table'dan. 29 Ekim 2026: bütün eylem
+// kodları tek tek sorulduğu için sağlıklı canlı tablo fiyat tablosundan türetilir.
+const liveRules: Rows = Object.fromEntries(
+  ACTION_CODES.map((code) => [code, { credit_cost: CREDIT_PRICE_TABLE[code].credits }]),
+);
 
 const healthyRows: Rows = {
-  credit_rules: v2Rules,
+  credit_rules: liveRules,
   model_upgrade_grants: {},
   document_page_grants: {},
   referral_tiers: { multiplier: 10 },
@@ -138,7 +154,9 @@ describe("credit_reserve_metered yoklaması", () => {
         ? { error: { code: "PGRST202", message: "Could not find the function public.credit_reserve_metered(p_action_code, p_idempotency_key, p_meter, p_quantity, p_user_id) in the schema cache" } }
         : name === "unverified_allowance"
           ? { data: 0, error: null }
-          : { error: { message: "invalid_action" } },
+          : name === "plus_only_action"
+            ? { data: true, error: null }
+            : { error: { message: "invalid_action" } },
     );
     const checks = await probeSchema(sb);
     const metered = find(checks, "Ücretsiz sayaçlı ayırma");
@@ -164,7 +182,13 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(20);
+    // 29 Ekim 2026: +4 satır (kredi kuralı satırları, bedel farkı, koddan eklenmiş kural, plus_only_action).
+    expect(checks).toHaveLength(24);
+    expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: true, critical: true });
+    expect(find(checks, "Kredi kuralı satırları").detail).toContain(`${ACTION_CODES.length} eylem kodunun hepsi`);
+    expect(find(checks, "Kredi bedeli kod ile canlı ayrışıyor")).toMatchObject({ ok: true, critical: false });
+    expect(find(checks, "Koddan eklenmiş kural")).toMatchObject({ ok: true, critical: false });
+    expect(find(checks, "plus_only_action")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Anlatım geçmişi")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Video görsel stilleri").detail).toContain("salt okumayla doğrulanamaz");
     // 24 Ekim 2026: ücretsiz sayaç fonksiyonu da soruluyor.
@@ -233,11 +257,15 @@ describe("diğer göç dosyaları", () => {
      hiçbir işi açamaz (günlük kredi 0 ama sayaç tablosu yok) ya da ders eski fiyatta kalır — kritik. */
   it("kredi v3 göçleri eksikse kritik; hangisinin eksik olduğu yazıyor", async () => {
     const oldPrice = await probeSchema(
-      service({ rows: { credit_rules: { ...v2Rules, STUDY_PLAN_GENERATE: { credit_cost: 6 } }, free_usage: {} } }),
+      service({ rows: { credit_rules: { ...liveRules, STUDY_PLAN_GENERATE: { credit_cost: 6 } }, free_usage: {} } }),
     );
     expect(find(oldPrice, "Kredi v3")).toMatchObject({ ok: false, critical: true });
     expect(find(oldPrice, "Kredi v3").detail).toContain("Ders 6 kredi");
-    const noMeters = await probeSchema(service({ rows: { credit_rules: v2Rules } }));
+    // 29 Ekim 2026: aynı fark bedel satırında da görünür (uyarı); satır eksik değil, kritik satır yeşil.
+    expect(find(oldPrice, "Kredi bedeli kod ile canlı ayrışıyor")).toMatchObject({ ok: false, critical: false });
+    expect(find(oldPrice, "Kredi bedeli kod ile canlı ayrışıyor").detail).toContain("STUDY_PLAN_GENERATE: canlı 6, kod 30");
+    expect(find(oldPrice, "Kredi kuralı satırları").ok).toBe(true);
+    const noMeters = await probeSchema(service({ rows: { credit_rules: liveRules } }));
     expect(find(noMeters, "Kredi v3")).toMatchObject({ ok: false, critical: true });
     expect(find(noMeters, "Kredi v3").detail).toContain("free_usage yok");
     expect(find(noMeters, "Kredi v3").detail).toContain("20261024121000");
@@ -264,7 +292,7 @@ describe("diğer göç dosyaları", () => {
   /* 20 Ekim 2026: resolved_at yoksa kod hepsini açık sayar (yanlışlıkla "Hazırsın" yok);
      eksik göç sistem sayfasında görünür ama kritik değil. */
   it("yanılgı çözümü sütunu yoksa kritik olmayan uyarı", async () => {
-    const checks = await probeSchema(service({ rows: { credit_rules: v2Rules } }));
+    const checks = await probeSchema(service({ rows: { credit_rules: liveRules } }));
     const resolution = find(checks, "Yanılgı çözümü");
     expect(resolution).toMatchObject({ ok: false, critical: false });
     expect(resolution.detail).toContain("20261020170000");
@@ -303,6 +331,22 @@ describe("diğer göç dosyaları", () => {
     const checks = await probeSchema(service({ rows: {} }));
     expect(find(checks, "Seslendirme").critical).toBe(true);
     expect(find(checks, "Seslendirme").ok).toBe(false);
+    // 29 Ekim 2026: tablo okunamazsa kredi kuralı satırı da kritik "okunamadı" (bilinmeyen yeşil değil).
+    expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: false, critical: true });
+    expect(find(checks, "Kredi kuralı satırları").detail).toContain("okunamadı");
+  });
+
+  /* 29 Ekim 2026: yeni eylem kodunun göçü atlanınca sayfa yeşil kalıyordu (yalnız beş kod soruluyordu). */
+  it("eksik ya da kapalı eylem kodu kritik; hangisi olduğu yazıyor", async () => {
+    const rows: Rows = { ...healthyRows, credit_rules: { ...liveRules } };
+    delete (rows.credit_rules as Rows).SKETCH_VIDEO_GENERATE;
+    (rows.credit_rules as Rows).ORAL_EXAM_GENERATE = { credit_cost: 6, active: false };
+    const checks = await probeSchema(service({ rows }));
+    const rules = find(checks, "Kredi kuralı satırları");
+    expect(rules).toMatchObject({ ok: false, critical: true });
+    expect(rules.detail).toContain("ORAL_EXAM_GENERATE, SKETCH_VIDEO_GENERATE");
+    expect(rules.detail).toContain("invalid_action (409)");
+    expect(checks.filter((check) => !check.ok).map((check) => check.name)).toEqual(["Kredi kuralı satırları"]);
   });
 });
 

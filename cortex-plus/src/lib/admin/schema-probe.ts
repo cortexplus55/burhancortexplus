@@ -1,7 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
-import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
+import { ACTION_CODES, CODE_SEEDED_RULE_NOTE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
+import { PLUS_ONLY_ACTIONS } from "@/lib/billing/free-meters";
 
 /**
  * Canlı şema koddaki beklentiyle uyuşuyor mu.
@@ -156,6 +157,117 @@ async function hasTable(
   return !error;
 }
 
+type CreditRuleRow = {
+  action_code?: unknown;
+  credit_cost?: unknown;
+  active?: unknown;
+  description?: unknown;
+};
+
+/**
+ * Kredi kuralı satırları (29 Ekim 2026). Buraya kadar yalnız elle seçilmiş beş kod soruluyordu; yeni bir
+ * eylem kodunun göçü atlanınca sayfa yeşil kalıyor, iş `invalid_action` (409) ile düşüyordu. Şimdi bütün
+ * `ACTION_CODES` tek sorguyla okunur (süzgeçsiz: service_role kapalı satırı da görür) ve dört satır döner:
+ *
+ * 1. "Kredi kuralı satırları" (kritik): eksik ya da kapalı kod. `reserveCredits` eksik satırı ilk istekte
+ *    fiyat tablosundan ekler, bu yüzden satır kısa sürede yeşile döner; göç ve kayıt satırı yine yazılmalı.
+ * 2. "Kredi bedeli kod ile canlı ayrışıyor" (uyarı): bedel farkı. Fiyat yalnız göçle değişir; kod var olan
+ *    satırı ezmez, o yüzden bu fark kendiliğinden kapanmaz.
+ * 3. "Koddan eklenmiş kural" (uyarı): açıklaması `CODE_SEEDED_RULE_NOTE` ile başlayan satır — eksik göçün izi.
+ * 4. "Plus'a özel işler" (uyarı): SQL `plus_only_action` IMMUTABLE bir liste, koddan düzeltilemez (göç
+ *    gerekir); `PLUS_ONLY_ACTIONS` tek tek sorulur.
+ *
+ * Okuma hatası kritik "okunamadı": bilinmeyen durum yeşil sayılmaz.
+ */
+export async function probeCreditRules(service: SupabaseClient): Promise<SchemaCheck[]> {
+  const name = "Kredi kuralı satırları";
+  const { data, error } = await service
+    .from("credit_rules")
+    .select("action_code, credit_cost, active, description")
+    .limit(ACTION_CODES.length * 4);
+  if (error || !Array.isArray(data)) {
+    return [
+      {
+        name,
+        ok: false,
+        critical: true,
+        detail: `credit_rules okunamadı: ${error?.message ?? "boş cevap"}. Eksik satır varsa işler invalid_action (409) ile düşer.`,
+      },
+    ];
+  }
+
+  const rows = new Map<string, CreditRuleRow>();
+  for (const row of data as CreditRuleRow[]) {
+    if (typeof row?.action_code === "string") rows.set(row.action_code, row);
+  }
+  const live = (code: string) => {
+    const row = rows.get(code);
+    return row && row.active !== false ? row : undefined;
+  };
+
+  const missing = ACTION_CODES.filter((code) => !live(code));
+  const drift = ACTION_CODES.filter((code) => {
+    const row = live(code);
+    return row !== undefined && Number(row.credit_cost) !== CREDIT_PRICE_TABLE[code].credits;
+  });
+  const seeded = ACTION_CODES.filter((code) => {
+    const description = rows.get(code)?.description;
+    return typeof description === "string" && description.startsWith(CODE_SEEDED_RULE_NOTE);
+  });
+
+  // plus_only_action(text) → boolean; tek tek sorulur, hepsi aynı anda.
+  const plusAnswers = await Promise.all(
+    PLUS_ONLY_ACTIONS.map(async (code) => {
+      const reply = await service.rpc("plus_only_action", { p_code: code });
+      return { code, data: reply.data as unknown, error: reply.error as { message?: string } | null };
+    }),
+  );
+  const plusUnreadable = plusAnswers.find((answer) => answer.error);
+  const plusDrift = plusAnswers.filter((answer) => !answer.error && answer.data !== true).map((answer) => answer.code);
+
+  return [
+    {
+      name,
+      ok: missing.length === 0,
+      critical: true,
+      detail:
+        missing.length === 0
+          ? `${ACTION_CODES.length} eylem kodunun hepsi credit_rules'ta ve açık.`
+          : `Eksik ya da kapalı: ${missing.join(", ")} — bu işler invalid_action (409) ile düşüyor. Eksik satırı ilk istekte kod fiyat tablosundan ekler (kapalı satıra dokunmaz); göçü (INSERT … ON CONFLICT (action_code) DO UPDATE) ve schema_migrations kayıt satırını yine yazın.`,
+    },
+    {
+      name: "Kredi bedeli kod ile canlı ayrışıyor",
+      ok: drift.length === 0,
+      critical: false,
+      detail:
+        drift.length === 0
+          ? "Ayrışma yok: bütün bedeller price-table.ts ile aynı."
+          : `${drift
+              .map((code) => `${code}: canlı ${String(live(code)?.credit_cost)}, kod ${CREDIT_PRICE_TABLE[code].credits}`)
+              .join("; ")} — fiyat yalnız göçle değişir (kod var olan satırı ezmez); göç ile price-table.ts'i aynı anda düzeltin.`,
+    },
+    {
+      name: "Koddan eklenmiş kural: göç ve kayıt satırı yazılmalı",
+      ok: seeded.length === 0,
+      critical: false,
+      detail:
+        seeded.length === 0
+          ? "Koddan eklenmiş satır yok."
+          : `${seeded.join(", ")} — ilk istekte fiyat tablosundan eklendi (göç canlıda yoktu). Göç dosyasını (INSERT … ON CONFLICT (action_code) DO UPDATE) uygulayın ve schema_migrations kayıt satırını yazın; göç açıklamayı kendi metniyle ezer.`,
+    },
+    {
+      name: "Plus'a özel işler (plus_only_action)",
+      ok: !plusUnreadable && plusDrift.length === 0,
+      critical: false,
+      detail: plusUnreadable
+        ? `plus_only_action okunamadı: ${plusUnreadable.error?.message ?? "hata"} (20261024121000).`
+        : plusDrift.length === 0
+          ? `${PLUS_ONLY_ACTIONS.length} Plus işi SQL listesiyle aynı.`
+          : `SQL listesi koddan ayrışıyor: ${plusDrift.join(", ")} — plus_only_action IMMUTABLE SQL, koddan düzeltilemez; göçle yeniden tanımlayın (son tanım 20261027193000). Ücretsiz hesap bu işte "Plus'ta" yerine "hakkın doldu" görür.`,
+    },
+  ];
+}
+
 export async function probeSchema(
   service: SupabaseClient,
 ): Promise<SchemaCheck[]> {
@@ -211,10 +323,11 @@ export async function probeSchema(
     .from("exam_prep_misconceptions")
     .select("resolved_at")
     .limit(1);
-  const [explainAttempts, prepVideos, generationJobs] = await Promise.all([
+  const [explainAttempts, prepVideos, generationJobs, creditRules] = await Promise.all([
     hasTable(service, "explain_attempts"),
     hasTable(service, "prep_videos"),
     hasTable(service, "generation_jobs"),
+    probeCreditRules(service),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -253,6 +366,9 @@ export async function probeSchema(
           }. Sıra: 20261024121000 koddan önce; 20261024120000 ve 20261024123000 koddan sonra, tek çalıştırmada.`,
     },
     metered,
+    // 29 Ekim 2026: bütün eylem kodları (eksik/kapalı kritik; bedel farkı, koddan eklenen satır ve
+    // plus_only_action ayrışması uyarı).
+    ...creditRules,
     {
       name: "Deneme üretimi fiyatı",
       ok: exam.data?.credit_cost === examPrice,

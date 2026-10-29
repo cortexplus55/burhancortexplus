@@ -274,3 +274,17 @@ belgede ilk sayfa önden, kalanı işlendikten sonra. Sihirbaz yüklemeden önce
 Bir işin maliyeti değişirse önce `ai_usage_events`'ten yeniden ölç (3 Ekim
 sonrası, `reservation_id` ile işlem başına topla), sonra göçte ve
 `price-table.ts`'te aynı anda değiştir — test ikisini karşılaştırıyor.
+
+**Yeni eylem kodu (29 Ekim 2026):** `price-table.ts` satırı + göç
+(`INSERT … ON CONFLICT (action_code) DO UPDATE`) + Plus'taysa
+`plus_only_action`'ın yeniden tanımı + `schema_migrations` kayıt satırı. Göç
+atlanırsa SQL `invalid_action` fırlatır; kod eksik satırı **ilk istekte** fiyat
+tablosundan ekler (`reserveCredits` / `getActionCost`: yalnız ekleme,
+`ignoreDuplicates`, RPC tam bir kez yeniden denenir; `console.warn
+credit_rule_seeded_from_code`) ve `/admin/sistem` o satırı "Koddan eklenmiş
+kural: göç ve kayıt satırı yazılmalı" uyarısıyla gösterir — göç yine yazılır.
+Fiyat değişikliği yalnız göçle: kod var olan satırı ezmez, bedel farkı sayfada
+"Kredi bedeli kod ile canlı ayrışıyor" uyarısı olarak kalır. `plus_only_action`
+IMMUTABLE SQL, koddan düzeltilemez; ayrışma sayfada uyarıdır, göç gerekir.
+Eksik ya da kapalı kod "Kredi kuralı satırları" satırında kritiktir (`/api/health`
+de kırmızı). Bekçi: `paket-h-kredi.test.ts`, `schema-probe.test.ts`.
