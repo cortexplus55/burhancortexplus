@@ -6,6 +6,7 @@
  */
 
 import { measurableTokens } from "@/lib/learning/source-quantities";
+import { inlineCarriers, unresolvedVisualReference } from "@/lib/learning/answer-consistency";
 
 export type ItemKind = "mcq" | "multi_mcq" | "true_false" | "open" | "short_answer" | "numeric" | "card";
 
@@ -33,9 +34,6 @@ export type ValidityInput = {
 
 const TR_MARKERS = new Set(["ve", "bir", "bu", "icin", "ile", "olan", "degil"]);
 const EN_MARKERS = new Set(["the", "and", "of", "is", "to", "for", "with"]);
-
-const UNSEEN =
-  /(?:yukarıdaki|yukaridaki|aşağıdaki|asagidaki)\s+(?:denklem|şekil|sekil|tablo|grafik|devre|equation|figure|table|circuit|graph)|(?:equation|figure|table|circuit|graph)\s+above|(?:denklem|şekil|sekil|tablo|grafik|devre|equation|figure|table|circuit|graph)\s*\d+/iu;
 
 export function foldValidity(text: string): string {
   return text
@@ -98,12 +96,16 @@ function hasHint(text: string): boolean {
   return /(?:^|\s)(?:ipucu|hint)\s*:/i.test(foldValidity(text)) || /(?:^|\s)İpucu\s*:/.test(text);
 }
 
-/** Görünmeyen denklem/şekil/tablo göndermesi. "aşağıdakilerden hangisi" gönderme değildir. */
+/**
+ * Görünmeyen şekil/grafik/harita/tablo/şema/denklem göndermesi. "aşağıdakilerden hangisi" gönderme değildir.
+ * 29 Ekim 2026 (Paket H): deneme teslim kapısı ve test motoru aynı kuralı okur (`unresolvedVisualReference`);
+ * kökteki ya da `payload`daki veri taşıyıcısı (eşitlik, ok, koordinat çifti, tablo satırı) atfı çözer.
+ */
 export function unseenReference(text: string, payload = ""): boolean {
-  const hit = UNSEEN.exec(text);
+  const hit = unresolvedVisualReference(text, inlineCarriers(text));
   if (!hit) return false;
-  const kind = foldValidity(hit[0]);
-  if (/denklem|equation/.test(kind) && /[\p{L}\p{N}]\s*=\s*[\p{L}\p{N}]/u.test(`${text}\n${payload}`)) return false;
+  // Yalnız denklem atfını kökün dışındaki (şık, açıklama) eşitlik çözer; şekil/harita atfını açıklamadaki "=" çözmez.
+  if (/denklem|equation/i.test(hit) && inlineCarriers(payload).includes("equation")) return false;
   return true;
 }
 

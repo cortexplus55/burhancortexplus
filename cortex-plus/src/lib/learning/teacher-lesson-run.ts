@@ -12,17 +12,23 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import {
+  DIAGRAM_COMPLETION_SYSTEM,
+  diagramCompletionUserPrompt,
   dropRepeatedChecks,
   dropRepeatedScreens,
+  fourPartGaps,
   isCoverageIssue,
-  lessonCompletionGaps,
   lessonLevelStructureIssues,
+  parametricDiagramIssue,
+  parseDiagramCompletion,
   parseTeacherLesson,
   parseTeacherScreen,
+  settleCheckKeys,
   shuffleLessonChecks,
   stripLessonIssueTags,
   teacherSystem,
   teacherUserPrompt,
+  type DiagramCompletion,
   type TeacherIssue,
   type TeacherLessonInput,
 } from "@/lib/learning/teacher-lesson";
@@ -39,9 +45,58 @@ import {
   - Ayrışan her kavram yayımlanır. Kavram atılmaz, öğrenciye eksik bölüm cümlesi yazılmaz.
   - JSON ekran ekran akmazsa aynı metin bir kez daha ayrıştırılır.
   - Dört parçadan biri eksikse bir tamamlama çağrısı yapılır; tutmazsa ilk taslak kalır.
+  - diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026, 25 sn tavan); kart derste ya da
+    kaynakta geçen etiket ve sayılarla temellenmezse ders aynen yayımlanır.
+  - Yayımdan önce anahtar kapısı (29 Ekim 2026, model çağrısız): açıklamanın şıkkıyla çelişen answerIndex hizalanır,
+    ekranda olmayan görsele gönderen soru çıkar (`settleCheckKeys`).
   - Öğrenci beklerken hızlı işlem (ürün sahibinin kararı: önce yalnız Plus, aynı gün herkese).
   Kod ders metnine hiçbir şey eklemez.
 */
+
+/** Şema tamamlama çağrısının tavanı: soğuk derse en çok bu kadar eklenir. */
+const DIAGRAM_COMPLETION_MS = 25_000;
+
+/** Tamamlama geç dönerse ya da düşerse null. */
+function withDeadline<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
+/**
+ * diagram_card eksikse tek küçük çağrıyla kartı ister (aynı LessonIo; akış önemsiz). Ayrıştırma ve temellendirme
+ * koddadır; geçerse kart `afterConcept` kavramının son ekranına girer, düşerse ya da zaman aşarsa ders aynen kalır.
+ */
+export async function completeLessonDiagram(io: LessonIo, lesson: LessonV3, input: TeacherLessonInput): Promise<DiagramCompletion> {
+  const started = Date.now();
+  let verdict: DiagramCompletion;
+  try {
+    const answer = await withDeadline(
+      io.write(DIAGRAM_COMPLETION_SYSTEM, diagramCompletionUserPrompt(lesson, input), () => undefined),
+      DIAGRAM_COMPLETION_MS,
+    );
+    verdict = answer ? parseDiagramCompletion(parseModelJson(answer.text), lesson, input) : { verdict: "timeout", lesson: null };
+  } catch {
+    verdict = { verdict: "error", lesson: null };
+  }
+  console.info("teacher_lesson_diagram", {
+    verdict: verdict.verdict,
+    kind: verdict.kind ?? null,
+    concept: verdict.concept?.slice(0, 60) ?? null,
+    ms: Date.now() - started,
+  });
+  return verdict;
+}
 
 export type TeacherLessonOutcome =
   | {
@@ -313,8 +368,11 @@ export async function teacherLessonPipeline(
           failure = [];
         }
         if (outcome.closing) publishedClosing = outcome.closing;
-        // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026).
-        const fresh = dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens));
+        // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026); anahtar açıklamasıyla
+        // hizalanır, görsele gönderen soru çıkar (29 Ekim 2026) — karıştırmadan önce.
+        const fresh = settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens)), {
+          concept: parts[index]?.concept,
+        });
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
           await options.onPublish({
@@ -372,7 +430,8 @@ export async function teacherLessonPipeline(
       screens: published,
       ...((publishedClosing as Closing | null) ?? {}),
     };
-    const gaps = lessonCompletionGaps(finished);
+    // (1) Dört parça eksikse mevcut yeniden yazım (kapsam dışı; dokunulmadı).
+    const gaps = fourPartGaps(finished);
     let delivered = finished;
     if (gaps.length) {
       const again = await io.write(
@@ -384,9 +443,8 @@ export async function teacherLessonPipeline(
       if (repaired) {
         // Öğrenci yayımlanan ekranları karışık şık sırasıyla görüp cevapladı; onarım yalnız sona ekler.
         // Dersi onarımla değiştirmek şık sırasını sıfırlıyor, doğru cevap yanlış sayılıyordu (V6).
-        const extra = dropRepeatedScreens(
-          published,
-          dropRepeatedChecks(published, repaired.screens.slice(finished.screens.length)),
+        const extra = settleCheckKeys(
+          dropRepeatedScreens(published, dropRepeatedChecks(published, repaired.screens.slice(finished.screens.length))),
         );
         const merged: LessonV3 = {
           ...finished,
@@ -398,8 +456,13 @@ export async function teacherLessonPipeline(
           summary: finished.summary ?? repaired.summary,
           nextFocus: finished.nextFocus ?? repaired.nextFocus,
         };
-        if (lessonCompletionGaps(merged).length < gaps.length) delivered = merged;
+        if (fourPartGaps(merged).length < gaps.length) delivered = merged;
       }
+    }
+    // (2) diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026); düşerse ders aynen yayımlanır.
+    if (parametricDiagramIssue(delivered)) {
+      const completion = await completeLessonDiagram(io, delivered, input);
+      if (completion.lesson) delivered = completion.lesson;
     }
     const done = !lessonLevelStructureIssues(delivered, input).some(isCoverageIssue);
     return {

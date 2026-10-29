@@ -9,6 +9,7 @@ import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 import { reviewGateQuestion } from "@/lib/learning/lesson-chrome";
 import { powerValue } from "@/lib/learning/exponent-key";
 import { stripEmphasis } from "@/lib/learning/lesson-board";
+import { mcqAnswerMismatch } from "@/lib/learning/answer-consistency";
 import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 
 export type LessonCheckAnswer = {
@@ -282,7 +283,8 @@ export function resolveCheckForGrade(
   const primarySet = new Set((primary.options ?? []).map(fold));
   const sameOptionSet = count === primarySet.size && (retry.options ?? []).every((option) => primarySet.has(fold(option)));
   const inherit = (own: string | undefined, fallback: string | undefined) => (sameOptionSet ? own?.trim() || fallback : undefined);
-  return {
+  // Tekrarın anahtarı da kendi açıklamasıyla hizalanır (29 Ekim 2026): kayıtlı eski derslerde de.
+  return alignedCheck({
     ...retry,
     explanation: retry.explanation?.trim() || primary.explanation,
     optionWhy: aligned ? retry.optionWhy : sameShape ? primary.optionWhy : undefined,
@@ -290,7 +292,30 @@ export function resolveCheckForGrade(
     whyWrong: inherit(retry.whyWrong, primary.whyWrong),
     misconception: inherit(retry.misconception, primary.misconception),
     hint: inherit(retry.hint, primary.hint),
-  };
+  });
+}
+
+/**
+ * Anahtarı açıklamasıyla hizalanmış kontrol (29 Ekim 2026, Paket H; ürün sahibinin kararı: "anahtarı açıklama ile
+ * birebir hizala"). Yayım öncesi kapı (`settleCheckKeys`) yeni dersleri düzeltir; kayıtlı eski derslerde aynı
+ * hizalama notlandırma anında yapılır ki "200 × 0,70 = 140 TL" diyen sorunun 140 TL'yi seçen öğrencisi yanlış
+ * sayılmasın. Değer tam olarak bir şıkta ve o şık anahtar değilse `answerIndex` o şıkka alınır; aksi hâlde dokunulmaz.
+ */
+export function alignedAnswerIndex(check: SectionCheck): number | undefined {
+  if (check.type !== "mcq") return check.answerIndex;
+  const mismatch = mcqAnswerMismatch(check);
+  return mismatch ? mismatch.expectedIndex : check.answerIndex;
+}
+
+function alignedCheck<T extends SectionCheck>(check: T): T {
+  const index = alignedAnswerIndex(check);
+  if (index === undefined || index === check.answerIndex) return check;
+  console.info("lesson_grade_key_realigned", {
+    prompt: check.prompt.slice(0, 80),
+    from: check.options?.[check.answerIndex ?? -1] ?? null,
+    to: check.options?.[index] ?? null,
+  });
+  return { ...check, answerIndex: index };
 }
 
 function fold(text: string): string {
@@ -402,9 +427,11 @@ export type GradeCheckResult = {
 
 /** Tek kontrolü sunucuda notlar. */
 export function gradeSectionCheck(
-  check: SectionCheck,
+  stored: SectionCheck,
   answer: LessonCheckAnswer,
 ): GradeCheckResult {
+  // Kayıtlı dersin anahtarı açıklamasıyla çelişiyorsa açıklamanın şıkkı notlanır (ekran aynı indeksi görür).
+  const check = alignedCheck(stored);
   const base = {
     explanation: check.explanation,
     optionWhy: check.optionWhy,

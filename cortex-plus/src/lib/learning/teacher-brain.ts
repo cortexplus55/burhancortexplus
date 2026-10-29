@@ -11,6 +11,8 @@ import { foldTr } from "@/lib/documents/page-analysis";
 import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import { refersToOptionOrder } from "@/lib/learning/option-reference";
 import { FUNCTION_NOTATION_ISSUE, reversedFunctionNotation } from "@/lib/learning/function-notation";
+import { explanationAnswerMismatch } from "@/lib/learning/answer-consistency";
+import { numbersIn } from "@/lib/learning/result-values";
 
 export const ANALYSIS_CHUNK_CHARS = 4800;
 export const MAX_ANALYSIS_CHUNKS = 3;
@@ -1663,6 +1665,56 @@ export function nearSameQuestion(a: string, b: string): boolean {
   return numbers(a) === numbers(b) && stemOverlap(a, b) >= 0.85;
 }
 
+/** Sorunun sayı çok kümesi (ondalık normalize, sıralı). */
+function questionNumberKey(text: string): string {
+  return numbersIn(text)
+    .map((value) => String(Number(value.toFixed(6))))
+    .sort()
+    .join(" ");
+}
+
+/** İçerik kökleri (`stemOverlap` ile aynı tanım): ilk beş harf, kalıp sözcükleri hariç. */
+function contentStems(text: string): Set<string> {
+  return new Set(
+    text
+      .toLocaleLowerCase("tr")
+      .split(/[^\p{L}\d]+/u)
+      .filter((word) => word.length >= 3 && !FRAME_WORD.test(word))
+      .map((word) => word.slice(0, 5)),
+  );
+}
+
+/**
+ * Sembolik atomlar (29 Ekim 2026, Paket H): "f(6)", "sin(30°)" gibi fonksiyon uygulaması; rakama bitişik ya da
+ * "=" / "(" yanındaki tek harfli değişken ("2x", "k=8,5"); yüzde ("%12"); birimli değer ("5 kg", "12 m/s²");
+ * üslü değişken ("x²"). Küçük harfle, boşluksuz. Ders kelimesi değil, matematik yazımı.
+ */
+export function symbolicAtoms(text: string): Set<string> {
+  const source = text.replace(/−/g, "-");
+  const atoms = new Set<string>();
+  const add = (value: string) => {
+    const atom = value.toLocaleLowerCase("tr").replace(/\s+/g, "").replace(/,/g, ".");
+    if (atom) atoms.add(atom);
+  };
+  for (const match of source.matchAll(/(?<![\p{L}])\p{L}{1,4}\(\s*[^()\n]{1,16}\)/gu)) add(match[0]);
+  for (const match of source.matchAll(/(?<![\p{L}])([a-zA-Z])(?=\s*[=(²³⁴])|(?<=\d)([a-zA-Z])(?![\p{L}])/gu)) add(match[1] ?? match[2] ?? "");
+  for (const match of source.matchAll(/%\s*\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s*%/g)) add(match[0]);
+  for (const match of source.matchAll(/\d+(?:[.,]\d+)?\s*([a-zA-ZµΩ°]{1,4}(?:\/[a-zA-Z]{1,3}[²³]?)?)(?![\p{L}])/gu)) add(match[0]);
+  for (const match of source.matchAll(/(?<![\p{L}])[a-zA-Z][²³⁴]/gu)) add(match[0]);
+  return atoms;
+}
+
+export type QuestionSignature = { numbers: string; atoms: Set<string>; stems: Set<string> };
+
+/**
+ * Sorunun imzası (29 Ekim 2026, Paket H): sayı çok kümesi + sembolik atomlar + içerik kökleri. Kısa hesap
+ * soruları ("k=8,5 için f(6) kaçtır?") dörtten az içerik kökü taşıdığı için `stemOverlap` 0 döner ve tekrar
+ * yakalanmazdı; imza sayı ve atom kümesiyle karşılaştırır.
+ */
+export function questionSignature(text: string): QuestionSignature {
+  return { numbers: questionNumberKey(text), atoms: symbolicAtoms(text), stems: contentStems(text) };
+}
+
 export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview | null; corrected?: string }): string[] {
   const review = storedReview(check.review);
   if (!review) return ["yok; tam bir soru yaz: prompt, options, answerIndex ve explanation."];
@@ -1703,6 +1755,14 @@ export function reviewItemProblems(check: ReviewCheck & { review?: StoredReview 
     problems.push("açıklaması şıklara sırasıyla gönderme yapıyor; şıklar karışık gösteriliyor, her şıkkı içeriğiyle an.");
   }
   if (reversedFunctionNotation(review.explanation).length) problems.push(FUNCTION_NOTATION_ISSUE);
+  // Açıklamanın vardığı değer anahtarın şıkkında değil (29 Ekim 2026, Paket H): çalışma anı kabulü de bu listeyi
+  // okur; anahtarı açıklamasıyla çelişen ikinci soru reddedilir, yedek zincir çalışır.
+  if (check.type === "mcq") {
+    const mismatch = explanationAnswerMismatch({ options, keyed: [review.answerIndex], explanation: review.explanation });
+    if (mismatch) {
+      problems.push(`açıklaması ${String(mismatch.value).replace(".", ",")} sonucuna varıyor ama answerIndex '${mismatch.keyed.join("', '")}' şıkkında.`);
+    }
+  }
   return problems;
 }
 

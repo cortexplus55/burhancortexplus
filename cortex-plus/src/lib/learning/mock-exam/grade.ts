@@ -5,6 +5,7 @@
 import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
 import type { MockGradeItem, MockQuestionType, MockRubricItem } from "@/lib/learning/mock-exam/types";
 import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
+import { finalResults } from "@/lib/learning/result-values";
 
 export type GradeableQuestion = {
   id: string;
@@ -107,100 +108,11 @@ export function methodMarkers(modelAnswer: string, criteria: string[] = []): str
   return (marked.length ? marked : lines).slice(0, 6);
 }
 
-const NUMBER_SRC = String.raw`-?\d+(?:[.,]\d+)?`;
-const LEADING_VALUE = new RegExp(String.raw`^\s*(${NUMBER_SRC})(?:\s*\/\s*(${NUMBER_SRC}))?`, "u");
-const TRAILING_FRACTION = new RegExp(String.raw`(${NUMBER_SRC})\s*\/\s*(${NUMBER_SRC})\s*\D*$`, "u");
-
-function toNumber(raw: string): number | null {
-  const value = Number(raw.replace(",", "."));
-  return Number.isFinite(value) ? value : null;
-}
-
-/**
- * Eşitlik kuyruğunun başındaki değer: "= 12 cm²", "= 3/2", "= 10 W." sonuçtur;
- * "= 24^2 / (4*12)" işlem, "= 2x" ifadedir — sonuç değil.
- */
-function leadingValue(part: string): number | null {
-  const match = part.match(LEADING_VALUE);
-  if (!match) return null;
-  const rest = part.slice(match[0].length);
-  if (/^\s*[+\-*/^(·×÷√:]/.test(rest)) return null;
-  const glued = rest.match(/^([a-zA-ZçğıöşüÇĞİÖŞÜµΩ°]+)/u)?.[1];
-  if (glued && glued.length === 1 && !/[mgsNJWVALKΩ°]/.test(glued)) return null;
-  const whole = toNumber(match[1] ?? "");
-  if (whole == null) return null;
-  if (match[2] == null) return whole;
-  const divisor = toNumber(match[2]);
-  return divisor ? whole / divisor : null;
-}
-
-/** Cevabın sonundaki değer: kesirse bölümü ("x = 3/2" → 1,5), yoksa son sayı. */
-function trailingValue(answer: string): number | null {
-  const fraction = answer.match(TRAILING_FRACTION);
-  if (fraction) {
-    const whole = toNumber(fraction[1] ?? "");
-    const divisor = toNumber(fraction[2] ?? "");
-    if (whole != null && divisor) return whole / divisor;
-  }
-  const matches = [...answer.replace(/,/g, ".").matchAll(/-?\d+(?:\.\d+)?/g)];
-  const last = Number(matches.at(-1)?.[0]);
-  return Number.isFinite(last) ? last : null;
-}
-
-/** Cümle, satır, ";" ve bağlaç ("çünkü", "ise", "ve") ayrı eşitlik zinciri açar. */
-const CLAUSE_SPLIT =
-  /\n+|;|(?<=\D)\.\s+|\.\s+(?=\p{Lu})|[!?]\s+|,\s+|⇒|→|(?<![\p{L}\p{N}])(?:çünkü|cunku|ise|dolayısıyla|dolayisiyla|buradan|yani|ve|öyleyse|o halde)(?![\p{L}\p{N}])/iu;
-
-type EqualityChain = { left: string; values: number[] };
-
-const variableKey = (text: string) => text.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}]/gu, "");
-
-function chainsOf(text: string): EqualityChain[] {
-  const out: EqualityChain[] = [];
-  for (const clause of text.split(CLAUSE_SPLIT)) {
-    if (!clause.includes("=")) continue;
-    const parts = clause.split("=");
-    const values = parts.slice(1).map(leadingValue).filter((value): value is number => value != null);
-    out.push({ left: variableKey(parts[0] ?? ""), values });
-  }
-  return out;
-}
-
-/** Örnek cevabın sonuç değişkeni: son zincirin sol tarafı ("Pmax", "x", "Alan"); uzun ifade sayılmaz. */
-function resultVariable(modelAnswer: string): string | null {
-  const left = chainsOf(modelAnswer).at(-1)?.left ?? "";
-  return /^\p{L}[\p{L}\p{N}]{0,19}$/u.test(left) ? left : null;
-}
-
-/**
- * Cevapta "sonuç" diye okunan sayılar (29 Ekim 2026): her eşitlik kuyruğunun değeri (kesir dahil)
- * ve cevabın son sayısı. Eskiden yalnız son sayı okunuyordu: "Alan = 3·4 = 12 cm² (3 ve 4 kenarlar)"
- * 4 sayılıp doğru cevap çelişkili görünüyor, "x = 3/2" 2 okunuyordu.
- */
-export function claimedResults(answer: string): number[] {
-  const values = chainsOf(answer).flatMap((chain) => chain.values);
-  const tail = trailingValue(answer);
-  if (tail != null) values.push(tail);
-  return values;
-}
-
-/**
- * Öğrencinin SON sonucu: örnek cevabın sonuç değişkeniyle başlayan zincirin son değeri
- * ("Pmax = 24²/(4·12) = 10 W" → 10; "Rth = 12 Ω" ara değerdir, sonuç değil); değişken
- * eşleşmezse son zincirin son değeri ve cevabın son sayısı.
- */
-export function finalResults(answer: string, modelAnswer: string | null | undefined): number[] {
-  const chains = chainsOf(answer).filter((chain) => chain.values.length);
-  const variable = resultVariable(modelAnswer ?? "");
-  const named = variable ? chains.filter((chain) => chain.left === variable).map((chain) => chain.values.at(-1)!) : [];
-  if (named.length) return named;
-  const out: number[] = [];
-  const last = chains.at(-1)?.values.at(-1);
-  if (last != null) out.push(last);
-  const tail = trailingValue(answer);
-  if (tail != null) out.push(tail);
-  return out;
-}
+/*
+  Sayı ve eşitlik zinciri okuyucuları 29 Ekim 2026'da `result-values.ts`e taşındı (Paket H): açıklama ↔ anahtar
+  tutarlılığı aynı okuyucuları kullanır. Adlar buradan da dışa aktarılır; çağıranlar değişmedi.
+*/
+export { chainsOf, claimedResults, finalResults, leadingValue, resultVariable, toNumber, trailingValue } from "@/lib/learning/result-values";
 
 /** Cevaptaki eşitlik zincirlerinde tutmayan hesap: açık işlem hatası. Cümle, satır ve ";" ayrı zincir. */
 export function arithmeticSlips(answer: string): string[] {

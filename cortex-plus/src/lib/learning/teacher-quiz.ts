@@ -1,5 +1,19 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
-import { EQUIVALENT_OPTIONS_RULE, SOURCE_NUMBER_PRIORITY, STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
+import {
+  EQUIVALENT_OPTIONS_RULE,
+  KEY_CONSISTENCY_RULE,
+  MULTI_POLARITY_RULE,
+  SELF_CONTAINED_STEM_RULE,
+  SOURCE_NUMBER_PRIORITY,
+  STUDENT_LEAK_BAN,
+} from "@/lib/learning/teaching-rubric";
+import {
+  affirmedWrongOptions,
+  explanationAnswerMismatch,
+  inlineCarriers,
+  refutedCorrectOptions,
+  unresolvedVisualReference,
+} from "@/lib/learning/answer-consistency";
 import { DEFAULT_OPTION_COUNT, type OptionCount } from "@/lib/learning/student-pedagogy";
 import { equivalentOptionPair } from "@/lib/learning/option-equivalence";
 import { normalizeQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
@@ -199,8 +213,9 @@ const design = (optionCount: OptionCount) =>
   "'0° ile 360° arasında' uçları belirsiz bırakır ve iki cevabı doğru yapar.\n" +
   "- Yazmadan önce her soruyu kendin çöz: tek doğru cevap var mı, anahtar doğru mu, diğer şıkların her biri kesin " +
   "yanlış mı? Adım adım çözümü `steps` alanına, doğru şıkkın sağlamasını `explanation` alanına aynı çağrıda yaz.\n" +
-  "- Kök kendi içinde tamdır: ekranda olmayan şekle, denkleme ya da 'derste verilen' ifadeye gönderme yok; " +
-  "çözmek için gereken her sayı ve ilişki kökte yazılır.\n\n" +
+  // 29 Ekim 2026 (Paket H): kök tamlığı ve anahtar–açıklama kuralı ders, test ve deneme yazarında aynı metin.
+  `- ${SELF_CONTAINED_STEM_RULE}\n` +
+  `- ${KEY_CONSISTENCY_RULE}\n\n` +
   "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede', 'PDF', 'belirtilmiştir', 'belirtildiği gibi' — soru " +
   "bilgiyi kaynağa değil konuya sorar ('hangi gerekçe belirtilmiştir' değil 'neden uygun değildir').\n\n";
 
@@ -261,7 +276,7 @@ const multiQuestion = (optionCount: OptionCount) =>
   "2 ya da 3'ü doğru; correct doğru şıkların metinlerinden oluşan dizidir. Kök 'hangileri' diye sorar ('Aşağıdakilerden " +
   "hangileri … ?'). Doğru şıkların her biri kendi başına kesin doğru, yanlış şıkların her biri kesin yanlıştır; " +
   `yarı doğru şık yok. ${MULTI_DISTRACTOR_RULE} explanation hangi şıkların neden doğru, ötekilerin neden yanlış ` +
-  "olduğunu söyler. Öteki bütün sorular tek doğru şıklıdır (multi false).\n\n";
+  `olduğunu söyler. ${MULTI_POLARITY_RULE} Öteki bütün sorular tek doğru şıklıdır (multi false).\n\n`;
 
 const GAPS_FOCUS =
   "BU TEST TUZAK SORULARI: her soru, kaynağın uyardığı ya da öğrencinin sık karıştırdığı bir ayrımı yoklar " +
@@ -390,7 +405,8 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
 const MULTI_VERIFY =
   "multi true olan soruda (çok cevaplı) birden fazla doğru şık olması B değildir: işaretli doğruların her biri kesin " +
   "doğru, işaretsiz şıkların her biri kesin yanlış olmalı; değilse A. Yarı doğru şık B'dir. Yazarın çok cevaplı soru " +
-  `kuralı: ${MULTI_DISTRACTOR_RULE} Buna uymayan yanlış şık G'dir.\n`;
+  `kuralı: ${MULTI_DISTRACTOR_RULE} Buna uymayan yanlış şık G'dir. Yazarın kutupluluk kuralı (aynen): ` +
+  `${MULTI_POLARITY_RULE} Gerekçesi kendisini çürüten doğru şık ya da onaylayan yanlış şık D'dir.\n`;
 
 const VERIFY_DOCUMENT =
   "Sen titiz bir sınav sorusu denetçisisin. Testi yazıldığı KAYNAK ile karşılaştırıyorsun. HER SORUYU ÖNCE KENDİN " +
@@ -404,9 +420,11 @@ const VERIFY_DOCUMENT =
   "şık ya da gerekçe C'dir ('high').\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması; yanlış şıkkın " +
   "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara sırasıyla ya da harfiyle " +
-  "gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
-  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
-  "E) Kökün cevabı vermesi.\n" +
+  "gönderme yapması (şıklar karıştırılıyor); açıklamanın, adımların ya da ipucunun vardığı sonucun anahtardan başka " +
+  "bir şıkta yazması. Yazarın okuduğu kurallar (aynen): " +
+  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ${KEY_CONSISTENCY_RULE}\n` +
+  "E) Kökün cevabı vermesi; kökün ekranda ya da kâğıtta olmayan bir şekle, grafiğe, haritaya, tabloya, şemaya ya da " +
+  `denkleme gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): ${SELF_CONTAINED_STEM_RULE}\n` +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
@@ -426,9 +444,11 @@ const VERIFY_TOPIC =
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
   "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara " +
-  "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor). Yazarın okuduğu kural (aynen): " +
-  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE}\n` +
-  "E) Kökün cevabı vermesi.\n" +
+  "sırasıyla ya da harfiyle gönderme yapması (şıklar karıştırılıyor); açıklamanın, adımların ya da ipucunun vardığı " +
+  "sonucun anahtardan başka bir şıkta yazması. Yazarın okuduğu kurallar (aynen): " +
+  `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ${KEY_CONSISTENCY_RULE}\n` +
+  "E) Kökün cevabı vermesi; kökün ekranda ya da kâğıtta olmayan bir şekle, grafiğe, haritaya, tabloya, şemaya ya da " +
+  `denkleme gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): ${SELF_CONTAINED_STEM_RULE}\n` +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
@@ -919,12 +939,33 @@ function answerOnlyWordInStem(stem: string, answer: string, options: string[]): 
   return null;
 }
 
-/** Ekranda durmayan şekil, denklem ya da "derste verilen" göndermesi. "Bu şekilde" (tarz) sayılmaz. */
+/**
+ * Ekranda durmayan şekil, grafik, harita, tablo, şema, denklem ya da "derste verilen" göndermesi; kökteki veri
+ * taşıyıcısı (eşitlik, ok, koordinat çifti, tablo satırı) atfı çözer. "Bu şekilde" (tarz) sayılmaz.
+ * 29 Ekim 2026 (Paket H): gövde `unresolvedVisualReference`; deneme teslim kapısı ve ders aynı kuralı okur.
+ */
 export function unseenStemReference(text: string): boolean {
-  return /derste verilen|şekildeki|verilen şekilde|yukarıdaki (?:şekil|denklem|grafik|tablo)|aşağıdaki (?:şekilde|grafikte|tabloda)|şekilde gösterilen/i.test(
-    text,
-  );
+  return unresolvedVisualReference(text, inlineCarriers(text)) != null;
 }
+
+function visualReferenceIssue(text: string): string | null {
+  const hit = unresolvedVisualReference(text, inlineCarriers(text));
+  return hit ? `Kök '${hit}' diye ekranda olmayan bir görsele gönderme yapıyor; çözmek için gereken veriyi kökün içine yaz.` : null;
+}
+
+function keyMismatchIssue(question: QuizQuestion, keyed: number[]): string | null {
+  const mismatch = explanationAnswerMismatch({
+    options: question.options,
+    keyed,
+    steps: question.steps,
+    optionWhy: question.optionWhy,
+    explanation: question.explanation,
+  });
+  if (!mismatch) return null;
+  return `Açıklama ${formatValue(mismatch.value)} sonucuna varıyor; doğru şık '${mismatch.keyed.join("', '")}' değil '${mismatch.expected}' olmalı ya da açıklama yanlış.`;
+}
+
+const formatValue = (value: number) => String(Number(value.toFixed(6))).replace(".", ",");
 
 /**
  * Şık sayısı sorunu. `optionCount` verilmezse sınav biçimlerinden biri (4 ya da 5) kabul edilir; motor her zaman
@@ -998,6 +1039,12 @@ export function quizStructureIssues(
   if (countIssue) issues.push(countIssue);
   const mismatch = stepsAnswerMismatch(question);
   if (mismatch) issues.push(mismatch);
+  // Açıklamanın vardığı değer anahtardan başka bir şıkta (29 Ekim 2026, Paket H): soru düşer, yedek doldurur; kod
+  // test anahtarını DEĞİŞTİRMEZ. Adım çelişkisi zaten yazıldıysa ikinci kez yazılmaz.
+  if (!mismatch && !question.multi) {
+    const keyIssue = keyMismatchIssue(question, [question.options.indexOf(question.correct[0] ?? "")].filter((index) => index >= 0));
+    if (keyIssue) issues.push(keyIssue);
+  }
   if (duplicateOption(question.options)) issues.push("Aynı şık iki kez yazılmış.");
   const said = [question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
   if (reversedFunctionNotation(said.join("\n")).length) issues.push(FUNCTION_NOTATION_ISSUE);
@@ -1027,9 +1074,8 @@ export function quizStructureIssues(
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
     issues.push("Kökte kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
   }
-  if (unseenStemReference(question.text)) {
-    issues.push("Kök ekranda olmayan şekle, denkleme ya da derste verilen ifadeye gönderme yapıyor.");
-  }
+  const visual = visualReferenceIssue(question.text);
+  if (visual) issues.push(visual);
   const keyed = {
     type: "mcq",
     prompt: question.text,
@@ -1068,9 +1114,8 @@ function multiQuestionIssues(question: QuizQuestion): string[] {
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
     issues.push("Kökte kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
   }
-  if (unseenStemReference(question.text)) {
-    issues.push("Kök ekranda olmayan şekle, denkleme ya da derste verilen ifadeye gönderme yapıyor.");
-  }
+  const visual = visualReferenceIssue(question.text);
+  if (visual) issues.push(visual);
   const wrong = question.options.filter((option) => !correct.includes(option));
   for (const answer of correct) {
     const giveaway = answerOnlyWordInStem(question.text, answer, wrong.concat(answer));
@@ -1078,6 +1123,16 @@ function multiQuestionIssues(question: QuizQuestion): string[] {
       issues.push(`Kök doğru şıkkı ele veren kelimeyi içeriyor ('${giveaway}'); kökten çıkar.`);
       break;
     }
+  }
+  // Anahtar kümesi ile gerekçelerin yönü (29 Ekim 2026, Paket H): açıklamanın sonucu correct dışında bir şıkta;
+  // doğru işaretli şıkkın gerekçesi onu çürütüyor; yanlış bırakılan şıkkın gerekçesi onu onaylıyor.
+  const keyIssue = keyMismatchIssue(question, correct.map((answer) => question.options.indexOf(answer)).filter((index) => index >= 0));
+  if (keyIssue) issues.push(keyIssue);
+  for (const option of refutedCorrectOptions(question)) {
+    issues.push(`Doğru işaretli '${option}' şıkkını gerekçesi çürütüyor ('…değildir'); şık doğru listesinde olamaz ya da gerekçe yanlış.`);
+  }
+  for (const option of affirmedWrongOptions(question)) {
+    issues.push(`Yanlış bırakılan '${option}' şıkkını gerekçesi onaylıyor; şık doğru listesine girmeli ya da gerekçe yanlış.`);
   }
   return issues;
 }
