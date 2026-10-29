@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import {
-  buildPaytrToken,
-  generateMerchantOid,
-  isPaytrConfigured,
-} from "@/lib/payments/paytr";
+import { isPaytrConfigured } from "@/lib/payments/paytr";
 import { resolveCheckoutBeneficiary } from "@/lib/payments/beneficiary";
 import { billingPeriodOf } from "@/lib/payments/subscription";
-import { auditLog } from "@/lib/audit";
+import { createPaytrCheckout, requestUserIp } from "@/lib/payments/checkout";
 
 const bodySchema = z.object({
   planId: z.string().uuid(),
@@ -104,21 +100,8 @@ export async function POST(request: Request) {
     if (!link) return errorResponse(403, "forbidden");
   }
 
-  const merchantOid = generateMerchantOid();
-  const { error: insertError } = await service.from("payments").insert({
-    user_id: userId,
-    beneficiary_user_id: beneficiary.beneficiaryId,
-    plan_id: plan.id,
-    merchant_oid: merchantOid,
-    amount_try: plan.price_try,
-    status: "pending",
-  });
-
-  if (insertError) return errorResponse(500, "generation_failed");
-
   const origin = new URL(request.url).origin;
-  const forwarded = request.headers.get("x-forwarded-for");
-  const userIp = forwarded?.split(",")[0]?.trim() ?? "127.0.0.1";
+  const userIp = requestUserIp(request);
   const forChild = beneficiary.beneficiaryId !== userId;
   const returnQuery = forChild ? "?kaynak=veli" : "";
 
@@ -128,82 +111,28 @@ export async function POST(request: Request) {
     period === "yearly" ? " yillik" : period === "monthly" ? " aylik" : "";
   const productName = `${plan.name}${periodSuffix}${forChild ? " (cocuk kotasi)" : ""}`;
 
-  const { params } = buildPaytrToken({
-    merchantOid,
+  /*
+    Ödeme satırı, PayTR token isteği ve sözleşme onayının denetim kaydı
+    (`payment.token.created`, legal_consent) ortak kabukta: `createPaytrCheckout`.
+    Hesapsız velinin bağlantıyla ödemesi de aynı kabuğu kullanır (29 Ekim 2026).
+  */
+  const checkout = await createPaytrCheckout(service, {
+    userId,
+    beneficiaryId: beneficiary.beneficiaryId,
+    plan,
     email: email ?? "kullanici@cortexplus.app",
-    amountKurus: plan.price_try,
     userIp,
     userName: profile?.full_name?.trim() || "Cortex Plus kullanicisi",
     productName,
     okUrl: `${origin}/odeme/basarili${returnQuery}`,
     failUrl: `${origin}/odeme/basarisiz${returnQuery}`,
+    actorId: userId,
+    via: forChild ? "parent_account" : "self",
   });
-
-  try {
-    const response = await fetch("https://www.paytr.com/odeme/api/get-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-      cache: "no-store",
-    });
-
-    const payload = (await response.json()) as {
-      status: string;
-      token?: string;
-      reason?: string;
-    };
-
-    if (payload.status !== "success" || !payload.token) {
-      await service
-        .from("payments")
-        .update({ status: "failed" })
-        .eq("merchant_oid", merchantOid);
-      return NextResponse.json(
-        { error: "Ödeme oturumu başlatılamadı." },
-        { status: 502 },
-      );
-    }
-
-    await service
-      .from("payments")
-      .update({ paytr_token: payload.token })
-      .eq("merchant_oid", merchantOid);
-
-    await auditLog(service, {
-      actorId: userId,
-      action: "payment.token.created",
-      entityType: "payment",
-      entityId: merchantOid,
-      metadata: {
-        plan: plan.id,
-        amount_try: plan.price_try,
-        beneficiary: beneficiary.beneficiaryId,
-        /*
-          Sözleşmenin kurulduğunun kanıtı. Banka ya da tüketici itirazında
-          sorulan şey tam olarak bu: "tüketici sözleşmeyi ne zaman kabul
-          etti?" Kaydı ödeme başlarken tutuyoruz çünkü onay o anda alınıyor.
-        */
-        legal_consent: {
-          accepted: true,
-          at: new Date().toISOString(),
-          ip: userIp,
-          documents: ["on-bilgilendirme", "mesafeli-satis"],
-        },
-      },
-    });
-
-    return NextResponse.json({
-      merchantOid,
-      iframeUrl: `https://www.paytr.com/odeme/guvenli/${payload.token}`,
-    });
-  } catch {
-    await service
-      .from("payments")
-      .update({ status: "failed" })
-      .eq("merchant_oid", merchantOid);
-    return NextResponse.json(
-      { error: "Ödeme sağlayıcısına ulaşılamadı." },
-      { status: 502 },
-    );
+  if (!checkout.ok) {
+    return checkout.status === 500
+      ? errorResponse(500, checkout.error)
+      : NextResponse.json({ error: checkout.error }, { status: 502 });
   }
+  return NextResponse.json({ merchantOid: checkout.merchantOid, iframeUrl: checkout.iframeUrl });
 }
