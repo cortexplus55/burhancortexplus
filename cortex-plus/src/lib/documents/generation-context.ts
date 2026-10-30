@@ -180,6 +180,14 @@ export function topicScopeLine(context: Pick<DocumentGenerationContext, "wholeDo
   );
 }
 
+/**
+ * Yoldaki ve hazırlık sayfasındaki belgeli podcast için aynı satır (30 Ekim 2026, canlı: "Miktar Teorisi" podcast'i aynı
+ * sayfadaki tahvil işlemleri, reel faiz ve Phillips eğrisi bölümlerini de anlattı). Konu kendi sayfalarıyla eşleşmiş sayılır.
+ */
+export function prepTopicScopeLine(topic: string): string {
+  return topicScopeLine({ wholeDocument: false, matched: true, topicTitle: topic }, topic);
+}
+
 export async function loadDocumentGenerationContext(
   service: SupabaseClient,
   userId: string,
