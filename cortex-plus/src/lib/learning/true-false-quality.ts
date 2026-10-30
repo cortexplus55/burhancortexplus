@@ -79,15 +79,63 @@ function sameTag(a?: string, b?: string): boolean {
   return Boolean(left) && left === right && left.split(" ").length >= 3;
 }
 
+/*
+  Aynı terimin iki tanımı (30 Ekim 2026, canlı tur, Makroekonomi D/Y): önerme 5 "Deflasyon genel fiyat düzeyinin sürekli
+  düşmesidir" (D), önerme 6 "Deflasyon, enflasyon oranının düşmesidir" (Y). İkisi de "deflasyon nedir?" sorusunu
+  yokluyor: 5'i doğru bilen 6'yı düşünmeden yanlış der. Eski ölçü bütün cümlenin anahtarlarına bakıyordu: ortak
+  anahtar 2/4 (deflasyon, düşmesi), 6'nın doğru hâli ("Enflasyon oranının düşmesi dezenflasyondur") 5'le 1/4 —
+  üç yol da tutmadı. Bir önermenin yanlış hâlinin doğrusu öbürüyse çift: aynı öznenin tanımı. Ders bağımsız ölçü:
+  iki önerme aynı özneyle açılıyor (virgülden önceki sözcükler, virgül yoksa ilk sözcük) ve ikisinin de yüklemi bir
+  tanım (eylem adı + ek-fiil: "-mesidir", "-masıdır", "-medir", "-ışıdır"; ya da "bir … -dir": "bir endekstir").
+*/
+
+/** Önermenin başında özne olamayan genel niteleyiciler ("Normal nabız …", "İlk belge …"). */
+const NOT_SUBJECT = new Set([
+  "normal", "genel", "temel", "ilk", "son", "yeni", "eski", "yuksek", "dusuk", "buyuk", "kucuk", "ana", "toplam",
+  "ortalama", "butun", "her", "tum", "bazi", "cok", "bu", "su", "o", "bir", "iki", "uc",
+]);
+
+/** Tanım yüklemi: eylem adı + ek-fiil ("düşmesidir", "bölünmedir", "artışıdır") ya da "bir <ad>dır" kalıbı. */
+function definitionalPredicate(text: string): boolean {
+  const words = fold(text).replace(/[.!]+$/u, "").split(" ").filter(Boolean);
+  const last = words[words.length - 1] ?? "";
+  if (/(?:mesi|masi|me|ma|isi|usu|is|us)(?:d|t)(?:i|u)r$/u.test(last)) return true;
+  return words.length >= 3 && words[words.length - 2] === "bir" && /(?:d|t)(?:i|u)r$/u.test(last);
+}
+
+/** Tanımın öznesi: virgülden önceki sözcükler (en çok dört), virgül yoksa ilk sözcük; genel niteleyici özne değildir. */
+function definedSubject(text: string): string | null {
+  const raw = text.trim();
+  const comma = raw.indexOf(",");
+  const head = comma > 0 ? raw.slice(0, comma) : raw.split(/\s+/u)[0] ?? "";
+  const words = fold(head).split(" ").filter(Boolean);
+  if (!words.length || words.length > 4) return null;
+  if (comma < 0 && NOT_SUBJECT.has(words[0]!)) return null;
+  return words.join(" ");
+}
+
+/** İki önerme aynı öznenin tanımı mı ("X, …-mesidir" / "X …-mesidir"). */
+export function sameDefinedSubject(a: string, b: string): boolean {
+  if (!definitionalPredicate(a) || !definitionalPredicate(b)) return false;
+  const left = definedSubject(a);
+  const right = definedSubject(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  // Biri virgüllü çok sözcüklü özne, öbürü virgülsüz: öbürü aynı sözcüklerle başlamalı.
+  const [longer, shorter] = left.length >= right.length ? [left, a] : [right, b];
+  return fold(shorter).startsWith(`${longer} `) || fold(shorter).startsWith(`${longer},`);
+}
+
 /**
  * İki önerme aynı alt bilgiyi ya da aynı yanılgıyı mı yokluyor: birebir ya da olumsuzlukla ters
- * çevrilmiş aynı cümle, biri ötekinin doğru hâli, ya da aynı (ayırt edici) yanılgı etiketi.
+ * çevrilmiş aynı cümle, biri ötekinin doğru hâli, aynı öznenin iki tanımı, ya da aynı (ayırt edici) yanılgı etiketi.
  */
 export function sameTrueFalseFact(a: TrueFalseLike, b: TrueFalseLike): boolean {
   const texts = [a.text, ...(a.correct ? [] : [a.correctedStatement ?? ""])].filter(Boolean);
   const others = [b.text, ...(b.correct ? [] : [b.correctedStatement ?? ""])].filter(Boolean);
   for (const left of texts) {
     for (const right of others) {
+      if (sameDefinedSubject(left, right)) return true;
       if (!sameNumbers(left, right)) continue;
       if (overlap(factKeys(left), factKeys(right)) >= TF_SAME_FACT_OVERLAP) return true;
     }

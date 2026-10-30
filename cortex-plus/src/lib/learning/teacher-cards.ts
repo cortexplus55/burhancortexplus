@@ -3,6 +3,22 @@ import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesso
 import { singlePassItems, type Reviewed } from "@/lib/learning/teacher-item-loop";
 import { examPointsBlock } from "@/lib/learning/exam-points";
 import { avoidListBlock, dropNearDuplicatesKeepingCount } from "@/lib/learning/item-dedup";
+import { contentTokens, rootCoverage } from "@/lib/learning/lexical-overlap";
+import { optionKey } from "@/lib/learning/question-integrity";
+
+/**
+ * Destede tekrar yok (30 Ekim 2026, canlı tur: Makroekonomi). Yoldaki 8 kartın 1, 2 ve 6'sı aynı bilgiydi ("X nedir?"
+ * → tanım; "tanıma ne denir?" → X; aynı cevabın üçüncü kartı), 3 ile 4 aynı bilgiydi; Araçlar'da "MV = PY"nin her
+ * harfi ayrı karttı ve 1 ile 3 aynı harfi soruyordu. Kart motorunda deste düzeyinde hiçbir denetim yoktu; yalnız
+ * sonda %70 sözcük örtüşmesiyle eleme vardı ve o da "sayı eksilirse kopya kalsın" diye geri koyuyordu. Yazar ve
+ * denetçi bu metni aynen okur; kod (`sameCardFact`, `formulaLetterCard`) aynı bilgiyi taşıyan kartı kabul etmez,
+ * motor eksik kadar yenisini ister.
+ */
+export const CARD_DISTINCT_RULE =
+  "TEKRAR YOK: Destedeki her kart başka bir bilgiyi yoklar. Bir kartı ters çevirip ikinci kart yapma ('X nedir?' → " +
+  "tanım ile 'tanıma ne denir?' → X aynı karttır); iki kartın cevabı aynı olmaz. Bir formülün harflerini ayrı kartlara " +
+  "bölme ('F = m·a'da F, m, a; 'MV = PY'de M, V, P, Y): harflerin anlamı tek kartta toplu sorulur, formülün söylediği " +
+  "ilişki ya da bir değişken değişince ne olduğu başka bir kartta.";
 
 /**
  * Öğretmen kart motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
@@ -57,6 +73,7 @@ function system(mode: TeacherLessonMode, focus: TeacherCardsInput["focus"]): str
     "- Türleri karıştır: terimden tanıma; tanımdan terime; bir durumdan kavrama; karıştırılan iki kavramın farkı " +
     "('X ile Y'yi ayıran ne?'); kaynakta formül ya da sayı varsa onun anlamı.\n" +
     "- Arka yüz kısa ve kesin: 1-2 cümle; ayırt ettiren noktayı söyler. Tek kart tek bilgi.\n" +
+    `- ${CARD_DISTINCT_RULE}\n` +
     "- Ön yüzün tek doğru cevabı olsun; birden fazla terim akla geliyorsa ipucunu daralt.\n" +
     "- difficulty: zor kartlar listenin başında.\n" +
     (focus === "spaced" ? "- ARALIKLI TEKRAR: konunun çekirdek tanımları ve formülleri önce gelsin.\n" : "") +
@@ -101,7 +118,8 @@ export function cardsVerifySystem(mode: TeacherLessonMode = "document"): string 
     "C) Ön yüzün birden fazla doğru cevabı var; ipucu belirsiz.\n" +
     "D) Ön yüz cevabı veriyor.\n" +
     "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
-    "A-E 'high'. Şunlar 'low': kolay kart.\n" +
+    `F) Destedeki başka bir kartla aynı bilgi. Yazarın kuralı (aynen): ${CARD_DISTINCT_RULE} Sonraki kartı yaz.\n` +
+    "A-F 'high'. Şunlar 'low': kolay kart.\n" +
     'JSON döndür: {"issues":[{"item":0,"severity":"high","problem":"…","fix":"…"}]} — item, 0\'dan başlayan kart ' +
     "sırasıdır. Sorun yoksa issues boş dizi."
   );
@@ -164,6 +182,78 @@ export function cardStructureIssues(card: TeacherCard): string[] {
   return issues;
 }
 
+const numbersOf = (card: TeacherCard) => (`${card.front} ${card.back}`.match(/\d+(?:[.,]\d+)?/g) ?? []).sort().join("|");
+
+/** Ön yüzdeki tek başına simgeler ("M", "PY"): formül harfi soran kartları birbirine bağlar. */
+const symbolsOf = (text: string) => new Set(text.match(/(?<![\p{L}\d])\p{Lu}{1,2}(?![\p{L}\d])/gu) ?? []);
+
+function smallerFirst(left: string[], right: string[]): [string[], string[]] {
+  return new Set(left).size <= new Set(right).size ? [left, right] : [right, left];
+}
+
+/**
+ * İki kart aynı bilgiyi mi yokluyor (30 Ekim 2026): ön + arka yüzün içerik sözcüklerinin %75'i aynı kökle öbüründe
+ * (ters çevrilmiş kart da böyle yakalanır: "Enflasyon nedir?" → tanım / "tanıma ne ad verilir?" → Enflasyon) ya da
+ * kısa cevaplar aynı ve ön yüzler aynı şeyden söz ediyor (ortak sözcük ya da simge). Sayıları farklı kartlar ayrı
+ * bilgidir ("1839" / "1856").
+ */
+export function sameCardFact(a: TeacherCard, b: TeacherCard): boolean {
+  if (numbersOf(a) !== numbersOf(b)) return false;
+  const [small, large] = smallerFirst(contentTokens(`${a.front} ${a.back}`), contentTokens(`${b.front} ${b.back}`));
+  if (new Set(small).size >= 3 && rootCoverage(small, large) >= 0.75) return true;
+  const backA = contentTokens(a.back);
+  const backB = contentTokens(b.back);
+  if (!backA.length || !backB.length || backA.length > 5 || backB.length > 5) return false;
+  const [shortBack, longBack] = smallerFirst(backA, backB);
+  const sameAnswer =
+    optionKey(a.back) === optionKey(b.back) || (new Set(shortBack).size >= 2 && rootCoverage(shortBack, longBack) >= 0.75);
+  if (!sameAnswer) return false;
+  const [frontSmall, frontLarge] = smallerFirst(contentTokens(a.front), contentTokens(b.front));
+  const sharedSymbol = [...symbolsOf(a.front)].some((symbol) => symbolsOf(b.front).has(symbol));
+  return sharedSymbol || rootCoverage(frontSmall, frontLarge) > 0;
+}
+
+/** "MV = PY", "F = m·a": sol tarafı büyük harfle başlayan kısa bağıntı. */
+const FORMULA = /(?<![\p{L}\d])(\p{Lu}[\p{L}]{0,3})\s*=\s*([\p{L}\d]+(?:\s*[·×*/^+-]\s*[\p{L}\d]+)*)/u;
+
+/**
+ * Formülün tek bir harfini soran kart: ön yüzde formül ve formülün dışında, formülün harflerinden biri tek başına
+ * ("MV = PY'de V neyi gösterir?"). Formülün anahtarı (boşluksuz) döner, yoksa null.
+ */
+export function formulaLetterCard(card: TeacherCard): string | null {
+  const match = FORMULA.exec(card.front);
+  if (!match) return null;
+  const formula = match[0];
+  const letters = new Set(formula.replace(/[^\p{L}]/gu, "").split(""));
+  const outside = card.front.replace(formula, " ");
+  const asked = [...outside.matchAll(/(?<![\p{L}\d])(\p{L})(?![\p{L}\d])/gu)].map((hit) => hit[1]!);
+  if (!asked.some((letter) => letters.has(letter))) return null;
+  return formula.replace(/\s+/g, "");
+}
+
+/** Destedeki kartlarla aynı bilgiyi taşıyan kartın sorunu; yoksa null. */
+export function cardSetIssue(card: TeacherCard, deck: readonly TeacherCard[]): string | null {
+  const twin = deck.find((other) => sameCardFact(card, other));
+  if (twin) return `Destedeki başka bir kartla aynı bilgi ('${twin.front.slice(0, 80)}'); başka bir bilgiyi yoklayan kart yaz.`;
+  const formula = formulaLetterCard(card);
+  if (formula && deck.some((other) => formulaLetterCard(other) === formula)) {
+    return `Formülün harfleri ayrı kartlara bölünmüş (${formula}); harflerin anlamını tek kartta sor, bu kartta başka bir bilgi yokla.`;
+  }
+  return null;
+}
+
+/** Ek turun kartları: destedekiyle aynı bilgiyi taşımayanlar sırayla, `count` dolana kadar. */
+export function mergeDistinctCards(deck: readonly TeacherCard[], extra: readonly TeacherCard[], count: number): TeacherCard[] {
+  const out = [...deck];
+  const front = (card: TeacherCard) => card.front.trim().toLocaleLowerCase("tr");
+  for (const card of extra) {
+    if (out.length >= count) break;
+    if (out.some((other) => front(other) === front(card)) || cardSetIssue(card, out)) continue;
+    out.push(card);
+  }
+  return out;
+}
+
 /** Kartlar zor → orta → kolay sıralanır (sıra değişir, metin değişmez). */
 export function hardFirst(cards: TeacherCard[]): TeacherCard[] {
   const rank = (card: TeacherCard) => (card.difficulty === "hard" ? 0 : card.difficulty === "medium" ? 1 : card.difficulty === "easy" ? 2 : 1);
@@ -178,11 +268,27 @@ export async function teacherCardsLoop(ask: AskJson, input: TeacherCardsInput, s
   void started;
   const mode = input.mode ?? "document";
   const focus = input.focus ?? "cards";
+  const deck: TeacherCard[] = [];
   const loop = await singlePassItems<TeacherCard>({
     count: input.count,
     spare: CARD_SPARE,
-    draft: async (n) => parseTeacherCards(await ask(cardsSystem(mode, focus), cardsUserPrompt(input, n))),
-    issues: cardStructureIssues,
+    // Eksik kadar istenen ikinci taslak destedeki kartları "yazılanlar" listesinde görür (ilk taslakta deste boş).
+    draft: async (n) =>
+      parseTeacherCards(
+        await ask(
+          cardsSystem(mode, focus),
+          cardsUserPrompt(deck.length ? { ...input, avoid: [...(input.avoid ?? []), ...deck.map((card) => card.front)] } : input, n),
+        ),
+      ),
+    // Destede aynı bilgi eksik sayılır; motor eksik kadar yenisini ister (30 Ekim 2026).
+    issues: (card) => {
+      const problems = cardStructureIssues(card);
+      if (problems.length) return problems;
+      const repeated = cardSetIssue(card, deck);
+      if (repeated) return [repeated];
+      deck.push(card);
+      return [];
+    },
   });
   const fresh = dropNearDuplicatesKeepingCount(
     loop.items,

@@ -98,6 +98,17 @@ export type TrueFalseItem = {
   misconceptionTag?: string;
 };
 
+/**
+ * Doğru/yanlışta çift yok (28 Ekim 2026; 30 Ekim 2026 canlı turda "Deflasyon … düşmesidir" (D) ile "Deflasyon,
+ * enflasyon oranının düşmesidir" (Y) aynı sette kaldı: aynı terimin iki tanımı). Yazar ve denetçi bu metni aynen
+ * okur; kod (`sameTrueFalseFact`) aynı ölçüyle reddeder.
+ */
+export const TRUE_FALSE_PAIR_RULE =
+  "ÇİFT YOK: aynı bilgiyi iki kez sorma. Bir önermeyi olumsuzlayıp ikinci önerme yapma ('X, Y'dir' ile " +
+  "'X, Y değildir'); bir yanlış önermenin doğru hâlini ayrı bir doğru önerme olarak yazma. Bir terimin tanımı sette " +
+  "tek önermedir: 'X, …-mesidir' doğru ve 'X, …-mesidir' yanlış iki önerme olmaz (yanlış tanımı bilen doğrusunu da " +
+  "bilir). Her önerme başka bir alt bilgiyi ya da başka bir yanılgıyı yoklar.";
+
 function tfSystem(mode: TeacherLessonMode): string {
   return (
     "Sen Cortex Plus'ın usta öğretmenisin. Öğrencinin sınavı için doğru/yanlış önermeleri yazıyorsun. " +
@@ -108,9 +119,7 @@ function tfSystem(mode: TeacherLessonMode): string {
     "- Yanlış önermeler öğrencinin GERÇEKTEN yaptığı hatayı taşır: iki kardeş kavramı yer değiştirmek, koşulu ya da " +
     "istisnayı düşürmek, sonucu tersine çevirmek. Bariz saçma önerme yok.\n" +
     "- Doğru ve yanlış önermeler yaklaşık yarı yarıya; her önerme farklı bir kavramı yoklar.\n" +
-    "- ÇİFT YOK: aynı bilgiyi iki kez sorma. Bir önermeyi olumsuzlayıp ikinci önerme yapma ('X, Y'dir' ile " +
-    "'X, Y değildir'); bir yanlış önermenin doğru hâlini ayrı bir doğru önerme olarak yazma. Her önerme başka " +
-    "bir alt bilgiyi ya da başka bir yanılgıyı yoklar.\n" +
+    `- ${TRUE_FALSE_PAIR_RULE}\n` +
     "- 'Her zaman / asla / genelde' gibi belirsiz genelleme ve bağlamı eksik sayı yok.\n" +
     "- explanation: neden doğru ya da yanlış olduğunu söyler; yanlışsa '✏️ Doğrusu: <doğru hâli>' ile başlar ve " +
     "iddiayı çürütür. Yanlış önermede " +
@@ -137,7 +146,8 @@ export function trueFalseVerifySystem(mode: TeacherLessonMode = "document"): str
       : `C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi.${VERIFY_NUMBER_PRIORITY}\n`) +
     "D) explanation ya da correctedStatement yanlış; yanlış önermede correctedStatement yok.\n" +
     "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
-    "A-E 'high'. 'low': kolay önerme.\n" +
+    `F) Setteki başka bir önermeyle aynı alt bilgi. Yazarın kuralı (aynen): ${TRUE_FALSE_PAIR_RULE} Sonraki önermeyi yaz.\n` +
+    "A-F 'high'. 'low': kolay önerme.\n" +
     VERIFY_JSON
   );
 }
@@ -191,7 +201,14 @@ export async function teacherTrueFalseLoop(ask: AskJson, input: PracticeSource &
   const loop = await singlePassItems<TrueFalseItem>({
     count: input.count,
     spare: 2,
-    draft: async (n) => parseTrueFalse(await ask(tfSystem(mode), userPrompt(input, "ÖNERME SAYISI", n))),
+    // Eksik kadar istenen ikinci taslak setteki önermeleri "daha önce sorulanlar" listesinde görür (30 Ekim 2026).
+    draft: async (n) =>
+      parseTrueFalse(
+        await ask(
+          tfSystem(mode),
+          userPrompt(kept.length ? { ...input, avoid: [...(input.avoid ?? []), ...kept.map((item) => item.text)] } : input, "ÖNERME SAYISI", n),
+        ),
+      ),
     // Çift ya da ters önerme eksik sayılır; motor eksik kadar yenisini ister.
     issues: (item) => {
       const problems = trueFalseStructureIssues(item);

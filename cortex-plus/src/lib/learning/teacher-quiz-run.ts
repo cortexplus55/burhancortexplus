@@ -21,9 +21,11 @@ import { runTopicTestShards } from "@/lib/learning/quiz-shards";
 import { playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
 import { repairBudget } from "@/lib/learning/repair-budget";
 import {
+  appendWithoutConflicts,
   FORCE_FIX_CODES,
   parseTeacherQuiz,
   quizSetIssues,
+  salvageRejected,
   quizStructureIssues,
   quizSystem,
   quizUserPrompt,
@@ -136,9 +138,11 @@ export async function teacherQuizLoop(
     };
   };
 
+  // Çeldirici türü kaynağın tanım cümlesinden okunur (30 Ekim 2026); belgesiz testte kaynak yok.
+  const context = mode === "topic" ? "" : input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n");
   const review = async (candidates: Slot[]): Promise<Pending[]> => {
     const kept = accepted();
-    const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi, optionCount }));
+    const structural = candidates.map((slot) => quizStructureIssues(slot.question, { multi: input.multi, optionCount, context }));
     // Tek geçiş (26 Ekim 2026): ikinci denetçi ve kör çözücü yok. Kapı deterministik.
     const factual: QuizIssue[] = [];
     const rows: Pending[] = candidates.map((slot, position) => ({
@@ -148,26 +152,29 @@ export async function teacherQuizLoop(
         ...factual.filter((issue) => issue.question === position && issue.severity === "high").map(fromIssue),
       ],
     }));
-    if (scoped) {
-      // Bütün test: önceki geçiş + kabul edilenler + engellenmeyen adaylar, testteki sırayla.
-      const merged: { question: QuizQuestion; row: Pending | null }[] = [
-        ...prior.map((question) => ({ question, row: null })),
-        ...[
-          ...kept.map((slot) => ({ ...slot, row: null })),
-          ...rows.filter(allSoft).map((row) => ({ index: row.index, question: row.question, row })),
-        ]
-          .sort(byIndex)
-          .map(({ question, row }) => ({ question, row })),
-      ];
-      for (const issue of quizSetIssues(
-        merged.map((item) => item.question),
-        { pointsAvailable, lessonChecks: input.lesson?.checks },
-      )) {
-        const row = merged[issue.index]?.row;
-        if (!row) continue;
-        codes[`set_${issue.code}`] = (codes[`set_${issue.code}`] ?? 0) + 1;
-        row.problems.push({ text: `[${issue.code}] ${issue.problem}`, soft: true, forceFix: issue.forceFix });
-      }
+    /*
+      Bütün test: önceki geçiş + kabul edilenler + engellenmeyen adaylar, testteki sırayla. 30 Ekim 2026'ya kadar
+      yalnız konu testinde bakılıyordu; Araçlar testinde S5'in cevabı S2/S4'ün doğru şıkkında yazdı, S1 ile S3 aynı
+      kalıpla aynı şeyi sordu. Konu testinde sorun yumuşak (yumuşak kurtarma geri koyabilir); öbür testlerde soru
+      elenir, yerine yedek ya da ikinci geçiş gelir.
+    */
+    const merged: { question: QuizQuestion; row: Pending | null }[] = [
+      ...prior.map((question) => ({ question, row: null })),
+      ...[
+        ...kept.map((slot) => ({ ...slot, row: null })),
+        ...rows.filter(allSoft).map((row) => ({ index: row.index, question: row.question, row })),
+      ]
+        .sort(byIndex)
+        .map(({ question, row }) => ({ question, row })),
+    ];
+    for (const issue of quizSetIssues(
+      merged.map((item) => item.question),
+      { pointsAvailable, lessonChecks: scoped ? input.lesson?.checks : undefined },
+    )) {
+      const row = merged[issue.index]?.row;
+      if (!row) continue;
+      codes[`set_${issue.code}`] = (codes[`set_${issue.code}`] ?? 0) + 1;
+      row.problems.push({ text: `[${issue.code}] ${issue.problem}`, soft: scoped, forceFix: scoped && issue.forceFix });
     }
     return rows;
   };
@@ -484,28 +491,35 @@ async function runTeacherQuizInner(
         ...previousStems,
         ...questions.map((question) => question.text),
       ]);
-      questions = withOneMultiLast([...questions, ...fresh], input.count);
+      // İkinci geçişin sorusu ilk geçişin sorularıyla aynı cevaba çıkıyor ya da birinin cevabını taşıyorsa alınmaz.
+      questions = withOneMultiLast(appendWithoutConflicts(questions, fresh), input.count);
       softKept += again.softKept;
       salvaged.push(...again.salvaged);
       rejected.push(...again.rejected);
       for (const [code, n] of Object.entries(again.codes)) loop.codes[code] = (loop.codes[code] ?? 0) + n;
     }
     if (questions.length < input.count) {
-      // İki doğru şıklı soru (eşdeğer ya da tekrar şık) sayı tamamlamak için de geri konmaz.
-      const playable = rejected
-        .filter((item) => !item.problems.some((problem) => /İki şık eşdeğer|Aynı şık iki kez|İki şık aynı cevap/.test(problem)))
-        .map((item) => item.question)
-        .filter(
-          (question) =>
-            question.text.trim().length > 0 &&
-            question.options.length === input.optionCount &&
-            question.correct.some((answer) => question.options.includes(answer)),
-        );
-      const spare = dropNearDuplicates(playable, (question) => question.text, [
-        ...previousStems,
-        ...questions.map((question) => question.text),
-      ]);
-      questions = withOneMultiLast([...questions, ...spare], input.count);
+      /*
+        Sayı eksikse elenen sorular geri konur (26 Ekim 2026, "soru silinmez"). 30 Ekim 2026 canlı turda kökü cevabı
+        veren yazılı deneme sorusu ("tarımsal verimsizlik sürerken" → "Tarımsal verimsizliğin … sürmesi") yapı kapısına
+        takılmış, buradan geri konup öğrenciye gitmişti: eskiden yalnız iki doğru şıklı soru geri konmuyordu. Artık
+        cevabı kökte, anahtarı yanlış ya da iki cevaplı soru da geri konmaz (`UNSALVAGEABLE_PROBLEM`) ve geri konan soru
+        testteki sorularla çakışmaz.
+      */
+      questions = withOneMultiLast(
+        salvageRejected(rejected, questions, { optionCount: input.optionCount, previousStems }),
+        input.count,
+      );
+    }
+    let lastResort = 0;
+    if (questions.length < input.count) {
+      // Son çare (istek düşmez, 19 Ekim 2026): kökü doğru şıkkın ifadesini kuran soru, testi hiç vermemekten iyidir.
+      const before = questions.length;
+      questions = withOneMultiLast(
+        salvageRejected(rejected, questions, { optionCount: input.optionCount, previousStems, lastResort: true }),
+        input.count,
+      );
+      lastResort = questions.length - before;
     }
     console.info("teacher_quiz", {
       topic: input.topicLabel.slice(0, 80),
@@ -515,6 +529,7 @@ async function runTeacherQuizInner(
       rounds: loop.rounds,
       passes,
       repeated,
+      lastResort,
       urgent: Boolean(input.urgent),
       calls,
       ms: Date.now() - started,
