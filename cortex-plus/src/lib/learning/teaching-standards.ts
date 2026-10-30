@@ -14,7 +14,8 @@ import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
 import { mathIdentifierIssues, normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
-import type { QuizQuestion } from "@/lib/learning/exam-quiz";
+import { sameOptionSet, selectedOptions, type QuizQuestion } from "@/lib/learning/exam-quiz";
+import { isBareAnswerText } from "@/lib/learning/answer-tally";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
 import { unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
 import {
@@ -2426,31 +2427,24 @@ export function emptyMistake(text: string): boolean {
 export function scoreFlashcardsV2(
   cardCount: number,
   answers: Record<string, unknown>,
-): { score: number; total: number; knownCount: number; masteryClaim: false } {
-  const credits: number[] = [];
-  let weighted = false;
+): { score: number; total: number; knownCount: number; partialCount: number; masteryClaim: false } {
+  // Kart puanı tam sayı: bilinen kart / kart sayısı (30 Ekim 2026, Paket I #7). Önceden "Zorlandım" 0,6
+  // kredi sayılıyor, kayıt 68/80, sonuç ekranı 6.8/8 diyordu; yoldaki yüzde başka, ekrandaki x/y başka
+  // sayıdan çıkıyordu. "Zorlandım" artık ayrı sayılır (kısmen) ve puana girmez: 5 Bildim + 3 Zorlandım = 5/8.
+  // Sayım `answer-tally.ts` ile aynı karar: Bildim doğru, Zorlandım kısmen, Bilemedim yanlış.
+  let knownCount = 0;
+  let partialCount = 0;
   for (let i = 0; i < cardCount; i += 1) {
-    const raw = answers[String(i)];
-    if (typeof raw === "number" || (typeof raw === "string" && /^[1-5]$/.test(raw))) weighted = true;
-    credits.push(cardAnswerCredit(raw) ?? 0);
+    const credit = cardAnswerCredit(answers[String(i)]);
+    if (credit == null) continue;
+    if (credit >= 1) knownCount += 1;
+    else if (credit > 0) partialCount += 1;
   }
-  const knownCount = credits.filter((credit) => credit >= 1).length;
-  // Eski true/false kayıtları tam sayı kalır (3/4). Kalite (Bildim 1, Zorlandım 0,6, Bilemedim 0)
-  // onda birlik krediye çevrilir ki p_score tam sayı ve tavanı aşmasın: 5 tam + 3 zor = 68/80, %100 değil.
-  if (!weighted) {
-    return {
-      score: knownCount,
-      total: Math.max(1, cardCount),
-      knownCount,
-      masteryClaim: false,
-    };
-  }
-  const sum = credits.reduce((total, credit) => total + credit, 0);
-  const scaledTotal = Math.max(1, cardCount) * 10;
   return {
-    score: Math.min(scaledTotal, Math.round(sum * 10)),
-    total: scaledTotal,
+    score: knownCount,
+    total: Math.max(1, cardCount),
     knownCount,
+    partialCount,
     masteryClaim: false,
   };
 }
@@ -2581,6 +2575,8 @@ export function extractMisconceptions(input: {
       const value = input.answers[String(index)];
       const ok = value === item.correct || value === String(item.correct);
       if (ok) return;
+      // Cevapsız önerme yanılgı değildir (Paket I #7).
+      if (value == null || String(value).trim() === "") return;
       out.push({
         claim: item.text,
         corrected: item.correctedStatement ?? item.explanation ?? null,
@@ -2597,15 +2593,11 @@ export function extractMisconceptions(input: {
       (data.questions as (QuizQuestion & { misconceptionTag?: string; learningObjective?: string })[]) ??
       [];
     questions.forEach((question, index) => {
-      const raw = input.answers[String(index)];
-      const selected = Array.isArray(raw)
-        ? raw.map(String)
-        : raw == null || raw === ""
-          ? []
-          : [String(raw)];
-      const a = [...selected].sort().join("|");
-      const b = [...question.correct].sort().join("|");
-      if (a === b) return;
+      const selected = selectedOptions(input.answers[String(index)]).filter((item) => item.trim());
+      // Boş bırakılan soru yanılgı değildir (30 Ekim 2026, Paket I #7): satırı "(boş)" diye yazılıyor,
+      // Bilgi eksikleri'nde anlamsız bir kayıt olarak duruyordu. Kanıtta yine yanlış sayılır.
+      if (!selected.length) return;
+      if (sameOptionSet(selected, question.correct ?? [])) return;
       out.push({
         claim: (question.learningObjective?.trim() || question.text || "Bu soru").slice(0, 400),
         corrected: question.correct.join(", "),
@@ -2614,7 +2606,9 @@ export function extractMisconceptions(input: {
         // Hazır sorularla açılan odaklı pratik / son kontrol birden çok zayıf konudan soru taşır; yanılgı
         // kanıtla aynı konuya yazılır (22 Ekim 2026 inceleme: düğümün devraldığı 1. konuya yazılıyordu).
         topicLabel: (question as { topic?: string }).topic?.trim() || topicLabel,
-        questionPreview: (selected.join(", ") || "(boş)").slice(0, 160),
+        // Önizleme öğrencinin cevabı (P2 kararı: alt satır öğrencinin cevabı). Tek başına anlam taşımayan cevap
+        // ("Doğru", "B", "12") yazılmaz (Paket I #7): satır "Bilgi eksikleri"nde anlamsız duruyordu.
+        questionPreview: isBareAnswerText(selected.join(", ")) ? null : selected.join(", ").slice(0, 160),
       });
     });
   }
@@ -2639,7 +2633,8 @@ export function extractMisconceptions(input: {
         corrected: draft.corrected,
         wrongType: draft.wrongType,
         sourceKind: "oral",
-        topicLabel,
+        // "Tüm sınav" sözlüsünde konu bilinmiyor (Paket I #8): satır düğümün konusuna yazılmaz.
+        topicLabel: data.scope === "all" ? null : topicLabel,
         questionPreview: draft.questionPreview,
       });
     }
@@ -2667,5 +2662,16 @@ export function extractMisconceptions(input: {
     }
   }
 
-  return out.slice(0, 20);
+  return out.filter(meaningfulMisconception).slice(0, 20);
+}
+
+/**
+ * Bilgi eksiği satırı bir şey söylemeli (30 Ekim 2026, Paket I #7): iddiası tek başına şık ya da "(boş)" olan
+ * satır yazılmaz; önizleme anlamsızsa boşaltılır. Ders bağımsız: yalnız biçim (`isBareAnswerText`).
+ */
+export function meaningfulMisconception(draft: MisconceptionDraft): boolean {
+  const claim = (draft.claim ?? "").trim();
+  if (claim.length < 4 || isBareAnswerText(claim)) return false;
+  if (draft.questionPreview && isBareAnswerText(draft.questionPreview)) draft.questionPreview = null;
+  return true;
 }

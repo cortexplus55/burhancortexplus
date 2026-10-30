@@ -201,9 +201,18 @@ export function selectedOptions(value: unknown): string[] {
   return [String(value)];
 }
 
+/**
+ * Şık karşılaştırma anahtarı (30 Ekim 2026, Paket I #7): boşluk ve Unicode biçimi farkı yok sayılır.
+ * Sunucu kayıtlı soruyu okurken şıkları kırpıyor (`normalizeQuizQuestion`), istemci ham şıkla cevap
+ * gönderiyordu: sonunda boşluk olan şıkta ekran "Doğru" derken not yanlış sayıyordu (7 işaret, 6/8).
+ */
+export function answerKey(value: string): string {
+  return String(value).normalize("NFC").replace(/\s+/g, " ").trim();
+}
+
 export function sameOptionSet(left: string[], right: string[]) {
-  const a = [...new Set(left)].sort();
-  const b = [...new Set(right)].sort();
+  const a = [...new Set(left.map(answerKey))].sort();
+  const b = [...new Set(right.map(answerKey))].sort();
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
@@ -212,11 +221,11 @@ export function sameOptionSet(left: string[], right: string[]) {
  * sıfırın altına inmez. Yazılı denemenin `multiMcqPoints` kuralıyla aynı.
  */
 export function multiPartialPercent(selected: string[], correct: string[]): number {
-  const want = new Set(correct);
+  const want = new Set(correct.map(answerKey));
   if (!want.size) return 0;
   let hit = 0;
   let miss = 0;
-  for (const pick of new Set(selected)) {
+  for (const pick of new Set(selected.map(answerKey))) {
     if (want.has(pick)) hit += 1;
     else miss += 1;
   }

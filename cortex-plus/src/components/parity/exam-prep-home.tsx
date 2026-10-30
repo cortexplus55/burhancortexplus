@@ -76,6 +76,8 @@ import {
   buildPrepProgressView,
   type PrepProgressView,
 } from "@/lib/learning/prep-progress-view";
+import { METRIC_HINT, METRIC_LABEL } from "@/lib/learning/prep-metrics";
+import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { formatDayLong } from "@/lib/format";
@@ -191,6 +193,9 @@ function nodeHeading(node: HomeNode): string {
   const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
   if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
   const heading = parts[0] || raw;
+  // Bütün konuları kapsayan adım (son kontrol, yazılı deneme, Hazırsın) devraldığı 1. konunun adını yazmaz
+  // (30 Ekim 2026, Paket I #8): kart "1. konu" derken sorular bütün konulardan geliyordu.
+  if (ALL_TOPICS_KINDS.has(node.kind)) return heading === PLAN_NODE_META[node.kind].title ? `${heading} · ${ALL_TOPICS_LABEL}` : heading;
   // Başlık yalnız etkinliğin türüyse ("Podcast Dinle") konunun adı yazılır; tür zaten
   // etiketinde. Astra'da "SIRADAKİ · AKILLI METİN · Büyüme Eğrileri…" (18 Ekim 2026).
   const topic = node.sessionMeta?.topicTitle?.trim();
@@ -368,8 +373,6 @@ export function ExamPrepHome({
     ready ??
     nodes.find((node) => node.status !== "done") ??
     null;
-  const pathPct =
-    topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct;
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
   const [view, setView] = useState<"yol" | "ilerleme">("yol");
@@ -594,7 +597,6 @@ export function ExamPrepHome({
   );
 
   const lastNode = lastResult ? nodes.find((node) => node.id === lastResult.nodeId) ?? null : null;
-  const doneCount = nodes.filter((node) => node.status === "done").length;
 
   return (
     <div className="cp-exam-page cp-exam-trail-page cp-prep-layout">
@@ -629,7 +631,8 @@ export function ExamPrepHome({
           >
             <LineChart className="cp-prep-tab-icon" aria-hidden />
             {PREP_HOME_COPY.progress}
-            <span className="cp-prep-tabs-pct">%{pathPct}</span>
+            {/* Sekmenin sayısı içindeki "Hazırlık puanı"nın kendisi; ayrı bir konu oranı yazılmaz (Paket I #7). */}
+            <span className="cp-prep-tabs-pct">%{progress.scorePct}</span>
           </button>
         </div>
       </div>
@@ -637,14 +640,20 @@ export function ExamPrepHome({
       <header className="cp-prep-hero" ref={heroRef}>
         {examType && examType !== "Serbest" ? <p className="cp-prep-hero-kicker">{examType}</p> : null}
         <h1>{title}</h1>
+        {/* Üç ölçü, üç ad, tek kaynak (30 Ekim 2026, Paket I #7, prep-metrics.ts): Hazırlık ölçülen başarı
+            (yanlışla düşebilir), ders sayısı İlerleme'deki "ders" ile aynı ("Hazırsın" ekranı ders değil),
+            Tamamlama biten adım oranı (düşmez). Eskiden burada bütün biten düğümler "ders" diye sayılıyordu. */}
         <p className="cp-prep-hero-meta">
-          <span>
+          <span title={METRIC_HINT.readiness}>
             <CircleDashed className="h-4 w-4" aria-hidden />
-            Hazırlık: %{progress.scorePct}
+            {METRIC_LABEL.readiness}: %{progress.scorePct}
           </span>
           <span>
             <Check className="h-4 w-4" aria-hidden />
-            {doneCount ? `${doneCount} ders tamamlandı` : "Henüz ders tamamlanmadı"}
+            {progress.lessonsDone ? `${progress.lessonsDone} ders tamamlandı` : "Henüz ders tamamlanmadı"}
+          </span>
+          <span title={METRIC_HINT.completion}>
+            {METRIC_LABEL.completion}: %{progress.completionPct}
           </span>
         </p>
         {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
@@ -927,7 +936,7 @@ export function ExamPrepHome({
                   <p className="cp-prep-sheet-kicker">{examType}</p>
                   <p className="cp-prep-sheet-title">{title}</p>
                   <p className="cp-prep-sheet-meta">
-                    {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `%${progressPct}`}
+                    {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `${METRIC_LABEL.completion} %${progressPct}`}
                     {examDate ? ` · sınav ${formatDayLong(examDate)}${examTime ? ` ${examTime}` : ""}` : ""}
                     {examPlace ? ` · ${examPlace}` : ""}
                     {daysLabel ? ` · ${daysLabel}` : ""}

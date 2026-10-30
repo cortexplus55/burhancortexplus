@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { topicLabelsMatch } from "@/lib/learning/study-tools";
 
 /**
  * Aynı hazırlıkta daha önce sorulan sorular ve yazılan kartlar (25 Ekim 2026, canlı test P1-2).
@@ -54,6 +55,83 @@ export function questionsFromPayload(payload: Payload): { text: string; options:
   });
 }
 
+export type AskedItem = {
+  /** Sorulan bilgi: soru kökü, önerme, kart, sözlü sorusu ya da yoklanan "Sınavda sorulur" maddesi. */
+  text: string;
+  /** Öğenin kendi konusu (son kontrol gibi çok konulu içerikte); yoksa içeriğin sorduğu konu. */
+  topic: string | null;
+};
+
+function itemTopic(row: Record<string, unknown>, fallback: string | null): string | null {
+  const own = typeof row.topic === "string" ? row.topic.trim() : "";
+  return own || fallback;
+}
+
+/**
+ * Bir etkinliğin sorduğu bilgiler, türden bağımsız (30 Ekim 2026, Paket I #8). Canlıda aynı 3-4 bilgi test,
+ * odaklı pratik, doğru/yanlış ve kartlarda 4-5 kez soruldu: tekrar yasağı yalnız aynı türün köklerini görüyordu
+ * (test testi, kart kartı). Şimdi her tür bütün türlerin sorduğunu görür; testin `point` alanı (yoklanan sınav
+ * maddesi) da listeye girer ki yazar konunun başka alt başlığına gitsin.
+ */
+export function askedItemsFromPayload(payload: Payload): AskedItem[] {
+  if (!payload) return [];
+  const tested = typeof payload.testedTopic === "string" && payload.testedTopic.trim() ? payload.testedTopic.trim() : null;
+  const out: AskedItem[] = [];
+  const push = (text: unknown, topic: string | null) => {
+    if (typeof text === "string" && text.trim()) out.push({ text: text.trim(), topic });
+  };
+  const rows = (list: unknown) => (Array.isArray(list) ? list : []).filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object");
+  if (payload.type === "quiz") {
+    for (const row of rows(payload.questions)) {
+      const topic = itemTopic(row, tested);
+      push(row.text, topic);
+      // `point` ya madde numarası ("3": bağlamı olmadan anlamsız, alınmaz) ya da kaynak bölümünün başlığıdır.
+      if (typeof row.point === "string" && /\p{L}{3}/u.test(row.point)) push(`Yoklanan bölüm: ${row.point.trim()}`, topic);
+    }
+  } else if (payload.type === "true_false") {
+    for (const row of rows(payload.items)) push(row.text, itemTopic(row, tested));
+  } else if (payload.type === "cards") {
+    for (const card of cardsFromPayload(payload)) push(`${card.front} ${card.back}`, tested);
+  } else if (payload.type === "oral") {
+    for (const row of rows(payload.questions)) push(row.prompt, itemTopic(row, tested));
+  } else if (payload.type === "podcast") {
+    for (const row of rows(payload.check)) push(row.text, itemTopic(row, tested));
+  }
+  return out;
+}
+
+/**
+ * Önceki etkinliklerin sorduğu bilgiler: önce bu konunun (öğenin konusu, içeriğin `testedTopic`'i ya da kaydın
+ * `topic_id`'si tutuyorsa), sonra öbürleri; tekrarsız, en çok `limit`. Konu verilmezse sıra kayıt sırasıdır.
+ */
+export function collectAskedItems(
+  rows: readonly { payload: Payload; topicId?: string | null }[],
+  input: { topic?: string | null; topicId?: string | null; limit?: number } = {},
+): string[] {
+  const limit = input.limit ?? PREVIOUS_ITEMS_LIMIT;
+  const wanted = input.topic?.trim() || "";
+  const own: string[] = [];
+  const other: string[] = [];
+  for (const row of rows) {
+    for (const item of askedItemsFromPayload(row.payload)) {
+      const sameTopic = item.topic
+        ? Boolean(wanted) && topicLabelsMatch(item.topic, wanted)
+        : Boolean(input.topicId) && row.topicId === input.topicId;
+      (sameTopic ? own : other).push(item.text);
+    }
+  }
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const text of [...own, ...other]) {
+    const key = text.toLocaleLowerCase("tr");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Yeniden eskiye, tekrarsız, en çok `limit`. */
 export function collectPreviousItems(
   payloads: readonly Payload[],
@@ -74,15 +152,28 @@ export function collectPreviousItems(
   return out;
 }
 
-/** Hazırlığın kayıtlı denemeleri ve hazır bekleyen önceden yazımları; okunamazsa boş liste. */
+/**
+ * Hazırlığın kayıtlı denemeleri ve hazır bekleyen önceden yazımları; okunamazsa boş liste.
+ *
+ * Etkinlikler arası (30 Ekim 2026, Paket I #8): `kind` yalnız çağıranın türünü söyler; liste bütün türlerin
+ * sorduğunu taşır (test kökü, yoklanan bölüm, önerme, kart, sözlü sorusu, dinleme kontrolü). `topic` verilirse
+ * bu konunun öğeleri önce gelir: 40'lık liste başka konuların öğeleriyle dolup bu konunun tekrarını kaçırmasın.
+ */
 export async function loadPreviousItems(
   service: SupabaseClient,
-  input: { userId: string; prepId: string; kind: "quiz" | "cards"; excludeNodeId?: string | null },
+  input: {
+    userId: string;
+    prepId: string;
+    kind: "quiz" | "cards" | "true_false" | "oral";
+    excludeNodeId?: string | null;
+    topic?: string | null;
+    topicId?: string | null;
+  },
 ): Promise<string[]> {
   try {
     let attempts = service
       .from("exam_prep_node_attempts")
-      .select("payload")
+      .select("payload, topic_id")
       .eq("user_id", input.userId)
       .eq("exam_prep_id", input.prepId)
       .not("payload", "is", null);
@@ -95,8 +186,14 @@ export async function loadPreviousItems(
     if (input.excludeNodeId) ready = ready.neq("node_id", input.excludeNodeId);
     attempts = attempts.order("created_at", { ascending: false }).limit(30);
     const [done, waiting] = await Promise.all([attempts, ready.limit(10)]);
-    const payloads = [...(done.data ?? []), ...(waiting.data ?? [])].map((row) => row.payload as Payload);
-    return collectPreviousItems(payloads, input.kind === "quiz" ? quizStemsFromPayload : cardTextsFromPayload);
+    const rows = [
+      ...(done.data ?? []).map((row) => ({
+        payload: row.payload as Payload,
+        topicId: typeof (row as { topic_id?: unknown }).topic_id === "string" ? ((row as { topic_id: string }).topic_id) : null,
+      })),
+      ...(waiting.data ?? []).map((row) => ({ payload: row.payload as Payload, topicId: null })),
+    ];
+    return collectAskedItems(rows, { topic: input.topic ?? null, topicId: input.topicId ?? null });
   } catch {
     return [];
   }

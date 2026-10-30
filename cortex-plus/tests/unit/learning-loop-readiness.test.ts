@@ -119,7 +119,8 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
     expect(screen.headline).not.toBe(READY);
     expect(screen.lead.length).toBeGreaterThan(0);
     expect(screen.topics.find((row) => row.topic === "Basınç")?.state).toBe("ready");
-    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("1 açık yanlış");
+    // Paket I #7: açık yanılgı "yanlış" sayısıyla karışmasın diye ayrı adla yazılır.
+    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("1 yanılgı henüz kapanmadı");
     expect(screen.topics.find((row) => row.topic === "Sıcaklık")?.state).toBe("needs_work");
   });
 });

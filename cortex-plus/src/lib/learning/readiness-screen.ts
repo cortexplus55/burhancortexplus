@@ -1,14 +1,23 @@
 import {
+  MASTERY_EVIDENCE_FLOOR,
   READY_HEADLINE,
   computeExamReadiness,
   computeProgramProgress,
   effectiveTarget,
+  isMeasuredTopic,
   normalizeTopicKey,
   topicIsSolid,
   topicMasteryPercent,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
 import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { rankFinalStepTopics, type FinalTopicRank } from "@/lib/learning/prep-wide-target";
+
+/** Düğüm adresine konu seçimi (`?konu=`): odaklı pratik önerilen konuyla açılır. */
+function withTopicQuery(href: string, topic: string): string {
+  const joiner = href.includes("?") ? "&" : "?";
+  return `${href}${joiner}konu=${encodeURIComponent(topic)}`;
+}
 
 export type ReadinessTopicState = "ready" | "needs_work" | "unmeasured";
 
@@ -42,29 +51,41 @@ const LEVEL_TR: Record<TopicMasterySnapshot["level"], string> = {
   solid: "sağlam",
 };
 
+/**
+ * Konunun cevap sayımı (30 Ekim 2026, Paket I #7): doğru ve yanlış aynı iki sayıdan, toplamları soru sayısı.
+ * Yüzde (`topicMasteryPercent`) de bu iki sayıdan çıkar. Önceden "36 denemeden 15 doğru, 22 açık yanlış"
+ * yazıyordu: açık yanılgı satırları (ipuçlu cevaplar ve tekrarlar dahil) yanlış sayısıymış gibi okunuyordu.
+ */
+export function topicAnswerTally(topic: TopicMasterySnapshot): { total: number; correct: number; wrong: number } {
+  const total = topic.independentTotal > 0 ? topic.independentTotal : topic.firstAttemptTotal;
+  const correct = topic.independentTotal > 0 ? topic.independentCorrect : topic.firstAttemptCorrect;
+  const safeTotal = Math.max(0, total);
+  const safeCorrect = Math.max(0, Math.min(safeTotal, correct));
+  return { total: safeTotal, correct: safeCorrect, wrong: safeTotal - safeCorrect };
+}
+
 function detailFor(topic: TopicMasterySnapshot, openMisses: number): string {
   if (!topic.measured || topic.evidenceCount === 0) return "Bu konuda kayıtlı cevap yok.";
   const parts: string[] = [];
-  if (topic.independentTotal > 0) {
-    parts.push(
-      `${topic.independentTotal} bağımsız denemeden ${topic.independentCorrect} doğru`,
-    );
-  } else if (topic.firstAttemptTotal > 0) {
-    parts.push(`${topic.firstAttemptTotal} ilk denemeden ${topic.firstAttemptCorrect} doğru`);
+  const tally = topicAnswerTally(topic);
+  if (tally.total > 0) {
+    parts.push(`${tally.total} sorudan ${tally.correct} doğru, ${tally.wrong} yanlış`);
   } else {
     parts.push(`${topic.evidenceCount} kayıtlı cevap`);
   }
-  if (openMisses > 0) parts.push(`${openMisses} açık yanlış`);
-  parts.push(`seviye: ${LEVEL_TR[topic.level]}`);
+  if (!isMeasuredTopic(topic)) parts.push(`ölçüm için en az ${MASTERY_EVIDENCE_FLOOR} cevap gerekir`);
+  // Açık yanılgı ayrı ad: kapanmamış yanılgı satırıdır, yanlış cevap sayısı değil.
+  if (openMisses > 0) parts.push(`${openMisses} yanılgı henüz kapanmadı`);
+  if (isMeasuredTopic(topic)) parts.push(`seviye: ${LEVEL_TR[topic.level]}`);
   return parts.join(" · ");
 }
 
 /**
- * Baraj hedef puandır. "Sağlam" `topicIsSolid`: en az 3 kanıt ve sönümlü yüzde hedefte.
- * Bir deneme sorusu (kanıt 1, sönüm %33) Sağlam sayılmaz. Kayıt yoksa ölçülmedi.
+ * Baraj hedef puandır. "Sağlam" `topicIsSolid`: ölçülmüş (en az 3 cevap) ve yüzde hedefte. 1-2 cevaplı konu
+ * "ölçülmedi" (Paket I #7: sayı göstermez). Kayıt yoksa ölçülmedi.
  */
 export function topicState(topic: TopicMasterySnapshot, target: number): ReadinessTopicState {
-  if (!topic.measured || topic.evidenceCount === 0) return "unmeasured";
+  if (!isMeasuredTopic(topic)) return "unmeasured";
   return topicIsSolid(topic, target) ? "ready" : "needs_work";
 }
 
@@ -74,6 +95,11 @@ export function readinessTopicPercent(topic: TopicMasterySnapshot): number {
 }
 
 export function buildReadinessScreen(input: {
+  /**
+   * Final adımlarının seçicisi (`rankFinalStepTopics`, Paket I #8): öneri bunun ilki. Verilmezse aynı kural
+   * buradan hesaplanır (açık yanılgılar `openMissesByTopic`'ten).
+   */
+  ranked?: FinalTopicRank[];
   plannedTopics: string[];
   mastery: TopicMasterySnapshot[];
   openMissesByTopic: { topic: string; count: number }[];
@@ -131,9 +157,26 @@ export function buildReadinessScreen(input: {
   });
 
   const ready = verdict.claimFullyReady;
-  const needsWork = topics.filter((topic) => topic.state === "needs_work");
+  // En düşük ölçülen başarı önce (30 Ekim 2026, Paket I #8): öneri planın sırasıyla değil, en zayıf konuyla
+  // başlıyordu ("%42" dururken başka konu önerildi).
+  const needsWork = topics
+    .map((topic, index) => ({ topic, index }))
+    .filter((row) => row.topic.state === "needs_work")
+    .sort((a, b) => a.topic.pct - b.topic.pct || a.index - b.index)
+    .map((row) => row.topic);
   const unmeasured = topics.filter((topic) => topic.state === "unmeasured");
   const readyTopics = topics.filter((topic) => topic.state === "ready");
+  const ranked =
+    input.ranked ??
+    rankFinalStepTopics({
+      plannedTopics: labels,
+      mastery: input.mastery,
+      openMisses: input.openMissesByTopic.flatMap((row) =>
+        Array.from({ length: Math.max(0, row.count) }, () => ({ topicLabel: row.topic })),
+      ),
+      targetScore: input.targetScore,
+    });
+  const weakest = ranked[0]?.label ?? needsWork[0]?.topic ?? null;
 
   let headline = "Henüz hazırsın diyemeyiz";
   let lead = "Bu ekran kayıtlı cevaplarından hesaplanır.";
@@ -161,13 +204,11 @@ export function buildReadinessScreen(input: {
   }
 
   const actions: ReadinessAction[] = [];
-  if (!ready && needsWork.length && input.links.focused) {
+  // Tek öneri, tek konu: odaklı pratik o konuyla açılır (`?konu=`); etiket ve sorular aynı konu.
+  if (!ready && weakest && input.links.focused) {
     actions.push({
-      label: `Odaklı pratik: ${needsWork
-        .slice(0, 2)
-        .map((topic) => topic.topic)
-        .join(", ")}`,
-      href: input.links.focused,
+      label: `Odaklı pratik: ${weakest}`,
+      href: withTopicQuery(input.links.focused, weakest),
     });
   }
   // Genel skorla hazır olan öğrenciye de deneme önerilir: karar değişmez, ölçüm güçlenir.

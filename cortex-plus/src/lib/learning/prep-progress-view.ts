@@ -9,11 +9,9 @@
  * Saf fonksiyon: sayfa kayıtları okur, bu modül görünümü kurar.
  */
 
-import {
-  readinessScore,
-  type NodeStatus,
-  type PlanNodeKind,
-} from "@/lib/learning/exam-prep-plan";
+import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { LESSON_KINDS, lessonsCompleted, pathCompletion } from "@/lib/learning/prep-metrics";
+import { isBareAnswerText } from "@/lib/learning/answer-tally";
 import {
   buildReadinessForecastSeries,
   type ReadinessForecastSeries,
@@ -96,6 +94,8 @@ export type PrepProgressView = {
   scorePct: number;
   /** Puanın neye dayandığı — öğrenciye aynen yazılıyor. */
   scoreBasis: string;
+  /** Tamamlama (%): biten adım / yolun adımları (`pathCompletion`); "Hazırlık"tan ayrı ad, ayrı sayı. */
+  completionPct: number;
   targetPct: number;
   /** Bu hafta biten etkinlik sayısı; Astra'nın "bu hafta" çipinin karşılığı. */
   weekActivities: number;
@@ -156,7 +156,6 @@ export const DEFAULT_TARGET_PCT = 75;
 const FORECAST_MIN_LESSONS = 1;
 const WEEK_COUNT = 5;
 
-const LESSON_KINDS = new Set<PlanNodeKind>(["lesson", "focused", "gaps", "spaced"]);
 const MOCK_KINDS = new Set<PlanNodeKind>(["written_exam", "final_check"]);
 
 function topicOf(node: ProgressNode | undefined): string | null {
@@ -285,12 +284,15 @@ export function buildPrepProgressView(input: {
   const completed = input.attempts.filter((attempt) => nodeById.has(attempt.nodeId));
 
   const measured = input.measuredReadinessPct;
+  // Ölçüm yoksa (eski yol) puan tamamlamanın kendisi (`pathCompletion`) — üçüncü bir ağırlıklı formül
+  // (`readinessScore`) aynı "Hazırlık" adına başka sayı yazıyordu (30 Ekim 2026, Paket I #7).
+  const completion = pathCompletion(input.nodes);
   const scorePct =
-    typeof measured === "number" ? Math.max(0, Math.min(100, Math.round(measured))) : readinessScore(input.nodes);
+    typeof measured === "number" ? Math.max(0, Math.min(100, Math.round(measured))) : completion.pct;
   const scoreBasis =
     typeof measured === "number"
-      ? "Ölçülen başarı, konu kapsamı ve deneme sonuçlarına göre."
-      : "Tamamlanan etkinliklere göre; konu hakimiyetini ölçmez.";
+      ? "Ölçülen başarı, konu kapsamı ve deneme sonuçlarına göre; yanlış cevapla düşebilir."
+      : "Tamamlanan adımlara göre; konu hakimiyetini ölçmez.";
   const targetPct =
     typeof input.targetScore === "number" && input.targetScore > 0 && input.targetScore <= 100
       ? Math.round(input.targetScore)
@@ -319,9 +321,8 @@ export function buildPrepProgressView(input: {
     };
   });
 
-  const lessonsDone = input.nodes.filter(
-    (node) => LESSON_KINDS.has(node.kind) && node.status === "done",
-  ).length;
+  // Hero'daki "N ders tamamlandı" ile aynı işlev; "Hazırsın" ekranı ders değildir.
+  const lessonsDone = lessonsCompleted(input.nodes);
 
   // Haftalara göre konular: son beş haftada konu başına biten etkinlik.
   const rows = labels.map((label) => ({ label, counts: Array(WEEK_COUNT).fill(0) as number[], pct: 0 }));
@@ -441,6 +442,7 @@ export function buildPrepProgressView(input: {
   return {
     scorePct,
     scoreBasis,
+    completionPct: completion.pct,
     targetPct,
     weekActivities,
     topicsAtTarget: topics.filter((topic) => topic.pct >= targetPct).length,
@@ -464,7 +466,11 @@ export function buildPrepProgressView(input: {
     }),
     pace,
     gapsMeasured,
-    gaps: input.gaps.slice(0, 5),
+    // Eski kayıtların "(boş)" / "Doğru" önizlemesi yazılmaz; yalnız şık taşıyan satır listeye girmez (Paket I #7).
+    gaps: input.gaps
+      .map((gap) => (gap.detail && isBareAnswerText(gap.detail) ? { ...gap, detail: null } : gap))
+      .filter((gap) => !isBareAnswerText(gap.claim) || Boolean(gap.detail))
+      .slice(0, 5),
     topics,
     weeks: { labels: weekLabels(), rows },
     mocks,

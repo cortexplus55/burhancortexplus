@@ -9,7 +9,7 @@ import {
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
 import type { PlanNodeKind, NodeStatus } from "@/lib/learning/exam-prep-plan";
-import { nodeProgress } from "@/lib/learning/exam-prep-plan";
+import { coverageLine, masteryPercentText, pathCompletion } from "@/lib/learning/prep-metrics";
 import { podcastCheckAnswered, podcastCheckOf } from "@/lib/learning/podcast-check";
 import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
 
@@ -172,7 +172,8 @@ export function extractAnswerEvidence(input: {
     });
   }
 
-  if (data.type === "oral") {
+  // Sözlü "Tüm sınav" (scope "all", Paket I #8) soru başına konu taşımaz: tek konuya kanıt yazılmaz.
+  if (data.type === "oral" && data.scope !== "all") {
     const questions =
       (data.questions as {
         prompt?: string;
@@ -353,8 +354,18 @@ export function foldTopicMastery(
   return [...map.values()].map(scoreTopicMastery);
 }
 
-/** Sağlam sayılmak ve sönümün kalkması için gereken kanıt. Bir soru yetmez. */
+/** Konunun ölçülmüş sayılması ve "Sağlam" olabilmesi için gereken kanıt. Bir soru yetmez. */
 export const MASTERY_EVIDENCE_FLOOR = 3;
+
+/**
+ * Konu ölçüldü mü (30 Ekim 2026, Paket I #7): en az 3 kayıtlı cevap. Altında konu "Ölçülmedi" yazar ve
+ * sayı göstermez. Önceden 1-2 cevaplı konunun yüzdesi `kanıt / 3` ile sönüyordu: 1/1 doğru da, hiç
+ * çalışılmamış konuya düşen tek kanıt da "%33" görünüyordu — öğrenci için anlamsız bir öncül sayıydı.
+ * Kapsam ("x/N konu ölçüldü"), hazırlık ortalaması ve "Sağlam" aynı eşiği okur.
+ */
+export function isMeasuredTopic(topic: Pick<TopicMasterySnapshot, "measured" | "evidenceCount"> | null | undefined): boolean {
+  return Boolean(topic && topic.measured !== false && topic.evidenceCount >= MASTERY_EVIDENCE_FLOOR);
+}
 
 /** Bağımsız doğruluk; yoksa ilk deneme. Kayıt yoksa 0. */
 export function topicSuccessRate(topic: TopicMasterySnapshot): number {
@@ -364,28 +375,30 @@ export function topicSuccessRate(topic: TopicMasterySnapshot): number {
 }
 
 /**
- * Konu yüzdesi — yol, sözlü seçici, İlerleme ve Hazırsın aynı fonksiyonu okur.
- * Ölçülmemiş konu 0. Kanıt 3'ten azsa yüzde `evidence / 3` ile söner (1 doğru → en çok %33).
+ * Konu yüzdesi — yol, sözlü seçici, İlerleme ve Hazırsın aynı fonksiyonu okur. Ölçülen konuda başarı oranının
+ * kendisi (ekrandaki "N sorudan X doğru" ile aynı iki sayı); ölçülmemiş konu (3 cevaptan az) 0 ve ekranda
+ * sayı yerine "Ölçülmedi".
  */
 export function topicMasteryPercent(topic: TopicMasterySnapshot): number {
-  if (!topic.measured || topic.evidenceCount <= 0) return 0;
-  const damp = Math.min(1, topic.evidenceCount / MASTERY_EVIDENCE_FLOOR);
-  return Math.max(0, Math.min(100, Math.round(topicSuccessRate(topic) * 100 * damp)));
+  if (!isMeasuredTopic(topic)) return 0;
+  return Math.max(0, Math.min(100, Math.round(topicSuccessRate(topic) * 100)));
 }
 
-/** "Sağlam": en az 3 kanıt ve sönümlü yüzde hedefin üstünde. Tek doğru cevap yetmez. */
+/** "Sağlam": ölçülmüş (en az 3 kanıt) ve yüzde hedefin üstünde. Tek doğru cevap yetmez. */
 export function topicIsSolid(topic: TopicMasterySnapshot, target: number): boolean {
-  return topic.evidenceCount >= MASTERY_EVIDENCE_FLOOR && topicMasteryPercent(topic) >= target;
+  return isMeasuredTopic(topic) && topicMasteryPercent(topic) >= target;
 }
 
 export type TopicMasteryState = "ready" | "needs_work" | "unmeasured";
 
 export type TopicMasteryView = {
-  /** `topicMasteryPercent`: sönümlü yüzde. */
+  /** `topicMasteryPercent`; ölçülmemiş konuda 0 ve ekranda yazılmaz (`text`). */
   percent: number;
   state: TopicMasteryState;
   /** Ekrandaki rozet: "Sağlam" / "Çalışılacak" / "Ölçülmedi". */
   label: string;
+  /** Ekrandaki sayı: "%62" ya da ölçülmemişse "Ölçülmedi". */
+  text: string;
   /** Kayıtlı cevap (kanıt) sayısı: "N çözüldü". */
   solved: number;
 };
@@ -402,9 +415,16 @@ export const MASTERY_STATE_LABEL: Record<TopicMasteryState, string> = {
  * yüzdeyi gösterince aynı konu iki ekranda iki sayıyla çıkıyordu. Baraj hedef puandır (yoksa 70).
  */
 export function topicMasteryView(topic: TopicMasterySnapshot, target: number | null | undefined): TopicMasteryView {
-  const measured = topic.measured && topic.evidenceCount > 0;
+  const measured = isMeasuredTopic(topic);
   const state: TopicMasteryState = !measured ? "unmeasured" : topicIsSolid(topic, effectiveTarget(target)) ? "ready" : "needs_work";
-  return { percent: topicMasteryPercent(topic), state, label: MASTERY_STATE_LABEL[state], solved: topic.evidenceCount };
+  const percent = topicMasteryPercent(topic);
+  return {
+    percent,
+    state,
+    label: MASTERY_STATE_LABEL[state],
+    text: masteryPercentText(percent, measured),
+    solved: topic.evidenceCount,
+  };
 }
 
 /** `exam_prep_topic_mastery` okuyan her sayfa bu sütunları ister; yüzde kayıtlı `confidence`'tan değil ham sayılardan. */
@@ -458,10 +478,14 @@ export function scoreTopicMastery(topic: TopicMasterySnapshot): TopicMasterySnap
   return { ...topic, level, confidence };
 }
 
+/**
+ * Tamamlama (eski adı "Program ilerlemesi") — `pathCompletion` (30 Ekim 2026, Paket I #7): "Hazırsın" karar
+ * ekranı sayılmaz; açılınca düğüm biter ama etkinlik bitmiş olmaz.
+ */
 export function computeProgramProgress(
-  nodes: { status: NodeStatus }[],
+  nodes: { status: NodeStatus; kind?: PlanNodeKind | string | null }[],
 ): LearningIndicators["programProgress"] {
-  const progress = nodeProgress(nodes);
+  const progress = pathCompletion(nodes);
   let label = "Henüz başlamadın";
   if (progress.pct >= 100) label = "Planlanan etkinlikler tamamlandı";
   else if (progress.pct >= 80) label = "Etkinliklerin çoğu tamamlandı";
@@ -546,7 +570,8 @@ export function computeExamReadiness(input: {
     const scored = t ? scoreTopicMastery(t) : null;
     const confidence = scored ? topicMasteryPercent(scored) : 0;
     confidenceSum += confidence;
-    if (!t || !t.measured || t.evidenceCount === 0) {
+    // Ölçülmüş = en az 3 cevap (`isMeasuredTopic`); kapsam, ortalama ve ekrandaki "Ölçülmedi" aynı eşik.
+    if (!t || !isMeasuredTopic(t)) {
       unmeasured += 1;
       continue;
     }
@@ -659,20 +684,26 @@ export function computeTopicMasterySummary(
       })
     : topics.map(scoreTopicMastery);
 
-  const measured = snapshots.filter((t) => t.measured);
+  // Yüzde yalnız ölçülen konulardan; etiket kapsamı söyler (30 Ekim 2026, Paket I #7): 1/22 konu
+  // ölçülmüşken "Konu hâkimiyeti %78" tek başına yanıltıyordu.
+  const measured = snapshots.filter((t) => isMeasuredTopic(t));
   const unmeasuredCount = snapshots.length - measured.length;
   const pct =
     measured.length === 0
       ? null
       : Math.round(
-          measured.reduce((sum, t) => sum + t.confidence, 0) / measured.length,
+          measured.reduce((sum, t) => sum + topicMasteryPercent(t), 0) / measured.length,
         );
 
-  let label = "Konu hâkimiyeti henüz ölçülmedi";
-  if (pct == null) label = "Ölçülmemiş konular — yüksek güven yok";
-  else if (pct >= 80) label = "Ölçülen konularda güçlü sinyal";
-  else if (pct >= 50) label = "Ölçülen konularda karışık sinyal";
-  else label = "Ölçülen konularda zayıf sinyal";
+  const coverage = coverageLine(measured.length, snapshots.length);
+  const label =
+    pct == null
+      ? `Henüz ölçülen konu yok · ${coverage}`
+      : pct >= 80
+        ? `${coverage} · ölçülenlerde güçlü`
+        : pct >= 50
+          ? `${coverage} · ölçülenlerde karışık`
+          : `${coverage} · ölçülenlerde zayıf`;
 
   return {
     pct,

@@ -11,9 +11,10 @@ import { topicProgress } from "@/lib/learning/exam-prep-progress";
 import { ensurePathSkeletonNodes, ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
 import {
   daysUntilExam,
-  nodeProgress,
   type PlanNodeKind,
 } from "@/lib/learning/exam-prep-plan";
+import { pathCompletion } from "@/lib/learning/prep-metrics";
+import { PREP_WIDE_TARGET_KINDS, prepWideTargetTopic, rankFinalStepTopics } from "@/lib/learning/prep-wide-target";
 import {
   examPrepHomeHref,
   examPrepIntroHref,
@@ -29,6 +30,7 @@ import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
   freePathUnblockIds,
+  isMeasuredTopic,
   normalizeTopicKey,
   preferNextNodeForTracking,
   scoreTopicMastery,
@@ -245,7 +247,8 @@ export default async function ExamPrepDetailPage({
   const nodes = nodeList.map((node) =>
     opened.has(node.id) && node.status === "locked" ? { ...node, status: "ready" as const } : node,
   );
-  const progress = nodeProgress(nodes);
+  // Tamamlama tek işlevden (Paket I #7, prep-metrics.ts): "Hazırsın" karar ekranı adım sayılmaz.
+  const progress = pathCompletion(nodes);
   let ready = nodes.find((node) => node.status === "ready" && !skipKinds.has(node.kind));
   // Astra: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
   // Eskiden önce "Konu seç", sonra zorunlu 8 soruluk tanı geliyordu. Etkin
@@ -355,7 +358,7 @@ export default async function ExamPrepDetailPage({
   // İlerleme sekmesi (Astra düzeni): haftalık tablo, tempo, denemeler ve
   // bilgi eksikleri gerçek kayıtlardan. Tahmin uydurulmuyor; kayıt yoksa
   // bölüm "ilk derslerinden sonra görünür" diyor.
-  const [{ data: attemptRows }, { data: gapRows }] = await Promise.all([
+  const [{ data: attemptRows }, { data: gapRows }, { data: openMissRows }] = await Promise.all([
     supabase
       .from("exam_prep_node_attempts")
       .select("node_id, score, total, created_at, payload")
@@ -372,6 +375,13 @@ export default async function ExamPrepDetailPage({
         .order("created_at", { ascending: false })
         .limit(5);
     }),
+    // Final adımlarının konusu için açık yanlışların konusu (Paket I #8, `finalStepTopic`).
+    trackingV2
+      ? withOpenMisconceptions((onlyOpen) => {
+          const query = supabase.from("exam_prep_misconceptions").select("topic_label").eq("exam_prep_id", prepId);
+          return (onlyOpen ? query.is("resolved_at", null) : query).limit(300);
+        })
+      : Promise.resolve({ data: [] as { topic_label: string | null }[] }),
   ]);
   // Astra yolun üstünde son biten etkinliği yüzdesiyle gösteriyor ("30% · PODCAST · Sonuçları gör").
   const lastAttempt = (attemptRows ?? []).find((row) => typeof row.node_id === "string");
@@ -414,8 +424,13 @@ export default async function ExamPrepDetailPage({
       topicMasteryView(scoreTopicMastery(topic), typeof prep.target_score === "number" ? prep.target_score : null).state,
     ]),
   );
+  // Yol bölümü yalnız ölçülmüş konunun yüzdesini yazar (Paket I #7): ölçülmemiş konu (3 cevaptan az) sayı göstermez.
+  const measuredKeys = new Set(
+    masterySnapshots.filter((topic) => isMeasuredTopic(topic)).map((topic) => normalizeTopicKey(topic.topicKey)),
+  );
   const topicPercents: Record<string, number> = {};
   for (const label of topicLabels) {
+    if (!measuredKeys.has(normalizeTopicKey(label))) continue;
     topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = masteryByKey.get(normalizeTopicKey(label)) ?? 0;
   }
   const progressView = buildPrepProgressView({
@@ -443,6 +458,36 @@ export default async function ExamPrepDetailPage({
     dailyMinutes: typeof prep.daily_minutes === "number" ? prep.daily_minutes : null,
     measuredReadinessPct: learningTrackingView?.examReadinessPct ?? null,
   });
+
+  // Yol kartında final adımının konusu (30 Ekim 2026, Paket I #8): açılışta sunucunun seçeceği konuyla aynı
+  // seçici (`finalStepTopic`). Önceden kart devralınan 1. konuyu yazıyor, oturum başka konuyu soruyordu.
+  // Yalnız görünüm: kayıt değişmez; açılışta rota konuyu kayda yazar.
+  const finalRanked = trackingV2
+    ? rankFinalStepTopics({
+        plannedTopics: topicLabels,
+        mastery: masterySnapshots,
+        openMisses: ((openMissRows ?? []) as { topic_label?: string | null }[]).map((row) => ({
+          topicLabel: row.topic_label ?? null,
+        })),
+        targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+      }).map((row) => row.label)
+    : null;
+  const homeNodes = finalRanked
+    ? nodes.map((node) => {
+        const meta = (node.sessionMeta ?? {}) as Record<string, unknown>;
+        const ownTopic = meta.adaptive === "low" || typeof meta.checkpoint === "string";
+        if (node.status === "done" || ownTopic || !PREP_WIDE_TARGET_KINDS.has(node.kind)) return node;
+        const target = prepWideTargetTopic({
+          kind: node.kind,
+          requestedTopic: "",
+          adaptiveFocus: null,
+          practiceTopics: finalRanked,
+          mastery: masterySnapshots,
+          plannedTopics: topicLabels,
+        });
+        return target ? { ...node, sessionMeta: { ...(node.sessionMeta ?? {}), topicTitle: target } } : node;
+      })
+    : nodes;
 
   const startHref = !hasTopic
     ? examPrepTopicHref(prepId)
@@ -507,7 +552,7 @@ export default async function ExamPrepDetailPage({
         examDate={prep.exam_date}
         daysLabel={prep.exam_date ? `${daysUntilExam(prep.exam_date)} gün kaldı` : ""}
         progressPct={progress.pct}
-        nodes={nodes}
+        nodes={homeNodes}
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}

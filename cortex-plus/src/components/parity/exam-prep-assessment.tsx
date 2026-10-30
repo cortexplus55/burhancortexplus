@@ -4,21 +4,22 @@ import Link from "next/link";
 import { formatDayLong } from "@/lib/format";
 import type { LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { READY_HEADLINE } from "@/lib/learning/learning-tracking";
+import { METRIC_HINT, METRIC_LABEL, coverageLine } from "@/lib/learning/prep-metrics";
 
+/**
+ * Konu satırı `topicMasteryView`'dan (30 Ekim 2026, Paket I #7): yol, İlerleme ve Hazırsın ile aynı rozet
+ * ve aynı sayı. Önceden burada kayıtlı `confidence` ve `measured_level` okunuyordu; ölçülmemiş konu da sayı
+ * gösteriyordu.
+ */
 export type TopicMasteryRow = {
   topicKey: string;
   measured: boolean;
-  level: string;
-  confidence: number;
+  /** "Sağlam" / "Çalışılacak" / "Ölçülmedi". */
+  stateLabel: string;
+  /** "%62" ya da "Ölçülmedi". */
+  percentText: string;
   evidenceCount: number;
   lastPracticedAt: string | null;
-};
-
-const LEVEL_LABEL: Record<string, string> = {
-  unknown: "Ölçülmedi",
-  weak: "Zayıf",
-  emerging: "Gelişiyor",
-  solid: "Sağlam",
 };
 
 export function ExamPrepAssessment({
@@ -66,26 +67,29 @@ export function ExamPrepAssessment({
 
       <section className="cp-countdown" aria-label="Üç gösterge">
         <AssessmentMeter
-          title="Program ilerlemesi"
+          title={METRIC_LABEL.completion}
           pct={tracking.programProgressPct}
           label={tracking.programLabel}
-          hint="Etkinlik bitirme oranı — doğruluk değil."
+          hint={METRIC_HINT.completion}
         />
         <AssessmentMeter
-          title="Konu hâkimiyeti"
+          title={METRIC_LABEL.mastery}
           pct={tracking.topicMasteryPct}
           label={tracking.topicMasteryLabel}
-          hint={`${tracking.measuredTopicCount} ölçülen · ${tracking.unmeasuredTopicCount} ölçülmemiş`}
-          emptyText="Henüz ölçülmedi"
+          hint={`${METRIC_HINT.mastery} ${coverageLine(
+            tracking.measuredTopicCount,
+            tracking.measuredTopicCount + tracking.unmeasuredTopicCount,
+          )}.`}
+          emptyText="Ölçülmedi"
         />
         <AssessmentMeter
-          title="Sınava hazırlık tahmini"
+          title={METRIC_LABEL.readiness}
           pct={tracking.examReadinessPct}
           label={tracking.examReadinessLabel}
           hint={
             tracking.claimFullyReady
               ? "Ölçülen başarı + kapsam + deneme."
-              : "Programı bitirmek tek başına %100 hazırlık değildir."
+              : `${METRIC_HINT.readiness} Adımları bitirmek tek başına %100 hazırlık değildir.`
           }
         />
       </section>
@@ -143,8 +147,10 @@ export function ExamPrepAssessment({
                 <strong>{t.topicKey}</strong>
                 <span>
                   {t.measured
-                    ? `${LEVEL_LABEL[t.level] ?? t.level} · güven %${t.confidence} · ${t.evidenceCount} kanıt`
-                    : "Ölçülmedi"}
+                    ? `${t.stateLabel} · ${t.percentText} · ${t.evidenceCount} cevap`
+                    : t.evidenceCount > 0
+                      ? `Ölçülmedi · ${t.evidenceCount} cevap (en az 3 gerekir)`
+                      : "Ölçülmedi"}
                 </span>
               </li>
             ))}
