@@ -60,9 +60,12 @@ describe("parça parça açılan ders ekranı", () => {
     const plan = container.querySelector(".als-intro-plan")!;
     expect(plan.querySelectorAll("li")).toHaveLength(3);
     expect(plan.querySelectorAll("li.als-intro-pending")).toHaveLength(2);
-    // Yazım sürerken plan yoksa payda gösterilmez (28 Ekim 2026): kavramlar geldikçe "1 / 2" → "1 / 8" sıçramasın.
+    // Yazım sürerken payda gösterilmez (29 Ekim 2026, Paket H): kavramlar geldikçe "1 / 2" → "1 / 8" sıçramasın.
     expect(container.querySelector(".als-intro-meta")!.textContent).not.toMatch(/\d+ adım/);
     expect(container.querySelector(".als-count")!.textContent).toMatch(/Adım\s*1(?!\s*\/)/);
+    // Toplam bilinmiyor: çubukta aria-valuemax yok, "~N dk" yok.
+    expect(container.querySelector('[role="progressbar"]')!.hasAttribute("aria-valuemax")).toBe(false);
+    expect(container.querySelector(".als-minutes")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /Devam et/ }));
     fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));

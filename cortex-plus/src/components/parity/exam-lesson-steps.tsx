@@ -14,7 +14,7 @@ import { cleanFeedbackText, feedbackKicker } from "@/lib/learning/feedback-copy"
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import { DiagramCard } from "@/components/parity/diagram-card";
 import { SourceFigureCard, SourcePageButton } from "@/components/parity/source-page-drawer";
-import { isFigurePage, matchLessonSource, type SourceDocRef } from "@/lib/learning/source-preview";
+import { figureHintsFor, matchLessonSource, planFigureSources, type SourceDocRef } from "@/lib/learning/source-preview";
 import {
   calloutTone,
   checkPresentation,
@@ -690,7 +690,10 @@ export function ExamLessonSteps({
   closeHref?: string;
   /** Yol ve kapıyla aynı süre (`activityMinutes`). Varsa okuma süresi yeniden hesaplanmaz. */
   plannedMinutes?: number | null;
-  /** Yazım sürerken yazarın ekran planı: sayacın paydası, kavramlar geldikçe sıçramasın. */
+  /**
+   * Yazarın ekran planı. 29 Ekim 2026'dan beri sayaç bunu OKUMAZ (plan ekran sayar, adım listesi
+   * değil; "2/7" sonra "3/9" oluyordu); akış kayıt amaçlı duruyor, eski sekme etkilenmesin.
+   */
   plannedScreens?: number | null;
   /** Sunucu notlandırması. Yoksa (eski paket) istemci notlar. */
   gradeCheck?: (
@@ -703,6 +706,18 @@ export function ExamLessonSteps({
   /** V2 görünümü: tekrar soruları, okuma süresi ve eski yardımcılar bunu okur (ekran i = bölüm i). */
   const view = useMemo(() => v3ToV2(play as LessonV3), [play]);
   const base = useMemo(() => buildSteps(play, view, building), [play, view, building]);
+  // Şekil kartının yeri (29 Ekim 2026, Paket H): adımın sayfası değil konunun şekil sayfaları.
+  // Kart, şekil ekindeki değeri ya da etiketi anan ekranda ve ders başına sayfa başına bir kez.
+  const figurePlan = useMemo(
+    () =>
+      planFigureSources(
+        base.flatMap((step) =>
+          step.kind === "section" ? [{ source: step.source, blocks: step.blocks, sectionIndex: step.sectionIndex }] : [],
+        ),
+        sourceDocs,
+      ),
+    [base, sourceDocs],
+  );
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -725,10 +740,23 @@ export function ExamLessonSteps({
   const reduceMotion = useReducedMotion();
   const lessonStars = prepStars("lesson", null, null);
   const knownMinutes = typeof plannedMinutes === "number" && plannedMinutes > 0 ? plannedMinutes : null;
-  const readingMinutes = activityDurationMinutes("lesson", {
+  const computedMinutes = activityDurationMinutes("lesson", {
     known: knownMinutes,
     readingMinutes: knownMinutes ? null : honestReadingMinutes(view),
   });
+  // Oturum boyunca sabit payda ve süre (29 Ekim 2026, Paket H): ilk mühürlü değer kilitlenir;
+  // sonradan payload büyüse (onarım, tazeleme, grade-check) "/ N" ve "~N dk" değişmez. Yazım
+  // sürerken ikisi de gösterilmez — toplam gerçekten bilinmiyor. Tekrar oturumu yeniden hesaplar.
+  const lockedTotalRef = useRef<number | null>(null);
+  const lockedMinutesRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (building) return;
+    if (lockedTotalRef.current == null) lockedTotalRef.current = base.length;
+    if (lockedMinutesRef.current == null) lockedMinutesRef.current = computedMinutes;
+  }, [building, base.length, computedMinutes]);
+  const readingMinutes: number | null = building ? null : (lockedMinutesRef.current ?? computedMinutes);
+  // Yazarın ekran planı sayaca girmez; akış kayıt amaçlı duruyor (bkz. prop açıklaması).
+  void plannedScreens;
   const steps = useMemo(() => {
     // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
     if (building) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
@@ -778,7 +806,7 @@ export function ExamLessonSteps({
     ];
   }, [base, missed, view, language, serverRetries, building, upcoming]);
 
-  const counter = lessonStepCounter({ index, writtenSteps: base.length, building, plannedScreens });
+  const counter = lessonStepCounter({ index, writtenSteps: base.length, building, lockedTotal: lockedTotalRef.current });
   const progressMax = counter.max;
   const progressNow = counter.now;
   const progressRatio = progressNow / progressMax;
@@ -995,6 +1023,7 @@ export function ExamLessonSteps({
     ) : null;
 
   const sourcePreview = matchLessonSource(step.kind === "section" ? step.source : undefined, sourceDocs);
+  const figureSource = step.kind === "section" ? (figurePlan.get(step.sectionIndex) ?? null) : null;
 
   const countLabel = progressLabel(
     counter,
@@ -1022,7 +1051,9 @@ export function ExamLessonSteps({
           role="progressbar"
           aria-valuenow={progressNow}
           aria-valuemin={1}
-          aria-valuemax={progressMax}
+          // Yazım sürerken toplam bilinmiyor: payda yok, çubuk belirsiz.
+          aria-valuemax={counter.indeterminate ? undefined : progressMax}
+          aria-busy={counter.indeterminate || undefined}
           aria-label="Ders ilerlemesi"
         >
           <span className="als-progress-track">
@@ -1038,7 +1069,7 @@ export function ExamLessonSteps({
           <p className="als-count" aria-live="polite">
             {/^\d+( \/ \d+)?$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
             <span>{countLabel}</span>
-            <span className="als-minutes">~{readingMinutes} dk</span>
+            {readingMinutes != null ? <span className="als-minutes">~{readingMinutes} dk</span> : null}
           </p>
           <p className="als-stars" title={`Bu derste ${lessonStars} yıldız`}>
             <Star className="h-3.5 w-3.5" aria-hidden />
@@ -1048,8 +1079,13 @@ export function ExamLessonSteps({
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
       {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}
-      {sourcePreview && isFigurePage(sourcePreview, sourceDocs) ? (
-        <SourceFigureCard documentId={sourcePreview.documentId} page={sourcePreview.page} fileName={sourcePreview.fileName} />
+      {figureSource ? (
+        <SourceFigureCard
+          documentId={figureSource.documentId}
+          page={figureSource.page}
+          fileName={figureSource.fileName}
+          hints={figureHintsFor(figureSource, sourceDocs)}
+        />
       ) : sourcePreview ? (
         <SourcePageButton documentId={sourcePreview.documentId} page={sourcePreview.page} fileName={sourcePreview.fileName} />
       ) : null}
@@ -1117,7 +1153,8 @@ export function ExamLessonSteps({
           {step.kind === "overview" ? (
             <p className="als-intro-meta">
               <span className="als-intro-tag">Ders</span>
-              yaklaşık {readingMinutes} dk{counter.label.includes("/") ? ` · ${progressMax} adım` : ""}
+              {/* Süre ve adım sayısı yalnız mühürlü derste; yazım sürerken ikisi de bilinmiyor. */}
+              {readingMinutes != null ? `yaklaşık ${readingMinutes} dk · ${progressMax} adım` : "hazırlanıyor…"}
             </p>
           ) : null}
           {step.kind === "section" && step.part ? (

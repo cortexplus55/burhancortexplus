@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { homePathForRole } from "@/lib/parity/signup";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
-import { isAccountActive } from "@/lib/auth/active-account";
+import { accountActiveOrUnknown } from "@/lib/auth/active-account";
 
 /** Legacy veli/öğretmen URL’leri — öğrenci-only ürün. */
 const RETIRED_PREFIXES = [
@@ -148,16 +148,19 @@ export async function updateSession(request: NextRequest) {
     isProtected || path === "/" || path === "/giris" || path === "/kayit";
   if (!needsRole) return supabaseResponse;
 
-  let active: boolean;
-  try {
-    active = await isAccountActive(supabase);
-  } catch {
-    return new NextResponse("Hesabına şu an erişilemiyor. Lütfen biraz sonra yeniden dene.", {
-      status: 503,
-      headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "30", "Cache-Control": "no-store" },
-    });
+  // Durum iki okumada da gelmezse 503 yerine geçir (29 Ekim 2026): canlıda tek RPC hatası `_rsc`
+  // isteğini düşürüp sayfayı boş bırakıyordu. Askı ve silinme `false` ile kesindir, aynen engellenir;
+  // okunamayan durum sayfa kapısında (`requireUser`) ve RLS'te bir kez daha denetlenir.
+  const active = await accountActiveOrUnknown(supabase);
+  const accountCheckSkipped = active === null;
+  if (accountCheckSkipped) {
+    console.warn("account_status_unavailable", { path, rsc: request.nextUrl.searchParams.has("_rsc") });
   }
-  if (!active) {
+  const finish = (response: NextResponse) => {
+    if (accountCheckSkipped) response.headers.set("x-account-check", "skipped");
+    return response;
+  };
+  if (active === false) {
     // Askıdaki hesap nedenini görsün (plan 4.1); silinmiş hesap eskisi gibi sessiz çıkar.
     let status: string | null = null;
     try {
@@ -175,11 +178,17 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("primary_role, onboarding_completed_at, deleted_at")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Profil okunamadıysa "profil yok" değildir: kuruluma göndermek yerine geçirilir (aynı gerekçe).
+  if (profileError) {
+    console.warn("profile_unavailable", { path });
+    return finish(supabaseResponse);
+  }
 
   if (profile?.deleted_at) {
     await supabase.auth.signOut({ scope: "local" });
@@ -198,14 +207,14 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = home;
     url.search = "";
-    return NextResponse.redirect(url);
+    return finish(NextResponse.redirect(url));
   }
 
   if (!profile?.onboarding_completed_at && !matches(path, ONBOARDING_SKIP)) {
     const url = request.nextUrl.clone();
     url.pathname = onboardingPathForRole(role);
-    return NextResponse.redirect(url);
+    return finish(NextResponse.redirect(url));
   }
 
-  return supabaseResponse;
+  return finish(supabaseResponse);
 }

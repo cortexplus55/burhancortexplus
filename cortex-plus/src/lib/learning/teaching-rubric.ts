@@ -94,6 +94,41 @@ export const EQUIVALENT_OPTIONS_RULE =
   "fonksiyonun tersinin fonksiyon olması = birebir ve örten olması; resesif = çekinik; dominant = baskın) asla iki " +
   "ayrı şık olamaz. Biri doğruysa öteki de doğru olur ve soru iki cevaplı kalır; eşdeğerlerden yalnız biri şık olur.";
 
+/**
+ * Kök kendi içinde tamdır (29 Ekim 2026, Paket H). Test yazarında "ekranda olmayan şekle gönderme yok" kuralı vardı
+ * ama kapı beş kalıpla sınırlıydı ve ders yazarında hiç yoktu: canlıda "haritada işaretli bölge", "grafikte görülen
+ * eğim" gibi kökler veri taşımadan çıktı. Ders, test ve deneme YAZARI ile DENETÇİSİ bu metni aynen okur; kod
+ * (`unresolvedVisualReference`) aynı tanımla yakalar: görsel atfı + kökte veri yok + ekranda tablo/şema/formül yok.
+ */
+export const SELF_CONTAINED_STEM_RULE =
+  "KÖK KENDİ İÇİNDE TAMDIR: Soru kökü ekranda ya da kâğıtta durmayan bir şekle, grafiğe, haritaya, tabloya, " +
+  "şemaya, diyagrama, görsele, resme, denkleme ya da 'derste verilen' ifadeye gönderme yapmaz ('şekildeki', " +
+  "'yukarıdaki tabloya göre', 'haritada işaretli', 'grafikte görülen', 'verilen devrede'). Çözmek için gereken her " +
+  "sayı, ilişki ve veri kökün içinde yazılıdır (eşitlik, ok, koordinat çifti ya da satır olarak); bir tablo ya da şema " +
+  "gerekiyorsa o blok aynı ekranda durur. Veri kökte yazılamıyorsa soruyu başka biçimde kur.";
+
+/**
+ * Anahtar ↔ açıklama tutarlılığı (29 Ekim 2026, Paket H). Anahtar ve açıklama aynı çağrının bağımsız alanları;
+ * canlıda "%70'i: 200 × 0,70 = 140 TL" diyen açıklamanın anahtarı 160 TL'yi gösterdi. Yazar ve denetçi aynı metni
+ * okur; kod (`explanationAnswerMismatch`) açıklamanın vardığı değeri şıklarla eşler.
+ */
+export const KEY_CONSISTENCY_RULE =
+  "ANAHTAR–AÇIKLAMA TUTARLILIĞI: explanation, optionWhy, steps ve hint'in vardığı sonuç (sayı, değer, ad) doğru " +
+  "şıkkın kendisidir; açıklama bir değere varıp anahtar başka bir şıkkı gösteremez. Doğru şıkkın optionWhy'ı o şıkkı " +
+  "doğrular, yanlış şıkkınki onu çürütür. Yazmadan önce son kez karşılaştır: açıklamanın sonucu hangi şıkta " +
+  "yazıyorsa anahtar odur.";
+
+/**
+ * Çok cevaplı soruda kutupluluk (29 Ekim 2026, Paket H). `correct` kümesi ile şık gerekçesinin yönü arasında bağ
+ * yoktu: "f(A) = {4, 5, 6}" diyen gerekçe "7 ∈ f(A)" şıkkını çürütürken şık doğru listesindeydi. Yazar ve denetçi
+ * aynı metni okur; kod (`refutedCorrectOptions`, `affirmedWrongOptions`) gerekçenin yönünü okur.
+ */
+export const MULTI_POLARITY_RULE =
+  "ÇOK CEVAPLIDA KUTUPLULUK: correct dizisindeki her şıkkın optionWhy'ı o şıkkın NEDEN DOĞRU olduğunu söyler; " +
+  "correct dışındaki her şıkkınki NEDEN YANLIŞ olduğunu söyler ('… değildir', '… kümesinde yer almaz'). Gerekçesi " +
+  "şıkkı çürüten bir şık correct'te duramaz; gerekçesi onaylayan bir şık correct dışında kalamaz. explanation'daki " +
+  "sonuç da correct kümesiyle çelişmez.";
+
 /** Ders, test ve podcast istemlerinin sonuna eklenir. Model bu adları kendi cümlesi gibi yazmasın. */
 export const STUDENT_LEAK_BAN =
   "ÇIKTI YASAĞI: İç kural adlarını ve şu ifadeleri çıktına yazma: sayı uydurma, kapsamı dışındadır, " +

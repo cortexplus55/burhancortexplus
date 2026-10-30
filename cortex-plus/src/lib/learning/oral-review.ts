@@ -6,12 +6,7 @@
 import { contentStems, sentences, stemsOverlap } from "@/lib/learning/learner-fluency";
 import { isUnsupportedComparativeAbsolute } from "@/lib/learning/absolute-claims";
 import { speechNear } from "@/lib/learning/speech-tolerance";
-import {
-  firstAnswerErrorLine,
-  oralFirstAnswer,
-  validFirstAnswerErrors,
-  type OralAnswerError,
-} from "@/lib/learning/oral-first-answer";
+import { firstAnswerErrorLine, type OralAnswerError } from "@/lib/learning/oral-first-answer";
 
 function fold(text: string): string {
   return text
@@ -167,15 +162,14 @@ export type OralGradeItem = {
   index: number;
   correct: boolean;
   gap?: string | null;
-  /** İlk cevaptaki yanlışlar (alıntı + doğrusu); doğrulanırsa soru doğru sayılmaz. */
-  errors?: OralAnswerError[] | null;
+  /** Hakemin ilk cevap notu (alıntı + doğrusu). Yalnız gerekçe satırı olur; puanı hakem verir. */
+  firstAnswerIssue?: OralAnswerError | null;
 };
 
 export type ReconciledOralItem = {
   index: number;
   correct: boolean;
   gap: string | null;
-  firstAnswerErrors?: OralAnswerError[];
 };
 
 export type OralQuestionForGrade = {
@@ -227,7 +221,8 @@ export function answerCoversExpectedPoints(
 
 /**
  * Model hükmünü rubrikle uzlaştırır. Kaynakta hazır çözüm cümlesi olmaması
- * tek başına 0 gerekçesi değildir.
+ * tek başına 0 gerekçesi değildir. Kod hakemin "doğru"sunu düşürmez (29 Ekim 2026);
+ * rubriği karşılayan cevap yükseltilir.
  */
 export function reconcileOralGrade(input: {
   questions: OralQuestionForGrade[];
@@ -253,25 +248,14 @@ export function reconcileOralGrade(input: {
       answer,
       question.expectedPoints ?? [],
     );
-    const firstText = oralFirstAnswer(input.answers, index);
-    const followText = firstText && answer.startsWith(firstText) ? answer.slice(firstText.length).trim() : "";
-    const firstErrors = validFirstAnswerErrors(firstText, model?.errors, followText);
     let correct = Boolean(model?.correct);
     if (covers) correct = true;
-    // Doğrudan çelişki, rubriği karşılamayan cevapta yanlış sayılır. Rubrik tutuyorsa tam puan kalır.
-    if (firstErrors.length && !covers) correct = false;
     // Model "doğrulanmış çözüm yok" diye eksik yazdıysa ve cevap rubriği
-    // tutuyorsa zaten doğru; tutmuyorsa gap temizlensin.
-    const rawGap = model?.gap ?? null;
-    const gap =
-      firstErrors.length && !correct
-        ? firstAnswerErrorLine(firstErrors[0]!)
-        : correct
-          ? null
-          : sanitizeGap(rawGap, question.prompt);
-    items.push(
-      firstErrors.length && !correct ? { index, correct, gap, firstAnswerErrors: firstErrors } : { index, correct, gap },
-    );
+    // tutuyorsa zaten doğru; tutmuyorsa gerekçe hakemin ilk cevap notu, yoksa temizlenmiş gap.
+    const gap = correct
+      ? null
+      : firstAnswerErrorLine(model?.firstAnswerIssue) || sanitizeGap(model?.gap ?? null, question.prompt);
+    items.push({ index, correct, gap });
   });
 
   // Model yalnızca sayı verdiyse ve madde listesi yoksa: rubrik örtüşmesi

@@ -1,5 +1,6 @@
 import katex from "katex";
 import "katex/contrib/mhchem";
+import { MATH_SPAN_RE } from "@/lib/text/bracket-spans";
 
 /**
  * Model çıktısındaki LaTeX'i güvenli HTML'e çevirir.
@@ -31,11 +32,14 @@ export type MathSegment =
  * Tek `$` para birimi olarak da kullanılabildiği için, satır içi dolar
  * eşleşmesi yalnızca açılıştan hemen sonra ve kapanıştan hemen önce boşluk
  * olmayan bir karakter varsa geçerli sayılır — "5 $ ve 10 $" bozulmaz.
+ *
+ * Desen `MATH_SPAN_RE`'den gelir (29 Ekim 2026): ekranda matematik sayılan ile
+ * tahta bölücüsünün opak saydığı aynı kümedir. Kopya alınır; paylaşılan global
+ * desenin `lastIndex`i buradaki döngüye karışmasın.
  */
 export function splitMath(input: string): MathSegment[] {
   const segments: MathSegment[] = [];
-  const pattern =
-    /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$(?!\s)((?:[^$\n\\]|\\.)+?)(?<!\s)\$/g;
+  const pattern = new RegExp(MATH_SPAN_RE.source, MATH_SPAN_RE.flags);
   let cursor = 0;
 
   for (let match = pattern.exec(input); match; match = pattern.exec(input)) {

@@ -93,9 +93,9 @@ import {
 import { parseExaminerVibe, vibeGivesHints } from "@/lib/learning/examiner-vibe";
 import {
   minutesForOralLength,
-  firstAnswerErrorLine,
   ORAL_ALL_TOPICS,
   oralFirstAnswerKey,
+  oralFollowQuestionKey,
   oralReviewItemFromGrade,
   oralScoreFraction,
   type OralExamReport,
@@ -1955,6 +1955,7 @@ export function ExamNodeSession({
           value={String(answers[String(index)] ?? "")}
           busy={loading}
           onChange={(text) => updateAnswer(String(index), text)}
+          onProbe={(question) => updateAnswer(oralFollowQuestionKey(index), question)}
           onAdvance={(answer, firstAnswer) => {
             if (firstAnswer) updateAnswer(oralFirstAnswerKey(index), firstAnswer);
             updateAnswer(String(index), answer);
@@ -1995,9 +1996,6 @@ export function ExamNodeSession({
           }}
           strengths={oralReport?.strengths ?? []}
           weaknesses={oralReport?.weaknesses ?? []}
-          firstAnswerErrors={(oralReport?.items ?? []).flatMap((item) =>
-            (item.firstAnswerErrors ?? []).map(firstAnswerErrorLine),
-          )}
           practiceHref={oralReport?.nextStep?.href}
           practiceLabel={oralReport?.nextStep?.label}
           onRepeat={() => {

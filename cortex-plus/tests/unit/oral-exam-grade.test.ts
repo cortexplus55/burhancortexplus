@@ -256,15 +256,16 @@ describe("oral exam grading is grounded for every subject", () => {
     }
   });
 
-  it("caps a hollow announced example and still credits a finished equality", () => {
+  // 29 Ekim 2026: kod puan düşürmez — yarım örnek tavanı kalktı; doğru eşitlik tam puan kalır.
+  it("does not cap a hollow announced example any more and still credits a finished equality", () => {
     const hollow = gradeOralExam(
       [{ prompt: "İki artı iki kaç eder?", expectedPoints: ["Tam 2"] }],
       { "0": "Örnek: 2 + 2 = 4." },
       "Toplama işlemi kaynakta anlatılır.",
     );
-    expect(hollow.items[0]?.ratio).toBe(0.5);
-    expect(hollow.items[0]?.verdict).toBe("kismen");
-    expect(hollow.items[0]?.gap).toMatch(/Örnek yarım/);
+    expect(hollow.items[0]?.ratio).toBe(1);
+    expect(hollow.items[0]?.verdict).toBe("dogru");
+    expect(hollow.items[0]?.gap).toBe("");
     const finished = gradeOralExam(
       [{ prompt: "0,25 mol kaç gramdır?", expectedPoints: ["Tam 2"] }],
       { "0": "m = n × M = 0,25 mol × 98 g/mol = 24,5 g." },

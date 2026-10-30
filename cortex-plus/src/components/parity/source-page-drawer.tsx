@@ -90,8 +90,23 @@ export function SourcePageButton({ documentId, page, fileName }: { documentId: s
 /**
  * Belgedeki şema derse gömülü (29 Ekim 2026). Şekil okunmuş sayfadaki adımda "Kaynak Sayfayı Gör"
  * düğmesi yerine sayfanın kendisi ders içinde açılır; dokununca aynı pencerede büyür.
+ *
+ * PDF'te sayfa canvas'ta çizilir. PDF dışı kaynakta (slayt, Word, fotoğraf) sayfa resmi yok
+ * (yeni resim ucu açılmadı, Paket H): kartın gövdesi şekil ekinin ipucu satırlarıdır, sayfanın
+ * tam metni "şema" diye gösterilmez; ipucu da yoksa yalnız "Kaynak Sayfayı Gör" kalır.
  */
-export function SourceFigureCard({ documentId, page, fileName }: { documentId: string; page: number; fileName: string }) {
+export function SourceFigureCard({
+  documentId,
+  page,
+  fileName,
+  hints = [],
+}: {
+  documentId: string;
+  page: number;
+  fileName: string;
+  /** Şekil ekinin satırları (`figureHints`); PDF dışı kaynakta kartın gövdesi. */
+  hints?: readonly string[];
+}) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -121,6 +136,17 @@ export function SourceFigureCard({ documentId, page, fileName }: { documentId: s
   }, [documentId, page, fileName]);
 
   if (failed) return <SourcePageButton documentId={documentId} page={page} fileName={fileName} />;
+  const hintList = hints.length ? (
+    <ul className="als-source-figure-hints" aria-label="Şekilde işaretli değerler">
+      {hints.map((line, i) => (
+        <li key={`${i}-${line}`}>{line}</li>
+      ))}
+    </ul>
+  ) : null;
+  // Sayfa resmi yok ve ipucu da yok: kart yerine yalnız düğme.
+  if (preview && !preview.signedUrl && !hintList) {
+    return <SourcePageButton documentId={documentId} page={page} fileName={fileName} />;
+  }
   return (
     <figure className="als-source-figure">
       <figcaption>
@@ -131,10 +157,8 @@ export function SourceFigureCard({ documentId, page, fileName }: { documentId: s
         <div className="als-source-figure-stage">
           <DocumentPdfPreview signedUrl={preview.signedUrl} initialPage={preview.page} />
         </div>
-      ) : preview ? (
-        <pre className="als-source-drawer-text">{preview.text ?? "Bu sayfanın metni yok."}</pre>
       ) : (
-        <p className="als-source-figure-wait">Şema yükleniyor…</p>
+        (hintList ?? <p className="als-source-figure-wait">Şema yükleniyor…</p>)
       )}
     </figure>
   );
