@@ -112,6 +112,33 @@
   color: var(--cp-muted);
 }
 
+/* Sınav saati ve yeri (30 Ekim 2026, isteğe bağlı). */
+.apw-exam-time {
+  display: grid;
+  grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.apw-exam-time label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+}
+
+.apw-exam-time input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1);
+  color: inherit;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.9375rem;
+}
+
 .apw-search,
 .apw-topic-add input {
   width: 100%;

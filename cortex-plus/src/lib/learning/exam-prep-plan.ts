@@ -34,11 +34,22 @@ export type PlanNodeSessionMeta = {
    * ortasında durur; Sınav Finali'ne taşınmaz ve şablonun hazırlık geneli adımlarının yerini tutmaz.
    */
   checkpoint?: string;
+  /**
+   * Uzun planın tarihe bağlı "Kartlarla tekrar"ı (30 Ekim 2026): 1.. uzun aralık sırası (21, 45, 90, 150
+   * gün), 0 boş haftanın bakım tekrarı. Yolda tarihiyle yer alır, "Aralıklı Tekrar ve Kontrol" bölümünde.
+   */
+  longReview?: number;
 };
 
 /** Ara sınav öncesi kontrol adımı mı (yolun ortasında, finale ait değil). */
 export function isCheckpointMeta(meta: unknown): boolean {
   return Boolean(meta && typeof meta === "object" && typeof (meta as { checkpoint?: unknown }).checkpoint === "string");
+}
+
+/** Konu bloğunun dışında, tarihiyle duran adım mı (uzun aralıklı tekrar ya da ara kontrol). */
+export function isInterludeMeta(meta: unknown): boolean {
+  if (!meta || typeof meta !== "object") return false;
+  return typeof (meta as { longReview?: unknown }).longReview === "number" || isCheckpointMeta(meta);
 }
 
 export type PlanNodeDraft = {

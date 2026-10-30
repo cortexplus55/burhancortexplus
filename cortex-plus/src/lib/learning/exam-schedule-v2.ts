@@ -9,7 +9,7 @@ import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
 import { sourceCitation } from "@/lib/learning/path-source-label";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
-import { pinFinalSessionsInPlace } from "@/lib/learning/path-dates";
+import { SHORT_PLAN_DAYS, pinFinalSessionsInPlace } from "@/lib/learning/path-dates";
 import { HOLIDAY_LOAD_SHARE, turkishHolidayOn, type ScheduleCheckpoint } from "@/lib/learning/tr-calendar";
 import {
   extraPracticeForTarget,
@@ -117,10 +117,98 @@ export type ScheduleSession = {
   /** Ara sınav öncesi kontrol adımı: ara sınavın adı ve günü. */
   checkpoint?: string;
   checkpointDate?: string;
+  /**
+   * Uzun planın tarihe bağlı tekrarı (30 Ekim 2026, Paket I): 1, 2, 3 … öğrenmeden 21, 45, 90, 150 gün
+   * sonraki "Kartlarla tekrar"; 0 boş kalacak haftaya konan bakım tekrarı. Yolda tarihine göre yer alır
+   * (konunun bloğuna değil), "🔁 Aralıklı Tekrar ve Kontrol" bölümünde görünür.
+   */
+  longReview?: number;
 };
 
 /** Ara sınav öncesi kontrolün süresi; günün bütçesinden düşmez (kısa karışık pratik). */
 export const CHECKPOINT_MINUTES = 20;
+
+export type SchedulePlanMode = "short" | "normal" | "long";
+
+/**
+ * Bu günden uzun hazırlık "uzun kip" (30 Ekim 2026, Paket I). Canlıda 7,5 ay sonraki finalin planı
+ * 29 Eki – 25 Şub arasına yığıldı, 26 Şub – 7 Haz (~15 hafta) boş kaldı: takvim 120 günde kesiliyordu.
+ * Uzun kipte öğrenme dönemin bir bölümüne yayılır; kalanı tarihe bağlı tekrara, ara kontrole ve finale.
+ * 45 gün ve altı eskisi gibi (öğrenme son üç güne kadar yayılır).
+ */
+export const LONG_PLAN_DAYS = 45;
+
+/** Teknik tavan (≈3 yıl): bozuk bir tarih sonsuz takvim kurmasın. 120 gün sınırı kalktı. */
+export const MAX_PLAN_DAYS = 1100;
+
+/**
+ * Yolun "Kartlarla tekrar" düğümünün uzun aralıkları (gün, konunun ilk dersinden). Soru düzeyindeki günü
+ * gelen tekrar (`review-items.ts`, 1/3/7/14 gün, "Bugün N tekrar") ayrı kalır ve yolu kilitlemez; yol
+ * düğümü onun bittiği yerden devam eder: ilk tekrar dersin ertesi günü (eskisi gibi), sonra 21, 45, 90,
+ * 150 gün. Finalin son haftasına giren aralık konmaz; o hafta finalin kendi tekrarı var.
+ */
+export const PATH_REVIEW_LADDER_DAYS: readonly number[] = [21, 45, 90, 150];
+
+/** Uzun planda kendiliğinden konan ara kontrolün aralığı (gün) ve adı. */
+export const LONG_CHECK_EVERY_DAYS = 28;
+export const LONG_CHECK_LABEL = "Aylık kontrol";
+
+/** Finale ayrılan son çalışma günleri (`pinFinalSessionsInPlace` ile aynı pencere). */
+const FINAL_STUDY_DAYS = 7;
+
+/** Sınava kalan güne göre takvim kipi: 7 günden kısa "short", 45 günden uzun "long". */
+export function schedulePlanMode(daysToExam: number): SchedulePlanMode {
+  const days = Math.floor(Number.isFinite(daysToExam) ? daysToExam : 1);
+  if (days < SHORT_PLAN_DAYS) return "short";
+  if (days > LONG_PLAN_DAYS) return "long";
+  return "normal";
+}
+
+/**
+ * Yeni konuların öğrenilmediği son çalışma günleri. Normal planda son üç gün (deneme ve tekrar). Uzun
+ * planda pay süreyle büyür: 45 günde ~%7, 90 günde ~%25, 228 günde ~%37, en çok %45 — kalan süre aralıklı
+ * tekrar, ara kontrol ve finale kalır. Sıçrama yok: 45 ile 46 gün aynı planı verir.
+ */
+export function learningTailDays(lastIdx: number, daysToExam: number): number {
+  const base = Math.min(3, Math.max(0, lastIdx));
+  if (schedulePlanMode(daysToExam) !== "long") return base;
+  const days = Math.max(1, Math.floor(daysToExam));
+  const share = Math.min(0.45, (3 + 0.45 * (days - (LONG_PLAN_DAYS - 1))) / days);
+  return Math.min(Math.max(0, lastIdx - 1), Math.max(base, Math.round(lastIdx * share)));
+}
+
+/**
+ * Kısa kipte konuların günleri: her gün bütçesi oranında yük alır (konunun süresi, yani sınav ağırlığı,
+ * zorluk ve sayfa sayısı), sıra değişmez. Ağır konu günün daha büyük payını alır; iki günlük planda
+ * sekiz konunun yedisi aynı güne yığılmaz. `capacities` verilirse gün payı bütçesiyle orantılı: resmî
+ * tatil (esnek gün, yarım bütçe) daha az konu alır. Verilmezse günler eşit.
+ */
+export function spreadByLoad(loads: readonly number[], days: number, capacities?: readonly number[]): number[] {
+  const span = Math.max(1, Math.floor(days));
+  const weights = loads.map((load) => (Number.isFinite(load) ? Math.max(0, load) : 0));
+  const total = weights.reduce((sum, load) => sum + load, 0);
+  const rooms = Array.from({ length: span }, (_, day) => {
+    const room = capacities?.[day];
+    return typeof room === "number" && Number.isFinite(room) && room > 0 ? room : capacities ? 0 : 1;
+  });
+  const roomTotal = rooms.reduce((sum, room) => sum + room, 0) || span;
+  // Günlerin yükteki sınırları: gün d, toplam yükün [önceki günlerin payı, kendi payı) aralığını alır.
+  const bounds: number[] = [];
+  let edge = 0;
+  for (const room of rooms) {
+    edge += room / roomTotal;
+    bounds.push(edge);
+  }
+  let cumulative = 0;
+  return weights.map((load) => {
+    const middle = cumulative + load / 2;
+    cumulative += load;
+    if (total <= 0) return 0;
+    const share = middle / total;
+    const day = bounds.findIndex((bound) => share < bound);
+    return Math.min(span - 1, day < 0 ? span - 1 : day);
+  });
+}
 
 /**
  * Günlük bütçe (28 Ekim 2026): resmî tatil esnek gündür, yükün yarısı komşu günlere kayar. Son gün
@@ -254,13 +342,17 @@ const LEVEL_LOAD: Record<MeasuredLevel, number> = {
  * 00:00–03:00 arası kurulan planın ilk oturumu dünün tarihini alıyor ve
  * doğar doğmaz "kaçırılmış" sayılıyordu, gün filtresi de dünün haftanın
  * gününe bakıyordu.
+ *
+ * 30 Ekim 2026: 120 günlük tavan kalktı. 228 gün sonraki sınavın takvimi 120. günde bitiyor, son 15
+ * hafta (23 Nisan, 1 ve 19 Mayıs, Kurban Bayramı dahil) planda hiç yoktu. Tavan yalnız teknik
+ * (`MAX_PLAN_DAYS`).
  */
 export function listStudyDayDates(
   daysToExam: number,
   studyDays: number[],
   from = new Date(),
 ): string[] {
-  const span = Math.max(1, Math.min(120, Math.floor(daysToExam)));
+  const span = Math.max(1, Math.min(MAX_PLAN_DAYS, Math.floor(Number.isFinite(daysToExam) ? daysToExam : 1)));
   const allowed = new Set(prepStudyDays(studyDays));
   const start = istanbulDay(from);
   const dates: string[] = [];
@@ -380,7 +472,15 @@ function objectiveFor(topic: ScheduleTopicInput, role: ScheduleSessionRole): str
 
 /**
  * Build a real calendar: prereq order, load vs available time, honest cuts.
- * Never stacks brand-new learn sessions on the last study day.
+ * Never stacks brand-new learn sessions on the last study day — except in a plan of one or two
+ * study days (the exam is tomorrow or the day after), where the last day is all there is.
+ *
+ * Kipler (30 Ekim 2026, Paket I, `schedulePlanMode`):
+ * - kısa (sınav 7 günden yakın): konular günlere yükleriyle paylaştırılır (`spreadByLoad`), hepsi
+ *   bugüne yığılmaz; iki günlük planda son gün de yeni konu alır.
+ * - normal: eskisi gibi.
+ * - uzun (45 günden uzak): öğrenme dönemin bir bölümüne (`learningTailDays`), kalanı tarihe bağlı
+ *   tekrara (`PATH_REVIEW_LADDER_DAYS`), aylık ara kontrole ve finale; hiçbir hafta boş kalmaz.
  */
 export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildResult {
   const daily = Math.max(5, Math.min(480, Math.floor(input.dailyMinutes || 45)));
@@ -394,6 +494,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   const targetMode = targetPlanMode(input.targetScore);
   const masteryBar = masteryBarForTarget(input.targetScore);
   const tempo = targetTempoFactor(input.targetScore);
+  const planMode = schedulePlanMode(input.daysToExam);
   // Konular yolun sırasıyla gelir (kurulumda öğrencinin onayladığı liste, yeniden planlamada
   // hazırlığın konu sırası); takvim yeniden dizmez.
   const ordered = input.topics.slice();
@@ -448,6 +549,19 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   // Day budgets
   const dayBudget = [...capacity];
   const lastIdx = studyDayDates.length - 1;
+  /**
+   * Kısa ya da bir-iki çalışma günlük plan: konular günlere yükleriyle paylaştırılır. Bir ya da iki
+   * çalışma günü varsa son gün de yeni konu alır (sınav yarın ya da öbür gün; başka gün yok). Eskiden
+   * son gün yalnız denemeye kalıyordu: iki günlük vize planında sekiz konunun yedisi bugüne yığıldı,
+   * yarın sınavı olan planda bütün dersler "tekrar"a çevriliyordu.
+   */
+  const compact = planMode === "short" || studyDayDates.length < 3;
+  const learnLimit = compact
+    ? studyDayDates.length >= 3
+      ? lastIdx
+      : studyDayDates.length
+    : Math.max(0, lastIdx);
+  const learnsOnLastDay = learnLimit > lastIdx;
 
   const cite = (topic: ScheduleTopicInput, pages: number[] = topic.pageNumbers ?? []) =>
     sourceCitation(topic.sourceRefs, pages);
@@ -460,22 +574,25 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   const partObjective = (objective: string, chunk: LessonChunk | null) =>
     chunk && chunk.parts > 1 ? (chunk.title ? chunk.title : `${objective} (${chunk.part}/${chunk.parts})`) : objective;
 
-  const place = (
+  /**
+   * Oturumu günün bütçesine bakmadan yazar ve bütçeden düşer. Bütçe sıfırın altına inebilir: taşan gün
+   * "en boş gün" aramasında arkaya düşsün (dolu günlere aynı konu yığılmasın).
+   */
+  const pushSession = (
     dayIndex: number,
     topic: ScheduleTopicInput,
     role: ScheduleSessionRole,
-    minutes: number,
+    duration: number,
     practiceVariant: number | null = null,
     chunk: LessonChunk | null = null,
+    extra: Partial<ScheduleSession> = {},
   ) => {
-    const duration = Math.max(10, Math.min(dayBudget[dayIndex], minutes));
-    if (duration < 10 || dayBudget[dayIndex] < 10) return false;
     dayBudget[dayIndex] -= duration;
     const pages = chunk ? chunk.pages : (topic.pageNumbers ?? []);
     const cited = cite(topic, pages);
     const reason = practiceVariant == null ? null : practiceActivity(practiceVariant).reason;
     const objective = partObjective(objectiveFor(topic, role), chunk);
-    sessions.push({
+    const session: ScheduleSession = {
       dayIndex: dayIndex + 1,
       calendarDate: studyDayDates[dayIndex],
       topicId: topic.id,
@@ -489,7 +606,24 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       practiceVariant,
       sourceLabel: cited.label,
       ...partFields(chunk),
-    });
+      ...extra,
+    };
+    sessions.push(session);
+    return session;
+  };
+
+  const place = (
+    dayIndex: number,
+    topic: ScheduleTopicInput,
+    role: ScheduleSessionRole,
+    minutes: number,
+    practiceVariant: number | null = null,
+    chunk: LessonChunk | null = null,
+    extra: Partial<ScheduleSession> = {},
+  ) => {
+    const duration = Math.max(10, Math.min(dayBudget[dayIndex], minutes));
+    if (duration < 10 || dayBudget[dayIndex] < 10) return false;
+    pushSession(dayIndex, topic, role, duration, practiceVariant, chunk, extra);
     return true;
   };
 
@@ -527,9 +661,12 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
    * aldı, günler doldu ve son on üç konunun dersi sondan bir önceki güne yığıldı. Şimdi önce her
    * konunun dersi ve bir testi döneme yayılır; ek testler ve tekrarlar kalan süreye girer. Süre
    * darsa yeni konular deneme gününe kadar bütün döneme yayılır.
+   *
+   * Uzun planda (30 Ekim 2026) öğrenmenin bittiği gün `learningTailDays` kadar erkene çekilir: kalan
+   * süre tekrar, ara kontrol ve finale kalır.
    */
   const tight = optionsIfTight.length > 0;
-  const learnEnd = Math.max(1, lastIdx - Math.min(3, Math.max(0, lastIdx)));
+  const learnEnd = Math.max(1, lastIdx - learningTailDays(lastIdx, input.daysToExam));
   const learnWindow = learnEnd;
   const spreadStep = kept.length > 1 ? learnWindow / (kept.length - 1) : 0;
 
@@ -541,6 +678,49 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   };
 
   const core: { learnDay: number; practiceDay: number }[] = [];
+
+  if (compact) {
+    // Kısa kip: konunun günü yükünden ve günün bütçesinden (`spreadByLoad`; tatil yarım bütçe, son gün
+    // denemenin payı düşülür); günün işleri o güne sığacak kadar kısalır (en az 10 dk). Ders, ilk test ve
+    // kısa adımlar aynı gün. Son gün de ders alıyorsa denemeye pay kalır.
+    const reserve = learnsOnLastDay ? Math.min(mockBuffer, Math.round(capacity[lastIdx]! / 2)) : 0;
+    const learnRooms = capacity
+      .slice(0, Math.max(1, learnLimit))
+      .map((room, day) => Math.max(10, room - (day === lastIdx ? reserve : 0)));
+    const dayOf = spreadByLoad(kept.map((entry) => entry.minutes), Math.max(1, learnLimit), learnRooms);
+    const coreRaw = kept.map(({ minutes }) => roleMinutes("learn", minutes) + roleMinutes("practice", minutes));
+    const dayLoad = studyDayDates.map(() => 0);
+    kept.forEach((_, index) => {
+      dayLoad[dayOf[index]!] += coreRaw[index]!;
+    });
+    const scale = dayLoad.map((load, day) => {
+      const room = Math.max(10, capacity[day]! - (day === lastIdx ? reserve : 0));
+      return load > room ? room / load : 1;
+    });
+    for (const [topicIndex, { topic, minutes }] of kept.entries()) {
+      const day = dayOf[topicIndex]!;
+      const factor = scale[day]!;
+      const chunks = topicLessonChunks(topic);
+      const parts = chunks.length;
+      const learnM = Math.max(10, Math.round(roleMinutes("learn", minutes) * factor));
+      const lessonM = parts > 1 ? Math.max(10, Math.round(learnM / parts)) : learnM;
+      for (const [chunkIndex, chunkEntry] of chunks.entries()) {
+        const chunk: LessonChunk | null =
+          parts > 1 ? { pages: chunkEntry.pages, part: chunkIndex + 1, parts, title: chunkEntry.title } : null;
+        pushSession(day, topic, "learn", lessonM, null, chunk);
+        mark(topicIndex, chunkIndex);
+      }
+      pushSession(day, topic, "practice", Math.max(10, Math.round(roleMinutes("practice", minutes) * factor)), 0);
+      mark(topicIndex, 100);
+      companion(day, topic, "true_false", BLOCK_TRUE_FALSE_MINUTES);
+      mark(topicIndex, 110);
+      companion(day, topic, blockInteractiveKind(topicIndex, input.includeAudio !== false), BLOCK_INTERACTIVE_MINUTES);
+      mark(topicIndex, 115);
+      core.push({ learnDay: day, practiceDay: day });
+    }
+    if (reserve > 0) dayBudget[lastIdx] = Math.max(dayBudget[lastIdx]!, reserve);
+  }
+
   // Dersler ve ilk testler deneme gününden önceki günlere sığmalı. Konu sayısı gün sayısını
   // geçiyorsa bir güne birden çok konu düşer ve ders + ilk test günün o payına kısalır (en az
   // 10 dk). Kısalmayınca her konu bir günü dolduruyor, sondaki konular son güne yığılıyordu.
@@ -552,7 +732,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   // konamaz. Gün doluysa ileri kayar; geriye, henüz öğretilmemiş bir konunun
   // dersini öne almak için değil.
   let earliestLearnDay = 0;
-  for (const [topicIndex, { topic, minutes }] of kept.entries()) {
+  for (const [topicIndex, { topic, minutes }] of (compact ? [] : kept).entries()) {
     const learnRaw = roleMinutes("learn", minutes);
     const practiceRaw = roleMinutes("practice", minutes);
     const coreScale = Math.min(1, coreCap / Math.max(1, learnRaw + practiceRaw));
@@ -575,7 +755,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
         parts > 1 ? { pages: chunkEntry.pages, part: chunkIndex + 1, parts, title: chunkEntry.title } : null;
       let chunkDay = -1;
       const learnOrder: number[] = [];
-      for (let d = chunkFrom; d < Math.max(0, lastIdx); d += 1) learnOrder.push(d);
+      for (let d = chunkFrom; d < learnLimit; d += 1) learnOrder.push(d);
 
       for (const d of learnOrder) {
         if (dayBudget[d] >= lessonM) {
@@ -601,24 +781,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
         for (let d = target + 1; d < Math.max(1, lastIdx); d += 1) {
           if (dayBudget[d] > dayBudget[target]) target = d;
         }
-        const pages = chunk ? chunk.pages : (topic.pageNumbers ?? []);
-        const cited = cite(topic, pages);
-        dayBudget[target] -= MIN_TOPIC_MINUTES;
-        sessions.push({
-          dayIndex: target + 1,
-          calendarDate: studyDayDates[target],
-          topicId: topic.id,
-          topicTitle: topic.title,
-          objective: partObjective(objectiveFor(topic, "learn"), chunk),
-          sourcePages: cited.omitBarePages ? [] : [...pages],
-          durationMinutes: MIN_TOPIC_MINUTES,
-          role: "learn",
-          kind: ROLE_KIND.learn,
-          sortOrder: sortOrder++,
-          practiceVariant: null,
-          sourceLabel: cited.label,
-          ...partFields(chunk),
-        });
+        pushSession(target, topic, "learn", MIN_TOPIC_MINUTES, null, chunk);
         chunkDay = target;
       }
       mark(topicIndex, chunkIndex);
@@ -641,23 +804,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       for (let d = target + 1; d < lastIdx; d += 1) {
         if (dayBudget[d] > dayBudget[target]) target = d;
       }
-      const pages = topic.pageNumbers ?? [];
-      const cited = cite(topic, pages);
-      dayBudget[target] -= MIN_TOPIC_MINUTES;
-      sessions.push({
-        dayIndex: target + 1,
-        calendarDate: studyDayDates[target],
-        topicId: topic.id,
-        topicTitle: topic.title,
-        objective: objectiveFor(topic, "practice"),
-        sourcePages: cited.omitBarePages ? [] : [...pages],
-        durationMinutes: MIN_TOPIC_MINUTES,
-        role: "practice",
-        kind: ROLE_KIND.practice,
-        sortOrder: sortOrder++,
-        practiceVariant: 0,
-        sourceLabel: cited.label,
-      });
+      pushSession(target, topic, "practice", MIN_TOPIC_MINUTES, 0);
       practiceDay = target;
     }
     if (practiceDay >= 0) {
@@ -713,8 +860,28 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
   }
 
+  /**
+   * Konu bloğunun dışındaki adımın yol sırası (30 Ekim 2026): o güne kadar dersi işlenen son konunun
+   * bloğundan sonra, tarih sırasıyla. Uzun aralıklı tekrar konusunun bloğuna konsaydı öğrenci 21 gün
+   * sonraki tekrarı dersin hemen ardından yapardı; tarih aralığın anlamını taşımazdı.
+   */
+  const slotFor = (dayIndex: number) => {
+    let slot = 0;
+    core.forEach((entry, index) => {
+      if (entry.learnDay >= 0 && entry.learnDay <= dayIndex) slot = index;
+    });
+    return slot;
+  };
+  const markInterlude = (dayIndex: number) => {
+    const last = sessions[sessions.length - 1];
+    if (last) sequence.set(last, slotFor(dayIndex) * 1000 + 300 + (dayIndex / Math.max(1, lastIdx + 1)) * 500);
+  };
+  const firstDayOnOrAfter = (iso: string) => studyDayDates.findIndex((date) => date >= iso);
+  const finalStartIdx = Math.max(0, studyDayDates.length - FINAL_STUDY_DAYS);
+
   // Ara sınav öncesi kontrol (28 Ekim 2026): ara sınavdan önceki son çalışma gününe, o güne kadar dersi
   // işlenmiş konular bitince. Ara sınavdan önce hiç ders yoksa ya da gün deneme günüyse konmaz.
+  const checkDays: number[] = [];
   for (const checkpoint of input.checkpoints ?? []) {
     let target = -1;
     for (let d = 0; d < lastIdx; d += 1) if (studyDayDates[d]! < checkpoint.date) target = d;
@@ -742,7 +909,111 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       checkpoint: label,
       checkpointDate: checkpoint.date,
     });
-    mark(topicIndex, 900);
+    markInterlude(target);
+    checkDays.push(target);
+  }
+
+  const lastTouch = new Map<string, string>();
+  for (const session of sessions) {
+    const previous = lastTouch.get(session.topicId);
+    if (!previous || session.calendarDate > previous) lastTouch.set(session.topicId, session.calendarDate);
+  }
+
+  if (planMode === "long" && kept.length) {
+    /**
+     * Uzun planın tarihe bağlı tekrarı (30 Ekim 2026). Canlıda 7,5 ay sonraki finalde ilk konular
+     * Haziran'a kadar bir daha hiç açılmıyordu. Her konu ilk dersinden 21, 45, 90, 150 gün sonra
+     * "Kartlarla tekrar" alır (finalin son haftasına girmeyenler); gün doluysa bir hafta içinde ilk
+     * uygun güne kayar, yer yoksa o aralık atlanır.
+     */
+    for (const [topicIndex, { topic, minutes }] of kept.entries()) {
+      const learnDay = core[topicIndex]!.learnDay;
+      if (learnDay < 0) continue;
+      const learnDate = studyDayDates[learnDay]!;
+      const reviewM = roleMinutes("review", minutes);
+      for (const [pass, offset] of PATH_REVIEW_LADDER_DAYS.entries()) {
+        const from = firstDayOnOrAfter(addDays(learnDate, offset));
+        if (from < 0 || from >= finalStartIdx) break;
+        for (let d = from; d < Math.min(finalStartIdx, from + 7); d += 1) {
+          if (place(d, topic, "review", reviewM, null, null, { longReview: pass + 1 })) {
+            markInterlude(d);
+            const previous = lastTouch.get(topic.id);
+            if (!previous || studyDayDates[d]! > previous) lastTouch.set(topic.id, studyDayDates[d]!);
+            break;
+          }
+        }
+      }
+    }
+
+    // Aylık ara kontrol: öğrenilen konulardan karışık kısa kontrol (en az iki konu işlenmişken).
+    // Öğrencinin kendi ara sınavına bir haftadan yakınsa konmaz; o zaten bir kontrol.
+    const start = studyDayDates[0]!;
+    for (let offset = LONG_CHECK_EVERY_DAYS; ; offset += LONG_CHECK_EVERY_DAYS) {
+      const day = firstDayOnOrAfter(addDays(start, offset));
+      if (day < 0 || day >= finalStartIdx) break;
+      if (checkDays.some((other) => Math.abs(other - day) < 7)) continue;
+      const learned = core.filter((entry) => entry.learnDay >= 0 && entry.learnDay <= day).length;
+      if (learned < 2) continue;
+      const topic = kept[slotFor(day)]!.topic;
+      sessions.push({
+        dayIndex: day + 1,
+        calendarDate: studyDayDates[day]!,
+        topicId: topic.id,
+        topicTitle: topic.title,
+        objective: `${LONG_CHECK_LABEL}: o güne kadar işlediğin konulardan karışık kontrol.`,
+        sourcePages: [],
+        durationMinutes: CHECKPOINT_MINUTES,
+        role: "practice",
+        kind: "focused",
+        sortOrder: sortOrder++,
+        practiceVariant: null,
+        sourceLabel: null,
+        checkpoint: LONG_CHECK_LABEL,
+      });
+      markInterlude(day);
+      checkDays.push(day);
+    }
+  }
+
+  if (!compact && kept.length) {
+    /**
+     * Boş hafta kalmaz (30 Ekim 2026): finalden önceki her haftada en az bir adım. Boş haftaya, o
+     * haftadan önce öğrenilmiş ve en uzun süredir açılmamış konunun tekrarı konur (eşitlikte süresi uzun
+     * olan, yani ağır ya da zor konu). Yük yine günün bütçesinden; tatilde yarım bütçe. Yoğun planda
+     * boş hafta olmadığı için bir şey değişmez.
+     */
+    const weekOf = (iso: string) => addDays(iso, 1 - isoWeekday(iso));
+    const busyWeeks = new Set(sessions.map((session) => weekOf(session.calendarDate)));
+    const weeks = new Map<string, number[]>();
+    for (let d = 0; d < finalStartIdx; d += 1) {
+      const key = weekOf(studyDayDates[d]!);
+      weeks.set(key, [...(weeks.get(key) ?? []), d]);
+    }
+    for (const [week, days] of weeks) {
+      if (busyWeeks.has(week)) continue;
+      const firstDay = days[0]!;
+      const candidates = kept
+        .map((entry, index) => ({ entry, index, learnDay: core[index]!.learnDay }))
+        .filter(({ learnDay }) => learnDay >= 0 && learnDay < firstDay)
+        .sort((a, b) => {
+          const left = lastTouch.get(a.entry.topic.id) ?? "";
+          const right = lastTouch.get(b.entry.topic.id) ?? "";
+          return left.localeCompare(right) || b.entry.minutes - a.entry.minutes || a.index - b.index;
+        });
+      const pick = candidates[0];
+      if (!pick) continue;
+      const middle = days[Math.floor((days.length - 1) / 2)]!;
+      const tryDays = [middle, ...days.filter((d) => d !== middle)];
+      for (const d of tryDays) {
+        const reviewM = roleMinutes("review", pick.entry.minutes);
+        if (place(d, pick.entry.topic, "review", reviewM, null, null, { longReview: 0 })) {
+          markInterlude(d);
+          lastTouch.set(pick.entry.topic.id, studyDayDates[d]!);
+          busyWeeks.add(week);
+          break;
+        }
+      }
+    }
   }
 
   // Last day: mock only (no new learn). Use a synthetic topic if needed.
@@ -751,17 +1022,22 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     title: "Genel deneme",
     pageNumbers: [],
   };
-  place(lastIdx, mockTopic, "mock", Math.min(45, dayBudget[lastIdx] || daily));
+  if (!place(lastIdx, mockTopic, "mock", Math.min(45, dayBudget[lastIdx] || daily))) {
+    // Son gün dersle dolduysa deneme yine kurulur: yolun sonu denemesiz kalmasın.
+    pushSession(lastIdx, mockTopic, "mock", Math.min(45, Math.max(20, Math.round(daily / 2))));
+  }
 
-  // Ensure we never left a learn on last day.
-  for (const session of sessions) {
-    if (session.dayIndex === lastIdx + 1 && session.role === "learn") {
-      session.role = "review";
-      session.kind = ROLE_KIND.review;
-      session.objective = objectiveFor(
-        { id: session.topicId, title: session.topicTitle },
-        "review",
-      );
+  // Ensure we never left a learn on last day (one- or two-study-day plans excepted: no other day).
+  if (!learnsOnLastDay) {
+    for (const session of sessions) {
+      if (session.dayIndex === lastIdx + 1 && session.role === "learn") {
+        session.role = "review";
+        session.kind = ROLE_KIND.review;
+        session.objective = objectiveFor(
+          { id: session.topicId, title: session.topicTitle },
+          "review",
+        );
+      }
     }
   }
 
@@ -897,7 +1173,15 @@ export function redistributeRemainingSchedule(input: {
   // Büyük konunun her dersi ayrı iş: birinci dersi bitiren öğrencinin
   // ikinci dersi plandan düşmesin.
   // Tür de anahtarda: konu testini bitiren öğrencinin aynı konudaki D/Y ve podcast adımı düşmesin.
-  const doneKey = (s: ScheduleSession) => `${s.topicId}:${s.role}:${s.kind}:${s.lessonPart ?? 0}`;
+  // Tarihe bağlı adım (uzun aralıklı tekrar, ara kontrol) kendi günüyle anahtarlanır (30 Ekim 2026): dersin
+  // ertesi günkü tekrarı bitti diye konunun 45 gün sonraki tekrarı, ilk aylık kontrol bitti diye
+  // sonrakiler düşmesin.
+  const doneKey = (s: ScheduleSession) => {
+    const base = `${s.topicId}:${s.role}:${s.kind}:${s.lessonPart ?? 0}`;
+    if (s.longReview != null) return `${base}:long:${s.calendarDate}`;
+    if (s.checkpoint) return `${base}:check:${s.checkpointDate ?? s.calendarDate}`;
+    return base;
+  };
   const doneTopicRoles = new Set(keptCompleted.map(doneKey));
   const merged = [
     ...keptCompleted,
@@ -954,6 +1238,7 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
         ...(s.unitTitle ? { unitTitle: s.unitTitle } : {}),
         ...(practice ? { practiceVariant: Math.max(0, s.practiceVariant ?? 0) } : {}),
         ...(s.checkpoint ? { checkpoint: s.checkpoint } : {}),
+        ...(s.longReview != null ? { longReview: s.longReview } : {}),
       },
     };
   });

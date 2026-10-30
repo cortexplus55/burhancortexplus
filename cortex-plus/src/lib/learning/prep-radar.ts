@@ -132,6 +132,12 @@ export function buildReadinessForecastSeries(input: {
    * Verilirse eğri bugünkü hazırlıktan hedefe bu günde varır; 100'e tırmanmaz.
    */
   daysToTarget?: number | null;
+  /**
+   * Planın kalan dersleri hedefe yetmiyorsa (30 Ekim 2026): planın sonunda varılan yüzde ve günü. Eğri
+   * oraya düz çıkar, hedefe varmaz ("bu tempoyla hedefe henüz ulaşılmaz"); kazanç eğrisi kendi başına
+   * "~X günde" demesin.
+   */
+  planEnd?: { day: number; pct: number } | null;
 }): ReadinessForecastSeries {
   const currentPct = pct(input.currentPct);
   const targetPct = pct(input.targetPct) || 75;
@@ -156,6 +162,14 @@ export function buildReadinessForecastSeries(input: {
       points.push({ day, pct: Math.max(currentPct, Math.min(ceiling, value)) });
     }
     return { points, currentPct, targetPct, horizonDays, hitsTargetOn };
+  }
+  if (input.planEnd && Number.isFinite(input.planEnd.day) && Number.isFinite(input.planEnd.pct) && currentPct < targetPct) {
+    const endDay = Math.max(1, Math.round(input.planEnd.day));
+    const endPct = Math.max(currentPct, Math.min(targetPct - 1, pct(input.planEnd.pct)));
+    for (let day = 0; day <= horizonDays; day += 1) {
+      points.push({ day, pct: Math.round(currentPct + (endPct - currentPct) * Math.min(1, day / endDay)) });
+    }
+    return { points, currentPct, targetPct, horizonDays, hitsTargetOn: null };
   }
   const gain = Math.max(0, Math.min(8, input.gainPerDay));
   // Eğri 100'e doğru kurulur ama hedefte kesilir: hedefe göre kurulan eğri hedefe hiç varmıyordu.

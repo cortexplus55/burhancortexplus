@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CalendarPlus, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
+import { examDayLabel } from "@/lib/learning/exam-time";
 import {
   filterCalendar,
   formatDayLabel,
@@ -24,6 +25,11 @@ const FILTERS: { id: CalendarFilter; label: string }[] = [
 ];
 
 const WEEKDAYS = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"];
+
+/** Sınavın satırı: "31 Eki 10:00 · Sınav · Amfi 2" (saat yoksa "Sınav"; 30 Ekim 2026). */
+function examMetaLabel(item: CalendarItem): string {
+  return item.time || item.place ? examDayLabel({ date: item.date, time: item.time, place: item.place }) : "Sınav";
+}
 
 export function CalendarView({ items }: { items: CalendarItem[] }) {
   const router = useRouter();
@@ -180,7 +186,10 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                title={[holiday ? `${holiday} · ${HOLIDAY_BADGE}` : "", ...dayItems.map((i) => i.title)].filter(Boolean).join(", ") || undefined}
+                title={[
+                  holiday ? `${holiday} · ${HOLIDAY_BADGE}` : "",
+                  ...dayItems.map((i) => (i.time ? `${i.title} ${i.time}` : i.title)),
+                ].filter(Boolean).join(", ") || undefined}
               >
                 <span>{Number(iso.slice(8, 10))}</span>
                 {dayItems.length ? (
@@ -242,7 +251,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                     )}
                   </span>
                   <span className="cp-cal-item-meta">
-                    {item.kind === "exam" ? "Sınav" : "Etkinlik"}
+                    {item.kind === "exam" ? examMetaLabel(item) : "Etkinlik"}
                     {item.subject ? ` · ${item.subject}` : ""} ·{" "}
                     {formatDayLabel(item.date, today)}
                   </span>
