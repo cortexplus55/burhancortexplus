@@ -53,6 +53,18 @@ export function prepStars(kind: string, score: number | null | undefined, total:
   return LEARNING_STEP_STARS;
 }
 
+/**
+ * Hazırlık etkinliğinin yıldız anahtarı (30 Ekim 2026, canlı tur). Yıldız her denemenin kimliğiyle yazılıyordu; "Tekrar
+ * incele" ve "Dersi tekrarla" her seferinde yeni deneme açtığı için aynı ders dakikada bir +10 veriyordu (sıralama
+ * şişebiliyordu). Kayıtlı içeriğin tekrarı (`reviewed` / `replayed`) düğüm başına günde bir kez sayılır; yeni yazılan
+ * içerik eskisi gibi deneme başına.
+ */
+export function prepStarRef(input: { attemptId: string; nodeId: string; payload: unknown; day: string }): string {
+  const row = input.payload && typeof input.payload === "object" ? (input.payload as Record<string, unknown>) : {};
+  if (row.reviewed === true || row.replayed === true) return `review:${input.nodeId}:${input.day}`;
+  return `attempt:${input.attemptId}`;
+}
+
 /** Düello (Astra'daki okul maçının yeri): oynamak 30, doğru başına 10, en çok 130. */
 export function duelStars(correct: number | null | undefined): number {
   return Math.min(130, 30 + 10 * Math.max(0, Math.floor(Number(correct ?? 0))));
