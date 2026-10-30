@@ -1573,6 +1573,30 @@ kayıt: fotoğraflar 25-50 sn arayla tek tek (kurucu tek şeritteydi), her biri 
 
 Bekçi: `sinirsiz-hizli-yukleme.test.ts`, `upload-batch.test.ts`, `photo-documents.test.ts`, `upload-mime.test.ts`.
 
+## Fotoğraf seti ve hızlı başlatma (31 Ekim 2026) — tek belge, hazır olanla başla, kalanı arkada
+
+Ürün sahibi: "100 fotoğraf = 100 ayrı dosya çöplüğü olmasın; öğrenci 25-30 sn'de hazırlığa girsin, kalan sayfalar arkada
+işlensin; sadece fotoğraf değil bütün dökümanlar." #438'den sonra canlı ölçüm (30 fotoğraf, 30 ayrı belge, kurucu): okuma
+43 sn, **konu haritası ~150 sn** (tek çağrı 22 bin jeton girdi, 9.500 jeton çıktı, normal işlemde ~90 sn + onarım 30 sn).
+Darboğaz okuma değil haritaydı. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Tek seçimde **2+ fotoğraf** tek taranmış PDF olur: "Ders Notu Fotoğrafları (N Sayfa)", seçim sırasıyla; cihazda 1600 piksel, JPEG %80 (ölçüm: okunan metin 2048 pikselle aynı, ~285 KB). Yazıcı bağımlılıksız (her sayfa tek DCTDecode resim, `/CortexPage n`, üretici damgası). 45 MB'ı aşan set aralıklı adla bölünür. Tarayıcının çözemediği fotoğraf (HEIC'i çözemeyen tarayıcı) sete girmez, tek dosya gider; sete iki sayfa giremiyorsa set kurulmaz | `photo-set-pdf.ts`, `photo-set-client.ts` |
+| Sunucu fotoğraf setini **çizmez**: gömülü JPEG doğrudan okumaya gider (taranmış sayfada en yavaş adım çizimdi), havuz tavandan (24) başlar. Biçim tutmazsa (başka PDF, kesik JPEG) sayfa eskisi gibi çizilir. Kredi ve fotoğraf hakkı taranmış PDF'le aynı (sayfa 5 + okuma 6 = tek fotoğrafla aynı) | `photo-set-read.ts`, `pdf-ingestion.ts` `readPdfBatch` |
+| **Hızlı başlatma** (yalnız ücretli hesapta ve kurucuda; ücretsizin 5 sayfası bölünmeye değmez): 15+ fotoğrafta ilk 10 sayfa ayrı küçük parça ("Sayfa 1–10") hemen yüklenip okunur, kalanı ("Sayfa 11–N") küçültülürken arkada gider. Belgeler sihirbazda: okunmuş materyal varken "Devam et" yüklemeyi beklemez ("Hazır olanlarla devam et"). Konu haritası **yalnız harita anındaki belgelerle** (`mappedIdsRef`); kurulum yolda olanların kimliğini en çok 45 sn bekler (okumasını değil) ve `pendingDocumentIds` ile gönderir | `exam-create-wizard.tsx`, `create/route.ts` |
+| Bekleyen belgeler hazırlığa bağlı tabloda (`exam_prep_pending_materials`, göç `20261031130000`, satır güvenliği açık, politika yok; hazırlık silinince CASCADE). Hazırlık sayfası şeridi yalnız bekleyen varken bağlanır (sunucu sayar): "⚡ İlk konuların hazır! Kalan sayfalar arka planda işleniyor (34/90)…" → okutur (sekme kapandıysa kaldığı yerden), hazırlığın konu adlarıyla tek harita, **materyal ekle ile aynı** `add-source` → "✓ Kalan sayfalar yoluna eklendi"; eklenen satır silinir. Okunamayan belge söylenir, "Okunamayanları kaldır". Aynı tarayıcıda iki sekme aynı anda eklemesin diye kısa kilit | `pending-materials.ts`, `pending-materials/route.ts`, `pending-materials-banner.tsx`, `prep-attach-client.ts` |
+| "Hazır olanlarla başla" **her belge türü** için: PDF, Word, slayt, metin de okunurken öğrenci okunmuş olanla ilerleyebilir; kalanı aynı bekleyen yolla eklenir. Tek büyük belge bölünmez (dosyayı biz bölemeyiz); onun için kazanç hızlı okuma ve hızlı harita | aynı |
+| **Konu haritası kurulumda Plus/Sigma/kurucuda hızlı işlem** (öğrenci bekliyor; 18-19 Ekim kararıyla aynı kural). Sonradan eklenen materyalin haritası (`prepId`) normal işlem. `generateJson` `fast` seçeneği, kullanım `<model>-fast` | `generate.ts`, `outline-oneshot.ts`, `pdf-learning-v2.ts`, `process/route.ts` |
+| Telefon: hazırlık amacında fotoğraflar telefonda sete girer (hızlı başlatma dahil); set PDF'i 4,5 MB gövde sınırını aştığı için **imzalı yüklemeyle** depoya gider (`/api/uploads/phone/[token]/prepare` + `/complete`, masaüstüyle aynı doğrulama `completeDocumentUpload`). Ödev (sohbet) amacında görseller eskisi gibi tek tek. Eski tek dosyalı kodda set tek PDF | `phone-upload-client.tsx`, `phone-session-guard.ts`, `complete-upload.ts` |
+| Sayaç: "📸 Fotoğraflar sıkıştırılıyor ve yükleniyor: 42 / 100 • Sayfalar okunuyor: 10 / 100" | `photoSetProgressLine` |
+
+**Göç sırası:** `20261031130000_prep_pending_materials.sql` yalnız ekleme; kod onsuz da çalışır (bekleyen kaydı yazılmaz, şerit
+görünmez, belge Belgelerim'de kalır) ama hızlı başlatmanın kalanı hazırlığa eklenmez — kod yayınından önce SQL ekranında
+uygulanır, aynı anda `schema_migrations` satırı (`on conflict do nothing`).
+
+Bekçi: `foto-seti-hizli-baslatma.test.ts` (pdf.js açılışı, doğrudan JPEG, bölme, göç PGlite'ta), `bekleyen-materyal-seridi.test.tsx`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

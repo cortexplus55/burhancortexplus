@@ -34,6 +34,7 @@ import {
   WIZARD_STEP_ORDER,
   batchUploadFailedLine,
   fileProgressLine,
+  photoSetProgressLine,
   readingNow,
   listSegments,
   redundantUnitHeader,
@@ -77,6 +78,7 @@ import {
 } from "@/lib/documents/upload-labels";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import { uploadDocumentFile } from "@/lib/documents/upload-client";
+import { buildPhotoSet, splitSelection } from "@/lib/documents/photo-set-client";
 import {
   DEFAULT_FAMILIARITY,
   FAMILIARITY_OPTIONS,
@@ -121,6 +123,8 @@ const BUILD_STAGES = [...DOCUMENT_ANALYSIS_STAGES];
 */
 const COURSE_MAP_RETRIES = 6;
 const COURSE_MAP_RETRY_DELAY_MS = 2_500;
+/** Kurulumda yüklemesi süren dosyanın kimliği bu kadar beklenir (okuması değil); gelmezse kurulum onsuz sürer. */
+const UPLOAD_SETTLE_MS = 45_000;
 const MODALITIES = STUDY_MODALITY_CHOICES;
 type ChosenModality = (typeof STUDY_MODALITY_CHOICES)[number]["id"];
 
@@ -351,6 +355,23 @@ export function ExamCreateWizard({
     total: number;
     current: string | null;
   } | null>(null);
+  /** Fotoğraf seti (31 Ekim 2026): küçültülen ve okunan sayfa sayacı. */
+  const [photoProgress, setPhotoProgress] = useState<{
+    encoded: number;
+    total: number;
+    pagesRead: number;
+    reading: boolean;
+  } | null>(null);
+  /**
+   * Yolda olan yüklemeler (hızlı başlatma, 31 Ekim 2026): öğrenci hazır olanlarla ilerlerken bunlar sürer; kurulumda
+   * kimliği bilinenler hazırlığa bekleyen olarak bağlanır, hazırlık sayfası okutup ekler.
+   */
+  const inFlightRef = useRef(new Map<string, { documentId: string | null; uploaded: Promise<string | null> }>());
+  /** Okuması ağ / zaman aşımıyla yarıda kalan belgeler: kurulumda bekleyen olarak gider, hazırlık sayfası sürdürür. */
+  const stalledRef = useRef(new Set<string>());
+  /** Konu haritasının kurulduğu belgeler: kurulum yalnız bunlarla; sonradan bitenler bekleyen. */
+  const mappedIdsRef = useRef<string[] | null>(null);
+  const [startNote, setStartNote] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   /** Genişlik panelleri (29 Ekim 2026): metin yapıştır, bağlantı ekle, hazır müfredat. */
@@ -689,6 +710,7 @@ export function ExamCreateWizard({
       const ids = materials.map((item) => item.id);
       const primary = ids[0];
       if (!primary) return;
+      mappedIdsRef.current = ids;
       setIntakeAlert(null);
       setMapRetry(false);
       setStep("building");
@@ -932,7 +954,7 @@ export function ExamCreateWizard({
       sizeBytes: number | null;
     },
     /** Paralel toplu yüklemede dosya başına ilerleme satırı yazılmaz; "3/7 dosya hazır" satırı yeter. */
-    options: { quiet?: boolean } = {},
+    options: { quiet?: boolean; onPages?: (done: number, total: number) => void } = {},
   ): Promise<PoolOutcome> {
     const quiet = options.quiet === true;
     writePendingDocProcess({
@@ -959,6 +981,11 @@ export function ExamCreateWizard({
           deferMap: true,
         }),
       onProgress: (progress) => {
+        if (options.onPages) {
+          const total = Number(progress.pageCount);
+          const next = Number(progress.nextPage);
+          if (Number.isFinite(total) && total > 0 && Number.isFinite(next)) options.onPages(Math.max(0, next - 1), total);
+        }
         if (quiet) return;
         const line = formatDocumentProcessProgress(progress);
         if (line) setProcessDetail(line);
@@ -1004,6 +1031,7 @@ export function ExamCreateWizard({
       setProcessDetail(keepPending ? "İlerlemen duruyor — kaldığın yerden devam edebilirsin." : null);
       setProcessPercent(null);
       if (keepPending) {
+        stalledRef.current.add(input.documentId);
         return false;
       }
       clearPendingDocProcess({ documentId: input.documentId });
@@ -1022,6 +1050,7 @@ export function ExamCreateWizard({
       return false;
     }
     clearPendingDocProcess({ documentId: input.documentId });
+    stalledRef.current.delete(input.documentId);
     setProcessAlert(null);
     setProcessDetail(null);
     setProcessPercent(null);
@@ -1069,7 +1098,7 @@ export function ExamCreateWizard({
   async function takeFile(
     file: File | undefined,
     /** Toplu yüklemenin parçası: "yükleniyor" durumu ve hata bildirimi topluca tutulur. */
-    batch: { quiet: boolean; failed?: string[] } | null = null,
+    batch: { quiet: boolean; failed?: string[]; onPages?: (done: number, total: number) => void } | null = null,
   ): Promise<PoolOutcome> {
     if (!file) return false;
     const reject = (message: string): PoolOutcome => {
@@ -1082,8 +1111,19 @@ export function ExamCreateWizard({
       return reject("PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.");
     }
     if (!batch) setUploading(true);
+    const flightKey = `${file.name}:${file.size}:${Math.random().toString(36).slice(2)}`;
+    let settle: (id: string | null) => void = () => {};
+    const flight = {
+      documentId: null as string | null,
+      uploaded: new Promise<string | null>((resolve) => {
+        settle = resolve;
+      }),
+    };
+    inFlightRef.current.set(flightKey, flight);
     try {
       const uploaded = await uploadDocumentFile(file);
+      flight.documentId = uploaded.documentId;
+      settle(uploaded.documentId);
       // Authoritative server page/quota check before the long OCR wait.
       if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
         try {
@@ -1142,47 +1182,118 @@ export function ExamCreateWizard({
           fileName: file.name,
           sizeBytes: file.size,
         },
-        { quiet: batch?.quiet === true },
+        { quiet: batch?.quiet === true, onPages: batch?.onPages },
       );
     } catch (error) {
       return reject(error instanceof Error ? error.message : "Bağlantı hatası.");
     } finally {
+      settle(null);
+      inFlightRef.current.delete(flightKey);
       if (!batch) setUploading(false);
     }
+  }
+
+  /**
+   * Fotoğraf seti (31 Ekim 2026, ürün sahibi: "100 fotoğraf = 100 ayrı dosya çöplüğü olmasın"): seçilen fotoğraflar
+   * cihazda küçültülüp tek taranmış PDF'e girer ("Ders Notu Fotoğrafları (N Sayfa)"). Ücretli hesapta ve kurucuda
+   * çok fotoğrafta ilk sayfalar ayrı küçük parça olarak hemen gider: okunur okunmaz öğrenci "Hazır olanlarla devam
+   * et" ile ilerler, kalan parça arkada okunur ve hazırlığa eklenir. Çözülemeyen fotoğraf tek dosya olarak gider.
+   */
+  async function takePhotoSet(photos: File[], failed: string[], names: string[]) {
+    const reads = new Map<number, number>();
+    let encoded = 0;
+    let reading = false;
+    const report = () =>
+      setPhotoProgress({
+        encoded,
+        total: photos.length,
+        pagesRead: [...reads.values()].reduce((sum, value) => sum + value, 0),
+        reading,
+      });
+    report();
+    const parts: Promise<PoolOutcome>[] = [];
+    const { leftovers } = await buildPhotoSet(photos, {
+      fastStart: paidUploads,
+      onEncoded: (done) => {
+        encoded = done;
+        report();
+      },
+      onPart: (part) => {
+        names.push(part.file.name);
+        reading = true;
+        reads.set(part.from, 0);
+        report();
+        parts.push(
+          takeFile(part.file, {
+            quiet: true,
+            failed,
+            onPages: (done) => {
+              reads.set(part.from, Math.min(done, part.pages));
+              report();
+            },
+          }).then((outcome) => {
+            if (outcome === true) reads.set(part.from, part.pages);
+            report();
+            return outcome;
+          }),
+        );
+      },
+    });
+    const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
+    names.push(...leftovers.map((file) => file.name));
+    await Promise.all([
+      ...parts,
+      leftovers.length ? runPool(leftovers, lanes, (file) => takeFile(file, { quiet: true, failed })) : null,
+    ]);
   }
 
   async function takeFiles(list: FileList | File[] | undefined) {
     // Belge sayısında ürün sınırı yok (31 Ekim 2026): seçilen her dosya alınır; hak dolunca durulur.
     const batch = list ? [...list] : [];
     if (!batch.length) return;
+    const { photos, others } = splitSelection(batch);
     // Ücretli hesapta ve kurucuda en çok altı dosya aynı anda (upload-batch.ts); ücretsizde sırayla.
     const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
     const existing = new Set(materialsRef.current.map((material) => material.id));
     const reading: string[] = [];
     const failed: string[] = [];
+    const photoNames: string[] = [];
     let done = 0;
     const report = () =>
-      setFileProgress({ done, total: batch.length, current: readingNow(reading) });
-    report();
+      setFileProgress({ done, total: others.length, current: readingNow(reading) });
+    if (others.length) report();
     setUploading(true);
     try {
-      await runPool(batch, lanes, async (file) => {
-        reading.push(file.name);
-        report();
-        const outcome = await takeFile(file, { quiet: batch.length > 1, failed });
-        reading.splice(reading.indexOf(file.name), 1);
-        if (outcome === true) done += 1;
-        report();
-        return outcome;
-      });
-      if (lanes > 1) {
-        setMaterials((current) => inSelectionOrder(current, existing, batch.map((file) => file.name)));
+      await Promise.all([
+        photos.length ? takePhotoSet(photos, failed, photoNames) : null,
+        others.length
+          ? runPool(others, lanes, async (file) => {
+              reading.push(file.name);
+              report();
+              const outcome = await takeFile(file, { quiet: batch.length > 1, failed });
+              reading.splice(reading.indexOf(file.name), 1);
+              if (outcome === true) done += 1;
+              report();
+              return outcome;
+            })
+          : null,
+      ]);
+      // Seçim sırası: fotoğraf seti seçimdeki ilk fotoğrafın yerinde (kursun ilk belgesi sırayla belirlenir).
+      const firstPhoto = photos.length ? batch.indexOf(photos[0]!) : -1;
+      const firstOther = others.length ? batch.indexOf(others[0]!) : -1;
+      const otherNames = others.map((file) => file.name);
+      const order = firstPhoto >= 0 && (firstOther < 0 || firstPhoto < firstOther)
+        ? [...photoNames, ...otherNames]
+        : [...otherNames, ...photoNames];
+      if (lanes > 1 || photos.length) {
+        setMaterials((current) => inSelectionOrder(current, existing, order));
       }
       // Tek bildirim: yüklenemeyen dosyalar (okunamayanlar "Tekrar dene" listesinde ayrıca durur).
       if (failed.length) toast.error(batchUploadFailedLine(failed));
     } finally {
       setUploading(false);
       setFileProgress(null);
+      setPhotoProgress(null);
     }
   }
 
@@ -1200,6 +1311,8 @@ export function ExamCreateWizard({
     batch.total += 1;
     setUploading(true);
     setFileProgress({ done: batch.done, total: batch.total, current: null });
+    const flightKey = `phone:${remote.documentId}`;
+    inFlightRef.current.set(flightKey, { documentId: remote.documentId, uploaded: Promise.resolve(remote.documentId) });
     void run(() =>
       processAndRemember({ documentId: remote.documentId, fileName: remote.fileName, sizeBytes: null }, { quiet: true }),
     )
@@ -1209,6 +1322,7 @@ export function ExamCreateWizard({
       })
       .catch(() => batch.failed.push(remote.fileName))
       .finally(() => {
+        inFlightRef.current.delete(flightKey);
         batch.finished += 1;
         setFileProgress({ done: batch.done, total: batch.total, current: null });
         if (batch.finished < batch.total) return;
@@ -1219,10 +1333,36 @@ export function ExamCreateWizard({
       });
   }
 
+  /**
+   * Hızlı başlatma: kurulum haritanın belgeleriyle; o anda yolda olan ya da sonradan biten belgeler hazırlığa bekleyen
+   * olarak bağlanır. Yüklemesi süren dosyanın kimliği gelene kadar kısa süre beklenir (okuması beklenmez).
+   */
+  async function pendingUploadIds(mapped: readonly string[]): Promise<string[]> {
+    const waiting = [...inFlightRef.current.values()].filter((flight) => !flight.documentId);
+    if (waiting.length) {
+      setStartNote(WIZARD_COPY.waitingUploads);
+      await Promise.race([
+        Promise.all(waiting.map((flight) => flight.uploaded)),
+        new Promise((resolve) => setTimeout(resolve, UPLOAD_SETTLE_MS)),
+      ]);
+      setStartNote(null);
+    }
+    const known = new Set(mapped);
+    const failedIds = new Set(failedMaterials.map((item) => item.documentId));
+    const ids = [
+      ...materialsRef.current.map((material) => material.id),
+      ...[...inFlightRef.current.values()].map((flight) => flight.documentId),
+      ...stalledRef.current,
+    ].filter((id): id is string => typeof id === "string" && !known.has(id) && !failedIds.has(id));
+    return [...new Set(ids)];
+  }
+
   async function startPlan() {
     if (!examDate || !topics.length) return;
     setStarting(true);
     try {
+      const mappedIds = mappedIdsRef.current?.length ? mappedIdsRef.current : documentIds;
+      const pendingDocumentIds = await pendingUploadIds(mappedIds);
       const res = await fetch("/api/learning/exam-prep/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1233,8 +1373,9 @@ export function ExamCreateWizard({
           examDate,
           targetScore: target,
           dailyMinutes,
-          documentId: documentIds[0],
-          documentIds,
+          documentId: mappedIds[0],
+          documentIds: mappedIds,
+          ...(pendingDocumentIds.length ? { pendingDocumentIds } : {}),
           topicOrderManual: orderEdited,
           hardTopics: equalFocus ? [] : focusTopics,
           familiarity,
@@ -1263,6 +1404,9 @@ export function ExamCreateWizard({
       }
       if (draftPushTimer.current) window.clearTimeout(draftPushTimer.current);
       void dropExamWizardDraft();
+      // Bekleyen belgeler artık hazırlığın (hazırlık sayfası okutup ekler): sihirbazın yarım kalan kaydı silinir,
+      // yoksa bir sonraki kurulum onları kendi materyali sanar.
+      for (const id of pendingDocumentIds) clearPendingDocProcess({ documentId: id });
       if (typeof payload.prepId === "string") {
         setFocusPrepCookieClient(payload.prepId);
       }
@@ -1272,6 +1416,7 @@ export function ExamCreateWizard({
       toast.error("Bağlantı hatası.");
     } finally {
       setStarting(false);
+      setStartNote(null);
     }
   }
 
@@ -1541,7 +1686,12 @@ export function ExamCreateWizard({
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
             <p className="apw-drop-title">Dosyanı buraya bırak</p>
             <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
-            {fileProgress ? (
+            {photoProgress ? (
+              <p className="apw-drop-hint" role="status" aria-live="polite">
+                {photoSetProgressLine(photoProgress)}
+              </p>
+            ) : null}
+            {fileProgress && fileProgress.total > 0 ? (
               <p className="apw-drop-hint" role="status" aria-live="polite">
                 {fileProgressLine(fileProgress.done, fileProgress.total, fileProgress.current)}
               </p>
@@ -1673,14 +1823,25 @@ export function ExamCreateWizard({
               onApply={applyMaterialNotes}
             />
           ) : (
-            <button
-              type="button"
-              className="apw-cta"
-              disabled={!documentIds.length || uploading || checkingMaterials}
-              onClick={() => void continueFromMaterial()}
-            >
-              {checkingMaterials ? "Belgeler karşılaştırılıyor…" : WIZARD_COPY.continue}
-            </button>
+            <>
+              {/* Hızlı başlatma (31 Ekim 2026): okunmuş materyal varken kalanı beklemeden ilerlenir; kalan sayfalar
+                  hazırlığa bekleyen olarak bağlanır ve hazırlık sayfasında arkada eklenir. */}
+              {uploading && documentIds.length ? (
+                <p className="apw-drop-hint" role="note">{WIZARD_COPY.continueEarlyHint}</p>
+              ) : null}
+              <button
+                type="button"
+                className="apw-cta"
+                disabled={!documentIds.length || checkingMaterials}
+                onClick={() => void continueFromMaterial()}
+              >
+                {checkingMaterials
+                  ? "Belgeler karşılaştırılıyor…"
+                  : uploading
+                    ? WIZARD_COPY.continueEarly
+                    : WIZARD_COPY.continue}
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -1981,6 +2142,11 @@ export function ExamCreateWizard({
           >
             {starting ? WIZARD_COPY.creating : PREP_HOME_COPY.startLearning}
           </button>
+          {startNote ? (
+            <p className="apw-drop-hint" role="status" aria-live="polite">
+              {startNote}
+            </p>
+          ) : null}
         </section>
       ) : null}
 

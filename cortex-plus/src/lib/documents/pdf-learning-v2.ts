@@ -748,6 +748,8 @@ export async function runCourseMapRound(
     fromCourse?: boolean;
     /** The student asked to rebuild a ready map. */
     rebuild?: boolean;
+    /** Öğrenci kurulumda haritayı bekliyor ve hızlı işlem açık (Plus/Sigma, kurucu). */
+    fast?: boolean;
   },
 ): Promise<CourseMapResult> {
   const now = input.now ?? Date.now;
@@ -926,6 +928,7 @@ export async function runCourseMapRound(
               previousOutline,
               deadlineAt: deadlineAt - POST_CALL_RESERVE_MS,
               now,
+              fast: input.fast === true,
               keyFor: (stage, part) =>
                 `outline:${courseId}:${material.contentHash}:${meta!.attemptId}:${stage}${part ? `:part${part}` : ""}`,
               onCallStart: async (keys) => {

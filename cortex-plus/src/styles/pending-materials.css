@@ -1,0 +1,73 @@
+/* Hızlı başlatmanın şeridi (31 Ekim 2026): hazırlık sayfasında, kalan sayfalar arkada okunurken. Durum renkleri
+   altın değil (tasarım kuralı): ilerleme mavi, biten yeşil, hata kırmızı. */
+.cp-pending-materials {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(100%, 36rem);
+  margin: 0 auto 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1, #141416);
+  min-width: 0;
+}
+
+.cp-pending-materials-title {
+  margin: 0;
+  font-size: var(--t-body, 0.95rem);
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-pending-materials-line {
+  margin: 0;
+  font-size: var(--t-small, 0.85rem);
+  color: var(--cp-muted);
+  overflow-wrap: anywhere;
+}
+
+.cp-pending-materials-bar {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--cp-surface-3, #242424);
+  overflow: hidden;
+}
+
+.cp-pending-materials-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c-action, #4353f3);
+  transition: width 0.4s ease;
+}
+
+.cp-pending-materials--done .cp-pending-materials-bar > span {
+  background: var(--cp-success);
+}
+
+.cp-pending-materials--failed {
+  border-color: color-mix(in srgb, var(--cp-danger) 40%, var(--cp-border));
+}
+
+.cp-pending-materials-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cp-pending-materials-actions button {
+  min-height: 2rem;
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border-strong, var(--cp-border));
+  background: transparent;
+  color: var(--cp-text);
+  font-size: var(--t-small, 0.85rem);
+  cursor: pointer;
+}
+
+.cp-pending-materials-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

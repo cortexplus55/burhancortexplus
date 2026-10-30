@@ -3,16 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { compressImageForUpload } from "@/lib/documents/image-compress";
+import { buildPhotoSet, splitSelection } from "@/lib/documents/photo-set-client";
+import { createClient } from "@/lib/supabase/client";
 import "@/styles/parity-shell.css";
 
 /** Telefondan aynı anda kaç dosya gönderilir: mobil ağı boğmadan sırayı hızlandırır. */
 const PHONE_SEND_LANES = 3;
+/** "Yoğun" (429) cevabında imzalı yüklemenin yeniden denenmesi. */
+const PREPARE_RETRIES = 5;
 
 /**
  * Telefondan yükleme sayfası (QR). 31 Ekim 2026: kod artık çok dosya alır (göç `20261031120000_phone_upload_many`);
  * öğrenci galeriden onlarca fotoğrafı birden seçer, her fotoğraf göndermeden önce küçültülür (`image-compress.ts`:
  * 3,5 MB → ~0,5 MB; sunucu gövde sınırı 4,5 MB) ve sayfa açık kaldıkça yenileri eklenebilir. Sunucu eski şemadaysa
  * ilk dosyadan sonra "kullanıldı" der; sayfa bunu eskisi gibi gösterir.
+ *
+ * Fotoğraf seti (31 Ekim 2026): hazırlık için seçilen fotoğraflar telefonda tek taranmış PDF'e girer
+ * ("Ders Notu Fotoğrafları (N Sayfa)"); çok fotoğrafta ilk sayfalar ayrı küçük parça olarak hemen gider, bilgisayarda
+ * öğrenci onlarla hemen ilerler. PDF 4,5 MB gövde sınırını aştığı için imzalı yüklemeyle doğrudan depoya gider.
+ * Ödev (sohbet) amacında fotoğraflar eskisi gibi tek tek gider: sohbet görsel bekliyor.
  */
 export function PhoneUploadClient({
   token,
@@ -30,6 +39,7 @@ export function PhoneUploadClient({
   const [sent, setSent] = useState<string[]>([]);
   const [failed, setFailed] = useState<string[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [encoding, setEncoding] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,34 +87,122 @@ export function PhoneUploadClient({
     }
   }
 
+  /** Büyük dosya (fotoğraf seti PDF'i) imzalı yüklemeyle: bayt doğrudan depoya, uç yalnız imzalar ve doğrular. */
+  async function sendSigned(file: File): Promise<"ok" | "failed" | "stop"> {
+    try {
+      let prepareRes: Response;
+      for (let attempt = 0; ; attempt += 1) {
+        prepareRes = await fetch(`/api/uploads/phone/${token}/prepare`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, mimeType: file.type, sizeBytes: file.size }),
+        });
+        if (prepareRes.status !== 429 || attempt >= PREPARE_RETRIES) break;
+        await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
+      }
+      const prepared = (await prepareRes.json().catch(() => ({}))) as {
+        documentId?: string; path?: string; token?: string; mimeType?: string; error?: string;
+      };
+      if (prepared.error === "expired") {
+        setStatus("expired");
+        return "stop";
+      }
+      if (prepared.error === "used") {
+        setStatus("used");
+        return "stop";
+      }
+      if (!prepareRes.ok || !prepared.documentId || !prepared.path || !prepared.token || !prepared.mimeType) return "failed";
+      const { error } = await createClient().storage.from("documents").uploadToSignedUrl(prepared.path, prepared.token, file, {
+        contentType: prepared.mimeType,
+        upsert: false,
+      });
+      if (error) return "failed";
+      const completeRes = await fetch(`/api/uploads/phone/${token}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId: prepared.documentId }),
+      });
+      const completed = (await completeRes.json().catch(() => ({}))) as { fileName?: string; error?: string };
+      if (completeRes.ok) {
+        setSent((current) => [...current, completed.fileName ?? file.name]);
+        return "ok";
+      }
+      if (completed.error === "expired") {
+        setStatus("expired");
+        return "stop";
+      }
+      if (completed.error === "used") {
+        setStatus("used");
+        return "stop";
+      }
+      return "failed";
+    } catch {
+      return "failed";
+    }
+  }
+
   async function sendFiles(list: FileList | null) {
     const files = list ? [...list] : [];
     if (!files.length) return;
-    // Eski şemada kod tek dosya alır: yalnız ilki gider.
-    const queue = many ? files : files.slice(0, 1);
+    // Hazırlıkta fotoğraflar tek belgede birleşir; ödevde (sohbet) her görsel ayrı gider.
+    const { photos, others } = purpose === "hazirlik" ? splitSelection(files) : { photos: [] as File[], others: files };
+    // Eski şemada kod tek dosya alır: fotoğraf seti varsa o (tek PDF), yoksa ilk dosya.
+    const loose = many ? others : photos.length ? [] : others.slice(0, 1);
     setBusy(true);
     setFailed([]);
     let done = 0;
-    let next = 0;
+    let total = loose.length;
     let stopped = false;
-    setProgress({ done, total: queue.length });
-    const lane = async () => {
-      while (!stopped && next < queue.length) {
-        const file = queue[next]!;
-        next += 1;
-        const outcome = await sendFile(file);
-        if (outcome === "stop") stopped = true;
-        if (outcome === "failed") setFailed((current) => [...current, file.name]);
-        done += 1;
-        setProgress({ done, total: queue.length });
+    const report = () => setProgress({ done, total });
+    report();
+    const tally = (name: string, outcome: "ok" | "failed" | "stop") => {
+      if (outcome === "stop") stopped = true;
+      if (outcome === "failed") setFailed((current) => [...current, name]);
+      done += 1;
+      report();
+    };
+    const sendQueue = async (queue: File[]) => {
+      let next = 0;
+      const lane = async () => {
+        while (!stopped && next < queue.length) {
+          const file = queue[next]!;
+          next += 1;
+          tally(file.name, await sendFile(file));
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(PHONE_SEND_LANES, queue.length) }, lane));
+    };
+    const sendSet = async () => {
+      if (!photos.length) return;
+      const parts: Promise<void>[] = [];
+      setEncoding({ done: 0, total: photos.length });
+      const { leftovers } = await buildPhotoSet(photos, {
+        // Hızlı başlatma: ilk sayfalar ayrı parça (bilgisayarda öğrenci onlarla hemen ilerler). Eski şemada tek parça.
+        fastStart: many,
+        onEncoded: (encoded, count) => setEncoding({ done: encoded, total: count }),
+        onPart: (part) => {
+          total += 1;
+          report();
+          parts.push((stopped ? Promise.resolve("stop" as const) : sendSigned(part.file)).then((outcome) => tally(part.file.name, outcome)));
+        },
+      });
+      setEncoding(null);
+      await Promise.all(parts);
+      // Telefonun çözemediği fotoğraf (nadiren) tek dosya olarak gider; eski şemada set kurulamadıysa yalnız ilki.
+      const rest = many ? leftovers : parts.length ? [] : leftovers.slice(0, 1);
+      if (rest.length && !stopped) {
+        total += rest.length;
+        report();
+        await sendQueue(rest);
       }
     };
     try {
-      await Promise.all(Array.from({ length: Math.min(PHONE_SEND_LANES, queue.length) }, lane));
+      await Promise.all([sendSet(), sendQueue(loose)]);
       if (!many && !stopped) setStatus("used");
     } finally {
       setBusy(false);
       setProgress(null);
+      setEncoding(null);
     }
   }
 
@@ -145,7 +243,9 @@ export function PhoneUploadClient({
               onClick={() => inputRef.current?.click()}
             >
               <Upload className="mr-2 inline h-4 w-4" aria-hidden />
-              {busy && progress
+              {busy && encoding
+                ? `📸 Fotoğraflar hazırlanıyor… ${encoding.done}/${encoding.total}`
+                : busy && progress
                 ? `Gönderiliyor… ${progress.done}/${progress.total}`
                 : sent.length
                   ? "Daha fazla dosya seç"

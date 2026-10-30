@@ -16,6 +16,7 @@ import { chunkText, embedTexts } from "@/lib/rag/pipeline";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 import { cappedPageTotal, freePagesRemaining } from "@/lib/documents/free-pages";
+import { photoSetRenderedPages } from "@/lib/documents/photo-set-read";
 
 /** Default pages per step; shrinks when the deadline is near. */
 export const PDF_PAGES_PER_STEP = 40;
@@ -487,7 +488,11 @@ export async function readPdfBatch(
     let renderMs = 0;
     let renderError: unknown = null;
     let renderDone = false;
-    const rendering = renderPdfPages(buffer, pages.length, firstPage, { onPage: takePage })
+    // Fotoğraf seti (31 Ekim 2026, `photo-set-pdf.ts`): sayfa zaten tek JPEG; çizilmeden okumaya gider.
+    const photoPages = photoSetRenderedPages(buffer, firstPage, pages.length);
+    const rendering = (photoPages
+      ? Promise.resolve({ pages: photoPages })
+      : renderPdfPages(buffer, pages.length, firstPage, { onPage: takePage }))
       .then((rendered) => {
         if (rendered.pages.length !== pages.length) throw new Error("scan_unreadable");
         rendered.pages.forEach(takePage);
@@ -503,8 +508,9 @@ export async function readPdfBatch(
 
     const ocrStarted = Date.now();
     const maxLimit = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
+    // Fotoğraf setinin sayfaları küçük (1600 piksel) ve hepsi okunacak: havuz tavandan başlar, 429'da yine yarıya iner.
     let limitNow = Math.max(1, Math.min(
-      rememberedOcrLimit(documentId) ?? OCR_START_CONCURRENCY,
+      rememberedOcrLimit(documentId) ?? (photoPages ? OCR_PAGE_CONCURRENCY : OCR_START_CONCURRENCY),
       maxLimit,
     ));
     const limitStart = limitNow;
@@ -575,7 +581,7 @@ export async function readPdfBatch(
     if (ocrPages > 0) rememberOcrLimit(documentId, limitNow);
     await rendering;
     console.info("pipeline_timing", {
-      documentId, stage: "render", ms: renderMs, pages: pages.length, firstPage,
+      documentId, stage: "render", ms: renderMs, pages: pages.length, firstPage, photoSet: Boolean(photoPages),
     });
     console.info("pipeline_timing", {
       documentId, stage: "ocr", ms: Date.now() - ocrStarted, pages: ocrPages,

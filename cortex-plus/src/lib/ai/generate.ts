@@ -27,6 +27,7 @@ import {
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { withTransientRetry } from "@/lib/ai/transient-retry";
 import { visionImage } from "@/lib/ai/vision";
+import { billedModel } from "@/lib/learning/teacher-tier";
 
 export const SYSTEM_GUARDRAIL =
   "Sen Cortex Plus eğitim asistanısın. Türkçe yanıt ver. Yalnızca eğitim amaçlı içerik üret. " +
@@ -87,6 +88,12 @@ type GenerateJsonParams<T> = {
    * alive under long budgets; partial text is optional for checkpoints.
    */
   stream?: boolean;
+  /**
+   * Hızlı işlem (`service_tier: "fast"`): yalnız öğrenci beklerken ve yalnız `fastAllowedFor` true iken
+   * (Plus/Sigma, kurucu). Kullanım `<model>-fast` adıyla yazılır (`billedModel`). 31 Ekim 2026: kurulumda
+   * konu haritası.
+   */
+  fast?: boolean;
   /** Called as streamed draft text accumulates (throttled by the caller). */
   onPartialContent?: (text: string) => void;
   /**
@@ -245,6 +252,9 @@ export async function generateJson<T>(
   });
   const actionCode = selected.actionCode;
   const model = params.modelOverride?.trim() || selected.model;
+  const tier = params.fast ? ({ service_tier: "fast" } as const) : {};
+  /** Taslağın gerçekten hızlı işlemde mi koştuğu (sağlayıcı yükte normal işleme düşebilir). */
+  let servedTier: string | null = null;
 
   const v2 = params.validationProfile === "v2";
   const maxDraftAttempts = Math.max(
@@ -317,7 +327,7 @@ export async function generateJson<T>(
         await recordUsage(params.service, {
           userId: params.userId,
           actionCode: usageCode,
-          model,
+          model: billedModel(model, servedTier),
           tokensIn: completionUsage.prompt_tokens,
           tokensOut: completionUsage.completion_tokens,
           reservationId: reservationRef,
@@ -575,6 +585,7 @@ export async function generateJson<T>(
                 const stream = await openai.chat.completions.create(
                   {
                     model,
+                    ...tier,
                     stream: true,
                     stream_options: { include_usage: true },
                     response_format: responseFormat,
@@ -586,6 +597,7 @@ export async function generateJson<T>(
                 let usage = { prompt_tokens: 0, completion_tokens: 0 };
                 for await (const chunk of stream) {
                   guard.touch();
+                  if (chunk.service_tier) servedTier = chunk.service_tier;
                   const delta = chunk.choices[0]?.delta?.content ?? "";
                   if (delta) {
                     text += delta;
@@ -607,11 +619,13 @@ export async function generateJson<T>(
               const completion = await openai.chat.completions.create(
                 {
                   model,
+                  ...tier,
                   response_format: responseFormat,
                   messages: draftMessages,
                 },
                 { signal: guard.signal },
               );
+              if (completion.service_tier) servedTier = completion.service_tier;
               return {
                 content: completion.choices[0]?.message?.content ?? "{}",
                 usage: {
@@ -786,7 +800,7 @@ export async function generateJson<T>(
     await recordUsage(params.service, {
       userId: params.userId,
       actionCode: usageCode,
-      model,
+      model: billedModel(model, servedTier),
       tokensIn: completionUsage.prompt_tokens,
       tokensOut: completionUsage.completion_tokens,
       reservationId: reservationRef,

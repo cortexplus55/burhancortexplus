@@ -35,6 +35,7 @@ import {
 } from "@/lib/documents/ingestion-errors";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { cleanWholeDocument } from "@/lib/documents/clean-pages";
+import { fastAllowedFor } from "@/lib/learning/fast-access";
 
 const bodySchema = z.object({
   documentId: z.string().uuid(),
@@ -418,6 +419,9 @@ export async function POST(request: Request) {
       prepId: parsed.data.prepId ?? null,
       deadlineAt: routeStarted + COURSE_ROUND_BUDGET_MS,
       fromCourse: Boolean(course),
+      // Kurulumda öğrenci haritayı bekliyor (31 Ekim 2026): Plus/Sigma ve kurucuda hızlı işlem. Hazırlığa sonradan
+      // eklenen materyal (prepId) arkada haritalanır, normal işlemde kalır.
+      fast: Boolean(course) && !parsed.data.prepId && await fastAllowedFor(service, userId),
     });
     if (mapped.deferred) {
       // The wizard's course outline will cover this file.
