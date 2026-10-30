@@ -307,10 +307,13 @@ export function shardTargets(input: Pick<TeacherQuizInput, "examPoints" | "lesso
 export function shardBrief(brief: string | undefined, index: number, shards: number, targets: readonly string[] = []): string {
   const target = targets[index];
   const repeat = target ? targets.slice(0, index).filter((other) => other === target).length : 0;
+  // Hedef kesin bir yasak değil, öncelik: "YALNIZ şunu sor" (30 Ekim, ilk sürüm) ikinci konu testinde önceki testin
+  // kökleri ve kapsam bloğuyla çakıştı, beş parçanın beşi de boş döndü (ilk soru 10 sn yerine 30 sn'de geldi).
   const line = !target
     ? `Bu üretim ${index + 1}/${shards}. Aynı konunun ayrı bir noktasını sor.`
-    : `Bu üretim ${index + 1}/${shards}. Testin öbür soruları başka üretimlerde yazılıyor; bu üretimde YALNIZ şunu sor: «${target}».` +
-      (repeat ? " Aynı noktayı başka bir üretim de soruyor: onun tanımını değil, başka bir yönünü (uygulama, karşılaştırma, sonuç) sor." : "");
+    : `Bu üretim ${index + 1}/${shards}. Testin öbür soruları başka üretimlerde yazılıyor; bu üretimin odağı: «${target}».` +
+      (repeat ? " Aynı noktayı başka bir üretim de soruyor: onun tanımını değil, başka bir yönünü (uygulama, karşılaştırma, sonuç) sor." : "") +
+      " Bu nokta kurallarla çelişiyorsa (daha önce sorulduysa ya da testin kapsamında değilse) konunun sorulmamış başka bir noktasını sor; boş liste döndürme.";
   return brief ? `${brief}\n${line}` : line;
 }
 
