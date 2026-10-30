@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { moderate } from "@/lib/ai/moderation";
 import { isReasoningModel } from "@/lib/ai/model-params";
+import { billedModel } from "@/lib/learning/teacher-tier";
 import { contentModel } from "@/lib/ai/model-router";
 import { cleanOcrPageText } from "@/lib/documents/outline-clean";
 import { FIGURE_APPENDIX_LABEL, repeatsTextLayer, textLayerKeys } from "@/lib/learning/figure-pages";
@@ -154,7 +155,7 @@ export function appendFigureTranscript(page: string, transcript: string | null |
   return base ? `${base}\n\n${block}` : block;
 }
 
-type Attempt = { text: string | null; tokensIn: number; tokensOut: number; rateLimited: boolean };
+type Attempt = { text: string | null; tokensIn: number; tokensOut: number; rateLimited: boolean; servedTier: string | null };
 
 /** Bir modelin harcadığı jetonlar; kullanım kaydı model başına bir satır. */
 export type ModelUsage = { model: string; tokensIn: number; tokensOut: number };
@@ -232,6 +233,7 @@ async function readWith(
   deadlineMs: number,
   prompt: string,
   accept: (raw: string) => string | null,
+  fast = false,
 ): Promise<Attempt> {
   let rateLimited = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -243,6 +245,8 @@ async function readWith(
           model,
           // Akıl yürüten model düşük çabayla okur: iş aktarmak, çözmek değil.
           ...(isReasoningModel(model) ? { reasoning_effort: "low" as const } : {}),
+          // Hızlı işlem (31 Ekim 2026): yalnız Plus/Sigma ve kurucu (`fastAllowedFor`); karar çağıranda.
+          ...(fast ? ({ service_tier: "fast" } as const) : {}),
           messages: [
             {
               role: "user",
@@ -259,7 +263,8 @@ async function readWith(
       const tokensIn = completion.usage?.prompt_tokens ?? 0;
       const tokensOut = completion.usage?.completion_tokens ?? 0;
       const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-      return { text: accept(raw), tokensIn, tokensOut, rateLimited };
+      const servedTier = (completion as { service_tier?: string | null }).service_tier ?? null;
+      return { text: accept(raw), tokensIn, tokensOut, rateLimited, servedTier };
     } catch (error) {
       if (!isRateLimitError(error)) break;
       rateLimited = true;
@@ -269,7 +274,7 @@ async function readWith(
       await new Promise((r) => setTimeout(r, wait));
     }
   }
-  return { text: null, tokensIn: 0, tokensOut: 0, rateLimited };
+  return { text: null, tokensIn: 0, tokensOut: 0, rateLimited, servedTier: null };
 }
 
 export type ImageReadResult = {
@@ -311,6 +316,8 @@ export async function extractImageText(
     purpose?: "page" | "figure";
     /** Şekil okumasında sayfanın metin katmanı: metinde zaten yazan satır eke girmez. */
     textLayer?: string | null;
+    /** Hızlı işlem: yalnız Plus/Sigma ve kurucu (`fastAllowedFor`). Kullanım `<model>-fast` adıyla yazılır. */
+    fast?: boolean;
   },
 ): Promise<ImageReadResult> {
   const empty = { pages: [], ok: false as const, model: null, tokensIn: 0, tokensOut: 0, usage: [] };
@@ -325,7 +332,8 @@ export async function extractImageText(
     `/api/ai/solve` bunu zaten yapıyor ve gerekçesi burada da geçerli:
     buraya yüklenen şeyin ders notu olduğunu varsayamayız, kamera açılan her
     yerden her şey gelebilir. Denetim veri URL'i üzerinden, yani ikinci bir
-    indirme ya da ikinci bir kodlama maliyeti yok.
+    indirme ya da ikinci bir kodlama maliyeti yok. Denetim okumadan ÖNCE biter: reddedilen görsel modele hiç
+    gitmez (okumayla paralel çalıştırmak fotoğraf başına ~1,5-2 sn kazandırırdı; 31 Ekim 2026'da bilerek yapılmadı).
   */
   const verdict = await moderate({ text: "", imageUrls: [dataUrl] });
   if (verdict.action !== "allow") {
@@ -360,9 +368,10 @@ export async function extractImageText(
         const cleaned = cleanOcrPageText(raw);
         return isUsableOcrText(cleaned) ? cleaned : null;
       },
+      options?.fast === true,
     );
     if (attempt.tokensIn || attempt.tokensOut) {
-      usage.push({ model, tokensIn: attempt.tokensIn, tokensOut: attempt.tokensOut });
+      usage.push({ model: billedModel(model, attempt.servedTier), tokensIn: attempt.tokensIn, tokensOut: attempt.tokensOut });
     }
     rateLimited ||= attempt.rateLimited;
     if (attempt.text) {
@@ -417,7 +426,7 @@ export type ImagePagesResult = {
 export async function extractImagePages(
   images: Buffer[],
   mimeType = "image/png",
-  options?: { deadlineMs?: number; scanOrdinals?: number[] },
+  options?: { deadlineMs?: number; scanOrdinals?: number[]; fast?: boolean },
 ): Promise<ImagePagesResult> {
   const pages: string[] = new Array(images.length).fill("");
   let readCount = 0;
@@ -432,6 +441,7 @@ export async function extractImagePages(
         extractImageText(image, mimeType, {
           deadlineMs: options?.deadlineMs,
           scanOrdinal: options?.scanOrdinals?.[start + offset] ?? start + offset + 1,
+          fast: options?.fast === true,
         }),
       ),
     );

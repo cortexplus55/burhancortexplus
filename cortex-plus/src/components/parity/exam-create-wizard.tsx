@@ -32,7 +32,9 @@ import {
   WIZARD_COPY,
   examHeavyBadgeVisible,
   WIZARD_STEP_ORDER,
+  batchUploadFailedLine,
   fileProgressLine,
+  readingNow,
   listSegments,
   redundantUnitHeader,
   topicSourcesChip,
@@ -52,8 +54,6 @@ import { setFocusPrepCookieClient } from "@/lib/learning/focus-prep";
 import { targetPlanHint } from "@/lib/learning/target-plan";
 import { WizardProcessingPanel } from "@/components/parity/wizard-processing-panel";
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
-import { filesAcceptedFromSelection } from "@/lib/learning/prep-file-cap";
-import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
 import {
   formatDocumentProcessProgress,
   processProgressRatio,
@@ -64,7 +64,7 @@ import {
   readPendingDocProcesses,
   writePendingDocProcess,
 } from "@/lib/documents/pending-doc-process";
-import { PARALLEL_UPLOADS, inSelectionOrder, runPool } from "@/lib/documents/upload-batch";
+import { PARALLEL_UPLOADS, createLimiter, inSelectionOrder, runPool, type PoolOutcome } from "@/lib/documents/upload-batch";
 import {
   useDocumentLimits,
   useStudentShellAccount,
@@ -294,7 +294,8 @@ export function ExamCreateWizard({
   const router = useRouter();
   const account = useStudentShellAccount();
   const { isAdmin } = useDocumentLimits();
-  const paidUploads = account?.audience === "plus" || account?.audience === "sigma";
+  // Kurucu da ücretli sayılır (31 Ekim 2026); önizlemede ("ücretsiz gibi gör") isAdmin false, sıra korunur.
+  const paidUploads = account?.audience === "plus" || account?.audience === "sigma" || isAdmin;
   const materialLimitLine = freeMaterialLimitLine({
     isAdmin,
     tier:
@@ -331,7 +332,6 @@ export function ExamCreateWizard({
       : [],
   );
   const materialsRef = useRef(materials);
-  const reservedSlots = useRef(0);
   function setMaterials(
     next: WizardMaterial[] | ((current: WizardMaterial[]) => WizardMaterial[]),
   ) {
@@ -920,12 +920,7 @@ export function ExamCreateWizard({
       setMaterials(current.map((item) => (item.id === material.id ? { ...item, ...material } : item)));
       return true;
     }
-    const { accepted } = filesAcceptedFromSelection({
-      committedCount: current.length,
-      selectedCount: 1,
-      cap: PREP_SOURCE_DOCUMENT_CAP,
-    });
-    if (accepted < 1) return false;
+    // Belge sayısında ürün sınırı yok (31 Ekim 2026): sayfa, fotoğraf ve kredi hakkı sınırlar.
     setMaterials([...current, material]);
     return true;
   }
@@ -938,7 +933,7 @@ export function ExamCreateWizard({
     },
     /** Paralel toplu yüklemede dosya başına ilerleme satırı yazılmaz; "3/7 dosya hazır" satırı yeter. */
     options: { quiet?: boolean } = {},
-  ): Promise<boolean> {
+  ): Promise<PoolOutcome> {
     const quiet = options.quiet === true;
     writePendingDocProcess({
       documentId: input.documentId,
@@ -977,9 +972,10 @@ export function ExamCreateWizard({
       clearPendingDocProcess({ documentId: input.documentId });
       setProcessDetail(null);
       setProcessPercent(null);
+      // Hak doldu: toplu yüklemede yeni dosya başlamaz ("stop"), süren dosyalar biter.
       if (isFreePageLimitError(processed)) {
         openPaywall(typeof processed.error === "string" ? processed.error : undefined);
-        return false;
+        return "stop";
       }
       if (isPhotoQuotaError(processed)) {
         const description = materialLimitLine ?? undefined;
@@ -990,10 +986,10 @@ export function ExamCreateWizard({
         setProcessAlert(
           typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.",
         );
-        return false;
+        return "stop";
       }
       openPaywall("Materyali işlemek için kullanım hakkın doldu.");
-      return false;
+      return "stop";
     }
     if (!result.ok) {
       const code = typeof processed.code === "string" ? processed.code : "";
@@ -1032,16 +1028,12 @@ export function ExamCreateWizard({
     setFailedMaterials((current) =>
       current.filter((item) => item.documentId !== input.documentId),
     );
-    const stored = rememberMaterial({
+    rememberMaterial({
       id: input.documentId,
       fileName: input.fileName,
       sizeBytes: input.sizeBytes,
       pageCount: typeof processed.pageCount === "number" ? processed.pageCount : null,
     });
-    if (!stored) {
-      toast.error(WIZARD_COPY.fileCap);
-      return false;
-    }
     // Toplu yüklemede dosya başına "hazır" bildirimi yok ("3/7 dosya hazır" satırı söylüyor); belgenin
     // kendi notu (ör. "ilk 5 sayfa işlendi") yine gösterilir.
     if (!quiet) {
@@ -1076,29 +1068,18 @@ export function ExamCreateWizard({
 
   async function takeFile(
     file: File | undefined,
-    enforceCap = true,
-    /** Toplu yüklemenin parçası: "yükleniyor" durumu topluca tutulur. */
-    batch: { quiet: boolean } | null = null,
-  ): Promise<boolean> {
+    /** Toplu yüklemenin parçası: "yükleniyor" durumu ve hata bildirimi topluca tutulur. */
+    batch: { quiet: boolean; failed?: string[] } | null = null,
+  ): Promise<PoolOutcome> {
     if (!file) return false;
-    if (enforceCap) {
-      const { accepted } = filesAcceptedFromSelection({
-        committedCount: materialsRef.current.length + reservedSlots.current,
-        selectedCount: 1,
-        cap: PREP_SOURCE_DOCUMENT_CAP,
-      });
-      if (accepted < 1) {
-        toast.error(WIZARD_COPY.fileCap);
-        return false;
-      }
-    }
-    if (!acceptedUpload(file)) {
-      toast.error(DOCUMENT_PICK_REJECTED);
+    const reject = (message: string): PoolOutcome => {
+      if (batch?.failed) batch.failed.push(file.name);
+      else toast.error(message);
       return false;
-    }
+    };
+    if (!acceptedUpload(file)) return reject(DOCUMENT_PICK_REJECTED);
     if (file.size > (file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? PDF_MAX_BYTES : MAX_BYTES)) {
-      toast.error("PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.");
-      return false;
+      return reject("PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.");
     }
     if (!batch) setUploading(true);
     try {
@@ -1125,7 +1106,7 @@ export function ExamCreateWizard({
           };
           if (preflightRes.status === 402 && isFreePageLimitError(preflight)) {
             openPaywall(preflight.error);
-            return false;
+            return "stop";
           }
           const free = preflight.freePages;
           if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
@@ -1164,55 +1145,78 @@ export function ExamCreateWizard({
         { quiet: batch?.quiet === true },
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Bağlantı hatası.");
-      return false;
+      return reject(error instanceof Error ? error.message : "Bağlantı hatası.");
     } finally {
       if (!batch) setUploading(false);
     }
   }
 
   async function takeFiles(list: FileList | File[] | undefined) {
-    const files = list ? [...list] : [];
-    if (!files.length) return;
-    const { accepted, overflow } = filesAcceptedFromSelection({
-      committedCount: materialsRef.current.length + reservedSlots.current,
-      selectedCount: files.length,
-      cap: PREP_SOURCE_DOCUMENT_CAP,
-    });
-    if (accepted === 0) {
-      toast.error(WIZARD_COPY.fileCap);
-      return;
-    }
-    if (overflow > 0) toast.error(WIZARD_COPY.fileCap);
-    reservedSlots.current += accepted;
-    const batch = files.slice(0, accepted);
-    // Ücretli hesapta en çok üç dosya aynı anda (upload-batch.ts); ücretsizde sırayla.
+    // Belge sayısında ürün sınırı yok (31 Ekim 2026): seçilen her dosya alınır; hak dolunca durulur.
+    const batch = list ? [...list] : [];
+    if (!batch.length) return;
+    // Ücretli hesapta ve kurucuda en çok altı dosya aynı anda (upload-batch.ts); ücretsizde sırayla.
     const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
     const existing = new Set(materialsRef.current.map((material) => material.id));
     const reading: string[] = [];
+    const failed: string[] = [];
     let done = 0;
     const report = () =>
-      setFileProgress({ done, total: accepted, current: reading.length ? reading.join(", ") : null });
+      setFileProgress({ done, total: batch.length, current: readingNow(reading) });
     report();
     setUploading(true);
     try {
       await runPool(batch, lanes, async (file) => {
         reading.push(file.name);
         report();
-        const added = await takeFile(file, false, { quiet: lanes > 1 });
+        const outcome = await takeFile(file, { quiet: batch.length > 1, failed });
         reading.splice(reading.indexOf(file.name), 1);
-        if (added) done += 1;
+        if (outcome === true) done += 1;
         report();
-        return added;
+        return outcome;
       });
       if (lanes > 1) {
         setMaterials((current) => inSelectionOrder(current, existing, batch.map((file) => file.name)));
       }
+      // Tek bildirim: yüklenemeyen dosyalar (okunamayanlar "Tekrar dene" listesinde ayrıca durur).
+      if (failed.length) toast.error(batchUploadFailedLine(failed));
     } finally {
       setUploading(false);
       setFileProgress(null);
-      reservedSlots.current = Math.max(0, reservedSlots.current - accepted);
     }
+  }
+
+  /*
+    Telefondan gelen dosyalar (31 Ekim 2026: QR kodu artık çok dosya alır). Pencere açık kalır; her dosya geldiği
+    anda sıraya girer ve toplu yüklemeyle aynı şerit sayısıyla işlenir. Sayaç seçilen dosyalarınkiyle aynı satırda.
+  */
+  const phoneLimiter = useRef<ReturnType<typeof createLimiter> | null>(null);
+  const phoneBatch = useRef({ total: 0, done: 0, finished: 0, failed: [] as string[] });
+
+  function takePhoneDocument(remote: { documentId: string; fileName: string }) {
+    phoneLimiter.current ??= createLimiter(paidUploads ? PARALLEL_UPLOADS : 1);
+    const run = phoneLimiter.current;
+    const batch = phoneBatch.current;
+    batch.total += 1;
+    setUploading(true);
+    setFileProgress({ done: batch.done, total: batch.total, current: null });
+    void run(() =>
+      processAndRemember({ documentId: remote.documentId, fileName: remote.fileName, sizeBytes: null }, { quiet: true }),
+    )
+      .then((outcome) => {
+        if (outcome === true) batch.done += 1;
+        else batch.failed.push(remote.fileName);
+      })
+      .catch(() => batch.failed.push(remote.fileName))
+      .finally(() => {
+        batch.finished += 1;
+        setFileProgress({ done: batch.done, total: batch.total, current: null });
+        if (batch.finished < batch.total) return;
+        if (batch.failed.length) toast.error(batchUploadFailedLine(batch.failed));
+        phoneBatch.current = { total: 0, done: 0, finished: 0, failed: [] };
+        setUploading(false);
+        setFileProgress(null);
+      });
   }
 
   async function startPlan() {
@@ -1601,7 +1605,7 @@ export function ExamCreateWizard({
               <button
                 type="button"
                 className="apw-drop-pick"
-                disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+                disabled={uploading}
                 onClick={() => fileRef.current?.click()}
               >
                 {WIZARD_COPY.addMore}
@@ -1610,7 +1614,7 @@ export function ExamCreateWizard({
             <button
               type="button"
               className="apw-drop-pick"
-              disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+              disabled={uploading}
               onClick={() => setPhoneOpen(true)}
             >
               <Smartphone className="h-4 w-4" aria-hidden />
@@ -1620,7 +1624,7 @@ export function ExamCreateWizard({
             <button
               type="button"
               className="apw-drop-pick"
-              disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+              disabled={uploading}
               aria-expanded={importPanel === "paste"}
               onClick={() => setImportPanel((current) => (current === "paste" ? "none" : "paste"))}
             >
@@ -1629,7 +1633,7 @@ export function ExamCreateWizard({
             <button
               type="button"
               className="apw-drop-pick"
-              disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+              disabled={uploading}
               aria-expanded={importPanel === "url"}
               onClick={() => setImportPanel((current) => (current === "url" ? "none" : "url"))}
             >
@@ -1640,14 +1644,7 @@ export function ExamCreateWizard({
           {phoneOpen ? (
             <PhoneUploadPanel
               onClose={() => setPhoneOpen(false)}
-              onReady={(remote) => {
-                setPhoneOpen(false);
-                void processAndRemember({
-                  documentId: remote.documentId,
-                  fileName: remote.fileName,
-                  sizeBytes: null,
-                });
-              }}
+              onReady={(remote) => takePhoneDocument(remote)}
             />
           ) : null}
           {importPanel === "paste" ? (

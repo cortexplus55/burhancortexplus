@@ -1556,6 +1556,23 @@ Bekçi: `konu-kimligi.test.ts`, `canli-tur-30-ekim.test.ts`, `podcast-hazir-yol.
 
 Açık (göçsüz): eski sözlü yanılgı satırları eski konu adıyla duruyor; hazırlık yüzdesi (`buildLearningIndicators`) ad varyantlı eski kanıtı birleştirmiyor (yeni kanıt doğru adla yazılır).
 
+## Sınırsız ve hızlı yükleme (31 Ekim 2026) — belge sayısında ürün sınırı yok
+
+Ürün sahibi telefondan 100 fotoğraf seçti: 8'i alındı, 8'i sırayla ~4 dk sürdü. "Kullanıcı bir derse kaç tane döküman
+yüklemek isterse yükleyebilir, limitimizi kullanana kadar; sonradan da ekleyebilir. Her ihtimali düşünüp kur." Canlı
+kayıt: fotoğraflar 25-50 sn arayla tek tek (kurucu tek şeritteydi), her biri 3,5 MB tam boy. Yeniden açmayın:
+
+| Kusur | Kural | Nerede |
+|---|---|---|
+| Hazırlık başına 8 belge: sihirbaz, sonradan ekle, kurulum, giriş, kurs haritası, malzeme denetimi, konu temellendirme uçları; öğretmen analizi yalnız ilk 6 belgeye ve sırayla | **Belge sayısında ürün sınırı yok.** Belgeyi sayfa, fotoğraf, kredi ve depolama hakkı sınırlar. `PREP_DOCUMENT_REQUEST_MAX` (1000) yalnız tek istekteki kimlik sayısının teknik tavanı, öğrenciye gösterilmez. Öğretmen analizi bütün belgelere, en çok 4'ü aynı anda | `prep-topic-list.ts`, uçların şemaları, `teacher-analysis-run.ts` |
+| Yükleme hazırlığı dakikada 6, günde 40, aynı anda en çok 3 bekleyen yükleme (kurucuda 10 kat çarpan; Plus öğrencisi takılırdı) | Dakikada 60, günde 1.500, bekleyen en çok şerit × 2; istemci "yoğun" (429) cevabında `retry-after` kadar bekleyip 5 kez yeniden dener | `upload-limits.ts`, `upload/prepare`, `upload-client.ts` |
+| Paralel yükleme yalnız Plus/Sigma'da ve 3 şerit; bir dosya düşünce toplu yüklemenin geri kalanı duruyordu | **6 şerit**, kurucu da (önizlemede değil: `isAdmin` false). `runPool`: `true` hazır, `false` bu dosya düştü (öbürleri sürer), `"stop"` hak doldu (yenisi başlamaz). Düşen dosyalar tek bildirimde (`batchUploadFailedLine`). Ücretsiz hesap sırayla (toplam 5 sayfa sayımı atomik değil) | `upload-batch.ts`, `exam-create-wizard.tsx` |
+| Fotoğraf okuması: 3,5 MB tam boy, normal işlemde 18-20 sn | Yüklemeden önce cihazda uzun kenar 2048, JPEG %85 (~0,5 MB; okunan metin aynı); çözemeyen tarayıcıda dosya olduğu gibi. Fotoğraf ve taranmış sayfa okuması Plus/Sigma/kurucuda **hızlı işlem** (`fastAllowedFor`, ölçüm: 8-9 sn), kullanım `<model>-fast`. Güvenlik denetimi okumadan ÖNCE biter: paralel çalıştırmak ~1,5-2 sn kazandırırdı, reddedilecek görsel modele gitmesin diye **bilerek yapılmadı** | `image-compress.ts`, `extract-image-text.ts`, `rag/pipeline.ts`, `pdf-ingestion.ts` |
+| Sonradan ekleme tek dosya seçtiriyor, her dosya ayrı konu haritası ve ayrı istek (dakikada 12) | Çoklu seçim → dosyalar paralel okunur (`deferMap`) → yeni dosyaların hepsine hazırlığın konu adlarıyla yönlendirilen TEK kurs haritası → tek `add-source` isteği (`documentIds`, seçim sırasıyla; eski tek `documentId` de çalışır). Okunmuş ama eklenemeyen dosyalar için "Tekrar dene" yalnız haritayı ve eklemeyi yineler | `prep-add-material.tsx`, `add-source/route.ts`, `planAddedMaterial` (`newDocumentIds`) |
+| Telefon QR kodu tek dosyadan sonra "kullanıldı" | Kod süresi dolana kadar dosya alır: göç `20261031120000_phone_upload_many.sql` (`document_ids`, `file_names`, `append_phone_upload` yalnız `service_role`). Telefon sayfası çoklu seçer, göndermeden küçültür (Vercel gövde sınırı 4,5 MB), 3 şeritle gönderir; masaüstü paneli her yeni dosyayı bildirir, pencere açık kalır; sihirbaz onları şerit sınırıyla işler (`createLimiter`), sonradan eklemede 2,5 sn sessizlikten sonra toplu ekler. Göç yoksa eski tek dosyalı davranış | `phone-session.ts`, `uploads/phone*`, `phone-upload-client.tsx`, `phone-upload-panel.tsx` |
+
+Bekçi: `sinirsiz-hizli-yukleme.test.ts`, `upload-batch.test.ts`, `photo-documents.test.ts`, `upload-mime.test.ts`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

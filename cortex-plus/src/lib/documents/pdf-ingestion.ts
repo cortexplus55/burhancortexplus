@@ -5,6 +5,7 @@ import { renderPdfPages, BLANK_INK_RATIO, FIGURE_VECTOR_MIN } from "@/lib/docume
 
 type RenderedPage = Awaited<ReturnType<typeof renderPdfPages>>["pages"][number];
 import { appendFigureTranscript, extractImageText, mergeUsage, type ModelUsage } from "@/lib/documents/extract-image-text";
+import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import { AdminCheckError } from "@/lib/auth/roles";
 import { billingExempt } from "@/lib/billing/free-preview";
@@ -203,6 +204,8 @@ async function ocrOneBlankPage(input: {
   mime: string;
   inkRatio: number;
   founder: boolean;
+  /** Hızlı işlem (31 Ekim 2026): yalnız Plus/Sigma ve kurucu (`fastAllowedFor`). */
+  fast?: boolean;
   limit: number;
   deadlineMs: number;
   maxOcrPages?: number | null;
@@ -295,7 +298,7 @@ async function ocrOneBlankPage(input: {
   };
 
   // Şekil okumasına metin katmanı gider (29 Ekim 2026): sayfada zaten yazan satır eke girmez.
-  const readOptions = { deadlineMs, scanOrdinal: pageNumber, purpose, textLayer: keepText ?? null };
+  const readOptions = { deadlineMs, scanOrdinal: pageNumber, purpose, textLayer: keepText ?? null, fast: input.fast === true };
   let read = await extractImageText(image, mime, readOptions);
   let usage = read.usage;
   if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
@@ -423,6 +426,8 @@ export async function readPdfBatch(
     if (error instanceof AdminCheckError) throw new Error("admin_check_failed");
     throw error;
   }
+  // Taranmış sayfa okuması ücretli hesapta ve kurucuda hızlı işlemle (31 Ekim 2026; ölçüm: sayfa 18-20 sn → 8-9 sn).
+  const fast = await fastAllowedFor(service, userId);
   const limit = founder ? 0 : photoPageLimit(await planTier(service, userId));
   /** Pages with an open OCR claim; recorded immediately on successful claim. */
   const claimed = new Set<number>();
@@ -514,7 +519,7 @@ export async function readPdfBatch(
         const result = await ocrOneBlankPage({
           service, documentId, userId, pageNumber: number,
           image: meta.image, mime: meta.mime, inkRatio: meta.inkRatio,
-          founder, limit, deadlineMs, maxOcrPages,
+          founder, fast, limit, deadlineMs, maxOcrPages,
           purpose: mode?.purpose ?? "page",
           keepText: mode?.keepText,
           onClaimed: (pageNumber) => { claimed.add(pageNumber); },

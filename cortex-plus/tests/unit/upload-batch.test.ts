@@ -11,17 +11,19 @@ import {
 
 /*
   20 Ekim 2026: 7 dosyalık sınav seti sırayla işlenince ~76 sn sürdü (Astra ~30 sn). Ücretli hesapta
-  en çok üç dosya aynı anda işlenir; sekme kapanınca yarım kalan her dosya sürer; seçim sırası korunur.
+  birden çok dosya aynı anda işlenir; sekme kapanınca yarım kalan her dosya sürer; seçim sırası korunur.
+  31 Ekim 2026: şerit 3 → 6, kurucu da ücretli sayılır; bir dosyanın düşmesi topluluğu durdurmaz (100 fotoğrafta
+  tek bulanık fotoğraf arkadakileri kesiyordu), yalnız hak dolunca ("stop") yenisi başlamaz.
 */
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("toplu yükleme havuzu", () => {
-  it("aynı anda en çok üç dosya; hepsi biter", async () => {
+  it("aynı anda en çok altı dosya; hepsi biter", async () => {
     let running = 0;
     let peak = 0;
     const order: number[] = [];
-    const result = await runPool([0, 1, 2, 3, 4, 5, 6], PARALLEL_UPLOADS, async (item) => {
+    const result = await runPool([0, 1, 2, 3, 4, 5, 6, 7, 8], PARALLEL_UPLOADS, async (item) => {
       running += 1;
       peak = Math.max(peak, running);
       await tick();
@@ -30,10 +32,10 @@ describe("toplu yükleme havuzu", () => {
       order.push(item);
       return true;
     });
-    expect(PARALLEL_UPLOADS).toBe(3);
-    expect(peak).toBe(3);
-    expect(result).toEqual({ succeeded: 7, stopped: false });
-    expect([...order].sort()).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(PARALLEL_UPLOADS).toBe(6);
+    expect(peak).toBe(6);
+    expect(result).toEqual({ succeeded: 9, failed: 0, stopped: false });
+    expect([...order].sort()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it("sırayla modda (ücretsiz) aynı anda tek dosya", async () => {
@@ -49,15 +51,24 @@ describe("toplu yükleme havuzu", () => {
     expect(peak).toBe(1);
   });
 
-  it("bir dosya düşünce yenisi başlamaz, sürenler biter", async () => {
+  it("bir dosya düşünce öbürleri sürer; hak dolunca (stop) yenisi başlamaz, sürenler biter", async () => {
     const started: number[] = [];
-    const result = await runPool([0, 1, 2, 3, 4, 5], 2, async (item) => {
+    const failed = await runPool([0, 1, 2, 3, 4, 5], 2, async (item) => {
       started.push(item);
       await tick();
       return item !== 1;
     });
-    expect(result.stopped).toBe(true);
-    expect(started).toEqual([0, 1, 2]);
+    expect(failed).toEqual({ succeeded: 5, failed: 1, stopped: false });
+    expect(started).toEqual([0, 1, 2, 3, 4, 5]);
+
+    const begun: number[] = [];
+    const stopped = await runPool([0, 1, 2, 3, 4, 5], 2, async (item) => {
+      begun.push(item);
+      await tick();
+      return item === 1 ? "stop" : true;
+    });
+    expect(stopped.stopped).toBe(true);
+    expect(begun).toEqual([0, 1, 2]);
   });
 
   it("bitiş sırasından seçim sırasına döner; öncekiler yerinde kalır", () => {
@@ -107,8 +118,8 @@ describe("bekleyen belgeler: belge başına kayıt", () => {
 describe("sihirbaz bağlantısı", () => {
   const wizard = readFileSync("src/components/parity/exam-create-wizard.tsx", "utf8");
 
-  it("paralel yalnız ücretli hesapta; yarım kalanların hepsi sürer", () => {
-    expect(wizard).toContain('const paidUploads = account?.audience === "plus" || account?.audience === "sigma";');
+  it("paralel ücretli hesapta ve kurucuda (önizlemede değil); yarım kalanların hepsi sürer", () => {
+    expect(wizard).toContain('const paidUploads = account?.audience === "plus" || account?.audience === "sigma" || isAdmin;');
     expect(wizard).toContain("const lanes = paidUploads ? PARALLEL_UPLOADS : 1;");
     expect(wizard).toContain('readPendingDocProcesses("exam-wizard")');
     expect(wizard).toContain("inSelectionOrder(current, existing");

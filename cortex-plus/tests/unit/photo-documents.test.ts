@@ -414,7 +414,7 @@ describe("boru hattı", () => {
     const render = source.indexOf("await renderPdfPages(buffer, MAX_SCAN_PAGES, start)");
     const claim = source.indexOf("await claim(images.length)");
     expect(source).toContain("images.push(page.image)");
-    const read = source.indexOf("await extractImagePages(images, \"image/jpeg\", { scanOrdinals })");
+    const read = source.indexOf("await extractImagePages(images, \"image/jpeg\", { scanOrdinals");
     expect(render).toBeLessThan(claim);
     expect(claim).toBeLessThan(read);
   });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { unrelatedNotice, versionNotice } from "@/lib/documents/material-similarity";
 import { readMaterialCheck } from "@/lib/learning/material-check-read";
@@ -10,7 +11,7 @@ import { readMaterialCheck } from "@/lib/learning/material-check-read";
  * Okuma düşerse boş döner — sihirbaz uyarısız devam eder.
  */
 const bodySchema = z.object({
-  documentIds: z.array(z.string().uuid()).min(2).max(8),
+  documentIds: z.array(z.string().uuid()).min(2).max(PREP_DOCUMENT_REQUEST_MAX),
   subject: z.string().trim().max(120).optional(),
 });
 

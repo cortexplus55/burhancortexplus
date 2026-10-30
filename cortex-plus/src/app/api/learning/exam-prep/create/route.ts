@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { ensureTeacherAnalyses, loadPrepDocumentIds, TEACHER_ANALYSIS_WAIT_MS } from "@/lib/documents/teacher-analysis-run";
 import { z } from "zod";
+import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { invalidInputResponse, lenientText } from "@/lib/api/input-fields";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -72,7 +73,7 @@ const bodySchema = z.object({
   examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: lenientText(500, 0).optional(),
   documentId: z.string().uuid().optional(),
-  documentIds: z.array(z.string().uuid()).max(8).optional(),
+  documentIds: z.array(z.string().uuid()).max(PREP_DOCUMENT_REQUEST_MAX).optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
   studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
   hardTopics: z.array(lenientText(120)).max(PREP_TOPIC_CAP).optional(),

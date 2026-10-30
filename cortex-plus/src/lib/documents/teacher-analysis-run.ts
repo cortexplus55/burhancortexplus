@@ -358,25 +358,37 @@ export async function ensureTeacherAnalyses(
   service: SupabaseClient,
   input: { userId: string; documentIds: string[] },
 ): Promise<void> {
-  for (const documentId of [...new Set(input.documentIds)].slice(0, 6)) {
-    const { data: row } = await service
-      .from("document_teacher_analyses")
-      .select("status")
-      .eq("document_id", documentId)
-      .maybeSingle();
-    if (row?.status === "ready") continue;
-    const { data: doc } = await service
-      .from("documents")
-      .select("file_name, mime_type")
-      .eq("id", documentId)
-      .maybeSingle();
-    await runTeacherAnalysis(service, documentId, {
-      userId: input.userId,
-      fileName: (doc?.file_name as string | null) ?? "belge",
-      mimeType: (doc?.mime_type as string | null) ?? null,
-    });
-  }
+  // 31 Ekim 2026: önce yalnız ilk 6 belge ve sırayla analiz ediliyordu; belge sayısında ürün sınırı kalkınca
+  // (100 fotoğraf) yedinci belgeden sonrası "Sınavda sorulur" notsuz kalırdı. Hepsi, en çok dördü aynı anda.
+  const ids = [...new Set(input.documentIds)];
+  let next = 0;
+  const lane = async () => {
+    while (next < ids.length) {
+      const documentId = ids[next]!;
+      next += 1;
+      const { data: row } = await service
+        .from("document_teacher_analyses")
+        .select("status")
+        .eq("document_id", documentId)
+        .maybeSingle();
+      if (row?.status === "ready") continue;
+      const { data: doc } = await service
+        .from("documents")
+        .select("file_name, mime_type")
+        .eq("id", documentId)
+        .maybeSingle();
+      await runTeacherAnalysis(service, documentId, {
+        userId: input.userId,
+        fileName: (doc?.file_name as string | null) ?? "belge",
+        mimeType: (doc?.mime_type as string | null) ?? null,
+      });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(TEACHER_ANALYSIS_LANES, ids.length) }, lane));
 }
+
+/** Aynı anda çalışan öğretmen analizi (belge başına bir model çağrısı). */
+const TEACHER_ANALYSIS_LANES = 4;
 
 export function taughtCoverageLine(
   checklist: CoverageItem[],

@@ -9,7 +9,6 @@ import { requireAdminCheck, AdminCheckError } from "@/lib/auth/roles";
 import { freePreview } from "@/lib/billing/free-preview";
 import { PDF_MAX_BYTES } from "@/lib/documents/store-upload";
 import { STORAGE_CAP_FREE, STORAGE_CAP_PREMIUM } from "@/lib/documents/storage-quota";
-import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
 import { MAX_SCAN_PAGES } from "@/lib/documents/render-pdf-pages";
 
 export type DocumentLimits = {
@@ -21,7 +20,6 @@ export type DocumentLimits = {
   maxPdfBytes: number;
   maxOtherBytes: number;
   storageCapBytes: number;
-  prepSourceDocumentCap: number | null;
   maxScanPagesPerRequest: number | null;
 };
 
@@ -86,7 +84,6 @@ export async function getDocumentLimits(
       : tier === "free"
         ? STORAGE_CAP_FREE
         : STORAGE_CAP_PREMIUM,
-    prepSourceDocumentCap: unlimited ? null : PREP_SOURCE_DOCUMENT_CAP,
     maxScanPagesPerRequest: unlimited ? null : MAX_SCAN_PAGES,
   };
 }

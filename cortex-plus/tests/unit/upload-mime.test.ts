@@ -28,7 +28,9 @@ describe("add-source does not reset progress", () => {
   const source = readFileSync("src/app/api/learning/exam-prep/add-source/route.ts", "utf8");
 
   it("analyzes only the new document and does not rewrite readiness or statuses", () => {
-    expect(source.match(/runTeacherAnalysis\(/g)).toHaveLength(1);
+    // 31 Ekim 2026: toplu ekleme; analiz yalnız yeni belgelere (eski belgeler yeniden üretilmez).
+    expect(source).not.toContain("runTeacherAnalysis(");
+    expect(source.match(/ensureTeacherAnalyses\(service, \{ userId, documentIds: newDocumentIds \}\)/g)).toHaveLength(2);
     expect(source).toContain("planAddedMaterial");
     expect(source).not.toContain("readiness_score:");
     expect(source).not.toContain("status: \"done\"");

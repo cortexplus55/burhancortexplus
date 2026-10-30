@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
@@ -60,7 +61,7 @@ const bodySchema = z.object({
   /** Exam type/level for oneshot teacher perspective (optional on probe). */
   examType: z.unknown().optional().transform(clampExamLabel),
   documentId: z.string().uuid().optional(),
-  documentIds: z.array(z.string().uuid()).max(8).optional(),
+  documentIds: z.array(z.string().uuid()).max(PREP_DOCUMENT_REQUEST_MAX).optional(),
   /** Flag+topic-map check only — no AI / no credits. */
   probeOnly: z.boolean().optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
