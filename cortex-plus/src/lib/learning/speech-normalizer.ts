@@ -140,9 +140,26 @@ function collapse(text: string): string {
   return text.replace(/\s+/g, " ").replace(/\s+([,.;:!?])/g, "$1").trim();
 }
 
+/*
+  Taban bütün bir sözcük olmalı (30 Ekim 2026): "4 büyük kare" → "4 büyük²" oluyordu; tek harf tabanı "büyük"ün son
+  harfini yakalıyordu. Canlı modelle EKG podcast'inde denetçi bu satırları bozuk yazım (E) sayıp düzeltme turu açtı,
+  düzeltme reddedilince kurtarma beş satırı sildi. Önünde harf ya da rakam olan taban üs değildir.
+
+  Sayının ardındaki tek "kare"/"küp" Türkçede çoğu zaman addır ("R-R arası 5 kare", "64 kare vardır"): üs yalnız bir
+  işlemin içindeyse ("3 kare artı 4 kare") ya da art arda iki üs sözcüğüyse ("10 kare küp" → 10²³). Tek harf ("x kare")
+  her zaman değişkenin üssüdür.
+*/
+const POWER_CONTEXT = /^(?:artı|eksi|çarpı|bölü|eşittir|eder|[=+\-−×·*/])$/u;
+
 function recoverSmashedPowers(text: string): string {
-  return text.replace(/(\d+|[A-Za-z])((?:\s+(?:kare|küp))+)/g, (_all, base: string, run: string) => {
+  const pattern = /(?<![\p{L}\p{N}])(\d+|[A-Za-z])((?:\s+(?:kare|küp))+)(?!\p{L})/gu;
+  return text.replace(pattern, (all: string, base: string, run: string, offset: number) => {
     const parts = run.trim().split(/\s+/);
+    if (/^\d/.test(base) && parts.length === 1) {
+      const before = text.slice(0, offset).trim().split(/\s+/).pop() ?? "";
+      const after = text.slice(offset + all.length).trim().split(/\s+/)[0]?.replace(/[.,;:!?]+$/, "") ?? "";
+      if (!POWER_CONTEXT.test(before) && !POWER_CONTEXT.test(after)) return all;
+    }
     const digits = parts.map((part) => (part === "kare" ? "2" : "3")).join("");
     return `${base}${supOf(digits)}`;
   }).replace(/(\d+)\s+((?:üssü\s+\S+\s*)+)/g, (_all, base: string, run: string) => {

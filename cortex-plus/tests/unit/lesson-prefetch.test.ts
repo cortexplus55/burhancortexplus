@@ -236,7 +236,8 @@ describe("önceden hazırlama: geniş kapsam", () => {
       expect(text, file).toContain('free ? \"CONTENT_PREFETCH\" :');
       expect(text, file).toContain("({ ok: true, reservationId: null } as const)");
     }
-    expect(route).toContain("if (input.prepId && input.userId && input.charge !== false) {");
+    // 30 Ekim 2026: kontrol arkada yazılıyorsa önbelleğe kontrolle birlikte `fillPodcastCheckLater` yazar.
+    expect(route).toContain("if (input.prepId && input.userId && input.charge !== false && !deferred) {");
     expect(route.match(/charge: input.charge,/g)?.length).toBeGreaterThanOrEqual(6);
   });
 

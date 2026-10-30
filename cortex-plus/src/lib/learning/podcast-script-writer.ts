@@ -1,6 +1,8 @@
 import {
+  DUO_TURN_RULE,
   KEREM_SHARE_RULE,
   NO_FABRICATED_MEMORY_RULE,
+  OPENING_HOOK_RULE,
   SPOKEN_ONLY_RULE,
   podcastLengthSpec,
   speakerIdOf,
@@ -63,8 +65,10 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
     `KİŞİLER: ${voice} ${KEREM_SHARE_RULE}`,
     "",
     "NASIL YAZILIR:",
-    `- Gerçek bir sohbet yaz. Kerem bir merakla açar. ${NO_FABRICATED_MEMORY_RULE} Konuşma sıraları doğal uzunlukta: ` +
-      "bazen tek cümle, bazen kısa bir paragraf.",
+    // 30 Ekim 2026: "Kerem bir merakla açar" ile KEREM_SHARE_RULE'un "konuşmayı Ada açar"ı çelişiyordu ve açılış
+    // kancası yoktu (canlı podcast tanımla açıldı). Ada kancayla açar, Kerem merakla girer.
+    `- Gerçek bir sohbet yaz. ${OPENING_HOOK_RULE} Kancayı Ada kurar, Kerem merakla girer. ${NO_FABRICATED_MEMORY_RULE} ` +
+      "Konuşma sıraları doğal uzunlukta: bazen tek cümle, bazen kısa bir paragraf.",
     "- Her önemli bilgiyi nedeniyle anlat: neden böyle, ne olursa ne olur. 'Çünkü farklıdır' gibi kendini tekrar eden " +
       "cümle yok.",
     "- Her bölümde en az bir somut vaka ya da kısa hikâye (kim, kaç yaşında, ne oldu) ve dinleyenin aklında kalacak bir " +
@@ -83,8 +87,9 @@ export function podcastScriptSystem(mode: TeacherLessonMode, length: PodcastLeng
       "düşün: …'); hemen sonraki satır 'Cevap:' ile başlar ve cevabı verir ('Kerem: Cevap: …').",
     "- Son bölüm kısa: Kerem en önemli üç ayrımı üç kısa cümleyle söyler (bütün içeriği yeniden okumaz), Ada tek cümleyle " +
       "kapatır.",
-    "- Kerem bir şey sorarsa Ada o soruyu doğrudan cevaplar. Kimse kendi sorusunu cevaplamaz, kimse bir öncekinin " +
-      "cümlesini tekrar etmez; 'Evet;' / 'Hayır;' diye açılan cevap yok.",
+    // Konuşma sırası kuralı denetçinin G maddesiyle aynı metin (30 Ekim 2026; önce burada kısa bir özeti vardı ve canlıda
+    // Kerem kendi sorusunu "Çünkü …" diye cevapladı).
+    `- ${DUO_TURN_RULE} Kimse bir öncekinin cümlesini tekrar etmez.`,
     "- Genel ve kalıp cümle kurma ('Sınav bu iki kavramı ayırt ettirir', 'bu konu çok önemlidir'); her cümle bir bilgi, " +
       "bir neden ya da bir örnek taşır. Aynı cümle kalıbını tekrarlama: uyarı bulgularını tek tek aynı kalıpla sayma, " +
       "gruplayıp bir vakayla anlat.",

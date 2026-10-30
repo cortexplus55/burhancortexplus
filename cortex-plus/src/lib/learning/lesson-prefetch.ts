@@ -483,8 +483,59 @@ export async function nextPrefetchNode(
 const SKIP_SLACK = 4;
 
 /** Atlanan türler çıkarıldıktan sonra yolun ilk `size` adımı. */
-function usableWindow<T extends { kind: string }>(rows: T[], skip: ReadonlySet<string> | undefined, size: number): T[] {
-  return (skip?.size ? rows.filter((row) => !skip.has(row.kind)) : rows).slice(0, size);
+function usableWindow<T extends { kind: string }>(rows: readonly T[], skip: ReadonlySet<string> | undefined, size: number): T[] {
+  return (skip?.size ? rows.filter((row) => !skip.has(row.kind)) : [...rows]).slice(0, size);
+}
+
+/**
+ * Yolda önceden yazılan sıradaki ders sayısı (30 Ekim 2026, ürün sahibi: "Podcast uzun sürüyorsa ve kısaltamıyorsak
+ * yolda 2 dersi önceden kuralım ki kullanıcı beklemesin. Kullanıcı beklerse sıkılır ve dersten kopar"). Dersler aradaki
+ * test, doğru/yanlış ve kart adımları sayılmadan bulunur: yolda bir konu ~6 adım, 2 adımlık pencere bir sonraki dersi
+ * ancak önceki konunun son adımında görüyordu. Bu, 20 Ekim'deki "yalnız pencere içi" kuralını derslerle genişletir.
+ */
+export const LESSON_LOOKAHEAD = 2;
+/**
+ * Pencerede ilk sıradaki değilse de yazılan türler (30 Ekim 2026): soğuk yazımı en uzun süren. Podcast canlıda
+ * ~90 sn (hızlı işlem), test ve doğru/yanlış penceredeki ilk adım olunca zaten önceden; podcast genellikle ikinci
+ * sırada kalıp öğrenci ona varınca yazılmaya başlıyordu.
+ */
+export const SLOW_PREFETCH_KINDS: ReadonlySet<string> = new Set(["podcast"]);
+/** Sıradaki iki dersi bulmak için okunan bitmemiş adım: bir konu ~6 adım, iki ders en çok ~14 adım ötede. */
+const UPCOMING_ROWS = 40;
+
+/**
+ * Önceden yazılacak adımlar (yol sırasıyla, tekrarsız): penceredeki ilk hazırlanabilir adım (bugünkü kural),
+ * penceredeki yavaş türler (`SLOW_PREFETCH_KINDS`) ve sıradaki `LESSON_LOOKAHEAD` ders. `rows` şu anki adımdan sonraki
+ * bitmemiş adımlar, sırayla. Ücretsiz hesapta Plus adımları (`skip`) pencerede de seçilmez.
+ */
+export function prefetchTargets<T extends { id: string; kind: string }>(
+  rows: readonly T[],
+  skip?: ReadonlySet<string>,
+  windowSize: number = PATH_LOOKAHEAD,
+): T[] {
+  const window = usableWindow(rows, skip, windowSize);
+  const picked: T[] = [];
+  const add = (row: T | undefined) => {
+    if (row && !picked.some((item) => item.id === row.id)) picked.push(row);
+  };
+  add(window.find((row) => PREFETCH_KINDS.has(row.kind)));
+  for (const row of window) if (SLOW_PREFETCH_KINDS.has(row.kind)) add(row);
+  for (const row of rows.filter((item) => item.kind === "lesson" && !skip?.has(item.kind)).slice(0, LESSON_LOOKAHEAD)) add(row);
+  return [...picked].sort((a, b) => rows.indexOf(a) - rows.indexOf(b));
+}
+
+async function upcomingRows(
+  service: SupabaseClient,
+  input: { prepId: string; afterSortOrder?: number },
+): Promise<(PathRow & { sort_order: number })[]> {
+  let query = service
+    .from("exam_prep_nodes")
+    .select("id, kind, status, session_meta, sort_order")
+    .eq("exam_prep_id", input.prepId)
+    .neq("status", "done");
+  if (input.afterSortOrder !== undefined) query = query.gt("sort_order", input.afterSortOrder);
+  const { data } = await query.order("sort_order").limit(UPCOMING_ROWS);
+  return (data ?? []) as (PathRow & { sort_order: number })[];
 }
 
 /**
@@ -585,16 +636,23 @@ export async function requestBlockPracticePrefetch(
   }
 }
 
-/** Öğrenci bir etkinliği açınca yolundaki sıradaki hazırlanır ("hep bir adım önde"). */
+/**
+ * Öğrenci bir etkinliği açınca (ve bitirince) yolundaki sıradakiler hazırlanır ("hep bir adım önde"): penceredeki ilk
+ * adım, penceredeki podcast ve sıradaki iki ders (`prefetchTargets`, 30 Ekim 2026). İstekler aynı anda atılır; hazır
+ * ya da yazılmakta olan adım `requestNodePrefetch`'te atlanır.
+ */
 export async function requestNextPrefetch(
   service: SupabaseClient,
   input: { origin: string; userId: string; prepId: string; sortOrder: number },
 ) {
-  const skipKinds = await pathSkipKinds(service, input.userId);
-  const next = await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: input.sortOrder, skipKinds }).catch(
-    () => null,
-  );
-  if (next) await requestNodePrefetch(service, { ...input, node: next });
+  try {
+    const skipKinds = await pathSkipKinds(service, input.userId);
+    const rows = await upcomingRows(service, { prepId: input.prepId, afterSortOrder: input.sortOrder });
+    const targets = prefetchTargets(rows, skipKinds);
+    await Promise.all(targets.map((node) => requestNodePrefetch(service, { ...input, node })));
+  } catch (error) {
+    console.error("next_prefetch_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
+  }
 }
 
 /**
@@ -608,20 +666,22 @@ export async function requestPrepPrefetch(
 ) {
   try {
     const skipKinds = await pathSkipKinds(service, input.userId);
-    const { data } = await service
-      .from("exam_prep_nodes")
-      .select("id, kind, status, session_meta, sort_order")
-      .eq("exam_prep_id", input.prepId)
-      .neq("status", "done")
-      .order("sort_order")
-      .limit(PATH_LOOKAHEAD + 1 + (skipKinds.size ? SKIP_SLACK : 0));
-    const rows = usableWindow((data ?? []) as (PathRow & { sort_order: number })[], skipKinds, PATH_LOOKAHEAD + 1);
-    const first = rows[0];
+    const all = await upcomingRows(service, { prepId: input.prepId });
+    const first = usableWindow(all, skipKinds, 1)[0];
     if (!first) return;
-    const target = (await nodeHasAttempts(service, first.id))
-      ? await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: first.sort_order, skipKinds })
-      : (rows.find((row) => PREFETCH_KINDS.has(row.kind)) ?? null);
-    if (target) await requestNodePrefetch(service, { ...input, node: target }, { firstLesson: options.firstLesson });
+    // "Sıradaki" açıldıysa ondan sonrası; açılmadıysa kendisi de pencerede (bugünkü kural), artı podcast ve iki ders.
+    const opened = await nodeHasAttempts(service, first.id);
+    const rows = opened ? all.filter((row) => row.sort_order > first.sort_order) : all;
+    const size = opened ? PATH_LOOKAHEAD : PATH_LOOKAHEAD + 1;
+    const targets = prefetchTargets(rows, skipKinds, size);
+    // Kurulumun ilk dersi Plus'ta hızlı işlemle (30 Ekim 2026): yalnız penceredeki ilk hazırlanabilir adım (bugünkü
+    // hedef); öbür önceden yazımlar 23 Ekim kararıyla normal işlemde.
+    const lead = usableWindow(rows, skipKinds, size).find((row) => PREFETCH_KINDS.has(row.kind));
+    await Promise.all(
+      targets.map((node) =>
+        requestNodePrefetch(service, { ...input, node }, { firstLesson: options.firstLesson === true && node.id === lead?.id }),
+      ),
+    );
   } catch (error) {
     console.error("prep_prefetch_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
   }

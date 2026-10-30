@@ -354,12 +354,25 @@ export async function mapWithConcurrency<T>(
 export const DUO_TURN_RULE =
   "Bir konuşmacı soru sorarsa öbürü hemen sonraki konuşma sırasında o soruyu cevaplar; bir sırada en çok bir soru " +
   "sorulur ve soruyu soran kendi sorusunu cevaplamaz ('Dur ve düşün:' dinleyene sorulur, cevabı 'Cevap:' satırıdır). " +
+  // 30 Ekim 2026 canlı tur: "Kerem: Neden oran düşünce fiyatlar düşmüyor? Çünkü oran …" — soru ve cevabı aynı sesten.
+  "Soru, sıranın son cümlesidir: aynı sırada ardından 'Çünkü …' gelmez; konuşmacı tahminini söyleyecekse soru kurmadan " +
+  "söyler ('Bence …, çünkü …') ve öbürü doğrular ya da düzeltir. " +
   "Kerem bir yanılgıyı ('Ben … sanmışım / varsaymışım') yalnız doğrusu henüz söylenmemişken itiraf eder; doğru cevabı " +
   "kendisi verdiyse aynı konuda yanılgı itiraf etmez. Hiçbir konuşmacı kendi önceki cümlesiyle çelişmez. " +
   // 22 Ekim 2026 kör kıyas (2. tur): Kerem evet/hayır sorusu soruyor, Ada "Hayır; …" / "Evet; …" diye açıyordu;
   // yargıçlar "sesli okunan bilgi kartı destesi" dedi.
   "Cevap 'Evet;' ya da 'Hayır;' diye açılmaz: doğrudan bilgiyle, nedeniyle başlar. Sorular evet/hayır sorusu değil, " +
   "'neden', 'nasıl', 'ne fark eder' sorusudur. 'Çünkü' gerçek bir neden söyler; cümlenin kendisini tekrar etmez.";
+
+/**
+ * Açılış kancası (30 Ekim 2026, canlı tur: ders sonu podcast'i "Enflasyon, genel fiyat düzeyinin … artmasıdır" diye
+ * tanımla açıldı). Eski yazarda tek satır vardı, senarist yazarda hiç yoktu. Yazarlar (senarist, eski şema) ve
+ * denetçinin J maddesi aynı metni okur; kod ilk cümlenin tanım olup olmadığını ölçer (`podcastFlowNotes`).
+ */
+export const OPENING_HOOK_RULE =
+  "Podcast'in ilk cümlesi bir kanca: dinleyeni düşündüren somut bir durum, şaşırtıcı bir soru ya da öğrencilerin sık " +
+  "düştüğü bir tuzak. Tanımla açma ('X, … -dir.' ilk cümle olmaz); tanım kancadan sonra gelir. İki seste kanca bir " +
+  "soruysa sıra orada biter, ardından öbür konuşmacı konuşur. 'Bu bölümde şunları öğreneceğiz' gibi boş cümle yok.";
 
 export function podcastDuoBrief(): string {
   return (

@@ -54,6 +54,8 @@ export async function POST(request: Request) {
     mode: source.mode,
     length,
     runningHeaders: source.edges,
+    // Seçilen konu dışındaki sayfa içeriği bölüm olmasın (30 Ekim 2026, `topicScopeLine`).
+    ...(source.scopeLine ? { syllabusLine: source.scopeLine } : {}),
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
   const episode = {

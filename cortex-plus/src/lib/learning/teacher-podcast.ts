@@ -16,6 +16,7 @@ import {
   NO_FABRICATED_MEMORY_RULE,
   KEREM_SHARE_MAX,
   KEREM_SHARE_MIN,
+  OPENING_HOOK_RULE,
   SPOKEN_ONLY_RULE,
   podcastDuoBrief,
   podcastLengthSpec,
@@ -182,7 +183,7 @@ function system(mode: TeacherLessonMode, length: PodcastLength): string {
     "Benzetme yeni bilgi (sayı, kural, tarih, sonuç) taşımaz.\n" +
     `- ${spec.minChapters}-${spec.maxChapters} bölüm. Bölüm başlığı o bölümde konuşulan kavramın adı; 'Giriş', 'Tanım', ` +
     "'Örnek', 'Özet', 'Yaygın hata' başlık değildir.\n" +
-    "- İlk cümle dinleyeni düşündüren bir kanca; 'bu bölümde şunları öğreneceğiz' gibi boş cümle yok.\n" +
+    `- ${OPENING_HOOK_RULE}\n` +
     "- Zıtlıkla anlat (X böyledir, Y ise şöyle); karıştırılan iki kavramı açıkça ayır.\n" +
     `- ${CHAPTER_RULE}\n` +
     // Dokuzuncu ölçüm: "pincer" hiç açıklanmadı. Basamakları tek tek sordurmak ve başka konudan biçim örneği de
@@ -286,7 +287,7 @@ const EAR_ITEMS =
   `I) Kulak yükü kuralı çiğnenmiş: «${TABLE_RULE}» where: o konuşma sırasının ilk satırı.\n` +
   "G, H ve I'da where her zaman tek satırdır: chapters[i].lines[j].\n" +
   `J) Sahne, neden ya da sıra kuralı çiğnenmiş (son tekrar bölümü ve 1 dakikalık özet hariç): «${SCENE_RULE}» ` +
-  `«${CAUSE_RULE}» «${ORDER_RULE}» where: bölüm, chapters[i].\n`;
+  `«${CAUSE_RULE}» «${ORDER_RULE}» «${OPENING_HOOK_RULE}» where: bölüm, chapters[i].\n`;
 
 function verifyJson(mode: TeacherLessonMode): string {
   return (
@@ -326,9 +327,43 @@ export function podcastIssueLine(issue: PodcastIssue): string {
   return `[${issue.where}]${issue.rule ? ` (${issue.rule})` : ""} ${issue.problem}${issue.fix ? ` → ${issue.fix}` : ""}`;
 }
 
-export function podcastVerifyUserPrompt(episode: PodcastEpisode, input: TeacherPodcastInput): string {
+/**
+ * Düzeltmeden sonra değişen satırlar (30 Ekim 2026). Satır kimliği konuşmacı + metin + işaret; önceki sürümde aynısı
+ * olmayan her satır değişmiştir. Düzeltici bütün JSON'u döndürüyor ama yalnız işaretlenen yerlere dokunuyor.
+ */
+export function changedPodcastLines(before: PodcastEpisode, after: PodcastEpisode): string[] {
+  const key = (line: PodcastEpisode["chapters"][number]["lines"][number]) =>
+    `${line.speaker}|${line.beat ?? ""}|${line.text.replace(/\s+/g, " ").trim()}`;
+  const seen = new Map<string, number>();
+  for (const line of before.chapters.flatMap((chapter) => chapter.lines)) seen.set(key(line), (seen.get(key(line)) ?? 0) + 1);
+  const out: string[] = [];
+  after.chapters.forEach((chapter, chapterIndex) => {
+    chapter.lines.forEach((line, lineIndex) => {
+      const left = seen.get(key(line)) ?? 0;
+      if (left > 0) seen.set(key(line), left - 1);
+      else out.push(`chapters[${chapterIndex}].lines[${lineIndex}]`);
+    });
+  });
+  return out;
+}
+
+/**
+ * Yalnız değişen satırların denetimi (30 Ekim 2026, canlı tur: düzeltmeden sonraki ikinci tam denetim podcast'in
+ * 24-29 sn'si). Değişmeyen satırlar ilk denetimden geçti; denetçi aynı kuralları (aynı sistem istemi) okur, bütün
+ * podcast'i bağlam olarak görür, yalnız değişen satırlara ve onların öbür satırlarla çelişkisine bakar.
+ */
+export function podcastFocusNote(where: string[]): string {
+  return (
+    `DEĞİŞEN SATIRLAR: Bu podcast bir önceki denetimden geçti; ardından yalnız şu satırlar yeniden yazıldı: ${where.join(", ")}. ` +
+    "Yalnız bu satırları denetle: her maddeye göre ve podcast'in öbür satırlarıyla çelişip çelişmediğine bak. Değişmeyen " +
+    "satırlar için sorun yazma."
+  );
+}
+
+export function podcastVerifyUserPrompt(episode: PodcastEpisode, input: TeacherPodcastInput, focus?: string[]): string {
+  const note = focus?.length ? `\n\n${podcastFocusNote(focus)}` : "";
   if (input.mode === "topic") {
-    return `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n(Belgesiz podcast.)\n\nPODCAST (JSON):\n${JSON.stringify(publicShape(episode))}`;
+    return `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n(Belgesiz podcast.)\n\nPODCAST (JSON):\n${JSON.stringify(publicShape(episode))}${note}`;
   }
   const source = [input.lessonText ? `DERS:\n${input.lessonText}` : "", `KAYNAK:\n${sourceText(input.pages)}`]
     .filter(Boolean)
@@ -340,7 +375,7 @@ export function podcastVerifyUserPrompt(episode: PodcastEpisode, input: TeacherP
   const hint = stray.length
     ? `\n\nKAYNAKTA GEÇMEYEN SAYILAR: ${stray.join(", ")}. Her biri kaynaktaki sayılardan hesaplanmış değilse dayanaksızdır (A).`
     : "";
-  return `${source}\n\nPODCAST (JSON):\n${JSON.stringify(publicShape(episode))}${hint}`;
+  return `${source}\n\nPODCAST (JSON):\n${JSON.stringify(publicShape(episode))}${hint}${note}`;
 }
 
 export function podcastFixSystem(mode: TeacherLessonMode = "document", length: PodcastLength): string {
@@ -527,6 +562,8 @@ export function podcastFlowNotes(episode: PodcastEpisode): string[] {
     notes.push(`Kerem'in sıralarının ${keremAsks}/${keremLines.length}'i soru`);
   }
   for (const item of duoTurnProblems(episode)) notes.push(`chapters[${item.chapter}].lines[${item.line}]: ${item.reason}`);
+  for (const item of turnShapeProblems(episode)) notes.push(`chapters[${item.chapter}].lines[${item.line}]: ${item.reason}`);
+  if (definitionOpening(episode)) notes.push("chapters[0].lines[0]: açılış tanımla başlıyor (kanca yok)");
   episode.chapters.forEach((chapter, chapterIndex) => {
     chapter.lines.forEach((line, lineIndex) => {
       const previous = chapter.lines[lineIndex - 1];
@@ -535,6 +572,65 @@ export function podcastFlowNotes(episode: PodcastEpisode): string[] {
     });
   });
   return notes;
+}
+
+/** Cevabı açan söz: soru ve ardından aynı sesten gelen bu sözle başlayan cümle, kendi sorusunu cevaplamaktır. */
+const ANSWER_OPENER = /^(?:çünkü|zira|bunun\s+(?:nedeni|sebebi)|nedeni|sebebi|cevabı|cevap\s+şu|yanıtı)(?!\p{L})/iu;
+
+/**
+ * Konuşma sırasının biçimi (30 Ekim 2026, canlı tur: "Kerem: Neden …? Çünkü …"). `DUO_TURN_RULE`: soru sıranın son
+ * cümlesidir, sırada en çok bir soru, soran kendi sorusunu cevaplamaz. Satırlar cümledir; aynı konuşmacının art arda
+ * satırları bir sıradır (oynatıcı da öyle okur). "Dur ve düşün" sorusu dinleyenedir, sayılmaz. Kod yalnız işaretler.
+ */
+export function turnShapeProblems(episode: PodcastEpisode): { chapter: number; line: number; reason: string }[] {
+  const duo = episode.chapters.some((chapter) => chapter.lines.some((line) => line.speaker === "kerem"));
+  if (!duo) return [];
+  const out: { chapter: number; line: number; reason: string }[] = [];
+  episode.chapters.forEach((chapter, chapterIndex) => {
+    chapter.lines.forEach((line, lineIndex) => {
+      if (line.beat === "ask" || !QUESTION_END.test(line.text)) return;
+      const next = chapter.lines[lineIndex + 1];
+      if (!next || next.speaker !== line.speaker || next.beat) return;
+      if (ANSWER_OPENER.test(next.text.trim())) {
+        out.push({ chapter: chapterIndex, line: lineIndex + 1, reason: "soruyu soran kendisi cevaplıyor" });
+      } else if (QUESTION_END.test(next.text)) {
+        out.push({ chapter: chapterIndex, line: lineIndex + 1, reason: "bir sırada iki soru" });
+      } else {
+        // Ölçümde (30 Ekim 2026) yeni kanca kuralıyla Ada açılış sorusunu sorup cevabını kendisi sürdürdü.
+        out.push({ chapter: chapterIndex, line: lineIndex + 1, reason: "soru sıranın sonunda değil" });
+      }
+    });
+  });
+  return out;
+}
+
+const fold5 = (word: string) => word.toLocaleLowerCase("tr-TR").replace(/[^\p{L}\p{N}]/gu, "").slice(0, 5);
+
+/**
+ * Podcast tanımla mı açılıyor (`OPENING_HOOK_RULE`): ilk cümle soru değil, "Terim, …" diye başlıyor ve terim podcast'in
+ * ya da ilk bölümün adında geçiyor ("Enflasyon, genel fiyat düzeyinin … artmasıdır"). Örnekle ya da vakayla açılış
+ * ("Bir işletmenin mal alımı, …") terim adı taşımadığı için işaretlenmez.
+ */
+export function definitionOpening(episode: PodcastEpisode): boolean {
+  const first = episode.chapters[0]?.lines[0];
+  if (!first || first.beat || QUESTION_END.test(first.text)) return false;
+  const subject = /^([^,?!.:;]{2,60}),\s/u.exec(first.text.trim())?.[1];
+  if (!subject) return false;
+  const words = subject.split(/\s+/).filter(Boolean);
+  if (words.length > 4) return false;
+  const title = `${episode.title} ${episode.chapters[0]?.title ?? ""}`.split(/\s+/).map(fold5).filter((word) => word.length >= 4);
+  const head = fold5(words[0] ?? "");
+  return head.length >= 4 && title.includes(head);
+}
+
+/** Kayıt için akış sayıları (`teacher_podcast` günlüğü): metne dokunmaz, düzeltme turu açmaz. */
+export function podcastFlowCounts(episode: PodcastEpisode): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const note of podcastFlowNotes(episode)) {
+    const reason = note.replace(/^chapters\[\d+\](?:\.lines\[\d+\])?:\s*/, "").replace(/\d+/g, "N").slice(0, 40);
+    counts[reason] = (counts[reason] ?? 0) + 1;
+  }
+  return counts;
 }
 
 function wordSet(text: string): Set<string> {

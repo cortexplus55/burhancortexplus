@@ -37,6 +37,7 @@ import { istanbulDay } from "@/lib/istanbul-day";
 import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { podcastCheckOf, podcastPayloadEpisode, scorePodcastCheck } from "@/lib/learning/podcast-check";
+import { fillPodcastCheckLater } from "@/lib/learning/podcast-check-later";
 import { mergeDistinctCards, teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { lessonBackbone } from "@/lib/learning/lesson-backbone";
 import { loadPreviousItems, loadStoredQuiz } from "@/lib/learning/previous-items";
@@ -837,7 +838,8 @@ async function handleNodeRequest(
 
   // Parça parça açılan ders veya test (18 Ekim 2026): yazım sürerken ekran buradan okur.
   if (action === "progress") {
-    if (kind !== "lesson" && kind !== "quiz") return errorResponse(400, "invalid_input");
+    // Podcast (30 Ekim 2026): oynatıcı bitince arkada yazılan dinleme kontrolünü buradan alır (`checkPending`).
+    if (kind !== "lesson" && kind !== "quiz" && kind !== "podcast") return errorResponse(400, "invalid_input");
     const attemptId = parsed.data.attemptId;
     if (!attemptId) return errorResponse(400, "invalid_input");
     const { data: attempt } = await service
@@ -2586,6 +2588,12 @@ async function handleNodeRequest(
     : Promise.resolve([]);
 
   generationLaunchedMs = Date.now() - requestStarted;
+  // Podcast'in dinleme kontrolü yayımdan sonra (30 Ekim 2026): kayıt yazılınca `fillPodcastCheckLater` doldurur.
+  let podcastCheckTask: (() => Promise<QuizQuestion[]>) | null = null;
+  const schedulePodcastCheck = (attemptId: string) => {
+    const task = podcastCheckTask;
+    if (task) after(() => fillPodcastCheckLater(service, { attemptId, prepId, userId, topicLabel, task }));
+  };
   const generation: Promise<Record<string, unknown>> = (async () =>
     voiceSession
       ? { type: "voice" }
@@ -2689,6 +2697,9 @@ async function handleNodeRequest(
               : null,
           lessonQuiz: quizLesson,
           onLessonSaved: refreshTopicQuiz,
+          onPodcastCheckLater: (task) => {
+            podcastCheckTask = task;
+          },
           prepId,
           topicId: topic?.id ?? null,
           practiceTopics,
@@ -2991,6 +3002,7 @@ async function handleNodeRequest(
       generationId,
       status: "ready",
     });
+    schedulePodcastCheck(creatingAttemptId);
 
     if (topic?.id) {
       await service
@@ -3051,6 +3063,7 @@ async function handleNodeRequest(
   }
 
   if (error || !attempt) return errorResponse(500, "generation_failed");
+  schedulePodcastCheck(attempt.id as string);
 
   // Aşinalık konuya yazılır ki sonraki derste varsayılan olarak gelsin;
   // ruh hali zaman içinde desen çıkarmak için ayrı tabloda birikir.
@@ -3454,6 +3467,8 @@ async function generateNodePayload(input: {
   lessonQuiz?: LessonQuizContext | null;
   /** Ders konuya kaydedilince (sıradaki konu testi derse göre yenilenir). */
   onLessonSaved?: (topicId: string) => void;
+  /** Podcast'in dinleme kontrolü yayımdan sonra (30 Ekim 2026): rota kaydı yazınca arkada koşar. */
+  onPodcastCheckLater?: (task: () => Promise<QuizQuestion[]>) => void;
   /** Ders düğümü içeriğini konuya yazabilsin diye. */
   prepId?: string;
   topicId?: string | null;
@@ -3571,8 +3586,9 @@ async function generateNodePayload(input: {
     // Öğretmen podcast motoru (2 Ekim 2026): aynı konunun dersi ve çekirdek
     // sayfalar; kod metne bir şey eklemez, cümle silmez.
     if (!pagesReady) throw noPages();
-    const { episode, check } = await teacherPodcastEpisode(input, core, length);
-    if (input.prepId && input.userId && input.charge !== false) {
+    const { episode, check, deferred } = await teacherPodcastEpisode(input, core, length);
+    // Kontrol arkada yazılıyorsa önbelleğe o yazar (`fillPodcastCheckLater`): kontrolsüz bölüm önbelleğe girmez.
+    if (input.prepId && input.userId && input.charge !== false && !deferred) {
       await writePodcastCache(input.service, {
         prepId: input.prepId,
         userId: input.userId,
@@ -3591,6 +3607,7 @@ async function generateNodePayload(input: {
       teachingStandard: activity,
       engine: "teacher",
       ...(check.length ? { check } : {}),
+      ...(deferred ? { checkPending: true } : {}),
     };
   }
 
@@ -3952,9 +3969,12 @@ async function teacherPodcastEpisode(
     startedAt,
     // Dinleme kontrolü (20 Ekim 2026): senaryodan üç soru; yazılamazsa podcast kontrolsüz gelir.
     listeningCheck: true,
+    // Öğrenci bekliyorsa kontrol yayımdan sonra yazılır (30 Ekim 2026); önceden yazımda bugünkü gibi birlikte.
+    deferListeningCheck: input.charge !== false && Boolean(input.onPodcastCheckLater),
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
-  return { episode: outcome.episode, check: outcome.check };
+  if (outcome.checkLater) input.onPodcastCheckLater?.(outcome.checkLater);
+  return { episode: outcome.episode, check: outcome.check, deferred: Boolean(outcome.checkLater) };
 }
 
 /** Temiz çekirdek sayfalar ya da belgesiz; öğretmen motorlarının ortak kaynağı. */

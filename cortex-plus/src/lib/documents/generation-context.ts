@@ -23,6 +23,8 @@ export type DocumentGenerationContext = {
   wholeDocument: boolean;
   /** Yazılan konu belgede bulundu mu (false: istek düşmedi, belgenin tamamına genişledi). */
   matched: boolean;
+  /** İsteğin eşleştiği belge konusunun kendi adı (konu haritasından); başlıktan ya da tamamdan geldiyse yok. */
+  topicTitle?: string;
 };
 
 type PageIndexRow = {
@@ -136,7 +138,7 @@ async function linkedTopicPages(
   service: SupabaseClient,
   documentId: string,
   topic: string,
-): Promise<number[] | null> {
+): Promise<{ pages: number[]; title: string | null } | null> {
   const { data: topics, error } = await service.from("document_topic_nodes")
     .select("id, title, parent_id")
     .eq("document_id", documentId);
@@ -149,16 +151,33 @@ async function linkedTopicPages(
   const study = pickStudyTopics(nodes);
   const chosen = study.map((row) => ({
     id: row.id,
+    title: row.title,
     score: titleScore(row.title, topic),
   })).sort((a, b) => b.score - a.score)[0];
-  if (!chosen || chosen.score <= 0) return [];
+  if (!chosen || chosen.score <= 0) return { pages: [], title: null };
   const { data: links, error: linkError } = await service.from("document_topic_page_links")
     .select("page_number")
     .eq("document_id", documentId)
     .eq("topic_id", chosen.id)
     .order("page_number", { ascending: true });
   if (linkError) return null;
-  return (links ?? []).map((row) => row.page_number as number);
+  return { pages: (links ?? []).map((row) => row.page_number as number), title: chosen.title };
+}
+
+/**
+ * Konunun dışındaki sayfa içeriği bölüm olmasın (30 Ekim 2026, canlı tur: Araçlar'da "Enflasyon Türleri" özetinin üç
+ * bölümünden ikisi aynı sayfadaki "kimler kazanır" ve "maliyetler" kısmıydı). Sayfa doğru seçiliyordu; konu haritası
+ * sayfanın bir kısmını konuya bağlıyor, yazar sayfanın tamamını anlatıyordu. Belgenin tamamı istendiyse satır yok.
+ */
+export function topicScopeLine(context: Pick<DocumentGenerationContext, "wholeDocument" | "matched" | "topicTitle">, topic: string): string {
+  if (context.wholeDocument || !context.matched) return "";
+  const title = (context.topicTitle ?? topic).trim();
+  if (!title) return "";
+  return (
+    `Öğrenci yalnız «${title}» konusunu istedi. KAYNAK sayfalarında başka başlıklar da geçebilir: onları bölüm yapma, ` +
+    `yalnız «${title}» konusunu açıklamak için gerekirse bir cümleyle an. Kaynağın bütün noktalarını kapsama kuralı ` +
+    "yalnız bu konunun kısımları için geçerli."
+  );
 }
 
 export async function loadDocumentGenerationContext(
@@ -188,14 +207,21 @@ export async function loadDocumentGenerationContext(
   const readableNumbers = new Set(readable.map((page) => page.page_number));
   const allReadable = readable.map((page) => page.page_number);
   let selected: number[] = [];
-  let whole = isWholeDocumentRequest(topic) ||
-    titleScore(fileName.replace(/\.[^.]+$/, "").replace(/[_-]/g, " "), topic) >= 5;
+  let whole = isWholeDocumentRequest(topic);
   let matched = true;
+  let topicTitle: string | undefined;
   if (!whole) {
     const linked = await linkedTopicPages(service, documentId, topic);
     if (linked === null) return null;
-    selected = linked.filter((number) => readableNumbers.has(number));
-    if (!selected.length) {
+    selected = linked.pages.filter((number) => readableNumbers.has(number));
+    if (selected.length && linked.title) topicTitle = linked.title;
+    /*
+      Dosya adı ancak istek belgenin bir konusuna uymuyorsa "tamamı" sayılır (30 Ekim 2026). Önce dosya adına bakılıyordu:
+      "Ekonomi-Enflasyon-ve-Para-Politikasi.pdf"de "Para Politikası" isteyen öğrenciye belgenin tamamı gidiyordu (dosya
+      adı isteği içeriyor), oysa belgede tam o adlı bir konu vardı.
+    */
+    if (!selected.length && titleScore(fileName.replace(/\.[^.]+$/, "").replace(/[_-]/g, " "), topic) >= 5) whole = true;
+    if (!whole && !selected.length) {
       const scored = readable.map((page) => ({
         number: page.page_number,
         score: Math.max(0, ...(page.headings ?? []).map((heading) => titleScore(heading, topic))),
@@ -204,7 +230,7 @@ export async function loadDocumentGenerationContext(
     }
     // Konu belgede yoksa istek düşmez: belgenin tamamından hazırlanır (19 Ekim 2026; önce 409
     // "belge hazır değil" dönüyor, ekran çoğu zaman hiçbir şey söylemiyordu).
-    if (!selected.length) {
+    if (!whole && !selected.length) {
       whole = true;
       matched = false;
     }
@@ -238,6 +264,6 @@ export async function loadDocumentGenerationContext(
     }
   }
   return excerpt.trim()
-    ? { documentId, fileName, excerpt, topicPages: selected, wholeDocument: whole, matched }
+    ? { documentId, fileName, excerpt, topicPages: selected, wholeDocument: whole, matched, ...(topicTitle ? { topicTitle } : {}) }
     : null;
 }

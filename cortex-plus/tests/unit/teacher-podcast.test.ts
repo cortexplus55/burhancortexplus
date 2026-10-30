@@ -181,7 +181,7 @@ describe("rota podcast'i öğretmen motoruna yollar", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast", "true_false"]);');
     // 20 Ekim 2026: motor senaryoyla birlikte dinleme kontrolünü de döndürür.
-    expect(route).toContain("const { episode, check } = await teacherPodcastEpisode(input, core, length);");
+    expect(route).toContain("const { episode, check, deferred } = await teacherPodcastEpisode(input, core, length);");
     // Sayfa listesi boş düğümde test ve podcast dersin çözücüsünden aynı sayfaları alır.
     const block = route.slice(route.indexOf("if (TEACHER_PAGE_KINDS.has(kind) && teachingV2"), route.indexOf("// Podcast, sayfa kaynağı duruyorsa"));
     expect(block).toContain("await resolveLessonSource(service, {");

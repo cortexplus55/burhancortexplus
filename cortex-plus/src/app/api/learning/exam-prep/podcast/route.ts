@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -213,8 +213,10 @@ export async function POST(request: Request) {
         .join("\n") || undefined,
     runningHeaders: edges,
     // Dinleme kontrolü (20 Ekim 2026): bu sayfa göstermez, önbelleğe yazar; aynı konunun yol
-    // düğümü önbellekten kontrollü (puanlı, kanıtlı) açılır.
+    // düğümü önbellekten kontrollü (puanlı, kanıtlı) açılır. 30 Ekim 2026: yanıttan sonra yazılır; sayfa
+    // göstermediği kontrolü 13-15 sn beklemiyor (canlı model, dört konu).
     listeningCheck: withCheck,
+    deferListeningCheck: withCheck,
   });
 
   if (!outcome.ok) {
@@ -237,13 +239,14 @@ export async function POST(request: Request) {
     return errorResponse(outcome.status, outcome.error, { refunded: true });
   }
 
-  if (withCheck) await writePodcastCache(service, {
-    prepId,
-    userId,
-    topicLabel: topic.label,
-    episode: outcome.episode,
-    check: outcome.check,
-  });
+  if (withCheck) {
+    const { episode, checkLater } = outcome;
+    const cache = (check: typeof outcome.check) =>
+      writePodcastCache(service, { prepId, userId, topicLabel: topic.label, episode, check });
+    // Kontrolsüz bölüm önbelleğe yazılmaz: kontrol bitince (yazılamadıysa boş) bölümle birlikte girer.
+    if (checkLater) after(async () => cache(await checkLater()));
+    else await cache(outcome.check);
+  }
 
   return NextResponse.json({
     ok: true,
