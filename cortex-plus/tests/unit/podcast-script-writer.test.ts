@@ -22,8 +22,9 @@ describe("podcast: senarist yazar", () => {
     // Kişisel anı yasağı ve öğrenciye sızıntı yasağı (28 Ekim 2026) eklendi; istem yine kısa kalır
     // (eski onarım listesi ~8.000 karakterdi). Paket A (28 Ekim 2026): uzunluk satırı taban/tavanı anlatıyor.
     // Paket I #5 (30 Ekim 2026): sızıntı yasağı renk anahtarı, kapsam notu, uydurma ad ve alıştırma numarasını da
-    // sayıyor (kısaltılarak, +~70 karakter).
-    expect(system.length).toBeLessThan(5_500);
+    // sayıyor (kısaltılarak, +~70 karakter). 30 Ekim 2026: konuşma sırası kuralı denetçiyle aynı metin (`DUO_TURN_RULE`,
+    // önce burada kısa bir özeti vardı; canlıda Kerem kendi sorusunu cevapladı) ve açılış kancası (+~1.050 karakter).
+    expect(system.length).toBeLessThan(6_600);
     expect(system).toContain("Uzunluğu konunun yoğunluğu belirler");
     expect(system).toContain(STUDENT_LEAK_BAN);
     expect(system).toContain("Sayı, eşik, yaş, süre, tarih, doz, formül, tanı ölçütü ve sınıflandırma yalnızca KAYNAK'tan");

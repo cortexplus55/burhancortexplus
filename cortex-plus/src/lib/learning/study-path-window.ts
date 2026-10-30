@@ -1,7 +1,7 @@
 /**
  * "2 adım ileri" (20 Ekim 2026, ürün sahibinin kararı): yol tamamıyla görünür, ama şu anki adım ve
  * sonraki iki adım kesinleşmiş plandır; sonrası öğrencinin sonuçlarına göre değişebilir, soluk
- * çizilir. Önceden yazım da yalnız bu pencereyi hazırlar (`requestNextPrefetch`).
+ * çizilir. Önceden yazım bu pencereyi ve 30 Ekim 2026'dan beri sıradaki iki dersi hazırlar (`prefetchTargets`).
  */
 export const PATH_LOOKAHEAD = 2;
 

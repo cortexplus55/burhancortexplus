@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
-import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
+import { loadDocumentGenerationContext, topicScopeLine } from "@/lib/documents/generation-context";
 import { corePageRun } from "@/lib/learning/core-pages";
 import type { TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 
@@ -14,6 +14,8 @@ export type StudioTeacherSource = {
   wholeDocument: boolean;
   /** Yazılan konu belgede bulundu mu; false ise ekran "belgenin tamamından hazırladım" der. */
   matched: boolean;
+  /** Konu istendiyse yazara kapsam satırı (`topicScopeLine`): sayfadaki başka başlıklar bölüm olmaz. */
+  scopeLine: string;
 };
 
 /**
@@ -26,7 +28,9 @@ export async function studioTeacherSource(
   service: SupabaseClient,
   input: { userId: string; topic: string; documentId?: string | null },
 ): Promise<StudioTeacherSource | null> {
-  if (!input.documentId) return { mode: "topic", pages: [], edges: [], fileName: null, wholeDocument: false, matched: true };
+  if (!input.documentId) {
+    return { mode: "topic", pages: [], edges: [], fileName: null, wholeDocument: false, matched: true, scopeLine: "" };
+  }
   const context = await loadDocumentGenerationContext(service, input.userId, input.documentId, input.topic);
   if (!context) return null;
   const edges = await documentRunningHeaders(service, input.documentId);
@@ -46,5 +50,6 @@ export async function studioTeacherSource(
     fileName: context.fileName,
     wholeDocument: context.wholeDocument,
     matched: context.matched,
+    scopeLine: topicScopeLine(context, input.topic),
   };
 }

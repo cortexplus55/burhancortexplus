@@ -168,10 +168,16 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
     const run = readFileSync("src/lib/learning/teacher-podcast-run.ts", "utf8");
     const inner = run.slice(run.indexOf("async function runTeacherPodcastInner"));
     expect(inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input, started)")).toBeGreaterThan(0);
-    expect(inner.indexOf("await podcastListeningCheck(ask, episode, { ...input, optionCount: await optionCountLoad }, started)")).toBeGreaterThan(
+    expect(inner.indexOf("await podcastListeningCheck(ask, episode, checkInput, started)")).toBeGreaterThan(
       inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input, started)"),
     );
-    expect(inner.indexOf("await podcastListeningCheck(ask,")).toBeLessThan(inner.indexOf("await commitCredits("));
+    // Birlikte yazılan kontrol (önceden yazım): kredi kesinleşmeden önce. Yayımdan sonra yazılan (30 Ekim 2026, öğrenci
+    // beklerken): kredi kesinleşir, kontrol aynı ayrılışa normal işlemde yazılır (`checkLater`); ikinci ayrılış yok.
+    const together = inner.slice(inner.indexOf("// Kontrol, kredi kesinleşmeden önce"));
+    expect(together.indexOf("await podcastListeningCheck(ask,")).toBeLessThan(together.indexOf("await commitCredits("));
+    const deferred = inner.slice(inner.indexOf("if (input.deferListeningCheck && input.listeningCheck === true)"), inner.indexOf("// Kontrol, kredi kesinleşmeden önce"));
+    expect(deferred).toContain("const later = makeAsk(fastTier(false));");
+    expect(deferred).toContain("podcastListeningCheck(later, episode, checkInput, started)");
     expect(run.match(/reserveCredits\(/g)).toHaveLength(1);
     // Döngünün kendisi kontrolü bilmez: döngü testleri (taslak → denetim → düzeltme) değişmeden geçer.
     const loop = run.slice(run.indexOf("export async function teacherPodcastLoop"), run.indexOf("export async function podcastListeningCheck"));
@@ -186,11 +192,13 @@ describe("rotalar: kontrol yalnız hazırlığın podcast'inde", () => {
   it("yol düğümü: üretir, önbelleğe yazar, sayar, puanlar, istemciye anahtarıyla gönderir", () => {
     const branch = node.slice(node.indexOf('if (input.kind === "podcast") {'), node.indexOf('if (input.kind === "oral") {'));
     expect(branch).toContain("...(cached.check.length ? { check: cached.check } : {})");
-    expect(branch).toContain("const { episode, check } = await teacherPodcastEpisode(input, core, length);");
+    expect(branch).toContain("const { episode, check, deferred } = await teacherPodcastEpisode(input, core, length);");
     expect(branch).toMatch(/writePodcastCache\(input\.service, \{[\s\S]*?episode,\s*check,\s*\}\)/);
     expect(branch).toContain("...(check.length ? { check } : {})");
-    // Önceden yazılan podcast açılmadan önbelleğe girmez (lesson-prefetch kuralı).
-    expect(branch).toContain("if (input.prepId && input.userId && input.charge !== false) {");
+    // Önceden yazılan podcast açılmadan önbelleğe girmez (lesson-prefetch kuralı). Kontrol arkada yazılıyorsa
+    // (30 Ekim 2026) önbelleği kontrolle birlikte `fillPodcastCheckLater` yazar.
+    expect(branch).toContain("if (input.prepId && input.userId && input.charge !== false && !deferred) {");
+    expect(branch).toContain("...(deferred ? { checkPending: true } : {})");
     // Yalnız gösterim; düşen kredi PODCAST_GENERATE.
     expect(branch).toContain("scriptCredits: CREDIT_PRICE_TABLE.PODCAST_GENERATE.credits");
     expect(node).toContain("listeningCheck: true,");
@@ -215,9 +223,11 @@ describe("rotalar: kontrol yalnız hazırlığın podcast'inde", () => {
     // önbelleğe yazılmaz.
     expect(prep).toContain("const withCheck = parsed.data.listeningCheck !== false;");
     expect(prep).toContain("listeningCheck: withCheck,");
-    expect(prep).toContain("if (withCheck) await writePodcastCache(service, {");
+    // 30 Ekim 2026: sayfa göstermediği kontrolü beklemez; kontrol yanıttan sonra yazılır, önbelleğe kontrolle girer.
+    expect(prep).toContain("deferListeningCheck: withCheck,");
+    expect(prep).toContain("if (checkLater) after(async () => cache(await checkLater()));");
+    expect(prep).toContain("else await cache(outcome.check);");
     expect(read("src/app/api/learning/exam-prep/lesson-podcast/route.ts")).toContain("listeningCheck: false,");
-    expect(prep).toContain("check: outcome.check,");
     expect(prep).toContain("check: outcome.check.map(publicQuizQuestion),");
     expect(prep).toContain("check: cached.check.map(publicQuizQuestion),");
     expect(read("src/app/api/learning/exam-prep/lesson-podcast/route.ts")).not.toContain("listeningCheck: true");

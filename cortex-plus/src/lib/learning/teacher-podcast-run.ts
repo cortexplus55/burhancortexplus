@@ -13,8 +13,15 @@ import {
 } from "@/lib/learning/student-pedagogy";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
-import { balanceKerem, podcastBelowFloor, podcastTurnCount, podcastWordCount, type PodcastEpisode } from "@/lib/learning/podcast-episode";
-import { PODCAST_TTS_CONCURRENCY } from "@/lib/learning/podcast-formats";
+import {
+  balanceKerem,
+  keremShare,
+  podcastBelowFloor,
+  podcastTurnCount,
+  podcastWordCount,
+  type PodcastEpisode,
+} from "@/lib/learning/podcast-episode";
+import { KEREM_SHARE_MAX, KEREM_SHARE_MIN, PODCAST_TTS_CONCURRENCY } from "@/lib/learning/podcast-formats";
 import {
   closerToBand,
   DURATION_ROUND_TIMEOUT_MS,
@@ -35,9 +42,11 @@ import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { QUIZ_FIX_DEADLINE_MS, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
 import { usesScriptWriter } from "@/lib/learning/podcast-script-writer";
 import {
+  changedPodcastLines,
   insertPodcastChapters,
   parsePodcastAddition,
   parsePodcastIssues,
+  podcastFlowCounts,
   parseTeacherPodcast,
   podcastCompletionSystem,
   podcastCompletionUserPrompt,
@@ -97,11 +106,41 @@ export type PodcastLoopResult = {
   shortShipped?: boolean;
 };
 
+/**
+ * Düzeltmeden sonraki denetim yalnız değişen satırlara bakar (30 Ekim 2026, öğrenci beklerken). Ölçüm (canlı model,
+ * hızlı işlem, iki konu × iki koşu, aynı enjekte hata): tam denetim 17-29 sn, odaklı denetim 2,7-10,4 sn; enjekte hata
+ * 4/4'te ikisinde de yakalandı. Değişen satır bu oranı aşarsa (düzeltici metni baştan yazdıysa) tam denetim.
+ */
+const FOCUSED_REVIEW_MAX_SHARE = 0.6;
+
+/** Odaklı denetimin satırları; hiç değişen yoksa ya da çoğu değiştiyse null (tam denetim). */
+export function focusedReviewLines(before: PodcastEpisode, after: PodcastEpisode): string[] | null {
+  const changed = changedPodcastLines(before, after);
+  const total = after.chapters.reduce((sum, chapter) => sum + chapter.lines.length, 0);
+  if (!changed.length || !total || changed.length > total * FOCUSED_REVIEW_MAX_SHARE) return null;
+  return changed;
+}
+
 /** Taban sorunu düzeltme turu açmaz: tamamlama turu yalnız eksik bölümleri ekler (`ensurePodcastDuration`). */
 const SHORT_PROBLEM = /^Metin kısa/;
 /** Tabanın altındaki düzeltme en çok bu oranda kısalabilir. */
 const FIX_SHRINK_LIMIT = 0.85;
 const blocking = (problems: string[]) => problems.filter((problem) => !SHORT_PROBLEM.test(problem));
+/**
+ * Bandın hemen dışındaki konuşma payı tek başına düzeltme turu açmaz (30 Ekim 2026): kod dengeler (`balanceKerem`,
+ * bütün sıra taşır). Ölçüm: tek sorunu "Kerem %51" olan podcast'te düzeltme 10 sn + yeniden denetim 12 sn sürdü,
+ * düzeltici satırların çoğunu yeniden yazdı. Bandın 5 puandan fazla dışındaysa tur açılır (kod içerik üretemez).
+ */
+const SHARE_PROBLEM = /^Konuşma payı/;
+const SHARE_NEAR_MISS = 0.05;
+function shareNearMiss(episode: PodcastEpisode): boolean {
+  const share = keremShare(episode);
+  return share >= KEREM_SHARE_MIN - SHARE_NEAR_MISS && share <= KEREM_SHARE_MAX + SHARE_NEAR_MISS;
+}
+/** Düzeltme turunu açan sorunlar: taban (tamamlama turu kapatır) ve bandın hemen dışındaki pay (kod dengeler) değil. */
+export function roundOpeningProblems(episode: PodcastEpisode, problems: string[]): string[] {
+  return blocking(problems).filter((problem) => !(SHARE_PROBLEM.test(problem) && shareNearMiss(episode)));
+}
 
 /**
  * Taslak → yapı + belge denetimi → modelin düzeltmesi → (gerekirse) kurtarma → (gerekirse)
@@ -113,11 +152,15 @@ const blocking = (problems: string[]) => problems.filter((problem) => !SHORT_PRO
  * (18 Ekim: iki podcast, bir "sınavda ağırlıklı" cümlesi ve tutmayan bir eşitlik). Şimdi
  * sorunlu satır çıkarılır (`salvagePodcast`); satıra bağlanamayan sorun kaldıysa ikinci
  * taslak yazılır; o da olmazsa ancak o zaman podcast yok.
+ *
+ * `urgent` (30 Ekim 2026): öğrenci bekliyor. Düzeltmeden sonraki denetim yalnız değişen satırlara bakar
+ * (`podcastFocusNote`); önceden yazımda (kimse beklemiyor) bugünkü gibi bütün podcast yeniden denetlenir.
  */
 export async function teacherPodcastLoop(
   ask: AskJson,
   input: TeacherPodcastInput,
   started = Date.now(),
+  options: { urgent?: boolean } = {},
 ): Promise<PodcastLoopResult> {
   const mode = input.mode ?? "document";
   let drafts = 0;
@@ -125,11 +168,17 @@ export async function teacherPodcastLoop(
   /** Son denetimin kulak maddeleri (G/H/I): ek düzeltme turunun bedeli ölçülsün. */
   let ear = { G: 0, H: 0, I: 0 };
 
-  const review = async (episode: PodcastEpisode): Promise<{ problems: string[]; verified: boolean }> => {
+  const review = async (
+    episode: PodcastEpisode,
+    previous?: PodcastEpisode,
+  ): Promise<{ problems: string[]; verified: boolean }> => {
     const structural = podcastStructureIssues(episode);
+    const focus = options.urgent && previous ? focusedReviewLines(previous, episode) : null;
     try {
       // Madde harfiyle (20 Ekim 2026): kurtarma G/H/I'yı A-F'den ayrı işler (`salvagePodcast`).
-      const high = parsePodcastIssues(await ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(episode, input), "verify"))
+      const high = parsePodcastIssues(
+        await ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(episode, input, focus ?? undefined), "verify"),
+      )
         .filter((issue) => issue.severity === "high");
       ear = {
         G: high.filter((issue) => issue.rule === "G").length,
@@ -154,7 +203,7 @@ export async function teacherPodcastLoop(
     let reviewed = await review(episode);
     // Denetçi bir kez ulaşılamadıysa bir daha sorulur; denetimsiz yayın son çaredir.
     if (!reviewed.verified) reviewed = await review(episode);
-    for (let round = 0; round < fixRounds && blocking(reviewed.problems).length; round += 1) {
+    for (let round = 0; round < fixRounds && roundOpeningProblems(episode, reviewed.problems).length; round += 1) {
       if (Date.now() - started > FIX_DEADLINE_MS) break;
       if (round > 0) {
         const cheap = salvagePodcast(episode, reviewed.problems);
@@ -177,9 +226,10 @@ export async function teacherPodcastLoop(
         floorRejected += 1;
         break;
       }
+      const previous = episode;
       episode = fixed;
       drafts += 1;
-      reviewed = await review(episode);
+      reviewed = await review(episode, previous);
     }
     return { episode, ...reviewed };
   };
@@ -318,7 +368,18 @@ export async function podcastListeningCheck(
 }
 
 export type TeacherPodcastOutcome =
-  | { ok: true; episode: PodcastEpisode; check: QuizQuestion[]; calls: number; ms: number }
+  | {
+      ok: true;
+      episode: PodcastEpisode;
+      check: QuizQuestion[];
+      calls: number;
+      ms: number;
+      /**
+       * Dinleme kontrolü yayımdan sonra (`deferListeningCheck`): çağıran yanıtı gönderip bunu `after()` içinde
+       * koşar. Hiçbir zaman fırlatmaz; yazılamazsa boş döner (kontrol podcast'i düşürmez).
+       */
+      checkLater?: () => Promise<QuizQuestion[]>;
+    }
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /** Kredi bir kez ayrılır; podcast sorunsuz çıkarsa kesinleşir, çıkmazsa iade. */
@@ -338,6 +399,11 @@ async function runTeacherPodcastInner(
      * hazırlığın podcast sayfası); stüdyo ve ders podcast'i v1'de kontrolsüz.
      */
     listeningCheck?: boolean;
+    /**
+     * Kontrol podcast yayımlandıktan sonra yazılsın (30 Ekim 2026, öğrenci beklerken). Oynatıcı kontrolü podcast
+     * bitince gösteriyor; yayımı beklettiği 13-15 sn (canlı model, dört konu) boşa bekleme. Sonuç `checkLater`.
+     */
+    deferListeningCheck?: boolean;
   },
 ): Promise<TeacherPodcastOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
@@ -366,12 +432,12 @@ async function runTeacherPodcastInner(
   const optionCountLoad = studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
   const profile = await profileLoad;
-  const ask: AskJson = async (system, user, role) => {
+  const makeAsk = (served: ReturnType<typeof fastTier>): AskJson => async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },
-      ...tier,
+      ...served,
       // 19 Ekim 2026: özet podcast 126 sn sürdü. Testteki gibi yazar ve düzeltme düşük düşünmeyle;
       // her satırı kaynağa karşı okuyan denetçi varsayılanda kalır.
       // Senarist taslağı orta düşünmeyle (23 Ekim 2026, yirmi beşinci ölçüm: öğrenci gözü 63,5 → 65; yoğun sıralar azaldı).
@@ -391,11 +457,14 @@ async function runTeacherPodcastInner(
     }).catch(() => undefined);
     return parseModelJson(response.choices[0]?.message?.content ?? "");
   };
+  const ask = makeAsk(tier);
+  // Öğrenci bekliyor (önceden yazım değil): düzeltmeden sonraki denetim yalnız değişen satırlara.
+  const loopOptions = { urgent: !free };
 
   try {
     let loop: PodcastLoopResult;
     try {
-      loop = await teacherPodcastLoop(ask, input, started);
+      loop = await teacherPodcastLoop(ask, input, started, loopOptions);
     } catch (error) {
       // Ağ ya da sağlayıcı düştü: öğrenciye hata göstermeden önce döngü bir kez baştan koşar.
       if (Date.now() - started > RERUN_DEADLINE_MS) throw error;
@@ -404,7 +473,7 @@ async function runTeacherPodcastInner(
         calls,
         cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
       });
-      loop = await teacherPodcastLoop(ask, input, started);
+      loop = await teacherPodcastLoop(ask, input, started, loopOptions);
     }
     console.info("teacher_podcast", {
       topic: input.topicLabel.slice(0, 80),
@@ -418,6 +487,9 @@ async function runTeacherPodcastInner(
       earIssues: loop.earIssues ?? null,
       floorRejected: loop.floorRejected ?? 0,
       words: loop.episode ? podcastWordCount(loop.episode) : 0,
+      // Akış ölçüsü (30 Ekim 2026): kendi sorusunu cevaplayan, bir sırada iki soru, tanımla açılış… Yalnız sayı.
+      flow: loop.episode ? podcastFlowCounts(loop.episode) : null,
+      urgent: loopOptions.urgent,
       calls,
       ms: Date.now() - started,
     });
@@ -441,8 +513,17 @@ async function runTeacherPodcastInner(
         salvageFloor: loop.shortShipped === true,
       });
     }
+    const checkInput = { ...input, optionCount: await optionCountLoad };
+    if (input.deferListeningCheck && input.listeningCheck === true) {
+      // Yayımdan sonra, normal işlemde (öğrenci artık dinliyor, beklemiyor); kullanım yine bu ayrılışa yazılır.
+      if (reservation.reservationId) await commitCredits(service, reservation.reservationId);
+      const later = makeAsk(fastTier(false));
+      const checkLater = () =>
+        podcastListeningCheck(later, episode, checkInput, started).catch(() => [] as QuizQuestion[]);
+      return { ok: true, episode, check: [], calls, ms: Date.now() - started, checkLater };
+    }
     // Kontrol, kredi kesinleşmeden önce aynı `ask` ile: kullanımı aynı ayrılışa yazılır. Şık sayısı öğrencinin sınavı.
-    const check = await podcastListeningCheck(ask, episode, { ...input, optionCount: await optionCountLoad }, started);
+    const check = await podcastListeningCheck(ask, episode, checkInput, started);
     if (reservation.reservationId) await commitCredits(service, reservation.reservationId);
     return { ok: true, episode, check, calls, ms: Date.now() - started };
   } catch (error) {
@@ -548,9 +629,13 @@ export async function completePodcast(
   if (!added) return { episode, verdict: "no_addition" };
   const firstNew = Math.max(0, episode.chapters.length > 1 ? episode.chapters.length - 1 : episode.chapters.length);
   const isNew = (index: number) => index >= firstNew && index < firstNew + added;
+  // Yalnız yeni bölümlerin sorunları sayılıyor; denetçi de yalnız onlara bakar (30 Ekim 2026, `podcastFocusNote`).
+  const newLines = merged.chapters.flatMap((chapter, chapterIndex) =>
+    isNew(chapterIndex) ? chapter.lines.map((_, lineIndex) => `chapters[${chapterIndex}].lines[${lineIndex}]`) : [],
+  );
 
   const verdict = await withDeadline(
-    ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(merged, input), "verify"),
+    ask(podcastVerifySystem(mode), podcastVerifyUserPrompt(merged, input, newLines), "verify"),
     roundBudget(started, COMPLETION_REVIEW_TIMEOUT_MS),
   );
   if (verdict === null) return { episode, verdict: "unverified" };

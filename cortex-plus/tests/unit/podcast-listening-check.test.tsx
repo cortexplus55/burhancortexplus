@@ -43,7 +43,9 @@ describe("podcast dinleme kontrolü", () => {
 
   it("oturum: oynatıcı bitince kontrol varsa önce kontrol; atlama boş cevapla tamamlar", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
-    expect(session).toContain("onFinish={() => (podcastCheck.length ? setPodcastCheckOpen(true) : void finish())}");
+    // 30 Ekim 2026: kontrol yayımdan sonra yazıldıysa (`checkPending`) önce kayıttan alınır (podcast-hiz-30-ekim.test.ts).
+    expect(session).toContain("if (podcastCheck.length) return setPodcastCheckOpen(true);");
+    expect(session).toContain("if (!podcastCheckPending(payload) || !attemptId) return void finish();");
     expect(session).toContain("onDone={(checkAnswers) => void finish(checkAnswers)}");
     expect(session).toContain("onSkip={() => void finish({})}");
     // Geri bildirim ucu yalnız test ve doğru/yanlış okur: podcast'te düğme yok.

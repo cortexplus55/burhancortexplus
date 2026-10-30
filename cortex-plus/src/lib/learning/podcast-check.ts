@@ -106,6 +106,38 @@ export function scorePodcastCheck(payload: unknown, answers: Record<string, unkn
   return scoreQuizAnswers(check, answers);
 }
 
+/**
+ * Kontrol arkada yazılıyor mu (30 Ekim 2026): öğrenci beklerken podcast kontrolsüz yayımlanır, kontrol sonra kayda girer
+ * (`fillPodcastCheckLater`). Kayıtta soru varsa beklenecek bir şey yok.
+ */
+export function podcastCheckPending(payload: unknown): boolean {
+  const data = (payload ?? {}) as { checkPending?: unknown; check?: unknown };
+  return data.checkPending === true && !(Array.isArray(data.check) && data.check.length > 0);
+}
+
+/** Oynatıcı bitince arkadaki kontrol en çok bu kadar sorulur; podcast en az birkaç dakika, kontrol ~15-25 sn. */
+export const PODCAST_CHECK_POLL = { tries: 4, delayMs: 2_500 } as const;
+
+/**
+ * Arkada yazılan kontrolü al: `fetchPayload` kaydın güncel hâlini döndürür (yoksa null). Kontrol gelince o payload,
+ * gelmezse null (podcast kontrolsüz biter; kontrol podcast'i hiçbir zaman bekletmez ya da düşürmez).
+ */
+export async function awaitPodcastCheck<T>(
+  fetchPayload: () => Promise<T | null>,
+  options: { tries: number; delayMs: number } = PODCAST_CHECK_POLL,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<T | null> {
+  for (let attempt = 0; attempt < options.tries; attempt += 1) {
+    if (attempt > 0) await sleep(options.delayMs);
+    const payload = await fetchPayload().catch(() => null);
+    if (!payload) continue;
+    const check = (payload as { check?: unknown }).check;
+    if (Array.isArray(check) && check.length) return payload;
+    if (!podcastCheckPending(payload)) return null;
+  }
+  return null;
+}
+
 /** Kayıttaki podcast payload'ından önbelleğe yazılacak bölüm; podcast değilse null. */
 export function podcastPayloadEpisode(payload: unknown): PodcastEpisode | null {
   const data = (payload ?? {}) as Record<string, unknown>;
