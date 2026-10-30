@@ -31,7 +31,7 @@ export class RetryFetchError extends Error {
       reason === "timeout"
         ? "İstek zaman aşımına uğradı."
         : reason === "network"
-          ? "Bağlantı kurulamadı."
+          ? "Ağ hatası."
           : "İstek yenisiyle değiştirildi.",
     );
     this.name = "RetryFetchError";

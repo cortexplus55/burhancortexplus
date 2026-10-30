@@ -198,14 +198,43 @@ type Payload = {
 
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
 const LESSON_PROGRESS_POLL_MS = 1_500;
-/** Yazılı cevap her tuşta kayıt açmasın: son tuştan bu kadar sonra tek istek (bitirme hemen gönderir). */
+const NODE_URL = "/api/learning/exam-prep/node";
+/** Seçimli cevap (şık, doğru/yanlış, kart): kısa bekleme, arada gelenler tek istekte. */
 const SAVE_DEBOUNCE_MS = 400;
+/**
+ * Yazılı cevap her tuşta kayıt açmasın: son tuştan bu kadar sonra tek istek. Yazarken yenilenen
+ * sayfayı tarayıcı taslağı kurtarır; sunucu kaydı başka cihaz içindir. Rota kişi başına dakikada
+ * 16 istekle sınırlı — sık kayıt hız sınırına takılıp asıl cevapları geciktiriyordu.
+ */
+export const SAVE_TYPING_DEBOUNCE_MS = 4_000;
+/** Etkin kayıt bu kadar sürdüyse (askıda ya da yeniden denemede) yeni küme onu bekletmez, iptal eder. */
+const SAVE_SUPERSEDE_AFTER_MS = 3_000;
+/** Hız sınırına takılan kayıt: en son küme bu kadar sonra kendiliğinden yeniden gönderilir. */
+const SAVE_RATE_LIMIT_RETRY_MS = 15_000;
+
 /** Bitirme yanıtı gelmeyince (zaman aşımı, ağ, sunucuda sözlü notlandırma) kaydın durumu bu aralıkla sorulur. */
 const RESULT_POLL_MS = 3_000;
-/** Bu kadar süre sonuç gelmezse "Yeniden dene" düğmesi çıkar; yoklama sürer. */
-const RESULT_LATE_MS = 5 * 60_000;
-/** Yoklama "kayıt hâlâ açık" derse bitirme en erken bu aralıkla yeniden gönderilir. */
-const RECOMPLETE_MIN_GAP_MS = 60_000;
+/**
+ * Yoklama aralığı: ilk beş yoklama 3 sn (sözlü notu çoğunlukla bu sürede biter), sonra 6 sn, iki
+ * dakikadan sonra 10 sn. Sabit 3 sn dakikada 20 istek eder; rota kişi başına 16'da keser ve kötüye
+ * kullanım kaydı yazar.
+ */
+export function resultPollDelay(polls: number): number {
+  if (polls < 5) return RESULT_POLL_MS;
+  if (polls < 20) return 6_000;
+  return 10_000;
+}
+/** Bu kadar süre sonuç gelmezse "uzun sürüyor" satırı ve "Yeniden dene" çıkar; yoklama sürer. */
+const RESULT_LATE_MS = 2 * 60_000;
+/**
+ * Yoklama "kayıt açık, notlanmıyor" derse bitirme sunucuya ulaşmamıştır (sunucu sahiplenmeyi
+ * notlandırmadan önce yazar): son bitirme isteği bittikten bu kadar sonra aynı kimlikle yeniden gider.
+ */
+const RECOMPLETE_MIN_GAP_MS = 15_000;
+
+function jsonPost(body: Record<string, unknown>): RequestInit {
+  return { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+}
 
 /** Tarayıcı deposu: gizli pencerede ya da engellenmiş site verisinde erişim fırlatabilir. */
 function browserStorage(): Storage | null {
@@ -490,8 +519,18 @@ export function ExamNodeSession({
    * bekleyen işin cevap kümesi yenisiyle değişir (arada gelenler katlanır); etkin istek askıdaysa
    * iptal edilip en son küme gönderilir. Eski sıralı kuyruk askıdaki isteğin arkasında birikiyordu.
    */
-  const saveRef = useRef<{ queued: SaveJob | null; active: AbortController | null }>({ queued: null, active: null });
+  const saveRef = useRef<{ queued: SaveJob | null; active: AbortController | null; running: boolean; startedAt: number }>({
+    queued: null,
+    active: null,
+    running: false,
+    startedAt: 0,
+  });
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const save429TimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Kayıtta gönderilen en ileri soru sırası. */
+  const saveCursorRef = useRef(0);
+  /** Son onaydan beri yanıtı belirsiz kalan (zaman aşımı, iptal) bir kayıt isteği oldu mu. */
+  const saveUncertainRef = useRef(false);
   /** Kayıt kimlikleri senkron okunur: açılışta taslak birleştirmesi state güncellenmeden kaydeder. */
   const attemptIdRef = useRef<string | null>(null);
   const generationIdRef = useRef<string | null>(null);
@@ -510,7 +549,7 @@ export function ExamNodeSession({
   const [gradingLate, setGradingLate] = useState(false);
   /** Arka plan yoklaması (sonucu anında gösterilen test/doğru-yanlışta ekran değişmez). */
   const [resultPolling, setResultPolling] = useState<{ moveStage: boolean } | null>(null);
-  const lastCompleteSentRef = useRef(0);
+  const lastCompleteSettledRef = useRef(0);
   const contentVersionRef = useRef(1);
   const answersRef = useRef<Record<string, unknown>>({});
 
@@ -658,6 +697,104 @@ export function ExamNodeSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, nodeDone, stage, payload, loading]);
 
+  // Sonuç yoklaması (30 Ekim 2026, Paket I): bitirmenin yanıtı gelmediyse ya da sunucu sözlüyü arka
+  // planda notluyorsa kayıt 3 sn'de bir sorulur (sonra seyrelir, `resultPollDelay`). Açık kalmış ve
+  // notlanmayan kayıt, bitirmenin sunucuya hiç ulaşmadığını söyler: bitirme aynı kimlikle yeniden
+  // gönderilir (sunucu çift notlamaz).
+  const pollMode = stage === "grading" ? "screen" : resultPolling ? "background" : null;
+  useEffect(() => {
+    if (!pollMode || !attemptId) return;
+    const moveStage = pollMode === "screen";
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let polls = 0;
+    const poll = async () => {
+      polls += 1;
+      try {
+        const res = await fetchWithRetry(
+          NODE_URL,
+          jsonPost({ prepId, nodeId, action: "resume", attemptId, lessonFormat: 3 }),
+          { timeoutMs: SAVE_TIMEOUT_MS, retryDelaysMs: [] },
+        );
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        if (stopped) return;
+        if (res.ok && data.completed === true) {
+          applyComplete(data, moveStage);
+          router.refresh();
+          return;
+        }
+        if (res.ok && data.found === false) {
+          // Kayıt yok (başka sekmede silinmiş ya da yenilenmiş): beklemek bir şey değiştirmez.
+          if (moveStage) setGradingLate(true);
+          else setResultPolling(null);
+          return;
+        }
+        const resend =
+          res.ok &&
+          data.active === true &&
+          data.grading !== true &&
+          !completeInFlight.current &&
+          Date.now() - lastCompleteSettledRef.current >= RECOMPLETE_MIN_GAP_MS;
+        if (resend) {
+          completeInFlight.current = true;
+          let posted: Awaited<ReturnType<typeof postCompleteOutcome>>;
+          try {
+            posted = await postCompleteOutcome(answersRef.current);
+          } finally {
+            completeInFlight.current = false;
+          }
+          if (stopped) return;
+          if (posted.kind === "done") {
+            applyComplete(posted.data, moveStage);
+            router.refresh();
+            return;
+          }
+          if (posted.kind === "error") {
+            if (moveStage) {
+              toast.error(typeof posted.data.error === "string" ? posted.data.error : "Kaydedilemedi.");
+              setGradingLate(true);
+            } else {
+              setResultPolling(null);
+            }
+            return;
+          }
+        }
+      } catch {
+        // Yoklama düştü: bir sonraki turda yeniden sorulur.
+      }
+      if (!stopped) timer = setTimeout(poll, resultPollDelay(polls));
+    };
+    timer = setTimeout(poll, resultPollDelay(polls));
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+    // applyComplete ve postCompleteOutcome her çizimde yeni; yalnız ref ve sabit kimlikler okunur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pollMode, attemptId, prepId, nodeId]);
+
+  // Bekleme uzadıysa "uzun sürüyor" satırı ve "Yeniden dene" (yoklama sürer).
+  useEffect(() => {
+    if (gradingSince === null || gradingLate) return;
+    const timer = setTimeout(() => setGradingLate(true), Math.max(0, RESULT_LATE_MS - (Date.now() - gradingSince)));
+    return () => clearTimeout(timer);
+  }, [gradingSince, gradingLate]);
+
+  // Sayfadan çıkarken bekleyen kayıt hemen gider; gitmezse taslak bir sonraki açılışta yüklenir.
+  useEffect(
+    () => () => {
+      if (save429TimerRef.current) clearTimeout(save429TimerRef.current);
+      if (saveDebounceRef.current) {
+        clearTimeout(saveDebounceRef.current);
+        saveDebounceRef.current = null;
+        void persistAnswers(answersRef.current, saveCursorRef.current).catch(() => undefined);
+      }
+    },
+    // Yalnız ayrılırken; kayıt kimlikleri ref'ten okunur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
     const interval = setInterval(() => {
@@ -737,9 +874,10 @@ export function ExamNodeSession({
         nextAnswers = merged.answers;
         nextCursor = merged.cursor;
         setDraftRestored(merged.restored.filter((key) => /^\d+$/.test(key)).length || merged.restored.length);
-        toast.message("Kaydedilmemiş cevapların geri yüklendi.");
       }
     }
+    saveCursorRef.current = nextCursor;
+    saveUncertainRef.current = false;
     if (data.answers && typeof data.answers === "object") {
       setAnswers(nextAnswers);
       answersRef.current = nextAnswers;
@@ -765,49 +903,205 @@ export function ExamNodeSession({
     }
   }
 
-  function scheduleSave(nextAnswers: Record<string, unknown>, cursor: number) {
-    if (!resumeEnabled || !attemptId || !generationId) return;
-    void persistAnswers(nextAnswers, cursor).catch(() => undefined);
+  /** Sunucuya kaydedilecek bir kayıt var mı (özellik kapalıyken ya da kimliksiz kayıtta hiçbir şey gitmez). */
+  function savesEnabled() {
+    return Boolean(resumeEnabled && attemptIdRef.current && generationIdRef.current);
   }
 
-  async function persistAnswers(
-    nextAnswers: Record<string, unknown>,
-    cursor: number,
-  ) {
-    if (!resumeEnabled || !attemptId || !generationId) return;
-    setPendingSaves((n) => n + 1);
-    return saveQueue.current.run(async () => {
-      try {
-      const res = await fetch("/api/learning/exam-prep/node", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prepId,
-          nodeId,
-          action: "save",
-          attemptId,
-          generationId,
-          contentVersion: contentVersionRef.current,
-          answers: nextAnswers,
-          cursorIndex: cursor,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || typeof data.contentVersion !== "number") {
-        throw Object.assign(new Error(data.error === "stale_version"
-          ? "Bu ders başka bir sekmede değişti. Devam etmeden sayfayı yenile."
-          : "Cevapların kaydedilemedi. Bağlantını kontrol edip kaydı yeniden dene."), { code: data.error });
+  /** Sunucuda olmayan cevapların sayısı: çıkış uyarısı ve özet buna bakar. */
+  function refreshUnsaved(current: Record<string, unknown> = answersRef.current) {
+    setUnsavedCount(savesEnabled() ? diffAnswerKeys(current, savedAnswersRef.current).length : 0);
+  }
+
+  function syncPendingSaves() {
+    const state = saveRef.current;
+    setPendingSaves((state.running ? 1 : 0) + (state.queued ? 1 : 0));
+  }
+
+  function cancelSaveDebounce() {
+    if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+    saveDebounceRef.current = null;
+  }
+
+  /**
+   * Cevap değişti: taslak hemen tarayıcıya yazılır, sunucu kaydı kısa bir beklemeden sonra gider
+   * (yazılı cevap her tuşta istek açmasın; rota dakikada 16 istekle sınırlı).
+   */
+  function scheduleSave(nextAnswers: Record<string, unknown>, cursor: number, delayMs = SAVE_DEBOUNCE_MS) {
+    if (!savesEnabled()) return;
+    saveCursorRef.current = Math.max(saveCursorRef.current, cursor);
+    writeAttemptDraft(browserStorage(), attemptIdRef.current as string, { answers: nextAnswers, cursor: saveCursorRef.current });
+    refreshUnsaved(nextAnswers);
+    cancelSaveDebounce();
+    saveDebounceRef.current = setTimeout(() => {
+      saveDebounceRef.current = null;
+      void persistAnswers(answersRef.current, saveCursorRef.current).catch(() => undefined);
+    }, delayMs);
+  }
+
+  /**
+   * Kaydı kuyruğa koyar. Bekleyen iş varsa cevap kümesi en yenisiyle değişir (arada gelenler
+   * katlanır); etkin istek uzun süredir askıdaysa iptal edilir ve en son küme gönderilir. Her
+   * terminal sonuçta (başarı, 4xx, üç denemeden sonra düşüş) bekleyen sayısı düşer.
+   */
+  function persistAnswers(nextAnswers: Record<string, unknown>, cursor: number): Promise<void> {
+    if (!savesEnabled()) return Promise.resolve();
+    cancelSaveDebounce();
+    if (save429TimerRef.current) clearTimeout(save429TimerRef.current);
+    save429TimerRef.current = null;
+    return new Promise<void>((resolve, reject) => {
+      const state = saveRef.current;
+      if (state.queued) {
+        state.queued.answers = nextAnswers;
+        state.queued.cursor = Math.max(state.queued.cursor, cursor);
+        state.queued.settlers.push({ resolve, reject });
+      } else {
+        state.queued = { answers: nextAnswers, cursor, settlers: [{ resolve, reject }] };
       }
-      if (res.ok && typeof data.contentVersion === "number") {
-        setContentVersion(data.contentVersion);
-        contentVersionRef.current = data.contentVersion;
-        setSaveError(null);
+      if (state.running && state.active && Date.now() - state.startedAt > SAVE_SUPERSEDE_AFTER_MS) {
+        state.active.abort();
       }
-      } catch (error) {
-        setSaveError(error instanceof Error ? error.message : "Cevapların kaydedilemedi.");
-        throw error;
-      } finally { setPendingSaves((n) => n - 1); }
+      syncPendingSaves();
+      void pumpSaves();
     });
+  }
+
+  async function pumpSaves() {
+    const state = saveRef.current;
+    if (state.running || !state.queued) return;
+    const job = state.queued;
+    state.queued = null;
+    const controller = new AbortController();
+    state.active = controller;
+    state.running = true;
+    state.startedAt = Date.now();
+    syncPendingSaves();
+    try {
+      await sendSave(job, controller.signal);
+      job.settlers.forEach((settler) => settler.resolve());
+      if (!saveRef.current.queued) {
+        setSaveError(null);
+        refreshUnsaved();
+      }
+    } catch (error) {
+      if (controller.signal.aborted && saveRef.current.queued) {
+        // Yenisiyle değiştirildi: bu işi bekleyenler en son kümenin sonucunu alır.
+        saveRef.current.queued.settlers.push(...job.settlers);
+      } else if (controller.signal.aborted) {
+        job.settlers.forEach((settler) => settler.resolve());
+      } else {
+        const code = (error as { code?: unknown } | null)?.code;
+        refreshUnsaved();
+        if (code === "http_429") {
+          // Hız sınırı sınavın ortasında kırmızı uyarı açmaz: cevaplar tarayıcı taslağında, en son
+          // küme bir süre sonra kendiliğinden yeniden gönderilir (çıkış uyarısı yine korur).
+          save429TimerRef.current = setTimeout(() => {
+            save429TimerRef.current = null;
+            void persistAnswers(answersRef.current, saveCursorRef.current).catch(() => undefined);
+          }, SAVE_RATE_LIMIT_RETRY_MS);
+        } else {
+          setSaveError(error instanceof Error ? error.message : "Cevapların kaydedilemedi.");
+        }
+        job.settlers.forEach((settler) => settler.reject(error));
+      }
+    } finally {
+      state.active = null;
+      state.running = false;
+      syncPendingSaves();
+      if (state.queued) void pumpSaves();
+    }
+  }
+
+  function saveFailureMessage(code: string | null, status: number) {
+    if (code === "stale_version" || code === "stale_generation") {
+      return "Bu ders başka bir sekmede değişti. Devam etmeden sayfayı yenile.";
+    }
+    if (status === 429) return "Kayıt şu an yoğun. Cevapların bu cihazda saklı, birazdan yeniden gönderilir.";
+    return "Cevapların kaydedilemedi. Cevapların bu cihazda saklı; bağlantını kontrol edip kaydı yeniden dene.";
+  }
+
+  /** Sunucudaki güncel sürüm (yoklama). "closed": kayıt bitmiş ya da notlanıyor. */
+  async function readAttemptVersion(signal: AbortSignal): Promise<number | "closed" | null> {
+    try {
+      const res = await fetchWithRetry(
+        NODE_URL,
+        jsonPost({ prepId, nodeId, action: "resume", attemptId: attemptIdRef.current, lessonFormat: 3 }),
+        { timeoutMs: SAVE_TIMEOUT_MS, retryDelaysMs: [], signal },
+      );
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) return null;
+      if (data.completed === true || data.grading === true) return "closed";
+      if (data.active !== true || data.generationId !== generationIdRef.current) return null;
+      return typeof data.contentVersion === "number" ? data.contentVersion : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function sendSave(job: SaveJob, signal: AbortSignal): Promise<void> {
+    const attempt = attemptIdRef.current;
+    const generation = generationIdRef.current;
+    if (!attempt || !generation) return;
+    for (let round = 0; ; round += 1) {
+      let retried = false;
+      let res: Response;
+      try {
+        res = await fetchWithRetry(
+          NODE_URL,
+          jsonPost({
+            prepId,
+            nodeId,
+            action: "save",
+            attemptId: attempt,
+            generationId: generation,
+            contentVersion: contentVersionRef.current,
+            answers: job.answers,
+            cursorIndex: job.cursor,
+          }),
+          {
+            timeoutMs: SAVE_TIMEOUT_MS,
+            retryDelaysMs: SAVE_RETRY_DELAYS_MS,
+            signal,
+            onRetry: () => {
+              retried = true;
+            },
+          },
+        );
+      } catch (error) {
+        // Zaman aşımı ya da iptal: istek sunucuya ulaşmış olabilir; sürüm belirsiz.
+        saveUncertainRef.current = true;
+        throw Object.assign(
+          new Error(saveFailureMessage(null, 0)),
+          { code: isTransportFailure(error) ? "transport" : "superseded" },
+        );
+      }
+      if (retried) saveUncertainRef.current = true;
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (res.ok && typeof data.contentVersion === "number") {
+        contentVersionRef.current = data.contentVersion;
+        setContentVersion(data.contentVersion);
+        saveUncertainRef.current = false;
+        savedAnswersRef.current = job.answers;
+        markAttemptDraftSaved(browserStorage(), attempt, job.answers);
+        return;
+      }
+      // Hız sınırının gövdesi kod değil cümle taşır; durumdan okunur.
+      const code = res.status === 429 ? "http_429" : typeof data.error === "string" ? data.error : null;
+      // Kayıt kapandı (bitirme aldı ya da notlanıyor): cevaplar bitirmeyle gitti, hata değil.
+      if (code === "attempt_not_active") return;
+      // Düşen kendi isteğimiz sunucuya ulaşmışsa sürüm ilerlemiştir: güncel sürümle bir kez daha.
+      // Belirsiz istek yokken gelen sürüm hatası gerçekten başka sekmedir.
+      if (code === "stale_version" && round === 0 && saveUncertainRef.current) {
+        const fresh = await readAttemptVersion(signal);
+        if (fresh === "closed") return;
+        if (typeof fresh === "number") {
+          contentVersionRef.current = fresh;
+          setContentVersion(fresh);
+          continue;
+        }
+      }
+      throw Object.assign(new Error(saveFailureMessage(code, res.status)), { code: code ?? `http_${res.status}` });
+    }
   }
 
   function formatTimer(sec: number) {
@@ -993,6 +1287,15 @@ export function ExamNodeSession({
     clearClientRequestId();
     setSaveError(null);
     completeRequestIdRef.current = null;
+    // Kayıt bitti: cevaplar sunucuda, taslak ve bekleyen kayıtlar gereksiz (30 Ekim 2026).
+    cancelSaveDebounce();
+    if (attemptIdRef.current) clearAttemptDraft(browserStorage(), attemptIdRef.current);
+    savedAnswersRef.current = answersRef.current;
+    setUnsavedCount(0);
+    setExitPrompt(false);
+    setGradingSince(null);
+    setGradingLate(false);
+    setResultPolling(null);
     setScore({
       score: Number(data.score) || 0,
       total: Number(data.total) || 1,
@@ -1018,44 +1321,86 @@ export function ExamNodeSession({
     }
   }
 
+  /**
+   * Bitirme isteği: 60 sn tavan, yeniden deneme yok (ikinci gönderim yoklamadan, aynı kimlikle).
+   * Bitirme bütün cevapları taşır ve sunucu kayıtlılarla birleştirir: önce kayıt beklenmez —
+   * askıdaki bir kayıt bitirmeyi bekletmesin (30 Ekim 2026; eskiden kayıt düşerse bitirme hiç gitmiyordu).
+   */
   async function postComplete(base: Record<string, unknown>) {
-    if (resumeEnabled && attemptId && generationId) {
-      try { await persistAnswers(base, index); }
-      catch (error) {
-        // A lost completion response can leave the server already completed.
-        // Let the idempotent complete endpoint return its saved result.
-        if (!(error && typeof error === "object" && "code" in error && error.code === "attempt_not_active")) throw error;
-      }
-    }
+    cancelSaveDebounce();
     if (!completeRequestIdRef.current) {
       completeRequestIdRef.current = crypto.randomUUID();
     }
-    const res = await fetch("/api/learning/exam-prep/node", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prepId,
-        nodeId,
-        action: "complete",
-        lessonFormat: 3,
-        attemptId: attemptId ?? undefined,
-        generationId: generationId ?? undefined,
-        clientRequestId: clientRequestId ?? undefined,
-        completeRequestId: resumeEnabled
-          ? completeRequestIdRef.current
-          : undefined,
-        answers: {
-          ...base,
-          __meta: { hintsUsed: hintsUsedRef.current },
-        },
-      }),
-    });
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    return { ok: res.ok, data };
+    try {
+      const res = await fetchWithRetry(
+        NODE_URL,
+        jsonPost({
+          prepId,
+          nodeId,
+          action: "complete",
+          lessonFormat: 3,
+          attemptId: attemptIdRef.current ?? attemptId ?? undefined,
+          generationId: generationIdRef.current ?? generationId ?? undefined,
+          clientRequestId: clientRequestId ?? undefined,
+          completeRequestId: resumeEnabled
+            ? completeRequestIdRef.current
+            : undefined,
+          // Sonuç yoklanabiliyor: sözlü notu yanıttan sonra, ekran "Değerlendiriliyor…" der.
+          ...(resumeEnabled ? { gradingAsync: true } : {}),
+          answers: {
+            ...base,
+            __meta: { hintsUsed: hintsUsedRef.current },
+          },
+        }),
+        { timeoutMs: COMPLETE_TIMEOUT_MS, retryDelaysMs: [] },
+      );
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      return { ok: res.ok, status: res.status, data };
+    } finally {
+      lastCompleteSettledRef.current = Date.now();
+    }
+  }
+
+  /** Bitirmenin sonucu: bitti, sunucu notluyor, yanıt ulaşmadı ya da kesin hata. */
+  async function postCompleteOutcome(
+    base: Record<string, unknown>,
+  ): Promise<{ kind: "done"; data: Record<string, unknown> } | { kind: "grading" } | { kind: "lost" } | { kind: "error"; data: Record<string, unknown> }> {
+    try {
+      const posted = await postComplete(base);
+      if (posted.ok && posted.data.grading === true) return { kind: "grading" };
+      if (posted.ok) return { kind: "done", data: posted.data };
+      // 5xx: sunucu düştü; kayıt yoklanır, açık kalmışsa bitirme yeniden gönderilir.
+      if (posted.status >= 500) return { kind: "lost" };
+      return { kind: "error", data: posted.data };
+    } catch (error) {
+      return isTransportFailure(error) ? { kind: "lost" } : { kind: "error", data: {} };
+    }
+  }
+
+  /**
+   * Sonuç bekleme (30 Ekim 2026): bitirme zaman aşımına düştü, ağ koptu ya da sunucu sözlüyü arka
+   * planda notluyor. Ekran "Değerlendiriliyor…" der ve kaydı 3 sn'de bir yoklar.
+   */
+  function enterGradingWait(moveStage: boolean) {
+    if (!resumeEnabled) {
+      // Yoklama ucu kapalı (özellik bayrağı): eski davranış, öğrenci yeniden dener.
+      toast.error("Bağlantı hatası. Yeniden dene.");
+      return;
+    }
+    setGradingSince((current) => current ?? Date.now());
+    setGradingLate(false);
+    setExitPrompt(false);
+    if (moveStage) setStage("grading");
+    else setResultPolling({ moveStage: false });
   }
 
   async function finish(nextAnswers?: Record<string, unknown>) {
-    if (completeInFlight.current || loading) return;
+    // Bitirme sürerken "Sınavı bitir": bekleme ekranına geçilir, süren istek sonucu getirir.
+    if (completeInFlight.current) {
+      if (stage === "play") enterGradingWait(true);
+      return;
+    }
+    if (loading || stage === "grading") return;
     const base = nextAnswers ?? answersRef.current;
     const local =
       payload.type === "quiz" || payload.type === "true_false" ? localOptimisticScore(base) : null;
@@ -1065,11 +1410,15 @@ export function ExamNodeSession({
       setStage("result");
       void (async () => {
         try {
-          let posted = await postComplete(base).catch(() => null);
-          if (!posted?.ok) posted = await postComplete(base).catch(() => null);
-          if (!posted?.ok) return;
-          applyComplete(posted.data, false);
-          router.refresh();
+          let posted = await postCompleteOutcome(base);
+          if (posted.kind === "error") posted = await postCompleteOutcome(base);
+          if (posted.kind === "done") {
+            applyComplete(posted.data, false);
+            router.refresh();
+            return;
+          }
+          // Sonuç ekranı zaten açık: kayıt arkada yoklanır, gelince yıldız ve yol bilgisi eklenir.
+          if (posted.kind === "grading" || posted.kind === "lost") enterGradingWait(false);
         } finally {
           completeInFlight.current = false;
         }
@@ -1079,27 +1428,61 @@ export function ExamNodeSession({
     completeInFlight.current = true;
     setLoading(true);
     try {
-      const posted = await postComplete(base);
-      if (!posted.ok) {
-        toast.error(typeof posted.data.error === "string" ? posted.data.error : "Kaydedilemedi.");
+      const posted = await postCompleteOutcome(base);
+      if (posted.kind === "done") {
+        applyComplete(posted.data, true);
+        router.refresh();
         return;
       }
-      applyComplete(posted.data, true);
-      router.refresh();
-    } catch {
-      toast.error("Bağlantı hatası.");
+      if (posted.kind === "grading" || posted.kind === "lost") {
+        enterGradingWait(true);
+        return;
+      }
+      toast.error(typeof posted.data.error === "string" ? posted.data.error : "Kaydedilemedi.");
     } finally {
       setLoading(false);
       completeInFlight.current = false;
     }
   }
 
-  function updateAnswer(key: string, value: unknown) {
+  /** "Yeniden dene" (bekleme uzadıysa): aynı kimlikle bitirme; sunucu çift notlamaz. */
+  async function retryGradingNow() {
+    if (completeInFlight.current) return;
+    completeInFlight.current = true;
+    setGradingLate(false);
+    setGradingSince(Date.now());
+    try {
+      const posted = await postCompleteOutcome(answersRef.current);
+      if (posted.kind === "done") {
+        applyComplete(posted.data, true);
+        router.refresh();
+      } else if (posted.kind === "error") {
+        toast.error(typeof posted.data.error === "string" ? posted.data.error : "Kaydedilemedi.");
+      }
+    } finally {
+      completeInFlight.current = false;
+    }
+  }
+
+  /**
+   * × her durumda çalışır (30 Ekim 2026). Kaydedilmemiş cevap varsa önce özet: kaç cevap sunucuda,
+   * kaçı yalnız bu cihazda. Öğrenci yine de çıkabilir; taslak geri dönüşte yüklenir.
+   */
+  function requestExit() {
+    const home = `/deneme-sinavlari/${prepId}`;
+    if (stage === "play" && savesEnabled() && diffAnswerKeys(answersRef.current, savedAnswersRef.current).length) {
+      setExitPrompt(true);
+      return;
+    }
+    router.push(home);
+  }
+
+  function updateAnswer(key: string, value: unknown, options?: { typing?: boolean }) {
     const next = { ...answersRef.current, [key]: value };
     answersRef.current = next;
     setAnswers(next);
     const parsed = /^\d+$/.test(key) ? Number(key) : index;
-    scheduleSave(next, Math.max(parsed, index));
+    scheduleSave(next, Math.max(parsed, index), options?.typing ? SAVE_TYPING_DEBOUNCE_MS : SAVE_DEBOUNCE_MS);
   }
 
   function finishCards(base: Record<string, unknown>) {
@@ -1338,8 +1721,11 @@ export function ExamNodeSession({
     (payload.type === "oral"
       ? oralWrittenPercent(score.score, score.total)
       : oralVoicePercent(oralTranscript));
+  // Sonuç beklenirken de tek çıkış × görünür (sözlü kurulum ekranları kendi çıkışını taşır).
   const oralOwnsChrome =
-    isOral && stage !== "restoring" && !(stage === "play" && payload.type === "oral");
+    isOral && stage !== "restoring" && stage !== "grading" && !(stage === "play" && payload.type === "oral");
+  /** × özetinin sayıları: kaç cevap sunucuda, kaçı yalnız bu cihazda (taslakta). */
+  const exitSummary = exitPrompt ? answerSaveSummary(answersRef.current, savedAnswersRef.current) : null;
   // Boşluk tuşu kartı çevirir (Astra). Odak bir düğmedeyse tarayıcı zaten
   // o düğmeye basıyor; ikinci kez çevirmeyelim.
   useEffect(() => {
@@ -1390,25 +1776,89 @@ export function ExamNodeSession({
 
   return (
     <div className="cp-exam-page cp-exam-node">
-      {pendingSaves > 0 ? <p role="status" className="text-sm">Cevapların kaydediliyor…</p> : null}
-      {saveError ? <div role="alert" className="text-sm text-red-400">
+      {/* Kayıt durumu (30 Ekim 2026): "kaydediliyor" yazısı her terminal sonuçta kalkar; düşen
+          kaydın düğmesi kilitlenmez. Cevaplar bu arada tarayıcı taslağında. */}
+      {pendingSaves > 0 && !saveError && stage === "play" ? <p role="status" className="text-sm">Cevapların kaydediliyor…</p> : null}
+      {draftRestored > 0 && stage === "play" ? (
+        <p role="status" className="text-sm">Kaydedilmemiş cevapların geri yüklendi.</p>
+      ) : null}
+      {saveError && stage === "play" ? <div role="alert" className="text-sm text-red-400">
         <p>{saveError}</p>
-        <button type="button" className="underline" disabled={pendingSaves > 0}
-          onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
+        <button type="button" className="underline"
+          onClick={() => { void persistAnswers(answersRef.current, saveCursorRef.current).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
       {cinematicLesson || cinematicLoading || cinematicPodcast || oralOwnsChrome ? null : (
       // Astra'da oturumda tek çıkış sağ üstteki × (3 Ekim 2026); üst çubuk da yok.
+      // × hiçbir durumda kilitlenmez (30 Ekim 2026): kayıt sürerken ya da düşmüşken de çıkılabilir.
       <div className="cp-exam-study-bar">
         {stage === "play" && isTimedExam ? (
           <span className={cn("cp-exam-timer", timeLeft < 120 && "cp-exam-timer--urgent")}>
             ⏱ {formatTimer(timeLeft)}
           </span>
         ) : null}
-        <button type="button" className="cp-back-pill" disabled={pendingSaves > 0 || Boolean(saveError)} onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
+        <button type="button" className="cp-back-pill" aria-label="Oturumdan çık" onClick={requestExit}>
           ×
         </button>
       </div>
       )}
+
+      {exitSummary ? (
+        <div className="cp-oral-modal-back">
+          <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="exit-save-title">
+            <h2 id="exit-save-title">
+              {exitSummary.unsaved ? "Bazı cevapların henüz kaydedilmedi" : "Bütün cevapların kaydedildi"}
+            </h2>
+            <p>
+              {exitSummary.saved} cevap kaydedildi, {exitSummary.unsaved} cevap kaydedilemedi.
+              {exitSummary.unsaved
+                ? " Kaydedilemeyenler bu cihazda saklı; bu adımı yeniden açınca geri yüklenir."
+                : null}
+            </p>
+            <div className="cp-oral-modal-actions">
+              <button type="button" className="cp-oral-ghost" onClick={() => setExitPrompt(false)}>
+                Geri dön
+              </button>
+              {exitSummary.unsaved ? (
+                <button
+                  type="button"
+                  className="cp-oral-ghost"
+                  onClick={() => void persistAnswers(answersRef.current, saveCursorRef.current).catch(() => undefined)}
+                >
+                  Kaydı yeniden dene
+                </button>
+              ) : null}
+              <button type="button" className="cp-oral-cta" onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
+                Yine de çık
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {stage === "grading" ? (
+        <section className="cp-exam-setup cp-exam-restoring" aria-busy="true" aria-live="polite">
+          <span className="cp-exam-restoring-spin" aria-hidden />
+          <p className="cp-lesson-kicker">{meta.setupLabel}</p>
+          <h1>Değerlendiriliyor…</h1>
+          <p className="text-sm text-[var(--cp-muted)]">
+            Sonuç hazır olunca burada görünecek. Cevapların bu cihazda da saklı; ücret yeniden alınmaz.
+          </p>
+          {gradingLate ? (
+            <>
+              <p className="text-sm text-[var(--cp-muted)]" role="status">
+                Değerlendirme beklenenden uzun sürüyor. Çalışma yoluna dönebilirsin; sonuç bu adımın
+                sonuç sayfasında da görünür.
+              </p>
+              <button type="button" className="cp-exam-continue cp-exam-continue--primary" onClick={() => void retryGradingNow()}>
+                Yeniden dene
+              </button>
+            </>
+          ) : null}
+          <button type="button" className="cp-exam-continue" onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
+            Çalışma yoluna dön
+          </button>
+        </section>
+      ) : null}
 
       {stage === "restoring" ? (
         <section className="cp-exam-setup cp-exam-restoring" aria-busy="true" aria-live="polite">
@@ -1954,7 +2404,7 @@ export function ExamNodeSession({
           minutes={minutesForOralLength(questions.length)}
           value={String(answers[String(index)] ?? "")}
           busy={loading}
-          onChange={(text) => updateAnswer(String(index), text)}
+          onChange={(text) => updateAnswer(String(index), text, { typing: true })}
           onProbe={(question) => updateAnswer(oralFollowQuestionKey(index), question)}
           onAdvance={(answer, firstAnswer) => {
             if (firstAnswer) updateAnswer(oralFirstAnswerKey(index), firstAnswer);
