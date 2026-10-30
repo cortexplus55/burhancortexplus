@@ -7,6 +7,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
 import type { TeacherAnalysis } from "@/lib/learning/teacher-brain";
 
 export type CorpusDoc = {
@@ -368,6 +369,13 @@ function readProse(text: string, documentName: string, pageNumber: number | null
       const topic = weighted[1].replace(/^.*\b(?:olan|ise|olarak)\s+/i, "").trim();
       pushWeighted(scope.weighted, topic, documentName, sentence.trim(), null);
     }
+  }
+  // Ders notunun kısa notu ("X finalde yok", "vizede sorulmayacak"): harita ve kurulumla aynı okuyucu
+  // (Paket I). Yalnız kısa başlık: uzun müfredat cümlesi yukarıdaki kuralla okunuyor, ikinci kez ve
+  // geniş bir ifadeyle eklenirse kapsam içi soruları da "kapsam dışı" sanar.
+  for (const phrase of exclusionPhrases(text)) {
+    if (phrase.length > 60 || /[;:]/.test(phrase)) continue;
+    pushExcluded(scope.excluded, phrase, phrase, documentName, pageNumber);
   }
 }
 

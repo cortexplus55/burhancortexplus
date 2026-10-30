@@ -4,7 +4,7 @@ import { loadPagedDocumentRows } from "@/lib/learning/paged-document-rows";
 import {
   examWeightToEmphasis,
   isHighExamWeight,
-  readCourseFromRelations,
+  sharedCourseTag,
   unpackTopicPerspective,
 } from "@/lib/documents/outline-topic-meta";
 
@@ -63,15 +63,15 @@ export async function loadOneshotIntakeTopics(
     }
   }
 
-  const courseId = documentIds[0];
+  // Aynı kursun herhangi bir alt kümesi kursun tek sırasıyla okunur (Paket I): kurulumdan bir belge —
+  // ilki de olsa — çıkarılınca kalanların konuları yerinde kalır, harita sıfırdan yazılmaz.
   const isCourse =
     documentIds.length > 1 &&
-    perDoc.some((nodes) => nodes.length) &&
-    perDoc.every(
-      (nodes) =>
-        !nodes.length ||
-        nodes.some((n) => n.parent_id == null && readCourseFromRelations(n.key_relations) === courseId),
-    );
+    sharedCourseTag(
+      perDoc.map((nodes) =>
+        nodes.map((n) => ({ parent_id: (n.parent_id as string | null) ?? null, key_relations: n.key_relations })),
+      ),
+    ) !== null;
   if (!isCourse && perDoc.some((nodes) => !nodes.some((n) => n.parent_id != null))) return null;
 
   const topics: ConsolidatedTopic[] = [];

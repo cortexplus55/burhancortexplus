@@ -30,7 +30,10 @@ import {
 } from "@/lib/learning/prep-contradiction-read";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
 import { remapPrerequisites, mergeTopicGroups, type MergeTopicInput, type MergedTopic } from "@/lib/learning/topic-merge";
-import type { ConsolidatedTopic } from "@/lib/learning/cross-material-topics";
+import type { ConsolidatedTopic, ExcludedTopicNote } from "@/lib/learning/cross-material-topics";
+import { splitExcludedTopics } from "@/lib/learning/topic-scope";
+import { readScopeExclusionPhrases } from "@/lib/learning/scope-exclusion-read";
+import { readVersionPairs } from "@/lib/learning/material-check-read";
 import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
@@ -305,6 +308,7 @@ export async function POST(request: Request) {
   let intakeUnits: IntakeStudyUnit[] = [];
   let consolidated: Awaited<ReturnType<typeof consolidatePrepDocuments>> | null = null;
   let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = [];
+  let outlineExcluded: ExcludedTopicNote[] = [];
   let keepLlmOrder = false;
 
   // Oneshot hierarchical maps: use LLM units/topics/order as-is.
@@ -323,8 +327,16 @@ export async function POST(request: Request) {
       );
     }
     if (oneshot) {
-      mergedTopics = oneshot.topics;
-      intakeUnits = oneshot.units;
+      // Belgenin "finalde yok / kapsam dışı" dediği konu listeye girmez, kapsam dışı notuyla görünür
+      // (Paket I): harita belgeye ait kalır, kapsam hazırlığın bilgisi.
+      const scoped = splitExcludedTopics(
+        oneshot.topics,
+        oneshot.units,
+        await readScopeExclusionPhrases(service, documentIds),
+      );
+      mergedTopics = scoped.topics;
+      intakeUnits = scoped.units;
+      outlineExcluded = scoped.excluded;
       intakeMode = "v2";
       keepLlmOrder = true;
     }
@@ -428,10 +440,16 @@ export async function POST(request: Request) {
     })),
     contradictionDocs,
   );
+  // Aynı belgenin iki sürümü kurulumda tutulduysa eski sürümün değeri çelişki değil "eski sürüm" diye
+  // anlatılır (Paket I). Sürümler yalnız çelişki varsa okunur (sayfa metni yüklemesi).
+  const versions =
+    contradictionMap.size && documentIds.length >= 2
+      ? await readVersionPairs(service, userId, documentIds)
+      : [];
   // Warnings stay contradictions/narrow-scope only — short descriptions are separate.
   const topicWarnings = mergedTopics.map((topic, index) => {
     const scope = merged.topicScopeNotes[index];
-    const contradiction = formatContradictions(contradictionMap.get(topic.title) ?? []);
+    const contradiction = formatContradictions(contradictionMap.get(topic.title) ?? [], { versions });
     return [scope, contradiction].filter(Boolean).join(" ");
   });
   const topicSuggestions = groups.flat().filter(
@@ -466,7 +484,7 @@ export async function POST(request: Request) {
             topicWeights: merged.topicWeights,
             topicSections: merged.topicSections,
             topicDescriptions: merged.topicDescriptions,
-            excluded: consolidated?.excluded ?? [],
+            excluded: consolidated?.excluded ?? outlineExcluded,
             missingTopics: consolidated?.missingFromMaterials ?? [],
             suggestedExamDate: consolidated?.suggestedExamDate ?? null,
             units: consolidated?.units ?? (intakeUnits.length ? intakeUnits : undefined),

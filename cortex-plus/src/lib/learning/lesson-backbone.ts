@@ -56,8 +56,12 @@ function sentenceCase(text: string): string {
   return lower.charAt(0).toLocaleUpperCase("tr") + lower.slice(1);
 }
 
-/** Bir satır başlık mı; öyleyse temiz hâli. */
-export function headingOfLine(line: string): string | null {
+/**
+ * Bir satır başlık mı; öyleyse temiz hâli.
+ * `allowShort`: belge iskeleti (`outline-skeleton.ts`) "Mizan", "Yığın" gibi beş harflik bölüm adlarını
+ * da okur; konu adı kuralının altı harf alt sınırı yalnız adlandırma içindir, başlığı tanımak için değil.
+ */
+export function headingOfLine(line: string, options: { allowShort?: boolean } = {}): string | null {
   const text = line.trim().replace(/\s+/g, " ");
   if (!text || text.length > HEADING_MAX_CHARS || text.startsWith("|")) return null;
   let candidate: string | null = null;
@@ -71,7 +75,10 @@ export function headingOfLine(line: string): string | null {
   if (!candidate) return null;
   const title = sentenceCase(normalizeTopicTitle(candidate.replace(/:\s*$/, "")));
   if (title.split(/\s+/).filter(Boolean).length > HEADING_MAX_WORDS) return null;
-  if (topicTitleIssues(title).length) return null;
+  const issues = topicTitleIssues(title).filter(
+    (issue) => !(options.allowShort && issue.startsWith("Başlık çok kısa") && title.replace(/[^\p{L}]/gu, "").length >= 3),
+  );
+  if (issues.length) return null;
   if (isRunningHeader(candidate) || isCalloutLabel(title) || isSatelliteSection(title)) return null;
   if (BOX_LABEL.test(title.toLocaleLowerCase("tr").replace(/[:!]+$/u, "").trim())) return null;
   return title;

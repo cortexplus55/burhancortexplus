@@ -36,6 +36,7 @@ import { modelForAttempt } from "@/lib/learning/model-ladder";
 import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities";
 import { studentOptionCount, type OptionCount } from "@/lib/learning/student-pedagogy";
 import { topicWeightsFromText } from "@/lib/learning/mock-exam/weights-from-text";
+import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -872,14 +873,18 @@ function asRefs(raw: unknown): Array<{ documentId?: string; pages?: number[]; no
   }>;
 }
 
+/**
+ * Kapsam dışı başlıklar: müfredat, konu haritası ve kurulum aynı okuyucuyu kullanır (Paket I, 30 Ekim 2026);
+ * eskiden burada ayrı bir kalıp vardı ve "finalde yok" gibi ders notu cümlelerini tanımıyordu.
+ */
 function exclusionTitles(text: string): string[] {
-  const lines = text.split(/\n+/);
-  const out: string[] = [];
-  for (const line of lines) {
+  const out = exclusionPhrases(text).map((phrase) => phrase.slice(0, 120));
+  // "X kapsam dışı / sınavda yok / hariç" satırının eski okuması da kalır (satırın ortasındaki "hariç").
+  for (const line of text.split(/\n+/)) {
     if (!/kapsam\s*dışı|sınavda\s*yok|hariç/i.test(line)) continue;
     const cut = line.split(/kapsam\s*dışı|sınavda\s*yok|hariç/i)[0] ?? "";
     const title = cut.replace(/^[\s•\-*]+/, "").replace(/[.:;\-–—]+$/g, "").trim();
-    if (title.length >= 4) out.push(title.slice(0, 120));
+    if (title.length >= 4 && !out.includes(title.slice(0, 120))) out.push(title.slice(0, 120));
   }
   return out;
 }

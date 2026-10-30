@@ -31,11 +31,12 @@ import {
 import {
   packCourseRelation,
   packTopicPerspective,
-  readCourseFromRelations,
+  sharedCourseTag,
 } from "@/lib/documents/outline-topic-meta";
 import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 import { exclusivePageRanges } from "@/lib/documents/topic-page-ranges";
+import { orderOutlineByPosition } from "@/lib/documents/outline-skeleton";
 import { needsUnits, type ConceptUnit } from "@/lib/documents/concept-units";
 import { buildConceptUnits } from "@/lib/documents/concept-units-run";
 import { repeatedEdgeLines } from "@/lib/documents/clean-text";
@@ -575,7 +576,8 @@ async function persistCourseOutline(
   deadlineAt: number,
   now: () => number = Date.now,
 ): Promise<number> {
-  const { units } = flattenOutlineUnits(outline);
+  // Kurs sırası koddan (Paket I): belgedeki yer + önkoşul. Aynı harita her kurulumda aynı sırayla yazılır.
+  const { units } = flattenOutlineUnits(orderOutlineByPosition(outline));
   const unitsTotal = units.length;
   let saved = 0;
   // Re-check in-use for every file before the first swap — a prep may have
@@ -960,6 +962,8 @@ export async function runCourseMapRound(
               proposed: step.diag.proposed,
               keptTopics: step.diag.kept,
               coverage: step.diag.coverage,
+              // Başlık düzeyinde kapsam (Paket I): ölçülen/temsil edilen, yutulan, kapsam dışı.
+              headings: step.diag.headings,
               issues: step.diag.issues,
               dropped: step.diag.dropped,
               callError: step.diag.error,
@@ -1194,12 +1198,12 @@ export async function planCourseMap(
     candidates.push(id);
   }
   if (candidates.length <= 1) return candidates.filter((id) => !ready.has(id));
-  const courseId = candidates[0]!;
-  const done = candidates.every((id) => {
-    const rows = nodesOf.get(id);
-    if (!rows) return false;
-    return !rows.length || rows.some((n) => n.parent_id == null && readCourseFromRelations(n.key_relations) === courseId);
-  });
+  // Aynı kursun alt kümesi (kurulumdan bir belge, ilki de olsa, çıkarıldı) yeniden haritalanmaz (Paket I):
+  // kalan belgelerin konuları yerinde kalır. Yeni bir belge eklenince (haritası yok) kurs yeniden kurulur.
+  const perDoc = candidates.map((id) => nodesOf.get(id));
+  if (perDoc.some((rows) => !rows)) return candidates;
+  const rows = perDoc as { id: string; parent_id: string | null; key_relations: unknown }[][];
+  const done = rows.every((list) => !list.length) || sharedCourseTag(rows) !== null;
   return done ? [] : candidates;
 }
 

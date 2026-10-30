@@ -87,6 +87,12 @@ import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
 import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
+import {
+  MaterialNotesCard,
+  freshMaterialNotes,
+  materialNoteKeys,
+  type MaterialNotes,
+} from "@/components/parity/material-notes-card";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -350,6 +356,48 @@ export function ExamCreateWizard({
   const [importPanel, setImportPanel] = useState<"none" | "paste" | "url" | "curriculum">("none");
   const fileRef = useRef<HTMLInputElement>(null);
   const documentIds = materials.map((item) => item.id);
+  /** Belge kümesi denetimi (Paket I): sürüm ve ilgisiz belge notu, materyal adımından çıkarken bir kez. */
+  const [materialNotes, setMaterialNotes] = useState<MaterialNotes | null>(null);
+  const [checkingMaterials, setCheckingMaterials] = useState(false);
+  const materialCheckSeen = useRef<{ set: string | null; notes: string[] }>({ set: null, notes: [] });
+
+  async function continueFromMaterial() {
+    const ids = materialsRef.current.map((item) => item.id);
+    const setKey = [...ids].sort().join(",");
+    if (ids.length < 2 || materialCheckSeen.current.set === setKey) {
+      setStep("language");
+      return;
+    }
+    setCheckingMaterials(true);
+    let notes: MaterialNotes = { versions: [], unrelated: [] };
+    try {
+      const response = await fetch("/api/learning/exam-prep/material-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentIds: ids, subject: subject || undefined }),
+      });
+      if (response.ok) notes = freshMaterialNotes(await response.json().catch(() => null), ids, materialCheckSeen.current.notes);
+    } catch {
+      // Denetim isteğe bağlı: okunamazsa uyarısız devam.
+    } finally {
+      setCheckingMaterials(false);
+    }
+    materialCheckSeen.current.set = setKey;
+    if (!notes.versions.length && !notes.unrelated.length) {
+      setStep("language");
+      return;
+    }
+    setMaterialNotes(notes);
+  }
+
+  function applyMaterialNotes(dropIds: string[]) {
+    if (materialNotes) materialCheckSeen.current.notes.push(...materialNoteKeys(materialNotes));
+    const next = materialsRef.current.filter((item) => !dropIds.includes(item.id));
+    setMaterials(next);
+    materialCheckSeen.current.set = next.map((item) => item.id).sort().join(",");
+    setMaterialNotes(null);
+    if (next.length) setStep("language");
+  }
 
   const [buildStage, setBuildStage] = useState(-1);
   const [topics, setTopics] = useState<string[]>([]);
@@ -1620,14 +1668,22 @@ export function ExamCreateWizard({
             />
           ) : null}
 
-          <button
-            type="button"
-            className="apw-cta"
-            disabled={!documentIds.length || uploading}
-            onClick={() => setStep("language")}
-          >
-            {WIZARD_COPY.continue}
-          </button>
+          {materialNotes && [...materialNotes.versions.flatMap((note) => [note.currentId, note.olderId]), ...materialNotes.unrelated.map((note) => note.documentId)].every((id) => documentIds.includes(id)) ? (
+            <MaterialNotesCard
+              notes={materialNotes}
+              nameOf={(id) => materials.find((item) => item.id === id)?.fileName ?? "Belge"}
+              onApply={applyMaterialNotes}
+            />
+          ) : (
+            <button
+              type="button"
+              className="apw-cta"
+              disabled={!documentIds.length || uploading || checkingMaterials}
+              onClick={() => void continueFromMaterial()}
+            >
+              {checkingMaterials ? "Belgeler karşılaştırılıyor…" : WIZARD_COPY.continue}
+            </button>
+          )}
           <button
             type="button"
             className="apw-drop-pick"
