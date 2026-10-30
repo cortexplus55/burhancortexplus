@@ -107,7 +107,10 @@ describe("parçalı konu testi: parçalar ayrı hedef alır, birleşen test ayn�
     const targets = shardTargets({ examPoints: POINTS, scope: "topic_test" }, 5);
     expect(targets.slice(0, 4)).toEqual(POINTS);
     expect(targets[4]).toBe(POINTS[0]);
-    expect(shardBrief(undefined, 1, 5, targets)).toContain(`YALNIZ şunu sor: «${POINTS[1]}»`);
+    expect(shardBrief(undefined, 1, 5, targets)).toContain(`bu üretimin odağı: «${POINTS[1]}»`);
+    // Hedef öncelik, yasak değil: "YALNIZ" ilk sürümünde canlıda beş parçanın beşi de boş döndü (ikinci konu testi, 30 Ekim).
+    expect(shardBrief(undefined, 1, 5, targets)).toContain("boş liste döndürme");
+    expect(shardBrief(undefined, 1, 5, targets)).not.toContain("YALNIZ");
     expect(shardBrief(undefined, 4, 5, targets)).toContain("başka bir yönünü");
     expect(shardBrief(undefined, 1, 5, targets)).not.toContain("başka bir yönünü");
     // Madde yoksa dersin terimleri; o da yoksa eski satır.
