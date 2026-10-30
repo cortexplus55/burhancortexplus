@@ -285,6 +285,7 @@ export function VideoLessonPlayer({
   );
   const router = useRouter();
   const frame = useRef<HTMLDivElement | null>(null);
+  const topBar = useRef<HTMLDivElement | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const [scene, setScene] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -315,6 +316,19 @@ export function VideoLessonPlayer({
   const draw = current && current.durationMs > 0 ? Math.max(0, Math.min(1, offset / current.durationMs)) : 0;
   const formulaSteps = current?.formula ? sketchFormulaSteps(current.formula) : [];
   const formulaShown = formulaSteps.length ? Math.max(1, Math.ceil(draw * formulaSteps.length)) : 0;
+
+  // Üst çubuğun gerçek yüksekliği tahtaya verilir (30 Ekim 2026, canlı ölçüm): konu satırı iki satıra sarınca
+  // çubuk 137 px oluyor, sabit 7,2 rem boşlukla sahne başlığı "Dersi tamamla"nın altına giriyordu.
+  useEffect(() => {
+    const bar = topBar.current;
+    const box = frame.current;
+    if (!bar || !box || typeof ResizeObserver === "undefined") return;
+    const apply = () => box.style.setProperty("--cp-top-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (prevSceneRef.current === scene) return;
@@ -425,7 +439,11 @@ export function VideoLessonPlayer({
           🖥️ Yatay (16:9)
         </button>
       </div>
-      <div ref={frame} className={cn("cp-video-frame", ratio === "16:9" ? "is-landscape" : "is-portrait")} data-ratio={ratio}>
+      <div
+        ref={frame}
+        className={cn("cp-video-frame", ratio === "16:9" ? "is-landscape" : "is-portrait", sketch && "is-sketch")}
+        data-ratio={ratio}
+      >
         {sketch && current?.diagram ? (
           <SketchBoard
             key={scene}
@@ -455,7 +473,7 @@ export function VideoLessonPlayer({
             ) : null}
           </>
         )}
-        <div className="cp-video-top">
+        <div ref={topBar} className="cp-video-top">
           <p className="cp-video-title">{title}</p>
           <p className="cp-video-meta">
             {topicLabel} · {styleLabel} · 1 kaynak
