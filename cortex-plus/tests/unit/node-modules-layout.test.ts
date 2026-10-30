@@ -62,5 +62,6 @@ describe("oturum ekranının düzeni", () => {
     expect(mod.SAVE_TYPING_DEBOUNCE_MS).toBe(4_000);
     expect(mod.LESSON_PODCAST_GATE.action).toBe("PODCAST_GENERATE");
     expect(mod.VOICE_MODE_GATE.action).toBe("VOICE_TURN");
-  });
+    // Modül testin içinde yükleniyor (ağır istemci ağacı): tam pakette yük altında 5 sn varsayılanı aşıyordu.
+  }, 30_000);
 });
