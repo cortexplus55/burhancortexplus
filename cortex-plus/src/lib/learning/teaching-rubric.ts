@@ -143,7 +143,9 @@ export const SAME_KIND_DISTRACTOR_RULE =
   "antlaşma soruyorsa her şık bir antlaşmadır. Başka türden bir kavram (endeks sorusunda bir enflasyon türü, hormon " +
   "sorusunda bir organ) çeldirici değildir: konuyu bilmeyen biri onu eler, soru tahminle çözülür. Çeldirici doğru " +
   "cevabın kardeşidir: aynı aileden, öğrencinin gerçekten karıştırdığı öğe. Tek cevaplı soruda, ders içi soruda ve " +
-  "ikinci soruda (review) da aynı kural.";
+  "ikinci soruda (review) da aynı kural. Kardeş TERİM UYDURMA: başka türden bir kavramın sonuna tür adını eklemek " +
+  "(\"Reeskont maliyeti\", \"Politika faizi maliyeti\") var olmayan bir terim kurar. Kaynakta yeterli gerçek kardeş " +
+  "yoksa soruyu, kardeşleri kaynakta olan başka bir ayrım üzerine kur.";
 
 /**
  * Eşik şıkları (30 Ekim 2026, canlı tur, düello): kök "aylık %50'yi aşması" derken "Aylık %50" ve "Aylık %50'nin
