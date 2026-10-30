@@ -498,6 +498,21 @@ describe("6 · yazılı deneme S4: kökün çok sözcüklü öncülü doğru ş�
     expect(salvageRejected([{ question: generic, problems: genericProblems }], [], { optionCount: 5 })).toEqual([generic]);
   });
 
+  it("son çare (istek düşmez): temiz aday yoksa yalnız öncülü kökte olan soru geri konur; yanlış anahtarlı asla", () => {
+    const problems = quizStructureIssues(live, { optionCount: 5 });
+    expect(salvageRejected([{ question: live, problems }], [], { optionCount: 5, lastResort: true })).toEqual([live]);
+    const wrongKey = question(
+      "Bir hücrede 46 kromozom varsa mayoz sonrası bir gamette kaç kromozom bulunur?",
+      ["46", "23", "92", "12", "69"],
+      "46",
+    );
+    const wrongKeyProblems = ["Cevap anahtarı hesapla çelişiyor: 46 / 2 = 23."];
+    expect(salvageRejected([{ question: wrongKey, problems: wrongKeyProblems }], [], { optionCount: 5, lastResort: true })).toEqual([]);
+    const echoesWhole = ["Kök doğru şıkkı içeriyor; cevabı veriyor."];
+    expect(salvageRejected([{ question: live, problems: echoesWhole }], [], { optionCount: 5, lastResort: true })).toEqual([]);
+    expect(read("src/lib/learning/teacher-quiz-run.ts")).toContain("lastResort: true }");
+  });
+
   it("döngü (yazılı deneme kipi) soruyu eler; sayı eksik kalsa da kurtarma onu geri koymaz", async () => {
     const good = [
       question("Petrol fiyatı yükselince üretim maliyeti artan bir ekonomide görülen enflasyon hangisidir?", ["Maliyet enflasyonu", "Talep enflasyonu", "Yapısal enflasyon", "Dezenflasyon", "Deflasyon"], "Maliyet enflasyonu"),

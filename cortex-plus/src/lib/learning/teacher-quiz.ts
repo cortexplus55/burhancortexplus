@@ -925,14 +925,20 @@ export const UNSALVAGEABLE_PROBLEM = new RegExp(
 /**
  * Sayı eksikken elenen sorulardan geri konabilenler (`runTeacherQuiz`, 26 Ekim 2026 "soru silinmez"): geri
  * konmayan sorun taşımayan, şık sayısı tutan, anahtarı şıklarda olan ve testteki sorularla çakışmayan sorular, sırayla.
+ *
+ * `lastResort` (30 Ekim 2026, "istek düşmez" — 19 Ekim kararı): temiz adaylar sayıyı doldurmadıysa yalnız kökü doğru
+ * şıkkın ifadesini kuran soru (`STEM_ECHO_PREFIX`) da geri konabilir; yoksa öğrenci hiç test alamıyordu. Anahtarı
+ * yanlış, iki doğrulu ya da kökü doğru şıkkın kendisini içeren soru son çarede de konmaz.
  */
 export function salvageRejected(
   rejected: readonly { question: QuizQuestion; problems: readonly string[] }[],
   current: readonly QuizQuestion[],
-  options: { optionCount?: number; previousStems?: readonly string[] } = {},
+  options: { optionCount?: number; previousStems?: readonly string[]; lastResort?: boolean } = {},
 ): QuizQuestion[] {
+  const blocks = (problem: string) =>
+    UNSALVAGEABLE_PROBLEM.test(problem) && !(options.lastResort && problem.startsWith(STEM_ECHO_PREFIX));
   const playable = rejected
-    .filter((item) => !item.problems.some((problem) => UNSALVAGEABLE_PROBLEM.test(problem)))
+    .filter((item) => !item.problems.some(blocks))
     .map((item) => item.question)
     .filter(
       (question) =>

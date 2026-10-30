@@ -511,6 +511,16 @@ async function runTeacherQuizInner(
         input.count,
       );
     }
+    let lastResort = 0;
+    if (questions.length < input.count) {
+      // Son çare (istek düşmez, 19 Ekim 2026): kökü doğru şıkkın ifadesini kuran soru, testi hiç vermemekten iyidir.
+      const before = questions.length;
+      questions = withOneMultiLast(
+        salvageRejected(rejected, questions, { optionCount: input.optionCount, previousStems, lastResort: true }),
+        input.count,
+      );
+      lastResort = questions.length - before;
+    }
     console.info("teacher_quiz", {
       topic: input.topicLabel.slice(0, 80),
       mode: input.mode ?? "document",
@@ -519,6 +529,7 @@ async function runTeacherQuizInner(
       rounds: loop.rounds,
       passes,
       repeated,
+      lastResort,
       urgent: Boolean(input.urgent),
       calls,
       ms: Date.now() - started,
