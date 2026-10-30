@@ -10,6 +10,11 @@
  * İşaret yalnız doğru cevabın türü kökün sorduğu türle tutunca ve çeldiricinin kendi tanımı başka bir tür söyleyince
  * verilir; tanımı bulunamayan şık hakkında bir şey söylenmez. Ders adı ya da sabit kelime listesi yok (yalnız genel
  * soru sözcükleri: "kavram", "durum", "gelişme" tür değildir).
+ *
+ * İkinci dayanak, tanım cümlesi gerekmeden (30 Ekim 2026, canlı Araçlar testi): tür adı şıkların kendisinde yazıyorsa
+ * (doğru cevap "Menü maliyeti", bir kardeşi "Ayakkabı eskitme maliyeti") o adı taşımayan çeldirici ("Reeskont oranı",
+ * "Politika faizi") başka türdendir. Türkçe ad öbeğinde türü SON sözcük söyler: "hangi enflasyon maliyetidir" maliyet
+ * sorar, enflasyon değil; "Bu enflasyon hangi türdendir" enflasyon sorar.
  */
 
 /** Tür söylemeyen soru sözcükleri (ilk beş harfleriyle karşılaştırılır). */
@@ -19,7 +24,7 @@ const GENERIC_WORDS = [
   "faktör", "sebep", "biçim", "şekil", "tür", "türü", "türler", "türdür", "çeşit", "grup", "kategori", "yol", "yolu",
   "işlem", "nitelik", "unsur", "öğe", "öge", "ögesi", "öğesi", "bölüm", "kısım", "yön", "yönü", "alan", "alanı",
   "kişi", "ad", "adı", "aşama", "adım", "aşağıdakilerden", "hangisi", "hangileri", "şunlardan", "olgu", "türüdür",
-  "değil", "var", "yok",
+  "değil", "var", "yok", "türden", "sınıf", "sınıfı",
 ];
 const GENERIC_KEYS = new Set(GENERIC_WORDS.map((word) => word.slice(0, 5)));
 
@@ -36,7 +41,11 @@ function kindKey(word: string): string | null {
 /** Kökün sorduğu tür anahtarı; bulunamazsa ya da genel bir sözcükse null. */
 export function askedKind(stem: string): string | null {
   const text = fold(stem);
+  // "hangi enflasyon maliyetidir": ad öbeğinin başı son sözcük (ek-fiilli yüklem ad).
+  const phrase = /(?:^|[^\p{L}])hangi\s+(\p{L}{3,})\s+(\p{L}{3,}?)[dt][ıiuü]r(?=[^\p{L}]|$)/u.exec(text);
   const candidates = [
+    /(\p{L}{3,})\s+hangi\s+(?:tür|çeşit|grup|sınıf|kategori)\p{L}*(?=[^\p{L}]|$)/u.exec(text)?.[1],
+    phrase?.[2],
     /(?:^|[^\p{L}])hangi\s+(\p{L}{3,})/u.exec(text)?.[1],
     /(\p{L}{3,})\s+(?:aşağıdakilerden\s+)?hangisi(?:dir|ydi)?(?=[^\p{L}]|$)/u.exec(text)?.[1],
     /hangisi\s+(?:bir\s+)?(\p{L}{3,}?)(?:[dt][ıiuü]r)(?=[^\p{L}]|$)/u.exec(text)?.[1],
@@ -104,14 +113,21 @@ export function offKindDistractors(input: {
   context: string;
 }): string[] {
   const kind = askedKind(input.stem);
-  if (!kind || !input.context.trim()) return [];
+  if (!kind) return [];
   const correct = input.options[input.correctIndex];
   if (!correct) return [];
-  const correctKind = carriesKind(correct, kind) ? kind : termKind(correct, input.context);
-  if (correctKind !== kind) return [];
-  return input.options.filter((option, index) => {
-    if (index === input.correctIndex || carriesKind(option, kind)) return false;
-    const other = termKind(option, input.context);
+  const others = input.options.filter((_, index) => index !== input.correctIndex);
+  // Tür adı şıklarda yazıyor: doğru cevap ve en az bir kardeşi taşıyor, taşımayan çeldirici başka türden (kaynak gerekmez).
+  const lexical =
+    carriesKind(correct, kind) && others.some((option) => carriesKind(option, kind))
+      ? new Set(others.filter((option) => !carriesKind(option, kind)))
+      : new Set<string>();
+  const context = input.context.trim();
+  const correctKind = !context ? null : carriesKind(correct, kind) ? kind : termKind(correct, context);
+  return others.filter((option) => {
+    if (lexical.has(option)) return true;
+    if (correctKind !== kind || carriesKind(option, kind)) return false;
+    const other = termKind(option, context);
     return other !== null && other !== kind;
   });
 }
