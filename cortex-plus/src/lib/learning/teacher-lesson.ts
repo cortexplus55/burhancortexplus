@@ -32,13 +32,17 @@ import { numbersIn, sameNumber } from "@/lib/learning/result-values";
 import { enumeratedCountIssue, singleAnswerIntegrityIssues } from "@/lib/learning/question-integrity";
 import {
   KEY_CONSISTENCY_RULE,
+  SAME_KIND_DISTRACTOR_RULE,
   SELF_CONTAINED_STEM_RULE,
   SOURCE_LINK_EXEMPTION,
   SOURCE_NUMBER_PRIORITY,
   STUDENT_LEAK_BAN,
   TEACHING_RUBRIC,
+  THRESHOLD_OPTIONS_RULE,
   WHY_NOTE_RULE,
 } from "@/lib/learning/teaching-rubric";
+import { offKindDistractors } from "@/lib/learning/distractor-kind";
+import { contentTokens, rootCoverage } from "@/lib/learning/lexical-overlap";
 import { splitTableCells } from "@/lib/learning/interval-text";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
 import {
@@ -405,7 +409,9 @@ export const TEACHER_SYSTEM =
   "bloğudur. Bölünmüş bir tablonun her ekranındaki soru o ekrandaki komşu satırları ayırt ettirir (komşu iki satırı " +
   "karıştıran öğrenciyi yakalar: '9 ayda mı, 12 ayda mı?'). " +
   "Çoktan seçmeli soruda ŞIK SAYISI satırındaki kadar şık (satır yoksa 4); çeldiriciler aynı ailedeki kardeş terimler ya da " +
-  "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
+  // 30 Ekim 2026 (canlı tur): ders içi soru endeks sorarken şıklarda enflasyon türleri vardı; test yazarıyla aynı metin.
+  `öğrencinin gerçekten karıştırdığı ifadeler. ${SAME_KIND_DISTRACTOR_RULE} ${THRESHOLD_OPTIONS_RULE} ` +
+  "Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). " +
   // 29 Ekim 2026 (Paket H): kök tamlığı ve anahtar–açıklama kuralı ders, test ve deneme yazarında aynı metin.
@@ -526,7 +532,9 @@ const REVIEW_VERIFY =
   // 22 Ekim 2026 inceleme: aynı belirti hem C (high) hem J (medium) diye yazılıydı; C'yi seçen denetçi öğretim
   // nitini düzeltme turuna, oradan yeniden yazıma taşıyordu. Yalnız öğretim ölçütü maddesi (medium).
   "(Kavramı bilmeden çözülebilen soru — kök üstündeki cümleyi geri soruyor ya da şıklardan yalnız biri sorulan " +
-  "kategoriden — C değil, öğretim ölçütü maddesidir: 'medium'.)";
+  "kategoriden — C değil, öğretim ölçütü maddesidir: 'medium'. Yazarın çeldirici kuralı (aynen): " +
+  `${SAME_KIND_DISTRACTOR_RULE}) Aynı eşiği yalın ve yönlü taşıyan iki şık birden fazla doğru şıktır (C). Yazarın eşik ` +
+  `kuralı (aynen): ${THRESHOLD_OPTIONS_RULE}`;
 
 /**
  * Ezber kodunun denetimi (20 Ekim 2026): kod isteğe bağlı; olmaması sorun değil, ayrım taşımayan kod sorun.
@@ -1197,6 +1205,12 @@ export function screenStructureIssues(screen: LessonV3["screens"][number], index
   if (checks.length > 1) low(`${where}.blocks`, "Ekran başına tek 'check' bloğu; ikinci soruyu çıkar (ekran yalnız ilkini gösterir).");
   const carriers = screen.blocks.map((block) => block.type);
   for (const { check, blockIndex } of checks) checkIssues(check, `${where}.blocks[${blockIndex}]`, add, low, lessonOptionCount(input), carriers);
+  // Çeldirici türü (30 Ekim 2026, canlı tur): öğretim ölçütü maddesi, 'medium'. Tür kaynağın ve ekranın tanım cümlesinden.
+  const context = lessonKindContext(screen, input);
+  for (const { check, blockIndex } of checks) {
+    const offKind = offKindCheckIssue(check, context);
+    if (offKind) medium(`${where}.blocks[${blockIndex}]`, offKind);
+  }
   screen.blocks.forEach((block, blockIndex) => {
     // 20 Ekim 2026 kör kıyas: şemadaki örnek başlık "X ile Y farkı" iki derste aynen ekrana çıktı.
     const titles =
@@ -1674,6 +1688,155 @@ export function dropRepeatedScreens(earlier: readonly LessonScreen[], screens: r
   return out;
 }
 
+/*
+  Ekran içi tekrar (30 Ekim 2026, canlı tur: Makroekonomi dersi). Aynı bilgi tek ekranda beş biçimde duruyordu
+  (metin, "Ayırt et" tuzak kartı, hafıza çivisi, tablo, karşılaştırma kartı), ekranın sorusu hemen üstteki cümlenin
+  aynısıydı, aynı tanım bir ekranda iki kez yazılmıştı. `repetitionIssues` yalnız EKRANLAR ARASI tekrara bakıyordu.
+  Görsel kartlar tasarım gereği yeni bilgi taşımaz (kavramın bilgisini sınavın vurduğu yerden gösterir); bu yüzden
+  bir cümlenin bir kartta yeniden görünmesi sorun değildir, üç biçim (cümle + iki blok) sorundur. Ölçü: cümlenin
+  içerik sözcüklerinin %85'i aynı kökle bloğun metninde. Ders adı yok.
+*/
+
+/** Bloğun öğreten metni (ekran içi tekrar ölçüsü): ezber kodu, genel bilgi, örnek vaka ve tuzaktaki yanlış inanç hariç. */
+function blockTeachingText(block: LessonBlock): string {
+  switch (block.type) {
+    case "text":
+      return block.text;
+    case "note":
+      return isCaseNote(block) || block.note.tone === "mnemonic" || block.note.tone === "general" ? "" : block.note.body;
+    case "exam_trap_card":
+      return [block.trap.right, block.trap.tell ?? ""].join(" ");
+    case "memory_hook_card":
+      return block.hook.body;
+    case "comparison_carousel":
+      return block.carousel.slides.map((slide) => [slide.title, slide.body, ...(slide.points ?? [])].join(" ")).join(" ");
+    case "table":
+      return block.table.rows.map((row) => row.join(" ")).join(" ");
+    case "cards":
+      return block.cards.map((card) => `${card.title} ${card.body}`).join(" ");
+    default:
+      return "";
+  }
+}
+
+const ECHO_COVERAGE = 0.85;
+
+/** Cümlenin bilgisi metinde var mı: içerik sözcüklerinin (en az dört) %85'i aynı kökle. */
+function echoes(sentence: string, text: string): boolean {
+  const words = [...new Set(contentTokens(sentence))];
+  return words.length >= 4 && rootCoverage(words, contentTokens(text)) >= ECHO_COVERAGE;
+}
+
+/** Ekrandaki bir metin cümlesi kendi bloğu dışında en az iki blokta yeniden söyleniyor mu; söyleniyorsa cümle ve blok türleri. */
+export function screenEcho(screen: Pick<LessonScreen, "blocks">): { sentence: string; kinds: string[] } | null {
+  const texts = screen.blocks.map(blockTeachingText);
+  for (const [index, block] of screen.blocks.entries()) {
+    if (block.type !== "text") continue;
+    for (const sentence of sentencesOf(block.text)) {
+      const echoed = screen.blocks.flatMap((other, at) => (at !== index && texts[at] && echoes(sentence, texts[at]!) ? [other.type] : []));
+      if (echoed.length >= 2) return { sentence, kinds: echoed };
+    }
+  }
+  return null;
+}
+
+/** Ekranda aynı cümle (tanım) iki kez: metin ve not cümlelerinden ikisi birbirinin aynısı. */
+export function screenTwinSentence(screen: LessonScreen): string | null {
+  const sentences = taughtSentences(screen);
+  for (let i = 0; i < sentences.length; i += 1) {
+    for (let j = i + 1; j < sentences.length; j += 1) {
+      if (echoes(sentences[i]!, sentences[j]!) && echoes(sentences[j]!, sentences[i]!)) return sentences[j]!;
+    }
+  }
+  return null;
+}
+
+/** Ekranın sorusu (önce dene değilse) hemen üstündeki bloklardan bir cümleyi geri soruyor mu; soruyorsa o cümle. */
+export function echoedCheck(screen: Pick<LessonScreen, "blocks">): string | null {
+  const at = screen.blocks.findIndex((block) => block.type === "check");
+  if (at <= 0) return null;
+  const block = screen.blocks[at]!;
+  if (block.type !== "check") return null;
+  const prompt = block.check.prompt;
+  for (const above of screen.blocks.slice(0, at)) {
+    const text = blockTeachingText(above);
+    const sentences = above.type === "text" ? sentencesOf(text) : text ? [text] : [];
+    const hit = sentences.find((sentence) => echoes(prompt, sentence));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Çeldirici türünün okunduğu metin: konunun kaynak sayfaları ve ekranın kendisi (belgesiz derste yalnız ekran). */
+function lessonKindContext(screen: LessonScreen, input: Partial<Pick<TeacherLessonInput, "pages" | "mode">>): string {
+  const pages = input.mode === "topic" ? [] : (input.pages ?? []);
+  return [...pages.map((page) => page.text), screenText(screen), ...screen.blocks.map(blockTeachingText)].join("\n");
+}
+
+/** Ders içi çoktan seçmeli sorunun sorulan türden olmayan çeldiricileri (`offKindDistractors`); yoksa null. */
+function offKindCheckIssue(check: Check, context: string): string | null {
+  if (check.type !== "mcq" || !check.options?.length || typeof check.answerIndex !== "number") return null;
+  const off = offKindDistractors({ stem: check.prompt, options: check.options, correctIndex: check.answerIndex, context });
+  return off.length
+    ? `Çeldirici sorulan türden değil ('${off.join("', '")}'): kaynak onu başka türden tanımlıyor; doğru cevabın kardeşi olan aynı türden öğe yaz.`
+    : null;
+}
+
+export type LessonTeachingFlags = {
+  /** Aynı bilgi bir ekranda üç ya da daha çok biçimde. */
+  echo: number;
+  /** Aynı tanım bir ekranda iki kez. */
+  twin: number;
+  /** Ekranın sorusu hemen üstündeki cümlenin aynısı. */
+  echoedCheck: number;
+  /** Sorulan türden olmayan çeldirici. */
+  offKind: number;
+};
+
+/**
+ * Yayımlanan ekranların öğretim işaretleri, sayı olarak (30 Ekim 2026). Tek geçişten (26 Ekim 2026) beri canlı ders
+ * yolunda yapı denetimi (`partStructureIssues`) çağrılmıyor; bu ölçüler orada 'medium' ve testte görünür, canlıda
+ * yalnız günlüğe yazılır (`teacher_lesson_teaching_flags`). Kod metne dokunmaz.
+ */
+export function lessonTeachingFlags(
+  screens: readonly LessonScreen[],
+  input: Partial<Pick<TeacherLessonInput, "pages" | "mode">> = {},
+): LessonTeachingFlags {
+  const flags: LessonTeachingFlags = { echo: 0, twin: 0, echoedCheck: 0, offKind: 0 };
+  for (const screen of screens) {
+    if (screenEcho(screen)) flags.echo += 1;
+    else if (screenTwinSentence(screen)) flags.twin += 1;
+    if (echoedCheck(screen)) flags.echoedCheck += 1;
+    const check = screenCheck(screen);
+    if (check && offKindCheckIssue(check, lessonKindContext(screen, input))) flags.offKind += 1;
+  }
+  return flags;
+}
+
+/** Ekran içi tekrarın sorunları (öğretim önemi, 'medium'). */
+function intraScreenIssues(screen: LessonScreen, where: string, medium: (where: string, problem: string) => void): void {
+  const echo = screenEcho(screen);
+  if (echo) {
+    medium(
+      `${where}.blocks`,
+      `Aynı bilgi bu ekranda ${echo.kinds.length + 1} biçimde (metin, ${echo.kinds.join(", ")}): "${echo.sentence.slice(0, 90)}". ` +
+        "Bir bilgi ekranda en çok iki biçimde dursun; öbür blok yeni bir şey taşısın (ayırt eden ipucu, neden, uygulama) ya da çıksın.",
+    );
+  } else {
+    const twin = screenTwinSentence(screen);
+    if (twin) {
+      medium(`${where}.blocks`, `Aynı tanım bu ekranda iki kez yazılmış ("${twin.slice(0, 90)}"); birini çıkar.`);
+    }
+  }
+  const echoedLine = echoedCheck(screen);
+  if (echoedLine) {
+    medium(
+      `${where}.blocks`,
+      `Ekranın sorusu hemen üstündeki cümleyi geri soruyor ("${echoedLine.slice(0, 90)}"); kavramı yeni bir durumda ayırt ettiren ya da uygulatan soru yaz.`,
+    );
+  }
+}
+
 /**
  * Ekranlar arası tekrar (22 Ekim 2026, kör kıyas 2. tur). Öğretim ölçütünün 1. maddesi istemde vardı ama on
  * çiftin dokuzunda yargıçlar aynı şeyi yazdı: "aynı YSK paragrafı üç ekranda", "aynı tarih tablosu üç kez",
@@ -1691,6 +1854,8 @@ export function repetitionIssues(screens: readonly LessonScreen[], indexes: read
     const screen = screens[index];
     if (!screen) continue;
     const where = `screens[${index}]`;
+    // Ekran içi tekrar (30 Ekim 2026): aynı bilgi üç biçimde, aynı tanım iki kez, soru üstteki cümlenin aynısı.
+    intraScreenIssues(screen, where, medium);
     const earlier = screens.slice(0, index);
     const twinCheck = repeatedCheck(earlier, screen);
     if (twinCheck) {

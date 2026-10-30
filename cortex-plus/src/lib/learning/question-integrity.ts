@@ -139,6 +139,87 @@ export function enumeratedCountIssue(text: string): string | null {
   return null;
 }
 
+/*
+  Eşik şıkları (30 Ekim 2026, canlı tur, düello S7): kök "aylık %50'yi aşması" derken "Aylık %50" ve "Aylık %50'nin
+  üzeri" iki ayrı şıktı. Aynı sayılar, aynı geri kalan sözcükler; biri yalın, öbürü yönlü (ya da iki farklı yönlü söz:
+  "en az %50" / "%50'nin üzeri") → iki şık da savunulur. Zıt yönler ("üzeri" / "altı") ayrı cevaptır.
+*/
+const THRESHOLD_PHRASES: { pattern: RegExp; direction: "up" | "down" }[] = [
+  { pattern: /(?:^|\s)ve\s+(?:üzeri|üstü|fazlası)(?=\s|$)/gu, direction: "up" },
+  { pattern: /(?:^|\s)ve\s+(?:altı|aşağısı)(?=\s|$)/gu, direction: "down" },
+  { pattern: /(?:^|\s)en\s+az(?=\s|$)/gu, direction: "up" },
+  { pattern: /(?:^|\s)en\s+(?:çok|fazla)(?=\s|$)/gu, direction: "down" },
+  {
+    pattern:
+      /(?:^|\s)(?:üzeri|üzerinde|üzerindeki|üstü|üstünde|fazla|fazlası|aşan|aşkın|aşması|büyük|yüksek|uzun|sonra|geç|çok)(?=\s|$)/gu,
+    direction: "up",
+  },
+  { pattern: /(?:^|\s)(?:altı|altında|altındaki|az|azı|düşük|küçük|kısa|önce|erken|aşmayan)(?=\s|$)/gu, direction: "down" },
+];
+
+type ThresholdShape = { numbers: string; rest: string; qualifiers: string[]; directions: Set<"up" | "down"> };
+
+function thresholdShape(option: string): ThresholdShape | null {
+  // Simgeli eşitsizlik ("x > 5" / "x ≥ 5") kesin yazımdır; matematik sorusu kapsayıcılığı bilerek sorar.
+  if (/[<>≤≥=]/u.test(option)) return null;
+  const numbers = (option.match(/\d+(?:[.,]\d+)?/gu) ?? []).map((value) => value.replace(",", ".")).sort();
+  if (!numbers.length) return null;
+  let text = ` ${option
+    .normalize("NFKC")
+    .toLocaleLowerCase("tr")
+    // Sayıya ya da kısaltmaya bitişik ek: "%50'nin", "12 aydan", "2 SD'nin".
+    .replace(/\d+(?:[.,]\d+)?\s*%?|%\s*\d+(?:[.,]\d+)?/gu, " # ")
+    .replace(/['’]\p{L}{1,4}/gu, " ")
+    .replace(/[(),.;:!?"“”]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()} `;
+  const qualifiers: string[] = [];
+  const directions = new Set<"up" | "down">();
+  for (const phrase of THRESHOLD_PHRASES) {
+    text = text.replace(phrase.pattern, (hit) => {
+      qualifiers.push(hit.trim());
+      directions.add(phrase.direction);
+      return " ";
+    });
+  }
+  // Durum eki ("aydan sonra" → "ay", "yaşın üzeri" → "yaş"): ekin kendisi soruyu ayırmaz. İki şıkka aynı kural.
+  const rest = text
+    .split(/\s+/u)
+    .filter((word) => word && word !== "#")
+    .map((word) => {
+      const suffix = /(?:ndan|nden|nın|nin|nun|nün|dan|den|tan|ten|da|de|ta|te|yı|yi|yu|yü|ya|ye|ın|in|un|ün|ı|i|u|ü|a|e)$/u.exec(word);
+      return suffix && word.length - suffix[0].length >= 2 ? word.slice(0, word.length - suffix[0].length) : word;
+    })
+    .filter(Boolean)
+    .join(" ");
+  return { numbers: numbers.join("|"), rest, qualifiers: qualifiers.sort(), directions };
+}
+
+/** Aynı eşiği bir şıkta yalın, öbüründe yönüyle (ya da iki farklı yönlü sözle) taşıyan iki şık; yoksa null. */
+export function thresholdTwinOptions(options: readonly string[]): [string, string] | null {
+  const shapes = options.map((option) => ({ option, shape: thresholdShape(option) }));
+  for (let i = 0; i < shapes.length; i += 1) {
+    const left = shapes[i]!;
+    if (!left.shape) continue;
+    for (let j = i + 1; j < shapes.length; j += 1) {
+      const right = shapes[j]!;
+      if (!right.shape) continue;
+      if (left.shape.numbers !== right.shape.numbers || left.shape.rest !== right.shape.rest) continue;
+      if (left.shape.qualifiers.join("|") === right.shape.qualifiers.join("|")) continue;
+      // Zıt yön ayrı cevaptır ("%50'nin üzeri" / "%50'nin altı").
+      const opposite =
+        (left.shape.directions.has("up") && right.shape.directions.has("down")) ||
+        (left.shape.directions.has("down") && right.shape.directions.has("up"));
+      if (opposite) continue;
+      return [left.option, right.option];
+    }
+  }
+  return null;
+}
+
+/** Eşik ikizinin sorun metni; `UNSALVAGEABLE_PROBLEM` bu başlangıcı tanır. */
+export const THRESHOLD_TWIN_PREFIX = "İki şık aynı eşiği söylüyor";
+
 type IntegrityCheck = {
   type: string;
   prompt: string;
@@ -169,6 +250,12 @@ export function singleAnswerIntegrityIssues(check: IntegrityCheck): string[] {
       const equivalent = equivalentOptionPair(options, check.prompt);
       if (equivalent) {
         issues.push(`İki şık eşdeğer ('${equivalent[0]}' = '${equivalent[1]}'); tek doğrulu soruda biri doğruysa öteki de doğru olur.`);
+      }
+      const threshold = thresholdTwinOptions(options);
+      if (threshold) {
+        issues.push(
+          `${THRESHOLD_TWIN_PREFIX} ('${threshold[0]}' / '${threshold[1]}'); eşiğin yönünü kökte bir kez yaz, şıklar farklı sayılar olsun.`,
+        );
       }
     }
   }

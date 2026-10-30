@@ -109,7 +109,19 @@ describe("öğretmen test motoru: biçim ve yapı", () => {
 });
 
 describe("öğretmen test motoru: döngü", () => {
-  const draft = (n: number) => ({ questions: Array.from({ length: n }, (_, i) => raw(`Soru ${i + 1}: nikâh memuru olmadan yapılan evlilik?`)) });
+  // 30 Ekim 2026: bütün testlerde testin bütününe bakılıyor; yedi aynı soru artık tek soru sayılır. Taslak yedi ayrı durum.
+  const SCENARIOS: [string, string][] = [
+    ["nikâh memuru olmadan yapılan evlilik?", "Yokluk"],
+    ["ahlaka aykırı konusu olan sözleşme?", "Mutlak butlan"],
+    ["korkutularak imzalatılan satış?", "Nispi butlan"],
+    ["velisinin onayı beklenen küçüğün alımı?", "Tek taraflı bağlamazlık"],
+    ["kurucu şekli hiç bulunmayan vakıf senedi?", "Yokluk"],
+    ["kanunun açıkça yasakladığı kira şartı?", "Mutlak butlan"],
+    ["aldatılarak verilen kefalet?", "Nispi butlan"],
+  ];
+  const draft = (n: number) => ({
+    questions: Array.from({ length: n }, (_, i) => raw(`Soru ${i + 1}: ${SCENARIOS[i % SCENARIOS.length]![0]}`, SCENARIOS[i % SCENARIOS.length]![1])),
+  });
   const input = { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], count: 5, optionCount: 4 as const };
 
   it("yedekli taslak: denetçinin elediği sorular yerine yedekler geçer, düzeltme turu gerekmez", async () => {
@@ -122,7 +134,7 @@ describe("öğretmen test motoru: döngü", () => {
     const loop = await teacherQuizLoop(ask, input);
     expect(loop.questions).toHaveLength(5);
     expect(loop.rounds).toBe(0);
-    expect(loop.questions.map((q) => q.text)).toContain("Soru 2: nikâh memuru olmadan yapılan evlilik?");
+    expect(loop.questions.map((q) => q.text)).toContain("Soru 2: ahlaka aykırı konusu olan sözleşme?");
     expect(ask).toHaveBeenCalledTimes(1);
   });
 
