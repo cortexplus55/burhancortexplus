@@ -101,7 +101,13 @@ describe("çizimli video tahtası (30 Ekim 2026, canlı tur)", () => {
     expect(container.querySelector(".cp-sketch-formula")?.textContent).toBe("Durgunluk + enflasyon");
     const css = read("src/styles/video-lesson.css");
     expect(css).toMatch(/\.cp-video-board \{[\s\S]*container-type: size/);
-    expect(css).toMatch(/\.cp-video-board-body \{[\s\S]*padding: 7\.2rem 0\.8rem calc\(18cqh \+ 4\.6rem\)/);
+    // Canlı ölçüm (639 px yüksek pencere): üst çubuk 137 px, formül satırları 0 yüksekliğe eziliyordu.
+    expect(css).toMatch(/\.cp-video-board-body \{[\s\S]*padding: calc\(var\(--cp-top-h, 7\.2rem\) \+ 0\.35rem\)/);
+    expect(css).toMatch(/\.cp-video-frame\.is-sketch \.cp-video-caption \{\s*bottom: 0\.6rem;/);
+    expect(css).toMatch(/\.cp-sketch-formulas \{\s*display: flex;\s*flex: none;/);
+    expect(css).not.toMatch(/\.cp-sketch-formulas \{[^}]*max-height: 28%/);
+    expect(container.querySelector(".cp-video-frame")?.className).toContain("is-sketch");
+    expect(read("src/components/parity/video-lesson.tsx")).toContain('box.style.setProperty("--cp-top-h"');
   });
   it("yazar 1 dakikaya yakın yazar; bekleme sözü ölçülen süreyle", () => {
     // Seslendirme saniyede ~1,64 kelime: 92 kelime ≈ 56 sn. Denetim aralığı değişmez (yeni düzeltme turu açılmaz).
