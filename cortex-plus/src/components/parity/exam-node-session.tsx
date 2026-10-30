@@ -52,6 +52,7 @@ import {
   BUSY_MAX_RETRIES,
   BUSY_NOTE,
   BUSY_RETRY_DELAY_MS,
+  postJsonWithRetry,
 } from "@/lib/learning/generation-retry";
 import { TopicGainCard, topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
 import { CardGradeButtons } from "@/components/parity/review-grade-buttons";
@@ -1524,12 +1525,12 @@ export function ExamNodeSession({
     if (!topicId) return;
     setPodcastLoading(true);
     try {
-      const res = await fetch("/api/learning/exam-prep/lesson-podcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, topicId }),
-      });
-      const data = await res.json().catch(() => ({}));
+      // 30 Ekim 2026 (Paket I #9): hazırlık podcast'iyle aynı hat; düşerse bir kez kendiliğinden, her denemede yeni
+      // istek kimliğiyle (aynı kimlik "işlem tamamlandı" döner).
+      const { res, data } = await postJsonWithRetry<{ code?: string; title?: string; chapters?: unknown }>(
+        "/api/learning/exam-prep/lesson-podcast",
+        () => ({ prepId, topicId, clientRequestId: crypto.randomUUID() }),
+      );
       if (res.status === 402) {
         // Ücretsiz hesapta sesli tekrar Plus'ta: kapı "doldu" demez, Pazartesi'ye geri saymaz.
         setPaywallGate(data.code === "premium_required" ? LESSON_PODCAST_GATE : gateCopy);
@@ -1540,7 +1541,7 @@ export function ExamNodeSession({
         toast.error("Sesli tekrar bu sefer gelmedi. Yeniden dene.");
         return;
       }
-      setLessonPodcast({ title: data.title ?? topicLabel ?? "Sesli tekrar", chapters: data.chapters });
+      setLessonPodcast({ title: data.title ?? topicLabel ?? "Sesli tekrar", chapters: data.chapters as unknown[] });
     } catch {
       toast.error("Sesli tekrar bu sefer gelmedi. Yeniden dene.");
     } finally {
@@ -2680,6 +2681,12 @@ export function ExamNodeSession({
               </button>
             ) : null}
           </div>
+          {/* Uzun üretimde ne olduğunu söyle (30 Ekim 2026, Paket I #9): konunun podcast'i hazırsa anında gelir. */}
+          {podcastLoading && !lessonPodcast ? (
+            <p className="cp-exam-card-hint" role="status">
+              Sesli tekrar konunun sayfalarından yazılıyor ve seslendiriliyor; ilk kez hazırlanıyorsa bir iki dakika sürebilir.
+            </p>
+          ) : null}
           {lessonPodcast ? (
             <ExamPodcastPlayer
               title={lessonPodcast.title}

@@ -22,6 +22,7 @@ import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-
 import { corePageRun } from "@/lib/learning/core-pages";
 import { pagesMarkedInSource } from "@/lib/learning/source-context";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
+import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import { publicQuizQuestion } from "@/lib/learning/exam-quiz";
 
 /**
@@ -35,6 +36,12 @@ const bodySchema = z.object({
   topicId: z.string().uuid(),
   length: z.enum(PODCAST_LENGTHS).optional(),
   clientRequestId: z.string().uuid().optional(),
+  /**
+   * Ders sonu "Şimdi dinle" (`lesson-podcast`) false gönderir (30 Ekim 2026, Paket I #9): o yolda dinleme kontrolü
+   * yok (20 Ekim kararı: ~20-35 sn bekleme, yeni bir şey ölçmez). Kontrolsüz bölüm önbelleğe YAZILMAZ; yoksa yoldaki
+   * podcast adımı o konunun kontrolünü kaybederdi. Önbellekte bölüm varsa ikisi de onu alır.
+   */
+  listeningCheck: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -53,6 +60,7 @@ export async function POST(request: Request) {
   const { prepId, topicId } = parsed.data;
   const length = parsePodcastLength(parsed.data.length);
   const requestId = parsed.data.clientRequestId ?? null;
+  const withCheck = parsed.data.listeningCheck !== false;
 
   const { data: prep } = await service
     .from("exam_preps")
@@ -190,7 +198,7 @@ export async function POST(request: Request) {
     runningHeaders: edges,
     // Dinleme kontrolü (20 Ekim 2026): bu sayfa göstermez, önbelleğe yazar; aynı konunun yol
     // düğümü önbellekten kontrollü (puanlı, kanıtlı) açılır.
-    listeningCheck: true,
+    listeningCheck: withCheck,
   });
 
   if (!outcome.ok) {
@@ -199,10 +207,21 @@ export async function POST(request: Request) {
       code: outcome.error,
       reasons: outcome.reasons,
     });
+    // Kalıcı kayıt (30 Ekim 2026, Paket I #9): ders sonu "Şimdi dinle" de bu hattan; düşüş /admin/ders-hatalari'nda görünsün.
+    await recordLessonGenerationFailure(service, {
+      userId,
+      prepId,
+      topicId: topic.id,
+      topicLabel: topic.label,
+      kind: "podcast",
+      stage: "podcast",
+      reason: outcome.error,
+      reasons: outcome.reasons,
+    });
     return errorResponse(outcome.status, outcome.error, { refunded: true });
   }
 
-  await writePodcastCache(service, {
+  if (withCheck) await writePodcastCache(service, {
     prepId,
     userId,
     topicLabel: topic.label,

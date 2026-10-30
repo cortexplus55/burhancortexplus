@@ -1,95 +1,47 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { errorResponse, withUser } from "@/lib/api/guards";
-import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
-import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
+import { errorResponse } from "@/lib/api/guards";
 import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
-import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
-import { readLessonV2 } from "@/lib/learning/lesson-v3";
+import { POST as preparePrepPodcast } from "@/app/api/learning/exam-prep/podcast/route";
 
 /**
- * Ders bitince önerilen sesli tekrar.
+ * Ders bitince "Şimdi dinle" (sesli tekrar).
  *
- * Podcast planın öğrenme adımı olmaktan çıktı; öğrenci konuyu okuyup
- * bitirdikten sonra isterse dinliyor. Bu yüzden ayrı bir uç: plan düğümü
- * değil, dersin devamı. Ders yoksa podcast de yok — dinlenecek bir şey
- * kalmadığı gibi, olguyu ham PDF'ten ikinci kez çıkarma riski de geri
- * gelirdi.
+ * 30 Ekim 2026 (Paket I #9): canlı stres testinde bu uç dokuz denemenin dokuzunda "Sesli tekrar bu sefer gelmedi"
+ * dedi; aynı konunun hazırlık podcast'i ise çalıştı. Bu uç ayrı bir hattı koşuyordu: kaynak sayfa vermeden (yalnız
+ * dersin özeti), `maxDuration` olmadan, önbelleksiz ve hatasını yalnız konsola yazarak. Artık hazırlık podcast'inin
+ * kendisi: aynı konu sayfaları + aynı ders, aynı önbellek (konunun podcast'i varsa anında, kredisiz), aynı hata
+ * kaydı. İki giriş, tek üretim hattı.
  */
+export const maxDuration = 300;
+
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
+  clientRequestId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
-  const guard = await withUser(request, { scope: "exam-prep-lesson-podcast", limit: 6 });
-  if (!guard.ok) return guard.response;
-  const { userId, service } = guard.ctx;
-
-  const parsed = bodySchema.safeParse(await request.json());
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { prepId, topicId } = parsed.data;
 
-  const { data: prep } = await service
-    .from("exam_preps")
-    .select("id, title")
-    .eq("id", prepId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!prep) return errorResponse(404, "not_found");
-
-  // Sesli tekrar kayıtlı ücretsizde açık; üretim kredi yer. Misafir
-  // withUser sayesinde buraya gelemez.
-  const entitlements = await getUserEntitlements(service, userId);
-  if (!requireFeature(entitlements, "podcast")) {
-    return errorResponse(402, "premium_required");
-  }
-
-  const { data: topic } = await service
-    .from("exam_prep_topics")
-    .select("id, label")
-    .eq("id", topicId)
-    .eq("exam_prep_id", prepId)
-    .maybeSingle();
-  if (!topic) return errorResponse(404, "not_found");
-
-  const { data: row } = await service
-    .from("exam_prep_lessons")
-    .select("content_json")
-    .eq("topic_id", topicId)
-    .not("content_json", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const lesson = row?.content_json
-    ? readLessonV2(row.content_json)
-    : null;
-  if (!lesson) return errorResponse(409, "lesson_required");
-
-  // Öğretmen podcast motoru (3 Ekim 2026): dersin kendisi kaynak; belgeyle
-  // eşleme ve modelin düzeltmesi. Eski tek-taslak zinciri kalktı.
-  // Dinleme kontrolü yok (20 Ekim 2026, bilerek; `listeningCheck` verilmez): bu sesli tekrar dersin
-  // sonunda açılıyor, ders zaten ekran ekran soru soruyor ve "Kendini test et" düğmesi hemen altında.
-  // Kontrol bu yolda ~20-35 sn bekleme ve model bedeli eklerdi, yeni bir şey ölçmezdi.
-  const outcome = await runTeacherPodcast(service, {
-    mode: "document",
-    length: DEFAULT_PODCAST_LENGTH,
-    userId,
-    actionCode: "PODCAST_GENERATE",
-    idempotencyKey: `lesson-podcast:${userId}:${topicId}:${crypto.randomUUID()}`,
-    topicLabel: topic.label ?? "Konu",
-    prepTitle: prep.title ?? "Hazırlık",
-    pages: [],
-    lessonText: lessonPodcastBrief(lesson),
+  const headers = new Headers(request.headers);
+  headers.delete("content-length");
+  headers.set("content-type", "application/json");
+  const forwarded = new Request(new URL("/api/learning/exam-prep/podcast", request.url), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      prepId: parsed.data.prepId,
+      topicId: parsed.data.topicId,
+      length: DEFAULT_PODCAST_LENGTH,
+      listeningCheck: false,
+      ...(parsed.data.clientRequestId ? { clientRequestId: parsed.data.clientRequestId } : {}),
+    }),
   });
-  if (!outcome.ok) {
-    console.error("lesson podcast rejected", { topicId, reasons: outcome.reasons });
-    return errorResponse(outcome.status, outcome.error);
-  }
-
-  return NextResponse.json({
-    title: outcome.episode.title,
-    chapters: outcome.episode.chapters,
-  });
+  const response = await preparePrepPodcast(forwarded);
+  if (!response.ok) return response;
+  const data = (await response.json().catch(() => null)) as { title?: string; chapters?: unknown; reused?: boolean } | null;
+  if (!data || !Array.isArray(data.chapters)) return errorResponse(502, "generation_failed");
+  return NextResponse.json({ title: data.title, chapters: data.chapters, reused: data.reused === true });
 }
