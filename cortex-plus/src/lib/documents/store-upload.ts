@@ -8,9 +8,25 @@ export function maxDocumentBytes(mimeType: string): number {
   return mimeType === "application/pdf" ? PDF_MAX_BYTES : DOCUMENT_MAX_BYTES;
 }
 
-/** Storage paths are server-generated; a supplied file name must never add folders. */
+const TURKISH_ASCII: Record<string, string> = {
+  ı: "i", İ: "I", ğ: "g", Ğ: "G", ş: "s", Ş: "S", ç: "c", Ç: "C", ö: "o", Ö: "O", ü: "u", Ü: "U",
+};
+
+/**
+ * Storage paths are server-generated; a supplied file name must never add folders.
+ *
+ * 31 Ekim 2026: Supabase Storage anahtarı yalnız ASCII harf, rakam ve birkaç işaret kabul ediyor; "ğ, ı, ş, ü" ya da
+ * "–" taşıyan anahtarda imzalı yükleme düşüyor, belge "boyutu doğrulanamadı" ile siliniyordu (canlıda son 400 belgenin
+ * hiçbirinin yolunda Türkçe harf yoktu). Yol ASCII'ye çevrilir; öğrencinin gördüğü ad (`file_name`) aynen kalır.
+ */
 export function safeDocumentName(name: string): string {
-  return name.normalize("NFC").replace(/[\\/\u0000-\u001f\u007f]/g, "_").slice(0, 180) || "belge";
+  const ascii = name
+    .replace(/[ıİğĞşŞçÇöÖüÜ]/g, (char) => TURKISH_ASCII[char] ?? "_")
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[‐-―]/g, "-")
+    .replace(/[^A-Za-z0-9_!\-.*'() &$@=;:+,?]/g, "_");
+  return ascii.slice(0, 180) || "belge";
 }
 export const DOCUMENT_ALLOWED_TYPES = new Set([
   "application/pdf",
