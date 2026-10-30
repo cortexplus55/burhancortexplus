@@ -14,6 +14,8 @@ import { creditGateCopy } from "@/lib/billing/free-reach";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import type { CoachMessage } from "@/components/parity/exam-node-coach";
 import { readPlayLessonV3 } from "@/lib/learning/lesson-play-v3";
+import type { CheckGradeVariant, GradeCheckResult, LessonCheckAnswer } from "@/lib/learning/lesson-play";
+import { awaitPodcastCheck, podcastCheckPending } from "@/lib/learning/podcast-check";
 import { AUTO_RETRY_CODES, AUTO_RETRY_DELAY_MS, BUSY_CODE, BUSY_MAX_RETRIES, BUSY_RETRY_DELAY_MS, postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { topicGainWorthShowing, type TopicGain } from "@/components/parity/topic-gain-card";
 import { parsePathChange, type PathChange } from "@/lib/learning/path-change";
@@ -1674,7 +1676,54 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     hintsUsedRef.current = { ...hintsUsedRef.current, [key]: true };
   }
 
+  /** Ders içi tek soru sunucuda notlanır (`action: "grade-check"`); cevap anahtarı istemciye notlanmadan gitmez. */
+  async function gradeLessonCheck(sectionIndex: number, answer: LessonCheckAnswer, variant: CheckGradeVariant = "primary") {
+    const res = await fetch("/api/learning/exam-prep/node", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prepId,
+        nodeId,
+        attemptId,
+        action: "grade-check",
+        sectionIndex,
+        variant,
+        checkAnswer: answer,
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as GradeCheckResult & {
+      ok?: boolean;
+      error?: string;
+    };
+    if (!res.ok) {
+      throw new Error(data.error ?? "grade_failed");
+    }
+    return data;
+  }
+
+  /**
+   * Podcast bitti. Kontrol varsa önce sorular (atlanabilir), sonra tamamlama (20 Ekim 2026). Kontrol yayımdan sonra
+   * yazıldıysa (30 Ekim 2026, `checkPending`) kayıttan yoklanır; gelmezse podcast kontrolsüz biter.
+   */
+  function finishPodcast() {
+    if (podcastCheck.length) return setPodcastCheckOpen(true);
+    if (!podcastCheckPending(payload) || !attemptId) return void finish();
+    setLoading(true);
+    void awaitPodcastCheck(async () => {
+      const res = await fetch(NODE_URL, jsonPost({ prepId, nodeId, attemptId, action: "progress", lessonFormat: 3 }));
+      const data = (await res.json().catch(() => ({}))) as { payload?: Payload };
+      return res.ok && data.payload ? data.payload : null;
+    }).then((ready) => {
+      setLoading(false);
+      if (!ready) return void finish();
+      setPayload(ready);
+      setPodcastCheckOpen(true);
+    });
+  }
+
   return {
+    gradeLessonCheck,
+    finishPodcast,
     prepId,
     nodeId,
     kind,

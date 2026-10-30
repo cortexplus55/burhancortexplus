@@ -3,12 +3,12 @@
 /** Ders: adım adım ders (LessonV3) ya da eski düz metin. */
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
-import type { GradeCheckResult, LessonCheckAnswer } from "@/lib/learning/lesson-play";
+import type { LessonCheckAnswer } from "@/lib/learning/lesson-play";
 import { NodeSources } from "@/components/parity/node-sources";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function LessonPlay({ life }: { life: NodeLifecycle }) {
-  const { prepId, nodeId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding } = life;
+  const { prepId, language, sources, activityMinutes, router, stage, loading, payload, attemptId, finish, structuredLesson, lessonBuilding, gradeLessonCheck } = life;
   return (
     <>
       {stage === "play" && payload.type === "lesson" ? (
@@ -22,33 +22,7 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
             plannedScreens={lessonBuilding ? (payload.plannedScreens ?? null) : null}
             plannedMinutes={activityMinutes}
             language={language}
-            gradeCheck={
-              attemptId
-                ? async (sectionIndex, answer, variant = "primary") => {
-                    const res = await fetch("/api/learning/exam-prep/node", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        prepId,
-                        nodeId,
-                        attemptId,
-                        action: "grade-check",
-                        sectionIndex,
-                        variant,
-                        checkAnswer: answer,
-                      }),
-                    });
-                    const data = (await res.json().catch(() => ({}))) as GradeCheckResult & {
-                      ok?: boolean;
-                      error?: string;
-                    };
-                    if (!res.ok) {
-                      throw new Error(data.error ?? "grade_failed");
-                    }
-                    return data;
-                  }
-                : undefined
-            }
+            gradeCheck={attemptId ? gradeLessonCheck : undefined}
             onFinish={(missed, lessonAnswers, retryAnswers) => {
               const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
               const payloadAnswers: Record<string, unknown> = {};
