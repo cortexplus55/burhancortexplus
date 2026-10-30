@@ -448,7 +448,8 @@ export async function POST(request: Request) {
           new Promise((resolve) => setTimeout(resolve, TEACHER_ANALYSIS_WAIT_MS)),
         ]);
       }
-      await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId });
+      // Yeni hazırlığın ilk dersi Plus'ta hızlı işlemle (30 Ekim 2026): öğrenci kurulumdan hemen sonra açıyor.
+      await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId }, { firstLesson: true });
     });
   }
 

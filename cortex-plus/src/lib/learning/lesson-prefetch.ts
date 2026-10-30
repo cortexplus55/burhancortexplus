@@ -498,7 +498,7 @@ export async function requestNodePrefetch(
    * warm (19 Ekim 2026): öğrenci ders düğümünü açtı, kartlara bakıyor. Yazım hemen ve hızlı
    * işlemle başlar; bitmiş eski kayıtlar engel değil (yalnız süren kayıt), bayat yazım devralınır.
    */
-  options: { warm?: boolean } = {},
+  options: { warm?: boolean; firstLesson?: boolean } = {},
 ) {
   try {
     if (!PREFETCH_KINDS.has(input.node.kind)) return;
@@ -532,6 +532,7 @@ export async function requestNodePrefetch(
         ...(input.node.kind === "podcast" ? { podcastLength: PREFETCH_DEFAULTS.podcastLength } : {}),
         ...(oral ? { oralQuestionCount: PREFETCH_DEFAULTS.oralQuestionCount, oralScope: "topic", voiceMode: false } : {}),
         ...(warm ? { warm: true } : {}),
+        ...(options.firstLesson && input.node.kind === "lesson" ? { firstLesson: true } : {}),
         lessonFormat: 3,
         clientRequestId: randomUUID(),
       }),
@@ -603,6 +604,7 @@ export async function requestNextPrefetch(
 export async function requestPrepPrefetch(
   service: SupabaseClient,
   input: { origin: string; userId: string; prepId: string },
+  options: { firstLesson?: boolean } = {},
 ) {
   try {
     const skipKinds = await pathSkipKinds(service, input.userId);
@@ -619,7 +621,7 @@ export async function requestPrepPrefetch(
     const target = (await nodeHasAttempts(service, first.id))
       ? await nextPrefetchNode(service, { prepId: input.prepId, afterSortOrder: first.sort_order, skipKinds })
       : (rows.find((row) => PREFETCH_KINDS.has(row.kind)) ?? null);
-    if (target) await requestNodePrefetch(service, { ...input, node: target });
+    if (target) await requestNodePrefetch(service, { ...input, node: target }, { firstLesson: options.firstLesson });
   } catch (error) {
     console.error("prep_prefetch_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
   }

@@ -1068,6 +1068,9 @@ function placeholderTitle(text: string | undefined): boolean {
 function shouting(text: string): boolean {
   const letters = text.replace(/[^\p{L}]/gu, "");
   if (letters.length < 6) return false;
+  // Tümüyle küçük harfli bir kelime ("ve", "ile") varsa başlık bağırmıyor, kısaltma taşıyor: "TÜFE ve Yİ-ÜFE" canlıda
+  // "Tüfe ve Yi-üfe" oldu (30 Ekim 2026).
+  if (/(?:^|[^\p{L}])\p{Ll}{2,}(?=[^\p{L}]|$)/u.test(text)) return false;
   const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
   return upper / letters.length > 0.7;
 }

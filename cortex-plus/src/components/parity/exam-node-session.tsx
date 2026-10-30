@@ -678,8 +678,9 @@ export function ExamNodeSession({
   const warmedRef = useRef(false);
   useEffect(() => {
     if (kind !== "lesson" || replayLesson || reviewSaved || warmedRef.current) return;
-    // Ruh hali bugün verildiyse açılış doğrudan öneri kartıdır; ısınma orada da başlar.
-    if (stage !== "familiarity" && stage !== "mood" && stage !== "recommend") return;
+    // Ruh hali bugün verildiyse açılış doğrudan kurulum kartıdır (30 Ekim 2026: öneri kartı kalktı); ısınma orada da
+    // başlar. Kurulum kartı ders dışında da var: ısınma yalnız ders düğümünde (yukarıdaki kind koşulu).
+    if (stage !== "familiarity" && stage !== "mood" && stage !== "recommend" && stage !== "setup") return;
     warmedRef.current = true;
     void fetch("/api/learning/exam-prep/node", {
       method: "POST",

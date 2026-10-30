@@ -451,7 +451,9 @@ function titleFromFileName(fileName: string): string {
 function titleCase(text: string): string {
   const letters = text.replace(/[^\p{L}]/gu, "");
   const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
-  const shouting = letters.length > 3 && upper / letters.length > 0.8;
+  // Tümüyle küçük harfli bir kelime ("ve", "ile") varsa başlık bağırmıyor, kısaltma taşıyor: "TÜFE ve Yİ-ÜFE" canlıda
+  // "Tüfe ve Yi-üfe" oldu (30 Ekim 2026).
+  const shouting = letters.length > 3 && upper / letters.length > 0.8 && !/(?:^|[^\p{L}])\p{Ll}{2,}(?=[^\p{L}]|$)/u.test(text);
   return text
     .split(/\s+/)
     .filter(Boolean)

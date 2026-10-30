@@ -40,7 +40,8 @@ describe("lesson open gate", () => {
   });
 
   it("sends only the intro lesson through the recommendation card", () => {
-    expect(stepAfterMood("lesson")).toBe("recommend");
+    // 30 Ekim 2026: derste ayrı öneri kartı kalktı; ruh halinden sonra doğrudan "Ders oluştur".
+    expect(stepAfterMood("lesson")).toBe("setup");
     expect(stepAfterMood("quiz")).toBe("setup");
     expect(stepAfterMood("qa")).toBe("setup");
   });

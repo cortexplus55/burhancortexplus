@@ -630,10 +630,11 @@ function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayL
           {lesson.summary?.length ? ", sonunda özet" : ""}
         </p>
       ) : null}
-      {/* Renk anahtarı (18 Ekim 2026): turuncu işaret sınavda soru olacak kesin bilgi. */}
+      {/* Renk anahtarı (18 Ekim 2026). 30 Ekim 2026: "sınavda çıkar" kesin bir vaatti ve stres testinde iç not gibi
+          okundu; anahtar yalnız işaretin ne olduğunu söyler. */}
       {lessonHasExamMarks(lesson) ? (
         <p className="als-intro-legend">
-          <mark className="als-exam">Turuncu</mark> işaretli yerler sınavda çıkar.
+          <mark className="als-exam">Turuncu</mark>: sınavda sık sorulan kilit bilgi.
         </p>
       ) : null}
     </section>
