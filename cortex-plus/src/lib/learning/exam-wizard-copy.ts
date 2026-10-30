@@ -69,6 +69,15 @@ export const STUDY_MODALITY_CHOICES: { id: Exclude<StudyModality, "auto">; label
   { id: "practice", label: "Pratik yaparak", blurb: "Sorular, testler ve deneme sınavları" },
 ];
 
+/**
+ * "Sınavda sık çıkar" rozeti yalnız konuların azınlığını ayırıyorsa anlamlıdır (30 Ekim 2026 canlı tur: dersin dört
+ * konusunun dördünde de vardı, hiçbir şey söylemiyordu). Konuların yarısından çoğunda ise gösterilmez.
+ */
+export function examHeavyBadgeVisible(flags: readonly boolean[]): boolean {
+  const heavy = flags.filter(Boolean).length;
+  return heavy > 0 && heavy * 2 <= flags.length;
+}
+
 export const WIZARD_COPY = {
   continue: "Devam et",
   languageTitle: "Dil",

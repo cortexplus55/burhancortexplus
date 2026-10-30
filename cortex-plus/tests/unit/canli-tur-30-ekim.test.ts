@@ -81,3 +81,14 @@ describe("yeni hazırlığın ilk dersi beklemeden açılır", () => {
     expect(route).toContain("firstLesson: prefetch && parsed.data.firstLesson === true,");
   });
 });
+
+describe("'Sınavda sık çıkar' rozeti yalnız azınlığı ayırırsa", () => {
+  it("bütün konularda ya da çoğunda gösterilmez, azınlıkta gösterilir", async () => {
+    const { examHeavyBadgeVisible } = await import("@/lib/learning/exam-wizard-copy");
+    expect(examHeavyBadgeVisible([true, true, true, true])).toBe(false);
+    expect(examHeavyBadgeVisible([true, true, true, false])).toBe(false);
+    expect(examHeavyBadgeVisible([true, false, true, false])).toBe(true);
+    expect(examHeavyBadgeVisible([true, false, false, false, false])).toBe(true);
+    expect(examHeavyBadgeVisible([false, false])).toBe(false);
+  });
+});

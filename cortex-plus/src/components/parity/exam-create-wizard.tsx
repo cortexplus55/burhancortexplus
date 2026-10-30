@@ -30,6 +30,7 @@ import {
   PREP_HOME_COPY,
   STUDY_MODALITY_CHOICES,
   WIZARD_COPY,
+  examHeavyBadgeVisible,
   WIZARD_STEP_ORDER,
   fileProgressLine,
   listSegments,
@@ -2233,6 +2234,8 @@ function TopicEditor({
   const listedIndexes = new Set(unitHeaders.flatMap((unit) => unit.topicIndexes));
   const orphanIndexes = topics.map((_, index) => index).filter((index) => !listedIndexes.has(index));
 
+  const showHeavyBadge = examHeavyBadgeVisible(topics.map((_, index) => Boolean(topicMeta[index]?.examHeavy)));
+
   function renderTopicRow(index: number) {
     const topic = topics[index];
     const meta = topicMeta[index] ?? EMPTY_META;
@@ -2242,7 +2245,7 @@ function TopicEditor({
       <li key={`${index}-${topic}`}>
         <span className="apw-topic-field">
           <strong>{topic}</strong>
-          {meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+          {showHeavyBadge && meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
           {sources ? (
             <em className="apw-topic-sources" title={sources.title}>
               {sources.label}
