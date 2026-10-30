@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 vi.mock("server-only", () => ({}));
@@ -30,7 +31,7 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
   podcast'te ikinci tam denetim 24-29 sn.
 */
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 const say = (text: string, speaker: "ada" | "kerem" = "ada") => ({ speaker, text });
 
 /** Özet (tek ses, 3 bölüm): döngü testinin en küçük gerçek biçimi. Konu fizik: ders-bağımsız. */

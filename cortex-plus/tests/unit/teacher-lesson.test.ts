@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { acceptCleanPage, isRunningHeader, repeatedEdgeLines } from "@/lib/documents/clean-text";
 import { corePageRun } from "@/lib/learning/core-pages";
@@ -338,7 +339,7 @@ describe("yapı denetimi", () => {
   });
 
   it("ders yazılırken bağlantı koparsa sayfa önce hazır dersi arar", () => {
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("if (resumeEnabled && (await resumeAfterLostStart())) return;");
   });
 
@@ -451,18 +452,18 @@ describe("öğretmen istemi", () => {
   });
 
   it("rota dersi yalnız öğretmen motoruna yollar; sayfa yoksa ders yazılmaz", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("return teacherLessonPayload(input, activity, core);");
     // Belgesiz hazırlık dersi de öğretmen motorundan (2 Ekim 2026): pagesReady topic_only'yi sayar.
     expect(route).toContain("const pagesReady = Boolean(core || input.lessonTopicOnly);");
     expect(route).toContain('mode: core ? "document" : "topic"');
     // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
-    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(readSource("src/lib/env.ts")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
     expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 
   it("yeni hazırlık eski belgenin sayfa başlığını ve test sorusu kökünü konu yapmaz", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/create/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/create/route.ts");
     expect(route).toContain("documentRunningHeaders(service, id)");
     // Öğrencinin elle yazdığı konu (nodeId yok) "bozuk başlık" diye silinmez.
     expect(route).toContain("!isRunningHeader(title, edges) && !(topicNodeIds[index] && isJunkTopicTitle(title))");
@@ -474,13 +475,13 @@ describe("öğretmen istemi", () => {
 // yalnız sorunlu kavramı düzeltir (lesson-stream-pipeline.test.ts).
 describe("yavaş ders teşhisi", () => {
   it("düzeltme turunu açtıran yüksek sorunlar döner; yönetim sayfasına 'Yavaş üretim' olarak yazılır", () => {
-    const run = readFileSync("src/lib/learning/teacher-lesson-run.ts", "utf8");
+    const run = readSource("src/lib/learning/teacher-lesson-run.ts");
     expect(run).toContain("Denetçi, düzeltme ve dersi baştan yazma turu yok");
     expect(run).toContain("fixTriggers.push(...outcome.triggers);");
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain('reason: "slow_generation"');
     // 18 Ekim 2026: sebep adları tek kaynakta (günlük özet e-postası da okuyor).
-    expect(readFileSync("src/lib/admin/failure-labels.ts", "utf8")).toContain('slow_generation: "Yavaş üretim (düzeltme turu)"');
-    expect(readFileSync("src/app/admin/ders-hatalari/page.tsx", "utf8")).toContain("FAILURE_REASON_LABEL");
+    expect(readSource("src/lib/admin/failure-labels.ts")).toContain('slow_generation: "Yavaş üretim (düzeltme turu)"');
+    expect(readSource("src/app/admin/ders-hatalari/page.tsx")).toContain("FAILURE_REASON_LABEL");
   });
 });

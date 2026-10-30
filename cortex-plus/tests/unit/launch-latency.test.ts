@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -14,7 +15,7 @@ const { preparingTitle } = await import("@/components/parity/node-generation-pro
   yazım (143 sn, çöpe gitti), ders kaydedilince ikincisi (240 sn, saklanmadı) ve öğrencinin isteği 30 sn
   bekleyip sıfırdan yazdığı üçüncüsü. Turların çoğu yalnız pedagojik ("vaka yok") sorundandı.
 */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 const why = (options: string[]) => options.map((option) => `${option} için kısa ve kendine özgü bir gerekçe.`);
 const raw = (text: string, options: string[], correct: string) => ({
@@ -282,9 +283,9 @@ describe("soru çözücü: uzlaştırılan çözüm 'aynı sonucu verdi' demez",
     const { RECONCILE_SYSTEM } = await import("@/lib/solve/question-solver");
     expect(RECONCILE_SYSTEM).toContain("'birinci/ikinci çözüm'");
     const { readFileSync } = await import("node:fs");
-    const ui = readFileSync("src/components/learning/question-solver.tsx", "utf8");
+    const ui = readSource("src/components/learning/question-solver.tsx");
     expect(ui).toContain("İki çözüm karşılaştırılıp doğru cevap seçildi");
-    expect(readFileSync("src/lib/solve/solve-run.ts", "utf8")).toContain("emit({ type: \"solution\", solution, status, ms: elapsed(), agreed });");
+    expect(readSource("src/lib/solve/solve-run.ts")).toContain("emit({ type: \"solution\", solution, status, ms: elapsed(), agreed });");
   });
 });
 
@@ -300,7 +301,7 @@ describe("yazılı deneme: soru türleri seçilen sayıya göre", () => {
     }
     const { readFileSync } = await import("node:fs");
     // Paket A (28 Ekim 2026): tür karışımı söz verilen (gerekirse büyümüş) sayıya göre, plan kurulurken.
-    expect(readFileSync("src/lib/learning/mock-exam/allocate.ts", "utf8")).toContain(
+    expect(readSource("src/lib/learning/mock-exam/allocate.ts")).toContain(
       ": defaultSlots(questionCount, input.allowNumeric);",
     );
   });
@@ -310,10 +311,10 @@ describe("yazılı deneme: soru türleri seçilen sayıya göre", () => {
 describe("stüdyo yazılı deneme: sonuçtan soru incelemesine", () => {
   it("üretim hazırlık kimliğini döner, sonuç inceleme bağlantısı verir", async () => {
     const { readFileSync } = await import("node:fs");
-    expect(readFileSync("src/app/api/learning/exam/generate/route.ts", "utf8")).toContain("prepId: resolvedPrepId,");
-    const studio = readFileSync("src/components/learning/studio/written-studio.tsx", "utf8");
+    expect(readSource("src/app/api/learning/exam/generate/route.ts")).toContain("prepId: resolvedPrepId,");
+    const studio = readSource("src/components/learning/studio/written-studio.tsx");
     expect(studio).toContain("/deneme/${examId}/incele");
-    expect(readFileSync("src/components/learning/studio/studio-shared.tsx", "utf8")).toContain("Cevaplarını incele");
+    expect(readSource("src/components/learning/studio/studio-shared.tsx")).toContain("Cevaplarını incele");
   });
 });
 
@@ -326,9 +327,9 @@ describe("anlatarak öğren belgeden de çalışır", () => {
     expect(withSource).toContain("Na kanalları açılır.");
     expect(buildExplainPrompt("Aksiyon potansiyeli", "Anlatım")).not.toContain("KAYNAK");
     const { readFileSync } = await import("node:fs");
-    const route = readFileSync("src/app/api/learning/explain/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/explain/route.ts");
     expect(route).toContain("studioTeacherSource(service, { userId, topic, documentId })");
-    expect(readFileSync("src/app/studio/anlat/page.tsx", "utf8")).toContain("loadCompletedDocumentOptions");
+    expect(readSource("src/app/studio/anlat/page.tsx")).toContain("loadCompletedDocumentOptions");
   });
 });
 

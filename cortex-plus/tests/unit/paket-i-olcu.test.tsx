@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import {
@@ -44,7 +45,7 @@ import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home"
 
 afterEach(() => cleanup());
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 function snap(topicKey: string, correct: number, total: number, over: Partial<TopicMasterySnapshot> = {}): TopicMasterySnapshot {
   return {

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
@@ -35,8 +36,8 @@ describe("paket 1 serbest seçim", () => {
     expect(studentMayStartNode("hidden", "lesson")).toBe(false);
     expect(nodeNeedsStudentUnlock("locked")).toBe(true);
     expect(nodeNeedsStudentUnlock("ready")).toBe(false);
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const page = readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(page).toContain("studentMayStartNode");
     expect(page).toContain("nodeNeedsStudentUnlock");
     expect(page).not.toContain("studyNodeOpenable");

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { fluencyIssues } from "@/lib/learning/learner-fluency";
 import { extractMisconceptions } from "@/lib/learning/teaching-standards";
@@ -445,21 +446,21 @@ describe("study path opens in order", () => {
   });
 
   it("unlocks on the student's start and leaves prefetch status alone", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain('"choose"');
     expect(route).toContain("nodeNeedsStudentUnlock");
     expect(route).toContain("if (!prefetch && nodeNeedsStudentUnlock(node.status))");
     expect(route).toContain('if (!studentMayStartNode(node.status, node.kind as string) && !prefetch) return errorResponse(403, "node_locked")');
     expect(route).not.toContain('if (!openable && !prefetch) return errorResponse(403, "node_locked")');
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
+    const page = readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
     expect(page).toContain("studentMayStartNode");
     expect(page).toContain("nodeNeedsStudentUnlock");
     expect(page).toContain("redirect(examPrepLockedHref(prepId, nodeId))");
   });
 
   it("keeps the page and the node route on the same start check", () => {
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const page = readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(page).toContain("studentMayStartNode");
     expect(page).not.toContain('node.status === "locked"');
     expect(route).toContain("studentMayStartNode");

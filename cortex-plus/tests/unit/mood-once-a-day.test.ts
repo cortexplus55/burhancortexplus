@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { moodAskedSince, openingStage } from "@/lib/learning/lesson-open";
 
@@ -26,11 +27,11 @@ describe("ruh hali günde bir kez", () => {
   });
 
   it("sayfa bugünkü cevabı okur; ekran onu kullanır ve ısınma öneri kartında da başlar", () => {
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
+    const page = readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
     expect(page).toContain('.from("study_session_moods")');
     expect(page).toContain('.gte("created_at", moodAskedSince())');
     expect(page).toContain("todayMood={todayMood}");
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("useState<Mood>(todayMood ?? DEFAULT_MOOD)");
     expect(session).toContain("moodToday: Boolean(todayMood)");
     expect(session).toContain('stage !== "setup"');

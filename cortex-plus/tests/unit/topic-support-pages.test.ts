@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { extractOfficeText } from "@/lib/documents/extract-office-text";
 import {
@@ -18,8 +19,8 @@ import { SUPPORT_SOURCE_NOTE, sourceText } from "@/lib/learning/teacher-lesson";
 */
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const pdf = JSON.parse(readFileSync("tests/fixtures/sinav-seti/pdf-pages.json", "utf8")) as Record<string, string>;
-const photos = JSON.parse(readFileSync("tests/fixtures/sinav-seti/photo-ocr.json", "utf8")) as Record<string, string>;
+const pdf = JSON.parse(readSource("tests/fixtures/sinav-seti/pdf-pages.json")) as Record<string, string>;
+const photos = JSON.parse(readSource("tests/fixtures/sinav-seti/photo-ocr.json")) as Record<string, string>;
 const word = extractOfficeText(readFileSync("tests/fixtures/sinav-seti/Homeostazi-Son-Tekrar-Notu.docx"), DOCX).pages;
 
 const MAP: [string, string, number[]][] = [
@@ -155,13 +156,13 @@ describe("öğretmen motorunun kaynak metni", () => {
   });
 
   it("düğüm rotası yardımcı sayfaları dört motor kurucusuna da verir", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     // Ders kurucusu sayfaları önce adlandırır (`lessonPages`): sınav maddeleri aynı sayfalara göre süzülür.
     expect(route.split("pages: withSupport(clean, core)").length - 1).toBe(3);
     expect(route).toContain("const lessonPages = withSupport(clean, core);");
     expect(route).toContain("pages: lessonPages,");
     expect(route).toContain("support: supportPagesForEngine(await lessonSupport)");
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
+    const page = readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
     expect(page).toContain("loadTopicSupport(createServiceClient()");
   });
 });

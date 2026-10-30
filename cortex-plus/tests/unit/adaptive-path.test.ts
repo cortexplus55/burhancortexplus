@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
 import {
@@ -20,7 +21,7 @@ import {
   %90 ve üstü → konunun kalan ek testleri yoldan çıkar (her konunun bir testi kalır).
 */
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 const meta = (topicId: string, topicTitle: string, extra: Record<string, unknown> = {}) => ({ topicId, topicTitle, ...extra });
 
 describe("karar", () => {

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import {
   APPROX_ORAL_GRADE_NOTE,
@@ -22,7 +23,7 @@ import { reconcileOralGrade } from "@/lib/learning/oral-review";
  * matematik, tıp, tarih, hukuk, fizik.
  */
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 function covered(index: number, points: { point: string; quote: string }[], issue?: { wrong: string; correct: string }): OralSemanticItem {
   return {

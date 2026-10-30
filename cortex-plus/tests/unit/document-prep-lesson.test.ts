@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { lessonScreenSchema } from "@/lib/learning/lesson-v3";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
@@ -41,15 +42,15 @@ describe("document prep topic lookup", () => {
       "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx",
       "src/lib/learning/lesson-prefetch.ts",
     ]) {
-      expect(readFileSync(file, "utf8")).toContain("prepTopicMatch(");
+      expect(readSource(file)).toContain("prepTopicMatch(");
     }
   });
 });
 
 describe("a concept that could not be written is not hidden", () => {
   it("stores the missing concepts and names them on the lesson's end screen", () => {
-    expect(readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8")).not.toContain("missingConcepts: input.payload.missingConcepts");
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    expect(readSource("src/app/api/learning/exam-prep/node/route.ts")).not.toContain("missingConcepts: input.payload.missingConcepts");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).not.toContain("Bu derste yer almayan bölüm");
     expect(session).toContain("Dersin tamamı bu kadar");
     expect(session).not.toContain("Bu bölüm bu sefer yetişmedi");

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { fakeSupabase, has, type FakeCall } from "./helpers/query-recorder";
 import { recordLearningTrackingAfterComplete } from "@/lib/learning/learning-tracking-persist";
@@ -12,7 +13,7 @@ import { GAPS_NOTHING_OPEN_COPY, gapsNothingOpenPayload, isPathTurn } from "@/li
 */
 
 const missingColumn = { code: "42703", message: "column exam_prep_misconceptions.resolved_at does not exist" };
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 const quizPayload = {
   type: "quiz",

@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { existsSync, readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { istanbulDay } from "@/lib/istanbul-day";
 import { oralItemReviewable, type OralItemGrade } from "@/lib/learning/oral-exam";
@@ -27,7 +28,7 @@ import {
  * sayfasında "Bugün N tekrar"; yolu kilitlemez. Öğe denetlenmiş sorunun kopyası: metin yeniden
  * yazılmaz, yalnız şık sırası karışır; cevap sunucuda notlanır.
  */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 const TODAY = "2026-10-20";
 const ATTEMPT = "att-1";

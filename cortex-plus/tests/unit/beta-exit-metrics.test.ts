@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { collectBetaMetrics, evaluateBetaCriteria, percentile, recordOpenTiming } from "@/lib/admin/beta-metrics";
@@ -9,7 +10,7 @@ import { collectBetaMetrics, evaluateBetaCriteria, percentile, recordOpenTiming 
  * p95 < 20 sn, hazır ders < 3 sn, ödeme başarısı > %95, destek cevabı < 24 saat, Sentry kritik 0.
  * Açılış süresi önce yalnız 3 günlük sunucu günlüğündeydi; destek talebinin cevap anı hiç yoktu.
  */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 type Row = Record<string, unknown>;
 function fakeService(tables: Record<string, Row[]>, inserts: Row[] = []): SupabaseClient {

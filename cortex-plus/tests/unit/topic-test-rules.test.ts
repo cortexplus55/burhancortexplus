@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import {
   MULTI_DISTRACTOR_RULE,
@@ -196,7 +197,7 @@ describe("denetçi harfi ve point alanı", () => {
 });
 
 describe("rota yalnız konu testine kapsam ve ders verir", () => {
-  const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+  const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
   it("teacherQuizPayload: scope ve ders yalnız kind quiz; eski bekçi satırları yerinde", () => {
     expect(route).toContain('scope: input.kind === "quiz" ? "topic_test" : undefined,');
     expect(route).toContain('lesson: input.kind === "quiz" ? (input.lessonQuiz ?? undefined) : undefined,');
@@ -206,6 +207,6 @@ describe("rota yalnız konu testine kapsam ve ders verir", () => {
     expect(route).toContain("lessonKey: quizLesson?.key ?? null,");
     expect(route).toContain('reason: "pedagogy_salvaged"');
     // Motoru paylaşan öbür yüzeyler kapsam vermez.
-    expect(readFileSync("src/lib/learning/exam-quiz-generate.ts", "utf8")).not.toContain("topic_test");
+    expect(readSource("src/lib/learning/exam-quiz-generate.ts")).not.toContain("topic_test");
   });
 });

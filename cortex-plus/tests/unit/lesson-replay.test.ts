@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { replayLessonPayload } from "@/lib/learning/lesson-replay";
 import { screenCheck, type LessonV3 } from "@/lib/learning/lesson-v3";
@@ -8,7 +9,7 @@ import { screenCheck, type LessonV3 } from "@/lib/learning/lesson-v3";
   kredisiz. Canlıda düğme dersi sıfırdan yazıyordu (bekleme + maliyet). Yeni anlatım isteyen
   öğrenci için "Farklı anlat".
 */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 const options = ["Yokluk", "Mutlak butlan", "Nispi butlan", "Bağlamazlık"];
 const lesson: LessonV3 = {

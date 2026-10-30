@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
@@ -207,7 +208,7 @@ describe("şık karıştırma ve eski çağıranlar", () => {
   });
 
   it("test üreticisi yalnız öğretmen motoru; eski zincir yok", () => {
-    const source = readFileSync("src/lib/learning/exam-quiz-generate.ts", "utf8");
+    const source = readSource("src/lib/learning/exam-quiz-generate.ts");
     expect(source).toContain("const outcome = await runTeacherQuiz(input.service, {");
     expect(source).not.toContain("generateJson");
     expect(source).toContain("deferCommit: input.deferCommit,");
@@ -218,18 +219,18 @@ describe("şık karıştırma ve eski çağıranlar", () => {
       "src/lib/learning/diagnostic-generate.ts",
       "src/app/api/learning/quiz/generate/route.ts",
     ]) {
-      expect(readFileSync(caller, "utf8")).toMatch(/count: /);
+      expect(readSource(caller)).toMatch(/count: /);
     }
   });
 });
 
 describe("rota test düğümünü öğretmen motoruna yollar", () => {
   it("konu testi ve tuzak soruları yalnız öğretmen motorundan; çekirdek sayfa ya da belgesiz", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain('const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);');
     expect(route).toContain("return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));");
     // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
-    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(readSource("src/lib/env.ts")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
     expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });
@@ -260,10 +261,10 @@ describe("zorluk ve çeldirici kategorisi", () => {
   });
 
   it("konu testi kaydırıcının ham değerini taşır; tanı ve tanışma testinin sabit 'hard'ı yazara gitmez", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("requestedDifficulty: difficulty,");
     expect(route).toContain("difficulty: quizDifficulty(input.requestedDifficulty),");
-    const generate = readFileSync("src/lib/learning/exam-quiz-generate.ts", "utf8");
+    const generate = readSource("src/lib/learning/exam-quiz-generate.ts");
     expect(generate).toContain("difficulty: quizDifficulty(input.studentDifficulty),");
   });
 });
@@ -333,7 +334,7 @@ describe("çok cevaplı soru", () => {
     for (const mode of ["document", "topic"] as const) {
       expect(quizVerifySystem(mode)).toContain("multi true olan soruda (çok cevaplı) birden fazla doğru şık olması B değildir");
     }
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain('multi: input.kind === "quiz" && count >= 5,');
   });
 

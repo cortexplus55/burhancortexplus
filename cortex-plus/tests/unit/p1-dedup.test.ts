@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { avoidListBlock, dropNearDuplicates, nearDuplicate } from "@/lib/learning/item-dedup";
 import { quizUserPrompt } from "@/lib/learning/teacher-quiz";
@@ -174,7 +175,7 @@ describe("yol: konu testi adı, gerçek D/Y, dönüşümlü etkileşim", () => {
 });
 
 describe("kablolama", () => {
-  const node = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+  const node = readSource("src/app/api/learning/exam-prep/node/route.ts");
   it("test önceki kökleri ve dilimi alır; kartlar yalnız konunun sayfalarından ve önceki kartsız", () => {
     expect(node).toMatch(/kind: "quiz",\s+excludeNodeId/);
     expect(node).toContain("practiceCoverage(variant, lessonBackbone(clean");
@@ -183,7 +184,7 @@ describe("kablolama", () => {
   });
 
   it("motorlar üretimden sonra süzer", () => {
-    expect(readFileSync("src/lib/learning/teacher-quiz-run.ts", "utf8")).toContain("dropNearDuplicates(");
-    expect(readFileSync("src/lib/learning/teacher-cards.ts", "utf8")).toContain("dropNearDuplicatesKeepingCount(");
+    expect(readSource("src/lib/learning/teacher-quiz-run.ts")).toContain("dropNearDuplicates(");
+    expect(readSource("src/lib/learning/teacher-cards.ts")).toContain("dropNearDuplicatesKeepingCount(");
   });
 });

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import {
   FINAL_CHECK_LIMIT,
@@ -83,14 +84,14 @@ describe("P1-4 son kontrol", () => {
   });
 
   it("rota eksik konuları konu başına tek ücretle üretir", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toMatch(/kind === "final_check" && input\.finalFill/);
     expect(route).toMatch(/fillTopicQuestions\(/);
     expect(route).toMatch(/previousStems/);
-    const fill = readFileSync("src/lib/learning/prep-topic-fill.ts", "utf8");
+    const fill = readSource("src/lib/learning/prep-topic-fill.ts");
     expect(fill).toMatch(/heldReservationId: held/);
     expect(fill).toMatch(/reserveCredits\(/);
-    const session = readFileSync("src/lib/learning/exam-local-session.ts", "utf8");
+    const session = readSource("src/lib/learning/exam-local-session.ts");
     expect(session).toMatch(/loadPreviousItems\(/);
     expect(session).toMatch(/measuredWeakTopics\(/);
   });
@@ -148,7 +149,7 @@ describe("P1-4 son tekrar kartları", () => {
   });
 
   it("rota son tekrar kartlarını konu konu yazar", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).not.toMatch(/loadFinalCardTopics\(/);
     expect(route).not.toMatch(/loadStoredCards\(/);
   });

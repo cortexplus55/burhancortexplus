@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "fs";
+import { readSource } from "./helpers/node-sources";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ADDON_PACKS, CREDIT_PRICE_TABLE, PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
@@ -12,7 +13,7 @@ import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
  * ücretsiz hesap krediyle değil sayaçla çalışır (`free-meters.ts`, günlük kredi 0).
  * Gerekçe: docs/delivery/KREDI-SISTEMI.md, docs/delivery/MALIYET-VERGI-24-EKIM.md.
  */
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 describe("kredi sistemi v2: sayılar", () => {
   it("Plus Astra'dan fazla mesaj: ayda 2.400 mesaj ya da 240 ders (kredi v3)", () => {

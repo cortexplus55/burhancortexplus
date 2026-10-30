@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BACKGROUND_FIX_ROUNDS,
@@ -258,7 +259,7 @@ describe("aynı konunun bloğu ve akan ilk pencere", () => {
 });
 
 describe("kablolama", () => {
-  const read = (file: string) => readFileSync(file, "utf8");
+  const read = (file: string) => readSource(file);
 
   it("deneme: konu bağlamı paralel, motorlar urgent, ilerleme akışı", () => {
     const create = read("src/lib/learning/mock-exam/create.ts");

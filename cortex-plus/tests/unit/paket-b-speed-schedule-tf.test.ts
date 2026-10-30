@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -91,10 +92,10 @@ describe("Paket B · 1 büyük belgenin konu haritası sayfa dizini okur", () =>
   });
 
   it("taranmış sayfa OCR'a JPEG gider (PNG'den ~5 kat hızlı kodlama)", () => {
-    const render = readFileSync("src/lib/documents/render-pdf-pages.ts", "utf8");
+    const render = readSource("src/lib/documents/render-pdf-pages.ts");
     expect(render).toContain('canvas.toBuffer("image/jpeg", OCR_JPEG_QUALITY)');
     expect(OCR_JPEG_QUALITY).toBeGreaterThanOrEqual(85);
-    const ingestion = readFileSync("src/lib/documents/pdf-ingestion.ts", "utf8");
+    const ingestion = readSource("src/lib/documents/pdf-ingestion.ts");
     expect(ingestion).toContain("extractImageText(image, mime,");
     expect(ingestion).not.toContain('"image/png", { deadlineMs');
   });
@@ -160,12 +161,12 @@ describe("Paket B · 2 deneme süresi gerçek geçen zamandan", () => {
   it("sonuç ve inceleme ekranı önce kayıtlı saniyeyi gösterir", () => {
     expect(mockElapsedLabel("2026-10-25T10:00:00Z", "2026-10-25T10:01:30Z", 384)).toBe("6 dk 24 sn");
     expect(mockElapsedLabel("2026-10-25T10:00:00Z", "2026-10-25T10:01:30Z")).toBe("1 dk 30 sn");
-    const grade = readFileSync("src/lib/learning/mock-exam/grade-exam.ts", "utf8");
+    const grade = readSource("src/lib/learning/mock-exam/grade-exam.ts");
     expect(grade).toMatch(/duration_seconds: recordedElapsedSeconds\(\{/);
     expect(grade.indexOf("const submittedAt = Date.now();")).toBeLessThan(grade.indexOf("duration_seconds:"));
-    const review = readFileSync("src/app/deneme-sinavlari/[prepId]/deneme/[examId]/incele/page.tsx", "utf8");
+    const review = readSource("src/app/deneme-sinavlari/[prepId]/deneme/[examId]/incele/page.tsx");
     expect(review).toContain("Çözüm süresi:");
-    const runner = readFileSync("src/components/parity/exam-runner.tsx", "utf8");
+    const runner = readSource("src/components/parity/exam-runner.tsx");
     expect(runner).toContain("elapsedSeconds: Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000))");
   });
 });
@@ -277,16 +278,16 @@ describe("Paket B · 3 doğru/yanlış setinde çift ve ters önerme yok", () =>
   });
 
   it("istem çifti yasaklar; ekran büyük odak kartı ve ← / → / Enter akışı", () => {
-    const practice = readFileSync("src/lib/learning/teacher-practice.ts", "utf8");
+    const practice = readSource("src/lib/learning/teacher-practice.ts");
     expect(practice).toContain("ÇİFT YOK");
     expect(practice).toContain("'✏️ Doğrusu: <doğru hâli>'");
-    const card = readFileSync("src/components/learning/true-false-focus-card.tsx", "utf8");
+    const card = readSource("src/components/learning/true-false-focus-card.tsx");
     expect(card).toMatch(/key === "arrowleft" \|\| key === "d"/);
     expect(card).toMatch(/key === "arrowright" \|\| key === "y"/);
     expect(card).toMatch(/key === "enter"/);
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("<TrueFalseFocusCard");
-    const studio = readFileSync("src/components/learning/studio/true-false-studio.tsx", "utf8");
+    const studio = readSource("src/components/learning/studio/true-false-studio.tsx");
     expect(studio).toContain("useTrueFalseKeys(");
   });
 });
@@ -332,9 +333,9 @@ describe("Paket B · 4 resmî tatiller", () => {
   });
 
   it("yol ve Takvimim rozeti gösterir", () => {
-    const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
+    const home = readSource("src/components/parity/exam-prep-home.tsx");
     expect(home).toContain("{HOLIDAY_BADGE}");
-    const calendar = readFileSync("src/components/parity/calendar-view.tsx", "utf8");
+    const calendar = readSource("src/components/parity/calendar-view.tsx");
     expect(calendar).toContain("cp-cal-day--holiday");
   });
 });
@@ -436,10 +437,10 @@ describe("Paket B · 5 telefona uygulama olarak kurulum", () => {
   });
 
   it("iOS ana ekran etiketleri ve simge kök yerleşimde", () => {
-    const layout = readFileSync("src/app/layout.tsx", "utf8");
+    const layout = readSource("src/app/layout.tsx");
     expect(layout).toMatch(/appleWebApp: \{\s*capable: true/);
     expect(layout).toContain('"apple-mobile-web-app-capable": "yes"');
-    expect(readFileSync("src/app/apple-icon.tsx", "utf8")).toContain("width: 180");
+    expect(readSource("src/app/apple-icon.tsx")).toContain("width: 180");
   });
 
   it("platform tanınır; iOS'ta Safari'nin Ana Ekrana Ekle adımları", () => {
@@ -453,9 +454,9 @@ describe("Paket B · 5 telefona uygulama olarak kurulum", () => {
   });
 
   it("/mobil-uygulama başlığı ve beforeinstallprompt tetiği", () => {
-    const page = readFileSync("src/app/mobil-uygulama/page.tsx", "utf8");
+    const page = readSource("src/app/mobil-uygulama/page.tsx");
     expect(page).toContain("📲 Tek Tıkla Telefonuna Uygulama Olarak Kur (iOS & Android)");
-    const install = readFileSync("src/components/pwa/install-app.tsx", "utf8");
+    const install = readSource("src/components/pwa/install-app.tsx");
     expect(install).toContain('addEventListener("beforeinstallprompt"');
     expect(install).toContain("await prompt.prompt()");
   });

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { detectUnrelatedDocuments, mentionsSubject } from "@/lib/documents/material-similarity";
 import { calmHeading } from "@/lib/learning/teacher-lesson";
@@ -66,7 +67,7 @@ describe("ders açılışı tek kart, renk anahtarı vaat etmez", () => {
   });
 
   it("giriş kartının renk anahtarı 'sınavda çıkar' demez", () => {
-    const steps = readFileSync("src/components/parity/exam-lesson-steps.tsx", "utf8");
+    const steps = readSource("src/components/parity/exam-lesson-steps.tsx");
     expect(steps).not.toContain("işaretli yerler sınavda çıkar");
     expect(steps).toContain("sınavda sık sorulan kilit bilgi");
   });
@@ -74,9 +75,9 @@ describe("ders açılışı tek kart, renk anahtarı vaat etmez", () => {
 
 describe("yeni hazırlığın ilk dersi beklemeden açılır", () => {
   it("kurulum ilk dersi Plus'ta hızlı işlemle önceden yazdırır", () => {
-    const create = readFileSync("src/app/api/learning/exam-prep/create/route.ts", "utf8");
+    const create = readSource("src/app/api/learning/exam-prep/create/route.ts");
     expect(create).toContain("{ firstLesson: true }");
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("fast: input.charge !== false || input.firstLesson === true,");
     expect(route).toContain("firstLesson: prefetch && parsed.data.firstLesson === true,");
   });
@@ -101,7 +102,7 @@ describe("sohbet: genel bilgi başlığı ve kaynak çipleri", () => {
     expect(out).not.toMatch(/\S#### /);
     expect(generalOnlyAnswer("Genel bilgiden: Fisher denklemi MV = PY'dir.")).toBe(true);
     expect(generalOnlyAnswer("Belgeden: TÜFE hanehalkını ölçer [1].\n\nGenel bilgiden: Endeks aylık açıklanır.")).toBe(false);
-    const view = readFileSync("src/components/chat/tutor-reply-view.tsx", "utf8");
+    const view = readSource("src/components/chat/tutor-reply-view.tsx");
     expect(view).toContain("(generalOnlyAnswer(content) ? [] : view.citations)");
   });
 });

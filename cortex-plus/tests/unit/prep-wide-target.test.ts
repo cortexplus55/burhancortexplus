@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { fakeSupabase, has, type FakeCall } from "./helpers/query-recorder";
 import { findTopicRow, prepWideTargetTopic } from "@/lib/learning/prep-wide-target";
@@ -178,7 +179,7 @@ describe("retargetNodeTopic", () => {
   });
 
   it("rota: yeniden hedef yerel oturumdan sonra, önceden yazım anahtarından ve kaynak çözümünden önce", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8").replace(/\r\n/g, "\n");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts").replace(/\r\n/g, "\n");
     const at = route.indexOf("const retarget = await retargetNodeTopic(service, {");
     expect(at).toBeGreaterThan(route.indexOf("practiceTopics = local.topics;"));
     expect(at).toBeLessThan(route.indexOf("const variant = prefetchVariant(kind, {"));

@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { readSource } from "./helpers/node-sources";
 import path from "path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +9,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
  * çerezini taşımaz — imzalı başlıkla gelir.
  */
 
-const read = (rel: string) => readFileSync(path.join(process.cwd(), rel), "utf8");
+const read = (rel: string) => readSource(path.join(process.cwd(), rel));
 const route = read("src/app/api/learning/exam-prep/node/route.ts");
 const runner = read("src/lib/learning/teacher-lesson-run.ts");
 const prefetchLib = read("src/lib/learning/lesson-prefetch.ts");

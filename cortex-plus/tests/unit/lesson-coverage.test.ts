@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { backboneBlock, headingOfLine, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
 import {
@@ -239,7 +240,7 @@ describe("ders içi soru tekrarı deterministik olarak düşer", () => {
     const dup = screen("İki", [text("Metin."), tf("Mitoz bölünmede kromozom sayısı yarıya iner ve dört hücre oluşur.")]);
     const issues = repetitionIssues([first, dup], [1]);
     expect(issues.some((issue) => issue.severity === "medium" && /zaten soruldu/.test(issue.problem))).toBe(true);
-    expect(readFileSync("src/lib/learning/teacher-lesson-run.ts", "utf8")).toContain("dropRepeatedChecks(published, outcome.screens)");
+    expect(readSource("src/lib/learning/teacher-lesson-run.ts")).toContain("dropRepeatedChecks(published, outcome.screens)");
   });
 });
 
@@ -269,7 +270,7 @@ describe("hazırlanamayan bölüm konu testinde sorulmaz", () => {
   it("kayıtlı dersin missingConcepts alanı soru elemez ve kayda yazılmaz", () => {
     expect(storedMissingConcepts({ format: 3, missingConcepts: [" Tenkis davası ", 3, ""] })).toEqual([]);
     expect(storedMissingConcepts({ format: 3 })).toEqual([]);
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).not.toContain("missingConcepts: input.payload.missingConcepts");
   });
 });

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -170,7 +171,7 @@ describe("ekran yüzdesi = yol düğümü yüzdesi (tek hesap)", () => {
   });
 
   it("düğüm rotası kaydı oralAttemptScore'dan alır; hakem istemi soru başına kapalı blok, kaynak özeti yok", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("scored = oralAttemptScore(report)");
     expect(route).not.toContain("score: report.fullCount");
     expect(route).toContain("İlk cevap:");
@@ -185,11 +186,11 @@ describe("ekran yüzdesi = yol düğümü yüzdesi (tek hesap)", () => {
   });
 
   it("cevap masası takip sorusundan önceki cevabı ayrıca verir, oturum ilk:<i> ve takip:<i> anahtarlarına yazar", () => {
-    const desk = readFileSync("src/components/parity/oral-answer-desk.tsx", "utf8");
+    const desk = readSource("src/components/parity/oral-answer-desk.tsx");
     expect(desk).toContain("onAdvance(out.answer, out.firstAnswer)");
     expect(desk).toContain("onFinish(out.answer, out.firstAnswer)");
     expect(desk).toContain("onProbe?.(next.question)");
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("oralFirstAnswerKey(index)");
     expect(session).toContain("oralFollowQuestionKey(index)");
     expect(session).not.toContain("firstAnswerErrors");

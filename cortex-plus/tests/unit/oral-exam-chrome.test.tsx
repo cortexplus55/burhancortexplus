@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
@@ -40,7 +41,7 @@ describe("oral exam chrome helpers", () => {
   });
 
   it("feeds the clamped label to the live voice tutor", () => {
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     const start = session.indexOf("<ExamVoiceTutor");
     const end = session.indexOf("/>", start);
     const tutor = session.slice(start, end);

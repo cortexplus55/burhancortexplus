@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { needsUnits, pageLead, unitsFromModel, validateUnits } from "@/lib/documents/concept-units";
 import { buildExamScheduleV2, scheduleSessionsToNodeDrafts, topicLessonChunks } from "@/lib/learning/exam-schedule-v2";
@@ -89,16 +90,16 @@ describe("çalışma planı birimleri ders yapar", () => {
   });
 
   it("ders motoru birimi anlatır; harita birimleri kaydeder; plan birimleri haritadan okur", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,");
     // The course map stores each topic's units (PR #146: one outline path).
-    const v2 = readFileSync("src/lib/documents/pdf-learning-v2.ts", "utf8");
+    const v2 = readSource("src/lib/documents/pdf-learning-v2.ts");
     expect(v2).toContain("plans.map((plan) => leafConceptUnits(service, userId, plan.documentId, plan.light, plan.leaves, deadlineAt, now))");
     expect(v2).toContain("units: lessons[index] ?? [],");
-    expect(readFileSync("src/lib/learning/prep-schedule-topics.ts", "utf8")).toContain("units: unitsFor(topic),");
-    expect(readFileSync("supabase/migrations/20261002180000_topic_concept_units.sql", "utf8")).toContain("ADD COLUMN IF NOT EXISTS units jsonb");
+    expect(readSource("src/lib/learning/prep-schedule-topics.ts")).toContain("units: unitsFor(topic),");
+    expect(readSource("supabase/migrations/20261002180000_topic_concept_units.sql")).toContain("ADD COLUMN IF NOT EXISTS units jsonb");
     // Ders kurulum ekranları da dersin kendi adını gösterir (3 Ekim 2026).
-    expect(readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8")).toContain("unitTitle={sessionMeta?.unitTitle ?? null}");
-    expect(readFileSync("src/components/parity/exam-node-session.tsx", "utf8")).toContain("topicLabel={unitTitle ?? topicLabel}");
+    expect(readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx")).toContain("unitTitle={sessionMeta?.unitTitle ?? null}");
+    expect(readSource("src/components/parity/exam-node-session.tsx")).toContain("topicLabel={unitTitle ?? topicLabel}");
   });
 });

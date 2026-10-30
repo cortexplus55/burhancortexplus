@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { resultMood } from "@/lib/learning/result-mood";
 
-const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
-const route = readFileSync("src/app/api/learning/exam-prep/rating/route.ts", "utf8");
+const session = readSource("src/components/parity/exam-node-session.tsx");
+const route = readSource("src/app/api/learning/exam-prep/rating/route.ts");
 
 describe("sonuç ekranı (Astra düzeni, 30 Eylül 2026)", () => {
   it("ton skora göre: harika / güzel / çalış", () => {

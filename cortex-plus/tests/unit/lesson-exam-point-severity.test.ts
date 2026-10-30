@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readSource } from "./helpers/node-sources";
 import { examPointsVerifyBlock } from "@/lib/learning/exam-points";
 import { isReviewIssue, verifySystem } from "@/lib/learning/teacher-lesson";
 
@@ -53,7 +54,7 @@ describe("sınav maddeleri dersin kendi kaynağına göre süzülür", () => {
 
   it("rota yalnız belgeli derste süzer", async () => {
     const { readFileSync } = await import("node:fs");
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join(\"\\n\")) : input.examPoints,");
   });
 });

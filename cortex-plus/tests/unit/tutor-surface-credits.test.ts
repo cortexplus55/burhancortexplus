@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { finalizeTutorReply, polishTutorSurface } from "@/lib/learning/tutor-reply";
@@ -64,7 +65,7 @@ describe("kredi fiyat tablosu", () => {
     const dir = join(process.cwd(), "supabase/migrations");
     const costs: Record<string, number> = {};
     for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) {
-      const sql = readFileSync(join(dir, file), "utf8");
+      const sql = readSource(join(dir, file));
       for (const match of sql.matchAll(/\('([A-Z0-9_]+)',\s*(\d+)\s*[,)]/g)) {
         costs[match[1] ?? ""] = Number(match[2]);
       }
@@ -85,24 +86,24 @@ describe("kredi fiyat tablosu", () => {
   });
 
   it("ses kredisi 900 karakterdir ve sohbet bir kez ayırır", () => {
-    const cache = readFileSync("src/lib/learning/audio-cache.ts", "utf8");
+    const cache = readSource("src/lib/learning/audio-cache.ts");
     expect(cache).toContain(`AUDIO_CHARS_PER_CREDIT = ${AUDIO_CHARS_PER_CREDIT_PRICE}`);
     expect(cache.match(/reserveCredits\(/g)).toHaveLength(1);
-    const chat = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
+    const chat = readSource("src/app/api/ai/chat/route.ts");
     expect(chat.match(/reserveCredits\(/g)).toHaveLength(1);
-    const panel = readFileSync("src/components/chat/chat-panel.tsx", "utf8");
+    const panel = readSource("src/components/chat/chat-panel.tsx");
     // 29 Eylül 2026: öğrenci işlem başına kredi görmüyor (Astra gibi yalnızca yüzde).
     expect(panel).not.toContain("cp-exam-credit");
     expect(panel).not.toMatch(/{chatCreditCost} (kr|kredi)/);
-    const audioRoute = readFileSync("src/app/api/learning/podcast/audio/route.ts", "utf8");
+    const audioRoute = readSource("src/app/api/learning/podcast/audio/route.ts");
     expect(audioRoute).not.toMatch(/\bensureAudio\s*\(/);
     expect(audioRoute.match(/synthesizeCharged\(/g)?.length).toBeGreaterThan(0);
     // Ret kodu synthesizeCharged'dan: hak bitti `insufficient_credits`, ücretsizde Plus `premium_required`.
     expect(audioRoute).toContain("errorResponse(402, result.reason)");
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).not.toMatch(/d* ?kr düşüldü|CREDIT_PRICE_TABLE/);
     expect(session).toContain("router.refresh()");
-    const player = readFileSync("src/components/parity/exam-podcast-player.tsx", "utf8");
+    const player = readSource("src/components/parity/exam-podcast-player.tsx");
     expect(player).toContain("creditsSpent");
   });
 });

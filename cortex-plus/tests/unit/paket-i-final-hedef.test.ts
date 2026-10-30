@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeSupabase, type FakeCall, type FakeResult } from "./helpers/query-recorder";
 
@@ -34,7 +35,7 @@ import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
   Örnekler farklı derslerden; seçici yalnız sayılara bakar.
 */
 
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 function snap(topicKey: string, correct: number, total: number): TopicMasterySnapshot {
   return {

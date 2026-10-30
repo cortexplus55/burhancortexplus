@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import {
   parseTeacherAnalysis,
@@ -91,10 +92,10 @@ describe("teacher note versus node pages", () => {
   });
 
   it("uses the same grounding on lesson, podcast and chat; voice uses the teacher tutor", () => {
-    const node = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    const chat = readFileSync("src/lib/learning/exam-chat-context.ts", "utf8");
-    const chatRoute = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
-    const voice = readFileSync("src/app/api/learning/exam-prep/voice/route.ts", "utf8");
+    const node = readSource("src/app/api/learning/exam-prep/node/route.ts");
+    const chat = readSource("src/lib/learning/exam-chat-context.ts");
+    const chatRoute = readSource("src/app/api/ai/chat/route.ts");
+    const voice = readSource("src/app/api/learning/exam-prep/voice/route.ts");
     // Sesli çalışma 3 Ekim 2026'dan beri sohbetin öğretmen motorunda.
     expect(voice).toContain("runTeacherTutor({");
     for (const source of [node, chat, chatRoute]) {

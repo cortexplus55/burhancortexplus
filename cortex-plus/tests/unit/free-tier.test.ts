@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { quotaView } from "@/lib/credits/period";
 import {
@@ -20,7 +21,7 @@ import { tierComparisonRows } from "@/lib/billing/tier-presentation";
  *   - konu haritası, kurulum sohbeti ve (ücretsizde) belge işleme öğrenme
  *     hakkından yemez — belgenin sınırı 5 sayfa
  */
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 describe("ücretsiz katman sınırları", () => {
   // Kredi v3 (24 Ekim 2026): ücretsiz hesabın günlük kredisi 0; ders, mesaj, fotoğraf sayaçla (free-meters.ts).
