@@ -18,14 +18,13 @@ import {
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
 import { PARALLEL_UPLOADS, runPool, type PoolOutcome } from "@/lib/documents/upload-batch";
-import { PREP_HOME_COPY, WIZARD_COPY, batchUploadFailedLine, fileProgressLine, readingNow } from "@/lib/learning/exam-wizard-copy";
+import { PREP_HOME_COPY, WIZARD_COPY, batchUploadFailedLine, fileProgressLine, photoSetProgressLine, readingNow } from "@/lib/learning/exam-wizard-copy";
 import { freeMaterialLimitLine } from "@/lib/learning/prep-material-copy";
 import {
   useDocumentLimits,
   useStudentShellAccount,
 } from "@/lib/student/student-shell-context";
-import { uploadDocumentFile } from "@/lib/documents/upload-client";
-import { buildPhotoSet, splitSelection } from "@/lib/documents/photo-set-client";
+import { useScreenAwake, useUniversalDocumentUpload } from "@/lib/documents/use-universal-upload";
 import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import "@/styles/exam-create-wizard.css";
 
@@ -148,56 +147,81 @@ export function PrepMaterialAdder({
     return true;
   }
 
+  /** Okunan belgelerin kimliği ve adı (motorun sırası adla verilir). */
+  const readyRef = useRef<{ documentId: string; fileName: string }[]>([]);
+
+  /*
+    Ortak yükleme motoru (31 Ekim 2026, use-universal-upload.ts): fotoğraflar tek belgede (hazırlık kurulu, hızlı
+    başlatma bölmesi yok), şeritler, dosya başına 3 yeniden deneme, ekranı uyanık tutma.
+  */
+  const upload = useUniversalDocumentUpload(
+    { lanes: paidUploads ? PARALLEL_UPLOADS : 1, photoSet: true, fastStart: false },
+    {
+      validate: (file) => {
+        const maxBytes = file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
+        return !accepted(file) || file.size > maxBytes ? `${file.name} eklenemiyor: türü ya da boyutu uygun değil.` : null;
+      },
+      process: async ({ documentId, item }) => {
+        const outcome = await extract({ documentId, fileName: item.file.name, sizeBytes: item.file.size });
+        if (outcome === true) readyRef.current.push({ documentId, fileName: item.file.name });
+        return outcome;
+      },
+    },
+  );
+  useScreenAwake(busy);
+
   async function runBatch(entries: AddEntry[]) {
     if (!entries.length || busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
     setProcessAlert(null);
+    readyRef.current = [];
     // Ücretli hesapta ve kurucuda en çok altı dosya aynı anda; ücretsizde sırayla (upload-batch.ts).
     const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
-    const ready: (string | null)[] = entries.map(() => null);
+    const files = entries.flatMap((entry) => (entry.file ? [entry.file] : []));
+    const remote = entries.filter((entry) => !entry.file && entry.documentId);
     const reading: string[] = [];
     const failed: string[] = [];
     let done = 0;
     const report = () => {
-      if (entries.length > 1) setProcessDetail(fileProgressLine(done, entries.length, readingNow(reading)));
+      if (remote.length > 1) setProcessDetail(fileProgressLine(done, remote.length, readingNow(reading)));
       else setProcessDetail(reading.length ? "Belge işleniyor…" : null);
     };
     try {
-      await runPool(entries, lanes, async (entry, index) => {
-        reading.push(entry.fileName);
-        report();
-        try {
-          let documentId = entry.documentId;
-          if (!documentId) {
-            const file = entry.file!;
-            const maxBytes = file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
-            if (!accepted(file) || file.size > maxBytes) {
-              failed.push(file.name);
-              return false;
-            }
-            documentId = (await uploadDocumentFile(file)).documentId;
-          }
-          const outcome = await extract({ documentId, fileName: entry.fileName, sizeBytes: entry.sizeBytes });
-          if (outcome === true) {
-            ready[index] = documentId;
-            done += 1;
-          } else if (outcome === false) {
-            failed.push(entry.fileName);
-          }
-          return outcome;
-        } catch {
-          failed.push(entry.fileName);
-          return false;
-        } finally {
-          reading.splice(reading.indexOf(entry.fileName), 1);
-          report();
-        }
-      });
+      const [picked] = await Promise.all([
+        files.length ? upload.run(files) : null,
+        remote.length
+          ? runPool(remote, lanes, async (entry) => {
+              reading.push(entry.fileName);
+              report();
+              try {
+                const outcome = await extract({ documentId: entry.documentId!, fileName: entry.fileName, sizeBytes: entry.sizeBytes });
+                if (outcome === true) {
+                  readyRef.current.push({ documentId: entry.documentId!, fileName: entry.fileName });
+                  done += 1;
+                } else if (outcome === false) {
+                  failed.push(entry.fileName);
+                }
+                return outcome;
+              } catch {
+                failed.push(entry.fileName);
+                return false;
+              } finally {
+                reading.splice(reading.indexOf(entry.fileName), 1);
+                report();
+              }
+            })
+          : null,
+      ]);
       setProcessDetail(null);
-      if (failed.length) toast.error(entries.length > 1 ? batchUploadFailedLine(failed) : `${failed[0]} okunamadı. Yeniden seçebilirsin.`);
+      failed.push(...(picked?.failed ?? []));
+      if (failed.length) toast.error(failed.length > 1 ? batchUploadFailedLine(failed) : `${failed[0]} okunamadı. Yeniden seçebilirsin.`);
       // Seçim sırası korunur: kurs haritası ve belge listesi öğrencinin sırasıyla.
-      await mapThenAttach(ready.filter((id): id is string => Boolean(id)));
+      const rank = new Map([...(picked?.order ?? []), ...remote.map((entry) => entry.fileName)].map((name, index) => [name, index]));
+      const ready = [...readyRef.current].sort(
+        (a, b) => (rank.get(a.fileName) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.fileName) ?? Number.MAX_SAFE_INTEGER),
+      );
+      await mapThenAttach(ready.map((item) => item.documentId));
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -225,36 +249,11 @@ export function PrepMaterialAdder({
     [],
   );
 
-  /**
-   * Fotoğraf seti (31 Ekim 2026): birden çok fotoğraf tek taranmış PDF'e girer ("Ders Notu Fotoğrafları (N Sayfa)").
-   * Hazırlık zaten kurulu: hızlı başlatma bölmesi yok, set tek belge (yalnız boyut sınırında bölünür).
-   */
+  /** Fotoğraflar ortak motorda tek belgede birleşir ("Ders Notu Fotoğrafları (N Sayfa)"). */
   async function takeFiles(list: FileList | null) {
     const files = list ? [...list] : [];
     if (!files.length || busyRef.current) return;
-    const { photos, others } = splitSelection(files);
-    const setFiles: File[] = [];
-    let leftovers: File[] = [];
-    if (photos.length) {
-      busyRef.current = true;
-      setBusy(true);
-      try {
-        const built = await buildPhotoSet(photos, {
-          fastStart: false,
-          onEncoded: (done, total) => setProcessDetail(`📸 Fotoğraflar tek belgede birleşiyor: ${done} / ${total}`),
-          onPart: (part) => setFiles.push(part.file),
-        });
-        leftovers = built.leftovers;
-      } finally {
-        busyRef.current = false;
-        setBusy(false);
-        setProcessDetail(null);
-      }
-    }
-    // Seçim sırası: set, seçimdeki ilk fotoğrafın yerinde.
-    const photoFirst = photos.length > 0 && (!others.length || files.indexOf(photos[0]!) < files.indexOf(others[0]!));
-    const ordered = photoFirst ? [...setFiles, ...leftovers, ...others] : [...others, ...setFiles, ...leftovers];
-    void runBatch(ordered.map((file) => ({ file, fileName: file.name, sizeBytes: file.size })));
+    void runBatch(files.map((file) => ({ file, fileName: file.name, sizeBytes: file.size })));
   }
 
   /** Telefondan art arda gelen dosyalar biriktirilir, sessizlikten sonra tek toplu eklemeyle işlenir. */
@@ -303,6 +302,16 @@ export function PrepMaterialAdder({
           event.target.value = "";
         }}
       />
+      {upload.photoProgress ? (
+        <p className="text-xs text-[var(--cp-muted)]" role="status" aria-live="polite">
+          {photoSetProgressLine(upload.photoProgress)}
+        </p>
+      ) : null}
+      {upload.fileProgress && upload.fileProgress.total > 1 ? (
+        <p className="text-xs text-[var(--cp-muted)]" role="status" aria-live="polite">
+          {fileProgressLine(upload.fileProgress.done, upload.fileProgress.total, readingNow(upload.fileProgress.reading))}
+        </p>
+      ) : null}
       {processDetail ? (
         <p className="text-xs text-[var(--cp-muted)]" role="status" aria-live="polite">
           {processDetail}

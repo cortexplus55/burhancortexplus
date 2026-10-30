@@ -4,6 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { ensureTeacherAnalyses } from "@/lib/documents/teacher-analysis-run";
 import { missingColumn } from "@/lib/learning/missing-column";
 import { clearPendingMaterials } from "@/lib/learning/pending-materials";
+import { headCoverageFor, topicPastHead } from "@/lib/documents/document-head";
 import { planAddedMaterial } from "@/lib/learning/prep-add-material";
 import {
   contradictionsByTopicTitleResolved,
@@ -105,6 +106,12 @@ export async function POST(request: Request) {
   }
 
   const loaded = await loadScheduleTopics(service, newDocumentIds, []);
+  // Hızlı başlatma (31 Ekim 2026): hazırlık belgenin baş kopyasıyla kurulduysa o sayfaların konuları zaten yolda;
+  // ana belgeden yalnız sonraki sayfaların konuları eklenir.
+  const headCoverage = await headCoverageFor(service, { userId, sourceDocumentIds: existingDocumentIds, documentIds: newDocumentIds });
+  const scheduleTopics = headCoverage.size
+    ? loaded.scheduleTopics.filter((topic) => topicPastHead(topic, headCoverage))
+    : loaded.scheduleTopics;
   const readinessScore =
     typeof prepResult.data.readiness_score === "number" ? prepResult.data.readiness_score : 0;
 
@@ -133,7 +140,7 @@ export async function POST(request: Request) {
     ...existingDocumentIds,
     ...newDocumentIds,
   ]).catch(() => []);
-  const incoming = loaded.scheduleTopics.map((topic) => ({
+  const incoming = scheduleTopics.map((topic) => ({
     title: topic.title,
     pages: topic.pageNumbers ?? [],
     sources: topic.sourceRefs ?? [],

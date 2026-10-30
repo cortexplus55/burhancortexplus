@@ -82,6 +82,7 @@ function rememberOcrLimit(documentId: string, limit: number) {
 /** How long one process/route invocation may chain extract steps. */
 export const PDF_CHAIN_BUDGET_MS = 250_000;
 const EMBED_BATCH = 24;
+const EMBED_LANES = 3;
 const LEASE_RENEW_MS = 240_000;
 
 type Lease = {
@@ -103,6 +104,8 @@ export type PdfIngestionResult =
       ocrPages?: number;
       retryable?: boolean;
       code?: string;
+      /** Başka bir istek bu belgeyi okuyor (kira dolu): zincir beklemeden döner, istemci biraz sonra yeniden sorar. */
+      busy?: boolean;
     }
   | { status: "ready"; pageCount: number; failedPages?: number[] }
   | { status: "failed"; code: string; retryable?: boolean };
@@ -645,20 +648,34 @@ export async function saveBatch(
       token_count: Math.ceil(content.length / 4),
     }));
   });
-  for (let offset = 0; offset < chunks.length; offset += EMBED_BATCH) {
-    const batch = chunks.slice(offset, offset + EMBED_BATCH);
-    const vectors = await embedTexts(batch.map((chunk) => chunk.content));
-    const { data: inserted, error: chunkError } = await service.from("document_chunks")
-      .insert(batch).select("id,chunk_index");
-    if (chunkError || !inserted || inserted.length !== batch.length) throw new Error("chunk_insert_failed");
-    const idByIndex = new Map(inserted.map((row) => [Number(row.chunk_index), String(row.id)]));
-    const { error: embeddingError } = await service.from("document_embeddings")
-      .insert(batch.map((chunk, index) => ({
-        chunk_id: idByIndex.get(chunk.chunk_index)!,
-        embedding: vectors[index] as unknown as string,
-      })));
-    if (embeddingError) throw new Error("embedding_insert_failed");
-  }
+  // Parçalar birkaç şeritte (31 Ekim 2026): 150 sayfalık belgede ~13 ardışık gömme çağrısı vardı.
+  const batches: (typeof chunks)[] = [];
+  for (let offset = 0; offset < chunks.length; offset += EMBED_BATCH) batches.push(chunks.slice(offset, offset + EMBED_BATCH));
+  let next = 0;
+  let failed = false;
+  const lane = async () => {
+    for (;;) {
+      const batch = batches[next];
+      next += 1;
+      // Bir şerit düşünce öbürleri yeni parça yazmaz (yeniden deneme temiz başlasın).
+      if (!batch || failed) return;
+      const vectors = await embedTexts(batch.map((chunk) => chunk.content));
+      const { data: inserted, error: chunkError } = await service.from("document_chunks")
+        .insert(batch).select("id,chunk_index");
+      if (chunkError || !inserted || inserted.length !== batch.length) throw new Error("chunk_insert_failed");
+      const idByIndex = new Map(inserted.map((row) => [Number(row.chunk_index), String(row.id)]));
+      const { error: embeddingError } = await service.from("document_embeddings")
+        .insert(batch.map((chunk, index) => ({
+          chunk_id: idByIndex.get(chunk.chunk_index)!,
+          embedding: vectors[index] as unknown as string,
+        })));
+      if (embeddingError) throw new Error("embedding_insert_failed");
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(EMBED_LANES, batches.length) }, () => lane().catch((error) => {
+    failed = true;
+    throw error;
+  })));
   return chunks.length;
 }
 
@@ -674,7 +691,12 @@ export async function processPdfDocumentStep(
   service: SupabaseClient,
   documentId: string,
   userId: string,
-  options?: { deadlineMs?: number; maxOcrPages?: number | null },
+  options?: {
+    deadlineMs?: number;
+    maxOcrPages?: number | null;
+    /** Hızlı başlatma (31 Ekim 2026): ilk adım yalnız bu kadar sayfa okur; baş kopyası hemen çıkarılır. */
+    firstStepPages?: number;
+  },
 ): Promise<PdfIngestionResult> {
   const deadlineMs = options?.deadlineMs ?? Date.now() + PDF_STEP_DEADLINE_MS;
   const { data: rawLease, error: claimError } = await service.rpc("claim_document_ingestion", {
@@ -685,7 +707,7 @@ export async function processPdfDocumentStep(
   if (lease.state === "missing") return { status: "failed", code: "not_found" };
   if (lease.state === "ready") return { status: "ready", pageCount: lease.totalPages ?? 0 };
   if (lease.state === "busy") return {
-    status: "processing", pageCount: lease.totalPages ?? null, nextPage: lease.nextPage ?? null,
+    status: "processing", pageCount: lease.totalPages ?? null, nextPage: lease.nextPage ?? null, busy: true,
   };
   if (lease.state !== "claimed" || !lease.token) {
     return { status: "failed", code: "ingestion_state_unavailable", retryable: true };
@@ -742,9 +764,12 @@ export async function processPdfDocumentStep(
     const pageCap = remaining ?? paidCap;
 
     const firstPage = lease.nextPage ?? 1;
+    const stepBudget = options?.firstStepPages && firstPage === 1
+      ? Math.max(1, Math.min(adaptivePageBudget(deadlineMs), options.firstStepPages))
+      : adaptivePageBudget(deadlineMs);
     const pageBudget = pageCap == null
-      ? adaptivePageBudget(deadlineMs)
-      : Math.max(1, Math.min(adaptivePageBudget(deadlineMs), pageCap - firstPage + 1));
+      ? stepBudget
+      : Math.max(1, Math.min(stepBudget, pageCap - firstPage + 1));
     const read = await readPdfBatch(
       service, buffer, documentId, userId, firstPage, pageBudget, deadlineMs, maxOcrPages,
     );

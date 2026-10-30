@@ -1597,6 +1597,26 @@ uygulanır, aynı anda `schema_migrations` satırı (`on conflict do nothing`).
 
 Bekçi: `foto-seti-hizli-baslatma.test.ts` (pdf.js açılışı, doğrudan JPEG, bölme, göç PGlite'ta), `bekleyen-materyal-seridi.test.tsx`.
 
+## Evrensel yükleme ve büyük tek belge (31 Ekim 2026) — her kapı aynı motorda
+
+Ürün sahibi: "dar düşünme; bütün yükleme kapıları, bütün dosya türleri (tek dev PDF, PPTX, DOCX, HEIC, çoklu
+fotoğraf), bütün uç senaryolar tek mimaride; tek büyük PDF'te de 20 sn'de başlat; harita 15 sn". Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Tek motor** (`runUploadPipeline`, React'siz) + kanca (`useUniversalDocumentUpload`): fotoğraf seti (2+ fotoğraf tek PDF, hızlı başlatmada ilk parça önce), şeritler, bir dosyanın düşmesi öbürlerini durdurmaz, "stop" (hak doldu / telefon kodu kapandı) yenisini başlatmaz. Kurulum sihirbazı, telefon sayfası, materyal ekle ve stüdyolar (tek belge kipi: fotoğraflar set, değilse ilk dosya) motoru kullanır; sohbet yeniden denemeyi ve ekran kilidini kullanır (sohbet fotoğrafı soru çözücüye gider, set olmaz). Yüzey yalnız `process`'i (okut, haritala, bağla) verir. **Belgelerim'de yükleme formu yok** (3 Ekim kararı: belge hazırlık kurulurken yüklenir) | `upload-engine.ts`, `use-universal-upload.ts` |
+| **Dosya başına 3 yeniden deneme** (1, 3, 8 sn): ağ kopması, zaman aşımı, 5xx, 429. Doğrulama reddi (4xx) ve kapanan hedef (`UploadError.stop`) denenmez | `UploadError`, `uploadWithRetry` |
+| **Ekran uyanık** (`navigator.wakeLock`): yükleme, okuma ve hazırlık şeridinin eklemesi sürerken; sekme geri gelince kilit yeniden istenir; desteklenmiyorsa sessiz | `useScreenAwake` |
+| Telefondan 4 MB'tan büyük dosya (set PDF'i ya da büyük PDF) **imzalı yüklemeyle**; küçük olan gövdeyle (eskiden 4,5 MB üstü PDF sessizce düşüyordu) | `phone-upload-client.tsx` |
+| **Büyük tek PDF (24+ sayfa) hızlı başlatma — baş kopyası**: kurulumda ilk okuma adımı 12 sayfa; biter bitmez bu sayfalar (sayfa, parça, gömme) gizli bir baş kopyasına (`documents.part_of`) kopyalanır ve sihirbaza döner, öğrenci onunla haritayı kurup başlar; ana belge `after()` ile arkada okunmaya devam eder (istemciyi beklemez), sonra hazırlığa bekleyen olarak bağlanır ve **materyal ekle yoluyla** eklenir; add-source baş kopyasının sayfalarındaki konuları eklemez (`topicPastHead`, çoğunluk kuralı). Ana belge hiç değişmez: kendi tam haritası ve içeriği (sohbet, stüdyo) hep tam. Baş kopyası listelerde görünmez (Belgelerim, stüdyo/sohbet seçicileri), dosyayı ana belgeyle paylaşır (silmede depoya dokunulmaz, ana belge silinince CASCADE), hazırlıkta ana belge varken bir kez görünür. Neden kopya: kullanılan bir haritaya sonradan konu eklemek in-use korumasını ve harita kodunu derinden değiştirirdi. Fotoğraf seti parçası baş kopyası almaz (istemci zaten böldü). Göç `20261031140000_document_head.sql` (canlıda) | `document-head.ts`, `process/route.ts`, `pdf-ingestion.ts` (`firstStepPages`, `busy`), `exam-create-wizard.tsx` (`takeHead`) |
+| Aynı belgeyi iki istek okurken (kira dolu) işleme zinciri 250 sn boyunca boşa dönüyordu (her turda yalnız kira sorusu). `busy` gelince zincir hemen döner, istemci 2 sn sonra yeniden sorar | `PdfIngestionResult.busy` |
+| **Kısa konu haritası**: canlıda tek çağrı 9.500 jeton çıktı yazıyordu (her konuya `whyLearn`'ün kopyası `description` + 2-4 uzun madde). Şema `description` istemez, `likelyAsked` en çok 2 kısa madde, `whyLearn` ≤14 kelime, istemde `OUTLINE_BREVITY_RULE` ("konunun içeriğini yazma, öğretim derste"). Kayıtlı eski taslaklar aynen okunur | `outline-oneshot.ts` |
+| **PPTX/DOCX resimleri paralel** (12 aynı anda) ve ücretli hesapta hızlı işlemle; eskiden sırayla okunuyordu (40 resimli sunu ~10 dk, 300 sn sınırını aşıp düşerdi). Ekler sayfaya belgedeki sırayla girer | `office-figures.ts`, `rag/pipeline.ts` |
+| Sayfa kaydında gömme çağrıları 3 şeritte (ilk hatada öbür şeritler yeni parça yazmaz) | `pdf-ingestion.ts` `saveBatch` |
+| **Okunamayan sayfanın ücreti alınmaz**: belge bitince okunamayan sayfa varsa sayfa ücretinin ayrılan kısmı iade edilir, yalnız okunan sayfa kadar kesilir (`document_pages_read_<belge>`); taranmış sayfa ücreti zaten yalnız okunandan. Sekme kapanırsa ayrılan ücret beklemede kalır (iş sürünce kesinleşir, sürmezse takılı ayırma temizliği iade eder) | `process/route.ts` `commitDocumentCredits` |
+
+Bekçi: `evrensel-yukleme.test.tsx` (yeniden deneme, motor, ekran kilidi, baş kopyası, kısa harita, Office paralel, ücret, kapılar).
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

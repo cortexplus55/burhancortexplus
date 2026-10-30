@@ -29,6 +29,8 @@ export async function GET(request: Request) {
     .eq("user_id", user.id)
     .in("status", statusValues)
     .is("deleted_at", null)
+    // Hızlı başlatmanın gizli baş kopyası listelenmez (document-head.ts).
+    .is("part_of", null)
     .order("created_at", { ascending: false })
     .limit(20);
 

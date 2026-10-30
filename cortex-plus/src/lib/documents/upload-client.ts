@@ -11,6 +11,23 @@ type PreparedUpload = {
   mimeType: string;
 };
 
+/**
+ * Yüklemenin hatası, yeniden denenebilir mi bilgisiyle (31 Ekim 2026, ortak yükleme motoru): ağ kopması, zaman aşımı,
+ * 5xx ve 429 yeniden denenir; dosya türü, boyut, depolama dolu gibi 4xx denenmez (yeniden denemek bir şey değiştirmez).
+ */
+export class UploadError extends Error {
+  /** `stop`: hedef kapandı (telefon kodunun süresi doldu): yeni dosya başlamaz, yeniden denenmez. */
+  constructor(message: string, readonly status: number, readonly stop = false) {
+    super(message);
+    this.name = "UploadError";
+  }
+
+  get retryable(): boolean {
+    if (this.stop) return false;
+    return this.status === 0 || this.status === 408 || this.status === 429 || this.status >= 500;
+  }
+}
+
 async function responseBody(response: Response): Promise<Record<string, unknown>> {
   const body: unknown = await response.json().catch(() => ({}));
   return body && typeof body === "object" && !Array.isArray(body)
@@ -18,8 +35,8 @@ async function responseBody(response: Response): Promise<Record<string, unknown>
     : {};
 }
 
-function responseError(body: Record<string, unknown>, fallback: string): Error {
-  return new Error(typeof body.error === "string" ? body.error : fallback);
+function responseError(body: Record<string, unknown>, fallback: string, status: number): UploadError {
+  return new UploadError(typeof body.error === "string" ? body.error : fallback, status);
 }
 
 /**
@@ -32,21 +49,25 @@ export async function uploadDocumentFile(original: File): Promise<{ documentId: 
   // bekleyip yeniden dener; dosya düşmez (31 Ekim 2026).
   let prepareResponse: Response;
   for (let attempt = 0; ; attempt += 1) {
-    prepareResponse = await fetch("/api/documents/upload/prepare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileName: file.name, mimeType: file.type, sizeBytes: file.size }),
-    });
+    try {
+      prepareResponse = await fetch("/api/documents/upload/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type, sizeBytes: file.size }),
+      });
+    } catch {
+      throw new UploadError("Yükleme başlatılamadı: bağlantı koptu.", 0);
+    }
     if (prepareResponse.status !== 429 || attempt >= PREPARE_RETRIES) break;
     const hinted = Number(prepareResponse.headers.get("retry-after"));
     const waitMs = Number.isFinite(hinted) && hinted > 0 ? Math.min(hinted * 1000, 15_000) : 1_500 * (attempt + 1);
     await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
   const prepareBody = await responseBody(prepareResponse);
-  if (!prepareResponse.ok) throw responseError(prepareBody, "Yükleme başlatılamadı.");
+  if (!prepareResponse.ok) throw responseError(prepareBody, "Yükleme başlatılamadı.", prepareResponse.status);
   const prepared = prepareBody as PreparedUpload;
   if (!prepared.documentId || !prepared.path || !prepared.token || !prepared.mimeType) {
-    throw new Error("Yükleme bağlantısı alınamadı.");
+    throw new UploadError("Yükleme bağlantısı alınamadı.", 502);
   }
 
   const storage = createClient().storage.from("documents");
@@ -79,10 +100,11 @@ export async function uploadDocumentFile(original: File): Promise<{ documentId: 
     });
   } catch {
     await abortPending();
-    throw new Error(uploadError ?? "Yükleme sırasında bağlantı koptu.");
+    throw new UploadError(uploadError ?? "Yükleme sırasında bağlantı koptu.", 0);
   }
   const completeBody = await responseBody(completeResponse);
   if (completeResponse.ok) return { documentId: prepared.documentId };
   await abortPending();
-  throw responseError(completeBody, uploadError ?? "Dosya doğrulanamadı. Yeniden yükle.");
+  // Depoya yazılamadıysa (ağ) yeniden denemek işe yarar; doğrulama reddi (422) yaramaz.
+  throw responseError(completeBody, uploadError ?? "Dosya doğrulanamadı. Yeniden yükle.", uploadError ? 0 : completeResponse.status);
 }

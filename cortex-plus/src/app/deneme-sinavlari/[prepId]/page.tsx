@@ -151,7 +151,8 @@ export default async function ExamPrepDetailPage({
   const { data: sourceRows } = sourceIds.length
     ? await supabase
         .from("documents")
-        .select("id, file_name, mime_type, page_count")
+        // `*`: hızlı başlatmanın part_of sütunu göçten önce de okunur.
+        .select("*")
         .in("id", sourceIds)
         .eq("user_id", user.id)
         .is("deleted_at", null)
@@ -160,6 +161,9 @@ export default async function ExamPrepDetailPage({
   const materials = sourceIds.flatMap((id) => {
     const row = sourceById.get(id);
     if (!row) return [];
+    // Hızlı başlatmanın baş kopyası (document-head.ts): ana belge de hazırlıktaysa bir kez görünür; bağlantı ana belgeye.
+    const parent = typeof (row as { part_of?: unknown }).part_of === "string" ? (row as { part_of: string }).part_of : null;
+    if (parent && sourceById.has(parent)) return [];
     return [
       {
         id,
@@ -168,7 +172,7 @@ export default async function ExamPrepDetailPage({
           mimeType: row.mime_type as string | null,
           pageCount: typeof row.page_count === "number" ? row.page_count : null,
         }),
-        href: `/dokumanlar/${id}`,
+        href: `/dokumanlar/${parent ?? id}`,
       },
     ];
   });

@@ -82,6 +82,7 @@ import type { ActionCode } from "@/lib/env";
 import { SolutionView } from "@/components/learning/question-solver";
 import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
 import { solutionMarkdown } from "@/lib/solve/solution-markdown";
+import { useScreenAwake } from "@/lib/documents/use-universal-upload";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -349,6 +350,9 @@ function ChatPanelSession({
   const [status, setStatus] = useState<string | null>(null);
   const conversationId = useRef<string | undefined>(initialConversationId);
   const activeDocumentId = useRef<string | undefined>(initialDocumentId);
+  /** Yüklenen ek sayısı: yükleme sürerken ekran kararmasın (31 Ekim 2026). */
+  const [attaching, setAttaching] = useState(0);
+  useScreenAwake(attaching > 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -875,8 +879,15 @@ function ChatPanelSession({
   }
 
   async function uploadAttachment(file: File): Promise<string | null> {
-    const { uploadDocumentFile } = await import("@/lib/documents/upload-client");
-    const uploaded = await uploadDocumentFile(file);
+    // Ortak yükleme motoru (31 Ekim 2026): ağ dalgalanmasında aynı dosya 3 kez denenir; yükleme sürerken ekran uyanık.
+    const { uploadWithRetry } = await import("@/lib/documents/upload-engine");
+    setAttaching((count) => count + 1);
+    let uploaded: { documentId: string };
+    try {
+      uploaded = await uploadWithRetry(file);
+    } finally {
+      setAttaching((count) => count - 1);
+    }
     if (!file.type.startsWith("image/")) {
       // 19 Ekim 2026: sohbetten yüklenen belge, öğrenci Belgelerim'i açana kadar "İşleniyor"da
       // kalıyordu (işleme yalnız sihirbazda ve belge sayfalarında ilerliyordu); Araçlar'da da
