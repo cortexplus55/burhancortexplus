@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { possessiveSuffix, withPossessive } from "@/lib/text/number-suffix";
+import { possessiveAccusativeSuffix, possessiveSuffix, withPossessive } from "@/lib/text/number-suffix";
 
 /*
   24 Ekim 2026 (inceleme #33): Plus kartı "hakkının %67'i" yazıyordu; ek sabitti. Ek, sayının
@@ -46,6 +46,15 @@ describe("sayıya iyelik eki", () => {
     expect(withPossessive(1500)).toBe("1500'ü");
     expect(withPossessive(2000)).toBe("2000'i");
     expect(withPossessive(1_000_000)).toBe("1000000'u");
+  });
+
+  it("iyelik + belirtme: deneme onayı \"10'unu yanıtladın\" der", () => {
+    expect([10, 7, 3, 1, 6, 9, 40, 0].map((n) => `${n}${possessiveAccusativeSuffix(n)}`)).toEqual([
+      "10'unu", "7'sini", "3'ünü", "1'ini", "6'sını", "9'unu", "40'ını", "0'ını",
+    ]);
+    const runner = readFileSync("src/components/parity/exam-runner.tsx", "utf8");
+    expect(runner).not.toContain("}'ini yanıtladın");
+    expect(runner).toContain("possessiveAccusativeSuffix(answeredCount)");
   });
 
   it("Plus kartı eki sabit yazmıyor", () => {

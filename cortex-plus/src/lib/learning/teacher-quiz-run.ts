@@ -19,6 +19,7 @@ import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { dropNearDuplicates } from "@/lib/learning/item-dedup";
 import { runTopicTestShards } from "@/lib/learning/quiz-shards";
 import { alignToPublished, playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
+import { runQuizSanity } from "@/lib/learning/quiz-sanity";
 import { repairBudget } from "@/lib/learning/repair-budget";
 import {
   appendWithoutConflicts,
@@ -194,6 +195,28 @@ export async function teacherQuizLoop(
   const draftMs = Date.now() - draftStarted;
   if (!draft) {
     return { questions: [], rejected: [], rounds: 0, softKept: 0, salvaged: [], forced: false, codes, stages: { draftMs, reviewMs: 0, repairMs: 0 } };
+  }
+
+  // Hafif doğrulayıcı (30 Ekim 2026): tek hızlı çağrı; uydurma terim, türü uymayan şık, anahtar. Soru silmez; süre
+  // aşılırsa taslak aynen kalır. Kod denetimleri ve öğrenciye gösterim bundan SONRA (`quiz-sanity.ts`).
+  if (input.sanity !== false) {
+    const sanity = await runQuizSanity((system, user) => ask(system, user, "fix"), {
+      mode: mode === "topic" ? "topic" : "document",
+      topicLabel: input.topicLabel,
+      source: input.sourceBlock?.trim() || input.pages.map((page) => page.text).join("\n"),
+      questions: draft,
+    });
+    draft = sanity.questions;
+    console.info("quiz_sanity", {
+      topic: input.topicLabel.slice(0, 80),
+      questions: draft.length,
+      patched: sanity.patched,
+      keyChanged: sanity.keyChanged,
+      rejected: sanity.rejected,
+      timedOut: sanity.timedOut,
+      ms: sanity.ms,
+      reasons: sanity.reasons.slice(0, 4),
+    });
   }
 
   slots.push(...draft.map(() => null));

@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { ScratchPad } from "@/components/parity/scratch-pad";
 import { cn } from "@/lib/utils";
+import { possessiveAccusativeSuffix } from "@/lib/text/number-suffix";
 import {
   ANSWER_SAVE_DEBOUNCE_MS,
   multiMcqScoringNote,
@@ -562,7 +563,7 @@ export function ParityExamRunner({
       {showFinish ? (
         <Modal
           title="Sınavı bitirmek istiyor musun?"
-          body={`${questions.length} sorudan ${answeredCount}'ini yanıtladın. ${questions.length - answeredCount} soru boş, ${flagged.size} soru işaretli.`}
+          body={`${questions.length} sorudan ${answeredCount}${possessiveAccusativeSuffix(answeredCount)} yanıtladın. ${questions.length - answeredCount} soru boş, ${flagged.size} soru işaretli.`}
           primaryLabel={loading ? "Değerlendiriliyor…" : "Evet, sınavı bitir"}
           primaryBusy={loading}
           onPrimary={() => void submit()}

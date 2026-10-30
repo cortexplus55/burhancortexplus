@@ -74,6 +74,8 @@ export type TeacherQuizInput = {
    * testi gibi eski çağıranların kaynağı). Varsa KAYNAK budur.
    */
   sourceBlock?: string;
+  /** Hafif doğrulayıcı (30 Ekim 2026, `quiz-sanity.ts`); varsayılan açık. Yalnız yerel ölçüm betikleri kapatır. */
+  sanity?: boolean;
   /**
    * Yazılı deneme (26 Ekim 2026): soru kaynak cümlesini aynen taşımak zorunda değildir.
    * Yanlış olgu, bozuk öğe, kopya ve konu dışı yine düşer.

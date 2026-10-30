@@ -123,7 +123,8 @@ describe("öğretmen test motoru: döngü", () => {
   const draft = (n: number) => ({
     questions: Array.from({ length: n }, (_, i) => raw(`Soru ${i + 1}: ${SCENARIOS[i % SCENARIOS.length]![0]}`, SCENARIOS[i % SCENARIOS.length]![1])),
   });
-  const input = { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], count: 5, optionCount: 4 as const };
+  // Hafif doğrulayıcı ayrı adım (30 Ekim 2026); kendi testi quiz-sanity.test.ts.
+  const input = { topicLabel: "Hükümsüzlük", prepTitle: "KPSS", pages: [{ page: 8, text: "Yokluk…" }], count: 5, optionCount: 4 as const, sanity: false };
 
   it("yedekli taslak: denetçinin elediği sorular yerine yedekler geçer, düzeltme turu gerekmez", async () => {
     const calls: string[] = [];
