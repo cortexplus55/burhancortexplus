@@ -104,6 +104,9 @@ describe("çizimli video tahtası (30 Ekim 2026, canlı tur)", () => {
     // Canlı ölçüm (639 px yüksek pencere): üst çubuk 137 px, formül satırları 0 yüksekliğe eziliyordu.
     expect(css).toMatch(/\.cp-video-board-body \{[\s\S]*padding: calc\(var\(--cp-top-h, 7\.2rem\) \+ 0\.35rem\)/);
     expect(css).toMatch(/\.cp-video-frame\.is-sketch \.cp-video-caption \{\s*bottom: 0\.6rem;/);
+    // Canlı ölçüm 2: iki satıra sarılan formülle 19 rem payı alt yazıya 5 px biniyordu; taşma yukarı da gitmesin.
+    expect(css).toMatch(/\.cp-video-board-body \{[\s\S]*justify-content: safe center;/);
+    expect(css).toContain("- 21.5rem) * 600 / 220)");
     expect(css).toMatch(/\.cp-sketch-formulas \{\s*display: flex;\s*flex: none;/);
     expect(css).not.toMatch(/\.cp-sketch-formulas \{[^}]*max-height: 28%/);
     expect(container.querySelector(".cp-video-frame")?.className).toContain("is-sketch");

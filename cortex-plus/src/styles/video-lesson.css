@@ -592,7 +592,8 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* Taşarsa yukarı (üst çubuğun altına) değil aşağı taşsın: `safe`. */
+  justify-content: safe center;
   gap: 0.45rem;
   padding: calc(var(--cp-top-h, 7.2rem) + 0.35rem) 0.8rem 6rem;
   overflow: hidden;
@@ -656,10 +657,11 @@
   min-height: 0;
   flex: none;
   /*
-    Şema kalan yüksekliğe sığacak genişlikte: tahta − üst çubuk − alt yazı ve başlık, kilit bilgi, iki formül satırı,
-    kartın kendi başlığı (~19 rem). Önce formül esniyordu; yer yetmeyince yok oluyordu.
+    Şema kalan yüksekliğe sığacak genişlikte: tahta − üst çubuk − alt yazı ve başlık, kilit bilgi, iki satıra sarılan
+    formül + bir satır, kartın kendi başlığı (~21,5 rem; canlıda 639 px pencerede 19 rem 5 px alt yazıya biniyordu).
+    Önce formül esniyordu; yer yetmeyince yok oluyordu.
   */
-  width: clamp(9rem, calc((100cqh - var(--cp-top-h, 7.2rem) - 19rem) * 600 / 220), 100%);
+  width: clamp(9rem, calc((100cqh - var(--cp-top-h, 7.2rem) - 21.5rem) * 600 / 220), 100%);
   margin-inline: auto;
 }
 
