@@ -570,9 +570,10 @@
 }
 
 /*
-  Çizimli sahne (30 Ekim 2026, canlı tur): tahta çerçevenin tamamı ve ölçü kabı; içerik üst çubuğun (başlık, konu,
-  "Dersi tamamla", ~7 rem) altından başlar, alt yazının (çerçevenin %18'i + iki satır) üstünde biter. Önce 4,6 rem /
-  5,4 rem boşluk vardı: sahne başlığı düğmenin altına, ikinci formül alt yazının arkasına düşüyordu.
+  Çizimli sahne (30 Ekim 2026, canlı tur): tahta çerçevenin tamamı ve ölçü kabı; içerik üst çubuğun altından başlar
+  (gerçek yüksekliği `--cp-top-h`, oynatıcı ölçer), alt yazının üstünde biter. Çizimli sahnede alt yazı en altta:
+  resim yok, %18'lik boşluk yalnız tahtadan yer yiyordu. Önce sabit boşluklar vardı: sahne başlığı "Dersi tamamla"nın
+  altına, ikinci formül alt yazının arkasına düşüyordu; 639 px yüksek pencerede formül satırları 0 yüksekliğe ezildi.
 */
 .cp-video-board {
   position: absolute;
@@ -591,10 +592,16 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* Taşarsa yukarı (üst çubuğun altına) değil aşağı taşsın: `safe`. */
+  justify-content: safe center;
   gap: 0.45rem;
-  padding: 7.2rem 0.8rem calc(18cqh + 4.6rem);
+  padding: calc(var(--cp-top-h, 7.2rem) + 0.35rem) 0.8rem 6rem;
   overflow: hidden;
+}
+
+/* Alt yazı çizimli sahnede çerçevenin dibinde (resimli sahnede %18'de kalır). */
+.cp-video-frame.is-sketch .cp-video-caption {
+  bottom: 0.6rem;
 }
 
 /* Kilit bilgi tahtada akışta: kendi satırında, hiçbir şeyin üstüne binmez. */
@@ -617,7 +624,7 @@
   align-content: center;
   column-gap: 1.1rem;
   row-gap: 0.45rem;
-  padding: 6.4rem 1.2rem calc(18cqh + 4.4rem);
+  padding: calc(var(--cp-top-h, 6.4rem) + 0.35rem) 1.2rem 5.6rem;
 }
 
 .cp-video-frame.is-landscape .cp-video-board-body > h2 {
@@ -632,12 +639,11 @@
 .cp-video-frame.is-landscape .cp-sketch-stage {
   grid-area: stage;
   align-self: center;
-  width: min(100%, calc(52cqh * 600 / 220));
+  width: clamp(9rem, calc((100cqh - var(--cp-top-h, 6.4rem) - 8rem) * 600 / 220), 100%);
 }
 
 .cp-video-frame.is-landscape .cp-sketch-formulas {
   grid-area: formulas;
-  max-height: none;
 }
 
 .cp-video-board h2 {
@@ -650,9 +656,27 @@
 .cp-sketch-stage {
   min-height: 0;
   flex: none;
-  /* Şema, kendi yüksekliği tahtanın üçte birini geçmeyecek genişlikte. */
-  width: min(100%, calc(34cqh * 600 / 220));
+  /*
+    Şema kalan yüksekliğe sığacak genişlikte: tahta − üst çubuk − alt yazı ve başlık, kilit bilgi, iki satıra sarılan
+    formül + bir satır, kartın tek satırlık başlığı (~19,5 rem). Etiket genişliği şemanın %17'si: şema tahtanın
+    %75'inden dar olmaz (144 px'lik şemada etiket harf harf kırılıyordu). Önce formül esniyordu; yer yetmeyince yok oluyordu.
+  */
+  width: clamp(75%, calc((100cqh - var(--cp-top-h, 7.2rem) - 19.5rem) * 600 / 220), 100%);
   margin-inline: auto;
+}
+
+/* Videoda şema kartı sıkı: başlık tek satır, iç boşluk yarım (tahtanın başlığı zaten sahneyi adlandırıyor). */
+.cp-sketch-stage .als-diagram-card {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+}
+
+.cp-sketch-stage .als-diagram-card figcaption {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.78rem;
 }
 
 .cp-sketch-stage svg path,
@@ -668,10 +692,9 @@
 
 .cp-sketch-formulas {
   display: flex;
+  flex: none;
   flex-direction: column;
   gap: 0.2rem;
-  max-height: 28%;
-  overflow: auto;
 }
 
 .cp-sketch-formula {
