@@ -11,6 +11,7 @@ import type { FreeMeter } from "@/lib/billing/free-meters";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } from "@/lib/learning/lesson-v3";
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
+import { runLessonSanity } from "@/lib/learning/lesson-sanity";
 import {
   DIAGRAM_COMPLETION_SYSTEM,
   diagramCompletionUserPrompt,
@@ -267,10 +268,39 @@ export async function teacherLessonPipeline(
       const part = parts[index]!;
       // Tek geçiş: ayrışan ekran yayımlanır. Boş kavram da atılmaz; ekranı varsa öğrenciye gider.
       const screens = [...part.screens];
+      // Hafif doğrulayıcı (30 Ekim 2026, ürün sahibinin kararı: bütün kavramlar): türü uymayan / uydurma şık, anahtar,
+      // ekranda üçüncü kez tekrar eden süs kutusu. Sonraki kavramların çağrısı yazar akarken koşar; düşerse kavram aynen.
+      const sanityRun =
+        input.sanity === false
+          ? null
+          : runLessonSanity(
+              (system, user) => io.write(system, user, () => undefined).then((answer) => answer.text),
+              {
+                mode,
+                topicLabel: input.topicLabel,
+                source: input.pages.map((page) => page.text).join("\n"),
+                screens,
+              },
+              parseModelJson,
+            );
       const close = part.last ? await closingReady : null;
+      const sanity = sanityRun ? await sanityRun : null;
+      if (sanity) {
+        console.info("lesson_sanity", {
+          concept: part.concept.slice(0, 60),
+          screens: screens.length,
+          patched: sanity.patched,
+          keyChanged: sanity.keyChanged,
+          dropped: sanity.dropped,
+          rejected: sanity.rejected,
+          timedOut: sanity.timedOut,
+          ms: sanity.ms,
+          reasons: sanity.reasons.slice(0, 4),
+        });
+      }
       return {
         ok: true,
-        screens,
+        screens: sanity ? sanity.screens : screens,
         header: {},
         ...(close ? { closing: close } : {}),
         low: [],
