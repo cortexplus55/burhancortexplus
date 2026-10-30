@@ -7,6 +7,7 @@ import {
 } from "@/lib/learning/exam-prep-hrefs";
 import { nodeForTopic } from "@/lib/learning/exam-prep-ui-path";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
+import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 
 /**
  * Hazırlığın etkin konusunu seçer ve öğrencinin gideceği adresi döner.
@@ -27,12 +28,12 @@ export async function selectPrepTopic(
     .maybeSingle();
   if (!prep) return { ok: false };
 
-  const { data: topic } = await service
-    .from("exam_prep_topics")
-    .select("id, label, document_topic_node_id")
-    .eq("id", input.topicId)
-    .eq("exam_prep_id", input.prepId)
-    .maybeSingle();
+  const topic = await resolvePrepTopicRow<{ id: string; label: string; document_topic_node_id: string | null }>(
+    service,
+    input.prepId,
+    input.topicId,
+    "id, label, document_topic_node_id",
+  );
   if (!topic) return { ok: false };
 
   await service.from("exam_preps").update({ active_topic_id: topic.id }).eq("id", prep.id);

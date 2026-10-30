@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { continueHref } from "@/lib/learning/exam-prep-progress";
+import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -28,12 +29,7 @@ export async function POST(request: Request) {
 
   if (!prep) return errorResponse(404, "not_found");
 
-  const { data: topic } = await service
-    .from("exam_prep_topics")
-    .select("id")
-    .eq("id", topicId)
-    .eq("exam_prep_id", prepId)
-    .maybeSingle();
+  const topic = await resolvePrepTopicRow(service, prepId, topicId);
 
   if (!topic) return errorResponse(404, "not_found");
 
@@ -44,7 +40,7 @@ export async function POST(request: Request) {
         ? { status: "done", completed_at: new Date().toISOString() }
         : { status: "in_progress", completed_at: null },
     )
-    .eq("id", topicId);
+    .eq("id", topic.id);
 
   if (error) return errorResponse(500, "generation_failed");
 

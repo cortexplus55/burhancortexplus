@@ -24,6 +24,7 @@ import {
 } from "@/lib/learning/topic-source-refs";
 import { searchDocumentChunksAcross } from "@/lib/rag/pipeline";
 import type { SessionTeachingMeta } from "@/lib/learning/teaching-standards";
+import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 
 export type SourceUnavailableReason =
   | "no_prep_documents"
@@ -335,11 +336,13 @@ async function healTopicSources(
   }
 
   // İdempotent: önce oku, değişmediyse yazma.
-  const { data: current } = await service
-    .from("exam_prep_topics")
-    .select("source_refs, document_topic_node_id, exam_prep_id")
-    .eq("id", input.topicId)
-    .maybeSingle();
+  // Konunun iki kimliği de kabul (30 Ekim 2026, tek kimlik): düğüm belge konu düğümünü taşıyabilir.
+  const current = await resolvePrepTopicRow<{ id: string; source_refs: unknown; document_topic_node_id: string | null; exam_prep_id: string }>(
+    service,
+    input.prepId,
+    input.topicId,
+    "id, source_refs, document_topic_node_id, exam_prep_id",
+  );
   if (!current || current.exam_prep_id !== input.prepId) {
     return { healed: false, refs: input.refs, nodeId: input.topicNodeId };
   }
@@ -361,7 +364,7 @@ async function healTopicSources(
   const { error } = await service
     .from("exam_prep_topics")
     .update(payload)
-    .eq("id", input.topicId)
+    .eq("id", current.id)
     .eq("exam_prep_id", input.prepId);
   if (error) {
     return { healed: false, refs: input.refs, nodeId: input.topicNodeId };

@@ -5,6 +5,7 @@ import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { loadSourceContext, pagesMarkedInSource } from "@/lib/learning/source-context";
+import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 
 /**
  * Hazırlıktaki bir konunun temiz kaynak sayfaları — hazırlık podcast'inin
@@ -22,12 +23,13 @@ export async function prepTopicSource(
   let documentId = input.prepDocumentId ?? prepDocs[0] ?? null;
   let pageNumbers: number[] = [];
 
-  const linked = await service
-    .from("exam_prep_topics")
-    .select("document_topic_node_id")
-    .eq("id", input.topicId)
-    .maybeSingle();
-  const nodeId = !linked.error && typeof linked.data?.document_topic_node_id === "string" ? linked.data.document_topic_node_id : null;
+  const linked = await resolvePrepTopicRow<{ id: string; document_topic_node_id: string | null }>(
+    service,
+    input.prepId,
+    input.topicId,
+    "id, document_topic_node_id",
+  );
+  const nodeId = typeof linked?.document_topic_node_id === "string" ? linked.document_topic_node_id : null;
   if (nodeId) {
     const { data: node } = await service.from("document_topic_nodes").select("document_id").eq("id", nodeId).maybeSingle();
     if (node?.document_id) documentId = node.document_id as string;
