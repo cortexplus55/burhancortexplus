@@ -179,13 +179,18 @@ describe("retargetNodeTopic", () => {
   });
 
   it("rota: yeniden hedef yerel oturumdan sonra, önceden yazım anahtarından ve kaynak çözümünden önce", () => {
-    const route = readSource("src/app/api/learning/exam-prep/node/route.ts").replace(/\r\n/g, "\n");
-    const at = route.indexOf("const retarget = await retargetNodeTopic(service, {");
-    expect(at).toBeGreaterThan(route.indexOf("practiceTopics = local.topics;"));
-    expect(at).toBeLessThan(route.indexOf("const variant = prefetchVariant(kind, {"));
-    expect(at).toBeLessThan(route.indexOf("const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;"));
+    // Açılış 30 Ekim 2026 bölmesinden beri aşamalı: sıra `node/start.ts`'teki çağrı sırasıdır.
+    const start = readSource("src/lib/learning/node/start.ts").replace(/\r\n/g, "\n");
+    const at = start.indexOf("const retarget = await retargetNodeTopic(service, {");
+    expect(readSource("src/lib/learning/node/local-session.ts")).toContain("practiceTopics = local.topics;");
+    expect(at).toBeGreaterThan(start.indexOf("await openLocalSession(context"));
+    expect(start.indexOf("await openLocalSession(context")).toBeGreaterThan(0);
+    expect(at).toBeLessThan(start.indexOf("const variant = prefetchVariant(kind, {"));
+    expect(readSource("src/lib/learning/node/source.ts")).toContain("const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;");
+    expect(at).toBeLessThan(start.indexOf("await resolveStartSource(context"));
     // İçerik sorulan konunun adını taşır: bitişte kanıt ve yanılgı o konuya.
-    expect(route).toContain("payload = { ...payload, testedTopic: retargetedTopic }");
-    expect(route.indexOf("testedTopic: retargetedTopic")).toBeLessThan(route.indexOf("const total = countTotal(kind, payload);"));
+    const generation = readSource("src/lib/learning/node/generation.ts").replace(/\r\n/g, "\n");
+    expect(generation).toContain("payload = { ...payload, testedTopic: retargetedTopic }");
+    expect(generation.indexOf("testedTopic: retargetedTopic")).toBeLessThan(generation.indexOf("const total = countTotal(kind, payload);"));
   });
 });
