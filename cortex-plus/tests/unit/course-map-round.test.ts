@@ -3,6 +3,7 @@
  * credits service, and a generateJson mock that reserves / refunds / defers
  * exactly like production (so a spent key really blocks a model call).
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- sahte Supabase satırları (helpers/outline-model-mock ile aynı) */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeFakeDb } from "./helpers/fake-supabase";
 import { HANG, model } from "./helpers/outline-model-mock";
