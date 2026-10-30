@@ -87,6 +87,15 @@ import { nodeNeedsStudentUnlock, pickPracticeNodeId, practiceHref, studentMaySta
 import { loadLevelHint } from "@/lib/learning/prep-level";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import {
+  contentSpansTopics,
+  contentTestedTopic,
+  createTopicIndex,
+  nodeOnTopic,
+  safeTopicIds,
+  topicIdsOf,
+  type TopicMetaLike,
+} from "@/lib/learning/topic-identity";
+import {
   gradeOralExam,
   isOralLength,
   ORAL_JUDGE_RULES,
@@ -128,11 +137,11 @@ import {
 import { activityTally, tallyScore } from "@/lib/learning/answer-tally";
 import { dropNearDuplicatesKeepingCount } from "@/lib/learning/item-dedup";
 import {
-  appendLessonReviewCards,
+  cardsAsShown,
   cardsFromLessonReviews,
   extractMisconceptions,
+  freezeShownCards,
   parseSessionMeta,
-  scoreFlashcardsV2,
   teachingActivityForKind,
   teachingSessionContext,
   teachingStandardConstraints,
@@ -278,6 +287,11 @@ const bodySchema = z.object({
   oralQuestionCount: z.union([z.literal(3), z.literal(5), z.literal(8)]).optional(),
   oralTopicLabel: z.string().max(400).optional(),
   oralScope: z.enum(["topic", "all"]).optional(),
+  /**
+   * Sözlüde seçilen konuların konu satırı kimlikleri (30 Ekim 2026). Ad birleşimi ("A, B") ayrıştırılamıyordu:
+   * seçilen konu üretime, sonuç başlığına ve kayda aynı kimlikle gider. Göndermeyen eski sekme adla çözülür.
+   */
+  oralTopicIds: z.array(z.string().max(64)).max(30).optional(),
   /** Ders oluşturma merkezi, düğümün konusu dışında bir konu seçtiyse. */
   activityTopicLabel: z.string().max(400).optional(),
   podcastLength: z.enum(PODCAST_LENGTHS).optional(),
@@ -633,9 +647,21 @@ async function handleNodeRequest(
     ""
   ).slice(0, 400);
   if (requestedTopic) topicLabel = requestedTopic;
+  // Sözlüde seçilen konular kimlikle (30 Ekim 2026, `topic-identity.ts`). Canlı tur: "Enflasyon Türleri" seçilen sözlü
+  // başka konunun düğümünde açıldı; ad düğümün konusuyla tutmayınca kaynak "konuyu genişlet" diye hazırlık adıyla
+  // aranıyor, sorular üç konudan geliyordu. Tek konu → o konunun kaydı ve sayfaları (`retargetNodeTopic`); birden çok
+  // konu → her konunun kendi sayfaları ve tek konuya kanıt yok (`scope: "topics"`); düğümün kendi konusu → genişletme yok.
+  const oralTopicIds =
+    kind === "oral" && parsed.data.oralScope !== "all" ? safeTopicIds(parsed.data.oralTopicIds) : [];
+  const oralMultiTopic = oralTopicIds.length > 1;
+  const oralSameTopic =
+    oralTopicIds.length === 1 &&
+    topicIdsOf({ id: topic?.id ?? null, documentTopicNodeId: topic?.document_topic_node_id ?? null }).includes(oralTopicIds[0]!);
+  if (oralSameTopic && topic?.label) topicLabel = topic.label;
   let topicWiden =
     (kind === "oral" && parsed.data.oralScope === "all") ||
-    Boolean(requestedTopic && !topicLabelsMatch(requestedTopic, sessionMeta?.topicTitle));
+    oralMultiTopic ||
+    (!oralSameTopic && Boolean(requestedTopic && !topicLabelsMatch(requestedTopic, sessionMeta?.topicTitle)));
   const difficulty = parsed.data.difficulty ?? "orta";
   const voiceMode = parsed.data.voiceMode ?? false;
   const familiarity = parseFamiliarity(parsed.data.familiarity);
@@ -1044,14 +1070,25 @@ async function handleNodeRequest(
      * kapanışı yanıt içinde koşar (hesap ucuz).
      */
     const runCompletion = async (background: boolean): Promise<CompletionOutcome> => {
-      let scored = scoreAttempt(kind, attempt?.payload, mergedAnswers, teachingV2);
+      // Kartlar öğrencinin gördüğü listeyle notlanır (`cardsAsShown`, 30 Ekim 2026): oturum "8/10", sonuç "6/8" demesin.
+      const shownPayload = cardsAsShown((attempt.payload ?? {}) as Record<string, unknown>, lessonReviewCards);
+      // Bitişin konusu içeriğin sorduğu konudur (30 Ekim 2026, `topic-identity.ts`): öğrenci düğümün konusu dışında bir
+      // konu seçtiyse (sözlü konu seçici, `?konu=`) içerik o konunun adını taşır. Önerilen pratik, yol uyarlaması, tekrar
+      // ve Yanlışlar Defteri de o konuya gider; kayıt açılan düğümde kalır. Birden çok konuyu kapsayan içerikte konu yok.
+      const spansTopics = contentSpansTopics(shownPayload);
+      const topicIndex = await loadPrepTopicIndex(service, prepId);
+      const tested = spansTopics ? null : testedTopicRow(topicIndex, shownPayload, topic);
+      const doneTopicLabel = spansTopics ? null : (tested?.label ?? contentTestedTopic(shownPayload) ?? topicLabel);
+      const canonicalTopicLabel = (label: string | null | undefined): string | null =>
+        label ? (topicIndex.rowFor(label)?.label ?? label) : null;
+      let scored = scoreAttempt(kind, shownPayload, mergedAnswers, teachingV2);
       let oralExtras: OralExamReport | null = null;
       if (kind === "oral" && attempt?.payload && attempt.status !== "completed") {
         const questions = ((attempt.payload as { questions?: OralQuestionDraft[] }).questions ?? []);
         const hasRubric = questions.some((question) => (question.expectedPoints ?? []).length > 0);
         if (hasRubric) {
           const source = await reviewSourceBlock(service, userId, prepId, nodeId);
-          const grounding = await oralCorpus(service, userId, prepId, questions, topicLabel);
+          const grounding = await oralCorpus(service, userId, prepId, questions, doneTopicLabel ?? topicLabel);
           const sourceBlob = [source, grounding.corpus].filter((part) => part.trim()).join("\n\n");
           const premiumNow = await isPremiumUser(service, userId);
           // Tek hakem (29 Ekim 2026): soru bağlamsız olgu denetimi kalktı. Hakem düşerse bir kez daha
@@ -1069,7 +1106,12 @@ async function handleNodeRequest(
             .from("exam_prep_nodes")
             .select("id, kind, sort_order, session_meta")
             .eq("exam_prep_id", prepId);
-          const practiceTopic = parsed.data.oralScope === "all" ? null : topicLabel;
+          // Bitirme isteği kapsamı taşımaz: kapsam kayıtlı içerikten (`scope`), konu sorulan konudan (kimlikle).
+          const practiceTopic = spansTopics
+            ? null
+            : tested
+              ? { id: tested.id, documentTopicNodeId: tested.documentTopicNodeId, label: tested.label }
+              : topicLabel;
           const practiceId = pickPracticeNodeId(
             (practiceNodes ?? []).map((row) => ({
               id: row.id as string,
@@ -1101,8 +1143,9 @@ async function handleNodeRequest(
 
       // Sonuca göre yol (20 Ekim 2026): düşük sonuçta konunun odaklı pratiği araya girer, yüksekte
       // konunun kalan ek testleri kalkar. RPC'den önce: eklenen düğümü RPC sıradaki olarak açar.
+      // Birden çok konuyu kapsayan içerik (sözlü "Tüm sınav" / çoklu seçim) tek konunun yolunu değiştirmez.
       const pathChange =
-        attempt.status !== "completed"
+        attempt.status !== "completed" && !spansTopics
           ? await adaptPathAfterResult(service, {
               prepId,
               node: {
@@ -1113,7 +1156,12 @@ async function handleNodeRequest(
                 sessionMeta:
                   node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as Record<string, unknown>) : null,
               },
-              topicLabel,
+              topicLabel: doneTopicLabel ?? topicLabel,
+              // İçerik düğümün konusu dışında bir konuyu sorduysa yol o konuya göre değişir (kimlik düğüm biçiminde).
+              testedTopic:
+                tested && !sameTopicAsNode(node.session_meta, tested)
+                  ? { topicId: tested.documentTopicNodeId ?? tested.id, topicTitle: tested.label }
+                  : null,
               // Sözlüde kayıt yüzde (x/100); yol kararı soru sayısıyla (en az 3 öğe kuralı) verilir.
               score: oralExtras ? (oralExtras.pct / 100) * oralExtras.total : scored.score,
               total: oralExtras ? oralExtras.total : scored.total,
@@ -1193,23 +1241,31 @@ async function handleNodeRequest(
       let topicGain: { label: string; before: number; after: number } | null = null;
 
       if (teachingV2) {
-        let payloadForEvidence = attempt.payload;
+        let payloadForEvidence: unknown = shownPayload;
         if (oralExtras) {
           payloadForEvidence = {
-            ...((attempt.payload as object) ?? {}),
+            ...shownPayload,
             gradeMeta: oralExtras,
           };
           await service
             .from("exam_prep_node_attempts")
             .update({ payload: payloadForEvidence })
             .eq("id", attempt.id);
+        } else if (shownPayload.type === "cards" && shownPayload !== attempt.payload) {
+          // Dondurulmamış eski kart kaydı: notlanan liste kayda geçer; sonuç sayfası ve inceleme aynı kartları okur.
+          payloadForEvidence = freezeShownCards(shownPayload, []);
+          await service
+            .from("exam_prep_node_attempts")
+            .update({ payload: payloadForEvidence })
+            .eq("id", attempt.id)
+            .then(undefined, () => undefined);
         }
 
         const drafts = extractMisconceptions({
           kind,
           payload: payloadForEvidence,
           answers: answersForRpc,
-          topicLabel,
+          topicLabel: doneTopicLabel ?? topicLabel,
           language: prepLanguage(prep.learning_preferences),
         });
         const fresh = await unseenLessonReviews(service, userId, prepId, drafts);
@@ -1221,7 +1277,8 @@ async function handleNodeRequest(
               exam_prep_id: prepId,
               node_id: nodeId,
               attempt_id: attempt.id,
-              topic_label: d.topicLabel,
+              // Yanılgının konusu hazırlığın konu adıyla (tek eşleştirici); eşleşmeyen ad olduğu gibi kalır.
+              topic_label: canonicalTopicLabel(d.topicLabel),
               claim: d.claim,
               corrected: d.corrected,
               wrong_type: d.wrongType,
@@ -1240,7 +1297,7 @@ async function handleNodeRequest(
             kind,
             payload: payloadForEvidence,
             answers: mergedAnswers,
-            topicLabel,
+            topicLabel: doneTopicLabel ?? topicLabel,
             sessionObjective: sessionMeta?.objective ?? null,
             targetScore:
               typeof prep.target_score === "number" ? prep.target_score : null,
@@ -1283,9 +1340,9 @@ async function handleNodeRequest(
       try {
         const drafts = mistakeDraftsFromAttempt(
           attempt.id as string,
-          attempt.payload,
+          shownPayload,
           mergedAnswers,
-          topicLabel,
+          doneTopicLabel ?? topicLabel,
         );
         if (drafts.length) await recordMistakes(service, userId, drafts);
         await recordUserActivity(service, userId, `exam_prep_${kind}`);
@@ -1302,10 +1359,11 @@ async function handleNodeRequest(
         nodeId,
         attemptId: attempt.id as string,
         kind,
-        payload: attempt.payload,
+        payload: shownPayload,
         answers: mergedAnswers,
-        topicLabel,
-        topicId: (topic?.id as string | undefined) ?? null,
+        // Tekrar satırı da sorulan konuya (kimlikle); birden çok konuyu kapsayan içerikte konu yok.
+        topicLabel: spansTopics ? null : (doneTopicLabel ?? topicLabel),
+        topicId: spansTopics ? null : (tested?.id ?? (topic?.id as string | undefined) ?? null),
         oralReport: oralExtras ?? oralReviewFromPayload(attempt.payload),
       }).catch(() => 0);
 
@@ -1602,12 +1660,13 @@ async function handleNodeRequest(
   // konu yerine öğrencinin zayıf konusu ya da seçtiği konu; istem, kaynak ve kanıt aynı konuyu
   // söyler. Konu kaydı bulunamazsa düğüm devraldığı konuyla açılır — istek düşmez.
   let retargetedTopic: string | null = null;
-  if (teachingV2) {
+  if (teachingV2 && !oralMultiTopic && !oralSameTopic) {
     const retarget = await retargetNodeTopic(service, {
       userId,
       prepId,
       kind,
       requestedTopic,
+      requestedTopicId: oralTopicIds[0] ?? null,
       adaptiveFocus: adaptiveFocusTopic(kind, node.session_meta, topicLabel),
       practiceTopics,
       inheritedTopicTitle: sessionMeta?.topicTitle ?? null,
@@ -1912,6 +1971,8 @@ async function handleNodeRequest(
     }
     const taken = await takePrefetchedLesson(service, { userId, nodeId });
     if (taken) delete taken.payload.prefetchVariant;
+    // Hazır kart destesi de gösterilecek listeyle kayda geçer (`freezeShownCards`).
+    if (taken) taken.payload = freezeShownCards(taken.payload, lessonReviewCards);
     if (!taken) {
       // Aynı anda başka bir açılış aldı; bu istek dersi kendisi yazar.
       await refundCredits(service, reservation.reservationId).catch(() => undefined);
@@ -2170,13 +2231,20 @@ async function handleNodeRequest(
             prepDocs,
           )
         : resolved.context;
-    } else if (kind === "oral" && parsed.data.oralScope === "all" && !voiceSession && hasPrepDocuments) {
+    } else if (
+      kind === "oral" &&
+      (parsed.data.oralScope === "all" || oralMultiTopic) &&
+      !voiceSession &&
+      hasPrepDocuments
+    ) {
+      // Birden çok konu seçildiyse (30 Ekim 2026) "Tüm sınav"ın dengeli kaynağı yalnız o konulardan.
       const balanced = await loadOralAllSource(service, {
         userId,
         prepId,
         count: oralCount ?? 5,
         fallbackDocumentIds: pageDocumentIds,
         sourceBoundaryMode,
+        onlyTopicIds: oralMultiTopic ? oralTopicIds : null,
       });
       oralAllPlan = balanced.plan;
       source = balanced.source.block.trim()
@@ -2797,11 +2865,15 @@ async function handleNodeRequest(
   if (retargetedTopic && typeof payload.testedTopic !== "string") payload = { ...payload, testedTopic: retargetedTopic };
   // Sözlü "Tüm sınav" (30 Ekim 2026, Paket I #8): sorular birden çok konudan, soru başına konu yok. Kanıt ve
   // yanılgı tek bir konuya (birleşik etiket ya da düğümün konusu) yazılmaz; içerik bütün sınavı kapsadığını taşır.
-  if (kind === "oral" && parsed.data.oralScope === "all" && payload.type === "oral") {
+  // Birden çok konu seçilen sözlü de (30 Ekim 2026) aynı: `scope: "topics"` (`contentSpansTopics`); önceden birleşik ad
+  // ("A, B") kanıt anahtarı oluyor, hiçbir konuya bağlanmayan bir hâkimiyet satırı açılıyordu.
+  if (kind === "oral" && (parsed.data.oralScope === "all" || oralMultiTopic) && payload.type === "oral") {
     const { testedTopic: _joined, ...rest } = payload as Record<string, unknown>;
     void _joined;
-    payload = { ...rest, scope: "all" };
+    payload = { ...rest, scope: parsed.data.oralScope === "all" ? "all" : "topics" };
   }
+  // Kartlar öğrencinin göreceği listeyle kayda geçer (`freezeShownCards`, 30 Ekim 2026): not ve sonuç aynı kartları sayar.
+  payload = freezeShownCards(payload, lessonReviewCards);
 
   const total = countTotal(kind, payload);
 
@@ -4218,6 +4290,53 @@ async function teacherQuizPayload(
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity, engine: "teacher" };
 }
 
+type PrepTopicIdentityRow = { id: string; label: string; documentTopicNodeId: string | null };
+
+/** Hazırlığın konuları tek eşleştiriciyle (`createTopicIndex`); okuma düşerse boş dizin (eşleşme ada düşer). */
+async function loadPrepTopicIndex(service: SupabaseClient, prepId: string) {
+  let data: unknown[] | null = null;
+  try {
+    const result = await service.from("exam_prep_topics").select("id, label, document_topic_node_id").eq("exam_prep_id", prepId);
+    data = Array.isArray(result?.data) ? result.data : null;
+  } catch {
+    data = null;
+  }
+  return createTopicIndex<PrepTopicIdentityRow>(
+    ((data ?? []) as { id: unknown; label: unknown; document_topic_node_id?: unknown }[])
+      .map((row) => ({
+        id: String(row.id),
+        label: String(row.label ?? "").trim(),
+        documentTopicNodeId: typeof row.document_topic_node_id === "string" ? row.document_topic_node_id : null,
+      }))
+      .filter((row) => row.label),
+  );
+}
+
+/**
+ * İçeriğin sorduğu konunun satırı (30 Ekim 2026): damga (`testedTopic`) varsa onun satırı, yoksa düğümün konusu.
+ * Damga hiçbir satıra eşleşmezse null — çağıran damganın kendisini yazar (eski davranış).
+ */
+function testedTopicRow(
+  index: ReturnType<typeof createTopicIndex<PrepTopicIdentityRow>>,
+  payload: unknown,
+  current: { id?: unknown; label?: unknown; document_topic_node_id?: unknown } | null,
+): PrepTopicIdentityRow | null {
+  const label = contentTestedTopic(payload);
+  if (label) return index.rowFor(label);
+  if (!current || typeof current.id !== "string") return null;
+  return (
+    index.rowFor({ id: current.id }) ?? {
+      id: current.id,
+      label: typeof current.label === "string" ? current.label : "",
+      documentTopicNodeId: typeof current.document_topic_node_id === "string" ? current.document_topic_node_id : null,
+    }
+  );
+}
+
+function sameTopicAsNode(meta: unknown, row: PrepTopicIdentityRow): boolean {
+  return nodeOnTopic(meta as TopicMetaLike, { id: row.id, documentTopicNodeId: row.documentTopicNodeId, label: row.label });
+}
+
 /**
  * Sözlü "Tüm sınav": konular sort_order ile K1..KN; soru sayısı kadar konu eşit aralıkla seçilir, her
  * birinin kendi belgesinden kendi sayfaları (konu kaynağı, yoksa konunun dersinin sayfaları) okunur.
@@ -4230,28 +4349,45 @@ async function loadOralAllSource(
     count: number;
     fallbackDocumentIds: Array<string | null | undefined>;
     sourceBoundaryMode: "documents_only" | "allow_supporting" | null;
+    /** Birden çok konu seçildiyse yalnız bunlar (konu satırı ya da belge konu düğümü kimliği). */
+    onlyTopicIds?: readonly string[] | null;
   },
 ): Promise<{ source: SourceContext; plan: string[] }> {
   const [{ data: topicRows }, { data: nodeRows }] = await Promise.all([
-    service.from("exam_prep_topics").select("id, label, sort_order, source_refs").eq("exam_prep_id", input.prepId).order("sort_order"),
+    service
+      .from("exam_prep_topics")
+      .select("id, label, sort_order, source_refs, document_topic_node_id")
+      .eq("exam_prep_id", input.prepId)
+      .order("sort_order"),
     service.from("exam_prep_nodes").select("kind, session_meta").eq("exam_prep_id", input.prepId).order("sort_order"),
   ]);
+  const rows = (topicRows ?? []).map((row) => ({
+    id: String(row.id),
+    label: String(row.label ?? "").trim(),
+    documentTopicNodeId: typeof row.document_topic_node_id === "string" ? row.document_topic_node_id : null,
+    sourceRefs: row.source_refs,
+  }));
+  // Düğümün sayfaları konuya tek kuralla bağlanır (30 Ekim 2026): belgeli hazırlıkta düğüm belge konu düğümünü taşır;
+  // önceden konu satırı kimliğiyle aranıyor, hiç tutmuyordu (yalnız ad kalıyordu).
+  const index = createTopicIndex(rows);
   const nodePages = new Map<string, number[]>();
   for (const row of nodeRows ?? []) {
     const meta = parseSessionMeta(row.session_meta);
-    const key = (meta?.topicId ?? meta?.topicTitle ?? "").trim().toLocaleLowerCase("tr");
-    if (!key || !meta?.sourcePages?.length || nodePages.has(key)) continue;
-    nodePages.set(key, meta.sourcePages);
+    if (!meta?.sourcePages?.length) continue;
+    const owner = index.rowFor({ id: meta.topicId ?? null, label: meta.topicTitle ?? null });
+    if (!owner || nodePages.has(owner.id)) continue;
+    nodePages.set(owner.id, meta.sourcePages);
   }
-  const topics: OralScopeTopic[] = (topicRows ?? []).map((row) => {
-    const label = String(row.label ?? "").trim();
-    const ref = parseTopicSourceRefs(row.source_refs)[0];
-    const pages =
-      ref?.pages?.length
-        ? ref.pages
-        : nodePages.get(String(row.id).toLocaleLowerCase("tr")) ?? nodePages.get(label.toLocaleLowerCase("tr")) ?? [];
-    return { label, documentId: ref?.documentId ?? null, pages };
-  });
+  const wanted = input.onlyTopicIds?.length
+    ? new Set(input.onlyTopicIds.map((id) => index.rowFor({ id })?.id).filter((id): id is string => Boolean(id)))
+    : null;
+  const topics: OralScopeTopic[] = rows
+    .filter((row) => !wanted || wanted.has(row.id))
+    .map((row) => {
+      const ref = parseTopicSourceRefs(row.sourceRefs)[0];
+      const pages = ref?.pages?.length ? ref.pages : (nodePages.get(row.id) ?? []);
+      return { label: row.label, documentId: ref?.documentId ?? null, pages };
+    });
   const chosen = oralScopeSources(topics, input.count);
   const plan = oralQuestionPlan(
     chosen.map((topic) => topic.label),
@@ -4330,13 +4466,12 @@ async function unseenLessonReviews<
   ];
 }
 
+/** Ekrana giden kart listesi notlandırmanınkiyle aynı işlevden (`cardsAsShown`, 30 Ekim 2026). */
 function withLessonReviewCards(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[],
 ) {
-  if (payload.type !== "cards" || !reviewCards.length) return payload;
-  const cards = Array.isArray(payload.cards) ? (payload.cards as { front: string }[]) : [];
-  return { ...payload, cards: appendLessonReviewCards(cards, reviewCards) };
+  return cardsAsShown(payload, reviewCards);
 }
 
 /** Başarılı üretimden sonra cüzdan. Açılışta ayrı ücret yok. */
@@ -4533,8 +4668,10 @@ function scoreAttempt(
   if (data.type === "true_false") return { ...tallyScore(activityTally(data, answers)), retried: 0 };
   if (data.type === "cards") {
     const cards = (data.cards as unknown[]) ?? [];
+    // Kart puanı oturum ekranıyla AYNI işlevden (30 Ekim 2026, `answer-tally.ts`): Bildim / kart. Liste çağıranın
+    // verdiği gösterilen listedir (`cardsAsShown`).
     if (teachingV2 || data.masteryClaim === false) {
-      return { ...scoreFlashcardsV2(cards.length, answers), retried: 0 };
+      return { ...tallyScore(activityTally(data, answers)), retried: 0 };
     }
     let score = 0;
     cards.forEach((_, index) => {

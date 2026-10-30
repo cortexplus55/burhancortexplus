@@ -314,6 +314,7 @@ export function ExamNodeSession({
   todayMood = null,
   replayLesson = false,
   reviewSaved = false,
+  rewriteHref = null,
   resumeEnabled = false,
   openAttempt = true,
   sourceName = null,
@@ -347,8 +348,10 @@ export function ExamNodeSession({
   todayMood?: Mood | null;
   /** Sonuç sayfasından "Dersi tekrarla" (?tekrar=1): aynı ders yeniden açılır. */
   replayLesson?: boolean;
-  /** Yoldan "Tekrar incele" (?incele=1): kayıtlı gövde, kredi yok. */
+  /** Yoldan "Tekrar incele" (?incele=1) ya da bitmiş dersin düz adresi: kayıtlı gövde, kredi yok. */
   reviewSaved?: boolean;
+  /** "Farklı anlat" (ders): yeni anlatım açık seçimle bu adreste yazılır (30 Ekim 2026). */
+  rewriteHref?: string | null;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
   resumeEnabled?: boolean;
   /**
@@ -429,9 +432,11 @@ export function ExamNodeSession({
   // "Plus'ta" der. Hesap bilinmiyorsa (kabuk yok) sunucu karar verir.
   const voiceLocked = Boolean(meta.voice && shellAccount && !shellAccount.isPremium && !shellAccount.isAdmin);
   const [voiceMode, setVoiceMode] = useState(kind === "oral" && meta.voice && !voiceLocked);
+  // Seçicide başta düğümün kendi konusu seçili (kimlikle, 30 Ekim 2026); `?konu=` geldiyse o konu.
   const [oralSelected, setOralSelected] = useState<string[]>(() => {
-    if (!requestedTopic) return [];
-    const hit = oralTopics.find((topic) => topicLabelsMatch(requestedTopic, topic.label));
+    const hit = requestedTopic
+      ? oralTopics.find((topic) => topicLabelsMatch(requestedTopic, topic.label))
+      : oralTopics.find((topic) => Boolean(topicId) && topic.id === topicId);
     return hit ? [hit.id] : [];
   });
   const [oralMoodId, setOralMoodId] = useState<OralTeacherMoodId>(DEFAULT_ORAL_TEACHER_MOOD);
@@ -588,10 +593,19 @@ export function ExamNodeSession({
     revealedRef.current = new Set();
   }, [attemptId]);
 
+  // Açılış düğüm başına BİR KEZ (30 Ekim 2026, canlı tur): ders bitince ya da kredi düşünce `router.refresh()` sunucu
+  // özelliklerini yeniler; `openAttempt` (açık oturum var mı) ve bitmiş dersin düz adresinde `reviewSaved` değişince
+  // bu etki yeniden koşuyor, "Tekrar incele" sonunda ders sonuç ekranı yerine 1. adımdan yeniden açılıyordu. Yarıda
+  // kesilen açılış (bağımlılık açılış sürerken değişti) yeniden koşabilir; tamamlanan açılış bir daha koşmaz.
+  const openedForRef = useRef<string | null>(null);
   useEffect(() => {
     if (!resumeEnabled) return;
+    const openKey = `${prepId}:${nodeId}`;
+    if (openedForRef.current === openKey) return;
+    openedForRef.current = openKey;
     let cancelled = false;
-    (async () => {
+    let settled = false;
+    void (async () => {
         if (!openAttempt) {
         // Açık oturum yok: doğrudan açılış (tekrar isteği de burada başlar).
         if (reviewSaved || (kind === "lesson" && replayLesson)) {
@@ -655,17 +669,25 @@ export function ExamNodeSession({
           setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : signalStage);
         }
       }
-    })();
+    })().finally(() => {
+      settled = true;
+    });
     return () => {
       cancelled = true;
+      if (!settled) openedForRef.current = null;
     };
     // start her render'da yeni; yalnız açılışta, kayıtlı oturum yoksa bir kez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeEnabled, openAttempt, prepId, nodeId, kind, signalStage, replayLesson, reviewSaved]);
 
-  // Özellik kapalıyken de kayıtlı içerik açılsın; kurulum kartı üretim başlatmasın.
+  // Özellik kapalıyken de kayıtlı içerik açılsın; kurulum kartı üretim başlatmasın. Yine düğüm başına bir kez: ders
+  // bitince bitmiş dersin düz adresi `reviewSaved` olur, sonuç ekranı kayıtlı derse dönmesin.
   useEffect(() => {
-    if (!reviewSaved || resumeEnabled) return;
+    if (resumeEnabled) return;
+    const openKey = `${prepId}:${nodeId}`;
+    if (openedForRef.current === openKey) return;
+    openedForRef.current = openKey;
+    if (!reviewSaved) return;
     setStage("setup");
     void start({ review: true });
     // start her render'da yeni; yalnız açılışta bir kez.
@@ -1180,9 +1202,13 @@ export function ExamNodeSession({
                       .map((topic) => topic.label)
                       .join(", ") || topicLabel || prepTitle
                 ).slice(0, 400),
+                // Seçilen konular kimlikle (30 Ekim 2026): sunucu üretimi, sonuç başlığını ve kaydı aynı konuya bağlar.
+                oralTopicIds: oralSelected.includes(ORAL_ALL_TOPICS)
+                  ? []
+                  : oralTopics.filter((topic) => oralSelected.includes(topic.id)).map((topic) => topic.id),
               }
             : {}),
-          ...(requestedTopic ? { activityTopicLabel: requestedTopic.slice(0, 400) } : {}),
+          ...(requestedTopic && !isOral ? { activityTopicLabel: requestedTopic.slice(0, 400) } : {}),
           ...(kind === "podcast" ? { podcastLength } : {}),
           ...(reqId ? { clientRequestId: reqId } : {}),
         }),
@@ -1995,6 +2021,12 @@ export function ExamNodeSession({
           <Link href={`/deneme-sinavlari/${prepId}/dugum/${nodeId}/sonuc`} className="cp-exam-continue">
             Sonuca dön
           </Link>
+          {/* Kayıtlı ders bulunamadıysa yeni anlatım yine açık seçim (30 Ekim 2026): kendiliğinden yazılmaz. */}
+          {kind === "lesson" && rewriteHref ? (
+            <Link href={rewriteHref} className="cp-exam-continue">
+              Farklı anlat
+            </Link>
+          ) : null}
         </section>
       ) : null}
 
@@ -2667,6 +2699,12 @@ export function ExamNodeSession({
             </button>
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" onClick={() => {
+                // Kayıtlı ders açıkken kurulum kartı yok (yalnız "Kayıtlı içerik açılıyor" kalırdı): yeni anlatım
+                // açık seçimin adresinde yazılır (30 Ekim 2026).
+                if (reviewSaved && rewriteHref) {
+                  router.push(rewriteHref);
+                  return;
+                }
                 setStage("setup");
                 setIndex(0);
                 setAnswers({});

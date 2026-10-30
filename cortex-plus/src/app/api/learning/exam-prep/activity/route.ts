@@ -8,7 +8,9 @@ import {
   studyActivityHref,
   type StudyNodeRef,
   type StudyToolId,
+  type StudyTopicRef,
 } from "@/lib/learning/study-tools";
+import { createTopicIndex } from "@/lib/learning/topic-identity";
 
 /**
  * "Başka Bir Konu veya Etkinlik Seç" (V6): konunun seçilen etkinlik düğümü yoksa konunun bölümüne
@@ -67,13 +69,29 @@ export async function POST(request: Request) {
       topicTitle: typeof node.sessionMeta?.topicTitle === "string" ? node.sessionMeta.topicTitle : null,
     },
   }));
-  const pick = freeActivityPick(refs, prepId, { id: topicId, label: topicLabel }, tool as StudyToolId);
+  // Konu iki kimliğinden biriyle gelebilir (konu satırı ya da belge konu düğümü): tek eşleştirici satırı bulur, düğüm
+  // araması ve yeni düğümün metası iki kimliği de tanır (30 Ekim 2026, `topic-identity.ts`).
+  const { data: topicRows } = await service
+    .from("exam_prep_topics")
+    .select("id, label, document_topic_node_id")
+    .eq("exam_prep_id", prepId);
+  const row = createTopicIndex(
+    (topicRows ?? []).map((item) => ({
+      id: String(item.id),
+      label: String(item.label ?? "").trim(),
+      documentTopicNodeId: typeof item.document_topic_node_id === "string" ? item.document_topic_node_id : null,
+    })),
+  ).rowFor({ id: topicId, label: topicLabel });
+  const topic: StudyTopicRef & { label: string } = row
+    ? { id: row.id, documentTopicNodeId: row.documentTopicNodeId ?? null, label: row.label || topicLabel }
+    : { id: topicId, label: topicLabel };
+  const pick = freeActivityPick(refs, prepId, topic, tool as StudyToolId);
   if (pick.ok && pick.kind === "node") {
     return NextResponse.json({ ok: true, nodeId: pick.nodeId, href: pick.href, created: false });
   }
 
   const kind = FREE_PICK_NODE_KINDS[tool]!.create;
-  const plan = planActivityInsert(nodes, { id: topicId, label: topicLabel }, kind);
+  const plan = planActivityInsert(nodes, topic, kind);
   const { data: nodeId, error: insertError } = await service.rpc("exam_path_insert_after", {
     p_prep_id: prepId,
     p_after_sort: plan.afterSort,

@@ -19,7 +19,8 @@ export function FreeActivityPicker({
 }: {
   prepId: string;
   nodes: StudyNodeRef[];
-  topics: { id: string; label: string }[];
+  /** `id` seçicinin anahtarı; `labelOnly` ise gerçek kimlik değildir, eşleşme adla yapılır. */
+  topics: { id: string; label: string; documentTopicNodeId?: string | null; labelOnly?: boolean }[];
   busy?: boolean;
   onClose: () => void;
   onOpen: (pick: { nodeId: string | null; href: string }) => void;
@@ -30,7 +31,11 @@ export function FreeActivityPicker({
   const topic = topics.find((item) => item.id === topicId) ?? topics[0] ?? null;
 
   async function choose(tool: StudyToolId, label: string) {
-    const pick = freeActivityPick(nodes, prepId, topic, tool, topics);
+    // Konu iki kimliğiyle (konu satırı + belge konu düğümü) gider: düğüm araması kimlikle yapılır (30 Ekim 2026).
+    const ref = topic
+      ? { id: topic.labelOnly ? null : topic.id, documentTopicNodeId: topic.documentTopicNodeId ?? null, label: topic.label }
+      : null;
+    const pick = freeActivityPick(nodes, prepId, ref, tool, topics.filter((item) => !item.labelOnly));
     if (!pick.ok) {
       setMissing(`Önce bir konu seç.`);
       return;

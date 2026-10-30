@@ -77,12 +77,22 @@ export function ExamPrepProgress({
         </div>
         <p className="cp-prog-basis">{view.scoreBasis}</p>
         <div className="cp-prog-stats">
-          <div>
-            <strong>
-              {view.topicsAtTarget} / {view.topicCount}
-            </strong>
-            <span>hedefe ulaşan konu</span>
-          </div>
+          {/* Kapsam önce (30 Ekim 2026, Paket I #7 `coverageLine`): "x/N konu ölçüldü". Ölçüm bilgisi yoksa eski satır. */}
+          {view.measuredTopics != null ? (
+            <div>
+              <strong>
+                {view.measuredTopics} / {view.topicCount}
+              </strong>
+              <span>konu ölçüldü</span>
+            </div>
+          ) : (
+            <div>
+              <strong>
+                {view.topicsAtTarget} / {view.topicCount}
+              </strong>
+              <span>hedefe ulaşan konu</span>
+            </div>
+          )}
           <div>
             <strong>{view.lessonsDone}</strong>
             <span>{METRIC_LABEL.lessons}</span>
@@ -205,7 +215,9 @@ export function ExamPrepProgress({
           <div className="cp-prog-block">
             <p className="cp-prog-kicker">Konular ve dersler</p>
             <h3>
-              {view.topicCount} konudan {view.topicsAtTarget} tanesi hedefte
+              {view.coverageText
+                ? `${view.coverageText} · ${view.topicsAtTarget} tanesi hedefte`
+                : `${view.topicCount} konudan ${view.topicsAtTarget} tanesi hedefte`}
             </h3>
             {view.topics.length ? (
               <ul className="cp-prog-topics" aria-label={PREP_HOME_COPY.skillTree}>
@@ -225,8 +237,10 @@ export function ExamPrepProgress({
                       <span style={{ width: `${topic.pct}%` }} />
                       <i style={{ left: `${view.targetPct}%` }} />
                     </div>
+                    {/* "N çözüldü" konunun kanıt sayısı, "N ders" biten ders (30 Ekim 2026): dersi açılmamış konunun
+                        denemedeki cevabı da sayılır. */}
                     <p className="cp-prog-topic-meta">
-                      {topic.lessons > 0
+                      {topic.lessons > 0 || topic.solved > 0
                         ? `${topic.solved} çözüldü · ${topic.lessons} ders`
                         : "henüz ders yok"}
                     </p>

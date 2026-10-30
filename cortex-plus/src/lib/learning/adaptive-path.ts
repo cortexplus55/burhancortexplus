@@ -26,12 +26,32 @@ export async function adaptPathAfterResult(
     topicLabel: string;
     score: number;
     total: number;
+    /**
+     * İçerik düğümün konusu dışında bir konuyu sorduysa (sözlü konu seçici, `?konu=`; 30 Ekim 2026) yol o konuya göre
+     * değişir. Kimlik düğüm metası biçiminde (belgeli hazırlıkta belge konu düğümü). Canlı tur: "Enflasyon Türleri"
+     * sözlüsünün düşük sonucu "Para Politikası"na odaklı pratik ekledi.
+     */
+    testedTopic?: { topicId: string | null; topicTitle: string } | null;
   },
 ): Promise<PathChange | null> {
   const decision = pathDecision({ kind: input.node.kind, score: input.score, total: input.total });
   if (!decision) return null;
-  const meta = input.node.sessionMeta ?? {};
-  const topicTitle = (typeof meta.topicTitle === "string" && meta.topicTitle.trim()) || input.topicLabel.trim();
+  const nodeMeta = input.node.sessionMeta ?? {};
+  const tested = input.testedTopic?.topicTitle?.trim() ? input.testedTopic : null;
+  // Sorulan konu başkaysa düğümün sayfası, hedefi ve ünitesi yeni adıma taşınmaz (o konunun değil).
+  const meta: Record<string, unknown> = tested
+    ? (() => {
+        const { sourcePages: _pages, objective: _objective, unitTitle: _unit, topicId: _id, ...rest } = nodeMeta;
+        void _pages;
+        void _objective;
+        void _unit;
+        void _id;
+        return { ...rest, ...(tested.topicId ? { topicId: tested.topicId } : {}), topicTitle: tested.topicTitle.trim() };
+      })()
+    : nodeMeta;
+  const topicTitle = tested
+    ? tested.topicTitle.trim()
+    : (typeof meta.topicTitle === "string" && meta.topicTitle.trim()) || input.topicLabel.trim();
   if (!topicTitle) return null;
   const topic = { topicId: typeof meta.topicId === "string" ? meta.topicId : null, topicTitle };
 

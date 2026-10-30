@@ -14,7 +14,7 @@ export async function loadOrBackfillTopics(
 ): Promise<PrepTopic[]> {
   const { data } = await supabase
     .from("exam_prep_topics")
-    .select("id, label, sort_order, status, lesson_id")
+    .select("id, label, sort_order, status, lesson_id, document_topic_node_id")
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
@@ -44,7 +44,7 @@ export async function loadOrBackfillTopics(
 
   const { data: filled } = await supabase
     .from("exam_prep_topics")
-    .select("id, label, sort_order, status, lesson_id")
+    .select("id, label, sort_order, status, lesson_id, document_topic_node_id")
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 

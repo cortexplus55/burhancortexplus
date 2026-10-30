@@ -5,13 +5,11 @@ import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import {
   MASTERY_ROW_COLUMNS,
+  masteryByPlannedTopic,
   masterySnapshotFromRow,
-  normalizeTopicKey,
-  scoreTopicMastery,
   topicMasteryView,
-  topicPercentsByKey,
 } from "@/lib/learning/learning-tracking";
-import { buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
+import { attemptTopicFields, buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
 import {
   buildPrepRadarView,
   tempoFromProgress,
@@ -89,12 +87,12 @@ async function loadInsights(
       .order("sort_order"),
     supabase
       .from("exam_prep_node_attempts")
-      .select("node_id, score, total, created_at, payload")
+      .select("node_id, score, total, created_at, payload, topic_id")
       .eq("exam_prep_id", prep.id)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(500),
-    supabase.from("exam_prep_topics").select("id, label").eq("exam_prep_id", prep.id),
+    supabase.from("exam_prep_topics").select("id, label, document_topic_node_id").eq("exam_prep_id", prep.id),
     supabase
       .from("exam_prep_topic_mastery")
       .select(MASTERY_ROW_COLUMNS)
@@ -119,24 +117,24 @@ async function loadInsights(
   const measuredRows = ((masteryRows ?? []) as Record<string, unknown>[]).filter(
     (row) => Number(row.evidence_count ?? 0) > 0,
   );
-  const masteryByKey = topicPercentsByKey(measuredRows);
+  // Hâkimiyet konuya tek eşleştiriciyle bağlanır (`masteryByPlannedTopic`, 30 Ekim 2026): hazırlık sayfasıyla aynı sayı.
   // "Sağlam / Çalışılacak" ana sayfadaki özette de aynı kaynaktan (29 Ekim 2026).
   const target = typeof prep.target_score === "number" ? prep.target_score : null;
-  const stateByKey = new Map(
-    measuredRows.map((row) => {
-      const snapshot = masterySnapshotFromRow(row);
-      return [normalizeTopicKey(snapshot.topicKey), topicMasteryView(scoreTopicMastery(snapshot), target).state] as const;
-    }),
-  );
-  const topicMastery = topicLabels.map((label) => ({
-    label,
-    confidence: masteryByKey.get(normalizeTopicKey(label)) ?? 0,
-    state: stateByKey.get(normalizeTopicKey(label)) ?? ("unmeasured" as const),
-  }));
+  const byTopic = masteryByPlannedTopic(topicLabels, measuredRows.map(masterySnapshotFromRow));
+  const topicMastery = topicLabels.map((label) => {
+    const snapshot = byTopic.get(label);
+    const view = snapshot ? topicMasteryView(snapshot, target) : null;
+    return {
+      label,
+      confidence: view?.percent ?? 0,
+      state: view?.state ?? ("unmeasured" as const),
+      solved: view?.solved ?? 0,
+    };
+  });
   const readinessMean = topicLabels.length
     ? Math.round(topicMastery.reduce((sum, row) => sum + row.confidence, 0) / topicLabels.length)
     : 0;
-  const measuredTopics = topicMastery.filter((row) => masteryByKey.has(normalizeTopicKey(row.label))).length;
+  const measuredTopics = topicMastery.filter((row) => byTopic.has(row.label)).length;
 
   const progress = buildPrepProgressView({
     nodes,
@@ -146,8 +144,17 @@ async function loadInsights(
       total: typeof row.total === "number" ? row.total : null,
       createdAt: row.created_at as string,
       solved: solvedQuestions(row.payload),
+      ...attemptTopicFields(row),
     })),
     topicLabels,
+    topicRefs: (topicRows ?? []).map((row) => ({
+      id: String(row.id),
+      label: String(row.label ?? "").trim(),
+      documentTopicNodeId:
+        typeof (row as { document_topic_node_id?: unknown }).document_topic_node_id === "string"
+          ? ((row as { document_topic_node_id: string }).document_topic_node_id)
+          : null,
+    })),
     gaps: [],
     examDate: typeof prep.exam_date === "string" ? prep.exam_date : null,
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,

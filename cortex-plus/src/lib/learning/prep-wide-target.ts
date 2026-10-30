@@ -112,9 +112,14 @@ export function finalStepTopic(input: Parameters<typeof rankFinalStepTopics>[0])
 /**
  * `?konu=` ile gelen konu düğümün konusu değilse konunun kendi kaydı okunur (20 Ekim 2026). Yalnız
  * konunun sayfalarından yazan türler: önceden etiket istenen konuydu ama kaynak 1. konunun
- * kaydından çözülüyordu. Sözlü dışarıda: birden çok konu tek etikette gelebilir.
+ * kaydından çözülüyordu.
+ *
+ * Sözlü de (30 Ekim 2026): tek konu seçildiyse o konunun kaydı ve sayfaları. Birden çok konu kimlikle gelir ve
+ * yeniden hedeflenmez (`scope: "topics"`); eski sekmenin "A, B" birleşik adı hiçbir konuya eşleşmez (`findTopicRow`)
+ * ve eskisi gibi açılır. Önceden sözlü hiç yeniden hedeflenmiyor, kaynak hazırlık adıyla aranıyordu.
  */
 export const REQUESTED_TOPIC_KINDS: ReadonlySet<PlanNodeKind> = new Set<PlanNodeKind>([
+  "oral",
   "quiz",
   "true_false",
   "gaps",

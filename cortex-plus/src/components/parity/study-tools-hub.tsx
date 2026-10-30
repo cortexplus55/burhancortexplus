@@ -27,6 +27,7 @@ import {
   studyVideoHref,
   type StudyNodeRef,
   type StudyToolId,
+  type StudyTopicRef,
 } from "@/lib/learning/study-tools";
 
 /** 3B simge seti (tasarım 7. adım); her araç kendi görseliyle. */
@@ -69,8 +70,8 @@ export function StudyToolsHub({
   /** Açık yanılgı sayısı: Bilgi boşlukları kilidini açar. */
   openMisconceptions?: number;
   topics: string[];
-  /** exam_prep_topics kimliği. Yoksa podcast seçicisi kendi listesini açar. */
-  topicOptions?: { id: string; label: string }[];
+  /** exam_prep_topics kimliği (belgeli hazırlıkta belge konu düğümü de). Yoksa podcast seçicisi kendi listesini açar. */
+  topicOptions?: { id: string; label: string; documentTopicNodeId?: string | null }[];
   topicLabel: string | null;
   onTopic: (label: string | null) => void;
   onClose: () => void;
@@ -85,6 +86,11 @@ export function StudyToolsHub({
   const router = useRouter();
   const [choosing, setChoosing] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  // Seçilen konu iki kimliğiyle (konu satırı + belge konu düğümü): düğüm araması kimlikle (`topic-identity.ts`).
+  const chosenOption = topicLabel ? topicOptions.find((option) => option.label === topicLabel) : undefined;
+  const chosenTopic: StudyTopicRef | null = topicLabel
+    ? { id: chosenOption?.id ?? null, documentTopicNodeId: chosenOption?.documentTopicNodeId ?? null, label: topicLabel }
+    : null;
   // Yol sırayla açılır; buradan seçilen kilitli etkinliğin kilidi gitmeden kalkar.
   async function openChosen(nodeId: string, href: string) {
     if (choosing) return;
@@ -99,8 +105,7 @@ export function StudyToolsHub({
    */
   async function createAndOpen(tool: StudyToolId, title: string) {
     if (choosing) return;
-    const topic = topicLabel ? { id: topicOptions.find((option) => option.label === topicLabel)?.id ?? null, label: topicLabel } : null;
-    const pick = freeActivityPick(nodes, prepId, topic, tool, topicOptions);
+    const pick = freeActivityPick(nodes, prepId, chosenTopic, tool, topicOptions);
     if (!pick.ok) {
       setCreateError("Önce bir konu seç.");
       return;
@@ -182,10 +187,23 @@ export function StudyToolsHub({
         <ul className="cp-study-hub-grid">
           {STUDY_TOOLS.filter((tool) => tool.group === group).map((tool) => {
             const lock = studyToolLock(tool.id, { nodes, openMisconceptions });
+            // Konu seçiliyse ve etkinlik konuya kurulabiliyorsa yalnız o konunun KENDİ düğümü açılır; yoksa kurulur
+            // ("Başka Bir Konu veya Etkinlik Seç" ile aynı işlev). 30 Ekim 2026 canlı tur: "Enflasyon Türleri" için
+            // seçilen sözlü, başka konunun sözlü adımında `?konu=` ile açılıp o adıma (Para Politikası) yazılmıştı.
+            const ownPick =
+              !lock && chosenTopic && activityCreatable(tool.id)
+                ? freeActivityPick(nodes, prepId, chosenTopic, tool.id, topicOptions)
+                : null;
+            const ownNode =
+              ownPick?.ok && ownPick.kind === "node" ? (nodes.find((node) => node.id === ownPick.nodeId) ?? null) : null;
             const target =
               lock || tool.id === "podcast" || tool.id === "video"
                 ? null
-                : openStudyActivity(nodes, tool.id, { label: topicLabel });
+                : ownPick
+                  ? ownNode
+                    ? { node: ownNode, topicQuery: null }
+                    : null
+                  : openStudyActivity(nodes, tool.id, chosenTopic ?? undefined);
             const href = lock
               ? null
               : tool.id === "podcast"

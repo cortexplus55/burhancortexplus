@@ -6,6 +6,11 @@ export type PrepTopic = {
   sortOrder: number;
   status: PrepTopicStatus;
   lessonId: string | null;
+  /**
+   * Belgeli hazırlıkta konunun ikinci kimliği (`document_topic_node_id`): yol düğümleri bunu taşır. Konu ↔ düğüm
+   * eşleşmesi iki kimliği de tanır (`topic-identity.ts`, 30 Ekim 2026).
+   */
+  documentTopicNodeId?: string | null;
 };
 
 export function normalizeTopicStatus(value: string | null | undefined): PrepTopicStatus {
@@ -36,6 +41,7 @@ export function mapPrepTopics(
     sort_order: number;
     status?: string | null;
     lesson_id?: string | null;
+    document_topic_node_id?: string | null;
   }[],
 ): PrepTopic[] {
   return rows
@@ -47,5 +53,6 @@ export function mapPrepTopics(
       sortOrder: row.sort_order,
       status: normalizeTopicStatus(row.status),
       lessonId: row.lesson_id ?? null,
+      ...(row.document_topic_node_id !== undefined ? { documentTopicNodeId: row.document_topic_node_id ?? null } : {}),
     }));
 }

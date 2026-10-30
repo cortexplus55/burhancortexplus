@@ -72,7 +72,8 @@ describe("her ölçü tek modülden (prep-metrics.ts)", () => {
     expect(pathCompletion(after)).toEqual(pathCompletion(before));
     expect(pathCompletion(before)).toEqual({ done: 2, total: 3, pct: 67 });
     expect(lessonsCompleted(after)).toBe(1);
-    expect(lessonsCompleted([step("x", "focused", "done"), step("y", "spaced", "done"), step("z", "readiness", "done")])).toBe(2);
+    // 30 Ekim 2026: yalnız ders düğümü ders sayılır (canlıda tek ders + kartlarla tekrar "2 ders tamamlandı" yazdı).
+    expect(lessonsCompleted([step("x", "focused", "done"), step("y", "spaced", "done"), step("z", "readiness", "done")])).toBe(0);
   });
 
   it("Tamamlama yanlış cevapla düşmez, Hazırlık düşebilir — ayrı ad, ayrı sayı", () => {

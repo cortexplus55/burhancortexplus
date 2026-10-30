@@ -169,7 +169,9 @@ describe("oralMisconceptionDrafts skips correct answers", () => {
     const drafts = oralMisconceptionDrafts(report);
     expect(drafts.every((d) => d.claim !== "Mol sayısı stokiyometrik katsayıya bölünür.")).toBe(true);
     expect(report.items[0]?.verdict).toBe("dogru");
-    expect(drafts.some((d) => /Bilmiyorum/i.test(d.claim))).toBe(true);
+    // "Bilmiyorum" bilgi eksiğidir ama satırın başlığı sorunun hedefi, öğrencinin yazısı değil (30 Ekim 2026).
+    expect(drafts.some((d) => d.wrongType === "oral_blank" && d.claim === "Süre")).toBe(true);
+    expect(drafts.some((d) => /Bilmiyorum/i.test(d.claim))).toBe(false);
   });
 });
 

@@ -30,11 +30,8 @@ import { pathSkipKinds } from "@/lib/billing/node-free-meter";
 import {
   buildLearningIndicators,
   freePathUnblockIds,
-  isMeasuredTopic,
-  normalizeTopicKey,
+  masteryByPlannedTopic,
   preferNextNodeForTracking,
-  scoreTopicMastery,
-  topicMasteryPercent,
   topicMasteryView,
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
@@ -50,7 +47,7 @@ import {
   formatContradictions,
   type TopicContradiction,
 } from "@/lib/learning/source-contradictions";
-import { buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
+import { attemptTopicFields, buildPrepProgressView, solvedQuestions } from "@/lib/learning/prep-progress-view";
 import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
@@ -361,7 +358,7 @@ export default async function ExamPrepDetailPage({
   const [{ data: attemptRows }, { data: gapRows }, { data: openMissRows }] = await Promise.all([
     supabase
       .from("exam_prep_node_attempts")
-      .select("node_id, score, total, created_at, payload")
+      .select("node_id, score, total, created_at, payload, topic_id")
       .eq("exam_prep_id", prepId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
@@ -369,7 +366,7 @@ export default async function ExamPrepDetailPage({
     withOpenMisconceptions((onlyOpen) => {
       const query = supabase
         .from("exam_prep_misconceptions")
-        .select("claim, topic_label, question_preview")
+        .select("claim, topic_label, question_preview, source_kind")
         .eq("exam_prep_id", prepId);
       return (onlyOpen ? query.is("resolved_at", null) : query)
         .order("created_at", { ascending: false })
@@ -414,24 +411,23 @@ export default async function ExamPrepDetailPage({
     }
   }
   const topicLabels = prepTopics.map((topic) => topic.label);
-  const masteryByKey = new Map(
-    masterySnapshots.map((topic) => [normalizeTopicKey(topic.topicKey), topicMasteryPercent(scoreTopicMastery(topic))]),
-  );
-  // "Sağlam / Çalışılacak" İlerleme'de de aynı kaynaktan (29 Ekim 2026).
-  const masteryStateByKey = new Map(
-    masterySnapshots.map((topic) => [
-      normalizeTopicKey(topic.topicKey),
-      topicMasteryView(scoreTopicMastery(topic), typeof prep.target_score === "number" ? prep.target_score : null).state,
-    ]),
+  // Konunun yüzdesi, durumu ve "N çözüldü" kanıttan ve tek eşleştiriciyle (30 Ekim 2026, `masteryByPlannedTopic`):
+  // hâkimiyet satırı konuya adıyla bağlanır, ad varyantı aynı konuya toplanır. Önceden yalnız birebir anahtar
+  // okunuyor, "çözüldü" ise düğümün başlığına göre etkinlik kayıtlarından sayılıyordu (kanıt değil).
+  const targetScore = typeof prep.target_score === "number" ? prep.target_score : null;
+  const masteryByTopic = masteryByPlannedTopic(topicLabels, masterySnapshots);
+  const masteryViews = new Map(
+    topicLabels.map((label) => {
+      const snapshot = masteryByTopic.get(label);
+      return [label, snapshot ? topicMasteryView(snapshot, targetScore) : null] as const;
+    }),
   );
   // Yol bölümü yalnız ölçülmüş konunun yüzdesini yazar (Paket I #7): ölçülmemiş konu (3 cevaptan az) sayı göstermez.
-  const measuredKeys = new Set(
-    masterySnapshots.filter((topic) => isMeasuredTopic(topic)).map((topic) => normalizeTopicKey(topic.topicKey)),
-  );
   const topicPercents: Record<string, number> = {};
   for (const label of topicLabels) {
-    if (!measuredKeys.has(normalizeTopicKey(label))) continue;
-    topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = masteryByKey.get(normalizeTopicKey(label)) ?? 0;
+    const view = masteryViews.get(label);
+    if (!view || view.state === "unmeasured") continue;
+    topicPercents[label.trim().toLocaleLowerCase("tr-TR")] = view.percent;
   }
   const progressView = buildPrepProgressView({
     nodes,
@@ -441,17 +437,29 @@ export default async function ExamPrepDetailPage({
       total: typeof row.total === "number" ? row.total : null,
       createdAt: row.created_at as string,
       solved: solvedQuestions(row.payload),
+      ...attemptTopicFields(row),
     })),
     topicLabels,
-    topicMastery: topicLabels.map((label) => ({
-      label,
-      confidence: topicPercents[label.trim().toLocaleLowerCase("tr-TR")] ?? 0,
-      state: masteryStateByKey.get(normalizeTopicKey(label)) ?? "unmeasured",
+    topicRefs: prepTopics.map((topic) => ({
+      id: topic.id,
+      label: topic.label,
+      documentTopicNodeId: topic.documentTopicNodeId ?? null,
     })),
+    topicMastery: topicLabels.map((label) => {
+      const view = masteryViews.get(label);
+      return {
+        label,
+        confidence: view && view.state !== "unmeasured" ? view.percent : 0,
+        state: view?.state ?? "unmeasured",
+        // Kanıt yalnız ölçüm açıkken var; kapalı eski yolda "çözüldü" kayıtlardan sayılır.
+        ...(trackingV2 ? { solved: view?.solved ?? 0 } : {}),
+      };
+    }),
     gaps: (gapRows ?? []).map((row) => ({
       claim: String(row.claim ?? ""),
       topicLabel: (row.topic_label as string | null) ?? null,
       detail: (row.question_preview as string | null) ?? null,
+      sourceKind: (row as { source_kind?: string | null }).source_kind ?? null,
     })),
     examDate: (prep.exam_date as string | null) ?? null,
     targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
@@ -580,7 +588,7 @@ export default async function ExamPrepDetailPage({
         topicLabels={prepTopics.map((topic) => topic.label)}
         topicOptions={prepTopics
           .filter((topic) => topic.id && topic.label)
-          .map((topic) => ({ id: topic.id, label: topic.label }))}
+          .map((topic) => ({ id: topic.id, label: topic.label, documentTopicNodeId: topic.documentTopicNodeId ?? null }))}
         materials={materials}
         readinessClaim={learningTrackingView?.claimFullyReady ?? null}
         topicWarnings={await loadTopicWarnings(supabase, prepId)}

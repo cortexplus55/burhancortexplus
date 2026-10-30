@@ -1,5 +1,9 @@
 import { PLAN_NODE_META, type NodeStatus, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepNodeHref, examPrepPodcastHref } from "@/lib/learning/exam-prep-hrefs";
+import { nodeOnTopic, type TopicIdentity } from "@/lib/learning/topic-identity";
+
+/** Ad eşleştirmesi tek modülde (`topic-identity.ts`); eski içe aktarmalar buradan da okur. */
+export { topicLabelsMatch } from "@/lib/learning/topic-identity";
 
 /**
  * Yolun sıradaki adımı öneridir (27 Ekim 2026). Öğrenci kendi hazırlığındaki kilitli düğümü
@@ -188,47 +192,30 @@ function fold(text: string | null | undefined): string {
   return (text ?? "").trim().toLocaleLowerCase("tr-TR");
 }
 
-/**
- * "Stokiyometri" ile "Stokiyometri: sınırlayıcı bileşen" aynı konudur.
- * Başka bir konu başlığı (Gazlar) eşleşmez.
- */
-export function topicLabelsMatch(left: string | null | undefined, right: string | null | undefined): boolean {
-  const a = fold(left);
-  const b = fold(right);
-  if (!a || !b) return false;
-  if (a === b) return true;
-  const shorter = a.length <= b.length ? a : b;
-  const longer = a.length <= b.length ? b : a;
-  if (!longer.startsWith(shorter)) return false;
-  const next = longer[shorter.length] ?? "";
-  return /[\s:–—\-,|/]/.test(next);
-}
+/** Hub ve seçicilerin konusu: konu satırının kimliği, belge konu düğümü ve adı (`topic-identity.ts`). */
+export type StudyTopicRef = TopicIdentity;
 
 /**
  * Seçilen konuda bu etkinliğin düğümü.
  * Başka konunun düğümüne düşmez: yanlış ders açmak, kapalı düğümden kötüdür.
  * Konu seçilmemişse o türün bitmemiş ilk düğümü gelir.
+ *
+ * Tek kural (30 Ekim 2026, `topic-identity.ts`): kimlik iki tarafta da varsa kimlik karar verir (konu satırı ya da
+ * belge konu düğümü), yoksa ad. Önceden yalnız konu satırının kimliği aranıyordu; belgeli hazırlıkta düğüm belge konu
+ * düğümünü taşıdığı için kimlik hiç tutmuyor, ad tutmazsa başka konunun düğümü açılıyordu.
  */
 export function resolveStudyToolNode<T extends StudyNodeRef>(
   nodes: T[],
   tool: StudyToolId,
-  topic?: { id?: string | null; label?: string | null },
+  topic?: StudyTopicRef,
 ): T | null {
   const pool = toolPool(nodes, tool);
   if (!pool.length) return null;
-  const topicId = topic?.id?.trim();
-  const label = fold(topic?.label);
-  if (!topicId && !label) {
+  const hasId = Boolean(topic?.id?.trim() || topic?.documentTopicNodeId?.trim());
+  if (!hasId && !fold(topic?.label)) {
     return pool.find((node) => node.status !== "done") ?? pool[0];
   }
-  const exact = pool.filter((node) => {
-    const metaId = node.sessionMeta?.topicId?.trim();
-    if (topicId && metaId && metaId === topicId) return true;
-    return label ? fold(node.sessionMeta?.topicTitle) === label : false;
-  });
-  const mine = exact.length
-    ? exact
-    : pool.filter((node) => (label ? topicLabelsMatch(label, node.sessionMeta?.topicTitle) : false));
+  const mine = pool.filter((node) => nodeOnTopic(node.sessionMeta, topic));
   if (!mine.length) return null;
   return mine.find((node) => node.status !== "done") ?? mine[0];
 }
@@ -237,18 +224,18 @@ export function resolveStudyToolNode<T extends StudyNodeRef>(
  * Konunun kendi düğümü varsa o açılır. Yoksa bu türün hazırlıktaki
  * düğümü açılır ve seçilen konu sorguyla gider. Türün hiç düğümü yoksa
  * karo kapalı kalır: olmayan bir etkinlik uydurulmaz.
+ *
+ * Konuya bağlı ve kurulabilen etkinlikte (`activityCreatable`) hub bunu değil `freeActivityPick`'i kullanır
+ * (30 Ekim 2026): başka konunun düğümü `?konu=` ile açılınca kayıt o konunun adımına yazılıyordu.
  */
 export function openStudyActivity<T extends StudyNodeRef>(
   nodes: T[],
   tool: StudyToolId,
-  topic?: { id?: string | null; label?: string | null },
+  topic?: StudyTopicRef,
 ): { node: T; topicQuery: string | null } | null {
   const label = topic?.label?.trim() || null;
   const matched = resolveStudyToolNode(nodes, tool, topic);
-  if (matched) {
-    const same = !label || topicLabelsMatch(label, matched.sessionMeta?.topicTitle);
-    return { node: matched, topicQuery: same ? null : label };
-  }
+  if (matched) return { node: matched, topicQuery: null };
   if (!label) return null;
   const pool = toolPool(nodes, tool);
   if (!pool.length) return null;
@@ -327,15 +314,18 @@ export function studyPodcastHref(
  */
 export function pickPracticeNodeId(
   nodes: StudyNodeRef[],
-  topicLabel: string | null | undefined,
+  topic: string | StudyTopicRef | null | undefined,
 ): string | null {
-  const label = fold(topicLabel);
-  if (!label) return null;
+  const ref: StudyTopicRef | null = typeof topic === "string" ? { label: topic } : (topic ?? null);
+  const hasId = Boolean(ref?.id?.trim() || ref?.documentTopicNodeId?.trim());
+  if (!ref || (!hasId && !fold(ref.label))) return null;
+  // Kimlik önce (30 Ekim 2026, `topic-identity.ts`); ad yalnız kimlik yoksa birebir.
   const ranked: PlanNodeKind[] = ["quiz", "focused", "lesson"];
   for (const kind of ranked) {
     const hit = nodes.find((node) => {
       if (node.kind !== kind) return false;
-      return fold(node.sessionMeta?.topicTitle) === label;
+      if (hasId && node.sessionMeta?.topicId) return nodeOnTopic(node.sessionMeta, ref);
+      return fold(node.sessionMeta?.topicTitle) === fold(ref.label);
     });
     if (hit) return hit.id;
   }
@@ -381,23 +371,14 @@ export function activityCreatable(tool: StudyToolId): boolean {
   return Object.prototype.hasOwnProperty.call(FREE_PICK_NODE_KINDS, tool);
 }
 
-function ownTopicNode<T extends StudyNodeRef>(
-  nodes: T[],
-  tool: StudyToolId,
-  topic: { id?: string | null; label: string | null },
-): T | null {
+function ownTopicNode<T extends StudyNodeRef>(nodes: T[], tool: StudyToolId, topic: StudyTopicRef): T | null {
   const ownKind = studyToolById(tool).kind;
-  const matched = resolveStudyToolNode(
+  // Konu verilmişse yalnız o konunun düğümü (kimlik önce, `nodeOnTopic`); konu yoksa türün sıradaki düğümü.
+  return resolveStudyToolNode(
     nodes.filter((node) => node.kind === ownKind),
     tool,
-    { id: topic.id, label: topic.label },
+    topic,
   );
-  if (!matched) return null;
-  const same =
-    !topic.label ||
-    topicLabelsMatch(topic.label, matched.sessionMeta?.topicTitle) ||
-    (Boolean(topic.id) && matched.sessionMeta?.topicId === topic.id);
-  return same ? matched : null;
 }
 
 /**
@@ -407,7 +388,7 @@ function ownTopicNode<T extends StudyNodeRef>(
 export function freeActivityPick<T extends StudyNodeRef>(
   nodes: T[],
   prepId: string,
-  topic: { id?: string | null; label?: string | null } | null,
+  topic: StudyTopicRef | null,
   tool: StudyToolId,
   topicOptions: { id: string; label: string }[] = [],
 ): FreeActivityPick {
@@ -420,7 +401,7 @@ export function freeActivityPick<T extends StudyNodeRef>(
   }
   const plan = FREE_PICK_NODE_KINDS[tool] ?? { search: [tool], create: studyToolById(tool).kind as PlanNodeKind };
   for (const search of plan.search) {
-    const matched = ownTopicNode(nodes, search, { id: topic?.id, label });
+    const matched = ownTopicNode(nodes, search, { ...(topic ?? {}), label });
     if (matched) {
       return { ok: true, kind: "node", nodeId: matched.id, href: studyActivityHref(prepId, matched.id, null) };
     }
@@ -443,24 +424,25 @@ export type ActivityInsertNode = {
  */
 export function planActivityInsert(
   nodes: readonly ActivityInsertNode[],
-  topic: { id?: string | null; label: string },
+  topic: StudyTopicRef & { label: string },
   kind: PlanNodeKind,
 ): { afterSort: number; dayIndex: number; sessionMeta: Record<string, unknown>; title: string } {
   const label = topic.label.trim();
+  // Kimlik önce (30 Ekim 2026, `nodeOnTopic`): belgeli hazırlıkta düğüm belge konu düğümünü taşır.
   const ofTopic = nodes
-    .filter((node) => {
-      const meta = node.sessionMeta ?? {};
-      const metaId = typeof meta.topicId === "string" ? meta.topicId : null;
-      const metaTitle = typeof meta.topicTitle === "string" ? meta.topicTitle : null;
-      return (topic.id && metaId === topic.id) || topicLabelsMatch(label, metaTitle);
-    })
+    .filter((node) => nodeOnTopic(node.sessionMeta, { ...topic, label }))
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const source = ofTopic.find((node) => node.kind === "lesson") ?? ofTopic[0] ?? null;
   const last = ofTopic[ofTopic.length - 1] ?? [...nodes].sort((a, b) => b.sortOrder - a.sortOrder)[0] ?? null;
   const meta = source?.sessionMeta ?? {};
   const sessionMeta: Record<string, unknown> = {
     topicTitle: (typeof meta.topicTitle === "string" && meta.topicTitle.trim()) || label,
-    ...(typeof meta.topicId === "string" ? { topicId: meta.topicId } : topic.id ? { topicId: topic.id } : {}),
+    // Konunun hiç düğümü yoksa yolun öbür düğümleriyle aynı biçim: belgeli hazırlıkta belge konu düğümü.
+    ...(typeof meta.topicId === "string"
+      ? { topicId: meta.topicId }
+      : topic.documentTopicNodeId || topic.id
+        ? { topicId: topic.documentTopicNodeId || topic.id }
+        : {}),
     ...(Array.isArray(meta.sourcePages) ? { sourcePages: meta.sourcePages } : {}),
     ...(typeof meta.unitTitle === "string" ? { unitTitle: meta.unitTitle } : {}),
     role: kind === "lesson" ? "learn" : kind === "spaced" ? "review" : "practice",

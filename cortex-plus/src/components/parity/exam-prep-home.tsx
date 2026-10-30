@@ -301,8 +301,8 @@ export function ExamPrepHome({
   topicCount?: number;
   /** Beceri ağacı. Konu düzenleme burada yok; o yalnızca kurulum sihirbazında. */
   topicLabels?: string[];
-  /** Podcast rotasının konu kimliği. Etiket listesinden ayrıdır. */
-  topicOptions?: { id: string; label: string }[];
+  /** Podcast rotasının konu kimliği. Etiket listesinden ayrıdır. Belgeli hazırlıkta ikinci kimlik de (düğümler onu taşır). */
+  topicOptions?: { id: string; label: string; documentTopicNodeId?: string | null }[];
   /** Kaynaklar. Birden fazla belge varsa hepsi; yoksa eski tek belge. */
   materials?: PrepMaterial[];
   /** Ölçülen veri hazır diyorsa true. Bilinmiyorsa null; uydurma yok. */
@@ -478,18 +478,20 @@ export function ExamPrepHome({
 
   const pickTopics = useMemo(() => {
     const seen = new Set<string>();
-    const list: { id: string; label: string }[] = [];
-    function add(id: string, label: string) {
+    // `id` seçicinin anahtarı; gerçek kimlik yoksa (`labelOnly`) eşleşme adla yapılır — ad kimlik sanılmasın
+    // (30 Ekim 2026, `topic-identity.ts`: iki tarafta kimlik varsa kimlik karar verir).
+    const list: { id: string; label: string; documentTopicNodeId?: string | null; labelOnly?: boolean }[] = [];
+    function add(id: string | null | undefined, label: string, documentTopicNodeId: string | null = null) {
       const key = label.trim().toLocaleLowerCase("tr-TR");
       if (!key || seen.has(key)) return;
       seen.add(key);
-      list.push({ id: id || key, label: label.trim() });
+      list.push(id ? { id, label: label.trim(), documentTopicNodeId } : { id: key, label: label.trim(), labelOnly: true });
     }
-    for (const topic of topicOptions) add(topic.id, topic.label);
-    for (const label of topicLabels) add(label, label);
+    for (const topic of topicOptions) add(topic.id, topic.label, topic.documentTopicNodeId ?? null);
+    for (const label of topicLabels) add(null, label);
     for (const node of nodes) {
       const label = node.sessionMeta?.topicTitle;
-      if (label) add(node.sessionMeta?.topicId || label, label);
+      if (label) add(node.sessionMeta?.topicId || null, label);
     }
     return list;
   }, [topicOptions, topicLabels, nodes]);

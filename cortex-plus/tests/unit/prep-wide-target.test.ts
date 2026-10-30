@@ -153,8 +153,18 @@ describe("retargetNodeTopic", () => {
     const fake = fakeSupabase(prepHandler());
     const result = await retargetNodeTopic(fake.service as never, { ...input, kind: "flashcards", requestedTopic: "Basınç" });
     expect(result).toMatchObject({ topic: { id: "t2" }, reason: "requested" });
-    // Sözlüde etiket birden çok konu taşıyabilir: dokunulmaz.
-    expect(await retargetNodeTopic(fake.service as never, { ...input, kind: "oral", requestedTopic: "Basınç" })).toBeNull();
+    // Sözlü de (30 Ekim 2026): tek konu seçildiyse o konunun kaydı; birleşik "A, B" adı hiçbir konuya eşleşmez.
+    expect(await retargetNodeTopic(fake.service as never, { ...input, kind: "oral", requestedTopic: "Basınç" })).toMatchObject({
+      topic: { id: "t2" },
+      reason: "requested",
+    });
+    expect(
+      await retargetNodeTopic(fake.service as never, { ...input, kind: "oral", requestedTopic: "Isı ve sıcaklık, Basınç" }),
+    ).toBeNull();
+    // Kimlikle (konu seçicinin kimliği): ad yerine kimlik çözülür; belge konu düğümü kimliği de tanınır.
+    expect(
+      await retargetNodeTopic(fake.service as never, { ...input, kind: "oral", requestedTopic: "Başka ad", requestedTopicId: "t2" }),
+    ).toMatchObject({ topic: { id: "t2" }, metaTopicId: "dn2", reason: "requested" });
   });
 
   it("hedef zaten düğümün konusuysa, kayıt yoksa ya da zayıf konu yoksa değişiklik yok", async () => {

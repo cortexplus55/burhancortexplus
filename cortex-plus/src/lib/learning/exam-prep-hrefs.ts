@@ -30,6 +30,28 @@ export function examPrepSavedReviewHref(prepId: string, nodeId: string) {
   return `${examPrepNodeHref(prepId, nodeId)}?incele=1`;
 }
 
+/**
+ * "Farklı anlat": bitmiş dersin yeni bir anlatımı yazılır (ücretli). Açık seçim (30 Ekim 2026): bitmiş dersin düz adresi
+ * artık kayıtlı dersi açar; canlı turda yer imiyle açılan adres "Ders oluştur" gösterip uyarısız yeni ders yazdırmıştı.
+ */
+export function examPrepLessonRewriteHref(prepId: string, nodeId: string) {
+  return `${examPrepNodeHref(prepId, nodeId)}?farkli=1`;
+}
+
+/**
+ * Bitmiş ders düğümünün adresi doğrudan açıldı mı (`?incele=1`, `?tekrar=1`, `?farkli=1` ya da `?konu=` yok): kayıtlı
+ * hâliyle açılır, yeni yazım yalnız "Farklı anlat" ile. Öbür türler değişmedi.
+ */
+export function opensSavedLesson(input: {
+  kind: string;
+  status: string | null | undefined;
+  query: { incele?: string; tekrar?: string; farkli?: string; konu?: string };
+}): boolean {
+  if (input.query.incele === "1") return true;
+  if (input.kind !== "lesson" || input.status !== "done") return false;
+  return input.query.tekrar !== "1" && input.query.farkli !== "1" && !input.query.konu?.trim();
+}
+
 /** Bitmiş etkinliğin sonucu (Astra: "Sonuçları gör" önceki sonucu açar, etkinliği baştan kurmaz). */
 export function examPrepNodeResultHref(prepId: string, nodeId: string) {
   return `/deneme-sinavlari/${prepId}/dugum/${nodeId}/sonuc`;

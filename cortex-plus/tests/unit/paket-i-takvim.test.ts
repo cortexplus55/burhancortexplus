@@ -206,8 +206,8 @@ describe("Paket I · uzun plan (230 gün)", () => {
     });
     const pace = view.pace!;
     expect(pace.lessonsToTarget).toBe(7);
-    // Planın 7. kalan dersi (ders, kartlarla tekrar, odaklı pratik, zayıf nokta) hangi gündeyse o.
-    const lessonKinds = new Set<PlanNodeKind>(["lesson", "focused", "gaps", "spaced"]);
+    // Planın 7. kalan dersi hangi gündeyse o. 30 Ekim 2026'dan beri yalnız ders düğümü ders sayılır (`LESSON_KINDS`).
+    const lessonKinds = new Set<PlanNodeKind>(["lesson"]);
     const planned = nodes
       .filter((node) => lessonKinds.has(node.kind) && node.status !== "done")
       .map((node) => Math.max(0, daysBetween("2026-10-23", node.sessionMeta!.calendarDate!)) + 1)
