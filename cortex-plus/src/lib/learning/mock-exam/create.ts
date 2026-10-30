@@ -35,6 +35,7 @@ import { logMockExamWave } from "@/lib/learning/mock-exam/topup";
 import { modelForAttempt } from "@/lib/learning/model-ladder";
 import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities";
 import { studentOptionCount, type OptionCount } from "@/lib/learning/student-pedagogy";
+import { topicWeightsFromText } from "@/lib/learning/mock-exam/weights-from-text";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -251,9 +252,12 @@ export async function loadMockExamSetup(
   const syllabusText = await loadSyllabusSnippet(service, userId, prepId);
   const syllabus = parseExamFormatFromText(syllabusText);
   const excluded = exclusionTitles(syllabusText);
+  // Kayıtta ağırlık yoksa belgedeki "Yevmiye %35" (30 Ekim 2026, Paket I #4); kurulum ve üretim aynı yükleyiciyi okur.
+  const textWeights = topicWeightsFromText(syllabusText, topics.map((t) => t.label));
   const slots: MockTopicSlot[] = topics.map((t) => {
     const slot = slotFromTopicRow({ id: t.id, label: t.label, sourceRefs: t.source_refs });
     slot.outOfScope = excluded.some((ex) => titlesAlign(ex, t.label));
+    if (slot.weightPercent == null && textWeights.has(t.label)) slot.weightPercent = textWeights.get(t.label)!;
     return slot;
   });
   return { slots, syllabus, syllabusText };

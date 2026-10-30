@@ -90,3 +90,22 @@ describe("sözlü tüm sınav aynı seçim işlevini kullanır", () => {
     expect(weighted).toContain("Heap");
   });
 });
+
+describe("belgedeki sınav ağırlığı konulara eşlenir", () => {
+  it("tahtadaki ağırlıklar ipucuyla eşlenir; vergi oranı ağırlık sayılmaz", async () => {
+    const { topicWeightsFromText } = await import("@/lib/learning/mock-exam/weights-from-text");
+    const board = "Vize konu ağırlıkları\nYevmiye defteri %35\nBüyük defter %20\nMizan %15";
+    const weights = topicWeightsFromText(board, ["Yevmiye defteri", "Büyük defter", "Mizan", "KDV"]);
+    expect(Object.fromEntries(weights)).toEqual({ "Yevmiye defteri": 35, "Büyük defter": 20, Mizan: 15 });
+    expect(topicWeightsFromText("KDV oranı %20 olarak uygulanır.", ["KDV"]).size).toBe(0);
+    expect(topicWeightsFromText("Finalde Graf soruları %40 ağırlıkla çıkar.", ["Graf algoritmaları"]).get("Graf algoritmaları")).toBe(40);
+    // Toplam %100'ü belirgin aşıyorsa yüzdeler ağırlık değil.
+    expect(topicWeightsFromText("Sınav istatistiği: Anayasa %80, İdare %70", ["Anayasa", "İdare"]).size).toBe(0);
+  });
+
+  it("kurulum ve üretimin ortak yükleyicisi kayıtta ağırlık yoksa belgeden doldurur", () => {
+    const create = readFileSync("src/lib/learning/mock-exam/create.ts", "utf8");
+    expect(create).toContain("const textWeights = topicWeightsFromText(syllabusText, topics.map((t) => t.label));");
+    expect(create).toContain("if (slot.weightPercent == null && textWeights.has(t.label))");
+  });
+});
