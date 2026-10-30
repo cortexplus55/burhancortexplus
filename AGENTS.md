@@ -1615,7 +1615,13 @@ fotoğraf), bütün uç senaryolar tek mimaride; tek büyük PDF'te de 20 sn'de 
 | Sayfa kaydında gömme çağrıları 3 şeritte (ilk hatada öbür şeritler yeni parça yazmaz) | `pdf-ingestion.ts` `saveBatch` |
 | **Okunamayan sayfanın ücreti alınmaz**: belge bitince okunamayan sayfa varsa sayfa ücretinin ayrılan kısmı iade edilir, yalnız okunan sayfa kadar kesilir (`document_pages_read_<belge>`); taranmış sayfa ücreti zaten yalnız okunandan. Sekme kapanırsa ayrılan ücret beklemede kalır (iş sürünce kesinleşir, sürmezse takılı ayırma temizliği iade eder) | `process/route.ts` `commitDocumentCredits` |
 
-Bekçi: `evrensel-yukleme.test.tsx` (yeniden deneme, motor, ekran kilidi, baş kopyası, kısa harita, Office paralel, ücret, kapılar).
+**Depolama anahtarı ASCII (31 Ekim 2026, canlı ölçümde bulundu):** Supabase Storage "ğ, ı, ş, ü, –" taşıyan anahtarı
+"Invalid key" ile reddediyor (doğrudan denendi). Yol dosya adından kurulduğu için adında Türkçe harf olan **her** dosya
+imzalı yüklemenin son adımında düşüyor, belge "boyutu doğrulanamadı" ile siliniyordu: canlıda son 400 belgenin hiçbirinin
+yolunda Türkçe harf yoktu. `safeDocumentName` yolu ASCII'ye çevirir (Türkçe harf karşılığıyla, tire, geri kalan "_");
+öğrencinin gördüğü ad (`file_name`) aynen kalır.
+
+Bekçi: `evrensel-yukleme.test.tsx` (yeniden deneme, motor, ekran kilidi, baş kopyası, kısa harita, Office paralel, ücret, kapılar, depo anahtarı).
 
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 

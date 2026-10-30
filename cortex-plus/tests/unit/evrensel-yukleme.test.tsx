@@ -315,3 +315,19 @@ describe("bütün yükleme kapıları aynı motorda", () => {
     }
   });
 });
+
+describe("depolama anahtarı ASCII", () => {
+  it("Türkçe harfli ve tireli ad depoda geçerli anahtar olur; görünen ad değişmez", async () => {
+    const { safeDocumentName } = await import("@/lib/documents/store-upload");
+    // Canlıda Supabase Storage "Invalid key" dedi: bu adla hiçbir belge yüklenemiyordu (31 Ekim 2026).
+    expect(safeDocumentName("Ders Notu Fotoğrafları (Sayfa 1–10).pdf")).toBe("Ders Notu Fotograflari (Sayfa 1-10).pdf");
+    expect(safeDocumentName("Biyoloji Ünite 3 — Şekiller.pdf")).toBe("Biyoloji Unite 3 - Sekiller.pdf");
+    expect(safeDocumentName("İstanbul’un Fethi.docx")).toBe("Istanbul_un Fethi.docx");
+    expect(safeDocumentName(String.raw`a/b\c.pdf`)).toBe("a_b_c.pdf");
+    expect(safeDocumentName("日本語.pdf")).toBe("___.pdf");
+    expect(safeDocumentName("")).toBe("belge");
+    for (const name of ["Çağrı Şükrü Öğün.pdf", "ğüşiöçĞÜŞİÖÇ.png"]) {
+      expect(safeDocumentName(name)).toMatch(/^[A-Za-z0-9_!\-.*'() &$@=;:+,?]+$/);
+    }
+  });
+});
