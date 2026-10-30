@@ -5,7 +5,24 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Star, Swords } from "lucide-react";
 import { toast } from "sonner";
-import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
+// Dayanıklı kayıt (30 Ekim 2026, Paket I): zaman aşımı, yeniden deneme, tarayıcı taslağı ve
+// bitirme yoklaması. Eski tek `fetch` askıda kalınca ekran dakikalarca kilitleniyordu.
+import {
+  COMPLETE_TIMEOUT_MS,
+  fetchWithRetry,
+  isTransportFailure,
+  SAVE_RETRY_DELAYS_MS,
+  SAVE_TIMEOUT_MS,
+} from "@/lib/learning/retry-fetch";
+import {
+  answerSaveSummary,
+  clearAttemptDraft,
+  diffAnswerKeys,
+  markAttemptDraftSaved,
+  mergeDraftIntoServer,
+  readAttemptDraft,
+  writeAttemptDraft,
+} from "@/lib/learning/attempt-draft";
 import {
   describeGenerationFailure,
   generationFailureCode,
@@ -181,6 +198,30 @@ type Payload = {
 
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
 const LESSON_PROGRESS_POLL_MS = 1_500;
+/** Yazılı cevap her tuşta kayıt açmasın: son tuştan bu kadar sonra tek istek (bitirme hemen gönderir). */
+const SAVE_DEBOUNCE_MS = 400;
+/** Bitirme yanıtı gelmeyince (zaman aşımı, ağ, sunucuda sözlü notlandırma) kaydın durumu bu aralıkla sorulur. */
+const RESULT_POLL_MS = 3_000;
+/** Bu kadar süre sonuç gelmezse "Yeniden dene" düğmesi çıkar; yoklama sürer. */
+const RESULT_LATE_MS = 5 * 60_000;
+/** Yoklama "kayıt hâlâ açık" derse bitirme en erken bu aralıkla yeniden gönderilir. */
+const RECOMPLETE_MIN_GAP_MS = 60_000;
+
+/** Tarayıcı deposu: gizli pencerede ya da engellenmiş site verisinde erişim fırlatabilir. */
+function browserStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Sıradaki kayıt işi: en son cevap kümesi; arada gelenler buna katlanır (coalesce). */
+type SaveJob = {
+  answers: Record<string, unknown>;
+  cursor: number;
+  settlers: { resolve: () => void; reject: (error: unknown) => void }[];
+};
 
 /** Kredi kapısının ne söyleyeceği: cümle, dolan ücretsiz sayaç ya da Plus'taki iş. */
 export type NodeGate = {
@@ -324,6 +365,8 @@ export function ExamNodeSession({
     | "play"
     | "result"
     | "restoring"
+    /** Bitirme gönderildi, sonuç bekleniyor: sunucu notluyor ya da yanıt ulaşmadı (30 Ekim 2026). */
+    | "grading"
     | "oral-topics"
     | "oral-customize"
     | "oral-review-time"
@@ -442,21 +485,46 @@ export function ExamNodeSession({
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
-  const saveQueue = useRef(createSerialTaskQueue());
+  /**
+   * Kayıt kuyruğu (30 Ekim 2026): tek etkin istek, en çok bir bekleyen iş. Yeni cevap gelince
+   * bekleyen işin cevap kümesi yenisiyle değişir (arada gelenler katlanır); etkin istek askıdaysa
+   * iptal edilip en son küme gönderilir. Eski sıralı kuyruk askıdaki isteğin arkasında birikiyordu.
+   */
+  const saveRef = useRef<{ queued: SaveJob | null; active: AbortController | null }>({ queued: null, active: null });
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Kayıt kimlikleri senkron okunur: açılışta taslak birleştirmesi state güncellenmeden kaydeder. */
+  const attemptIdRef = useRef<string | null>(null);
+  const generationIdRef = useRef<string | null>(null);
+  /** Sunucunun onayladığı son cevap kümesi; çıkış özeti ve beforeunload bundan sayar. */
+  const savedAnswersRef = useRef<Record<string, unknown>>({});
   const [pendingSaves, setPendingSaves] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Sunucuda olmayan cevap sayısı; yalnız bu varken sayfadan çıkış uyarılır. */
+  const [unsavedCount, setUnsavedCount] = useState(0);
+  /** Açılışta taslaktan geri yüklenen cevap sayısı (bilgi satırı). */
+  const [draftRestored, setDraftRestored] = useState(0);
+  /** × basıldı ama kaydedilmemiş cevap var: özet ve seçenekler. */
+  const [exitPrompt, setExitPrompt] = useState(false);
+  /** Sonuç bekleme: ne zamandan beri; geç kaldıysa "Yeniden dene" çıkar. */
+  const [gradingSince, setGradingSince] = useState<number | null>(null);
+  const [gradingLate, setGradingLate] = useState(false);
+  /** Arka plan yoklaması (sonucu anında gösterilen test/doğru-yanlışta ekran değişmez). */
+  const [resultPolling, setResultPolling] = useState<{ moveStage: boolean } | null>(null);
+  const lastCompleteSentRef = useRef(0);
   const contentVersionRef = useRef(1);
   const answersRef = useRef<Record<string, unknown>>({});
 
   const isTimedExam = kind === "written_exam";
   const [timeLeft, setTimeLeft] = useState(15 * 60);
 
+  // Sayfadan çıkış uyarısı yalnız gerçekten kaydedilmemiş cevap varken (30 Ekim 2026): kayıt süren
+  // ya da düşen cevaplar. Sonuç beklenirken cevaplar sunucuda, uyarı yok.
   useEffect(() => {
-    if (!pendingSaves && !saveError) return;
+    if (!(pendingSaves > 0 || unsavedCount > 0) || stage === "grading" || stage === "result") return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [pendingSaves, saveError]);
+  }, [pendingSaves, unsavedCount, stage]);
 
   useEffect(() => {
     contentVersionRef.current = contentVersion;
@@ -496,6 +564,14 @@ export function ExamNodeSession({
           applyStartPayload(data);
           setPlayStartedAt(Date.now());
           setStage("play");
+          return;
+        }
+        // Bitirme gönderilmiş, sunucu hâlâ notluyor (sözlü): sorulara dönülmez, sonuç beklenir.
+        // Eskiden açık kayıt "kaldığı yer" diye son sorudan açılıyor, ikinci bir bitirme gidiyordu.
+        if (res.ok && data.grading === true && typeof data.attemptId === "string") {
+          attemptIdRef.current = data.attemptId;
+          setAttemptId(data.attemptId);
+          enterGradingWait(true);
           return;
         }
         if (kind === "written_exam") {
@@ -633,20 +709,50 @@ export function ExamNodeSession({
     voiceMode?: boolean;
     expiresAt?: string | null;
     timeLeftSec?: number;
+    /** Sunucu kaydının son yazımı; tarayıcı taslağı bundan yeniyse taslak üstün. */
+    updatedAt?: string | null;
   }) {
     setPayload(data.payload ?? {});
     setAttemptId(data.attemptId ?? null);
+    attemptIdRef.current = data.attemptId ?? null;
     setGenerationId(data.generationId ?? null);
+    generationIdRef.current = data.generationId ?? null;
     if (data.clientRequestId) setClientRequestId(data.clientRequestId);
     const ver = data.contentVersion ?? 1;
     setContentVersion(ver);
     contentVersionRef.current = ver;
-    if (data.answers && typeof data.answers === "object") {
-      setAnswers(data.answers);
-      answersRef.current = data.answers;
+    const serverAnswers =
+      data.answers && typeof data.answers === "object" ? (data.answers as Record<string, unknown>) : {};
+    savedAnswersRef.current = serverAnswers;
+    let nextAnswers = serverAnswers;
+    let nextCursor = typeof data.cursorIndex === "number" ? data.cursorIndex : 0;
+    // Tarayıcı taslağı (30 Ekim 2026): kayıt isteği askıda kalıp sayfa yenilendiyse cevaplar burada.
+    // Sunucu kaydı taslaktan eskiyse taslağın anahtarları üstün gelir ve hemen kaydedilir.
+    if (resumeEnabled && data.attemptId) {
+      const merged = mergeDraftIntoServer(
+        { answers: serverAnswers, cursor: nextCursor, updatedAt: data.updatedAt ?? null },
+        readAttemptDraft(browserStorage(), data.attemptId),
+      );
+      if (merged.restored.length) {
+        nextAnswers = merged.answers;
+        nextCursor = merged.cursor;
+        setDraftRestored(merged.restored.filter((key) => /^\d+$/.test(key)).length || merged.restored.length);
+        toast.message("Kaydedilmemiş cevapların geri yüklendi.");
+      }
     }
-    if (typeof data.cursorIndex === "number") {
-      setIndex((current) => Math.max(current, data.cursorIndex ?? 0));
+    if (data.answers && typeof data.answers === "object") {
+      setAnswers(nextAnswers);
+      answersRef.current = nextAnswers;
+    } else if (nextAnswers !== serverAnswers) {
+      setAnswers(nextAnswers);
+      answersRef.current = nextAnswers;
+    }
+    refreshUnsaved(nextAnswers);
+    if (typeof data.cursorIndex === "number" || nextAnswers !== serverAnswers) {
+      setIndex((current) => Math.max(current, nextCursor));
+    }
+    if (nextAnswers !== serverAnswers) {
+      void persistAnswers(nextAnswers, nextCursor).catch(() => undefined);
     }
     if (typeof data.voiceMode === "boolean") setVoiceMode(data.voiceMode);
     if (typeof data.timeLeftSec === "number") {
