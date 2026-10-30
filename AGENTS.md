@@ -1519,11 +1519,12 @@ sohbet, soru çözücü, düello ve Araçlar tek tek denendi (iki tur: ben ve bi
 | İlerleme ölçümle tutmuyordu ("Para Politikası 3 çözüldü" sözlü yanlış adımdaydı; Miktar Teorisi denemede çözülmüşken 0; "2 ders" yalnız 1 ders varken) | "N çözüldü", yüzde ve durum **kanıttan** (`masteryByPlannedTopic`; ad varyantları aynı konuya); etkinliğin konusu önce içeriğin sorduğu konudan, sonra kaydın konu satırından, en son düğümden. "x/N konu ölçüldü" İlerleme sekmesinde de. **"Ders" yalnız ders düğümü** (kartlarla tekrar, odaklı pratik, zayıf nokta sayılmaz; tempo ve "N ders daha" da) | `prep-progress-view.ts`, `prep-insights-load.ts`, `learning-tracking-persist.ts`, `exam-prep-progress.tsx` |
 | Bitmiş dersin düz adresi "Ders oluştur" gösterip uyarısız yeni ders yazdırdı (ısınma da arkada yazım başlatıyordu) | Bitmiş dersin düz adresi kayıtlı dersi kredisiz açar (`opensSavedLesson`); yeni anlatım yalnız `?farkli=1` ("Farklı anlat", sonuç sayfası ve "kayıt bulunamadı" kartı) | `exam-prep-hrefs.ts`, `dugum/[nodeId]/page.tsx` |
 | **"Tekrar incele" sonunda ders sonuç ekranı yerine 1. adımdan yeniden açıldı** ("Dersi tekrarla"da da aynı) | Ders bitince `router.refresh()` sunucu özelliklerini yeniliyor; `openAttempt` ve (bitmiş dersin düz adresinde) `reviewSaved` değişince açılış etkisi yeniden koşup `start({ review: true })` diyordu. **Açılış düğüm başına bir kez** (`openedForRef`); yarıda kesilen açılış yeniden koşabilir, tamamlanan koşmaz; özellik kapalı yol da aynı korumada. Yeni ders bitince sonuç ekranı kayıtlı derse dönmez | `exam-node-session.tsx` |
+| "Tekrar incele" ve "Dersi tekrarla" her bitişte yeni yıldız veriyordu (yıldız deneme kimliğiyle; tekrar her seferinde yeni deneme açıyor) | Kayıtlı içeriğin tekrarı (`reviewed` / `replayed`) düğüm başına **günde bir kez** yıldız (`prepStarRef`: `review:<düğüm>:<İstanbul günü>`); yeni yazılan içerik eskisi gibi deneme başına | `stars/rules.ts`, node rotası |
 
 Değişmeyen (bilerek): Araçlar'daki "İnteraktif Simülasyonlar" sekmesi onaylı 12 araçtan üçü (birim çember, parabol,
 hücre); kapalı tutulan /lab ile çelişmez.
 
 Bekçi: `konu-kimligi.test.ts`, `canli-tur-30-ekim.test.ts`, `podcast-hazir-yol.test.ts`, `duello-geri-sayim.test.tsx`,
-`video-tahta-30-ekim.test.tsx`, `arayuz-30-ekim.test.tsx`, `olcum-konu-bagi.test.tsx`, `acilis-bir-kez.test.tsx`.
+`video-tahta-30-ekim.test.tsx`, `arayuz-30-ekim.test.tsx`, `olcum-konu-bagi.test.tsx`, `acilis-bir-kez.test.tsx`, `tekrar-yildiz.test.ts`.
 
 Açık (göçsüz): eski sözlü yanılgı satırları eski konu adıyla duruyor; hazırlık yüzdesi (`buildLearningIndicators`) ad varyantlı eski kanıtı birleştirmiyor (yeni kanıt doğru adla yazılır).
