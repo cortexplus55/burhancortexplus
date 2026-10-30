@@ -25,6 +25,8 @@ const GENERIC_WORDS = [
   "işlem", "nitelik", "unsur", "öğe", "öge", "ögesi", "öğesi", "bölüm", "kısım", "yön", "yönü", "alan", "alanı",
   "kişi", "ad", "adı", "aşama", "adım", "aşağıdakilerden", "hangisi", "hangileri", "şunlardan", "olgu", "türüdür",
   "değil", "var", "yok", "türden", "sınıf", "sınıfı",
+  // Ünsüz yumuşaması ve iyelikli biçimler ("maliyet örneğidir" örnek sorar, tür değil).
+  "örneği", "çeşidi", "tip", "tipi", "biçimi", "şekli",
 ];
 const GENERIC_KEYS = new Set(GENERIC_WORDS.map((word) => word.slice(0, 5)));
 
@@ -100,6 +102,43 @@ function carriesKind(option: string, kind: string): boolean {
   return fold(option)
     .split(/[^\p{L}]+/u)
     .some((word) => word.length >= 3 && word.slice(0, 5) === kind);
+}
+
+/** Sözcüklerin beş harflik kök dizisi ("Ayakkabı eskitme maliyetleri" → "ayakk eskit maliy"). */
+function rootSequence(text: string): string {
+  return fold(text)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word.length >= 2)
+    .map((word) => word.slice(0, 5))
+    .join(" ");
+}
+
+/**
+ * Uydurma kardeş (30 Ekim 2026, canlı Araçlar testi, #426 yayındayken): "hangi maliyet örneğidir?" sorusunda kaynakta
+ * yalnız iki enflasyon maliyeti vardı; yazar türden olmayan çeldiricileri atınca şıkları "Açık piyasa maliyeti",
+ * "Reeskont maliyeti", "Politika faizi maliyeti" diye UYDURDU (başka türden kavram + tür adı). Belgeli testte, tür adını
+ * taşıyan bir çeldiricinin bütün öbeği kaynakta hiç geçmiyorsa ve doğru cevabın öbeği geçiyorsa o şık uydurma sayılır.
+ * Kaynak yoksa, tür adı okunamıyorsa ya da doğru cevap kaynakta geçmiyorsa susar.
+ */
+export function inventedKindSiblings(input: {
+  stem: string;
+  options: readonly string[];
+  correctIndex: number;
+  context: string;
+}): string[] {
+  const kind = askedKind(input.stem);
+  const correct = input.options[input.correctIndex];
+  if (!kind || !correct || !input.context.trim()) return [];
+  if (!carriesKind(correct, kind)) return [];
+  const source = ` ${rootSequence(input.context)} `;
+  const inSource = (option: string) => {
+    const phrase = rootSequence(option);
+    return phrase.length > 0 && source.includes(` ${phrase} `);
+  };
+  if (!inSource(correct)) return [];
+  return input.options.filter(
+    (option, index) => index !== input.correctIndex && carriesKind(option, kind) && !inSource(option),
+  );
 }
 
 /**
