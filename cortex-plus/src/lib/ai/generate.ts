@@ -28,6 +28,7 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { withTransientRetry } from "@/lib/ai/transient-retry";
 import { visionImage } from "@/lib/ai/vision";
 import { billedModel } from "@/lib/learning/teacher-tier";
+import { isReasoningModel } from "@/lib/ai/model-params";
 
 export const SYSTEM_GUARDRAIL =
   "Sen Cortex Plus eğitim asistanısın. Türkçe yanıt ver. Yalnızca eğitim amaçlı içerik üret. " +
@@ -94,6 +95,11 @@ type GenerateJsonParams<T> = {
    * konu haritası.
    */
   fast?: boolean;
+  /**
+   * Akıl yürüten modelde düşünme düzeyi (`reasoning_effort`); yoksa modelin varsayılanı. 31 Ekim 2026: kurulumda öğrenci
+   * beklerken konu haritası "low" ile çağrılır (65 sayfalık notta 9.488 çıktı jetonunun çoğu düşünmeydi).
+   */
+  reasoningEffort?: "low" | "medium" | "high";
   /** Called as streamed draft text accumulates (throttled by the caller). */
   onPartialContent?: (text: string) => void;
   /**
@@ -253,6 +259,8 @@ export async function generateJson<T>(
   const actionCode = selected.actionCode;
   const model = params.modelOverride?.trim() || selected.model;
   const tier = params.fast ? ({ service_tier: "fast" } as const) : {};
+  const effort =
+    params.reasoningEffort && isReasoningModel(model) ? { reasoning_effort: params.reasoningEffort } : {};
   /** Taslağın gerçekten hızlı işlemde mi koştuğu (sağlayıcı yükte normal işleme düşebilir). */
   let servedTier: string | null = null;
 
@@ -586,6 +594,7 @@ export async function generateJson<T>(
                   {
                     model,
                     ...tier,
+                    ...effort,
                     stream: true,
                     stream_options: { include_usage: true },
                     response_format: responseFormat,
@@ -620,6 +629,7 @@ export async function generateJson<T>(
                 {
                   model,
                   ...tier,
+                  ...effort,
                   response_format: responseFormat,
                   messages: draftMessages,
                 },

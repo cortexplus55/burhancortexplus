@@ -508,6 +508,7 @@ export async function POST(request: Request) {
       // Kurulumda öğrenci haritayı bekliyor (31 Ekim 2026): Plus/Sigma ve kurucuda hızlı işlem. Hazırlığa sonradan
       // eklenen materyal (prepId) arkada haritalanır, normal işlemde kalır.
       fast: Boolean(course) && !parsed.data.prepId && await fastAllowedFor(service, userId),
+      urgent: Boolean(course) && !parsed.data.prepId,
     });
     if (mapped.deferred) {
       // The wizard's course outline will cover this file.

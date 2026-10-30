@@ -750,6 +750,8 @@ export async function runCourseMapRound(
     rebuild?: boolean;
     /** Öğrenci kurulumda haritayı bekliyor ve hızlı işlem açık (Plus/Sigma, kurucu). */
     fast?: boolean;
+    /** Öğrenci kurulumda haritayı bekliyor (her hesap): harita çağrıları düşük düşünmeyle. */
+    urgent?: boolean;
   },
 ): Promise<CourseMapResult> {
   const now = input.now ?? Date.now;
@@ -929,6 +931,7 @@ export async function runCourseMapRound(
               deadlineAt: deadlineAt - POST_CALL_RESERVE_MS,
               now,
               fast: input.fast === true,
+              urgent: input.urgent === true,
               keyFor: (stage, part) =>
                 `outline:${courseId}:${material.contentHash}:${meta!.attemptId}:${stage}${part ? `:part${part}` : ""}`,
               onCallStart: async (keys) => {

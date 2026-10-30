@@ -377,6 +377,59 @@ export function skeletonExclusions(files: SkeletonFile[]): string[] {
 }
 
 /**
+ * Kapsamı ölçülen başlıklar: kendi öğretimi olan, kapsam içi, alt başlığı olmayan bölümler. Ön/arka madde, özet/tekrar
+ * ve belgenin kapsam dışı dediği başlık (`excluded`) sayılmaz.
+ */
+export function measuredSkeletonHeadings(
+  skeleton: DocumentSkeleton,
+  exclusions: readonly string[] = [],
+): { measured: SkeletonHeading[]; excluded: string[] } {
+  const excluded: string[] = [];
+  const measured: SkeletonHeading[] = [];
+  for (const heading of skeleton.headings) {
+    const substantive =
+      heading.teaching || (heading.sources.includes("toc") && heading.bodyChars >= SWALLOWED_BODY_MIN);
+    if (!substantive || heading.parent || heading.documentTitle) continue;
+    const folded = foldTr(heading.title).replace(/[^a-z0-9 ]+/g, " ").trim();
+    if (FRONT_BACK_MATTER.test(folded) || isNonContentSection(heading.title) || isSatelliteSection(heading.title)) continue;
+    if (excludedBy(heading.title, exclusions)) {
+      excluded.push(heading.title);
+      continue;
+    }
+    measured.push(heading);
+  }
+  return { measured, excluded };
+}
+
+/** İlk istemde en çok bu kadar başlık listelenir (istem kısa kalsın). */
+export const SKELETON_PROMPT_MAX_HEADINGS = 70;
+
+/**
+ * İlk harita isteminde belgenin kendi başlıkları (31 Ekim 2026). Kapsam haritadan SONRA ölçülüyordu; yutulan her başlık
+ * ikinci bir model çağrısı ("patch") açıyordu: 30 fotoğraflık notta harita 22 konuda tek hata vermedi ama 11 başlık
+ * yutuldu, öğrenci ikinci çağrıyı da bekledi. Liste baştan verilince model aynı çağrıda kapsar; ölçü değişmedi.
+ * Konu sınırı (`maxTopics`) başlık sayısından azsa model komşu başlıkları birleştirir ve ikisini de konu adında geçirir
+ * (`headingNamedIn` ikisini de temsil edilmiş sayar).
+ */
+export function skeletonPromptBlock(
+  skeleton: DocumentSkeleton,
+  options: { exclusions?: readonly string[]; maxTopics: number },
+): string {
+  const { measured } = measuredSkeletonHeadings(skeleton, options.exclusions ?? []);
+  if (measured.length < 2) return "";
+  const lines = measured.slice(0, SKELETON_PROMPT_MAX_HEADINGS).map((heading) => {
+    const start = Math.min(...heading.pages);
+    const end = Math.max(...heading.pages);
+    return `- ${heading.label} [d${heading.fileIndex + 1} s.${start === end ? start : `${start}-${end}`}]`;
+  });
+  const fits = measured.length <= options.maxTopics;
+  const rule = fits
+    ? "Her biri ayrı bir konu olsun (kendi sayfa aralığıyla); bir başlığı başka konunun içinde eritme."
+    : `Başlık sayısı konu sınırından (${options.maxTopics}) fazla: aynı ünitedeki komşu başlıkları tek konuda birleştir. Konu adı kısa ve doğal olsun (en çok 8 kelime, noktalı virgül yok, başlıkları uç uca ekleme) ama birleştirdiğin başlıkların ana kelimelerini taşısın.`;
+  return `\n\nBELGENİN KENDİ BAŞLIKLARI (kod belgeden çıkardı; kendi öğretimi olan bölümler, belge sırasıyla):\n${lines.join("\n")}\n${rule} Sayfa aralıklarını bu listeyle ve [d? s.N] işaretleriyle doğrula. Listede olmayan başlık da konu olabilir.`;
+}
+
+/**
  * Başlık düzeyinde kapsam. Bir iskelet başlığı şu üç durumda temsil edilir:
  *   1. haritada ayrı konu: aynı dosyada sayfaları bu bölümde başlayan ve çoğu bu bölümde olan bir konu
  *      (model başlığı başka adla yazmış olabilir);
@@ -404,20 +457,7 @@ export function skeletonCoverage(
     if (phrase) excludedTopics.push({ title: topic.title, phrase });
   }
 
-  const excludedHeadings: string[] = [];
-  const measuredHeadings: SkeletonHeading[] = [];
-  for (const heading of skeleton.headings) {
-    const substantive =
-      heading.teaching || (heading.sources.includes("toc") && heading.bodyChars >= SWALLOWED_BODY_MIN);
-    if (!substantive || heading.parent || heading.documentTitle) continue;
-    const folded = foldTr(heading.title).replace(/[^a-z0-9 ]+/g, " ").trim();
-    if (FRONT_BACK_MATTER.test(folded) || isNonContentSection(heading.title) || isSatelliteSection(heading.title)) continue;
-    if (excludedBy(heading.title, exclusions)) {
-      excludedHeadings.push(heading.title);
-      continue;
-    }
-    measuredHeadings.push(heading);
-  }
+  const { measured: measuredHeadings, excluded: excludedHeadings } = measuredSkeletonHeadings(skeleton, exclusions);
 
   // 1. Ayrı konu: konunun ilk sayfası bölümün içinde ve sayfalarının yarısı bu bölümde. Her konu bir
   //    bölümün yerini tutar (adı uyan bölüm, yoksa o sayfada başlayan ilk bölüm).
