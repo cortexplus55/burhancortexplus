@@ -18,7 +18,8 @@
 export const TEACHING_RUBRIC =
   "ÖĞRETİM ÖLÇÜTÜ: " +
   "1) Tekrar yok: bir bilgi bir kez anlatılır; sonraki ekran onu yeniden anlatmaz, üstüne kurar; kutunun gövdesi " +
-  "hemen üstündeki cümleyi tekrar etmez (soru, açıklama ve özet tekrar sayılmaz). Aynı tabloyu ya da paragrafı ikinci " +
+  "hemen üstündeki cümleyi tekrar etmez (soru ve açıklama tekrar sayılmaz; özet kuralı söyler, derste verilen sayısal " +
+  "örneği yeniden anlatmaz). Aynı tabloyu ya da paragrafı ikinci " +
   "bir ekranda yeniden verme; bir kavramın ekranı sonraki kavramın bilgisini önceden anlatmaz. Aynı ekranda bir bilgi " +
   "en çok iki biçimde durur (metin ve bir kart ya da tablo); üçüncü bir kutu, kart ya da tablo aynı cümleyi yeniden " +
   "söylüyorsa yazma; aynı tanımı bir ekranda iki kez yazma. " +
@@ -45,6 +46,24 @@ export const TEACHING_RUBRIC =
   "yaz ('Genel oy: 1934'); terimin ne olduğunu kaynak tanımlamıyorsa onu yalnız bir 'Genel bilgi' kutusunda açıkla. " +
   "10) 'Örnek vaka' kutusu somut bir durumdur (kim, ne zaman, ne oldu) ve sonucu kavramdan çıkar; genel kuralı " +
   "('Bir çocuğun ölçümleri eğride izlenir') yeniden söyleyen kutu vaka değildir.";
+
+/**
+ * Blok rolleri (30 Ekim 2026, ürün sahibinin kararı). Canlı "Farklı anlat" dersinde kaynağın sınav ipucundaki sayısal
+ * örnek ("oran X'ten Y'ye") bir ekranda metin, sınav ipucu ve örnek vakada, derste ayrıca sık yapılan hata ve özette:
+ * beş kez aynı sayılarla geçti. Ölçütün 1. maddesi "en çok iki biçim" diyordu ama hangi kutunun neyi taşıdığını
+ * söylemiyordu; yazar her kutuya aynı örneği koydu. Ders YAZARI ve hafif doğrulayıcı bu metni aynen okur; kod
+ * (`dedupWithinScreen`) ekranda üçüncü kez geçen örneği süs kutusundan siler. Ders adı ya da sayı yok.
+ */
+export const BLOCK_ROLE_RULE =
+  "BLOK ROLLERİ: Bir ekrandaki her blok ayrı bir iş görür ve bir bilgi ekranda en çok iki biçimde durur. Metin kavramı " +
+  "ve (varsa) sayısal örneği verir; tablo karşılaştırır; 'Örnek vaka' kuralı BAŞKA bir durumda uygular; sınav tuzağı " +
+  "(exam_trap_card) yalnız yanlış inancı ve doğrusunu 1-2 kısa cümleyle gösterir, örneği yeniden anlatmaz; kartlar ve " +
+  "karşılaştırma yeni bir ayrım taşır. Metinde verilen sayısal örnek (iki değerli bir değişim, bir hesap) aynı " +
+  "sayılarla ya da aynı sözcüklerle aynı ekranın vaka, tuzak, kart ya da not kutusunda yeniden yazılmaz. Kaynağın " +
+  "sınav ipucu ekranda bir kez durur: 'Sınav ipucu' notundaysa metin aynı cümleyi yeniden yazmaz. 'Sık yapılan hata' " +
+  "(commonMistake) yanlış inancı ve düzeltmesini kısaca söyler, derste verilen örneği aynı sayılarla anlatmaz. Özet " +
+  "(summary) her kavramın kilit kuralını taşır, örnekleri tekrar etmez; kuralın kendisi olan eşik, oran ya da formül " +
+  "özette kalır.";
 
 /**
  * Kaynak kuralının dar istisnası (20 Ekim 2026, ürün sahibinin kararı). Ölçütün 2. ve 3. maddesi
