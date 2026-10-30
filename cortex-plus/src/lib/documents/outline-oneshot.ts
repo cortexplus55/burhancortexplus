@@ -1033,6 +1033,8 @@ async function callOutlineModel(input: OutlinePromptInput & {
   invalidDraftJson?: string;
   /** Hazır istem (yutulan başlık onarımı); yoksa harita istemi kurulur. */
   userPrompt?: string;
+  /** Öğrenci kurulumda bekliyor ve hızlı işlem açık (`fastAllowedFor`). */
+  fast?: boolean;
 }): Promise<OutlineCallResult> {
   try {
     const generated = await generateJson({
@@ -1052,6 +1054,7 @@ async function callOutlineModel(input: OutlinePromptInput & {
       modelOverride: input.model,
       callTimeoutMs: OUTLINE_CALL_TIMEOUT_MS,
       stream: true,
+      fast: input.fast === true,
       maxTransientAttempts: OUTLINE_TRANSIENT_ATTEMPTS,
       idempotencyKey: input.idempotencyKey,
       // Charged only when the draft ends up in the saved map.
@@ -1462,6 +1465,11 @@ export async function runOutlineStep(input: OutlinePromptInput & {
   /** Called with the idempotency keys right before the model is called. */
   onCallStart?: (keys: string[]) => Promise<void>;
   now?: () => number;
+  /**
+   * Hızlı işlem (31 Ekim 2026): kurulumda öğrenci haritayı bekliyor; 30 fotoğraflık notun haritası normal işlemde
+   * tek çağrıda ~90 sn sürdü (9.500 jeton çıktı). Yalnız Plus/Sigma ve kurucu; sonradan eklenen materyal normal.
+   */
+  fast?: boolean;
 }): Promise<OutlineStepResult> {
   const now = input.now ?? Date.now;
   const { material, progress } = input;
@@ -1477,6 +1485,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     tocBlock: input.tocBlock,
     previousOutline: input.previousOutline,
     deadlineAt: input.deadlineAt,
+    fast: input.fast === true,
   };
   const fits = (chars: number) => {
     const needMs = estimateOutlineCallMs(chars + 6_000);

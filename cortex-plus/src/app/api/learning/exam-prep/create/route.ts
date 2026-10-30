@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
+import { recordPendingMaterials } from "@/lib/learning/pending-materials";
 import { ensureTeacherAnalyses, loadPrepDocumentIds, TEACHER_ANALYSIS_WAIT_MS } from "@/lib/documents/teacher-analysis-run";
 import { z } from "zod";
 import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
@@ -74,6 +75,11 @@ const bodySchema = z.object({
   note: lenientText(500, 0).optional(),
   documentId: z.string().uuid().optional(),
   documentIds: z.array(z.string().uuid()).max(PREP_DOCUMENT_REQUEST_MAX).optional(),
+  /**
+   * Hızlı başlatma (31 Ekim 2026): kurulum hazır olan materyalle kurulur; bunlar henüz okunmakta olan belgeler.
+   * Hazırlığa bekleyen olarak yazılır, hazırlık sayfası okunup haritalanınca add-source ile ekler.
+   */
+  pendingDocumentIds: z.array(z.string().uuid()).max(PREP_DOCUMENT_REQUEST_MAX).optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
   studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
   hardTopics: z.array(lenientText(120)).max(PREP_TOPIC_CAP).optional(),
@@ -97,6 +103,7 @@ const CREATE_FIELD_LABELS: Record<string, string> = {
   note: "not",
   documentId: "belge",
   documentIds: "belgeler",
+  pendingDocumentIds: "bekleyen belgeler",
   dailyMinutes: "günlük süre",
   studyDays: "çalışma günleri",
   hardTopics: "odak konular",
@@ -435,6 +442,13 @@ export async function POST(request: Request) {
     }
   }
 
+  // Hızlı başlatma: henüz okunan belgeler hazırlığa bekleyen olarak bağlanır (kurulumun belgeleri hariç).
+  const mapped = new Set([...(parsed.data.documentIds ?? []), ...(parsed.data.documentId ? [parsed.data.documentId] : [])]);
+  const pendingIds = (parsed.data.pendingDocumentIds ?? []).filter((id) => !mapped.has(id));
+  const pendingRecorded = pendingIds.length
+    ? await recordPendingMaterials(service, { prepId: result.prepId, userId, documentIds: pendingIds })
+    : 0;
+
   // İlk ders hemen yazılmaya başlar (18 Ekim 2026, ürün sahibinin kararı): öğrenci hazırlık
   // sayfasından "Devam et"e basana kadar dersin başı hazır olur; kredi açılınca düşer.
   if (v2) {
@@ -458,6 +472,7 @@ export async function POST(request: Request) {
     ok: true,
     prepId: result.prepId,
     days: result.days,
+    pendingMaterials: pendingRecorded,
     intakeMode: v2 && topicNodeIds.some(Boolean) ? "v2" : "legacy",
     schedule: scheduleSummary
       ? {

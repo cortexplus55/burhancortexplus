@@ -7,8 +7,7 @@ import { toast } from "sonner";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { isFreePageLimitError, isPhotoQuotaError } from "@/lib/documents/process-errors";
-import { formatDocumentProcessProgress } from "@/lib/documents/process-progress-label";
-import { messageFromProcessBody } from "@/lib/documents/process-user-message";
+import { attachedLine, mapAndAttach } from "@/lib/documents/prep-attach-client";
 import {
   clearPendingDocProcess,
   readPendingDocProcesses,
@@ -26,6 +25,7 @@ import {
   useStudentShellAccount,
 } from "@/lib/student/student-shell-context";
 import { uploadDocumentFile } from "@/lib/documents/upload-client";
+import { buildPhotoSet, splitSelection } from "@/lib/documents/photo-set-client";
 import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import "@/styles/exam-create-wizard.css";
 
@@ -85,61 +85,26 @@ export function PrepMaterialAdder({
   const phoneQueue = useRef<AddEntry[]>([]);
   const phoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function attach(documentIds: string[]): Promise<boolean> {
-    const res = await fetch("/api/learning/exam-prep/add-source", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prepId, documentIds }),
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const message = payload.error ?? "Dosyalar hazırlığa eklenemedi.";
-      setPendingAttach({ documentIds, error: message });
-      toast.error(message);
-      return false;
-    }
-    const files = Number(payload.addedDocuments ?? documentIds.length);
-    const added = Number(payload.addedTopics ?? 0);
-    const merged = Number(payload.mergedTopics ?? 0);
-    const lead = files > 1 ? `${files} dosya eklendi.` : "Eklendi.";
-    toast.success(
-      added || merged
-        ? `${lead} ${added} yeni konu, ${merged} konuda yeni kaynak. İlerlemen duruyor.`
-        : `${lead} İlerlemen duruyor.`,
-    );
-    if (Array.isArray(payload.warnings) && payload.warnings[0]) {
-      toast.warning(String(payload.warnings[0]));
-    }
-    for (const id of documentIds) clearPendingDocProcess({ documentId: id });
-    setPendingAttach(null);
-    router.refresh();
-    return true;
-  }
-
   /** Yeni belgelerin tek konu haritası (hazırlığın konu adları yön verir), sonra tek ekleme isteği. */
   async function mapThenAttach(documentIds: string[]): Promise<void> {
     if (!documentIds.length) return;
     setProcessDetail(documentIds.length > 1 ? `${documentIds.length} dosyanın konuları çıkarılıyor…` : "Konular çıkarılıyor…");
-    const mapped = await requestDocumentProcessing({
-      documentId: documentIds[0]!,
-      post: (body) => postDocumentProcess({ ...body, courseDocumentIds: documentIds, prepId, retryMap: true }),
-      onProgress: (progress) => {
-        const line = formatDocumentProcessProgress(progress);
-        if (line) setProcessDetail(line);
-      },
-    });
+    const outcome = await mapAndAttach({ prepId, documentIds, onProgress: setProcessDetail });
     setProcessDetail(null);
-    if (mapped.status === 402) {
-      setPaywall(true);
+    if (!outcome.ok) {
+      if (outcome.paywall) {
+        setPaywall(true);
+        return;
+      }
+      setPendingAttach({ documentIds, error: outcome.error });
+      if (!outcome.canRetry) toast.error(outcome.error);
       return;
     }
-    if (!mapped.ok) {
-      const message = messageFromProcessBody(mapped.body);
-      setPendingAttach({ documentIds, error: message });
-      if (mapped.body.canRetry !== true) toast.error(message);
-      return;
-    }
-    await attach(documentIds);
+    toast.success(attachedLine(outcome));
+    if (outcome.warnings[0]) toast.warning(outcome.warnings[0]);
+    for (const id of documentIds) clearPendingDocProcess({ documentId: id });
+    setPendingAttach(null);
+    router.refresh();
   }
 
   /** Bir belgeyi okur; konu haritası toplu eklemede bir kez çıkarılır (`deferMap`). */
@@ -260,10 +225,36 @@ export function PrepMaterialAdder({
     [],
   );
 
-  function takeFiles(list: FileList | null) {
+  /**
+   * Fotoğraf seti (31 Ekim 2026): birden çok fotoğraf tek taranmış PDF'e girer ("Ders Notu Fotoğrafları (N Sayfa)").
+   * Hazırlık zaten kurulu: hızlı başlatma bölmesi yok, set tek belge (yalnız boyut sınırında bölünür).
+   */
+  async function takeFiles(list: FileList | null) {
     const files = list ? [...list] : [];
     if (!files.length || busyRef.current) return;
-    void runBatch(files.map((file) => ({ file, fileName: file.name, sizeBytes: file.size })));
+    const { photos, others } = splitSelection(files);
+    const setFiles: File[] = [];
+    let leftovers: File[] = [];
+    if (photos.length) {
+      busyRef.current = true;
+      setBusy(true);
+      try {
+        const built = await buildPhotoSet(photos, {
+          fastStart: false,
+          onEncoded: (done, total) => setProcessDetail(`📸 Fotoğraflar tek belgede birleşiyor: ${done} / ${total}`),
+          onPart: (part) => setFiles.push(part.file),
+        });
+        leftovers = built.leftovers;
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+        setProcessDetail(null);
+      }
+    }
+    // Seçim sırası: set, seçimdeki ilk fotoğrafın yerinde.
+    const photoFirst = photos.length > 0 && (!others.length || files.indexOf(photos[0]!) < files.indexOf(others[0]!));
+    const ordered = photoFirst ? [...setFiles, ...leftovers, ...others] : [...others, ...setFiles, ...leftovers];
+    void runBatch(ordered.map((file) => ({ file, fileName: file.name, sizeBytes: file.size })));
   }
 
   /** Telefondan art arda gelen dosyalar biriktirilir, sessizlikten sonra tek toplu eklemeyle işlenir. */
@@ -308,7 +299,7 @@ export function PrepMaterialAdder({
         className="hidden"
         accept={DOCUMENT_UPLOAD_ACCEPT}
         onChange={(event) => {
-          takeFiles(event.target.files);
+          void takeFiles(event.target.files);
           event.target.value = "";
         }}
       />

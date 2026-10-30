@@ -80,6 +80,10 @@ export function examHeavyBadgeVisible(flags: readonly boolean[]): boolean {
 
 export const WIZARD_COPY = {
   continue: "Devam et",
+  /** Hızlı başlatma (31 Ekim 2026): okunan materyal varken kalanı beklemeden ilerlenir. */
+  continueEarly: "Hazır olanlarla devam et",
+  continueEarlyHint: "Kalan sayfalar arka planda okunup hazırlığına eklenecek; beklemene gerek yok.",
+  waitingUploads: "Kalan fotoğraflar yükleniyor…",
   languageTitle: "Dil",
   analyzing: "Dosyaların inceleniyor...",
   shapingTitle: "Konular hazırlanıyor...",
@@ -196,6 +200,19 @@ export function fileProgressLine(
 export function readingNow(names: readonly string[]): string | null {
   if (!names.length) return null;
   return names.length > 2 ? `${names.length} dosya` : names.join(", ");
+}
+
+/**
+ * Fotoğraf setinin sayacı (31 Ekim 2026): seçilen fotoğraflar küçültülüp tek belgede birleşir; okunan sayfa ayrıca
+ * sayılır. "📸 Fotoğraflar sıkıştırılıyor ve yükleniyor: 42 / 100 • Sayfalar okunuyor: 10 / 100".
+ */
+export function photoSetProgressLine(progress: { encoded: number; total: number; pagesRead: number; reading: boolean }): string {
+  const head = progress.encoded < progress.total
+    ? `📸 Fotoğraflar sıkıştırılıyor ve yükleniyor: ${progress.encoded} / ${progress.total}`
+    : `📸 ${progress.total} fotoğraf tek belgede`;
+  return progress.reading || progress.pagesRead > 0
+    ? `${head} • Sayfalar okunuyor: ${Math.min(progress.pagesRead, progress.total)} / ${progress.total}`
+    : head;
 }
 
 /** Telefon panelinde gelen dosya sayısı (31 Ekim 2026: kod artık çok dosya alır). */

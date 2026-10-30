@@ -51,6 +51,7 @@ import { attemptTopicFields, buildPrepProgressView, solvedQuestions } from "@/li
 import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
+import { countPendingMaterials } from "@/lib/learning/pending-materials";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -602,6 +603,7 @@ export default async function ExamPrepDetailPage({
         nodeScores={nodeScores}
         topicPercents={topicPercents}
         lockedPickId={typeof kilitli === "string" ? kilitli : null}
+        pendingMaterials={await countPendingMaterials(service, { prepId, userId: user.id })}
         dueReviews={await dueReviewCountForPrep(service, {
           userId: user.id,
           prepId,

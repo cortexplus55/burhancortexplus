@@ -91,6 +91,7 @@ import { activityDurationMinutes, LESSON_MIN_MINUTES } from "@/lib/learning/acti
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
+import { PendingMaterialsBanner } from "@/components/parity/pending-materials-banner";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -265,6 +266,7 @@ export function ExamPrepHome({
   topicPercents = {},
   lockedPickId = null,
   dueReviews = 0,
+  pendingMaterials = 0,
   createdAt = null,
   examTime = null,
   examPlace = null,
@@ -334,6 +336,8 @@ export function ExamPrepHome({
   lockedPickId?: string | null;
   /** Bu hazırlıkta bugün sorulacak tekrar (20 Ekim 2026); yolu kilitlemez. */
   dueReviews?: number;
+  /** Hızlı başlatmanın hazırlığa bağlı, henüz eklenmemiş belgeleri (31 Ekim 2026); 0 ise şerit yok. */
+  pendingMaterials?: number;
   /** Yol etiketlerinin hafta başlangıcı. Yoksa bugün. */
   createdAt?: string | null;
   /** İsteğe bağlı sınav saati ve yeri (30 Ekim 2026): yolun sonunda "31 Eki 10:00 · Sınav". */
@@ -712,6 +716,8 @@ export function ExamPrepHome({
       </aside>
 
       <div className="cp-prep-main">
+      {/* Hızlı başlatma (31 Ekim 2026): kurulumdan sonra okunmakta olan belgeler arkada okunup yoluna eklenir. */}
+      {pendingMaterials > 0 ? <PendingMaterialsBanner prepId={prepId} /> : null}
       {view === "yol" && lastNode ? (
         <section className="cp-prep-last" aria-label="Son etkinlik">
           <div className="cp-prep-badges">

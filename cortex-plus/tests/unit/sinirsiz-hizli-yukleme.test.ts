@@ -80,9 +80,12 @@ describe("hazırlık başına belge sınırı yok", () => {
   it("sonradan ekleme: çoklu seçim, bütün yeni dosyalar tek planda (seçim sırasıyla), tek istek", () => {
     const adder = read("src/components/parity/prep-add-material.tsx");
     expect(adder).toMatch(/type="file"\s+multiple/);
-    expect(adder).toContain("JSON.stringify({ prepId, documentIds })");
-    expect(adder).toContain("courseDocumentIds: documentIds, prepId, retryMap: true");
+    // Harita + ekleme ortak yardımcıda (31 Ekim 2026): hızlı başlatmanın hazırlık şeridi de aynı yoldan geçer.
+    expect(adder).toContain("mapAndAttach({ prepId, documentIds, onProgress: setProcessDetail })");
     expect(adder).toContain("deferMap: true");
+    const attach = read("src/lib/documents/prep-attach-client.ts");
+    expect(attach).toContain("JSON.stringify({ prepId, documentIds })");
+    expect(attach).toContain("courseDocumentIds: documentIds, prepId, retryMap: true");
     const plan = planAddedMaterial({
       existingTopics: [],
       existingNodes: [],

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { ensureTeacherAnalyses } from "@/lib/documents/teacher-analysis-run";
 import { missingColumn } from "@/lib/learning/missing-column";
+import { clearPendingMaterials } from "@/lib/learning/pending-materials";
 import { planAddedMaterial } from "@/lib/learning/prep-add-material";
 import {
   contradictionsByTopicTitleResolved,
@@ -79,6 +80,8 @@ export async function POST(request: Request) {
   });
   const fresh = requested.filter((id) => !existingDocumentIds.includes(id));
   if (!fresh.length) {
+    // Hızlı başlatmanın bekleyen kaydı (31 Ekim 2026): başka sekme eklediyse burada kapanır.
+    await clearPendingMaterials(service, { prepId, userId, documentIds: requested });
     return NextResponse.json({ ok: true, already: true, addedTopics: 0, mergedTopics: 0, addedDocuments: 0 });
   }
 
@@ -253,6 +256,7 @@ export async function POST(request: Request) {
     );
     if (inserted.error) return errorResponse(500, "generation_failed");
   }
+  await clearPendingMaterials(service, { prepId, userId, documentIds: requested });
 
   return NextResponse.json({
     ok: true,
