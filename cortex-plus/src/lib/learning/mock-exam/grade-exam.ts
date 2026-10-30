@@ -17,6 +17,7 @@ import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule"
 import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import { recordedElapsedSeconds } from "@/lib/learning/mock-exam/time-limit";
+import { rowVerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import {
   buildTopicReport,
   DEADLINE_GRACE_SEC,
@@ -49,6 +50,8 @@ export type GradeMockExamResult =
       attemptId: string;
       score: number;
       correct: number;
+      /** Kısmen doğru (açık uçlu); yanlışa katılmaz. */
+      partial: number;
       wrong: number;
       blank: number;
       topicReport: ReturnType<typeof buildTopicReport>;
@@ -88,16 +91,15 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     .maybeSingle();
   if (graded?.id) {
     const { data: reviews } = await service.from("practice_exam_item_reviews").select("verdict").eq("attempt_id", graded.id);
-    const verdicts = (reviews ?? []).map((row) => String(row.verdict ?? ""));
-    const correct = verdicts.filter((verdict) => verdict === "dogru").length;
-    const blank = verdicts.filter((verdict) => verdict === "bos").length;
+    const { correct, partial, wrong, blank } = rowVerdictCounts(reviews ?? []);
     const score = Math.round(Number(graded.score ?? 0));
     return {
       ok: true,
       attemptId: String(graded.id),
       score,
       correct,
-      wrong: Math.max(0, verdicts.length - correct - blank),
+      partial,
+      wrong,
       blank,
       topicReport: (Array.isArray(graded.topic_report) ? graded.topic_report : []) as ReturnType<typeof buildTopicReport>,
       analysis: polishSummary(score),
@@ -388,6 +390,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     attemptId: attempt.id as string,
     score: scored.scorePct,
     correct: scored.correct,
+    partial: scored.partial,
     wrong: scored.wrong,
     blank: scored.blank,
     topicReport,

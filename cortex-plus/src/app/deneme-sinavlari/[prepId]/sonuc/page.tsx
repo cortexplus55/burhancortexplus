@@ -6,6 +6,7 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { cn } from "@/lib/utils";
+import { rowVerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import {
   buildNextSteps,
   multiMcqScoringNote,
@@ -121,11 +122,9 @@ export default async function ExamPrepSonucPage({
         .eq("attempt_id", attempt.id)
     : { data: [] };
 
-  const correct = (reviews ?? []).filter((r) => r.verdict === "dogru" || r.is_correct).length;
-  const blank = (reviews ?? []).filter((r) => r.verdict === "bos").length;
-  // Açık uçlu cevap kısmi puan alabilir (17 Ekim 2026); yanlış sayılmaz, ayrı gösterilir.
-  const partial = (reviews ?? []).filter((r) => r.verdict === "kismen").length;
-  const wrong = (reviews ?? []).length - correct - blank - partial;
+  // Açık uçlu cevap kısmi puan alabilir (17 Ekim 2026); yanlış sayılmaz, ayrı gösterilir. Sayım notlandırma ve
+  // inceleme ekranıyla aynı işlevden (30 Ekim 2026, Paket I #7).
+  const { correct, blank, partial, wrong } = rowVerdictCounts(reviews ?? []);
 
   const hasMulti = true;
   const nextSteps = buildNextSteps({

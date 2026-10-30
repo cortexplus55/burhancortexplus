@@ -6,6 +6,7 @@ import { sameOptionSet, selectedOptions } from "@/lib/learning/exam-quiz";
 import type { MockGradeItem, MockQuestionType, MockRubricItem } from "@/lib/learning/mock-exam/types";
 import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
 import { finalResults } from "@/lib/learning/result-values";
+import { verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 
 export type GradeableQuestion = {
   id: string;
@@ -369,19 +370,20 @@ export function scoreFromItems(items: MockGradeItem[]): {
   earned: number;
   max: number;
   correct: number;
+  partial: number;
   wrong: number;
   blank: number;
 } {
   const earned = items.reduce((s, i) => s + i.pointsEarned, 0);
   const max = items.reduce((s, i) => s + i.pointsMax, 0) || 1;
-  const correct = items.filter((i) => i.verdict === "dogru").length;
-  const blank = items.filter((i) => i.verdict === "bos").length;
-  const wrong = items.length - correct - blank;
+  // Tek sayım (30 Ekim 2026, Paket I #7): kısmen doğru yanlışa girmez.
+  const { correct, partial, wrong, blank } = verdictCounts(items.map((i) => i.verdict));
   return {
     scorePct: Math.min(100, Math.round((earned / max) * 100)),
     earned,
     max,
     correct,
+    partial,
     wrong,
     blank,
   };
