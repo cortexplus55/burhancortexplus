@@ -592,7 +592,8 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* Taşarsa yukarı (üst çubuğun altına) değil aşağı taşsın: `safe`. */
+  justify-content: safe center;
   gap: 0.45rem;
   padding: calc(var(--cp-top-h, 7.2rem) + 0.35rem) 0.8rem 6rem;
   overflow: hidden;
@@ -656,11 +657,26 @@
   min-height: 0;
   flex: none;
   /*
-    Şema kalan yüksekliğe sığacak genişlikte: tahta − üst çubuk − alt yazı ve başlık, kilit bilgi, iki formül satırı,
-    kartın kendi başlığı (~19 rem). Önce formül esniyordu; yer yetmeyince yok oluyordu.
+    Şema kalan yüksekliğe sığacak genişlikte: tahta − üst çubuk − alt yazı ve başlık, kilit bilgi, iki satıra sarılan
+    formül + bir satır, kartın tek satırlık başlığı (~19,5 rem). Etiket genişliği şemanın %17'si: şema tahtanın
+    %75'inden dar olmaz (144 px'lik şemada etiket harf harf kırılıyordu). Önce formül esniyordu; yer yetmeyince yok oluyordu.
   */
-  width: clamp(9rem, calc((100cqh - var(--cp-top-h, 7.2rem) - 19rem) * 600 / 220), 100%);
+  width: clamp(75%, calc((100cqh - var(--cp-top-h, 7.2rem) - 19.5rem) * 600 / 220), 100%);
   margin-inline: auto;
+}
+
+/* Videoda şema kartı sıkı: başlık tek satır, iç boşluk yarım (tahtanın başlığı zaten sahneyi adlandırıyor). */
+.cp-sketch-stage .als-diagram-card {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+}
+
+.cp-sketch-stage .als-diagram-card figcaption {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.78rem;
 }
 
 .cp-sketch-stage svg path,
