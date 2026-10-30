@@ -123,7 +123,8 @@ describe("ısınma yazımı: düğüm açılınca başlar (19 Ekim 2026)", () =>
   it("istemci ruh hali / aşinalık ekranında bir kez 'warm' ister; sunucu yalnız ders düğümünde yazımı başlatır", () => {
     expect(session).toMatch(/action: "warm"/);
     expect(session).toMatch(/stage !== "familiarity" && stage !== "mood"/);
-    expect(route).toMatch(/if \(action === "warm"\) \{/);
+    // Eylem yönlendiricisi (30 Ekim 2026 bölmesi): "warm" kendi modülüne gider.
+    expect(route).toMatch(/case "warm":\s*return warmAction\(loaded\);/);
     expect(route).toMatch(/requestNodePrefetch\([\s\S]*?\{ warm: true \},\s*\)/);
     // Isınma yazımı normal işlemde (23 Ekim 2026): açılmayan derste de ödeniyordu.
     expect(route).toMatch(/fast: input\.charge !== false \|\| input\.firstLesson === true,/);

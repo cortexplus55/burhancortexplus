@@ -275,7 +275,8 @@ describe("kablolama", () => {
 
   it("etkinlik bitince sıradaki önceden yazılır; öğrenci isteği urgent", () => {
     const node = read("src/app/api/learning/exam-prep/node/route.ts");
-    const complete = node.slice(node.indexOf('if (action === "complete")'));
+    // Bitirme kolu 30 Ekim 2026 bölmesinden beri kendi modülünde.
+    const complete = read("src/lib/learning/node/complete.ts");
     expect(complete.indexOf("requestNextPrefetch(")).toBeGreaterThan(complete.indexOf("completion_failed"));
     expect(node.match(/urgent: input\.charge !== false/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
   });

@@ -89,7 +89,8 @@ describe("parça parça açılan ders ekranı", () => {
     expect(session).toContain("building={lessonBuilding}");
     // Windows çalışma kopyası CRLF olabilir; satır atlamalı arama satır sonundan bağımsız olsun.
     const route = readSource("src/app/api/learning/exam-prep/node/route.ts").replace(/\r\n/g, "\n");
-    expect(route).toContain('if (action === "progress") {');
+    // Eylem yönlendiricisi (30 Ekim 2026 bölmesi): "progress" kendi modülüne gider.
+    expect(route).toContain('case "progress":');
     expect(route).toContain("parsed.data.lessonStream === true");
     // Kalan kavramlar yanıttan sonra aynı fonksiyonda; ilk kavramla kayıt "active".
     expect(route).toContain("after(() =>\n        settleOnce()");
