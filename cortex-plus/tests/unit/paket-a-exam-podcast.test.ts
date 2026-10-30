@@ -76,16 +76,21 @@ describe("deneme: kurulumun sözü = teslim edilen dağılım", () => {
     expect(blueprint.slots).toHaveLength(20);
   });
 
-  it("konu sayısı soru sayısını aşınca her konu 1 soru alır, toplam büyür ve kurulum bunu söyler", () => {
+  // 30 Ekim 2026 (Paket I #4): toplam artık büyümez; konu fazlaysa 10 konu seçilir ve kurulum söyler.
+  it("konu sayısı soru sayısını aşınca toplam seçilen sayıda kalır, konular seçilir ve kurulum bunu söyler", () => {
     const many = Array.from({ length: 12 }, (_, index) => slotFromTopicRow({ id: `m${index}`, label: `Konu ${index}` }));
     const promised = promisedAllocation(many, 10);
     expect(promised.rows.every((row) => row.count === 1)).toBe(true);
-    expect(promised.total).toBe(12);
-    expect(promised.expanded).toBe(true);
-    expect(expandedAllocationNote(promised)).toBe("12 konu olduğu için her konudan 1 soru (toplam 12 soru) sorulacak.");
+    expect(promised.total).toBe(10);
+    expect(promised.rows).toHaveLength(10);
+    expect(promised.expanded).toBe(false);
+    expect(promised.skippedTopics).toHaveLength(2);
+    expect(expandedAllocationNote(promised)).toBe(
+      "12 konudan 10 tanesi soruluyor: sınav ağırlığı yüksek olanlar önce, kalanlar listeye yayılarak. Bütün konular için soru sayısını artır.",
+    );
     const blueprint = buildBlueprint({ topics: many, preset: "standard", syllabus: null, allowNumeric: false, questionCount: 10 });
-    expect(blueprint.questionCount).toBe(12);
-    expect(blueprint.slots).toHaveLength(12);
+    expect(blueprint.questionCount).toBe(10);
+    expect(blueprint.slots).toHaveLength(10);
   });
 });
 
