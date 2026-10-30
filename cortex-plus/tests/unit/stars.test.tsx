@@ -61,7 +61,8 @@ describe("yıldız kuralları", () => {
 describe("yıldız veren yerler", () => {
   it("etkinlik bitince denemeye bir kez; sonuç cevabında 'stars'", () => {
     const node = read("src/app/api/learning/exam-prep/node/route.ts");
-    expect(node).toContain("ref: `attempt:${attempt.id}`,");
+    // Deneme başına; kayıtlı içeriğin tekrarı düğüm başına günde bir kez (30 Ekim 2026, `prepStarRef`).
+    expect(node).toContain("ref: prepStarRef({ attemptId: attempt.id as string, nodeId,");
     expect(node).toContain("amount: prepStars(kind, completed.score, completed.total),");
     expect(node).toMatch(/score: completed\.score,\s+total: completed\.total,\s+stars,/);
   });

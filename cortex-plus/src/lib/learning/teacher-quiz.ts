@@ -1226,17 +1226,16 @@ export function quizStructureIssues(
     const echo = stemEchoIssue(question.text, answer, question.options.filter((option) => option !== answer));
     if (echo) issues.push(echo);
   }
-  const offKind = options.context
-    ? offKindDistractors({
-        stem: question.text,
-        options: question.options,
-        correctIndex: question.options.indexOf(answer),
-        context: options.context,
-      })
-    : [];
+  // Belgesiz testte de: tür adı şıkların kendisinde yazıyorsa kaynak gerekmez (30 Ekim 2026, canlı Araçlar testi).
+  const offKind = offKindDistractors({
+    stem: question.text,
+    options: question.options,
+    correctIndex: question.options.indexOf(answer),
+    context: options.context ?? "",
+  });
   if (offKind.length) {
     issues.push(
-      `${OFF_KIND_PREFIX} ('${offKind.join("', '")}'): kaynak onu başka türden tanımlıyor; doğru cevabın kardeşi olan, aynı türden bir öğe yaz.`,
+      `${OFF_KIND_PREFIX} ('${offKind.join("', '")}'): kökün sorduğu türden değil; doğru cevabın kardeşi olan, aynı türden bir öğe yaz.`,
     );
   }
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {

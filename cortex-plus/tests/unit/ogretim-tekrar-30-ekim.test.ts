@@ -234,7 +234,10 @@ describe("2 · çeldirici doğru cevapla aynı türden (tek cevaplı ders ve tes
     const context = "Dezenflasyon, enflasyon oranının düşmesidir. Stagflasyon, durgunluk ile yüksek enflasyonun birlikte görülmesidir.";
     const q = question("Tüketici fiyatlarını izleyen endeks hangisidir?", ["Tüketici fiyat endeksi", "Üretici fiyat endeksi", "Dezenflasyon", "Stagflasyon"], "Tüketici fiyat endeksi");
     expect(quizStructureIssues(q, { optionCount: 4, context }).some((issue) => issue.startsWith(OFF_KIND_PREFIX))).toBe(true);
-    expect(quizStructureIssues(q, { optionCount: 4 }).some((issue) => issue.startsWith(OFF_KIND_PREFIX))).toBe(false);
+    // Kaynak olmadan da (30 Ekim 2026, canlı Araçlar testi): tür adı ("endeks") doğru cevapta ve bir kardeşinde yazıyor.
+    expect(quizStructureIssues(q, { optionCount: 4 }).some((issue) => issue.startsWith(OFF_KIND_PREFIX))).toBe(true);
+    const bare = question("Tüketici fiyatlarını izleyen endeks hangisidir?", ["TÜFE", "ÜFE", "Dezenflasyon", "Stagflasyon"], "TÜFE");
+    expect(quizStructureIssues(bare, { optionCount: 4 }).some((issue) => issue.startsWith(OFF_KIND_PREFIX))).toBe(false);
     const lessonScreen = screen("Fiyat endeksleri", [
       text("Tüketici fiyat endeksi hanehalkının aldığı malların fiyat değişimini ölçer. Üretici fiyat endeksi üretici fiyatlarını ölçer."),
       mcqCheck("Tüketici fiyatlarını izleyen endeks hangisidir?", ["Tüketici fiyat endeksi", "Üretici fiyat endeksi", "Dezenflasyon", "Stagflasyon"], 0),

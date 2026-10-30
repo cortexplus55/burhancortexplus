@@ -1778,7 +1778,7 @@ function offKindCheckIssue(check: Check, context: string): string | null {
   if (check.type !== "mcq" || !check.options?.length || typeof check.answerIndex !== "number") return null;
   const off = offKindDistractors({ stem: check.prompt, options: check.options, correctIndex: check.answerIndex, context });
   return off.length
-    ? `Çeldirici sorulan türden değil ('${off.join("', '")}'): kaynak onu başka türden tanımlıyor; doğru cevabın kardeşi olan aynı türden öğe yaz.`
+    ? `Çeldirici sorulan türden değil ('${off.join("', '")}'): kökün sorduğu türden değil; doğru cevabın kardeşi olan aynı türden öğe yaz.`
     : null;
 }
 

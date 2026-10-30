@@ -32,7 +32,8 @@ import { loadTopicSupport, supportPagesForEngine, type SupportPage } from "@/lib
 import { runTeacherLesson, type PublishedLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 import { awardStars } from "@/lib/stars/award";
-import { prepStars } from "@/lib/stars/rules";
+import { prepStarRef, prepStars } from "@/lib/stars/rules";
+import { istanbulDay } from "@/lib/istanbul-day";
 import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { podcastCheckOf, podcastPayloadEpisode, scorePodcastCheck } from "@/lib/learning/podcast-check";
@@ -1383,11 +1384,12 @@ async function handleNodeRequest(
         }).catch(() => null);
       }
 
-      // Yıldızlar (17 Ekim 2026, Astra'daki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır.
+      // Yıldızlar (17 Ekim 2026, Astra'daki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır; kayıtlı
+      // içeriğin tekrarı düğüm başına günde bir kez (`prepStarRef`, 30 Ekim 2026).
       const stars = await awardStars(service, {
         userId,
         source: "prep",
-        ref: `attempt:${attempt.id}`,
+        ref: prepStarRef({ attemptId: attempt.id as string, nodeId, payload: attempt.payload, day: istanbulDay() }),
         amount: prepStars(kind, completed.score, completed.total),
       });
 
