@@ -113,13 +113,15 @@ export function planAddedMaterial(input: {
   existingNodes: ExistingPrepNode[];
   incoming: MergedTopic[];
   existingDocumentIds: string[];
-  newDocumentId: string;
+  newDocumentId?: string;
+  /** Toplu ekleme (31 Ekim 2026): sonradan seçilen bütün dosyalar tek planda, seçim sırasıyla. */
+  newDocumentIds?: string[];
   contradictionsByTitle: Map<string, TopicContradiction[]>;
   readinessScore: number;
 }): AddMaterialPlan {
   const sourceDocumentIds = [...input.existingDocumentIds];
-  if (input.newDocumentId && !sourceDocumentIds.includes(input.newDocumentId)) {
-    sourceDocumentIds.push(input.newDocumentId);
+  for (const id of [...(input.newDocumentId ? [input.newDocumentId] : []), ...(input.newDocumentIds ?? [])]) {
+    if (id && !sourceDocumentIds.includes(id)) sourceDocumentIds.push(id);
   }
 
   const byKey = new Map(

@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
-import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
+import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
 
 const bodySchema = z.object({
-  documentIds: z.array(z.string().uuid()).min(1).max(PREP_SOURCE_DOCUMENT_CAP),
+  documentIds: z.array(z.string().uuid()).min(1).max(PREP_DOCUMENT_REQUEST_MAX),
   title: z.string().min(1).max(120),
 });
 

@@ -1,35 +1,64 @@
 /**
  * Çok dosyalı yükleme (20 Ekim 2026). 7 dosyalık sınav seti sırayla işlenince ~76 sn sürdü (Astra
- * ~30 sn): her fotoğrafın okunması ~11 sn ve sıradakini bekliyordu. Ücretli hesapta en çok üç dosya
- * aynı anda işlenir; kredi ve taranmış sayfa hakkı veritabanında atomik ayrıldığı için güvenli.
- * Ücretsiz hesapta sıra korunur: toplam 5 sayfalık sınır (`free-pages.ts`) belge kaydından sayılıyor,
- * aynı anda başlayan iki dosya ikisi de "5 sayfa kaldı" görebilirdi.
+ * ~30 sn): her fotoğrafın okunması ~11 sn ve sıradakini bekliyordu. Kredi ve taranmış sayfa hakkı
+ * veritabanında atomik ayrıldığı için ücretli hesapta paralel güvenli. Ücretsiz hesapta sıra korunur:
+ * toplam 5 sayfalık sınır (`free-pages.ts`) belge kaydından sayılıyor, aynı anda başlayan iki dosya ikisi
+ * de "5 sayfa kaldı" görebilirdi.
+ *
+ * 31 Ekim 2026 (ürün sahibi: 100 fotoğraf seçti, 8'i alındı, 8'i ~4 dk sürdü): şerit 3 → 6 ve kurucu da
+ * ücretli sayılır (önizlemede değil). Ölçüm: telefon fotoğrafı (4080×3060) okuması normal işlemde
+ * 18-20 sn, hızlı işlemde 8-9 sn; 6 şeritle 100 fotoğraf ~2-3 dk.
  */
-export const PARALLEL_UPLOADS = 3;
+export const PARALLEL_UPLOADS = 6;
+
+/** İşin sonucu: `true` hazır, `false` bu dosya düştü (öbürleri sürer), `"stop"` hak doldu (yenisi başlamaz). */
+export type PoolOutcome = boolean | "stop";
 
 /**
- * Öğeleri en çok `limit` iş aynı anda olacak şekilde çalıştırır. Bir iş `false` dönünce yenisi
- * başlatılmaz (süren işler biter) — sıralı akıştaki "ilk hatada dur" davranışı.
+ * Öğeleri en çok `limit` iş aynı anda olacak şekilde çalıştırır. Bir dosyanın düşmesi topluluğu durdurmaz
+ * (31 Ekim 2026: 100 fotoğrafta tek bulanık fotoğraf arkadakileri kesiyordu); yalnız `"stop"` (hak doldu)
+ * yeni iş başlatmaz, süren işler biter.
  */
 export async function runPool<T>(
   items: readonly T[],
   limit: number,
-  worker: (item: T, index: number) => Promise<boolean>,
-): Promise<{ succeeded: number; stopped: boolean }> {
+  worker: (item: T, index: number) => Promise<PoolOutcome>,
+): Promise<{ succeeded: number; failed: number; stopped: boolean }> {
   let next = 0;
   let succeeded = 0;
+  let failed = 0;
   let stopped = false;
   const lanes = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
     while (!stopped && next < items.length) {
       const index = next;
       next += 1;
-      const ok = await worker(items[index]!, index);
-      if (ok) succeeded += 1;
-      else stopped = true;
+      const outcome = await worker(items[index]!, index);
+      if (outcome === true) succeeded += 1;
+      else if (outcome === "stop") stopped = true;
+      else failed += 1;
     }
   });
   await Promise.all(lanes);
-  return { succeeded, stopped };
+  return { succeeded, failed, stopped };
+}
+
+/**
+ * Art arda gelen işleri (telefondan tek tek düşen dosyalar) en çok `limit` aynı anda çalıştırır; fazlası sırada
+ * bekler. `runPool` listeyi baştan bilir, bu ise iş geldikçe çalışır.
+ */
+export function createLimiter(limit: number): <T>(task: () => Promise<T>) => Promise<T> {
+  let running = 0;
+  const waiting: (() => void)[] = [];
+  return async (task) => {
+    if (running >= Math.max(1, limit)) await new Promise<void>((resolve) => waiting.push(resolve));
+    running += 1;
+    try {
+      return await task();
+    } finally {
+      running -= 1;
+      waiting.shift()?.();
+    }
+  };
 }
 
 /**

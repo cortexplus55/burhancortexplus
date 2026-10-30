@@ -18,9 +18,9 @@ import {
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
-import { PREP_HOME_COPY, WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
+import { PARALLEL_UPLOADS, runPool, type PoolOutcome } from "@/lib/documents/upload-batch";
+import { PREP_HOME_COPY, WIZARD_COPY, batchUploadFailedLine, fileProgressLine, readingNow } from "@/lib/learning/exam-wizard-copy";
 import { freeMaterialLimitLine } from "@/lib/learning/prep-material-copy";
-import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
 import {
   useDocumentLimits,
   useStudentShellAccount,
@@ -40,16 +40,30 @@ function accepted(file: File): boolean {
   return EXTENSIONS.some((extension) => name.endsWith(extension));
 }
 
+/** Toplu eklemenin bir öğesi: seçilen dosya ya da (telefondan / yarım kalmış) yüklenmiş belge. */
+type AddEntry = { file?: File; documentId?: string; fileName: string; sizeBytes: number | null };
+
+/** Telefondan gelen dosyalar bu kadar sessizlikten sonra tek toplu eklemeyle işlenir. */
+const PHONE_BATCH_SETTLE_MS = 2_500;
+
+/**
+ * Var olan hazırlığa sonradan belge ekleme (31 Ekim 2026, ürün sahibi: "kullanıcı bir derse kaç tane döküman yüklemek
+ * isterse yükleyebilir; sonradan da"). Önce tek dosya seçilebiliyordu, hazırlık başına en çok 8 dosya vardı ve her
+ * dosya kendi konu haritasını çıkarıyordu. Şimdi: çoklu seçim → dosyalar paralel okunur (ücretli hesapta ve kurucuda
+ * altı şerit, ücretsizde sıra) → yeni dosyaların hepsine hazırlığın konu adlarıyla yönlendirilen TEK konu haritası →
+ * tek ekleme isteği. Okunamayan dosya ötekileri durdurmaz; yalnız hak dolunca yenisi başlamaz.
+ */
 export function PrepMaterialAdder({
   prepId,
-  count,
 }: {
   prepId: string;
-  count: number;
+  /** Eski çağıranlar için; belge sayısında sınır yok. */
+  count?: number;
 }) {
   const router = useRouter();
   const account = useStudentShellAccount();
   const { isAdmin } = useDocumentLimits();
+  const paidUploads = account?.audience === "plus" || account?.audience === "sigma" || isAdmin;
   const materialLimitLine = freeMaterialLimitLine({
     isAdmin,
     tier:
@@ -64,148 +78,207 @@ export function PrepMaterialAdder({
   const [paywallMessage, setPaywallMessage] = useState("Materyali işlemek için kullanım hakkın doldu.");
   const [processDetail, setProcessDetail] = useState<string | null>(null);
   const [processAlert, setProcessAlert] = useState<string | null>(null);
-  const [failedUpload, setFailedUpload] = useState<{
-    documentId: string;
-    fileName: string;
-    error: string;
-  } | null>(null);
+  /** Okundu ama haritası ya da eklemesi düşen belgeler: "Tekrar dene" yalnız bu adımı yeniden yapar. */
+  const [pendingAttach, setPendingAttach] = useState<{ documentIds: string[]; error: string } | null>(null);
   const resumeRef = useRef(false);
+  const busyRef = useRef(false);
+  const phoneQueue = useRef<AddEntry[]>([]);
+  const phoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function attach(documentId: string) {
+  async function attach(documentIds: string[]): Promise<boolean> {
     const res = await fetch("/api/learning/exam-prep/add-source", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prepId, documentId }),
+      body: JSON.stringify({ prepId, documentIds }),
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
-      toast.error(payload.error ?? "Dosya hazırlığa eklenemedi.");
-      return;
+      const message = payload.error ?? "Dosyalar hazırlığa eklenemedi.";
+      setPendingAttach({ documentIds, error: message });
+      toast.error(message);
+      return false;
     }
+    const files = Number(payload.addedDocuments ?? documentIds.length);
     const added = Number(payload.addedTopics ?? 0);
     const merged = Number(payload.mergedTopics ?? 0);
+    const lead = files > 1 ? `${files} dosya eklendi.` : "Eklendi.";
     toast.success(
       added || merged
-        ? `Eklendi. ${added} yeni konu, ${merged} konuda yeni kaynak. İlerlemen duruyor.`
-        : "Dosya eklendi. İlerlemen duruyor.",
+        ? `${lead} ${added} yeni konu, ${merged} konuda yeni kaynak. İlerlemen duruyor.`
+        : `${lead} İlerlemen duruyor.`,
     );
     if (Array.isArray(payload.warnings) && payload.warnings[0]) {
       toast.warning(String(payload.warnings[0]));
     }
-    setFailedUpload(null);
+    for (const id of documentIds) clearPendingDocProcess({ documentId: id });
+    setPendingAttach(null);
     router.refresh();
+    return true;
   }
 
-  async function processThenAttach(input: {
-    documentId: string;
-    fileName: string;
-    sizeBytes: number | null;
-    /** An explicit "Tekrar dene"/"Devam et" press. */
-    retryMap?: boolean;
-  }) {
-    writePendingDocProcess({
-      documentId: input.documentId,
-      fileName: input.fileName,
-      sizeBytes: input.sizeBytes,
-      startedAt: new Date().toISOString(),
-      surface: "prep-add",
-    });
-    setProcessDetail("Belge işleniyor…");
-    const result = await requestDocumentProcessing({
-      documentId: input.documentId,
-      // The prep's topic names guide the new file's outline (reuse, don't duplicate).
-      post: (body) => postDocumentProcess({ ...body, prepId, retryMap: input.retryMap }),
+  /** Yeni belgelerin tek konu haritası (hazırlığın konu adları yön verir), sonra tek ekleme isteği. */
+  async function mapThenAttach(documentIds: string[]): Promise<void> {
+    if (!documentIds.length) return;
+    setProcessDetail(documentIds.length > 1 ? `${documentIds.length} dosyanın konuları çıkarılıyor…` : "Konular çıkarılıyor…");
+    const mapped = await requestDocumentProcessing({
+      documentId: documentIds[0]!,
+      post: (body) => postDocumentProcess({ ...body, courseDocumentIds: documentIds, prepId, retryMap: true }),
       onProgress: (progress) => {
         const line = formatDocumentProcessProgress(progress);
         if (line) setProcessDetail(line);
       },
     });
-    const processed = result.body;
-    // Silent automatic retries — student sees progress only until exhaustion.
-    if (result.status === 402) {
-      clearPendingDocProcess({ documentId: input.documentId });
-      setProcessDetail(null);
-      if (isFreePageLimitError(processed)) {
-        if (typeof processed.error === "string") setPaywallMessage(processed.error);
-        setPaywall(true);
-        return;
-      }
-      if (isPhotoQuotaError(processed)) {
-        const description = materialLimitLine ?? undefined;
-        toast.error(typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.", {
-          description,
-        });
-        setProcessAlert(
-          typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.",
-        );
-        return;
-      }
+    setProcessDetail(null);
+    if (mapped.status === 402) {
       setPaywall(true);
       return;
     }
-    if (!result.ok) {
-      clearPendingDocProcess({ documentId: input.documentId });
-      const message = messageFromProcessBody(processed);
-      // A map out of attempts is not an error: just offer "Tekrar dene".
-      const calm = processed.canRetry === true;
-      setProcessAlert(calm ? null : message);
-      if (!calm) toast.error(message);
-      setProcessDetail(null);
-      setFailedUpload({
-        documentId: input.documentId,
-        fileName: input.fileName,
-        error: message,
-      });
+    if (!mapped.ok) {
+      const message = messageFromProcessBody(mapped.body);
+      setPendingAttach({ documentIds, error: message });
+      if (mapped.body.canRetry !== true) toast.error(message);
       return;
     }
-    clearPendingDocProcess({ documentId: input.documentId });
+    await attach(documentIds);
+  }
+
+  /** Bir belgeyi okur; konu haritası toplu eklemede bir kez çıkarılır (`deferMap`). */
+  async function extract(entry: { documentId: string; fileName: string; sizeBytes: number | null }): Promise<PoolOutcome> {
+    writePendingDocProcess({
+      documentId: entry.documentId,
+      fileName: entry.fileName,
+      sizeBytes: entry.sizeBytes,
+      startedAt: new Date().toISOString(),
+      surface: "prep-add",
+    });
+    const result = await requestDocumentProcessing({
+      documentId: entry.documentId,
+      post: (body) => postDocumentProcess({ ...body, prepId, deferMap: true }),
+    });
+    const processed = result.body;
+    if (result.status === 402) {
+      clearPendingDocProcess({ documentId: entry.documentId });
+      if (isFreePageLimitError(processed)) {
+        if (typeof processed.error === "string") setPaywallMessage(processed.error);
+        setPaywall(true);
+        return "stop";
+      }
+      if (isPhotoQuotaError(processed)) {
+        const message = typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.";
+        toast.error(message, { description: materialLimitLine ?? undefined });
+        setProcessAlert(message);
+        return "stop";
+      }
+      setPaywall(true);
+      return "stop";
+    }
+    if (!result.ok) {
+      const code = typeof processed.code === "string" ? processed.code : "";
+      // Ağ / zaman aşımı: kayıt kalır, sekme yeniden açılınca sürer.
+      const keepPending =
+        result.status === 0 || code === "processing_timeout" || code === "retryable_exhausted" || (result.status >= 500 && result.status < 600);
+      if (!keepPending) clearPendingDocProcess({ documentId: entry.documentId });
+      return false;
+    }
+    return true;
+  }
+
+  async function runBatch(entries: AddEntry[]) {
+    if (!entries.length || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setProcessAlert(null);
-    setProcessDetail(null);
-    await attach(input.documentId);
+    // Ücretli hesapta ve kurucuda en çok altı dosya aynı anda; ücretsizde sırayla (upload-batch.ts).
+    const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
+    const ready: (string | null)[] = entries.map(() => null);
+    const reading: string[] = [];
+    const failed: string[] = [];
+    let done = 0;
+    const report = () => {
+      if (entries.length > 1) setProcessDetail(fileProgressLine(done, entries.length, readingNow(reading)));
+      else setProcessDetail(reading.length ? "Belge işleniyor…" : null);
+    };
+    try {
+      await runPool(entries, lanes, async (entry, index) => {
+        reading.push(entry.fileName);
+        report();
+        try {
+          let documentId = entry.documentId;
+          if (!documentId) {
+            const file = entry.file!;
+            const maxBytes = file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
+            if (!accepted(file) || file.size > maxBytes) {
+              failed.push(file.name);
+              return false;
+            }
+            documentId = (await uploadDocumentFile(file)).documentId;
+          }
+          const outcome = await extract({ documentId, fileName: entry.fileName, sizeBytes: entry.sizeBytes });
+          if (outcome === true) {
+            ready[index] = documentId;
+            done += 1;
+          } else if (outcome === false) {
+            failed.push(entry.fileName);
+          }
+          return outcome;
+        } catch {
+          failed.push(entry.fileName);
+          return false;
+        } finally {
+          reading.splice(reading.indexOf(entry.fileName), 1);
+          report();
+        }
+      });
+      setProcessDetail(null);
+      if (failed.length) toast.error(entries.length > 1 ? batchUploadFailedLine(failed) : `${failed[0]} okunamadı. Yeniden seçebilirsin.`);
+      // Seçim sırası korunur: kurs haritası ve belge listesi öğrencinin sırasıyla.
+      await mapThenAttach(ready.filter((id): id is string => Boolean(id)));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+      setProcessDetail(null);
+    }
   }
 
   useEffect(() => {
-    const pending = readPendingDocProcesses("prep-add")[0];
-    if (!pending || resumeRef.current) return;
+    const pending = readPendingDocProcesses("prep-add");
+    if (!pending.length || resumeRef.current) return;
     resumeRef.current = true;
-    setBusy(true);
-    void processThenAttach({
-      documentId: pending.documentId,
-      fileName: pending.fileName,
-      sizeBytes: pending.sizeBytes,
-    }).finally(() => {
-      setBusy(false);
+    // Sekme kapanınca yarım kalan dosyaların hepsi sürer; okunmuş olanlar hemen haritaya geçer.
+    void runBatch(
+      pending.map((entry) => ({ documentId: entry.documentId, fileName: entry.fileName, sizeBytes: entry.sizeBytes })),
+    ).finally(() => {
       resumeRef.current = false;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount resume once
   }, []);
 
-  async function takeFile(file: File | undefined) {
-    if (!file || busy) return;
-    if (count >= PREP_SOURCE_DOCUMENT_CAP) {
-      toast.error(WIZARD_COPY.fileCap);
-      return;
-    }
-    const maxBytes = file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
-    if (!accepted(file) || file.size > maxBytes) {
-      toast.error(file.size > maxBytes ? "PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir." : "Bu dosya türü desteklenmiyor.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const uploaded = await uploadDocumentFile(file);
-      await processThenAttach({
-        documentId: uploaded.documentId as string,
-        fileName: file.name,
-        sizeBytes: file.size,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Bağlantı hatası.";
-      setProcessAlert(message);
-      toast.error(message);
-    } finally {
-      setBusy(false);
-    }
+  useEffect(
+    () => () => {
+      if (phoneTimer.current) clearTimeout(phoneTimer.current);
+    },
+    [],
+  );
+
+  function takeFiles(list: FileList | null) {
+    const files = list ? [...list] : [];
+    if (!files.length || busyRef.current) return;
+    void runBatch(files.map((file) => ({ file, fileName: file.name, sizeBytes: file.size })));
+  }
+
+  /** Telefondan art arda gelen dosyalar biriktirilir, sessizlikten sonra tek toplu eklemeyle işlenir. */
+  function queuePhoneDocument(remote: { documentId: string; fileName?: string | null }) {
+    phoneQueue.current.push({ documentId: remote.documentId, fileName: remote.fileName ?? "Telefon yüklemesi", sizeBytes: null });
+    setProcessDetail(`Telefondan ${phoneQueue.current.length} dosya geldi…`);
+    if (phoneTimer.current) clearTimeout(phoneTimer.current);
+    phoneTimer.current = setTimeout(function flush() {
+      if (busyRef.current) {
+        phoneTimer.current = setTimeout(flush, PHONE_BATCH_SETTLE_MS);
+        return;
+      }
+      const batch = phoneQueue.current.splice(0);
+      void runBatch(batch);
+    }, PHONE_BATCH_SETTLE_MS);
   }
 
   return (
@@ -213,7 +286,7 @@ export function PrepMaterialAdder({
       <button
         type="button"
         className="cp-back-pill"
-        disabled={busy || count >= PREP_SOURCE_DOCUMENT_CAP}
+        disabled={busy}
         onClick={() => fileRef.current?.click()}
       >
         <Upload className="h-4 w-4" aria-hidden />
@@ -222,7 +295,7 @@ export function PrepMaterialAdder({
       <button
         type="button"
         className="cp-back-pill"
-        disabled={busy || count >= PREP_SOURCE_DOCUMENT_CAP}
+        disabled={busy}
         onClick={() => setPhoneOpen(true)}
       >
         <Smartphone className="h-4 w-4" aria-hidden />
@@ -231,10 +304,11 @@ export function PrepMaterialAdder({
       <input
         ref={fileRef}
         type="file"
+        multiple
         className="hidden"
         accept={DOCUMENT_UPLOAD_ACCEPT}
         onChange={(event) => {
-          void takeFile(event.target.files?.[0]);
+          takeFiles(event.target.files);
           event.target.value = "";
         }}
       />
@@ -247,7 +321,7 @@ export function PrepMaterialAdder({
         <p className="text-xs text-[var(--cp-muted)]">{materialLimitLine}</p>
       ) : null}
       <p className="text-xs text-[var(--cp-muted)]">
-        Sekmeyi kapatırsan geri geldiğinde kaldığı yerden devam eder.
+        Birden çok dosya seçebilirsin. Sekmeyi kapatırsan geri geldiğinde kaldığı yerden devam eder.
       </p>
       {processAlert ? (
         <div
@@ -264,76 +338,34 @@ export function PrepMaterialAdder({
           </button>
         </div>
       ) : null}
-      {failedUpload ? (
+      {pendingAttach ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--cp-muted)]">
           <span>
-            {failedUpload.fileName} — {failedUpload.error}
+            {pendingAttach.documentIds.length > 1 ? `${pendingAttach.documentIds.length} dosya okundu, eklenemedi` : "Dosya okundu, eklenemedi"} —{" "}
+            {pendingAttach.error}
           </span>
           <button
             type="button"
             className="cp-back-pill"
             disabled={busy}
             onClick={() => {
+              const ids = pendingAttach.documentIds;
+              busyRef.current = true;
               setBusy(true);
-              void processThenAttach({
-                documentId: failedUpload.documentId,
-                fileName: failedUpload.fileName,
-                sizeBytes: null,
-                retryMap: true,
-              }).finally(() => setBusy(false));
-            }}
-          >
-            Devam et
-          </button>
-          <button
-            type="button"
-            className="cp-back-pill"
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              void processThenAttach({
-                documentId: failedUpload.documentId,
-                fileName: failedUpload.fileName,
-                sizeBytes: null,
-                retryMap: true,
-              }).finally(() => setBusy(false));
+              void mapThenAttach(ids).finally(() => {
+                busyRef.current = false;
+                setBusy(false);
+              });
             }}
           >
             Tekrar dene
-          </button>
-          <button
-            type="button"
-            className="cp-back-pill"
-            disabled={busy}
-            onClick={() => {
-              void fetch(`/api/documents/${failedUpload.documentId}`, { method: "DELETE" })
-                .then(async (res) => {
-                  if (!res.ok) {
-                    toast.error("Kaldırılamadı.");
-                    return;
-                  }
-                  clearPendingDocProcess({ documentId: failedUpload.documentId });
-                  setFailedUpload(null);
-                })
-                .catch(() => toast.error("Bağlantı hatası."));
-            }}
-          >
-            Kaldır
           </button>
         </div>
       ) : null}
       {phoneOpen ? (
         <PhoneUploadPanel
           onClose={() => setPhoneOpen(false)}
-          onReady={(remote) => {
-            setPhoneOpen(false);
-            setBusy(true);
-            void processThenAttach({
-              documentId: remote.documentId,
-              fileName: remote.fileName ?? "Telefon yüklemesi",
-              sizeBytes: null,
-            }).finally(() => setBusy(false));
-          }}
+          onReady={(remote) => queuePhoneDocument(remote)}
         />
       ) : null}
       <CreditGate

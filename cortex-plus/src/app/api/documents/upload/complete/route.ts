@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { UPLOAD_PREPARE_PER_MINUTE } from "@/lib/documents/upload-limits";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { maxDocumentBytes } from "@/lib/documents/store-upload";
@@ -6,7 +7,7 @@ import { maxDocumentBytes } from "@/lib/documents/store-upload";
 const bodySchema = z.object({ documentId: z.string().uuid() });
 
 export async function POST(request: Request) {
-  const guard = await withUser(request, { scope: "doc-upload-complete", limit: 30 });
+  const guard = await withUser(request, { scope: "doc-upload-complete", limit: UPLOAD_PREPARE_PER_MINUTE * 2 });
   if (!guard.ok) return guard.response;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");

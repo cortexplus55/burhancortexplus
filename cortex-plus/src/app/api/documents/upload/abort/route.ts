@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { UPLOAD_PREPARE_PER_MINUTE } from "@/lib/documents/upload-limits";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 
@@ -6,7 +7,7 @@ const bodySchema = z.object({ documentId: z.string().uuid() });
 
 /** Remove an unconfirmed upload after a failed browser-to-Storage transfer. */
 export async function POST(request: Request) {
-  const guard = await withUser(request, { scope: "doc-upload-abort", limit: 12 });
+  const guard = await withUser(request, { scope: "doc-upload-abort", limit: UPLOAD_PREPARE_PER_MINUTE });
   if (!guard.ok) return guard.response;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");

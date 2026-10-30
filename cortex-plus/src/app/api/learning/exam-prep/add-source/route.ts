@@ -1,22 +1,34 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { runTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
+import { ensureTeacherAnalyses } from "@/lib/documents/teacher-analysis-run";
 import { missingColumn } from "@/lib/learning/missing-column";
 import { planAddedMaterial } from "@/lib/learning/prep-add-material";
 import {
   contradictionsByTopicTitleResolved,
   readContradictionDocuments,
 } from "@/lib/learning/prep-contradiction-read";
-import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
+import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
-const bodySchema = z.object({
-  prepId: z.string().uuid(),
-  documentId: z.string().uuid(),
-});
+/*
+  Toplu ekleme (31 Ekim 2026, ürün sahibi: "kullanıcı sonradan da istediği kadar döküman yükleyebilir"). Önce tek
+  dosya ve hazırlık başına en çok 8 dosyaydı; 100 fotoğrafı sonradan eklemek 100 istek (dakikada 12 sınırı) ve 100
+  ayrı konu haritası demekti. Şimdi seçilen bütün dosyalar tek istekte: tek planla eklenir. Eski istemci (tek
+  `documentId`) aynen çalışır. Belge sayısında ürün sınırı yok; sayfa, fotoğraf ve kredi hakkı sınırlar.
+*/
+const bodySchema = z
+  .object({
+    prepId: z.string().uuid(),
+    documentId: z.string().uuid().optional(),
+    documentIds: z.array(z.string().uuid()).min(1).max(PREP_DOCUMENT_REQUEST_MAX).optional(),
+  })
+  .refine((body) => Boolean(body.documentId || body.documentIds?.length));
+
+/** Bu kadar yeni dosyaya kadar öğretmen analizi yanıttan önce beklenir; fazlası arka planda. */
+const ANALYSIS_INLINE_MAX = 3;
 
 function asSources(value: unknown): TopicSourceRef[] {
   if (!Array.isArray(value)) return [];
@@ -48,7 +60,8 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { prepId, documentId } = parsed.data;
+  const { prepId } = parsed.data;
+  const requested = [...new Set([...(parsed.data.documentIds ?? []), ...(parsed.data.documentId ? [parsed.data.documentId] : [])])];
 
   const prepResult = await service
     .from("exam_preps")
@@ -64,32 +77,31 @@ export async function POST(request: Request) {
       ? (prepResult.data.source_document_ids as string[])
       : [],
   });
-  if (existingDocumentIds.includes(documentId)) {
-    return NextResponse.json({ ok: true, already: true, addedTopics: 0, mergedTopics: 0 });
-  }
-  if (existingDocumentIds.length >= PREP_SOURCE_DOCUMENT_CAP) {
-    return NextResponse.json(
-      { error: "Bir hazırlığa en fazla 8 dosya ekleyebilirsin." },
-      { status: 400 },
-    );
+  const fresh = requested.filter((id) => !existingDocumentIds.includes(id));
+  if (!fresh.length) {
+    return NextResponse.json({ ok: true, already: true, addedTopics: 0, mergedTopics: 0, addedDocuments: 0 });
   }
 
-  const { data: doc } = await service
+  const { data: docs } = await service
     .from("documents")
-    .select("id, file_name, mime_type, user_id")
-    .eq("id", documentId)
+    .select("id")
+    .in("id", fresh)
     .eq("user_id", userId)
-    .maybeSingle();
-  if (!doc) return errorResponse(404, "not_found");
+    .is("deleted_at", null);
+  const owned = new Set((docs ?? []).map((row) => row.id as string));
+  // Seçim sırası korunur; başkasının ya da silinmiş belge sessizce atlanmaz, istek düşer.
+  const newDocumentIds = fresh.filter((id) => owned.has(id));
+  if (newDocumentIds.length !== fresh.length) return errorResponse(404, "not_found");
 
-  // Tek dosya. Hazır satır varsa model çağrılmaz; yoksa yalnız bu dosya analiz edilir.
-  await runTeacherAnalysis(service, documentId, {
-    userId,
-    fileName: (doc.file_name as string) || "Dosya",
-    mimeType: (doc.mime_type as string | null) ?? null,
-  });
+  // Öğretmen analizi: hazır satır varsa model çağrılmaz. Az dosyada yanıttan önce (eski davranış), çok dosyada arka
+  // planda — belge işlenirken zaten başlamıştı; ilk ders onu bekler (TEACHER_ANALYSIS_WAIT_MS).
+  if (newDocumentIds.length <= ANALYSIS_INLINE_MAX) {
+    await ensureTeacherAnalyses(service, { userId, documentIds: newDocumentIds }).catch(() => undefined);
+  } else {
+    after(() => ensureTeacherAnalyses(service, { userId, documentIds: newDocumentIds }).catch(() => undefined));
+  }
 
-  const loaded = await loadScheduleTopics(service, [documentId], []);
+  const loaded = await loadScheduleTopics(service, newDocumentIds, []);
   const readinessScore =
     typeof prepResult.data.readiness_score === "number" ? prepResult.data.readiness_score : 0;
 
@@ -116,7 +128,7 @@ export async function POST(request: Request) {
 
   const contradictionDocs = await readContradictionDocuments(service, [
     ...existingDocumentIds,
-    documentId,
+    ...newDocumentIds,
   ]).catch(() => []);
   const incoming = loaded.scheduleTopics.map((topic) => ({
     title: topic.title,
@@ -149,7 +161,7 @@ export async function POST(request: Request) {
 
   const plan = planAddedMaterial({
     existingDocumentIds,
-    newDocumentId: documentId,
+    newDocumentIds,
     readinessScore,
     contradictionsByTitle: contradictionMap,
     existingTopics: (topicRows ?? []).map((row) => ({
@@ -244,6 +256,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    addedDocuments: newDocumentIds.length,
     addedTopics: plan.topicInserts.length,
     mergedTopics: plan.topicUpdates.length,
     warnings: [...plan.topicUpdates, ...plan.topicInserts]

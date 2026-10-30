@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
+import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { processDocument } from "@/lib/rag/pipeline";
@@ -47,7 +48,7 @@ const bodySchema = z.object({
   /** Wizard: extract (and prepare) only — the course outline runs later, once. */
   deferMap: z.boolean().optional(),
   /** All files of the course, first = documentId: ONE outline over all of them. */
-  courseDocumentIds: z.array(z.string().uuid()).min(1).max(8).optional(),
+  courseDocumentIds: z.array(z.string().uuid()).min(1).max(PREP_DOCUMENT_REQUEST_MAX).optional(),
   /** Add-source: the prep the new file joins (its topic names guide the outline). */
   prepId: z.string().uuid().optional(),
   /** The student pressed "Tekrar dene": a map that ran out of attempts starts fresh. */

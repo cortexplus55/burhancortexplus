@@ -7,6 +7,7 @@ import {
   type ModelUsage,
 } from "@/lib/documents/extract-image-text";
 import { visionReadyImage } from "@/lib/documents/vision-image";
+import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { BLANK_INK_RATIO, MAX_SCAN_PAGES, renderPdfPages } from "@/lib/documents/render-pdf-pages";
 import {
   extractOfficePackage,
@@ -183,7 +184,8 @@ export async function processDocument(
 
     const prepared = await visionReadyImage(buffer, doc.mime_type);
     if (!prepared) return failAndRelease("image_unreadable");
-    const read = await extractImageText(prepared.buffer, prepared.mimeType);
+    // Ücretli hesapta ve kurucuda hızlı işlem (31 Ekim 2026): telefon fotoğrafı 18-20 sn → 8-9 sn.
+    const read = await extractImageText(prepared.buffer, prepared.mimeType, { fast: await fastAllowedFor(service, userId) });
     recordVision(read.usage);
 
     if (read.reason === "blocked") {
@@ -268,7 +270,7 @@ export async function processDocument(
         return fail("photo_quota_exhausted");
       }
 
-      const read = await extractImagePages(images, "image/jpeg", { scanOrdinals });
+      const read = await extractImagePages(images, "image/jpeg", { scanOrdinals, fast: await fastAllowedFor(service, userId) });
       recordVision(read.usage);
 
       if (read.blocked) {

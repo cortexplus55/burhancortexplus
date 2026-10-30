@@ -131,7 +131,6 @@ export const WIZARD_COPY = {
   moveDown: "Aşağı taşı",
   topicDuplicate: "Bu konu listede zaten var.",
   topicCheckFailed: "Konu şu an doğrulanamadı. Tekrar dene.",
-  fileCap: "Bir hazırlığa en fazla 8 dosya ekleyebilirsin.",
   examHeavy: "Sınavda sık çıkar",
   important: "Önemli",
   missingMaterial: "materyalde yok",
@@ -191,6 +190,24 @@ export function fileProgressLine(
 ): string {
   const ready = `${done}/${total} dosya hazır`;
   return current ? `${ready} · ${current} okunuyor` : ready;
+}
+
+/** Aynı anda okunan dosyalar: ikiden fazlası adıyla sayılmaz ("6 dosya okunuyor"). */
+export function readingNow(names: readonly string[]): string | null {
+  if (!names.length) return null;
+  return names.length > 2 ? `${names.length} dosya` : names.join(", ");
+}
+
+/** Telefon panelinde gelen dosya sayısı (31 Ekim 2026: kod artık çok dosya alır). */
+export function phoneReceivedLine(count: number): string {
+  return `Telefondan ${count} dosya geldi. Göndermeye devam edebilirsin; bitince bu pencereyi kapat.`;
+}
+
+/** Toplu yüklemede yüklenemeyen dosyalar için tek bildirim (dosya başına ayrı uyarı yok). */
+export function batchUploadFailedLine(names: readonly string[]): string {
+  const shown = names.slice(0, 3).join(", ");
+  const more = names.length > 3 ? ` ve ${names.length - 3} dosya daha` : "";
+  return `${names.length} dosya yüklenemedi: ${shown}${more}. Bu dosyaları yeniden seçebilirsin; öbürleri eklendi.`;
 }
 
 export const PREP_HOME_COPY = {
