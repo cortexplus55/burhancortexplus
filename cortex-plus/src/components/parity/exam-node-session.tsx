@@ -593,10 +593,19 @@ export function ExamNodeSession({
     revealedRef.current = new Set();
   }, [attemptId]);
 
+  // Açılış düğüm başına BİR KEZ (30 Ekim 2026, canlı tur): ders bitince ya da kredi düşünce `router.refresh()` sunucu
+  // özelliklerini yeniler; `openAttempt` (açık oturum var mı) ve bitmiş dersin düz adresinde `reviewSaved` değişince
+  // bu etki yeniden koşuyor, "Tekrar incele" sonunda ders sonuç ekranı yerine 1. adımdan yeniden açılıyordu. Yarıda
+  // kesilen açılış (bağımlılık açılış sürerken değişti) yeniden koşabilir; tamamlanan açılış bir daha koşmaz.
+  const openedForRef = useRef<string | null>(null);
   useEffect(() => {
     if (!resumeEnabled) return;
+    const openKey = `${prepId}:${nodeId}`;
+    if (openedForRef.current === openKey) return;
+    openedForRef.current = openKey;
     let cancelled = false;
-    (async () => {
+    let settled = false;
+    void (async () => {
         if (!openAttempt) {
         // Açık oturum yok: doğrudan açılış (tekrar isteği de burada başlar).
         if (reviewSaved || (kind === "lesson" && replayLesson)) {
@@ -660,17 +669,25 @@ export function ExamNodeSession({
           setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : signalStage);
         }
       }
-    })();
+    })().finally(() => {
+      settled = true;
+    });
     return () => {
       cancelled = true;
+      if (!settled) openedForRef.current = null;
     };
     // start her render'da yeni; yalnız açılışta, kayıtlı oturum yoksa bir kez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeEnabled, openAttempt, prepId, nodeId, kind, signalStage, replayLesson, reviewSaved]);
 
-  // Özellik kapalıyken de kayıtlı içerik açılsın; kurulum kartı üretim başlatmasın.
+  // Özellik kapalıyken de kayıtlı içerik açılsın; kurulum kartı üretim başlatmasın. Yine düğüm başına bir kez: ders
+  // bitince bitmiş dersin düz adresi `reviewSaved` olur, sonuç ekranı kayıtlı derse dönmesin.
   useEffect(() => {
-    if (!reviewSaved || resumeEnabled) return;
+    if (resumeEnabled) return;
+    const openKey = `${prepId}:${nodeId}`;
+    if (openedForRef.current === openKey) return;
+    openedForRef.current = openKey;
+    if (!reviewSaved) return;
     setStage("setup");
     void start({ review: true });
     // start her render'da yeni; yalnız açılışta bir kez.
