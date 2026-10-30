@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
@@ -14,7 +15,7 @@ afterEach(cleanup);
   Artık düzey kurulumda alınır, bütün konulara yazılır, açılışta sorulmaz ama değiştirilebilir.
   Ruh hali sorusu kalır, yalnız kaydedilir: önceden yazılan içerik ona göre değişemez.
 */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 describe("kurulumda aşinalık", () => {
   it("sihirbazda çalışma biçiminden sonra, odaktan önce tek soru", () => {

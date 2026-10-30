@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
@@ -80,18 +81,18 @@ describe("öğretmen kart motoru", () => {
 
 describe("rota kartları öğretmen motoruna yollar", () => {
   it("kartlar ve aralıklı tekrar yalnız öğretmen motorundan; çekirdek sayfa ya da belgesiz", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain('const TEACHER_CARD_KINDS = new Set<PlanNodeKind>(["flashcards", "spaced"]);');
     expect(route).toContain("return teacherCardsPayload(input, activity, core);");
     // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
-    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(readSource("src/lib/env.ts")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
     expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });
 
 describe("kabuk", () => {
   it("ortak kabuk krediyi ayırır, iş kabul edilmezse iade eder", () => {
-    const source = readFileSync("src/lib/learning/teacher-engine-run.ts", "utf8");
+    const source = readSource("src/lib/learning/teacher-engine-run.ts");
     expect(source).toContain("await reserveCredits(service, options.userId, options.actionCode, options.idempotencyKey, 1, { freeMeter: options.freeMeter })");
     expect(source).toContain("refundCredits(service, reservation.reservationId)");
     expect(source).toContain("await commitCredits(service, reservation.reservationId)");

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { spendableCredits } from "@/lib/credits/spendable";
 import { creditChipLabel, FOUNDER_CREDIT_LABEL } from "@/lib/credits/chip-label";
@@ -79,7 +80,7 @@ describe("beş kontrol ve paket sızdırmazlığı", () => {
     // Tekrarın "doğrusu" (22 Ekim 2026 inceleme): yazarın tam öğesi kendi doğrusunu taşır, kodun kurduğu tekrar aynı
     // olgunun başka ifadesidir; rota notu olduğu gibi verir. Eski "kök farklı, doğrusu aynıysa gizle" kuralı aynı
     // doğruyu taşıyan tam öğenin kendi doğrusunu da siliyordu.
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).not.toContain("check.corrected !== primary.corrected ? result.corrected : undefined");
     expect(route).toContain('Tekrarın "doğrusu" (22 Ekim 2026 inceleme)');
   });

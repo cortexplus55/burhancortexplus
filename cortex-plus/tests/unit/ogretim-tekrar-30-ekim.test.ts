@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -54,7 +55,7 @@ import type { QuizQuestion } from "@/lib/learning/exam-quiz";
   fizik). Kod metne dokunmaz: işaretler, düşürür ya da yeniden ister.
 */
 
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 /* ───────────── yardımcılar ───────────── */
 

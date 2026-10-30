@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
@@ -18,7 +19,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 /*
   Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi). Astra canlıda:

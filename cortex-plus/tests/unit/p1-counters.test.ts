@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -21,7 +22,7 @@ import {
 } from "@/lib/learning/learning-tracking";
 
 const root = path.resolve(__dirname, "../..");
-const read = (file: string) => readFileSync(path.join(root, file), "utf8");
+const read = (file: string) => readSource(path.join(root, file));
 
 function topic(key: string, confidence: number, level: TopicMasterySnapshot["level"] = "emerging"): TopicMasterySnapshot {
   return {

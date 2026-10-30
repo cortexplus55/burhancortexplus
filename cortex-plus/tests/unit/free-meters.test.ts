@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -21,7 +22,7 @@ const { refusalCode } = await import("@/lib/credits/service");
  * olanlar sayılmaz, Araçlar dersten düşer"; "Farklı anlat" yeni ders sayılır; podcast, sözlü, yazılı
  * deneme Plus'ta. SQL tarafı `free-tier-counts.test.ts`.
  */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 describe("yoldaki adımın sayacı", () => {
   it("ders her zaman ders hakkından; Plus adımları Plus'ta", () => {

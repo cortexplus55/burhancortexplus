@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
@@ -150,14 +151,14 @@ describe("ekran tarafı: sıradasın", () => {
       "src/lib/learning/teacher-podcast-run.ts",
       "src/lib/learning/teacher-engine-run.ts",
     ]) {
-      const source = readFileSync(file, "utf8");
+      const source = readSource(file);
       expect(source, file).toContain("withGenerationSlot(");
       expect(source, file).toContain('error: "generation_busy"');
     }
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("code === BUSY_CODE");
     expect(session).toContain("note={queueNote ? BUSY_NOTE : undefined}");
-    const podcast = readFileSync("src/components/parity/prep-podcast-session.tsx", "utf8");
+    const podcast = readSource("src/components/parity/prep-podcast-session.tsx");
     expect(podcast).toContain("note={queued ? BUSY_NOTE : undefined}");
   });
 });

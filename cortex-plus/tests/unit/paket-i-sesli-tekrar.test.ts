@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /*
@@ -11,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const prepPodcast = vi.hoisted(() => ({ POST: vi.fn() }));
 vi.mock("@/app/api/learning/exam-prep/podcast/route", () => prepPodcast);
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 const PREP = "11111111-1111-4111-8111-111111111111";
 const TOPIC = "22222222-2222-4222-8222-222222222222";
 

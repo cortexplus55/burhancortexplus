@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
@@ -42,7 +43,7 @@ describe("podcast dinleme kontrolü", () => {
   });
 
   it("oturum: oynatıcı bitince kontrol varsa önce kontrol; atlama boş cevapla tamamlar", () => {
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     // 30 Ekim 2026: kontrol yayımdan sonra yazıldıysa (`checkPending`) önce kayıttan alınır (podcast-hiz-30-ekim.test.ts).
     expect(session).toContain("if (podcastCheck.length) return setPodcastCheckOpen(true);");
     expect(session).toContain("if (!podcastCheckPending(payload) || !attemptId) return void finish();");
@@ -54,7 +55,7 @@ describe("podcast dinleme kontrolü", () => {
   });
 
   it("atlama düğmesi telefonda dokunulabilir (≥ 32 px)", () => {
-    const css = readFileSync("src/styles/parity-shell.css", "utf8");
+    const css = readSource("src/styles/parity-shell.css");
     const rule = css.slice(css.indexOf(".cp-pod-check-skip {"), css.indexOf("}", css.indexOf(".cp-pod-check-skip {")));
     expect(rule).toContain("min-height: 2.25rem;");
   });

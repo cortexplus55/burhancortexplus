@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { CreditGate } from "@/components/paywall/credit-gate";
@@ -20,7 +21,7 @@ import {
   24 Ekim 2026: ücretsiz katman sayıya dayalı (haftada 3 ders, günde 3 mesaj, günde 1 fotoğraf). "Plus'ta"
   kararı fiyattan değil açık listeden (`PLUS_ONLY_ACTIONS`); fotoğraf ücretsizde açık, kendi sayacıyla.
 */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 afterEach(cleanup);
 

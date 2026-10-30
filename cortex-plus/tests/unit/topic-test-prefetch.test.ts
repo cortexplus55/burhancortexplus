@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import path from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { lessonQuizContext } from "@/lib/learning/lesson-quiz-context";
@@ -9,7 +10,7 @@ import { readLessonV2 } from "@/lib/learning/lesson-v3";
   dersin parmak izini taşır; ders kaydedilince dersten önce yazılmış test yenilenir; yazım sürerken
   ders değiştiyse sonuç saklanmaz, başka yazımın satırına dokunulmaz.
 */
-const read = (rel: string) => readFileSync(path.join(process.cwd(), rel), "utf8");
+const read = (rel: string) => readSource(path.join(process.cwd(), rel));
 const route = read("src/app/api/learning/exam-prep/node/route.ts");
 
 let prefetch: typeof import("@/lib/learning/lesson-prefetch");

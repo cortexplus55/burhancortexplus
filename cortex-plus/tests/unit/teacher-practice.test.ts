@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
@@ -81,12 +82,12 @@ describe("sözlü deneme", () => {
 
 describe("rota doğru/yanlış ve sözlüyü öğretmen motoruna yollar", () => {
   it("yalnız öğretmen motoru; doğru/yanlış çekirdek sayfadan, sözlü kaynak bloğundan", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain('"podcast", "true_false"]);');
     expect(route).toContain("return teacherTrueFalsePayload(input, activity, core);");
     expect(route).toContain("return teacherOralPayload(input, activity, input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount)));");
     // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
-    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(readSource("src/lib/env.ts")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
     expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });

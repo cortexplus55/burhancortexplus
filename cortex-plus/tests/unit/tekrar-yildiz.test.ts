@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { prepStarRef } from "@/lib/stars/rules";
 
@@ -25,7 +26,7 @@ describe("tekrarın yıldızı düğüm başına günde bir kez", () => {
   });
 
   it("düğüm rotası yıldızı bu anahtarla yazar", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("ref: prepStarRef({ attemptId: attempt.id as string, nodeId, payload: attempt.payload, day: istanbulDay() }),");
     expect(route).not.toContain("ref: `attempt:${attempt.id}`,");
   });

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -22,7 +23,7 @@ import { resultStages, readTopicGain } from "@/lib/learning/result-stages";
 import { isFigurePage } from "@/lib/learning/source-preview";
 import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 /* ───────────── Tek metin süzgeci ───────────── */
 

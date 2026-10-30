@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { topicMasteryGain, type TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
@@ -65,10 +66,10 @@ describe("konu hâkimiyeti kazancı", () => {
   });
 
   it("sunucu kazancı döndürür; sonuç ekranı kazanç varsa önce kartı açar", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("topicGain = tracked.topicGain;");
     expect(route).toMatch(/learningTracking,\s+topicGain,/);
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("setTopicGain(topicGainWorthShowing(data.topicGain) ? data.topicGain : null);");
     expect(session).toContain("<TopicGainCard gain={topicGain} nextHref={nextHref} />");
   });

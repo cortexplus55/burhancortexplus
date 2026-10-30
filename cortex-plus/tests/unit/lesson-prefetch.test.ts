@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { readSource } from "./helpers/node-sources";
 import path from "path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +9,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
  * çerezini taşımaz — imzalı başlıkla gelir.
  */
 
-const read = (rel: string) => readFileSync(path.join(process.cwd(), rel), "utf8");
+const read = (rel: string) => readSource(path.join(process.cwd(), rel));
 const route = read("src/app/api/learning/exam-prep/node/route.ts");
 const runner = read("src/lib/learning/teacher-lesson-run.ts");
 const prefetchLib = read("src/lib/learning/lesson-prefetch.ts");
@@ -122,7 +123,8 @@ describe("ısınma yazımı: düğüm açılınca başlar (19 Ekim 2026)", () =>
   it("istemci ruh hali / aşinalık ekranında bir kez 'warm' ister; sunucu yalnız ders düğümünde yazımı başlatır", () => {
     expect(session).toMatch(/action: "warm"/);
     expect(session).toMatch(/stage !== "familiarity" && stage !== "mood"/);
-    expect(route).toMatch(/if \(action === "warm"\) \{/);
+    // Eylem yönlendiricisi (30 Ekim 2026 bölmesi): "warm" kendi modülüne gider.
+    expect(route).toMatch(/case "warm":\s*return warmAction\(loaded\);/);
     expect(route).toMatch(/requestNodePrefetch\([\s\S]*?\{ warm: true \},\s*\)/);
     // Isınma yazımı normal işlemde (23 Ekim 2026): açılmayan derste de ödeniyordu.
     expect(route).toMatch(/fast: input\.charge !== false \|\| input\.firstLesson === true,/);

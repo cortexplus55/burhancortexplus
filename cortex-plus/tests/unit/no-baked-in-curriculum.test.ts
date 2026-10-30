@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -67,7 +68,7 @@ describe("no baked-in curriculum", () => {
   for (const file of PRODUCTION_FILES) {
     it(`${file} names no topic from the sample PDFs`, () => {
       const source = stripComments(
-        readFileSync(resolve(process.cwd(), file), "utf8"),
+        readSource(resolve(process.cwd(), file)),
       ).toLocaleLowerCase("tr");
       const found = SAMPLE_DOCUMENT_TOPICS.filter((topic) =>
         source.includes(topic),

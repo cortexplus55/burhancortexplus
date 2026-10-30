@@ -4,6 +4,7 @@
  * Kural ders-bağımsız: yalnız sayılar (deneme, genel skor, hedef, konu doğruluğu).
  */
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -144,11 +145,11 @@ describe("ekran ve düğüm", () => {
   });
 
   it("hazırlık ekranı görünce düğüm kendiliğinden tamamlanır (bir kez, bitmiş düğümde değil)", () => {
-    const session = readFileSync(path.join(ROOT, "src/components/parity/exam-node-session.tsx"), "utf8");
+    const session = readSource(path.join(ROOT, "src/components/parity/exam-node-session.tsx"));
     expect(session).toMatch(/readinessAutoDone = useRef\(false\)/);
     expect(session).toMatch(/kind !== "readiness" \|\| nodeDone \|\| readinessAutoDone\.current/);
     expect(session).toMatch(/payload\.type !== "readiness" \|\| !payload\.screen/);
-    const page = readFileSync(path.join(ROOT, "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx"), "utf8");
+    const page = readSource(path.join(ROOT, "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx"));
     expect(page).toContain('nodeDone={node.status === "done"}');
   });
 });

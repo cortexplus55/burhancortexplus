@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -45,7 +46,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 // Salı 27 Ekim 2026 12:00 İstanbul (09:00 UTC): ders hakkı Pazartesi 2 Kasım 00:00'da yenilenir.
 const TUESDAY = new Date("2026-10-27T09:00:00Z");
 

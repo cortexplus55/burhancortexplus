@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home";
@@ -52,7 +53,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 describe("tek konu kimliği: kimlik önce, ad yalnız kimlik yoksa", () => {
   const rows = [

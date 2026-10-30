@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
@@ -229,7 +230,7 @@ describe("kavram kavram denetim ve yayım", () => {
 });
 
 describe("motor ayarları", () => {
-  const run = readFileSync("src/lib/learning/teacher-lesson-run.ts", "utf8");
+  const run = readSource("src/lib/learning/teacher-lesson-run.ts");
   it("yazar akışla ve düşük düşünmeyle; denetçi varsayılan düşünmeyle; öğrenci beklerken hızlı işlem", () => {
     expect(run).toContain("stream: true");
     expect(run).toMatch(/reasoning_effort: "low",\s*\.\.\.tier/);
@@ -237,7 +238,7 @@ describe("motor ayarları", () => {
     expect(run).toContain('const tier = options.fast ? ({ service_tier: "fast" } as const) : {};');
     expect(run).toContain('const fast = Boolean(input.fast) && (await fastAllowedFor(service, input.userId));');
     // Öğrenci beklerken hızlı işlem; ısınma 23 Ekim 2026'dan beri normal işlemde.
-    expect(readFileSync('src/app/api/learning/exam-prep/node/route.ts', 'utf8')).toContain('fast: input.charge !== false || input.firstLesson === true,');
+    expect(readSource('src/app/api/learning/exam-prep/node/route.ts')).toContain('fast: input.charge !== false || input.firstLesson === true,');
     expect(run).toContain("`${model}-fast`");
   });
 

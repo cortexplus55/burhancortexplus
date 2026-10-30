@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
@@ -12,11 +13,11 @@ import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 
 afterEach(cleanup);
 
-const player = readFileSync("src/components/parity/exam-podcast-player.tsx", "utf8");
-const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
-const generating = readFileSync("src/components/parity/node-generation-progress.tsx", "utf8");
-const topics = readFileSync("src/components/parity/exam-topic-pick.tsx", "utf8");
-const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
+const player = readSource("src/components/parity/exam-podcast-player.tsx");
+const session = readSource("src/components/parity/exam-node-session.tsx");
+const generating = readSource("src/components/parity/node-generation-progress.tsx");
+const topics = readSource("src/components/parity/exam-topic-pick.tsx");
+const home = readSource("src/components/parity/exam-prep-home.tsx");
 
 describe("podcast oynatıcı kabuğu", () => {
   it("üst başlık, transkript ve 15 saniyelik atlama duruyor", () => {

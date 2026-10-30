@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { existsSync, readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { istanbulDay } from "@/lib/istanbul-day";
 import { oralItemReviewable, type OralItemGrade } from "@/lib/learning/oral-exam";
@@ -27,7 +28,7 @@ import {
  * sayfasında "Bugün N tekrar"; yolu kilitlemez. Öğe denetlenmiş sorunun kopyası: metin yeniden
  * yazılmaz, yalnız şık sırası karışır; cevap sunucuda notlanır.
  */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 const TODAY = "2026-10-20";
 const ATTEMPT = "att-1";
@@ -475,17 +476,19 @@ describe("bekçi: kaynak", () => {
 
   it("node rotası: tekrar kaydı tamamlama RPC'sinden sonra, kendi kabuğunda; RPC ya da yeni sorgu yok", () => {
     const route = read("src/app/api/learning/exam-prep/node/route.ts");
-    const call = route.indexOf("scheduleReviewsAfterComplete(service");
-    expect(call).toBeGreaterThan(route.indexOf('service.rpc("complete_exam_prep_node"'));
-    expect(route.slice(call, call + 700)).toContain(".catch(() => 0)");
-    expect(route.slice(call, call + 700)).not.toContain(".rpc(");
+    // Bitirme kolu 30 Ekim 2026 bölmesinden beri kendi modülünde (`node/complete.ts`).
+    const complete = read("src/lib/learning/node/complete.ts");
+    const call = complete.indexOf("scheduleReviewsAfterComplete(service");
+    expect(call).toBeGreaterThan(complete.indexOf('service.rpc("complete_exam_prep_node"'));
+    expect(complete.slice(call, call + 700)).toContain(".catch(() => 0)");
+    expect(complete.slice(call, call + 700)).not.toContain(".rpc(");
     expect(route).toContain("reviewScheduled,");
     const store = read("src/lib/learning/review-items-store.ts");
     expect(store).toContain("isFeatureEnabled(service, SPACED_REVIEW_FLAG)");
     expect(store).not.toContain(".rpc(");
     // Önceden yazım tekrar yazmaz: kayıt yalnız "complete" kolunda, tek yerde.
-    expect(route.indexOf('if (action === "complete")')).toBeGreaterThan(0);
-    expect(call).toBeGreaterThan(route.indexOf('if (action === "complete")'));
+    expect(route).toMatch(/case "complete":\s*return completeAction\(loaded\);/);
+    expect(call).toBeGreaterThan(0);
     expect(route.match(/scheduleReviewsAfterComplete\(service/g)).toHaveLength(1);
   });
 

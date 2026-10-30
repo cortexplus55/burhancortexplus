@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import {
   favoriteSubjects,
@@ -61,16 +62,16 @@ describe("öğrenme süresi", () => {
   });
 
   it("süre yalnızca çalışırken sayılır ve sunucuda sınırlı", () => {
-    const hook = readFileSync("src/components/learning/use-learning-timer.ts", "utf8");
+    const hook = readSource("src/components/learning/use-learning-timer.ts");
     expect(hook).toContain('document.visibilityState === "visible"');
     expect(hook).toContain("IDLE_MS");
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain('stage === "play" || stage === "oral-review"');
-    const route = readFileSync("src/app/api/activity/time/route.ts", "utf8");
+    const route = readSource("src/app/api/activity/time/route.ts");
     expect(route).toContain("max(120)");
     const migration = "supabase/migrations/20260930200000_learning_time.sql";
     expect(existsSync(migration)).toBe(true);
-    expect(readFileSync(migration, "utf8")).toContain("least(greatest(p_seconds, 0), 120)");
-    expect(readFileSync("src/lib/privacy/account-deletion.ts", "utf8")).toContain('"learning_time"');
+    expect(readSource(migration)).toContain("least(greatest(p_seconds, 0), 120)");
+    expect(readSource("src/lib/privacy/account-deletion.ts")).toContain('"learning_time"');
   });
 });

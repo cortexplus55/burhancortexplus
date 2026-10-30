@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import {
   masterySnapshotFromRow,
@@ -23,7 +24,7 @@ import { oralScoreFraction } from "@/lib/learning/oral-exam";
 import { reversedFunctionNotation } from "@/lib/learning/function-notation";
 import type { LessonScreen } from "@/lib/learning/lesson-v3";
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 /** Kayıttaki `confidence` (12) eski /5 sönümüyle yazılmış; ekranlar onu değil ham sayıları okur. */
 const ROW = {

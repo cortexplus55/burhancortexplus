@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import {
   TOPIC_ONLY_NOTICE,
   materialKindLabel,
@@ -151,13 +152,13 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
 
   for (const route of routes) {
     it(`${route} resolvePrepSourceMode kullanıyor`, () => {
-      const src = readFileSync(route, "utf8");
+      const src = readSource(route);
       expect(src).toContain("resolvePrepSourceMode");
       expect(src).toContain("shouldSearchSources");
     });
 
     it(`${route} belgesizken documents_only'ye düşmüyor`, () => {
-      const src = readFileSync(route, "utf8");
+      const src = readSource(route);
       expect(src).not.toContain('sourceBoundaryMode ?? "documents_only"');
     });
   }
@@ -179,7 +180,7 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
   */
   it("iki doğru şıkkı istem önlüyor; gözden geçirme bu yollarda kapalı", () => {
     // Eski zincir silindi (3 Ekim 2026); kural öğretmen test motorunun yazar ve denetçi isteminde.
-    expect(readFileSync("src/lib/learning/teacher-quiz.ts", "utf8")).toContain(
+    expect(readSource("src/lib/learning/teacher-quiz.ts")).toContain(
       "iki doğru kuralı yan yana şık yapma",
     );
     for (const route of [
@@ -187,7 +188,7 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
       "src/app/api/learning/exam-prep/node/route.ts",
       "src/app/api/learning/quiz/generate/route.ts",
     ]) {
-      expect(readFileSync(route, "utf8")).not.toMatch(/verifyOptionReasoning:/);
+      expect(readSource(route)).not.toMatch(/verifyOptionReasoning:/);
     }
   });
 
@@ -196,13 +197,13 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
     testi tek taslakla yine düştü. Geri almanın bunu bir daha götürmemesi için.
   */
   it("tanışma testi ikinci taslak hakkını koruyor", () => {
-    const src = readFileSync("src/app/api/learning/exam-prep/intro/route.ts", "utf8");
+    const src = readSource("src/app/api/learning/exam-prep/intro/route.ts");
     const call = src.slice(src.indexOf("await generateExamQuiz("));
     expect(call.slice(0, call.indexOf("});"))).toContain("maxDraftAttempts: 2");
   });
 
   it("düğüm dersi belgesizken kaynak çözücüye gitmeden konu çitine geçiyor", () => {
-    const src = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const src = readSource("src/app/api/learning/exam-prep/node/route.ts");
     const gate = src.indexOf("if (topicOnlyLesson)");
     const resolver = src.indexOf("await resolveLessonSource(");
     expect(gate).toBeGreaterThan(-1);

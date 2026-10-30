@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { toDisplay } from "@/lib/learning/speech-normalizer";
@@ -178,7 +179,7 @@ describe("öğretmen podcast motoru: döngü", () => {
 
 describe("rota podcast'i öğretmen motoruna yollar", () => {
   it("yalnız öğretmen motoru, çekirdek sayfa ya da belgesiz; önbellek korunur", () => {
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain('const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast", "true_false"]);');
     // 20 Ekim 2026: motor senaryoyla birlikte dinleme kontrolünü de döndürür.
     expect(route).toContain("const { episode, check, deferred } = await teacherPodcastEpisode(input, core, length);");
@@ -186,7 +187,7 @@ describe("rota podcast'i öğretmen motoruna yollar", () => {
     const block = route.slice(route.indexOf("if (TEACHER_PAGE_KINDS.has(kind) && teachingV2"), route.indexOf("// Podcast, sayfa kaynağı duruyorsa"));
     expect(block).toContain("await resolveLessonSource(service, {");
     // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
-    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(readSource("src/lib/env.ts")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
     expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });

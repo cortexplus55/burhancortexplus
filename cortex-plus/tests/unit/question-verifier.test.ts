@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { verifyChoiceQuestion, verifyOralPrompt } from "@/lib/learning/question-verifier";
 import { settleExplanation } from "@/lib/learning/question-verifier";
@@ -185,19 +186,19 @@ describe("question verifier is subject-agnostic", () => {
 
 describe("repeats page does not spend credits", () => {
   it("only reads stored misconceptions", () => {
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/tekrarlar/page.tsx", "utf8");
-    const list = readFileSync("src/components/parity/exam-prep-reviews.tsx", "utf8");
+    const page = readSource("src/app/deneme-sinavlari/[prepId]/tekrarlar/page.tsx");
+    const list = readSource("src/components/parity/exam-prep-reviews.tsx");
     for (const source of [page, list]) {
       expect(source).not.toContain("reserveCredits");
       expect(source).not.toContain("generateJson");
       expect(source).not.toContain("QUIZ_GENERATE");
     }
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("cortex-balance");
     expect(session).toContain("oralReviewItemFromGrade");
     // 29 Eylül 2026: üst çubukta kredi çipi yok (Astra gibi), bakiye olayını
     // dinleyecek bir sayı da yok.
-    const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");
+    const shell = readSource("src/components/parity/sor-shell.tsx");
     expect(shell).not.toContain("cp-sor-credit-chip");
   });
 });

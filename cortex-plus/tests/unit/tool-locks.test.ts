@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { STUDY_TOOL_LOCK_COPY, studyToolLock } from "@/lib/learning/study-tools";
 import { lockedToolPayload } from "@/lib/learning/exam-local-session";
@@ -29,7 +30,7 @@ describe("Bilgi boşlukları ve Tekrar kilidi", () => {
     const plan = lockedToolPayload("gaps");
     expect(plan.action).toBe("serve");
     expect(plan.action === "serve" && plan.payload).toMatchObject({ type: "practice_empty", locked: true });
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8").replace(/\r\n/g, "\n");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts").replace(/\r\n/g, "\n");
     expect(route).toContain('const lockable = (kind === "gaps" || kind === "spaced") && node.status !== "done";');
     expect(route).toContain("local.payload.locked === true");
     // Kilitli cevap, kayıt ekleyen dalın ÖNÜNDE döner.

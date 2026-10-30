@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
@@ -16,7 +17,7 @@ const { CHAT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_ACCEPT, MIME_BY_EXTENSION } = await 
 const { DOCUMENT_ALLOWED_TYPES } = await import("@/lib/documents/store-upload");
 const { cspDirectives } = await import("@/lib/security/csp");
 
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 afterEach(cleanup);
 

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BACKGROUND_FIX_ROUNDS,
@@ -258,7 +259,7 @@ describe("aynı konunun bloğu ve akan ilk pencere", () => {
 });
 
 describe("kablolama", () => {
-  const read = (file: string) => readFileSync(file, "utf8");
+  const read = (file: string) => readSource(file);
 
   it("deneme: konu bağlamı paralel, motorlar urgent, ilerleme akışı", () => {
     const create = read("src/lib/learning/mock-exam/create.ts");
@@ -274,7 +275,8 @@ describe("kablolama", () => {
 
   it("etkinlik bitince sıradaki önceden yazılır; öğrenci isteği urgent", () => {
     const node = read("src/app/api/learning/exam-prep/node/route.ts");
-    const complete = node.slice(node.indexOf('if (action === "complete")'));
+    // Bitirme kolu 30 Ekim 2026 bölmesinden beri kendi modülünde.
+    const complete = read("src/lib/learning/node/complete.ts");
     expect(complete.indexOf("requestNextPrefetch(")).toBeGreaterThan(complete.indexOf("completion_failed"));
     expect(node.match(/urgent: input\.charge !== false/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
   });

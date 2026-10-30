@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isRetryableFailure, postJsonWithRetry } from "@/lib/learning/generation-retry";
 
@@ -66,12 +67,12 @@ describe("bütün içerik ekranları aynı kuralı kullanır", () => {
       "src/components/parity/challenge-set-play.tsx",
       "src/components/parity/exam-node-session.tsx",
     ]) {
-      expect(readFileSync(file, "utf8"), file).toContain('from "@/lib/learning/generation-retry"');
+      expect(readSource(file), file).toContain('from "@/lib/learning/generation-retry"');
     }
   });
 
   it("podcast sayfası boş yazı yerine bekleme ekranı gösterir", () => {
-    const page = readFileSync("src/components/parity/prep-podcast-session.tsx", "utf8");
+    const page = readSource("src/components/parity/prep-podcast-session.tsx");
     expect(page).toContain('<NodeGenerationProgress');
     expect(page).toContain('title="Podcast hazırlanıyor…"');
   });

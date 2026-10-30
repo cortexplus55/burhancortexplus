@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeFakeDb } from "./helpers/fake-supabase";
 
@@ -15,7 +16,7 @@ const { loadReferralSummary, perEach, referralPitch, referralStatus, referralSte
  * Kredi v3 incelemesi (24 Ekim 2026), sunucu tarafı: ders sayılan kayıt, hazırlık geneli adımın sayacı,
  * sayaç fonksiyonu yokken eski yola düşüş, davet hediyesinin durumu ve ücretsiz sınır cümleleri.
  */
-const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 const USER = "user-1";
 const PREP = "prep-1";

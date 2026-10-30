@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { examPrepNodeResultHref } from "@/lib/learning/exam-prep-hrefs";
 import { nodeResultView, spentMinutes, unscoredResult } from "@/lib/learning/node-result";
@@ -8,7 +9,7 @@ import { nodeResultView, spentMinutes, unscoredResult } from "@/lib/learning/nod
   açıyor (3/7, doğruluk %50, harcanan zaman 3 dk, "Dersi tekrarla"). Bizde aynı düğme
   etkinliği baştan kuruyordu ("Bu konuya ne kadar aşinasın?") — devam edilse yeni deneme.
 */
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readSource(path);
 
 describe("bitmiş etkinliğin sonucu", () => {
   it("puan, doğruluk, süre ve cümle kayıttan", () => {
@@ -78,7 +79,7 @@ describe("bitmiş etkinliğin sonucu", () => {
 describe("podcast oturumunun sonuç ekranı puan göstermez", () => {
   it("oturum ekranı puansız türde skor satırlarını gizler", async () => {
     const { readFileSync } = await import("node:fs");
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     // 20 Ekim 2026: dinleme kontrolü cevaplanınca podcast de puanlı (2/3); atlanınca yine puansız.
     expect(session).toContain("const unscored = unscoredResult(kind, score.total);");
     expect(session).toContain("replayLabel(kind)");

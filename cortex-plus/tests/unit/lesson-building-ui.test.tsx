@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
@@ -82,13 +83,14 @@ describe("parça parça açılan ders ekranı", () => {
   });
 
   it("ekran yazım sürerken kaydı sorar; açılış isteği parça parça okuyabildiğini söyler", () => {
-    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain('...(kind === "lesson" && !overrides?.review ? { lessonStream: true } : {})');
     expect(session).toContain('action: "progress"');
     expect(session).toContain("building={lessonBuilding}");
     // Windows çalışma kopyası CRLF olabilir; satır atlamalı arama satır sonundan bağımsız olsun.
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8").replace(/\r\n/g, "\n");
-    expect(route).toContain('if (action === "progress") {');
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts").replace(/\r\n/g, "\n");
+    // Eylem yönlendiricisi (30 Ekim 2026 bölmesi): "progress" kendi modülüne gider.
+    expect(route).toContain('case "progress":');
     expect(route).toContain("parsed.data.lessonStream === true");
     // Kalan kavramlar yanıttan sonra aynı fonksiyonda; ilk kavramla kayıt "active".
     expect(route).toContain("after(() =>\n        settleOnce()");

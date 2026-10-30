@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { studentBottomTabs } from "@/components/parity/student-shell-nav";
 
@@ -18,31 +19,31 @@ describe("son Astra turu", () => {
       "src/app/deneme-sinavlari/[prepId]/ders/[lessonId]/page.tsx",
       "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/page.tsx",
     ]) {
-      expect(readFileSync(page, "utf8")).toContain('chrome="session"');
+      expect(readSource(page)).toContain('chrome="session"');
     }
-    const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");
+    const shell = readSource("src/components/parity/sor-shell.tsx");
     expect(shell).toContain('{chrome === "session" ? null : <header className="cp-sor-top">');
-    expect(readFileSync("src/components/parity/exam-node-session.tsx", "utf8")).not.toContain("← Geri");
+    expect(readSource("src/components/parity/exam-node-session.tsx")).not.toContain("← Geri");
   });
 
   it("hazırlık simgeleri üst çubukta; bant yok, tanı yolun başında", () => {
-    const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
+    const home = readSource("src/components/parity/exam-prep-home.tsx");
     expect(home).toContain("createPortal(toolbar, topSlot)");
     expect(home).not.toContain("<strong>Seviyeni henüz ölçmedik.</strong>");
     expect(home).toContain("lead={introPending ? introNode : null}");
-    expect(readFileSync("src/components/parity/sor-shell.tsx", "utf8")).toContain('id="cp-sor-top-slot"');
+    expect(readSource("src/components/parity/sor-shell.tsx")).toContain('id="cp-sor-top-slot"');
   });
 
   it("Belgeler menüde değil, Daha fazla'da; sayfada ayrı yükleme formu yok", () => {
     expect(studentBottomTabs.some((tab) => tab.href === "/dokumanlar")).toBe(false);
-    expect(readFileSync("src/components/parity/sor-shell.tsx", "utf8")).toContain('{ href: "/dokumanlar", label: "Belgelerim", icon: FileText }');
-    const docs = readFileSync("src/app/dokumanlar/page.tsx", "utf8");
+    expect(readSource("src/components/parity/sor-shell.tsx")).toContain('{ href: "/dokumanlar", label: "Belgelerim", icon: FileText }');
+    const docs = readSource("src/app/dokumanlar/page.tsx");
     expect(docs).not.toContain("<DocumentUpload");
     expect(docs).toContain("cp-docs-card");
   });
 
   it("ana sayfa Başla yuvarlak ışıltı düğmesi", () => {
-    const panel = readFileSync("src/components/chat/chat-panel.tsx", "utf8");
+    const panel = readSource("src/components/chat/chat-panel.tsx");
     expect(panel).toContain('<span className="cp-sor-start-orb" aria-hidden>');
     expect(panel).not.toContain('"+ " + startLabel');
   });

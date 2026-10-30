@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it } from "vitest";
 import { freePathUnblockIds, preferNextNodeForTracking } from "@/lib/learning/learning-tracking";
 import { PLUS_ONLY_NODE_KINDS } from "@/lib/billing/free-meters";
@@ -49,19 +50,19 @@ describe("freePathUnblockIds: düzeltmeden önce takılan yol bir kez açılır"
 
 describe("Plus adımını atlayan yerler", () => {
   it("hazırlık sayfası, değerlendirme ve tamamlama aynı kararı kullanır", () => {
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/page.tsx", "utf8");
+    const page = readSource("src/app/deneme-sinavlari/[prepId]/page.tsx");
     expect(page).toContain("pathSkipKinds(service, user.id)");
     expect(page).toMatch(/node\.status === "ready" && !skipKinds\.has\(node\.kind\)/);
-    expect(readFileSync("src/app/deneme-sinavlari/[prepId]/degerlendirme/page.tsx", "utf8")).toContain("skipKinds,");
-    const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    expect(readSource("src/app/deneme-sinavlari/[prepId]/degerlendirme/page.tsx")).toContain("skipKinds,");
+    const route = readSource("src/app/api/learning/exam-prep/node/route.ts");
     expect(route).toContain("skipKindsRead ??= pathSkipKinds(service, userId)");
     expect(route).toContain("skipKinds: await skipKinds(),");
     expect(route).not.toMatch(/const \{ data: nextRow \} = await service/);
-    expect(readFileSync("src/lib/learning/learning-tracking-persist.ts", "utf8")).toContain("skipKinds: input.skipKinds");
+    expect(readSource("src/lib/learning/learning-tracking-persist.ts")).toContain("skipKinds: input.skipKinds");
   });
 
   it("göç tamamlama fonksiyonunda aynı üç türü atlar", () => {
-    const sql = readFileSync("supabase/migrations/20261024130000_free_path_skips_plus.sql", "utf8");
+    const sql = readSource("supabase/migrations/20261024130000_free_path_skips_plus.sql");
     for (const kind of PLUS_ONLY_NODE_KINDS) expect(sql).toContain(`'${kind}'`);
     expect(sql.match(/kind IN \('podcast', 'oral', 'written_exam'\)/g)?.length).toBe(3);
     expect(sql).not.toMatch(/DROP POLICY/i);

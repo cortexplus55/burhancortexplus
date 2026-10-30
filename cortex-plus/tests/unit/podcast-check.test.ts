@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readSource } from "./helpers/node-sources";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
@@ -165,7 +166,7 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
   });
 
   it("motor kabuğu: kontrol kredi kesinleşmeden önce, aynı ayrılışla; ek ücret yok", () => {
-    const run = readFileSync("src/lib/learning/teacher-podcast-run.ts", "utf8");
+    const run = readSource("src/lib/learning/teacher-podcast-run.ts");
     const inner = run.slice(run.indexOf("async function runTeacherPodcastInner"));
     expect(inner.indexOf("await ensurePodcastDuration(ask, loop.episode, input, started)")).toBeGreaterThan(0);
     expect(inner.indexOf("await podcastListeningCheck(ask, episode, checkInput, started)")).toBeGreaterThan(
@@ -186,7 +187,7 @@ describe("dinleme kontrolü: test motoru senaryodan yazar", () => {
 });
 
 describe("rotalar: kontrol yalnız hazırlığın podcast'inde", () => {
-  const read = (path: string) => readFileSync(path, "utf8");
+  const read = (path: string) => readSource(path);
   const node = read("src/app/api/learning/exam-prep/node/route.ts");
 
   it("yol düğümü: üretir, önbelleğe yazar, sayar, puanlar, istemciye anahtarıyla gönderir", () => {
