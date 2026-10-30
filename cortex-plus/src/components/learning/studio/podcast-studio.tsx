@@ -510,6 +510,10 @@ export function PodcastStudio({
   const flatLines = flattenLines(chapters);
   const activeFlat = flatLines[lineCursor];
   const liveSpeaker = activeFlat?.speaker ?? chapter?.lines[0]?.speaker ?? "ada";
+  // Yalnız konuşan sesler gösterilir (30 Ekim 2026, canlı tur): tek sesli özette de "ADA / KEREM" çiziliyordu.
+  const voices = SPEAKERS.filter((speaker) => flatLines.some((line) => line.speaker === speaker));
+  const shownVoices = voices.length ? voices : SPEAKERS;
+  const soloVoice = shownVoices.length === 1;
 
   return (
     <StudioFrame tool="podcast" kicker="Podcast">
@@ -593,8 +597,8 @@ export function PodcastStudio({
 
           {tracks?.length ? (
             <>
-              <div className="ls-duo" aria-hidden>
-                {SPEAKERS.map((speaker) => {
+              <div className={cn("ls-duo", soloVoice && "is-solo")} aria-hidden>
+                {shownVoices.map((speaker) => {
                   const live = liveSpeaker === speaker;
                   return (
                     <div
@@ -703,7 +707,11 @@ export function PodcastStudio({
                     playFrom(global);
                   }}
                 >
-                  <strong>{SPEAKER_LABEL[line.speaker]}</strong>{" "}
+                  {soloVoice ? null : (
+                    <>
+                      <strong>{SPEAKER_LABEL[line.speaker]}</strong>{" "}
+                    </>
+                  )}
                   {current && lineClock.durationMs > 0 ? (
                     <PodcastKaraokeLine text={line.text} currentTime={lineClock.offsetMs} duration={lineClock.durationMs} />
                   ) : (

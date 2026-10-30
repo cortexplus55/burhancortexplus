@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import { DiagramCard } from "@/components/parity/diagram-card";
-import { renderMath } from "@/lib/learning/math-text";
+import { formulaStepHtml } from "@/lib/learning/math-text";
 import { studentOutputText } from "@/lib/learning/student-output-firewall";
 import {
   VIDEO_STYLES,
@@ -436,6 +436,7 @@ export function VideoLessonPlayer({
             playing={playing}
             formulaSteps={formulaSteps}
             formulaShown={formulaShown}
+            keyFact={current.keyFact}
           />
         ) : (
           <>
@@ -465,7 +466,9 @@ export function VideoLessonPlayer({
         </div>
         {/* Kilit bilgi (18 Ekim 2026): sınavda sorulacak sayı ya da kural resmin üstünde büyük ve renkli;
             resim yazısız kalır, yazıyı oynatıcı çizer. */}
-        {current?.keyFact ? (
+        {/* Çizimli sahnede kilit bilgi tahtanın akışında (SketchBoard): üstte durunca "Dersi tamamla" düğmesine ve
+            sahne başlığına biniyordu (30 Ekim 2026, canlı tur). */}
+        {current?.keyFact && !sketch ? (
           <p key={`fact-${scene}`} className="cp-video-fact">
             {current.keyFact}
           </p>
@@ -553,6 +556,7 @@ function SketchBoard({
   playing,
   formulaSteps,
   formulaShown,
+  keyFact,
 }: {
   title: string;
   diagram: SketchDiagram;
@@ -561,6 +565,7 @@ function SketchBoard({
   playing: boolean;
   formulaSteps: string[];
   formulaShown: number;
+  keyFact?: string;
 }) {
   return (
     <div
@@ -568,40 +573,43 @@ function SketchBoard({
       style={{ ["--draw" as string]: String(draw) }}
       data-sketch="reel"
     >
-      <motion.h2 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-        {title}
-      </motion.h2>
-      <motion.div
-        className="cp-sketch-stage"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.45, delay: 0.08 }}
-      >
-        <DiagramCard
-          id={`sketch-${sceneKey}`}
-          card={{
-            type: "diagram_card",
-            diagramKind: diagram.diagramKind,
-            title: diagram.title,
-            ...(diagram.caption ? { caption: diagram.caption } : {}),
-            items: diagram.items,
-          }}
-        />
-      </motion.div>
-      {formulaSteps.length ? (
-        <div className="cp-sketch-formulas">
-          {formulaSteps.map((step, index) => (
-            <motion.p
-              key={`${sceneKey}-${index}`}
-              className={cn("cp-sketch-formula", index < formulaShown ? "is-on" : "is-wait")}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: index < formulaShown ? 1 : 0.18 }}
-              transition={{ duration: 0.3 }}
-              dangerouslySetInnerHTML={{ __html: renderMath(step, true) }}
-            />
-          ))}
-        </div>
-      ) : null}
+      <div className="cp-video-board-body">
+        <motion.h2 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+          {title}
+        </motion.h2>
+        {keyFact ? <p className="cp-video-fact cp-sketch-fact">{keyFact}</p> : null}
+        <motion.div
+          className="cp-sketch-stage"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.45, delay: 0.08 }}
+        >
+          <DiagramCard
+            id={`sketch-${sceneKey}`}
+            card={{
+              type: "diagram_card",
+              diagramKind: diagram.diagramKind,
+              title: diagram.title,
+              ...(diagram.caption ? { caption: diagram.caption } : {}),
+              items: diagram.items,
+            }}
+          />
+        </motion.div>
+        {formulaSteps.length ? (
+          <div className="cp-sketch-formulas">
+            {formulaSteps.map((step, index) => (
+              <motion.p
+                key={`${sceneKey}-${index}`}
+                className={cn("cp-sketch-formula", index < formulaShown ? "is-on" : "is-wait")}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: index < formulaShown ? 1 : 0.18 }}
+                transition={{ duration: 0.3 }}
+                dangerouslySetInnerHTML={{ __html: formulaStepHtml(step) }}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

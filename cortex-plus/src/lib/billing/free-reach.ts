@@ -54,7 +54,7 @@ const KIND_NAME: Record<string, string> = {
   oral: "Sözlü deneme",
   written_exam: "Yazılı deneme",
   flashcards: "Kartlar",
-  spaced: "Tekrar",
+  spaced: "Kartlarla tekrar",
   quiz: "Konu testi",
   true_false: "Doğru / yanlış",
 };
