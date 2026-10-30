@@ -118,7 +118,7 @@ export function VideoLessonSetup({
             </li>
           ))}
         </ul>
-        <p>{sketchJob ? "Yaklaşık 15–25 saniye sürer." : "Bu işlem bir iki dakika sürebilir."}</p>
+        <p>{sketchJob ? "Yaklaşık yarım dakika sürer." : "Bu işlem bir iki dakika sürebilir."}</p>
       </section>
     );
   }

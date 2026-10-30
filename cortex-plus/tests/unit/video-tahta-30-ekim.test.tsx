@@ -5,6 +5,7 @@ import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { VideoLessonPlayer } from "@/components/parity/video-lesson";
 import { formulaStepHtml, renderMath, textifyFormulaWords } from "@/lib/learning/math-text";
+import { SKETCH_TARGET_WORDS, SKETCH_TOTAL_WORDS, sketchSystem } from "@/lib/learning/video-lesson";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }) }));
 
@@ -101,5 +102,16 @@ describe("çizimli video tahtası (30 Ekim 2026, canlı tur)", () => {
     const css = read("src/styles/video-lesson.css");
     expect(css).toMatch(/\.cp-video-board \{[\s\S]*container-type: size/);
     expect(css).toMatch(/\.cp-video-board-body \{[\s\S]*padding: 7\.2rem 0\.8rem calc\(18cqh \+ 4\.6rem\)/);
+  });
+  it("yazar 1 dakikaya yakın yazar; bekleme sözü ölçülen süreyle", () => {
+    // Seslendirme saniyede ~1,64 kelime: 92 kelime ≈ 56 sn. Denetim aralığı değişmez (yeni düzeltme turu açılmaz).
+    expect(SKETCH_TARGET_WORDS.min).toBeGreaterThanOrEqual(90);
+    expect(SKETCH_TARGET_WORDS.max).toBeLessThanOrEqual(SKETCH_TOTAL_WORDS.max);
+    expect(SKETCH_TOTAL_WORDS.min).toBe(72);
+    expect(sketchSystem("document")).toContain(`toplam ${SKETCH_TARGET_WORDS.min}-${SKETCH_TARGET_WORDS.max} kelime`);
+    expect(sketchSystem("document")).toContain("Sözle yazılan kuralda KaTeX komutu kullanma");
+    const player = read("src/components/parity/video-lesson.tsx");
+    expect(player).toContain("Yaklaşık yarım dakika sürer.");
+    expect(player).not.toContain("15–25 saniye");
   });
 });
