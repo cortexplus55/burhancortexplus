@@ -13,12 +13,16 @@ import { LESSON_V3_FORMAT, screenConcept, type LessonScreen, type LessonV3 } fro
 import { LessonStreamReader } from "@/lib/learning/lesson-stream";
 import { runLessonSanity } from "@/lib/learning/lesson-sanity";
 import {
+  COVERAGE_COMPLETION_SCREENS,
   DIAGRAM_COMPLETION_SYSTEM,
+  coverageCompletionUserPrompt,
+  coverageGapCount,
   diagramCompletionUserPrompt,
   dropRepeatedChecks,
   dropRepeatedScreens,
   fourPartGaps,
   isCoverageIssue,
+  lessonCoverageGaps,
   lessonLevelStructureIssues,
   lessonTeachingFlags,
   parametricDiagramIssue,
@@ -31,6 +35,7 @@ import {
   teacherSystem,
   teacherUserPrompt,
   type DiagramCompletion,
+  type LessonCoverageGaps,
   type TeacherIssue,
   type TeacherLessonInput,
 } from "@/lib/learning/teacher-lesson";
@@ -47,6 +52,8 @@ import {
   - Ayrışan her kavram yayımlanır. Kavram atılmaz, öğrenciye eksik bölüm cümlesi yazılmaz.
   - JSON ekran ekran akmazsa aynı metin bir kez daha ayrıştırılır.
   - Dört parçadan biri eksikse bir tamamlama çağrısı yapılır; tutmazsa ilk taslak kalır.
+  - Kapsam açığı kalırsa (omurga başlığı, kilit bilgi) yalnız eksikleri öğreten en çok iki ekran isteyen tek küçük
+    çağrı (30 Ekim 2026, 30 sn tavan); açık azalmazsa ders aynen yayımlanır.
   - diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026, 25 sn tavan); kart derste ya da
     kaynakta geçen etiket ve sayılarla temellenmezse ders aynen yayımlanır.
   - Yayımdan önce anahtar kapısı (29 Ekim 2026, model çağrısız): açıklamanın şıkkıyla çelişen answerIndex hizalanır,
@@ -98,6 +105,63 @@ export async function completeLessonDiagram(io: LessonIo, lesson: LessonV3, inpu
     ms: Date.now() - started,
   });
   return verdict;
+}
+
+/** Kapsam tamamlama çağrısının tavanı: yalnız eksik kısımları öğreten en çok iki ekran. */
+const COVERAGE_COMPLETION_MS = 30_000;
+
+export type CoverageCompletion = {
+  verdict: "added" | "no_gain" | "unparsed" | "timeout" | "error";
+  /** Eklenen ekranlar (yalnız `added`). Anahtar hizalı, tekrar düşmüş, şıkları karışık. */
+  screens: LessonScreen[];
+  before: number;
+  after: number;
+};
+
+/**
+ * Ders bitince kalan kapsam açıkları için tek küçük çağrı (30 Ekim 2026). Yazar aynı sistem istemiyle yalnız yeni ekran
+ * yazar; ekranlar yayımlanan derse karşı tekrar süzgecinden ve anahtar kapısından geçer, hafif doğrulayıcı da bakar.
+ * Açık azalmazsa, çağrı düşerse ya da zaman aşarsa ders aynen kalır.
+ */
+export async function completeLessonCoverage(
+  io: LessonIo,
+  lesson: LessonV3,
+  input: TeacherLessonInput,
+  gaps: LessonCoverageGaps,
+): Promise<CoverageCompletion> {
+  const before = coverageGapCount(gaps);
+  const mode = input.mode ?? "document";
+  try {
+    const answer = await withDeadline(
+      io.write(teacherSystem(mode), coverageCompletionUserPrompt(lesson, input, gaps), () => undefined),
+      COVERAGE_COMPLETION_MS,
+    );
+    if (!answer) return { verdict: "timeout", screens: [], before, after: before };
+    const parsed = parseTeacherLesson(parseModelJson(answer.text), input.upcomingTopics);
+    if (!parsed?.screens.length) return { verdict: "unparsed", screens: [], before, after: before };
+    let extra = settleCheckKeys(
+      dropRepeatedScreens(lesson.screens, dropRepeatedChecks(lesson.screens, parsed.screens.slice(0, COVERAGE_COMPLETION_SCREENS))),
+    );
+    if (extra.length && input.sanity !== false) {
+      const sanity = await runLessonSanity(
+        (system, user) => io.write(system, user, () => undefined).then((reply) => reply.text),
+        { mode, topicLabel: input.topicLabel, source: input.pages.map((page) => page.text).join("\n"), screens: extra },
+        parseModelJson,
+      );
+      if (sanity) extra = sanity.screens;
+    }
+    const merged: LessonV3 = { ...lesson, screens: [...lesson.screens, ...extra] };
+    const after = coverageGapCount(lessonCoverageGaps(merged, input));
+    if (!extra.length || after >= before) return { verdict: "no_gain", screens: [], before, after: before };
+    return {
+      verdict: "added",
+      screens: shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: extra }).screens,
+      before,
+      after,
+    };
+  } catch {
+    return { verdict: "error", screens: [], before, after: before };
+  }
 }
 
 export type TeacherLessonOutcome =
@@ -496,7 +560,22 @@ export async function teacherLessonPipeline(
         if (fourPartGaps(merged).length < gaps.length) delivered = merged;
       }
     }
-    // (2) diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026); düşerse ders aynen yayımlanır.
+    // (2) Kapsam açığı kaldıysa yalnız eksikleri öğreten en çok iki ekran (30 Ekim 2026); düşerse ders aynen kalır.
+    const gapsLeft = lessonCoverageGaps(delivered, input);
+    if (coverageGapCount(gapsLeft) > 0) {
+      const coverageStarted = Date.now();
+      const coverage = await completeLessonCoverage(io, delivered, input, gapsLeft);
+      if (coverage.verdict === "added") delivered = { ...delivered, screens: [...delivered.screens, ...coverage.screens] };
+      console.info("teacher_lesson_coverage", {
+        verdict: coverage.verdict,
+        before: coverage.before,
+        after: coverage.after,
+        added: coverage.screens.length,
+        missing: [...gapsLeft.headings, ...gapsLeft.facts].slice(0, 6).map((item) => item.slice(0, 60)),
+        ms: Date.now() - coverageStarted,
+      });
+    }
+    // (3) diagram_card yoksa yalnız kartı isteyen tek küçük çağrı (29 Ekim 2026); düşerse ders aynen yayımlanır.
     if (parametricDiagramIssue(delivered)) {
       const completion = await completeLessonDiagram(io, delivered, input);
       if (completion.lesson) delivered = completion.lesson;

@@ -24,6 +24,7 @@ export type KeyFactKind =
   | "count_rule"
   | "emphasis"
   | "table_row"
+  | "term"
   | "definition";
 
 export type KeyFact = {
@@ -52,6 +53,7 @@ const PRIORITY: KeyFactKind[] = [
   "callout",
   "percent",
   "count_rule",
+  "term",
   "emphasis",
   "table_row",
   "definition",
@@ -320,7 +322,13 @@ export function lessonKeyFacts(pages: readonly { text?: string }[]): KeyFact[] {
   }
 
   for (const table of markdownTables(text)) {
-    if (!isCrossTable(table)) continue;
+    if (!isCrossTable(table)) {
+      for (const row of glossaryRows(table)) {
+        const label = row[0] ?? "";
+        pushFact(facts, { kind: "term", text: `${label}: ${row.slice(1).join(" · ")}`, signatures: numberSignatures(row.join(" ")), stems: lineStems(label) });
+      }
+      continue;
+    }
     for (const row of table.slice(0, 4)) {
       const label = row[0] ?? "";
       const signatures = numberSignatures(row.join(" "));
@@ -328,7 +336,59 @@ export function lessonKeyFacts(pages: readonly { text?: string }[]): KeyFact[] {
     }
   }
 
+  for (const term of abbreviationTerms(text)) {
+    pushFact(facts, { kind: "term", text: `${term.abbr} (${term.expansion})`, signatures: [term.abbr], stems: [] });
+  }
+
   return capFacts(facts);
+}
+
+/*
+  Terimler (30 Ekim 2026): kaynakta açılımıyla verilen kısaltma ve sözlük tablosunun satırları. Sayısız tanımlar
+  bu listeye hiç girmiyordu: "TÜFE (…) hanehalkının …, Yİ-ÜFE (…) üreticilerin … ölçer" satırı ve "Kavram | Anlamı"
+  tablosu yazara kilit bilgi diye gitmiyor, onları atlayan ders kapsam ölçüsünden de geçiyordu. Ölçü biçimdendir;
+  ders adı ya da terim listesi yok.
+*/
+const ABBREVIATION = String.raw`\p{Lu}[\p{Lu}\p{N}]*(?:-\p{Lu}[\p{Lu}\p{N}]*)?`;
+const ABBR_THEN_EXPANSION = new RegExp(String.raw`(?<![\p{L}\p{N}])(${ABBREVIATION})\s*\(([^()\n]{4,80})\)`, "gu");
+const EXPANSION_THEN_ABBR = new RegExp(String.raw`(\p{Lu}\p{Ll}+(?:\s+\p{L}+){1,7})\s*\((${ABBREVIATION})\)`, "gu");
+const TERM_CAP = 6;
+
+function isAbbreviation(value: string): boolean {
+  const letters = value.replace(/[^\p{L}]/gu, "");
+  if (letters.length < 2 || value.length > 10) return false;
+  return !/^[IVXLCDM]+$/.test(letters);
+}
+
+/** Açılım en az iki sözcük, küçük harf taşır, rakam taşımaz; sözcüklerinden biri kısaltmanın ilk harfiyle başlar. */
+function isExpansion(abbr: string, expansion: string): boolean {
+  const words = expansion.split(/\s+/).filter((word) => /\p{L}/u.test(word));
+  if (words.length < 2 || !/\p{Ll}/u.test(expansion) || /\d/.test(expansion)) return false;
+  const first = fold(abbr).charAt(0);
+  return words.some((word) => fold(word).charAt(0) === first);
+}
+
+/** Kaynakta açılımıyla verilen kısaltmalar: "TÜFE (Tüketici Fiyat Endeksi)" ya da "… Merkez Bankası (TCMB)". */
+export function abbreviationTerms(text: string): { abbr: string; expansion: string }[] {
+  const out: { abbr: string; expansion: string }[] = [];
+  const add = (abbr: string, expansion: string) => {
+    const clean = expansion.replace(/\s+/g, " ").trim();
+    if (!isAbbreviation(abbr) || !isExpansion(abbr, clean)) return;
+    if (out.some((item) => item.abbr === abbr)) return;
+    out.push({ abbr, expansion: clean });
+  };
+  for (const match of text.matchAll(ABBR_THEN_EXPANSION)) add(match[1] ?? "", match[2] ?? "");
+  for (const match of text.matchAll(EXPANSION_THEN_ABBR)) add(match[2] ?? "", match[1] ?? "");
+  return out.slice(0, TERM_CAP);
+}
+
+/** Sözlük tablosu: başlık satırından sonra ilk hücre kısa bir terim, yanındaki hücre onun açıklaması. */
+function glossaryRows(table: string[][]): string[][] {
+  const rows = table.slice(1);
+  if (rows.length < 2 || (table[0]?.length ?? 0) < 2) return [];
+  const termLike = (cell: string) => /\p{L}/u.test(cell) && cell.length <= 40 && cell.split(/\s+/).length <= 5;
+  if (!rows.every((row) => termLike(row[0] ?? "") && (row[1] ?? "").length >= 8)) return [];
+  return rows.slice(0, TERM_CAP);
 }
 
 function calloutRemainder(line: string): string | null {
@@ -499,7 +559,8 @@ export function keyFactsBlock(facts: readonly KeyFact[]): string {
   return (
     "KİLİT BİLGİLER (kaynaktan; her biri derste kendi sayı imzasıyla geçmeli):\n" +
     facts.map((fact, index) => `${index + 1}) ${fact.text}`).join("\n") +
-    "\nSayı, oran, kesir, formül, tarih ve madde numarası kaynaktaki yazımıyla durur. Sıralı adımlar aynı sırada kalır. " +
+    "\nSayı, oran, kesir, formül, tarih ve madde numarası kaynaktaki yazımıyla durur. Kısaltma ve terim derste adıyla " +
+    "geçer ve ne olduğu söylenir. Sıralı adımlar aynı sırada kalır. " +
     "Kaynakta çözümlü problem varsa en az bir example bloğu yaz (kaynaktaki sayılarla)."
   );
 }

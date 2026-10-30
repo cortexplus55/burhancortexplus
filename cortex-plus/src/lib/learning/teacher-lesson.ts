@@ -2033,6 +2033,46 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
   return issues;
 }
 
+/* ───────────── Kapsam tamamlaması (30 Ekim 2026) ───────────── */
+
+/**
+ * Tek geçişte kapsam yalnız ölçülüyordu (`done`): "Farklı anlat" ile yeniden yazılan derste kaynağın TÜİK / TÜFE /
+ * Yİ-ÜFE satırı hiç işlenmedi, ders yine öğrenciye gitti; aynı derse çalışan simüle öğrenci sınavın endeks sorusunu
+ * boş bıraktı. Ders bitince kalan açıklar (omurga başlığı, kilit bilgi) tek küçük çağrıya gider: yalnız eksikleri
+ * öğreten en çok iki yeni ekran, sona eklenir. Mevcut ekranlar yeniden yazılmaz.
+ */
+export const COVERAGE_COMPLETION_SCREENS = 2;
+
+export type LessonCoverageGaps = { headings: string[]; facts: string[] };
+
+export function lessonCoverageGaps(lesson: LessonV3, input: StructureInput): LessonCoverageGaps {
+  if (input.mode === "topic" || !input.pages?.length) return { headings: [], facts: [] };
+  return {
+    headings: uncoveredBackbone(lesson.screens, inputBackbone(input)),
+    facts: uncoveredKeyFacts(lesson.screens, lessonKeyFacts(input.pages)).map((fact) => fact.text),
+  };
+}
+
+export function coverageGapCount(gaps: LessonCoverageGaps): number {
+  return gaps.headings.length + gaps.facts.length;
+}
+
+export function coverageCompletionUserPrompt(lesson: LessonV3, input: TeacherLessonInput, gaps: LessonCoverageGaps): string {
+  const screens = lesson.screens.map((screen, index) => `[${index + 1}] ${screen.heading} (${screenConcept(screen)})`);
+  const missing = [
+    ...gaps.headings.map((heading) => `- Alt başlık: ${heading}`),
+    ...gaps.facts.slice(0, 8).map((fact) => `- Kilit bilgi: ${fact}`),
+  ];
+  return (
+    `${teacherUserPrompt(input)}\n\nKAPSAM TAMAMLAMASI: Bu ders yazıldı ve öğrenciye gidiyor. Mevcut ekranlar:\n${screens.join("\n")}\n\n` +
+    `Kaynağın şu kısımları derste işlenmedi:\n${missing.join("\n")}\n\n` +
+    `Yalnız bunları öğreten en çok ${COVERAGE_COMPLETION_SCREENS} YENİ ekran yaz. Bilgi kaynaktaki yazımıyla gelir (terim, ` +
+    "kısaltmanın açılımı, sayı); kaynakta olmayan bilgi ekleme. Her ekranın kendi 'concept' adı olur ve ekran bir soruyla " +
+    "biter. Mevcut ekranları yeniden yazma, giriş, özet ve sık yapılan hata alanlarını boş bırak. Aynı JSON biçiminde " +
+    `döndür: {"title":"${lesson.title.replace(/"/g, "'")}","screens":[…yalnız yeni ekranlar…]}`
+  );
+}
+
 /* ───────────── Parametrik şema tamamlaması (29 Ekim 2026, Paket H) ───────────── */
 
 /**
