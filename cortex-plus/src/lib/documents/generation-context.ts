@@ -181,11 +181,34 @@ export function topicScopeLine(context: Pick<DocumentGenerationContext, "wholeDo
 }
 
 /**
- * Yoldaki ve hazırlık sayfasındaki belgeli podcast için aynı satır (30 Ekim 2026, canlı: "Miktar Teorisi" podcast'i aynı
- * sayfadaki tahvil işlemleri, reel faiz ve Phillips eğrisi bölümlerini de anlattı). Konu kendi sayfalarıyla eşleşmiş sayılır.
+ * Yoldaki ve hazırlık sayfasındaki belgeli podcast: yalnız hazırlığın ÖBÜR konularının kısımları bölüm olmaz (30 Ekim 2026).
+ *
+ * İlk sürüm Araçlar satırını kullanıyordu ("sayfadaki başka başlıklar bölüm olmaz"). Aynı gün Astra ile yan yana kurulan
+ * 4 sayfalık notta konu haritası "Miktar Teorisi ve Fisher'in Değişim Denklemi" adını verdi; aynı sayfadaki reel faiz ve
+ * Phillips eğrisi başka hiçbir konunun değildi, o satırla podcast'te hiç anlatılmayacaktı. Araçlar'da öğrenci konuyu
+ * kendisi yazdığı için dar kapsam doğru; hazırlıkta konu haritanın bir düğümü ve sayfasında kalan her şey onundur.
+ * Öbür konu yoksa satır yok.
  */
-export function prepTopicScopeLine(topic: string): string {
-  return topicScopeLine({ wholeDocument: false, matched: true, topicTitle: topic }, topic);
+export function prepTopicScopeLine(topic: string, siblings: readonly string[]): string {
+  const title = topic.trim();
+  const key = (value: string) => value.trim().toLocaleLowerCase("tr");
+  const others = [
+    ...new Map(siblings.filter((other) => other.trim() && key(other) !== key(title)).map((other) => [key(other), other.trim()])).values(),
+  ].slice(0, 16);
+  if (!title || !others.length) return "";
+  return (
+    `Öğrenci «${title}» konusunu çalışıyor. Hazırlıktaki şu konular ayrı adımlarda anlatılıyor: ` +
+    `${others.map((other) => `«${other}»`).join(", ")}. KAYNAK sayfalarında onların kısımları da geçebilir: onları bölüm ` +
+    "yapma, gerekirse bir cümleyle an. Sayfalarda kalan öbür bütün başlıklar bu konunun kapsamındadır; kaynağın bütün " +
+    "noktalarını kapsama kuralı onlar için de geçerli."
+  );
+}
+
+/** Hazırlığın konu adları (kapsam satırı için; okunamazsa boş: satır hiç yazılmaz, podcast bütün sayfayı anlatır). */
+export async function prepTopicLabels(service: SupabaseClient, prepId: string): Promise<string[]> {
+  const { data, error } = await service.from("exam_prep_topics").select("label").eq("exam_prep_id", prepId).limit(80);
+  if (error) return [];
+  return ((data ?? []) as { label: string | null }[]).map((row) => row.label ?? "").filter(Boolean);
 }
 
 export async function loadDocumentGenerationContext(
