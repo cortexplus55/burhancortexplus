@@ -300,8 +300,8 @@ export const VISUAL_BLOCK_RULE =
 
 export const EMPHASIS_RULE =
   "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
-  "kanıtlanana kadar' türü kural, SINAVDA SORULUR maddesi) metinde ==çift eşittir== arasına al; ekranda turuncu " +
-  "işaretlenir. Ekran başına en çok 2 vurgu, her biri tam cümle değil kilit ifade (en çok 12 kelime); kaynaktaki sayı ve " +
+  "kanıtlanana kadar' türü kural, SINAVDA SORULUR maddesi) metinde ==çift eşittir== arasına al; ekran onu kendisi " +
+  "öne çıkarır, metinde işaretin rengini ya da anlamını anlatma. Ekran başına en çok 2 vurgu, her biri tam cümle değil kilit ifade (en çok 12 kelime); kaynaktaki sayı ve " +
   "terimle. Anahtar terimler yine **koyu**. KAYNAK'ta kavramına ait bir 'SINAV İPUCU' / 'TUS / SINAV İPUCU', 'AKILDA " +
   "TUT' / 'PRATİK NOKTA' ya da 'ALARM BULGULARI' kutusu varsa atlama, 'note' bloğu olarak ver: sınav ipucu tone 'exam' " +
   "(başlık 'Sınav ipucu: …'), akılda tut ve pratik nokta tone 'remember' (başlık 'Akılda tut: …'), alarm bulguları " +
