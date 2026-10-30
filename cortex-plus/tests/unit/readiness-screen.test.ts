@@ -64,8 +64,11 @@ describe("readiness screen", () => {
     expect(screen.ready).toBe(false);
     expect(screen.topics.find((row) => row.topic === "Basınç")?.state).toBe("needs_work");
     expect(screen.topics.find((row) => row.topic === "Sıcaklık")?.state).toBe("unmeasured");
-    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("3 bağımsız denemeden 1 doğru");
-    expect(screen.actions.some((action) => action.href === "/odak")).toBe(true);
+    // Paket I #7: doğru ve yanlış aynı iki sayıdan (toplamları soru sayısı); açık yanılgı ayrı adla.
+    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("3 sorudan 1 doğru, 2 yanlış");
+    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("2 yanılgı henüz kapanmadı");
+    // Paket I #8: odaklı pratik önerilen (en zayıf) konuyla açılır.
+    expect(screen.actions.some((action) => action.href === `/odak?konu=${encodeURIComponent("Basınç")}`)).toBe(true);
     expect(screen.mockLine).toContain("%40");
   });
 });

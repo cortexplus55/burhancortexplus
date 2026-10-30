@@ -5,6 +5,7 @@ import { examPointsBlock } from "@/lib/learning/exam-points";
 import { examinerVibeStyleLine, parseExaminerVibe, type ExaminerVibe } from "@/lib/learning/examiner-vibe";
 import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
 import { sameTrueFalseFact, trueFalseExplanation } from "@/lib/learning/true-false-quality";
+import { avoidListBlock } from "@/lib/learning/item-dedup";
 
 /**
  * Öğretmen motoru: doğru/yanlış önermeleri ve sözlü deneme soruları
@@ -31,6 +32,11 @@ export type PracticeSource = {
   examinerVibe?: ExaminerVibe;
   /** Öğrenci bekliyor: kısa düzeltme bütçesi, gruplar aynı anda (`repairBudget`). */
   urgent?: boolean;
+  /**
+   * Aynı konuda önceki etkinliklerin sorduğu bilgiler (30 Ekim 2026, Paket I #8, `loadPreviousItems`): test kökü,
+   * kart, önerme, sözlü sorusu. Yazar bunları tekrarlamaz, konunun başka alt başlığına gider.
+   */
+  avoid?: string[];
 };
 
 export type AskJson = (system: string, user: string) => Promise<unknown | null>;
@@ -68,6 +74,10 @@ function userPrompt(input: PracticeSource, label: string, ask: number): string {
       ? examinerVibeStyleLine(parseExaminerVibe(input.examinerVibe))
       : "",
     examPointsBlock(input.examPoints, input.examPointsUse ?? "true_false"),
+    avoidListBlock(
+      "BU KONUDA DAHA ÖNCE SORULANLAR (testte, kartta, doğru/yanlışta ya da sözlüde; aynı bilgiyi başka kalıpla da sorma, konunun henüz sorulmamış noktalarına git):",
+      input.avoid ?? [],
+    ),
     sourceLines(input),
   ]
     .filter(Boolean)

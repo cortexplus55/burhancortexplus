@@ -23,6 +23,8 @@ import {
 import {
   buildLearningIndicators,
   preferNextNodeForTracking,
+  scoreTopicMastery,
+  topicMasteryView,
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
@@ -177,14 +179,18 @@ export default async function ExamPrepAssessmentPage({
           examReadinessLabel: indicators.examReadiness.label,
           claimFullyReady: indicators.examReadiness.claimFullyReady,
         }}
-        topics={topics.map((t) => ({
-          topicKey: t.topicKey,
-          measured: t.measured,
-          level: t.level,
-          confidence: t.confidence,
-          evidenceCount: t.evidenceCount,
-          lastPracticedAt: t.lastPracticedAt,
-        }))}
+        topics={topics.map((t) => {
+          // Yol, İlerleme ve Hazırsın ile aynı kaynak (Paket I #7): kayıtlı confidence okunmaz.
+          const view = topicMasteryView(scoreTopicMastery(t), typeof prep.target_score === "number" ? prep.target_score : null);
+          return {
+            topicKey: t.topicKey,
+            measured: view.state !== "unmeasured",
+            stateLabel: view.label,
+            percentText: view.text,
+            evidenceCount: t.evidenceCount,
+            lastPracticedAt: t.lastPracticedAt,
+          };
+        })}
         openMisconceptions={openMisconceptions}
         mockScorePct={mockScorePct}
         targetScore={

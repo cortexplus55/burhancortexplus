@@ -18,7 +18,8 @@ import { ORAL_ALL_TOPICS, ORAL_LENGTH_OPTIONS, type OralLength } from "@/lib/lea
 import { ProgressRing } from "@/components/ui/progress-ring";
 import "@/styles/oral-exam-chrome.css";
 
-export type OralTopicRow = { id: string; label: string; pct: number };
+/** `measured: false`: konu ölçülmedi (3 cevaptan az); seçicide sayı değil "Ölçülmedi" yazar (Paket I #7). */
+export type OralTopicRow = { id: string; label: string; pct: number; measured?: boolean };
 
 function SolutionText({ text }: { text: string }) {
   const markers = ["Eksik kalan:", "Doğru kısım:", "Örnek çözüm:"];
@@ -97,7 +98,7 @@ export function OralTopicPick({
                     {on ? <Check className="h-3 w-3" /> : null}
                   </span>
                   <span className="cp-oral-topic-label">{topic.label}</span>
-                  <span className="cp-oral-topic-pct">{formatTopicPct(topic.pct)}</span>
+                  <span className="cp-oral-topic-pct">{topic.measured === false ? "Ölçülmedi" : formatTopicPct(topic.pct)}</span>
                 </button>
               </li>
             );

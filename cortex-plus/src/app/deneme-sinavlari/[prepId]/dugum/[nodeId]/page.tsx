@@ -10,7 +10,13 @@ import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
-import { MASTERY_ROW_COLUMNS, normalizeTopicKey, topicPercentsByKey } from "@/lib/learning/learning-tracking";
+import {
+  MASTERY_ROW_COLUMNS,
+  isMeasuredTopic,
+  masterySnapshotFromRow,
+  normalizeTopicKey,
+  topicPercentsByKey,
+} from "@/lib/learning/learning-tracking";
 import { nodeNeedsStudentUnlock, studentMayStartNode } from "@/lib/learning/study-tools";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
@@ -20,6 +26,7 @@ import { formatPageList } from "@/lib/learning/path-source-label";
 import { loadTopicSupport } from "@/lib/learning/topic-support-load";
 import { FIGURE_APPENDIX_LABEL } from "@/lib/documents/extract-image-text";
 import { figureHintsFromRows, type FigureHint } from "@/lib/learning/figure-pages";
+import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 
 /**
  * Konuya bağlı etkinlikler: "N kaynak" konunun kendi dosyalarını ve sayfalarını gösterir. Deneme,
@@ -125,6 +132,8 @@ export default async function ExamNodePage({
     topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
   if (requestedTopic) topicLabel = requestedTopic;
+  // Bütün konuları kapsayan adımın (son kontrol, Hazırsın) başlığı devraldığı 1. konu değil (Paket I #8).
+  else if (ALL_TOPICS_KINDS.has(node.kind as PlanNodeKind)) topicLabel = ALL_TOPICS_LABEL;
 
   // Açık oturum var mı? Yoksa istemci "kaldığın yer" sorgusunu atlar (20 Ekim 2026: yeni derste her
   // açılışta ~5 sn "Kaldığın yer açılıyor" yazıyordu). Yazılı denemede tamamlanmış kağıt incelemesi
@@ -157,7 +166,7 @@ export default async function ExamNodePage({
   // Üretim ekranı "senin notundan çıkıyor" diyebilsin diye kaynak dosya adı.
   // Hazırlık bir belgeye bağlı değilse gösterilmez — olmayan bir güvence
   // vermemek için.
-  let oralTopics: { id: string; label: string; pct: number }[] = [];
+  let oralTopics: { id: string; label: string; pct: number; measured?: boolean }[] = [];
   if (node.kind === "oral") {
     const [{ data: topicRows }, { data: masteryRows }] = await Promise.all([
       supabase.from("exam_prep_topics").select("id, label, sort_order, status").eq("exam_prep_id", prepId).order("sort_order"),
@@ -168,10 +177,18 @@ export default async function ExamNodePage({
         .eq("exam_prep_id", prepId),
     ]);
     const masteryPct = topicPercentsByKey(masteryRows as Record<string, unknown>[] | null);
+    // Ölçülmemiş konu seçicide "Ölçülmedi" yazar, "%0" değil (Paket I #7).
+    const measured = new Set(
+      ((masteryRows ?? []) as Record<string, unknown>[])
+        .map(masterySnapshotFromRow)
+        .filter((snapshot) => isMeasuredTopic(snapshot))
+        .map((snapshot) => normalizeTopicKey(snapshot.topicKey)),
+    );
     oralTopics = (topicRows ?? []).map((topic) => ({
       id: topic.id,
       label: topic.label,
       pct: masteryPct.get(normalizeTopicKey(topic.label)) ?? 0,
+      measured: measured.has(normalizeTopicKey(topic.label)),
     }));
   }
 

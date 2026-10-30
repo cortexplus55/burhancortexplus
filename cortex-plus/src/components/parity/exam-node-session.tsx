@@ -59,7 +59,9 @@ import { CardGradeButtons } from "@/components/parity/review-grade-buttons";
 import { parsePathChange, pathChangeLine, type PathChange } from "@/lib/learning/path-change";
 import { unscoredResult } from "@/lib/learning/node-result";
 import { PodcastListeningCheck } from "@/components/parity/podcast-listening-check";
-import { scoreQuizAnswers, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { activityTally, tallyScore } from "@/lib/learning/answer-tally";
+import { ALL_TOPICS_LABEL, PREP_WIDE_TARGET_KINDS } from "@/lib/learning/prep-wide-target";
 import { mergeStreamedQuestions, showsSlowWarning } from "@/lib/learning/quiz-delivery";
 import { reviewScheduledLine } from "@/lib/learning/review-copy";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
@@ -129,7 +131,7 @@ import {
 import "@/styles/node-generation-progress.css";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
-import { cardDeckCredit, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
+import { missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { activityDurationMinutes, elapsedMinutes } from "@/lib/learning/activity-duration";
 import { replayLabel, startActionLabel } from "@/lib/learning/feedback-copy";
 import { sanitizeStudentCopy } from "@/lib/learning/student-copy";
@@ -305,7 +307,7 @@ export function ExamNodeSession({
   nodeId,
   kind,
   prepTitle,
-  topicLabel,
+  topicLabel: initialTopicLabel,
   requestedTopic = null,
   topicId = null,
   initialFamiliarity,
@@ -375,6 +377,12 @@ export function ExamNodeSession({
 }) {
   const router = useRouter();
   const isAdmin = useIsFounder();
+  /**
+   * Ekrandaki konu (30 Ekim 2026, Paket I #8): zayıf konuya yönelen hazırlık geneli adımda (zayıf nokta, odaklı
+   * pratik, son kartlar) sunucu konuyu açılışta seçer; oturum ve sonuç başlığı onu yazar. Önceden sayfanın
+   * okuduğu devralınmış 1. konu kalıyordu: etiket bir konu, sorular başka konu.
+   */
+  const [topicLabel, setTopicLabel] = useState<string | null>(initialTopicLabel);
   // Kredi kapısının cümlesi: ücretsiz hakkı aşan işte (podcast, sözlü) "doldu" denmez (free-reach.ts).
   const shellAccount = useStudentShellAccount();
   const gateCopy = creditGateCopy(kind, shellAccount?.isPremium ?? false);
@@ -465,7 +473,7 @@ export function ExamNodeSession({
   /** Tekrar turu: sıradaki kartlar, konum ve bu turda bilinenler. */
   const [cardRepeat, setCardRepeat] = useState<{ list: number[]; pos: number; known: number[] } | null>(null);
   /** Kart sonucu "Bildiğin kartlar N/M" — kayıttaki puan katılım puanı. */
-  const [cardSummary, setCardSummary] = useState<{ known: number; total: number; repeated: number } | null>(null);
+  const [cardSummary, setCardSummary] = useState<{ known: number; partial: number; total: number; repeated: number } | null>(null);
   const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
   /** Bu etkinlikle kazanılan yıldız (Astra: sonuç ekranında "+17 yıldız"). */
   const [starsEarned, setStarsEarned] = useState(0);
@@ -849,8 +857,17 @@ export function ExamNodeSession({
     timeLeftSec?: number;
     /** Sunucu kaydının son yazımı; tarayıcı taslağı bundan yeniyse taslak üstün. */
     updatedAt?: string | null;
+    /** Sunucunun bu oturum için seçtiği konu. */
+    topicLabel?: string | null;
   }) {
     setPayload(data.payload ?? {});
+    // Sorulan konu: içeriğin taşıdığı ad (`testedTopic`), yoksa sunucunun döndürdüğü etiket. Yalnız konuya
+    // yönelen hazırlık geneli adımda; konuya bağlı adım kendi konusunu zaten gösteriyor.
+    if (PREP_WIDE_TARGET_KINDS.has(kind) && !requestedTopic) {
+      const tested = (data.payload as { testedTopic?: unknown } | undefined)?.testedTopic;
+      const chosen = typeof tested === "string" && tested.trim() ? tested.trim() : data.topicLabel?.trim();
+      if (chosen) setTopicLabel(chosen);
+    }
     setAttemptId(data.attemptId ?? null);
     attemptIdRef.current = data.attemptId ?? null;
     setGenerationId(data.generationId ?? null);
@@ -1256,30 +1273,18 @@ export function ExamNodeSession({
     }
   }
 
+  /** Sunucunun notuyla aynı sayım (`answer-tally.ts`, 30 Ekim 2026): ekrandaki işaretler ve x/y ayrışmaz. */
   function localOptimisticScore(base: Record<string, unknown>): { score: number; total: number } | null {
     if (payload.building) return null;
     if (payload.type === "quiz") {
       const questions = payload.questions ?? [];
       if (!questions.length || questions.some((question) => !question.correct?.length)) return null;
-      return scoreQuizAnswers(
-        questions.map((question) => ({
-          text: question.text ?? "",
-          options: question.options ?? [],
-          correct: question.correct ?? [],
-          multi: Boolean(question.multi),
-        })),
-        base,
-      );
+      return tallyScore(activityTally(payload, base));
     }
     if (payload.type === "true_false") {
       const items = payload.items ?? [];
       if (!items.length) return null;
-      let score = 0;
-      items.forEach((item, itemIndex) => {
-        const value = base[String(itemIndex)];
-        if (value === item.correct || value === String(item.correct)) score += 1;
-      });
-      return { score, total: items.length };
+      return tallyScore(activityTally(payload, base));
     }
     return null;
   }
@@ -1487,9 +1492,13 @@ export function ExamNodeSession({
   }
 
   function finishCards(base: Record<string, unknown>) {
+    // Tam sayı (30 Ekim 2026, Paket I #7): "Bildim" sayısı / kart; "Zorlandım" ayrı satırda, puana girmez.
+    // Önceden ağırlıklı kredi (Zorlandım 0,6) "6.6/8" yazıyordu.
+    const tally = activityTally({ type: "cards", cards }, base);
     setCardSummary({
-      known: cardDeckCredit(base, cards.length),
-      total: cards.length,
+      known: tally.correct,
+      partial: tally.partial,
+      total: Math.max(1, tally.total),
       repeated: missedCards(base, cards.length).length,
     });
     void finish(base);
@@ -1706,7 +1715,11 @@ export function ExamNodeSession({
   const selectedOralLabels = oralRows
     .filter((topic) => oralSelected.includes(topic.id))
     .map((topic) => topic.label);
-  const oralTopicLabel = selectedOralLabels.join(", ") || topicLabel || prepTitle;
+  // "Tüm sınav" seçildiyse başlık düğümün konusu değil (Paket I #8): sorular bütün konulardan gelirken sonuç
+  // "Diziler" yazıyordu.
+  const oralTopicLabel = oralSelected.includes(ORAL_ALL_TOPICS)
+    ? ALL_TOPICS_LABEL
+    : selectedOralLabels.join(", ") || topicLabel || prepTitle;
   const oralVoiceLabel = oralVoiceTopicLabel(
     isOral ? selectedOralLabels : [topicLabel ?? prepTitle],
     topicLabel || prepTitle,
@@ -2577,6 +2590,11 @@ export function ExamNodeSession({
               </dd>
             </div>
           </dl>
+          {payload.type === "cards" && cardSummary && cardSummary.partial > 0 ? (
+            <p className="text-sm text-[var(--cp-muted)]">
+              {cardSummary.partial} kartta zorlandın; bunlar bilinen kart sayısına girmez.
+            </p>
+          ) : null}
           {payload.type === "cards" && cardSummary && repeatedCardsLine(cardSummary.repeated) ? (
             <p className="text-sm text-[var(--cp-muted)]">{repeatedCardsLine(cardSummary.repeated)}</p>
           ) : null}
@@ -2589,7 +2607,7 @@ export function ExamNodeSession({
           ) : null}
           {unscored ? null : (
             <p className="text-sm text-[var(--cp-muted)]">
-              Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
+              Bu oturum skoru tamamlamadan ve hazırlık tahmininden ayrıdır.
             </p>
           )}
           {oralGrade?.items?.some((item) => !item.correct && item.gap) ? (

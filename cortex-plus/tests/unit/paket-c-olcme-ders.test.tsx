@@ -262,11 +262,12 @@ describe("Paket C · dört ekranda tek sayı", () => {
   it("yüzde, durum ve çözülen sayı tek fonksiyondan; Hazırsın ekranı aynı durumu verir", () => {
     const strong = snapshot({});
     const view = topicMasteryView(strong, 70);
-    expect(view).toEqual({ percent: 75, state: "ready", label: "Sağlam", solved: 4 });
+    expect(view).toEqual({ percent: 75, state: "ready", label: "Sağlam", text: "%75", solved: 4 });
     expect(topicState(strong, 70)).toBe(view.state);
-    // Kayıtlı confidence 90 olsa da ekran sönümlü yüzdeyi gösterir: tek doğru cevap %33'te kalır.
+    // Kayıtlı confidence 90 olsa da ekran ham sayılardan okur. Tek doğru cevap (Paket I #7, 30 Ekim 2026)
+    // artık "%33" değil "Ölçülmedi": sönümlü öncül sayı öğrenciye anlamsızdı, ölçüm 3 cevapla başlar.
     const one = snapshot({ evidenceCount: 1, firstAttemptCorrect: 1, firstAttemptTotal: 1, independentCorrect: 1, independentTotal: 1 });
-    expect(topicMasteryView(one, 70)).toMatchObject({ percent: 33, state: "needs_work", label: "Çalışılacak" });
+    expect(topicMasteryView(one, 70)).toMatchObject({ percent: 0, state: "unmeasured", label: "Ölçülmedi", text: "Ölçülmedi" });
     expect(topicMasteryView(snapshot({ measured: false, evidenceCount: 0 }), 70).state).toBe("unmeasured");
     expect(MASTERY_STATE_LABEL.ready).toBe("Sağlam");
   });

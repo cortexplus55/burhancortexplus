@@ -125,6 +125,8 @@ import {
   sameOptionSet,
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
+import { activityTally, tallyScore } from "@/lib/learning/answer-tally";
+import { dropNearDuplicatesKeepingCount } from "@/lib/learning/item-dedup";
 import {
   appendLessonReviewCards,
   cardsFromLessonReviews,
@@ -1510,11 +1512,14 @@ async function handleNodeRequest(
       local = gapsNothingOpenPayload();
     }
     if ((kind === "gaps" || kind === "focused") && local.topics?.length) {
-      const served = local.action === "serve" ? local.payload : null;
-      const asked = ((served as { questions?: { topic?: string; topicLabel?: string }[] } | null)?.questions ?? [])
-        .map((question) => (question.topicLabel || question.topic || "").trim())
-        .filter(Boolean);
-      title = weakPracticeTitle(kind, asked.length ? asked : local.topics.slice(0, 1));
+      // Tek konu (30 Ekim 2026, Paket I #8, `rankFinalStepTopics`): etiket, oturum başlığı, sorular ve kanıt
+      // aynı konu. Hazır sorular yalnız bu konudan seçildi; içerik konuyu taşır.
+      const chosen = local.topics[0]!;
+      title = weakPracticeTitle(kind, [chosen]);
+      topicLabel = chosen;
+      if (local.action === "serve" && local.payload.type === "quiz" && typeof local.payload.testedTopic !== "string") {
+        local = { ...local, payload: { ...local.payload, testedTopic: chosen } };
+      }
     }
     if (local.action === "serve" && local.payload.locked === true) {
       // Kayıt açılmaz: kilit kalkınca düğüm temiz başlasın.
@@ -2787,6 +2792,13 @@ async function handleNodeRequest(
   // Zayıf konuya yönelen düğümün içeriği o konunun adını taşır (20 Ekim 2026): bitişteki kanıt ve
   // yanılgı devralınan konuya değil sorulan konuya yazılır.
   if (retargetedTopic && typeof payload.testedTopic !== "string") payload = { ...payload, testedTopic: retargetedTopic };
+  // Sözlü "Tüm sınav" (30 Ekim 2026, Paket I #8): sorular birden çok konudan, soru başına konu yok. Kanıt ve
+  // yanılgı tek bir konuya (birleşik etiket ya da düğümün konusu) yazılmaz; içerik bütün sınavı kapsadığını taşır.
+  if (kind === "oral" && parsed.data.oralScope === "all" && payload.type === "oral") {
+    const { testedTopic: _joined, ...rest } = payload as Record<string, unknown>;
+    void _joined;
+    payload = { ...rest, scope: "all" };
+  }
 
   const total = countTotal(kind, payload);
 
@@ -3901,6 +3913,8 @@ async function teacherCardsPayload(
           prepId: input.prepId,
           kind: "cards",
           excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
         })
       : [];
   const cardsInput = {
@@ -3962,6 +3976,19 @@ async function teacherTrueFalsePayload(
 ) {
   const startedAt = Date.now();
   const source = await teacherPages(input, core);
+  // Bu konuda önceki etkinliklerin sorduğu bilgiler (Paket I #8): yazara yasak listesi, sonra aynı bilgiyi
+  // soran önerme yerine yenisi varsa elenir (sayı eksilmez).
+  const avoid =
+    input.prepId && input.userId
+      ? await loadPreviousItems(input.service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          kind: "true_false",
+          excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
+        })
+      : [];
   const outcome = await runWithTeacherModel(input.service, {
     userId: input.userId,
     actionCode: actionForKind(input.kind),
@@ -3983,6 +4010,7 @@ async function teacherTrueFalsePayload(
         examPointsUse: "true_false" as const,
         count: asked,
         urgent: input.charge !== false,
+        avoid,
       };
       const loop = await teacherTrueFalseLoop(ask, tfInput, started);
       let items = loop.items;
@@ -3997,6 +4025,9 @@ async function teacherTrueFalsePayload(
           items = [...items, item];
         }
       }
+      // Önceki etkinliğin aynı bilgisini soran önerme, yerine sağlam önerme varsa çıkar (sayı eksilmez).
+      const fresh = dropNearDuplicatesKeepingCount(items, (item) => item.text, asked, avoid);
+      if (mixedOf(fresh)) items = fresh;
       const mixed = mixedOf(items);
       const log = { kept: items.length, rejected: loop.rejected.length, rounds: tries, mixed };
       return items.length >= asked && mixed
@@ -4016,6 +4047,18 @@ async function teacherOralPayload(
 ) {
   const startedAt = Date.now();
   const block = input.sourceBlock.trim();
+  // Bu konuda önceki etkinliklerin sorduğu bilgiler (Paket I #8): sözlü aynı bilgiyi yeniden sormasın.
+  const avoid =
+    input.prepId && input.userId
+      ? await loadPreviousItems(input.service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          kind: "oral",
+          excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
+        })
+      : [];
   const outcome = await runWithTeacherModel(input.service, {
     userId: input.userId,
     actionCode: actionForKind(input.kind),
@@ -4040,6 +4083,7 @@ async function teacherOralPayload(
           examPointsUse: "oral",
           count: asked,
           urgent: input.charge !== false,
+          avoid,
         },
         started,
       );
@@ -4078,6 +4122,8 @@ async function teacherQuizPayload(
     : [];
   // Tekrar yasağı ve test dilimi (25 Ekim 2026, canlı test P1-2): önceki kökler yazara yasak listesi,
   // konu testinin varyantı konunun alt başlıklarından başka bir dilim.
+  // Etkinlikler arası (30 Ekim 2026, Paket I #8): önerme, kart, sözlü sorusu ve yoklanan bölüm de listede; bu
+  // konunun öğeleri önce.
   const previousStems =
     input.prepId && input.userId
       ? await loadPreviousItems(input.service, {
@@ -4085,6 +4131,8 @@ async function teacherQuizPayload(
           prepId: input.prepId,
           kind: "quiz",
           excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
         })
       : [];
   const variant = input.sessionMeta?.practiceVariant ?? practiceVariantFromTitle(input.nodeTitle);
@@ -4440,9 +4488,13 @@ function publicNodePayload(
   }
   if (decorated.type !== "quiz") return decorated;
   const seal = nodeKind === "written_exam";
-  const questions = ((decorated.questions as QuizQuestion[]) ?? []).map((question) =>
-    seal ? sealedQuizQuestion(question) : publicQuizQuestion(question),
-  );
+  // İstemci notlandırmanın okuduğu biçimi görür (30 Ekim 2026, Paket I #7): `scoreAttempt` soruyu
+  // `normalizeQuizQuestion` ile okuyor (kırpılmış şık, harften çözülmüş doğru); ekran ham soruyu görünce
+  // anında geri bildirimdeki "Doğru" ile kayıtlı puan ayrışıyordu. Okunamayan soru ham hâliyle kalır.
+  const questions = ((decorated.questions as QuizQuestion[]) ?? []).map((raw) => {
+    const question = normalizeQuizQuestion(raw as Parameters<typeof normalizeQuizQuestion>[0]) ?? raw;
+    return seal ? sealedQuizQuestion(question) : publicQuizQuestion(question);
+  });
   return { ...decorated, questions };
 }
 
@@ -4469,15 +4521,8 @@ function scoreAttempt(
       .filter((question): question is QuizQuestion => question !== null);
     return { ...scoreQuizAnswers(questions, answers), retried: 0 };
   }
-  if (data.type === "true_false") {
-    const items = (data.items as { correct: boolean }[]) ?? [];
-    let score = 0;
-    items.forEach((item, index) => {
-      const value = answers[String(index)];
-      if (value === item.correct || value === String(item.correct)) score += 1;
-    });
-    return { score, total: items.length || 1, retried: 0 };
-  }
+  // Doğru/yanlış sayımı ekranla aynı işlevden (30 Ekim 2026, Paket I #7, `answer-tally.ts`).
+  if (data.type === "true_false") return { ...tallyScore(activityTally(data, answers)), retried: 0 };
   if (data.type === "cards") {
     const cards = (data.cards as unknown[]) ?? [];
     if (teachingV2 || data.masteryClaim === false) {

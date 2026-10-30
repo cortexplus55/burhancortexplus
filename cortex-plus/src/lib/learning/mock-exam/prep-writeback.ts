@@ -16,8 +16,9 @@ import { prepStars } from "@/lib/stars/rules";
  * Şimdi tam deneme (`scope = 'all'`) düğümü tamamlar: aynı tamamlama işlevi (sıradakini açar),
  * deneme puanı düğüm kaydına yüzde olarak, her soru kendi konusuna kanıt olarak yazılır.
  *
- * Erken çözülen deneme de düğümü tamamlar (ürün sahibinin kararı); "Devam et"in sınav gününe
- * atlamaması `preferNextNodeForTracking` penceresinde. Deneme yanlışları yanılgı satırı olmaz (v1).
+ * Yol oraya gelmeden (düğüm kilitliyken) çözülen deneme düğümü TAMAMLAMAZ, yalnız konu kanıtı yazar (30 Ekim
+ * 2026, Paket I #8; 20 Ekim'deki "erken çözülen deneme de tamamlar" kararının yerine). Öğrencinin seçip açtığı
+ * ya da sırası gelmiş (ready) düğüm kendi oturumudur, tamamlanır. Deneme yanlışları yanılgı satırı olmaz (v1).
  *
  * Çağıran, takvimi yeniden kurmadan ÖNCE çağırır: bitmiş düğüm yeniden kurulumda korunur;
  * önce kurulum koşsaydı başlanmış deneme düğümü silinip yeniden yazılırdı.
@@ -59,16 +60,32 @@ export async function writeBackMockToPrep(
   if (!node?.id) return null;
   const nodeId = node.id as string;
 
-  // "Yazılı deneme her zaman açık": kilitliyse önce açılır (tamamlama kilitli düğümü reddeder).
-  if (node.status === "locked") {
-    await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).eq("status", "locked");
-  }
-
   const payload = mockNodePayload({
     practiceExamId: input.practiceExamId,
     practiceAttemptId: input.practiceAttemptId,
     items: input.items,
   });
+
+  // Adım ancak kendi oturumu bitince tamamlanır (30 Ekim 2026, Paket I #8; 20 Ekim'deki "erken çözülen deneme de
+  // düğümü tamamlar" kararı değişti). Kilitli düğüm = yol oraya gelmedi ve öğrenci adımı seçip açmadı (açtıysa
+  // düğüm sayfası ya da "choose" onu ready yapar). Canlıda yol oraya gelmeden çözülen bir deneme "Yazılı deneme"
+  // adımını %35 ile bitmiş gösterdi. Konu kanıtı kaybolmaz: her soru kendi konusuna yazılır, düğüm açık kalır.
+  if (node.status === "locked") {
+    await recordLearningTrackingAfterComplete(service, {
+      userId: input.userId,
+      prepId: input.prepId,
+      nodeId: null,
+      attemptId: null,
+      kind: "written_exam",
+      payload,
+      answers: {},
+      topicLabel: null,
+      sessionObjective: null,
+      targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+    }).catch(() => undefined);
+    return null;
+  }
+
   // Anahtar denemenin kendisi (22 Ekim 2026 inceleme): aynı deneme ikinci kez notlanırsa yeni kayıt kimliği
   // benzersiz dizini geçiyor, düğüm iki kez bitiyordu. Notlandırma zaten yinelenmez; bu ikinci emniyet.
   const requestId = mockNodeRequestId(input.practiceExamId);
