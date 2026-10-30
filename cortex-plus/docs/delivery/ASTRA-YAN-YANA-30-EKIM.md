@@ -76,6 +76,30 @@ ve "Phillips" adda yok). Kapsam kaybı yok (sayfa aynı konuya bağlı), ama ad 
 Kapsam: #433'ten sonra Cortex podcast'i reel faiz ve Phillips eğrisini de anlatıyor (bölümler: Miktar Teorisi · Reel Faiz ·
 Phillips · Tahvil İşlemleri · Üç Temel Ayrım). Eski kapsam satırıyla bu iki bölüm dışarıda kalacaktı.
 
+## Kör yargı — konu testi (1. konu, 5 soru, 2 sıra × 4 göz)
+
+Cortex: #433 sonrası ikinci konu testi (ikinci geçişin tek başına yazdığı). Astra: ders sonu testi. Açıklamalar iki
+taraftan da çıkarıldı.
+
+| Göz | Cortex | Astra | Önde |
+|---|---|---|---|
+| Ölçme | 60 | 47,5 | Cortex (2/2) |
+| Çeldirici | 66 | 51,5 | Cortex (2/2) |
+| Sınav uyumu | 76 | 36 | Cortex (2/2) |
+| Doğruluk | 90 | 79 | Cortex (2/2) |
+
+- **Astra:**
+  - 5 sorudan 3'ü başka konulardan (reel faiz ×2, maliyet enflasyonu).
+  - 4 şık (KPSS 5).
+  - "Fisher Endeksi" / "Maliyet Endeksi" gibi kaynakta olmayan çeldiriciler; "Durgunluk" bir fiyat kavramı değil.
+  - Hesap sorusunda "yaklaşık" yok.
+- **Cortex:**
+  - S4'te doğru şık kalıbından belli (tek "sayılmaz", öbürleri "kesinleşir").
+  - S1–S3 tablo satırını tanıma düzeyinde, aynı beş şıkla soruyor.
+  - TÜFE/Yİ-ÜFE ayrımı sorulmuyor.
+
+Düzeltmeden önceki Cortex testi (5 sorudan 4'ü aynı Cagan sorusu) yargılanmadı: kusuru açık, #433 kapattı.
+
 ## Bulunup düzeltilenler (#433)
 
 | Bulgu | Düzeltme |
