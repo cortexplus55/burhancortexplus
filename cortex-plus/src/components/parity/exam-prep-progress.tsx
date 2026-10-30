@@ -150,9 +150,9 @@ export function ExamPrepProgress({
                 </p>
                 <p className="cp-prog-pace-meta">
                   <span>Bugün {view.pace.todayLessons} ders tamamlandı</span>
-                  {view.pace.perDay !== null && view.pace.lessonsToTarget > 0 ? (
+                  {(view.pace.perDay !== null || view.pace.perWeek) && view.pace.lessonsToTarget > 0 ? (
                     <span>
-                      günde yaklaşık {view.pace.perDay}
+                      {view.pace.perWeek ? `haftada yaklaşık ${view.pace.perWeek}` : `günde yaklaşık ${view.pace.perDay}`}
                       {view.pace.daysToFinish ? ` · ~${view.pace.daysToFinish} günde` : ""}
                     </span>
                   ) : null}

@@ -1,4 +1,5 @@
 import { turkishHolidayOn } from "@/lib/learning/tr-calendar";
+import { examTimeFromPreferences } from "@/lib/learning/exam-time";
 
 /**
  * Takvim görünümü.
@@ -22,6 +23,9 @@ export type CalendarItem = {
   note: string | null;
   /** Sınav etkinliklerinde ilgili hazırlığın kimliği. */
   prepId?: string;
+  /** Sınavın saati ve yeri (hazırlığın `learning_preferences`ından, 30 Ekim 2026); yoksa null. */
+  time?: string | null;
+  place?: string | null;
 };
 
 export type CalendarFilter = "all" | "mine" | "exams";
@@ -34,7 +38,13 @@ export function buildCalendarItems(
     subject: string | null;
     note: string | null;
   }[],
-  preps: { id: string; title: string | null; exam_type: string | null; exam_date: string | null }[],
+  preps: {
+    id: string;
+    title: string | null;
+    exam_type: string | null;
+    exam_date: string | null;
+    learning_preferences?: unknown;
+  }[],
 ): CalendarItem[] {
   const personal: CalendarItem[] = events.map((e) => ({
     id: e.id,
@@ -47,15 +57,20 @@ export function buildCalendarItems(
 
   const exams: CalendarItem[] = preps
     .filter((p): p is typeof p & { exam_date: string } => Boolean(p.exam_date))
-    .map((p) => ({
-      id: `prep-${p.id}`,
-      kind: "exam",
-      title: p.title ?? p.exam_type ?? "Sınav",
-      date: p.exam_date,
-      subject: p.exam_type,
-      note: null,
-      prepId: p.id,
-    }));
+    .map((p) => {
+      const { time, place } = examTimeFromPreferences(p.learning_preferences);
+      return {
+        id: `prep-${p.id}`,
+        kind: "exam" as const,
+        title: p.title ?? p.exam_type ?? "Sınav",
+        date: p.exam_date,
+        subject: p.exam_type,
+        note: null,
+        prepId: p.id,
+        ...(time ? { time } : {}),
+        ...(place ? { place } : {}),
+      };
+    });
 
   return [...personal, ...exams].sort((a, b) => a.date.localeCompare(b.date));
 }

@@ -39,6 +39,8 @@ import {
 } from "@/lib/learning/learning-tracking";
 import { countOpenMisconceptions, withOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
+import { examTimeFromPreferences } from "@/lib/learning/exam-time";
+import { istanbulDay } from "@/lib/istanbul-day";
 import { prepDailyMinutes, prepStudyDays } from "@/lib/learning/exam-schedule-v2";
 import { shouldShowLevelNode } from "@/lib/learning/path-level";
 import { materialKindLabel, prepSourceDocumentIds } from "@/lib/learning/prep-source";
@@ -384,6 +386,15 @@ export default async function ExamPrepDetailPage({
     : null;
   // Astra yolda biten her adımın yüzdesini yazıyor ("30% Podcast"): adımın son bitişi. Tek
   // öğeli bitiş (sorusuz podcast 1/1) puan sayılmaz, yüzde yazılmaz.
+  // Biten adımın bitiş günü (30 Ekim 2026): yol "Yarın" değil "Tamamlandı · 29 Eki" yazar. Kayıtlar
+  // yeniden eskiye sıralı; adımın son bitişi alınır.
+  const nodeDoneOn: Record<string, string> = {};
+  for (const row of attemptRows ?? []) {
+    const id = typeof row.node_id === "string" ? row.node_id : null;
+    if (!id || id in nodeDoneOn || typeof row.created_at !== "string") continue;
+    const at = new Date(row.created_at);
+    if (!Number.isNaN(at.getTime())) nodeDoneOn[id] = istanbulDay(at);
+  }
   const nodeScores: Record<string, number> = {};
   for (const row of attemptRows ?? []) {
     const id = typeof row.node_id === "string" ? row.node_id : null;
@@ -506,6 +517,9 @@ export default async function ExamPrepDetailPage({
           prep.intro_deferred_at as string | null,
         )}
         createdAt={(prep.created_at as string | null) ?? null}
+        examTime={examTimeFromPreferences(prep.learning_preferences).time}
+        examPlace={examTimeFromPreferences(prep.learning_preferences).place}
+        nodeDoneOn={nodeDoneOn}
         startHref={startHref}
         canShare={Boolean(profile?.school_id)}
         initialShared={shareRow?.visibility === "school"}

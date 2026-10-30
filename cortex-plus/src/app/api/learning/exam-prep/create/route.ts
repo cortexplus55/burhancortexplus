@@ -36,6 +36,7 @@ import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import { loadScheduleCheckpoints } from "@/lib/learning/schedule-checkpoints";
+import { EXAM_PLACE_MAX, EXAM_TIME_PATTERN } from "@/lib/learning/exam-time";
 import type { TopicContradiction } from "@/lib/learning/source-contradictions";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
@@ -56,6 +57,9 @@ const prefsSchema = z
     examTrack: z.enum(["tyt", "ayt", "yks", "kpss", "tus", "lgs", "ales", "uni"]).optional(),
     studyBand: z.enum(["ortaokul", "lise", "sinav", "universite"]).optional(),
     examOccasion: z.enum(["okul", "vize", "genel"]).optional(),
+    /** Sınavın saati ve yeri (30 Ekim 2026, isteğe bağlı): göç yok, bu jsonb alanında durur. */
+    examTime: z.string().regex(EXAM_TIME_PATTERN).optional(),
+    examPlace: z.string().trim().max(EXAM_PLACE_MAX).optional(),
   })
   .optional();
 
@@ -303,6 +307,8 @@ export async function POST(request: Request) {
               studyDayDates: scheduleSummary.studyDayDates,
               orderedTopicIds: scheduleSummary.orderedTopicIds,
               summary: scheduleSummary.summary,
+              // Ara sınavlar kayda geçer: yeniden planlama (`redistributeRemainingSchedule`) bunları korur.
+              ...(scheduleSummary.checkpoints?.length ? { checkpoints: scheduleSummary.checkpoints } : {}),
               sessions: alignNewSessionSortOrders(
                 scheduleSummary.sessions,
                 scheduleDrafts ?? [],

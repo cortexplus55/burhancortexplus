@@ -7,6 +7,7 @@ import { rebuildPrepSchedule } from "@/lib/learning/exam-prep-reschedule-apply";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { prepDailyMinutes, prepStudyDays, type ScheduleBuildResult } from "@/lib/learning/exam-schedule-v2";
 import { loadPrepScheduleTopics } from "@/lib/learning/prep-schedule-topics";
+import { EXAM_PLACE_MAX, EXAM_TIME_PATTERN } from "@/lib/learning/exam-time";
 
 const prefsSchema = z.object({
   style: z.enum(["examples", "theory", "mixed"]).optional(),
@@ -17,6 +18,8 @@ const prefsSchema = z.object({
     .optional(),
   modalities: z.array(z.enum(["reading", "listening", "watching", "practice"])).max(4).optional(),
   language: z.enum(["tr", "en"]).optional(),
+  examTime: z.string().regex(EXAM_TIME_PATTERN).optional(),
+  examPlace: z.string().trim().max(EXAM_PLACE_MAX).optional(),
 });
 
 const bodySchema = z.object({

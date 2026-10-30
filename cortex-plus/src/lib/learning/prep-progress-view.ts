@@ -19,13 +19,14 @@ import {
   type ReadinessForecastSeries,
 } from "@/lib/learning/prep-radar";
 import type { TopicMasteryState } from "@/lib/learning/learning-tracking";
+import { istanbulDay } from "@/lib/istanbul-day";
 
 export type ProgressNode = {
   id: string;
   kind: PlanNodeKind;
   title: string;
   status: NodeStatus;
-  sessionMeta?: { topicTitle?: string; durationMinutes?: number } | null;
+  sessionMeta?: { topicTitle?: string; durationMinutes?: number; calendarDate?: string } | null;
 };
 
 export type SolvedQuestion = {
@@ -114,7 +115,17 @@ export type PrepProgressView = {
     gainPerLessonPct: number;
     lessonsToTarget: number;
     perDay: number | null;
-    /** `Math.ceil(kalanDers / günlükDers)` — grafikteki "~X günde" ile aynı. */
+    /**
+     * Gereken ders günde birin altındaysa haftalık sayı (30 Ekim 2026): 228 gün kalmışken "günde 1"
+     * yazmak planın temposunu söylemiyordu. Varsa ekran "haftada N" yazar.
+     */
+    perWeek?: number | null;
+    /**
+     * Grafikteki "~X günde" ile aynı. Planda tarihli adım varsa planın kendisinden: hedefe yetecek
+     * kadar dersin sonuncusunun planlandığı güne kadar (30 Ekim 2026; 228 gün kalmışken "~7 günde"
+     * diyordu). Planın kalan dersleri yetmiyorsa null ("bu tempoyla hedefe henüz ulaşılmaz").
+     * Tarih yoksa `Math.ceil(kalanDers / günlükDers)`.
+     */
     daysToFinish: number | null;
     todayLessons: number;
   } | null;
@@ -151,6 +162,21 @@ const MOCK_KINDS = new Set<PlanNodeKind>(["written_exam", "final_check"]);
 function topicOf(node: ProgressNode | undefined): string | null {
   const title = node?.sessionMeta?.topicTitle?.trim();
   return title || null;
+}
+
+/**
+ * Planın kalan ders sayılan adımlarının (ders, odaklı pratik, zayıf nokta, kartlarla tekrar) bugünden
+ * uzaklığı, gün olarak ve sıralı: i. eleman, bugünden sayınca (i+1). dersin planlandığı gün (bugün = 1).
+ * Günü geçmiş adım bugün sayılır. Tarihsiz adım sayılmaz.
+ */
+function plannedLessonDates(nodes: readonly ProgressNode[], today: string): number[] {
+  const todayTime = Date.parse(`${today}T00:00:00Z`);
+  return nodes
+    .filter((node) => LESSON_KINDS.has(node.kind) && node.status !== "done")
+    .map((node) => node.sessionMeta?.calendarDate)
+    .filter((date): date is string => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .map((date) => Math.max(0, Math.round((Date.parse(`${date}T00:00:00Z`) - todayTime) / DAY_MS)) + 1)
+    .sort((a, b) => a - b);
 }
 
 function pct(part: number, whole: number): number {
@@ -320,17 +346,33 @@ export function buildPrepProgressView(input: {
   const examTime = input.examDate ? Date.parse(input.examDate) : Number.NaN;
   const daysToExam = Number.isFinite(examTime) ? Math.max(1, Math.ceil((examTime - now) / DAY_MS)) : null;
   const gainPerLessonPct = lessonsDone > 0 && scorePct > 0 ? Math.max(1, Math.round(scorePct / lessonsDone)) : 0;
+  const plannedLessonDays = plannedLessonDates(input.nodes, istanbulDay(new Date(now)));
   const pace: PrepProgressView["pace"] =
     gainPerLessonPct > 0
       ? (() => {
           const lessonsToTarget = Math.max(0, Math.ceil(Math.max(0, targetPct - scorePct) / gainPerLessonPct));
-          const perDay = daysToExam ? Math.ceil(lessonsToTarget / daysToExam) : lessonsToTarget > 0 ? 1 : null;
+          let perDay = daysToExam ? Math.ceil(lessonsToTarget / daysToExam) : lessonsToTarget > 0 ? 1 : null;
           const daily = perDay && perDay > 0 ? perDay : lessonsToTarget > 0 ? 1 : null;
-          const daysToFinish = lessonsToTarget === 0 ? 0 : daily ? Math.ceil(lessonsToTarget / daily) : null;
+          let daysToFinish = lessonsToTarget === 0 ? 0 : daily ? Math.ceil(lessonsToTarget / daily) : null;
+          let perWeek: number | null = null;
+          // Plan tarihliyse tahmin planın temposundan: hedefe yetecek son dersin planlandığı gün.
+          if (lessonsToTarget > 0 && plannedLessonDays.length) {
+            const reached = plannedLessonDays[lessonsToTarget - 1];
+            daysToFinish = reached != null ? Math.max(1, Math.min(daysToExam ?? reached, reached)) : null;
+            if (daysToFinish != null) {
+              const rate = lessonsToTarget / daysToFinish;
+              perDay = rate >= 1 ? Math.ceil(rate) : null;
+              perWeek = rate >= 1 ? null : Math.max(1, Math.ceil(rate * 7));
+            } else {
+              // Planın kalan dersleri hedefe yetmiyor: tempo yazılmaz, eğri planın sonunda durur.
+              perDay = null;
+            }
+          }
           return {
             gainPerLessonPct,
             lessonsToTarget,
             perDay,
+            ...(perWeek != null ? { perWeek } : {}),
             daysToFinish,
             // Ayrı ders sayısı: aynı dersin tekrar kayıtları bir kez sayılır — kahraman alanındaki
             // "1 ders tamamlandı" ile çelişmesin (canlıda "Bugün 4 ders" çıkmıştı, 19 Ekim 2026).
@@ -374,10 +416,11 @@ export function buildPrepProgressView(input: {
     const projected = Math.round(
       Math.min(targetPct, scorePct + ((targetPct - scorePct) * Math.min(daysLeft, span)) / span),
     );
+    const rate = pace.perWeek ? `haftada ${pace.perWeek}` : `günde ${pace.perDay}`;
     forecast = {
       kind: "ready",
       pct: projected,
-      text: `Bu tempoyla yaklaşık ${pace.daysToFinish} günde hazırlık %${projected} olur. ${pace.lessonsToTarget} ders, günde ${pace.perDay}.`,
+      text: `Bu tempoyla yaklaşık ${pace.daysToFinish} günde hazırlık %${projected} olur. ${pace.lessonsToTarget} ders, ${rate}.`,
     };
   }
   const gapsMeasured = completed.some((attempt) => (attempt.total ?? 0) > 0);
@@ -410,6 +453,14 @@ export function buildPrepProgressView(input: {
       gainPerDay: gainPerLessonPct > 0 ? Math.min(6, gainPerLessonPct) : 0,
       daysRemaining: daysToExam,
       daysToTarget: pace?.daysToFinish ?? null,
+      // Plan tarihli ama kalan dersleri hedefe yetmiyor: eğri planın son dersinde durur, hedefe varmaz.
+      planEnd:
+        pace && pace.lessonsToTarget > 0 && pace.daysToFinish == null && plannedLessonDays.length
+          ? {
+              day: plannedLessonDays[plannedLessonDays.length - 1]!,
+              pct: scorePct + gainPerLessonPct * plannedLessonDays.length,
+            }
+          : null,
     }),
     pace,
     gapsMeasured,

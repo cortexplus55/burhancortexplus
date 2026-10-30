@@ -19,7 +19,8 @@ export default async function TakvimimPage() {
     // Sınav tarihleri kopyalanmaz; hazırlıklardan okunup görünüme çevrilir.
     supabase
       .from("exam_preps")
-      .select("id, title, exam_type, exam_date")
+      // Saat ve yer isteğe bağlı, hazırlığın tercihlerinde (30 Ekim 2026).
+      .select("id, title, exam_type, exam_date, learning_preferences")
       .eq("user_id", user.id)
       .not("exam_date", "is", null),
   ]);

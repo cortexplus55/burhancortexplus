@@ -86,6 +86,7 @@ import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
+import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -305,6 +306,9 @@ export function ExamCreateWizard({
   const [examTrack, setExamTrack] = useState<(typeof EXAM_TRACKS)[number]["id"] | null>(null);
   const [examDate, setExamDate] = useState(() => isoOf(addDays(DEFAULT_EXAM_LEAD_DAYS)));
   const [dailyMinutes, setDailyMinutes] = useState(45);
+  /** İsteğe bağlı sınav saati ve yeri (30 Ekim 2026): planda ve Takvimim'de "31 Eki 10:00 · Sınav". */
+  const [examTime, setExamTime] = useState("");
+  const [examPlace, setExamPlace] = useState("");
   const [studyBand, setStudyBand] = useState<(typeof STUDY_BANDS)[number]["id"] | null>(null);
   const [examOccasion, setExamOccasion] = useState<(typeof EXAM_OCCASIONS)[number]["id"]>("okul");
   const [target, setTarget] = useState(75);
@@ -402,6 +406,8 @@ export function ExamCreateWizard({
     setSubject("");
     setSubjectQuery("");
     setExamDate("");
+    setExamTime("");
+    setExamPlace("");
     setTarget(75);
     setLanguage("tr");
     setModalities([]);
@@ -1187,6 +1193,8 @@ export function ExamCreateWizard({
             ...(examTrack ? { examTrack } : {}),
             ...(!gradeLevel && studyBand ? { studyBand } : {}),
             ...(!gradeLevel ? { examOccasion } : {}),
+            ...(parseExamTime(examTime) ? { examTime: parseExamTime(examTime) } : {}),
+            ...(parseExamPlace(examPlace) ? { examPlace: parseExamPlace(examPlace) } : {}),
           },
         }),
       });
@@ -1394,6 +1402,10 @@ export function ExamCreateWizard({
           onExamOccasion={setExamOccasion}
           dailyMinutes={dailyMinutes}
           onDailyMinutes={setDailyMinutes}
+          examTime={examTime}
+          onExamTime={setExamTime}
+          examPlace={examPlace}
+          onExamPlace={setExamPlace}
         />
       ) : null}
 
@@ -2361,6 +2373,10 @@ function DateStep({
   onExamOccasion,
   dailyMinutes,
   onDailyMinutes,
+  examTime,
+  onExamTime,
+  examPlace,
+  onExamPlace,
 }: {
   value: string;
   onPick: (iso: string) => void;
@@ -2372,6 +2388,10 @@ function DateStep({
   onExamOccasion: (id: (typeof EXAM_OCCASIONS)[number]["id"]) => void;
   dailyMinutes: number;
   onDailyMinutes: (minutes: number) => void;
+  examTime: string;
+  onExamTime: (time: string) => void;
+  examPlace: string;
+  onExamPlace: (place: string) => void;
 }) {
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T12:00:00`) : new Date();
@@ -2508,6 +2528,30 @@ function DateStep({
             );
           })}
         </div>
+      </div>
+
+      <h2 className="apw-group">Sınav saati ve yeri (isteğe bağlı)</h2>
+      <div className="apw-exam-time">
+        <label>
+          <span>Saat</span>
+          <input
+            type="time"
+            value={examTime}
+            onChange={(e) => onExamTime(e.target.value)}
+            aria-label="Sınav saati"
+          />
+        </label>
+        <label>
+          <span>Yer</span>
+          <input
+            type="text"
+            value={examPlace}
+            maxLength={EXAM_PLACE_MAX}
+            placeholder="Örn. Amfi 2"
+            onChange={(e) => onExamPlace(e.target.value)}
+            aria-label="Sınav yeri"
+          />
+        </label>
       </div>
 
       <button type="button" className="apw-cta" disabled={!value} onClick={onNext}>

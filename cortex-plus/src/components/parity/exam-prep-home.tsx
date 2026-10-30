@@ -58,7 +58,16 @@ import { chooseStudyNode } from "@/lib/learning/choose-study-node";
 import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
 import { buildPathSections, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
-import { applyDisplayDates, pathDayLabel, pathOriginDay, sectionWhenLabel } from "@/lib/learning/path-dates";
+import {
+  applyDisplayDates,
+  isShortPlan,
+  pathNodeWhenLabel,
+  pathOriginDay,
+  sectionDoneLabel,
+  sectionHolidayNotes,
+  sectionWhenLabel,
+} from "@/lib/learning/path-dates";
+import { examDayLabel } from "@/lib/learning/exam-time";
 import { isLevelNode, LEVEL_NODE_ID, levelNodeAria } from "@/lib/learning/path-level";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
@@ -106,6 +115,9 @@ export type HomeNode = {
     calendarDate?: string;
     topicId?: string;
     topicTitle?: string;
+    /** Uzun planın tarihe bağlı tekrarı (30 Ekim 2026); yolda "Aralıklı Tekrar ve Kontrol" bölümünde. */
+    longReview?: number;
+    checkpoint?: string;
   } | null;
 };
 
@@ -249,6 +261,9 @@ export function ExamPrepHome({
   lockedPickId = null,
   dueReviews = 0,
   createdAt = null,
+  examTime = null,
+  examPlace = null,
+  nodeDoneOn = {},
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -316,6 +331,11 @@ export function ExamPrepHome({
   dueReviews?: number;
   /** Yol etiketlerinin hafta başlangıcı. Yoksa bugün. */
   createdAt?: string | null;
+  /** İsteğe bağlı sınav saati ve yeri (30 Ekim 2026): yolun sonunda "31 Eki 10:00 · Sınav". */
+  examTime?: string | null;
+  examPlace?: string | null;
+  /** Biten adımın bitiş günü (İstanbul, YYYY-MM-DD): yolda "Tamamlandı · 29 Eki". */
+  nodeDoneOn?: Record<string, string>;
 }) {
   const router = useRouter();
   /** Yolda seçilen kilitli adım: kart "şimdi başlat" der. */
@@ -739,6 +759,9 @@ export function ExamPrepHome({
             onOpen={openNode}
             readinessClaim={readinessClaim}
             examDate={examDate}
+            examTime={examTime}
+            examPlace={examPlace}
+            doneOn={nodeDoneOn}
             pathOrigin={pathOriginDay(createdAt)}
             prepId={prepId}
             topics={topicOptions}
@@ -905,7 +928,8 @@ export function ExamPrepHome({
                   <p className="cp-prep-sheet-title">{title}</p>
                   <p className="cp-prep-sheet-meta">
                     {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `%${progressPct}`}
-                    {examDate ? ` · sınav ${formatDayLong(examDate)}` : ""}
+                    {examDate ? ` · sınav ${formatDayLong(examDate)}${examTime ? ` ${examTime}` : ""}` : ""}
+                    {examPlace ? ` · ${examPlace}` : ""}
                     {daysLabel ? ` · ${daysLabel}` : ""}
                   </p>
                   {!uiV2 && scheduleSummary ? (
@@ -1105,6 +1129,9 @@ function PathSections({
   onOpen,
   readinessClaim,
   examDate = null,
+  examTime = null,
+  examPlace = null,
+  doneOn = {},
   pathOrigin,
   prepId,
   topics = [],
@@ -1118,16 +1145,33 @@ function PathSections({
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
   examDate?: string | null;
+  examTime?: string | null;
+  examPlace?: string | null;
+  doneOn?: Record<string, string>;
   pathOrigin: string;
   prepId: string;
   topics?: { id: string; label: string }[];
 }) {
   const today = pathOriginDay(null);
+  // 7 günden kısa plan (30 Ekim 2026): hafta yok, gün var ("Bugün", "Yarın", "Cum 31 Eki").
+  const shortPlan = isShortPlan(pathOrigin, examDate);
   const dated = useMemo(
     () => applyDisplayDates(nodes, { origin: pathOrigin, examDate }),
     [nodes, pathOrigin, examDate],
   );
   const sections = useMemo(() => buildPathSections(dated, currentId), [dated, currentId]);
+  // Bölümün tarih aralığındaki resmî tatiller: uzun planda düğüm tatile düşmese de Nisan–Haziran
+  // tatilleri görünür (30 Ekim 2026). Tatil yine esnek gün.
+  const holidayNotes = useMemo(
+    () =>
+      sectionHolidayNotes(
+        sections.map((section) => section.nodes.map((node) => node.sessionMeta?.calendarDate ?? "")),
+        pathOrigin,
+        examDate,
+      ),
+    [sections, pathOrigin, examDate],
+  );
+  const examDayLine = examDate ? examDayLabel({ date: examDate, time: examTime, place: examPlace }) : "";
   const far = useMemo(
     () => farNodeIds([...dated].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
     [dated, currentId],
@@ -1160,16 +1204,23 @@ function PathSections({
               ? sectionMasteryPct(section.nodes, scores)
               : null;
         const line = sectionStatusLine(section, mastery);
-        const when = sectionWhenLabel(
-          section.nodes.map((node) => node.sessionMeta?.calendarDate ?? ""),
-          pathOrigin,
-          today,
-        );
+        // Bitmiş bölüm bitiş günlerini yazar, "Yarın" değil; süren bölüm kalan adımların planlı günlerini.
+        const when = section.complete
+          ? sectionDoneLabel(section.nodes.map((node) => doneOn[node.id] ?? ""))
+          : sectionWhenLabel(
+              section.nodes
+                .filter((node) => node.status !== "done")
+                .map((node) => node.sessionMeta?.calendarDate ?? ""),
+              pathOrigin,
+              today,
+              { examDate },
+            );
+        const holidayNote = holidayNotes[index] ?? null;
         const topicId =
           section.nodes.find((node) => node.sessionMeta?.topicId)?.sessionMeta?.topicId ||
           topics.find((topic) => topic.label.trim().toLocaleLowerCase("tr-TR") === section.title.trim().toLocaleLowerCase("tr-TR"))?.id ||
           "";
-        const sketchHref = topicId ? studySketchVideoHref(prepId, section.title, topics.some((topic) => topic.id === topicId) ? topics : [...topics, { id: topicId, label: section.title }]) : "";
+        const sketchHref = topicId && !section.review ? studySketchVideoHref(prepId, section.title, topics.some((topic) => topic.id === topicId) ? topics : [...topics, { id: topicId, label: section.title }]) : "";
         return (
           <section
             key={section.id}
@@ -1194,6 +1245,7 @@ function PathSections({
                   {when ? " · " : null}
                   {line}
                 </span>
+                {holidayNote ? <span className="cp-path-section-holiday">{holidayNote}</span> : null}
               </span>
               <ChevronDown className={cn("cp-path-section-chevron", open && "is-open")} aria-hidden />
             </button>
@@ -1214,6 +1266,8 @@ function PathSections({
                 farIds={far}
                 keepOrder
                 today={today}
+                doneOn={doneOn}
+                weekday={shortPlan}
               />
             ) : null}
           </section>
@@ -1225,6 +1279,11 @@ function PathSections({
             ? `Kalan kilitli konular (${hidden.length} konu)`
             : `Kalan konular (${hidden.length} konu)`}
         </button>
+      ) : null}
+      {examDayLine ? (
+        <p className="cp-path-exam-day" aria-label={`Sınav günü: ${examDayLine}`}>
+          🎯 {examDayLine}
+        </p>
       ) : null}
     </div>
   );
@@ -1241,6 +1300,8 @@ function StudyPath({
   farIds,
   keepOrder = false,
   today,
+  doneOn = {},
+  weekday = false,
 }: {
   nodes: HomeNode[];
   /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
@@ -1257,6 +1318,10 @@ function StudyPath({
   /** Konu kartı düğümleri zaten yürüme sırasında. */
   keepOrder?: boolean;
   today: string;
+  /** Biten adımın bitiş günü; etiket "Tamamlandı · 29 Eki". */
+  doneOn?: Record<string, string>;
+  /** Kısa planda gün adı da yazılır ("Cum 31 Eki"). */
+  weekday?: boolean;
 }) {
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
   // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları Astra'daki gibi yok.
@@ -1322,11 +1387,16 @@ function StudyPath({
         {points.map(({ node, x, y }) => {
           const meta = PLAN_NODE_META[node.kind];
           const level = isLevelNode(node.id);
-          const dayLabel = node.sessionMeta?.calendarDate
-            ? pathDayLabel(node.sessionMeta.calendarDate, today)
-            : "";
-          // Resmî tatil esnek gündür (28 Ekim 2026): yük yarıya iner, rozet söyler.
-          const holiday = node.sessionMeta?.calendarDate ? turkishHolidayOn(node.sessionMeta.calendarDate) : null;
+          // Bitmiş adım "Yarın" değil "Tamamlandı · 29 Eki" (30 Ekim 2026).
+          const dayLabel = pathNodeWhenLabel(
+            { status: node.status, calendarDate: node.sessionMeta?.calendarDate },
+            { today, doneOn: doneOn[node.id], weekday },
+          );
+          // Resmî tatil esnek gündür (28 Ekim 2026): yük yarıya iner, rozet söyler. Bitmiş adımda yok.
+          const holiday =
+            node.status !== "done" && node.sessionMeta?.calendarDate
+              ? turkishHolidayOn(node.sessionMeta.calendarDate)
+              : null;
           const readinessNote =
             node.kind === "readiness" && readinessClaim === true
               ? ", ölçülen verilere göre hazırsın"

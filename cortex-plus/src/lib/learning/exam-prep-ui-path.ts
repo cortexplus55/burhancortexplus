@@ -2,6 +2,8 @@
  * Stage 9 — pure helpers for daily study path / calendar grouping in the UI.
  */
 
+import { parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
+
 export type PathNodeLike = {
   id: string;
   dayIndex: number;
@@ -78,6 +80,12 @@ export type LearningPreferencesView = {
   language?: "tr" | "en";
   /** TYT, AYT, KPSS… Ders adından ayrı. */
   examTrack?: "tyt" | "ayt" | "yks" | "kpss" | "tus" | "lgs" | "ales" | "uni";
+  /**
+   * Sınavın saati ("10:00") ve yeri (30 Ekim 2026, isteğe bağlı; `exam-time.ts`). Ayarlar kaydı tercihleri
+   * bu ayrıştırıcıdan geçirip geri yazıyor: burada okunmazsa saat ilk ayar kaydında silinirdi.
+   */
+  examTime?: string;
+  examPlace?: string;
 };
 
 const CHOSEN_MODALITIES = ["reading", "listening", "watching", "practice"] as const;
@@ -127,7 +135,19 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
     : isChosenModality(single)
       ? [single]
       : [];
-  return { style, pace, notes, modality, modalities, language, examTrack };
+  const examTime = parseExamTime(o.examTime);
+  const examPlace = parseExamPlace(o.examPlace);
+  return {
+    style,
+    pace,
+    notes,
+    modality,
+    modalities,
+    language,
+    examTrack,
+    ...(examTime ? { examTime } : {}),
+    ...(examPlace ? { examPlace } : {}),
+  };
 }
 
 export type TopicProgress = {
