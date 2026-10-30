@@ -143,9 +143,11 @@ describe("study tools hub regression", () => {
     tab("Sınav");
     const oral = screen.getByRole("link", { name: "Sözlü deneme" });
     expect(oral.getAttribute("href")).toBe(studyToolHref("prep-1", "oral-ana"));
-    expect(screen.getAllByText("Bu konuda yok").map((node) => node.parentElement?.textContent)).toEqual(
-      expect.arrayContaining([expect.stringContaining("Yazılı deneme")]),
+    // 30 Ekim 2026 (Paket I #12): düğümü olmayan yazılı deneme kuruluma gider, "Bu konuda yok" yok.
+    expect(screen.getByRole("link", { name: "Yazılı deneme" }).getAttribute("href")).toBe(
+      "/deneme-sinavlari/prep-1/deneme/kurulum",
     );
+    expect(screen.queryByText("Bu konuda yok")).toBeNull();
   });
 
   it("keeps every existing activity for a biology topic that only has a lesson node", () => {

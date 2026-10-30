@@ -529,6 +529,7 @@ export default async function ExamPrepDetailPage({
         targetScore={typeof prep.target_score === "number" ? prep.target_score : null}
         creatorLabel={creatorLabel}
         schoolName={(profile as { school_name?: string | null } | null)?.school_name ?? null}
+        joinedFromSchool={Boolean(forkedFrom)}
         joinCount={Number((shareRow as { view_count?: number } | null)?.view_count ?? 0)}
         lastResult={lastResult}
         nodeScores={nodeScores}

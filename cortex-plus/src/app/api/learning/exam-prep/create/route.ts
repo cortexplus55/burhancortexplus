@@ -3,6 +3,7 @@ import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { ensureTeacherAnalyses, loadPrepDocumentIds, TEACHER_ANALYSIS_WAIT_MS } from "@/lib/documents/teacher-analysis-run";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { invalidInputResponse, lenientText } from "@/lib/api/input-fields";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import {
   daysUntilExam,
@@ -58,18 +59,19 @@ const prefsSchema = z
   })
   .optional();
 
+// Serbest metinler reddedilmez, kırpılır (Paket I #12): 43 karakterlik ders adı kurulumu 400 ile düşürüyordu.
 const bodySchema = z.object({
-  title: z.string().min(2).max(120),
-  examType: z.string().min(2).max(40).default("okul"),
+  title: lenientText(120, 2),
+  examType: lenientText(40, 2).default("okul"),
   targetScore: z.number().int().min(1).max(100).optional(),
-  topics: z.array(z.string().min(1).max(120)).min(1).max(PREP_TOPIC_CAP),
+  topics: z.array(lenientText(120)).min(1).max(PREP_TOPIC_CAP),
   examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  note: z.string().max(500).optional(),
+  note: lenientText(500, 0).optional(),
   documentId: z.string().uuid().optional(),
   documentIds: z.array(z.string().uuid()).max(8).optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
   studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
-  hardTopics: z.array(z.string().min(1).max(120)).max(PREP_TOPIC_CAP).optional(),
+  hardTopics: z.array(lenientText(120)).max(PREP_TOPIC_CAP).optional(),
   learningPreferences: prefsSchema,
   /** Öğrenci konu oklarıyla sırayı değiştirdiyse otomatik önkoşul sırası yazılmaz. */
   topicOrderManual: z.boolean().optional(),
@@ -80,13 +82,30 @@ const bodySchema = z.object({
   familiarity: z.enum(["new", "heard", "basics", "good", "confident"]).optional(),
 });
 
+/** 400 cevabında öğrenciye söylenen alan adları. */
+const CREATE_FIELD_LABELS: Record<string, string> = {
+  title: "hazırlık adı",
+  examType: "ders adı",
+  targetScore: "hedef puan",
+  topics: "konular",
+  examDate: "sınav tarihi",
+  note: "not",
+  documentId: "belge",
+  documentIds: "belgeler",
+  dailyMinutes: "günlük süre",
+  studyDays: "çalışma günleri",
+  hardTopics: "odak konular",
+  learningPreferences: "çalışma tercihleri",
+  familiarity: "aşinalık",
+};
+
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "exam-prep-create", limit: 12 });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) return errorResponse(400, "invalid_input");
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return invalidInputResponse(parsed.error, CREATE_FIELD_LABELS);
 
   // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; Astra'da ücretsiz
   // hesap yeni hazırlık kuramıyor).

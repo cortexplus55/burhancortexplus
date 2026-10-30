@@ -10,6 +10,7 @@ import {
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
+import { clampText } from "@/lib/text/clamp-text";
 import {
   Check,
   ChevronLeft,
@@ -1167,8 +1168,8 @@ export function ExamCreateWizard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim() || `${subject} sınav hazırlığı`,
-          examType: subject || "Serbest",
+          title: clampText(title.trim() || `${subject} sınav hazırlığı`, 120),
+          examType: clampExamLabel(subject) ?? "Serbest",
           topics,
           examDate,
           targetScore: target,

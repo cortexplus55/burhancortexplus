@@ -53,7 +53,7 @@ import {
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
-import { STUDY_PATH_HINT, nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, studySketchVideoHref, type StudyToolGroup } from "@/lib/learning/study-tools";
+import { STUDY_PATH_HINT, mockExamSetupHref, nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, studySketchVideoHref, type StudyToolGroup } from "@/lib/learning/study-tools";
 import { chooseStudyNode } from "@/lib/learning/choose-study-node";
 import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
@@ -241,6 +241,7 @@ export function ExamPrepHome({
   targetScore = null,
   creatorLabel = "Sen",
   schoolName = null,
+  joinedFromSchool = false,
   joinCount = 0,
   lastResult = null,
   nodeScores = {},
@@ -295,6 +296,12 @@ export function ExamPrepHome({
   /** Menü kartında "Oluşturan": "Sen" ya da okuldan katılınan hazırlığın sahibi. */
   creatorLabel?: string;
   schoolName?: string | null;
+  /**
+   * Hazırlık okuldan katılındı mı. Okul adı yalnız hazırlık okula bağlıyken yazılır (okulla
+   * paylaşıldı ya da okuldan katılındı); öğrencinin profilindeki okul her hazırlıkta görünmez
+   * (30 Ekim 2026, Paket I #12).
+   */
+  joinedFromSchool?: boolean;
   /** Okulda paylaşıldıysa katılım sayısı. */
   joinCount?: number;
   /** Son biten etkinlik ve yüzdesi; Astra yolun üstünde kart olarak gösteriyor. */
@@ -382,12 +389,8 @@ export function ExamPrepHome({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsPane, setOptionsPane] = useState<"menu" | "kaynaklar" | "ayarlar">("menu");
   const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
-  /** "Deneme sınavı oluştur" pencereyi Sınav sekmesinde açar. */
+  /** Pencerenin açılacağı sekme ("Deneme sınavı oluştur" 30 Ekim'den beri doğrudan kuruluma gider). */
   const [hubGroup, setHubGroupState] = useState<StudyToolGroup | undefined>(undefined);
-  function setHubGroup(group: StudyToolGroup) {
-    setHubGroupState(group);
-    setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null);
-  }
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
   const mockNode = nodes.find((node) => node.kind === "written_exam") ?? null;
   const progress = useMemo(
@@ -743,10 +746,12 @@ export function ExamPrepHome({
           <section className="cp-prep-goal" aria-label="Hazırlık düzeyi">
             <h2>Gerçek sınavda nasıl yapacağını merak ediyor musun?</h2>
             <p>Hazır olduğunda öğren.</p>
-            <button type="button" className="cp-prep-goal-go" onClick={() => setHubGroup("exam")}>
+            {/* Düğme doğrudan deneme kurulumuna gider (30 Ekim 2026, Paket I #12): eskiden "Ders oluştur"
+                penceresini açıyordu, öğrenci denemeyi orada ikinci kez aramak zorunda kalıyordu. */}
+            <Link href={mockExamSetupHref(prepId)} className="cp-prep-goal-go">
               <Timer className="h-4 w-4" aria-hidden />
               Deneme sınavı oluştur
-            </button>
+            </Link>
           </section>
         </>
       ) : null}
@@ -893,7 +898,7 @@ export function ExamPrepHome({
                 <div className="cp-prep-sheet-card">
                   <p className="cp-prep-sheet-owner">
                     Oluşturan: <strong>{creatorLabel}</strong>
-                    {schoolName ? <span> · 🏛️ {schoolName}</span> : null}
+                    {schoolName && (shared || joinedFromSchool) ? <span> · 🏛️ {schoolName}</span> : null}
                     {shared && joinCount > 0 ? <span> · {joinCount} katılım</span> : null}
                   </p>
                   <p className="cp-prep-sheet-kicker">{examType}</p>
