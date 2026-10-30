@@ -19,6 +19,7 @@ import {
   fourPartGaps,
   isCoverageIssue,
   lessonLevelStructureIssues,
+  lessonTeachingFlags,
   parametricDiagramIssue,
   parseDiagramCompletion,
   parseTeacherLesson,
@@ -373,6 +374,12 @@ export async function teacherLessonPipeline(
         const fresh = settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens)), {
           concept: parts[index]?.concept,
         });
+        // Öğretim işaretleri (30 Ekim 2026): ekran içi tekrar, üstteki cümleyi geri soran soru, türü tutmayan çeldirici.
+        // Tek geçişte yapı denetimi çağrılmıyor; ölçmeden kural değişmesin diye günlüğe yazılır, metne dokunulmaz.
+        const flags = lessonTeachingFlags(fresh, input);
+        if (flags.echo || flags.twin || flags.echoedCheck || flags.offKind) {
+          console.info("teacher_lesson_teaching_flags", { concept: parts[index]?.concept?.slice(0, 60) ?? null, ...flags });
+        }
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
           await options.onPublish({

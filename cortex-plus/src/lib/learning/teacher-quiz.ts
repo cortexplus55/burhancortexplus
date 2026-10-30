@@ -3,10 +3,15 @@ import {
   EQUIVALENT_OPTIONS_RULE,
   KEY_CONSISTENCY_RULE,
   MULTI_POLARITY_RULE,
+  SAME_KIND_DISTRACTOR_RULE,
   SELF_CONTAINED_STEM_RULE,
   SOURCE_NUMBER_PRIORITY,
   STUDENT_LEAK_BAN,
+  TEST_SET_RULE,
+  THRESHOLD_OPTIONS_RULE,
 } from "@/lib/learning/teaching-rubric";
+import { contentTokens, rootCoverage, stemPhraseInAnswer } from "@/lib/learning/lexical-overlap";
+import { offKindDistractors } from "@/lib/learning/distractor-kind";
 import {
   affirmedWrongOptions,
   explanationAnswerMismatch,
@@ -20,13 +25,15 @@ import {
   answerCountIssue,
   duplicateOptionPair,
   enumeratedCountIssue,
+  optionKey,
   singleAnswerIntegrityIssues,
+  THRESHOLD_TWIN_PREFIX,
 } from "@/lib/learning/question-integrity";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotation } from "@/lib/learning/function-notation";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { EXAM_POINTS_MAX, examPointsBlock } from "@/lib/learning/exam-points";
-import { avoidListBlock } from "@/lib/learning/item-dedup";
+import { avoidListBlock, dropNearDuplicates } from "@/lib/learning/item-dedup";
 import {
   LESSON_CHECKS_MAX,
   LESSON_TERMS_MAX,
@@ -182,6 +189,16 @@ const RULE_TOPIC =
   "tartışmasız bilgiden yaz. Emin olmadığın sayı, tarih, madde numarası, eşik ya da kuralı sorma; güncel olarak " +
   "değişebilecek bilgiyi sorma. Aşağıda 'kaynak' denen her yer bu testte konunun yerleşik bilgisi anlamına gelir.\n\n";
 
+/**
+ * Kökün cevabı vermesi (30 Ekim 2026, canlı tur, yazılı deneme S4): kök "tarımsal verimsizlik sürerken …" diye
+ * durumu kurdu, doğru şık aynı durumu yeniden söyledi ("Tarımsal verimsizliğin … sürmesi"). Yazar ve denetçi bu
+ * metni aynen okur; kod (`stemPhraseInAnswer`) kökün art arda üç sözcüğünü doğru şıkta arar.
+ */
+export const STEM_ECHO_RULE =
+  "Kök cevabı vermez; doğru şıkkın kelimeleri kökte geçmez ve doğru şık kökün kurduğu durumu yeniden söylemez " +
+  "('kan şekeri yükselirken' diye açılan kökün doğru şıkkı 'kan şekerinin yükselmesi' olamaz): kökün ifadesini taşıyan " +
+  "tek şık doğru şıksa öğrenci onu eşleştirerek bulur.";
+
 const design = (optionCount: OptionCount) =>
   "SORU TASARIMI:\n" +
   "- Sınavdaki gibi, düşündüren sorular yaz; ezber cümlesini kopyalayıp boşluk açma.\n" +
@@ -191,15 +208,14 @@ const design = (optionCount: OptionCount) =>
   `- ŞIK SAYISI: her soruda tam ${optionCount} şık (${optionLetters(optionCount)}); öğrencinin sınavı bu biçimde. ` +
   "Tek doğru şık (multi false); aşağıda ÇOK CEVAPLI SORU kuralı varsa yalnız o soru istisna. Çeldiriciler aynı ailedeki kardeş terimler ya da öğrencinin gerçekten " +
   "yaptığı hata; şıklar aynı türden ve benzer uzunlukta. 'Hepsi', 'hiçbiri', 'yukarıdakilerin' şıkkı yok.\n" +
-  "- Bütün şıklar sorulan kategoriden olur: ölçüm soruluyorsa hepsi ölçüm, yaklaşım soruluyorsa hepsi aynı işe " +
-  "dönük yaklaşım. Konuyu bilmeyen birinin eleyebileceği şık ('Sosyal gülümseme' bir ölçüm sorusunda, 'Yalnızca dil " +
-  "becerilerini değerlendirmek' bir büyüme sorusunda) çeldirici değildir; soruyu tahminle çözdürür.\n" +
+  // 30 Ekim 2026 (canlı tur): ders ve test yazarı aynı çeldirici türü kuralını okur.
+  `- ${SAME_KIND_DISTRACTOR_RULE}\n` +
   "- Kök, doğru şıkkı ötekilerden ayıran ipucunu vermez ('kilo akut etkilenir' deyip 'kronik olanı hangisi' diye sorup " +
   "şıklara kiloyu koymak gibi).\n" +
   "- Şıkların biçimi cevabı ele vermez: doğru şık en uzun ya da tek ayrıntılı şık olmaz; çeldirici doğru şıkkın " +
   "olumsuz kopyası olmaz ('uygun oranlı ORS' karşısında 'uygun oranı gözetilmeyen karışım'); bulgu kümesi sorusunda " +
   "tek 'ağır' şık 'hafif' şıkların arasında durmaz — yanlış kümeler de karışık ve gerçekçi olur.\n" +
-  "- Kök cevabı vermez; doğru şıkkın kelimeleri kökte geçmez. Sayma sorusu ('kaç tür vardır') yok. Olumsuz kök " +
+  `- ${STEM_ECHO_RULE} Sayma sorusu ('kaç tür vardır') yok. Olumsuz kök ` +
   "('hangisi değildir') en fazla bir soruda ve olumsuz ek **koyu** yazılır.\n" +
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle, options ile aynı sırada. Hesap sorusunda steps: her adım tek işlem, kendi içinde doğru.\n" +
@@ -214,6 +230,8 @@ const design = (optionCount: OptionCount) =>
   "bağlıysa (aynı taban, aynı üs gibi) koşulu kökte ya da şıkta yaz.\n" +
   "- Açı ya da sayı aralığı veriyorsan uç noktaların dahil olup olmadığını açıkça yaz (0° ≤ x < 360° gibi); " +
   "'0° ile 360° arasında' uçları belirsiz bırakır ve iki cevabı doğru yapar.\n" +
+  `- ${THRESHOLD_OPTIONS_RULE}\n` +
+  `- ${TEST_SET_RULE}\n` +
   "- Yazmadan önce her soruyu kendin çöz: tek doğru cevap var mı, anahtar doğru mu, diğer şıkların her biri kesin " +
   "yanlış mı? Adım adım çözümü `steps` alanına, doğru şıkkın sağlamasını `explanation` alanına aynı çağrıda yaz.\n" +
   // 29 Ekim 2026 (Paket H): kök tamlığı ve anahtar–açıklama kuralı ders, test ve deneme yazarında aynı metin.
@@ -411,13 +429,20 @@ const MULTI_VERIFY =
   `kuralı: ${MULTI_DISTRACTOR_RULE} Buna uymayan yanlış şık G'dir. Yazarın kutupluluk kuralı (aynen): ` +
   `${MULTI_POLARITY_RULE} Gerekçesi kendisini çürüten doğru şık ya da onaylayan yanlış şık D'dir.\n`;
 
+/** Denetçinin B, E ve G maddelerine eklenen yazar kuralları (aynen; 30 Ekim 2026). */
+const VERIFY_B_RULES = ` Yazarın eşik kuralı (aynen): ${THRESHOLD_OPTIONS_RULE}`;
+const VERIFY_E_RULES = ` Yazarın kök kuralı (aynen): ${STEM_ECHO_RULE}`;
+const VERIFY_G_RULES = ` Yazarın çeldirici kuralı (aynen): ${SAME_KIND_DISTRACTOR_RULE}`;
+const VERIFY_SET =
+  `Testin bütünü (yazarın kuralı, aynen): ${TEST_SET_RULE} Buna uymayan sonraki soru G'dir.\n`;
+
 const VERIFY_DOCUMENT =
   "Sen titiz bir sınav sorusu denetçisisin. Testi yazıldığı KAYNAK ile karşılaştırıyorsun. HER SORUYU ÖNCE KENDİN " +
   "ÇÖZ (anahtara bakmadan), sonra anahtarla karşılaştır. Şunları bul:\n" +
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
   "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
   "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor; iki şık aynı şeyi farklı sırayla ya da " +
-  `farklı yazımla söylüyor. Yazarın okuduğu kural (aynen): ${EQUIVALENT_OPTIONS_RULE}\n` +
+  `farklı yazımla söylüyor. Yazarın okuduğu kural (aynen): ${EQUIVALENT_OPTIONS_RULE}${VERIFY_B_RULES}\n` +
   "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n" +
   `Sayı önceliği (yazarın kuralı, aynen): ${SOURCE_NUMBER_PRIORITY} Notun sayısıyla, aralığıyla ya da adıyla çelişen anahtar, ` +
   "şık ya da gerekçe C'dir ('high').\n" +
@@ -427,12 +452,13 @@ const VERIFY_DOCUMENT =
   "bir şıkta yazması. Yazarın okuduğu kurallar (aynen): " +
   `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ${KEY_CONSISTENCY_RULE}\n` +
   "E) Kökün cevabı vermesi; kökün ekranda ya da kâğıtta olmayan bir şekle, grafiğe, haritaya, tabloya, şemaya ya da " +
-  `denkleme gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): ${SELF_CONTAINED_STEM_RULE}\n` +
+  `denkleme gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): ${SELF_CONTAINED_STEM_RULE}${VERIFY_E_RULES}\n` +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
   "çeldiricinin doğru şıkkın olumsuz kopyası olması; çok cevaplı soruda yanlış şıkkın sorulan bağlamdan değil başka " +
-  "bir kavramdan ya da hastalıktan gelmesi (soru tahminle çözülüyor).\n" +
+  `bir kavramdan ya da hastalıktan gelmesi (soru tahminle çözülüyor).${VERIFY_G_RULES}\n` +
+  VERIFY_SET +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla kullanılması sorun değildir.\n" +
   MULTI_VERIFY +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
@@ -443,7 +469,7 @@ const VERIFY_TOPIC =
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
   "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
   "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor; iki şık aynı şeyi farklı sırayla ya da " +
-  `farklı yazımla söylüyor. Yazarın okuduğu kural (aynen): ${EQUIVALENT_OPTIONS_RULE}\n` +
+  `farklı yazımla söylüyor. Yazarın okuduğu kural (aynen): ${EQUIVALENT_OPTIONS_RULE}${VERIFY_B_RULES}\n` +
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
   "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi; explanation'ın şıklara " +
@@ -451,12 +477,13 @@ const VERIFY_TOPIC =
   "sonucun anahtardan başka bir şıkta yazması. Yazarın okuduğu kurallar (aynen): " +
   `${OPTION_ORDER_RULE} ${FUNCTION_NOTATION_RULE} ${KEY_CONSISTENCY_RULE}\n` +
   "E) Kökün cevabı vermesi; kökün ekranda ya da kâğıtta olmayan bir şekle, grafiğe, haritaya, tabloya, şemaya ya da " +
-  `denkleme gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): ${SELF_CONTAINED_STEM_RULE}\n` +
+  `denkleme gönderme yapıp veriyi kendi içinde taşımaması. Yazarın okuduğu kural (aynen): ${SELF_CONTAINED_STEM_RULE}${VERIFY_E_RULES}\n` +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "G) Çeldiricinin sorulan kategoriden olmaması: konuyu bilmeyen birinin eleyebileceği şık; kökün doğru şıkkı " +
   "ötekilerden ayıran ipucunu vermesi; doğru şıkkın en uzun ya da tek farklı tonda (tek 'ağır' küme) olması; " +
   "çeldiricinin doğru şıkkın olumsuz kopyası olması; çok cevaplı soruda yanlış şıkkın sorulan bağlamdan değil başka " +
-  "bir kavramdan ya da hastalıktan gelmesi (soru tahminle çözülüyor).\n" +
+  `bir kavramdan ya da hastalıktan gelmesi (soru tahminle çözülüyor).${VERIFY_G_RULES}\n` +
+  VERIFY_SET +
   MULTI_VERIFY +
   "A-G 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
 
@@ -804,6 +831,128 @@ function overlap(left: Set<string>, right: Set<string>): number {
   return shared / (left.size + right.size - shared);
 }
 
+function smallerFirst(left: string[], right: string[]): [string[], string[]] {
+  return new Set(left).size <= new Set(right).size ? [left, right] : [right, left];
+}
+
+/** Cevabın karşılaştırılabilir sözcükleri; rakamlı ya da yalnız harf/romen rakamı taşıyan cevap karşılaştırılmaz. */
+function answerTokens(answer: string): string[] {
+  if (/\d/u.test(answer)) return [];
+  return contentTokens(answer).filter((word) => !/^[ivx]+$/u.test(word));
+}
+
+/**
+ * İki sorunun testte birlikte durup duramayacağı (30 Ekim 2026, canlı tur: Araçlar testinde S5'in cevabı S2 ve
+ * S4'ün doğru şıkkında yazıyordu, S1 ile S3 aynı kalıpla aynı şeyi soruyordu). Sonraki soru için sorun metni ya da
+ * null. Bütün testler (konu testi, Araçlar, düello, deneme) aynı ölçüyü kullanır; ders adı yok, yalnız metin:
+ * - neredeyse aynı kök (kök anahtarlarında Jaccard ≥ 0,8);
+ * - aynı kök kalıbı ve aynı konu (kalıp aynı, kök anahtarlarında Jaccard ≥ 0,5);
+ * - aynı doğru cevap (birebir ya da kısa cevabın sözcüklerinin %75'i aynı kökle);
+ * - birinin doğru şıkkı (en az dört içerik sözcüğü) öbürünün kök + cevabının %75'ini kapsıyor: öğrenci birinden
+ *   öbürünün cevabını okur.
+ */
+export function questionConflict(earlier: QuizQuestion, later: QuizQuestion, earlierNumber = 0): string | null {
+  const at = earlierNumber > 0 ? `${earlierNumber}. soru` : "testteki başka bir soru";
+  const leftKeys = wordKeys(earlier.text);
+  const rightKeys = wordKeys(later.text);
+  if (overlap(leftKeys, rightKeys) >= 0.8) {
+    return `${at} ile neredeyse aynı; aynı bilgiyi ikinci kez sorma, sorulmamış bir noktayı yokla.`;
+  }
+  const frame = stemFrame(later.text);
+  if (frame && frame === stemFrame(earlier.text) && overlap(leftKeys, rightKeys) >= 0.5) {
+    return `${at} ile aynı kök kalıbı ("${frame}") ve aynı konu; başka bir iş isteyen soru yaz.`;
+  }
+  if (earlier.multi || later.multi) return null;
+  const leftAnswer = earlier.correct?.[0] ?? "";
+  const rightAnswer = later.correct?.[0] ?? "";
+  const leftTokens = answerTokens(leftAnswer);
+  const rightTokens = answerTokens(rightAnswer);
+  if (leftTokens.length && rightTokens.length) {
+    const short = leftTokens.length <= 5 && rightTokens.length <= 5;
+    const [small, large] = leftTokens.length <= rightTokens.length ? [leftTokens, rightTokens] : [rightTokens, leftTokens];
+    const sameAnswer =
+      optionKey(leftAnswer) === optionKey(rightAnswer) || (short && small.length >= 2 && rootCoverage(small, large) >= 0.75);
+    // Aynı sınıfın iki ayrı durumu ("hangi enflasyon türüdür?" iki farklı olayla) aynı bilgi değildir: kökler de aynı
+    // şeyden söz etmeli (küçük kökün içerik sözcüklerinin yarısı öbüründe).
+    const [stemSmall, stemLarge] = smallerFirst(contentTokens(earlier.text), contentTokens(later.text));
+    if (sameAnswer && rootCoverage(stemSmall, stemLarge) >= 0.5) {
+      return `${at} ile aynı doğru cevap ('${rightAnswer}') ve aynı konu; iki soru aynı bilgiyi soruyor.`;
+    }
+  }
+  const leftFact = contentTokens(`${earlier.text} ${leftAnswer}`);
+  const rightFact = contentTokens(`${later.text} ${rightAnswer}`);
+  if (leftTokens.length >= 4 && rootCoverage(leftTokens, rightFact) >= 0.75) {
+    return `Bu sorunun bilgisi ${at}nun doğru şıkkında yazıyor ('${leftAnswer}'); öğrenci birinden öbürünün cevabını okur.`;
+  }
+  if (rightTokens.length >= 4 && rootCoverage(rightTokens, leftFact) >= 0.75) {
+    return `Bu sorunun doğru şıkkı ${at}nun bilgisini söylüyor ('${rightAnswer}'); öğrenci birinden öbürünün cevabını okur.`;
+  }
+  return null;
+}
+
+/** `incoming` soruları, `current` ile çakışmayanlar sırayla eklenerek (ikinci geçiş, yumuşak kurtarma). */
+export function appendWithoutConflicts(current: readonly QuizQuestion[], incoming: readonly QuizQuestion[]): QuizQuestion[] {
+  const out = [...current];
+  for (const question of incoming) {
+    if (out.some((other) => questionConflict(other, question) !== null)) continue;
+    out.push(question);
+  }
+  return out;
+}
+
+/**
+ * Sayıyı tamamlamak için de geri konmayan sorunlar (30 Ekim 2026): soru iki cevaplı (eşdeğer, aynı ya da ikiz eşik
+ * şıkkı), cevabı kökte (kök doğru şıkkı içeriyor ya da doğru şıkkın ifadesini kuruyor) ya da anahtarı yanlış
+ * (hesap, açıklama ya da adımlar başka şıkka varıyor; hiçbir şık tutmuyor). Paket A'da yalnız eşdeğer şıklar buradaydı;
+ * canlıda kökü cevabı veren deneme sorusu "sayı eksik" diye geri konup öğrenciye gitti. Tek sözcüklük ipucu
+ * ("ele veren kelime") burada değil: genel bir sözcüğün tesadüfi eşleşmesi de onu tetikler.
+ */
+export const UNSALVAGEABLE_PROBLEM = new RegExp(
+  [
+    "İki şık eşdeğer",
+    "Aynı şık iki kez",
+    "İki şık aynı cevap",
+    THRESHOLD_TWIN_PREFIX,
+    "Kök doğru şıkkı içeriyor",
+    "Kök doğru şıkkın ifadesini kuruyor",
+    "Cevap anahtarı hesapla çelişiyor",
+    "Hiçbir şık kökteki",
+    "sonucuna varıyor; doğru şık",
+  ].join("|"),
+  "u",
+);
+
+/**
+ * Sayı eksikken elenen sorulardan geri konabilenler (`runTeacherQuiz`, 26 Ekim 2026 "soru silinmez"): geri
+ * konmayan sorun taşımayan, şık sayısı tutan, anahtarı şıklarda olan ve testteki sorularla çakışmayan sorular, sırayla.
+ *
+ * `lastResort` (30 Ekim 2026, "istek düşmez" — 19 Ekim kararı): temiz adaylar sayıyı doldurmadıysa yalnız kökü doğru
+ * şıkkın ifadesini kuran soru (`STEM_ECHO_PREFIX`) da geri konabilir; yoksa öğrenci hiç test alamıyordu. Anahtarı
+ * yanlış, iki doğrulu ya da kökü doğru şıkkın kendisini içeren soru son çarede de konmaz.
+ */
+export function salvageRejected(
+  rejected: readonly { question: QuizQuestion; problems: readonly string[] }[],
+  current: readonly QuizQuestion[],
+  options: { optionCount?: number; previousStems?: readonly string[]; lastResort?: boolean } = {},
+): QuizQuestion[] {
+  const blocks = (problem: string) =>
+    UNSALVAGEABLE_PROBLEM.test(problem) && !(options.lastResort && problem.startsWith(STEM_ECHO_PREFIX));
+  const playable = rejected
+    .filter((item) => !item.problems.some(blocks))
+    .map((item) => item.question)
+    .filter(
+      (question) =>
+        question.text.trim().length > 0 &&
+        (options.optionCount === undefined || question.options.length === options.optionCount) &&
+        question.correct.some((answer) => question.options.includes(answer)),
+    );
+  const spare = dropNearDuplicates(playable, (question) => question.text, [
+    ...(options.previousStems ?? []),
+    ...current.map((question) => question.text),
+  ]);
+  return appendWithoutConflicts(current, spare);
+}
+
 /**
  * Konu testinin bütününe bakan kod denetimi (saf; metne dokunmaz, yalnız işaretler). Sıra testteki
  * sıradır; hep sonraki soru işaretlenir.
@@ -849,15 +998,13 @@ export function quizSetIssues(
       seenPoints.add(point);
     }
     const keys = wordKeys(question.text);
-    // Aynı testte iki soru neredeyse aynı (22 Ekim 2026 kör kıyas: KPSS testinde S3 ve S4).
-    const sibling = ordered.slice(0, index).findIndex((other) => overlap(keys, wordKeys(other.text)) >= 0.8);
-    if (sibling >= 0) {
-      issues.push({
-        index,
-        code: "I",
-        problem: `${sibling + 1}. soruyla neredeyse aynı; aynı bilgiyi ikinci kez sorma, sorulmamış bir maddeyi yokla.`,
-        forceFix: false,
-      });
+    // Aynı testte iki soru neredeyse aynı (22 Ekim 2026 kör kıyas: KPSS testinde S3 ve S4); aynı kalıp ve konu, aynı
+    // cevap, birinin doğru şıkkında öbürünün bilgisi (30 Ekim 2026, canlı tur). Bütün testler.
+    for (let earlier = 0; earlier < index; earlier += 1) {
+      const conflict = questionConflict(ordered[earlier]!, question, earlier + 1);
+      if (!conflict) continue;
+      issues.push({ index, code: "I", problem: conflict, forceFix: false });
+      break;
     }
     const twin = checks.find((item) => overlap(keys, item.keys) >= 0.75);
     if (twin) {
@@ -1018,9 +1165,26 @@ export function stepsAnswerMismatch(question: Pick<QuizQuestion, "options" | "co
   return `Çözüm adımları ${tail.trim()} sonucuna varıyor; doğru şık '${answer}' değil '${elsewhere}' olmalı ya da adımlar yanlış.`;
 }
 
+/** Kökün doğru şıkkı kurduğu sorunun metni; `UNSALVAGEABLE_PROBLEM` bu başlangıcı tanır. */
+export const STEM_ECHO_PREFIX = "Kök doğru şıkkın ifadesini kuruyor";
+
+function stemEchoIssue(stem: string, answer: string, distractors: readonly string[]): string | null {
+  const echo = stemPhraseInAnswer(stem, answer, distractors);
+  return echo
+    ? `${STEM_ECHO_PREFIX} ('${echo}'): bu ifade yalnız doğru şıkta var, öğrenci eşleştirerek bulur; kökü ya da şıkkı yeniden kur.`
+    : null;
+}
+
+/** Sorulan türden olmayan çeldiricinin sorun metni (30 Ekim 2026). */
+export const OFF_KIND_PREFIX = "Çeldirici sorulan türden değil";
+
+/**
+ * `context`: kaynak metni (belgeli testte). Çeldirici türü yalnız kaynakta tanımı olan şıklar için ölçülür
+ * (`offKindDistractors`); belgesiz testte ölçülmez.
+ */
 export function quizStructureIssues(
   question: QuizQuestion,
-  options: { multi?: boolean; optionCount?: OptionCount } = {},
+  options: { multi?: boolean; optionCount?: OptionCount; context?: string } = {},
 ): string[] {
   const issues: string[] = [];
   const countIssue = optionCountIssue(question, options.optionCount);
@@ -1057,6 +1221,23 @@ export function quizStructureIssues(
   } else {
     const giveaway = answerOnlyWordInStem(question.text, answer, question.options);
     if (giveaway) issues.push(`Kök doğru şıkkı ele veren kelimeyi içeriyor ('${giveaway}'); kökten çıkar.`);
+    // Çok sözcüklü öncül (30 Ekim 2026, canlı tur, yazılı deneme S4): tek sözcük denetimi, öncülün sözcüklerini
+    // taşıyan bir çeldirici olunca susuyordu; eşleşen tek sözcük ise genel bir sözcüktü ("ekonomideki").
+    const echo = stemEchoIssue(question.text, answer, question.options.filter((option) => option !== answer));
+    if (echo) issues.push(echo);
+  }
+  const offKind = options.context
+    ? offKindDistractors({
+        stem: question.text,
+        options: question.options,
+        correctIndex: question.options.indexOf(answer),
+        context: options.context,
+      })
+    : [];
+  if (offKind.length) {
+    issues.push(
+      `${OFF_KIND_PREFIX} ('${offKind.join("', '")}'): kaynak onu başka türden tanımlıyor; doğru cevabın kardeşi olan, aynı türden bir öğe yaz.`,
+    );
   }
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
     issues.push("Kökte kaynak/sayfa notu ya da 'metne göre' var; çıkar.");
@@ -1111,6 +1292,13 @@ function multiQuestionIssues(question: QuizQuestion): string[] {
     const giveaway = answerOnlyWordInStem(question.text, answer, wrong.concat(answer));
     if (giveaway) {
       issues.push(`Kök doğru şıkkı ele veren kelimeyi içeriyor ('${giveaway}'); kökten çıkar.`);
+      break;
+    }
+  }
+  for (const answer of correct) {
+    const echo = stemEchoIssue(question.text, answer, wrong);
+    if (echo) {
+      issues.push(echo);
       break;
     }
   }

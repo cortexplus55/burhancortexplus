@@ -36,7 +36,7 @@ import { prepStars } from "@/lib/stars/rules";
 import { quizDifficulty } from "@/lib/learning/teacher-quiz";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { podcastCheckOf, podcastPayloadEpisode, scorePodcastCheck } from "@/lib/learning/podcast-check";
-import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
+import { mergeDistinctCards, teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { lessonBackbone } from "@/lib/learning/lesson-backbone";
 import { loadPreviousItems, loadStoredQuiz } from "@/lib/learning/previous-items";
 import { practiceCoverage, practiceVariantFromTitle } from "@/lib/learning/practice-coverage";
@@ -4028,13 +4028,8 @@ async function teacherCardsPayload(
         tries += 1;
         const again = await teacherCardsLoop(ask, { ...cardsInput, count: cardsInput.count - cards.length + 1 }, started);
         rejected += again.rejected.length;
-        const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
-        for (const card of again.cards) {
-          const key = card.front.trim().toLocaleLowerCase("tr");
-          if (cards.length >= cardsInput.count || seen.has(key)) continue;
-          seen.add(key);
-          cards = [...cards, card];
-        }
+        // Ek turun kartı destedekiyle aynı bilgiyi taşıyorsa alınmaz (30 Ekim 2026).
+        cards = mergeDistinctCards(cards, again.cards, cardsInput.count);
       }
       const log = { kept: cards.length, rejected, rounds: tries };
       return cards.length

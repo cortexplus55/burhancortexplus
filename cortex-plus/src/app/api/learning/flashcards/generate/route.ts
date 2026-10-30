@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getCreditCost } from "@/lib/credits/rules";
-import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
+import { mergeDistinctCards, teacherCardsLoop } from "@/lib/learning/teacher-cards";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
@@ -58,14 +58,9 @@ export async function POST(request: Request) {
       let tries = 1;
       while (cards.length < count && tries < 4) {
         tries += 1;
-        const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
         const extra = await run(count - cards.length + 1).catch(() => null);
-        for (const card of extra?.cards ?? []) {
-          const key = card.front.trim().toLocaleLowerCase("tr");
-          if (cards.length >= count || seen.has(key)) continue;
-          seen.add(key);
-          cards = [...cards, card];
-        }
+        // Ek turun kartı destedekiyle aynı bilgiyi taşıyorsa alınmaz (30 Ekim 2026; eskiden yalnız ön yüz birebir).
+        cards = mergeDistinctCards(cards, extra?.cards ?? [], count);
       }
       const log = { kept: cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
       return cards.length >= count

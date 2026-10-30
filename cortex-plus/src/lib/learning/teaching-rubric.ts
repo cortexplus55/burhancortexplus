@@ -19,7 +19,9 @@ export const TEACHING_RUBRIC =
   "ÖĞRETİM ÖLÇÜTÜ: " +
   "1) Tekrar yok: bir bilgi bir kez anlatılır; sonraki ekran onu yeniden anlatmaz, üstüne kurar; kutunun gövdesi " +
   "hemen üstündeki cümleyi tekrar etmez (soru, açıklama ve özet tekrar sayılmaz). Aynı tabloyu ya da paragrafı ikinci " +
-  "bir ekranda yeniden verme; bir kavramın ekranı sonraki kavramın bilgisini önceden anlatmaz. " +
+  "bir ekranda yeniden verme; bir kavramın ekranı sonraki kavramın bilgisini önceden anlatmaz. Aynı ekranda bir bilgi " +
+  "en çok iki biçimde durur (metin ve bir kart ya da tablo); üçüncü bir kutu, kart ya da tablo aynı cümleyi yeniden " +
+  "söylüyorsa yazma; aynı tanımı bir ekranda iki kez yazma. " +
   "2) Neden ve nasıl: kaynağın kısaltmasını ('ayrı hukuk sistemi + uluslararası sözleşme') olduğu gibi aktarma; ne " +
   "anlama geldiğini, neden ve nasıl öyle olduğunu kendi cümlenle, kaynağın bilgilerini birbirine bağlayarak anlat. " +
   "3) Terim ilk geçtiği yerde kaynağın kendi tanımıyla tek yan cümlede açıklanır; kaynağın Türkçe terimi önce, " +
@@ -128,6 +130,42 @@ export const MULTI_POLARITY_RULE =
   "correct dışındaki her şıkkınki NEDEN YANLIŞ olduğunu söyler ('… değildir', '… kümesinde yer almaz'). Gerekçesi " +
   "şıkkı çürüten bir şık correct'te duramaz; gerekçesi onaylayan bir şık correct dışında kalamaz. explanation'daki " +
   "sonuç da correct kümesiyle çelişmez.";
+
+/**
+ * Çeldirici türü (30 Ekim 2026, canlı tur): ders içi soru bir endeks sorarken şıklarda enflasyon türleri vardı
+ * ("Dezenflasyon", "Stagflasyon"); konuyu bilmeyen eleyip doğruyu buldu. Kural yalnız çok cevaplı soruda yazılıydı
+ * (`MULTI_DISTRACTOR_RULE`); test yazarının "sorulan kategoriden" maddesi ders yazarında yoktu. Ders ve test YAZARI ile
+ * DENETÇİSİ bu metni aynen okur; kod (`offKindDistractors`) kaynağın tanım cümlesinden şıkkın türünü okur.
+ */
+export const SAME_KIND_DISTRACTOR_RULE =
+  "ÇELDİRİCİ TÜRÜ: Bütün şıklar sorulan kategoriden olur ve doğru cevapla aynı türdendir: kök bir endeks soruyorsa " +
+  "her şık bir endeks, bir hormon soruyorsa her şık bir hormon, bir mahkeme soruyorsa her şık bir mahkeme, bir " +
+  "antlaşma soruyorsa her şık bir antlaşmadır. Başka türden bir kavram (endeks sorusunda bir enflasyon türü, hormon " +
+  "sorusunda bir organ) çeldirici değildir: konuyu bilmeyen biri onu eler, soru tahminle çözülür. Çeldirici doğru " +
+  "cevabın kardeşidir: aynı aileden, öğrencinin gerçekten karıştırdığı öğe. Tek cevaplı soruda, ders içi soruda ve " +
+  "ikinci soruda (review) da aynı kural.";
+
+/**
+ * Eşik şıkları (30 Ekim 2026, canlı tur, düello): kök "aylık %50'yi aşması" derken "Aylık %50" ve "Aylık %50'nin
+ * üzeri" iki ayrı şıktı; ikisi de savunulur. "Aralık uçları" kuralı yalnız tek bir aralığın uçlarını söylüyordu.
+ * Yazar ve denetçi bu metni aynen okur; kod (`thresholdTwinOptions`) aynı sayıyı yalın ve yönlü taşıyan iki şıkkı
+ * yakalar.
+ */
+export const THRESHOLD_OPTIONS_RULE =
+  "EŞİK ŞIKLARI: Bir eşik ya da sınır değeri soruluyorsa aynı sayıyı bir şıkta yalın ('%50', '12 ay'), başka bir " +
+  "şıkta yönüyle ('%50'nin üzeri', 'en az %50', '12 aydan sonra') yazma: kökün 'aşması / en az / üzeri' sözüne göre " +
+  "ikisi de savunulur. Eşiğin yönünü (üzeri / altı, önce / sonra, dahil / hariç) kökte bir kez söyle; şıklar farklı " +
+  "sayılardan oluşsun.";
+
+/**
+ * Testin bütünü (30 Ekim 2026, canlı tur, Araçlar testi): S5'in cevabı S2 ve S4'ün doğru şıkkında yazıyordu, S1 ile
+ * S3 aynı kalıpla aynı şeyi soruyordu. Testin bütününe bakan kod denetimi (`quizSetIssues`) yalnız yoldaki konu
+ * testinde çalışıyordu. Bütün test yazarları ve denetçileri bu metni aynen okur.
+ */
+export const TEST_SET_RULE =
+  "TESTİN BÜTÜNÜ: İki soru aynı doğru cevaba çıkmaz; bir sorunun doğru şıkkı başka bir sorunun sorduğu bilgiyi " +
+  "söylemez (öğrenci birinden öbürünün cevabını okur). Aynı soru kalıbıyla aynı konuyu ikinci kez sorma; aynı kalıp " +
+  "testte en çok iki soruda.";
 
 /** Ders, test ve podcast istemlerinin sonuna eklenir. Model bu adları kendi cümlesi gibi yazmasın. */
 export const STUDENT_LEAK_BAN =
