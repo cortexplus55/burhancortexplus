@@ -6,7 +6,7 @@ import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { sessionSignalsPrompt } from "@/lib/learning/session-signals";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import type { PodcastLength } from "@/lib/learning/podcast-episode";
-import { prepTopicScopeLine } from "@/lib/documents/generation-context";
+import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
 import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { NodeGenerationError, actionForKind } from "./shared";
 import { withSupport, type LessonCore } from "./teacher-pages";
@@ -32,6 +32,8 @@ export async function teacherPodcastEpisode(
         edges,
       })
     : [];
+  // Belgeli podcast hazırlığın öbür konularının kısımlarını bölüm yapmaz; sayfada kalan her şey bu konunundur (`prepTopicScopeLine`).
+  const siblings = core && input.prepId && input.topicLabel !== ALL_TOPICS_LABEL ? await prepTopicLabels(input.service, input.prepId) : [];
   const outcome = await runTeacherPodcast(input.service, {
     mode: core ? "document" : "topic",
     length,
@@ -44,9 +46,8 @@ export async function teacherPodcastEpisode(
     prepTitle: input.prepTitle,
     pages: withSupport(clean, core),
     lessonText: input.lessonContent ? lessonPodcastBrief(input.lessonContent) : undefined,
-    // Belgeli podcast yalnız konusunu anlatır: sayfadaki başka başlıklar bölüm olmaz (30 Ekim 2026, `prepTopicScopeLine`).
     syllabusLine:
-      [input.grounding?.trim() ?? "", core && input.topicLabel !== ALL_TOPICS_LABEL ? prepTopicScopeLine(input.topicLabel) : ""]
+      [input.grounding?.trim() ?? "", siblings.length ? prepTopicScopeLine(input.topicLabel, siblings) : ""]
         .filter(Boolean)
         .join("\n") || undefined,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),

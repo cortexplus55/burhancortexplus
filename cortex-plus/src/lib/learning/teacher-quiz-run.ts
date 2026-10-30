@@ -291,8 +291,26 @@ export function withOneMultiLast(questions: QuizQuestion[], count: number): Quiz
   return [...single.slice(0, Math.max(0, count - 1)), multi];
 }
 
-function shardBrief(brief: string | undefined, index: number, shards: number): string {
-  const line = `Bu üretim ${index + 1}/${shards}. Aynı konunun ayrı bir noktasını sor.`;
+/**
+ * Parçanın hedefi (30 Ekim 2026, Astra ile yan yana tur): parçalar birbirinin sorusunu görmüyor; yalnız "ayrı bir noktayı
+ * sor" diyen satırla beş parçadan dördü konunun en göze batan noktasını sordu (Cagan'ın hiperenflasyon eşiği, dört kez).
+ * Her parçaya ayrı bir "Sınavda sorulur" maddesi verilir; madde yoksa dersin ayrı bir terimi. Madde parçadan azsa aynı
+ * maddeyi alan parça onun başka bir yönünü sorar.
+ */
+export function shardTargets(input: Pick<TeacherQuizInput, "examPoints" | "lesson" | "scope">, shards: number): string[] {
+  const points = topicTestPoints(input);
+  const pool = points.length >= 2 ? points : (input.lesson?.terms ?? []).map((term) => term.trim()).filter(Boolean);
+  if (pool.length < 2) return [];
+  return Array.from({ length: shards }, (_, index) => pool[index % pool.length]!);
+}
+
+export function shardBrief(brief: string | undefined, index: number, shards: number, targets: readonly string[] = []): string {
+  const target = targets[index];
+  const repeat = target ? targets.slice(0, index).filter((other) => other === target).length : 0;
+  const line = !target
+    ? `Bu üretim ${index + 1}/${shards}. Aynı konunun ayrı bir noktasını sor.`
+    : `Bu üretim ${index + 1}/${shards}. Testin öbür soruları başka üretimlerde yazılıyor; bu üretimde YALNIZ şunu sor: «${target}».` +
+      (repeat ? " Aynı noktayı başka bir üretim de soruyor: onun tanımını değil, başka bir yönünü (uygulama, karşılaştırma, sonuç) sor." : "");
   return brief ? `${brief}\n${line}` : line;
 }
 
@@ -304,16 +322,18 @@ async function runShardedTopicQuiz(
   hooks?: TeacherQuizLoopHooks,
 ): Promise<TeacherQuizLoopResult> {
   const parts: TeacherQuizLoopResult[] = [];
+  let targets: string[] | null = null;
   const sharded = await runTopicTestShards({
     count: input.count,
     runShard: async (count, index, shards) => {
+      targets ??= shardTargets(input, shards);
       const loop = await teacherQuizLoop(
         ask,
         {
           ...input,
           count,
           multi: Boolean(input.multi) && index === shards - 1,
-          brief: shardBrief(input.brief, index, shards),
+          brief: shardBrief(input.brief, index, shards, targets),
         },
         started,
         hooks,
@@ -342,7 +362,9 @@ async function runShardedTopicQuiz(
     for (const [code, count] of Object.entries(part.codes)) codes[code] = (codes[code] ?? 0) + count;
   }
   return {
-    questions: withOneMultiLast(sharded.questions, input.count),
+    // Parçalar arası çakışma (aynı bilgi, aynı cevap en çok iki): her parçanın kendi denetimi tek soruya bakıyordu.
+    // Elenen yerine çağıranın ikinci geçişi öbür soruları görerek (`avoid`) yazar.
+    questions: withOneMultiLast(appendWithoutConflicts([], sharded.questions), input.count),
     rejected,
     rounds,
     softKept,
@@ -471,7 +493,8 @@ async function runTeacherQuizInner(
             if (!key || shown.has(key)) continue;
             shown.set(key, shuffleOptions(question));
           }
-          const all = dropNearDuplicates([...shown.values()], (question) => question.text, previousStems);
+          // Parçalı testte sorular ayrı ayrı akar: gösterilmeden önce testin bütününe bakılır (gösterilen soru elenmez).
+          const all = appendWithoutConflicts([], dropNearDuplicates([...shown.values()], (question) => question.text, previousStems));
           const preview = playableQuestions(all, previousStems);
           if (!preview.length && !all.length) return;
           const window = all.slice(0, opened ? input.count : 1);

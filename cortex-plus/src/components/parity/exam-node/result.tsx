@@ -174,7 +174,7 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
             <div className="pm-card cp-exam-self-test">
               <h2>Kendini test et</h2>
               <p>Bu dersi hızlı bir bilgi kontrolüyle tamamla.</p>
-              <ExamFinishButton prepId={prepId} className="cp-exam-continue cp-exam-continue--primary" />
+              <ExamFinishButton prepId={prepId} topicId={topicId} className="cp-exam-continue cp-exam-continue--primary" />
             </div>
           ) : null}
           <div className="cp-exam-node-actions">
