@@ -1623,6 +1623,22 @@ yolunda Türkçe harf yoktu. `safeDocumentName` yolu ASCII'ye çevirir (Türkçe
 
 Bekçi: `evrensel-yukleme.test.tsx` (yeniden deneme, motor, ekran kilidi, baş kopyası, kısa harita, Office paralel, ücret, kapılar, depo anahtarı).
 
+**Harita hızı (31 Ekim 2026, canlı ölçüm + aynı belgelerle yerel teşhis).** #440'tan sonra canlıda 65 sayfalık metin
+PDF'inin haritası ~110 sn (43 sn taslak + 66 sn **tam onarım**), 30 fotoğrafınki ~60 sn (taslak + **yama**) sürdü. İkinci
+çağrı her seferinde açılıyordu; kısa şema tek başına yetmedi. Düzeltmeden sonra aynı belgeler: **18 sn** ve **16 sn**, tek
+çağrı. Yeniden açmayın:
+
+| Kusur | Kural | Nerede |
+|---|---|---|
+| Geniş konu kapısı her sayfadaki üst bilgiyi (64/65 sayfa), "SINAV İPUCU" (40) ve "AKILDA TUT" (17) kutularını "bağımsız bölüm" saydı; 9 doğru konu "böl" diye geri çevrildi | Dosyanın yarısında duran satır koşan başlık, beşte birinde **dağınık** duran satır kutu etiketidir (art arda sayfalarda süren slayt başlığı bölüm kalır); numarası geri giden numaralı satır ("8. Üriner Sistem"den sonra "1. Süzülme") liste adımıdır. Ölçü yalnız sıklık ve numara, kalıp listesi yok | `outline-oversize.ts` `nonChapterHeadings` |
+| Numaralı liste cümlesi ("2. Sinaptik keseciklerdeki … salınır.") bölüm sayıldı | Noktayla biten, dört+ kelimelik numaralı satır ve oklu satır cümledir | `topic-title.ts` `looksLikeQuestionOrSentence` |
+| 66 alt bölümlü belgede "her alt bölüm ayrı konu" (Paket G) 40 konu sınırında sağlanamazken her seferinde tam onarım açtı | Alt bölüm kuralı yalnız ölçülen başlıklar sınıra sığıyor ve haritada yer varken istenir; öteki sebepler aynen | `outline-oneshot.ts` `outlineSplitNeeds` |
+| Kapsam haritadan **sonra** ölçülüp yutulan her başlık ikinci çağrı açıyordu | İlk istemde belgenin kendi başlıkları (`skeletonPromptBlock`, en çok 70): sınıra sığarsa her biri ayrı konu, sığmazsa komşular **kısa ve doğal** adla birleşir (en çok 8 kelime, noktalı virgül yok — uç uca eklenen adlar 120 karakterde kesiliyordu). Kapsam ölçüsü değişmedi; büyük kitabın parçalarına liste gitmez | `outline-skeleton.ts`, `outline-oneshot.ts` |
+| Taslak varsayılan düşünmeyle yazılıyordu (9.488 çıktı jetonunun çoğu düşünme) | Öğrenci kurulumda beklerken (`urgent`: kurs isteği, `prepId` yok; her hesap) harita çağrıları `reasoning_effort: "low"`; sonradan eklenen materyal varsayılan. `generateJson` `reasoningEffort` yalnız akıl yürüten modele gider | `generate.ts`, `pdf-learning-v2.ts`, `process/route.ts` |
+
+Canlıda okuma (aynı gün): 30 fotoğraf seçimden 20,5 sn sonra "Hazır olanlarla devam et"; 65 sayfalık metin PDF'inin ilk 12
+sayfası 17 sn, tamamı 35 sn. Bekçi: `harita-hizi.test.ts` (örnekler tarih, iktisat, elektrik).
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

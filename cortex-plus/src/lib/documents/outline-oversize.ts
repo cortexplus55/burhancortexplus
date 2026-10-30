@@ -117,15 +117,70 @@ export function isTocPage(page: OversizePage): boolean {
   return /^\s*(içindekiler|İçindekiler|İÇİNDEKİLER)/.test(page.text ?? "");
 }
 
-/** Bir sayfa aralığındaki bağımsız bölümler ve alt bölümler (içindekiler sayfası hariç). */
+/**
+ * Dosya boyunca tekrarlanan satır bölüm değildir (31 Ekim 2026, canlı ölçüm): 65 sayfalık notta üst bilgi
+ * ("AYT Biyoloji · İnsan Fizyolojisi …") 64 sayfada, "SINAV İPUCU" 40, "AKILDA TUT" 17 sayfada duruyordu. Konunun
+ * 2-4 sayfalık aralığında her biri "bağımsız bölüm" sayıldı; doğru 9 konu "böl" diye geri çevrildi ve harita her
+ * seferinde 66 sn'lik tam onarıma düştü. Ölçü yalnız sıklık: sayfaların yarısında duran satır koşan başlıktır;
+ * beşte birinde dağınık duran satır kutu etiketidir. Art arda sayfalarda süren slayt başlığı (tek parça) bölüm kalır.
+ * Numarası geri giden numaralı satır (liste adımı) da bölüm değildir.
+ */
+export const RUNNING_LABEL_SHARE = 0.5;
+export const SCATTERED_LABEL_SHARE = 0.2;
+export const REPEATED_LABEL_MIN_PAGES = 3;
+const nonChapterCache = new WeakMap<OversizeFile, Set<string>>();
+
+export function nonChapterHeadings(file: OversizeFile): Set<string> {
+  const cached = nonChapterCache.get(file);
+  if (cached) return cached;
+  const pagesOf = new Map<string, number[]>();
+  for (const page of file.pages) {
+    for (const heading of new Set(pageHeadings(page).map(fold))) {
+      if (!heading) continue;
+      const list = pagesOf.get(heading) ?? [];
+      list.push(page.pageNumber);
+      pagesOf.set(heading, list);
+    }
+  }
+  const total = file.pages.length;
+  const out = new Set<string>();
+  // Numarası geri giden satır liste maddesidir: "8. Üriner Sistem" ve "8.4 İdrar Oluşumu"ndan sonra gelen
+  // "1. Süzülme", "3. Salgılama" bölüm değil, alt bölümün adımlarıdır (31 Ekim 2026).
+  let lastChapter = 0;
+  for (const page of file.pages) {
+    if (isTocPage(page)) continue;
+    for (const heading of pageHeadings(page)) {
+      const match = /^\s*(\d{1,2})\.\s+\S/.exec(heading);
+      if (!match || !isNumberedChapter(heading)) continue;
+      const number = Number(match[1]);
+      if (number <= lastChapter) out.add(fold(heading));
+      else lastChapter = number;
+    }
+  }
+  for (const [heading, pages] of pagesOf) {
+    if (pages.length < REPEATED_LABEL_MIN_PAGES) continue;
+    if (pages.length >= total * RUNNING_LABEL_SHARE) {
+      out.add(heading);
+      continue;
+    }
+    const sorted = [...pages].sort((a, b) => a - b);
+    const oneRun = sorted.every((page, i) => i === 0 || page === sorted[i - 1]! + 1);
+    if (!oneRun && pages.length >= total * SCATTERED_LABEL_SHARE) out.add(heading);
+  }
+  nonChapterCache.set(file, out);
+  return out;
+}
+
+/** Bir sayfa aralığındaki bağımsız bölümler ve alt bölümler (içindekiler sayfası, koşan başlık ve kutu etiketi hariç). */
 export function headingsInRange(
   file: OversizeFile,
   pageNumbers: number[],
 ): { chapters: string[]; sections: string[] } {
   const wanted = new Set(pageNumbers);
+  const repeated = nonChapterHeadings(file);
   const pages = file.pages
     .filter((page) => wanted.has(page.pageNumber) && !isTocPage(page))
-    .map((page) => ({ headings: pageHeadings(page) }));
+    .map((page) => ({ headings: pageHeadings(page).filter((heading) => !repeated.has(fold(heading))) }));
   return {
     chapters: chapterHeadings(pages),
     sections: sectionHeadings(pages, Number.POSITIVE_INFINITY),

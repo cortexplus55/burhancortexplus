@@ -176,7 +176,10 @@ const TOC_PAGE_TAIL = /\s+\d{1,3}$/;
  */
 function looksLikeQuestionOrSentence(heading: string): boolean {
   if (/[?]$/.test(heading)) return true;
-  if (/[=<>≤≥±×÷√]/.test(heading)) return true;
+  if (/[=<>≤≥±×÷√→⇒]/.test(heading)) return true;
+  // Numaralı liste maddesi (31 Ekim 2026): "2. Sinaptik keseciklerdeki nörotransmitter … salınır." Başlık noktayla bitmez.
+  const body = heading.replace(/^\s*\d+[.)]\s+/, "");
+  if (/\.\s*$/.test(body) && body.split(/\s+/).filter(Boolean).length >= 4) return true;
   if (
     /\b(hangisi|hangisidir|hangileri|aşağıdakilerden|asagidakilerden|aşağıda verilen|asagida verilen|yukarıdaki|yukaridaki|kaçtır|kactir|değildir|degildir|which of the following|what is|true\/false)\b/i.test(
       heading,

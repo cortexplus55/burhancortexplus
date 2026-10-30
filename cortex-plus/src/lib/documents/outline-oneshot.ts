@@ -24,7 +24,9 @@ import {
   mergeOutlinePatch,
   skeletonCoverage,
   skeletonExclusions,
+  skeletonPromptBlock,
   skeletonRepairLines,
+  measuredSkeletonHeadings,
   type DocumentSkeleton,
   type SkeletonCoverage,
   type SkeletonGap,
@@ -921,6 +923,7 @@ function studentOutlinePrompt(input: {
   maxPage: number;
   tocBlock?: string | null;
   previousOutline?: OutlineUnitDraft[];
+  skeletonBlock?: string;
   repairErrors?: string;
   invalidDraftJson?: string;
 }): string {
@@ -953,7 +956,7 @@ ${OUTLINE_GRANULARITY_RULE}
 - Konu başlığı içeriği adlandırır, materyalin biçimini değil: "Kartı", "Eşleştirme Kartı", "Şeması", "Tablosu", "Fotoğrafı", "Özet Notu" yazma. Bir dosya (fotoğraf, kart, şema, test sayfası) başka dosyada anlatılan bir konuyu tekrar ediyorsa ayrı konu açma; o konu tek kalır, fileIndex'i konuyu en çok anlatan dosya olur.
 - "Diğer Konular" kovası EKLEME. Ünite 1–${MAX_UNITS}, toplam konu ≤${MAX_TOPICS_TOTAL}.
 
-JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document|curriculum"}]}]}${tocBlockSection(input.tocBlock)}${previousOutlineBlock(input.previousOutline)}
+JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document|curriculum"}]}]}${tocBlockSection(input.tocBlock)}${input.skeletonBlock ?? ""}${previousOutlineBlock(input.previousOutline)}
 
 Materyal:
 ${input.corpus}${repairBlock(input.repairErrors, input.invalidDraftJson)}`;
@@ -968,6 +971,8 @@ type OutlinePromptInput = {
   examDate?: string | null;
   tocBlock?: string | null;
   previousOutline?: OutlineUnitDraft[];
+  /** Belgenin kendi başlıkları (`skeletonPromptBlock`); büyük kitabın parçalarına gitmez. */
+  skeletonBlock?: string;
 };
 
 /** Mevcut haritanın kısa dökümü: onarım bağlamı, değiştirilmesi istenmez. */
@@ -1045,6 +1050,8 @@ async function callOutlineModel(input: OutlinePromptInput & {
   userPrompt?: string;
   /** Öğrenci kurulumda bekliyor ve hızlı işlem açık (`fastAllowedFor`). */
   fast?: boolean;
+  /** Öğrenci kurulumda bekliyor: düşük düşünme (31 Ekim 2026). */
+  urgent?: boolean;
 }): Promise<OutlineCallResult> {
   try {
     const generated = await generateJson({
@@ -1065,6 +1072,7 @@ async function callOutlineModel(input: OutlinePromptInput & {
       callTimeoutMs: OUTLINE_CALL_TIMEOUT_MS,
       stream: true,
       fast: input.fast === true,
+      reasoningEffort: input.urgent ? "low" : undefined,
       maxTransientAttempts: OUTLINE_TRANSIENT_ATTEMPTS,
       idempotencyKey: input.idempotencyKey,
       // Charged only when the draft ends up in the saved map.
@@ -1082,6 +1090,7 @@ async function callOutlineModel(input: OutlinePromptInput & {
         maxPage: input.maxPage,
         tocBlock: input.tocBlock,
         previousOutline: input.previousOutline,
+        skeletonBlock: input.skeletonBlock,
         repairErrors: input.repairErrors,
         invalidDraftJson: input.invalidDraftJson,
       }),
@@ -1395,6 +1404,23 @@ export function outlineOversized(
   return outlineOversizedTopics(candidate.units, files);
 }
 
+/**
+ * Haritanın sınırına sığan geniş konu sorunları (31 Ekim 2026). "Kısa alt bölüm de konudur" (Paket G) kuralı ancak
+ * belgenin ölçülen başlıkları konu sınırına sığıyorsa ve haritada yer varsa istenir: 65 sayfalık notta 66 alt bölüm
+ * vardı, sınır 40; model komşu alt bölümleri birleştirmek zorundaydı, kural her seferinde 66 sn'lik tam onarım açıyor
+ * ve onarım da sağlayamıyordu. Öteki sebepler (pay, bölüm, yoğunluk) aynen.
+ */
+export function outlineSplitNeeds(
+  candidate: OutlineCandidate | null,
+  material: Pick<OutlineMaterial, "files" | "skeleton" | "exclusions">,
+): OversizedTopic[] {
+  const all = outlineOversized(candidate, material.files);
+  if (!all.some((topic) => topic.reason === "subsection")) return all;
+  const measured = measuredSkeletonHeadings(material.skeleton, material.exclusions).measured.length;
+  const room = Boolean(candidate && candidate.kept < MAX_TOPICS_TOTAL) && measured <= MAX_TOPICS_TOTAL;
+  return room ? all : all.filter((topic) => topic.reason !== "subsection");
+}
+
 /** Onarım talimatı: doğrulama sorunları + bölünecek geniş konular + birleştirilmeyen üniteler. */
 export function outlineRepairErrors(
   issues: OneShotValidationIssue[],
@@ -1480,6 +1506,8 @@ export async function runOutlineStep(input: OutlinePromptInput & {
    * tek çağrıda ~90 sn sürdü (9.500 jeton çıktı). Yalnız Plus/Sigma ve kurucu; sonradan eklenen materyal normal.
    */
   fast?: boolean;
+  /** Öğrenci kurulumda haritayı bekliyor (hızlı işlemden bağımsız): çağrılar düşük düşünmeyle (31 Ekim 2026). */
+  urgent?: boolean;
 }): Promise<OutlineStepResult> {
   const now = input.now ?? Date.now;
   const { material, progress } = input;
@@ -1496,6 +1524,8 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     previousOutline: input.previousOutline,
     deadlineAt: input.deadlineAt,
     fast: input.fast === true,
+    urgent: input.urgent === true,
+    skeletonBlock: skeletonPromptBlock(material.skeleton, { exclusions: material.exclusions, maxTopics: MAX_TOPICS_TOTAL }),
   };
   const fits = (chars: number) => {
     const needMs = estimateOutlineCallMs(chars + 6_000);
@@ -1523,6 +1553,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
         callOutlineModel({
           ...prompt,
           corpus: `--- Parça ${i + 1}/${parts.length} ---\n${corpora[i]}`,
+          skeletonBlock: undefined,
           model: strong,
           idempotencyKey: input.keyFor("first", i + 1),
         }),
@@ -1559,7 +1590,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       ...partReservations,
       ...(merged.reservationId ? [merged.reservationId] : []),
     ]);
-    if (goodEnough(candidate) && !outlineOversized(candidate, material.files).length) {
+    if (goodEnough(candidate) && !outlineSplitNeeds(candidate, material).length) {
       if (needsPatch(candidate, material)) {
         return { kind: "continue", progress: { stage: "patch", best: candidate }, release: [], failed: false };
       }
@@ -1674,7 +1705,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
         : { kind: "exhausted", release: [], reason: "rejected" };
     }
     const prior = candidateFrom(draft, material.validation, progress.draftModel ?? strong, []);
-    const repairErrors = outlineRepairErrors(prior.issues, outlineOversized(prior.candidate, material.files));
+    const repairErrors = outlineRepairErrors(prior.issues, outlineSplitNeeds(prior.candidate, material));
     const cited = buildCitedPagesCorpus(
       material.files,
       citedRefsFromDraft(draft, material.files.length === 1),
@@ -1792,7 +1823,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       outlineDroppedByGrounding(issues, size));
   // Geniş konu (25 Ekim 2026): mini de güçlü de olsa tek konuya sıkışmış ünite kabul edilmez.
   const needsSplit =
-    outlineOversized(candidate, material.files).length > 0 ||
+    outlineSplitNeeds(candidate, material).length > 0 ||
     issues.some((issue) => issue.code === "unit_rescue_blocked" || issue.code === "unit_split_required");
   if (goodEnough(candidate) && !thinMini && !needsSplit) {
     // Başlık düzeyinde kapsam (Paket I): yutulan başlık varsa yalnız o bölümler için onarım.
