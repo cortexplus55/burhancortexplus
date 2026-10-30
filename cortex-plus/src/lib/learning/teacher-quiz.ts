@@ -11,7 +11,7 @@ import {
   THRESHOLD_OPTIONS_RULE,
 } from "@/lib/learning/teaching-rubric";
 import { contentTokens, rootCoverage, stemPhraseInAnswer } from "@/lib/learning/lexical-overlap";
-import { offKindDistractors } from "@/lib/learning/distractor-kind";
+import { inventedKindSiblings, offKindDistractors } from "@/lib/learning/distractor-kind";
 import {
   affirmedWrongOptions,
   explanationAnswerMismatch,
@@ -1177,6 +1177,8 @@ function stemEchoIssue(stem: string, answer: string, distractors: readonly strin
 
 /** Sorulan türden olmayan çeldiricinin sorun metni (30 Ekim 2026). */
 export const OFF_KIND_PREFIX = "Çeldirici sorulan türden değil";
+/** Uydurma kardeş terim (30 Ekim 2026): "Reeskont maliyeti" gibi kaynakta olmayan tür adlı şık. */
+export const INVENTED_SIBLING_PREFIX = "Çeldirici uydurma bir terim";
 
 /**
  * `context`: kaynak metni (belgeli testte). Çeldirici türü yalnız kaynakta tanımı olan şıklar için ölçülür
@@ -1236,6 +1238,19 @@ export function quizStructureIssues(
   if (offKind.length) {
     issues.push(
       `${OFF_KIND_PREFIX} ('${offKind.join("', '")}'): kökün sorduğu türden değil; doğru cevabın kardeşi olan, aynı türden bir öğe yaz.`,
+    );
+  }
+  const invented = options.context
+    ? inventedKindSiblings({
+        stem: question.text,
+        options: question.options,
+        correctIndex: question.options.indexOf(answer),
+        context: options.context,
+      })
+    : [];
+  if (invented.length) {
+    issues.push(
+      `${INVENTED_SIBLING_PREFIX} ('${invented.join("', '")}'): kaynakta böyle bir terim yok; başka türden kavrama tür adı ekleme, soruyu kardeşleri kaynakta olan bir ayrım üzerine kur.`,
     );
   }
   if (/kaynak\s*:|\bs\.\s?\d+|\bsayfa\s+\d+|\bpdf\b|metne göre|belgede|belirtil(?:miştir|mektedir|diği|en)/i.test(question.text)) {
