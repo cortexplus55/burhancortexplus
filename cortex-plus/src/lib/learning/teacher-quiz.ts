@@ -15,10 +15,13 @@ import {
   unresolvedVisualReference,
 } from "@/lib/learning/answer-consistency";
 import { DEFAULT_OPTION_COUNT, type OptionCount } from "@/lib/learning/student-pedagogy";
-import { equivalentOptionPair } from "@/lib/learning/option-equivalence";
-import { normalizeQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
-import { exponentKeyWrong } from "@/lib/learning/exponent-key";
-import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
+import { normalizeGeneratedQuizQuestion, type QuizQuestion } from "@/lib/learning/exam-quiz";
+import {
+  answerCountIssue,
+  duplicateOptionPair,
+  enumeratedCountIssue,
+  singleAnswerIntegrityIssues,
+} from "@/lib/learning/question-integrity";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotation } from "@/lib/learning/function-notation";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
@@ -669,7 +672,7 @@ export function parseTeacherQuiz(raw: unknown): QuizQuestion[] | null {
     if (!item || typeof item !== "object") return [];
     const row = item as Record<string, unknown>;
     if (typeof row.text !== "string" || !Array.isArray(row.options)) return [];
-    const normalized = normalizeQuizQuestion({
+    const normalized = normalizeGeneratedQuizQuestion({
       text: row.text,
       options: row.options.map((option) => String(option)),
       correct: (row.correct ?? "") as string | string[],
@@ -683,7 +686,7 @@ export function parseTeacherQuiz(raw: unknown): QuizQuestion[] | null {
       topic: typeof row.topic === "string" ? row.topic : undefined,
       // Konu testinin kapsam alanı (20 Ekim 2026): madde numarası ya da bölüm başlığı.
       point: typeof row.point === "string" || typeof row.point === "number" ? String(row.point) : undefined,
-    });
+    }, typeof row.multi === "boolean" ? row.multi : undefined);
     return normalized ? [normalized] : [];
   });
   return questions.length ? questions : null;
@@ -977,21 +980,6 @@ export function optionCountIssue(question: QuizQuestion, optionCount?: OptionCou
   return n === 4 || n === 5 ? null : `Şık sayısı ${n}; 4 ya da 5 olmalı.`;
 }
 
-/** Aynı şık iki kez (büyük/küçük harf, boşluk ve son noktalama yok sayılır). */
-function duplicateOption(options: readonly string[]): boolean {
-  const seen = new Set<string>();
-  for (const option of options) {
-    const key = option
-      .toLocaleLowerCase("tr")
-      .replace(/[.!?;:,]+$/u, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    if (!key) continue;
-    if (seen.has(key)) return true;
-    seen.add(key);
-  }
-  return false;
-}
 
 const NUMBER_TOKEN = /-?\d+(?:[.,]\d+)?/g;
 
@@ -1045,8 +1033,7 @@ export function quizStructureIssues(
     const keyIssue = keyMismatchIssue(question, [question.options.indexOf(question.correct[0] ?? "")].filter((index) => index >= 0));
     if (keyIssue) issues.push(keyIssue);
   }
-  if (duplicateOption(question.options)) issues.push("Aynı şık iki kez yazılmış.");
-  const said = [question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
+  const said =[question.text, question.explanation ?? "", ...question.options, ...(question.optionWhy ?? []), ...(question.steps ?? [])];
   if (reversedFunctionNotation(said.join("\n")).length) issues.push(FUNCTION_NOTATION_ISSUE);
   if (question.multi && options.multi) {
     return [...issues, ...multiQuestionIssues(question)];
@@ -1076,21 +1063,17 @@ export function quizStructureIssues(
   }
   const visual = visualReferenceIssue(question.text);
   if (visual) issues.push(visual);
-  const keyed = {
-    type: "mcq",
-    prompt: question.text,
-    options: question.options,
-    answerIndex: question.options.indexOf(answer),
-  };
-  if (exponentKeyWrong(keyed) === true || mathKeyWrong(keyed) === true) {
-    issues.push("Cevap anahtarı hesapla çelişiyor.");
-  } else if (mathOptionsAmbiguous(keyed)) {
-    issues.push("İki şık aynı cevap: aynı değer ya da aynı öğeler farklı sırayla.");
-  }
-  const twins = equivalentOptionPair(question.options, question.text);
-  if (twins) {
-    issues.push(`İki şık eşdeğer ('${twins[0]}' = '${twins[1]}'); tek doğrulu soruda biri doğruysa öteki de doğru olur.`);
-  }
+  // Aynı/eşdeğer şık, hesapla çelişen anahtar, hiçbir şıkkın tutmaması, sayı tutarsızlığı: ders içi soruyla aynı
+  // liste (30 Ekim 2026, Paket I #6; `question-integrity.ts`).
+  issues.push(
+    ...singleAnswerIntegrityIssues({
+      type: "mcq",
+      prompt: question.text,
+      options: question.options,
+      answerIndex: question.options.indexOf(answer),
+      explanation: question.explanation,
+    }),
+  );
   return issues;
 }
 
@@ -1101,6 +1084,13 @@ function multiQuestionIssues(question: QuizQuestion): string[] {
   if (correct.length < 2 || correct.length > 3) {
     issues.push(`Çok cevaplı soruda ${correct.length} doğru var; 2 ya da 3 olmalı.`);
   }
+  // Kök "hangisidir" deyip iki doğru işaretli soru öğrenciye tek cevaplı görünür (30 Ekim 2026, Paket I #6).
+  const countIssue = answerCountIssue(question.text, correct.length);
+  if (countIssue) issues.push(countIssue);
+  const twin = duplicateOptionPair(question.options);
+  if (twin) issues.push(`Aynı şık iki kez yazılmış ('${twin[0]}' = '${twin[1]}').`);
+  const counted = enumeratedCountIssue(question.text) ?? enumeratedCountIssue(question.explanation ?? "");
+  if (counted) issues.push(counted);
   if (correct.some((answer) => !question.options.includes(answer))) {
     issues.push("correct dizisindeki her doğru, options içinden aynen olmalı.");
   }

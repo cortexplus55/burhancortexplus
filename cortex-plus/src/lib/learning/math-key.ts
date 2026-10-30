@@ -391,6 +391,35 @@ function inverseTrigMatches(check: KeyedCheck): number[] | null {
  * biri o değere eşit olmalı. Şıklar ifade, kök değer ise ("hangisinin
  * sonucu 4³?") ters yönde de aynı karşılaştırma işler.
  */
+/**
+ * Kökteki tek hesabın sonucuna eşit şıklar (dizinleri). null: hüküm yok (hesap okunamadı, kökte başka sayı var ya da
+ * bir şık okunamadı). `mathKeyWrong` ve `mathNoOptionMatches` aynı okumayı paylaşır.
+ */
+function computedOptionMatches(check: KeyedCheck): number[] | null {
+  if (!check.options?.length) return null;
+  const spans = spansOf(check.prompt);
+  if (!spans) return null;
+  const computations = spans.filter((span) => isComputation(span.text));
+  if (computations.length !== 1) return null;
+  const chosen = computations[0];
+  const rest = check.prompt.slice(0, chosen.start) + check.prompt.slice(chosen.end);
+  if (/\d/.test(rest)) return null;
+  const expected = read(chosen.text);
+  if (!expected) return null;
+  const readings = check.options.map((option) => read(option));
+  if (readings.some((reading) => !reading)) return null;
+  return readings.flatMap((reading, index) => (reading && agree(reading, expected) ? [index] : []));
+}
+
+/**
+ * Hiçbir şık kökteki hesabın sonucunu vermiyor (30 Ekim 2026, Paket I #6: canlıda "hiçbir şık doğru değil" soru
+ * öğrenciye gitti). Yalnız `mathKeyWrong`un okuyabildiği sorularda hüküm verir; şık metni ifade ise karar yok.
+ */
+export function mathNoOptionMatches(check: KeyedCheck): boolean {
+  if (check.type !== "mcq") return false;
+  return computedOptionMatches(check)?.length === 0;
+}
+
 export function mathKeyWrong(check: KeyedCheck): boolean | null {
   if (check.type === "trueFalse" && check.options?.length === 2 && check.answerIndex != null) {
     const pairs = equationPairs(check.prompt);
