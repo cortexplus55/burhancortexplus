@@ -165,7 +165,8 @@ export const THRESHOLD_OPTIONS_RULE =
  * testinde çalışıyordu. Bütün test yazarları ve denetçileri bu metni aynen okur.
  */
 export const TEST_SET_RULE =
-  "TESTİN BÜTÜNÜ: İki soru aynı doğru cevaba çıkmaz; bir sorunun doğru şıkkı başka bir sorunun sorduğu bilgiyi " +
+  "TESTİN BÜTÜNÜ: İki soru aynı doğru cevaba çıkmaz (konu dar olsa da cevabı dağıt: kavramın ölçüsü, nedeni, sonucu, " +
+  "karıştırılan kardeşi); bir sorunun doğru şıkkı başka bir sorunun sorduğu bilgiyi " +
   "söylemez (öğrenci birinden öbürünün cevabını okur). Aynı soru kalıbıyla aynı konuyu ikinci kez sorma; aynı kalıp " +
   "testte en çok iki soruda.";
 

@@ -5,10 +5,12 @@ vi.mock("server-only", () => ({}));
 import { teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
 import { playableQuestions } from "@/lib/learning/quiz-delivery";
 
-const raw = (text: string) => ({
+// Doğru cevap şıklar arasında döner: aynı cevap bir testte en çok iki soruda (30 Ekim 2026, `MAX_SAME_ANSWER`).
+const OPTS = ["Uygulanır", "Ertelenir", "Düşer", "Askıdadır"];
+const raw = (text: string, correctIndex = 0) => ({
   text,
-  options: ["Uygulanır", "Ertelenir", "Düşer", "Askıdadır"],
-  correct: "Uygulanır",
+  options: OPTS,
+  correct: OPTS[correctIndex % OPTS.length]!,
   multi: false,
   explanation: "Koşul tamamsa işlem yürür; diğerlerinde işlem durur.",
   optionWhy: [
@@ -36,7 +38,7 @@ describe("akan test: denetimden geçmiş ilk pencere", () => {
     };
     const ask = vi.fn(async (system: string) => {
       if (system.includes("denetçisisin") || system.includes("anahtarı görmeden")) return { issues: [], solved: [] };
-      return { questions: [...stems.map(raw), hepsi] };
+      return { questions: [...stems.map((stem, i) => raw(stem, i)), hepsi] };
     });
     const seen: string[][] = [];
     const loop = await teacherQuizLoop(

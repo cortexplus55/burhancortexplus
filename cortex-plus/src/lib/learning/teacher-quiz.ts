@@ -798,6 +798,20 @@ export function parseQuizIssues(raw: unknown): QuizIssue[] {
 
 /** Aynı kök kalıbı en çok bu kadar soruda (KONU TESTİ kuralı). */
 export const MAX_SAME_FRAME = 2;
+/**
+ * Aynı doğru cevap bir testte en çok iki soruda (30 Ekim 2026, canlı "İkinci test": 5 sorudan 4'ünün cevabı
+ * "Enflasyon"du; öğrenci ikinci sorudan sonra cevabı ezberden verir). Çift tek tek "aynı sınıfın iki ayrı durumu"
+ * diye geçiyordu (`questionConflict`); sayı testin bütününe bakar.
+ */
+export const MAX_SAME_ANSWER = 2;
+
+/** Tek cevaplı sorunun cevabı `earlier` içinde kaç kez doğru cevap olmuş. */
+function sameAnswerCount(earlier: readonly QuizQuestion[], question: QuizQuestion): number {
+  if (question.multi) return 0;
+  const key = optionKey(question.correct?.[0] ?? "");
+  if (!key) return 0;
+  return earlier.filter((other) => !other.multi && optionKey(other.correct?.[0] ?? "") === key).length;
+}
 
 /**
  * Sorunun kök kalıbı: son soru cümlesinin son üç kelimesi ("En olası tanı hangisidir?" →
@@ -890,11 +904,19 @@ export function questionConflict(earlier: QuizQuestion, later: QuizQuestion, ear
   return null;
 }
 
-/** `incoming` soruları, `current` ile çakışmayanlar sırayla eklenerek (ikinci geçiş, yumuşak kurtarma). */
-export function appendWithoutConflicts(current: readonly QuizQuestion[], incoming: readonly QuizQuestion[]): QuizQuestion[] {
+/**
+ * `incoming` soruları, `current` ile çakışmayanlar sırayla eklenerek (ikinci geçiş, yumuşak kurtarma). Aynı doğru
+ * cevap en çok iki kez (`MAX_SAME_ANSWER`); son çarede (`answerCap: false`) sınır yok: test hiç gelmemekten iyidir.
+ */
+export function appendWithoutConflicts(
+  current: readonly QuizQuestion[],
+  incoming: readonly QuizQuestion[],
+  options: { answerCap?: boolean } = {},
+): QuizQuestion[] {
   const out = [...current];
   for (const question of incoming) {
     if (out.some((other) => questionConflict(other, question) !== null)) continue;
+    if (options.answerCap !== false && sameAnswerCount(out, question) >= MAX_SAME_ANSWER) continue;
     out.push(question);
   }
   return out;
@@ -950,7 +972,7 @@ export function salvageRejected(
     ...(options.previousStems ?? []),
     ...current.map((question) => question.text),
   ]);
-  return appendWithoutConflicts(current, spare);
+  return appendWithoutConflicts(current, spare, { answerCap: !options.lastResort });
 }
 
 /**
@@ -1000,11 +1022,22 @@ export function quizSetIssues(
     const keys = wordKeys(question.text);
     // Aynı testte iki soru neredeyse aynı (22 Ekim 2026 kör kıyas: KPSS testinde S3 ve S4); aynı kalıp ve konu, aynı
     // cevap, birinin doğru şıkkında öbürünün bilgisi (30 Ekim 2026, canlı tur). Bütün testler.
+    let conflicted = false;
     for (let earlier = 0; earlier < index; earlier += 1) {
       const conflict = questionConflict(ordered[earlier]!, question, earlier + 1);
       if (!conflict) continue;
       issues.push({ index, code: "I", problem: conflict, forceFix: false });
+      conflicted = true;
       break;
+    }
+    const repeats = sameAnswerCount(ordered.slice(0, index), question);
+    if (!conflicted && repeats >= MAX_SAME_ANSWER) {
+      issues.push({
+        index,
+        code: "I",
+        problem: `'${question.correct?.[0] ?? ""}' bu testte zaten ${repeats} sorunun doğru cevabı; öğrenci cevabı ezberden verir. Konunun başka bir bilgisini (ölçüsü, nedeni, sonucu, karıştırılan kardeşi) soran soru yaz.`,
+        forceFix: false,
+      });
     }
     const twin = checks.find((item) => overlap(keys, item.keys) >= 0.75);
     if (twin) {

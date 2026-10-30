@@ -50,7 +50,8 @@ vi.mock("openai", () => ({
                 // Her soru başka bir ifade: tekrar süzgeci (`dropNearDuplicates`, 25 Ekim 2026) aynı kökü eler.
                 text: `${QUESTION_STEMS[(ai.drafts - 1) * 5 + i] ?? `Soru ${ai.drafts}-${i}`}`,
                 options: ["Yokluk", "Mutlak butlan", "Nispi butlan", "Tek taraflı bağlamazlık"],
-                correct: "Yokluk",
+                // Doğru cevap döner: aynı cevap bir testte en çok iki soruda (30 Ekim 2026, `MAX_SAME_ANSWER`).
+                correct: ["Yokluk", "Mutlak butlan", "Nispi butlan", "Tek taraflı bağlamazlık"][((ai.drafts - 1) * 5 + i) % 4]!,
                 multi: false,
                 explanation: "Kurucu unsur eksikse işlem hiç doğmamıştır; diğerlerinde işlem doğmuştur.",
                 optionWhy: [

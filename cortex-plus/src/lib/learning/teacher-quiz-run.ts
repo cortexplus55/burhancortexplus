@@ -18,7 +18,7 @@ import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
 import { dropNearDuplicates } from "@/lib/learning/item-dedup";
 import { runTopicTestShards } from "@/lib/learning/quiz-shards";
-import { playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
+import { alignToPublished, playableQuestions, type QuizStageMs } from "@/lib/learning/quiz-delivery";
 import { repairBudget } from "@/lib/learning/repair-budget";
 import {
   appendWithoutConflicts,
@@ -437,6 +437,9 @@ async function runTeacherQuizInner(
   try {
     const previousStems = input.previousStems ?? [];
     const shown = new Map<string, QuizQuestion>();
+    /** Öğrenciye giden sorular, ilk gönderildikleri sırayla ve gönderildikleri hâliyle (`alignToPublished`). */
+    const published: QuizQuestion[] = [];
+    const publishedKeys = new Set<string>();
     let opened = false;
     const publish = input.onPlayable
       ? (raw: QuizQuestion[]) => {
@@ -451,6 +454,12 @@ async function runTeacherQuizInner(
           const window = all.slice(0, opened ? input.count : 1);
           if (!window.length) return;
           opened = true;
+          for (const question of window) {
+            const key = question.text.trim();
+            if (publishedKeys.has(key)) continue;
+            publishedKeys.add(key);
+            published.push(question);
+          }
           input.onPlayable!(window);
         }
       : undefined;
@@ -521,6 +530,8 @@ async function runTeacherQuizInner(
       );
       lastResort = questions.length - before;
     }
+    // Akan testte son liste öğrencinin gördüğü sırayla başlar; cevaplar soru numarasıyla notlanıyor (30 Ekim 2026).
+    if (published.length) questions = alignToPublished(questions, published, input.count);
     console.info("teacher_quiz", {
       topic: input.topicLabel.slice(0, 80),
       mode: input.mode ?? "document",

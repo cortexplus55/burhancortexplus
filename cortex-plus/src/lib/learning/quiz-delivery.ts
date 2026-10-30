@@ -65,6 +65,26 @@ export function playableQuestions(questions: readonly QuizQuestion[], previous: 
 }
 
 /**
+ * Son liste öğrenciye gösterilen sırayla başlar (30 Ekim 2026, canlı: "İkinci test" 5 sorudan 1 doğru notlandı, ekran 0
+ * gösterdi). Akan testte ekran yeni kökleri kendi listesinin SONUNA ekler (`mergeStreamedQuestions`) ve cevaplar soru
+ * sırasının numarasıyla kaydedilir. Sunucu ise son listeyi taslak sırasıyla diziyor, çok cevaplıyı sona alıyor, bazı
+ * soruları eleyebiliyordu: öğrencinin 2. soruya verdiği cevap başka bir sorunun cevabı diye notlanıyordu. Gösterilen
+ * soru gösterildiği sırayla ve gösterildiği hâliyle başta kalır (sonradan elense de: öğrenci onu gördü, cevapladı);
+ * kalan sorular son listenin sırasıyla arkadan gelir.
+ */
+export function alignToPublished(
+  final: readonly QuizQuestion[],
+  published: readonly QuizQuestion[],
+  count: number,
+): QuizQuestion[] {
+  if (!published.length) return [...final];
+  const key = (question: QuizQuestion) => question.text.trim();
+  const sent = new Set(published.map(key));
+  const rest = final.filter((question) => !sent.has(key(question)));
+  return [...published, ...rest].slice(0, Math.max(count, published.length));
+}
+
+/**
  * Akan listedeki cevaplanmış önek yerinde kalır. Gelen listedeki yeni kökler sona eklenir.
  * Aynı kökün şık sırası değişse de öğrencinin gördüğü soru değişmez.
  */
