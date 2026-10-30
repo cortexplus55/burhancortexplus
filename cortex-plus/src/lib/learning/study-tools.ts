@@ -262,6 +262,14 @@ export function studyToolHref(prepId: string, nodeId: string): string {
   return examPrepNodeHref(prepId, nodeId);
 }
 
+/**
+ * Yazılı deneme kurulum sayfası (30 Ekim 2026, Paket I #12). Deneme hazırlık geneli bir etkinlik:
+ * yolda düğümü olmasa da açılır; "Deneme sınavı oluştur" ve araç penceresi aynı yere gider.
+ */
+export function mockExamSetupHref(prepId: string): string {
+  return `/deneme-sinavlari/${prepId}/deneme/kurulum`;
+}
+
 /** Seçilen konu düğümün konusu değilse üretim o konuyu okur. */
 export function studyActivityHref(
   prepId: string,
@@ -367,6 +375,11 @@ export const FREE_PICK_NODE_KINDS: Record<string, { search: StudyToolId[]; creat
   flashcards: { search: ["spaced", "flashcards"], create: "spaced" },
   oral: { search: ["oral"], create: "oral" },
 };
+
+/** Düğümü yoksa `/api/learning/exam-prep/activity` ile oluşturulabilen etkinlik mi (uç yalnız bunları kabul eder). */
+export function activityCreatable(tool: StudyToolId): boolean {
+  return Object.prototype.hasOwnProperty.call(FREE_PICK_NODE_KINDS, tool);
+}
 
 function ownTopicNode<T extends StudyNodeRef>(
   nodes: T[],

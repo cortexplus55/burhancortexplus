@@ -38,6 +38,32 @@ export function readCourseFromRelations(relations: unknown): string | null {
   return null;
 }
 
+/**
+ * Belgelerin ortak kurs etiketi (Paket I, 30 Ekim 2026): düğümü olan her belgenin bir ünitesi aynı kursu
+ * taşıyorsa o kurs. Etiket eskiden yalnız "listedeki ilk belge"yle karşılaştırılıyordu; ilk belge
+ * kurulumdan çıkarılınca kalan belgelerin haritası kurs sayılmıyor, bütün harita sıfırdan yazılıyordu.
+ * Aynı kursun alt kümesi o kursun sırasıyla okunur. Düğümü olmayan belge (konusu başka dosyada kalan
+ * fotoğraf) karara katılmaz; hiçbir belgenin düğümü yoksa null.
+ */
+export function sharedCourseTag(
+  perDoc: readonly (readonly { parent_id: string | null; key_relations: unknown }[])[],
+): string | null {
+  const tagsOf = (nodes: readonly { parent_id: string | null; key_relations: unknown }[]) =>
+    new Set(
+      nodes
+        .filter((node) => node.parent_id == null)
+        .map((node) => readCourseFromRelations(node.key_relations))
+        .filter((tag): tag is string => Boolean(tag)),
+    );
+  const withNodes = perDoc.filter((nodes) => nodes.length);
+  if (!withNodes.length) return null;
+  const [first, ...rest] = withNodes.map(tagsOf);
+  for (const tag of first ?? []) {
+    if (rest.every((tags) => tags.has(tag))) return tag;
+  }
+  return null;
+}
+
 export function normalizeExamWeight(value: unknown): ExamWeight {
   const raw = String(value ?? "")
     .trim()

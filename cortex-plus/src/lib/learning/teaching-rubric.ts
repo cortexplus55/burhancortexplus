@@ -131,7 +131,12 @@ export const MULTI_POLARITY_RULE =
 
 /** Ders, test ve podcast istemlerinin sonuna eklenir. Model bu adları kendi cümlesi gibi yazmasın. */
 export const STUDENT_LEAK_BAN =
-  "ÇIKTI YASAĞI: İç kural adlarını ve şu ifadeleri çıktına yazma: sayı uydurma, kapsamı dışındadır, " +
+  "ÇIKTI YASAĞI: İç kural adlarını ve şu ifadeleri yazma: sayı uydurma, kapsamı dışındadır, " +
   "Sınav Müfredatı Tamamlaması, görünmediği için, burada görünmedi, Ders: … Dönem …. " +
-  "Şekildeki değer kaynakta yoksa o değeri kullanma ve görünmüyor diye de yazma. " +
-  "Açıklamada 'cevap B'dir' veya 'doğru şık B' yazma; şıkkı içeriğiyle an.";
+  "Şekildeki değer kaynakta yoksa kullanma, görünmüyor diye de yazma. " +
+  "Açıklamada 'cevap B'dir' veya 'doğru şık B' yazma; şıkkı içeriğiyle an. " +
+  // 30 Ekim 2026 (Paket I #5): canlıda derslere "Turuncu işaretli yerler sınavda çıkar", podcast'e "… bu anlatımda ele
+  // alınmıyor", örneklere uydurma kişi adları ("21 yaşındaki Ece", "Mert'in izlediği dizi") ve kaynağın alıştırma
+  // numarası ("Alıştırma 11.5") girdi. Podcast senarist istemi kısa kalmalı: kısa yazıldı.
+  "Ekranın renklerini anlatma ('turuncu işaretli yerler'); neyin ele alınmadığını söyleme; örnekte kişi adı uydurma " +
+  "(kaynaktaki ad kalır); kaynağın alıştırma numarasını ('Alıştırma 11.5') yazma.";

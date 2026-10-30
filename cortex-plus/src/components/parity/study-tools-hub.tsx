@@ -14,6 +14,9 @@ import {
   STUDY_HUB_HINT,
   STUDY_TOOLS,
   STUDY_TOOL_GROUPS,
+  activityCreatable,
+  freeActivityPick,
+  mockExamSetupHref,
   openStudyActivity,
   recommendedStudyTool,
   studyNodeOpenable,
@@ -81,12 +84,50 @@ export function StudyToolsHub({
   const [group, setGroup] = useState<StudyToolGroup>(initialGroup ?? recommended?.group ?? "learn");
   const router = useRouter();
   const [choosing, setChoosing] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   // Yol sırayla açılır; buradan seçilen kilitli etkinliğin kilidi gitmeden kalkar.
   async function openChosen(nodeId: string, href: string) {
     if (choosing) return;
     setChoosing(true);
     await chooseStudyNode(prepId, nodeId);
     router.push(href);
+  }
+  /**
+   * Yolda bu etkinliğin düğümü yoksa (kısa planda sözlü, konuya özgü kart …) "Başka Bir Konu veya
+   * Etkinlik Seç" ile aynı uçla oluşturulur (30 Ekim 2026, Paket I #12): iki giriş aynı işlevden geçer,
+   * "Bu konuda yok" denmez.
+   */
+  async function createAndOpen(tool: StudyToolId, title: string) {
+    if (choosing) return;
+    const topic = topicLabel ? { id: topicOptions.find((option) => option.label === topicLabel)?.id ?? null, label: topicLabel } : null;
+    const pick = freeActivityPick(nodes, prepId, topic, tool, topicOptions);
+    if (!pick.ok) {
+      setCreateError("Önce bir konu seç.");
+      return;
+    }
+    if (pick.kind !== "create") {
+      router.push(pick.href);
+      return;
+    }
+    setChoosing(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/learning/exam-prep/activity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prepId, tool, topicId: pick.topicId, topicLabel: pick.topicLabel }),
+      });
+      const data = (await res.json().catch(() => null)) as { href?: string } | null;
+      if (!res.ok || !data?.href) {
+        setCreateError(`${title} şu an açılamadı. Bir kez daha dene.`);
+        return;
+      }
+      router.push(data.href);
+    } catch {
+      setCreateError(`${title} şu an açılamadı. Bir kez daha dene.`);
+    } finally {
+      setChoosing(false);
+    }
   }
   return (
     <div className="cp-oral-modal-back" onClick={onClose}>
@@ -153,7 +194,11 @@ export function StudyToolsHub({
                   ? studyVideoHref(prepId, topicLabel, topicOptions)
                   : target
                     ? studyActivityHref(prepId, target.node.id, target.topicQuery)
-                    : null;
+                    : tool.id === "written_exam"
+                      ? mockExamSetupHref(prepId)
+                      : null;
+            /** Düğümü yok ama kilitli de değil: aynı oluşturma uçuyla açılır (uç yalnız bu araçları kurar). */
+            const creatable = !lock && !href && activityCreatable(tool.id);
             /** Kilitli düğüm: önce seç (kilit kalkar), sonra git. */
             const chooseFirst = target && !studyNodeOpenable(target.node.status, target.node.kind) ? target.node.id : null;
             const body = (
@@ -168,7 +213,7 @@ export function StudyToolsHub({
                   <span className="cp-study-hub-badge cp-study-hub-badge--plus">Plus</span>
                 ) : null}
                 <strong>{lock ? `🔒 ${tool.title}` : tool.title}</strong>
-                <em>{lock ?? (href ? tool.blurb : "Bu konuda yok")}</em>
+                <em>{lock ?? (href || creatable ? tool.blurb : "Bu hazırlığın yolunda yok")}</em>
               </>
             );
             return (
@@ -190,6 +235,17 @@ export function StudyToolsHub({
                   >
                     {body}
                   </Link>
+                ) : creatable ? (
+                  <button
+                    type="button"
+                    className="cp-study-hub-tile"
+                    aria-label={tool.title}
+                    aria-busy={choosing || undefined}
+                    disabled={choosing}
+                    onClick={() => void createAndOpen(tool.id, tool.title)}
+                  >
+                    {body}
+                  </button>
                 ) : (
                   <span className={cn("cp-study-hub-tile is-off", lock && "is-locked")} aria-disabled="true">
                     {body}
@@ -199,6 +255,11 @@ export function StudyToolsHub({
             );
           })}
         </ul>
+        {createError ? (
+          <p role="alert" className="cp-oral-empty">
+            {createError}
+          </p>
+        ) : null}
       </div>
     </div>
   );

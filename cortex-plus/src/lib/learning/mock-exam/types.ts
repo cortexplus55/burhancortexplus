@@ -108,6 +108,10 @@ export const DEFAULT_SHORT = {
   durationMinutes: 20,
 } as const;
 
+/** "Kendi sınavım" soru sayısı sınırları (30 Ekim 2026, Paket I #4); üst sınır deneme üretim bütçesinden. */
+export const MOCK_CUSTOM_MIN = 5;
+export const MOCK_CUSTOM_MAX = 40;
+
 export const DEFAULT_STANDARD = {
   questionCount: 20,
   durationMinutes: 40,

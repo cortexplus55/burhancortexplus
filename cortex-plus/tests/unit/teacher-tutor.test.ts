@@ -156,7 +156,9 @@ describe("sohbet pasajları kelime ve sayı örtüşmesiyle yeniden sıralanır"
     expect(hit!.excerpt.length).toBeLessThanOrEqual(700);
     expect(lexicalPageHit("Fransa'da sendika kaç kişiyle kurulur?", "Hukukun kaynakları.")).toBeNull();
     const source = readFileSync("src/lib/learning/prep-chat-grounding.ts", "utf8");
-    expect(source).toContain('.ilike("text_content", `%${stem.raw}%`)');
+    // 30 Ekim 2026 (Paket I #11): kökler ve kesin belirteçler aynı kalıp listesinden aranır.
+    expect(source).toContain("`%${stem.raw}%`");
+    expect(source).toContain('.ilike("text_content", pattern)');
   });
 
   it("sohbet, konu kimliği olmadan açılan düğüm dersini de son ders sayar", () => {
@@ -167,7 +169,8 @@ describe("sohbet pasajları kelime ve sayı örtüşmesiyle yeniden sıralanır"
 
   it("hazırlık sohbeti geniş getirip yeniden sıralar", () => {
     const source = readFileSync("src/lib/learning/prep-chat-grounding.ts", "utf8");
-    expect(source).toContain("rerankByOverlap(message, wide).slice(0, 4)");
+    // 30 Ekim 2026 (Paket I #11): sabit 4 parça yerine karakter bütçesi.
+    expect(source).toContain("takeWithinBudget(rerankByOverlap(message, wide)");
   });
 });
 

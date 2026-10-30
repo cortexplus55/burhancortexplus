@@ -3,9 +3,9 @@ import { STUDY_TOOL_LOCK_COPY } from "@/lib/learning/study-tools";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { normalizeQuizQuestion } from "@/lib/learning/exam-quiz";
+import { rankFinalStepTopics } from "@/lib/learning/prep-wide-target";
 import {
   assembleFocusedPractice,
-  collectWeakTopics,
   measuredWeakTopics,
   missedFromAttempt,
   questionsFromLessonChecks,
@@ -216,7 +216,7 @@ export async function weakTopicsForPrep(
   service: SupabaseClient,
   input: { userId: string; prepId: string },
 ): Promise<{ topics: PrepTopicRow[]; mastery: TopicMasterySnapshot[]; weakTopics: string[] }> {
-  const [topicsRes, masteryRes, missRes] = await Promise.all([
+  const [topicsRes, masteryRes, missRes, prepRes] = await Promise.all([
     service
       .from("exam_prep_topics")
       .select("id, label, document_topic_node_id, source_refs, measured_level")
@@ -228,6 +228,7 @@ export async function weakTopicsForPrep(
       .eq("user_id", input.userId)
       .eq("exam_prep_id", input.prepId),
     openMisconceptionRows(service, input),
+    service.from("exam_preps").select("target_score").eq("id", input.prepId).maybeSingle(),
   ]);
   const topics: PrepTopicRow[] = (topicsRes.data ?? [])
     .map((row) => ({
@@ -239,17 +240,14 @@ export async function weakTopicsForPrep(
     }))
     .filter((row) => row.label);
   const mastery = masterySnapshots(masteryRes.data as Record<string, unknown>[] | null);
-  const weakTopics = collectWeakTopics({
-    mastery,
-    misconceptions: (missRes.data ?? []).map((row) => ({
-      topicLabel: (row.topic_label as string | null) ?? null,
-      wrongType: (row.wrong_type as string | null) ?? null,
-      sourceKind: (row.source_kind as string | null) ?? null,
-      questionPreview: (row.question_preview as string | null) ?? null,
-    })),
-    missedTopics: [],
+  // Tek seçici (30 Ekim 2026, Paket I #8): en düşük ölçülen başarı, sonra en çok açık yanlış.
+  const target = (prepRes?.data as { target_score?: unknown } | null)?.target_score;
+  const weakTopics = rankFinalStepTopics({
     plannedTopics: topics.map((row) => row.label),
-  });
+    mastery,
+    openMisses: (missRes.data ?? []).map((row) => ({ topicLabel: (row.topic_label as string | null) ?? null })),
+    targetScore: typeof target === "number" ? target : null,
+  }).map((row) => row.label);
   return { topics, mastery, weakTopics };
 }
 
@@ -343,7 +341,6 @@ export async function buildLocalSessionPayload(
   }));
 
   const missedQuestions: QuizQuestion[] = [];
-  const missedTopics: string[] = [];
   // Deneme puanı bitmiş "Yazılı deneme" düğümünün son kaydından, 40'lık pencereden değil (22 Ekim 2026
   // inceleme): "Hazırsın" artık denemeyi zorunlu sayıyor; erken çözülen deneme 40 etkinlikten sonra
   // pencereden düşünce ekran "Yazılı denemeyi çöz" diyordu, /degerlendirme ise "çözüldü". Aynı okuma
@@ -365,8 +362,11 @@ export async function buildLocalSessionPayload(
   }
   for (const attempt of attemptsRes.data ?? []) {
     const node = nodeById.get(String(attempt.node_id));
-    const topic = node?.topic || input.prepTitle;
-    const payload = attempt.payload as { type?: string; questions?: unknown } | null;
+    const payload = attempt.payload as { type?: string; questions?: unknown; testedTopic?: unknown } | null;
+    // Kaçırılan sorunun konusu: önce sorunun kendi konusu (`missedFromAttempt`), sonra içeriğin sorduğu konu
+    // (`testedTopic`, zayıf konuya yönelen düğüm), en son düğümün devraldığı konu (Paket I #7).
+    const tested = typeof payload?.testedTopic === "string" ? payload.testedTopic.trim() : "";
+    const topic = tested || node?.topic || input.prepTitle;
     if (node?.kind === "written_exam" && mockScorePct == null && attempt.total) {
       mockScorePct = Math.round((Number(attempt.score ?? 0) / Number(attempt.total)) * 100);
     }
@@ -379,7 +379,6 @@ export async function buildLocalSessionPayload(
       questions,
       answers,
     });
-    if (missed.length) missedTopics.push(topic);
     missedQuestions.push(...missed);
   }
 
@@ -398,7 +397,14 @@ export async function buildLocalSessionPayload(
     // sayı); okunamazsa istek düşer.
     const openTotal = await countOpenMisconceptions(service, { userId: input.userId, prepId: input.prepId });
     if (openTotal == null) throw new Error("tracking_read_failed");
+    // "Hazırsın" önerisi final adımlarıyla aynı seçiciden (Paket I #8): en düşük ölçülen başarı, en çok açık yanlış.
     const screen = buildReadinessScreen({
+      ranked: rankFinalStepTopics({
+        plannedTopics: topicLabels,
+        mastery,
+        openMisses: misconceptions,
+        targetScore: input.targetScore,
+      }),
       plannedTopics: topicLabels,
       mastery,
       openMissesByTopic: [...missesByTopic.entries()].map(([topic, count]) => ({ topic, count })),
@@ -417,18 +423,23 @@ export async function buildLocalSessionPayload(
   }
 
   const focus = input.kind === "focused" ? input.focusTopic?.trim() : "";
-  const rankedWeak = collectWeakTopics({
-    mastery,
-    misconceptions,
-    missedTopics,
+  // Tek seçici (30 Ekim 2026, Paket I #8, `rankFinalStepTopics`): en düşük ölçülen başarı, sonra en çok açık
+  // yanlış. Önceki liste ölçülmemiş her konuyu da "zayıf" sayıyordu; zayıf nokta testi 1. konu etiketiyle
+  // 5.-6. konunun sorularını getiriyordu.
+  const ranked = rankFinalStepTopics({
     plannedTopics: topicLabels,
-  });
+    mastery,
+    openMisses: misconceptions,
+    targetScore: input.targetScore,
+  }).map((row) => row.label);
   const measuredWeak = measuredWeakTopics({ mastery, plannedTopics: topicLabels });
-  // Yanlış, %85 altı hâkimiyet veya ölçülmüş zayıf konu varken boş geçilmez.
-  const weakTopics = focus ? [focus] : rankedWeak.length ? rankedWeak : measuredWeak;
+  const rankedWeak = ranked.length ? ranked : measuredWeak;
+  // Zayıf nokta ve odaklı pratik TEK konuda: etiket, sorular, sonuç ve kanıt aynı konu. Son kontrol bütün
+  // konuları zayıftan güçlüye yoklar (P1-4).
+  const weakTopics = focus ? [focus] : rankedWeak.slice(0, 1);
   if (input.kind === "gaps") {
     return weakTopics.length
-      ? { action: "generate", topics: weakTopics.slice(0, 6) }
+      ? { action: "generate", topics: weakTopics }
       : lockedToolPayload("gaps");
   }
   const checks: StoredLessonCheck[] = [];
@@ -442,7 +453,7 @@ export async function buildLocalSessionPayload(
   // Son kontrol bütün konuları yoklar (25 Ekim 2026, P1-4): konu başına bir soru, en zayıf önce; sorusu
   // olmayan konu anında üretilir (`fill`).
   if (input.kind === "final_check") {
-    const order = [...weakTopics, ...topicLabels];
+    const order = [...rankedWeak, ...topicLabels];
     const pool = [...lessonQuestions, ...missedQuestions].map((question) => rewordPracticeQuestion(question, language));
     const seenStems = await loadPreviousItems(service, {
       userId: input.userId,
@@ -455,10 +466,24 @@ export async function buildLocalSessionPayload(
       FINAL_CHECK_LIMIT,
       seenStems,
     );
-    if (selection.questions.length) {
+    // Hazır soru yalnız her konuyu kapsıyorsa servis edilir (30 Ekim 2026, Paket I #8). Önceden tek hazır soru
+    // bile yetiyordu: havuzda yalnız zayıf iki konunun sorusu olan son kontrol 5 soruyu o iki konudan soruyordu.
+    // Eksik konu varsa hazır sorular tohum olur, eksik konulara konu başına bir soru yazılır.
+    if (selection.questions.length && !selection.missingTopics.length) {
       return {
         action: "serve",
         payload: { type: "quiz", practice: input.kind, reused: true, questions: selection.questions, uncoveredTopics: [] },
+      };
+    }
+    if (selection.questions.length) {
+      return {
+        action: "generate",
+        topics: selection.missingTopics,
+        fill: {
+          seed: selection.questions,
+          perTopic: 1,
+          previousStems: [...seenStems, ...selection.questions.map((question) => question.text)],
+        },
       };
     }
     if (pool.length) {

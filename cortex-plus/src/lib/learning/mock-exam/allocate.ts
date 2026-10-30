@@ -1,6 +1,6 @@
 /**
  * Konu başına soru dağılımı — en büyük kalan (Hare) yöntemi.
- * Her kapsam içi konuya en az 1 soru; kapsam dışı 0.
+ * Soru sayısı yetiyorsa her kapsam içi konuya en az 1 soru; kapsam dışı 0. Toplam hep seçilen sayı (30 Ekim 2026).
  */
 
 import type { MockExamBlueprint, MockTopicSlot } from "@/lib/learning/mock-exam/types";
@@ -50,17 +50,66 @@ export type AllocationRow = {
 };
 
 /**
+ * Konu sayısı soru sayısını aşınca hangi konular sorulur (30 Ekim 2026, Paket I #4). Önce sınav ağırlığı yüksek olanlar
+ * (`examHeavy`, sonra `weightPercent` büyükten küçüğe); kalan yerler ağırlığı olmayan konulara listenin başından sonuna
+ * eşit aralıkla yayılır (baştaki konulara yığılmasın). Seçilenler belge sırasında döner. Sözlü "Tüm sınav" da bunu okur.
+ */
+export function pickTopicsForCount<T>(
+  topics: readonly T[],
+  count: number,
+  weightOf: (topic: T) => { percent: number | null; heavy: boolean } = () => ({ percent: null, heavy: false }),
+): T[] {
+  const want = Math.max(1, Math.floor(count));
+  if (topics.length <= want) return [...topics];
+  const ranked = topics
+    .map((topic, index) => ({ index, weight: weightOf(topic) }))
+    .filter((row) => row.weight.heavy || (row.weight.percent != null && row.weight.percent > 0))
+    .sort(
+      (a, b) =>
+        Number(b.weight.heavy) - Number(a.weight.heavy) ||
+        (b.weight.percent ?? 0) - (a.weight.percent ?? 0) ||
+        a.index - b.index,
+    )
+    .slice(0, want)
+    .map((row) => row.index);
+  const picked = new Set(ranked);
+  const rest = topics.map((_, index) => index).filter((index) => !picked.has(index));
+  const slots = want - picked.size;
+  if (slots > 0 && rest.length) {
+    if (slots === 1) picked.add(rest[0]!);
+    else {
+      for (let i = 0; i < slots; i += 1) {
+        picked.add(rest[Math.round((i * (rest.length - 1)) / (slots - 1))]!);
+      }
+    }
+    // Yuvarlama iki kez aynı konuyu seçtiyse boşluğu sıradaki seçilmemiş konu doldurur.
+    for (const index of rest) {
+      if (picked.size >= want) break;
+      picked.add(index);
+    }
+  }
+  return topics.filter((_, index) => picked.has(index));
+}
+
+/**
  * Kurulumda öğrenciye gösterilen dağılım = üretimin teslim ettiği dağılım (28 Ekim 2026, Paket A).
  * Ağırlık yalnız kayıttaki sınav ağırlığı (`weightPercent`); yoksa konular eşit. Konu metninin uzunluğu
  * (`passageChars`) dağılıma girmez: önizleme onu bilmiyordu, üretim biliyordu — Selin'in kurulumu 3+3+3+3+2+2+2+2
- * dedi, deneme K1'e 5, K2'ye 1 soru verdi. Her kapsam içi konu en az 1 soru alır; konu sayısı seçilen sayıdan
- * fazlaysa toplam konu sayısı olur ve kurulum bunu baştan söyler (ürün sahibinin kararı).
+ * dedi, deneme K1'e 5, K2'ye 1 soru verdi. Soru sayısı yetiyorsa her kapsam içi konu en az 1 soru alır.
+ *
+ * 30 Ekim 2026 (Paket I #4): toplam HER ZAMAN seçilen sayıdır. Eskiden konu fazlaysa toplam konu sayısına büyüyordu;
+ * 22 konulu hazırlıkta "Kısa" da "Standart" da 22 soru çıktı, öğrenci kısa deneme alamadı. Artık konular
+ * `pickTopicsForCount` ile seçilir (ağırlık önce, kalanlar yayılarak) ve kurulum hangisinin sorulmadığını söyler.
  */
 export function allocateQuestions(topics: MockTopicSlot[], totalQuestions: number): AllocationRow[] {
-  const inScope = topics.filter((t) => !t.outOfScope && t.topicLabel.trim());
-  if (!inScope.length || totalQuestions < 1) return [];
+  const allInScope = topics.filter((t) => !t.outOfScope && t.topicLabel.trim());
+  if (!allInScope.length || totalQuestions < 1) return [];
+  const total = Math.floor(totalQuestions);
+  const inScope = pickTopicsForCount(allInScope, total, (topic) => ({
+    percent: topic.weightPercent,
+    heavy: topic.examHeavy,
+  }));
 
-  const total = Math.max(totalQuestions, inScope.length);
   // Her konuya 1 soru rezervi
   const remaining = total - inScope.length;
 
@@ -94,13 +143,18 @@ export function allocateQuestions(topics: MockTopicSlot[], totalQuestions: numbe
 
 export type PromisedAllocation = {
   rows: AllocationRow[];
-  /** Teslim edilecek toplam: konu başı sayıların toplamı. */
+  /** Teslim edilecek toplam: konu başı sayıların toplamı (= seçilen sayı). */
   total: number;
   /** Öğrencinin seçtiği uzunluğun sayısı. */
   chosen: number;
-  /** Konu sayısı seçilen sayıyı aştı; her konudan 1 soruyla toplam büyüdü. */
+  /** Eski alan: toplam artık büyümez, hep false (30 Ekim 2026). */
   expanded: boolean;
+  /** Soru alan konu sayısı. */
   topicCount: number;
+  /** Kapsam içindeki bütün konular. */
+  scopeTopicCount: number;
+  /** Bu uzunlukta soru almayan konular (belge sırasıyla). */
+  skippedTopics: string[];
 };
 
 /** Uzunluk seçeneğinin soru sayısı ("Gerçek sınav biçimi" belgedeki biçimin sayısı). */
@@ -113,13 +167,26 @@ export function presetQuestionCount(preset: MockLengthPreset, realQuestionCount:
 export function promisedAllocation(topics: MockTopicSlot[], questionCount: number): PromisedAllocation {
   const rows = allocateQuestions(topics, questionCount);
   const total = rows.reduce((sum, row) => sum + row.count, 0);
-  return { rows, total, chosen: questionCount, expanded: total > questionCount, topicCount: rows.length };
+  const scope = topics.filter((t) => !t.outOfScope && t.topicLabel.trim());
+  const asked = new Set(rows.map((row) => `${row.topicId ?? ""}:${row.topicLabel}`));
+  const skippedTopics = scope.filter((t) => !asked.has(`${t.topicId ?? ""}:${t.topicLabel}`)).map((t) => t.topicLabel);
+  return {
+    rows,
+    total,
+    chosen: questionCount,
+    expanded: false,
+    topicCount: rows.length,
+    scopeTopicCount: scope.length,
+    skippedTopics,
+  };
 }
 
-/** Konu fazlaysa kurulumun söylediği cümle; değilse null. */
-export function expandedAllocationNote(promised: Pick<PromisedAllocation, "expanded" | "topicCount" | "total">): string | null {
-  if (!promised.expanded) return null;
-  return `${promised.topicCount} konu olduğu için her konudan 1 soru (toplam ${promised.total} soru) sorulacak.`;
+/** Konu soru sayısından fazlaysa kurulumun söylediği cümle; değilse null. */
+export function expandedAllocationNote(
+  promised: Pick<PromisedAllocation, "topicCount" | "scopeTopicCount" | "skippedTopics">,
+): string | null {
+  if (!promised.skippedTopics.length) return null;
+  return `${promised.scopeTopicCount} konudan ${promised.topicCount} tanesi soruluyor: sınav ağırlığı yüksek olanlar önce, kalanlar listeye yayılarak. Bütün konular için soru sayısını artır.`;
 }
 
 export function buildBlueprint(input: {
@@ -135,7 +202,7 @@ export function buildBlueprint(input: {
   const promised = promisedAllocation(input.topics, chosen);
   const allocation = promised.rows;
   const allocated = promised.total;
-  // Dağıtım toplamı söz verilen sayıdır: konu fazlaysa büyür, tür karışımı yeni sayıya göre kurulur.
+  // Dağıtım toplamı söz verilen sayıdır (30 Ekim 2026'dan beri konu fazlaysa da büyümez); tür karışımı bu sayıya göre.
   const questionCount = allocated > 0 ? allocated : chosen;
   const slots = plan.fromSyllabus
     ? resizeSlots(plan.slots, questionCount)

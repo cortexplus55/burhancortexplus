@@ -29,6 +29,7 @@ import {
   unresolvedVisualReference,
 } from "@/lib/learning/answer-consistency";
 import { numbersIn, sameNumber } from "@/lib/learning/result-values";
+import { enumeratedCountIssue, singleAnswerIntegrityIssues } from "@/lib/learning/question-integrity";
 import {
   KEY_CONSISTENCY_RULE,
   SELF_CONTAINED_STEM_RULE,
@@ -299,8 +300,8 @@ export const VISUAL_BLOCK_RULE =
 
 export const EMPHASIS_RULE =
   "VURGU VE AKILDA TUTMA: Sınavda doğrudan soru olacak KESİN bilgiyi (eşik, yaş, süre, ayırıcı ipucu, 'aksi " +
-  "kanıtlanana kadar' türü kural, SINAVDA SORULUR maddesi) metinde ==çift eşittir== arasına al; ekranda turuncu " +
-  "işaretlenir. Ekran başına en çok 2 vurgu, her biri tam cümle değil kilit ifade (en çok 12 kelime); kaynaktaki sayı ve " +
+  "kanıtlanana kadar' türü kural, SINAVDA SORULUR maddesi) metinde ==çift eşittir== arasına al; ekran onu kendisi " +
+  "öne çıkarır, metinde işaretin rengini ya da anlamını anlatma. Ekran başına en çok 2 vurgu, her biri tam cümle değil kilit ifade (en çok 12 kelime); kaynaktaki sayı ve " +
   "terimle. Anahtar terimler yine **koyu**. KAYNAK'ta kavramına ait bir 'SINAV İPUCU' / 'TUS / SINAV İPUCU', 'AKILDA " +
   "TUT' / 'PRATİK NOKTA' ya da 'ALARM BULGULARI' kutusu varsa atlama, 'note' bloğu olarak ver: sınav ipucu tone 'exam' " +
   "(başlık 'Sınav ipucu: …'), akılda tut ve pratik nokta tone 'remember' (başlık 'Akılda tut: …'), alarm bulguları " +
@@ -2232,8 +2233,18 @@ function checkIssues(
       );
     }
     if (!check.optionWhy || check.optionWhy.length !== options.length) add(where, "optionWhy her şık için bir cümle olmalı.");
-    if (new Set(options.map((option) => option.trim().toLocaleLowerCase("tr"))).size !== options.length) {
-      add(where, "Aynı şık iki kez yazılmış.");
+    // Testle aynı kod denetimi (30 Ekim 2026, Paket I #6): canlıda ders içi soruda iki şık aynıydı ve hiçbir şık
+    // doğru değildi; ders içi soru hesap ve eşdeğer şık denetimini hiç almıyordu. Sayı tutarsızlığı ("dört işlev"
+    // deyip beş öğe) düşük önemde: düz yazıdaki bir sayım yanlış alarm verebilir, ders düşmesin.
+    for (const problem of singleAnswerIntegrityIssues({
+      type: "mcq",
+      prompt: check.prompt,
+      options,
+      answerIndex: check.answerIndex,
+      explanation: check.explanation,
+    })) {
+      if (problem.startsWith("Metin ")) low(where, problem);
+      else add(where, problem);
     }
     // \b Türkçe harfi tanımıyor ("kaç" ç ile biter); boşlukla sınırla.
     if (/(?:^|\s)kaç\s+(?:\S+\s+){0,2}(tür|çeşit|başlık|madde|unsur|aşama|basamak)/i.test(check.prompt)) {
@@ -2258,6 +2269,8 @@ function checkIssues(
     // Eksik "doğrusu" dersi düşürmez: düzeltme turu zaten açılırsa eklenir.
     const falseStatement = /^(yanlış|yanlis|false)$/i.test(options[check.answerIndex ?? -1]?.trim() ?? "");
     if (falseStatement && !check.corrected?.trim()) low(where, "Yanlış ifadenin doğrusu (corrected) yazılmamış.");
+    const counted = enumeratedCountIssue(check.prompt) ?? enumeratedCountIssue(check.explanation ?? "");
+    if (counted) low(where, counted);
     // Doğru/yanlışın ikinci sorusu düşük önemde: "önce dene" ilk kavramda, öğrenci bekliyor; eksikse çalışma anı
     // aynı yargıyı yeniden sorar.
     for (const problem of reviewItemProblems(reviewInput(check))) low(`${where}.review`, `İkinci soru (review): ${problem}`);

@@ -53,12 +53,21 @@ import {
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
-import { STUDY_PATH_HINT, nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, studySketchVideoHref, type StudyToolGroup } from "@/lib/learning/study-tools";
+import { STUDY_PATH_HINT, mockExamSetupHref, nodeNeedsStudentUnlock, studentMayStartNode, studyNodeAria, studySketchVideoHref, type StudyToolGroup } from "@/lib/learning/study-tools";
 import { chooseStudyNode } from "@/lib/learning/choose-study-node";
 import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
 import { buildPathSections, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
-import { applyDisplayDates, pathDayLabel, pathOriginDay, sectionWhenLabel } from "@/lib/learning/path-dates";
+import {
+  applyDisplayDates,
+  isShortPlan,
+  pathNodeWhenLabel,
+  pathOriginDay,
+  sectionDoneLabel,
+  sectionHolidayNotes,
+  sectionWhenLabel,
+} from "@/lib/learning/path-dates";
+import { examDayLabel } from "@/lib/learning/exam-time";
 import { isLevelNode, LEVEL_NODE_ID, levelNodeAria } from "@/lib/learning/path-level";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
@@ -67,6 +76,8 @@ import {
   buildPrepProgressView,
   type PrepProgressView,
 } from "@/lib/learning/prep-progress-view";
+import { METRIC_HINT, METRIC_LABEL } from "@/lib/learning/prep-metrics";
+import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { formatDayLong } from "@/lib/format";
@@ -106,6 +117,9 @@ export type HomeNode = {
     calendarDate?: string;
     topicId?: string;
     topicTitle?: string;
+    /** Uzun planın tarihe bağlı tekrarı (30 Ekim 2026); yolda "Aralıklı Tekrar ve Kontrol" bölümünde. */
+    longReview?: number;
+    checkpoint?: string;
   } | null;
 };
 
@@ -179,6 +193,9 @@ function nodeHeading(node: HomeNode): string {
   const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
   if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
   const heading = parts[0] || raw;
+  // Bütün konuları kapsayan adım (son kontrol, yazılı deneme, Hazırsın) devraldığı 1. konunun adını yazmaz
+  // (30 Ekim 2026, Paket I #8): kart "1. konu" derken sorular bütün konulardan geliyordu.
+  if (ALL_TOPICS_KINDS.has(node.kind)) return heading === PLAN_NODE_META[node.kind].title ? `${heading} · ${ALL_TOPICS_LABEL}` : heading;
   // Başlık yalnız etkinliğin türüyse ("Podcast Dinle") konunun adı yazılır; tür zaten
   // etiketinde. Astra'da "SIRADAKİ · AKILLI METİN · Büyüme Eğrileri…" (18 Ekim 2026).
   const topic = node.sessionMeta?.topicTitle?.trim();
@@ -241,6 +258,7 @@ export function ExamPrepHome({
   targetScore = null,
   creatorLabel = "Sen",
   schoolName = null,
+  joinedFromSchool = false,
   joinCount = 0,
   lastResult = null,
   nodeScores = {},
@@ -248,6 +266,9 @@ export function ExamPrepHome({
   lockedPickId = null,
   dueReviews = 0,
   createdAt = null,
+  examTime = null,
+  examPlace = null,
+  nodeDoneOn = {},
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -295,6 +316,12 @@ export function ExamPrepHome({
   /** Menü kartında "Oluşturan": "Sen" ya da okuldan katılınan hazırlığın sahibi. */
   creatorLabel?: string;
   schoolName?: string | null;
+  /**
+   * Hazırlık okuldan katılındı mı. Okul adı yalnız hazırlık okula bağlıyken yazılır (okulla
+   * paylaşıldı ya da okuldan katılındı); öğrencinin profilindeki okul her hazırlıkta görünmez
+   * (30 Ekim 2026, Paket I #12).
+   */
+  joinedFromSchool?: boolean;
   /** Okulda paylaşıldıysa katılım sayısı. */
   joinCount?: number;
   /** Son biten etkinlik ve yüzdesi; Astra yolun üstünde kart olarak gösteriyor. */
@@ -309,6 +336,11 @@ export function ExamPrepHome({
   dueReviews?: number;
   /** Yol etiketlerinin hafta başlangıcı. Yoksa bugün. */
   createdAt?: string | null;
+  /** İsteğe bağlı sınav saati ve yeri (30 Ekim 2026): yolun sonunda "31 Eki 10:00 · Sınav". */
+  examTime?: string | null;
+  examPlace?: string | null;
+  /** Biten adımın bitiş günü (İstanbul, YYYY-MM-DD): yolda "Tamamlandı · 29 Eki". */
+  nodeDoneOn?: Record<string, string>;
 }) {
   const router = useRouter();
   /** Yolda seçilen kilitli adım: kart "şimdi başlat" der. */
@@ -341,8 +373,6 @@ export function ExamPrepHome({
     ready ??
     nodes.find((node) => node.status !== "done") ??
     null;
-  const pathPct =
-    topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct;
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
   const [view, setView] = useState<"yol" | "ilerleme">("yol");
@@ -382,12 +412,8 @@ export function ExamPrepHome({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsPane, setOptionsPane] = useState<"menu" | "kaynaklar" | "ayarlar">("menu");
   const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
-  /** "Deneme sınavı oluştur" pencereyi Sınav sekmesinde açar. */
+  /** Pencerenin açılacağı sekme ("Deneme sınavı oluştur" 30 Ekim'den beri doğrudan kuruluma gider). */
   const [hubGroup, setHubGroupState] = useState<StudyToolGroup | undefined>(undefined);
-  function setHubGroup(group: StudyToolGroup) {
-    setHubGroupState(group);
-    setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null);
-  }
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
   const mockNode = nodes.find((node) => node.kind === "written_exam") ?? null;
   const progress = useMemo(
@@ -571,7 +597,6 @@ export function ExamPrepHome({
   );
 
   const lastNode = lastResult ? nodes.find((node) => node.id === lastResult.nodeId) ?? null : null;
-  const doneCount = nodes.filter((node) => node.status === "done").length;
 
   return (
     <div className="cp-exam-page cp-exam-trail-page cp-prep-layout">
@@ -606,7 +631,8 @@ export function ExamPrepHome({
           >
             <LineChart className="cp-prep-tab-icon" aria-hidden />
             {PREP_HOME_COPY.progress}
-            <span className="cp-prep-tabs-pct">%{pathPct}</span>
+            {/* Sekmenin sayısı içindeki "Hazırlık puanı"nın kendisi; ayrı bir konu oranı yazılmaz (Paket I #7). */}
+            <span className="cp-prep-tabs-pct">%{progress.scorePct}</span>
           </button>
         </div>
       </div>
@@ -614,14 +640,20 @@ export function ExamPrepHome({
       <header className="cp-prep-hero" ref={heroRef}>
         {examType && examType !== "Serbest" ? <p className="cp-prep-hero-kicker">{examType}</p> : null}
         <h1>{title}</h1>
+        {/* Üç ölçü, üç ad, tek kaynak (30 Ekim 2026, Paket I #7, prep-metrics.ts): Hazırlık ölçülen başarı
+            (yanlışla düşebilir), ders sayısı İlerleme'deki "ders" ile aynı ("Hazırsın" ekranı ders değil),
+            Tamamlama biten adım oranı (düşmez). Eskiden burada bütün biten düğümler "ders" diye sayılıyordu. */}
         <p className="cp-prep-hero-meta">
-          <span>
+          <span title={METRIC_HINT.readiness}>
             <CircleDashed className="h-4 w-4" aria-hidden />
-            Hazırlık: %{progress.scorePct}
+            {METRIC_LABEL.readiness}: %{progress.scorePct}
           </span>
           <span>
             <Check className="h-4 w-4" aria-hidden />
-            {doneCount ? `${doneCount} ders tamamlandı` : "Henüz ders tamamlanmadı"}
+            {progress.lessonsDone ? `${progress.lessonsDone} ders tamamlandı` : "Henüz ders tamamlanmadı"}
+          </span>
+          <span title={METRIC_HINT.completion}>
+            {METRIC_LABEL.completion}: %{progress.completionPct}
           </span>
         </p>
         {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
@@ -736,6 +768,9 @@ export function ExamPrepHome({
             onOpen={openNode}
             readinessClaim={readinessClaim}
             examDate={examDate}
+            examTime={examTime}
+            examPlace={examPlace}
+            doneOn={nodeDoneOn}
             pathOrigin={pathOriginDay(createdAt)}
             prepId={prepId}
             topics={topicOptions}
@@ -743,10 +778,12 @@ export function ExamPrepHome({
           <section className="cp-prep-goal" aria-label="Hazırlık düzeyi">
             <h2>Gerçek sınavda nasıl yapacağını merak ediyor musun?</h2>
             <p>Hazır olduğunda öğren.</p>
-            <button type="button" className="cp-prep-goal-go" onClick={() => setHubGroup("exam")}>
+            {/* Düğme doğrudan deneme kurulumuna gider (30 Ekim 2026, Paket I #12): eskiden "Ders oluştur"
+                penceresini açıyordu, öğrenci denemeyi orada ikinci kez aramak zorunda kalıyordu. */}
+            <Link href={mockExamSetupHref(prepId)} className="cp-prep-goal-go">
               <Timer className="h-4 w-4" aria-hidden />
               Deneme sınavı oluştur
-            </button>
+            </Link>
           </section>
         </>
       ) : null}
@@ -893,14 +930,15 @@ export function ExamPrepHome({
                 <div className="cp-prep-sheet-card">
                   <p className="cp-prep-sheet-owner">
                     Oluşturan: <strong>{creatorLabel}</strong>
-                    {schoolName ? <span> · 🏛️ {schoolName}</span> : null}
+                    {schoolName && (shared || joinedFromSchool) ? <span> · 🏛️ {schoolName}</span> : null}
                     {shared && joinCount > 0 ? <span> · {joinCount} katılım</span> : null}
                   </p>
                   <p className="cp-prep-sheet-kicker">{examType}</p>
                   <p className="cp-prep-sheet-title">{title}</p>
                   <p className="cp-prep-sheet-meta">
-                    {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `%${progressPct}`}
-                    {examDate ? ` · sınav ${formatDayLong(examDate)}` : ""}
+                    {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `${METRIC_LABEL.completion} %${progressPct}`}
+                    {examDate ? ` · sınav ${formatDayLong(examDate)}${examTime ? ` ${examTime}` : ""}` : ""}
+                    {examPlace ? ` · ${examPlace}` : ""}
                     {daysLabel ? ` · ${daysLabel}` : ""}
                   </p>
                   {!uiV2 && scheduleSummary ? (
@@ -1100,6 +1138,9 @@ function PathSections({
   onOpen,
   readinessClaim,
   examDate = null,
+  examTime = null,
+  examPlace = null,
+  doneOn = {},
   pathOrigin,
   prepId,
   topics = [],
@@ -1113,16 +1154,33 @@ function PathSections({
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
   examDate?: string | null;
+  examTime?: string | null;
+  examPlace?: string | null;
+  doneOn?: Record<string, string>;
   pathOrigin: string;
   prepId: string;
   topics?: { id: string; label: string }[];
 }) {
   const today = pathOriginDay(null);
+  // 7 günden kısa plan (30 Ekim 2026): hafta yok, gün var ("Bugün", "Yarın", "Cum 31 Eki").
+  const shortPlan = isShortPlan(pathOrigin, examDate);
   const dated = useMemo(
     () => applyDisplayDates(nodes, { origin: pathOrigin, examDate }),
     [nodes, pathOrigin, examDate],
   );
   const sections = useMemo(() => buildPathSections(dated, currentId), [dated, currentId]);
+  // Bölümün tarih aralığındaki resmî tatiller: uzun planda düğüm tatile düşmese de Nisan–Haziran
+  // tatilleri görünür (30 Ekim 2026). Tatil yine esnek gün.
+  const holidayNotes = useMemo(
+    () =>
+      sectionHolidayNotes(
+        sections.map((section) => section.nodes.map((node) => node.sessionMeta?.calendarDate ?? "")),
+        pathOrigin,
+        examDate,
+      ),
+    [sections, pathOrigin, examDate],
+  );
+  const examDayLine = examDate ? examDayLabel({ date: examDate, time: examTime, place: examPlace }) : "";
   const far = useMemo(
     () => farNodeIds([...dated].sort((a, b) => a.sortOrder - b.sortOrder), currentId),
     [dated, currentId],
@@ -1155,16 +1213,23 @@ function PathSections({
               ? sectionMasteryPct(section.nodes, scores)
               : null;
         const line = sectionStatusLine(section, mastery);
-        const when = sectionWhenLabel(
-          section.nodes.map((node) => node.sessionMeta?.calendarDate ?? ""),
-          pathOrigin,
-          today,
-        );
+        // Bitmiş bölüm bitiş günlerini yazar, "Yarın" değil; süren bölüm kalan adımların planlı günlerini.
+        const when = section.complete
+          ? sectionDoneLabel(section.nodes.map((node) => doneOn[node.id] ?? ""))
+          : sectionWhenLabel(
+              section.nodes
+                .filter((node) => node.status !== "done")
+                .map((node) => node.sessionMeta?.calendarDate ?? ""),
+              pathOrigin,
+              today,
+              { examDate },
+            );
+        const holidayNote = holidayNotes[index] ?? null;
         const topicId =
           section.nodes.find((node) => node.sessionMeta?.topicId)?.sessionMeta?.topicId ||
           topics.find((topic) => topic.label.trim().toLocaleLowerCase("tr-TR") === section.title.trim().toLocaleLowerCase("tr-TR"))?.id ||
           "";
-        const sketchHref = topicId ? studySketchVideoHref(prepId, section.title, topics.some((topic) => topic.id === topicId) ? topics : [...topics, { id: topicId, label: section.title }]) : "";
+        const sketchHref = topicId && !section.review ? studySketchVideoHref(prepId, section.title, topics.some((topic) => topic.id === topicId) ? topics : [...topics, { id: topicId, label: section.title }]) : "";
         return (
           <section
             key={section.id}
@@ -1189,6 +1254,7 @@ function PathSections({
                   {when ? " · " : null}
                   {line}
                 </span>
+                {holidayNote ? <span className="cp-path-section-holiday">{holidayNote}</span> : null}
               </span>
               <ChevronDown className={cn("cp-path-section-chevron", open && "is-open")} aria-hidden />
             </button>
@@ -1209,6 +1275,8 @@ function PathSections({
                 farIds={far}
                 keepOrder
                 today={today}
+                doneOn={doneOn}
+                weekday={shortPlan}
               />
             ) : null}
           </section>
@@ -1220,6 +1288,11 @@ function PathSections({
             ? `Kalan kilitli konular (${hidden.length} konu)`
             : `Kalan konular (${hidden.length} konu)`}
         </button>
+      ) : null}
+      {examDayLine ? (
+        <p className="cp-path-exam-day" aria-label={`Sınav günü: ${examDayLine}`}>
+          🎯 {examDayLine}
+        </p>
       ) : null}
     </div>
   );
@@ -1236,6 +1309,8 @@ function StudyPath({
   farIds,
   keepOrder = false,
   today,
+  doneOn = {},
+  weekday = false,
 }: {
   nodes: HomeNode[];
   /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
@@ -1252,6 +1327,10 @@ function StudyPath({
   /** Konu kartı düğümleri zaten yürüme sırasında. */
   keepOrder?: boolean;
   today: string;
+  /** Biten adımın bitiş günü; etiket "Tamamlandı · 29 Eki". */
+  doneOn?: Record<string, string>;
+  /** Kısa planda gün adı da yazılır ("Cum 31 Eki"). */
+  weekday?: boolean;
 }) {
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
   // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları Astra'daki gibi yok.
@@ -1317,11 +1396,16 @@ function StudyPath({
         {points.map(({ node, x, y }) => {
           const meta = PLAN_NODE_META[node.kind];
           const level = isLevelNode(node.id);
-          const dayLabel = node.sessionMeta?.calendarDate
-            ? pathDayLabel(node.sessionMeta.calendarDate, today)
-            : "";
-          // Resmî tatil esnek gündür (28 Ekim 2026): yük yarıya iner, rozet söyler.
-          const holiday = node.sessionMeta?.calendarDate ? turkishHolidayOn(node.sessionMeta.calendarDate) : null;
+          // Bitmiş adım "Yarın" değil "Tamamlandı · 29 Eki" (30 Ekim 2026).
+          const dayLabel = pathNodeWhenLabel(
+            { status: node.status, calendarDate: node.sessionMeta?.calendarDate },
+            { today, doneOn: doneOn[node.id], weekday },
+          );
+          // Resmî tatil esnek gündür (28 Ekim 2026): yük yarıya iner, rozet söyler. Bitmiş adımda yok.
+          const holiday =
+            node.status !== "done" && node.sessionMeta?.calendarDate
+              ? turkishHolidayOn(node.sessionMeta.calendarDate)
+              : null;
           const readinessNote =
             node.kind === "readiness" && readinessClaim === true
               ? ", ölçülen verilere göre hazırsın"

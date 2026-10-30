@@ -211,7 +211,12 @@ describe("rotalar: kontrol yalnız hazırlığın podcast'inde", () => {
 
   it("hazırlığın podcast sayfası kontrolü yazar ve döner (göstermez); stüdyo ve ders podcast'i kontrolsüz", () => {
     const prep = read("src/app/api/learning/exam-prep/podcast/route.ts");
-    expect(prep).toContain("listeningCheck: true,");
+    // 30 Ekim 2026 (Paket I #9): ders sonu "Şimdi dinle" aynı hattan `listeningCheck: false` ile; kontrolsüz bölüm
+    // önbelleğe yazılmaz.
+    expect(prep).toContain("const withCheck = parsed.data.listeningCheck !== false;");
+    expect(prep).toContain("listeningCheck: withCheck,");
+    expect(prep).toContain("if (withCheck) await writePodcastCache(service, {");
+    expect(read("src/app/api/learning/exam-prep/lesson-podcast/route.ts")).toContain("listeningCheck: false,");
     expect(prep).toContain("check: outcome.check,");
     expect(prep).toContain("check: outcome.check.map(publicQuizQuestion),");
     expect(prep).toContain("check: cached.check.map(publicQuizQuestion),");

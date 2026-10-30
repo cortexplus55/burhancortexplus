@@ -31,9 +31,14 @@ import {
   presetQuestionCount,
   promisedAllocation,
 } from "@/lib/learning/mock-exam/allocate";
+import { MOCK_CUSTOM_MAX, MOCK_CUSTOM_MIN } from "@/lib/learning/mock-exam/types";
 
 /** Uzunluk seçeneğinin önerdiği süre; öğrenci değiştirebilir. */
 const PRESET_MINUTES = { short: 20, standard: 40 } as const;
+
+/** "Kendi sınavım" (30 Ekim 2026, Paket I #4): öğrenci gerçek sınavın soru sayısını girer; süre önerisi soru başı 2 dk. */
+type LengthChoice = "short" | "standard" | "real" | "custom";
+const CUSTOM_MINUTES_PER_QUESTION = 2;
 
 type Topic = {
   id: string;
@@ -63,9 +68,8 @@ export function MockExamSetup({
   const router = useRouter();
   const [scope, setScope] = useState<"all" | "topics">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set(topics.map((t) => t.id)));
-  const [preset, setPreset] = useState<"short" | "standard" | "real">(
-    formatSummary ? "real" : "standard",
-  );
+  const [preset, setPreset] = useState<LengthChoice>(formatSummary ? "real" : "standard");
+  const [customCount, setCustomCount] = useState(realQuestionCount && realQuestionCount >= MOCK_CUSTOM_MIN ? Math.min(MOCK_CUSTOM_MAX, realQuestionCount) : 25);
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [progress, setProgress] = useState<MockExamProgress | null>(null);
@@ -76,8 +80,13 @@ export function MockExamSetup({
   /** Süren kurulumun kimlikleri (29 Ekim 2026): tarayıcıya da yazılır, yenilemede yoklama sürer. */
   const runRef = useRef<StoredMockRun | null>(null);
   const watchRef = useRef<{ stop: () => void } | null>(null);
-  const presetMinutes = (value: "short" | "standard" | "real") =>
-    value === "real" ? (realMinutes ?? PRESET_MINUTES.standard) : PRESET_MINUTES[value];
+  const presetMinutes = (value: LengthChoice, count = customCount) =>
+    value === "custom"
+      ? Math.min(MOCK_MINUTES_MAX, Math.max(MOCK_MINUTES_MIN, count * CUSTOM_MINUTES_PER_QUESTION))
+      : value === "real"
+        ? (realMinutes ?? PRESET_MINUTES.standard)
+        : PRESET_MINUTES[value];
+  const countFor = (value: LengthChoice) => (value === "custom" ? customCount : presetQuestionCount(value, realQuestionCount));
   // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
   const [minutes, setMinutes] = useState(() => presetMinutes(formatSummary ? "real" : "standard"));
   const [untimed, setUntimed] = useState(false);
@@ -91,7 +100,7 @@ export function MockExamSetup({
     : "Değerlendirme dahildir.";
 
   // Önizleme üretimin okuduğu fonksiyondan, seçilen uzunluk ve kapsamla (Paket A): gösterilen dağılım teslim edilir.
-  const promisedFor = (value: "short" | "standard" | "real") => {
+  const promisedFor = (value: LengthChoice) => {
     const pool = scope === "all" ? topics : topics.filter((t) => selected.has(t.id));
     return promisedAllocation(
       pool.map((t) => ({
@@ -102,7 +111,7 @@ export function MockExamSetup({
         outOfScope: t.outOfScope ?? false,
         passageChars: 100,
       })),
-      presetQuestionCount(value, realQuestionCount),
+      countFor(value),
     );
   };
   const promised = promisedFor(preset);
@@ -272,7 +281,7 @@ export function MockExamSetup({
   function requestBody(extra?: { resumeId?: string; retry?: boolean }) {
     return {
       prepId,
-      preset,
+      ...(preset === "custom" ? { questionCount: customCount } : { preset }),
       scope,
       topicIds: scope === "topics" ? [...selected] : undefined,
       durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
@@ -495,20 +504,13 @@ export function MockExamSetup({
 
       <section className="mt-8">
         <h2 className="text-sm font-semibold">Uzunluk</h2>
-        <div className="mt-2 grid gap-3 sm:grid-cols-3">
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
           {(
             [
               ["short", `Kısa · ${promisedFor("short").total || 10} soru · 20 dk`, null],
               ["standard", `Standart · ${promisedFor("standard").total || 20} soru · 40 dk`, null],
-              [
-                "real",
-                formatSummary
-                  ? promisedFor("real").expanded
-                    ? `Gerçek sınav biçimi · ${formatSummary} · ${promisedFor("real").total} soru`
-                    : `Gerçek sınav biçimi · ${formatSummary}`
-                  : null,
-                "ÖNERİLEN",
-              ],
+              ["real", formatSummary ? `Gerçek sınav biçimi · ${formatSummary}` : null, "ÖNERİLEN"],
+              ["custom", `Kendi sınavım · ${customCount} soru`, null],
             ] as const
           )
             .filter((row) => row[1] != null)
@@ -536,6 +538,39 @@ export function MockExamSetup({
               </button>
             ))}
         </div>
+        {preset === "custom" ? (
+          <div className="cp-mock-time mt-3" role="group" aria-label="Soru sayısı">
+            <button
+              type="button"
+              className="cp-mock-time-step"
+              aria-label="Bir soru azalt"
+              disabled={customCount <= MOCK_CUSTOM_MIN}
+              onClick={() => {
+                const next = Math.max(MOCK_CUSTOM_MIN, customCount - 1);
+                setCustomCount(next);
+                setMinutes(presetMinutes("custom", next));
+              }}
+            >
+              −
+            </button>
+            <p className="cp-mock-time-value" aria-live="polite">
+              <strong>{customCount}</strong> soru
+            </p>
+            <button
+              type="button"
+              className="cp-mock-time-step"
+              aria-label="Bir soru artır"
+              disabled={customCount >= MOCK_CUSTOM_MAX}
+              onClick={() => {
+                const next = Math.min(MOCK_CUSTOM_MAX, customCount + 1);
+                setCustomCount(next);
+                setMinutes(presetMinutes("custom", next));
+              }}
+            >
+              +
+            </button>
+          </div>
+        ) : null}
         {overflowNote ? (
           <p className="mt-3 text-sm text-[color:var(--cp-muted)]" role="note">
             {overflowNote}

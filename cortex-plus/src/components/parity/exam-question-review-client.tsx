@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ReviewTools } from "@/components/parity/review-tools";
 import { cn } from "@/lib/utils";
+import { rowVerdict, verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 
 type ReviewItem = {
   id: string;
@@ -31,10 +32,7 @@ type Verdict = "dogru" | "kismen" | "yanlis" | "bos";
 
 /** Açık uçlu cevap kısmi puan alabilir (17 Ekim 2026); "Yanlış / Boş" demek 7/10 alanı yanlış gösteriyordu. */
 export function reviewVerdict(review: ReviewItem | undefined): Verdict {
-  if (!review) return "bos";
-  if (review.verdict === "dogru" || review.verdict === "kismen" || review.verdict === "yanlis" || review.verdict === "bos") return review.verdict;
-  if (review.is_correct) return "dogru";
-  return review.user_answer?.trim() ? "yanlis" : "bos";
+  return rowVerdict(review);
 }
 
 const VERDICT_LABEL: Record<Verdict, string> = { dogru: "Doğru", kismen: "Kısmen doğru", yanlis: "Yanlış", bos: "Boş" };
@@ -91,21 +89,8 @@ export function ExamQuestionReviewClient({
   }, [reviews]);
 
   const stats = useMemo(() => {
-    let correctCount = 0;
-    let partialCount = 0;
-    let wrongCount = 0;
-    for (const q of questions) {
-      const verdict = reviewVerdict(reviewMap.get(q.id));
-      if (verdict === "dogru") correctCount++;
-      else if (verdict === "kismen") partialCount++;
-      else wrongCount++;
-    }
-    return {
-      total: questions.length,
-      correct: correctCount,
-      partial: partialCount,
-      wrong: wrongCount,
-    };
+    // Sonuç sayfası ve notlandırmayla aynı sayım (30 Ekim 2026, Paket I #7): boş yanlış sayılmaz.
+    return verdictCounts(questions.map((q) => reviewVerdict(reviewMap.get(q.id))));
   }, [questions, reviewMap]);
 
   const filteredQuestions = useMemo(() => {
@@ -210,7 +195,7 @@ export function ExamQuestionReviewClient({
                   : "text-[var(--cp-muted)] hover:text-rose-400",
               )}
             >
-              Yanlışlar ({stats.wrong})
+              Doğru olmayanlar ({stats.wrong + stats.blank + stats.partial})
             </button>
           </div>
 
@@ -229,6 +214,12 @@ export function ExamQuestionReviewClient({
               <span className="w-2 h-2 rounded-full bg-rose-400" />
               {stats.wrong} Yanlış
             </span>
+            {stats.blank ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[var(--cp-muted)]" />
+                {stats.blank} Boş
+              </span>
+            ) : null}
           </div>
         </div>
       </div>

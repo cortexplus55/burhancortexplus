@@ -125,6 +125,8 @@ import {
   sameOptionSet,
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
+import { activityTally, tallyScore } from "@/lib/learning/answer-tally";
+import { dropNearDuplicatesKeepingCount } from "@/lib/learning/item-dedup";
 import {
   appendLessonReviewCards,
   cardsFromLessonReviews,
@@ -300,6 +302,11 @@ const bodySchema = z.object({
   replay: z.boolean().optional(),
   /** Bitmiş adımın kayıtlı gövdesi. Üretim ve kredi yok (25 Ekim 2026). */
   review: z.boolean().optional(),
+  /**
+   * İstemci sonucu yoklayabiliyor (30 Ekim 2026, Paket I): sözlü bitirme yanıttan sonra notlanır,
+   * yanıt `grading: true` olur. Göndermeyen eski sekme sonucu eskisi gibi yanıtın içinde alır.
+   */
+  gradingAsync: z.boolean().optional(),
 });
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
@@ -863,6 +870,51 @@ async function handleNodeRequest(
   // --- Stage 8: resume in-progress attempt (flag ON) ---
   if (action === "resume") {
     if (!teachingV2) return errorResponse(400, "invalid_input");
+    // Yoklama (30 Ekim 2026, Paket I): istemci bitirmenin yanıtını alamadıysa ya da sunucu sözlüyü
+    // arka planda notluyorsa bu kaydı sorar. Salt okuma: notlandırma başlatmaz, kredi düşmez.
+    if (parsed.data.attemptId) {
+      const { data: polled, error: pollError } = await service
+        .from("exam_prep_node_attempts")
+        .select("id, status, payload, answers, score, total, generation_id, complete_request_id, content_version, updated_at")
+        .eq("id", parsed.data.attemptId)
+        .eq("node_id", nodeId)
+        .eq("user_id", userId)
+        .eq("exam_prep_id", prepId)
+        .maybeSingle();
+      if (pollError) return errorResponse(503, "attempt_lookup_failed");
+      if (!polled) return NextResponse.json({ ok: true, resumed: false, found: false });
+      if (polled.status === "completed") {
+        const nextAfter = async () => {
+          const skip = await pathSkipKinds(service, userId);
+          let query = service
+            .from("exam_prep_nodes")
+            .select("id")
+            .eq("exam_prep_id", prepId)
+            .gt("sort_order", node.sort_order);
+          if (skip.size) query = query.not("kind", "in", kindListFilter(skip));
+          return query.order("sort_order").limit(1).maybeSingle();
+        };
+        return NextResponse.json({
+          ...(await completedAttemptBody(service, { userId, prepId, nodeId, attempt: polled, topicLabel, nextAfter })),
+          resumed: false,
+          completed: true,
+          grading: false,
+          attemptId: polled.id,
+        });
+      }
+      return NextResponse.json({
+        ok: true,
+        resumed: false,
+        completed: false,
+        grading: completionClaimFresh(polled),
+        // Açık kayıt: bitirme sunucuya ulaşmadı (ya da düştü). İstemci kaydı bu sürümle sürdürür.
+        active: polled.status === "active",
+        attemptId: polled.id,
+        generationId: polled.generation_id,
+        contentVersion: polled.content_version ?? 1,
+        updatedAt: polled.updated_at ?? null,
+      });
+    }
     const attempt = await findResumableAttempt(service, {
       userId,
       prepId,
@@ -870,6 +922,10 @@ async function handleNodeRequest(
     });
     if (!attempt?.payload) {
       return NextResponse.json({ ok: true, resumed: false });
+    }
+    // Bitirme gönderilmiş, notlandırma sürüyor: sorulara dönülmez, ekran sonucu bekler.
+    if (completionClaimFresh(attempt)) {
+      return NextResponse.json({ ok: true, resumed: false, grading: true, state: "grading", attemptId: attempt.id });
     }
     return NextResponse.json({
       ...attemptStartResponse(attempt, {
@@ -879,6 +935,8 @@ async function handleNodeRequest(
         publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
         resumed: true,
       }),
+      // Tarayıcı taslağı bu zamandan yeniyse istemcide taslak üstün gelir (Paket I).
+      updatedAt: attempt.updated_at ?? null,
       ...(await readWalletBalance(service, userId)),
     });
   }
@@ -920,7 +978,7 @@ async function handleNodeRequest(
     let attemptQuery = service
       .from("exam_prep_node_attempts")
       .select(
-        "id, payload, total, score, status, answers, generation_id, client_request_id, complete_request_id, content_version",
+        "id, payload, total, score, status, answers, generation_id, client_request_id, complete_request_id, content_version, updated_at",
       )
       .eq("node_id", nodeId)
       .eq("user_id", userId)
@@ -961,78 +1019,11 @@ async function handleNodeRequest(
       return errorResponse(409, "stale_generation");
     }
 
-    // Double-complete with same client key → return stored score (no re-grade side effects).
-    if (
-      teachingV2 &&
-      parsed.data.completeRequestId &&
-      attempt.status === "completed" &&
-      attempt.complete_request_id === parsed.data.completeRequestId
-    ) {
-      const { data: nextRow } = await nextAfter();
-      const review = await writtenReviewForPayload(service, {
-        userId,
-        prepId,
-        attemptId: attempt.id as string,
-        nodeId,
-        payload: attempt.payload,
-        answers: (attempt.answers as Record<string, unknown> | null) ?? {},
-        topicLabel,
-        allowFill: false,
-      }).catch(() => null);
-      const stored = lessonScoreForClient(
-        attempt.payload,
-        (attempt.answers as Record<string, unknown> | null) ?? {},
-        attempt.score ?? 0,
-        attempt.total ?? 1,
-      );
-      return NextResponse.json({
-        ok: true,
-        score: stored.score,
-        total: stored.total,
-        retried: stored.retried,
-        nextHref: nextRow?.id
-          ? `/deneme-sinavlari/${prepId}/dugum/${nextRow.id}`
-          : `/deneme-sinavlari/${prepId}`,
-        state: "completed",
-        idempotent: true,
-        review,
-        oralReview: oralReviewFromPayload(attempt.payload),
-        ...(await readWalletBalance(service, userId)),
-      });
-    }
-
+    // Aynı istek ya da bitmiş kayıt → saklı sonuç (yeniden notlandırma yok). Eskiden aynı gövdeli iki dal vardı.
     if (teachingV2 && attempt.status === "completed") {
-      const { data: nextRow } = await nextAfter();
-      const review = await writtenReviewForPayload(service, {
-        userId,
-        prepId,
-        attemptId: attempt.id as string,
-        nodeId,
-        payload: attempt.payload,
-        answers: (attempt.answers as Record<string, unknown> | null) ?? {},
-        topicLabel,
-        allowFill: false,
-      }).catch(() => null);
-      const stored = lessonScoreForClient(
-        attempt.payload,
-        (attempt.answers as Record<string, unknown> | null) ?? {},
-        attempt.score ?? 0,
-        attempt.total ?? 1,
+      return NextResponse.json(
+        await completedAttemptBody(service, { userId, prepId, nodeId, attempt, topicLabel, nextAfter }),
       );
-      return NextResponse.json({
-        ok: true,
-        score: stored.score,
-        total: stored.total,
-        retried: stored.retried,
-        nextHref: nextRow?.id
-          ? `/deneme-sinavlari/${prepId}/dugum/${nextRow.id}`
-          : `/deneme-sinavlari/${prepId}`,
-        state: "completed",
-        idempotent: true,
-        review,
-        oralReview: oralReviewFromPayload(attempt.payload),
-        ...(await readWalletBalance(service, userId)),
-      });
     }
 
     const mergedAnswers = teachingV2
@@ -1042,157 +1033,123 @@ async function handleNodeRequest(
         )
       : (parsed.data.answers ?? {});
 
-    let scored = scoreAttempt(kind, attempt?.payload, mergedAnswers, teachingV2);
-    let oralExtras: OralExamReport | null = null;
-    if (kind === "oral" && attempt?.payload && attempt.status !== "completed") {
-      const questions = ((attempt.payload as { questions?: OralQuestionDraft[] }).questions ?? []);
-      const hasRubric = questions.some((question) => (question.expectedPoints ?? []).length > 0);
-      if (hasRubric) {
-        const source = await reviewSourceBlock(service, userId, prepId, nodeId);
-        const grounding = await oralCorpus(service, userId, prepId, questions, topicLabel);
-        const sourceBlob = [source, grounding.corpus].filter((part) => part.trim()).join("\n\n");
-        const premiumNow = await isPremiumUser(service, userId);
-        // Tek hakem (29 Ekim 2026): soru bağlamsız olgu denetimi kalktı. Hakem düşerse bir kez daha
-        // istenir; yine düşerse kelime örtüşmesi yedeği (APPROX notu) çalışır.
-        const judgeInput = {
-          service,
-          userId,
-          isPremium: premiumNow,
-          questions,
-          answers: mergedAnswers,
-        };
-        const semantics = (await gradeOralSemantics(judgeInput)) ?? (await gradeOralSemantics(judgeInput));
-        const report = gradeOralExam(questions, mergedAnswers, sourceBlob, grounding.passages, semantics);
-        const { data: practiceNodes } = await service
-          .from("exam_prep_nodes")
-          .select("id, kind, sort_order, session_meta")
-          .eq("exam_prep_id", prepId);
-        const practiceTopic = parsed.data.oralScope === "all" ? null : topicLabel;
-        const practiceId = pickPracticeNodeId(
-          (practiceNodes ?? []).map((row) => ({
-            id: row.id as string,
-            kind: row.kind as string,
-            sortOrder: (row.sort_order as number) ?? 0,
-            status: "ready",
-            sessionMeta:
-              row.session_meta && typeof row.session_meta === "object"
-                ? (row.session_meta as { topicId?: string; topicTitle?: string })
-                : null,
-          })),
-          practiceTopic,
-        );
-        // Önerilen pratik adımı sırada değilse açılır: öneriyi uygulama veriyor (yol sırayla açılır).
-        if (practiceId) {
-          await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", practiceId).eq("status", "locked");
-        }
-        report.nextStep = {
-          label: report.weaknesses.length ? "Eksik konuda pratik" : "Çalışma yoluna dön",
-          href: practiceHref(prepId, practiceId),
-        };
-        scored = oralAttemptScore(report);
-        oralExtras = report;
-      }
-    }
-    // Tamamlama fonksiyonu `p_total < 1`'i `invalid_score` ile reddeder; öğrenci 503 görmesin.
-    if (!(scored.total >= 1)) scored = { ...scored, score: 0, total: 1 };
-    const answersForRpc = teachingV2 ? stripAnswerMeta(mergedAnswers) : mergedAnswers;
+    const answersForClaim = teachingV2 ? stripAnswerMeta(mergedAnswers) : mergedAnswers;
 
-    // Sonuca göre yol (20 Ekim 2026): düşük sonuçta konunun odaklı pratiği araya girer, yüksekte
-    // konunun kalan ek testleri kalkar. RPC'den önce: eklenen düğümü RPC sıradaki olarak açar.
-    const pathChange =
-      attempt.status !== "completed"
-        ? await adaptPathAfterResult(service, {
-            prepId,
-            node: {
-              id: nodeId,
-              kind,
-              sortOrder: (node.sort_order as number) ?? 0,
-              dayIndex: (node.day_index as number) ?? 1,
+    /**
+     * Notlandırma ve ardından gelen bütün yazımlar (30 Ekim 2026, Paket I). Sözlüde hakem çağrısı
+     * dakikalar sürebiliyordu ve istemci bu süre boyunca "Gönderiliyor…"da bekliyordu; artık sözlü
+     * yanıttan sonra (`after`) notlanır, istemci sonucu `resume` ile yoklar. Öbür türler aynı
+     * kapanışı yanıt içinde koşar (hesap ucuz).
+     */
+    const runCompletion = async (background: boolean): Promise<CompletionOutcome> => {
+      let scored = scoreAttempt(kind, attempt?.payload, mergedAnswers, teachingV2);
+      let oralExtras: OralExamReport | null = null;
+      if (kind === "oral" && attempt?.payload && attempt.status !== "completed") {
+        const questions = ((attempt.payload as { questions?: OralQuestionDraft[] }).questions ?? []);
+        const hasRubric = questions.some((question) => (question.expectedPoints ?? []).length > 0);
+        if (hasRubric) {
+          const source = await reviewSourceBlock(service, userId, prepId, nodeId);
+          const grounding = await oralCorpus(service, userId, prepId, questions, topicLabel);
+          const sourceBlob = [source, grounding.corpus].filter((part) => part.trim()).join("\n\n");
+          const premiumNow = await isPremiumUser(service, userId);
+          // Tek hakem (29 Ekim 2026): soru bağlamsız olgu denetimi kalktı. Hakem düşerse bir kez daha
+          // istenir; yine düşerse kelime örtüşmesi yedeği (APPROX notu) çalışır.
+          const judgeInput = {
+            service,
+            userId,
+            isPremium: premiumNow,
+            questions,
+            answers: mergedAnswers,
+          };
+          const semantics = (await gradeOralSemantics(judgeInput)) ?? (await gradeOralSemantics(judgeInput));
+          const report = gradeOralExam(questions, mergedAnswers, sourceBlob, grounding.passages, semantics);
+          const { data: practiceNodes } = await service
+            .from("exam_prep_nodes")
+            .select("id, kind, sort_order, session_meta")
+            .eq("exam_prep_id", prepId);
+          const practiceTopic = parsed.data.oralScope === "all" ? null : topicLabel;
+          const practiceId = pickPracticeNodeId(
+            (practiceNodes ?? []).map((row) => ({
+              id: row.id as string,
+              kind: row.kind as string,
+              sortOrder: (row.sort_order as number) ?? 0,
+              status: "ready",
               sessionMeta:
-                node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as Record<string, unknown>) : null,
-            },
-            topicLabel,
-            // Sözlüde kayıt yüzde (x/100); yol kararı soru sayısıyla (en az 3 öğe kuralı) verilir.
-            score: oralExtras ? (oralExtras.pct / 100) * oralExtras.total : scored.score,
-            total: oralExtras ? oralExtras.total : scored.total,
-          }).catch(() => null)
-        : null;
+                row.session_meta && typeof row.session_meta === "object"
+                  ? (row.session_meta as { topicId?: string; topicTitle?: string })
+                  : null,
+            })),
+            practiceTopic,
+          );
+          // Önerilen pratik adımı sırada değilse açılır: öneriyi uygulama veriyor (yol sırayla açılır).
+          if (practiceId) {
+            await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", practiceId).eq("status", "locked");
+          }
+          report.nextStep = {
+            label: report.weaknesses.length ? "Eksik konuda pratik" : "Çalışma yoluna dön",
+            href: practiceHref(prepId, practiceId),
+          };
+          scored = oralAttemptScore(report);
+          oralExtras = report;
+        }
+      }
+      // Tamamlama fonksiyonu `p_total < 1`'i `invalid_score` ile reddeder; öğrenci 503 görmesin.
+      if (!(scored.total >= 1)) scored = { ...scored, score: 0, total: 1 };
+      const answersForRpc = teachingV2 ? stripAnswerMeta(mergedAnswers) : mergedAnswers;
 
-    const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
-      p_user_id: userId,
-      p_prep_id: prepId,
-      p_node_id: nodeId,
-      p_attempt_id: attempt.id,
-      p_score: scored.score,
-      p_total: scored.total,
-      p_answers: answersForRpc,
-    });
-    if (completeError || !completed) return errorResponse(503, "completion_failed");
-    // Etkinlik bitince pencere bir adım kayar (25 Ekim 2026, canlı test P1-1): ders biter bitmez
-    // sıradaki test/kart yazılmaya başlar; öğrenci "Devam et"e bastığında hazırdır. Yazım varsa atlanır.
-    if (attempt.status !== "completed") {
-      afterResponse(() =>
-        requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number }),
-      );
-    }
+      // Sonuca göre yol (20 Ekim 2026): düşük sonuçta konunun odaklı pratiği araya girer, yüksekte
+      // konunun kalan ek testleri kalkar. RPC'den önce: eklenen düğümü RPC sıradaki olarak açar.
+      const pathChange =
+        attempt.status !== "completed"
+          ? await adaptPathAfterResult(service, {
+              prepId,
+              node: {
+                id: nodeId,
+                kind,
+                sortOrder: (node.sort_order as number) ?? 0,
+                dayIndex: (node.day_index as number) ?? 1,
+                sessionMeta:
+                  node.session_meta && typeof node.session_meta === "object" ? (node.session_meta as Record<string, unknown>) : null,
+              },
+              topicLabel,
+              // Sözlüde kayıt yüzde (x/100); yol kararı soru sayısıyla (en az 3 öğe kuralı) verilir.
+              score: oralExtras ? (oralExtras.pct / 100) * oralExtras.total : scored.score,
+              total: oralExtras ? oralExtras.total : scored.total,
+            }).catch(() => null)
+          : null;
 
-    if (teachingV2 && parsed.data.completeRequestId) {
-      await service
-        .from("exam_prep_node_attempts")
-        .update({
-          complete_request_id: parsed.data.completeRequestId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", attempt.id)
-        .is("complete_request_id", null);
-    }
-
-    if (!teachingV2 && oralExtras) {
-      const payloadForEvidence = {
-        ...((attempt.payload as object) ?? {}),
-        gradeMeta: oralExtras,
-      };
-      await service
-        .from("exam_prep_node_attempts")
-        .update({ payload: payloadForEvidence })
-        .eq("id", attempt.id);
-      const drafts = extractMisconceptions({
-        kind,
-        payload: payloadForEvidence,
-        answers: answersForRpc,
-        topicLabel,
-        language: prepLanguage(prep.learning_preferences),
-      }).filter((draft) => draft.sourceKind === "oral");
-      if (drafts.length) {
-        await rememberMisconceptions(
-          service,
-          drafts.map((d) => ({
-            user_id: userId,
-            exam_prep_id: prepId,
-            node_id: nodeId,
-            attempt_id: attempt.id,
-            topic_label: d.topicLabel,
-            claim: d.claim,
-            corrected: d.corrected,
-            wrong_type: d.wrongType,
-            source_kind: d.sourceKind,
-            question_preview: d.questionPreview,
-          })),
+      const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
+        p_user_id: userId,
+        p_prep_id: prepId,
+        p_node_id: nodeId,
+        p_attempt_id: attempt.id,
+        p_score: scored.score,
+        p_total: scored.total,
+        p_answers: answersForRpc,
+      });
+      if (completeError || !completed) return { ok: false, code: "completion_failed" };
+      // Etkinlik bitince pencere bir adım kayar (25 Ekim 2026, canlı test P1-1): ders biter bitmez
+      // sıradaki test/kart yazılmaya başlar; öğrenci "Devam et"e bastığında hazırdır. Yazım varsa atlanır.
+      if (attempt.status !== "completed") {
+        deferTask(
+          () => requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number }),
+          background,
         );
       }
-    }
 
-    let nextHref = completed.nextId
-      ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
-      : `/deneme-sinavlari/${prepId}`;
-    let learningTracking: unknown = null;
-    /** Sonuçtan sonra "+%X kazandın" kartı (19 Ekim 2026); kanıt üreten etkinliklerde dolu. */
-    let topicGain: { label: string; before: number; after: number } | null = null;
+      if (teachingV2 && parsed.data.completeRequestId) {
+        await service
+          .from("exam_prep_node_attempts")
+          .update({
+            complete_request_id: parsed.data.completeRequestId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", attempt.id)
+          .is("complete_request_id", null);
+      }
 
-    if (teachingV2) {
-      let payloadForEvidence = attempt.payload;
-      if (oralExtras) {
-        payloadForEvidence = {
+      if (!teachingV2 && oralExtras) {
+        const payloadForEvidence = {
           ...((attempt.payload as object) ?? {}),
           gradeMeta: oralExtras,
         };
@@ -1200,152 +1157,250 @@ async function handleNodeRequest(
           .from("exam_prep_node_attempts")
           .update({ payload: payloadForEvidence })
           .eq("id", attempt.id);
-      }
-
-      const drafts = extractMisconceptions({
-        kind,
-        payload: payloadForEvidence,
-        answers: answersForRpc,
-        topicLabel,
-        language: prepLanguage(prep.learning_preferences),
-      });
-      const fresh = await unseenLessonReviews(service, userId, prepId, drafts);
-      if (fresh.length) {
-        await rememberMisconceptions(
-          service,
-          fresh.map((d) => ({
-            user_id: userId,
-            exam_prep_id: prepId,
-            node_id: nodeId,
-            attempt_id: attempt.id,
-            topic_label: d.topicLabel,
-            claim: d.claim,
-            corrected: d.corrected,
-            wrong_type: d.wrongType,
-            source_kind: d.sourceKind,
-            question_preview: d.questionPreview,
-          })),
-        );
-      }
-
-      try {
-        const tracked = await recordLearningTrackingAfterComplete(service, {
-          userId,
-          prepId,
-          nodeId,
-          attemptId: attempt.id,
+        const drafts = extractMisconceptions({
           kind,
           payload: payloadForEvidence,
-          answers: mergedAnswers,
+          answers: answersForRpc,
           topicLabel,
-          sessionObjective: sessionMeta?.objective ?? null,
-          targetScore:
-            typeof prep.target_score === "number" ? prep.target_score : null,
-          skipKinds: await skipKinds(),
-        });
-        learningTracking = tracked.tracking;
-        topicGain = tracked.topicGain;
-        // Sonuç sayfası "+%X" aşamasını kayıttan okur (29 Ekim 2026); kazanç yoksa kayda bir şey yazılmaz.
-        if (tracked.topicGain) {
-          await service
-            .from("exam_prep_node_attempts")
-            .update({ payload: { ...((payloadForEvidence as object) ?? {}), topicGain: tracked.topicGain } })
-            .eq("id", attempt.id)
-            .then(undefined, () => undefined);
+          language: prepLanguage(prep.learning_preferences),
+        }).filter((draft) => draft.sourceKind === "oral");
+        if (drafts.length) {
+          await rememberMisconceptions(
+            service,
+            drafts.map((d) => ({
+              user_id: userId,
+              exam_prep_id: prepId,
+              node_id: nodeId,
+              attempt_id: attempt.id,
+              topic_label: d.topicLabel,
+              claim: d.claim,
+              corrected: d.corrected,
+              wrong_type: d.wrongType,
+              source_kind: d.sourceKind,
+              question_preview: d.questionPreview,
+            })),
+          );
         }
-        if (tracked.nextNodeId) {
-          nextHref = `/deneme-sinavlari/${prepId}/dugum/${tracked.nextNodeId}`;
-        }
-      } catch {
-        // Tracking is additive; completion already succeeded.
       }
 
-      if (attempt.client_request_id || parsed.data.clientRequestId) {
-        const reqId = attempt.client_request_id ?? parsed.data.clientRequestId!;
-        if (attempt.generation_id) {
-          await upsertGenerationJob(service, {
+      let nextHref = completed.nextId
+        ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
+        : `/deneme-sinavlari/${prepId}`;
+      let learningTracking: unknown = null;
+      /** Sonuçtan sonra "+%X kazandın" kartı (19 Ekim 2026); kanıt üreten etkinliklerde dolu. */
+      let topicGain: { label: string; before: number; after: number } | null = null;
+
+      if (teachingV2) {
+        let payloadForEvidence = attempt.payload;
+        if (oralExtras) {
+          payloadForEvidence = {
+            ...((attempt.payload as object) ?? {}),
+            gradeMeta: oralExtras,
+          };
+          await service
+            .from("exam_prep_node_attempts")
+            .update({ payload: payloadForEvidence })
+            .eq("id", attempt.id);
+        }
+
+        const drafts = extractMisconceptions({
+          kind,
+          payload: payloadForEvidence,
+          answers: answersForRpc,
+          topicLabel,
+          language: prepLanguage(prep.learning_preferences),
+        });
+        const fresh = await unseenLessonReviews(service, userId, prepId, drafts);
+        if (fresh.length) {
+          await rememberMisconceptions(
+            service,
+            fresh.map((d) => ({
+              user_id: userId,
+              exam_prep_id: prepId,
+              node_id: nodeId,
+              attempt_id: attempt.id,
+              topic_label: d.topicLabel,
+              claim: d.claim,
+              corrected: d.corrected,
+              wrong_type: d.wrongType,
+              source_kind: d.sourceKind,
+              question_preview: d.questionPreview,
+            })),
+          );
+        }
+
+        try {
+          const tracked = await recordLearningTrackingAfterComplete(service, {
             userId,
             prepId,
             nodeId,
             attemptId: attempt.id,
-            clientRequestId: reqId,
-            generationId: attempt.generation_id,
-            status: "completed",
+            kind,
+            payload: payloadForEvidence,
+            answers: mergedAnswers,
+            topicLabel,
+            sessionObjective: sessionMeta?.objective ?? null,
+            targetScore:
+              typeof prep.target_score === "number" ? prep.target_score : null,
+            skipKinds: await skipKinds(),
           });
+          learningTracking = tracked.tracking;
+          topicGain = tracked.topicGain;
+          // Sonuç sayfası "+%X" aşamasını kayıttan okur (29 Ekim 2026); kazanç yoksa kayda bir şey yazılmaz.
+          if (tracked.topicGain) {
+            await service
+              .from("exam_prep_node_attempts")
+              .update({ payload: { ...((payloadForEvidence as object) ?? {}), topicGain: tracked.topicGain } })
+              .eq("id", attempt.id)
+              .then(undefined, () => undefined);
+          }
+          if (tracked.nextNodeId) {
+            nextHref = `/deneme-sinavlari/${prepId}/dugum/${tracked.nextNodeId}`;
+          }
+        } catch {
+          // Tracking is additive; completion already succeeded.
         }
+
+        if (attempt.client_request_id || parsed.data.clientRequestId) {
+          const reqId = attempt.client_request_id ?? parsed.data.clientRequestId!;
+          if (attempt.generation_id) {
+            await upsertGenerationJob(service, {
+              userId,
+              prepId,
+              nodeId,
+              attemptId: attempt.id,
+              clientRequestId: reqId,
+              generationId: attempt.generation_id,
+              status: "completed",
+            });
+          }
+        }
+      }
+
+      // Quiz / TF yanlışlarını Yanlışlar Defteri'ne yaz; streak gerçek çalışmayla artsın.
+      try {
+        const drafts = mistakeDraftsFromAttempt(
+          attempt.id as string,
+          attempt.payload,
+          mergedAnswers,
+          topicLabel,
+        );
+        if (drafts.length) await recordMistakes(service, userId, drafts);
+        await recordUserActivity(service, userId, `exam_prep_${kind}`);
+      } catch {
+        // Notebook / streak must not roll back a completed node.
+      }
+
+      // Günü gelen tekrar (20 Ekim 2026, ürün sahibinin kararı): kaçırılan soru ve dersin sınav noktası
+      // 1-3-7-14 gün sonra hazırlık sayfasında yeniden sorulur. Kayıt kopyadır, model çağrısı yok; yol,
+      // önceden yazım ve tamamlama RPC'si değişmez. Anahtar (spaced_review) içeride; hata 0 döner.
+      const reviewScheduled = await scheduleReviewsAfterComplete(service, {
+        userId,
+        prepId,
+        nodeId,
+        attemptId: attempt.id as string,
+        kind,
+        payload: attempt.payload,
+        answers: mergedAnswers,
+        topicLabel,
+        topicId: (topic?.id as string | undefined) ?? null,
+        oralReport: oralExtras ?? oralReviewFromPayload(attempt.payload),
+      }).catch(() => 0);
+
+      let review = null;
+      if (kind === "written_exam") {
+        review = await writtenReviewForPayload(service, {
+          userId,
+          prepId,
+          attemptId: attempt.id as string,
+          nodeId,
+          payload: attempt.payload,
+          answers: answersForRpc,
+          topicLabel,
+          allowFill: true,
+        }).catch(() => null);
+      }
+
+      // Yıldızlar (17 Ekim 2026, Astra'daki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır.
+      const stars = await awardStars(service, {
+        userId,
+        source: "prep",
+        ref: `attempt:${attempt.id}`,
+        amount: prepStars(kind, completed.score, completed.total),
+      });
+
+      const body: Record<string, unknown> = {
+        ok: true,
+        score: completed.score,
+        total: completed.total,
+        stars,
+        retried: scored.retried,
+        nextHref,
+        learningTracking,
+        topicGain,
+        // Astra: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
+        levelHint: await loadLevelHint(service, prepId).catch(() => null),
+        pathChange,
+        reviewScheduled,
+        state: "completed",
+        review,
+        oralReview: oralExtras ?? oralReviewFromPayload(attempt.payload),
+        ...(await readWalletBalance(service, userId)),
+      };
+      return { ok: true, body };
+    };
+
+    // Çift notlandırma yok: tamamlama, kaydı `complete_request_id` ile sahiplenir. Sahiplenilmiş açık
+    // kayıt "notlanıyor" demektir; ikinci istek yeniden notlamaz, yalnız "bekle" der.
+    const claimId = parsed.data.completeRequestId ?? crypto.randomUUID();
+    const claim =
+      teachingV2 && attempt.status === "active"
+        ? await claimCompletion(service, {
+            attemptId: attempt.id as string,
+            current: (attempt.complete_request_id as string | null) ?? null,
+            updatedAt: (attempt.updated_at as string | null | undefined) ?? null,
+            claimId,
+            answers: answersForClaim,
+          })
+        : "unknown";
+    if (claim === "busy") {
+      return NextResponse.json({ ok: true, grading: true, state: "grading", attemptId: attempt.id });
+    }
+    const releaseClaim = () =>
+      claim === "claimed" ? releaseCompletionClaim(service, attempt.id as string, claimId) : Promise.resolve();
+
+    if (claim === "claimed" && kind === "oral" && parsed.data.gradingAsync === true && oralNeedsJudge(attempt.payload)) {
+      const scheduled = scheduleAfter(async () => {
+        const outcome = await runCompletion(true).catch((error: unknown) => {
+          console.error("oral_grading_failed", {
+            cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+          });
+          return null;
+        });
+        if (!outcome?.ok) {
+          // Sahiplik bırakılır: istemcinin yoklaması kaydı açık görüp bitirmeyi yeniden gönderir.
+          await releaseClaim().catch(() => undefined);
+          return;
+        }
+        await storeCompletionResult(service, attempt.id as string, outcome.body).catch(() => undefined);
+      });
+      if (scheduled) {
+        return NextResponse.json({ ok: true, grading: true, state: "grading", attemptId: attempt.id });
       }
     }
 
-    // Quiz / TF yanlışlarını Yanlışlar Defteri'ne yaz; streak gerçek çalışmayla artsın.
+    let outcome: CompletionOutcome;
     try {
-      const drafts = mistakeDraftsFromAttempt(
-        attempt.id as string,
-        attempt.payload,
-        mergedAnswers,
-        topicLabel,
-      );
-      if (drafts.length) await recordMistakes(service, userId, drafts);
-      await recordUserActivity(service, userId, `exam_prep_${kind}`);
-    } catch {
-      // Notebook / streak must not roll back a completed node.
+      outcome = await runCompletion(false);
+    } catch (error) {
+      await releaseClaim().catch(() => undefined);
+      throw error;
     }
-
-    // Günü gelen tekrar (20 Ekim 2026, ürün sahibinin kararı): kaçırılan soru ve dersin sınav noktası
-    // 1-3-7-14 gün sonra hazırlık sayfasında yeniden sorulur. Kayıt kopyadır, model çağrısı yok; yol,
-    // önceden yazım ve tamamlama RPC'si değişmez. Anahtar (spaced_review) içeride; hata 0 döner.
-    const reviewScheduled = await scheduleReviewsAfterComplete(service, {
-      userId,
-      prepId,
-      nodeId,
-      attemptId: attempt.id as string,
-      kind,
-      payload: attempt.payload,
-      answers: mergedAnswers,
-      topicLabel,
-      topicId: (topic?.id as string | undefined) ?? null,
-      oralReport: oralExtras ?? oralReviewFromPayload(attempt.payload),
-    }).catch(() => 0);
-
-    let review = null;
-    if (kind === "written_exam") {
-      review = await writtenReviewForPayload(service, {
-        userId,
-        prepId,
-        attemptId: attempt.id as string,
-        nodeId,
-        payload: attempt.payload,
-        answers: answersForRpc,
-        topicLabel,
-        allowFill: true,
-      }).catch(() => null);
+    if (!outcome.ok) {
+      await releaseClaim().catch(() => undefined);
+      return errorResponse(503, outcome.code);
     }
-
-    // Yıldızlar (17 Ekim 2026, Astra'daki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır.
-    const stars = await awardStars(service, {
-      userId,
-      source: "prep",
-      ref: `attempt:${attempt.id}`,
-      amount: prepStars(kind, completed.score, completed.total),
-    });
-
-    return NextResponse.json({
-      ok: true,
-      score: completed.score,
-      total: completed.total,
-      stars,
-      retried: scored.retried,
-      nextHref,
-      learningTracking,
-      topicGain,
-      // Astra: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
-      levelHint: await loadLevelHint(service, prepId).catch(() => null),
-      pathChange,
-      reviewScheduled,
-      state: "completed",
-      review,
-      oralReview: oralExtras ?? oralReviewFromPayload(attempt.payload),
-      ...(await readWalletBalance(service, userId)),
-    });
+    return NextResponse.json(outcome.body);
   }
 
   // Stage 8: same clientRequestId → reuse attempt (no second charge / content).
@@ -1457,11 +1512,14 @@ async function handleNodeRequest(
       local = gapsNothingOpenPayload();
     }
     if ((kind === "gaps" || kind === "focused") && local.topics?.length) {
-      const served = local.action === "serve" ? local.payload : null;
-      const asked = ((served as { questions?: { topic?: string; topicLabel?: string }[] } | null)?.questions ?? [])
-        .map((question) => (question.topicLabel || question.topic || "").trim())
-        .filter(Boolean);
-      title = weakPracticeTitle(kind, asked.length ? asked : local.topics.slice(0, 1));
+      // Tek konu (30 Ekim 2026, Paket I #8, `rankFinalStepTopics`): etiket, oturum başlığı, sorular ve kanıt
+      // aynı konu. Hazır sorular yalnız bu konudan seçildi; içerik konuyu taşır.
+      const chosen = local.topics[0]!;
+      title = weakPracticeTitle(kind, [chosen]);
+      topicLabel = chosen;
+      if (local.action === "serve" && local.payload.type === "quiz" && typeof local.payload.testedTopic !== "string") {
+        local = { ...local, payload: { ...local.payload, testedTopic: chosen } };
+      }
     }
     if (local.action === "serve" && local.payload.locked === true) {
       // Kayıt açılmaz: kilit kalkınca düğüm temiz başlasın.
@@ -2734,6 +2792,13 @@ async function handleNodeRequest(
   // Zayıf konuya yönelen düğümün içeriği o konunun adını taşır (20 Ekim 2026): bitişteki kanıt ve
   // yanılgı devralınan konuya değil sorulan konuya yazılır.
   if (retargetedTopic && typeof payload.testedTopic !== "string") payload = { ...payload, testedTopic: retargetedTopic };
+  // Sözlü "Tüm sınav" (30 Ekim 2026, Paket I #8): sorular birden çok konudan, soru başına konu yok. Kanıt ve
+  // yanılgı tek bir konuya (birleşik etiket ya da düğümün konusu) yazılmaz; içerik bütün sınavı kapsadığını taşır.
+  if (kind === "oral" && parsed.data.oralScope === "all" && payload.type === "oral") {
+    const { testedTopic: _joined, ...rest } = payload as Record<string, unknown>;
+    void _joined;
+    payload = { ...rest, scope: "all" };
+  }
 
   const total = countTotal(kind, payload);
 
@@ -3043,6 +3108,168 @@ function afterResponse(task: () => unknown) {
   } catch {
     // İstek dışı: yapılacak arka plan işi yok.
   }
+}
+
+/** `after` kurulabildi mi: kurulamazsa (istek dışı) çağıran işi yanıt içinde koşar. */
+function scheduleAfter(task: () => Promise<unknown>): boolean {
+  try {
+    after(task);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Arka plan notlandırmasının içinde zaten yanıt sonrasındayız: iş beklenerek koşar. */
+function deferTask(task: () => Promise<unknown> | unknown, background: boolean) {
+  if (!background) {
+    afterResponse(task);
+    return;
+  }
+  void Promise.resolve()
+    .then(task)
+    .catch(() => undefined);
+}
+
+/*
+ * Bitirmenin sahipliği (30 Ekim 2026, Paket I). Canlıda sözlü denemenin son cevabı 2-6 dk
+ * "Gönderiliyor…"da kaldı: sunucu hakem çağrısını bitirme isteğinin içinde bekliyordu, istemci
+ * zaman aşımına düşüp yeniden gönderince ikinci bir notlandırma başlıyordu. Artık bitirme kaydı
+ * `complete_request_id` ile sahiplenir (açık kayıt + dolu kimlik = notlanıyor); ikinci istek
+ * notlamaz, "bekle" der. Notlandırma işlevi öldüyse sahiplik `updated_at`'ten bu kadar sonra bayatlar.
+ */
+const COMPLETION_CLAIM_STALE_MS = (maxDuration + 60) * 1000;
+
+type CompletionOutcome = { ok: true; body: Record<string, unknown> } | { ok: false; code: string };
+
+function completionClaimFresh(
+  attempt: { status?: unknown; complete_request_id?: unknown; updated_at?: unknown },
+  now = Date.now(),
+): boolean {
+  if (attempt.status !== "active" || typeof attempt.complete_request_id !== "string") return false;
+  const at = typeof attempt.updated_at === "string" ? Date.parse(attempt.updated_at) : Number.NaN;
+  if (Number.isNaN(at)) return true;
+  return now - at < COMPLETION_CLAIM_STALE_MS;
+}
+
+/**
+ * Açık kaydı bu bitirme için sahiplenir; cevaplar da yazılır (arka plan işlevi ölürse yeniden
+ * notlandırma bunları okur). "unknown": yazım doğrulanamadı — eski davranış, yanıt içinde notlanır.
+ */
+async function claimCompletion(
+  service: SupabaseClient,
+  input: {
+    attemptId: string;
+    current: string | null;
+    updatedAt: string | null;
+    claimId: string;
+    answers: Record<string, unknown>;
+  },
+): Promise<"claimed" | "busy" | "unknown"> {
+  if (input.current && completionClaimFresh({ status: "active", complete_request_id: input.current, updated_at: input.updatedAt })) {
+    return "busy";
+  }
+  try {
+    let query = service
+      .from("exam_prep_node_attempts")
+      .update({
+        complete_request_id: input.claimId,
+        answers: input.answers,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.attemptId)
+      .eq("status", "active");
+    // Bayat sahiplik yalnız aynı değer hâlâ duruyorsa devralınır (iki istek aynı anda devralamaz).
+    query = input.current ? query.eq("complete_request_id", input.current) : query.is("complete_request_id", null);
+    const { data, error } = (await query.select("id")) as { data?: unknown; error?: unknown };
+    if (error || !Array.isArray(data)) return "unknown";
+    return data.length ? "claimed" : "busy";
+  } catch {
+    return "unknown";
+  }
+}
+
+async function releaseCompletionClaim(service: SupabaseClient, attemptId: string, claimId: string) {
+  await service
+    .from("exam_prep_node_attempts")
+    .update({ complete_request_id: null })
+    .eq("id", attemptId)
+    .eq("status", "active")
+    .eq("complete_request_id", claimId);
+}
+
+/** Sözlü hakem ister mi: rubriği olan soru varsa (yoksa notlandırma kelime örtüşmesiyle, anında). */
+function oralNeedsJudge(payload: unknown): boolean {
+  const questions = ((payload as { questions?: OralQuestionDraft[] } | null)?.questions ?? []);
+  return questions.some((question) => (question.expectedPoints ?? []).length > 0);
+}
+
+/** Arka planda notlanan kaydın sonuç ekranı bilgileri; yoklama bunları geri verir. */
+const COMPLETE_RESULT_KEYS = ["nextHref", "stars", "topicGain", "pathChange", "reviewScheduled", "levelHint"] as const;
+
+async function storeCompletionResult(service: SupabaseClient, attemptId: string, body: Record<string, unknown>) {
+  const { data } = await service.from("exam_prep_node_attempts").select("payload").eq("id", attemptId).maybeSingle();
+  const base = data?.payload && typeof data.payload === "object" ? (data.payload as Record<string, unknown>) : {};
+  const completeResult = Object.fromEntries(COMPLETE_RESULT_KEYS.map((key) => [key, body[key] ?? null]));
+  await service
+    .from("exam_prep_node_attempts")
+    .update({ payload: { ...base, completeResult } })
+    .eq("id", attemptId);
+}
+
+function completeResultFromPayload(payload: unknown): Record<string, unknown> | null {
+  const stored = (payload as { completeResult?: unknown } | null)?.completeResult;
+  return stored && typeof stored === "object" ? (stored as Record<string, unknown>) : null;
+}
+
+/** Bitmiş kaydın saklı sonucu: tekrar gelen bitirme ve sonuç yoklaması aynı gövdeyi döndürür. */
+async function completedAttemptBody(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    prepId: string;
+    nodeId: string;
+    topicLabel: string;
+    attempt: { id: unknown; payload: unknown; answers: unknown; score: unknown; total: unknown };
+    nextAfter: () => PromiseLike<{ data: { id?: unknown } | null }>;
+  },
+): Promise<Record<string, unknown>> {
+  const { attempt, prepId } = input;
+  const answers = (attempt.answers as Record<string, unknown> | null) ?? {};
+  const { data: nextRow } = await input.nextAfter();
+  const review = await writtenReviewForPayload(service, {
+    userId: input.userId,
+    prepId,
+    attemptId: attempt.id as string,
+    nodeId: input.nodeId,
+    payload: attempt.payload,
+    answers,
+    topicLabel: input.topicLabel,
+    allowFill: false,
+  }).catch(() => null);
+  const stored = lessonScoreForClient(
+    attempt.payload,
+    answers,
+    (attempt.score as number | null) ?? 0,
+    (attempt.total as number | null) ?? 1,
+  );
+  const extras = completeResultFromPayload(attempt.payload) ?? {};
+  const savedNext = typeof extras.nextHref === "string" ? extras.nextHref : null;
+  return {
+    ...Object.fromEntries(Object.entries(extras).filter(([key, value]) => key !== "nextHref" && value !== null)),
+    ok: true,
+    score: stored.score,
+    total: stored.total,
+    retried: stored.retried,
+    nextHref:
+      savedNext ??
+      (nextRow?.id ? `/deneme-sinavlari/${prepId}/dugum/${String(nextRow.id)}` : `/deneme-sinavlari/${prepId}`),
+    state: "completed",
+    idempotent: true,
+    review,
+    oralReview: oralReviewFromPayload(attempt.payload),
+    ...(await readWalletBalance(service, input.userId)),
+  };
 }
 
 class NodeGenerationError extends Error {
@@ -3686,6 +3913,8 @@ async function teacherCardsPayload(
           prepId: input.prepId,
           kind: "cards",
           excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
         })
       : [];
   const cardsInput = {
@@ -3747,6 +3976,19 @@ async function teacherTrueFalsePayload(
 ) {
   const startedAt = Date.now();
   const source = await teacherPages(input, core);
+  // Bu konuda önceki etkinliklerin sorduğu bilgiler (Paket I #8): yazara yasak listesi, sonra aynı bilgiyi
+  // soran önerme yerine yenisi varsa elenir (sayı eksilmez).
+  const avoid =
+    input.prepId && input.userId
+      ? await loadPreviousItems(input.service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          kind: "true_false",
+          excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
+        })
+      : [];
   const outcome = await runWithTeacherModel(input.service, {
     userId: input.userId,
     actionCode: actionForKind(input.kind),
@@ -3768,6 +4010,7 @@ async function teacherTrueFalsePayload(
         examPointsUse: "true_false" as const,
         count: asked,
         urgent: input.charge !== false,
+        avoid,
       };
       const loop = await teacherTrueFalseLoop(ask, tfInput, started);
       let items = loop.items;
@@ -3782,6 +4025,9 @@ async function teacherTrueFalsePayload(
           items = [...items, item];
         }
       }
+      // Önceki etkinliğin aynı bilgisini soran önerme, yerine sağlam önerme varsa çıkar (sayı eksilmez).
+      const fresh = dropNearDuplicatesKeepingCount(items, (item) => item.text, asked, avoid);
+      if (mixedOf(fresh)) items = fresh;
       const mixed = mixedOf(items);
       const log = { kept: items.length, rejected: loop.rejected.length, rounds: tries, mixed };
       return items.length >= asked && mixed
@@ -3801,6 +4047,18 @@ async function teacherOralPayload(
 ) {
   const startedAt = Date.now();
   const block = input.sourceBlock.trim();
+  // Bu konuda önceki etkinliklerin sorduğu bilgiler (Paket I #8): sözlü aynı bilgiyi yeniden sormasın.
+  const avoid =
+    input.prepId && input.userId
+      ? await loadPreviousItems(input.service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          kind: "oral",
+          excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
+        })
+      : [];
   const outcome = await runWithTeacherModel(input.service, {
     userId: input.userId,
     actionCode: actionForKind(input.kind),
@@ -3825,6 +4083,7 @@ async function teacherOralPayload(
           examPointsUse: "oral",
           count: asked,
           urgent: input.charge !== false,
+          avoid,
         },
         started,
       );
@@ -3863,6 +4122,8 @@ async function teacherQuizPayload(
     : [];
   // Tekrar yasağı ve test dilimi (25 Ekim 2026, canlı test P1-2): önceki kökler yazara yasak listesi,
   // konu testinin varyantı konunun alt başlıklarından başka bir dilim.
+  // Etkinlikler arası (30 Ekim 2026, Paket I #8): önerme, kart, sözlü sorusu ve yoklanan bölüm de listede; bu
+  // konunun öğeleri önce.
   const previousStems =
     input.prepId && input.userId
       ? await loadPreviousItems(input.service, {
@@ -3870,6 +4131,8 @@ async function teacherQuizPayload(
           prepId: input.prepId,
           kind: "quiz",
           excludeNodeId: input.nodeId ?? null,
+          topic: input.topicLabel,
+          topicId: input.topicId ?? null,
         })
       : [];
   const variant = input.sessionMeta?.practiceVariant ?? practiceVariantFromTitle(input.nodeTitle);
@@ -4225,9 +4488,13 @@ function publicNodePayload(
   }
   if (decorated.type !== "quiz") return decorated;
   const seal = nodeKind === "written_exam";
-  const questions = ((decorated.questions as QuizQuestion[]) ?? []).map((question) =>
-    seal ? sealedQuizQuestion(question) : publicQuizQuestion(question),
-  );
+  // İstemci notlandırmanın okuduğu biçimi görür (30 Ekim 2026, Paket I #7): `scoreAttempt` soruyu
+  // `normalizeQuizQuestion` ile okuyor (kırpılmış şık, harften çözülmüş doğru); ekran ham soruyu görünce
+  // anında geri bildirimdeki "Doğru" ile kayıtlı puan ayrışıyordu. Okunamayan soru ham hâliyle kalır.
+  const questions = ((decorated.questions as QuizQuestion[]) ?? []).map((raw) => {
+    const question = normalizeQuizQuestion(raw as Parameters<typeof normalizeQuizQuestion>[0]) ?? raw;
+    return seal ? sealedQuizQuestion(question) : publicQuizQuestion(question);
+  });
   return { ...decorated, questions };
 }
 
@@ -4254,15 +4521,8 @@ function scoreAttempt(
       .filter((question): question is QuizQuestion => question !== null);
     return { ...scoreQuizAnswers(questions, answers), retried: 0 };
   }
-  if (data.type === "true_false") {
-    const items = (data.items as { correct: boolean }[]) ?? [];
-    let score = 0;
-    items.forEach((item, index) => {
-      const value = answers[String(index)];
-      if (value === item.correct || value === String(item.correct)) score += 1;
-    });
-    return { score, total: items.length || 1, retried: 0 };
-  }
+  // Doğru/yanlış sayımı ekranla aynı işlevden (30 Ekim 2026, Paket I #7, `answer-tally.ts`).
+  if (data.type === "true_false") return { ...tallyScore(activityTally(data, answers)), retried: 0 };
   if (data.type === "cards") {
     const cards = (data.cards as unknown[]) ?? [];
     if (teachingV2 || data.masteryClaim === false) {

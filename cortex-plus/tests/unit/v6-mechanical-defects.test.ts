@@ -104,9 +104,10 @@ describe("Kusur 1 — tek yüzde, kanıt alt sınırı, çözüldü sayacı", ()
 
   it("tek soruluk konu Sağlam değildir; üç kanıtla olur", () => {
     const one = snapshot({ evidenceCount: 1, firstAttemptCorrect: 1, firstAttemptTotal: 1 });
-    expect(topicMasteryPercent(one)).toBe(33);
+    // Paket I #7 (30 Ekim 2026): 1-2 cevaplı konu ölçülmemiş sayılır, sayı göstermez ("%33" öncülü kalktı).
+    expect(topicMasteryPercent(one)).toBe(0);
     expect(topicIsSolid(one, 70)).toBe(false);
-    expect(topicState(one, 70)).toBe("needs_work");
+    expect(topicState(one, 70)).toBe("unmeasured");
     const screen = buildReadinessScreen({
       plannedTopics: ["Konu"],
       mastery: [one],

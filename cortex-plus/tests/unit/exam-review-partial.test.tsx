@@ -64,7 +64,8 @@ describe("deneme inceleme: kısmi doğru ve açık uçlu geri bildirim", () => {
 
   it("sonuç sayfası kısmen alan cevabı yanlış saymaz; inceleme sayfası karar ve puanı okur", () => {
     const result = readFileSync("src/app/deneme-sinavlari/[prepId]/sonuc/page.tsx", "utf8");
-    expect(result).toContain('(r) => r.verdict === "kismen"');
+    // 30 Ekim 2026 (Paket I #7): sayım tek işlevden; kısmen ayrı sayılır (`paket-i-sayim.test.ts`).
+    expect(result).toContain("const { correct, blank, partial, wrong } = rowVerdictCounts(reviews ?? []);");
     expect(result).toContain('["Kısmen", partial]');
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/deneme/[examId]/incele/page.tsx", "utf8");
     expect(page).toContain("verdict, points_earned, points_max, feedback");

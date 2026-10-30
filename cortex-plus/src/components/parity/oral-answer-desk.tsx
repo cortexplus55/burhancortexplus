@@ -245,6 +245,8 @@ export function OralAnswerDesk({
           <Timer className="h-4 w-4" aria-hidden />
           {clock(left)}
         </span>
+        {/* `busy` yalnız gönder düğmesini kilitler (30 Ekim 2026): son cevap "Gönderiliyor…"dayken de
+            sınav bitirilebilir; oturum bekleme ekranına geçer, süren istek sonucu getirir. */}
         <button
           type="button"
           className="cp-oral-end-btn"

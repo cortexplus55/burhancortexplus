@@ -4,23 +4,21 @@
  * aralıkla seçilir, her seçilen konudan kendi sayfası gelir ve her soru bir konuya atanır.
  */
 
+import { pickTopicsForCount } from "@/lib/learning/mock-exam/allocate";
+
 /** Tüm sınav kaynağında toplam sayfa üst sınırı. */
 export const ORAL_ALL_MAX_PAGES = 16;
 
-/** K1..KN içinden `count` konu, uçlar dahil eşit aralıkla. Konu sayısı yetmezse hepsi. */
-export function balancedOralTopics<T>(topics: readonly T[], count: number): T[] {
-  const want = Math.max(1, Math.floor(count));
-  if (topics.length <= want) return [...topics];
-  if (want === 1) return [topics[0]!];
-  const out: T[] = [];
-  const used = new Set<number>();
-  for (let i = 0; i < want; i += 1) {
-    const index = Math.round((i * (topics.length - 1)) / (want - 1));
-    if (used.has(index)) continue;
-    used.add(index);
-    out.push(topics[index]!);
-  }
-  return out;
+/**
+ * K1..KN içinden `count` konu, uçlar dahil eşit aralıkla. Konu sayısı yetmezse hepsi. Yazılı denemeyle aynı seçim
+ * işlevi (30 Ekim 2026, Paket I #4): ağırlık verilirse ağırlıklı konular önce.
+ */
+export function balancedOralTopics<T>(
+  topics: readonly T[],
+  count: number,
+  weightOf?: (topic: T) => { percent: number | null; heavy: boolean },
+): T[] {
+  return pickTopicsForCount(topics, count, weightOf);
 }
 
 /** Soru i → konu. Konu sayısı soru sayısından azsa sırayla döner. */

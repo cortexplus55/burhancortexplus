@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import type { PrepProgressView } from "@/lib/learning/prep-progress-view";
 import { MASTERY_STATE_LABEL } from "@/lib/learning/learning-tracking";
+import { METRIC_LABEL, masteryPercentText } from "@/lib/learning/prep-metrics";
 import { gapLines } from "@/lib/learning/feedback-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
@@ -84,7 +85,12 @@ export function ExamPrepProgress({
           </div>
           <div>
             <strong>{view.lessonsDone}</strong>
-            <span>ders</span>
+            <span>{METRIC_LABEL.lessons}</span>
+          </div>
+          {/* Tamamlama ayrı ad, ayrı sayı: Hazırlık yanlışla düşebilir, tamamlama düşmez (Paket I #7). */}
+          <div>
+            <strong>%{view.completionPct}</strong>
+            <span>{METRIC_LABEL.completion.toLocaleLowerCase("tr-TR")}</span>
           </div>
         </div>
       </div>
@@ -150,9 +156,9 @@ export function ExamPrepProgress({
                 </p>
                 <p className="cp-prog-pace-meta">
                   <span>Bugün {view.pace.todayLessons} ders tamamlandı</span>
-                  {view.pace.perDay !== null && view.pace.lessonsToTarget > 0 ? (
+                  {(view.pace.perDay !== null || view.pace.perWeek) && view.pace.lessonsToTarget > 0 ? (
                     <span>
-                      günde yaklaşık {view.pace.perDay}
+                      {view.pace.perWeek ? `haftada yaklaşık ${view.pace.perWeek}` : `günde yaklaşık ${view.pace.perDay}`}
                       {view.pace.daysToFinish ? ` · ~${view.pace.daysToFinish} günde` : ""}
                     </span>
                   ) : null}
@@ -211,7 +217,8 @@ export function ExamPrepProgress({
                         {topic.state && topic.state !== "unmeasured" ? (
                           <em className={cn("cp-prog-topic-state", `is-${topic.state}`)}>{MASTERY_STATE_LABEL[topic.state]}</em>
                         ) : null}
-                        %{topic.pct}
+                        {/* Ölçülmemiş konu sayı değil "Ölçülmedi" (30 Ekim 2026, Paket I #7). */}
+                        {masteryPercentText(topic.pct, topic.state !== "unmeasured")}
                       </span>
                     </div>
                     <div className="cp-prog-topic-bar" aria-hidden>

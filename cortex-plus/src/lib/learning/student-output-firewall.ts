@@ -18,7 +18,14 @@ const ANSWER_LETTER =
 
 const CORRECT_CHOICE = /\bdoğru şık\s+[A-E]\b/gi;
 
-const COURSE_HEADER = /^[ \t]*Ders:\s+\S.{0,80}?\bDönem\s+20\d{2}\b.*$/gim;
+const COURSE_HEADER = /^[ \t]*Ders:\s+\S.{0,80}?\bDönem\s*:?\s*20\d{2}\b.*$/gim;
+
+/**
+ * Belgenin üst bilgi satırı tek başına ("Dönem: 2026–2027", "Akademik Yıl 2026-27"): öğretmez, sayfa başlığıdır
+ * (30 Ekim 2026, Paket I #5: canlı derste kaldı; eski kalıp yalnız "Ders: … Dönem 2026" biçimini tanıyordu).
+ */
+const TERM_LINE =
+  /^[ \t]*(?:Dönem|Akademik\s+Yıl|Eğitim[-\s]Öğretim\s+Yılı|Öğretim\s+Yılı)\s*:?\s*20\d{2}\s*[-–—/]\s*(?:20)?\d{2}\b[^\n]{0,40}$/gimu;
 
 const BOILERPLATE_SCOPE = /(?:^|(?<=[.!?\n]\s))Bu konu sınav kapsamı dışındadır\.?\s*/gi;
 
@@ -29,7 +36,7 @@ const BOILERPLATE_SCOPE = /(?:^|(?<=[.!?\n]\s))Bu konu sınav kapsamı dışınd
  */
 export function sanitizeStudentContent(text: string): string {
   if (!text) return text;
-  let out = text.replace(COURSE_HEADER, "");
+  let out = text.replace(COURSE_HEADER, "").replace(TERM_LINE, "");
   out = out.replace(BOILERPLATE_SCOPE, "");
   out = out.replace(/s[iıİI]nav\s+m[uüÜU]fredat[iıİI]\s+tamamlamas[iıİI]\s*:?\s*/gi, "");
   out = out.replace(LEAK_SENTENCE, " ");
@@ -58,6 +65,29 @@ const LEAKS: RegExp[] = [
  */
 const SPEAKER_PREFIX = /^[ \t]*(?:ada|kerem|ece|deniz|öğretmen|ogretmen|sunucu|öğrenci|ogrenci)\s*:\s*(?=\S)/gimu;
 
+/*
+  İstem yankısı (30 Ekim 2026, Paket I #5). Canlıda öğrenci şunları okudu; hepsi ürünün kendi istem dilinden:
+  - "Turuncu işaretli yerler sınavda çıkar." (ekranın renk anahtarı; yazar istemi "ekranda turuncu" diyordu)
+  - "Tekrar soruları ile boş ödev tablosu bu anlatımda ele alınmıyor." (kapsam notu)
+  - "(Alıştırma 11.5)" (kaynağın alıştırma numarası; öğrenci o numaraya bakarak soruyu bulamaz)
+  - "Şekilde işaretli değerler:" ve "SINAVDA SORULUR" (iç ek ve blok adları)
+  Kod cümle yazmaz; yalnız bu cümleleri ve etiketleri siler. "Turuncu renk" (kimyada gösterge rengi) gibi içerik
+  cümlesi düşmez: yalnız "turuncu işaret/vurgu".
+*/
+const COLOR_KEY_SENTENCE =
+  /[^.!?\n]*(?:turuncu|renkli)\s+(?:ile\s+)?(?:işaret|vurgu)\p{L}*[^.!?\n]*[.!?]?/giu;
+
+const SCOPE_META_SENTENCE =
+  // "işlen-" ve geniş zaman (-maz) yok: "Bu bölümdeki suçlar taksirle işlenmez" bir hukuk kuralıdır, meta değil.
+  /[^.!?\n]*(?:^|[^\p{L}])(?:bu|şu)\s+(?:anlatım|ders|bölüm|podcast|kısım|ünite|oturum)\p{L}*[^.!?\n]*?(?:ele\s+alın|değinil|anlatıl|yer\s+veril)(?:mıyor|miyor|mayacak|meyecek|mamış|memiş)\p{L}*[^.!?\n]*[.!?]?/giu;
+
+const SOURCE_EXERCISE_REF = [
+  /\s*\((?:Alıştırma|Problem|Egzersiz|Örnek)\s+\d+(?:[.,]\d+)*\)/giu,
+  /^[ \t]*(?:Alıştırma|Problem|Egzersiz)\s+\d+(?:\.\d+)*\s*[:.)–-]\s*/gimu,
+];
+
+const INTERNAL_LABELS = [/Şekilde işaretli değerler:\s*/g, /SINAVDA SORULUR(?:\s+MADDE(?:Sİ|LERİ))?\s*:?\s*/g];
+
 /** Modelin uydurduğu kişisel anı ("geçen gün denemede…"): öğrencinin yaşamadığı bir olayı yaşamış gibi anlatır. */
 const FABRICATED_MEMORY =
   /[^.!?\n]*\bgeçen(?:lerde|\s+(?:gün|hafta|ay|yıl|sene))\b[^.!?\n]*\b(?:deneme|sınav|ders|öğrenci)\p{L}*[^.!?\n]*[.!?]?/giu;
@@ -81,6 +111,9 @@ export function studentOutputText(text: string): string {
   out = out.replace(/^\s*kaynakta[:,]\s*/giu, "");
   out = out.replace(SPEAKER_PREFIX, "");
   out = out.replace(FABRICATED_MEMORY, " ");
+  out = out.replace(COLOR_KEY_SENTENCE, " ").replace(SCOPE_META_SENTENCE, " ");
+  for (const pattern of SOURCE_EXERCISE_REF) out = out.replace(pattern, "");
+  for (const pattern of INTERNAL_LABELS) out = out.replace(pattern, "");
   if (needsInternalFilter(out)) out = out.replace(INTERNAL_TAG, " ").replace(META_SENTENCE, " ");
   return tidy(out).replace(/\s+([,.!?])/g, "$1");
 }

@@ -11,6 +11,7 @@ import { postJsonWithRetry } from "@/lib/learning/generation-retry";
 import { STARS_CHANGED_EVENT } from "@/components/parity/stars-dialog";
 import { DiagramCard } from "@/components/parity/diagram-card";
 import { renderMath } from "@/lib/learning/math-text";
+import { studentOutputText } from "@/lib/learning/student-output-firewall";
 import {
   VIDEO_STYLES,
   captionChunks,
@@ -262,7 +263,7 @@ export function VideoLessonPlayer({
   topicLabel,
   styleLabel,
   completed,
-  scenes,
+  scenes: rawScenes,
 }: {
   prepId: string;
   videoId: string;
@@ -272,6 +273,16 @@ export function VideoLessonPlayer({
   completed: boolean;
   scenes: PlayerScene[];
 }) {
+  // Öğrenciye giden metnin tek süzgeci (30 Ekim 2026, Paket I #5): video alt yazısı ve kilit bilgi de geçer.
+  const scenes = useMemo(
+    () =>
+      rawScenes.map((item) => ({
+        ...item,
+        narration: studentOutputText(item.narration),
+        ...(item.keyFact ? { keyFact: studentOutputText(item.keyFact) } : {}),
+      })),
+    [rawScenes],
+  );
   const router = useRouter();
   const frame = useRef<HTMLDivElement | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);

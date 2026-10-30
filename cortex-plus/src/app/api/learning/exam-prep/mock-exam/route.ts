@@ -12,6 +12,7 @@ import {
 } from "@/lib/learning/mock-exam/fallback-exam";
 import type { ChunkOutcome } from "@/lib/learning/mock-exam/fallback-chunk";
 import { clampMockMinutes, MOCK_MINUTES_MAX } from "@/lib/learning/mock-exam/time-limit";
+import { MOCK_CUSTOM_MAX, MOCK_CUSTOM_MIN } from "@/lib/learning/mock-exam/types";
 
 /** Konu başına öğretmen motoru (yazar + denetim + düzeltme). Parça parça, aynı kâğıtta. */
 export const maxDuration = 300;
@@ -23,6 +24,11 @@ const bodySchema = z.object({
   topicIds: z.array(z.string().uuid()).max(40).optional(),
   /** Serbest süre (dk). 0 süresiz. */
   durationMinutes: z.number().int().min(0).max(MOCK_MINUTES_MAX).optional(),
+  /**
+   * "Kendi sınavım" (30 Ekim 2026, Paket I #4): öğrenci gerçek sınavın soru sayısını girer (canlıda 25 soru / 60 dk
+   * vardı, seçenekler yalnız 10 ve 20'ydi). Verilirse uzunluk seçeneğinin yerine geçer.
+   */
+  questionCount: z.number().int().min(MOCK_CUSTOM_MIN).max(MOCK_CUSTOM_MAX).optional(),
   /** Süregelen kâğıt. Yeni istek açılmaz. */
   resumeId: z.string().uuid().optional(),
   /** Bütçe bitince öğrenci aynı kâğıdı sürdürür. */
@@ -93,6 +99,7 @@ export async function POST(request: Request) {
     scope: parsed.data.scope,
     topicIds: parsed.data.topicIds,
     durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
+    questionCount: parsed.data.questionCount,
     resumeId: parsed.data.resumeId,
     explicitRetry: parsed.data.retry === true,
     signal: request.signal,
@@ -127,6 +134,7 @@ export async function POST(request: Request) {
       scope: fields.scope,
       topicIds: fields.topicIds,
       durationMinutes: fields.durationMinutes,
+      questionCount: fields.questionCount,
     });
     if (durable && !durable.ok) {
       if (stream) {

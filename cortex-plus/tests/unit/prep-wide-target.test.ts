@@ -28,11 +28,14 @@ const mastery = (topicKey: string, over: Partial<TopicMasterySnapshot> = {}): To
 const base = { requestedTopic: "", adaptiveFocus: null, practiceTopics: [] as string[], mastery: [] as TopicMasterySnapshot[], plannedTopics: planned };
 
 describe("prepWideTargetTopic", () => {
-  it("boşluk, odaklı pratik, son kontrol: en zayıf planlı konu", () => {
-    for (const kind of ["gaps", "focused", "final_check"] as const) {
+  it("boşluk, odaklı pratik: en zayıf planlı konu; son kontrol bütün konulardır (yeniden hedeflenmez)", () => {
+    for (const kind of ["gaps", "focused"] as const) {
       expect(prepWideTargetTopic({ ...base, kind, practiceTopics: ["basınç", "Isı ve sıcaklık"] })).toBe("Basınç");
       expect(prepWideTargetTopic({ ...base, kind })).toBeNull();
     }
+    // Paket I #8 (30 Ekim 2026): son kontrol konu başına bir soru sorar (P1-4); tek konuya daraltılmaz, adı
+    // "Tüm konular". Önceden tek zayıf konuya yöneliyor ama etiket 1. konu kalıyordu.
+    expect(prepWideTargetTopic({ ...base, kind: "final_check", practiceTopics: ["Basınç"] })).toBeNull();
   });
 
   it("planda olmayan zayıf konu atlanır", () => {
@@ -41,7 +44,7 @@ describe("prepWideTargetTopic", () => {
     );
   });
 
-  it("son kartlar: zayıf konu yoksa en uzun süredir çalışılmayan, o da yoksa en düşük güvenli", () => {
+  it("son kartlar: zayıf konu yoksa en düşük ölçülen başarı, eşitlikte en uzun süredir çalışılmayan", () => {
     expect(
       prepWideTargetTopic({
         ...base,
@@ -52,11 +55,16 @@ describe("prepWideTargetTopic", () => {
         ],
       }),
     ).toBe("Kaldırma kuvveti");
+    // Paket I #8: yüzde ham sayılardan (kayıtlı confidence okunmaz, Paket C kuralı); zor konu önce gelir,
+    // eski çalışılan konu değil. Önceden kartlar hedefin üstündeki 2. haftanın konusundan çıkıyordu.
     expect(
       prepWideTargetTopic({
         ...base,
         kind: "flashcards",
-        mastery: [mastery("basınç", { lastPracticedAt: null, confidence: 20 }), mastery("ısı ve sıcaklık", { lastPracticedAt: null, confidence: 70 })],
+        mastery: [
+          mastery("ısı ve sıcaklık", { lastPracticedAt: "2026-10-01T09:00:00.000Z", independentCorrect: 4, firstAttemptCorrect: 4 }),
+          mastery("basınç", { lastPracticedAt: "2026-10-18T09:00:00.000Z", independentCorrect: 1, firstAttemptCorrect: 1 }),
+        ],
       }),
     ).toBe("Basınç");
     expect(prepWideTargetTopic({ ...base, kind: "flashcards", practiceTopics: ["Basınç"] })).toBe("Basınç");

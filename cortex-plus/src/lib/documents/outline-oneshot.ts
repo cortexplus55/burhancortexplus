@@ -19,6 +19,16 @@ import type { OutlineUnitDraft } from "@/lib/documents/outline-clean";
 import { buildGroundingFile, groundTopic, type GroundingFile } from "@/lib/documents/outline-grounding";
 import { outlineOversizedTopics, oversizeRepairLines, spanTooWide, type OversizedTopic } from "@/lib/documents/outline-oversize";
 import { buildPageIndexCorpus, usesPageIndex } from "@/lib/documents/outline-page-index";
+import {
+  buildDocumentSkeleton,
+  mergeOutlinePatch,
+  skeletonCoverage,
+  skeletonExclusions,
+  skeletonRepairLines,
+  type DocumentSkeleton,
+  type SkeletonCoverage,
+  type SkeletonGap,
+} from "@/lib/documents/outline-skeleton";
 
 /**
  * Retired routing threshold (19 Ekim 2026: 30 → 12). 27 Ekim 2026: no longer
@@ -950,6 +960,57 @@ type OutlinePromptInput = {
   previousOutline?: OutlineUnitDraft[];
 };
 
+/** Mevcut haritanın kısa dökümü: onarım bağlamı, değiştirilmesi istenmez. */
+function currentMapBlock(units: OutlineUnitDraft[]): string {
+  return units
+    .map((unit) => {
+      const topics = unit.topics.map((topic) => {
+        const pages = topic.pageNumbers.length
+          ? ` [d${(topic.fileIndex ?? 0) + 1} s.${Math.min(...topic.pageNumbers)}-${Math.max(...topic.pageNumbers)}]`
+          : "";
+        return `${topic.title}${pages}`;
+      });
+      return `- ${unit.title}: ${topics.join("; ")}`;
+    })
+    .join("\n");
+}
+
+/**
+ * Yutulan başlık onarımı (Paket I): model yalnız haritada ayrı konu olmayan bölümleri okur ve onlar için
+ * konu yazar; haritanın geri kalanı olduğu gibi kalır. Kural `OUTLINE_GRANULARITY_RULE` ile aynı.
+ */
+export function skeletonPatchPrompt(input: {
+  examLabel?: string | null;
+  examDate?: string | null;
+  fileGuide: string;
+  units: OutlineUnitDraft[];
+  gaps: readonly SkeletonGap[];
+  corpus: string;
+}): string {
+  const exam = examContextLine(input.examLabel, input.examDate);
+  const guide = input.fileGuide ? `\n\n${input.fileGuide}` : "";
+  return `Bu materyalle ${exam} hazırlanıyorsun. Aşağıdaki konu haritası belgenin kendi başlığıyla duran bazı bölümlerini ayrı konu olarak açmamış.${guide}
+
+YUTULAN BAŞLIKLAR — AYRI KONU YAZ:
+${skeletonRepairLines(input.gaps)}
+
+KURAL:
+- Haritanın geri kalanına DOKUNMA; yalnız yukarıdaki bölümler için konu yaz. Bölüm başına bir konu.
+- Başlık belgedeki başlığa dayanır (numarasız, tek başına okununca anlaşılır); uydurma ekleme.
+- pageStart/pageEnd yalnız o bölümün [d? s.N] sayfaları; fileIndex o bölümün dosyası (d1 → 0).
+- Konuyu koyacağın ünitenin adını unit title olarak yaz: uyuyorsa mevcut ünite adlarından birini AYNEN kullan.
+- Bölümün kendi tanımı, kuralı, formülü ya da örnek/soru tipi yoksa (yalnız etiket, çözümlü örnek, tekrar) o bölüm için konu yazma.
+${OUTLINE_GRANULARITY_RULE.split("\n").filter((line) => line.includes("KISA ALT BÖLÜM")).join("\n")}
+
+MEVCUT HARİTA (bağlam; değiştirme, tekrar yazma):
+${currentMapBlock(input.units)}
+
+JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"fileIndex":number,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[],"origin":"document"}]}]}
+
+Materyal (yalnız bu bölümlerin sayfaları):
+${input.corpus}`;
+}
+
 export type OutlineCallResult = {
   draft: OneShotOutlineDraft | null;
   /** Pending (deferred) reservation of a parsed draft — commit only if kept. */
@@ -970,6 +1031,8 @@ async function callOutlineModel(input: OutlinePromptInput & {
   deadlineAt: number;
   repairErrors?: string;
   invalidDraftJson?: string;
+  /** Hazır istem (yutulan başlık onarımı); yoksa harita istemi kurulur. */
+  userPrompt?: string;
 }): Promise<OutlineCallResult> {
   try {
     const generated = await generateJson({
@@ -998,7 +1061,7 @@ async function callOutlineModel(input: OutlinePromptInput & {
         json_schema: { name: "study_outline", strict: true, schema: oneShotJsonSchema },
       },
       schemaHint: SCHEMA_HINT,
-      userPrompt: studentOutlinePrompt({
+      userPrompt: input.userPrompt ?? studentOutlinePrompt({
         examLabel: input.examLabel,
         examDate: input.examDate,
         corpus: input.corpus,
@@ -1061,6 +1124,10 @@ export type OutlineMaterial = {
   /** 100+ sayfa: model ham metin değil sayfa dizini okur (`outline-page-index.ts`). */
   indexed: boolean;
   contentHash: string;
+  /** Belgenin kendi başlıkları ve bölüm sayfaları (modelsiz, `outline-skeleton.ts`). */
+  skeleton: DocumentSkeleton;
+  /** Belgenin "kapsam dışı / finalde yok" dediği başlıklar. */
+  exclusions: string[];
 };
 
 export function prepareOutlineMaterial(input: MaterialFileCorpus[]): OutlineMaterial {
@@ -1084,10 +1151,31 @@ export function prepareOutlineMaterial(input: MaterialFileCorpus[]): OutlineMate
     indexed,
     parts: parts && parts.length > 1 ? parts : null,
     contentHash: fnv1a(fullCorpus),
+    skeleton: buildDocumentSkeleton(files),
+    exclusions: skeletonExclusions(files),
   };
 }
 
-export type OutlineStage = "first" | "escalate" | "repair" | "fallback" | "merge";
+/** Haritanın başlık düzeyindeki kapsamı (iskelete göre). */
+export function outlineSkeletonCoverage(
+  candidate: OutlineCandidate | null | undefined,
+  material: Pick<OutlineMaterial, "skeleton" | "exclusions" | "files">,
+): SkeletonCoverage | null {
+  if (!candidate) return null;
+  return skeletonCoverage(material.skeleton, candidate.units, {
+    exclusions: material.exclusions,
+    singleFile: material.files.length === 1,
+  });
+}
+
+/** Yutulan başlık var ve haritada yer var: onarım (patch) turu açılır. */
+function needsPatch(candidate: OutlineCandidate | null | undefined, material: OutlineMaterial): boolean {
+  if (!candidate || candidate.kept >= MAX_TOPICS_TOTAL) return false;
+  return (outlineSkeletonCoverage(candidate, material)?.gaps.length ?? 0) > 0;
+}
+
+/** `patch`: yalnız yutulan başlıkların bölümlerine bakan onarım (Paket I); haritanın geri kalanı kalır. */
+export type OutlineStage = "first" | "escalate" | "repair" | "fallback" | "merge" | "patch";
 
 /** A validated map candidate and the reservations that produced it. */
 export type OutlineCandidate = {
@@ -1129,8 +1217,20 @@ export type OutlineStepDiag = {
   dropped?: string[];
   /** Share of the material's pages the kept topics cite. */
   coverage?: number;
+  /** Başlık düzeyinde kapsam: ölçülen / temsil edilen başlık, yutulanlar, kapsam dışı sayılanlar. */
+  headings?: { measured: number; represented: number; swallowed: string[]; excluded: string[] };
   error?: string;
 };
+
+function headingDiag(coverage: SkeletonCoverage | null): OutlineStepDiag["headings"] {
+  if (!coverage) return undefined;
+  return {
+    measured: coverage.measured,
+    represented: coverage.represented,
+    swallowed: coverage.gaps.map((gap) => `${gap.heading} [d${gap.fileIndex + 1} s.${gap.pageStart}-${gap.pageEnd}]`),
+    excluded: [...coverage.excludedHeadings, ...coverage.excludedTopics.map((item) => item.title)],
+  };
+}
 
 export type OutlineStepResult =
   | {
@@ -1240,7 +1340,12 @@ export function outlineCoverage(candidate: OutlineCandidate | null, pageCount: n
   return Math.min(1, cited.size / pageCount);
 }
 
-/** Mini's map must cite at least this share of the pages, or the strong model looks. */
+/**
+ * Mini's map must cite at least this share of the pages, or the strong model looks.
+ * 27 Ekim 2026'dan beri her belge güçlü modelle haritalanıyor; bu kapı yalnız eski mini yolunda
+ * (`isMini`) bakıyor, güçlü modelin haritasında sayfa kapsamı hiç ölçülmüyordu (Paket I, 30 Ekim 2026'da
+ * doğrulandı). Kapsam artık başlık düzeyinde ölçülüyor: `outlineSkeletonCoverage` → "patch" turu.
+ */
 export const MIN_MINI_COVERAGE = 0.6;
 /** Coverage is judged only on material big enough for this many topics (≈11+ pages of text). */
 export const COVERAGE_MIN_TOPICS = 3;
@@ -1344,6 +1449,8 @@ const BLOCKING_ERRORS = new Set(["insufficient_credits", "ai_not_configured"]);
  * repair    → one targeted pass over the cited pages when gpt-4.1 drops too much
  * fallback  → only when gpt-4.1 itself fails at provider level
  * merge     → one call over the part outlines (huge corpora only)
+ * patch     → kabul edilmiş haritada iskeletin yutulan başlıkları varsa yalnız o bölümlerin sayfalarına
+ *             bir çağrı; dönen konular haritaya eklenir, geri kalanı değişmez (Paket I). Düşerse harita kalır.
  */
 export async function runOutlineStep(input: OutlinePromptInput & {
   service: SupabaseClient;
@@ -1434,6 +1541,9 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       ...(merged.reservationId ? [merged.reservationId] : []),
     ]);
     if (goodEnough(candidate) && !outlineOversized(candidate, material.files).length) {
+      if (needsPatch(candidate, material)) {
+        return { kind: "continue", progress: { stage: "patch", best: candidate }, release: [], failed: false };
+      }
       return { kind: "done", map: candidate, path: "merge", release: [] };
     }
     return {
@@ -1442,6 +1552,97 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       // Parts stay held with the merge only when the merge is kept.
       release: candidate ? [] : [...partReservations, ...(merged.reservationId ? [merged.reservationId] : [])],
       failed: false,
+    };
+  }
+
+  // ——— Patch: yalnız yutulan başlıkların bölümleri; dönen konular haritaya eklenir ———
+  if (progress.stage === "patch") {
+    if (!best) return { kind: "exhausted", release: [], reason: "rejected" };
+    const coverage = outlineSkeletonCoverage(best, material);
+    const gaps = coverage?.gaps ?? [];
+    if (!gaps.length || best.kept >= MAX_TOPICS_TOTAL) {
+      return { kind: "done", map: best, path: "kept", release: [], diag: { model: best.model, headings: headingDiag(coverage) } };
+    }
+    const corpus = buildCitedPagesCorpus(
+      material.files,
+      gaps.map((gap) => ({ fileIndex: gap.fileIndex, pageStart: gap.pageStart, pageEnd: gap.pageEnd })),
+    ).slice(0, ONESHOT_MAX_INPUT_CHARS);
+    const userPrompt = skeletonPatchPrompt({
+      examLabel: input.examLabel,
+      examDate: input.examDate,
+      fileGuide: material.fileGuide,
+      units: best.units,
+      gaps,
+      corpus,
+    });
+    const needMs = fits(userPrompt.length);
+    if (needMs) return { kind: "wait", needMs };
+    const model = progress.viaFallback ? fallback : strong;
+    await input.onCallStart?.([input.keyFor("patch")]);
+    const patched = await callOutlineModel({
+      ...prompt,
+      corpus,
+      model,
+      idempotencyKey: input.keyFor("patch"),
+      userPrompt,
+    });
+    if (!patched.draft) {
+      if (patched.error && BLOCKING_ERRORS.has(patched.error)) {
+        return { kind: "blocked", error: patched.error, release: reservationsOf(best) };
+      }
+      // Onarım isteğe bağlı: düşerse doğrulanmış harita kalır.
+      return {
+        kind: "done",
+        map: best,
+        path: "kept",
+        release: [],
+        diag: { model, error: patched.error, headings: headingDiag(coverage) },
+      };
+    }
+    const checked = validateOneShotOutline(patched.draft, material.validation);
+    const merged = checked.ok
+      ? mergeOutlinePatch(best.units, checked.normalized, gaps, MAX_TOPICS_TOTAL)
+      : { units: best.units, added: [] as string[] };
+    const patchReservation = patched.reservationId ? [patched.reservationId] : [];
+    const issues = checked.ok ? checked.dropped : checked.issues;
+    if (!merged.added.length) {
+      return {
+        kind: "done",
+        map: best,
+        path: "kept",
+        release: patchReservation,
+        diag: {
+          model,
+          proposed: draftTopicCount(patched.draft),
+          kept: 0,
+          issues: outlineIssueCounts(issues),
+          dropped: droppedTitlesFor(issues),
+          headings: headingDiag(coverage),
+        },
+      };
+    }
+    const map: OutlineCandidate = {
+      units: merged.units,
+      kept: best.kept + merged.added.length,
+      proposed: best.proposed + draftTopicCount(patched.draft),
+      dropped: best.dropped + issues.length,
+      model: best.model,
+      reservationIds: [...best.reservationIds, ...patchReservation],
+    };
+    return {
+      kind: "done",
+      map,
+      path: "patch",
+      release: [],
+      diag: {
+        model,
+        proposed: draftTopicCount(patched.draft),
+        kept: merged.added.length,
+        issues: outlineIssueCounts(issues),
+        dropped: droppedTitlesFor(issues),
+        coverage: outlineCoverage(map, material.pageCount),
+        headings: headingDiag(outlineSkeletonCoverage(map, material)),
+      },
     };
   }
 
@@ -1503,6 +1704,16 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       ...reservationsOf(loser),
       ...(!fixed && repaired.reservationId ? [repaired.reservationId] : []),
     ];
+    if (needsPatch(chosen, material)) {
+      diag.headings = headingDiag(outlineSkeletonCoverage(chosen, material));
+      return {
+        kind: "continue",
+        progress: { stage: "patch", best: chosen, viaFallback: progress.viaFallback },
+        release,
+        failed: false,
+        diag,
+      };
+    }
     return { kind: "done", map: chosen, path: chosen === fixed ? "repair" : "kept", release, diag };
   }
 
@@ -1565,6 +1776,17 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     outlineOversized(candidate, material.files).length > 0 ||
     issues.some((issue) => issue.code === "unit_rescue_blocked" || issue.code === "unit_split_required");
   if (goodEnough(candidate) && !thinMini && !needsSplit) {
+    // Başlık düzeyinde kapsam (Paket I): yutulan başlık varsa yalnız o bölümler için onarım.
+    if (needsPatch(candidate, material)) {
+      diag.headings = headingDiag(outlineSkeletonCoverage(candidate, material));
+      return {
+        kind: "continue",
+        progress: { stage: "patch", best: candidate, viaFallback: progress.stage === "fallback" },
+        release: reservationsOf(best),
+        failed: false,
+        diag,
+      };
+    }
     return { kind: "done", map: candidate, path: progress.stage, release: reservationsOf(best), diag };
   }
   const nextBest = better(best, candidate);

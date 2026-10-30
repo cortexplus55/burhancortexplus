@@ -10851,6 +10851,28 @@
   font-weight: 600;
 }
 
+/* Bölümün tarih aralığındaki resmî tatiller (30 Ekim 2026): satır sarar, başlık gibi kırpılmaz. */
+.cp-path-section-holiday {
+  display: block;
+  color: var(--cp-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+/* Yolun sonunda sınav günü: "31 Eki 10:00 · Sınav · Amfi 2". */
+.cp-path-exam-day {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cp-border, #242424);
+  border-radius: 16px;
+  background: #141414;
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .cp-path-section-chevron {
   flex: none;
   transition: transform 0.2s ease;

@@ -10,6 +10,7 @@ import {
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
+import { clampText } from "@/lib/text/clamp-text";
 import {
   Check,
   ChevronLeft,
@@ -85,6 +86,13 @@ import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
+import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
+import {
+  MaterialNotesCard,
+  freshMaterialNotes,
+  materialNoteKeys,
+  type MaterialNotes,
+} from "@/components/parity/material-notes-card";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -304,6 +312,9 @@ export function ExamCreateWizard({
   const [examTrack, setExamTrack] = useState<(typeof EXAM_TRACKS)[number]["id"] | null>(null);
   const [examDate, setExamDate] = useState(() => isoOf(addDays(DEFAULT_EXAM_LEAD_DAYS)));
   const [dailyMinutes, setDailyMinutes] = useState(45);
+  /** İsteğe bağlı sınav saati ve yeri (30 Ekim 2026): planda ve Takvimim'de "31 Eki 10:00 · Sınav". */
+  const [examTime, setExamTime] = useState("");
+  const [examPlace, setExamPlace] = useState("");
   const [studyBand, setStudyBand] = useState<(typeof STUDY_BANDS)[number]["id"] | null>(null);
   const [examOccasion, setExamOccasion] = useState<(typeof EXAM_OCCASIONS)[number]["id"]>("okul");
   const [target, setTarget] = useState(75);
@@ -345,6 +356,48 @@ export function ExamCreateWizard({
   const [importPanel, setImportPanel] = useState<"none" | "paste" | "url" | "curriculum">("none");
   const fileRef = useRef<HTMLInputElement>(null);
   const documentIds = materials.map((item) => item.id);
+  /** Belge kümesi denetimi (Paket I): sürüm ve ilgisiz belge notu, materyal adımından çıkarken bir kez. */
+  const [materialNotes, setMaterialNotes] = useState<MaterialNotes | null>(null);
+  const [checkingMaterials, setCheckingMaterials] = useState(false);
+  const materialCheckSeen = useRef<{ set: string | null; notes: string[] }>({ set: null, notes: [] });
+
+  async function continueFromMaterial() {
+    const ids = materialsRef.current.map((item) => item.id);
+    const setKey = [...ids].sort().join(",");
+    if (ids.length < 2 || materialCheckSeen.current.set === setKey) {
+      setStep("language");
+      return;
+    }
+    setCheckingMaterials(true);
+    let notes: MaterialNotes = { versions: [], unrelated: [] };
+    try {
+      const response = await fetch("/api/learning/exam-prep/material-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentIds: ids, subject: subject || undefined }),
+      });
+      if (response.ok) notes = freshMaterialNotes(await response.json().catch(() => null), ids, materialCheckSeen.current.notes);
+    } catch {
+      // Denetim isteğe bağlı: okunamazsa uyarısız devam.
+    } finally {
+      setCheckingMaterials(false);
+    }
+    materialCheckSeen.current.set = setKey;
+    if (!notes.versions.length && !notes.unrelated.length) {
+      setStep("language");
+      return;
+    }
+    setMaterialNotes(notes);
+  }
+
+  function applyMaterialNotes(dropIds: string[]) {
+    if (materialNotes) materialCheckSeen.current.notes.push(...materialNoteKeys(materialNotes));
+    const next = materialsRef.current.filter((item) => !dropIds.includes(item.id));
+    setMaterials(next);
+    materialCheckSeen.current.set = next.map((item) => item.id).sort().join(",");
+    setMaterialNotes(null);
+    if (next.length) setStep("language");
+  }
 
   const [buildStage, setBuildStage] = useState(-1);
   const [topics, setTopics] = useState<string[]>([]);
@@ -401,6 +454,8 @@ export function ExamCreateWizard({
     setSubject("");
     setSubjectQuery("");
     setExamDate("");
+    setExamTime("");
+    setExamPlace("");
     setTarget(75);
     setLanguage("tr");
     setModalities([]);
@@ -1167,8 +1222,8 @@ export function ExamCreateWizard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: title.trim() || `${subject} sınav hazırlığı`,
-          examType: subject || "Serbest",
+          title: clampText(title.trim() || `${subject} sınav hazırlığı`, 120),
+          examType: clampExamLabel(subject) ?? "Serbest",
           topics,
           examDate,
           targetScore: target,
@@ -1186,6 +1241,8 @@ export function ExamCreateWizard({
             ...(examTrack ? { examTrack } : {}),
             ...(!gradeLevel && studyBand ? { studyBand } : {}),
             ...(!gradeLevel ? { examOccasion } : {}),
+            ...(parseExamTime(examTime) ? { examTime: parseExamTime(examTime) } : {}),
+            ...(parseExamPlace(examPlace) ? { examPlace: parseExamPlace(examPlace) } : {}),
           },
         }),
       });
@@ -1393,6 +1450,10 @@ export function ExamCreateWizard({
           onExamOccasion={setExamOccasion}
           dailyMinutes={dailyMinutes}
           onDailyMinutes={setDailyMinutes}
+          examTime={examTime}
+          onExamTime={setExamTime}
+          examPlace={examPlace}
+          onExamPlace={setExamPlace}
         />
       ) : null}
 
@@ -1607,14 +1668,22 @@ export function ExamCreateWizard({
             />
           ) : null}
 
-          <button
-            type="button"
-            className="apw-cta"
-            disabled={!documentIds.length || uploading}
-            onClick={() => setStep("language")}
-          >
-            {WIZARD_COPY.continue}
-          </button>
+          {materialNotes && [...materialNotes.versions.flatMap((note) => [note.currentId, note.olderId]), ...materialNotes.unrelated.map((note) => note.documentId)].every((id) => documentIds.includes(id)) ? (
+            <MaterialNotesCard
+              notes={materialNotes}
+              nameOf={(id) => materials.find((item) => item.id === id)?.fileName ?? "Belge"}
+              onApply={applyMaterialNotes}
+            />
+          ) : (
+            <button
+              type="button"
+              className="apw-cta"
+              disabled={!documentIds.length || uploading || checkingMaterials}
+              onClick={() => void continueFromMaterial()}
+            >
+              {checkingMaterials ? "Belgeler karşılaştırılıyor…" : WIZARD_COPY.continue}
+            </button>
+          )}
           <button
             type="button"
             className="apw-drop-pick"
@@ -2360,6 +2429,10 @@ function DateStep({
   onExamOccasion,
   dailyMinutes,
   onDailyMinutes,
+  examTime,
+  onExamTime,
+  examPlace,
+  onExamPlace,
 }: {
   value: string;
   onPick: (iso: string) => void;
@@ -2371,6 +2444,10 @@ function DateStep({
   onExamOccasion: (id: (typeof EXAM_OCCASIONS)[number]["id"]) => void;
   dailyMinutes: number;
   onDailyMinutes: (minutes: number) => void;
+  examTime: string;
+  onExamTime: (time: string) => void;
+  examPlace: string;
+  onExamPlace: (place: string) => void;
 }) {
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T12:00:00`) : new Date();
@@ -2507,6 +2584,30 @@ function DateStep({
             );
           })}
         </div>
+      </div>
+
+      <h2 className="apw-group">Sınav saati ve yeri (isteğe bağlı)</h2>
+      <div className="apw-exam-time">
+        <label>
+          <span>Saat</span>
+          <input
+            type="time"
+            value={examTime}
+            onChange={(e) => onExamTime(e.target.value)}
+            aria-label="Sınav saati"
+          />
+        </label>
+        <label>
+          <span>Yer</span>
+          <input
+            type="text"
+            value={examPlace}
+            maxLength={EXAM_PLACE_MAX}
+            placeholder="Örn. Amfi 2"
+            onChange={(e) => onExamPlace(e.target.value)}
+            aria-label="Sınav yeri"
+          />
+        </label>
       </div>
 
       <button type="button" className="apw-cta" disabled={!value} onClick={onNext}>

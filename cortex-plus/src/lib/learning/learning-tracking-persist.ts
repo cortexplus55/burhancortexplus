@@ -48,8 +48,12 @@ export async function recordLearningTrackingAfterComplete(
   input: {
     userId: string;
     prepId: string;
-    nodeId: string;
-    attemptId: string;
+    /**
+     * Kanıt bir düğümün kaydına bağlı değilse null (30 Ekim 2026, Paket I #8): yol oraya gelmeden çözülen yazılı
+     * deneme düğümü tamamlamaz ama konu kanıtı yazılır. O zaman ilk deneme sayılır, kayıt satırına yazılmaz.
+     */
+    nodeId: string | null;
+    attemptId: string | null;
     kind: PlanNodeKind;
     payload: unknown;
     answers: Record<string, unknown>;
@@ -60,12 +64,14 @@ export async function recordLearningTrackingAfterComplete(
     skipKinds?: ReadonlySet<string>;
   },
 ): Promise<{ nextNodeId: string | null; tracking: ReturnType<typeof toPersistedTracking>; topicGain: TopicGain | null }> {
-  const priorCount = await countPriorCompletedAttempts(service, {
-    userId: input.userId,
-    prepId: input.prepId,
-    nodeId: input.nodeId,
-    excludeAttemptId: input.attemptId,
-  });
+  const priorCount = input.nodeId
+    ? await countPriorCompletedAttempts(service, {
+        userId: input.userId,
+        prepId: input.prepId,
+        nodeId: input.nodeId,
+        excludeAttemptId: input.attemptId ?? undefined,
+      })
+    : 0;
   const isFirstAttempt = priorCount === 0;
   const attemptOrdinal = priorCount + 1;
 
@@ -78,18 +84,20 @@ export async function recordLearningTrackingAfterComplete(
     isFirstAttempt,
   });
 
-  await service
-    .from("exam_prep_node_attempts")
-    .update({
-      attempt_ordinal: attemptOrdinal,
-      answer_meta: {
-        hintsUsed: (input.answers.__meta as { hintsUsed?: unknown } | undefined)?.hintsUsed ??
-          input.answers.__hints ??
-          {},
-        isFirstAttempt,
-      },
-    })
-    .eq("id", input.attemptId);
+  if (input.attemptId) {
+    await service
+      .from("exam_prep_node_attempts")
+      .update({
+        attempt_ordinal: attemptOrdinal,
+        answer_meta: {
+          hintsUsed: (input.answers.__meta as { hintsUsed?: unknown } | undefined)?.hintsUsed ??
+            input.answers.__hints ??
+            {},
+          isFirstAttempt,
+        },
+      })
+      .eq("id", input.attemptId);
+  }
 
   const { data: topicRows } = await service
     .from("exam_prep_topics")

@@ -271,8 +271,10 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
     expect(progress.querySelector(".cp-forecast-svg")).toBeTruthy();
     expect(container.querySelector(".cp-prep-goal .cp-radar-svg")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Çalışma yolu" }));
-    fireEvent.click(screen.getByRole("button", { name: /Deneme sınavı oluştur/ }));
-    expect(screen.getByRole("tab", { name: /Sınav/ }).getAttribute("aria-selected")).toBe("true");
+    // 30 Ekim 2026 (Paket I #12): pencere açmadan doğrudan deneme kurulumu.
+    expect(screen.getByRole("link", { name: /Deneme sınavı oluştur/ }).getAttribute("href")).toMatch(
+      /^\/deneme-sinavlari\/[^/]+\/deneme\/kurulum$/,
+    );
   });
 });
 

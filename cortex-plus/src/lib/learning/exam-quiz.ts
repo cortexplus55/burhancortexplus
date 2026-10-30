@@ -104,7 +104,7 @@ function resolveCorrects(options: string[], raw: unknown): string[] {
   return [...new Set(resolved)];
 }
 
-export function normalizeQuizQuestion(raw: {
+type RawQuizQuestion = {
   text: string;
   options: string[];
   correct: string | number | (string | number)[] | string[] | number[];
@@ -117,7 +117,23 @@ export function normalizeQuizQuestion(raw: {
   steps?: string[];
   topic?: string;
   point?: string;
-}): QuizQuestion | null {
+};
+
+/** Kayıtlı ya da gelen soruyu okur: birden çok doğru işaretliyse soru çok cevaplı sayılır (eski kayıtlar böyle). */
+export function normalizeQuizQuestion(raw: RawQuizQuestion): QuizQuestion | null {
+  return normalizeQuizRow(raw, true);
+}
+
+/**
+ * Yeni üretilen soru (`parseTeacherQuiz`). Model soruyu açıkça tek cevaplı bildirip (`multi: false`) iki doğru
+ * işaretlediyse soru tek cevaplı kalır; sessizce çok cevaplıya dönmez, yapı denetimi onu yakalar (30 Ekim 2026,
+ * Paket I #6). Model hiçbir şey bildirmediyse eski davranış: çok cevaplı sayılır, kökle uyumuna yapı denetimi bakar.
+ */
+export function normalizeGeneratedQuizQuestion(raw: RawQuizQuestion, declaredMulti: boolean | undefined): QuizQuestion | null {
+  return normalizeQuizRow({ ...raw, multi: declaredMulti === true }, declaredMulti !== false);
+}
+
+function normalizeQuizRow(raw: RawQuizQuestion, multiFromKey: boolean): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
   const corrects = resolveCorrects(options, raw.correct);
   if (!raw.text.trim() || options.length < 2 || !corrects.length) return null;
@@ -132,7 +148,7 @@ export function normalizeQuizQuestion(raw: {
     text: raw.text.trim(),
     options,
     correct: corrects,
-    multi: raw.multi === true || corrects.length > 1,
+    multi: raw.multi === true || (multiFromKey && corrects.length > 1),
     explanation: raw.explanation?.trim() || undefined,
     learningObjective: raw.learningObjective?.trim() || undefined,
     misconceptionTag: raw.misconceptionTag?.trim() || undefined,
@@ -185,9 +201,18 @@ export function selectedOptions(value: unknown): string[] {
   return [String(value)];
 }
 
+/**
+ * Şık karşılaştırma anahtarı (30 Ekim 2026, Paket I #7): boşluk ve Unicode biçimi farkı yok sayılır.
+ * Sunucu kayıtlı soruyu okurken şıkları kırpıyor (`normalizeQuizQuestion`), istemci ham şıkla cevap
+ * gönderiyordu: sonunda boşluk olan şıkta ekran "Doğru" derken not yanlış sayıyordu (7 işaret, 6/8).
+ */
+export function answerKey(value: string): string {
+  return String(value).normalize("NFC").replace(/\s+/g, " ").trim();
+}
+
 export function sameOptionSet(left: string[], right: string[]) {
-  const a = [...new Set(left)].sort();
-  const b = [...new Set(right)].sort();
+  const a = [...new Set(left.map(answerKey))].sort();
+  const b = [...new Set(right.map(answerKey))].sort();
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
@@ -196,11 +221,11 @@ export function sameOptionSet(left: string[], right: string[]) {
  * sıfırın altına inmez. Yazılı denemenin `multiMcqPoints` kuralıyla aynı.
  */
 export function multiPartialPercent(selected: string[], correct: string[]): number {
-  const want = new Set(correct);
+  const want = new Set(correct.map(answerKey));
   if (!want.size) return 0;
   let hit = 0;
   let miss = 0;
-  for (const pick of new Set(selected)) {
+  for (const pick of new Set(selected.map(answerKey))) {
     if (want.has(pick)) hit += 1;
     else miss += 1;
   }

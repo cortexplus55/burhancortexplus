@@ -3,8 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadPrepDocumentIds, loadTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
 import { searchDocumentChunksAcross, type DocumentMatch } from "@/lib/rag/pipeline";
 import { citationHref } from "@/lib/ai/chat-citations";
+import { FIGURE_APPENDIX_LABEL } from "@/lib/learning/figure-pages";
 import {
+  CHAT_PASSAGE_BUDGET,
+  asksAboutFigure,
   coverageDecision,
+  exactSearchTokens,
   excerptsForQuestion,
   flattenTeacherAnalysis,
   contentTokens,
@@ -12,6 +16,7 @@ import {
   lexicalPageHit,
   rerankByOverlap,
   searchStems,
+  takeWithinBudget,
   type CorpusDoc,
   type CoverageDecision,
   type SyllabusScope,
@@ -118,13 +123,13 @@ export async function loadPrepChatGrounding(
 
   let matches: DocumentMatch[] = [];
   try {
-    // Geniş getir, kelime/sayı örtüşmesiyle yeniden sırala, en iyi 4'ü ver.
-    // Eskiden tek belgeli hazırlıkta yalnız 2 pasaj geliyordu.
+    // Geniş getir, kelime/sayı örtüşmesiyle yeniden sırala, karakter bütçesiyle doldur (30 Ekim 2026, Paket I #11;
+    // önce sabit 4 parça). Eskiden tek belgeli hazırlıkta yalnız 2 pasaj geliyordu.
     const wide = await searchDocumentChunksAcross(service, userId, message, documentIds, {
-      limit: 12,
-      perDocument: Math.max(3, Math.ceil(12 / documentIds.length)),
+      limit: 16,
+      perDocument: Math.max(4, Math.ceil(16 / documentIds.length)),
     });
-    matches = rerankByOverlap(message, wide).slice(0, 4);
+    matches = takeWithinBudget(rerankByOverlap(message, wide), CHAT_PASSAGE_BUDGET * 0.6);
   } catch {
     matches = [];
   }
@@ -183,19 +188,22 @@ export async function loadPrepChatGrounding(
     }
   }
 
-  // Kelime araması: anlam araması kaçırdığında belgedeki kesin cümleyi bul.
+  // Kelime araması: anlam araması kaçırdığında belgedeki kesin cümleyi bul. Kökler ve kesin belirteçler (kısaltma,
+  // sayı, sayı dizisi, formül; 30 Ekim 2026, Paket I #11): "belgede yok" demeden önce bütün sayfalara bakılır.
   const stems = searchStems(message);
-  if (stems.length) {
+  const exactPatterns = exactSearchTokens(message).flatMap((token) => token.patterns);
+  const likePatterns = [...new Set([...stems.map((stem) => `%${stem.raw}%`), ...exactPatterns])];
+  if (likePatterns.length) {
     try {
-      // Kök başına ayrı sorgu: sık geçen kök ("kurul") sınırı doldurup nadir
+      // Kalıp başına ayrı sorgu: sık geçen kök ("kurul") sınırı doldurup nadir
       // kökün ("sendi") sayfasını dışarıda bırakmasın.
       const batches = await Promise.all(
-        stems.map((stem) =>
+        likePatterns.map((pattern) =>
           service
             .from("document_pages")
             .select("document_id, page_number, text_content, clean_text")
             .in("document_id", documentIds)
-            .ilike("text_content", `%${stem.raw}%`)
+            .ilike("text_content", pattern)
             .limit(40),
         ),
       );
@@ -213,8 +221,8 @@ export async function loadPrepChatGrounding(
         .filter((item) => item.hit && item.hit.score >= Math.min(2, stems.length))
         .sort((a, b) => b.hit!.score - a.hit!.score)
         .filter((item) => !taken.has(`${item.row.document_id}:${item.row.page_number}`))
-        .slice(0, 2);
-      for (const { row, hit } of scored) {
+        .map((item) => ({ ...item, content: item.hit!.excerpt }));
+      for (const { row, hit } of takeWithinBudget(scored, CHAT_PASSAGE_BUDGET * 0.3, { min: 2, max: 4 })) {
         const documentId = row.document_id as string;
         const doc = meta.get(documentId);
         const name = (doc?.file_name as string | undefined) ?? "Belge";
@@ -229,6 +237,54 @@ export async function loadPrepChatGrounding(
       }
     } catch {
       // Kelime araması düşerse anlam araması yeter.
+    }
+  }
+
+  // Şekil, tablo ya da el notu soruluyorsa şekil okunmuş sayfanın ve fotoğraf belgesinin TAMAMI bağlama girer
+  // (30 Ekim 2026, Paket I #11): şekil eki ("Şekilde işaretli değerler:") parçalara bölünüp aramada kayboluyor,
+  // öğretmen bir kenarı eksik okuyup yanlış toplam veriyor ya da el notundaki bilgiye "notlarda yok" diyordu.
+  if (asksAboutFigure(message)) {
+    try {
+      const imageDocs = documentIds.filter((id) => /^image\//i.test(String(meta.get(id)?.mime_type ?? "")));
+      const [figureQuery, imageQuery] = await Promise.all([
+        service
+          .from("document_pages")
+          .select("document_id, page_number, text_content")
+          .in("document_id", documentIds)
+          .ilike("text_content", `%${FIGURE_APPENDIX_LABEL}%`)
+          .limit(40),
+        imageDocs.length
+          ? service.from("document_pages").select("document_id, page_number, text_content").in("document_id", imageDocs).limit(20)
+          : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      ]);
+      const taken = new Set(passages.map((item) => `${item.documentId}:${item.pageNumber}`));
+      const rows = new Map<string, Record<string, unknown>>();
+      for (const row of [...(figureQuery.data ?? []), ...(imageQuery.data ?? [])]) {
+        rows.set(`${row.document_id}:${row.page_number}`, row as Record<string, unknown>);
+      }
+      const ranked = [...rows.entries()]
+        .filter(([key]) => !taken.has(key))
+        .map(([, row]) => {
+          const text = String(row.text_content ?? "").trim();
+          return { row, score: lexicalPageHit(message, text)?.score ?? 0, content: text.slice(0, 2400) };
+        })
+        .filter((item) => item.content.length >= 40)
+        .sort((a, b) => b.score - a.score);
+      for (const { row, content } of takeWithinBudget(ranked, CHAT_PASSAGE_BUDGET * 0.45, { min: 1, max: 3 })) {
+        const documentId = row.document_id as string;
+        const doc = meta.get(documentId);
+        const name = (doc?.file_name as string | undefined) ?? "Belge";
+        passages.push({
+          documentId,
+          documentName: name,
+          pageNumber: row.page_number as number,
+          slide: slideMime(doc?.mime_type as string | null),
+          content,
+          href: citationHref({ reference: 0, documentId, documentName: name, pageNumber: row.page_number as number, chunkId: null }),
+        });
+      }
+    } catch {
+      // Şekil sayfası okunamazsa öbür aramalar yeter.
     }
   }
 

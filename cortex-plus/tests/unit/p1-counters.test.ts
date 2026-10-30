@@ -164,7 +164,9 @@ describe("P1-7 kart yüzdesi ve y?ld?zlar", () => {
     for (let index = 0; index < 8; index += 1) answers[String(index)] = index < 3 ? 3 : 5;
     const scored = scoreFlashcardsV2(8, answers);
     expect(scored.score).toBeLessThan(scored.total);
-    expect(Math.round((scored.score / scored.total) * 100)).toBe(85);
+    // Paket I #7 (30 Ekim 2026): kart puani tam sayi, bilinen kart / kart; Zorlandim kismen sayilir, puana girmez (5/8).
+    expect(Math.round((scored.score / scored.total) * 100)).toBe(63);
+    expect(scored).toMatchObject({ score: 5, total: 8, partialCount: 3 });
     expect(scored.score).toBeLessThanOrEqual(scored.total);
     const home = read("src/components/parity/exam-prep-home.tsx");
     const lesson = read("src/components/parity/exam-lesson-steps.tsx");

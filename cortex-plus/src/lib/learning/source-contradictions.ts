@@ -471,7 +471,30 @@ function syllabusFile(fileName: string): boolean {
   return /mufredat|syllabus|izlence|ders-konu|konu-list/.test(foldTr(fileName));
 }
 
-export function formatContradiction(item: TopicContradiction): string {
+/** Aynı belgenin iki sürümü (`material-similarity.ts`): güncel ve eski. */
+export type SourceVersionPair = { currentId: string; olderId: string };
+
+/**
+ * Eski sürümün değeri çelişki değildir (Paket I, 30 Ekim 2026): canlıda oranı başka yazan eski kopya
+ * "kaynaklar çelişiyor" diye anlatılıyor, öğretmen iki değeri de veriyor ama hangisinin güncel olduğunu
+ * söylemiyordu. İddiaların hepsi bir sürüm çiftinden geliyorsa "eski sürüm" diye anlatılır.
+ */
+function versionContradiction(item: TopicContradiction, versions: readonly SourceVersionPair[]): string | null {
+  const ids = new Set(item.claims.map((claim) => claim.documentId));
+  const pair = versions.find((candidate) => ids.size === 2 && ids.has(candidate.currentId) && ids.has(candidate.olderId));
+  if (!pair) return null;
+  const current = item.claims.find((claim) => claim.documentId === pair.currentId);
+  const older = item.claims.find((claim) => claim.documentId === pair.olderId);
+  if (!current || !older) return null;
+  return (
+    `Belgenin iki sürümü bu konuda farklı değer veriyor (${item.concept}): güncel sürüm ${current.fileName || "Kaynak"} «${current.value}», ` +
+    `eski sürüm ${older.fileName || "Kaynak"} «${older.value}». Güncel sürümün değerini kullan; eski değer çelişki değil, belgenin eski sürümünden geliyor.`
+  );
+}
+
+export function formatContradiction(item: TopicContradiction, options: { versions?: readonly SourceVersionPair[] } = {}): string {
+  const versioned = options.versions?.length ? versionContradiction(item, options.versions) : null;
+  if (versioned) return versioned;
   const sides = item.claims
     .map((claim) => `${claim.fileName || "Kaynak"} «${claim.value}» diyor`)
     .join("; ");
@@ -485,8 +508,11 @@ export function formatContradiction(item: TopicContradiction): string {
   return `Bu konuda kaynaklar çelişiyor (${item.concept}): ${sides}. ${why} ${guide} İkisini de sakladık; birini sessizce seçmedik.`;
 }
 
-export function formatContradictions(items: TopicContradiction[]): string {
-  return items.map(formatContradiction).join(" ");
+export function formatContradictions(
+  items: TopicContradiction[],
+  options: { versions?: readonly SourceVersionPair[] } = {},
+): string {
+  return items.map((item) => formatContradiction(item, options)).join(" ");
 }
 
 type Bucket = {

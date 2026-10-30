@@ -54,6 +54,40 @@ export function turkishHolidayOn(isoDate: string): string | null {
   return RELIGIOUS_HOLIDAYS[isoDate] ?? FIXED_HOLIDAYS[isoDate.slice(5)] ?? null;
 }
 
+function nextIsoDay(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+export type HolidayRun = { start: string; end: string; name: string };
+
+/** Planın en çok bu kadar günü taranır (≈3 yıl); bozuk tarih sonsuz döngü kurmasın. */
+const HOLIDAY_SCAN_LIMIT = 1100;
+
+/**
+ * İki gün arasındaki (ikisi de dahil) resmî tatiller, art arda aynı bayramın günleri tek satırda
+ * (30 Ekim 2026, Paket I). Arife bayramın ilk gününe katılır: "15–19 May Kurban Bayramı". Uzun planda
+ * yolun bir düğümü tatile düşmese de öğrenci Nisan–Haziran tatillerini planda görsün diye. Dinî bayram
+ * tablosu olmayan yılda yalnız sabit tatiller gelir (sessizce).
+ */
+export function holidayRunsBetween(fromIso: string, toIso: string): HolidayRun[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromIso) || !/^\d{4}-\d{2}-\d{2}$/.test(toIso) || fromIso > toIso) return [];
+  const runs: HolidayRun[] = [];
+  let day = fromIso;
+  for (let guard = 0; day <= toIso && guard < HOLIDAY_SCAN_LIMIT; guard += 1) {
+    const raw = turkishHolidayOn(day);
+    if (raw) {
+      const name = raw.replace(/\s+arifesi$/u, "");
+      const last = runs[runs.length - 1];
+      if (last && last.name === name && nextIsoDay(last.end) === day) last.end = day;
+      else runs.push({ start: day, end: day, name });
+    }
+    day = nextIsoDay(day);
+  }
+  return runs;
+}
+
 export type ScheduleCheckpoint = {
   /** Ara sınavın günü, YYYY-MM-DD. */
   date: string;

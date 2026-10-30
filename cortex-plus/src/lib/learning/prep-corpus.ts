@@ -7,6 +7,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
 import type { TeacherAnalysis } from "@/lib/learning/teacher-brain";
 
 export type CorpusDoc = {
@@ -94,6 +95,101 @@ export function searchStems(question: string, max = 4): { raw: string; folded: s
   return stems;
 }
 
+export type ExactToken = {
+  kind: "acronym" | "number" | "sequence" | "formula";
+  /** Öğrencinin yazdığı biçim. */
+  raw: string;
+  /** Veritabanı ilike kalıpları (`%` joker); herhangi biri tutarsa sayfa gelir. */
+  patterns: string[];
+  /** Sayfa metnindeki ilk yeri; yoksa -1 (ilike geniş arar, bu kesin bakar). */
+  find: (text: string) => number;
+};
+
+const firstIndex = (regex: RegExp, text: string) => regex.exec(text)?.index ?? -1;
+
+/**
+ * Sohbete giden belge bağlamı karakter bütçesiyle dolar (30 Ekim 2026, Paket I #11): sabit "en iyi 4 parça"
+ * kısa parçalarda bağlamı boş bırakıyor, şekil okunmuş sayfanın kenar listesi parçalara bölünüp kayboluyordu.
+ */
+export const CHAT_PASSAGE_BUDGET = 7200;
+
+/** Sıradaki öğeleri bütçe dolana kadar alır; en az `min`, en çok `max`. */
+export function takeWithinBudget<T extends { content: string }>(
+  items: readonly T[],
+  budget = CHAT_PASSAGE_BUDGET,
+  options: { min?: number; max?: number } = {},
+): T[] {
+  const min = options.min ?? 4;
+  const max = options.max ?? 8;
+  const out: T[] = [];
+  let used = 0;
+  for (const item of items) {
+    if (out.length >= max) break;
+    if (out.length >= min && used + item.content.length > budget) break;
+    out.push(item);
+    used += item.content.length;
+  }
+  return out;
+}
+
+/** Soru bir şekli, tabloyu ya da el notunu soruyor: o sayfanın tamamı bağlama girer. */
+export const FIGURE_QUESTION =
+  /(?:^|[^\p{L}])(?:şekil|şema|grafi[kğ]|tablo|diyagram|çizim|el\s+not|el\s+yazı|kenar\s+not|resim|görsel|fotoğraf|harita)/iu;
+
+export function asksAboutFigure(question: string): boolean {
+  return FIGURE_QUESTION.test(question);
+}
+
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeLike = (value: string) => value.replace(/[%_\\]/g, (char) => `\\${char}`);
+
+/**
+ * Kök aramasının kaçırdığı kesin belirteçler (30 Ekim 2026, Paket I #11). Kök araması 4 harften kısa kelimeyi ve
+ * sayıyı aramıyordu: "AVL 15, 10, 5, 20, 25", "T(n)=3T(n/4)+n", "SMMM 95.000" el notunda vardı, öğretmen "notlarda
+ * yok" dedi. Dört tür: kısaltma (2-6 büyük harf), binlik ayraçlı ya da 3+ basamaklı sayı, sayı dizisi (3+ sayı,
+ * virgülle), parantezli formül parçası. Derse bağlı kelime yok.
+ */
+export function exactSearchTokens(question: string, max = 4): ExactToken[] {
+  const out: ExactToken[] = [];
+  const seen = new Set<string>();
+  const push = (token: ExactToken) => {
+    const key = `${token.kind}:${token.raw.toLocaleLowerCase("tr")}`;
+    if (seen.has(key) || out.length >= max) return;
+    seen.add(key);
+    out.push(token);
+  };
+  for (const match of question.matchAll(/\d+(?:\s*[,;]\s*\d+){2,}/g)) {
+    const numbers = match[0].split(/\s*[,;]\s*/);
+    const inOrder = new RegExp(`(?<!\\d)${numbers.map(escapeRegex).join("\\D{1,4}")}(?!\\d)`);
+    push({ kind: "sequence", raw: match[0], patterns: [`%${numbers.map(escapeLike).join("%")}%`], find: (text) => firstIndex(inOrder, text) });
+  }
+  // Rakam taşıyan parantezli parça ("3T(n/4)", "f(2)"): "T(n)" gibi her sayfada geçen yazım aranmaz.
+  for (const match of question.matchAll(/[\p{L}\d]*\d[\p{L}\d]*\([^()\s]{1,12}\)|[\p{L}]\([^()\s]*\d[^()\s]*\)/gu)) {
+    const compact = match[0].replace(/\s+/g, "");
+    if (compact.length < 4) continue;
+    const chars = [...compact];
+    const spaced = new RegExp(chars.map(escapeRegex).join("\\s*"), "iu");
+    push({
+      kind: "formula",
+      raw: compact,
+      patterns: [`%${chars.map(escapeLike).join("%")}%`],
+      find: (text) => firstIndex(spaced, text),
+    });
+  }
+  for (const match of question.matchAll(/(?<![\d.,])\d{1,3}(?:\.\d{3})+(?:,\d+)?(?![\d])|(?<![\d.,])\d{3,}(?![\d.,]\d)/g)) {
+    const raw = match[0];
+    const digits = raw.replace(/\./g, "");
+    const either = new RegExp(`(?<![\\d.,])(?:${escapeRegex(raw)}|${escapeRegex(digits)})(?![\\d])`);
+    push({ kind: "number", raw, patterns: [...new Set([`%${escapeLike(raw)}%`, `%${escapeLike(digits)}%`])], find: (text) => firstIndex(either, text) });
+  }
+  for (const match of question.matchAll(/(?<![\p{L}\d])[A-ZÇĞİÖŞÜ]{2,6}(?![\p{L}\d])/gu)) {
+    const raw = match[0];
+    const word = new RegExp(`(?<![\\p{L}\\d])${escapeRegex(raw)}(?![\\p{L}\\d])`, "iu");
+    push({ kind: "acronym", raw, patterns: [`%${escapeLike(raw)}%`], find: (text) => firstIndex(word, text) });
+  }
+  return out;
+}
+
 /**
  * Kelime aramasıyla gelen sayfayı puanlar ve köklerin en yoğun geçtiği
  * ~700 karakterlik pencereyi döndürür. Anlam araması "Fransa'da sendika kaç
@@ -105,13 +201,21 @@ export function lexicalPageHit(
   text: string,
 ): { score: number; excerpt: string } | null {
   const stems = searchStems(question);
-  if (!stems.length) return null;
+  // Kesin belirteçler (kısaltma, sayı, dizi, formül): kök yoksa da sayfayı bulur (30 Ekim 2026, Paket I #11).
+  const exact = exactSearchTokens(question)
+    .map((token) => token.find(text))
+    .filter((at) => at >= 0);
+  if (!stems.length && !exact.length) return null;
   const hay = foldTr(text);
   const numbers = [...new Set(numbersIn(question).filter((n) => n.length >= 2))];
   const hayNumbers = new Set(numbersIn(text));
   const matched = stems.filter((stem) => hay.includes(stem.folded));
-  const score = matched.length + 2 * numbers.filter((n) => hayNumbers.has(n)).length;
-  if (!matched.length) return null;
+  const score = matched.length + 2 * numbers.filter((n) => hayNumbers.has(n)).length + 2 * exact.length;
+  if (!matched.length) {
+    if (!exact.length) return null;
+    const start = Math.max(0, Math.min(...exact) - 350);
+    return { score, excerpt: text.slice(start, start + 700).trim() };
+  }
   // Köklerin en çok bir arada geçtiği yeri bul.
   let best = { at: hay.indexOf(matched[0].folded), count: 0 };
   for (const stem of matched) {
@@ -265,6 +369,13 @@ function readProse(text: string, documentName: string, pageNumber: number | null
       const topic = weighted[1].replace(/^.*\b(?:olan|ise|olarak)\s+/i, "").trim();
       pushWeighted(scope.weighted, topic, documentName, sentence.trim(), null);
     }
+  }
+  // Ders notunun kısa notu ("X finalde yok", "vizede sorulmayacak"): harita ve kurulumla aynı okuyucu
+  // (Paket I). Yalnız kısa başlık: uzun müfredat cümlesi yukarıdaki kuralla okunuyor, ikinci kez ve
+  // geniş bir ifadeyle eklenirse kapsam içi soruları da "kapsam dışı" sanar.
+  for (const phrase of exclusionPhrases(text)) {
+    if (phrase.length > 60 || /[;:]/.test(phrase)) continue;
+    pushExcluded(scope.excluded, phrase, phrase, documentName, pageNumber);
   }
 }
 

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeSupabase, has, type FakeCall } from "./helpers/query-recorder";
+import { fakeSupabase, type FakeCall } from "./helpers/query-recorder";
 
 /*
   Yazılı deneme yolu kapatıyordu (20 Ekim 2026): düğüm sayfası denemeyi kuruluma gönderiyor,
@@ -67,14 +67,13 @@ describe("writeBackMockToPrep", () => {
     mocks.tracking.mockReset().mockResolvedValue({ nextNodeId: null, tracking: null, topicGain: null });
   });
 
-  it("tam deneme: kilitli düğüm açılır, kayıt yazılır, düğüm tamamlanır, kanıt işlenir", async () => {
-    const fake = fakeSupabase(handler());
+  it("tam deneme, adım kendi oturumu (ready): kayıt yazılır, düğüm tamamlanır, kanıt işlenir", async () => {
+    const fake = fakeSupabase(handler({ node: { id: "n-mock", status: "ready" } }));
     const result = await writeBackMockToPrep(fake.service as never, input);
     // P1-7: yazılı deneme yıldızı da yazılır (sahte istemcide ödül 0 döner).
     expect(result).toMatchObject({ nodeId: "n-mock" });
-    const unlock = fake.calls.find((call) => call.table === "exam_prep_nodes" && call.op === "update")!;
-    expect(unlock.payload).toEqual({ status: "ready" });
-    expect(has(unlock, "eq", "status", "locked")).toBe(true);
+    // Paket I #8: düğümün kilidi notlandırmada açılmaz; açık düğüm zaten kendi oturumudur.
+    expect(fake.calls.some((call) => call.table === "exam_prep_nodes" && call.op === "update")).toBe(false);
     const insert = fake.calls.find((call) => call.table === "exam_prep_node_attempts" && call.op === "insert")!;
     expect(insert.payload).toMatchObject({
       node_id: "n-mock",
@@ -136,8 +135,25 @@ describe("writeBackMockToPrep", () => {
     expect(fake.rpcCalls).toHaveLength(0);
   });
 
+  it("yol oraya gelmeden (kilitli düğüm) çözülen deneme adımı bitirmez; kanıt yine yazılır (Paket I #8)", async () => {
+    const fake = fakeSupabase(handler());
+    expect(await writeBackMockToPrep(fake.service as never, input)).toBeNull();
+    // Kilit açılmaz, kayıt açılmaz, tamamlama ve yıldız yok.
+    expect(fake.calls.some((call) => call.table === "exam_prep_nodes" && call.op === "update")).toBe(false);
+    expect(fake.calls.some((call) => call.table === "exam_prep_node_attempts" && call.op === "insert")).toBe(false);
+    expect(fake.rpcCalls).toHaveLength(0);
+    // Konu kanıtı kaybolmaz: düğümsüz, kayıtsız işlenir; her soru kendi konusuna.
+    expect(mocks.tracking).toHaveBeenCalledWith(
+      fake.service,
+      expect.objectContaining({ kind: "written_exam", nodeId: null, attemptId: null, targetScore: 75 }),
+    );
+    const payload = mocks.tracking.mock.calls[0]![1].payload;
+    const evidence = extractAnswerEvidence({ kind: "written_exam", payload, answers: {}, topicLabel: null, isFirstAttempt: true });
+    expect(evidence.map((row) => row.topicKey)).toEqual(["basınç", "sıcaklık"]);
+  });
+
   it("aynı notlandırma ikinci kez gelirse düğüm yeniden tamamlanmaz", async () => {
-    const fake = fakeSupabase(handler({ duplicate: "completed" }));
+    const fake = fakeSupabase(handler({ duplicate: "completed", node: { id: "n-mock", status: "ready" } }));
     expect(await writeBackMockToPrep(fake.service as never, input)).toEqual({ nodeId: "n-mock" });
     expect(fake.rpcCalls).toHaveLength(0);
     expect(mocks.tracking).not.toHaveBeenCalled();
