@@ -1543,3 +1543,39 @@ Bekçi: `konu-kimligi.test.ts`, `canli-tur-30-ekim.test.ts`, `podcast-hazir-yol.
 `ogretim-tekrar-30-ekim.test.ts`, `tekrar-yildiz.test.ts`, `celdirici-tur-ad.test.ts`, `uydurma-kardes.test.ts`, `podcast-hiz-30-ekim.test.ts`.
 
 Açık (göçsüz): eski sözlü yanılgı satırları eski konu adıyla duruyor; hazırlık yüzdesi (`buildLearningIndicators`) ad varyantlı eski kanıtı birleştirmiyor (yeni kanıt doğru adla yazılır).
+
+## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
+
+Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)
+ve oturum ekranı (`exam-node-session.tsx`, 2.901 satır) her paketin yamasını taşıyordu. Davranış değiştirmeden bölündü:
+rota 46, ekran 53 satır. **Kurallar bundan sonra modülde durur; ana dosyaya geri yazmayın.**
+
+| Yer | Ne | Dosya |
+|---|---|---|
+| Rota | Yalnız `POST` (imzalı önceden yazım isteği `after` ile) + `maxDuration = 300` | `route.ts` |
+| Ortak kabuk | Gövde, hazırlık ve düğüm okuma, kilit, `choose`, konu, seçimler; dönen bağlam her eyleme | `node/context.ts` |
+| Yönlendirici | Eyleme göre tek modül (`switch`); yeni eylem = yeni `case` + yeni modül | `node/handler.ts` |
+| Eylemler | warm, review, grade-check, progress, resume, save | `node/actions/*.ts` |
+| Bitirme | Notlandırma → yol → RPC → yanılgı → iz → defter → tekrar → yıldız; sahiplik ve saklı sonuç ayrı | `node/complete.ts`, `node/completion.ts` |
+| Açılış | Sıra `start.ts`'te; aşamalar: yerel oturum → tekrarla/incele → süren ders → hazır içerik → kaynak → kayıt+kredi → üretim | `node/start.ts`, `local-session`, `replay`, `lesson-adopt`, `prefetched`, `source`, `reserve`, `generation` |
+| Türün üretimi | `generateNodePayload` türe göre motora | `node/generate.ts` → `lesson`, `quiz`, `cards`, `true-false`, `podcast`, `oral` |
+| Ortak | kredi kodu, hata sınıfı, `after` sarmalayıcıları; öğrenciye giden gövde; puan | `node/shared.ts`, `payload.ts`, `score.ts` |
+| Ekran | Yaşam döngüsü tek kancada; her tür kendi çizim bileşeninde, eski kardeş sırasıyla | `exam-node/use-node-lifecycle.ts`, `exam-node/*.tsx` |
+
+**Bir etkinliğe dokunurken:** ders → `node/lesson.ts`, `lesson-adopt.ts`, `actions/grade-check.ts`, `exam-node/lesson.tsx`;
+test → `node/quiz.ts`, `exam-node/quiz.tsx`; kartlar → `node/cards.ts`, `exam-node/cards.tsx`; doğru/yanlış →
+`node/true-false.ts`, `exam-node/true-false.tsx`; podcast → `node/podcast.ts`, `exam-node/podcast.tsx`; sözlü →
+`node/oral.ts` (+ hakem `complete.ts`'te), `exam-node/oral.tsx`; odaklı pratik / son kontrol / hazır olma / boşluk →
+`node/local-session.ts`, `exam-node/local-session.tsx`; yazılı deneme → `node/written-review.ts`, `actions/review.ts`.
+
+| Kural | Neden |
+|---|---|
+| Aşama, kayıt kimlikleri, cevap kuyruğu ve **bütün istekler** kancada; çizim bileşeni durum tutmaz, istek atmaz | Açılış etkisi `router.refresh()` sonrası yeniden koşup "Tekrar incele"yi başa sarıyordu: açılışın tek yeri olsun (`openedForRef`, düğüm başına bir kez) |
+| Açılış aşaması erken yanıt için `Response`, yoksa ürettiği değerleri döndürür; sıralayıcı aynı yerel değişkenlere yazar | Aşamalar arası değer akışı tek yerde okunur; bir aşama öbürünün yerelini değiştiremez |
+| Rota dosyası yalnız `POST`, `maxDuration` dışa aktarır; `NODE_MAX_DURATION_SECONDS` aynı 300 | Next.js başka adı reddeder; bitirme sahipliği bu süreden bayatlar |
+
+Sözleşme testleri: `node-route-contract.test.ts` (eylem × tür: yanıt, veritabanı çağrılarının sırası ve alanları, RPC,
+motor girdileri, `after` işleri, günlük satırları — anlık görüntü; değişirse sözleşme değişmiştir, `-u` ancak bilerek),
+`node-session-lifecycle.test.tsx` (açılış bir kez, yenilemede aşama, bitir → sonuç, bekleme ve yoklama, tekrarla),
+`node-modules-layout.test.ts` (düzen). Kaynak okuyan bekçiler `tests/unit/helpers/node-sources.ts` → `readSource` ile
+okur: `route.ts` ya da `exam-node-session.tsx` istenince dosya ve modül klasörü birlikte döner.
