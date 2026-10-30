@@ -217,8 +217,11 @@ describe("course map round (fake DB, real credit semantics)", () => {
     expect(nodes.filter((n) => n.document_id === "dA" && n.parent_id).length).toBe(3);
     expect(nodes.filter((n) => n.document_id === "dB" && n.parent_id).length).toBe(2);
     const intake = await loadOneshotIntakeTopics(client as any, "u1", ["dA", "dB"]);
+    // Paket I (30 Ekim 2026): dosyalar arası diziliş haritanınki (dB, dA | dA, dB, dA); bir dosyanın kendi
+    // konuları kendi aralarında belge sırasına girer (dA s.7 ve s.3 → s.3, s.7). Aynı harita her kurulumda
+    // aynı sırayla yazılsın diye sıra koddan (`orderOutlineByPosition`).
     expect(intake!.topics.map((t) => t.title)).toEqual([
-      heading(1, 4), heading(0, 2), heading(0, 7), heading(1, 9), heading(0, 3),
+      heading(1, 4), heading(0, 2), heading(0, 3), heading(1, 9), heading(0, 7),
     ]);
     expect(intake!.topics.map((t) => t.sources[0]!.documentId)).toEqual(["dB", "dA", "dA", "dB", "dA"]);
     expect(intake!.units).toEqual([

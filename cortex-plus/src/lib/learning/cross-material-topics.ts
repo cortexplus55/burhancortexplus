@@ -335,25 +335,63 @@ export function parseExamDate(text: string): string | null {
   return hits[0]?.iso ?? null;
 }
 
-function exclusionPhrases(text: string): string[] {
+/**
+ * Kapsam dışı ipucu (katlanmış metinde). Müfredat dili ("sınav kapsamı dışındadır") ve ders notunun kısa
+ * notu ("Kırmızı-Siyah ağaçlar finalde yok", "vizede sorulmayacak", "sorumlu değilsiniz") — Paket I,
+ * 30 Ekim 2026: canlı testte "finalde yok" denen başlık konu olarak girdi, hiçbir okuyucu bu cümleyi
+ * tanımıyordu. Sözcükler sınav dilinin kendisi, ders terimi değil.
+ */
+const SCOPE_CUE =
+  /sinav kapsam[ıi] disindadir|kapsam disi(?:dir|nda)?|out of scope|will not be examined|will not be tested|not examinable|excluded from the exam|bu sinavin kapsaminda degildir|kapsaminda degildir|kapsam(?:a|in)? (?:dahil degil(?:dir)?|girmez)|\b(?:sinav|final|vize|ara sinav|butunleme|quiz)(?:da|de|a|e)? (?:yok(?:tur)?|cikmaz|cikmayacak(?:tir)?|sorulmaz|sorulmayacak(?:tir)?)\b|\b(?:sinav|final|vize|ara sinav)(?:a|e) dahil degil(?:dir)?|sorumlu degil(?:siniz|sin|dir)?\b|\bnot (?:on|in) the (?:final|exam|midterm)\b/;
+/** "Finalde Kırmızı-Siyah ağaçlar yok": konu ipucunun arasında durur. */
+const SCOPE_INFIX =
+  /\b((?:sinav|final|vize|ara sinav|butunleme)(?:da|de) )(.{3,80}?) (?:yok(?:tur)?|cikmaz|cikmayacak(?:tir)?|sorulmaz|sorulmayacak(?:tir)?)\b/;
+const SCOPE_LABEL = /^(?:not|notlar|dikkat|uyarı|uyari|önemli|onemli|bilgi|hatırlatma|hatirlatma)\s*[:\-–]\s*/iu;
+
+function cleanScopePhrase(text: string): string {
+  return text
+    .replace(/^[\s•\-*:;,–—]+/, "")
+    .replace(SCOPE_LABEL, "")
+    .replace(/\s+(?:konusu|konuları|konulari|bölümü|bolumu|kısmı|kismi)\s*$/iu, "")
+    .replace(/[.:;,\-–—\s]+$/g, "")
+    .trim();
+}
+
+/** Katlanmış satırdaki konumu özgün satıra taşır (katlama Türkçe metinde uzunluğu korur). */
+function originalSlice(line: string, folded: string, start: number, end: number): string {
+  return line.length === folded.length ? line.slice(start, end) : folded.slice(start, end);
+}
+
+/**
+ * Metindeki kapsam dışı başlıklar: ipucunun önündeki (ya da "finalde X yok" biçiminde arasındaki) kısım.
+ * Müfredat birleştirmesi, deneme kurulumu ve konu haritası aynı okuyucuyu kullanır.
+ */
+export function exclusionPhrases(text: string): string[] {
   const lines = text
     .split(/\n+/)
     .map((line) => line.replace(/^[\s•\-*]+/, "").trim())
     .filter(Boolean);
   const phrases: string[] = [];
-  const cues =
-    /sinav kapsam[ıi] disindadir|kapsam disi(?:dir|nda)?|out of scope|will not be examined|will not be tested|not examinable|excluded from the exam|bu sinavin kapsaminda degildir|kapsaminda degildir/i;
+  const push = (phrase: string) => {
+    if (phrase.replace(/[^\p{L}\p{N}]/gu, "").length >= 3) phrases.push(phrase.slice(0, 180));
+  };
   for (const line of lines) {
     const folded = foldTr(line);
-    if (!cues.test(folded)) continue;
-    const cut = line.split(
-      /sınav kapsam[ıi] dışındadır|kapsam dışı(?:dır|nda)?|out of scope|will not be examined|will not be tested|not examinable|excluded from the exam|bu sınavın kapsamında değildir|kapsamında değildir/i,
-    )[0];
-    const phrase = (cut ?? line)
-      .replace(/^[\s•\-*]+/, "")
-      .replace(/[.:;\-–—]+$/g, "")
-      .trim();
-    if (phrase.length >= 6) phrases.push(phrase.slice(0, 180));
+    const infix = SCOPE_INFIX.exec(folded);
+    if (infix) {
+      const start = infix.index + infix[1]!.length;
+      push(cleanScopePhrase(originalSlice(line, folded, start, start + infix[2]!.length)));
+      continue;
+    }
+    const cue = SCOPE_CUE.exec(folded);
+    if (!cue) continue;
+    const before = cleanScopePhrase(originalSlice(line, folded, 0, cue.index));
+    if (before.replace(/[^\p{L}\p{N}]/gu, "").length >= 3) {
+      push(before);
+      continue;
+    }
+    // "Kapsam dışı: Kırmızı-Siyah ağaçlar" — konu ipucundan sonra.
+    push(cleanScopePhrase(originalSlice(line, folded, cue.index + cue[0].length, line.length)));
   }
   for (const line of lines) {
     const except = line.match(/^(.{6,80}?)\s+(?:hariç|haric|except|excluding)\b/i);
@@ -422,9 +460,10 @@ export function parseSyllabusRows(text: string): SyllabusRow[] {
   return rows.sort((a, b) => a.index - b.index);
 }
 
-type ExclusionHit = "drop" | "narrow" | "none";
+export type ExclusionHit = "drop" | "narrow" | "none";
 
-function matchExclusion(exclusion: string, title: string): ExclusionHit {
+/** Başlık kapsam dışı ifadesiyle aynı konu mu ("drop"), yalnız bir parçası mı ("narrow"). */
+export function matchExclusion(exclusion: string, title: string): ExclusionHit {
   const excluded = tokensOf(exclusion);
   const titled = tokensOf(title);
   if (!excluded.length || !titled.length) return "none";
@@ -636,7 +675,7 @@ function bestRow(
   return best;
 }
 
-function exclusionReason(phrase: string): string {
+export function exclusionReason(phrase: string): string {
   return `Müfredat bunu sınav kapsamı dışında bırakıyor: ${phrase.trim()}.`;
 }
 

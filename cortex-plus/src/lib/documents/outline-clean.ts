@@ -356,6 +356,53 @@ export function extractTocUnits(
   return unique.sort((a, b) => a.startPage - b.startPage);
 }
 
+/** İçindekiler satırı: "3.2 Mizan ....... 14", "BÖLÜM 4: Ağaçlar 31", "Kuyruklar 22". */
+const TOC_ENTRY_LINE = /^\s*(?:(?:ÜNİTE|UNITE|BÖLÜM|BOLUM|Chapter|CHAPTER|Unit|UNIT)\s*(\d+)\s*[:.\-–]?\s*|(\d{1,2}(?:\.\d{1,2}){0,3})[.)]?\s+)?(\S.{2,90}?)\s*$/;
+
+export type TocEntry = {
+  /** Satırın başlık kısmı (numara ve sayfa kuyruğu atılmış). */
+  title: string;
+  /** "3.2" gibi numara; yoksa null. */
+  number: string | null;
+  /** Numaradaki derinlik (3 → 1, 3.2 → 2); numarasız satır 1. */
+  depth: number;
+  /** İçindekiler satırının yazdığı sayfa (basılı numara; PDF sayfasıyla aynı olmayabilir). */
+  printedPage: number | null;
+};
+
+/**
+ * İçindekiler satırları, alt bölümler dahil (Paket I, 30 Ekim 2026). `extractTocUnits` yalnız
+ * "1." ve "ÜNİTE 1" satırlarını okuyor; "3.2 Mizan" gibi alt bölüm satırları düşüyordu. Belge
+ * iskeleti (`outline-skeleton.ts`) her satırı gövdedeki başlıkla eşler; eşleşmeyen satır iskelete girmez.
+ */
+export function extractTocEntries(
+  pages: { pageNumber: number; text: string; pageKind?: string | null; headings?: string[] }[],
+): TocEntry[] {
+  const out: TocEntry[] = [];
+  const seen = new Set<string>();
+  for (const page of collectTocPages(pages)) {
+    for (const line of normalizeLines(page.text)) {
+      if (TOC_PAGE_HEAD.test(foldOutlineKey(line)) && line.length < 30) continue;
+      if (looksLikeQuestionStem(line) || ANSWER_OPTION.test(line)) continue;
+      const printedPage = trailingTocPageNumber(line);
+      const body = line.replace(/(?:\.{2,}|…)\s*\d{1,4}\s*$/, "").replace(/\s+\d{1,4}\s*$/, "").trim();
+      const match = TOC_ENTRY_LINE.exec(body);
+      if (!match) continue;
+      const number = match[2] ?? match[1] ?? null;
+      const title = (match[3] ?? "").replace(/[.\s…]+$/, "").trim();
+      if (letterWordCount(title) < 1 || title.replace(/[^\p{L}]/gu, "").length < 3) continue;
+      if (/^[\d.\s]+$/.test(title)) continue;
+      // Numarasız ve sayfa numarasız satır içindekiler satırı değil, sayfadaki düz yazıdır.
+      if (!number && printedPage === null) continue;
+      const key = foldOutlineKey(title);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ title, number, depth: number ? number.split(".").length : 1, printedPage });
+    }
+  }
+  return out;
+}
+
 function unbalancedQuotesOrParens(text: string): boolean {
   const quotes = (text.match(/"/g) ?? []).length;
   if (quotes % 2 !== 0) return true;

@@ -79,6 +79,11 @@ export type OversizedTopic = {
   headings: string[];
 };
 
+/** Başlık anahtarı: Türkçe katlama, baştaki bölüm numarası atılır ("3.2 Mizan" → "mizan"). */
+export function foldHeadingKey(text: string): string {
+  return fold(text);
+}
+
 function fold(text: string): string {
   return text
     .toLocaleLowerCase("tr")
@@ -108,7 +113,7 @@ export function pageHeadings(page: OversizePage): string[] {
   return out;
 }
 
-function isTocPage(page: OversizePage): boolean {
+export function isTocPage(page: OversizePage): boolean {
   return /^\s*(içindekiler|İçindekiler|İÇİNDEKİLER)/.test(page.text ?? "");
 }
 
@@ -134,21 +139,37 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-type HeadingBody = { body: string; onOwnPage: number };
+/** Başlığın gövdesi: metin, kendi sayfasındaki kısmı ve gövdenin yayıldığı sayfalar. */
+export type HeadingBody = { body: string; onOwnPage: number; pages: number[] };
+
+/** Varsayılan sınır: numaralı başlık satırı ("2.3 Parçalı Fonksiyon"). */
+function numberedHeadingKey(line: string): string | null {
+  return TEXT_HEADING.test(line) && line.length <= 90 ? fold(line) : null;
+}
 
 /**
- * Başlığın altındaki gövde: sonraki numaralı başlığa kadar biriken metin; `onOwnPage` başlığın
+ * Başlığın altındaki gövde: sonraki başlığa kadar biriken metin; `onOwnPage` başlığın
  * kendi sayfasında kalan kısmı (adım listesinin son maddesi sonraki sayfanın metnini üstlenmesin).
+ * `headingKey` sınır satırını seçer (varsayılan numaralı başlık); belge iskeleti
+ * (`outline-skeleton.ts`) aynı ölçüyü kendi başlık satırlarıyla kullanır.
  */
-function headingBodyDetails(pages: OversizePage[]): Map<string, HeadingBody> {
+export function sectionBodyDetails(
+  pages: OversizePage[],
+  headingKey: (line: string, page: OversizePage) => string | null = numberedHeadingKey,
+  /** Gövdenin bu kadar karakterden azını taşıyan sonraki sayfa bölümün sayfası sayılmaz (sayfa kenarı, devam satırı). */
+  minPageChars = 0,
+): Map<string, HeadingBody> {
   const map = new Map<string, HeadingBody>();
-  let current: { key: string; body: string; page: number; onOwnPage: number } | null = null;
+  let current: { key: string; body: string; page: number; onOwnPage: number; chars: Map<number, number> } | null = null;
   const flush = () => {
     if (!current) return;
     const prior = map.get(current.key);
+    const own = current.page;
+    const pagesHere = [...current.chars].filter(([page, chars]) => page === own || chars >= minPageChars).map(([page]) => page);
     map.set(current.key, {
       body: `${prior?.body ?? ""} ${current.body}`.trim(),
       onOwnPage: (prior?.onOwnPage ?? 0) + current.onOwnPage,
+      pages: [...new Set([...(prior?.pages ?? []), ...pagesHere])].sort((a, b) => a - b),
     });
     current = null;
   };
@@ -156,19 +177,25 @@ function headingBodyDetails(pages: OversizePage[]): Map<string, HeadingBody> {
     for (const line of (page.text ?? "").split(/\n+/)) {
       const text = line.trim();
       if (!text) continue;
-      if (TEXT_HEADING.test(text) && text.length <= 90) {
+      const key = headingKey(text, page);
+      if (key) {
         flush();
-        current = { key: fold(text), body: "", page: page.pageNumber, onOwnPage: 0 };
+        current = { key, body: "", page: page.pageNumber, onOwnPage: 0, chars: new Map([[page.pageNumber, 0]]) };
         continue;
       }
       if (current) {
         current.body += ` ${text}`;
+        current.chars.set(page.pageNumber, (current.chars.get(page.pageNumber) ?? 0) + text.length);
         if (page.pageNumber === current.page) current.onOwnPage += text.length;
       }
     }
   }
   flush();
   return map;
+}
+
+function headingBodyDetails(pages: OversizePage[]): Map<string, HeadingBody> {
+  return sectionBodyDetails(pages);
 }
 
 function headingBodies(pages: OversizePage[]): Map<string, string> {
@@ -227,7 +254,8 @@ export function shortFileContentHeadings(file: OversizeFile, pageNumbers: number
 /** Başlığın kendi sayfasında en az bu kadar gövdesi olmalı; yoksa sayfa sonuna düşmüş etiket ya da liste maddesidir. */
 const SWALLOWED_OWN_PAGE_MIN = 120;
 
-function carriesOwnTeaching(detail: HeadingBody | undefined): boolean {
+/** Başlığın kendi öğretimi var mı: yeterli gövde ve tanım/kural/formül/örnek işareti (ya da ~tam sayfa metin). */
+export function carriesOwnTeaching(detail: HeadingBody | undefined): boolean {
   if (!detail || detail.body.length < SWALLOWED_BODY_MIN || detail.onOwnPage < SWALLOWED_OWN_PAGE_MIN) return false;
   if (detail.body.length >= SWALLOWED_PAGE_BODY) return true;
   return TEACHING_MARK_WORDS.test(fold(detail.body)) || TEACHING_MARK_SYMBOLS.test(detail.body);
