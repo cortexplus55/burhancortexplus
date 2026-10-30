@@ -99,6 +99,8 @@ export type TeacherLessonInput = {
    * lise/YKS/KPSS/TUS/üniversite 5 (`resolveOptionCount`). Yoksa 4.
    */
   optionCount?: OptionCount;
+  /** Hafif doğrulayıcı (30 Ekim 2026, `lesson-sanity.ts`); varsayılan açık. Yalnız ölçüm betikleri ve yapı testleri kapatır. */
+  sanity?: boolean;
 };
 
 const OPTION_LETTER_LIST = ["A", "B", "C", "D", "E"] as const;

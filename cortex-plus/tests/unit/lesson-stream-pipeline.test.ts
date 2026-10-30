@@ -127,7 +127,8 @@ const lesson: LessonV3 = {
   nextFocus: [],
 } as LessonV3;
 
-const input = { topicLabel: "Hukukun yaptırımları", prepTitle: "KPSS", pages: [{ page: 5, text: "Maddi yaptırım, yokluk, mutlak butlan." }], upcomingTopics: [] };
+// Hafif doğrulayıcı (30 Ekim 2026) kavram başına ayrı bir çağrı; akışın yapısını sayan bu testlerde kapalı (kendi testi ders-hafif-dogrulayici.test.ts).
+const input = { topicLabel: "Hukukun yaptırımları", prepTitle: "KPSS", pages: [{ page: 5, text: "Maddi yaptırım, yokluk, mutlak butlan." }], upcomingTopics: [], sanity: false };
 
 /** Metni rastgele boyda parçalarla akıtır: okuyucu parça sınırına takılmamalı. */
 function chunks(text: string, seed = 7): string[] {
