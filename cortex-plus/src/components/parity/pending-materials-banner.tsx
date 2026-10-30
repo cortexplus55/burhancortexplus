@@ -6,6 +6,7 @@ import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/
 import { messageFromProcessBody } from "@/lib/documents/process-user-message";
 import { attachedLine, mapAndAttach } from "@/lib/documents/prep-attach-client";
 import { runPool } from "@/lib/documents/upload-batch";
+import { useScreenAwake } from "@/lib/documents/use-universal-upload";
 import {
   PENDING_DONE_TITLE,
   PENDING_MAPPING_LINE,
@@ -76,6 +77,8 @@ export function PendingMaterialsBanner({ prepId }: { prepId: string }) {
   const driving = useRef(false);
   const owner = useRef(`tab-${Math.random().toString(36).slice(2)}`);
   const alive = useRef(true);
+  // Kalan sayfalar okunurken ekran kararmasın (31 Ekim 2026).
+  useScreenAwake(phase === "reading" || phase === "mapping");
 
   const load = useCallback(async (): Promise<Pending[]> => {
     try {

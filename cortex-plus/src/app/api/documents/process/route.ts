@@ -36,6 +36,13 @@ import {
 import { billingExempt } from "@/lib/billing/free-preview";
 import { cleanWholeDocument } from "@/lib/documents/clean-pages";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
+import {
+  FAST_START_MIN_PAGES,
+  HEAD_PAGES,
+  ensureDocumentHead,
+  findDocumentHead,
+  type DocumentHead,
+} from "@/lib/documents/document-head";
 
 const bodySchema = z.object({
   documentId: z.string().uuid(),
@@ -54,6 +61,11 @@ const bodySchema = z.object({
   prepId: z.string().uuid().optional(),
   /** The student pressed "Tekrar dene": a map that ran out of attempts starts fresh. */
   retryMap: z.boolean().optional(),
+  /**
+   * Hızlı başlatma (31 Ekim 2026, kurulum): büyük PDF'in ilk adımı kısa tutulur, okunan ilk sayfaların baş kopyası
+   * (`document-head.ts`) hemen döner; belgenin kalanı arkada okunur.
+   */
+  fastStart: z.boolean().optional(),
 });
 export const maxDuration = 300;
 /** Arka plan temizliği yeni parti başlatmayı bu süreden sonra bırakır (son parti en fazla ~90 sn). */
@@ -127,13 +139,57 @@ async function reservationIdForDocument(
   return data?.id ? String(data.id) : null;
 }
 
+/**
+ * Belgenin sayfa ücretini kesinleştirir. Okunamayan sayfa (31 Ekim 2026, ürün sahibi: "okunmayan sayfanın kredisi
+ * düşmesin"): ayrılan ücret iade edilir, yalnız okunan sayfa kadar kesilir (anahtar aynı belgede bir kez). Taranmış
+ * sayfa ücreti zaten yalnız okunan sayfadan alınıyor.
+ */
 async function commitDocumentCredits(
   service: Parameters<typeof processPdfDocumentStep>[0],
   userId: string,
   documentId: string,
 ) {
   const id = await reservationIdForDocument(service, userId, documentId);
-  if (id) await commitCredits(service, id);
+  if (!id) return;
+  const [{ count: unreadable, error: unreadableError }, { count: total }] = await Promise.all([
+    service.from("document_pages").select("id", { count: "exact", head: true })
+      .eq("document_id", documentId).eq("page_kind", "unreadable"),
+    service.from("document_pages").select("id", { count: "exact", head: true }).eq("document_id", documentId),
+  ]);
+  if (unreadableError || !unreadable || !total) {
+    await commitCredits(service, id);
+    return;
+  }
+  const { data: reservation } = await service.from("credit_reservations").select("status").eq("id", id).maybeSingle();
+  if (reservation?.status !== "pending") return;
+  await refundCredits(service, id);
+  await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_read_${documentId}`, Math.max(0, total - unreadable));
+}
+
+/** Hızlı başlatmada belgenin kalanı istemciyi beklemeden okunur (öğrenci hazırlık sayfasına geçebilir). */
+function continueExtractionAfterResponse(
+  service: Parameters<typeof processPdfDocumentStep>[0],
+  input: { userId: string; documentId: string; startedAt: number },
+) {
+  after(async () => {
+    const deadline = input.startedAt + PDF_CHAIN_BUDGET_MS + 30_000;
+    for (;;) {
+      if (Date.now() + 20_000 > deadline) return;
+      const step = await processPdfDocumentStep(service, input.documentId, input.userId, {
+        deadlineMs: Math.min(Date.now() + PDF_STEP_DEADLINE_MS, deadline),
+      }).catch(() => null);
+      if (!step || step.status !== "processing" || step.busy) return;
+    }
+  });
+}
+
+async function headFor(
+  service: Parameters<typeof processPdfDocumentStep>[0],
+  userId: string,
+  documentId: string,
+): Promise<DocumentHead | null> {
+  const head = await findDocumentHead(service, { userId, documentId }).catch(() => null);
+  return head && head !== "unsupported" ? head : null;
 }
 
 async function refundDocumentCredits(
@@ -209,13 +265,41 @@ export async function POST(request: Request) {
       // Chain extract steps inside maxDuration — fewer client round-trips.
       const chainStarted = Date.now();
       const chainDeadline = chainStarted + PDF_CHAIN_BUDGET_MS;
+      const fastStart = parsed.data.fastStart === true && !course;
       let indexed = await processPdfDocumentStep(service, doc.id, userId, {
         deadlineMs: Math.min(Date.now() + PDF_STEP_DEADLINE_MS, chainDeadline),
         maxOcrPages: parsed.data.maxOcrPages ?? null,
+        firstStepPages: fastStart ? HEAD_PAGES : undefined,
       });
+      // Hızlı başlatma: büyük belgenin okunan ilk sayfaları hemen baş kopyası olur; kalanı arkada okunur.
+      if (
+        fastStart &&
+        indexed.status === "processing" &&
+        !indexed.busy &&
+        (indexed.pageCount ?? 0) >= FAST_START_MIN_PAGES &&
+        (indexed.pagesDone ?? 0) >= Math.min(HEAD_PAGES, indexed.pageCount ?? 0)
+      ) {
+        const head = await ensureDocumentHead(service, { userId, documentId: doc.id, lastPage: indexed.pagesDone ?? 0 });
+        if (head) {
+          console.info("pipeline_timing", {
+            documentId: doc.id, stage: "fast_start_head", ms: Date.now() - routeStarted, pages: head.pageCount,
+          });
+          continueExtractionAfterResponse(service, { userId, documentId: doc.id, startedAt: routeStarted });
+          return NextResponse.json({
+            documentId: doc.id,
+            status: "processing",
+            phase: "extract",
+            pageCount: indexed.pageCount,
+            nextPage: indexed.nextPage,
+            pagesDone: indexed.pagesDone ?? null,
+            head,
+          }, { status: 202 });
+        }
+      }
       let extractSteps = 1;
       while (
         indexed.status === "processing" &&
+        !indexed.busy &&
         Date.now() + 15_000 < chainDeadline
       ) {
         const stepStarted = Date.now();
@@ -311,6 +395,8 @@ export async function POST(request: Request) {
           pagesDone: indexed.pagesDone ?? (typeof indexed.nextPage === "number" ? indexed.nextPage - 1 : null),
           failedPages: indexed.failedPages ?? [],
           ocrPages: indexed.ocrPages ?? null,
+          // Sihirbaz ilk cevabı kaçırdıysa (ağ) baş kopyasını sonraki yoklamada da öğrenir.
+          ...(fastStart ? { head: await headFor(service, userId, doc.id) } : {}),
         }, { status: 202 });
       }
       if (learningV2) {

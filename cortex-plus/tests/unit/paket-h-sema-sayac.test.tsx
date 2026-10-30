@@ -74,7 +74,7 @@ describe("Paket H · şekil okuması metni tekrar yazmaz", () => {
     expect(source).toContain('figureTranscript(raw, { textLayer: options?.textLayer })');
     // Metin katmanı iki yoldan da gider: PDF metin katmanı ve Office sayfası.
     expect(read("src/lib/documents/pdf-ingestion.ts")).toContain("textLayer: keepText ?? null");
-    expect(read("src/lib/documents/office-figures.ts")).toContain("textLayer: next[image.pageIndex] ?? null");
+    expect(read("src/lib/documents/office-figures.ts")).toContain("textLayer: pages[image.pageIndex] ?? null");
   });
 });
 

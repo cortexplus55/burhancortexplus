@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { FileUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
+import { useUniversalDocumentUpload } from "@/lib/documents/use-universal-upload";
+import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/process-session";
+import { photoSetProgressLine } from "@/lib/learning/exam-wizard-copy";
 
 /**
  * Araçların ortak kurulumu (19 Ekim 2026). Canlıda her aracı ayrı belgeyle denedik ve şunları
@@ -46,24 +49,34 @@ export function StudioSourcePicker({
   const [busy, setBusy] = useState<string | null>(null);
   const pendingNew = documentId && !documents.some((doc) => doc.id === documentId);
 
-  async function upload(file: File) {
+  /*
+    Ortak yükleme motoru (31 Ekim 2026, use-universal-upload.ts): araç tek belge alır; birden çok fotoğraf seçilirse
+    tek belgede birleşir. Dosya başına 3 yeniden deneme, yükleme ve okuma sürerken ekran uyanık.
+  */
+  const engine = useUniversalDocumentUpload(
+    { lanes: 1, photoSet: true, fastStart: false, single: true },
+    {
+      process: async ({ documentId }) => {
+        onModeChange("document");
+        onDocumentChange(documentId);
+        setBusy("Belgen okunuyor, konuları çıkarılıyor…");
+        const result = await requestDocumentProcessing({ documentId, post: postDocumentProcess });
+        if (!result.ok) {
+          toast.error(typeof result.body?.error === "string" ? result.body.error : "Belge bu sefer işlenemedi; yeniden dene.");
+          return "stop";
+        }
+        toast.success("Belgen hazır.");
+        router.refresh();
+        return true;
+      },
+    },
+  );
+
+  async function upload(files: File[]) {
     setBusy("Yükleniyor…");
     try {
-      const { uploadDocumentFile } = await import("@/lib/documents/upload-client");
-      const { documentId: id } = await uploadDocumentFile(file);
-      onModeChange("document");
-      onDocumentChange(id);
-      setBusy("Belgen okunuyor, konuları çıkarılıyor…");
-      const { postDocumentProcess, requestDocumentProcessing } = await import("@/lib/documents/process-session");
-      const result = await requestDocumentProcessing({ documentId: id, post: postDocumentProcess });
-      if (!result.ok) {
-        const message = typeof result.body?.error === "string" ? result.body.error : "Belge bu sefer işlenemedi; yeniden dene.";
-        throw new Error(message);
-      }
-      toast.success("Belgen hazır.");
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Belge yüklenemedi.");
+      const result = await engine.run(files);
+      if (result.failed.length && !result.stopped) toast.error(result.firstError ?? "Belge yüklenemedi.");
     } finally {
       setBusy(null);
     }
@@ -111,19 +124,20 @@ export function StudioSourcePicker({
             disabled={Boolean(busy)}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <FileUp className="h-4 w-4" aria-hidden />}
-            {busy ?? "Yeni belge yükle"}
+            {engine.photoProgress ? photoSetProgressLine(engine.photoProgress) : busy ?? "Yeni belge yükle"}
           </button>
           <input
             ref={fileRef}
             type="file"
+            multiple
             accept={DOCUMENT_UPLOAD_ACCEPT}
             className="sr-only"
             tabIndex={-1}
             aria-hidden
             onChange={(event) => {
-              const file = event.target.files?.[0];
+              const files = event.target.files ? [...event.target.files] : [];
               event.target.value = "";
-              if (file) void upload(file);
+              if (files.length) void upload(files);
             }}
           />
         </div>

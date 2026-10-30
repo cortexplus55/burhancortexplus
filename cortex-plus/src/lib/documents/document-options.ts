@@ -22,6 +22,8 @@ export async function loadCompletedDocumentOptions(
     .eq("user_id", userId)
     .is("deleted_at", null)
     .eq("status", "completed")
+    // Hızlı başlatmanın gizli baş kopyası seçilmez: ana belge tamamını taşır (document-head.ts).
+    .is("part_of", null)
     .order("created_at", { ascending: false })
     .limit(limit);
   const documents = (data ?? []).map((d) => ({

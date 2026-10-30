@@ -120,7 +120,8 @@ describe("sihirbaz bağlantısı", () => {
 
   it("paralel ücretli hesapta ve kurucuda (önizlemede değil); yarım kalanların hepsi sürer", () => {
     expect(wizard).toContain('const paidUploads = account?.audience === "plus" || account?.audience === "sigma" || isAdmin;');
-    expect(wizard).toContain("const lanes = paidUploads ? PARALLEL_UPLOADS : 1;");
+    // Şerit sayısı ortak yükleme motorunda (31 Ekim 2026, use-universal-upload.ts).
+    expect(wizard).toContain("{ lanes: paidUploads ? PARALLEL_UPLOADS : 1, photoSet: true, fastStart: paidUploads }");
     expect(wizard).toContain('readPendingDocProcesses("exam-wizard")');
     expect(wizard).toContain("inSelectionOrder(current, existing");
     expect(wizard).not.toContain("readPendingDocProcess(");

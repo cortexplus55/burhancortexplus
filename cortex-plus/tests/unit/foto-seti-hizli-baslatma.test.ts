@@ -250,7 +250,7 @@ describe("bağlantılar (kaynak bekçisi)", () => {
     expect(wizard).toContain("mappedIdsRef.current = ids;");
     expect(wizard).toContain("...(pendingDocumentIds.length ? { pendingDocumentIds } : {}),");
     expect(wizard).toContain("disabled={!documentIds.length || checkingMaterials}");
-    expect(wizard).toContain("fastStart: paidUploads,");
+    expect(wizard).toContain("{ lanes: paidUploads ? PARALLEL_UPLOADS : 1, photoSet: true, fastStart: paidUploads }");
     expect(read("src/app/api/learning/exam-prep/create/route.ts")).toContain("recordPendingMaterials(service, { prepId: result.prepId, userId, documentIds: pendingIds })");
     const addSource = read("src/app/api/learning/exam-prep/add-source/route.ts");
     expect(addSource.match(/clearPendingMaterials\(service, \{ prepId, userId, documentIds: requested \}\)/g)).toHaveLength(2);
@@ -263,7 +263,7 @@ describe("bağlantılar (kaynak bekçisi)", () => {
     const phone = read("src/components/parity/phone-upload-client.tsx");
     expect(phone).toContain("/api/uploads/phone/${token}/prepare");
     expect(phone).toContain("/api/uploads/phone/${token}/complete");
-    expect(phone).toContain(`purpose === "hazirlik" ? splitSelection(files)`);
+    expect(phone).toContain(`{ lanes: PHONE_SEND_LANES, photoSet: purpose === "hazirlik", fastStart: many, single: !many }`);
     expect(read("src/app/api/uploads/phone/[token]/complete/route.ts")).toContain("completeDocumentUpload(service, row.user_id");
     expect(read("src/app/api/documents/upload/complete/route.ts")).toContain("completeDocumentUpload(service, userId");
   });

@@ -34,6 +34,7 @@ import {
   WIZARD_STEP_ORDER,
   batchUploadFailedLine,
   fileProgressLine,
+  headMaterialLine,
   photoSetProgressLine,
   readingNow,
   listSegments,
@@ -77,8 +78,8 @@ import {
   DOCUMENT_UPLOAD_HINT,
 } from "@/lib/documents/upload-labels";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
-import { uploadDocumentFile } from "@/lib/documents/upload-client";
-import { buildPhotoSet, splitSelection } from "@/lib/documents/photo-set-client";
+import { useScreenAwake, useUniversalDocumentUpload } from "@/lib/documents/use-universal-upload";
+import type { PipelineItem } from "@/lib/documents/upload-engine";
 import {
   DEFAULT_FAMILIARITY,
   FAMILIARITY_OPTIONS,
@@ -147,6 +148,8 @@ type WizardMaterial = {
   fileName: string;
   sizeBytes: number | null;
   pageCount: number | null;
+  /** Büyük belgenin baş kopyası (document-head.ts): belgenin toplam sayfası; kalanı arkada okunuyor. */
+  ofPages?: number | null;
 };
 
 type TopicMeta = {
@@ -344,6 +347,8 @@ export function ExamCreateWizard({
     setMaterialsState(resolved);
   }
   const [uploading, setUploading] = useState(false);
+  // Telefondan gelenler okunurken de ekran kararmasın (seçilen dosyalarda kanca kendisi tutar).
+  useScreenAwake(uploading);
   const [processDetail, setProcessDetail] = useState<string | null>(null);
   const [processPercent, setProcessPercent] = useState<number | null>(null);
   const [processAlert, setProcessAlert] = useState<string | null>(null);
@@ -355,18 +360,13 @@ export function ExamCreateWizard({
     total: number;
     current: string | null;
   } | null>(null);
-  /** Fotoğraf seti (31 Ekim 2026): küçültülen ve okunan sayfa sayacı. */
-  const [photoProgress, setPhotoProgress] = useState<{
-    encoded: number;
-    total: number;
-    pagesRead: number;
-    reading: boolean;
-  } | null>(null);
   /**
    * Yolda olan yüklemeler (hızlı başlatma, 31 Ekim 2026): öğrenci hazır olanlarla ilerlerken bunlar sürer; kurulumda
    * kimliği bilinenler hazırlığa bekleyen olarak bağlanır, hazırlık sayfası okutup ekler.
    */
-  const inFlightRef = useRef(new Map<string, { documentId: string | null; uploaded: Promise<string | null> }>());
+  const inFlightRef = useRef(new Map<unknown, { documentId: string | null; uploaded: Promise<string | null> }>());
+  /** Büyük belgenin baş kopyası → ana belge (document-head.ts). */
+  const headOfRef = useRef(new Map<string, string>());
   /** Okuması ağ / zaman aşımıyla yarıda kalan belgeler: kurulumda bekleyen olarak gider, hazırlık sayfası sürdürür. */
   const stalledRef = useRef(new Set<string>());
   /** Konu haritasının kurulduğu belgeler: kurulum yalnız bunlarla; sonradan bitenler bekleyen. */
@@ -937,6 +937,13 @@ export function ExamCreateWizard({
   );
 
   function rememberMaterial(material: WizardMaterial) {
+    // Ana belge bitti: harita henüz kurulmadıysa baş kopyası yerine belgenin tamamı kullanılır; kurulduysa baş
+    // kopyası haritada kalır, ana belge bekleyen olarak hazırlığa eklenir (pendingUploadIds).
+    const head = [...headOfRef.current.entries()].find(([, parent]) => parent === material.id)?.[0];
+    if (head && !mappedIdsRef.current?.includes(head) && materialsRef.current.some((item) => item.id === head)) {
+      setMaterials(materialsRef.current.map((item) => (item.id === head ? material : item)));
+      return true;
+    }
     const current = materialsRef.current;
     if (current.some((item) => item.id === material.id)) {
       setMaterials(current.map((item) => (item.id === material.id ? { ...item, ...material } : item)));
@@ -954,7 +961,7 @@ export function ExamCreateWizard({
       sizeBytes: number | null;
     },
     /** Paralel toplu yüklemede dosya başına ilerleme satırı yazılmaz; "3/7 dosya hazır" satırı yeter. */
-    options: { quiet?: boolean; onPages?: (done: number, total: number) => void } = {},
+    options: { quiet?: boolean; onPages?: (done: number, total: number) => void; fastStart?: boolean } = {},
   ): Promise<PoolOutcome> {
     const quiet = options.quiet === true;
     writePendingDocProcess({
@@ -979,8 +986,10 @@ export function ExamCreateWizard({
           examDate: processExamDate,
           // Extract now; the one course outline runs when topics are requested.
           deferMap: true,
+          ...(options.fastStart ? { fastStart: true } : {}),
         }),
       onProgress: (progress) => {
+        takeHead(progress.head, input.documentId, Number(progress.pageCount) || null);
         if (options.onPages) {
           const total = Number(progress.pageCount);
           const next = Number(progress.nextPage);
@@ -1095,205 +1104,151 @@ export function ExamCreateWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount resume once
   }, []);
 
-  async function takeFile(
-    file: File | undefined,
-    /** Toplu yüklemenin parçası: "yükleniyor" durumu ve hata bildirimi topluca tutulur. */
-    batch: { quiet: boolean; failed?: string[]; onPages?: (done: number, total: number) => void } | null = null,
-  ): Promise<PoolOutcome> {
-    if (!file) return false;
-    const reject = (message: string): PoolOutcome => {
-      if (batch?.failed) batch.failed.push(file.name);
-      else toast.error(message);
-      return false;
-    };
-    if (!acceptedUpload(file)) return reject(DOCUMENT_PICK_REJECTED);
-    if (file.size > (file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? PDF_MAX_BYTES : MAX_BYTES)) {
-      return reject("PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.");
-    }
-    if (!batch) setUploading(true);
-    const flightKey = `${file.name}:${file.size}:${Math.random().toString(36).slice(2)}`;
-    let settle: (id: string | null) => void = () => {};
-    const flight = {
-      documentId: null as string | null,
-      uploaded: new Promise<string | null>((resolve) => {
-        settle = resolve;
-      }),
-    };
-    inFlightRef.current.set(flightKey, flight);
-    try {
-      const uploaded = await uploadDocumentFile(file);
-      flight.documentId = uploaded.documentId;
-      settle(uploaded.documentId);
-      // Authoritative server page/quota check before the long OCR wait.
-      if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
-        try {
-          const preflightRes = await fetch("/api/documents/preflight", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ documentId: uploaded.documentId }),
-          });
-          const preflight = (await preflightRes.json().catch(() => ({}))) as {
-            code?: string;
-            pageCount?: number;
-            freePages?: { total: number; remaining: number } | null;
-            creditUse?: { percent: number; pagesAffordable: number | null } | null;
-            fits?: boolean;
-            scannedPages?: number;
-            textPages?: number;
-            scannedPagesNote?: string;
-            quota?: { unlimited?: boolean; remaining?: number | null; tier?: string };
-            error?: string;
-          };
-          if (preflightRes.status === 402 && isFreePageLimitError(preflight)) {
-            openPaywall(preflight.error);
-            return "stop";
-          }
-          const free = preflight.freePages;
-          if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
-            toast.message(freePageCapLine(preflight.pageCount, free.remaining));
-          }
-          // Ücretlide belge sayfa başına haktan düşer (kredi sistemi v2): önceden söyle.
-          const use = preflight.creditUse;
-          if (use?.pagesAffordable != null && typeof preflight.pageCount === "number") {
-            toast.message(
-              use.pagesAffordable > 0
-                ? `Kalan hakkın bu belgenin ilk ${use.pagesAffordable} sayfasına yetiyor; kalanı için ek paket alabilirsin.`
-                : "Bu belge için hakkın kalmadı; ek paket alabilir ya da dönem yenilenince yükleyebilirsin.",
-            );
-          } else if (use && use.percent >= 3) {
-            toast.message(`Bu belge dönem hakkının yaklaşık %${use.percent}'ini kullanacak.`);
-          }
-          // Taranmış sayfa hakkı yetmese de belge reddedilmiyor (3 Ekim 2026):
-          // metinli sayfalar işlenir, hakkı aşan resim sayfaları atlanır.
-          if (preflightRes.ok && preflight.fits === false && !preflight.quota?.unlimited) {
-            const remaining = preflight.quota?.remaining ?? 0;
-            const scanned = preflight.scannedPages ?? 0;
-            toast.message(
-              `Bu PDF'in ${scanned} sayfası resim. Bu ay kalan taranmış sayfa hakkın: ${remaining}; hakkı aşan resim sayfaları okunmayacak, metinli sayfalar işlenecek.`,
-            );
-          }
-        } catch {
-          // Preflight is advisory — process path still enforces quota.
-        }
-      }
-      return await processAndRemember(
-        {
-          documentId: uploaded.documentId,
-          fileName: file.name,
-          sizeBytes: file.size,
-        },
-        { quiet: batch?.quiet === true, onPages: batch?.onPages },
-      );
-    } catch (error) {
-      return reject(error instanceof Error ? error.message : "Bağlantı hatası.");
-    } finally {
-      settle(null);
-      inFlightRef.current.delete(flightKey);
-      if (!batch) setUploading(false);
-    }
+  /**
+   * Büyük belgenin baş kopyası geldi (document-head.ts): harita henüz kurulmadıysa hemen materyal olur, öğrenci
+   * "Hazır olanlarla devam et" ile ilerler. Harita kurulduysa yok sayılır: ana belge bekleyen olarak eklenir.
+   */
+  function takeHead(raw: unknown, parentId: string, totalPages: number | null) {
+    if (!raw || typeof raw !== "object") return;
+    const head = raw as { documentId?: unknown; fileName?: unknown; pageCount?: unknown };
+    if (typeof head.documentId !== "string" || headOfRef.current.has(head.documentId)) return;
+    headOfRef.current.set(head.documentId, parentId);
+    if (mappedIdsRef.current) return;
+    rememberMaterial({
+      id: head.documentId,
+      fileName: typeof head.fileName === "string" && head.fileName ? head.fileName : "Belge",
+      sizeBytes: null,
+      pageCount: typeof head.pageCount === "number" ? head.pageCount : null,
+      ofPages: totalPages,
+    });
   }
 
-  /**
-   * Fotoğraf seti (31 Ekim 2026, ürün sahibi: "100 fotoğraf = 100 ayrı dosya çöplüğü olmasın"): seçilen fotoğraflar
-   * cihazda küçültülüp tek taranmış PDF'e girer ("Ders Notu Fotoğrafları (N Sayfa)"). Ücretli hesapta ve kurucuda
-   * çok fotoğrafta ilk sayfalar ayrı küçük parça olarak hemen gider: okunur okunmaz öğrenci "Hazır olanlarla devam
-   * et" ile ilerler, kalan parça arkada okunur ve hazırlığa eklenir. Çözülemeyen fotoğraf tek dosya olarak gider.
-   */
-  async function takePhotoSet(photos: File[], failed: string[], names: string[]) {
-    const reads = new Map<number, number>();
-    let encoded = 0;
-    let reading = false;
-    const report = () =>
-      setPhotoProgress({
-        encoded,
-        total: photos.length,
-        pagesRead: [...reads.values()].reduce((sum, value) => sum + value, 0),
-        reading,
+  /** Sunucunun sayfa/hak ön kontrolü (yalnız bilgi verir); ücretsiz sayfa hakkı dolduysa "stop". */
+  async function preflightPdf(documentId: string): Promise<PoolOutcome | null> {
+    try {
+      const preflightRes = await fetch("/api/documents/preflight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId }),
       });
-    report();
-    const parts: Promise<PoolOutcome>[] = [];
-    const { leftovers } = await buildPhotoSet(photos, {
-      fastStart: paidUploads,
-      onEncoded: (done) => {
-        encoded = done;
-        report();
-      },
-      onPart: (part) => {
-        names.push(part.file.name);
-        reading = true;
-        reads.set(part.from, 0);
-        report();
-        parts.push(
-          takeFile(part.file, {
-            quiet: true,
-            failed,
-            onPages: (done) => {
-              reads.set(part.from, Math.min(done, part.pages));
-              report();
-            },
-          }).then((outcome) => {
-            if (outcome === true) reads.set(part.from, part.pages);
-            report();
-            return outcome;
-          }),
+      const preflight = (await preflightRes.json().catch(() => ({}))) as {
+        code?: string;
+        pageCount?: number;
+        freePages?: { total: number; remaining: number } | null;
+        creditUse?: { percent: number; pagesAffordable: number | null } | null;
+        fits?: boolean;
+        scannedPages?: number;
+        textPages?: number;
+        scannedPagesNote?: string;
+        quota?: { unlimited?: boolean; remaining?: number | null; tier?: string };
+        error?: string;
+      };
+      if (preflightRes.status === 402 && isFreePageLimitError(preflight)) {
+        openPaywall(preflight.error);
+        return "stop";
+      }
+      const free = preflight.freePages;
+      if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
+        toast.message(freePageCapLine(preflight.pageCount, free.remaining));
+      }
+      // Ücretlide belge sayfa başına haktan düşer (kredi sistemi v2): önceden söyle.
+      const use = preflight.creditUse;
+      if (use?.pagesAffordable != null && typeof preflight.pageCount === "number") {
+        toast.message(
+          use.pagesAffordable > 0
+            ? `Kalan hakkın bu belgenin ilk ${use.pagesAffordable} sayfasına yetiyor; kalanı için ek paket alabilirsin.`
+            : "Bu belge için hakkın kalmadı; ek paket alabilir ya da dönem yenilenince yükleyebilirsin.",
         );
-      },
-    });
-    const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
-    names.push(...leftovers.map((file) => file.name));
-    await Promise.all([
-      ...parts,
-      leftovers.length ? runPool(leftovers, lanes, (file) => takeFile(file, { quiet: true, failed })) : null,
-    ]);
+      } else if (use && use.percent >= 3) {
+        toast.message(`Bu belge dönem hakkının yaklaşık %${use.percent}'ini kullanacak.`);
+      }
+      // Taranmış sayfa hakkı yetmese de belge reddedilmiyor (3 Ekim 2026):
+      // metinli sayfalar işlenir, hakkı aşan resim sayfaları atlanır.
+      if (preflightRes.ok && preflight.fits === false && !preflight.quota?.unlimited) {
+        const remaining = preflight.quota?.remaining ?? 0;
+        const scanned = preflight.scannedPages ?? 0;
+        toast.message(
+          `Bu PDF'in ${scanned} sayfası resim. Bu ay kalan taranmış sayfa hakkın: ${remaining}; hakkı aşan resim sayfaları okunmayacak, metinli sayfalar işlenecek.`,
+        );
+      }
+    } catch {
+      // Preflight is advisory — process path still enforces quota.
+    }
+    return null;
   }
+
+  const isPdfFile = (file: File) => file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  /** Toplu seçimde dosya başına "hazır" bildirimi ve ilerleme satırı yazılmaz; tek dosyada yazılır. */
+  const quietUploadRef = useRef(true);
+
+  /*
+    Ortak yükleme motoru (31 Ekim 2026, use-universal-upload.ts): fotoğraf seti (ücretli hesapta ilk sayfalar ayrı
+    parça), şeritler, dosya başına 3 yeniden deneme, ekranı uyanık tutma. Büyük PDF'te (fotoğraf seti parçası değilse)
+    sunucu ilk sayfaların baş kopyasını hemen döndürür.
+  */
+  const upload = useUniversalDocumentUpload(
+    { lanes: paidUploads ? PARALLEL_UPLOADS : 1, photoSet: true, fastStart: paidUploads },
+    {
+      validate: (file) => {
+        if (!acceptedUpload(file)) return DOCUMENT_PICK_REJECTED;
+        if (file.size > (isPdfFile(file) ? PDF_MAX_BYTES : MAX_BYTES)) {
+          return "PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.";
+        }
+        return null;
+      },
+      onUploadStart: (item: PipelineItem) => {
+        let settle: (id: string | null) => void = () => {};
+        const flight = {
+          documentId: null as string | null,
+          uploaded: new Promise<string | null>((resolve) => {
+            settle = resolve;
+          }),
+        };
+        inFlightRef.current.set(item.file, flight);
+        return (documentId) => {
+          flight.documentId = documentId;
+          settle(documentId);
+          if (!documentId) inFlightRef.current.delete(item.file);
+        };
+      },
+      process: async ({ documentId, item, onPages }) => {
+        try {
+          if (isPdfFile(item.file)) {
+            const stop = await preflightPdf(documentId);
+            if (stop) return stop;
+          }
+          return await processAndRemember(
+            { documentId, fileName: item.file.name, sizeBytes: item.file.size },
+            {
+              quiet: quietUploadRef.current || Boolean(item.part),
+              onPages,
+              // Büyük tek PDF'te baş kopyası; fotoğraf seti zaten istemcide bölündü.
+              fastStart: paidUploads && !item.part && isPdfFile(item.file),
+            },
+          );
+        } finally {
+          inFlightRef.current.delete(item.file);
+        }
+      },
+    },
+  );
 
   async function takeFiles(list: FileList | File[] | undefined) {
     // Belge sayısında ürün sınırı yok (31 Ekim 2026): seçilen her dosya alınır; hak dolunca durulur.
     const batch = list ? [...list] : [];
     if (!batch.length) return;
-    const { photos, others } = splitSelection(batch);
-    // Ücretli hesapta ve kurucuda en çok altı dosya aynı anda (upload-batch.ts); ücretsizde sırayla.
-    const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
     const existing = new Set(materialsRef.current.map((material) => material.id));
-    const reading: string[] = [];
-    const failed: string[] = [];
-    const photoNames: string[] = [];
-    let done = 0;
-    const report = () =>
-      setFileProgress({ done, total: others.length, current: readingNow(reading) });
-    if (others.length) report();
+    quietUploadRef.current = batch.length > 1;
     setUploading(true);
     try {
-      await Promise.all([
-        photos.length ? takePhotoSet(photos, failed, photoNames) : null,
-        others.length
-          ? runPool(others, lanes, async (file) => {
-              reading.push(file.name);
-              report();
-              const outcome = await takeFile(file, { quiet: batch.length > 1, failed });
-              reading.splice(reading.indexOf(file.name), 1);
-              if (outcome === true) done += 1;
-              report();
-              return outcome;
-            })
-          : null,
-      ]);
+      const result = await upload.run(batch);
       // Seçim sırası: fotoğraf seti seçimdeki ilk fotoğrafın yerinde (kursun ilk belgesi sırayla belirlenir).
-      const firstPhoto = photos.length ? batch.indexOf(photos[0]!) : -1;
-      const firstOther = others.length ? batch.indexOf(others[0]!) : -1;
-      const otherNames = others.map((file) => file.name);
-      const order = firstPhoto >= 0 && (firstOther < 0 || firstPhoto < firstOther)
-        ? [...photoNames, ...otherNames]
-        : [...otherNames, ...photoNames];
-      if (lanes > 1 || photos.length) {
-        setMaterials((current) => inSelectionOrder(current, existing, order));
-      }
+      setMaterials((current) => inSelectionOrder(current, existing, result.order));
       // Tek bildirim: yüklenemeyen dosyalar (okunamayanlar "Tekrar dene" listesinde ayrıca durur).
-      if (failed.length) toast.error(batchUploadFailedLine(failed));
+      if (batch.length === 1 && result.failed.length) toast.error(result.firstError ?? "Bağlantı hatası.");
+      else if (result.failed.length) toast.error(batchUploadFailedLine(result.failed));
     } finally {
       setUploading(false);
-      setFileProgress(null);
-      setPhotoProgress(null);
     }
   }
 
@@ -1353,7 +1308,7 @@ export function ExamCreateWizard({
       ...materialsRef.current.map((material) => material.id),
       ...[...inFlightRef.current.values()].map((flight) => flight.documentId),
       ...stalledRef.current,
-    ].filter((id): id is string => typeof id === "string" && !known.has(id) && !failedIds.has(id));
+    ].filter((id): id is string => typeof id === "string" && !known.has(id) && !failedIds.has(id) && !headOfRef.current.has(id));
     return [...new Set(ids)];
   }
 
@@ -1686,9 +1641,14 @@ export function ExamCreateWizard({
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
             <p className="apw-drop-title">Dosyanı buraya bırak</p>
             <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
-            {photoProgress ? (
+            {upload.photoProgress ? (
               <p className="apw-drop-hint" role="status" aria-live="polite">
-                {photoSetProgressLine(photoProgress)}
+                {photoSetProgressLine(upload.photoProgress)}
+              </p>
+            ) : null}
+            {upload.fileProgress && upload.fileProgress.total > 1 ? (
+              <p className="apw-drop-hint" role="status" aria-live="polite">
+                {fileProgressLine(upload.fileProgress.done, upload.fileProgress.total, readingNow(upload.fileProgress.reading))}
               </p>
             ) : null}
             {fileProgress && fileProgress.total > 0 ? (
@@ -1726,7 +1686,9 @@ export function ExamCreateWizard({
           {materials.length ? (
             <ul className="apw-materials">
               {materials.map((material) => {
-                const detail = materialDetailLine(material);
+                const detail = material.ofPages
+                  ? headMaterialLine(material.pageCount ?? 0, material.ofPages)
+                  : materialDetailLine(material);
                 return (
                   <li key={material.id} className="apw-doc-chip">
                     <FileText className="h-4 w-4 shrink-0" aria-hidden />

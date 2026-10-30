@@ -7,15 +7,18 @@ export async function purgeDeletedDocument(service: SupabaseClient, userId: stri
   let step = "document_lookup";
   try {
     const { data: doc, error } = await service.from("documents")
-      .select("id,storage_path,deleted_at").eq("id", documentId).eq("user_id", userId).maybeSingle();
+      .select("*").eq("id", documentId).eq("user_id", userId).maybeSingle();
     if (error) throw new Error(step);
     if (doc) {
       if (!doc.deleted_at) throw new Error("document_not_deleted");
-      step = "storage_path";
-      if (!isOwnedDocumentPath(doc.storage_path, userId, documentId)) throw new Error(step);
-      step = "storage_remove";
-      const { error: storageError } = await service.storage.from("documents").remove([doc.storage_path]);
-      if (storageError) throw new Error(step);
+      // Hızlı başlatmanın baş kopyası ana belgenin dosyasını paylaşır (document-head.ts): dosya ana belgeyle gider.
+      if (!doc.part_of) {
+        step = "storage_path";
+        if (!isOwnedDocumentPath(doc.storage_path, userId, documentId)) throw new Error(step);
+        step = "storage_remove";
+        const { error: storageError } = await service.storage.from("documents").remove([doc.storage_path]);
+        if (storageError) throw new Error(step);
+      }
       // Repeat for recovery from work that began before the soft-delete transaction.
       step = "artifacts_remove";
       const { error: prepError } = await service.from("exam_preps").delete().eq("user_id", userId).eq("document_id", documentId);

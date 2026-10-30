@@ -215,6 +215,13 @@ export function photoSetProgressLine(progress: { encoded: number; total: number;
     : head;
 }
 
+/** Büyük belgenin baş kopyası (31 Ekim 2026, document-head.ts): ilk sayfalar hazır, kalanı arkada okunuyor. */
+export function headMaterialLine(ready: number, total: number): string {
+  return total > ready
+    ? `İlk ${ready} / ${total} sayfa hazır · kalanı arkada okunuyor, hazırlığına eklenecek`
+    : `${ready} sayfa`;
+}
+
 /** Telefon panelinde gelen dosya sayısı (31 Ekim 2026: kod artık çok dosya alır). */
 export function phoneReceivedLine(count: number): string {
   return `Telefondan ${count} dosya geldi. Göndermeye devam edebilirsin; bitince bu pencereyi kapat.`;

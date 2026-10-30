@@ -215,7 +215,11 @@ export async function processDocument(
       }
       claimedImages.push(image);
     }
-    const attached = await attachOfficeFigures(read.pages, claimedImages);
+    // Paralel ve (ücretli hesapta) hızlı işlemle (31 Ekim 2026): 40 resimli sunu sırayla ~10 dk sürüyordu.
+    const attached = await attachOfficeFigures(read.pages, claimedImages, {
+      fast: await fastAllowedFor(service, userId),
+      deadlineMs: Date.now() + 240_000,
+    });
     recordVision(attached.usage);
     const missed = claimedImages.length - attached.readCount;
     if (missed > 0) {

@@ -60,6 +60,8 @@ export default async function DokumanlarPage() {
     )
     .eq("user_id", user.id)
     .is("deleted_at", null)
+    // Hızlı başlatmanın gizli baş kopyası listelenmez (document-head.ts).
+    .is("part_of", null)
     .order("created_at", { ascending: false })
     .limit(30);
 

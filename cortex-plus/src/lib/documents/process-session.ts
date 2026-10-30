@@ -127,6 +127,8 @@ export type ProcessPost = (body: {
   prepId?: string | null;
   /** The student pressed "Tekrar dene" on a map that ran out of attempts. */
   retryMap?: boolean;
+  /** Kurulumda büyük PDF: ilk sayfaların baş kopyası hemen döner (document-head.ts). */
+  fastStart?: boolean;
 }) => Promise<{ status: number; body: Record<string, unknown> }>;
 
 export const postDocumentProcess: ProcessPost = async ({
@@ -137,6 +139,7 @@ export const postDocumentProcess: ProcessPost = async ({
   courseDocumentIds,
   prepId,
   retryMap,
+  fastStart,
 }) => {
   const response = await fetch("/api/documents/process", {
     method: "POST",
@@ -149,6 +152,7 @@ export const postDocumentProcess: ProcessPost = async ({
       ...(courseDocumentIds?.length ? { courseDocumentIds } : {}),
       ...(prepId ? { prepId } : {}),
       ...(retryMap ? { retryMap: true } : {}),
+      ...(fastStart ? { fastStart: true } : {}),
     }),
   });
   const raw = await response.json().catch(() => ({}));
