@@ -1,6 +1,6 @@
 import type { LessonBlock, LessonScreen } from "@/lib/learning/lesson-v3";
 import { optionKey } from "@/lib/learning/question-integrity";
-import { SAME_KIND_DISTRACTOR_RULE } from "@/lib/learning/teaching-rubric";
+import { BLOCK_ROLE_RULE, SAME_KIND_DISTRACTOR_RULE } from "@/lib/learning/teaching-rubric";
 
 /**
  * Dersin hafif doğrulayıcısı (30 Ekim 2026, ürün sahibinin kararları: "bütün kavramlara uzat" ve "doğrulayıcı tekrar
@@ -61,7 +61,8 @@ export function lessonSanitySystem(mode: "document" | "topic"): string {
     `${SAME_KIND_DISTRACTOR_RULE}\n` +
     "2) TEKRAR: Aynı ekranda aynı bilgiyi ÜÇÜNCÜ kez (ya da daha fazla) veren kutuları bul. Yalnız [çıkarılabilir] diye " +
     "işaretli kutular çıkarılabilir; bilginin ilk iki verilişi kalır. Yeni bir şey öğreten kutu (başka örnek, başka ayrım, " +
-    "başka sayı) tekrar değildir. Emin değilsen çıkarma.\n\n" +
+    "başka sayı) tekrar değildir. Emin değilsen çıkarma.\n" +
+    `${BLOCK_ROLE_RULE}\n\n` +
     "Yalnız JSON. Değiştirdiğin her soru için bütün alanları yeniden yaz: options (aynı sayıda, aynı sırada), answerIndex " +
     "(doğru şıkkın 0'dan sıra numarası), optionWhy (her şık için bir cümle, aynı sırada), explanation (doğrunun nedeni; " +
     "şıklara harfle ya da sırayla gönderme yapma), why (neyi neden değiştirdin, kısa). Değişiklik yoksa boş listeler.\n" +

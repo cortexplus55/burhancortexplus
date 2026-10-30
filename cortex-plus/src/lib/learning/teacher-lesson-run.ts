@@ -17,6 +17,7 @@ import {
   DIAGRAM_COMPLETION_SYSTEM,
   coverageCompletionUserPrompt,
   coverageGapCount,
+  dedupScreens,
   diagramCompletionUserPrompt,
   dropRepeatedChecks,
   dropRepeatedScreens,
@@ -139,9 +140,11 @@ export async function completeLessonCoverage(
     if (!answer) return { verdict: "timeout", screens: [], before, after: before };
     const parsed = parseTeacherLesson(parseModelJson(answer.text), input.upcomingTopics);
     if (!parsed?.screens.length) return { verdict: "unparsed", screens: [], before, after: before };
-    let extra = settleCheckKeys(
-      dropRepeatedScreens(lesson.screens, dropRepeatedChecks(lesson.screens, parsed.screens.slice(0, COVERAGE_COMPLETION_SCREENS))),
-    );
+    let extra = dedupScreens(
+      settleCheckKeys(
+        dropRepeatedScreens(lesson.screens, dropRepeatedChecks(lesson.screens, parsed.screens.slice(0, COVERAGE_COMPLETION_SCREENS))),
+      ),
+    ).screens;
     if (extra.length && input.sanity !== false) {
       const sanity = await runLessonSanity(
         (system, user) => io.write(system, user, () => undefined).then((reply) => reply.text),
@@ -465,14 +468,22 @@ export async function teacherLessonPipeline(
         if (outcome.closing) publishedClosing = outcome.closing;
         // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026); anahtar açıklamasıyla
         // hizalanır, görsele gönderen soru çıkar (29 Ekim 2026) — karıştırmadan önce.
-        const fresh = settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens)), {
-          concept: parts[index]?.concept,
-        });
+        // Ekran içi tekrar süzgeci (30 Ekim 2026): üçüncü kez geçen örnek ya da cümle süs kutusundan silinir.
+        const deduped = dedupScreens(
+          settleCheckKeys(dropRepeatedScreens(published, dropRepeatedChecks(published, outcome.screens)), {
+            concept: parts[index]?.concept,
+          }),
+        );
+        const fresh = deduped.screens;
         // Öğretim işaretleri (30 Ekim 2026): ekran içi tekrar, üstteki cümleyi geri soran soru, türü tutmayan çeldirici.
         // Tek geçişte yapı denetimi çağrılmıyor; ölçmeden kural değişmesin diye günlüğe yazılır, metne dokunulmaz.
         const flags = lessonTeachingFlags(fresh, input);
-        if (flags.echo || flags.twin || flags.echoedCheck || flags.offKind) {
-          console.info("teacher_lesson_teaching_flags", { concept: parts[index]?.concept?.slice(0, 60) ?? null, ...flags });
+        if (flags.echo || flags.twin || flags.echoedCheck || flags.offKind || deduped.dropped) {
+          console.info("teacher_lesson_teaching_flags", {
+            concept: parts[index]?.concept?.slice(0, 60) ?? null,
+            ...flags,
+            deduped: deduped.dropped,
+          });
         }
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
@@ -544,9 +555,11 @@ export async function teacherLessonPipeline(
       if (repaired) {
         // Öğrenci yayımlanan ekranları karışık şık sırasıyla görüp cevapladı; onarım yalnız sona ekler.
         // Dersi onarımla değiştirmek şık sırasını sıfırlıyor, doğru cevap yanlış sayılıyordu (V6).
-        const extra = settleCheckKeys(
-          dropRepeatedScreens(published, dropRepeatedChecks(published, repaired.screens.slice(finished.screens.length))),
-        );
+        const extra = dedupScreens(
+          settleCheckKeys(
+            dropRepeatedScreens(published, dropRepeatedChecks(published, repaired.screens.slice(finished.screens.length))),
+          ),
+        ).screens;
         const merged: LessonV3 = {
           ...finished,
           screens: [

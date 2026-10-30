@@ -31,6 +31,7 @@ import {
 import { numbersIn, sameNumber } from "@/lib/learning/result-values";
 import { enumeratedCountIssue, singleAnswerIntegrityIssues } from "@/lib/learning/question-integrity";
 import {
+  BLOCK_ROLE_RULE,
   KEY_CONSISTENCY_RULE,
   SAME_KIND_DISTRACTOR_RULE,
   SELF_CONTAINED_STEM_RULE,
@@ -42,6 +43,7 @@ import {
   WHY_NOTE_RULE,
 } from "@/lib/learning/teaching-rubric";
 import { offKindDistractors } from "@/lib/learning/distractor-kind";
+import { removableBlock } from "@/lib/learning/lesson-sanity";
 import { contentTokens, rootCoverage } from "@/lib/learning/lexical-overlap";
 import { splitTableCells } from "@/lib/learning/interval-text";
 import { backboneBlock, lessonBackbone, uncoveredBackbone } from "@/lib/learning/lesson-backbone";
@@ -208,12 +210,14 @@ const RULE_TOPIC =
 const EXAMPLE_DOCUMENT =
   "5) 'example' bloğu yalnız kaynakta çözümlü bir örnek ya da hesap varsa, ait olduğu kavramın ekranında; verilen, " +
   "istenen, adımlar ve birimli sonuç kaynaktan.\n" +
-  "6) commonMistake: kaynağa göre öğrencinin yapacağı somut hata ve düzeltmesi (öğüt değil, hata).\n";
+  "6) commonMistake: kaynağa göre öğrencinin yapacağı somut hata ve düzeltmesi (öğüt değil, hata); derste verilen " +
+  "örneği aynı sayılarla yeniden anlatmaz.\n";
 
 const EXAMPLE_TOPIC =
   "5) 'example' bloğu: konu hesap ya da uygulama içeriyorsa kendin kurduğun basit, adım adım doğrulanabilir bir " +
   "çözümlü örnek (verilen, istenen, adımlar, birimli sonuç), ait olduğu kavramın ekranında; değilse yazma.\n" +
-  "6) commonMistake: öğrencilerin bu konuda gerçekten yaptığı somut hata ve düzeltmesi (öğüt değil, hata).\n";
+  "6) commonMistake: öğrencilerin bu konuda gerçekten yaptığı somut hata ve düzeltmesi (öğüt değil, hata); derste " +
+  "verilen örneği aynı sayılarla yeniden anlatmaz.\n";
 
 /**
  * Renkli vurgu, sınav kutuları ve ezber kodu (18 Ekim 2026, ürün sahibinin kararı; Pediatri
@@ -371,13 +375,16 @@ export const TEACHER_SYSTEM =
   "başlık 'Örnek vaka: ' ile başlar ve vakayı adlandırır. Kısa, somut bir durum kur (bir hasta, bir ülke, bir açı, bir " +
   "işlem): durumun sonucunu kavram belirler — kavram değişse sonuç değişirdi. İki kavram karışıyorsa vakada ikisi aynı " +
   "olayda FARKLI sonuç versin (biri değişir, öteki değişmez). Vakadaki her sayı, eşik ve sonuç kaynakta geçer; kaynakta " +
-  "olmayan sayı, kural, yaş ya da sonuç yazma. Vaka tanımı tekrar etmez. Örnek biçimi: 'Resmi nikâh memuru önünde " +
+  "olmayan sayı, kural, yaş ya da sonuç yazma. Vaka tanımı tekrar etmez ve metindeki örneği yeniden anlatmaz: " +
+  "metinde verilen sayılar ya da durum vakada aynen geçmez; vaka başka bir durum kurar. Kaynakta başka sayı yoksa " +
+  "vaka sayısız, nitel bir durumla kurulur (yeni sayı uydurma). Örnek biçimi: 'Resmi nikâh memuru önünde " +
   "yapılmayan bir evlilik hiç doğmamıştır: yokluk; memur önünde ama evlenmesi yasak akrabalar arasında yapılsaydı " +
   "mutlak butlan olurdu.' Bu cümleyi kopyalama; kendi konunun kavramları için benzer bir vaka kur. Konuyu yalnızca " +
   "uygulayan birini anlatan durum ('ebeveyn ölçümleri eğriye işler', 'öğrenci tanımı ezberler') vaka sayılmaz. " +
   "Kuralı 'Bir kişi …' diye yeniden söyleyen kutu da vaka değildir ('Bir kişi milletvekili seçildikten sonra " +
   "yeterliliği olmadığı anlaşılırsa vekilliği düşer' kuralın kendisi): vaka en az bir somut ayrıntı (yaş, olay, " +
   "sıra, iki kişinin farkı) ve o ayrıntıdan çıkan sonucu taşır.\n\n" +
+  `${BLOCK_ROLE_RULE}\n\n` +
   "AKIŞ:\n" +
   "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle. 'Önce dene' sorusundan önce " +
   "okunur: o sorunun cevabını vermez (soru 'temel risk etken mi?' diye soruyorsa kanca 'asıl risk sıvı kaybı' demez).\n" +
@@ -429,7 +436,8 @@ export const TEACHER_SYSTEM =
   "eş anlamlı sözcüklerle yeniden sorma; öğrenci onu az önce okudu); ifade yanlışsa 'corrected' alanına doğrusunu " +
   "yaz. review'ın explanation'ı da şıklara sırasıyla gönderme yapmaz.\n" +
   EXAMPLE_DOCUMENT +
-  "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler, anahtar kelimeleriyle.\n" +
+  "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler (kural, eşik, formül), anahtar kelimeleriyle; " +
+  "derste verilen sayısal örneği yeniden anlatmaz.\n" +
   "8) nextFocus yalnız verilen SIRADAKİ KONULAR listesinden, aynen; liste boşsa boş dizi.\n\n" +
   "YAZMA: 'Kaynak:', sayfa numarası, 's.12', 'PDF', 'bu derste ... öğreneceğiz' gibi boş cümle, kendini tekrar, " +
   "iç not. Metinde başlığı tekrar etme. Bilgiyi kaynağa atfetme ('kaynakta … diye açıklanır', 'metne göre', " +
@@ -1767,6 +1775,132 @@ export function echoedCheck(screen: Pick<LessonScreen, "blocks">): string | null
     if (hit) return hit;
   }
   return null;
+}
+
+/*
+  Ekran içi tekrar süzgeci (30 Ekim 2026, ürün sahibinin kararı). Canlı "Farklı anlat" dersinde kaynağın sınav
+  ipucundaki sayısal örnek bir ekranda metin, sınav ipucu ve örnek vakada aynı sayılarla duruyordu; ölçü
+  (`screenEcho`) örnek vakayı hiç saymıyor, yalnız günlüğe yazıyordu. Süzgeç yayımdan önce, model çağırmadan:
+  aynı örnek ya da cümle ekranda üçüncü kez (ya da daha çok) geçiyorsa tekrarı SÜS kutusundan siler. Metin, tablo,
+  soru, formül, adım, şema, çözümlü örnek ve korunan notlar (sınav ipucu, akılda tut, uyarı, ezber kodu, "Neden
+  böyle", "Genel bilgi") hiç silinmez ama sayılır. Sınav tuzağı kartı da silinmez: yanlış inancı gösteren tek kutu
+  (canlı derslerde tahvilin yönü, reel faizin işareti); kısalığını yazar kuralı (`BLOCK_ROLE_RULE`) tutar. Önce
+  yalnız yeniden anlatan kutu gider (akılda tutma, sonra not ve örnek vaka), en son kart ızgarası ve kaydırma; aynı
+  türde sondaki önce. Kart ızgarası ve kaydırma bir aileyi birlikte gösterir: tek kartı söküp aileyi eksik bırakmak
+  yerine, öğelerinin en az yarısı tekrarsa bütünüyle gider, yoksa dokunulmaz. Kod yazmaz, yalnız siler.
+
+  Aynı örnek: iki birimin birer cümlesi en az iki sayıyı ortak taşıyor ("%60'tan %40'a" ile "enflasyon %60, sonra
+  %40"). Tek sayı (bir eşik) örnek değildir. Aynı cümle: içerik sözcüklerinin %85'i aynı kökle (`echoes`).
+*/
+
+/** Bir ekrandan en çok bu kadar kutu silinir. */
+export const SCREEN_DEDUP_MAX_DROPS = 3;
+
+/** Silme sırası: önce yalnız yeniden anlatan kutu. Sınav tuzağı listede yok (sayılır, silinmez). */
+const DEDUP_DROP_ORDER: LessonBlock["type"][] = ["memory_hook_card", "note", "cards", "comparison_carousel"];
+
+type DedupUnit = { block: number; text: string; numberGroups: number[][] };
+
+/** Cümle cümle sayılar; en az iki farklı sayı taşıyan cümle bir örnektir. */
+function numberGroups(text: string): number[][] {
+  const groups: number[][] = [];
+  for (const sentence of text.split(/(?<=[.!?;])\s+|\n+/u)) {
+    const numbers: number[] = [];
+    for (const value of numbersIn(sentence)) if (!numbers.some((seen) => sameNumber(seen, value))) numbers.push(value);
+    if (numbers.length >= 2) groups.push(numbers);
+  }
+  return groups;
+}
+
+function dedupUnit(block: number, text: string): DedupUnit {
+  const clean = text.replace(/==|\*\*/g, "");
+  return { block, text: clean, numberGroups: numberGroups(clean) };
+}
+
+/** Bloğun tekrar birimleri. Soru ve şemalar sayılmaz; ezber kodu ve "Neden böyle / Genel bilgi" ayrı iş görür. */
+function dedupUnits(block: LessonBlock, index: number): DedupUnit[] {
+  switch (block.type) {
+    case "text":
+      return [dedupUnit(index, block.text)];
+    case "table":
+      return block.table.rows.map((row) => dedupUnit(index, row.join(" ")));
+    case "example":
+      return [
+        dedupUnit(
+          index,
+          [block.example.prompt, ...(block.example.givens ?? []), ...(block.example.steps ?? []), block.example.result ?? "", block.example.solution ?? ""].join(" "),
+        ),
+      ];
+    case "note":
+      return block.note.tone === "mnemonic" || block.note.tone === "general" ? [] : [dedupUnit(index, block.note.body)];
+    case "cards":
+      return block.cards.map((card) => dedupUnit(index, `${card.title} ${card.body}`));
+    case "comparison_carousel":
+      return block.carousel.slides.map((slide) => dedupUnit(index, [slide.title, slide.body, ...(slide.points ?? [])].join(" ")));
+    case "memory_hook_card":
+      return [dedupUnit(index, block.hook.body)];
+    case "exam_trap_card":
+      return [dedupUnit(index, [block.trap.wrong, block.trap.right, block.trap.tell ?? ""].join(" "))];
+    default:
+      return [];
+  }
+}
+
+/** Birimin cümleleri; kısa kart gövdesi tek cümle sayılır. */
+function unitSentences(text: string): string[] {
+  const sentences = sentencesOf(text);
+  return sentences.length ? sentences : contentTokens(text).length >= 4 ? [text] : [];
+}
+
+/** İki birim aynı örneği ya da aynı cümleyi taşıyor mu. */
+function sameMotif(a: DedupUnit, b: DedupUnit): boolean {
+  const sharedExample = a.numberGroups.some((group) =>
+    b.numberGroups.some((other) => group.filter((value) => other.some((item) => sameNumber(value, item))).length >= 2),
+  );
+  if (sharedExample) return true;
+  return unitSentences(a.text).some((sentence) => echoes(sentence, b.text)) || unitSentences(b.text).some((sentence) => echoes(sentence, a.text));
+}
+
+export type ScreenDedup = { screen: LessonScreen; dropped: number };
+
+/** Ekranda üçüncü kez geçen örneği ya da cümleyi süs kutusundan siler. Tekrar yoksa ekran aynen döner. */
+export function dedupWithinScreen(screen: LessonScreen): ScreenDedup {
+  const units = screen.blocks.flatMap((block, index) => dedupUnits(block, index));
+  if (units.length < 3) return { screen, dropped: 0 };
+  const candidates = screen.blocks
+    .map((block, index) => ({ block, index, rank: DEDUP_DROP_ORDER.indexOf(block.type) }))
+    .filter((item) => item.rank >= 0 && removableBlock(item.block))
+    .sort((a, b) => a.rank - b.rank || b.index - a.index);
+  const droppedBlocks = new Set<number>();
+  for (const { index } of candidates) {
+    if (droppedBlocks.size >= SCREEN_DEDUP_MAX_DROPS) break;
+    const own = units.filter((unit) => unit.block === index);
+    if (!own.length) continue;
+    // Bir birim, kendi kutusu dışında hâlâ duran en az iki kutuda daha geçiyorsa tekrardır.
+    const repeated = own.filter(
+      (unit) =>
+        new Set(
+          units
+            .filter((other) => other.block !== index && !droppedBlocks.has(other.block) && sameMotif(unit, other))
+            .map((other) => other.block),
+        ).size >= 2,
+    ).length;
+    // Tek birimli kutu tekrarsa gider; kart ızgarası ve kaydırma öğelerinin en az yarısı tekrarsa bütünüyle gider.
+    if (repeated > 0 && repeated * 2 >= own.length) droppedBlocks.add(index);
+  }
+  if (!droppedBlocks.size) return { screen, dropped: 0 };
+  return { screen: { ...screen, blocks: screen.blocks.filter((_, index) => !droppedBlocks.has(index)) }, dropped: droppedBlocks.size };
+}
+
+/** Ekranların hepsine `dedupWithinScreen`; silinen birim sayısıyla. */
+export function dedupScreens(screens: readonly LessonScreen[]): { screens: LessonScreen[]; dropped: number } {
+  let dropped = 0;
+  const out = screens.map((screen) => {
+    const result = dedupWithinScreen(screen);
+    dropped += result.dropped;
+    return result.screen;
+  });
+  return { screens: out, dropped };
 }
 
 /** Çeldirici türünün okunduğu metin: konunun kaynak sayfaları ve ekranın kendisi (belgesiz derste yalnız ekran). */
