@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { MathText } from "@/components/learning/math-text";
-import { formatSourceSections } from "@/lib/ai/source-sections";
+import { formatSourceSections, generalOnlyAnswer } from "@/lib/ai/source-sections";
 import { splitTutorChrome, type ReplyChip, type ReplyQuote } from "@/lib/learning/tutor-reply";
 import { SOCRATIC_QUICK_CHIPS, type TutorStyle } from "@/lib/learning/tutor-style";
 
@@ -176,9 +176,10 @@ export function TutorReplyView({
         </details>
       ) : null}
       {view.followUp ? <p className="cp-tutor-followup">{view.followUp}</p> : null}
-      {(view.citations.length > 0 || view.historyCitations.length > 0) ? (
+      {/* Yalnız genel bilgiyle verilen cevabın altında belge sayfa çipi durmaz (30 Ekim 2026, canlı tur). */}
+      {((view.citations.length > 0 && !generalOnlyAnswer(content)) || view.historyCitations.length > 0) ? (
         <div className="cp-tutor-cites">
-          {view.citations.map((item) => {
+          {(generalOnlyAnswer(content) ? [] : view.citations).map((item) => {
             const raw = `${item.documentName}${item.pageNumber != null ? ` · ${item.slide ? "slayt" : "s."} ${item.pageNumber}` : ""}`;
             const label = raw.length > 24 ? `${raw.slice(0, 23)}…` : raw;
             return (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import type { ActionCode } from "@/lib/env";
@@ -80,9 +80,9 @@ export function StudioFrame({
  * kutu ne yazacağını bilmeyen öğrenciyi orada bırakıyordu — stüdyoya girip
  * hiçbir şey yazmadan çıkmak en kolay yoldu.
  *
- * Şimdi öğretmen soruyu soruyor ve üç somut örnek veriyor. Örneğe dokunmak
- * doğrudan başlatıyor; yazmak isteyen için kutu duruyor. `onSubmit` sözleşmesi
- * değişmedi, o yüzden altı stüdyo da tek yerden dönüştü.
+ * Şimdi öğretmen soruyu soruyor ve üç somut örnek veriyor. Örneğe dokunmak konuyu kutuya yazar ve düğmeye
+ * odaklanır; üretim düğmeyle başlar (30 Ekim 2026, canlı tur: dokunuş anında başlatınca öğrenci sayıyı ya da
+ * belgeyi seçmeden hak harcıyordu). `onSubmit` sözleşmesi değişmedi, o yüzden altı stüdyo da tek yerden dönüştü.
  */
 export function StudioEntry({
   tool,
@@ -109,6 +109,7 @@ export function StudioEntry({
   const intro = STUDIO_INTRO[tool];
   const chips = suggestions?.length ? suggestions : intro.suggestions;
   const [draft, setDraft] = useState(initialTopic);
+  const submitRef = useRef<HTMLButtonElement>(null);
 
   function start(topic: string) {
     const clean = topic.trim();
@@ -147,8 +148,12 @@ export function StudioEntry({
           <button
             key={suggestion}
             type="button"
-            className="ls-chip"
-            onClick={() => start(suggestion)}
+            className={cn("ls-chip", draft.trim() === suggestion && "is-on")}
+            aria-pressed={draft.trim() === suggestion}
+            onClick={() => {
+              setDraft(suggestion);
+              submitRef.current?.focus();
+            }}
           >
             {suggestion}
           </button>
@@ -170,6 +175,7 @@ export function StudioEntry({
           autoComplete="off"
         />
         <button
+          ref={submitRef}
           type="submit"
           className="ls-cta"
           disabled={draft.trim().length < 3}
@@ -225,6 +231,7 @@ export function StudioResults({
   onAgain,
   onNew,
   reviewHref,
+  children,
 }: {
   tool: StudioToolId;
   topic: string;
@@ -235,6 +242,8 @@ export function StudioResults({
   onNew: () => void;
   /** Soru soru inceleme sayfası (yazılı deneme); verilirse ilk düğme o olur. */
   reviewHref?: string;
+  /** Sonucun altında, düğmelerden önce: kaçırılanların listesi gibi. */
+  children?: ReactNode;
 }) {
   const next = STUDIO_NEXT[tool];
   const isPlus = Boolean(useStudentShellAccount()?.isPremium);
@@ -248,6 +257,7 @@ export function StudioResults({
       {scoreLabel ? <div className="ls-score">{scoreLabel}</div> : null}
       <h2>{title}</h2>
       <p>{lead}</p>
+      {children}
       <div className="ls-actions">
         {reviewHref ? (
           <Link href={reviewHref} className="ls-cta">

@@ -6,6 +6,7 @@ import { ExamQuestionReviewClient } from "@/components/parity/exam-question-revi
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
+import { rowVerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 
 export const metadata = { title: "Soru inceleme" };
 
@@ -94,7 +95,15 @@ export default async function ExamQuestionReviewPage({
     feedback: reviewFeedback(r.feedback),
   }));
 
-  const wrongCount = mappedReviews.filter((r) => !r.is_correct).length;
+  // Deftere düşen sorular doğru olmayanlardır; ama "yanlış" diye sayılmaz (30 Ekim 2026, canlı tur: 1 yanlış + 6 boş
+  // "7 yanlışın" diye yazıyordu). Sayım sonuç sayfasıyla aynı işlevden.
+  const counts = rowVerdictCounts(mappedReviews);
+  const wrongCount = counts.wrong + counts.blank + counts.partial;
+  const notebookParts = [
+    counts.wrong ? `${counts.wrong} yanlış` : "",
+    counts.blank ? `${counts.blank} boş` : "",
+    counts.partial ? `${counts.partial} kısmen` : "",
+  ].filter(Boolean);
   const elapsed = attempt
     ? mockElapsedLabel(
         exam.started_at as string | null,
@@ -150,7 +159,7 @@ export default async function ExamQuestionReviewPage({
               href="/yanlislarim"
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground transition-colors hover:bg-action-hover"
             >
-              {wrongCount} yanlışın deftere düştü — tekrar et
+              {wrongCount} soru tekrar defterine düştü ({notebookParts.join(", ")}) — tekrar et
             </Link>
           ) : null}
         </section>

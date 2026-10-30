@@ -219,7 +219,7 @@ describe("Paket C · şema etiketleri çakışmaz", () => {
     const style = labelStyle({ x: 80, y: 64, maxW: 102 });
     expect(style.maxWidth).toBe("17.00%");
     expect(style.left).toBe("13.33%");
-    expect(read("src/styles/exam-lesson-steps.css")).toMatch(/\.als-diagram-label \{[\s\S]*overflow-wrap: anywhere/);
+    expect(read("src/styles/diagram-card.css")).toMatch(/\.als-diagram-label \{[\s\S]*overflow-wrap: anywhere/);
   });
 });
 

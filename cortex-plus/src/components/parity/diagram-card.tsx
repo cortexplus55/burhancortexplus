@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { DiagramKind, LessonBlock } from "@/lib/learning/lesson-v3";
+import "@/styles/diagram-card.css";
 
 /**
  * Parametrik ders şeması. Model etiket ve sayı yazar; çizim burada kurulur.

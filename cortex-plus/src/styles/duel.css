@@ -584,3 +584,26 @@
 .cp-duel-versus-rows .is-none {
   color: var(--c-muted, #9aa3b8);
 }
+
+/* Oyun öncesi 3-2-1 (30 Ekim 2026): ilk sorunun süresi öğrenci hazır olunca başlar. */
+.cp-duel-countdown-kicker {
+  margin: 0;
+  text-align: center;
+  font-size: var(--t-sm, 0.875rem);
+  color: var(--cp-muted);
+}
+
+.cp-duel-countdown {
+  margin: 0.5rem 0;
+  text-align: center;
+  font-size: 4rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-duel-countdown-note {
+  margin: 0;
+  text-align: center;
+  color: var(--cp-muted);
+}

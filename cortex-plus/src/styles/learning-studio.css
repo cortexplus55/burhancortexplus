@@ -758,6 +758,44 @@
   font-size: 2.4rem;
 }
 
+/* Doğru/yanlış sonucunda kaçırılan önermeler (30 Ekim 2026). */
+.ls-missed {
+  display: grid;
+  gap: 0.6rem;
+  width: 100%;
+  margin: 0.4rem 0 0.2rem;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.ls-missed li {
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--cp-border, #303030);
+  border-radius: 14px;
+  background: var(--cp-surface, #141414);
+}
+
+.ls-results .ls-missed-claim {
+  margin: 0;
+  color: var(--cp-text, #fff);
+  font-weight: 600;
+}
+
+.ls-missed-claim span {
+  margin-right: 0.35rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-action, #4353f3) 22%, transparent);
+  font: var(--t-label-13);
+}
+
+.ls-results .ls-missed-why {
+  margin: 0.35rem 0 0;
+  color: var(--cp-muted, #a3a3a3);
+}
+
 .ls-results h2 {
   font-family: var(--ls-display);
   font-size: clamp(1.7rem, 4vw, 2.3rem);

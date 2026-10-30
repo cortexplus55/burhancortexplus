@@ -11,6 +11,16 @@ export const QUESTION_TYPE_LABEL: Record<MockQuestionType, string> = {
   open: "Klasik",
 };
 
+/**
+ * Açık uçlu sorunun altındaki yönerge (30 Ekim 2026, canlı tur): "Adım adım yaz; ara sonuçlarını göster" tanım ve
+ * açıklama sorularının altında da yazıyordu. Hesap sorusu (kökte sayı ya da hesap fiili) adım ister; öbürü düzenli
+ * bir açıklama.
+ */
+export function openAnswerHint(stem: string): string {
+  const computational = /d/.test(stem) || /(?:hesapla|hesaplay|kaç|bulunuz|bulun|çözünüz|çöz|türet|ispatla|gösteriniz)/iu.test(stem);
+  return computational ? "Adım adım yaz; ara sonuçlarını göster." : "Kendi cümlelerinle, ana noktaları sırayla yaz.";
+}
+
 export function questionTypeChip(type: MockQuestionType, points?: number): string {
   if (type === "open" && points != null) return `Klasik · ${points} puan`;
   return QUESTION_TYPE_LABEL[type];

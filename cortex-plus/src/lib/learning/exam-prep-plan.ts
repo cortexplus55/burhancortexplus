@@ -106,7 +106,7 @@ export const PLAN_NODE_META: Record<
     // "Aralıklı tekrar" adı onu vaat ediyordu (ürün sahibinin kararı). Tür adı `spaced` aynı kalır.
     title: "Kartlarla tekrar",
     blurb: "Öğrendiklerini tekrar et.",
-    setupLabel: "Tekrar",
+    setupLabel: "Kartlarla tekrar",
     voice: false,
   },
   gaps: {

@@ -143,7 +143,8 @@ describe("Paket E · bot rakip turu sunucuda, cevaplar istemciye gitmez", () => 
     vi.stubGlobal("fetch", fetchMock);
     const questions = QUESTIONS.slice(0, 2).map(({ text, options }) => ({ text, options }));
     render(
-      <DuelPlay code="abc12345" title="Hücre" topic={null} creatorName="Ayşe" questions={questions} initialBoard={[]} signedIn />,
+      // Geri sayım (30 Ekim 2026) kendi testinde (`duello-geri-sayim.test.tsx`); burada akış doğrudan başlar.
+      <DuelPlay code="abc12345" title="Hücre" topic={null} creatorName="Ayşe" questions={questions} initialBoard={[]} signedIn countdownSeconds={0} />,
     );
     expect(screen.getByText("🤖 Hemen şimdi AI rakiple kapış")).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "Şampiyon" }));
