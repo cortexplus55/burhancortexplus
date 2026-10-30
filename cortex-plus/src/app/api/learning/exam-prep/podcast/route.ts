@@ -26,6 +26,7 @@ import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-
 import { publicQuizQuestion } from "@/lib/learning/exam-quiz";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 import { readyPathPodcastNode } from "@/lib/learning/path-podcast-ready";
+import { prepTopicScopeLine } from "@/lib/documents/generation-context";
 
 /**
  * Yoldan bağımsız podcast. Düğüm durumuna dokunmaz; kilitli adım kilitli kalır.
@@ -208,6 +209,8 @@ export async function POST(request: Request) {
           ? await podcastScopeBrief(service, prepDocs, topic.label, teaching?.priority ?? null)
           : "",
         corpus.syllabus,
+        // Belgeli podcast yalnız konusunu anlatır (30 Ekim 2026, `prepTopicScopeLine`).
+        topicDocumentId ? prepTopicScopeLine(topic.label) : "",
       ]
         .filter(Boolean)
         .join("\n") || undefined,
