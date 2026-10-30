@@ -83,6 +83,8 @@ const input = {
   pages: [{ page: 8, text: "Yokluk: kurucu unsur eksikse işlem hiç doğmamıştır." }],
   count: 5,
   optionCount: 4 as const,
+  // Hafif doğrulayıcı (30 Ekim 2026) döngünün yapısından ayrı bir adım; kendi testi quiz-sanity.test.ts.
+  sanity: false,
 };
 
 beforeEach(() => {

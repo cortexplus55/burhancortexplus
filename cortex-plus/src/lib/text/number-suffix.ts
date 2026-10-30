@@ -22,6 +22,15 @@ export function possessiveSuffix(value: number): string {
   return "'u"; // milyon
 }
 
+/**
+ * İyelik + belirtme eki: "10 sorudan 10'unu", "7'sini", "3'ünü" (30 Ekim 2026: deneme onayı "10'ini" yazıyordu).
+ * İyelik ekinin ardına "n" + aynı ünlü.
+ */
+export function possessiveAccusativeSuffix(value: number): string {
+  const suffix = possessiveSuffix(value);
+  return `${suffix}n${suffix.at(-1)}`;
+}
+
 /** "67'si" */
 export function withPossessive(value: number): string {
   return `${value}${possessiveSuffix(value)}`;

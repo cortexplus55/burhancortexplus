@@ -56,6 +56,8 @@ const scoped = {
   multi: true,
   scope: "topic_test" as const,
   optionCount: 4 as const,
+  // Hafif doğrulayıcı (30 Ekim 2026) döngünün yapısından ayrı bir adım; kendi testi quiz-sanity.test.ts.
+  sanity: false,
 };
 const parsed = (items: unknown[]) => parseTeacherQuiz({ questions: items })!;
 
