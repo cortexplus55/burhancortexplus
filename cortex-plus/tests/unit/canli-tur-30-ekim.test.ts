@@ -92,3 +92,16 @@ describe("'Sınavda sık çıkar' rozeti yalnız azınlığı ayırırsa", () =>
     expect(examHeavyBadgeVisible([false, false])).toBe(false);
   });
 });
+
+describe("sohbet: genel bilgi başlığı ve kaynak çipleri", () => {
+  it("cümleye yapışan başlık kendi satırına alınır; yalnız genel bilgi cevabında çip yok", async () => {
+    const { formatSourceSections, generalOnlyAnswer, GENERAL_HEADING } = await import("@/lib/ai/source-sections");
+    const out = formatSourceSections("Belgede bu sayı geçmiyor.#### Genel bilgiden — kaynak gösterilmez\nFisher denklemi MV = PY'dir.");
+    expect(out).toContain(`\n\n${GENERAL_HEADING}\n\n`);
+    expect(out).not.toMatch(/\S#### /);
+    expect(generalOnlyAnswer("Genel bilgiden: Fisher denklemi MV = PY'dir.")).toBe(true);
+    expect(generalOnlyAnswer("Belgeden: TÜFE hanehalkını ölçer [1].\n\nGenel bilgiden: Endeks aylık açıklanır.")).toBe(false);
+    const view = readFileSync("src/components/chat/tutor-reply-view.tsx", "utf8");
+    expect(view).toContain("(generalOnlyAnswer(content) ? [] : view.citations)");
+  });
+});

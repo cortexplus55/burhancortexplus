@@ -21,6 +21,9 @@ import {
   type BotStep,
 } from "@/lib/learning/duel-bot";
 
+/** Oyundan önceki geri sayım (sn). */
+export const DUEL_COUNTDOWN_SECONDS = 3;
+
 type BoardRow = { name: string; score: number; correct: number };
 
 type RunResult = {
@@ -54,6 +57,7 @@ export function DuelPlay({
   initialBoard,
   signedIn,
   initialBot = null,
+  countdownSeconds = DUEL_COUNTDOWN_SECONDS,
 }: {
   code: string;
   title: string;
@@ -64,8 +68,12 @@ export function DuelPlay({
   signedIn: boolean;
   /** Hazırlıktan "AI rakiple hemen başla" ile gelince bu düzey seçili açılır. */
   initialBot?: BotLevel | null;
+  /** Oyun öncesi geri sayım (sn); 0 doğrudan başlatır. */
+  countdownSeconds?: number;
 }) {
-  const [stage, setStage] = useState<"intro" | "play" | "sending" | "result">("intro");
+  const [stage, setStage] = useState<"intro" | "countdown" | "play" | "sending" | "result">("intro");
+  /** Oyun öncesi 3-2-1 (30 Ekim 2026, canlı tur): sorular gelince 1. sorunun süresi hemen başlıyor, öğrenci kaçırıyordu. */
+  const [countdown, setCountdown] = useState(countdownSeconds);
   const [name, setName] = useState("");
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<DuelAnswer[]>([]);
@@ -81,6 +89,27 @@ export function DuelPlay({
   const limitMs = DUEL_SECONDS * 1000;
   const shareUrl =
     typeof window === "undefined" ? `/duello/${code}` : `${window.location.origin}/duello/${code}`;
+
+  // Oyun öncesi geri sayım: her saniye bir azalır, bitince ilk soru ve süresi başlar.
+  useEffect(() => {
+    if (stage !== "countdown") return;
+    if (countdownSeconds <= 0) {
+      setStage("play");
+      return;
+    }
+    setCountdown(countdownSeconds);
+    let left = countdownSeconds;
+    const timer = window.setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        window.clearInterval(timer);
+        setStage("play");
+      } else {
+        setCountdown(left);
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [stage, countdownSeconds]);
 
   // Soru başına geri sayım; süre dolunca boş cevapla geçer.
   useEffect(() => {
@@ -159,7 +188,7 @@ export function DuelPlay({
     setAnswers([]);
     setIndex(0);
     setResult(null);
-    setStage("play");
+    setStage("countdown");
   }
 
   /** Bot turu sunucudan alınır, sonra oyun başlar. Her başlatma yeni bir bot (tohum sunucuda). */
@@ -179,7 +208,7 @@ export function DuelPlay({
       setAnswers([]);
       setIndex(0);
       setResult(null);
-      setStage("play");
+      setStage("countdown");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Bot rakip hazırlanamadı.");
     } finally {
@@ -194,6 +223,18 @@ export function DuelPlay({
     } catch {
       toast.error("Kopyalanamadı; adres çubuğundan paylaşabilirsin.");
     }
+  }
+
+  if (stage === "countdown") {
+    return (
+      <section className="cp-duel-card" aria-live="assertive">
+        <p className="cp-duel-countdown-kicker">{bot ? `${bot.name} hazır` : "Hazır ol"}</p>
+        <p className="cp-duel-countdown" aria-label={`İlk soru ${countdown} saniye sonra`}>
+          {countdown}
+        </p>
+        <p className="cp-duel-countdown-note">İlk soru birazdan geliyor.</p>
+      </section>
+    );
   }
 
   if (stage === "play" || stage === "sending") {
