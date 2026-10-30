@@ -4,7 +4,12 @@ import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { examPrepLockedHref, needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
+import {
+  examPrepLessonRewriteHref,
+  examPrepLockedHref,
+  needsExamIntro,
+  opensSavedLesson,
+} from "@/lib/learning/exam-prep-hrefs";
 import { parseMood, type Familiarity } from "@/lib/learning/session-signals";
 import { moodAskedSince } from "@/lib/learning/lesson-open";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -13,9 +18,9 @@ import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import {
   MASTERY_ROW_COLUMNS,
   isMeasuredTopic,
+  masteryByPlannedTopic,
   masterySnapshotFromRow,
-  normalizeTopicKey,
-  topicPercentsByKey,
+  topicMasteryPercent,
 } from "@/lib/learning/learning-tracking";
 import { nodeNeedsStudentUnlock, studentMayStartNode } from "@/lib/learning/study-tools";
 import { prepTopicMatch } from "@/lib/learning/prep-topic-lookup";
@@ -41,10 +46,10 @@ export default async function ExamNodePage({
   searchParams,
 }: {
   params: Promise<{ prepId: string; nodeId: string }>;
-  searchParams: Promise<{ konu?: string; tekrar?: string; incele?: string }>;
+  searchParams: Promise<{ konu?: string; tekrar?: string; incele?: string; farkli?: string }>;
 }) {
   const { prepId, nodeId } = await params;
-  const { konu, tekrar, incele } = await searchParams;
+  const { konu, tekrar, incele, farkli } = await searchParams;
   const requestedTopic = typeof konu === "string" ? konu.trim().slice(0, 400) : "";
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
@@ -176,20 +181,21 @@ export default async function ExamNodePage({
         .eq("user_id", user.id)
         .eq("exam_prep_id", prepId),
     ]);
-    const masteryPct = topicPercentsByKey(masteryRows as Record<string, unknown>[] | null);
-    // Ölçülmemiş konu seçicide "Ölçülmedi" yazar, "%0" değil (Paket I #7).
-    const measured = new Set(
-      ((masteryRows ?? []) as Record<string, unknown>[])
-        .map(masterySnapshotFromRow)
-        .filter((snapshot) => isMeasuredTopic(snapshot))
-        .map((snapshot) => normalizeTopicKey(snapshot.topicKey)),
+    // Ölçülmemiş konu seçicide "Ölçülmedi" yazar, "%0" değil (Paket I #7). Hâkimiyet konuya tek eşleştiriciyle
+    // bağlanır (`masteryByPlannedTopic`, 30 Ekim 2026): İlerleme ve yol ile aynı sayı.
+    const byTopic = masteryByPlannedTopic(
+      (topicRows ?? []).map((topic) => String(topic.label ?? "")),
+      ((masteryRows ?? []) as Record<string, unknown>[]).map(masterySnapshotFromRow),
     );
-    oralTopics = (topicRows ?? []).map((topic) => ({
-      id: topic.id,
-      label: topic.label,
-      pct: masteryPct.get(normalizeTopicKey(topic.label)) ?? 0,
-      measured: measured.has(normalizeTopicKey(topic.label)),
-    }));
+    oralTopics = (topicRows ?? []).map((topic) => {
+      const snapshot = byTopic.get(String(topic.label ?? ""));
+      return {
+        id: topic.id,
+        label: topic.label,
+        pct: snapshot ? topicMasteryPercent(snapshot) : 0,
+        measured: isMeasuredTopic(snapshot),
+      };
+    });
   }
 
   // "N kaynak": konuya bağlı etkinlikte konunun dosyaları ve sayfaları, öbürlerinde hazırlığın bütün
@@ -305,7 +311,9 @@ export default async function ExamNodePage({
         initialFamiliarity={topicFamiliarity}
         todayMood={todayMood}
         replayLesson={tekrar === "1"}
-        reviewSaved={incele === "1"}
+        // Bitmiş ders düz adresle açılınca kayıtlı hâli (30 Ekim 2026, `opensSavedLesson`); yeni yazım "Farklı anlat"la.
+        reviewSaved={opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu } })}
+        rewriteHref={node.kind === "lesson" ? examPrepLessonRewriteHref(prepId, nodeId) : null}
         resumeEnabled={resumeEnabled}
         openAttempt={openAttempt}
         sourceName={sourceName}

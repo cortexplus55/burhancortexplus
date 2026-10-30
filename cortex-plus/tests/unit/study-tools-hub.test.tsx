@@ -111,9 +111,10 @@ describe("study tools hub regression", () => {
     );
     expect(screen.queryByText("Bu konuda yok")).toBeNull();
     tab("Öğren");
-    expect(screen.getByRole("link", { name: "Kartlar" }).getAttribute("href")).toBe(
-      studyActivityHref("prep-1", "card-sto", "Gazlar"),
-    );
+    // 30 Ekim 2026: konuya kurulabilen etkinlik başka konunun düğümünde `?konu=` ile açılmaz (kayıt o konunun adımına
+    // yazılıyordu); Gazlar'ın kart destesi yok → aynı uçla kurulur.
+    expect(screen.queryByRole("link", { name: "Kartlar" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Kartlar" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "AI öğretmen" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "qa-sto", "Gazlar"),
     );
@@ -129,17 +130,16 @@ describe("study tools hub regression", () => {
     ]);
     fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
     fireEvent.click(screen.getByRole("button", { name: "Anayasa için ders oluştur" }));
-    expect(screen.getByRole("link", { name: "Konu anlatımı" }).getAttribute("href")).toBe(
-      studyActivityHref("prep-1", "les-law", "Anayasa"),
-    );
+    // 30 Ekim 2026: Anayasa'nın dersi ve testi yok → Borçlar Hukuku'nun düğümünde `?konu=` ile açılmaz, kurulur.
+    expect(screen.queryByRole("link", { name: "Konu anlatımı" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Konu anlatımı" })).toBeTruthy();
     expect(resolveStudyToolNode(lawNodes, "podcast", { label: "Anayasa" })).toBeNull();
     expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/podcast",
     );
     tab("Pratik yap");
-    expect(screen.getByRole("link", { name: "Konu testi" }).getAttribute("href")).toBe(
-      studyActivityHref("prep-1", "quiz-law", "Anayasa"),
-    );
+    expect(screen.queryByRole("link", { name: "Konu testi" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Konu testi" })).toBeTruthy();
     tab("Sınav");
     const oral = screen.getByRole("link", { name: "Sözlü deneme" });
     expect(oral.getAttribute("href")).toBe(studyToolHref("prep-1", "oral-ana"));
@@ -163,9 +163,9 @@ describe("study tools hub regression", () => {
       "/deneme-sinavlari/prep-1/dugum/les-mit",
     );
     tab("Sınav");
-    expect(screen.getByRole("link", { name: "Sözlü deneme" }).getAttribute("href")).toBe(
-      studyActivityHref("prep-1", "oral-may", "Mitoz"),
-    );
+    // 30 Ekim 2026: Mitoz'un sözlüsü yok → Mayoz'un sözlü adımı `?konu=Mitoz` ile açılmaz (sonuç Mayoz'a yazılıyordu).
+    expect(screen.queryByRole("link", { name: "Sözlü deneme" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sözlü deneme" })).toBeTruthy();
     expect(
       resolveStudyToolNode(
         [node("oral-sto", "oral", "ready", "Stokiyometri: sınırlayıcı bileşen ve verim", 0)],

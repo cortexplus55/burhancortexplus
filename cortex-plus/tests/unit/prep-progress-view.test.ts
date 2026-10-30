@@ -6,8 +6,8 @@ import {
 } from "@/lib/learning/prep-progress-view";
 
 const NOW = new Date("2026-09-29T12:00:00Z");
-/** Ders sayılan türler (prep-progress-view.ts LESSON_KINDS ile aynı). */
-const LESSON_KINDS_FOR_TEST = new Set<ProgressNode["kind"]>(["lesson", "focused", "gaps", "spaced"]);
+/** Ders sayılan türler (prep-metrics.ts LESSON_KINDS ile aynı; 30 Ekim 2026'dan beri yalnız ders). */
+const LESSON_KINDS_FOR_TEST = new Set<ProgressNode["kind"]>(["lesson"]);
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * 86_400_000).toISOString();
 
 function node(
@@ -127,7 +127,8 @@ describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
     });
     const circle = view.topics.find((t) => t.label === "Birim Çember")!;
     expect(circle).toMatchObject({ pct: 67, solved: 6, lessons: 1 });
-    expect(view.topics.find((t) => t.label === "Sinüs")).toMatchObject({ pct: 0, lessons: 1 });
+    // "N ders" biten ders (30 Ekim 2026): Sinüs'ün dersi planda ama bitmedi.
+    expect(view.topics.find((t) => t.label === "Sinüs")).toMatchObject({ pct: 0, lessons: 0 });
     expect(view.topicsAtTarget).toBe(0);
     expect(view.lessonsDone).toBe(2);
   });

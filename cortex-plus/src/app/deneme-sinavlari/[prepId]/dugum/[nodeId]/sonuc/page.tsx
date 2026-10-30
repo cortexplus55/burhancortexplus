@@ -7,7 +7,7 @@ import { loadLevelHint } from "@/lib/learning/prep-level";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { examPrepLessonReplayHref, examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
+import { examPrepLessonReplayHref, examPrepLessonRewriteHref, examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
 import { nodeResultView } from "@/lib/learning/node-result";
 import { resultStages } from "@/lib/learning/result-stages";
 import { replayLabel } from "@/lib/learning/feedback-copy";
@@ -103,9 +103,16 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
         <Link href={back} className="cp-node-result-close" aria-label="Kapat">
           <X className="h-5 w-5" aria-hidden />
         </Link>
-        <p className="cp-node-result-kicker">{view.scored ? "Doğru cevaplar" : kind}</p>
+        <p className="cp-node-result-kicker">{view.scored ? view.scoreLabel : kind}</p>
         {view.scored ? (
-          <p className="cp-node-result-score" aria-label={`${view.total} sorudan ${view.score} doğru`}>
+          <p
+            className="cp-node-result-score"
+            aria-label={
+              view.scoreLabel === "Bildiğin kartlar"
+                ? `${view.total} karttan ${view.score} bildin`
+                : `${view.total} sorudan ${view.score} doğru`
+            }
+          >
             {view.score}
             <span>/{view.total}</span>
           </p>
@@ -164,8 +171,9 @@ export default async function NodeResultPage({ params }: { params: Promise<{ pre
             <RotateCcw className="h-4 w-4" aria-hidden />
             {replayLabel(node.kind)}
           </Link>
+          {/* Açık seçim (30 Ekim 2026): bitmiş dersin düz adresi artık kayıtlı dersi açar. */}
           {node.kind === "lesson" ? (
-            <Link href={examPrepNodeHref(prepId, nodeId)} className="cp-node-result-pill">
+            <Link href={examPrepLessonRewriteHref(prepId, nodeId)} className="cp-node-result-pill">
               <Sparkles className="h-4 w-4" aria-hidden />
               Farklı anlat
             </Link>

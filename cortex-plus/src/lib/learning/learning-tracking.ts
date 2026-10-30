@@ -12,6 +12,8 @@ import type { PlanNodeKind, NodeStatus } from "@/lib/learning/exam-prep-plan";
 import { coverageLine, masteryPercentText, pathCompletion } from "@/lib/learning/prep-metrics";
 import { podcastCheckAnswered, podcastCheckOf } from "@/lib/learning/podcast-check";
 import { PATH_LOOKAHEAD } from "@/lib/learning/study-path-window";
+import { oralItemSufficient } from "@/lib/learning/oral-sufficiency";
+import { contentSpansTopics, createTopicIndex } from "@/lib/learning/topic-identity";
 
 export type AnswerEvidenceDraft = {
   topicKey: string;
@@ -172,8 +174,9 @@ export function extractAnswerEvidence(input: {
     });
   }
 
-  // Sözlü "Tüm sınav" (scope "all", Paket I #8) soru başına konu taşımaz: tek konuya kanıt yazılmaz.
-  if (data.type === "oral" && data.scope !== "all") {
+  // Sözlü "Tüm sınav" (scope "all", Paket I #8) ve birden çok konu seçilen sözlü (scope "topics", 30 Ekim 2026) soru
+  // başına konu taşımaz: tek konuya kanıt yazılmaz (`contentSpansTopics`).
+  if (data.type === "oral" && !contentSpansTopics(data)) {
     const questions =
       (data.questions as {
         prompt?: string;
@@ -181,15 +184,24 @@ export function extractAnswerEvidence(input: {
         learningObjective?: string;
       }[]) ?? [];
     const gradeMeta = data.gradeMeta as
-      | { correctIndices?: number[]; correctCount?: number }
+      | { correctIndices?: number[]; correctCount?: number; items?: { index?: unknown; ratio?: unknown }[] }
       | undefined;
     const testedTopic = typeof data.testedTopic === "string" ? data.testedTopic : "";
     const oralTopic = normalizeTopicKey(testedTopic || input.topicLabel);
+    // Hakemin soru başına puanı varsa yeterli cevap (%80+, `oralItemSufficient`) doğru sayılır: bilgi eksiği listesi
+    // ve günü gelen tekrar aynı eşiği okur (30 Ekim 2026). Önceden yalnız tam puan doğruydu, %88 yanlış yazılıyordu.
+    const graded = new Map<number, { ratio?: unknown }>();
+    for (const item of Array.isArray(gradeMeta?.items) ? gradeMeta.items : []) {
+      const at = Number(item?.index);
+      if (Number.isInteger(at)) graded.set(at, item);
+    }
     questions.forEach((question, index) => {
       const hasAnswer = String(input.answers[String(index)] ?? "").trim().length > 8;
       // Without per-item grades, credit length-checked answers as provisional.
       let correct = hasAnswer;
-      if (Array.isArray(gradeMeta?.correctIndices)) {
+      if (graded.has(index)) {
+        correct = oralItemSufficient(graded.get(index));
+      } else if (Array.isArray(gradeMeta?.correctIndices)) {
         correct = gradeMeta.correctIndices.includes(index);
       } else if (typeof gradeMeta?.correctCount === "number") {
         // Conservative: only first N length-ok answers count when only a count is known.
@@ -476,6 +488,44 @@ export function scoreTopicMastery(topic: TopicMasterySnapshot): TopicMasterySnap
   else level = "weak";
 
   return { ...topic, level, confidence };
+}
+
+/**
+ * Hâkimiyet satırlarını hazırlığın konularına bağlar — tek eşleştirici (`createTopicIndex`, 30 Ekim 2026). Anahtar
+ * (`topic_key`) konunun adıdır; önce birebir, sonra tek bir konunun uzantısı ("Stokiyometri: sınırlayıcı bileşen" →
+ * "Stokiyometri"). Aynı konuya düşen satırlar toplanır; hiçbir konuya bağlanmayan satır sayılmaz. İlerleme, yol ve sözlü
+ * seçici konunun yüzdesini, durumunu ve çözülen sayısını buradan okur: önceden yalnız birebir anahtar okunuyor, ad
+ * varyantıyla yazılan kanıt konuya hiç yansımıyordu ("Ölçülmedi · 0 çözüldü").
+ */
+export function masteryByPlannedTopic(
+  labels: readonly string[],
+  snapshots: readonly TopicMasterySnapshot[],
+): Map<string, TopicMasterySnapshot> {
+  const index = createTopicIndex(labels.map((label) => ({ id: label, label })).filter((row) => row.label.trim()));
+  const merged = new Map<string, TopicMasterySnapshot>();
+  for (const snapshot of snapshots) {
+    const row = index.rowForKey(snapshot.topicKey);
+    if (!row) continue;
+    const prev = merged.get(row.label);
+    if (!prev) {
+      merged.set(row.label, { ...snapshot, topicKey: row.label });
+      continue;
+    }
+    const later =
+      (prev.lastPracticedAt ?? "") >= (snapshot.lastPracticedAt ?? "") ? prev.lastPracticedAt : snapshot.lastPracticedAt;
+    merged.set(row.label, {
+      ...prev,
+      measured: prev.measured || snapshot.measured,
+      evidenceCount: prev.evidenceCount + snapshot.evidenceCount,
+      firstAttemptCorrect: prev.firstAttemptCorrect + snapshot.firstAttemptCorrect,
+      firstAttemptTotal: prev.firstAttemptTotal + snapshot.firstAttemptTotal,
+      independentCorrect: prev.independentCorrect + snapshot.independentCorrect,
+      independentTotal: prev.independentTotal + snapshot.independentTotal,
+      lastPracticedAt: later,
+    });
+  }
+  for (const [label, snapshot] of merged) merged.set(label, scoreTopicMastery(snapshot));
+  return merged;
 }
 
 /**

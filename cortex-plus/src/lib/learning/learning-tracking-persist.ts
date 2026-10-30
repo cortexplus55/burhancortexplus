@@ -11,6 +11,7 @@ import {
   foldTopicMastery,
   holdMasteryOnSuccess,
   holdTrackingOnSuccess,
+  normalizeTopicKey,
   parsePersistedTracking,
   preferNextNodeForTracking,
   stripAnswerMeta,
@@ -24,6 +25,7 @@ import {
   countOpenMisconceptions,
   resolveMisconceptionsAfterEvidence,
 } from "@/lib/learning/misconception-store";
+import { createTopicIndex } from "@/lib/learning/topic-identity";
 
 export async function countPriorCompletedAttempts(
   service: SupabaseClient,
@@ -75,6 +77,27 @@ export async function recordLearningTrackingAfterComplete(
   const isFirstAttempt = priorCount === 0;
   const attemptOrdinal = priorCount + 1;
 
+  const { data: topicRows } = await service
+    .from("exam_prep_topics")
+    .select("id, label")
+    .eq("exam_prep_id", input.prepId);
+
+  const plannedTopicKeys = (topicRows ?? [])
+    .map((t) => String(t.label ?? "").trim())
+    .filter(Boolean);
+
+  // Kanıt konunun hazırlıktaki adıyla yazılır (30 Ekim 2026, `topic-identity.ts`): içerik konuyu bir ad varyantıyla
+  // taşıyınca ("Stokiyometri: sınırlayıcı bileşen") hâkimiyet planlı konuya değil yetim bir anahtara gidiyor, konu
+  // "Ölçülmedi · 0 çözüldü" kalıyordu. Eşleşmeyen ad olduğu gibi kalır.
+  const topicIndex = createTopicIndex(
+    (topicRows ?? [])
+      .map((row) => ({ id: String((row as { id?: unknown }).id ?? ""), label: String(row.label ?? "").trim() }))
+      .filter((row) => row.label),
+  );
+  const canonicalKey = (key: string) => {
+    const row = topicIndex.rowForKey(key);
+    return row ? normalizeTopicKey(row.label) : key;
+  };
   const evidence = extractAnswerEvidence({
     kind: input.kind,
     payload: input.payload,
@@ -82,7 +105,7 @@ export async function recordLearningTrackingAfterComplete(
     topicLabel: input.topicLabel,
     sessionObjective: input.sessionObjective,
     isFirstAttempt,
-  });
+  }).map((row) => ({ ...row, topicKey: canonicalKey(row.topicKey) }));
 
   if (input.attemptId) {
     await service
@@ -98,15 +121,6 @@ export async function recordLearningTrackingAfterComplete(
       })
       .eq("id", input.attemptId);
   }
-
-  const { data: topicRows } = await service
-    .from("exam_prep_topics")
-    .select("label")
-    .eq("exam_prep_id", input.prepId);
-
-  const plannedTopicKeys = (topicRows ?? [])
-    .map((t) => String(t.label ?? "").trim())
-    .filter(Boolean);
 
   if (evidence.length) {
     await service.from("exam_prep_answer_evidence").insert(
@@ -165,11 +179,12 @@ export async function recordLearningTrackingAfterComplete(
   // "+%X kazandın" kartı (19 Ekim 2026): bu etkinliğin kanıtıyla değişen konunun güveni.
   // Zayıf konuya yönelen hazırlık geneli düğümde (20 Ekim 2026) kartın adı sorulan konu.
   const tested = (input.payload as { testedTopic?: unknown } | null)?.testedTopic;
+  const gainLabel = typeof tested === "string" && tested.trim() ? tested.trim() : input.topicLabel;
   const topicGain = topicMasteryGain({
     prior,
     folded,
     evidenceKeys: evidence.map((row) => row.topicKey),
-    topicLabel: typeof tested === "string" && tested.trim() ? tested.trim() : input.topicLabel,
+    topicLabel: gainLabel ? (topicIndex.rowForKey(gainLabel)?.label ?? gainLabel) : gainLabel,
   });
 
   for (const topic of folded) {

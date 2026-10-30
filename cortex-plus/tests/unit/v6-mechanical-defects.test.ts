@@ -95,10 +95,13 @@ describe("Kusur 1 — tek yüzde, kanıt alt sınırı, çözüldü sayacı", ()
   });
 
   it("dört ekranın kaynağı aynı fonksiyon (kayıtlı confidence okunmaz)", () => {
-    expect(read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx")).toContain("topicPercentsByKey(");
+    // 30 Ekim 2026: hâkimiyet konuya tek eşleştiriciyle bağlanır (`masteryByPlannedTopic`); yüzde yine ham sayılardan.
+    expect(read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx")).toContain("masteryByPlannedTopic(");
+    expect(read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx")).toContain("topicMasteryPercent(snapshot)");
     expect(read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx")).not.toContain("topicStatusPct");
-    expect(read("src/lib/learning/prep-insights-load.ts")).toContain("topicPercentsByKey(");
-    expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("topicMasteryPercent(scoreTopicMastery(topic))");
+    expect(read("src/lib/learning/prep-insights-load.ts")).toContain("masteryByPlannedTopic(");
+    expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("masteryByPlannedTopic(topicLabels, masterySnapshots)");
+    expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("topicMasteryView(snapshot, targetScore)");
     expect(read("src/lib/learning/readiness-screen.ts")).toContain("pct: readinessTopicPercent(snapshot)");
   });
 

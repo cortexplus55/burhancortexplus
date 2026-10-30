@@ -11,7 +11,7 @@
  * | Tamamlama | biten adım / yolun adımları ("Hazırsın" karar ekranı sayılmaz) | etkinlik bittikçe artar, yanlış cevapla düşmez |
  * | Hazırlık | ölçülen başarı tahmini (`computeExamReadiness`) | yanlış cevapla düşebilir |
  * | Konu hâkimiyeti | ölçülen konuların başarısı, "x/N konu ölçüldü" kapsamıyla | ölçülmemiş konu sayı değil "Ölçülmedi" |
- * | Ders | biten ders adımı (ders, odaklı pratik, zayıf nokta, kartlarla tekrar) | "Hazırsın" ekranı ders değildir |
+ * | Ders | biten ders adımı (yalnız `lesson`; 30 Ekim 2026'dan beri odaklı pratik, zayıf nokta ve kartlarla tekrar ders sayılmaz) | "Hazırsın" ekranı ders değildir |
  *
  * Yaprak modül: yalnız tür içe aktarır (learning-tracking ve prep-progress-view bunu okur; döngü yok).
  */
@@ -34,8 +34,12 @@ export const METRIC_HINT = {
 /** "Hazırsın" bir karar ekranı: açılınca düğüm biter ama tamamlanan etkinlik ya da ders sayılmaz. */
 export const COMPLETION_EXCLUDED_KINDS: ReadonlySet<PlanNodeKind> = new Set<PlanNodeKind>(["readiness"]);
 
-/** Ders sayılan adımlar. İlerleme sekmesinin tempo ve tahmin hesabı da bunu sayar. */
-export const LESSON_KINDS: ReadonlySet<PlanNodeKind> = new Set<PlanNodeKind>(["lesson", "focused", "gaps", "spaced"]);
+/**
+ * Ders sayılan adımlar: yalnız ders düğümü (30 Ekim 2026). Canlı tur: tek ders bitmişken "Kartlarla tekrar" da ders
+ * sayıldı, hazırlık sayfası "2 ders tamamlandı", İlerleme "Bugün 2 ders" yazdı. İlerleme sekmesinin tempo ve tahmin
+ * hesabı da bunu sayar ("N ders daha" aynı birimle).
+ */
+export const LESSON_KINDS: ReadonlySet<PlanNodeKind> = new Set<PlanNodeKind>(["lesson"]);
 
 type StepLike = { status: NodeStatus; kind?: PlanNodeKind | string | null };
 

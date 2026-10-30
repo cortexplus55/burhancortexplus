@@ -2,6 +2,9 @@ import { z } from "zod";
 import {
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
+import { ORAL_SUFFICIENT_RATIO, oralItemSufficient } from "@/lib/learning/oral-sufficiency";
+
+export { ORAL_SUFFICIENT_RATIO, oralItemSufficient };
 import type { OralReviewItem, OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
 import {
   parseExaminerVibe,
@@ -667,7 +670,7 @@ export function gradeOralExam(
   const points = oralPoints(items);
   const pct = items.length ? oralPctFromPoints(points, total) : 0;
   const strengths = items
-    .filter((item) => item.ratio >= 0.8)
+    .filter((item) => item.ratio >= ORAL_SUFFICIENT_RATIO)
     .map((item) => item.objective)
     .slice(0, 4);
   // Hakemin ilk cevap notları Eksikler'in başında (yalnız tam puan almayan sorularda dolu), sonra
@@ -718,22 +721,30 @@ export type OralMisconceptionDraft = {
 const UNVERIFIED_ANSWER = /doğrulanamadı|doğrulanmış bir çözüm cümlesi yok/i;
 
 /**
- * Bu sözlü cevap yeniden sorulmaya değer mi: yanlış / kısmen / boş ve denetlenmiş bir çözüm cümlesi
- * var. Yanılgı kuyruğu ve günü gelen tekrar (20 Ekim 2026) aynı kuralı okur; ikisi ayrışmasın.
+ * Bu sözlü cevap yeniden sorulmaya değer mi: yeterli puanın altında (yanlış / kısmen / "bilmiyorum"), öğrenci bir
+ * şey yazmış ve denetlenmiş bir çözüm cümlesi var. Yanılgı kuyruğu ve günü gelen tekrar (20 Ekim 2026) aynı kuralı
+ * okur; ikisi ayrışmasın. Hiç cevaplanmayan soru (boş) yanılgı değildir — testteki boş soruyla aynı kural (Paket I #7);
+ * önceden "Bilmiyorum" diye eksik listesine yazılıyordu.
  */
 export function oralItemReviewable(item: OralItemGrade): boolean {
   if (item.verdict !== "yanlis" && item.verdict !== "kismen" && item.verdict !== "bos") return false;
+  if (oralItemSufficient(item)) return false;
+  if (!String(item.answer ?? "").trim()) return false;
   const answer = typeof item.modelAnswer === "string" ? item.modelAnswer : "";
   if (answer.trim().length < 8) return false;
   return !isScoreLabel(answer) && !UNVERIFIED_ANSWER.test(answer);
 }
 
-/** Yalnızca yanlış / kısmen / boş. Doğru cevap ve çözümsüz kart kuyruğa girmez. */
+/**
+ * Yalnızca yeterli puanın altındaki cevaplar. Doğru / yeterli cevap, boş soru ve çözümsüz kart kuyruğa girmez.
+ * Satırın başlığı (iddia) sorunun öğrenme hedefidir, öğrencinin ham yazısı değil (30 Ekim 2026): canlıda yazım
+ * hatalı cevap "Bilgi eksikleri"nde başlık gibi duruyordu. Soru önizlemede kalır.
+ */
 export function oralMisconceptionDrafts(report: OralExamReport): OralMisconceptionDraft[] {
   return report.items
     .filter(oralItemReviewable)
     .map((item) => ({
-      claim: item.dontKnow ? "Bilmiyorum" : item.answer.slice(0, 240) || "(boş)",
+      claim: (item.objective?.trim() || item.question).slice(0, 240),
       corrected: item.modelAnswer,
       wrongType: item.dontKnow ? "oral_blank" : item.numericIssue ? "oral_quantity" : "oral_miss",
       questionPreview: item.question.slice(0, 160),

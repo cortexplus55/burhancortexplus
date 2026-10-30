@@ -10,7 +10,7 @@
  */
 
 import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { LESSON_KINDS, lessonsCompleted, pathCompletion } from "@/lib/learning/prep-metrics";
+import { LESSON_KINDS, coverageLine, lessonsCompleted, pathCompletion } from "@/lib/learning/prep-metrics";
 import { isBareAnswerText } from "@/lib/learning/answer-tally";
 import {
   buildReadinessForecastSeries,
@@ -18,14 +18,29 @@ import {
 } from "@/lib/learning/prep-radar";
 import type { TopicMasteryState } from "@/lib/learning/learning-tracking";
 import { istanbulDay } from "@/lib/istanbul-day";
+import { contentSpansTopics, contentTestedTopic, createTopicIndex } from "@/lib/learning/topic-identity";
 
 export type ProgressNode = {
   id: string;
   kind: PlanNodeKind;
   title: string;
   status: NodeStatus;
-  sessionMeta?: { topicTitle?: string; durationMinutes?: number; calendarDate?: string } | null;
+  /** `topicId` iki kimlikten biri olabilir (konu satırı ya da belge konu düğümü, `topic-identity.ts`). */
+  sessionMeta?: { topicId?: string; topicTitle?: string; durationMinutes?: number; calendarDate?: string } | null;
 };
+
+/** Etkinliğin konusu kayıttan (30 Ekim 2026): içeriğin sorduğu konu, yoksa kaydın konu satırı, yoksa düğümün konusu. */
+export function attemptTopicFields(row: { topic_id?: unknown; payload?: unknown }): {
+  topicId: string | null;
+  testedTopic: string | null;
+  spansTopics: boolean;
+} {
+  return {
+    topicId: typeof row.topic_id === "string" && row.topic_id ? row.topic_id : null,
+    testedTopic: contentTestedTopic(row.payload),
+    spansTopics: contentSpansTopics(row.payload),
+  };
+}
 
 export type SolvedQuestion = {
   /** Konusu yazılıysa sayaç o konuya gider; yoksa düğümün konusuna. */
@@ -80,6 +95,12 @@ export type ProgressAttempt = {
   stems?: string[];
   /** Konusu belli sorular. Yazılı denemenin 100'lük paydası burada sayılmaz. */
   solved?: SolvedQuestion[];
+  /** Kaydın konu satırı (`exam_prep_node_attempts.topic_id`). */
+  topicId?: string | null;
+  /** İçeriğin sorduğu konu (`testedTopic`): düğümün konusu dışında bir konu çalışıldıysa o. */
+  testedTopic?: string | null;
+  /** Birden çok konuyu kapsayan içerik (sözlü "Tüm sınav" / çoklu seçim): tek konuya sayılmaz. */
+  spansTopics?: boolean;
 };
 
 export type ProgressGap = {
@@ -87,6 +108,8 @@ export type ProgressGap = {
   topicLabel: string | null;
   /** Öğrencinin ham cevabı. Başlık değildir. */
   detail?: string | null;
+  /** Satırı yazan etkinlik (`exam_prep_misconceptions.source_kind`). */
+  sourceKind?: string | null;
 };
 
 export type PrepProgressView = {
@@ -101,6 +124,13 @@ export type PrepProgressView = {
   weekActivities: number;
   topicsAtTarget: number;
   topicCount: number;
+  /**
+   * Ölçülen konu (en az 3 cevap, `isMeasuredTopic`) sayısı; hâkimiyet bilgisi yoksa null. Ekran "x/N konu ölçüldü"
+   * yazar (30 Ekim 2026: Paket I #7 bunu yalnız değerlendirme sayfasına koymuştu, İlerleme "hedefe ulaşan konu" diyordu).
+   */
+  measuredTopics: number | null;
+  /** "3/8 konu ölçüldü" (`coverageLine`); hâkimiyet bilgisi yoksa null. */
+  coverageText: string | null;
   lessonsDone: number;
   forecast:
     | { kind: "waiting"; reason: string }
@@ -164,7 +194,7 @@ function topicOf(node: ProgressNode | undefined): string | null {
 }
 
 /**
- * Planın kalan ders sayılan adımlarının (ders, odaklı pratik, zayıf nokta, kartlarla tekrar) bugünden
+ * Planın kalan ders adımlarının (`LESSON_KINDS`: yalnız ders, 30 Ekim 2026) bugünden
  * uzaklığı, gün olarak ve sıralı: i. eleman, bugünden sayınca (i+1). dersin planlandığı gün (bugün = 1).
  * Günü geçmiş adım bugün sayılır. Tarihsiz adım sayılmaz.
  */
@@ -193,20 +223,18 @@ const SOLVED_KINDS = new Set<PlanNodeKind>([
   "qa",
 ]);
 
-function sameTopic(left: string | null | undefined, right: string | null | undefined): boolean {
-  const a = (left ?? "").trim().toLocaleLowerCase("tr");
-  const b = (right ?? "").trim().toLocaleLowerCase("tr");
-  return Boolean(a) && a === b;
-}
-
 /**
  * Soru üreten düğümlerin son oturumu. Ders, kart ve podcast "çözüldü"ye girmez.
  * Aynı kök bir kez sayılır. Yazılı deneme ve sözlüdeki 100'lük yüzde paydası soru sayısı değildir.
  * Deneme maddesi, düğümün konusuna değil maddenin kendi konusuna yazılır.
+ *
+ * Yalnız hâkimiyet bilgisi olmayan eski yolda (bayrak kapalı) okunur; açık yolda "çözüldü" kanıt sayısıdır
+ * (`topicMasteryView.solved`, 30 Ekim 2026).
  */
 function uniqueSolved(
   attempts: ProgressAttempt[],
-  ids: Set<string>,
+  onTopic: (attempt: ProgressAttempt) => boolean,
+  itemTopic: (raw: string) => string | null,
   nodes: Map<string, ProgressNode>,
   topicLabel: string,
 ): number {
@@ -221,11 +249,11 @@ function uniqueSolved(
     const node = nodes.get(attempt.nodeId);
     const kind = node?.kind;
     if (kind && !SOLVED_KINDS.has(kind)) continue;
-    const onTopicNode = ids.has(attempt.nodeId);
+    const onTopicNode = onTopic(attempt);
     const solved = attempt.solved ?? [];
     if (solved.length) {
       for (const item of solved) {
-        const belongs = item.topic ? sameTopic(item.topic, topicLabel) : onTopicNode;
+        const belongs = item.topic ? itemTopic(item.topic) === topicLabel : onTopicNode;
         const key = item.key.trim().toLocaleLowerCase("tr");
         if (!belongs || !key || seen.has(key)) continue;
         seen.add(key);
@@ -264,6 +292,21 @@ function weekLabels(): string[] {
   );
 }
 
+/**
+ * Bilgi eksiği satırının okunur hâli (30 Ekim 2026). Sözlü satırı eskiden iddia olarak öğrencinin ham cevabını
+ * ("Bilmiyorum", yazım hatalı cümle) yazıyordu; ekranda başlık o cümle oluyordu. Sözlü satırında başlık sorunun
+ * kendisi (önizleme), ham cevap gösterilmez — yeni kayıtlarda iddia zaten sorunun hedefidir (`oralMisconceptionDrafts`).
+ * Konu adı hazırlığın konu adına bağlanır (tek eşleştirici).
+ */
+export function readableGap(gap: ProgressGap, canonicalTopic: (label: string) => string = (label) => label): ProgressGap {
+  const topicLabel = gap.topicLabel?.trim() ? canonicalTopic(gap.topicLabel.trim()) : gap.topicLabel;
+  if (gap.sourceKind === "oral") {
+    const question = gap.detail?.trim() ?? "";
+    return { ...gap, topicLabel, claim: question || gap.claim, detail: null };
+  }
+  return { ...gap, topicLabel };
+}
+
 export function buildPrepProgressView(input: {
   nodes: ProgressNode[];
   attempts: ProgressAttempt[];
@@ -276,7 +319,13 @@ export function buildPrepProgressView(input: {
   measuredReadinessPct: number | null;
   /** Konu hâkimiyeti (0–100). Varsa çubuk tamamlanan adımdan değil buradan gelir; listede olmayan konu 0. */
   /** `confidence`: `topicMasteryPercent` (sönümlü yüzde); `state`: aynı kaynaktan "Sağlam / Çalışılacak" (29 Ekim 2026). */
-  topicMastery?: { label: string; confidence: number; state?: TopicMasteryState }[];
+  /** `solved`: konunun kanıt sayısı (`topicMasteryView.solved`); varsa "N çözüldü" bundan (30 Ekim 2026). */
+  topicMastery?: { label: string; confidence: number; state?: TopicMasteryState; solved?: number }[];
+  /**
+   * Konular kimlikleriyle (30 Ekim 2026): düğüm ve kayıt konuya tek eşleştiriciyle bağlanır (`topic-identity.ts`).
+   * Yoksa yalnız ad.
+   */
+  topicRefs?: { id: string; label: string; documentTopicNodeId?: string | null }[];
   now?: Date;
 }): PrepProgressView {
   const now = (input.now ?? new Date()).getTime();
@@ -302,24 +351,67 @@ export function buildPrepProgressView(input: {
     ? input.topicLabels
     : [...new Set(input.nodes.map(topicOf).filter((t): t is string => Boolean(t)))];
 
+  // Konu bağı tek kuralla (30 Ekim 2026, `topic-identity.ts`): düğüm konusu kimlikle (belgeli hazırlıkta belge konu
+  // düğümü), kaydın konusu önce içeriğin sorduğu konudan (`testedTopic`), sonra kaydın konu satırından. Önceden
+  // düğümün başlığı birebir aranıyordu: "Enflasyon Türleri" için açılan sözlü "Para Politikası"nın düğümünde olduğu
+  // için Para Politikası "3 çözüldü", Enflasyon Türleri "0 çözüldü" yazdı.
+  const refByLabel = new Map((input.topicRefs ?? []).map((ref) => [ref.label, ref]));
+  const index = createTopicIndex(
+    labels.map((label) => {
+      const ref = refByLabel.get(label);
+      return { id: ref?.id || label, label, documentTopicNodeId: ref?.documentTopicNodeId ?? null };
+    }),
+  );
+  const nodeTopicCache = new Map<string, string | null>();
+  const nodeTopic = (node: ProgressNode | undefined): string | null => {
+    if (!node) return null;
+    if (!nodeTopicCache.has(node.id)) {
+      const row = index.rowFor({ id: node.sessionMeta?.topicId ?? null, label: node.sessionMeta?.topicTitle ?? null });
+      nodeTopicCache.set(node.id, row?.label ?? topicOf(node));
+    }
+    return nodeTopicCache.get(node.id) ?? null;
+  };
+  const attemptTopic = (attempt: ProgressAttempt): string | null => {
+    if (attempt.spansTopics) return null;
+    const tested = attempt.testedTopic ? index.rowFor(attempt.testedTopic) : null;
+    if (tested) return tested.label;
+    const own = attempt.topicId ? index.rowFor({ id: attempt.topicId }) : null;
+    if (own) return own.label;
+    return nodeTopic(nodeById.get(attempt.nodeId));
+  };
+  const itemTopic = (raw: string) => index.rowFor(raw)?.label ?? raw.trim();
+
   const topics = labels.map((label) => {
-    const topicNodes = input.nodes.filter((node) => topicOf(node) === label);
-    const ids = new Set(topicNodes.map((node) => node.id));
-    const solved = uniqueSolved(completed, ids, nodeById, label);
-    const scored = completed.filter((attempt) => ids.has(attempt.nodeId) && (attempt.total ?? 0) > 0 && attempt.total !== 100);
+    const topicNodes = input.nodes.filter((node) => nodeTopic(node) === label);
+    const mine = completed.filter((attempt) => attemptTopic(attempt) === label);
+    const scored = mine.filter((attempt) => (attempt.total ?? 0) > 0 && attempt.total !== 100);
     const earned = scored.reduce((sum, attempt) => sum + Math.max(0, attempt.score ?? 0), 0);
     const possible = scored.reduce((sum, attempt) => sum + (attempt.total ?? 0), 0);
     const accuracy = possible > 0 ? Math.round((earned / possible) * 100) : null;
     const mastery = input.topicMastery?.find((row) => row.label === label);
-    const masteryPct = typeof mastery?.confidence === "number" ? Math.round(mastery.confidence) : null;
+    // Ölçülmemiş konu sayı göstermez (Paket I #7): çubuk da 0; eski etkinlik doğruluğu yedeğe düşmez.
+    const masteryPct =
+      mastery && typeof mastery.confidence === "number"
+        ? mastery.state === "unmeasured"
+          ? 0
+          : Math.round(mastery.confidence)
+        : null;
+    const solved =
+      typeof mastery?.solved === "number"
+        ? mastery.solved
+        : uniqueSolved(completed, (attempt) => attemptTopic(attempt) === label, itemTopic, nodeById, label);
     return {
       label,
       pct: masteryPct ?? accuracy ?? 0,
       solved,
-      lessons: topicNodes.filter((node) => LESSON_KINDS.has(node.kind)).length,
+      // Biten ders (30 Ekim 2026): planlanan ders düğümü değil, tamamlanan.
+      lessons: topicNodes.filter((node) => LESSON_KINDS.has(node.kind) && node.status === "done").length,
       ...(mastery?.state ? { state: mastery.state } : {}),
     };
   });
+  const measuredTopics = input.topicMastery
+    ? topics.filter((topic) => topic.state && topic.state !== "unmeasured").length
+    : null;
 
   // Hero'daki "N ders tamamlandı" ile aynı işlev; "Hazırsın" ekranı ders değildir.
   const lessonsDone = lessonsCompleted(input.nodes);
@@ -329,11 +421,11 @@ export function buildPrepProgressView(input: {
   const rowByLabel = new Map(rows.map((row) => [row.label, row]));
   const tempoWeeks = Array.from({ length: WEEK_COUNT }, () => ({ activities: 0, minutes: 0 }));
   for (const attempt of completed) {
-    const index = weekIndex(attempt.createdAt, now);
-    if (index === null) continue;
-    const column = WEEK_COUNT - 1 - index;
+    const week = weekIndex(attempt.createdAt, now);
+    if (week === null) continue;
+    const column = WEEK_COUNT - 1 - week;
     const node = nodeById.get(attempt.nodeId);
-    const row = rowByLabel.get(topicOf(node) ?? "");
+    const row = rowByLabel.get(attemptTopic(attempt) ?? "");
     if (row) row.counts[column] += 1;
     tempoWeeks[column].activities += 1;
     tempoWeeks[column].minutes += Math.max(0, node?.sessionMeta?.durationMinutes ?? 0);
@@ -445,8 +537,11 @@ export function buildPrepProgressView(input: {
     completionPct: completion.pct,
     targetPct,
     weekActivities,
-    topicsAtTarget: topics.filter((topic) => topic.pct >= targetPct).length,
+    // Hedefteki konu ölçülmüş olmalı (Paket I #7 eşiği): ölçülmemiş konu hedefte sayılmaz.
+    topicsAtTarget: topics.filter((topic) => topic.state !== "unmeasured" && topic.pct >= targetPct).length,
     topicCount: labels.length,
+    measuredTopics,
+    coverageText: measuredTopics == null ? null : coverageLine(measuredTopics, labels.length),
     lessonsDone,
     forecast,
     forecastSeries: buildReadinessForecastSeries({
@@ -468,6 +563,7 @@ export function buildPrepProgressView(input: {
     gapsMeasured,
     // Eski kayıtların "(boş)" / "Doğru" önizlemesi yazılmaz; yalnız şık taşıyan satır listeye girmez (Paket I #7).
     gaps: input.gaps
+      .map((gap) => readableGap(gap, (label) => index.rowFor(label)?.label ?? label))
       .map((gap) => (gap.detail && isBareAnswerText(gap.detail) ? { ...gap, detail: null } : gap))
       .filter((gap) => !isBareAnswerText(gap.claim) || Boolean(gap.detail))
       .slice(0, 5),

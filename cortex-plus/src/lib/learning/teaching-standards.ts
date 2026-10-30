@@ -16,6 +16,7 @@ import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
 import { mathIdentifierIssues, normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 import { sameOptionSet, selectedOptions, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { isBareAnswerText } from "@/lib/learning/answer-tally";
+import { contentSpansTopics } from "@/lib/learning/topic-identity";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
 import { unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
 import {
@@ -2549,6 +2550,24 @@ export function appendLessonReviewCards<T extends { front: string }>(
   return [...cards, ...tail];
 }
 
+/**
+ * Öğrencinin gördüğü kart listesi — TEK işlev (30 Ekim 2026). Ekran, notlandırma, sonuç sayfası ve günü gelen tekrar
+ * bunu okur. Canlı tur: dersin kaçırılan soruları yalnız ekrana giden kopyaya ekleniyordu (10 kart), kayıt ve not
+ * üretilen 8 kartla yapılıyordu; oturum "8/10 · %80", sonuç ve yol "6/8 · %75" dedi. Liste kayda yazılınca
+ * (`reviewCardsFrozen`) bir daha değişmez; dondurulmamış eski kayıtta ekleme her okumada aynı işlevle yapılır.
+ */
+export function cardsAsShown<T extends Record<string, unknown>>(payload: T, reviewCards: readonly LessonReviewCard[]): T {
+  if (!payload || payload.type !== "cards" || payload.reviewCardsFrozen === true || !reviewCards.length) return payload;
+  const cards = Array.isArray(payload.cards) ? (payload.cards as { front: string }[]) : [];
+  return { ...payload, cards: appendLessonReviewCards(cards, [...reviewCards]) };
+}
+
+/** Kayda yazılırken: gösterilecek liste kayda geçer ve donar. Kart dışı içerik olduğu gibi döner. */
+export function freezeShownCards<T extends Record<string, unknown>>(payload: T, reviewCards: readonly LessonReviewCard[]): T {
+  if (!payload || payload.type !== "cards" || payload.reviewCardsFrozen === true) return payload;
+  return { ...cardsAsShown(payload, reviewCards), reviewCardsFrozen: true };
+}
+
 /** Collect misconception hooks from a completed attempt (cheap Stage 6 prep). */
 export function extractMisconceptions(input: {
   kind: PlanNodeKind;
@@ -2633,8 +2652,9 @@ export function extractMisconceptions(input: {
         corrected: draft.corrected,
         wrongType: draft.wrongType,
         sourceKind: "oral",
-        // "Tüm sınav" sözlüsünde konu bilinmiyor (Paket I #8): satır düğümün konusuna yazılmaz.
-        topicLabel: data.scope === "all" ? null : topicLabel,
+        // "Tüm sınav" (Paket I #8) ve birden çok konu seçilen sözlüde (30 Ekim 2026) konu bilinmiyor: satır düğümün
+        // konusuna yazılmaz.
+        topicLabel: contentSpansTopics(data) ? null : topicLabel,
         questionPreview: draft.questionPreview,
       });
     }

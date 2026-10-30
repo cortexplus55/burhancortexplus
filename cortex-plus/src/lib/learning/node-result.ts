@@ -36,7 +36,12 @@ export type NodeResultView = {
   minutes: number | null;
   headline: string;
   emoji: string;
+  /** Puanın adı: kartta "Bildiğin kartlar" (oturumdaki satırla aynı), öbürlerinde "Doğru cevaplar" (30 Ekim 2026). */
+  scoreLabel: string;
 };
+
+/** Kart destesi etkinlikleri: puan "Bildim" sayısıdır, doğru cevap değil. */
+export const CARD_NODE_KINDS: ReadonlySet<string> = new Set(["spaced", "flashcards"]);
 
 /** Harcanan süre: başlangıçtan son kayda; ölçülemiyorsa (eski kayıt, saat kayması) yok. */
 export function spentMinutes(input: Pick<NodeResultInput, "startedAt" | "createdAt" | "updatedAt">): number | null {
@@ -60,5 +65,6 @@ export function nodeResultView(input: NodeResultInput): NodeResultView {
         : pct >= 50
           ? { headline: "İyi gidiyorsun!", emoji: "💪" }
           : { headline: "Bir tekrar iyi gelir.", emoji: "📚" };
-  return { scored, score, total, pct, minutes: spentMinutes(input), ...tone };
+  const scoreLabel = CARD_NODE_KINDS.has(input.kind ?? "") ? "Bildiğin kartlar" : "Doğru cevaplar";
+  return { scored, score, total, pct, minutes: spentMinutes(input), ...tone, scoreLabel };
 }
