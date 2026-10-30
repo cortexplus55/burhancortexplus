@@ -157,6 +157,7 @@ describe("araç kurulumu", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "20 kart" }));
     fireEvent.click(screen.getByRole("button", { name: "Belgenin tamamı" }));
+    fireEvent.click(screen.getByRole("button", { name: "Desteyi aç" }));
     await waitFor(() => expect(calls.length).toBe(1));
     expect(calls[0]).toMatchObject({ topic: "Belgenin tamamı", count: 20, documentId: "d1" });
     await waitFor(() => expect(screen.getByText("Ön")).toBeTruthy());
@@ -242,6 +243,7 @@ describe("yazılı deneme aracı belgeden", () => {
     expect(screen.getByRole("button", { name: "İrade sakatlıkları" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "15 soru" }));
     fireEvent.click(screen.getByRole("button", { name: "Belgenin tamamı" }));
+    fireEvent.click(screen.getByRole("button", { name: "Belgeden yazılıyı aç" }));
     await waitFor(() => expect(calls.length).toBe(1));
     expect(calls[0]).toMatchObject({ topic: "Belgenin tamamı", questionCount: 15, documentId: "d1" });
     expect(await screen.findByText("Belgenin tamamından hazırlandı.")).toBeTruthy();
@@ -295,6 +297,7 @@ describe("podcast aracı sesi akışla alır", () => {
     const { PodcastStudio } = await import("@/components/learning/studio/podcast-studio");
     render(<PodcastStudio creditCost={12} documents={[{ id: "d1", fileName: "Hukuk.pdf", topics: ["Ehliyet"] }]} initialDocumentId="d1" />);
     fireEvent.click(screen.getByRole("button", { name: "Belgenin tamamı" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yayını hazırla" }));
     await waitFor(() => expect(push).not.toBeNull());
     expect(bodies[1]).toMatchObject({ stream: true });
     const line = (index: number, chapterIndex: number, speaker: string, text: string) =>

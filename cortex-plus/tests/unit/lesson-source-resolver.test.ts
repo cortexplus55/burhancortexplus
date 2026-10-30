@@ -47,6 +47,21 @@ function pageBlock(doc: string, pages: number[], text: string) {
   };
 }
 
+/** Konu satırı sorgusu artık `.eq().or().limit().maybeSingle()` (tek konu kimliği, 30 Ekim 2026). */
+function withOr<T extends { maybeSingle: () => Promise<{ data: unknown; error: unknown }> }>(builder: T) {
+  return {
+    ...builder,
+    or: () => ({
+      limit: () => ({
+        maybeSingle: async () => {
+          const result = await builder.maybeSingle();
+          return { ...result, data: result.data ? { id: "topic-row", ...(result.data as object) } : result.data };
+        },
+      }),
+    }),
+  };
+}
+
 function mockService(handlers: Record<string, (args: unknown) => unknown> = {}) {
   const from = vi.fn((table: string) => {
     const state: Record<string, unknown> = { table };
@@ -55,6 +70,7 @@ function mockService(handlers: Record<string, (args: unknown) => unknown> = {}) 
     for (const method of [
       "select",
       "eq",
+      "or",
       "in",
       "is",
       "not",
@@ -353,7 +369,7 @@ describe("resolveLessonSource", () => {
         if (table === "exam_prep_topics") {
           return {
             select: () => ({
-              eq: () => ({
+              eq: () => withOr({
                 maybeSingle: async () => ({
                   data: {
                     source_refs: [],
@@ -424,7 +440,7 @@ describe("resolveLessonSource", () => {
         if (table === "exam_prep_topics") {
           return {
             select: () => ({
-              eq: () => ({
+              eq: () => withOr({
                 maybeSingle: async () => ({
                   data: {
                     source_refs: [],
@@ -522,7 +538,7 @@ describe("resolveLessonSource", () => {
         if (table === "exam_prep_topics") {
           return {
             select: () => ({
-              eq: () => ({
+              eq: () => withOr({
                 maybeSingle: async () => ({
                   data: {
                     source_refs: [
@@ -655,7 +671,7 @@ describe("resolveLessonSource", () => {
         if (table === "exam_prep_topics") {
           return {
             select: () => ({
-              eq: () => ({
+              eq: () => withOr({
                 maybeSingle: async () => ({
                   data: {
                     source_refs: [

@@ -59,6 +59,8 @@ export function TrueFalseStudio({
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
+  /** Kaçırılan önermeler (30 Ekim 2026, canlı tur): sonuç yalnız sayı söylüyordu, hangisinin kaçtığını değil. */
+  const [missed, setMissed] = useState<Item[]>([]);
   const [paywall, setPaywall] = useState(false);
   const isPlus = Boolean(useStudentShellAccount()?.isPremium);
 
@@ -94,6 +96,7 @@ export function TrueFalseStudio({
     setIndex(0);
     setPicked(null);
     setScore(0);
+    setMissed([]);
     setPhase("play");
   }
 
@@ -102,6 +105,7 @@ export function TrueFalseStudio({
     setPicked(value);
     const ok = value === item.correct;
     if (ok) setScore((n) => n + 1);
+    else setMissed((list) => [...list, item]);
     if (isPlus) playPlusTone(ok ? "correct" : "wrong");
     setPhase("reveal");
   }
@@ -206,15 +210,29 @@ export function TrueFalseStudio({
           topic={topic}
           scoreLabel={`${score}/${items.length}`}
           title={score >= items.length - 1 ? "Keskin bakış." : "Tur kapandı."}
-          lead={`${score} doğru. Yanlışları tekrar okuyup ikinci tura çık.`}
+          lead={missed.length ? `${score} doğru. Kaçırdıklarını oku, sonra ikinci tura çık.` : `${score} doğru. Hepsini bildin.`}
           onAgain={() => {
             setIndex(0);
             setPicked(null);
             setScore(0);
+            setMissed([]);
             setPhase("play");
           }}
           onNew={() => setPhase("entry")}
-        />
+        >
+          {missed.length ? (
+            <ul className="ls-missed" aria-label="Kaçırdığın önermeler">
+              {missed.map((entry, i) => (
+                <li key={`${i}-${entry.text}`}>
+                  <p className="ls-missed-claim">
+                    <span>{entry.correct ? "Doğru" : "Yanlış"}</span> {entry.text}
+                  </p>
+                  <p className="ls-missed-why">{trueFalseExplanation(entry)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </StudioResults>
       ) : null}
 
       <StudioPaywall

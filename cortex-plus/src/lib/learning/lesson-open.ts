@@ -33,9 +33,14 @@ export function difficultyFromFamiliarity(
   return "orta";
 }
 
-/** Ruh halinden sonra yalnızca giriş dersi öneri kartına uğrar. */
+/**
+ * Ruh halinden sonra doğrudan kurulum kartı (30 Ekim 2026): canlı turda derse girmeden iki ayrı "ÖNERİLEN DERS"
+ * kartı art arda çıktı ("Devam et", sonra "Ders oluştur"); ikincisi aynı bilgiyi yineleyip bir dokunuş daha
+ * istiyordu. Konu, düzey ve "Ders oluştur" tek kartta. Isınma yazımı bu kartta da başlar.
+ */
 export function stepAfterMood(kind: string): "recommend" | "setup" {
-  return kind === "lesson" ? "recommend" : "setup";
+  void kind;
+  return "setup";
 }
 
 /**

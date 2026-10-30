@@ -19,7 +19,8 @@ describe("ruh hali günde bir kez", () => {
   it("açılış ekranı: aşinalık yoksa aşinalık; bugün ruh hali varsa doğrudan sonraki kart", () => {
     expect(openingStage("lesson", { familiarityKnown: false, moodToday: true })).toBe("familiarity");
     expect(openingStage("lesson", { familiarityKnown: true, moodToday: false })).toBe("mood");
-    expect(openingStage("lesson", { familiarityKnown: true, moodToday: true })).toBe("recommend");
+    // 30 Ekim 2026: öneri kartı kalktı, açılış doğrudan kurulum kartı.
+    expect(openingStage("lesson", { familiarityKnown: true, moodToday: true })).toBe("setup");
     expect(openingStage("quiz", { familiarityKnown: true, moodToday: true })).toBe("setup");
     expect(openingStage("podcast", { familiarityKnown: true, moodToday: true })).toBe("setup");
   });
@@ -32,6 +33,6 @@ describe("ruh hali günde bir kez", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).toContain("useState<Mood>(todayMood ?? DEFAULT_MOOD)");
     expect(session).toContain("moodToday: Boolean(todayMood)");
-    expect(session).toContain('stage !== "recommend"');
+    expect(session).toContain('stage !== "setup"');
   });
 });

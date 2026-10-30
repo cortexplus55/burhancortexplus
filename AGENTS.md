@@ -1487,3 +1487,35 @@ testlerin örnekleri farklı derslerden. Yeniden açmayın:
 
 Bekçi: `paket-i-cevap-kaydi.test.tsx`, `paket-i-olcu.test.tsx`, `paket-i-final-hedef.test.ts`, `paket-i-harita.test.ts`, `paket-i-belge-surum.test.ts`, `paket-i-takvim.test.ts`, `paket-i-takvim-ui.test.tsx`, `paket-i-deneme-dagilim.test.ts`, `paket-i-sayim.test.ts`, `paket-i-sizinti.test.ts`, `paket-i-soru-dogrulama.test.ts`, `paket-i-sesli-tekrar.test.ts`,
 `paket-i-sekil-arama.test.ts`, `paket-i-hata-yolu.test.tsx`.
+
+## Canlı tur (30 Ekim 2026) — öğrenci gibi baştan sona, Astra'yı geçmek için
+
+Ürün sahibi: "Astra'yı geç; yamalayarak değil, bütün özelliklerimizi bilerek; kullanıcı beklemesin, sıkılıp gitmesin".
+Paket I yayına çıktıktan sonra Makroekonomi notuyla sıfırdan hazırlık kuruldu, yol, ders, test, podcast, video,
+sohbet, soru çözücü, düello ve Araçlar tek tek denendi (iki tur: ben ve bir ajan; notlar yerel). Yeniden açmayın:
+
+| Kusur | Kural | Nerede |
+|---|---|---|
+| **Ders sonu "Şimdi dinle" 9 denemede 0** (Paket I #9'dan sonra da): belgeli hazırlıkta düğümün `session_meta.topicId`'si belge konu düğümünün kimliği (`document_topic_nodes.id`), `exam_prep_topics.id` değil; canlıda konulu 1.851 adımın 1.830'u böyle. Uçlar `.eq("id", topicId)` ile konu satırını bulamıyordu | Konu kimliği alan her yer **iki kimliği de tanıyan** tek çözücüden geçer: `resolvePrepTopicRow` (`id` ya da `document_topic_node_id`); güncelleme bulunan satırın kendi `id`'siyle. Ders ekranı istemciye konunun gerçek kimliğini verir. Bekçi kaynak taraması: `exam_prep_topics`'te `.eq("id", <istekten gelen konu>)` yazılmaz | `prep-topic-lookup.ts`, podcast / topic / video uçları, `select-prep-topic.ts`, `lesson-source-resolver.ts`, `prep-topic-source.ts`, `dugum/[nodeId]/page.tsx` |
+| Yeni hazırlığın ilk dersi soğuk açılıyordu (Plus öğrenci kurulumdan sonra 40+ sn bekledi) | Kurulumun ilk ders önceden yazımı **Plus'ta hızlı işlemle** (`firstLesson: true`, `fastAllowedFor` aynı karar); öteki önceden yazımlar 23 Ekim kararıyla normal işlemde kalır | `create/route.ts`, `lesson-prefetch.ts` `requestPrepPrefetch`, node rotası |
+| Ders açılışında art arda iki kart (ruh hali, sonra öneri) | Ruh halinden sonra doğrudan kurulum (`stepAfterMood` → `setup`); ısınma isteği kurulum dışındaki her aşamada | `lesson-open.ts`, `exam-node-session.tsx` |
+| "TÜFE ve Yİ-ÜFE" başlığı "Tüfe ve Yi̇-Üfe" oldu | Bağırma (tümü büyük harf) denetimi metinde tümü küçük bir kelime varsa atlanır: kısaltmalı başlık kısaltma kalır | `teacher-lesson.ts` `shouting`, `topic-title.ts`, `outline-clean.ts` |
+| Ders altındaki renk anahtarı "Turuncu: sınavda çıkar" diye söz veriyordu | "Turuncu: sınavda sık sorulan kilit bilgi" | `exam-lesson-steps.tsx` |
+| "Makroekonomi" dersinde Hukuk notu uyarısız kaldı (ders adı belgede tümüyle geçmiyor, "ekonomi" geçiyor) | Bileşik ders adı: 8+ harfli kelimenin 3. harften sonraki 5 harflik penceresi belgede en az iki kez geçerse ders adı belgede sayılır ("makroekonomi" → "ekono") | `material-similarity.ts` `compoundPartInDocument` |
+| Hazırlığın podcast sayfası, yoldaki aynı konunun hazır podcast'ini görmeyip 90 sn'de baştan yazdı | Kontrollü podcast isteğinde yolda aynı konunun bitmemiş podcast adımı aynı süreyle hazırsa uç `openNode` döner, sayfa o adıma gider; hazır içerik ve ücret tek yerde (düğüm açılışı). Ders sonu "Şimdi dinle" yönlendirilmez | `path-podcast-ready.ts`, `podcast/route.ts`, `prep-podcast-session.tsx` |
+| Kurulumda "Sınavda sık çıkar" rozeti bütün konularda | Rozet yalnız konuların azınlığını (en çok yarısını) ayırıyorsa görünür | `exam-wizard-copy.ts` `examHeavyBadgeVisible` |
+| Sohbette "#### Genel bilgiden — kaynak gösterilmez" düz metin; aynı cevabın altında belge sayfa çipleri | Başlık her zaman kendi satırında (`isolateHeadings`); yalnız genel bilgiyle verilen cevapta (`generalOnlyAnswer`) belge çipi yok | `source-sections.ts`, `tutor-reply-view.tsx` |
+| Deneme incelemesi "7 yanlışın deftere düştü" (1 yanlış + 6 boş) | Sayım `rowVerdictCounts`'tan: "7 soru tekrar defterine düştü (1 yanlış, 6 boş)" | `incele/page.tsx` |
+| Bot düellosunda 1. sorunun süresi sorular gelir gelmez başlıyordu | Oyundan önce 3-2-1 geri sayım (`DUEL_COUNTDOWN_SECONDS`) | `duel-play.tsx`, `duel.css` |
+| **Çizimli video**: formülde Türkçe yazı bozuk ("Genelfiyatdu¨zeyi"), süreç ağının kutuları boş ve etiketler altta bitişik ("DeflasyonDezenflasyonFiyatlar"), kilit bilgi "Dersi tamamla"ya ve sahne başlığına biniyor, ikinci formül alt yazının arkasında | TeX sözdizimi (`\`, `^`, `_`, `{}`) taşımayan adım **düz yazı** (`formulaStepHtml`); TeX'li adımdaki kelimeler `\text{}` (`textifyFormulaWords`; tek harfli değişken, iki harfli çarpım, komut ve sin/log dokunulmaz). Şema kuralları **bileşenin kendi dosyasında** (`diagram-card.css`): ders CSS'inde durunca videoda etiket katmanı konumsuz kalıyordu. Tahta bir ölçü kabı (`container-type: size`); içerik üst çubuğun altından başlar, alt yazının (%18 + iki satır) üstünde biter; kilit bilgi çizimli sahnede tahtanın akışında, resimli sahnede üst kenarından yerleşir (`top: max(22%, 7.6rem)`); yatayda şema solda, metin sağda. Yazarın kelime hedefi 92-110 (denetim aralığı 72-110 aynı: alt sınır yükselirse düzeltme turu açılırdı); bekleme sözü "yaklaşık yarım dakika" (ölçülen 28-30 sn) | `math-text.ts`, `video-lesson.tsx`, `diagram-card.tsx`, `diagram-card.css`, `video-lesson.css`, `video-lesson.ts` `SKETCH_TARGET_WORDS` |
+| Araçlar'da örnek konuya dokunmak üretimi hemen başlatıyordu (sayı/belge seçilmeden hak gidiyordu) | Dokunuş konuyu kutuya yazar ve düğmeye odaklanır; üretimi düğme başlatır | `studio-shared.tsx` `StudioEntry` |
+| Tek sesli podcast özetinde "ADA / KEREM" | Yalnız konuşan sesler; tek seste satırlarda konuşmacı adı yok | `podcast-studio.tsx` |
+| Yazılı denemede tanım sorusunun altında "Adım adım yaz; ara sonuçlarını göster"; "Klasik · 10 puan … 10 puan" | Yönerge kökten (`openAnswerHint`: sayı ya da hesap fiili varsa adım, yoksa "Kendi cümlelerinle, ana noktaları sırayla yaz"); puan bir kez | `mock-exam/labels.ts`, `exam-runner.tsx` |
+| Doğru/yanlış: kurulum "Testi oluştur", stüdyo sonucu yalnız sayı | "Önermeleri hazırla"; sonuçta kaçırılan önermeler "Doğrusu" açıklamasıyla | `feedback-copy.ts`, `true-false-studio.tsx` |
+| Kart adımının kurulum başlığı "Tekrar" (yolda "Kartlarla tekrar") | Aynı ad | `exam-prep-plan.ts`, `free-reach.ts` |
+
+Değişmeyen (bilerek): Araçlar'daki "İnteraktif Simülasyonlar" sekmesi onaylı 12 araçtan üçü (birim çember, parabol,
+hücre); kapalı tutulan /lab ile çelişmez.
+
+Bekçi: `konu-kimligi.test.ts`, `canli-tur-30-ekim.test.ts`, `podcast-hazir-yol.test.ts`, `duello-geri-sayim.test.tsx`,
+`video-tahta-30-ekim.test.tsx`, `arayuz-30-ekim.test.tsx`.

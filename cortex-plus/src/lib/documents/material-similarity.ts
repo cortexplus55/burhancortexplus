@@ -281,14 +281,30 @@ export function termShare(stems: ReadonlyMap<string, number>, other: ReadonlyMap
   return shared / total;
 }
 
-/** Ders adı belgede geçiyor mu (ders adının her içerik sözcüğü belgede var). */
+/**
+ * Ders adı belgede geçiyor mu (ders adının her içerik sözcüğü belgede var). Bileşik ders adı da sayılır
+ * (30 Ekim 2026, canlı tur): ders "Makroekonomi", belgede yalnız "ekonomi" geçiyordu; iki belgeden hangisinin
+ * alakasız olduğuna karar verilemedi ve Hukuk notu uyarısız haritaya girdi.
+ */
 export function mentionsSubject(subject: string | null | undefined, stems: ReadonlyMap<string, number>): boolean {
   const own = words(subject ?? "")
     .filter((word) => word.length >= 4)
-    .map((word) => word.slice(0, 5))
-    .filter((stem) => !GENERAL_STEMS.has(stem));
+    .filter((word) => !GENERAL_STEMS.has(word.slice(0, 5)));
   if (!own.length) return false;
-  return own.every((stem) => (stems.get(stem) ?? 0) >= 1);
+  return own.every((word) => (stems.get(word.slice(0, 5)) ?? 0) >= 1 || compoundPartInDocument(word, stems));
+}
+
+/**
+ * Bileşik ders adının ("makroekonomi", "biyokimya", "mikrobiyoloji") baştaki önekten sonraki bir parçası belgede
+ * kök olarak en az iki kez geçiyor mu. Yalnız 8+ harfli adda ve 3. harften sonra bakılır: kısa ad ya da adın başı
+ * zaten ilk kurala girer.
+ */
+function compoundPartInDocument(word: string, stems: ReadonlyMap<string, number>): boolean {
+  if (word.length < 8) return false;
+  for (let at = 3; at + 5 <= word.length; at += 1) {
+    if ((stems.get(word.slice(at, at + 5)) ?? 0) >= 2) return true;
+  }
+  return false;
 }
 
 export type UnrelatedDocument = {

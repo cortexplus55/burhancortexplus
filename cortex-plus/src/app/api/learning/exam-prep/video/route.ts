@@ -7,6 +7,7 @@ import { prepTopicSource } from "@/lib/learning/prep-topic-source";
 import { resolveVideoStyle } from "@/lib/learning/video-lesson";
 import { runVideoLesson } from "@/lib/learning/video-run";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
+import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 
 export const maxDuration = 300;
 
@@ -47,12 +48,7 @@ export async function POST(request: Request) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
-  const { data: topic } = await service
-    .from("exam_prep_topics")
-    .select("id, label")
-    .eq("id", topicId)
-    .eq("exam_prep_id", prepId)
-    .maybeSingle();
+  const topic = await resolvePrepTopicRow<{ id: string; label: string }>(service, prepId, topicId, "id, label");
   if (!topic) return errorResponse(404, "not_found");
 
   const source = await prepTopicSource(service, {
@@ -60,7 +56,7 @@ export async function POST(request: Request) {
     prepId,
     prepTitle: String(prep.title ?? ""),
     prepDocumentId: (prep.document_id as string | null) ?? null,
-    topicId,
+    topicId: topic.id,
     topicLabel: String(topic.label),
   });
   if (!source) return errorResponse(503, "source_unavailable");
@@ -79,7 +75,7 @@ export async function POST(request: Request) {
   const outcome = await runVideoLesson(service, {
     userId,
     prepId,
-    topicId,
+    topicId: topic.id,
     topicLabel: String(topic.label),
     prepTitle: String(prep.title ?? "Hazırlık"),
     mode: source.mode,

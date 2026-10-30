@@ -288,6 +288,8 @@ const bodySchema = z.object({
    * hızlı işlemle ve bitmiş eski kayıtlara bakmadan başlar. Yalnız iç istekte anlamlı.
    */
   warm: z.boolean().optional(),
+  /** Yeni kurulan hazırlığın ilk dersi (30 Ekim 2026): öğrenci birazdan açıyor, Plus'ta hızlı işlemle yazılır. */
+  firstLesson: z.boolean().optional(),
   /**
    * 3: istemci V3 dersi (ekran → blok) okuyor. Göndermeyen eski sekme V2 paketi
    * alır; yayın sırasında açık kalan sayfada ders boş açılmasın (16 Ekim 2026).
@@ -2589,6 +2591,7 @@ async function handleNodeRequest(
           idempotencyKey: creditKey,
           charge: !prefetch,
           warm,
+          firstLesson: prefetch && parsed.data.firstLesson === true,
           nodeId,
           nodeTitle: (node.title as string | null) ?? null,
           // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
@@ -3362,6 +3365,8 @@ async function generateNodePayload(input: {
   freeMeter?: FreeMeter | null;
   /** Isınma yazımı (19 Ekim 2026): öğrenci kartlarda bekliyor sayılır, hızlı işlem. */
   warm?: boolean;
+  /** Yeni hazırlığın ilk dersinin önceden yazımı: Plus'ta hızlı işlem (30 Ekim 2026). */
+  firstLesson?: boolean;
   /** Parça parça açılış: denetlenen her kavram, ders kaydı biçiminde öğrencinin kaydına yazılır. */
   onLessonPublish?: (payload: Record<string, unknown>) => Promise<void> | void;
   learningPreferences?: unknown;
@@ -3703,7 +3708,10 @@ async function teacherLessonPayload(
     // Hızlı işlem yalnız öğrencinin açtığı soğuk derste (kimin alacağına `fastAllowedFor` karar verir).
     // Önceden yazım ve ısınma normal işlemde (23 Ekim 2026, ürün sahibinin kararı): ısınma açılmayan
     // derste de ödeniyordu ve hızlı işlem iki kat fiyat; kartlarda geçen süre yazıma yine kazandırılır.
-    fast: input.charge !== false,
+    // İstisna (30 Ekim 2026, tam yetkiyle): yeni kurulan hazırlığın İLK dersi. Öğrenci kurulumdan hemen sonra
+    // açıyor; canlıda normal işlemdeki yazım yetişmedi, ilk ekran 24,5 sn bekledi. Hızlı işlemi yine
+    // `fastAllowedFor` verir (yalnız Plus/Sigma ve kurucu); ücretsizde değişiklik yok.
+    fast: input.charge !== false || input.firstLesson === true,
     onPublish: input.onLessonPublish
       ? (published: PublishedLesson) =>
           input.onLessonPublish!({

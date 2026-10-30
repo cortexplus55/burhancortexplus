@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import {
   ANSWER_SAVE_DEBOUNCE_MS,
   multiMcqScoringNote,
+  openAnswerHint,
   questionTypeChip,
   type MockQuestionType,
 } from "@/lib/learning/mock-exam";
@@ -335,7 +336,8 @@ export function ParityExamRunner({
             Soru {index + 1}
           </span>
           <span className="rounded-full bg-[color:color-mix(in_srgb,var(--c-action)_20%,transparent)] px-2.5 py-1 text-xs text-[color:var(--cp-text)]">
-            {questionTypeChip(type, current.points)}
+            {/* Puan sağda bir kez yazar; çipte tekrar edilmez ("Klasik · 10 puan … 10 puan"). */}
+            {questionTypeChip(type)}
           </span>
           {current.points != null ? (
             <span className="ml-auto text-xs text-[color:var(--cp-muted)]">{current.points} puan</span>
@@ -452,7 +454,7 @@ export function ParityExamRunner({
               />
               <div className="mt-1 flex justify-between text-xs text-[color:var(--cp-muted)]">
                 <span>
-                  {type === "open" ? "Adım adım yaz; ara sonuçlarını göster." : null}
+                  {type === "open" ? openAnswerHint(current.text) : null}
                 </span>
                 <span>{typeof selected === "string" ? selected.length : 0}</span>
               </div>

@@ -47,6 +47,8 @@ export function PrepPodcastSession({
       error?: string;
       refunded?: boolean;
       reason?: string;
+      /** Yoldaki aynı konunun podcast'i hazır (30 Ekim 2026): o adım açılır, baştan yazılmaz. */
+      openNode?: string;
     }>("/api/learning/exam-prep/podcast", () => ({ prepId, topicId, length, clientRequestId: crypto.randomUUID() }), {
       onBusy: () => {
         if (alive) setQueued(true);
@@ -59,6 +61,10 @@ export function PrepPodcastSession({
         // günlük haktan büyük; kapı bunu söyler, geri sayım göstermez).
         if (res.status === 402) {
           setStatus("paywall");
+          return;
+        }
+        if (res.ok && typeof data.openNode === "string" && data.openNode.startsWith("/deneme-sinavlari/")) {
+          router.replace(data.openNode);
           return;
         }
         if (!res.ok || !Array.isArray(data.chapters)) {
@@ -88,7 +94,7 @@ export function PrepPodcastSession({
     return () => {
       alive = false;
     };
-  }, [attempt, prepId, topicId, topicLabel, length, isAdmin]);
+  }, [attempt, prepId, topicId, topicLabel, length, isAdmin, router]);
 
   const home = `/deneme-sinavlari/${prepId}`;
 

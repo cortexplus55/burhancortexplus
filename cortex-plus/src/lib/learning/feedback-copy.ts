@@ -23,6 +23,8 @@ export function startActionLabel(kind: string): string {
   if (kind === "qa") return "Soru-Cevabı Başlat";
   if (kind === "oral") return "Sözlü Sınavı Başlat";
   if (kind === "written_exam") return "Denemeyi oluştur";
+  // Doğru/yanlış bir test değil, önerme turu (30 Ekim 2026, canlı tur).
+  if (kind === "true_false") return "Önermeleri hazırla";
   return "Testi oluştur";
 }
 

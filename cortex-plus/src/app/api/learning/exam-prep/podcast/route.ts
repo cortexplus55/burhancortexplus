@@ -24,6 +24,8 @@ import { pagesMarkedInSource } from "@/lib/learning/source-context";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import { publicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
+import { readyPathPodcastNode } from "@/lib/learning/path-podcast-ready";
 
 /**
  * Yoldan bağımsız podcast. Düğüm durumuna dokunmaz; kilitli adım kilitli kalır.
@@ -70,12 +72,13 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
 
-  const { data: topic } = await service
-    .from("exam_prep_topics")
-    .select("id, label, lesson_id")
-    .eq("id", topicId)
-    .eq("exam_prep_id", prepId)
-    .maybeSingle();
+  // Konunun iki kimliği de kabul (30 Ekim 2026): ders ekranı belge konu düğümünü gönderebiliyordu.
+  const topic = await resolvePrepTopicRow<{
+    id: string;
+    label: string;
+    lesson_id: string | null;
+    document_topic_node_id: string | null;
+  }>(service, prepId, topicId, "id, label, lesson_id, document_topic_node_id");
   if (!topic) return errorResponse(404, "not_found");
 
   const cached = await readPodcastCache(service, prepId, topic.label, length);
@@ -88,6 +91,19 @@ export async function POST(request: Request) {
       reused: true,
       check: cached.check.map(publicQuizQuestion),
     });
+  }
+
+  // Yoldaki aynı konunun podcast'i hazır bekliyorsa (30 Ekim 2026): sayfa onu baştan yazmaz, öğrenci o adıma gider;
+  // hazır içerik ve ücret tek yerde, düğüm açılışında. Ders sonu "Şimdi dinle" (kontrolsüz istek) yerinde çalar,
+  // yönlendirilmez.
+  if (withCheck) {
+    const pathNode = await readyPathPodcastNode(service, {
+      userId,
+      prepId,
+      topicIds: [topic.id, topic.document_topic_node_id ?? ""],
+      length,
+    });
+    if (pathNode) return NextResponse.json({ ok: true, openNode: `/deneme-sinavlari/${prepId}/dugum/${pathNode}` });
   }
 
   const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);

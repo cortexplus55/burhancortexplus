@@ -125,7 +125,7 @@ describe("ısınma yazımı: düğüm açılınca başlar (19 Ekim 2026)", () =>
     expect(route).toMatch(/if \(action === "warm"\) \{/);
     expect(route).toMatch(/requestNodePrefetch\([\s\S]*?\{ warm: true \},\s*\)/);
     // Isınma yazımı normal işlemde (23 Ekim 2026): açılmayan derste de ödeniyordu.
-    expect(route).toMatch(/fast: input\.charge !== false,/);
+    expect(route).toMatch(/fast: input\.charge !== false \|\| input\.firstLesson === true,/);
     // Bitmiş düğüm de ısıtılır; yalnız süren kayıt durdurur. Hazır ders saklanırken de aynı kural.
     expect(route).toMatch(/node\.status === "done" && !warm/);
     expect(route).toMatch(/warm \? await nodeHasOpenAttempt\(service, nodeId\) : await nodeHasAttempts\(service, nodeId\)/);
@@ -222,7 +222,7 @@ describe("önceden hazırlama: geniş kapsam", () => {
     const create = read("src/app/api/learning/exam-prep/create/route.ts");
     // Öğretmen analizi önce (en çok TEACHER_ANALYSIS_WAIT_MS), sonra ilk önceden yazım (18 Ekim 2026).
     expect(create).toContain("ensureTeacherAnalyses(service, { userId, documentIds })");
-    expect(create).toContain("await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId });");
+    expect(create).toContain("await requestPrepPrefetch(service, { origin, userId, prepId: result.prepId }, { firstLesson: true });");
     expect(route).toContain("requestNextPrefetch(service, { origin: options.origin, userId, prepId, sortOrder: node.sort_order as number })");
     expect(route).toContain("if (!prefetch && action === \"start\") {");
     // 24 Ekim 2026: aynı seçimle yazılan konu testi bitmek üzereyse daha uzun beklenir (launch-latency.test.ts).
@@ -302,7 +302,7 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(route).toContain('outcome: "refund"');
     expect(route).toContain("publishPrefetchPartial(service, nodeId, partial)");
     // Hızlı işlem yalnız öğrencinin açtığı soğuk derste; önceden yazım ve ısınma normal (23 Ekim 2026).
-    expect(route).toContain("fast: input.charge !== false,");
+    expect(route).toContain("fast: input.charge !== false || input.firstLesson === true,");
   });
 });
 

@@ -339,6 +339,12 @@ export const SKETCH_MIN_SCENES = 4;
 export const SKETCH_MAX_SCENES = 5;
 export const SKETCH_SCENE_MAX_WORDS = 26;
 export const SKETCH_TOTAL_WORDS = { min: 72, max: 110 } as const;
+/**
+ * Yazarın hedefi denetim aralığının üst yarısı (30 Ekim 2026, canlı tur): "1 Dk" video 0:43 çıktı; yazar alt sınıra
+ * (72 kelime ≈ 44 sn, seslendirme saniyede ~1,64 kelime) yazıyordu. Denetim aralığı aynı kalır: alt sınırı yükseltmek
+ * her kısa senaryoda bir düzeltme turu (iki çağrı) açardı.
+ */
+export const SKETCH_TARGET_WORDS = { min: 92, max: 110 } as const;
 export const SKETCH_HARD_LIMITS = { minScenes: 4, sceneWords: 34, totalWords: { min: 55, max: 140 } } as const;
 
 export const SKETCH_DIAGRAM_KINDS = ["balance_scale", "number_line", "function_curve", "timeline", "process_network"] as const;
@@ -378,13 +384,14 @@ export function sketchSystem(mode: TeacherLessonMode): string {
     "Ekranda sahne resmi yok: kara tahtada sahne başlığı, vurucu formül ve parametrik bir şema belirir; sen anlatırsın.\n\n" +
     (mode === "topic" ? RULE_TOPIC : RULE_DOCUMENT) +
     "AKIŞ:\n" +
-    `- ${SKETCH_MIN_SCENES}-${SKETCH_MAX_SCENES} sahne, toplam ${SKETCH_TOTAL_WORDS.min}-${SKETCH_TOTAL_WORDS.max} kelime (yaklaşık 60 saniye).\n` +
+    `- ${SKETCH_MIN_SCENES}-${SKETCH_MAX_SCENES} sahne, toplam ${SKETCH_TARGET_WORDS.min}-${SKETCH_TARGET_WORDS.max} kelime (yaklaşık 60 saniye).\n` +
     `- Her sahnenin anlatımı 1-2 kısa cümle, en çok ${SKETCH_SCENE_MAX_WORDS} kelime; konuşur gibi, 'sen' diye.\n` +
     "- İlk sahne bir kanca; son sahne sınavda akılda kalacak tek cümle. Aradaki sahneler konunun en önemli 2-3 noktasını anlatır.\n" +
     "- Boş cümle yok. Kaynağa atıf yok ('metne göre', 'belgede', 'bu videoda').\n" +
     "- sceneTitle: o sahnenin tahta başlığı, en çok 6 kelime.\n" +
     "- formula: sahnenin vurucu kuralı, KaTeX ile (ör. F_1 d_1 = F_2 d_2). Kaynakta formül yoksa kuralı kısa bir eşitlik ya da okla yaz " +
-    "(ör. sağa kayma \\rightarrow x artar). Dolar işareti koyma. Uydurma sayı yazma.\n" +
+    "(ör. sağa kayma \\rightarrow x artar). Dolar işareti koyma. Uydurma sayı yazma. Sözle yazılan kuralda KaTeX komutu " +
+    "kullanma; düz yazı ve ok işaretleri (→, ↑, ↓) yeter (ör. Genel fiyat düzeyi ↑ → paranın değeri ↓).\n" +
     "- keyFact: sınavda sorulacak kilit ifade, en çok 8 kelime. Yoksa boş bırak.\n" +
     "- voice: sahneleri Ada (ada) ve Kerem (kerem) arasında dağıt; art arda aynı ses en çok iki sahne.\n" +
     "- diagram.diagramKind yalnız şunlardan biri: number_line (sayı, eşitsizlik), balance_scale (iki kefeli denge, denklem), " +

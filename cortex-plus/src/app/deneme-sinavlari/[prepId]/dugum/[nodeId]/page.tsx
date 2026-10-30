@@ -299,7 +299,9 @@ export default async function ExamNodePage({
         prepTitle={prep.title ?? "Sınav hazırlığı"}
         topicLabel={topicLabel}
         requestedTopic={requestedTopic || null}
-        topicId={topicId ?? null}
+        // İstemciye konunun gerçek kimliği (30 Ekim 2026): düğüm belge konu düğümünü taşıyor, "Şimdi dinle" bu
+        // ham kimlikle 404 alıyordu (canlıda 1.851 konulu adımın 1.830ı).
+        topicId={topicRowId ?? topicId ?? null}
         initialFamiliarity={topicFamiliarity}
         todayMood={todayMood}
         replayLesson={tekrar === "1"}
