@@ -31,6 +31,21 @@ const YEAR_LED_TITLE = /^\s*(1[0-9]{3}|20[0-9]{2})\s+\S/;
 /** Sonda duran parantezli kısaltma: "(USCS)", "(TS 1500)". */
 const TRAILING_PAREN = /\s*\([^()]{2,20}\)\s*$/;
 
+/** Devam sayfasının başlığı: "Hücre Zarı (devam 2)", "Mitokondri (devamı)", "Kimyasal Denge – devam", "Limit (cont.)". */
+const CONTINUATION = /\s*(?:[-–—:]\s*|\(\s*)(?:devam(?:ı|i)?(?:\s+ediyor)?|cont(?:\.|inued)?)(?:\s*\d+)?\s*\)?\s*$/iu;
+
+/**
+ * Başlık bir başlığın devam sayfasıysa ana başlık, değilse null (31 Ekim 2026). Ders notu ve slaytta aynı başlık
+ * "(devam)" ekiyle sonraki sayfalarda sürer; ayrı konu değildir. 320 sayfalık bir kitapta her sayfa
+ * "X (devam N)" diye ayrı konu oluyordu (320 konu).
+ */
+export function continuationBase(title: string): string | null {
+  const text = title.trim();
+  if (!CONTINUATION.test(text)) return null;
+  const base = text.replace(CONTINUATION, "").trim();
+  return base.length >= 2 ? base : null;
+}
+
 /**
  * Konu sayısı belgenin uzunluğuna göre.
  *

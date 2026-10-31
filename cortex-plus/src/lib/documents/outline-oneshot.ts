@@ -31,6 +31,7 @@ import {
   type SkeletonCoverage,
   type SkeletonGap,
 } from "@/lib/documents/outline-skeleton";
+import { continuationBase } from "@/lib/documents/topic-title";
 
 /**
  * Retired routing threshold (19 Ekim 2026: 30 → 12). 27 Ekim 2026: no longer
@@ -598,7 +599,11 @@ export function validateOneShotOutline(
         issues.push({ code: "topic_count", topics: MAX_TOPICS_TOTAL + 1 });
         break;
       }
-      const title = topic.title.trim();
+      const rawTitle = topic.title.trim();
+      // Devam sayfasının konusu ("Hücre Zarı (devam 2)") ayrı konu değildir (31 Ekim 2026; 320 sayfalık kitapta her
+      // sayfa ayrı konu oluyordu): sayfaları aynı ünitedeki ana konuya katılır, ana konu yoksa ekten arınmış adla sürer.
+      const base = continuationBase(rawTitle);
+      const title = base ?? rawTitle;
       if (!title) {
         issues.push({ code: "empty_title" });
         continue;
@@ -608,7 +613,7 @@ export function validateOneShotOutline(
         continue;
       }
       const key = title.toLocaleLowerCase("tr");
-      if (seen.has(key)) {
+      if (seen.has(key) && !base) {
         issues.push({ code: "duplicate_topic", title });
         continue;
       }
@@ -637,6 +642,20 @@ export function validateOneShotOutline(
       }
       start = Math.max(1, Math.min(start, maxPage));
       end = Math.max(start, Math.min(end, maxPage));
+
+      if (base) {
+        const host = topics.find((kept) => kept.fileIndex === fileIndex && kept.title.toLocaleLowerCase("tr") === key);
+        if (host) {
+          const pages = new Set(host.pageNumbers);
+          for (let p = start; p <= end; p += 1) pages.add(p);
+          host.pageNumbers = [...pages].sort((a, b) => a - b);
+          continue;
+        }
+        if (seen.has(key)) {
+          issues.push({ code: "duplicate_topic", title });
+          continue;
+        }
+      }
 
       const why =
         (topic.whyLearn || topic.description || "").trim().slice(0, MAX_TEXT_CHARS) ||
@@ -913,7 +932,8 @@ export const OUTLINE_GRANULARITY_RULE =
   "- 1 ÜNİTE = 1 KONU YASAK: ünitede birden fazla ana alt başlık, kanun, dağılım veya test türü varsa her biri ayrı konu olur. Örnekler (ayrı konular): Newton ve Düşey Atış; Vergi ve Taban Fiyat; Poisson, Medyan/Mod, ki-kare bağımsızlık, eşleştirilmiş t ve bağımsız t; Rüzgâr, Yağış ve Yerel Saat. Bunları ünitenin adına indirgeme.\n" +
   "- Şemsiye başlık YASAK: \"Temel Kavramlar\", \"Temel Kavramlar ve İlkeler\", \"Genel Bilgiler\" gibi bir başlık altında alt dalları yutma. Her belirgin alt başlık, mekanizma, teorem/formül grubu ya da problem/analiz türü kendi konusu olur; belgenin hiçbir ana ya da alt dalı haritanın dışında kalmaz.\n" +
   "- Kısa dosyada (9 sayfadan az) sayfa payı tek başına konu açmaz. En az üç bağımsız, içerik taşıyan alt başlık varsa konu metin/karakter payına göre 2-4 ayrı konuya bölünür; sayfa başlığı, tekrar listesi ve hata listesi konu değildir.\n" +
-  "- KISA ALT BÖLÜM DE KONUDUR: belgede kendi başlığıyla duran ve kendi tanımı, kuralı, formülü ya da örnek/soru tipi olan alt bölüm 1-2 sayfa bile olsa ayrı konu olur (\"Parçalı Fonksiyon\", \"Düşey Atış\", \"Taban Fiyat\" gibi); üst başlığın içinde eritilmez. Yalnız başlığı olup gövdesi olmayan etiket, çözümlü örnek ve tekrar bölümü konu değildir.";
+  "- KISA ALT BÖLÜM DE KONUDUR: belgede kendi başlığıyla duran ve kendi tanımı, kuralı, formülü ya da örnek/soru tipi olan alt bölüm 1-2 sayfa bile olsa ayrı konu olur (\"Parçalı Fonksiyon\", \"Düşey Atış\", \"Taban Fiyat\" gibi); üst başlığın içinde eritilmez. Yalnız başlığı olup gövdesi olmayan etiket, çözümlü örnek ve tekrar bölümü konu değildir.\n" +
+  "- DEVAM SAYFASI AYRI KONU DEĞİLDİR: \"(devam)\", \"(devamı)\", \"(devam 2)\", \"– devamı\" ya da \"(cont.)\" ekiyle süren başlık aynı başlığın konusudur; sayfaları o konuya eklenir, başlığa ek yazılmaz.";
 
 function studentOutlinePrompt(input: {
   examLabel?: string | null;

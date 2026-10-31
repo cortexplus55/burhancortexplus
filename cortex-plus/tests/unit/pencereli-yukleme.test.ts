@@ -16,6 +16,8 @@ import { runUploadPipeline } from "@/lib/documents/upload-engine";
 import { uploadSizeProblem } from "@/lib/documents/upload-accept";
 import { maxDocumentBytes } from "@/lib/documents/store-upload";
 import { extractText } from "@/lib/documents/extract-text";
+import { continuationBase } from "@/lib/documents/topic-title";
+import { validateOneShotOutline, type OneShotOutlineDraft } from "@/lib/documents/outline-oneshot";
 
 const read = (relative: string) => readFileSync(join(process.cwd(), relative), "utf8");
 
@@ -112,6 +114,41 @@ describe("sayfa ve boyut tavanları", () => {
 
   it("depolama kotası belgenin parçalarını (paylaşılan dosya) bir kez sayar", () => {
     expect(read("src/lib/documents/storage-quota.ts")).toContain('.is("part_of", null)');
+  });
+});
+
+describe("devam sayfası ayrı konu değildir", () => {
+  it("'(devam 2)', '(devamı)', '– devam', '(cont.)' ana başlığa bağlanır; 'Devam Eden Süreçler' değil", () => {
+    expect(continuationBase("Hücre Zarı (devam 2)")).toBe("Hücre Zarı");
+    expect(continuationBase("1.2 Mitokondri (Devamı)")).toBe("1.2 Mitokondri");
+    expect(continuationBase("Kimyasal Denge – devam")).toBe("Kimyasal Denge");
+    expect(continuationBase("Limit (cont.)")).toBe("Limit");
+    expect(continuationBase("Devam Eden Süreçler")).toBeNull();
+    expect(continuationBase("Tanzimat Fermanı")).toBeNull();
+  });
+
+  it("haritada devam sayfasının konusu ana konunun sayfalarına katılır (320 sayfalık kitapta 320 konu çıkıyordu)", () => {
+    const draft = {
+      units: [{
+        title: "Hücre Biyolojisi",
+        topics: [
+          { title: "Hücre Zarı", description: "", pageStart: 1, pageEnd: 1 },
+          { title: "Hücre Zarı (devam 2)", description: "", pageStart: 2, pageEnd: 2 },
+          { title: "Hücre Zarı (devam 3)", description: "", pageStart: 3, pageEnd: 3 },
+          { title: "Mitokondri", description: "", pageStart: 4, pageEnd: 4 },
+          { title: "Mitokondri (devamı)", description: "", pageStart: 5, pageEnd: 5 },
+        ],
+      }],
+    } as OneShotOutlineDraft;
+    const result = validateOneShotOutline(draft, 5);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const topics = result.normalized[0]!.topics;
+    expect(topics.map((topic) => [topic.title, topic.pageNumbers])).toEqual([
+      ["Hücre Zarı", [1, 2, 3]],
+      ["Mitokondri", [4, 5]],
+    ]);
+    expect(read("src/lib/documents/outline-oneshot.ts")).toContain("DEVAM SAYFASI AYRI KONU DEĞİLDİR");
   });
 });
 

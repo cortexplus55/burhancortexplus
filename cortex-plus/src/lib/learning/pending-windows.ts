@@ -163,12 +163,17 @@ async function documentState(
   };
 }
 
-/** Belgenin sayfaları görüntüden mi okunuyor (taranmış kitap / fotoğraf seti). */
+/**
+ * Belgenin sayfaları görüntüden mi okunuyor (taranmış kitap / fotoğraf seti): okunan sayfalardan biri görüntü
+ * okumasıyla çıktıysa. Görüntü kotası satırları (document_ocr_claims) ölçü değil: kotadan muaf hesapta yazılmıyor
+ * (31 Ekim 2026, canlı ölçüm: kurucunun taranmış kitabı duraklamadan sonuna kadar okundu).
+ */
 async function isScanned(service: SupabaseClient, documentId: string): Promise<boolean> {
   const { count } = await service
-    .from("document_ocr_claims")
-    .select("page_number", { count: "exact", head: true })
-    .eq("document_id", documentId);
+    .from("document_pages")
+    .select("id", { count: "exact", head: true })
+    .eq("document_id", documentId)
+    .eq("extraction_method", "ocr");
   return (count ?? 0) > 0;
 }
 

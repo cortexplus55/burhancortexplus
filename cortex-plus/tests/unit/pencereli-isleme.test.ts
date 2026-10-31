@@ -131,7 +131,8 @@ function seed(input: { total: number; readThrough: number; head: boolean; scanne
   const embeddings: Row[] = [];
   const addPage = (documentId: string, page: number) => {
     const id = `${documentId}-p${page}`;
-    pages.push({ id, document_id: documentId, page_number: page, text_content: `Sayfa ${page}`, page_kind: "content" });
+    const extraction_method = input.scanned ? "ocr" : "text_layer";
+    pages.push({ id, document_id: documentId, page_number: page, text_content: `Sayfa ${page}`, page_kind: "content", extraction_method });
     chunks.push({ id: `${id}-c`, document_id: documentId, page_id: id, chunk_index: page * 10, content: `Sayfa ${page}` });
     embeddings.push({ chunk_id: `${id}-c`, embedding: [page] });
   };
@@ -154,7 +155,6 @@ function seed(input: { total: number; readThrough: number; head: boolean; scanne
     exam_prep_pending_materials: [{ prep_id: PREP, document_id: BOOK, user_id: USER, created_at: "2026-10-31T10:00:00Z" }],
     exam_prep_nodes: Array.from({ length: input.lessons ?? 0 }, (_, index) => ({ id: `n${index}`, exam_prep_id: PREP, kind: "lesson", status: "ready" })),
     exam_prep_topics: [],
-    document_ocr_claims: input.scanned ? [{ document_id: BOOK, page_number: 1 }] : [],
   });
   return { db: fake.db, service: fake.client as SupabaseClient, addPage, pages };
 }
