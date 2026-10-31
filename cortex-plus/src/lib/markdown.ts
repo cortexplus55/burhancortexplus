@@ -76,10 +76,10 @@ function orderedListStart(lines: string[]): number | null {
  */
 function expandGluedLists(content: string): string {
   return content.replace(
-    /([:.])[ \t]*(1[.)][ \t]*\S[\s\S]*?)(?=\n\s*\n|$)/g,
+    /([:.])[ \t]*(1[.)](?!\d)[ \t]*\S[\s\S]*?)(?=\n\s*\n|$)/g,
     (full, punct: string, listBody: string) => {
-      if (!/[.!?]\s*2[.)][ \t]*\S/.test(listBody) && !/\S2[.)][ \t]/.test(listBody)) return full;
-      let list = listBody.replace(/([.!?])[ \t]*(?=[2-9]\d?[.)][ \t]*\S)/g, "$1\n");
+      if (!/[.!?]\s*2[.)](?!\d)[ \t]*\S/.test(listBody) && !/\D2[.)][ \t]/.test(listBody)) return full;
+      let list = listBody.replace(/([.!?])[ \t]*(?=[2-9]\d?[.)](?!\d)[ \t]*\S)/g, "$1\n");
       list = list.replace(/^(\d+[.)][^\n]*[.!?])[ \t]*([A-ZÇĞİÖŞÜ])/gm, "$1\n\n$2");
       return `${punct}\n\n${list}`;
     },
@@ -175,7 +175,7 @@ export function renderMarkdownToHtml(content: string): string {
       if (LIST_LINE.test(trimmed) && (!ordered || start != null)) {
         const items = trimmed
           .split(LIST_ITEM_SPLIT)
-          .map((line) => line.replace(/^(\d+\.|[-*])\s*/, "").trim())
+          .map((line) => line.replace(/^(\d+\.|[-*])\s+/, "").trim())
           .filter(Boolean)
           .map((item) => `<li>${renderInline(item, true)}</li>`)
           .join("");
