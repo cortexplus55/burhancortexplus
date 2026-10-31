@@ -1,23 +1,41 @@
-import { CheckCircle2 } from "lucide-react";
-import { MarketingPage } from "@/components/layout/marketing-page";
-import { ResultCard } from "@/components/marketing/result-card";
+import { ParityMarketingPage } from "@/components/parity/marketing";
+import { PaymentActivation } from "@/components/billing/payment-activation";
+import { createClient } from "@/lib/supabase/server";
 
-export default async function OdemeBasariliPage() {
+export const metadata = { title: "Ödeme alındı" };
+// Oturum çerezi ve `?kaynak=` okunuyor; sayfa her istekte çizilir (Suspense sınırı yok).
+export const dynamic = "force-dynamic";
+
+/**
+ * PayTR'nin başarılı ödeme dönüşü (31 Ekim 2026). Plus'ı açan sunucu bildirimi 5-15 sn sonra
+ * gelebildiği için sayfa düz bir "Ödeme alındı" kartı değil: durumu yoklayan ekran
+ * (`PaymentActivation`). Oturum telefonda düştüyse yoklama başlamaz, giriş bağlantısı çıkar.
+ * Hesapsız velinin bağlantıyla ödemesi kendi sayfalarında (`/odeme/veli/...`), buraya gelmez.
+ */
+export default async function OdemeBasariliPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kaynak?: string }>;
+}) {
+  const { kaynak } = await searchParams;
+  const forChild = kaynak === "veli";
+
+  let signedIn = false;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    signedIn = Boolean(data.user);
+  } catch {
+    signedIn = false;
+  }
+
   return (
-    <MarketingPage
-      variant="auth"
-      title="Ödeme alındı"
-      description="Plus hakkın birkaç saniye içinde hesabına işlenir."
-    >
-      <ResultCard
-        icon={CheckCircle2}
-        tone="success"
-        detail="Makbuzun Ödemeler sayfasında duruyor. Hakların hemen görünmezse sayfayı bir kez yenile — bankadan onay bazen birkaç saniye sürer."
-        primaryHref="/"
-        primaryLabel="Çalışmaya başla"
-        secondaryHref="/odemeler"
-        secondaryLabel="Makbuzumu gör"
+    <ParityMarketingPage variant="auth">
+      <PaymentActivation
+        signedIn={signedIn}
+        forChild={forChild}
+        returnPath={forChild ? "/odeme/basarili?kaynak=veli" : "/odeme/basarili"}
       />
-    </MarketingPage>
+    </ParityMarketingPage>
   );
 }
