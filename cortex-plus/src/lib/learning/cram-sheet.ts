@@ -104,7 +104,11 @@ export function clipCramText(text: string, max: number = CRAM_LIMITS.text): stri
 function item(kind: CramKind, title: unknown, text: unknown): CramItem | null {
   const body = clean(text);
   if (body.length < 2) return null;
-  const head = clean(title);
+  // Ders notunun başlığı çoğu zaman türün adıyla başlıyor ("Sınav ipucu: Deflasyon ile dezenflasyon"); kâğıtta tür zaten
+  // etiket olarak duruyor, başlık onu ikinci kez yazmasın (31 Ekim 2026 canlı deneme: "Sınav ipucu Sınav ipucu: …").
+  const label = CRAM_KIND_LABEL[kind].toLocaleLowerCase("tr-TR");
+  let head = clean(title);
+  if (head.toLocaleLowerCase("tr-TR").startsWith(label)) head = head.slice(label.length).replace(/^[\s:·–-]+/u, "");
   return { kind, title: head ? clipCramText(head, CRAM_LIMITS.title) : null, text: body };
 }
 

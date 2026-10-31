@@ -130,6 +130,22 @@ describe("Paket J3 #14 · sınav sabahı kâğıdı", () => {
     expect(rows.find((row) => row.kind === "procedure")!.text).toBe("Hız farkını bul → Süreye böl");
     expect(rows.at(-1)!.text).toBe("Sakın: Sabit hızda ivme vardır. · Doğrusu: Sabit hızda ivme sıfırdır.");
     expect(rows.some((row) => row.text.includes("ışık"))).toBe(false);
+    // Tür etiketi başlıkta ikinci kez yazılmaz (31 Ekim canlı deneme: "Sınav ipucu Sınav ipucu: …").
+    expect(rows.find((row) => row.kind === "exam")!.title).toBeNull();
+    expect(rows.find((row) => row.kind === "mnemonic")!.title).toBeNull();
+    const titled = collectLessonCram(
+      lesson({
+        format: 3,
+        title: "Enflasyon",
+        screens: [
+          {
+            heading: "Dezenflasyon",
+            blocks: [{ type: "note", note: { title: "Sınav ipucu: Deflasyon ile dezenflasyon", body: "Enflasyon %60'tan %40'a inerse bu dezenflasyondur.", tone: "exam" } }],
+          },
+        ],
+      }),
+    );
+    expect(titled[0]!.title).toBe("Deflasyon ile dezenflasyon");
   });
 
   it("konular yolun sırasıyla; tekrar eden formül ilk konuda kalır; konusuz ders kendi adıyla sonda", () => {

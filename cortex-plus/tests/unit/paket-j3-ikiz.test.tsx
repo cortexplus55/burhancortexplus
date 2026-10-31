@@ -113,9 +113,30 @@ describe("#11 çıkmış sorulardan ikiz sınav", () => {
       rubric: ["Kanun üstünlüğü ilkesine değinir", "Can ve mal güvencesi belirtilir", "Batılılaşma sürecinin başlangıcı olarak yorumlanır"],
       modelAnswer: "Tanzimat ile kanun üstünlüğü ilkesi kabul edildi, can ve mal güvencesi sağlandı; Batılılaşma sürecinin önemli bir adımıdır.",
     });
-    expect(history.length).toBeGreaterThanOrEqual(2);
-    expect(history.join(" | ")).toContain("kanun üstünlüğü");
-    expect(history.join(" | ")).toContain("Batılılaşma sürecinin");
+    expect(history.length).toBeGreaterThanOrEqual(1);
+    expect(history.join(" | ").toLocaleLowerCase("tr-TR")).toContain("kanun üstünlüğü");
+    // Canlı 11 soru (tıp, genetik, muhasebe; 31 Ekim 2026): cümle parçası yok; formül, oran, kısaltma, teknik terim var.
+    const live = JSON.parse(read("tests/fixtures/key-terms-live-31-ekim.json")) as Array<{
+      q: string;
+      rubric: { criterion: string }[];
+      answer: string;
+    }>;
+    const terms = live.map((row) =>
+      scoringKeyTerms({ questionText: row.q, rubric: row.rubric.map((item) => item.criterion), modelAnswer: row.answer }),
+    );
+    expect(terms[1]).toEqual(["VSD, ASD, PDA", "aort koarktasyonu", "Fallot tetralojisi", "basınç yükü"]);
+    expect(terms[3]).toEqual(["6 ay-5 yaş", "ABC", "Febril nöbet"]);
+    expect(terms[4]).toContain("homolog kromozom");
+    expect(terms[5]).toEqual(["1 AA : 2 Aa : 1 aa", "3 baskın : 1 çekinik"]);
+    expect(terms[7]).toEqual(["IA = IB > i", "IAIB", "ABO"]);
+    expect(terms[9]).toContain("40.000 TL + 90.000 TL − 25.000 TL");
+    expect(terms[9]).toContain("105.000 TL");
+    expect(terms[10]).toEqual(["35 TL", "500 TL − 35 TL = 465 TL"]);
+    // İlk sürümün canlıda ürettiği parçalar bir daha çıkmaz.
+    const flat = terms.flat();
+    for (const bad of ["3 A", "ayrılır ve her gamet", "kalıtsal bir özelliği belirleyen", "kromozomlardaki genlerin", "TL = 465"]) {
+      expect(flat).not.toContain(bad);
+    }
     // Hiç ortak nokta yoksa şerit yok (kod terim uydurmaz).
     expect(scoringKeyTerms({ rubric: ["Doğru cevap"], modelAnswer: "Evet." })).toEqual([]);
     const review = read("src/components/parity/exam-question-review-client.tsx");
@@ -143,6 +164,39 @@ describe("#12 ikiz soru", () => {
     expect(readTwinQuestion({ text: "Başka soru nedir burada?", options: ["a", "b", "c"], correct: ["a"] }, ORIGINAL)).toBeNull();
     expect(readTwinQuestion({ text: "Başka soru nedir burada?", options: ["a", "b", "c", "d", "e"], correct: ["a", "b"] }, ORIGINAL)).toBeNull();
     expect(readTwinQuestion({ text: "Başka soru nedir burada?", options: ["a", "a", "c", "d", "e"], correct: ["a"] }, ORIGINAL)).toBeNull();
+  });
+
+  it("model şıklara harf yazarsa harf düşer, anahtar aynı biçime çekilir (31 Ekim canlı deneme)", () => {
+    const original = normalizeQuizQuestion({
+      text: "Genel fiyat düzeyi sürekli düşüyor. Bu durumu hangi kavram karşılar?",
+      options: ["Stagflasyon", "Enflasyon", "Dezenflasyon", "Deflasyon", "Hiperenflasyon"],
+      correct: ["Deflasyon"],
+    }) as QuizQuestion;
+    const twin = readTwinQuestion(
+      {
+        text: "Tüketici fiyatlarının genel düzeyi dönemler boyunca azalıyor. Bu olgu hangi kavramla adlandırılır?",
+        options: ["A) Stagflasyon", "B) Enflasyon", "C) Dezenflasyon", "D) Deflasyon", "E) Hiperenflasyon"],
+        correct: ["D) Deflasyon"],
+      },
+      original,
+    );
+    expect(twin?.options.every((option) => !/^[A-E]\)/.test(option))).toBe(true);
+    expect(twin?.correct).toEqual(["Deflasyon"]);
+    const bare = readTwinQuestion(
+      {
+        text: "Tüketici fiyatlarının genel düzeyi dönemler boyunca azalıyor. Bu olgu hangi kavramla adlandırılır?",
+        options: ["A) Stagflasyon", "B) Enflasyon", "C) Dezenflasyon", "D) Deflasyon", "E) Hiperenflasyon"],
+        correct: ["D"],
+      },
+      original,
+    );
+    expect(bare?.correct).toEqual(["Deflasyon"]);
+    // Yalnız bazı şıklar harfle başlıyorsa (ör. "A vitamini") metne dokunulmaz.
+    const vitamins = readTwinQuestion(
+      { text: "Hangi vitamin yağda çözünür ve gece görmeyle ilgilidir?", options: ["A vitamini", "B12 vitamini", "C vitamini", "Folik asit", "Niasin"], correct: ["A vitamini"] },
+      normalizeQuizQuestion({ text: "Hangi vitamin suda çözünür?", options: ["A vitamini", "B12 vitamini", "C vitamini", "D vitamini", "K vitamini"], correct: ["C vitamini"] }) as QuizQuestion,
+    );
+    expect(vitamins?.correct).toEqual(["A vitamini"]);
   });
 
   it("cevap anahtarı şifreli belirteçte: açılır, kurcalanırsa ve süresi dolarsa açılmaz", () => {

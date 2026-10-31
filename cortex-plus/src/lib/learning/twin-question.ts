@@ -25,7 +25,7 @@ export const TWIN_SYSTEM =
   "soru türü aynı kalsın. Hesap sorusuysa yeni sayılarla sonucu yeniden hesapla ve doğru şıkkı buna göre koy. Ana " +
   "sorunun kökünü ya da doğru cevabını aynen tekrarlama. Şık sayısı ana soruyla AYNI; tek doğru (ana soru çok cevaplıysa " +
   "aynı sayıda doğru). Çeldiriciler öğrencinin gerçekten karıştırdığı, aynı türden seçenekler olsun. Kaynakta olmayan " +
-  "eşik, tarih ya da kural uydurma; sayı kurguladıysan tutarlı olsun.\n" +
+  "eşik, tarih ya da kural uydurma; sayı kurguladıysan tutarlı olsun. Şık metinlerine harf (A), B) …) yazma.\n" +
   'Yalnız JSON döndür: {"text": "soru kökü", "options": ["şık", ...], "correct": ["doğru şıkkın metni"], ' +
   '"explanation": "bir-iki cümle: neden bu şık doğru"}.';
 
@@ -43,16 +43,31 @@ export function twinUserPrompt(question: QuizQuestion): string {
     .join("\n");
 }
 
+/** Şık metninin başındaki harf etiketi ("A) ", "(b). ", "C- "). */
+const OPTION_LETTER = /^\(?[A-Fa-f]\s*[).:\-–]\s+/;
+
 /** Modelin ikiz sorusunu okur ve denetler; geçmezse null (öğrenciye "şu an hazırlanamadı" denir, kredi yok). */
 export function readTwinQuestion(raw: unknown, original: QuizQuestion): QuizQuestion | null {
   if (!raw || typeof raw !== "object") return null;
   const data = raw as { text?: unknown; options?: unknown; correct?: unknown; explanation?: unknown };
   if (typeof data.text !== "string" || !Array.isArray(data.options)) return null;
   const correctRaw = Array.isArray(data.correct) ? data.correct : data.correct != null ? [data.correct] : [];
+  // Model ana sorunun "A) …" biçimini kopyalayıp şık metnine harf yazabiliyor (31 Ekim 2026 canlı deneme: karışınca
+  // ekranda "A · E) Hiperenflasyon"). Bütün şıklar harfle başlıyorsa harf düşer; anahtar da aynı biçime çekilir.
+  const rawOptions = data.options.map((option) => String(option).trim());
+  const lettered = rawOptions.length > 0 && rawOptions.every((option) => OPTION_LETTER.test(option));
+  const options = lettered ? rawOptions.map((option) => option.replace(OPTION_LETTER, "").trim()) : rawOptions;
+  const correct = correctRaw.map((item) => {
+    const value = String(item).trim();
+    if (!lettered) return value;
+    const bare = /^\(?([A-Fa-f])\)?\.?$/.exec(value);
+    if (bare) return options[bare[1].toUpperCase().charCodeAt(0) - 65] ?? value;
+    return value.replace(OPTION_LETTER, "").trim();
+  });
   const parsed = normalizeQuizQuestion({
     text: data.text,
-    options: data.options.map((option) => String(option)),
-    correct: correctRaw.map((item) => String(item)),
+    options,
+    correct,
     multi: original.multi,
     explanation: typeof data.explanation === "string" ? data.explanation : undefined,
   });
