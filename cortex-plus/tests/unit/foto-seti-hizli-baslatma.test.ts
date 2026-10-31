@@ -253,7 +253,7 @@ describe("bağlantılar (kaynak bekçisi)", () => {
     expect(wizard).toContain("disabled={!documentIds.length || checkingMaterials}");
     expect(wizard).toContain("{ lanes: paidUploads ? PARALLEL_UPLOADS : 1, photoSet: true, fastStart: paidUploads }");
     expect(read("src/app/api/learning/exam-prep/create/route.ts")).toContain("recordPendingMaterials(service, { prepId: result.prepId, userId, documentIds: pendingIds })");
-    const addSource = read("src/app/api/learning/exam-prep/add-source/route.ts");
+    const addSource = read("src/lib/learning/prep-attach.ts");
     expect(addSource.match(/clearPendingMaterials\(service, \{ prepId, userId, documentIds: requested \}\)/g)).toHaveLength(2);
     expect(read("src/lib/privacy/account-deletion.ts")).toContain(`"exam_prep_pending_materials"`);
     expect(read("src/components/parity/exam-prep-home.tsx")).toContain("<PendingMaterialsBanner prepId={prepId} initialPending={pendingMaterials} />");

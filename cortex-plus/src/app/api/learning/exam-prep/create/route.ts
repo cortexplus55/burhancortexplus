@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { recordPendingMaterials } from "@/lib/learning/pending-materials";
+import { requestPendingAdvance } from "@/lib/learning/pending-windows";
 import { ensureTeacherAnalyses, loadPrepDocumentIds, TEACHER_ANALYSIS_WAIT_MS } from "@/lib/documents/teacher-analysis-run";
 import { z } from "zod";
 import { PREP_DOCUMENT_REQUEST_MAX } from "@/lib/learning/prep-topic-list";
@@ -448,6 +449,12 @@ export async function POST(request: Request) {
   const pendingRecorded = pendingIds.length
     ? await recordPendingMaterials(service, { prepId: result.prepId, userId, documentIds: pendingIds })
     : 0;
+  // Pencereli işleme (31 Ekim 2026): bekleyen belgelerin pencere işçisi hemen başlar; öğrenci hazırlık sayfasına
+  // geçmeden ilk pencere okunmaya, haritalanmaya başlar (şerit de dürter; aynı anda tek işçi).
+  if (pendingRecorded) {
+    const origin = new URL(request.url).origin;
+    after(() => requestPendingAdvance({ origin, userId, prepId: result.prepId }));
+  }
 
   // İlk ders hemen yazılmaya başlar (18 Ekim 2026, ürün sahibinin kararı): öğrenci hazırlık
   // sayfasından "Devam et"e basana kadar dersin başı hazır olur; kredi açılınca düşer.

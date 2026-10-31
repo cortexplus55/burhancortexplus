@@ -249,6 +249,8 @@ export function batchUploadFailedLine(names: readonly string[]): string {
 }
 
 export const PREP_HOME_COPY = {
+  /** Pencereli işleme (31 Ekim 2026): büyük belge pencere pencere eklenir; ilerleme şeritte. */
+  windowedHandoff: "Büyük belge bölüm bölüm yoluna ekleniyor; ilerlemeyi üstteki şeritte görebilirsin.",
   path: "Çalışma yolu",
   topics: "Konular",
   materials: "Kaynaklar",

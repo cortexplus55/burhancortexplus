@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Smartphone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
+import { PENDING_MATERIALS_EVENT } from "@/lib/learning/pending-materials-copy";
+import { SINGLE_WINDOW_MAX_PAGES } from "@/lib/documents/document-windows";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { isFreePageLimitError, isPhotoQuotaError } from "@/lib/documents/process-errors";
 import { attachedLine, mapAndAttach } from "@/lib/documents/prep-attach-client";
@@ -25,7 +27,7 @@ import {
   useStudentShellAccount,
 } from "@/lib/student/student-shell-context";
 import { useScreenAwake, useUniversalDocumentUpload } from "@/lib/documents/use-universal-upload";
-import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
+import { DOCUMENT_UPLOAD_ACCEPT, uploadSizeProblem } from "@/lib/documents/upload-accept";
 import "@/styles/exam-create-wizard.css";
 
 const EXTENSIONS = [".pdf", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".docx", ".pptx"];
@@ -80,9 +82,27 @@ export function PrepMaterialAdder({
   /** Okundu ama haritası ya da eklemesi düşen belgeler: "Tekrar dene" yalnız bu adımı yeniden yapar. */
   const [pendingAttach, setPendingAttach] = useState<{ documentIds: string[]; error: string } | null>(null);
   const resumeRef = useRef(false);
+  /** Büyük belge (tek pencereye sığmayan): pencere işçisine devredilir, şerit pencere pencere ekler. */
+  const handoffRef = useRef<string[]>([]);
   const busyRef = useRef(false);
   const phoneQueue = useRef<AddEntry[]>([]);
   const phoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Büyük belgeler hazırlığa bekleyen olarak bağlanır; sunucudaki pencere işçisi onları pencere pencere ekler. */
+  async function handOff(documentIds: string[]): Promise<void> {
+    if (!documentIds.length) return;
+    const res = await fetch("/api/learning/exam-prep/pending-materials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prepId, documentIds }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setPendingAttach({ documentIds, error: "Dosyalar hazırlığa eklenemedi." });
+      return;
+    }
+    window.dispatchEvent(new Event(PENDING_MATERIALS_EVENT));
+    toast.success(PREP_HOME_COPY.windowedHandoff);
+  }
 
   /** Yeni belgelerin tek konu haritası (hazırlığın konu adları yön verir), sonra tek ekleme isteği. */
   async function mapThenAttach(documentIds: string[]): Promise<void> {
@@ -115,11 +135,19 @@ export function PrepMaterialAdder({
       startedAt: new Date().toISOString(),
       surface: "prep-add",
     });
+    // Pencereli işleme (31 Ekim 2026): sayfa sayısı tek pencereyi aşan belge beklenmez; pencere işçisine devredilir.
+    const big = (body: Record<string, unknown>) => Number(body.pageCount) > SINGLE_WINDOW_MAX_PAGES;
     const result = await requestDocumentProcessing({
       documentId: entry.documentId,
       post: (body) => postDocumentProcess({ ...body, prepId, deferMap: true }),
+      stopWhen: big,
     });
     const processed = result.body;
+    if (result.ok && big(processed)) {
+      clearPendingDocProcess({ documentId: entry.documentId });
+      handoffRef.current.push(entry.documentId);
+      return true;
+    }
     if (result.status === 402) {
       clearPendingDocProcess({ documentId: entry.documentId });
       if (isFreePageLimitError(processed)) {
@@ -157,10 +185,8 @@ export function PrepMaterialAdder({
   const upload = useUniversalDocumentUpload(
     { lanes: paidUploads ? PARALLEL_UPLOADS : 1, photoSet: true, fastStart: false },
     {
-      validate: (file) => {
-        const maxBytes = file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
-        return !accepted(file) || file.size > maxBytes ? `${file.name} eklenemiyor: türü ya da boyutu uygun değil.` : null;
-      },
+      // 50 MB'tan büyük PDF motorda parçalarına bölündü (31 Ekim 2026); Word/sunu 50 MB'a kadar.
+      validate: (file) => (!accepted(file) ? `${file.name} eklenemiyor: türü uygun değil.` : uploadSizeProblem(file)),
       process: async ({ documentId, item }) => {
         const outcome = await extract({ documentId, fileName: item.file.name, sizeBytes: item.file.size });
         if (outcome === true) readyRef.current.push({ documentId, fileName: item.file.name });
@@ -176,6 +202,7 @@ export function PrepMaterialAdder({
     setBusy(true);
     setProcessAlert(null);
     readyRef.current = [];
+    handoffRef.current = [];
     // Ücretli hesapta ve kurucuda en çok altı dosya aynı anda; ücretsizde sırayla (upload-batch.ts).
     const lanes = paidUploads ? PARALLEL_UPLOADS : 1;
     const files = entries.flatMap((entry) => (entry.file ? [entry.file] : []));
@@ -221,7 +248,9 @@ export function PrepMaterialAdder({
       const ready = [...readyRef.current].sort(
         (a, b) => (rank.get(a.fileName) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.fileName) ?? Number.MAX_SAFE_INTEGER),
       );
-      await mapThenAttach(ready.map((item) => item.documentId));
+      const handed = new Set(handoffRef.current);
+      await handOff(ready.filter((item) => handed.has(item.documentId)).map((item) => item.documentId));
+      await mapThenAttach(ready.filter((item) => !handed.has(item.documentId)).map((item) => item.documentId));
     } finally {
       busyRef.current = false;
       setBusy(false);

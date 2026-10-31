@@ -224,7 +224,7 @@ describe("büyük belgenin baş kopyası", () => {
     }
     expect(read("src/lib/privacy/document-deletion.ts")).toContain("if (!doc.part_of) {");
     expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("if (parent && sourceById.has(parent)) return [];");
-    expect(read("src/app/api/learning/exam-prep/add-source/route.ts")).toContain("topicPastHead(topic, headCoverage)");
+    expect(read("src/lib/learning/prep-attach.ts")).toContain("topicPastHead(topic, headCoverage)");
     const migration = read("supabase/migrations/20261031140000_document_head.sql");
     expect(migration).toContain("REFERENCES public.documents(id) ON DELETE CASCADE");
     expect(migration).not.toMatch(/DROP |CREATE POLICY/i);
@@ -233,7 +233,8 @@ describe("büyük belgenin baş kopyası", () => {
   it("sihirbaz baş kopyasıyla ilerler; harita kurulduysa ana belge bekleyen olur, baş kopyası değil", () => {
     const wizard = read("src/components/parity/exam-create-wizard.tsx");
     expect(wizard).toContain("takeHead(progress.head, input.documentId, Number(progress.pageCount) || null);");
-    expect(wizard).toContain("fastStart: paidUploads && !item.part && isPdfFile(item.file),");
+    // Bölünmüş kitapta (50 MB üstü PDF) yalnız ilk parça baş kopyası alır.
+    expect(wizard).toContain("fastStart: paidUploads && !item.part && isPdfFile(item.file) && !isPdfSplitTail(item.file),");
     expect(wizard).toContain("!headOfRef.current.has(id)");
     expect(wizard).toContain("if (head && !mappedIdsRef.current?.includes(head)");
   });
@@ -287,10 +288,12 @@ describe("Office resimleri paralel", () => {
 
 describe("okunamayan sayfanın ücreti", () => {
   it("okunamayan sayfa varsa ayrılan ücret iade edilir, yalnız okunan sayfa kadar kesilir", () => {
-    const route = read("src/app/api/documents/process/route.ts");
-    expect(route).toContain('.eq("page_kind", "unreadable")');
-    expect(route).toContain("await refundCredits(service, id);");
-    expect(route).toContain('chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_read_${documentId}`, Math.max(0, total - unreadable))');
+    // 31 Ekim 2026: belge ücreti document-credits.ts'te (pencere işçisi de aynı işlevi çağırır).
+    const credits = read("src/lib/documents/document-credits.ts");
+    expect(credits).toContain('.eq("page_kind", "unreadable")');
+    expect(credits).toContain("await refundCredits(service, reservation.id);");
+    expect(credits).toContain("`document_pages_read_${documentId}${suffix}`");
+    expect(read("src/app/api/documents/process/route.ts")).toContain('import { commitDocumentCredits, refundDocumentCredits } from "@/lib/documents/document-credits";');
   });
 });
 
@@ -303,7 +306,7 @@ describe("bütün yükleme kapıları aynı motorda", () => {
     const chat = read("src/components/chat/chat-panel.tsx");
     expect(chat).toContain("uploaded = await uploadWithRetry(file);");
     expect(chat).toContain("useScreenAwake(attaching > 0);");
-    expect(read("src/components/parity/pending-materials-banner.tsx")).toContain('useScreenAwake(phase === "reading" || phase === "mapping");');
+    expect(read("src/components/parity/pending-materials-banner.tsx")).toContain('useScreenAwake(phase === "working");');
     // Hiçbir yüzey motoru atlayıp yükleme ucunu doğrudan çağırmaz.
     for (const path of [
       "src/components/parity/exam-create-wizard.tsx",

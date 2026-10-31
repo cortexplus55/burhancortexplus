@@ -141,6 +141,11 @@ export async function markMapDeferred(service: SupabaseClient, documentId: strin
   }
 }
 
+/** Pencereli işleme (31 Ekim 2026): bütün pencereleri eklenmiş belgenin bekleme işareti kalkar (kendi haritası bekletilmesin). */
+export async function clearDocumentWaitMarkers(service: SupabaseClient, documentIds: string[]) {
+  await clearWaitMarkers(service, documentIds);
+}
+
 async function clearWaitMarkers(service: SupabaseClient, documentIds: string[]) {
   for (const documentId of documentIds) {
     const { data } = await service.from("document_topic_map_jobs").select("topics").eq("document_id", documentId).maybeSingle();

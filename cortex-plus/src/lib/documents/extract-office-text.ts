@@ -28,6 +28,7 @@ export function isOfficeDocument(mimeType: string | null | undefined): boolean {
  * oranı yüksek bir dosyada gigabaytlara açılabilir; sınır olmadan tek bir
  * belge süreci düşürürdü.
  */
+/** 50 MB'lık sunu (31 Ekim 2026: Word/sunu tavanı 15 → 50 MB) açılınca da sığar: resimler zaten sıkışık, açılınca büyümez. */
 const MAX_UNZIPPED_BYTES = 80 * 1024 * 1024;
 
 /** Vision'a gitmeyecek kadar küçük (kurşun simgesi) veya sağlayıcı sınırının üstü. */

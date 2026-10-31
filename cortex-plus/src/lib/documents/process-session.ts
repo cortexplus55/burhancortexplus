@@ -197,6 +197,11 @@ export async function requestDocumentProcessing(input: {
   sleep?: (ms: number) => Promise<void>;
   maxRounds?: number;
   onProgress?: (body: Record<string, unknown>) => void;
+  /**
+   * Pencereli işleme (31 Ekim 2026): ilerleme yanıtı (202) bu koşulu sağlarsa beklemeden döner (`ok: true`, 202).
+   * "Materyal ekle" büyük belgeyi sayfa sayısı belli olur olmaz pencere işçisine devreder.
+   */
+  stopWhen?: (body: Record<string, unknown>) => boolean;
   stallMs?: number;
   now?: () => number;
 }): Promise<ProcessClientResult> {
@@ -300,6 +305,9 @@ export async function requestDocumentProcessing(input: {
         response.body.windowsDone ??
         lastKnownNextPage;
       input.onProgress?.(response.body);
+      if (input.stopWhen?.(response.body)) {
+        return { ok: true, status: 202, body: response.body, retried, rounds };
+      }
       await sleep(rounds === 1 ? 800 : 2_000);
       continue;
     }

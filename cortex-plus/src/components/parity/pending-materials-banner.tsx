@@ -2,22 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/process-session";
-import { messageFromProcessBody } from "@/lib/documents/process-user-message";
-import { mapAndAttach } from "@/lib/documents/prep-attach-client";
-import { runPool } from "@/lib/documents/upload-batch";
 import { useScreenAwake } from "@/lib/documents/use-universal-upload";
 import {
+  PENDING_CREDITS_LINE,
   PENDING_DONE_VISIBLE_MS,
-  PENDING_MAPPING_LINE,
+  PENDING_MATERIALS_EVENT,
+  PENDING_PAUSED_TITLE,
+  PENDING_READ_ALL,
   PENDING_STALLED_LINE,
   PENDING_TITLE,
+  PENDING_WINDOW_TITLE,
   pendingDoneLine,
   pendingDoneTitle,
   pendingFailedLine,
+  pendingPausedLine,
   pendingProgress,
   pendingReadingLine,
+  pendingWindowAddedLine,
+  pendingWindowLine,
 } from "@/lib/learning/pending-materials-copy";
+import { messageFromProcessBody } from "@/lib/documents/process-user-message";
+import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/process-session";
 import "@/styles/pending-materials.css";
 
 type Pending = {
@@ -27,181 +32,194 @@ type Pending = {
   error: string | null;
   pagesDone: number | null;
   pageCount: number | null;
+  attachedThrough?: number;
+  windowed?: boolean;
+  paused?: boolean;
 };
 
-/** Sunucu ilerlemesi bu aralıkla okunur (başka sekme ya da önceki istek okuyorsa da sayaç ilerlesin). */
+type Advance = {
+  state?: string;
+  addedTopics?: number;
+  mergedTopics?: number;
+  failed?: { fileName?: string; code?: string; retryable?: boolean };
+};
+
+/** Sunucu ilerlemesi bu aralıkla okunur (işçi arkada sürer; şerit yalnız izler ve dürter). */
 const POLL_MS = 4_000;
-/** Aynı anda okutulan bekleyen belge. */
-const READ_LANES = 3;
-/** Bir sekme sürüyorsa öbürü yalnız izler; sekme kapanırsa kilit bu sürede düşer. */
-const LOCK_MS = 3 * 60_000;
+/** İlerleme bu kadar durursa işçi yeniden dürtülür (kendini sürdüren zincir kopmuş olabilir). */
+const NUDGE_MS = 45_000;
+/** Belge başka istekte okunuyor/yükleniyor: kısa aralıkla yeniden. */
+const WAITING_RETRY_MS = 5_000;
 
-function lockKey(prepId: string) {
-  return `cp:pending-drive:${prepId}`;
+function eagerKey(prepId: string) {
+  return `cp:pending-eager:${prepId}`;
 }
 
-function takeLock(prepId: string, owner: string): boolean {
+function readEager(prepId: string): boolean {
   try {
-    const raw = window.localStorage.getItem(lockKey(prepId));
-    const held = raw ? (JSON.parse(raw) as { owner?: string; at?: number }) : null;
-    if (held && held.owner !== owner && typeof held.at === "number" && Date.now() - held.at < LOCK_MS) return false;
-    window.localStorage.setItem(lockKey(prepId), JSON.stringify({ owner, at: Date.now() }));
-    return true;
+    return window.localStorage.getItem(eagerKey(prepId)) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
-function dropLock(prepId: string, owner: string) {
-  try {
-    const raw = window.localStorage.getItem(lockKey(prepId));
-    const held = raw ? (JSON.parse(raw) as { owner?: string }) : null;
-    if (!held || held.owner === owner) window.localStorage.removeItem(lockKey(prepId));
-  } catch {
-    // Kilit yalnız aynı tarayıcıda çift ekleme olmasın diye; okunamazsa sekme yine sürer.
-  }
+function attachedSum(items: readonly Pending[]): number {
+  return items.reduce((sum, item) => sum + (item.attachedThrough ?? 0), 0);
 }
 
 /**
  * Hızlı başlatmanın hazırlık sayfasındaki şeridi (31 Ekim 2026, ürün sahibi: "kullanıcı beklemesin; kalan sayfalar
  * arkada işlensin"). Kurulum hazır olan materyalle kuruldu; okunmakta olan belgeler hazırlığa bekleyen olarak bağlı.
- * Şerit onları okutur (sekme kapanmışsa kaldığı yerden), sonra hazırlığın konu adlarıyla tek harita çıkarıp yoluna
- * ekler ("materyal ekle" ile aynı yol). Bekleyen belge yoksa hiçbir şey çizmez.
  *
- * Hazırlık sayfası şeridi her zaman bağlar (31 Ekim 2026): bekleyen yoksa (`initialPending` 0) istek atmaz ve çizmez. Önce
- * yalnız bekleyen varken bağlanıyordu; ekleme bitince sayfa yenilenip bekleyen 0 olunca şerit kaldırılıyor, "eklendi"
- * bildirimi hiç görünmüyordu.
+ * Pencereli işleme (31 Ekim 2026, ikinci tur): okuma, harita ve ekleme sunucudaki pencere işçisinde
+ * (pending-windows.ts); büyük kitap 40'ar sayfalık pencerelerle yola girer, işçi süresi dolunca kendini sürdürür.
+ * Şerit işçiyi dürter, ilerlemeyi okur ("110 / 500 sayfa yoluna eklendi"), her yeni pencerede yolu yeniler.
+ * Taranmış kitap öğrenci ilerledikçe okunur; "Hepsini şimdi oku" beklemeden okutur.
+ *
+ * Hazırlık sayfası şeridi her zaman bağlar: bekleyen yoksa (`initialPending` 0) istek atmaz ve çizmez; "Materyal ekle"
+ * büyük belge bıraktığında olayla uyanır.
  */
 export function PendingMaterialsBanner({ prepId, initialPending }: { prepId: string; initialPending?: number }) {
   const router = useRouter();
+  // Etkiler router nesnesine bağlanmaz (her çizimde yeniden koşup sunucuyu boşuna yoklamasın).
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const [items, setItems] = useState<Pending[]>([]);
-  const [phase, setPhase] = useState<"idle" | "reading" | "mapping" | "done" | "failed">("idle");
+  const [phase, setPhase] = useState<"idle" | "working" | "paused" | "credits" | "done" | "failed">("idle");
   const [line, setLine] = useState<string | null>(null);
   const [doneTitle, setDoneTitle] = useState<string | null>(null);
-  /** Açılışta bekleyen yoksa şerit hiç çalışmaz; sonradan 0 gelmesi süren işi durdurmaz. */
-  const watching = useRef(initialPending === undefined || initialPending > 0);
   const [failedNames, setFailedNames] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const local = useRef(new Map<string, { done: number; total: number }>());
-  const driving = useRef(false);
-  const owner = useRef(`tab-${Math.random().toString(36).slice(2)}`);
+  const [watching, setWatching] = useState(initialPending === undefined || initialPending > 0);
   const alive = useRef(true);
-  // Kalan sayfalar okunurken ekran kararmasın (31 Ekim 2026).
-  useScreenAwake(phase === "reading" || phase === "mapping");
+  const kicking = useRef(false);
+  const readingWaiting = useRef(false);
+  const itemsRef = useRef<Pending[]>([]);
+  itemsRef.current = items;
+  const lastProgressAt = useRef(Date.now());
+  const lastAttached = useRef<number | null>(null);
+  const firstTopicCount = useRef<number | null>(null);
+  /** Son pencere eklendiğinde yoldaki konu sayısı: "+N konu" yalnız o pencereninki. */
+  const topicsAtAttach = useRef<number | null>(null);
+  const topicCount = useRef<number | null>(null);
+  const hadItems = useRef(false);
+  // Kalan sayfalar işlenirken ekran kararmasın (31 Ekim 2026).
+  useScreenAwake(phase === "working");
 
-  const load = useCallback(async (): Promise<Pending[]> => {
+  const load = useCallback(async (): Promise<Pending[] | null> => {
     try {
       const res = await fetch(`/api/learning/exam-prep/pending-materials?prepId=${prepId}`, { cache: "no-store" });
-      if (!res.ok) return [];
-      const payload = (await res.json().catch(() => ({}))) as { materials?: Pending[] };
+      if (!res.ok) return null;
+      const payload = (await res.json().catch(() => ({}))) as { materials?: Pending[]; topicCount?: number };
+      if (typeof payload.topicCount === "number") {
+        topicCount.current = payload.topicCount;
+        if (firstTopicCount.current == null) firstTopicCount.current = payload.topicCount;
+      }
       return Array.isArray(payload.materials) ? payload.materials : [];
     } catch {
-      return [];
+      return null;
     }
   }, [prepId]);
 
-  const drive = useCallback(async (list: Pending[]) => {
-    if (driving.current || !list.length) return;
-    if (!takeLock(prepId, owner.current)) return;
-    driving.current = true;
-    setPhase("reading");
-    setFailedNames([]);
+  const finish = useCallback(() => {
+    const added = Math.max(0, (topicCount.current ?? 0) - (firstTopicCount.current ?? topicCount.current ?? 0));
+    setDoneTitle(pendingDoneTitle(added));
+    setLine(pendingDoneLine(0));
+    setPhase("done");
+    routerRef.current.refresh();
+  }, []);
+
+  const readWaiting = useCallback(async () => {
+    if (readingWaiting.current) return;
+    const item = itemsRef.current.find((entry) => entry.pageCount == null || (entry.pagesDone ?? 0) < entry.pageCount);
+    if (!item) return;
+    readingWaiting.current = true;
     try {
-      const ready: string[] = [];
-      const failed: string[] = [];
-      let stalled = 0;
-      /** Hak dolduysa (402) "okunamadı" yanlış olur: sunucunun cümlesi söylenir. */
-      let refusal: string | null = null;
-      await runPool(list, READ_LANES, async (item) => {
-        const result = await requestDocumentProcessing({
-          documentId: item.documentId,
-          post: (body) => postDocumentProcess({ ...body, prepId, deferMap: true }),
-          onProgress: (progress) => {
-            takeLock(prepId, owner.current);
-            const total = Number(progress.pageCount);
-            const next = Number(progress.nextPage ?? (Number(progress.pagesDone) + 1));
-            if (Number.isFinite(total) && total > 0 && Number.isFinite(next)) {
-              local.current.set(item.documentId, { done: Math.max(0, next - 1), total });
-              if (alive.current) setItems((current) => [...current]);
-            }
-          },
-        });
-        if (result.ok) {
-          ready.push(item.documentId);
-          const known = local.current.get(item.documentId);
-          if (known) local.current.set(item.documentId, { done: known.total, total: known.total });
-        } else {
-          // Ağ ya da zaman aşımı: kayıt kalır, sayfa yeniden açılınca sürer; okunamayan belge öğrenciye söylenir.
-          const transient = result.status === 0 || result.status >= 500;
-          if (transient) stalled += 1;
-          else if (result.status === 402) refusal = refusal ?? messageFromProcessBody(result.body);
-          else failed.push(item.fileName);
-        }
-        return true;
+      await requestDocumentProcessing({
+        documentId: item.documentId,
+        post: (body) => postDocumentProcess({ ...body, prepId, deferMap: true }),
       });
-      if (!alive.current) return;
-      const order = list.map((item) => item.documentId).filter((id) => ready.includes(id));
-      if (order.length) {
-        setPhase("mapping");
-        setLine(PENDING_MAPPING_LINE);
-        const outcome = await mapAndAttach({ prepId, documentIds: order, onProgress: (progress) => alive.current && setLine(progress) });
-        if (!alive.current) return;
-        if (!outcome.ok) {
-          setPhase("failed");
-          setLine(outcome.error);
-          return;
-        }
-        setDoneTitle(pendingDoneTitle(outcome.addedTopics));
-        setLine(refusal ? `${pendingDoneLine(outcome.mergedTopics)} ${refusal}` : pendingDoneLine(outcome.mergedTopics));
-        setPhase(failed.length ? "failed" : "done");
-        setFailedNames(failed);
-        router.refresh();
-        setItems(await load());
-        return;
-      }
-      if (failed.length || stalled || refusal) {
-        setFailedNames(failed);
-        setPhase("failed");
-        setLine(refusal ?? (stalled ? PENDING_STALLED_LINE : null));
-      } else {
-        setPhase("idle");
-      }
     } finally {
-      driving.current = false;
-      dropLock(prepId, owner.current);
+      readingWaiting.current = false;
     }
-  }, [load, prepId, router]);
+  }, [prepId]);
+
+  const kick = useCallback(async (eager = readEager(prepId)) => {
+    if (kicking.current) return;
+    kicking.current = true;
+    try {
+      const res = await fetch("/api/learning/exam-prep/pending-materials/advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepId, ...(eager ? { eager: true } : {}) }),
+      }).catch(() => null);
+      if (!alive.current) return;
+      const payload = ((await res?.json().catch(() => ({}))) ?? {}) as Advance;
+      const state = res?.ok ? payload.state : "deadline";
+      if (state === "paused") setPhase("paused");
+      else if (state === "paused_credits") {
+        setPhase("credits");
+        setLine(PENDING_CREDITS_LINE);
+      } else if (state === "failed") {
+        const name = payload.failed?.fileName;
+        setFailedNames(name && payload.failed?.retryable === false ? [name] : []);
+        setLine(payload.failed?.retryable === false ? null : messageFromProcessBody({ code: payload.failed?.code }) || PENDING_STALLED_LINE);
+        setPhase("failed");
+      } else if (state === "waiting") {
+        // Henüz okunmamış belge (Word/sunu, yarım kalmış okuma): eskisi gibi işleme ucuyla okutulur, sonra işçi sürer.
+        void readWaiting().finally(() => setTimeout(() => alive.current && void kick(), WAITING_RETRY_MS));
+      }
+      lastProgressAt.current = Date.now();
+    } finally {
+      kicking.current = false;
+    }
+  }, [prepId, readWaiting]);
+
+  // "Materyal ekle" büyük belgeyi bekleyen yazdı: şerit uyanır.
+  useEffect(() => {
+    const wake = () => setWatching(true);
+    window.addEventListener(PENDING_MATERIALS_EVENT, wake);
+    return () => window.removeEventListener(PENDING_MATERIALS_EVENT, wake);
+  }, []);
 
   useEffect(() => {
     alive.current = true;
+    if (!watching) return;
     let timer: ReturnType<typeof setInterval> | null = null;
-    if (!watching.current) return;
-    void load().then((list) => {
-      if (!alive.current) return;
-      setItems(list);
-      if (!list.length) return;
-      void drive(list);
-      // Sayaç sunucudan da okunur: başka sekme ya da önceki istek okuyorsa ilerleme yine görünür.
-      timer = setInterval(() => {
-        void load().then((fresh) => {
-          if (!alive.current) return;
-          setItems((before) => {
-            // Başka sekme ekledi: yeni konular görünsün.
-            if (before.length && !fresh.length && !driving.current) router.refresh();
-            return fresh;
-          });
-          if (!fresh.length && timer) {
-            clearInterval(timer);
-            timer = null;
-          }
-        });
-      }, POLL_MS);
-    });
+    const tick = async (first: boolean) => {
+      const fresh = await load();
+      if (!alive.current || fresh == null) return;
+      setItems(fresh);
+      if (!fresh.length) {
+        if (hadItems.current) finish();
+        if (timer) clearInterval(timer);
+        timer = null;
+        return;
+      }
+      hadItems.current = true;
+      const attached = attachedSum(fresh);
+      if (lastAttached.current != null && attached > lastAttached.current) {
+        // Yeni pencere yolda: yol yenilenir, öğrenciye hangi sayfaların eklendiği söylenir.
+        const before = lastAttached.current;
+        const now = topicCount.current ?? 0;
+        const topics = Math.max(0, now - (topicsAtAttach.current ?? firstTopicCount.current ?? now));
+        topicsAtAttach.current = now;
+        setLine(pendingWindowAddedLine(before + 1, attached, topics));
+        routerRef.current.refresh();
+        lastProgressAt.current = Date.now();
+      }
+      if (lastAttached.current == null || attached !== lastAttached.current) lastAttached.current = attached;
+      const pausedAll = fresh.every((item) => item.paused);
+      setPhase((current) => (current === "failed" || current === "credits" ? current : pausedAll ? "paused" : "working"));
+      if (first || (!pausedAll && Date.now() - lastProgressAt.current > NUDGE_MS)) void kick();
+    };
+    void tick(true);
+    timer = setInterval(() => void tick(false), POLL_MS);
     return () => {
       alive.current = false;
       if (timer) clearInterval(timer);
     };
-  }, [drive, load, router]);
+  }, [finish, kick, load, watching]);
 
   // Bitiş bildirimi en az 8 sn görünür, sonra şerit kalkar (yeni konular yolda zaten görünüyor).
   useEffect(() => {
@@ -211,9 +229,27 @@ export function PendingMaterialsBanner({ prepId, initialPending }: { prepId: str
       setPhase("idle");
       setDoneTitle(null);
       setLine(null);
+      hadItems.current = false;
     }, PENDING_DONE_VISIBLE_MS);
     return () => clearTimeout(timer);
   }, [phase]);
+
+  async function readAll() {
+    try {
+      window.localStorage.setItem(eagerKey(prepId), "1");
+    } catch {
+      // Tercih yalnız bu tarayıcıda hatırlanır; okunamazsa istek yine "hepsini oku" der.
+    }
+    setPhase("working");
+    await kick(true);
+  }
+
+  async function retry() {
+    setFailedNames([]);
+    setLine(null);
+    setPhase("working");
+    await kick();
+  }
 
   async function dismiss() {
     setBusy(true);
@@ -227,8 +263,9 @@ export function PendingMaterialsBanner({ prepId, initialPending }: { prepId: str
         }).catch(() => undefined);
       }
       setFailedNames([]);
-      setItems(await load());
-      setPhase((current) => (current === "failed" ? "idle" : current));
+      setItems((await load()) ?? []);
+      setPhase("working");
+      void kick();
     } finally {
       setBusy(false);
     }
@@ -242,17 +279,21 @@ export function PendingMaterialsBanner({ prepId, initialPending }: { prepId: str
       </section>
     );
   }
-  if (!items.length && phase !== "failed" && phase !== "mapping") return null;
+  if (!items.length && phase !== "failed") return null;
 
-  const merged = items.map((item) => {
-    const mine = local.current.get(item.documentId);
-    return {
-      pagesDone: Math.max(item.pagesDone ?? 0, mine?.done ?? 0),
-      pageCount: item.pageCount ?? mine?.total ?? null,
-    };
-  });
-  const { done, total } = pendingProgress(merged);
-  const percent = total > 0 ? Math.round((done / total) * 100) : 8;
+  const windowed = items.some((item) => item.windowed);
+  const total = items.reduce((sum, item) => sum + (item.pageCount ?? 0), 0);
+  const attached = attachedSum(items);
+  const reading = pendingProgress(items);
+  const percent = windowed
+    ? total > 0 ? Math.round((attached / total) * 100) : 4
+    : reading.total > 0 ? Math.round((reading.done / reading.total) * 100) : 8;
+  const title = phase === "paused" ? PENDING_PAUSED_TITLE : windowed ? PENDING_WINDOW_TITLE : PENDING_TITLE;
+  const mainLine = phase === "paused"
+    ? pendingPausedLine(attached, total)
+    : windowed
+      ? pendingWindowLine(attached, total)
+      : pendingReadingLine(reading.done, reading.total);
 
   return (
     <section
@@ -260,19 +301,25 @@ export function PendingMaterialsBanner({ prepId, initialPending }: { prepId: str
       role="status"
       aria-live="polite"
     >
-      <p className="cp-pending-materials-title">{PENDING_TITLE}</p>
-      <p className="cp-pending-materials-line">
-        {phase === "mapping" || (phase === "failed" && line) ? line : pendingReadingLine(done, total)}
-      </p>
+      <p className="cp-pending-materials-title">{title}</p>
+      <p className="cp-pending-materials-line">{phase === "failed" || phase === "credits" ? line ?? mainLine : mainLine}</p>
+      {phase === "working" && line ? <p className="cp-pending-materials-line">{line}</p> : null}
       {phase !== "failed" ? (
         <div className="cp-pending-materials-bar" aria-hidden>
-          <span style={{ width: `${phase === "mapping" ? 100 : Math.max(4, percent)}%` }} />
+          <span style={{ width: `${Math.max(4, percent)}%` }} />
         </div>
       ) : null}
       {failedNames.length ? <p className="cp-pending-materials-line">{pendingFailedLine(failedNames)}</p> : null}
+      {phase === "paused" ? (
+        <div className="cp-pending-materials-actions">
+          <button type="button" onClick={() => void readAll()}>
+            {PENDING_READ_ALL}
+          </button>
+        </div>
+      ) : null}
       {phase === "failed" ? (
         <div className="cp-pending-materials-actions">
-          <button type="button" disabled={busy || driving.current} onClick={() => void load().then((list) => drive(list))}>
+          <button type="button" disabled={busy} onClick={() => void retry()}>
             Tekrar dene
           </button>
           {failedNames.length ? (

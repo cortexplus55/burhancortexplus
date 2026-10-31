@@ -30,6 +30,9 @@ export async function storageUsage(
       .select("size_bytes")
       .eq("user_id", userId)
       .is("deleted_at", null)
+      // Belgenin parçaları (baş kopyası, pencereler; document-head.ts) ana belgenin dosyasını paylaşır: bir kez sayılır.
+      // Pencereli işlemeyle (31 Ekim 2026) 50 MB'lık kitap 13 parça olunca kota 13 kez yeniyordu.
+      .is("part_of", null)
       .range(offset, offset + 499);
     if (error) throw new Error("storage_usage_unavailable");
     usedBytes += (data ?? []).reduce(

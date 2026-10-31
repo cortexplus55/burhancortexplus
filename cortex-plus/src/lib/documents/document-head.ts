@@ -15,6 +15,9 @@ import { missingColumn } from "@/lib/learning/missing-column";
  * H, D'nin dosyasını paylaşır (`storage_path` aynı, sayfa numaraları aynı): kaynak sayfa önizlemesi doğru sayfayı
  * açar. Belgelerim, stüdyo ve sohbet listeleri `part_of` olanı göstermez; silmede depolamaya dokunulmaz (dosya D'nin).
  * Kopya bedavadır: okuma ve kredi D'de bir kez.
+ *
+ * Pencereli işleme (31 Ekim 2026): baş kopyası, parçaların ilki. Kalan sayfalar 40'ar sayfalık pencere kopyalarıyla
+ * (`ensureDocumentPart`) hazırlığa girer; D'nin kendisi eklenmez (document-windows.ts, pending-windows.ts).
  */
 
 /** Bu kadar ya da daha çok sayfalı PDF'te kurulum ilk adımı kısa tutar ve baş kopyası çıkarır. */
@@ -24,27 +27,66 @@ export const HEAD_PAGES = 12;
 
 export type DocumentHead = { documentId: string; fileName: string; pageCount: number };
 
-/** D'nin var olan baş kopyası (yoksa null). Sütun yoksa (göç uygulanmadan) hızlı başlatma kapalıdır. */
-export async function findDocumentHead(
+/** D'nin bir parçası: baş kopyası (1..12) ya da pencere kopyası (document-windows.ts). Sayfa numaraları D'ninkiyle aynı. */
+export type DocumentPart = { documentId: string; fileName: string; firstPage: number; lastPage: number };
+
+/** `.in()` süzgeci URL'de gider: çok kimlik tek istekte uzun adres olur. */
+const IN_BATCH = 100;
+
+function batches<T>(items: readonly T[], size = IN_BATCH): T[][] {
+  const out: T[][] = [];
+  for (let index = 0; index < items.length; index += size) out.push(items.slice(index, index + size));
+  return out;
+}
+
+/**
+ * D'nin parçaları, ilk sayfaya göre sıralı. Parçanın sayfaları kesintisizdir (kopyalanırken denetlenir): ilk sayfa
+ * bir sorguyla, son sayfa `page_count`'tan. Sütun yoksa (göç uygulanmadan) "unsupported".
+ */
+export async function listDocumentParts(
   service: SupabaseClient,
   input: { userId: string; documentId: string },
-): Promise<DocumentHead | null | "unsupported"> {
+): Promise<DocumentPart[] | "unsupported"> {
   const { data, error } = await service
     .from("documents")
     .select("id, file_name, page_count")
     .eq("user_id", input.userId)
     .eq("part_of", input.documentId)
     .is("deleted_at", null)
-    .order("created_at")
-    .limit(1)
-    .maybeSingle();
-  if (error) return missingColumn(error) ? "unsupported" : null;
-  if (!data) return null;
-  return {
-    documentId: data.id as string,
-    fileName: String(data.file_name ?? ""),
-    pageCount: Number(data.page_count ?? 0),
-  };
+    .order("created_at");
+  if (error) return missingColumn(error) ? "unsupported" : [];
+  const parts = await Promise.all(
+    (data ?? []).map(async (row) => {
+      const { data: first } = await service
+        .from("document_pages")
+        .select("page_number")
+        .eq("document_id", row.id as string)
+        .order("page_number")
+        .limit(1)
+        .maybeSingle();
+      const firstPage = Number(first?.page_number ?? 0);
+      const count = Number(row.page_count ?? 0);
+      if (!firstPage || count < 1) return null;
+      return {
+        documentId: row.id as string,
+        fileName: String(row.file_name ?? ""),
+        firstPage,
+        lastPage: firstPage + count - 1,
+      } satisfies DocumentPart;
+    }),
+  );
+  return parts.filter((part): part is DocumentPart => part !== null).sort((a, b) => a.firstPage - b.firstPage);
+}
+
+/** D'nin var olan baş kopyası (1. sayfadan başlayan parça; yoksa null). Sütun yoksa hızlı başlatma kapalıdır. */
+export async function findDocumentHead(
+  service: SupabaseClient,
+  input: { userId: string; documentId: string },
+): Promise<DocumentHead | null | "unsupported"> {
+  const parts = await listDocumentParts(service, input);
+  if (parts === "unsupported") return "unsupported";
+  const head = parts.find((part) => part.firstPage === 1);
+  return head ? { documentId: head.documentId, fileName: head.fileName, pageCount: head.lastPage } : null;
 }
 
 function withoutId<T extends Record<string, unknown>>(row: T): Omit<T, "id"> {
@@ -54,18 +96,21 @@ function withoutId<T extends Record<string, unknown>>(row: T): Omit<T, "id"> {
 }
 
 /**
- * D'nin 1..lastPage sayfalarından baş kopyası. Var olanı döndürür (aynı istek iki kez gelirse ikinci kopya olmaz).
- * Kopyalamanın herhangi bir adımı düşerse yarım kopya silinir ve null döner: hızlı başlatma olmaz, D her zamanki
- * gibi sürer.
+ * D'nin firstPage..lastPage sayfalarının kopyası (sayfa, parça, gömme). Aynı aralığın parçası varsa onu döndürür;
+ * var olan bir parçayla çakışan aralık kopyalanmaz (null). Sayfalar kesintisiz okunmuş olmalı: eksik sayfalı kopya
+ * yanlış harita verir. Kopyalamanın herhangi bir adımı düşerse yarım kopya silinir ve null döner.
  */
-export async function ensureDocumentHead(
+export async function ensureDocumentPart(
   service: SupabaseClient,
-  input: { userId: string; documentId: string; lastPage: number },
-): Promise<DocumentHead | null> {
-  const existing = await findDocumentHead(service, input);
-  if (existing === "unsupported") return null;
-  if (existing) return existing;
-  if (input.lastPage < 1) return null;
+  input: { userId: string; documentId: string; firstPage: number; lastPage: number },
+): Promise<DocumentPart | null> {
+  const { firstPage, lastPage } = input;
+  if (firstPage < 1 || lastPage < firstPage) return null;
+  const parts = await listDocumentParts(service, input);
+  if (parts === "unsupported") return null;
+  const same = parts.find((part) => part.firstPage === firstPage && part.lastPage === lastPage);
+  if (same) return same;
+  if (parts.some((part) => part.firstPage <= lastPage && part.lastPage >= firstPage)) return null;
 
   const { data: doc } = await service
     .from("documents")
@@ -80,15 +125,15 @@ export async function ensureDocumentHead(
     .from("document_pages")
     .select("*")
     .eq("document_id", input.documentId)
-    .lte("page_number", input.lastPage)
+    .gte("page_number", firstPage)
+    .lte("page_number", lastPage)
     .order("page_number");
   if (pagesError || !pages?.length) return null;
-  // Okuma sırası kesintisiz olmalı: eksik sayfalı baş kopyası yanlış harita verir.
-  if (pages.length !== input.lastPage) return null;
+  if (pages.length !== lastPage - firstPage + 1) return null;
 
-  const headId = crypto.randomUUID();
+  const partId = crypto.randomUUID();
   const { error: docError } = await service.from("documents").insert({
-    id: headId,
+    id: partId,
     user_id: input.userId,
     file_name: doc.file_name,
     storage_path: doc.storage_path,
@@ -102,56 +147,85 @@ export async function ensureDocumentHead(
   if (docError) return null;
 
   const drop = async () => {
-    await service.from("documents").delete().eq("id", headId).eq("user_id", input.userId);
+    await service.from("documents").delete().eq("id", partId).eq("user_id", input.userId);
   };
   try {
     const { data: newPages, error: insertPagesError } = await service
       .from("document_pages")
-      .insert(pages.map((page) => ({ ...withoutId(page as Record<string, unknown>), document_id: headId })))
+      .insert(pages.map((page) => ({ ...withoutId(page as Record<string, unknown>), document_id: partId })))
       .select("id, page_number");
-    if (insertPagesError || newPages?.length !== pages.length) throw new Error("head_pages");
+    if (insertPagesError || newPages?.length !== pages.length) throw new Error("part_pages");
     const newPageByNumber = new Map(newPages.map((row) => [Number(row.page_number), String(row.id)]));
     const oldPageNumber = new Map(pages.map((page) => [String(page.id), Number(page.page_number)]));
 
-    const { data: chunks, error: chunksError } = await service
-      .from("document_chunks")
-      .select("*")
-      .eq("document_id", input.documentId)
-      .in("page_id", [...oldPageNumber.keys()]);
-    if (chunksError) throw new Error("head_chunks");
-    if (chunks?.length) {
-      const { data: newChunks, error: insertChunksError } = await service
+    const chunks: Record<string, unknown>[] = [];
+    for (const ids of batches([...oldPageNumber.keys()])) {
+      const { data, error } = await service
         .from("document_chunks")
-        .insert(chunks.map((chunk) => ({
-          ...withoutId(chunk as Record<string, unknown>),
-          document_id: headId,
-          page_id: newPageByNumber.get(oldPageNumber.get(String(chunk.page_id))!)!,
-        })))
-        .select("id, chunk_index");
-      if (insertChunksError || newChunks?.length !== chunks.length) throw new Error("head_chunks");
-      const newChunkByIndex = new Map(newChunks.map((row) => [Number(row.chunk_index), String(row.id)]));
+        .select("*")
+        .eq("document_id", input.documentId)
+        .in("page_id", ids);
+      if (error) throw new Error("part_chunks");
+      chunks.push(...((data ?? []) as Record<string, unknown>[]));
+    }
+    if (chunks.length) {
+      const newChunkByIndex = new Map<number, string>();
+      for (const group of batches(chunks)) {
+        const { data: newChunks, error: insertChunksError } = await service
+          .from("document_chunks")
+          .insert(group.map((chunk) => ({
+            ...withoutId(chunk),
+            document_id: partId,
+            page_id: newPageByNumber.get(oldPageNumber.get(String(chunk.page_id))!)!,
+          })))
+          .select("id, chunk_index");
+        if (insertChunksError || newChunks?.length !== group.length) throw new Error("part_chunks");
+        for (const row of newChunks) newChunkByIndex.set(Number(row.chunk_index), String(row.id));
+      }
       const indexOfOld = new Map(chunks.map((chunk) => [String(chunk.id), Number(chunk.chunk_index)]));
-      const { data: vectors, error: vectorsError } = await service
-        .from("document_embeddings")
-        .select("chunk_id, embedding")
-        .in("chunk_id", [...indexOfOld.keys()]);
-      if (vectorsError) throw new Error("head_embeddings");
-      if (vectors?.length) {
+      for (const ids of batches([...indexOfOld.keys()])) {
+        const { data: vectors, error: vectorsError } = await service
+          .from("document_embeddings")
+          .select("chunk_id, embedding")
+          .in("chunk_id", ids);
+        if (vectorsError) throw new Error("part_embeddings");
+        if (!vectors?.length) continue;
         const { error: insertVectorsError } = await service.from("document_embeddings").insert(
           vectors.map((row) => ({
             chunk_id: newChunkByIndex.get(indexOfOld.get(String(row.chunk_id))!)!,
             embedding: row.embedding,
           })),
         );
-        if (insertVectorsError) throw new Error("head_embeddings");
+        if (insertVectorsError) throw new Error("part_embeddings");
       }
     }
-    return { documentId: headId, fileName: String(doc.file_name ?? ""), pageCount: pages.length };
+    return { documentId: partId, fileName: String(doc.file_name ?? ""), firstPage, lastPage };
   } catch (error) {
-    console.error("document_head_failed", { documentId: input.documentId, step: error instanceof Error ? error.message : "unknown" });
+    console.error("document_part_failed", {
+      documentId: input.documentId,
+      firstPage,
+      lastPage,
+      step: error instanceof Error ? error.message : "unknown",
+    });
     await drop();
     return null;
   }
+}
+
+/**
+ * D'nin 1..lastPage sayfalarından baş kopyası. Var olanı döndürür (aynı istek iki kez gelirse ikinci kopya olmaz).
+ * Kopyalama düşerse null: hızlı başlatma olmaz, D her zamanki gibi sürer.
+ */
+export async function ensureDocumentHead(
+  service: SupabaseClient,
+  input: { userId: string; documentId: string; lastPage: number },
+): Promise<DocumentHead | null> {
+  const existing = await findDocumentHead(service, input);
+  if (existing === "unsupported") return null;
+  if (existing) return existing;
+  if (input.lastPage < 1) return null;
+  const part = await ensureDocumentPart(service, { ...input, firstPage: 1 });
+  return part ? { documentId: part.documentId, fileName: part.fileName, pageCount: part.lastPage } : null;
 }
 
 /** Baş kopyasının kapsadığı son sayfa: D hazırlığa eklenirken bu sayfalardaki konular eklenmez. */
@@ -161,16 +235,18 @@ export async function headCoverageFor(
 ): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   if (!input.sourceDocumentIds.length || !input.documentIds.length) return out;
-  const { data, error } = await service
-    .from("documents")
-    .select("id, part_of, page_count")
-    .eq("user_id", input.userId)
-    .in("id", input.sourceDocumentIds)
-    .in("part_of", input.documentIds);
-  if (error) return out;
-  for (const row of data ?? []) {
-    const parent = row.part_of as string;
-    out.set(parent, Math.max(out.get(parent) ?? 0, Number(row.page_count ?? 0)));
+  // Parçalar (baş kopyası + pencereler) gerçek aralıklarıyla: kesintisiz kapsanan son sayfa (31 Ekim 2026; önce
+  // parçanın 1. sayfadan başladığı varsayılıyordu).
+  for (const documentId of input.documentIds) {
+    const parts = await listDocumentParts(service, { userId: input.userId, documentId });
+    if (parts === "unsupported") continue;
+    const mine = parts.filter((part) => input.sourceDocumentIds.includes(part.documentId));
+    let through = 0;
+    for (const part of mine) {
+      if (part.firstPage > through + 1) break;
+      through = Math.max(through, part.lastPage);
+    }
+    if (through > 0) out.set(documentId, through);
   }
   return out;
 }

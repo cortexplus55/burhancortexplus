@@ -25,7 +25,8 @@ describe("photo upload mime", () => {
 });
 
 describe("add-source does not reset progress", () => {
-  const source = readFileSync("src/app/api/learning/exam-prep/add-source/route.ts", "utf8");
+  // Ekleme işi ortak modülde (31 Ekim 2026; add-source ve pencere işçisi aynı yoldan).
+  const source = readFileSync("src/lib/learning/prep-attach.ts", "utf8");
 
   it("analyzes only the new document and does not rewrite readiness or statuses", () => {
     // 31 Ekim 2026: toplu ekleme; analiz yalnız yeni belgelere (eski belgeler yeniden üretilmez).
