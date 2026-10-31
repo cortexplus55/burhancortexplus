@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { stripListMarker } from "@/lib/text/list-marker";
+import { repairStoredSteps } from "@/lib/learning/step-repair";
 
 export type QuizQuestion = {
   text: string;
@@ -171,7 +172,11 @@ function normalizeQuizRow(raw: RawQuizQuestion, multiFromKey: boolean): QuizQues
     optionWhy: Array.isArray(raw.optionWhy)
       ? raw.optionWhy.map((line) => line.trim()).filter((line) => line.length >= 8)
       : undefined,
-    steps: normalizeSteps(raw.steps),
+    // Eski numara silmesinin bozduğu kayıtlı adımlar okurken onarılır ya da gizlenir (31 Ekim 2026).
+    steps: repairStoredSteps(
+      normalizeSteps(raw.steps),
+      [raw.text, raw.explanation ?? "", ...options, ...(raw.optionWhy ?? [])].join("\n"),
+    ),
     topic: raw.topic?.trim() || undefined,
     point: raw.point?.trim().slice(0, 80) || undefined,
     ...(raw.voided === true
