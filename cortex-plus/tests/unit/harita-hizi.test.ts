@@ -213,3 +213,13 @@ describe("kalan sayfalar ve materyal ekle yola eklenir", () => {
     expect(schedule).toMatch(/hardTopics: string\[\],[\s\S]{0,400}\r?\n  userId: string,\r?\n\): Promise<PrepScheduleTopics>/);
   });
 });
+
+describe("konu listesi hazırlık adını beklerken", () => {
+  it("ad çağrısı düşük düşünmeyle, ücretli hesapta hızlı işlemle", () => {
+    // 31 Ekim 2026 canlı ölçüm: harita 11 sn'de bitti, 413 jetonluk ad çağrısı varsayılan düşünmeyle 11 sn daha sürdü.
+    const run = read("src/lib/learning/prep-title-run.ts");
+    expect(run).toContain('reasoning_effort: "low"');
+    expect(run).toContain("...fastTier(fast)");
+    expect(run).toContain("billedModel(model, response.service_tier)");
+  });
+});

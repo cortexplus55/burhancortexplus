@@ -1646,6 +1646,8 @@ kullanıcıya göre süzülüyor → boş kimlik hiçbir belge bulamayıp `docum
 fonksiyonu sahteyle değiştirdiği için görmedi. Kimlik artık **zorunlu parametre** (tip denetimi yakalar); öğretmen analizi
 en çok 15 sn beklenir, kalanı `after()` ile sürer (65 sayfanın analizi 90 sn'ydi); rota `maxDuration = 300`. Aynı belgeyle
 yerel kuru koşu: ana belgenin 38 konusundan baş kopyasının sayfalarındakiler hariç 27'si eklenir, 1'i birleşir.
+Aynı turda: konu listesi hazırlık adını bekliyor; 413 jetonluk ad çağrısı varsayılan düşünmeyle 11 sn sürdü (harita 11 sn'de
+bitmişti). Ad çağrısı düşük düşünmeyle, Plus/Sigma/kurucuda hızlı işlemle (`prep-title-run.ts`).
 Bekçi: `harita-hizi.test.ts` (örnekler tarih, iktisat, elektrik; "kalan sayfalar ve materyal ekle").
 
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
