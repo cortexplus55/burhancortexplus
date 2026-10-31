@@ -1,6 +1,6 @@
 import "server-only";
 import { samplingParams } from "@/lib/ai/model-params";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordUsage } from "@/lib/credits/service";
 import { env } from "@/lib/env";
@@ -27,7 +27,7 @@ export async function titleConversation(
 ): Promise<void> {
   if (!env.OPENAI_API_KEY) return;
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 20_000, maxRetries: 0 });
+    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 20_000, maxRetries: 0 });
     const model = env.OPENAI_LESSON_FREE_MODEL;
     const question = input.message.replace(/^\[[^\]]{1,40}\]\s*/, "").slice(0, 500);
     const response = await openai.chat.completions.create({

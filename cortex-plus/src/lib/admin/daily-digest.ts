@@ -6,6 +6,14 @@ import { sendEmail } from "@/lib/email/mailer";
 import { formatTry } from "@/lib/format";
 import { FAILURE_REASON_LABEL, SOFT_FAILURE_REASONS } from "@/lib/admin/failure-labels";
 import { listStuckGenerations } from "@/lib/learning/stuck-generations";
+import {
+  aiDailyAlertUsd,
+  formatMegabytes,
+  readAiSpend,
+  readDatabaseSize,
+  type AiSpend,
+  type DatabaseSize,
+} from "@/lib/admin/ops-gauges";
 
 /*
   Günlük özet e-postası (18 Ekim 2026, plan 4.8).
@@ -44,6 +52,10 @@ export type DailyDigest = {
   stuck: number;
   /** Destek: pencerede gelen talep; 24 saati geçmiş açık talep (plan 4.9). */
   support?: { opened: number; overdue: number };
+  /** Veritabanı boyutu (31 Ekim 2026); ölçülemezse null. */
+  database?: DatabaseSize | null;
+  /** Penceredeki OpenAI gideri (31 Ekim 2026); ölçülemezse null. */
+  aiSpend?: AiSpend | null;
 };
 
 /** TRT gününün anahtarı: `2026-10-18`. */
@@ -103,6 +115,11 @@ export async function collectDailyDigest(
       .eq("status", "open")
       .lt("created_at", slaCutoff),
   ]);
+  // Göstergeler göçten önce de özeti düşürmesin (ops-gauges.ts).
+  const [database, aiSpend] = await Promise.all([
+    readDatabaseSize(service).catch(() => null),
+    readAiSpend(service, since).catch(() => null),
+  ]);
 
   const pay = { paid: 0, paidKurus: 0, failed: 0, pending: 0, refunded: 0 };
   for (const row of (payments.data ?? []) as { amount_try: number | null; status: string | null }[]) {
@@ -136,6 +153,8 @@ export async function collectDailyDigest(
     failures: { total: byReason.reduce((sum, item) => sum + item.count, 0), slow, byReason },
     stuck: stuck.rows.length,
     support: { opened: supportOpened.count ?? 0, overdue: supportOverdue.count ?? 0 },
+    database,
+    aiSpend,
   };
 }
 
@@ -144,8 +163,14 @@ export function digestNeedsAttention(digest: DailyDigest): boolean {
     digest.failures.total > 0 ||
     digest.stuck > 0 ||
     digest.payments.failed > 0 ||
-    (digest.support?.overdue ?? 0) > 0
+    (digest.support?.overdue ?? 0) > 0 ||
+    (digest.database != null && digest.database.level !== "ok") ||
+    (digest.aiSpend != null && digest.aiSpend.usd > aiDailyAlertUsd())
   );
+}
+
+function usd(value: number): string {
+  return `${value.toFixed(2)} $`;
 }
 
 function escapeHtml(value: string): string {
@@ -184,6 +209,31 @@ export function renderDailyDigest(
             value:
               `${digest.support.opened} yeni talep` +
               (digest.support.overdue ? ` · ${digest.support.overdue} cevapsız (${SUPPORT_SLA.hours} saati geçti)` : ""),
+          },
+        ]
+      : []),
+    ...(digest.database
+      ? [
+          {
+            label: "Veritabanı",
+            value:
+              `${formatMegabytes(digest.database.totalBytes)} / ${formatMegabytes(digest.database.limitBytes)} · %${Math.round(digest.database.share * 100)}` +
+              (digest.database.level === "critical"
+                ? " · KRİTİK: dolunca salt okunur olur, Supabase Pro'ya geçin"
+                : digest.database.level === "warn"
+                  ? " · dolmaya yaklaşıyor"
+                  : ""),
+          },
+        ]
+      : []),
+    ...(digest.aiSpend
+      ? [
+          {
+            label: "OpenAI gideri",
+            value:
+              `${usd(digest.aiSpend.usd)} · ${digest.aiSpend.calls.toLocaleString("tr-TR")} çağrı` +
+              (digest.aiSpend.unpricedCalls ? ` · ${digest.aiSpend.unpricedCalls} çağrının fiyatı yok` : "") +
+              (digest.aiSpend.usd > aiDailyAlertUsd() ? ` · günlük ${usd(aiDailyAlertUsd())} sınırını aştı` : ""),
           },
         ]
       : []),

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 import { recordUsage } from "@/lib/credits/service";
 import { synthesizeLine } from "@/lib/ai/speech";
@@ -275,7 +276,7 @@ export async function runVideoLesson(
       const { script, problems } = await videoScriptLoop(ask, input);
       if (!script) return { ok: false, reasons: problems };
 
-      const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
+      const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
       const videoId = crypto.randomUUID();
       const base = `video/${input.userId}/${videoId}`;
       const scenes = await Promise.all(

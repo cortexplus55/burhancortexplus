@@ -15,6 +15,8 @@ import {
 import { ACCEPTED_OMISSIONS, missingSellerFields } from "@/lib/legal/seller";
 import { probeSchema } from "@/lib/admin/schema-probe";
 import { generationSlotsInUse } from "@/lib/ai/generation-slots";
+import { providerQuotaSeenAt } from "@/lib/ai/provider-quota";
+import { DB_CRITICAL_SHARE, DB_WARN_SHARE, formatMegabytes, readDatabaseSize } from "@/lib/admin/ops-gauges";
 
 export const metadata = { title: "Yönetim · Sistem durumu" };
 
@@ -72,6 +74,10 @@ export default async function AdminSistemPage() {
   const missingSeller = missingSellerFields();
   const schema = await probeSchema(service);
   const slots = await generationSlotsInUse();
+  const [database, quotaSeenAt] = await Promise.all([
+    readDatabaseSize(service).catch(() => null),
+    providerQuotaSeenAt().catch(() => null),
+  ]);
   const schemaBroken = schema.filter((check) => !check.ok);
   const schemaCritical = schemaBroken.filter((check) => check.critical);
 
@@ -113,6 +119,33 @@ export default async function AdminSistemPage() {
         {slots.shared ? "" : " (Redis yok: yalnız bu sunucunun sayısı)"}. Sınır Vercel&apos;de{" "}
         <code>GENERATION_SLOTS</code> ile değişir; dolunca öğrenci &quot;sıradasın&quot; görür, önceden yazım
         yuvaların %70&apos;i dolunca bekler.
+      </AdminNote>
+
+      {/*
+        Veritabanı boyutu ve OpenAI kotası (31 Ekim 2026, lansman zırhı). Ücretsiz planda veritabanı 500 MB'ı aşınca
+        salt okunur olur; OpenAI kredisi bitince her üretim düşer. İkisi de sessiz arızaydı.
+      */}
+      {quotaSeenAt ? (
+        <AdminNote tone="warn">
+          <strong>OpenAI kredisi bitti:</strong> son görülme {new Date(quotaSeenAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}.
+          Dersler, testler, sohbet ve belge okuma düşüyor (öğrenciden kredi kesilmiyor). platform.openai.com → Billing.
+        </AdminNote>
+      ) : null}
+      <AdminNote tone={database && database.level !== "ok" ? "warn" : "info"}>
+        <strong>Veritabanı:</strong>{" "}
+        {database ? (
+          <>
+            {formatMegabytes(database.totalBytes)} / {formatMegabytes(database.limitBytes)} (%{Math.round(database.share * 100)}).
+            {database.level === "critical"
+              ? ` %${Math.round(DB_CRITICAL_SHARE * 100)}'i geçti: dolunca Supabase veritabanını salt okunur yapar (kayıt, ders, ödeme yazılamaz). Supabase Pro'ya geçin.`
+              : database.level === "warn"
+                ? ` %${Math.round(DB_WARN_SHARE * 100)}'i geçti: Supabase Pro'ya geçişi planlayın.`
+                : " Sınır Vercel'de SUPABASE_DB_LIMIT_MB ile değişir (Pro'ya geçince)."}{" "}
+            En büyükler: {database.tables.slice(0, 4).map((table) => `${table.name} ${formatMegabytes(table.bytes)}`).join(", ")}.
+          </>
+        ) : (
+          "ölçülemedi (göç 20261031161000 uygulanmamış olabilir)."
+        )}
       </AdminNote>
 
       {/*

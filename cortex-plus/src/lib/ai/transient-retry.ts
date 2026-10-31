@@ -14,13 +14,19 @@
  * yeniden denenmez — platform kesmesin diye.
  */
 
+import { isQuotaExhaustedError } from "@/lib/ai/openai-client";
+
 const TRANSIENT_BACKOFF_MS = 1_000;
+/** Sağlayıcının Retry-After başlığı bu kadarına kadar dinlenir (daha uzunsa bekleyen öğrenci için anlamsız). */
+const RETRY_AFTER_CAP_MS = 20_000;
 const FUNCTION_BUDGET_MS = 270_000;
 
 export function isTransientProviderError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const name = error instanceof Error ? error.constructor.name : "";
   if (name === "APIUserAbortError") return false;
+  // Kredi bitti (insufficient_quota) de 429 döner ama yeniden denemek bir şey değiştirmez (31 Ekim 2026).
+  if (isQuotaExhaustedError(error)) return false;
   const status = "status" in error ? (error as { status?: unknown }).status : undefined;
   if (typeof status === "number" && (status === 429 || status >= 500)) return true;
   return name === "APIConnectionError" || name === "APIConnectionTimeoutError";
@@ -28,6 +34,26 @@ export function isTransientProviderError(error: unknown): boolean {
 
 export function transientBackoffMs(attemptIndex: number): number {
   return TRANSIENT_BACKOFF_MS * 2 ** Math.min(Math.max(0, attemptIndex), 4);
+}
+
+/**
+ * Sağlayıcının "şu kadar sonra dene" dediği süre (`retry-after-ms`, yoksa `retry-after` saniye), en çok 20 sn.
+ * Dakikalık sınıra takılan 429'da 1 sn sonra yeniden denemek aynı sınıra yeniden çarpıyordu.
+ */
+export function retryAfterMs(error: unknown): number {
+  if (!error || typeof error !== "object") return 0;
+  const headers = (error as { headers?: unknown }).headers;
+  const read = (name: string): string | null => {
+    if (!headers || typeof headers !== "object") return null;
+    if (typeof (headers as Headers).get === "function") return (headers as Headers).get(name);
+    const value = (headers as Record<string, unknown>)[name];
+    return typeof value === "string" ? value : null;
+  };
+  const ms = Number(read("retry-after-ms"));
+  if (Number.isFinite(ms) && ms > 0) return Math.min(ms, RETRY_AFTER_CAP_MS);
+  const seconds = Number(read("retry-after"));
+  if (Number.isFinite(seconds) && seconds > 0) return Math.min(seconds * 1_000, RETRY_AFTER_CAP_MS);
+  return 0;
 }
 
 export function transientRetryFits(
@@ -61,7 +87,7 @@ export async function withTransientRetry<T>(
     } catch (error) {
       lastError = error;
       const next = attempt + 1;
-      const backoff = transientBackoffMs(attempt);
+      const backoff = Math.max(transientBackoffMs(attempt), retryAfterMs(error));
       if (
         next >= maxAttempts ||
         !isTransientProviderError(error) ||

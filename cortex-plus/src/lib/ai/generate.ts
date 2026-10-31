@@ -1,6 +1,7 @@
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import "server-only";
 import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import {
   EducationalVerificationError,
   verifyEducationalContent,
@@ -394,7 +395,7 @@ export async function generateJson<T>(
       Math.min(params.callTimeoutMs ?? 90_000, 270_000),
     );
     const responseFormat = params.responseFormat ?? { type: "json_object" as const };
-    const openai = new OpenAI({
+    const openai = openaiClient({
       apiKey: env.OPENAI_API_KEY,
       timeout: callTimeoutMs,
       maxRetries: 0,

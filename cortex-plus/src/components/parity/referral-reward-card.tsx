@@ -10,6 +10,12 @@ import {
   type ReferralSummary,
 } from "@/lib/credits/referral";
 import { REFERRAL_GIFT_LESSONS } from "@/lib/billing/free-meters";
+import { whatsappShareHref } from "@/lib/learning/duel-share";
+
+/** WhatsApp metni (31 Ekim 2026): davetler çoğunlukla sınıfın grubundan gelir; tek yol "kopyala"ydı. */
+export function referralShareText(): string {
+  return `Notlarımdan kendi dersimi çıkarıp çalışıyorum. Bu bağlantıyla katılırsan ikimize de ${REFERRAL_GIFT_LESSONS} ders hediye:`;
+}
 
 /**
  * Davet ödülü kartı.
@@ -68,6 +74,14 @@ export function ReferralRewardCard({
         >
           Bağlantıyı kopyala
         </button>
+        <a
+          className="cp-ref-ghost"
+          href={whatsappShareHref(referralShareText(), inviteUrl)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          WhatsApp&apos;ta gönder
+        </a>
         <button
           type="button"
           className="cp-ref-ghost"

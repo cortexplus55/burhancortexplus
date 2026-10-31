@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 import { mp3DurationMs } from "@/lib/audio/mp3-duration";
 import type { SpeakerId } from "@/lib/learning/podcast-script";
@@ -58,7 +58,7 @@ export async function synthesizeLine(
   const input = clean;
 
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: TTS_LINE_TIMEOUT_MS, maxRetries: 0 });
+    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: TTS_LINE_TIMEOUT_MS, maxRetries: 0 });
     const response = await openai.audio.speech.create({
       model: env.OPENAI_TTS_MODEL,
       voice: voiceFor(speaker),
@@ -81,7 +81,7 @@ export async function synthesizeLine(
 export async function transcribeAudio(file: File): Promise<string | null> {
   if (!env.OPENAI_API_KEY) return null;
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY });
     const result = await openai.audio.transcriptions.create({
       model: env.OPENAI_STT_MODEL,
       file,

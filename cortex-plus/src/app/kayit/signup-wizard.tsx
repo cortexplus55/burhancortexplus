@@ -31,7 +31,9 @@ import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { useGoogleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { checkSignupEmail } from "./email-check";
 import { GoogleBlockedNote } from "@/components/auth/google-blocked-note";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 import { SignupPremiumShell } from "@/components/layout/signup-premium-shell";
@@ -163,8 +165,16 @@ export function SignupWizard() {
       return;
     }
 
-    const payload = { ...buildPayload(), consentAcceptedAt: new Date().toISOString() };
     setLoading(true);
+    // Aynı posta kutusunun başka yazımı (31 Ekim 2026): kontrol düşerse kayıt sürer.
+    const alias = await checkSignupEmail(email).catch(() => ({ ok: true }) as const);
+    if (!alias.ok) {
+      setLoading(false);
+      toast.error(alias.error);
+      return;
+    }
+
+    const payload = { ...buildPayload(), consentAcceptedAt: new Date().toISOString() };
     stashPayload(payload);
     if (entryPrompt) {
       try {
@@ -198,6 +208,8 @@ export function SignupWizard() {
           // kayıt olup onayı e-posta uygulamasından açan öğrencide kod kayboluyordu (20 Ekim 2026).
           // Kurulum sonunda onboarding buradan okur.
           signup_next: safeNextPath(searchParams.get("next"), ""),
+          // Davet kodu da (31 Ekim 2026): doğrulama başka tarayıcıda açılınca tarayıcıdaki yükle birlikte kayboluyordu.
+          referral_code: payload.referralCode ?? "",
         },
       },
     });
@@ -411,7 +423,40 @@ export function SignupWizard() {
                 <span className="font-medium text-amber-50">&ldquo;{entryPrompt}&rdquo;</span>
               </p>
             ) : null}
-            <PreviewLessonLink />
+            {/*
+              Google önce (31 Ekim 2026, lansman zırhı): giriş sayfasında olduğu gibi. Formun altında ikincil düğmeydi;
+              Google'la kayıt şifre kurmadan ve doğrulama e-postası beklemeden biter (Supabase'in e-posta gönderim
+              sınırına da takılmaz). Onay kutusu ikisinin de üstünde: iki yol da onay ister.
+            */}
+            <div className="signup-account-panel mb-4 space-y-4">
+              <label className="flex items-start gap-2 text-sm">
+                <Checkbox
+                  checked={consent}
+                  onCheckedChange={(value) => setConsent(value === true)}
+                />
+                <span className="text-[var(--mk-muted)]">
+                  <Link href="/kvkk" className="underline">
+                    KVKK aydınlatma metnini
+                  </Link>{" "}
+                  ve{" "}
+                  <Link href="/kullanim-kosullari" className="underline">
+                    kullanım koşullarını
+                  </Link>{" "}
+                  okudum, kabul ediyorum.
+                </span>
+              </label>
+              {blockedApp ? (
+                <GoogleBlockedNote
+                  app={blockedApp}
+                  className="border-[var(--mk-border)] text-[var(--mk-muted)]"
+                />
+              ) : (
+                <>
+                  <GoogleSignInButton onClick={googleSignup} disabled={loading} label="Google ile tek dokunuşla devam et" />
+                  <p className="signup-or text-center text-xs text-[var(--mk-muted)]">ya da e-postanla</p>
+                </>
+              )}
+            </div>
             <form onSubmit={submitAccount} className="signup-account-panel space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Ad soyad</Label>
@@ -465,45 +510,15 @@ export function SignupWizard() {
                 />
               </div>
 
-              <label className="flex items-start gap-2 text-sm">
-                <Checkbox
-                  checked={consent}
-                  onCheckedChange={(value) => setConsent(value === true)}
-                />
-                <span className="text-[var(--mk-muted)]">
-                  <Link href="/kvkk" className="underline">
-                    KVKK aydınlatma metnini
-                  </Link>{" "}
-                  ve{" "}
-                  <Link href="/kullanim-kosullari" className="underline">
-                    kullanım koşullarını
-                  </Link>{" "}
-                  okudum, kabul ediyorum.
-                </span>
-              </label>
-
               <button
                 type="submit"
                 disabled={loading}
-                className="signup-continue w-full"
+                className={blockedApp ? "signup-continue w-full" : "mk-btn-outline w-full py-3 text-sm font-semibold"}
               >
-                {loading ? "Oluşturuluyor…" : "Hesabı oluştur"}
+                {loading ? "Oluşturuluyor…" : "E-postayla hesabı oluştur"}
               </button>
-              {blockedApp ? (
-                <GoogleBlockedNote
-                  app={blockedApp}
-                  className="border-[var(--mk-border)] text-[var(--mk-muted)]"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={googleSignup}
-                  className="mk-btn-outline w-full py-3 text-sm font-medium"
-                >
-                  Google ile devam et
-                </button>
-              )}
             </form>
+            <PreviewLessonLink />
           </StepShell>
         ) : null}
       </div>

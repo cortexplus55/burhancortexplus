@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { contentModel } from "@/lib/ai/model-router";
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
   const model = contentModel();
   try {
     const outcome = await runTeacherTutor({
-      client: new OpenAI({ apiKey: env.OPENAI_API_KEY }),
+      client: openaiClient({ apiKey: env.OPENAI_API_KEY }),
       model,
       context: {
         examTitle: (prep.title as string | null) ?? (prep.exam_type as string | null),

@@ -92,7 +92,8 @@ describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
     );
     expect(create.split("refundCredits(service, reservationId)").length - 1).toBe(2);
     const run = readFileSync("src/app/api/duels/[code]/run/route.ts", "utf8");
-    expect(run).toContain('guestLimit(request, { scope: "duel-run"');
+    // 31 Ekim 2026: oturumlu oyuncu kendi sayacıyla, misafir IP'den (lansman-zirhi.test.ts).
+    expect(run).toContain('await duelLimit(request, "duel-run", sessionUserId)');
     expect(run).toContain("scoreDuel(questions, parsed.data.answers)");
     const page = readFileSync("src/app/duello/[code]/page.tsx", "utf8");
     expect(page).toContain("questions={publicQuestions(questions)}");

@@ -1697,6 +1697,33 @@ sıradaki pencereden, öğrencinin ilerleyişine göre sürer. Bekçi: `pencerel
 benzetimi: her çağrı 300 sn altında, her harita bir pencere, sıra ve kapsam; taranmışta duraklama; tek işçi),
 `pencereli-yukleme.test.ts` (pdf-lib bölme, tavanlar), `bekleyen-materyal-seridi.test.tsx`.
 
+## Lansman zırhı (31 Ekim 2026) — 1.000 eşzamanlı öğrenci, kötüye kullanım, sessiz arızalar
+
+Ürün sahibi "kullanıcı psikolojisi, 1.000 eşzamanlı kullanıcı, kârlılık ve suistimal" diye üç kulvar sordu; iki ajan
+kodu, ben canlı veritabanını taradım. Ürün kararı gerektirmeyen her şey kodlandı (PR'da); dört göç canlıda
+(`20261031160000`–`163000`, kayıt satırlarıyla). Yeniden açmayın:
+
+| Bulgu | Kural | Nerede |
+|---|---|---|
+| **Veritabanı ücretsiz planın 500 MB'ının %31'iydi** (15 kullanıcı, 198 belge: 154 MB, gömmeler 85 MB); pencere kopyaları gömmeleri ikinci kez yazıyordu (722 satır) ve hiçbir ekran boyutu göstermiyordu | Parça (`part_of`) **gömme kopyalamaz**: arama ana belgenin gömmelerini parçanın sayfa aralığında kullanır, sonucu parçanın kimliğiyle döndürür; bütün belgelerde arama parçaları atlar. Metin (sayfa, parça) yine kopyalanır. Eski 722 satır `supabase/manual/20261031_part_embeddings_cleanup.sql` ile silinir (yalnız ürün sahibi). `/admin/sistem` ve günlük özet boyutu yazar (%70 uyarı, %85 kritik; Pro'da `SUPABASE_DB_LIMIT_MB`) | `match_document_chunks` (göç `160000`), `document-head.ts`, `ops-gauges.ts` (`database_size_report`, göç `161000`) |
+| Okul ya da yurt ağında herkes aynı IP: düello IP başına dakikada 10'du (50 kişilik sınıf düellosunda ~40 kişi 429), telefon yüklemesi IP başına 60/120 (bilgisayar laboratuvarı) | Düello: oturumlu öğrenci **kendi sayacıyla** (10/dk), misafir IP'den 60/dk (`duelLimit`). Telefon yüklemesi bağlantının **koduyla** sayılır, IP'de yalnız 1.200/dk tavan (`phoneUploadLimit`). `guestLimit`'in `subject` seçeneği sayacı IP'den ayırır | `guards.ts`, `duels/[code]/run|bot`, `uploads/phone/[token]/*` |
+| Çıkış **bütün cihazlardan** çıkarıyordu (supabase-js varsayılanı `global`) | Çıkış ucu `scope: "local"`; hesap silmede bütün oturumlar kapanır | `api/auth/signout/route.ts` |
+| OpenAI kredisi bitince (429 `insufficient_quota`) her üretim düşüyor, kurucu ancak öğrenciden öğreniyordu; kod bunu geçici sayıp boşuna yeniden deniyordu; `Retry-After` okunmuyordu | Bütün istemciler `openaiClient` fabrikasından (kaynak bekçisi: `new OpenAI(` yalnız orada). 429 gövdesinde kota bitti görülünce `/admin/sistem` uyarır ve kurucuya **saatte en çok bir** e-posta gider. Kota bitti geçici değildir (yeniden denenmez, OCR da beklemez); geçici 429'da `retry-after(-ms)` dinlenir (en çok 20 sn). Günlük özet OpenAI giderini yazar, `ADMIN_AI_DAILY_ALERT_USD` (20 $) aşılınca "Dikkat" | `openai-client.ts`, `provider-quota.ts`, `transient-retry.ts`, `ai_usage_totals` (göç `161000`) |
+| Tek Gmail kutusu (nokta, "+etiket", googlemail) sınırsız hesap ve hesap başına 90 kredilik davet hediyesi demekti; `normalizeEmail` yalnız testlerdeydi | Kayıttan önce aynı kutunun başka yazımı varsa uyarı (`checkSignupEmail`; düşerse kayıt sürer). Davet hediyesi kutunun **ilk** hesabına; davetli davet edenin kutusuysa yok. Kayıt engellenmez (`auth.users` tetiği yok: Google'ın yazımı farklı olabilir, öğrenci dışarıda kalırdı); ücretsiz sayaçlar hesap başına kalır | `normalize_email`, `email_alias_taken`, `grant_referral_gift` (göç `162000`), `kayit/email-check.ts` |
+| Davet kodu, e-posta onayı başka tarayıcıda açılınca kayboluyordu (yalnız tarayıcıdaki yükteydi) | Kod hesaba da yazılır (`referral_code`); tamamlamada ya da kurulumda (`applySignupReferral`) bağlanır | `signup-wizard.tsx`, `kayit/actions.ts`, `onboarding/page.tsx` |
+| Kayıtta Google düğmesi formun altında ikincildi (girişte en üstte) | Onay kutusu → beyaz "Google ile tek dokunuşla devam et" → "ya da e-postanla" formu. Google'la kayıt şifre ve doğrulama e-postası beklemez (Supabase e-posta sınırına da takılmaz) | `signup-wizard.tsx` |
+| Düello yalnız "Bağlantıyı kopyala"; misafirin kayıt bağlantısı davetsizdi | "WhatsApp'ta gönder" (girişte çağrı, sonuçta "6/7 yaptım, geçebilir misin?"); misafirin kayıt bağlantısı düelloyu kuranın davet koduyla. Davet kartında da WhatsApp | `duel-share.ts`, `duel-play.tsx`, `referral-reward-card.tsx` |
+| Hatırlatma: tarihsiz hazırlık hiç hatırlatılmıyordu; birkaç yüz kullanıcıda sessizce kırılacaktı (tek sorgu 1.000 satır, `.in()` ile yüzlerce kimlik URL'de, düğümler satır satır, e-postalar sırayla — 300 sn'yi aşar) | 100'erli sayfa, sayılar SQL'den (`reminder_*`, göç `163000`; yoksa eski sorgular), tarihsiz hazırlık son 21 günde kurulmuş/çalışılmışsa, e-posta 4 eşzamanlı ve 200 sn içinde (kalanlar uygulama içi bildirimi alır) | `reminder-facts.ts`, `cron/study-reminders` |
+
+**Ürün sahibinde kalanlar (kod değil):** Supabase Pro (500 MB, yedek, tek dosya 50 MB), Vercel Pro (Hobby ticari kullanımı
+yasaklıyor), OpenAI kullanım katmanı ve aylık bütçe, Supabase kimlik ayarları (e-posta gönderimi saatte 30 / Gmail SMTP →
+Resend gibi işlem e-postası sağlayıcısı; kayıt+giriş 5 dakikada IP başına 30; captcha; sızdırılmış şifre koruması) —
+güvenlik ayarlarını değiştirmek bize yasak. Ürün kararı bekleyenler (kodlanmadı): ücretsiz katmanda "ilk doz", 2 cihaz
+sınırı, e-posta onayı politikası, kayıt sihirbazının 5 kişiselleştirme adımı.
+
+Bekçi: `lansman-zirhi.test.ts`, `lansman-parca-arama.test.ts` (göçü PGlite'ta; pgvector yerine float8[] alanı),
+`lansman-eposta-ve-hatirlatma.test.ts` (göçleri PGlite'ta).
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

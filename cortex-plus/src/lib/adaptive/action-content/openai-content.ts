@@ -6,6 +6,7 @@
 import "server-only";
 import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import { recordUsage, type UsageCode } from "@/lib/credits/service";
@@ -30,7 +31,7 @@ export type AdaptiveLlmResult<T> = {
 
 function getClient(): OpenAI | null {
   if (!env.OPENAI_API_KEY) return null;
-  return new OpenAI({
+  return openaiClient({
     apiKey: env.OPENAI_API_KEY,
     timeout: 45_000,
     maxRetries: 0,

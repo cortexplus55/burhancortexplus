@@ -6,6 +6,7 @@
 import "server-only";
 import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { z } from "zod";
 import { estimateTokenCostUsd } from "@/lib/adaptive/analytics";
 import { normalizeDecisionPayload } from "@/lib/adaptive/jev/normalize";
@@ -97,7 +98,7 @@ export class OpenAIDecisionProvider implements DecisionProvider {
     const provider = role === "fallback" ? "openai_fallback" : "openai_decision";
     const allowed = request.state.allowed_actions;
     const started = Date.now();
-    const openai = new OpenAI({
+    const openai = openaiClient({
       apiKey: env.OPENAI_API_KEY,
       timeout: 12_000,
       maxRetries: 0,

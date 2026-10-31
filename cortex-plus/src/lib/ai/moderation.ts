@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 
 /**
@@ -96,7 +97,7 @@ export async function moderate(
   const imageUrls = typeof input === "string" ? [] : (input.imageUrls ?? []);
 
   try {
-    const openai = new OpenAI({
+    const openai = openaiClient({
       apiKey: env.OPENAI_API_KEY,
       timeout: 20_000,
       maxRetries: 1,

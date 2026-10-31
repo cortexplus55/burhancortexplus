@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import type { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
@@ -129,7 +129,7 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
     await (commit ? commitCredits(service, reservationId) : refundCredits(service, reservationId)).catch(() => undefined);
   };
 
-  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
+  const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
   const profileLoad = studentPedagogyBlock(service, userId, "solve");
   const tier = fastTier(premium && (await fastAllowedFor(service, userId)));
   const profile = await profileLoad;
