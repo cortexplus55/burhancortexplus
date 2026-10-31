@@ -15,7 +15,7 @@ export type PastStyle = { count: number; samples: string[] };
 export const PAST_MIN_QUESTIONS = 4;
 export const TWIN_EXAM_LABEL = "🎯 Çıkmış Sorulara Göre İkiz Sınav";
 
-const QUESTION_START = /^\s*(?:soru\s*)?(\d{1,3})\s*[).:\-–]\s*(.+)$/i;
+const QUESTION_START = /^\s*(?:soru\s*)?(\d{1,3})\s*[).:\-–](?!\d)\s*(.+)$/i;
 const OPTION_LINE = /^\s*\(?([A-Ea-e])\s*[).:\-–]\s*\S/;
 const OPEN_VERB =
   /(açıklayınız|açıklayın|yazınız|hesaplayınız|bulunuz|gösteriniz|tartışınız|tanımlayınız|karşılaştırınız|belirtiniz|çiziniz|ispatlayınız|nelerdir|nedir|kaçtır|hangisidir|hangileridir|değildir)\b/i;

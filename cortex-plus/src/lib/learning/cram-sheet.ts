@@ -101,6 +101,20 @@ export function clipCramText(text: string, max: number = CRAM_LIMITS.text): stri
   return `${cut.replace(/[\s,;:.–-]+$/u, "")}…`;
 }
 
+/**
+ * Zayıf nokta satırını kırparken düzeltme kısmı korunur (31 Ekim 2026): uzun soru metni sınırı
+ * doldurunca "→ Doğrusu: …" kesilip "→ Doğru" gibi yarım kalıyordu. Kırpılan soru tarafıdır.
+ */
+export function clipWeakSpotText(text: string, max: number = CRAM_LIMITS.text): string {
+  const value = clean(text);
+  if (value.length <= max) return value;
+  const at = value.lastIndexOf(" → ");
+  if (at <= 0) return clipCramText(value, max);
+  const tail = clipCramText(value.slice(at + 3), Math.floor(max * 0.55));
+  const head = clipCramText(value.slice(0, at), Math.max(40, max - tail.length - 3));
+  return `${head} → ${tail}`;
+}
+
 function item(kind: CramKind, title: unknown, text: unknown): CramItem | null {
   const body = clean(text);
   if (body.length < 2) return null;
@@ -277,8 +291,8 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
   for (const spot of input.weakSpots ?? []) {
     if (weakSpots.length >= CRAM_LIMITS.weakSpots) break;
     const text = clean(spot.text);
-    if (text.length < 4 || !freshSpot({ text })) continue;
-    weakSpots.push({ text: clipCramText(text), topic: clean(spot.topic) || null });
+    if (text.length < 4 || /(?:→|Doğrusu:)\s*$/u.test(text) || !freshSpot({ text })) continue;
+    weakSpots.push({ text: clipWeakSpotText(text), topic: clean(spot.topic) || null });
   }
 
   const itemCount = sections.reduce((sum, section) => sum + section.items.length, 0);
@@ -300,9 +314,10 @@ export function reviewItemCramText(item: unknown): string | null {
   if (row.trueFalse === true) {
     const corrected = clean(row.corrected);
     if (corrected) return `${prompt} → Doğrusu: ${corrected}`;
-    return correct.length ? `${prompt} → ${correct[0]}` : null;
+    const verdict = trueFalseCorrection(correct[0]);
+    return verdict ? `${prompt} → Doğrusu: ${verdict}` : null;
   }
-  return correct.length ? `${prompt} → Doğrusu: ${correct.join(", ")}` : null;
+  return withCorrection(prompt, correct.join(", "));
 }
 
 /** Yanlış defteri satırı: soru → doğru cevap. */
@@ -310,5 +325,26 @@ export function mistakeCramText(question: unknown, answer: unknown): string | nu
   const prompt = clean(question);
   const correct = clean(answer);
   if (!prompt) return null;
-  return correct ? `${prompt} → Doğrusu: ${correct}` : null;
+  return withCorrection(prompt, correct);
+}
+
+const TRUE_LABELS = new Set(["doğru", "d", "true", "t", "evet", "yes", "dogru"]);
+const FALSE_LABELS = new Set(["yanlış", "y", "false", "f", "hayır", "no", "yanlis", "hayir"]);
+
+/**
+ * Doğru/yanlış anahtarını okunur düzeltmeye çevirir (31 Ekim 2026). Anahtar yalnız "Doğru"/"Yanlış"
+ * etiketiyse "→ Doğru" diye çıplak kalıyordu; artık ifadenin doğru mu yanlış mı olduğu cümleyle yazılır.
+ */
+export function trueFalseCorrection(label: unknown): string | null {
+  const key = clean(label).toLocaleLowerCase("tr").replace(/[.!)\s]+$/u, "").replace(/^[(\s]+/u, "");
+  if (TRUE_LABELS.has(key)) return "Bu ifade doğrudur.";
+  if (FALSE_LABELS.has(key)) return "Bu ifade yanlıştır.";
+  return null;
+}
+
+/** "soru → Doğrusu: X"; X boşsa satır hiç çıkmaz, D/Y etiketiyse cümleye çevrilir. */
+function withCorrection(prompt: string, answer: string): string | null {
+  const correct = trueFalseCorrection(answer) ?? clean(answer);
+  if (!correct || /^[→:·\-\s]*$/u.test(correct)) return null;
+  return `${prompt} → Doğrusu: ${correct}`;
 }

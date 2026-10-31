@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { stripListMarker } from "@/lib/text/list-marker";
 
 export type QuizQuestion = {
   text: string;
@@ -184,7 +185,7 @@ export function normalizeSteps(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const steps = raw
     .filter((line): line is string => typeof line === "string")
-    .map((line) => line.replace(/^\s*(?:adım\s*)?\d+\s*[).:\-–]\s*/i, "").trim())
+    .map((line) => stripListMarker(line).trim())
     .filter((line) => line.length >= 4 && line.length <= 220);
   return steps.length >= 2 ? steps.slice(0, 5) : undefined;
 }
