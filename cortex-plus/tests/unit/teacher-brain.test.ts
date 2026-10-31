@@ -123,21 +123,22 @@ describe("parça ve kota", () => {
   });
 
   // 18 Ekim 2026: tavan ücretsiz katmanın işlediği sayfa (5); eski fotoğraf tavanı (2) analizi kör ediyordu.
+  // 31 Ekim 2026 (Paket J1 #3): ücretsiz tavan 25 sayfa.
   it("ücretsiz PDF'i işlenen sayfa tavanında keser, slaytı kesmez", () => {
-    const pages = [1, 2, 3, 4, 5, 6, 7].map((pageNumber) => ({
+    const pages = Array.from({ length: 27 }, (_, index) => index + 1).map((pageNumber) => ({
       pageNumber,
       text: `sayfa ${pageNumber}`,
     }));
-    expect(FREE_PDF_PAGE_CAP).toBe(5);
-    expect(selectAnalysisPages(pages, { mimeType: "application/pdf", tier: "free" })).toHaveLength(5);
+    expect(FREE_PDF_PAGE_CAP).toBe(25);
+    expect(selectAnalysisPages(pages, { mimeType: "application/pdf", tier: "free" })).toHaveLength(25);
     expect(
       selectAnalysisPages(pages, {
         mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         tier: "free",
       }),
-    ).toHaveLength(7);
+    ).toHaveLength(27);
     expect(selectAnalysisPages(pages, { mimeType: "application/pdf", tier: "plus" })).toHaveLength(
-      7,
+      27,
     );
   });
 

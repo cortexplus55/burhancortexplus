@@ -126,14 +126,11 @@ export function homePathForRole(role: string | null | undefined): string {
   return "/dashboard";
 }
 
-export const STUDENT_SIGNUP_STEPS = [
-  "grade",
-  "subject",
-  "goal",
-  "tutor-style",
-  "avatar",
-  "account",
-] as const;
+/**
+ * 31 Ekim 2026 (ürün sahibinin kararı, Paket J1 #2): 6 adım → 3. Sınıf ve hedef sınav tek ekranda; odak ders
+ * (ders hazırlık kurulurken seçiliyor) ve avatar (varsayılan atanır, profilden değişir) adımları kalktı.
+ */
+export const STUDENT_SIGNUP_STEPS = ["level", "tutor-style", "account"] as const;
 
 export function stepIdsForRole(_role: SignupRole = "student"): string[] {
   void _role;

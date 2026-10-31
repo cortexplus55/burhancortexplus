@@ -10,7 +10,7 @@ test.describe("Kayıt ve marketing", { tag: ["@smoke", "@public"] }, () => {
 
     await page.goto("/kayit");
     await expect(
-      page.getByRole("heading", { name: "Hangi sınıftasın?" }),
+      page.getByRole("heading", { name: "Hangi sınıftasın, hedefin ne?" }),
     ).toBeVisible();
   });
 

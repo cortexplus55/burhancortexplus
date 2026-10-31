@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Flag,
@@ -22,6 +22,19 @@ import {
   questionTypeChip,
   type MockQuestionType,
 } from "@/lib/learning/mock-exam";
+import {
+  clearExamDraft,
+  markExamDraftSaved,
+  readExamDraft,
+  rememberExamDeadline,
+  resolveExamResume,
+  secondsUntil,
+  writeExamDraft,
+  type ExamAnswers,
+  type ExamAnswerValue,
+  type ServerExamDraft,
+} from "@/lib/learning/mock-exam/exam-draft";
+import { fetchWithRetry, SAVE_RETRY_DELAYS_MS, SAVE_TIMEOUT_MS } from "@/lib/learning/retry-fetch";
 
 export type RunnerQuestion = {
   id: string;
@@ -30,6 +43,15 @@ export type RunnerQuestion = {
   question_type: string;
   points?: number;
 };
+
+/** Tarayıcı deposu: gizli pencerede ya da engellenmiş site verisinde erişim fırlatabilir. */
+function examDraftStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 function formatClock(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -50,7 +72,7 @@ export function ParityExamRunner({
 }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [answers, setAnswers] = useState<ExamAnswers>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [untimed, setUntimed] = useState(false);
@@ -65,10 +87,23 @@ export function ParityExamRunner({
   const [announced5, setAnnounced5] = useState(false);
   const [announced1, setAnnounced1] = useState(false);
   const [liveMsg, setLiveMsg] = useState("");
+  /** Sınav notlandı: taslak silindi, sayfadan çıkış artık uyarılmaz. */
+  const [finished, setFinished] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submitting = useRef(false);
   /** Çözümün başladığı an: sayfanın açılışı ya da sunucunun kayıtlı başlangıcı (hangisi önceyse). */
   const startedAtRef = useRef<number>(Date.now());
+  /**
+   * Güncel durum senkron okunur (31 Ekim 2026): kayıt zamanlayıcısı ve gönderim eski bir çizimin
+   * kapanışına takılıp bir önceki cevabı ya da soruyu göndermesin.
+   */
+  const answersRef = useRef<ExamAnswers>({});
+  const flaggedRef = useRef<Set<string>>(new Set());
+  const indexRef = useRef(0);
+  /** Sunucunun bitiş anı; taslağa yazılır, açılış isteği düşerse saat buradan sürer. */
+  const deadlineRef = useRef<string | null>(null);
+  /** Aynı anda tek kayıt isteği: yeniden denenen eski küme yenisinin üstüne yazılmasın. */
+  const saveFlightRef = useRef<{ running: boolean; queued: boolean }>({ running: false, queued: false });
 
   const current = questions[index];
   const type = (current?.question_type || "mcq") as MockQuestionType;
@@ -83,31 +118,180 @@ export function ParityExamRunner({
     [answers],
   );
 
-  const startSession = useCallback(async () => {
-    const res = await fetch("/api/learning/exam/session?action=start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ examId }),
+  function clampIndex(value: number): number {
+    return Math.min(Math.max(0, Math.floor(value)), Math.max(0, questions.length - 1));
+  }
+
+  function applyDraftState(nextAnswers: ExamAnswers, nextFlagged: string[], nextIndex: number) {
+    const flags = new Set(nextFlagged);
+    const at = clampIndex(nextIndex);
+    answersRef.current = nextAnswers;
+    flaggedRef.current = flags;
+    indexRef.current = at;
+    setAnswers(nextAnswers);
+    setFlagged(flags);
+    setIndex(at);
+  }
+
+  /** Kayıt isteği: tek uçuş; uçarken gelen düzenleme bitince en son kümeyle bir kez daha gider. */
+  async function sendSave() {
+    const flight = saveFlightRef.current;
+    if (flight.running) {
+      flight.queued = true;
+      return;
+    }
+    flight.running = true;
+    flight.queued = false;
+    const sentAt = readExamDraft(examDraftStorage(), examId)?.updatedAt ?? Date.now();
+    setSaving(true);
+    setSaveError(false);
+    try {
+      const res = await fetchWithRetry(
+        "/api/learning/exam/session?action=save",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            examId,
+            answers: answersRef.current,
+            flaggedIds: [...flaggedRef.current],
+            cursorIndex: indexRef.current,
+          }),
+        },
+        { timeoutMs: SAVE_TIMEOUT_MS, retryDelaysMs: SAVE_RETRY_DELAYS_MS },
+      );
+      if (res.ok) markExamDraftSaved(examDraftStorage(), examId, sentAt);
+      else setSaveError(true);
+    } catch {
+      // Ağ ya da zaman aşımı: cevaplar tarayıcı taslağında, açılışta yeniden gönderilir.
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+      flight.running = false;
+      if (flight.queued) void sendSave();
+    }
+  }
+
+  function persist(delayMs = ANSWER_SAVE_DEBOUNCE_MS) {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      void sendSave();
+    }, delayMs);
+  }
+
+  /**
+   * Düzenleme (31 Ekim 2026): seçim, yazı, işaret ve soru değişimi tarayıcı taslağına HEMEN yazılır;
+   * sunucuya kısa beklemeden sonra. Yenilenen sayfa aynı soruda, aynı cevaplarla açılır.
+   */
+  function remember() {
+    writeExamDraft(examDraftStorage(), examId, {
+      answers: answersRef.current,
+      flaggedIds: [...flaggedRef.current],
+      cursor: indexRef.current,
+      deadlineAt: deadlineRef.current ?? undefined,
     });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) return;
+    persist();
+  }
+
+  function goTo(next: number) {
+    const target = clampIndex(next);
+    if (target === indexRef.current) return;
+    indexRef.current = target;
+    setIndex(target);
+    remember();
+  }
+
+  async function startSession() {
+    let payload: Record<string, unknown> = {};
+    try {
+      const res = await fetchWithRetry(
+        "/api/learning/exam/session?action=start",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ examId }),
+        },
+        { timeoutMs: SAVE_TIMEOUT_MS, retryDelaysMs: SAVE_RETRY_DELAYS_MS },
+      );
+      payload = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      // Açılış düştü: tarayıcı taslağıyla (cevaplar, soru, bitiş anı) devam edilir.
+      if (!res.ok) return;
+    } catch {
+      return;
+    }
     const serverStart = Date.parse(String(payload.startedAt ?? ""));
     if (Number.isFinite(serverStart) && serverStart <= Date.now()) {
       startedAtRef.current = Math.min(startedAtRef.current, serverStart);
     }
     setUntimed(payload.untimed === true);
+    // Süre sunucunun bitiş anından (notlandırmanın da okuduğu): yenilenen sayfada kalan saniye aynı.
     setTimeLeft(typeof payload.timeLeftSec === "number" ? payload.timeLeftSec : null);
-    if (payload.answers && typeof payload.answers === "object") {
-      setAnswers(payload.answers as Record<string, string | string[]>);
+    deadlineRef.current = typeof payload.deadlineAt === "string" ? payload.deadlineAt : null;
+    rememberExamDeadline(examDraftStorage(), examId, deadlineRef.current);
+
+    // Hangisi yeniyse o (tarayıcı taslağı ya da sunucu kaydı); öbürünün yalnız eksik cevapları eklenir.
+    const server: ServerExamDraft = {
+      answers:
+        payload.answers && typeof payload.answers === "object" ? (payload.answers as ExamAnswers) : {},
+      flaggedIds: Array.isArray(payload.flaggedIds) ? (payload.flaggedIds as string[]) : [],
+      cursor: typeof payload.cursorIndex === "number" ? payload.cursorIndex : null,
+      updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
+    };
+    const resume = resolveExamResume(readExamDraft(examDraftStorage(), examId), server);
+    if (!resume.from) return;
+    applyDraftState(resume.answers, resume.flaggedIds, resume.cursor);
+    if (resume.from === "server" && (Object.keys(resume.answers).length || resume.cursor > 0)) {
+      // Sunucunun kaydı bu cihaza da: taslak "kaydedilmiş" durur, sonraki düzenleme onu ilerletir.
+      const now = Date.now();
+      writeExamDraft(examDraftStorage(), examId, {
+        answers: resume.answers,
+        flaggedIds: resume.flaggedIds,
+        cursor: indexRef.current,
+        deadlineAt: deadlineRef.current,
+        now,
+        savedAt: now,
+      });
     }
-    if (Array.isArray(payload.flaggedIds)) {
-      setFlagged(new Set(payload.flaggedIds as string[]));
+    if (resume.push) persist(0);
+  }
+
+  // Açılış (31 Ekim 2026): önce bu cihazın taslağı (anında; sunucu yanıtı gecikse de cevaplar ve soru
+  // yerinde), sonra sunucu. Sunucuda çizimde depo yok; taslak yalnız tarayıcıda, etkide okunur.
+  useEffect(() => {
+    const local = readExamDraft(examDraftStorage(), examId);
+    if (local) {
+      applyDraftState(local.answers, local.flaggedIds, local.cursor);
+      deadlineRef.current = local.deadlineAt;
+      // Geçici saat: bitiş anı geçmişse sunucuyu bekler (taslağa bakarak sınav gönderilmez).
+      const left = secondsUntil(local.deadlineAt);
+      if (left != null && left > 0) setTimeLeft(left);
     }
+    void startSession();
+    return () => {
+      // Sayfadan ayrılırken bekleyen kayıt hemen gider (taslak zaten yazılı).
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+        void sendSave();
+      }
+    };
+    // Sınav başına bir kez; kayıt işlevleri güncel durumu ref'ten okur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId]);
 
+  // Geri tuşu / yenileme uyarısı (31 Ekim 2026): en az bir cevap verilmiş ve sınav bitmemişken.
+  // Uygulama içi geçişler (Çık, sonuç sayfası) engellenmez; cevaplar taslakta, dönünce yerinde.
+  const inProgress = answeredCount > 0 && !finished;
   useEffect(() => {
-    void startSession();
-  }, [startSession]);
+    if (!inProgress) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [inProgress]);
 
   useEffect(() => {
     if (timeLeft == null) return;
@@ -130,52 +314,22 @@ export function ParityExamRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, announced5, announced1]);
 
-  const persist = useCallback(
-    (nextAnswers: Record<string, string | string[]>, nextFlagged: Set<string>) => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(async () => {
-        setSaving(true);
-        setSaveError(false);
-        try {
-          const res = await fetch("/api/learning/exam/session?action=save", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              examId,
-              answers: nextAnswers,
-              flaggedIds: [...nextFlagged],
-              cursorIndex: index,
-            }),
-          });
-          if (!res.ok) setSaveError(true);
-        } catch {
-          setSaveError(true);
-        } finally {
-          setSaving(false);
-        }
-      }, ANSWER_SAVE_DEBOUNCE_MS);
-    },
-    [examId, index],
-  );
-
-  function setAnswer(value: string | string[]) {
+  function setAnswer(value: ExamAnswerValue) {
     if (!current) return;
-    setAnswers((prev) => {
-      const next = { ...prev, [current.id]: value };
-      persist(next, flagged);
-      return next;
-    });
+    const next = { ...answersRef.current, [current.id]: value };
+    answersRef.current = next;
+    setAnswers(next);
+    remember();
   }
 
   function toggleFlag() {
     if (!current) return;
-    setFlagged((prev) => {
-      const next = new Set(prev);
-      if (next.has(current.id)) next.delete(current.id);
-      else next.add(current.id);
-      persist(answers, next);
-      return next;
-    });
+    const next = new Set(flaggedRef.current);
+    if (next.has(current.id)) next.delete(current.id);
+    else next.add(current.id);
+    flaggedRef.current = next;
+    setFlagged(next);
+    remember();
   }
 
   async function submit(fromTimer = false) {
@@ -189,8 +343,8 @@ export function ParityExamRunner({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           examId,
-          answers,
-          flaggedIds: [...flagged],
+          answers: answersRef.current,
+          flaggedIds: [...flaggedRef.current],
           elapsedSeconds: Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000)),
         }),
       });
@@ -204,6 +358,11 @@ export function ParityExamRunner({
         toast.error(payload.error ?? "Değerlendirme yapılamadı.");
         return;
       }
+      // Notlandı: taslak silinir, bekleyen kayıt gitmez, çıkış uyarısı kalkar.
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      clearExamDraft(examDraftStorage(), examId);
+      setFinished(true);
       router.push(`/deneme-sinavlari/${prepId}/sonuc?examId=${examId}`);
     } catch {
       toast.error("Bağlantı hatası oluştu.");
@@ -232,8 +391,8 @@ export function ParityExamRunner({
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
-      if (e.key === "ArrowRight") setIndex((i) => Math.min(questions.length - 1, i + 1));
-      if (e.key === "ArrowLeft") setIndex((i) => Math.max(0, i - 1));
+      if (e.key === "ArrowRight") goTo(indexRef.current + 1);
+      if (e.key === "ArrowLeft") goTo(indexRef.current - 1);
       if (e.key.toLowerCase() === "f") toggleFlag();
       if (type === "mcq" || type === "multi_mcq") {
         const letters = ["a", "b", "c", "d", "e"];
@@ -264,8 +423,10 @@ export function ParityExamRunner({
   const timerUrgent = timeLeft != null && timeLeft <= 60;
   const timerWarn = timeLeft != null && timeLeft <= 300 && !timerUrgent;
 
+  // Yükseklik 100dvh'den (31 Ekim 2026): telefonda 100vh tarayıcı çubukları ve klavye açıkken görünen
+  // alandan uzun kalıyor, alttaki düğmeler ekranın dışına düşüyordu.
   return (
-    <div className="mock-exam-root mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-3xl flex-col px-4 pb-28 pt-2">
+    <div className="mock-exam-root mx-auto flex min-h-[calc(100dvh-120px)] w-full max-w-3xl flex-col px-4 pb-28 pt-2">
       <div className="sr-only" aria-live="assertive">
         {liveMsg}
       </div>
@@ -323,7 +484,7 @@ export function ParityExamRunner({
           <button
             type="button"
             className="text-[color:var(--pm-danger,#ef4444)]"
-            onClick={() => persist(answers, flagged)}
+            onClick={() => persist(0)}
           >
             Cevap kaydedilemedi · Yeniden dene
           </button>
@@ -471,7 +632,7 @@ export function ParityExamRunner({
             type="button"
             className="h-12 rounded-xl border border-[color:var(--cp-border)] bg-[color:var(--cp-surface-2)] px-4 text-sm font-semibold disabled:opacity-45"
             disabled={index === 0}
-            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            onClick={() => goTo(index - 1)}
           >
             ← Önceki
           </button>
@@ -486,7 +647,7 @@ export function ParityExamRunner({
             <button
               type="button"
               className="cp-exam-continue cp-exam-continue--primary h-12 min-w-[7rem] rounded-full px-5 text-sm font-semibold"
-              onClick={() => setIndex((i) => i + 1)}
+              onClick={() => goTo(index + 1)}
             >
               Sonraki →
             </button>
@@ -534,7 +695,7 @@ export function ParityExamRunner({
                         : "bg-[color:var(--cp-surface-2)]",
                     )}
                     onClick={() => {
-                      setIndex(i);
+                      goTo(i);
                       setShowMap(false);
                     }}
                   >

@@ -22,7 +22,7 @@ const PUBLIC_ROUTES: [string, string][] = [
   ["/kvkk", "KVKK"],
   ["/kullanim-kosullari", "Kullanım koşulları"],
   ["/giris", "Tekrar hoş geldin"],
-  ["/kayit", "Hangi sınıftasın?"],
+  ["/kayit", "Hangi sınıftasın, hedefin ne?"],
   ["/sifremi-unuttum", "Şifremi unuttum"],
   ["/email-dogrula", "E-posta doğrulama"],
   ["/mobil-uygulama", "Telefonuna Uygulama Olarak Kur"],

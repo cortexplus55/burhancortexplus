@@ -86,7 +86,8 @@ export function SignupWizard() {
       focusSubject: draft.focusSubject,
       learningGoal: draft.learningGoal,
       tutorStyle: draft.tutorStyle,
-      avatarEmoji: draft.avatarEmoji,
+      // Avatar adımı kalktı (31 Ekim 2026, Paket J1 #2): varsayılan avatar; profilden değişir.
+      avatarEmoji: draft.avatarEmoji ?? AVATAR_OPTIONS[0],
       referralCode,
     };
   }
@@ -166,14 +167,6 @@ export function SignupWizard() {
     }
 
     setLoading(true);
-    // Aynı posta kutusunun başka yazımı (31 Ekim 2026): kontrol düşerse kayıt sürer.
-    const alias = await checkSignupEmail(email).catch(() => ({ ok: true }) as const);
-    if (!alias.ok) {
-      setLoading(false);
-      toast.error(alias.error);
-      return;
-    }
-
     const payload = { ...buildPayload(), consentAcceptedAt: new Date().toISOString() };
     stashPayload(payload);
     if (entryPrompt) {
@@ -182,6 +175,60 @@ export function SignupWizard() {
       } catch {
         /* ignore */
       }
+    }
+
+    // Hemen gir, içeride onayla (31 Ekim 2026, Paket J1 #1): hesap sunucuda açılır, öğrenci şifresiyle hemen girer;
+    // doğrulama bağlantısı arkadan gider ve içeride şerit hatırlatır. Uç düşerse (5xx, ağ) eski yol: Supabase kaydı
+    // ve doğrulama ekranı — kayıt hiçbir koşulda kapanmaz.
+    let fallback = false;
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          fullName: payload.fullName,
+          gradeLevel: payload.gradeLevel,
+          learningGoal: payload.learningGoal,
+          tutorStyle: payload.tutorStyle,
+          avatarEmoji: payload.avatarEmoji,
+          consentAcceptedAt: payload.consentAcceptedAt,
+          next: safeNextPath(searchParams.get("next"), ""),
+          referralCode: payload.referralCode,
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { error?: string; fallback?: boolean };
+      if (response.ok) {
+        const { error: signInError } = await createClient().auth.signInWithPassword({ email, password });
+        if (!signInError) {
+          router.refresh();
+          router.push("/kayit/tamamla");
+          return;
+        }
+        setLoading(false);
+        toast.error("Hesabın açıldı ama giriş yapılamadı. Giriş sayfasından e-posta ve şifrenle devam et.");
+        router.push("/giris");
+        return;
+      }
+      if (response.status >= 500 || body.fallback) {
+        fallback = true;
+      } else {
+        setLoading(false);
+        toast.error(body.error ?? "Kayıt şu an tamamlanamadı.");
+        return;
+      }
+    } catch {
+      fallback = true;
+    }
+    if (!fallback) return;
+
+    // Aynı posta kutusunun başka yazımı (31 Ekim 2026): eski yolda sunucu kapısı yok; kontrol düşerse kayıt sürer.
+    const alias = await checkSignupEmail(email).catch(() => ({ ok: true }) as const);
+    if (!alias.ok) {
+      setLoading(false);
+      toast.error(alias.error);
+      return;
     }
 
     const supabase = createClient();
@@ -290,10 +337,10 @@ export function SignupWizard() {
       }
     >
       <div className="signup-wizard flex flex-1 flex-col">
-        {step === "grade" ? (
+        {step === "level" ? (
           <StepShell
-            title="Hangi sınıftasın?"
-            subtitle="İçerikleri seviyene göre ayarlayacağız."
+            title="Hangi sınıftasın, hedefin ne?"
+            subtitle="İçerikleri seviyene ve sınavına göre ayarlayacağız."
           >
             <div className="grid grid-cols-3 gap-2">
               {GRADE_OPTIONS.map((g) => (
@@ -305,56 +352,22 @@ export function SignupWizard() {
                 />
               ))}
             </div>
-            <ContinueButton disabled={!draft.gradeLevel} onClick={next} />
-            <PreviewLessonLink />
-          </StepShell>
-        ) : null}
-
-        {step === "subject" ? (
-          <StepShell
-            title="En çok hangi derste desteğe ihtiyacın var?"
-            subtitle="Başlangıç için birini seç, sonra hepsini kullanabilirsin."
-          >
-            <div className="grid grid-cols-2 gap-3">
-              {SUBJECT_OPTIONS.map((s) => (
-                <SignupChoice
-                  key={s.label}
-                  selected={draft.focusSubject === s.label}
-                  onClick={() => setDraft((d) => ({ ...d, focusSubject: s.label }))}
-                  className="flex items-center gap-3 p-4 text-left"
-                >
-                  <span className="text-xl" aria-hidden>
-                    {s.emoji}
-                  </span>
-                  <span className="text-sm font-medium">{s.label}</span>
-                </SignupChoice>
-              ))}
-            </div>
-            <ContinueButton disabled={!draft.focusSubject} onClick={next} />
-          </StepShell>
-        ) : null}
-
-        {step === "goal" ? (
-          <StepShell
-            title="Hedefin ne?"
-            subtitle="Çalışma planını buna göre kuracağız."
-          >
-            <div className="space-y-3">
+            <p className="signup-step-label mt-5 mb-2 text-sm font-semibold">Hedef sınavın</p>
+            <div className="grid grid-cols-2 gap-2">
               {GOAL_OPTIONS.map((g) => (
                 <SignupChoice
                   key={g.label}
                   selected={draft.learningGoal === g.label}
                   onClick={() => setDraft((d) => ({ ...d, learningGoal: g.label }))}
-                  className="w-full p-4 text-left"
+                  className="w-full p-3 text-left"
                 >
-                  <span className="block font-semibold">{g.label}</span>
-                  <span className="block text-sm text-[var(--mk-muted)]">
-                    {g.body}
-                  </span>
+                  <span className="block text-sm font-semibold">{g.label}</span>
+                  <span className="block text-xs text-[var(--mk-muted)]">{g.body}</span>
                 </SignupChoice>
               ))}
             </div>
-            <ContinueButton disabled={!draft.learningGoal} onClick={next} />
+            <ContinueButton disabled={!draft.gradeLevel || !draft.learningGoal} onClick={next} />
+            <PreviewLessonLink />
           </StepShell>
         ) : null}
 
@@ -386,29 +399,6 @@ export function SignupWizard() {
               ))}
             </div>
             <ContinueButton disabled={!draft.tutorStyle} onClick={next} />
-          </StepShell>
-        ) : null}
-
-        {step === "avatar" ? (
-          <StepShell
-            title="Avatarını seç"
-            subtitle="Profilinde bu görünecek. İstediğin zaman değiştirebilirsin."
-          >
-            <div className="grid grid-cols-4 gap-3">
-              {AVATAR_OPTIONS.map((a) => (
-                <SignupChoice
-                  key={a}
-                  selected={draft.avatarEmoji === a}
-                  onClick={() => setDraft((d) => ({ ...d, avatarEmoji: a }))}
-                  className="flex aspect-square items-center justify-center text-2xl"
-                  ariaLabel={`Avatar ${a}`}
-                  showCheck={false}
-                >
-                  {a}
-                </SignupChoice>
-              ))}
-            </div>
-            <ContinueButton onClick={next} secondaryLabel="Atla" onSecondary={next} />
           </StepShell>
         ) : null}
 

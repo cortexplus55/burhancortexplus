@@ -152,3 +152,23 @@ export async function sendParentRequestEmail({
     text: `${parentName} hesabına veli olarak bağlanmak istiyor. Onaylamak için: ${url}`,
   });
 }
+
+/**
+ * "Hemen gir, içeride onayla" (31 Ekim 2026): kayıt kapıda beklemez, doğrulama bağlantısı bizim posta hattımızdan
+ * gider (Supabase'in saatte 30 e-posta sınırı yok). Bağlantı imzalı ve 7 gün geçerli (email-verification.ts).
+ */
+export async function sendVerifyEmail({ to, name, url }: { to: string; name: string; url: string }) {
+  const hello = name ? `Merhaba ${name.split(/\s+/)[0]},` : "Merhaba,";
+  return sendEmail({
+    to,
+    subject: "Cortex Plus · E-postanı doğrula",
+    html: layout(
+      "E-postanı doğrula",
+      `<p style="margin:0;">${hello} hesabın açıldı ve çalışmaya başlayabilirsin.</p>
+       <p style="margin:12px 0 0;">Hesabını güvenceye almak ve davet hediyeni açmak için e-postanı doğrula. Bağlantı 7 gün geçerli.</p>
+       <p style="margin:12px 0 0;">Bu hesabı sen açmadıysan bu e-postaya tıklama; bize yazman yeterli.</p>`,
+      { href: url, label: "E-postamı doğrula" },
+    ),
+    text: `${hello} Cortex Plus hesabın açıldı. E-postanı doğrulamak için: ${url} (7 gün geçerli). Bu hesabı sen açmadıysan tıklama.`,
+  });
+}

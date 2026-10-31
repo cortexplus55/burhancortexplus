@@ -23,6 +23,8 @@ export function CreditGate({
   action,
   actionLabel,
   meter,
+  headline,
+  wins,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -43,6 +45,9 @@ export function CreditGate({
    * saati ve geri sayım gösterilmez.
    */
   meter?: FreeMeter;
+  /** Kapının başlığı ve öğrencinin kazanımları (1. konu kapısı, Paket J1 #3). */
+  headline?: string;
+  wins?: string[];
 }) {
   const account = useStudentShellAccount();
   const founder = useIsFounder();
@@ -70,6 +75,8 @@ export function CreditGate({
       onOpenChange={onOpenChange}
       message={gateMessage}
       returnPath={returnPath}
+      headline={headline}
+      wins={wins}
       resetHint={reset?.hint}
       resetsAt={reset?.resetsAt}
     />

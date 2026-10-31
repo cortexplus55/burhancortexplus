@@ -7,8 +7,12 @@
  */
 /** Ücretsiz hesabın kurabileceği sınav hazırlığı sayısı. */
 export const FREE_PREP_LIMIT = 1;
-/** Ücretsiz hesabın toplam işletebileceği belge sayfası. */
-export const FREE_PAGE_TOTAL = 5;
+/**
+ * Ücretsiz hesabın toplam işletebileceği belge sayfası. 31 Ekim 2026 (ürün sahibinin kararı, Paket J1 #3, "ilk doz
+ * bedava"): 5 → 25. Ücretsiz hesap tek hazırlık kurabildiği için bu, ilk hazırlığın belgesi: konu haritasının
+ * tamamını görür, 1. konuyu tam kalitede bitirir (free-topic-gate.ts). Fotoğraf / taranmış sayfa da aynı sayıda.
+ */
+export const FREE_PAGE_TOTAL = 25;
 
 export const FREE_PREP_LIMIT_MESSAGE =
   "Ücretsiz planda bir sınav hazırlığı kurabilirsin. Yenisini kurmak için Plus'a geç.";

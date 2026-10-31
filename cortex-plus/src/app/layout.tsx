@@ -6,6 +6,7 @@ import "katex/dist/katex.min.css";
 // Premium tasarım sistemi (sınıflar; token kaynağı tokens.css).
 import "@/styles/premium-design-system.css";
 import { Providers } from "@/components/providers";
+import { InAppBrowserBanner } from "@/components/layout/in-app-browser-banner";
 import { logSchemaGaps } from "@/lib/admin/schema-probe";
 
 const figtree = Figtree({
@@ -108,6 +109,10 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
     { media: "(prefers-color-scheme: dark)", color: "#0d0d0d" },
   ],
+  // Klavye açılınca sayfa küçülsün (31 Ekim 2026, Paket J1 #6): sohbet, sözlü ve denemede alttaki düğmeler klavyenin
+  // altında kalıyordu; `100dvh` tek başına Android Chrome'da klavyeyi saymıyor. iOS Safari bu ayarı yok sayar, odaktaki
+  // alanı zaten görünür kaydırır.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
@@ -121,7 +126,11 @@ export default function RootLayout({
       <body
         className={`${figtree.variable} ${dmSerif.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${jersey.variable} ${caveat.variable} min-h-screen antialiased bg-background text-foreground`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          {/* Instagram / Facebook / TikTok / WhatsApp tarayıcısında "tarayıcıda aç" şeridi (31 Ekim 2026). */}
+          <InAppBrowserBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );

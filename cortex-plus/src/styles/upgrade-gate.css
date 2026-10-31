@@ -88,6 +88,26 @@
   color: #a3a19c;
 }
 
+/* 1. konu kapısının kazanımları (31 Ekim 2026, Paket J1 #3): ilerleme yeşil, altın değil. */
+.ug-wins {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ug-wins li {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: #d7f5df;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
 .ug-perk {
   display: inline-flex;
   align-items: center;

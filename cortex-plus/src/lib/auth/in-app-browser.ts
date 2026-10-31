@@ -19,6 +19,22 @@ export function googleBlockedWebViewApp(userAgent: string | null | undefined): s
   return null;
 }
 
+/**
+ * Uygulamanın kendi tarayıcısı (31 Ekim 2026): Google girişinin reddettikleri ve WhatsApp. WhatsApp
+ * bağlantıyı çoğunlukla gerçek tarayıcıda açar (Google girişi orada çalışır, yukarıdaki listede yok),
+ * ama bazı sürümlerde kendi tarayıcısında açıyor; tarayıcı kimliğinde "WhatsApp" geçer. Bu
+ * tarayıcılarda ses çalma ve dosya yükleme kısıtlı: site başında "tarayıcıda aç" önerilir
+ * (`in-app-browser-banner.tsx`). Google kuralı ayrı kalır, bu işlev onu değiştirmez.
+ */
+const IN_APP_ONLY: [RegExp, string][] = [[/\bWhatsApp\b/i, "WhatsApp"]];
+
+export function inAppBrowserApp(userAgent: string | null | undefined): string | null {
+  const blocked = googleBlockedWebViewApp(userAgent);
+  if (blocked || !userAgent) return blocked;
+  for (const [pattern, app] of IN_APP_ONLY) if (pattern.test(userAgent)) return app;
+  return null;
+}
+
 const subscribe = () => () => undefined;
 
 /** Sunucuda ve hidrasyonda null (iki çizim aynı kalsın); tarayıcıda tarayıcı kimliğinden okunur. */

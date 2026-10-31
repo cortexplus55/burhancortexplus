@@ -29,7 +29,9 @@ export async function freePagesRemaining(
     .from("documents")
     .select("page_count")
     .eq("user_id", userId)
-    .in("status", ["completed", "processing"]);
+    .in("status", ["completed", "processing"])
+    // Baş kopyası ve pencere kopyaları ana belgenin sayfalarıdır: bir kez sayılır (31 Ekim 2026).
+    .is("part_of", null);
   if (excludeDocumentId) query = query.neq("id", excludeDocumentId);
   if (preview) query = query.gte("created_at", preview.startedAt);
   const { data, error } = await query;

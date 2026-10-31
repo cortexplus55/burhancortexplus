@@ -15,6 +15,7 @@ import { weakPracticeTitle } from "@/lib/learning/exam-prep-plan";
 import { freeMeterRemaining, nodeFreeMeter } from "@/lib/billing/node-free-meter";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { billingExempt } from "@/lib/billing/free-preview";
+import { FREE_TOPIC_LIMIT_CODE, freeTopicGate } from "@/lib/billing/free-topic-gate";
 import { practiceTopicKey } from "@/lib/learning/quiz-delivery";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { isCreatingStale, shouldReuseExistingStart } from "@/lib/learning/attempt-lifecycle";
@@ -48,6 +49,24 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     if (warm ? await nodeHasOpenAttempt(service, nodeId) : await nodeHasAttempts(service, nodeId)) {
       return NextResponse.json({ ok: true, skipped: "opened" });
     }
+  }
+
+  // İlk doz bedava (31 Ekim 2026, Paket J1 #3): ücretsiz hesapta 1. konu tam açık; öbür konular ve final adımları
+  // Plus ekranı (kazanımlarıyla). Önceden yazım da kilitli konulara harcanmaz. Kurallar `free-topic-gate.ts`'te.
+  const firstTopicLock = await freeTopicGate(service, {
+    userId,
+    prepId,
+    nodeId,
+    nodeTopicId: (node.session_meta as { topicId?: string } | null)?.topicId ?? null,
+    prepWide: PREP_WIDE_TARGET_KINDS.has(kind) && !adaptiveFocusTopic(kind, node.session_meta, topicLabel),
+    requestedTopicLabel: requestedTopic || null,
+  }).catch(() => null);
+  if (firstTopicLock) {
+    if (prefetch) return NextResponse.json({ ok: true, skipped: "free_topic" });
+    return NextResponse.json(
+      { error: "Bu konu Plus'ta.", code: FREE_TOPIC_LIMIT_CODE, firstTopic: firstTopicLock },
+      { status: 402 },
+    );
   }
 
   // "Hep bir adım önde" (18 Ekim 2026, ürün sahibinin kararı): öğrenci bir etkinliği açınca

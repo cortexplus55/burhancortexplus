@@ -101,9 +101,12 @@ export function freeMeterResetLine(meter: FreeMeter): string {
   return meter === "lesson" ? "Ders hakkın Pazartesi 00:00'da yenilenir." : "Hakkın gece yarısı yenilenir.";
 }
 
-/** Pazarlama ve kapılarda tek cümle. */
+/**
+ * Pazarlama ve kapılarda tek cümle. 31 Ekim 2026 (Paket J1 #3, "ilk doz bedava"): ücretsiz hesapta ilk hazırlığın
+ * 1. konusu tam açık (free-topic-gate.ts); haftalık ders sayacı o konunun içinde geçerli.
+ */
 export const FREE_TIER_SENTENCE =
-  `Haftada ${FREE_LESSONS_PER_WEEK} ders (testleri ve kartlarıyla), günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan soru çözümü`;
+  `İlk hazırlığında 1. konu tam açık (dersleri, testleri ve kartlarıyla; haftada ${FREE_LESSONS_PER_WEEK} derse kadar), günde ${FREE_CHAT_PER_DAY} sohbet mesajı ve günde ${FREE_PHOTO_PER_DAY} fotoğraftan soru çözümü`;
 
 /** Davet: iki tarafa bir kez hediye (SQL `grant_referral_gift`, 90 kredi = 3 ders). */
 export const REFERRAL_GIFT_LESSONS = 3;
