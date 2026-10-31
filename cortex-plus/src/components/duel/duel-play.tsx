@@ -60,6 +60,7 @@ export function DuelPlay({
   initialBot = null,
   countdownSeconds = DUEL_COUNTDOWN_SECONDS,
   signupHref = "/kayit",
+  shareUrl: shareUrlProp,
 }: {
   code: string;
   title: string;
@@ -74,6 +75,8 @@ export function DuelPlay({
   countdownSeconds?: number;
   /** Misafirin kayıt bağlantısı: düelloyu kuranın davet koduyla (duel-share.ts). */
   signupHref?: string;
+  /** Düellonun tam adresi (paylaşım ve kopyalama). */
+  shareUrl?: string;
 }) {
   const [stage, setStage] = useState<"intro" | "countdown" | "play" | "sending" | "result">("intro");
   /** Oyun öncesi 3-2-1 (30 Ekim 2026, canlı tur): sorular gelince 1. sorunun süresi hemen başlıyor, öğrenci kaçırıyordu. */
@@ -91,8 +94,9 @@ export function DuelPlay({
   const autoBot = useRef(false);
 
   const limitMs = DUEL_SECONDS * 1000;
-  const shareUrl =
-    typeof window === "undefined" ? `/duello/${code}` : `${window.location.origin}/duello/${code}`;
+  // Tam adres sunucudan gelir (31 Ekim 2026): sunucuda göreli, tarayıcıda tam adres hesaplanınca hidrasyon sunucunun
+  // göreli adresini bırakıyordu; WhatsApp mesajındaki "/duello/kod" tıklanmıyordu.
+  const shareUrl = shareUrlProp ?? `/duello/${code}`;
 
   // Oyun öncesi geri sayım: her saniye bir azalır, bitince ilk soru ve süresi başlar.
   useEffect(() => {
