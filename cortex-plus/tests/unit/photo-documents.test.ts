@@ -210,7 +210,6 @@ describe("fotoğraf sayfası kotası", () => {
   });
 
   const subscription = (row: unknown) =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ({
       from: () => ({
         select: () => ({
@@ -221,6 +220,7 @@ describe("fotoğraf sayfası kotası", () => {
           }),
         }),
       }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
 
   it("aboneliği olmayan ücretsiz", async () => {

@@ -53,8 +53,9 @@ describe("ücretsiz hesap", () => {
     );
 
     expect(limits.map((l) => l.key)).toEqual(["photo-pages", "weekly-lessons", "daily-chat", "daily-photos"]);
-    expect(limits[0]).toMatchObject({ used: 1, limit: 2, label: "Fotoğraf ve PDF sayfa" });
-    expect(limits[0]?.hint).toContain("PDF sayfa: 2");
+    // 31 Ekim 2026 (Paket J1 #3): ücretsiz fotoğraf/taranmış sayfa hakkı 25.
+    expect(limits[0]).toMatchObject({ used: 1, limit: 25, label: "Fotoğraf ve PDF sayfa" });
+    expect(limits[0]?.hint).toContain("PDF sayfa: 25");
     expect(limits[1]).toMatchObject({ used: 2, limit: 3, label: "Bu haftaki ders" });
     expect(limits[2]).toMatchObject({ used: 3, limit: 3 });
     // Dünün fotoğrafı bugünün hakkını yemez.

@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { homePathForRole } from "@/lib/parity/signup";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
 import { accountActiveOrUnknown } from "@/lib/auth/active-account";
+import {
+  applyDeviceCookie,
+  checkSignedInDevice,
+  checkSignedOutDevice,
+  otherDeviceRedirect,
+  type DeviceCookieUpdate,
+} from "@/lib/auth/device-sessions";
 
 /** Legacy veli/öğretmen URL’leri — öğrenci-only ürün. */
 const RETIRED_PREFIXES = [
@@ -130,6 +137,18 @@ export async function updateSession(request: NextRequest) {
 
   const isProtected = matches(path, PROTECTED_PREFIXES);
 
+  // Hesap paylaşımı koruması (31 Ekim 2026): en çok 2 açık cihaz. Yalnız uygulama sayfaları (ve oturumsuzken ana
+  // sayfa) sorulur; API, cron, auth dönüşü, pazarlama ve statik dosya sorulmaz. Ayrıntı: device-sessions.ts.
+  let device: DeviceCookieUpdate = null;
+  const withDevice = (response: NextResponse) => applyDeviceCookie(response, device, request);
+
+  // Cihaz sınırıyla düşen oturumun getUser'ı "kullanıcı yok" der; çerezde o oturum varsa nedenini söyleriz.
+  if (!user && (isProtected || path === "/")) {
+    const gate = await checkSignedOutDevice(request);
+    if (gate.revoked) return otherDeviceRedirect(request, supabaseResponse, isProtected);
+    device = gate.cookie;
+  }
+
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
     // Kodlu bağlantı (/pay?kod=…) sosyal medyadan yeni öğrenciye gidiyor (20 Ekim 2026): "Tekrar hoş
@@ -139,10 +158,10 @@ export async function updateSession(request: NextRequest) {
     // sonra kutusu dolu açılır (19 Ekim 2026). Sorgusuz yolda adres eskisi gibi.
     url.search = "";
     url.searchParams.set("next", `${path}${request.nextUrl.search}`);
-    return NextResponse.redirect(url);
+    return withDevice(NextResponse.redirect(url));
   }
 
-  if (!user) return supabaseResponse;
+  if (!user) return withDevice(supabaseResponse);
 
   const needsRole =
     isProtected || path === "/" || path === "/giris" || path === "/kayit";
@@ -158,7 +177,7 @@ export async function updateSession(request: NextRequest) {
   }
   const finish = (response: NextResponse) => {
     if (accountCheckSkipped) response.headers.set("x-account-check", "skipped");
-    return response;
+    return withDevice(response);
   };
   if (active === false) {
     // Askıdaki hesap nedenini görsün (plan 4.1); silinmiş hesap eskisi gibi sessiz çıkar.
@@ -176,6 +195,17 @@ export async function updateSession(request: NextRequest) {
     const response = NextResponse.redirect(url);
     for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
     return response;
+  }
+
+  // Askı ve silinmeden sonra: kapalı hesabın cihazı sayılmaz. Sınırı aşan bir cihaz SQL'de düşer; bu tarayıcının
+  // oturumu daha önce düşürüldüyse (auth.sessions silinemediyse) burada çıkış yapılır.
+  if (isProtected) {
+    const gate = await checkSignedInDevice({ request, auth: supabase.auth, userId: user.id });
+    if (gate.revoked) {
+      await supabase.auth.signOut({ scope: "local" });
+      return otherDeviceRedirect(request, supabaseResponse, true);
+    }
+    device = gate.cookie;
   }
 
   const { data: profile, error: profileError } = await supabase

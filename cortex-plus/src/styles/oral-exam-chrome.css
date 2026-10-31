@@ -22,6 +22,8 @@
   flex-direction: column;
   width: min(100%, 40rem);
   margin: 0 auto;
+  /* Önce vh: dvh desteklemeyen tarayıcı (31 Ekim 2026); dvh klavye açıkken görünen alanı izler. */
+  min-height: calc(100vh - 7.5rem);
   min-height: calc(100dvh - 7.5rem);
   color: var(--cp-text, #fff);
 }

@@ -12,14 +12,10 @@ const PROTECTED_ROUTES = [
 async function openSignupAccountStep(page: Page) {
   await page.goto("/kayit");
   await page.getByRole("button", { name: "9. sınıf" }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByRole("button", { name: "Matematik" }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
   await page.getByRole("button", { name: "YKS hazırlık" }).click();
   await page.getByRole("button", { name: "Devam" }).click();
   await page.getByRole("button", { name: "Adım adım anlat" }).click();
   await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByRole("button", { name: "Atla" }).click();
   await expect(page.getByRole("heading", { name: "Hesabını oluştur" })).toBeVisible();
 }
 

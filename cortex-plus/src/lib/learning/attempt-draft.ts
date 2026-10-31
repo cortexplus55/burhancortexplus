@@ -194,7 +194,9 @@ export function mergeDraftIntoServer(
   const base = { answers: { ...server.answers }, cursor: Math.max(0, server.cursor), restored: [] as string[] };
   if (!draft || !draftHasUnsaved(draft) || !draftOutranksServer(draft, server.updatedAt)) return base;
   const restored = diffAnswerKeys(draft.answers, server.answers);
-  if (!restored.length) return base;
+  // Cevaplar aynı, yalnız soru ilerlemiş (31 Ekim 2026): kaldığı soru taslaktan; sunucu kaydı
+  // "Sonraki soru"dan sonraki kısa beklemede yenilenen sayfaya yetişmemiş olabilir.
+  if (!restored.length) return { ...base, cursor: Math.max(base.cursor, draft.cursor) };
   const answers = { ...server.answers };
   for (const key of restored) answers[key] = draft.answers[key];
   return { answers, cursor: Math.max(base.cursor, draft.cursor), restored };
