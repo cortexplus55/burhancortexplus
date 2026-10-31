@@ -1,5 +1,7 @@
 "use client";
 
+import { FirstTopicLockCard } from "@/components/parity/first-topic-lock";
+import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
 import Link from "next/link";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { useRouter } from "next/navigation";
@@ -110,6 +112,8 @@ export type HomeNode = {
   dayIndex: number;
   sortOrder: number;
   status: NodeStatus;
+  /** Ücretsiz hesapta 1. konunun dışında (Paket J takip #1): tıklayınca Plus kartı anında açılır. */
+  planLocked?: boolean;
   sessionMeta?: {
     objective?: string;
     sourcePages?: number[];
@@ -275,8 +279,11 @@ export function ExamPrepHome({
   nodeDoneOn = {},
   shareTools = null,
   examResult = null,
+  firstTopicLock = null,
 }: {
   prepId: string;
+  /** 1. konu özeti; ücretsiz hesapta kilitli adım varsa dolu (`freeTopicLocks`). */
+  firstTopicLock?: FirstTopicSummary | null;
   /** Sınav sabahı kâğıdı + sınıf paylaşımı (Paket J3 #14); bağlantı sunucuda imzalı ve mutlak. Yoksa kâğıt düğmesi yine görünür. */
   shareTools?: { inviteUrl: string | null; whatsappHref: string | null } | null;
   /** Sınav günü geçince not sorusu ya da başarı kartı (Paket J3 #14). */
@@ -508,8 +515,14 @@ export function ExamPrepHome({
     return list;
   }, [topicOptions, topicLabels, nodes]);
 
+  const [lockCardOpen, setLockCardOpen] = useState(false);
+
   async function startNode(nodeId: string, href: string) {
     if (starting) return;
+    if (nodes.some((node) => node.id === nodeId && node.planLocked)) {
+      setLockCardOpen(true);
+      return;
+    }
     setStarting(true);
     await chooseStudyNode(prepId, nodeId);
     router.push(href);
@@ -518,6 +531,13 @@ export function ExamPrepHome({
   function openNode(node: HomeNode) {
     if (node.id === INTRO_NODE_ID) {
       router.push(examPrepIntroHref(prepId));
+      return;
+    }
+    // Beklemesiz kilit: sayfaya gidilmez, kart burada açılır.
+    if (node.planLocked && node.status !== "done") {
+      setDonePick(null);
+      setLockedPick(null);
+      setLockCardOpen(true);
       return;
     }
     if (!studentMayStartNode(node.status, node.kind) || nodeNeedsStudentUnlock(node.status)) {
@@ -1069,6 +1089,13 @@ export function ExamPrepHome({
         </div>
       ) : null}
 
+      <FirstTopicLockCard
+        prepId={prepId}
+        summary={firstTopicLock}
+        open={lockCardOpen}
+        onClose={() => setLockCardOpen(false)}
+      />
+
       {pickerOpen ? (
         <FreeActivityPicker
           prepId={prepId}
@@ -1460,7 +1487,7 @@ function StudyPath({
                     ? `${levelNodeAria(studyNodeAria(node.status))}${dayLabel ? `, ${dayLabel}` : ""}`
                     : `${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${
                         node.status === "done" && scores[node.id] != null ? `, %${scores[node.id]}` : ""
-                      }${readinessNote}${far.has(node.id) ? `, ${PATH_FAR_NOTE.toLocaleLowerCase("tr")}` : ""}${
+                      }${readinessNote}${node.planLocked ? ", Plus'ta" : ""}${far.has(node.id) ? `, ${PATH_FAR_NOTE.toLocaleLowerCase("tr")}` : ""}${
                         dayLabel ? `, ${dayLabel}` : ""
                       }`
                 }
@@ -1477,6 +1504,11 @@ function StudyPath({
                     {node.status === "done" ? <Check className="h-6 w-6" strokeWidth={2.5} /> : <NodeGlyph node={node} />}
                   </span>
                 )}
+                {node.planLocked ? (
+                  <span className="cp-path-plan-lock" data-testid="path-plan-lock" aria-hidden>
+                    🔒
+                  </span>
+                ) : null}
                 {node.id === currentId ? (
                   <span className="cp-path-beam">
                     <span className="cp-path-beam-icon">

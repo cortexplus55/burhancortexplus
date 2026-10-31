@@ -1,3 +1,4 @@
+import { emailUnverifiedFromMetadata } from "@/lib/auth/email-unverified-flag";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { STUDIO_EXAM_TYPE } from "@/lib/learning/studio-exam";
 import { ParitySorShell } from "@/components/parity/sor-shell";
@@ -170,6 +171,7 @@ export default async function OgretmenPage({
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}
+      emailUnverified={!account?.isAdmin && emailUnverifiedFromMetadata(user.app_metadata)}
       countdown={countdown}
       recentConversations={(conversations ?? []).map((row) => ({
         id: row.id,

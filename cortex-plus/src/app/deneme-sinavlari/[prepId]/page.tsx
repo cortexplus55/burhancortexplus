@@ -55,7 +55,9 @@ import { countPendingMaterials } from "@/lib/learning/pending-materials";
 import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
 import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
 import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
+import { loadExamBaseline } from "@/lib/learning/exam-result-load";
 import { appOrigin } from "@/lib/app-url";
+import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -518,6 +520,25 @@ export default async function ExamPrepDetailPage({
       })
     : nodes;
 
+  // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım yolda 🔒 rozeti taşır, tıklayınca kart anında
+  // açılır. Karar adım sayfası ve başlatma isteğiyle aynı kuraldan (`freeTopicLocks`); okuma düşerse kilit yok.
+  const firstTopicLocks = await freeTopicLocks(service, {
+    userId: user.id,
+    prepId,
+    nodes: nodes
+      .filter((node) => node.status !== "done")
+      .map((node) => ({
+        id: node.id,
+        kind: node.kind,
+        sessionMeta: node.sessionMeta ?? null,
+        topicLabel: String((node.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "") || String(prep.title ?? "") || "konu",
+      })),
+  }).catch(() => null);
+  const lockedIds = new Set(firstTopicLocks?.lockedIds ?? []);
+  const pathNodes = lockedIds.size
+    ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
+    : homeNodes;
+
   const startHref = !hasTopic
     ? examPrepTopicHref(prepId)
     : needsIntro
@@ -578,7 +599,14 @@ export default async function ExamPrepDetailPage({
   const inviteUrl = inviteToken ? prepInviteUrl(inviteToken) : null;
   const resultPrefs = parseLearningPreferences(prep.learning_preferences);
   const resultToday = istanbulDay();
-  const examResultView = examDatePassed(prep.exam_date as string | null, resultToday)
+  const examPassed = examDatePassed(prep.exam_date as string | null, resultToday);
+  // Kaydedilmiş notun başlangıcı boşsa (eski kural ya da sonradan gelen kayıt) okurken yeniden hesaplanır (Paket J takip #2).
+  const storedResult = resultPrefs.examResult;
+  const lateBaseline =
+    examPassed && storedResult && storedResult.baselinePct == null
+      ? await loadExamBaseline(service, { prepId: prep.id as string, userId: user.id })
+      : null;
+  const examResultView = examPassed
     ? {
         prepId: prep.id as string,
         due: examResultDue({
@@ -587,8 +615,12 @@ export default async function ExamPrepDetailPage({
           result: resultPrefs.examResult ?? null,
           snoozedUntil: resultPrefs.examResultSnoozedUntil ?? null,
         }),
-        stored: resultPrefs.examResult
-          ? { score: resultPrefs.examResult.score, baselinePct: resultPrefs.examResult.baselinePct }
+        stored: storedResult
+          ? {
+              score: storedResult.score,
+              baselinePct: storedResult.baselinePct ?? lateBaseline?.pct ?? null,
+              baselineSource: storedResult.baselinePct != null ? storedResult.baselineSource : (lateBaseline?.source ?? null),
+            }
           : null,
         landingUrl: `${appOrigin()}/`,
       }
@@ -608,7 +640,8 @@ export default async function ExamPrepDetailPage({
         examDate={prep.exam_date}
         daysLabel={prep.exam_date ? `${daysUntilExam(prep.exam_date)} gün kaldı` : ""}
         progressPct={progress.pct}
-        nodes={homeNodes}
+        nodes={pathNodes}
+        firstTopicLock={firstTopicLocks?.summary ?? null}
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}

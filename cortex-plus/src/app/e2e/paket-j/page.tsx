@@ -5,6 +5,8 @@ import { TwinQuestionCard } from "@/components/learning/twin-question-card";
 import { CramSheetView } from "@/components/parity/cram-sheet-view";
 import { buildCramSheet } from "@/lib/learning/cram-sheet";
 import { WallFixture } from "./wall";
+import { LockFixture } from "./lock";
+import { ExamResultCard } from "@/components/parity/exam-result-card";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,18 @@ export default function E2ePaketJPage() {
       </section>
       <section aria-label="Duvar">
         <WallFixture />
+      </section>
+      <section aria-label="Kilit bitti">
+        <LockFixture completed />
+      </section>
+      <section aria-label="Kilit sürüyor">
+        <LockFixture completed={false} />
+      </section>
+      <section aria-label="Sonuç ilk gün">
+        <ExamResultCard prepId="e2e-prep" due={false} stored={{ score: 85, baselinePct: 60, baselineSource: "first_day_activity" }} landingUrl="https://example.com/" />
+      </section>
+      <section aria-label="Sonuç yok">
+        <ExamResultCard prepId="e2e-prep" due={false} stored={{ score: 72, baselinePct: null, baselineSource: null }} landingUrl="https://example.com/" />
       </section>
       <section aria-label="Bildir">
         <QuestionReportButton source="node" targetId="e2e-attempt" questionRef="0" />

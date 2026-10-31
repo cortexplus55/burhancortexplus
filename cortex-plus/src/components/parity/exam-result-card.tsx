@@ -13,6 +13,7 @@ import {
   examResultTrend,
   examResultWhatsappHref,
   parseExamScore,
+  type ExamBaselineSource,
 } from "@/lib/learning/exam-result";
 import { cn } from "@/lib/utils";
 import "@/styles/cram-sheet.css";
@@ -23,7 +24,7 @@ export type ExamResultCardProps = {
   prepId: string;
   /** Sınav günü geçti ve not yok: soru gösterilir. */
   due: boolean;
-  stored: { score: number; baselinePct: number | null } | null;
+  stored: { score: number; baselinePct: number | null; baselineSource?: ExamBaselineSource | null } | null;
   /** Paylaşımın mutlak tanıtım sayfası adresi (sunucuda `appOrigin()`). */
   landingUrl: string;
 };
@@ -49,7 +50,7 @@ export function ExamResultCard({ prepId, due, stored, landingUrl }: ExamResultCa
         body: JSON.stringify({ prepId, ...body }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        result?: { score: number; baselinePct: number | null };
+        result?: { score: number; baselinePct: number | null; baselineSource?: ExamBaselineSource | null };
         snoozed?: boolean;
         error?: string;
       };
@@ -58,7 +59,7 @@ export function ExamResultCard({ prepId, due, stored, landingUrl }: ExamResultCa
         return;
       }
       if (data.snoozed) setHidden(true);
-      else if (data.result) setResult({ score: data.result.score, baselinePct: data.result.baselinePct ?? null });
+      else if (data.result) setResult({ score: data.result.score, baselinePct: data.result.baselinePct ?? null, baselineSource: data.result.baselineSource ?? null });
     } catch {
       toast.error("İnternet bağlantını kontrol edip yeniden dene.");
     } finally {
@@ -81,7 +82,7 @@ export function ExamResultCard({ prepId, due, stored, landingUrl }: ExamResultCa
     return (
       <section className="cp-exam-result" aria-label="Sınav sonucu">
         <p className={cn("cp-exam-result-card", trend === "up" && "is-up")}>{text}</p>
-        <p className="cp-exam-result-note">{examResultSubline(trend)}</p>
+        <p className="cp-exam-result-note">{examResultSubline(trend, result.baselineSource)}</p>
         {examResultShareable(trend) ? (
           <div className="cp-exam-result-actions">
             <a

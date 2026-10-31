@@ -32,6 +32,9 @@ import { loadTopicSupport } from "@/lib/learning/topic-support-load";
 import { FIGURE_APPENDIX_LABEL } from "@/lib/documents/extract-image-text";
 import { figureHintsFromRows, type FigureHint } from "@/lib/learning/figure-pages";
 import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
+import { freeTopicGate } from "@/lib/billing/free-topic-gate";
+import { gatePrepWide } from "@/lib/billing/free-topic-rule";
+import { FirstTopicLockPage } from "@/components/parity/first-topic-lock";
 
 /**
  * Konuya bağlı etkinlikler: "N kaynak" konunun kendi dosyalarını ve sayfalarını gösterir. Deneme,
@@ -89,6 +92,29 @@ export default async function ExamNodePage({
   // Yazılı deneme tek motor: kurulum → practice_exams.
   if (node.kind === "written_exam") {
     redirect(`/deneme-sinavlari/${prepId}/deneme/kurulum`);
+  }
+
+  // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım daha sayfada kartı açar — aşinalık sorusu,
+  // zorluk ekranı, üretim isteği ve sayaç yok. Karar başlatma isteğiyle aynı işlevden (`freeTopicGate`, aynı girdi);
+  // `start.ts` yine son söz. Okuma düşerse kilit yok sayılır (açık kalır).
+  {
+    const meta = node.session_meta as { topicId?: string; topicTitle?: string } | null;
+    const gateLabel = requestedTopic || meta?.topicTitle?.trim() || String(prep.title ?? "") || "konu";
+    const firstTopicLock = await freeTopicGate(createServiceClient(), {
+      userId: user.id,
+      prepId,
+      nodeId,
+      nodeTopicId: meta?.topicId ?? null,
+      prepWide: gatePrepWide(node.kind as string, node.session_meta, gateLabel),
+      requestedTopicLabel: requestedTopic || null,
+    }).catch(() => null);
+    if (firstTopicLock) {
+      return (
+        <ParitySorShell {...shell} chrome="session">
+          <FirstTopicLockPage prepId={prep.id} summary={firstTopicLock} />
+        </ParitySorShell>
+      );
+    }
   }
 
   const { data: nodeRows } = await supabase
