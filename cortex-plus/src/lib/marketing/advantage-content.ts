@@ -151,7 +151,7 @@ export const BLIND_EXPERIMENT_PROOF = {
   after: { value: "100", label: "Son sınav" },
   delta: "+65 Puan Artış",
   body:
-    "Kör sınav deneyinde konunun yalnız %35'ini bilen ve 6 temel kavram yanılgısına sahip öğrenci, Cortex Plus çalışma yolunu tamamladıktan sonra girdiği 20 soruluk sınavda 6 yanılgısının tamamını kırarak 100 tam puan (+65 Puan Artış) aldı.",
+    "Kör sınav deneyinde ön sınavdan 35 puan alan ve 6 temel kavram yanılgısına sahip öğrenci, Cortex Plus çalışma yolunu tamamladıktan sonra girdiği 20 soruluk sınavda 6 yanılgısının tamamını kırarak 100 tam puan (+65 Puan Artış) aldı.",
   footnote:
     "İç deney, 30 Ekim 2026: öğrenci yapay zekâ ile canlandırıldı, yalnız Cortex Plus derslerinden tuttuğu defterle bağımsız yazılmış 20 soruluk sınava girdi. Tek konu, tek deney.",
 } as const;
