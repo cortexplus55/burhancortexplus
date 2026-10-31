@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { AdvantageCompact } from "@/components/marketing/advantage-sections";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { FREE_LESSONS_PER_WEEK, FREE_PHOTO_PER_DAY, FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
@@ -122,6 +123,10 @@ export default function OzelliklerPage() {
             </div>
           </section>
         ))}
+
+        <div className="lp-wrap">
+          <AdvantageCompact />
+        </div>
 
         <section className="lp-final" aria-labelledby="oz-final">
           <div className="lp-wrap lp-final-inner">

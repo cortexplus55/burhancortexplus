@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ParityMarketingPage } from "@/components/parity/marketing";
+import { PricingAdvantageStrip } from "@/components/marketing/advantage-sections";
 import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { createClient } from "@/lib/supabase/server";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
@@ -90,6 +91,7 @@ export default async function FiyatlandirmaPage() {
           />
         )}
       </div>
+      <PricingAdvantageStrip />
       <p className="pb-8 text-center text-sm text-[var(--mk-muted)]">
         Zaten hesabın var mı?{" "}
         <Link href="/giris" className="text-[var(--mk-primary)] underline">

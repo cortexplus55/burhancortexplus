@@ -1,0 +1,392 @@
+/*
+  Vitrin farkları (1 Kasım 2026): Cortex Obsidian & Glass dili, ana sayfanın paletiyle aynı (landing.css).
+  Kendi değişkenleri var; /fiyatlandirma ve /ornek landing.css yüklemediği için bağımsız. Her blok koyu cam yüzey.
+  Dar ekranda tablo satırları karta döner; hiçbir öğe görüntü alanından taşmaz (e2e: tests/e2e/vitrin.spec.ts).
+*/
+
+.cx-adv {
+  --cx-bg: #0a0a0c;
+  --cx-glass: rgba(20, 20, 24, 0.78);
+  --cx-border: #2a2a2e;
+  --cx-text: #f5f5f5;
+  --cx-muted: #a3a3a3;
+  --cx-accent: #8e98ff;
+  --cx-brand: #fdb300;
+  --cx-yes: #4ade80;
+  --cx-no: #fca5a5;
+  color: var(--cx-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cx-adv *,
+.cx-adv *::before,
+.cx-adv *::after {
+  box-sizing: border-box;
+}
+
+.cx-adv-section {
+  background: var(--cx-bg);
+  padding-block: clamp(3rem, 7vw, 5.5rem);
+}
+
+.cx-adv-section--tight {
+  padding-block: clamp(2rem, 5vw, 3.5rem);
+}
+
+.cx-adv-wrap {
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding-inline: 1.25rem;
+}
+
+.cx-adv-kicker {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cx-accent);
+}
+
+.cx-adv-h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.cx-adv-lead {
+  margin: 0.75rem 0 0;
+  color: var(--cx-muted);
+}
+
+.cx-adv-body {
+  margin: 0;
+  color: var(--cx-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* Tablo */
+.cx-adv-table {
+  margin-top: 2rem;
+  border: 1px solid var(--cx-border);
+  border-radius: 1.25rem;
+  background: var(--cx-glass);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.cx-adv-head,
+.cx-adv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.cx-adv-head > span {
+  padding: 0.9rem 1.1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cx-muted);
+  border-bottom: 1px solid var(--cx-border);
+}
+
+.cx-adv-head .cx-adv-head-cortex {
+  color: var(--cx-brand);
+}
+
+.cx-adv-row + .cx-adv-row {
+  border-top: 1px solid var(--cx-border);
+}
+
+.cx-adv-feature {
+  margin: 0;
+  padding: 1.1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cx-adv-cell {
+  padding: 1.1rem;
+  min-width: 0;
+}
+
+.cx-adv-cell--cortex {
+  background: linear-gradient(180deg, rgba(253, 179, 0, 0.09), rgba(67, 83, 243, 0.08));
+  border-inline: 1px solid rgba(253, 179, 0, 0.22);
+}
+
+.cx-adv-col-label {
+  display: none;
+}
+
+.cx-adv-verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.cx-adv-verdict--yes {
+  color: var(--cx-yes);
+}
+
+.cx-adv-verdict--no {
+  color: var(--cx-no);
+}
+
+.cx-adv-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  .cx-adv-head {
+    display: none;
+  }
+
+  .cx-adv-row {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .cx-adv-feature {
+    padding: 0.25rem 0.25rem 0.25rem;
+  }
+
+  .cx-adv-cell {
+    border-radius: 0.9rem;
+    padding: 0.85rem;
+  }
+
+  .cx-adv-cell--cortex {
+    border: 1px solid rgba(253, 179, 0, 0.3);
+  }
+
+  .cx-adv-cell--others {
+    border: 1px solid var(--cx-border);
+  }
+
+  .cx-adv-col-label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--cx-muted);
+  }
+
+  .cx-adv-cell--cortex .cx-adv-col-label {
+    color: var(--cx-brand);
+  }
+}
+
+/* Kanıt kartı */
+.cx-adv-proof {
+  position: relative;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid rgba(253, 179, 0, 0.28);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(30rem 14rem at 0% 0%, rgba(253, 179, 0, 0.12), transparent 70%),
+    radial-gradient(30rem 14rem at 100% 100%, rgba(67, 83, 243, 0.16), transparent 70%),
+    var(--cx-glass);
+  backdrop-filter: blur(14px);
+}
+
+.cx-adv-proof-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.cx-adv-proof-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cx-adv-proof-num {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.cx-adv-proof-num small {
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--cx-muted);
+}
+
+.cx-adv-proof-num--before {
+  color: var(--cx-muted);
+}
+
+.cx-adv-proof-num--after {
+  color: var(--cx-brand);
+}
+
+.cx-adv-proof-arrow {
+  font-size: 1.6rem;
+  color: var(--cx-accent);
+}
+
+.cx-adv-proof-delta {
+  flex-basis: 100%;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--cx-yes);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.cx-adv-proof-body {
+  margin: 0;
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  line-height: 1.55;
+}
+
+.cx-adv-footnote {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: var(--cx-muted);
+}
+
+@media (max-width: 760px) {
+  .cx-adv-proof-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Rozetler */
+.cx-adv-badges-block {
+  margin-top: 1.75rem;
+}
+
+.cx-adv-badges {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cx-adv-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--cx-border);
+  border-radius: 1rem;
+  background: var(--cx-glass);
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.cx-adv-badge-emoji {
+  flex: none;
+  font-size: 1.35rem;
+}
+
+@media (max-width: 760px) {
+  .cx-adv-badges {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cx-adv-badge {
+    font-size: 0.85rem;
+    padding: 0.7rem;
+  }
+}
+
+/* Fiyat şeridi ve kısa sürüm (pazarlama kabuğunun içinde) */
+.cx-adv-strip,
+.cx-adv-compact {
+  margin: 2rem auto 0;
+  max-width: 72rem;
+  padding: clamp(1.1rem, 3vw, 1.75rem);
+  border: 1px solid rgba(253, 179, 0, 0.25);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(28rem 12rem at 0% 0%, rgba(253, 179, 0, 0.1), transparent 70%),
+    #121216;
+}
+
+.cx-adv-strip-title,
+.cx-adv-compact-title {
+  margin: 0 0 1rem;
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem);
+  font-weight: 650;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.cx-adv-strip-list,
+.cx-adv-compact-list {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cx-adv-strip-item {
+  display: flex;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--cx-border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cx-adv-strip-item-title,
+.cx-adv-compact-feature {
+  margin: 0 0 0.25rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cx-adv-compact-item {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--cx-border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cx-adv-link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--cx-brand);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

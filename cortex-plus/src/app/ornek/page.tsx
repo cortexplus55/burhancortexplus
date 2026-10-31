@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DemoWalkthrough } from "@/components/demo/demo-walkthrough";
+import { AdvantageCompact } from "@/components/marketing/advantage-sections";
 import { loadDemoLesson } from "@/lib/demo/lesson";
 import "@/styles/demo.css";
 
@@ -62,6 +63,9 @@ export default async function OrnekPage() {
         quiz={lesson.quiz}
         oral={lesson.oral}
       />
+      <div style={{ padding: "0 1rem 3rem" }}>
+        <AdvantageCompact />
+      </div>
     </main>
   );
 }

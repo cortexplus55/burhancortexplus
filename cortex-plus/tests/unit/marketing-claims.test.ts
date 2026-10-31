@@ -25,6 +25,8 @@ const withoutComments = (source: string) =>
 const SURFACES = [
   "src/lib/marketing/landing-content.ts",
   "src/components/landing/landing-page.tsx",
+  "src/lib/marketing/advantage-content.ts",
+  "src/components/marketing/advantage-sections.tsx",
   "src/app/page.tsx",
   "src/app/ozellikler/page.tsx",
   "src/app/fiyatlandirma/page.tsx",

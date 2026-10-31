@@ -17,6 +17,7 @@ import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import { WEEKLY_PLUS_PLAN_NAME } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES, allowanceInWork } from "@/lib/credits/price-table";
 import { formatTryWhole } from "@/lib/format";
+import { AdvantageComparison, AdvantageShowcase } from "@/components/marketing/advantage-sections";
 import { PlusMonth } from "@/components/marketing/plus-month";
 import type { PlusPrices } from "@/lib/billing/plan-prices";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,8 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
         </div>
         <HeroStage />
       </section>
+
+      <AdvantageShowcase />
 
       <section className="lp-proof" aria-label="Neden Cortex Plus">
         <div className="lp-wrap">
@@ -146,6 +149,8 @@ export function LandingPage({ prices }: { prices: LandingPrices }) {
           </div>
         </div>
       </section>
+
+      <AdvantageComparison />
 
       <section id="planlar" className="lp-section lp-section--alt" aria-labelledby="lp-plans-title">
         <div className="lp-wrap" data-cinematic-reveal>
