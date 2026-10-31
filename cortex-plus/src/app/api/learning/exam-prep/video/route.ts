@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { shareInFlight } from "@/lib/ai/inflight-share";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { prepTopicSource } from "@/lib/learning/prep-topic-source";
@@ -72,7 +73,11 @@ export async function POST(request: Request) {
           source.pages.map((page) => page.page),
         ).catch(() => null);
 
-  const outcome = await runVideoLesson(service, {
+  // Çift sekme (31 Ekim 2026, Paket J2 #9): aynı konu ve aynı tarz için aynı anda tek üretim; ikinci sekme birincinin
+  // videosunu açar (280 kredi iki kez kesilmez). Birinci düştüyse ikinci kendisi üretir.
+  const style = sketch ? "sketch_reel" : imageStyle;
+  const startedAt = new Date(Date.now() - 60_000).toISOString();
+  const generate = () => runVideoLesson(service, {
     userId,
     prepId,
     topicId: topic.id,
@@ -83,7 +88,20 @@ export async function POST(request: Request) {
     examPoints: teaching?.examPoints ?? [],
     style: sketch ? "whiteboard" : imageStyle,
     renderMode: sketch ? "sketch_reel" : "image",
-    idempotencyKey: `video:${userId}:${prepId}:${topicId}:${sketch ? "sketch_reel" : imageStyle}:${parsed.data.clientRequestId ?? crypto.randomUUID()}`,
+    idempotencyKey: `video:${userId}:${prepId}:${topicId}:${style}:${parsed.data.clientRequestId ?? crypto.randomUUID()}`,
+  });
+  const outcome = await shareInFlight(`video:${userId}:${prepId}:${topicId}:${style}`, generate, async () => {
+    const { data: twin } = await service
+      .from("prep_videos")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("topic_id", topic.id)
+      .gte("created_at", startedAt)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return twin?.id ? ({ ok: true, videoId: twin.id as string } as Awaited<ReturnType<typeof generate>>) : generate();
   });
   if (!outcome.ok) {
     console.error("video_generation_failed", { code: outcome.error, reasons: outcome.reasons });

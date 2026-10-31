@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { multiPartialPercent, sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
 import { RichBody } from "@/components/parity/lesson-rich-text";
+import { VOIDED_FIXED_LINE, VOIDED_LINE } from "@/lib/learning/question-report/copy";
+import "@/styles/question-report.css";
 
 export function ExamQuizPlay({
   questions,
@@ -16,6 +18,7 @@ export function ExamQuizPlay({
   disabled,
   examMode = false,
   onReveal,
+  report,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -28,6 +31,8 @@ export function ExamQuizPlay({
   examMode?: boolean;
   /** "Kontrol et": cevap kilitlendi (20 Ekim 2026). Bundan sonraki eğitmen yardımı ipucu sayılmaz. */
   onReveal?: () => void;
+  /** "🚩 Soruda hata bildir" (Paket J2 #10): cevap açıklamasının altında, sorunun sırasıyla. */
+  report?: (index: number) => ReactNode;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [acting, setActing] = useState(false);
@@ -181,11 +186,14 @@ export function ExamQuizPlay({
           aria-live="polite"
         >
           <p className="text-xs font-semibold tracking-wide text-[var(--cp-muted)]">Açıklama</p>
+          {question.voided ? (
+            <p className="cp-quiz-voided">{question.keyFixed ? VOIDED_FIXED_LINE : VOIDED_LINE}</p>
+          ) : null}
           <div className="flex items-center gap-2 font-semibold text-sm">
-            {isCorrect ? (
+            {isCorrect || question.voided ? (
               <>
                 <Check className="h-4 w-4 stroke-[3] text-[var(--pm-success,#22c55e)]" />
-                <span>Doğru</span>
+                <span>{isCorrect ? "Doğru" : "Tam puan"}</span>
               </>
             ) : question.multi && partial > 0 ? (
               <>
@@ -237,6 +245,7 @@ export function ExamQuizPlay({
               })}
             </ul>
           ) : null}
+          {report ? <div className="flex justify-end">{report(index)}</div> : null}
         </div>
       ) : null}
 

@@ -5,10 +5,11 @@ import { ScratchPad } from "@/components/parity/scratch-pad";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { sanitizeStudentCopy } from "@/lib/learning/student-copy";
 import { NodeSources } from "@/components/parity/node-sources";
+import { QuestionReportButton } from "@/components/learning/question-report-button";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
-  const { sources, stage, loading, payload, index, setIndex, answers, revealedRef, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
+  const { sources, stage, loading, payload, setPayload, attemptId, index, setIndex, answers, revealedRef, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
   return (
     <>
       {stage === "play" && payload.type === "quiz" && questions[index] ? (
@@ -34,6 +35,8 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
               optionWhy: isTimedExam ? undefined : question.optionWhy,
               steps: isTimedExam ? undefined : question.steps,
               misconceptionTag: isTimedExam ? undefined : question.misconceptionTag,
+              voided: isTimedExam ? undefined : question.voided,
+              keyFixed: isTimedExam ? undefined : question.keyFixed,
             }))}
             index={index}
             value={answers[String(index)]}
@@ -58,6 +61,28 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
             }
             disabled={loading}
             examMode={isTimedExam}
+            report={
+              // "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10): açıklama açılınca; test yazılırken değil.
+              attemptId && !isTimedExam && !quizBuilding
+                ? (at) => (
+                    <QuestionReportButton
+                      key={`${attemptId}:${at}`}
+                      source="node"
+                      targetId={attemptId}
+                      questionRef={String(at)}
+                      onResolved={(result) => {
+                        if (!result.question) return;
+                        const fixed = result.question;
+                        setPayload((current) =>
+                          current.type === "quiz" && current.questions
+                            ? { ...current, questions: current.questions.map((row, i) => (i === at ? { ...row, ...fixed } : row)) }
+                            : current,
+                        );
+                      }}
+                    />
+                  )
+                : undefined
+            }
           />
         </div>
       ) : null}

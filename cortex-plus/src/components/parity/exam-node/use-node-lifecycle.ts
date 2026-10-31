@@ -44,6 +44,10 @@ import type { NodeSource } from "@/components/parity/node-sources";
 import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
 import { LESSON_PODCAST_GATE, nodeGateForCode, type NodeGate } from "./gates";
 
+/** Öbür sekmenin üretimini bekleme: 3 sn'de bir, en çok ~3 dk (ders yazımı tavanı). */
+const SHARED_WAIT_MS = 3_000;
+const SHARED_WAIT_TRIES = 60;
+
 /** Aktif süre hangi başlıkta sayılır: ders, test ya da sınav. */
 export function learningSurface(kind: PlanNodeKind): LearningSurface {
   if (kind === "lesson" || kind === "podcast" || kind === "flashcards") return "lesson";
@@ -78,6 +82,9 @@ export type Payload = {
     hint?: string;
     expectedPoints?: string[];
     probeKind?: OralProbeKind;
+    /** Bildirilip hatalı bulunan soru (Paket J2 #10): tam puan; anahtar düzeltildiyse `keyFixed`. */
+    voided?: boolean;
+    keyFixed?: boolean;
   }[];
   items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
@@ -1043,6 +1050,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     autoRetried?: boolean;
     /** Üretim yuvaları doluyken ("sıradasın") yapılan bekleme denemelerinin sayısı. */
     busyTries?: number;
+    /** Öbür sekmenin süren üretimini bekleme sayısı (Paket J2 #9). */
+    sharedTries?: number;
   }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
@@ -1064,6 +1073,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           // Ders parça parça açılır: ilk denetlenmiş kavram gelince ekran açılır (18 Ekim 2026).
           ...(kind === "lesson" && !overrides?.review ? { lessonStream: true } : {}),
           ...(kind === "lesson" && overrides?.replay ? { replay: true } : {}),
+          ...((overrides?.sharedTries ?? 0) > 0 ? { twin: true } : {}),
           ...(overrides?.review ? { review: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
@@ -1108,6 +1118,15 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         // Üretim hâlâ sürüyorsa yenilenmiyor: yenilemek ikinci bir üretim
         // başlatır ve öğrenci iki kez ödeyebilir.
         const code = generationFailureCode(data);
+        // Çift sekme / çift tıklama (31 Ekim 2026, Paket J2 #9): aynı adım başka bir sekmede yazılıyor. Hata değil:
+        // hazırlanıyor ekranı açık kalır, birkaç saniyede bir sorulur; öbür sekme bitirince bu sekme aynı kaydı açar
+        // (ikinci kredi kesilmez, ikinci üretim başlamaz). İstek kimliği yenilenmez.
+        if (code === "generation_in_progress" && data.shared === true && (overrides?.sharedTries ?? 0) < SHARED_WAIT_TRIES) {
+          await new Promise((resolve) => setTimeout(resolve, SHARED_WAIT_MS));
+          startInFlight.current = false;
+          await start({ ...overrides, sharedTries: (overrides?.sharedTries ?? 0) + 1 });
+          return;
+        }
         // Yuvalar dolu (Faz 3.2): hata değil, sıra. Hazırlanıyor ekranı açık kalır, birkaç saniyede bir
         // yeniden sorulur; sunucu her denemede yer açılmasını ayrıca bekliyor.
         if (code === BUSY_CODE && (overrides?.busyTries ?? 0) < BUSY_MAX_RETRIES) {

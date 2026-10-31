@@ -36,9 +36,16 @@ const USER_CONTENT_TABLES = [
   // 31 Ekim 2026: cihaz sınırının oturum kayıtları (tarayıcı bilgisi dahil). Silme işçisi auth.users'ı silmez,
   // CASCADE çalışmaz; satırlar burada gider. Göç canlıda yoksa atlanır.
   "user_device_sessions",
+  // 31 Ekim 2026 (Paket J2 #10): soru hata bildirimleri. Tablo yoksa atlanır.
+  "question_reports",
 ] as const;
 
-const OPTIONAL_PURGE_TABLES = new Set(["explain_attempts", "exam_prep_pending_materials", "user_device_sessions"]);
+const OPTIONAL_PURGE_TABLES = new Set([
+  "explain_attempts",
+  "exam_prep_pending_materials",
+  "user_device_sessions",
+  "question_reports",
+]);
 
 /** Every step is checked and repeatable by the deletion worker. */
 export async function purgeUserData(service: SupabaseClient, userId: string): Promise<

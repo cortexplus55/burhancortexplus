@@ -113,13 +113,17 @@ export async function upsertGenerationJob(
     generationId: string;
     status: "creating" | "ready" | "failed" | "completed";
     errorCode?: string | null;
+    /** Kaydın gerçek kredi anahtarı (yeni kayıtta deneme yuvası, Paket J2 #9); yoksa eski istek kimliği anahtarı. */
+    creditKey?: string;
   },
 ) {
-  const creditKey = creditIdempotencyKeyForStart({
-    userId: input.userId,
-    nodeId: input.nodeId,
-    clientRequestId: input.clientRequestId,
-  });
+  const creditKey =
+    input.creditKey ??
+    creditIdempotencyKeyForStart({
+      userId: input.userId,
+      nodeId: input.nodeId,
+      clientRequestId: input.clientRequestId,
+    });
   await service.from("exam_prep_generation_jobs").upsert(
     {
       user_id: input.userId,

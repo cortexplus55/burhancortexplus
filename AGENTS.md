@@ -1740,6 +1740,19 @@ Bekçi: `lansman-zirhi.test.ts`, `lansman-parca-arama.test.ts` (göçü PGlite't
 
 Bekçi: `paket-j1-kayit-ucretsiz.test.ts`, `paket-j1-cihaz.test.ts`, `paket-j1-odeme-bekleme.test.tsx`, `paket-j1-deneme-koruma.test.tsx`.
 
+## Paket J2 (31 Ekim 2026) — büyük belge, sınav gecesi koruması, çift sekme, soruda hata bildir
+
+J1'in ardından ikinci sıralı PR. Göçler canlıda (`20261031190000`, `191000`). Yeniden açmayın:
+
+| Madde | Kural | Nerede |
+|---|---|---|
+| **7. 15 sayfadan büyük belge** | Hızlı başlatma (baş kopyası: ilk 12 sayfa hemen, kalanı 40-50 sayfalık pencerelerle) **16 sayfadan** itibaren (önce 24). 16-23 sayfalık not da beklemeden başlar | `FAST_START_MIN_PAGES`, `document-windows.ts` |
+| **8. Yedek model** | Metin uçlarında (chat/completions, responses) asıl model 429 (hız sınırı), 500, 502, 503, 504 ya da ağ kopmasıyla düşerse aynı istek **bir kez** `OPENAI_FAILOVER_MODEL` (varsayılan gpt-4.1) ile yinelenir; akıl yürütme alanları çıkarılır. Kota bitti 429'u geçmez (aynı hesap; kurucuya uyarı). SDK zaman aşımıyla kesilen istek geçmez. Kapatma `OPENAI_FAILOVER=off`; günlük `openai_failover`. Kullanım kaydı çağıranın modeliyle yazılır (geçişte maliyet sayfası yanılabilir). **Yarım JSON** (jeton sınırı, kopma) son aday olarak onarılır: yalnız sona dokunur, ortayı tahmin etmez; onarılmış nesne yine şemadan geçer | `openai-client.ts` (`failoverInit`), `json-repair.ts`, `parseModelJson` |
+| **9. Çift sekme** | Veritabanı bir adım için tek "hazırlanıyor" kaydına izin verir (kısmi tekil dizin). İkinci sekme `23505` alınca öbür kayıt tazeyse 409 `shared: true` (istemci "hazırlanıyor"da 3 sn'de bir, en çok 3 dk sorar ve `twin: true` gönderir; öbür sekme bitince **aynı kaydı** açar), bayatsa öbür kayıt "failed" olur. Kredi anahtarı kaydın yuvasından (`exam_node_slot_<öğrenci>_<adım>_<kayıt>`); istek kimliği girmez. Normal açılışta ek sorgu yok. Hazırlığın podcast'i ve video ders kendi uçlarından: `shareInFlight` (Redis kilidi; öğrenci + hazırlık + konu + seçim) tek üretim, ikinci istek bekler ve sonucu okur (podcast önbellekten, video son kayıttan) | göç `190000`, `reserve.ts`, `start.ts`, `attempt-lifecycle.ts`, `inflight-share.ts` |
+| **10. Soruda hata bildir** | Yoldaki testte (açıklama açılınca) ve yazılı deneme incelemesinde "🚩 Soruda hata bildir": neden + isteğe bağlı not. Soru **sunucudaki kayıttan** okunur; tek luna çağrısı (orta düşünme) soruyu kendisi çözer, yalnız kesin hatayı kabul eder. Anahtar kesinse ve şıklardan birebir seçildiyse **düzeltilir**, değilse soru **geçersiz** sayılır; ikisinde de soru o öğrenciye **tam puan** (`voided`), kanıt yazmaz, tekrar listesi "expired", defter düzeltilir ya da "mastered" (satır silinmez); bitmiş test/denemenin puanı yeniden hesaplanır. Ödül **günde 3 bildirim** için (SQL, yarışsız): +15 hediye kredi (`credit_gift`, anahtar `question-report:<id>`) ve +20 yıldız (`prep`, `report:<id>`); metin ürün sahibinin isteğiyle kredi sayısını yazar (kredi sayısı gösterilmez kuralının bilinçli istisnası). Aynı soru aynı öğrenciden bir kez; saatte 10, günde 30 bildirim; test yazılırken bildirim alınmaz | göç `191000` (`question_reports`, `claim_question_report_reward`), `question-report/*`, `api/learning/question-report`, `question-report-button.tsx` |
+
+Bekçi: `paket-j2.test.ts` (pencere, onarım, yedek model, tekil dizin ve ödül tavanı PGlite'ta), `paket-j2-bildir.test.tsx`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

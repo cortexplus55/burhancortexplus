@@ -5,7 +5,7 @@ import { claimPrefetchSlot } from "@/lib/learning/lesson-prefetch";
 import { tagQuizPrefetchClaim } from "@/lib/learning/topic-test-prefetch";
 import { errorResponse } from "@/lib/api/guards";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
-import { creditIdempotencyKeyForStart } from "@/lib/learning/attempt-lifecycle";
+import { creditIdempotencyKeyForSlot, creditIdempotencyKeyForStart, isCreatingStale } from "@/lib/learning/attempt-lifecycle";
 import { attemptStartResponse, findAttemptByClientRequest, upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import type { NodeContext } from "./context";
@@ -87,6 +87,14 @@ export async function reserveStartAttempt(context: NodeContext, state: Pick<Star
         .insert(creatingRow)
         .select("id, generation_id")
         .single();
+      // Çift sekme / çift tıklama (31 Ekim 2026, Paket J2 #9): veritabanı bu adım için tek "hazırlanıyor" kaydına izin
+      // verir (göç 20261031190000). Kayıt başka bir isteğindeyse ikincisi beklesin ve birincinin sonucunu açsın (istemci
+      // "hazırlanıyor"da kalıp `twin` ile yeniden sorar). Takılı kalmış (bayat) kayıt yeni isteği kilitlemez: "failed"
+      // olur, kayıt aşağıda yeniden açılır. Normal açılışta ek sorgu yok.
+      if (createErr && (createErr as { code?: string }).code === "23505") {
+        const twin = await takeOverOrWaitForTwin(context);
+        if (twin) return twin;
+      }
       if (createErr) {
         // Unique client_request_id race: re-read and return if ready.
         const raced = await findAttemptByClientRequest(service, {
@@ -129,6 +137,7 @@ export async function reserveStartAttempt(context: NodeContext, state: Pick<Star
       if (createErr || !created) return errorResponse(500, "generation_failed");
       creatingAttemptId = created.id;
       generationId = created.generation_id ?? generationId;
+      creditKey = creditIdempotencyKeyForSlot({ userId, nodeId, attemptId: created.id });
     }
 
     await upsertGenerationJob(service, {
@@ -139,9 +148,36 @@ export async function reserveStartAttempt(context: NodeContext, state: Pick<Star
       clientRequestId,
       generationId: generationId!,
       status: "creating",
+      creditKey,
     });
   }
   return { clientRequestId, generationId, creatingAttemptId, creditKey };
+}
+
+/**
+ * Bu adım için başka bir istekle açılmış "hazırlanıyor" kaydı: tazeyse 409 (`shared: true`, istemci bekler), bayatsa
+ * "failed" yapılır ve yeni kayda yol açılır (null).
+ */
+async function takeOverOrWaitForTwin(context: NodeContext): Promise<NextResponse | null> {
+  const { service, userId, nodeId } = context;
+  const { data: twin } = await service
+    .from("exam_prep_node_attempts")
+    .select("id, updated_at")
+    .eq("user_id", userId)
+    .eq("node_id", nodeId)
+    .eq("status", "creating")
+    .limit(1)
+    .maybeSingle();
+  if (!twin) return null;
+  if (!isCreatingStale(twin.updated_at as string | null)) {
+    return NextResponse.json({ error: "generation_in_progress", code: "generation_in_progress", shared: true }, { status: 409 });
+  }
+  await service
+    .from("exam_prep_node_attempts")
+    .update({ status: "failed", updated_at: new Date().toISOString() })
+    .eq("id", twin.id as string)
+    .eq("status", "creating");
+  return null;
 }
 
 /** Kayıt aşamasının erken yanıt dışındaki dönüşü. */

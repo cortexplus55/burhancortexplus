@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { shareInFlight } from "@/lib/ai/inflight-share";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
@@ -82,181 +83,187 @@ export async function POST(request: Request) {
   }>(service, prepId, topicId, "id, label, lesson_id, document_topic_node_id");
   if (!topic) return errorResponse(404, "not_found");
 
-  const cached = await readPodcastCache(service, prepId, topic.label, length);
-  if (cached) {
+  // Çift sekme (31 Ekim 2026, Paket J2 #9): aynı konu ve süre için aynı anda tek üretim. İkinci sekme birincinin
+  // bitmesini bekler, sonra aşağıdaki önbellek okuması aynı bölümü ücretsiz verir (kontrolsüz bölüm önbelleğe yazılmaz:
+  // ders sonu "Şimdi dinle" o durumda kendisi yazar).
+  const continueRequest = async (): Promise<NextResponse> => {
+    const cached = await readPodcastCache(service, prepId, topic.label, length);
+    if (cached) {
+      return NextResponse.json({
+        ok: true,
+        title: cached.title,
+        chapters: cached.chapters,
+        length,
+        reused: true,
+        check: cached.check.map(publicQuizQuestion),
+      });
+    }
+
+    // Yoldaki aynı konunun podcast'i hazır bekliyorsa (30 Ekim 2026): sayfa onu baştan yazmaz, öğrenci o adıma gider;
+    // hazır içerik ve ücret tek yerde, düğüm açılışında. Ders sonu "Şimdi dinle" (kontrolsüz istek) yerinde çalar,
+    // yönlendirilmez.
+    if (withCheck) {
+      const pathNode = await readyPathPodcastNode(service, {
+        userId,
+        prepId,
+        topicIds: [topic.id, topic.document_topic_node_id ?? ""],
+        length,
+      });
+      if (pathNode) return NextResponse.json({ ok: true, openNode: `/deneme-sinavlari/${prepId}/dugum/${pathNode}` });
+    }
+
+    const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
+    const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
+    let topicDocumentId = (prep.document_id as string | null) ?? prepDocs[0] ?? null;
+    let pageNumbers: number[] = [];
+
+    const linked = await service
+      .from("exam_prep_topics")
+      .select("document_topic_node_id")
+      .eq("id", topic.id)
+      .maybeSingle();
+    const documentTopicNodeId =
+      !linked.error && typeof linked.data?.document_topic_node_id === "string"
+        ? linked.data.document_topic_node_id
+        : null;
+    if (documentTopicNodeId) {
+      const { data: topicNode } = await service
+        .from("document_topic_nodes")
+        .select("document_id")
+        .eq("id", documentTopicNodeId)
+        .maybeSingle();
+      if (topicNode?.document_id) topicDocumentId = topicNode.document_id as string;
+      const pages = await service
+        .from("document_topic_page_links")
+        .select("page_number")
+        .eq("topic_id", documentTopicNodeId);
+      if (!pages.error && Array.isArray(pages.data)) {
+        pageNumbers = pages.data
+          .map((row) => Number(row.page_number))
+          .filter((page) => Number.isInteger(page) && page > 0);
+      }
+    }
+
+    /*
+      Öğretmen podcast motoru (3 Ekim 2026): konunun bitişik çekirdek sayfaları
+      temiz metinle + aynı konunun dersi; belgeyle eşleme, modelin düzeltmesi.
+      Eski taslak + satır silen zincir kalktı. Belge yoksa belgesiz kip.
+    */
+    if (!pageNumbers.length && topicDocumentId) {
+      try {
+        const found = await loadSourceContext(service, userId, `${prep.title ?? ""} ${topic.label}`, {
+          documentId: topicDocumentId,
+          sourceBoundaryMode: "documents_only",
+        });
+        pageNumbers = pagesMarkedInSource(found.block);
+      } catch (error) {
+        console.error("podcast_source_unavailable", {
+          requestId,
+          topic: topic.label,
+          code: error instanceof SourceUnavailableError ? "source_unavailable" : "source_failed",
+        });
+      }
+    }
+    if (topicDocumentId && !pageNumbers.length) {
+      console.error("podcast_source_unavailable", { requestId, topic: topic.label, code: "empty" });
+      return errorResponse(503, "source_unavailable");
+    }
+    const edges = topicDocumentId ? await documentRunningHeaders(service, topicDocumentId) : [];
+    const clean = topicDocumentId
+      ? await ensureCleanPages(service, {
+          userId,
+          documentId: topicDocumentId,
+          pages: corePageRun(pageNumbers),
+          edges,
+        })
+      : [];
+
+    const teaching = teachingV2
+      ? await loadTopicTeaching(
+          service,
+          topicDocumentId ? [topicDocumentId, ...prepDocs] : prepDocs,
+          topic.label,
+        )
+      : null;
+    const corpus = await loadPodcastCorpus(service, userId, prepId, topic.label);
+
+    let lessonBrief = "";
+    if (topic.lesson_id) {
+      const { data: lesson } = await service
+        .from("exam_prep_lessons")
+        .select("content_json")
+        .eq("id", topic.lesson_id)
+        .maybeSingle();
+      const structured = readLessonV2(lesson?.content_json);
+      if (structured) lessonBrief = lessonPodcastBrief(structured);
+    }
+
+    const outcome = await runTeacherPodcast(service, {
+      mode: topicDocumentId ? "document" : "topic",
+      length,
+      userId,
+      actionCode: "PODCAST_GENERATE",
+      idempotencyKey: `podcast:${userId}:${prepId}:${topicId}:${length}:${requestId ?? crypto.randomUUID()}`,
+      topicLabel: topic.label,
+      prepTitle: prep.title ?? "Hazırlık",
+      pages: clean.map((item) => ({ page: item.page, text: item.text })),
+      lessonText: lessonBrief || undefined,
+      syllabusLine:
+        [
+          teachingV2
+            ? await podcastScopeBrief(service, prepDocs, topic.label, teaching?.priority ?? null)
+            : "",
+          corpus.syllabus,
+          // Belgeli podcast hazırlığın öbür konularının kısımlarını bölüm yapmaz (30 Ekim 2026, `prepTopicScopeLine`).
+          topicDocumentId ? prepTopicScopeLine(topic.label, await prepTopicLabels(service, prepId)) : "",
+        ]
+          .filter(Boolean)
+          .join("\n") || undefined,
+      runningHeaders: edges,
+      // Dinleme kontrolü (20 Ekim 2026): bu sayfa göstermez, önbelleğe yazar; aynı konunun yol
+      // düğümü önbellekten kontrollü (puanlı, kanıtlı) açılır. 30 Ekim 2026: yanıttan sonra yazılır; sayfa
+      // göstermediği kontrolü 13-15 sn beklemiyor (canlı model, dört konu).
+      listeningCheck: withCheck,
+      deferListeningCheck: withCheck,
+    });
+
+    if (!outcome.ok) {
+      console.error("podcast_generation_failed", {
+        requestId,
+        code: outcome.error,
+        reasons: outcome.reasons,
+      });
+      // Kalıcı kayıt (30 Ekim 2026, Paket I #9): ders sonu "Şimdi dinle" de bu hattan; düşüş /admin/ders-hatalari'nda görünsün.
+      await recordLessonGenerationFailure(service, {
+        userId,
+        prepId,
+        topicId: topic.id,
+        topicLabel: topic.label,
+        kind: "podcast",
+        stage: "podcast",
+        reason: outcome.error,
+        reasons: outcome.reasons,
+      });
+      return errorResponse(outcome.status, outcome.error, { refunded: true });
+    }
+
+    if (withCheck) {
+      const { episode, checkLater } = outcome;
+      const cache = (check: typeof outcome.check) =>
+        writePodcastCache(service, { prepId, userId, topicLabel: topic.label, episode, check });
+      // Kontrolsüz bölüm önbelleğe yazılmaz: kontrol bitince (yazılamadıysa boş) bölümle birlikte girer.
+      if (checkLater) after(async () => cache(await checkLater()));
+      else await cache(outcome.check);
+    }
+
     return NextResponse.json({
       ok: true,
-      title: cached.title,
-      chapters: cached.chapters,
+      title: outcome.episode.title,
+      chapters: outcome.episode.chapters,
       length,
-      reused: true,
-      check: cached.check.map(publicQuizQuestion),
+      reused: false,
+      check: outcome.check.map(publicQuizQuestion),
     });
-  }
-
-  // Yoldaki aynı konunun podcast'i hazır bekliyorsa (30 Ekim 2026): sayfa onu baştan yazmaz, öğrenci o adıma gider;
-  // hazır içerik ve ücret tek yerde, düğüm açılışında. Ders sonu "Şimdi dinle" (kontrolsüz istek) yerinde çalar,
-  // yönlendirilmez.
-  if (withCheck) {
-    const pathNode = await readyPathPodcastNode(service, {
-      userId,
-      prepId,
-      topicIds: [topic.id, topic.document_topic_node_id ?? ""],
-      length,
-    });
-    if (pathNode) return NextResponse.json({ ok: true, openNode: `/deneme-sinavlari/${prepId}/dugum/${pathNode}` });
-  }
-
-  const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
-  const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
-  let topicDocumentId = (prep.document_id as string | null) ?? prepDocs[0] ?? null;
-  let pageNumbers: number[] = [];
-
-  const linked = await service
-    .from("exam_prep_topics")
-    .select("document_topic_node_id")
-    .eq("id", topic.id)
-    .maybeSingle();
-  const documentTopicNodeId =
-    !linked.error && typeof linked.data?.document_topic_node_id === "string"
-      ? linked.data.document_topic_node_id
-      : null;
-  if (documentTopicNodeId) {
-    const { data: topicNode } = await service
-      .from("document_topic_nodes")
-      .select("document_id")
-      .eq("id", documentTopicNodeId)
-      .maybeSingle();
-    if (topicNode?.document_id) topicDocumentId = topicNode.document_id as string;
-    const pages = await service
-      .from("document_topic_page_links")
-      .select("page_number")
-      .eq("topic_id", documentTopicNodeId);
-    if (!pages.error && Array.isArray(pages.data)) {
-      pageNumbers = pages.data
-        .map((row) => Number(row.page_number))
-        .filter((page) => Number.isInteger(page) && page > 0);
-    }
-  }
-
-  /*
-    Öğretmen podcast motoru (3 Ekim 2026): konunun bitişik çekirdek sayfaları
-    temiz metinle + aynı konunun dersi; belgeyle eşleme, modelin düzeltmesi.
-    Eski taslak + satır silen zincir kalktı. Belge yoksa belgesiz kip.
-  */
-  if (!pageNumbers.length && topicDocumentId) {
-    try {
-      const found = await loadSourceContext(service, userId, `${prep.title ?? ""} ${topic.label}`, {
-        documentId: topicDocumentId,
-        sourceBoundaryMode: "documents_only",
-      });
-      pageNumbers = pagesMarkedInSource(found.block);
-    } catch (error) {
-      console.error("podcast_source_unavailable", {
-        requestId,
-        topic: topic.label,
-        code: error instanceof SourceUnavailableError ? "source_unavailable" : "source_failed",
-      });
-    }
-  }
-  if (topicDocumentId && !pageNumbers.length) {
-    console.error("podcast_source_unavailable", { requestId, topic: topic.label, code: "empty" });
-    return errorResponse(503, "source_unavailable");
-  }
-  const edges = topicDocumentId ? await documentRunningHeaders(service, topicDocumentId) : [];
-  const clean = topicDocumentId
-    ? await ensureCleanPages(service, {
-        userId,
-        documentId: topicDocumentId,
-        pages: corePageRun(pageNumbers),
-        edges,
-      })
-    : [];
-
-  const teaching = teachingV2
-    ? await loadTopicTeaching(
-        service,
-        topicDocumentId ? [topicDocumentId, ...prepDocs] : prepDocs,
-        topic.label,
-      )
-    : null;
-  const corpus = await loadPodcastCorpus(service, userId, prepId, topic.label);
-
-  let lessonBrief = "";
-  if (topic.lesson_id) {
-    const { data: lesson } = await service
-      .from("exam_prep_lessons")
-      .select("content_json")
-      .eq("id", topic.lesson_id)
-      .maybeSingle();
-    const structured = readLessonV2(lesson?.content_json);
-    if (structured) lessonBrief = lessonPodcastBrief(structured);
-  }
-
-  const outcome = await runTeacherPodcast(service, {
-    mode: topicDocumentId ? "document" : "topic",
-    length,
-    userId,
-    actionCode: "PODCAST_GENERATE",
-    idempotencyKey: `podcast:${userId}:${prepId}:${topicId}:${length}:${requestId ?? crypto.randomUUID()}`,
-    topicLabel: topic.label,
-    prepTitle: prep.title ?? "Hazırlık",
-    pages: clean.map((item) => ({ page: item.page, text: item.text })),
-    lessonText: lessonBrief || undefined,
-    syllabusLine:
-      [
-        teachingV2
-          ? await podcastScopeBrief(service, prepDocs, topic.label, teaching?.priority ?? null)
-          : "",
-        corpus.syllabus,
-        // Belgeli podcast hazırlığın öbür konularının kısımlarını bölüm yapmaz (30 Ekim 2026, `prepTopicScopeLine`).
-        topicDocumentId ? prepTopicScopeLine(topic.label, await prepTopicLabels(service, prepId)) : "",
-      ]
-        .filter(Boolean)
-        .join("\n") || undefined,
-    runningHeaders: edges,
-    // Dinleme kontrolü (20 Ekim 2026): bu sayfa göstermez, önbelleğe yazar; aynı konunun yol
-    // düğümü önbellekten kontrollü (puanlı, kanıtlı) açılır. 30 Ekim 2026: yanıttan sonra yazılır; sayfa
-    // göstermediği kontrolü 13-15 sn beklemiyor (canlı model, dört konu).
-    listeningCheck: withCheck,
-    deferListeningCheck: withCheck,
-  });
-
-  if (!outcome.ok) {
-    console.error("podcast_generation_failed", {
-      requestId,
-      code: outcome.error,
-      reasons: outcome.reasons,
-    });
-    // Kalıcı kayıt (30 Ekim 2026, Paket I #9): ders sonu "Şimdi dinle" de bu hattan; düşüş /admin/ders-hatalari'nda görünsün.
-    await recordLessonGenerationFailure(service, {
-      userId,
-      prepId,
-      topicId: topic.id,
-      topicLabel: topic.label,
-      kind: "podcast",
-      stage: "podcast",
-      reason: outcome.error,
-      reasons: outcome.reasons,
-    });
-    return errorResponse(outcome.status, outcome.error, { refunded: true });
-  }
-
-  if (withCheck) {
-    const { episode, checkLater } = outcome;
-    const cache = (check: typeof outcome.check) =>
-      writePodcastCache(service, { prepId, userId, topicLabel: topic.label, episode, check });
-    // Kontrolsüz bölüm önbelleğe yazılmaz: kontrol bitince (yazılamadıysa boş) bölümle birlikte girer.
-    if (checkLater) after(async () => cache(await checkLater()));
-    else await cache(outcome.check);
-  }
-
-  return NextResponse.json({
-    ok: true,
-    title: outcome.episode.title,
-    chapters: outcome.episode.chapters,
-    length,
-    reused: false,
-    check: outcome.check.map(publicQuizQuestion),
-  });
+  };
+  return shareInFlight(`podcast:${userId}:${prepId}:${topic.id}:${length}`, continueRequest, continueRequest);
 }

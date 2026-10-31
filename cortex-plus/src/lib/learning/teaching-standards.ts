@@ -10,6 +10,7 @@ import { lessonV3SectionsView } from "@/lib/learning/lesson-v3-view";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { cardAnswerCredit } from "@/lib/learning/flashcard-round";
 import { foldTr } from "@/lib/documents/page-analysis";
+import { repairTruncatedJson } from "@/lib/ai/json-repair";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
@@ -913,6 +914,11 @@ function jsonCandidates(raw: string): string[] {
     for (const candidate of ordered) {
       if (!candidates.includes(candidate)) candidates.push(candidate);
     }
+  }
+  // Yarım kalan çıktı (31 Ekim 2026, Paket J2 #8): son aday; sona dokunur, ortayı tahmin etmez (json-repair.ts).
+  for (const seed of [...candidates]) {
+    const truncatedFix = repairTruncatedJson(seed);
+    if (truncatedFix && !candidates.includes(truncatedFix)) candidates.push(truncatedFix);
   }
   return candidates;
 }

@@ -10,6 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { ReviewTools } from "@/components/parity/review-tools";
+import { QuestionReportButton } from "@/components/learning/question-report-button";
 import { cn } from "@/lib/utils";
 import { rowVerdict, verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 
@@ -71,9 +72,9 @@ export function ExamQuestionReviewClient({
   prepId,
   examId,
   examTitle,
-  score,
-  questions,
-  reviews,
+  score: initialScore,
+  questions: initialQuestions,
+  reviews: initialReviews,
 }: {
   prepId: string;
   examId: string;
@@ -82,6 +83,10 @@ export function ExamQuestionReviewClient({
   questions: QuestionItem[];
   reviews: ReviewItem[];
 }) {
+  // Bildirilip düzeltilen soru (Paket J2 #10) sayfa yenilenmeden yerinde güncellenir.
+  const [score, setScore] = useState(initialScore);
+  const [questions, setQuestions] = useState(initialQuestions);
+  const [reviews, setReviews] = useState(initialReviews);
   const [filter, setFilter] = useState<"all" | "correct" | "wrong">("all");
 
   const reviewMap = useMemo(() => {
@@ -414,6 +419,43 @@ export function ExamQuestionReviewClient({
                 <p className="text-sm text-[var(--c-text-muted)] leading-relaxed">
                   {explanation}
                 </p>
+                {/* "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10). Düzeltilince soru ve puan yerinde güncellenir. */}
+                {review ? (
+                  <div className="mt-3 flex justify-end">
+                    <QuestionReportButton
+                      source="mock"
+                      targetId={examId}
+                      questionRef={question.id}
+                      onResolved={(result) => {
+                        if (result.verdict !== "valid") return;
+                        const key = result.correctedKey;
+                        if (key?.length) {
+                          setQuestions((rows) =>
+                            rows.map((row) =>
+                              row.id === question.id
+                                ? { ...row, correct_answer: key[0], correct_answers: key.length > 1 ? key : row.correct_answers ? key : null }
+                                : row,
+                            ),
+                          );
+                        }
+                        setReviews((rows) =>
+                          rows.map((row) =>
+                            row.question_id === question.id
+                              ? {
+                                  ...row,
+                                  is_correct: true,
+                                  verdict: "dogru",
+                                  points_earned: row.points_max ?? row.points_earned,
+                                  explanation: result.explanation || row.explanation,
+                                }
+                              : row,
+                          ),
+                        );
+                        if (typeof result.score === "number") setScore(result.score);
+                      }}
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           );

@@ -21,8 +21,11 @@ import { missingColumn } from "@/lib/learning/missing-column";
  * (`ensureDocumentPart`) hazırlığa girer; D'nin kendisi eklenmez (document-windows.ts, pending-windows.ts).
  */
 
-/** Bu kadar ya da daha çok sayfalı PDF'te kurulum ilk adımı kısa tutar ve baş kopyası çıkarır. */
-export const FAST_START_MIN_PAGES = 24;
+/**
+ * Bu kadar ya da daha çok sayfalı PDF'te kurulum ilk adımı kısa tutar ve baş kopyası çıkarır. 31 Ekim 2026 (Paket J2 #7):
+ * 24 → 16 ("15 sayfadan büyük her belge"): 16-23 sayfalık not da ilk 12 sayfayla başlar, kalanı pencereyle eklenir.
+ */
+export const FAST_START_MIN_PAGES = 16;
 /** Baş kopyasının sayfa sayısı (ilk okuma adımı): harita bu sayfalardan çıkar. */
 export const HEAD_PAGES = 12;
 
