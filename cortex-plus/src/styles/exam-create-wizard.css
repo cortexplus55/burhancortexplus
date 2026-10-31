@@ -1468,3 +1468,18 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* İlk materyal hazır olunca geri sayım (31 Ekim 2026): "Bekle" ile durur. */
+.apw-auto-continue {
+  color: var(--text, inherit);
+}
+.apw-auto-continue .apw-link {
+  background: none;
+  border: 0;
+  padding: 0 0.15rem;
+  color: var(--accent, #4353f3);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 32px;
+}

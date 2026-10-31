@@ -1650,6 +1650,26 @@ Aynı turda: konu listesi hazırlık adını bekliyor; 413 jetonluk ad çağrıs
 bitmişti). Ad çağrısı düşük düşünmeyle, Plus/Sigma/kurucuda hızlı işlemle (`prep-title-run.ts`).
 Bekçi: `harita-hizi.test.ts` (örnekler tarih, iktisat, elektrik; "kalan sayfalar ve materyal ekle").
 
+### İlk izlenim (31 Ekim 2026, ikinci tur) — belge yükleme ve kurulum bekletmez
+
+Ürün sahibi: "1 saniye bile gereksiz bekleyen, ne yapacağını anlamayan ya da dosyası reddedilen kullanıcı rakibe gider."
+Yeniden açmayın:
+
+| Kusur | Kural | Nerede |
+|---|---|---|
+| Kalan sayfaların (ve "Materyal ekle"nin, stüdyo/sohbet belgesinin) haritası normal işlem + varsayılan düşünmeyle 40-90 sn | Belge işleme ucundaki her harita öğrenciyi bekletiyor: düşük düşünme herkese, hızlı işlem Plus/Sigma/kurucuya (`urgent: true`) | `process/route.ts` |
+| "✓ eklendi" bildirimi hiç görünmüyordu: ekleme bitince sayfa yenileniyor, bekleyen 0 olunca şerit kaldırılıyordu | Şerit her zaman bağlı (`initialPending` 0 ise istek atmaz, çizmez); bitince "✓ Kalan tüm sayfalar ve X yeni konu çalışma yoluna eklendi!" 10 sn görünür, yol `router.refresh()` ile canlı güncellenir | `pending-materials-banner.tsx`, `exam-prep-home.tsx`, `pending-materials-copy.ts` |
+| Taranmış belgenin 40. sayfasından sonrası doğrudan gpt-4.1'e gidiyordu ("tek hızlı model" sanılmış; luna'dan yavaş ve jeton başına 20 kat pahalı): 65 sayfada 25 sayfa | Sayfa sınırı yok; her sayfa önce luna, gpt-4.1 yalnız luna okuyamazsa | `extract-image-text.ts` |
+| `gpt-4.1-fast` fiyat satırı yoktu, maliyet sayfası saymıyordu | Göç `20261031150000` (gpt-4.1-fast, gpt-4.1-mini-fast); "-fast" satırı yoksa normalin iki katı sayılır | `model-price.ts`, `/admin/maliyetler` |
+| Büyük sunu/Word'de bütün gömülü resimler beklerken okunuyordu | 13+ resimde ilk 12 slaytın ve yazısı az (<200 kr) slaytların resimleri beklerken; yazılı geç slaytların resimleri belge kaydedildikten sonra `after()` ile okunur, sayfanın sonuna eklenir, o sayfanın parçaları ve gömmeleri yenilenir (`clean_text` silinir). Kotası baştan alınır, ücreti okunduğu kadar ayrı anahtarla (`document_scan_late_<belge>`) | `office-head-start.ts`, `rag/pipeline.ts` |
+| Bozuk PDF'te öğrenci pdf.js'in İngilizce iletisini görüyordu ("Invalid PDF structure."); ön kontrol şifreli/bozuk PDF'te 500'e düşüyordu; bozuk Word/sunu listede genel "işlenemedi" | `pdfOpenFailure` → `corrupt_pdf` / `encrypted_pdf`, Türkçe ileti ve eylem; ön kontrol 422; yalnız ASCII serbest metin listede genel iletiye düşer; `office_unreadable` etiketi | `extract-text.ts`, `preflight/route.ts`, `error-labels.ts`, `process-user-message.ts`, `ingestion-errors.ts` |
+| Sihirbazda "Hazır olanlarla devam et"e basmak gerekiyordu; harita ancak dil adımından sonra başlıyordu, dosyalar okunurken öğrenci boş ekrana bakıyordu | Yeni seçilen dosyalardan ilki hazır olunca 2 sn geri sayımla kendiliğinden devam ("Bekle, dosya ekleyeceğim" durdurur). Adım sırası: materyal → dil → çalışma tarzı → aşinalık → konular → odak → plan; harita dil adımına girilince arkada başlar, aşinalıktan sonra hazırsa konular açılır, değilse bekleme ekranı. Belge kümesi değişirse eski çalıştırmanın sonucu yazılmaz | `exam-create-wizard.tsx` (`runIntake({ background })`, `openTopics`, `autoArmedRef`), `exam-wizard-copy.ts` |
+
+Doğrulanan (değişiklik gerekmedi): iPhone fotoğraflarında EXIF yönü istemcide korunuyor (`createImageBitmap(…, { imageOrientation: "from-image" })`);
+tarayıcı HEIC çözemezse fotoğraf tek dosya gider, sunucu `heic-convert` ile JPEG'e çevirip okur. Bütün yükleme yüzeyleri
+(sihirbaz, telefon, materyal ekle, stüdyo, sohbet) aynı motoru ve aynı depo yolunu (`safeDocumentName`) kullanır.
+Bekçi: `ilk-izlenim.test.ts`, `bekleyen-materyal-seridi.test.tsx`, `exam-wizard-post-pdf.test.ts`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

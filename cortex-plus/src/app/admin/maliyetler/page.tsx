@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatTry } from "@/lib/format";
+import { priceForModel } from "@/lib/billing/model-price";
 
 export const metadata = { title: "Yönetim · Giderler" };
 
@@ -36,7 +37,7 @@ export default async function AdminGiderlerPage() {
   let unpriced = 0;
 
   for (const event of usage ?? []) {
-    const price = priceMap.get(event.model);
+    const price = priceForModel(event.model, priceMap);
     if (!price) {
       unpriced += 1;
       continue;

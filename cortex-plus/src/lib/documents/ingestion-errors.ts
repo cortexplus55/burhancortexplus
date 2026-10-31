@@ -118,6 +118,13 @@ const DEFS: Record<string, IngestionErrorDef> = {
     userMessage: "Bu PDF şifreli olduğu için okunamıyor.",
     action: "Şifreyi kaldırıp yeniden yükle.",
   },
+  corrupt_pdf: {
+    code: "corrupt_pdf",
+    retryable: false,
+    scope: "document",
+    userMessage: "Bu PDF bozuk ya da yarım inmiş görünüyor; açılamadı.",
+    action: "Dosyayı yeniden indirip yükle ya da açıp 'PDF olarak yazdır' ile kaydet.",
+  },
   empty_content: {
     code: "empty_content",
     retryable: false,

@@ -39,18 +39,32 @@ export function isExamTrack(value: unknown): value is ExamTrackId {
   return typeof value === "string" && EXAM_TRACKS.some((track) => track.id === value);
 }
 
+/**
+ * Adım sırası. 31 Ekim 2026 (ürün sahibi: "dosya okunurken öğrenci boş ekrana bakmasın"): dil, çalışma tarzı ve aşinalık
+ * konu listesine bağlı değil; materyalden sonra sorulur ve bu sırada konu haritası arkada çıkar. Konular ve odak
+ * (konuları listeler) haritadan sonra.
+ */
 export const WIZARD_STEP_ORDER = [
   "subject",
   "date",
   "target",
   "material",
   "language",
-  "topics",
   "modality",
   "familiarity",
+  "topics",
   "focus",
   "plan",
 ] as const;
+
+/** İlk materyal hazır olunca sihirbaz bu kadar saniye sonra kendiliğinden ilerler ("Bekle" ile durur). */
+export const AUTO_CONTINUE_SECONDS = 2;
+
+export function autoContinueLine(seconds: number): string {
+  return `⚡ İlk sayfaların hazır — ${seconds} sn içinde devam ediyoruz; kalanı arkada okunur.`;
+}
+
+export const AUTO_CONTINUE_HOLD = "Bekle, dosya ekleyeceğim";
 
 export const DOCUMENT_ANALYSIS_STAGES = [
   "Ekler okunuyor",

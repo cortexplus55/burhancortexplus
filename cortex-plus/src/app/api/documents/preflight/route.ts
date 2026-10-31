@@ -89,7 +89,17 @@ export async function POST(request: Request) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const counts = await preflightPdfPages(buffer);
+  // Şifreli ya da bozuk PDF ön kontrolde 500'e düşüyordu (31 Ekim 2026): öğrenci nedenini ve ne yapacağını görsün.
+  let counts: Awaited<ReturnType<typeof preflightPdfPages>>;
+  try {
+    counts = await preflightPdfPages(buffer);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "encrypted_pdf" || code === "corrupt_pdf") {
+      return NextResponse.json({ code, error: userFacingIngestionMessage(code), retryable: false }, { status: 422 });
+    }
+    throw error;
+  }
 
   await service
     .from("documents")

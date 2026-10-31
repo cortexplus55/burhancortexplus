@@ -505,10 +505,12 @@ export async function POST(request: Request) {
       prepId: parsed.data.prepId ?? null,
       deadlineAt: routeStarted + COURSE_ROUND_BUDGET_MS,
       fromCourse: Boolean(course),
-      // Kurulumda öğrenci haritayı bekliyor (31 Ekim 2026): Plus/Sigma ve kurucuda hızlı işlem. Hazırlığa sonradan
-      // eklenen materyal (prepId) arkada haritalanır, normal işlemde kalır.
-      fast: Boolean(course) && !parsed.data.prepId && await fastAllowedFor(service, userId),
-      urgent: Boolean(course) && !parsed.data.prepId,
+      // Bu uçtaki haritayı öğrenci her zaman bekliyor (31 Ekim 2026): kurulumda konu listesini, sonradan eklenen
+      // materyalde (prepId: "Materyal ekle", hızlı başlatmanın kalan sayfaları) hazırlık sayfasındaki şeridi, stüdyo ve
+      // sohbette belgenin konularını. Kalan sayfaların haritası normal işlem + varsayılan düşünmeyle 40-90 sn ve bir yama
+      // sürüyordu. Düşük düşünme herkese, hızlı işlem Plus/Sigma ve kurucuya.
+      fast: await fastAllowedFor(service, userId),
+      urgent: true,
     });
     if (mapped.deferred) {
       // The wizard's course outline will cover this file.
@@ -597,6 +599,10 @@ export async function POST(request: Request) {
 
   const result = await processDocument(service, doc.id, {
     deferTopicMap: learningV2,
+    // Büyük sunu/Word'ün arkada okunan resimleri (31 Ekim 2026): yalnız okunan resim kadar, ayrı anahtarla.
+    onLateScanPages: freeTier
+      ? undefined
+      : (pages) => chargeNow(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_late_${doc.id}`, pages).then(() => undefined),
   });
 
   if (!result.ok) {

@@ -32,6 +32,9 @@ import {
   WIZARD_COPY,
   examHeavyBadgeVisible,
   WIZARD_STEP_ORDER,
+  AUTO_CONTINUE_HOLD,
+  AUTO_CONTINUE_SECONDS,
+  autoContinueLine,
   batchUploadFailedLine,
   fileProgressLine,
   headMaterialLine,
@@ -378,6 +381,15 @@ export function ExamCreateWizard({
   const [importPanel, setImportPanel] = useState<"none" | "paste" | "url" | "curriculum">("none");
   const fileRef = useRef<HTMLInputElement>(null);
   const documentIds = materials.map((item) => item.id);
+  /**
+   * Arkadaki konu haritası (31 Ekim 2026): dil adımına girilince başlar, öğrenci dil / çalışma tarzı / aşinalık
+   * sorularını cevaplarken çıkar. `key` haritanın çıkarıldığı belge kümesi; küme değişince yeniden çıkarılır.
+   */
+  const intakeRef = useRef<{ key: string; state: "running" | "done" | "failed" } | null>(null);
+  const stepRef = useRef<Step>("subject");
+  /** Yeni seçilen dosyalar için bir kez kendiliğinden devam (geri sayım); "Bekle" ya da devam sonrası kapanır. */
+  const autoArmedRef = useRef(false);
+  const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
   /** Belge kümesi denetimi (Paket I): sürüm ve ilgisiz belge notu, materyal adımından çıkarken bir kez. */
   const [materialNotes, setMaterialNotes] = useState<MaterialNotes | null>(null);
   const [checkingMaterials, setCheckingMaterials] = useState(false);
@@ -676,7 +688,7 @@ export function ExamCreateWizard({
   const resumePendingRef = useRef(false);
 
   const progressStep =
-    step === "building" || step === "shaping" ? "language" : step;
+    step === "building" || step === "shaping" ? "topics" : step;
   const stepIndex = Math.max(0, STEP_ORDER.indexOf(progressStep));
   const progress = ((stepIndex + 1) / STEP_ORDER.length) * 100;
 
@@ -688,12 +700,36 @@ export function ExamCreateWizard({
     }
     if (step === "building" || step === "shaping") {
       if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
-      setStep("language");
+      setStep("familiarity");
       return;
     }
     const index = STEP_ORDER.indexOf(step);
     if (index <= 0) return;
     setStep(STEP_ORDER[index - 1]);
+  }
+
+  /** Aşinalıktan sonra: harita hazırsa konular, sürüyorsa bekleme ekranı, yoksa (küme değiştiyse) şimdi çıkar. */
+  function openTopics() {
+    const key = documentIds.join(",");
+    const run = intakeRef.current;
+    if (run && run.key === key && run.state === "done") {
+      setStep("shaping");
+      if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+      shapeTimer.current = window.setTimeout(() => {
+        if (alive.current) setStep("topics");
+      }, 700);
+      return;
+    }
+    if (run && run.key === key && run.state === "running") {
+      setStep("building");
+      return;
+    }
+    void runIntake();
+  }
+
+  function holdAutoContinue() {
+    autoArmedRef.current = false;
+    setAutoCountdown(null);
   }
 
   function openPlan() {
@@ -706,14 +742,17 @@ export function ExamCreateWizard({
   }
 
   const runIntake = useCallback(
-    async () => {
+    async (options?: { background?: boolean }) => {
       const ids = materials.map((item) => item.id);
       const primary = ids[0];
       if (!primary) return;
       mappedIdsRef.current = ids;
+      const run = { key: ids.join(","), state: "running" as "running" | "done" | "failed" };
+      intakeRef.current = run;
       setIntakeAlert(null);
       setMapRetry(false);
-      setStep("building");
+      // Arkada başlayınca öğrenci dil / çalışma tarzı / aşinalık adımlarında kalır; bekleme ekranı yalnız beklerken.
+      if (!options?.background) setStep("building");
       setBuildStage(-1);
       const ticker = setInterval(
         () => setBuildStage((s) => Math.min(s + 1, BUILD_STAGES.length - 1)),
@@ -764,6 +803,11 @@ export function ExamCreateWizard({
           if (course.ok) ({ res, payload } = await probe());
         }
         setProcessDetail(null);
+        // Öğrenci bu sırada belge kümesini değiştirdiyse (geri dönüp dosya ekledi) yeni harita çıkıyor: bu sonucu yazma.
+        if (intakeRef.current !== run) {
+          intakeFailed = true;
+          return;
+        }
         if (!res) {
           intakeFailed = true;
           const processed = course.body;
@@ -923,9 +967,12 @@ export function ExamCreateWizard({
         setStep("topics");
       } finally {
         clearInterval(ticker);
+        run.state = intakeFailed ? "failed" : "done";
         if (!alive.current) return;
         if (intakeFailed) return;
         setBuildStage(BUILD_STAGES.length);
+        // Öğrenci henüz soruları cevaplıyorsa konular aşinalıktan sonra açılır (`openTopics`).
+        if (stepRef.current !== "building") return;
         setStep("shaping");
         if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
         shapeTimer.current = window.setTimeout(() => {
@@ -935,6 +982,44 @@ export function ExamCreateWizard({
     },
     [materials, subject, examDate],
   );
+
+  const documentKey = documentIds.join(",");
+
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+
+  // Dil adımına girilince konu haritası arkada başlar: öğrenci dil, çalışma tarzı ve aşinalığı seçerken çıkar.
+  useEffect(() => {
+    if (step !== "language" || mapRetry || !documentKey) return;
+    if (intakeRef.current?.key === documentKey) return;
+    void runIntake({ background: true });
+  }, [step, mapRetry, documentKey, runIntake]);
+
+  // İlk materyal hazır olunca kısa geri sayımla kendiliğinden devam (yeni seçilen dosyalarda bir kez; "Bekle" durdurur).
+  const continueFromMaterialRef = useRef(continueFromMaterial);
+  useEffect(() => {
+    continueFromMaterialRef.current = continueFromMaterial;
+  });
+  useEffect(() => {
+    const armed = step === "material" && autoArmedRef.current && Boolean(documentKey) && !materialNotes && !checkingMaterials;
+    if (!armed) {
+      if (autoCountdown != null) setAutoCountdown(null);
+      return;
+    }
+    if (autoCountdown == null) {
+      setAutoCountdown(AUTO_CONTINUE_SECONDS);
+      return;
+    }
+    if (autoCountdown <= 0) {
+      autoArmedRef.current = false;
+      setAutoCountdown(null);
+      void continueFromMaterialRef.current();
+      return;
+    }
+    const timer = window.setTimeout(() => setAutoCountdown((current) => (current == null ? null : current - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [step, documentKey, materialNotes, checkingMaterials, autoCountdown]);
 
   function rememberMaterial(material: WizardMaterial) {
     // Ana belge bitti: harita henüz kurulmadıysa baş kopyası yerine belgenin tamamı kullanılır; kurulduysa baş
@@ -1239,6 +1324,7 @@ export function ExamCreateWizard({
     if (!batch.length) return;
     const existing = new Set(materialsRef.current.map((material) => material.id));
     quietUploadRef.current = batch.length > 1;
+    autoArmedRef.current = true;
     setUploading(true);
     try {
       const result = await upload.run(batch);
@@ -1260,6 +1346,7 @@ export function ExamCreateWizard({
   const phoneBatch = useRef({ total: 0, done: 0, finished: 0, failed: [] as string[] });
 
   function takePhoneDocument(remote: { documentId: string; fileName: string }) {
+    autoArmedRef.current = true;
     phoneLimiter.current ??= createLimiter(paidUploads ? PARALLEL_UPLOADS : 1);
     const run = phoneLimiter.current;
     const batch = phoneBatch.current;
@@ -1788,7 +1875,14 @@ export function ExamCreateWizard({
             <>
               {/* Hızlı başlatma (31 Ekim 2026): okunmuş materyal varken kalanı beklemeden ilerlenir; kalan sayfalar
                   hazırlığa bekleyen olarak bağlanır ve hazırlık sayfasında arkada eklenir. */}
-              {uploading && documentIds.length ? (
+              {autoCountdown != null ? (
+                <p className="apw-drop-hint apw-auto-continue" role="status">
+                  {autoContinueLine(autoCountdown)}{" "}
+                  <button type="button" className="apw-link" onClick={holdAutoContinue}>
+                    {AUTO_CONTINUE_HOLD}
+                  </button>
+                </p>
+              ) : uploading && documentIds.length ? (
                 <p className="apw-drop-hint" role="note">{WIZARD_COPY.continueEarlyHint}</p>
               ) : null}
               <button
@@ -1853,7 +1947,7 @@ export function ExamCreateWizard({
           <button
             type="button"
             className="apw-cta"
-            onClick={() => void runIntake()}
+            onClick={() => (mapRetry ? void runIntake() : setStep("modality"))}
             disabled={!documentIds.length}
           >
             {mapRetry ? "Tekrar dene" : WIZARD_COPY.continue}
@@ -1959,7 +2053,7 @@ export function ExamCreateWizard({
             type="button"
             className="apw-cta"
             disabled={!topics.length}
-            onClick={() => setStep("modality")}
+            onClick={() => setStep("focus")}
           >
             {WIZARD_COPY.continue}
           </button>
@@ -2012,7 +2106,7 @@ export function ExamCreateWizard({
                 className={familiarity === option.id ? "apw-choice apw-choice--on" : "apw-choice"}
                 onClick={() => {
                   setFamiliarity(option.id);
-                  setStep("focus");
+                  openTopics();
                 }}
               >
                 <span aria-hidden>{option.emoji}</span> {option.title}

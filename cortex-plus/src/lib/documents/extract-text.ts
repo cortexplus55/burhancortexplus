@@ -16,6 +16,18 @@ function ensurePromiseWithResolvers() {
   };
 }
 
+/**
+ * PDF açılamadıysa nedeni (31 Ekim 2026): şifreli ya da bozuk. Bozuk dosyada pdf.js'in İngilizce iletisi ("Invalid PDF
+ * structure.") belge kaydına olduğu gibi yazılıyor ve Belgelerim'de öğrenciye öyle görünüyordu.
+ */
+export function pdfOpenFailure(message: string): "encrypted_pdf" | "corrupt_pdf" | null {
+  if (/password|PasswordException|encrypted/i.test(message)) return "encrypted_pdf";
+  if (/Invalid PDF|InvalidPDFException|missing PDF|MissingPDFException|FormatError|bad XRef|XRef|Unexpected end|corrupt|not a PDF/i.test(message)) {
+    return "corrupt_pdf";
+  }
+  return null;
+}
+
 /** Read actual PDF page streams, including compressed text and embedded fonts. */
 export async function extractText(
   buffer: Buffer,
@@ -48,10 +60,8 @@ export async function extractText(
     }
     return { pages, ok: pages.some((page) => Boolean(page.trim())), total: pdf.numPages };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/password|PasswordException|encrypted/i.test(msg)) {
-      throw new Error("encrypted_pdf");
-    }
+    const failure = pdfOpenFailure(err instanceof Error ? err.message : String(err));
+    if (failure) throw new Error(failure);
     throw err;
   } finally {
     await task.destroy();
@@ -91,6 +101,10 @@ export async function preflightPdfPages(buffer: Buffer): Promise<{
       textPages,
       scannedPages: Math.max(0, pdf.numPages - textPages),
     };
+  } catch (err) {
+    const failure = pdfOpenFailure(err instanceof Error ? err.message : String(err));
+    if (failure) throw new Error(failure);
+    throw err;
   } finally {
     await task.destroy();
   }

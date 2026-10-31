@@ -15,6 +15,8 @@ import {
   type OfficeEmbeddedImage,
 } from "@/lib/documents/extract-office-text";
 import { attachOfficeFigures } from "@/lib/documents/office-figures";
+import { fillLateOfficeFigures, splitOfficeFigures } from "@/lib/documents/office-head-start";
+import { after } from "next/server";
 import {
   claimPhotoPages,
   planTier,
@@ -56,7 +58,11 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 export async function processDocument(
   service: SupabaseClient,
   documentId: string,
-  options?: { deferTopicMap?: boolean },
+  options?: {
+    deferTopicMap?: boolean;
+    /** Sunu/Word belgesinin arkada okunan resimleri (`office-head-start.ts`): okunan resim kadar ücret. */
+    onLateScanPages?: (pages: number) => Promise<void>;
+  },
 ): Promise<{
   ok: boolean;
   chunks: number;
@@ -178,6 +184,8 @@ export async function processDocument(
   let notice: string | undefined;
   /** Kota yüzünden okunmayan gömülü resim. Belge metni yine kaydolur. */
   let officeSkipped = 0;
+  /** Arkada okunacak sunu/Word resimleri: kotası alındı, ücreti okununca kesilir. */
+  let lateOffice: { basePages: string[]; tail: OfficeEmbeddedImage[]; fast: boolean; pageNumberOf: Map<number, number> } | null = null;
 
   if (isImageDocument(doc.mime_type)) {
     if (!(await claim(1))) return fail("photo_quota_exhausted");
@@ -216,18 +224,30 @@ export async function processDocument(
       claimedImages.push(image);
     }
     // Paralel ve (ücretli hesapta) hızlı işlemle (31 Ekim 2026): 40 resimli sunu sırayla ~10 dk sürüyordu.
-    const attached = await attachOfficeFigures(read.pages, claimedImages, {
-      fast: await fastAllowedFor(service, userId),
+    // Çok resimli belgede yalnız ilk slaytların ve yazısız slaytların resimleri beklerken okunur; kalanı arkada.
+    const fast = await fastAllowedFor(service, userId);
+    const split = splitOfficeFigures(read.pages, claimedImages);
+    const attached = await attachOfficeFigures(read.pages, split.head, {
+      fast,
       deadlineMs: Date.now() + 240_000,
     });
     recordVision(attached.usage);
-    const missed = claimedImages.length - attached.readCount;
+    const missed = split.head.length - attached.readCount;
     if (missed > 0) {
       await releasePhotoPages(service, userId, missed);
       claimedPages -= missed;
     }
     if (attached.blocked) reportBlocked();
-    pages = attached.pages.filter((page) => page.trim().length > 0);
+    const kept = attached.pages.map((text, index) => ({ text, index })).filter((page) => page.text.trim().length > 0);
+    pages = kept.map((page) => page.text);
+    if (split.tail.length) {
+      lateOffice = {
+        basePages: attached.pages,
+        tail: split.tail,
+        fast,
+        pageNumberOf: new Map(kept.map((page, position) => [page.index, position + 1])),
+      };
+    }
     if (!pages.length) {
       if (officeSkipped > 0 && officeSkipped === read.images.length) return fail("photo_quota_exhausted");
       return failAndRelease(attached.blocked ? "image_blocked" : "office_unreadable");
@@ -409,6 +429,38 @@ export async function processDocument(
     }
   }
 
+  // Arkada okunacak resimler: kotaları alındı ama ücretleri yalnız okunanlar için (okunmayanın kotası geri verilir).
+  const lateClaimed = lateOffice?.tail.length ?? 0;
+  if (lateOffice) {
+    const late = lateOffice;
+    const run = async () => {
+      try {
+        const filled = await fillLateOfficeFigures(service, {
+          documentId,
+          basePages: late.basePages,
+          pageNumberOf: late.pageNumberOf,
+          tail: late.tail,
+          fast: late.fast,
+          embed: embedTexts,
+        });
+        recordVision(filled.usage);
+        if (filled.blocked) reportBlocked();
+        const unread = late.tail.length - filled.readCount;
+        if (unread > 0) await releasePhotoPages(service, userId, unread);
+        if (filled.readCount > 0) await options?.onLateScanPages?.(filled.readCount);
+        console.info(JSON.stringify({ event: "office_late_figures", documentId, tail: late.tail.length, read: filled.readCount, pages: filled.updatedPages }));
+      } catch (error) {
+        await releasePhotoPages(service, userId, late.tail.length).catch(() => undefined);
+        console.error("office_late_figures_failed", { documentId, cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
+      }
+    };
+    try {
+      after(run);
+    } catch {
+      void run();
+    }
+  }
+
   if (options?.deferTopicMap) {
     const { error: deferError } = await service
       .from("documents")
@@ -424,7 +476,7 @@ export async function processDocument(
       chunks: allChunks.length,
       notice,
       pageCount: pages.length,
-      scannedPages: claimedPages,
+      scannedPages: claimedPages - lateClaimed,
       deferred: true,
     };
   }
@@ -449,7 +501,7 @@ export async function processDocument(
   }
   // With v2 on, the topic map is built by the course pipeline (process route).
 
-  return { ok: true, chunks: allChunks.length, notice, pageCount: pages.length, scannedPages: claimedPages };
+  return { ok: true, chunks: allChunks.length, notice, pageCount: pages.length, scannedPages: claimedPages - lateClaimed };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",

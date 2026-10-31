@@ -13,26 +13,28 @@ const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
 const coach = readFileSync("src/app/api/learning/exam-prep/coach/route.ts", "utf8");
 
 describe("post-PDF wizard order", () => {
-  it("asks for topic edits, then modality, then focus, then the create CTA", () => {
+  it("asks language, modality and familiarity while the map runs, then topic edits, focus and the create CTA", () => {
+    // 31 Ekim 2026: dil, çalışma tarzı ve aşinalık konu listesine bağlı değil; materyalden hemen sonra sorulur ve bu
+    // sırada konu haritası arkada çıkar. Konular ve odak (konuları listeler) haritadan sonra.
     const shaping = wizard.indexOf('step === "shaping"');
     const topics = wizard.indexOf('step === "topics"');
-    const modality = wizard.indexOf('step === "modality"');
     const focus = wizard.indexOf('step === "focus"');
     const plan = wizard.indexOf('step === "plan"');
     expect(shaping).toBeGreaterThan(0);
     expect(topics).toBeGreaterThan(shaping);
-    expect(modality).toBeGreaterThan(topics);
-    expect(focus).toBeGreaterThan(modality);
+    expect(focus).toBeGreaterThan(topics);
     expect(plan).toBeGreaterThan(focus);
-    expect(WIZARD_STEP_ORDER.indexOf("language")).toBeLessThan(
-      WIZARD_STEP_ORDER.indexOf("topics"),
-    );
-    expect(WIZARD_STEP_ORDER.indexOf("topics")).toBeLessThan(
-      WIZARD_STEP_ORDER.indexOf("modality"),
-    );
-    expect(WIZARD_STEP_ORDER.indexOf("modality")).toBeLessThan(
-      WIZARD_STEP_ORDER.indexOf("focus"),
-    );
+    expect([...WIZARD_STEP_ORDER].slice(WIZARD_STEP_ORDER.indexOf("material"))).toEqual([
+      "material",
+      "language",
+      "modality",
+      "familiarity",
+      "topics",
+      "focus",
+      "plan",
+    ]);
+    expect(wizard).toContain("void runIntake({ background: true });");
+    expect(wizard).toContain("openTopics();");
     expect(WIZARD_STEP_ORDER.indexOf("focus")).toBeLessThan(
       WIZARD_STEP_ORDER.indexOf("plan"),
     );

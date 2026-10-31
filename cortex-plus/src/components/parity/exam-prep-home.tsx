@@ -717,7 +717,8 @@ export function ExamPrepHome({
 
       <div className="cp-prep-main">
       {/* Hızlı başlatma (31 Ekim 2026): kurulumdan sonra okunmakta olan belgeler arkada okunup yoluna eklenir. */}
-      {pendingMaterials > 0 ? <PendingMaterialsBanner prepId={prepId} /> : null}
+      {/* Her zaman bağlı: ekleme bitince sayfa yenilense de "eklendi" bildirimi görünür kalsın; bekleyen yoksa çizmez. */}
+      <PendingMaterialsBanner prepId={prepId} initialPending={pendingMaterials} />
       {view === "yol" && lastNode ? (
         <section className="cp-prep-last" aria-label="Son etkinlik">
           <div className="cp-prep-badges">
