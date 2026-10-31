@@ -30,7 +30,9 @@ describe("add-source does not reset progress", () => {
   it("analyzes only the new document and does not rewrite readiness or statuses", () => {
     // 31 Ekim 2026: toplu ekleme; analiz yalnız yeni belgelere (eski belgeler yeniden üretilmez).
     expect(source).not.toContain("runTeacherAnalysis(");
-    expect(source.match(/ensureTeacherAnalyses\(service, \{ userId, documentIds: newDocumentIds \}\)/g)).toHaveLength(2);
+    // Tek çağrı: az dosyada en çok ANALYSIS_INLINE_WAIT_MS beklenir, kalanı after() ile sürer (31 Ekim 2026).
+    expect(source.match(/ensureTeacherAnalyses\(service, \{ userId, documentIds: newDocumentIds \}\)/g)).toHaveLength(1);
+    expect(source).toContain("after(() => analyses)");
     expect(source).toContain("planAddedMaterial");
     expect(source).not.toContain("readiness_score:");
     expect(source).not.toContain("status: \"done\"");
