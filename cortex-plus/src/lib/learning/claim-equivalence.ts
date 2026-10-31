@@ -1,6 +1,6 @@
 import "server-only";
 import { samplingParams } from "@/lib/ai/model-params";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import {
@@ -36,7 +36,7 @@ export async function judgeEquivalence(
     return `${index}. kavram: ${candidate.item.concept}\nA (${left?.fileName ?? "kaynak"}): ${left?.value ?? ""}\nB (${right?.fileName ?? "kaynak"}): ${right?.value ?? ""}`;
   });
   try {
-    const client = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 12_000, maxRetries: 0 });
+    const client = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 12_000, maxRetries: 0 });
     const response = await client.chat.completions.create({
       model: env.OPENAI_STANDARD_MODEL,
       ...samplingParams(env.OPENAI_STANDARD_MODEL, { temperature: 0 }),

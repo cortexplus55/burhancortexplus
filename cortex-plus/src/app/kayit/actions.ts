@@ -136,22 +136,9 @@ async function completeSignupInner(
     }
   }
 
-  if (payload.referralCode) {
-    const service = createServiceClient();
-    const code = payload.referralCode.trim().toUpperCase();
-    const { data: referrer } = await service
-      .from("profiles")
-      .select("id")
-      .eq("referral_code", code)
-      .maybeSingle();
-    if (referrer && referrer.id !== user.id) {
-      await supabase
-        .from("profiles")
-        .update({ referred_by: referrer.id })
-        .eq("id", user.id)
-        .is("referred_by", null);
-    }
-  }
+  // Kod tarayıcıdaki yükte yoksa hesapta duranı (31 Ekim 2026: doğrulama başka tarayıcıda açılınca davet kayboluyordu).
+  const referralCode = payload.referralCode || metadataReferralCode(user.user_metadata);
+  if (referralCode) await applyReferral(supabase, user.id, referralCode);
 
   if (user.email) {
     await claimPendingInvites(user.id, user.email);
@@ -477,4 +464,49 @@ export async function unlinkParentChild(linkId: string) {
 
   revalidatePath("/profil");
   return { ok: true };
+}
+
+function metadataReferralCode(metadata: Record<string, unknown> | undefined): string | undefined {
+  const raw = metadata?.referral_code;
+  return typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 16) : undefined;
+}
+
+/** Davet kodunu davet edene bağlar (bir kez; kendini davet edemez). */
+async function applyReferral(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  rawCode: string,
+) {
+  const service = createServiceClient();
+  const code = rawCode.trim().toUpperCase();
+  const { data: referrer } = await service
+    .from("profiles")
+    .select("id")
+    .eq("referral_code", code)
+    .maybeSingle();
+  if (referrer && referrer.id !== userId) {
+    await supabase
+      .from("profiles")
+      .update({ referred_by: referrer.id })
+      .eq("id", userId)
+      .is("referred_by", null);
+  }
+}
+
+/**
+ * Kayıt başka tarayıcıda doğrulandıysa (tarayıcıdaki yük yok, kurulum sayfasından devam): hesaba kayıtta yazılan davet
+ * kodu burada bağlanır (31 Ekim 2026). Kod yoksa ya da zaten bağlıysa bir şey yapmaz.
+ */
+export async function applySignupReferral(): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const code = metadataReferralCode(user.user_metadata);
+    if (code) await applyReferral(supabase, user.id, code);
+  } catch (error) {
+    console.error("[applySignupReferral]", error);
+  }
 }

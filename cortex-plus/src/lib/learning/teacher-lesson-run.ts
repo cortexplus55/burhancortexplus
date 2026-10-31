@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
@@ -722,7 +723,7 @@ async function runTeacherLessonInner(
 
   const started = input.startedAt ?? Date.now();
   const model = contentModel();
-  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
+  const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
   let calls = 0;
   const record = async (usage: OpenAI.CompletionUsage | null | undefined, servedTier: string | null | undefined) => {
     // Hızlı işlemin fiyatı ayrı satırda (ai_model_prices: "<model>-fast"); düşürülen istek normal fiyattır.

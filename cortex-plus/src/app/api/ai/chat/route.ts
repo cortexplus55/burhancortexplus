@@ -4,6 +4,7 @@ import { studentOutputText } from "@/lib/learning/student-output-firewall";
 import { samplingParams } from "@/lib/ai/model-params";
 import { z } from "zod";
 import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
 import { EducationalVerificationError, verifyEducationalContent } from "@/lib/ai/quality-gate";
 import { chatFallbackMessage } from "@/lib/ai/chat-fallback";
@@ -317,7 +318,7 @@ export async function POST(request: Request) {
         hasSource: grounded || Boolean(attachedBrief) || Boolean(examContext?.hasSource),
         allowOutsideMaterial: !strict,
       });
-      const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+      const client = openaiClient({ apiKey: env.OPENAI_API_KEY });
       const tutorAddendum = prepGrounding
         ? examTutorAddendum({
             message,

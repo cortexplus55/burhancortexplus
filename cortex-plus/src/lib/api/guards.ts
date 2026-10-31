@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
@@ -244,6 +245,10 @@ export async function withUser(
 /**
  * Girişi olmayan uçlar için sınır (telefondan yükleme bağlantısı gibi).
  * Sınır aşılmadıysa `null` döner; aşıldıysa doğrudan döndürülecek yanıt.
+ *
+ * `subject` verilirse sayaç IP'ye değil ona bağlanır (oturumdaki kullanıcı, telefon bağlantısının kodu). 31 Ekim 2026:
+ * okulda ya da yurtta bütün öğrenciler aynı IP'den çıkıyor; IP'ye bağlı sayaç bir sınıfın düellosunda 50 öğrenciden
+ * 40'ını "çok fazla istek" ile düşürüyordu.
  */
 export async function guestLimit(
   request: Request,
@@ -253,10 +258,14 @@ export async function guestLimit(
     windowSeconds?: number;
     signal?: "rate_limit" | "token_bruteforce";
     severity?: "low" | "medium" | "high";
+    subject?: string | null;
   },
 ): Promise<NextResponse | null> {
+  const key = options.subject
+    ? `cortex:${options.scope}:s:${createHash("sha256").update(options.subject).digest("hex").slice(0, 32)}`
+    : clientKey(request, options.scope);
   const result = await rateLimit(
-    clientKey(request, options.scope),
+    key,
     options.limit ?? 20,
     options.windowSeconds ?? 60,
   );
@@ -270,6 +279,44 @@ export async function guestLimit(
     metadata: { limit: options.limit ?? 20 },
   });
   return tooManyResponse(result);
+}
+
+/** Düelloda oturumlu oyuncunun dakikalık sınırı (kişi başına). */
+export const DUEL_USER_LIMIT = 10;
+/** Misafirin sınırı IP başına: bir sınıf aynı ağdan, çoğu misafir bağlantıyla gelir. */
+export const DUEL_GUEST_IP_LIMIT = 60;
+
+/**
+ * Düello uçlarının sınırı (31 Ekim 2026): oturum varsa sayaç öğrencinin, yoksa IP'nin (daha geniş). Eskiden herkes
+ * IP'den sayılıyordu: okul ya da yurt ağında 50 kişilik bir sınıf düellosunda 10'dan sonraki herkes 429 alıyordu.
+ */
+export function duelLimit(request: Request, scope: string, userId: string | null): Promise<NextResponse | null> {
+  return userId
+    ? guestLimit(request, { scope, limit: DUEL_USER_LIMIT, subject: `u:${userId}` })
+    : guestLimit(request, { scope: `${scope}-guest`, limit: DUEL_GUEST_IP_LIMIT });
+}
+
+/** Telefon yükleme uçlarında bir IP'nin tavanı (kod 16 rastgele bayt: tahminle bulunamaz; tavan bedava çalıştırmaya). */
+export const PHONE_UPLOAD_IP_CEILING = 1_200;
+
+/**
+ * Telefon yükleme uçları (31 Ekim 2026): sayaç bağlantının kodunda, IP'de yalnız geniş bir tavan. Bilgisayar
+ * laboratuvarında 30 masaüstü aynı IP'den "telefon yükledi mi" diye yokluyor, aynı ağdaki telefonlar fotoğraf
+ * gönderiyordu; IP başına 60/120 sınırı hepsini birden düşürüyordu.
+ */
+export async function phoneUploadLimit(
+  request: Request,
+  token: string,
+  options: { scope: "phone-upload" | "phone-upload-poll"; limit: number },
+): Promise<NextResponse | null> {
+  const ceiling = await guestLimit(request, {
+    scope: `${options.scope}-ip`,
+    limit: PHONE_UPLOAD_IP_CEILING,
+    signal: "token_bruteforce",
+    severity: "medium",
+  });
+  if (ceiling) return ceiling;
+  return guestLimit(request, { scope: options.scope, limit: options.limit, subject: `t:${token}` });
 }
 
 export function errorResponse(

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { guestLimit } from "@/lib/api/guards";
+import { phoneUploadLimit } from "@/lib/api/guards";
 import { recordAbuse } from "@/lib/abuse/record";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { storeUserDocument } from "@/lib/documents/store-upload";
@@ -22,13 +22,10 @@ export async function GET(
 ) {
   // Masaüstü sayfası bu ucu "telefon yükledi mi" diye yokluyor, o yüzden
   // sınır cömert.
-  const limited = await guestLimit(request, {
-    scope: "phone-upload-poll",
-    limit: 60,
-  });
+  const { token } = await params;
+  const limited = await phoneUploadLimit(request, token, { scope: "phone-upload-poll", limit: 60 });
   if (limited) return limited;
 
-  const { token } = await params;
   const service = createServiceClient();
   // `*`: çok dosya sütunları (göç 20261031120000) yoksa da okunur.
   const { data } = await service
@@ -52,15 +49,10 @@ export async function POST(
 ) {
   // Çok dosya (31 Ekim 2026): bir öğrenci telefondan art arda onlarca fotoğraf gönderir; kodu deneyerek bulmak
   // yine olanaksız (16 rastgele bayt), sınırın işi girişsiz ucu bedava çalıştırmayı durdurmak.
-  const limited = await guestLimit(request, {
-    scope: "phone-upload",
-    limit: 120,
-    signal: "token_bruteforce",
-    severity: "medium",
-  });
+  const { token } = await params;
+  const limited = await phoneUploadLimit(request, token, { scope: "phone-upload", limit: 120 });
   if (limited) return limited;
 
-  const { token } = await params;
   const service = createServiceClient();
   const { data: session } = await service
     .from("phone_upload_sessions")

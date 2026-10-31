@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { recordUsage } from "@/lib/credits/service";
@@ -67,7 +67,7 @@ export async function ensureCleanPages(
   if (dirty.length && env.OPENAI_API_KEY) {
     const edges = input.edges ?? repeatedEdgeLines(rows.map((row) => decodeGlyphIdText(row.text_content ?? "")));
     const model = contentModel();
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 1 });
+    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 1 });
     // Partiler paralel: ders isteği 300 sn içinde bitmeli (sırayla 5 sayfa 51 sn sürüyordu).
     const batches: (typeof dirty)[] = [];
     for (let at = 0; at < dirty.length; at += BATCH) batches.push(dirty.slice(at, at + BATCH));

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { contentModel } from "@/lib/ai/model-router";
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
   const model = contentModel();
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 100_000, maxRetries: 0 });
+    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 100_000, maxRetries: 0 });
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },

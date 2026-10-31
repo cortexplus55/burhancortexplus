@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { errorResponse, guestLimit } from "@/lib/api/guards";
+import { duelLimit, errorResponse } from "@/lib/api/guards";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
   DUEL_QUESTIONS,
@@ -31,7 +31,16 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
-  const limited = await guestLimit(request, { scope: "duel-run", limit: 10 });
+  // Oturum varsa oyuncu o (sayaç da onun); yoksa misafir adı zorunlu.
+  let sessionUserId: string | null = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    sessionUserId = data.user?.id ?? null;
+  } catch {
+    sessionUserId = null;
+  }
+  const limited = await duelLimit(request, "duel-run", sessionUserId);
   if (limited) return limited;
 
   const { code } = await params;
@@ -50,24 +59,16 @@ export async function POST(
   const questions = (Array.isArray(duel.questions) ? duel.questions : []) as DuelQuestion[];
   if (!questions.length) return errorResponse(404, "not_found");
 
-  // Oturum varsa oyuncu o; yoksa misafir adı zorunlu.
-  let playerId: string | null = null;
+  const playerId = sessionUserId;
   let displayName = cleanDisplayName(parsed.data.name);
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
-      playerId = data.user.id;
-      const { data: profile } = await service
-        .from("profiles")
-        .select("full_name")
-        .eq("id", playerId)
-        .maybeSingle();
-      const first = String(profile?.full_name ?? "").trim().split(/\s+/)[0];
-      displayName = cleanDisplayName(first) ?? displayName ?? "Öğrenci";
-    }
-  } catch {
-    playerId = null;
+  if (playerId) {
+    const { data: profile } = await service
+      .from("profiles")
+      .select("full_name")
+      .eq("id", playerId)
+      .maybeSingle();
+    const first = String(profile?.full_name ?? "").trim().split(/\s+/)[0];
+    displayName = cleanDisplayName(first) ?? displayName ?? "Öğrenci";
   }
   if (!displayName) return errorResponse(400, "invalid_input");
 

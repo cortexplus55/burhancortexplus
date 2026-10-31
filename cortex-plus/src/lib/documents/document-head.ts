@@ -6,7 +6,8 @@ import { missingColumn } from "@/lib/learning/missing-column";
  * Büyük belgede hızlı başlatma (31 Ekim 2026, ürün sahibi: "150 sayfalık tek PDF'te de öğrenci 3 dk beklemesin").
  *
  * Belge (D) her zamanki gibi baştan sona okunur ve haritalanır; hiçbir şeyi değişmez. İlk adımda okunan ilk sayfalar
- * (ve parçaları, gömmeleri) gizli bir "baş kopyasına" (H) kopyalanır: H okunmuş, bitmiş, küçük bir belgedir. Kurulum
+ * (ve parçaları; gömmeler D'de kalır, arama onları H'nin sayfalarında kullanır) gizli bir "baş kopyasına" (H)
+ * kopyalanır: H okunmuş, bitmiş, küçük bir belgedir. Kurulum
  * haritayı H ile çıkarır, öğrenci hazırlığa girer. D bitince "materyal ekle" yolundan hazırlığa eklenir ve yalnız
  * H'nin sayfalarından SONRAKİ konular eklenir (add-source `fromPage`). Neden ayrı satır: kullanılan bir haritaya
  * sonradan konu eklemek (in-use koruması) harita kodunu derinden değiştirirdi; D'nin kendi haritası ve içeriği
@@ -96,7 +97,7 @@ function withoutId<T extends Record<string, unknown>>(row: T): Omit<T, "id"> {
 }
 
 /**
- * D'nin firstPage..lastPage sayfalarının kopyası (sayfa, parça, gömme). Aynı aralığın parçası varsa onu döndürür;
+ * D'nin firstPage..lastPage sayfalarının kopyası (sayfa, parça; gömme D'de kalır). Aynı aralığın parçası varsa onu döndürür;
  * var olan bir parçayla çakışan aralık kopyalanmaz (null). Sayfalar kesintisiz okunmuş olmalı: eksik sayfalı kopya
  * yanlış harita verir. Kopyalamanın herhangi bir adımı düşerse yarım kopya silinir ve null döner.
  */
@@ -168,36 +169,19 @@ export async function ensureDocumentPart(
       if (error) throw new Error("part_chunks");
       chunks.push(...((data ?? []) as Record<string, unknown>[]));
     }
-    if (chunks.length) {
-      const newChunkByIndex = new Map<number, string>();
-      for (const group of batches(chunks)) {
-        const { data: newChunks, error: insertChunksError } = await service
-          .from("document_chunks")
-          .insert(group.map((chunk) => ({
-            ...withoutId(chunk),
-            document_id: partId,
-            page_id: newPageByNumber.get(oldPageNumber.get(String(chunk.page_id))!)!,
-          })))
-          .select("id, chunk_index");
-        if (insertChunksError || newChunks?.length !== group.length) throw new Error("part_chunks");
-        for (const row of newChunks) newChunkByIndex.set(Number(row.chunk_index), String(row.id));
-      }
-      const indexOfOld = new Map(chunks.map((chunk) => [String(chunk.id), Number(chunk.chunk_index)]));
-      for (const ids of batches([...indexOfOld.keys()])) {
-        const { data: vectors, error: vectorsError } = await service
-          .from("document_embeddings")
-          .select("chunk_id, embedding")
-          .in("chunk_id", ids);
-        if (vectorsError) throw new Error("part_embeddings");
-        if (!vectors?.length) continue;
-        const { error: insertVectorsError } = await service.from("document_embeddings").insert(
-          vectors.map((row) => ({
-            chunk_id: newChunkByIndex.get(indexOfOld.get(String(row.chunk_id))!)!,
-            embedding: row.embedding,
-          })),
-        );
-        if (insertVectorsError) throw new Error("part_embeddings");
-      }
+    // Gömme kopyalanmaz (31 Ekim 2026, lansman zırhı): parçanın araması ana belgenin gömmelerini parçanın sayfa
+    // aralığında kullanır (göç 20261031160000). 50 sayfadan büyük her PDF'in gömmeleri iki kez duruyordu; veritabanı
+    // ücretsiz planın 500 MB'ının üçte birini 15 kullanıcıyla doldurmuştu.
+    for (const group of batches(chunks)) {
+      const { data: newChunks, error: insertChunksError } = await service
+        .from("document_chunks")
+        .insert(group.map((chunk) => ({
+          ...withoutId(chunk),
+          document_id: partId,
+          page_id: newPageByNumber.get(oldPageNumber.get(String(chunk.page_id))!)!,
+        })))
+        .select("id");
+      if (insertChunksError || newChunks?.length !== group.length) throw new Error("part_chunks");
     }
     return { documentId: partId, fileName: String(doc.file_name ?? ""), firstPage, lastPage };
   } catch (error) {

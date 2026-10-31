@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { env, type ActionCode } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
@@ -446,7 +446,7 @@ async function runTeacherQuizInner(
     held || !reservation.reservationId ? Promise.resolve() : refundCredits(service, reservation.reservationId).catch(() => undefined);
   const started = input.startedAt ?? Date.now();
   const model = input.model ?? contentModel();
-  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
+  const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
   let calls = 0;
   // Öğrenci bekliyor: hızlı işlem. Önceden yazım ve tek ücretli çok parçalı iş (yazılı deneme) normal.
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).

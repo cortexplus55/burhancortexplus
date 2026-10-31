@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
-import { guestLimit } from "@/lib/api/guards";
+import { phoneUploadLimit } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { prepareUserDocumentUpload, maxDocumentBytes, resolveUploadMime } from "@/lib/documents/store-upload";
 import { fitsInQuota, storageUsage } from "@/lib/documents/storage-quota";
@@ -20,14 +20,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
-  const limited = await guestLimit(request, {
-    scope: "phone-upload",
-    limit: 120,
-    signal: "token_bruteforce",
-    severity: "medium",
-  });
-  if (limited) return limited;
   const { token } = await params;
+  const limited = await phoneUploadLimit(request, token, { scope: "phone-upload", limit: 120 });
+  if (limited) return limited;
   const service = createServiceClient();
   const session = await openPhoneSession(service, request, token, "phone-upload");
   if (!session.ok) return session.response;

@@ -514,7 +514,11 @@ describe("bekçi: kaynak", () => {
     expect(read("src/lib/learning/review-items-store.ts")).toMatch(/dueReviewCountForPrep[\s\S]*SPACED_REVIEW_FLAG/);
     const cron = read("src/app/api/cron/study-reminders/route.ts");
     expect(cron).toContain("isFeatureEnabled(service, SPACED_REVIEW_FLAG)");
-    expect(cron).toContain('.from("exam_prep_review_items")');
+    // 31 Ekim 2026: sayılar SQL fonksiyonundan, yoksa tablodan (reminder-facts.ts).
+    const facts = read("src/lib/learning/reminder-facts.ts");
+    expect(facts).toContain('service.rpc("reminder_due_reviews"');
+    expect(facts).toContain('.from("exam_prep_review_items")');
+    expect(cron).toContain("dueReviewsByPrep(service, prepIds, istanbulDay(now))");
     const vercel = JSON.parse(read("vercel.json")) as { crons: unknown[] };
     expect(vercel.crons).toHaveLength(2);
   });

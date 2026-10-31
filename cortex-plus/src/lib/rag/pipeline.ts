@@ -28,7 +28,7 @@ import { recordAbuse } from "@/lib/abuse/record";
 import { chunkText } from "@/lib/rag/chunk";
 export { chunkText } from "@/lib/rag/chunk";
 export { extractText } from "@/lib/documents/extract-text";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import {
@@ -43,7 +43,7 @@ export const EMBEDDING_MODEL = "text-embedding-3-small";
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
   if (!env.OPENAI_API_KEY) throw new Error("embedding_unavailable");
-  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const openai = openaiClient({ apiKey: env.OPENAI_API_KEY });
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: texts,

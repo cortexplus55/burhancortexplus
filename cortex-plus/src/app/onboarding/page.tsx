@@ -11,7 +11,7 @@ import {
 } from "@/components/layout/onboarding-shell";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { createClient } from "@/lib/supabase/client";
-import { recordConsentFromAccount } from "@/app/kayit/actions";
+import { applySignupReferral, recordConsentFromAccount } from "@/app/kayit/actions";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import {
   GOAL_OPTIONS,
@@ -151,6 +151,8 @@ export default function OnboardingPage() {
       // Başka cihazda doğrulanan kayıtta sihirbaz yükü yok; kayıt onayını
       // hesap verisinden yaz. Başarısızlık onboarding'i durdurmaz, loga düşer.
       void recordConsentFromAccount().catch(() => undefined);
+      // Kayıt başka tarayıcıda doğrulandıysa davet kodu hesaptan bağlanır (31 Ekim 2026).
+      void applySignupReferral().catch(() => undefined);
 
       if (goal) {
         const { data: goals } = await supabase

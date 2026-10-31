@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { errorResponse, guestLimit } from "@/lib/api/guards";
-import { createServiceClient } from "@/lib/supabase/server";
+import { duelLimit, errorResponse } from "@/lib/api/guards";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { DuelQuestion } from "@/lib/learning/duel";
 import { BOT_LEVEL_IDS, botRun, botTimeline } from "@/lib/learning/duel-bot";
 
@@ -14,7 +14,14 @@ const bodySchema = z.object({ level: z.enum(BOT_LEVEL_IDS as [string, ...string[
  * Her istek yeni bir bot (tohum rastgele): "tekrar oyna" aynı botu getirmez.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
-  const limited = await guestLimit(request, { scope: "duel-bot", limit: 10 });
+  let userId: string | null = null;
+  try {
+    const { data } = await (await createClient()).auth.getUser();
+    userId = data.user?.id ?? null;
+  } catch {
+    userId = null;
+  }
+  const limited = await duelLimit(request, "duel-bot", userId);
   if (limited) return limited;
 
   const { code } = await params;

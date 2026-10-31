@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
 import { recordUsage } from "@/lib/credits/service";
@@ -78,7 +78,7 @@ export async function buildConceptUnits(
 
   try {
     const model = contentModel();
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout, maxRetries });
+    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout, maxRetries });
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },

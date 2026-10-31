@@ -83,3 +83,8 @@ export function isDisposableEmail(
         : FALLBACK_BLOCKED_DOMAINS;
   return list.has(domain);
 }
+
+/** Aynı posta kutusunun başka yazımıyla açılmış hesap var (`email_alias_taken`, göç 20261031162000). */
+export const ALIAS_EMAIL_MESSAGE =
+  "Bu e-posta kutusuyla (noktalı ya da + eklenmiş başka bir yazımla) zaten bir hesap açılmış. " +
+  "Giriş yap ya da şifreni sıfırla.";

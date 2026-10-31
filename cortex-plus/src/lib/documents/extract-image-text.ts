@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { isQuotaExhaustedError, openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 import { moderate } from "@/lib/ai/moderation";
 import { isReasoningModel } from "@/lib/ai/model-params";
@@ -204,6 +205,8 @@ export function imageReadLadder(): string[] {
 
 function isRateLimitError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
+  // Kredi bitti de 429 döner: beklemek bir şey değiştirmez, sayfa hemen düşer (31 Ekim 2026).
+  if (isQuotaExhaustedError(error)) return false;
   const status = (error as { status?: number }).status;
   if (status === 429) return true;
   const code = String((error as { code?: string }).code ?? "");
@@ -339,7 +342,7 @@ export async function extractImageText(
   }
 
   const pageDeadlineMs = options?.deadlineMs ?? Date.now() + 60_000;
-  const openai = new OpenAI({
+  const openai = openaiClient({
     apiKey: env.OPENAI_API_KEY,
     timeout: Math.min(60_000, Math.max(5_000, pageDeadlineMs - Date.now())),
     maxRetries: 0,

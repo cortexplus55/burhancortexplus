@@ -114,7 +114,8 @@ describe("Paket E · bot rakip turu sunucuda, cevaplar istemciye gitmez", () => 
     const route = read("src/app/api/duels/[code]/bot/route.ts");
     expect(route).toContain("NextResponse.json(botTimeline(run))");
     expect(route).not.toContain(".insert(");
-    expect(route).toMatch(/guestLimit\(request, \{ scope: "duel-bot"/);
+    // 31 Ekim 2026: oturumlu oyuncu kendi sayacıyla, misafir IP'den (lansman-zirhi.test.ts).
+    expect(route).toContain('await duelLimit(request, "duel-bot", userId)');
     expect(read("src/app/duello/[code]/page.tsx")).toContain("initialBot={initialBot}");
     expect(read("src/components/duel/new-duel-button.tsx")).toContain("?bot=derece");
   });

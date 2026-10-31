@@ -239,6 +239,13 @@ describe("pencere işçisi", () => {
     const firstPages = parts.map((id) =>
       Math.min(...(world.db.tables.document_pages as Row[]).filter((page) => page.document_id === id).map((page) => Number(page.page_number))));
     expect(firstPages).toEqual(expected.map((w) => w.from));
+    // Parçalar metni (sayfa, parça) kopyalar ama gömme kopyalamaz: arama ana belgenin gömmelerini parçanın
+    // aralığında kullanır (göç 20261031160000). Gömme tablosu yalnız ana belgenin ve tohumdaki baş kopyasının.
+    const partChunks = new Set((world.db.tables.document_chunks as Row[])
+      .filter((chunk) => parts.includes(String(chunk.document_id)))
+      .map((chunk) => String(chunk.id)));
+    expect(partChunks.size).toBeGreaterThan(0);
+    expect((world.db.tables.document_embeddings as Row[]).some((row) => partChunks.has(String(row.chunk_id)))).toBe(false);
 
     // Bir çağrı ~4 dk'yı geçmez (fonksiyon tavanı 300 sn).
     expect(hops.every((hop) => hop.ms < 300_000)).toBe(true);

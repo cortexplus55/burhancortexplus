@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { openaiClient } from "@/lib/ai/openai-client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import { contentModel } from "@/lib/ai/model-router";
@@ -113,7 +113,7 @@ export async function sampleLessonQuality(
   const ask =
     input.ask ??
     (async (system: string, user: string) => {
-      const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 1 });
+      const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 1 });
       const response = await openai.chat.completions.create({
         model,
         response_format: { type: "json_object" },

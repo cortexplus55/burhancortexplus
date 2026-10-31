@@ -6627,6 +6627,8 @@
   border: 1px solid var(--cp-border);
   background: transparent;
   color: inherit;
+  /* WhatsApp paylaşımı bağlantı (a): düğmeyle aynı görünsün. */
+  text-decoration: none;
 }
 
 .cp-ref-ghost:hover {
