@@ -4,6 +4,7 @@ import {
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreakState } from "@/lib/streak/record-activity";
 import { loadPromoCampaign } from "@/lib/student/promo-campaign";
+import { emailUnverifiedFromMetadata } from "@/lib/auth/email-unverified-flag";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function loadParityShellProps(
@@ -21,6 +22,12 @@ export async function loadParityShellProps(
     getUserStreakState(supabase, userId),
     loadPromoCampaign(supabase),
   ]);
+
+  // E-posta şeridi ilk çizimde gelsin (Paket J takip #3): oturum belirtecindeki bayrak (ağ isteği yok).
+  // Kurucu görmez; Google ve doğrulanmış hesapta bayrak zaten yok. İstemci taze kullanıcıyla bir kez teyit eder.
+  const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+  const emailUnverified =
+    !account?.isAdmin && emailUnverifiedFromMetadata(sessionData?.session?.user?.app_metadata);
 
   const avatar = profile?.avatar_url as string | null | undefined;
 
@@ -42,6 +49,7 @@ export async function loadParityShellProps(
       used: streakState.used,
     },
     account,
+    emailUnverified,
     promo,
     recentConversations: (conversations ?? []).map((row) => ({
       id: row.id as string,

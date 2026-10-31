@@ -13,9 +13,12 @@ import { createClient } from "@/lib/supabase/client";
  * Doğrulama bağlantısından dönüşte (`?eposta=dogrulandi`) oturum tazelenir ve şerit kalkar. Adres `window`dan okunur:
  * `useSearchParams` kabukta Suspense sınırı isterdi (AGENTS.md: bu projede sayfayı boşaltıyor).
  */
-export function EmailVerifyBanner({ preview = false }: { preview?: boolean } = {}) {
+export function EmailVerifyBanner({
+  preview = false,
+  initialUnverified = false,
+}: { preview?: boolean; initialUnverified?: boolean } = {}) {
   // `preview`: yalnız uçtan uca fikstür (`/e2e/paket-j`); oturum okunmadan şerit çizilir.
-  const [unverified, setUnverified] = useState(preview);
+  const [unverified, setUnverified] = useState(preview || initialUnverified);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -31,14 +34,17 @@ export function EmailVerifyBanner({ preview = false }: { preview?: boolean } = {
         toast.error("Doğrulama bağlantısının süresi geçmiş ya da bozuk. Şeritten yenisini isteyebilirsin.");
       }
       const { data } = await supabase.auth.getSession();
-      if (data.session?.user.app_metadata?.email_unverified !== true) return;
+      if (data.session?.user.app_metadata?.email_unverified !== true && !initialUnverified) {
+        if (!cancelled) setUnverified(false);
+        return;
+      }
       const { data: fresh } = await supabase.auth.getUser();
       if (!cancelled) setUnverified(fresh.user?.app_metadata?.email_unverified === true);
     })().catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [preview]);
+  }, [preview, initialUnverified]);
 
   if (!unverified) return null;
 

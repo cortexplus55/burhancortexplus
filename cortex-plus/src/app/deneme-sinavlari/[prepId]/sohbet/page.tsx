@@ -1,3 +1,4 @@
+import { emailUnverifiedFromMetadata } from "@/lib/auth/email-unverified-flag";
 import { notFound } from "next/navigation";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParitySorShell } from "@/components/parity/sor-shell";
@@ -109,6 +110,7 @@ export default async function ExamPrepChatPage({
   return (
     <ParitySorShell
       chrome="exam"
+      emailUnverified={emailUnverifiedFromMetadata(user.app_metadata)}
       backHref={`/deneme-sinavlari/${prepId}`}
       conversationBaseHref={chatPath}
       userInitial={parityUserInitial(profile?.full_name, user.email)}

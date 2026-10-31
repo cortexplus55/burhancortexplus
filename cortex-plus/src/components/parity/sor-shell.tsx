@@ -61,6 +61,7 @@ export function ParitySorShell({
   streak = 0,
   streakFreeze,
   account,
+  emailUnverified = false,
   promo = null,
   recentConversations = [],
   chrome = "app",
@@ -75,6 +76,8 @@ export function ParitySorShell({
   streak?: number;
   streakFreeze?: StreakFreezeBadgeState | null;
   account?: StudentAccountContext;
+  /** Doğrulanmamış e-posta (sunucunun oturum okuması): şerit ilk çizimde görünür. */
+  emailUnverified?: boolean;
   promo?: PromoCampaign | null;
   recentConversations?: RecentConversation[];
   /** Ana ekran ve sınav listesi üst barı: yaklaşan sınav geri sayımı. */
@@ -211,7 +214,8 @@ export function ParitySorShell({
           <FreePreviewToggle on className="cp-free-preview-off" label="Kapat" />
         </div>
       ) : null}
-      {chrome === "session" ? null : <EmailVerifyBanner />}
+      {/* Tek şerit, her öğrenci kabuğunda (Paket J takip #3): oturum ekranları dahil; kurucuda hiç. */}
+      {account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}
       {chrome === "session" ? null : <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">
