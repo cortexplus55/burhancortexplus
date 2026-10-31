@@ -140,7 +140,7 @@ describe("OpenAI kredisi bitince", () => {
   it("kurucuya saatte en çok bir e-posta (Redis yoksa bu sunucuda)", async () => {
     const { noteProviderQuotaExhausted, resetProviderQuotaForTests } = await import("@/lib/ai/provider-quota");
     resetProviderQuotaForTests();
-    const send = vi.fn(async () => ({ ok: true as const }));
+    const send = vi.fn<(mail: { to: string; subject: string }) => Promise<{ ok: true }>>(async () => ({ ok: true }));
     const at = new Date("2026-10-31T10:00:00Z");
     expect(await noteProviderQuotaExhausted({ now: at, send, env: {} })).toBe("mailed");
     expect(await noteProviderQuotaExhausted({ now: new Date(at.getTime() + 30 * 60_000), send, env: {} })).toBe("noted");
