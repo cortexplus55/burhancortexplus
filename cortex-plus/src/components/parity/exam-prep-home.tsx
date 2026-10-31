@@ -92,6 +92,8 @@ import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import { PendingMaterialsBanner } from "@/components/parity/pending-materials-banner";
+import { PrepShareTools } from "@/components/parity/prep-share-tools";
+import { ExamResultCard, type ExamResultCardProps } from "@/components/parity/exam-result-card";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -271,8 +273,14 @@ export function ExamPrepHome({
   examTime = null,
   examPlace = null,
   nodeDoneOn = {},
+  shareTools = null,
+  examResult = null,
 }: {
   prepId: string;
+  /** Sınav sabahı kâğıdı + sınıf paylaşımı (Paket J3 #14); bağlantı sunucuda imzalı ve mutlak. Yoksa kâğıt düğmesi yine görünür. */
+  shareTools?: { inviteUrl: string | null; whatsappHref: string | null } | null;
+  /** Sınav günü geçince not sorusu ya da başarı kartı (Paket J3 #14). */
+  examResult?: ExamResultCardProps | null;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
   documentId?: string | null;
   documentName?: string | null;
@@ -719,6 +727,7 @@ export function ExamPrepHome({
       {/* Hızlı başlatma (31 Ekim 2026): kurulumdan sonra okunmakta olan belgeler arkada okunup yoluna eklenir. */}
       {/* Her zaman bağlı: ekleme bitince sayfa yenilense de "eklendi" bildirimi görünür kalsın; bekleyen yoksa çizmez. */}
       <PendingMaterialsBanner prepId={prepId} initialPending={pendingMaterials} />
+      {examResult ? <ExamResultCard {...examResult} /> : null}
       {view === "yol" && lastNode ? (
         <section className="cp-prep-last" aria-label="Son etkinlik">
           <div className="cp-prep-badges">
@@ -733,6 +742,13 @@ export function ExamPrepHome({
       ) : null}
 
       {view === "yol" ? <PrepDueReviewCard prepId={prepId} count={dueReviews} /> : null}
+      {view === "yol" ? (
+        <PrepShareTools
+          prepId={prepId}
+          inviteUrl={shareTools?.inviteUrl ?? null}
+          whatsappHref={shareTools?.whatsappHref ?? null}
+        />
+      ) : null}
 
       {view === "ilerleme" ? (
         <ExamPrepProgress
