@@ -1644,7 +1644,7 @@ sayfaları eklenirken `add-source` 91 sn sonra 500 döndü, öğrenci "Dosyalar 
 `loadScheduleTopics`'i kullanıcı kimliği olmadan çağırıyordu; kimlik varsayılanı boştu ve belge sorgusu #134'ten beri
 kullanıcıya göre süzülüyor → boş kimlik hiçbir belge bulamayıp `documents_unavailable` fırlatıyordu. Birim testleri bu
 fonksiyonu sahteyle değiştirdiği için görmedi. Kimlik artık **zorunlu parametre** (tip denetimi yakalar); öğretmen analizi
-en çok 15 sn beklenir, kalanı `after()` ile sürer (65 sayfanın analizi 90 sn'ydi); rota `maxDuration = 300`. Aynı belgeyle
+arkada (`after()`) sürer, ekleme onu beklemez (65 sayfanın analizi 90 sn'ydi; ilk ders analizi zaten bekler); rota `maxDuration = 300`. Aynı belgeyle
 yerel kuru koşu: ana belgenin 38 konusundan baş kopyasının sayfalarındakiler hariç 27'si eklenir, 1'i birleşir.
 Aynı turda: konu listesi hazırlık adını bekliyor; 413 jetonluk ad çağrısı varsayılan düşünmeyle 11 sn sürdü (harita 11 sn'de
 bitmişti). Ad çağrısı düşük düşünmeyle, Plus/Sigma/kurucuda hızlı işlemle (`prep-title-run.ts`).
