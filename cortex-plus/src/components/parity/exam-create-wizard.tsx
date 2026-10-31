@@ -94,6 +94,7 @@ import { isPdfSplitTail } from "@/lib/documents/pdf-split-client";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
+import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
 import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
 import {
   MaterialNotesCard,
@@ -1325,6 +1326,8 @@ export function ExamCreateWizard({
         }
       },
     },
+    // Bulanık / karanlık fotoğraf sorusu (Paket J3 #13): `PhotoQualityPrompt` materyal adımında çizilir.
+    { photoQuality: true },
   );
 
   async function takeFiles(list: FileList | File[] | undefined) {
@@ -1738,6 +1741,7 @@ export function ExamCreateWizard({
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
             <p className="apw-drop-title">Dosyanı buraya bırak</p>
             <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+            <PhotoQualityPrompt request={upload.photoQuality} onAnswer={upload.answerPhotoQuality} />
             {upload.photoProgress ? (
               <p className="apw-drop-hint" role="status" aria-live="polite">
                 {photoSetProgressLine(upload.photoProgress)}

@@ -6,6 +6,7 @@ import { compressImageForUpload } from "@/lib/documents/image-compress";
 import { UploadError } from "@/lib/documents/upload-client";
 import { useUniversalDocumentUpload } from "@/lib/documents/use-universal-upload";
 import { photoSetProgressLine } from "@/lib/learning/exam-wizard-copy";
+import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
 import { createClient } from "@/lib/supabase/client";
 import "@/styles/parity-shell.css";
 
@@ -154,6 +155,8 @@ export function PhoneUploadClient({
       upload: (file) => (file.size > FORM_UPLOAD_MAX_BYTES ? sendSigned(file) : sendForm(file)),
       process: async () => true,
     },
+    // Bulanık / karanlık fotoğraf sorusu (Paket J3 #13): fotoğraf çoğunlukla burada, telefonda çekiliyor.
+    { photoQuality: true },
   );
 
   async function sendFiles(list: FileList | null) {
@@ -217,6 +220,7 @@ export function PhoneUploadClient({
                   ? "Daha fazla dosya seç"
                   : "Dosya seç"}
             </button>
+            <PhotoQualityPrompt request={engine.photoQuality} onAnswer={engine.answerPhotoQuality} />
             {sent.length ? (
               <p role="status" aria-live="polite">
                 {`${sent.length} dosya gönderildi. Bilgisayarındaki ${target} görünecek.`}

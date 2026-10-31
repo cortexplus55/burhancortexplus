@@ -33,6 +33,7 @@ import {
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { rejoinIntervalCells } from "@/lib/learning/interval-text";
 import { sanitizeStudentContent } from "@/lib/learning/student-safe-text";
+import { NOTE_WARNING_TITLE, formulaTypoBody, type FormulaTypo } from "@/lib/learning/formula-typos";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
@@ -641,6 +642,24 @@ function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayL
   );
 }
 
+/**
+ * Akıllı hoca uyarısı: notta yanlış yazılmış evrensel formül başına bir sarı kutu. Metin `formula-typos.ts`'ten;
+ * kutunun tamamı `formulaTypoWarning` cümlesini okur ("⚠️ Notunda Dikkat Çeken Nokta: Notunda «X» geçiyor …").
+ */
+function NoteWarnings({ warnings }: { warnings: readonly FormulaTypo[] }) {
+  return (
+    <div className="als-note-typos">
+      {warnings.map((warning) => (
+        <aside key={`${warning.id}:${warning.found}`} className="als-note als-note--typo" role="note">
+          <p className="als-note-body">
+            <strong className="als-note-typo-title">{NOTE_WARNING_TITLE}:</strong> {formulaTypoBody(warning)}
+          </p>
+        </aside>
+      ))}
+    </div>
+  );
+}
+
 function lessonHasExamMarks(lesson: PlayLessonV3): boolean {
   return studentTextParts(JSON.stringify(lesson.screens)).some((part) => part.exam);
 }
@@ -669,8 +688,14 @@ export function ExamLessonSteps({
   plannedMinutes = null,
   plannedScreens = null,
   sourceDocs = [],
+  noteWarnings = [],
 }: {
   lesson: PlayLesson;
+  /**
+   * Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formüller. Ders metni değil;
+   * dersin ilk ekranında sarı kutu olarak çizilir.
+   */
+  noteWarnings?: readonly FormulaTypo[];
   /** Parça parça açılan ders: sonraki kavramlar hâlâ yazılıyor (18 Ekim 2026). */
   building?: boolean;
   /** Yazımı süren kavramların adları. */
@@ -1164,6 +1189,8 @@ export function ExamLessonSteps({
             </p>
           ) : null}
           <h1 className="als-heading">{step.heading}</h1>
+
+          {index === 0 && noteWarnings.length ? <NoteWarnings warnings={noteWarnings} /> : null}
 
           {step.kind === "overview" ? (
             <>
