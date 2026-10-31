@@ -32,7 +32,11 @@ export async function loadScheduleTopics(
   service: SupabaseClient,
   documentIds: string[],
   hardTopics: string[],
-  userId = "",
+  /**
+   * Zorunlu (31 Ekim 2026): varsayılan boş kimlikle "Materyal ekle" 27 Eylül'den beri hep düşüyordu — belge sorgusu
+   * kullanıcıya göre süzülüyor (#134), boş kimlik hiçbir belge bulamayıp `documents_unavailable` fırlatıyordu.
+   */
+  userId: string,
 ): Promise<PrepScheduleTopics> {
   const hardSet = new Set(hardTopics.map((topic) => topic.trim().toLocaleLowerCase("tr")));
   const groups: { documentId: string; analysis: TeacherAnalysis }[] = [];

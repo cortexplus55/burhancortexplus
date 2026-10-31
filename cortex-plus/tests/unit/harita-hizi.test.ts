@@ -200,3 +200,26 @@ describe("harita çağrısı", () => {
     expect(route).toContain("urgent: Boolean(course) && !parsed.data.prepId");
   });
 });
+
+describe("kalan sayfalar ve materyal ekle yola eklenir", () => {
+  it("add-source konu listesini öğrencinin kimliğiyle okur ve analizi en çok 15 sn bekler", () => {
+    // 27 Eylül'den 31 Ekim 2026'ya kadar boş kimlikle çağrılıyordu: belge sorgusu kullanıcıya göre süzüldüğü için
+    // `documents_unavailable` fırlatıp her eklemede 500 dönüyordu (canlıda 65 sayfalık belgenin kalan 27 konusu eklenemedi).
+    const route = read("src/app/api/learning/exam-prep/add-source/route.ts");
+    expect(route).toContain("loadScheduleTopics(service, newDocumentIds, [], userId)");
+    expect(route).toContain("ANALYSIS_INLINE_WAIT_MS = 15_000");
+    expect(route).toContain("export const maxDuration = 300");
+    const schedule = read("src/lib/learning/prep-schedule-topics.ts");
+    expect(schedule).toMatch(/hardTopics: string\[\],[\s\S]{0,400}\r?\n  userId: string,\r?\n\): Promise<PrepScheduleTopics>/);
+  });
+});
+
+describe("konu listesi hazırlık adını beklerken", () => {
+  it("ad çağrısı düşük düşünmeyle, ücretli hesapta hızlı işlemle", () => {
+    // 31 Ekim 2026 canlı ölçüm: harita 11 sn'de bitti, 413 jetonluk ad çağrısı varsayılan düşünmeyle 11 sn daha sürdü.
+    const run = read("src/lib/learning/prep-title-run.ts");
+    expect(run).toContain('reasoning_effort: "low"');
+    expect(run).toContain("...fastTier(fast)");
+    expect(run).toContain("billedModel(model, response.service_tier)");
+  });
+});

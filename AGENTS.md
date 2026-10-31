@@ -1637,7 +1637,18 @@ PDF'inin haritası ~110 sn (43 sn taslak + 66 sn **tam onarım**), 30 fotoğraf�
 | Taslak varsayılan düşünmeyle yazılıyordu (9.488 çıktı jetonunun çoğu düşünme) | Öğrenci kurulumda beklerken (`urgent`: kurs isteği, `prepId` yok; her hesap) harita çağrıları `reasoning_effort: "low"`; sonradan eklenen materyal varsayılan. `generateJson` `reasoningEffort` yalnız akıl yürüten modele gider | `generate.ts`, `pdf-learning-v2.ts`, `process/route.ts` |
 
 Canlıda okuma (aynı gün): 30 fotoğraf seçimden 20,5 sn sonra "Hazır olanlarla devam et"; 65 sayfalık metin PDF'inin ilk 12
-sayfası 17 sn, tamamı 35 sn. Bekçi: `harita-hizi.test.ts` (örnekler tarih, iktisat, elektrik).
+sayfası 17 sn, tamamı 35 sn. #442 yayında: 12 sayfalık baş kopyasının haritası tek çağrı, 1.566 çıktı jetonu, ~9 sn.
+
+**"Materyal ekle" 27 Eylül'den beri hiç çalışmıyordu (31 Ekim 2026, aynı canlı ölçümde bulundu).** Hızlı başlatmanın kalan
+sayfaları eklenirken `add-source` 91 sn sonra 500 döndü, öğrenci "Dosyalar hazırlığa eklenemedi" gördü. Sebep: rota
+`loadScheduleTopics`'i kullanıcı kimliği olmadan çağırıyordu; kimlik varsayılanı boştu ve belge sorgusu #134'ten beri
+kullanıcıya göre süzülüyor → boş kimlik hiçbir belge bulamayıp `documents_unavailable` fırlatıyordu. Birim testleri bu
+fonksiyonu sahteyle değiştirdiği için görmedi. Kimlik artık **zorunlu parametre** (tip denetimi yakalar); öğretmen analizi
+en çok 15 sn beklenir, kalanı `after()` ile sürer (65 sayfanın analizi 90 sn'ydi); rota `maxDuration = 300`. Aynı belgeyle
+yerel kuru koşu: ana belgenin 38 konusundan baş kopyasının sayfalarındakiler hariç 27'si eklenir, 1'i birleşir.
+Aynı turda: konu listesi hazırlık adını bekliyor; 413 jetonluk ad çağrısı varsayılan düşünmeyle 11 sn sürdü (harita 11 sn'de
+bitmişti). Ad çağrısı düşük düşünmeyle, Plus/Sigma/kurucuda hızlı işlemle (`prep-title-run.ts`).
+Bekçi: `harita-hizi.test.ts` (örnekler tarih, iktisat, elektrik; "kalan sayfalar ve materyal ekle").
 
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 

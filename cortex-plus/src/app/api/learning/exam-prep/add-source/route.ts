@@ -31,6 +31,13 @@ const bodySchema = z
 
 /** Bu kadar yeni dosyaya kadar öğretmen analizi yanıttan önce beklenir; fazlası arka planda. */
 const ANALYSIS_INLINE_MAX = 3;
+/**
+ * Analizi en çok bu kadar bekle (31 Ekim 2026): 65 sayfalık belgenin analizi 90 sn sürdü, şerit o sürede "konular
+ * çıkarılıyor"da kaldı. Bitmezse arkada sürer; ilk ders onu zaten bekler (TEACHER_ANALYSIS_WAIT_MS).
+ */
+const ANALYSIS_INLINE_WAIT_MS = 15_000;
+
+export const maxDuration = 300;
 
 function asSources(value: unknown): TopicSourceRef[] {
   if (!Array.isArray(value)) return [];
@@ -99,13 +106,13 @@ export async function POST(request: Request) {
 
   // Öğretmen analizi: hazır satır varsa model çağrılmaz. Az dosyada yanıttan önce (eski davranış), çok dosyada arka
   // planda — belge işlenirken zaten başlamıştı; ilk ders onu bekler (TEACHER_ANALYSIS_WAIT_MS).
+  const analyses = ensureTeacherAnalyses(service, { userId, documentIds: newDocumentIds }).catch(() => undefined);
+  after(() => analyses);
   if (newDocumentIds.length <= ANALYSIS_INLINE_MAX) {
-    await ensureTeacherAnalyses(service, { userId, documentIds: newDocumentIds }).catch(() => undefined);
-  } else {
-    after(() => ensureTeacherAnalyses(service, { userId, documentIds: newDocumentIds }).catch(() => undefined));
+    await Promise.race([analyses, new Promise((resolve) => setTimeout(resolve, ANALYSIS_INLINE_WAIT_MS))]);
   }
 
-  const loaded = await loadScheduleTopics(service, newDocumentIds, []);
+  const loaded = await loadScheduleTopics(service, newDocumentIds, [], userId);
   // Hızlı başlatma (31 Ekim 2026): hazırlık belgenin baş kopyasıyla kurulduysa o sayfaların konuları zaten yolda;
   // ana belgeden yalnız sonraki sayfaların konuları eklenir.
   const headCoverage = await headCoverageFor(service, { userId, sourceDocumentIds: existingDocumentIds, documentIds: newDocumentIds });
