@@ -34,6 +34,7 @@ import {
 } from "@/lib/documents/outline-oversize";
 import { foldTr } from "@/lib/documents/page-analysis";
 import {
+  continuationBase,
   isCalloutLabel,
   isJunkTopicTitle,
   isRunningHeader,
@@ -131,7 +132,9 @@ const ITEM_LABEL =
   /^(?:soru|örnek|ornek|alıştırma|alistirma|test|etkinlik|uygulama|problem|şekil|sekil|tablo|resim|grafik|ek|example|exercise|question|figure|table)\s*\d+\b/iu;
 
 function classifyLine(raw: string, slideTitle: boolean): LineHeading | null {
-  const text = raw.trim().replace(/\s+/g, " ");
+  // Devam sayfasının başlığı ("Hücre Zarı (devam 2)") aynı başlıktır: anahtar ana başlığınki (31 Ekim 2026).
+  const spaced = raw.trim().replace(/\s+/g, " ");
+  const text = continuationBase(spaced) ?? spaced;
   if (!text || text.length > 90) return null;
   const bare = text.replace(MARKDOWN_PREFIX, "").replace(/\*\*/g, "").replace(NUMBER_PREFIX, "").trim();
   if (ITEM_LABEL.test(bare) || isJunkTopicTitle(normalizeTopicTitle(bare))) return null;
