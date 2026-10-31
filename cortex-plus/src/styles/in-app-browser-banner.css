@@ -1,0 +1,52 @@
+/*
+ * Uygulamanın tarayıcısı önerisi (31 Ekim 2026): sayfanın akışında, en üstte ince şerit. Sabit
+ * konumlu değil — oturum ekranlarının × ve geri düğmesinin üstüne binmesin. Renkler tokens.css'ten
+ * (koyu palet: yüzey #1f1f1f, çerçeve #242424); 375 px'te metin sarar, yana taşmaz.
+ */
+.cp-inapp-banner {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.45rem 0.5rem 0.45rem 0.875rem;
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-border);
+  font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
+}
+
+.cp-inapp-banner__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.cp-inapp-banner__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-muted);
+  cursor: pointer;
+}
+
+.cp-inapp-banner__close:hover,
+.cp-inapp-banner__close:focus-visible {
+  background: var(--c-surface-3);
+  color: var(--c-text);
+}
+
+.cp-inapp-banner__icon {
+  width: 1rem;
+  height: 1rem;
+}

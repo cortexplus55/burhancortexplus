@@ -2,6 +2,9 @@
 
 /* Tokenler src/styles/tokens.css'te. Burada yeniden tanımlanmaz. */
 .cp-sor-root {
+  /* dvh desteklemeyen eski tarayıcı için önce vh (31 Ekim 2026); dvh klavye ve tarayıcı çubuğuyla
+     görünen alanı izler, sohbet ve sınav düğmeleri ekranın altında kalmasın. */
+  min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -7770,7 +7773,9 @@
 */
 @media (max-width: 640px) {
   .cp-sor-root:has(.cp-sor-composer-zone--aside) {
+    height: 100vh;
     height: 100dvh;
+    max-height: 100vh;
     max-height: 100dvh;
     overflow: hidden;
   }
@@ -8786,6 +8791,7 @@
   --cp-surface: #202022;
   --cp-muted: #9aa3b8;
   background: #111112;
+  height: 100vh;
   height: 100dvh;
   overflow: hidden;
 }

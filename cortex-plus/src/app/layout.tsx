@@ -6,6 +6,7 @@ import "katex/dist/katex.min.css";
 // Premium tasarım sistemi (sınıflar; token kaynağı tokens.css).
 import "@/styles/premium-design-system.css";
 import { Providers } from "@/components/providers";
+import { InAppBrowserBanner } from "@/components/layout/in-app-browser-banner";
 import { logSchemaGaps } from "@/lib/admin/schema-probe";
 
 const figtree = Figtree({
@@ -121,7 +122,11 @@ export default function RootLayout({
       <body
         className={`${figtree.variable} ${dmSerif.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${jersey.variable} ${caveat.variable} min-h-screen antialiased bg-background text-foreground`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          {/* Instagram / Facebook / TikTok / WhatsApp tarayıcısında "tarayıcıda aç" şeridi (31 Ekim 2026). */}
+          <InAppBrowserBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );

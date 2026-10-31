@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { COMPLETE_TIMEOUT_MS, SAVE_RETRY_DELAYS_MS, SAVE_TIMEOUT_MS, fetchWithRetry, isTransportFailure } from "@/lib/learning/retry-fetch";
-import { answerSaveSummary, clearAttemptDraft, diffAnswerKeys, markAttemptDraftSaved, mergeDraftIntoServer, readAttemptDraft, writeAttemptDraft } from "@/lib/learning/attempt-draft";
+import { answerSaveSummary, clearAttemptDraft, countAnswerKeys, diffAnswerKeys, markAttemptDraftSaved, mergeDraftIntoServer, readAttemptDraft, writeAttemptDraft } from "@/lib/learning/attempt-draft";
 import { describeGenerationFailure, generationFailureCode, type GenerationFailure } from "@/lib/learning/generation-failure";
 import { useIsFounder, useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { creditGateCopy } from "@/lib/billing/free-reach";
@@ -433,12 +433,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
 
   // Sayfadan çıkış uyarısı yalnız gerçekten kaydedilmemiş cevap varken (30 Ekim 2026): kayıt süren
   // ya da düşen cevaplar. Sonuç beklenirken cevaplar sunucuda, uyarı yok.
+  // Test sürerken de (31 Ekim 2026, ürün sahibinin kararı): konu testi ve yazılı denemede en az bir
+  // cevap verilip bitirilmemişse geri tuşu / yenileme sorulur. Cevaplar kayıtlı olsa da yarım test
+  // yanlışlıkla bırakılmasın; bitirince (sonuç, bekleme) uyarı kalkar.
+  const testInProgress = stage === "play" && payload.type === "quiz" && countAnswerKeys(answers) > 0;
   useEffect(() => {
-    if (!(pendingSaves > 0 || unsavedCount > 0) || stage === "grading" || stage === "result") return;
+    if (!(pendingSaves > 0 || unsavedCount > 0 || testInProgress) || stage === "grading" || stage === "result") return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [pendingSaves, unsavedCount, stage]);
+  }, [pendingSaves, unsavedCount, stage, testInProgress]);
 
   useEffect(() => {
     contentVersionRef.current = contentVersion;
@@ -688,6 +692,16 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     [],
   );
 
+  // Testte kaldığı soru (31 Ekim 2026): "Sonraki soru" yalnız ekranı değiştiriyordu, kayıt ancak yeni
+  // cevapla gidiyordu; yenilenen test cevaplanmış önceki soruda açılıyordu. Soru ilerleyince taslak
+  // hemen, sunucu kısa beklemeyle aynı cevaplar ve yeni soruyla yazılır.
+  useEffect(() => {
+    if (stage !== "play" || payload.type !== "quiz" || index <= saveCursorRef.current) return;
+    scheduleSave(answersRef.current, index);
+    // Yalnız soru değişince; kayıt işlevleri güncel durumu ref'ten okur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, stage, payload.type]);
+
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
     const interval = setInterval(() => {
@@ -765,6 +779,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     savedAnswersRef.current = serverAnswers;
     let nextAnswers = serverAnswers;
     let nextCursor = typeof data.cursorIndex === "number" ? data.cursorIndex : 0;
+    let cursorFromDraft = false;
     // Tarayıcı taslağı (30 Ekim 2026): kayıt isteği askıda kalıp sayfa yenilendiyse cevaplar burada.
     // Sunucu kaydı taslaktan eskiyse taslağın anahtarları üstün gelir ve hemen kaydedilir.
     if (resumeEnabled && data.attemptId) {
@@ -776,6 +791,10 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         nextAnswers = merged.answers;
         nextCursor = merged.cursor;
         setDraftRestored(merged.restored.filter((key) => /^\d+$/.test(key)).length || merged.restored.length);
+      } else if (data.payload?.type === "quiz" && merged.cursor > nextCursor) {
+        // Testte yalnız soru ilerlemiş (31 Ekim 2026): yenilenen test kaldığı soruda açılır.
+        nextCursor = merged.cursor;
+        cursorFromDraft = true;
       }
     }
     saveCursorRef.current = nextCursor;
@@ -788,7 +807,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       answersRef.current = nextAnswers;
     }
     refreshUnsaved(nextAnswers);
-    if (typeof data.cursorIndex === "number" || nextAnswers !== serverAnswers) {
+    if (typeof data.cursorIndex === "number" || nextAnswers !== serverAnswers || cursorFromDraft) {
       setIndex((current) => Math.max(current, nextCursor));
     }
     if (nextAnswers !== serverAnswers) {

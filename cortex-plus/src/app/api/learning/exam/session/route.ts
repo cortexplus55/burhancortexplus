@@ -8,6 +8,7 @@ import {
   examDeadlineFromDuration,
   remainingExamSeconds,
 } from "@/lib/learning/mock-exam";
+import { splitExamDraftMeta, withExamDraftMeta } from "@/lib/learning/mock-exam/exam-draft";
 
 const startSchema = z.object({
   examId: z.string().uuid(),
@@ -54,11 +55,16 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
 
+    // Kaldığı soru ve kayıt anı (31 Ekim 2026): `cursorIndex` geliyordu ama yazılmıyordu; yenilenen
+    // deneme 1. sorudan açılıyordu. Göçsüz: cevap kümesinin `__meta` anahtarında (`exam-draft.ts`).
+    const savedAt = new Date().toISOString();
+    const answers = withExamDraftMeta(parsed.data.answers, { cursor: parsed.data.cursorIndex, savedAt });
+
     if (open) {
       await service
         .from("practice_exam_attempts")
         .update({
-          answers: parsed.data.answers,
+          answers,
           flagged_ids: parsed.data.flaggedIds ?? null,
         })
         .eq("id", open.id);
@@ -66,13 +72,14 @@ export async function POST(request: Request) {
       await service.from("practice_exam_attempts").insert({
         exam_id: parsed.data.examId,
         user_id: userId,
-        answers: parsed.data.answers,
+        answers,
         flagged_ids: parsed.data.flaggedIds ?? null,
       });
     }
 
     return NextResponse.json({
       ok: true,
+      savedAt,
       timeLeftSec: remainingExamSeconds(exam.deadline_at as string | null),
     });
   }
@@ -119,13 +126,18 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
+  // Taslak: cevaplar, kaldığı soru ve son kayıt anı; ekran tarayıcı taslağıyla karşılaştırıp yenisini alır.
+  const saved = splitExamDraftMeta(draft?.answers);
+
   return NextResponse.json({
     ok: true,
     startedAt,
     deadlineAt,
     untimed,
     timeLeftSec: untimed ? null : remainingExamSeconds(deadlineAt),
-    answers: (draft?.answers as Record<string, unknown>) ?? {},
+    answers: saved.answers,
     flaggedIds: (draft?.flagged_ids as string[]) ?? [],
+    cursorIndex: saved.cursor,
+    updatedAt: saved.updatedAt,
   });
 }
