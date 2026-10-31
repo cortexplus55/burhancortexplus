@@ -1,4 +1,5 @@
-import { ADAPTIVE_KINDS, ADAPT_MIN_ITEMS } from "@/lib/learning/path-change";
+import { ADAPT_MIN_ITEMS } from "@/lib/learning/path-change";
+import { istanbulDay } from "@/lib/istanbul-day";
 import { whatsappShareHref } from "@/lib/learning/duel-share";
 
 /**
@@ -7,10 +8,13 @@ import { whatsappShareHref } from "@/lib/learning/duel-share";
  * içinde durur (`examResult`, sınav saati gibi; `parseLearningPreferences` korur). "Notum henüz açıklanmadı" soruyu
  * üç gün erteler (`examResultSnoozedUntil`). Saf modül: istemci de okur.
  *
- * Başlangıç seviyesi (deterministik, kayıttan): önce hazırlığın tamamlanmış seviye tespiti (en az 3 soru), yoksa
- * yolda ilk tamamlanan puanlı adım (konu testi, doğru/yanlış, sözlü, soru-cevap; en az 3 soru — yolun kendini
- * ayarladığı adımlarla aynı küme, `ADAPTIVE_KINDS`). İkisi de yoksa başlangıç yazılmaz, yalnız not görünür.
- * Başlangıç not kaydedilirken donar: sonradan eklenen kayıt kartı değiştirmez.
+ * Başlangıç seviyesi (deterministik, kayıttan; Paket J takip #2, 1 Kasım 2026): önce hazırlığın tamamlanmış seviye
+ * tespiti (en az 3 soru), yoksa öğrencinin bu hazırlıkta puanlı bir etkinlik bitirdiği İLK GÜNÜN (İstanbul) ortalaması:
+ * o günün bütün tamamlanmış, puanlı kayıtları (tür fark etmez: ders kontrolleri, test, doğru/yanlış, sözlü, kart…),
+ * her kayıt eşit ağırlıkta (yüzdelerin ortalaması; 80 kartlık tekrar 5 soruluk testi ezmesin). En az 2 maddelik kayıt
+ * sayılır: 1/1 kayıtlar (dinledi, hazır) ölçüm değil, bitirme işaretidir — uydurma %100 yazılmaz. Hiç puanlı kayıt
+ * yoksa başlangıç yazılmaz, yalnız not görünür. Hazırlık skoru anlık görüntüsü şemada yok (o yüzden üçüncü kaynak yok).
+ * Kaydedilmiş, başlangıcı boş not okunurken yeniden hesaplanır (hazırlık sayfası).
  */
 
 export const EXAM_RESULT_ASK = "Sınavın nasıl geçti? Notunu yaz";
@@ -18,8 +22,12 @@ export const EXAM_RESULT_LATER = "Notum henüz açıklanmadı";
 export const EXAM_RESULT_SAVE = "Kartımı oluştur";
 export const EXAM_RESULT_SNOOZE_DAYS = 3;
 
-export type ExamBaselineSource = "level" | "first_test";
-export type ExamBaseline = { pct: number; source: ExamBaselineSource };
+/** `level`: seviye tespiti; `first_day_activity`: ilk çalışma gününün ortalaması; `first_test`: eski kayıtlar. */
+export type ExamBaselineSource = "level" | "first_day_activity" | "first_test";
+export type ExamBaseline = { pct: number; source: ExamBaselineSource; count?: number };
+const BASELINE_SOURCES: readonly ExamBaselineSource[] = ["level", "first_day_activity", "first_test"];
+/** İlk gün ortalamasına giren kaydın en az madde sayısı (1/1 bitirme işareti ölçüm sayılmaz). */
+export const FIRST_DAY_MIN_ITEMS = 2;
 export type StoredExamResult = { score: number; at: string; baselinePct: number | null; baselineSource: ExamBaselineSource | null };
 export type ExamResultTrend = "up" | "same" | "down" | "none";
 
@@ -42,7 +50,9 @@ export function parseStoredExamResult(raw: unknown): StoredExamResult | undefine
   if (score == null) return undefined;
   const at = typeof row.at === "string" && !Number.isNaN(Date.parse(row.at)) ? row.at : "";
   const baselinePct = pctOrNull(row.baselinePct);
-  const baselineSource = row.baselineSource === "level" || row.baselineSource === "first_test" ? row.baselineSource : null;
+  const baselineSource = BASELINE_SOURCES.includes(row.baselineSource as ExamBaselineSource)
+    ? (row.baselineSource as ExamBaselineSource)
+    : null;
   return { score, at, baselinePct, baselineSource: baselinePct == null ? null : baselineSource };
 }
 
@@ -63,10 +73,21 @@ export function chooseExamBaseline(input: {
 }): ExamBaseline | null {
   const level = pct(input.intro?.score, input.intro?.total);
   if (level != null) return { pct: level, source: "level" };
-  const first = [...input.attempts]
-    .filter((row) => ADAPTIVE_KINDS.has(row.kind) && pct(row.score, row.total) != null)
-    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))[0];
-  return first ? { pct: pct(first.score, first.total)!, source: "first_test" } : null;
+  const scored = input.attempts
+    .filter(
+      (row) =>
+        typeof row.score === "number" &&
+        typeof row.total === "number" &&
+        row.total >= FIRST_DAY_MIN_ITEMS &&
+        row.score >= 0 &&
+        !Number.isNaN(Date.parse(row.createdAt)),
+    )
+    .map((row) => ({ day: istanbulDay(new Date(row.createdAt)), pct: Math.min(100, (row.score! / row.total!) * 100) }));
+  if (!scored.length) return null;
+  const firstDay = scored.reduce((min, row) => (row.day < min ? row.day : min), scored[0].day);
+  const sameDay = scored.filter((row) => row.day === firstDay);
+  const avg = Math.round(sameDay.reduce((sum, row) => sum + row.pct, 0) / sameDay.length);
+  return { pct: Math.max(0, Math.min(100, avg)), source: "first_day_activity", count: sameDay.length };
 }
 
 export function examResultTrend(baselinePct: number | null, score: number): ExamResultTrend {
@@ -89,11 +110,19 @@ export function examResultCardText(input: { baselinePct: number | null; score: n
   return head;
 }
 
-export function examResultSubline(trend: ExamResultTrend): string {
-  if (trend === "up") return "Emeğin karşılığını aldın. Kartı sınıf grubuna atabilirsin.";
-  if (trend === "same") return "Seviyeni sınav gününe kadar taşıdın.";
-  if (trend === "down") return "Bu sınav istediğin gibi geçmemiş olabilir; bir dahaki sınava birlikte daha güçlü hazırlanırız.";
-  return "Notun kaydedildi. Başlangıç ölçümün olmadığı için karşılaştırma yok.";
+export function examResultSubline(trend: ExamResultTrend, source?: ExamBaselineSource | null): string {
+  const from =
+    trend === "none" || !source
+      ? ""
+      : source === "level"
+        ? " Başlangıç: seviye tespitin."
+        : source === "first_day_activity"
+          ? " Başlangıç: bu hazırlıkta çalıştığın ilk günün ortalaması."
+          : " Başlangıç: bu hazırlıkta çözdüğün ilk test.";
+  if (trend === "up") return `Emeğin karşılığını aldın. Kartı sınıf grubuna atabilirsin.${from}`;
+  if (trend === "same") return `Seviyeni sınav gününe kadar taşıdın.${from}`;
+  if (trend === "down") return `Bu sınav istediğin gibi geçmemiş olabilir; bir dahaki sınava birlikte daha güçlü hazırlanırız.${from}`;
+  return "Notun kaydedildi. Bu hazırlıkta puanlı bir etkinlik çözülmediği için başlangıçla karşılaştırma yok.";
 }
 
 /** Düşüş kartı paylaşıma açılmaz: öğrenci kendini kötü hissettiren bir kartı gruba atmaya yönlendirilmez. */

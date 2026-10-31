@@ -1,10 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { chooseExamBaseline, type BaselineAttempt, type ExamBaseline } from "@/lib/learning/exam-result";
+import { FIRST_DAY_MIN_ITEMS, chooseExamBaseline, type BaselineAttempt, type ExamBaseline } from "@/lib/learning/exam-result";
 
 /**
  * Başlangıç seviyesinin kayıtları (31 Ekim 2026, Paket J3 #14): hazırlığın ilk tamamlanan seviye tespiti ve yolda
- * ilk tamamlanan puanlı adımlar. Karar `chooseExamBaseline`'da (saf). Okuma düşerse null: kart yalnız notu yazar.
+ * puanlı ilk çalışma gününün kayıtları (tür fark etmez). Karar `chooseExamBaseline`'da (saf). Okuma düşerse null: kart yalnız notu yazar.
  */
 export async function loadExamBaseline(
   client: SupabaseClient,
@@ -28,9 +28,9 @@ export async function loadExamBaseline(
         .eq("exam_prep_id", input.prepId)
         .eq("user_id", input.userId)
         .eq("status", "completed")
-        .gte("total", 3)
+        .gte("total", FIRST_DAY_MIN_ITEMS)
         .order("created_at", { ascending: true })
-        .limit(40),
+        .limit(200),
       client.from("exam_prep_nodes").select("id, kind").eq("exam_prep_id", input.prepId),
     ]);
     const kindOf = new Map(((nodes ?? []) as { id: string; kind: string }[]).map((node) => [node.id, node.kind] as const));

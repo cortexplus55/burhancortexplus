@@ -46,6 +46,7 @@ import {
   examResultDue,
   examResultShareable,
   examResultTrend,
+  examResultSubline,
   examResultWhatsappHref,
   parseExamScore,
   parseStoredExamResult,
@@ -394,16 +395,33 @@ describe("Paket J3 #14 · sınav sonrası başarı kartı", () => {
     expect(text).toBe("🎓 Başlangıç: %42 → Sınav Notu: 88 (+46 Puan Artış!) Cortex Plus ile hazırlandım. https://cortexplus.app/");
   });
 
-  it("başlangıç: önce seviye tespiti, yoksa ilk puanlı adım (en az 3 soru), yoksa yok", () => {
+  it("başlangıç: önce seviye tespiti, yoksa puanlı etkinliğin ilk gününün ortalaması (en az 2 soru), yoksa yok", () => {
     const attempts = [
       { kind: "lesson", score: 1, total: 4, createdAt: "2026-10-01T08:00:00Z" },
-      { kind: "quiz", score: 2, total: 2, createdAt: "2026-10-02T08:00:00Z" },
+      { kind: "quiz", score: 2, total: 2, createdAt: "2026-10-01T18:00:00Z" },
       { kind: "true_false", score: 6, total: 10, createdAt: "2026-10-04T08:00:00Z" },
       { kind: "quiz", score: 4, total: 5, createdAt: "2026-10-03T08:00:00Z" },
     ];
     expect(chooseExamBaseline({ intro: { score: 5, total: 12 }, attempts })).toEqual({ pct: 42, source: "level" });
-    expect(chooseExamBaseline({ intro: { score: 1, total: 2 }, attempts })).toEqual({ pct: 80, source: "first_test" });
-    expect(chooseExamBaseline({ intro: null, attempts: attempts.slice(0, 2) })).toBeNull();
+    // 1 Ekim (İstanbul): %25 ve %100 → ortalama %63 (yüzdelerin ortalaması; ölçekler farklı olabilir).
+    expect(chooseExamBaseline({ intro: { score: 1, total: 2 }, attempts })).toEqual({ pct: 63, source: "first_day_activity", count: 2 });
+    // İstanbul günü: 30 Eyl 22:30Z = 1 Ekim 01:30 İstanbul, ilk güne girer.
+    expect(
+      chooseExamBaseline({ intro: null, attempts: [...attempts, { kind: "lesson", score: 0, total: 3, createdAt: "2026-09-30T22:30:00Z" }] }),
+    ).toEqual({ pct: 42, source: "first_day_activity", count: 3 });
+    // 1/1 tamamlama işaretleri ve puansız satırlar sayılmaz: sayı uydurulmaz.
+    expect(chooseExamBaseline({ intro: null, attempts: [{ kind: "podcast", score: 1, total: 1, createdAt: "2026-10-01T08:00:00Z" }] })).toBeNull();
+    expect(chooseExamBaseline({ intro: null, attempts: [] })).toBeNull();
+  });
+
+  it("başlangıç kaynağı sade Türkçe; puanlı etkinlik yoksa dürüst satır", () => {
+    expect(examResultSubline("up", "level")).toContain("Başlangıç: seviye tespitin.");
+    expect(examResultSubline("up", "first_day_activity")).toContain("Başlangıç: bu hazırlıkta çalıştığın ilk günün ortalaması.");
+    expect(examResultSubline("none", null)).toContain("puanlı bir etkinlik çözülmediği için");
+    expect(examResultSubline("none", null)).not.toMatch(/%\d/);
+    expect(examResultCardText({ baselinePct: 63, score: 63 })).toBe("🎓 Başlangıç: %63 → Sınav Notu: 63 (Başladığın seviyeyi korudun)");
+    expect(examResultCardText({ baselinePct: 70, score: 60 })).toBe("🎓 Başlangıç: %70 → Sınav Notu: 60");
+    expect(parseStoredExamResult({ score: 80, at: "", baselinePct: 63, baselineSource: "first_day_activity" })?.baselineSource).toBe("first_day_activity");
   });
 
   it("ne zaman sorulur: sınav günü geçti, not yok, erteleme bitti", () => {
