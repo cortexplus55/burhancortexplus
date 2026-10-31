@@ -22,6 +22,7 @@ import type {
 import { TEACHING_MODES, DIFFICULTY_LEVELS } from "@/lib/adaptive/types";
 import type { UsageCode } from "@/lib/credits/service";
 import { env } from "@/lib/env";
+import { parseModelOutput } from "@/lib/ai/json-repair";
 
 const DecisionSchema = z
   .object({
@@ -214,12 +215,12 @@ function acceptDecision(
 ): Record<string, unknown> | null {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(rawText);
+    parsed = parseModelOutput(rawText);
   } catch {
     const match = rawText.match(/\{[\s\S]*\}/);
     if (!match) return null;
     try {
-      parsed = JSON.parse(match[0]);
+      parsed = parseModelOutput(match[0]);
     } catch {
       return null;
     }

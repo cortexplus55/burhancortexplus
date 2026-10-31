@@ -1806,3 +1806,11 @@ motor girdileri, `after` işleri, günlük satırları — anlık görüntü; de
 `node-session-lifecycle.test.tsx` (açılış bir kez, yenilemede aşama, bitir → sonuç, bekleme ve yoklama, tekrarla),
 `node-modules-layout.test.ts` (düzen). Kaynak okuyan bekçiler `tests/unit/helpers/node-sources.ts` → `readSource` ile
 okur: `route.ts` ya da `exam-node-session.tsx` istenince dosya ve modül klasörü birlikte döner.
+
+## Paket J denetimi (31 Ekim 2026) — 14 maddenin kodla karşılaştırılması, eksiklerin tamamlanması
+
+- **#7 başlık:** pencereli kitap şeridi başlığı `pendingWindowTitle(attached,total)` → "⚡ Kitabın işleniyor: X / N sayfa yoluna eklendi…".
+- **#8 zaman aşımı yedeği:** `guardedFetch` yedeğe geçebilen (sohbet/içerik) istekte birincil modele yanıt başlığı için süre tanır, başlık gelmezse yedeğe "timeout" ile geçer. Akışlı istek: `OPENAI_FAILOVER_AFTER_MS` (varsayılan **30000**, generate.ts `STREAM_STALL_MS` ile aynı "30 sn ses yoksa ölü" eşiği; akışta başlık iş başlarken gelir, uzun gövde kesilmez). Akışsız istek: başlık = üretimin sonu, bu yüzden çağrının kendi zaman aşımının %60'ı (`X-Stainless-Timeout`, en az 10 sn; 25 sn → 15 sn, 90 sn → 54 sn); süresi bilinmeyen akışsız istekte süre yok. `off`/`0` ikisini de kapatır. Bu, J2 #8'deki "SDK zaman aşımıyla kesilen istek geçmez" kuralını bilerek değiştirir: yedek SDK süresi dolmadan devreye girer. Süre başlıklar gelince biter; çağıranın iptali gövdeyi kesmeye devam eder ve yedeğe geçirmez. Model JSON'u `parseModelOutput` ile (önce JSON.parse, sonra `repairTruncatedJson`) okunur; taslak tamlık denetimi yapan `validation-pipeline`/`generate.ts` bilerek dışarıda.
+- **#9 çift sekme:** podcast ve video kredi anahtarı rastgele değil `deterministicCreditKey` (`lib/credits/slot-key.ts`): aynı istek aynı `…:slotN` anahtarını alır; kesinleşen her üretim sırayı bir ilerletir.
+- **#13 not denetimi:** katalog (`formula-typos`) konuya özgü kaldı; üstüne genel model katmanı `note-rule-check(-run).ts` (`NOTE_RULE_CHECK=off` kapatır, 15 sn, asla fırlatmaz, en çok 3 uyarı, `found` notta birebir geçmeli).
+- **E2E fikstürleri:** `/e2e/paket-j` (şerit `EmailVerifyBanner preview`, duvar, hata bildir, ikiz soru, `CramSheetView`), `/e2e/odeme` (ödeme yoklaması); `tests/e2e/paket-j.spec.ts` (8 test, ağ `page.route`).

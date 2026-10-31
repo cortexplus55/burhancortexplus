@@ -1,3 +1,4 @@
+import { deterministicCreditKey } from "@/lib/credits/slot-key";
 import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -203,7 +204,13 @@ export async function POST(request: Request) {
       length,
       userId,
       actionCode: "PODCAST_GENERATE",
-      idempotencyKey: `podcast:${userId}:${prepId}:${topicId}:${length}:${requestId ?? crypto.randomUUID()}`,
+      // Belirlenimli anahtar (Paket J denetimi #9): iki sekme aynı podcast'i isteyince tek kesinti.
+      idempotencyKey: await deterministicCreditKey(
+        service,
+        userId,
+        `podcast:${userId}:${prepId}:${topicId}:${length}:${withCheck ? "check" : "plain"}`,
+        () => requestId ?? crypto.randomUUID(),
+      ),
       topicLabel: topic.label,
       prepTitle: prep.title ?? "Hazırlık",
       pages: clean.map((item) => ({ page: item.page, text: item.text })),

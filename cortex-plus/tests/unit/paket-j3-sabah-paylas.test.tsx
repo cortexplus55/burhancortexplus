@@ -267,7 +267,9 @@ describe("Paket J3 #14 · sınav sabahı kâğıdı", () => {
     expect(css).not.toMatch(/^\s*body \* \{/m);
     expect(css).toContain("body:has(.cp-cram-sheet) * {");
     expect(css).toContain("body:has(.cp-cram-sheet) .cp-cram-sheet *");
-    expect(page).toContain('className="cp-cram cp-cram-sheet"');
+    // Kâğıdın gövdesi ayrı bileşende (uçtan uca fikstür de aynı bileşeni çizer); sayfa onu çağırır.
+    expect(page).toContain("<CramSheetView");
+    expect(read("src/components/parity/cram-sheet-view.tsx")).toContain('className="cp-cram cp-cram-sheet"');
     expect(read("src/components/parity/prep-share-tools.tsx")).toContain("{CRAM_SHEET_TITLE}");
   });
 });

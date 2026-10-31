@@ -519,10 +519,11 @@ describe("konu testi · Kimya: test sürerken çıkış sorulur, kaldığı soru
 /* ───────────── B · Telefonda klavye: 100dvh ───────────── */
 
 describe("sohbet, sözlü ve deneme ekranları dinamik görünüm yüksekliğinde", () => {
-  it("deneme ekranı 100vh değil 100dvh", () => {
+  it("deneme ekranı 100dvh; 100vh yalnız dvh desteklemeyen tarayıcıya yedek", () => {
     const runner = read("src/components/parity/exam-runner.tsx");
     expect(runner).toContain("min-h-[calc(100dvh-120px)]");
-    expect(runner).not.toMatch(/calc\(100vh|\bh-screen\b|\bmin-h-screen\b/);
+    expect(runner).toContain("min-h-[calc(100vh-120px)] supports-[height:100dvh]:");
+    expect(runner.replace("min-h-[calc(100vh-120px)] supports-", "")).not.toMatch(/calc\(100vh|\bh-screen\b|\bmin-h-screen\b/);
   });
 
   it("sohbet ve sınav sohbeti kabuğu: önce vh (eski tarayıcı), sonra dvh", () => {
