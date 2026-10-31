@@ -40,6 +40,41 @@ afterEach(() => {
 });
 
 describe("bekleyen materyal şeridi", () => {
+  it("açılışta bekleyen yoksa (sunucu 0 dedi) istek atmaz ve çizmez", async () => {
+    const calls = mockFetch(() => ({ status: 200, body: { materials: [] } }));
+    const { container } = render(<PendingMaterialsBanner prepId={PREP} initialPending={0} />);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(calls).toHaveLength(0);
+    expect(container.textContent).toBe("");
+  });
+
+  it("eklendi bildirimi sayfa yenilenip bekleyen 0 olsa da görünür kalır, sonra kalkar", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let listed = 0;
+    mockFetch((call) => {
+      if (call.url.startsWith("/api/learning/exam-prep/pending-materials")) {
+        listed += 1;
+        return { status: 200, body: { materials: listed === 1 ? [{ documentId: DOC, fileName: "a.pdf", status: "completed", error: null, pagesDone: 20, pageCount: 20 }] : [] } };
+      }
+      if (call.url === "/api/documents/process") {
+        return call.body?.courseDocumentIds
+          ? { status: 200, body: { documentId: DOC, status: "completed", topics: 3 } }
+          : { status: 200, body: { documentId: DOC, status: "completed", mapDeferred: true, pageCount: 20 } };
+      }
+      if (call.url === "/api/learning/exam-prep/add-source") return { status: 200, body: { ok: true, addedDocuments: 1, addedTopics: 27, mergedTopics: 0 } };
+      return { status: 404, body: {} };
+    });
+    const view = render(<PendingMaterialsBanner prepId={PREP} initialPending={1} />);
+    expect(await screen.findByText("✓ Kalan tüm sayfalar ve 27 yeni konu çalışma yoluna eklendi!")).toBeTruthy();
+    // Sayfa yenilendi: sunucu artık bekleyen 0 diyor; şerit aynı yerde kalır ve bildirim durur.
+    view.rerender(<PendingMaterialsBanner prepId={PREP} initialPending={0} />);
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(screen.getByText("✓ Kalan tüm sayfalar ve 27 yeni konu çalışma yoluna eklendi!")).toBeTruthy();
+    await vi.advanceTimersByTimeAsync(2_500);
+    expect(screen.queryByText(/çalışma yoluna eklendi/)).toBeNull();
+    vi.useRealTimers();
+  });
+
   it("bekleyen yoksa çizilmez", async () => {
     const calls = mockFetch(() => ({ status: 200, body: { materials: [] } }));
     const { container } = render(<PendingMaterialsBanner prepId={PREP} />);
@@ -72,8 +107,8 @@ describe("bekleyen materyal şeridi", () => {
       return { status: 404, body: {} };
     });
     render(<PendingMaterialsBanner prepId={PREP} />);
-    expect(await screen.findByText("✓ Kalan sayfalar yoluna eklendi")).toBeTruthy();
-    expect(screen.getByText("Eklendi. 3 yeni konu, 1 konuda yeni kaynak. İlerlemen duruyor.")).toBeTruthy();
+    expect(await screen.findByText("✓ Kalan tüm sayfalar ve 3 yeni konu çalışma yoluna eklendi!")).toBeTruthy();
+    expect(screen.getByText("1 konuya yeni kaynak eklendi. İlerlemen duruyor.")).toBeTruthy();
     const process = calls.filter((call) => call.url === "/api/documents/process");
     expect(process[0]!.body).toMatchObject({ documentId: DOC, prepId: PREP, deferMap: true });
     expect(process.at(-1)!.body).toMatchObject({ courseDocumentIds: [DOC], prepId: PREP, retryMap: true });

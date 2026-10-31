@@ -4,14 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/process-session";
 import { messageFromProcessBody } from "@/lib/documents/process-user-message";
-import { attachedLine, mapAndAttach } from "@/lib/documents/prep-attach-client";
+import { mapAndAttach } from "@/lib/documents/prep-attach-client";
 import { runPool } from "@/lib/documents/upload-batch";
 import { useScreenAwake } from "@/lib/documents/use-universal-upload";
 import {
-  PENDING_DONE_TITLE,
+  PENDING_DONE_VISIBLE_MS,
   PENDING_MAPPING_LINE,
   PENDING_STALLED_LINE,
   PENDING_TITLE,
+  pendingDoneLine,
+  pendingDoneTitle,
   pendingFailedLine,
   pendingProgress,
   pendingReadingLine,
@@ -65,12 +67,19 @@ function dropLock(prepId: string, owner: string) {
  * arkada işlensin"). Kurulum hazır olan materyalle kuruldu; okunmakta olan belgeler hazırlığa bekleyen olarak bağlı.
  * Şerit onları okutur (sekme kapanmışsa kaldığı yerden), sonra hazırlığın konu adlarıyla tek harita çıkarıp yoluna
  * ekler ("materyal ekle" ile aynı yol). Bekleyen belge yoksa hiçbir şey çizmez.
+ *
+ * Hazırlık sayfası şeridi her zaman bağlar (31 Ekim 2026): bekleyen yoksa (`initialPending` 0) istek atmaz ve çizmez. Önce
+ * yalnız bekleyen varken bağlanıyordu; ekleme bitince sayfa yenilenip bekleyen 0 olunca şerit kaldırılıyor, "eklendi"
+ * bildirimi hiç görünmüyordu.
  */
-export function PendingMaterialsBanner({ prepId }: { prepId: string }) {
+export function PendingMaterialsBanner({ prepId, initialPending }: { prepId: string; initialPending?: number }) {
   const router = useRouter();
   const [items, setItems] = useState<Pending[]>([]);
   const [phase, setPhase] = useState<"idle" | "reading" | "mapping" | "done" | "failed">("idle");
   const [line, setLine] = useState<string | null>(null);
+  const [doneTitle, setDoneTitle] = useState<string | null>(null);
+  /** Açılışta bekleyen yoksa şerit hiç çalışmaz; sonradan 0 gelmesi süren işi durdurmaz. */
+  const watching = useRef(initialPending === undefined || initialPending > 0);
   const [failedNames, setFailedNames] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const local = useRef(new Map<string, { done: number; total: number }>());
@@ -142,7 +151,8 @@ export function PendingMaterialsBanner({ prepId }: { prepId: string }) {
           setLine(outcome.error);
           return;
         }
-        setLine(refusal ? `${attachedLine(outcome)} ${refusal}` : attachedLine(outcome));
+        setDoneTitle(pendingDoneTitle(outcome.addedTopics));
+        setLine(refusal ? `${pendingDoneLine(outcome.mergedTopics)} ${refusal}` : pendingDoneLine(outcome.mergedTopics));
         setPhase(failed.length ? "failed" : "done");
         setFailedNames(failed);
         router.refresh();
@@ -165,6 +175,7 @@ export function PendingMaterialsBanner({ prepId }: { prepId: string }) {
   useEffect(() => {
     alive.current = true;
     let timer: ReturnType<typeof setInterval> | null = null;
+    if (!watching.current) return;
     void load().then((list) => {
       if (!alive.current) return;
       setItems(list);
@@ -192,6 +203,18 @@ export function PendingMaterialsBanner({ prepId }: { prepId: string }) {
     };
   }, [drive, load, router]);
 
+  // Bitiş bildirimi en az 8 sn görünür, sonra şerit kalkar (yeni konular yolda zaten görünüyor).
+  useEffect(() => {
+    if (phase !== "done") return;
+    const timer = setTimeout(() => {
+      if (!alive.current) return;
+      setPhase("idle");
+      setDoneTitle(null);
+      setLine(null);
+    }, PENDING_DONE_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
   async function dismiss() {
     setBusy(true);
     try {
@@ -214,7 +237,7 @@ export function PendingMaterialsBanner({ prepId }: { prepId: string }) {
   if (phase === "done") {
     return (
       <section className="cp-pending-materials cp-pending-materials--done" role="status" aria-live="polite">
-        <p className="cp-pending-materials-title">{PENDING_DONE_TITLE}</p>
+        <p className="cp-pending-materials-title">{doneTitle}</p>
         {line ? <p className="cp-pending-materials-line">{line}</p> : null}
       </section>
     );

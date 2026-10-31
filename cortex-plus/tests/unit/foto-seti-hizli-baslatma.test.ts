@@ -236,9 +236,10 @@ describe("bağlantılar (kaynak bekçisi)", () => {
     expect(ingestion).toContain("photoPages ? OCR_PAGE_CONCURRENCY : OCR_START_CONCURRENCY");
   });
 
-  it("konu haritası yalnız kurulumda (prepId yok) ve hızlı işlem açıkken hızlı", () => {
+  it("kurs haritası (kurulum ve sonradan eklenen) hızlı işlem açıkken hızlı", () => {
     const route = read("src/app/api/documents/process/route.ts");
-    expect(route).toContain("fast: Boolean(course) && !parsed.data.prepId && await fastAllowedFor(service, userId)");
+    // 31 Ekim 2026 (ikinci tur): sonradan eklenen materyalin (prepId) haritasını da öğrenci şeritte bekliyor.
+    expect(route).toContain("fast: await fastAllowedFor(service, userId),");
     const generate = read("src/lib/ai/generate.ts");
     expect(generate.match(/\.\.\.tier,/g)).toHaveLength(2);
     expect(generate).toContain("model: billedModel(model, servedTier)");
@@ -255,7 +256,7 @@ describe("bağlantılar (kaynak bekçisi)", () => {
     const addSource = read("src/app/api/learning/exam-prep/add-source/route.ts");
     expect(addSource.match(/clearPendingMaterials\(service, \{ prepId, userId, documentIds: requested \}\)/g)).toHaveLength(2);
     expect(read("src/lib/privacy/account-deletion.ts")).toContain(`"exam_prep_pending_materials"`);
-    expect(read("src/components/parity/exam-prep-home.tsx")).toContain("{pendingMaterials > 0 ? <PendingMaterialsBanner prepId={prepId} /> : null}");
+    expect(read("src/components/parity/exam-prep-home.tsx")).toContain("<PendingMaterialsBanner prepId={prepId} initialPending={pendingMaterials} />");
     expect(read("src/app/deneme-sinavlari/[prepId]/page.tsx")).toContain("pendingMaterials={await countPendingMaterials(service, { prepId, userId: user.id })}");
   });
 

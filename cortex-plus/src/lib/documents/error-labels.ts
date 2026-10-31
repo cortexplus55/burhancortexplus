@@ -17,6 +17,9 @@ const processErrorLabels: Record<string, string> = {
   download_failed: "Dosya depodan okunamadı — tekrar dene",
   processing_failed: "Belge işlenemedi — tekrar dene",
   encrypted_pdf: "Bu PDF şifreli olduğu için okunamıyor.",
+  corrupt_pdf: "Bu PDF bozuk ya da yarım inmiş; yeniden indirip yükle.",
+  office_unreadable: "Bu slayt ya da Word belgesi açılamadı; dosya bozuk ya da şifreli olabilir.",
+  office_too_large: "Bu slayt ya da Word belgesi işlenemeyecek kadar büyük; bölerek yükle.",
   password_protected: "Bu PDF şifreli olduğu için okunamıyor.",
   too_large: "Bu dosya izin verilen maksimum boyuttan büyük.",
   unsupported_type: DOCUMENT_TYPE_REJECTED,
@@ -45,5 +48,7 @@ export function processErrorLabel(code: string | null | undefined): string | nul
   if (/(error|exception|econn|timeout|stack|undefined|null)/i.test(trimmed)) {
     return GENERIC;
   }
+  // Yalnız ASCII serbest metin teknik iletidir ("Invalid PDF structure."): öğrenci cümleleri Türkçe harf taşır.
+  if (/^[\x20-\x7E]+$/.test(trimmed)) return GENERIC;
   return trimmed;
 }

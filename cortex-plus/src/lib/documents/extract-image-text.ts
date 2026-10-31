@@ -195,15 +195,12 @@ export function imageReadLadder(): string[] {
   return [...new Set(models.filter(Boolean))];
 }
 
-/** Belge başına bu kadar taranmış sayfa luna + yüksek ayrıntı. Sonrası tek hızlı model. */
-export const SCAN_LUNA_PAGE_CAP = 40;
-
-/** Sayfa 40'tan sonraysa merdiven tek modele iner; sayfa yine okunur. */
-export function imageReadLadderForScan(pageNumber: number): string[] {
-  if (!Number.isFinite(pageNumber) || pageNumber <= SCAN_LUNA_PAGE_CAP) return imageReadLadder();
-  const fast = env.OPENAI_ADVANCED_MODEL?.trim() || contentModel();
-  return fast ? [fast] : imageReadLadder();
-}
+/*
+  Sayfa sınırı kalktı (31 Ekim 2026). 27 Ekim'den beri taranmış belgenin 40. sayfasından sonrası "tek hızlı model" diye
+  doğrudan OPENAI_ADVANCED_MODEL'e (gpt-4.1) gidiyordu; o model luna'dan hızlı değil, jeton başına 20 kat pahalı
+  (sayfa başına ~0,0066 $ / ~0,00055 $). Canlıda 65 sayfalık taramanın 25 sayfası böyle okundu. Her sayfa aynı
+  merdivenden okunur: önce luna, gpt-4.1 yalnız luna okuyamazsa.
+*/
 
 function isRateLimitError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -312,6 +309,7 @@ export async function extractImageText(
   mimeType: string,
   options?: {
     deadlineMs?: number;
+    /** Sayfanın sırası. 31 Ekim 2026'dan beri okuma modelini seçmez (sayfa sınırı kalktı); çağıranlar sırayı taşır. */
     scanOrdinal?: number;
     purpose?: "page" | "figure";
     /** Şekil okumasında sayfanın metin katmanı: metinde zaten yazan satır eke girmez. */
@@ -347,7 +345,7 @@ export async function extractImageText(
     maxRetries: 0,
   });
 
-  const ladder = imageReadLadderForScan(options?.scanOrdinal ?? 1);
+  const ladder = imageReadLadder();
   const usage: ModelUsage[] = [];
   let rateLimited = false;
 

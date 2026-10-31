@@ -10,6 +10,7 @@ const MESSAGES: Record<string, string> = {
   page_insert_failed: "Sayfalar kaydedilemedi. Dosyayı tekrar yüklemeyi dene.",
   embedding_unavailable: "İçerik indekslenemedi. Biraz sonra tekrar dene.",
   encrypted_pdf: "Bu PDF şifreli olduğu için okunamıyor.",
+  corrupt_pdf: "Bu PDF bozuk ya da yarım inmiş görünüyor; açılamadı. Dosyayı yeniden indirip yükle.",
   ingestion_state_unavailable: "Belge işleme durumu şu an açılamıyor. Biraz sonra yeniden dene.",
   photo_quota_unavailable: "Fotoğraf sayfası hakkın şu an doğrulanamıyor. Biraz sonra yeniden dene.",
   cleanup_failed: "Belgenin eski işlem kalıntıları temizlenemedi. Yeniden dene.",
@@ -57,6 +58,7 @@ export function userMessageForProcessError(code: string | null | undefined): str
 
 export function mapExtractFailure(reason: string): string {
   if (/password|encrypted|PasswordException/i.test(reason)) return MESSAGES.encrypted_pdf;
+  if (reason === "corrupt_pdf") return MESSAGES.corrupt_pdf;
   return MESSAGES.text_extraction_unsupported;
 }
 

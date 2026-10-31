@@ -197,7 +197,9 @@ describe("harita çağrısı", () => {
     expect(source).toContain('params.reasoningEffort && isReasoningModel(model) ? { reasoning_effort: params.reasoningEffort } : {}');
     expect(source.match(/\.\.\.effort,/g)).toHaveLength(2);
     const route = read("src/app/api/documents/process/route.ts");
-    expect(route).toContain("urgent: Boolean(course) && !parsed.data.prepId");
+    // 31 Ekim 2026 (ikinci tur): kalan sayfaların ve "Materyal ekle"nin haritası da öğrenciyi bekletiyor.
+    expect(route).toContain("urgent: true,");
+    expect(route).toContain("fast: await fastAllowedFor(service, userId),");
   });
 });
 
