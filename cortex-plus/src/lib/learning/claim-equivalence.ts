@@ -8,6 +8,7 @@ import {
   type ContradictionCandidate,
   type EquivalenceVerdict,
 } from "@/lib/learning/source-contradictions";
+import { parseModelOutput } from "@/lib/ai/json-repair";
 
 export { parseEquivalenceVerdicts };
 
@@ -49,7 +50,7 @@ export async function judgeEquivalence(
     const text = response.choices[0]?.message?.content ?? "";
     let parsed: unknown = null;
     try {
-      parsed = JSON.parse(text);
+      parsed = parseModelOutput(text);
     } catch {
       parsed = null;
     }

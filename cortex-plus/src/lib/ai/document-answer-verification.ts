@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { citationsForReferences, type ChatEvidence } from "@/lib/ai/chat-citations";
+import { parseModelOutput } from "@/lib/ai/json-repair";
 
 const reviewSchema = z.object({
   answerable: z.boolean(),
@@ -293,7 +294,7 @@ export async function verifyDocumentAnswer(input: {
   }, { signal: input.signal, timeout: 45_000, maxRetries: 0 });
   const usage = { tokensIn: response.usage?.prompt_tokens ?? 0, tokensOut: response.usage?.completion_tokens ?? 0 };
   let raw: unknown;
-  try { raw = JSON.parse(response.choices[0]?.message?.content ?? ""); } catch { return { ok: false, citations: [], reasons: ["invalid_json"], ...usage }; }
+  try { raw = parseModelOutput(response.choices[0]?.message?.content ?? ""); } catch { return { ok: false, citations: [], reasons: ["invalid_json"], ...usage }; }
   const parsed = reviewSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, citations: [], reasons: ["schema_mismatch"], ...usage };
   const verdict = parsed.data;

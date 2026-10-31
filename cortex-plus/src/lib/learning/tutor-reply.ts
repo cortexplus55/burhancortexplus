@@ -18,6 +18,7 @@ import {
   type CoverageDecision,
   type SyllabusScope,
 } from "@/lib/learning/prep-corpus";
+import { parseModelOutput } from "@/lib/ai/json-repair";
 
 export type TutorIntent = "explain" | "solve" | "grade" | "quick" | "scope";
 
@@ -267,7 +268,7 @@ export function parseTutorStructured(raw: string): TutorStructured | null {
     : trimmed.match(/\{[\s\S]*\}/)?.[0] ?? "";
   if (!jsonSlice.startsWith("{")) return null;
   try {
-    const parsed = JSON.parse(jsonSlice) as Record<string, unknown>;
+    const parsed = parseModelOutput(jsonSlice) as Record<string, unknown>;
     const intent = parsed.intent;
     if (typeof intent !== "string" || !INTENTS.has(intent as TutorIntent)) return null;
     const str = (key: string) => {

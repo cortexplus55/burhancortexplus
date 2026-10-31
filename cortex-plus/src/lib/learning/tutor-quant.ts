@@ -9,6 +9,7 @@
 
 import { foldTr } from "@/lib/documents/page-analysis";
 import { MEASURE } from "@/lib/learning/lesson-claims";
+import { parseModelOutput } from "@/lib/ai/json-repair";
 
 const SUB: Record<string, string> = {
   "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
@@ -969,7 +970,7 @@ export function quantSelfCheckPrompt(reply: string): { system: string; user: str
 
 export function parseQuantSelfCheck(raw: string): { ok: boolean; note: string } | null {
   try {
-    const parsed = JSON.parse(raw) as { ok?: unknown; note?: unknown };
+    const parsed = parseModelOutput(raw) as { ok?: unknown; note?: unknown };
     if (typeof parsed.ok !== "boolean") return null;
     return { ok: parsed.ok, note: typeof parsed.note === "string" ? parsed.note.slice(0, 200) : "" };
   } catch {

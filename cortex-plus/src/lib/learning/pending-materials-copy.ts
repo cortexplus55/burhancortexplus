@@ -50,6 +50,21 @@ export const PENDING_WINDOW_TITLE = "⚡ Kitabın işleniyor";
 /** "Materyal ekle" büyük belgeyi bekleyen yazınca hazırlık sayfasındaki şeridi uyandıran olay. */
 export const PENDING_MATERIALS_EVENT = "cp:pending-materials";
 
+/**
+ * Şeridin başlığı tek cümle (Paket J denetimi #7, maddedeki metin): "⚡ Kitabın işleniyor: 110 / 500 sayfa yoluna
+ * eklendi…". Önceden başlık ve sayı iki ayrı satırdaydı.
+ */
+export function pendingWindowTitle(attached: number, total: number): string {
+  return total > 0
+    ? `${PENDING_WINDOW_TITLE}: ${Math.min(attached, total)} / ${total} sayfa yoluna eklendi…`
+    : `${PENDING_WINDOW_TITLE}…`;
+}
+
+/** Başlığın altındaki satır: sayı başlıkta, burada yalnız sıradaki adım. */
+export function pendingWindowNextLine(total: number): string {
+  return total > 0 ? "Sıradaki bölüm hazırlanıyor; yolun her bölümde yenilenir." : "Sayfalar okunuyor; ilk bölüm birazdan yolunda…";
+}
+
 export function pendingWindowLine(attached: number, total: number): string {
   return total > 0
     ? `${Math.min(attached, total)} / ${total} sayfa yoluna eklendi; sıradaki bölüm hazırlanıyor…`

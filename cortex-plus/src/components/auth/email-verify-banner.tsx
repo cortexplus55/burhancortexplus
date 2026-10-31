@@ -13,11 +13,13 @@ import { createClient } from "@/lib/supabase/client";
  * Doğrulama bağlantısından dönüşte (`?eposta=dogrulandi`) oturum tazelenir ve şerit kalkar. Adres `window`dan okunur:
  * `useSearchParams` kabukta Suspense sınırı isterdi (AGENTS.md: bu projede sayfayı boşaltıyor).
  */
-export function EmailVerifyBanner() {
-  const [unverified, setUnverified] = useState(false);
+export function EmailVerifyBanner({ preview = false }: { preview?: boolean } = {}) {
+  // `preview`: yalnız uçtan uca fikstür (`/e2e/paket-j`); oturum okunmadan şerit çizilir.
+  const [unverified, setUnverified] = useState(preview);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
+    if (preview) return;
     let cancelled = false;
     const supabase = createClient();
     const result = new URLSearchParams(window.location.search).get("eposta");
@@ -36,7 +38,7 @@ export function EmailVerifyBanner() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preview]);
 
   if (!unverified) return null;
 

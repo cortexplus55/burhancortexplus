@@ -1,3 +1,4 @@
+import { deterministicCreditKey } from "@/lib/credits/slot-key";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -77,6 +78,14 @@ export async function POST(request: Request) {
   // videosunu açar (280 kredi iki kez kesilmez). Birinci düştüyse ikinci kendisi üretir.
   const style = sketch ? "sketch_reel" : imageStyle;
   const startedAt = new Date(Date.now() - 60_000).toISOString();
+  // Belirlenimli anahtar (Paket J denetimi #9): kilit (shareInFlight) tek sunucuda / Redis'te korur; anahtar ise iki
+  // sunucuya düşen iki sekmede bile ödeme RPC'sinde tek ayırmaya iner.
+  const creditKey = await deterministicCreditKey(
+    service,
+    userId,
+    `video:${userId}:${prepId}:${topicId}:${style}`,
+    () => parsed.data.clientRequestId ?? crypto.randomUUID(),
+  );
   const generate = () => runVideoLesson(service, {
     userId,
     prepId,
@@ -88,7 +97,7 @@ export async function POST(request: Request) {
     examPoints: teaching?.examPoints ?? [],
     style: sketch ? "whiteboard" : imageStyle,
     renderMode: sketch ? "sketch_reel" : "image",
-    idempotencyKey: `video:${userId}:${prepId}:${topicId}:${style}:${parsed.data.clientRequestId ?? crypto.randomUUID()}`,
+    idempotencyKey: creditKey,
   });
   const outcome = await shareInFlight(`video:${userId}:${prepId}:${topicId}:${style}`, generate, async () => {
     const { data: twin } = await service

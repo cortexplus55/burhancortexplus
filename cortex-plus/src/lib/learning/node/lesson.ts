@@ -13,6 +13,8 @@ import { sectionHeadings } from "@/lib/documents/topic-title";
 import { upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
 import { examPointsInSource } from "@/lib/learning/exam-points";
 import { findFormulaTypos } from "@/lib/learning/formula-typos";
+import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
+import { checkNoteRules } from "@/lib/learning/note-rule-check-run";
 import { NodeGenerationError, actionForKind } from "./shared";
 import { saveTopicLesson } from "./lesson-store";
 import { withSupport, type LessonCore } from "./teacher-pages";
@@ -91,10 +93,22 @@ export async function teacherLessonPayload(
   const lessonPages = withSupport(clean, core);
   // Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formül. Yalnız belgeli derste;
   // dersin temiz sayfaları ve ham kaynak bloğu (temizlik bir yazımı sessizce düzeltmiş olabilir). Model çağrısı yok.
-  const noteWarnings = core
-    ? findFormulaTypos([...lessonPages.map((page) => page.text), input.sourceBlock ?? ""].join("\n"))
-    : [];
+  const noteText = [...lessonPages.map((page) => page.text), input.sourceBlock ?? ""].join("\n");
+  const noteWarnings = core ? findFormulaTypos(noteText) : [];
   const warned = noteWarnings.length ? { noteWarnings } : {};
+  // Genel katman (Paket J denetimi #13): katalog yalnız bilinen formülleri tanır; her derste çalışan modelli denetim
+  // ders yazımıyla PARALEL koşar, dersi bekletmez. Yayın anına yetişirse kutuya eklenir, yetişmezse kayda girer.
+  let modelWarnings: typeof noteWarnings = [];
+  const modelCheck = core
+    ? checkNoteRules(input.service, input.userId, noteText).then((found) => {
+        modelWarnings = found;
+        return found;
+      })
+    : Promise.resolve([] as typeof noteWarnings);
+  const warnedNow = () => {
+    const merged = mergeNoteWarnings(noteWarnings, modelWarnings);
+    return merged.length ? { noteWarnings: merged } : {};
+  };
   const outcome = await runTeacherLesson(input.service, {
     mode: core ? "document" : "topic",
     userId: input.userId,
@@ -137,7 +151,7 @@ export async function teacherLessonPayload(
             // Sayacın paydası: yazarın ekran planı (28 Ekim 2026).
             ...(published.plannedScreens ? { plannedScreens: published.plannedScreens } : {}),
             // Ekranın çizdiği uyarı kutusu; ders metnine girmez.
-            ...warned,
+            ...warnedNow(),
           })
       : undefined,
   });
@@ -216,7 +230,8 @@ export async function teacherLessonPayload(
     qualityReport: null,
     refunded: false,
     engine: "teacher",
-    ...warned,
+    // Denetim çoktan bitmiş olur (15 sn tavan, ders yazımı daha uzun); yine de beklenir ki kayıt eksik kalmasın.
+    ...(await modelCheck.then(warnedNow)),
   };
   // Önceden yazılan ders konuya öğrenci açınca yazılır.
   if (input.prepId && input.topicId && input.charge !== false) {

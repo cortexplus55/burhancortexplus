@@ -11,7 +11,6 @@ import {
   PENDING_READ_ALL,
   PENDING_STALLED_LINE,
   PENDING_TITLE,
-  PENDING_WINDOW_TITLE,
   pendingDoneLine,
   pendingDoneTitle,
   pendingFailedLine,
@@ -19,7 +18,8 @@ import {
   pendingProgress,
   pendingReadingLine,
   pendingWindowAddedLine,
-  pendingWindowLine,
+  pendingWindowNextLine,
+  pendingWindowTitle,
 } from "@/lib/learning/pending-materials-copy";
 import { messageFromProcessBody } from "@/lib/documents/process-user-message";
 import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/process-session";
@@ -288,11 +288,11 @@ export function PendingMaterialsBanner({ prepId, initialPending }: { prepId: str
   const percent = windowed
     ? total > 0 ? Math.round((attached / total) * 100) : 4
     : reading.total > 0 ? Math.round((reading.done / reading.total) * 100) : 8;
-  const title = phase === "paused" ? PENDING_PAUSED_TITLE : windowed ? PENDING_WINDOW_TITLE : PENDING_TITLE;
+  const title = phase === "paused" ? PENDING_PAUSED_TITLE : windowed ? pendingWindowTitle(attached, total) : PENDING_TITLE;
   const mainLine = phase === "paused"
     ? pendingPausedLine(attached, total)
     : windowed
-      ? pendingWindowLine(attached, total)
+      ? pendingWindowNextLine(total)
       : pendingReadingLine(reading.done, reading.total);
 
   return (

@@ -1,6 +1,7 @@
 import { auditQuantitative, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
 import type { TutorStyle } from "@/lib/learning/tutor-style";
+import { parseModelOutput } from "@/lib/ai/json-repair";
 
 /**
  * Sohbet öğretmeninde çözüm sağlaması (25 Ekim 2026).
@@ -69,7 +70,7 @@ export function independentSolvePrompt(message: string): { system: string; user:
 
 export function parseIndependentSolve(raw: string): IndependentSolve | null {
   try {
-    const parsed = JSON.parse(raw) as { letter?: unknown; value?: unknown; text?: unknown };
+    const parsed = parseModelOutput(raw) as { letter?: unknown; value?: unknown; text?: unknown };
     const letter =
       typeof parsed.letter === "string" && /^[A-E]$/i.test(parsed.letter.trim())
         ? parsed.letter.trim().toUpperCase()

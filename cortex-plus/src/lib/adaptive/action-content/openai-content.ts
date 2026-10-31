@@ -15,6 +15,7 @@ import {
   type TutorEscalationReason,
 } from "@/lib/adaptive/tutor-model-router";
 import type { TutorModel } from "@/lib/adaptive/types";
+import { parseModelOutput } from "@/lib/ai/json-repair";
 
 export type AdaptiveLlmResult<T> = {
   ok: true;
@@ -90,7 +91,7 @@ export async function generateAdaptiveJson<T>(input: {
   const tryParse = (text: string): T | null => {
     try {
       const match = text.match(/\{[\s\S]*\}/);
-      const raw = JSON.parse(match ? match[0] : text) as unknown;
+      const raw = parseModelOutput(match ? match[0] : text) as unknown;
       return input.parse(raw);
     } catch {
       return null;

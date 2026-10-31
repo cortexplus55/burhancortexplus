@@ -89,17 +89,80 @@ function modelOf(init: Parameters<FetchLike>[1]): string {
   }
 }
 
-function guardedFetch(inner?: ClientOptions["fetch"]): FetchLike {
+/*
+  Asıl model takılırsa yedeğe geçiş (31 Ekim 2026, Paket J denetimi #8): madde "timeout"u da sayıyor; önceden yalnız
+  hata kodu ve ağ kopmasında geçiliyordu, asıl model yanıt başlığı göndermeden askıda kalırsa öğrenci SDK'nın kendi
+  süresini bekleyip hata görüyordu. Artık asıl modelin başlığı `OPENAI_FAILOVER_AFTER_MS` (varsayılan 150 sn) içinde
+  gelmezse istek kendi sinyalimizle kesilir ve aynı istek bir kez yedek modelle yinelenir. Çağıranın sinyali (SDK
+  zaman aşımı, kullanıcı iptali) önce keserse eskisi gibi geçilmez. Başlık gelince sayaç durur: akış (stream) gövdesi
+  süreye tabi değildir. `0` / `off` kapatır.
+*/
+export const DEFAULT_FAILOVER_AFTER_MS = 150_000;
+
+export function failoverAfterMs(env: Record<string, string | undefined> = process.env): number | null {
+  const raw = env.OPENAI_FAILOVER_AFTER_MS?.trim();
+  if (!raw) return DEFAULT_FAILOVER_AFTER_MS;
+  if (/^(off|kapali|kapalı|false)$/i.test(raw)) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.max(1_000, Math.round(value));
+}
+
+class PrimaryDeadlineError extends Error {
+  constructor() {
+    super("openai_primary_deadline");
+    this.name = "PrimaryDeadlineError";
+  }
+}
+
+/** Asıl isteği başlık süresiyle çağırır; süre dolarsa `PrimaryDeadlineError` fırlatır. */
+async function callWithDeadline(
+  call: FetchLike,
+  input: Parameters<FetchLike>[0],
+  init: Parameters<FetchLike>[1],
+  deadlineMs: number | null,
+): Promise<Response> {
+  if (!deadlineMs) return call(input, init);
+  const controller = new AbortController();
+  const outer = init?.signal ?? null;
+  if (outer?.aborted) return call(input, init);
+  const onOuterAbort = () => controller.abort((outer as AbortSignal & { reason?: unknown }).reason);
+  outer?.addEventListener("abort", onOuterAbort, { once: true });
+  let expired = false;
+  const timer = setTimeout(() => {
+    expired = true;
+    controller.abort(new PrimaryDeadlineError());
+  }, deadlineMs);
+  try {
+    // Başlıklar geldi: süre biter, ama çağıranın iptali akan gövdeyi kesmeye devam eder (bağ kalır).
+    return await call(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    outer?.removeEventListener("abort", onOuterAbort);
+    if (expired && !outer?.aborted) throw new PrimaryDeadlineError();
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Testler için dışa açık; üretimde `createOpenAIClient` kullanır. */
+export function guardedFetch(
+  inner?: ClientOptions["fetch"],
+  deadlineMs: number | null = failoverAfterMs(),
+): FetchLike {
   return async (input, init) => {
     const call = inner ?? globalThis.fetch;
     let response: Response;
     try {
-      response = await call(input, init);
+      // Yedeğe geçilemeyen istekte (ses, gömme …) süre uygulanmaz: davranış eskisi gibi.
+      const deadline = failoverInit(input, init) ? deadlineMs : null;
+      response = await callWithDeadline(call, input, init, deadline);
     } catch (error) {
       if (init?.signal?.aborted) throw error;
       const retry = failoverInit(input, init);
       if (!retry) throw error;
-      console.warn("openai_failover", { from: modelOf(init), to: failoverModel(), reason: "network" });
+      const reason = error instanceof PrimaryDeadlineError ? "timeout" : "network";
+      console.warn("openai_failover", { from: modelOf(init), to: failoverModel(), reason });
       return call(input, retry);
     }
     if (!FAILOVER_STATUS.has(response.status)) return response;

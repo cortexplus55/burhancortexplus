@@ -80,3 +80,27 @@ export function repairTruncatedJson(raw: string): string {
   for (let index = safeStack.length - 1; index >= 0; index -= 1) repaired += safeStack[index];
   return repaired;
 }
+
+/**
+ * Model çıktısını ayrıştırır (31 Ekim 2026, Paket J denetimi #8): önce sağlam `JSON.parse`; düşerse yarım kalmış sonu
+ * `repairTruncatedJson` ile onarıp bir kez daha dener. İkisi de düşerse İLK hatayı fırlatır — çağıranın eski
+ * `catch` yolu aynen işler. Yalnız model çıktısı için: kullanıcı ya da veritabanı JSON'u onarılmaz.
+ */
+export function parseModelOutput<T = unknown>(raw: string): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    let repaired: string;
+    try {
+      repaired = repairTruncatedJson(raw);
+    } catch {
+      throw error;
+    }
+    if (repaired === raw) throw error;
+    try {
+      return JSON.parse(repaired) as T;
+    } catch {
+      throw error;
+    }
+  }
+}

@@ -76,13 +76,13 @@ describe("bekleyen materyal şeridi", () => {
       return { status: 404, body: {} };
     });
     render(<PendingMaterialsBanner prepId={PREP} initialPending={1} />);
-    expect(await screen.findByText("⚡ Kitabın işleniyor")).toBeTruthy();
-    expect(screen.getByText("92 / 500 sayfa yoluna eklendi; sıradaki bölüm hazırlanıyor…")).toBeTruthy();
+    expect(await screen.findByText(/⚡ Kitabın işleniyor/)).toBeTruthy();
+    expect(screen.getByText("⚡ Kitabın işleniyor: 92 / 500 sayfa yoluna eklendi…")).toBeTruthy();
     await waitFor(() => expect(calls.some((call) => call.url === ADVANCE)).toBe(true));
     expect(calls.find((call) => call.url === ADVANCE)!.body).toEqual({ prepId: PREP });
     await vi.advanceTimersByTimeAsync(4_100);
     expect(await screen.findByText("✓ 93–132. sayfalar yoluna eklendi (+6 konu).")).toBeTruthy();
-    expect(screen.getByText("132 / 500 sayfa yoluna eklendi; sıradaki bölüm hazırlanıyor…")).toBeTruthy();
+    expect(screen.getByText("⚡ Kitabın işleniyor: 132 / 500 sayfa yoluna eklendi…")).toBeTruthy();
     expect(refresh).toHaveBeenCalled();
   });
 
@@ -100,7 +100,7 @@ describe("bekleyen materyal şeridi", () => {
       return { status: 404, body: {} };
     });
     render(<PendingMaterialsBanner prepId={PREP} initialPending={1} />);
-    expect(await screen.findByText("⚡ Kitabın işleniyor")).toBeTruthy();
+    expect(await screen.findByText(/⚡ Kitabın işleniyor/)).toBeTruthy();
     await vi.advanceTimersByTimeAsync(4_100);
     expect(await screen.findByText("✓ Kalan tüm sayfalar ve 27 yeni konu çalışma yoluna eklendi!")).toBeTruthy();
     expect(refresh).toHaveBeenCalled();

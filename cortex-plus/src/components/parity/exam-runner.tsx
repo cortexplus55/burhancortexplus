@@ -543,6 +543,7 @@ export function ParityExamRunner({
                 <button
                   key={opt}
                   type="button"
+                  aria-pressed={on}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition-colors duration-150",
                     on
