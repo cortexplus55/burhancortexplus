@@ -1,0 +1,512 @@
+/* Sınav sabahı kâğıdı, sınıf paylaşımı ve sınav sonrası kartı (31 Ekim 2026, Paket J3 #14).
+   Astra paleti ve yazı ölçeği (tokens.css; yeni ara boyut yok). Telefon 375 px: 16 px kenar, yana kayma yok,
+   dokunma ≥ 44 px. Durum renkleri altın değil: eylem mavi, artış yeşil, zayıf kırmızı. Yazdırınca uygulamanın
+   çerçevesi gizlenir; beyaz zemine siyah yazı, iki sütun, tek A4. */
+
+.cp-cram {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 16px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+  overflow-wrap: anywhere;
+  color: var(--c-text);
+}
+
+.cp-cram-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cp-cram-kicker {
+  margin: 0;
+  font: var(--t-mono-m);
+  letter-spacing: var(--ls-label);
+  color: var(--c-text-muted);
+}
+
+.cp-cram-title {
+  margin: 0;
+  font: var(--t-heading-s);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-cram-lead {
+  margin: 0;
+  font: var(--t-body-14);
+  color: var(--c-text-muted);
+}
+
+.cp-cram-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cp-cram-print,
+.cp-cram-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font: var(--t-button-l);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cp-cram-print:hover,
+.cp-cram-go:hover {
+  background: var(--c-action-hover);
+}
+
+.cp-cram-focus {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+  font: var(--t-body-14);
+}
+
+.cp-cram-body {
+  column-count: 1;
+  column-gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .cp-cram-body {
+    column-count: 2;
+  }
+}
+
+.cp-cram-section {
+  box-sizing: border-box;
+  break-inside: avoid;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+
+.cp-cram-section h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 8px;
+  font: var(--t-title-m);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-cram-weak {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+  font: var(--t-label-11);
+  letter-spacing: var(--ls-label);
+}
+
+.cp-cram-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-cram-item {
+  box-sizing: border-box;
+  max-width: 100%;
+  break-inside: avoid;
+  /* Uzun formül (KaTeX) sayfayı yana kaydırmaz; yalnız kendi satırında kayar. */
+  overflow-x: auto;
+  font: var(--t-body-14);
+}
+
+.cp-cram-item .als-formula {
+  margin: 2px 0;
+}
+
+.cp-cram-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+  font: var(--t-mono-s);
+  vertical-align: 1px;
+}
+
+.cp-cram-item--formula .cp-cram-tag {
+  background: var(--c-action-soft);
+  color: var(--c-text);
+}
+
+.cp-cram-item--trap .cp-cram-tag,
+.cp-cram-item--warn .cp-cram-tag {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+
+.cp-cram-item--mnemonic .cp-cram-tag,
+.cp-cram-item--hook .cp-cram-tag {
+  background: var(--c-ai-soft);
+  color: var(--c-ai);
+}
+
+.cp-cram-item--remember .cp-cram-tag {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+}
+
+.cp-cram-item--exam .cp-cram-tag,
+.cp-cram-item--point .cp-cram-tag {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+}
+
+.cp-cram-item-title {
+  font-weight: 600;
+}
+
+.cp-cram-spot-topic {
+  display: block;
+  color: var(--c-text-muted);
+  font: var(--t-label-11);
+}
+
+.cp-cram-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+  font: var(--t-body-14);
+}
+
+.cp-cram-empty p {
+  margin: 0;
+}
+
+.cp-cram-foot {
+  margin: 12px 0 0;
+  color: var(--c-text-muted);
+  font: var(--t-label-11);
+}
+
+/* Hazırlık sayfasındaki iki düğme (sabah kâğıdı, sınıf paylaşımı). Uzun etiket telefonda iki satıra sarar. */
+.cp-prep-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  width: min(100%, 36rem);
+  margin: 0 auto 1rem;
+}
+
+.cp-prep-extra {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  font: var(--t-label-15);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cp-prep-extra:hover {
+  border-color: var(--c-action);
+}
+
+.cp-prep-share-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+
+.cp-prep-share-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--c-text-muted);
+  font: var(--t-body-14);
+}
+
+.cp-prep-share-go,
+.cp-prep-share-copy {
+  display: inline-flex;
+  flex: 1 1 10rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--r-pill);
+  font: var(--t-button-s);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cp-prep-share-go {
+  border: 0;
+  background: var(--c-action);
+  color: var(--c-on-action);
+}
+
+.cp-prep-share-copy {
+  border: 1px solid var(--c-border);
+  background: transparent;
+  color: var(--c-text);
+}
+
+/* Sınav sonrası kartı */
+.cp-exam-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  width: min(100%, 36rem);
+  margin: 0 auto 1rem;
+  padding: 16px 18px;
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+  overflow-wrap: anywhere;
+}
+
+.cp-exam-result-title {
+  margin: 0;
+  font: var(--t-title-m);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-exam-result-note {
+  margin: 0;
+  color: var(--c-text-muted);
+  font: var(--t-body-14);
+}
+
+.cp-exam-result-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cp-exam-result-input {
+  box-sizing: border-box;
+  flex: 1 1 6rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-border);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: var(--t-label-15);
+}
+
+.cp-exam-result-save {
+  flex: 1 1 8rem;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--c-action);
+  color: var(--c-on-action);
+  font: var(--t-button-s);
+  cursor: pointer;
+}
+
+.cp-exam-result-save:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.cp-exam-result-later {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-text-muted);
+  font: var(--t-label-13);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cp-exam-result-card {
+  margin: 0;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  background: var(--c-bg);
+  font: var(--t-title-m);
+  letter-spacing: var(--ls-heading);
+}
+
+.cp-exam-result-card.is-up {
+  border: 1px solid var(--c-success);
+}
+
+.cp-exam-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/*
+  Yazdırma yalnız kâğıt sayfasında (`.cp-cram-sheet` varken). Bu dosya hazırlık sayfasında da yükleniyor; App Router
+  stil dosyasını sayfa değişince bırakmıyor. Kural kapsamsız olsaydı öğrenci başka bir sayfayı yazdırınca boş kâğıt
+  çıkardı. `!important`: kâğıtta çöz (paper-exam.css) aynı yöntemi kapsamsız ve `!important` ile kullanıyor.
+*/
+@page cram {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  html:has(.cp-cram-sheet),
+  body:has(.cp-cram-sheet),
+  body:has(.cp-cram-sheet) .cp-sor-root,
+  body:has(.cp-cram-sheet) .cp-sor-main {
+    min-height: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  body:has(.cp-cram-sheet) .cp-sor-top,
+  body:has(.cp-cram-sheet) .cp-sor-bottomnav,
+  body:has(.cp-cram-sheet) .cp-free-preview-bar,
+  body:has(.cp-cram-sheet) .cp-verify-bar,
+  body:has(.cp-cram-sheet) .cp-inapp-banner,
+  body:has(.cp-cram-sheet) .cp-plus-limit-banner,
+  body:has(.cp-cram-sheet) [data-sonner-toaster],
+  .cp-cram-sheet .cp-cram-actions {
+    display: none !important;
+  }
+
+  /* Sayfadaki başka her şey görünmez; yalnız kâğıt basılır. */
+  body:has(.cp-cram-sheet) * {
+    visibility: hidden !important;
+  }
+
+  /* Üstteki gizleme kuralından daha özgül olmalı (0,2,1 > 0,1,1). */
+  body:has(.cp-cram-sheet) .cp-cram-sheet,
+  body:has(.cp-cram-sheet) .cp-cram-sheet * {
+    visibility: visible !important;
+  }
+
+  .cp-cram-sheet {
+    page: cram;
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
+    padding: 0;
+    color: #000;
+    font-size: 9pt;
+  }
+
+  .cp-cram-sheet *,
+  .cp-cram-sheet *::before,
+  .cp-cram-sheet *::after {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .cp-cram-sheet .cp-cram-head {
+    gap: 2px;
+    margin-bottom: 6px;
+  }
+
+  .cp-cram-sheet .cp-cram-title {
+    font-size: 13pt;
+  }
+
+  .cp-cram-sheet .cp-cram-lead,
+  .cp-cram-sheet .cp-cram-foot,
+  .cp-cram-sheet .cp-cram-kicker {
+    font-size: 8pt;
+  }
+
+  .cp-cram-sheet .cp-cram-body {
+    column-count: 2;
+    column-gap: 7mm;
+  }
+
+  .cp-cram-sheet .cp-cram-section {
+    break-inside: auto;
+    margin: 0 0 3mm;
+    padding: 0 0 2mm;
+    border: 0;
+    border-bottom: 0.5pt solid #000;
+    border-radius: 0;
+  }
+
+  .cp-cram-sheet .cp-cram-section h2 {
+    margin: 0 0 1mm;
+    font-size: 10pt;
+    break-after: avoid;
+  }
+
+  .cp-cram-sheet .cp-cram-list {
+    gap: 1mm;
+  }
+
+  .cp-cram-sheet .cp-cram-item {
+    overflow: visible;
+    font-size: 8.5pt;
+    line-height: 1.3;
+  }
+
+  .cp-cram-sheet .cp-cram-tag,
+  .cp-cram-sheet .cp-cram-weak {
+    padding: 0;
+    border: 0;
+    font-size: 7pt;
+    font-weight: 700;
+  }
+
+  .cp-cram-sheet .cp-cram-tag::after {
+    content: ":";
+  }
+
+  .cp-cram-sheet .cp-cram-focus {
+    margin: 0 0 3mm;
+    padding: 0;
+    border: 0;
+    font-size: 8.5pt;
+  }
+
+  .cp-cram-sheet mark {
+    font-weight: 700;
+  }
+}
+

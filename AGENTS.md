@@ -1753,6 +1753,18 @@ J1'in ardından ikinci sıralı PR. Göçler canlıda (`20261031190000`, `191000
 
 Bekçi: `paket-j2.test.ts` (pencere, onarım, yedek model, tekil dizin ve ödül tavanı PGlite'ta), `paket-j2-bildir.test.tsx`.
 
+### Paket J3 #14 (31 Ekim 2026)
+
+Göç yok. Yeniden açmayın:
+
+| Madde | Kural | Nerede |
+|---|---|---|
+| **⚡ Sınav sabahı kâğıdı** | `/deneme-sinavlari/[prepId]/sinav-sabahi`, **model çağrısı yok, kredi yok**: kayıtlı derslerin (`readLessonV3`) formül, adım, "Sınav ipucu / Akılda tut / Ezber kodu / Dikkat" notları, sınav tuzağı, hafıza çivisi ve "sık yapılan hata"sı, öğretmen analizinin "Sınavda sorulur" maddeleri; üstte "En çok yanıldığın noktalar" (aktif tekrar yanlışları, bu hazırlığın konularına düşen defter satırları, **yalnız açık** yanılgılar) ve en zayıf konular (`rankFinalStepTopics`). Konular yolun sırasıyla, tekrar atılır, konu başına 2-6, toplam 36, kırpma yarım `$`/`**` bırakmaz; genel bilgi kutusu girmez. "Yazdır / PDF olarak kaydet" = `window.print()`; baskı kuralları **yalnız `.cp-cram-sheet` varken** (`body:has(...)`; CSS hazırlık sayfasında da yükleniyor, kapsamsız kural başka sayfayı boş bastırırdı) | `cram-sheet.ts` (saf), `cram-sheet-load.ts`, `sinav-sabahi/page.tsx`, `cram-sheet.css` |
+| **📲 Sınıf grubuyla paylaş** | Okul ağı katılımıyla aynı fork modeli (başlık, tür, tarih, hedef, sınav saati/yeri, konu başlıkları sırasıyla; ilerleme, cevap, puan, belge kopyalanmaz), erişim aynı okul yerine **imzalı bağlantı** (`APP_SECRET` HMAC, 30 gün, saate yuvarlı; davet edenin kimliği bağlantıda yok). Bağlantı hazırlık sayfasında **sunucuda** imzalanır, `appOrigin()` ile mutlak; WhatsApp + kopyala. `/hazirlik-davet/[token]` herkese açık: misafir `/kayit?ref=<davet edenin kodu>&next=…`, sahibi kendi hazırlığına, ikinci katılım eski kopyaya; ücretsiz tek hazırlık kapısı; davet edene `prep_joined` +50 (okul katılımıyla aynı anahtar) | `prep-invite.ts`, `prep-share.ts`, `prep-invite-store.ts`, `api/learning/exam-prep/invite/join`, `hazirlik-davet/[token]/page.tsx` |
+| **🎓 Sınav sonrası kartı** | Sınav günü (İstanbul) geçince "Sınavın nasıl geçti? Notunu yaz" (0-100); "Notum henüz açıklanmadı" 3 gün erteler. Not **göçsüz** `learning_preferences.examResult` (`parseLearningPreferences` korur; ayar kaydı silmez), başlangıç kayıt anında donar: önce seviye tespiti, yoksa yolda ilk puanlı adım (`ADAPTIVE_KINDS`, ≥3 soru), yoksa yalnız not. "🎓 Başlangıç: %42 → Sınav Notu: 88 (+46 Puan Artış!)"; eşitte "korudun", düşüşte eksi ve "Artış" yazılmaz, paylaşım önerilmez. Paylaşım tanıtım sayfasının mutlak adresiyle | `exam-result.ts` (saf), `exam-result-load.ts`, `api/learning/exam-prep/exam-result`, `exam-result-card.tsx` |
+
+Bekçi: `paket-j3-sabah-paylas.test.tsx`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)
