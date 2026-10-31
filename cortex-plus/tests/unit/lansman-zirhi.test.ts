@@ -245,6 +245,9 @@ describe("paylaşım ve davet", () => {
     expect(play).toContain("whatsappShareHref(duelChallengeText(title, result.correct, result.total), shareUrl)");
     expect(play).toContain("<Link href={signupHref}");
     expect(read("src/app/duello/[code]/page.tsx")).toContain('select("full_name, referral_code")');
+    // Canlıda bulundu: adres tarayıcıda hesaplanınca hidrasyon sunucunun göreli adresini bırakıyordu ("/duello/kod").
+    expect(read("src/app/duello/[code]/page.tsx")).toContain("shareUrl={`${appOrigin()}/duello/${code}`}");
+    expect(play).not.toContain("window.location.origin}/duello");
     expect(read("src/components/parity/referral-reward-card.tsx")).toContain("whatsappShareHref(referralShareText(), inviteUrl)");
   });
 

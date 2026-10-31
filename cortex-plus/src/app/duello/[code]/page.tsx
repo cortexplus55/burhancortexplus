@@ -5,6 +5,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { publicQuestions, type DuelQuestion } from "@/lib/learning/duel";
 import { isBotLevel } from "@/lib/learning/duel-bot";
 import { duelSignupHref } from "@/lib/learning/duel-share";
+import { appOrigin } from "@/lib/app-url";
 import "@/styles/duel.css";
 
 export const metadata = {
@@ -83,6 +84,7 @@ export default async function DuelPage({
         }))}
         signedIn={signedIn}
         initialBot={initialBot}
+        shareUrl={`${appOrigin()}/duello/${code}`}
         signupHref={duelSignupHref((creator as { referral_code?: string | null } | null)?.referral_code)}
       />
     </main>
