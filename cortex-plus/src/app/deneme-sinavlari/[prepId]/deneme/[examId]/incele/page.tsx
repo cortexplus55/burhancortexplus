@@ -6,6 +6,7 @@ import { ExamQuestionReviewClient } from "@/components/parity/exam-question-revi
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
+import { scoringKeyTerms } from "@/lib/learning/mock-exam/key-terms";
 import { rowVerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 
 export const metadata = { title: "Soru inceleme" };
@@ -58,7 +59,7 @@ export default async function ExamQuestionReviewPage({
   const [{ data: questions }, { data: reviews }] = await Promise.all([
     supabase
       .from("practice_exam_questions")
-      .select("id, question_text, question_type, options, correct_answer, correct_answers, sort_order")
+      .select("id, question_text, question_type, options, correct_answer, correct_answers, sort_order, rubric, model_answer")
       .eq("exam_id", examId)
       .order("sort_order"),
     attempt
@@ -80,6 +81,16 @@ export default async function ExamQuestionReviewPage({
       : null,
     question_type: (q.question_type as string | null) ?? null,
     sort_order: (q.sort_order as number) ?? 0,
+    // Açık uçlu soruda puan getiren kilit terimler ve birimler (31 Ekim 2026, Paket J3 #11).
+    key_terms: ((q.options as string[] | null) ?? []).length
+      ? []
+      : scoringKeyTerms({
+          rubric: (Array.isArray(q.rubric) ? (q.rubric as Array<{ criterion?: string } | string>) : []).map((item) =>
+            typeof item === "string" ? item : String(item?.criterion ?? ""),
+          ),
+          modelAnswer: (q.model_answer as string | null) ?? null,
+          questionText: q.question_text as string,
+        }),
   }));
 
   const mappedReviews = (reviews ?? []).map((r) => ({

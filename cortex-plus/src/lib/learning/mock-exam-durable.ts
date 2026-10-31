@@ -46,6 +46,7 @@ type MockSpec = {
   isPremium: boolean;
   topicLabel?: string;
   questionCount?: number;
+  twin?: boolean;
 };
 
 type Checkpoint = {
@@ -76,6 +77,7 @@ function specOf(row: GenerationJobRow): MockSpec {
     isPremium: spec.isPremium === true,
     topicLabel: typeof spec.topicLabel === "string" ? spec.topicLabel : undefined,
     questionCount: typeof spec.questionCount === "number" ? spec.questionCount : undefined,
+    ...(spec.twin === true ? { twin: true } : {}),
   };
 }
 
@@ -157,6 +159,7 @@ export async function startDurableMockExam(input: CreateMockExamInput): Promise<
     isPremium: input.isPremium,
     topicLabel: input.topicLabel,
     questionCount: input.questionCount,
+    ...(input.twin ? { twin: true } : {}),
   };
   if (active) {
     // Aynı ayarla süren iş sürdürülür. Başka uzunluk/kapsamla süren iş öğrencinin seçtiği kâğıt değil
@@ -261,6 +264,7 @@ export async function pumpMockExamJob(service: SupabaseClient, jobId: string, si
           durationMinutes: spec.durationMinutes,
           topicLabel: spec.topicLabel,
           questionCount: spec.questionCount,
+          twin: spec.twin,
         });
         if (!planned.ok) throw new Error(planned.error);
         blueprint = planned.plan.blueprint;

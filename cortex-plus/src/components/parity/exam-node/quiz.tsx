@@ -6,10 +6,12 @@ import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { sanitizeStudentCopy } from "@/lib/learning/student-copy";
 import { NodeSources } from "@/components/parity/node-sources";
 import { QuestionReportButton } from "@/components/learning/question-report-button";
+import { TwinQuestionCard } from "@/components/learning/twin-question-card";
+import { TwoOptionHint } from "@/components/learning/two-option-hint";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
-  const { sources, stage, loading, payload, setPayload, attemptId, index, setIndex, answers, revealedRef, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
+  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
   return (
     <>
       {stage === "play" && payload.type === "quiz" && questions[index] ? (
@@ -61,6 +63,23 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
             }
             disabled={loading}
             examMode={isTimedExam}
+            twin={
+              // İkiz soru ve iki şık ipucu (31 Ekim 2026, Paket J3 #12): yalnız açıklamalı testte.
+              attemptId && !isTimedExam ? (at) => <TwinQuestionCard key={`twin:${attemptId}:${at}`} attemptId={attemptId} index={at} /> : undefined
+            }
+            twoOption={
+              attemptId && !isTimedExam && !quizBuilding
+                ? (at) => (
+                    <TwoOptionHint
+                      key={`two:${attemptId}:${at}`}
+                      attemptId={attemptId}
+                      index={at}
+                      options={questions[at]?.options ?? []}
+                      onUsed={markHint}
+                    />
+                  )
+                : undefined
+            }
             report={
               // "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10): açıklama açılınca; test yazılırken değil.
               attemptId && !isTimedExam && !quizBuilding

@@ -4,7 +4,8 @@ import { MockExamSetup } from "@/components/parity/mock-exam-setup";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { isAdminUser } from "@/lib/auth/roles";
-import { loadMockExamSetup } from "@/lib/learning/mock-exam/create";
+import { applyPastWeights, loadMockExamSetup, loadPastQuestions } from "@/lib/learning/mock-exam/create";
+import { PAST_MIN_QUESTIONS } from "@/lib/learning/mock-exam/past-questions";
 
 export const metadata = { title: "Yazılı deneme" };
 export const dynamic = "force-dynamic";
@@ -42,6 +43,10 @@ export default async function MockExamSetupPage({
   const setup = await loadMockExamSetup(supabase, user.id, prepId, rows).catch(() => null);
   const slots = setup?.slots ?? [];
   const syllabus = setup?.syllabus ?? null;
+  // İkiz sınav (31 Ekim 2026, Paket J3 #11): belgede çıkmış soru varsa seçenek; önizleme üretimin ağırlığını okur.
+  const past = await loadPastQuestions(supabase, prepId);
+  const twinSlots = slots.map((slot) => ({ ...slot }));
+  if (past.length >= PAST_MIN_QUESTIONS) applyPastWeights(twinSlots, past);
 
   return (
     <ParitySorShell {...shell}>
@@ -57,6 +62,14 @@ export default async function MockExamSetupPage({
         formatSummary={syllabus?.summary ?? null}
         realMinutes={syllabus?.durationMinutes ?? null}
         realQuestionCount={syllabus?.slots.length ?? null}
+        pastQuestions={
+          past.length >= PAST_MIN_QUESTIONS
+            ? {
+                count: past.length,
+                weights: Object.fromEntries(rows.map((row, index) => [row.id, twinSlots[index]?.weightPercent ?? null])),
+              }
+            : null
+        }
         isAdmin={admin}
       />
     </ParitySorShell>

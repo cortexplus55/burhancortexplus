@@ -87,6 +87,7 @@ export function mockExamSpecKey(input: {
   durationMinutes?: number;
   topicLabel?: string;
   questionCount?: number;
+  twin?: boolean;
 }): string {
   return JSON.stringify({
     preset: input.preset ?? null,
@@ -95,6 +96,8 @@ export function mockExamSpecKey(input: {
     durationMinutes: input.durationMinutes ?? null,
     topicLabel: input.topicLabel ?? null,
     questionCount: input.questionCount ?? null,
+    // İkiz sınav ayrı kâğıt; eski anahtarlar değişmesin diye yalnız açıkken yazılır.
+    ...(input.twin ? { twin: true } : {}),
   });
 }
 
@@ -428,6 +431,7 @@ async function createExam(
     durationMinutes: input.durationMinutes,
     topicLabel: input.topicLabel,
     questionCount: input.questionCount,
+    twin: input.twin,
   });
   if (!planned.ok) return planned;
   const allocation = planned.plan.blueprint.allocation.filter((row) => row.count > 0);

@@ -13,6 +13,7 @@ import { ReviewTools } from "@/components/parity/review-tools";
 import { QuestionReportButton } from "@/components/learning/question-report-button";
 import { cn } from "@/lib/utils";
 import { rowVerdict, verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
+import { KEY_TERMS_TITLE } from "@/lib/learning/mock-exam/key-terms";
 
 type ReviewItem = {
   id: string;
@@ -47,6 +48,8 @@ type QuestionItem = {
   correct_answers?: string[] | null;
   question_type?: string | null;
   sort_order?: number;
+  /** Açık uçlu soruda puan getiren kilit terimler ve birimler (Paket J3 #11). */
+  key_terms?: string[];
 };
 
 /**
@@ -290,6 +293,23 @@ export function ExamQuestionReviewClient({
               <h3 className="text-base sm:text-lg font-medium text-[var(--cp-text)] leading-relaxed">
                 {question.question_text}
               </h3>
+
+              {open && question.key_terms?.length ? (
+                <div className="rounded-2xl border border-[var(--cp-border)] bg-[var(--cp-surface-2)] p-4 space-y-2">
+                  <p className="text-xs font-semibold text-[var(--cp-text)]">{KEY_TERMS_TITLE}</p>
+                  <ul className="flex flex-wrap gap-2" aria-label={KEY_TERMS_TITLE}>
+                    {question.key_terms.map((term) => (
+                      <li
+                        key={term}
+                        className="rounded-full border border-[var(--cp-border-strong)] bg-[var(--cp-surface)] px-3 py-1 text-xs font-semibold text-[var(--cp-text)]"
+                      >
+                        {term}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-[var(--cp-muted)]">Kâğıdında bunlar geçmeli: puan bu noktalardan gelir.</p>
+                </div>
+              ) : null}
 
               {/* Options Breakdown */}
               <div className="space-y-2.5">
