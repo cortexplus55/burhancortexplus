@@ -120,6 +120,8 @@ export function extractAnswerEvidence(input: {
         learningObjective?: string;
       })[]) ?? [];
     questions.forEach((question, index) => {
+      // Hatalı bulunan soru (Paket J2 #10) puanda tam sayılır ama bilgi ölçmez: kanıt yazılmaz.
+      if (question.voided) return;
       const correct = sameOptionSet(
         selectedOptions(input.answers[String(index)]),
         question.correct ?? [],

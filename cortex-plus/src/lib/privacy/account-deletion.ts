@@ -33,9 +33,11 @@ const USER_CONTENT_TABLES = [
   "explain_attempts",
   // 31 Ekim 2026: hızlı başlatmanın bekleyen materyali. Hazırlık silinince CASCADE; tablo yoksa atlanır.
   "exam_prep_pending_materials",
+  // 31 Ekim 2026 (Paket J2 #10): soru hata bildirimleri. Tablo yoksa atlanır.
+  "question_reports",
 ] as const;
 
-const OPTIONAL_PURGE_TABLES = new Set(["explain_attempts", "exam_prep_pending_materials"]);
+const OPTIONAL_PURGE_TABLES = new Set(["explain_attempts", "exam_prep_pending_materials", "question_reports"]);
 
 /** Every step is checked and repeatable by the deletion worker. */
 export async function purgeUserData(service: SupabaseClient, userId: string): Promise<

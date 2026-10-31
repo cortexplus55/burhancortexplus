@@ -30,6 +30,13 @@ export type QuizQuestion = {
   point?: string;
   /** İkinci çözücü bunu görür. Öğrenciye gitmez. */
   needsSolver?: boolean;
+  /**
+   * Öğrencinin bildirdiği ve denetimde hatalı bulunan soru (31 Ekim 2026, Paket J2 #10): cevaptan bağımsız tam puan,
+   * kanıt yazmaz. Anahtar düzeltildiyse `keyFixed`; `voidNote` denetçinin öğrenciye açıklaması.
+   */
+  voided?: boolean;
+  keyFixed?: boolean;
+  voidNote?: string;
 };
 
 export type PublicQuizQuestion = {
@@ -41,6 +48,9 @@ export type PublicQuizQuestion = {
   optionWhy?: string[];
   steps?: string[];
   misconceptionTag?: string;
+  voided?: boolean;
+  keyFixed?: boolean;
+  voidNote?: string;
 };
 
 const correctValueSchema = z.union([z.string(), z.number()]);
@@ -117,6 +127,9 @@ type RawQuizQuestion = {
   steps?: string[];
   topic?: string;
   point?: string;
+  voided?: boolean;
+  keyFixed?: boolean;
+  voidNote?: string;
 };
 
 /** Kayıtlı ya da gelen soruyu okur: birden çok doğru işaretliyse soru çok cevaplı sayılır (eski kayıtlar böyle). */
@@ -160,6 +173,9 @@ function normalizeQuizRow(raw: RawQuizQuestion, multiFromKey: boolean): QuizQues
     steps: normalizeSteps(raw.steps),
     topic: raw.topic?.trim() || undefined,
     point: raw.point?.trim().slice(0, 80) || undefined,
+    ...(raw.voided === true
+      ? { voided: true, keyFixed: raw.keyFixed === true || undefined, voidNote: raw.voidNote?.trim() || undefined }
+      : {}),
   };
 }
 
@@ -192,6 +208,7 @@ export function publicQuizQuestion(question: QuizQuestion): PublicQuizQuestion {
     optionWhy: question.optionWhy,
     steps: question.steps,
     misconceptionTag: question.misconceptionTag,
+    ...(question.voided ? { voided: true, keyFixed: question.keyFixed, voidNote: question.voidNote } : {}),
   };
 }
 
@@ -238,7 +255,8 @@ export function scoreQuizAnswers(
 ) {
   let score = 0;
   questions.forEach((question, index) => {
-    if (sameOptionSet(selectedOptions(answers[String(index)]), question.correct)) {
+    // Bildirilip hatalı bulunan soru herkese tam puan (Paket J2 #10).
+    if (question.voided || sameOptionSet(selectedOptions(answers[String(index)]), question.correct)) {
       score += 1;
     }
   });

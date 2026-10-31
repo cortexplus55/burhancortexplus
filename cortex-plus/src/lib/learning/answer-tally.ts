@@ -26,7 +26,12 @@ function blankAnswer(value: unknown): boolean {
 }
 
 /** Çoktan seçmeli (tek ya da çok cevaplı) sorunun kararı. */
-export function quizItemVerdict(question: { correct?: readonly string[] | null; multi?: boolean | null }, answer: unknown): ItemVerdict {
+export function quizItemVerdict(
+  question: { correct?: readonly string[] | null; multi?: boolean | null; voided?: boolean | null },
+  answer: unknown,
+): ItemVerdict {
+  // Bildirilip hatalı bulunan soru tam puan (31 Ekim 2026, Paket J2 #10); puanla aynı karar.
+  if (question.voided) return "dogru";
   if (blankAnswer(answer)) return "bos";
   const correct = [...(question.correct ?? [])];
   const selected = selectedOptions(answer);
@@ -62,7 +67,7 @@ export function activityVerdicts(payload: unknown, answers: Record<string, unkno
   const at = (index: number) => answers[String(index)];
   if (data.type === "quiz") {
     return rows(data.questions).map((row, index) =>
-      quizItemVerdict((row ?? {}) as { correct?: string[]; multi?: boolean }, at(index)),
+      quizItemVerdict((row ?? {}) as { correct?: string[]; multi?: boolean; voided?: boolean }, at(index)),
     );
   }
   if (data.type === "true_false") {

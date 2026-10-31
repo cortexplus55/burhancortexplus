@@ -12,6 +12,16 @@ export function toPublicAttemptState(
   return "ready";
 }
 
+/**
+ * Kayda bağlı kredi anahtarı (31 Ekim 2026, Paket J2 #9): öğrenci + adım + kaydın kendisi (deneme yuvası). Rastgele
+ * istek kimliği yerine: aynı yuvaya ikinci ayırma açılamaz; aynı anda yalnız bir "hazırlanıyor" kaydı olabildiği için
+ * (göç 20261031190000) iki sekme aynı yuvayı paylaşır, ikinci kredi kesilmez. Yarıda kalan kaydı sürdüren istek
+ * eski anahtarla (istek kimliği) sürer: yayın anında süren üretim ikinci kez ayırmasın.
+ */
+export function creditIdempotencyKeyForSlot(input: { userId: string; nodeId: string; attemptId: string }): string {
+  return `exam_node_slot_${input.userId}_${input.nodeId}_${input.attemptId}`;
+}
+
 export function creditIdempotencyKeyForStart(input: {
   userId: string;
   nodeId: string;

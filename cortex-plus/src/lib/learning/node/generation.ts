@@ -354,6 +354,7 @@ export async function runStartGeneration(
         generationId,
         status: "failed",
         errorCode: code,
+        creditKey,
       });
     }
     if (prefetch) {
@@ -519,6 +520,7 @@ export async function runStartGeneration(
       clientRequestId,
       generationId,
       status: "ready",
+      creditKey,
     });
     schedulePodcastCheck(creatingAttemptId);
 

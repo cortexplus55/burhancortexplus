@@ -6,7 +6,7 @@ import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-
 import { isBuilding, isStaleBuild, truncatedPayload } from "@/lib/learning/lesson-build";
 import { settledQuizPayload } from "@/lib/learning/quiz-delivery";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
-import { creditIdempotencyKeyForStart } from "@/lib/learning/attempt-lifecycle";
+import { creditIdempotencyKeyForSlot, creditIdempotencyKeyForStart } from "@/lib/learning/attempt-lifecycle";
 import { settlePendingStart } from "@/lib/learning/node/shared";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import type { NodeContext } from "@/lib/learning/node/context";
@@ -54,6 +54,14 @@ export async function progressAction(context: NodeContext): Promise<NextResponse
       const key = creditIdempotencyKeyForStart({ userId, nodeId, clientRequestId: attempt.client_request_id as string });
       const adoptedKey = (attempt.payload as { adoptedPrefetch?: unknown }).adoptedPrefetch === true;
       await settlePendingStart(service, { userId, key: adoptedKey ? `${key}_prefetched` : key, outcome: "refund" });
+      // 31 Ekim 2026'dan beri yeni kayıt deneme yuvasının anahtarıyla ayırır (Paket J2 #9); hangisi açıksa o iade olur.
+      if (!adoptedKey) {
+        await settlePendingStart(service, {
+          userId,
+          key: creditIdempotencyKeyForSlot({ userId, nodeId, attemptId: attempt.id as string }),
+          outcome: "refund",
+        });
+      }
     }
     await recordLessonGenerationFailure(service, {
       userId,

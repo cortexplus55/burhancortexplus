@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -10,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { ReviewTools } from "@/components/parity/review-tools";
+import { QuestionReportButton } from "@/components/learning/question-report-button";
 import { cn } from "@/lib/utils";
 import { rowVerdict, verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 
@@ -82,6 +84,7 @@ export function ExamQuestionReviewClient({
   questions: QuestionItem[];
   reviews: ReviewItem[];
 }) {
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "correct" | "wrong">("all");
 
   const reviewMap = useMemo(() => {
@@ -414,6 +417,19 @@ export function ExamQuestionReviewClient({
                 <p className="text-sm text-[var(--c-text-muted)] leading-relaxed">
                   {explanation}
                 </p>
+                {/* "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10). Düzeltilince sayfa yeni puanla yeniden okunur. */}
+                {review ? (
+                  <div className="mt-3 flex justify-end">
+                    <QuestionReportButton
+                      source="mock"
+                      targetId={examId}
+                      questionRef={question.id}
+                      onResolved={(result) => {
+                        if (result.verdict === "valid") router.refresh();
+                      }}
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           );

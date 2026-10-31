@@ -34,6 +34,9 @@ import { resolveStartSource } from "@/lib/learning/node/source";
 import { reserveStartAttempt } from "@/lib/learning/node/reserve";
 import { runStartGeneration } from "@/lib/learning/node/generation";
 
+/** Öbür sekmenin açtığı kayıt bu kadar yeniyse bu sekme de onu açar (Paket J2 #9). */
+const TWIN_RESUME_MS = 3 * 60_000;
+
 export async function startAction(context: NodeContext): Promise<NextResponse> {
   const { userId, service, options, parsed, prepId, nodeId, action, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, requestedTopic, oralTopicIds, oralMultiTopic, oralSameTopic, difficulty, voiceMode, mood, lessonReviewCards } = context;
   let { sessionMeta, topic, topicDocumentId, topicNodeId, topicSourceRefs, topicLabel, topicWiden, title } = context;
@@ -185,6 +188,26 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
           title,
           topicLabel,
           publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
+          resumed: true,
+        }),
+        ...(await readWalletBalance(service, userId)),
+      });
+    }
+  }
+
+  // Çift sekme (31 Ekim 2026, Paket J2 #9): öbür sekme bu adımı az önce açtıysa (kayıt açık ve son 3 dakikada
+  // güncellenmiş) bu sekme de aynı kaydı açar: ikinci üretim ve ikinci kredi yok. "Dersi tekrarla" ve "incele" kendi
+  // yolundan gider.
+  if (teachingV2 && clientRequestId && !existingForKey && !prefetch && parsed.data.replay !== true && parsed.data.review !== true) {
+    const twin = await findResumableAttempt(service, { userId, prepId, nodeId });
+    const fresh = twin?.updated_at ? Date.now() - Date.parse(twin.updated_at as string) < TWIN_RESUME_MS : false;
+    if (twin?.payload && fresh) {
+      return NextResponse.json({
+        ...attemptStartResponse(twin, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: await publicPayloadForUser(service, userId, twin.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
