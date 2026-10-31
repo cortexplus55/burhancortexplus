@@ -426,7 +426,7 @@ export function ParityExamRunner({
   // Yükseklik 100dvh'den (31 Ekim 2026): telefonda 100vh tarayıcı çubukları ve klavye açıkken görünen
   // alandan uzun kalıyor, alttaki düğmeler ekranın dışına düşüyordu.
   return (
-    <div className="mock-exam-root mx-auto flex min-h-[calc(100dvh-120px)] w-full max-w-3xl flex-col px-4 pb-28 pt-2">
+    <div className="mock-exam-root mx-auto flex min-h-[calc(100vh-120px)] supports-[height:100dvh]:min-h-[calc(100dvh-120px)] w-full max-w-3xl flex-col px-4 pb-28 pt-2">
       <div className="sr-only" aria-live="assertive">
         {liveMsg}
       </div>

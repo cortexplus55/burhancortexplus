@@ -92,12 +92,42 @@ function modelOf(init: Parameters<FetchLike>[1]): string {
 /*
   Asıl model takılırsa yedeğe geçiş (31 Ekim 2026, Paket J denetimi #8): madde "timeout"u da sayıyor; önceden yalnız
   hata kodu ve ağ kopmasında geçiliyordu, asıl model yanıt başlığı göndermeden askıda kalırsa öğrenci SDK'nın kendi
-  süresini bekleyip hata görüyordu. Artık asıl modelin başlığı `OPENAI_FAILOVER_AFTER_MS` (varsayılan 150 sn) içinde
-  gelmezse istek kendi sinyalimizle kesilir ve aynı istek bir kez yedek modelle yinelenir. Çağıranın sinyali (SDK
-  zaman aşımı, kullanıcı iptali) önce keserse eskisi gibi geçilmez. Başlık gelince sayaç durur: akış (stream) gövdesi
-  süreye tabi değildir. `0` / `off` kapatır.
+  süresini (90-270 sn) bekleyip hata görüyordu. Süre isteğin türüne göre (yalnız yanıt BAŞLIĞINA kadar; başlık gelince
+  sayaç durur, akan gövde süreye tabi değildir):
+
+  - Akışlı istek (`stream: true`; ders, öğretmen anlatımı, konu haritası): OpenAI akışta başlığı iş başlarken yollar.
+    Varsayılan 30 sn: generate.ts'in "30 sn hiç parça gelmeyen akış ölüdür" kuralıyla (STREAM_STALL_MS) aynı eşik.
+    Uzun üretim bozulmaz: süre yalnız ilk başlığa kadar, gövde dakikalarca akabilir. `OPENAI_FAILOVER_AFTER_MS`.
+  - Akışsız istek: başlık ancak cevabın tamamı bitince gelir, yani başlık süresi = üretim süresi. Sabit kısa süre
+    uzun ama sağlıklı üretimi keserdi. Bu yüzden çağrının KENDİ zaman aşımının %60'ı (SDK'nın `X-Stainless-Timeout`
+    başlığı; en az 10 sn): 25 sn'lik denetim 15 sn'de, 90 sn'lik çağrı 54 sn'de yedeğe geçer ve yedeğe kalan %40
+    süre çağıranın sinyaliyle sınırlıdır. Zaman aşımı bilinmeyen akışsız istekte süre uygulanmaz (eski davranış).
+
+  Çağıranın sinyali (SDK zaman aşımı, kullanıcı iptali) önce keserse eskisi gibi geçilmez. `0` / `off` ikisini de kapatır.
 */
-export const DEFAULT_FAILOVER_AFTER_MS = 150_000;
+export const DEFAULT_FAILOVER_AFTER_MS = 30_000;
+/** Akışsız istekte asıl modele çağrının kendi süresinin bu payı tanınır. */
+export const NON_STREAM_DEADLINE_SHARE = 0.6;
+export const MIN_NON_STREAM_DEADLINE_MS = 10_000;
+
+function requestBody(init: Parameters<FetchLike>[1]): Record<string, unknown> | null {
+  if (typeof init?.body !== "string") return null;
+  try {
+    const parsed = JSON.parse(init.body) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Asıl modele başlık için tanınan süre (ms); null = süre yok. */
+export function primaryDeadlineMs(init: Parameters<FetchLike>[1], streamDeadlineMs: number | null): number | null {
+  if (!streamDeadlineMs) return null;
+  if (requestBody(init)?.stream === true) return streamDeadlineMs;
+  const seconds = Number(new Headers(init?.headers).get("x-stainless-timeout") ?? "");
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return Math.max(MIN_NON_STREAM_DEADLINE_MS, Math.round(seconds * 1000 * NON_STREAM_DEADLINE_SHARE));
+}
 
 export function failoverAfterMs(env: Record<string, string | undefined> = process.env): number | null {
   const raw = env.OPENAI_FAILOVER_AFTER_MS?.trim();
@@ -155,7 +185,7 @@ export function guardedFetch(
     let response: Response;
     try {
       // Yedeğe geçilemeyen istekte (ses, gömme …) süre uygulanmaz: davranış eskisi gibi.
-      const deadline = failoverInit(input, init) ? deadlineMs : null;
+      const deadline = failoverInit(input, init) ? primaryDeadlineMs(init, deadlineMs) : null;
       response = await callWithDeadline(call, input, init, deadline);
     } catch (error) {
       if (init?.signal?.aborted) throw error;

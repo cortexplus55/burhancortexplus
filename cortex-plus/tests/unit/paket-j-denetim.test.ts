@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { failoverAfterMs, guardedFetch, DEFAULT_FAILOVER_AFTER_MS } from "@/lib/ai/openai-client";
+import { failoverAfterMs, guardedFetch, primaryDeadlineMs, DEFAULT_FAILOVER_AFTER_MS } from "@/lib/ai/openai-client";
 import { parseModelOutput } from "@/lib/ai/json-repair";
 import { deterministicCreditKey, likePrefix, slotKey } from "@/lib/credits/slot-key";
 import { pendingWindowNextLine, pendingWindowTitle } from "@/lib/learning/pending-materials-copy";
 import { mergeNoteWarnings, noteNeedsRuleCheck, readNoteRuleWarnings } from "@/lib/learning/note-rule-check";
 
 const URL_CHAT = "https://api.openai.com/v1/chat/completions";
-const body = (model: string) => JSON.stringify({ model, messages: [], reasoning_effort: "low" });
+const body = (model: string, stream = true) => JSON.stringify({ model, messages: [], reasoning_effort: "low", stream });
 
 describe("#8 yedek model: zaman aşımı", () => {
   it("süre ayarı: varsayılan, kapalı, sayı", () => {
@@ -14,6 +14,36 @@ describe("#8 yedek model: zaman aşımı", () => {
     expect(failoverAfterMs({ OPENAI_FAILOVER_AFTER_MS: "off" })).toBeNull();
     expect(failoverAfterMs({ OPENAI_FAILOVER_AFTER_MS: "0" })).toBeNull();
     expect(failoverAfterMs({ OPENAI_FAILOVER_AFTER_MS: "5000" })).toBe(5000);
+    expect(DEFAULT_FAILOVER_AFTER_MS).toBe(30_000);
+  });
+
+  it("süre isteğin türüne göre: akışta sabit, akışsızda çağrının kendi süresinin %60'ı, bilinmiyorsa yok", () => {
+    expect(primaryDeadlineMs({ body: body("m") }, 30_000)).toBe(30_000);
+    const plain = (timeout?: string) => ({ body: body("m", false), headers: timeout ? { "X-Stainless-Timeout": timeout } : {} }) as RequestInit;
+    expect(primaryDeadlineMs(plain("25"), 30_000)).toBe(15_000);
+    expect(primaryDeadlineMs(plain("90"), 30_000)).toBe(54_000);
+    expect(primaryDeadlineMs(plain("270"), 30_000)).toBe(162_000);
+    expect(primaryDeadlineMs(plain("5"), 30_000)).toBe(10_000);
+    expect(primaryDeadlineMs(plain(), 30_000)).toBeNull();
+    expect(primaryDeadlineMs({ body: body("m") }, null)).toBeNull();
+  });
+
+  it("akışlı uzun üretim kesilmez: başlık zamanında geldiyse gövde süreden uzun akabilir", async () => {
+    const inner = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init?.signal?.addEventListener("abort", () => controller.error(new Error("aborted")));
+          setTimeout(() => {
+            controller.enqueue(new TextEncoder().encode("uzun"));
+            controller.close();
+          }, 80);
+        },
+      });
+      return new Response(stream, { status: 200 });
+    });
+    const response = await guardedFetch(inner as never, 20)(URL_CHAT, { method: "POST", body: body("luna-x") });
+    expect(await response.text()).toBe("uzun");
+    expect(inner).toHaveBeenCalledTimes(1);
   });
 
   it("asıl model başlık göndermeden takılırsa aynı istek yedek modelle yinelenir", async () => {
