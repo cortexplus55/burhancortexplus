@@ -204,8 +204,9 @@ describe("kademeli okuma", () => {
 
 describe("fotoğraf sayfası kotası", () => {
   it("kademelere göre aylık haklar", () => {
-    expect(PHOTO_PAGE_LIMITS).toEqual({ free: 2, plus: 300, sigma: 1000 });
-    expect(photoPageLimit("free")).toBe(2);
+    // 31 Ekim 2026 (Paket J1 #3): ücretsizde ilk hazırlığın 25 sayfası fotoğraf da olabilir.
+    expect(PHOTO_PAGE_LIMITS).toEqual({ free: 25, plus: 300, sigma: 1000 });
+    expect(photoPageLimit("free")).toBe(25);
   });
 
   const subscription = (row: unknown) =>

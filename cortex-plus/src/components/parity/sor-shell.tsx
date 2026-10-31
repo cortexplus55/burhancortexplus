@@ -23,6 +23,7 @@ import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-s
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FounderChip } from "@/components/student/founder-chip";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
+import { EmailVerifyBanner } from "@/components/auth/email-verify-banner";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
 import { ExamCountdownBadge } from "@/components/parity/exam-countdown-badge";
@@ -210,6 +211,7 @@ export function ParitySorShell({
           <FreePreviewToggle on className="cp-free-preview-off" label="Kapat" />
         </div>
       ) : null}
+      {chrome === "session" ? null : <EmailVerifyBanner />}
       {chrome === "session" ? null : <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">

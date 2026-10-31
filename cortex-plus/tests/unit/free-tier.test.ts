@@ -34,13 +34,14 @@ describe("ücretsiz katman sınırları", () => {
     expect(quotaView(null, false).allowance).toBe(0);
   });
 
-  it("bir hazırlık ve toplam 5 sayfa; fiyat tablosu aynı sayıları gösteriyor", () => {
+  // 31 Ekim 2026 (Paket J1 #3, ilk doz bedava): 5 → 25 sayfa.
+  it("bir hazırlık ve toplam 25 sayfa; fiyat tablosu aynı sayıları gösteriyor", () => {
     expect(FREE_PREP_LIMIT).toBe(1);
-    expect(FREE_PAGE_TOTAL).toBe(5);
+    expect(FREE_PAGE_TOTAL).toBe(25);
     const rows = tierComparisonRows();
     expect(rows.find((row) => row.label === "Sınav hazırlığı")?.free).toBe("1");
-    expect(rows.find((row) => row.label === "Belge işleme")?.free).toBe("Toplam 5 sayfa");
-    expect(freePageCapLine(211, 5)).toContain("211 sayfalık belgenin ilk 5 sayfası");
+    expect(rows.find((row) => row.label === "Belge işleme")?.free).toBe("Toplam 25 sayfa");
+    expect(freePageCapLine(211, 25)).toContain("211 sayfalık belgenin ilk 25 sayfası");
   });
 
   it("hazırlık sınırı kurulumda ve okul kopyasında uygulanıyor; hedef puan kaydı sayılmıyor", () => {

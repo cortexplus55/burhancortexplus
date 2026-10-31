@@ -46,6 +46,8 @@ export function UpgradeSheet({
   resetHint,
   /** Yenilenme anı (ISO). Varsa canlı geri sayım çizilir (Astra gibi). */
   resetsAt,
+  headline,
+  wins,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -53,6 +55,10 @@ export function UpgradeSheet({
   returnPath?: string;
   resetHint?: string;
   resetsAt?: string;
+  /** Başlık (1. konu kapısı: "🚀 1. Konuyu Başarıyla Tamamladın!"); yoksa satış başlığı. */
+  headline?: string;
+  /** Öğrencinin bu hazırlıktaki kazanımları; başlığın altında rozetler. */
+  wins?: string[];
 }) {
   const founder = useIsFounder();
   const [whyOpen, setWhyOpen] = useState(false);
@@ -95,8 +101,20 @@ export function UpgradeSheet({
         </span>
 
         <h2 id="ug-title" className="ug-title">
-          <span className="ug-title-gold">Daha hızlı öğrenmek</span> için yükselt
+          {headline ?? (
+            <>
+              <span className="ug-title-gold">Daha hızlı öğrenmek</span> için yükselt
+            </>
+          )}
         </h2>
+
+        {wins?.length ? (
+          <ul className="ug-wins" aria-label="Kazanımların">
+            {wins.map((win) => (
+              <li key={win}>{win}</li>
+            ))}
+          </ul>
+        ) : null}
 
         {/* Sebep başlıktan ayrı duruyor: "neden bu ekran çıktı" sorusunun
             cevabı, satış cümlesinin içine gömülmemeli. */}

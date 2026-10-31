@@ -1076,7 +1076,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setPaywallGate(nodeGateForCode(data.code, gateCopy, isPremiumAccount));
+        setPaywallGate(nodeGateForCode(data.code, gateCopy, isPremiumAccount, data));
         setPaywall(true);
         return;
       }

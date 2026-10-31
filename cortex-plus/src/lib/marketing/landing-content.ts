@@ -1,4 +1,5 @@
 import { FREE_TIER_SENTENCE } from "@/lib/billing/free-meters";
+import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
 import { PLAN_ALLOWANCES } from "@/lib/credits/price-table";
 import type { Icon3DName } from "@/components/ui/icon-3d";
@@ -46,7 +47,7 @@ export const PROOF = [
   {
     stat: "₺0",
     title: "Kartsız başla",
-    body: "Ücretsiz hesapta haftada 3 ders, günde 3 mesaj. Abonelik kendiliğinden yenilenmez, sürpriz çekim olmaz.",
+    body: "Ücretsiz hesapta ilk hazırlığının 1. konusu tam açık, günde 3 mesaj. Abonelik kendiliğinden yenilenmez, sürpriz çekim olmaz.",
   },
 ] as const;
 
@@ -172,7 +173,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Ücretsiz neler yapabilirim?",
-    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam 5 sayfa belge işletebilirsin. Podcast, sözlü ve yazılı deneme, video ders ve sesli dinleme Plus'ta.`,
+    a: `Kart istemiyoruz. Ücretsiz hesapta ${FREE_TIER_SENTENCE.charAt(0).toLocaleLowerCase("tr")}${FREE_TIER_SENTENCE.slice(1)} var. Bir sınav hazırlığı kurabilir, toplam ${FREE_PAGE_TOTAL} sayfa belge işletebilirsin; kalan konular Plus'ta. Podcast, sözlü ve yazılı deneme, video ders ve sesli dinleme Plus'ta.`,
   },
   {
     q: "Plus'ta ne değişiyor?",

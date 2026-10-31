@@ -56,7 +56,7 @@ describe("ücretsiz hakkı aşan işler", () => {
 
   it("kapı cümlesi: ücretsizde podcast 'doldu' demez; ders sayacı gerçekten doldu", () => {
     expect(creditGateCopy("podcast", false)).toEqual({
-      message: expect.stringContaining("Podcast Plus'ta. Ücretsiz hesapta haftada 3 ders"),
+      message: expect.stringContaining("Podcast Plus'ta. Ücretsiz hesapta ilk hazırlığında 1. konu tam açık"),
       beyondFreeDaily: true,
     });
     expect(creditGateCopy("written_exam", false).beyondFreeDaily).toBe(true);

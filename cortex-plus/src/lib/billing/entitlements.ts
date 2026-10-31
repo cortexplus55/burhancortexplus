@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
 
 /**
  * Tek canonical plan / entitlement kaynağı.
@@ -58,7 +59,8 @@ export type UserEntitlements = {
 };
 
 export const PHOTO_PAGE_LIMITS: Record<PlanTier, number> = {
-  free: 2,
+  // 31 Ekim 2026 (Paket J1 #3): ilk hazırlığın 25 sayfası el notu fotoğrafı da olabilir (önce 2).
+  free: FREE_PAGE_TOTAL,
   plus: 300,
   sigma: 1000,
 };

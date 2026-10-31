@@ -100,7 +100,7 @@ describe("sayaçların saati ve cümleleri", () => {
     expect(freeLimitReachedLine("photo")).toBe("Bugünkü 1 ücretsiz fotoğraftan çözüm hakkın bitti.");
     expect(freeMeterResetLine("lesson")).toContain("Pazartesi");
     expect(FREE_TIER_SENTENCE).toBe(
-      "Haftada 3 ders (testleri ve kartlarıyla), günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü",
+      "İlk hazırlığında 1. konu tam açık (dersleri, testleri ve kartlarıyla; haftada 3 derse kadar), günde 3 sohbet mesajı ve günde 1 fotoğraftan soru çözümü",
     );
     for (const line of [freeLimitReachedLine("lesson"), freeLimitReachedLine("chat"), FREE_TIER_SENTENCE]) {
       expect(line.toLocaleLowerCase("tr")).not.toContain("kredi");

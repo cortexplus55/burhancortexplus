@@ -50,6 +50,12 @@ vi.mock("@/lib/supabase/server", () => ({
   createServiceClient: () => h.service,
   createClient: async () => h.service,
 }));
+// İlk doz bedava kapısı (31 Ekim 2026, Paket J1 #3) kendi testinde (paket-j1-kayit-ucretsiz.test.ts): bu sözleşme
+// rotanın mekaniğini sınar, ücretsiz konu kilidini değil.
+vi.mock("@/lib/billing/free-topic-gate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing/free-topic-gate")>()),
+  freeTopicGate: async () => null,
+}));
 vi.mock("@/lib/admin/feature-flags", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/admin/feature-flags")>()),
   isFeatureEnabled: async () => h.flag,

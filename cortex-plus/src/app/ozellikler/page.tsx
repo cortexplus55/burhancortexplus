@@ -128,7 +128,7 @@ export default function OzelliklerPage() {
             <h2 id="oz-final" className="lp-h2">
               Notunla dene
             </h2>
-            <p className="lp-muted">Kart istemiyoruz. Haftada {FREE_LESSONS_PER_WEEK} ders ücretsiz.</p>
+            <p className="lp-muted">Kart istemiyoruz. İlk hazırlığının 1. konusu ücretsiz (haftada {FREE_LESSONS_PER_WEEK} derse kadar).</p>
             <Link href="/kayit" className="lp-btn lp-btn--primary">
               Ücretsiz başla
               <ArrowRight className="h-4 w-4" aria-hidden />

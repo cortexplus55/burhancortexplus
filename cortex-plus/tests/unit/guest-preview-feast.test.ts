@@ -47,13 +47,14 @@ describe("misafir ön izleme şöleni", () => {
     }
   });
 
-  it("kayıt adım 1 ve 6 ile ana sayfa kahramanı /ornek'e gider", () => {
+  it("kayıt adım 1 ve 3 ile ana sayfa kahramanı /ornek'e gider", () => {
     expect(HERO.secondary.href).toBe("/ornek");
     expect(HERO.secondary.label).toMatch(/örnek bir dersi incele/i);
     const wizard = read("src/app/kayit/signup-wizard.tsx");
     expect(wizard.match(/href=\"\/ornek\"/g)?.length).toBeGreaterThanOrEqual(1);
     expect(wizard).toContain("PreviewLessonLink");
-    expect(wizard).toMatch(/step === \"grade\"[\s\S]*<PreviewLessonLink/);
+    // 31 Ekim 2026 (Paket J1 #2): ilk adım "level" (sınıf + hedef sınav tek ekranda).
+    expect(wizard).toMatch(/step === \"level\"[\s\S]*<PreviewLessonLink/);
     expect(wizard).toMatch(/step === \"account\"[\s\S]*<PreviewLessonLink/);
   });
 });

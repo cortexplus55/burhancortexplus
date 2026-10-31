@@ -166,6 +166,8 @@ export function SessionCreditGate({ life }: { life: NodeLifecycle }) {
         meter={(paywallGate ?? gateCopy).meter}
         action={paywallGate?.action}
         actionLabel={paywallGate?.actionLabel}
+        headline={paywallGate?.headline}
+        wins={paywallGate?.wins}
         returnPath={`/deneme-sinavlari/${prepId}`}
       />
     </>
