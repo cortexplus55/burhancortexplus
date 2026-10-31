@@ -156,7 +156,8 @@ describe("#9 çift sekme tek kayıt, tek kredi", () => {
       db.query("INSERT INTO exam_prep_node_attempts (user_id, node_id, status) VALUES ($1, $2, 'creating')", [u, n]),
     ).resolves.toBeTruthy();
     await db.close();
-  });
+    // PGlite'ı test içinde açar: CI makinesinde açılış 5 sn'yi geçebiliyor (31 Ekim, #453'ün ilk koşusu).
+  }, 30_000);
 
   it("kayıt aşaması öbür sekmenin kaydında bekletir; bayat kayıt yeni isteği kilitlemez", () => {
     const reserve = read("src/lib/learning/node/reserve.ts");
