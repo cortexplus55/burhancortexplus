@@ -204,12 +204,14 @@ describe("harita çağrısı", () => {
 });
 
 describe("kalan sayfalar ve materyal ekle yola eklenir", () => {
-  it("add-source konu listesini öğrencinin kimliğiyle okur ve analizi en çok 15 sn bekler", () => {
+  it("add-source konu listesini öğrencinin kimliğiyle okur ve analizi beklemez", () => {
     // 27 Eylül'den 31 Ekim 2026'ya kadar boş kimlikle çağrılıyordu: belge sorgusu kullanıcıya göre süzüldüğü için
     // `documents_unavailable` fırlatıp her eklemede 500 dönüyordu (canlıda 65 sayfalık belgenin kalan 27 konusu eklenemedi).
     const route = read("src/app/api/learning/exam-prep/add-source/route.ts");
     expect(route).toContain("loadScheduleTopics(service, newDocumentIds, [], userId)");
-    expect(route).toContain("ANALYSIS_INLINE_WAIT_MS = 15_000");
+    // 31 Ekim 2026 (ikinci tur): analiz hiç beklenmez (canlıda ekleme 15 sn bekliyordu).
+    expect(route).not.toContain("ANALYSIS_INLINE_WAIT_MS");
+    expect(route).toContain("after(() => analyses);");
     expect(route).toContain("export const maxDuration = 300");
     const schedule = read("src/lib/learning/prep-schedule-topics.ts");
     expect(schedule).toMatch(/hardTopics: string\[\],[\s\S]{0,400}\r?\n  userId: string,\r?\n\): Promise<PrepScheduleTopics>/);
