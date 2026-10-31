@@ -16,6 +16,7 @@ import { freeMeterRemaining, nodeFreeMeter } from "@/lib/billing/node-free-meter
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { FREE_TOPIC_LIMIT_CODE, freeTopicGate } from "@/lib/billing/free-topic-gate";
+import { gatePrepWide } from "@/lib/billing/free-topic-rule";
 import { practiceTopicKey } from "@/lib/learning/quiz-delivery";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { isCreatingStale, shouldReuseExistingStart } from "@/lib/learning/attempt-lifecycle";
@@ -61,7 +62,7 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     prepId,
     nodeId,
     nodeTopicId: (node.session_meta as { topicId?: string } | null)?.topicId ?? null,
-    prepWide: PREP_WIDE_TARGET_KINDS.has(kind) && !adaptiveFocusTopic(kind, node.session_meta, topicLabel),
+    prepWide: gatePrepWide(kind, node.session_meta, topicLabel),
     requestedTopicLabel: requestedTopic || null,
   }).catch(() => null);
   if (firstTopicLock) {

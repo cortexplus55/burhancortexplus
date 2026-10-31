@@ -17,7 +17,7 @@ export type NodeGate = {
 };
 
 /** Sunucunun 1. konu özeti (`free-topic-gate.ts`). */
-type FirstTopicSummary = { title?: string; done?: number; total?: number; lessonsDone?: number; bestScore?: number | null; completed?: boolean };
+export type FirstTopicSummary = { title?: string; done?: number; total?: number; lessonsDone?: number; bestScore?: number | null; completed?: boolean };
 
 /**
  * İlk doz bedava kapısı (31 Ekim 2026, Paket J1 #3): ücretsiz hesapta 2. konu ve final adımları. 1. konuyu bitiren
@@ -32,7 +32,7 @@ export function firstTopicGate(summary: FirstTopicSummary | null | undefined): N
   if (summary?.completed) {
     return {
       headline: "🚀 1. Konuyu Başarıyla Tamamladın!",
-      message: `«${title}» bitti. Kalan konuları ve 20 soruluk sınav provasını açmak için Plus'a geç.`,
+      message: `«${title}» bitti. Kalan Konuları Açmak İçin Plus'a Geç — 20 soruluk sınav provası da Plus'ta açılır.`,
       beyondFreeDaily: true,
       wins,
     };

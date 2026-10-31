@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { topicIdsOf } from "@/lib/learning/topic-identity";
+import { gatePrepWide, nodeLockedForFree, type FirstTopicRef } from "@/lib/billing/free-topic-rule";
 
 /*
   İlk doz bedava (31 Ekim 2026, ürün sahibinin kararı — Paket J1 #3).
@@ -44,32 +45,34 @@ type GateInput = {
   requestedTopicLabel: string | null;
 };
 
-function foldLabel(value: string | null | undefined): string {
-  return String(value ?? "").trim().toLocaleLowerCase("tr");
-}
+type FirstTopicRow = { first: FirstTopicRef; firstIds: ReadonlySet<string> };
 
-/** Kilitliyse 1. konunun özeti, açıksa null. */
-export async function freeTopicGate(service: SupabaseClient, input: GateInput): Promise<FirstTopicSummary | null> {
+/** Kapı bu hesapta çalışır mı ve 1. konu hangisi; abone, kurucu ya da konusuz hazırlıkta null. */
+async function loadFirstTopic(service: SupabaseClient, userId: string, prepId: string): Promise<FirstTopicRow | null> {
   const [entitlements, exempt] = await Promise.all([
-    getUserEntitlements(service, input.userId),
-    billingExempt(service, input.userId).catch(() => false),
+    getUserEntitlements(service, userId),
+    billingExempt(service, userId).catch(() => false),
   ]);
   if (entitlements.isPremium || exempt) return null;
 
   const { data: first } = await service
     .from("exam_prep_topics")
     .select("id, label, document_topic_node_id")
-    .eq("exam_prep_id", input.prepId)
+    .eq("exam_prep_id", prepId)
     .order("sort_order")
     .limit(1)
     .maybeSingle();
   if (!first) return null;
   const firstIds = new Set(topicIdsOf({ id: first.id as string, documentTopicNodeId: (first.document_topic_node_id as string | null) ?? null }));
+  return { first: { label: String(first.label ?? ""), ids: firstIds }, firstIds };
+}
 
-  const open = input.prepWide
-    ? Boolean(input.requestedTopicLabel) && foldLabel(input.requestedTopicLabel) === foldLabel(first.label as string)
-    : Boolean(input.nodeTopicId) && firstIds.has(input.nodeTopicId!);
-  if (open) return null;
+/** Kilitliyse 1. konunun özeti, açıksa null. Başlatma isteği ve adım sayfası bunu çağırır (tek kaynak). */
+export async function freeTopicGate(service: SupabaseClient, input: GateInput): Promise<FirstTopicSummary | null> {
+  const row = await loadFirstTopic(service, input.userId, input.prepId);
+  if (!row) return null;
+  const base = { nodeTopicId: input.nodeTopicId, prepWide: input.prepWide, requestedTopicLabel: input.requestedTopicLabel };
+  if (!nodeLockedForFree(row.first, { ...base, opened: false })) return null;
 
   // Kararın yayınından önce açılmış adım: kaydı varsa açılmaya devam eder.
   const { count: opened } = await service
@@ -79,7 +82,39 @@ export async function freeTopicGate(service: SupabaseClient, input: GateInput): 
     .eq("user_id", input.userId);
   if ((opened ?? 0) > 0) return null;
 
-  return summarizeFirstTopic(service, { userId: input.userId, prepId: input.prepId, title: String(first.label ?? ""), firstIds });
+  return summarizeFirstTopic(service, { userId: input.userId, prepId: input.prepId, title: row.first.label, firstIds: row.firstIds });
+}
+
+/**
+ * Hazırlık yolu için toplu karar (Paket J takip #1): hangi adımlar kilitli ve 1. konunun özeti. Yol `?konu=` taşımaz,
+ * o yüzden hazırlık geneli adımda seçilmiş konu yok (sayfa ve başlatma isteğiyle aynı girdi). Kilit yoksa null.
+ */
+export async function freeTopicLocks(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; nodes: readonly { id: string; kind: string; sessionMeta: unknown; topicLabel: string }[] },
+): Promise<{ summary: FirstTopicSummary; lockedIds: string[] } | null> {
+  const row = await loadFirstTopic(service, input.userId, input.prepId);
+  if (!row) return null;
+  const candidates = input.nodes.filter((node) =>
+    nodeLockedForFree(row.first, {
+      nodeTopicId: ((node.sessionMeta as { topicId?: string } | null)?.topicId ?? null) || null,
+      prepWide: gatePrepWide(node.kind, node.sessionMeta, node.topicLabel),
+      requestedTopicLabel: null,
+      opened: false,
+    }),
+  );
+  if (!candidates.length) return null;
+  const { data: attempts, error } = await service
+    .from("exam_prep_node_attempts")
+    .select("node_id")
+    .eq("user_id", input.userId)
+    .in("node_id", candidates.map((node) => node.id));
+  if (error) return null;
+  const opened = new Set(((attempts ?? []) as { node_id: string }[]).map((attempt) => attempt.node_id));
+  const lockedIds = candidates.filter((node) => !opened.has(node.id)).map((node) => node.id);
+  if (!lockedIds.length) return null;
+  const summary = await summarizeFirstTopic(service, { userId: input.userId, prepId: input.prepId, title: row.first.label, firstIds: row.firstIds });
+  return { summary, lockedIds };
 }
 
 async function summarizeFirstTopic(

@@ -183,7 +183,7 @@ describe("#1 hemen gir, içeride onayla", () => {
     expect(wizard).toContain("await createClient().auth.signInWithPassword({ email, password })");
     expect(wizard.indexOf('fetch("/api/auth/signup"')).toBeLessThan(wizard.indexOf("supabase.auth.signUp("));
     expect(wizard).toContain("if (response.status >= 500 || body.fallback)");
-    expect(read("src/components/parity/sor-shell.tsx")).toContain('{chrome === "session" ? null : <EmailVerifyBanner />}');
+    expect(read("src/components/parity/sor-shell.tsx")).toContain("{account?.isAdmin ? null : <EmailVerifyBanner initialUnverified={emailUnverified} />}");
     const banner = read("src/components/auth/email-verify-banner.tsx");
     expect(banner).toContain("📩 Hesabını güvenceye almak için e-postanı doğrula.");
     // Kabukta Suspense istemesin: adres window'dan okunur (yalnız açıklamada anılır).
@@ -321,7 +321,7 @@ describe("#3 ilk doz bedava", () => {
     const { firstTopicGate, nodeGateForCode } = await import("@/components/parity/exam-node/gates");
     const done = firstTopicGate({ title: "Hücre Bölünmesi", done: 4, total: 4, lessonsDone: 1, bestScore: 80, completed: true });
     expect(done.headline).toBe("🚀 1. Konuyu Başarıyla Tamamladın!");
-    expect(done.message).toContain("Kalan konuları ve 20 soruluk sınav provasını açmak için Plus'a geç");
+    expect(done.message).toContain("Kalan Konuları Açmak İçin Plus'a Geç");
     expect(done.wins).toEqual(["🧠 1 ders bitirdin", "✅ 4/4 adım tamamlandı", "📈 En iyi sonucun %80"]);
     expect(done.beyondFreeDaily).toBe(true);
     const half = firstTopicGate({ title: "Hücre Bölünmesi", done: 1, total: 4, lessonsDone: 1, bestScore: null, completed: false });

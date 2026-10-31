@@ -144,5 +144,34 @@ test.describe("Paket J akışları", { tag: ["@public"] }, () => {
     await expect(sheet).toContainText("İkinci konunun sınavda sorulan maddesi");
     await expect(sheet).toContainText("Sık karıştırdığın ifade");
   });
-});
 
+  test("beklemesiz kilit: rozetli adım kartı anında açar, üretim isteği yok; başlık 1. konunun durumuna göre", async ({ page }) => {
+    const nodeRequests: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/api/learning/exam-prep/node")) nodeRequests.push(request.url());
+    });
+    await page.goto("/e2e/paket-j");
+    const done = page.getByRole("region", { name: "Kilit bitti" });
+    await expect(done.getByTestId("path-plan-lock")).toBeVisible();
+    await done.getByRole("button", { name: /Kilitli adım \(1\. konu bitti\)/ }).click();
+    await expect(page.getByText("🚀 1. Konuyu Başarıyla Tamamladın!")).toBeVisible();
+    await expect(page.getByText(/Kalan Konuları Açmak İçin Plus'a Geç/)).toBeVisible();
+    await expect(page.getByRole("list", { name: "Kazanımların" })).toContainText("En iyi sonucun %75");
+    await expect(page.getByRole("link", { name: "Plus'a yükselt" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByRole("region", { name: "Kilit sürüyor" }).getByRole("button", { name: /1\. konu sürüyor/ }).click();
+    await expect(page.getByText("🔒 Kalan konular Plus'ta")).toBeVisible();
+    expect(nodeRequests).toEqual([]);
+  });
+
+  test("başlangıç kıyası: ilk günün ortalaması sade Türkçe; puanlı etkinlik yoksa sayı uydurulmaz", async ({ page }) => {
+    await page.goto("/e2e/paket-j");
+    const first = page.getByRole("region", { name: "Sonuç ilk gün" });
+    await expect(first).toContainText("🎓 Başlangıç: %60 → Sınav Notu: 85 (+25 Puan Artış!)");
+    await expect(first).toContainText("Başlangıç: bu hazırlıkta çalıştığın ilk günün ortalaması.");
+    const none = page.getByRole("region", { name: "Sonuç yok" });
+    await expect(none).toContainText("🎓 Sınav Notu: 72");
+    await expect(none).toContainText("puanlı bir etkinlik çözülmediği için");
+    await expect(none).not.toContainText("Başlangıç: %");
+  });
+});
