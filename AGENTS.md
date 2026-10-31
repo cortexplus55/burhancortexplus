@@ -1724,6 +1724,22 @@ sınırı, e-posta onayı politikası, kayıt sihirbazının 5 kişiselleştirme
 Bekçi: `lansman-zirhi.test.ts`, `lansman-parca-arama.test.ts` (göçü PGlite'ta; pgvector yerine float8[] alanı),
 `lansman-eposta-ve-hatirlatma.test.ts` (göçleri PGlite'ta).
 
+## Paket J1 (31 Ekim 2026) — ürün sahibinin dört kararı + ödeme, oturum, mobil korumaları
+
+Ürün sahibi dört kararın dördünü de onayladı ve 14 maddeyi üç sıralı PR'da istedi (J1 → J2 → J3). J1 göçleri canlıda
+(`20261031170000`, `180000`). Yeniden açmayın:
+
+| Madde | Kural | Nerede |
+|---|---|---|
+| **1. Hemen gir, içeride onayla** | E-posta + şifre kaydı sunucuda açılır (yönetici ucu, `email_confirm: true`, `app_metadata.email_unverified = true`); öğrenci şifresiyle hemen girer, doğrulama ekranı yok. Doğrulama bağlantısı **bizim posta hattımızdan** (Supabase'in saatte 30 sınırına takılmaz), imzalı, 7 gün; içeride mavi şerit "📩 … e-postanı doğrula (Tekrar gönder)" (saatte 3). SQL `account_verified` bayrağı görür: **davet hediyesi yalnız doğrulanınca**. Kapı sunucuda: zayıf şifre, tek kullanımlık adres (tablo + yedek liste), aynı Gmail kutusu (409), IP başına 10 dk'da 30 / günde 200. Uç 5xx dönerse istemci eski yola (Supabase kaydı + doğrulama ekranı) düşer. **Supabase "Confirm email" ayarı açık kalır** (güvenlik ayarı; kapatılsaydı her hesap "doğrulanmış" sayılırdı). Doğrulanmamış hesaba Google ile girilince bayrak kalkar ve şifre rastgele değişir (başkasının adresiyle açılmış hesabın şifresi ölür) | `api/auth/signup`, `email-verification.ts`, `api/auth/eposta-dogrula(+/gonder)`, `email-verify-banner.tsx`, `auth/callback`, göç `180000` |
+| **2. Kayıt 3 adım** | Sınıf + hedef sınav tek ekranda → anlatım tarzı → hesap (Google üstte). Odak ders ve avatar adımı kalktı (avatar varsayılan, profilden değişir) | `STUDENT_SIGNUP_STEPS`, `signup-wizard.tsx` |
+| **3. İlk doz bedava** | Ücretsiz hesapta ilk hazırlığın **1. konusu** (`exam_prep_topics` ilk sıra) tam açık: ders, test, D/Y, kartlar, tekrar. Öbür konular ve hazırlık geneli final adımları 402 `free_topic_limit` + kazanımlı ekran ("🚀 1. Konuyu Başarıyla Tamamladın!" ya da "🔒 Kalan konular Plus'ta"); önceden yazım kilitli konuya harcanmaz; daha önce açılmış adım açılmaya devam eder. Haftalık 3 ders sayacı 1. konunun içinde geçerli. Belge ve fotoğraf/taranmış sayfa sınırı **5 → 25** (parça kopyaları bir kez sayılır). `FREE_TIER_SENTENCE` ve pazarlama metinleri buna göre | `free-topic-gate.ts`, `node/start.ts`, `exam-node/gates.ts`, `upgrade-sheet.tsx`, `free-tier-copy.ts`, `entitlements.ts` |
+| **4. En fazla 2 cihaz** | Oturum kimliği (JWT `session_id`) `user_device_sessions`'ta; 3. cihaz girince en eski düşer (`auth.sessions` satırı silinir, yenileme jetonu ölür); düşen cihaz `/giris?oturum=baska-cihaz` notunu görür. Denetim imzalı çerezle 5 dk'da bir, hata olursa geçirir; kurucu muaf; çıkış yapılmış oturum sayılmaz | göç `170000` (`touch_device_session`), `device-sessions.ts`, `supabase/middleware.ts` |
+| **5. Ödeme bekleme ekranı** | `/odeme/basarili` 20 sn boyunca 1,5 sn'de bir sorar ("🎉 Ödemen alındı, Plus paketin tanımlanıyor…"); asıl kanıt son 2 saatteki ödeme satırının `paid` olması (yalnız Plus bayrağı yenileyen öğrenciyi erken "hazır" sayardı); konfeti ve `/ogretmen`; 20 sn'de sakin "banka onayı biraz uzadı" + Tekrar kontrol et; "başarısız" asla denmez | `payment-activation.tsx`, `activation.ts`, `GET /api/payments/status` |
+| **6. Deneme koruması + mobil** | Yazılı deneme: cevap, bayrak, soru ve süre tarayıcıda (`cp:exam-draft:<id>`) ve sunucuda (`__meta`), yenilenince aynı soruda ve aynı saniyede; konu testi Paket I taslağıyla; `beforeunload` yalnız çözülürken. `100dvh` (+`100vh` yedeği) sohbet/sözlü/deneme; görünüm alanı `interactiveWidget: "resizes-content"` (Android klavyesi düğmeleri örtmesin). Instagram/Facebook/TikTok/WhatsApp tarayıcısında üstte "🌐 … Tarayıcıda Aç" şeridi | `exam-draft.ts`, `exam-runner.tsx`, `in-app-browser-banner.tsx`, `layout.tsx` |
+
+Bekçi: `paket-j1-kayit-ucretsiz.test.ts`, `paket-j1-cihaz.test.ts`, `paket-j1-odeme-bekleme.test.tsx`, `paket-j1-deneme-koruma.test.tsx`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

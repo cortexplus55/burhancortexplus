@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      await claimUnverifiedAccount(data.user).catch(() => undefined);
+      await claimUnverifiedAccount(data?.user ?? null).catch(() => undefined);
       return NextResponse.redirect(`${origin}${next}`);
     }
     return NextResponse.redirect(`${origin}${exchangeFailurePath(error, next)}`);

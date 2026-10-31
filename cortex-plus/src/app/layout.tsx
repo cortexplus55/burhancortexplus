@@ -109,6 +109,10 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
     { media: "(prefers-color-scheme: dark)", color: "#0d0d0d" },
   ],
+  // Klavye açılınca sayfa küçülsün (31 Ekim 2026, Paket J1 #6): sohbet, sözlü ve denemede alttaki düğmeler klavyenin
+  // altında kalıyordu; `100dvh` tek başına Android Chrome'da klavyeyi saymıyor. iOS Safari bu ayarı yok sayar, odaktaki
+  // alanı zaten görünür kaydırır.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
