@@ -108,11 +108,29 @@ export function clipCramText(text: string, max: number = CRAM_LIMITS.text): stri
 export function clipWeakSpotText(text: string, max: number = CRAM_LIMITS.text): string {
   const value = clean(text);
   if (value.length <= max) return value;
-  const at = value.lastIndexOf(" → ");
+  // Düzeltmenin kendisi "a → b → c" zinciri olabilir; ayrım ilk "→ Doğrusu:" (yoksa ilk "→") noktasından yapılır.
+  const marked = value.indexOf(" → Doğrusu: ");
+  const at = marked > 0 ? marked : value.indexOf(" → ");
   if (at <= 0) return clipCramText(value, max);
-  const tail = clipCramText(value.slice(at + 3), Math.floor(max * 0.55));
+  const correction = value.slice(at + 3);
+  // Kısa düzeltme hep tam gösterilir; uzunsa ancak tam bir zincir halkasında / cümlede / kelimede biter.
+  const tail = correction.length <= WEAK_SPOT_CORRECTION_MAX ? correction : clipAtBoundary(correction, WEAK_SPOT_CORRECTION_MAX);
   const head = clipCramText(value.slice(0, at), Math.max(40, max - tail.length - 3));
   return `${head} → ${tail}`;
+}
+
+/** Zayıf nokta düzeltmesinin tam gösterildiği üst sınır (karakter). */
+export const WEAK_SPOT_CORRECTION_MAX = 120;
+
+/** Metni sınırdan önceki son temiz noktada keser: zincir halkası ("→"), cümle, virgül, kelime; sona tek "…". */
+function clipAtBoundary(text: string, max: number): string {
+  const window = text.slice(0, max);
+  for (const pattern of [/ → /g, /[.!?] /g, /[,;] /g, / /g]) {
+    let last = -1;
+    for (const match of window.matchAll(pattern)) last = match.index! + (pattern.source === " → " ? 0 : 1);
+    if (last > max * 0.4) return `${window.slice(0, last).replace(/[\s,;:→–-]+$/u, "")} …`;
+  }
+  return clipCramText(text, max);
 }
 
 function item(kind: CramKind, title: unknown, text: unknown): CramItem | null {
