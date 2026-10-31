@@ -34,8 +34,8 @@ test.describe("responsive layout", { tag: ["@public"] }, () => {
     await expect(
       page
         .getByRole("heading", { name: /Plus/i })
-        .first()
-        .or(page.getByText("Paketler şu an listelenemiyor")),
+        .or(page.getByText("Paketler şu an listelenemiyor"))
+        .first(),
     ).toBeVisible();
 
     const overflow = await page.evaluate(
