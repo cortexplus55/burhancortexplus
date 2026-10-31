@@ -55,7 +55,9 @@ import {
   sourceHasWorkedProblem,
   sourceStructures,
   uncoveredKeyFacts,
+  type KeyFact,
 } from "@/lib/learning/lesson-key-facts";
+import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula-typos";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -103,7 +105,21 @@ export type TeacherLessonInput = {
   optionCount?: OptionCount;
   /** Hafif doğrulayıcı (30 Ekim 2026, `lesson-sanity.ts`); varsayılan açık. Yalnız ölçüm betikleri ve yapı testleri kapatır. */
   sanity?: boolean;
+  /**
+   * Notta yanlış yazılmış evrensel formüller (31 Ekim 2026, Paket J3 #13, `formula-typos.ts`). Ders standart kuralla
+   * anlatır; uyarı kutusunu ekran çizer. Yoksa hiçbir istem değişmez.
+   */
+  noteWarnings?: FormulaTypo[];
 };
+
+/** Notun yazım hatası olan formülü kilit bilgi değildir: yazar ve kapsam ölçüsü onu "işlenmedi" saymasın. */
+function lessonFacts(pages: TeacherLessonInput["pages"], warnings: readonly FormulaTypo[] | undefined): KeyFact[] {
+  const facts = lessonKeyFacts(pages);
+  if (!warnings?.length) return facts;
+  const compact = (value: string) => value.replace(/\s+/g, "");
+  const typos = warnings.map((warning) => compact(warning.found)).filter(Boolean);
+  return facts.filter((fact) => !typos.some((typo) => compact(fact.text).includes(typo)));
+}
 
 const OPTION_LETTER_LIST = ["A", "B", "C", "D", "E"] as const;
 
@@ -476,12 +492,13 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "lesson"),
+    input.mode === "topic" ? "" : noteWarningsPromptLine(input.noteWarnings),
     `SIRADAKİ KONULAR: ${input.upcomingTopics.length ? input.upcomingTopics.join(" | ") : "(yok)"}`,
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
       : "",
     input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
-    input.mode === "topic" ? "" : keyFactsBlock(lessonKeyFacts(input.pages)),
+    input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings)),
     input.mode === "topic"
       ? "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
       : `KAYNAK:\n${sourceText(input.pages)}`,
@@ -1120,7 +1137,7 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
 }
 
 type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> &
-  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount">>;
+  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount" | "noteWarnings">>;
 
 function collector() {
   const issues: TeacherIssue[] = [];
@@ -2078,7 +2095,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     25 Ekim 2026: tam kapsam (omurganın her alt başlığı) için 9 → 12 ekran, 5 → 6 kavram.
   */
   const documentPages = input.mode === "topic" ? [] : (input.pages ?? []);
-  const facts = lessonKeyFacts(documentPages);
+  const facts = lessonFacts(documentPages, input.noteWarnings);
   const cap = lessonScreenCap(facts.length);
   if (screens.length > cap) {
     low("screens", cap === 12 ? "En fazla on iki ekran; kavramı daha az ekrana sığdır." : `En fazla ${cap} ekran; kavramı daha az ekrana sığdır.`);
@@ -2183,7 +2200,7 @@ export function lessonCoverageGaps(lesson: LessonV3, input: StructureInput): Les
   if (input.mode === "topic" || !input.pages?.length) return { headings: [], facts: [] };
   return {
     headings: uncoveredBackbone(lesson.screens, inputBackbone(input)),
-    facts: uncoveredKeyFacts(lesson.screens, lessonKeyFacts(input.pages)).map((fact) => fact.text),
+    facts: uncoveredKeyFacts(lesson.screens, lessonFacts(input.pages, input.noteWarnings)).map((fact) => fact.text),
   };
 }
 

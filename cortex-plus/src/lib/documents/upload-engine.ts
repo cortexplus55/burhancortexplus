@@ -3,6 +3,7 @@ import { buildPhotoSet, splitSelection, type PhotoSetPart } from "@/lib/document
 import { expandLargePdfs } from "@/lib/documents/pdf-split-client";
 import type { PhotoPage } from "@/lib/documents/photo-set-pdf";
 import { runPool, type PoolOutcome } from "@/lib/documents/upload-batch";
+import { flagLowQualityPhotos, type PhotoQuality, type PhotoQualityChoice } from "@/lib/documents/photo-quality";
 
 /**
  * Ortak yükleme motoru (31 Ekim 2026, ürün sahibi: "bütün yükleme kapıları tek mimaride"). Kurulum sihirbazı,
@@ -66,6 +67,8 @@ export type PipelineConfig = {
   encode?: (file: File) => Promise<PhotoPage | null>;
   /** Sınama: büyük PDF'i parçalarına açan işlev (tarayıcıda `expandLargePdfs`). */
   expandPdf?: (files: readonly File[]) => Promise<File[]>;
+  /** Sınama: fotoğrafın netlik ölçüsü (tarayıcıda `assessPhotoQuality`). */
+  assessPhoto?: (file: File) => Promise<PhotoQuality | null>;
 };
 
 export type PipelineItem = { file: File; part?: PhotoSetPart };
@@ -77,6 +80,11 @@ export type PipelineHandlers = {
   upload?: (file: File) => Promise<{ documentId: string }>;
   /** Yükleme başlarken (kimlik henüz yok) ve kimlik gelince: kurulumun "yolda olan" kaydı. */
   onUploadStart?: (item: PipelineItem) => (documentId: string | null) => void;
+  /**
+   * Yüklemeden önce: bulanık ya da karanlık görünen fotoğraflar için öğrenciye sorulur. "retake" işaretlenenleri bu
+   * seçimden çıkarır (öğrenci yeniden çeker), "use" olduğu gibi sürer. Yoksa soru sorulmaz.
+   */
+  reviewPhotos?: (flagged: File[], all: File[]) => Promise<PhotoQualityChoice>;
   /** Yüklenen belgeyi yüzey işler; sayfa ilerlemesini `onPages` ile bildirir. */
   process: (input: {
     documentId: string;
@@ -100,13 +108,34 @@ export type PipelineResult = {
   succeeded: number;
 };
 
+/**
+ * Bulanık / karanlık fotoğraf denetimi: ölçü kısa bir bütçe içinde (`flagLowQualityPhotos`), işaretli fotoğraf yoksa
+ * soru yok. Soru düşerse ya da ölçü yapılamazsa seçim olduğu gibi yüklenir — denetim yüklemeyi hiçbir zaman durdurmaz.
+ */
+export async function screenPhotoQuality(
+  files: File[],
+  options: Pick<PipelineConfig, "assessPhoto"> & Pick<PipelineHandlers, "reviewPhotos">,
+): Promise<File[]> {
+  if (!options.reviewPhotos) return files;
+  let flagged: File[] = [];
+  try {
+    flagged = await flagLowQualityPhotos(files, { assess: options.assessPhoto });
+  } catch {
+    return files;
+  }
+  if (!flagged.length) return files;
+  const choice = await options.reviewPhotos(flagged, files).catch((): PhotoQualityChoice => "use");
+  return choice === "retake" ? files.filter((file) => !flagged.includes(file)) : files;
+}
+
 /** Seçimi yükler ve işletir. Hiçbir dosya ötekini düşürmez; sonuç sırası seçimdir. */
 export async function runUploadPipeline(
-  files: File[],
+  selection: File[],
   config: PipelineConfig,
   handlers: PipelineHandlers,
   report: PipelineReport = {},
 ): Promise<PipelineResult> {
+  const files = await screenPhotoQuality(selection, { assessPhoto: config.assessPhoto, reviewPhotos: handlers.reviewPhotos });
   const split = config.photoSet ? splitSelection(files) : { photos: [] as File[], others: files };
   const photos = split.photos;
   const picked = config.single ? (photos.length ? [] : split.others.slice(0, 1)) : split.others;

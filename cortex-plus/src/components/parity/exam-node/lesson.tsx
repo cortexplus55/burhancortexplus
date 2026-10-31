@@ -5,6 +5,7 @@ import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import type { LessonCheckAnswer } from "@/lib/learning/lesson-play";
 import { NodeSources } from "@/components/parity/node-sources";
+import { readNoteWarnings } from "@/lib/learning/formula-typos";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function LessonPlay({ life }: { life: NodeLifecycle }) {
@@ -20,6 +21,7 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
             building={lessonBuilding}
             upcoming={lessonBuilding ? (payload.upcoming ?? []) : []}
             plannedScreens={lessonBuilding ? (payload.plannedScreens ?? null) : null}
+            noteWarnings={readNoteWarnings(payload.noteWarnings)}
             plannedMinutes={activityMinutes}
             language={language}
             gradeCheck={attemptId ? gradeLessonCheck : undefined}

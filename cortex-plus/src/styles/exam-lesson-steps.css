@@ -820,6 +820,28 @@
   background: rgba(226, 179, 64, 0.1);
 }
 
+/* Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formül. Ürün sahibinin istediği
+   sarı kutu; ders metninin değil ekranın parçası, ilk ekranda başlığın altında. */
+.als-note-typos {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.als-note-typos .als-note {
+  margin-top: 0;
+}
+
+.als-note--typo {
+  border-color: #e2b340;
+  background: rgba(226, 179, 64, 0.14);
+}
+
+.als-note-typo-title {
+  font-weight: 700;
+  color: var(--cp-gold, #e2b340);
+}
+
 /*
   Sınav vurgusu ve sınav kutuları (18 Ekim 2026, ürün sahibinin kararı: önemli nokta farklı
   renkte, akılda kalıcı). Terim koyu kalır; renk yalnız sınavda soru olacak kesin bilgi için.

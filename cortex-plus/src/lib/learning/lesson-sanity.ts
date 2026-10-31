@@ -1,6 +1,7 @@
 import type { LessonBlock, LessonScreen } from "@/lib/learning/lesson-v3";
 import { optionKey } from "@/lib/learning/question-integrity";
 import { BLOCK_ROLE_RULE, SAME_KIND_DISTRACTOR_RULE } from "@/lib/learning/teaching-rubric";
+import type { FormulaTypo } from "@/lib/learning/formula-typos";
 
 /**
  * Dersin hafif doğrulayıcısı (30 Ekim 2026, ürün sahibinin kararları: "bütün kavramlara uzat" ve "doğrulayıcı tekrar
@@ -85,15 +86,25 @@ function blockLine(block: LessonBlock): string {
   return JSON.stringify(rest).slice(0, 600);
 }
 
-export function lessonSanityUserPrompt(input: {
+export type LessonSanityInput = {
   mode: "document" | "topic";
   topicLabel: string;
   source: string;
   screens: readonly LessonScreen[];
-}): string {
+  /** Notta yanlış yazılmış evrensel formüller (Paket J3 #13): ders standart kuralı anlatır, anahtar nota dönmez. */
+  noteWarnings?: readonly Pick<FormulaTypo, "found" | "standard">[];
+};
+
+export function lessonSanityUserPrompt(input: LessonSanityInput): string {
+  const typoLine =
+    input.mode === "document" && input.noteWarnings?.length
+      ? `\n\nNOTTA YAZIM HATASI: ${input.noteWarnings
+          .map((warning) => `«${warning.found}» yanlış yazılmış; doğrusu «${warning.standard}»`)
+          .join("; ")}. Ders standart kuralı anlatır; anahtarı nottaki yazıma göre değiştirme.`
+      : "";
   const source =
     input.mode === "document"
-      ? `KAYNAK:\n${input.source.slice(0, LESSON_SANITY_SOURCE_CHARS)}`
+      ? `KAYNAK:\n${input.source.slice(0, LESSON_SANITY_SOURCE_CHARS)}${typoLine}`
       : "KAYNAK: (belgesiz ders; konunun yerleşik ders kitabı bilgisi geçerli)";
   const screens = input.screens
     .map((screen, screenIndex) =>
@@ -238,7 +249,7 @@ export type LessonSanityAsk = (system: string, user: string) => Promise<string |
  */
 export async function runLessonSanity(
   ask: LessonSanityAsk,
-  input: { mode: "document" | "topic"; topicLabel: string; source: string; screens: readonly LessonScreen[] },
+  input: LessonSanityInput,
   parse: (text: string) => unknown,
   timeoutMs = LESSON_SANITY_TIMEOUT_MS,
 ): Promise<LessonSanityResult & { ms: number; timedOut: boolean }> {

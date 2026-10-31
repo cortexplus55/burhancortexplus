@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Smartphone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
+import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
 import { PENDING_MATERIALS_EVENT } from "@/lib/learning/pending-materials-copy";
 import { SINGLE_WINDOW_MAX_PAGES } from "@/lib/documents/document-windows";
 import { CreditGate } from "@/components/paywall/credit-gate";
@@ -193,6 +194,8 @@ export function PrepMaterialAdder({
         return outcome;
       },
     },
+    // Bulanık / karanlık fotoğraf sorusu (Paket J3 #13): `PhotoQualityPrompt` düğmelerin altında.
+    { photoQuality: true },
   );
   useScreenAwake(busy);
 
@@ -331,6 +334,7 @@ export function PrepMaterialAdder({
           event.target.value = "";
         }}
       />
+      <PhotoQualityPrompt request={upload.photoQuality} onAnswer={upload.answerPhotoQuality} />
       {upload.photoProgress ? (
         <p className="text-xs text-[var(--cp-muted)]" role="status" aria-live="polite">
           {photoSetProgressLine(upload.photoProgress)}

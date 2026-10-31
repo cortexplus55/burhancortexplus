@@ -1753,6 +1753,15 @@ J1'in ardından ikinci sıralı PR. Göçler canlıda (`20261031190000`, `191000
 
 Bekçi: `paket-j2.test.ts` (pencere, onarım, yedek model, tekil dizin ve ödül tavanı PGlite'ta), `paket-j2-bildir.test.tsx`.
 
+## Paket J3 (31 Ekim 2026)
+
+| Madde | Kural | Nerede |
+|---|---|---|
+| **13a. Akıllı hoca uyarısı** | Notta evrensel formül açıkça yanlış yazılmışsa ("E = mc³", "F = m/a", "(a+b)² = a² + b²") dersin ilk ekranında sarı kutu: "⚠️ Notunda Dikkat Çeken Nokta: Notunda «X» geçiyor ancak standart kural «Y»'dir, yazım hatası olabilir." Model çağrısı yok; katalog yalnız evrensel matematik/fizik/kimya formülü (Einstein, Pisagor, Newton, ideal gaz, Ohm, dalga, trig temel özdeşlik, diskriminant, iki kare, yoğunluk, kinetik enerji). **Kaynak sayı önceliğinin (`SOURCE_NUMBER_PRIORITY`) bilinçli, katalogla sınırlı istisnası** (ürün sahibinin kararı, 31 Ekim 2026): eşik, aralık, sınıflandırma, tıbbi değer, tarih, hukuk kuralı katalogda yok, eklenmez. Bir taraf birebir, öbürü aynı değişkenlerle tek karakter / ters kesir / bilinen klasik hatayla ayrılmalı; yarım ifade (alt satıra düşen üs), "yanlış/hata/değil/tuzak" geçen satır, soru, şık ve "denklemini çözünüz" işaretlenmez; en çok 3. Uyarı ders metni değil, gövdenin `noteWarnings` alanı; yazara ve hafif doğrulayıcıya yalnız "standart kuralla anlat, anahtarı nota çevirme" satırı gider, yanlış formül kilit bilgi sayılmaz. Uyarı yoksa hiçbir istem ve gövde değişmez | `formula-typos.ts`, `node/lesson.ts`, `teacher-lesson.ts` (`noteWarningsPromptLine`, `lessonFacts`), `lesson-sanity.ts`, `exam-lesson-steps.tsx` (`NoteWarnings`) |
+| **13b. Bulanık / karanlık fotoğraf** | Yüklemeden önce cihazda, 512 piksellik görüntüde parlaklık, kontrast ve netlik (Laplace varyansı + en güçlü kenarlar); yalnız **açıkça** okunamayan işaretlenir (soluk ama keskin kurşun kalem geçer). 4 şerit, 1,8 sn bütçe, en çok 40 fotoğraf; çözülemeyen (HEIC) ve bütçeyi aşan uyarısız gider. Soru: "🔍 Bu fotoğraf çok bulanık/karanlık görünüyor, sayılar yanlış okunabilir — daha net çekmek ister misin?" (birden çoksa "Bu N fotoğraf"); "Yeniden çek" yalnız işaretlileri bu seçimden çıkarır, "Yine de kullan" olduğu gibi yükler — yükleme engellenmez. Soruyu çizen yüzey açar: kurulum, telefon, materyal ekle (`{ photoQuality: true }`); stüdyo ve sohbet sormaz | `photo-quality.ts`, `upload-engine.ts` (`screenPhotoQuality`), `use-universal-upload.ts`, `photo-quality-prompt.tsx` |
+
+Bekçi: `paket-j3-uyari-foto.test.tsx`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)
