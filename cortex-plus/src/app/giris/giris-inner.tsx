@@ -8,6 +8,7 @@ import { useGoogleBlockedWebViewApp } from "@/lib/auth/in-app-browser";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { authErrorMessage } from "@/lib/auth/messages";
+import { OTHER_DEVICE_NOTE, OTHER_DEVICE_PARAM } from "@/lib/auth/device-limit";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -26,6 +27,9 @@ export default function GirisPage() {
   // Askıya alınan hesap ara katmandan buraya düşer (plan 4.1): neden yazmazsak
   // öğrenci şifresini yanlış sanır ve destek yerine sıfırlama döngüsüne girer.
   const suspended = params.get("durum") === "askida";
+  // Hesap en çok 2 cihazda açık kalır (31 Ekim 2026): üçüncü cihaz girince en eski cihazın oturumu kapanır ve o
+  // tarayıcı buraya düşer. Neden yazmazsak öğrenci şifresinin çalındığını ya da bir hata olduğunu sanır.
+  const otherDevice = params.get("oturum") === OTHER_DEVICE_PARAM;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -88,6 +92,14 @@ export default function GirisPage() {
               cortexplus@cortexplus.app
             </a>
             {" "}adresine yaz.
+          </p>
+        ) : null}
+        {otherDevice && !suspended ? (
+          <p
+            role="status"
+            className="rounded-xl border border-[var(--cx-border)] px-4 py-3 text-sm text-[var(--cx-muted)]"
+          >
+            {OTHER_DEVICE_NOTE}
           </p>
         ) : null}
         {blockedApp ? (
