@@ -107,6 +107,8 @@ export type Payload = {
   upcoming?: string[];
   /** Yazarın ekran planı; yazım sürerken sayacın paydası. */
   plannedScreens?: number;
+  /** Notta yanlış yazılmış evrensel formüller (Paket J3 #13); okuma `readNoteWarnings` ile. */
+  noteWarnings?: unknown;
 };
 
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */

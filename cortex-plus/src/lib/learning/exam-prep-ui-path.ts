@@ -3,6 +3,7 @@
  */
 
 import { parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
+import { parseSnoozedUntil, parseStoredExamResult, type StoredExamResult } from "@/lib/learning/exam-result";
 
 export type PathNodeLike = {
   id: string;
@@ -86,6 +87,12 @@ export type LearningPreferencesView = {
    */
   examTime?: string;
   examPlace?: string;
+  /**
+   * Sınav sonrası notu ve "henüz açıklanmadı" ertelemesi (31 Ekim 2026, Paket J3 #14, `exam-result.ts`). Ayarlar
+   * kaydı tercihleri bu ayrıştırıcıdan geçirip geri yazıyor: burada okunmazsa not ilk ayar kaydında silinirdi.
+   */
+  examResult?: StoredExamResult;
+  examResultSnoozedUntil?: string;
 };
 
 const CHOSEN_MODALITIES = ["reading", "listening", "watching", "practice"] as const;
@@ -137,6 +144,8 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
       : [];
   const examTime = parseExamTime(o.examTime);
   const examPlace = parseExamPlace(o.examPlace);
+  const examResult = parseStoredExamResult(o.examResult);
+  const examResultSnoozedUntil = parseSnoozedUntil(o.examResultSnoozedUntil);
   return {
     style,
     pace,
@@ -147,6 +156,8 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
     examTrack,
     ...(examTime ? { examTime } : {}),
     ...(examPlace ? { examPlace } : {}),
+    ...(examResult ? { examResult } : {}),
+    ...(examResultSnoozedUntil ? { examResultSnoozedUntil } : {}),
   };
 }
 

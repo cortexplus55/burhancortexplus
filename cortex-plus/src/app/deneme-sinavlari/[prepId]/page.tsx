@@ -52,6 +52,10 @@ import { retentionFromTopics } from "@/lib/learning/prep-radar";
 // Günü gelen tekrar (20 Ekim 2026): "Bugün N tekrar"; anahtar kapalıysa ya da tablo yoksa 0.
 import { dueReviewCountForPrep } from "@/lib/learning/review-items-store";
 import { countPendingMaterials } from "@/lib/learning/pending-materials";
+import { createPrepInviteToken, prepInviteUrl } from "@/lib/learning/prep-invite";
+import { prepInviteWhatsappHref } from "@/lib/learning/prep-share";
+import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
+import { appOrigin } from "@/lib/app-url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -568,10 +572,37 @@ export default async function ExamPrepDetailPage({
       }
     : null;
 
+  // Paket J3 #14 (31 Ekim 2026): sınıf davet bağlantısı sunucuda imzalanır ve mutlak adresle gider (WhatsApp metnine
+  // göreli adres girmez). Sınav günü geçince not sorusu / başarı kartı; not göçsüz `learning_preferences`'ta.
+  const inviteToken = createPrepInviteToken(prep.id as string);
+  const inviteUrl = inviteToken ? prepInviteUrl(inviteToken) : null;
+  const resultPrefs = parseLearningPreferences(prep.learning_preferences);
+  const resultToday = istanbulDay();
+  const examResultView = examDatePassed(prep.exam_date as string | null, resultToday)
+    ? {
+        prepId: prep.id as string,
+        due: examResultDue({
+          examDate: prep.exam_date as string | null,
+          today: resultToday,
+          result: resultPrefs.examResult ?? null,
+          snoozedUntil: resultPrefs.examResultSnoozedUntil ?? null,
+        }),
+        stored: resultPrefs.examResult
+          ? { score: resultPrefs.examResult.score, baselinePct: resultPrefs.examResult.baselinePct }
+          : null,
+        landingUrl: `${appOrigin()}/`,
+      }
+    : null;
+
   return (
     <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari" minimalTop>
       <ExamPrepHome
         prepId={prep.id}
+        shareTools={{
+          inviteUrl,
+          whatsappHref: inviteUrl ? prepInviteWhatsappHref((prep.title ?? prep.exam_type) as string | null, inviteUrl) : null,
+        }}
+        examResult={examResultView}
         title={prep.title ?? prep.exam_type}
         examType={prep.exam_type}
         examDate={prep.exam_date}

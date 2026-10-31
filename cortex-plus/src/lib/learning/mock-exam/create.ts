@@ -1,3 +1,12 @@
+import {
+  PAST_MIN_QUESTIONS,
+  TWIN_EXAM_LABEL,
+  detectPastQuestions,
+  pastSamplesFor,
+  pastStyleBrief,
+  pastTopicWeights,
+  type PastQuestion,
+} from "@/lib/learning/mock-exam/past-questions";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
@@ -49,6 +58,8 @@ export type CreateMockExamInput = {
   /** Stüdyo / tek konu. */
   topicLabel?: string;
   questionCount?: number;
+  /** "🎯 Çıkmış Sorulara Göre İkiz Sınav" (Paket J3 #11): belgedeki çıkmış soruların dağılımı ve tarzı. */
+  twin?: boolean;
   /** Öğrencinin seçtiği süre; 0 süresiz. Yoksa uzunluk seçeneğinin süresi. */
   durationMinutes?: number;
   /** Her konunun üretimi bitince (25 Ekim 2026): ekran gerçek sayıyı gösterir, sahte sayaç yok. */
@@ -192,6 +203,9 @@ export async function planMockExam(
   if (!topics.length) return { ok: false, status: 400, error: "no_topics" };
 
   const { slots, syllabus, syllabusText } = await loadMockExamSetup(service, userId, prepId, topics);
+  // İkiz sınav: çıkmış soruların konu payı kayıtta ağırlığı olmayan konulara (kurulum ekranıyla aynı işlev).
+  const past = input.twin ? await loadPastQuestions(service, prepId) : [];
+  if (past.length >= PAST_MIN_QUESTIONS) applyPastWeights(slots, past);
 
   // Konu metinleri (konular birbirini beklemez). Aynı okuma kapsam noktalarını da kurar. Dağılıma girmez:
   // kurulum ekranı metni bilmiyor, söz verdiği dağılım üretimde aynen kalmalı (Paket A).
@@ -226,6 +240,12 @@ export async function planMockExam(
     questionCount: input.questionCount ?? undefined,
   });
   if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
+  if (past.length >= PAST_MIN_QUESTIONS) {
+    blueprint.pastStyle = {
+      count: past.length,
+      questions: past.slice(0, 24).map((question) => ({ ...question, text: question.text.slice(0, 240) })),
+    };
+  }
 
   return {
     ok: true,
@@ -264,6 +284,47 @@ export async function loadMockExamSetup(
   return { slots, syllabus, syllabusText };
 }
 
+/**
+ * Belgelerdeki çıkmış sorular (Paket J3 #11). Kurulum ekranı ve üretim aynı okumayı yapar; okuma düşerse boş liste
+ * (ikiz sınav sunulmaz).
+ */
+export async function loadPastQuestions(service: SupabaseClient, prepId: string): Promise<PastQuestion[]> {
+  try {
+    const { data: docs } = await service
+      .from("exam_prep_source_documents")
+      .select("document_id")
+      .eq("exam_prep_id", prepId)
+      .limit(24);
+    const ids = (docs ?? []).map((d) => d.document_id as string).filter(Boolean);
+    if (!ids.length) {
+      const { data: prep } = await service.from("exam_preps").select("document_id").eq("id", prepId).maybeSingle();
+      if (prep?.document_id) ids.push(prep.document_id as string);
+    }
+    if (!ids.length) return [];
+    const { data: pages } = await service
+      .from("document_pages")
+      .select("text_content")
+      .in("document_id", ids)
+      .order("page_number")
+      .limit(160);
+    const text = (pages ?? []).map((p) => String(p.text_content ?? "")).join("\n").slice(0, 240_000);
+    return detectPastQuestions(text);
+  } catch {
+    return [];
+  }
+}
+
+/** Çıkmış soruların payı yalnız kayıtta ve belgede ağırlığı olmayan konulara yazılır. */
+export function applyPastWeights(slots: MockTopicSlot[], past: PastQuestion[]): void {
+  const weights = pastTopicWeights(
+    past,
+    slots.filter((slot) => !slot.outOfScope).map((slot) => slot.topicLabel),
+  );
+  for (const slot of slots) {
+    if (slot.weightPercent == null && weights.has(slot.topicLabel)) slot.weightPercent = weights.get(slot.topicLabel)!;
+  }
+}
+
 /** Açık uçlu yerler (Astra'nın kâğıdındaki yazma yeri) sözlü deneme motorundan gelir. */
 const OPEN_TYPES = new Set<MockQuestionType>(["open", "short_answer"]);
 
@@ -284,6 +345,8 @@ type TopicGenInput = {
   avoid?: string[];
   /** Öğrencinin sınıfı/sınavı: 4 ya da 5 şık. Kâğıdın bütün soruları aynı sayıda (Paket A). */
   optionCount?: OptionCount;
+  /** İkiz sınavda çıkmış soru tarzı (Paket J3 #11). */
+  styleBrief?: string;
 };
 
 type DraftBase = Pick<MockExamQuestionDraft, "topicId" | "topicLabel" | "source" | "difficulty">;
@@ -455,6 +518,9 @@ export async function assembleMockExamQuestions(input: {
         modelIndex: request.modelIndex,
         avoid: request.avoid,
         optionCount,
+        styleBrief: input.blueprint.pastStyle
+          ? pastStyleBrief(pastSamplesFor(input.blueprint.pastStyle.questions, row.topicLabel))
+          : undefined,
       })
         .then((produced) =>
           exclusive(async () => {
@@ -563,7 +629,7 @@ export async function persistMockExam(input: {
     .from("practice_exams")
     .insert({
       user_id: input.userId,
-      title: `${input.prepTitle} · yazılı deneme`,
+      title: input.blueprint.pastStyle ? `${input.prepTitle} · ${TWIN_EXAM_LABEL}` : `${input.prepTitle} · yazılı deneme`,
       duration_minutes: input.blueprint.durationMinutes,
       exam_prep_id: input.prepId,
       blueprint: input.blueprint,
@@ -675,6 +741,7 @@ async function choiceDrafts(
       "Soru doğru kalsın ve yalnız bu konudan olsun. Cümleyi aynen kopyalamak zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin. Yanlış olgu yazma.",
       "Aynı olguyu, aynı cevabı ya da aynı kökü ikinci kez sorma. Sıradaki soru farklı bir alt başlık ya da açı olsun.",
       coverageBlock(block, input.topic.topicLabel, slots.length),
+      input.styleBrief ?? "",
       avoidListBlock("KABUL EDİLMİŞ SORULAR (bununla örtüşen olgu, cevap ya da kök yazma):", input.avoid ?? []),
     ]
       .filter(Boolean)
@@ -737,6 +804,7 @@ async function openDrafts(
             "Soru doğru kalsın ve bu konuda kalsın. Cümleyi aynen kopyalamak zorunda değilsin; aynı noktayı başka bağlamda, başka sayıyla ya da başka açıdan sorabilirsin.",
             "Aynı olguyu, aynı cevabı ya da aynı kökü ikinci kez sorma. Sıradaki soru farklı bir alt başlık ya da açı olsun.",
             coverageBlock(block, input.topic.topicLabel, slots.length),
+            input.styleBrief ?? "",
             avoidListBlock("KABUL EDİLMİŞ SORULAR (bununla örtüşen olgu, cevap ya da kök yazma):", input.avoid ?? []),
           ]
             .filter(Boolean)

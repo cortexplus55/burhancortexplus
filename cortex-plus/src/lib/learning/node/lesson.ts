@@ -12,6 +12,7 @@ import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import { sectionHeadings } from "@/lib/documents/topic-title";
 import { upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
 import { examPointsInSource } from "@/lib/learning/exam-points";
+import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { NodeGenerationError, actionForKind } from "./shared";
 import { saveTopicLesson } from "./lesson-store";
 import { withSupport, type LessonCore } from "./teacher-pages";
@@ -88,6 +89,12 @@ export async function teacherLessonPayload(
     cleanedByModelNow: clean.filter((item) => item.cleaned).length,
   });
   const lessonPages = withSupport(clean, core);
+  // Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formül. Yalnız belgeli derste;
+  // dersin temiz sayfaları ve ham kaynak bloğu (temizlik bir yazımı sessizce düzeltmiş olabilir). Model çağrısı yok.
+  const noteWarnings = core
+    ? findFormulaTypos([...lessonPages.map((page) => page.text), input.sourceBlock ?? ""].join("\n"))
+    : [];
+  const warned = noteWarnings.length ? { noteWarnings } : {};
   const outcome = await runTeacherLesson(input.service, {
     mode: core ? "document" : "topic",
     userId: input.userId,
@@ -105,6 +112,7 @@ export async function teacherLessonPayload(
     // Belgeli derste yalnız dersin kaynağında geçen maddeler: başka belgenin maddesi "kaynakta yok" turu açıyordu.
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
+    ...warned,
     startedAt,
     charge: input.charge,
     // Hızlı işlem yalnız öğrencinin açtığı soğuk derste (kimin alacağına `fastAllowedFor` karar verir).
@@ -128,6 +136,8 @@ export async function teacherLessonPayload(
             upcoming: published.upcoming,
             // Sayacın paydası: yazarın ekran planı (28 Ekim 2026).
             ...(published.plannedScreens ? { plannedScreens: published.plannedScreens } : {}),
+            // Ekranın çizdiği uyarı kutusu; ders metnine girmez.
+            ...warned,
           })
       : undefined,
   });
@@ -206,6 +216,7 @@ export async function teacherLessonPayload(
     qualityReport: null,
     refunded: false,
     engine: "teacher",
+    ...warned,
   };
   // Önceden yazılan ders konuya öğrenci açınca yazılır.
   if (input.prepId && input.topicId && input.charge !== false) {

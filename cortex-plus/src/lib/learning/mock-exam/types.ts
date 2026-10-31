@@ -44,6 +44,11 @@ export type MockExamBlueprint = {
     examHeavy: boolean;
   }>;
   allowNumeric: boolean;
+  /**
+   * "🎯 Çıkmış Sorulara Göre İkiz Sınav" (31 Ekim 2026, Paket J3 #11): belgedeki çıkmış sorular. Varsa yazar her konuda
+   * bunların kök kalıbını ve zorluğunu örnek alır (`past-questions.ts`).
+   */
+  pastStyle?: { count: number; questions: Array<{ text: string; kind: "mcq" | "open"; optionCount: number }> };
 };
 
 export type MockSourceRef = {

@@ -149,7 +149,13 @@ export async function completeLessonCoverage(
     if (extra.length && input.sanity !== false) {
       const sanity = await runLessonSanity(
         (system, user) => io.write(system, user, () => undefined).then((reply) => reply.text),
-        { mode, topicLabel: input.topicLabel, source: input.pages.map((page) => page.text).join("\n"), screens: extra },
+        {
+          mode,
+          topicLabel: input.topicLabel,
+          source: input.pages.map((page) => page.text).join("\n"),
+          screens: extra,
+          ...(input.noteWarnings?.length ? { noteWarnings: input.noteWarnings } : {}),
+        },
         parseModelJson,
       );
       if (sanity) extra = sanity.screens;
@@ -348,6 +354,7 @@ export async function teacherLessonPipeline(
                 topicLabel: input.topicLabel,
                 source: input.pages.map((page) => page.text).join("\n"),
                 screens,
+                ...(input.noteWarnings?.length ? { noteWarnings: input.noteWarnings } : {}),
               },
               parseModelJson,
             );

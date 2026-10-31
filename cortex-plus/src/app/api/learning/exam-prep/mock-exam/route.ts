@@ -29,6 +29,8 @@ const bodySchema = z.object({
    * vardı, seçenekler yalnız 10 ve 20'ydi). Verilirse uzunluk seçeneğinin yerine geçer.
    */
   questionCount: z.number().int().min(MOCK_CUSTOM_MIN).max(MOCK_CUSTOM_MAX).optional(),
+  /** "🎯 Çıkmış Sorulara Göre İkiz Sınav" (31 Ekim 2026, Paket J3 #11). */
+  twin: z.boolean().optional(),
   /** Süregelen kâğıt. Yeni istek açılmaz. */
   resumeId: z.string().uuid().optional(),
   /** Bütçe bitince öğrenci aynı kâğıdı sürdürür. */
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
     topicIds: parsed.data.topicIds,
     durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
     questionCount: parsed.data.questionCount,
+    twin: parsed.data.twin === true || undefined,
     resumeId: parsed.data.resumeId,
     explicitRetry: parsed.data.retry === true,
     signal: request.signal,
@@ -135,6 +138,7 @@ export async function POST(request: Request) {
       topicIds: fields.topicIds,
       durationMinutes: fields.durationMinutes,
       questionCount: fields.questionCount,
+      twin: fields.twin,
     });
     if (durable && !durable.ok) {
       if (stream) {

@@ -31,6 +31,7 @@ import {
   presetQuestionCount,
   promisedAllocation,
 } from "@/lib/learning/mock-exam/allocate";
+import { TWIN_EXAM_LABEL } from "@/lib/learning/mock-exam/past-questions";
 import { MOCK_CUSTOM_MAX, MOCK_CUSTOM_MIN } from "@/lib/learning/mock-exam/types";
 
 /** Uzunluk seçeneğinin önerdiği süre; öğrenci değiştirebilir. */
@@ -54,6 +55,7 @@ export function MockExamSetup({
   formatSummary,
   realMinutes = null,
   realQuestionCount = null,
+  pastQuestions = null,
   isAdmin,
 }: {
   prepId: string;
@@ -63,10 +65,13 @@ export function MockExamSetup({
   realMinutes?: number | null;
   /** Belgedeki sınav biçiminin soru sayısı. */
   realQuestionCount?: number | null;
+  /** Belgedeki çıkmış sorular (Paket J3 #11): sayı ve ikiz sınavın konu ağırlıkları (konu kimliğiyle). */
+  pastQuestions?: { count: number; weights: Record<string, number | null> } | null;
   isAdmin: boolean;
 }) {
   const router = useRouter();
   const [scope, setScope] = useState<"all" | "topics">("all");
+  const [twin, setTwin] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set(topics.map((t) => t.id)));
   const [preset, setPreset] = useState<LengthChoice>(formatSummary ? "real" : "standard");
   const [customCount, setCustomCount] = useState(realQuestionCount && realQuestionCount >= MOCK_CUSTOM_MIN ? Math.min(MOCK_CUSTOM_MAX, realQuestionCount) : 25);
@@ -106,7 +111,7 @@ export function MockExamSetup({
       pool.map((t) => ({
         topicId: t.id,
         topicLabel: t.label,
-        weightPercent: t.weightPercent ?? null,
+        weightPercent: (twin && pastQuestions ? pastQuestions.weights[t.id] : null) ?? t.weightPercent ?? null,
         examHeavy: t.examHeavy ?? false,
         outOfScope: t.outOfScope ?? false,
         passageChars: 100,
@@ -285,6 +290,7 @@ export function MockExamSetup({
       scope,
       topicIds: scope === "topics" ? [...selected] : undefined,
       durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
+      ...(twin && pastQuestions ? { twin: true } : {}),
       ...extra,
     };
   }
@@ -501,6 +507,28 @@ export function MockExamSetup({
           </ul>
         ) : null}
       </section>
+
+      {pastQuestions ? (
+        <section className="mt-8">
+          <button
+            type="button"
+            aria-pressed={twin}
+            onClick={() => setTwin((value) => !value)}
+            className={`w-full rounded-2xl border p-4 text-left transition ${
+              twin ? "border-[color:var(--cp-action)] bg-[color:var(--cp-surface-2)]" : "border-[color:var(--cp-border)]"
+            }`}
+          >
+            <span className="block text-sm font-semibold">{TWIN_EXAM_LABEL}</span>
+            <span className="mt-1 block text-xs text-[color:var(--cp-muted)]">
+              Belgende {pastQuestions.count} çıkmış soru bulduk. Açarsan deneme onların konu dağılımını, soru kökü tarzını ve
+              zorluğunu örnek alır; aynı soruları sormaz.
+            </span>
+            <span className="mt-2 inline-block text-xs font-semibold text-[color:var(--cp-action)]">
+              {twin ? "Açık · ikiz sınav hazırlanacak" : "Açmak için dokun"}
+            </span>
+          </button>
+        </section>
+      ) : null}
 
       <section className="mt-8">
         <h2 className="text-sm font-semibold">Uzunluk</h2>

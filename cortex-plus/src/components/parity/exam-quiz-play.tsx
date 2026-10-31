@@ -19,6 +19,8 @@ export function ExamQuizPlay({
   examMode = false,
   onReveal,
   report,
+  twin,
+  twoOption,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -33,6 +35,10 @@ export function ExamQuizPlay({
   onReveal?: () => void;
   /** "🚩 Soruda hata bildir" (Paket J2 #10): cevap açıklamasının altında, sorunun sırasıyla. */
   report?: (index: number) => ReactNode;
+  /** "🔥 İkiz soru" (Paket J3 #12): yanlış cevabın açıklamasının altında. */
+  twin?: (index: number) => ReactNode;
+  /** "🤔 İki şık arasında kaldım" (Paket J3 #12): cevap kilitlenmeden önce, şıkların altında. */
+  twoOption?: (index: number) => ReactNode;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [acting, setActing] = useState(false);
@@ -180,6 +186,8 @@ export function ExamQuizPlay({
         })}
       </div>
 
+      {twoOption && !examMode && hasCorrect && !revealed ? twoOption(index) : null}
+
       {showFeedback ? (
         <div
           className="p-5 rounded-2xl border border-[var(--cp-border)] bg-[var(--cp-surface)] space-y-3"
@@ -245,6 +253,7 @@ export function ExamQuizPlay({
               })}
             </ul>
           ) : null}
+          {twin && !isCorrect && !question.voided ? twin(index) : null}
           {report ? <div className="flex justify-end">{report(index)}</div> : null}
         </div>
       ) : null}
