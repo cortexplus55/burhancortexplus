@@ -89,7 +89,8 @@ import {
   parseFamiliarity,
   type Familiarity,
 } from "@/lib/learning/session-signals";
-import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
+import { DOCUMENT_UPLOAD_ACCEPT, uploadSizeProblem } from "@/lib/documents/upload-accept";
+import { isPdfSplitTail } from "@/lib/documents/pdf-split-client";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
@@ -238,8 +239,6 @@ function acceptedUpload(file: File): boolean {
   const name = file.name.toLowerCase();
   return FILE_EXTENSIONS.some((extension) => name.endsWith(extension));
 }
-const MAX_BYTES = 15 * 1024 * 1024;
-const PDF_MAX_BYTES = 50 * 1024 * 1024;
 
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const MONTHS = [
@@ -370,6 +369,11 @@ export function ExamCreateWizard({
   const inFlightRef = useRef(new Map<unknown, { documentId: string | null; uploaded: Promise<string | null> }>());
   /** Büyük belgenin baş kopyası → ana belge (document-head.ts). */
   const headOfRef = useRef(new Map<string, string>());
+  /**
+   * Okuması pencere işçisine devredilen büyük belgeler (31 Ekim 2026): baş kopyası haritada, kendisi hazırlığa bekleyen
+   * olarak bağlanır; kurulum onun okunmasını beklemez.
+   */
+  const windowedRef = useRef(new Set<string>());
   /** Okuması ağ / zaman aşımıyla yarıda kalan belgeler: kurulumda bekleyen olarak gider, hazırlık sayfası sürdürür. */
   const stalledRef = useRef(new Set<string>());
   /** Konu haritasının kurulduğu belgeler: kurulum yalnız bunlarla; sonradan bitenler bekleyen. */
@@ -1073,6 +1077,8 @@ export function ExamCreateWizard({
           deferMap: true,
           ...(options.fastStart ? { fastStart: true } : {}),
         }),
+      // Baş kopyası çıktı ve okuma pencere işçisine devredildi: yoklama burada biter.
+      stopWhen: (progress) => progress.windowed === true,
       onProgress: (progress) => {
         takeHead(progress.head, input.documentId, Number(progress.pageCount) || null);
         if (options.onPages) {
@@ -1148,6 +1154,10 @@ export function ExamCreateWizard({
     setProcessAlert(null);
     setProcessDetail(null);
     setProcessPercent(null);
+    if (result.status === 202 && processed.windowed === true) {
+      windowedRef.current.add(input.documentId);
+      return true;
+    }
     setFailedMaterials((current) =>
       current.filter((item) => item.documentId !== input.documentId),
     );
@@ -1276,10 +1286,8 @@ export function ExamCreateWizard({
     {
       validate: (file) => {
         if (!acceptedUpload(file)) return DOCUMENT_PICK_REJECTED;
-        if (file.size > (isPdfFile(file) ? PDF_MAX_BYTES : MAX_BYTES)) {
-          return "PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.";
-        }
-        return null;
+        // 50 MB'tan büyük PDF motorda parçalarına bölündü (31 Ekim 2026); Word/sunu 50 MB'a kadar.
+        return uploadSizeProblem(file);
       },
       onUploadStart: (item: PipelineItem) => {
         let settle: (id: string | null) => void = () => {};
@@ -1307,8 +1315,9 @@ export function ExamCreateWizard({
             {
               quiet: quietUploadRef.current || Boolean(item.part),
               onPages,
-              // Büyük tek PDF'te baş kopyası; fotoğraf seti zaten istemcide bölündü.
-              fastStart: paidUploads && !item.part && isPdfFile(item.file),
+              // Büyük tek PDF'te baş kopyası; fotoğraf seti zaten istemcide bölündü. Bölünmüş kitapta yalnız ilk parça
+              // (sonraki parçalar bekleyen olarak pencere pencere eklenir).
+              fastStart: paidUploads && !item.part && isPdfFile(item.file) && !isPdfSplitTail(item.file),
             },
           );
         } finally {
@@ -1395,6 +1404,7 @@ export function ExamCreateWizard({
       ...materialsRef.current.map((material) => material.id),
       ...[...inFlightRef.current.values()].map((flight) => flight.documentId),
       ...stalledRef.current,
+      ...windowedRef.current,
     ].filter((id): id is string => typeof id === "string" && !known.has(id) && !failedIds.has(id) && !headOfRef.current.has(id));
     return [...new Set(ids)];
   }

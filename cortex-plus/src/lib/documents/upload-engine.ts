@@ -1,5 +1,6 @@
 import { UploadError, uploadDocumentFile } from "@/lib/documents/upload-client";
 import { buildPhotoSet, splitSelection, type PhotoSetPart } from "@/lib/documents/photo-set-client";
+import { expandLargePdfs } from "@/lib/documents/pdf-split-client";
 import type { PhotoPage } from "@/lib/documents/photo-set-pdf";
 import { runPool, type PoolOutcome } from "@/lib/documents/upload-batch";
 
@@ -63,6 +64,8 @@ export type PipelineConfig = {
   single?: boolean;
   /** Sınama: fotoğrafı sete hazırlayan işlev (tarayıcıda `encodePhotoPage`). */
   encode?: (file: File) => Promise<PhotoPage | null>;
+  /** Sınama: büyük PDF'i parçalarına açan işlev (tarayıcıda `expandLargePdfs`). */
+  expandPdf?: (files: readonly File[]) => Promise<File[]>;
 };
 
 export type PipelineItem = { file: File; part?: PhotoSetPart };
@@ -106,7 +109,10 @@ export async function runUploadPipeline(
 ): Promise<PipelineResult> {
   const split = config.photoSet ? splitSelection(files) : { photos: [] as File[], others: files };
   const photos = split.photos;
-  const others = config.single ? (photos.length ? [] : split.others.slice(0, 1)) : split.others;
+  const picked = config.single ? (photos.length ? [] : split.others.slice(0, 1)) : split.others;
+  // 50 MB'tan büyük PDF parçalarına açılır (pdf-split-client.ts, 31 Ekim 2026): her parça ayrı belge, sırası kitabın.
+  const expanded = await (config.expandPdf ?? expandLargePdfs)(picked);
+  const others = config.single ? expanded.slice(0, 1) : expanded;
   const failed: string[] = [];
   let firstError: string | null = null;
   let stopped = false;
@@ -222,7 +228,7 @@ export async function runUploadPipeline(
   }
 
   const firstPhoto = photos.length ? files.indexOf(photos[0]!) : -1;
-  const firstOther = others.length ? files.indexOf(others[0]!) : -1;
+  const firstOther = picked.length ? files.indexOf(picked[0]!) : -1;
   const otherNames = others.map((file) => file.name);
   const order = firstPhoto >= 0 && (firstOther < 0 || firstPhoto < firstOther)
     ? [...partNames, ...otherNames]

@@ -41,6 +41,38 @@ export function pendingDoneLine(mergedTopics: number): string {
 /** Bitiş bildirimi en az bu kadar görünür (ürün sahibi: "en az 8 saniye"). */
 export const PENDING_DONE_VISIBLE_MS = 10_000;
 
+/*
+  Pencereli işleme (31 Ekim 2026): büyük belge pencere pencere yola girer; şerit yola eklenen sayfayı sayar ve her
+  pencerede yolu yeniler. Taranmış kitap öğrenci ilerledikçe okunur.
+*/
+export const PENDING_WINDOW_TITLE = "⚡ Kitabın işleniyor";
+
+/** "Materyal ekle" büyük belgeyi bekleyen yazınca hazırlık sayfasındaki şeridi uyandıran olay. */
+export const PENDING_MATERIALS_EVENT = "cp:pending-materials";
+
+export function pendingWindowLine(attached: number, total: number): string {
+  return total > 0
+    ? `${Math.min(attached, total)} / ${total} sayfa yoluna eklendi; sıradaki bölüm hazırlanıyor…`
+    : "Sayfalar okunuyor; ilk bölüm birazdan yolunda…";
+}
+
+export function pendingWindowAddedLine(from: number, to: number, topics: number): string {
+  const range = from === to ? `${from}. sayfa` : `${from}–${to}. sayfalar`;
+  return topics > 0 ? `✓ ${range} yoluna eklendi (+${topics} konu).` : `✓ ${range} yoluna eklendi.`;
+}
+
+export const PENDING_PAUSED_TITLE = "📖 Kitabının ilk bölümleri yolunda";
+
+export function pendingPausedLine(attached: number, total: number): string {
+  const left = Math.max(0, total - attached);
+  return `${attached} / ${total} sayfa yolunda. Kalan ${left} taranmış sayfa sen ilerledikçe okunacak; okunmayan sayfa kullanım hakkından düşmez.`;
+}
+
+export const PENDING_READ_ALL = "Hepsini şimdi oku";
+
+export const PENDING_CREDITS_LINE =
+  "Kalan sayfaları okumaya kullanım hakkın şu an yetmiyor. Hakkın yenilenince kaldığı yerden sürer.";
+
 /** Toplam okuma ilerlemesi: bilinen sayfa sayıları üzerinden (bilinmeyen belge toplama girmez). */
 export function pendingProgress(items: readonly { pagesDone: number | null; pageCount: number | null }[]): {
   done: number;

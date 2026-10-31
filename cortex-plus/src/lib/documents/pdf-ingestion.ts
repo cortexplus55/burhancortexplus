@@ -17,6 +17,7 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 import { cappedPageTotal, freePagesRemaining } from "@/lib/documents/free-pages";
 import { photoSetRenderedPages } from "@/lib/documents/photo-set-read";
+import { documentReservationKey } from "@/lib/documents/document-reservation-key";
 
 /** Default pages per step; shrinks when the deadline is near. */
 export const PDF_PAGES_PER_STEP = 40;
@@ -151,10 +152,11 @@ async function assertLease(service: SupabaseClient, documentId: string, token: s
 }
 
 async function ensureReservation(
-  service: SupabaseClient, userId: string, documentId: string, lease: Lease, pages: number,
+  service: SupabaseClient, userId: string, documentId: string, lease: Lease, pages: number, firstPage = 1,
 ): Promise<string> {
   if (lease.reservationId) return lease.reservationId;
-  const key = `document_process_${documentId}`;
+  // Duraklayıp kaldığı yerden süren okuma (pencereli işleme) kalan sayfalar için kendi anahtarıyla ayırır.
+  const key = documentReservationKey(documentId, firstPage);
   // Sayfa başına kredi (8 Ekim 2026): işlenecek sayfa sayısı kadar.
   const reservation = await reserveCredits(service, userId, "DOCUMENT_PAGE_PROCESS", key, pages);
   let id: string | null = reservation.ok ? reservation.reservationId : null;
@@ -696,6 +698,11 @@ export async function processPdfDocumentStep(
     maxOcrPages?: number | null;
     /** Hızlı başlatma (31 Ekim 2026): ilk adım yalnız bu kadar sayfa okur; baş kopyası hemen çıkarılır. */
     firstStepPages?: number;
+    /**
+     * Pencereli işleme (31 Ekim 2026): adım bu sayfadan öteye okumaz. Pencere işçisi bir sonraki pencereyi okutur;
+     * taranmış kitapta öğrencinin henüz gelmediği sayfalar okunmaz (kredisi de düşmez).
+     */
+    untilPage?: number;
   },
 ): Promise<PdfIngestionResult> {
   const deadlineMs = options?.deadlineMs ?? Date.now() + PDF_STEP_DEADLINE_MS;
@@ -711,6 +718,13 @@ export async function processPdfDocumentStep(
   };
   if (lease.state !== "claimed" || !lease.token) {
     return { status: "failed", code: "ingestion_state_unavailable", retryable: true };
+  }
+
+  // Pencereli işleme: istenen sayfaya varıldıysa okunmaz (ayırma da açılmaz); pencere işçisi sonrasını okutur.
+  if (options?.untilPage && (lease.nextPage ?? 1) > options.untilPage) {
+    await updateLease(service, documentId, lease.token, { lease_token: null, lease_until: null }).catch(() => undefined);
+    const next = lease.nextPage ?? 1;
+    return { status: "processing", pageCount: lease.totalPages ?? null, nextPage: next, pagesDone: next - 1, failedPages: [], ocrPages: 0 };
   }
 
   let reservationId: string | null = lease.reservationId ?? null;
@@ -735,17 +749,23 @@ export async function processPdfDocumentStep(
     // Ücretli hesap, sayfa başına kredi (8 Ekim 2026): ilk adımda belgenin
     // sayfa sayısı kadar ayrılır; hak yetmezse yettiği kadar sayfa işlenir
     // (ücretsizdeki 5 sayfa sınırıyla aynı yol). Sınır sonraki adımlarda
-    // `total_pages`'ten okunur.
+    // `total_pages`'ten okunur. Sayfa sayısında ürün sınırı yok (31 Ekim 2026: önceki 1.000 sayfa tavanı kalktı;
+    // 1.200 sayfalık kitabı yalnız öğrencinin hakkı sınırlar). Duraklayıp süren okumada (pencereli işleme,
+    // document-credits.ts) ayırma yalnız kalan sayfalar için açılır.
+    const firstPage = lease.nextPage ?? 1;
     let paidCap: number | null = null;
     let maxOcrPages = options?.maxOcrPages ?? null;
     if (remaining === null) {
       if (!reservationId) {
-        const pageCount = (await extractText(buffer, "application/pdf", 1, 0)).total;
+        const pageCount = (await extractText(buffer, "application/pdf", 1, 0)).total || 1;
+        const known = firstPage > 1 && lease.totalPages ? Math.min(lease.totalPages, pageCount) : pageCount;
+        const toRead = Math.max(1, known - firstPage + 1);
         const spendable = await spendableCredits(service, userId);
         const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 2);
-        paidCap = Math.min(pageCount || 1, Number.isFinite(spendable) ? Math.floor(spendable / pageCost) : 1000, 1000);
-        if (paidCap < 1) throw new Error("insufficient_credits");
-        reservationId = await ensureReservation(service, userId, documentId, lease, paidCap);
+        const affordable = Math.min(toRead, Number.isFinite(spendable) ? Math.floor(spendable / pageCost) : toRead);
+        if (affordable < 1) throw new Error("insufficient_credits");
+        reservationId = await ensureReservation(service, userId, documentId, lease, affordable, firstPage);
+        paidCap = firstPage - 1 + affordable;
         await updateLease(service, documentId, lease.token, { total_pages: paidCap });
       } else {
         paidCap = lease.totalPages ?? null;
@@ -763,10 +783,12 @@ export async function processPdfDocumentStep(
     }
     const pageCap = remaining ?? paidCap;
 
-    const firstPage = lease.nextPage ?? 1;
-    const stepBudget = options?.firstStepPages && firstPage === 1
+    const firstStep = options?.firstStepPages && firstPage === 1
       ? Math.max(1, Math.min(adaptivePageBudget(deadlineMs), options.firstStepPages))
       : adaptivePageBudget(deadlineMs);
+    const stepBudget = options?.untilPage && options.untilPage >= firstPage
+      ? Math.max(1, Math.min(firstStep, options.untilPage - firstPage + 1))
+      : firstStep;
     const pageBudget = pageCap == null
       ? stepBudget
       : Math.max(1, Math.min(stepBudget, pageCap - firstPage + 1));

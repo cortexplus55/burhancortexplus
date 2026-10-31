@@ -1670,6 +1670,31 @@ tarayıcı HEIC çözemezse fotoğraf tek dosya gider, sunucu `heic-convert` ile
 (sihirbaz, telefon, materyal ekle, stüdyo, sohbet) aynı motoru ve aynı depo yolunu (`safeDocumentName`) kullanır.
 Bekçi: `ilk-izlenim.test.ts`, `bekleyen-materyal-seridi.test.tsx`, `exam-wizard-post-pdf.test.ts`.
 
+### Pencereli işleme (31 Ekim 2026, üçüncü tur) — 5 sayfa da 1.000 sayfa da aynı yoldan
+
+Ürün sahibi: "400, 600, 1.000 sayfalık kitap (ya da 250 fotoğraf) yüklenirse? Kalan sayfaları tek arka plan işinde
+okumaya ve tek haritayla çıkarmaya kalkarsan fonksiyon zaman aşımına, harita jeton sınırına çarpar." Önceki tasarım
+"ilk 12 sayfa + kalan bütün sayfalar tek seferde"ydi. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Pencere**: baş kopyasından (1-12) sonra 40'ar sayfa; son ≤10 sayfa son pencereye katılır (pencere 40-50 sayfa). ≤50 sayfalık belge bölünmez, kendisiyle eklenir | `document-windows.ts` (`nextWindow`, `usesWindows`) |
+| Her pencere okunur okunmaz **gizli kopyası** çıkar (`ensureDocumentPart`, baş kopyasının genellemesi; sayfa numaraları ana belgeninki, dosya paylaşılır), hazırlığın konu adlarıyla **küçük harita** (40 sayfa: ~12 sn, ~2.000 jeton, düşük düşünme, ücretli hesapta hızlı işlem) çıkar ve **materyal ekle yoluyla** (`attachDocumentsToPrep`) yola eklenir. Bu sırada sonraki pencere okunur. Hiçbir okuma adımı 40 sayfayı, hiçbir harita bir pencereyi aşmaz | `document-head.ts`, `pending-windows.ts`, `prep-attach.ts` |
+| **Pencere işçisi** sunucuda: hazırlığın bekleyen belgelerini sırayla işler; bir çağrı en çok ~4 dk (fonksiyon 300 sn), iş bitmediyse kendini **imzalı iç istekle** sürdürür (`requestPendingAdvance`, en çok 60 halka). Aynı hazırlıkta aynı anda tek işçi (Redis kilidi; okuma ve harita kiraları ayrıca). Kurulum (`create`) ve "Materyal ekle" işçiyi hemen başlatır; öğrenci sekmeyi kapatsa da kitap yola girer | `pending-materials/advance/route.ts` |
+| Kurulumun arka plan okuması ve sihirbazın yoklaması baş kopyası + iki pencerede (92. sayfa) durur (`untilPage`, `HEAD_READ_AHEAD_PAGES`); sihirbaz belgeyi "devredildi" (`windowed`) diye bırakır, hazırlığa bekleyen olarak bağlar. Okuma adımı `untilPage`'den öteye okumaz, ayırma da açmaz | `process/route.ts`, `pdf-ingestion.ts`, `exam-create-wizard.tsx` (`windowedRef`) |
+| "Materyal ekle"de tek pencereyi aşan belge sayfa sayısı belli olur olmaz işçiye devredilir (`stopWhen`, bekleyen olarak yazılır, şerit olayla uyanır) | `prep-add-material.tsx`, `pending-materials` POST |
+| **Şerit**: işçiyi dürter, ilerlemeyi okur ("⚡ Kitabın işleniyor · 110 / 500 sayfa yoluna eklendi"), her pencerede yolu yeniler ve "✓ 93–132. sayfalar yoluna eklendi (+6 konu)" der; 45 sn ilerleme olmazsa yeniden dürter | `pending-materials-banner.tsx`, `pendingWindowProgress` |
+| **Taranmış kitap öğrenci ilerledikçe okunur**: yolda bitmemiş 12 ders varken sonraki taranmış pencere okunmaz (görüntü okuması dakikalar sürer ve haktan düşer); duraklarken sayfa ücreti ayırması bırakılır, yalnız okunan sayfa kesilir; öğrenci dersleri bitirdikçe (hazırlık sayfasına döndüğünde) sonraki pencere okunur, "Hepsini şimdi oku" beklemeden okutur. Metinli belge duraklamaz | `shouldPauseReading`, `settleDocumentHold`, `document-credits.ts` |
+| Kaldığı yerden süren okuma kalan sayfalar için kendi ayırmasını açar (`document_process_<belge>_p<sayfa>`); takılı ayırma temizliği ve kesinleştirme anahtarı ayrıştırır | `document-reservation-key.ts`, `credits/service.ts`, `pdf-ingestion.ts` |
+| **Tavanlar**: belge başına 1.000 sayfa tavanı kalktı (hak sınırlar). Depolamanın tek dosya tavanı Supabase ücretsiz planda **sabit 50 MB** (panelden doğrulandı; Pro'da ayarlanır): 50 MB üstü PDF tarayıcıda sayfa sınırından **bölünür** (pdf-lib, metin katmanı korunur, "Kitap (s. 1–150).pdf"), yalnız ilk parça baş kopyası alır, öbürleri bekleyen olur. Word/sunu 15 → 50 MB (bölünemez). Depolama kotası parçaları bir kez sayar (önce 50 MB'lık kitap her parça için yeniden sayılıyordu) | `pdf-split-client.ts`, `upload-engine.ts`, `upload-accept.ts` (`uploadSizeProblem`), `store-upload.ts`, `storage-quota.ts` |
+| Hazırlığın "Kaynaklar" listesinde kitabın parçaları tek kaynak; ana belge bütün pencereleri eklenince bekleyen listeden çıkar, ücreti kesinleşir, Belgelerim'de "bitti" (kendi haritası Belgelerim/stüdyo isterse çıkar) | `[prepId]/page.tsx`, `finalizeDocument` |
+
+Açık: büyük sunu/Word'ün arkada okunan geç resimleri, işçi o pencerenin kopyasını resimler okunmadan çıkarırsa kopyada
+yer almaz (kopya o anki metinle); taranmış kitapta "öğrenci bir konuya tıklayınca o sayfaları oku" yapılmadı — okuma
+sıradaki pencereden, öğrencinin ilerleyişine göre sürer. Bekçi: `pencereli-isleme.test.ts` (320 ve 1.000 sayfa
+benzetimi: her çağrı 300 sn altında, her harita bir pencere, sıra ve kapsam; taranmışta duraklama; tek işçi),
+`pencereli-yukleme.test.ts` (pdf-lib bölme, tavanlar), `bekleyen-materyal-seridi.test.tsx`.
+
 ## Yol etkinliği hattının düzeni (30 Ekim 2026) — etkinlik başına modül, tek yaşam döngüsü
 
 Ürün sahibi: "yamalayarak değil; bir yeri yapıyoruz öbür yer bozuluyor". Rota (`exam-prep/node/route.ts`, 4.833 satır)

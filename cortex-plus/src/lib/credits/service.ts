@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionCode } from "@/lib/env";
 import { defaultFreeMeter, type FreeMeter } from "@/lib/billing/free-meters";
 import { CREDIT_PRICE_TABLE, creditRuleSeed } from "@/lib/credits/price-table";
+import { parseDocumentReservationKey } from "@/lib/documents/document-reservation-key";
 
 /**
  * Ücretsiz hesabın reddi (24 Ekim 2026): sayaç doldu ya da iş Plus'ta. Sebep yine
@@ -320,10 +321,8 @@ export async function refundAbandonedDocumentReservations(
 
     let settled = 0;
     for (const row of data) {
-      const key = String(row.idempotency_key ?? "");
-      const documentId = key.startsWith("document_process_")
-        ? key.slice("document_process_".length)
-        : null;
+      // Kaldığı yerden süren okumanın anahtarı `_p<sayfa>` ekiyle biter (31 Ekim 2026, pencereli işleme).
+      const documentId = parseDocumentReservationKey(String(row.idempotency_key ?? ""))?.documentId ?? null;
       if (!documentId) continue;
 
       const { data: doc } = await service

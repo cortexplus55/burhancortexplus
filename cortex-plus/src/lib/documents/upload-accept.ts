@@ -28,3 +28,26 @@ export const DOCUMENT_UPLOAD_ACCEPT = [...Object.keys(MIME_BY_EXTENSION), "image
  * bu listeyle fotoğrafı JPEG'e çevirip verir).
  */
 export const CHAT_UPLOAD_ACCEPT = [".pdf", ".txt", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".webp"].join(",");
+
+/** Depolamanın tek dosya tavanı (Supabase ücretsiz plan, sabit): PDF, Word ve sunu bu kadar olabilir. */
+export const LARGE_UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
+/** Fotoğraf ve metin dosyası. */
+export const SMALL_UPLOAD_MAX_BYTES = 15 * 1024 * 1024;
+
+/**
+ * Seçilen dosyanın boyutu uygun değilse öğrenciye söylenecek cümle (31 Ekim 2026). 50 MB'tan büyük PDF buraya
+ * gelmeden tarayıcıda bölünür (pdf-split-client.ts); gelirse bölünemeyen (şifreli ya da bozuk) dosyadır.
+ */
+export function uploadSizeProblem(file: File): string | null {
+  const name = file.name.toLowerCase();
+  const large = file.type === "application/pdf" || /\.(pdf|docx|pptx)$/.test(name)
+    || file.type.includes("wordprocessingml") || file.type.includes("presentationml");
+  const max = large ? LARGE_UPLOAD_MAX_BYTES : SMALL_UPLOAD_MAX_BYTES;
+  if (file.size <= max) return null;
+  if (/\.pdf$/.test(name) || file.type === "application/pdf") {
+    return `${file.name} 50 MB'tan büyük ve bölünemedi (şifreli ya da bozuk olabilir). Şifresiz kopyasını yükler misin?`;
+  }
+  return large
+    ? `${file.name} 50 MB'tan büyük. Word ve sunu dosyası en fazla 50 MB olabilir; PDF olarak kaydedip yüklersen bölünerek eklenir.`
+    : `${file.name} 15 MB'tan büyük. Fotoğraf ve metin dosyası en fazla 15 MB olabilir.`;
+}

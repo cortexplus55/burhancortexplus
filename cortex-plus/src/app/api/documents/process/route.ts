@@ -18,6 +18,8 @@ import {
   refundCredits,
   reserveCredits,
 } from "@/lib/credits/service";
+import { commitDocumentCredits, refundDocumentCredits } from "@/lib/documents/document-credits";
+import { HEAD_READ_AHEAD_PAGES } from "@/lib/documents/document-windows";
 import { chargeNow } from "@/lib/credits/charge-now";
 import { freePagesRemaining } from "@/lib/documents/free-pages";
 import { FREE_PAGE_LIMIT_CODE, PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
@@ -66,6 +68,11 @@ const bodySchema = z.object({
    * (`document-head.ts`) hemen döner; belgenin kalanı arkada okunur.
    */
   fastStart: z.boolean().optional(),
+  /**
+   * Pencereli işleme (31 Ekim 2026): okuma bu sayfaya varınca durur ve 202 döner (zincir belgenin sonuna kadar
+   * sürmez). Pencere işçisi bir sonraki pencereyi böyle okutur.
+   */
+  untilPage: z.number().int().positive().optional(),
 });
 export const maxDuration = 300;
 /** Arka plan temizliği yeni parti başlatmayı bu süreden sonra bırakır (son parti en fazla ~90 sn). */
@@ -123,50 +130,12 @@ async function markDocumentFailed(
     .eq("document_id", documentId);
 }
 
-async function reservationIdForDocument(
-  service: Parameters<typeof processPdfDocumentStep>[0],
-  userId: string,
-  documentId: string,
-): Promise<string | null> {
-  const key = `document_process_${documentId}`;
-  const { data } = await service
-    .from("credit_reservations")
-    .select("id, status")
-    .eq("user_id", userId)
-    .eq("idempotency_key", key)
-    .in("status", ["pending", "committed"])
-    .maybeSingle();
-  return data?.id ? String(data.id) : null;
-}
-
 /**
- * Belgenin sayfa ücretini kesinleştirir. Okunamayan sayfa (31 Ekim 2026, ürün sahibi: "okunmayan sayfanın kredisi
- * düşmesin"): ayrılan ücret iade edilir, yalnız okunan sayfa kadar kesilir (anahtar aynı belgede bir kez). Taranmış
- * sayfa ücreti zaten yalnız okunan sayfadan alınıyor.
+ * Hızlı başlatmada belgenin kalanı istemciyi beklemeden okunur (öğrenci hazırlık sayfasına geçebilir). Pencereli
+ * işleme (31 Ekim 2026): yalnız baş kopyası + iki pencere kadar (`HEAD_READ_AHEAD_PAGES`); gerisini pencere işçisi
+ * pencere pencere okutur, taranmış kitapta öğrenci ilerledikçe. 1.000 sayfalık kitabı tek arka plan işinde okumaya
+ * kalkmaz.
  */
-async function commitDocumentCredits(
-  service: Parameters<typeof processPdfDocumentStep>[0],
-  userId: string,
-  documentId: string,
-) {
-  const id = await reservationIdForDocument(service, userId, documentId);
-  if (!id) return;
-  const [{ count: unreadable, error: unreadableError }, { count: total }] = await Promise.all([
-    service.from("document_pages").select("id", { count: "exact", head: true })
-      .eq("document_id", documentId).eq("page_kind", "unreadable"),
-    service.from("document_pages").select("id", { count: "exact", head: true }).eq("document_id", documentId),
-  ]);
-  if (unreadableError || !unreadable || !total) {
-    await commitCredits(service, id);
-    return;
-  }
-  const { data: reservation } = await service.from("credit_reservations").select("status").eq("id", id).maybeSingle();
-  if (reservation?.status !== "pending") return;
-  await refundCredits(service, id);
-  await chargeNow(service, userId, "DOCUMENT_PAGE_PROCESS", `document_pages_read_${documentId}`, Math.max(0, total - unreadable));
-}
-
-/** Hızlı başlatmada belgenin kalanı istemciyi beklemeden okunur (öğrenci hazırlık sayfasına geçebilir). */
 function continueExtractionAfterResponse(
   service: Parameters<typeof processPdfDocumentStep>[0],
   input: { userId: string; documentId: string; startedAt: number },
@@ -177,8 +146,10 @@ function continueExtractionAfterResponse(
       if (Date.now() + 20_000 > deadline) return;
       const step = await processPdfDocumentStep(service, input.documentId, input.userId, {
         deadlineMs: Math.min(Date.now() + PDF_STEP_DEADLINE_MS, deadline),
+        untilPage: HEAD_READ_AHEAD_PAGES,
       }).catch(() => null);
       if (!step || step.status !== "processing" || step.busy) return;
+      if ((step.pagesDone ?? 0) >= HEAD_READ_AHEAD_PAGES) return;
     }
   });
 }
@@ -190,15 +161,6 @@ async function headFor(
 ): Promise<DocumentHead | null> {
   const head = await findDocumentHead(service, { userId, documentId }).catch(() => null);
   return head && head !== "unsupported" ? head : null;
-}
-
-async function refundDocumentCredits(
-  service: Parameters<typeof processPdfDocumentStep>[0],
-  userId: string,
-  documentId: string,
-) {
-  const id = await reservationIdForDocument(service, userId, documentId);
-  if (id) await refundCredits(service, id).catch(() => {});
 }
 
 export async function POST(request: Request) {
@@ -266,10 +228,18 @@ export async function POST(request: Request) {
       const chainStarted = Date.now();
       const chainDeadline = chainStarted + PDF_CHAIN_BUDGET_MS;
       const fastStart = parsed.data.fastStart === true && !course;
+      // Baş kopyası çıkmış büyük belgeyi kurulumun yoklaması da baş kopyası + iki pencereden öteye okumaz: gerisini
+      // hazırlıktaki pencere işçisi okutur (taranmış kitap öğrenci ilerledikçe). Kopya çıkmadıysa belge eskisi gibi
+      // baştan sona okunur ve bütünüyle haritalanır.
+      const untilPage = parsed.data.untilPage
+        ?? (fastStart && (await headFor(service, userId, doc.id)) ? HEAD_READ_AHEAD_PAGES : undefined);
+      const reachedUntil = (step: { status: string; pagesDone?: number }) =>
+        untilPage != null && step.status === "processing" && (step.pagesDone ?? 0) >= untilPage;
       let indexed = await processPdfDocumentStep(service, doc.id, userId, {
         deadlineMs: Math.min(Date.now() + PDF_STEP_DEADLINE_MS, chainDeadline),
         maxOcrPages: parsed.data.maxOcrPages ?? null,
         firstStepPages: fastStart ? HEAD_PAGES : undefined,
+        untilPage,
       });
       // Hızlı başlatma: büyük belgenin okunan ilk sayfaları hemen baş kopyası olur; kalanı arkada okunur.
       if (
@@ -300,12 +270,14 @@ export async function POST(request: Request) {
       while (
         indexed.status === "processing" &&
         !indexed.busy &&
+        !reachedUntil(indexed) &&
         Date.now() + 15_000 < chainDeadline
       ) {
         const stepStarted = Date.now();
         indexed = await processPdfDocumentStep(service, doc.id, userId, {
           deadlineMs: Math.min(Date.now() + PDF_STEP_DEADLINE_MS, chainDeadline),
           maxOcrPages: parsed.data.maxOcrPages ?? null,
+          untilPage,
         });
         extractSteps += 1;
         const stepPages =
@@ -395,8 +367,14 @@ export async function POST(request: Request) {
           pagesDone: indexed.pagesDone ?? (typeof indexed.nextPage === "number" ? indexed.nextPage - 1 : null),
           failedPages: indexed.failedPages ?? [],
           ocrPages: indexed.ocrPages ?? null,
-          // Sihirbaz ilk cevabı kaçırdıysa (ağ) baş kopyasını sonraki yoklamada da öğrenir.
-          ...(fastStart ? { head: await headFor(service, userId, doc.id) } : {}),
+          // Sihirbaz ilk cevabı kaçırdıysa (ağ) baş kopyasını sonraki yoklamada da öğrenir. `windowed`: okuma
+          // pencere işçisine devredildi; kurulum bu belgeyi beklemez (hazırlığa bekleyen olarak bağlanır).
+          ...(fastStart
+            ? await headFor(service, userId, doc.id).then((head) => ({
+                head,
+                windowed: Boolean(head) && reachedUntil(indexed),
+              }))
+            : {}),
         }, { status: 202 });
       }
       if (learningV2) {

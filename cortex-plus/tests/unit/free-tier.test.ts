@@ -86,7 +86,8 @@ describe("ücretsiz katman sınırları", () => {
   it("ücretsizde belge işleme ders hakkından yemiyor; ücretlide sayfa başına", () => {
     const pdf = read("src/lib/documents/pdf-ingestion.ts");
     expect(pdf).toMatch(/if \(remaining === null\) \{\s*if \(!reservationId\) \{/);
-    expect(pdf).toMatch(/reservationId = await ensureReservation\(service, userId, documentId, lease, paidCap\);/);
+    // Pencereli işleme (31 Ekim 2026): duraklayıp süren okuma kalan sayfalar için kendi ayırmasını açar.
+    expect(pdf).toMatch(/reservationId = await ensureReservation\(service, userId, documentId, lease, affordable, firstPage\);/);
     expect(pdf).toMatch(/chargeNow\(service, userId, "DOCUMENT_SCAN_PAGE"/);
     const route = read("src/app/api/documents/process/route.ts");
     expect(route).toMatch(/const freeTier = \(await freePagesRemaining\(service, userId, doc\.id\)\) !== null;/);

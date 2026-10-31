@@ -158,19 +158,31 @@ export default async function ExamPrepDetailPage({
         .is("deleted_at", null)
     : { data: [] as { id: string; file_name: string; mime_type: string | null; page_count: number | null }[] };
   const sourceById = new Map((sourceRows ?? []).map((row) => [row.id as string, row]));
+  const parentOf = (row: unknown) =>
+    typeof (row as { part_of?: unknown }).part_of === "string" ? (row as { part_of: string }).part_of : null;
+  // Pencereli işleme (31 Ekim 2026): büyük kitabın parçaları (baş kopyası + pencereler) tek kaynak olarak görünür;
+  // sayfa sayısı hazırlıktaki parçaların toplamı.
+  const pagesByParent = new Map<string, number>();
+  for (const row of sourceRows ?? []) {
+    const parent = parentOf(row);
+    if (parent) pagesByParent.set(parent, (pagesByParent.get(parent) ?? 0) + (typeof row.page_count === "number" ? row.page_count : 0));
+  }
+  const shownParents = new Set<string>();
   const materials = sourceIds.flatMap((id) => {
     const row = sourceById.get(id);
     if (!row) return [];
     // Hızlı başlatmanın baş kopyası (document-head.ts): ana belge de hazırlıktaysa bir kez görünür; bağlantı ana belgeye.
-    const parent = typeof (row as { part_of?: unknown }).part_of === "string" ? (row as { part_of: string }).part_of : null;
+    const parent = parentOf(row);
     if (parent && sourceById.has(parent)) return [];
+    if (parent && shownParents.has(parent)) return [];
+    if (parent) shownParents.add(parent);
     return [
       {
         id,
         name: (row.file_name as string) || "Belge",
         kindLabel: materialKindLabel({
           mimeType: row.mime_type as string | null,
-          pageCount: typeof row.page_count === "number" ? row.page_count : null,
+          pageCount: parent ? pagesByParent.get(parent) ?? null : typeof row.page_count === "number" ? row.page_count : null,
         }),
         href: `/dokumanlar/${parent ?? id}`,
       },

@@ -3,9 +3,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { MIME_BY_EXTENSION } from "@/lib/documents/upload-accept";
 
 export const DOCUMENT_MAX_BYTES = 15 * 1024 * 1024;
+/**
+ * Depolamanın tek dosya tavanı (Supabase ücretsiz plan: sabit 50 MB, 31 Ekim 2026'da panelden doğrulandı). Daha büyük
+ * PDF tarayıcıda parçalara bölünür (pdf-split-client.ts); Word/sunu bölünemez, 50 MB'a kadar kabul edilir.
+ */
 export const PDF_MAX_BYTES = 50 * 1024 * 1024;
+export const OFFICE_MAX_BYTES = PDF_MAX_BYTES;
+const OFFICE_MIME = /officedocument\.(wordprocessingml|presentationml)/;
 export function maxDocumentBytes(mimeType: string): number {
-  return mimeType === "application/pdf" ? PDF_MAX_BYTES : DOCUMENT_MAX_BYTES;
+  if (mimeType === "application/pdf") return PDF_MAX_BYTES;
+  if (OFFICE_MIME.test(mimeType)) return OFFICE_MAX_BYTES;
+  return DOCUMENT_MAX_BYTES;
 }
 
 const TURKISH_ASCII: Record<string, string> = {
