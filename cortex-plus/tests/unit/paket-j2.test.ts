@@ -166,6 +166,10 @@ describe("#9 çift sekme tek kayıt, tek kredi", () => {
     expect(reserve).toContain('"23505"');
     const life = read("src/components/parity/exam-node/use-node-lifecycle.ts");
     expect(life).toMatch(/SHARED_WAIT_MS/);
+    expect(life).toContain("{ twin: true }");
+    // Normal açılışta ek sorgu yok: öbür sekmenin kaydına yalnız 23505 sonrası ve bekleyen sekmenin isteğinde bakılır.
+    expect(reserve.indexOf("takeOverOrWaitForTwin(context)")).toBeGreaterThan(reserve.indexOf(".insert(creatingRow)"));
+    expect(read("src/lib/learning/node/start.ts")).toContain("parsed.data.twin === true");
   });
 
   it("podcast ve video süren üretimi paylaşır: ikinci istek bekler, sonucu okur", async () => {

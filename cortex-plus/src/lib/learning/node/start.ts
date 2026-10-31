@@ -195,10 +195,10 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     }
   }
 
-  // Çift sekme (31 Ekim 2026, Paket J2 #9): öbür sekme bu adımı az önce açtıysa (kayıt açık ve son 3 dakikada
-  // güncellenmiş) bu sekme de aynı kaydı açar: ikinci üretim ve ikinci kredi yok. "Dersi tekrarla" ve "incele" kendi
-  // yolundan gider.
-  if (teachingV2 && clientRequestId && !existingForKey && !prefetch && parsed.data.replay !== true && parsed.data.review !== true) {
+  // Çift sekme (31 Ekim 2026, Paket J2 #9): öbür sekmenin yazımını bekleyen sekme (`twin`, "hazırlanıyor"da kalmış)
+  // öbür sekme bitince aynı kaydı açar (kayıt açık ve son 3 dakikada güncellenmiş): ikinci üretim ve ikinci kredi
+  // yok. "Dersi tekrarla" ve "incele" kendi yolundan gider.
+  if (parsed.data.twin === true && teachingV2 && clientRequestId && !existingForKey && !prefetch && parsed.data.replay !== true && parsed.data.review !== true) {
     const twin = await findResumableAttempt(service, { userId, prepId, nodeId });
     const fresh = twin?.updated_at ? Date.now() - Date.parse(twin.updated_at as string) < TWIN_RESUME_MS : false;
     if (twin?.payload && fresh) {

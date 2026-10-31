@@ -65,12 +65,6 @@ export async function reserveStartAttempt(context: NodeContext, state: Pick<Star
       const { data: claimed, error: claimError } = await claim.select("id").maybeSingle();
       if (claimError || !claimed) return errorResponse(409, "generation_in_progress");
     } else {
-      // Çift sekme / çift tıklama (31 Ekim 2026, Paket J2 #9): bu adım için başka bir istek kayıt açıp yazıyorsa
-      // ikincisi beklesin ve birincinin sonucunu açsın (istemci "hazırlanıyor"da kalıp yeniden sorar). Takılı kalmış
-      // (bayat) kayıt yeni isteği kilitlemez: "failed" olur. Aynı anda gelen iki istek için veritabanı dizini tek
-      // kayda izin verir (göç 20261031190000).
-      const twin = await takeOverOrWaitForTwin(context);
-      if (twin) return twin;
       const creatingRow = {
         node_id: nodeId,
         exam_prep_id: prepId,
@@ -93,6 +87,10 @@ export async function reserveStartAttempt(context: NodeContext, state: Pick<Star
         .insert(creatingRow)
         .select("id, generation_id")
         .single();
+      // Çift sekme / çift tıklama (31 Ekim 2026, Paket J2 #9): veritabanı bu adım için tek "hazırlanıyor" kaydına izin
+      // verir (göç 20261031190000). Kayıt başka bir isteğindeyse ikincisi beklesin ve birincinin sonucunu açsın (istemci
+      // "hazırlanıyor"da kalıp `twin` ile yeniden sorar). Takılı kalmış (bayat) kayıt yeni isteği kilitlemez: "failed"
+      // olur, kayıt aşağıda yeniden açılır. Normal açılışta ek sorgu yok.
       if (createErr && (createErr as { code?: string }).code === "23505") {
         const twin = await takeOverOrWaitForTwin(context);
         if (twin) return twin;

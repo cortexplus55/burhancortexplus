@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -73,9 +72,9 @@ export function ExamQuestionReviewClient({
   prepId,
   examId,
   examTitle,
-  score,
-  questions,
-  reviews,
+  score: initialScore,
+  questions: initialQuestions,
+  reviews: initialReviews,
 }: {
   prepId: string;
   examId: string;
@@ -84,7 +83,10 @@ export function ExamQuestionReviewClient({
   questions: QuestionItem[];
   reviews: ReviewItem[];
 }) {
-  const router = useRouter();
+  // Bildirilip düzeltilen soru (Paket J2 #10) sayfa yenilenmeden yerinde güncellenir.
+  const [score, setScore] = useState(initialScore);
+  const [questions, setQuestions] = useState(initialQuestions);
+  const [reviews, setReviews] = useState(initialReviews);
   const [filter, setFilter] = useState<"all" | "correct" | "wrong">("all");
 
   const reviewMap = useMemo(() => {
@@ -417,7 +419,7 @@ export function ExamQuestionReviewClient({
                 <p className="text-sm text-[var(--c-text-muted)] leading-relaxed">
                   {explanation}
                 </p>
-                {/* "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10). Düzeltilince sayfa yeni puanla yeniden okunur. */}
+                {/* "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10). Düzeltilince soru ve puan yerinde güncellenir. */}
                 {review ? (
                   <div className="mt-3 flex justify-end">
                     <QuestionReportButton
@@ -425,7 +427,31 @@ export function ExamQuestionReviewClient({
                       targetId={examId}
                       questionRef={question.id}
                       onResolved={(result) => {
-                        if (result.verdict === "valid") router.refresh();
+                        if (result.verdict !== "valid") return;
+                        const key = result.correctedKey;
+                        if (key?.length) {
+                          setQuestions((rows) =>
+                            rows.map((row) =>
+                              row.id === question.id
+                                ? { ...row, correct_answer: key[0], correct_answers: key.length > 1 ? key : row.correct_answers ? key : null }
+                                : row,
+                            ),
+                          );
+                        }
+                        setReviews((rows) =>
+                          rows.map((row) =>
+                            row.question_id === question.id
+                              ? {
+                                  ...row,
+                                  is_correct: true,
+                                  verdict: "dogru",
+                                  points_earned: row.points_max ?? row.points_earned,
+                                  explanation: result.explanation || row.explanation,
+                                }
+                              : row,
+                          ),
+                        );
+                        if (typeof result.score === "number") setScore(result.score);
                       }}
                     />
                   </div>

@@ -29,6 +29,8 @@ export type ReportTarget = {
 export type AppliedFix = {
   /** Yoldaki testte ekranın yerine koyacağı soru. */
   question?: PublicQuizQuestion;
+  /** Yazılı denemede düzeltilen anahtar (inceleme ekranı yerinde günceller). */
+  correctedKey?: string[];
   /** Bitmiş denemede ya da testte yeni puan. */
   score?: number;
   total?: number;
@@ -261,7 +263,10 @@ async function loadMockTarget(
           () => undefined,
           () => undefined,
         );
-      return score != null ? { score, total: 100 } : {};
+      return {
+        ...(decision.action === "fix" && decision.correctedKey?.length ? { correctedKey: decision.correctedKey } : {}),
+        ...(score != null ? { score, total: 100 } : {}),
+      };
     },
   };
 }

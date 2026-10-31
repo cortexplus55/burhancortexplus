@@ -12,6 +12,9 @@ export type QuestionReportResult = {
   rewarded: boolean;
   action?: "fix" | "void" | "none";
   question?: PublicQuizQuestion;
+  explanation?: string;
+  /** Yazılı denemede düzeltilen anahtar (şık metinleri). */
+  correctedKey?: string[];
   score?: number;
   total?: number;
 };

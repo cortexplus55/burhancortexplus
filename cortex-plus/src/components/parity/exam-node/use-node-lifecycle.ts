@@ -1073,6 +1073,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           // Ders parça parça açılır: ilk denetlenmiş kavram gelince ekran açılır (18 Ekim 2026).
           ...(kind === "lesson" && !overrides?.review ? { lessonStream: true } : {}),
           ...(kind === "lesson" && overrides?.replay ? { replay: true } : {}),
+          ...((overrides?.sharedTries ?? 0) > 0 ? { twin: true } : {}),
           ...(overrides?.review ? { review: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
           voiceMode: overrides?.voiceMode ?? voiceMode,
