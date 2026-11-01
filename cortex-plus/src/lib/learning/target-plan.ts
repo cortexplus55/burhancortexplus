@@ -75,19 +75,19 @@ export function targetPlanHint(score: number): {
     return {
       mode,
       label: "Derece / Zirve",
-      badge: `🎯 %${score} Hedef: Derinlemesine testler, ekstra tekrar döngüsü ve yüksek ustalık barajı aktif`,
+      badge: `🎯 %${score} Hedef: her konuda daha çok soru ve ek tekrar; konuyu iyice oturtmadan geçmezsin`,
     };
   }
   if (mode === "pass") {
     return {
       mode,
       label: "Hızlı Baraj",
-      badge: `🎯 %${score} Hedef: Çekirdek konular ve temel testler — kompakt, boğmayan yol`,
+      badge: `🎯 %${score} Hedef: sınavda en çok çıkan konular ve temel sorular; kısa ve yormayan plan`,
     };
   }
   return {
     mode,
     label: "Sağlam Geçiş",
-    badge: `🎯 %${score} Hedef: Dengeli ders, test ve tekrar — mevcut plan akışı`,
+    badge: `🎯 %${score} Hedef: her konuda anlatım, soru ve tekrar dengeli`,
   };
 }

@@ -11,6 +11,7 @@ import {
   levelForExamLabel,
   programIdForSubject,
   scenarioOptions,
+  sourceDisplayTitle,
   yksPartForLabel,
   type CurriculumTopicMap,
   type GradeScopes,
@@ -44,18 +45,25 @@ const EXAM_LEVELS: Record<string, { label: string; order: number }> = {
   lgs: { label: "LGS", order: 100 },
   yks: { label: "YKS (TYT / AYT)", order: 101 },
   kpss: { label: "KPSS", order: 102 },
+  ales: { label: "ALES", order: 103 },
+  dgs: { label: "DGS", order: 104 },
+  yds: { label: "YDS", order: 105 },
+  tus: { label: "TUS", order: 106 },
+  dus: { label: "DUS", order: 107 },
 };
 
 function levelKey(p: Pick<CurriculumProgramSummary, "kind" | "grade">): string {
   return p.kind === "okul" ? `sinif-${p.grade}` : p.kind;
 }
 
-function levelLabel(key: string): string {
-  return EXAM_LEVELS[key]?.label ?? `${key.replace("sinif-", "")}. sınıf`;
+export function levelLabel(key: string): string {
+  if (EXAM_LEVELS[key]) return EXAM_LEVELS[key].label;
+  // Bilinmeyen sınav türü "xyz. sınıf" yazılmaz (2 Kasım 2026: "tus. sınıf" görünüyordu).
+  return /^sinif-\d+$/.test(key) ? `${key.replace("sinif-", "")}. sınıf` : key.toLocaleUpperCase("tr-TR");
 }
 
 function levelOrder(key: string): number {
-  return EXAM_LEVELS[key]?.order ?? Number(key.replace("sinif-", ""));
+  return EXAM_LEVELS[key]?.order ?? (Number(key.replace("sinif-", "")) || 999);
 }
 
 const PART_OPTIONS: { key: "TYT" | "AYT" | null; label: string }[] = [
@@ -89,6 +97,8 @@ export function OfficialCurriculumPanel({
   const [failed, setFailed] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [levelId, setLevelId] = useState<string | null>(null);
+  /** Seçilen sınavın düzeyi dışındakiler varsayılan gizli; öğrenci isterse açar. */
+  const [allLevels, setAllLevels] = useState(false);
   const [programId, setProgramId] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ program: CurriculumProgram; sources: CurriculumSource[] } | null>(null);
   const [examKey, setExamKey] = useState<CurriculumExamKey>("d1y1");
@@ -123,6 +133,9 @@ export function OfficialCurriculumPanel({
     return levels[0] ?? null;
   }, [levelId, levels, gradeLevel, examLabel]);
 
+  const examLevel = levelForExamLabel(examLabel);
+  const lockedToExam = !allLevels && !!examLevel && levels.includes(examLevel);
+  const visibleLevels = lockedToExam ? [examLevel] : levels;
   const levelPrograms = (programs ?? []).filter((p) => levelKey(p) === activeLevel);
   const subjectPick = programId ? null : programIdForSubject(levelPrograms, subject);
   useEffect(() => {
@@ -176,7 +189,7 @@ export function OfficialCurriculumPanel({
       {programs ? (
         <>
           <div className="apw-chips" role="radiogroup" aria-label="Düzey">
-            {levels.map((key) => (
+            {visibleLevels.map((key) => (
               <button
                 key={key}
                 type="button"
@@ -192,6 +205,11 @@ export function OfficialCurriculumPanel({
                 {levelLabel(key)}
               </button>
             ))}
+            {lockedToExam ? (
+              <button type="button" className="apw-link" onClick={() => setAllLevels(true)} data-testid="official-other-levels">
+                Başka sınıf/sınav
+              </button>
+            ) : null}
           </div>
           <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.curriculumSubject}>
             {levelPrograms.map((p) => (
@@ -217,7 +235,6 @@ export function OfficialCurriculumPanel({
         <div className="apw-official-body">
           <p className="apw-official-badges">
             <span className="apw-official-badge">{program.badge}</span>
-            <span className="apw-official-badge apw-official-badge--muted">{program.programVersion}</span>
           </p>
           {examChoices.length ? (
           <>
@@ -329,7 +346,7 @@ export function OfficialCurriculumPanel({
               <span key={s.id}>
                 {i ? " · " : ""}
                 <a href={s.url} target="_blank" rel="noreferrer">
-                  {s.title}
+                  {sourceDisplayTitle(s.title)}
                 </a>
               </span>
             ))}

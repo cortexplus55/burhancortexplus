@@ -73,13 +73,15 @@ export const SUBJECT_OPTIONS = [
 ];
 
 export const GOAL_OPTIONS = [
-  { label: "YKS hazırlık", body: "TYT / AYT odaklı çalışma" },
-  { label: "LGS hazırlık", body: "Liseye geçiş sınavı" },
-  { label: "KPSS hazırlık", body: "Kamu personeli seçme" },
-  { label: "ALES hazırlık", body: "Akademik lisansüstü sınav" },
-  { label: "TUS hazırlık", body: "Tıpta uzmanlık" },
-  { label: "Okul sınavları", body: "Yazılılar ve sözlüler" },
-  { label: "Diğer / konu pekiştirme", body: "Eksiklerimi kapatmak" },
+  // Sıra ve dil (2 Kasım 2026): okul yolundaki sırayla, kısaltmayı açıklayan sade cümlelerle. Etiketler kayıtlı
+  // hedef metni olduğu için aynı kaldı.
+  { label: "Okul sınavları", body: "Okuldaki yazılılara hazırlanıyorum" },
+  { label: "LGS hazırlık", body: "8. sınıfta liseye geçiş sınavı" },
+  { label: "YKS hazırlık", body: "Üniversite sınavı (TYT ve AYT)" },
+  { label: "KPSS hazırlık", body: "Devlet memurluğu sınavı" },
+  { label: "ALES hazırlık", body: "Yüksek lisans başvurusu için sınav" },
+  { label: "TUS hazırlık", body: "Tıp mezunları için uzmanlık sınavı" },
+  { label: "Diğer / konu pekiştirme", body: "Belirli bir sınavım yok, eksiklerimi kapatacağım" },
 ];
 
 export const AVATAR_OPTIONS = [

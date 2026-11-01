@@ -6,17 +6,34 @@ import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
  */
 /** Hedef sınav türü. `exam_type` ders adı olarak kalır; bu alan tercihlerin içine yazılır. */
 export const EXAM_TRACKS = [
+  // Sıra (2 Kasım 2026): okul yolundaki sırayla — LGS, YKS oturumları, lisans sonrası sınavlar, üniversite.
+  { id: "lgs", label: "LGS" },
   { id: "tyt", label: "TYT" },
   { id: "ayt", label: "AYT" },
   { id: "yks", label: "YKS (TYT+AYT)" },
   { id: "kpss", label: "KPSS" },
-  { id: "tus", label: "TUS" },
-  { id: "lgs", label: "LGS" },
   { id: "ales", label: "ALES" },
+  { id: "tus", label: "TUS" },
   { id: "uni", label: "Üniversite Vize/Final" },
 ] as const;
 
 export type ExamTrackId = (typeof EXAM_TRACKS)[number]["id"];
+
+/**
+ * Kayıtta seçilen hedef ("YKS hazırlık") → sihirbazın sınav türü (2 Kasım 2026). Kayıtta sorulan sınav kurulumda
+ * yeniden sorulmuyordu ama seçili de gelmiyordu; öğrenci aynı soruyu iki kez cevaplıyordu.
+ */
+export function examTrackForGoal(goal: string | null | undefined): ExamTrackId | null {
+  const text = (goal ?? "").toLocaleUpperCase("tr-TR");
+  if (/\bLGS\b/.test(text)) return "lgs";
+  if (/\bTYT\b/.test(text) && !/\bAYT\b/.test(text)) return "tyt";
+  if (/\bAYT\b/.test(text) && !/\bTYT\b/.test(text)) return "ayt";
+  if (/\bYKS\b/.test(text)) return "yks";
+  if (/\bKPSS\b/.test(text)) return "kpss";
+  if (/\bALES\b/.test(text)) return "ales";
+  if (/\bTUS\b/.test(text)) return "tus";
+  return null;
+}
 
 export const DEFAULT_EXAM_LEAD_DAYS = 30;
 

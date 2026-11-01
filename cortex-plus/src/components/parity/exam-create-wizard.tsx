@@ -28,6 +28,7 @@ import {
   STUDY_BANDS,
   DOCUMENT_ANALYSIS_STAGES,
   EXAM_TRACKS,
+  examTrackForGoal,
   PREP_HOME_COPY,
   STUDY_MODALITY_CHOICES,
   WIZARD_COPY,
@@ -94,7 +95,7 @@ import { DOCUMENT_UPLOAD_ACCEPT, uploadSizeProblem } from "@/lib/documents/uploa
 import { isPdfSplitTail } from "@/lib/documents/pdf-split-client";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
-import { upcomingOfficialExams } from "@/lib/curriculum/calendar";
+import { officialExamsForTrack } from "@/lib/curriculum/calendar";
 import { OfficialCurriculumPanel, type OfficialCurriculumPick } from "@/components/parity/official-curriculum-panel";
 import type { CurriculumRef } from "@/lib/curriculum/types";
 import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
@@ -282,14 +283,22 @@ function fullLabel(iso: string) {
   return `${d} ${MONTHS[m - 1]} ${y} ${WEEKDAYS_LONG[(date.getDay() + 6) % 7]}`;
 }
 
+/** Taslakta devam edilecek bir şey var mı: ilk adımı geçmiş ya da ders/materyal seçmiş. */
+export function draftHasProgress(draft: Pick<ExamWizardDraft, "step" | "subject" | "materials">): boolean {
+  return draft.step !== "subject" || Boolean(draft.subject?.trim()) || (draft.materials?.length ?? 0) > 0;
+}
+
 export function ExamCreateWizard({
   initialDocumentId = null,
   recentSubjects = [],
   onUseChat,
   prepLimitReached = false,
   gradeLevel = null,
+  profileGoal = null,
 }: {
   initialDocumentId?: string | null;
+  /** Kayıtta seçilen hedef ("YKS hazırlık"); sınav türü önceden seçili gelir. */
+  profileGoal?: string | null;
   /** Profilde sınıf yoksa tarih adımında bant ve sınav türü sorulur. */
   gradeLevel?: string | null;
   /**
@@ -324,7 +333,9 @@ export function ExamCreateWizard({
 
   const [subject, setSubject] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
-  const [examTrack, setExamTrack] = useState<(typeof EXAM_TRACKS)[number]["id"] | null>(null);
+  const [examTrack, setExamTrack] = useState<(typeof EXAM_TRACKS)[number]["id"] | null>(() =>
+    examTrackForGoal(profileGoal),
+  );
   const [examDate, setExamDate] = useState(() => isoOf(addDays(DEFAULT_EXAM_LEAD_DAYS)));
   const [dailyMinutes, setDailyMinutes] = useState(45);
   /** İsteğe bağlı sınav saati ve yeri (30 Ekim 2026): planda ve Takvimim'de "31 Eki 10:00 · Sınav". */
@@ -536,7 +547,8 @@ export function ExamCreateWizard({
   }, [initialDocumentId]);
 
   const applyDraft = useCallback((draft: ExamWizardDraft) => {
-    setDraftResumeBanner(true);
+    // 2 Kasım 2026: boş taslakta (ilk adım, ders yok) "Kaldığın yerden devam ediyorsun" yalan söylüyordu.
+    setDraftResumeBanner(draftHasProgress(draft));
     setStep(draft.step as Step);
     setSubject(draft.subject);
     setExamDate(draft.examDate);
@@ -1709,6 +1721,7 @@ export function ExamCreateWizard({
           onExamTime={setExamTime}
           examPlace={examPlace}
           onExamPlace={setExamPlace}
+          examTrack={examTrack}
         />
       ) : null}
 
@@ -1789,7 +1802,11 @@ export function ExamCreateWizard({
             }}
           >
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
-            <p className="apw-drop-title">Dosyanı buraya bırak</p>
+            {/* Dokunmatik ekranda sürükle-bırak yok (2 Kasım 2026); başlık cihaza göre. */}
+            <p className="apw-drop-title">
+              <span className="apw-only-desktop">Dosyanı buraya bırak</span>
+              <span className="apw-only-touch">Dosya seç</span>
+            </p>
             <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
             <PhotoQualityPrompt request={upload.photoQuality} onAnswer={upload.answerPhotoQuality} />
             {upload.photoProgress ? (
@@ -1954,6 +1971,9 @@ export function ExamCreateWizard({
               ) : uploading && documentIds.length ? (
                 <p className="apw-drop-hint" role="note">{WIZARD_COPY.continueEarlyHint}</p>
               ) : null}
+              {/* Tek devam düğmesi (2 Kasım 2026): müfredat paneli açıkken kendi "Bu konularla devam et"i var;
+                  belge yokken altta ikinci, devre dışı bir "Devam et" gösterilmez. */}
+              {importPanel === "curriculum" && !documentIds.length ? null : (
               <button
                 type="button"
                 className="apw-cta"
@@ -1966,6 +1986,7 @@ export function ExamCreateWizard({
                     ? WIZARD_COPY.continueEarly
                     : WIZARD_COPY.continue}
               </button>
+              )}
             </>
           )}
           <button
@@ -1976,9 +1997,8 @@ export function ExamCreateWizard({
           >
             {WIZARD_COPY.pickCurriculum}
           </button>
-          <button type="button" className="apw-ghost" onClick={() => onUseChat({ subject, examDate, target })}>
-            Belgem yok, konudan çalışayım
-          </button>
+          {/* Tek "belgem yok" seçeneği (2 Kasım 2026): resmî müfredat paneli; listede olmayan ders için panelin
+              içindeki "Sohbetle kur" bağlantısı konudan çalışmaya götürür. */}
         </section>
       ) : null}
 
@@ -2724,6 +2744,7 @@ function DateStep({
   onExamTime,
   examPlace,
   onExamPlace,
+  examTrack = null,
 }: {
   value: string;
   onPick: (iso: string) => void;
@@ -2739,6 +2760,8 @@ function DateStep({
   onExamTime: (time: string) => void;
   examPlace: string;
   onExamPlace: (place: string) => void;
+  /** Seçilen sınav türü; resmî tarihler yalnız bu sınavınkiler gösterilir. */
+  examTrack?: string | null;
 }) {
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T12:00:00`) : new Date();
@@ -2754,7 +2777,7 @@ function DateStep({
   ];
 
   const todayIso = isoOf(new Date());
-  const officialExams = upcomingOfficialExams(todayIso, 8);
+  const officialExams = officialExamsForTrack(todayIso, examTrack, 8);
   const firstWeekday = (new Date(cursor.getFullYear(), cursor.getMonth(), 1).getDay() + 6) % 7;
   const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
 
