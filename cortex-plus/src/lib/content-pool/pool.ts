@@ -77,15 +77,16 @@ function toContent(unit: PoolUnit, stored: StoredContent): UnitContent {
  * olmadan döner. Yoksa ilk öğrenci için üretilir, doğrulanır ve hemen havuza yazılır; aynı anda gelen diğer
  * öğrenciler "pending" alır (çift üretim yok). Doğrulanmayan içerik havuza yazılmaz.
  */
+/** `unitId` = curriculum_units.id (1 tabanlı, kanonik). */
 export async function getUnitContent(
-  appUnitId: string,
+  unitId: string,
   deps: { store: PoolStore; llm: LlmCall | null; userId: string; now?: () => number; version?: number },
 ): Promise<PoolResult> {
   const now = deps.now ?? Date.now;
   const started = now();
   const ms = () => now() - started;
   const version = deps.version ?? CONTENT_VERSION;
-  const unit = poolUnit(appUnitId);
+  const unit = poolUnit(unitId);
   if (!unit) return { status: "not_found", ms: ms() };
 
   const cached = await deps.store.readVerified(unit.unitId, version);

@@ -122,7 +122,8 @@ export async function generateUnitContent(
   const usage: UsageEntry[] = [];
   const call = async (actionCode: UsageCode, model: string, prompt: { system: string; user: string }) => {
     const out = await llm({ model, ...prompt });
-    usage.push({ actionCode, model: out.model || model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
+    // Fiyat satırları (ai_model_prices) istenen model adıyla tutulur; yanıttaki tarihli sürüm adı (gpt-4.1-2025-04-14) fiyatsız kalır.
+    usage.push({ actionCode, model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
     return out.text;
   };
   const codes = unit.outcomes.map((o) => o.code);

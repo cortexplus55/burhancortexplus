@@ -411,6 +411,8 @@ export async function recordUsage(
     tokensIn: number;
     tokensOut: number;
     reservationId?: string | null;
+    /** Biliniyorsa tahmini maliyet (ai_model_prices × birim). Verilmezse NULL kalır (gider okuma anında hesaplanır). */
+    costUsdEstimate?: number | null;
   },
 ) {
   // tokensIn/Out = FATURALANAN BIRIM. Metin modellerinde jeton; seslendirmede
@@ -423,5 +425,6 @@ export async function recordUsage(
     tokens_in: params.tokensIn,
     tokens_out: params.tokensOut,
     reservation_id: params.reservationId ?? null,
+    cost_usd_estimate: params.costUsdEstimate ?? null,
   });
 }

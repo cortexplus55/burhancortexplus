@@ -37,7 +37,7 @@ async function main() {
   const llm = openaiLlm();
   let ready = 0;
   for (const u of units) {
-    const result = await getUnitContent(u.appUnitId, { store, llm, userId });
+    const result = await getUnitContent(u.unitId, { store, llm, userId });
     if (result.status === "hit" || result.status === "generated") ready += 1;
     console.log(JSON.stringify({ unit: u.unitId, status: result.status, ms: result.ms, llmCalls: "llmCalls" in result ? result.llmCalls : 0, reason: "reason" in result ? result.reason : undefined }));
   }
