@@ -149,4 +149,53 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await page.getByRole("button", { name: "Planımı Oluştur" }).click();
     await expect(page.getByTestId("picked")).toContainText('"scan":6');
   });
+
+  test("KPSS: GY/GK çipleri, dürüst etiket, resmî bağlantılar, boş havuz, KPSS tarihi", async ({ page }) => {
+    await page.goto("/e2e/resmi-kurulum");
+    await page.getByRole("button", { name: /^KPSS/ }).click();
+    await expect(page.getByTestId("tree-label")).toHaveText("Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir");
+    await expect(page.getByTestId("setup-summary")).toHaveText("6 ders · 35 ünite · 94 kazanım");
+    await expect(page.getByTestId("official-links")).toContainText("İlgili resmî kaynaklar");
+    await expect(page.getByTestId("official-links").locator("a").first()).toHaveAttribute("href", /^https:\/\/[^ ]*osym\.gov\.tr/);
+    await page.getByRole("radio", { name: /Genel Yetenek \(Türkçe/ }).click();
+    await expect(page.getByTestId("setup-summary")).toHaveText("2 ders · 12 ünite · 38 kazanım");
+    await screenOk(page);
+    await page.getByRole("button", { name: "Konuları gör" }).click();
+    await page.locator("summary", { hasText: "Türkçe" }).first().click();
+    await page.locator("details", { hasText: "Türkçe" }).first().getByTestId("setup-unit").first().getByRole("radio", { name: "Zayıf" }).click();
+    await page.getByRole("button", { name: "Bu konularla devam et" }).click();
+    await expect(page.getByTestId("scan-empty")).toContainText("Henüz hazır soru yok");
+    await page.getByRole("button", { name: "Devam et" }).click();
+    await page.getByRole("button", { name: "Planımı Oluştur" }).click();
+    const picked = page.getByTestId("picked");
+    await expect(picked).toContainText('"examType":"KPSS"');
+    await expect(picked).toContainText('"examDate":"2027-09-12"');
+    await expect(picked).toContainText('"title":"KPSS Hazırlığı"');
+    await expect(picked).toContainText('"topics":12');
+    await expect(picked).toContainText('"codes":38');
+    await expect(picked).toContainText('"hard":1');
+  });
+
+  test("TUS: Tıp/Akademik etiket, tek ders anahtarı, Temel/Klinik çipleri, TUS tarihi", async ({ page }) => {
+    await page.goto("/e2e/resmi-kurulum?sinav=tus");
+    await expect(page.getByTestId("tree-label")).toHaveText("Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir");
+    await expect(page.getByTestId("setup-summary")).toHaveText("11 ders · 54 ünite · 119 kazanım");
+    await expect(page.locator(".osf-source")).toContainText("UÇEP 2020");
+    await page.getByRole("switch", { name: "Yalnızca Tek Ders Seç" }).check();
+    await page.getByRole("radio", { name: /^Anatomi/ }).click();
+    await expect(page.getByTestId("setup-summary")).toHaveText("1 ders · 5 ünite · 12 kazanım");
+    await page.getByRole("switch", { name: "Yalnızca Tek Ders Seç" }).uncheck();
+    await page.getByRole("radio", { name: "🩺 Klinik Tıp Bilimleri" }).click();
+    await expect(page.getByTestId("setup-summary")).toHaveText(/^4 ders · /);
+    await page.getByRole("radio", { name: "🧬 Temel Tıp Bilimleri" }).click();
+    await expect(page.getByTestId("setup-summary")).toHaveText(/^7 ders · /);
+    await screenOk(page);
+    await page.getByRole("button", { name: "Konuları gör" }).click();
+    await page.getByRole("button", { name: "Bu konularla devam et" }).click();
+    await expect(page.getByTestId("scan-empty")).toContainText("Henüz hazır soru yok");
+    await page.getByRole("button", { name: "Devam et" }).click();
+    await page.getByRole("button", { name: "Planımı Oluştur" }).click();
+    await expect(page.getByTestId("picked")).toContainText('"examType":"TUS"');
+    await expect(page.getByTestId("picked")).toContainText('"examDate":"2027-03-27"');
+  });
 });

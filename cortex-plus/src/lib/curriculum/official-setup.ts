@@ -35,7 +35,11 @@ const STRUCTURE_SUBJECTS: Record<string, string[]> = {
 
 const OUTCOME_TEXT_MAX = 220;
 
-function questionCount(key: string, exam: string): number | null {
+function questionCount(key: string, exam: string, structure?: { exam: string; subjects: string[] }): number | null {
+  if (structure) {
+    const rows = CURRICULUM.examStructures.filter((r) => r.exam === structure.exam && structure.subjects.includes(r.subject));
+    return rows.length ? rows.reduce((n, r) => n + r.count, 0) : null;
+  }
   const names = STRUCTURE_SUBJECTS[key];
   if (!names) return null;
   const rows = CURRICULUM.examStructures.filter((r) => r.exam === exam && names.includes(r.subject));
@@ -73,7 +77,7 @@ export function buildSetupTree(exam: SetupExam): SetupTree {
       label,
       test: def.test,
       part: def.part,
-      questionCount: questionCount(def.key, def.part ?? "LGS"),
+      questionCount: questionCount(def.key, def.part ?? "LGS", def.structure),
       units,
       sourceLabel: [...sources].join(" · "),
     });

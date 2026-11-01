@@ -19,6 +19,7 @@ import {
 } from "@/lib/curriculum/official-setup-select";
 import {
   OSYM_YKS_GUIDE_URL,
+  SETUP_EXAMS,
   subjectKeysForAlan,
   YDT_NOTE,
   YKS_ALANLAR,
@@ -29,6 +30,8 @@ import { setFocusPrepCookieClient } from "@/lib/learning/focus-prep";
 import { LevelCheckRunner, type LevelResult } from "@/components/level-check/level-check-runner";
 import { foldResponses, masteryLabel, mergeRatings, scanRating } from "@/lib/level-check/mastery";
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
+import { OfficialLinks } from "@/components/curriculum/official-links";
+import { isTreeExam, TREE_EXAMS, type TreeGroup } from "@/lib/curriculum/exam-trees";
 import "@/styles/official-setup.css";
 
 export type OfficialSetupBody = {
@@ -74,7 +77,27 @@ function scanSummary(results: LevelResult[]): ScanUnitResult[] {
 }
 const MINUTES = [30, 45, 60, 90, 120];
 const RATING_LABEL: Record<UnitRating, string> = { iyi: "Biliyorum", orta: "Orta", zayif: "Zayıf" };
-const EXAM_LABEL: Record<SetupExam, string> = { yks: "YKS", lgs: "LGS" };
+const EXAM_LABEL: Record<SetupExam, string> = {
+  yks: "YKS",
+  lgs: "LGS",
+  kpss: "KPSS",
+  ales: "ALES",
+  dgs: "DGS",
+  yds: "YDS",
+  tus: "TUS",
+  dus: "DUS",
+};
+const EXAM_CARD: Record<SetupExam, [string, string]> = {
+  yks: ["YKS (TYT · AYT · YDT)", "ÖSYM Yükseköğretim Kurumları Sınavı"],
+  lgs: ["LGS", "Liselere Geçiş Sistemi merkezî sınavı"],
+  kpss: ["KPSS", TREE_EXAMS.kpss.card],
+  ales: ["ALES", TREE_EXAMS.ales.card],
+  dgs: ["DGS", TREE_EXAMS.dgs.card],
+  yds: ["YDS", TREE_EXAMS.yds.card],
+  tus: ["TUS", TREE_EXAMS.tus.card],
+  dus: ["DUS", TREE_EXAMS.dus.card],
+};
+const EXAM_TRACK: Partial<Record<SetupExam, "kpss" | "tus" | "ales">> = { kpss: "kpss", tus: "tus", ales: "ales" };
 const ALAN_TITLE: Record<YksAlan, string> = { tyt: "TYT", say: "Sayısal", ea: "Eşit Ağırlık", soz: "Sözel", dil: "Dil" };
 
 function istanbulToday(): string {
@@ -120,6 +143,7 @@ export function OfficialSetupFlow({
   const [tree, setTree] = useState<SetupTree | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [alan, setAlan] = useState<YksAlan | null>(initialAlan ?? null);
+  const [group, setGroup] = useState<string | null>(null);
   const [single, setSingle] = useState(false);
   const [selection, setSelection] = useState<SetupSelection>({ subjectKeys: [], removedOutcomes: [], removedUnits: [] });
   const [selfRatings, setRatings] = useState<Record<string, UnitRating>>({});
@@ -145,8 +169,8 @@ export function OfficialSetupFlow({
       .then((t) => {
         if (!live) return;
         setTree(t);
-        const keys =
-          exam === "lgs" ? t.subjects.map((s) => s.key) : alan ? subjectKeysForAlan(alan) : [];
+        const keys = exam !== "yks" ? t.subjects.map((s) => s.key) : alan ? subjectKeysForAlan(alan) : [];
+        setGroup(null);
         setSelection({ subjectKeys: keys, removedOutcomes: [], removedUnits: [] });
       })
       .catch(() => live && setLoadError(true));
@@ -163,9 +187,10 @@ export function OfficialSetupFlow({
   const knownCount = topics.filter((t) => ratings[t.unitId] === "iyi").length;
   const scanUsed = topics.filter((t) => !selfRatings[t.unitId] && scanRatings[t.unitId] && scanRatings[t.unitId] !== "orta").length;
   const alanDef = YKS_ALANLAR.find((a) => a.id === alan) ?? null;
+  const treeDef = isTreeExam(exam) ? TREE_EXAMS[exam] : null;
 
   const examDates = useMemo(() => {
-    const wanted = exam === "lgs" ? ["LGS"] : ["TYT", "AYT", "YDT"];
+    const wanted = exam === "lgs" ? ["LGS"] : isTreeExam(exam) ? [TREE_EXAMS[exam].structureExam] : ["TYT", "AYT", "YDT"];
     return upcomingOfficialExams(today, 40).filter((e) => wanted.includes(e.exam));
   }, [exam, today]);
 
@@ -175,8 +200,15 @@ export function OfficialSetupFlow({
     setSelection({ subjectKeys: subjectKeysForAlan(next), removedOutcomes: [], removedUnits: [] });
   }
 
+  function pickGroup(next: TreeGroup) {
+    setGroup(next.id);
+    setSingle(false);
+    setSelection({ subjectKeys: [...next.keys], removedOutcomes: [], removedUnits: [] });
+  }
+
   function toggleSubject(key: string) {
     setAlan(null);
+    setGroup(null);
     setSelection((s) =>
       single
         ? { ...s, subjectKeys: [key] }
@@ -187,7 +219,7 @@ export function OfficialSetupFlow({
   function goDate() {
     if (!examDate) {
       const usesAyt = topics.some((t) => t.part === "AYT");
-      const want = exam === "lgs" ? "LGS" : alan === "dil" ? "YDT" : usesAyt ? "AYT" : "TYT";
+      const want = exam === "lgs" ? "LGS" : treeDef ? treeDef.structureExam : alan === "dil" ? "YDT" : usesAyt ? "AYT" : "TYT";
       const hit = examDates.find((e) => e.exam === want) ?? examDates[0];
       if (hit) {
         setExamDate(hit.date);
@@ -201,8 +233,11 @@ export function OfficialSetupFlow({
     if (!exam || !topics.length || !examDate || examDate <= today) return;
     setBusy(true);
     const onlySubject = counts.subjects === 1 ? tree?.subjects.find((s) => s.key === topics[0]!.subjectKey)?.label : null;
-    const title =
-      exam === "lgs"
+    const title = treeDef
+      ? onlySubject && single
+        ? `${treeDef.name} ${onlySubject} Hazırlığı`
+        : `${treeDef.name} Hazırlığı`
+      : exam === "lgs"
         ? onlySubject && single
           ? `LGS ${onlySubject} Hazırlığı`
           : "LGS Hazırlığı"
@@ -220,8 +255,8 @@ export function OfficialSetupFlow({
       hardTopics: topics.filter((t) => ratings[t.unitId] === "zayif").map((t) => t.topic),
       topicOrderManual: true,
       learningPreferences: {
-        examTrack: exam === "lgs" ? "lgs" : alan === "tyt" ? "tyt" : "yks",
-        studyBand: exam === "lgs" ? "ortaokul" : "sinav",
+        examTrack: treeDef ? EXAM_TRACK[exam] : exam === "lgs" ? "lgs" : alan === "tyt" ? "tyt" : "yks",
+        studyBand: exam === "lgs" ? "ortaokul" : exam === "tus" || exam === "dus" || exam === "ales" ? "universite" : "sinav",
         officialPlan: {
           exam,
           alan: exam === "yks" ? alan : null,
@@ -281,7 +316,7 @@ export function OfficialSetupFlow({
           <p className="osf-kicker">1 / 5 · Sınav</p>
           <h1 className="osf-title">Hangi sınava hazırlanıyorsun?</h1>
           <div className="osf-cards">
-            {(["yks", "lgs"] as const).map((id) => (
+            {SETUP_EXAMS.map((id) => (
               <button
                 key={id}
                 type="button"
@@ -292,8 +327,8 @@ export function OfficialSetupFlow({
                 }}
               >
                 <Landmark className="h-5 w-5" aria-hidden />
-                <strong>{id === "yks" ? "YKS (TYT · AYT · YDT)" : "LGS"}</strong>
-                <span>{id === "yks" ? "ÖSYM Yükseköğretim Kurumları Sınavı" : "Liselere Geçiş Sistemi merkezî sınavı"}</span>
+                <strong>{EXAM_CARD[id][0]}</strong>
+                <span>{EXAM_CARD[id][1]}</span>
               </button>
             ))}
           </div>
@@ -309,9 +344,20 @@ export function OfficialSetupFlow({
       {tree && step === "subjects" ? (
         <div className="osf-step">
           <p className="osf-kicker">2 / 5 · Dersler</p>
-          <h1 className="osf-title">{exam === "lgs" ? "LGS dersleri hazır" : "Alanını seç, derslerin gelsin"}</h1>
+          <h1 className="osf-title">
+            {exam === "lgs" ? "LGS dersleri hazır" : treeDef ? `${treeDef.name} dersleri hazır` : "Alanını seç, derslerin gelsin"}
+          </h1>
+          {treeDef ? (
+            <p className="osf-note" data-testid="tree-label">
+              {treeDef.label}
+            </p>
+          ) : null}
           <p className="osf-lead">
-            {exam === "lgs"
+            {treeDef
+              ? single
+                ? "Tek ders modu açık: çalışacağın dersi seç, yolun yalnız o dersle kurulur."
+                : `${treeDef.name}'nin ${tree.subjects.length} dersi seçili geldi. Test çipleriyle daraltabilir, istediğin dersi kapatabilirsin.`
+              : exam === "lgs"
               ? single
                 ? "Tek ders modu açık: çalışacağın dersi seç, yolun yalnız o dersle kurulur."
                 : `LGS'nin ${tree.subjects.length} dersi seçili geldi. Çalışmayacağın dersi kapatabilirsin.`
@@ -336,6 +382,23 @@ export function OfficialSetupFlow({
               ))}
             </div>
           ) : null}
+          {treeDef && treeDef.groups.length ? (
+            <div className="osf-chips" role="radiogroup" aria-label="Test">
+              {treeDef.groups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={group === g.id}
+                  className="osf-chip"
+                  data-on={group === g.id || undefined}
+                  onClick={() => pickGroup(g)}
+                >
+                  {g.chip}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <label className="osf-switch">
             <input
               type="checkbox"
@@ -344,6 +407,7 @@ export function OfficialSetupFlow({
               onChange={(e) => {
                 setSingle(e.target.checked);
                 setAlan(null);
+                setGroup(null);
                 setSelection((s) => ({ ...s, subjectKeys: e.target.checked ? s.subjectKeys.slice(0, 1) : s.subjectKeys }));
               }}
             />
@@ -371,6 +435,7 @@ export function OfficialSetupFlow({
                     <strong>{s.label}</strong>
                     <span>
                       {totals.units} ünite · {totals.outcomes} kazanım
+                      {treeDef ? ` · ${s.test}` : ""}
                       {s.questionCount ? ` · sınavda ${s.questionCount} soru` : ""}
                     </span>
                   </button>
@@ -386,9 +451,12 @@ export function OfficialSetupFlow({
               </a>
               . Konular: MEB 2026 YKS&apos;ye esas kazanımlar.
             </p>
+          ) : treeDef ? (
+            <p className="osf-source">{treeDef.sourceNote}</p>
           ) : (
             <p className="osf-source">Konular: MEB LGS 2027 kapsamındaki 8. sınıf kazanımları.</p>
           )}
+          {exam ? <OfficialLinks exam={exam} /> : null}
           <div className="osf-bar">
             {summary}
             <button type="button" className="osf-cta" disabled={!counts.units} onClick={() => setStep("topics")}>
@@ -502,7 +570,20 @@ export function OfficialSetupFlow({
         <div className="osf-step" data-testid="quick-scan">
           <p className="osf-kicker">4 / 5 · Seviye</p>
           <h1 className="osf-title">⚡ Akıllı Hızlı Tarama</h1>
-          {scanPhase === "intro" ? (
+          {scanPhase === "intro" && treeDef ? (
+            <div className="lc-box" data-testid="scan-empty">
+              <p className="osf-lead">
+                Henüz hazır soru yok: {treeDef.name} konu ağacı için doğrulanmış soru havuzu henüz dolmadı. Yol sırası senin
+                “Biliyorum / Orta / Zayıf” işaretinle kurulur.
+              </p>
+              <div className="osf-bar">
+                <button type="button" className="osf-cta" onClick={goDate}>
+                  Devam et
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {scanPhase === "intro" && !treeDef ? (
             <>
               <p className="osf-lead">
                 10–12 soru, yaklaşık 3–5 dakika. Sorular seçtiğin derslerin en çok kazanım içeren ünitelerinden, doğrulanmış soru

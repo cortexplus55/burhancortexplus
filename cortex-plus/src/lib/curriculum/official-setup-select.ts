@@ -4,6 +4,7 @@
  * söz verilen = teslim edilen.
  */
 import { cutAtWord, TOPIC_LABEL_MAX } from "@/lib/curriculum/topic-map";
+import type { SetupExam } from "@/lib/curriculum/yks-alan";
 
 export type SetupOutcome = { code: string; text: string };
 export type SetupUnit = { id: string; programId: string; title: string; outcomes: SetupOutcome[] };
@@ -17,7 +18,7 @@ export type SetupSubject = {
   units: SetupUnit[];
   sourceLabel: string;
 };
-export type SetupTree = { exam: "yks" | "lgs"; subjects: SetupSubject[] };
+export type SetupTree = { exam: SetupExam; subjects: SetupSubject[] };
 
 export type UnitRating = "iyi" | "orta" | "zayif";
 

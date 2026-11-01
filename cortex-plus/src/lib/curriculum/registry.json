@@ -526,6 +526,26 @@
 "publisher": "MEB TTKB",
 "title": "Ortaöğretim Felsefe Dersi (10 ve 11. Sınıflar) Öğretim Programı (2018)",
 "fetched_at": "2026-11-01T10:00:00+03:00"
+},
+"yok_ucep_2020": {
+"id": "yok_ucep_2020",
+"url": "https://egitim.yok.gov.tr/documentFiles/17594056261.Mezuniyet%20%C3%96ncesi%20T%C4%B1p%20E%C4%9Fitimi%20-%20Ulusal%20%C3%87ekirdek%20E%C4%9Fitim%20Program%C4%B1%202020.pdf",
+"sha256": "b407fc9e9ee7a9c5ad73c1726af127b7ec01e5c816a05fec70600a2a6976a57d",
+"program_version": "ucep_2020",
+"publisher": "YÖK",
+"title": "Mezuniyet Öncesi Tıp Eğitimi Ulusal Çekirdek Eğitim Programı 2020 (UÇEP)",
+"fetched_at": "2026-11-01T22:00:00+03:00",
+"page": "https://egitim.yok.gov.tr/tr/page/499"
+},
+"yok_ducep_2024": {
+"id": "yok_ducep_2024",
+"url": "https://egitim.yok.gov.tr/documentFiles/17594056261.Mezuniyet%20%C3%96ncesi%20Di%C5%9F%20Hekimli%C4%9Fi%20Ulusal%20%C3%87ekirdek%20E%C4%9Fitim%20Program%C4%B1.pdf",
+"sha256": "545fd3e1397e396242567c6e76cb30c5dc14d1ebd4a9b89e477b363cd6444591",
+"program_version": "ducep_2024",
+"publisher": "YÖK",
+"title": "Mezuniyet Öncesi Diş Hekimliği Ulusal Çekirdek Eğitim Programı (DUÇEP-2024)",
+"fetched_at": "2026-11-01T22:00:00+03:00",
+"page": "https://egitim.yok.gov.tr/tr/page/499"
 }
 },
 "programs": [
@@ -40515,6 +40535,6159 @@
 ],
 "quotas": {},
 "sourceId": "osym_kpss_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "kpss-2026-tree-turkce",
+"kind": "kpss",
+"grade": null,
+"subjectKey": "kpss-turkce",
+"subject": "Türkçe (Genel Yetenek · Sözel)",
+"label": "KPSS · Türkçe (Genel Yetenek · Sözel)",
+"programVersion": "kpss_tree_2026",
+"badge": "ÖSYM 2026 KPSS Kılavuzu (test) · MEB 2026 YKS kazanımları (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Genel Yetenek.",
+"sourceIds": [
+"osym_kpss_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Sözcükte Anlam",
+"outcomes": [
+{
+"code": "KPSS.KT.1.a",
+"text": "Gerçek, mecaz ve terim anlam",
+"topic": "Sözcükte Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.1.b",
+"text": "Eş, zıt ve yakın anlamlı sözcükler",
+"topic": "Sözcükte Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.1.c",
+"text": "Deyimler ve atasözleri",
+"topic": "Sözcükte Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Cümlede Anlam",
+"outcomes": [
+{
+"code": "KPSS.KT.2.a",
+"text": "Cümle yorumu ve anlam ilişkileri",
+"topic": "Cümlede Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.2.b",
+"text": "Neden-sonuç, amaç-sonuç ve koşul cümleleri",
+"topic": "Cümlede Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.2.c",
+"text": "Öznel ve nesnel yargı",
+"topic": "Cümlede Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Paragraf",
+"outcomes": [
+{
+"code": "KPSS.KT.3.a",
+"text": "Ana düşünce ve yardımcı düşünceler",
+"topic": "Paragraf",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.3.b",
+"text": "Paragrafın yapısı ve akışı",
+"topic": "Paragraf",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.3.c",
+"text": "Anlatım biçimleri ve düşünceyi geliştirme yolları",
+"topic": "Paragraf",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Ses Bilgisi, Yazım ve Noktalama",
+"outcomes": [
+{
+"code": "KPSS.KT.4.a",
+"text": "Ses olayları",
+"topic": "Ses Bilgisi, Yazım ve Noktalama",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.4.b",
+"text": "Yazım kuralları",
+"topic": "Ses Bilgisi, Yazım ve Noktalama",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.4.c",
+"text": "Noktalama işaretleri",
+"topic": "Ses Bilgisi, Yazım ve Noktalama",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Dil Bilgisi",
+"outcomes": [
+{
+"code": "KPSS.KT.5.a",
+"text": "Sözcük türleri",
+"topic": "Dil Bilgisi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.5.b",
+"text": "Sözcükte yapı (kök, ek)",
+"topic": "Dil Bilgisi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.5.c",
+"text": "Cümlenin ögeleri ve cümle türleri",
+"topic": "Dil Bilgisi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.5.ç",
+"text": "Anlatım bozuklukları",
+"topic": "Dil Bilgisi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Sözel Mantık",
+"outcomes": [
+{
+"code": "KPSS.KT.6.a",
+"text": "Sıralama ve yerleştirme",
+"topic": "Sözel Mantık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.6.b",
+"text": "Koşullu çıkarım",
+"topic": "Sözel Mantık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KT.6.c",
+"text": "Tablo ve şema yorumlama",
+"topic": "Sözel Mantık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "kpss-2026-tree-matematik",
+"kind": "kpss",
+"grade": null,
+"subjectKey": "kpss-matematik",
+"subject": "Matematik (Genel Yetenek · Sayısal)",
+"label": "KPSS · Matematik (Genel Yetenek · Sayısal)",
+"programVersion": "kpss_tree_2026",
+"badge": "ÖSYM 2026 KPSS Kılavuzu (test) · MEB 2026 YKS kazanımları (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Genel Yetenek.",
+"sourceIds": [
+"osym_kpss_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Temel Kavramlar ve Sayılar",
+"outcomes": [
+{
+"code": "KPSS.KM.1.a",
+"text": "Sayı kümeleri ve basamak analizi",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.1.b",
+"text": "Ardışık sayılar",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.1.c",
+"text": "Asal sayılar ve tek-çift sayılar",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Bölünebilme ve Rasyonel Sayılar",
+"outcomes": [
+{
+"code": "KPSS.KM.2.a",
+"text": "Bölme ve bölünebilme kuralları",
+"topic": "Bölünebilme ve Rasyonel Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.2.b",
+"text": "EBOB ve EKOK",
+"topic": "Bölünebilme ve Rasyonel Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.2.c",
+"text": "Rasyonel ve ondalık sayılar",
+"topic": "Bölünebilme ve Rasyonel Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Üslü ve Köklü İfadeler, Denklemler",
+"outcomes": [
+{
+"code": "KPSS.KM.3.a",
+"text": "Üslü ve köklü ifadeler",
+"topic": "Üslü ve Köklü İfadeler, Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.3.b",
+"text": "Çarpanlara ayırma",
+"topic": "Üslü ve Köklü İfadeler, Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.3.c",
+"text": "Birinci dereceden denklemler ve eşitsizlikler",
+"topic": "Üslü ve Köklü İfadeler, Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.3.ç",
+"text": "Mutlak değer",
+"topic": "Üslü ve Köklü İfadeler, Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Problemler",
+"outcomes": [
+{
+"code": "KPSS.KM.4.a",
+"text": "Sayı, kesir ve yaş problemleri",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.4.b",
+"text": "Yüzde, kâr-zarar ve faiz",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.4.c",
+"text": "Karışım, işçi ve hareket problemleri",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Kümeler, Fonksiyonlar ve Olasılık",
+"outcomes": [
+{
+"code": "KPSS.KM.5.a",
+"text": "Kümeler ve fonksiyonlar",
+"topic": "Kümeler, Fonksiyonlar ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.5.b",
+"text": "Permütasyon ve kombinasyon",
+"topic": "Kümeler, Fonksiyonlar ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.5.c",
+"text": "Olasılık ve veri yorumlama",
+"topic": "Kümeler, Fonksiyonlar ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Sayısal Mantık ve Geometri",
+"outcomes": [
+{
+"code": "KPSS.KM.6.a",
+"text": "Sayısal akıl yürütme ve örüntüler",
+"topic": "Sayısal Mantık ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.6.b",
+"text": "Üçgenler ve çokgenler",
+"topic": "Sayısal Mantık ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KM.6.c",
+"text": "Çember, alan ve hacim",
+"topic": "Sayısal Mantık ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "kpss-2026-tree-tarih",
+"kind": "kpss",
+"grade": null,
+"subjectKey": "kpss-tarih",
+"subject": "Tarih (Genel Kültür)",
+"label": "KPSS · Tarih (Genel Kültür)",
+"programVersion": "kpss_tree_2026",
+"badge": "ÖSYM 2026 KPSS Kılavuzu (test) · MEB 2026 YKS kazanımları (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Genel Kültür.",
+"sourceIds": [
+"osym_kpss_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "İslamiyet Öncesi ve İlk Türk-İslam Devletleri",
+"outcomes": [
+{
+"code": "KPSS.KTR.1.a",
+"text": "İlk Türk devletleri ve kültürü",
+"topic": "İslamiyet Öncesi ve İlk Türk-İslam Devletleri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.1.b",
+"text": "İlk Türk-İslam devletleri",
+"topic": "İslamiyet Öncesi ve İlk Türk-İslam Devletleri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.1.c",
+"text": "Türkiye Selçuklu Devleti",
+"topic": "İslamiyet Öncesi ve İlk Türk-İslam Devletleri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Osmanlı Devleti Siyasi Tarihi",
+"outcomes": [
+{
+"code": "KPSS.KTR.2.a",
+"text": "Kuruluş ve yükselme dönemleri",
+"topic": "Osmanlı Devleti Siyasi Tarihi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.2.b",
+"text": "Duraklama ve gerileme dönemleri",
+"topic": "Osmanlı Devleti Siyasi Tarihi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.2.c",
+"text": "Dağılma dönemi ve Birinci Dünya Savaşı",
+"topic": "Osmanlı Devleti Siyasi Tarihi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Osmanlı Kültür ve Medeniyeti",
+"outcomes": [
+{
+"code": "KPSS.KTR.3.a",
+"text": "Devlet yönetimi ve ordu",
+"topic": "Osmanlı Kültür ve Medeniyeti",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.3.b",
+"text": "Toprak düzeni ve ekonomi",
+"topic": "Osmanlı Kültür ve Medeniyeti",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.3.c",
+"text": "Islahat hareketleri",
+"topic": "Osmanlı Kültür ve Medeniyeti",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Kurtuluş Savaşı Hazırlık ve Muharebeler",
+"outcomes": [
+{
+"code": "KPSS.KTR.4.a",
+"text": "Mondros ve işgaller",
+"topic": "Kurtuluş Savaşı Hazırlık ve Muharebeler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.4.b",
+"text": "Kongreler ve Misak-ı Millî",
+"topic": "Kurtuluş Savaşı Hazırlık ve Muharebeler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.4.c",
+"text": "Cepheler ve Lozan Antlaşması",
+"topic": "Kurtuluş Savaşı Hazırlık ve Muharebeler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Atatürk İlke ve İnkılapları",
+"outcomes": [
+{
+"code": "KPSS.KTR.5.a",
+"text": "Siyasi ve hukuki inkılaplar",
+"topic": "Atatürk İlke ve İnkılapları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.5.b",
+"text": "Eğitim, kültür ve toplumsal inkılaplar",
+"topic": "Atatürk İlke ve İnkılapları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.5.c",
+"text": "Atatürk ilkeleri",
+"topic": "Atatürk İlke ve İnkılapları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Çağdaş Türk ve Dünya Tarihi",
+"outcomes": [
+{
+"code": "KPSS.KTR.6.a",
+"text": "Atatürk dönemi dış politika",
+"topic": "Çağdaş Türk ve Dünya Tarihi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.6.b",
+"text": "İkinci Dünya Savaşı ve sonrası",
+"topic": "Çağdaş Türk ve Dünya Tarihi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KTR.6.c",
+"text": "Soğuk Savaş ve küreselleşme",
+"topic": "Çağdaş Türk ve Dünya Tarihi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "kpss-2026-tree-cografya",
+"kind": "kpss",
+"grade": null,
+"subjectKey": "kpss-cografya",
+"subject": "Türkiye Coğrafyası (Genel Kültür)",
+"label": "KPSS · Türkiye Coğrafyası (Genel Kültür)",
+"programVersion": "kpss_tree_2026",
+"badge": "ÖSYM 2026 KPSS Kılavuzu (test) · MEB 2026 YKS kazanımları (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Genel Kültür.",
+"sourceIds": [
+"osym_kpss_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Türkiye'nin Coğrafi Konumu",
+"outcomes": [
+{
+"code": "KPSS.KCO.1.a",
+"text": "Matematik ve özel konum",
+"topic": "Türkiye'nin Coğrafi Konumu",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.1.b",
+"text": "Konumun sonuçları",
+"topic": "Türkiye'nin Coğrafi Konumu",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Yer Şekilleri ve İklim",
+"outcomes": [
+{
+"code": "KPSS.KCO.2.a",
+"text": "Türkiye'nin yer şekilleri",
+"topic": "Yer Şekilleri ve İklim",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.2.b",
+"text": "İklim tipleri ve bitki örtüsü",
+"topic": "Yer Şekilleri ve İklim",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.2.c",
+"text": "Akarsular, göller ve toprak",
+"topic": "Yer Şekilleri ve İklim",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Nüfus ve Yerleşme",
+"outcomes": [
+{
+"code": "KPSS.KCO.3.a",
+"text": "Nüfusun dağılışı ve özellikleri",
+"topic": "Nüfus ve Yerleşme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.3.b",
+"text": "Göçler",
+"topic": "Nüfus ve Yerleşme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.3.c",
+"text": "Yerleşme tipleri",
+"topic": "Nüfus ve Yerleşme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Tarım ve Hayvancılık",
+"outcomes": [
+{
+"code": "KPSS.KCO.4.a",
+"text": "Tarım ürünleri ve yetiştirme alanları",
+"topic": "Tarım ve Hayvancılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.4.b",
+"text": "Hayvancılık türleri",
+"topic": "Tarım ve Hayvancılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Madenler, Enerji ve Sanayi",
+"outcomes": [
+{
+"code": "KPSS.KCO.5.a",
+"text": "Maden ve enerji kaynakları",
+"topic": "Madenler, Enerji ve Sanayi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.5.b",
+"text": "Sanayi kolları ve bölgeleri",
+"topic": "Madenler, Enerji ve Sanayi",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Ulaşım, Ticaret ve Turizm",
+"outcomes": [
+{
+"code": "KPSS.KCO.6.a",
+"text": "Ulaşım ağları",
+"topic": "Ulaşım, Ticaret ve Turizm",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.6.b",
+"text": "Dış ticaret",
+"topic": "Ulaşım, Ticaret ve Turizm",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KCO.6.c",
+"text": "Turizm bölgeleri",
+"topic": "Ulaşım, Ticaret ve Turizm",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "kpss-2026-tree-vatandaslik",
+"kind": "kpss",
+"grade": null,
+"subjectKey": "kpss-vatandaslik",
+"subject": "Vatandaşlık (Genel Kültür)",
+"label": "KPSS · Vatandaşlık (Genel Kültür)",
+"programVersion": "kpss_tree_2026",
+"badge": "ÖSYM 2026 KPSS Kılavuzu (test) · MEB 2026 YKS kazanımları (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Genel Kültür.",
+"sourceIds": [
+"osym_kpss_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Hukukun Temel Kavramları",
+"outcomes": [
+{
+"code": "KPSS.KV.1.a",
+"text": "Hukuk kuralları ve yaptırım",
+"topic": "Hukukun Temel Kavramları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KV.1.b",
+"text": "Hukukun dalları",
+"topic": "Hukukun Temel Kavramları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KV.1.c",
+"text": "Kişi, ehliyet ve haklar",
+"topic": "Hukukun Temel Kavramları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Anayasa Hukuku ve Anayasal Gelişmeler",
+"outcomes": [
+{
+"code": "KPSS.KV.2.a",
+"text": "Türk anayasal gelişmeleri",
+"topic": "Anayasa Hukuku ve Anayasal Gelişmeler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KV.2.b",
+"text": "1982 Anayasası'nın temel ilkeleri",
+"topic": "Anayasa Hukuku ve Anayasal Gelişmeler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Temel Hak ve Ödevler",
+"outcomes": [
+{
+"code": "KPSS.KV.3.a",
+"text": "Kişi hakları",
+"topic": "Temel Hak ve Ödevler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KV.3.b",
+"text": "Sosyal, ekonomik ve siyasi haklar",
+"topic": "Temel Hak ve Ödevler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Yasama",
+"outcomes": [
+{
+"code": "KPSS.KV.4.a",
+"text": "TBMM'nin yapısı ve görevleri",
+"topic": "Yasama",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KV.4.b",
+"text": "Kanun yapım süreci",
+"topic": "Yasama",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Yürütme ve Yargı",
+"outcomes": [
+{
+"code": "KPSS.KV.5.a",
+"text": "Cumhurbaşkanı ve yürütme",
+"topic": "Yürütme ve Yargı",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KV.5.b",
+"text": "Yargı organları ve yüksek mahkemeler",
+"topic": "Yürütme ve Yargı",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "İdare Hukuku",
+"outcomes": [
+{
+"code": "KPSS.KV.6.a",
+"text": "Merkezî ve yerinden yönetim",
+"topic": "İdare Hukuku",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KV.6.b",
+"text": "Kamu görevlileri",
+"topic": "İdare Hukuku",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "kpss-2026-tree-guncel",
+"kind": "kpss",
+"grade": null,
+"subjectKey": "kpss-guncel",
+"subject": "Güncel Bilgiler (Genel Kültür)",
+"label": "KPSS · Güncel Bilgiler (Genel Kültür)",
+"programVersion": "kpss_tree_2026",
+"badge": "ÖSYM 2026 KPSS Kılavuzu (test) · MEB 2026 YKS kazanımları (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Genel Kültür.",
+"sourceIds": [
+"osym_kpss_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Türkiye ve Dünyada Güncel Gelişmeler",
+"outcomes": [
+{
+"code": "KPSS.KG.1.a",
+"text": "Siyasi gelişmeler",
+"topic": "Türkiye ve Dünyada Güncel Gelişmeler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KG.1.b",
+"text": "Ekonomik gelişmeler",
+"topic": "Türkiye ve Dünyada Güncel Gelişmeler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Bilim, Teknoloji ve Sağlık",
+"outcomes": [
+{
+"code": "KPSS.KG.2.a",
+"text": "Bilimsel ve teknolojik gelişmeler",
+"topic": "Bilim, Teknoloji ve Sağlık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KG.2.b",
+"text": "Sağlık alanındaki gelişmeler",
+"topic": "Bilim, Teknoloji ve Sağlık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Uluslararası Kuruluşlar",
+"outcomes": [
+{
+"code": "KPSS.KG.3.a",
+"text": "Türkiye'nin üye olduğu kuruluşlar",
+"topic": "Uluslararası Kuruluşlar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KG.3.b",
+"text": "Kuruluşların merkez ve amaçları",
+"topic": "Uluslararası Kuruluşlar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Kültür, Sanat ve Spor",
+"outcomes": [
+{
+"code": "KPSS.KG.4.a",
+"text": "Kültür ve sanat etkinlikleri",
+"topic": "Kültür, Sanat ve Spor",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KG.4.b",
+"text": "Önemli spor organizasyonları",
+"topic": "Kültür, Sanat ve Spor",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Çevre ve Sürdürülebilirlik",
+"outcomes": [
+{
+"code": "KPSS.KG.5.a",
+"text": "İklim değişikliği ve çevre anlaşmaları",
+"topic": "Çevre ve Sürdürülebilirlik",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "KPSS.KG.5.b",
+"text": "Enerji ve doğal kaynaklar",
+"topic": "Çevre ve Sürdürülebilirlik",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "ales-2026-tree-sayisal",
+"kind": "ales",
+"grade": null,
+"subjectKey": "ales-sayisal",
+"subject": "Sayısal",
+"label": "ALES · Sayısal",
+"programVersion": "ales_tree_2026",
+"badge": "ÖSYM 2026 ALES Kılavuzu (test) · MEB ortaöğretim müfredatı (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Sayısal.",
+"sourceIds": [
+"osym_ales_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Temel Kavramlar ve Sayılar",
+"outcomes": [
+{
+"code": "ALES.AS.1.a",
+"text": "Sayı kümeleri ve basamak",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.1.b",
+"text": "Bölünebilme, EBOB ve EKOK",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.1.c",
+"text": "Rasyonel sayılar ve oran-orantı",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Cebirsel İfadeler ve Denklemler",
+"outcomes": [
+{
+"code": "ALES.AS.2.a",
+"text": "Üslü ve köklü ifadeler",
+"topic": "Cebirsel İfadeler ve Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.2.b",
+"text": "Çarpanlara ayırma",
+"topic": "Cebirsel İfadeler ve Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.2.c",
+"text": "Denklemler ve eşitsizlikler",
+"topic": "Cebirsel İfadeler ve Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Problemler",
+"outcomes": [
+{
+"code": "ALES.AS.3.a",
+"text": "Sayı ve kesir problemleri",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.3.b",
+"text": "Yüzde, kâr-zarar ve karışım",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.3.c",
+"text": "İşçi ve hareket problemleri",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Veri, Sayma ve Olasılık",
+"outcomes": [
+{
+"code": "ALES.AS.4.a",
+"text": "Tablo ve grafik yorumlama",
+"topic": "Veri, Sayma ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.4.b",
+"text": "Permütasyon ve kombinasyon",
+"topic": "Veri, Sayma ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.4.c",
+"text": "Olasılık",
+"topic": "Veri, Sayma ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Sayısal Akıl Yürütme ve Geometri",
+"outcomes": [
+{
+"code": "ALES.AS.5.a",
+"text": "Sayısal mantık ve örüntüler",
+"topic": "Sayısal Akıl Yürütme ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.5.b",
+"text": "Üçgen, dörtgen ve çember",
+"topic": "Sayısal Akıl Yürütme ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AS.5.c",
+"text": "Alan ve hacim",
+"topic": "Sayısal Akıl Yürütme ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "ales-2026-tree-sozel",
+"kind": "ales",
+"grade": null,
+"subjectKey": "ales-sozel",
+"subject": "Sözel",
+"label": "ALES · Sözel",
+"programVersion": "ales_tree_2026",
+"badge": "ÖSYM 2026 ALES Kılavuzu (test) · MEB ortaöğretim müfredatı (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Sözel.",
+"sourceIds": [
+"osym_ales_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Sözcük ve Cümlede Anlam",
+"outcomes": [
+{
+"code": "ALES.AZ.1.a",
+"text": "Sözcükte anlam",
+"topic": "Sözcük ve Cümlede Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.1.b",
+"text": "Cümle yorumu ve anlam ilişkileri",
+"topic": "Sözcük ve Cümlede Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Paragrafta Anlam",
+"outcomes": [
+{
+"code": "ALES.AZ.2.a",
+"text": "Ana düşünce ve yardımcı düşünce",
+"topic": "Paragrafta Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.2.b",
+"text": "Paragraf yapısı ve akışı",
+"topic": "Paragrafta Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Paragraf Tamamlama ve Akış",
+"outcomes": [
+{
+"code": "ALES.AZ.3.a",
+"text": "Boşluk doldurma",
+"topic": "Paragraf Tamamlama ve Akış",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.3.b",
+"text": "Akışı bozan cümle",
+"topic": "Paragraf Tamamlama ve Akış",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.3.c",
+"text": "Cümle sıralama",
+"topic": "Paragraf Tamamlama ve Akış",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Dil Bilgisi ve Anlatım Bozuklukları",
+"outcomes": [
+{
+"code": "ALES.AZ.4.a",
+"text": "Sözcük türleri ve cümle ögeleri",
+"topic": "Dil Bilgisi ve Anlatım Bozuklukları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.4.b",
+"text": "Anlatım bozuklukları",
+"topic": "Dil Bilgisi ve Anlatım Bozuklukları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.4.c",
+"text": "Yazım ve noktalama",
+"topic": "Dil Bilgisi ve Anlatım Bozuklukları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Sözel Akıl Yürütme",
+"outcomes": [
+{
+"code": "ALES.AZ.5.a",
+"text": "Sıralama ve yerleştirme",
+"topic": "Sözel Akıl Yürütme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.5.b",
+"text": "Koşullu çıkarım",
+"topic": "Sözel Akıl Yürütme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "ALES.AZ.5.c",
+"text": "Metinden çıkarım",
+"topic": "Sözel Akıl Yürütme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dgs-2026-tree-sayisal",
+"kind": "dgs",
+"grade": null,
+"subjectKey": "dgs-sayisal",
+"subject": "Sayısal",
+"label": "DGS · Sayısal",
+"programVersion": "dgs_tree_2026",
+"badge": "ÖSYM 2026 DGS Kılavuzu (test) · MEB ortaöğretim müfredatı (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Sayısal.",
+"sourceIds": [
+"osym_dgs_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Temel Kavramlar ve Sayılar",
+"outcomes": [
+{
+"code": "DGS.DS.1.a",
+"text": "Sayı kümeleri ve basamak",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.1.b",
+"text": "Bölünebilme, EBOB ve EKOK",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.1.c",
+"text": "Rasyonel sayılar ve oran-orantı",
+"topic": "Temel Kavramlar ve Sayılar",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Cebirsel İfadeler ve Denklemler",
+"outcomes": [
+{
+"code": "DGS.DS.2.a",
+"text": "Üslü ve köklü ifadeler",
+"topic": "Cebirsel İfadeler ve Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.2.b",
+"text": "Çarpanlara ayırma",
+"topic": "Cebirsel İfadeler ve Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.2.c",
+"text": "Denklemler ve eşitsizlikler",
+"topic": "Cebirsel İfadeler ve Denklemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Problemler",
+"outcomes": [
+{
+"code": "DGS.DS.3.a",
+"text": "Sayı ve kesir problemleri",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.3.b",
+"text": "Yüzde, kâr-zarar ve karışım",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.3.c",
+"text": "İşçi ve hareket problemleri",
+"topic": "Problemler",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Veri, Sayma ve Olasılık",
+"outcomes": [
+{
+"code": "DGS.DS.4.a",
+"text": "Tablo ve grafik yorumlama",
+"topic": "Veri, Sayma ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.4.b",
+"text": "Permütasyon ve kombinasyon",
+"topic": "Veri, Sayma ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.4.c",
+"text": "Olasılık",
+"topic": "Veri, Sayma ve Olasılık",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Sayısal Akıl Yürütme ve Geometri",
+"outcomes": [
+{
+"code": "DGS.DS.5.a",
+"text": "Sayısal mantık ve örüntüler",
+"topic": "Sayısal Akıl Yürütme ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.5.b",
+"text": "Üçgen, dörtgen ve çember",
+"topic": "Sayısal Akıl Yürütme ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DS.5.c",
+"text": "Alan ve hacim",
+"topic": "Sayısal Akıl Yürütme ve Geometri",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dgs-2026-tree-sozel",
+"kind": "dgs",
+"grade": null,
+"subjectKey": "dgs-sozel",
+"subject": "Sözel",
+"label": "DGS · Sözel",
+"programVersion": "dgs_tree_2026",
+"badge": "ÖSYM 2026 DGS Kılavuzu (test) · MEB ortaöğretim müfredatı (alt başlık)",
+"scope": "Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir. ÖSYM testi: Sözel.",
+"sourceIds": [
+"osym_dgs_2026",
+"meb_yks_2026"
+],
+"units": [
+{
+"title": "Sözcük ve Cümlede Anlam",
+"outcomes": [
+{
+"code": "DGS.DZ.1.a",
+"text": "Sözcükte anlam",
+"topic": "Sözcük ve Cümlede Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.1.b",
+"text": "Cümle yorumu ve anlam ilişkileri",
+"topic": "Sözcük ve Cümlede Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Paragrafta Anlam",
+"outcomes": [
+{
+"code": "DGS.DZ.2.a",
+"text": "Ana düşünce ve yardımcı düşünce",
+"topic": "Paragrafta Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.2.b",
+"text": "Paragraf yapısı ve akışı",
+"topic": "Paragrafta Anlam",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Paragraf Tamamlama ve Akış",
+"outcomes": [
+{
+"code": "DGS.DZ.3.a",
+"text": "Boşluk doldurma",
+"topic": "Paragraf Tamamlama ve Akış",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.3.b",
+"text": "Akışı bozan cümle",
+"topic": "Paragraf Tamamlama ve Akış",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.3.c",
+"text": "Cümle sıralama",
+"topic": "Paragraf Tamamlama ve Akış",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Dil Bilgisi ve Anlatım Bozuklukları",
+"outcomes": [
+{
+"code": "DGS.DZ.4.a",
+"text": "Sözcük türleri ve cümle ögeleri",
+"topic": "Dil Bilgisi ve Anlatım Bozuklukları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.4.b",
+"text": "Anlatım bozuklukları",
+"topic": "Dil Bilgisi ve Anlatım Bozuklukları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.4.c",
+"text": "Yazım ve noktalama",
+"topic": "Dil Bilgisi ve Anlatım Bozuklukları",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "Sözel Akıl Yürütme",
+"outcomes": [
+{
+"code": "DGS.DZ.5.a",
+"text": "Sıralama ve yerleştirme",
+"topic": "Sözel Akıl Yürütme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.5.b",
+"text": "Koşullu çıkarım",
+"topic": "Sözel Akıl Yürütme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "DGS.DZ.5.c",
+"text": "Metinden çıkarım",
+"topic": "Sözel Akıl Yürütme",
+"grade": null,
+"limitations": [
+"Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "yds-2026-tree-yabanci-dil",
+"kind": "yds",
+"grade": null,
+"subjectKey": "yds-yabanci-dil",
+"subject": "Yabancı Dil",
+"label": "YDS · Yabancı Dil",
+"programVersion": "yds_tree_2026",
+"badge": "ÖSYM 2026 YDS Kılavuzu (soru türleri)",
+"scope": "Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir. ÖSYM testi: Yabancı Dil.",
+"sourceIds": [
+"osym_yds_2026"
+],
+"units": [
+{
+"title": "Sözcük Bilgisi",
+"outcomes": [
+{
+"code": "YDS.Y.1.a",
+"text": "Bağlamda sözcük seçimi",
+"topic": "Sözcük Bilgisi",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.1.b",
+"text": "Phrasal verb ve edat kalıpları",
+"topic": "Sözcük Bilgisi",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.1.c",
+"text": "Eş anlam ve sözcük türetme",
+"topic": "Sözcük Bilgisi",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+}
+]
+},
+{
+"title": "Dil Bilgisi",
+"outcomes": [
+{
+"code": "YDS.Y.2.a",
+"text": "Zamanlar ve kipler",
+"topic": "Dil Bilgisi",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.2.b",
+"text": "Bağlaçlar ve geçiş ifadeleri",
+"topic": "Dil Bilgisi",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.2.c",
+"text": "Yan cümleler ve edilgen yapı",
+"topic": "Dil Bilgisi",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+}
+]
+},
+{
+"title": "Cloze Test",
+"outcomes": [
+{
+"code": "YDS.Y.3.a",
+"text": "Paragrafta sözcük boşluğu",
+"topic": "Cloze Test",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.3.b",
+"text": "Paragrafta dil bilgisi boşluğu",
+"topic": "Cloze Test",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+}
+]
+},
+{
+"title": "Cümle Tamamlama",
+"outcomes": [
+{
+"code": "YDS.Y.4.a",
+"text": "Bağlaç ve anlam uyumu",
+"topic": "Cümle Tamamlama",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.4.b",
+"text": "Zaman uyumu",
+"topic": "Cümle Tamamlama",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+}
+]
+},
+{
+"title": "Çeviri",
+"outcomes": [
+{
+"code": "YDS.Y.5.a",
+"text": "İngilizceden Türkçeye",
+"topic": "Çeviri",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.5.b",
+"text": "Türkçeden İngilizceye",
+"topic": "Çeviri",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+}
+]
+},
+{
+"title": "Okuduğunu Anlama",
+"outcomes": [
+{
+"code": "YDS.Y.6.a",
+"text": "Okuma parçası soruları",
+"topic": "Okuduğunu Anlama",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.6.b",
+"text": "Paragraf tamamlama ve anlamca yakın cümle",
+"topic": "Okuduğunu Anlama",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+},
+{
+"code": "YDS.Y.6.c",
+"text": "Diyalog tamamlama ve akışı bozan cümle",
+"topic": "Okuduğunu Anlama",
+"grade": null,
+"limitations": [
+"Soru türleri ÖSYM kılavuzundandır; alt başlıklar resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "osym_yds_2026"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-anatomi",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-anatomi",
+"subject": "Anatomi",
+"label": "TUS · Anatomi",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Kemikler ve Eklemler",
+"outcomes": [
+{
+"code": "TUS.AN.1.a",
+"text": "Üst ve alt ekstremite kemikleri",
+"topic": "Kemikler ve Eklemler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.AN.1.b",
+"text": "Kafatası ve omurga",
+"topic": "Kemikler ve Eklemler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.AN.1.c",
+"text": "Eklemler",
+"topic": "Kemikler ve Eklemler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Kaslar ve Ekstremiteler",
+"outcomes": [
+{
+"code": "TUS.AN.2.a",
+"text": "Üst ekstremite kasları ve pleksus brakiyalis",
+"topic": "Kaslar ve Ekstremiteler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.AN.2.b",
+"text": "Alt ekstremite kasları ve pleksus lumbosakralis",
+"topic": "Kaslar ve Ekstremiteler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Baş-Boyun ve Nöroanatomi",
+"outcomes": [
+{
+"code": "TUS.AN.3.a",
+"text": "Kraniyal sinirler",
+"topic": "Baş-Boyun ve Nöroanatomi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.AN.3.b",
+"text": "Beyin ve omurilik",
+"topic": "Baş-Boyun ve Nöroanatomi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.AN.3.c",
+"text": "Baş-boyun bölgesi",
+"topic": "Baş-Boyun ve Nöroanatomi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Toraks",
+"outcomes": [
+{
+"code": "TUS.AN.4.a",
+"text": "Kalp ve büyük damarlar",
+"topic": "Toraks",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.AN.4.b",
+"text": "Akciğerler ve mediasten",
+"topic": "Toraks",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Abdomen ve Pelvis",
+"outcomes": [
+{
+"code": "TUS.AN.5.a",
+"text": "Gastrointestinal organlar",
+"topic": "Abdomen ve Pelvis",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.AN.5.b",
+"text": "Ürogenital organlar ve pelvis",
+"topic": "Abdomen ve Pelvis",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-histoloji",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-histoloji",
+"subject": "Histoloji ve Embriyoloji",
+"label": "TUS · Histoloji ve Embriyoloji",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Hücre ve Temel Dokular",
+"outcomes": [
+{
+"code": "TUS.HI.1.a",
+"text": "Hücre yapısı",
+"topic": "Hücre ve Temel Dokular",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.HI.1.b",
+"text": "Epitel ve bağ dokusu",
+"topic": "Hücre ve Temel Dokular",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.HI.1.c",
+"text": "Kas ve sinir dokusu",
+"topic": "Hücre ve Temel Dokular",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Organ Sistemleri Histolojisi",
+"outcomes": [
+{
+"code": "TUS.HI.2.a",
+"text": "Dolaşım ve solunum sistemi",
+"topic": "Organ Sistemleri Histolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.HI.2.b",
+"text": "Sindirim sistemi",
+"topic": "Organ Sistemleri Histolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.HI.2.c",
+"text": "Üriner ve endokrin sistem",
+"topic": "Organ Sistemleri Histolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Genel Embriyoloji",
+"outcomes": [
+{
+"code": "TUS.HI.3.a",
+"text": "Gametogenez ve fertilizasyon",
+"topic": "Genel Embriyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.HI.3.b",
+"text": "Gelişimin ilk haftaları",
+"topic": "Genel Embriyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Sistem Embriyolojisi",
+"outcomes": [
+{
+"code": "TUS.HI.4.a",
+"text": "Kalp ve damar gelişimi",
+"topic": "Sistem Embriyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.HI.4.b",
+"text": "Baş-boyun ve farengeal arklar",
+"topic": "Sistem Embriyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.HI.4.c",
+"text": "Ürogenital gelişim",
+"topic": "Sistem Embriyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-fizyoloji",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-fizyoloji",
+"subject": "Fizyoloji",
+"label": "TUS · Fizyoloji",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Hücre ve Sinir-Kas Fizyolojisi",
+"outcomes": [
+{
+"code": "TUS.FZ.1.a",
+"text": "Membran taşınımı ve potansiyeller",
+"topic": "Hücre ve Sinir-Kas Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FZ.1.b",
+"text": "Sinaps ve kas kasılması",
+"topic": "Hücre ve Sinir-Kas Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Kardiyovasküler Fizyoloji",
+"outcomes": [
+{
+"code": "TUS.FZ.2.a",
+"text": "Kalbin elektriksel aktivitesi",
+"topic": "Kardiyovasküler Fizyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FZ.2.b",
+"text": "Hemodinami ve kan basıncı",
+"topic": "Kardiyovasküler Fizyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Solunum ve Böbrek Fizyolojisi",
+"outcomes": [
+{
+"code": "TUS.FZ.3.a",
+"text": "Ventilasyon ve gaz değişimi",
+"topic": "Solunum ve Böbrek Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FZ.3.b",
+"text": "Glomerüler filtrasyon ve asit-baz",
+"topic": "Solunum ve Böbrek Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Sindirim ve Endokrin Fizyolojisi",
+"outcomes": [
+{
+"code": "TUS.FZ.4.a",
+"text": "Gastrointestinal hormonlar",
+"topic": "Sindirim ve Endokrin Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FZ.4.b",
+"text": "Endokrin bezler",
+"topic": "Sindirim ve Endokrin Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Nörofizyoloji",
+"outcomes": [
+{
+"code": "TUS.FZ.5.a",
+"text": "Duyu ve motor sistemler",
+"topic": "Nörofizyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FZ.5.b",
+"text": "Otonom sinir sistemi",
+"topic": "Nörofizyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-biyokimya",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-biyokimya",
+"subject": "Tıbbi Biyokimya",
+"label": "TUS · Tıbbi Biyokimya",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Biyomoleküller ve Enzimler",
+"outcomes": [
+{
+"code": "TUS.BK.1.a",
+"text": "Proteinler ve aminoasitler",
+"topic": "Biyomoleküller ve Enzimler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.BK.1.b",
+"text": "Enzim kinetiği",
+"topic": "Biyomoleküller ve Enzimler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Karbonhidrat Metabolizması",
+"outcomes": [
+{
+"code": "TUS.BK.2.a",
+"text": "Glikoliz ve glukoneogenez",
+"topic": "Karbonhidrat Metabolizması",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.BK.2.b",
+"text": "Glikojen metabolizması ve pentoz fosfat yolu",
+"topic": "Karbonhidrat Metabolizması",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Lipit ve Aminoasit Metabolizması",
+"outcomes": [
+{
+"code": "TUS.BK.3.a",
+"text": "Yağ asidi sentezi ve yıkımı",
+"topic": "Lipit ve Aminoasit Metabolizması",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.BK.3.b",
+"text": "Lipoproteinler",
+"topic": "Lipit ve Aminoasit Metabolizması",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.BK.3.c",
+"text": "Üre döngüsü ve aminoasit hastalıkları",
+"topic": "Lipit ve Aminoasit Metabolizması",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Enerji Metabolizması ve Vitaminler",
+"outcomes": [
+{
+"code": "TUS.BK.4.a",
+"text": "Sitrik asit döngüsü ve oksidatif fosforilasyon",
+"topic": "Enerji Metabolizması ve Vitaminler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.BK.4.b",
+"text": "Vitaminler ve mineraller",
+"topic": "Enerji Metabolizması ve Vitaminler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Moleküler Biyoloji ve Klinik Biyokimya",
+"outcomes": [
+{
+"code": "TUS.BK.5.a",
+"text": "DNA, RNA ve protein sentezi",
+"topic": "Moleküler Biyoloji ve Klinik Biyokimya",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.BK.5.b",
+"text": "Hormon biyokimyası",
+"topic": "Moleküler Biyoloji ve Klinik Biyokimya",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.BK.5.c",
+"text": "Klinik laboratuvar",
+"topic": "Moleküler Biyoloji ve Klinik Biyokimya",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-mikrobiyoloji",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-mikrobiyoloji",
+"subject": "Tıbbi Mikrobiyoloji",
+"label": "TUS · Tıbbi Mikrobiyoloji",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Genel Mikrobiyoloji",
+"outcomes": [
+{
+"code": "TUS.MB.1.a",
+"text": "Bakteri yapısı ve genetiği",
+"topic": "Genel Mikrobiyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.MB.1.b",
+"text": "Sterilizasyon ve dezenfeksiyon",
+"topic": "Genel Mikrobiyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "İmmünoloji",
+"outcomes": [
+{
+"code": "TUS.MB.2.a",
+"text": "Doğal ve edinsel bağışıklık",
+"topic": "İmmünoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.MB.2.b",
+"text": "Aşırı duyarlılık ve immün yetmezlik",
+"topic": "İmmünoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Bakteriyoloji",
+"outcomes": [
+{
+"code": "TUS.MB.3.a",
+"text": "Gram pozitif ve gram negatif bakteriler",
+"topic": "Bakteriyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.MB.3.b",
+"text": "Mikobakteriler ve diğer bakteriler",
+"topic": "Bakteriyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Viroloji",
+"outcomes": [
+{
+"code": "TUS.MB.4.a",
+"text": "DNA virüsleri",
+"topic": "Viroloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.MB.4.b",
+"text": "RNA virüsleri ve hepatit virüsleri",
+"topic": "Viroloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Mikoloji ve Parazitoloji",
+"outcomes": [
+{
+"code": "TUS.MB.5.a",
+"text": "Mantarlar",
+"topic": "Mikoloji ve Parazitoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.MB.5.b",
+"text": "Protozoonlar ve helmintler",
+"topic": "Mikoloji ve Parazitoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-patoloji",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-patoloji",
+"subject": "Tıbbi Patoloji",
+"label": "TUS · Tıbbi Patoloji",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Hücre Hasarı ve İnflamasyon",
+"outcomes": [
+{
+"code": "TUS.PA.1.a",
+"text": "Hücre hasarı ve ölümü",
+"topic": "Hücre Hasarı ve İnflamasyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PA.1.b",
+"text": "Akut ve kronik inflamasyon",
+"topic": "Hücre Hasarı ve İnflamasyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Hemodinamik Bozukluklar ve İmmünopatoloji",
+"outcomes": [
+{
+"code": "TUS.PA.2.a",
+"text": "Tromboz, emboli ve şok",
+"topic": "Hemodinamik Bozukluklar ve İmmünopatoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PA.2.b",
+"text": "İmmün sistem hastalıkları",
+"topic": "Hemodinamik Bozukluklar ve İmmünopatoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Neoplazi ve Genetik Hastalıklar",
+"outcomes": [
+{
+"code": "TUS.PA.3.a",
+"text": "Tümör biyolojisi",
+"topic": "Neoplazi ve Genetik Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PA.3.b",
+"text": "Genetik ve pediatrik hastalıklar",
+"topic": "Neoplazi ve Genetik Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Sistemik Patoloji I",
+"outcomes": [
+{
+"code": "TUS.PA.4.a",
+"text": "Kardiyovasküler ve solunum sistemi",
+"topic": "Sistemik Patoloji I",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PA.4.b",
+"text": "Gastrointestinal sistem ve karaciğer",
+"topic": "Sistemik Patoloji I",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Sistemik Patoloji II",
+"outcomes": [
+{
+"code": "TUS.PA.5.a",
+"text": "Böbrek ve ürogenital sistem",
+"topic": "Sistemik Patoloji II",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PA.5.b",
+"text": "Endokrin, kemik ve sinir sistemi",
+"topic": "Sistemik Patoloji II",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-farmakoloji",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-farmakoloji",
+"subject": "Tıbbi Farmakoloji",
+"label": "TUS · Tıbbi Farmakoloji",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Genel Farmakoloji",
+"outcomes": [
+{
+"code": "TUS.FA.1.a",
+"text": "Farmakokinetik",
+"topic": "Genel Farmakoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FA.1.b",
+"text": "Farmakodinamik",
+"topic": "Genel Farmakoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Otonom Sinir Sistemi İlaçları",
+"outcomes": [
+{
+"code": "TUS.FA.2.a",
+"text": "Kolinerjik ilaçlar",
+"topic": "Otonom Sinir Sistemi İlaçları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FA.2.b",
+"text": "Adrenerjik ilaçlar",
+"topic": "Otonom Sinir Sistemi İlaçları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Kardiyovasküler ve Böbrek İlaçları",
+"outcomes": [
+{
+"code": "TUS.FA.3.a",
+"text": "Antihipertansifler ve diüretikler",
+"topic": "Kardiyovasküler ve Böbrek İlaçları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FA.3.b",
+"text": "Antiaritmikler ve antikoagülanlar",
+"topic": "Kardiyovasküler ve Böbrek İlaçları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Santral Sinir Sistemi İlaçları",
+"outcomes": [
+{
+"code": "TUS.FA.4.a",
+"text": "Antidepresan ve antipsikotikler",
+"topic": "Santral Sinir Sistemi İlaçları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FA.4.b",
+"text": "Antiepileptikler ve anestezikler",
+"topic": "Santral Sinir Sistemi İlaçları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Kemoterapötikler ve Endokrin İlaçlar",
+"outcomes": [
+{
+"code": "TUS.FA.5.a",
+"text": "Antimikrobiyaller",
+"topic": "Kemoterapötikler ve Endokrin İlaçlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FA.5.b",
+"text": "Antineoplastikler",
+"topic": "Kemoterapötikler ve Endokrin İlaçlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.FA.5.c",
+"text": "Hormonlar ve antagonistleri",
+"topic": "Kemoterapötikler ve Endokrin İlaçlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-dahiliye",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-dahiliye",
+"subject": "Dâhiliye Grubu",
+"label": "TUS · Dâhiliye Grubu",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Kardiyoloji",
+"outcomes": [
+{
+"code": "TUS.DA.1.a",
+"text": "Koroner arter hastalığı",
+"topic": "Kardiyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.DA.1.b",
+"text": "Kalp yetmezliği ve aritmiler",
+"topic": "Kardiyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Göğüs Hastalıkları",
+"outcomes": [
+{
+"code": "TUS.DA.2.a",
+"text": "Astım ve KOAH",
+"topic": "Göğüs Hastalıkları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.DA.2.b",
+"text": "Pnömoni ve akciğer kanseri",
+"topic": "Göğüs Hastalıkları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Gastroenteroloji ve Hepatoloji",
+"outcomes": [
+{
+"code": "TUS.DA.3.a",
+"text": "Peptik ülser ve inflamatuvar barsak hastalığı",
+"topic": "Gastroenteroloji ve Hepatoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.DA.3.b",
+"text": "Hepatitler ve siroz",
+"topic": "Gastroenteroloji ve Hepatoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Nefroloji ve Endokrinoloji",
+"outcomes": [
+{
+"code": "TUS.DA.4.a",
+"text": "Akut ve kronik böbrek hastalığı",
+"topic": "Nefroloji ve Endokrinoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.DA.4.b",
+"text": "Diyabet, tiroid ve adrenal hastalıklar",
+"topic": "Nefroloji ve Endokrinoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Hematoloji ve Onkoloji",
+"outcomes": [
+{
+"code": "TUS.DA.5.a",
+"text": "Anemiler",
+"topic": "Hematoloji ve Onkoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.DA.5.b",
+"text": "Lösemi ve lenfomalar",
+"topic": "Hematoloji ve Onkoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Romatoloji ve Enfeksiyon Hastalıkları",
+"outcomes": [
+{
+"code": "TUS.DA.6.a",
+"text": "İnflamatuvar romatizmal hastalıklar",
+"topic": "Romatoloji ve Enfeksiyon Hastalıkları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.DA.6.b",
+"text": "Sepsis ve sık enfeksiyonlar",
+"topic": "Romatoloji ve Enfeksiyon Hastalıkları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-pediatri",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-pediatri",
+"subject": "Pediatri",
+"label": "TUS · Pediatri",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Yenidoğan",
+"outcomes": [
+{
+"code": "TUS.PE.1.a",
+"text": "Yenidoğan muayenesi ve sarılık",
+"topic": "Yenidoğan",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PE.1.b",
+"text": "Prematürite ve solunum sıkıntısı",
+"topic": "Yenidoğan",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Büyüme-Gelişme ve Beslenme",
+"outcomes": [
+{
+"code": "TUS.PE.2.a",
+"text": "Büyüme izlemi",
+"topic": "Büyüme-Gelişme ve Beslenme",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PE.2.b",
+"text": "Beslenme bozuklukları",
+"topic": "Büyüme-Gelişme ve Beslenme",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PE.2.c",
+"text": "Aşılama",
+"topic": "Büyüme-Gelişme ve Beslenme",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Çocuk Enfeksiyon Hastalıkları",
+"outcomes": [
+{
+"code": "TUS.PE.3.a",
+"text": "Döküntülü hastalıklar",
+"topic": "Çocuk Enfeksiyon Hastalıkları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PE.3.b",
+"text": "Menenjit ve solunum yolu enfeksiyonları",
+"topic": "Çocuk Enfeksiyon Hastalıkları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Çocuk Kardiyoloji ve Nefroloji",
+"outcomes": [
+{
+"code": "TUS.PE.4.a",
+"text": "Doğumsal kalp hastalıkları",
+"topic": "Çocuk Kardiyoloji ve Nefroloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PE.4.b",
+"text": "Nefrotik ve nefritik sendrom",
+"topic": "Çocuk Kardiyoloji ve Nefroloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Metabolik, Genetik ve Endokrin Hastalıklar",
+"outcomes": [
+{
+"code": "TUS.PE.5.a",
+"text": "Doğumsal metabolik hastalıklar",
+"topic": "Metabolik, Genetik ve Endokrin Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PE.5.b",
+"text": "Kromozom anomalileri",
+"topic": "Metabolik, Genetik ve Endokrin Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.PE.5.c",
+"text": "Çocukluk çağı endokrin hastalıkları",
+"topic": "Metabolik, Genetik ve Endokrin Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-cerrahi",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-cerrahi",
+"subject": "Cerrahi Grubu",
+"label": "TUS · Cerrahi Grubu",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Genel Cerrahi İlkeleri",
+"outcomes": [
+{
+"code": "TUS.CE.1.a",
+"text": "Sıvı-elektrolit ve şok",
+"topic": "Genel Cerrahi İlkeleri",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.CE.1.b",
+"text": "Yara iyileşmesi ve cerrahi enfeksiyonlar",
+"topic": "Genel Cerrahi İlkeleri",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Travma ve Acil Cerrahi",
+"outcomes": [
+{
+"code": "TUS.CE.2.a",
+"text": "Travmaya yaklaşım",
+"topic": "Travma ve Acil Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.CE.2.b",
+"text": "Akut karın",
+"topic": "Travma ve Acil Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Gastrointestinal Cerrahi",
+"outcomes": [
+{
+"code": "TUS.CE.3.a",
+"text": "Mide ve barsak hastalıkları",
+"topic": "Gastrointestinal Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.CE.3.b",
+"text": "Hepatobiliyer ve pankreas cerrahisi",
+"topic": "Gastrointestinal Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Meme, Endokrin ve Damar Cerrahisi",
+"outcomes": [
+{
+"code": "TUS.CE.4.a",
+"text": "Meme hastalıkları",
+"topic": "Meme, Endokrin ve Damar Cerrahisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.CE.4.b",
+"text": "Tiroid ve paratiroid cerrahisi",
+"topic": "Meme, Endokrin ve Damar Cerrahisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.CE.4.c",
+"text": "Periferik damar hastalıkları",
+"topic": "Meme, Endokrin ve Damar Cerrahisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Cerrahi Branşlar",
+"outcomes": [
+{
+"code": "TUS.CE.5.a",
+"text": "Ortopedi ve üroloji",
+"topic": "Cerrahi Branşlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.CE.5.b",
+"text": "Beyin cerrahisi ve çocuk cerrahisi",
+"topic": "Cerrahi Branşlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "tus-2026-tree-kadin-dogum",
+"kind": "tus",
+"grade": null,
+"subjectKey": "tus-kadin-dogum",
+"subject": "Kadın Hastalıkları ve Doğum",
+"label": "TUS · Kadın Hastalıkları ve Doğum",
+"programVersion": "tus_tree_2026",
+"badge": "ÖSYM 2026 TUS Kılavuzu (test) · YÖK UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Tıp Bilimleri.",
+"sourceIds": [
+"osym_tus_2026",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Gebelik Fizyolojisi ve Doğum",
+"outcomes": [
+{
+"code": "TUS.KD.1.a",
+"text": "Gebelik tanısı ve izlemi",
+"topic": "Gebelik Fizyolojisi ve Doğum",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.KD.1.b",
+"text": "Normal doğum ve doğum eylemi",
+"topic": "Gebelik Fizyolojisi ve Doğum",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Gebelik Komplikasyonları",
+"outcomes": [
+{
+"code": "TUS.KD.2.a",
+"text": "Hipertansif bozukluklar",
+"topic": "Gebelik Komplikasyonları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.KD.2.b",
+"text": "Kanamalar ve erken doğum",
+"topic": "Gebelik Komplikasyonları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Jinekolojik Endokrinoloji ve İnfertilite",
+"outcomes": [
+{
+"code": "TUS.KD.3.a",
+"text": "Menstrüel siklus bozuklukları",
+"topic": "Jinekolojik Endokrinoloji ve İnfertilite",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.KD.3.b",
+"text": "İnfertilite ve menopoz",
+"topic": "Jinekolojik Endokrinoloji ve İnfertilite",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+},
+{
+"title": "Jinekolojik Onkoloji",
+"outcomes": [
+{
+"code": "TUS.KD.4.a",
+"text": "Serviks ve endometrium kanserleri",
+"topic": "Jinekolojik Onkoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+},
+{
+"code": "TUS.KD.4.b",
+"text": "Over tümörleri",
+"topic": "Jinekolojik Onkoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ucep_2020"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-anatomi",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-anatomi",
+"subject": "Anatomi",
+"label": "DUS · Anatomi",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Baş-Boyun Kemikleri",
+"outcomes": [
+{
+"code": "DUS.AN.1.a",
+"text": "Kafatası kemikleri",
+"topic": "Baş-Boyun Kemikleri",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.AN.1.b",
+"text": "Mandibula ve maksilla",
+"topic": "Baş-Boyun Kemikleri",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Çiğneme Kasları ve Temporomandibular Eklem",
+"outcomes": [
+{
+"code": "DUS.AN.2.a",
+"text": "Çiğneme ve mimik kasları",
+"topic": "Çiğneme Kasları ve Temporomandibular Eklem",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.AN.2.b",
+"text": "Temporomandibular eklem",
+"topic": "Çiğneme Kasları ve Temporomandibular Eklem",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Kraniyal Sinirler",
+"outcomes": [
+{
+"code": "DUS.AN.3.a",
+"text": "Trigeminal sinir",
+"topic": "Kraniyal Sinirler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.AN.3.b",
+"text": "Fasiyal ve diğer kraniyal sinirler",
+"topic": "Kraniyal Sinirler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Ağız Boşluğu ve Damar-Lenf Yapıları",
+"outcomes": [
+{
+"code": "DUS.AN.4.a",
+"text": "Ağız boşluğu ve tükürük bezleri",
+"topic": "Ağız Boşluğu ve Damar-Lenf Yapıları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.AN.4.b",
+"text": "Baş-boyun damarları ve lenf drenajı",
+"topic": "Ağız Boşluğu ve Damar-Lenf Yapıları",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-histoloji",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-histoloji",
+"subject": "Histoloji ve Embriyoloji",
+"label": "DUS · Histoloji ve Embriyoloji",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Temel Dokular",
+"outcomes": [
+{
+"code": "DUS.HI.1.a",
+"text": "Epitel ve bağ dokusu",
+"topic": "Temel Dokular",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.HI.1.b",
+"text": "Kemik ve kıkırdak",
+"topic": "Temel Dokular",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Diş Gelişimi",
+"outcomes": [
+{
+"code": "DUS.HI.2.a",
+"text": "Odontogenez evreleri",
+"topic": "Diş Gelişimi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.HI.2.b",
+"text": "Mine ve dentin oluşumu",
+"topic": "Diş Gelişimi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Ağız Dokuları Histolojisi",
+"outcomes": [
+{
+"code": "DUS.HI.3.a",
+"text": "Pulpa ve periodonsiyum",
+"topic": "Ağız Dokuları Histolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.HI.3.b",
+"text": "Oral mukoza ve tükürük bezleri",
+"topic": "Ağız Dokuları Histolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Baş-Boyun Embriyolojisi",
+"outcomes": [
+{
+"code": "DUS.HI.4.a",
+"text": "Farengeal arklar",
+"topic": "Baş-Boyun Embriyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.HI.4.b",
+"text": "Yüz ve damak gelişimi",
+"topic": "Baş-Boyun Embriyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-fizyoloji",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-fizyoloji",
+"subject": "Fizyoloji",
+"label": "DUS · Fizyoloji",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Hücre ve Sinir-Kas Fizyolojisi",
+"outcomes": [
+{
+"code": "DUS.FZ.1.a",
+"text": "Membran potansiyelleri",
+"topic": "Hücre ve Sinir-Kas Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FZ.1.b",
+"text": "Kas kasılması",
+"topic": "Hücre ve Sinir-Kas Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Kan ve Dolaşım Fizyolojisi",
+"outcomes": [
+{
+"code": "DUS.FZ.2.a",
+"text": "Kan ve hemostaz",
+"topic": "Kan ve Dolaşım Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FZ.2.b",
+"text": "Kalp ve dolaşım",
+"topic": "Kan ve Dolaşım Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Solunum ve Böbrek Fizyolojisi",
+"outcomes": [
+{
+"code": "DUS.FZ.3.a",
+"text": "Gaz değişimi",
+"topic": "Solunum ve Böbrek Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FZ.3.b",
+"text": "Böbrek ve asit-baz dengesi",
+"topic": "Solunum ve Böbrek Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Sindirim, Endokrin ve Ağız Fizyolojisi",
+"outcomes": [
+{
+"code": "DUS.FZ.4.a",
+"text": "Tükürük salgısı ve çiğneme",
+"topic": "Sindirim, Endokrin ve Ağız Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FZ.4.b",
+"text": "Endokrin sistem",
+"topic": "Sindirim, Endokrin ve Ağız Fizyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-biyokimya",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-biyokimya",
+"subject": "Tıbbi Biyokimya",
+"label": "DUS · Tıbbi Biyokimya",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Biyomoleküller ve Enzimler",
+"outcomes": [
+{
+"code": "DUS.BK.1.a",
+"text": "Proteinler",
+"topic": "Biyomoleküller ve Enzimler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BK.1.b",
+"text": "Enzimler",
+"topic": "Biyomoleküller ve Enzimler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Metabolizma",
+"outcomes": [
+{
+"code": "DUS.BK.2.a",
+"text": "Karbonhidrat metabolizması",
+"topic": "Metabolizma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BK.2.b",
+"text": "Lipit ve aminoasit metabolizması",
+"topic": "Metabolizma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Vitaminler ve Mineraller",
+"outcomes": [
+{
+"code": "DUS.BK.3.a",
+"text": "Vitaminler",
+"topic": "Vitaminler ve Mineraller",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BK.3.b",
+"text": "Kalsiyum, fosfor ve mineralizasyon",
+"topic": "Vitaminler ve Mineraller",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Moleküler Biyokimya ve Hormonlar",
+"outcomes": [
+{
+"code": "DUS.BK.4.a",
+"text": "Nükleik asitler",
+"topic": "Moleküler Biyokimya ve Hormonlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BK.4.b",
+"text": "Hormon biyokimyası",
+"topic": "Moleküler Biyokimya ve Hormonlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-mikrobiyoloji",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-mikrobiyoloji",
+"subject": "Tıbbi Mikrobiyoloji",
+"label": "DUS · Tıbbi Mikrobiyoloji",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Genel Mikrobiyoloji ve Sterilizasyon",
+"outcomes": [
+{
+"code": "DUS.MB.1.a",
+"text": "Bakteri yapısı",
+"topic": "Genel Mikrobiyoloji ve Sterilizasyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.MB.1.b",
+"text": "Sterilizasyon ve dezenfeksiyon",
+"topic": "Genel Mikrobiyoloji ve Sterilizasyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "İmmünoloji",
+"outcomes": [
+{
+"code": "DUS.MB.2.a",
+"text": "Bağışıklık sistemi",
+"topic": "İmmünoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.MB.2.b",
+"text": "Aşırı duyarlılık",
+"topic": "İmmünoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Ağız Mikrobiyolojisi",
+"outcomes": [
+{
+"code": "DUS.MB.3.a",
+"text": "Dental plak ve çürük mikrobiyolojisi",
+"topic": "Ağız Mikrobiyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.MB.3.b",
+"text": "Periodontal patojenler",
+"topic": "Ağız Mikrobiyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Viroloji ve Mikoloji",
+"outcomes": [
+{
+"code": "DUS.MB.4.a",
+"text": "Hepatit ve herpes virüsleri",
+"topic": "Viroloji ve Mikoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.MB.4.b",
+"text": "Kandida ve diğer mantarlar",
+"topic": "Viroloji ve Mikoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-patoloji",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-patoloji",
+"subject": "Tıbbi Patoloji",
+"label": "DUS · Tıbbi Patoloji",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Hücre Hasarı ve İnflamasyon",
+"outcomes": [
+{
+"code": "DUS.PA.1.a",
+"text": "Hücre hasarı",
+"topic": "Hücre Hasarı ve İnflamasyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PA.1.b",
+"text": "İnflamasyon ve onarım",
+"topic": "Hücre Hasarı ve İnflamasyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Neoplazi",
+"outcomes": [
+{
+"code": "DUS.PA.2.a",
+"text": "Tümör biyolojisi",
+"topic": "Neoplazi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PA.2.b",
+"text": "Baş-boyun tümörleri",
+"topic": "Neoplazi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Ağız Patolojisi",
+"outcomes": [
+{
+"code": "DUS.PA.3.a",
+"text": "Odontojenik kist ve tümörler",
+"topic": "Ağız Patolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PA.3.b",
+"text": "Oral mukoza lezyonları",
+"topic": "Ağız Patolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Sistemik Patoloji",
+"outcomes": [
+{
+"code": "DUS.PA.4.a",
+"text": "Kemik hastalıkları",
+"topic": "Sistemik Patoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PA.4.b",
+"text": "Tükürük bezi hastalıkları",
+"topic": "Sistemik Patoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-farmakoloji",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-farmakoloji",
+"subject": "Tıbbi Farmakoloji",
+"label": "DUS · Tıbbi Farmakoloji",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Genel Farmakoloji",
+"outcomes": [
+{
+"code": "DUS.FA.1.a",
+"text": "Farmakokinetik",
+"topic": "Genel Farmakoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FA.1.b",
+"text": "Farmakodinamik",
+"topic": "Genel Farmakoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Lokal Anestezikler ve Analjezikler",
+"outcomes": [
+{
+"code": "DUS.FA.2.a",
+"text": "Lokal anestezikler",
+"topic": "Lokal Anestezikler ve Analjezikler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FA.2.b",
+"text": "NSAİİ ve opioidler",
+"topic": "Lokal Anestezikler ve Analjezikler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Antimikrobiyaller",
+"outcomes": [
+{
+"code": "DUS.FA.3.a",
+"text": "Antibiyotikler",
+"topic": "Antimikrobiyaller",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FA.3.b",
+"text": "Antifungal ve antiviral ilaçlar",
+"topic": "Antimikrobiyaller",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Otonom ve Kardiyovasküler İlaçlar",
+"outcomes": [
+{
+"code": "DUS.FA.4.a",
+"text": "Otonom sinir sistemi ilaçları",
+"topic": "Otonom ve Kardiyovasküler İlaçlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.FA.4.b",
+"text": "Antikoagülanlar ve antihipertansifler",
+"topic": "Otonom ve Kardiyovasküler İlaçlar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-biyoloji-genetik",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-biyoloji-genetik",
+"subject": "Tıbbi Biyoloji ve Genetik",
+"label": "DUS · Tıbbi Biyoloji ve Genetik",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Temel Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Hücre Biyolojisi",
+"outcomes": [
+{
+"code": "DUS.BG.1.a",
+"text": "Hücre organelleri",
+"topic": "Hücre Biyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BG.1.b",
+"text": "Hücre döngüsü ve bölünme",
+"topic": "Hücre Biyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Moleküler Biyoloji",
+"outcomes": [
+{
+"code": "DUS.BG.2.a",
+"text": "DNA replikasyonu ve onarımı",
+"topic": "Moleküler Biyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BG.2.b",
+"text": "Gen ifadesi",
+"topic": "Moleküler Biyoloji",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Kalıtım ve Genetik Hastalıklar",
+"outcomes": [
+{
+"code": "DUS.BG.3.a",
+"text": "Kalıtım kalıpları",
+"topic": "Kalıtım ve Genetik Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BG.3.b",
+"text": "Kromozom anomalileri",
+"topic": "Kalıtım ve Genetik Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Kraniyofasiyal Genetik",
+"outcomes": [
+{
+"code": "DUS.BG.4.a",
+"text": "Dudak-damak yarıkları",
+"topic": "Kraniyofasiyal Genetik",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.BG.4.b",
+"text": "Diş gelişim anomalilerinin genetiği",
+"topic": "Kraniyofasiyal Genetik",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-restoratif",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-restoratif",
+"subject": "Restoratif Diş Tedavisi",
+"label": "DUS · Restoratif Diş Tedavisi",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Diş Çürüğü",
+"outcomes": [
+{
+"code": "DUS.RE.1.a",
+"text": "Çürük etiyolojisi ve tanısı",
+"topic": "Diş Çürüğü",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RE.1.b",
+"text": "Çürük önleme",
+"topic": "Diş Çürüğü",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Kavite Hazırlığı",
+"outcomes": [
+{
+"code": "DUS.RE.2.a",
+"text": "Kavite sınıflaması",
+"topic": "Kavite Hazırlığı",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RE.2.b",
+"text": "Kavite preparasyon ilkeleri",
+"topic": "Kavite Hazırlığı",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Restoratif Materyaller",
+"outcomes": [
+{
+"code": "DUS.RE.3.a",
+"text": "Kompozit rezinler ve adeziv sistemler",
+"topic": "Restoratif Materyaller",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RE.3.b",
+"text": "Amalgam ve cam iyonomer",
+"topic": "Restoratif Materyaller",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Estetik Uygulamalar",
+"outcomes": [
+{
+"code": "DUS.RE.4.a",
+"text": "Beyazlatma",
+"topic": "Estetik Uygulamalar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RE.4.b",
+"text": "Direkt ve indirekt estetik restorasyonlar",
+"topic": "Estetik Uygulamalar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-protetik",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-protetik",
+"subject": "Protetik Diş Tedavisi",
+"label": "DUS · Protetik Diş Tedavisi",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Tam Protezler",
+"outcomes": [
+{
+"code": "DUS.PR.1.a",
+"text": "Ölçü ve çene ilişkileri",
+"topic": "Tam Protezler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PR.1.b",
+"text": "Diş dizimi ve oklüzyon",
+"topic": "Tam Protezler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Hareketli Bölümlü Protezler",
+"outcomes": [
+{
+"code": "DUS.PR.2.a",
+"text": "Sınıflama",
+"topic": "Hareketli Bölümlü Protezler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PR.2.b",
+"text": "Protez parçaları ve tasarım",
+"topic": "Hareketli Bölümlü Protezler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Sabit Protezler",
+"outcomes": [
+{
+"code": "DUS.PR.3.a",
+"text": "Kron ve köprü preparasyonu",
+"topic": "Sabit Protezler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PR.3.b",
+"text": "Seramik ve metal sistemler",
+"topic": "Sabit Protezler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "İmplant Üstü Protezler ve Oklüzyon",
+"outcomes": [
+{
+"code": "DUS.PR.4.a",
+"text": "İmplant üstü protez",
+"topic": "İmplant Üstü Protezler ve Oklüzyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PR.4.b",
+"text": "Oklüzyon ve TME bozuklukları",
+"topic": "İmplant Üstü Protezler ve Oklüzyon",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-cerrahi",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-cerrahi",
+"subject": "Ağız, Diş ve Çene Cerrahisi",
+"label": "DUS · Ağız, Diş ve Çene Cerrahisi",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Lokal Anestezi ve Diş Çekimi",
+"outcomes": [
+{
+"code": "DUS.CR.1.a",
+"text": "Lokal anestezi teknikleri",
+"topic": "Lokal Anestezi ve Diş Çekimi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.CR.1.b",
+"text": "Diş çekimi ve komplikasyonlar",
+"topic": "Lokal Anestezi ve Diş Çekimi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Gömülü Dişler ve Preprotetik Cerrahi",
+"outcomes": [
+{
+"code": "DUS.CR.2.a",
+"text": "Gömülü dişler",
+"topic": "Gömülü Dişler ve Preprotetik Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.CR.2.b",
+"text": "Preprotetik cerrahi",
+"topic": "Gömülü Dişler ve Preprotetik Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Enfeksiyonlar ve Kistler",
+"outcomes": [
+{
+"code": "DUS.CR.3.a",
+"text": "Odontojenik enfeksiyonlar",
+"topic": "Enfeksiyonlar ve Kistler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.CR.3.b",
+"text": "Çene kistleri",
+"topic": "Enfeksiyonlar ve Kistler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Travma ve Ortognatik Cerrahi",
+"outcomes": [
+{
+"code": "DUS.CR.4.a",
+"text": "Maksillofasiyal travma",
+"topic": "Travma ve Ortognatik Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.CR.4.b",
+"text": "Ortognatik cerrahi",
+"topic": "Travma ve Ortognatik Cerrahi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Tıbbi Riskli Hasta",
+"outcomes": [
+{
+"code": "DUS.CR.5.a",
+"text": "Sistemik hastalıklı hastaya yaklaşım",
+"topic": "Tıbbi Riskli Hasta",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.CR.5.b",
+"text": "Acil durumlar",
+"topic": "Tıbbi Riskli Hasta",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-radyoloji",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-radyoloji",
+"subject": "Ağız, Diş ve Çene Radyolojisi",
+"label": "DUS · Ağız, Diş ve Çene Radyolojisi",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Radyasyon Fiziği ve Korunma",
+"outcomes": [
+{
+"code": "DUS.RA.1.a",
+"text": "X-ışını oluşumu",
+"topic": "Radyasyon Fiziği ve Korunma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RA.1.b",
+"text": "Radyasyondan korunma",
+"topic": "Radyasyon Fiziği ve Korunma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Görüntüleme Teknikleri",
+"outcomes": [
+{
+"code": "DUS.RA.2.a",
+"text": "İntraoral ve panoramik radyografi",
+"topic": "Görüntüleme Teknikleri",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RA.2.b",
+"text": "Konik ışınlı bilgisayarlı tomografi",
+"topic": "Görüntüleme Teknikleri",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Radyografik Yorumlama",
+"outcomes": [
+{
+"code": "DUS.RA.3.a",
+"text": "Normal anatomi",
+"topic": "Radyografik Yorumlama",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RA.3.b",
+"text": "Çene lezyonlarının radyolojisi",
+"topic": "Radyografik Yorumlama",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Oral Tanı",
+"outcomes": [
+{
+"code": "DUS.RA.4.a",
+"text": "Anamnez ve muayene",
+"topic": "Oral Tanı",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.RA.4.b",
+"text": "Oral mukoza hastalıkları",
+"topic": "Oral Tanı",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-periodontoloji",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-periodontoloji",
+"subject": "Periodontoloji",
+"label": "DUS · Periodontoloji",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Periodonsiyumun Yapısı",
+"outcomes": [
+{
+"code": "DUS.PD.1.a",
+"text": "Dişeti ve periodontal ligament",
+"topic": "Periodonsiyumun Yapısı",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PD.1.b",
+"text": "Alveol kemiği",
+"topic": "Periodonsiyumun Yapısı",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Periodontal Hastalıkların Sınıflaması ve Etiyolojisi",
+"outcomes": [
+{
+"code": "DUS.PD.2.a",
+"text": "Güncel sınıflama",
+"topic": "Periodontal Hastalıkların Sınıflaması ve Etiyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PD.2.b",
+"text": "Dental plak ve risk faktörleri",
+"topic": "Periodontal Hastalıkların Sınıflaması ve Etiyolojisi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Periodontal Tedavi",
+"outcomes": [
+{
+"code": "DUS.PD.3.a",
+"text": "Başlangıç tedavisi",
+"topic": "Periodontal Tedavi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PD.3.b",
+"text": "Periodontal cerrahi",
+"topic": "Periodontal Tedavi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Peri-implant Hastalıklar ve İdame",
+"outcomes": [
+{
+"code": "DUS.PD.4.a",
+"text": "Peri-implantitis",
+"topic": "Peri-implant Hastalıklar ve İdame",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PD.4.b",
+"text": "Periodontal idame",
+"topic": "Peri-implant Hastalıklar ve İdame",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-ortodonti",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-ortodonti",
+"subject": "Ortodonti",
+"label": "DUS · Ortodonti",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Büyüme ve Gelişim",
+"outcomes": [
+{
+"code": "DUS.OR.1.a",
+"text": "Kraniyofasiyal büyüme",
+"topic": "Büyüme ve Gelişim",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.OR.1.b",
+"text": "Dentisyon gelişimi",
+"topic": "Büyüme ve Gelişim",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Malokluzyon ve Teşhis",
+"outcomes": [
+{
+"code": "DUS.OR.2.a",
+"text": "Malokluzyon sınıflaması",
+"topic": "Malokluzyon ve Teşhis",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.OR.2.b",
+"text": "Sefalometri",
+"topic": "Malokluzyon ve Teşhis",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Biyomekanik ve Apareyler",
+"outcomes": [
+{
+"code": "DUS.OR.3.a",
+"text": "Diş hareketi biyomekaniği",
+"topic": "Biyomekanik ve Apareyler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.OR.3.b",
+"text": "Sabit ve hareketli apareyler",
+"topic": "Biyomekanik ve Apareyler",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Koruyucu ve Önleyici Ortodonti",
+"outcomes": [
+{
+"code": "DUS.OR.4.a",
+"text": "Yer tutucular",
+"topic": "Koruyucu ve Önleyici Ortodonti",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.OR.4.b",
+"text": "Kötü alışkanlıklar",
+"topic": "Koruyucu ve Önleyici Ortodonti",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-endodonti",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-endodonti",
+"subject": "Endodonti",
+"label": "DUS · Endodonti",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Pulpa ve Periapikal Hastalıklar",
+"outcomes": [
+{
+"code": "DUS.EN.1.a",
+"text": "Pulpa hastalıkları",
+"topic": "Pulpa ve Periapikal Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.EN.1.b",
+"text": "Periapikal lezyonlar",
+"topic": "Pulpa ve Periapikal Hastalıklar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Kök Kanal Anatomisi ve Giriş Kavitesi",
+"outcomes": [
+{
+"code": "DUS.EN.2.a",
+"text": "Kök kanal morfolojisi",
+"topic": "Kök Kanal Anatomisi ve Giriş Kavitesi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.EN.2.b",
+"text": "Giriş kavitesi",
+"topic": "Kök Kanal Anatomisi ve Giriş Kavitesi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Kanal Şekillendirme ve Dolum",
+"outcomes": [
+{
+"code": "DUS.EN.3.a",
+"text": "Şekillendirme ve irrigasyon",
+"topic": "Kanal Şekillendirme ve Dolum",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.EN.3.b",
+"text": "Kanal dolum teknikleri",
+"topic": "Kanal Şekillendirme ve Dolum",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Vital Pulpa Tedavileri ve Travma",
+"outcomes": [
+{
+"code": "DUS.EN.4.a",
+"text": "Kuafaj ve pulpotomi",
+"topic": "Vital Pulpa Tedavileri ve Travma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.EN.4.b",
+"text": "Dental travma ve rejeneratif endodonti",
+"topic": "Vital Pulpa Tedavileri ve Travma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+}
+],
+"exams": {}
+},
+{
+"id": "dus-2026-tree-pedodonti",
+"kind": "dus",
+"grade": null,
+"subjectKey": "dus-pedodonti",
+"subject": "Çocuk Diş Hekimliği",
+"label": "DUS · Çocuk Diş Hekimliği",
+"programVersion": "dus_tree_2026",
+"badge": "ÖSYM 2026 DUS Kılavuzu (test) · YÖK DUÇEP-2024 / UÇEP 2020 (alt başlık)",
+"scope": "Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir. ÖSYM testi: Klinik Bilimler.",
+"sourceIds": [
+"osym_dus_2026",
+"yok_ducep_2024",
+"yok_ucep_2020"
+],
+"units": [
+{
+"title": "Çocuk Hastada Davranış Yönetimi",
+"outcomes": [
+{
+"code": "DUS.PO.1.a",
+"text": "Davranış yönlendirme teknikleri",
+"topic": "Çocuk Hastada Davranış Yönetimi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PO.1.b",
+"text": "Sedasyon ve genel anestezi",
+"topic": "Çocuk Hastada Davranış Yönetimi",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Süt Dişleri ve Erken Çocukluk Çürüğü",
+"outcomes": [
+{
+"code": "DUS.PO.2.a",
+"text": "Süt dişi morfolojisi",
+"topic": "Süt Dişleri ve Erken Çocukluk Çürüğü",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PO.2.b",
+"text": "Erken çocukluk çağı çürüğü",
+"topic": "Süt Dişleri ve Erken Çocukluk Çürüğü",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Koruyucu Uygulamalar",
+"outcomes": [
+{
+"code": "DUS.PO.3.a",
+"text": "Fluorid uygulamaları",
+"topic": "Koruyucu Uygulamalar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PO.3.b",
+"text": "Fissür örtücüler",
+"topic": "Koruyucu Uygulamalar",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+}
+]
+},
+{
+"title": "Süt Dişi Pulpa Tedavileri ve Travma",
+"outcomes": [
+{
+"code": "DUS.PO.4.a",
+"text": "Pulpotomi ve pulpektomi",
+"topic": "Süt Dişi Pulpa Tedavileri ve Travma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
+},
+{
+"code": "DUS.PO.4.b",
+"text": "Çocuklarda dental travma",
+"topic": "Süt Dişi Pulpa Tedavileri ve Travma",
+"grade": null,
+"limitations": [
+"Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir"
+],
+"quotas": {},
+"sourceId": "yok_ducep_2024"
 }
 ]
 }

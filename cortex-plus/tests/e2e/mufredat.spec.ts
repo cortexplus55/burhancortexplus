@@ -41,7 +41,8 @@ test.describe("Resmî müfredat", { tag: ["@public"] }, () => {
     await page.getByRole("radio", { name: "Matematik", exact: true }).click();
     await expect(page.getByTestId("official-summary")).toContainText("12 konu · 52 kazanım");
     await page.getByRole("radio", { name: "KPSS", exact: true }).click();
-    await expect(page.getByRole("radio", { name: /Genel Kültür/ })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Genel Kültür", exact: true })).toBeVisible();
+    await expect(page.getByRole("radio", { name: /^Tarih \(Genel Kültür\)/ })).toBeVisible();
   });
 
   test("/mufredat ve /resmi herkese açık, kaynak ve eksik veri görünür", async ({ page }) => {

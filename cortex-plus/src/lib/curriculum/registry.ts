@@ -1,4 +1,5 @@
 import "server-only";
+import { isTreeExam, TREE_EXAMS } from "@/lib/curriculum/exam-trees";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type {
@@ -115,6 +116,10 @@ export function officialPlanNote(prefs: unknown): string | null {
   if (!plan || !Array.isArray(plan.units) || !plan.units.length) return null;
   const programs = new Set(plan.units.map((u) => u.programId));
   const outcomes = plan.units.reduce((n, u) => n + (Array.isArray(u.codes) ? u.codes.length : 0), 0);
+  if (isTreeExam(plan.exam)) {
+    const def = TREE_EXAMS[plan.exam];
+    return `🏛️ Bu hazırlık ${def.name} konu ağacına göre hazırlandı (${def.label}) · ${programs.size} ders · ${plan.units.length} konu · ${outcomes} alt başlık`;
+  }
   const source = plan.exam === "lgs" ? "MEB LGS 2027 kazanımları" : "MEB 2026 YKS'ye esas kazanımlar · ÖSYM 2026-YKS Kılavuzu";
   return `🏛️ Bu hazırlık resmî programdaki kazanımlara göre hazırlandı: ${source} · ${programs.size} program · ${plan.units.length} ünite · ${outcomes} kazanım`;
 }
