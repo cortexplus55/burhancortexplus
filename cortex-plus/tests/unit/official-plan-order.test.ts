@@ -74,3 +74,45 @@ describe("ünite başlığında kaynak numarası gösterilmez", () => {
     expect(turkce.units[0]!.title).not.toMatch(/·\s*\d+\.\s/);
   });
 });
+
+describe("ortak ünite numarası yardımcısı", () => {
+  it("sınıf önekinden sonra ve başta gelen sıra numarası atılır", async () => {
+    const { stripUnitOrdinal, displayUnitTitles: shown } = await import("@/lib/curriculum/unit-title");
+    expect(stripUnitOrdinal("10. Sınıf · 7. Anı (Hatıra)")).toBe("10. Sınıf · Anı (Hatıra)");
+    expect(stripUnitOrdinal("TYT Türkçe · 9. Sınıf · 2. Hikâye")).toBe("TYT Türkçe · 9. Sınıf · Hikâye");
+    expect(stripUnitOrdinal("9. Sınıf · 1. Tarih ve Zaman")).toBe("9. Sınıf · Tarih ve Zaman");
+    expect(stripUnitOrdinal("12. Sınıf · 1. 20. Yüzyıl Başlarında Osmanlı")).toBe("12. Sınıf · 20. Yüzyıl Başlarında Osmanlı");
+    expect(stripUnitOrdinal("3) Şiir")).toBe("Şiir");
+    expect(stripUnitOrdinal("4 - Roman")).toBe("Roman");
+    expect(stripUnitOrdinal("1.ÜNİTE: MEVSİMLER VE İKLİM")).toBe("MEVSİMLER VE İKLİM");
+    expect(stripUnitOrdinal("2. TEMA: ANLAM ARAYIŞI")).toBe("ANLAM ARAYIŞI");
+    // korunanlar
+    expect(stripUnitOrdinal("9. Sınıf")).toBe("9. Sınıf");
+    expect(stripUnitOrdinal("1. Dünya Savaşı")).toBe("1. Dünya Savaşı");
+    expect(stripUnitOrdinal("11. Sınıf · 15. Yüzyıl-17. Yüzyıl Felsefesi")).toBe("11. Sınıf · 15. Yüzyıl-17. Yüzyıl Felsefesi");
+    expect(stripUnitOrdinal("2. Meşrutiyet Dönemi")).toBe("2. Meşrutiyet Dönemi");
+    expect(stripUnitOrdinal("1923-1938 Atatürk Dönemi")).toBe("1923-1938 Atatürk Dönemi");
+    expect(shown(["1. A", "B", "C"])).toEqual(["1. A", "B", "C"]);
+  });
+
+  it("YKS kurulum ağacında ve konu haritasında '· N. ' kalıbı yok (Türkçe, Tarih dahil)", async () => {
+    const tree = buildSetupTree("yks");
+    const bad = tree.subjects.flatMap((s) => s.units.map((u) => `${s.label} · ${u.title}`)).filter((t) => /· \d+\. (?!Sınıf|Yüzyıl)/u.test(t));
+    expect(bad).toEqual([]);
+    const titles = tree.subjects.find((s) => s.key === "tyt-turkce")!.units.map((u) => u.title);
+    expect(titles).toContain("10. Sınıf · Anı (Hatıra)");
+    const tarih = tree.subjects.find((s) => s.key === "tyt-tarih")!.units.map((u) => u.title);
+    expect(tarih).toContain("10. Sınıf · Dünya Gücü Osmanlı (1453-1595)");
+    expect(tree.subjects.find((s) => s.key === "ayt-felsefe")?.units.map((u) => u.title) ?? []).not.toContain(
+      "11. Sınıf · Yüzyıl-17. Yüzyıl Felsefesi",
+    );
+    const { officialUnitTopic } = await import("@/lib/curriculum/official-setup");
+    const tde = tree.subjects.find((s) => s.key === "tyt-turkce")!.units[0]!;
+    expect(officialUnitTopic(tde.id, "TYT Türkçe · 9. Sınıf · 2. Hikâye")).toBe("TYT Türkçe · 9. Sınıf · Hikâye");
+    const { getProgram } = await import("@/lib/curriculum/registry");
+    const { buildTopicMap, topicIndexForLabel } = await import("@/lib/curriculum/topic-map");
+    const map = buildTopicMap(getProgram("yks-2026-tarih")!, "serbest", null, { part: "TYT" });
+    expect(map.topics.filter((t) => /· \d+\. (?!Sınıf|Yüzyıl)|^\d+\. (?!Sınıf)/u.test(t))).toEqual([]);
+    expect(topicIndexForLabel(map, "9. Sınıf · 1. Tarih ve Zaman")).toBe(topicIndexForLabel(map, "9. Sınıf · Tarih ve Zaman"));
+  });
+});

@@ -39,6 +39,9 @@ export type OfficialSetupBody = {
   learningPreferences: Record<string, unknown>;
 };
 
+/** Ağaç biçimi değişince artar; tarayıcıdaki eski (numaralı başlıklı) yanıt kullanılmaz. */
+const SETUP_TREE_VERSION = 2;
+
 type Step = "exam" | "subjects" | "topics" | "date";
 const STEPS: Step[] = ["exam", "subjects", "topics", "date"];
 const MINUTES = [30, 45, 60, 90, 120];
@@ -101,7 +104,7 @@ export function OfficialSetupFlow({
     let live = true;
     setTree(null);
     setLoadError(false);
-    fetch(`/api/curriculum/setup?sinav=${exam}`)
+    fetch(`/api/curriculum/setup?sinav=${exam}&v=${SETUP_TREE_VERSION}`)
       .then((r) => (r.ok ? (r.json() as Promise<SetupTree>) : Promise.reject(new Error(String(r.status)))))
       .then((t) => {
         if (!live) return;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, getProgram, programSources } from "@/lib/curriculum/registry";
+import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 
 const EXAM_LABEL: Record<string, string> = {
   d1y1: "1. Dönem 1. Ortak Yazılı",
@@ -23,6 +24,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
   const program = getProgram(programId);
   if (!program) notFound();
   const sources = programSources(program);
+  const shownUnitTitles = displayUnitTitles(program.units.map((u) => u.title));
   const exams = Object.entries(program.exams);
   return (
     <MarketingPage title={program.label} description={`${program.badge} · ${program.scope}`}>
@@ -41,9 +43,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
           ))}
         </section>
       ) : null}
-      {program.units.map((unit) => (
+      {program.units.map((unit, unitIndex) => (
         <section key={unit.title} className="mt-8">
-          <h2 className="text-lg font-semibold text-[var(--mk-text)]">{unit.title}</h2>
+          <h2 className="text-lg font-semibold text-[var(--mk-text)]">{shownUnitTitles[unitIndex] ?? unit.title}</h2>
           <ul className="mt-3 grid gap-2">
             {unit.outcomes.map((o) => {
               const quotaText = Object.entries(o.quotas)

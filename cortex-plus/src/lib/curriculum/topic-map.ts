@@ -16,6 +16,7 @@ import type {
   CurriculumProgram,
   CurriculumScenario,
 } from "@/lib/curriculum/types";
+import { displayUnitTitles, stripUnitOrdinal } from "@/lib/curriculum/unit-title";
 
 export const TOPIC_LABEL_MAX = 120;
 
@@ -215,7 +216,9 @@ export function buildTopicMap(
   const seen = new Set<string>();
   const groups: Group[] = [];
   let outcomeCount = 0;
-  for (const unit of program.units) {
+  const shownTitles = displayUnitTitles(program.units.map((u) => u.title));
+  for (const [unitIndex, rawUnit] of program.units.entries()) {
+    const unit = { ...rawUnit, title: shownTitles[unitIndex] ?? rawUnit.title };
     for (const outcome of unit.outcomes) {
       if (seen.has(outcome.code)) continue;
       const grade = outcomeGrade(outcome, program.grade);
@@ -346,6 +349,9 @@ export function topicIndexForLabel(map: Pick<CurriculumTopicMap, "topics" | "top
   const text = label.replace(/\s+/g, " ").trim();
   const exact = map.topics.indexOf(text);
   if (exact >= 0) return exact;
+  // Numaralı eski konu adı ("9. Sınıf · 2. Hikâye") numarasız yeni adla eşleşir.
+  const unnumbered = map.topics.indexOf(stripUnitOrdinal(text));
+  if (unnumbered >= 0) return unnumbered;
   const code = matchCodeForLabel(text, map.topicCodes.flat());
   return code ? map.topicCodes.findIndex((codes) => codes.includes(code)) : -1;
 }
@@ -353,7 +359,7 @@ export function topicIndexForLabel(map: Pick<CurriculumTopicMap, "topics" | "top
 /** Konunun resmî soru sayısı: yeni konu adı → konu toplamı; eski "kod metin" adı → o kazanımın kotası. */
 export function quotaForLabel(map: CurriculumTopicMap, label: string): number {
   const text = label.replace(/\s+/g, " ").trim();
-  const exact = map.topics.indexOf(text);
+  const exact = map.topics.indexOf(text) >= 0 ? map.topics.indexOf(text) : map.topics.indexOf(stripUnitOrdinal(text));
   if (exact >= 0) return map.quotaByTopic[exact] ?? 0;
   const code = matchCodeForLabel(text, Object.keys(map.quotaByCode));
   return code ? map.quotaByCode[code] ?? 0 : 0;
