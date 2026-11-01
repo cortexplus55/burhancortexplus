@@ -2013,7 +2013,8 @@ function ChatPanelSession({
             </form>
             </div>
 
-            {showUpgrade ? (
+            {/* Boş ekranda kahraman kartı zaten Plus kartını taşıyorsa ikinci kart yok (2 Kasım 2026). */}
+            {showUpgrade && !(showParityEmpty && heroFooter) ? (
               <div
                 className={cn(
                   "cp-sor-composer-upgrade",

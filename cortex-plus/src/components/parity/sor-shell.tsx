@@ -274,8 +274,8 @@ export function ParitySorShell({
           {minimalTop ? null : isAdmin && account ? (
             <FounderChip />
           ) : examChrome ? null : showBuy ? (
-            <Link href="/pay" className="cp-sor-buy">
-              Satın al +
+            <Link href="/pay" className="cp-sor-buy" aria-label="Plus planına bak">
+              Plus
             </Link>
           ) : null}
           {/* Abonede kredi çipi yok (29 Eylül 2026): Astra'da Plus'ın üst

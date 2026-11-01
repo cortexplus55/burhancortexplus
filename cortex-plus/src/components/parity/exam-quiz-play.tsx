@@ -243,11 +243,13 @@ export function ExamQuizPlay({
                 if (!why) return null;
                 const letter = String.fromCharCode(65 + optionIndex);
                 return (
-                  <li key={option}>
-                    <span className="text-[var(--cp-text)]">
-                      {letter} · <RichBody text={option} />:
-                    </span>{" "}
-                    <RichBody text={why} />
+                  <li key={option} className="cp-quiz-why">
+                    <span className="cp-quiz-why-option text-[var(--cp-text)]">
+                      <strong>{letter})</strong> <RichBody text={option} />
+                    </span>
+                    <span className="cp-quiz-why-text block">
+                      <RichBody text={why} />
+                    </span>
                   </li>
                 );
               })}
@@ -258,6 +260,7 @@ export function ExamQuizPlay({
         </div>
       ) : null}
 
+      <div className="cp-quiz-action-bar">
       <button
         type="button"
         disabled={disabled || acting || selected.length === 0}
@@ -277,6 +280,7 @@ export function ExamQuizPlay({
                   : finishLabel}
         </span>
       </button>
+      </div>
     </div>
   );
 }

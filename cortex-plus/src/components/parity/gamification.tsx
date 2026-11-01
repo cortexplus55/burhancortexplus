@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { claimModalSlot, releaseModalSlot } from "@/lib/ui/modal-slot";
 import "@/styles/parity-app.css";
 
 const STORAGE_KEY = "cortex-gamification-v1";
@@ -43,10 +44,10 @@ export function GamificationGate() {
         } catch {
           /* ignore */
         }
-        setStep("streak");
+        if (claimModalSlot("streak")) setStep("streak");
       })
       .catch(() => {
-        if (!cancelled) setStep("streak");
+        if (!cancelled && claimModalSlot("streak")) setStep("streak");
       });
 
     return () => {
@@ -60,6 +61,7 @@ export function GamificationGate() {
     } catch {
       /* ignore */
     }
+    releaseModalSlot("streak");
     setStep("none");
   }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { dedupePathLabels } from "@/lib/learning/path-labels";
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence } from "@/lib/text/turkish";
@@ -653,7 +654,7 @@ function LessonPlan({ lesson, upcoming = [], building = false }: { lesson: PlayL
           okundu; anahtar yalnız işaretin ne olduğunu söyler. */}
       {lessonHasExamMarks(lesson) ? (
         <p className="als-intro-legend">
-          <mark className="als-exam">Turuncu</mark>: sınavda sık sorulan kilit bilgi.
+          <mark className="als-exam">Turuncu</mark>: konunun kilit bilgisi.
         </p>
       ) : null}
     </section>
@@ -1062,7 +1063,7 @@ export function ExamLessonSteps({
   const closeControl =
     onClose || closeHref ? (
       <button type="button" className="als-icon" onClick={requestClose} aria-label="Dersi kapat">
-        <X className="h-4 w-4" />
+        <X className="h-4 w-4" aria-hidden />
       </button>
     ) : null;
 
@@ -1081,11 +1082,11 @@ export function ExamLessonSteps({
       <header className="als-top">
         {index > 0 || onClose ? (
           <button type="button" className="als-icon" onClick={back} aria-label="Geri">
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
         ) : closeHref ? (
           <button type="button" className="als-icon" onClick={requestClose} aria-label="Geri">
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
         ) : (
           <span className="als-icon als-icon--ghost" aria-hidden />
@@ -1115,9 +1116,13 @@ export function ExamLessonSteps({
             <span>{countLabel}</span>
             {readingMinutes != null ? <span className="als-minutes">~{readingMinutes} dk</span> : null}
           </p>
-          <p className="als-stars" title={`Bu derste ${lessonStars} yıldız`}>
+          <p
+            className="als-stars"
+            title={`Dersi bitirince ${lessonStars} yıldız kazanırsın`}
+            aria-label={`Dersi bitirince ${lessonStars} yıldız kazanırsın`}
+          >
             <Star className="h-3.5 w-3.5" aria-hidden />
-            {lessonStars}
+            <span aria-hidden>{lessonStars}</span>
           </p>
         </div>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
@@ -1361,9 +1366,16 @@ export function ExamLessonSteps({
               ) : null}
               {step.next.length ? (
                 <>
-                  {step.points.length ? <h2 className="als-subhead">Sırada ne var</h2> : null}
+                  {step.points.length ? (
+                    <h2 className="als-subhead">
+                      Sırada ne var
+                      {dedupePathLabels(step.next).prefix ? (
+                        <span className="als-subhead-note"> · {dedupePathLabels(step.next).prefix}</span>
+                      ) : null}
+                    </h2>
+                  ) : null}
                   <ul className="als-list als-list--muted">
-                    {step.next.map((item) => (
+                    {dedupePathLabels(step.next).items.map((item) => (
                       <li key={item}>
                         <RichBody text={item}  topicHint={mathTopicHint} />
                       </li>

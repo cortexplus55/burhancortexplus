@@ -1100,3 +1100,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Tek Plus kartı, halka yok (2 Kasım 2026). */
+.pm-card.pm-card--plain {
+  grid-template-columns: minmax(0, 1fr);
+}

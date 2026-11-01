@@ -21,8 +21,6 @@ import { freeExtraLine, profilePlanView } from "@/lib/billing/tier-presentation"
 import { freeLimitReachedLine, freeMeterResetsAt, type FreeMeterView } from "@/lib/billing/free-meters";
 import type { ReferralSummary } from "@/lib/credits/referral";
 import { PlusMonth } from "@/components/marketing/plus-month";
-import { TEMPO_PRESETS, mixShare, tempoMix } from "@/lib/billing/plan-value";
-import { possessiveSuffix } from "@/lib/text/number-suffix";
 
 /*
   Kredi v3 incelemesi (24 Ekim 2026), arayüz bulguları:
@@ -277,12 +275,11 @@ describe("profil ve /krediler ücretsiz hesapta sayaç anlatır (#13, #17, #31, 
 });
 
 describe("Plus kartının yüzde eki (#33)", () => {
-  it("ana ekran kartı yüzdeye uyan eki yazar", () => {
-    const preset = TEMPO_PRESETS.find((item) => item.id === "sinav-ayi")!;
-    const share = Math.round(mixShare(tempoMix(preset.tempo)) * 100);
+  it("ana ekran kartı tempo yüzdesi yazmaz, tek sade başlık (2 Kasım 2026)", () => {
     const { container } = render(<PlusMonth variant="compact" monthlyKurus={null} primary={{ label: "Plus'a geç", href: "/pay" }} />);
     const title = container.querySelector(".pm-card-title")?.textContent ?? "";
-    expect(title).toContain(`hakkının %${share}${possessiveSuffix(share)}.`);
+    expect(title).toBe("Bir ayda daha çok ders, test ve podcast.");
+    expect(container.querySelector(".pm-card-ring")).toBeNull();
   });
 });
 

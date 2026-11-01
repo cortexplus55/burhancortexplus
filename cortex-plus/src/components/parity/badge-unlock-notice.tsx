@@ -1,5 +1,6 @@
 "use client";
 
+import { claimModalSlot, releaseModalSlot } from "@/lib/ui/modal-slot";
 import { useEffect, useState } from "react";
 import type { BadgeJourney, BadgeState } from "@/lib/gamification/badges";
 import { BadgeArt } from "@/components/parity/badge-art";
@@ -65,6 +66,15 @@ export function BadgeUnlockNotice({
       const seen = readSeen();
       const unlocked = journey.badges.filter((b) => b.unlocked).map((b) => b.id);
       const next = newestUnseenBadge(journey, seen);
+      if (next && !claimModalSlot("badge")) {
+        // Başka bir pencere açık: rozet görülmedi sayılır, sonraki sayfada duyurulur.
+        try {
+          sessionStorage.removeItem(CHECKED_KEY);
+        } catch {
+          /* yok say */
+        }
+        return;
+      }
       writeSeen([...new Set([...(seen ?? []), ...unlocked])]);
       if (next) setBadge(next);
     });
@@ -89,13 +99,17 @@ export function BadgeUnlockNotice({
             type="button"
             className="cp-jr-cta"
             onClick={() => {
+              releaseModalSlot("badge");
               setBadge(null);
               onOpenBadges();
             }}
           >
             Rozetlerimi gör
           </button>
-          <button type="button" className="cp-jr-unlock-dismiss" onClick={() => setBadge(null)}>
+          <button type="button" className="cp-jr-unlock-dismiss" onClick={() => {
+            releaseModalSlot("badge");
+            setBadge(null);
+          }}>
             Devam et
           </button>
         </div>

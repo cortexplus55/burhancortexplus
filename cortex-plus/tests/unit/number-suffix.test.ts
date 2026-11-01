@@ -61,6 +61,5 @@ describe("sayıya iyelik eki", () => {
     const card = readFileSync("src/components/marketing/plus-month.tsx", "utf8");
     expect(card).not.toContain("</span>&apos;i.");
     expect(card).not.toMatch(/percent\}'i/);
-    expect(card).toContain("possessiveSuffix(share)");
   });
 });
