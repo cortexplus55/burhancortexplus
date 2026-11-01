@@ -4,8 +4,8 @@ import { openaiLlm } from "@/lib/content-pool/generate";
 import { getUnitContent } from "@/lib/content-pool/pool";
 import { supabasePoolStore } from "@/lib/content-pool/supabase-store";
 import { runFill } from "@/lib/content-pool/fill";
-import { currentFillOrder, readFillConfig, sharedContentSpent, unitStates, writeFillConfig } from "@/lib/content-pool/fill-server";
-import { adminUserId, cronAuthorized } from "@/lib/content-pool/fill-auth";
+import { acquireLease, currentFillOrder, readFillConfig, sharedContentSpent, unitStates, writeFillConfig } from "@/lib/content-pool/fill-server";
+import { adminUserId, cronAuthorized, resumeTokenAuthorized } from "@/lib/content-pool/fill-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,12 +24,18 @@ const LEASE_MS = maxDuration * 1000 + 30_000;
  * Zincir; havuz dolunca, bütçe tavanına gelince ya da kill switch kapanınca kendiliğinden durur.
  *
  * GET  (Authorization: Bearer CRON_SECRET) → bir adım.
+ * GET ?action=resume (x-pool-resume-token) → zamanlayıcı güvenlik ağı: zincir koparsa kilit boş/süresi dolmuşken bir adım.
  * POST (yönetici oturumu) {action:"start"|"stop"} → kill switch'i açar (başlatanı maliyet sahibi yapar) ve ilk adımı başlatır / kapatır.
  */
 export async function GET(request: Request) {
   if (cronAuthorized(request)) return step(new URL(request.url).origin);
   // Yönetici tarayıcıdan da açabilir: ?action=start | stop.
   const action = new URL(request.url).searchParams.get("action");
+  if (action === "resume") {
+    const config = await readFillConfig(createServiceClient());
+    if (resumeTokenAuthorized(request, config.metadata.resume_token_sha256)) return step(new URL(request.url).origin);
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   if (action === "start" || action === "stop") return control(request, action);
   return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 }
@@ -59,8 +65,8 @@ async function step(origin: string) {
   if (config.leaseUntil > Date.now()) return NextResponse.json({ ok: true, skipped: "running" }, { status: 202 });
   const llm = openaiLlm();
   if (!llm) return NextResponse.json({ ok: false, skipped: "ai_not_configured" }, { status: 503 });
-  const leaseUntil = new Date(Date.now() + LEASE_MS).toISOString();
-  await writeFillConfig(service, { metadata: { lease_until: leaseUntil, step_started_at: new Date().toISOString() } });
+  const leaseUntil = await acquireLease(service, LEASE_MS);
+  if (!leaseUntil) return NextResponse.json({ ok: true, skipped: "running" }, { status: 202 });
 
   const started = Date.now();
   const actor = config.actorUserId;
@@ -85,16 +91,40 @@ async function step(origin: string) {
       await writeFillConfig(service, { metadata: { lease_until: null, last_run: { at: new Date().toISOString(), error: String(error).slice(0, 200) } } });
       return;
     }
+    // Bitti ya da tavana gelindi: kill switch kapanır, zamanlayıcı boşuna tetiklemez.
+    const finished = report.stop === "budget" || (report.stop === "complete" && report.remaining === 0 && report.pending.length === 0 && report.done.length === 0);
     const lastRun = { at: new Date().toISOString(), ms: Date.now() - started, ...report, done: report.done.length, pending: report.pending.length, failedUnits: report.failed, skippedFailed: report.skippedFailed.length };
-    await writeFillConfig(service, { metadata: { lease_until: null, last_run: lastRun } });
+    await writeFillConfig(service, { ...(finished ? { enabled: false } : {}), metadata: { lease_until: null, last_run: lastRun } });
     console.warn("pool_fill_step", lastRun);
     const more = report.stop === "deadline" || (report.stop === "complete" && report.pending.length > 0 && report.done.length > 0);
     const secret = process.env.CRON_SECRET;
-    if (more && secret) {
-      await fetch(`${origin}/api/cron/content-pool-fill`, { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(20_000) }).catch(() => undefined);
-    }
+    if (more && secret) await dispatchNext(service, origin, secret);
   });
   const spent = await sharedContentSpent(service);
   const states = await unitStates(service, currentFillOrder().map((t) => t.unitId)).catch(() => new Map());
   return NextResponse.json({ ok: true, started: true, leaseUntil, spentUsd: Number(spent.toFixed(4)), capUsd: config.capUsd, verifiedUnits: [...states.values()].filter((s) => s.verified).length }, { status: 202 });
+}
+
+/**
+ * Sonraki adımı çağırır ve onay (2xx) bekler; başarısızsa kısa aralarla yeniden dener. Sonuç last_dispatch'e yazılır.
+ * Eskiden hata sessizce yutuluyordu: tek istek düşünce zincir sessizce ölüyordu. Yine de düşerse ?action=resume zamanlayıcısı devralır.
+ */
+async function dispatchNext(service: ReturnType<typeof createServiceClient>, origin: string, secret: string) {
+  let status = 0;
+  let error: string | null = null;
+  let attempts = 0;
+  for (; attempts < 3; attempts++) {
+    if (attempts) await new Promise((r) => setTimeout(r, 2_000 * attempts));
+    try {
+      const res = await fetch(`${origin}/api/cron/content-pool-fill`, { headers: { Authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(15_000) });
+      status = res.status;
+      error = null;
+      if (res.ok) break;
+    } catch (e) {
+      error = String(e).slice(0, 120);
+    }
+  }
+  const lastDispatch = { at: new Date().toISOString(), status, attempts: Math.min(attempts + 1, 3), ok: status >= 200 && status < 300, error };
+  if (!lastDispatch.ok) console.error("pool_fill_dispatch_failed", lastDispatch);
+  await writeFillConfig(service, { metadata: { last_dispatch: lastDispatch } }).catch(() => undefined);
 }

@@ -58,6 +58,26 @@ export async function writeFillConfig(service: SupabaseClient, patch: { enabled?
   );
 }
 
+/**
+ * Tek çalıştırma kilidi (compare-and-set): satırın updated_at'i okunduğu andaki değerle eşleşirse ve kilit boş/süresi
+ * dolmuşsa yazılır. Aynı anda gelen iki tetik (zincir + zamanlayıcı + elle başlatma) yalnız birini çalıştırır.
+ */
+export async function acquireLease(service: SupabaseClient, leaseMs: number, now = Date.now()): Promise<string | null> {
+  const { data: row } = await service.from("feature_flags").select("enabled, metadata, updated_at").eq("key", FILL_FLAG).maybeSingle();
+  if (!row?.enabled) return null;
+  const metadata = ((row.metadata as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
+  const current = typeof metadata.lease_until === "string" ? Date.parse(metadata.lease_until) || 0 : 0;
+  if (current > now) return null;
+  const leaseUntil = new Date(now + leaseMs).toISOString();
+  const { data } = await service
+    .from("feature_flags")
+    .update({ metadata: { ...metadata, lease_until: leaseUntil, step_started_at: new Date(now).toISOString() }, updated_at: new Date(now).toISOString() })
+    .eq("key", FILL_FLAG)
+    .eq("updated_at", row.updated_at as string)
+    .select("key");
+  return data && data.length === 1 ? leaseUntil : null;
+}
+
 export function currentFillOrder(): FillTarget[] {
   return fillOrder(CURRICULUM.programs);
 }
@@ -105,18 +125,20 @@ export async function unitStates(service: SupabaseClient, unitIds: string[]): Pr
 export async function fillStatus(service: SupabaseClient) {
   const order = currentFillOrder();
   const [config, spent, states] = await Promise.all([readFillConfig(service), sharedContentSpent(service), unitStates(service, order.map((t) => t.unitId))]);
+  // Soru sayısı ünite bazında: aynı program_id'yi paylaşan gruplar (TYT/AYT) birbirinin sorularını saymasın.
   const itemCounts = new Map<string, number>();
   for (let from = 0; ; from += 1000) {
-    const { data } = await service.from("item_bank").select("program_id").eq("status", "verified").eq("version", CONTENT_VERSION).range(from, from + 999);
-    for (const row of data ?? []) itemCounts.set(row.program_id as string, (itemCounts.get(row.program_id as string) ?? 0) + 1);
+    const { data } = await service.from("item_bank").select("unit_id").eq("status", "verified").eq("version", CONTENT_VERSION).range(from, from + 999);
+    for (const row of data ?? []) itemCounts.set(row.unit_id as string, (itemCounts.get(row.unit_id as string) ?? 0) + 1);
     if (!data || data.length < 1000) break;
   }
   const programs = new Map<string, { group: string; programId: string; units: number; done: number; failed: number; generating: number; pending: number; items: number }>();
   for (const t of order) {
     const key = `${t.group}:${t.programId}`;
-    const p = programs.get(key) ?? { group: t.group, programId: t.programId, units: 0, done: 0, failed: 0, generating: 0, pending: 0, items: itemCounts.get(t.programId) ?? 0 };
+    const p = programs.get(key) ?? { group: t.group, programId: t.programId, units: 0, done: 0, failed: 0, generating: 0, pending: 0, items: 0 };
     const s = states.get(t.unitId);
     p.units += 1;
+    p.items += itemCounts.get(t.unitId) ?? 0;
     if (s?.verified) p.done += 1;
     else if (s && s.failedAttempts >= MAX_FAILED_ATTEMPTS) p.failed += 1;
     else if (s?.draft) p.generating += 1;
@@ -133,7 +155,8 @@ export async function fillStatus(service: SupabaseClient) {
     running: config.leaseUntil > Date.now(),
     stepStartedAt: config.metadata.step_started_at ?? null,
     lastRun: config.metadata.last_run ?? null,
-    totals: { units: sum("units"), done: sum("done"), failed: sum("failed"), generating: sum("generating"), pending: sum("pending"), items: [...itemCounts.values()].reduce((a, b) => a + b, 0) },
+    lastDispatch: config.metadata.last_dispatch ?? null,
+    totals: { units: sum("units"), done: sum("done"), failed: sum("failed"), generating: sum("generating"), pending: sum("pending"), items: list.reduce((a, p) => a + p.items, 0) },
     programs: list,
   };
 }
