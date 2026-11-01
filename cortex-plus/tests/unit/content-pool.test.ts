@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { poolUnit, poolUnitsForProgram } from "@/lib/content-pool/keys";
-import { generateUnitContent, type LlmCall } from "@/lib/content-pool/generate";
+import { generateUnitContent, SHARED_VERIFY_MODEL, verifyPrompt, type LlmCall } from "@/lib/content-pool/generate";
+import { excludedTerms, garbledReason, gateItems } from "@/lib/content-pool/gate";
 import { getUnitContent, type PoolStore, type StoredContent } from "@/lib/content-pool/pool";
 import { applyReview, checkShape, missingCoverage, type PoolItem } from "@/lib/content-pool/schema";
 import type { PoolUnit } from "@/lib/content-pool/keys";
@@ -41,26 +42,19 @@ function fakeLlm(unit: PoolUnit, opts: { wrongAnswerFor?: string } = {}): LlmCal
         text: JSON.stringify({
           items: pairs.map((p) => {
             const [code, difficulty] = p.split("|");
-            return { outcome_code: code, difficulty, stem: `Özgün soru ${p} nedir?`, choices: ["A1", "B1", "C1", "D1", "E1"], answer: 2, explanation: "Çünkü C doğrudur." };
+            return { outcome_code: code, difficulty, stem: `Özgün soru ${p} nedir?`, choices: ["Birinci seçenek", "İkinci seçenek", "Üçüncü seçenek", "Dördüncü seçenek", "Beşinci seçenek"], answer: 2, explanation: "Çünkü üçüncü seçenek kazanımla doğrudan örtüşür." };
           }),
         }),
       };
     }
-    const blind = JSON.parse(/SORULAR \(cevapsız\):\n([\s\S]*?)\n\n/.exec(user)![1]!) as { index: number; outcome_code: string; stem: string }[];
+    const blind = JSON.parse(/Sorular \[i,kod,kök,şıklar\]:\n([\s\S]*)$/.exec(user)![1]!) as [number, string, string, string[]][];
+    const verifyRound = calls.filter((c) => c.startsWith("Denetçisin")).length;
     return {
       model,
       tokensIn: 70,
       tokensOut: 30,
       text: JSON.stringify({
-        lesson_ok: true,
-        lesson_issues: [],
-        items: blind.map((b) => ({
-          index: b.index,
-          solved_answer: opts.wrongAnswerFor && b.stem.includes(opts.wrongAnswerFor) && calls.filter((c) => c.startsWith("Sen bağımsız")).length === 1 ? 0 : 2,
-          within_scope: true,
-          ok: true,
-          issue: null,
-        })),
+        r: blind.map(([index, , stem]) => [index, opts.wrongAnswerFor && stem.includes(opts.wrongAnswerFor) && verifyRound === 1 ? 0 : 2, 1]),
       }),
     };
   }) as LlmCall & { calls: string[] };
@@ -243,6 +237,20 @@ describe("ortak içerik havuzu: read-through önbellek", () => {
       ["SHARED_CONTENT_VERIFY", "verify-model"],
     ]);
   });
+
+  it("varsayılan doğrulama modeli gpt-6-luna, düşük akıl yürütme", async () => {
+    const unit = poolUnit(UNIT)!;
+    const seen: { model: string; effort?: string }[] = [];
+    const base = fakeLlm(unit);
+    const llm: LlmCall = async (args) => {
+      seen.push({ model: args.model, effort: args.reasoningEffort });
+      return base(args);
+    };
+    const out = await generateUnitContent(unit, llm, { generate: "gpt-6-luna", verify: SHARED_VERIFY_MODEL });
+    expect(SHARED_VERIFY_MODEL).toBe("gpt-6-luna");
+    expect(seen.at(-1)).toEqual({ model: "gpt-6-luna", effort: "low" });
+    expect(out.usage.at(-1)!.model).toBe("gpt-6-luna");
+  });
 });
 
 describe("ortak içerik havuzu: maliyet", () => {
@@ -250,10 +258,72 @@ describe("ortak içerik havuzu: maliyet", () => {
     const { priceForModel, usageCostUsd } = await import("@/lib/billing/model-price");
     const unit = poolUnit(UNIT)!;
     const llm: LlmCall = async (args) => ({ ...(await fakeLlm(unit)(args)), model: `${args.model}-2025-04-14` });
-    const out = await generateUnitContent(unit, llm, { generate: "gpt-6-luna", verify: "gpt-4.1" });
-    expect(out.usage.map((u) => u.model)).toEqual(["gpt-6-luna", "gpt-6-luna", "gpt-4.1"]);
+    const out = await generateUnitContent(unit, llm, { generate: "gpt-6-luna", verify: "gpt-6-luna" });
+    expect(out.usage.map((u) => u.model)).toEqual(["gpt-6-luna", "gpt-6-luna", "gpt-6-luna"]);
     const prices = new Map([["gpt-4.1", { input: 0.002, output: 0.008 }]]);
     expect(usageCostUsd(priceForModel("gpt-4.1", prices), 78095, 6042)).toBe(0.204526);
     expect(usageCostUsd(priceForModel("bilinmeyen", prices), 1, 1)).toBeNull();
+  });
+});
+
+describe("ortak içerik havuzu: sıfır maliyetli kapı", () => {
+  const unit = { unitId: "p#1", choices: 5, outcomes: [{ code: "9.1.1", outcomeId: "p#1", limitations: ["Ayrıntılı takvim hesaplarına (Rumi takvim, Celali takvim) girilmez."] }] };
+  const good = { outcome_code: "9.1.1", difficulty: "easy" as const, stem: "Tarih biliminin konusu aşağıdakilerden hangisidir?", choices: ["Geçmişteki insan toplulukları", "Gök cisimleri", "Canlıların yapısı", "Maddenin halleri", "Sayıların özellikleri"], answer: 0, explanation: "Tarih, geçmişteki insan topluluklarını inceler." };
+
+  it("kural ihlali olan fikstür model çağrısı olmadan reddedilir", async () => {
+    const fixture = [
+      { ...good, choices: good.choices.slice(0, 4) },
+      { ...good, difficulty: "medium" as const, answer: 7 },
+      { ...good, difficulty: "hard" as const, choices: ["Aynı", "aynı.", "C şıkkı", "D şıkkı", "E şıkkı"] },
+      { ...good, stem: "Kısa?" },
+      { ...good, stem: "Tarih biliminin konusuOsmanlıDevleti hangisidir ve neden önemlidir?" },
+      { ...good, stem: "Rumi takvim ile hesaplanan yıl aşağıdakilerden hangisidir?" },
+      { ...good, outcome_code: "9.9.9" },
+    ];
+    const { passed, rejected } = gateItems(fixture, unit);
+    expect(passed).toHaveLength(0);
+    expect(rejected.map((r) => r.reason)).toEqual([
+      "seçenek sayısı 4 (beklenen 5)",
+      "cevap seçeneklerin dışında",
+      "aynı seçenek iki kez",
+      "kök çok kısa",
+      "yapışık kelime",
+      "kazanım sınırı dışında (rumi takvim)",
+      "kayıtta olmayan kazanım",
+    ]);
+
+    const unitObj = poolUnit(UNIT)!;
+    let calls = 0;
+    const llm: LlmCall = async (args) => {
+      calls += 1;
+      if (args.system.includes("soru yazan")) return { model: args.model, tokensIn: 1, tokensOut: 1, text: JSON.stringify({ items: unitObj.outcomes.map((o) => ({ ...fixture[0], outcome_code: o.code })) }) };
+      return fakeLlm(unitObj)(args);
+    };
+    const out = await generateUnitContent(unitObj, llm, { generate: "g", verify: "v" });
+    expect(out.ok).toBe(false);
+    expect(out.usage.some((u) => u.actionCode === "SHARED_CONTENT_VERIFY")).toBe(false);
+    expect(calls).toBe(3); // anlatım + iki soru turu; doğrulama hiç çağrılmadı
+  });
+
+  it("geçen soru unit_id ve outcome_id ile etiketlenir, aynı çift bir kez kalır, dağılım raporlanır", () => {
+    const { passed, rejected, distribution } = gateItems([good, good, { ...good, difficulty: "hard" as const, choices: ["A) Geçmiş", "B) Gök", "C) Canlı", "D) Madde", "E) Sayı"] }], unit);
+    expect(passed.map((p) => [p.unit_id, p.outcome_id, p.difficulty])).toEqual([["p#1", "p#1", "easy"], ["p#1", "p#1", "hard"]]);
+    expect(passed[1]!.choices[0]).toBe("Geçmiş");
+    expect(rejected[0]!.reason).toBe("aynı kazanım × zorluk ikinci kez");
+    expect(distribution).toEqual({ easy: 1, medium: 0, hard: 1 });
+  });
+
+  it("bozuk metin ve sınır terimleri", () => {
+    expect(garbledReason("Normal bir Türkçe cümle.")).toBeNull();
+    expect(garbledReason("BozukÃ¼ metin")).toBe("bozuk karakter kodlaması");
+    expect(excludedTerms(["Ayrıntıya girilmez (a, Uzun Terim)", "Örnekler verilir (x, y)"])).toEqual(["uzun terim"]);
+  });
+
+  it("doğrulama istemi kısa: anlatım ve cevap anahtarı gitmez", () => {
+    const u = poolUnit(UNIT)!;
+    const items = u.outcomes.flatMap((o) => (["easy", "medium", "hard"] as const).map((d) => ({ ...good, outcome_code: o.code, difficulty: d })));
+    const prompt = verifyPrompt(u, items);
+    expect(prompt.user).not.toContain('"answer"');
+    expect(prompt.user).not.toContain(good.explanation);
   });
 });

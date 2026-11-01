@@ -51,6 +51,11 @@ export const reviewSchema = z.object({
 });
 export type Review = z.infer<typeof reviewSchema>;
 
+/** Kısa doğrulama çıktısı: [soru sırası, bağımsız çözüm (0 tabanlı), uyum 0/1]. */
+export const compactReviewSchema = z.object({
+  r: z.array(z.tuple([z.number().int().min(0), z.number().int().min(0).max(4), z.union([z.literal(0), z.literal(1)])])).max(200),
+});
+
 export type ShapeIssue = { code: string; detail: string };
 
 /**
