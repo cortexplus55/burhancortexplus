@@ -31,6 +31,14 @@ test.describe("Seviye kontrolü", { tag: ["@public"] }, () => {
     await noOverflow(page);
   });
 
+  test("Oturum açık: ön izleme yok, tam taramaya yönlendirme", async ({ page }) => {
+    await page.goto("/e2e/hizli-tarama?oturum=1");
+    const box = page.getByTestId("signed-in-scan");
+    await expect(box).not.toContainText("3 soru");
+    await expect(page.getByTestId("level-runner")).toHaveCount(0);
+    await expect(box.getByRole("link", { name: "Tam taramaya başla" })).toHaveAttribute("href", /\/deneme-sinavlari\/resmi\/kurulum/);
+  });
+
   test("Boş havuz: dürüst mesaj", async ({ page }) => {
     await page.goto("/e2e/hizli-tarama?bos=1");
     await expect(page.getByTestId("level-empty")).toContainText("Bu ders için hazır soru henüz yok.");
