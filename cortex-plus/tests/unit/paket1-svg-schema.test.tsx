@@ -23,7 +23,7 @@ function card(kind: DiagramKind) {
 }
 
 describe("paket 1 svg şema", () => {
-  it.each(kinds)("%s gerçek svg üretir", (kind) => {
+  it.each(kinds.filter((kind) => kind !== "process_network"))("%s gerçek svg üretir", (kind) => {
     const html = renderToStaticMarkup(createElement(DiagramCard, { card: card(kind), id: kind }));
     expect(html).toContain("<svg");
     expect(html).toContain('viewBox="0 0 600 220"');
@@ -38,10 +38,6 @@ describe("paket 1 svg şema", () => {
     }
     if (kind === "function_curve") {
       expect(html).toContain("<path");
-      expect(html).toContain("<line");
-    }
-    if (kind === "process_network") {
-      expect(html).toContain("<rect");
       expect(html).toContain("<line");
     }
   });

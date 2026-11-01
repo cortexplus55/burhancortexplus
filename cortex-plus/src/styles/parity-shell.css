@@ -14524,3 +14524,29 @@ a.cp-exam-search {
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
   pointer-events: none;
 }
+
+/* Sıradaki adım kartı (1 Kasım 2026, mobil tur): düğmeler dar ekranda sarılır/alt alta dizilir, yana taşmaz. */
+.cp-path-next-actions {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.cp-path-next-actions > * {
+  min-width: 0;
+  white-space: normal;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .cp-path-next-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cp-path-next-actions > *,
+  .cp-path-next-actions .cp-exam-continue,
+  .cp-path-next-actions .cp-path-next-custom {
+    width: 100%;
+    flex: none;
+  }
+}

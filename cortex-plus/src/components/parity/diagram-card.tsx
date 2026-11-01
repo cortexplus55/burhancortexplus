@@ -311,7 +311,53 @@ export function labelStyle(label: Pick<Label, "x" | "y" | "maxW">): { left: stri
   };
 }
 
+/**
+ * Süreç akışı (1 Kasım 2026, mobil tur): kutu + ok çizimi 375 px'te kenar etiketlerini ~1 harflik
+ * sütunlara sıkıştırıyordu ("E/l/e/m/a/n…" dikey kırılma, başlığın üstüne biniyordu). Akış artık
+ * HTML numaralı adım listesi: dar alanda alt alta, geniş alanda (≥ 640 px kapsayıcı) yan yana eşit
+ * sütunlar. Adımın açıklaması (kenar etiketi) adımın altında normal sarılan metin; sabit genişlik yok.
+ */
+export function flowSteps(card: DiagramCardBlock): { title: string; detail: string | null; highlight: boolean }[] {
+  return card.items.map((item) => ({
+    title: item.label.trim(),
+    detail: item.detail?.trim() ? item.detail.trim() : null,
+    highlight: Boolean(item.highlight),
+  }));
+}
+
+function ProcessFlow({ card }: { card: DiagramCardBlock }) {
+  const steps = flowSteps(card);
+  return (
+    <ol className="als-flow" data-diagram="process_network" aria-label={card.title}>
+      {steps.map((step, index) => (
+        <li key={`${step.title}-${index}`} className={step.highlight ? "als-flow-step is-accent" : "als-flow-step"}>
+          <span className="als-flow-num" aria-hidden>
+            {index + 1}
+          </span>
+          <span className="als-flow-text">
+            <span className="als-flow-title">{step.title}</span>
+            {step.detail ? <span className="als-flow-detail">{step.detail}</span> : null}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function DiagramCard({ card, id = "diagram" }: { card: DiagramCardBlock; id?: string }) {
+  if (card.diagramKind === "process_network") {
+    return (
+      <figure className="als-diagram-card als-diagram-card--flow">
+        <figcaption>
+          <strong>{card.title}</strong>
+          {card.caption ? <span>{card.caption}</span> : null}
+        </figcaption>
+        <div className="als-flow-wrap" data-diagram-stage="process_network">
+          <ProcessFlow card={card} />
+        </div>
+      </figure>
+    );
+  }
   const painted = PAINT[card.diagramKind](card, id);
   return (
     <figure className="als-diagram-card">

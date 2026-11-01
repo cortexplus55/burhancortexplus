@@ -90,3 +90,85 @@
   color: var(--cp-gold, #f4ae0b);
   font-weight: 600;
 }
+
+/*
+  Süreç akışı (1 Kasım 2026, mobil tur): numaralı adım listesi. Dar kapsayıcıda alt alta; kapsayıcı
+  ≥ 640 px ise eşit sütunlar yan yana (her sütun en az 8 rem, sığmazsa alt satıra sarılır).
+  Kelime ortasından kırma yok: yalnız tek parça çok uzun simge için son çare `overflow-wrap: anywhere`.
+*/
+.als-flow-wrap {
+  container-type: inline-size;
+}
+
+.als-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.als-flow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.als-flow-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--cp-action, #4353ff) 22%, transparent);
+  color: var(--cp-text, #f5f5f5);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.als-flow-step.is-accent .als-flow-num {
+  background: color-mix(in srgb, var(--cp-gold, #f4ae0b) 28%, transparent);
+  color: var(--cp-gold, #f4ae0b);
+}
+
+.als-flow-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  hyphens: manual;
+}
+
+.als-flow-title {
+  color: var(--cp-text, #f5f5f5);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.als-flow-detail {
+  color: var(--cp-muted, #a3a3a3);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+@container (min-width: 640px) {
+  .als-flow {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+  }
+
+  .als-flow-step {
+    flex: 1 1 8rem;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+}
