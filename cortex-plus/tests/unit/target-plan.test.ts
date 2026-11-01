@@ -25,9 +25,9 @@ describe("hedef puana göre plan kipi", () => {
   });
 
   it("writes a live badge for the wizard slider", () => {
-    expect(targetPlanHint(90).badge).toMatch(/Derinlemesine testler/);
-    expect(targetPlanHint(75).badge).toMatch(/Dengeli ders/);
-    expect(targetPlanHint(55).badge).toMatch(/kompakt/);
+    expect(targetPlanHint(90).badge).toMatch(/daha çok soru/);
+    expect(targetPlanHint(75).badge).toMatch(/dengeli/);
+    expect(targetPlanHint(55).badge).toMatch(/en çok çıkan konular/);
   });
 
   it("adds extra quizzes on peak and keeps pass compact", () => {

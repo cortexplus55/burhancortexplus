@@ -44,9 +44,12 @@ describe("sihirbaz: sınav türü profil sınıfını yener", () => {
     if (next.length) fireEvent.click(next[0]!);
     fireEvent.click(await screen.findByRole("button", { name: /Devam/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Dosyam Yok/ }));
-    await screen.findByRole("radio", { name: "10. sınıf" });
+    // 2 Kasım 2026: sınav seçildiyse diğer düzeyler gizli; "Başka sınıf/sınav" ile açılır.
+    await screen.findByRole("radio", { name: /^YKS/ });
+    expect(screen.queryByRole("radio", { name: "10. sınıf" })).toBeNull();
     await waitFor(() => expect(screen.getByRole("radio", { name: /^YKS/ }).getAttribute("aria-checked")).toBe("true"));
     await waitFor(() => expect(screen.getByRole("radio", { name: "Matematik" }).getAttribute("aria-checked")).toBe("true"));
+    fireEvent.click(screen.getByTestId("official-other-levels"));
     expect(screen.getByRole("radio", { name: "10. sınıf" }).getAttribute("aria-checked")).toBe("false");
   });
 });

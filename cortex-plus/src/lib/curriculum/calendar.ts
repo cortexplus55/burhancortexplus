@@ -74,3 +74,28 @@ export function officialExamOn(isoDate: string): string | null {
     .map((event) => event.label);
   return names.length ? names.join(" / ") : null;
 }
+
+/** Sihirbazda seçilen sınav türünün resmî sınav kodları (2 Kasım 2026: tarih adımı tüm sınavları sıralıyordu). */
+const TRACK_EXAMS: Record<string, readonly string[]> = {
+  tyt: ["TYT"],
+  ayt: ["AYT", "YDT"],
+  yks: ["TYT", "AYT", "YDT"],
+  kpss: ["KPSS"],
+  tus: ["TUS"],
+  lgs: ["LGS"],
+  ales: ["ALES"],
+  uni: [],
+};
+
+/**
+ * Tarih adımında gösterilecek resmî sınavlar: sınav türü seçildiyse yalnız onunkiler (vize/final için hiçbiri),
+ * seçilmediyse yaklaşan hepsi.
+ */
+export function officialExamsForTrack(todayIso: string, track: string | null | undefined, limit = 8): OfficialExamDate[] {
+  const codes = track ? TRACK_EXAMS[track] : undefined;
+  if (!codes) return upcomingOfficialExams(todayIso, limit);
+  if (!codes.length) return [];
+  return upcomingOfficialExams(todayIso, 200)
+    .filter((exam) => codes.includes(exam.exam))
+    .slice(0, limit);
+}

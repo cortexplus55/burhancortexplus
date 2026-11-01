@@ -35,7 +35,8 @@ describe("konudan kurulum: sihirbazın seçimleri taşınır", () => {
 
   it("sihirbaz ders, tarih ve hedefi verir; konudan kurulumda belge seçici yok; hedef kayda gider", () => {
     const wizard = read("src/components/parity/exam-create-wizard.tsx");
-    expect(wizard).toContain("onClick={() => onUseChat({ subject, examDate, target })}");
+    // 2 Kasım 2026: tek "belgem yok" yolu resmî müfredat paneli; listede olmayan ders sohbete aynı seçimlerle gider.
+    expect(wizard).toContain("onChatFallback={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}");
     const entry = read("src/components/parity/exam-create-entry.tsx");
     expect(entry).toContain("topicOnly={Boolean(picked)}");
     expect(entry).toContain("initialExamDate={picked?.examDate || undefined}");

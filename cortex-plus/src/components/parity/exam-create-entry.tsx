@@ -17,8 +17,11 @@ export function ExamCreateEntry({
   initialPrompt = null,
   prepLimitReached = false,
   gradeLevel = null,
+  profileGoal = null,
   userId = null,
 }: {
+  /** Kayıttaki hedef metni; sihirbazda sınav türünü önceden seçer. */
+  profileGoal?: string | null;
   /** Taslak anahtarı bu hesaba bağlanır. */
   userId?: string | null;
   initialDocumentId?: string | null;
@@ -75,6 +78,7 @@ export function ExamCreateEntry({
       }}
       prepLimitReached={prepLimitReached}
       gradeLevel={gradeLevel}
+      profileGoal={profileGoal}
     />
   );
 }

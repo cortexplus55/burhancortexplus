@@ -381,6 +381,10 @@ export function levelForExamLabel(label: string | null | undefined): string | nu
   if (/\b(TYT|AYT|YKS)\b/.test(text)) return "yks";
   if (/\bLGS\b/.test(text)) return "lgs";
   if (/\bKPSS\b/.test(text)) return "kpss";
+  // 2 Kasım 2026: ALES/DGS/YDS/TUS/DUS seçen öğrenci sınıf düzeyine (10. sınıf) düşüyordu.
+  for (const kind of ["ales", "dgs", "yds", "tus", "dus"]) {
+    if (new RegExp(`\\b${kind.toLocaleUpperCase("tr-TR")}\\b`).test(text)) return kind;
+  }
   const grade = /\b(\d{1,2})\s*\.?\s*SINIF/.exec(text);
   return grade ? `sinif-${Number(grade[1])}` : null;
 }
@@ -424,4 +428,15 @@ export function officialPrepTitle(label: string, part: "TYT" | "AYT" | null | un
   const range = lo === hi ? `${lo}. sınıf` : `${lo}–${hi}. sınıf`;
   const subject = label.replace(/^YKS\s+/u, "").replace(/\s*\([^()]*\)\s*$/u, "").trim() || label;
   return `${part} ${subject} (${range}) sınav hazırlığı`;
+}
+
+/**
+ * Kaynak bağlantısının öğrenciye görünen adı (2 Kasım 2026). Kayıttaki iç adlar ("Öğretim Programı PID 2256",
+ * "… (matematik2.xlsx)") öğrenciye bir şey söylemiyordu; bağlantı aynı resmî belgeye gider.
+ */
+export function sourceDisplayTitle(title: string): string {
+  return title
+    .replace(/\s*PID\s*\d+\s*$/i, " (MEB)")
+    .replace(/\s*\([^)]*\.xlsx\)\s*$/i, " (MEB)")
+    .trim();
 }

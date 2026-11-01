@@ -1508,3 +1508,14 @@
   justify-self: start; background: none; border: 0; padding: 0; color: inherit;
   text-decoration: underline; font-size: 13px; opacity: 0.8; cursor: pointer;
 }
+
+/* Dokunmatik cihazda "Dosyanı buraya bırak" yerine "Dosya seç" (2 Kasım 2026). */
+.apw-only-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .apw-only-desktop { display: none; }
+  .apw-only-touch { display: inline; }
+}
+
+/* Dokunma hedefleri en az 44 px (2 Kasım 2026 mobil denetimi: çipler ~30 px idi). */
+.apw-chip { min-height: 44px; }
+.apw .apw-back, .apw .apw-link { min-height: 44px; display: inline-flex; align-items: center; }

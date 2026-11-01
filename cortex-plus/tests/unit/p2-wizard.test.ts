@@ -8,13 +8,13 @@ describe("kurulum sınav türü, tarih ve takılı belge", () => {
   it("ilk adım ders kalır; tür çipleri ders adımındadır ve tercih olarak saklanır", () => {
     expect(WIZARD_STEP_ORDER[0]).toBe("subject");
     expect(EXAM_TRACKS.map((track) => track.label)).toEqual([
+      "LGS",
       "TYT",
       "AYT",
       "YKS (TYT+AYT)",
       "KPSS",
-      "TUS",
-      "LGS",
       "ALES",
+      "TUS",
       "Üniversite Vize/Final",
     ]);
     expect(isExamTrack("tus")).toBe(true);
