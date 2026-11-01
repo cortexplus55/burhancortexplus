@@ -134,6 +134,9 @@ export const WIZARD_COPY = {
   planningTitle: "Çalışma planın hazırlanıyor...",
   planningLead: "Konular günlere yerleştiriliyor.",
   planReady: "Çalışma planın hazır!",
+  planSummary: (count: number) => `${count} konu günlere yerleştirildi.`,
+  planFocus: (count: number) => `${count} konuya biraz daha fazla zaman ayrıldı.`,
+  editTopics: "Konuları düzenle",
   planLead:
     "Yanlış olanı değiştir, eksik olanı ekle, istemediğini kaldır. Yol bu listeyle kurulur.",
   createCta: "Sınav hazırlığı oluştur",

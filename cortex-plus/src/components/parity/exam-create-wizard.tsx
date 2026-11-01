@@ -2249,36 +2249,23 @@ export function ExamCreateWizard({
       {!planning && step === "plan" ? (
         <section className="apw-step">
           <h1>{WIZARD_COPY.planReady}</h1>
-          <p className="apw-lead">{WIZARD_COPY.planLead}</p>
-          <TopicEditor
-            topics={topics}
-            topicPages={topicPages}
-            topicFiles={topicFiles}
-            topicWarnings={topicWarnings}
-            topicMeta={topicMeta}
-            topicUnits={topicUnits}
-            excluded={excludedTopics}
-            missing={missingTopics}
-            documentIds={documentIds}
-            onTopics={setTopics}
-            onPages={setTopicPages}
-            onFiles={setTopicFiles}
-            onWarnings={setTopicWarnings}
-            onMeta={setTopicMeta}
-            onUnits={setTopicUnits}
-            onMissing={setMissingTopics}
-            onOrderEdited={() => setOrderEdited(true)}
-            onRename={(from, to) =>
-              setFocusTopics((prev) =>
-                prev
-                  .map((item) => (item === from ? to : item))
-                  .filter((item) => item.trim().length > 0),
-              )
-            }
-            onRemove={(title) =>
-              setFocusTopics((prev) => prev.filter((item) => item !== title))
-            }
-          />
+          {/* "Konuları düzenle" ile aynı listeyi ikinci kez açmıyoruz (2 Kasım 2026): burada kısa özet. */}
+          <p className="apw-lead" data-testid="plan-summary">
+            {WIZARD_COPY.planSummary(topics.length)}
+            {!equalFocus && focusTopics.length ? ` ${WIZARD_COPY.planFocus(focusTopics.length)}` : ""}
+          </p>
+          {!equalFocus && focusTopics.length ? (
+            <div className="apw-chips">
+              {focusTopics.map((title) => (
+                <span key={title} className="apw-chip apw-chip--on">
+                  {title}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <button type="button" className="apw-link" onClick={() => setStep("topics")}>
+            {WIZARD_COPY.editTopics}
+          </button>
           <button
             type="button"
             className="apw-cta"

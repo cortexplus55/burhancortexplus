@@ -25,3 +25,13 @@ export function withoutGradeParts(parts: readonly string[]): string[] {
   const kept = parts.filter((part) => !isGradeOnlyLabel(part));
   return kept.length ? kept : [...parts];
 }
+
+/** "9. Sınıf · Mantık" → "Mantık": sınıf düzeyi bağlam olarak bir kez yazılır, etiket yalnız konudur. */
+export function topicOnlyLabel(label: string): string {
+  return withoutGradeParts(label.split(" · ").map((part) => part.trim())).join(" · ");
+}
+
+/** "9. Sınıf · Mantık" → "9. Sınıf"; sınıf parçası yoksa null. */
+export function gradeOfLabel(label: string): string | null {
+  return label.split(" · ").map((part) => part.trim()).find((part) => isGradeOnlyLabel(part)) ?? null;
+}

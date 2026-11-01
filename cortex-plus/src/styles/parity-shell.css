@@ -13329,8 +13329,18 @@ a.cp-exam-search {
   gap: 0.3rem;
   flex: none;
   width: max-content;
-  max-width: 8.5rem;
+  /* 320px'te etiket ekrandan taşmasın (2 Kasım 2026). */
+  max-width: min(8.5rem, calc(50vw - 3.6rem));
+  min-width: 0;
   text-align: left;
+}
+
+.cp-path-list .cp-exam-trail-item .cp-path-current-meta {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
 }
 
 .cp-path-list .cp-exam-trail-item.is-right .cp-path-current-label {
@@ -14009,10 +14019,12 @@ a.cp-exam-search {
   position: absolute;
   top: 50%;
   left: calc(50% + 58px);
+  max-width: calc(50vw - 72px);
   font: var(--t-label-13);
   letter-spacing: var(--ls-label);
   color: var(--c-text-muted);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   transform: translateY(-50%);
   pointer-events: none;
 }
