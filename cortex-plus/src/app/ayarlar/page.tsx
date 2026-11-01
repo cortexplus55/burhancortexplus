@@ -17,7 +17,8 @@ export const metadata = { title: "Ayarlar" };
 export default async function AyarlarPage() {
   const { supabase, user } = await requireUser();
 
-  const [{ data: deletionRequest }, account] = await Promise.all([
+  // Üç okuma paralel (2 Kasım 2026, O12): hatırlatma tercihi önceden ayrı, sırayla bekleniyordu.
+  const [{ data: deletionRequest }, account, { data: reminderPref }] = await Promise.all([
     supabase
       .from("data_deletion_requests")
       .select("id, status, requested_at")
@@ -26,16 +27,9 @@ export default async function AyarlarPage() {
       .limit(1)
       .maybeSingle(),
     getStudentAccountContext(supabase, user.id),
+    // Kolon yoksa sorgu hata verir ve tercih "açık" varsayılır.
+    supabase.from("profiles").select("study_reminder_email").eq("id", user.id).maybeSingle(),
   ]);
-
-  // Kolon migration ile geliyor; gelmeden önce dağıtılırsa sorgu hata
-  // verir ve tercih "açık" varsayılır — e-posta zaten kolon yokken
-  // gönderilmiyor, yani yanlış tarafa düşmüyoruz.
-  const { data: reminderPref } = await supabase
-    .from("profiles")
-    .select("study_reminder_email")
-    .eq("id", user.id)
-    .maybeSingle();
 
   return (
     <AppShell title="Ayarlar">
