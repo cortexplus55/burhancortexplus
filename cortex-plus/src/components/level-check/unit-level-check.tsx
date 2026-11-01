@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LevelCheckRunner, type LevelResult } from "@/components/level-check/level-check-runner";
 import { foldResponses, masteryLabel } from "@/lib/level-check/mastery";
 import { ReinforceBox } from "@/components/level-check/reinforce-box";
@@ -42,6 +43,7 @@ export function UnitLevelCheck({
   unitTitle: string;
   api?: LevelApi;
 }) {
+  const router = useRouter();
   const skipKey = `cp-unit-check-skip:${prepId}:${unitId}`;
   const [phase, setPhase] = useState<"offer" | "run" | "result" | "hidden" | "empty">("offer");
   const [lines, setLines] = useState<OutcomeLine[]>([]);
@@ -95,6 +97,8 @@ export function UnitLevelCheck({
             setLines(outcomeLines(results));
             setSaved(meta.persisted);
             setPhase("result");
+            // Harita, plan ve pekiştirme önerisi sunucu verisinden gelir: kayıt sonrası yenile (tam sayfa gezintisi gerekmesin).
+            if (meta.persisted) router.refresh();
           }}
         />
       ) : null}
@@ -112,8 +116,22 @@ export function UnitLevelCheck({
             Kazanım başına 1–2 soru olduğu için bu sonuçlar tahmini; çalıştıkça netleşir.
             {saved ? "" : " Sonuç bu sefer kaydedilemedi."}
           </p>
-          {saved && lines.some((l) => l.weak) ? <ReinforceBox prepId={prepId} unitId={unitId} unitTitle={unitTitle} api={api} /> : null}
-          <button type="button" className="lc-skip" onClick={() => setPhase("hidden")}>
+          {saved && lines.some((l) => l.weak) ? <ReinforceBox
+              prepId={prepId}
+              unitId={unitId}
+              unitTitle={unitTitle}
+              weakCount={lines.filter((l) => l.weak).length}
+              api={api}
+              onDone={() => router.refresh()}
+            /> : null}
+          <button
+            type="button"
+            className="lc-skip"
+            onClick={() => {
+              setPhase("hidden");
+              router.refresh();
+            }}
+          >
             Kapat
           </button>
         </>
