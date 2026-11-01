@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LevelCheckRunner, type LevelResult } from "@/components/level-check/level-check-runner";
-import { httpLevelApi, type LevelApi, type MissingOutcome } from "@/lib/level-check/types";
+import { httpLevelApi, type LevelApi, type MissingOutcome, type OfferOutcome } from "@/lib/level-check/types";
 import "@/styles/level-check.css";
 
 export const NO_EXTRA_TEXT = "Bu kazanım için ek soru hazır değil";
+export const NO_EXTRA_LEFT_TEXT = "Şu an ek soru kalmadı; yeni sorular eklendikçe burada görünecek";
 
 /**
  * Ünite sonu pekiştirme (Plan PR 4): zayıf kazanımlara (≥1 yanıt, ustalık < %50) havuzdan en çok 2'şer ek soru.
@@ -15,19 +16,39 @@ export function ReinforceBox({
   prepId,
   unitId,
   unitTitle,
-  weakCount: offered,
   api = httpLevelApi,
   onDone,
 }: {
   prepId: string;
   unitId: string;
   unitTitle: string;
-  /** Zayıf kazanım sayısı (öneri metnindeki toplam için). */
-  weakCount: number;
   api?: LevelApi;
   onDone?: () => void;
 }) {
-  const [phase, setPhase] = useState<"offer" | "run" | "result" | "empty" | "hidden">("offer");
+  const [phase, setPhase] = useState<"loading" | "offer" | "run" | "result" | "empty" | "hidden">("loading");
+  const [offer, setOffer] = useState<{ list: OfferOutcome[]; total: number } | null>(null);
+
+  // Öneri metni sunucunun gerçek sayımından (yanıtlanmamış, doğrulanmış soru) gelir; söz = teslim.
+  useEffect(() => {
+    let live = true;
+    api
+      .start({ mode: "reinforce", unit: unitId, prepId, peek: true })
+      .then((res) => {
+        if (!live) return;
+        if (res.status === "offer") {
+          setOffer({ list: res.offer, total: res.total });
+          setWeakCount(res.weakCount);
+          setPhase(res.total > 0 ? "offer" : "empty");
+        } else {
+          setWeakCount(res.status === "empty" ? (res.weakCount ?? null) : null);
+          setPhase("empty");
+        }
+      })
+      .catch(() => live && setPhase("empty"));
+    return () => {
+      live = false;
+    };
+  }, [api, unitId, prepId]);
   const [missing, setMissing] = useState<MissingOutcome[]>([]);
   const [weakCount, setWeakCount] = useState<number | null>(null);
   const [results, setResults] = useState<LevelResult[]>([]);
@@ -46,12 +67,20 @@ export function ReinforceBox({
 
   return (
     <section className="lc-box" aria-label="Pekiştirme" data-testid="reinforce">
-      {phase === "offer" ? (
+      {phase === "loading" ? <p className="lc-status">Pekiştirme soruları kontrol ediliyor…</p> : null}
+      {phase === "offer" && offer ? (
         <>
           <p className="lc-kicker">Pekiştirme · zayıf kazanımlar</p>
-          <p className="lc-q">
-            <b>{unitTitle}</b>: zorlandığın {offered} kazanım için doğrulanmış havuzdan kazanım başına en çok 2 ek soru (toplam {offered * 2}).
+          <p className="lc-q" data-testid="reinforce-offer">
+            <b>{unitTitle}</b>: zorlandığın {offer.list.length} kazanım için doğrulanmış havuzdan {offer.total} ek soru.
           </p>
+          <ul className="lc-results" data-testid="reinforce-offer-list">
+            {offer.list.map((o) => (
+              <li key={o.code}>
+                <b>{o.code}</b>: {o.count} soru
+              </li>
+            ))}
+          </ul>
           <div className="lc-actions">
             <button type="button" className="lc-cta" onClick={() => setPhase("run")}>
               Ek soruları çöz
@@ -85,7 +114,7 @@ export function ReinforceBox({
         <>
           <p className="lc-kicker">Pekiştirme</p>
           <p className="lc-status" data-testid="reinforce-empty">
-            {weakCount === 0 ? "Bu ünitede zayıf kazanım görünmüyor; ek soru gerekmiyor." : `${NO_EXTRA_TEXT}.`}
+            {weakCount === 0 ? "Bu ünitede zayıf kazanım görünmüyor; ek soru gerekmiyor." : `${NO_EXTRA_LEFT_TEXT}.`}
           </p>
           {missingList}
           <button

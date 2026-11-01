@@ -31,20 +31,31 @@ describe("hazırlık ana sayfası tazelenir (tam gezinti gerekmez)", () => {
     await answerAll(4, (i) => i % 2 === 1);
     await screen.findByTestId("unit-check-result");
     expect(refresh).toHaveBeenCalledTimes(1);
-    // Zayıf kazanım var → pekiştirme önerisi, toplamıyla dürüst.
-    expect(screen.getByTestId("reinforce").textContent).toMatch(/kazanım başına en çok 2 ek soru \(toplam \d+\)/);
+    // Zayıf kazanım var ama doğrulanmış soruları tükenmiş → söz yok, dürüst satır; "Ek soruları çöz" yok.
+    expect((await screen.findByTestId("reinforce-empty")).textContent).toContain("Şu an ek soru kalmadı; yeni sorular eklendikçe burada görünecek");
+    expect(screen.queryByRole("button", { name: "Ek soruları çöz" })).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Kapat" }).at(-1)!);
     expect(refresh).toHaveBeenCalledTimes(2);
   });
 
-  it("Pekiştirme bitince/kapatılınca onDone (harita onu router.refresh'e bağlar); öneri toplamı = 2 × zayıf kazanım", async () => {
+  it("Pekiştirme bitince/kapatılınca onDone (harita onu router.refresh'e bağlar); öneri = gerçekten sunulacak soru", async () => {
     const onDone = vi.fn();
-    render(<ReinforceBox prepId="p" unitId="e2e-tyt#1" unitTitle="Mantık" weakCount={3} api={fakeLevelApi({ guest: false })} onDone={onDone} />);
-    expect(screen.getByTestId("reinforce").textContent).toContain("zorlandığın 3 kazanım için doğrulanmış havuzdan kazanım başına en çok 2 ek soru (toplam 6).");
+    render(<ReinforceBox prepId="p" unitId="e2e-prog#2" unitTitle="B" api={fakeLevelApi({ guest: false })} onDone={onDone} />);
+    // Sunucu sayımı: 2 zayıf kazanımdan yalnız E2E.1'in 2 sorusu var → öneri 1 kazanım, 2 soru (yanlış "toplam 4" yok).
+    expect((await screen.findByTestId("reinforce-offer")).textContent).toContain("zorlandığın 1 kazanım için doğrulanmış havuzdan 2 ek soru.");
+    expect(screen.getByTestId("reinforce-offer-list").textContent).toContain("E2E.1: 2 soru");
+    expect(screen.getByTestId("reinforce-offer-list").textContent).not.toContain("E2E.2");
     fireEvent.click(screen.getByRole("button", { name: "Ek soruları çöz" }));
     await answerAll(2, () => false);
     await screen.findByTestId("reinforce-result");
     fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("hiç ek soru yoksa öneri gösterilmez, dürüst satır", async () => {
+    const api = fakeLevelApi({ guest: false });
+    render(<ReinforceBox prepId="p" unitId="e2e-tyt#1" unitTitle="Mantık" api={api} />);
+    expect((await screen.findByTestId("reinforce-empty")).textContent).toContain("Şu an ek soru kalmadı");
+    expect(screen.queryByTestId("reinforce-offer")).toBeNull();
   });
 });

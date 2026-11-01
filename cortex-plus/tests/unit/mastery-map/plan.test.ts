@@ -16,7 +16,7 @@ import {
   type MapUnitInput,
 } from "@/lib/mastery-map/plan";
 import { tytScenario } from "@/app/e2e/hakimiyet-tyt/scenario";
-import { pickReinforcement, type ReinforceItem } from "@/lib/mastery-map/reinforce";
+import { pickReinforcement, reinforceOffer, type ReinforceItem } from "@/lib/mastery-map/reinforce";
 import { PRIOR } from "@/lib/level-check/mastery";
 
 const out = (id: string, alpha: number, beta: number, n: number) => ({ outcomeId: id, code: id, text: id, state: { alpha, beta, n } });
@@ -193,5 +193,42 @@ describe("pekiştirme seçimi", () => {
     const r = pickReinforcement([{ outcomeId: "w", state: { alpha: 2, beta: 2, n: 2 } }, { outcomeId: "w", state: PRIOR }], items, new Set());
     expect(r.weak).toEqual([]);
     expect(r.picked).toEqual([]);
+  });
+  it("öneri gerçek sayıyı verir: tükenmiş kazanım önerilmez, toplam = sunulacak soru", () => {
+    const weak = { alpha: 1, beta: 3, n: 2 };
+    const r = reinforceOffer(
+      [
+        { outcomeId: "w", state: weak },
+        { outcomeId: "w2", state: weak },
+        { outcomeId: "empty", state: weak },
+      ],
+      items,
+      new Set(["m1", "e1", "e2"]),
+    );
+    expect(r.offer).toEqual([
+      { outcomeId: "w", count: 1 },
+      { outcomeId: "w2", count: 1 },
+    ]);
+    expect(r.total).toBe(2);
+    expect(r.weak).toHaveLength(3);
+    const none = reinforceOffer([{ outcomeId: "w", state: weak }], items, new Set(["h1", "m1", "e1", "e2"]));
+    expect(none.offer).toEqual([]);
+    expect(none.total).toBe(0);
+  });
+  it("harita ünitesi: çip yalnız ek sorusu olan zayıf kazanımları sayar", () => {
+    const u = buildMapUnit({
+      unitId: "u",
+      title: "U",
+      order: 0,
+      selfRating: null,
+      outcomes: [
+        { outcomeId: "a", code: "A", text: "", state: { alpha: 1, beta: 3, n: 2 }, extra: 2 },
+        { outcomeId: "b", code: "B", text: "", state: { alpha: 1, beta: 3, n: 2 }, extra: 0 },
+        { outcomeId: "c", code: "C", text: "", state: { alpha: 1, beta: 3, n: 2 } },
+      ],
+    });
+    expect(u.weakOutcomes).toHaveLength(3);
+    expect(u.extraOutcomes).toEqual(["a"]);
+    expect(u.extraTotal).toBe(2);
   });
 });

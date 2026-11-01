@@ -18,7 +18,10 @@ export type LevelStartRequest =
   | { mode: "quick_scan"; units: string[] }
   | { mode: "unit_check"; unit: string; prepId: string }
   /** Ünite sonu pekiştirme (Plan PR 4): zayıf kazanım başına havuzdan en çok 2 ek soru. */
-  | { mode: "reinforce"; unit: string; prepId: string };
+  | { mode: "reinforce"; unit: string; prepId: string; peek?: boolean };
+
+/** Pekiştirme önerisi: zayıf kazanım + şu an sunulabilecek (yanıtlanmamış, doğrulanmış) ek soru sayısı (≤ 2). */
+export type OfferOutcome = { code: string; text: string; count: number };
 
 /** Pekiştirmede havuzda ek sorusu olmayan zayıf kazanım (dürüst bildirim için). */
 export type MissingOutcome = { code: string; text: string };
@@ -26,7 +29,9 @@ export type MissingOutcome = { code: string; text: string };
 export type LevelStartResponse =
   | { status: "ok"; token: string; source: LevelSource; guest: boolean; items: LevelItem[]; persisted: boolean; missing?: MissingOutcome[] }
   | { status: "empty"; missing?: MissingOutcome[]; weakCount?: number }
-  | { status: "done" };
+  | { status: "done" }
+  /** peek: soru göndermeden gerçek öneri (yalnız ek sorusu olan kazanımlar; toplam = sunulacak soru sayısı). */
+  | { status: "offer"; offer: OfferOutcome[]; total: number; weakCount: number; missing: MissingOutcome[] };
 
 export type LevelAnswerResponse = { correct: boolean; answer: number; explanation: string; persisted: boolean };
 

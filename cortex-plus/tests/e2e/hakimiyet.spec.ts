@@ -32,7 +32,8 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     await expect(later.locator("li").first()).toContainText("Fikstür Ünitesi A");
     await expect(later.locator("li").nth(1)).toContainText("Fikstür Ünitesi C");
 
-    await map.getByRole("button", { name: /Fikstür Ünitesi B: 2 zayıf kazanım/ }).click();
+    await map.getByRole("button", { name: /Fikstür Ünitesi B: 1 kazanım · 2 ek soru/ }).click();
+    await expect(page.getByTestId("reinforce-offer")).toContainText("zorlandığın 1 kazanım için doğrulanmış havuzdan 2 ek soru.");
     await page.getByRole("button", { name: "Ek soruları çöz" }).click();
     for (let i = 0; i < 2; i++) {
       await expect(page.getByTestId("level-runner")).toContainText(`${i + 1} / 2`);
@@ -75,7 +76,11 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     }
     await expect(page.getByTestId("unit-check-result")).toBeVisible();
     await expect(mantik).toContainText("Bu konuya %43 hakimsin · 4 yanıta dayalı");
-    await expect(map.getByRole("button", { name: "Mantık: 3 zayıf kazanım" })).toBeVisible();
+    // Zayıf 3 kazanımın doğrulanmış soruları tükenmiş: söz verilmez, dürüst satır gösterilir.
+    await expect(page.getByTestId("mm-no-extra")).toHaveText("Şu an ek soru kalmadı; yeni sorular eklendikçe burada görünecek");
+    await expect(map.getByRole("button", { name: /Mantık:/ })).toHaveCount(0);
+    await expect(page.getByTestId("unit-check").getByTestId("reinforce-empty")).toContainText("Şu an ek soru kalmadı");
+    await expect(page.getByRole("button", { name: "Ek soruları çöz" })).toHaveCount(0);
     await page.getByTestId("unit-check").getByRole("button", { name: "Kapat" }).last().click();
     await expect(mantik).toContainText("Bu konuya %43 hakimsin · 4 yanıta dayalı");
     await expect(page.getByTestId("plan-totals")).toHaveText("Planın 33 saat 50 dk, senin 5 saatin var.");
@@ -84,8 +89,7 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     await expect(plan.nth(1)).toContainText("Üçgenler");
     await expect(page.getByTestId("mm-note")).toContainText("ortalamasıdır");
 
-    await map.getByRole("button", { name: "Mantık: 3 zayıf kazanım" }).click();
-    await expect(page.getByTestId("reinforce")).toContainText("kazanım başına en çok 2 ek soru (toplam 6)");
+    await expect(page.getByTestId("mm-no-extra")).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });

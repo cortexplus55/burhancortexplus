@@ -7,8 +7,8 @@ import { GUEST_PREVIEW_COUNT, pickQuickScan, pickUnitCheck, poolIdFromSetupId } 
 import { levelTablesReady, loadVerifiedItems, toLevelItem, toPick, unitCheckDone } from "@/lib/level-check/store";
 import { createLevelToken } from "@/lib/level-check/token";
 import type { LevelStartResponse, MissingOutcome } from "@/lib/level-check/types";
-import { loadMasteryStates, plannedPoolUnits } from "@/lib/mastery-map/load";
-import { pickReinforcement } from "@/lib/mastery-map/reinforce";
+import { loadAnsweredItems, loadMasteryStates, plannedPoolUnits } from "@/lib/mastery-map/load";
+import { reinforceOffer, pickReinforcement } from "@/lib/mastery-map/reinforce";
 import { PRIOR } from "@/lib/level-check/mastery";
 
 export const runtime = "nodejs";
@@ -17,7 +17,7 @@ const SETUP_ID = /^[a-z0-9-]{3,60}#\d{1,3}$/;
 const bodySchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("quick_scan"), units: z.array(z.string().regex(SETUP_ID)).min(1).max(400) }),
   z.object({ mode: z.literal("unit_check"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid() }),
-  z.object({ mode: z.literal("reinforce"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid() }),
+  z.object({ mode: z.literal("reinforce"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid(), peek: z.boolean().optional() }),
 ]);
 
 /**
@@ -60,18 +60,27 @@ export async function POST(request: Request) {
     const outcomes = planned?.outcomes ?? poolUnit(body.unit)?.outcomes ?? [];
     const states = await loadMasteryStates(service, userId, outcomes.map((o) => o.outcomeId));
     if (!states) return NextResponse.json({ status: "empty", weakCount: 0 } satisfies LevelStartResponse, { headers: noStore });
-    const { data: answeredRows } = await service.from("item_responses").select("item_id").eq("user_id", userId).eq("unit_id", body.unit).limit(2000);
-    const answered = new Set((answeredRows ?? []).map((r) => String(r.item_id)));
-    const rows = await loadVerifiedItems(service, [body.unit]);
-    const { picked, weak, missing } = pickReinforcement(
-      outcomes.map((o) => ({ outcomeId: o.outcomeId, state: states.get(o.outcomeId) ?? PRIOR })),
-      rows.map(toPick),
-      answered,
-    );
-    const missingView: MissingOutcome[] = missing.map((id) => {
+    const [answered, rows] = await Promise.all([loadAnsweredItems(service, userId, [body.unit]), loadVerifiedItems(service, [body.unit])]);
+    const inputs = outcomes.map((o) => ({ outcomeId: o.outcomeId, state: states.get(o.outcomeId) ?? PRIOR }));
+    const view = (id: string) => {
       const o = outcomes.find((x) => x.outcomeId === id);
       return { code: o?.code ?? "", text: o?.text ?? "" };
-    });
+    };
+    if (body.peek) {
+      const r = reinforceOffer(inputs, rows.map(toPick), answered);
+      return NextResponse.json(
+        {
+          status: "offer",
+          offer: r.offer.map((o) => ({ ...view(o.outcomeId), count: o.count })),
+          total: r.total,
+          weakCount: r.weak.length,
+          missing: r.missing.map(view),
+        } satisfies LevelStartResponse,
+        { headers: noStore },
+      );
+    }
+    const { picked, weak, missing } = pickReinforcement(inputs, rows.map(toPick), answered);
+    const missingView: MissingOutcome[] = missing.map(view);
     if (!picked.length) return NextResponse.json({ status: "empty", missing: missingView, weakCount: weak.length } satisfies LevelStartResponse, { headers: noStore });
     return respond(picked.map((p) => rows.find((r) => r.id === p.id)!), "practice", userId, body.prepId, missingView);
   }
