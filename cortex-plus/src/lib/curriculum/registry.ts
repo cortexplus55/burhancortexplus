@@ -1,5 +1,6 @@
 import "server-only";
-import raw from "@/lib/curriculum/registry.json";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import type {
   CurriculumProgram,
   CurriculumProgramSummary,
@@ -13,7 +14,14 @@ import { buildTopicMap, type CurriculumTopicMap } from "@/lib/curriculum/topic-m
  * Resmî müfredat kayıt defteri (sunucu). Aynı veri Supabase `curriculum_*` tablolarında da var
  * (herkese açık okuma); uygulama paketlenmiş kopyayı okur, böylece konu haritası ağ beklemeden çıkar.
  */
-export const CURRICULUM: CurriculumRegistry = raw as unknown as CurriculumRegistry;
+/*
+ * 1 Kasım 2026: 800 KB'lık JSON `import` ile her sunucu paketine gömülüyordu (9 giriş noktası); Vercel
+ * derlemesi bellek sınırını aşıp SIGKILL aldı. Dosya çalışma anında bir kez okunur, pakete girmez;
+ * dağıtıma `outputFileTracingIncludes` ile kopyalanır.
+ */
+export const CURRICULUM: CurriculumRegistry = JSON.parse(
+  readFileSync(path.join(process.cwd(), "src/lib/curriculum/registry.json"), "utf8"),
+) as CurriculumRegistry;
 
 const BY_ID = new Map(CURRICULUM.programs.map((p) => [p.id, p]));
 
