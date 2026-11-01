@@ -18,3 +18,9 @@ export function priceForModel(model: string, prices: ReadonlyMap<string, ModelPr
   const base = prices.get(model.slice(0, -FAST_SUFFIX.length));
   return base ? { input: base.input * FAST_PRICE_FACTOR, output: base.output * FAST_PRICE_FACTOR } : null;
 }
+
+/** Fiyat satırına göre kullanım maliyeti (bin birim başına); 6 ondalık (ai_usage_events.cost_usd_estimate numeric(12,6)). */
+export function usageCostUsd(price: ModelPrice | null, tokensIn: number, tokensOut: number): number | null {
+  if (!price) return null;
+  return Math.round(((tokensIn / 1000) * price.input + (tokensOut / 1000) * price.output) * 1e6) / 1e6;
+}

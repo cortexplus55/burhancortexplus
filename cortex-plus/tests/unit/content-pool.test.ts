@@ -7,7 +7,7 @@ import { getUnitContent, type PoolStore, type StoredContent } from "@/lib/conten
 import { applyReview, checkShape, missingCoverage, type PoolItem } from "@/lib/content-pool/schema";
 import type { PoolUnit } from "@/lib/content-pool/keys";
 
-const UNIT = "yks-2026-tarih#1"; // uygulama kimliği (0 tabanlı) → DB yks-2026-tarih#2
+const UNIT = "yks-2026-tarih#2"; // kanonik curriculum_units.id (1 tabanlı)
 
 function fakeLlm(unit: PoolUnit, opts: { wrongAnswerFor?: string } = {}): LlmCall & { calls: string[] } {
   const calls: string[] = [];
@@ -113,6 +113,20 @@ describe("ortak içerik havuzu: kimlikler", () => {
       expect(sql).toContain(`('${unit.unitId}', 'yks-2026-tarih', `);
       for (const o of unit.outcomes) expect(sql).toContain(`('${o.outcomeId}', 'yks-2026-tarih', '${unit.unitId}', '${o.code}', `);
     }
+  });
+
+  it("?unit=<program>#1 curriculum_units sort_order 1 ünitesine çözülür (API = DB = tohum)", () => {
+    const sql = readFileSync(path.join(process.cwd(), "supabase/migrations/20261101160000_curriculum_seed_v5.sql"), "utf8");
+    for (const programId of ["yks-2026-tarih", "yks-2026-biyoloji"]) {
+      const unit = poolUnit(`${programId}#1`)!;
+      expect(unit.unitId).toBe(`${programId}#1`);
+      const row = new RegExp(`\\('${programId}#1', '${programId}', '([^']*)', (\\d+),`).exec(sql)!;
+      expect(Number(row[2])).toBe(1);
+      expect(unit.unit.title).toBe(row[1]);
+    }
+    expect(poolUnit("yks-2026-tarih#1")!.unit.title).toContain("Tarih ve Zaman");
+    expect(poolUnit("yks-2026-tarih#0")).toBeNull();
+    expect(poolUnitsForProgram("yks-2026-tarih")[0]!.unitId).toBe("yks-2026-tarih#1");
   });
 
   it("kaynak bağlantıları yalnız kayıttaki resmî belgeler; kazanım uydurulmaz", () => {
@@ -228,5 +242,18 @@ describe("ortak içerik havuzu: read-through önbellek", () => {
       ["SHARED_CONTENT_ITEMS", "gen-model"],
       ["SHARED_CONTENT_VERIFY", "verify-model"],
     ]);
+  });
+});
+
+describe("ortak içerik havuzu: maliyet", () => {
+  it("kullanım kaydı istenen (fiyatlı) model adıyla yazılır, maliyet fiyat satırından hesaplanır", async () => {
+    const { priceForModel, usageCostUsd } = await import("@/lib/billing/model-price");
+    const unit = poolUnit(UNIT)!;
+    const llm: LlmCall = async (args) => ({ ...(await fakeLlm(unit)(args)), model: `${args.model}-2025-04-14` });
+    const out = await generateUnitContent(unit, llm, { generate: "gpt-6-luna", verify: "gpt-4.1" });
+    expect(out.usage.map((u) => u.model)).toEqual(["gpt-6-luna", "gpt-6-luna", "gpt-4.1"]);
+    const prices = new Map([["gpt-4.1", { input: 0.002, output: 0.008 }]]);
+    expect(usageCostUsd(priceForModel("gpt-4.1", prices), 78095, 6042)).toBe(0.204526);
+    expect(usageCostUsd(priceForModel("bilinmeyen", prices), 1, 1)).toBeNull();
   });
 });

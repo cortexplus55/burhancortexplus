@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { priceForModel, usageCostUsd, type ModelPrice } from "@/lib/billing/model-price";
 import { recordUsage } from "@/lib/credits/service";
 import type { PoolStore, StoredContent, StoredItem } from "@/lib/content-pool/pool";
 import type { LessonBody } from "@/lib/content-pool/schema";
@@ -107,9 +108,14 @@ export function supabasePoolStore(service: SupabaseClient): PoolStore {
       } satisfies StoredContent;
     },
     async recordUsage(userId, usage) {
+      const { data } = await service.from("ai_model_prices").select("model, input_per_1k, output_per_1k");
+      const prices = new Map<string, ModelPrice>(
+        (data ?? []).map((p: { model: string; input_per_1k: number; output_per_1k: number }) => [p.model, { input: Number(p.input_per_1k), output: Number(p.output_per_1k) }]),
+      );
       for (const entry of usage) {
         if (!entry.tokensIn && !entry.tokensOut) continue;
-        await recordUsage(service, { userId, ...entry });
+        const costUsdEstimate = usageCostUsd(priceForModel(entry.model, prices), entry.tokensIn, entry.tokensOut);
+        await recordUsage(service, { userId, ...entry, costUsdEstimate });
       }
     },
   };
