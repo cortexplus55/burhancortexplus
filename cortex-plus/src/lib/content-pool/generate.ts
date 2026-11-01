@@ -6,7 +6,7 @@ import { parseModelOutput } from "@/lib/ai/json-repair";
 import { turkishFold } from "@/lib/text/turkish";
 import type { UsageCode } from "@/lib/credits/service";
 import { choiceCount, type PoolUnit } from "@/lib/content-pool/keys";
-import { garbledReason, gateItems } from "@/lib/content-pool/gate";
+import { GATE_VERSION, garbledReason, gateItems } from "@/lib/content-pool/gate";
 import {
   applyReview,
   checkShape,
@@ -388,6 +388,7 @@ export async function generateUnitContent(
     gate_rejected: gateRejected,
     parse_failures: parseFailures,
     similarity_check: "not_run",
+    gate_version: GATE_VERSION,
   };
   if (shapeIssues.length) return { ok: false, reason: "lesson_coverage", qa, usage };
   if (!lessonReview.ok) return { ok: false, reason: "lesson_review", qa, usage };

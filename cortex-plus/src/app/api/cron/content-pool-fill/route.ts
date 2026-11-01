@@ -11,8 +11,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-/** Yeni ünite yalnız bu süre içinde başlatılır; başlayan ünite işlevin kalan ~3,5 dakikasında biter. */
-const ADMIT_WINDOW_MS = 90_000;
+/**
+ * Yeni ünite yalnız adımın ilk 20 sn'sinde başlatılır (tek dalga). Ölçüm (1 Kasım 2026): bir ünite ~250 sn;
+ * daha geç başlayan ünite 300 sn sınırında kesilirdi. Adım biter bitmez sonraki adım çağrılır, arada boşluk yok.
+ */
+const ADMIT_WINDOW_MS = 20_000;
 const LEASE_MS = maxDuration * 1000 + 30_000;
 
 /**
@@ -57,7 +60,7 @@ async function step(origin: string) {
   const llm = openaiLlm();
   if (!llm) return NextResponse.json({ ok: false, skipped: "ai_not_configured" }, { status: 503 });
   const leaseUntil = new Date(Date.now() + LEASE_MS).toISOString();
-  await writeFillConfig(service, { metadata: { lease_until: leaseUntil } });
+  await writeFillConfig(service, { metadata: { lease_until: leaseUntil, step_started_at: new Date().toISOString() } });
 
   const started = Date.now();
   const actor = config.actorUserId;
