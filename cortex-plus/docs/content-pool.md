@@ -33,3 +33,13 @@
   kazanım başına dürüst sonuç satırı. Bu hazırlıkta yapıldıysa tekrar önerilmez.
 - **Tablolar:** `item_responses`, `outcome_mastery` (göç `20261101200000_item_responses_mastery.sql`). Göç
   uygulanmadan: tarama puanlanır ama kaydedilmez (`persisted:false`), Ünite Seviye Kontrolü hiç gösterilmez.
+
+## Toplu doldurucu (1 Kasım 2026)
+
+- `GET/POST /api/cron/content-pool-fill`: yönetici `?action=start` (ya da POST) ile başlatır, `?action=stop` ile durdurur.
+  Hobby planında sık cron olmadığından adım kendini `CRON_SECRET` ile zincirler (her adım ~90 sn yeni ünite başlatır, eşzamanlılık 2).
+- Sıra: TYT (9–10. sınıf; matematik, tde, fizik, kimya, biyoloji, coğrafya, felsefe, dkab) → `lgs-2027-*` → AYT (11–12. sınıf + tarih, inkılap, mantık, psikoloji, sosyoloji).
+- Bütçe: her ünite öncesi `ai_usage_events` içindeki `SHARED_CONTENT%` toplamı okunur; toplam + tahmin > tavan ise durur.
+- Ayar/kill switch: `feature_flags` satırı `content_pool_fill` (enabled; metadata.cap_usd varsayılan 5.33, unit_estimate_usd, concurrency ≤ 3). Migration yok.
+- Başarısız ünite en fazla 2 kez denenir (reddedilen `topic_content` satırları sayılır; terk edilmiş kilit sayılmaz), sonra atlanır.
+- İlerleme: `GET /api/content/fill-status` (yalnız yönetici).
