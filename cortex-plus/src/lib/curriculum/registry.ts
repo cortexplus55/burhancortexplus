@@ -8,7 +8,7 @@ import type {
   CurriculumRegistry,
   CurriculumSource,
 } from "@/lib/curriculum/types";
-import { buildTopicMap, type CurriculumTopicMap } from "@/lib/curriculum/topic-map";
+import { buildTopicMap, matchCodeForLabel, topicIndexForLabel, type CurriculumTopicMap } from "@/lib/curriculum/topic-map";
 
 /**
  * Resmî müfredat kayıt defteri (sunucu). Aynı veri Supabase `curriculum_*` tablolarında da var
@@ -33,12 +33,25 @@ export function programSources(program: CurriculumProgram): CurriculumSource[] {
   return program.sourceIds.map((id) => CURRICULUM.sources[id]).filter((s): s is CurriculumSource => Boolean(s));
 }
 
+/** YKS oturum aralıkları (kayıttaki açık veri). */
+export const GRADE_SCOPES = CURRICULUM.examGradeScopes;
+
+function topicCountsFor(program: CurriculumProgram): Record<string, number> {
+  const count = (part: "TYT" | "AYT" | null) =>
+    buildTopicMap(program, "serbest", null, { part, scopes: GRADE_SCOPES }).topics.length;
+  return program.kind === "yks" ? { TYT: count("TYT"), AYT: count("AYT"), YKS: count(null) } : { all: count(null) };
+}
+
 export function listProgramSummaries(): CurriculumProgramSummary[] {
-  return CURRICULUM.programs.map(({ units, ...rest }) => ({
-    ...rest,
-    unitCount: units.length,
-    outcomeCount: units.reduce((n, u) => n + u.outcomes.length, 0),
-  }));
+  return CURRICULUM.programs.map((program) => {
+    const { units, ...rest } = program;
+    return {
+      ...rest,
+      unitCount: units.length,
+      outcomeCount: units.reduce((n, u) => n + u.outcomes.length, 0),
+      topicCounts: topicCountsFor(program),
+    };
+  });
 }
 
 /** Hazırlıkta saklanan başvurudan kota haritası; program yoksa ya da başvuru bozuksa null. */
@@ -46,23 +59,28 @@ export function topicMapForRef(ref: CurriculumRef | null | undefined): Curriculu
   if (!ref) return null;
   const program = getProgram(ref.programId);
   if (!program) return null;
-  return buildTopicMap(program, ref.examKey, ref.scenario);
+  return buildTopicMap(program, ref.examKey, ref.scenario, { part: ref.part ?? null, scopes: GRADE_SCOPES });
 }
 
-/** Konu adlarına (kodla başlayan) karşılık gelen resmî kazanımlar: ders anlatımı ve quiz için dayanak. */
+/**
+ * Konuya karşılık gelen resmî kazanımların tamamı (ders anlatımı ve quiz dayanağı). Yeni hazırlıkta konu adı
+ * haritadaki konudur (bütün kazanımları döner); eski "kod metin" adlarında yalnız o kazanım döner.
+ */
 export function outcomesForTopic(ref: CurriculumRef | null | undefined, topicLabel: string) {
   if (!ref) return [];
   const program = getProgram(ref.programId);
   if (!program) return [];
+  const where = new Map<string, { unit: string; outcome: CurriculumProgram["units"][number]["outcomes"][number] }>();
+  for (const unit of program.units) for (const o of unit.outcomes) if (!where.has(o.code)) where.set(o.code, { unit: unit.title, outcome: o });
   const text = topicLabel.replace(/\s+/g, " ").trim();
-  const hits = [];
-  for (const unit of program.units) {
-    for (const o of unit.outcomes) {
-      if (text === o.code || text.startsWith(`${o.code} `)) hits.push({ unit: unit.title, outcome: o });
-    }
-  }
-  hits.sort((a, b) => b.outcome.code.length - a.outcome.code.length);
-  return hits.slice(0, 1);
+  const map = topicMapForRef(ref);
+  const exact = map ? map.topics.indexOf(text) : -1;
+  if (map && exact >= 0) return map.topicCodes[exact]!.map((code) => where.get(code)!).filter(Boolean);
+  const code = matchCodeForLabel(text, where.keys());
+  if (code) return [where.get(code)!];
+  // Eski konu adı haritada başka biçimde olabilir (ör. süzgeç değişti): kodu içeren konu.
+  const index = map ? topicIndexForLabel(map, text) : -1;
+  return index >= 0 && map ? map.topicCodes[index]!.map((c) => where.get(c)!).filter(Boolean) : [];
 }
 
 export const CURRICULUM_REF_SCHEMA_EXAM_KEYS = ["d1y1", "d1y2", "serbest"] as const;
@@ -73,7 +91,8 @@ const EXAM_KEY_LABEL: Record<string, string> = { d1y1: "1. Dönem 1. Yazılı", 
 export function readCurriculumRef(prefs: unknown): CurriculumRef | null {
   const ref = (prefs as { curriculum?: unknown } | null)?.curriculum as Partial<CurriculumRef> | undefined;
   if (!ref || typeof ref.programId !== "string" || typeof ref.examKey !== "string") return null;
-  return { programId: ref.programId, examKey: ref.examKey, scenario: ref.scenario ?? null } as CurriculumRef;
+  const part = ref.part === "TYT" || ref.part === "AYT" ? ref.part : null;
+  return { programId: ref.programId, examKey: ref.examKey, scenario: ref.scenario ?? null, ...(part ? { part } : {}) } as CurriculumRef;
 }
 
 /** Resmî programa dayanan hazırlık için dürüst kaynak notu; program kayıtta yoksa null. */
@@ -81,6 +100,7 @@ export function officialSourceNote(ref: CurriculumRef | null | undefined): strin
   const program = ref ? getProgram(ref.programId) : null;
   if (!ref || !program) return null;
   const parts = [`${program.label} (${program.badge} / ${program.programVersion})`];
+  if (ref.part) parts.push(`${ref.part} kapsamı`);
   const exam = EXAM_KEY_LABEL[ref.examKey];
   if (exam) {
     const sc = ref.scenario == null ? "" : ref.scenario === "karma" ? " · Karma senaryo" : ` · Senaryo ${ref.scenario}`;

@@ -8,6 +8,14 @@ export const metadata = {
 };
 
 const EXAM_LABEL: Record<string, string> = { d1y1: "1. Yazılı", d1y2: "2. Yazılı" };
+const KIND_GROUP: Record<string, string> = { yks: "YKS (TYT / AYT)", lgs: "LGS", kpss: "KPSS" };
+
+function topicLine(counts: Record<string, number>): string {
+  if ("all" in counts) return `${counts.all} konu`;
+  return Object.entries(counts)
+    .map(([part, n]) => `${part} ${n} konu`)
+    .join(" · ");
+}
 
 /**
  * Resmî müfredat dizini (1 Kasım 2026). Her satır resmî belgeden ayrıştırılır; kaynak, sürüm ve sha256
@@ -17,7 +25,7 @@ export default function MufredatPage() {
   const programs = listProgramSummaries();
   const groups = new Map<string, typeof programs>();
   for (const p of programs) {
-    const key = p.kind === "yks" ? "YKS (TYT / AYT)" : `${p.grade}. sınıf`;
+    const key = KIND_GROUP[p.kind] ?? `${p.grade}. sınıf`;
     groups.set(key, [...(groups.get(key) ?? []), p]);
   }
   const outcomeTotal = programs.reduce((n, p) => n + p.outcomeCount, 0);
@@ -40,6 +48,9 @@ export default function MufredatPage() {
                 </Link>
                 <p className="mt-1 text-xs text-[var(--mk-muted)]">
                   {p.badge} · {p.unitCount} ünite · {p.outcomeCount} kazanım
+                </p>
+                <p className="mt-1 text-xs text-[var(--mk-muted)]" data-testid="mufredat-topics">
+                  {topicLine(p.topicCounts)}
                 </p>
                 <p className="mt-1 text-xs text-[var(--mk-muted)]">
                   {Object.entries(p.exams)

@@ -1,12 +1,12 @@
 source,section,code,reason
-meb_yks_2026,mantik,,PDF yazı tipi kodlaması bozuk; metin çıkarılamadı
-meb_yks_2026,psikoloji,,PDF yazı tipi kodlaması bozuk; metin çıkarılamadı
-meb_yks_2026,sosyoloji,,PDF yazı tipi kodlaması bozuk; metin çıkarılamadı
-meb_yks_2026,tde,,"Kazanım kodlarında sınıf yok (A.1.1 …), sınıflar arasında tekrar ediyor; güvenilir eşleme yapılamadı"
-meb_yks_2026,inkilap,,İki sütunlu sayfa düzeni metni karıştırıyor; kazanım metni güvenilir değil
 meb_yks_2026,felsefe,,4 satır başlık/bozuk kod/tekrar olarak elendi
 meb_yks_2026,kimya,,1 satır başlık/bozuk kod/tekrar olarak elendi
 meb_yks_2026,tarih,,2 satır başlık/bozuk kod/tekrar olarak elendi
+meb_yks_2026,tde,,"Her sınıfın “Giriş” ünitesi ve B/C (sözlü/yazılı iletişim) kazanımları türe bağlı değil; ünite eşlemesi belgede yok, alınmadı"
+meb_yks_2026,tde,,"5 kazanım “Bu kazanım 10, 11 ve 12. sınıf düzeylerinde ele alınacaktır” notu nedeniyle 9. sınıf ünitelerinden çıkarıldı"
+meb_yks_2026,tde,,Kazanım kodları belgede sınıf içermez (A.2.1 …); ayırt etmek için sınıf.ünite öneki eklendi (ör. 9.2/A.2.1). A.4 bilgilendirici metin ünitelerine eşleme ünite türünden çıkarıldı
+meb_yks_2026,felsefe-grubu,,"8 bozuk/yarım açıklama parçası (PDF yazı tipi kodlaması) alınmadı; Mantık 7, Psikoloji 8 açıklama satırı metne çıkarılamadı"
+meb_pid_329,lgs,,"Formül/şekil içeren açıklama satırları (PDF özel karakterleri) metne çıkarılamadı, alınmadı"
 odsgm_ksdt,turkce2:6,T.O.6.27,Kod öğretim programı PDF’inde doğrulanamadı
 odsgm_ksdt,turkce2:6,T.Y.6.21,Kod öğretim programı PDF’inde doğrulanamadı
 odsgm_ksdt,turkce2:6,T.Y.6.22,Kod öğretim programı PDF’inde doğrulanamadı

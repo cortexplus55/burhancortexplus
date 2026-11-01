@@ -135,7 +135,11 @@ export const WIZARD_COPY = {
   urlWorking: "Sayfa okunuyor…",
   pickCurriculum: "📚 Dosyam Yok — Resmî MEB / ÖSYM Müfredatından Seç",
   officialLead: "Sınıfını ve dersini seç. Konular resmî programdan anında gelir; yapay zekâ konu uydurmaz.",
-  officialNoYksSplit: "Resmî belge TYT/AYT ayrımı yapmıyor; tüm YKS kazanımları gösteriliyor.",
+  officialYksPart: "Hangi oturum?",
+  officialPartScope: (part: string, range: readonly [number, number]) =>
+    `${part} kapsamı: ${range[0]}–${range[1]}. sınıf kazanımları (resmî belge kazanımları TYT/AYT diye ayırmaz; sınıf düzeyine göre filtrelendi)`,
+  officialPartEmpty: (part: string) =>
+    `Bu derste ${part} kapsamında kazanım yok (resmî programda bu sınıf düzeylerine ait kazanım bulunmuyor). Başka bir oturum seçin.`,
   officialWhichExam: "🎯 Hangi Yazılıya Hazırlanıyorsun?",
   officialScenario: "📋 Öğretmeninin Seçtiği MEB Senaryosu",
   officialScenarioHint: "Okulun hangi senaryoyu seçtiğini öğretmenine sorabilirsin. Bilmiyorsan Karma seç.",

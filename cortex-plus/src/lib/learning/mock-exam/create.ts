@@ -9,7 +9,7 @@ import {
 } from "@/lib/learning/mock-exam/past-questions";
 import type { CurriculumRef } from "@/lib/curriculum/types";
 import { topicMapForRef } from "@/lib/curriculum/registry";
-import { matchCodeForLabel } from "@/lib/curriculum/topic-map";
+import { quotaForLabel } from "@/lib/curriculum/topic-map";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
@@ -297,8 +297,8 @@ export async function loadMockExamSetup(
 export type OfficialExamFormat = { total: number; summary: string };
 
 /**
- * Resmî müfredattan kurulan hazırlık (1 Kasım 2026): kayıttaki senaryo kotaları konu adının başındaki kazanım
- * koduyla eşlenir. Kota hazırlıkta saklanmaz; her okumada kayıttan hesaplanır (kurulum = üretim).
+ * Resmî müfredattan kurulan hazırlık (1 Kasım 2026): konunun kotası kazanımlarının senaryo kotaları toplamıdır
+ * (eski "kod metin" konu adları kazanım koduyla eşlenir). Kota hazırlıkta saklanmaz; her okumada kayıttan hesaplanır (kurulum = üretim).
  */
 export async function applyOfficialQuotas(
   service: SupabaseClient,
@@ -310,11 +310,9 @@ export async function applyOfficialQuotas(
     const ref = (data?.learning_preferences as { curriculum?: CurriculumRef } | null)?.curriculum;
     const map = topicMapForRef(ref);
     if (!map || !map.total) return null;
-    const codes = Object.keys(map.quotaByCode);
     let total = 0;
     for (const slot of slots) {
-      const code = matchCodeForLabel(slot.topicLabel, codes);
-      const count = code ? map.quotaByCode[code] ?? 0 : 0;
+      const count = quotaForLabel(map, slot.topicLabel);
       slot.officialCount = count > 0 ? count : null;
       if (count > 0 && !slot.outOfScope) {
         total += count;
