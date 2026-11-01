@@ -26,6 +26,9 @@ import {
   type YksAlan,
 } from "@/lib/curriculum/yks-alan";
 import { setFocusPrepCookieClient } from "@/lib/learning/focus-prep";
+import { LevelCheckRunner, type LevelResult } from "@/components/level-check/level-check-runner";
+import { foldResponses, masteryLabel, mergeRatings, scanRating } from "@/lib/level-check/mastery";
+import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
 import "@/styles/official-setup.css";
 
 export type OfficialSetupBody = {
@@ -42,8 +45,33 @@ export type OfficialSetupBody = {
 /** Ağaç biçimi değişince artar; tarayıcıdaki eski (numaralı başlıklı) yanıt kullanılmaz. */
 const SETUP_TREE_VERSION = 2;
 
-type Step = "exam" | "subjects" | "topics" | "date";
-const STEPS: Step[] = ["exam", "subjects", "topics", "date"];
+type Step = "exam" | "subjects" | "topics" | "scan" | "date";
+const STEPS: Step[] = ["exam", "subjects", "topics", "scan", "date"];
+
+/** Havuz kimliği (1 tabanlı) → kurulum ağacı kimliği (0 tabanlı). */
+function setupIdFromPool(poolId: string): string {
+  const m = /^(.+)#(\d+)$/.exec(poolId);
+  return m ? `${m[1]}#${Number(m[2]) - 1}` : poolId;
+}
+
+type ScanUnitResult = { setupId: string; title: string; right: number; total: number; rating: UnitRating | null; label: string };
+
+/** Tarama yanıtlarından ünite başına tahmin (eşikler: mastery.ts `scanRating`). */
+function scanSummary(results: LevelResult[]): ScanUnitResult[] {
+  const byUnit = new Map<string, LevelResult[]>();
+  for (const r of results) byUnit.set(r.item.unitId, [...(byUnit.get(r.item.unitId) ?? []), r]);
+  return [...byUnit.entries()].map(([poolId, list]) => {
+    const state = foldResponses(list.map((r) => ({ correct: r.correct, difficulty: r.item.difficulty })));
+    return {
+      setupId: setupIdFromPool(poolId),
+      title: list[0]!.item.unitTitle,
+      right: list.filter((r) => r.correct).length,
+      total: list.length,
+      rating: scanRating(state),
+      label: masteryLabel(state).text,
+    };
+  });
+}
 const MINUTES = [30, 45, 60, 90, 120];
 const RATING_LABEL: Record<UnitRating, string> = { iyi: "Biliyorum", orta: "Orta", zayif: "Zayıf" };
 const EXAM_LABEL: Record<SetupExam, string> = { yks: "YKS", lgs: "LGS" };
@@ -77,11 +105,14 @@ export function OfficialSetupFlow({
   initialAlan,
   submit = defaultSubmit,
   onCreated,
+  levelApi = httpLevelApi,
 }: {
   initialExam: SetupExam | null;
   initialAlan?: YksAlan | null;
   submit?: (body: OfficialSetupBody) => Promise<{ prepId?: string; error?: string }>;
   onCreated?: (prepId: string) => void;
+  /** Hızlı Tarama istemcisi (e2e fikstürü sahte havuz verir). */
+  levelApi?: LevelApi;
 }) {
   const router = useRouter();
   const [exam, setExam] = useState<SetupExam | null>(initialExam);
@@ -91,7 +122,12 @@ export function OfficialSetupFlow({
   const [alan, setAlan] = useState<YksAlan | null>(initialAlan ?? null);
   const [single, setSingle] = useState(false);
   const [selection, setSelection] = useState<SetupSelection>({ subjectKeys: [], removedOutcomes: [], removedUnits: [] });
-  const [ratings, setRatings] = useState<Record<string, UnitRating>>({});
+  const [selfRatings, setRatings] = useState<Record<string, UnitRating>>({});
+  const [scanRatings, setScanRatings] = useState<Record<string, UnitRating>>({});
+  const [scanPhase, setScanPhase] = useState<"intro" | "run" | "result">("intro");
+  const [scanResult, setScanResult] = useState<ScanUnitResult[]>([]);
+  // Öğrencinin kendi işareti her zaman taramadan üstündür.
+  const ratings = useMemo(() => mergeRatings(selfRatings, scanRatings), [selfRatings, scanRatings]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [examDate, setExamDate] = useState("");
   const [datePick, setDatePick] = useState<string | null>(null);
@@ -125,6 +161,7 @@ export function OfficialSetupFlow({
   const counts = selectionCounts(topics);
   const weakCount = topics.filter((t) => ratings[t.unitId] === "zayif").length;
   const knownCount = topics.filter((t) => ratings[t.unitId] === "iyi").length;
+  const scanUsed = topics.filter((t) => !selfRatings[t.unitId] && scanRatings[t.unitId] && scanRatings[t.unitId] !== "orta").length;
   const alanDef = YKS_ALANLAR.find((a) => a.id === alan) ?? null;
 
   const examDates = useMemo(() => {
@@ -196,6 +233,7 @@ export function OfficialSetupFlow({
             unitId: t.unitId,
             codes: t.codes,
             rating: ratings[t.unitId] ?? null,
+            ratingSource: selfRatings[t.unitId] ? "self" : scanRatings[t.unitId] ? "scan" : null,
           })),
         },
       },
@@ -240,7 +278,7 @@ export function OfficialSetupFlow({
 
       {step === "exam" ? (
         <div className="osf-step">
-          <p className="osf-kicker">1 / 4 · Sınav</p>
+          <p className="osf-kicker">1 / 5 · Sınav</p>
           <h1 className="osf-title">Hangi sınava hazırlanıyorsun?</h1>
           <div className="osf-cards">
             {(["yks", "lgs"] as const).map((id) => (
@@ -270,7 +308,7 @@ export function OfficialSetupFlow({
 
       {tree && step === "subjects" ? (
         <div className="osf-step">
-          <p className="osf-kicker">2 / 4 · Dersler</p>
+          <p className="osf-kicker">2 / 5 · Dersler</p>
           <h1 className="osf-title">{exam === "lgs" ? "LGS dersleri hazır" : "Alanını seç, derslerin gelsin"}</h1>
           <p className="osf-lead">
             {exam === "lgs"
@@ -362,7 +400,7 @@ export function OfficialSetupFlow({
 
       {tree && step === "topics" ? (
         <div className="osf-step">
-          <p className="osf-kicker">3 / 4 · Konular</p>
+          <p className="osf-kicker">3 / 5 · Konular</p>
           <h1 className="osf-title">Ünite ünite resmî konuların</h1>
           <p className="osf-lead">
             Her ünite yolunda bir konu olur. Çalışmayacağın üniteyi ya da kazanımı kaldır; her ünite için kendini bir dokunuşla değerlendir.
@@ -445,16 +483,85 @@ export function OfficialSetupFlow({
             })}
           <div className="osf-bar">
             {summary}
-            <button type="button" className="osf-cta" disabled={!counts.units} onClick={goDate}>
+            <button
+              type="button"
+              className="osf-cta"
+              disabled={!counts.units}
+              onClick={() => {
+                setScanPhase("intro");
+                setStep("scan");
+              }}
+            >
               Bu konularla devam et
             </button>
           </div>
         </div>
       ) : null}
 
+      {tree && step === "scan" ? (
+        <div className="osf-step" data-testid="quick-scan">
+          <p className="osf-kicker">4 / 5 · Seviye</p>
+          <h1 className="osf-title">⚡ Akıllı Hızlı Tarama</h1>
+          {scanPhase === "intro" ? (
+            <>
+              <p className="osf-lead">
+                10–12 soru, yaklaşık 3–5 dakika. Sorular seçtiğin derslerin en çok kazanım içeren ünitelerinden, doğrulanmış soru
+                havuzundan gelir. Sonuç, işaretlemediğin ünitelerin yol sırasını belirler; senin “Biliyorum / Orta / Zayıf”
+                işaretin her zaman önce gelir.
+              </p>
+              <div className="osf-bar">
+                <button type="button" className="osf-skip" onClick={goDate}>
+                  Taramayı atla
+                </button>
+                <button type="button" className="osf-cta" onClick={() => setScanPhase("run")}>
+                  Taramayı başlat
+                </button>
+              </div>
+            </>
+          ) : null}
+          {scanPhase === "run" ? (
+            <LevelCheckRunner
+              api={levelApi}
+              request={{ mode: "quick_scan", units: topics.map((t) => t.unitId) }}
+              title="Hızlı Tarama"
+              onSkip={goDate}
+              onFinish={(results) => {
+                const summary = scanSummary(results);
+                setScanResult(summary);
+                setScanRatings(Object.fromEntries(summary.filter((u) => u.rating).map((u) => [u.setupId, u.rating!])));
+                setScanPhase("result");
+              }}
+            />
+          ) : null}
+          {scanPhase === "result" ? (
+            <>
+              <p className="osf-lead">
+                Ünite başına 1–2 soru çözdüğün için sonuçlar <b>tahmini</b>; yolda ünite başlarken kısa bir Ünite Seviye Kontrolü
+                bunu netleştirir.
+              </p>
+              <ul className="lc-results" data-testid="scan-result">
+                {scanResult.map((u) => (
+                  <li key={u.setupId}>
+                    <b>{u.title}</b>: {u.total} sorudan {u.right} doğru
+                    {u.rating ? ` → ${RATING_LABEL[u.rating]} (${u.label})` : ""}
+                    {selfRatings[u.setupId] ? ` · senin işaretin: ${RATING_LABEL[selfRatings[u.setupId]!]}` : ""}
+                  </li>
+                ))}
+              </ul>
+              <div className="osf-bar">
+                {summary}
+                <button type="button" className="osf-cta" onClick={goDate}>
+                  Devam et
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
       {tree && step === "date" ? (
         <div className="osf-step">
-          <p className="osf-kicker">4 / 4 · Tarih ve süre</p>
+          <p className="osf-kicker">5 / 5 · Tarih ve süre</p>
           <h1 className="osf-title">Sınav günün ve günlük süren</h1>
           <div className="osf-chips" role="radiogroup" aria-label="Resmî sınav tarihi">
             {examDates.map((e) => (
@@ -503,6 +610,7 @@ export function OfficialSetupFlow({
               ? ` “Zayıf” dediğin ${weakCount} ünite, aynı dersteki önceki ünitelerle birlikte yolun başına alınır.`
               : " Ünite sırası resmî programdaki gibidir."}
             {knownCount ? ` “Biliyorum” dediğin ${knownCount} ünite yolun sonuna alınır ve daha kısa sürer.` : ""}
+            {scanUsed ? ` Bunların ${scanUsed} tanesi Hızlı Tarama tahmini (işaretlemediğin üniteler).` : ""}
           </p>
           <div className="osf-bar">
             {summary}

@@ -76,6 +76,9 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await screenOk(page);
 
     await page.getByRole("button", { name: "Bu konularla devam et" }).click();
+    await expect(page.getByTestId("quick-scan")).toContainText("10–12 soru");
+    await screenOk(page);
+    await page.getByRole("button", { name: "Taramayı atla" }).click();
     await expect(page.getByRole("radio", { name: /AYT/ })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByRole("radio", { name: /YDT/ })).toHaveAttribute("aria-checked", "false");
     await page.getByRole("radio", { name: "1 sa 30 dk" }).click();
@@ -110,6 +113,9 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await page.getByRole("button", { name: "Konuları gör" }).click();
     await screenOk(page);
     await page.getByRole("button", { name: "Bu konularla devam et" }).click();
+    await expect(page.getByTestId("quick-scan")).toContainText("10–12 soru");
+    await screenOk(page);
+    await page.getByRole("button", { name: "Taramayı atla" }).click();
     await expect(page.getByTestId("setup-promise")).toContainText("Ünite sırası resmî programdaki gibidir");
     await screenOk(page);
     await page.getByRole("button", { name: "Planımı Oluştur" }).click();
@@ -117,5 +123,27 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await expect(page.getByTestId("picked")).toContainText('"topics":12');
     await expect(page.getByTestId("picked")).toContainText('"codes":113');
     await expect(page.getByTestId("picked")).toContainText('"examType":"LGS"');
+  });
+
+  test("YKS TYT: ⚡ Hızlı Tarama 12 soru → tahmini sonuç → işaretsiz ünitelere taşınır", async ({ page }) => {
+    await page.goto("/e2e/resmi-kurulum?sinav=yks");
+    await page.getByRole("radio", { name: "🎯 Sadece TYT (Temel)" }).click();
+    await page.getByRole("button", { name: "Konuları gör" }).click();
+    await page.getByRole("button", { name: "Bu konularla devam et" }).click();
+    await page.getByRole("button", { name: "Taramayı başlat" }).click();
+    for (let i = 0; i < 12; i++) {
+      await expect(page.getByTestId("level-runner")).toContainText(`${i + 1} / 12`);
+      await noOverflow(page);
+      await page.getByTestId("level-runner").getByRole("button", { name: new RegExp("Yanlış şık B") }).click();
+      await expect(page.getByTestId("level-feedback")).toBeVisible();
+      await page.getByTestId("level-feedback").getByRole("button").click();
+    }
+    await expect(page.getByTestId("scan-result").locator("li")).toHaveCount(6);
+    await expect(page.getByTestId("scan-result")).toContainText("Zayıf (tahmini)");
+    await screenOk(page);
+    await page.getByRole("button", { name: "Devam et" }).click();
+    await expect(page.getByTestId("setup-promise")).toContainText("Hızlı Tarama tahmini");
+    await page.getByRole("button", { name: "Planımı Oluştur" }).click();
+    await expect(page.getByTestId("picked")).toContainText('"scan":6');
   });
 });

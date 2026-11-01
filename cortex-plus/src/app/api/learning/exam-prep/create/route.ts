@@ -94,7 +94,7 @@ const prefsSchema = z
     /**
      * Resmî sınav kurulumu (1 Kasım 2026, ÖSYM/MEB kayıt defteri): çok dersli tek hazırlık. Her konu bir resmî
      * ünitedir; konunun kazanım kodları burada durur (ders anlatımı ve quiz dayanağı). Öz değerlendirme
-     * (Biliyorum / Orta / Zayıf) sonraki fazlarda α/β başlangıcını besler.
+     * (Biliyorum / Orta / Zayıf) ya da Hızlı Tarama tahmini yol sırasını belirler.
      */
     officialPlan: z
       .object({
@@ -110,6 +110,8 @@ const prefsSchema = z
               unitId: z.string().regex(/^[a-z0-9-]{3,60}#\d{1,3}$/),
               codes: z.array(z.string().min(1).max(40)).min(1).max(300),
               rating: z.enum(["iyi", "orta", "zayif"]).nullable(),
+              /** "self" = öğrencinin işareti, "scan" = ⚡ Hızlı Tarama tahmini (işaretsiz ünite). Sıra kuralı aynı. */
+              ratingSource: z.enum(["self", "scan"]).nullable().optional(),
             }),
           )
           .min(1)
