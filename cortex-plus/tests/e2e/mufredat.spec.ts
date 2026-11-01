@@ -48,7 +48,9 @@ test.describe("Resmî müfredat", { tag: ["@public"] }, () => {
     await page.goto("/mufredat");
     await expect(page.getByRole("heading", { name: "Resmî Müfredat" })).toBeVisible();
     await page.getByRole("link", { name: "5. Sınıf Din Kültürü ve Ahlak Bilgisi" }).click();
-    await expect(page.getByTestId("mufredat-sources")).toContainText("sha256");
+    // İlk derleme/soğuk sunucu CI'da 5 sn'yi aşabiliyor (main #463 sonrası kırmızı); önce adres, sonra uzun bekleme.
+    await page.waitForURL(/\/mufredat\/meb-5-dkab/, { timeout: 30_000 });
+    await expect(page.getByTestId("mufredat-sources")).toContainText("sha256", { timeout: 30_000 });
     await page.goto("/resmi");
     await expect(page.getByTestId("resmi-calendar")).toContainText("YKS TYT");
     await expect(page.getByTestId("resmi-excluded")).toContainText("felsefe-grubu");

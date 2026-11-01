@@ -11,6 +11,7 @@ import {
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
 import { clampText } from "@/lib/text/clamp-text";
+import { cutAtWord } from "@/lib/curriculum/topic-map";
 import {
   Check,
   ChevronLeft,
@@ -1456,7 +1457,7 @@ export function ExamCreateWizard({
     setMissingTopics([]);
     setOrderEdited(true);
     setIntakeAlert(null);
-    setTitle(clampText(pick.title || `${program.label} sınav hazırlığı`, 120));
+    setTitle(cutAtWord(pick.title || `${program.label} sınav hazırlığı`, 120));
     setStep("topics");
   }
 
@@ -1470,7 +1471,7 @@ export function ExamCreateWizard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: clampText(title.trim() || `${subject} sınav hazırlığı`, 120),
+          title: cutAtWord(title.trim() || `${subject} sınav hazırlığı`, 120) || clampText(title.trim(), 120),
           examType: clampExamLabel(subject) ?? "Serbest",
           topics,
           examDate,

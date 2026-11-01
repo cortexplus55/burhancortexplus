@@ -3,6 +3,14 @@ D='/workspace/mufredat-data'; R=D+'/raw'
 FETCHED='2026-11-01T10:00:00+03:00'
 COG_AREAS={'1':'Doğal Sistemler','2':'Beşerî Sistemler','3':'Küresel Ortam: Bölgeler ve Ülkeler','4':'Çevre ve Toplum'}
 def sha(p): return hashlib.sha256(open(p,'rb').read()).hexdigest()
+import sys; sys.path.insert(0,D+'/scripts'); from textnorm import normalize_text, unit_table
+# Kaynakta ünite adı yalnız kod ('10.1') ise resmî öğretim programının ünite tablosundan çözülür (derse özel eşleme yok).
+OFFICIAL_UNIT_TABLES=[('meb_felsefe_dop_2018','https://mufredat.meb.gov.tr/Dosyalar/2018122175632591-Felsefe%20d%C3%B6p%20pdf.pdf',R+'/felsefe_dop_2018.pdf',R+'/felsefe_dop_2018.txt','MEB TTKB','Ortaöğretim Felsefe Dersi (10 ve 11. Sınıflar) Öğretim Programı (2018)','meb_felsefe_2018')]
+UNIT_TABLES=[(sid,unit_table(open(txt).read())) for sid,_,_,txt,_,_,_ in OFFICIAL_UNIT_TABLES]
+def resolve_unit(code):
+    for sid,t in UNIT_TABLES:
+        if code in t: return t[code],sid
+    return None,None
 A=json.load(open(D+'/out/layerA.json'))
 Y=json.load(open(D+'/out/yks.json'))
 def post(t):
@@ -147,6 +155,11 @@ for sec,name in YNAME.items():
         # kodun 2. hanesi öğrenme alanını verir: x.1 DOĞAL SİSTEMLER, x.2 BEŞERÎ SİSTEMLER, x.3 KÜRESEL ORTAM: BÖLGELER VE ÜLKELER, x.4 ÇEVRE VE TOPLUM
         if sec=='cografya' and unit==name:
             unit=COG_AREAS[o['code'].split('.')[1]]
+        if re.fullmatch(r'\d{1,2}\.\d+',unit):
+            rt,rsid=resolve_unit(unit)
+            if rt:
+                unit=rt
+                if rsid not in p['sourceIds']: p['sourceIds'].append(rsid)
         title=f"{o['grade']}. Sınıf · {unit}"
         u=next((x for x in p['units'] if x['title']==title),None)
         if not u: u=dict(title=title,outcomes=[]); p['units'].append(u)
@@ -194,6 +207,15 @@ for l,s,e,x in [('MSÜ','2027-03-20',None,'MSU'),('TUS 1. Dönem','2027-03-27',N
 for y,ra,rs,re_,ka,ks,ke in [(2028,'02-25','02-26','02-28','05-04','05-05','05-08'),(2029,'02-13','02-14','02-16','04-23','04-24','04-27'),(2030,'02-03','02-04','02-06','04-12','04-13','04-16')]:
     ev('dini',f'Ramazan Bayramı arifesi',f'{y}-{ra}',None,f'diyanet_{y}'); ev('dini','Ramazan Bayramı',f'{y}-{rs}',f'{y}-{re_}',f'diyanet_{y}')
     ev('dini','Kurban Bayramı arifesi',f'{y}-{ka}',None,f'diyanet_{y}'); ev('dini','Kurban Bayramı',f'{y}-{ks}',f'{y}-{ke}',f'diyanet_{y}')
+for sid,url,pdf,_,pub,title,pv in OFFICIAL_UNIT_TABLES: add(sid,url,pdf,pub,title,pv)
+NORM_CHANGED=[]
+for p in programs.values():
+    for u in p['units']:
+        for o in u['outcomes']:
+            t=normalize_text(o['text'])
+            if t!=o['text']: NORM_CHANGED.append((p['id'],o['code'],o['text'],t)); o['text']=t
+            o['limitations']=[normalize_text(l) for l in o['limitations']]
+json.dump(NORM_CHANGED,open(D+'/out/norm_changed.json','w'),ensure_ascii=False,indent=1)
 reg=dict(version='2026-11-01',examGradeScopes=dict(TYT=[9,10],AYT=[11,12],YKS=[9,12]),fetchedAt=FETCHED,sources=sources,programs=list(programs.values()),examStructures=S,calendar=C,excluded=excluded)
 json.dump(reg,open(D+'/out/registry.json','w'),ensure_ascii=False,indent=0)
 print(len(programs),sum(len(o['outcomes']) for p in programs.values() for o in p['units']),len(S),len(C),len(excluded),missing[:3],len(missing))
