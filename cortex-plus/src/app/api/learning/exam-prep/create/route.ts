@@ -47,6 +47,10 @@ import { documentRunningHeaders } from "@/lib/documents/clean-pages";
 import { isRunningHeader } from "@/lib/documents/clean-text";
 import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 import { getProgram } from "@/lib/curriculum/registry";
+import { runPool } from "@/lib/documents/upload-batch";
+
+/** Kurulumdaki bağımsız satır güncellemeleri için eşzamanlı istek sınırı. */
+const WRITE_LANES = 16;
 
 /** Kayıtta olmayan program başvurusu saklanmaz (eski istemci / bozuk istek). */
 function withKnownCurriculum<T extends { curriculum?: { programId: string } } | undefined>(prefs: T) {
@@ -388,14 +392,14 @@ export async function POST(request: Request) {
       .eq("exam_prep_id", result.prepId)
       .order("sort_order");
     const metaBySort = sessionMetaBySortOrder(scheduleDrafts ?? []);
-    for (const row of nodeRows ?? []) {
+    // 1 Kasım 2026: 130 kazanımlı resmî hazırlıkta ~900 düğüm sırayla güncelleniyordu (~25 sn "Kuruluyor…").
+    // Satırlar birbirinden bağımsız; aynı anda en çok WRITE_LANES istek.
+    await runPool(nodeRows ?? [], WRITE_LANES, async (row) => {
       const meta = metaBySort.get(row.sort_order as number);
-      if (!meta) continue;
-      await service
-        .from("exam_prep_nodes")
-        .update({ session_meta: meta })
-        .eq("id", row.id);
-    }
+      if (!meta) return true;
+      const { error } = await service.from("exam_prep_nodes").update({ session_meta: meta }).eq("id", row.id);
+      return !error;
+    });
 
     try {
       const { isFeatureEnabled, ADAPTIVE_LEARNING_FLAG } = await import(
@@ -431,7 +435,7 @@ export async function POST(request: Request) {
     .eq("exam_prep_id", result.prepId)
     .order("sort_order");
 
-  for (const topic of prepTopics ?? []) {
+  await runPool(prepTopics ?? [], WRITE_LANES, async (topic) => {
     const nodeId = topicNodeIds[topic.sort_order] ?? null;
     const isHard = hardSet.has(String(topic.label).trim().toLocaleLowerCase("tr"));
     await service
@@ -461,7 +465,8 @@ export async function POST(request: Request) {
     if (extraWrite.error && !missingColumn(extraWrite.error)) {
       console.error("topic sources", extraWrite.error.message);
     }
-  }
+    return true;
+  });
 
   // Hızlı başlatma: henüz okunan belgeler hazırlığa bekleyen olarak bağlanır (kurulumun belgeleri hariç).
   const mapped = new Set([...(parsed.data.documentIds ?? []), ...(parsed.data.documentId ? [parsed.data.documentId] : [])]);

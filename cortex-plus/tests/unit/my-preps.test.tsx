@@ -51,7 +51,7 @@ describe("sınav hazırlıklarım", () => {
 // yarım kurulum "Taslaklar"da.
 describe("sınavlar listesi (Astra düzeni)", () => {
   it("üç kutu ayrı sayfaları açar; eski sekme bağlantısı yönlenir", () => {
-    render(<ParityExamPrep cards={[]} />);
+    render(<ParityExamPrep cards={[]} userId="u1" />);
     expect(screen.getByRole("link", { name: /Okulum/ }).getAttribute("href")).toBe("/deneme-sinavlari/okulum");
     expect(screen.getByRole("link", { name: /Müfredat/ }).getAttribute("href")).toBe("/deneme-sinavlari/mufredat");
     expect(screen.getByRole("link", { name: /Resmî sınavlar/ }).getAttribute("href")).toBe("/deneme-sinavlari/resmi");
@@ -75,15 +75,15 @@ describe("sınavlar listesi (Astra düzeni)", () => {
 
   it("yarım kurulum Taslaklar'da; tamamla ya da sil", () => {
     window.localStorage.setItem(
-      "cortex:exam-wizard-draft:v1",
+      "cortex:exam-wizard-draft:v1:u1",
       JSON.stringify({ v: 1, step: "topics", subject: "Pediatri", title: "", materials: [], updatedAt: new Date().toISOString() }),
     );
-    render(<ParityExamPrep cards={[]} />);
+    render(<ParityExamPrep cards={[]} userId="u1" />);
     expect(screen.getByText("Taslaklar")).toBeTruthy();
     expect(screen.getByText("Pediatri")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Oluşturmayı tamamla/ }).getAttribute("href")).toBe("/deneme-sinavlari/olustur");
     fireEvent.click(screen.getByRole("button", { name: "Taslağı sil" }));
     expect(screen.queryByText("Taslaklar")).toBeNull();
-    expect(window.localStorage.getItem("cortex:exam-wizard-draft:v1")).toBeNull();
+    expect(window.localStorage.getItem("cortex:exam-wizard-draft:v1:u1")).toBeNull();
   });
 });

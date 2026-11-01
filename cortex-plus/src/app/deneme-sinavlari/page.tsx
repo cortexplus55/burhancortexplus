@@ -39,7 +39,7 @@ export default async function DenemeSinavlariPage({
 
   return (
     <ParitySorShell {...shell} countdown={countdown}>
-      <ParityExamPrep cards={cards} />
+      <ParityExamPrep cards={cards} userId={user.id} />
     </ParitySorShell>
   );
 }

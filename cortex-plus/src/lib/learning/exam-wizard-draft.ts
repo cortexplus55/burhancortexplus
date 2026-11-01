@@ -9,6 +9,37 @@
  */
 
 export const EXAM_WIZARD_DRAFT_KEY = "cortex:exam-wizard-draft:v1";
+/**
+ * Tarayıcı kopyası hesaba bağlıdır (1 Kasım 2026): aynı tarayıcıda açılan yeni hesap
+ * önceki hesabın taslağını "Kaldığın yerden devam ediyorsun." diye görüyordu.
+ * Anahtar `cortex:exam-wizard-draft:v1:<userId>`; sahip bilinmiyorsa tarayıcı kopyası okunmaz/yazılmaz.
+ */
+let draftOwner: string | null = null;
+
+/** Sahip anahtarı; sahip yoksa null. */
+export function examWizardDraftKey(owner: string | null = draftOwner): string | null {
+  return owner ? `${EXAM_WIZARD_DRAFT_KEY}:${owner}` : null;
+}
+
+/** Oturumdaki kullanıcıyı bildirir; başka hesapların (ve eski sahipsiz) taslaklarını siler. */
+export function setExamWizardDraftOwner(userId: string | null | undefined): void {
+  const next = userId?.trim() || null;
+  if (next === draftOwner) return;
+  draftOwner = next;
+  if (typeof window === "undefined" || !next) return;
+  try {
+    const mine = examWizardDraftKey(next);
+    const stale: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key && (key === EXAM_WIZARD_DRAFT_KEY || key.startsWith(`${EXAM_WIZARD_DRAFT_KEY}:`)) && key !== mine) stale.push(key);
+    }
+    for (const key of stale) window.localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
 export const EXAM_WIZARD_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 export const EXAM_WIZARD_DRAFT_ENDPOINT = "/api/learning/exam-prep/draft";
 /** Konu listesi ve dosya adlarıyla birkaç KB; bunun üstü taslak değil, hata. */
@@ -221,9 +252,10 @@ export function pickNewerDraft(
 export function readExamWizardDraft(
   now = Date.now(),
 ): ExamWizardDraft | null {
-  if (typeof window === "undefined") return null;
+  const key = examWizardDraftKey();
+  if (typeof window === "undefined" || !key) return null;
   try {
-    const raw = window.localStorage.getItem(EXAM_WIZARD_DRAFT_KEY);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     const draft = parseExamWizardDraft(JSON.parse(raw) as unknown, now);
     if (!draft) clearExamWizardDraft();
@@ -234,7 +266,8 @@ export function readExamWizardDraft(
 }
 
 export function writeExamWizardDraft(draft: ExamWizardDraft): void {
-  if (typeof window === "undefined") return;
+  const key = examWizardDraftKey();
+  if (typeof window === "undefined" || !key) return;
   try {
     const payload: ExamWizardDraft = {
       ...draft,
@@ -242,16 +275,17 @@ export function writeExamWizardDraft(draft: ExamWizardDraft): void {
       step: normalizeDraftStep(draft.step),
       updatedAt: new Date().toISOString(),
     };
-    window.localStorage.setItem(EXAM_WIZARD_DRAFT_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(key, JSON.stringify(payload));
   } catch {
     // quota / private mode
   }
 }
 
 export function clearExamWizardDraft(): void {
-  if (typeof window === "undefined") return;
+  const key = examWizardDraftKey();
+  if (typeof window === "undefined" || !key) return;
   try {
-    window.localStorage.removeItem(EXAM_WIZARD_DRAFT_KEY);
+    window.localStorage.removeItem(key);
   } catch {
     // ignore
   }

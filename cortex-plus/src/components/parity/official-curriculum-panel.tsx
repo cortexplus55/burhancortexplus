@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
-import { buildTopicMap, scenarioOptions, type CurriculumTopicMap } from "@/lib/curriculum/topic-map";
+import {
+  buildTopicMap,
+  hasSchoolExams,
+  levelForExamLabel,
+  scenarioOptions,
+  yksPartForLabel,
+  type CurriculumTopicMap,
+} from "@/lib/curriculum/topic-map";
 import type {
   CurriculumExamKey,
   CurriculumProgram,
@@ -40,11 +47,14 @@ function levelLabel(key: string): string {
  */
 export function OfficialCurriculumPanel({
   gradeLevel,
+  examLabel = null,
   onClose,
   onPick,
   onChatFallback,
 }: {
   gradeLevel?: string | null;
+  /** Ders/sınav adımında seçilen sınav türü (TYT, AYT, LGS, "10. sınıf"…); düzeyi önceden seçer. */
+  examLabel?: string | null;
   onClose: () => void;
   onPick: (pick: OfficialCurriculumPick) => void;
   onChatFallback: (pick: { subject: string; prompt: string }) => void;
@@ -76,11 +86,13 @@ export function OfficialCurriculumPanel({
 
   const activeLevel = useMemo(() => {
     if (levelId && levels.includes(levelId)) return levelId;
+    const fromExam = levelForExamLabel(examLabel);
+    if (fromExam && levels.includes(fromExam)) return fromExam;
     const grade = Number.parseInt((gradeLevel ?? "").trim(), 10);
     if (Number.isFinite(grade) && levels.includes(`sinif-${grade}`)) return `sinif-${grade}`;
     if (/mezun/i.test(gradeLevel ?? "") && levels.includes("yks")) return "yks";
     return levels[0] ?? null;
-  }, [levelId, levels, gradeLevel]);
+  }, [levelId, levels, gradeLevel, examLabel]);
 
   const levelPrograms = (programs ?? []).filter((p) => levelKey(p) === activeLevel);
 
@@ -104,7 +116,9 @@ export function OfficialCurriculumPanel({
   }, [programId]);
 
   const program = detail?.program ?? null;
-  const examChoices = program
+  const schoolExams = program ? hasSchoolExams(program) : false;
+  const yksPart = program?.kind === "yks" ? yksPartForLabel(examLabel) : null;
+  const examChoices = program && schoolExams
     ? EXAM_OPTIONS.filter((o) => o.key === "serbest" || program.exams[o.key])
     : [];
   const scenarios = program ? scenarioOptions(program, examKey) : [];
@@ -167,6 +181,8 @@ export function OfficialCurriculumPanel({
             <span className="apw-official-badge">{program.badge}</span>
             <span className="apw-official-badge apw-official-badge--muted">{program.programVersion}</span>
           </p>
+          {examChoices.length ? (
+          <>
           <p className="apw-official-label">{WIZARD_COPY.officialWhichExam}</p>
           <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialWhichExam}>
             {examChoices.map((o) => (
@@ -182,6 +198,14 @@ export function OfficialCurriculumPanel({
               </button>
             ))}
           </div>
+          </>
+          ) : null}
+          {program.kind === "yks" ? (
+            <p className="apw-drop-hint" role="note" data-testid="yks-split-note">
+              {yksPart ? `${yksPart}: ` : ""}
+              {WIZARD_COPY.officialNoYksSplit}
+            </p>
+          ) : null}
           {scenarios.length ? (
             <>
               <p className="apw-official-label">{WIZARD_COPY.officialScenario}</p>

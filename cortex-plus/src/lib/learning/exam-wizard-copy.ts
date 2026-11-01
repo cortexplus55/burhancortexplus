@@ -135,6 +135,7 @@ export const WIZARD_COPY = {
   urlWorking: "Sayfa okunuyor…",
   pickCurriculum: "📚 Dosyam Yok — Resmî MEB / ÖSYM Müfredatından Seç",
   officialLead: "Sınıfını ve dersini seç. Konular resmî programdan anında gelir; yapay zekâ konu uydurmaz.",
+  officialNoYksSplit: "Resmî belge TYT/AYT ayrımı yapmıyor; tüm YKS kazanımları gösteriliyor.",
   officialWhichExam: "🎯 Hangi Yazılıya Hazırlanıyorsun?",
   officialScenario: "📋 Öğretmeninin Seçtiği MEB Senaryosu",
   officialScenarioHint: "Okulun hangi senaryoyu seçtiğini öğretmenine sorabilirsin. Bilmiyorsan Karma seç.",

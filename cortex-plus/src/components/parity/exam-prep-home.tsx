@@ -59,7 +59,7 @@ import { STUDY_PATH_HINT, mockExamSetupHref, nodeNeedsStudentUnlock, studentMayS
 import { chooseStudyNode } from "@/lib/learning/choose-study-node";
 import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
-import { buildPathSections, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
+import { buildPathSections, distinctTopicCount, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
 import {
   applyDisplayDates,
   isShortPlan,
@@ -280,8 +280,11 @@ export function ExamPrepHome({
   shareTools = null,
   examResult = null,
   firstTopicLock = null,
+  officialNote = null,
 }: {
   prepId: string;
+  /** Resmî müfredattan kurulduysa kaynak notu (sunucuda kayıttan üretilir). */
+  officialNote?: string | null;
   /** 1. konu özeti; ücretsiz hesapta kilitli adım varsa dolu (`freeTopicLocks`). */
   firstTopicLock?: FirstTopicSummary | null;
   /** Sınav sabahı kâğıdı + sınıf paylaşımı (Paket J3 #14); bağlantı sunucuda imzalı ve mutlak. Yoksa kâğıt düğmesi yine görünür. */
@@ -692,7 +695,9 @@ export function ExamPrepHome({
         </p>
         {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
             Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
-        {documentId ? null : (
+        {documentId ? null : officialNote ? (
+          <p className="cp-exam-source-note" data-testid="official-source-note">{officialNote}</p>
+        ) : (
           <p className="cp-exam-source-note">{TOPIC_ONLY_NOTICE}</p>
         )}
         <div className="cp-prep-hero-actions">
@@ -1336,9 +1341,11 @@ function PathSections({
       })}
       {hidden.length ? (
         <button type="button" className="cp-path-section-more" onClick={() => setTailOpen(true)}>
-          {hidden.every((section) => section.locked)
-            ? `Kalan kilitli konular (${hidden.length} konu)`
-            : `Kalan konular (${hidden.length} konu)`}
+          {(() => {
+            const count = distinctTopicCount(hidden);
+            const lead = hidden.every((section) => section.locked) ? "Kalan kilitli konular" : "Kalan konular";
+            return count ? `${lead} (${count} konu)` : `${lead.replace("konular", "adımlar")} (${hidden.length} bölüm)`;
+          })()}
         </button>
       ) : null}
       {examDayLine ? (

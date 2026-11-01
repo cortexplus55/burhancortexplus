@@ -142,3 +142,11 @@ export function sectionStatusLine(
   if (section.done > 0) return `${count} · ${section.done}/${section.total} tamam${measured}`;
   return `${count} · Sırada`;
 }
+
+/**
+ * Bölüm listesindeki farklı konu sayısı (1 Kasım 2026). "Kalan konular (N konu)" eskiden bölüm sayıyordu:
+ * tekrar araları ve aşama bölümleri de "konu" sayılınca 130 kazanımlı hazırlık 154 konu gösteriyordu.
+ */
+export function distinctTopicCount(sections: readonly { id: string; title: string }[]): number {
+  return new Set(sections.filter((s) => s.id.startsWith("topic:")).map((s) => topicKey(s.title))).size;
+}

@@ -9,7 +9,7 @@
     "dev": "next dev --turbopack",
     "postinstall": "node scripts/copy-pdf-worker.mjs",
     "prebuild": "node scripts/copy-pdf-worker.mjs",
-    "build": "next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=6144 next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

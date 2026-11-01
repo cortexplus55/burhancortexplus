@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ExamCreateChat } from "@/components/parity/exam-create-chat";
+import { setExamWizardDraftOwner } from "@/lib/learning/exam-wizard-draft";
 import { ExamCreateWizard } from "@/components/parity/exam-create-wizard";
 
 /**
@@ -16,7 +17,10 @@ export function ExamCreateEntry({
   initialPrompt = null,
   prepLimitReached = false,
   gradeLevel = null,
+  userId = null,
 }: {
+  /** Taslak anahtarı bu hesaba bağlanır. */
+  userId?: string | null;
   initialDocumentId?: string | null;
   gradeLevel?: string | null;
   recentSubjects?: string[];
@@ -27,6 +31,7 @@ export function ExamCreateEntry({
   /** Ücretsiz hesabın tek hazırlık hakkı dolu (3 Ekim 2026). */
   prepLimitReached?: boolean;
 }) {
+  setExamWizardDraftOwner(userId);
   const [mode, setMode] = useState<"wizard" | "chat">(
     initialPrompt && !initialDocumentId ? "chat" : "wizard",
   );

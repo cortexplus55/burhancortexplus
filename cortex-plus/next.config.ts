@@ -45,6 +45,8 @@ const nextConfig: NextConfig = {
   */
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "heic-convert", "heic-decode", "libheif-js"],
   outputFileTracingIncludes: {
+    // Resmî müfredat kayıt defteri çalışma anında fs ile okunur (src/lib/curriculum/registry.ts).
+    "/**": ["./src/lib/curriculum/registry.json"],
     "/api/documents/process": [
       "./node_modules/pdfjs-dist/wasm/**",
       "./node_modules/pdfjs-dist/standard_fonts/**",
