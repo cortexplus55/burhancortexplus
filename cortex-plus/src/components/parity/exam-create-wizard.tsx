@@ -1917,7 +1917,10 @@ export function ExamCreateWizard({
           {importPanel === "curriculum" ? (
             <OfficialCurriculumPanel
               gradeLevel={gradeLevel}
-              examLabel={subject}
+              // 1 Kasım 2026: sınav türü çipi `examTrack`'e yazar, `subject` ders adıdır ("Matematik").
+              // Önceden ders adı sınav türü sanılıyordu; profil sınıfı (10. sınıf) kazanıyordu.
+              examLabel={EXAM_TRACKS.find((t) => t.id === examTrack)?.label ?? subject}
+              subject={subject}
               onClose={() => setImportPanel("none")}
               onPick={takeOfficialCurriculum}
               onChatFallback={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}

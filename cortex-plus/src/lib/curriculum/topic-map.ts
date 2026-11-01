@@ -125,3 +125,19 @@ export function yksPartForLabel(label: string | null | undefined): "TYT" | "AYT"
 export function hasSchoolExams(program: { exams: Record<string, unknown> }): boolean {
   return Object.keys(program.exams ?? {}).length > 0;
 }
+
+/**
+ * Sihirbazda seçilen dersin düzeydeki programı (1 Kasım 2026): "Matematik" → o düzeyin Matematik programı.
+ * Önce birebir ad, sonra içerme; bulunmazsa null (öğrenci seçer).
+ */
+export function programIdForSubject(
+  programs: readonly { id: string; subject: string }[],
+  subject: string | null | undefined,
+): string | null {
+  const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+  const want = norm(subject ?? "");
+  if (!want) return null;
+  const exact = programs.find((p) => norm(p.subject) === want);
+  if (exact) return exact.id;
+  return programs.find((p) => norm(p.subject).includes(want) || want.includes(norm(p.subject)))?.id ?? null;
+}

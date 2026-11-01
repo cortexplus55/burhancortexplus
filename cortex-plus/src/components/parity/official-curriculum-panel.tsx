@@ -7,6 +7,7 @@ import {
   buildTopicMap,
   hasSchoolExams,
   levelForExamLabel,
+  programIdForSubject,
   scenarioOptions,
   yksPartForLabel,
   type CurriculumTopicMap,
@@ -48,6 +49,7 @@ function levelLabel(key: string): string {
 export function OfficialCurriculumPanel({
   gradeLevel,
   examLabel = null,
+  subject = null,
   onClose,
   onPick,
   onChatFallback,
@@ -55,6 +57,8 @@ export function OfficialCurriculumPanel({
   gradeLevel?: string | null;
   /** Ders/sınav adımında seçilen sınav türü (TYT, AYT, LGS, "10. sınıf"…); düzeyi önceden seçer. */
   examLabel?: string | null;
+  /** Sihirbazda seçilen ders; düzeyde varsa programı önceden seçer. */
+  subject?: string | null;
   onClose: () => void;
   onPick: (pick: OfficialCurriculumPick) => void;
   onChatFallback: (pick: { subject: string; prompt: string }) => void;
@@ -95,6 +99,10 @@ export function OfficialCurriculumPanel({
   }, [levelId, levels, gradeLevel, examLabel]);
 
   const levelPrograms = (programs ?? []).filter((p) => levelKey(p) === activeLevel);
+  const subjectPick = programId ? null : programIdForSubject(levelPrograms, subject);
+  useEffect(() => {
+    if (subjectPick) setProgramId(subjectPick);
+  }, [subjectPick]);
 
   useEffect(() => {
     if (!programId) return;
