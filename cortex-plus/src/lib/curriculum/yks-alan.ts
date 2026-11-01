@@ -99,7 +99,7 @@ export const YKS_ALANLAR: AlanDef[] = [
 ];
 
 export const YDT_NOTE =
-  "YDT (Yabancı Dil Testi, 80 soru) için resmî bir kazanım listesi yayımlanmıyor; bu yüzden konu ağacı yok. Dil alanında şimdilik TYT konuların kurulur; YDT çalışması ayrıca eklenecek.";
+  "YDT (Yabancı Dil Testi, 80 soru) için resmî bir kazanım listesi yayımlanmıyor; bu yüzden konu ağacı yok. Dil alanında yolun şimdilik TYT konularıyla kurulur; YDT çalışmasını ayrıca planlaman gerekir.";
 
 export const LGS_PROGRAM_IDS = [
   "lgs-2027-turkce",

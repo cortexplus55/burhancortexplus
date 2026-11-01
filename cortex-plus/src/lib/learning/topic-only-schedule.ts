@@ -22,12 +22,18 @@ import { mergeStudyPathTemplate, type PlanNodeDraft } from "@/lib/learning/exam-
  */
 export const TOPIC_ONLY_ID_PREFIX = "topic:";
 
-export function topicOnlyScheduleTopics(titles: string[], hardTopics: string[] = []): ScheduleTopicInput[] {
+export function topicOnlyScheduleTopics(
+  titles: string[],
+  hardTopics: string[] = [],
+  knownTopics: string[] = [],
+): ScheduleTopicInput[] {
   const hard = new Set(hardTopics.map((topic) => topic.trim().toLocaleLowerCase("tr")));
+  const known = new Set(knownTopics.map((topic) => topic.trim().toLocaleLowerCase("tr")));
   return titles.map((title, index) => ({
     id: `${TOPIC_ONLY_ID_PREFIX}${index}`,
     title,
     selfHard: hard.has(title.trim().toLocaleLowerCase("tr")),
+    selfKnown: known.has(title.trim().toLocaleLowerCase("tr")) || undefined,
   }));
 }
 
@@ -37,13 +43,14 @@ export function buildTopicOnlySchedule(input: {
   dailyMinutes?: number | null;
   studyDays?: number[] | null;
   hardTopics?: string[];
+  knownTopics?: string[];
   targetScore?: number | null;
 }): { schedule: ScheduleBuildResult; drafts: PlanNodeDraft[] } {
   const schedule = buildExamScheduleV2({
     daysToExam: input.daysToExam,
     dailyMinutes: prepDailyMinutes(input.dailyMinutes),
     studyDays: prepStudyDays(input.studyDays),
-    topics: topicOnlyScheduleTopics(input.titles, input.hardTopics ?? []),
+    topics: topicOnlyScheduleTopics(input.titles, input.hardTopics ?? [], input.knownTopics ?? []),
     targetScore: input.targetScore,
   });
   return { schedule, drafts: mergeStudyPathTemplate(scheduleSessionsToNodeDrafts(schedule.sessions)) };

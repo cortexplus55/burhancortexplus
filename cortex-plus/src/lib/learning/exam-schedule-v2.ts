@@ -33,6 +33,8 @@ export type ScheduleTopicInput = {
   measuredLevel?: MeasuredLevel | null;
   /** Self-report hard topic — priority boost only, not measured. */
   selfHard?: boolean;
+  /** Öz bildirim "Biliyorum" — ölçüm değil; yalnız süreyi hafifletir (resmî kurulum, 1 Kasım 2026). */
+  selfKnown?: boolean;
   /** Explicit priority 1 (high) .. 5 (low). */
   priority?: number | null;
   /** Müfredattaki pay. Yoksa süre formülü değişmez. */
@@ -378,7 +380,7 @@ export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
   const extraLessons = topicLessonChunks(topic).length - 1;
   const base = 25 + Math.min(40, pages * 4) + extraLessons * 15;
   const level = topic.measuredLevel ?? "unknown";
-  const hardBoost = topic.selfHard ? 1.2 : 1;
+  const hardBoost = topic.selfHard ? 1.2 : topic.selfKnown ? 0.75 : 1;
   const weightBoost =
     topic.weightPercent == null
       ? 1

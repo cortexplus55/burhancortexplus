@@ -43,6 +43,33 @@ export type PlannedTopic = {
 export const outcomeKey = (unitId: string, code: string) => `${unitId}|${code}`;
 
 /** Konu adı: "TYT Fizik · 9. Sınıf · Madde ve Özellikleri" (kelime sınırında 120). */
+const GRADE_SEGMENT = /^\d+\.\s*Sınıf\b/u;
+const ORDINAL_PREFIX = /^\d+\.\s*(?:Ünite\s*[:\-–]\s*)?/u;
+
+/**
+ * Kaynak numaralandırması ekranda gösterilmez (1 Kasım 2026): kayıt bazı programlarda üniteleri
+ * "2. Hikâye" diye numaralar ve sınavda çıkmayan üniteler atlandığı için "1." yoktur.
+ * Bir programın ünitelerinin çoğu sıra numarasıyla başlıyorsa numara atılır; "9. Sınıf" gibi sınıf
+ * bölümü ve "15. Yüzyıl" gibi numarasız programlardaki başlıklar korunur. Kodlar veride kalır.
+ */
+export function displayUnitTitles(titles: readonly string[]): string[] {
+  const name = (title: string) => {
+    const parts = title.split(" · ");
+    return parts[parts.length - 1] ?? title;
+  };
+  const numbered = titles.filter((t) => !GRADE_SEGMENT.test(name(t)) && ORDINAL_PREFIX.test(name(t))).length;
+  if (!titles.length || numbered * 3 < titles.length * 2) return titles.slice();
+  return titles.map((title) => {
+    const parts = title.split(" · ");
+    const last = parts.length - 1;
+    if (GRADE_SEGMENT.test(parts[last]!)) return title;
+    const stripped = parts[last]!.replace(ORDINAL_PREFIX, "").trim();
+    if (!stripped) return title;
+    parts[last] = stripped;
+    return parts.join(" · ");
+  });
+}
+
 export function unitTopicLabel(subjectLabel: string, unitTitle: string): string {
   const full = `${subjectLabel} · ${unitTitle}`.replace(/\s+/g, " ").trim();
   return full.length <= TOPIC_LABEL_MAX ? full : cutAtWord(full, TOPIC_LABEL_MAX) || full.slice(0, TOPIC_LABEL_MAX);

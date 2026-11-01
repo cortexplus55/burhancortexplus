@@ -44,7 +44,7 @@ describe("belgesiz hazırlığın yolu", () => {
   it("kurulum rotası ve önizleme aynı takvimi kullanıyor", () => {
     const create = read("src/app/api/learning/exam-prep/create/route.ts");
     expect(create).toContain("const topicOnly = !documentIds.length && v2 && topics.length > 0;");
-    expect(create).toContain("scheduleTopics = topicOnlyScheduleTopics(topics, parsed.data.hardTopics ?? []);");
+    expect(create).toContain("scheduleTopics = topicOnlyScheduleTopics(topics, parsed.data.hardTopics ?? [], knownTopics);");
     expect(create).toContain("scheduleSummary = remapTopicIds(scheduleSummary, idFor);");
     const intake = read("src/app/api/learning/exam-prep/intake/route.ts");
     expect(intake).toContain("buildTopicOnlySchedule({");

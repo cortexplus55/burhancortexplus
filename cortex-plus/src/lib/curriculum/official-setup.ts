@@ -2,7 +2,7 @@ import "server-only";
 import { CURRICULUM, getProgram, GRADE_SCOPES } from "@/lib/curriculum/registry";
 import { inPartScope, outcomeGrade, cutAtWord } from "@/lib/curriculum/topic-map";
 import { setupSubjectDefs, type SetupExam } from "@/lib/curriculum/yks-alan";
-import type { SetupSubject, SetupTree, SetupUnit } from "@/lib/curriculum/official-setup-select";
+import { displayUnitTitles, type SetupSubject, type SetupTree, type SetupUnit } from "@/lib/curriculum/official-setup-select";
 
 /** Ders anahtarı → sınav yapısındaki (examStructures) ders adları; soru sayısı bunların toplamı. */
 const STRUCTURE_SUBJECTS: Record<string, string[]> = {
@@ -53,12 +53,17 @@ export function buildSetupTree(exam: SetupExam): SetupTree {
       if (!program) continue;
       if (!label) label = program.subject;
       program.sourceIds.forEach((id) => sources.add(CURRICULUM.sources[id]?.publisher ?? id));
+      const start = units.length;
       program.units.forEach((unit, index) => {
         const outcomes = unit.outcomes
           .filter((o) => inPartScope(outcomeGrade(o, program.grade), def.part, GRADE_SCOPES))
           .map((o) => ({ code: o.code, text: cutAtWord(o.text, OUTCOME_TEXT_MAX) || o.text.slice(0, OUTCOME_TEXT_MAX) }));
         if (!outcomes.length) return;
         units.push({ id: `${programId}#${index}`, programId, title: unit.title, outcomes });
+      });
+      const shown = displayUnitTitles(units.slice(start).map((u) => u.title));
+      shown.forEach((title, i) => {
+        units[start + i]!.title = title;
       });
     }
     if (!units.length) continue;
