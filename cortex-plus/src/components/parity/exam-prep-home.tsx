@@ -1,6 +1,6 @@
 "use client";
 
-import { withoutGradeParts } from "@/lib/learning/path-labels";
+import { gradeOfLabel, topicOnlyLabel, withoutGradeParts } from "@/lib/learning/path-labels";
 import { FirstTopicLockCard } from "@/components/parity/first-topic-lock";
 import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
 import Link from "next/link";
@@ -208,7 +208,7 @@ function nodeHeading(node: HomeNode): string {
   // Başlık yalnız etkinliğin türüyse ("Podcast Dinle") konunun adı yazılır; tür zaten
   // etiketinde. Astra'da "SIRADAKİ · AKILLI METİN · Büyüme Eğrileri…" (18 Ekim 2026).
   const topic = node.sessionMeta?.topicTitle?.trim();
-  return topic && heading === PLAN_NODE_META[node.kind].title ? topic : heading;
+  return topic && heading === PLAN_NODE_META[node.kind].title ? topicOnlyLabel(topic) : heading;
 }
 
 export type PrepMaterial = {
@@ -1262,6 +1262,9 @@ function PathSections({
         if (index >= tailAt && !tailOpen) return null;
         const open = isOpen(section, index);
         const topicKey = section.title.trim().toLocaleLowerCase("tr-TR");
+        // Sınıf düzeyi her haftada yinelenmez (2 Kasım 2026): yalnız değiştiği ilk haftada bağlam olarak yazılır.
+        const grade = gradeOfLabel(section.title);
+        const sectionGrade = grade && (index === 0 || gradeOfLabel(sections[index - 1]?.title ?? "") !== grade) ? grade : null;
         const topicPct = Object.prototype.hasOwnProperty.call(topicPercents, topicKey)
           ? topicPercents[topicKey]
           : null;
@@ -1307,8 +1310,9 @@ function PathSections({
               onClick={() => setOpened((current) => ({ ...current, [section.id]: !open }))}
             >
               <span className="cp-path-section-copy">
-                <strong>{section.title}</strong>
+                <strong>{topicOnlyLabel(section.title)}</strong>
                 <span className="cp-path-section-meta">
+                  {sectionGrade ? <span className="cp-path-section-grade">{sectionGrade} · </span> : null}
                   {when ? <span className="cp-path-section-when">{when}</span> : null}
                   {when ? " · " : null}
                   {line}
