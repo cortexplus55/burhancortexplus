@@ -327,3 +327,56 @@ describe("ortak içerik havuzu: sıfır maliyetli kapı", () => {
     expect(prompt.user).not.toContain(good.explanation);
   });
 });
+
+describe("ortak içerik havuzu: düşen soru her zaman gerekçeli (yks-2026-tarih#13 regresyonu)", () => {
+  const U13 = "yks-2026-tarih#13";
+  const wrap = (unit: PoolUnit, verifyText: (blind: [number, string, string, string[]][]) => string): LlmCall => {
+    const base = fakeLlm(unit);
+    return async (args) => {
+      if (!args.system.startsWith("Denetçisin")) return base(args);
+      const blind = JSON.parse(/Sorular \[i,kod,kök,şıklar\]:\n([\s\S]*)$/.exec(args.user)![1]!) as [number, string, string, string[]][];
+      return { model: args.model, tokensIn: 1, tokensOut: 1, text: verifyText(blind) };
+    };
+  };
+
+  it("#13 resmî kodları (11.2.1–11.2.3) kayıtla aynı", () => {
+    const unit = poolUnit(U13)!;
+    expect(unit.outcomes.map((o) => o.code)).toEqual(["11.2.1", "11.2.2", "11.2.3"]);
+  });
+
+  it("doğrulayıcı uyum'u true/false ve nesne satırlarıyla döndürse de #13 tamamlanır", async () => {
+    const unit = poolUnit(U13)!;
+    const bools = await generateUnitContent(unit, wrap(unit, (b) => JSON.stringify({ r: b.map(([i]) => [i, 2, true]) })), { generate: "g", verify: "v" });
+    expect(bools.ok).toBe(true);
+    const objs = await generateUnitContent(unit, wrap(unit, (b) => JSON.stringify({ r: b.map(([i]) => ({ i, cozum: "2", uyum: 1 })) })), { generate: "g", verify: "v" });
+    expect(objs.ok).toBe(true);
+    if (objs.ok) expect(objs.items).toHaveLength(9);
+  });
+
+  it("okunamayan doğrulama yanıtında her aday rejected_items'a gerekçesiyle yazılır", async () => {
+    const unit = poolUnit(U13)!;
+    const out = await generateUnitContent(unit, wrap(unit, () => "Tüm sorular doğru görünüyor."), { generate: "g", verify: "v" });
+    expect(out.ok).toBe(false);
+    const qa = out.qa as { rejected_items: { code: string; reason: string }[]; missing_pairs: string[]; parse_failures: { step: string }[] };
+    expect(qa.missing_pairs).toHaveLength(9);
+    expect(qa.rejected_items.length).toBe(18); // iki tur × 9 aday
+    expect(new Set(qa.rejected_items.map((r) => r.reason))).toEqual(new Set(["doğrulama yanıtı okunamadı"]));
+    expect(qa.parse_failures.map((f) => f.step)).toEqual(["verify", "verify"]);
+  });
+
+  it("tek bozuk soru seti düşürmez, bozuk soru gerekçeli kaydedilir", async () => {
+    const unit = poolUnit(U13)!;
+    const base = fakeLlm(unit);
+    let itemRounds = 0;
+    const llm: LlmCall = async (args) => {
+      const out = await base(args);
+      if (!args.system.includes("soru yazan") || itemRounds++ > 0) return out;
+      const body = JSON.parse(out.text) as { items: Record<string, unknown>[] };
+      body.items[0] = { ...body.items[0], answer: "B" };
+      return { ...out, text: JSON.stringify(body) };
+    };
+    const out = await generateUnitContent(unit, llm, { generate: "g", verify: "v" });
+    expect(out.ok).toBe(true);
+    expect((out.qa as { rejected_items: { reason: string }[] }).rejected_items[0]!.reason).toMatch(/^çıktı: şema: answer/);
+  });
+});
