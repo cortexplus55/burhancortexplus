@@ -47,6 +47,7 @@ import { documentRunningHeaders } from "@/lib/documents/clean-pages";
 import { isRunningHeader } from "@/lib/documents/clean-text";
 import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 import { getProgram } from "@/lib/curriculum/registry";
+import { orderOfficialUnits, type OrderableUnit } from "@/lib/curriculum/official-plan-order";
 import { verifyPlannedUnits } from "@/lib/curriculum/official-setup";
 import { runPool } from "@/lib/documents/upload-batch";
 
@@ -119,7 +120,9 @@ const prefsSchema = z
   .optional();
 
 /** Resmî kurulum planı kayıtla doğrulanır; konu listesi planın konularıyla birebir aynı olmalı. */
-function checkedOfficialPlan<T extends { officialPlan?: { units: { unitId: string; codes: string[]; topic: string }[] } }>(
+function checkedOfficialPlan<
+  T extends { officialPlan?: { units: (OrderableUnit & { unitId: string; codes: string[] })[] } },
+>(
   prefs: T,
   topics: string[],
 ): T | null {
@@ -127,7 +130,8 @@ function checkedOfficialPlan<T extends { officialPlan?: { units: { unitId: strin
   const units = verifyPlannedUnits(prefs.officialPlan.units);
   if (units.length !== prefs.officialPlan.units.length) return null;
   if (units.length !== topics.length || units.some((u, i) => u.topic !== topics[i])) return null;
-  return { ...prefs, officialPlan: { ...prefs.officialPlan, units } };
+  // Öz değerlendirme sırayı belirler: Zayıf öne (ders içi sıra korunur), Biliyorum sona.
+  return { ...prefs, officialPlan: { ...prefs.officialPlan, units: orderOfficialUnits(units) } };
 }
 
 // Serbest metinler reddedilmez, kırpılır (Paket I #12): 43 karakterlik ders adı kurulumu 400 ile düşürüyordu.
@@ -200,9 +204,12 @@ export async function POST(request: Request) {
   }
 
   const v2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
+  const officialUnits = learningPreferences?.officialPlan?.units ?? null;
+  const requestedTopics = officialUnits ? officialUnits.map((u) => u.topic) : parsed.data.topics;
+  const knownTopics = officialUnits ? officialUnits.filter((u) => u.rating === "iyi").map((u) => u.topic) : [];
   let topics = parsed.data.note?.trim()
-    ? [...parsed.data.topics, parsed.data.note.trim()]
-    : [...parsed.data.topics];
+    ? [...requestedTopics, parsed.data.note.trim()]
+    : [...requestedTopics];
   let topicNodeIds: (string | null)[] = topics.map(() => null);
   let scheduleTopics: ScheduleTopicInput[] = [];
 
@@ -271,7 +278,7 @@ export async function POST(request: Request) {
   // Belgesiz hazırlık da konu konu kurulur (19 Ekim 2026): önceden takvim yalnız belgeden doluyordu,
   // belgesiz yol kalıp şablondan çıkıyordu (beş konu için konusuz tek "Giriş Dersi").
   const topicOnly = !documentIds.length && v2 && topics.length > 0;
-  if (topicOnly) scheduleTopics = topicOnlyScheduleTopics(topics, parsed.data.hardTopics ?? []);
+  if (topicOnly) scheduleTopics = topicOnlyScheduleTopics(topics, parsed.data.hardTopics ?? [], knownTopics);
 
   const hardSet = new Set(
     (parsed.data.hardTopics ?? []).map((t) => t.trim().toLocaleLowerCase("tr")),

@@ -120,6 +120,8 @@ export function OfficialSetupFlow({
 
   const topics = useMemo(() => (tree ? plannedTopics(tree, selection) : []), [tree, selection]);
   const counts = selectionCounts(topics);
+  const weakCount = topics.filter((t) => ratings[t.unitId] === "zayif").length;
+  const knownCount = topics.filter((t) => ratings[t.unitId] === "iyi").length;
   const alanDef = YKS_ALANLAR.find((a) => a.id === alan) ?? null;
 
   const examDates = useMemo(() => {
@@ -269,8 +271,12 @@ export function OfficialSetupFlow({
           <h1 className="osf-title">{exam === "lgs" ? "LGS dersleri hazır" : "Alanını seç, derslerin gelsin"}</h1>
           <p className="osf-lead">
             {exam === "lgs"
-              ? "LGS'nin 6 dersi seçili geldi. Çalışmayacağın dersi kapatabilirsin."
-              : "Alan çipleri dersleri ÖSYM'nin puan türü tablosuna göre seçer; istediğin dersi ekleyip çıkarabilirsin."}
+              ? single
+                ? "Tek ders modu açık: çalışacağın dersi seç, yolun yalnız o dersle kurulur."
+                : `LGS'nin ${tree.subjects.length} dersi seçili geldi. Çalışmayacağın dersi kapatabilirsin.`
+              : single
+                ? "Tek ders modu açık: çalışacağın dersi seç, yolun yalnız o dersle kurulur."
+                : "Alan çipleri dersleri ÖSYM'nin puan türü tablosuna göre seçer; istediğin dersi ekleyip çıkarabilirsin."}
           </p>
           {exam === "yks" ? (
             <div className="osf-chips" role="radiogroup" aria-label="Alan">
@@ -489,7 +495,11 @@ export function OfficialSetupFlow({
             ))}
           </div>
           <p className="osf-promise" data-testid="setup-promise">
-            Yolun {counts.units} üniteyle kurulacak ({counts.outcomes} resmî kazanım). “Zayıf” dediğin üniteler öncelikli çalışılacaklar arasına alınır.
+            Yolun {counts.units} üniteyle kurulacak ({counts.outcomes} resmî kazanım).
+            {weakCount
+              ? ` “Zayıf” dediğin ${weakCount} ünite, aynı dersteki önceki ünitelerle birlikte yolun başına alınır.`
+              : " Ünite sırası resmî programdaki gibidir."}
+            {knownCount ? ` “Biliyorum” dediğin ${knownCount} ünite yolun sonuna alınır ve daha kısa sürer.` : ""}
           </p>
           <div className="osf-bar">
             {summary}
