@@ -47,6 +47,7 @@ import { documentRunningHeaders } from "@/lib/documents/clean-pages";
 import { isRunningHeader } from "@/lib/documents/clean-text";
 import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 import { getProgram } from "@/lib/curriculum/registry";
+import { verifyPlannedUnits } from "@/lib/curriculum/official-setup";
 import { runPool } from "@/lib/documents/upload-batch";
 
 /** Kurulumdaki bağımsız satır güncellemeleri için eşzamanlı istek sınırı. */
@@ -89,8 +90,45 @@ const prefsSchema = z
         part: z.enum(["TYT", "AYT"]).nullable().optional(),
       })
       .optional(),
+    /**
+     * Resmî sınav kurulumu (1 Kasım 2026, ÖSYM/MEB kayıt defteri): çok dersli tek hazırlık. Her konu bir resmî
+     * ünitedir; konunun kazanım kodları burada durur (ders anlatımı ve quiz dayanağı). Öz değerlendirme
+     * (Biliyorum / Orta / Zayıf) sonraki fazlarda α/β başlangıcını besler.
+     */
+    officialPlan: z
+      .object({
+        exam: z.enum(["yks", "lgs"]),
+        alan: z.enum(["tyt", "say", "ea", "soz", "dil"]).nullable(),
+        singleSubject: z.boolean(),
+        units: z
+          .array(
+            z.object({
+              topic: z.string().min(2).max(120),
+              programId: z.string().regex(/^[a-z0-9-]{3,60}$/),
+              part: z.enum(["TYT", "AYT"]).nullable(),
+              unitId: z.string().regex(/^[a-z0-9-]{3,60}#\d{1,3}$/),
+              codes: z.array(z.string().min(1).max(40)).min(1).max(300),
+              rating: z.enum(["iyi", "orta", "zayif"]).nullable(),
+            }),
+          )
+          .min(1)
+          .max(PREP_TOPIC_CAP),
+      })
+      .optional(),
   })
   .optional();
+
+/** Resmî kurulum planı kayıtla doğrulanır; konu listesi planın konularıyla birebir aynı olmalı. */
+function checkedOfficialPlan<T extends { officialPlan?: { units: { unitId: string; codes: string[]; topic: string }[] } }>(
+  prefs: T,
+  topics: string[],
+): T | null {
+  if (!prefs.officialPlan) return prefs;
+  const units = verifyPlannedUnits(prefs.officialPlan.units);
+  if (units.length !== prefs.officialPlan.units.length) return null;
+  if (units.length !== topics.length || units.some((u, i) => u.topic !== topics[i])) return null;
+  return { ...prefs, officialPlan: { ...prefs.officialPlan, units } };
+}
 
 // Serbest metinler reddedilmez, kırpılır (Paket I #12): 43 karakterlik ders adı kurulumu 400 ile düşürüyordu.
 const bodySchema = z.object({
@@ -145,6 +183,12 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return invalidInputResponse(parsed.error, CREATE_FIELD_LABELS);
+  const learningPreferences = parsed.data.learningPreferences
+    ? checkedOfficialPlan(parsed.data.learningPreferences, parsed.data.topics)
+    : undefined;
+  if (learningPreferences === null) {
+    return NextResponse.json({ error: "Resmî konu listesi doğrulanamadı; sayfayı yenileyip tekrar dene." }, { status: 400 });
+  }
 
   // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; Astra'da ücretsiz
   // hesap yeni hazırlık kuramıyor).
@@ -330,7 +374,7 @@ export async function POST(request: Request) {
       daily_minutes: dailyMinutes,
       study_days: studyDays,
       hard_topics_self: parsed.data.hardTopics ?? [],
-      learning_preferences: withKnownCurriculum(parsed.data.learningPreferences),
+      learning_preferences: withKnownCurriculum(learningPreferences),
       ...(scheduleSummary
         ? {
             schedule_v2: {
