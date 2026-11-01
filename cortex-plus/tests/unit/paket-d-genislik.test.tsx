@@ -173,14 +173,15 @@ describe("Paket D · hazır müfredattan başlangıç", () => {
   });
 
   it("seçim sohbeti dolu istemle açar ve istem kendiliğinden gönderilir", () => {
-    expect(WIZARD_COPY.pickCurriculum).toBe("📚 Dosyam yok — hazır müfredattan seç");
+    expect(WIZARD_COPY.pickCurriculum).toBe("📚 Dosyam Yok — Resmî MEB / ÖSYM Müfredatından Seç");
     const entry = read("src/components/parity/exam-create-entry.tsx");
     expect(entry).toContain("initialPrompt={picked?.prompt ?? initialPrompt}");
     expect(entry).toContain("autoStart={Boolean(picked?.prompt)}");
     const chat = read("src/components/parity/exam-create-chat.tsx");
     expect(chat).toMatch(/if \(!autoStart \|\| !initialPrompt \|\| autoStarted\.current\) return;[\s\S]*void send\(\);/);
     const wizard = read("src/components/parity/exam-create-wizard.tsx");
-    expect(wizard).toContain("onPick={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}");
+    // 1 Kasım 2026: eski sohbet yolu resmî panelin "sohbetle seç" yedeği oldu.
+    expect(wizard).toContain("onChatFallback={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}");
   });
 });
 

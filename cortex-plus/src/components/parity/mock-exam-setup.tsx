@@ -47,6 +47,7 @@ type Topic = {
   outOfScope?: boolean;
   examHeavy?: boolean;
   weightPercent?: number | null;
+  officialCount?: number | null;
 };
 
 export function MockExamSetup({
@@ -115,6 +116,7 @@ export function MockExamSetup({
         examHeavy: t.examHeavy ?? false,
         outOfScope: t.outOfScope ?? false,
         passageChars: 100,
+        officialCount: t.officialCount ?? null,
       })),
       countFor(value),
     );

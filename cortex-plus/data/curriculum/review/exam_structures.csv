@@ -1,0 +1,71 @@
+exam,section,subject,question_count,weight,minutes,source_url,sha256
+LGS,Sözel Bölüm (75 dk),Türkçe,20,4,75,https://www.meb.gov.tr/meb_iys_dosyalar/2026_04/03170012_LGS_Basvuru_ve_Uygulama_Kilavuzu_2026_.pdf,74afac74120d84a4c079624d1979bb1bb5a4d6e192c34888f1665bd8b4991135
+LGS,Sözel Bölüm (75 dk),T.C. İnkılap Tarihi ve Atatürkçülük,10,1,75,https://www.meb.gov.tr/meb_iys_dosyalar/2026_04/03170012_LGS_Basvuru_ve_Uygulama_Kilavuzu_2026_.pdf,74afac74120d84a4c079624d1979bb1bb5a4d6e192c34888f1665bd8b4991135
+LGS,Sözel Bölüm (75 dk),Din Kültürü ve Ahlak Bilgisi,10,1,75,https://www.meb.gov.tr/meb_iys_dosyalar/2026_04/03170012_LGS_Basvuru_ve_Uygulama_Kilavuzu_2026_.pdf,74afac74120d84a4c079624d1979bb1bb5a4d6e192c34888f1665bd8b4991135
+LGS,Sözel Bölüm (75 dk),Yabancı Dil,10,1,75,https://www.meb.gov.tr/meb_iys_dosyalar/2026_04/03170012_LGS_Basvuru_ve_Uygulama_Kilavuzu_2026_.pdf,74afac74120d84a4c079624d1979bb1bb5a4d6e192c34888f1665bd8b4991135
+LGS,Sayısal Bölüm (80 dk),Matematik,20,4,80,https://www.meb.gov.tr/meb_iys_dosyalar/2026_04/03170012_LGS_Basvuru_ve_Uygulama_Kilavuzu_2026_.pdf,74afac74120d84a4c079624d1979bb1bb5a4d6e192c34888f1665bd8b4991135
+LGS,Sayısal Bölüm (80 dk),Fen Bilimleri,20,4,80,https://www.meb.gov.tr/meb_iys_dosyalar/2026_04/03170012_LGS_Basvuru_ve_Uygulama_Kilavuzu_2026_.pdf,74afac74120d84a4c079624d1979bb1bb5a4d6e192c34888f1665bd8b4991135
+TYT,Temel Yeterlilik Testi,Türkçe,40,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Tarih,5,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Coğrafya,5,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Felsefe,5,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Din Kültürü ve Ahlak Bilgisi (veya ilave Felsefe),5,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Temel Matematik,40,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Fizik,7,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Kimya,7,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+TYT,Temel Yeterlilik Testi,Biyoloji,6,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Türk Dili ve Edebiyatı-Sosyal Bilimler-1,Türk Dili ve Edebiyatı,24,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Türk Dili ve Edebiyatı-Sosyal Bilimler-1,Tarih-1,10,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Türk Dili ve Edebiyatı-Sosyal Bilimler-1,Coğrafya-1,6,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Sosyal Bilimler-2,Tarih-2,11,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Sosyal Bilimler-2,Coğrafya-2,11,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Sosyal Bilimler-2,Felsefe Grubu,12,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Sosyal Bilimler-2,Din Kültürü ve Ahlak Bilgisi,6,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Matematik,Matematik,40,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Fen Bilimleri,Fizik,14,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Fen Bilimleri,Kimya,13,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+AYT,Fen Bilimleri,Biyoloji,13,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+YDT,Yabancı Dil Testi,Yabancı Dil,80,,,https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf,67c0aba07a942365e8ee059ef1c63a91151a3b02267d463c58681dd9ce6603c1
+ALES,ALES (150 dk),Sayısal,50,,150,https://dokuman.osym.gov.tr/web/2026/10/basvuru-kilavuzu-pijez5-06105839.pdf,d23dee610ca07ed93e0c584bb33bf20aee1f802d7ed8e876ace1f7e0872c3bc1
+ALES,ALES (150 dk),Sözel,50,,150,https://dokuman.osym.gov.tr/web/2026/10/basvuru-kilavuzu-pijez5-06105839.pdf,d23dee610ca07ed93e0c584bb33bf20aee1f802d7ed8e876ace1f7e0872c3bc1
+DGS,DGS (135 dk),Sayısal,50,,135,https://dokuman.osym.gov.tr/web/2026/7/genel-bilgiler-temel-lke-ve-kurallar-q1jd4s-30102212.pdf,13160031c520ef2aa4b3e5ccefc265f7ee68f7f9e9385a09b571d798e662cc33
+DGS,DGS (135 dk),Sözel,50,,135,https://dokuman.osym.gov.tr/web/2026/7/genel-bilgiler-temel-lke-ve-kurallar-q1jd4s-30102212.pdf,13160031c520ef2aa4b3e5ccefc265f7ee68f7f9e9385a09b571d798e662cc33
+KPSS,Genel Yetenek-Genel Kültür (130 dk),Genel Yetenek,60,,130,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Genel Yetenek-Genel Kültür (130 dk),Genel Kültür,60,,130,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,İşletme,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,Muhasebe,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,İstatistik,40,,60,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,Hukuk,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,Kamu Yönetimi,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,İktisat,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,Maliye,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,Uluslararası İlişkiler,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+KPSS,Alan Bilgisi,Çalışma Ekonomisi ve Endüstri İlişkileri,40,,50,https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf,56529c57f0de5065db4695f3ba0c177fbea1e46a4799dc05c719757cfab70dd9
+TUS,Temel Tıp Bilimleri Testi,Anatomi,13,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Temel Tıp Bilimleri Testi,Histoloji ve Embriyoloji,7,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Temel Tıp Bilimleri Testi,Fizyoloji,8,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Temel Tıp Bilimleri Testi,Tıbbi Biyokimya,18,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Temel Tıp Bilimleri Testi,Tıbbi Mikrobiyoloji,18,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Temel Tıp Bilimleri Testi,Tıbbi Patoloji,18,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Temel Tıp Bilimleri Testi,Tıbbi Farmakoloji,18,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Klinik Tıp Bilimleri Testi,Dâhiliye Grubu,35,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Klinik Tıp Bilimleri Testi,Pediatri,25,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Klinik Tıp Bilimleri Testi,Cerrahi Grubu,30,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+TUS,Klinik Tıp Bilimleri Testi,Kadın Hastalıkları ve Doğum,10,,,https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf,512fbb956c376f40928c796a3a69b8e0c15688ebfdf25169372fb7ea934c2493
+DUS,Temel Bilimler Testi,Anatomi,6,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Temel Bilimler Testi,Histoloji ve Embriyoloji,4,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Temel Bilimler Testi,Fizyoloji,6,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Temel Bilimler Testi,Tıbbi Biyokimya,6,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Temel Bilimler Testi,Tıbbi Mikrobiyoloji,6,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Temel Bilimler Testi,Tıbbi Patoloji,4,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Temel Bilimler Testi,Tıbbi Farmakoloji,4,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Temel Bilimler Testi,Tıbbi Biyoloji ve Genetik,4,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,Restoratif Diş Tedavisi,10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,Protetik Diş Tedavisi,10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,"Ağız, Diş ve Çene Cerrahisi",10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,"Ağız, Diş ve Çene Radyolojisi",10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,Periodontoloji,10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,Ortodonti,10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,Endodonti,10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+DUS,Klinik Bilimler Testi,Çocuk Diş Hekimliği,10,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf,9ad4682f34d659296d375064f7c2165bb7d9d80ccf03a1449edf4d0d60a4a553
+YDS,YDS,Yabancı Dil,80,,,https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-8g5h1l-29160339.pdf,7ed36205b285b9a5dc1f92b5b10ee92ab46cd689a64715ca8e9803a8739f9460

@@ -58,10 +58,11 @@ export default async function MockExamSetupPage({
           outOfScope: slots[index]?.outOfScope ?? false,
           examHeavy: slots[index]?.examHeavy ?? false,
           weightPercent: slots[index]?.weightPercent ?? null,
+          officialCount: slots[index]?.officialCount ?? null,
         }))}
-        formatSummary={syllabus?.summary ?? null}
+        formatSummary={syllabus?.summary ?? setup?.official?.summary ?? null}
         realMinutes={syllabus?.durationMinutes ?? null}
-        realQuestionCount={syllabus?.slots.length ?? null}
+        realQuestionCount={syllabus ? syllabus.slots.length : (setup?.official?.total ?? null)}
         pastQuestions={
           past.length >= PAST_MIN_QUESTIONS
             ? {

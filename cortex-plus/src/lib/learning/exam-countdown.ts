@@ -5,6 +5,8 @@
  * Bugünkü sınav yalnız gelecekte hazırlık yoksa. Hedef kaydı hazırlık yoksa.
  */
 
+import { officialExamOn } from "@/lib/curriculum/calendar";
+
 export type CountdownCandidate = {
   examDate: string;
   title?: string | null;
@@ -18,6 +20,8 @@ export type ExamCountdown =
       examDate: string;
       label: string;
       examTitle: string | null;
+      /** Tarih resmî merkezî sınav günüyse (ÖSYM / LGS) o sınavın adı. */
+      officialExam: string | null;
     }
   | {
       state: "missing";
@@ -128,6 +132,7 @@ export function resolveExamCountdown(input: {
         ? `${name} bugün`
         : `${name} · ${daysLeft} gün kaldı`,
     examTitle,
+    officialExam: officialExamOn(examDate),
   };
 }
 

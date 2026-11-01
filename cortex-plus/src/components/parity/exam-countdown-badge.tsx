@@ -20,6 +20,9 @@ export function ExamCountdownBadge({
   return (
     <div className="cp-exam-due-bar" role="status">
       <span>{headline}</span>
+      {countdown.officialExam ? (
+        <span className="cp-exam-due-official"> · Resmî sınav günü: {countdown.officialExam}</span>
+      ) : null}
     </div>
   );
 }

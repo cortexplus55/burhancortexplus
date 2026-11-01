@@ -3,6 +3,7 @@
  * Legacy buildExamPlan stays for pdf_learning_v2 OFF.
  */
 
+import { officialExamOn, schoolBreakOn } from "@/lib/curriculum/calendar";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { MeasuredLevel } from "@/lib/learning/diagnostic";
 import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
@@ -114,6 +115,10 @@ export type ScheduleSession = {
   unitTitle?: string;
   /** Resmî tatile düşen oturum: tatilin adı (gün esnek, yük yarıya iner). */
   holiday?: string;
+  /** MEB çalışma takvimindeki okul tatiline (ara tatil, yarıyıl) düşen oturum: tatilin adı. */
+  schoolBreak?: string;
+  /** Resmî merkezî sınav günü (ÖSYM / LGS) ise sınavın adı. */
+  officialExam?: string;
   /** Ara sınav öncesi kontrol adımı: ara sınavın adı ve günü. */
   checkpoint?: string;
   checkpointDate?: string;
@@ -1050,6 +1055,11 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   for (const session of sessions) {
     const holiday = turkishHolidayOn(session.calendarDate);
     if (holiday) session.holiday = holiday;
+    // Resmî takvim (MEB 2026-2027, ÖSYM 2027): yük değişmez, yalnız işaret.
+    const schoolBreak = schoolBreakOn(session.calendarDate);
+    if (schoolBreak) session.schoolBreak = schoolBreak;
+    const officialExam = officialExamOn(session.calendarDate);
+    if (officialExam) session.officialExam = officialExam;
   }
 
   // Yolun sırası konu konu (dersler, testler, tekrar), en sonda deneme. İki geçiş oturumları

@@ -20,6 +20,11 @@ export type MockTopicSlot = {
   outOfScope: boolean;
   /** Kaynak pasaj uzunluğu (ağırlık yoksa dağıtım). */
   passageChars: number;
+  /**
+   * Resmî soru dağılım tablosundaki soru sayısı (1 Kasım 2026). Kapsam içi konuların toplamı seçilen sayıya
+   * eşitse dağılım aynen bu sayılardır; değilse ağırlık olarak okunur.
+   */
+  officialCount?: number | null;
 };
 
 export type MockSlotPlan = {

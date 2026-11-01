@@ -7,6 +7,9 @@ import {
   pastTopicWeights,
   type PastQuestion,
 } from "@/lib/learning/mock-exam/past-questions";
+import type { CurriculumRef } from "@/lib/curriculum/types";
+import { topicMapForRef } from "@/lib/curriculum/registry";
+import { matchCodeForLabel } from "@/lib/curriculum/topic-map";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
@@ -202,7 +205,7 @@ export async function planMockExam(
 
   if (!topics.length) return { ok: false, status: 400, error: "no_topics" };
 
-  const { slots, syllabus, syllabusText } = await loadMockExamSetup(service, userId, prepId, topics);
+  const { slots, syllabus, syllabusText, official } = await loadMockExamSetup(service, userId, prepId, topics);
   // İkiz sınav: çıkmış soruların konu payı kayıtta ağırlığı olmayan konulara (kurulum ekranıyla aynı işlev).
   const past = input.twin ? await loadPastQuestions(service, prepId) : [];
   if (past.length >= PAST_MIN_QUESTIONS) applyPastWeights(slots, past);
@@ -224,7 +227,7 @@ export async function planMockExam(
     .join(" ");
   const allowNumeric = sourceHasMeasurableQuantities(sampleSource + syllabusText);
 
-  let preset: MockLengthPreset = input.preset ?? (syllabus ? "real" : "standard");
+  let preset: MockLengthPreset = input.preset ?? (syllabus || official ? "real" : "standard");
   if (input.questionCount != null) {
     // Stüdyo kısa yol
     preset = input.questionCount <= 12 ? "short" : "standard";
@@ -237,7 +240,8 @@ export async function planMockExam(
     preset,
     syllabus: preset === "real" ? syllabus : null,
     allowNumeric,
-    questionCount: input.questionCount ?? undefined,
+    // Belgede biçim yoksa "Gerçek sınav" resmî tablonun soru sayısıdır.
+    questionCount: input.questionCount ?? (preset === "real" && !syllabus && official ? official.total : undefined),
   });
   if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
   if (past.length >= PAST_MIN_QUESTIONS) {
@@ -269,7 +273,12 @@ export async function loadMockExamSetup(
   userId: string,
   prepId: string,
   topics: Array<{ id: string; label: string; source_refs: unknown }>,
-): Promise<{ slots: MockTopicSlot[]; syllabus: ReturnType<typeof parseExamFormatFromText>; syllabusText: string }> {
+): Promise<{
+  slots: MockTopicSlot[];
+  syllabus: ReturnType<typeof parseExamFormatFromText>;
+  syllabusText: string;
+  official: OfficialExamFormat | null;
+}> {
   const syllabusText = await loadSyllabusSnippet(service, userId, prepId);
   const syllabus = parseExamFormatFromText(syllabusText);
   const excluded = exclusionTitles(syllabusText);
@@ -281,7 +290,44 @@ export async function loadMockExamSetup(
     if (slot.weightPercent == null && textWeights.has(t.label)) slot.weightPercent = textWeights.get(t.label)!;
     return slot;
   });
-  return { slots, syllabus, syllabusText };
+  const official = await applyOfficialQuotas(service, prepId, slots);
+  return { slots, syllabus, syllabusText, official };
+}
+
+export type OfficialExamFormat = { total: number; summary: string };
+
+/**
+ * Resmî müfredattan kurulan hazırlık (1 Kasım 2026): kayıttaki senaryo kotaları konu adının başındaki kazanım
+ * koduyla eşlenir. Kota hazırlıkta saklanmaz; her okumada kayıttan hesaplanır (kurulum = üretim).
+ */
+export async function applyOfficialQuotas(
+  service: SupabaseClient,
+  prepId: string,
+  slots: MockTopicSlot[],
+): Promise<OfficialExamFormat | null> {
+  try {
+    const { data } = await service.from("exam_preps").select("learning_preferences").eq("id", prepId).maybeSingle();
+    const ref = (data?.learning_preferences as { curriculum?: CurriculumRef } | null)?.curriculum;
+    const map = topicMapForRef(ref);
+    if (!map || !map.total) return null;
+    const codes = Object.keys(map.quotaByCode);
+    let total = 0;
+    for (const slot of slots) {
+      const code = matchCodeForLabel(slot.topicLabel, codes);
+      const count = code ? map.quotaByCode[code] ?? 0 : 0;
+      slot.officialCount = count > 0 ? count : null;
+      if (count > 0 && !slot.outOfScope) {
+        total += count;
+        if (slot.weightPercent == null) slot.weightPercent = count;
+      }
+    }
+    if (!total) return null;
+    const scenario = ref?.scenario === "karma" ? "Karma (senaryoların ortalaması)" : `Senaryo ${ref?.scenario}`;
+    const exam = ref?.examKey === "d1y2" ? "1. Dönem 2. Ortak Yazılı" : "1. Dönem 1. Ortak Yazılı";
+    return { total, summary: `MEB ${exam} · ${scenario} · ${total} soru` };
+  } catch {
+    return null;
+  }
 }
 
 /**

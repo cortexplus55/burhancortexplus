@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { officialOutcomeBlock, type OfficialOutcomeGrounding } from "@/lib/curriculum/grounding";
 import {
   EQUIVALENT_OPTIONS_RULE,
   KEY_CONSISTENCY_RULE,
@@ -81,6 +82,8 @@ export type TeacherQuizInput = {
    * Yanlış olgu, bozuk öğe, kopya ve konu dışı yine düşer.
    */
   rephrase?: boolean;
+  /** Resmî müfredattan kurulan hazırlıkta konunun resmî kazanımı ve sınırlamaları (1 Kasım 2026). */
+  officialOutcome?: OfficialOutcomeGrounding | null;
   /** Çağıranın isteği: soru türü planı, konu kodları, kapsam. */
   brief?: string;
   runningHeaders?: string[];
@@ -407,6 +410,7 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     quizPointsBlock(input),
+    officialOutcomeBlock(input.officialOutcome, "quiz"),
     // Kaynak sonda kalır: model en son okuduğu talimata daha sadık.
     lessonBlock(input),
     avoidBlock(input),
