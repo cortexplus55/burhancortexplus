@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EXAM_WIZARD_DRAFT_ENDPOINT,
-  EXAM_WIZARD_DRAFT_KEY,
+  EXAM_WIZARD_DRAFT_KEY as BASE_DRAFT_KEY,
+  setExamWizardDraftOwner,
   clearExamWizardDraft,
   draftStarted,
   dropExamWizardDraft,
@@ -36,6 +37,9 @@ function sampleDraft(overrides: Partial<ExamWizardDraft> = {}): ExamWizardDraft 
     ...overrides,
   };
 }
+
+setExamWizardDraftOwner("u-test");
+const EXAM_WIZARD_DRAFT_KEY = `${BASE_DRAFT_KEY}:u-test`;
 
 describe("exam-wizard-draft", () => {
   afterEach(() => {

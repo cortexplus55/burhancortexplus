@@ -14,6 +14,7 @@ import {
   startedDraft,
   writeExamWizardDraft,
   type ExamWizardDraft,
+  setExamWizardDraftOwner,
 } from "@/lib/learning/exam-wizard-draft";
 
 export type ExamPrepCard = {
@@ -42,7 +43,8 @@ const CATALOG_TILES: { href: string; label: string; icon: Icon3DName }[] = [
   { href: "/deneme-sinavlari/resmi", label: "Resmî sınavlar", icon: "resmi-sinavlar" },
 ];
 
-export function ParityExamPrep({ cards }: { cards: ExamPrepCard[] }) {
+export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]; userId?: string | null }) {
+  setExamWizardDraftOwner(userId);
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [howOpen, setHowOpen] = useState(false);
   const upcoming = cards.filter((card) => !card.past);

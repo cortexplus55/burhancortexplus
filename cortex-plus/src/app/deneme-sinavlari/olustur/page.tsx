@@ -55,6 +55,7 @@ export default async function ExamCreatePage({
     <ParitySorShell {...shell}>
       <ExamCreateEntry
         initialDocumentId={documentId}
+        userId={user.id}
         recentSubjects={recentSubjects}
         initialSubject={initialSubject}
         initialPrompt={initialPrompt}

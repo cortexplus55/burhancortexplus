@@ -58,3 +58,25 @@ export function outcomesForTopic(ref: CurriculumRef | null | undefined, topicLab
 }
 
 export const CURRICULUM_REF_SCHEMA_EXAM_KEYS = ["d1y1", "d1y2", "serbest"] as const;
+
+const EXAM_KEY_LABEL: Record<string, string> = { d1y1: "1. Dönem 1. Yazılı", d1y2: "1. Dönem 2. Yazılı" };
+
+/** Hazırlıkta saklanan başvuruyu okur; biçim bozuksa null. */
+export function readCurriculumRef(prefs: unknown): CurriculumRef | null {
+  const ref = (prefs as { curriculum?: unknown } | null)?.curriculum as Partial<CurriculumRef> | undefined;
+  if (!ref || typeof ref.programId !== "string" || typeof ref.examKey !== "string") return null;
+  return { programId: ref.programId, examKey: ref.examKey, scenario: ref.scenario ?? null } as CurriculumRef;
+}
+
+/** Resmî programa dayanan hazırlık için dürüst kaynak notu; program kayıtta yoksa null. */
+export function officialSourceNote(ref: CurriculumRef | null | undefined): string | null {
+  const program = ref ? getProgram(ref.programId) : null;
+  if (!ref || !program) return null;
+  const parts = [`${program.label} (${program.badge} / ${program.programVersion})`];
+  const exam = EXAM_KEY_LABEL[ref.examKey];
+  if (exam) {
+    const sc = ref.scenario == null ? "" : ref.scenario === "karma" ? " · Karma senaryo" : ` · Senaryo ${ref.scenario}`;
+    parts.push(`${exam}${sc}`);
+  }
+  return `🏛️ Bu hazırlık resmî programdaki kazanımlara göre hazırlandı: ${parts.join(" · ")}`;
+}

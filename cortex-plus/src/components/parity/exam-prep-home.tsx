@@ -280,8 +280,11 @@ export function ExamPrepHome({
   shareTools = null,
   examResult = null,
   firstTopicLock = null,
+  officialNote = null,
 }: {
   prepId: string;
+  /** Resmî müfredattan kurulduysa kaynak notu (sunucuda kayıttan üretilir). */
+  officialNote?: string | null;
   /** 1. konu özeti; ücretsiz hesapta kilitli adım varsa dolu (`freeTopicLocks`). */
   firstTopicLock?: FirstTopicSummary | null;
   /** Sınav sabahı kâğıdı + sınıf paylaşımı (Paket J3 #14); bağlantı sunucuda imzalı ve mutlak. Yoksa kâğıt düğmesi yine görünür. */
@@ -692,7 +695,9 @@ export function ExamPrepHome({
         </p>
         {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
             Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
-        {documentId ? null : (
+        {documentId ? null : officialNote ? (
+          <p className="cp-exam-source-note" data-testid="official-source-note">{officialNote}</p>
+        ) : (
           <p className="cp-exam-source-note">{TOPIC_ONLY_NOTICE}</p>
         )}
         <div className="cp-prep-hero-actions">
