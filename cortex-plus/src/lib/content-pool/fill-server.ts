@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CURRICULUM } from "@/lib/curriculum/registry";
 import { CONTENT_VERSION } from "@/lib/content-pool/keys";
+import { GATE_VERSION } from "@/lib/content-pool/gate";
 import { DEFAULT_CAP_USD, DEFAULT_UNIT_ESTIMATE_USD, fillOrder, MAX_FAILED_ATTEMPTS, type FillTarget, type UnitState } from "@/lib/content-pool/fill";
 
 /**
@@ -23,14 +24,27 @@ export async function readFillConfig(service: SupabaseClient): Promise<FillConfi
     enabled: Boolean(data?.enabled),
     capUsd: num(metadata.cap_usd, DEFAULT_CAP_USD),
     unitEstimateUsd: num(metadata.unit_estimate_usd, DEFAULT_UNIT_ESTIMATE_USD),
-    concurrency: Math.min(3, Math.max(1, Math.round(num(metadata.concurrency, 2)))),
+    concurrency: Math.min(3, Math.max(1, Math.round(num(metadata.concurrency, 3)))),
     actorUserId: typeof metadata.actor_user_id === "string" ? metadata.actor_user_id : null,
     leaseUntil: typeof metadata.lease_until === "string" ? Date.parse(metadata.lease_until) || 0 : 0,
     metadata,
   };
 }
 
+/**
+ * Yalnız verilen alanları yazar. `enabled` verilmezse satır varken dokunulmaz: adımın kendi yazımı
+ * (lease, last_run) kurucunun elle kapattığı kill switch'i geri açamaz.
+ */
 export async function writeFillConfig(service: SupabaseClient, patch: { enabled?: boolean; metadata?: Record<string, unknown> }): Promise<void> {
+  const { data: row } = await service.from("feature_flags").select("metadata").eq("key", FILL_FLAG).maybeSingle();
+  if (row) {
+    const metadata = { ...((row.metadata as Record<string, unknown> | null) ?? {}), ...(patch.metadata ?? {}) };
+    await service
+      .from("feature_flags")
+      .update({ ...(patch.enabled === undefined ? {} : { enabled: patch.enabled }), metadata, updated_at: new Date().toISOString() })
+      .eq("key", FILL_FLAG);
+    return;
+  }
   const current = await readFillConfig(service);
   await service.from("feature_flags").upsert(
     {
@@ -63,7 +77,7 @@ export async function sharedContentSpent(service: SupabaseClient): Promise<numbe
   }
 }
 
-type Row = { unit_id: string; status: string; qa: { reason?: string } | null };
+type Row = { unit_id: string; status: string; qa: { reason?: string; gate_version?: number } | null };
 
 /** Ünite başına durum: doğrulanmış mı, kaç gerçek başarısızlık (terk edilmiş kilit sayılmaz). */
 export async function unitStates(service: SupabaseClient, unitIds: string[]): Promise<Map<string, UnitState & { draft: boolean }>> {
@@ -80,7 +94,8 @@ export async function unitStates(service: SupabaseClient, unitIds: string[]): Pr
       const s = out.get(row.unit_id) ?? { verified: false, failedAttempts: 0, draft: false };
       if (row.status === "verified") s.verified = true;
       if (row.status === "draft") s.draft = true;
-      if (row.status === "rejected" && row.qa?.reason !== "draft_timeout") s.failedAttempts += 1;
+      // Yalnız güncel kapı sürümüyle reddedilen denemeler sayılır: kapı düzeltilince eski (yanlış) retler hakkı yemez.
+      if (row.status === "rejected" && row.qa?.reason !== "draft_timeout" && row.qa?.gate_version === GATE_VERSION) s.failedAttempts += 1;
       out.set(row.unit_id, s);
     }
   }
@@ -116,6 +131,7 @@ export async function fillStatus(service: SupabaseClient) {
     capUsd: config.capUsd,
     remainingUsd: Number(Math.max(0, config.capUsd - spent).toFixed(4)),
     running: config.leaseUntil > Date.now(),
+    stepStartedAt: config.metadata.step_started_at ?? null,
     lastRun: config.metadata.last_run ?? null,
     totals: { units: sum("units"), done: sum("done"), failed: sum("failed"), generating: sum("generating"), pending: sum("pending"), items: [...itemCounts.values()].reduce((a, b) => a + b, 0) },
     programs: list,

@@ -114,3 +114,53 @@ describe("runFill", () => {
     expect(r.pending).toEqual(["p#1"]);
   });
 });
+
+import { excludedTerms, garbledReason, GATE_VERSION, isUnitOfMeasure, maskMathNotation } from "@/lib/content-pool/gate";
+
+/*
+ * Regresyon (1 Kasım 2026): yks-2026-matematik#3 iki kez "kırık cümle yapısı" ve "kazanım sınırı dışında (km/sa.)"
+ * ile reddedildi. Reddedilen taslağın metni saklanmıyor (qa yalnız gerekçe tutuyor); sınırlama metni ve
+ * ret gerekçeleri veritabanından/kayıttan alındı, soru metinleri o kazanımların (9.3.3.1 aralık, 9.3.3.3 mutlak değer)
+ * gösterimiyle kuruldu.
+ */
+describe("kapı: matematik/fen gösterimi yanlış ret üretmez", () => {
+  const ok = [
+    "Açık, kapalı ve yarı açık aralıklar: [2, 5) aralığında 2 vardır, 5 yoktur.",
+    "x ∈ (−∞, 3] ise x ≤ 3 olur; [a, b) gösteriminde a dahildir.",
+    "−2 < x ≤ 4 eşitsizliğinin çözüm kümesi (−2, 4] aralığıdır.",
+    "|x − 3| ≤ 5 ⇔ −5 ≤ x − 3 ≤ 5 olduğundan çözüm kümesi [−2, 8] olur.",
+    "|x| ≥ a ⇔ (x ≥ a ∨ x ≤ −a) özelliği kullanılır.",
+    "Çözüm kümesi (1, 4] ∪ [6, ∞) biçiminde yazılır.",
+    "Fransız gösteriminde ]a, b[ açık aralıktır.",
+    "Hız 72 km/sa. ise 20 m/sn. olur; kesir olarak 3/4 saat sürer.",
+    "İfade $\\frac{x+1}{2} \\ge [3, 4)$ olarak verilir.",
+    "Satır içi \\( x \\in [0, 1) \\) ifadesi kullanılır.",
+    "Basınç 2 atm, sıcaklık 25 °C ve derişim 0,1 mol/L dir.",
+  ];
+  for (const text of ok) it(text, () => expect(garbledReason(text)).toBeNull());
+
+  it("gerçek bozukluklar yine yakalanır", () => {
+    expect(garbledReason("Bu soruda (cevap verilmeden bırakılmış bir cümle var.")).toBe("kırık cümle yapısı");
+    expect(garbledReason("Denklemi çöz) ve sonucu yaz.")).toBe("kırık cümle yapısı");
+    expect(garbledReason("Bu cümledeKelimeler yapışık yazılmış.")).toBe("yapışık kelime");
+    expect(garbledReason("BozukÃ¼ metin")).toBe("bozuk karakter kodlaması");
+  });
+
+  it("maskeleme yalnız aralıkları ve satır içi ifadeyi örter", () => {
+    expect(maskMathNotation("[2, 5) ve (a, b]")).not.toMatch(/[[\])(]/);
+    expect(maskMathNotation("(açıklama")).toContain("(");
+  });
+
+  it("ölçü birimleri dışlanan terim sayılmaz; yalnız olumsuz cümleciğin parantezi dışlanır", () => {
+    const line =
+      "b) Farklı problem çözme stratejilerinin uygulanmasını gerektiren oran, orantı kavramlarının kullanıldığı problemlere (örneğin elektrik, su vb. fatura ve ödemeler; sayı, kesir, yaş, işçi, alım-satım, kâr-zarar, yüzde ve karışım problemleri; hız ve hareket (hız kavramı, sabit hız, ortalama hız, birimler arası dönüşüm (km/sa., m/sn.)) yer verilir; faiz, havuz, saat problemlerine girilmez.";
+    expect(excludedTerms([line])).toEqual([]);
+    expect(excludedTerms(["Ayrıntıya girilmez (km/sa., Uzun Terim, kg)"])).toEqual(["uzun terim"]);
+    for (const u of ["km/sa.", "m/sn.", "kg", "cm³", "°C", "mol/L"]) expect(isUnitOfMeasure(u)).toBe(true);
+    expect(isUnitOfMeasure("modüler aritmetik")).toBe(false);
+  });
+
+  it("kapı sürümü yükseltildi (eski yanlış retler deneme hakkına sayılmaz)", () => {
+    expect(GATE_VERSION).toBeGreaterThanOrEqual(2);
+  });
+});

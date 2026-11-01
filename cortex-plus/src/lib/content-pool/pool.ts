@@ -1,6 +1,7 @@
 import "server-only";
 import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 import { CONTENT_VERSION, poolUnit, type PoolUnit } from "@/lib/content-pool/keys";
+import { GATE_VERSION } from "@/lib/content-pool/gate";
 import { generateUnitContent, type LlmCall, type UsageEntry } from "@/lib/content-pool/generate";
 import type { LessonBody, PoolItem } from "@/lib/content-pool/schema";
 
@@ -105,7 +106,7 @@ export async function getUnitContent(
   try {
     result = await generateUnitContent(unit, deps.llm);
   } catch (error) {
-    await deps.store.retire(claim.id, "rejected", { reason: "generation_error", message: String(error).slice(0, 400) });
+    await deps.store.retire(claim.id, "rejected", { reason: "generation_error", message: String(error).slice(0, 400), gate_version: GATE_VERSION });
     return { status: "failed", reason: "generation_error", llmCalls: 0, ms: ms() };
   }
   await deps.store.recordUsage(deps.userId, result.usage).catch(() => undefined);

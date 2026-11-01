@@ -8,6 +8,12 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
   Model yalnız cevap anahtarını ve bilimsel/kazanım uyumunu onaylar (generate.ts verifyPrompt).
 */
 
+/**
+ * Kapı kural sürümü. Kapı yanlış ret üretecek biçimde düzeltildiğinde artırılır; toplu doldurucu yalnız bu
+ * sürümle reddedilen denemeleri 2 deneme hakkına sayar. 2: matematik/fen gösterimi + ölçü birimi (1 Kasım 2026).
+ */
+export const GATE_VERSION = 2;
+
 export type GateOutcome = { code: string; outcomeId: string; limitations: string[] };
 export type GateUnit = { unitId: string; outcomes: GateOutcome[]; choices: number };
 export type GatedItem = PoolItem & { unit_id: string; outcome_id: string };
@@ -17,13 +23,28 @@ export const STEM_LEN = { min: 20, max: 1200 } as const;
 export const EXPLANATION_LEN = { min: 20, max: 1500 } as const;
 export const CHOICE_MAX = 300;
 
+/**
+ * Matematik/fen gösterimini cümle denetiminden önce maskeler (1 Kasım 2026, yks-2026-matematik#3 yanlış retleri):
+ * satır içi LaTeX ($…$, \(…\), \[…\]) ve yarı açık aralıklar ([a, b), (−∞, 3], ]a, b[) parantez dengesi
+ * sayılmaz. Gerçek kırık parantez (kapanmayan "(" ya da yalnız ")") yine yakalanır.
+ */
+export function maskMathNotation(text: string): string {
+  return text
+    .replace(/\$\$[\s\S]{1,400}?\$\$|\$[^$\n]{1,200}\$|\\\([\s\S]{1,400}?\\\)|\\\[[\s\S]{1,400}?\\\]/g, " İFADE ")
+    .replace(/[[(\]]\s*[^[\]()\s,;]{1,25}\s*[,;]\s*[^[\]()\s,;]{1,25}\s*[\])[]/gu, " ARALIK ");
+}
+
 /** Yapışık ya da bozuk metin: kodlama bozulması, küçük harfe yapışık büyük harf, boşluksuz uzun dizi, kırık parantez. */
 export function garbledReason(text: string): string | null {
   if (/\uFFFD|Ã.|Ä.|Å./u.test(text)) return "bozuk karakter kodlaması";
   if (/\p{Ll}{2}\p{Lu}\p{Ll}{2}/u.test(text)) return "yapışık kelime";
-  if (/[^\s]{45,}/u.test(text.replace(/https?:\/\/\S+/g, ""))) return "boşluksuz uzun dizi";
+  const masked = maskMathNotation(text);
+  if (/[^\s]{45,}/u.test(masked.replace(/https?:\/\/\S+/g, ""))) return "boşluksuz uzun dizi";
   if (/(.)\1{5,}/u.test(text)) return "tekrarlanan karakter";
-  const issues = fluencyIssues(text).filter((i) => i === "unbalanced" || i === "spliced");
+  const issues = [
+    ...fluencyIssues(masked).filter((i) => i === "unbalanced"),
+    ...fluencyIssues(text).filter((i) => i === "spliced"),
+  ];
   return issues.length ? "kırık cümle yapısı" : null;
 }
 
@@ -33,14 +54,48 @@ const NEGATION = /(girilmez|değinilmez|verilmez|yer verilmez|ele alınmaz|kapsa
  * Sınırlama cümlesinde açıkça dışlanan terimler: yalnız olumsuz hükümlü cümledeki parantez içi listeler
  * ("... (a, b, c) girilmez"). Serbest metinden terim uydurulmaz; daha ince kapsam denetimi modelde.
  */
+/** Ölçü birimi ya da kısaltması (km/sa., m/sn., kg, cm³, °C, mol/L): dışlanan terim sayılmaz. */
+export function isUnitOfMeasure(term: string): boolean {
+  const t = term.trim().replace(/\.$/, "");
+  return /\//.test(t) || /^[a-zA-Zµμ°ÅΩ]{1,4}[²³0-9]*\.?$/u.test(t);
+}
+
+/**
+ * Hüküm cümlecikleri: ";" ve cümle sonu (". " + büyük harf) ayırır; "km/sa." gibi kısaltmadaki nokta bölmez.
+ * Parantez içindeki ";" bölmez.
+ */
+function clauses(line: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i]!;
+    if (ch === "(") depth += 1;
+    if (ch === ")") depth = Math.max(0, depth - 1);
+    const sentenceEnd = ch === "." && depth === 0 && /^\s+\p{Lu}/u.test(line.slice(i + 1));
+    if (depth === 0 && (ch === ";" || sentenceEnd)) {
+      out.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  return out;
+}
+
 export function excludedTerms(limitations: string[]): string[] {
   const out: string[] = [];
   for (const line of limitations) {
-    if (!NEGATION.test(line)) continue;
-    for (const match of line.matchAll(/\(([^()]{3,200})\)/g)) {
-      for (const term of match[1]!.split(/[,;]| ve /)) {
-        const t = term.trim();
-        if (t.length >= 4 && !/^(örneğin|ör\.|vb\.?|gibi)$/iu.test(t)) out.push(turkishFold(t));
+    // Olumsuz hüküm yalnız kendi cümleciğindeki parantez listesini dışlar: "(… km/sa. …) yer verilir; faiz … girilmez"
+    // içinde km/sa. dahil edilen bir örnektir, dışlanan değil.
+    for (const clause of clauses(line)) {
+      if (!NEGATION.test(clause)) continue;
+      for (const match of clause.matchAll(/\(([^()]{3,200})\)/g)) {
+        for (const term of match[1]!.split(/[,;]| ve /)) {
+          const t = term.trim();
+          if (t.length >= 4 && !isUnitOfMeasure(t) && !/^(örneğin|ör\.|vb\.?|gibi)$/iu.test(t)) out.push(turkishFold(t));
+        }
       }
     }
   }
