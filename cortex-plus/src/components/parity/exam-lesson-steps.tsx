@@ -174,10 +174,28 @@ function ProcedureList({ procedure }: { procedure: NonNullable<LessonV2["section
 function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][number]["table"]> }) {
   const columns = rejoinIntervalCells(table.columns);
   const rows = table.rows.map((row) => rejoinIntervalCells(row));
+  // Dar ekranda tablo kendi kutusunda kayar; taşıyorsa öğrenciye görünür ipucu (1 Kasım 2026, mobil tur).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const box = scrollRef.current;
+    if (!box) return;
+    const check = () => setOverflows(box.scrollWidth > box.clientWidth + 1);
+    check();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(check);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
   return (
     <div className="als-reference-table">
       {table.caption ? <p className="als-reference-table-caption">{table.caption}</p> : null}
-      <div className="als-reference-table-scroll">
+      {overflows ? (
+        <p className="als-reference-table-hint" aria-hidden>
+          Tablonun devamı için yana kaydır →
+        </p>
+      ) : null}
+      <div className="als-reference-table-scroll" ref={scrollRef} tabIndex={overflows ? 0 : undefined}>
         <table>
           <thead>
             <tr>
