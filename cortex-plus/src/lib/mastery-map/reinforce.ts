@@ -32,3 +32,17 @@ export function pickReinforcement(
   }
   return { picked, weak, missing };
 }
+
+/** Öneri: yalnız şu an sunulabilecek ek sorusu olan zayıf kazanımlar ve gerçek toplam (pickReinforcement ile aynı seçim). */
+export function reinforceOffer(
+  outcomes: readonly { outcomeId: string; state: MasteryState }[],
+  items: readonly ReinforceItem[],
+  answered: ReadonlySet<string>,
+  perOutcome = REINFORCE_PER_OUTCOME,
+): { offer: { outcomeId: string; count: number }[]; total: number; weak: string[]; missing: string[] } {
+  const r = pickReinforcement(outcomes, items, answered, perOutcome);
+  const offer = r.weak
+    .map((outcomeId) => ({ outcomeId, count: r.picked.filter((i) => i.outcomeId === outcomeId).length }))
+    .filter((o) => o.count > 0);
+  return { offer, total: r.picked.length, weak: r.weak, missing: r.missing };
+}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ReinforceBox } from "@/components/level-check/reinforce-box";
+import { ReinforceBox, NO_EXTRA_LEFT_TEXT } from "@/components/level-check/reinforce-box";
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
 import {
   buildMapUnit,
@@ -100,6 +100,8 @@ export function MasteryMap({
   const [open, setOpen] = useState<string | null>(null);
   const [reinforce, setReinforce] = useState<string | null>(null);
   const weakUnits = units.filter((u) => u.weakOutcomes.length > 0);
+  // Öneri yalnız şu an gerçekten sunulabilecek ek sorusu olan ünitelerde (söz = teslim).
+  const offerUnits = weakUnits.filter((u) => u.extraTotal > 0);
   const reinforceUnit = units.find((u) => u.unitId === reinforce) ?? null;
 
   return (
@@ -116,22 +118,25 @@ export function MasteryMap({
       {weakUnits.length ? (
         <div className="mm-weak">
           <p className="lc-kicker">Pekiştirme önerisi</p>
-          <ul className="mm-chips">
-            {weakUnits.map((u) => (
-              <li key={u.unitId}>
-                <button type="button" className="lc-skip" onClick={() => setReinforce(u.unitId)}>
-                  {u.title}: {u.weakOutcomes.length} zayıf kazanım
-                </button>
-              </li>
-            ))}
-          </ul>
+          {offerUnits.length ? (
+            <ul className="mm-chips">
+              {offerUnits.map((u) => (
+                <li key={u.unitId}>
+                  <button type="button" className="lc-skip" onClick={() => setReinforce(u.unitId)}>
+                    {u.title}: {u.extraOutcomes.length} kazanım · {u.extraTotal} ek soru
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="lc-status" data-testid="mm-no-extra">{NO_EXTRA_LEFT_TEXT}</p>
+          )}
           {reinforceUnit ? (
             <ReinforceBox
               key={reinforceUnit.unitId}
               prepId={prepId}
               unitId={reinforceUnit.unitId}
               unitTitle={reinforceUnit.title}
-              weakCount={reinforceUnit.weakOutcomes.length}
               api={api}
               onDone={() => {
                 setReinforce(null);

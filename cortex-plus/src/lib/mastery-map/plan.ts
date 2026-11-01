@@ -28,7 +28,14 @@ const KNOWN_MIN = 0.75;
 export const WEAK_OUTCOME_MAX = 0.5;
 export const UNIT_PCT_NOTE = "Ünite yüzdesi, yanıt verdiğin kazanımların yüzdelerinin ortalamasıdır.";
 
-export type MapOutcome = { outcomeId: string; code: string; text: string; state: MasteryState };
+export type MapOutcome = {
+  outcomeId: string;
+  code: string;
+  text: string;
+  state: MasteryState;
+  /** Şu an sunulabilecek ek pekiştirme sorusu (yanıtlanmamış, doğrulanmış; ≤ 2). Sunucu hesaplar; yoksa 0. */
+  extra?: number;
+};
 export type MapUnitInput = {
   unitId: string;
   title: string;
@@ -52,6 +59,9 @@ export type MapUnit = MapUnitInput & {
   /** Kazanım başına tahmini dakika (outcomes ile aynı sırada). */
   outcomeMinutes: number[];
   weakOutcomes: string[];
+  /** Ek sorusu olan zayıf kazanımlar ve gerçek toplam ek soru sayısı (öneri/çip yalnız bunlarla). */
+  extraOutcomes: string[];
+  extraTotal: number;
 };
 
 function viewOf(mastery: number | null, n: number): MasteryView {
@@ -106,6 +116,8 @@ export function buildMapUnit(input: MapUnitInput): MapUnit {
     outcomeMinutes: mins,
     minutes: mins.length ? mins.reduce((s, m) => s + m, 0) : OUTCOME_MINUTES[level ?? "unknown"],
     weakOutcomes: input.outcomes.filter((o) => isWeakOutcome(o.state)).map((o) => o.outcomeId),
+    extraOutcomes: input.outcomes.filter((o) => isWeakOutcome(o.state) && (o.extra ?? 0) > 0).map((o) => o.outcomeId),
+    extraTotal: input.outcomes.reduce((s, o) => s + (isWeakOutcome(o.state) ? (o.extra ?? 0) : 0), 0),
   };
 }
 

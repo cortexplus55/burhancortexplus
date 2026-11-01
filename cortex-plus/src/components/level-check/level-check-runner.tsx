@@ -53,7 +53,7 @@ export function LevelCheckRunner({
         onStarted?.(res);
         if (res.status !== "ok") {
           setState("empty");
-          onEmpty?.(res.status);
+          onEmpty?.(res.status === "done" ? "done" : "empty");
           return;
         }
         setSession(res);

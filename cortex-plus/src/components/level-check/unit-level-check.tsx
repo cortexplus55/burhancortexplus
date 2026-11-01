@@ -120,7 +120,6 @@ export function UnitLevelCheck({
               prepId={prepId}
               unitId={unitId}
               unitTitle={unitTitle}
-              weakCount={lines.filter((l) => l.weak).length}
               api={api}
               onDone={() => router.refresh()}
             /> : null}

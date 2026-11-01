@@ -4,7 +4,9 @@ import { poolUnit, type PoolOutcome } from "@/lib/content-pool/keys";
 import { PRIOR, type MasteryState, type ScanRating } from "@/lib/level-check/mastery";
 import { poolIdFromSetupId } from "@/lib/level-check/select";
 import { levelUnitTitle } from "@/lib/level-check/titles";
+import { loadVerifiedItems, toPick } from "@/lib/level-check/store";
 import type { MapUnitInput } from "@/lib/mastery-map/plan";
+import { pickReinforcement, type ReinforceItem } from "@/lib/mastery-map/reinforce";
 
 type PlannedUnit = { topic?: string; unitId?: string; codes?: string[]; rating?: ScanRating | null; ratingSource?: "self" | "scan" | null };
 
@@ -34,6 +36,13 @@ export async function loadMasteryStates(service: SupabaseClient, userId: string,
   return states;
 }
 
+/** Öğrencinin bu ünitelerde daha önce yanıtladığı soru kimlikleri (pekiştirmede tekrar sorulmaz). */
+export async function loadAnsweredItems(service: SupabaseClient, userId: string, unitIds: string[]): Promise<Set<string>> {
+  if (!unitIds.length) return new Set();
+  const { data } = await service.from("item_responses").select("item_id").eq("user_id", userId).in("unit_id", unitIds).limit(5000);
+  return new Set((data ?? []).map((r) => String(r.item_id)));
+}
+
 /** Hakimiyet haritası girdisi; resmî kurulumdan değilse ya da tablolar yoksa null. */
 export async function loadMapInputs(service: SupabaseClient, input: { userId: string; prefs: unknown }): Promise<MapUnitInput[] | null> {
   try {
@@ -41,6 +50,15 @@ export async function loadMapInputs(service: SupabaseClient, input: { userId: st
     if (!planned.length) return null;
     const states = await loadMasteryStates(service, input.userId, planned.flatMap((p) => p.outcomes.map((o) => o.outcomeId)));
     if (!states) return null;
+    const unitIds = planned.map((p) => p.poolId);
+    const [answered, rows] = await Promise.all([loadAnsweredItems(service, input.userId, unitIds), loadVerifiedItems(service, unitIds)]);
+    const items: ReinforceItem[] = rows.map(toPick);
+    // Kazanım başına şu an sunulabilecek ek soru (pekiştirme rotasıyla aynı seçim): öneri ve çip gerçek sayıyı gösterir.
+    const extra = new Map<string, number>();
+    for (const p of planned) {
+      const r = pickReinforcement(p.outcomes.map((o) => ({ outcomeId: o.outcomeId, state: states.get(o.outcomeId) ?? PRIOR, extra: extra.get(o.outcomeId) ?? 0 })), items, answered);
+      for (const i of r.picked) extra.set(i.outcomeId, (extra.get(i.outcomeId) ?? 0) + 1);
+    }
     return planned.map((p) => ({
       unitId: p.poolId,
       title: p.title,
