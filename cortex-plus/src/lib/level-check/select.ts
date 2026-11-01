@@ -17,26 +17,45 @@ export const GUEST_PREVIEW_COUNT = 3;
 export const UNIT_CHECK_MIN = 3;
 export const UNIT_CHECK_MAX = 4;
 
-const DIFFICULTY_PREF: Difficulty[] = ["medium", "easy", "hard"];
+/**
+ * Zorluk karışımı (2. düzeltme, 1 Kasım 2026): 0.7 / 1.0 / 1.3 ağırlıkları ancak karışık zorlukla işe yarar.
+ * - Hızlı Tarama: çoğu orta, biraz kolay ve zor. 12 soruda 8 orta + 2 kolay + 2 zor (sıra `SCAN_MIX`).
+ * - Ünite Seviye Kontrolü: orta, kolay, zor (+ 4. soru orta) — her zorluktan en az bir soru.
+ * İstenen zorluk ünitede kalmadıysa sırayla orta → kolay → zor alınır (havuzda olmayan soru uydurulmaz).
+ */
+export const SCAN_MIX: Difficulty[] = ["medium", "medium", "easy", "medium", "hard", "medium", "medium", "easy", "medium", "hard", "medium", "medium"];
+export const UNIT_CHECK_MIX: Difficulty[] = ["medium", "easy", "hard", "medium"];
+const FALLBACK: Difficulty[] = ["medium", "easy", "hard"];
 
-/** Bir ünitenin sırayla alınacak soruları: önce her kazanımdan bir orta soru, sonra kolay, sonra zor. */
-function unitQueue(items: readonly PickItem[]): PickItem[] {
-  const out: PickItem[] = [];
-  for (const diff of DIFFICULTY_PREF) {
-    const seen = new Set<string>();
-    for (const item of items) {
-      if (item.difficulty !== diff || seen.has(item.outcomeId)) continue;
-      seen.add(item.outcomeId);
-      out.push(item);
-    }
+/** Ünitenin zorluk kovaları; her kovada farklı kazanımlar önce. */
+class UnitBuckets {
+  private buckets = new Map<Difficulty, PickItem[]>();
+  private usedOutcomes = new Set<string>();
+  constructor(items: readonly PickItem[]) {
+    for (const d of FALLBACK) this.buckets.set(d, items.filter((i) => i.difficulty === d));
   }
-  for (const item of items) if (!out.includes(item)) out.push(item);
-  return out;
+  get size(): number {
+    let n = 0;
+    for (const b of this.buckets.values()) n += b.length;
+    return n;
+  }
+  take(want: Difficulty): PickItem | null {
+    for (const d of [want, ...FALLBACK.filter((x) => x !== want)]) {
+      const bucket = this.buckets.get(d)!;
+      if (!bucket.length) continue;
+      let idx = bucket.findIndex((i) => !this.usedOutcomes.has(i.outcomeId));
+      if (idx < 0) idx = 0;
+      const [item] = bucket.splice(idx, 1);
+      this.usedOutcomes.add(item!.outcomeId);
+      return item!;
+    }
+    return null;
+  }
 }
 
 /**
- * ⚡ Akıllı Hızlı Tarama: ağırlığı en yüksek üniteler önce; tur tur her üniteden bir soru (en çok 12).
- * Sorusu olmayan ünite atlanır. Havuz 10'dan az soru veriyorsa olan kadar döner (ekranda gerçek sayı yazar).
+ * ⚡ Akıllı Hızlı Tarama: ağırlığı en yüksek üniteler önce; tur tur her üniteden bir soru (en çok 12), zorluk
+ * `SCAN_MIX` sırasıyla. Sorusu olmayan ünite atlanır. Havuz 10'dan az soru veriyorsa olan kadar döner.
  */
 export function pickQuickScan(units: readonly ScanUnit[], items: readonly PickItem[], max = QUICK_SCAN_MAX): PickItem[] {
   const byUnit = new Map<string, PickItem[]>();
@@ -44,22 +63,28 @@ export function pickQuickScan(units: readonly ScanUnit[], items: readonly PickIt
   const ranked = units
     .filter((u) => byUnit.has(u.unitId))
     .sort((a, b) => b.weight - a.weight || a.order - b.order)
-    .map((u) => unitQueue(byUnit.get(u.unitId)!));
+    .map((u) => new UnitBuckets(byUnit.get(u.unitId)!));
   const picked: PickItem[] = [];
-  for (let round = 0; picked.length < max && ranked.some((q) => round < q.length); round += 1) {
+  while (picked.length < max && ranked.some((q) => q.size > 0)) {
     for (const queue of ranked) {
       if (picked.length >= max) break;
-      if (round < queue.length) picked.push(queue[round]!);
+      const item = queue.take(SCAN_MIX[picked.length % SCAN_MIX.length]!);
+      if (item) picked.push(item);
     }
   }
   return picked;
 }
 
-/** Ünite Seviye Kontrolü: üniteden 3–4 soru, önce farklı kazanımlar. 3'ten az soru varsa boş (önerilmez). */
+/** Ünite Seviye Kontrolü: üniteden 3–4 soru, `UNIT_CHECK_MIX` zorluklarıyla, önce farklı kazanımlar. 3'ten azsa boş. */
 export function pickUnitCheck(items: readonly PickItem[]): PickItem[] {
-  const queue = unitQueue(items);
-  if (queue.length < UNIT_CHECK_MIN) return [];
-  return queue.slice(0, UNIT_CHECK_MAX);
+  if (items.length < UNIT_CHECK_MIN) return [];
+  const buckets = new UnitBuckets(items);
+  const out: PickItem[] = [];
+  for (const want of UNIT_CHECK_MIX) {
+    const item = buckets.take(want);
+    if (item) out.push(item);
+  }
+  return out;
 }
 
 /** Kurulum ağacı kimliği (`program#index`, 0 tabanlı) → havuz kimliği (curriculum_units.id, 1 tabanlı). */

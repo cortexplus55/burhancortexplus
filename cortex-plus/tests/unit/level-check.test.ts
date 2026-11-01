@@ -8,7 +8,8 @@ import {
   PRIOR,
   scanRating,
 } from "@/lib/level-check/mastery";
-import { pickQuickScan, pickUnitCheck, poolIdFromSetupId, type PickItem } from "@/lib/level-check/select";
+import { pickQuickScan, pickUnitCheck, poolIdFromSetupId, SCAN_MIX, type PickItem } from "@/lib/level-check/select";
+import { levelUnitTitle } from "@/lib/level-check/titles";
 
 describe("mastery (Beta-Binomial)", () => {
   it("öncel α=β=1, ustalık 0.5, veri yok", () => {
@@ -74,5 +75,39 @@ describe("soru seçimi", () => {
   it("kurulum kimliği (0 tabanlı) → havuz kimliği (1 tabanlı)", () => {
     expect(poolIdFromSetupId("yks-2026-tarih#0")).toBe("yks-2026-tarih#1");
     expect(poolIdFromSetupId("bozuk")).toBeNull();
+  });
+});
+
+describe("zorluk karışımı ve başlık", () => {
+  const count = (list: PickItem[], d: string) => list.filter((p) => p.difficulty === d).length;
+  it("ünite kontrolü kolay, orta ve zor içerir; farklı kazanımlar", () => {
+    const picked = pickUnitCheck(items("u", 9));
+    expect(picked).toHaveLength(4);
+    expect(count(picked, "easy")).toBe(1);
+    expect(count(picked, "hard")).toBe(1);
+    expect(count(picked, "medium")).toBe(2);
+    expect(new Set(picked.slice(0, 3).map((p) => p.outcomeId)).size).toBe(3);
+  });
+  it("3 soruluk ünitede her zorluktan bir", () => {
+    const picked = pickUnitCheck(items("u", 3));
+    expect(picked.map((p) => p.difficulty).sort()).toEqual(["easy", "hard", "medium"]);
+  });
+  it("hızlı tarama çoğu orta, biraz kolay ve zor (8/2/2)", () => {
+    const pool = ["a", "b", "c", "d", "e", "f"].flatMap((u) => items(u, 9));
+    const picked = pickQuickScan(["a", "b", "c", "d", "e", "f"].map((u, i) => ({ unitId: u, weight: 10 - i, order: i })), pool);
+    expect(picked).toHaveLength(12);
+    expect([count(picked, "medium"), count(picked, "easy"), count(picked, "hard")]).toEqual([8, 2, 2]);
+    expect(SCAN_MIX.filter((d) => d === "medium").length).toBe(8);
+  });
+  it("istenen zorluk yoksa olandan alınır, uydurulmaz", () => {
+    const onlyMedium = items("u", 9).map((p) => ({ ...p, difficulty: "medium" as const }));
+    expect(pickUnitCheck(onlyMedium)).toHaveLength(4);
+    expect(pickQuickScan([{ unitId: "u", weight: 1, order: 0 }], onlyMedium)).toHaveLength(9);
+  });
+  it("ünite başlığı ortak yardımcıdan geçer: sıra numarası yok", () => {
+    expect(levelUnitTitle("yks-2026-tarih#1")).toBe("9. Sınıf · Tarih ve Zaman");
+    expect(levelUnitTitle("yks-2026-tarih#2")).toBe("9. Sınıf · İlk ve Orta Çağlarda Türk Dünyası");
+    for (let n = 1; n <= 12; n++) expect(levelUnitTitle(`yks-2026-tarih#${n}`) ?? "").not.toMatch(/· \d+\. /);
+    expect(levelUnitTitle("yok#1")).toBeNull();
   });
 });

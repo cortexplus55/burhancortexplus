@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { poolUnit } from "@/lib/content-pool/keys";
 import { poolIdFromSetupId, UNIT_CHECK_MIN } from "@/lib/level-check/select";
+import { levelUnitTitle } from "@/lib/level-check/titles";
 import { unitCheckDone } from "@/lib/level-check/store";
 
 /**
@@ -29,7 +30,7 @@ export async function unitCheckOffer(
       .eq("status", "verified");
     if ((count ?? 0) < UNIT_CHECK_MIN) return null;
     if (await unitCheckDone(service, input.userId, poolId, input.prepId)) return null;
-    return { unitId: poolId, unitTitle: unit.unit.title };
+    return { unitId: poolId, unitTitle: levelUnitTitle(poolId) ?? unit.unit.title };
   } catch {
     return null;
   }

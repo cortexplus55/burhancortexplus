@@ -1,4 +1,5 @@
 import "server-only";
+import { levelUnitTitle } from "@/lib/level-check/titles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { poolUnit } from "@/lib/content-pool/keys";
 import { applyResponse, PRIOR, type Difficulty } from "@/lib/level-check/mastery";
@@ -30,7 +31,7 @@ export function toLevelItem(r: ItemRow): LevelItem {
   return {
     id: r.id,
     unitId: r.unit_id,
-    unitTitle: unit?.unit.title ?? "",
+    unitTitle: levelUnitTitle(r.unit_id) ?? unit?.unit.title ?? "",
     outcomeId: r.outcome_id,
     outcomeCode: outcome?.code ?? r.qa?.outcome_code ?? "",
     outcomeText: outcome?.text ?? "",
