@@ -108,3 +108,13 @@ export function officialSourceNote(ref: CurriculumRef | null | undefined): strin
   }
   return `🏛️ Bu hazırlık resmî programdaki kazanımlara göre hazırlandı: ${parts.join(" · ")}`;
 }
+
+/** Resmî sınav kurulumundan (officialPlan) kurulan hazırlık için kaynak notu; yoksa null. */
+export function officialPlanNote(prefs: unknown): string | null {
+  const plan = (prefs as { officialPlan?: { exam?: string; units?: { programId: string; codes: string[] }[] } } | null)?.officialPlan;
+  if (!plan || !Array.isArray(plan.units) || !plan.units.length) return null;
+  const programs = new Set(plan.units.map((u) => u.programId));
+  const outcomes = plan.units.reduce((n, u) => n + (Array.isArray(u.codes) ? u.codes.length : 0), 0);
+  const source = plan.exam === "lgs" ? "MEB LGS 2027 kazanımları" : "MEB 2026 YKS'ye esas kazanımlar · ÖSYM 2026-YKS Kılavuzu";
+  return `🏛️ Bu hazırlık resmî programdaki kazanımlara göre hazırlandı: ${source} · ${programs.size} program · ${plan.units.length} ünite · ${outcomes} kazanım`;
+}

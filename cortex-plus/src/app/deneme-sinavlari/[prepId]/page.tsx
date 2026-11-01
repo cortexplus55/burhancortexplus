@@ -1,4 +1,4 @@
-import { officialSourceNote, readCurriculumRef } from "@/lib/curriculum/registry";
+import { officialPlanNote, officialSourceNote, readCurriculumRef } from "@/lib/curriculum/registry";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { headers } from "next/headers";
@@ -631,7 +631,7 @@ export default async function ExamPrepDetailPage({
     <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari" minimalTop>
       <ExamPrepHome
         prepId={prep.id}
-        officialNote={officialSourceNote(readCurriculumRef(prep.learning_preferences))}
+        officialNote={officialPlanNote(prep.learning_preferences) ?? officialSourceNote(readCurriculumRef(prep.learning_preferences))}
         shareTools={{
           inviteUrl,
           whatsappHref: inviteUrl ? prepInviteWhatsappHref((prep.title ?? prep.exam_type) as string | null, inviteUrl) : null,

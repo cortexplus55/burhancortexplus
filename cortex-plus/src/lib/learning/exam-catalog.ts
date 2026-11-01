@@ -190,7 +190,16 @@ export function curriculumPick(levelId: string, subject: string): { subject: str
 }
 
 /** Kurulumu ders ve ilk mesaj dolu açan adres. */
+/** Kayıt defteri destekli resmî kurulum (1 Kasım 2026): YKS ve LGS kartları belge sormadan ders → konu → tarih akışına gider. */
+const OFFICIAL_SETUP_HREF: Record<string, string> = {
+  tyt: "/deneme-sinavlari/resmi/kurulum?sinav=yks&alan=tyt",
+  ayt: "/deneme-sinavlari/resmi/kurulum?sinav=yks",
+  lgs: "/deneme-sinavlari/resmi/kurulum?sinav=lgs",
+};
+
 export function catalogCreateHref(item: CatalogItem): string {
+  const official = OFFICIAL_SETUP_HREF[item.id];
+  if (official && OFFICIAL_EXAMS.includes(item)) return official;
   const params = new URLSearchParams({ ders: item.subject, istem: item.prompt });
   return `/deneme-sinavlari/olustur?${params.toString()}`;
 }
