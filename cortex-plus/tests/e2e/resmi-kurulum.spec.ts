@@ -56,6 +56,15 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await expect(page.locator("details", { hasText: "TYT Türkçe" }).getByTestId("setup-unit").first()).toContainText(
       "9. Sınıf · Hikâye",
     );
+    await page.locator("summary", { hasText: "TYT Tarih" }).click();
+    for (const ders of ["TYT Türkçe", "TYT Tarih"]) {
+      const titles = await page.locator("details", { hasText: ders }).getByTestId("setup-unit").allTextContents();
+      expect(titles.length).toBeGreaterThan(5);
+      expect(titles.filter((t) => /· \d+\. (?!Sınıf)/u.test(t))).toEqual([]);
+    }
+    await expect(page.locator("details", { hasText: "TYT Tarih" }).getByTestId("setup-unit").first()).toContainText(
+      "9. Sınıf · Tarih ve Zaman",
+    );
     await page.locator("summary", { hasText: "AYT Matematik" }).click();
     const firstUnit = page.locator("details", { hasText: "AYT Matematik" }).getByTestId("setup-unit").first();
     await firstUnit.getByRole("checkbox").first().uncheck();

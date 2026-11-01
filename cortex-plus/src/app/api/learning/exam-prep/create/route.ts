@@ -48,7 +48,7 @@ import { isRunningHeader } from "@/lib/documents/clean-text";
 import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 import { getProgram } from "@/lib/curriculum/registry";
 import { orderOfficialUnits, type OrderableUnit } from "@/lib/curriculum/official-plan-order";
-import { verifyPlannedUnits } from "@/lib/curriculum/official-setup";
+import { officialUnitTopic, verifyPlannedUnits } from "@/lib/curriculum/official-setup";
 import { runPool } from "@/lib/documents/upload-batch";
 
 /** Kurulumdaki bağımsız satır güncellemeleri için eşzamanlı istek sınırı. */
@@ -131,7 +131,9 @@ function checkedOfficialPlan<
   if (units.length !== prefs.officialPlan.units.length) return null;
   if (units.length !== topics.length || units.some((u, i) => u.topic !== topics[i])) return null;
   // Öz değerlendirme sırayı belirler: Zayıf öne (ders içi sıra korunur), Biliyorum sona.
-  return { ...prefs, officialPlan: { ...prefs.officialPlan, units: orderOfficialUnits(units) } };
+  // Eski istemciden gelen numaralı ünite adı ("· 2. Hikâye") yolda numarasız yazılır.
+  const clean = units.map((u) => ({ ...u, topic: officialUnitTopic(u.unitId, u.topic) }));
+  return { ...prefs, officialPlan: { ...prefs.officialPlan, units: orderOfficialUnits(clean) } };
 }
 
 // Serbest metinler reddedilmez, kırpılır (Paket I #12): 43 karakterlik ders adı kurulumu 400 ile düşürüyordu.

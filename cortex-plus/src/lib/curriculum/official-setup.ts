@@ -2,7 +2,8 @@ import "server-only";
 import { CURRICULUM, getProgram, GRADE_SCOPES } from "@/lib/curriculum/registry";
 import { inPartScope, outcomeGrade, cutAtWord } from "@/lib/curriculum/topic-map";
 import { setupSubjectDefs, type SetupExam } from "@/lib/curriculum/yks-alan";
-import { displayUnitTitles, type SetupSubject, type SetupTree, type SetupUnit } from "@/lib/curriculum/official-setup-select";
+import { displayUnitTitles } from "@/lib/curriculum/unit-title";
+import { type SetupSubject, type SetupTree, type SetupUnit } from "@/lib/curriculum/official-setup-select";
 
 /** Ders anahtarı → sınav yapısındaki (examStructures) ders adları; soru sayısı bunların toplamı. */
 const STRUCTURE_SUBJECTS: Record<string, string[]> = {
@@ -102,4 +103,18 @@ export function outcomesForPlannedUnit(unitId: string, codes: string[]) {
   if (!program || !unit) return null;
   const pick = new Set(codes);
   return { program, unit, outcomes: unit.outcomes.filter((o) => pick.has(o.code)) };
+}
+
+/**
+ * Konu adı kayıttaki ünite başlığıyla yazılır (numarasız). Eski istemci numaralı başlık gönderdiyse
+ * kayıttaki ham başlık gösterilen başlıkla değiştirilir; kod/ünite kimliği aynı kalır.
+ */
+export function officialUnitTopic(unitId: string, topic: string): string {
+  const [programId, rawIndex] = unitId.split("#");
+  const program = getProgram(programId ?? "");
+  const index = Number(rawIndex);
+  const raw = program?.units[index]?.title;
+  if (!program || !raw) return topic;
+  const shown = displayUnitTitles(program.units.map((u) => u.title))[index] ?? raw;
+  return shown !== raw && topic.includes(raw) ? topic.replace(raw, shown) : topic;
 }
