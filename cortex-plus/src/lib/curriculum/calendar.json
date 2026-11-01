@@ -1,0 +1,346 @@
+{
+ "version": "2026-11-01",
+ "events": [
+  {
+   "id": "meb-2026-11-16-0",
+   "kind": "meb",
+   "label": "1. dönem ara tatili",
+   "starts": "2026-11-16",
+   "ends": "2026-11-20",
+   "sourceId": "meb_bulten_2026",
+   "exam": null
+  },
+  {
+   "id": "meb-2027-01-25-1",
+   "kind": "meb",
+   "label": "Yarıyıl tatili",
+   "starts": "2027-01-25",
+   "ends": "2027-02-05",
+   "sourceId": "meb_bulten_2026",
+   "exam": null
+  },
+  {
+   "id": "meb-2027-02-08-2",
+   "kind": "meb",
+   "label": "2. dönem başlangıcı",
+   "starts": "2027-02-08",
+   "ends": "2027-02-08",
+   "sourceId": "meb_bulten_2026",
+   "exam": null
+  },
+  {
+   "id": "meb-2027-03-08-3",
+   "kind": "meb",
+   "label": "2. dönem ara tatili",
+   "starts": "2027-03-08",
+   "ends": "2027-03-12",
+   "sourceId": "meb_bulten_2026",
+   "exam": null
+  },
+  {
+   "id": "meb-2027-06-25-4",
+   "kind": "meb",
+   "label": "Ders yılı sonu",
+   "starts": "2027-06-25",
+   "ends": "2027-06-25",
+   "sourceId": "meb_bulten_2026",
+   "exam": null
+  },
+  {
+   "id": "sinav-2027-06-13-5",
+   "kind": "sinav",
+   "label": "LGS 2027",
+   "starts": "2027-06-13",
+   "ends": "2027-06-13",
+   "sourceId": "odsgm_lgs_2027",
+   "exam": "LGS"
+  },
+  {
+   "id": "sinav-2027-03-20-6",
+   "kind": "sinav",
+   "label": "MSÜ",
+   "starts": "2027-03-20",
+   "ends": "2027-03-20",
+   "sourceId": "osym_takvim_2027",
+   "exam": "MSU"
+  },
+  {
+   "id": "sinav-2027-03-27-7",
+   "kind": "sinav",
+   "label": "TUS 1. Dönem",
+   "starts": "2027-03-27",
+   "ends": "2027-03-27",
+   "sourceId": "osym_takvim_2027",
+   "exam": "TUS"
+  },
+  {
+   "id": "sinav-2027-03-28-8",
+   "kind": "sinav",
+   "label": "YDS/1",
+   "starts": "2027-03-28",
+   "ends": "2027-03-28",
+   "sourceId": "osym_takvim_2027",
+   "exam": "YDS"
+  },
+  {
+   "id": "sinav-2027-04-18-9",
+   "kind": "sinav",
+   "label": "ALES/1",
+   "starts": "2027-04-18",
+   "ends": "2027-04-18",
+   "sourceId": "osym_takvim_2027",
+   "exam": "ALES"
+  },
+  {
+   "id": "sinav-2027-06-19-10",
+   "kind": "sinav",
+   "label": "YKS TYT",
+   "starts": "2027-06-19",
+   "ends": "2027-06-19",
+   "sourceId": "osym_takvim_2027",
+   "exam": "TYT"
+  },
+  {
+   "id": "sinav-2027-06-20-11",
+   "kind": "sinav",
+   "label": "YKS AYT",
+   "starts": "2027-06-20",
+   "ends": "2027-06-20",
+   "sourceId": "osym_takvim_2027",
+   "exam": "AYT"
+  },
+  {
+   "id": "sinav-2027-06-20-12",
+   "kind": "sinav",
+   "label": "YKS YDT",
+   "starts": "2027-06-20",
+   "ends": "2027-06-20",
+   "sourceId": "osym_takvim_2027",
+   "exam": "YDT"
+  },
+  {
+   "id": "sinav-2027-07-11-13",
+   "kind": "sinav",
+   "label": "ALES/2",
+   "starts": "2027-07-11",
+   "ends": "2027-07-11",
+   "sourceId": "osym_takvim_2027",
+   "exam": "ALES"
+  },
+  {
+   "id": "sinav-2027-07-18-14",
+   "kind": "sinav",
+   "label": "DGS",
+   "starts": "2027-07-18",
+   "ends": "2027-07-18",
+   "sourceId": "osym_takvim_2027",
+   "exam": "DGS"
+  },
+  {
+   "id": "sinav-2027-08-22-15",
+   "kind": "sinav",
+   "label": "TUS 2. Dönem",
+   "starts": "2027-08-22",
+   "ends": "2027-08-22",
+   "sourceId": "osym_takvim_2027",
+   "exam": "TUS"
+  },
+  {
+   "id": "sinav-2027-09-12-16",
+   "kind": "sinav",
+   "label": "KPSS Lisans GY-GK",
+   "starts": "2027-09-12",
+   "ends": "2027-09-12",
+   "sourceId": "osym_takvim_2027",
+   "exam": "KPSS"
+  },
+  {
+   "id": "sinav-2027-09-18-17",
+   "kind": "sinav",
+   "label": "KPSS Alan Bilgisi",
+   "starts": "2027-09-18",
+   "ends": "2027-09-19",
+   "sourceId": "osym_takvim_2027",
+   "exam": "KPSS"
+  },
+  {
+   "id": "sinav-2027-10-24-18",
+   "kind": "sinav",
+   "label": "DUS",
+   "starts": "2027-10-24",
+   "ends": "2027-10-24",
+   "sourceId": "osym_takvim_2027",
+   "exam": "DUS"
+  },
+  {
+   "id": "sinav-2027-11-21-19",
+   "kind": "sinav",
+   "label": "YDS/2",
+   "starts": "2027-11-21",
+   "ends": "2027-11-21",
+   "sourceId": "osym_takvim_2027",
+   "exam": "YDS"
+  },
+  {
+   "id": "sinav-2027-11-28-20",
+   "kind": "sinav",
+   "label": "ALES/3",
+   "starts": "2027-11-28",
+   "ends": "2027-11-28",
+   "sourceId": "osym_takvim_2027",
+   "exam": "ALES"
+  },
+  {
+   "id": "dini-2028-02-25-21",
+   "kind": "dini",
+   "label": "Ramazan Bayramı arifesi",
+   "starts": "2028-02-25",
+   "ends": "2028-02-25",
+   "sourceId": "diyanet_2028",
+   "exam": null
+  },
+  {
+   "id": "dini-2028-02-26-22",
+   "kind": "dini",
+   "label": "Ramazan Bayramı",
+   "starts": "2028-02-26",
+   "ends": "2028-02-28",
+   "sourceId": "diyanet_2028",
+   "exam": null
+  },
+  {
+   "id": "dini-2028-05-04-23",
+   "kind": "dini",
+   "label": "Kurban Bayramı arifesi",
+   "starts": "2028-05-04",
+   "ends": "2028-05-04",
+   "sourceId": "diyanet_2028",
+   "exam": null
+  },
+  {
+   "id": "dini-2028-05-05-24",
+   "kind": "dini",
+   "label": "Kurban Bayramı",
+   "starts": "2028-05-05",
+   "ends": "2028-05-08",
+   "sourceId": "diyanet_2028",
+   "exam": null
+  },
+  {
+   "id": "dini-2029-02-13-25",
+   "kind": "dini",
+   "label": "Ramazan Bayramı arifesi",
+   "starts": "2029-02-13",
+   "ends": "2029-02-13",
+   "sourceId": "diyanet_2029",
+   "exam": null
+  },
+  {
+   "id": "dini-2029-02-14-26",
+   "kind": "dini",
+   "label": "Ramazan Bayramı",
+   "starts": "2029-02-14",
+   "ends": "2029-02-16",
+   "sourceId": "diyanet_2029",
+   "exam": null
+  },
+  {
+   "id": "dini-2029-04-23-27",
+   "kind": "dini",
+   "label": "Kurban Bayramı arifesi",
+   "starts": "2029-04-23",
+   "ends": "2029-04-23",
+   "sourceId": "diyanet_2029",
+   "exam": null
+  },
+  {
+   "id": "dini-2029-04-24-28",
+   "kind": "dini",
+   "label": "Kurban Bayramı",
+   "starts": "2029-04-24",
+   "ends": "2029-04-27",
+   "sourceId": "diyanet_2029",
+   "exam": null
+  },
+  {
+   "id": "dini-2030-02-03-29",
+   "kind": "dini",
+   "label": "Ramazan Bayramı arifesi",
+   "starts": "2030-02-03",
+   "ends": "2030-02-03",
+   "sourceId": "diyanet_2030",
+   "exam": null
+  },
+  {
+   "id": "dini-2030-02-04-30",
+   "kind": "dini",
+   "label": "Ramazan Bayramı",
+   "starts": "2030-02-04",
+   "ends": "2030-02-06",
+   "sourceId": "diyanet_2030",
+   "exam": null
+  },
+  {
+   "id": "dini-2030-04-12-31",
+   "kind": "dini",
+   "label": "Kurban Bayramı arifesi",
+   "starts": "2030-04-12",
+   "ends": "2030-04-12",
+   "sourceId": "diyanet_2030",
+   "exam": null
+  },
+  {
+   "id": "dini-2030-04-13-32",
+   "kind": "dini",
+   "label": "Kurban Bayramı",
+   "starts": "2030-04-13",
+   "ends": "2030-04-16",
+   "sourceId": "diyanet_2030",
+   "exam": null
+  }
+ ],
+ "sources": {
+  "diyanet_2028": {
+   "url": "https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=185",
+   "sha256": "5851afc4f23fed09d55bc24f2b0c909486e3f6b62db91d057219911b7ab579b4",
+   "title": "2028 Dini Günler",
+   "publisher": "Diyanet İşleri Başkanlığı",
+   "fetched_at": "2026-11-01T10:00:00+03:00"
+  },
+  "diyanet_2029": {
+   "url": "https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=186",
+   "sha256": "4ad6c50945eb677841e2893d5909390440960d88ce04cadc2c3920ad8977fd64",
+   "title": "2029 Dini Günler",
+   "publisher": "Diyanet İşleri Başkanlığı",
+   "fetched_at": "2026-11-01T10:00:00+03:00"
+  },
+  "diyanet_2030": {
+   "url": "https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=187",
+   "sha256": "661f69368380093dd23dd22147f150c79f7259a2d7c9a582fe60d8c8bd743c74",
+   "title": "2030 Dini Günler",
+   "publisher": "Diyanet İşleri Başkanlığı",
+   "fetched_at": "2026-11-01T10:00:00+03:00"
+  },
+  "meb_bulten_2026": {
+   "url": "https://yegitek.meb.gov.tr/meb_iys_dosyalar/2026_10/6ac38d2960bc7272781422_eyl%C3%BCle-b%C3%BClten-son.pdf",
+   "sha256": "ceb77ecfe3091bdad13b5a0913ceca985694bd2c4214c8575e2ac08127f8d742",
+   "title": "2026-2027 Eğitim Öğretim Yılı Çalışma Takvimi",
+   "publisher": "MEB",
+   "fetched_at": "2026-11-01T10:00:00+03:00"
+  },
+  "odsgm_lgs_2027": {
+   "url": "https://odsgm.meb.gov.tr/www/lgs-kapsamindaki-merkezi-sinavin-tarihi-belli-oldu/icerik/1755",
+   "sha256": "5743a053231dc7dee376ce4fda97188976e9150ac5337b271484bc29f213fc92",
+   "title": "LGS 2027 tarihi duyurusu",
+   "publisher": "MEB ÖDSGM",
+   "fetched_at": "2026-11-01T10:00:00+03:00"
+  },
+  "osym_takvim_2027": {
+   "url": "https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf",
+   "sha256": "4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87",
+   "title": "ÖSYM 2027 Yılı Sınav Takvimi",
+   "publisher": "ÖSYM",
+   "fetched_at": "2026-11-01T10:00:00+03:00"
+  }
+ }
+}

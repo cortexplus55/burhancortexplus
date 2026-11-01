@@ -15,6 +15,7 @@ import { examPointsInSource } from "@/lib/learning/exam-points";
 import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
 import { checkNoteRules } from "@/lib/learning/note-rule-check-run";
+import { loadOfficialOutcome } from "@/lib/curriculum/prep-outcome";
 import { NodeGenerationError, actionForKind } from "./shared";
 import { saveTopicLesson } from "./lesson-store";
 import { withSupport, type LessonCore } from "./teacher-pages";
@@ -126,6 +127,7 @@ export async function teacherLessonPayload(
     // Belgeli derste yalnız dersin kaynağında geçen maddeler: başka belgenin maddesi "kaynakta yok" turu açıyordu.
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
+    officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     ...warned,
     startedAt,
     charge: input.charge,

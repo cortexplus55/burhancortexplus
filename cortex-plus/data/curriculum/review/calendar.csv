@@ -1,0 +1,34 @@
+kind,label,starts,ends,exam,source_url,sha256
+meb,1. dönem ara tatili,2026-11-16,2026-11-20,,https://yegitek.meb.gov.tr/meb_iys_dosyalar/2026_10/6ac38d2960bc7272781422_eyl%C3%BCle-b%C3%BClten-son.pdf,ceb77ecfe3091bdad13b5a0913ceca985694bd2c4214c8575e2ac08127f8d742
+meb,Yarıyıl tatili,2027-01-25,2027-02-05,,https://yegitek.meb.gov.tr/meb_iys_dosyalar/2026_10/6ac38d2960bc7272781422_eyl%C3%BCle-b%C3%BClten-son.pdf,ceb77ecfe3091bdad13b5a0913ceca985694bd2c4214c8575e2ac08127f8d742
+meb,2. dönem başlangıcı,2027-02-08,2027-02-08,,https://yegitek.meb.gov.tr/meb_iys_dosyalar/2026_10/6ac38d2960bc7272781422_eyl%C3%BCle-b%C3%BClten-son.pdf,ceb77ecfe3091bdad13b5a0913ceca985694bd2c4214c8575e2ac08127f8d742
+meb,2. dönem ara tatili,2027-03-08,2027-03-12,,https://yegitek.meb.gov.tr/meb_iys_dosyalar/2026_10/6ac38d2960bc7272781422_eyl%C3%BCle-b%C3%BClten-son.pdf,ceb77ecfe3091bdad13b5a0913ceca985694bd2c4214c8575e2ac08127f8d742
+meb,Ders yılı sonu,2027-06-25,2027-06-25,,https://yegitek.meb.gov.tr/meb_iys_dosyalar/2026_10/6ac38d2960bc7272781422_eyl%C3%BCle-b%C3%BClten-son.pdf,ceb77ecfe3091bdad13b5a0913ceca985694bd2c4214c8575e2ac08127f8d742
+sinav,LGS 2027,2027-06-13,2027-06-13,LGS,https://odsgm.meb.gov.tr/www/lgs-kapsamindaki-merkezi-sinavin-tarihi-belli-oldu/icerik/1755,5743a053231dc7dee376ce4fda97188976e9150ac5337b271484bc29f213fc92
+sinav,MSÜ,2027-03-20,2027-03-20,MSU,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,TUS 1. Dönem,2027-03-27,2027-03-27,TUS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,YDS/1,2027-03-28,2027-03-28,YDS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,ALES/1,2027-04-18,2027-04-18,ALES,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,YKS TYT,2027-06-19,2027-06-19,TYT,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,YKS AYT,2027-06-20,2027-06-20,AYT,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,YKS YDT,2027-06-20,2027-06-20,YDT,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,ALES/2,2027-07-11,2027-07-11,ALES,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,DGS,2027-07-18,2027-07-18,DGS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,TUS 2. Dönem,2027-08-22,2027-08-22,TUS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,KPSS Lisans GY-GK,2027-09-12,2027-09-12,KPSS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,KPSS Alan Bilgisi,2027-09-18,2027-09-19,KPSS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,DUS,2027-10-24,2027-10-24,DUS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,YDS/2,2027-11-21,2027-11-21,YDS,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+sinav,ALES/3,2027-11-28,2027-11-28,ALES,https://dokuman.osym.gov.tr/web/2026/10/osym-2027-yili-sinav-takvimi-7d09wi-28090734.pdf,4fb7d23f1b98221e33c3cc315fd0b47a5d06438f8570482069707762c059ed87
+dini,Ramazan Bayramı arifesi,2028-02-25,2028-02-25,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=185,5851afc4f23fed09d55bc24f2b0c909486e3f6b62db91d057219911b7ab579b4
+dini,Ramazan Bayramı,2028-02-26,2028-02-28,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=185,5851afc4f23fed09d55bc24f2b0c909486e3f6b62db91d057219911b7ab579b4
+dini,Kurban Bayramı arifesi,2028-05-04,2028-05-04,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=185,5851afc4f23fed09d55bc24f2b0c909486e3f6b62db91d057219911b7ab579b4
+dini,Kurban Bayramı,2028-05-05,2028-05-08,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=185,5851afc4f23fed09d55bc24f2b0c909486e3f6b62db91d057219911b7ab579b4
+dini,Ramazan Bayramı arifesi,2029-02-13,2029-02-13,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=186,4ad6c50945eb677841e2893d5909390440960d88ce04cadc2c3920ad8977fd64
+dini,Ramazan Bayramı,2029-02-14,2029-02-16,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=186,4ad6c50945eb677841e2893d5909390440960d88ce04cadc2c3920ad8977fd64
+dini,Kurban Bayramı arifesi,2029-04-23,2029-04-23,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=186,4ad6c50945eb677841e2893d5909390440960d88ce04cadc2c3920ad8977fd64
+dini,Kurban Bayramı,2029-04-24,2029-04-27,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=186,4ad6c50945eb677841e2893d5909390440960d88ce04cadc2c3920ad8977fd64
+dini,Ramazan Bayramı arifesi,2030-02-03,2030-02-03,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=187,661f69368380093dd23dd22147f150c79f7259a2d7c9a582fe60d8c8bd743c74
+dini,Ramazan Bayramı,2030-02-04,2030-02-06,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=187,661f69368380093dd23dd22147f150c79f7259a2d7c9a582fe60d8c8bd743c74
+dini,Kurban Bayramı arifesi,2030-04-12,2030-04-12,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=187,661f69368380093dd23dd22147f150c79f7259a2d7c9a582fe60d8c8bd743c74
+dini,Kurban Bayramı,2030-04-13,2030-04-16,,https://vakithesaplama.diyanet.gov.tr/icerik.php?icerik=187,661f69368380093dd23dd22147f150c79f7259a2d7c9a582fe60d8c8bd743c74

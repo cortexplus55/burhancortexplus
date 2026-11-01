@@ -15,6 +15,7 @@ import {
   type LessonScreen,
   type LessonV3,
 } from "@/lib/learning/lesson-v3";
+import { officialOutcomeBlock, type OfficialOutcomeGrounding } from "@/lib/curriculum/grounding";
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-reference";
 import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotation } from "@/lib/learning/function-notation";
@@ -110,6 +111,8 @@ export type TeacherLessonInput = {
    * anlatır; uyarı kutusunu ekran çizer. Yoksa hiçbir istem değişmez.
    */
   noteWarnings?: FormulaTypo[];
+  /** Resmî müfredattan kurulan hazırlıkta konunun resmî kazanımı ve sınırlamaları (1 Kasım 2026). */
+  officialOutcome?: OfficialOutcomeGrounding | null;
 };
 
 /** Notun yazım hatası olan formülü kilit bilgi değildir: yazar ve kapsam ölçüsü onu "işlenmedi" saymasın. */
@@ -492,6 +495,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "lesson"),
+    officialOutcomeBlock(input.officialOutcome, "lesson"),
     input.mode === "topic" ? "" : noteWarningsPromptLine(input.noteWarnings),
     `SIRADAKİ KONULAR: ${input.upcomingTopics.length ? input.upcomingTopics.join(" | ") : "(yok)"}`,
     input.runningHeaders?.length

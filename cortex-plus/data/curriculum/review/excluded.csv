@@ -1,0 +1,23 @@
+source,section,code,reason
+meb_yks_2026,mantik,,PDF yazı tipi kodlaması bozuk; metin çıkarılamadı
+meb_yks_2026,psikoloji,,PDF yazı tipi kodlaması bozuk; metin çıkarılamadı
+meb_yks_2026,sosyoloji,,PDF yazı tipi kodlaması bozuk; metin çıkarılamadı
+meb_yks_2026,tde,,"Kazanım kodlarında sınıf yok (A.1.1 …), sınıflar arasında tekrar ediyor; güvenilir eşleme yapılamadı"
+meb_yks_2026,inkilap,,İki sütunlu sayfa düzeni metni karıştırıyor; kazanım metni güvenilir değil
+meb_yks_2026,felsefe,,4 satır başlık/bozuk kod/tekrar olarak elendi
+meb_yks_2026,kimya,,1 satır başlık/bozuk kod/tekrar olarak elendi
+meb_yks_2026,tarih,,2 satır başlık/bozuk kod/tekrar olarak elendi
+odsgm_ksdt,turkce2:6,T.O.6.27,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,turkce2:6,T.Y.6.21,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,turkce2:6,T.Y.6.22,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,turkce2:7,T.O.7.28,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,turkce2:7,T.Y.7.21,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,turkce2:7,T.Y.7.22,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,turkce2:8,T.8.3.20,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,matematik2:12,12.1.2.2,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,tarih3:12,1.2,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,tarih3:12,1.3,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,tarih3:12,1.4,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,dkab_lise2:12,12.2.1,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,ingilizce_lise2:11,E11.3.R2,Kod öğretim programı PDF’inde doğrulanamadı
+odsgm_ksdt,ingilizce_lise2:11,E11.3.W1,Kod öğretim programı PDF’inde doğrulanamadı

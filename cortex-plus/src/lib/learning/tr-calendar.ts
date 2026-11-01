@@ -7,6 +7,8 @@
  * Kontrol" adımı konur. Tarihler yalnız belgenin ya da öğrencinin kendi takviminden okunur.
  */
 
+import { officialReligiousDays } from "@/lib/curriculum/calendar";
+
 export const HOLIDAY_BADGE = "🇹🇷 Resmî Tatil (Esnek Gün)";
 
 /** Esnek günün günlük bütçe payı: yükün yarısı komşu günlere kayar. */
@@ -48,10 +50,16 @@ const RELIGIOUS_HOLIDAYS: Record<string, string> = {
   "2027-05-19": "Kurban Bayramı",
 };
 
+/**
+ * 2028–2030 dinî bayramları (1 Kasım 2026) Diyanet'in yayımladığı takvimden (`calendar.json`, kaynak URL + sha256).
+ * Elle yazılan 2026–2027 satırları korunur; aynı gün iki tabloda varsa elle yazılan geçerli.
+ */
+const OFFICIAL_RELIGIOUS = officialReligiousDays();
+
 /** O günün resmî tatili (YYYY-MM-DD); yoksa null. */
 export function turkishHolidayOn(isoDate: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
-  return RELIGIOUS_HOLIDAYS[isoDate] ?? FIXED_HOLIDAYS[isoDate.slice(5)] ?? null;
+  return RELIGIOUS_HOLIDAYS[isoDate] ?? OFFICIAL_RELIGIOUS[isoDate] ?? FIXED_HOLIDAYS[isoDate.slice(5)] ?? null;
 }
 
 function nextIsoDay(isoDate: string): string {

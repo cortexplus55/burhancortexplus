@@ -441,10 +441,10 @@ describe("Paket I · sınav saati ve yeri", () => {
 });
 
 describe("Paket I · bayram tablosu olmayan yıl", () => {
-  it("2027 sonrası dinî bayram yoksa sessiz kalır; sabit tatiller çalışır", () => {
-    expect(turkishHolidayOn("2028-04-23")).toBe("Ulusal Egemenlik ve Çocuk Bayramı");
-    expect(turkishHolidayOn("2028-02-26")).toBeNull();
-    const runs = holidayRunsBetween("2028-01-01", "2028-12-31");
+  it("Diyanet tablosu (2030) sonrası dinî bayram yoksa sessiz kalır; sabit tatiller çalışır", () => {
+    expect(turkishHolidayOn("2031-04-23")).toBe("Ulusal Egemenlik ve Çocuk Bayramı");
+    expect(turkishHolidayOn("2031-01-24")).toBeNull();
+    const runs = holidayRunsBetween("2031-01-01", "2031-12-31");
     expect(runs.map((run) => run.name)).toEqual([
       "Yılbaşı",
       "Ulusal Egemenlik ve Çocuk Bayramı",
@@ -454,14 +454,14 @@ describe("Paket I · bayram tablosu olmayan yıl", () => {
       "Zafer Bayramı",
       "Cumhuriyet Bayramı",
     ]);
-    // Uzun plan 2028'e uzansa da kurulur.
+    // Uzun plan 2031'e uzansa da kurulur.
     const plan = buildExamScheduleV2({
       daysToExam: 500,
       dailyMinutes: 45,
       studyDays: EVERY_DAY,
       topics: MIXED_TOPICS.slice(0, 4),
-      fromDate: new Date("2027-09-01T09:00:00+03:00"),
+      fromDate: new Date("2030-09-01T09:00:00+03:00"),
     });
-    expect(plan.studyDayDates[plan.studyDayDates.length - 1]! > "2028-12-01").toBe(true);
+    expect(plan.studyDayDates[plan.studyDayDates.length - 1]! > "2031-12-01").toBe(true);
   });
 });

@@ -46,6 +46,18 @@ import { orderTopicsForPath } from "@/lib/learning/topic-order";
 import { documentRunningHeaders } from "@/lib/documents/clean-pages";
 import { isRunningHeader } from "@/lib/documents/clean-text";
 import { isJunkTopicTitle } from "@/lib/documents/topic-title";
+import { getProgram } from "@/lib/curriculum/registry";
+
+/** Kayıtta olmayan program başvurusu saklanmaz (eski istemci / bozuk istek). */
+function withKnownCurriculum<T extends { curriculum?: { programId: string } } | undefined>(prefs: T) {
+  if (!prefs) return {};
+  if (prefs.curriculum && !getProgram(prefs.curriculum.programId)) {
+    const { curriculum: _drop, ...rest } = prefs;
+    void _drop;
+    return rest;
+  }
+  return prefs;
+}
 
 const prefsSchema = z
   .object({
@@ -63,6 +75,14 @@ const prefsSchema = z
     /** Sınavın saati ve yeri (30 Ekim 2026, isteğe bağlı): göç yok, bu jsonb alanında durur. */
     examTime: z.string().regex(EXAM_TIME_PATTERN).optional(),
     examPlace: z.string().trim().max(EXAM_PLACE_MAX).optional(),
+    /** Resmî müfredat başvurusu (1 Kasım 2026): kotalar burada saklanmaz, kayıttan yeniden hesaplanır. */
+    curriculum: z
+      .object({
+        programId: z.string().regex(/^[a-z0-9-]{3,60}$/),
+        examKey: z.enum(["d1y1", "d1y2", "serbest"]),
+        scenario: z.union([z.number().int().min(1).max(20), z.literal("karma")]).nullable(),
+      })
+      .optional(),
   })
   .optional();
 
@@ -304,7 +324,7 @@ export async function POST(request: Request) {
       daily_minutes: dailyMinutes,
       study_days: studyDays,
       hard_topics_self: parsed.data.hardTopics ?? [],
-      learning_preferences: parsed.data.learningPreferences ?? {},
+      learning_preferences: withKnownCurriculum(parsed.data.learningPreferences),
       ...(scheduleSummary
         ? {
             schedule_v2: {

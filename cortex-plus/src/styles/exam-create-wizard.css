@@ -1483,3 +1483,28 @@
   cursor: pointer;
   min-height: 32px;
 }
+
+/* Resmî müfredat paneli (1 Kasım 2026) */
+.apw-official-body { display: grid; gap: 10px; margin-top: 4px; }
+.apw-official-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.apw-official-badge {
+  font-size: 12px; padding: 4px 10px; border-radius: 999px;
+  background: rgba(124, 92, 255, 0.16); border: 1px solid rgba(124, 92, 255, 0.4); color: inherit;
+}
+.apw-official-badge--muted { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.14); }
+.apw-official-label { margin: 6px 0 0; font-weight: 600; }
+.apw-official-summary { margin: 0; font-size: 13px; opacity: 0.85; }
+.apw-official-map {
+  margin: 0; padding: 10px 12px 10px 28px; max-height: 320px; overflow: auto;
+  border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px); font-size: 13px; line-height: 1.45;
+}
+.apw-official-map ul { margin: 4px 0 8px; padding-left: 16px; }
+.apw-official-map li li { display: flex; gap: 8px; justify-content: space-between; }
+.apw-official-quota { font-style: normal; white-space: nowrap; opacity: 0.8; }
+.apw-official-sources { margin: 0; font-size: 12px; opacity: 0.75; overflow-wrap: anywhere; }
+.apw-official-sources a { color: inherit; text-decoration: underline; }
+.apw-official .apw-link {
+  justify-self: start; background: none; border: 0; padding: 0; color: inherit;
+  text-decoration: underline; font-size: 13px; opacity: 0.8; cursor: pointer;
+}

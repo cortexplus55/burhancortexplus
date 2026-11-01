@@ -38,6 +38,7 @@ export function slotFromTopicRow(row: {
     examHeavy: weight?.heavy ?? false,
     outOfScope: false,
     passageChars: row.passageChars && row.passageChars > 0 ? row.passageChars : 100,
+    officialCount: null,
   };
 }
 
@@ -105,6 +106,17 @@ export function allocateQuestions(topics: MockTopicSlot[], totalQuestions: numbe
   const allInScope = topics.filter((t) => !t.outOfScope && t.topicLabel.trim());
   if (!allInScope.length || totalQuestions < 1) return [];
   const total = Math.floor(totalQuestions);
+  // Resmî tablo (ör. MEB ortak yazılı senaryosu) toplamı seçilen sayıya eşitse konu başı sayılar aynen; 0 alan konu sorulmaz.
+  const official = allInScope.filter((t) => (t.officialCount ?? 0) > 0);
+  if (official.length && official.reduce((sum, t) => sum + Math.floor(t.officialCount ?? 0), 0) === total) {
+    return official.map((topic) => ({
+      topicId: topic.topicId,
+      topicLabel: topic.topicLabel,
+      count: Math.floor(topic.officialCount ?? 0),
+      weightPercent: topic.weightPercent,
+      examHeavy: topic.examHeavy,
+    }));
+  }
   const inScope = pickTopicsForCount(allInScope, total, (topic) => ({
     percent: topic.weightPercent,
     heavy: topic.examHeavy,

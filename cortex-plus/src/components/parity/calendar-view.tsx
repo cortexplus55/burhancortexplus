@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CalendarPlus, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
+import { officialExamOn, schoolBreakOn } from "@/lib/curriculum/calendar";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { examDayLabel } from "@/lib/learning/exam-time";
 import {
@@ -174,6 +175,8 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
             const isToday = iso === todayIso;
             const hasExam = dayItems.some((i) => i.kind === "exam");
             const holiday = turkishHolidayOn(iso);
+            const schoolBreak = schoolBreakOn(iso);
+            const officialExam = officialExamOn(iso);
             return (
               <div
                 key={iso}
@@ -188,6 +191,8 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                   .join(" ")}
                 title={[
                   holiday ? `${holiday} · ${HOLIDAY_BADGE}` : "",
+                  schoolBreak ? `MEB: ${schoolBreak}` : "",
+                  officialExam ? `Resmî sınav: ${officialExam}` : "",
                   ...dayItems.map((i) => (i.time ? `${i.title} ${i.time}` : i.title)),
                 ].filter(Boolean).join(", ") || undefined}
               >

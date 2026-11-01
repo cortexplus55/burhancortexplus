@@ -1,5 +1,6 @@
 /** Konu testi ve tuzak testi (zayıf nokta): öğretmen test motoru. */
 import "server-only";
+import { loadOfficialOutcome } from "@/lib/curriculum/prep-outcome";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
@@ -76,6 +77,7 @@ export async function teacherQuizPayload(
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     examPoints: input.examPoints,
     runningHeaders: edges,
+    officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     difficulty: quizDifficulty(input.requestedDifficulty),
     // Konu testinde bir soru çok cevaplı (17 Ekim 2026, Astra'daki gibi); tuzak testi tek cevaplı.
     multi: input.kind === "quiz" && count >= 5,

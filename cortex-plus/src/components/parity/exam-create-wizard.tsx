@@ -93,7 +93,9 @@ import { DOCUMENT_UPLOAD_ACCEPT, uploadSizeProblem } from "@/lib/documents/uploa
 import { isPdfSplitTail } from "@/lib/documents/pdf-split-client";
 import { PasteTextPanel } from "@/components/parity/paste-text-panel";
 import { UrlImportPanel } from "@/components/parity/url-import-panel";
-import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
+import { upcomingOfficialExams } from "@/lib/curriculum/calendar";
+import { OfficialCurriculumPanel, type OfficialCurriculumPick } from "@/components/parity/official-curriculum-panel";
+import type { CurriculumRef } from "@/lib/curriculum/types";
 import { PhotoQualityPrompt } from "@/components/parity/photo-quality-prompt";
 import { EXAM_PLACE_MAX, parseExamPlace, parseExamTime } from "@/lib/learning/exam-time";
 import {
@@ -446,6 +448,8 @@ export function ExamCreateWizard({
   const [topicWarnings, setTopicWarnings] = useState<string[]>([]);
   const [topicMeta, setTopicMeta] = useState<TopicMeta[]>([]);
   const [topicUnits, setTopicUnits] = useState<TopicUnit[]>([]);
+  /** Resmî müfredattan kurulduysa program / yazılı / senaryo: kotalar sunucuda kayıttan yeniden hesaplanır. */
+  const [curriculumRef, setCurriculumRef] = useState<CurriculumRef | null>(null);
   const [excludedTopics, setExcludedTopics] = useState<ExcludedNote[]>([]);
   const [missingTopics, setMissingTopics] = useState<MissingTopic[]>([]);
   const [suggestedExamDate, setSuggestedExamDate] = useState<string | null>(null);
@@ -513,6 +517,7 @@ export function ExamCreateWizard({
     setTopicWarnings([]);
     setTopicMeta([]);
     setTopicUnits([]);
+    setCurriculumRef(null);
     setExcludedTopics([]);
     setMissingTopics([]);
     setSuggestedExamDate(null);
@@ -1412,6 +1417,37 @@ export function ExamCreateWizard({
     return [...new Set(ids)];
   }
 
+  /** Resmî programdan anında konu haritası: materyal okunmaz, model çağrılmaz; doğrudan konu adımı. */
+  function takeOfficialCurriculum(pick: OfficialCurriculumPick) {
+    const { map, program, ref } = pick;
+    setImportPanel("none");
+    setCurriculumRef(ref);
+    setTopics(map.topics);
+    setTopicUnits(map.units);
+    setTopicPages([]);
+    setTopicFiles([]);
+    setTopicWarnings([]);
+    setTopicMeta(
+      map.topics.map((_, index) => {
+        const quota = map.quotaByCode[map.codes[index] ?? ""] ?? 0;
+        return {
+          sourceCount: 0,
+          examHeavy: false,
+          important: false,
+          sections: [],
+          description: quota ? `Resmî tabloda ${quota} soru${map.averaged ? " (ortalama)" : ""}` : null,
+          unitTitle: unitTitleForIndex(map.units, index),
+        };
+      }),
+    );
+    setExcludedTopics([]);
+    setMissingTopics([]);
+    setOrderEdited(true);
+    setIntakeAlert(null);
+    setTitle(clampText(`${program.label} sınav hazırlığı`, 120));
+    setStep("topics");
+  }
+
   async function startPlan() {
     if (!examDate || !topics.length) return;
     setStarting(true);
@@ -1444,6 +1480,7 @@ export function ExamCreateWizard({
             ...(!gradeLevel ? { examOccasion } : {}),
             ...(parseExamTime(examTime) ? { examTime: parseExamTime(examTime) } : {}),
             ...(parseExamPlace(examPlace) ? { examPlace: parseExamPlace(examPlace) } : {}),
+            ...(curriculumRef ? { curriculum: curriculumRef } : {}),
           },
         }),
       });
@@ -1872,10 +1909,11 @@ export function ExamCreateWizard({
             />
           ) : null}
           {importPanel === "curriculum" ? (
-            <CurriculumPickPanel
+            <OfficialCurriculumPanel
               gradeLevel={gradeLevel}
               onClose={() => setImportPanel("none")}
-              onPick={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}
+              onPick={takeOfficialCurriculum}
+              onChatFallback={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}
             />
           ) : null}
 
@@ -2699,6 +2737,7 @@ function DateStep({
   ];
 
   const todayIso = isoOf(new Date());
+  const officialExams = upcomingOfficialExams(todayIso, 8);
   const firstWeekday = (new Date(cursor.getFullYear(), cursor.getMonth(), 1).getDay() + 6) % 7;
   const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
 
@@ -2770,6 +2809,31 @@ function DateStep({
           );
         })}
       </div>
+
+      {officialExams.length ? (
+        <>
+          <h2 className="apw-group">Resmî sınav tarihleri (ÖSYM / MEB)</h2>
+          <div className="apw-quick" role="group" aria-label="Resmî sınav tarihleri" data-testid="official-exam-dates">
+            {officialExams.map((exam) => (
+              <button
+                key={exam.id}
+                type="button"
+                className={value === exam.date ? "apw-quick-btn apw-quick-btn--on" : "apw-quick-btn"}
+                aria-pressed={value === exam.date}
+                title={exam.sourceUrl ? `Belge: ${exam.sourceUrl}` : undefined}
+                onClick={() => {
+                  onPick(exam.date);
+                  const at = new Date(`${exam.date}T12:00:00`);
+                  setCursor(new Date(at.getFullYear(), at.getMonth(), 1));
+                }}
+              >
+                <span>{exam.label}</span>
+                <small>{longLabel(exam.date)}</small>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <div className="apw-cal">
         <div className="apw-cal-head">
