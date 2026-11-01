@@ -90,9 +90,27 @@ export function LevelCheckRunner({
     return (
       <div className="lc-box" data-testid="guest-signup">
         <p className="lc-kicker">{title}</p>
-        <p className="lc-q">İlk {session.items.length} soruyu çözdün: {results.current.filter((r) => r.correct).length} doğru.</p>
+        <p className="lc-q">
+          {session.items.length} sorudan {results.current.filter((r) => r.correct).length} doğru.
+        </p>
+        {/* 2 Kasım 2026: sonuç yalnız sayıydı ("0 doğru"). Hangi konuda doğru/yanlış olduğu ön izlemede de görünür. */}
+        <ul className="lc-guest-results" data-testid="guest-results">
+          {results.current.map((r, i) => (
+            <li key={`${r.item.id}-${i}`} data-tone={r.correct ? "right" : "wrong"}>
+              <span aria-hidden>{r.correct ? "✓" : "✗"}</span>{" "}
+              <span>
+                {i + 1}. soru · {r.item.unitTitle}
+                <span className="sr-only">{r.correct ? " — doğru" : " — yanlış"}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
         <p className="lc-status">
-          Taramanın kalanı ve konu konu sonucun için ücretsiz hesap aç. Ön izleme yanıtların hiçbir yere kaydedilmedi.
+          {results.current.some((r) => !r.correct)
+            ? "Yanlış yaptığın konular çalışma planında öne alınır. "
+            : "Bu konular sana kolay geliyor; tam taramada diğer ünitelere bakarız. "}
+          Tam tarama 10–12 soruyla konu konu sonuç verir; ücretsiz hesapla açılır. Ön izleme yanıtların hiçbir yere
+          kaydedilmedi.
         </p>
         <Link className="lc-cta" href={`/kayit${guestNext ? `?next=${encodeURIComponent(guestNext)}` : ""}`}>
           Ücretsiz hesap aç

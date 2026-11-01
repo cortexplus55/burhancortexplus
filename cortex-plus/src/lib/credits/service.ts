@@ -1,4 +1,5 @@
 import "server-only";
+import { priceForModel, usageCostUsd, type ModelPrice } from "@/lib/billing/model-price";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionCode } from "@/lib/env";
@@ -418,6 +419,10 @@ export async function recordUsage(
   // tokensIn/Out = FATURALANAN BIRIM. Metin modellerinde jeton; seslendirmede
   // gonderilen karakter, cozumlemede yuklenen kilobayt. Fiyat satirlari
   // (ai_model_prices) her model icin ayni birimle yaziliyor.
+  const costUsdEstimate =
+    params.costUsdEstimate !== undefined && params.costUsdEstimate !== null
+      ? params.costUsdEstimate
+      : await estimateUsageCost(service, params.model, params.tokensIn, params.tokensOut);
   await service.from("ai_usage_events").insert({
     user_id: params.userId,
     action_code: params.actionCode,
@@ -425,6 +430,39 @@ export async function recordUsage(
     tokens_in: params.tokensIn,
     tokens_out: params.tokensOut,
     reservation_id: params.reservationId ?? null,
-    cost_usd_estimate: params.costUsdEstimate ?? null,
+    cost_usd_estimate: costUsdEstimate,
   });
+}
+
+/*
+  2 Kasım 2026: önceden yazım (LESSON_PREFETCH, CONTENT_PREFETCH) ve çoğu kayıt maliyeti boş yazıyordu; gider
+  okuyan her yer sonradan hesaplamak zorundaydı. Maliyet verilmediyse fiyat satırından (ai_model_prices) burada
+  hesaplanır. Fiyat tablosu 5 dakika bellekte tutulur; okunamazsa kayıt yine düşmez, maliyet NULL kalır.
+*/
+let priceCache: { at: number; prices: Map<string, ModelPrice> } | null = null;
+const PRICE_TTL_MS = 5 * 60_000;
+
+export function resetUsagePriceCache() {
+  priceCache = null;
+}
+
+async function estimateUsageCost(service: SupabaseClient, model: string, tokensIn: number, tokensOut: number) {
+  try {
+    if (!priceCache || Date.now() - priceCache.at > PRICE_TTL_MS) {
+      const { data, error } = await service.from("ai_model_prices").select("model, input_per_1k, output_per_1k");
+      if (error || !data) return null;
+      priceCache = {
+        at: Date.now(),
+        prices: new Map(
+          (data as { model: string; input_per_1k: number | string; output_per_1k: number | string }[]).map((p) => [
+            p.model,
+            { input: Number(p.input_per_1k), output: Number(p.output_per_1k) },
+          ]),
+        ),
+      };
+    }
+    return usageCostUsd(priceForModel(model, priceCache.prices), tokensIn, tokensOut);
+  } catch {
+    return null;
+  }
 }

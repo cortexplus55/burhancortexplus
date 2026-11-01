@@ -419,8 +419,10 @@ export function SignupWizard() {
               sınırına da takılmaz). Onay kutusu ikisinin de üstünde: iki yol da onay ister.
             */}
             <div className="signup-account-panel mb-4 space-y-4">
-              <label className="flex items-start gap-2 text-sm">
+              <label className="flex min-h-11 items-start gap-3 text-sm">
                 <Checkbox
+                  aria-label="KVKK aydınlatma metnini ve kullanım koşullarını kabul ediyorum"
+                  className="mt-0.5 size-5 border-[var(--mk-muted)]"
                   checked={consent}
                   onCheckedChange={(value) => setConsent(value === true)}
                 />
@@ -452,7 +454,9 @@ export function SignupWizard() {
                 <Label htmlFor="name">Ad soyad</Label>
                 <Input
                   id="name"
+                  type="text"
                   autoComplete="name"
+                  placeholder="Adın ve soyadın"
                   required
                   minLength={2}
                   value={fullName}

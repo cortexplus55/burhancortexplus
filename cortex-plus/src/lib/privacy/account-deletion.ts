@@ -3,8 +3,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { missingRelation } from "@/lib/learning/missing-column";
 
-// Financial records retain the anonymised profile key. Hard-deleting auth would
-// cascade through that profile and destroy the payment/credit audit trail.
+// Financial records retain the anonymised profile key: for accounts with payments the auth user is only
+// soft-deleted, because hard-deleting it would cascade through the profile and destroy the payment trail.
+// Accounts without payments are removed completely (see deleteAuthUser).
 const USER_CONTENT_TABLES = [
   "phone_upload_sessions", "exam_prep_generation_jobs", "exam_preps",
   "practice_exam_attempts", "practice_exams", "quiz_attempts", "quizzes",
@@ -46,6 +47,52 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "user_device_sessions",
   "question_reports",
 ]);
+
+/**
+ * Ödeme kaydı olmayan hesapta auth kullanıcısı tamamen silinir (KVKK: "hesabın kapanır" = giriş kaydı da gider).
+ * Ödeme kaydı varsa (payments / parent_payment_requests) yasal saklama için yumuşak silme: e-posta
+ * anonimleşir, giriş kapanır, ödeme satırları CASCADE ile yok olmaz. Sert silme bir kısıt yüzünden
+ * düşerse yine yumuşak silmeye iner; ikisi de düşerse adım başarısız sayılır ve cron yeniden dener.
+ */
+export async function hasFinancialRecords(service: SupabaseClient, userId: string): Promise<boolean> {
+  for (const [table, column] of [["payments", "user_id"], ["payments", "beneficiary_user_id"], ["parent_payment_requests", "student_id"]] as const) {
+    const { count, error } = await service.from(table).select("id", { count: "exact", head: true }).eq(column, userId);
+    if (error) return true; // emin değilsek kaydı koru
+    if ((count ?? 0) > 0) return true;
+  }
+  return false;
+}
+
+async function deleteAuthUser(service: SupabaseClient, userId: string): Promise<"hard" | "soft" | null> {
+  const gone = (error: { code?: string } | null) => !error || error.code === "user_not_found";
+  if (!(await hasFinancialRecords(service, userId))) {
+    const { error } = await service.auth.admin.deleteUser(userId, false);
+    if (gone(error)) return "hard";
+  }
+  const { error } = await service.auth.admin.deleteUser(userId, true);
+  return gone(error) ? "soft" : null;
+}
+
+/**
+ * Bu düzeltmeden önce tamamlanan taleplerde auth kaydı yumuşak silinmiş kaldı. Son 60 günde tamamlanan ve ödeme
+ * kaydı olmayan taleplerin auth kullanıcısını tamamen siler (profil + talep satırı CASCADE ile gider, yani
+ * iş kendini sınırlar). Tekrar çalışması zararsız: silinmiş kullanıcıda user_not_found döner.
+ */
+export async function finalizeCompletedDeletions(service: SupabaseClient, limit = 50): Promise<number> {
+  const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
+  const { data, error } = await service.from("data_deletion_requests")
+    .select("id, user_id").eq("status", "completed").gte("processed_at", since).limit(limit);
+  if (error) return 0;
+  let removed = 0;
+  for (const row of data ?? []) {
+    const userId = row.user_id as string;
+    if (await hasFinancialRecords(service, userId)) continue;
+    const { error: deleteError } = await service.auth.admin.deleteUser(userId, false);
+    if (!deleteError) removed += 1;
+    else if (deleteError.code !== "user_not_found") console.error("data_deletion_finalize_failed", { requestId: row.id });
+  }
+  return removed;
+}
 
 /** Every step is checked and repeatable by the deletion worker. */
 export async function purgeUserData(service: SupabaseClient, userId: string): Promise<
@@ -108,8 +155,8 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
     if (profileError) return { ok: false, error: step };
 
     step = "auth_delete";
-    const { error: authError } = await service.auth.admin.deleteUser(userId, true);
-    if (authError && authError.code !== "user_not_found") return { ok: false, error: step };
+    const authResult = await deleteAuthUser(service, userId);
+    if (!authResult) return { ok: false, error: step };
     return { ok: true };
   } catch {
     return { ok: false, error: step };
