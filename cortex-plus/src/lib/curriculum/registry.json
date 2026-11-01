@@ -19489,7 +19489,7 @@
 ],
 "units": [
 {
-"title": "9. Sınıf · Coğrafya",
+"title": "9. Sınıf · Doğal Sistemler",
 "outcomes": [
 {
 "code": "9.1.1",
@@ -19532,7 +19532,7 @@
 "topic": null,
 "grade": 9,
 "limitations": [
-"Dünya’nın Güneş Sistemi içindeki yerine kısaca değinilir. DOĞAL SİSTEMLER"
+"Dünya’nın Güneş Sistemi içindeki yerine kısaca değinilir."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -19642,7 +19642,12 @@
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
+}
+]
 },
+{
+"title": "9. Sınıf · Beşerî Sistemler",
+"outcomes": [
 {
 "code": "9.2.1",
 "text": "Yerleşmelerin gelişimini etkileyen faktörleri analiz eder.",
@@ -19660,9 +19665,18 @@
 "topic": null,
 "grade": 9,
 "limitations": [
-"a) Toplu ve dağınık yerleşmelerin oluşumunda etkili olan faktörlere yer verilir. BEŞERÎ SİSTEMLER   9.2.3. Türkiye’de yerleşmelerin dağılışını etkileyen faktörleri örneklerle açıklar. Türkiye’deki ilk yerleşme örneklerine (Göbeklitepe, Çatalhöyük, Alacahöyük) yer verilir.",
+"a)",
 "b) Kır ve şehir yerleşmelerinin oluşumunda etkili olan faktörlere yer verilir."
 ],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "9.2.3",
+"text": "Türkiye’de yerleşmelerin dağılışını etkileyen faktörleri örneklerle açıklar.",
+"topic": null,
+"grade": 9,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -19672,22 +19686,9 @@
 "topic": null,
 "grade": 9,
 "limitations": [
-"Türkiye’nin idari yapısı verilirken ülkenin mevcut sınırlar dâhilinde bölünmez bütünlüğüne vurgu yapılır. KÜRESEL ORTAM : BÖLGELER VE ÜLKELER 9.3.1. Dünyadaki farklı bölge örneklerini, özellikleri ve bölge belirlemede kullanılan kriterler açısından değerlendirir.",
+"Türkiye’nin idari yapısı verilirken ülkenin mevcut",
 "a) Şekilsel ve işlevsel bölge ayrımına yer verilir.",
-"b) Türkiye’den ve dünyadan farklı bölge örneklerine yer verilir. 9.3.2. Bölge sınırlarının amaca göre değişebilirliğini örneklerle açıklar. 9.3.3. Harita kullanarak çeşitli coğrafi kriterlerle belirlenmiş bölgelerde bulunan ülkeleri sınıflandırır."
-],
-"quotas": {},
-"sourceId": "meb_yks_2026"
-},
-{
-"code": "9.4.1",
-"text": "İnsanların doğal çevreyi kullanma biçimlerini örneklendirir.",
-"topic": null,
-"grade": 9,
-"limitations": [
-"Karadeniz Sahil Yolu, Maltepe Sahil Parkı, Avrasya Tüneli, Osman Gazi Köprüsü, Ordu-Giresun Hava Limanı, Marmaray ve BAE- ÇEVRE VE TOPLUM",
-"a) Örnek olaylardan hareketle insanın atmosfer, litosfer, hidrosfer ve biyosfer üzerindeki etkilerine yer verilir.",
-"b) İnsanların doğal ortam üzerinde gerçekleştirdikleri değişimlerde, doğaya karşı duyarlı olmalarının gerekliliği vurgulanır. 113 Dubai Palmiye gibi örneklere değinilir. 9.4.2. Doğal ortamda insan etkisiyle meydana gelen değişimleri sonuçları açısından değerlendirir."
+"b)"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -19695,7 +19696,66 @@
 ]
 },
 {
-"title": "10. Sınıf · Coğrafya",
+"title": "9. Sınıf · Küresel Ortam: Bölgeler ve Ülkeler",
+"outcomes": [
+{
+"code": "9.3.1",
+"text": "Dünyadaki farklı bölge örneklerini, özellikleri ve bölge belirlemede kullanılan kriterler açısından değerlendirir.",
+"topic": null,
+"grade": 9,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "9.3.2",
+"text": "Bölge sınırlarının amaca göre değişebilirliğini örneklerle açıklar.",
+"topic": null,
+"grade": 9,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "9.3.3",
+"text": "Harita kullanarak çeşitli coğrafi kriterlerle belirlenmiş bölgelerde bulunan ülkeleri sınıflandırır.",
+"topic": null,
+"grade": 9,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "9. Sınıf · Çevre ve Toplum",
+"outcomes": [
+{
+"code": "9.4.1",
+"text": "İnsanların doğal çevreyi kullanma biçimlerini örneklendirir.",
+"topic": null,
+"grade": 9,
+"limitations": [
+"Karadeniz Sahil Yolu, Maltepe Sahil Parkı, Avrasya Tüneli, Osman Gazi Köprüsü, Ordu-Giresun Hava Limanı, Marmaray ve BAE-",
+"a) Örnek olaylardan hareketle insanın atmosfer, litosfer, hidrosfer ve biyosfer üzerindeki etkilerine yer verilir.",
+"b) İnsanların doğal ortam üzerinde gerçekleştirdikleri değişimlerde,"
+],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "9.4.2",
+"text": "Doğal ortamda insan etkisiyle meydana gelen değişimleri sonuçları açısından değerlendirir.",
+"topic": null,
+"grade": 9,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "10. Sınıf · Doğal Sistemler",
 "outcomes": [
 {
 "code": "10.1.1",
@@ -19737,7 +19797,7 @@
 "topic": null,
 "grade": 10,
 "limitations": [
-"Kayaçların kullanım alanlarına yönelik örneklere yer verilir. DOĞAL SİSTEMLER"
+"Kayaçların kullanım alanlarına yönelik örneklere yer verilir."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -19839,7 +19899,7 @@
 "grade": 10,
 "limitations": [
 "a) Türkiye’de erozyonun etkisine vurgu yapılır.",
-"b) Gelecek nesillere daha yaşanabilir bir ülke bırakabilmek için topraklarımızın korunmasının gerekliliğine değinilir. 114"
+"b) Gelecek nesillere daha yaşanabilir bir ülke bırakabilmek için topraklarımızın korunmasının gerekliliğine değinilir."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -19872,7 +19932,12 @@
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
+}
+]
 },
+{
+"title": "10. Sınıf · Beşerî Sistemler",
+"outcomes": [
 {
 "code": "10.2.1",
 "text": "İstatistiki verilerden yararlanarak nüfus özellikleri ve nüfusun önemi hakkında çıkarımlarda bulunur.",
@@ -19881,8 +19946,17 @@
 "limitations": [
 "a) Nüfus artış ve azalışının olumlu ve olumsuz etkilerine örnek ülkeler üzerinden yer verilir.",
 "b) Nitelikli genç nüfusun ülkelerin kalkınmasındaki önemi vurgulanır.",
-"c) Nüfus artış hızı ile ülkelerin kalkınması arasındaki ilişkiye yer verilir. 10.2.2.İstatistiki verilerden yararlanarak dünya nüfusunun tarihsel süreçteki değişimine ilişkin çıkarımlarda bulunur."
+"c)"
 ],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "10.2.2",
+"text": "İstatistiki verilerden yararlanarak dünya nüfusunun tarihsel süreçteki değişimine ilişkin çıkarımlarda bulunur.",
+"topic": null,
+"grade": 10,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -19914,9 +19988,7 @@
 "text": "Türkiye’de nüfusun tarihsel seyrini sosyal ve ekonomik faktörler açısından değerlendirir.",
 "topic": null,
 "grade": 10,
-"limitations": [
-"BEŞERİ SİSTEMLER"
-],
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -19980,11 +20052,39 @@
 "grade": 10,
 "limitations": [
 "a) Birincil, ikincil, üçüncül, dördüncül ve beşincil faaliyetlere yer verilir.",
-"b) Ulaşım ve iletişimin ekonomik faaliyetler üzerindeki etkilerine değinilir. 10.2.12.Ekonomik faaliyet türlerinin oransal dağılımına ilişkin verileri, ülkelerin gelişmişlik düzeyleriyle ilişkilendirerek çıkarımda bulunur. 115 KÜRESEL ORTAM: BÖLGELER VE ÜLKELER 10.3.1. Uluslararası ulaşım hatlarını bölgesel ve küresel etkileri açısından analiz eder. İstanbul’daki 3. Hava Limanı ve Kanal İstanbul projelerinin bölgesel ve küresel etkilerine yer verilir."
+"b)"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
+{
+"code": "10.2.12",
+"text": "Ekonomik faaliyet türlerinin oransal dağılımına ilişkin verileri, ülkelerin gelişmişlik düzeyleriyle ilişkilendirerek çıkarımda bulunur.",
+"topic": null,
+"grade": 10,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "10. Sınıf · Küresel Ortam: Bölgeler ve Ülkeler",
+"outcomes": [
+{
+"code": "10.3.1",
+"text": "Uluslararası ulaşım hatlarını bölgesel ve küresel etkileri açısından analiz eder.",
+"topic": null,
+"grade": 10,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "10. Sınıf · Çevre ve Toplum",
+"outcomes": [
 {
 "code": "10.4.1",
 "text": "Afetlerin oluşum nedenlerini ve özelliklerini açıklar.",
@@ -20002,18 +20102,35 @@
 "topic": null,
 "grade": 10,
 "limitations": [
-"ÇEVRE VE TOPLUM",
 "a) Farklı ülkelerde doğal afetlere karşı yapılan uygulamalara yer verilir.",
 "b) Ülkemizde depremler başta olmak üzere, afetlere karşı bilinç oluşturmanın önemi üzerinde durulur.",
-"c) Afetlerin meydana gelme sürecinde bireylere düşen sorumluluklara değinilir. 10.4.3. Türkiye’deki afetlerin dağılışları ile etkilerini ilişkilendirir. 10.4.4. Afetlerden korunma yöntemlerini açıklar."
+"c)"
 ],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "10.4.3",
+"text": "Türkiye’deki afetlerin dağılışları ile etkilerini ilişkilendirir.",
+"topic": null,
+"grade": 10,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "10.4.4",
+"text": "Afetlerden korunma yöntemlerini açıklar.",
+"topic": null,
+"grade": 10,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 }
 ]
 },
 {
-"title": "11. Sınıf · Coğrafya",
+"title": "11. Sınıf · Doğal Sistemler",
 "outcomes": [
 {
 "code": "11.1.1",
@@ -20021,7 +20138,7 @@
 "topic": null,
 "grade": 11,
 "limitations": [
-"Öğrencilerin biyoçeşitliliğin korunması için yapılan çalışmalar hakkında bilgi toplamaları, bireysel ya da grup olarak biyoçeşitliliğin DOĞAL SİSTEMLER korunması konusunda halkı bilinçlendirmek amacıyla kamu spotu hazırlamaları sağlanır."
+"Öğrencilerin biyoçeşitliliğin korunması için yapılan çalışmalar hakkında bilgi toplamaları, bireysel ya da grup olarak biyoçeşitliliğin korunması konusunda halkı bilinçlendirmek amacıyla kamu spotu hazırlamaları sağlanır."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -20055,11 +20172,16 @@
 "limitations": [
 "a) Su döngüsü ve dünyadaki su varlığının doğal sistemlerin işleyişi üzerindeki etkilerine değinilir.",
 "b) Ramsar Sözleşmesi’ne vurgu yapılır.",
-"c) Türkiye’deki sulak alanların endemik zenginliğinin önemi ve korunmasının gerekliliği üzerinde durulur. 116"
+"c) Türkiye’deki sulak alanların endemik zenginliğinin önemi ve korunmasının gerekliliği üzerinde durulur."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
+}
+]
 },
+{
+"title": "11. Sınıf · Beşerî Sistemler",
+"outcomes": [
 {
 "code": "11.2.1",
 "text": "Ülkelerin farklı dönemlerde izledikleri nüfus politikaları ve sonuçlarını karşılaştırır.",
@@ -20131,9 +20253,7 @@
 "text": "Türkiye’deki kır yerleşme tiplerini ayırt eder.",
 "topic": null,
 "grade": 11,
-"limitations": [
-"BEŞERİ SİSTEMLER"
-],
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20151,9 +20271,16 @@
 "text": "Beşerî unsurları üretim, dağıtım ve tüketim süreçleri üzerindeki etkisi açısından değerlendirir.",
 "topic": null,
 "grade": 11,
-"limitations": [
-"11.2.10.Üretim, dağıtım ve tüketim sektörleri arasındaki ilişkiyi ekonomiye etkisi açısından değerlendirir."
-],
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "11.2.10",
+"text": "Üretim, dağıtım ve tüketim sektörleri arasındaki ilişkiyi ekonomiye etkisi açısından değerlendirir.",
+"topic": null,
+"grade": 11,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20233,7 +20360,7 @@
 "grade": 11,
 "limitations": [
 "a) Madenlerin ve enerji kaynaklarının başlıca özelliklerine (rezerv, kullanım alanları vb) yer verilir.",
-"b) Madenlerin ve enerji kaynaklarının dağılışının harita üzerinden gösterilmesi sağlanır. 117",
+"b) Madenlerin ve enerji kaynaklarının dağılışının harita üzerinden gösterilmesi sağlanır.",
 "c) Ülkemizde yaşanan maden kazalarına değinilerek madenlerde alınması gereken iş sağlığı ve güvenliği önlemlerine yer verilir."
 ],
 "quotas": {},
@@ -20270,7 +20397,12 @@
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
+}
+]
 },
+{
+"title": "11. Sınıf · Küresel Ortam: Bölgeler ve Ülkeler",
+"outcomes": [
 {
 "code": "11.3.1",
 "text": "İlk kültür merkezlerinin ortaya çıkışı, yayılışı ve dağılışlarını belirleyen faktörleri açıklar.",
@@ -20299,8 +20431,8 @@
 "topic": null,
 "grade": 11,
 "limitations": [
-"a) Türk kültürünün doğuşu, gelişimi ve özellikleri mekânla ilişkilendirilerek verilir. KÜRESEL",
-"b) Türk kültürünü temsil eden başlıca maddi ve manevi unsurlara örnekler üzerinden yer verilir. ORTAM:"
+"a) Türk kültürünün doğuşu, gelişimi ve özellikleri mekânla ilişkilendirilerek verilir.",
+"b) Türk kültürünü temsil eden başlıca maddi ve manevi unsurlara örnekler üzerinden yer verilir."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -20310,9 +20442,7 @@
 "text": "Türkiye’nin tarih boyunca medeniyetler merkezi olmasını konumu açısından değerlendirir.",
 "topic": null,
 "grade": 11,
-"limitations": [
-"BÖLGELER"
-],
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20322,7 +20452,7 @@
 "topic": null,
 "grade": 11,
 "limitations": [
-"VE Dünya üzerindeki önemli ham madde, üretim ve pazar alanlarının oluşumunda etkili olan faktörler ile bu alanlar arasındaki ilişkiye yer ÜLKELER verilir."
+"Dünya üzerindeki önemli ham madde, üretim ve pazar alanlarının oluşumunda etkili olan faktörler ile bu alanlar arasındaki ilişkiye yer verilir."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -20361,11 +20491,16 @@
 "grade": 11,
 "limitations": [
 "a) Bölgesel ve küresel ölçekteki örgütlerin (AB, BDT, BM, D-8, G-20, İİT, KEİK, NATO, OECD, OPEC) amaçları, işlevleri ve etki alanları itibarıyla tanıtılır.",
-"b) Türkiye’nin küresel ve bölgesel ölçekteki siyasi, askeri ve ekonomik örgütlerle ilişkisine yer verilir. 118"
+"b) Türkiye’nin küresel ve bölgesel ölçekteki siyasi, askeri ve ekonomik örgütlerle ilişkisine yer verilir."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
+}
+]
 },
+{
+"title": "11. Sınıf · Çevre ve Toplum",
+"outcomes": [
 {
 "code": "11.4.1",
 "text": "Çevre sorunlarını oluşum sebeplerine göre sınıflandırır.",
@@ -20403,8 +20538,7 @@
 "topic": null,
 "grade": 11,
 "limitations": [
-"ÇEVRE VE",
-"a) Doğal kaynakların etkin kullanımında çevre planlamasının önemine değinilir. TOPLUM",
+"a) Doğal kaynakların etkin kullanımında çevre planlamasının önemine değinilir.",
 "b) Türkiye'den örneklere yer verilir."
 ],
 "quotas": {},
@@ -20443,16 +20577,14 @@
 ]
 },
 {
-"title": "12. Sınıf · Coğrafya",
+"title": "12. Sınıf · Doğal Sistemler",
 "outcomes": [
 {
 "code": "12.1.1",
 "text": "Doğa olaylarının ekstrem durumlarını ve etkilerini açıklar.",
 "topic": null,
 "grade": 12,
-"limitations": [
-"SİSTEMLER"
-],
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20464,8 +20596,22 @@
 "limitations": [
 "a) Gelecekte, doğal sistemlerdeki değişimlerin canlı yaşamı üzerindeki olası sonuçlarına vurgu yapılır.",
 "b) Çölleşme ve çölleşmeye karşı alınması gereken önlemler üzerinde durulur.",
-"c) Kyoto Protokolü’ne değinilir. 119 12.2.1.Bir bölgedeki baskın ekonomik faaliyet türünü sosyal ve kültürel hayata etkileri açısından analiz eder. Tarım, sanayi, hizmet gibi ekonomik faaliyetlerin, sosyal ve kültürel hayata olan etkilerine yer verilir."
+"c)"
 ],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "12. Sınıf · Beşerî Sistemler",
+"outcomes": [
+{
+"code": "12.2.1",
+"text": "Bir bölgedeki baskın ekonomik faaliyet türünü sosyal ve kültürel hayata etkileri açısından analiz eder.",
+"topic": null,
+"grade": 12,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20521,7 +20667,7 @@
 "topic": null,
 "grade": 12,
 "limitations": [
-"BEŞERİ SİSTEMLER Ulaşım, ticaret ve turizm sektörlerine vurgu yapılır."
+"Ulaşım, ticaret ve turizm sektörlerine vurgu yapılır."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -20617,9 +20763,16 @@
 "text": "Türkiye’nin turizm potansiyelini ve varlıklarını açıklar.",
 "topic": null,
 "grade": 12,
-"limitations": [
-"12.2.16.Türkiye’nin turizm politikalarını çevresel, kültürel ve ekonomik etkileri açısından değerlendirir."
-],
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "12.2.16",
+"text": "Türkiye’nin turizm politikalarını çevresel, kültürel ve ekonomik etkileri açısından değerlendirir.",
+"topic": null,
+"grade": 12,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20629,11 +20782,16 @@
 "topic": null,
 "grade": 12,
 "limitations": [
-"Türkiye’nin turizmdeki yeri diğer ülkelerle karşılaştırılarak verilir. 120"
+"Türkiye’nin turizmdeki yeri diğer ülkelerle karşılaştırılarak verilir."
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
+}
+]
 },
+{
+"title": "12. Sınıf · Küresel Ortam: Bölgeler ve Ülkeler",
+"outcomes": [
 {
 "code": "12.3.1",
 "text": "Kıtaların ve okyanusların konumsal önemindeki değişimi örneklerle açıklar.",
@@ -20683,8 +20841,26 @@
 "topic": null,
 "grade": 12,
 "limitations": [
-"KÜRESEL   Kültür havzamızı oluşturan Türkistan, Kafkasya, Balkanlar, Ortadoğu ve Kuzey Afrika ile ülkemiz arasındaki tarihî ve kültürel etkileşime ORTAM: BÖLGELER   12.3.6. Teknolojik gelişmelerin, bölgeler ve ülkeler arası kültürel ve ekonomik etkileşimdeki rolünü açıklar. VE ÜLKELER   Ülkelerin gelişiminde inovasyon, girişimcilik ve dijitalleşmenin önemine vurgu yapılır. yer verilir. 12.3.7. Ülkelerin gelişmişlik seviyelerinin belirlenmesinde etkili olan faktörleri açıklar."
+"Kültür havzamızı oluşturan Türkistan, Kafkasya, Balkanlar, Ortadoğu"
 ],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "12.3.6",
+"text": "Teknolojik gelişmelerin, bölgeler ve ülkeler arası kültürel ve ekonomik etkileşimdeki rolünü açıklar.",
+"topic": null,
+"grade": 12,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "12.3.7",
+"text": "Ülkelerin gelişmişlik seviyelerinin belirlenmesinde etkili olan faktörleri açıklar.",
+"topic": null,
+"grade": 12,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20717,11 +20893,25 @@
 "topic": null,
 "grade": 12,
 "limitations": [
-"Türkiye’nin enerji koridoru olma özelliğine değinilir. 12.3.11.Ülkeler arasında sorun oluşturan mekânsal unsurları günümüz çatışma alanlarıyla ilişkilendirir. Sınır aşan sular sorunu dünyadan ve Türkiye’den örneklerle ele alınır. 121"
+"Türkiye’nin"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
+{
+"code": "12.3.11",
+"text": "Ülkeler arasında sorun oluşturan mekânsal unsurları günümüz çatışma alanlarıyla ilişkilendirir.",
+"topic": null,
+"grade": 12,
+"limitations": [],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+}
+]
+},
+{
+"title": "12. Sınıf · Çevre ve Toplum",
+"outcomes": [
 {
 "code": "12.4.1",
 "text": "Doğal çevrenin sınırlılığını açıklar.",
@@ -20729,8 +20919,17 @@
 "grade": 12,
 "limitations": [
 "a) Beslenme halkası ve taşıma kapasitesi kavramları üzerinde durulur.",
-"b) Sınırlı kaynak, tükenebilirlik, aşırı baskı, çevre sorunu ve doğayla uyumlu kalkınma (sürdürülebilir kalkınma) kavramlarının ÇEVRE VE TOPLUM ilişkilendirilmesi sağlanır. 12.4.2. Farklı gelişmişlik düzeyine sahip ülkelerin çevre sorunlarının önlenmesine yönelik politika ve uygulamalarını karşılaştırır. Çevre sorunlarının önlenmesinde insana düşen sorumluluğa yer verilir."
+"b) Sınırlı kaynak, tükenebilirlik, aşırı baskı, çevre sorunu"
 ],
+"quotas": {},
+"sourceId": "meb_yks_2026"
+},
+{
+"code": "12.4.2",
+"text": "Farklı gelişmişlik düzeyine sahip ülkelerin çevre sorunlarının önlenmesine yönelik politika ve uygulamalarını karşılaştırır.",
+"topic": null,
+"grade": 12,
+"limitations": [],
 "quotas": {},
 "sourceId": "meb_yks_2026"
 },
@@ -20749,7 +20948,7 @@
 "topic": null,
 "grade": 12,
 "limitations": [
-"Doğal ve kültürel mirasa yönelik tehditlere karşı duyarlı olmanın önemine vurgu yapılır. Not: Kırmızı renkle gösterilen kazanımlar ve açıklamalar, 11 ve 12. sınıf seviyesinde sadece 4 saatlik öğretim programında yer alan kazanım ve açıklamalardır. 122 123"
+"Doğal ve kültürel mirasa yönelik tehditlere karşı duyarlı olmanın önemine vurgu yapılır. Not: Kırmızı renkle gösterilen kazanımlar ve açıklamalar, 11 ve 12. sınıf seviyesinde sadece 4 saatlik öğretim programında yer alan kazanım ve açıklamalardır. 122"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -40086,7 +40285,7 @@
 "label": "KPSS Genel Yetenek",
 "programVersion": "kpss_2026",
 "badge": "ÖSYM 2026 KPSS Kılavuzu · Tablo-1 test kapsamları",
-"scope": "ÖSYM yalnız test kapsamını tanımlar; ayrıntılı resmî konu listesi yayımlamaz",
+"scope": "ÖSYM yalnız test kapsamını tanımlar; alt konular ÖSYM Tablo-1 kapsam cümlesindeki adlandırılmış bileşenlerdir",
 "sourceIds": [
 "osym_kpss_2026"
 ],
@@ -40095,11 +40294,31 @@
 "title": "Sözel Bölüm",
 "outcomes": [
 {
-"code": "GY.1",
-"text": "Sözel akıl yürütme (muhakeme) becerilerini, dil bilgisi ve yazım kurallarını ölçmeye yönelik sorulardan oluşacaktır.",
+"code": "GY.1.a",
+"text": "Sözel akıl yürütme (muhakeme)",
 "topic": null,
 "limitations": [
-"Testteki yaklaşık ağırlığı: %50 (ÖSYM Tablo-1)"
+"Bölüm ağırlığı %50 (ÖSYM Tablo-1); bileşen ağırlığı ÖSYM tarafından belirtilmez. Kapsam: “Sözel akıl yürütme (muhakeme) becerilerini, dil bilgisi ve yazım kurallarını ölçmeye yönelik sorulardan oluşacaktır.”"
+],
+"quotas": {},
+"sourceId": "osym_kpss_2026"
+},
+{
+"code": "GY.1.b",
+"text": "Dil bilgisi",
+"topic": null,
+"limitations": [
+"Bölüm ağırlığı %50 (ÖSYM Tablo-1); bileşen ağırlığı ÖSYM tarafından belirtilmez. Kapsam: “Sözel akıl yürütme (muhakeme) becerilerini, dil bilgisi ve yazım kurallarını ölçmeye yönelik sorulardan oluşacaktır.”"
+],
+"quotas": {},
+"sourceId": "osym_kpss_2026"
+},
+{
+"code": "GY.1.c",
+"text": "Yazım kuralları",
+"topic": null,
+"limitations": [
+"Bölüm ağırlığı %50 (ÖSYM Tablo-1); bileşen ağırlığı ÖSYM tarafından belirtilmez. Kapsam: “Sözel akıl yürütme (muhakeme) becerilerini, dil bilgisi ve yazım kurallarını ölçmeye yönelik sorulardan oluşacaktır.”"
 ],
 "quotas": {},
 "sourceId": "osym_kpss_2026"
@@ -40110,11 +40329,21 @@
 "title": "Sayısal Bölüm",
 "outcomes": [
 {
-"code": "GY.2",
-"text": "Sayısal ve mantıksal akıl yürütme (muhakeme) becerilerini ölçmeye yönelik sorulardan oluşacaktır.",
+"code": "GY.2.a",
+"text": "Sayısal akıl yürütme (muhakeme)",
 "topic": null,
 "limitations": [
-"Testteki yaklaşık ağırlığı: %50 (ÖSYM Tablo-1)"
+"Bölüm ağırlığı %50 (ÖSYM Tablo-1); bileşen ağırlığı ÖSYM tarafından belirtilmez. Kapsam: “Sayısal ve mantıksal akıl yürütme (muhakeme) becerilerini ölçmeye yönelik sorulardan oluşacaktır.”"
+],
+"quotas": {},
+"sourceId": "osym_kpss_2026"
+},
+{
+"code": "GY.2.b",
+"text": "Mantıksal akıl yürütme (muhakeme)",
+"topic": null,
+"limitations": [
+"Bölüm ağırlığı %50 (ÖSYM Tablo-1); bileşen ağırlığı ÖSYM tarafından belirtilmez. Kapsam: “Sayısal ve mantıksal akıl yürütme (muhakeme) becerilerini ölçmeye yönelik sorulardan oluşacaktır.”"
 ],
 "quotas": {},
 "sourceId": "osym_kpss_2026"
@@ -41274,6 +41503,11 @@
 }
 ],
 "excluded": [
+{
+"source": "meb_yks_2026",
+"section": "cografya",
+"reason": "17 kazanım yan sütun başlığı nedeniyle tablo dışında kaldı; resmî metinden geri alındı"
+},
 {
 "source": "meb_yks_2026",
 "section": "felsefe",

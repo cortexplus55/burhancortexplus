@@ -56,7 +56,8 @@ describe("buildTopicMap", () => {
   it("karma: senaryo ortalaması (0 dahil), en az 1", () => {
     const m = buildTopicMap(program, "d1y1", "karma");
     expect(m.quotaByCode).toEqual({ "AB 5.1.1": 2, "AB 5.1.10": 1 });
-    expect(m.quotaByTopic).toEqual([3]);
+    // Tek ünite, az konu: alt düzey açılır; konu kotaları yine kazanım kotalarının toplamı.
+    expect(m.quotaByTopic).toEqual([2, 1]);
     expect(m.averaged).toBe(true);
   });
   it("ülke geneli ve serbest: bütün kazanımlar, kota yok", () => {

@@ -32,6 +32,11 @@ test.describe("Resmî müfredat", { tag: ["@public"] }, () => {
     await expect(page.getByTestId("official-summary")).toHaveText("14 konu · 62 kazanım");
     await page.getByRole("button", { name: "Bu konularla devam et" }).click();
     await expect(page.getByTestId("picked")).toContainText('"part":"AYT"');
+    await expect(page.getByTestId("picked")).toContainText('"title":"AYT Matematik (11–12. sınıf) sınav hazırlığı"');
+    await page.getByRole("radio", { name: "TYT", exact: true }).click();
+    await expect(page.getByTestId("official-unit-single").first()).toContainText("kazanım");
+    await page.getByRole("button", { name: "Bu konularla devam et" }).click();
+    await expect(page.getByTestId("picked")).toContainText('"title":"TYT Matematik (9–10. sınıf) sınav hazırlığı"');
     await page.getByRole("radio", { name: "LGS", exact: true }).click();
     await page.getByRole("radio", { name: "Matematik", exact: true }).click();
     await expect(page.getByTestId("official-summary")).toContainText("12 konu · 52 kazanım");

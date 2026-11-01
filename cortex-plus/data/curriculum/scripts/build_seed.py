@@ -1,6 +1,7 @@
 import json,re,hashlib,csv,os,collections
 D='/workspace/mufredat-data'; R=D+'/raw'
 FETCHED='2026-11-01T10:00:00+03:00'
+COG_AREAS={'1':'Doğal Sistemler','2':'Beşerî Sistemler','3':'Küresel Ortam: Bölgeler ve Ülkeler','4':'Çevre ve Toplum'}
 def sha(p): return hashlib.sha256(open(p,'rb').read()).hexdigest()
 A=json.load(open(D+'/out/layerA.json'))
 Y=json.load(open(D+'/out/yks.json'))
@@ -110,12 +111,43 @@ for sec,name in YNAME.items():
         lim=[l.strip() for l in (o.get('limitations') or []) if l and l.strip()]
         if sec=='tarih': unit=re.sub(r'^(\d+)\. Ün\S+: ',r'\1. ',post(fixcase(unit)))
         outs.append(dict(code=code,text=text,grade=g,unitCode=uc,unit=unit,limitations=lim))
+    if sec=='cografya':
+        # PDF yan sütunundaki öğrenme alanı başlıkları bazı kazanım satırlarını bozuyor; eksik kodları resmî metinden geri al
+        _L=open(R+'/yksk.txt').read().split('\n'); _a=next(i for i,l in enumerate(_L) if 'COĞRAFYA DERSİ (9, 10, 11 VE 12' in l)
+        _L=_L[_a:_a+450]; have={o['code'] for o in outs}; rec=0
+        for i,l in enumerate(_L):
+            for m in re.finditer(r'(?<![\d.])((?:9|10|11|12)\.[1-4]\.\d{1,2})\.\s*(\S.*)',l):
+                c=m.group(1)
+                if c in have: continue
+                t=re.split(r'\s{3,}',m.group(2).strip())[0]; j=i+1
+                while not t.endswith('.') and j<len(_L) and _L[j].strip():
+                    nx=re.sub(r'^\s*(?:[A-ZÇĞİÖŞÜÎ:]+\s+)+(?=\S)','',_L[j]).strip()
+                    if re.match(r'(?:[a-zç]\)|\d+\.\d)',nx): break
+                    t+=' '+nx; j+=1
+                g=int(c.split('.')[0]); have.add(c); rec+=1
+                outs.append(dict(code=c,text=t,grade=g,unitCode='.'.join(c.split('.')[:2]),unit=name,limitations=[]))
+        _H=r'\s*\b(?:DOĞAL SİSTEMLER|BEŞER[ÎİI] SİSTEMLER|KÜRESEL ORTAM ?:? BÖLGELER VE ÜLKELER|ÇEVRE VE TOPLUM|SİSTEMLER|TOPLUM)\b'
+        for o in outs:
+            cl=[]
+            for l in o['limitations']:
+                l=re.split(r'\s+(?:\d{2,3}\s+)?(?:\S+\s+){0,12}?(?:9|10|11|12)\.[1-4]\.\d{1,2}\.',l)[0]
+                l=re.sub(_H,' ',l); l=re.sub(r'\s+\d{2,3}$','',re.sub(r'\s{2,}',' ',l)).strip()
+                l=' '.join(w for w in l.split() if w not in ('KÜRESEL','ORTAM:','ORTAM','BÖLGELER','VE','ÜLKELER','ÇEVRE','TOPLUM','DOĞAL','SİSTEMLER'))
+                if l and not re.match(r'(?:9|10|11|12)\.[1-4]\.\d{1,2}\.',l): cl.append(l)
+            o['limitations']=cl
+        outs.sort(key=lambda o:tuple(int(x) for x in o['code'].split('.')))
+        excluded.append(dict(source=yks_src,section=sec,reason=f'{rec} kazanım yan sütun başlığı nedeniyle tablo dışında kaldı; resmî metinden geri alındı'))
     if drop: excluded.append(dict(source=yks_src,section=sec,reason=f'{drop} satır başlık/bozuk kod/tekrar olarak elendi'))
     pid=f'yks-2026-{sec}'
     p=dict(id=pid,kind='yks',grade=None,subjectKey=sec,subject=name,label=f'YKS {name} (9–12)',programVersion='meb_yks_2026',
         badge='ÖSYM 2026 YKS’ye esas kazanımlar (MEB)',scope='9–12. sınıf YKS kazanımları; 2027 sürümü henüz yayımlanmadı',sourceIds=[yks_src],units=[],exams={})
     for o in outs:
-        title=f"{o['grade']}. Sınıf · {o['unit']}"
+        unit=o['unit']
+        # Coğrafya PDF'inde ünite sütunu yalnız öğrenme alanı adıdır (yksk.txt ~3540-3950, 9-12. sınıf tabloları);
+        # kodun 2. hanesi öğrenme alanını verir: x.1 DOĞAL SİSTEMLER, x.2 BEŞERÎ SİSTEMLER, x.3 KÜRESEL ORTAM: BÖLGELER VE ÜLKELER, x.4 ÇEVRE VE TOPLUM
+        if sec=='cografya' and unit==name:
+            unit=COG_AREAS[o['code'].split('.')[1]]
+        title=f"{o['grade']}. Sınıf · {unit}"
         u=next((x for x in p['units'] if x['title']==title),None)
         if not u: u=dict(title=title,outcomes=[]); p['units'].append(u)
         u['outcomes'].append(dict(code=o['code'],text=o['text'],topic=None,grade=o['grade'],limitations=o['limitations'],quotas={},sourceId=yks_src))
