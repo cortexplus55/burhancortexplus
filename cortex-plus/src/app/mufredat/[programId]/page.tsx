@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, getProgram, programSources } from "@/lib/curriculum/registry";
 import { displayUnitTitles } from "@/lib/curriculum/unit-title";
+import { OfficialLinks } from "@/components/curriculum/official-links";
 
 const EXAM_LABEL: Record<string, string> = {
   d1y1: "1. Dönem 1. Ortak Yazılı",
@@ -91,6 +92,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
           ))}
         </ul>
       </section>
+      {program.kind !== "okul" ? (
+        <OfficialLinks exam={program.kind} className="mk-card mt-6 p-4 text-sm text-[var(--mk-muted)] osf-links" />
+      ) : null}
     </MarketingPage>
   );
 }

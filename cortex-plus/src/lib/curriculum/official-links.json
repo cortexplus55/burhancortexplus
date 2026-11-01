@@ -1,0 +1,26 @@
+{
+  "verifiedAt": "2026-11-01T22:00:00+03:00",
+  "links": [
+    { "exam": "yks", "title": "2026-YKS Kılavuzu (PDF)", "url": "https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf", "publisher": "ÖSYM" },
+    { "exam": "yks", "title": "2026 YKS'ye esas kazanım ve açıklamalar (PDF)", "url": "https://ttkb.meb.gov.tr/meb_iys_dosyalar/2025_11/26164023_2026_yks.pdf", "publisher": "MEB TTKB" },
+    { "exam": "yks", "title": "YKS sınav soru ve cevapları", "url": "https://www.osym.gov.tr/SinavGrubu/Menu/323", "publisher": "ÖSYM" },
+    { "exam": "lgs", "title": "2026 LGS Başvuru ve Uygulama Kılavuzu (PDF)", "url": "https://www.meb.gov.tr/meb_iys_dosyalar/2026_04/03170012_LGS_Basvuru_ve_Uygulama_Kilavuzu_2026_.pdf", "publisher": "MEB ÖDSGM" },
+    { "exam": "lgs", "title": "LGS 2027 sınav tarihi duyurusu", "url": "https://odsgm.meb.gov.tr/www/lgs-kapsamindaki-merkezi-sinavin-tarihi-belli-oldu/icerik/1755", "publisher": "MEB ÖDSGM" },
+    { "exam": "kpss", "title": "2026 KPSS Lisans Kılavuzu (PDF)", "url": "https://dokuman.osym.gov.tr/pdfdokuman/2026/KPSS/LISANS/kilavuz_Ld01072026.pdf", "publisher": "ÖSYM" },
+    { "exam": "kpss", "title": "KPSS sınav soru ve cevapları", "url": "https://www.osym.gov.tr/SinavGrubu/Menu/344", "publisher": "ÖSYM" },
+    { "exam": "ales", "title": "2026 ALES Başvuru Kılavuzu (PDF)", "url": "https://dokuman.osym.gov.tr/web/2026/10/basvuru-kilavuzu-pijez5-06105839.pdf", "publisher": "ÖSYM" },
+    { "exam": "ales", "title": "ALES sayfası (soru kitapçıkları ve duyurular)", "url": "https://www.osym.gov.tr/SinavGrubu/Index/5", "publisher": "ÖSYM" },
+    { "exam": "dgs", "title": "2026 DGS Kılavuzu (PDF)", "url": "https://dokuman.osym.gov.tr/web/2026/7/genel-bilgiler-temel-lke-ve-kurallar-q1jd4s-30102212.pdf", "publisher": "ÖSYM" },
+    { "exam": "dgs", "title": "DGS sınav soru ve cevapları", "url": "https://www.osym.gov.tr/SinavGrubu/Menu/770", "publisher": "ÖSYM" },
+    { "exam": "yds", "title": "2026 YDS/2 Başvuru Kılavuzu (PDF)", "url": "https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-8g5h1l-29160339.pdf", "publisher": "ÖSYM" },
+    { "exam": "yds", "title": "YDS sayfası", "url": "https://www.osym.gov.tr/SinavGrubu/Menu/776", "publisher": "ÖSYM" },
+    { "exam": "tus", "title": "2026 TUS 2. Dönem Başvuru Kılavuzu (PDF)", "url": "https://dokuman.osym.gov.tr/web/2026/7/basvuru-kilavuzu-rn15c8-30102957.pdf", "publisher": "ÖSYM" },
+    { "exam": "tus", "title": "TUS sınav soru ve cevapları", "url": "https://www.osym.gov.tr/SinavGrubu/Menu/1889", "publisher": "ÖSYM" },
+    { "exam": "tus", "title": "Mezuniyet Öncesi Tıp Eğitimi Ulusal Çekirdek Eğitim Programı 2020 (UÇEP, PDF)", "url": "https://egitim.yok.gov.tr/documentFiles/17594056261.Mezuniyet%20%C3%96ncesi%20T%C4%B1p%20E%C4%9Fitimi%20-%20Ulusal%20%C3%87ekirdek%20E%C4%9Fitim%20Program%C4%B1%202020.pdf", "publisher": "YÖK" },
+    { "exam": "dus", "title": "2026 DUS 2. Dönem Başvuru Kılavuzu (PDF)", "url": "https://dokuman.osym.gov.tr/web/2026/9/basvuru-kilavuzu-e1esxj-16163038.pdf", "publisher": "ÖSYM" },
+    { "exam": "dus", "title": "DUS sınav soru ve cevapları", "url": "https://www.osym.gov.tr/SinavGrubu/Menu/911", "publisher": "ÖSYM" },
+    { "exam": "dus", "title": "Mezuniyet Öncesi Diş Hekimliği Eğitimi Ulusal Çekirdek Eğitim Programı (DUÇEP-2024, PDF)", "url": "https://egitim.yok.gov.tr/documentFiles/17594056261.Mezuniyet%20%C3%96ncesi%20Di%C5%9F%20Hekimli%C4%9Fi%20Ulusal%20%C3%87ekirdek%20E%C4%9Fitim%20Program%C4%B1.pdf", "publisher": "YÖK" },
+    { "exam": "tus", "title": "YÖK Ulusal Çekirdek Eğitim Programları listesi", "url": "https://egitim.yok.gov.tr/tr/page/499", "publisher": "YÖK" },
+    { "exam": "dus", "title": "YÖK Ulusal Çekirdek Eğitim Programları listesi", "url": "https://egitim.yok.gov.tr/tr/page/499", "publisher": "YÖK" }
+  ]
+}
