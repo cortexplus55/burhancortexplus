@@ -1,6 +1,7 @@
 "use client";
 
 /** Sonuç: yıldız, yazılı deneme sonucu, "+%X kazandın" ve etkinliğin sonuç ekranı. */
+import { dedupePathLabels } from "@/lib/learning/path-labels";
 import { Star, Swords } from "lucide-react";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
@@ -278,9 +279,12 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
           {payload.type === "lesson" ? (
             structuredLesson?.nextFocus?.length ? (
               <>
-                <p className="cp-exam-debrief-label">Sıradaki adım</p>
+                <p className="cp-exam-debrief-label">
+                  Sıradaki adım
+                  {dedupePathLabels(structuredLesson.nextFocus).prefix ? ` · ${dedupePathLabels(structuredLesson.nextFocus).prefix}` : ""}
+                </p>
                 <ul>
-                  {structuredLesson.nextFocus.map((item) => (
+                  {dedupePathLabels(structuredLesson.nextFocus).items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
