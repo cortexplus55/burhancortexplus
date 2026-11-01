@@ -20,6 +20,7 @@ export function LevelCheckRunner({
   onFinish,
   onSkip,
   onEmpty,
+  onStarted,
   guestNext,
 }: {
   api: LevelApi;
@@ -28,6 +29,8 @@ export function LevelCheckRunner({
   onFinish: (results: LevelResult[], meta: { persisted: boolean; guest: boolean }) => void;
   onSkip: () => void;
   onEmpty?: (status: "empty" | "done") => void;
+  /** Başlatma yanıtı (ok ya da boş) geldiğinde; ör. pekiştirmede ek sorusu olmayan kazanımlar için. */
+  onStarted?: (res: LevelStartResponse) => void;
   /** Misafir ön izlemesi bitince kayıt sonrası dönülecek adres. */
   guestNext?: string;
 }) {
@@ -47,6 +50,7 @@ export function LevelCheckRunner({
       .start(request)
       .then((res) => {
         if (!live) return;
+        onStarted?.(res);
         if (res.status !== "ok") {
           setState("empty");
           onEmpty?.(res.status);

@@ -6,6 +6,8 @@ import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { UnitLevelCheck } from "@/components/level-check/unit-level-check";
 import { unitCheckOffer } from "@/lib/level-check/unit-offer";
+import { MasteryMap } from "@/components/level-check/mastery-map";
+import { loadMapInputs } from "@/lib/mastery-map/load";
 import { ExamPrepHome, type LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -637,11 +639,24 @@ export default async function ExamPrepDetailPage({
     topicLabel,
   });
 
+  // Plan PR 4: resmî kurulumdan hazırlıkta Hakimiyet Haritası + Kişisel Program (tablolar yoksa gösterilmez).
+  const mapUnits = await loadMapInputs(service, { userId: user.id, prefs: prep.learning_preferences });
+
   return (
     <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari" minimalTop>
       {unitCheck ? (
         <div style={{ width: "min(40rem, 100%)", margin: "0 auto", padding: "0 1rem" }}>
           <UnitLevelCheck prepId={prep.id as string} unitId={unitCheck.unitId} unitTitle={unitCheck.unitTitle} />
+        </div>
+      ) : null}
+      {mapUnits?.length ? (
+        <div style={{ width: "min(40rem, 100%)", margin: "0 auto", padding: "0 1rem" }}>
+          <MasteryMap
+            prepId={prep.id as string}
+            units={mapUnits}
+            daysLeft={prep.exam_date ? (examPassed ? 0 : daysUntilExam(prep.exam_date as string)) : null}
+            dailyMinutes={typeof prep.daily_minutes === "number" ? prepDailyMinutes(prep.daily_minutes) : null}
+          />
         </div>
       ) : null}
       <ExamPrepHome

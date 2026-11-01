@@ -66,3 +66,23 @@
 .lc-results b { font-weight: 600; }
 .lc-page { width: min(40rem, 100%); margin: 0 auto; padding: 1.5rem 1rem 3rem; box-sizing: border-box; overflow-wrap: anywhere; }
 .lc-title { margin: 0.2rem 0 0.8rem; font-size: 1.45rem; }
+
+/* Hakimiyet Haritası (.mm-*) — Plan PR 4. */
+.mm-grid { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.45rem; }
+.mm-unit { border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-left-width: 6px; }
+.mm-unit[data-tone="none"] { border-left-color: #52525b; }
+.mm-unit[data-tone="low"] { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+.mm-unit[data-tone="mid"] { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+.mm-unit[data-tone="high"] { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.08); }
+.mm-unit-btn { width: 100%; display: grid; gap: 0.15rem; text-align: left; padding: 0.55rem 0.7rem; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.mm-title { font-weight: 600; font-size: 0.92rem; }
+.mm-pct { display: block; font-size: 0.8rem; color: var(--cp-muted, #9aa3b8); }
+.mm-self { font-size: 0.75rem; color: var(--cp-muted, #9aa3b8); }
+.mm-outcomes { list-style: none; margin: 0; padding: 0 0.7rem 0.6rem; display: grid; gap: 0.4rem; font-size: 0.84rem; line-height: 1.45; }
+.mm-outcomes li { padding-left: 0.5rem; border-left: 3px solid #52525b; }
+.mm-outcomes li[data-tone="low"] { border-left-color: #ef4444; }
+.mm-outcomes li[data-tone="mid"] { border-left-color: #f59e0b; }
+.mm-outcomes li[data-tone="high"] { border-left-color: #22c55e; }
+.mm-weak, .mm-plan { margin-top: 0.9rem; }
+.mm-chips { list-style: none; margin: 0.3rem 0; padding: 0; display: grid; gap: 0.2rem; }
+.mm-list { margin: 0.3rem 0 0.6rem; padding-left: 1.2rem; display: grid; gap: 0.3rem; font-size: 0.88rem; }

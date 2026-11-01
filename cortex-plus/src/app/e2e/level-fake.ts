@@ -31,6 +31,10 @@ export function fakeLevelApi(opts: { guest: boolean; empty?: boolean }): LevelAp
         const pool = req.units.slice(0, 6).map((id) => id.replace(/#(\d+)$/, (_, n) => `#${Number(n) + 1}`));
         items = Array.from({ length: 12 }, (_, i) => fakeItem(pool[i % pool.length]!, i, i));
         if (opts.guest) items = items.slice(0, 3);
+      } else if (req.mode === "reinforce") {
+        // Zayıf iki kazanımdan biri için 2 ek soru var, diğeri için havuz boş (dürüst bildirim sınaması).
+        items = [fakeItem(req.unit, 10, 1), fakeItem(req.unit, 11, 1)].map((it) => ({ ...it, difficulty: "easy" as const }));
+        return { status: "ok", token: "e2e", source: "practice", guest: false, items, persisted: true, missing: [{ code: "E2E.2", text: "Fikstür kazanımı 2" }] };
       } else {
         items = Array.from({ length: 4 }, (_, i) => fakeItem(req.unit, i, i % 3));
       }

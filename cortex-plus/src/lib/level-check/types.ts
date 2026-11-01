@@ -16,11 +16,16 @@ export type LevelItem = {
 
 export type LevelStartRequest =
   | { mode: "quick_scan"; units: string[] }
-  | { mode: "unit_check"; unit: string; prepId: string };
+  | { mode: "unit_check"; unit: string; prepId: string }
+  /** Ünite sonu pekiştirme (Plan PR 4): zayıf kazanım başına havuzdan en çok 2 ek soru. */
+  | { mode: "reinforce"; unit: string; prepId: string };
+
+/** Pekiştirmede havuzda ek sorusu olmayan zayıf kazanım (dürüst bildirim için). */
+export type MissingOutcome = { code: string; text: string };
 
 export type LevelStartResponse =
-  | { status: "ok"; token: string; source: LevelSource; guest: boolean; items: LevelItem[]; persisted: boolean }
-  | { status: "empty" }
+  | { status: "ok"; token: string; source: LevelSource; guest: boolean; items: LevelItem[]; persisted: boolean; missing?: MissingOutcome[] }
+  | { status: "empty"; missing?: MissingOutcome[]; weakCount?: number }
   | { status: "done" };
 
 export type LevelAnswerResponse = { correct: boolean; answer: number; explanation: string; persisted: boolean };
