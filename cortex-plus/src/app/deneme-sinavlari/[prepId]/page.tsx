@@ -4,6 +4,8 @@ import { after } from "next/server";
 import { headers } from "next/headers";
 import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
 import { ParitySorShell } from "@/components/parity/sor-shell";
+import { UnitLevelCheck } from "@/components/level-check/unit-level-check";
+import { unitCheckOffer } from "@/lib/level-check/unit-offer";
 import { ExamPrepHome, type LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -627,8 +629,21 @@ export default async function ExamPrepDetailPage({
       }
     : null;
 
+  // Plan PR 3: etkin ünite için Ünite Seviye Kontrolü (havuzda ≥3 doğrulanmış soru varsa; tablolar yoksa gösterilmez).
+  const unitCheck = await unitCheckOffer(service, {
+    userId: user.id,
+    prepId: prep.id as string,
+    prefs: prep.learning_preferences,
+    topicLabel,
+  });
+
   return (
     <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari" minimalTop>
+      {unitCheck ? (
+        <div style={{ width: "min(40rem, 100%)", margin: "0 auto", padding: "0 1rem" }}>
+          <UnitLevelCheck prepId={prep.id as string} unitId={unitCheck.unitId} unitTitle={unitCheck.unitTitle} />
+        </div>
+      ) : null}
       <ExamPrepHome
         prepId={prep.id}
         officialNote={officialPlanNote(prep.learning_preferences) ?? officialSourceNote(readCurriculumRef(prep.learning_preferences))}

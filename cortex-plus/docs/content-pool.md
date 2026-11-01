@@ -9,3 +9,22 @@
 - Geçmiş soru benzerlik denetimi henüz yok (`qa.similarity_check = "not_run"`); planda hukuki inceleme sonrasına bırakıldı.
 - Ön üretim: `npx tsx --conditions=react-server scripts/content-pool-seed.ts --program yks-2026-tarih [--dry-run]` (`CONTENT_POOL_USER_ID` gerekli). Kapsama: `topic_content_coverage` görünümü.
 - Göç: `supabase/migrations/20261101180000_shared_content_pool.sql` (yalnız ekleme).
+
+## Seviye kontrolü (Plan PR 3)
+
+- **⚡ Akıllı Hızlı Tarama** kurulumda konu seçiminden sonra varsayılan adımdır (atlanabilir): 10–12 soru, 3–5 dk.
+  Sorular yalnız `item_bank` (status = verified) satırlarından gelir; tarama sırasında **üretim yok**, öğesi olmayan
+  ünite atlanır, havuz boşsa “Bu ders için hazır soru henüz yok”.
+- **Ağırlık vekili:** resmî ünite ağırlığı verisi yok; ağırlık = ünitenin kazanım sayısı (`poolUnit(id).outcomes.length`).
+  Ağırdan hafife, ünite başına bir soru dönüşümlü (orta → kolay → zor, farklı kazanım önce).
+- **Puanlama sunucuda:** `/api/level-check/start` cevapsız soru + HMAC jeton (45 dk) verir; `/api/level-check/answer`
+  cevabı yalnız yanıttan sonra döner.
+- **Misafir ön izleme:** `/hizli-tarama` ilk 3 soru, hiçbir şey kaydedilmez, sonunda ücretsiz hesap çağrısı.
+- **Ustalık** (`src/lib/level-check/mastery.ts`): Beta-Binomial, öncel α=β=1, ağırlık kolay 0.7 / orta 1.0 / zor 1.3,
+  ustalık = α/(α+β). n = 0 “Henüz yeterli veri yok”, n < 3 “tahmini”.
+- **Yol sırası eşikleri:** ustalık < 0.40 → Zayıf (öne), ≥ 0.75 → Biliyorum (sona, kısa), arası Orta. Yalnız öğrencinin
+  işaretlemediği ünitelere uygulanır (`ratingSource: "scan"`); açık işaret her zaman kazanır.
+- **Ünite Seviye Kontrolü:** yolda etkin ünite havuzda ≥ 3 doğrulanmış soruya sahipse 3–4 soru önerilir; atlanabilir,
+  kazanım başına dürüst sonuç satırı. Bu hazırlıkta yapıldıysa tekrar önerilmez.
+- **Tablolar:** `item_responses`, `outcome_mastery` (göç `20261101200000_item_responses_mastery.sql`). Göç
+  uygulanmadan: tarama puanlanır ama kaydedilmez (`persisted:false`), Ünite Seviye Kontrolü hiç gösterilmez.

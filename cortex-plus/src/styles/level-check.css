@@ -1,0 +1,68 @@
+/* Seviye kontrolü (.lc-*) — Hızlı Tarama ve Ünite Seviye Kontrolü. 375px'te taşma yok. */
+.lc-box {
+  margin: 0.75rem 0;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c-surface-1, #18181b) 72%, transparent);
+  color: var(--c-text, #f4f4f5);
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.lc-box *, .lc-box *::before, .lc-box *::after { box-sizing: border-box; min-width: 0; }
+.lc-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.lc-kicker { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--cp-muted, #9aa3b8); margin: 0; }
+.lc-unit { margin: 0.4rem 0 0; font-size: 0.8rem; color: var(--cp-muted, #9aa3b8); }
+.lc-q { margin: 0.5rem 0 0.75rem; font-size: 0.98rem; line-height: 1.5; white-space: pre-wrap; }
+.lc-status { margin: 0.25rem 0 0.6rem; color: var(--cp-muted, #9aa3b8); font-size: 0.88rem; line-height: 1.5; }
+.lc-choices { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.lc-choice {
+  width: 100%;
+  display: flex;
+  gap: 0.4rem;
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: inherit;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.lc-choice[data-tone="picked"] { border-color: var(--c-action, #3b82f6); }
+.lc-choice[data-tone="right"] { border-color: #22c55e; background: rgba(34, 197, 94, 0.12); }
+.lc-choice[data-tone="wrong"] { border-color: #ef4444; background: rgba(239, 68, 68, 0.12); }
+.lc-choice:disabled { cursor: default; }
+.lc-feedback { margin-top: 0.75rem; }
+.lc-feedback p { margin: 0 0 0.35rem; }
+.lc-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--c-action, #3b82f6);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+.lc-skip {
+  border: 0;
+  background: transparent;
+  color: var(--cp-muted, #9aa3b8);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+.lc-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
+.lc-results { list-style: none; margin: 0.4rem 0 0.6rem; padding: 0; display: grid; gap: 0.35rem; font-size: 0.86rem; line-height: 1.45; }
+.lc-results b { font-weight: 600; }
+.lc-page { width: min(40rem, 100%); margin: 0 auto; padding: 1.5rem 1rem 3rem; box-sizing: border-box; overflow-wrap: anywhere; }
+.lc-title { margin: 0.2rem 0 0.8rem; font-size: 1.45rem; }
