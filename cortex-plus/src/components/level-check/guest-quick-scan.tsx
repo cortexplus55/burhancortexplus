@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { LevelCheckRunner } from "@/components/level-check/level-check-runner";
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
 import "@/styles/level-check.css";
@@ -16,14 +17,32 @@ export function GuestQuickScan({
   initialKey,
   nextHref,
   api = httpLevelApi,
+  signedIn = false,
 }: {
   subjects: GuestScanSubject[];
   initialKey: string | null;
   nextHref: string;
   api?: LevelApi;
+  /** Oturum açıksa ön izleme çalışmaz; tam tarama (10–12 soru, sonuç ekranı) kurulumdadır. */
+  signedIn?: boolean;
 }) {
   const [key, setKey] = useState<string | null>(subjects.some((s) => s.key === initialKey) ? initialKey : null);
   const subject = subjects.find((s) => s.key === key) ?? null;
+
+  if (signedIn)
+    return (
+      <main className="lc-page" data-testid="signed-in-scan">
+        <h1 className="lc-title">⚡ Akıllı Hızlı Tarama</h1>
+        <div className="lc-box">
+          <p className="lc-status">
+            Hesabın açık. Tam tarama (10–12 soru, konu konu sonuç ve kayıt) hazırlık kurulumunda yapılır.
+          </p>
+          <Link className="lc-cta" href={nextHref}>
+            Tam taramaya başla
+          </Link>
+        </div>
+      </main>
+    );
 
   return (
     <main className="lc-page" data-testid="guest-scan">

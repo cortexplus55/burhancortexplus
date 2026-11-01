@@ -24,7 +24,7 @@
   `levelUnitTitle` → ortak `displayUnitTitles` ile sıra numarasız gelir.
 - **Puanlama sunucuda:** `/api/level-check/start` cevapsız soru + HMAC jeton (45 dk) verir; `/api/level-check/answer`
   cevabı yalnız yanıttan sonra döner.
-- **Misafir ön izleme:** `/hizli-tarama` ilk 3 soru, hiçbir şey kaydedilmez, sonunda ücretsiz hesap çağrısı.
+- **Misafir ön izleme:** `/hizli-tarama` ilk 3 soru, hiçbir şey kaydedilmez, sonunda ücretsiz hesap çağrısı. Oturum açık kullanıcı ön izleme görmez; kurulumdaki tam taramaya (10–12 soru, sonuç ekranı) yönlendirilir.
 - **Ustalık** (`src/lib/level-check/mastery.ts`): Beta-Binomial, öncel α=β=1, ağırlık kolay 0.7 / orta 1.0 / zor 1.3,
   ustalık = α/(α+β). n = 0 “Henüz yeterli veri yok”, n < 3 “tahmini”.
 - **Yol sırası eşikleri:** ustalık < 0.40 → Zayıf (öne), ≥ 0.75 → Biliyorum (sona, kısa), arası Orta. Yalnız öğrencinin
