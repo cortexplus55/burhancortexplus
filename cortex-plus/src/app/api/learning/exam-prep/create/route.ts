@@ -98,7 +98,7 @@ const prefsSchema = z
      */
     officialPlan: z
       .object({
-        exam: z.enum(["yks", "lgs"]),
+        exam: z.enum(["yks", "lgs", "kpss", "ales", "dgs", "yds", "tus", "dus"]),
         alan: z.enum(["tyt", "say", "ea", "soz", "dil"]).nullable(),
         singleSubject: z.boolean(),
         units: z

@@ -38,7 +38,7 @@ export type CurriculumExamInfo = { scenarios: number[]; national: boolean };
 
 export type CurriculumProgram = {
   id: string;
-  kind: "okul" | "yks" | "lgs" | "kpss";
+  kind: "okul" | "yks" | "lgs" | "kpss" | "ales" | "dgs" | "yds" | "tus" | "dus";
   grade: number | null;
   subjectKey: string;
   subject: string;

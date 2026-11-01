@@ -14,7 +14,7 @@ def prov(sid):
     s=S[sid]; return [q(s['url']),q(s['program_version']),q(s['sha256']),q(s['fetched_at'])]
 P='source_url, program_version, sha256, fetched_at'
 out0=["-- OTOMATİK ÜRETİLDİ: data/curriculum/scripts/to_sql_csv.py (registry.json "+reg['version']+"). Elle düzenlemeyin.","BEGIN;"]
-out=out0+(["-- Ek dersler (1 Kasım 2026): program türüne lgs ve kpss eklenir (yalnız genişletme).","ALTER TABLE public.curriculum_programs DROP CONSTRAINT IF EXISTS curriculum_programs_kind_check;","ALTER TABLE public.curriculum_programs ADD CONSTRAINT curriculum_programs_kind_check CHECK (kind IN ('okul', 'yks', 'lgs', 'kpss'));"] if len(sys.argv)==2 else [])
+out=out0+(["-- Ek dersler (1 Kasım 2026): program türüne lgs ve kpss eklenir (yalnız genişletme).","ALTER TABLE public.curriculum_programs DROP CONSTRAINT IF EXISTS curriculum_programs_kind_check;","ALTER TABLE public.curriculum_programs ADD CONSTRAINT curriculum_programs_kind_check CHECK (kind IN ('okul', 'yks', 'lgs', 'kpss', 'ales', 'dgs', 'yds', 'tus', 'dus'));"] if len(sys.argv)==2 else [])
 # argv[2]: virgüllü program kimlikleri -> yalnız bu programların ek (upsert) göçü
 ONLY=set(sys.argv[2].split(',')) if len(sys.argv)>2 else None
 if ONLY: out.append("-- Ek upsert: yalnız "+", ".join(sorted(ONLY))+" ve dışlama kayıtları. Silme yok.")

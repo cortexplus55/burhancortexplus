@@ -231,3 +231,7 @@
   text-decoration: underline;
   cursor: pointer;
 }
+.osf-links { margin-top: 0.9rem; font-size: 0.78rem; color: var(--cp-muted, #9aa3b8); }
+.osf-links-title { font-weight: 600; margin-bottom: 0.35rem; }
+.osf-links ul { display: grid; gap: 0.3rem; }
+.osf-links a { color: inherit; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }

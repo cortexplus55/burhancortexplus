@@ -16,7 +16,14 @@
 
 export const OSYM_YKS_GUIDE_URL = "https://dokuman.osym.gov.tr/pdfdokuman/2026/YKS/basvuru_kilavuz06022026.pdf";
 
-export type SetupExam = "yks" | "lgs";
+import { isTreeExam, TREE_EXAMS, TREE_EXAM_IDS, type TreeExam } from "@/lib/curriculum/exam-trees";
+
+export type SetupExam = "yks" | "lgs" | TreeExam;
+export const SETUP_EXAMS: SetupExam[] = ["yks", "lgs", ...TREE_EXAM_IDS];
+
+export function isSetupExam(value: unknown): value is SetupExam {
+  return value === "yks" || value === "lgs" || isTreeExam(value);
+}
 export type YksAlan = "tyt" | "say" | "ea" | "soz" | "dil";
 export type YksPartKey = "TYT" | "AYT";
 
@@ -28,6 +35,8 @@ export type SetupSubjectDef = {
   test: string;
   part: YksPartKey | null;
   programIds: string[];
+  /** Soru sayısı için sınav yapısı satırları (KPSS/ALES/DGS/YDS/TUS/DUS). */
+  structure?: { exam: string; subjects: string[] };
 };
 
 const tyt = (key: string, label: string, test: string, programId: string): SetupSubjectDef => ({
@@ -113,6 +122,17 @@ export const LGS_PROGRAM_IDS = [
 /** Bir sınavın bütün ders tanımları (sıra ekrandaki sıradır). */
 export function setupSubjectDefs(exam: SetupExam): SetupSubjectDef[] {
   if (exam === "yks") return [...TYT_SUBJECTS, ...AYT_SUBJECTS];
+  if (isTreeExam(exam)) {
+    const def = TREE_EXAMS[exam];
+    return def.subjects.map((s) => ({
+      key: s.programId,
+      label: "",
+      test: s.test,
+      part: null,
+      programIds: [s.programId],
+      structure: { exam: def.structureExam, subjects: s.structure },
+    }));
+  }
   return LGS_PROGRAM_IDS.map((id) => ({ key: id, label: "", test: "LGS", part: null, programIds: [id] }));
 }
 
