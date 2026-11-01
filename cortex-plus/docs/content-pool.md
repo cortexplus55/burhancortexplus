@@ -16,7 +16,12 @@
   Sorular yalnız `item_bank` (status = verified) satırlarından gelir; tarama sırasında **üretim yok**, öğesi olmayan
   ünite atlanır, havuz boşsa “Bu ders için hazır soru henüz yok”.
 - **Ağırlık vekili:** resmî ünite ağırlığı verisi yok; ağırlık = ünitenin kazanım sayısı (`poolUnit(id).outcomes.length`).
-  Ağırdan hafife, ünite başına bir soru dönüşümlü (orta → kolay → zor, farklı kazanım önce).
+  Ağırdan hafife, ünite başına bir soru dönüşümlü, farklı kazanım önce.
+- **Zorluk karışımı** (`SCAN_MIX`, `UNIT_CHECK_MIX` in `select.ts`): tarama 12 soruda 8 orta + 2 kolay + 2 zor;
+  Ünite Seviye Kontrolü orta, kolay, zor (+ 4. soru orta). İstenen zorluk havuzda yoksa orta → kolay → zor sırasıyla
+  olandan alınır; soru uydurulmaz. Böylece 0.7 / 1.3 ağırlıkları gerçekten devreye girer.
+- **Başlıklar:** her seviye kontrolü başlığı (API yükü, tarama sonucu, ünite kartı, misafir ön izleme)
+  `levelUnitTitle` → ortak `displayUnitTitles` ile sıra numarasız gelir.
 - **Puanlama sunucuda:** `/api/level-check/start` cevapsız soru + HMAC jeton (45 dk) verir; `/api/level-check/answer`
   cevabı yalnız yanıttan sonra döner.
 - **Misafir ön izleme:** `/hizli-tarama` ilk 3 soru, hiçbir şey kaydedilmez, sonunda ücretsiz hesap çağrısı.

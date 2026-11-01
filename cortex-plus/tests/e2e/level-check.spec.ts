@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** Ünite başlıklarında kaynak sıra numarası ("· 1. Tarih") görünmez. */
+async function noOrdinal(page: Page, testId: string) {
+  await expect(page.getByTestId(testId)).not.toContainText(/· \d+\. /);
+}
+
 async function noOverflow(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
@@ -14,6 +19,7 @@ test.describe("Seviye kontrolü", { tag: ["@public"] }, () => {
     for (let i = 0; i < 3; i++) {
       await expect(page.getByTestId("level-runner")).toContainText(`${i + 1} / 3`);
       await noOverflow(page);
+      await noOrdinal(page, "level-runner");
       await page.getByTestId("level-runner").getByRole("button", { name: new RegExp("Doğru şık") }).click();
       await expect(page.getByTestId("level-feedback")).toBeVisible();
       await noOverflow(page);
@@ -34,9 +40,11 @@ test.describe("Seviye kontrolü", { tag: ["@public"] }, () => {
     await page.goto("/e2e/unite-kontrol");
     const box = page.getByTestId("unit-check");
     await expect(box).toContainText("3–4 soru");
+    await noOrdinal(page, "unit-check");
     await page.getByRole("button", { name: "Kontrolü başlat" }).click();
     for (let i = 0; i < 4; i++) {
       await expect(page.getByTestId("level-runner")).toContainText(`${i + 1} / 4`);
+      await noOrdinal(page, "level-runner");
       await page.getByTestId("level-runner").getByRole("button", { name: i % 2 ? /Yanlış şık C/ : /Doğru şık/ }).click();
       await page.getByTestId("level-feedback").getByRole("button").click();
     }

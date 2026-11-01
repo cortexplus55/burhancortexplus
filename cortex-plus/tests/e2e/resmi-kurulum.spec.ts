@@ -134,11 +134,14 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     for (let i = 0; i < 12; i++) {
       await expect(page.getByTestId("level-runner")).toContainText(`${i + 1} / 12`);
       await noOverflow(page);
+      await expect(page.getByTestId("level-runner")).not.toContainText(/· \d+\. /);
       await page.getByTestId("level-runner").getByRole("button", { name: new RegExp("Yanlış şık B") }).click();
       await expect(page.getByTestId("level-feedback")).toBeVisible();
       await page.getByTestId("level-feedback").getByRole("button").click();
     }
     await expect(page.getByTestId("scan-result").locator("li")).toHaveCount(6);
+    await expect(page.getByTestId("scan-result")).toContainText("9. Sınıf · Fikstür Ünitesi A");
+    await expect(page.getByTestId("scan-result")).not.toContainText(/· \d+\. /);
     await expect(page.getByTestId("scan-result")).toContainText("Zayıf (tahmini)");
     await screenOk(page);
     await page.getByRole("button", { name: "Devam et" }).click();
