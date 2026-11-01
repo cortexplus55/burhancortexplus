@@ -396,7 +396,11 @@ export type UsageCode =
   /** Konu haritası (tek seferlik özet; 0 kredi, belge başına sabit işleme ücreti var). */
   | "TOPIC_MAP_OUTLINE"
   /** Hazırlık kurulum sohbeti (0 kredi; ücretsizde hazırlık sayısı sınırlı). */
-  | "PREP_INTAKE";
+  | "PREP_INTAKE"
+  /** Ortak içerik havuzu (Plan PR 2): ünite anlatımı, soru üretimi ve doğrulama (c_d, c_s, c_v; 0 öğrenci kredisi). */
+  | "SHARED_CONTENT_LESSON"
+  | "SHARED_CONTENT_ITEMS"
+  | "SHARED_CONTENT_VERIFY";
 
 export async function recordUsage(
   service: SupabaseClient,
