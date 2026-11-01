@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { LevelCheckRunner, type LevelResult } from "@/components/level-check/level-check-runner";
 import { foldResponses, masteryLabel } from "@/lib/level-check/mastery";
+import { ReinforceBox } from "@/components/level-check/reinforce-box";
+import { isWeakOutcome } from "@/lib/mastery-map/plan";
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
 import "@/styles/level-check.css";
 
-type OutcomeLine = { code: string; text: string; right: number; total: number; label: string };
+type OutcomeLine = { code: string; text: string; right: number; total: number; label: string; weak: boolean };
 
 function outcomeLines(results: LevelResult[]): OutcomeLine[] {
   const by = new Map<string, LevelResult[]>();
@@ -20,6 +22,7 @@ function outcomeLines(results: LevelResult[]): OutcomeLine[] {
       right: list.filter((r) => r.correct).length,
       total: list.length,
       label: label.kind === "no_data" ? label.text : `${label.text}, ustalık ≈ %${Math.round(label.mastery * 100)}`,
+      weak: isWeakOutcome(state),
     };
   });
 }
@@ -109,6 +112,7 @@ export function UnitLevelCheck({
             Kazanım başına 1–2 soru olduğu için bu sonuçlar tahmini; çalıştıkça netleşir.
             {saved ? "" : " Sonuç bu sefer kaydedilemedi."}
           </p>
+          {saved && lines.some((l) => l.weak) ? <ReinforceBox prepId={prepId} unitId={unitId} unitTitle={unitTitle} api={api} /> : null}
           <button type="button" className="lc-skip" onClick={() => setPhase("hidden")}>
             Kapat
           </button>
