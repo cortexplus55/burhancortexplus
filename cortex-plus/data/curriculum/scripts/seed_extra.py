@@ -73,10 +73,12 @@ def kp(key,name,units,scope):
     pid=f'kpss-2026-{key}'
     programs[pid]=dict(id=pid,kind='kpss',grade=None,subjectKey=key,subject=name,label=f'KPSS {name}',programVersion='kpss_2026',
         badge='ÖSYM 2026 KPSS Kılavuzu · Tablo-1 test kapsamları',scope=scope,sourceIds=[K],
-        units=[dict(title=t,outcomes=[dict(code=c,text=x,topic=None,limitations=[f'Testteki yaklaşık ağırlığı: {w} (ÖSYM Tablo-1)'],quotas={},sourceId=K) for c,x,w in os_]) for t,os_ in units],exams={})
-kp('genel-yetenek','Genel Yetenek',[('Sözel Bölüm',[('GY.1','Sözel akıl yürütme (muhakeme) becerilerini, dil bilgisi ve yazım kurallarını ölçmeye yönelik sorulardan oluşacaktır.','%50')]),
-    ('Sayısal Bölüm',[('GY.2','Sayısal ve mantıksal akıl yürütme (muhakeme) becerilerini ölçmeye yönelik sorulardan oluşacaktır.','%50')])],
-    'ÖSYM yalnız test kapsamını tanımlar; ayrıntılı resmî konu listesi yayımlamaz')
+        units=[dict(title=t,outcomes=[dict(code=c,text=x,topic=None,limitations=[w if w and w.startswith('Bölüm') else f'Testteki yaklaşık ağırlığı: {w} (ÖSYM Tablo-1)'],quotas={},sourceId=K) for c,x,*rest in os_ for w in [rest[-1]]]) for t,os_ in units],exams={})
+# GY alt bileşenleri: ÖSYM Tablo-1 kapsam cümlesindeki adlandırılmış bileşenler (ÖSYM ayrı alt konu listesi yayımlamaz; alt ağırlık belirtilmez)
+_gy='Bölüm ağırlığı %50 (ÖSYM Tablo-1); bileşen ağırlığı ÖSYM tarafından belirtilmez. Kapsam: '
+kp('genel-yetenek','Genel Yetenek',[('Sözel Bölüm',[(c,x,None,_gy+'“Sözel akıl yürütme (muhakeme) becerilerini, dil bilgisi ve yazım kurallarını ölçmeye yönelik sorulardan oluşacaktır.”') for c,x in [('GY.1.a','Sözel akıl yürütme (muhakeme)'),('GY.1.b','Dil bilgisi'),('GY.1.c','Yazım kuralları')]]),
+    ('Sayısal Bölüm',[(c,x,None,_gy+'“Sayısal ve mantıksal akıl yürütme (muhakeme) becerilerini ölçmeye yönelik sorulardan oluşacaktır.”') for c,x in [('GY.2.a','Sayısal akıl yürütme (muhakeme)'),('GY.2.b','Mantıksal akıl yürütme (muhakeme)')]])],
+    'ÖSYM yalnız test kapsamını tanımlar; alt konular ÖSYM Tablo-1 kapsam cümlesindeki adlandırılmış bileşenlerdir')
 kp('genel-kultur','Genel Kültür',[
     ('Tarih',[('GK.1.a','Osmanlı Öncesi Türk Devletleri Tarihi (Siyasal, sosyal, ekonomik ve kültürel gelişmeler)','%5'),
               ('GK.1.b','Osmanlı Tarihi (XIII. yüzyıldan XX. yüzyıl başlarına kadar yaşanan siyasal, sosyal, ekonomik ve kültürel gelişmeler)','%15'),

@@ -1456,7 +1456,7 @@ export function ExamCreateWizard({
     setMissingTopics([]);
     setOrderEdited(true);
     setIntakeAlert(null);
-    setTitle(clampText(`${program.label} sınav hazırlığı`, 120));
+    setTitle(clampText(pick.title || `${program.label} sınav hazırlığı`, 120));
     setStep("topics");
   }
 

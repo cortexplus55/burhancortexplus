@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
+import { WIZARD_COPY, redundantUnitHeader } from "@/lib/learning/exam-wizard-copy";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
 import {
   buildTopicMap,
   DEFAULT_GRADE_SCOPES,
   hasSchoolExams,
+  officialPrepTitle,
   levelForExamLabel,
   programIdForSubject,
   scenarioOptions,
@@ -29,6 +30,8 @@ export type OfficialCurriculumPick = {
   ref: CurriculumRef;
   map: CurriculumTopicMap;
   sources: CurriculumSource[];
+  /** Seçilen kapsama göre hazırlık adı (TYT/AYT sınıf aralığı dahil). */
+  title: string;
 };
 
 const EXAM_OPTIONS: { key: CurriculumExamKey; label: string }[] = [
@@ -297,7 +300,14 @@ export function OfficialCurriculumPanel({
             {map.total ? ` · ${map.total} soru${map.averaged ? " (senaryoların ortalaması)" : " (resmî tablo)"}` : ""}
           </p>
           <ol className="apw-official-map" aria-label="Konu haritası">
-            {map.units.map((unit) => (
+            {map.units.map((unit) =>
+              redundantUnitHeader(unit.title, unit.topicIndexes.map((i) => map.topics[i] ?? "")) ? (
+                <li key={unit.title} data-testid="official-unit-single">
+                  <strong>{unit.title}</strong>
+                  <small className="apw-official-count"> · {map.topicCodes[unit.topicIndexes[0]!]!.length} kazanım</small>
+                  {map.quotaByTopic[unit.topicIndexes[0]!] ? <em className="apw-official-quota">{map.quotaByTopic[unit.topicIndexes[0]!]} soru</em> : null}
+                </li>
+              ) : (
               <li key={unit.title}>
                 <strong>{unit.title}</strong>
                 <ul>
@@ -310,7 +320,8 @@ export function OfficialCurriculumPanel({
                   ))}
                 </ul>
               </li>
-            ))}
+              ),
+            )}
           </ol>
           <p className="apw-official-sources">
             {WIZARD_COPY.officialSource}:{" "}
@@ -338,6 +349,7 @@ export function OfficialCurriculumPanel({
               map,
               sources: detail?.sources ?? [],
               ref: { programId: program.id, examKey, scenario: effectiveScenario, ...(yksPart ? { part: yksPart } : {}) },
+              title: officialPrepTitle(program.label, yksPart, scopes),
             })
           }
         >

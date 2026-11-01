@@ -14,16 +14,20 @@ def prov(sid):
     s=S[sid]; return [q(s['url']),q(s['program_version']),q(s['sha256']),q(s['fetched_at'])]
 P='source_url, program_version, sha256, fetched_at'
 out0=["-- OTOMATİK ÜRETİLDİ: data/curriculum/scripts/to_sql_csv.py (registry.json "+reg['version']+"). Elle düzenlemeyin.","BEGIN;"]
-out=out0+(["-- Ek dersler (1 Kasım 2026): program türüne lgs ve kpss eklenir (yalnız genişletme).","ALTER TABLE public.curriculum_programs DROP CONSTRAINT IF EXISTS curriculum_programs_kind_check;","ALTER TABLE public.curriculum_programs ADD CONSTRAINT curriculum_programs_kind_check CHECK (kind IN ('okul', 'yks', 'lgs', 'kpss'));"] if len(sys.argv)>1 else [])
+out=out0+(["-- Ek dersler (1 Kasım 2026): program türüne lgs ve kpss eklenir (yalnız genişletme).","ALTER TABLE public.curriculum_programs DROP CONSTRAINT IF EXISTS curriculum_programs_kind_check;","ALTER TABLE public.curriculum_programs ADD CONSTRAINT curriculum_programs_kind_check CHECK (kind IN ('okul', 'yks', 'lgs', 'kpss'));"] if len(sys.argv)==2 else [])
+# argv[2]: virgüllü program kimlikleri -> yalnız bu programların ek (upsert) göçü
+ONLY=set(sys.argv[2].split(',')) if len(sys.argv)>2 else None
+if ONLY: out.append("-- Ek upsert: yalnız "+", ".join(sorted(ONLY))+" ve dışlama kayıtları. Silme yok.")
 def ins(table,cols,rows,conf):
     if not rows: return
     upd=", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in conf)
     for i in range(0,len(rows),200):
         out.append(f"INSERT INTO public.{table} ({', '.join(cols)}) VALUES\n"+",\n".join("("+", ".join(r)+")" for r in rows[i:i+200])+f"\nON CONFLICT ({', '.join(conf)}) DO UPDATE SET {upd};")
-ins('curriculum_sources',['id','publisher','title','source_url','program_version','sha256','fetched_at','page_url'],
+if not ONLY: ins('curriculum_sources',['id','publisher','title','source_url','program_version','sha256','fetched_at','page_url'],
     [[q(s['id']),q(s['publisher']),q(s['title']),q(s['url']),q(s['program_version']),q(s['sha256']),q(s['fetched_at']),q(s.get('page'))] for s in S.values()],['id'])
 pr=[];un=[];oc=[];sc=[];csvrows=[]
 for p in reg['programs']:
+    if ONLY and p['id'] not in ONLY: continue
     ps=p['sourceIds'][0]
     pr.append([q(p['id']),q(p['kind']),q(p['grade']),q(p['subjectKey']),q(p['subject']),q(p['label']),q(p['badge']),q(p['scope']),arr(p['sourceIds'],'text')]+prov(ps))
     n=0
@@ -41,9 +45,9 @@ ins('curriculum_programs',['id','kind','grade','subject_key','subject','label','
 ins('curriculum_units',['id','program_id','title','sort_order']+P.split(', '),un,['id'])
 ins('curriculum_outcomes',['id','program_id','unit_id','code','text','topic','limitations','quotas','sort_order','source_id','quota_source_id','text_similarity']+P.split(', '),oc,['id'])
 ins('curriculum_exam_scenarios',['program_id','exam_key','scenarios','national']+P.split(', '),sc,['program_id','exam_key'])
-ins('curriculum_exam_structures',['id','exam','section','subject','question_count','weight','minutes','sort_order','source_id']+P.split(', '),
+if not ONLY: ins('curriculum_exam_structures',['id','exam','section','subject','question_count','weight','minutes','sort_order','source_id']+P.split(', '),
     [[q(f"{s['exam']}#{s['order']}"),q(s['exam']),q(s['section']),q(s['subject']),q(s['count']),q(s['weight']),q(s['minutes']),q(s['order']),q(s['sourceId'])]+prov(s['sourceId']) for s in reg['examStructures']],['id'])
-ins('curriculum_calendar_events',['id','kind','label','starts_on','ends_on','exam','source_id']+P.split(', '),
+if not ONLY: ins('curriculum_calendar_events',['id','kind','label','starts_on','ends_on','exam','source_id']+P.split(', '),
     [[q(c['id']),q(c['kind']),q(c['label']),q(c['starts']),q(c['ends']),q(c['exam']),q(c['sourceId'])]+prov(c['sourceId']) for c in reg['calendar']],['id'])
 ins('curriculum_exclusions',['id','source_id','section','code','reason'],
     [[q(f"x{i+1}"),q(x['source']),q(x['section']),q(x.get('code')),q(x['reason'])] for i,x in enumerate(reg['excluded'])],['id'])

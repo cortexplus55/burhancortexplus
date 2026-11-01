@@ -11,7 +11,7 @@ export function MufredatFixture() {
       <OfficialCurriculumPanel gradeLevel="5. sınıf" onClose={() => undefined} onPick={setPick} onChatFallback={() => undefined} />
       {pick ? (
         <pre data-testid="picked">
-          {JSON.stringify({ ref: pick.ref, topics: pick.map.topics.length, total: pick.map.total })}
+          {JSON.stringify({ ref: pick.ref, topics: pick.map.topics.length, total: pick.map.total, title: pick.title })}
         </pre>
       ) : null}
     </main>

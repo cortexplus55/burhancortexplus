@@ -43,6 +43,13 @@ export type TopicMapUnit = { title: string; topicIndexes: number[] };
 /** Konu birimi sınırları (1 Kasım 2026): konu = ünite / alt başlık; 16'dan fazlası komşularla birleşir. */
 export const TOPIC_TARGET_MIN = 8;
 export const TOPIC_TARGET_MAX = 16;
+/**
+ * Alt düzey açma (1 Kasım 2026): 6'dan az ünite ve 8'den az konu varsa resmî hiyerarşinin bir alt düzeyi
+ * (kazanımlar) açılır; komşu kazanımlar aynı başlık içinde en fazla 14 konuya dengeli toplanır.
+ * Ad, resmî başlık + kümenin ilk resmî kazanım metnidir (uydurma ad yok).
+ */
+export const OPEN_UNIT_LIMIT = 6;
+export const OPEN_TOPIC_MAX = 14;
 
 /** YKS oturum aralıkları kayıtta açık veri olarak durur; istemci/test için aynı varsayılan. */
 export type GradeScopes = Record<"TYT" | "AYT" | "YKS", [number, number]>;
@@ -96,7 +103,16 @@ export function inPartScope(grade: number | null, part: "TYT" | "AYT" | null, sc
   return grade >= lo && grade <= hi;
 }
 
-type Group = { key: string; label: string; unit: string; grade: number | null; codes: string[]; quota: number };
+type Group = {
+  key: string;
+  label: string;
+  unit: string;
+  grade: number | null;
+  codes: string[];
+  quota: number;
+  /** Açılmış alt düzeyde: kazanımın bağlı olduğu resmî başlık. */
+  parent?: string;
+};
 
 const SEP = " · ";
 const NO_TOPIC = /^alt öğrenme alanı yok$/i;
@@ -152,6 +168,7 @@ function mergeOnce(groups: Group[], same: (a: Group, b: Group) => boolean): bool
     grade: a.grade,
     codes: [...a.codes, ...b.codes],
     quota: a.quota + b.quota,
+    parent: a.parent === b.parent ? a.parent : a.unit === b.unit ? a.unit : a.parent,
   });
   return true;
 }
@@ -201,12 +218,53 @@ export function buildTopicMap(
       }
     }
   }
+  // Az ünite + az konu: bir alt düzey (kazanım) açılır, aynı resmî başlık içinde dengeli toplanır.
+  const unitCount = new Set(groups.map((g) => g.unit)).size;
+  const distinctTopics = new Set(groups.map((g) => g.key)).size;
+  const opened = unitCount < OPEN_UNIT_LIMIT && distinctTopics < TOPIC_TARGET_MIN && outcomeCount > distinctTopics;
+  if (opened) {
+    const textByCode = new Map<string, string>();
+    for (const unit of program.units) for (const o of unit.outcomes) if (!textByCode.has(o.code)) textByCode.set(o.code, o.text);
+    const parentSize = new Map<string, number>();
+    const parentLabel = new Map<string, string>();
+    const fine: Group[] = [];
+    for (const g of groups) {
+      const parent = `${g.unit}\u0000${g.label}`;
+      parentLabel.set(parent, g.label);
+      parentLabel.set(g.unit, g.unit);
+      parentSize.set(parent, (parentSize.get(parent) ?? 0) + g.codes.length);
+      for (const code of g.codes) {
+        fine.push({ key: `${g.key}\u0000${code}`, label: "", unit: g.unit, grade: g.grade, codes: [code], quota: quotaByCode[code] ?? 0, parent });
+      }
+    }
+    while (fine.length > OPEN_TOPIC_MAX && mergeOnce(fine, (a, b) => a.parent === b.parent)) {
+      /* aynı resmî başlık içinde */
+    }
+    while (fine.length > OPEN_TOPIC_MAX && mergeOnce(fine, (a, b) => a.unit === b.unit)) {
+      /* aynı ünite içinde */
+    }
+    for (const g of fine) {
+      const parent = g.parent ?? g.unit;
+      const title = parentLabel.get(parent) ?? g.unit;
+      const size = parentSize.get(parent) ?? (g.unit === parent ? Infinity : 0);
+      const first = (textByCode.get(g.codes[0]!) ?? g.codes[0]!).replace(/\s+/g, " ").trim().replace(/[.:;]$/, "");
+      const short = first.length > 72 ? `${first.slice(0, first.lastIndexOf(" ", 71) > 20 ? first.lastIndexOf(" ", 71) : 71).trimEnd()}…` : first;
+      const whole = g.codes.length >= size || (g.unit === parent && fine.filter((x) => x.unit === g.unit).length === 1);
+      g.label = whole
+        ? title
+        : g.codes.length === 1
+          ? outcomeTopicLabel({ code: g.codes[0]!, text: textByCode.get(g.codes[0]!) ?? "" })
+          : `${title}${SEP}${short} (+${g.codes.length - 1} kazanım)`;
+      g.key = g.label;
+    }
+    groups.splice(0, groups.length, ...fine);
+  }
   // Aynı ad iki ayrı yerde geçerse (ör. iki ünitede "Uzay Geometri") ünite adı öne eklenir.
   const byLabel = new Map<string, number>();
   for (const g of groups) byLabel.set(g.label, (byLabel.get(g.label) ?? 0) + 1);
-  for (const g of groups) if ((byLabel.get(g.label) ?? 0) > 1 && g.label !== g.unit) g.label = `${g.unit}${SEP}${g.label}`;
+  for (const g of groups) if (!opened && (byLabel.get(g.label) ?? 0) > 1 && g.label !== g.unit) g.label = `${g.unit}${SEP}${g.label}`;
   // Ardışık aynı anahtarlı gruplar zaten tek; ayrık tekrarlar (aynı ünite+başlık) birleştirilir.
-  for (let i = 0; i < groups.length; i += 1) {
+  for (let i = 0; i < groups.length && !opened; i += 1) {
     for (let j = i + 1; j < groups.length; j += 1) {
       if (groups[j]!.key === groups[i]!.key) {
         groups[i]!.codes.push(...groups[j]!.codes);
@@ -226,7 +284,7 @@ export function buildTopicMap(
   const used = new Set<string>();
   for (const g of groups) {
     let label = clampLabel(g.label);
-    for (let n = 2; used.has(label); n += 1) label = clampLabel(`${g.label} (${n})`);
+    for (let n = 2; used.has(label); n += 1) label = `${clampLabel(g.label).slice(0, TOPIC_LABEL_MAX - 6)} (${n})`;
     used.add(label);
     topics.push(label);
   }
@@ -320,4 +378,16 @@ export function programIdForSubject(
   const exact = programs.find((p) => norm(p.subject) === want);
   if (exact) return exact.id;
   return programs.find((p) => norm(p.subject).includes(want) || want.includes(norm(p.subject)))?.id ?? null;
+}
+
+/**
+ * Hazırlık adı seçilen kapsamı izler (1 Kasım 2026 canlı TYT/AYT testi): "YKS Matematik (9–12)" programından
+ * TYT seçilince ad "TYT Matematik (9–10. sınıf)" olur. Sınıf aralığı kapsam verisinden (examGradeScopes) gelir.
+ */
+export function officialPrepTitle(label: string, part: "TYT" | "AYT" | null | undefined, scopes: GradeScopes = DEFAULT_GRADE_SCOPES): string {
+  if (!part) return `${label} sınav hazırlığı`;
+  const [lo, hi] = scopes[part] ?? DEFAULT_GRADE_SCOPES[part];
+  const range = lo === hi ? `${lo}. sınıf` : `${lo}–${hi}. sınıf`;
+  const subject = label.replace(/^YKS\s+/u, "").replace(/\s*\([^()]*\)\s*$/u, "").trim() || label;
+  return `${part} ${subject} (${range}) sınav hazırlığı`;
 }
