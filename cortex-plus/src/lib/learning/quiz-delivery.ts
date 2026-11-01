@@ -1,4 +1,5 @@
 import { dropNearDuplicates } from "@/lib/learning/item-dedup";
+import { logTopic } from "@/lib/curriculum/topic-map";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 
 /**
@@ -112,7 +113,7 @@ export function quizOpenStagesLog(input: {
   prefetched?: boolean;
 }) {
   return {
-    topic: input.topic.slice(0, 80),
+    topic: logTopic(input.topic),
     kind: input.kind,
     draftMs: input.stages.draftMs,
     reviewMs: input.stages.reviewMs,

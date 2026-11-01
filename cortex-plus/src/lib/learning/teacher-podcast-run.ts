@@ -1,4 +1,5 @@
 import "server-only";
+import { logTopic } from "@/lib/curriculum/topic-map";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { openaiClient } from "@/lib/ai/openai-client";
 import { env, type ActionCode } from "@/lib/env";
@@ -351,7 +352,7 @@ export async function podcastListeningCheck(
     );
     const questions = loop.questions.slice(0, PODCAST_CHECK_COUNT);
     console.info("teacher_podcast_check", {
-      topic: input.topicLabel.slice(0, 80),
+      topic: logTopic(input.topicLabel),
       kept: questions.length,
       rejected: loop.rejected.length,
       rounds: loop.rounds,
@@ -360,7 +361,7 @@ export async function podcastListeningCheck(
     return questions.length >= MIN_CHECK_QUESTIONS ? questions : [];
   } catch (error) {
     console.warn("teacher_podcast_check_failed", {
-      topic: input.topicLabel.slice(0, 80),
+      topic: logTopic(input.topicLabel),
       cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
     });
     return [];
@@ -469,14 +470,14 @@ async function runTeacherPodcastInner(
       // Ağ ya da sağlayıcı düştü: öğrenciye hata göstermeden önce döngü bir kez baştan koşar.
       if (Date.now() - started > RERUN_DEADLINE_MS) throw error;
       console.warn("teacher_podcast_rerun", {
-        topic: input.topicLabel.slice(0, 80),
+        topic: logTopic(input.topicLabel),
         calls,
         cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
       });
       loop = await teacherPodcastLoop(ask, input, started, loopOptions);
     }
     console.info("teacher_podcast", {
-      topic: input.topicLabel.slice(0, 80),
+      topic: logTopic(input.topicLabel),
       length: input.length,
       mode: input.mode ?? "document",
       ttsConcurrency: PODCAST_TTS_CONCURRENCY,
@@ -506,7 +507,7 @@ async function runTeacherPodcastInner(
     const episode = await ensurePodcastDuration(ask, loop.episode, input, started);
     if (podcastBelowFloor(episode)) {
       console.warn("podcast_short_shipped", {
-        topic: input.topicLabel.slice(0, 80),
+        topic: logTopic(input.topicLabel),
         length: input.length,
         words: podcastWordCount(episode),
         turns: podcastTurnCount(episode),
@@ -529,7 +530,7 @@ async function runTeacherPodcastInner(
   } catch (error) {
     if (reservation.reservationId) await refundCredits(service, reservation.reservationId).catch(() => undefined);
     console.error("teacher_podcast_failed", {
-      topic: input.topicLabel.slice(0, 80),
+      topic: logTopic(input.topicLabel),
       calls,
       cause: error instanceof Error ? error.message.slice(0, 200) : "unknown",
     });
@@ -562,7 +563,7 @@ async function ensurePodcastDuration(
   const short = podcastBelowFloor(episode);
   const round = short ? "expand" : durationRoundFor({ length: input.length, words }) === "shorten" ? "shorten" : null;
   const base = {
-    topic: input.topicLabel.slice(0, 80),
+    topic: logTopic(input.topicLabel),
     length: input.length,
     words,
     turns: podcastTurnCount(episode),

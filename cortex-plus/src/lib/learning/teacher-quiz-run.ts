@@ -1,4 +1,5 @@
 import "server-only";
+import { logTopic } from "@/lib/curriculum/topic-map";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { openaiClient } from "@/lib/ai/openai-client";
 import { env, type ActionCode } from "@/lib/env";
@@ -208,7 +209,7 @@ export async function teacherQuizLoop(
     });
     draft = sanity.questions;
     console.info("quiz_sanity", {
-      topic: input.topicLabel.slice(0, 80),
+      topic: logTopic(input.topicLabel),
       questions: draft.length,
       patched: sanity.patched,
       keyChanged: sanity.keyChanged,
@@ -582,7 +583,7 @@ async function runTeacherQuizInner(
     // Akan testte son liste öğrencinin gördüğü sırayla başlar; cevaplar soru numarasıyla notlanıyor (30 Ekim 2026).
     if (published.length) questions = alignToPublished(questions, published, input.count);
     console.info("teacher_quiz", {
-      topic: input.topicLabel.slice(0, 80),
+      topic: logTopic(input.topicLabel),
       mode: input.mode ?? "document",
       kept: questions.length,
       rejected: loop.rejected.length,
@@ -626,7 +627,7 @@ async function runTeacherQuizInner(
   } catch (error) {
     await refund();
     console.error("teacher_quiz_failed", {
-      topic: input.topicLabel.slice(0, 80),
+      topic: logTopic(input.topicLabel),
       calls,
       cause: error instanceof Error ? error.message.slice(0, 200) : "unknown",
     });
