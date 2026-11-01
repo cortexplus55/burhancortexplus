@@ -50,6 +50,24 @@ export const TOPIC_TARGET_MAX = 16;
  */
 export const OPEN_UNIT_LIMIT = 6;
 export const OPEN_TOPIC_MAX = 14;
+/**
+ * Aşırı bölmeye karşı (1 Kasım 2026): en az 4 resmî ünite varsa ve konu başına ortalama kazanım
+ * 6'yı aşmıyorsa üniteler zaten gerçek konu birimidir; alt düzey açılmaz (ör. YKS Felsefe TYT: 4 ünite, 17 kazanım → 4 konu).
+ */
+export const OPEN_MIN_UNITS_KEEP = 4;
+export const OPEN_MAX_AVG_KEEP = 6;
+/** Çok kazanımlı küme adında ilk kazanım metni için hedef (kelime sınırında, ~110–120). */
+export const TOPIC_SNIPPET_TARGET = 110;
+
+/** Metni en fazla `max` karaktere kelime sınırından kırpar; kelime ortasında kesmez. */
+export function cutAtWord(text: string, max: number): string {
+  const full = text.replace(/\s+/g, " ").trim();
+  if (full.length <= max) return full;
+  const cut = full.slice(0, Math.max(1, max - 1));
+  const space = cut.lastIndexOf(" ");
+  const head = space > 0 ? cut.slice(0, space) : "";
+  return head ? `${head.replace(/[\s,;:·–-]+$/u, "")}…` : "";
+}
 
 /** YKS oturum aralıkları kayıtta açık veri olarak durur; istemci/test için aynı varsayılan. */
 export type GradeScopes = Record<"TYT" | "AYT" | "YKS", [number, number]>;
@@ -120,9 +138,7 @@ const NO_TOPIC = /^alt öğrenme alanı yok$/i;
 function clampLabel(text: string): string {
   const full = text.replace(/\s+/g, " ").trim();
   if (full.length <= TOPIC_LABEL_MAX) return full;
-  const cut = full.slice(0, TOPIC_LABEL_MAX - 1);
-  const space = cut.lastIndexOf(" ");
-  return `${(space > 20 ? cut.slice(0, space) : cut).trimEnd()}…`;
+  return cutAtWord(full, TOPIC_LABEL_MAX) || `${full.slice(0, TOPIC_LABEL_MAX - 1)}…`;
 }
 
 /** "10. Sınıf · A" + "10. Sınıf · B" → "10. Sınıf · A + B" (ortak önek bir kez yazılır). */
@@ -221,7 +237,9 @@ export function buildTopicMap(
   // Az ünite + az konu: bir alt düzey (kazanım) açılır, aynı resmî başlık içinde dengeli toplanır.
   const unitCount = new Set(groups.map((g) => g.unit)).size;
   const distinctTopics = new Set(groups.map((g) => g.key)).size;
-  const opened = unitCount < OPEN_UNIT_LIMIT && distinctTopics < TOPIC_TARGET_MIN && outcomeCount > distinctTopics;
+  const unitsAreTopics = unitCount >= OPEN_MIN_UNITS_KEEP && outcomeCount <= distinctTopics * OPEN_MAX_AVG_KEEP;
+  const opened =
+    unitCount < OPEN_UNIT_LIMIT && distinctTopics < TOPIC_TARGET_MIN && outcomeCount > distinctTopics && !unitsAreTopics;
   if (opened) {
     const textByCode = new Map<string, string>();
     for (const unit of program.units) for (const o of unit.outcomes) if (!textByCode.has(o.code)) textByCode.set(o.code, o.text);
@@ -248,13 +266,18 @@ export function buildTopicMap(
       const title = parentLabel.get(parent) ?? g.unit;
       const size = parentSize.get(parent) ?? (g.unit === parent ? Infinity : 0);
       const first = (textByCode.get(g.codes[0]!) ?? g.codes[0]!).replace(/\s+/g, " ").trim().replace(/[.:;]$/, "");
-      const short = first.length > 72 ? `${first.slice(0, first.lastIndexOf(" ", 71) > 20 ? first.lastIndexOf(" ", 71) : 71).trimEnd()}…` : first;
+      // Ad toplamı TOPIC_LABEL_MAX'ı (120) aşmaz; ilk kazanım metni kalan bütçede kelime sınırından kırpılır.
+      const suffix = ` (+${g.codes.length - 1} kazanım)`;
+      const budget = Math.min(TOPIC_SNIPPET_TARGET, TOPIC_LABEL_MAX - title.length - SEP.length - suffix.length);
+      const short = budget >= 24 ? cutAtWord(first, budget) : "";
       const whole = g.codes.length >= size || (g.unit === parent && fine.filter((x) => x.unit === g.unit).length === 1);
       g.label = whole
         ? title
         : g.codes.length === 1
           ? outcomeTopicLabel({ code: g.codes[0]!, text: textByCode.get(g.codes[0]!) ?? "" })
-          : `${title}${SEP}${short} (+${g.codes.length - 1} kazanım)`;
+          : short
+            ? `${title}${SEP}${short}${suffix}`
+            : `${cutAtWord(title, TOPIC_LABEL_MAX - suffix.length)}${suffix}`;
       g.key = g.label;
     }
     groups.splice(0, groups.length, ...fine);
@@ -284,7 +307,7 @@ export function buildTopicMap(
   const used = new Set<string>();
   for (const g of groups) {
     let label = clampLabel(g.label);
-    for (let n = 2; used.has(label); n += 1) label = `${clampLabel(g.label).slice(0, TOPIC_LABEL_MAX - 6)} (${n})`;
+    for (let n = 2; used.has(label); n += 1) label = `${cutAtWord(g.label, TOPIC_LABEL_MAX - 6)} (${n})`;
     used.add(label);
     topics.push(label);
   }

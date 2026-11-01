@@ -23,12 +23,19 @@ def ins(table,cols,rows,conf):
     upd=", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in conf)
     for i in range(0,len(rows),200):
         out.append(f"INSERT INTO public.{table} ({', '.join(cols)}) VALUES\n"+",\n".join("("+", ".join(r)+")" for r in rows[i:i+200])+f"\nON CONFLICT ({', '.join(conf)}) DO UPDATE SET {upd};")
-if not ONLY: ins('curriculum_sources',['id','publisher','title','source_url','program_version','sha256','fetched_at','page_url'],
-    [[q(s['id']),q(s['publisher']),q(s['title']),q(s['url']),q(s['program_version']),q(s['sha256']),q(s['fetched_at']),q(s.get('page'))] for s in S.values()],['id'])
+# Kısmi göçte yalnız seçili programların kullandığı kaynaklar (yeni kaynak dahil) upsert edilir.
+USED={sid for p in reg['programs'] if not ONLY or p['id'] in ONLY for sid in p['sourceIds']+[o['sourceId'] for u in p['units'] for o in u['outcomes']]}
+ins('curriculum_sources',['id','publisher','title','source_url','program_version','sha256','fetched_at','page_url'],
+    [[q(s['id']),q(s['publisher']),q(s['title']),q(s['url']),q(s['program_version']),q(s['sha256']),q(s['fetched_at']),q(s.get('page'))] for s in S.values() if not ONLY or s['id'] in USED],['id'])
 pr=[];un=[];oc=[];sc=[];csvrows=[]
 for p in reg['programs']:
-    if ONLY and p['id'] not in ONLY: continue
     ps=p['sourceIds'][0]
+    if ONLY and p['id'] not in ONLY:
+        # İnceleme CSV'si her zaman tüm kayıttan üretilir.
+        for u in p['units']:
+            for o in u['outcomes']:
+                csvrows.append([p['id'],p['label'],p['badge'],u['title'],o['code'],o['text'],o.get('topic') or '',json.dumps(o.get('quotas') or {},ensure_ascii=False),S[o['sourceId']]['url'],S[o['xlsxSourceId']]['url'] if o.get('xlsxSourceId') else '',o.get('similarity') or '',S[o['sourceId']]['program_version'],S[o['sourceId']]['sha256'],S[o['sourceId']]['fetched_at']])
+        continue
     pr.append([q(p['id']),q(p['kind']),q(p['grade']),q(p['subjectKey']),q(p['subject']),q(p['label']),q(p['badge']),q(p['scope']),arr(p['sourceIds'],'text')]+prov(ps))
     n=0
     for ui,u in enumerate(p['units']):

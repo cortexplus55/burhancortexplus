@@ -517,6 +517,15 @@
 "publisher": "MEB ÖDSGM",
 "title": "LGS 2027 tarihi duyurusu",
 "fetched_at": "2026-11-01T10:00:00+03:00"
+},
+"meb_felsefe_dop_2018": {
+"id": "meb_felsefe_dop_2018",
+"url": "https://mufredat.meb.gov.tr/Dosyalar/2018122175632591-Felsefe%20d%C3%B6p%20pdf.pdf",
+"sha256": "71f2b77e209fdc924efbb559744af8c67e91ddb1928a4888a4c07aa5d69654cb",
+"program_version": "meb_felsefe_2018",
+"publisher": "MEB TTKB",
+"title": "Ortaöğretim Felsefe Dersi (10 ve 11. Sınıflar) Öğretim Programı (2018)",
+"fetched_at": "2026-11-01T10:00:00+03:00"
 }
 },
 "programs": [
@@ -3416,7 +3425,7 @@
 },
 {
 "code": "MAT.7.1.2",
-"text": "Gerçek yaşam durumlarında rasyonel sayıların ondalık gösterimlerini yansıtabilmea) Bölme işlemini kullanarak her rasyonel sayının bir ondalık gösterimi olduğunu inceler..",
+"text": "Gerçek yaşam durumlarında rasyonel sayıların ondalık gösterimlerini yansıtabilme a) Bölme işlemini kullanarak her rasyonel sayının bir ondalık gösterimi olduğunu inceler..",
 "topic": "Rasyonel Sayılar ve Farklı Temsilleri",
 "limitations": [],
 "quotas": {
@@ -22013,11 +22022,12 @@
 "badge": "ÖSYM 2026 YKS’ye esas kazanımlar (MEB)",
 "scope": "9–12. sınıf YKS kazanımları; 2027 sürümü henüz yayımlanmadı",
 "sourceIds": [
-"meb_yks_2026"
+"meb_yks_2026",
+"meb_felsefe_dop_2018"
 ],
 "units": [
 {
-"title": "10. Sınıf · 10.1",
+"title": "10. Sınıf · Felsefeyi Tanıma",
 "outcomes": [
 {
 "code": "10.1.1",
@@ -22061,7 +22071,7 @@
 ]
 },
 {
-"title": "10. Sınıf · 10.2",
+"title": "10. Sınıf · Felsefe ile Düşünme",
 "outcomes": [
 {
 "code": "10.2.1",
@@ -22113,7 +22123,7 @@
 ]
 },
 {
-"title": "10. Sınıf · 10.3",
+"title": "10. Sınıf · Felsefenin Temel Konuları ve Problemleri",
 "outcomes": [
 {
 "code": "10.3.1",
@@ -22199,7 +22209,7 @@
 ]
 },
 {
-"title": "10. Sınıf · 10.4",
+"title": "10. Sınıf · Felsefi Okuma ve Yazma",
 "outcomes": [
 {
 "code": "10.4.1",
@@ -22249,7 +22259,7 @@
 ]
 },
 {
-"title": "11. Sınıf · 11.1",
+"title": "11. Sınıf · MÖ 6. Yüzyıl-MS 2. Yüzyıl Felsefesi",
 "outcomes": [
 {
 "code": "11.1.1",
@@ -22305,7 +22315,7 @@
 ]
 },
 {
-"title": "11. Sınıf · 11.2",
+"title": "11. Sınıf · MS 2. Yüzyıl-MS 15. Yüzyıl Felsefesi",
 "outcomes": [
 {
 "code": "11.2.1",
@@ -22362,7 +22372,7 @@
 ]
 },
 {
-"title": "11. Sınıf · 11.3",
+"title": "11. Sınıf · 15. Yüzyıl-17. Yüzyıl Felsefesi",
 "outcomes": [
 {
 "code": "11.3.1",
@@ -22417,7 +22427,7 @@
 ]
 },
 {
-"title": "11. Sınıf · 11.4",
+"title": "11. Sınıf · 18. Yüzyıl-19. Yüzyıl Felsefesi",
 "outcomes": [
 {
 "code": "11.4.1",
@@ -22468,7 +22478,7 @@
 ]
 },
 {
-"title": "11. Sınıf · 11.5",
+"title": "11. Sınıf · 20. Yüzyıl Felsefesi",
 "outcomes": [
 {
 "code": "11.5.1",
@@ -26023,7 +26033,7 @@
 "topic": null,
 "grade": 11,
 "limitations": [
-"a. Standart oluşum entalpileri tanımlanır. b. Tepkime entalpisi potansiyel enerji-tepkime koordinatı grafiği üzerinden açıklanır. c. Öğrencilerin tepkime entalpilerine ilişkin elektronik tablolama programı kullanarak grafik oluşturmaları, yorumlamaları sağlanır. değerleri     değiştirerek       gerçekleşen   değişimleri   gözlemlemeleri   ve"
+"a. Standart oluşum entalpileri tanımlanır. b. Tepkime entalpisi potansiyel enerji-tepkime koordinatı grafiği üzerinden açıklanır. c. Öğrencilerin tepkime entalpilerine ilişkin elektronik tablolama programı kullanarak grafik oluşturmaları, yorumlamaları sağlanır. değerleri değiştirerek gerçekleşen değişimleri gözlemlemeleri ve"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -26690,7 +26700,7 @@
 "b) Ayrık küme kavramına yer verilir.",
 "c) En fazla üç kümenin birleşiminin eleman sayısını veren ilişkiler üzerinde durulur.",
 "ç) Kümelerle yapılan işlemler ve sembolik mantıkta kullanılan sembol, gösterim ve bunlarla ifade edilen işlemler arasında aşağıdaki ilişkilendirmeler yapılır. Sembolik Mantık Kümeler Sembolik Mantık 𝑝𝑝 ∨ 𝑝𝑝′ ≡ 1 𝑝𝑝 ∧ 𝑝𝑝′ ≡ 0 𝑝𝑝 ∧ (𝑞𝑞 ∨ 𝑟𝑟) ≡ (𝑝𝑝 ∧ 𝑞𝑞) ∨ (𝑝𝑝 ∧ 𝑟𝑟) (𝑝𝑝 ∧ 𝑞𝑞)′ ≡ 𝑝𝑝′ ∨ 𝑞𝑞′",
-"d) Gerçek hayat problemlerine yer verilir. 0        1         ∨          ∧          ′          ≡ ∅        𝐸𝐸        ∪          ∩          ′          = Kümeler 𝐴𝐴 ∪ 𝐴𝐴′ = 𝐸𝐸 𝐴𝐴 ∩ 𝐴𝐴′ = ∅ 𝐴𝐴 ∩ (𝐵𝐵 ∪ 𝐶𝐶) = (𝐴𝐴 ∩ 𝐵𝐵) ∪ (𝐴𝐴 ∩ 𝐶𝐶) (𝐴𝐴 ∩ 𝐵𝐵)′ = 𝐴𝐴′ ∪ 𝐵𝐵′"
+"d) Gerçek hayat problemlerine yer verilir. 0 1 ∨ ∧ ′ ≡ ∅ 𝐸𝐸 ∪ ∩ ′ = Kümeler 𝐴𝐴 ∪ 𝐴𝐴′ = 𝐸𝐸 𝐴𝐴 ∩ 𝐴𝐴′ = ∅ 𝐴𝐴 ∩ (𝐵𝐵 ∪ 𝐶𝐶) = (𝐴𝐴 ∩ 𝐵𝐵) ∪ (𝐴𝐴 ∩ 𝐶𝐶) (𝐴𝐴 ∩ 𝐵𝐵)′ = 𝐴𝐴′ ∪ 𝐵𝐵′"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -26792,7 +26802,7 @@
 "grade": 9,
 "limitations": [
 "a) Bir gerçek sayının mutlak değeri hatırlatılarak mutlak değer özellikleri verilir. (𝑥𝑥, 𝑦𝑦 ∈ ℝ, 𝑛𝑛 ∈ ℤ ve 𝑎𝑎, 𝑏𝑏 ∈ ℝ+) |𝑥𝑥| ≤ 𝑎𝑎 ⇔ −𝑎𝑎 ≤ 𝑥𝑥 ≤ 𝑎𝑎 |𝑥𝑥| ≥ 𝑎𝑎 ⇔ (𝑥𝑥 ≥ 𝑎𝑎 ∨ 𝑥𝑥 ≤ −𝑎𝑎) � �= 𝑎𝑎 ≤ |𝑥𝑥| ≤ 𝑏𝑏 ⇔ (𝑎𝑎 ≤ 𝑥𝑥 ≤ 𝑏𝑏 ∨ −𝑏𝑏 ≤ 𝑥𝑥 ≤ −𝑎𝑎) 127",
-"b) İkiden çok mutlak değer içeren denklem ve eşitsizliklere girilmez. |𝑥𝑥. 𝑦𝑦| = |𝑥𝑥|. |𝑦𝑦|        |𝑥𝑥| = |−𝑥𝑥| 𝑥𝑥    |𝑥𝑥|              |𝑥𝑥 𝑛𝑛 | = |𝑥𝑥|𝑛𝑛 , (𝑦𝑦 ≠ 0) 𝑦𝑦    |𝑦𝑦|              |𝑥𝑥 + 𝑦𝑦| ≤ |𝑥𝑥| + |𝑦𝑦|"
+"b) İkiden çok mutlak değer içeren denklem ve eşitsizliklere girilmez. |𝑥𝑥. 𝑦𝑦| = |𝑥𝑥|. |𝑦𝑦| |𝑥𝑥| = |−𝑥𝑥| 𝑥𝑥 |𝑥𝑥| |𝑥𝑥 𝑛𝑛 | = |𝑥𝑥|𝑛𝑛 , (𝑦𝑦 ≠ 0) 𝑦𝑦 |𝑦𝑦| |𝑥𝑥 + 𝑦𝑦| ≤ |𝑥𝑥| + |𝑦𝑦|"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -27233,7 +27243,7 @@
 "b) Sadece gerçek sayılar üzerinde tanımlanmış fonksiyonlar ele alınır.",
 "c) İçine fonksiyon, örten fonksiyon, bire bir fonksiyon, eşit fonksiyon, birim (özdeşlik) fonksiyon, sabit fonksiyon, doğrusal fonksiyon, tek fonksiyon, çift fonksiyon ve parçalı tanımlı fonksiyon açıklanır.",
 "ç) İki fonksiyonun eşitliği örneklerle açıklanır. 𝑓𝑓",
-"d)   f ve g fonksiyonları kullanılarak 𝑓𝑓 + 𝑔𝑔, 𝑓𝑓 − 𝑔𝑔, 𝑓𝑓. 𝑔𝑔, 𝑔𝑔 fonksiyonlarda bu işlemlere girilmez.",
+"d) f ve g fonksiyonları kullanılarak 𝑓𝑓 + 𝑔𝑔, 𝑓𝑓 − 𝑔𝑔, 𝑓𝑓. 𝑔𝑔, 𝑔𝑔 fonksiyonlarda bu işlemlere girilmez.",
 "e) Gerçek hayat problemlerine ve tablo-grafik kullanımına yer verilir. işlemleri yapılır, ancak parçalı tanımlı"
 ],
 "quotas": {},
@@ -27677,7 +27687,7 @@
 "grade": 11,
 "limitations": [
 "a) Tek ve çift fonksiyonların grafiğinin simetri özellikleri üzerinde durulur.",
-"b) grafikleri bilgi ve iletişim teknolojilerinden yararlanılarak verilir. 𝑦𝑦 = 𝑓𝑓(𝑥𝑥) + 𝑏𝑏, 𝑦𝑦 = 𝑓𝑓(𝑥𝑥 − 𝑎𝑎), 𝑦𝑦 = 𝑘𝑘 𝑓𝑓(𝑥𝑥), 𝑦𝑦 = 𝑓𝑓(𝑘𝑘𝑘𝑘), 𝑦𝑦 = −𝑓𝑓(𝑥𝑥), 𝑦𝑦 = 𝑓𝑓(−𝑥𝑥)       dönüşümlerinin"
+"b) grafikleri bilgi ve iletişim teknolojilerinden yararlanılarak verilir. 𝑦𝑦 = 𝑓𝑓(𝑥𝑥) + 𝑏𝑏, 𝑦𝑦 = 𝑓𝑓(𝑥𝑥 − 𝑎𝑎), 𝑦𝑦 = 𝑘𝑘 𝑓𝑓(𝑥𝑥), 𝑦𝑦 = 𝑓𝑓(𝑘𝑘𝑘𝑘), 𝑦𝑦 = −𝑓𝑓(𝑥𝑥), 𝑦𝑦 = 𝑓𝑓(−𝑥𝑥) dönüşümlerinin"
 ],
 "quotas": {},
 "sourceId": "meb_yks_2026"
@@ -28362,7 +28372,7 @@
 },
 {
 "code": "9.2.2",
-"text": "Yazının icadının insanlık tarihinde meydana getirdiği değişimi   a) Yazının kullanılmasının yönetim işleri ile vergi ve muhasebe kayıtları üzerindeki 76 fark eder.",
+"text": "Yazının icadının insanlık tarihinde meydana getirdiği değişimi a) Yazının kullanılmasının yönetim işleri ile vergi ve muhasebe kayıtları üzerindeki 76 fark eder.",
 "topic": null,
 "grade": 9,
 "limitations": [
@@ -28388,7 +28398,7 @@
 },
 {
 "code": "9.2.4",
-"text": "İlk Çağ’da coğrafya ve iklimin, insanların hayat ve geçim tarzları   kaybetme, iklim değişikliği, politik değişiklikler, inanç nedeniyle baskı altına alınma), üzerindeki belirleyici etkisini analiz eder.",
+"text": "İlk Çağ’da coğrafya ve iklimin, insanların hayat ve geçim tarzları kaybetme, iklim değişikliği, politik değişiklikler, inanç nedeniyle baskı altına alınma), üzerindeki belirleyici etkisini analiz eder.",
 "topic": null,
 "grade": 9,
 "limitations": [
@@ -28412,7 +28422,7 @@
 },
 {
 "code": "9.2.6",
-"text": "İlk Çağ’da hukuk sistemlerinin oluşturulmasında etkili olan dinî   Sözlü ve yazılı hukuk kaynaklarına (akıl, gelenek ve kutsal kitaplar) ilişkin tarihî ve beşerî kaynakları kavrar.",
+"text": "İlk Çağ’da hukuk sistemlerinin oluşturulmasında etkili olan dinî Sözlü ve yazılı hukuk kaynaklarına (akıl, gelenek ve kutsal kitaplar) ilişkin tarihî ve beşerî kaynakları kavrar.",
 "topic": null,
 "grade": 9,
 "limitations": [
@@ -28493,7 +28503,7 @@
 },
 {
 "code": "9.4.2",
-"text": "İlk ve Orta Çağlarda İç Asya’daki Türk siyasi teşekküllerinin güç   dayanışması ve silahlı güç); güç paylaşımı ve yönetim organizasyonu (kurultay, ikili ve yönetim yapısını kavrar.",
+"text": "İlk ve Orta Çağlarda İç Asya’daki Türk siyasi teşekküllerinin güç dayanışması ve silahlı güç); güç paylaşımı ve yönetim organizasyonu (kurultay, ikili ve yönetim yapısını kavrar.",
 "topic": null,
 "grade": 9,
 "limitations": [
@@ -28628,7 +28638,7 @@
 "outcomes": [
 {
 "code": "9.6.1",
-"text": "Türklerin İslamiyet’i kabul etmeye başlamaları ile Türkiye Selçuklu   (840), Gazneli Devleti’nin kurulması (963), Büyük Selçuklu Devleti’nin kurulması Devleti’nin kuruluşu arasındaki süreçte meydana gelen başlıca siyasi gelişmeleri tarih şeridi ve haritalar üzerinde gösterir.",
+"text": "Türklerin İslamiyet’i kabul etmeye başlamaları ile Türkiye Selçuklu (840), Gazneli Devleti’nin kurulması (963), Büyük Selçuklu Devleti’nin kurulması Devleti’nin kuruluşu arasındaki süreçte meydana gelen başlıca siyasi gelişmeleri tarih şeridi ve haritalar üzerinde gösterir.",
 "topic": null,
 "grade": 9,
 "limitations": [
@@ -28765,7 +28775,7 @@
 "outcomes": [
 {
 "code": "10.2.1",
-"text": "1302-1453 yılları arasındaki süreçte meydana gelen başlıca siyasi gelişmeleri tarih şeridi ve haritalar   alınması (1353), Edirne’nin Fethi (1363), Çirmen Muharebesi (1371), I. Kosova Muharebesi (1389), üzerinde gösterir.",
+"text": "1302-1453 yılları arasındaki süreçte meydana gelen başlıca siyasi gelişmeleri tarih şeridi ve haritalar alınması (1353), Edirne’nin Fethi (1363), Çirmen Muharebesi (1371), I. Kosova Muharebesi (1389), üzerinde gösterir.",
 "topic": null,
 "grade": 10,
 "limitations": [
@@ -28833,7 +28843,7 @@
 },
 {
 "code": "10.3.2",
-"text": "Tımar sisteminin özelliklerini siyasi, sosyal ve  Tımar Sistemi’nin siyasi, sosyal ve ekonomik yönleri kısaca açıklanarak bu sistemin Osmanlı savaş ekonomik açılardan değerlendirir.",
+"text": "Tımar sisteminin özelliklerini siyasi, sosyal ve Tımar Sistemi’nin siyasi, sosyal ve ekonomik yönleri kısaca açıklanarak bu sistemin Osmanlı savaş ekonomik açılardan değerlendirir.",
 "topic": null,
 "grade": 10,
 "limitations": [
@@ -28872,7 +28882,7 @@
 },
 {
 "code": "10.4.2",
-"text": "Osmanlı devlet idaresinin ilmiye, kalemiye ve seyfiye sınıflarının birlikteliğine dayalı yapısını analiz   Osmanlı toplum düzenindeki askerî (vergi vermeyen) - reaya (vergi ödeyen) ayrımına değinilerek ilmiye, eder.",
+"text": "Osmanlı devlet idaresinin ilmiye, kalemiye ve seyfiye sınıflarının birlikteliğine dayalı yapısını analiz Osmanlı toplum düzenindeki askerî (vergi vermeyen) - reaya (vergi ödeyen) ayrımına değinilerek ilmiye, eder.",
 "topic": null,
 "grade": 10,
 "limitations": [
@@ -28939,7 +28949,7 @@
 },
 {
 "code": "10.5.4",
-"text": "1520-1595 yılları arasındaki süreçte meydana gelen başlıca siyasi gelişmeleri tarih şeridi ve haritalar   kurulması (1555), Zigetvar Seferi (1566), Yemen’in alınması (1568), Kıbrıs’ın Fethi (1571), İnebahtı Deniz üzerinde gösterir.",
+"text": "1520-1595 yılları arasındaki süreçte meydana gelen başlıca siyasi gelişmeleri tarih şeridi ve haritalar kurulması (1555), Zigetvar Seferi (1566), Yemen’in alınması (1568), Kıbrıs’ın Fethi (1571), İnebahtı Deniz üzerinde gösterir.",
 "topic": null,
 "grade": 10,
 "limitations": [
@@ -28976,7 +28986,7 @@
 },
 {
 "code": "10.5.7",
-"text": "Osmanlı Devleti’nin takip ettiği kara ve deniz   c) Coğrafî Keşifler’e ve sonrasında Asya, Afrika ve Amerika kıtalarında yaşanan katliamlara ve bu politikalarını analiz eder.",
+"text": "Osmanlı Devleti’nin takip ettiği kara ve deniz c) Coğrafî Keşifler’e ve sonrasında Asya, Afrika ve Amerika kıtalarında yaşanan katliamlara ve bu politikalarını analiz eder.",
 "topic": null,
 "grade": 10,
 "limitations": [
@@ -29123,7 +29133,7 @@
 },
 {
 "code": "11.1.4",
-"text": "1700-1774 yılları arasındaki süreçte Osmanlı Devleti’nin diğer devletlerle   anlatımı yapılmamalı ve bunların ezberletilmesi yoluna gidilmemelidir.",
+"text": "1700-1774 yılları arasındaki süreçte Osmanlı Devleti’nin diğer devletlerle anlatımı yapılmamalı ve bunların ezberletilmesi yoluna gidilmemelidir.",
 "topic": null,
 "grade": 11,
 "limitations": [
@@ -29158,7 +29168,7 @@
 },
 {
 "code": "11.2.2",
-"text": "Avrupa’daki gelişmelere bağlı olarak Osmanlı idari, askerî ve ekonomik   Ocağı mevcudunun artışı ve devşirme sisteminin sona ermesi; tımar sisteminin yapısında meydana gelen değişimleri analiz eder.",
+"text": "Avrupa’daki gelişmelere bağlı olarak Osmanlı idari, askerî ve ekonomik Ocağı mevcudunun artışı ve devşirme sisteminin sona ermesi; tımar sisteminin yapısında meydana gelen değişimleri analiz eder.",
 "topic": null,
 "grade": 11,
 "limitations": [
