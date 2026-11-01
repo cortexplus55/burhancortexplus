@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { poolUnit, poolUnitsForProgram } from "@/lib/content-pool/keys";
-import { generateUnitContent, SHARED_VERIFY_MODEL, verifyPrompt, type LlmCall } from "@/lib/content-pool/generate";
+import { generateUnitContent, parseCompactReview, resolveSolved, SHARED_VERIFY_MODEL, verifyPrompt, verifySchema, type LlmCall } from "@/lib/content-pool/generate";
 import { excludedTerms, garbledReason, gateItems } from "@/lib/content-pool/gate";
 import { getUnitContent, type PoolStore, type StoredContent } from "@/lib/content-pool/pool";
 import { applyReview, checkShape, missingCoverage, type PoolItem } from "@/lib/content-pool/schema";
@@ -378,5 +378,63 @@ describe("ortak içerik havuzu: düşen soru her zaman gerekçeli (yks-2026-tari
     const out = await generateUnitContent(unit, llm, { generate: "g", verify: "v" });
     expect(out.ok).toBe(true);
     expect((out.qa as { rejected_items: { reason: string }[] }).rejected_items[0]!.reason).toMatch(/^çıktı: şema: answer/);
+  });
+});
+
+describe("doğrulama: çözüm alanı metin döndüğünde (gpt-6-luna, yks-2026-tarih#13 canlı yanıtı)", () => {
+  const vest = ["Vestfalya Barışı, devletlerin egemenliğinin karşılıklı tanınmasını sağlamıştır", "Haçlı Seferleri başlamıştır", "Coğrafi Keşifler sona ermiştir", "Feodalite güçlenmiştir", "Matbaa yasaklanmıştır"];
+  const fiyat = ["Fiyatların yükselmesi ve loncaların sarsılması", "Tımar sisteminin güçlenmesi", "Nüfusun azalması", "Ticaretin durması", "Vergilerin kaldırılması"];
+  const devlet = ["Feodal hakların genişlemesi", "Papalığın güçlenmesi", "Devlet egemenliğinin tanınması modern devletler hukukunun temelini oluşturmuştur", "Kralların yetkisinin azalması", "Şehir devletlerinin kurulması"];
+
+  it("tur 0 biçimi '0 — metin' sıra olarak okunur, metin sırayla tutarlı", () => {
+    const text = '{"r":[[0,"0 — Vestfalya Barışı, devletlerin egemenliğinin ...",1],[1,"0 — Fiyatların yükselmesi ...",1]]}';
+    const out = parseCompactReview(text, [{ choices: vest }, { choices: fiyat }])!;
+    expect(out.unreadable).toEqual([]);
+    expect(out.rows.map((r) => [r.index, r.solved_answer, r.ok])).toEqual([[0, 0, true], [1, 0, true]]);
+  });
+
+  it("tur 1 biçimi yalnız şık metni: Türkçe normalleştirme + önek/benzerlik ile tek şık", () => {
+    const text = '{"r":[[0,"Devlet egemenliğinin tanınması modern devletler hukukunun ...",1]]}';
+    expect(parseCompactReview(text, [{ choices: devlet }])!.rows[0]!.solved_answer).toBe(2);
+    expect(resolveSolved("DEVLET EGEMENLİĞİNİN TANINMASI MODERN DEVLETLER HUKUKUNUN TEMELİNİ OLUŞTURMUŞTUR.", devlet)).toBe(2);
+  });
+
+  it("harf/numara etiketleri ve şık metni sayıyla başlayan şık", () => {
+    expect(resolveSolved("B", vest)).toBe(1);
+    expect(resolveSolved("2)", vest)).toBe(2);
+    expect(resolveSolved("3", vest)).toBe(3);
+    expect(resolveSolved("1. Dünya Savaşı", ["Kırım Savaşı", "Balkan Savaşları", "1. Dünya Savaşı", "Kurtuluş Savaşı", "Trablusgarp Savaşı"])).toBe(2);
+  });
+
+  it("belirsiz, eşleşmeyen ya da çelişkili çözüm tahmin edilmez, gerekçeyle kaydedilir", () => {
+    expect(resolveSolved("Bambaşka bir cevap metni", vest)).toEqual({ reason: "çözüm metni hiçbir şıkla eşleşmedi" });
+    expect(resolveSolved("1 — Vestfalya Barışı, devletlerin egemenliğinin", vest)).toEqual({ reason: "çözüm sırası (1) ile metni (0) çelişiyor" });
+    expect(resolveSolved("Aynı metin", ["Aynı metin", "Aynı metin.", "c şıkkı", "d şıkkı", "e şıkkı"])).toEqual({ reason: "çözüm metni birden çok şıkla aynı" });
+    expect(resolveSolved(7, vest)).toEqual({ reason: "çözüm sırası 7 şıkların dışında" });
+    const out = parseCompactReview('{"r":[[0,"Bambaşka bir cevap metni",1],[1,"0 — Fiyatların yükselmesi",1]]}', [{ choices: vest }, { choices: fiyat }])!;
+    expect(out.rows.map((r) => r.index)).toEqual([1]);
+    expect(out.unreadable).toEqual([{ index: 0, reason: "doğrulama: çözüm metni hiçbir şıkla eşleşmedi" }]);
+  });
+
+  it("istem şıkları 0) 1) diye numaralar, örnek verir ve strict şema ister", () => {
+    const u = poolUnit("yks-2026-tarih#13")!;
+    const prompt = verifyPrompt(u, [{ outcome_code: "11.2.1", difficulty: "easy", stem: "Soru kökü burada yer alır?", choices: vest, answer: 0, explanation: "Açıklama metni burada yer alır." }]);
+    expect(prompt.user).toContain('"0) Vestfalya');
+    expect(prompt.user).toContain('"4) Matbaa');
+    expect(prompt.system).toContain('Örnek: {"r":[{"i":0,"cozum":2,"uyum":1}');
+    expect(prompt.jsonSchema).toEqual(verifySchema(5));
+    expect((verifySchema(4).schema.properties.r.items.properties.cozum as { enum: number[] }).enum).toEqual([0, 1, 2, 3]);
+  });
+
+  it("#13 uçtan uca: doğrulayıcı şık metni döndürse de ünite tamamlanır", async () => {
+    const unit = poolUnit("yks-2026-tarih#13")!;
+    const base = fakeLlm(unit);
+    const llm: LlmCall = async (args) => {
+      if (!args.system.startsWith("Denetçisin")) return base(args);
+      const blind = JSON.parse(/Sorular \[i,kod,kök,şıklar\]:\n([\s\S]*)$/.exec(args.user)![1]!) as [number, string, string, string[]][];
+      return { model: args.model, tokensIn: 1, tokensOut: 1, text: JSON.stringify({ r: blind.map(([i], k) => [i, k % 2 ? "2 — Üçüncü seçenek" : "Üçüncü seçenek", 1]) }) };
+    };
+    const out = await generateUnitContent(unit, llm, { generate: "g", verify: "v" });
+    expect(out.ok).toBe(true);
   });
 });

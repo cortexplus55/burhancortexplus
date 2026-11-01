@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { openaiClient } from "@/lib/ai/openai-client";
 import { isReasoningModel, samplingParams } from "@/lib/ai/model-params";
 import { parseModelOutput } from "@/lib/ai/json-repair";
+import { turkishFold } from "@/lib/text/turkish";
 import type { UsageCode } from "@/lib/credits/service";
 import { choiceCount, type PoolUnit } from "@/lib/content-pool/keys";
 import { garbledReason, gateItems } from "@/lib/content-pool/gate";
@@ -12,7 +13,6 @@ import {
   itemSchema,
   lessonSchema,
   missingCoverage,
-  compactReviewSchema,
   type LessonBody,
   type PoolItem,
   type Review,
@@ -24,6 +24,8 @@ export type LlmCall = (input: {
   system: string;
   user: string;
   reasoningEffort?: "low" | "medium";
+  /** Yapılandırılmış çıktı (strict json_schema); yoksa json_object. */
+  jsonSchema?: { name: string; schema: Record<string, unknown> };
 }) => Promise<{ text: string; tokensIn: number; tokensOut: number; model: string }>;
 
 export type UsageEntry = { actionCode: UsageCode; model: string; tokensIn: number; tokensOut: number };
@@ -35,12 +37,14 @@ export type GeneratedUnit =
 export function openaiLlm(): LlmCall | null {
   if (!env.OPENAI_API_KEY) return null;
   const client = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 180_000, maxRetries: 1 });
-  return async ({ model, system, user, reasoningEffort }) => {
+  return async ({ model, system, user, reasoningEffort, jsonSchema }) => {
     const completion = await client.chat.completions.create({
       model,
       ...samplingParams(model, { temperature: 0.3 }),
       ...(reasoningEffort && isReasoningModel(model) ? { reasoning_effort: reasoningEffort } : {}),
-      response_format: { type: "json_object" },
+      response_format: jsonSchema
+        ? { type: "json_schema", json_schema: { name: jsonSchema.name, strict: true, schema: jsonSchema.schema } }
+        : { type: "json_object" },
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -91,6 +95,33 @@ function itemsPrompt(unit: PoolUnit, pairs: string[]) {
   };
 }
 
+/** Doğrulama çıktısı için strict JSON şeması: cozum yalnız geçerli şık numarası olabilir. */
+export function verifySchema(choices: number) {
+  return {
+    name: "verify_review",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["r"],
+      properties: {
+        r: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["i", "cozum", "uyum"],
+            properties: {
+              i: { type: "integer" },
+              cozum: { type: "integer", enum: Array.from({ length: choices }, (_, k) => k) },
+              uyum: { type: "integer", enum: [0, 1] },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
 /** Doğrulama modeli (Burhan, 1 Kasım 2026): gpt-4.1 yerine gpt-6-luna, düşük akıl yürütme, kısa JSON. */
 export const SHARED_VERIFY_MODEL = "gpt-6-luna";
 
@@ -100,11 +131,13 @@ export const SHARED_VERIFY_MODEL = "gpt-6-luna";
  */
 export function verifyPrompt(unit: PoolUnit, items: PoolItem[]) {
   const outcomes = unit.outcomes.map((o) => `${o.code}: ${o.text}${o.limitations.length ? ` [Sınır: ${o.limitations.join(" | ")}]` : ""}`);
-  const blind = items.map((item, i) => [i, item.outcome_code, item.stem, item.choices]);
+  const blind = items.map((item, i) => [i, item.outcome_code, item.stem, item.choices.map((c, j) => `${j}) ${c}`)]);
   return {
     system:
-      "Denetçisin. Her soruyu cevapsız çöz (0 tabanlı şık). uyum=1 yalnız bilgi doğru, tek doğru şık var ve soru verilen " +
-      'kazanım/sınır içindeyse; değilse 0. Yalnız JSON: {"r":[[i,cozum,uyum],...]}',
+      "Denetçisin. Her soruyu cevapsız çöz. Şıklar 0) 1) 2) … diye numaralı; cozum seçtiğin şıkkın NUMARASIDIR (tam sayı), " +
+      "şık metni yazma. uyum=1 yalnız bilgi doğru, tek doğru şık var ve soru verilen kazanım/sınır içindeyse; değilse 0. " +
+      'Yalnız JSON: {"r":[{"i":i,"cozum":şık numarası,"uyum":0|1},...]}. Örnek: {"r":[{"i":0,"cozum":2,"uyum":1},{"i":1,"cozum":0,"uyum":0}]}',
+    jsonSchema: verifySchema(choiceCount(unit.program)),
     user: `${unit.unit.title}\nKazanımlar:\n${outcomes.join("\n")}\nSorular [i,kod,kök,şıklar]:\n${JSON.stringify(blind)}`,
   };
 }
@@ -147,14 +180,75 @@ function toFit(v: unknown): boolean | null {
   return null;
 }
 
+const LABEL = /^\s*(?:(\d{1,2})|([A-Ea-e]))\s*(?:[)\].:\-–—]+|(?=\s*$))\s*/u;
+const normChoice = (t: string) => turkishFold(t.replace(LABEL, "")).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+function bigrams(t: string): Map<string, number> {
+  const m = new Map<string, number>();
+  for (let i = 0; i < t.length - 1; i += 1) m.set(t.slice(i, i + 2), (m.get(t.slice(i, i + 2)) ?? 0) + 1);
+  return m;
+}
+function dice(a: string, b: string): number {
+  if (a === b) return 1;
+  const x = bigrams(a);
+  const y = bigrams(b);
+  let inter = 0;
+  for (const [k, n] of x) inter += Math.min(n, y.get(k) ?? 0);
+  const total = Math.max(1, a.length - 1) + Math.max(1, b.length - 1);
+  return (2 * inter) / total;
+}
+export const CHOICE_SIMILARITY = 0.9;
+
+/** Metin şık → yalnız tek ve açık eşleşmede sıra; aksi gerekçe. Tahmin yok. */
+function matchChoiceText(text: string, choices: string[]): number | { reason: string } {
+  const t = normChoice(text);
+  if (t.length < 2) return { reason: "çözüm metni boş" };
+  const norm = choices.map(normChoice);
+  const exact = norm.flatMap((c, i) => (c === t ? [i] : []));
+  if (exact.length === 1) return exact[0]!;
+  if (exact.length > 1) return { reason: "çözüm metni birden çok şıkla aynı" };
+  // Model şık metnini kısaltıp/uzatıp yazabilir: biri ötekinin başıysa (yeterince uzun) tek eşleşme kabul.
+  const prefix = norm.flatMap((c, i) => (Math.min(c.length, t.length) >= 12 && (t.startsWith(c) || c.startsWith(t)) ? [i] : []));
+  if (prefix.length === 1) return prefix[0]!;
+  if (prefix.length > 1) return { reason: "çözüm metni birden çok şıkla örtüşüyor" };
+  const scores = norm.map((c) => dice(c, t));
+  const best = Math.max(...scores);
+  const hits = scores.flatMap((s, i) => (s >= CHOICE_SIMILARITY ? [i] : []));
+  if (hits.length === 1 && scores.every((s, i) => i === hits[0] || s < best - 0.1)) return hits[0]!;
+  if (hits.length > 1) return { reason: "çözüm metni birden çok şıkka benziyor" };
+  return { reason: "çözüm metni hiçbir şıkla eşleşmedi" };
+}
+
+/** İkinci alan: sayı, "N — metin", "2)", "B" ya da şık metni. Çelişki ya da belirsizlikte gerekçe döner. */
+export function resolveSolved(v: unknown, choices: string[]): number | { reason: string } {
+  const direct = toInt(v);
+  if (direct !== null) return direct < choices.length ? direct : { reason: `çözüm sırası ${direct} şıkların dışında` };
+  if (typeof v !== "string") return { reason: "çözüm alanı okunamadı" };
+  // Şık metninin kendisi sayı/harfle başlayabilir ("1. Dünya Savaşı"): önce tam metin eşleşmesi.
+  const full = choices.flatMap((c, i) => (turkishFold(c.trim()) === turkishFold(v.trim()) ? [i] : []));
+  const sameNorm = choices.filter((c) => normChoice(c) === normChoice(v)).length;
+  if (full.length === 1 && sameNorm <= 1) return full[0]!;
+  const label = LABEL.exec(v);
+  if (label) {
+    const idx = label[1] !== undefined ? Number(label[1]) : turkishFold(label[2]!).charCodeAt(0) - 97;
+    if (idx >= choices.length) return { reason: `çözüm sırası ${idx} şıkların dışında` };
+    const rest = v.slice(label[0].length).trim();
+    if (rest.length >= 2) {
+      const byText = matchChoiceText(rest, choices);
+      if (typeof byText === "number" && byText !== idx) return { reason: `çözüm sırası (${idx}) ile metni (${byText}) çelişiyor` };
+    }
+    return idx;
+  }
+  return matchChoiceText(v, choices);
+}
+
+export type ParsedReview = { rows: Review["items"]; unreadable: { index: number; reason: string }[] };
+
 /**
- * Kısa doğrulama yanıtı: {"r":[[i,cozum,uyum]]} beklenir; modelin sık saptığı biçimler de kabul edilir
- * (uyum true/false, sayılar metin, satırlar nesne {i|index, cozum|solved_answer, uyum|ok}, kök dizi ya da başka anahtar).
- * Hiçbiri tutmazsa null.
+ * Kısa doğrulama yanıtı: {"r":[[i,cozum,uyum]]} beklenir; sapmalar da okunur (uyum true/false, sayılar metin,
+ * nesne satırları, kök dizi; çözüm "0 — metin", "2)", "B" ya da şık metni → `resolveSolved`). Okunamayan satır
+ * gerekçesiyle `unreadable`'a gider; yanıtın tamamı okunamazsa null.
  */
-export function parseCompactReview(text: string): Review["items"] | null {
-  const strict = parse(compactReviewSchema, text);
-  if (strict) return strict.r.map(([index, solved, fit]) => ({ index, solved_answer: solved, within_scope: fit === 1, ok: fit === 1 }));
+export function parseCompactReview(text: string, items: Pick<PoolItem, "choices">[]): ParsedReview | null {
   let raw: unknown;
   try {
     raw = parseModelOutput(text);
@@ -167,19 +261,27 @@ export function parseCompactReview(text: string): Review["items"] | null {
     rows = obj.r ?? obj.items ?? obj.results ?? Object.values(obj).find(Array.isArray);
   }
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  const out: Review["items"] = [];
-  for (const row of rows) {
-    let index: number | null, solved: number | null, fit: boolean | null;
-    if (Array.isArray(row)) [index, solved, fit] = [toInt(row[0]), toInt(row[1]), toFit(row[2])];
+  const out: ParsedReview = { rows: [], unreadable: [] };
+  rows.forEach((row, pos) => {
+    let index: number | null, solvedRaw: unknown, fit: boolean | null;
+    if (Array.isArray(row)) [index, solvedRaw, fit] = [toInt(row[0]), row[1], toFit(row[2])];
     else if (row && typeof row === "object") {
       const o = row as Record<string, unknown>;
       index = toInt(o.i ?? o.index);
-      solved = toInt(o.cozum ?? o.çözüm ?? o.solved_answer ?? o.solved ?? o.answer);
+      solvedRaw = o.cozum ?? o.çözüm ?? o.solved_answer ?? o.solved ?? o.answer;
       fit = toFit(o.uyum ?? o.ok ?? o.fit ?? o.within_scope);
-    } else return null;
-    if (index === null || solved === null || fit === null || solved > 4) return null;
-    out.push({ index, solved_answer: solved, within_scope: fit, ok: fit });
-  }
+    } else {
+      out.unreadable.push({ index: pos, reason: "doğrulama satırı okunamadı" });
+      return;
+    }
+    const at = index ?? pos;
+    const item = index !== null ? items[index] : undefined;
+    if (!item) return void out.unreadable.push({ index: at, reason: "doğrulama satırı sırası geçersiz" });
+    if (fit === null) return void out.unreadable.push({ index: at, reason: "uyum alanı okunamadı" });
+    const solved = resolveSolved(solvedRaw, item.choices);
+    if (typeof solved !== "number") return void out.unreadable.push({ index: at, reason: `doğrulama: ${solved.reason}` });
+    out.rows.push({ index: at, solved_answer: solved, within_scope: fit, ok: fit });
+  });
   return out;
 }
 
@@ -203,7 +305,11 @@ export async function generateUnitContent(
   models: { generate: string; verify: string } = { generate: env.OPENAI_CONTENT_MODEL, verify: SHARED_VERIFY_MODEL },
 ): Promise<GeneratedUnit> {
   const usage: UsageEntry[] = [];
-  const call = async (actionCode: UsageCode, model: string, prompt: { system: string; user: string; reasoningEffort?: "low" }) => {
+  const call = async (
+    actionCode: UsageCode,
+    model: string,
+    prompt: { system: string; user: string; reasoningEffort?: "low"; jsonSchema?: { name: string; schema: Record<string, unknown> } },
+  ) => {
     const out = await llm({ model, ...prompt });
     // Fiyat satırları (ai_model_prices) istenen model adıyla tutulur; yanıttaki tarihli sürüm adı (gpt-4.1-2025-04-14) fiyatsız kalır.
     usage.push({ actionCode, model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
@@ -245,14 +351,20 @@ export async function generateUnitContent(
     }
     if (candidates.length === 0) continue;
     const rawReview = await call("SHARED_CONTENT_VERIFY", models.verify, { ...verifyPrompt(unit, candidates), reasoningEffort: "low" });
-    const review = parseCompactReview(rawReview);
+    const review = parseCompactReview(rawReview, candidates);
     if (!review) {
       // Sessiz düşürme yok: okunamayan doğrulama yanıtında her aday gerekçesiyle kaydedilir.
       parseFailures.push({ round, step: "verify", excerpt: rawReview.slice(0, 300) });
       rejected.push(...candidates.map((c) => ({ code: c.outcome_code, reason: "doğrulama yanıtı okunamadı" })));
       continue;
     }
-    const applied = applyReview(candidates, { lesson_ok: true, lesson_issues: [], items: review });
+    if (review.unreadable.length) parseFailures.push({ round, step: "verify", excerpt: rawReview.slice(0, 300) });
+    const unreadable = new Map(review.unreadable.map((u) => [u.index, u.reason]));
+    const applied = applyReview(candidates, { lesson_ok: true, lesson_issues: [], items: review.rows });
+    for (const r of applied.rejected) {
+      const idx = candidates.indexOf(r.item as (typeof candidates)[number]);
+      if (r.reason === "doğrulanmadı" && unreadable.has(idx)) r.reason = unreadable.get(idx)!;
+    }
     rejected.push(...applied.rejected.map((r) => ({ code: r.item.outcome_code, reason: r.reason })));
     const have = new Set(items.map((i) => `${i.outcome_code.trim()}|${i.difficulty}`));
     for (const item of applied.kept) {
