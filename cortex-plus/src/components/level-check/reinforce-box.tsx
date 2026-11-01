@@ -15,12 +15,15 @@ export function ReinforceBox({
   prepId,
   unitId,
   unitTitle,
+  weakCount: offered,
   api = httpLevelApi,
   onDone,
 }: {
   prepId: string;
   unitId: string;
   unitTitle: string;
+  /** Zayıf kazanım sayısı (öneri metnindeki toplam için). */
+  weakCount: number;
   api?: LevelApi;
   onDone?: () => void;
 }) {
@@ -47,7 +50,7 @@ export function ReinforceBox({
         <>
           <p className="lc-kicker">Pekiştirme · zayıf kazanımlar</p>
           <p className="lc-q">
-            <b>{unitTitle}</b>: zorlandığın her kazanım için doğrulanmış havuzdan en çok 2 ek soru.
+            <b>{unitTitle}</b>: zorlandığın {offered} kazanım için doğrulanmış havuzdan kazanım başına en çok 2 ek soru (toplam {offered * 2}).
           </p>
           <div className="lc-actions">
             <button type="button" className="lc-cta" onClick={() => setPhase("run")}>
@@ -68,7 +71,10 @@ export function ReinforceBox({
               setPhase("empty");
             }
           }}
-          onSkip={() => setPhase("hidden")}
+          onSkip={() => {
+            setPhase("hidden");
+            onDone?.();
+          }}
           onFinish={(r) => {
             setResults(r);
             setPhase("result");
@@ -82,7 +88,16 @@ export function ReinforceBox({
             {weakCount === 0 ? "Bu ünitede zayıf kazanım görünmüyor; ek soru gerekmiyor." : `${NO_EXTRA_TEXT}.`}
           </p>
           {missingList}
-          <button type="button" className="lc-skip" onClick={() => setPhase("hidden")}>Kapat</button>
+          <button
+            type="button"
+            className="lc-skip"
+            onClick={() => {
+              setPhase("hidden");
+              onDone?.();
+            }}
+          >
+            Kapat
+          </button>
         </>
       ) : null}
       {phase === "result" ? (
