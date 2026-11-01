@@ -69,6 +69,11 @@ export function cutAtWord(text: string, max: number): string {
   return head ? `${head.replace(/[\s,;:·–-]+$/u, "")}…` : "";
 }
 
+/** Log/telemetri için konu adı: ortak 120 karakter, kelime sınırında kırpılır. */
+export function logTopic(text: string): string {
+  return cutAtWord(text, TOPIC_LABEL_MAX) || text.slice(0, TOPIC_LABEL_MAX);
+}
+
 /** YKS oturum aralıkları kayıtta açık veri olarak durur; istemci/test için aynı varsayılan. */
 export type GradeScopes = Record<"TYT" | "AYT" | "YKS", [number, number]>;
 export const DEFAULT_GRADE_SCOPES: GradeScopes = { TYT: [9, 10], AYT: [11, 12], YKS: [9, 12] };

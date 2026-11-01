@@ -6,6 +6,7 @@ import {
   inPartScope,
   officialPrepTitle,
   cutAtWord,
+  logTopic,
   OPEN_MAX_AVG_KEEP,
   OPEN_MIN_UNITS_KEEP,
   OPEN_TOPIC_MAX,
@@ -128,5 +129,46 @@ describe("resmî kayıtta yapışık metin kalmaz", () => {
           expect(o.text).not.toMatch(/(^|\s)[a-zçğıöşü]{2,}[a-h]\)\s+[A-ZÇĞİÖŞÜ]/u);
           expect(o.text).not.toMatch(/(^|\s)[a-zçğıöşü]{3,}[A-ZÇĞİÖŞÜ][a-zçğıöşü]/u);
         }
+  });
+});
+
+describe("YKS Tarih kazanım/açıklama sütunları ayrık (ÖSYM 2026 YKS PDF)", () => {
+  const tarih = REG.programs.find((p) => p.id === "yks-2026-tarih")!;
+  const outcomes = tarih.units.flatMap((u) => u.outcomes);
+  const byCode = new Map(outcomes.map((o) => [o.code, o]));
+  it("kod/sayı korunur", () => {
+    expect(outcomes.length).toBe(75);
+    expect(new Set(outcomes.map((o) => o.code)).size).toBe(75);
+  });
+  it("kazanım metni yalnız kazanımı taşır", () => {
+    expect(byCode.get("9.2.4")!.text).toBe(
+      "İlk Çağ’da coğrafya ve iklimin, insanların hayat ve geçim tarzları üzerindeki belirleyici etkisini analiz eder.",
+    );
+    expect(byCode.get("10.2.1")!.text).toBe(
+      "1302-1453 yılları arasındaki süreçte meydana gelen başlıca siyasi gelişmeleri tarih şeridi ve haritalar üzerinde gösterir.",
+    );
+    expect(byCode.get("11.1.4")!.text).toMatch(/rekabeti ve bu rekabette uyguladığı stratejileri analiz eder\.$/);
+    for (const o of outcomes) {
+      // açıklama sütunu sızıntısı: parantezli yıl listesi, "a)" imi, ezber uyarısı
+      expect(o.text, o.code).not.toMatch(/\(\d{3,4}\),|(^|\s)[a-hç]\)\s|ezberletilme/);
+      expect(o.text, o.code).toMatch(/[.!]$/);
+    }
+  });
+  it("açıklama sınırlama alanında, sayfa numarası yok", () => {
+    expect(byCode.get("9.2.4")!.limitations.join(" ")).toMatch(/girilmez/);
+    for (const p of REG.programs.filter((x) => x.id.startsWith("yks-2026-")))
+      for (const o of p.units.flatMap((u) => u.outcomes))
+        for (const l of o.limitations) expect(l, `${p.id} ${o.code}`).not.toMatch(/\s\d{2,3}$/);
+  });
+});
+
+describe("log konu adı ortak 120 sınırı", () => {
+  it("kelime sınırında 120", () => {
+    const long = "Türklerin İslamiyet’i kabul etmeye başlamaları ile Türkiye Selçuklu Devleti’nin kuruluşu arasındaki süreçte meydana gelen gelişmeler";
+    const out = logTopic(long);
+    expect(out.length).toBeLessThanOrEqual(120);
+    expect(out.endsWith("…")).toBe(true);
+    expect(long.startsWith(out.slice(0, -1))).toBe(true);
+    expect(logTopic("Kısa konu")).toBe("Kısa konu");
   });
 });
