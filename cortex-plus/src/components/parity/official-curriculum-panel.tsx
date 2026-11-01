@@ -5,12 +5,14 @@ import { WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
 import { CurriculumPickPanel } from "@/components/parity/curriculum-pick-panel";
 import {
   buildTopicMap,
+  DEFAULT_GRADE_SCOPES,
   hasSchoolExams,
   levelForExamLabel,
   programIdForSubject,
   scenarioOptions,
   yksPartForLabel,
   type CurriculumTopicMap,
+  type GradeScopes,
 } from "@/lib/curriculum/topic-map";
 import type {
   CurriculumExamKey,
@@ -19,6 +21,7 @@ import type {
   CurriculumRef,
   CurriculumScenario,
   CurriculumSource,
+  YksPart,
 } from "@/lib/curriculum/types";
 
 export type OfficialCurriculumPick = {
@@ -34,13 +37,29 @@ const EXAM_OPTIONS: { key: CurriculumExamKey; label: string }[] = [
   { key: "serbest", label: "Serbest Ünite Seçimi" },
 ];
 
+const EXAM_LEVELS: Record<string, { label: string; order: number }> = {
+  lgs: { label: "LGS", order: 100 },
+  yks: { label: "YKS (TYT / AYT)", order: 101 },
+  kpss: { label: "KPSS", order: 102 },
+};
+
 function levelKey(p: Pick<CurriculumProgramSummary, "kind" | "grade">): string {
-  return p.kind === "yks" ? "yks" : `sinif-${p.grade}`;
+  return p.kind === "okul" ? `sinif-${p.grade}` : p.kind;
 }
 
 function levelLabel(key: string): string {
-  return key === "yks" ? "YKS (TYT / AYT)" : `${key.replace("sinif-", "")}. sınıf`;
+  return EXAM_LEVELS[key]?.label ?? `${key.replace("sinif-", "")}. sınıf`;
 }
+
+function levelOrder(key: string): number {
+  return EXAM_LEVELS[key]?.order ?? Number(key.replace("sinif-", ""));
+}
+
+const PART_OPTIONS: { key: "TYT" | "AYT" | null; label: string }[] = [
+  { key: "TYT", label: "TYT" },
+  { key: "AYT", label: "AYT" },
+  { key: null, label: "Tümü (YKS)" },
+];
 
 /**
  * Resmî müfredattan kurulum (1 Kasım 2026). Program, yazılı ve senaryo seçilir; konu haritası kayıttaki
@@ -71,6 +90,9 @@ export function OfficialCurriculumPanel({
   const [detail, setDetail] = useState<{ program: CurriculumProgram; sources: CurriculumSource[] } | null>(null);
   const [examKey, setExamKey] = useState<CurriculumExamKey>("d1y1");
   const [scenario, setScenario] = useState<CurriculumScenario>("karma");
+  const [scopes, setScopes] = useState<GradeScopes>(DEFAULT_GRADE_SCOPES);
+  /** undefined = sınav türünden; null = tüm YKS. */
+  const [partId, setPartId] = useState<"TYT" | "AYT" | null | undefined>(undefined);
 
   useEffect(() => {
     let live = true;
@@ -85,7 +107,7 @@ export function OfficialCurriculumPanel({
 
   const levels = useMemo(() => {
     const keys = [...new Set((programs ?? []).map(levelKey))];
-    return keys.sort((a, b) => (a === "yks" ? 1 : b === "yks" ? -1 : Number(a.slice(6)) - Number(b.slice(6))));
+    return keys.sort((a, b) => levelOrder(a) - levelOrder(b));
   }, [programs]);
 
   const activeLevel = useMemo(() => {
@@ -110,9 +132,10 @@ export function OfficialCurriculumPanel({
     setDetail(null);
     fetch(`/api/curriculum/${encodeURIComponent(programId)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((body: { program: CurriculumProgram; sources: CurriculumSource[] }) => {
+      .then((body: { program: CurriculumProgram; sources: CurriculumSource[]; gradeScopes?: GradeScopes }) => {
         if (!live) return;
         setDetail(body);
+        if (body.gradeScopes) setScopes(body.gradeScopes);
         const keys = EXAM_OPTIONS.map((o) => o.key).filter((k) => k === "serbest" || body.program.exams[k]);
         setExamKey(keys[0] ?? "serbest");
         setScenario("karma");
@@ -125,7 +148,8 @@ export function OfficialCurriculumPanel({
 
   const program = detail?.program ?? null;
   const schoolExams = program ? hasSchoolExams(program) : false;
-  const yksPart = program?.kind === "yks" ? yksPartForLabel(examLabel) : null;
+  const yksPart: "TYT" | "AYT" | null =
+    program?.kind === "yks" ? (partId === undefined ? yksPartForLabel(examLabel) : partId) : null;
   const examChoices = program && schoolExams
     ? EXAM_OPTIONS.filter((o) => o.key === "serbest" || program.exams[o.key])
     : [];
@@ -133,8 +157,8 @@ export function OfficialCurriculumPanel({
   const effectiveScenario: CurriculumScenario | null =
     examKey === "serbest" || !scenarios.length ? null : scenario === "karma" || scenarios.includes(scenario) ? scenario : "karma";
   const map = useMemo(
-    () => (program ? buildTopicMap(program, examKey, effectiveScenario) : null),
-    [program, examKey, effectiveScenario],
+    () => (program ? buildTopicMap(program, examKey, effectiveScenario, { part: yksPart, scopes }) : null),
+    [program, examKey, effectiveScenario, yksPart, scopes],
   );
 
   if (fallback) {
@@ -174,7 +198,10 @@ export function OfficialCurriculumPanel({
                 role="radio"
                 aria-checked={p.id === programId}
                 className={p.id === programId ? "apw-chip apw-chip--on" : "apw-chip"}
-                onClick={() => setProgramId(p.id)}
+                onClick={() => {
+                  setProgramId(p.id);
+                  setPartId(undefined);
+                }}
               >
                 {p.subject}
               </button>
@@ -209,10 +236,31 @@ export function OfficialCurriculumPanel({
           </>
           ) : null}
           {program.kind === "yks" ? (
-            <p className="apw-drop-hint" role="note" data-testid="yks-split-note">
-              {yksPart ? `${yksPart}: ` : ""}
-              {WIZARD_COPY.officialNoYksSplit}
-            </p>
+            <>
+              <p className="apw-official-label">{WIZARD_COPY.officialYksPart}</p>
+              <div className="apw-chips" role="radiogroup" aria-label={WIZARD_COPY.officialYksPart}>
+                {PART_OPTIONS.map((o) => (
+                  <button
+                    key={o.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={o.key === yksPart}
+                    className={o.key === yksPart ? "apw-chip apw-chip--on" : "apw-chip"}
+                    onClick={() => setPartId(o.key)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <p className="apw-drop-hint" role="note" data-testid="yks-split-note">
+                {WIZARD_COPY.officialPartScope(yksPart ?? "YKS", scopes[yksPart ?? "YKS"])}
+              </p>
+              {!map.topics.length ? (
+                <p className="apw-drop-hint" role="alert" data-testid="yks-part-empty">
+                  {WIZARD_COPY.officialPartEmpty(yksPart ?? "YKS")}
+                </p>
+              ) : null}
+            </>
           ) : null}
           {scenarios.length ? (
             <>
@@ -245,7 +293,7 @@ export function OfficialCurriculumPanel({
           ) : null}
           {map.national ? <p className="apw-drop-hint" role="note">{WIZARD_COPY.officialNational}</p> : null}
           <p className="apw-official-summary" data-testid="official-summary">
-            {map.topics.length} kazanım
+            {map.topics.length} konu · {map.outcomeCount} kazanım
             {map.total ? ` · ${map.total} soru${map.averaged ? " (senaryoların ortalaması)" : " (resmî tablo)"}` : ""}
           </p>
           <ol className="apw-official-map" aria-label="Konu haritası">
@@ -254,11 +302,10 @@ export function OfficialCurriculumPanel({
                 <strong>{unit.title}</strong>
                 <ul>
                   {unit.topicIndexes.map((i) => (
-                    <li key={map.codes[i]}>
+                    <li key={i}>
                       <span>{map.topics[i]}</span>
-                      {map.quotaByCode[map.codes[i]!] ? (
-                        <em className="apw-official-quota">{map.quotaByCode[map.codes[i]!]} soru</em>
-                      ) : null}
+                      <small className="apw-official-count"> · {map.topicCodes[i]!.length} kazanım</small>
+                      {map.quotaByTopic[i] ? <em className="apw-official-quota">{map.quotaByTopic[i]} soru</em> : null}
                     </li>
                   ))}
                 </ul>
@@ -290,7 +337,7 @@ export function OfficialCurriculumPanel({
               program,
               map,
               sources: detail?.sources ?? [],
-              ref: { programId: program.id, examKey, scenario: effectiveScenario },
+              ref: { programId: program.id, examKey, scenario: effectiveScenario, ...(yksPart ? { part: yksPart } : {}) },
             })
           }
         >

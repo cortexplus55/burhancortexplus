@@ -4,7 +4,7 @@ import { getProgram, outcomesForTopic } from "@/lib/curriculum/registry";
 import type { OfficialOutcomeGrounding } from "@/lib/curriculum/grounding";
 import type { CurriculumRef } from "@/lib/curriculum/types";
 
-/** Hazırlık resmî müfredattan kurulduysa konunun resmî kazanımı; değilse ya da okunamazsa null. */
+/** Hazırlık resmî müfredattan kurulduysa konunun bütün resmî kazanımları; değilse ya da okunamazsa null. */
 export async function loadOfficialOutcome(
   service: SupabaseClient,
   prepId: string | null | undefined,
@@ -15,15 +15,15 @@ export async function loadOfficialOutcome(
     const { data } = await service.from("exam_preps").select("learning_preferences").eq("id", prepId).maybeSingle();
     const ref = (data?.learning_preferences as { curriculum?: CurriculumRef } | null)?.curriculum ?? null;
     const program = ref ? getProgram(ref.programId) : null;
-    const hit = program ? outcomesForTopic(ref, topicLabel)[0] : null;
-    if (!program || !hit) return null;
+    const hits = program ? outcomesForTopic(ref, topicLabel) : [];
+    if (!program || !hits.length) return null;
+    const units = [...new Set(hits.map((h) => h.unit))];
     return {
-      code: hit.outcome.code,
-      text: hit.outcome.text,
-      limitations: hit.outcome.limitations ?? [],
+      outcomes: hits.map((h) => ({ code: h.outcome.code, text: h.outcome.text, limitations: h.outcome.limitations ?? [] })),
       programLabel: program.label,
       programVersion: program.programVersion,
-      unitTitle: hit.unit,
+      unitTitle: units.join(" + "),
+      topicLabel: hits.length > 1 ? topicLabel : null,
     };
   } catch {
     return null;

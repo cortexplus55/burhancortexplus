@@ -4,10 +4,11 @@ import { distinctTopicCount } from "@/lib/learning/path-sections";
 import { runPool } from "@/lib/documents/upload-batch";
 
 describe("sınav türünden düzey", () => {
-  it("TYT/AYT/YKS → yks, LGS → sinif-8, N. sınıf → sinif-N", () => {
+  it("TYT/AYT/YKS → yks, LGS → lgs, KPSS → kpss, N. sınıf → sinif-N", () => {
     expect(levelForExamLabel("TYT")).toBe("yks");
     expect(levelForExamLabel("AYT Matematik")).toBe("yks");
-    expect(levelForExamLabel("LGS")).toBe("sinif-8");
+    expect(levelForExamLabel("LGS")).toBe("lgs");
+    expect(levelForExamLabel("KPSS GY-GK")).toBe("kpss");
     expect(levelForExamLabel("10. sınıf")).toBe("sinif-10");
     expect(levelForExamLabel("Vize")).toBeNull();
     expect(yksPartForLabel("tyt")).toBe("TYT");

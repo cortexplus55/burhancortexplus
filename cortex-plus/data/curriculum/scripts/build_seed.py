@@ -2,7 +2,33 @@ import json,re,hashlib,csv,os,collections
 D='/workspace/mufredat-data'; R=D+'/raw'
 FETCHED='2026-11-01T10:00:00+03:00'
 def sha(p): return hashlib.sha256(open(p,'rb').read()).hexdigest()
-A=json.load(open(D+'/out/layerA.json')); Y=json.load(open(D+'/out/yks.json'))
+A=json.load(open(D+'/out/layerA.json'))
+Y=json.load(open(D+'/out/yks.json'))
+def post(t):
+    t=re.sub(r'\s+\d+$','',t)
+    t=' '.join((w.replace('ı','I').replace('i','I').upper() if re.fullmatch(r'[IıiVvXx]{2,5}\.?|[IVX]\.?',w) else w) for w in t.split(' '))
+    t=re.sub(r'’İ','’i',t)
+    return re.sub(r'\((\w)',lambda m:'('+m.group(1).replace('i','İ').upper(),t)
+def tcap0(t):
+    small={'ve','ile','ya','da','de','veya','ki'}
+    ws=t.replace('I','ı').replace('İ','i').lower().split(' ')
+    cap=lambda w:'/'.join((p[:1].replace('i','İ').replace('ı','I').upper()+p[1:]) for p in w.split('/'))
+    return ' '.join(cap(w) if (k==0 or w not in small) else w for k,w in enumerate(ws))
+def fixcase(t):
+    # Python .title() Türkçe büyük harfi bozar: 'TARİH'->'Tari̇h', 'OSMANLI'->'Osmanli'. İ kaynaklı i birleşik nokta taşır.
+    out=[]
+    for w in t.split(' '):
+        r=''; i=0
+        while i<len(w):
+            c=w[i]
+            if c=='i' and i>0:
+                if i+1<len(w) and w[i+1]=='\u0307': r+='i'; i+=2; continue
+                r+='ı'
+            elif c=='\u0307': pass
+            else: r+=c
+            i+=1
+        out.append(r.lower() if r.lower() in ('ve','ile','ya','da','de') and out else r)
+    return ' '.join(out); Y=json.load(open(D+'/out/yks.json'))
 SUBJ={'İNGİLİZCE':('ingilizce','İngilizce'),'TÜRKÇE':('turkce','Türkçe'),'MATEMATİK':('matematik','Matematik'),
 'DİN KÜLTÜRÜ VE AHLAK BİLGİSİ':('dkab','Din Kültürü ve Ahlak Bilgisi'),'FEN BİLİMLERİ':('fen','Fen Bilimleri'),
 'TÜRK DİLİ VE EDEBİYATI':('tde','Türk Dili ve Edebiyatı'),'FİZİK':('fizik','Fizik'),'KİMYA':('kimya','Kimya'),
@@ -62,9 +88,6 @@ for r in A['rows']:
 yks_src='meb_yks_2026'
 YNAME={'biyoloji':'Biyoloji','cografya':'Coğrafya','dkab':'Din Kültürü ve Ahlak Bilgisi','felsefe':'Felsefe','fizik':'Fizik','kimya':'Kimya','matematik':'Matematik','tarih':'Tarih'}
 excluded=[]
-for sec in ['mantik','psikoloji','sosyoloji']: excluded.append(dict(source=yks_src,section=sec,reason='PDF yazı tipi kodlaması bozuk; metin çıkarılamadı'))
-excluded.append(dict(source=yks_src,section='tde',reason='Kazanım kodlarında sınıf yok (A.1.1 …), sınıflar arasında tekrar ediyor; güvenilir eşleme yapılamadı'))
-excluded.append(dict(source=yks_src,section='inkilap',reason='İki sütunlu sayfa düzeni metni karıştırıyor; kazanım metni güvenilir değil'))
 for sec,name in YNAME.items():
     outs=[];seen=set();drop=0
     heads=Y[sec]['heads']
@@ -81,8 +104,11 @@ for sec,name in YNAME.items():
         seen.add(code)
         g=int(parts[0]); uc='.'.join(parts[:2])
         unit=(heads.get(uc) or o.get('unit') or uc)
-        unit=re.sub(r'\s*Anahtar Kavramlar.*$','',unit).strip()[:120]
+        unit=re.split(r'\s*(?:Anahtar [Kk]avramlar|Ünite Açıklaması)',unit)[0].strip()[:120]
+        if 'ÖĞRETİM PROGRAMI' in unit: unit=name
+        elif unit.isupper(): unit=post(tcap0(unit))
         lim=[l.strip() for l in (o.get('limitations') or []) if l and l.strip()]
+        if sec=='tarih': unit=re.sub(r'^(\d+)\. Ün\S+: ',r'\1. ',post(fixcase(unit)))
         outs.append(dict(code=code,text=text,grade=g,unitCode=uc,unit=unit,limitations=lim))
     if drop: excluded.append(dict(source=yks_src,section=sec,reason=f'{drop} satır başlık/bozuk kod/tekrar olarak elendi'))
     pid=f'yks-2026-{sec}'
@@ -92,8 +118,9 @@ for sec,name in YNAME.items():
         title=f"{o['grade']}. Sınıf · {o['unit']}"
         u=next((x for x in p['units'] if x['title']==title),None)
         if not u: u=dict(title=title,outcomes=[]); p['units'].append(u)
-        u['outcomes'].append(dict(code=o['code'],text=o['text'],topic=None,limitations=o['limitations'],quotas={},sourceId=yks_src))
+        u['outcomes'].append(dict(code=o['code'],text=o['text'],topic=None,grade=o['grade'],limitations=o['limitations'],quotas={},sourceId=yks_src))
     programs[pid]=p
+exec(open(D+'/scripts/seed_extra.py').read())
 for r in A['rejected']:
     excluded.append(dict(source='odsgm_ksdt',section=f"{r.get('file')}:{r.get('grade')}",code=r.get('code'),reason='Kod öğretim programı PDF’inde doğrulanamadı'))
 # sources: ÖSYM etc
@@ -135,6 +162,6 @@ for l,s,e,x in [('MSÜ','2027-03-20',None,'MSU'),('TUS 1. Dönem','2027-03-27',N
 for y,ra,rs,re_,ka,ks,ke in [(2028,'02-25','02-26','02-28','05-04','05-05','05-08'),(2029,'02-13','02-14','02-16','04-23','04-24','04-27'),(2030,'02-03','02-04','02-06','04-12','04-13','04-16')]:
     ev('dini',f'Ramazan Bayramı arifesi',f'{y}-{ra}',None,f'diyanet_{y}'); ev('dini','Ramazan Bayramı',f'{y}-{rs}',f'{y}-{re_}',f'diyanet_{y}')
     ev('dini','Kurban Bayramı arifesi',f'{y}-{ka}',None,f'diyanet_{y}'); ev('dini','Kurban Bayramı',f'{y}-{ks}',f'{y}-{ke}',f'diyanet_{y}')
-reg=dict(version='2026-11-01',fetchedAt=FETCHED,sources=sources,programs=list(programs.values()),examStructures=S,calendar=C,excluded=excluded)
+reg=dict(version='2026-11-01',examGradeScopes=dict(TYT=[9,10],AYT=[11,12],YKS=[9,12]),fetchedAt=FETCHED,sources=sources,programs=list(programs.values()),examStructures=S,calendar=C,excluded=excluded)
 json.dump(reg,open(D+'/out/registry.json','w'),ensure_ascii=False,indent=0)
 print(len(programs),sum(len(o['outcomes']) for p in programs.values() for o in p['units']),len(S),len(C),len(excluded),missing[:3],len(missing))

@@ -85,6 +85,8 @@ const prefsSchema = z
         programId: z.string().regex(/^[a-z0-9-]{3,60}$/),
         examKey: z.enum(["d1y1", "d1y2", "serbest"]),
         scenario: z.union([z.number().int().min(1).max(20), z.literal("karma")]).nullable(),
+        /** YKS oturumu (sınıf düzeyine göre süzgeç); yoksa tüm YKS. */
+        part: z.enum(["TYT", "AYT"]).nullable().optional(),
       })
       .optional(),
   })

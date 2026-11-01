@@ -1435,13 +1435,19 @@ export function ExamCreateWizard({
     setTopicWarnings([]);
     setTopicMeta(
       map.topics.map((_, index) => {
-        const quota = map.quotaByCode[map.codes[index] ?? ""] ?? 0;
+        const quota = map.quotaByTopic[index] ?? 0;
+        const outcomes = map.topicCodes[index]?.length ?? 0;
         return {
           sourceCount: 0,
           examHeavy: false,
           important: false,
           sections: [],
-          description: quota ? `Resmî tabloda ${quota} soru${map.averaged ? " (ortalama)" : ""}` : null,
+          description: [
+            outcomes ? `${outcomes} kazanım` : "",
+            quota ? `resmî tabloda ${quota} soru${map.averaged ? " (ortalama)" : ""}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ") || null,
           unitTitle: unitTitleForIndex(map.units, index),
         };
       }),

@@ -13,7 +13,8 @@ def arr(xs,t): return "ARRAY["+",".join(q(x) for x in xs)+"]::"+t+"[]" if xs els
 def prov(sid):
     s=S[sid]; return [q(s['url']),q(s['program_version']),q(s['sha256']),q(s['fetched_at'])]
 P='source_url, program_version, sha256, fetched_at'
-out=["-- OTOMATİK ÜRETİLDİ: data/curriculum/scripts/to_sql_csv.py (registry.json "+reg['version']+"). Elle düzenlemeyin.","BEGIN;"]
+out0=["-- OTOMATİK ÜRETİLDİ: data/curriculum/scripts/to_sql_csv.py (registry.json "+reg['version']+"). Elle düzenlemeyin.","BEGIN;"]
+out=out0+(["-- Ek dersler (1 Kasım 2026): program türüne lgs ve kpss eklenir (yalnız genişletme).","ALTER TABLE public.curriculum_programs DROP CONSTRAINT IF EXISTS curriculum_programs_kind_check;","ALTER TABLE public.curriculum_programs ADD CONSTRAINT curriculum_programs_kind_check CHECK (kind IN ('okul', 'yks', 'lgs', 'kpss'));"] if len(sys.argv)>1 else [])
 def ins(table,cols,rows,conf):
     if not rows: return
     upd=", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in conf)
@@ -47,7 +48,8 @@ ins('curriculum_calendar_events',['id','kind','label','starts_on','ends_on','exa
 ins('curriculum_exclusions',['id','source_id','section','code','reason'],
     [[q(f"x{i+1}"),q(x['source']),q(x['section']),q(x.get('code')),q(x['reason'])] for i,x in enumerate(reg['excluded'])],['id'])
 out.append("COMMIT;")
-open(os.path.join(ROOT,'supabase/migrations/20261101100100_curriculum_seed.sql'),'w').write("\n".join(out)+"\n")
+MIG=sys.argv[1] if len(sys.argv)>1 else '20261101100100_curriculum_seed.sql'
+open(os.path.join(ROOT,'supabase/migrations',MIG),'w').write("\n".join(out)+"\n")
 os.makedirs(os.path.join(ROOT,'data/curriculum/review'),exist_ok=True)
 with open(os.path.join(ROOT,'data/curriculum/review/outcomes.csv'),'w',newline='') as f:
     w=csv.writer(f); w.writerow(['program_id','program','badge','unit','code','text','topic','quotas','source_url','quota_source_url','text_similarity','program_version','sha256','fetched_at']); w.writerows(csvrows)
