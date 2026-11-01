@@ -100,3 +100,28 @@ export function scenarioOptions(program: CurriculumProgram, examKey: CurriculumE
   const exam = program.exams[examKey];
   return exam && !exam.national ? [...exam.scenarios].sort((a, b) => a - b) : [];
 }
+
+/**
+ * Sihirbazın ders/sınav adımında seçilen sınav türünden resmî program düzeyi (1 Kasım 2026).
+ * TYT/AYT/YKS → "yks", LGS → "sinif-8", "10. sınıf" → "sinif-10"; tanınmazsa null.
+ */
+export function levelForExamLabel(label: string | null | undefined): string | null {
+  const text = (label ?? "").toLocaleUpperCase("tr-TR");
+  if (/\b(TYT|AYT|YKS)\b/.test(text)) return "yks";
+  if (/\bLGS\b/.test(text)) return "sinif-8";
+  const grade = /\b(\d{1,2})\s*\.?\s*SINIF/.exec(text);
+  return grade ? `sinif-${Number(grade[1])}` : null;
+}
+
+/** Seçilen sınav TYT mi AYT mi (YKS programında dürüst not için); ikisi de değilse null. */
+export function yksPartForLabel(label: string | null | undefined): "TYT" | "AYT" | null {
+  const text = (label ?? "").toLocaleUpperCase("tr-TR");
+  if (/\bTYT\b/.test(text)) return "TYT";
+  if (/\bAYT\b/.test(text)) return "AYT";
+  return null;
+}
+
+/** Programın okul yazılısı var mı; yoksa "Hangi yazılı" seçimi gösterilmez. */
+export function hasSchoolExams(program: { exams: Record<string, unknown> }): boolean {
+  return Object.keys(program.exams ?? {}).length > 0;
+}

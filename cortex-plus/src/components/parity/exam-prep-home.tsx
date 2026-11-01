@@ -59,7 +59,7 @@ import { STUDY_PATH_HINT, mockExamSetupHref, nodeNeedsStudentUnlock, studentMayS
 import { chooseStudyNode } from "@/lib/learning/choose-study-node";
 import { FreeActivityPicker } from "@/components/parity/free-activity-picker";
 import { PATH_FAR_NOTE, farNodeIds } from "@/lib/learning/study-path-window";
-import { buildPathSections, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
+import { buildPathSections, distinctTopicCount, sectionMasteryPct, sectionStatusLine } from "@/lib/learning/path-sections";
 import {
   applyDisplayDates,
   isShortPlan,
@@ -1341,9 +1341,11 @@ function PathSections({
       })}
       {hidden.length ? (
         <button type="button" className="cp-path-section-more" onClick={() => setTailOpen(true)}>
-          {hidden.every((section) => section.locked)
-            ? `Kalan kilitli konular (${hidden.length} konu)`
-            : `Kalan konular (${hidden.length} konu)`}
+          {(() => {
+            const count = distinctTopicCount(hidden);
+            const lead = hidden.every((section) => section.locked) ? "Kalan kilitli konular" : "Kalan konular";
+            return count ? `${lead} (${count} konu)` : `${lead.replace("konular", "adımlar")} (${hidden.length} bölüm)`;
+          })()}
         </button>
       ) : null}
       {examDayLine ? (

@@ -461,6 +461,7 @@ export function ExamCreateWizard({
   /** The course map ran out of attempts: offer a calm "Tekrar dene". */
   const [mapRetry, setMapRetry] = useState(false);
   const [draftResumeBanner, setDraftResumeBanner] = useState(false);
+  const draftResetAt = useRef(0);
   // "Baştan başla" sayfa içinde onaylanır (19 Ekim 2026): tarayıcının onay penceresi tasarıma uymuyor,
   // canlıda sekmeyi de kilitledi.
   const [confirmReset, setConfirmReset] = useState(false);
@@ -491,6 +492,11 @@ export function ExamCreateWizard({
   const alive = useRef(true);
 
   const resetWizard = useCallback(() => {
+    // 1 Kasım 2026: "Baştan başla" sonrası bekleyen kayıt zamanlayıcıları eski seçimleri geri yazıyor,
+    // geç dönen sunucu taslağı da "Kaldığın yerden devam ediyorsun" bandını geri açıyordu.
+    draftResetAt.current = Date.now();
+    if (draftWriteTimer.current) window.clearTimeout(draftWriteTimer.current);
+    if (draftPushTimer.current) window.clearTimeout(draftPushTimer.current);
     void dropExamWizardDraft();
     clearPendingDocProcess({ surface: "exam-wizard" });
     setStep("subject");
@@ -578,7 +584,7 @@ export function ExamCreateWizard({
     // Buradaki boş tarayıcı kopyası kıyasa girmez; girerse dolu sunucu kopyasını yener.
     let cancelled = false;
     void fetchExamWizardDraft().then((remote) => {
-      if (cancelled || !startedDraft(remote)) return;
+      if (cancelled || draftResetAt.current || !startedDraft(remote)) return;
       if (pickNewerDraft(startedDraft(local), remote) !== remote) return;
       applyDraft(remote!);
       writeExamWizardDraft(remote!);
@@ -1911,6 +1917,7 @@ export function ExamCreateWizard({
           {importPanel === "curriculum" ? (
             <OfficialCurriculumPanel
               gradeLevel={gradeLevel}
+              examLabel={subject}
               onClose={() => setImportPanel("none")}
               onPick={takeOfficialCurriculum}
               onChatFallback={(pick) => onUseChat({ subject: pick.subject, examDate, target, prompt: pick.prompt })}
