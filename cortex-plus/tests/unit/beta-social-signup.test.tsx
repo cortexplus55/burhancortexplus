@@ -94,9 +94,9 @@ describe("başka tarayıcıda onaylanan kayıt: dönüş adresi kaybolmaz", () =
   });
 
   it("kodlu bağlantı oturumsuz öğrenciyi kayda götürür; kayıttaki giriş bağlantısı kodu taşır", () => {
-    expect(read("src/lib/supabase/middleware.ts")).toContain(
-      'url.pathname = path === "/pay" && request.nextUrl.searchParams.has("kod") ? "/kayit" : "/giris";',
-    );
+    const mw = read("src/lib/supabase/middleware.ts");
+    expect(mw).toContain('if (path === "/pay" && search.has("kod")) return "/kayit";');
+    expect(mw).toContain("url.pathname = guestEntryPath(path, request.nextUrl.searchParams);");
     expect(read("src/components/layout/signup-premium-shell.tsx")).toContain("<Link href={loginHref}");
     expect(read("src/app/kayit/signup-wizard.tsx")).toContain(
       '? `/giris?next=${encodeURIComponent(safeNextPath(searchParams.get("next"), ""))}`',

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
+import { finalizeCompletedDeletions, processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
 import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,8 @@ export async function GET(request: Request) {
   try {
     const documents = await processPendingDocumentDeletions(service);
     const processed = await processPendingDeletionRequests(service);
-    return NextResponse.json({ ok: true, processed, documents });
+    const finalized = await finalizeCompletedDeletions(service);
+    return NextResponse.json({ ok: true, processed, documents, finalized });
   } catch {
     console.error("data_deletion_worker_failed");
     return NextResponse.json({ error: "deletion_worker_failed" }, { status: 503 });

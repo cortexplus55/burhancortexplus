@@ -10,7 +10,7 @@ import {
   trialNotice,
   type BillingPeriod,
 } from "@/lib/payments/subscription";
-import { processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
+import { finalizeCompletedDeletions, processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
 import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { cleanupExpiredUploads } from "@/lib/documents/upload-cleanup";
@@ -168,11 +168,12 @@ export async function GET(request: Request) {
     bir tarayıcıdır — self-serve silme zaten anında purge deniyor — o yüzden
     günde bir tur yeterli. `/api/cron/data-deletion` elle tetikleme için duruyor.
   */
-  let deletion: { processed: number; documents: number } | null = null;
+  let deletion: { processed: number; documents: number; finalized: number } | null = null;
   try {
     const documents = await processPendingDocumentDeletions(service);
     const processed = await processPendingDeletionRequests(service);
-    deletion = { processed, documents };
+    const finalized = await finalizeCompletedDeletions(service);
+    deletion = { processed, documents, finalized };
   } catch {
     logOpsEvent("subscription_sync_failed", { stage: "deletion_queue" });
   }

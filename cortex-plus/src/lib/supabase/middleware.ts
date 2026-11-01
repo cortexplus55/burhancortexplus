@@ -28,7 +28,20 @@ const LEGACY_ALIASES: Record<string, string> = {
   "/sor": "/soru-coz",
   "/chat": "/ogretmen",
   "/podcast": "/studio/podcast",
+  // 2 Kasım 2026: "sık sorulan sorular" için tahmin edilen adres 404 veriyordu; cevaplar Yardım'da.
+  "/sss": "/yardim",
 };
+
+/**
+ * Yeni öğrenciyi taşıyan korumalı adresler: misafir "Tekrar hoş geldin" diyen girişe değil kayda düşer
+ * (`next` korunur; kayıttaki "Giriş yap" bağlantısı onu taşır). Sınav kurulumu bağlantıları pazarlama
+ * sayfalarından ve Hızlı Tarama sonucundan geliyor.
+ */
+export function guestEntryPath(path: string, search: URLSearchParams): "/kayit" | "/giris" {
+  if (path === "/pay" && search.has("kod")) return "/kayit";
+  if (path === "/deneme-sinavlari/resmi/kurulum" || path.startsWith("/deneme-sinavlari/resmi/kurulum/")) return "/kayit";
+  return "/giris";
+}
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -153,7 +166,7 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     // Kodlu bağlantı (/pay?kod=…) sosyal medyadan yeni öğrenciye gidiyor (20 Ekim 2026): "Tekrar hoş
     // geldin" diyen giriş yerine kayıt açılır; kayıttaki "Giriş yap" bağlantısı `next`i taşır.
-    url.pathname = path === "/pay" && request.nextUrl.searchParams.has("kod") ? "/kayit" : "/giris";
+    url.pathname = guestEntryPath(path, request.nextUrl.searchParams);
     // Sorgu `next`in içinde kalır: beta kodu bağlantısı (/pay?kod=…) girişten ve kayıttan
     // sonra kutusu dolu açılır (19 Ekim 2026). Sorgusuz yolda adres eskisi gibi.
     url.search = "";

@@ -27,6 +27,8 @@ test.describe("Seviye kontrolü", { tag: ["@public"] }, () => {
     }
     const end = page.getByTestId("guest-signup");
     await expect(end).toContainText("kaydedilmedi");
+    // Sonuç yalnız sayı değil: her sorunun ünitesi ve doğru/yanlışı.
+    await expect(end.getByTestId("guest-results").locator("li")).toHaveCount(3);
     await expect(end.getByRole("link", { name: "Ücretsiz hesap aç" })).toHaveAttribute("href", /\/kayit\?next=/);
     await noOverflow(page);
   });

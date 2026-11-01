@@ -109,8 +109,11 @@ export function DemoVisualFeast() {
             <span className="dm-feast-sim-arm" />
             <span className="dm-feast-sim-dot" />
           </div>
-          <Link href="/araclar/birim-cember" className="dm-btn dm-btn--sm dm-feast-sim-link">
-            {SIM_TOOL.title} →
+          <Link
+            href={`/kayit?next=${encodeURIComponent("/araclar/birim-cember")}`}
+            className="dm-btn dm-btn--sm dm-feast-sim-link"
+          >
+            Ücretsiz kaydol, {SIM_TOOL.title} aracını aç →
           </Link>
           <p className="dm-feast-sim-note">
             Araçlar kayıtlı hesapta açılır; burası ön izleme.

@@ -58,7 +58,7 @@ export default function RouteError({
           </Link>
         </div>
         <p className="mt-6 text-xs text-[#737373]">
-          <Link href="/destek" className="underline hover:text-[#a3a3a3]">
+          <Link href="/iletisim" className="underline hover:text-[#a3a3a3]">
             Destek
           </Link>
         </p>
