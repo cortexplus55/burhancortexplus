@@ -69,7 +69,8 @@ describe("ders açılışı tek kart, renk anahtarı vaat etmez", () => {
   it("giriş kartının renk anahtarı 'sınavda çıkar' demez", () => {
     const steps = readSource("src/components/parity/exam-lesson-steps.tsx");
     expect(steps).not.toContain("işaretli yerler sınavda çıkar");
-    expect(steps).toContain("sınavda sık sorulan kilit bilgi");
+    expect(steps).not.toContain("sınavda sık sorulan kilit bilgi");
+    expect(steps).toContain("konunun kilit bilgisi");
   });
 });
 

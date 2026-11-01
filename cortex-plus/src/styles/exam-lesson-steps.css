@@ -1591,3 +1591,14 @@
     background: transparent;
   }
 }
+
+/* Sabit geri bildirim paneli içeriğin üstünü örtmesin: altta panel kadar boşluk (2 Kasım 2026). */
+.als:has(.als-feedback) {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+.als-feedback {
+  z-index: 4;
+}
+.als-feedback:not(.is-right) {
+  box-shadow: 0 -12px 24px -12px rgba(0, 0, 0, 0.6);
+}

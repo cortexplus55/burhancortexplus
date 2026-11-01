@@ -14550,3 +14550,16 @@ a.cp-exam-search {
     flex: none;
   }
 }
+
+/* Test: "Kontrol et / Devam et" alt kenarda sabit; telefonda başparmağa yakın, çentik payı korunur (2 Kasım 2026). */
+.cp-quiz-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 0 -4px;
+  padding: 10px 4px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--cp-bg, #0b0b0f) 75%, transparent);
+}
+.cp-quiz-why { list-style: none; }
+.cp-quiz-why-option { display: block; }
+.cp-quiz-why-text { margin-top: 2px; }

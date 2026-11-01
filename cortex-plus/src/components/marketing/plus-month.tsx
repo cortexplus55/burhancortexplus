@@ -167,26 +167,17 @@ function PlusMonthFull({ monthlyKurus, primary, secondary, headingLevel = "h2", 
 /** Ücretsiz öğrencinin ana ekranındaki kart: dört sayı, enerji halkası, tek düğme. */
 function PlusMonthCompact({ monthlyKurus, primary, secondary }: PlusMonthProps) {
   const plus = PLAN_ALLOWANCES.plusMonthly;
-  const preset = TEMPO_PRESETS.find((item) => item.id === "sinav-ayi") ?? TEMPO_PRESETS[0]!;
-  const share = Math.round(mixShare(tempoMix(preset.tempo)) * 100);
   const items: PlanWorkId[] = ["lesson", "quiz", "podcast", "video"];
   return (
-    <section className="pm-card" aria-labelledby="pm-card-title">
+    <section className="pm-card pm-card--plain" aria-labelledby="pm-card-title">
       <div className="pm-card-glow" aria-hidden />
-      <div className="pm-card-ring" style={{ ["--pm-share" as string]: `${share}%` }} aria-hidden>
-        <span>
-          <b>%{share}</b>
-          <small>sınav ayı temposu</small>
-        </span>
-      </div>
       <div className="pm-card-body">
         <p className="pm-kicker">
           <span className="pm-live" aria-hidden />
           Plus ile bu ay
         </p>
         <h2 id="pm-card-title" className="pm-card-title">
-          Günde {preset.tempo.lessonsPerDay} ders, {preset.tempo.quizzesPerDay} test ve haftada {preset.tempo.podcastsPerWeek} podcast — hakkının <span className="pm-gold">%{share}</span>
-          {possessiveSuffix(share)}.
+          Bir ayda daha çok ders, test ve podcast.
         </h2>
         <ul className="pm-card-counts">
           {items.map((id) => {

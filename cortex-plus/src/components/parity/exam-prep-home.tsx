@@ -1,5 +1,6 @@
 "use client";
 
+import { withoutGradeParts } from "@/lib/learning/path-labels";
 import { FirstTopicLockCard } from "@/components/parity/first-topic-lock";
 import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
 import Link from "next/link";
@@ -194,7 +195,8 @@ function labelsFor(topicLabels: string[], rows: { title: string }[]): string[] {
 /** "Birim Çember · Ders · notlar s.10–18" → "Birim Çember". */
 function nodeHeading(node: HomeNode): string {
   const raw = node.title || PLAN_NODE_META[node.kind].title;
-  const parts = raw.split(" · ").map((part) => part.trim());
+  // "9. Sınıf · Mantık" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
+  const parts = withoutGradeParts(raw.split(" · ").map((part) => part.trim()));
   // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
   // kendi adı. Astra kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
   const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
