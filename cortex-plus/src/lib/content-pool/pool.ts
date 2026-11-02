@@ -102,14 +102,21 @@ export async function getUnitContent(
   }
   if (!claim.claimed) return { status: "pending", ms: ms() };
 
+  // Maliyet her çağrı döner dönmez yazılır: üretim yarıda kesilirse (hata, süre aşımı) yapılmış çağrıların gideri de
+  // bütçe ölçüsüne (SHARED_CONTENT toplamı) girer; önceden sonda toplu yazılıyor, kesilen üretimde kayboluyordu.
+  const record = (usage: Parameters<PoolStore["recordUsage"]>[1]) =>
+    deps.store.recordUsage(deps.userId, usage).catch((e) => console.error("[content-pool] kullanım kaydı yazılamadı", String(e)));
+  let calls = 0;
   let result: Awaited<ReturnType<typeof generateUnitContent>>;
   try {
-    result = await generateUnitContent(unit, deps.llm);
+    result = await generateUnitContent(unit, deps.llm, undefined, async (entry) => {
+      calls += 1;
+      await record([entry]);
+    });
   } catch (error) {
     await deps.store.retire(claim.id, "rejected", { reason: "generation_error", message: String(error).slice(0, 400), gate_version: GATE_VERSION });
-    return { status: "failed", reason: "generation_error", llmCalls: 0, ms: ms() };
+    return { status: "failed", reason: "generation_error", llmCalls: calls, ms: ms() };
   }
-  await deps.store.recordUsage(deps.userId, result.usage).catch(() => undefined);
   if (!result.ok) {
     await deps.store.retire(claim.id, "rejected", { reason: result.reason, ...result.qa });
     return { status: "failed", reason: result.reason, llmCalls: result.usage.length, ms: ms() };

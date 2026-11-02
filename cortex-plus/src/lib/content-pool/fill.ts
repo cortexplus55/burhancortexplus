@@ -38,7 +38,7 @@ function targets(program: FillProgram, group: FillGroup, keep: (grade: number | 
   );
 }
 
-/** Doldurma sırası: TYT (9–10. sınıf) → LGS → AYT (11–12. sınıf ya da sınıfsız) → EXTRA_GROUPS. Aynı ünite iki kez girmez. */
+/** Doldurma sırası: TYT (9–10. sınıf) → LGS → AYT (11–12. sınıf ya da sınıfsız) → KPSS/TUS/DUS/ALES/DGS/YDS dönüşümlü → MEB. Aynı ünite iki kez girmez. */
 export function fillOrder(programs: FillProgram[]): FillTarget[] {
   const byId = new Map(programs.map((p) => [p.id, p]));
   const isTyt = (g: number | null) => g === 9 || g === 10;
@@ -46,9 +46,21 @@ export function fillOrder(programs: FillProgram[]): FillTarget[] {
   for (const id of TYT_PROGRAMS) { const p = byId.get(id); if (p) out.push(...targets(p, "TYT", isTyt)); }
   for (const p of programs.filter((p) => p.id.startsWith(LGS_PREFIX)).sort((a, b) => a.id.localeCompare(b.id))) out.push(...targets(p, "LGS", () => true));
   for (const id of [...TYT_PROGRAMS, ...AYT_EXTRA_PROGRAMS]) { const p = byId.get(id); if (p) out.push(...targets(p, "AYT", (g) => !isTyt(g))); }
-  for (const { group, kind } of EXTRA_GROUPS) for (const p of programs.filter((p) => p.kind === kind)) out.push(...targets(p, group, () => true));
+  // Sınav grupları (KPSS…YDS) sırayla değil dönüşümlü: TUS/DUS KPSS'nin bitmesini beklemez. Grup içinde de dersler
+  // dönüşümlü (her dersin 1. ünitesi önce), ünite sırası korunur. MEB okul programları yine en sonda.
+  const lanes = (kinds: typeof EXTRA_GROUPS) =>
+    kinds.map(({ group, kind }) => roundRobin(programs.filter((p) => p.kind === kind).map((p) => targets(p, group, () => true))));
+  out.push(...roundRobin(lanes(EXTRA_GROUPS.filter((g) => g.group !== "MEB"))));
+  out.push(...lanes(EXTRA_GROUPS.filter((g) => g.group === "MEB")).flat());
   const seen = new Set<string>();
   return out.filter((t) => (seen.has(t.unitId) ? false : (seen.add(t.unitId), true)));
+}
+
+/** Listeleri dönüşümlü birleştirir: her listenin 1. öğesi, sonra 2. öğesi…; listelerin kendi sırası korunur. */
+export function roundRobin<T>(lists: T[][]): T[] {
+  const out: T[] = [];
+  for (let i = 0, max = Math.max(0, ...lists.map((l) => l.length)); i < max; i += 1) for (const l of lists) if (i < l.length) out.push(l[i]!);
+  return out;
 }
 
 /** `only` öneklerinden birine uyan hedefler; doldurma sırası korunur. Boş liste = tüm sıra. */

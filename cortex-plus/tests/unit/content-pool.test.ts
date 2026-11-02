@@ -228,6 +228,21 @@ describe("ortak içerik havuzu: read-through önbellek", () => {
     expect([...fresh.rows.values()].map((r) => r.status)).toEqual(["stale", "verified"]);
   });
 
+  it("üretim yarıda kesilse de yapılmış çağrıların maliyeti kaydedilir", async () => {
+    const unit = poolUnit(UNIT)!;
+    const store = memoryStore();
+    const good = fakeLlm(unit);
+    let n = 0;
+    const flaky: LlmCall = async (args) => {
+      n += 1;
+      if (n === 2) throw new Error("timeout");
+      return good(args);
+    };
+    const result = await getUnitContent(UNIT, { store, llm: flaky, userId: "u1" });
+    expect(result.status).toBe("failed");
+    expect(store.usage).toBe(1);
+  });
+
   it("doğrulanmayan içerik havuza yazılmaz", async () => {
     const unit = poolUnit(UNIT)!;
     const store = memoryStore();

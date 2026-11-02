@@ -7,7 +7,7 @@ import { parseModelOutput } from "@/lib/ai/json-repair";
 import { turkishFold } from "@/lib/text/turkish";
 import type { UsageCode } from "@/lib/credits/service";
 import { choiceCount, itemsPerPair, type PoolUnit } from "@/lib/content-pool/keys";
-import { GATE_VERSION, garbledReason, gateItems } from "@/lib/content-pool/gate";
+import { GATE_VERSION, garbledExcerpt, garbledReason, gateItems } from "@/lib/content-pool/gate";
 import { BLUEPRINT_VERSION, blueprintIssues, blueprintKind, blueprintPrompt } from "@/lib/content-pool/blueprint";
 import { LOGIC_TERMS_RULE, logicTermIssues, needsLogicTermsRule } from "@/lib/learning/logic-terms";
 import {
@@ -390,6 +390,8 @@ export async function generateUnitContent(
   unit: PoolUnit,
   llm: LlmCall,
   models: { generate: string; verify: string } = { generate: env.OPENAI_CONTENT_MODEL, verify: SHARED_VERIFY_MODEL },
+  /** Her çağrının kullanımı döner dönmez bildirilir (maliyet kaydı yarıda kesilen üretimde de tutulsun). */
+  onUsage?: (entry: UsageEntry) => Promise<void>,
 ): Promise<GeneratedUnit> {
   const usage: UsageEntry[] = [];
   const call = async (
@@ -399,7 +401,9 @@ export async function generateUnitContent(
   ) => {
     const out = await llm({ model, ...prompt });
     // Fiyat satırları (ai_model_prices) istenen model adıyla tutulur; yanıttaki tarihli sürüm adı (gpt-4.1-2025-04-14) fiyatsız kalır.
-    usage.push({ actionCode, model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
+    const entry = { actionCode, model, tokensIn: out.tokensIn, tokensOut: out.tokensOut };
+    usage.push(entry);
+    if (onUsage) await onUsage(entry);
     return out.text;
   };
   const codes = unit.outcomes.map((o) => o.code);
@@ -421,7 +425,7 @@ export async function generateUnitContent(
   lesson.sections = lesson.sections.filter((s) => known.has(s.outcome_code.trim()));
 
   let items: PoolItem[] = [];
-  const rejected: { code: string; reason: string }[] = [];
+  const rejected: { code: string; reason: string; excerpt?: string }[] = [];
   let gateRejected = 0;
   const parseFailures: { round: number; step: "items" | "verify"; excerpt: string }[] = [];
   // Anlatım modelle yeniden okunmaz (maliyet kararı); kazanım kapsaması ve metin bütünlüğü kodda denetlenir.
@@ -432,7 +436,9 @@ export async function generateUnitContent(
     ...(lesson.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
   ];
   const rubricIssues = lessonQualityIssues(lesson);
+  const lessonExcerpts = lessonText.filter((t) => garbledReason(t) !== null).slice(0, 5).map(garbledExcerpt);
   const lessonReview = {
+    ...(lessonExcerpts.length ? { excerpts: lessonExcerpts } : {}),
     ok: lessonGarbled.length === 0 && rubricIssues.length === 0,
     issues: [...new Set([...lessonGarbled, ...rubricIssues])],
     by: "ts_gate",
@@ -451,7 +457,7 @@ export async function generateUnitContent(
     const shape = checkShape(lesson, [], codes, choices);
     shapeIssues = shape.lessonIssues;
     const gated = gateItems(fresh.items, gateUnit, perPair);
-    rejected.push(...gated.rejected.map((r) => ({ code: r.code, reason: `kapı: ${r.reason}` })));
+    rejected.push(...gated.rejected.map((r) => ({ code: r.code, reason: `kapı: ${r.reason}`, ...(r.excerpt ? { excerpt: r.excerpt } : {}) })));
     gateRejected += gated.rejected.length;
     const wanted = new Map<string, number>();
     for (const p of pairs) wanted.set(p, (wanted.get(p) ?? 0) + 1);

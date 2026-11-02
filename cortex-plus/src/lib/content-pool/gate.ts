@@ -20,7 +20,7 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  */
 // v9: check bloğu dizi gövde/öncül alanı/nesne seçenek/metin cevap biçimleri okunur
 // v10: sıralama/şık imleri ("A)", "1)") parantez dengesinde sayılmaz
-export const GATE_VERSION = 10;
+export const GATE_VERSION = 11; // 11: matematik gösterimi maskesi genişledi (2 Kasım 2026); v10 retleri yeniden denenir
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {
@@ -35,7 +35,7 @@ export function duplicateStrictOption(options: readonly string[]): boolean {
 export type GateOutcome = { code: string; outcomeId: string; limitations: string[] };
 export type GateUnit = { unitId: string; outcomes: GateOutcome[]; choices: number };
 export type GatedItem = PoolItem & { unit_id: string; outcome_id: string };
-export type GateRejection = { code: string; difficulty: string; reason: string };
+export type GateRejection = { code: string; difficulty: string; reason: string; excerpt?: string };
 
 export const STEM_LEN = { min: 20, max: 1200 } as const;
 export const EXPLANATION_LEN = { min: 20, max: 1500 } as const;
@@ -47,9 +47,28 @@ export const CHOICE_MAX = 300;
  * sayılmaz. Gerçek kırık parantez (kapanmayan "(" ya da yalnız ")") yine yakalanır.
  */
 export function maskMathNotation(text: string): string {
-  return text
+  let out = text
     .replace(/\$\$[\s\S]{1,400}?\$\$|\$[^$\n]{1,200}\$|\\\([\s\S]{1,400}?\\\)|\\\[[\s\S]{1,400}?\\\]/g, " İFADE ")
-    .replace(/[[(\]]\s*[^[\]()\s,;]{1,25}\s*[,;]\s*[^[\]()\s,;]{1,25}\s*[\])[]/gu, " ARALIK ");
+    // Küme/mantık/eşitsizlik/üs/kesir gösterimleri: {x | x > 2}, x ∈ [1, 5), p ⇒ (q ∧ r), 2^(n+1), (a+b)/(c−d)
+    .replace(/[∈∉⊂⊆∪∩∧∨¬⇒⇔→↔≤≥≠<>^/]/gu, " ");
+  // İç içe dengeli çiftler (f(x), (a+b)) içten dışa ayıklanır; sonra karışık uçlu aralıklar
+  // ([a, b), (−∞, 3], ]a, b[, [a − 1, b + 2)) maskelenir. Geriye kalan dengesizlik gerçek kırık paranteze işaret eder.
+  for (let i = 0; i < 8; i += 1) {
+    const next = out
+      .replace(/\([^()[\]{}]*\)|\[[^()[\]{}]*\]|\{[^()[\]{}]*\}/g, " ÖBEK ")
+      .replace(/[[(\]][^()[\]{}\n]{0,60}[,;][^()[\]{}\n]{0,60}[\])[]/gu, " ARALIK ");
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
+/** Kapının reddettiği yerin kısa alıntısı (qa'ya yazılır; neden reddedildiği görülsün). */
+export function garbledExcerpt(text: string): string {
+  const masked = maskListMarkers(maskMathNotation(text));
+  const at = masked.search(/[()[\]{}]/);
+  const raw = at >= 0 ? text.slice(Math.max(0, at - 60), at + 60) : text.slice(0, 120);
+  return raw.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -57,7 +76,7 @@ export function maskMathNotation(text: string): string {
  * (2 Kasım 2026, ALES/DGS/YDS iskelet adımları ve seçenek listeleri yanlış ret). Gerçek açık kalan "(" yine yakalanır.
  */
 export function maskListMarkers(text: string): string {
-  return text.replace(/(^|[\s:;,.])((?:[A-Ea-e]|\d{1,2}|[IVXivx]{1,4}))\)(?=\s)/gu, "$1$2.");
+  return text.replace(/(^|[\s:;,.])((?:[A-EÇa-eç]|\d{1,2}|[IVXivx]{1,4}))\)(?=\s)/gu, "$1$2.");
 }
 
 /** Yapışık ya da bozuk metin: kodlama bozulması, küçük harfe yapışık büyük harf, boşluksuz uzun dizi, kırık parantez. */
@@ -136,7 +155,7 @@ function lengthReason(label: string, text: string, range: { min: number; max: nu
 }
 
 /** Tek soru: onarılmış soru ya da ret gerekçesi. */
-export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | { reason: string } {
+export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | { reason: string; excerpt?: string } {
   const code = item.outcome_code.trim();
   const outcome = unit.outcomes.find((o) => o.code === code);
   if (!outcome) return { reason: "kayıtta olmayan kazanım" };
@@ -154,7 +173,7 @@ export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | 
   if (length) return { reason: length };
   for (const text of [stem, explanation, ...choices]) {
     const garbled = garbledReason(text);
-    if (garbled) return { reason: garbled };
+    if (garbled) return { reason: garbled, excerpt: garbledExcerpt(text) };
   }
   const logic = logicTermIssues(`${stem} ${explanation}`);
   if (logic.length) return { reason: `mantık terimi hatası: ${logic[0]}` };
@@ -180,7 +199,7 @@ export function gateItems(items: PoolItem[], unit: GateUnit, perPair = 1): {
   for (const raw of items) {
     const result = gateItem(raw, unit);
     if ("reason" in result) {
-      rejected.push({ code: raw.outcome_code, difficulty: raw.difficulty, reason: result.reason });
+      rejected.push({ code: raw.outcome_code, difficulty: raw.difficulty, reason: result.reason, ...(result.excerpt ? { excerpt: result.excerpt } : {}) });
       continue;
     }
     const key = `${result.item.outcome_code}|${result.item.difficulty}`;

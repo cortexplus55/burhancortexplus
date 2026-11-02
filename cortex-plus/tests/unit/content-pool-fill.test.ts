@@ -41,6 +41,18 @@ describe("fillOrder", () => {
     const groups = [...new Set(order.slice(firstAyt).map((t) => t.group))];
     expect(groups).toEqual(["AYT", "KPSS", "TUS", "DUS", "ALES", "DGS", "YDS", "MEB"]);
   });
+
+  it("sınav grupları dönüşümlü: TUS/DUS/ALES/DGS/YDS KPSS'yi beklemez, grupta her dersin 1. ünitesi önce", () => {
+    const order = fillOrder(registry.programs);
+    const exams = order.filter((t) => ["KPSS", "TUS", "DUS", "ALES", "DGS", "YDS"].includes(t.group));
+    const present = [...new Set(exams.map((t) => t.group))];
+    expect(new Set(exams.slice(0, present.length).map((t) => t.group)).size).toBe(present.length);
+    const lastExam = order.map((t) => t.group).lastIndexOf(exams.at(-1)!.group);
+    expect(order.findIndex((t) => t.group === "MEB")).toBeGreaterThan(lastExam);
+    const kpss = exams.filter((t) => t.group === "KPSS");
+    const kpssPrograms = new Set(kpss.map((t) => t.programId)).size;
+    expect(kpss.slice(0, kpssPrograms).every((t) => t.unitId.endsWith("#1"))).toBe(true);
+  });
 });
 
 function deps(over: Partial<FillDeps> & { outcomes?: Record<string, FillOutcome[]>; costPerUnit?: number; startSpent?: number } = {}) {
@@ -178,5 +190,34 @@ describe("doldurucu: only önekleri", () => {
     ];
     expect(restrictOrder(order, [])).toEqual(order);
     expect(restrictOrder(order, ["tus-2026-deep-dahiliye#2", "kpss-2026-deep-"]).map((t) => t.unitId)).toEqual(["kpss-2026-deep-tarih#1", "tus-2026-deep-dahiliye#2"]);
+  });
+});
+
+describe("kapı: matematik gösterimi kırık cümle sayılmaz, gerçek hata yakalanır", async () => {
+  const { garbledReason, garbledExcerpt, gateItem } = await import("@/lib/content-pool/gate");
+  const { logicTermIssues } = await import("@/lib/learning/logic-terms");
+  const ok = [
+    "Çözüm kümesi [a − 1, b + 2) aralığıdır ve uç noktalar dahil edilir.",
+    "A = {x | x ∈ ℤ, −2 ≤ x < 3} kümesinin eleman sayısı 5'tir.",
+    "f(g(x)) = 2^(n+1) ifadesinde (a+b)/(c−d) kesri sadeleşir.",
+    "p ⇒ (q ∧ r) önermesi ancak p doğru ve (q ∧ r) yanlışken yanlıştır.",
+    "x ∈ (−∞, 3] ∪ ]5, 7[ için eşitsizlik sağlanır.",
+    "Seçenekler: ç) 12 ve d) 15 olarak verilmiştir.",
+    "ALES sayısal: (2/3)·(9/4) = 3/2 ve 3^(−2) = 1/9 olur.",
+  ];
+  it.each(ok)("geçer: %s", (t) => expect(garbledReason(t)).toBeNull());
+  it("gerçek kırık parantez yakalanır ve alıntısı verilir", () => {
+    const bad = "Bu durumda sonuç (yani toplam değer olarak bulunur ve devam edilir.";
+    expect(garbledReason(bad)).toBe("kırık cümle yapısı");
+    expect(garbledExcerpt(bad)).toContain("(yani");
+  });
+  it("karşıt/karşıt ters terim hatası yine yakalanır", () => {
+    expect(logicTermIssues("p ⇒ q önermesinin karşıt tersi ¬p ⇒ ¬q olarak yazılır.").length).toBeGreaterThan(0);
+    expect(logicTermIssues("p ⇒ q önermesinin karşıtı q ⇒ ¬p olarak yazılır.").length).toBeGreaterThan(0);
+  });
+  it("soru kapısı ret alıntısını döndürür", () => {
+    const r = gateItem({ outcome_code: "X.1", difficulty: "easy", stem: "Aşağıdakilerden hangisi (doğru cevap olarak verilir?", choices: ["1", "2", "3", "4", "5"], answer: 0, explanation: "Açıklama metni yeterince uzun bir metindir." } as never, { unitId: "u", outcomes: [{ code: "X.1", outcomeId: "o", limitations: [] }], choices: 5 });
+    expect(r).toMatchObject({ reason: "kırık cümle yapısı" });
+    expect((r as { excerpt?: string }).excerpt).toContain("(doğru");
   });
 });
