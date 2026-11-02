@@ -2528,6 +2528,9 @@
   margin: 0 auto;
   padding: 1.75rem 1.25rem 4rem;
   display: grid;
+  /* Örtük "auto" sütun en uzun kırılmaz metne (e-posta) göre genişliyor,
+     /ayarlar 320 px'te sayfayı 5 px kaydırıyordu (UX tur 2). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
   align-content: start;
 }
@@ -14579,3 +14582,10 @@ a.cp-exam-search {
 .cp-quiz-why { list-style: none; }
 .cp-quiz-why-option { display: block; }
 .cp-quiz-why-text { margin-top: 2px; }
+
+/* Bölüm kartı uzun, boşluksuz metni (e-posta adresi, bağlantı) satıra kırar;
+   /ayarlar 320 px'te uzun adres sayfayı 5 px yatay kaydırıyordu (UX tur 2). */
+.cp-section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
