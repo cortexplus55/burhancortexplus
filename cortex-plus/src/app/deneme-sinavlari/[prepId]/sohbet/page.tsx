@@ -12,6 +12,7 @@ import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { examChatGreeting, loadExamChatContext } from "@/lib/learning/exam-chat-context";
 import { EXAM_CHAT_STARTERS } from "@/lib/learning/exam-chat-chrome";
+import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
 
 /**
  * Sınavın içinden açılan sohbet.
@@ -40,7 +41,7 @@ export default async function ExamPrepChatPage({
   const context = await loadExamChatContext(supabase, user.id, prepId);
   if (!context) notFound();
 
-  const [{ data: profile }, isPremium, chatCost, feedbackOn, account, streak, { data: conversations }] =
+  const [{ data: profile }, isPremium, chatCost, feedbackOn, account, streak, { data: conversations }, prepDocumentIds] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -59,6 +60,8 @@ export default async function ExamPrepChatPage({
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(40),
+      // Kaynak modu ("Yalnızca belgem") yalnız hazırlığın belgesi varken (UX tur 2): belgesiz hazırlıkta seçenek yok.
+      loadPrepDocumentIds(supabase, prepId).catch(() => [] as string[]),
     ]);
 
   const style = parseTutorStyle(profile?.tutor_style);
@@ -133,7 +136,7 @@ export default async function ExamPrepChatPage({
         showEmptyStarter={false}
         showSubjectPicker={false}
         placeholder="Sor, konuş veya dosya gönder"
-        hasDocuments
+        hasDocuments={prepDocumentIds.length > 0}
         returnPath={`/deneme-sinavlari/${prepId}`}
         chatCreditCost={chatCost ?? undefined}
         isPremium={isPremium}
