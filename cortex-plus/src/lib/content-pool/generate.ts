@@ -320,6 +320,11 @@ export async function generateUnitContent(
 
   const lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit)));
   if (!lesson) return { ok: false, reason: "lesson_parse", qa: {}, usage };
+  // Kaynak metinde bir kazanımın açıklamasına gömülü başka bir kod (ör. "10.4.4. ...") model tarafından ayrı bölüm
+  // yapılabiliyor. Kayıtta olmayan kazanıma bölüm yazılmaz: bölüm atılır, kayıttaki kazanımların kapsaması aynen denetlenir.
+  const known = new Set(codes);
+  const droppedSections = lesson.sections.filter((s) => !known.has(s.outcome_code.trim())).map((s) => s.outcome_code.trim());
+  lesson.sections = lesson.sections.filter((s) => known.has(s.outcome_code.trim()));
 
   let items: PoolItem[] = [];
   const rejected: { code: string; reason: string }[] = [];
@@ -380,6 +385,7 @@ export async function generateUnitContent(
   const qa = {
     checked_at: new Date().toISOString(),
     lesson_shape_issues: shapeIssues,
+    dropped_sections: droppedSections,
     lesson_review: lessonReview,
     rejected_items: rejected,
     missing_pairs: missing,

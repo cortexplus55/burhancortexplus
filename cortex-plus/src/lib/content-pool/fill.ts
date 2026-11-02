@@ -4,7 +4,7 @@
  * Saf mantık burada (sınanır); Supabase ve rota ayrı.
  */
 
-export type FillGroup = "TYT" | "LGS" | "AYT";
+export type FillGroup = "TYT" | "LGS" | "AYT" | "KPSS" | "TUS" | "DUS" | "ALES" | "DGS" | "YDS" | "MEB";
 export type FillProgram = { id: string; kind: string; units: { title: string; outcomes: { grade?: number | null }[] }[] };
 export type FillTarget = { unitId: string; programId: string; group: FillGroup };
 
@@ -12,6 +12,19 @@ export type FillTarget = { unitId: string; programId: string; group: FillGroup }
 export const TYT_PROGRAMS = ["matematik", "tde", "fizik", "kimya", "biyoloji", "cografya", "felsefe", "dkab"].map((s) => `yks-2026-${s}`);
 export const AYT_EXTRA_PROGRAMS = ["tarih", "inkilap", "mantik", "psikoloji", "sosyoloji"].map((s) => `yks-2026-${s}`);
 export const LGS_PREFIX = "lgs-2027-";
+/**
+ * YKS/LGS'den sonra (t240u): diğer sınav programları `kind` alanına göre bu sırayla, en son MEB okul programları.
+ * Program listesi kayıt defterinden okunur; yeni program eklenince ayrıca kod gerekmez.
+ */
+export const EXTRA_GROUPS: { group: FillGroup; kind: string }[] = [
+  { group: "KPSS", kind: "kpss" },
+  { group: "TUS", kind: "tus" },
+  { group: "DUS", kind: "dus" },
+  { group: "ALES", kind: "ales" },
+  { group: "DGS", kind: "dgs" },
+  { group: "YDS", kind: "yds" },
+  { group: "MEB", kind: "okul" },
+];
 
 /** Ünitenin sınıfı: kazanımlarındaki en yüksek sınıf; hiçbirinde yoksa null. */
 export function unitGrade(unit: FillProgram["units"][number]): number | null {
@@ -25,7 +38,7 @@ function targets(program: FillProgram, group: FillGroup, keep: (grade: number | 
   );
 }
 
-/** Doldurma sırası: TYT (9–10. sınıf) → LGS → AYT (11–12. sınıf ya da sınıfsız). Aynı ünite iki kez girmez. */
+/** Doldurma sırası: TYT (9–10. sınıf) → LGS → AYT (11–12. sınıf ya da sınıfsız) → EXTRA_GROUPS. Aynı ünite iki kez girmez. */
 export function fillOrder(programs: FillProgram[]): FillTarget[] {
   const byId = new Map(programs.map((p) => [p.id, p]));
   const isTyt = (g: number | null) => g === 9 || g === 10;
@@ -33,6 +46,7 @@ export function fillOrder(programs: FillProgram[]): FillTarget[] {
   for (const id of TYT_PROGRAMS) { const p = byId.get(id); if (p) out.push(...targets(p, "TYT", isTyt)); }
   for (const p of programs.filter((p) => p.id.startsWith(LGS_PREFIX)).sort((a, b) => a.id.localeCompare(b.id))) out.push(...targets(p, "LGS", () => true));
   for (const id of [...TYT_PROGRAMS, ...AYT_EXTRA_PROGRAMS]) { const p = byId.get(id); if (p) out.push(...targets(p, "AYT", (g) => !isTyt(g))); }
+  for (const { group, kind } of EXTRA_GROUPS) for (const p of programs.filter((p) => p.kind === kind)) out.push(...targets(p, group, () => true));
   const seen = new Set<string>();
   return out.filter((t) => (seen.has(t.unitId) ? false : (seen.add(t.unitId), true)));
 }
