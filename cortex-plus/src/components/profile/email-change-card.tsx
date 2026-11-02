@@ -59,7 +59,7 @@ export function EmailChangeCard({
   return (
     <div className="space-y-3 text-sm">
       <p>
-        E-posta: <strong>{email ?? "—"}</strong>
+        E-posta: <strong className="break-all">{email ?? "—"}</strong>
       </p>
 
       {sentTo ? (
