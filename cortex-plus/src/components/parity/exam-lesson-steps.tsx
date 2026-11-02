@@ -52,7 +52,7 @@ import {
   type LessonBlock,
   type LessonV3,
 } from "@/lib/learning/lesson-v3";
-import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
+import { noteRepeatsText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
 import "@/styles/exam-lesson-steps.css";
 
@@ -487,7 +487,9 @@ function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false): Ste
         }
         // dropDuplicateNotes yalnızca eski üretimde çalışıyordu; o derslerde
         // metni tekrarlayan not hâlâ kayıtta durabilir — burada da ayıklanır.
-        if (block.type === "note" && isNearDuplicateText(block.note.body, text)) return [];
+        // Yalnız gövdesi büyük ölçüde tekrar eden not düşer; tek ortak ifade
+        // (ör. şık eleme tekniğinde geçen terim) iskelet kartını silmez.
+        if (block.type === "note" && noteRepeatsText(block.note.body, text)) return [];
         return [block];
       });
       const group = groups.find((item) => item.screens.includes(sectionIndex));
@@ -764,6 +766,28 @@ export function ExamLessonSteps({
     [base, sourceDocs],
   );
   const [index, setIndex] = useState(0);
+  // Sabit üst çubuk içeriği örtmesin: yüksekliği (mobilde iki satır) --als-top-h olarak yayınlanır,
+  // adım değişince ders, yeni adımın başı çubuğun hemen altında olacak şekilde yukarı kaydırılır.
+  const rootRef = useRef<HTMLElement>(null);
+  const topRef = useRef<HTMLElement>(null);
+  const shownIndex = useRef(index);
+  useEffect(() => {
+    const root = rootRef.current;
+    const top = topRef.current;
+    if (!root || !top) return;
+    const publish = () => root.style.setProperty("--als-top-h", `${Math.ceil(top.getBoundingClientRect().height)}px`);
+    publish();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(publish);
+    observer.observe(top);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (shownIndex.current === index) return;
+    shownIndex.current = index;
+    const root = rootRef.current;
+    if (root && root.getBoundingClientRect().top < 0) root.scrollIntoView({ block: "start" });
+  }, [index]);
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
@@ -1078,8 +1102,8 @@ export function ExamLessonSteps({
   );
 
   return (
-    <article className="als">
-      <header className="als-top">
+    <article className="als" ref={rootRef}>
+      <header className="als-top" ref={topRef}>
         {index > 0 || onClose ? (
           <button type="button" className="als-icon" onClick={back} aria-label="Geri">
             <ChevronLeft className="h-4 w-4" aria-hidden />
