@@ -18,6 +18,6 @@ for (const width of [320, 375, 412]) {
     await expect(page.getByTestId("unit-check-result").locator("li")).toHaveCount(3);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
-    await page.screenshot({ path: `/workspace/ux-audit/round2-fix/b10_unite_kontrol_${width}.png`, fullPage: true });
+    if (process.env.UX_SHOTS) await page.screenshot({ path: `${process.env.UX_SHOTS}/b10_unite_kontrol_${width}.png`, fullPage: true });
   });
 }
