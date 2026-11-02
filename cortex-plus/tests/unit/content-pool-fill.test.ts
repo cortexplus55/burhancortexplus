@@ -26,6 +26,7 @@ describe("fillOrder", () => {
       "AYT:yks-2026-fizik#2",
       "AYT:yks-2026-tarih#2",
       "AYT:yks-2026-mantik#1",
+      "MEB:okul-x#1",
     ]);
   });
 
@@ -37,7 +38,8 @@ describe("fillOrder", () => {
     const firstAyt = order.findIndex((t) => t.group === "AYT");
     expect(firstLgs).toBeGreaterThan(0);
     expect(firstAyt).toBeGreaterThan(firstLgs);
-    expect(order.slice(firstAyt).every((t) => t.group === "AYT")).toBe(true);
+    const groups = [...new Set(order.slice(firstAyt).map((t) => t.group))];
+    expect(groups).toEqual(["AYT", "KPSS", "TUS", "DUS", "ALES", "DGS", "YDS", "MEB"]);
   });
 });
 

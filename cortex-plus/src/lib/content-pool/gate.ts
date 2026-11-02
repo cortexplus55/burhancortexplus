@@ -12,7 +12,7 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  * Kapı kural sürümü. Kapı yanlış ret üretecek biçimde düzeltildiğinde artırılır; toplu doldurucu yalnız bu
  * sürümle reddedilen denemeleri 2 deneme hakkına sayar. 2: matematik/fen gösterimi + ölçü birimi (1 Kasım 2026).
  */
-export const GATE_VERSION = 2;
+export const GATE_VERSION = 3;
 
 export type GateOutcome = { code: string; outcomeId: string; limitations: string[] };
 export type GateUnit = { unitId: string; outcomes: GateOutcome[]; choices: number };
