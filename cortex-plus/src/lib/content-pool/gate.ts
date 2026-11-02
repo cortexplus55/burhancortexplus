@@ -16,8 +16,9 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  *    aynı sayılmaz (katı anahtar); yapışık kelime yalnız küçük harfle başlayan sözcükte aranır (CamelCase özel adlar
  *    yanlış ret üretmez). Kazanım × zorluk çifti başına soru sayısı sınav türüne göre (2 Kasım 2026).
  * 7: sınav iskeleti bölüm içinde istenir ve blok blok dayanıklı okunur (önceki sürüm tüm KPSS iskeletlerini yanlış reddetti).
+ * 8: iskelet alanları eş adlarıyla (choices/correct) ve metin adımlarla da okunur.
  */
-export const GATE_VERSION = 7;
+export const GATE_VERSION = 8;
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {

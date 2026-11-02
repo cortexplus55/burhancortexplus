@@ -48,7 +48,17 @@ export const blueprintSchema = z.object({
       kind: z.enum(["process_network", "timeline"]).catch("process_network"),
       title: s(2, 120),
       caption: s(1, 200).optional().catch(undefined),
-      items: arr(z.object({ label: s(1, 80), detail: s(1, 120).optional().catch(undefined) }), 2, 8),
+      // Model adımları düz metin olarak da yazabiliyor ("1. Tabloyu kur: …"): metin → {label, detail}.
+      items: arr(
+        z.preprocess((v) => {
+          if (typeof v !== "string") return v;
+          const t = v.trim();
+          const i = t.indexOf(":");
+          return i > 0 && i <= 80 ? { label: t.slice(0, i).trim(), detail: t.slice(i + 1).trim() || undefined } : { label: t };
+        }, z.object({ label: s(1, 80), detail: s(1, 120).optional().catch(undefined) })),
+        2,
+        8,
+      ),
     }),
   ),
   table: block(z.object({ caption: s(2, 100), columns: arr(s(1, 40), 2, 5), rows: arr(arr(s(1, 160), 2, 5), 2, 14) })),
@@ -57,13 +67,21 @@ export const blueprintSchema = z.object({
   contrast: block(z.object({ long: s(4, 420), fast: s(4, 420) })),
   technique: block(z.object({ title: s(3, 80), body: s(10, 400) })),
   check: block(
-    z.object({
+    z.preprocess(
+      // Soru istemindeki adlarla (choices, correct) gelebiliyor; aynı anlamdaki alanlar eşlenir.
+      (v) => {
+        if (!v || typeof v !== "object" || Array.isArray(v)) return v;
+        const o = v as Record<string, unknown>;
+        return { ...o, options: o.options ?? o.choices, answer: o.answer ?? o.correct ?? o.answer_index, explanation: o.explanation ?? o.aciklama };
+      },
+      z.object({
       stem: s(8, 400),
       options: arr(s(1, 200), 2, 5),
       answer: answerIndex,
       explanation: s(8, 600),
       seconds: num.optional().catch(undefined),
-    }),
+      }),
+    ),
   ),
 });
 export type Blueprint = z.infer<typeof blueprintSchema>;
@@ -126,7 +144,13 @@ export function blueprintIssues(lesson: LessonBody, kind: BlueprintKind | null, 
       continue;
     }
     const bp = parsed.data;
-    for (const key of REQUIRED[kind]) if (!bp[key]) issues.push(`${code}: iskelet bloğu eksik (${key})`);
+    for (const key of REQUIRED[kind]) {
+      if (bp[key]) continue;
+      // Tanı için: model bloğu yazdıysa hangi alanlarla yazdığı (içerik değil, yalnız alan adları ve türü).
+      const given = (raw.blueprint as Record<string, unknown>)[key];
+      const shape = given == null ? "yok" : typeof given === "object" && !Array.isArray(given) ? Object.keys(given).slice(0, 8).join(",") : Array.isArray(given) ? "dizi" : typeof given;
+      issues.push(`${code}: iskelet bloğu eksik (${key}; ${shape})`);
+    }
     const c = bp.check;
     if (c) {
       if (c.options.length !== choices) issues.push(`${code}: iskelet sorusu ${c.options.length} seçenek (beklenen ${choices})`);
