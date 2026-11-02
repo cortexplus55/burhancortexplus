@@ -66,6 +66,15 @@ function levelOrder(key: string): number {
   return EXAM_LEVELS[key]?.order ?? (Number(key.replace("sinif-", "")) || 999);
 }
 
+/**
+ * Derin ağacı olan sınav dersinde eski `-2026-tree-` programı yeni kurulumda gösterilmez (aynı ad iki kez çıkmasın);
+ * kayıtta kalır, mevcut hazırlıklar kendi programını okumaya devam eder.
+ */
+export function withoutSupersededTrees<T extends { id: string }>(programs: T[]): T[] {
+  const ids = new Set(programs.map((p) => p.id));
+  return programs.filter((p) => !(p.id.includes("-2026-tree-") && ids.has(p.id.replace("-2026-tree-", "-2026-deep-"))));
+}
+
 const PART_OPTIONS: { key: "TYT" | "AYT" | null; label: string }[] = [
   { key: "TYT", label: "TYT" },
   { key: "AYT", label: "AYT" },
@@ -111,7 +120,7 @@ export function OfficialCurriculumPanel({
     let live = true;
     fetch("/api/curriculum")
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((body: { programs: CurriculumProgramSummary[] }) => live && setPrograms(body.programs))
+      .then((body: { programs: CurriculumProgramSummary[] }) => live && setPrograms(withoutSupersededTrees(body.programs)))
       .catch(() => live && setFailed(true));
     return () => {
       live = false;
