@@ -14,23 +14,26 @@ import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-
  */
 export const POOL_SERVE_KINDS = new Set(["lesson", "flashcards", "spaced", "quiz"]);
 
-/** Hazırlığın resmî planında bu konunun ünitesi (kanonik havuz kimliği). */
-export function poolUnitForTopic(prefs: unknown, topicLabel: string | null | undefined): PoolUnit | null {
+/**
+ * Konunun havuz dilimi (2 Kasım 2026): kazanımlarının geldiği üniteler (sırayla) ve konunun kazanım kodları.
+ * `codes` null = ünitenin tamamı (resmî kurulum planı). Alt başlık konusu ünite dersinin ilgili bölümlerini,
+ * birden çok üniteye yayılan konu o ünitelerin bölümlerini birlikte alır. Model çağrısı yok.
+ */
+export type PoolSlice = { units: PoolUnit[]; codes: Set<string> | null };
+
+export function poolSliceForTopic(prefs: unknown, topicLabel: string | null | undefined): PoolSlice | null {
   if (!topicLabel) return null;
   const units = (prefs as { officialPlan?: { units?: { topic?: string; unitId?: string }[] } } | null)?.officialPlan?.units;
-  if (!Array.isArray(units)) return poolUnitForCurriculumTopic((prefs as { curriculum?: CurriculumRef } | null)?.curriculum, topicLabel);
+  if (!Array.isArray(units)) return curriculumSlice((prefs as { curriculum?: CurriculumRef } | null)?.curriculum, topicLabel);
   const label = topicLabel.replace(/\s+/g, " ").trim();
   const hit = units.find((u) => typeof u?.topic === "string" && u.topic.replace(/\s+/g, " ").trim() === label);
   const poolId = hit?.unitId ? poolIdFromSetupId(hit.unitId) : null;
-  return poolId ? poolUnit(poolId) : null;
+  const unit = poolId ? poolUnit(poolId) : null;
+  return unit ? { units: [unit], codes: null } : null;
 }
 
-/**
- * "Dosyam yok — resmî müfredattan seç" yolu (2 Kasım 2026): hazırlıkta `officialPlan` yok, `curriculum` başvurusu var.
- * Konu haritadaki konuysa ve kazanımlarının hepsi tek üniteden geliyorsa ve o üniteyi başka konu paylaşmıyorsa
- * (konu = ünite), havuz ünitesi odur. Alt başlığa bölünmüş ünitede havuz anlatımı konudan geniş olacağından eşlenmez.
- */
-export function poolUnitForCurriculumTopic(ref: CurriculumRef | null | undefined, topicLabel: string): PoolUnit | null {
+/** "Dosyam yok — resmî müfredattan seç" yolu: hazırlıkta `curriculum` başvurusu var, konu haritadaki konudur. */
+export function curriculumSlice(ref: CurriculumRef | null | undefined, topicLabel: string): PoolSlice | null {
   if (!ref?.programId) return null;
   const map = topicMapForRef(ref);
   const program = getProgram(ref.programId);
@@ -38,12 +41,49 @@ export function poolUnitForCurriculumTopic(ref: CurriculumRef | null | undefined
   const index = topicIndexForLabel(map, topicLabel);
   const codes = index >= 0 ? map.topicCodes[index] : undefined;
   if (!codes?.length) return null;
-  const unitOf = (code: string) => program.units.findIndex((u) => u.outcomes.some((o) => o.code === code));
-  const unitIndex = unitOf(codes[0]!);
-  if (unitIndex < 0 || codes.some((c) => unitOf(c) !== unitIndex)) return null;
-  const shared = map.topicCodes.some((other, i) => i !== index && other.some((c) => unitOf(c) === unitIndex));
-  if (shared) return null;
-  return poolUnit(`${program.id}#${unitIndex + 1}`);
+  const order: number[] = [];
+  const count = new Map<number, number>();
+  for (const code of codes) {
+    const u = program.units.findIndex((x) => x.outcomes.some((o) => o.code === code));
+    if (u < 0) continue;
+    if (!count.has(u)) order.push(u);
+    count.set(u, (count.get(u) ?? 0) + 1);
+  }
+  // Birincil ünite (en çok kazanım) başta: paylaşımlı video/podcast ve belge eki bu üniteye bağlanır.
+  order.sort((x, y) => (count.get(y) ?? 0) - (count.get(x) ?? 0) || x - y);
+  const units = order.map((u) => poolUnit(`${program.id}#${u + 1}`)).filter((u): u is PoolUnit => u !== null);
+  return units.length ? { units, codes: new Set(codes) } : null;
+}
+
+/** Konunun birincil havuz ünitesi (paylaşımlı medya önbelleği ve belge eki ünite düzeyinde). */
+export function poolUnitForTopic(prefs: unknown, topicLabel: string | null | undefined): PoolUnit | null {
+  return poolSliceForTopic(prefs, topicLabel)?.units[0] ?? null;
+}
+
+/** Eski ad (testler): müfredat konusunun birincil ünitesi. */
+export function poolUnitForCurriculumTopic(ref: CurriculumRef | null | undefined, topicLabel: string): PoolUnit | null {
+  return curriculumSlice(ref, topicLabel)?.units[0] ?? null;
+}
+
+/** Dilime düşen ders bölümleri; kod eşleşmesi yoksa (eski kayıt) ünitenin tamamı. */
+export function sliceLesson(bodies: { unit: PoolUnit; body: LessonBody }[], codes: Set<string> | null, title: string): LessonBody {
+  const parts = bodies.map(({ body }) => {
+    if (!codes) return body;
+    const sections = body.sections.filter((s) => codes.has(s.outcome_code.trim()));
+    return sections.length ? { ...body, sections } : body;
+  });
+  const first = parts[0]!;
+  if (parts.length === 1) return { ...first, title: title || first.title };
+  const terms = new Map<string, { term: string; definition: string }>();
+  for (const p of parts) for (const t of p.key_terms ?? []) if (!terms.has(t.term)) terms.set(t.term, t);
+  return {
+    title: title || first.title,
+    overview: parts.map((p) => p.overview).join("\n\n").slice(0, 4000),
+    sections: parts.flatMap((p) => p.sections).slice(0, 60),
+    summary: parts.map((p) => p.summary).join(" ").slice(0, 4000),
+    key_terms: [...terms.values()].slice(0, 20),
+    cards: parts.flatMap((p) => p.cards).slice(0, 80),
+  };
 }
 
 export async function readPoolLesson(service: SupabaseClient, unit: PoolUnit): Promise<LessonBody | null> {
@@ -122,17 +162,34 @@ export function poolLessonV3(body: LessonBody, title: string) {
 
 type ItemRow = { id: string; outcome_id: string; difficulty: string; stem: string; choices: string[]; answer: number; explanation: string | null };
 
-export async function readPoolQuiz(service: SupabaseClient, unit: PoolUnit, userId: string, count = 10) {
+/** Konunun outcome_id'leri; null = ünitelerin tamamı. */
+export function sliceOutcomeIds(slice: PoolSlice): Set<string> | null {
+  if (!slice.codes) return null;
+  const codes = slice.codes;
+  return new Set(slice.units.flatMap((u) => u.outcomes.filter((o) => codes.has(o.code)).map((o) => o.outcomeId)));
+}
+
+/** outcome_id süzgeci; süzülmüş soru sayısı yetmezse aynı ünitelerin diğer sorularıyla tamamlanır (model çağrısı yok). */
+export function filterItemsByOutcome<T extends { outcome_id: string }>(rows: T[], outcomeIds: Set<string> | null, min: number): T[] {
+  if (!outcomeIds) return rows;
+  const inScope = rows.filter((r) => outcomeIds.has(r.outcome_id));
+  if (inScope.length >= min) return inScope;
+  return [...inScope, ...rows.filter((r) => !outcomeIds.has(r.outcome_id)).slice(0, min - inScope.length)];
+}
+
+export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | PoolUnit, userId: string, count = 10) {
+  const sl: PoolSlice = "units" in slice ? slice : { units: [slice], codes: null };
+  const unitIds = sl.units.map((u) => u.unitId);
   const { data } = await service
     .from("item_bank")
     .select("id, outcome_id, difficulty, stem, choices, answer, explanation")
-    .eq("unit_id", unit.unitId)
-    .eq("program_id", unit.program.id)
+    .in("unit_id", unitIds)
+    .in("program_id", [...new Set(sl.units.map((u) => u.program.id))])
     .eq("status", "verified")
-    .limit(400);
-  const rows = (data ?? []) as ItemRow[];
+    .limit(800);
+  const rows = filterItemsByOutcome((data ?? []) as ItemRow[], sliceOutcomeIds(sl), count);
   if (!rows.length) return [];
-  const { data: answered } = await service.from("item_responses").select("item_id").eq("user_id", userId).eq("unit_id", unit.unitId).limit(2000);
+  const { data: answered } = await service.from("item_responses").select("item_id").eq("user_id", userId).in("unit_id", unitIds).limit(2000);
   const seen = new Set((answered ?? []).map((r) => String(r.item_id)));
   const fresh = rows.filter((r) => !seen.has(r.id));
   const pool = (fresh.length >= count ? fresh : rows).slice();
@@ -153,21 +210,34 @@ export async function readPoolQuiz(service: SupabaseClient, unit: PoolUnit, user
   }));
 }
 
-/** Havuzdan sunulacak gövde; havuzda yoksa null (bugünkü üretim yolu). */
+/** Havuzda doğrulanmış ders yoksa: paylaşımlı üretim (SHARED_CONTENT, öğrenciye 0 kredi). Yoksa null. */
+export type EnsureUnit = (unit: PoolUnit) => Promise<LessonBody | null>;
+
+/** Havuzdan sunulacak gövde; havuzda yoksa ve paylaşımlı üretim de olmadıysa null (bugünkü üretim yolu). */
 export async function poolPayload(
   service: SupabaseClient,
-  input: { kind: string; prefs: unknown; topicLabel: string; title: string; userId: string },
+  input: { kind: string; prefs: unknown; topicLabel: string; title: string; userId: string; ensure?: EnsureUnit },
 ): Promise<Record<string, unknown> | null> {
   if (!POOL_SERVE_KINDS.has(input.kind)) return null;
-  const unit = poolUnitForTopic(input.prefs, input.topicLabel);
-  if (!unit) return null;
-  const base = { pool: { unitId: unit.unitId, programId: unit.program.id }, engine: "pool", refunded: false };
+  const slice = poolSliceForTopic(input.prefs, input.topicLabel);
+  if (!slice) return null;
+  const unit = slice.units[0]!;
+  const base = {
+    pool: { unitId: unit.unitId, programId: unit.program.id, ...(slice.units.length > 1 ? { unitIds: slice.units.map((u) => u.unitId) } : {}), ...(slice.codes ? { outcomeCodes: [...slice.codes] } : {}) },
+    engine: "pool",
+    refunded: false,
+  };
+  const bodies: { unit: PoolUnit; body: LessonBody }[] = [];
+  for (const u of slice.units) {
+    const body = (await readPoolLesson(service, u)) ?? (input.ensure ? await input.ensure(u).catch(() => null) : null);
+    if (!body) return null;
+    bodies.push({ unit: u, body });
+  }
   if (input.kind === "quiz") {
-    const questions = await readPoolQuiz(service, unit, input.userId);
+    const questions = await readPoolQuiz(service, slice, input.userId);
     return questions.length >= 5 ? { type: "quiz", questions, uncoveredTopics: [], ...base } : null;
   }
-  const body = await readPoolLesson(service, unit);
-  if (!body) return null;
+  const body = sliceLesson(bodies, slice.codes, input.title);
   if (input.kind === "lesson") {
     const lesson = poolLessonV3(body, input.title);
     return { type: "lesson", lesson, title: lesson.title, qualityReport: null, ...base };
