@@ -401,7 +401,8 @@ export type UsageCode =
   /** Ortak içerik havuzu (Plan PR 2): ünite anlatımı, soru üretimi ve doğrulama (c_d, c_s, c_v; 0 öğrenci kredisi). */
   | "SHARED_CONTENT_LESSON"
   | "SHARED_CONTENT_ITEMS"
-  | "SHARED_CONTENT_VERIFY";
+  | "SHARED_CONTENT_VERIFY"
+  | "SHARED_CONTENT_MEDIA";
 
 export async function recordUsage(
   service: SupabaseClient,

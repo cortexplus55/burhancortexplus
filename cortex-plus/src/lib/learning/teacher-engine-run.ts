@@ -6,7 +6,7 @@ import { contentModel } from "@/lib/ai/model-router";
 import { withGenerationSlot } from "@/lib/ai/generation-slots";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { studentPedagogyBlock, withStudentProfile, type PedagogySurface } from "@/lib/learning/student-pedagogy";
-import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
+import { commitCredits, recordUsage, type UsageCode, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
@@ -51,6 +51,11 @@ async function runWithTeacherModelInner<R>(
      * CONTENT_PREFETCH koduyla yazılır (açılmazsa model maliyeti bizde).
      */
     charge?: boolean;
+    /**
+     * Paylaşımlı havuz içeriği (2 Kasım 2026): kredi ayrılmaz, kullanım bu kodla (SHARED_CONTENT_*) yazılır,
+     * öğrenci profili eklenmez (içerik herkese gider), öğrenci beklediği için öğrenci yuvası kullanılır.
+     */
+    sharedUsageCode?: UsageCode;
     startedAt?: number;
     /** Günlük satırının adı ("teacher_cards"). */
     label: string;
@@ -60,7 +65,8 @@ async function runWithTeacherModelInner<R>(
 ): Promise<TeacherRunOutcome<R>> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
   const held = options.heldReservationId;
-  const free = options.charge === false;
+  const shared = options.sharedUsageCode ?? null;
+  const free = options.charge === false || shared !== null;
   const reservation = held
     ? ({ ok: true, reservationId: held } as const)
     : free
@@ -84,7 +90,7 @@ async function runWithTeacherModelInner<R>(
   // Hızlı işlem yalnız Plus/Sigma ve kurucuya (19 Ekim 2026, `fast-access.ts`).
   const profileLoad = studentPedagogyBlock(service, options.userId, pedagogySurface(options.label));
   const tier = fastTier(!free && !held && (await fastAllowedFor(service, options.userId)));
-  const profile = await profileLoad;
+  const profile = shared ? "" : await profileLoad;
   const ask: AskJson = async (system, user) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -98,7 +104,7 @@ async function runWithTeacherModelInner<R>(
     });
     await recordUsage(service, {
       userId: options.userId,
-      actionCode: free ? "CONTENT_PREFETCH" : options.actionCode,
+      actionCode: shared ?? (free ? "CONTENT_PREFETCH" : options.actionCode),
       model: billedModel(model, response.service_tier),
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
@@ -147,7 +153,7 @@ export async function runWithTeacherModel<R>(
   options: Parameters<typeof runWithTeacherModelInner<R>>[1],
 ): Promise<TeacherRunOutcome<R>> {
   return withGenerationSlot(
-    options.charge === false ? "prefetch" : "student",
+    options.charge === false && !options.sharedUsageCode ? "prefetch" : "student",
     () => runWithTeacherModelInner<R>(service, options),
     () => ({ ok: false, status: 503, error: "generation_busy", reasons: [] }),
   );

@@ -115,7 +115,8 @@ describe("video: kapı, kredi, yol", () => {
     expect(CREDIT_PRICE_TABLE.VIDEO_GENERATE.credits).toBe(280);
     expect(read("supabase/migrations/20261017150000_prep_videos.sql")).toContain("('VIDEO_GENERATE', 280,");
     const run = read("src/lib/learning/video-run.ts");
-    expect(run).toContain('actionCode: "VIDEO_GENERATE"');
+    expect(run).toContain('input.sharedUsageCode ?? "VIDEO_GENERATE"');
+    expect(run).toContain("video/shared/");
     expect(run).toContain('synthesizeLine(speechText(scene.narration), "ada")');
   });
 
