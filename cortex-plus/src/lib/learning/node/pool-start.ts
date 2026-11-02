@@ -1,7 +1,8 @@
 /** Havuzdan açılış: model çağrısı yok, kredi ve haftalık ders sayacı düşmez (2 Kasım 2026). */
 import "server-only";
 import { NextResponse } from "next/server";
-import { poolPayload } from "@/lib/content-pool/serve";
+import { poolPayload, poolUnitForTopic } from "@/lib/content-pool/serve";
+import { supplementScreens, unitSupplement } from "@/lib/content-pool/supplement";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 import { attemptStartResponse, upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
 import { countTotal, readWalletBalance } from "@/lib/learning/node/shared";
@@ -21,6 +22,22 @@ export async function servePoolContent(
   if (!payload) return null;
   // Havuzda hazır olan içerik önceden yazılmaz (model maliyeti yok, açılış zaten anında).
   if (prefetch) return NextResponse.json({ ok: true, skipped: "pool" });
+  // Öğrenci belge eklediyse: havuz dersi kalır, belgenin kapsadığı üniteye "Senin belgenden ek" (bir kez 15 kredi).
+  if (kind === "lesson") {
+    const unit = poolUnitForTopic(prep.learning_preferences, topicLabel);
+    const lesson = payload.lesson as { screens: Record<string, unknown>[] };
+    if (unit) {
+      const supplement = await unitSupplement(service, {
+        userId,
+        prepId,
+        unit,
+        topicLabel,
+        lessonOutline: lesson.screens.map((s) => String(s.heading ?? "")).join("\n"),
+      }).catch(() => ({ state: "failed" as const }));
+      lesson.screens.push(...supplementScreens(supplement, 16 - lesson.screens.length));
+      if (supplement.state === "ready") payload.supplement = { charged: supplement.charged, sections: supplement.sections.length };
+    }
+  }
   const requestId = clientRequestId ?? crypto.randomUUID();
   const { data: row, error } = await service
     .from("exam_prep_node_attempts")
