@@ -1,6 +1,7 @@
 import { duplicateOptionPair } from "@/lib/learning/question-integrity";
 import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { turkishFold } from "@/lib/text/turkish";
+import { logicTermIssues } from "@/lib/learning/logic-terms";
 import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
 
 /*
@@ -11,8 +12,9 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
 /**
  * Kapı kural sürümü. Kapı yanlış ret üretecek biçimde düzeltildiğinde artırılır; toplu doldurucu yalnız bu
  * sürümle reddedilen denemeleri 2 deneme hakkına sayar. 2: matematik/fen gösterimi + ölçü birimi (1 Kasım 2026).
+ * 4: koşullu önerme dönüşüm adları (karşıtı/tersi/karşıt tersi) kodla denetlenir (2 Kasım 2026).
  */
-export const GATE_VERSION = 3;
+export const GATE_VERSION = 4;
 
 export type GateOutcome = { code: string; outcomeId: string; limitations: string[] };
 export type GateUnit = { unitId: string; outcomes: GateOutcome[]; choices: number };
@@ -128,6 +130,8 @@ export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | 
     const garbled = garbledReason(text);
     if (garbled) return { reason: garbled };
   }
+  const logic = logicTermIssues(`${stem} ${explanation}`);
+  if (logic.length) return { reason: `mantık terimi hatası: ${logic[0]}` };
   const folded = turkishFold(`${stem} ${choices.join(" ")}`);
   const excluded = excludedTerms(outcome.limitations).find((t) => folded.includes(t));
   if (excluded) return { reason: `kazanım sınırı dışında (${excluded})` };

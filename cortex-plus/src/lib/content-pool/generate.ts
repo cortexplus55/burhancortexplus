@@ -7,6 +7,7 @@ import { turkishFold } from "@/lib/text/turkish";
 import type { UsageCode } from "@/lib/credits/service";
 import { choiceCount, type PoolUnit } from "@/lib/content-pool/keys";
 import { GATE_VERSION, garbledReason, gateItems } from "@/lib/content-pool/gate";
+import { LOGIC_TERMS_RULE, logicTermIssues, needsLogicTermsRule } from "@/lib/learning/logic-terms";
 import {
   applyReview,
   checkShape,
@@ -65,11 +66,12 @@ const ORIGINALITY =
   "Yalnız verilen kazanımların ve sınırlamalarının kapsamında kal; kapsam dışı bilgi ekleme. Dil: Türkçe.";
 
 function officialBlock(unit: PoolUnit): string {
+  const rule = needsLogicTermsRule(`${unit.unit.title} ${unit.outcomes.map((o) => o.text).join(" ")}`) ? `\n${LOGIC_TERMS_RULE}` : "";
   const lines = unit.outcomes.map((o) => {
     const limits = o.limitations.length ? `\n   Sınırlamalar/açıklamalar: ${o.limitations.join(" | ")}` : "";
     return `- ${o.code}: ${o.text}${limits}`;
   });
-  return `Program: ${unit.program.label} (${unit.program.badge})\nÜnite: ${unit.unit.title}\nResmî kazanımlar:\n${lines.join("\n")}`;
+  return `Program: ${unit.program.label} (${unit.program.badge})\nÜnite: ${unit.unit.title}\nResmî kazanımlar:\n${lines.join("\n")}${rule}`;
 }
 
 function lessonPrompt(unit: PoolUnit) {
@@ -138,7 +140,7 @@ export function verifyPrompt(unit: PoolUnit, items: PoolItem[]) {
       "şık metni yazma. uyum=1 yalnız bilgi doğru, tek doğru şık var ve soru verilen kazanım/sınır içindeyse; değilse 0. " +
       'Yalnız JSON: {"r":[{"i":i,"cozum":şık numarası,"uyum":0|1},...]}. Örnek: {"r":[{"i":0,"cozum":2,"uyum":1},{"i":1,"cozum":0,"uyum":0}]}',
     jsonSchema: verifySchema(choiceCount(unit.program)),
-    user: `${unit.unit.title}\nKazanımlar:\n${outcomes.join("\n")}\nSorular [i,kod,kök,şıklar]:\n${JSON.stringify(blind)}`,
+    user: `${unit.unit.title}\nKazanımlar:\n${outcomes.join("\n")}${needsLogicTermsRule(outcomes.join(" ")) ? `\n${LOGIC_TERMS_RULE}` : ""}\nSorular [i,kod,kök,şıklar]:\n${JSON.stringify(blind)}`,
   };
 }
 
@@ -332,7 +334,11 @@ export async function generateUnitContent(
   const parseFailures: { round: number; step: "items" | "verify"; excerpt: string }[] = [];
   // Anlatım modelle yeniden okunmaz (maliyet kararı); kazanım kapsaması ve metin bütünlüğü kodda denetlenir.
   const lessonText = [lesson.overview, lesson.summary, ...lesson.sections.flatMap((s) => [s.heading, s.explanation, ...s.key_points])];
-  const lessonGarbled = lessonText.map(garbledReason).filter((r): r is string => r !== null);
+  const lessonGarbled = [
+    ...lessonText.map(garbledReason).filter((r): r is string => r !== null),
+    ...lessonText.flatMap(logicTermIssues).map((i) => `mantık terimi hatası: ${i}`),
+    ...(lesson.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
+  ];
   const lessonReview = { ok: lessonGarbled.length === 0, issues: [...new Set(lessonGarbled)], by: "ts_gate" };
   const gateUnit = { unitId: unit.unitId, choices, outcomes: unit.outcomes.map((o) => ({ code: o.code, outcomeId: o.outcomeId, limitations: o.limitations })) };
   let shapeIssues: { code: string; detail: string }[] = [];

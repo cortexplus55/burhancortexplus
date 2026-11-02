@@ -1,4 +1,5 @@
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
+import { logicTermIssues } from "@/lib/learning/logic-terms";
 import { mathKeyWrong, mathNoOptionMatches, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { equivalentOptionPair } from "@/lib/learning/option-equivalence";
 
@@ -261,5 +262,6 @@ export function singleAnswerIntegrityIssues(check: IntegrityCheck): string[] {
   }
   const counted = enumeratedCountIssue(check.prompt) ?? enumeratedCountIssue(check.explanation ?? "");
   if (counted) issues.push(counted);
+  for (const logic of logicTermIssues(`${check.prompt} ${check.explanation ?? ""}`)) issues.push(`Mantık terimi hatası: ${logic}.`);
   return issues;
 }
