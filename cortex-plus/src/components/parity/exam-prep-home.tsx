@@ -193,6 +193,17 @@ function labelsFor(topicLabels: string[], rows: { title: string }[]): string[] {
 }
 
 /** "Birim Çember · Ders · notlar s.10–18" → "Birim Çember". */
+/**
+ * Yol düğümünün etiketi. Bölüm başlığı zaten konuyu söylüyorsa ("Mantığa Giriş · …")
+ * her düğümde "Mantığa Giriş · Konu testi" tekrarı yerine yalnız etkinliğin adı yazılır.
+ */
+export function pathNodeLabel(heading: string, kindTitle: string, sectionTitle?: string | null): string {
+  const norm = (value: string) => value.split(" · ")[0].trim().toLocaleLowerCase("tr-TR");
+  if (!heading.trim() || heading.trim() === kindTitle.trim()) return kindTitle;
+  if (sectionTitle && norm(sectionTitle) && norm(heading) === norm(sectionTitle)) return kindTitle;
+  return `${heading} · ${kindTitle}`;
+}
+
 function nodeHeading(node: HomeNode): string {
   const raw = node.title || PLAN_NODE_META[node.kind].title;
   // "9. Sınıf · Mantık" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
@@ -1329,6 +1340,7 @@ function PathSections({
             {open ? (
               <StudyPath
                 nodes={section.nodes}
+                sectionTitle={section.title}
                 lead={index === 0 ? lead : null}
                 currentId={currentId}
                 pickedId={pickedId}
@@ -1365,6 +1377,7 @@ function PathSections({
 
 function StudyPath({
   nodes,
+  sectionTitle = null,
   lead = null,
   currentId,
   pickedId = null,
@@ -1378,6 +1391,8 @@ function StudyPath({
   weekday = false,
 }: {
   nodes: HomeNode[];
+  /** Bölüm başlığı: düğüm etiketi aynı konu adını tekrar etmesin (UX tur 2, bulgu 9). */
+  sectionTitle?: string | null;
   /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
   lead?: HomeNode | null;
   currentId: string | null;
@@ -1498,13 +1513,13 @@ function StudyPath({
                 aria-label={
                   level
                     ? `${levelNodeAria(studyNodeAria(node.status))}${dayLabel ? `, ${dayLabel}` : ""}`
-                    : `${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${
+                    : `${pathNodeLabel(nodeHeading(node), meta.title, sectionTitle)}, ${studyNodeAria(node.status)}${
                         node.status === "done" && scores[node.id] != null ? `, %${scores[node.id]}` : ""
                       }${readinessNote}${node.planLocked ? ", Plus'ta" : ""}${far.has(node.id) ? `, ${PATH_FAR_NOTE.toLocaleLowerCase("tr")}` : ""}${
                         dayLabel ? `, ${dayLabel}` : ""
                       }`
                 }
-                title={level ? "Seviye tespiti" : `${nodeHeading(node)} · ${meta.title}`}
+                title={level ? "Seviye tespiti" : pathNodeLabel(nodeHeading(node), meta.title, sectionTitle)}
                 onClick={() => onOpen(node)}
               >
                 <PathPuck state={node.status === "done" ? "done" : node.id === currentId ? "current" : node.status === "locked" ? "locked" : "ready"} />
