@@ -1,11 +1,7 @@
-import { Info } from "lucide-react";
-import { formatNumber } from "@/lib/format";
 import {
-  TUTOR_TL_PER_HOUR,
   favoriteSubjects,
   formatLearningDuration,
   lastSevenDays,
-  savingsTl,
   type LearningTimeRow,
 } from "@/lib/learning/learning-time";
 
@@ -38,12 +34,12 @@ export function LearningTimeCard({ rows, today }: { rows: LearningTimeRow[]; tod
             </h2>
             <span className="text-xs text-[var(--cs-muted)]">Son 7 gün</span>
           </div>
-          <div className="mt-4 flex h-36 items-end gap-2" role="list" aria-label="Son 7 günün dakikaları">
+          <div className="mt-4 flex h-36 min-w-0 items-end gap-1 sm:gap-2" role="list" aria-label="Son 7 günün dakikaları">
             {week.map((day) => {
               const label = dayLabel(day.date);
               return (
                 <div key={day.date} role="listitem" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                  <span className="text-[10px] text-[var(--cs-muted)]">{day.minutes ? `${day.minutes} dk` : ""}</span>
+                  <span className="whitespace-nowrap text-[9px] text-[var(--cs-muted)] sm:text-[10px]">{day.minutes ? `${day.minutes} dk` : ""}</span>
                   {/* Renk satır içi: "bg-[var(--cs-primary)]/80" sınıfı üretilmedi,
                       çubuklar canlıda şeffaftı (1 Ekim 2026). */}
                   <div
@@ -54,8 +50,9 @@ export function LearningTimeCard({ rows, today }: { rows: LearningTimeRow[]; tod
                     }}
                     aria-hidden
                   />
-                  <span className="text-[10px] text-[var(--cs-muted)]">
-                    <span className="font-semibold text-[var(--cs-text)]">{label.weekday}</span> {label.day}
+                  <span className="text-center text-[10px] leading-tight text-[var(--cs-muted)]">
+                    <span className="block font-semibold text-[var(--cs-text)]">{label.weekday}</span>
+                    <span className="block">{label.day}</span>
                   </span>
                   <span className="sr-only">{`${label.weekday} ${label.day}: ${day.minutes} dakika`}</span>
                 </div>
@@ -73,17 +70,10 @@ export function LearningTimeCard({ rows, today }: { rows: LearningTimeRow[]; tod
             <p className="text-xs text-[var(--cs-muted)]">Son 7 gün</p>
             <p className="mt-1 text-2xl font-semibold text-[var(--cs-text)]">{formatLearningDuration(weekSeconds)}</p>
           </div>
+          {/* Tasarruf (varsayılan saat ücreti × süre) gerçek veri değildi (UX tur 2): yerine ölçülen toplam süre. */}
           <div className="cs-pay-card p-4 text-center">
-            <p className="flex items-center justify-center gap-1 text-xs text-[var(--cs-muted)]">
-              Tüm zamanların tasarrufu
-              <span
-                title={`Çalıştığın süre, saati ${formatNumber(TUTOR_TL_PER_HOUR)} ₺ özel ders ücretiyle hesaplanır.`}
-                aria-label={`Çalıştığın süre, saati ${formatNumber(TUTOR_TL_PER_HOUR)} ₺ özel ders ücretiyle hesaplanır.`}
-              >
-                <Info className="h-3.5 w-3.5" aria-hidden />
-              </span>
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-emerald-400">{formatNumber(savingsTl(totalSeconds))} ₺</p>
+            <p className="text-xs text-[var(--cs-muted)]">Tüm zamanlar</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--cs-text)]">{formatLearningDuration(totalSeconds)}</p>
           </div>
         </div>
       </div>
