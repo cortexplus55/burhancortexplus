@@ -486,6 +486,43 @@ export function OfficialSetupFlow({
                     </span>
                     <ChevronDown className="h-4 w-4 osf-caret" aria-hidden />
                   </summary>
+                  {(() => {
+                    const liveIds = s.units
+                      .filter(
+                        (u) =>
+                          !selection.removedUnits.includes(u.id) &&
+                          u.outcomes.some((o) => !selection.removedOutcomes.includes(outcomeKey(u.id, o.code))),
+                      )
+                      .map((u) => u.id);
+                    if (liveIds.length < 2) return null;
+                    const rated = liveIds.filter((id) => ratings[id]).length;
+                    return (
+                      <div className="osf-bulk" data-testid="setup-bulk">
+                        <span className="osf-bulk-label">
+                          Tüm dersi işaretle <small>({rated}/{liveIds.length} ünite işaretli)</small>
+                        </span>
+                        <div className="osf-rate" role="group" aria-label={`${s.label} tüm üniteler`}>
+                          {(Object.keys(RATING_LABEL) as UnitRating[]).map((r) => (
+                            <button
+                              key={r}
+                              type="button"
+                              data-tone={r}
+                              data-on={liveIds.every((id) => ratings[id] === r) || undefined}
+                              onClick={() =>
+                                setRatings((x) => {
+                                  const next = { ...x };
+                                  for (const id of liveIds) next[id] = r;
+                                  return next;
+                                })
+                              }
+                            >
+                              {RATING_LABEL[r]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <ul className="osf-units">
                     {s.units.map((u) => {
                       const unitOn = !selection.removedUnits.includes(u.id);

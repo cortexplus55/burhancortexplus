@@ -235,3 +235,8 @@
 .osf-links-title { font-weight: 600; margin-bottom: 0.35rem; }
 .osf-links ul { display: grid; gap: 0.3rem; }
 .osf-links a { color: inherit; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+/* Ders düzeyinde toplu öz değerlendirme (UX tur 2, bulgu 3) */
+.osf-bulk { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.35rem 0.75rem; margin: 0.5rem 0.75rem 0.25rem; padding: 0.5rem 0.65rem; border: 1px dashed rgba(255, 255, 255, 0.14); border-radius: 0.75rem; min-width: 0; }
+.osf-bulk-label { font-size: 0.82rem; font-weight: 600; min-width: 0; }
+.osf-bulk-label small { font-weight: 400; opacity: 0.7; }
+.osf-bulk .osf-rate { margin-top: 0; padding-left: 0; }
