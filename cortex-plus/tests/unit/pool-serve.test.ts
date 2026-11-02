@@ -19,3 +19,12 @@ describe("havuz sunumu", () => {
     expect(l.summary).toEqual(["Bir.", "İki.", "Üç."]);
   });
 });
+
+describe("havuz ekran özeti (lead)", () => {
+  it("ilk cümleyi verir, uzunsa kısaltır, boşsa yok", async () => {
+    const { screenLead } = await import("@/lib/content-pool/serve");
+    expect(screenLead("**Öyküleme** olayları sırayla anlatmaktır. İkinci cümle.")).toBe("Öyküleme olayları sırayla anlatmaktır.");
+    expect(screenLead("kısa")).toBeNull();
+    expect(screenLead("a ".repeat(200))?.length ?? 0).toBeLessThanOrEqual(200);
+  });
+});

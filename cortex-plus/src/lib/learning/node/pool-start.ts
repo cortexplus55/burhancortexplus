@@ -18,10 +18,11 @@ export async function servePoolContent(
   const { userId, service, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, difficulty, familiarity, mood, lessonReviewCards } = context;
   const { topic, topicLabel, title, clientRequestId, voiceSession } = state;
   if (!teachingV2 || voiceSession) return null;
+  // Hazır ünitede arka planda önceden yazım yok (2 Kasım 2026): havuzdaki türler anında açılır; havuzda olmayan
+  // türler (ör. Doğru/Yanlış) öğrenci açınca yazılır. Canlıda Doğru/Yanlış önceden yazımı CONTENT_PREFETCH düşürüyordu.
+  if (prefetch && poolUnitForTopic(prep.learning_preferences, topicLabel)) return NextResponse.json({ ok: true, skipped: "pool" });
   const payload = await poolPayload(service, { kind, prefs: prep.learning_preferences, topicLabel, title, userId }).catch(() => null);
   if (!payload) return null;
-  // Havuzda hazır olan içerik önceden yazılmaz (model maliyeti yok, açılış zaten anında).
-  if (prefetch) return NextResponse.json({ ok: true, skipped: "pool" });
   // Öğrenci belge eklediyse: havuz dersi kalır, belgenin kapsadığı üniteye "Senin belgenden ek" (bir kez 15 kredi).
   if (kind === "lesson") {
     const unit = poolUnitForTopic(prep.learning_preferences, topicLabel);

@@ -50,6 +50,13 @@ function chunks(text: string, max: number): string[] {
   return out;
 }
 
+/** Anlatımın ilk cümlesi (≤200 karakter, özet listesi için). */
+export function screenLead(explanation: string): string | null {
+  const first = explanation.replace(/\*\*/g, "").trim().split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
+  if (first.length < 8) return null;
+  return first.length <= 200 ? first : `${first.slice(0, 197).replace(/\s+\S*$/, "")}…`;
+}
+
 /** Havuz anlatımı → ders kaydı (V3). Bir kazanım bir ekran; çok kazanımlı ünitede ekranlar birleşir. */
 export function poolLessonV3(body: LessonBody, title: string) {
   const per = Math.ceil(body.sections.length / LESSON_SCREEN_HARD_CAP);
@@ -61,7 +68,13 @@ export function poolLessonV3(body: LessonBody, title: string) {
       ...chunks(s.explanation, 2400).map((text) => ({ type: "text", text })),
       ...(s.key_points.length ? [{ type: "text", text: s.key_points.map((p) => `• ${p}`).join("\n").slice(0, 2400) }] : []),
     ]);
-    screens.push({ heading: group[0]!.heading.slice(0, 160), concept: group[0]!.heading.slice(0, 120), blocks: blocks.slice(0, 12) });
+    screens.push({
+      heading: group[0]!.heading.slice(0, 160),
+      concept: group[0]!.heading.slice(0, 120),
+      // Ders özet listesi başlığın altına `lead` yazar; havuzda alan yok, anlatımın ilk cümlesi kullanılır.
+      ...(screenLead(group[0]!.explanation) ? { lead: screenLead(group[0]!.explanation) } : {}),
+      blocks: blocks.slice(0, 12),
+    });
   }
   const summary = body.summary
     .split(/(?<=[.!?])\s+/)
