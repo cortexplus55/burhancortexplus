@@ -53,6 +53,20 @@ export function stripInlineSourceLine(
  * duruyor. Aynı kontrolü render anında da yaparak eski derslerde de tekrar
  * eden kutuyu göstermemek için kullanılıyor — veri taşıma gerekmiyor.
  */
+/**
+ * Not, metnin bir tekrarıysa true: ortak bir ifade (isNearDuplicateText) VE notun anlamlı
+ * sözcüklerinin en az %70'i metinde geçiyor. Yalnız tek ortak cümle paylaşan iskelet kutusu
+ * (ör. "Şık eleme tekniği") düşmez; yeniden kurulmuş tekrar notu yine düşer.
+ */
+export function noteRepeatsText(note: string, text: string): boolean {
+  if (!isNearDuplicateText(note, text)) return false;
+  const words = (v: string) => foldTr(v).replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter((w) => w.length >= 3);
+  const own = [...new Set(words(note))];
+  if (!own.length) return true;
+  const pool = new Set(words(text));
+  return own.filter((w) => pool.has(w)).length / own.length >= 0.7;
+}
+
 export function isNearDuplicateText(a: string, b: string): boolean {
   const left = foldTr(a).replace(/[^a-z0-9]+/g, " ").trim();
   const right = foldTr(b).replace(/[^a-z0-9]+/g, " ").trim();

@@ -1659,3 +1659,20 @@
     color: color-mix(in srgb, var(--c-text) 60%, var(--c-bg));
   }
 }
+
+/* 2 Kasım 2026: sabit öğeler içeriği örtmesin — tek yapışkan katman (.als-top), yüksekliği JS ile --als-top-h.
+   Odaklanan/kaydırılan her öğe çubuğun altında durur; alt panel için de pay bırakılır. Önce mobil. */
+.als {
+  --als-top-h: 4.75rem;
+  scroll-margin-top: 0;
+}
+.als-slide,
+.als-slide :is(h2, h3, figure, aside, table, .als-reference-table, [tabindex], button, input, label) {
+  scroll-margin-top: calc(var(--als-top-h) + 0.5rem);
+  scroll-margin-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 641px) {
+  .als {
+    --als-top-h: 3.5rem;
+  }
+}
