@@ -2,6 +2,7 @@
  * `action: "complete"`: notlandırma, yol uyarlaması, tamamlama RPC'si, yanılgı, öğrenme izi, Yanlışlar Defteri,
  * günü gelen tekrar, yazılı deneme incelemesi ve yıldız. Sözlü hakem yanıttan sonra (`gradingAsync`).
  */
+import { applyAnswerLocks } from "@/lib/learning/answer-lock";
 import "server-only";
 import { NextResponse } from "next/server";
 import { requestNextPrefetch } from "@/lib/learning/lesson-prefetch";
@@ -89,7 +90,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
   const mergedAnswers = teachingV2
     ? mergeAnswersForScoring(
         (attempt.answers as Record<string, unknown> | null) ?? {},
-        parsed.data.answers ?? {},
+        applyAnswerLocks((attempt.answers as Record<string, unknown> | null) ?? {}, parsed.data.answers ?? {}),
       )
     : (parsed.data.answers ?? {});
 

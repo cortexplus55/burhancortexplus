@@ -11,7 +11,7 @@ import { TwoOptionHint } from "@/components/learning/two-option-hint";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function QuizPlay({ life }: { life: NodeLifecycle }) {
-  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
+  const { sources, stage, loading, payload, setPayload, attemptId, markHint, index, setIndex, answers, revealedRef, lockAnswer, isTimedExam, finish, updateAnswer, questions, quizBuilding } = life;
   return (
     <>
       {stage === "play" && payload.type === "quiz" && questions[index] ? (
@@ -43,7 +43,8 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
             index={index}
             value={answers[String(index)]}
             onChange={(value) => updateAnswer(String(index), value)}
-            onReveal={() => revealedRef.current.add(String(index))}
+            onReveal={() => lockAnswer(String(index))}
+            locked={revealedRef.current.has(String(index))}
             onContinue={() => {
               if (index + 1 < questions.length) {
                 setIndex(index + 1);

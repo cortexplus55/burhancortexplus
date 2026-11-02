@@ -78,7 +78,7 @@ export function cursorIndexFromMeta(
   if (typeof meta.cursorIndex === "number" && meta.cursorIndex >= 0) {
     return meta.cursorIndex;
   }
-  const keys = Object.keys(answers ?? {}).filter((k) => k !== "__meta");
+  const keys = Object.keys(answers ?? {}).filter((k) => /^\d+$/.test(k));
   if (!keys.length) return 0;
   const max = Math.max(
     ...keys.map((k) => {
