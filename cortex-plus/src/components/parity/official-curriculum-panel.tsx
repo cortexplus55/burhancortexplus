@@ -353,6 +353,9 @@ export function OfficialCurriculumPanel({
           </p>
         </div>
       ) : null}
+      <p className="apw-note" data-testid="curriculum-free-note">
+        <strong>Hazır içerikle çalış — ücretsiz</strong> · Hazır içerik kredi harcamaz. Ücretsiz hesapta ilk konu açık, tüm konular Plus ile.
+      </p>
       <div className="apw-import-row">
         <button
           type="button"
