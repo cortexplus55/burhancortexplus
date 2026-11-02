@@ -18,7 +18,8 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  * 7: sınav iskeleti bölüm içinde istenir ve blok blok dayanıklı okunur (önceki sürüm tüm KPSS iskeletlerini yanlış reddetti).
  * 8: iskelet alanları eş adlarıyla (choices/correct) ve metin adımlarla da okunur.
  */
-export const GATE_VERSION = 8;
+// v9: check bloğu dizi gövde/öncül alanı/nesne seçenek/metin cevap biçimleri okunur
+export const GATE_VERSION = 9;
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {

@@ -82,3 +82,21 @@ describe("iskelet: eş adlı alanlar", () => {
     }
   });
 });
+
+describe("check block shape tolerance (v9)", () => {
+  it("reads array stem, premises, object options and text answer", async () => {
+    const { blueprintSchema } = await import("@/lib/content-pool/blueprint");
+    const r = blueprintSchema.parse({
+      check: {
+        stem: ["Aşağıdakilerden hangileri doğrudur?"],
+        premises: ["Birinci öncül metni", "İkinci öncül metni", "Üçüncü öncül metni"],
+        options: { A: "Yalnız I", B: "I ve II", C: "I ve III", D: "II ve III", E: "I, II ve III" },
+        answer: "I ve II",
+        explanation: ["Açıklama satırı bir.", "İki."],
+      },
+    });
+    expect(r.check?.answer).toBe(1);
+    expect(r.check?.stem).toMatch(/I\. Birinci[\s\S]*II\. İkinci[\s\S]*III\. Üçüncü/);
+    expect(r.check?.options).toHaveLength(5);
+  });
+});

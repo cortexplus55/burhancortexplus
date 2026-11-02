@@ -72,7 +72,24 @@ export const blueprintSchema = z.object({
       (v) => {
         if (!v || typeof v !== "object" || Array.isArray(v)) return v;
         const o = v as Record<string, unknown>;
-        return { ...o, options: o.options ?? o.choices, answer: o.answer ?? o.correct ?? o.answer_index, explanation: o.explanation ?? o.aciklama };
+        const join = (x: unknown) => (Array.isArray(x) ? x.filter((e) => typeof e === "string").join("\n") : x);
+        // Öncüllü soruda model gövdeyi satır dizisi, öncülleri ayrı alan, seçenekleri {A: …} nesnesi yazabiliyor.
+        let stem = join(o.stem ?? o.question ?? o.soru);
+        const prem = o.premises ?? o.statements ?? o.oncul ?? o.onculler;
+        if (typeof stem === "string" && Array.isArray(prem)) {
+          const lines = prem.filter((e) => typeof e === "string").map((e, i) => (/^\s*I{1,3}V?\./.test(e) ? e : `${["I", "II", "III", "IV", "V"][i] ?? i + 1}. ${e}`));
+          stem = `${stem}\n${lines.join("\n")}`;
+        }
+        let options = o.options ?? o.choices;
+        if (options && typeof options === "object" && !Array.isArray(options)) options = Object.values(options as Record<string, unknown>);
+        if (Array.isArray(options)) options = options.map((e) => (e && typeof e === "object" ? ((e as Record<string, unknown>).text ?? (e as Record<string, unknown>).label) : e));
+        let answer = o.answer ?? o.correct ?? o.answer_index ?? o.answerIndex;
+        if (typeof answer === "string" && Array.isArray(options)) {
+          const a = answer.trim();
+          const i = (options as unknown[]).findIndex((e) => typeof e === "string" && e.trim() === a);
+          if (i >= 0) answer = i;
+        }
+        return { ...o, stem, options, answer, explanation: join(o.explanation ?? o.aciklama) };
       },
       z.object({
       stem: s(8, 400),
