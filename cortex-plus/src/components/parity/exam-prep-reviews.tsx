@@ -11,6 +11,14 @@ const WRONG_TYPE_LABEL: Record<string, string> = {
   unknown: "Diğer",
 };
 
+/** Bu kaynaklarda önizleme alanı öğrencinin verdiği cevabı tutar (soru metnini değil). */
+const ANSWER_PREVIEW_SOURCES = new Set(["quiz", "focused", "gaps", "chat"]);
+
+/** Yanılgı kartında önizleme etiketi: öğrencinin cevabıysa "Senin cevabın:", soru metniyse "Soru:". */
+export function previewLabel(sourceKind: string | null | undefined): string {
+  return sourceKind && ANSWER_PREVIEW_SOURCES.has(sourceKind) ? "Senin cevabın:" : "Soru:";
+}
+
 export type ReviewItem = {
   id: string;
   claim: string;
@@ -18,6 +26,7 @@ export type ReviewItem = {
   wrongType: string;
   topicLabel: string | null;
   questionPreview: string | null;
+  sourceKind?: string | null;
   createdAt: string;
   reviewNodeHref: string | null;
 };
@@ -90,7 +99,7 @@ export function ExamPrepReviews({
               ) : null}
               {item.questionPreview ? (
                 <p className="text-xs text-[var(--cp-muted)]">
-                  Soru: {item.questionPreview}
+                  {previewLabel(item.sourceKind)} {item.questionPreview}
                 </p>
               ) : null}
               {item.reviewNodeHref ? (
