@@ -100,3 +100,17 @@ describe("check block shape tolerance (v9)", () => {
     expect(r.check?.options).toHaveLength(5);
   });
 });
+
+describe("gate v10 list markers", () => {
+  it("ignores enumerator markers but still flags open parens", async () => {
+    const { garbledReason } = await import("@/lib/content-pool/gate");
+    expect(garbledReason("Seçenekler: A) bir B) iki C) üç.")).toBeNull();
+    expect(garbledReason("1) Tabloyu kur. 2) Sırala.")).toBeNull();
+    expect(garbledReason("Yanıt (çünkü uzun ve")).not.toBeNull();
+  });
+  it("truncation never leaves an open paren", async () => {
+    const { blueprintSchema } = await import("@/lib/content-pool/blueprint");
+    const r = blueprintSchema.parse({ technique: { title: "Teknik başlık", body: "a ".repeat(190) + "(açıklama devam eder ve çok uzun sürer bitmez)" } });
+    expect(r.technique?.body).not.toMatch(/\([^)]*$/);
+  });
+});
