@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { BadgeJourney, BadgeState } from "@/lib/gamification/badges";
 import { BadgeArt } from "@/components/parity/badge-art";
 import { fetchJourney } from "@/components/parity/journey-dialog";
+import { useEscapeKey } from "@/lib/ui/use-escape-key";
 
 const SEEN_KEY = "cortex-badges-seen";
 const CHECKED_KEY = "cortex-badges-checked";
@@ -82,6 +83,11 @@ export function BadgeUnlockNotice({
       cancelled = true;
     };
   }, [onJourney]);
+
+  useEscapeKey(Boolean(badge), () => {
+    releaseModalSlot("badge");
+    setBadge(null);
+  });
 
   if (!badge) return null;
 
