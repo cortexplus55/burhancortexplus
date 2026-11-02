@@ -26,29 +26,45 @@ export function blueprintKind(programKind: string): BlueprintKind | null {
 /** Üst sınır aşılırsa reddetmek yerine kırpılır (sözcük sınırında); alt sınır kesin. Bir hücrenin uzunluğu iskeleti çöpe atmamalı. */
 const s = (min: number, max: number) =>
   z.string().trim().min(min).transform((v) => (v.length <= max ? v : `${v.slice(0, max - 1).replace(/\s+\S*$/, "")}…`));
+/** Fazla eleman reddedilmez, ilk `max` tutulur; alt sınır kesin. */
+const arr = <T extends z.ZodTypeAny>(item: T, min: number, max: number) =>
+  z.preprocess((v) => (Array.isArray(v) ? v.slice(0, max) : v), z.array(item).min(min).max(max));
+/** Cevap harf ("B", "B)") ya da sayı metni gelirse 0 tabanlı sayıya çevrilir. */
+const answerIndex = z.preprocess((v) => {
+  if (typeof v === "string") {
+    const t = v.trim();
+    const m = /^([A-Ea-e])(\)|\.|$)/.exec(t);
+    if (m) return m[1].toUpperCase().charCodeAt(0) - 65;
+    if (/^\d+$/.test(t)) return Number(t);
+  }
+  return v;
+}, z.number().int().min(0).max(4));
+const num = z.preprocess((v) => (typeof v === "string" && /^\d+/.test(v.trim()) ? parseInt(v, 10) : v), z.number().int().min(10).max(300));
+/** Her blok ayrı okunur: bozuk blok yalnız kendisi "eksik" sayılır, bütün iskelet çöpe gitmez (hangi blok bozuk, raporda görünür). */
+const block = <T extends z.ZodTypeAny>(schema: T) => schema.optional().catch(undefined);
 export const blueprintSchema = z.object({
-  diagram: z
-    .object({
+  diagram: block(
+    z.object({
       kind: z.enum(["process_network", "timeline"]).catch("process_network"),
       title: s(2, 120),
       caption: s(1, 200).optional().catch(undefined),
-      items: z.array(z.object({ label: s(1, 80), detail: s(1, 120).optional().catch(undefined) })).min(2).max(8),
-    })
-    .optional(),
-  table: z.object({ caption: s(2, 100), columns: z.array(s(1, 40)).min(2).max(5), rows: z.array(z.array(s(1, 160)).min(2).max(5)).min(2).max(14) }).optional(),
-  spot: z.object({ title: s(3, 80), points: z.array(s(2, 160)).min(2).max(6) }).optional(),
-  trap: z.object({ title: s(3, 90), wrong: s(6, 260), right: s(6, 320), tell: s(4, 220).optional().catch(undefined) }).optional(),
-  contrast: z.object({ long: s(4, 420), fast: s(4, 420) }).optional(),
-  technique: z.object({ title: s(3, 80), body: s(10, 400) }).optional(),
-  check: z
-    .object({
+      items: arr(z.object({ label: s(1, 80), detail: s(1, 120).optional().catch(undefined) }), 2, 8),
+    }),
+  ),
+  table: block(z.object({ caption: s(2, 100), columns: arr(s(1, 40), 2, 5), rows: arr(arr(s(1, 160), 2, 5), 2, 14) })),
+  spot: block(z.object({ title: s(3, 80), points: arr(s(2, 160), 2, 6) })),
+  trap: block(z.object({ title: s(3, 90), wrong: s(6, 260), right: s(6, 320), tell: s(4, 220).optional().catch(undefined) })),
+  contrast: block(z.object({ long: s(4, 420), fast: s(4, 420) })),
+  technique: block(z.object({ title: s(3, 80), body: s(10, 400) })),
+  check: block(
+    z.object({
       stem: s(8, 400),
-      options: z.array(s(1, 200)).min(2).max(5),
-      answer: z.number().int().min(0).max(4),
+      options: arr(s(1, 200), 2, 5),
+      answer: answerIndex,
       explanation: s(8, 600),
-      seconds: z.number().int().min(10).max(300).optional().catch(undefined),
-    })
-    .optional(),
+      seconds: num.optional().catch(undefined),
+    }),
+  ),
 });
 export type Blueprint = z.infer<typeof blueprintSchema>;
 
@@ -106,7 +122,7 @@ export function blueprintIssues(lesson: LessonBody, kind: BlueprintKind | null, 
     }
     const parsed = blueprintSchema.safeParse(raw.blueprint ?? null);
     if (!parsed.success) {
-      issues.push(`${code}: iskelet okunamadı`);
+      issues.push(`${code}: iskelet okunamadı (${typeof raw.blueprint === "object" ? (Array.isArray(raw.blueprint) ? "dizi" : "nesne") : typeof raw.blueprint})`);
       continue;
     }
     const bp = parsed.data;
