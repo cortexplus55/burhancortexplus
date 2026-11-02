@@ -41,6 +41,18 @@ describe("fillOrder", () => {
     const groups = [...new Set(order.slice(firstAyt).map((t) => t.group))];
     expect(groups).toEqual(["AYT", "KPSS", "TUS", "DUS", "ALES", "DGS", "YDS", "MEB"]);
   });
+
+  it("sınav grupları dönüşümlü: TUS/DUS/ALES/DGS/YDS KPSS'yi beklemez, grupta her dersin 1. ünitesi önce", () => {
+    const order = fillOrder(registry.programs);
+    const exams = order.filter((t) => ["KPSS", "TUS", "DUS", "ALES", "DGS", "YDS"].includes(t.group));
+    const present = [...new Set(exams.map((t) => t.group))];
+    expect(new Set(exams.slice(0, present.length).map((t) => t.group)).size).toBe(present.length);
+    const lastExam = order.map((t) => t.group).lastIndexOf(exams.at(-1)!.group);
+    expect(order.findIndex((t) => t.group === "MEB")).toBeGreaterThan(lastExam);
+    const kpss = exams.filter((t) => t.group === "KPSS");
+    const kpssPrograms = new Set(kpss.map((t) => t.programId)).size;
+    expect(kpss.slice(0, kpssPrograms).every((t) => t.unitId.endsWith("#1"))).toBe(true);
+  });
 });
 
 function deps(over: Partial<FillDeps> & { outcomes?: Record<string, FillOutcome[]>; costPerUnit?: number; startSpent?: number } = {}) {

@@ -390,6 +390,8 @@ export async function generateUnitContent(
   unit: PoolUnit,
   llm: LlmCall,
   models: { generate: string; verify: string } = { generate: env.OPENAI_CONTENT_MODEL, verify: SHARED_VERIFY_MODEL },
+  /** Her çağrının kullanımı döner dönmez bildirilir (maliyet kaydı yarıda kesilen üretimde de tutulsun). */
+  onUsage?: (entry: UsageEntry) => Promise<void>,
 ): Promise<GeneratedUnit> {
   const usage: UsageEntry[] = [];
   const call = async (
@@ -399,7 +401,9 @@ export async function generateUnitContent(
   ) => {
     const out = await llm({ model, ...prompt });
     // Fiyat satırları (ai_model_prices) istenen model adıyla tutulur; yanıttaki tarihli sürüm adı (gpt-4.1-2025-04-14) fiyatsız kalır.
-    usage.push({ actionCode, model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
+    const entry = { actionCode, model, tokensIn: out.tokensIn, tokensOut: out.tokensOut };
+    usage.push(entry);
+    if (onUsage) await onUsage(entry);
     return out.text;
   };
   const codes = unit.outcomes.map((o) => o.code);
