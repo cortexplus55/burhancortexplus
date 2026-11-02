@@ -49,4 +49,16 @@ describe("havuz ders kalite rubriği", () => {
     expect(done).toEqual(["a"]);
     expect(report).toMatchObject({ stop: "budget", refreshed: 1, remaining: 1 });
   });
+  it("doldurucu çalışırken yenileme sırayı bırakır (yield)", async () => {
+    let busy = false;
+    const done: string[] = [];
+    const rows = [{ id: "x" }, { id: "y" }] as unknown as RefreshRow[];
+    const report = await runRefresh(
+      rows,
+      { spent: async () => 0, enabled: async () => true, now: () => 0, yieldTo: async () => busy, refresh: async (r) => { done.push(r.id); busy = true; return true; } },
+      { capUsd: 1, lessonEstimateUsd: 0.01, concurrency: 1, deadline: 10 },
+    );
+    expect(done).toEqual(["x"]);
+    expect(report).toMatchObject({ stop: "yield", refreshed: 1, remaining: 1 });
+  });
 });
