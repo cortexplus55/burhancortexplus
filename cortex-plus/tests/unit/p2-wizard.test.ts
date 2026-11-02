@@ -14,7 +14,10 @@ describe("kurulum sınav türü, tarih ve takılı belge", () => {
       "YKS (TYT+AYT)",
       "KPSS",
       "ALES",
+      "DGS",
+      "YDS",
       "TUS",
+      "DUS",
       "Üniversite Vize/Final",
     ]);
     expect(isExamTrack("tus")).toBe(true);

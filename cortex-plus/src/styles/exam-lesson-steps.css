@@ -1602,3 +1602,60 @@
 .als-feedback:not(.is-right) {
   box-shadow: 0 -12px 24px -12px rgba(0, 0, 0, 0.6);
 }
+
+/* 2 Kasım 2026 (375 px canlı kontrol): yatay kaydırmalı tabloda sağ sütun kesiliyordu ve yarı saydam üst çubuk
+   kaydırılan tablonun üstüne biniyordu. Dar ekranda her satır bir kart; sütun adı hücrenin üstünde yazar. */
+.als-top {
+  z-index: 20;
+  background: var(--cp-bg, var(--c-bg));
+}
+
+@media (max-width: 480px) {
+  .als-reference-table-hint--wide {
+    display: none;
+  }
+  .als-reference-table-scroll {
+    overflow-x: visible;
+    border: 0;
+  }
+  .als-reference-table table,
+  .als-reference-table tbody,
+  .als-reference-table tr,
+  .als-reference-table td {
+    display: block;
+    width: 100%;
+  }
+  .als-reference-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .als-reference-table tr {
+    margin-bottom: 0.6rem;
+    border: 1px solid var(--cp-border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  .als-reference-table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 0.45rem 0.75rem;
+  }
+  .als-reference-table tr td:first-child {
+    border-top: 0;
+    font-weight: 700;
+    background: var(--c-surface-2);
+  }
+  .als-reference-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-text) 60%, var(--c-bg));
+  }
+}

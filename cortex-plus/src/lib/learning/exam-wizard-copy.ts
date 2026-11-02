@@ -13,7 +13,10 @@ export const EXAM_TRACKS = [
   { id: "yks", label: "YKS (TYT+AYT)" },
   { id: "kpss", label: "KPSS" },
   { id: "ales", label: "ALES" },
+  { id: "dgs", label: "DGS" },
+  { id: "yds", label: "YDS" },
   { id: "tus", label: "TUS" },
+  { id: "dus", label: "DUS" },
   { id: "uni", label: "Üniversite Vize/Final" },
 ] as const;
 
@@ -31,7 +34,22 @@ export function examTrackForGoal(goal: string | null | undefined): ExamTrackId |
   if (/\bYKS\b/.test(text)) return "yks";
   if (/\bKPSS\b/.test(text)) return "kpss";
   if (/\bALES\b/.test(text)) return "ales";
+  if (/\bDGS\b/.test(text)) return "dgs";
+  if (/\b(YDS|YÖKDİL)\b/.test(text)) return "yds";
   if (/\bTUS\b/.test(text)) return "tus";
+  if (/\bDUS\b/.test(text)) return "dus";
+  return null;
+}
+
+/**
+ * Belge sormayan resmî müfredat kurulumu (2 Kasım 2026): TUS/DUS/KPSS/ALES/DGS/YDS çipinde ders listesi boş kalıyor,
+ * öğrenci yalnızca "özel ders ekle" görüyordu. Bu adres ders → konu → tarih akışını doğrudan açar.
+ */
+export function officialSetupHrefForTrack(track: string | null | undefined): string | null {
+  const base = "/deneme-sinavlari/resmi/kurulum?sinav=";
+  if (track === "tyt") return `${base}yks&alan=tyt`;
+  if (track === "ayt" || track === "yks") return `${base}yks`;
+  if (track && ["lgs", "kpss", "ales", "dgs", "yds", "tus", "dus"].includes(track)) return `${base}${track}`;
   return null;
 }
 

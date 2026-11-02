@@ -195,6 +195,12 @@ const OFFICIAL_SETUP_HREF: Record<string, string> = {
   tyt: "/deneme-sinavlari/resmi/kurulum?sinav=yks&alan=tyt",
   ayt: "/deneme-sinavlari/resmi/kurulum?sinav=yks",
   lgs: "/deneme-sinavlari/resmi/kurulum?sinav=lgs",
+  kpss: "/deneme-sinavlari/resmi/kurulum?sinav=kpss",
+  ales: "/deneme-sinavlari/resmi/kurulum?sinav=ales",
+  dgs: "/deneme-sinavlari/resmi/kurulum?sinav=dgs",
+  yds: "/deneme-sinavlari/resmi/kurulum?sinav=yds",
+  tus: "/deneme-sinavlari/resmi/kurulum?sinav=tus",
+  dus: "/deneme-sinavlari/resmi/kurulum?sinav=dus",
 };
 
 export function catalogCreateHref(item: CatalogItem): string {

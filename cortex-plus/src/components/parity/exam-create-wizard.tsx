@@ -29,6 +29,7 @@ import {
   DOCUMENT_ANALYSIS_STAGES,
   EXAM_TRACKS,
   examTrackForGoal,
+  officialSetupHrefForTrack,
   PREP_HOME_COPY,
   STUDY_MODALITY_CHOICES,
   WIZARD_COPY,
@@ -1643,6 +1644,18 @@ export function ExamCreateWizard({
               </button>
             ))}
           </div>
+          {officialSetupHrefForTrack(examTrack) ? (
+            <a
+              className="apw-official-entry"
+              data-testid="official-setup-entry"
+              href={officialSetupHrefForTrack(examTrack) ?? undefined}
+            >
+              <strong>Dosyam yok — resmî müfredattan seç</strong>
+              <span>
+                {EXAM_TRACKS.find((t) => t.id === examTrack)?.label} dersleri ve konuları hazır; belge yüklemeden başla →
+              </span>
+            </a>
+          ) : null}
           <input
             className="apw-search"
             value={subjectQuery}

@@ -609,20 +609,9 @@ export function OfficialSetupFlow({
         <div className="osf-step" data-testid="quick-scan">
           <p className="osf-kicker">4 / 5 · Seviye</p>
           <h1 className="osf-title">⚡ Akıllı Hızlı Tarama</h1>
-          {scanPhase === "intro" && treeDef ? (
-            <div className="lc-box" data-testid="scan-empty">
-              <p className="osf-lead">
-                Henüz hazır soru yok: {treeDef.name} konu ağacı için doğrulanmış soru havuzu henüz dolmadı. Yol sırası senin
-                “Biliyorum / Orta / Zayıf” işaretinle kurulur.
-              </p>
-              <div className="osf-bar">
-                <button type="button" className="osf-cta" onClick={goDate}>
-                  Devam et
-                </button>
-              </div>
-            </div>
-          ) : null}
-          {scanPhase === "intro" && !treeDef ? (
+          {/* 2 Kasım 2026: konu ağacı sınavlarında sabit "henüz hazır soru yok" notu vardı; derin havuz dolarken de
+              görünüyordu. Artık tarama sunucudaki doğrulanmış soru sayısına bakar: soru yoksa "level-empty" dürüstçe söyler. */}
+          {scanPhase === "intro" ? (
             <>
               <p className="osf-lead">
                 10–12 soru, yaklaşık 3–5 dakika. Sorular seçtiğin derslerin en çok kazanım içeren ünitelerinden, doğrulanmış soru

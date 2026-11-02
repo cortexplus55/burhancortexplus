@@ -164,8 +164,8 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await page.locator("summary", { hasText: "Türkçe" }).first().click();
     await page.locator("details", { hasText: "Türkçe" }).first().getByTestId("setup-unit").first().getByRole("radio", { name: "Zayıf" }).click();
     await page.getByRole("button", { name: "Bu konularla devam et" }).click();
-    await expect(page.getByTestId("scan-empty")).toContainText("Henüz hazır soru yok");
-    await page.getByRole("button", { name: "Devam et" }).click();
+    await expect(page.getByRole("button", { name: "Taramayı başlat" })).toBeVisible();
+    await page.getByRole("button", { name: "Taramayı atla" }).click();
     await page.getByRole("button", { name: "Planımı Oluştur" }).click();
     const picked = page.getByTestId("picked");
     await expect(picked).toContainText('"examType":"KPSS"');
@@ -192,8 +192,8 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await screenOk(page);
     await page.getByRole("button", { name: "Konuları gör" }).click();
     await page.getByRole("button", { name: "Bu konularla devam et" }).click();
-    await expect(page.getByTestId("scan-empty")).toContainText("Henüz hazır soru yok");
-    await page.getByRole("button", { name: "Devam et" }).click();
+    await expect(page.getByRole("button", { name: "Taramayı başlat" })).toBeVisible();
+    await page.getByRole("button", { name: "Taramayı atla" }).click();
     await page.getByRole("button", { name: "Planımı Oluştur" }).click();
     await expect(page.getByTestId("picked")).toContainText('"examType":"TUS"');
     await expect(page.getByTestId("picked")).toContainText('"examDate":"2027-03-27"');
