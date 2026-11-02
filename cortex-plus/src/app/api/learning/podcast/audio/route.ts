@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
-import { synthesizeCharged, type AudioTrack } from "@/lib/learning/audio-cache";
+import { synthesizeCharged, synthesizeShared, type AudioTrack } from "@/lib/learning/audio-cache";
+import { isSharedPodcastScript, sharedBudgetAllows } from "@/lib/content-pool/shared-media";
 import { speakVerified } from "@/lib/learning/speech-normalizer";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
 import { MAX_PODCAST_AUDIO_CHARS, MAX_PODCAST_AUDIO_LINES, MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
@@ -82,8 +83,14 @@ export async function POST(request: Request) {
     return errorResponse(400, "invalid_input");
   }
 
+  // Paylaşımlı ünite podcast'i: kredi yok, maliyet SHARED_CONTENT_MEDIA; tavan doluysa bugünkü ücretli yol.
+  const shared =
+    (await isSharedPodcastScript(guard.ctx.service, lines).catch(() => false)) &&
+    (await sharedBudgetAllows(guard.ctx.service, "podcast").catch(() => false));
+  const synthesize: typeof synthesizeCharged = (...args) => (shared ? synthesizeShared(...args) : synthesizeCharged(...args));
+
   if (!parsed.data.stream) {
-    const result = await synthesizeCharged(guard.ctx.service, guard.ctx.userId, speech);
+    const result = await synthesize(guard.ctx.service, guard.ctx.userId, speech);
     if (!result.ok && (result.reason === "insufficient_credits" || result.reason === "premium_required")) {
       return errorResponse(402, result.reason);
     }
@@ -114,7 +121,7 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
       };
       let ready = 0;
-      const result = await synthesizeCharged(guard.ctx.service, guard.ctx.userId, speech, {
+      const result = await synthesize(guard.ctx.service, guard.ctx.userId, speech, {
         onTrack: (index, track: AudioTrack) => {
           ready += 1;
           const line = lines[index];
