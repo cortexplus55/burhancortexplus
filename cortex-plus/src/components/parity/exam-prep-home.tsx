@@ -1350,7 +1350,18 @@ function PathSections({
           {(() => {
             const count = distinctTopicCount(hidden);
             const lead = hidden.every((section) => section.locked) ? "Kalan kilitli konular" : "Kalan konular";
-            return count ? `${lead} (${count} konu)` : `${lead.replace("konular", "adımlar")} (${hidden.length} bölüm)`;
+            const label = count ? `${lead} (${count} konu)` : `${lead.replace("konular", "adımlar")} (${hidden.length} bölüm)`;
+            // Gizli bölümlerin haftası da yazılır (UX tur 2, bulgu 7): görünen "1. Hafta"dan sonra
+            // açılınca "3. Hafta" gelince arada hafta atlanmış gibi duruyordu.
+            const span = sectionWhenLabel(
+              hidden.flatMap((section) =>
+                section.nodes.filter((node) => node.status !== "done").map((node) => node.sessionMeta?.calendarDate ?? ""),
+              ),
+              pathOrigin,
+              today,
+              { examDate },
+            );
+            return span ? `${label} · ${span}` : label;
           })()}
         </button>
       ) : null}
@@ -1458,7 +1469,7 @@ function StudyPath({
         </svg>
       ) : null}
       <ol className="cp-path-list" aria-label={PREP_HOME_COPY.path}>
-        {points.map(({ node, x, y }) => {
+        {points.map(({ node, x, y }, pointIndex) => {
           const meta = PLAN_NODE_META[node.kind];
           const level = isLevelNode(node.id);
           // Bitmiş adım "Yarın" değil "Tamamlandı · 29 Eki" (30 Ekim 2026).
@@ -1471,6 +1482,14 @@ function StudyPath({
             node.status !== "done" && node.sessionMeta?.calendarDate
               ? turkishHolidayOn(node.sessionMeta.calendarDate)
               : null;
+          // Aynı günün ardışık adımlarında gün etiketi bir kez yazılır (UX tur 2: "Bugün" üç kez yineleniyordu).
+          const prevPoint = pointIndex > 0 ? points[pointIndex - 1] : null;
+          const prevDayLabel = prevPoint && !isLevelNode(prevPoint.node.id)
+            ? pathNodeWhenLabel(
+                { status: prevPoint.node.status, calendarDate: prevPoint.node.sessionMeta?.calendarDate },
+                { today, doneOn: doneOn[prevPoint.node.id], weekday },
+              )
+            : null;
           const readinessNote =
             node.kind === "readiness" && readinessClaim === true
               ? ", ölçülen verilere göre hazırsın"
@@ -1530,7 +1549,7 @@ function StudyPath({
                   </span>
                 ) : null}
               </button>
-              {dayLabel && node.id !== currentId ? (
+              {dayLabel && node.id !== currentId && dayLabel !== prevDayLabel ? (
                 <span className="cp-path-when" aria-hidden title={holiday ?? undefined}>
                   {dayLabel}
                   {holiday ? " · 🇹🇷 Esnek gün" : null}
