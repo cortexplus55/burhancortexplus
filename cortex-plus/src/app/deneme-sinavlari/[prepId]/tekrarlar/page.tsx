@@ -45,7 +45,7 @@ export default async function ExamPrepReviewsPage({
       const query = supabase
         .from("exam_prep_misconceptions")
         .select(
-          "id, claim, corrected, wrong_type, topic_label, question_preview, created_at, node_id",
+          "id, claim, corrected, wrong_type, topic_label, question_preview, source_kind, created_at, node_id",
         )
         .eq("exam_prep_id", prepId)
         .eq("user_id", user.id);
@@ -85,6 +85,7 @@ export default async function ExamPrepReviewsPage({
     wrongType: (row.wrong_type as string) ?? "unknown",
     topicLabel: (row.topic_label as string | null) ?? null,
     questionPreview: (row.question_preview as string | null) ?? null,
+    sourceKind: (row.source_kind as string | null) ?? null,
     createdAt: row.created_at as string,
     reviewNodeHref: reviewReady
       ? examPrepNodeHref(prepId, reviewReady.id as string)
