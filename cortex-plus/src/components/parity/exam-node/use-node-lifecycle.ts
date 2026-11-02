@@ -3,6 +3,7 @@
  * cevap kaydı, parça parça yoklama, bitirme, sonuç bekleme ve yoklama. Ekran bileşenleri yalnız çizer; aşama ve
  * istekler burada. `router.refresh()` sunucu özelliklerini yenilese de açılış yeniden koşmaz (`openedForRef`).
  */
+import { ANSWER_LOCK_KEY, lockedKeys } from "@/lib/learning/answer-lock";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -816,6 +817,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       answersRef.current = nextAnswers;
     }
     refreshUnsaved(nextAnswers);
+    revealedRef.current = new Set(lockedKeys(nextAnswers));
     if (typeof data.cursorIndex === "number" || nextAnswers !== serverAnswers || cursorFromDraft) {
       setIndex((current) => Math.max(current, nextCursor));
     }
@@ -1411,6 +1413,13 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     router.push(home);
   }
 
+  /** "Kontrol et": soru kilitlenir; kilit cevap kümesiyle kaydedilir, yenilemede açıklama açık gelir. */
+  function lockAnswer(key: string) {
+    if (revealedRef.current.has(key)) return;
+    revealedRef.current.add(key);
+    updateAnswer(ANSWER_LOCK_KEY, [...revealedRef.current]);
+  }
+
   function updateAnswer(key: string, value: unknown, options?: { typing?: boolean }) {
     const next = { ...answersRef.current, [key]: value };
     answersRef.current = next;
@@ -1865,6 +1874,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     lessonPodcast,
     setLessonPodcast,
     revealedRef,
+    lockAnswer,
     saveCursorRef,
     pendingSaves,
     saveError,

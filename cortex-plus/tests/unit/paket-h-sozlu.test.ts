@@ -277,7 +277,7 @@ describe("tek hakem — kod ve istem bekçileri", () => {
     expect(desk).toContain("onProbe?.(next.question)");
     // ilk:/takip: anahtarları RPC'ye kadar korunur: stripAnswerMeta yalnız __meta/__hints düşürür.
     const tracking = read("src/lib/learning/learning-tracking.ts");
-    expect(tracking).toMatch(/const \{ __meta, __hints, \.\.\.rest \} = answers;/);
+    expect(tracking).toMatch(/const \{ __meta, __hints, (__locked, )?\.\.\.rest \} = answers;/);
   });
 });
 

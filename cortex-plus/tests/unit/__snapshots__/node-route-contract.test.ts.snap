@@ -3624,6 +3624,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > save: cevap kaydı ve eksi
     "db select exam_prep_nodes [id, kind, title, status, sort_order, day_index, session_meta] eq(id,"00000000-0000-4000-8000-0000000000b1") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") maybe",
     "db select exam_prep_topics [id, label, measured_level, document_topic_node_id, source_refs] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") or(id.eq.dtn1,document_topic_node_id.eq.dtn1) limit(1) maybe",
     "db select document_topic_nodes [document_id] eq(id,"dtn1") maybe",
+    "db select exam_prep_node_attempts [answers] eq(id,"00000000-0000-4000-8000-0000000000d1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "rpc save_exam_prep_node_answers {"p_user_id":"00000000-0000-4000-8000-00000000aaaa","p_attempt_id":"00000000-0000-4000-8000-0000000000d1","p_generation_id":"00000000-0000-4000-8000-0000000000e1","p_expected_version":1,"p_answers":{"0":["Değişmez"]},"p_cursor_index":1}",
     "response 200 {"ok":true,"contentVersion":2,"generationId":"00000000-0000-4000-8000-0000000000e1"}",
   ],

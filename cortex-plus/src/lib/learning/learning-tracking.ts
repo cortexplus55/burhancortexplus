@@ -312,9 +312,10 @@ export function parseHintsUsed(
 export function stripAnswerMeta(
   answers: Record<string, unknown>,
 ): Record<string, unknown> {
-  const { __meta, __hints, ...rest } = answers;
+  const { __meta, __hints, __locked, ...rest } = answers;
   void __meta;
   void __hints;
+  void __locked;
   return rest;
 }
 

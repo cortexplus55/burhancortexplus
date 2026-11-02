@@ -21,6 +21,7 @@ export function ExamQuizPlay({
   report,
   twin,
   twoOption,
+  locked = false,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -39,14 +40,16 @@ export function ExamQuizPlay({
   twin?: (index: number) => ReactNode;
   /** "🤔 İki şık arasında kaldım" (Paket J3 #12): cevap kilitlenmeden önce, şıkların altında. */
   twoOption?: (index: number) => ReactNode;
+  /** Soru daha önce "Kontrol et" ile kilitlendi (sayfa yenilense de): açıklama açık, şık değişmez. */
+  locked?: boolean;
 }) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(locked);
   const [acting, setActing] = useState(false);
   const question = questions[index];
 
   useEffect(() => {
-    setRevealed(false);
-  }, [index]);
+    setRevealed(locked);
+  }, [index, locked]);
 
   if (!question) return null;
 
