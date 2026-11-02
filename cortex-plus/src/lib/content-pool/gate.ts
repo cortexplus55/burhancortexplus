@@ -20,7 +20,7 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  */
 // v9: check bloğu dizi gövde/öncül alanı/nesne seçenek/metin cevap biçimleri okunur
 // v10: sıralama/şık imleri ("A)", "1)") parantez dengesinde sayılmaz
-export const GATE_VERSION = 11; // 11: matematik gösterimi maskesi genişledi (2 Kasım 2026); v10 retleri yeniden denenir
+export const GATE_VERSION = 12; // 12: boşluk doldurma çizgisi muafiyeti; 11: matematik gösterimi maskesi (2 Kasım 2026)
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {
