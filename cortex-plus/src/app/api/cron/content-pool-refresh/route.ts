@@ -24,7 +24,7 @@ export const maxDuration = 300;
  */
 const FLAG = "content_pool_refresh";
 const ADMIT_MS = 200_000;
-const LESSON_ESTIMATE_USD = 0.008;
+const LESSON_ESTIMATE_USD = 0.011; // pilot (2 Kasım 2026): ders başı ölçülen 0.0108 $
 
 export async function GET(request: Request) {
   if (cronAuthorized(request)) return step(new URL(request.url).origin);
@@ -80,6 +80,12 @@ async function step(origin: string) {
   if (!flag.enabled || !flag.actor) return NextResponse.json({ ok: true, skipped: "disabled" });
   const llm = openaiLlm();
   if (!llm) return NextResponse.json({ ok: false, skipped: "ai_not_configured" }, { status: 503 });
+  // Öncelik doldurucuda: doldurucu çalışıyorsa (açık + kilidi geçerli) bu adım hiç başlamaz, cron sonra dener.
+  const fillerBusy = async () => {
+    const fill = await readFillConfig(service);
+    return fill.enabled && fill.leaseUntil > Date.now();
+  };
+  if (await fillerBusy()) return NextResponse.json({ ok: true, skipped: "filler_running" }, { status: 202 });
   const leased = await acquire(service, flag);
   if (!leased) return NextResponse.json({ ok: true, skipped: "running" }, { status: 202 });
   const pilot = typeof flag.metadata.pilot_limit === "number" ? flag.metadata.pilot_limit : null;
@@ -87,7 +93,10 @@ async function step(origin: string) {
   const allWeak = weakLessons((data ?? []) as RefreshRow[]);
   // Pilot: metadata.pilot_limit verilirse yalnız o kadar ders yenilenir, sonra iş kapanır.
   const weak = pilot === null ? allWeak : allWeak.slice(0, Math.max(0, pilot));
-  const cap = (await readFillConfig(service)).capUsd;
+  // Ortak tavan doldurucunun; metadata.stop_usd verilirse yenileme daha erken durur (video/podcast payı).
+  const fillCap = (await readFillConfig(service)).capUsd;
+  const stopUsd = Number(flag.metadata.stop_usd);
+  const cap = Number.isFinite(stopUsd) && stopUsd > 0 ? Math.min(fillCap, stopUsd) : fillCap;
   const actor = flag.actor;
   const started = Date.now();
   after(async () => {
@@ -98,6 +107,7 @@ async function step(origin: string) {
         spent: () => sharedContentSpent(service),
         enabled: async () => (await readFlag(service)).enabled,
         now: Date.now,
+        yieldTo: fillerBusy,
         refresh: async (row) => {
           const unit = poolUnit(row.unit_id);
           const qa = row.qa ?? {};
@@ -122,7 +132,7 @@ async function step(origin: string) {
       },
       { capUsd: cap, lessonEstimateUsd: LESSON_ESTIMATE_USD, concurrency: 3, deadline: started + ADMIT_MS },
     );
-    const finished = report.stop !== "deadline" || pilot !== null;
+    const finished = (report.stop !== "deadline" && report.stop !== "yield") || pilot !== null;
     const latest = (await readFlag(service)).metadata;
     await service
       .from("feature_flags")
@@ -130,7 +140,7 @@ async function step(origin: string) {
       .eq("key", FLAG);
     console.warn("pool_refresh_step", report);
     const secret = process.env.CRON_SECRET;
-    if (!finished && secret)
+    if (!finished && report.stop === "deadline" && secret)
       await fetch(`${origin}/api/cron/content-pool-refresh`, { headers: { Authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(15_000) }).catch(() => undefined);
   });
   return NextResponse.json({ ok: true, started: true, weak: weak.length, spentUsd: Number((await sharedContentSpent(service)).toFixed(4)), capUsd: cap }, { status: 202 });
