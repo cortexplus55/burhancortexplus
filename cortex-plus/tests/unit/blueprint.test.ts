@@ -19,7 +19,7 @@ describe("Sınav pedagojik iskeleti (sıfır maliyetli kapı)", () => {
   it("TUS: tam iskelet geçer, eksik blok ve 'en sık' yokluğu yakalanır", () => {
     expect(blueprintIssues(lesson(klinik), "klinik")).toEqual([]);
     const { trap: _t, ...noTrap } = klinik;
-    expect(blueprintIssues(lesson(noTrap), "klinik")).toContain("TUS.DDA.1.a: iskelet bloğu eksik (trap)");
+    expect(blueprintIssues(lesson(noTrap), "klinik")).toContain("TUS.DDA.1.a: iskelet bloğu eksik (trap; yok)");
     expect(blueprintIssues(lesson({ ...klinik, spot: { title: "Kutu başlığı", points: ["Altın standart Y", "İlk seçenek Z"] } }), "klinik").join()).toContain("en sık");
     expect(blueprintIssues(lesson({ ...klinik, check: { ...klinik.check, options: opts.slice(0, 4) } }), "klinik").join()).toContain("beklenen 5");
   });
@@ -64,6 +64,21 @@ describe("iskelet: dayanıklı okuma", () => {
       expect(r.data.table!.rows).toHaveLength(14);
       expect(r.data.check!.answer).toBe(2);
       expect(r.data.check!.seconds).toBe(60);
+    }
+  });
+});
+
+describe("iskelet: eş adlı alanlar", () => {
+  it("choices/correct ve metin adımlar okunur", async () => {
+    const { blueprintSchema } = await import("@/lib/content-pool/blueprint");
+    const r = blueprintSchema.safeParse({
+      diagram: { title: "Tablo kurma adımları", items: ["Kişileri sütuna yaz: A, B, C", "Kesin bilgiyi yerleştir"] },
+      check: { stem: "I. a\nII. b\nIII. c", choices: ["Yalnız I", "Yalnız II", "I ve II", "II ve III", "I, II ve III"], correct: "D", explanation: "Açıklama metni" },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.diagram!.items[0]).toEqual({ label: "Kişileri sütuna yaz", detail: "A, B, C" });
+      expect(r.data.check!.answer).toBe(3);
     }
   });
 });
