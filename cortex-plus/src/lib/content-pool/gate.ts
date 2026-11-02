@@ -14,7 +14,7 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  * sürümle reddedilen denemeleri 2 deneme hakkına sayar. 2: matematik/fen gösterimi + ölçü birimi (1 Kasım 2026).
  * 4: koşullu önerme dönüşüm adları (karşıtı/tersi/karşıt tersi) kodla denetlenir (2 Kasım 2026).
  */
-export const GATE_VERSION = 4;
+export const GATE_VERSION = 5;
 
 export type GateOutcome = { code: string; outcomeId: string; limitations: string[] };
 export type GateUnit = { unitId: string; outcomes: GateOutcome[]; choices: number };

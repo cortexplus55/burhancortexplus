@@ -11,11 +11,17 @@ export const lessonSchema = z.object({
         heading: z.string().min(2).max(200),
         explanation: z.string().min(40).max(8000),
         key_points: z.array(z.string().min(2).max(400)).min(1).max(12),
+        // Kalite rubriği alanları (2 Kasım 2026, rubric.ts); eski kayıtlarda yok.
+        steps: z.array(z.string().min(2).max(600)).max(8).optional(),
+        worked_example: z.string().max(3000).optional(),
+        common_mistakes: z.array(z.string().min(2).max(600)).max(5).optional(),
+        ladder: z.object({ temel: z.string().max(600), orta: z.string().max(600), ileri: z.string().max(600) }).optional(),
       }),
     )
     .min(1)
     .max(60),
   summary: z.string().min(20).max(4000),
+  key_terms: z.array(z.object({ term: z.string().min(1).max(120), definition: z.string().min(2).max(600) })).max(20).optional(),
   cards: z.array(z.object({ front: z.string().min(1).max(300), back: z.string().min(1).max(600) })).min(1).max(80),
 });
 export type LessonBody = z.infer<typeof lessonSchema>;

@@ -58,6 +58,10 @@ export function screenLead(explanation: string): string | null {
 }
 
 /** Havuz anlatımı → ders kaydı (V3). Bir kazanım bir ekran; çok kazanımlı ünitede ekranlar birleşir. */
+function note(title: string, body: string, tone: string) {
+  return { type: "note", note: { title, body: body.slice(0, 2400), tone } };
+}
+
 export function poolLessonV3(body: LessonBody, title: string) {
   const per = Math.ceil(body.sections.length / LESSON_SCREEN_HARD_CAP);
   const screens: Record<string, unknown>[] = [];
@@ -66,8 +70,15 @@ export function poolLessonV3(body: LessonBody, title: string) {
     const blocks = group.flatMap((s) => [
       ...(per > 1 ? [{ type: "text", text: `**${s.heading}**` }] : []),
       ...chunks(s.explanation, 2400).map((text) => ({ type: "text", text })),
+      ...(s.steps?.length ? [{ type: "text", text: s.steps.map((p, n) => `${n + 1}. ${p}`).join("\n").slice(0, 2400) }] : []),
       ...(s.key_points.length ? [{ type: "text", text: s.key_points.map((p) => `• ${p}`).join("\n").slice(0, 2400) }] : []),
+      ...(s.worked_example?.trim() ? [note("Çözümlü örnek", s.worked_example, "exam")] : []),
+      ...(s.common_mistakes?.length ? [note("Sık yapılan hata", s.common_mistakes.map((m) => `• ${m}`).join("\n"), "warn")] : []),
+      ...(s.ladder ? [note("Temel → orta → ileri", `Temel: ${s.ladder.temel}\nOrta: ${s.ladder.orta}\nİleri: ${s.ladder.ileri}`, "info")] : []),
     ]);
+    // Yeni başlayana tanımlar ilk ekranın başında.
+    if (i === 0 && body.key_terms?.length)
+      blocks.unshift(note("Temel kavramlar", body.key_terms.map((t) => `**${t.term}**: ${t.definition}`).join("\n"), "remember"));
     screens.push({
       heading: group[0]!.heading.slice(0, 160),
       concept: group[0]!.heading.slice(0, 120),

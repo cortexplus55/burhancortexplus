@@ -27,8 +27,17 @@ function fakeLlm(unit: PoolUnit, opts: { wrongAnswerFor?: string } = {}): LlmCal
             heading: `Kazanım ${o.code}`,
             explanation: `${o.text} Bu bölüm kazanımı özgün örneklerle, adım adım açıklar.`,
             key_points: ["Ana fikir"],
+            steps: ["Önce kavramı tanı.", "Sonra örnek üzerinde uygula."],
+            worked_example: "Soru: Bu kazanımla ilgili basit bir durum verilir. Çözüm: önce kavram belirlenir, sonra kurala göre adım adım sonuca varılır.",
+            common_mistakes: ["Kavramı tanımıyla karıştırmak; doğrusu bağlama bakmaktır."],
+            ladder: { temel: "Kavramın tanımını bilir.", orta: "Kavramı örnek üzerinde uygular.", ileri: "Kavramı yeni bir durumda yorumlar." },
           })),
-          summary: "Ünitenin özeti: kazanımların ortak noktaları ve temel kavramlar.",
+          key_terms: [
+            { term: "Kazanım", definition: "Öğrencinin ünite sonunda kazanacağı beceri." },
+            { term: "Kavram", definition: "Bir düşüncenin adı." },
+            { term: "Örnek", definition: "Kuralın somut uygulaması." },
+          ],
+          summary: "Ünitenin özeti: kazanımların ortak noktaları ve temel kavramlar. Her kazanım tanım, adım ve örnekle işlendi; sık hatalar gösterildi.",
           cards: [{ front: "Soru", back: "Cevap" }],
         }),
       };

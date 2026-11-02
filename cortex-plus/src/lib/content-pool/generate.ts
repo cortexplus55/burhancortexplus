@@ -1,4 +1,5 @@
 import "server-only";
+import { lessonRubricIssues, RUBRIC_JSON_FIELDS, RUBRIC_PROMPT, RUBRIC_VERSION } from "@/lib/content-pool/rubric";
 import { env } from "@/lib/env";
 import { openaiClient } from "@/lib/ai/openai-client";
 import { isReasoningModel, samplingParams } from "@/lib/ai/model-params";
@@ -74,14 +75,14 @@ function officialBlock(unit: PoolUnit): string {
   return `Program: ${unit.program.label} (${unit.program.badge})\nÜnite: ${unit.unit.title}\nResmî kazanımlar:\n${lines.join("\n")}${rule}`;
 }
 
-function lessonPrompt(unit: PoolUnit) {
+export function lessonPrompt(unit: PoolUnit) {
   return {
     system: `Sen Türkiye müfredatına göre ders anlatımı yazan bir öğretmensin. ${ORIGINALITY} Yalnız JSON döndür.`,
     user:
       `${officialBlock(unit)}\n\nBu ünitenin TÜM kazanımlarını kapsayan anlatımı yaz. JSON şeması:\n` +
       `{"title": string, "overview": string, "sections": [{"outcome_code": string (yukarıdaki kodlardan biri, her kod için tam bir bölüm), ` +
       `"heading": string, "explanation": string (en az 3 paragraf), "key_points": string[]}], "summary": string, ` +
-      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart)}`,
+      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart), ${RUBRIC_JSON_FIELDS}}\n\n${RUBRIC_PROMPT}`,
   };
 }
 
@@ -301,6 +302,61 @@ function parse<T>(schema: { safeParse: (v: unknown) => { success: true; data: T 
  * cevapsız çözer ve kapsamı denetler. Eksik kalan kazanım × zorluk çiftleri için bir tur daha üretilir.
  * Sonuç ok değilse havuza doğrulanmış olarak yazılmaz.
  */
+/** Kapının okuduğu tüm anlatım metni (rubrik alanları dahil). */
+export function lessonTexts(lesson: LessonBody): string[] {
+  return [
+    lesson.overview,
+    lesson.summary,
+    ...(lesson.key_terms ?? []).flatMap((t) => [t.term, t.definition]),
+    ...lesson.sections.flatMap((s) => [
+      s.heading,
+      s.explanation,
+      ...s.key_points,
+      ...(s.steps ?? []),
+      ...(s.worked_example ? [s.worked_example] : []),
+      ...(s.common_mistakes ?? []),
+      ...(s.ladder ? [s.ladder.temel, s.ladder.orta, s.ladder.ileri] : []),
+    ]),
+  ];
+}
+
+/** Anlatımın kod kapısı (bozuk metin, mantık terimi, kazanım kapsaması, kalite rubriği); boş = geçer. */
+export function lessonGateIssues(lesson: LessonBody, codes: string[]): string[] {
+  const texts = lessonTexts(lesson);
+  return [
+    ...new Set([
+      ...texts.map(garbledReason).filter((r): r is string => r !== null),
+      ...texts.flatMap(logicTermIssues).map((i) => `mantık terimi hatası: ${i}`),
+      ...(lesson.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
+      ...checkShape(lesson, [], codes, 5).lessonIssues.map((i) => `${i.code}: ${i.detail}`),
+      ...lessonRubricIssues(lesson),
+    ]),
+  ];
+}
+
+/**
+ * Yalnız anlatımı yeniden yazar (sorular dokunulmaz): en çok 2 deneme, kapıdan geçen ilk sürüm döner.
+ * Zayıf havuz derslerinin rubriğe göre yenilenmesi için (content-pool-refresh).
+ */
+export async function regenerateLesson(
+  unit: PoolUnit,
+  llm: LlmCall,
+  model: string = env.OPENAI_CONTENT_MODEL,
+): Promise<{ lesson: LessonBody | null; issues: string[]; usage: UsageEntry[] }> {
+  const usage: UsageEntry[] = [];
+  const codes = unit.outcomes.map((o) => o.code);
+  let issues: string[] = ["lesson_parse"];
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const out = await llm({ model, ...lessonPrompt(unit) });
+    usage.push({ actionCode: "SHARED_CONTENT_LESSON", model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
+    const lesson = parse(lessonSchema, out.text);
+    if (!lesson) continue;
+    issues = lessonGateIssues(lesson, codes);
+    if (!issues.length) return { lesson, issues, usage };
+  }
+  return { lesson: null, issues, usage };
+}
+
 export async function generateUnitContent(
   unit: PoolUnit,
   llm: LlmCall,
@@ -320,7 +376,11 @@ export async function generateUnitContent(
   const codes = unit.outcomes.map((o) => o.code);
   const choices = choiceCount(unit.program);
 
-  const lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit)));
+  let lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit)));
+  // Kalite rubriği tutmazsa anlatım bir kez daha yazılır (sorulardan önce; soru maliyeti boşa gitmez).
+  if (lesson && lessonRubricIssues(lesson).length) {
+    lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit))) ?? lesson;
+  }
   if (!lesson) return { ok: false, reason: "lesson_parse", qa: {}, usage };
   // Kaynak metinde bir kazanımın açıklamasına gömülü başka bir kod (ör. "10.4.4. ...") model tarafından ayrı bölüm
   // yapılabiliyor. Kayıtta olmayan kazanıma bölüm yazılmaz: bölüm atılır, kayıttaki kazanımların kapsaması aynen denetlenir.
@@ -333,13 +393,14 @@ export async function generateUnitContent(
   let gateRejected = 0;
   const parseFailures: { round: number; step: "items" | "verify"; excerpt: string }[] = [];
   // Anlatım modelle yeniden okunmaz (maliyet kararı); kazanım kapsaması ve metin bütünlüğü kodda denetlenir.
-  const lessonText = [lesson.overview, lesson.summary, ...lesson.sections.flatMap((s) => [s.heading, s.explanation, ...s.key_points])];
+  const lessonText = lessonTexts(lesson);
   const lessonGarbled = [
     ...lessonText.map(garbledReason).filter((r): r is string => r !== null),
     ...lessonText.flatMap(logicTermIssues).map((i) => `mantık terimi hatası: ${i}`),
     ...(lesson.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
   ];
-  const lessonReview = { ok: lessonGarbled.length === 0, issues: [...new Set(lessonGarbled)], by: "ts_gate" };
+  const rubricIssues = lessonRubricIssues(lesson);
+  const lessonReview = { ok: lessonGarbled.length === 0 && rubricIssues.length === 0, issues: [...new Set([...lessonGarbled, ...rubricIssues])], by: "ts_gate", rubric: RUBRIC_VERSION };
   const gateUnit = { unitId: unit.unitId, choices, outcomes: unit.outcomes.map((o) => ({ code: o.code, outcomeId: o.outcomeId, limitations: o.limitations })) };
   let shapeIssues: { code: string; detail: string }[] = [];
   for (let round = 0; round < 2; round += 1) {
