@@ -23,6 +23,6 @@ for (const width of [320, 375, 412]) {
     await expect(units.nth(1).getByRole("radio", { name: "Zayıf" })).toHaveAttribute("aria-checked", "true");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
-    await page.screenshot({ path: `/workspace/ux-audit/round2-fix/b3_konular_${width}.png` });
+    if (process.env.UX_SHOTS) await page.screenshot({ path: `${process.env.UX_SHOTS}/b3_konular_${width}.png` });
   });
 }
