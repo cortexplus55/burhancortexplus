@@ -1,4 +1,3 @@
-import { duplicateOptionPair } from "@/lib/learning/question-integrity";
 import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { turkishFold } from "@/lib/text/turkish";
 import { logicTermIssues } from "@/lib/learning/logic-terms";
@@ -13,8 +12,21 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  * Kapı kural sürümü. Kapı yanlış ret üretecek biçimde düzeltildiğinde artırılır; toplu doldurucu yalnız bu
  * sürümle reddedilen denemeleri 2 deneme hakkına sayar. 2: matematik/fen gösterimi + ölçü birimi (1 Kasım 2026).
  * 4: koşullu önerme dönüşüm adları (karşıtı/tersi/karşıt tersi) kodla denetlenir (2 Kasım 2026).
+ * 6: yazım/noktalama sorularında yalnız büyük-küçük harf, boşluk ya da noktalamayla ayrışan seçenekler ("sen de" / "sende")
+ *    aynı sayılmaz (katı anahtar); yapışık kelime yalnız küçük harfle başlayan sözcükte aranır (CamelCase özel adlar
+ *    yanlış ret üretmez). Kazanım × zorluk çifti başına soru sayısı sınav türüne göre (2 Kasım 2026).
  */
-export const GATE_VERSION = 5;
+export const GATE_VERSION = 6;
+
+/** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
+export function strictOptionKey(option: string): string {
+  return option.normalize("NFKC").replace(/\s+/g, " ").trim();
+}
+
+export function duplicateStrictOption(options: readonly string[]): boolean {
+  const keys = options.map(strictOptionKey).filter(Boolean);
+  return new Set(keys).size !== keys.length;
+}
 
 export type GateOutcome = { code: string; outcomeId: string; limitations: string[] };
 export type GateUnit = { unitId: string; outcomes: GateOutcome[]; choices: number };
@@ -39,7 +51,9 @@ export function maskMathNotation(text: string): string {
 /** Yapışık ya da bozuk metin: kodlama bozulması, küçük harfe yapışık büyük harf, boşluksuz uzun dizi, kırık parantez. */
 export function garbledReason(text: string): string | null {
   if (/\uFFFD|Ã.|Ä.|Å./u.test(text)) return "bozuk karakter kodlaması";
-  if (/\p{Ll}{2}\p{Lu}\p{Ll}{2}/u.test(text)) return "yapışık kelime";
+  // Sözcük küçük harfle başlayıp içinde büyük harf varsa yapışıktır ("ünitesiKonu"); büyük harfle başlayan özel
+  // adlar ve kısaltmalar (CamelCase ürün/gen adları: "CRISPR-Cas9", "GenBank") ret nedeni değildir.
+  if (/(?<![\p{L}\p{N}])\p{Ll}+\p{Ll}{1}\p{Lu}\p{Ll}{2}/u.test(text)) return "yapışık kelime";
   const masked = maskMathNotation(text);
   if (/[^\s]{45,}/u.test(masked.replace(/https?:\/\/\S+/g, ""))) return "boşluksuz uzun dizi";
   if (/(.)\1{5,}/u.test(text)) return "tekrarlanan karakter";
@@ -123,7 +137,7 @@ export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | 
   if (!Number.isInteger(item.answer) || item.answer < 0 || item.answer >= choices.length) return { reason: "cevap seçeneklerin dışında" };
   if (choices.some((c) => !c)) return { reason: "boş seçenek" };
   if (choices.some((c) => c.length > CHOICE_MAX)) return { reason: "seçenek çok uzun" };
-  if (duplicateOptionPair(choices)) return { reason: "aynı seçenek iki kez" };
+  if (duplicateStrictOption(choices)) return { reason: "aynı seçenek iki kez" };
   const length = lengthReason("kök", stem, STEM_LEN) ?? lengthReason("açıklama", explanation, EXPLANATION_LEN);
   if (length) return { reason: length };
   for (const text of [stem, explanation, ...choices]) {
@@ -142,14 +156,15 @@ export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | 
  * Soru seti: her soru kapıdan geçer; aynı kazanım × zorluk çifti bir kez kalır (zorluk dağılımı: kazanım başına
  * kolay/orta/zor birer soru). `distribution` raporlanır.
  */
-export function gateItems(items: PoolItem[], unit: GateUnit): {
+export function gateItems(items: PoolItem[], unit: GateUnit, perPair = 1): {
   passed: GatedItem[];
   rejected: GateRejection[];
   distribution: Record<(typeof DIFFICULTIES)[number], number>;
 } {
   const passed: GatedItem[] = [];
   const rejected: GateRejection[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, number>();
+  const stems = new Set<string>();
   for (const raw of items) {
     const result = gateItem(raw, unit);
     if ("reason" in result) {
@@ -157,11 +172,17 @@ export function gateItems(items: PoolItem[], unit: GateUnit): {
       continue;
     }
     const key = `${result.item.outcome_code}|${result.item.difficulty}`;
-    if (seen.has(key)) {
+    if ((seen.get(key) ?? 0) >= perPair) {
       rejected.push({ code: raw.outcome_code, difficulty: raw.difficulty, reason: "aynı kazanım × zorluk ikinci kez" });
       continue;
     }
-    seen.add(key);
+    const stemKey = strictOptionKey(result.item.stem).toLocaleLowerCase("tr");
+    if (stems.has(stemKey)) {
+      rejected.push({ code: raw.outcome_code, difficulty: raw.difficulty, reason: "aynı soru kökü iki kez" });
+      continue;
+    }
+    stems.add(stemKey);
+    seen.set(key, (seen.get(key) ?? 0) + 1);
     passed.push(result.item);
   }
   const distribution = { easy: 0, medium: 0, hard: 0 };

@@ -12,6 +12,15 @@ export function choiceCount(program: Pick<CurriculumProgram, "kind">): number {
   return CHOICES_BY_KIND[program.kind] ?? 5;
 }
 
+/**
+ * Kazanım × zorluk çifti başına doğrulanmış soru (2 Kasım 2026): soru bankası gerçek sınavın birkaç katı olsun diye
+ * kazanım sayısı az olan ALES/DGS/YDS ağaçlarında 2; ötekilerde 1 (kazanım başına kolay/orta/zor birer).
+ */
+const ITEMS_PER_PAIR_BY_KIND: Record<string, number> = { ales: 2, dgs: 2, yds: 2 };
+export function itemsPerPair(program: Pick<CurriculumProgram, "kind">): number {
+  return ITEMS_PER_PAIR_BY_KIND[program.kind] ?? 1;
+}
+
 export type PoolOutcome = CurriculumOutcome & { outcomeId: string };
 export type PoolUnit = {
   /** Kanonik kimlik = curriculum_units.id: `program#sort_order` (1 tabanlı, tohum betiğiyle aynı). API, betik ve havuz yalnız bunu kullanır. */

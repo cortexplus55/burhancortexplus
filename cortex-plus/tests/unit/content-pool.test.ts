@@ -283,7 +283,7 @@ describe("ortak içerik havuzu: sıfır maliyetli kapı", () => {
     const fixture = [
       { ...good, choices: good.choices.slice(0, 4) },
       { ...good, difficulty: "medium" as const, answer: 7 },
-      { ...good, difficulty: "hard" as const, choices: ["Aynı", "aynı.", "C şıkkı", "D şıkkı", "E şıkkı"] },
+      { ...good, difficulty: "hard" as const, stem: `${good.stem} (zor)`, choices: ["Aynı şık", "Aynı  şık ", "C şıkkı", "D şıkkı", "E şıkkı"] },
       { ...good, stem: "Kısa?" },
       { ...good, stem: "Tarih biliminin konusuOsmanlıDevleti hangisidir ve neden önemlidir?" },
       { ...good, stem: "Rumi takvim ile hesaplanan yıl aşağıdakilerden hangisidir?" },
@@ -315,7 +315,7 @@ describe("ortak içerik havuzu: sıfır maliyetli kapı", () => {
   });
 
   it("geçen soru unit_id ve outcome_id ile etiketlenir, aynı çift bir kez kalır, dağılım raporlanır", () => {
-    const { passed, rejected, distribution } = gateItems([good, good, { ...good, difficulty: "hard" as const, choices: ["A) Geçmiş", "B) Gök", "C) Canlı", "D) Madde", "E) Sayı"] }], unit);
+    const { passed, rejected, distribution } = gateItems([good, good, { ...good, difficulty: "hard" as const, stem: `${good.stem} (zor)`, choices: ["A) Geçmiş", "B) Gök", "C) Canlı", "D) Madde", "E) Sayı"] }], unit);
     expect(passed.map((p) => [p.unit_id, p.outcome_id, p.difficulty])).toEqual([["p#1", "p#1", "easy"], ["p#1", "p#1", "hard"]]);
     expect(passed[1]!.choices[0]).toBe("Geçmiş");
     expect(rejected[0]!.reason).toBe("aynı kazanım × zorluk ikinci kez");
