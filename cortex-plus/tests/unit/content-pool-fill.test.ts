@@ -204,8 +204,10 @@ describe("kapı: matematik gösterimi kırık cümle sayılmaz, gerçek hata yak
     "x ∈ (−∞, 3] ∪ ]5, 7[ için eşitsizlik sağlanır.",
     "Seçenekler: ç) 12 ve d) 15 olarak verilmiştir.",
     "ALES sayısal: (2/3)·(9/4) = 3/2 ve 3^(−2) = 1/9 olur.",
+    "The two samples were ______ different in composition, despite the distance.",
   ];
   it.each(ok)("geçer: %s", (t) => expect(garbledReason(t)).toBeNull());
+  it("gerçek karakter tekrarı yine yakalanır", () => expect(garbledReason("Bu sonuç aaaaaaaa olarak bulunur.")).toBe("tekrarlanan karakter"));
   it("gerçek kırık parantez yakalanır ve alıntısı verilir", () => {
     const bad = "Bu durumda sonuç (yani toplam değer olarak bulunur ve devam edilir.";
     expect(garbledReason(bad)).toBe("kırık cümle yapısı");
