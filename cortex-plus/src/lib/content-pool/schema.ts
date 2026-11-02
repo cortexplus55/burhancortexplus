@@ -1,3 +1,4 @@
+import { stripOptionLetters } from "@/lib/learning/option-text";
 import { z } from "zod";
 
 /** Model çıktısı: ünite anlatımı (her kazanım için bir bölüm), özet ve kartlar. Kaynak bağlantıları modelden gelmez. */
@@ -35,7 +36,11 @@ export const itemSchema = z.object({
   outcome_code: z.string().min(1).max(40),
   difficulty: z.enum(DIFFICULTIES),
   stem: z.string().min(10).max(3000),
-  choices: z.array(z.string().min(1).max(600)).min(4).max(5),
+  // Harf imli şıklar ("A) …") kayda temiz girer (stripOptionLetters yalnız tüm şıklar sıralı imliyse dokunur).
+  choices: z.preprocess(
+    (v) => (Array.isArray(v) && v.every((e) => typeof e === "string") ? stripOptionLetters(v as string[]) : v),
+    z.array(z.string().min(1).max(600)).min(4).max(5),
+  ),
   answer: z.number().int().min(0).max(4),
   explanation: z.string().min(10).max(3000),
 });

@@ -462,3 +462,12 @@ describe("doğrulama: çözüm alanı metin döndüğünde (gpt-6-luna, yks-2026
     expect(out.ok).toBe(true);
   });
 });
+
+describe("Denetçi: tek doğru şık şartı", () => {
+  it("istem, birden çok doğru şıkkı olan soruyu reddetmeyi açıkça ister", async () => {
+    const { verifyPrompt: vp } = await import("@/lib/content-pool/generate");
+    const p = vp({ unit: { title: "Ünite" }, outcomes: [], program: { kind: "ales" } } as never, []);
+    expect(p.system).toContain("TAM OLARAK BİR");
+    expect(p.system).toContain("birden çok şık koşulları sağlıyorsa");
+  });
+});

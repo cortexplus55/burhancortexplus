@@ -8,7 +8,7 @@ import { turkishFold } from "@/lib/text/turkish";
 import type { UsageCode } from "@/lib/credits/service";
 import { choiceCount, itemsPerPair, type PoolUnit } from "@/lib/content-pool/keys";
 import { GATE_VERSION, garbledExcerpt, garbledReason, gateItems } from "@/lib/content-pool/gate";
-import { BLUEPRINT_VERSION, blueprintIssues, blueprintKind, blueprintPrompt } from "@/lib/content-pool/blueprint";
+import { BLUEPRINT_VERSION, blueprintChecks, blueprintIssues, blueprintKind, blueprintPrompt } from "@/lib/content-pool/blueprint";
 import { LOGIC_TERMS_RULE, logicTermIssues, needsLogicTermsRule } from "@/lib/learning/logic-terms";
 import {
   applyReview,
@@ -157,7 +157,9 @@ export function verifyPrompt(unit: PoolUnit, items: PoolItem[]) {
   return {
     system:
       "Denetçisin. Her soruyu cevapsız çöz. Şıklar 0) 1) 2) … diye numaralı; cozum seçtiğin şıkkın NUMARASIDIR (tam sayı), " +
-      "şık metni yazma. uyum=1 yalnız bilgi doğru, tek doğru şık var ve soru verilen kazanım/sınır içindeyse; değilse 0. " +
+      "şık metni yazma. uyum=1 yalnız bilgi doğru, TAM OLARAK BİR şık doğru ve soru verilen kazanım/sınır içindeyse; değilse 0. " +
+      "Her şıkkı ayrı ayrı sına: sıralama, eşleştirme, gruplama ve mantık sorularında her şıkkı tüm koşullara karşı denetle; " +
+      "birden çok şık koşulları sağlıyorsa ya da hiçbiri sağlamıyorsa uyum=0. " +
       'Yalnız JSON: {"r":[{"i":i,"cozum":şık numarası,"uyum":0|1},...]}. Örnek: {"r":[{"i":0,"cozum":2,"uyum":1},{"i":1,"cozum":0,"uyum":0}]}',
     jsonSchema: verifySchema(choiceCount(unit.program)),
     user: `${unit.unit.title}\nKazanımlar:\n${outcomes.join("\n")}${needsLogicTermsRule(outcomes.join(" ")) ? `\n${LOGIC_TERMS_RULE}` : ""}\nSorular [i,kod,kök,şıklar]:\n${JSON.stringify(blind)}`,
@@ -435,7 +437,21 @@ export async function generateUnitContent(
     ...lessonText.flatMap(logicTermIssues).map((i) => `mantık terimi hatası: ${i}`),
     ...(lesson.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
   ];
-  const rubricIssues = lessonQualityIssues(lesson);
+  // İskelet soruları da aynı denetçiyle cevapsız çözülür (tek ek çağrı): cevap anahtarı tutmayan ya da birden çok doğru
+  // şıkkı olan soru dersi düşürür; ünite normal yeniden deneme yoluyla baştan üretilir.
+  const bpChecks = bpKind && lessonQualityIssues(lesson).length === 0 && lessonGarbled.length === 0 ? blueprintChecks(lesson).filter((c) => c.choices.length === choices) : [];
+  const bpCheckIssues: string[] = [];
+  if (bpChecks.length) {
+    const asItems = bpChecks.map((c) => ({ ...c, difficulty: "medium" as const }));
+    const raw = await call("SHARED_CONTENT_VERIFY", models.verify, { ...verifyPrompt(unit, asItems), reasoningEffort: "low" });
+    const review = parseCompactReview(raw, asItems);
+    if (!review) bpCheckIssues.push("iskelet sorusu: doğrulama yanıtı okunamadı");
+    else {
+      const applied = applyReview(asItems, { lesson_ok: true, lesson_issues: [], items: review.rows });
+      for (const r of applied.rejected) bpCheckIssues.push(`${r.item.outcome_code}: iskelet sorusu doğrulanmadı (${r.reason}): ${r.item.stem.slice(0, 120)}`);
+    }
+  }
+  const rubricIssues = [...lessonQualityIssues(lesson), ...bpCheckIssues];
   const lessonExcerpts = lessonText.filter((t) => garbledReason(t) !== null).slice(0, 5).map(garbledExcerpt);
   const lessonReview = {
     ...(lessonExcerpts.length ? { excerpts: lessonExcerpts } : {}),
@@ -443,7 +459,7 @@ export async function generateUnitContent(
     issues: [...new Set([...lessonGarbled, ...rubricIssues])],
     by: "ts_gate",
     rubric: RUBRIC_VERSION,
-    ...(bpKind ? { blueprint: bpKind, blueprint_version: BLUEPRINT_VERSION } : {}),
+    ...(bpKind ? { blueprint: bpKind, blueprint_version: BLUEPRINT_VERSION, blueprint_checks_verified: bpChecks.length - bpCheckIssues.length } : {}),
   };
   const gateUnit = { unitId: unit.unitId, choices, outcomes: unit.outcomes.map((o) => ({ code: o.code, outcomeId: o.outcomeId, limitations: o.limitations })) };
   let shapeIssues: { code: string; detail: string }[] = [];
