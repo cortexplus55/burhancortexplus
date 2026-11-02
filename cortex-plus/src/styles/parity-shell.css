@@ -8171,6 +8171,7 @@
 .cp-activity {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   gap: 0.75rem;
 }
 
@@ -8240,6 +8241,9 @@
 .cp-activity-year {
   display: flex;
   gap: 0.35rem;
+  /* Esnek/ızgara içinde genişlemesin (UX tur 2, 320 px taşması): kaydırma bu kutunun içinde kalır. */
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   padding-bottom: 0.25rem;
 }
