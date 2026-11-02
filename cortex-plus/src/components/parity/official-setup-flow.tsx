@@ -1,5 +1,6 @@
 "use client";
 
+import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -157,6 +158,7 @@ export function OfficialSetupFlow({
   const [datePick, setDatePick] = useState<string | null>(null);
   const [minutes, setMinutes] = useState(60);
   const [busy, setBusy] = useState(false);
+  const [withDocument, setWithDocument] = useState(false);
   const today = useMemo(istanbulToday, []);
 
   useEffect(() => {
@@ -284,7 +286,7 @@ export function OfficialSetupFlow({
         return;
       }
       setFocusPrepCookieClient(result.prepId);
-      router.push(`/deneme-sinavlari/${result.prepId}`);
+      router.push(`/deneme-sinavlari/${result.prepId}${withDocument ? "?kaynak=ekle" : ""}`);
       router.refresh();
     } catch {
       toast.error("Bağlantı hatası.");
@@ -721,6 +723,17 @@ export function OfficialSetupFlow({
                 {m < 60 ? `${m} dk` : m % 60 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${m / 60} saat`}
               </button>
             ))}
+          </div>
+          <p className="osf-group-label">Nasıl çalışmak istersin?</p>
+          <div className="osf-chips osf-source" role="radiogroup" aria-label="İçerik kaynağı" data-testid="setup-source">
+            <button type="button" role="radio" aria-checked={!withDocument} className="osf-chip" data-on={!withDocument || undefined} onClick={() => setWithDocument(false)}>
+              <strong>Hazır içerikle çalış — ücretsiz</strong>
+              <small>Hazır içerik kredi harcamaz. Ücretsiz hesapta ilk konu açık, tüm konular Plus ile.</small>
+            </button>
+            <button type="button" role="radio" aria-checked={withDocument} className="osf-chip" data-on={withDocument || undefined} onClick={() => setWithDocument(true)}>
+              <strong>Kendi belgeni de ekle — sayfa başı kredi</strong>
+              <small>Belge okuma sayfa başı {CREDIT_PRICE_TABLE.DOCUMENT_PAGE_PROCESS.credits} kredi (taranmış sayfa +{CREDIT_PRICE_TABLE.DOCUMENT_SCAN_PAGE.credits}). Belgen bir üniteyi kapsıyorsa o ünitenin dersine &quot;Senin belgenden ek&quot; bölümü ünite başına bir kez {CREDIT_PRICE_TABLE.DOCUMENT_SUPPLEMENT_GENERATE.credits} kredi. Hazır içerik yine ücretsiz.</small>
+            </button>
           </div>
           <p className="osf-promise" data-testid="setup-promise">
             Yolun {counts.units} üniteyle kurulacak ({counts.outcomes} resmî kazanım).

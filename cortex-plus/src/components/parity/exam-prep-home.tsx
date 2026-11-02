@@ -506,6 +506,13 @@ export function ExamPrepHome({
     doneCardRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
   }, [donePick]);
 
+  // Kurulumda "Kendi belgeni de ekle" seçildiyse (?kaynak=ekle) kaynaklar paneli açık gelir.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("kaynak") !== "ekle") return;
+    setOptionsPane("kaynaklar");
+    setOptionsOpen(true);
+  }, []);
+
   function openOptions(pane: "menu" | "kaynaklar" | "ayarlar" = "menu") {
     setOptionsPane(pane);
     setOptionsOpen(true);
