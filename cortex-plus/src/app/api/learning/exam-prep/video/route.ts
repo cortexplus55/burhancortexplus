@@ -7,6 +7,7 @@ import { billingExempt } from "@/lib/billing/free-preview";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { prepTopicSource } from "@/lib/learning/prep-topic-source";
 import { resolveVideoStyle } from "@/lib/learning/video-lesson";
+import { readSharedMedia, SHARED_BUDGET_MESSAGE, SHARED_MEDIA_CODE, sharedBudgetAllows, sharedMediaUnit, writeSharedMedia } from "@/lib/content-pool/shared-media";
 import { runVideoLesson } from "@/lib/learning/video-run";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
@@ -86,7 +87,37 @@ export async function POST(request: Request) {
     `video:${userId}:${prepId}:${topicId}:${style}`,
     () => parsed.data.clientRequestId ?? crypto.randomUUID(),
   );
+  // Hazır ünite, belgesiz hazırlık (2 Kasım 2026): ünite başına paylaşımlı önbellek; öğrenciye 0 kredi.
+  // Plus kapısı yukarıda aynen; burada yalnız üretimin kimden ödendiği değişir.
+  const poolUnit = await sharedMediaUnit(service, prepId, String(topic.label));
+  const sharedKind = `video:${style}`;
+  type SharedVideo = { title: string; style: string; scenes: unknown[]; duration_ms: number };
+  const copyShared = async (shared: SharedVideo) => {
+    const videoId = crypto.randomUUID();
+    const { error } = await service.from("prep_videos").insert({
+      id: videoId,
+      user_id: userId,
+      exam_prep_id: prepId,
+      topic_id: topic.id,
+      topic_label: String(topic.label),
+      style: shared.style,
+      title: shared.title,
+      scenes: shared.scenes,
+      duration_ms: shared.duration_ms,
+    });
+    return error ? null : videoId;
+  };
+  if (poolUnit) {
+    const shared = await readSharedMedia<SharedVideo>(service, poolUnit, sharedKind);
+    if (shared?.scenes?.length) {
+      const videoId = await copyShared(shared);
+      if (videoId) return NextResponse.json({ ok: true, videoId, reused: true });
+    } else if (!(await sharedBudgetAllows(service, "video"))) {
+      return errorResponse(503, "shared_budget", { message: SHARED_BUDGET_MESSAGE });
+    }
+  }
   const generate = () => runVideoLesson(service, {
+    ...(poolUnit ? { sharedUsageCode: SHARED_MEDIA_CODE } : {}),
     userId,
     prepId,
     topicId: topic.id,
@@ -115,6 +146,15 @@ export async function POST(request: Request) {
   if (!outcome.ok) {
     console.error("video_generation_failed", { code: outcome.error, reasons: outcome.reasons });
     return errorResponse(outcome.status, outcome.error, { refunded: true });
+  }
+  if (poolUnit) {
+    const { data: made } = await service
+      .from("prep_videos")
+      .select("title, style, scenes, duration_ms")
+      .eq("id", outcome.videoId)
+      .maybeSingle();
+    if (made && String((made.scenes as { audioPath?: string }[] | null)?.[0]?.audioPath ?? "").startsWith("video/shared/"))
+      await writeSharedMedia(service, poolUnit, sharedKind, made, userId);
   }
   return NextResponse.json({ ok: true, videoId: outcome.videoId });
 }

@@ -26,6 +26,9 @@ import { pagesMarkedInSource } from "@/lib/learning/source-context";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import { publicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { readSharedMedia, SHARED_BUDGET_MESSAGE, SHARED_MEDIA_CODE, sharedBudgetAllows, sharedMediaUnit, writeSharedMedia } from "@/lib/content-pool/shared-media";
+import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
+import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { resolvePrepTopicRow } from "@/lib/learning/prep-topic-lookup";
 import { readyPathPodcastNode } from "@/lib/learning/path-podcast-ready";
 import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
@@ -111,6 +114,26 @@ export async function POST(request: Request) {
         length,
       });
       if (pathNode) return NextResponse.json({ ok: true, openNode: `/deneme-sinavlari/${prepId}/dugum/${pathNode}` });
+    }
+
+    // Hazır ünite, belgesiz hazırlık (2 Kasım 2026): ünite başına paylaşımlı önbellek; öğrenciye 0 kredi.
+    const poolUnit = await sharedMediaUnit(service, prepId, topic.label);
+    const sharedKind = `podcast:${length}`;
+    if (poolUnit) {
+      const shared = await readSharedMedia<{ episode: PodcastEpisode; check: QuizQuestion[] }>(service, poolUnit, sharedKind);
+      if (shared?.episode?.chapters?.length) {
+        if (withCheck)
+          await writePodcastCache(service, { prepId, userId, topicLabel: topic.label, episode: { ...shared.episode, length }, check: shared.check ?? [] });
+        return NextResponse.json({
+          ok: true,
+          title: shared.episode.title,
+          chapters: shared.episode.chapters,
+          length,
+          reused: true,
+          check: (shared.check ?? []).map(publicQuizQuestion),
+        });
+      }
+      if (!(await sharedBudgetAllows(service, "podcast"))) return errorResponse(503, "shared_budget", { message: SHARED_BUDGET_MESSAGE });
     }
 
     const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
@@ -204,6 +227,7 @@ export async function POST(request: Request) {
       length,
       userId,
       actionCode: "PODCAST_GENERATE",
+      ...(poolUnit ? { sharedUsageCode: SHARED_MEDIA_CODE } : {}),
       // Belirlenimli anahtar (Paket J denetimi #9): iki sekme aynı podcast'i isteyince tek kesinti.
       idempotencyKey: await deterministicCreditKey(
         service,
@@ -256,8 +280,10 @@ export async function POST(request: Request) {
 
     if (withCheck) {
       const { episode, checkLater } = outcome;
-      const cache = (check: typeof outcome.check) =>
-        writePodcastCache(service, { prepId, userId, topicLabel: topic.label, episode, check });
+      const cache = async (check: typeof outcome.check) => {
+        await writePodcastCache(service, { prepId, userId, topicLabel: topic.label, episode, check });
+        if (poolUnit) await writeSharedMedia(service, poolUnit, sharedKind, { episode, check }, userId);
+      };
       // Kontrolsüz bölüm önbelleğe yazılmaz: kontrol bitince (yazılamadıysa boş) bölümle birlikte girer.
       if (checkLater) after(async () => cache(await checkLater()));
       else await cache(outcome.check);

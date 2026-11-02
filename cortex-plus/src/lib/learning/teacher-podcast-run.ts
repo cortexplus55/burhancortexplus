@@ -12,7 +12,7 @@ import {
   withStudentProfile,
   type OptionCount,
 } from "@/lib/learning/student-pedagogy";
-import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
+import { commitCredits, recordUsage, type UsageCode, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import {
   balanceKerem,
@@ -396,6 +396,11 @@ async function runTeacherPodcastInner(
     /** false: önceden yazım (18 Ekim 2026); kredi ayrılmaz, öğrenci açınca düşer. */
     charge?: boolean;
     /**
+     * Paylaşımlı havuz içeriği (2 Kasım 2026): kredi ayrılmaz, kullanım bu kodla (SHARED_CONTENT_*) yazılır,
+     * öğrenci profili eklenmez (içerik herkese gider), öğrenci beklediği için öğrenci yuvası kullanılır.
+     */
+    sharedUsageCode?: UsageCode;
+    /**
      * Dinleme kontrolü de yazılsın (20 Ekim 2026). Yalnız hazırlığın podcast'i (yol düğümü ve
      * hazırlığın podcast sayfası); stüdyo ve ders podcast'i v1'de kontrolsüz.
      */
@@ -411,7 +416,8 @@ async function runTeacherPodcastInner(
   if (!input.pages.length && !input.lessonText && input.mode !== "topic") {
     return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
   }
-  const free = input.charge === false;
+  const shared = input.sharedUsageCode ?? null;
+  const free = input.charge === false || shared !== null;
   const reservation = free
     ? ({ ok: true, reservationId: null } as const)
     : await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey, 1, { freeMeter: input.freeMeter });
@@ -432,7 +438,7 @@ async function runTeacherPodcastInner(
   const profileLoad = studentPedagogyBlock(service, input.userId, "podcast");
   const optionCountLoad = studentOptionCount(service, input.userId, input.prepTitle);
   const tier = fastTier(!free && (await fastAllowedFor(service, input.userId)));
-  const profile = await profileLoad;
+  const profile = shared ? "" : await profileLoad;
   const makeAsk = (served: ReturnType<typeof fastTier>): AskJson => async (system, user, role) => {
     calls += 1;
     const response = await openai.chat.completions.create({
@@ -450,7 +456,7 @@ async function runTeacherPodcastInner(
     });
     await recordUsage(service, {
       userId: input.userId,
-      actionCode: free ? "CONTENT_PREFETCH" : input.actionCode,
+      actionCode: shared ?? (free ? "CONTENT_PREFETCH" : input.actionCode),
       model: billedModel(model, response.service_tier),
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
@@ -660,7 +666,7 @@ export async function completePodcast(
 /** Üretim yuvasıyla (19 Ekim 2026, Faz 3.2); bkz. `withGenerationSlot`. */
 export async function runTeacherPodcast(...args: Parameters<typeof runTeacherPodcastInner>): Promise<TeacherPodcastOutcome> {
   return withGenerationSlot(
-    args[1].charge === false ? "prefetch" : "student",
+    args[1].charge === false && !args[1].sharedUsageCode ? "prefetch" : "student",
     () => runTeacherPodcastInner(...args),
     () => ({ ok: false, status: 503, error: "generation_busy", reasons: [] }),
   );

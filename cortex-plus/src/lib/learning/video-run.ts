@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
-import { recordUsage } from "@/lib/credits/service";
+import { recordUsage, type UsageCode } from "@/lib/credits/service";
 import { synthesizeLine } from "@/lib/ai/speech";
 import { AUDIO_BUCKET } from "@/lib/learning/audio-cache";
 import { runWithTeacherModel, type AskJson } from "@/lib/learning/teacher-engine-run";
@@ -187,17 +187,22 @@ async function sceneImage(openai: OpenAI, prompt: string): Promise<{ image: Buff
   throw lastError ?? new Error("image_model_unavailable");
 }
 
+/** Paylaşımlı video kullanıcı klasörüne yazılmaz: hesap silinince (KVKK) diğer öğrencilerin kopyası bozulmasın. */
+function videoBase(input: { userId: string; sharedUsageCode?: UsageCode }, videoId: string): string {
+  return input.sharedUsageCode ? `video/shared/${videoId}` : `video/${input.userId}/${videoId}`;
+}
+
 /**
  * Çizimli özetin sahneleri. Resim modeli çağrılmaz.
  * Bütün sahnelerin sesi tek `Promise.all` ile birlikte üretilir.
  */
 async function synthesizeSketchReel(
   service: SupabaseClient,
-  input: VideoInput & { userId: string },
+  input: VideoInput & { userId: string; sharedUsageCode?: UsageCode },
   script: SketchScript,
   videoId: string,
 ): Promise<StoredVideoScene[]> {
-  const base = `video/${input.userId}/${videoId}`;
+  const base = videoBase(input, videoId);
   return Promise.all(
     script.scenes.map(async (scene, index): Promise<StoredVideoScene> => {
       const voice = await synthesizeLine(speechText(scene.narration), scene.voice);
@@ -210,7 +215,7 @@ async function synthesizeSketchReel(
       if (uploaded.error) throw new Error("storage_failed");
       await recordUsage(service, {
         userId: input.userId,
-        actionCode: "SKETCH_VIDEO_GENERATE",
+        actionCode: input.sharedUsageCode ?? "SKETCH_VIDEO_GENERATE",
         model: env.OPENAI_TTS_MODEL,
         tokensIn: voice.chars,
         tokensOut: 0,
@@ -238,13 +243,21 @@ async function synthesizeSketchReel(
  */
 export async function runVideoLesson(
   service: SupabaseClient,
-  input: VideoInput & { userId: string; prepId: string; topicId: string | null; idempotencyKey: string },
+  input: VideoInput & {
+    userId: string;
+    prepId: string;
+    topicId: string | null;
+    idempotencyKey: string;
+    /** Paylaşımlı hazır ünite (2 Kasım 2026): kredi yok, maliyet bu kodla; dosyalar `video/shared/` altında. */
+    sharedUsageCode?: UsageCode;
+  },
 ): Promise<{ ok: true; videoId: string } | { ok: false; status: number; error: string; reasons: string[] }> {
   const sketch = input.renderMode === "sketch_reel";
   const outcome = await runWithTeacherModel(service, {
     userId: input.userId,
     actionCode: sketch ? "SKETCH_VIDEO_GENERATE" : "VIDEO_GENERATE",
     idempotencyKey: input.idempotencyKey,
+    ...(input.sharedUsageCode ? { sharedUsageCode: input.sharedUsageCode } : {}),
     label: "teacher_video",
     topic: input.topicLabel,
     work: async (ask) => {
@@ -278,7 +291,8 @@ export async function runVideoLesson(
 
       const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
       const videoId = crypto.randomUUID();
-      const base = `video/${input.userId}/${videoId}`;
+      const base = videoBase(input, videoId);
+      const usageCode = input.sharedUsageCode ?? "VIDEO_GENERATE";
       const scenes = await Promise.all(
         script.scenes.map(async (scene, index): Promise<StoredVideoScene> => {
           const [picture, voice] = await Promise.all([
@@ -297,8 +311,8 @@ export async function runVideoLesson(
           ]);
           if (up1.error || up2.error) throw new Error("storage_failed");
           await Promise.all([
-            recordUsage(service, { userId: input.userId, actionCode: "VIDEO_GENERATE", model: imageModel, tokensIn: 1, tokensOut: 0 }),
-            recordUsage(service, { userId: input.userId, actionCode: "VIDEO_GENERATE", model: env.OPENAI_TTS_MODEL, tokensIn: voice.chars, tokensOut: 0 }),
+            recordUsage(service, { userId: input.userId, actionCode: usageCode, model: imageModel, tokensIn: 1, tokensOut: 0 }),
+            recordUsage(service, { userId: input.userId, actionCode: usageCode, model: env.OPENAI_TTS_MODEL, tokensIn: voice.chars, tokensOut: 0 }),
           ]).catch(() => undefined);
           return { narration: scene.narration, imagePath, audioPath, durationMs: voice.durationMs, ...(scene.keyFact ? { keyFact: scene.keyFact } : {}) };
         }),
