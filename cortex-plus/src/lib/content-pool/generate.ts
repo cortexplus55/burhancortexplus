@@ -82,9 +82,10 @@ export function lessonPrompt(unit: PoolUnit) {
     user:
       `${officialBlock(unit)}\n\nBu ünitenin TÜM kazanımlarını kapsayan anlatımı yaz. JSON şeması:\n` +
       `{"title": string, "overview": string, "sections": [{"outcome_code": string (yukarıdaki kodlardan biri, her kod için tam bir bölüm), ` +
-      `"heading": string, "explanation": string (en az 3 paragraf), "key_points": string[]}], "summary": string, ` +
-      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart), ${RUBRIC_JSON_FIELDS}` +
-      `${blueprintKind(unit.program.kind) ? ', "blueprint": object (her bölümde, aşağıdaki iskelet)' : ""}}\n\n${RUBRIC_PROMPT}${blueprintPrompt(blueprintKind(unit.program.kind))}`,
+      `"heading": string, "explanation": string (en az 3 paragraf), "key_points": string[]` +
+      // İskelet bölüm nesnesinin İÇİNDE: kök düzeyde istenince model tek bir kök "blueprint" yazıyor, bölümler boş kalıyordu.
+      `${blueprintKind(unit.program.kind) ? ', "blueprint": object (BU bölüm nesnesinin içinde; aşağıdaki iskelet)' : ""}}], "summary": string, ` +
+      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart), ${RUBRIC_JSON_FIELDS}}\n\n${RUBRIC_PROMPT}${blueprintPrompt(blueprintKind(unit.program.kind))}`,
   };
 }
 

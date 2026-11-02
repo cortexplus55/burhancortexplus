@@ -173,6 +173,7 @@ describe("doldurucu: only önekleri", () => {
     const order = [
       { unitId: "kpss-2026-deep-tarih#1", programId: "kpss-2026-deep-tarih", group: "KPSS" as const },
       { unitId: "kpss-2026-tree-tarih#1", programId: "kpss-2026-tree-tarih", group: "KPSS" as const },
+      { unitId: "tus-2026-deep-dahiliye#12", programId: "tus-2026-deep-dahiliye", group: "TUS" as const },
       { unitId: "tus-2026-deep-dahiliye#2", programId: "tus-2026-deep-dahiliye", group: "TUS" as const },
     ];
     expect(restrictOrder(order, [])).toEqual(order);

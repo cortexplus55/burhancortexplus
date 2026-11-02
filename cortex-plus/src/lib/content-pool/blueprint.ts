@@ -23,7 +23,9 @@ export function blueprintKind(programKind: string): BlueprintKind | null {
   return null;
 }
 
-const s = (min: number, max: number) => z.string().min(min).max(max);
+/** Üst sınır aşılırsa reddetmek yerine kırpılır (sözcük sınırında); alt sınır kesin. Bir hücrenin uzunluğu iskeleti çöpe atmamalı. */
+const s = (min: number, max: number) =>
+  z.string().trim().min(min).transform((v) => (v.length <= max ? v : `${v.slice(0, max - 1).replace(/\s+\S*$/, "")}…`));
 export const blueprintSchema = z.object({
   diagram: z
     .object({
@@ -33,7 +35,7 @@ export const blueprintSchema = z.object({
       items: z.array(z.object({ label: s(1, 80), detail: s(1, 120).optional().catch(undefined) })).min(2).max(8),
     })
     .optional(),
-  table: z.object({ caption: s(2, 100), columns: z.array(s(1, 40)).min(2).max(5), rows: z.array(z.array(s(1, 120)).min(2).max(5)).min(2).max(14) }).optional(),
+  table: z.object({ caption: s(2, 100), columns: z.array(s(1, 40)).min(2).max(5), rows: z.array(z.array(s(1, 160)).min(2).max(5)).min(2).max(14) }).optional(),
   spot: z.object({ title: s(3, 80), points: z.array(s(2, 160)).min(2).max(6) }).optional(),
   trap: z.object({ title: s(3, 90), wrong: s(6, 260), right: s(6, 320), tell: s(4, 220).optional().catch(undefined) }).optional(),
   contrast: z.object({ long: s(4, 420), fast: s(4, 420) }).optional(),
@@ -98,6 +100,10 @@ export function blueprintIssues(lesson: LessonBody, kind: BlueprintKind | null, 
   const issues: string[] = [];
   for (const raw of lesson.sections as SectionWithBlueprint[]) {
     const code = raw.outcome_code.trim();
+    if (raw.blueprint == null) {
+      issues.push(`${code}: iskelet yok`);
+      continue;
+    }
     const parsed = blueprintSchema.safeParse(raw.blueprint ?? null);
     if (!parsed.success) {
       issues.push(`${code}: iskelet okunamadı`);
