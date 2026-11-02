@@ -19,7 +19,8 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  * 8: iskelet alanları eş adlarıyla (choices/correct) ve metin adımlarla da okunur.
  */
 // v9: check bloğu dizi gövde/öncül alanı/nesne seçenek/metin cevap biçimleri okunur
-export const GATE_VERSION = 9;
+// v10: sıralama/şık imleri ("A)", "1)") parantez dengesinde sayılmaz
+export const GATE_VERSION = 10;
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {
@@ -51,13 +52,21 @@ export function maskMathNotation(text: string): string {
     .replace(/[[(\]]\s*[^[\]()\s,;]{1,25}\s*[,;]\s*[^[\]()\s,;]{1,25}\s*[\])[]/gu, " ARALIK ");
 }
 
+/**
+ * Sıralama/şık imleri ("A) …", "1) …", "iv) …") tek kapanan parantezdir; parantez dengesi sayılmaz
+ * (2 Kasım 2026, ALES/DGS/YDS iskelet adımları ve seçenek listeleri yanlış ret). Gerçek açık kalan "(" yine yakalanır.
+ */
+export function maskListMarkers(text: string): string {
+  return text.replace(/(^|[\s:;,.])((?:[A-Ea-e]|\d{1,2}|[IVXivx]{1,4}))\)(?=\s)/gu, "$1$2.");
+}
+
 /** Yapışık ya da bozuk metin: kodlama bozulması, küçük harfe yapışık büyük harf, boşluksuz uzun dizi, kırık parantez. */
 export function garbledReason(text: string): string | null {
   if (/\uFFFD|Ã.|Ä.|Å./u.test(text)) return "bozuk karakter kodlaması";
   // Sözcük küçük harfle başlayıp içinde büyük harf varsa yapışıktır ("ünitesiKonu"); büyük harfle başlayan özel
   // adlar ve kısaltmalar (CamelCase ürün/gen adları: "CRISPR-Cas9", "GenBank") ret nedeni değildir.
   if (/(?<![\p{L}\p{N}])\p{Ll}+\p{Ll}{1}\p{Lu}\p{Ll}{2}/u.test(text)) return "yapışık kelime";
-  const masked = maskMathNotation(text);
+  const masked = maskListMarkers(maskMathNotation(text));
   if (/[^\s]{45,}/u.test(masked.replace(/https?:\/\/\S+/g, ""))) return "boşluksuz uzun dizi";
   if (/(.)\1{5,}/u.test(text)) return "tekrarlanan karakter";
   const issues = [

@@ -25,7 +25,14 @@ export function blueprintKind(programKind: string): BlueprintKind | null {
 
 /** Üst sınır aşılırsa reddetmek yerine kırpılır (sözcük sınırında); alt sınır kesin. Bir hücrenin uzunluğu iskeleti çöpe atmamalı. */
 const s = (min: number, max: number) =>
-  z.string().trim().min(min).transform((v) => (v.length <= max ? v : `${v.slice(0, max - 1).replace(/\s+\S*$/, "")}…`));
+  z.string().trim().min(min).transform((v) => {
+    if (v.length <= max) return v;
+    let cut = v.slice(0, max - 1).replace(/\s+\S*$/, "");
+    // Kırpma açık parantez bırakmasın (kırık cümle sayılır): kapanmamış son "(" ve sonrası atılır.
+    const open = cut.lastIndexOf("(");
+    if (open > cut.lastIndexOf(")")) cut = cut.slice(0, open).trimEnd();
+    return `${cut}…`;
+  });
 /** Fazla eleman reddedilmez, ilk `max` tutulur; alt sınır kesin. */
 const arr = <T extends z.ZodTypeAny>(item: T, min: number, max: number) =>
   z.preprocess((v) => (Array.isArray(v) ? v.slice(0, max) : v), z.array(item).min(min).max(max));
