@@ -291,7 +291,7 @@ describe("path labels like Astra", () => {
     expect(screen.getByRole("heading", { name: "Hücre zarı ve madde geçişi" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Bugün başla/ }).textContent).toMatch(/%80/);
     fireEvent.click(screen.getByRole("button", { name: /Bugün başla/ }));
-    expect(screen.getByRole("button", { name: /Giriş Dersi · Giriş Dersi, tamamlandı, %80/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Giriş Dersi, tamamlandı, %80/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Başka birini seç" })).toBeTruthy();
   });
 
