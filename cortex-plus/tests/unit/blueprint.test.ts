@@ -34,3 +34,17 @@ describe("Sınav pedagojik iskeleti (sıfır maliyetli kapı)", () => {
     expect(types).toEqual(expect.arrayContaining(["diagram_card", "table", "note", "exam_trap_card", "check"]));
   });
 });
+
+describe("iskelet: bölüm içinde ve uzun metin", () => {
+  it("ders isteminde blueprint bölüm nesnesinin içinde istenir", async () => {
+    const { lessonPrompt } = await import("@/lib/content-pool/generate");
+    const u = lessonPrompt({ program: { kind: "kpss", label: "KPSS", badge: "b" }, unit: { title: "T" }, outcomes: [{ code: "K.1", text: "x", limitations: [] }] } as never).user;
+    expect(u.indexOf('"blueprint"')).toBeLessThan(u.indexOf('"summary"'));
+  });
+  it("uzun tablo hücresi iskeleti düşürmez, kırpılır", async () => {
+    const { blueprintSchema } = await import("@/lib/content-pool/blueprint");
+    const r = blueprintSchema.safeParse({ table: { caption: "Tablo", columns: ["A", "B"], rows: [["x".repeat(300), "y"], ["z", "w"]] } });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.table!.rows[0][0].length).toBeLessThanOrEqual(160);
+  });
+});

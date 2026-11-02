@@ -54,7 +54,7 @@ export function fillOrder(programs: FillProgram[]): FillTarget[] {
 /** `only` öneklerinden birine uyan hedefler; doldurma sırası korunur. Boş liste = tüm sıra. */
 export function restrictOrder(order: FillTarget[], only: string[]): FillTarget[] {
   if (!only.length) return order;
-  return order.filter((t) => only.some((o) => t.unitId === o || t.programId === o || t.unitId.startsWith(o)));
+  return order.filter((t) => only.some((o) => (o.includes("#") ? t.unitId === o : t.programId === o || t.unitId.startsWith(o))));
 }
 
 export const DEFAULT_CAP_USD = 5.33;
