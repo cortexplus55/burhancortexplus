@@ -6,8 +6,9 @@ import { isReasoningModel, samplingParams } from "@/lib/ai/model-params";
 import { parseModelOutput } from "@/lib/ai/json-repair";
 import { turkishFold } from "@/lib/text/turkish";
 import type { UsageCode } from "@/lib/credits/service";
-import { choiceCount, type PoolUnit } from "@/lib/content-pool/keys";
+import { choiceCount, itemsPerPair, type PoolUnit } from "@/lib/content-pool/keys";
 import { GATE_VERSION, garbledReason, gateItems } from "@/lib/content-pool/gate";
+import { BLUEPRINT_VERSION, blueprintIssues, blueprintKind, blueprintPrompt } from "@/lib/content-pool/blueprint";
 import { LOGIC_TERMS_RULE, logicTermIssues, needsLogicTermsRule } from "@/lib/learning/logic-terms";
 import {
   applyReview,
@@ -77,21 +78,38 @@ function officialBlock(unit: PoolUnit): string {
 
 export function lessonPrompt(unit: PoolUnit) {
   return {
-    system: `Sen Türkiye müfredatına göre ders anlatımı yazan bir öğretmensin. ${ORIGINALITY} Yalnız JSON döndür.`,
+    system: `Sen ${blueprintKind(unit.program.kind) ? `Türkiye'deki ${unit.program.kind.toLocaleUpperCase("tr")} sınavına hazırlayan uzman bir eğitmensin` : "Türkiye müfredatına göre ders anlatımı yazan bir öğretmensin"}. ${ORIGINALITY} Yalnız JSON döndür.`,
     user:
       `${officialBlock(unit)}\n\nBu ünitenin TÜM kazanımlarını kapsayan anlatımı yaz. JSON şeması:\n` +
       `{"title": string, "overview": string, "sections": [{"outcome_code": string (yukarıdaki kodlardan biri, her kod için tam bir bölüm), ` +
       `"heading": string, "explanation": string (en az 3 paragraf), "key_points": string[]}], "summary": string, ` +
-      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart), ${RUBRIC_JSON_FIELDS}}\n\n${RUBRIC_PROMPT}`,
+      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart), ${RUBRIC_JSON_FIELDS}` +
+      `${blueprintKind(unit.program.kind) ? ', "blueprint": object (her bölümde, aşağıdaki iskelet)' : ""}}\n\n${RUBRIC_PROMPT}${blueprintPrompt(blueprintKind(unit.program.kind))}`,
   };
 }
 
+const ITEM_STYLE: Record<string, string> = {
+  klinik:
+    "Sınav biçimi: medium ve hard sorular yaş, cinsiyet, şikâyet ve bulgu veren kısa klinik vaka köküyle yazılır; en sık neden, altın standart tanı, " +
+    "ilk seçenek tedavi, ayırıcı tanı ve komplikasyonu ölçer. Çeldiriciler aynı klinik alandan, makul ama yanlış olsun. ",
+  kpss:
+    "Sınav biçimi: her kazanımın hard sorusu I, II, III öncüllü olsun (öncüller ayrı satırda; seçenekler \"Yalnız I\", \"I ve II\" gibi). " +
+    "Çeldiriciler sık karıştırılan bilgilerden; uydurma oran ya da istatistik yazma. ",
+  akil: "Sınav biçimi: ALES/DGS tarzı; açıklamada uzun çözümün yanında kısa yolu da göster. ",
+  yds:
+    "Sınav biçimi: YDS tarzı; kök ve seçenekler İngilizce, explanation Türkçe ve her şıkkı \"A) … B) … C) … D) … E) …\" biçiminde tek tek açıklar. ",
+};
+
 function itemsPrompt(unit: PoolUnit, pairs: string[]) {
   const choices = choiceCount(unit.program);
+  const perPair = itemsPerPair(unit.program);
+  const kind = blueprintKind(unit.program.kind);
+  const role = kind ? `Türkiye'deki ${unit.program.kind.toLocaleUpperCase("tr")} sınavı için` : "Türkiye müfredatına göre";
   return {
-    system: `Sen Türkiye müfredatına göre çoktan seçmeli soru yazan bir ölçme uzmanısın. ${ORIGINALITY} Yalnız JSON döndür.`,
+    system: `Sen ${role} çoktan seçmeli soru yazan bir ölçme uzmanısın. ${ORIGINALITY} Yalnız JSON döndür.`,
     user:
-      `${officialBlock(unit)}\n\nŞu (kazanım|zorluk) çiftlerinin her biri için tam 1 soru yaz: ${pairs.join(", ")}.\n` +
+      `${officialBlock(unit)}\n\nŞu (kazanım|zorluk) çiftlerinin her biri için tam 1 soru yaz: ${pairs.join(", ")}.\nBir çift listede birden çok kez geçiyorsa her geçişi için ayrı, birbirinden farklı köklü bir soru yaz.\n` +
+      (kind ? ITEM_STYLE[kind] : "") +
       `Zorluk: easy=kavram tanıma, medium=uygulama/yorum, hard=çok adımlı çıkarım. Her soruda tam ${choices} seçenek, ` +
       `tek doğru cevap; seçeneklerin başına harf koyma. JSON: {"items": [{"outcome_code": string, "difficulty": "easy"|"medium"|"hard", ` +
       `"stem": string, "choices": string[], "answer": number (0 tabanlı doğru seçenek), "explanation": string}]}`,
@@ -316,12 +334,21 @@ export function lessonTexts(lesson: LessonBody): string[] {
       ...(s.worked_example ? [s.worked_example] : []),
       ...(s.common_mistakes ?? []),
       ...(s.ladder ? [s.ladder.temel, s.ladder.orta, s.ladder.ileri] : []),
+      ...stringsOf((s as { blueprint?: unknown }).blueprint),
     ]),
   ];
 }
 
+/** İskelet nesnesindeki bütün metinler (kod kapısı için). */
+function stringsOf(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(stringsOf);
+  if (value && typeof value === "object") return Object.values(value).flatMap(stringsOf);
+  return [];
+}
+
 /** Anlatımın kod kapısı (bozuk metin, mantık terimi, kazanım kapsaması, kalite rubriği); boş = geçer. */
-export function lessonGateIssues(lesson: LessonBody, codes: string[]): string[] {
+export function lessonGateIssues(lesson: LessonBody, codes: string[], programKind = ""): string[] {
   const texts = lessonTexts(lesson);
   return [
     ...new Set([
@@ -330,6 +357,7 @@ export function lessonGateIssues(lesson: LessonBody, codes: string[]): string[] 
       ...(lesson.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
       ...checkShape(lesson, [], codes, 5).lessonIssues.map((i) => `${i.code}: ${i.detail}`),
       ...lessonRubricIssues(lesson),
+      ...blueprintIssues(lesson, blueprintKind(programKind)),
     ]),
   ];
 }
@@ -351,7 +379,7 @@ export async function regenerateLesson(
     usage.push({ actionCode: "SHARED_CONTENT_LESSON", model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
     const lesson = parse(lessonSchema, out.text);
     if (!lesson) continue;
-    issues = lessonGateIssues(lesson, codes);
+    issues = lessonGateIssues(lesson, codes, unit.program.kind);
     if (!issues.length) return { lesson, issues, usage };
   }
   return { lesson: null, issues, usage };
@@ -375,10 +403,13 @@ export async function generateUnitContent(
   };
   const codes = unit.outcomes.map((o) => o.code);
   const choices = choiceCount(unit.program);
+  const perPair = itemsPerPair(unit.program);
 
+  const bpKind = blueprintKind(unit.program.kind);
+  const lessonQualityIssues = (l: LessonBody) => [...lessonRubricIssues(l), ...blueprintIssues(l, bpKind, choices)];
   let lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit)));
-  // Kalite rubriği tutmazsa anlatım bir kez daha yazılır (sorulardan önce; soru maliyeti boşa gitmez).
-  if (lesson && lessonRubricIssues(lesson).length) {
+  // Kalite rubriği ya da sınav iskeleti tutmazsa anlatım bir kez daha yazılır (sorulardan önce; soru maliyeti boşa gitmez).
+  if (lesson && lessonQualityIssues(lesson).length) {
     lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit))) ?? lesson;
   }
   if (!lesson) return { ok: false, reason: "lesson_parse", qa: {}, usage };
@@ -399,12 +430,18 @@ export async function generateUnitContent(
     ...lessonText.flatMap(logicTermIssues).map((i) => `mantık terimi hatası: ${i}`),
     ...(lesson.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
   ];
-  const rubricIssues = lessonRubricIssues(lesson);
-  const lessonReview = { ok: lessonGarbled.length === 0 && rubricIssues.length === 0, issues: [...new Set([...lessonGarbled, ...rubricIssues])], by: "ts_gate", rubric: RUBRIC_VERSION };
+  const rubricIssues = lessonQualityIssues(lesson);
+  const lessonReview = {
+    ok: lessonGarbled.length === 0 && rubricIssues.length === 0,
+    issues: [...new Set([...lessonGarbled, ...rubricIssues])],
+    by: "ts_gate",
+    rubric: RUBRIC_VERSION,
+    ...(bpKind ? { blueprint: bpKind, blueprint_version: BLUEPRINT_VERSION } : {}),
+  };
   const gateUnit = { unitId: unit.unitId, choices, outcomes: unit.outcomes.map((o) => ({ code: o.code, outcomeId: o.outcomeId, limitations: o.limitations })) };
   let shapeIssues: { code: string; detail: string }[] = [];
   for (let round = 0; round < 2; round += 1) {
-    const pairs = missingCoverage(items, codes);
+    const pairs = missingCoverage(items, codes, perPair);
     if (pairs.length === 0) break;
     const rawItems = await call("SHARED_CONTENT_ITEMS", models.generate, itemsPrompt(unit, pairs));
     const fresh = parseItemsLenient(rawItems);
@@ -412,14 +449,18 @@ export async function generateUnitContent(
     if (fresh.dropped.some((d) => d.code === "?")) parseFailures.push({ round, step: "items", excerpt: rawItems.slice(0, 300) });
     const shape = checkShape(lesson, [], codes, choices);
     shapeIssues = shape.lessonIssues;
-    const gated = gateItems(fresh.items, gateUnit);
+    const gated = gateItems(fresh.items, gateUnit, perPair);
     rejected.push(...gated.rejected.map((r) => ({ code: r.code, reason: `kapı: ${r.reason}` })));
     gateRejected += gated.rejected.length;
-    const wanted = new Set(pairs);
+    const wanted = new Map<string, number>();
+    for (const p of pairs) wanted.set(p, (wanted.get(p) ?? 0) + 1);
     const candidates: typeof gated.passed = [];
     for (const item of gated.passed) {
-      if (wanted.has(`${item.outcome_code}|${item.difficulty}`)) candidates.push(item);
-      else rejected.push({ code: item.outcome_code, reason: "istenmeyen kazanım × zorluk çifti" });
+      const key = `${item.outcome_code}|${item.difficulty}`;
+      if ((wanted.get(key) ?? 0) > 0) {
+        wanted.set(key, wanted.get(key)! - 1);
+        candidates.push(item);
+      } else rejected.push({ code: item.outcome_code, reason: "istenmeyen kazanım × zorluk çifti" });
     }
     if (candidates.length === 0) continue;
     const rawReview = await call("SHARED_CONTENT_VERIFY", models.verify, { ...verifyPrompt(unit, candidates), reasoningEffort: "low" });
@@ -438,17 +479,21 @@ export async function generateUnitContent(
       if (r.reason === "doğrulanmadı" && unreadable.has(idx)) r.reason = unreadable.get(idx)!;
     }
     rejected.push(...applied.rejected.map((r) => ({ code: r.item.outcome_code, reason: r.reason })));
-    const have = new Set(items.map((i) => `${i.outcome_code.trim()}|${i.difficulty}`));
+    const have = new Map<string, number>();
+    for (const i of items) have.set(`${i.outcome_code.trim()}|${i.difficulty}`, (have.get(`${i.outcome_code.trim()}|${i.difficulty}`) ?? 0) + 1);
+    const stems = new Set(items.map((i) => i.stem.replace(/\s+/g, " ").trim().toLocaleLowerCase("tr")));
     for (const item of applied.kept) {
       const key = `${item.outcome_code.trim()}|${item.difficulty}`;
-      if (!have.has(key)) {
-        have.add(key);
+      const stem = item.stem.replace(/\s+/g, " ").trim().toLocaleLowerCase("tr");
+      if ((have.get(key) ?? 0) < perPair && !stems.has(stem)) {
+        have.set(key, (have.get(key) ?? 0) + 1);
+        stems.add(stem);
         items.push({ ...item, outcome_code: item.outcome_code.trim() });
       }
     }
   }
   items = items.sort((a, b) => codes.indexOf(a.outcome_code) - codes.indexOf(b.outcome_code));
-  const missing = missingCoverage(items, codes);
+  const missing = missingCoverage(items, codes, perPair);
   const qa = {
     checked_at: new Date().toISOString(),
     lesson_shape_issues: shapeIssues,

@@ -51,6 +51,12 @@ export function fillOrder(programs: FillProgram[]): FillTarget[] {
   return out.filter((t) => (seen.has(t.unitId) ? false : (seen.add(t.unitId), true)));
 }
 
+/** `only` öneklerinden birine uyan hedefler; doldurma sırası korunur. Boş liste = tüm sıra. */
+export function restrictOrder(order: FillTarget[], only: string[]): FillTarget[] {
+  if (!only.length) return order;
+  return order.filter((t) => only.some((o) => t.unitId === o || t.programId === o || t.unitId.startsWith(o)));
+}
+
 export const DEFAULT_CAP_USD = 5.33;
 /** Bir ünitenin ölçülen maliyeti ~0,0063 $; güvenli tarafta kalmak için tahmin bundan yüksek tutulur. */
 export const DEFAULT_UNIT_ESTIMATE_USD = 0.012;

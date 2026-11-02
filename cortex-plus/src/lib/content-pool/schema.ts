@@ -16,6 +16,8 @@ export const lessonSchema = z.object({
         worked_example: z.string().max(3000).optional(),
         common_mistakes: z.array(z.string().min(2).max(600)).max(5).optional(),
         ladder: z.object({ temel: z.string().max(600), orta: z.string().max(600), ileri: z.string().max(600) }).optional(),
+        // Sınav pedagojik iskeleti (blueprint.ts); yalnız sınav türü programlarda, eski kayıtlarda yok.
+        blueprint: z.unknown().optional(),
       }),
     )
     .min(1)
@@ -101,9 +103,12 @@ export function checkShape(
 }
 
 /** Kazanım × zorluk kapsaması: eksik olan çiftler. */
-export function missingCoverage(items: PoolItem[], outcomeCodes: string[]): string[] {
-  const have = new Set(items.map((i) => `${i.outcome_code.trim()}|${i.difficulty}`));
-  return outcomeCodes.flatMap((code) => DIFFICULTIES.filter((d) => !have.has(`${code}|${d}`)).map((d) => `${code}|${d}`));
+export function missingCoverage(items: PoolItem[], outcomeCodes: string[], perPair = 1): string[] {
+  const have = new Map<string, number>();
+  for (const i of items) have.set(`${i.outcome_code.trim()}|${i.difficulty}`, (have.get(`${i.outcome_code.trim()}|${i.difficulty}`) ?? 0) + 1);
+  return outcomeCodes.flatMap((code) =>
+    DIFFICULTIES.flatMap((d) => Array.from({ length: Math.max(0, perPair - (have.get(`${code}|${d}`) ?? 0)) }, () => `${code}|${d}`)),
+  );
 }
 
 /**

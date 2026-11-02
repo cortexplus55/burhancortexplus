@@ -75,7 +75,7 @@ async function step(origin: string) {
     let report;
     try {
       report = await runFill(
-        currentFillOrder(),
+        currentFillOrder(config.only),
         {
           states: (ids) => unitStates(service, ids),
           spent: () => sharedContentSpent(service),
@@ -101,7 +101,7 @@ async function step(origin: string) {
     if (more && secret) await dispatchNext(service, origin, secret);
   });
   const spent = await sharedContentSpent(service);
-  const states = await unitStates(service, currentFillOrder().map((t) => t.unitId)).catch(() => new Map());
+  const states = await unitStates(service, currentFillOrder(config.only).map((t) => t.unitId)).catch(() => new Map());
   return NextResponse.json({ ok: true, started: true, leaseUntil, spentUsd: Number(spent.toFixed(4)), capUsd: config.capUsd, verifiedUnits: [...states.values()].filter((s) => s.verified).length }, { status: 202 });
 }
 

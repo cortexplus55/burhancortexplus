@@ -2,7 +2,8 @@
  * KPSS / ALES / DGS / YDS / TUS / DUS kurulum tanımları (1 Kasım 2026). İstemcide de okunur; kayıt defteri JSON'u içermez.
  *
  * ÖSYM bu sınavlar için konu listesi yayımlamaz: kılavuzlar test adını, kapsam cümlesini ve soru sayısını verir.
- * Konu ağaçları kayıt defterindeki `*-2026-tree-*` programlarıdır (data/curriculum/scripts/exam_trees.py) ve
+ * Yeni kurulumlar derin `*-2026-deep-*` programlarını gösterir (data/curriculum/scripts/exam_trees_deep.py); KPSS güncel
+ * bilgiler `*-2026-tree-*` ağacında kalır. Eski `*-2026-tree-*` programları ve onlara bağlı hazırlıklar aynen durur. Programlar
  * her biri dürüst etiketini taşır. Soru sayıları kayıt defterindeki examStructures satırlarından (ÖSYM kılavuzu) gelir.
  */
 
@@ -37,9 +38,13 @@ export type TreeExamDef = {
   groups: TreeGroup[];
 };
 
-const ids = (exam: TreeExam, suffixes: string[]) => suffixes.map((s) => `${exam}-2026-tree-${s}`);
+/** Derin ağacı olmayan dersler (güncel bilgiler uydurulmasın diye sığ ağaçta kalır). */
+const TREE_ONLY = new Set(["kpss:guncel"]);
+export const treeProgramId = (exam: TreeExam, suffix: string) =>
+  `${exam}-2026-${TREE_ONLY.has(`${exam}:${suffix}`) ? "tree" : "deep"}-${suffix}`;
+const ids = (exam: TreeExam, suffixes: string[]) => suffixes.map((s) => treeProgramId(exam, s));
 const subj = (exam: TreeExam, suffix: string, test: string, structure: string[]): TreeSubjectDef => ({
-  programId: `${exam}-2026-tree-${suffix}`,
+  programId: treeProgramId(exam, suffix),
   test,
   structure,
 });

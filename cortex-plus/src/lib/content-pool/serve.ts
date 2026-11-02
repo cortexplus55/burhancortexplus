@@ -6,6 +6,7 @@ import { getProgram, topicMapForRef } from "@/lib/curriculum/registry";
 import { topicIndexForLabel } from "@/lib/curriculum/topic-map";
 import type { CurriculumRef } from "@/lib/curriculum/types";
 import type { LessonBody } from "@/lib/content-pool/schema";
+import { blueprintBlocks, blueprintKind } from "@/lib/content-pool/blueprint";
 import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
 
 /**
@@ -126,12 +127,29 @@ function note(title: string, body: string, tone: string) {
   return { type: "note", note: { title, body: body.slice(0, 2400), tone } };
 }
 
-export function poolLessonV3(body: LessonBody, title: string) {
+export function poolLessonV3(body: LessonBody, title: string, programKind = "") {
+  const kind = blueprintKind(programKind);
   const per = Math.ceil(body.sections.length / LESSON_SCREEN_HARD_CAP);
   const screens: Record<string, unknown>[] = [];
   for (let i = 0; i < body.sections.length; i += per) {
     const group = body.sections.slice(i, i + per);
-    const blocks = group.flatMap((s) => [
+    const blocks = group.flatMap((s) => {
+      const bp = blueprintBlocks((s as { blueprint?: unknown }).blueprint, kind);
+      // Sınav iskeleti varsa ekran sırası: anlatım → iskelet blokları (akış, tablo, kutu, kısa yol, tuzak) → çözümlü örnek →
+      // iskelet sorusu → hata/basamak; 12 blok sınırında iskelet kesilmez.
+      if (bp.length) {
+        const check = bp.filter((b) => b.type === "check");
+        return [
+          ...(per > 1 ? [{ type: "text", text: `**${s.heading}**` }] : []),
+          ...chunks(s.explanation, 2400).slice(0, 2).map((text) => ({ type: "text", text })),
+          ...bp.filter((b) => b.type !== "check"),
+          ...(s.worked_example?.trim() ? [note("Çözümlü örnek", s.worked_example, "exam")] : []),
+          ...check,
+          ...(s.common_mistakes?.length ? [note("Sık yapılan hata", s.common_mistakes.map((m) => `• ${m}`).join("\n"), "warn")] : []),
+          ...(s.ladder ? [note("Temel → orta → ileri", `Temel: ${s.ladder.temel}\nOrta: ${s.ladder.orta}\nİleri: ${s.ladder.ileri}`, "info")] : []),
+        ];
+      }
+      return [
       ...(per > 1 ? [{ type: "text", text: `**${s.heading}**` }] : []),
       ...chunks(s.explanation, 2400).map((text) => ({ type: "text", text })),
       ...(s.steps?.length ? [{ type: "text", text: s.steps.map((p, n) => `${n + 1}. ${p}`).join("\n").slice(0, 2400) }] : []),
@@ -139,7 +157,8 @@ export function poolLessonV3(body: LessonBody, title: string) {
       ...(s.worked_example?.trim() ? [note("Çözümlü örnek", s.worked_example, "exam")] : []),
       ...(s.common_mistakes?.length ? [note("Sık yapılan hata", s.common_mistakes.map((m) => `• ${m}`).join("\n"), "warn")] : []),
       ...(s.ladder ? [note("Temel → orta → ileri", `Temel: ${s.ladder.temel}\nOrta: ${s.ladder.orta}\nİleri: ${s.ladder.ileri}`, "info")] : []),
-    ]);
+      ];
+    });
     // Yeni başlayana tanımlar ilk ekranın başında.
     if (i === 0 && body.key_terms?.length)
       blocks.unshift(note("Temel kavramlar", body.key_terms.map((t) => `**${t.term}**: ${t.definition}`).join("\n"), "remember"));
@@ -239,7 +258,7 @@ export async function poolPayload(
   }
   const body = sliceLesson(bodies, slice.codes, input.title);
   if (input.kind === "lesson") {
-    const lesson = poolLessonV3(body, input.title);
+    const lesson = poolLessonV3(body, input.title, unit.program.kind);
     return { type: "lesson", lesson, title: lesson.title, qualityReport: null, ...base };
   }
   const cards = body.cards.map((c) => ({ front: c.front, back: c.back }));

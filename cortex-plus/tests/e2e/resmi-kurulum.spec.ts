@@ -154,11 +154,11 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await page.goto("/e2e/resmi-kurulum");
     await page.getByRole("button", { name: /^KPSS/ }).click();
     await expect(page.getByTestId("tree-label")).toHaveText("Konu ağacı MEB müfredatına dayanır — resmî ÖSYM listesi değildir");
-    await expect(page.getByTestId("setup-summary")).toHaveText("6 ders · 35 ünite · 94 kazanım");
+    await expect(page.getByTestId("setup-summary")).toHaveText("6 ders · 51 ünite · 194 kazanım");
     await expect(page.getByTestId("official-links")).toContainText("İlgili resmî kaynaklar");
     await expect(page.getByTestId("official-links").locator("a").first()).toHaveAttribute("href", /^https:\/\/[^ ]*osym\.gov\.tr/);
     await page.getByRole("radio", { name: /Genel Yetenek \(Türkçe/ }).click();
-    await expect(page.getByTestId("setup-summary")).toHaveText("2 ders · 12 ünite · 38 kazanım");
+    await expect(page.getByTestId("setup-summary")).toHaveText("2 ders · 18 ünite · 72 kazanım");
     await screenOk(page);
     await page.getByRole("button", { name: "Konuları gör" }).click();
     await page.locator("summary", { hasText: "Türkçe" }).first().click();
@@ -171,19 +171,19 @@ test.describe("Resmî sınav kurulumu", { tag: ["@public"] }, () => {
     await expect(picked).toContainText('"examType":"KPSS"');
     await expect(picked).toContainText('"examDate":"2027-09-12"');
     await expect(picked).toContainText('"title":"KPSS Hazırlığı"');
-    await expect(picked).toContainText('"topics":12');
-    await expect(picked).toContainText('"codes":38');
+    await expect(picked).toContainText('"topics":18');
+    await expect(picked).toContainText('"codes":72');
     await expect(picked).toContainText('"hard":1');
   });
 
   test("TUS: Tıp/Akademik etiket, tek ders anahtarı, Temel/Klinik çipleri, TUS tarihi", async ({ page }) => {
     await page.goto("/e2e/resmi-kurulum?sinav=tus");
     await expect(page.getByTestId("tree-label")).toHaveText("Tıp/Akademik Müfredat Konu Ağacı — resmî ÖSYM listesi değildir");
-    await expect(page.getByTestId("setup-summary")).toHaveText("11 ders · 54 ünite · 119 kazanım");
+    await expect(page.getByTestId("setup-summary")).toHaveText("11 ders · 88 ünite · 360 kazanım");
     await expect(page.locator(".osf-source")).toContainText("UÇEP 2020");
     await page.getByRole("switch", { name: "Yalnızca Tek Ders Seç" }).check();
     await page.getByRole("radio", { name: /^Anatomi/ }).click();
-    await expect(page.getByTestId("setup-summary")).toHaveText("1 ders · 5 ünite · 12 kazanım");
+    await expect(page.getByTestId("setup-summary")).toHaveText("1 ders · 8 ünite · 32 kazanım");
     await page.getByRole("switch", { name: "Yalnızca Tek Ders Seç" }).uncheck();
     await page.getByRole("radio", { name: "🩺 Klinik Tıp Bilimleri" }).click();
     await expect(page.getByTestId("setup-summary")).toHaveText(/^4 ders · /);

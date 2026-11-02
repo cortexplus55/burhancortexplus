@@ -20,14 +20,18 @@ const sources = (registry as unknown as { sources: Record<string, { url: string 
 describe("KPSS / ALES / DGS / YDS / TUS / DUS konu ağaçları", () => {
   for (const exam of TREE_EXAM_IDS) {
     const def = TREE_EXAMS[exam];
-    it(`${def.name}: her ders kayıtta, 5–6 konu (tıpta 4–6), konu başına ≥2 alt başlık, etiket ve kaynak`, () => {
+    it(`${def.name}: her ders kayıtta, derin ağaçta 6–16 konu, konu başına ≥3 alt başlık, etiket ve kaynak`, () => {
       for (const s of def.subjects) {
         const p = programs.find((x) => x.id === s.programId);
         expect(p, s.programId).toBeTruthy();
         expect(p!.kind).toBe(exam);
-        const min = exam === "tus" || exam === "dus" ? 4 : 5;
-        expect(p!.units.length).toBeGreaterThanOrEqual(min);
-        expect(p!.units.length).toBeLessThanOrEqual(6);
+        if (s.programId.includes("-2026-deep-")) {
+          expect(p!.units.length).toBeGreaterThanOrEqual(6);
+          expect(p!.units.length).toBeLessThanOrEqual(16);
+          for (const u of p!.units) expect(u.outcomes.length, u.title).toBeGreaterThanOrEqual(3);
+        } else {
+          expect(s.programId).toBe("kpss-2026-tree-guncel");
+        }
         expect(p!.scope).toContain(def.label);
         for (const u of p!.units) {
           expect(u.outcomes.length, u.title).toBeGreaterThanOrEqual(2);
@@ -61,6 +65,24 @@ describe("KPSS / ALES / DGS / YDS / TUS / DUS konu ağaçları", () => {
     expect(buildSetupTree("ales").subjects.map((s) => s.questionCount)).toEqual([50, 50]);
     expect(buildSetupTree("yds").subjects[0]!.questionCount).toBe(80);
     expect(buildSetupTree("tus").subjects.every((s) => (s.questionCount ?? 0) > 0)).toBe(true);
+  });
+
+  it("TUS/DUS derin ağacı çekirdeği adlandırır: patofizyoloji, en sık neden, altın standart, ilk seçenek, ayırıcı tanı", () => {
+    for (const exam of ["tus", "dus"] as const)
+      for (const s of TREE_EXAMS[exam].subjects) {
+        const p = programs.find((x) => x.id === s.programId)!;
+        expect(p.id).toContain("-2026-deep-");
+        for (const u of p.units)
+          for (const o of u.outcomes) {
+            const lim = String(o.limitations);
+            for (const k of ["patofizyoloji", "en sık", "altın standart", "ilk seçenek", "ayırıcı tanı"]) expect(lim, o.code).toContain(k);
+          }
+      }
+  });
+
+  it("eski -2026-tree- programları yerinde (mevcut hazırlıklar kırılmaz)", () => {
+    for (const id of ["tus-2026-tree-anatomi", "kpss-2026-tree-turkce", "ales-2026-tree-sayisal", "yds-2026-tree-yabanci-dil"])
+      expect(programs.find((p) => p.id === id), id).toBeTruthy();
   });
 
   it("TUS/DUS kaynakları UÇEP / DUÇEP", () => {
