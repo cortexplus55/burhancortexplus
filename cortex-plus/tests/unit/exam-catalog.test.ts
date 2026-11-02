@@ -21,15 +21,14 @@ describe("sınav listesi kataloğu (Astra: Müfredatım / Resmî sınavlar)", ()
     expect(curriculumFor(null).levelLabel).toBe("Lise");
   });
 
-  it("YKS ve LGS kartları resmî kuruluma, diğerleri sohbet kurulumuna gider", () => {
+  it("kayıt defterindeki tüm sınav kartları resmî kuruluma gider", () => {
     const byId = (id: string) => OFFICIAL_EXAMS.find((item) => item.id === id)!;
     expect(catalogCreateHref(byId("tyt"))).toBe("/deneme-sinavlari/resmi/kurulum?sinav=yks&alan=tyt");
     expect(catalogCreateHref(byId("ayt"))).toBe("/deneme-sinavlari/resmi/kurulum?sinav=yks");
     expect(catalogCreateHref(byId("lgs"))).toBe("/deneme-sinavlari/resmi/kurulum?sinav=lgs");
-    const other = OFFICIAL_EXAMS.find((item) => !["tyt", "ayt", "lgs"].includes(item.id))!;
-    const url = new URL(catalogCreateHref(other), "https://cortexplus.app");
-    expect(url.pathname).toBe("/deneme-sinavlari/olustur");
-    expect(url.searchParams.get("ders")).toBe(other.subject);
+    for (const id of ["kpss", "ales", "dgs", "yds", "tus", "dus"]) {
+      expect(catalogCreateHref(byId(id))).toBe(`/deneme-sinavlari/resmi/kurulum?sinav=${id}`);
+    }
   });
 
   it("kart tarihi Astra gibi göreli: sonra / önce / bugün", () => {

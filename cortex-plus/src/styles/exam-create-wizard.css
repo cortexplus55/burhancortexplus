@@ -1532,3 +1532,21 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Resmî müfredat girişi (2 Kasım 2026): sınav çipinin hemen altında, mobilde tam genişlik dokunma hedefi. */
+.apw-official-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-height: 56px;
+  margin: 12px 0;
+  padding: 14px 16px;
+  border: 1.5px solid var(--accent, #4f46e5);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent, #4f46e5) 8%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+.apw-official-entry strong { font-size: 1rem; }
+.apw-official-entry span { font-size: 0.875rem; opacity: 0.8; }

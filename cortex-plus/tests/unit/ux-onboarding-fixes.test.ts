@@ -39,7 +39,7 @@ describe("2 Kasım 2026 mobil denetim: kurulum", () => {
   });
 
   it("sınav ve hedef listeleri okul yolu sırasında, sade dilde", () => {
-    expect(EXAM_TRACKS.map((t) => t.id)).toEqual(["lgs", "tyt", "ayt", "yks", "kpss", "ales", "tus", "uni"]);
+    expect(EXAM_TRACKS.map((t) => t.id)).toEqual(["lgs", "tyt", "ayt", "yks", "kpss", "ales", "dgs", "yds", "tus", "dus", "uni"]);
     expect(GOAL_OPTIONS[0]!.label).toBe("Okul sınavları");
     for (const score of [55, 75, 95]) expect(targetPlanHint(score).badge).not.toMatch(/mevcut plan akışı|barajı aktif|kompakt/);
   });
@@ -47,5 +47,16 @@ describe("2 Kasım 2026 mobil denetim: kurulum", () => {
   it("boş taslakta 'kaldığın yerden' bandı yok", () => {
     expect(draftHasProgress({ step: "subject", subject: "", materials: [] })).toBe(false);
     expect(draftHasProgress({ step: "date", subject: "Matematik", materials: [] })).toBe(true);
+  });
+});
+
+import { officialSetupHrefForTrack } from "@/lib/learning/exam-wizard-copy";
+describe("2 Kasım 2026: sihirbazdan resmî müfredat girişi", () => {
+  it("6 sınav çipi belge sormadan resmî kuruluma gider", () => {
+    for (const id of ["kpss", "ales", "dgs", "yds", "tus", "dus"]) {
+      expect(officialSetupHrefForTrack(id)).toBe(`/deneme-sinavlari/resmi/kurulum?sinav=${id}`);
+    }
+    expect(officialSetupHrefForTrack("tyt")).toBe("/deneme-sinavlari/resmi/kurulum?sinav=yks&alan=tyt");
+    expect(officialSetupHrefForTrack("uni")).toBeNull();
   });
 });

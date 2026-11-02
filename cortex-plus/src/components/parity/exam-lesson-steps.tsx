@@ -192,7 +192,7 @@ function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][num
     <div className="als-reference-table">
       {table.caption ? <p className="als-reference-table-caption">{table.caption}</p> : null}
       {overflows ? (
-        <p className="als-reference-table-hint" aria-hidden>
+        <p className="als-reference-table-hint als-reference-table-hint--wide" aria-hidden>
           Tablonun devamı için yana kaydır →
         </p>
       ) : null}
@@ -209,7 +209,7 @@ function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][num
             {rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
                 {columns.map((_column, colIndex) => (
-                  <td key={colIndex}>{row[colIndex] ?? ""}</td>
+                  <td key={colIndex} data-label={columns[colIndex]}>{row[colIndex] ?? ""}</td>
                 ))}
               </tr>
             ))}
