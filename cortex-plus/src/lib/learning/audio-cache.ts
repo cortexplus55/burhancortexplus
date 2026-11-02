@@ -147,6 +147,8 @@ type AudioProgress = {
   onTrack?: (index: number, track: AudioTrack) => void;
   /** Aynı ses başka bir istekte üretiliyorsa (işlem sürüyor) en çok bu kadar beklenir. */
   inFlightWaitMs?: number;
+  /** Kayıt kodu; paylaşımlı ünite podcast'i SHARED_CONTENT_MEDIA ile yazılır (2 Kasım 2026). */
+  usageCode?: "TTS_SYNTHESIZE" | "SHARED_CONTENT_MEDIA";
   /** Beklerken önbelleğe bakma aralığı. */
   inFlightPollMs?: number;
 };
@@ -249,7 +251,7 @@ async function ensureAudio(
         if (userId) {
           void recordUsage(service, {
             userId,
-            actionCode: "TTS_SYNTHESIZE",
+            actionCode: options?.usageCode ?? "TTS_SYNTHESIZE",
             model: env.OPENAI_TTS_MODEL,
             tokensIn: result.chars,
             tokensOut: 0,
@@ -402,4 +404,24 @@ export async function synthesizeCharged(
 
   if (reservationId) await commitCredits(service, reservationId);
   return { ok: true, tracks, creditsSpent: units };
+}
+
+/**
+ * Paylaşımlı ünite podcast'inin sesi (2 Kasım 2026): senaryo `shared_unit_media`'daki bölümle aynıysa öğrenciden
+ * kredi ayrılmaz; ilk üretimin TTS maliyeti SHARED_CONTENT_MEDIA koduyla yazılır. Ses önbelleği içerik adresli
+ * (satır hash'i) ve ortak olduğundan sonraki öğrencide TTS çağrısı 0.
+ */
+export async function synthesizeShared(
+  service: Service,
+  userId: string,
+  lines: AudioRequest[],
+  options?: AudioProgress,
+): Promise<ChargedAudio> {
+  let tracks: AudioTrack[] | null;
+  try {
+    tracks = await ensureAudio(service, lines, userId, { ...options, usageCode: "SHARED_CONTENT_MEDIA" });
+  } catch {
+    tracks = null;
+  }
+  return tracks ? { ok: true, tracks, creditsSpent: 0 } : { ok: false, reason: "audio_unavailable" };
 }

@@ -60,3 +60,24 @@ export async function sharedBudgetAllows(service: SupabaseClient, kind: "podcast
 
 export const SHARED_BUDGET_MESSAGE =
   "Hazır içerik için ayrılan üretim bütçesi doldu; bu ünitenin bu içeriği şu an üretilemiyor. Kredi düşülmedi.";
+
+/**
+ * İstenen podcast satırlarının tamamı paylaşımlı bir ünite bölümünden mi? Sunucu tarafında doğrulanır (istemci
+ * işaretine güvenilmez): ilk satırı içeren `podcast:*` kaydı jsonb kapsama ile bulunur, sonra her satır karşılaştırılır.
+ */
+export async function isSharedPodcastScript(service: SupabaseClient, lines: { text: string; speaker: string }[]): Promise<boolean> {
+  const first = lines[0];
+  if (!first) return false;
+  const { data, error } = await service
+    .from("shared_unit_media")
+    .select("payload")
+    .like("kind", "podcast:%")
+    .contains("payload", { episode: { chapters: [{ lines: [{ text: first.text }] }] } })
+    .limit(5);
+  if (error || !data?.length) return false;
+  return data.some((row) => {
+    const chapters = (row.payload as { episode?: { chapters?: { lines?: { text?: string; speaker?: string }[] }[] } } | null)?.episode?.chapters ?? [];
+    const known = new Set(chapters.flatMap((c) => c.lines ?? []).map((l) => `${l.speaker}\u0000${l.text}`));
+    return lines.every((l) => known.has(`${l.speaker}\u0000${l.text}`));
+  });
+}
