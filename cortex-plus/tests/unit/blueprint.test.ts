@@ -48,3 +48,22 @@ describe("iskelet: bölüm içinde ve uzun metin", () => {
     if (r.success) expect(r.data.table!.rows[0][0].length).toBeLessThanOrEqual(160);
   });
 });
+
+describe("iskelet: dayanıklı okuma", () => {
+  it("harf cevap, fazla satır ve bozuk ek blok iskeleti düşürmez", async () => {
+    const { blueprintSchema } = await import("@/lib/content-pool/blueprint");
+    const r = blueprintSchema.safeParse({
+      diagram: { title: "x" },
+      table: { caption: "Tablo", columns: ["A", "B", "C", "D", "E", "F"], rows: Array.from({ length: 20 }, () => ["a", "b"]) },
+      check: { stem: "Soru kökü burada", options: ["a", "b", "c", "d", "e"], answer: "C)", explanation: "Açıklama metni", seconds: "60 sn" },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.diagram).toBeUndefined();
+      expect(r.data.table!.columns).toHaveLength(5);
+      expect(r.data.table!.rows).toHaveLength(14);
+      expect(r.data.check!.answer).toBe(2);
+      expect(r.data.check!.seconds).toBe(60);
+    }
+  });
+});
