@@ -20,7 +20,7 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  */
 // v9: check bloğu dizi gövde/öncül alanı/nesne seçenek/metin cevap biçimleri okunur
 // v10: sıralama/şık imleri ("A)", "1)") parantez dengesinde sayılmaz
-export const GATE_VERSION = 11; // 11: matematik gösterimi maskesi genişledi (2 Kasım 2026); v10 retleri yeniden denenir
+export const GATE_VERSION = 12; // 12: boşluk doldurma çizgisi muafiyeti; 11: matematik gösterimi maskesi (2 Kasım 2026)
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {
@@ -87,7 +87,8 @@ export function garbledReason(text: string): string | null {
   if (/(?<![\p{L}\p{N}])\p{Ll}+\p{Ll}{1}\p{Lu}\p{Ll}{2}/u.test(text)) return "yapışık kelime";
   const masked = maskListMarkers(maskMathNotation(text));
   if (/[^\s]{45,}/u.test(masked.replace(/https?:\/\/\S+/g, ""))) return "boşluksuz uzun dizi";
-  if (/(.)\1{5,}/u.test(text)) return "tekrarlanan karakter";
+  // Boşluk doldurma çizgisi ("______") ve noktalı boşluk ("……") soru biçimidir, tekrar sayılmaz (YDS, 2 Kasım 2026).
+  if (/([^_.…\-–—])\1{5,}/u.test(text)) return "tekrarlanan karakter";
   const issues = [
     ...fluencyIssues(masked).filter((i) => i === "unbalanced"),
     ...fluencyIssues(text).filter((i) => i === "spliced"),
