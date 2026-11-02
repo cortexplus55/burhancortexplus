@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CURRICULUM } from "@/lib/curriculum/registry";
 import { CONTENT_VERSION } from "@/lib/content-pool/keys";
 import { GATE_VERSION } from "@/lib/content-pool/gate";
-import { DEFAULT_CAP_USD, DEFAULT_UNIT_ESTIMATE_USD, fillOrder, MAX_FAILED_ATTEMPTS, type FillTarget, type UnitState } from "@/lib/content-pool/fill";
+import { DEFAULT_CAP_USD, DEFAULT_UNIT_ESTIMATE_USD, fillOrder, MAX_FAILED_ATTEMPTS, restrictOrder, type FillTarget, type UnitState } from "@/lib/content-pool/fill";
 
 /**
  * Ayar ve kill switch tek satırda: feature_flags.key = content_pool_fill (yeni tablo/migration yok).
@@ -13,7 +13,17 @@ import { DEFAULT_CAP_USD, DEFAULT_UNIT_ESTIMATE_USD, fillOrder, MAX_FAILED_ATTEM
  */
 export const FILL_FLAG = "content_pool_fill";
 
-export type FillConfig = { enabled: boolean; capUsd: number; unitEstimateUsd: number; concurrency: number; actorUserId: string | null; leaseUntil: number; metadata: Record<string, unknown> };
+export type FillConfig = {
+  enabled: boolean;
+  capUsd: number;
+  unitEstimateUsd: number;
+  concurrency: number;
+  actorUserId: string | null;
+  leaseUntil: number;
+  /** metadata.only: ünite ya da program kimliği önekleri; boşsa tüm sıra (pilot ve öncelikli doldurma için). */
+  only: string[];
+  metadata: Record<string, unknown>;
+};
 
 const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : fallback);
 
@@ -27,6 +37,7 @@ export async function readFillConfig(service: SupabaseClient): Promise<FillConfi
     concurrency: Math.min(3, Math.max(1, Math.round(num(metadata.concurrency, 3)))),
     actorUserId: typeof metadata.actor_user_id === "string" ? metadata.actor_user_id : null,
     leaseUntil: typeof metadata.lease_until === "string" ? Date.parse(metadata.lease_until) || 0 : 0,
+    only: Array.isArray(metadata.only) ? metadata.only.filter((x): x is string => typeof x === "string" && x.length > 0) : [],
     metadata,
   };
 }
@@ -78,8 +89,8 @@ export async function acquireLease(service: SupabaseClient, leaseMs: number, now
   return data && data.length === 1 ? leaseUntil : null;
 }
 
-export function currentFillOrder(): FillTarget[] {
-  return fillOrder(CURRICULUM.programs);
+export function currentFillOrder(only: string[] = []): FillTarget[] {
+  return restrictOrder(fillOrder(CURRICULUM.programs), only);
 }
 
 /** Toplam SHARED_CONTENT harcaması (bütçe ölçüsü). Okunamazsa sonsuz: doldurucu güvenli tarafta durur. */

@@ -166,3 +166,16 @@ describe("kapı: matematik/fen gösterimi yanlış ret üretmez", () => {
     expect(GATE_VERSION).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("doldurucu: only önekleri", () => {
+  it("yalnız eşleşen üniteler, sıra korunur", async () => {
+    const { restrictOrder } = await import("@/lib/content-pool/fill");
+    const order = [
+      { unitId: "kpss-2026-deep-tarih#1", programId: "kpss-2026-deep-tarih", group: "KPSS" as const },
+      { unitId: "kpss-2026-tree-tarih#1", programId: "kpss-2026-tree-tarih", group: "KPSS" as const },
+      { unitId: "tus-2026-deep-dahiliye#2", programId: "tus-2026-deep-dahiliye", group: "TUS" as const },
+    ];
+    expect(restrictOrder(order, [])).toEqual(order);
+    expect(restrictOrder(order, ["tus-2026-deep-dahiliye#2", "kpss-2026-deep-"]).map((t) => t.unitId)).toEqual(["kpss-2026-deep-tarih#1", "tus-2026-deep-dahiliye#2"]);
+  });
+});
