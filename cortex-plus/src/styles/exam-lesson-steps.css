@@ -1594,7 +1594,22 @@
 
 /* Sabit geri bildirim paneli içeriğin üstünü örtmesin: altta panel kadar boşluk (2 Kasım 2026). */
 .als:has(.als-feedback) {
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--als-fb-h, 5.5rem) + 1rem + env(safe-area-inset-bottom, 0px));
+}
+/* Açıklama ve son bloklar kaydırılınca panelin üstünde durur (yükseklik JS ile --als-fb-h). */
+.als:has(.als-feedback) :is(.als-explain, .als-slide--after, .als-check) {
+  scroll-margin-bottom: calc(var(--als-fb-h, 5.5rem) + 1.5rem + env(safe-area-inset-bottom, 0px));
+}
+.als-time-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.5rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  font-size: 0.8rem;
+  opacity: 0.85;
 }
 .als-feedback {
   z-index: 4;

@@ -1,3 +1,4 @@
+import { stripOptionLetters } from "@/lib/learning/option-text";
 import { z } from "zod";
 import type { LessonBody } from "@/lib/content-pool/schema";
 
@@ -12,7 +13,7 @@ import type { LessonBody } from "@/lib/content-pool/schema";
  *  - akil (ALES/DGS): kural özeti, uzun yol ↔ 30 saniyelik kısa yol, tablo kurma adımları (diagram_card), süreli soru.
  *  - yds: sinyal kelimeler/eşdizimler, şık eleme tekniği, akademik eş anlamlılar tablosu, her şıkkı Türkçe açıklanan soru.
  */
-export const BLUEPRINT_VERSION = 1;
+export const BLUEPRINT_VERSION = 2; // 2: iskelet soruları denetçiyle çözülür, tek doğru şık şartı (2 Kasım 2026)
 export type BlueprintKind = "klinik" | "kpss" | "akil" | "yds";
 
 export function blueprintKind(programKind: string): BlueprintKind | null {
@@ -96,6 +97,8 @@ export const blueprintSchema = z.object({
           const i = (options as unknown[]).findIndex((e) => typeof e === "string" && e.trim() === a);
           if (i >= 0) answer = i;
         }
+        // Harf imleri ("A) …") cevap eşlemesinden SONRA atılır; ekran harfi kendisi basar.
+        if (Array.isArray(options) && options.every((e) => typeof e === "string")) options = stripOptionLetters(options as string[]);
         return { ...o, stem, options, answer, explanation: join(o.explanation ?? o.aciklama) };
       },
       z.object({
@@ -228,11 +231,26 @@ export function blueprintBlocks(raw: unknown, kind: BlueprintKind | null): Recor
       check: {
         type: "mcq",
         prompt: prompt.slice(0, 400),
-        options: bp.check.options.map((o) => o.slice(0, 200)),
+        options: stripOptionLetters(bp.check.options).map((o) => o.slice(0, 200)),
         answerIndex: bp.check.answer,
         explanation: bp.check.explanation,
       },
     });
+  }
+  return out;
+}
+
+/**
+ * Bölüm iskelet sorularını (blueprint.check) doğrulama adayı olarak çıkarır. 2 Kasım 2026'ya kadar bu sorular
+ * modelle hiç çözülmüyordu; canlı ALES sözel dersinde iki şıkkı da kuralları sağlayan eşleştirme sorusu çıktı.
+ */
+export function blueprintChecks(lesson: LessonBody): { outcome_code: string; stem: string; choices: string[]; answer: number; explanation: string }[] {
+  const out: { outcome_code: string; stem: string; choices: string[]; answer: number; explanation: string }[] = [];
+  for (const s of lesson.sections ?? []) {
+    const parsed = blueprintSchema.safeParse((s as { blueprint?: unknown }).blueprint ?? null);
+    const c = parsed.success ? parsed.data.check : undefined;
+    if (!c || c.answer >= c.options.length) continue;
+    out.push({ outcome_code: s.outcome_code.trim(), stem: c.stem, choices: c.options, answer: c.answer, explanation: c.explanation });
   }
   return out;
 }

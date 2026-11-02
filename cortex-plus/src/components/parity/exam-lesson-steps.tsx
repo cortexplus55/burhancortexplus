@@ -1,5 +1,6 @@
 "use client";
 
+import { splitTargetTime, stripOptionLetters } from "@/lib/learning/option-text";
 import { dedupePathLabels } from "@/lib/learning/path-labels";
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -790,6 +791,29 @@ export function ExamLessonSteps({
   }, [index]);
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
+  // Alt geri bildirim paneli ("Harika! / Devam et") açıklamanın altını örtmesin: yüksekliği --als-fb-h olarak yayınlanır
+  // (CSS bu kadar alt boşluk ve kaydırma payı bırakır); cevap açılınca açıklama panelin üstünde kalacak kadar kaydırılır.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !revealed) return;
+    const bar = root.querySelector<HTMLElement>(".als-feedback");
+    if (!bar) return;
+    const publish = () => root.style.setProperty("--als-fb-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    publish();
+    const explain = root.querySelectorAll<HTMLElement>(".als-explain");
+    const target = explain[explain.length - 1];
+    if (target && typeof target.scrollIntoView === "function") {
+      const r = target.getBoundingClientRect();
+      if (r.bottom > window.innerHeight - bar.getBoundingClientRect().height) target.scrollIntoView({ block: "nearest" });
+    }
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--als-fb-h");
+    };
+  }, [revealed, index]);
   const [solutionShown, setSolutionShown] = useState(false);
   const [written, setWritten] = useState("");
   const [recallDraft, setRecallDraft] = useState("");
@@ -882,8 +906,22 @@ export function ExamLessonSteps({
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
-  const check =
+  const rawCheck =
     step.kind === "section" ? step.check : step.kind === "retry" ? step.check : undefined;
+  // Kayıtlı derslerde şık harfi ("A) …") ve kökün başındaki hedef süre satırı ekranda ayrılır (eski kayıtlar dahil).
+  const timed = rawCheck?.prompt ? splitTargetTime(rawCheck.prompt) : { seconds: null, prompt: "" };
+  const check = rawCheck
+    ? ({
+        ...rawCheck,
+        prompt: rawCheck.prompt ? timed.prompt : rawCheck.prompt,
+        ...(Array.isArray(rawCheck.options) ? { options: stripOptionLetters(rawCheck.options) } : {}),
+      } as typeof rawCheck)
+    : undefined;
+  const targetChip = timed.seconds ? (
+    <p className="als-time-chip">
+      <span aria-hidden>⏱</span> Hedef süre: {timed.seconds} sn
+    </p>
+  ) : null;
   const mustAnswer = Boolean(check) && !revealed;
   const presentation = check ? checkPresentation(check) : null;
   const tf = check && presentation === "trueFalse" ? trueFalseIndexes(check.options ?? []) : null;
@@ -1418,6 +1456,7 @@ export function ExamLessonSteps({
       {check && (check.type === "numerical" || check.type === "explain") ? (
         <section className="als-check" aria-label="Bölüm kontrolü">
           <p className="als-kicker">{checkKicker(check.type)}</p>
+          {targetChip}
           <p className="als-check-prompt">{check.prompt}</p>
           <form
             className="als-options"
@@ -1507,6 +1546,7 @@ export function ExamLessonSteps({
           aria-label="Doğru mu yanlış mı"
         >
           <p className="als-kicker">{checkKicker(check.type)}</p>
+          {targetChip}
           <p className="als-check-prompt">
             <RichBody text={check.prompt}  topicHint={mathTopicHint} />
           </p>
@@ -1551,6 +1591,7 @@ export function ExamLessonSteps({
       {check && check.type !== "numerical" && check.type !== "explain" && presentation === "quickQuiz" ? (
         <section className="als-check" aria-label="Hızlı sınav">
           <p className="als-kicker">{checkKicker(check.type)}</p>
+          {targetChip}
           <p className="als-check-prompt">
             <RichBody text={check.prompt}  topicHint={mathTopicHint} />
           </p>
