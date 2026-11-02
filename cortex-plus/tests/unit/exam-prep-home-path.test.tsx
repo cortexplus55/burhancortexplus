@@ -335,13 +335,13 @@ describe("kompakt yol ve bitmiş adım (25 Ekim 2026)", () => {
     const { container } = renderHome({ nodes, topicCount: 6, topicLabels: topics });
     expect(container.querySelectorAll(".cp-path-section")).toHaveLength(3);
     expect(container.querySelectorAll(".cp-exam-trail-item")).toHaveLength(4);
-    expect(screen.getByRole("button", { name: "Kalan kilitli konular (3 konu)" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Kalan kilitli konular \(3 konu\)( · .*Hafta.*)?$/ })).toBeTruthy();
     const collapsed = screen.getByRole("button", { name: /Doku/ });
     expect(collapsed.getAttribute("aria-expanded")).toBe("false");
     expect(collapsed.textContent).toMatch(/4 adım · Kilitli/);
     fireEvent.click(collapsed);
     expect(container.querySelectorAll(".cp-exam-trail-item")).toHaveLength(8);
-    fireEvent.click(screen.getByRole("button", { name: "Kalan kilitli konular (3 konu)" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Kalan kilitli konular \(3 konu\)( · .*Hafta.*)?$/ }));
     expect(container.querySelectorAll(".cp-path-section")).toHaveLength(6);
   });
 
