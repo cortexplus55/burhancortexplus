@@ -34,6 +34,7 @@ import { servePrefetched } from "@/lib/learning/node/prefetched";
 import { resolveStartSource } from "@/lib/learning/node/source";
 import { reserveStartAttempt } from "@/lib/learning/node/reserve";
 import { runStartGeneration } from "@/lib/learning/node/generation";
+import { servePoolContent } from "@/lib/learning/node/pool-start";
 
 /** Öbür sekmenin açtığı kayıt bu kadar yeniyse bu sekme de onu açar (Paket J2 #9). */
 const TWIN_RESUME_MS = 3 * 60_000;
@@ -277,6 +278,12 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   const prepWideStep =
     PREP_WIDE_TARGET_KINDS.has(kind) && !requestedTopic && !adaptiveFocusTopic(kind, node.session_meta, topicLabel);
   const meterless = premium || (await billingExempt(service, userId).catch(() => false));
+  // Havuz içeriği (2 Kasım 2026): resmî kurulumdaki ünitenin doğrulanmış anlatımı, kartları ve soruları 0 kredi;
+  // haftalık ders sayacına sayılmaz. Havuzda yoksa aşağıdaki bugünkü üretim yolu (fiyatıyla) çalışır.
+  if (parsed.data.replay !== true && parsed.data.review !== true) {
+    const pooled = await servePoolContent(context, { topic, topicLabel, title, clientRequestId, voiceSession });
+    if (pooled) return pooled;
+  }
   const nodeMeter = meterless
     ? null
     : await nodeFreeMeter(service, { userId, prepId, kind, topicId: prepWideStep ? null : (topic?.id ?? null) });

@@ -50,6 +50,12 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
   EXPORT_PDF: { credits: 0, per: "dışa aktarma" },
   /** 19 Ekim 2026: 2 → 15 (ölçülen maliyet 900 karakter ≈ $0,015; göç 20261019130000). */
   AUDIO_SYNTHESIZE: { credits: 15, per: "900 karakter" },
+  /** Havuz içeriği (2 Kasım 2026, ürün sahibinin kararı): model çağrısı yok, ücretsiz. */
+  POOL_LESSON_VIEW: { credits: 0, per: "hazır ders" },
+  POOL_CARDS: { credits: 0, per: "hazır kart seti" },
+  POOL_QUIZ: { credits: 0, per: "hazır test" },
+  /** Öğrencinin belgesinden ünite ek bölümü (model çağrılırsa; aynı ek yeniden ücretlenmez). */
+  DOCUMENT_SUPPLEMENT_GENERATE: { credits: 15, per: "ünite eki" },
 };
 
 /** Çalışma zamanındaki tek eylem kodu listesi; tip (`Record<ActionCode, …>`) eksiksizliği zaten zorlar. */

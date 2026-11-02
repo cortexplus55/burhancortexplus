@@ -207,4 +207,9 @@ export type ActionCode =
   /** Video ders (17 Ekim 2026): senaryo + sahne resimleri + seslendirme. */
   | "VIDEO_GENERATE"
   /** Çizimli 1 dk video: şema + ses. Sahne resmi yok (27 Ekim 2026). */
-  | "SKETCH_VIDEO_GENERATE";
+  | "SKETCH_VIDEO_GENERATE"
+  /** Havuz (2 Kasım 2026): hazır içerik 0 kredi; belgeden ek bölüm 15. */
+  | "POOL_LESSON_VIEW"
+  | "POOL_CARDS"
+  | "POOL_QUIZ"
+  | "DOCUMENT_SUPPLEMENT_GENERATE";

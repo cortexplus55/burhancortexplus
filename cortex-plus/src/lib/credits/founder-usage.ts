@@ -26,6 +26,10 @@ export const FOUNDER_ACTION_LABELS: Record<string, string> = {
   AUDIO_SYNTHESIZE: "Seslendirme",
   VIDEO_GENERATE: "Video ders",
   SKETCH_VIDEO_GENERATE: "Çizimli video",
+  POOL_LESSON_VIEW: "Hazır ders",
+  POOL_CARDS: "Hazır kartlar",
+  POOL_QUIZ: "Hazır test",
+  DOCUMENT_SUPPLEMENT_GENERATE: "Belgeden ünite eki",
 };
 
 export function founderActionLabel(code: string | null | undefined): string {
