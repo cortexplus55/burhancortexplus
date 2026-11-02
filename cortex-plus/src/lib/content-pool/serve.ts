@@ -2,6 +2,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CONTENT_VERSION, poolUnit, type PoolUnit } from "@/lib/content-pool/keys";
 import { poolIdFromSetupId } from "@/lib/level-check/select";
+import { getProgram, topicMapForRef } from "@/lib/curriculum/registry";
+import { topicIndexForLabel } from "@/lib/curriculum/topic-map";
+import type { CurriculumRef } from "@/lib/curriculum/types";
 import type { LessonBody } from "@/lib/content-pool/schema";
 import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
 
@@ -15,11 +18,32 @@ export const POOL_SERVE_KINDS = new Set(["lesson", "flashcards", "spaced", "quiz
 export function poolUnitForTopic(prefs: unknown, topicLabel: string | null | undefined): PoolUnit | null {
   if (!topicLabel) return null;
   const units = (prefs as { officialPlan?: { units?: { topic?: string; unitId?: string }[] } } | null)?.officialPlan?.units;
-  if (!Array.isArray(units)) return null;
+  if (!Array.isArray(units)) return poolUnitForCurriculumTopic((prefs as { curriculum?: CurriculumRef } | null)?.curriculum, topicLabel);
   const label = topicLabel.replace(/\s+/g, " ").trim();
   const hit = units.find((u) => typeof u?.topic === "string" && u.topic.replace(/\s+/g, " ").trim() === label);
   const poolId = hit?.unitId ? poolIdFromSetupId(hit.unitId) : null;
   return poolId ? poolUnit(poolId) : null;
+}
+
+/**
+ * "Dosyam yok — resmî müfredattan seç" yolu (2 Kasım 2026): hazırlıkta `officialPlan` yok, `curriculum` başvurusu var.
+ * Konu haritadaki konuysa ve kazanımlarının hepsi tek üniteden geliyorsa ve o üniteyi başka konu paylaşmıyorsa
+ * (konu = ünite), havuz ünitesi odur. Alt başlığa bölünmüş ünitede havuz anlatımı konudan geniş olacağından eşlenmez.
+ */
+export function poolUnitForCurriculumTopic(ref: CurriculumRef | null | undefined, topicLabel: string): PoolUnit | null {
+  if (!ref?.programId) return null;
+  const map = topicMapForRef(ref);
+  const program = getProgram(ref.programId);
+  if (!map || !program) return null;
+  const index = topicIndexForLabel(map, topicLabel);
+  const codes = index >= 0 ? map.topicCodes[index] : undefined;
+  if (!codes?.length) return null;
+  const unitOf = (code: string) => program.units.findIndex((u) => u.outcomes.some((o) => o.code === code));
+  const unitIndex = unitOf(codes[0]!);
+  if (unitIndex < 0 || codes.some((c) => unitOf(c) !== unitIndex)) return null;
+  const shared = map.topicCodes.some((other, i) => i !== index && other.some((c) => unitOf(c) === unitIndex));
+  if (shared) return null;
+  return poolUnit(`${program.id}#${unitIndex + 1}`);
 }
 
 export async function readPoolLesson(service: SupabaseClient, unit: PoolUnit): Promise<LessonBody | null> {
