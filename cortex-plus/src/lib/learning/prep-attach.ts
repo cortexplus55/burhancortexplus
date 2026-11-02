@@ -13,6 +13,8 @@ import {
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 import { prepSourceDocumentIds } from "@/lib/learning/prep-source";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
+import { EXTRA_TOPIC_PREFIX, matchUnit, type UnitCandidate } from "@/lib/content-pool/attach-match";
+import { poolUnitForTopic } from "@/lib/content-pool/serve";
 
 /*
   Var olan hazırlığa okunmuş ve haritalanmış belge ekler (31 Ekim 2026). "Materyal ekle" ucu (add-source) ve büyük
@@ -59,7 +61,7 @@ export async function attachDocumentsToPrep(
 
   const prepResult = await service
     .from("exam_preps")
-    .select("id, document_id, source_document_ids, readiness_score")
+    .select("id, document_id, source_document_ids, readiness_score, learning_preferences")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -130,13 +132,29 @@ export async function attachDocumentsToPrep(
     ...existingDocumentIds,
     ...newDocumentIds,
   ]).catch(() => []);
-  const incoming = scheduleTopics.map((topic) => ({
+  const allIncoming = scheduleTopics.map((topic) => ({
     title: topic.title,
     pages: topic.pageNumbers ?? [],
     sources: topic.sourceRefs ?? [],
     prerequisites: topic.prerequisites ?? [],
     nodeIds: topic.sourceRefs?.map((source) => source.nodeId).filter((id): id is string => Boolean(id)) ?? [],
   }));
+  // Resmî kurulumlu hazırlık (2 Kasım 2026): belge konusu hazır üniteyle eşleşirse ayrı ücretli düğüm açılmaz,
+  // kaynak o ünitenin konusuna bağlanır ("Senin belgenden ek"); eşleşmeyen konu "Belgendeki ek konu" diye eklenir.
+  const prefs = (prepResult.data as { learning_preferences?: unknown }).learning_preferences;
+  const unitCandidates: UnitCandidate[] = (topicRows ?? []).flatMap((row) => {
+    const unit = poolUnitForTopic(prefs, String(row.label));
+    return unit ? [{ topicId: row.id as string, unitTitle: unit.unit.title, outcomeTexts: unit.unit.outcomes.map((o) => o.text) }] : [];
+  });
+  const unitLinks = new Map<string, TopicSourceRef[]>();
+  const incoming = unitCandidates.length
+    ? allIncoming.flatMap((topic) => {
+        const hit = matchUnit(topic.title, unitCandidates);
+        if (!hit) return [{ ...topic, title: `${EXTRA_TOPIC_PREFIX}${topic.title}`.slice(0, 200) }];
+        unitLinks.set(hit.topicId, [...(unitLinks.get(hit.topicId) ?? []), ...topic.sources]);
+        return [];
+      })
+    : allIncoming;
   const contradictionMap = await contradictionsByTopicTitleResolved(
     service,
     userId,
@@ -201,6 +219,12 @@ export async function attachDocumentsToPrep(
       console.error("add-source topic update", write.error.message);
     }
   }
+  for (const [topicId, sources] of unitLinks) {
+    const row = (topicRows ?? []).find((r) => r.id === topicId);
+    const merged = [...asSources((row as { source_refs?: unknown } | undefined)?.source_refs), ...sources];
+    const write = await service.from("exam_prep_topics").update({ source_refs: merged }).eq("id", topicId).eq("exam_prep_id", prepId);
+    if (write.error && !missingColumn(write.error)) console.error("add-source unit link", write.error.message);
+  }
   for (const topic of plan.topicSortUpdates) {
     await service
       .from("exam_prep_topics")
@@ -259,7 +283,7 @@ export async function attachDocumentsToPrep(
     ok: true,
     addedDocuments: newDocumentIds.length,
     addedTopics: plan.topicInserts.length,
-    mergedTopics: plan.topicUpdates.length,
+    mergedTopics: plan.topicUpdates.length + unitLinks.size,
     warnings: [...plan.topicUpdates, ...plan.topicInserts]
       .map((topic) => topic.warning)
       .filter((warning): warning is string => Boolean(warning)),
