@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { claimModalSlot, releaseModalSlot } from "@/lib/ui/modal-slot";
 import "@/styles/parity-app.css";
+import { useEscapeKey } from "@/lib/ui/use-escape-key";
 
 const STORAGE_KEY = "cortex-gamification-v1";
 
@@ -64,6 +65,8 @@ export function GamificationGate() {
     releaseModalSlot("streak");
     setStep("none");
   }
+
+  useEscapeKey(step !== "none", dismiss);
 
   if (step === "none") return null;
 
