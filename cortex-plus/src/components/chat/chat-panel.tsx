@@ -83,6 +83,7 @@ import type { ActionCode } from "@/lib/env";
 import { SolutionView } from "@/components/learning/question-solver";
 import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
 import { solutionMarkdown } from "@/lib/solve/solution-markdown";
+import { maskStreamingMarkdown } from "@/lib/chat/stream-markdown-mask";
 import { useScreenAwake } from "@/lib/documents/use-universal-upload";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
@@ -1515,7 +1516,7 @@ function ChatPanelSession({
                           </p>
                         ) : null}
                         <TutorReplyView
-                          content={message.content}
+                          content={loading && index === messages.length - 1 ? maskStreamingMarkdown(message.content) : message.content}
                           variant="parity"
                           disabled={loading}
                           onPrompt={(prompt) => void send(prompt)}
@@ -2279,7 +2280,7 @@ function ChatPanelSession({
                       />
                     ) : message.content ? (
                       <TutorReplyView
-                        content={message.content}
+                        content={loading && index === messages.length - 1 ? maskStreamingMarkdown(message.content) : message.content}
                         variant="parity"
                         disabled={loading}
                         onPrompt={(prompt) => void send(prompt)}
@@ -2330,7 +2331,7 @@ function ChatPanelSession({
                 displayUserText(message.content)
               ) : (
                 <TutorReplyView
-                  content={message.content}
+                  content={loading && index === messages.length - 1 ? maskStreamingMarkdown(message.content) : message.content}
                   variant={isParity ? "parity" : "default"}
                   disabled={loading}
                   onPrompt={(prompt) => void send(prompt)}
