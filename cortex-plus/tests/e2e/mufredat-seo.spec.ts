@@ -27,3 +27,8 @@ test.describe("Müfredat SEO", { tag: ["@public"] }, () => {
     expect(xml).toContain("/mufredat/tus-2026-tree-anatomi</loc>");
   });
 });
+
+test("kazanım sayfasında konu ağacı etiketi bir kez görünür", { tag: ["@public"] }, async ({ page }) => {
+  await page.goto("/mufredat/tus-2026-tree-anatomi/1/2");
+  await expect(page.getByText("resmî ÖSYM listesi değildir")).toHaveCount(1);
+});
