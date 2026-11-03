@@ -289,7 +289,7 @@ describe("podcast dinleme kontrolü kanıtı", () => {
 describe("22 Ekim 2026 inceleme: ipucu ve konu", () => {
   it("bütün soruları ipucuyla doğru cevaplayan ilk deneme konuyu 'sağlam' yapmaz", () => {
     const rows = Array.from({ length: 5 }, (_, index) => ({
-      topicKey: "basınç",
+      topicKey: "akım",
       learningObjective: null,
       questionIndex: index,
       correct: true,
@@ -311,11 +311,11 @@ describe("22 Ekim 2026 inceleme: ipucu ve konu", () => {
       kind: "focused",
       payload: {
         type: "quiz",
-        questions: [{ text: "Kaldırma kuvveti neye bağlıdır?", options: ["Hacim", "Renk"], correct: ["Hacim"], topic: "Kaldırma kuvveti" }],
+        questions: [{ text: "Sürtünme kuvveti neye bağlıdır?", options: ["Hacim", "Renk"], correct: ["Hacim"], topic: "Sürtünme kuvveti" }],
       },
       answers: { "0": "Renk" },
       topicLabel: "Isı ve sıcaklık",
     });
-    expect(drafts.map((draft) => draft.topicLabel)).toEqual(["Kaldırma kuvveti"]);
+    expect(drafts.map((draft) => draft.topicLabel)).toEqual(["Sürtünme kuvveti"]);
   });
 });

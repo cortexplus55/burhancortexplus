@@ -165,7 +165,7 @@ async function linkedTopicPages(
 }
 
 /**
- * Konunun dışındaki sayfa içeriği bölüm olmasın (30 Ekim 2026, canlı tur: Araçlar'da "Enflasyon Türleri" özetinin üç
+ * Konunun dışındaki sayfa içeriği bölüm olmasın (30 Ekim 2026, canlı tur: Araçlar'da "Konu X" özetinin üç
  * bölümünden ikisi aynı sayfadaki "kimler kazanır" ve "maliyetler" kısmıydı). Sayfa doğru seçiliyordu; konu haritası
  * sayfanın bir kısmını konuya bağlıyor, yazar sayfanın tamamını anlatıyordu. Belgenin tamamı istendiyse satır yok.
  */
@@ -248,7 +248,7 @@ export async function loadDocumentGenerationContext(
     if (selected.length && linked.title) topicTitle = linked.title;
     /*
       Dosya adı ancak istek belgenin bir konusuna uymuyorsa "tamamı" sayılır (30 Ekim 2026). Önce dosya adına bakılıyordu:
-      "Ekonomi-Enflasyon-ve-Para-Politikasi.pdf"de "Para Politikası" isteyen öğrenciye belgenin tamamı gidiyordu (dosya
+      "Konu-A-ve-Konu-B.pdf"de "Konu B" isteyen öğrenciye belgenin tamamı gidiyordu (dosya
       adı isteği içeriyor), oysa belgede tam o adlı bir konu vardı.
     */
     if (!selected.length && titleScore(fileName.replace(/\.[^.]+$/, "").replace(/[_-]/g, " "), topic) >= 5) whole = true;

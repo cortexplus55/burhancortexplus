@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(path, "utf8");
 
 const ayse = "11111111-1111-4111-8111-111111111111";
-const mert = "22222222-2222-4222-8222-222222222222";
+const can = "22222222-2222-4222-8222-222222222222";
 const deniz = "33333333-3333-4333-8333-333333333333";
 const elif = "44444444-4444-4444-8444-444444444444";
 const okul = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -34,7 +34,7 @@ describe("yıldızlar: göç canlı gibi çalışıyor", () => {
       INSERT INTO public.schools VALUES ('${okul}', 'Giresun Tıp'), ('${baska}', 'Ege Üniversitesi');
       INSERT INTO public.profiles VALUES
         ('${ayse}', 'Ayşe Nur Kaya', '${okul}', NULL),
-        ('${mert}', 'Mert Demir', '${okul}', '${ayse}'),
+        ('${can}', 'Can Demir', '${okul}', '${ayse}'),
         ('${deniz}', 'Deniz', '${baska}', NULL),
         ('${elif}', '', '${okul}', NULL);`);
     await db.exec(read("supabase/migrations/20261017120000_stars.sql"));
@@ -81,25 +81,25 @@ describe("yıldızlar: göç canlı gibi çalışıyor", () => {
 
   it("davet edilen 3 ayrı günde yıldız kazanınca davet eden +100, kendisi +50", async () => {
     await db.exec(`INSERT INTO public.star_events (user_id, source, amount, ref, day) VALUES
-      ('${mert}', 'prep', 10, 'm-old-1', public.stars_today() - 2),
-      ('${mert}', 'prep', 10, 'm-old-2', public.stars_today() - 1)`);
-    expect(await award(mert, "prep", "m-today", 10)).toBe(60);
+      ('${can}', 'prep', 10, 'm-old-1', public.stars_today() - 2),
+      ('${can}', 'prep', 10, 'm-old-2', public.stars_today() - 1)`);
+    expect(await award(can, "prep", "m-today", 10)).toBe(60);
     const invite = (await db.query<{ amount: number }>(`SELECT amount FROM public.star_events WHERE user_id = '${ayse}' AND source = 'invite'`)).rows;
     expect(invite).toEqual([{ amount: 100 }]);
     // İkinci kez verilmez.
-    expect(await award(mert, "prep", "m-today-2", 10)).toBe(10);
+    expect(await award(can, "prep", "m-today-2", 10)).toBe(10);
   });
 
   it("okul sıralaması: ad + soyadın baş harfi, okul adı; gizleyen başkasında görünmez", async () => {
-    await as(mert);
+    await as(can);
     const rows = (await db.query<{ rank: number; label: string; detail: string; stars: number; is_me: boolean }>(
       "SELECT rank::int, label, detail, stars::int, is_me FROM public.star_leaderboard('school', 'week', 20)",
     )).rows;
     // Adı boş olan "Öğrenci" görünür; başka okuldaki Deniz yok.
-    expect(rows.map((row) => row.label).sort()).toEqual(["Ayşe K.", "Mert D.", "Öğrenci"].sort());
+    expect(rows.map((row) => row.label).sort()).toEqual(["Ayşe K.", "Can D.", "Öğrenci"].sort());
     expect(rows.map((row) => row.rank)).toEqual([1, 2, 3]);
     expect(rows.find((row) => row.label === "Ayşe K.")?.detail).toBe("Giresun Tıp");
-    expect(rows.find((row) => row.is_me)?.label).toBe("Mert D.");
+    expect(rows.find((row) => row.is_me)?.label).toBe("Can D.");
     expect(rows.some((row) => row.label === "Deniz")).toBe(false);
 
     await db.exec(`UPDATE public.profiles SET stars_hidden = true WHERE id = '${ayse}'`);

@@ -9,7 +9,7 @@ const TOPIC = "İç Enerji, Entalpi ve Özgül Isılar";
 describe("iç enerji lesson claims", () => {
   it("splits the live title and ignores the generic word kavramları", () => {
     expect(titleConcepts(TOPIC)).toEqual(["İç Enerji", "Entalpi", "Özgül Isılar"]);
-    expect(titleConcepts("Basınç ve Sıcaklık Kavramları")).toEqual(["Basınç", "Sıcaklık"]);
+    expect(titleConcepts("Akım ve Sıcaklık Kavramları")).toEqual(["Akım", "Sıcaklık"]);
     expect(conceptInText("Özgül Isılar", "özgül ısı c_p ile yazılır")).toBe(true);
   });
 });
@@ -86,7 +86,7 @@ describe("widenSourcePages", () => {
       },
     };
     await expect(
-      widenSourcePages(service as never, "doc", "Basınç ve Sıcaklık Kavramları", [3], "Basınç yüzeye uygulanır."),
+      widenSourcePages(service as never, "doc", "Akım ve Sıcaklık Kavramları", [3], "Akım yüzeye uygulanır."),
     ).resolves.toEqual([3]);
   });
 });

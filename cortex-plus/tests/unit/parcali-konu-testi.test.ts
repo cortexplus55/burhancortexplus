@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /*
   30 Ekim 2026, kıyas ürünüyle yan yana tur (aynı Makroekonomi notu): öğrenci beklerken açılan konu testi 5 parçaya bölünüp
   aynı anda yazılıyor (#409). Parçalar birbirinin sorusunu görmüyordu; yalnız "Aynı konunun ayrı bir noktasını sor"
-  satırı vardı. Canlı testte 5 sorudan 4'ü Cagan'ın hiperenflasyon eşiğini sordu, cevabı dördünde "Hiperenflasyon".
+  satırı vardı. Canlı testte 5 sorudan 4'ü Kişi'ın hiperkıtlık eşiğini sordu, cevabı dördünde "Hiperkıtlık".
   "Aynı cevap en çok iki" (#430) ve "neredeyse aynı kök" kuralları her parçanın kendi tek sorusuna bakıyordu.
 */
 const credits = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const credits = vi.hoisted(() => ({
 }));
 const ai = vi.hoisted(() => ({ prompts: [] as string[], shardDrafts: 0, passDrafts: 0 }));
 
-const OPTIONS = ["Deflasyon", "Dezenflasyon", "Hiperenflasyon", "Stagflasyon"];
+const OPTIONS = ["Bolluk", "Seyreklik", "Hiperkıtlık", "Durgunluk"];
 const why = OPTIONS.map((option) => `${option} için kısa ve kendine özgü bir gerekçe.`);
 const question = (text: string, correct: string) => ({
   text,
@@ -24,21 +24,21 @@ const question = (text: string, correct: string) => ({
   explanation: "Doğru cevabın nedeni ve öbür şıkların gerçekte neye karşılık geldiği kısaca anlatılır.",
   optionWhy: why,
   misconceptionTag: "kavram karışıklığı",
-  learningObjective: "Enflasyonla ilgili kavramları ayırt eder.",
+  learningObjective: "Kıtlıkla ilgili kavramları ayırt eder.",
 });
 // Canlıdaki dört soru (kökleri farklı, bilgisi aynı) ve beşinci parçanın sorusu.
 const SAME = [
-  "Aylık enflasyon oranının Cagan'ın tanımındaki eşiği geçtiği bir ekonomide hangi kavram kullanılır?",
-  "Bir ekonomide aylık enflasyon oranı %52 olarak ölçülüyor. Cagan’ın tanımına göre bu durum hangi kavramla sınıflandırılır?",
-  "Aylık enflasyonun Cagan’ın tanımındaki eşiği aştığı bir ekonomi hangi kavramla adlandırılır?",
-  "Bir ekonomide fiyatlar çok hızlı yükseliyor. Cagan’ın tanımındaki aylık eşik de aşılmışsa bu durum hangi kavramla adlandırılır?",
+  "Aylık kıtlık oranının Kişi'ın tanımındaki eşiği geçtiği bir ekonomide hangi kavram kullanılır?",
+  "Bir ekonomide aylık kıtlık oranı %52 olarak ölçülüyor. Kişi’ın tanımına göre bu durum hangi kavramla sınıflandırılır?",
+  "Aylık kıtlıkun Kişi’ın tanımındaki eşiği aştığı bir ekonomi hangi kavramla adlandırılır?",
+  "Bir ekonomide fiyatlar çok hızlı yükseliyor. Kişi’ın tanımındaki aylık eşik de aşılmışsa bu durum hangi kavramla adlandırılır?",
 ];
-const FIFTH = question("Bir ülkede genel fiyat düzeyi uzun süre boyunca düşmektedir. Bu durum hangi kavramla adlandırılır?", "Deflasyon");
+const FIFTH = question("Bir ülkede genel fiyat düzeyi uzun süre boyunca düşmektedir. Bu durum hangi kavramla adlandırılır?", "Bolluk");
 // İkinci geçişin (öbür soruları görerek yazan) soruları.
 const FRESH = [
-  question("Enflasyon %60'tan %40'a inerken fiyatlar artmayı sürdürüyorsa ortaya çıkan durum hangisidir?", "Dezenflasyon"),
-  question("Yüksek işsizlik ile enflasyonun aynı dönemde görüldüğü durum hangisidir?", "Stagflasyon"),
-  question("Fiyatlar aylık %70 artarken ekonominin içinde bulunduğu durumu hangi kavram anlatır?", "Hiperenflasyon"),
+  question("Kıtlık %60'tan %40'a inerken fiyatlar artmayı sürdürüyorsa ortaya çıkan durum hangisidir?", "Seyreklik"),
+  question("Yüksek işsizlik ile kıtlıkun aynı dönemde görüldüğü durum hangisidir?", "Durgunluk"),
+  question("Fiyatlar aylık %70 artarken ekonominin içinde bulunduğu durumu hangi kavram anlatır?", "Hiperkıtlık"),
 ];
 
 vi.mock("server-only", () => ({}));
@@ -60,7 +60,7 @@ vi.mock("openai", () => ({
             content = JSON.stringify({ issues: [], solved: [] });
           } else if (/Bu üretim \d+\/\d+/.test(user)) {
             const index = ai.shardDrafts++;
-            content = JSON.stringify({ questions: [index < SAME.length ? question(SAME[index]!, "Hiperenflasyon") : FIFTH] });
+            content = JSON.stringify({ questions: [index < SAME.length ? question(SAME[index]!, "Hiperkıtlık") : FIFTH] });
           } else {
             ai.passDrafts += 1;
             content = JSON.stringify({ questions: FRESH });
@@ -75,18 +75,18 @@ vi.mock("openai", () => ({
 const { runTeacherQuiz, shardBrief, shardTargets } = await import("@/lib/learning/teacher-quiz-run");
 
 const POINTS = [
-  "Enflasyon genel fiyat düzeyinin sürekli artmasıdır; tek malın fiyatı yetmez",
+  "Kıtlık genel fiyat düzeyinin sürekli artmasıdır; tek malın fiyatı yetmez",
   "TÜFE hanehalkının, Yİ-ÜFE üreticinin fiyat değişimini ölçer",
-  "Dezenflasyon oranın düşmesidir, deflasyon fiyatların düşmesidir",
-  "Hiperenflasyon: Cagan'a göre aylık %50'nin üzeri",
+  "Seyreklik oranın düşmesidir, bolluk fiyatların düşmesidir",
+  "Hiperkıtlık: Kişi'a göre aylık %50'nin üzeri",
 ];
 const input = {
   userId: "u1",
   actionCode: "QUIZ_GENERATE" as const,
   idempotencyKey: "k1",
-  topicLabel: "Enflasyonun Tanımı ve Ölçülmesi",
+  topicLabel: "Kıtlıkun Tanımı ve Ölçülmesi",
   prepTitle: "Makroekonomi",
-  pages: [{ page: 1, text: "Enflasyon genel fiyat düzeyinin sürekli artmasıdır. Hiperenflasyon: aylık %50'nin üzeri." }],
+  pages: [{ page: 1, text: "Kıtlık genel fiyat düzeyinin sürekli artmasıdır. Hiperkıtlık: aylık %50'nin üzeri." }],
   count: 5,
   optionCount: 4 as const,
   scope: "topic_test" as const,
@@ -114,8 +114,8 @@ describe("parçalı konu testi: parçalar ayrı hedef alır, birleşen test ayn�
     expect(shardBrief(undefined, 4, 5, targets)).toContain("başka bir yönünü");
     expect(shardBrief(undefined, 1, 5, targets)).not.toContain("başka bir yönünü");
     // Madde yoksa dersin terimleri; o da yoksa eski satır.
-    const lesson = { key: "L1", text: "", checks: [], terms: ["TÜFE", "Yİ-ÜFE", "Dezenflasyon"], missing: [] };
-    expect(shardTargets({ examPoints: [], scope: "topic_test", lesson }, 3)).toEqual(["TÜFE", "Yİ-ÜFE", "Dezenflasyon"]);
+    const lesson = { key: "L1", text: "", checks: [], terms: ["TÜFE", "Yİ-ÜFE", "Seyreklik"], missing: [] };
+    expect(shardTargets({ examPoints: [], scope: "topic_test", lesson }, 3)).toEqual(["TÜFE", "Yİ-ÜFE", "Seyreklik"]);
     expect(shardTargets({ examPoints: [], scope: "topic_test" }, 3)).toEqual([]);
     expect(shardBrief(undefined, 0, 3, [])).toContain("Aynı konunun ayrı bir noktasını sor.");
   });
@@ -130,7 +130,7 @@ describe("parçalı konu testi: parçalar ayrı hedef alır, birleşen test ayn�
     // Taklit model hedefi yok sayıp dört parçada aynı bilgiyi yazıyor (gerçek modele hedef ayrı madde verir). Testin
     // bütününe bakan kural yine de dördünü teslim etmez: aynı cevap en çok iki, neredeyse aynı kök elenir.
     const answers = out.questions.map((q) => q.correct[0]);
-    expect(answers.filter((answer) => answer === "Hiperenflasyon").length).toBeLessThanOrEqual(2);
+    expect(answers.filter((answer) => answer === "Hiperkıtlık").length).toBeLessThanOrEqual(2);
     expect(out.questions.filter((q) => SAME.includes(q.text)).length).toBeLessThanOrEqual(2);
     expect(out.questions).toHaveLength(5);
     expect(ai.passDrafts).toBeGreaterThanOrEqual(1);

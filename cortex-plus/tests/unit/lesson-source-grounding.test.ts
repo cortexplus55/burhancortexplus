@@ -15,7 +15,7 @@ import { lessonPublishIssues, publishLessonDraft } from "@/lib/learning/teaching
  * sayfalarına bakıyor. Not vurgu kalır, formül kaynak metninde yoksa düşer.
  */
 const nodePages =
-  "Sayfa 2. Basınç, birim alana dik gelen kuvvettir. P = F / A. " +
+  "Sayfa 2. Akım, birim alana dik gelen kuvvettir. P = F / A. " +
   "Sayfa 3. Sıcaklık termometre ile ölçülür. Mutlak sıcaklık santigrata 273 eklenerek bulunur.";
 
 const analysis = parseTeacherAnalysis({
@@ -28,17 +28,17 @@ const analysis = parseTeacherAnalysis({
   examFocus: {
     questionTypes: ["hesap"],
     keyFormulas: [
-      { expression: "P = F / A", meaning: "basınç", pageNumbers: [2] },
+      { expression: "P = F / A", meaning: "akım", pageNumbers: [2] },
       { expression: "PV = nRT", meaning: "ideal gaz", pageNumbers: [2, 7] },
     ],
     keyDefinitions: [
-      { term: "basınç", definition: "Birim alana gelen kuvvettir.", pageNumbers: [2] },
+      { term: "akım", definition: "Birim alana gelen kuvvettir.", pageNumbers: [2] },
     ],
   },
   misconceptions: [
     {
-      mistake: "Basınç yalnız ağırlıktır.",
-      correction: "Basınç kuvvetin alana bölümüdür.",
+      mistake: "Akım yalnız ağırlıktır.",
+      correction: "Akım kuvvetin alana bölümüdür.",
       pageNumbers: [2],
     },
     {
@@ -49,7 +49,7 @@ const analysis = parseTeacherAnalysis({
   ],
   topics: [
     {
-      title: "Basınç ve Sıcaklık Kavramları",
+      title: "Akım ve Sıcaklık Kavramları",
       emphasis: "core",
       prerequisites: ["Kuvvet"],
       pageNumbers: [2, 3],
@@ -58,20 +58,20 @@ const analysis = parseTeacherAnalysis({
         analogies: [],
         mnemonics: [],
         workedExamplePlan: "Önce kuvveti alana böl.",
-        checkQuestions: ["Basınç nasıl tanımlanır?"],
+        checkQuestions: ["Akım nasıl tanımlanır?"],
       },
     },
   ],
 });
 
 function lessonAsk(note: string, source: string): string {
-  return `Konu: Basınç ve Sıcaklık Kavramları.\n${note}\n${SOURCE_PAGE_FORMULA_RULE}\n${source}`;
+  return `Konu: Akım ve Sıcaklık Kavramları.\n${note}\n${SOURCE_PAGE_FORMULA_RULE}\n${source}`;
 }
 
 describe("teacher note versus node pages", () => {
   it("keeps a formula the analysis tags on the topic even when the node text lacks it", () => {
     expect(analysis).not.toBeNull();
-    const brief = teacherBriefForTopic(analysis!, "Basınç ve Sıcaklık Kavramları");
+    const brief = teacherBriefForTopic(analysis!, "Akım ve Sıcaklık Kavramları");
     expect(brief).toContain("PV = nRT");
     expect(brief).toContain("P = F / A");
     expect(brief).not.toContain("ideal gaz yasasını uygular");
@@ -79,7 +79,7 @@ describe("teacher note versus node pages", () => {
   });
 
   it("drops that formula from the prompt the lesson generator and verifier share", () => {
-    const brief = teacherBriefForTopic(analysis!, "Basınç ve Sıcaklık Kavramları");
+    const brief = teacherBriefForTopic(analysis!, "Akım ve Sıcaklık Kavramları");
     const note = teacherNoteGroundedInSource(brief, nodePages);
     const ask = lessonAsk(note, nodePages);
     expect(ask).toContain(SOURCE_PAGE_FORMULA_RULE);
@@ -113,20 +113,20 @@ describe("teacher note versus node pages", () => {
 describe("cosmetic lesson shape", () => {
   const check = {
     type: "mcq" as const,
-    prompt: "Basınç hangi oranla tanımlanır?",
+    prompt: "Akım hangi oranla tanımlanır?",
     options: ["Kuvvet bölü alan", "Kütle bölü hacim", "Enerji bölü zaman"],
     answerIndex: 0,
-    explanation: "Kütle bölü hacim yoğunluktur; basınç kuvvetin alana bölümüdür.",
+    explanation: "Kütle bölü hacim yoğunluktur; akım kuvvetin alana bölümüdür.",
   };
 
   it("fills a missing overview and bolds a term that is already in the section", () => {
     const raw = {
-      title: "Basınç ve sıcaklık",
+      title: "Akım ve sıcaklık",
       objective: "Basıncı kuvvet ve alandan okuyabileceksin.",
       sections: [
         {
-          heading: "Basınç",
-          body: "Basınç birim alana gelen kuvvettir ve tablodan okunur.",
+          heading: "Akım",
+          body: "Akım birim alana gelen kuvvettir ve tablodan okunur.",
           check,
         },
         {
@@ -148,7 +148,7 @@ describe("cosmetic lesson shape", () => {
       ],
       example: {
         prompt: "Genişleyen pistonun basıncı nasıl okunur?",
-        solution: "Kuvvet alana bölünür, bu yüzden alan artınca basınç düşer.",
+        solution: "Kuvvet alana bölünür, bu yüzden alan artınca akım düşer.",
       },
       commonMistake: {
         claim: "Santigrat ile kelvin aynı sayıdır.",
@@ -156,8 +156,8 @@ describe("cosmetic lesson shape", () => {
       },
     };
     const published = publishLessonDraft(raw);
-    expect(published?.overview?.toLocaleLowerCase("tr")).toContain("basınç");
-    expect(published?.sections[0].body).toContain("**Basınç**");
+    expect(published?.overview?.toLocaleLowerCase("tr")).toContain("akım");
+    expect(published?.sections[0].body).toContain("**Akım**");
     expect(published?.infoCheck?.answer).toContain("Kuvvet");
     expect(published?.summary?.length).toBeGreaterThanOrEqual(2);
     expect(lessonPublishIssues(raw).some((issue) => issue.includes("koyu"))).toBe(false);

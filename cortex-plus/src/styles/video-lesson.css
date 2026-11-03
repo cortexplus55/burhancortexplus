@@ -726,7 +726,7 @@
 }
 
 /*
-  Çizimli sahnede orta kontroller (4 Kasım 2026, Senaryo A): tahtanın ortasında durunca numaralı
+  Çizimli sahnede orta kontroller: tahtanın ortasında durunca numaralı
   listesinin üstüne biniyordu. Kontroller tahtanın alt boşluğuna (board-body alt dolgusu 6rem) iner; içerik
   alanına girmez. Alt yazı çerçevenin en dibinde kalır.
 */

@@ -780,7 +780,7 @@ export function createLessonIo(
  * Taslak → kavram kavram denetim → (gerekirse) yalnız o kavramın düzeltmesi.
  * Kredi bir kez ayrılır; ders dönerse kesinleşir, dönmezse iade edilir.
  */
-/** Yazım başında bilinen + modelli denetimin sonradan bulduğu uyarılar (Senaryo B1). */
+/** Yazım başında bilinen + modelli denetimin sonradan bulduğu uyarılar. */
 function noteWarningsNow(input: TeacherLessonInput): { noteWarnings?: FormulaTypo[] } {
   const late = input.lateNoteWarnings?.() ?? [];
   const all = late.length ? late : (input.noteWarnings ?? []);

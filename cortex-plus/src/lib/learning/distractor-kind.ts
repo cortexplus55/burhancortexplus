@@ -1,20 +1,20 @@
 /**
  * Çeldirici türü ölçüsü (30 Ekim 2026, canlı tur: Makroekonomi dersi). Ders içi soru bir endeks soruyordu, şıklarda
- * enflasyon türleri ("Dezenflasyon", "Stagflasyon") vardı. Kural (`SAME_KIND_DISTRACTOR_RULE`) yazara söyler; bu
+ * başka türden kavramlar ("Terim A", "Terim B") vardı. Kural (`SAME_KIND_DISTRACTOR_RULE`) yazara söyler; bu
  * dosya modelsiz bir işaret verir.
  *
  * Kod konunun türlerini bilmez. Türü iki yerden okur:
  *   1. Kökün sorduğu tür: "hangi X", "… X hangisidir", "hangisi bir X'tir".
  *   2. Şıkkın türü: kaynakta ya da derste o terimi tanımlayan cümlenin son sözcüğü ("TÜFE, … ölçen bir endekstir" →
- *      endeks; "Dezenflasyon, enflasyon oranının düşmesidir" → düşme).
+ *      endeks; "Terim B, Kavram oranının düşmesidir" → düşme).
  * İşaret yalnız doğru cevabın türü kökün sorduğu türle tutunca ve çeldiricinin kendi tanımı başka bir tür söyleyince
  * verilir; tanımı bulunamayan şık hakkında bir şey söylenmez. Ders adı ya da sabit kelime listesi yok (yalnız genel
  * soru sözcükleri: "kavram", "durum", "gelişme" tür değildir).
  *
  * İkinci dayanak, tanım cümlesi gerekmeden (30 Ekim 2026, canlı Araçlar testi): tür adı şıkların kendisinde yazıyorsa
  * (doğru cevap "Menü maliyeti", bir kardeşi "Ayakkabı eskitme maliyeti") o adı taşımayan çeldirici ("Reeskont oranı",
- * "Politika faizi") başka türdendir. Türkçe ad öbeğinde türü SON sözcük söyler: "hangi enflasyon maliyetidir" maliyet
- * sorar, enflasyon değil; "Bu enflasyon hangi türdendir" enflasyon sorar.
+ * "Politika faizi") başka türdendir. Türkçe ad öbeğinde türü SON sözcük söyler: "hangi Kavram maliyetidir" maliyet
+ * sorar, Kavram değil; "Bu Kavram hangi türdendir" Kavram sorar.
  */
 
 /** Tür söylemeyen soru sözcükleri (ilk beş harfleriyle karşılaştırılır). */
@@ -43,7 +43,7 @@ function kindKey(word: string): string | null {
 /** Kökün sorduğu tür anahtarı; bulunamazsa ya da genel bir sözcükse null. */
 export function askedKind(stem: string): string | null {
   const text = fold(stem);
-  // "hangi enflasyon maliyetidir": ad öbeğinin başı son sözcük (ek-fiilli yüklem ad).
+  // "hangi Kavram maliyetidir": ad öbeğinin başı son sözcük (ek-fiilli yüklem ad).
   const phrase = /(?:^|[^\p{L}])hangi\s+(\p{L}{3,})\s+(\p{L}{3,}?)[dt][ıiuü]r(?=[^\p{L}]|$)/u.exec(text);
   const candidates = [
     /(\p{L}{3,})\s+hangi\s+(?:tür|çeşit|grup|sınıf|kategori)\p{L}*(?=[^\p{L}]|$)/u.exec(text)?.[1],
@@ -79,7 +79,7 @@ function sentencesOf(context: string): string[] {
 
 /**
  * Terimin kaynakta ya da derste tanımlandığı türü. Tanım cümlesi terimle ve ardından virgül, iki nokta ya da noktalı
- * virgülle başlar ("Dezenflasyon, …dır") ya da terim cümlenin ilk altı sözcüğünde parantez içindedir ("Tüketici fiyat
+ * virgülle başlar ("Terim B, …dır") ya da terim cümlenin ilk altı sözcüğünde parantez içindedir ("Tüketici fiyat
  * endeksi (TÜFE), …"); cümle ek-fiille biter. Virgülsüz cümle ("ÜFE TÜFE'den daha oynaktır") tanım sayılmaz.
  */
 export function termKind(term: string, context: string): string | null {
@@ -115,7 +115,7 @@ function rootSequence(text: string): string {
 
 /**
  * Uydurma kardeş (30 Ekim 2026, canlı Araçlar testi, #426 yayındayken): "hangi maliyet örneğidir?" sorusunda kaynakta
- * yalnız iki enflasyon maliyeti vardı; yazar türden olmayan çeldiricileri atınca şıkları "Açık piyasa maliyeti",
+ * yalnız iki Kavram maliyeti vardı; yazar türden olmayan çeldiricileri atınca şıkları "Açık piyasa maliyeti",
  * "Reeskont maliyeti", "Politika faizi maliyeti" diye UYDURDU (başka türden kavram + tür adı). Belgeli testte, tür adını
  * taşıyan bir çeldiricinin bütün öbeği kaynakta hiç geçmiyorsa ve doğru cevabın öbeği geçiyorsa o şık uydurma sayılır.
  * Kaynak yoksa, tür adı okunamıyorsa ya da doğru cevap kaynakta geçmiyorsa susar.

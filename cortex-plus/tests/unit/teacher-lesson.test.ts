@@ -49,7 +49,7 @@ describe("temiz metin kabulü", () => {
   it("üst/alt bilgideki sayfa numaraları atılınca temizlik reddedilmez", () => {
     const body = [
       "13. İş: Sınır İşi",
-      "Gaz 200 kPa sabit basınçta 0.10 m³'ten 0.30 m³'e genleşiyor.",
+      "Gaz 200 kPa sabit akımta 0.10 m³'ten 0.30 m³'e genleşiyor.",
       "W = 200×(0.30-0.10) = 40 kJ.",
       "Rijit tankta sınır işi sıfırdır.",
       "Aynı 1 ve 2 halleri arasında farklı yollar farklı iş verir.",

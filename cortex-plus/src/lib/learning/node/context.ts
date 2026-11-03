@@ -124,7 +124,7 @@ export async function loadNodeContext(ctx: NodeCaller, rawBody: unknown, options
     ""
   ).slice(0, 400);
   if (requestedTopic) topicLabel = requestedTopic;
-  // Sözlüde seçilen konular kimlikle (30 Ekim 2026, `topic-identity.ts`). Canlı tur: "Enflasyon Türleri" seçilen sözlü
+  // Sözlüde seçilen konular kimlikle (30 Ekim 2026, `topic-identity.ts`). Canlı tur: "Konu X" seçilen sözlü
   // başka konunun düğümünde açıldı; ad düğümün konusuyla tutmayınca kaynak "konuyu genişlet" diye hazırlık adıyla
   // aranıyor, sorular üç konudan geliyordu. Tek konu → o konunun kaydı ve sayfaları (`retargetNodeTopic`); birden çok
   // konu → her konunun kendi sayfaları ve tek konuya kanıt yok (`scope: "topics"`); düğümün kendi konusu → genişletme yok.

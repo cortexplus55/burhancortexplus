@@ -28,8 +28,8 @@ export async function adaptPathAfterResult(
     total: number;
     /**
      * İçerik düğümün konusu dışında bir konuyu sorduysa (sözlü konu seçici, `?konu=`; 30 Ekim 2026) yol o konuya göre
-     * değişir. Kimlik düğüm metası biçiminde (belgeli hazırlıkta belge konu düğümü). Canlı tur: "Enflasyon Türleri"
-     * sözlüsünün düşük sonucu "Para Politikası"na odaklı pratik ekledi.
+     * değişir. Kimlik düğüm metası biçiminde (belgeli hazırlıkta belge konu düğümü). Canlı tur: "Konu X"
+     * sözlüsünün düşük sonucu "Konu Y"na odaklı pratik ekledi.
      */
     testedTopic?: { topicId: string | null; topicTitle: string } | null;
   },

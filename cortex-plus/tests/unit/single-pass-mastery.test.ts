@@ -23,8 +23,8 @@ function judged(point: string, quote: string, issue?: { wrong: string; correct: 
   return [{ index: 0, points: [{ point, status: "covered", quote }], ...(issue ? { firstAnswerIssue: issue } : {}) }];
 }
 
-describe("tek geçiş — Elif, Mert, Zeynep", () => {
-  it("Elif: hakemin covered dediği doğru sözlü cevap, eşanlamlı 'doğrusu' notuna rağmen %100", () => {
+describe("tek geçiş — Ayşe, Can, Deniz", () => {
+  it("Ayşe: hakemin covered dediği doğru sözlü cevap, eşanlamlı 'doğrusu' notuna rağmen %100", () => {
     const answer = "Negatif sayılar sıfırın solundadır. Eksi ile eksi çarpımı artıdır.";
     const report = gradeOralExam(
       [{ prompt: "İki negatif sayının çarpımının işareti nedir?", expectedPoints: ["eksi ile eksi çarpımı pozitiftir"] }],
@@ -41,7 +41,7 @@ describe("tek geçiş — Elif, Mert, Zeynep", () => {
     expect(report.weaknesses).toEqual([]);
   });
 
-  it("Mert: II. Mehmed cümlesi kodda bölünmez, hakem covered dediyse fetih %100 kalır", () => {
+  it("Can: II. Mehmed cümlesi kodda bölünmez, hakem covered dediyse fetih %100 kalır", () => {
     const text = "II. Mehmed İstanbul'u 1453'te fethetti. Osmanlı bu tarihten sonra imparatorluk oldu.";
     const report = gradeOralExam(
       [{ prompt: "İstanbul'u kim, hangi yıl fethetti?", expectedPoints: ["II. Mehmed 1453"] }],
@@ -57,7 +57,7 @@ describe("tek geçiş — Elif, Mert, Zeynep", () => {
     expect(report.items[0]?.gap).toBe("");
   });
 
-  it("Zeynep: doğru kurulum ve aritmetik hata %50–%80; çıplak tahmin 7/10 olmaz", () => {
+  it("Deniz: doğru kurulum ve aritmetik hata %50–%80; çıplak tahmin 7/10 olmaz", () => {
     const model = "Rth = 12 Ω\nVth = 24 V\nPmax = Vth^2 / (4 Rth) = 12 W";
     const worked = adjustScoredAnswer({
       answer: "Rth = 12 Ω ve Vth = 24 V. Pmax = 24^2 / (4*12) = 10 W",

@@ -5,14 +5,14 @@ import { runIndependentValidation } from "@/lib/learning/validation-pipeline";
 
 describe("lenient lesson JSON", () => {
   it("parses LaTeX backslashes instead of calling the draft invalid JSON", () => {
-    const raw = String.raw`{"overview":"Basınç \( P = \frac{F}{A} \) ile okunur.","sections":[{"heading":"Basınç",}],}`;
+    const raw = String.raw`{"overview":"Akım \( P = \frac{F}{A} \) ile okunur.","sections":[{"heading":"Akım",}],}`;
     const parsed = parseModelJson(raw) as { overview: string };
     expect(parsed.overview).toContain("frac");
     const gate = runIndependentValidation({ draft: raw, parsed });
     expect(gate.issues.some((issue) => issue.code === "invalid_json")).toBe(false);
     expect(normalizeMathNotation(parsed.overview)).toMatch(/\\\(|\$/);
-    expect(normalizeMathNotation(String.raw`Basınç \frac{F}{A} ile`)).not.toMatch(/\\frac/);
-    expect(normalizeMathNotation(String.raw`Basınç \frac{F}{A} ile`)).toMatch(/\(F\)\/\(A\)/);
+    expect(normalizeMathNotation(String.raw`Akım \frac{F}{A} ile`)).not.toMatch(/\\frac/);
+    expect(normalizeMathNotation(String.raw`Akım \frac{F}{A} ile`)).toMatch(/\(F\)\/\(A\)/);
   });
 
   it("still reports invalid_json when the text is not JSON at all", () => {
@@ -60,7 +60,7 @@ describe("validation event severity log", () => {
       }),
     );
     const payload = spy.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(JSON.stringify(payload)).not.toMatch(/draft|overview|Basınç formülü P/);
+    expect(JSON.stringify(payload)).not.toMatch(/draft|overview|Akım formülü P/);
     spy.mockRestore();
   });
 });

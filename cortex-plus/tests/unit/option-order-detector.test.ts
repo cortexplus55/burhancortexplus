@@ -16,7 +16,7 @@ describe("şıklara sırayla gönderme", () => {
 
   it("eski kalıpları yakalamaya devam eder", () => {
     for (const text of [
-      "İlk seçenek sabit basınçta, ikinci seçenek sabit hacimdedir.",
+      "İlk seçenek sabit akımta, ikinci seçenek sabit hacimdedir.",
       "Diğer seçenekler sırasıyla bronşiolit, astım ve pnömonidir.",
       "A şıkkı yanlıştır.",
       "2. seçenek eksik kalır.",
@@ -28,7 +28,7 @@ describe("şıklara sırayla gönderme", () => {
   it("cümle başındaki büyük İ ve 'sırayla' da yakalanır", () => {
     for (const text of [
       "İlk iki ifade aynı son kola sahiptir.",
-      "İlk seçenek sabit basınçtadır.",
+      "İlk seçenek sabit akımtadır.",
       "İkinci şık ters işaretlidir.",
       "Diğer şıklar sırayla 6, 12 ve 18 aydır.",
       "İLK SEÇENEK yanlıştır.",

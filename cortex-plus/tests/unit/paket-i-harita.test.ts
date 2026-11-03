@@ -253,12 +253,12 @@ describe("Paket I-2.2 — kapsam başlık düzeyinde", () => {
 
   it("numaralı öğe etiketi (SORU 3, ŞEKİL 2) ve çözümlü örnek bölüm değildir", () => {
     const pages: Page[] = [
-      { pageNumber: 1, text: `1. Basınç\n${teach("Basınç")}` },
-      { pageNumber: 2, text: `SORU 3\n${teach("Basınç sorusu")}\nŞEKİL 2\n${teach("Basınç şekli")}` },
-      { pageNumber: 3, text: `Çözümlü Örnek\n${teach("Basınç çözümü")}` },
+      { pageNumber: 1, text: `1. Akım\n${teach("Akım")}` },
+      { pageNumber: 2, text: `SORU 3\n${teach("Akım sorusu")}\nŞEKİL 2\n${teach("Akım şekli")}` },
+      { pageNumber: 3, text: `Çözümlü Örnek\n${teach("Akım çözümü")}` },
     ];
     const titles = buildDocumentSkeleton([{ fileName: "fizik.pdf", pages }]).headings.map((heading) => heading.title);
-    expect(titles).toEqual(["Basınç"]);
+    expect(titles).toEqual(["Akım"]);
   });
 });
 

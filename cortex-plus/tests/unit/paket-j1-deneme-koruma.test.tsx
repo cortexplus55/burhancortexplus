@@ -14,7 +14,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
   B) Sohbet, sözlü ve deneme ekranları 100dvh (vh önce, eski tarayıcı için).
   C) Instagram / Facebook / TikTok / WhatsApp tarayıcısında "Tarayıcıda aç" şeridi.
 
-  Örnekler farklı derslerden: Fizik (basınç), Kimya (mol), Tarih (Cumhuriyet).
+  Örnekler farklı derslerden: Fizik (akım), Kimya (mol), Tarih (Cumhuriyet).
 */
 
 const mocks = vi.hoisted(() => ({
@@ -128,7 +128,7 @@ const Q = [
 const PHYSICS: RunnerQuestion[] = [
   { id: Q[0], text: "Basıncın SI birimi hangisidir?", options: ["Pascal", "Newton", "Joule", "Watt"], question_type: "mcq", points: 5 },
   { id: Q[1], text: "Sıvı basıncı nelere bağlıdır? (birden çok)", options: ["Derinlik", "Yoğunluk", "Kabın şekli"], question_type: "multi_mcq", points: 5 },
-  { id: Q[2], text: "Kaldırma kuvvetini açıkla.", options: [], question_type: "open", points: 10 },
+  { id: Q[2], text: "Sürtünme kuvvetini açıkla.", options: [], question_type: "open", points: 10 },
   { id: Q[3], text: "Atmosfer basıncı yükseldikçe azalır.", options: [], question_type: "true_false", points: 5 },
 ];
 

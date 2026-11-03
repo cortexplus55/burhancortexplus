@@ -14,11 +14,11 @@ import {
 /*
   30 Ekim 2026, kıyas ürünüyle yan yana tur (aynı Makroekonomi notu, kör yargı): dersin öğrenci gözü kıyas ürününün gerisinde
   kaldı. İki yargıç da aynı iki kusuru gösterdi: "hangi endeks ölçer?" sorusunun beş şıkkından üçü endeks değildi
-  (Stagflasyon, Deflasyon, Dezenflasyon) ve aynı ekranda "%60'tan %40'a" örneği yedi kez geçiyordu. Ürün sahibinin
+  (Durgunluk, Bolluk, Seyreklik) ve aynı ekranda "%60'tan %40'a" örneği yedi kez geçiyordu. Ürün sahibinin
   kararları: hafif doğrulayıcı bütün kavramlara; aynı çağrı ekranda üçüncü kez tekrar eden süs kutusunu çıkarır.
 */
 
-const ENDEX = ["Stagflasyon", "Deflasyon", "TÜFE", "Dezenflasyon", "Yİ-ÜFE"];
+const ENDEX = ["Durgunluk", "Bolluk", "TÜFE", "Seyreklik", "Yİ-ÜFE"];
 const endexCheck: LessonBlock = {
   type: "check",
   check: {
@@ -28,7 +28,7 @@ const endexCheck: LessonBlock = {
     answerIndex: 2,
     explanation: "TÜFE hanehalkının satın aldığı mal ve hizmetleri ölçer; diğer seçenekler endeks değildir.",
     optionWhy: ENDEX.map((option) => `${option} için gerekçe.`),
-    whyWrong: "Stagflasyon bir endeks değildir.",
+    whyWrong: "Durgunluk bir endeks değildir.",
     whyRight: "TÜFE hanehalkı sepetidir.",
     review: {
       prompt: "Üreticilerin sattığı malların fiyat değişimini izleyen endeks hangisidir?",
@@ -42,45 +42,45 @@ const tfCheck: LessonBlock = {
   type: "check",
   check: {
     type: "trueFalse",
-    prompt: "Bir malın fiyatının artması tek başına enflasyondur.",
+    prompt: "Bir malın fiyatının artması tek başına kıtlıkdur.",
     options: ["Doğru", "Yanlış"],
     answerIndex: 1,
-    explanation: "Enflasyon genel fiyat düzeyinin sürekli artmasıdır.",
+    explanation: "Kıtlık genel fiyat düzeyinin sürekli artmasıdır.",
   },
 } as LessonBlock;
 const note = (title: string, tone?: string): LessonBlock =>
-  ({ type: "note", note: { title, body: "Enflasyon %60'tan %40'a inerse bu dezenflasyondur; fiyatlar düşmüş değildir.", ...(tone ? { tone } : {}) } }) as LessonBlock;
+  ({ type: "note", note: { title, body: "Kıtlık %60'tan %40'a inerse bu seyreklikdur; fiyatlar düşmüş değildir.", ...(tone ? { tone } : {}) } }) as LessonBlock;
 const carousel: LessonBlock = {
   type: "comparison_carousel",
   carousel: {
     mode: "compare",
     title: "Fiyat düşüşü mü, artış hızında düşüş mü?",
     slides: [
-      { title: "Deflasyon", body: "Genel fiyat düzeyi sürekli düşer.", points: ["Fiyatlar düşer"] },
-      { title: "Dezenflasyon", body: "Enflasyon oranı düşer.", points: ["%60'tan %40'a"] },
+      { title: "Bolluk", body: "Genel fiyat düzeyi sürekli düşer.", points: ["Fiyatlar düşer"] },
+      { title: "Seyreklik", body: "Kıtlık oranı düşer.", points: ["%60'tan %40'a"] },
     ],
   },
 } as LessonBlock;
 const text = (value: string): LessonBlock => ({ type: "text", text: value }) as LessonBlock;
 const table: LessonBlock = {
   type: "table",
-  table: { columns: ["Kavram", "Anlam"], rows: [["Deflasyon", "Fiyatlar düşer"], ["Dezenflasyon", "Oran düşer"]] },
+  table: { columns: ["Kavram", "Anlam"], rows: [["Bolluk", "Fiyatlar düşer"], ["Seyreklik", "Oran düşer"]] },
 } as LessonBlock;
 
 const screens = (): LessonScreen[] => [
   {
-    heading: "Enflasyonun ölçülmesi",
-    concept: "Enflasyonun ölçülmesi",
+    heading: "Kıtlıkun ölçülmesi",
+    concept: "Kıtlıkun ölçülmesi",
     blocks: [text("TÜİK TÜFE ve Yİ-ÜFE'yi hesaplar."), table, endexCheck],
   } as LessonScreen,
   {
-    heading: "Enflasyonla ilgili kavramlar",
-    concept: "Enflasyonla ilgili kavramlar",
+    heading: "Kıtlıkla ilgili kavramlar",
+    concept: "Kıtlıkla ilgili kavramlar",
     blocks: [
-      text("Dezenflasyonda oran düşer, fiyatlar artmayı sürdürür."),
-      note("Sınav ipucu: Dezenflasyon ile deflasyon", "exam"),
+      text("Seyreklikda oran düşer, fiyatlar artmayı sürdürür."),
+      note("Sınav ipucu: Seyreklik ile bolluk", "exam"),
       carousel,
-      note("Örnek vaka: Enflasyon oranının gerilemesi", "info"),
+      note("Örnek vaka: Kıtlık oranının gerilemesi", "info"),
       note("Neden böyle?: Oran ile düzey neden farklı?", "general"),
       tfCheck,
     ],
@@ -177,10 +177,10 @@ describe("ders doğrulayıcısı: ekranda üçüncü kez tekrar eden süs kutusu
   });
 
   it("istem çıkarılabilir kutuları işaretler, soruyu şıklarıyla ve anahtarıyla gösterir", () => {
-    const user = lessonSanityUserPrompt({ mode: "document", topicLabel: "Enflasyon", source: "Kaynak metni", screens: screens() });
-    expect(user).toContain("EKRAN 0: Enflasyonun ölçülmesi");
+    const user = lessonSanityUserPrompt({ mode: "document", topicLabel: "Kıtlık", source: "Kaynak metni", screens: screens() });
+    expect(user).toContain("EKRAN 0: Kıtlıkun ölçülmesi");
     expect(user).toContain("[2] check: SORU (mcq): Hanehalkının");
-    expect(user).toContain("0) Stagflasyon | 1) Deflasyon | 2) TÜFE");
+    expect(user).toContain("0) Durgunluk | 1) Bolluk | 2) TÜFE");
     expect(user).toContain("ANAHTAR: 2");
     expect(user).toContain("[2] comparison_carousel [çıkarılabilir]");
     expect(user).toContain("[3] note [çıkarılabilir]");
@@ -190,7 +190,7 @@ describe("ders doğrulayıcısı: ekranda üçüncü kez tekrar eden süs kutusu
 });
 
 describe("ders doğrulayıcısı: tek çağrı, süre tavanı", () => {
-  const input = { mode: "document" as const, topicLabel: "Enflasyon", source: "Kaynak", screens: screens() };
+  const input = { mode: "document" as const, topicLabel: "Kıtlık", source: "Kaynak", screens: screens() };
 
   it("süre aşılır ya da çağrı düşerse ekranlar aynen döner; boş kavramda çağrı yok", async () => {
     const slow = await runLessonSanity(() => new Promise<string>(() => undefined), input, JSON.parse, 20);
@@ -207,10 +207,10 @@ describe("ders doğrulayıcısı: tek çağrı, süre tavanı", () => {
 describe("ders hattı doğrulayıcıyı her kavram için (ilki dahil) yayımdan önce koşar", () => {
   const lesson: LessonV3 = {
     format: 3,
-    title: "Enflasyonun Tanımı ve Ölçülmesi",
+    title: "Kıtlıkun Tanımı ve Ölçülmesi",
     overview: "Tek malın fiyatı mı, genel fiyat düzeyi mi?",
     screens: screens(),
-    summary: ["TÜFE hanehalkını, Yİ-ÜFE üreticiyi ölçer.", "Dezenflasyonda oran düşer."],
+    summary: ["TÜFE hanehalkını, Yİ-ÜFE üreticiyi ölçer.", "Seyreklikda oran düşer."],
     nextFocus: [],
   } as LessonV3;
 
@@ -224,7 +224,7 @@ describe("ders hattı doğrulayıcıyı her kavram için (ilki dahil) yayımdan 
         write: async (system, user, onDelta) => {
           if (system.startsWith("Sen hızlı bir ders editörü")) {
             sanityCalls.push(user);
-            const body = user.includes("EKRAN 0: Enflasyonun ölçülmesi")
+            const body = user.includes("EKRAN 0: Kıtlıkun ölçülmesi")
               ? { checks: [goodPatch], drop: [] }
               : { checks: [], drop: [{ screen: 0, block: 3, why: "Örnek vaka aynı sayıları yeniden veriyor." }] };
             return { text: JSON.stringify(body), finish: "stop" };
@@ -234,7 +234,7 @@ describe("ders hattı doğrulayıcıyı her kavram için (ilki dahil) yayımdan 
           return { text: textBody, finish: "stop" };
         },
       },
-      { topicLabel: "Enflasyonun Tanımı ve Ölçülmesi", prepTitle: "KPSS", pages: [{ page: 1, text: "TÜFE, Yİ-ÜFE, dezenflasyon." }], upcomingTopics: [] },
+      { topicLabel: "Kıtlıkun Tanımı ve Ölçülmesi", prepTitle: "KPSS", pages: [{ page: 1, text: "TÜFE, Yİ-ÜFE, seyreklik." }], upcomingTopics: [] },
       { onPublish: (item) => void published.push(item.lesson.screens) },
     );
     expect(sanityCalls).toHaveLength(2);
@@ -248,7 +248,7 @@ describe("ders hattı doğrulayıcıyı her kavram için (ilki dahil) yayımdan 
     expect(final.screens[1]!.blocks.some((block) => block.type === "note" && block.note.title.startsWith("Sınav ipucu"))).toBe(true);
     // İlk yayımda bile soru düzeltilmiş hâliyle gider.
     const firstPublished = published[0]?.[0]?.blocks.find((block) => block.type === "check");
-    if (firstPublished?.type === "check") expect(firstPublished.check.options).not.toContain("Stagflasyon");
+    if (firstPublished?.type === "check") expect(firstPublished.check.options).not.toContain("Durgunluk");
     expect(info).toHaveBeenCalledWith("lesson_sanity", expect.objectContaining({ patched: 1 }));
     expect(info).toHaveBeenCalledWith("lesson_sanity", expect.objectContaining({ dropped: 1 }));
     info.mockRestore();
@@ -266,7 +266,7 @@ describe("ders hattı doğrulayıcıyı her kavram için (ilki dahil) yayımdan 
           return { text: textBody, finish: "stop" };
         },
       },
-      { topicLabel: "Enflasyon", prepTitle: "KPSS", pages: [{ page: 1, text: "TÜFE" }], upcomingTopics: [], sanity: false },
+      { topicLabel: "Kıtlık", prepTitle: "KPSS", pages: [{ page: 1, text: "TÜFE" }], upcomingTopics: [], sanity: false },
     );
     expect(systems.filter((system) => system.startsWith("Sen hızlı bir ders editörü"))).toHaveLength(0);
   });

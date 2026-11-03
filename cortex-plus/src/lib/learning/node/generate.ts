@@ -203,7 +203,7 @@ export async function generateNodePayload(input: NodePayloadInput) {
         };
       }
     }
-    // Hazır ünite (4 Kasım 2026, Senaryo A): yoldaki podcast düğümü paylaşımlı ünite bölümünü (shared_unit_media
+    // Hazır ünite: yoldaki podcast düğümü paylaşımlı ünite bölümünü (shared_unit_media
     // `podcast:<süre>`) okur; model çağrısı ve kredi yok. Ses, isSharedPodcastScript ile 0 kredi sentezlenir.
     // Önce: yalnız Podcast sayfası okuyordu, sayfa da hazır yol düğümüne yönlendirdiği için havuz hiç kullanılmıyordu.
     if (input.prepId) {

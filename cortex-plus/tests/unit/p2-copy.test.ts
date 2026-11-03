@@ -35,7 +35,7 @@ describe("etkinlik metinleri", () => {
       title: "Hücre zarı — B seçeneği",
       detail: "Enerji üretir",
     });
-    expect(gapLines({ claim: "Doğru", topicLabel: "Basınç", detail: "12 °C" }).title).toBe("Basınç");
+    expect(gapLines({ claim: "Doğru", topicLabel: "Akım", detail: "12 °C" }).title).toBe("Akım");
     expect(gapLines({ claim: "B seçeneği", topicLabel: null }).title).toBe("Bu konu");
     const drafts = extractMisconceptions({
       kind: "quiz",

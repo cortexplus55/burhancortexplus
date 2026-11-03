@@ -80,10 +80,9 @@ function sameTag(a?: string, b?: string): boolean {
 }
 
 /*
-  Aynı terimin iki tanımı (30 Ekim 2026, canlı tur, Makroekonomi D/Y): önerme 5 "Deflasyon genel fiyat düzeyinin sürekli
-  düşmesidir" (D), önerme 6 "Deflasyon, enflasyon oranının düşmesidir" (Y). İkisi de "deflasyon nedir?" sorusunu
-  yokluyor: 5'i doğru bilen 6'yı düşünmeden yanlış der. Eski ölçü bütün cümlenin anahtarlarına bakıyordu: ortak
-  anahtar 2/4 (deflasyon, düşmesi), 6'nın doğru hâli ("Enflasyon oranının düşmesi dezenflasyondur") 5'le 1/4 —
+  Aynı terimin iki tanımı (30 Ekim 2026, canlı tur): bir önerme "X, A'nın düşmesidir" (D), öbürü "X, B'nin
+  düşmesidir" (Y). İkisi de "X nedir?" sorusunu yokluyor: birini doğru bilen öbürünü düşünmeden yanlış der. Eski
+  ölçü bütün cümlenin anahtarlarına bakıyordu; ortak anahtar oranı eşiğin altında kaldı —
   üç yol da tutmadı. Bir önermenin yanlış hâlinin doğrusu öbürüyse çift: aynı öznenin tanımı. Ders bağımsız ölçü:
   iki önerme aynı özneyle açılıyor (virgülden önceki sözcükler, virgül yoksa ilk sözcük) ve ikisinin de yüklemi bir
   tanım (eylem adı + ek-fiil: "-mesidir", "-masıdır", "-medir", "-ışıdır"; ya da "bir … -dir": "bir endekstir").

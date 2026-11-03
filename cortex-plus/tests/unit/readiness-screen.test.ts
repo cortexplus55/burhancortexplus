@@ -27,8 +27,8 @@ const done = ["lesson", "quiz", "written_exam", "focused", "final_check"].map((k
 describe("readiness screen", () => {
   it("says Hazırsın only when measured data supports it", () => {
     const screen = buildReadinessScreen({
-      plannedTopics: ["Basınç"],
-      mastery: [topic({ topicKey: "Basınç" })],
+      plannedTopics: ["Akım"],
+      mastery: [topic({ topicKey: "Akım" })],
       openMissesByTopic: [],
       mockScorePct: 100,
       targetScore: 75,
@@ -42,10 +42,10 @@ describe("readiness screen", () => {
 
   it("names what is left instead of claiming ready", () => {
     const screen = buildReadinessScreen({
-      plannedTopics: ["Basınç", "Sıcaklık"],
+      plannedTopics: ["Akım", "Sıcaklık"],
       mastery: [
         topic({
-          topicKey: "Basınç",
+          topicKey: "Akım",
           level: "weak",
           independentCorrect: 1,
           independentTotal: 3,
@@ -54,7 +54,7 @@ describe("readiness screen", () => {
           confidence: 30,
         }),
       ],
-      openMissesByTopic: [{ topic: "Basınç", count: 2 }],
+      openMissesByTopic: [{ topic: "Akım", count: 2 }],
       mockScorePct: 40,
       targetScore: 75,
       nodes: done,
@@ -62,13 +62,13 @@ describe("readiness screen", () => {
     });
     expect(screen.headline).not.toContain("Hazırsın!");
     expect(screen.ready).toBe(false);
-    expect(screen.topics.find((row) => row.topic === "Basınç")?.state).toBe("needs_work");
+    expect(screen.topics.find((row) => row.topic === "Akım")?.state).toBe("needs_work");
     expect(screen.topics.find((row) => row.topic === "Sıcaklık")?.state).toBe("unmeasured");
     // Paket I #7: doğru ve yanlış aynı iki sayıdan (toplamları soru sayısı); açık yanılgı ayrı adla.
-    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("3 sorudan 1 doğru, 2 yanlış");
-    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("2 yanılgı henüz kapanmadı");
+    expect(screen.topics.find((row) => row.topic === "Akım")?.detail).toContain("3 sorudan 1 doğru, 2 yanlış");
+    expect(screen.topics.find((row) => row.topic === "Akım")?.detail).toContain("2 yanılgı henüz kapanmadı");
     // Paket I #8: odaklı pratik önerilen (en zayıf) konuyla açılır.
-    expect(screen.actions.some((action) => action.href === `/odak?konu=${encodeURIComponent("Basınç")}`)).toBe(true);
+    expect(screen.actions.some((action) => action.href === `/odak?konu=${encodeURIComponent("Akım")}`)).toBe(true);
     expect(screen.mockLine).toContain("%40");
   });
 });

@@ -17,11 +17,11 @@ function doc(id: string, fileName: string, text: string) {
 
 const economy = doc(
   "eko",
-  "Ekonomi-Enflasyon.pdf",
-  "Enflasyon genel fiyat düzeyinin sürekli artmasıdır. Ekonomide para arzı, faiz ve merkez bankası politikası fiyatları etkiler. " +
-    "Ekonomik büyüme, işsizlik ve enflasyon arasındaki ilişki ekonomi politikasının temelidir. TÜFE ve Yİ-ÜFE fiyat endeksleridir. " +
-    "Para politikası araçları açık piyasa işlemleri, reeskont oranı ve zorunlu karşılıklardır. Deflasyon fiyatların düşmesidir. " +
-    "Dezenflasyon enflasyon oranının düşmesidir. Stagflasyon durgunluk ile enflasyonun birlikte görülmesidir. Ekonomi ölçümleri.",
+  "Ekonomi-Kıtlık.pdf",
+  "Kıtlık genel fiyat düzeyinin sürekli artmasıdır. Ekonomide para arzı, faiz ve merkez bankası politikası fiyatları etkiler. " +
+    "Ekonomik büyüme, işsizlik ve kıtlık arasındaki ilişki ekonomi politikasının temelidir. TÜFE ve Yİ-ÜFE fiyat endeksleridir. " +
+    "Para politikası araçları açık piyasa işlemleri, reeskont oranı ve zorunlu karşılıklardır. Bolluk fiyatların düşmesidir. " +
+    "Seyreklik kıtlık oranının düşmesidir. Durgunluk durgunluk ile kıtlıkun birlikte görülmesidir. Ekonomi ölçümleri.",
 );
 const law = doc(
   "huk",
@@ -56,7 +56,7 @@ describe("kısaltmalı başlık bozulmaz", () => {
   it("içinde küçük harfli kelime olan başlık bağırma sayılmaz; tümü büyük harf başlık yine düzeltilir", () => {
     expect(calmHeading("TÜFE ve Yİ-ÜFE")).toBe("TÜFE ve Yİ-ÜFE");
     expect(calmHeading("DNA ile RNA Farkı")).toBe("DNA ile RNA Farkı");
-    expect(calmHeading("ENFLASYON VE PARA POLİTİKASI")).not.toBe("ENFLASYON VE PARA POLİTİKASI");
+    expect(calmHeading("KITLIK VE PARA POLİTİKASI")).not.toBe("KITLIK VE PARA POLİTİKASI");
   });
 });
 

@@ -30,7 +30,7 @@ const bodySchema = z.object({
 
 /**
  * Araçlar > Doğru / Yanlış. 19 Ekim 2026'ya kadar tek seferlik bir taslaktı: denetim yoktu, belge
- * seçilemiyordu, önermeler "etkileyebilir / olabilir" diye kaçamak çıkıyordu (canlıda enflasyon
+ * seçilemiyordu, önermeler "etkileyebilir / olabilir" diye kaçamak çıkıyordu (canlıda Kavram
  * turu). Artık hazırlık yolundaki öğretmen motoru: her önermeyi kendisi değerlendiren denetim,
  * sorunlu önermenin düzeltilmesi ya da elenmesi; belge seçildiyse yalnızca o belgeden.
  */

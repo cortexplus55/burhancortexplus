@@ -5,7 +5,7 @@
  * konu düğümü (`exam_prep_topics.document_topic_node_id`). Yol düğümünün `session_meta.topicId` alanı belgeli
  * hazırlıkta ikincisini tutar (canlıda konu kimliği taşıyan 1.851 düğümün 1.830'u). Konuyu yalnız birinci kimlikle
  * karşılaştıran kod sessizce "eşleşmedi" deyip ada düşüyordu; ad eşleşmezse de başka konunun düğümü açılıyordu
- * (30 Ekim canlı turu: "Enflasyon Türleri" için seçilen sözlü "Para Politikası"nın adımına yazıldı).
+ * (30 Ekim canlı turu: "Konu X" için seçilen sözlü "Konu Y"nın adımına yazıldı).
  *
  * Kural:
  * 1. İki tarafta da kimlik varsa kimlik karar verir: kimliklerden biri ortaksa aynı konu, değilse farklı konu.

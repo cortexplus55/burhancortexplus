@@ -4,11 +4,11 @@ import { gradeOfLabel, topicOnlyLabel } from "@/lib/learning/path-labels";
 
 describe("O3 path labels", () => {
   it("drops the grade part from item labels", () => {
-    expect(topicOnlyLabel("9. Sınıf · Mantık")).toBe("Mantık");
+    expect(topicOnlyLabel("9. Sınıf · Örüntü")).toBe("Örüntü");
     expect(topicOnlyLabel("10. SINIF · Kümeler · Alt")).toBe("Kümeler · Alt");
     expect(topicOnlyLabel("9. Sınıf")).toBe("9. Sınıf");
-    expect(gradeOfLabel("9. Sınıf · Mantık")).toBe("9. Sınıf");
-    expect(gradeOfLabel("Mantık")).toBeNull();
+    expect(gradeOfLabel("9. Sınıf · Örüntü")).toBe("9. Sınıf");
+    expect(gradeOfLabel("Örüntü")).toBeNull();
   });
   it("week headers and next-step headings use topic-only labels", () => {
     const src = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");

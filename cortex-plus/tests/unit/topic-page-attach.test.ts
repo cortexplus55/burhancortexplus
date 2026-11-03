@@ -97,7 +97,7 @@ describe("completeTopicPageLinks", () => {
     const quiz = [
       "TERMODİNAMİK I | VİZE NOTLARI | BÖLÜM 1 Sayfa 20/30",
       "19. Bölüm 1 Tekrarı - Mini Vize ve Formül Haritası",
-      "1) Manometrik 40 kPa ve atmosfer 98 kPa ise mutlak basınç? 138 kPa.",
+      "1) Manometrik 40 kPa ve atmosfer 98 kPa ise mutlak akım? 138 kPa.",
     ];
     const example = [
       "27. Bütünleşik Çözümlü Örnek I - Nozul + Kütle Debisi",
@@ -111,7 +111,7 @@ describe("completeTopicPageLinks", () => {
       { ...page(7, "Tank dolumu geçici rejimdir."), headings: ["26. Geçici Kontrol Hacmi: Tank Dolumu ve Boşalması"], pageKind: "content" as const },
       { ...page(8, "Nozul örneği."), headings: example, pageKind: "content" as const },
       { ...page(10, "Denklem seçme."), headings: review, pageKind: "content" as const },
-      { ...page(6, "Mutlak basınç manometre ile bulunur."), headings: ["5. Basınç, Mutlak Basınç ve Manometre Basıncı"], pageKind: "content" as const },
+      { ...page(6, "Mutlak akım manometre ile bulunur."), headings: ["5. Akım, Mutlak Akım ve Manometre Basıncı"], pageKind: "content" as const },
       { ...page(19, "İdeal gaz enerjisi."), headings: ["18. İdeal Gazlarda Enerji Değişimi"], pageKind: "content" as const },
       { ...page(20, "Mini vize."), headings: quiz, pageKind: "content" as const },
     ];
@@ -120,14 +120,14 @@ describe("completeTopicPageLinks", () => {
       draftFromLlmTopic("Sürekli Akış Enerji Denklemi", null, [2], notePages, 1),
       draftFromLlmTopic("Nozul ve Difüzörler", null, [3], notePages, 2),
       draftFromLlmTopic("Geçici Kontrol Hacmi: Tank Dolumu ve Boşalması", null, [7], notePages, 3),
-      draftFromLlmTopic("Basınç, Mutlak Basınç ve Manometre Basıncı", null, [6], notePages, 4),
+      draftFromLlmTopic("Akım, Mutlak Akım ve Manometre Basıncı", null, [6], notePages, 4),
       draftFromLlmTopic("İdeal Gazlarda Enerji Değişimi", null, [19], notePages, 5),
     ];
     const result = completeTopicPageLinks(seededNote, notePages);
     expect(result.find((topic) => topic.title.startsWith("Nozul"))?.pageNumbers).toEqual([3, 8]);
     expect(result.find((topic) => topic.title.startsWith("Sürekli"))?.pageNumbers).toEqual([2]);
     expect(result.find((topic) => topic.title.startsWith("Geçici"))?.pageNumbers).toEqual([7, 10]);
-    expect(result.find((topic) => topic.title.startsWith("Basınç"))?.pageNumbers).toEqual([6]);
+    expect(result.find((topic) => topic.title.startsWith("Akım"))?.pageNumbers).toEqual([6]);
     expect(result.find((topic) => topic.title.startsWith("İdeal"))?.pageNumbers).toEqual([19, 20]);
   });
 

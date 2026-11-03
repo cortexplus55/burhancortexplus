@@ -93,13 +93,13 @@ describe("educational quality gate", () => {
   });
 
   it("ignores a missing intro section and a bold nit", async () => {
-    const draft = '{"overview":"Basınç birim alana gelen kuvvettir."}';
+    const draft = '{"overview":"Akım birim alana gelen kuvvettir."}';
     const { input, create } = fixture([
       {
         approved: false,
         issues: [
           "Giriş bölümü eksik, doğrudan kavram bölümleriyle başlamış.",
-          "Anahtar terim koyu değil: Basınç. **iki yıldız** arasına al.",
+          "Anahtar terim koyu değil: Akım. **iki yıldız** arasına al.",
         ],
       },
     ]);
@@ -196,8 +196,8 @@ describe("educational quality gate", () => {
   it("accepts a lesson the reviewer only nits for style", async () => {
     const cosmetic = [
       "Çıktı geçerli JSON değil.",
-      "Basınç formülünde semboller LaTeX formatına yanlış çevrildi.",
-      "mutlak basınç gibi terimler ** ile işaretlenmeli.",
+      "Akım formülünde semboller LaTeX formatına yanlış çevrildi.",
+      "mutlak akım gibi terimler ** ile işaretlenmeli.",
       "Çözüm adım adım ve gerekçeli olmalı; yalnızca sonucu yazma.",
       "En az 2 kontrol sorusu kalmalı; öğretmeyenler çıkarıldı.",
     ];

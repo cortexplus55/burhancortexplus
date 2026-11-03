@@ -30,7 +30,7 @@ afterEach(() => {
 const QUIZ = {
   type: "quiz",
   questions: [
-    { text: "Basınç hangi birimle ölçülür?", options: ["Pascal", "Newton"], correct: ["Pascal"], multi: false },
+    { text: "Akım hangi birimle ölçülür?", options: ["Pascal", "Newton"], correct: ["Pascal"], multi: false },
   ],
 };
 
@@ -53,7 +53,7 @@ function renderQuiz() {
   });
   vi.stubGlobal("fetch", fetchMock);
   render(
-    <ExamNodeSession prepId="prep-1" nodeId="node-1" kind="quiz" prepTitle="Fizik" topicLabel="Basınç" resumeEnabled />,
+    <ExamNodeSession prepId="prep-1" nodeId="node-1" kind="quiz" prepTitle="Fizik" topicLabel="Akım" resumeEnabled />,
   );
   const completeBody = () =>
     bodies.find((body) => body.action === "complete") as { answers?: { __meta?: { hintsUsed?: unknown } } } | undefined;
@@ -73,7 +73,7 @@ async function answerAndFinish() {
 describe("eğitmen yardımı ipucu sayılır", () => {
   it("cevaplamadan önce eğitmen → bitişte o soru ipuçlu", async () => {
     const { completeBody } = renderQuiz();
-    await screen.findByText("Basınç hangi birimle ölçülür?");
+    await screen.findByText("Akım hangi birimle ölçülür?");
     await askCoach();
     await answerAndFinish();
     fireEvent.click(screen.getByRole("button", { name: "Testi bitir" }));
@@ -83,7 +83,7 @@ describe("eğitmen yardımı ipucu sayılır", () => {
 
   it("cevap kilitlendikten sonra eğitmen açıklaması ipucu değil", async () => {
     const { completeBody } = renderQuiz();
-    await screen.findByText("Basınç hangi birimle ölçülür?");
+    await screen.findByText("Akım hangi birimle ölçülür?");
     await answerAndFinish();
     await askCoach();
     fireEvent.click(screen.getByRole("button", { name: "Testi bitir" }));

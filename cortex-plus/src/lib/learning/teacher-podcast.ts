@@ -608,7 +608,7 @@ const fold5 = (word: string) => word.toLocaleLowerCase("tr-TR").replace(/[^\p{L}
 
 /**
  * Podcast tanımla mı açılıyor (`OPENING_HOOK_RULE`): ilk cümle soru değil, "Terim, …" diye başlıyor ve terim podcast'in
- * ya da ilk bölümün adında geçiyor ("Enflasyon, genel fiyat düzeyinin … artmasıdır"). Örnekle ya da vakayla açılış
+ * ya da ilk bölümün adında geçiyor ("Kavram, … -dır" tanım cümlesiyle). Örnekle ya da vakayla açılış
  * ("Bir işletmenin mal alımı, …") terim adı taşımadığı için işaretlenmez.
  */
 export function definitionOpening(episode: PodcastEpisode): boolean {

@@ -48,7 +48,7 @@ function fakeClient(rows: Array<Record<string, unknown>>) {
 }
 
 const rows = [
-  { id: "prep-topic-1", document_topic_node_id: "doc-node-1", exam_prep_id: "prep-A", label: "Enflasyon" },
+  { id: "prep-topic-1", document_topic_node_id: "doc-node-1", exam_prep_id: "prep-A", label: "Kıtlık" },
   { id: "prep-topic-2", document_topic_node_id: null, exam_prep_id: "prep-A", label: "Fotosentez" },
   { id: "prep-topic-3", document_topic_node_id: "doc-node-3", exam_prep_id: "prep-B", label: "Sözleşme" },
 ];

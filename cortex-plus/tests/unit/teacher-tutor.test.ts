@@ -134,11 +134,11 @@ describe("öğretmen sohbeti istemi", () => {
 describe("sohbet pasajları kelime ve sayı örtüşmesiyle yeniden sıralanır", () => {
   it("sayılı soruda aynı örneği taşıyan sayfa öne geçer", () => {
     const matches = [
-      { page: 12, similarity: 0.639, content: "11. İdeal Gaz Denklemi ve Gaz Sabiti. Düşük yoğunlukta gaz PV = mRT; basınç ve sıcaklık mutlak alınır." },
-      { page: 6, similarity: 0.629, content: "5. Basınç, Mutlak Basınç ve Manometre Basıncı. Basınç birim alana düşen kuvvettir." },
-      { page: 14, similarity: 0.536, content: "13. İş: Sınır İşi. Sabit basınç: W = P(V₂ - V₁). Gaz 200 kPa sabit basınçta 0.10 m³'ten 0.30 m³'e genleşiyor. W = 40 kJ." },
+      { page: 12, similarity: 0.639, content: "11. İdeal Gaz Denklemi ve Gaz Sabiti. Düşük yoğunlukta gaz PV = mRT; akım ve sıcaklık mutlak alınır." },
+      { page: 6, similarity: 0.629, content: "5. Akım, Mutlak Akım ve Manometre Basıncı. Akım birim alana düşen kuvvettir." },
+      { page: 14, similarity: 0.536, content: "13. İş: Sınır İşi. Sabit akım: W = P(V₂ - V₁). Gaz 200 kPa sabit akımta 0.10 m³'ten 0.30 m³'e genleşiyor. W = 40 kJ." },
     ];
-    const ranked = rerankByOverlap("200 kPa sabit basınçta 0.1 m³'ten 0.3 m³'e genleşen gazın işini nasıl bulurum?", matches);
+    const ranked = rerankByOverlap("200 kPa sabit akımta 0.1 m³'ten 0.3 m³'e genleşen gazın işini nasıl bulurum?", matches);
     expect(ranked[0].page).toBe(14);
     // Örtüşme yoksa anlam sırası korunur.
     expect(rerankByOverlap("?", matches).map((m) => m.page)).toEqual([12, 6, 14]);

@@ -147,7 +147,7 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     const prompt = podcastVerifyUserPrompt(episode, {
       topicLabel: "Sınır işi",
       prepTitle: "Termodinamik",
-      pages: [{ page: 14, text: "Gaz 200 kPa sabit basınçta 0,10 m³'ten 0,30 m³'e genleşiyor. W = 40 kJ." }],
+      pages: [{ page: 14, text: "Gaz 200 kPa sabit akımta 0,10 m³'ten 0,30 m³'e genleşiyor. W = 40 kJ." }],
       length: "basit",
     });
     expect(prompt).toMatch(/KAYNAKTA GEÇMEYEN SAYILAR: .*300/);

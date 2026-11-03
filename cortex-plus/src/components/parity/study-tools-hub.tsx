@@ -188,8 +188,8 @@ export function StudyToolsHub({
           {STUDY_TOOLS.filter((tool) => tool.group === group).map((tool) => {
             const lock = studyToolLock(tool.id, { nodes, openMisconceptions });
             // Konu seçiliyse ve etkinlik konuya kurulabiliyorsa yalnız o konunun KENDİ düğümü açılır; yoksa kurulur
-            // ("Başka Bir Konu veya Etkinlik Seç" ile aynı işlev). 30 Ekim 2026 canlı tur: "Enflasyon Türleri" için
-            // seçilen sözlü, başka konunun sözlü adımında `?konu=` ile açılıp o adıma (Para Politikası) yazılmıştı.
+            // ("Başka Bir Konu veya Etkinlik Seç" ile aynı işlev). 30 Ekim 2026 canlı tur: "Konu X" için
+            // seçilen sözlü, başka konunun sözlü adımında `?konu=` ile açılıp o adıma (Konu Y) yazılmıştı.
             const ownPick =
               !lock && chosenTopic && activityCreatable(tool.id)
                 ? freeActivityPick(nodes, prepId, chosenTopic, tool.id, topicOptions)

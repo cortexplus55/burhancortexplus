@@ -206,7 +206,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
           }).catch(() => null)
         : null;
 
-    // Sözlü raporu kayıt "completed" olmadan önce yazılır (4 Kasım 2026 canlı, Senaryo A): arka plan notlamada
+    // Sözlü raporu kayıt "completed" olmadan önce yazılır: arka plan notlamada
     // istemci 3 sn'de bir yokluyor; tamamlama ile gradeMeta yazımı arasına düşen yoklama raporsuz "bitti" alıyordu
     // (sonuç "Tam doğru —/3", soru başına geri bildirim yok, inceleme yalnız ipucu). Aşağıdaki yazımlar aynı değer.
     if (oralExtras) {

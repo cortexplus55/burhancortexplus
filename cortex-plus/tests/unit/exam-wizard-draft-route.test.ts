@@ -51,7 +51,7 @@ const started = {
   modality: "auto",
   equalFocus: true,
   focusTopics: [],
-  materials: [{ id: "doc-1", fileName: "notlar.pdf", sizeBytes: 100, pageCount: 3 }],
+  materials: [{ id: "doc-1", fileName: "belge.pdf", sizeBytes: 100, pageCount: 3 }],
   failedMaterials: [],
   processing: null,
   title: "",

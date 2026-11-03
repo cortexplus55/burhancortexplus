@@ -353,8 +353,8 @@ export function buildPrepProgressView(input: {
 
   // Konu bağı tek kuralla (30 Ekim 2026, `topic-identity.ts`): düğüm konusu kimlikle (belgeli hazırlıkta belge konu
   // düğümü), kaydın konusu önce içeriğin sorduğu konudan (`testedTopic`), sonra kaydın konu satırından. Önceden
-  // düğümün başlığı birebir aranıyordu: "Enflasyon Türleri" için açılan sözlü "Para Politikası"nın düğümünde olduğu
-  // için Para Politikası "3 çözüldü", Enflasyon Türleri "0 çözüldü" yazdı.
+  // düğümün başlığı birebir aranıyordu: "Konu X" için açılan sözlü "Konu Y"nın düğümünde olduğu
+  // için Konu Y "3 çözüldü", Konu X "0 çözüldü" yazdı.
   const refByLabel = new Map((input.topicRefs ?? []).map((ref) => [ref.label, ref]));
   const index = createTopicIndex(
     labels.map((label) => {

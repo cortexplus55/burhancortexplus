@@ -89,8 +89,8 @@ describe("hazırlık adı kapsamı izler", () => {
 
 describe("grup başlığı konuyla aynıysa tek satır", () => {
   it("aynı ad tek konuysa tekrar yok", () => {
-    expect(redundantUnitHeader("9. Sınıf · Mantık", ["9. Sınıf · Mantık"])).toBe(true);
-    expect(redundantUnitHeader("9. Sınıf · Mantık", ["9. Sınıf · Mantık", "Kümeler"])).toBe(false);
+    expect(redundantUnitHeader("9. Sınıf · Örüntü", ["9. Sınıf · Örüntü"])).toBe(true);
+    expect(redundantUnitHeader("9. Sınıf · Örüntü", ["9. Sınıf · Örüntü", "Kümeler"])).toBe(false);
   });
 });
 

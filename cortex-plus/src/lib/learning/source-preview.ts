@@ -12,7 +12,7 @@ export type SourceDocRef = {
   /** Şekil sayfalarının ipucu satırları: kart, değeri anan ekrana yerleşir (Paket H). */
   figureHints?: FigureHintRef[];
   /**
-   * Yalnız yardımcı kaynak olarak derse giren şekil sayfaları (4 Kasım 2026, Senaryo B2): ekran anmadıkça yedek yere
+   * Yalnız yardımcı kaynak olarak derse giren şekil sayfaları: ekran anmadıkça yedek yere
    * konmaz. Yardımcı kaynağın şekli, ders hiç anmadığı hâlde şema kartı oluyordu.
    */
   figureSupportOnly?: number[];

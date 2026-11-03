@@ -95,22 +95,22 @@ const question = (textValue: string, options: string[], correct: string, extra: 
 
 describe("1 · ders: aynı bilgi bir ekranda üç biçimde, aynı tanım iki kez, soru üstteki cümlenin aynısı", () => {
   // Canlıdaki Makroekonomi ekranı: metin, "Ayırt et" kartı, hafıza çivisi, tablo ve karşılaştırma kartı aynı cümleyi söylüyor.
-  const economics = screen("Deflasyon", [
-    text("**Deflasyon**, genel fiyat düzeyinin sürekli düşmesidir. Bir ekonomide fiyatlar aylarca geriler."),
+  const economics = screen("Bolluk", [
+    text("**Bolluk**, genel fiyat düzeyinin sürekli düşmesidir. Bir ekonomide fiyatlar aylarca geriler."),
     {
       type: "exam_trap_card",
       trap: {
-        title: "Deflasyon ile dezenflasyon",
-        wrong: "Enflasyon oranı düşüyorsa deflasyon vardır.",
-        right: "Deflasyon genel fiyat düzeyinin sürekli düşmesidir.",
+        title: "Bolluk ile seyreklik",
+        wrong: "Kıtlık oranı düşüyorsa bolluk vardır.",
+        right: "Bolluk genel fiyat düzeyinin sürekli düşmesidir.",
       },
     } as LessonBlock,
-    { type: "memory_hook_card", hook: { kind: "shortcut", title: "Kısa yol", body: "Deflasyon: genel fiyat düzeyi sürekli düşer." } } as LessonBlock,
+    { type: "memory_hook_card", hook: { kind: "shortcut", title: "Kısa yol", body: "Bolluk: genel fiyat düzeyi sürekli düşer." } } as LessonBlock,
     {
       type: "table",
-      table: { columns: ["Kavram", "Tanım"], rows: [["Deflasyon", "Genel fiyat düzeyinin sürekli düşmesi"], ["Enflasyon", "Genel fiyat düzeyinin sürekli artması"]] },
+      table: { columns: ["Kavram", "Tanım"], rows: [["Bolluk", "Genel fiyat düzeyinin sürekli düşmesi"], ["Kıtlık", "Genel fiyat düzeyinin sürekli artması"]] },
     } as LessonBlock,
-    tfCheck("Deflasyon, genel fiyat düzeyinin sürekli düşmesidir."),
+    tfCheck("Bolluk, genel fiyat düzeyinin sürekli düşmesidir."),
   ]);
 
   it("ekonomi: beş biçim işaretlenir (medium), soru üstteki cümleyi geri soruyor", () => {
@@ -185,17 +185,17 @@ describe("2 · çeldirici doğru cevapla aynı türden (tek cevaplı ders ve tes
     expect(quizVerifySystem("document", undefined, true)).toContain(SAME_KIND_DISTRACTOR_RULE);
   });
 
-  it("ekonomi: endeks sorusunda enflasyon türleri sorulan türden değil (kaynağın tanım cümlesinden)", () => {
+  it("ekonomi: endeks sorusunda kıtlık türleri sorulan türden değil (kaynağın tanım cümlesinden)", () => {
     const context =
       "TÜFE, tüketicilerin satın aldığı mal ve hizmetlerin fiyat değişimini ölçen bir endekstir. " +
       "ÜFE, üreticilerin sattığı malların fiyat değişimini ölçen endekstir. " +
-      "Dezenflasyon, enflasyon oranının düşmesidir. Stagflasyon, durgunluk ile yüksek enflasyonun birlikte görülmesidir.";
+      "Seyreklik, kıtlık oranının düşmesidir. Durgunluk, durgunluk ile yüksek kıtlıkun birlikte görülmesidir.";
     const stem = "Hanehalkının aldığı mal ve hizmetlerdeki fiyat değişimini izlemek için kullanılan endeks hangisidir?";
     expect(askedKind(stem)).toBe("endek");
-    expect(termKind("Dezenflasyon", context)).toBe("düşme");
-    expect(offKindDistractors({ stem, options: ["TÜFE", "ÜFE", "Dezenflasyon", "Stagflasyon"], correctIndex: 0, context })).toEqual([
-      "Dezenflasyon",
-      "Stagflasyon",
+    expect(termKind("Seyreklik", context)).toBe("düşme");
+    expect(offKindDistractors({ stem, options: ["TÜFE", "ÜFE", "Seyreklik", "Durgunluk"], correctIndex: 0, context })).toEqual([
+      "Seyreklik",
+      "Durgunluk",
     ]);
   });
 
@@ -225,23 +225,23 @@ describe("2 · çeldirici doğru cevapla aynı türden (tek cevaplı ders ve tes
   });
 
   it("ölçü kendini doğrulayamazsa susar: tanım yok, genel soru sözcüğü, virgülsüz cümle", () => {
-    const options = ["TÜFE", "ÜFE", "Dezenflasyon", "Stagflasyon"];
+    const options = ["TÜFE", "ÜFE", "Seyreklik", "Durgunluk"];
     expect(offKindDistractors({ stem: "Hangi endeks tüketici fiyatlarını izler?", options, correctIndex: 0, context: "" })).toEqual([]);
     expect(askedKind("Bu durum hangi kavramla açıklanır?")).toBeNull();
     expect(termKind("ÜFE", "ÜFE TÜFE'den daha oynaktır.")).toBeNull();
   });
 
   it("test yapı denetimi kaynakla işaretler; ders yapı denetimi 'medium' yazar", () => {
-    const context = "Dezenflasyon, enflasyon oranının düşmesidir. Stagflasyon, durgunluk ile yüksek enflasyonun birlikte görülmesidir.";
-    const q = question("Tüketici fiyatlarını izleyen endeks hangisidir?", ["Tüketici fiyat endeksi", "Üretici fiyat endeksi", "Dezenflasyon", "Stagflasyon"], "Tüketici fiyat endeksi");
+    const context = "Seyreklik, kıtlık oranının düşmesidir. Durgunluk, durgunluk ile yüksek kıtlıkun birlikte görülmesidir.";
+    const q = question("Tüketici fiyatlarını izleyen endeks hangisidir?", ["Tüketici fiyat endeksi", "Üretici fiyat endeksi", "Seyreklik", "Durgunluk"], "Tüketici fiyat endeksi");
     expect(quizStructureIssues(q, { optionCount: 4, context }).some((issue) => issue.startsWith(OFF_KIND_PREFIX))).toBe(true);
     // Kaynak olmadan da (30 Ekim 2026, canlı Araçlar testi): tür adı ("endeks") doğru cevapta ve bir kardeşinde yazıyor.
     expect(quizStructureIssues(q, { optionCount: 4 }).some((issue) => issue.startsWith(OFF_KIND_PREFIX))).toBe(true);
-    const bare = question("Tüketici fiyatlarını izleyen endeks hangisidir?", ["TÜFE", "ÜFE", "Dezenflasyon", "Stagflasyon"], "TÜFE");
+    const bare = question("Tüketici fiyatlarını izleyen endeks hangisidir?", ["TÜFE", "ÜFE", "Seyreklik", "Durgunluk"], "TÜFE");
     expect(quizStructureIssues(bare, { optionCount: 4 }).some((issue) => issue.startsWith(OFF_KIND_PREFIX))).toBe(false);
     const lessonScreen = screen("Fiyat endeksleri", [
       text("Tüketici fiyat endeksi hanehalkının aldığı malların fiyat değişimini ölçer. Üretici fiyat endeksi üretici fiyatlarını ölçer."),
-      mcqCheck("Tüketici fiyatlarını izleyen endeks hangisidir?", ["Tüketici fiyat endeksi", "Üretici fiyat endeksi", "Dezenflasyon", "Stagflasyon"], 0),
+      mcqCheck("Tüketici fiyatlarını izleyen endeks hangisidir?", ["Tüketici fiyat endeksi", "Üretici fiyat endeksi", "Seyreklik", "Durgunluk"], 0),
     ]);
     const issues = screenStructureIssues(lessonScreen, 1, { runningHeaders: [], pages: [{ page: 3, text: context }], optionCount: 4 });
     expect(issues.find((issue) => issue.problem.startsWith("Çeldirici sorulan türden değil"))?.severity).toBe("medium");
@@ -254,13 +254,13 @@ describe("3 · kartlar: destede aynı bilgi yok, formülün harfleri ayrı kart 
   const card = (front: string, back: string): TeacherCard => ({ front, back });
   // Canlıdaki yol destesi: 1, 2, 6 aynı bilgi; 3 ve 4 aynı bilgi.
   const economics = [
-    card("Enflasyon nedir?", "Genel fiyat düzeyinin sürekli artması"),
-    card("Genel fiyat düzeyinin sürekli artmasına ne ad verilir?", "Enflasyon"),
-    card("Deflasyon nedir?", "Genel fiyat düzeyinin sürekli düşmesi"),
-    card("Genel fiyat düzeyinin sürekli düşmesine ne denir?", "Deflasyon"),
-    card("Dezenflasyon nedir?", "Enflasyon oranının düşmesi"),
-    card("Fiyatlar genel düzeyindeki sürekli artış hangi kavramla açıklanır?", "Enflasyon"),
-    card("Hiperenflasyon için kullanılan ölçüt nedir?", "Aylık enflasyonun %50'yi aşması"),
+    card("Kıtlık nedir?", "Genel fiyat düzeyinin sürekli artması"),
+    card("Genel fiyat düzeyinin sürekli artmasına ne ad verilir?", "Kıtlık"),
+    card("Bolluk nedir?", "Genel fiyat düzeyinin sürekli düşmesi"),
+    card("Genel fiyat düzeyinin sürekli düşmesine ne denir?", "Bolluk"),
+    card("Seyreklik nedir?", "Kıtlık oranının düşmesi"),
+    card("Fiyatlar genel düzeyindeki sürekli artış hangi kavramla açıklanır?", "Kıtlık"),
+    card("Hiperkıtlık için kullanılan ölçüt nedir?", "Aylık kıtlıkun %50'yi aşması"),
   ];
 
   it("ekonomi: ters çevrilmiş kart ve aynı cevaplı kart aynı bilgidir; kardeş kavramlar ayrıdır", () => {
@@ -293,7 +293,7 @@ describe("3 · kartlar: destede aynı bilgi yok, formülün harfleri ayrı kart 
     expect(sameCardFact(card("Mitozun sonunda kaç hücre oluşur?", "İki özdeş hücre"), card("Mayozun sonunda kaç hücre oluşur?", "Dört hücre"))).toBe(false);
     expect(sameCardFact(card("Tanzimat Fermanı hangi yıl ilan edildi?", "1839"), card("Islahat Fermanı hangi yıl ilan edildi?", "1856"))).toBe(false);
     expect(
-      sameCardFact(card("Enflasyon hedefini kim belirler?", "Merkez bankası"), card("Para politikasını kim yürütür?", "Merkez bankası")),
+      sameCardFact(card("Kıtlık hedefini kim belirler?", "Merkez bankası"), card("Para politikasını kim yürütür?", "Merkez bankası")),
     ).toBe(false);
   });
 
@@ -301,21 +301,21 @@ describe("3 · kartlar: destede aynı bilgi yok, formülün harfleri ayrı kart 
     const prompts: string[] = [];
     let call = 0;
     const second = [
-      card("Durgunluk ile yüksek enflasyonun birlikte görülmesine ne denir?", "Stagflasyon"),
-      card("Enflasyonun reel faize etkisi nedir?", "Reel faizi düşürür"),
-      card("Talep enflasyonunun kaynağı nedir?", "Toplam talebin kapasiteyi aşması"),
+      card("Durgunluk ile yüksek kıtlıkun birlikte görülmesine ne denir?", "Durgunluk"),
+      card("Kıtlıkun reel faize etkisi nedir?", "Reel faizi düşürür"),
+      card("Talep kıtlıkunun kaynağı nedir?", "Toplam talebin kapasiteyi aşması"),
     ];
     const ask = vi.fn(async (_system: string, user: string) => {
       prompts.push(user);
       return { cards: call++ === 0 ? economics : second };
     });
-    const loop = await teacherCardsLoop(ask, { topicLabel: "Enflasyon", prepTitle: "Makroekonomi", pages: [{ page: 2, text: "…" }], count: 6 });
+    const loop = await teacherCardsLoop(ask, { topicLabel: "Kıtlık", prepTitle: "Makroekonomi", pages: [{ page: 2, text: "…" }], count: 6 });
     expect(loop.cards).toHaveLength(6);
     for (let i = 0; i < loop.cards.length; i += 1) {
       for (let j = i + 1; j < loop.cards.length; j += 1) expect(sameCardFact(loop.cards[i]!, loop.cards[j]!)).toBe(false);
     }
     expect(loop.rejected.filter((row) => /aynı bilgi/.test(row.problems[0] ?? ""))).toHaveLength(3);
-    expect(prompts[1]).toContain("Enflasyon nedir?");
+    expect(prompts[1]).toContain("Kıtlık nedir?");
     expect(mergeDistinctCards([economics[0]!], [economics[1]!, economics[2]!], 3)).toEqual([economics[0], economics[2]]);
     for (const route of ["src/app/api/learning/exam-prep/node/route.ts", "src/app/api/learning/flashcards/generate/route.ts"]) {
       expect(read(route)).toContain("mergeDistinctCards(");
@@ -340,9 +340,9 @@ describe("4 · doğru/yanlış: aynı terimin iki tanımı çifttir", () => {
     misconceptionTag: `etiket ${textValue.length}`,
   });
 
-  it("canlı: 'Deflasyon … düşmesidir' (D) ile 'Deflasyon, enflasyon oranının düşmesidir' (Y) çifttir", () => {
-    const five = tf("Deflasyon genel fiyat düzeyinin sürekli düşmesidir.", true);
-    const six = tf("Deflasyon, enflasyon oranının düşmesidir.", false, "Enflasyon oranının düşmesi dezenflasyondur.");
+  it("canlı: 'Bolluk … düşmesidir' (D) ile 'Bolluk, kıtlık oranının düşmesidir' (Y) çifttir", () => {
+    const five = tf("Bolluk genel fiyat düzeyinin sürekli düşmesidir.", true);
+    const six = tf("Bolluk, kıtlık oranının düşmesidir.", false, "Kıtlık oranının düşmesi seyreklikdur.");
     // Kök neden: eski ölçü bütün cümlenin anahtarlarına bakıyordu; ortak anahtar küçük kümenin yarısı (eşik %75).
     const share = (left: string, right: string) => {
       const a = factKeys(left);
@@ -372,7 +372,7 @@ describe("4 · doğru/yanlış: aynı terimin iki tanımı çifttir", () => {
     // Biri tanım değil (etki, sahip olma) ya da özne genel bir niteleyici: ayrı bilgi.
     expect(sameTrueFalseFact(tf("Mitokondri hücrenin enerji üretim merkezidir.", true), tf("Mitokondri kendi DNA'sına sahiptir.", true))).toBe(false);
     expect(
-      sameTrueFalseFact(tf("Enflasyon, paranın satın alma gücünü azaltır.", true), tf("Enflasyon, genel fiyat düzeyinin sürekli artmasıdır.", true)),
+      sameTrueFalseFact(tf("Kıtlık, paranın satın alma gücünü azaltır.", true), tf("Kıtlık, genel fiyat düzeyinin sürekli artmasıdır.", true)),
     ).toBe(false);
     expect(sameDefinedSubject("Normal doğum, bebeğin vajinal yoldan çıkmasıdır.", "Normal nabız kalbin düzenli atmasıdır.")).toBe(false);
   });
@@ -389,7 +389,7 @@ describe("4 · doğru/yanlış: aynı terimin iki tanımı çifttir", () => {
 describe("5 · testin bütünü: aynı cevap, birinin cevabı öbürünün doğru şıkkında, aynı kalıp ve konu", () => {
   const economics = [
     question("Miktar teorisine göre hangisi doğrudur?", ["Para arzındaki artış fiyatlar genel düzeyini artırır", "Paranın dolaşım hızı her yıl iki katına çıkar", "Reel gelir para arzına eşittir", "Fiyatlar para arzından bağımsızdır"], "Para arzındaki artış fiyatlar genel düzeyini artırır"),
-    question("Dezenflasyon hangi durumu anlatır?", ["Enflasyon oranının düşmesi", "Fiyatların sürekli düşmesi", "Durgunluk", "Hiperenflasyon"], "Enflasyon oranının düşmesi"),
+    question("Seyreklik hangi durumu anlatır?", ["Kıtlık oranının düşmesi", "Fiyatların sürekli düşmesi", "Durgunluk", "Hiperkıtlık"], "Kıtlık oranının düşmesi"),
     question("Miktar teorisine göre para arzı artarsa fiyatlar genel düzeyi nasıl değişir?", ["Artar", "Azalır", "Değişmez", "Önce azalır sonra artar"], "Artar"),
   ];
 
@@ -412,8 +412,8 @@ describe("5 · testin bütünü: aynı cevap, birinin cevabı öbürünün doğr
     ];
     expect(questionConflict(scenarios[0]!, scenarios[1]!, 1)).toBeNull();
     const frame = [
-      question("Toplam talebin üretim kapasitesini aşması sonucu oluşan fiyat artışı hangi enflasyon türüdür?", ["Talep enflasyonu", "Maliyet enflasyonu", "Yapısal enflasyon", "Hiperenflasyon"], "Talep enflasyonu"),
-      question("Talebin üretim kapasitesini aştığı bir ekonomide görülen fiyat artışı hangi enflasyon türüdür?", ["Maliyet enflasyonu", "Talep enflasyonu", "Ithal enflasyon", "Stagflasyon"], "Talep enflasyonu"),
+      question("Toplam talebin üretim kapasitesini aşması sonucu oluşan fiyat artışı hangi kıtlık türüdür?", ["Talep kıtlıku", "Maliyet kıtlıku", "Yapısal kıtlık", "Hiperkıtlık"], "Talep kıtlıku"),
+      question("Talebin üretim kapasitesini aştığı bir ekonomide görülen fiyat artışı hangi kıtlık türüdür?", ["Maliyet kıtlıku", "Talep kıtlıku", "Ithal kıtlık", "Durgunluk"], "Talep kıtlıku"),
     ];
     expect(questionConflict(frame[0]!, frame[1]!, 1)).not.toBeNull();
     // Aynı kalıp, farklı durum ve farklı cevap: serbest.
@@ -461,7 +461,7 @@ describe("5 · testin bütünü: aynı cevap, birinin cevabı öbürünün doğr
 describe("6 · yazılı deneme S4: kökün çok sözcüklü öncülü doğru şıkkın özü", () => {
   // Canlıdaki soru (practice_exam_questions, sort_order 3), aynen.
   const live = question(
-    "Bir ekonomide tarımsal verimsizlik sürerken fiyatlar genel düzeyi yükseliyor. Bu enflasyonun temel kaynağı hangi gelişmedir?",
+    "Bir ekonomide tarımsal verimsizlik sürerken fiyatlar genel düzeyi yükseliyor. Bu kıtlıkun temel kaynağı hangi gelişmedir?",
     [
       "Toplam talebin üretim kapasitesinden hızlı artması",
       "Petrol fiyatlarının yükselmesi",
@@ -519,16 +519,16 @@ describe("6 · yazılı deneme S4: kökün çok sözcüklü öncülü doğru ş�
 
   it("döngü (yazılı deneme kipi) soruyu eler; sayı eksik kalsa da kurtarma onu geri koymaz", async () => {
     const good = [
-      question("Petrol fiyatı yükselince üretim maliyeti artan bir ekonomide görülen enflasyon hangisidir?", ["Maliyet enflasyonu", "Talep enflasyonu", "Yapısal enflasyon", "Dezenflasyon", "Deflasyon"], "Maliyet enflasyonu"),
+      question("Petrol fiyatı yükselince üretim maliyeti artan bir ekonomide görülen kıtlık hangisidir?", ["Maliyet kıtlıku", "Talep kıtlıku", "Yapısal kıtlık", "Seyreklik", "Bolluk"], "Maliyet kıtlıku"),
       question("Talebin üretim kapasitesini aştığı dönemde fiyatlar neden yükselir?", ["Mal arzı talebe yetişmez", "Ücretler düşer", "Vergiler kalkar", "İthalat durur", "Faiz sıfırlanır"], "Mal arzı talebe yetişmez"),
     ];
     const draft = { questions: [live, ...good].map((item) => ({ ...item, correct: item.correct[0] })) };
     const { teacherQuizLoop } = await import("@/lib/learning/teacher-quiz-run");
     const loop = await teacherQuizLoop(vi.fn(async () => draft), {
-      topicLabel: "Enflasyon türleri",
+      topicLabel: "Kıtlık türleri",
       prepTitle: "Makroekonomi",
       pages: [],
-      sourceBlock: "Yapısal enflasyon tarımsal verimsizlik gibi kalıcı sorunlardan doğar.",
+      sourceBlock: "Yapısal kıtlık tarımsal verimsizlik gibi kalıcı sorunlardan doğar.",
       count: 3,
       rephrase: true,
       optionCount: 5,
@@ -595,7 +595,7 @@ describe("7 · eşik şıkları: aynı sayı yalın ve yönlü iki şık olmaz",
     expect(thresholdTwinOptions(["Aylık %25", "Aylık %50", "Aylık %50'nin üzeri", "Yıllık %50"])).toEqual(["Aylık %50", "Aylık %50'nin üzeri"]);
     const issues = singleAnswerIntegrityIssues({
       type: "mcq",
-      prompt: "Hiperenflasyonun ölçütü fiyatların hangi oranı aşmasıdır?",
+      prompt: "Hiperkıtlıkun ölçütü fiyatların hangi oranı aşmasıdır?",
       options: ["Aylık %25", "Aylık %50", "Aylık %50'nin üzeri", "Yıllık %50"],
       answerIndex: 2,
     });

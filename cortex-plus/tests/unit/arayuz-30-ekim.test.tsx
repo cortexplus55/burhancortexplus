@@ -24,17 +24,17 @@ describe("arayüz kusurları (30 Ekim 2026, canlı tur)", () => {
         placeholder="Konu"
         submitLabel="Testi başlat"
         creditCost={null}
-        suggestions={["Belgenin tamamı", "Enflasyon"]}
+        suggestions={["Belgenin tamamı", "Kıtlık"]}
         onSubmit={onSubmit}
       />,
     );
-    const chip = screen.getByRole("button", { name: "Enflasyon" });
+    const chip = screen.getByRole("button", { name: "Kıtlık" });
     fireEvent.click(chip);
     expect(onSubmit).not.toHaveBeenCalled();
-    expect((screen.getByLabelText("Konu") as HTMLInputElement).value).toBe("Enflasyon");
+    expect((screen.getByLabelText("Konu") as HTMLInputElement).value).toBe("Kıtlık");
     expect(chip.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Testi başlat" }));
-    expect(onSubmit).toHaveBeenCalledWith("Enflasyon");
+    expect(onSubmit).toHaveBeenCalledWith("Kıtlık");
   });
 
   it("Araçlar podcast'i yalnız konuşan sesleri gösterir", () => {
@@ -45,10 +45,10 @@ describe("arayüz kusurları (30 Ekim 2026, canlı tur)", () => {
   });
 
   it("yazılı deneme: hesap sorusu adım ister, tanım sorusu düzenli açıklama; puan bir kez yazar", () => {
-    expect(openAnswerHint("Yıllık enflasyon %40 ise fiyat endeksindeki artışı hesaplayınız.")).toBe(
+    expect(openAnswerHint("Yıllık kıtlık %40 ise fiyat endeksindeki artışı hesaplayınız.")).toBe(
       "Adım adım yaz; ara sonuçlarını göster.",
     );
-    expect(openAnswerHint("Stagflasyon kavramını açıklayınız.")).toBe("Kendi cümlelerinle, ana noktaları sırayla yaz.");
+    expect(openAnswerHint("Durgunluk kavramını açıklayınız.")).toBe("Kendi cümlelerinle, ana noktaları sırayla yaz.");
     expect(questionTypeChip("open")).toBe("Klasik");
     expect(read("src/components/parity/exam-runner.tsx")).toContain("{questionTypeChip(type)}");
   });

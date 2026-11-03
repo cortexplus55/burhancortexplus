@@ -14,7 +14,7 @@ describe("path backfill", () => {
         dayIndex: 5,
         sortOrder: 5,
         status: "ready",
-        sessionMeta: { topicTitle: "Basınç", sourcePages: [2] },
+        sessionMeta: { topicTitle: "Akım", sourcePages: [2] },
       },
       { id: "f", kind: "flashcards", title: "Kartlar", dayIndex: 6, sortOrder: 6, status: "locked" },
     ]);
@@ -25,7 +25,7 @@ describe("path backfill", () => {
     expect(plan.inserts.map((row) => row.kind)).toEqual(["focused", "final_check", "readiness"]);
     expect(plan.inserts.find((row) => row.kind === "focused")?.status).toBe("ready");
     expect(plan.inserts.find((row) => row.kind === "focused")?.sessionMeta).toMatchObject({
-      topicTitle: "Basınç",
+      topicTitle: "Akım",
     });
     expect(plan.inserts.find((row) => row.kind === "readiness")?.sortOrder).toBeGreaterThan(
       plan.inserts.find((row) => row.kind === "final_check")!.sortOrder,

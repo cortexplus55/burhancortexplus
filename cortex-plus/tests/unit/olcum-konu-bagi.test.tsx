@@ -31,9 +31,9 @@ import { examPrepLessonRewriteHref, opensSavedLesson } from "@/lib/learning/exam
 
 /*
   Ölçme ve konu bağı (30 Ekim 2026, canlı tur: Makroekonomi hazırlığı). Belirtiler ve kök nedenleri:
-  1. "Enflasyon Türleri" için açılan sözlü, "Para Politikası"nın sözlü adımında `?konu=` ile açıldı (hub konunun kendi
+  1. "Kıtlık Türleri" için açılan sözlü, "Kaynak Yönetimi"nın sözlü adımında `?konu=` ile açıldı (hub konunun kendi
      düğümü yoksa türün ilk düğümüne düşüyordu); sözlü yeniden hedeflenmediği için kaynak hazırlık adıyla aranıp sorular
-     üç konudan geldi; kayıt Para Politikası'na, kanıt "Enflasyon Türleri"ne yazıldı.
+     üç konudan geldi; kayıt Kaynak Yönetimi'na, kanıt "Kıtlık Türleri"ne yazıldı.
   2. %88 alan cevap ve cevapsız soru "Bilgi eksikleri"ne düştü; başlık öğrencinin ham yazısıydı.
   3. Kart oturumu 10 kart gösterdi (dersin kaçırılan 2 sorusu eklenmişti), not kayıttaki 8 kartla verildi: 8/10 ↔ 6/8.
   4. İlerleme "çözüldü"yü düğüm başlığına göre etkinlik kayıtlarından sayıyordu; kapsam satırı yoktu; kartlarla tekrar
@@ -57,15 +57,15 @@ const read = (path: string) => readSource(path).replace(/\r\n/g, "\n");
 
 describe("tek konu kimliği: kimlik önce, ad yalnız kimlik yoksa", () => {
   const rows = [
-    { id: "row-enf", label: "Enflasyon Türleri", documentTopicNodeId: "doc-enf" },
-    { id: "row-para", label: "Para Politikası", documentTopicNodeId: "doc-para" },
+    { id: "row-enf", label: "Kıtlık Türleri", documentTopicNodeId: "doc-enf" },
+    { id: "row-para", label: "Kaynak Yönetimi", documentTopicNodeId: "doc-para" },
     { id: "row-sto", label: "Stokiyometri", documentTopicNodeId: null },
   ];
 
   it("düğüm belge konu düğümünü, konu satırı kendi kimliğini taşısa da aynı konudur", () => {
-    expect(nodeOnTopic({ topicId: "doc-enf", topicTitle: "Enflasyon Türleri" }, { id: "row-enf", documentTopicNodeId: "doc-enf" })).toBe(true);
+    expect(nodeOnTopic({ topicId: "doc-enf", topicTitle: "Kıtlık Türleri" }, { id: "row-enf", documentTopicNodeId: "doc-enf" })).toBe(true);
     // İki tarafta kimlik var ve tutmuyor: ad aynı olsa da başka konu (ad tahmini kimliği ezmez).
-    expect(nodeOnTopic({ topicId: "doc-para", topicTitle: "Enflasyon Türleri" }, { id: "row-enf", documentTopicNodeId: "doc-enf" })).toBe(false);
+    expect(nodeOnTopic({ topicId: "doc-para", topicTitle: "Kıtlık Türleri" }, { id: "row-enf", documentTopicNodeId: "doc-enf" })).toBe(false);
     // Kimlik bir tarafta yoksa ad: birebir ya da uzantı.
     expect(sameTopic({ label: "Stokiyometri" }, { id: "x", label: "Stokiyometri: sınırlayıcı bileşen" })).toBe(true);
     expect(sameTopic({ label: "Gazlar" }, { id: "x", label: "Stokiyometri" })).toBe(false);
@@ -75,7 +75,7 @@ describe("tek konu kimliği: kimlik önce, ad yalnız kimlik yoksa", () => {
     const index = createTopicIndex(rows);
     expect(index.rowFor({ id: "doc-para" })?.id).toBe("row-para");
     expect(index.rowFor({ id: "row-para" })?.id).toBe("row-para");
-    expect(index.rowFor("enflasyon türleri")?.id).toBe("row-enf");
+    expect(index.rowFor("kıtlık türleri")?.id).toBe("row-enf");
     // Bayat kimlik ada düşer.
     expect(index.rowFor({ id: "silinmis", label: "Stokiyometri" })?.id).toBe("row-sto");
     const tarih = createTopicIndex([
@@ -102,19 +102,19 @@ function ref(id: string, kind: string, status: string, topicId: string, topicTit
 describe("hub ve seçici: konunun kendi düğümü, yoksa kurulur — başka konunun adımı açılmaz", () => {
   // Belgeli hazırlık: düğümler belge konu düğümünü taşır.
   const macro = [
-    ref("les-enf", "lesson", "done", "doc-enf", "Enflasyon Türleri", 0),
-    ref("oral-para", "oral", "locked", "doc-para", "Para Politikası", 1),
-    ref("quiz-para", "quiz", "locked", "doc-para", "Para Politikası", 2),
+    ref("les-enf", "lesson", "done", "doc-enf", "Kıtlık Türleri", 0),
+    ref("oral-para", "oral", "locked", "doc-para", "Kaynak Yönetimi", 1),
+    ref("quiz-para", "quiz", "locked", "doc-para", "Kaynak Yönetimi", 2),
   ];
-  const enflasyon = { id: "row-enf", documentTopicNodeId: "doc-enf", label: "Enflasyon Türleri" };
+  const kıtlık = { id: "row-enf", documentTopicNodeId: "doc-enf", label: "Kıtlık Türleri" };
 
-  it("sözlüsü olmayan konuda 'create' döner; Para Politikası'nın sözlüsü açılmaz", () => {
-    const pick = freeActivityPick(macro, "prep", enflasyon, "oral");
-    expect(pick).toMatchObject({ ok: true, kind: "create", topicId: "row-enf", topicLabel: "Enflasyon Türleri" });
+  it("sözlüsü olmayan konuda 'create' döner; Kaynak Yönetimi'nın sözlüsü açılmaz", () => {
+    const pick = freeActivityPick(macro, "prep", kıtlık, "oral");
+    expect(pick).toMatchObject({ ok: true, kind: "create", topicId: "row-enf", topicLabel: "Kıtlık Türleri" });
     // Kendi düğümü varsa (başlığı farklı yazılmış olsa da) kimlikle bulunur.
-    const own = [...macro, ref("oral-enf", "oral", "locked", "doc-enf", "Enflasyon türleri: talep ve maliyet", 3)];
-    expect(freeActivityPick(own, "prep", enflasyon, "oral")).toMatchObject({ kind: "node", nodeId: "oral-enf" });
-    expect(resolveStudyToolNode(own, "oral", enflasyon)?.id).toBe("oral-enf");
+    const own = [...macro, ref("oral-enf", "oral", "locked", "doc-enf", "Kıtlık türleri: talep ve maliyet", 3)];
+    expect(freeActivityPick(own, "prep", kıtlık, "oral")).toMatchObject({ kind: "node", nodeId: "oral-enf" });
+    expect(resolveStudyToolNode(own, "oral", kıtlık)?.id).toBe("oral-enf");
   });
 
   it("yeni adım konunun son adımının arkasına, belge konu düğümü kimliğiyle", () => {
@@ -130,9 +130,9 @@ describe("hub ve seçici: konunun kendi düğümü, yoksa kurulur — başka kon
   });
 
   it("sözlüden sonraki önerilen pratik sorulan konudan (kimlikle)", () => {
-    const own = [...macro, ref("quiz-enf", "quiz", "locked", "doc-enf", "Enflasyon Türleri", 4)];
-    expect(pickPracticeNodeId(own, enflasyon)).toBe("quiz-enf");
-    expect(pickPracticeNodeId(own, { id: "row-para", documentTopicNodeId: "doc-para", label: "Para Politikası" })).toBe("quiz-para");
+    const own = [...macro, ref("quiz-enf", "quiz", "locked", "doc-enf", "Kıtlık Türleri", 4)];
+    expect(pickPracticeNodeId(own, kıtlık)).toBe("quiz-enf");
+    expect(pickPracticeNodeId(own, { id: "row-para", documentTopicNodeId: "doc-para", label: "Kaynak Yönetimi" })).toBe("quiz-para");
   });
 
   it("hub: sözlüsü olmayan konu seçilince kurulum ucunu konu kimliğiyle çağırır, başka konunun adımını açmaz", async () => {
@@ -184,7 +184,7 @@ describe("hub ve seçici: konunun kendi düğümü, yoksa kurulur — başka kon
 function oralItem(over: Partial<OralItemGrade>): OralItemGrade {
   return {
     index: 0,
-    question: "Talep enflasyonu nasıl oluşur?",
+    question: "Talep kıtlıku nasıl oluşur?",
     answer: "Toplam talep arzı aşınca fiyatlar artar",
     ratio: 1,
     verdict: "dogru",
@@ -195,7 +195,7 @@ function oralItem(over: Partial<OralItemGrade>): OralItemGrade {
     citation: null,
     dontKnow: false,
     numericIssue: null,
-    objective: "Talep enflasyonunun nedeni",
+    objective: "Talep kıtlıkunun nedeni",
     ...over,
   };
 }
@@ -233,9 +233,9 @@ describe("bilgi eksikleri: yeterli cevap eksik değil, boş soru ham yazıyla ya
     const reviews = reviewDraftsFromAttempt({
       attemptId: "a1",
       kind: "oral",
-      payload: { type: "oral", testedTopic: "Para Politikası" },
+      payload: { type: "oral", testedTopic: "Kaynak Yönetimi" },
       answers: {},
-      topicLabel: "Enflasyon Türleri",
+      topicLabel: "Kıtlık Türleri",
       oralReport: oralReport(items),
     });
     expect(reviews.map((r) => (r.item as { front?: string }).front)).toEqual([
@@ -243,28 +243,28 @@ describe("bilgi eksikleri: yeterli cevap eksik değil, boş soru ham yazıyla ya
       "Osmanlı'da tımar sistemi nedir?",
     ]);
     // Konu içeriğin sorduğu konudan, düğümün konusundan değil.
-    expect(reviews.every((r) => r.topicLabel === "Para Politikası")).toBe(true);
+    expect(reviews.every((r) => r.topicLabel === "Kaynak Yönetimi")).toBe(true);
   });
 
   it("kanıtta yeterli cevap doğru sayılır; birden çok konuyu kapsayan sözlü tek konuya yazılmaz", () => {
-    const payload = { type: "oral", testedTopic: "Enflasyon Türleri", questions: items.map((item) => ({ prompt: item.question })), gradeMeta: oralReport(items) };
+    const payload = { type: "oral", testedTopic: "Kıtlık Türleri", questions: items.map((item) => ({ prompt: item.question })), gradeMeta: oralReport(items) };
     const answers = Object.fromEntries(items.map((item) => [String(item.index), item.answer]));
-    const evidence = extractAnswerEvidence({ kind: "oral", payload, answers, topicLabel: "Para Politikası", isFirstAttempt: true });
+    const evidence = extractAnswerEvidence({ kind: "oral", payload, answers, topicLabel: "Kaynak Yönetimi", isFirstAttempt: true });
     expect(evidence.map((row) => row.correct)).toEqual([true, false, false, false]);
-    expect(evidence.every((row) => row.topicKey === "enflasyon türleri")).toBe(true);
+    expect(evidence.every((row) => row.topicKey === "kıtlık türleri")).toBe(true);
     const spans = { ...payload, scope: "topics", testedTopic: undefined };
-    expect(extractAnswerEvidence({ kind: "oral", payload: spans, answers, topicLabel: "Para Politikası", isFirstAttempt: true })).toEqual([]);
-    const misconceptions = extractMisconceptions({ kind: "oral", payload: spans, answers, topicLabel: "Para Politikası" });
+    expect(extractAnswerEvidence({ kind: "oral", payload: spans, answers, topicLabel: "Kaynak Yönetimi", isFirstAttempt: true })).toEqual([]);
+    const misconceptions = extractMisconceptions({ kind: "oral", payload: spans, answers, topicLabel: "Kaynak Yönetimi" });
     expect(misconceptions.length).toBeGreaterThan(0);
     expect(misconceptions.every((row) => row.topicLabel === null)).toBe(true);
   });
 
   it("eski sözlü satırı okunur: başlık soru, öğrencinin ham yazısı ve 'Bilmiyorum' görünmez", () => {
     expect(
-      readableGap({ claim: "talep enflasyon toplm talebin artmasi", topicLabel: "enflasyon türleri", detail: "Talep enflasyonu nasıl oluşur?", sourceKind: "oral" }, (label) =>
-        label === "enflasyon türleri" ? "Enflasyon Türleri" : label,
+      readableGap({ claim: "talep kıtlık toplm talebin artmasi", topicLabel: "kıtlık türleri", detail: "Talep kıtlıku nasıl oluşur?", sourceKind: "oral" }, (label) =>
+        label === "kıtlık türleri" ? "Kıtlık Türleri" : label,
       ),
-    ).toEqual({ claim: "Talep enflasyonu nasıl oluşur?", topicLabel: "Enflasyon Türleri", detail: null, sourceKind: "oral" });
+    ).toEqual({ claim: "Talep kıtlıku nasıl oluşur?", topicLabel: "Kıtlık Türleri", detail: null, sourceKind: "oral" });
     expect(readableGap({ claim: "Bilmiyorum", topicLabel: null, detail: "Mol nedir?", sourceKind: "oral" }).claim).toBe("Mol nedir?");
     // Test satırı değişmez.
     expect(readableGap({ claim: "Ters fonksiyon", topicLabel: "Fonksiyonlar", detail: "B", sourceKind: "quiz" }).claim).toBe("Ters fonksiyon");
@@ -272,7 +272,7 @@ describe("bilgi eksikleri: yeterli cevap eksik değil, boş soru ham yazıyla ya
 });
 
 describe("kartlar: oturum, not ve sonuç aynı listeden", () => {
-  const generated = Array.from({ length: 8 }, (_, i) => ({ front: `Kart ${i + 1}: Cagan tanımı ${i}`, back: "…" }));
+  const generated = Array.from({ length: 8 }, (_, i) => ({ front: `Kart ${i + 1}: Kişi tanımı ${i}`, back: "…" }));
   const review = [
     { front: "Dersin kaçırılan sorusu: TÜFE hizmetleri kapsar mı?", back: "Evet." },
     { front: "Dersin kaçırılan sorusu: Yİ-ÜFE neyi ölçer?", back: "Üretici fiyatları." },
@@ -337,26 +337,26 @@ function snap(topicKey: string, total: number, correct: number): TopicMasterySna
 }
 
 describe("İlerleme: kanıt doğru konuya, kapsam görünür, ders yalnız ders", () => {
-  const labels = ["Enflasyon Türleri", "Para Politikası", "Miktar Teorisi"];
+  const labels = ["Kıtlık Türleri", "Kaynak Yönetimi", "Miktar Teorisi"];
   const refs = [
-    { id: "row-enf", label: "Enflasyon Türleri", documentTopicNodeId: "doc-enf" },
-    { id: "row-para", label: "Para Politikası", documentTopicNodeId: "doc-para" },
+    { id: "row-enf", label: "Kıtlık Türleri", documentTopicNodeId: "doc-enf" },
+    { id: "row-para", label: "Kaynak Yönetimi", documentTopicNodeId: "doc-para" },
     { id: "row-mik", label: "Miktar Teorisi", documentTopicNodeId: "doc-mik" },
   ];
   const nodes: ProgressNode[] = [
-    { id: "les-enf", kind: "lesson", title: "Ders", status: "done", sessionMeta: { topicId: "doc-enf", topicTitle: "Enflasyon türleri ve kavramlar" } },
-    { id: "rev-enf", kind: "spaced", title: "Kartlarla tekrar", status: "done", sessionMeta: { topicId: "doc-enf", topicTitle: "Enflasyon Türleri" } },
-    { id: "oral-para", kind: "oral", title: "Sözlü", status: "done", sessionMeta: { topicId: "doc-para", topicTitle: "Para Politikası" } },
-    { id: "les-para", kind: "lesson", title: "Ders", status: "locked", sessionMeta: { topicId: "doc-para", topicTitle: "Para Politikası" } },
+    { id: "les-enf", kind: "lesson", title: "Ders", status: "done", sessionMeta: { topicId: "doc-enf", topicTitle: "Kıtlık türleri ve kavramlar" } },
+    { id: "rev-enf", kind: "spaced", title: "Kartlarla tekrar", status: "done", sessionMeta: { topicId: "doc-enf", topicTitle: "Kıtlık Türleri" } },
+    { id: "oral-para", kind: "oral", title: "Sözlü", status: "done", sessionMeta: { topicId: "doc-para", topicTitle: "Kaynak Yönetimi" } },
+    { id: "les-para", kind: "lesson", title: "Ders", status: "locked", sessionMeta: { topicId: "doc-para", topicTitle: "Kaynak Yönetimi" } },
   ];
 
   it("başka konunun düğümünde yapılan sözlü sorulan konuya sayılır; çözülen kanıttan; kapsam ve ders doğru", () => {
-    const mastery = masteryByPlannedTopic(labels, [snap("enflasyon türleri", 3, 1), snap("miktar teorisi", 1, 1), snap("eski yetim anahtar", 5, 5)]);
+    const mastery = masteryByPlannedTopic(labels, [snap("kıtlık türleri", 3, 1), snap("miktar teorisi", 1, 1), snap("eski yetim anahtar", 5, 5)]);
     const view = buildPrepProgressView({
       nodes,
       attempts: [
-        // Canlı tur: sözlü Para Politikası'nın adımında, içerik "Enflasyon Türleri"ni sordu.
-        { nodeId: "oral-para", score: 33, total: 100, createdAt: "2026-10-30T09:00:00Z", topicId: "row-para", testedTopic: "Enflasyon Türleri" },
+        // Canlı tur: sözlü Kaynak Yönetimi'nın adımında, içerik "Kıtlık Türleri"ni sordu.
+        { nodeId: "oral-para", score: 33, total: 100, createdAt: "2026-10-30T09:00:00Z", topicId: "row-para", testedTopic: "Kıtlık Türleri" },
       ],
       topicLabels: labels,
       topicRefs: refs,
@@ -373,13 +373,13 @@ describe("İlerleme: kanıt doğru konuya, kapsam görünür, ders yalnız ders"
       now: new Date("2026-10-30T12:00:00Z"),
     });
     const byLabel = Object.fromEntries(view.topics.map((topic) => [topic.label, topic]));
-    // Kanıttan: Enflasyon Türleri 3 çözüldü (ölçüldü), Para Politikası 0, Miktar Teorisi 1 (denemenin tek sorusu, ölçülmedi).
-    expect(byLabel["Enflasyon Türleri"]).toMatchObject({ solved: 3, state: "needs_work", lessons: 1 });
-    expect(byLabel["Para Politikası"]).toMatchObject({ solved: 0, state: "unmeasured", pct: 0, lessons: 0 });
+    // Kanıttan: Kıtlık Türleri 3 çözüldü (ölçüldü), Kaynak Yönetimi 0, Miktar Teorisi 1 (denemenin tek sorusu, ölçülmedi).
+    expect(byLabel["Kıtlık Türleri"]).toMatchObject({ solved: 3, state: "needs_work", lessons: 1 });
+    expect(byLabel["Kaynak Yönetimi"]).toMatchObject({ solved: 0, state: "unmeasured", pct: 0, lessons: 0 });
     expect(byLabel["Miktar Teorisi"]).toMatchObject({ solved: 1, state: "unmeasured", pct: 0 });
     // Haftalık tablo da sorulan konuya.
-    expect(view.weeks.rows.find((row) => row.label === "Enflasyon Türleri")?.counts.at(-1)).toBe(1);
-    expect(view.weeks.rows.find((row) => row.label === "Para Politikası")?.counts.at(-1)).toBe(0);
+    expect(view.weeks.rows.find((row) => row.label === "Kıtlık Türleri")?.counts.at(-1)).toBe(1);
+    expect(view.weeks.rows.find((row) => row.label === "Kaynak Yönetimi")?.counts.at(-1)).toBe(0);
     expect(view.measuredTopics).toBe(1);
     expect(view.coverageText).toBe("1/3 konu ölçüldü");
     // Kartlarla tekrar ders değil: tek ders bitti.

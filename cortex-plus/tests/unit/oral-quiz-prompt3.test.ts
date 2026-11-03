@@ -17,7 +17,7 @@ afterEach(cleanup);
 
 const CHEM_SOURCE = [
   "[s.4] kimya.pdf: 88 g CO2 için mol kütlesi 44 g/mol'dür. Mol sayısı 88 / 44 ile bulunur.",
-  "[s.5] kimya.pdf: 1,5 mol O2 ve mol kütlesi 32 g/mol. Kütle m = n × M bağıntısıyla bulunur.",
+  "[s.5] kimya.pdf: 2,5 mol O2 ve mol kütlesi 32 g/mol. Kütle m = n × M bağıntısıyla bulunur.",
   "[s.6] kimya.pdf: 2Al + 3Cl₂ → 2AlCl₃. Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir; mol / katsayı ile bulunur.",
 ].join("\n");
 
@@ -232,24 +232,24 @@ describe("Q1: optionWhyQualityIssues rejects identical trap reasons", () => {
 });
 
 describe("Q2: explanation must match correct numeric result", () => {
-  it("rejects ungrounded chemistry 24 g claim; wrong result is not left as published", () => {
-    expect(quantityClaimGrounded("1,5 × 32 = 24", CHEM_SOURCE)).toBe(false);
-    expect(quantityClaimGrounded("1,5 × 32 = 48", CHEM_SOURCE)).toBe(true);
+  it("rejects ungrounded chemistry 40 g claim; wrong result is not left as published", () => {
+    expect(quantityClaimGrounded("2,5 × 32 = 40", CHEM_SOURCE)).toBe(false);
+    expect(quantityClaimGrounded("2,5 × 32 = 80", CHEM_SOURCE)).toBe(true);
     const checked = verifyChoiceQuestion(
       choice({
-        text: "1,5 mol O2 kaç gramdır? M = 32 g/mol.",
-        options: ["24 g", "48 g", "32 g", "16 g"],
-        correct: ["48 g"],
-        explanation: "1,5 × 32 = 24 g",
+        text: "2,5 mol O2 kaç gramdır? M = 32 g/mol.",
+        options: ["40 g", "80 g", "32 g", "16 g"],
+        correct: ["80 g"],
+        explanation: "2,5 × 32 = 40 g",
         misconceptionTag: "çarpan",
         needsSolver: false,
       }),
       CHEM_SOURCE,
     );
-    // settleExplanation either drops the question or repairs 24 → 48.
+    // settleExplanation either drops the question or repairs 40 → 80.
     if (checked.status === "keep") {
-      expect(checked.question.explanation ?? "").not.toMatch(/=\s*24/);
-      expect(checked.question.explanation ?? "").toMatch(/48/);
+      expect(checked.question.explanation ?? "").not.toMatch(/=\s*40/);
+      expect(checked.question.explanation ?? "").toMatch(/80/);
     } else {
       expect(checked.status).toBe("drop");
     }

@@ -99,8 +99,8 @@ export type TrueFalseItem = {
 };
 
 /**
- * Doğru/yanlışta çift yok (28 Ekim 2026; 30 Ekim 2026 canlı turda "Deflasyon … düşmesidir" (D) ile "Deflasyon,
- * enflasyon oranının düşmesidir" (Y) aynı sette kaldı: aynı terimin iki tanımı). Yazar ve denetçi bu metni aynen
+ * Doğru/yanlışta çift yok (28 Ekim 2026; 30 Ekim 2026 canlı turda "Terim A … düşmesidir" (D) ile "Terim A,
+ * Kavram oranının düşmesidir" (Y) aynı sette kaldı: aynı terimin iki tanımı). Yazar ve denetçi bu metni aynen
  * okur; kod (`sameTrueFalseFact`) aynı ölçüyle reddeder.
  */
 export const TRUE_FALSE_PAIR_RULE =

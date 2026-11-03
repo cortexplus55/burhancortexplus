@@ -23,6 +23,6 @@ describe("symbol questions, summary leaks, and real-gas precision", () => {
     expect(
       summaryLineProblem("∫ P dV genel sınır işi tanımı, diğerleri yanlış veya özel durumları belirtir."),
     ).toBe("flashcard");
-    expect(summaryLineProblem("Sınır işi, hareketli sınırda basınç-hacim eğrisinin altında kalan alandır.")).toBeNull();
+    expect(summaryLineProblem("Sınır işi, hareketli sınırda akım-hacim eğrisinin altında kalan alandır.")).toBeNull();
   });
 });

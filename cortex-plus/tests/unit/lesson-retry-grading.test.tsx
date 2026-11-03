@@ -270,7 +270,7 @@ describe("B1: retry varyantları paket JSON'unda sızmaz", () => {
 
   it("definition retry: doğru şık + ne ad verilir pakette yok", () => {
     const source =
-      "Doymuş sıvı belirli bir basınçta kaynama başlamak üzere olan sıvıdır. Sıkıştırılmış sıvı T < T_sat(P) koşuludur. Kızgın buhar T > T_sat(P) bölgesindedir.";
+      "Doymuş sıvı belirli bir akımta kaynama başlamak üzere olan sıvıdır. Sıkıştırılmış sıvı T < T_sat(P) koşuludur. Kızgın buhar T > T_sat(P) bölgesindedir.";
     const check: SectionCheck = {
       type: "mcq",
       prompt: "Aşağıdakilerden hangisi doymuş sıvının tanımına uygundur?",
@@ -287,7 +287,7 @@ describe("B1: retry varyantları paket JSON'unda sızmaz", () => {
     expect(retry.prompt.toLocaleLowerCase("tr")).toMatch(/ne ad verilir|hangi/);
     const lesson: LessonV2 = {
       title: "Saf Maddeler",
-      overview: "Fazlar basınç ve sıcaklıkla ayrılır.",
+      overview: "Fazlar akım ve sıcaklıkla ayrılır.",
       sections: [{ heading: "Doymuş sıvı", body: source, check }],
       summary: ["Doymuş sıvı", "Sıkıştırılmış", "Kızgın"],
     };
@@ -299,12 +299,12 @@ describe("B1: retry varyantları paket JSON'unda sızmaz", () => {
   it("trueFalse flip ve shift/rephrase paket sızdırmaz", () => {
     const tf: SectionCheck = {
       type: "trueFalse",
-      prompt: "Mutlak basınç hesaplanırken gösterge basıncı kullanılmalıdır. DOĞRU MU YANLIŞ?",
+      prompt: "Mutlak akım hesaplanırken gösterge basıncı kullanılmalıdır. DOĞRU MU YANLIŞ?",
       options: ["Doğru", "Yanlış"],
       answerIndex: 0,
       explanation: "Gösterge basıncına atmosfer eklenir.",
     };
-    const flipped = reviewQuestionFor(tf as Parameters<typeof reviewQuestionFor>[0], "tr", "Mutlak basınç = gösterge + atmosfer.");
+    const flipped = reviewQuestionFor(tf as Parameters<typeof reviewQuestionFor>[0], "tr", "Mutlak akım = gösterge + atmosfer.");
     expect(flipped.prompt).toMatch(/kullanılmamalıdır|DOĞRU MU/i);
 
     const mcq: SectionCheck = {
@@ -312,17 +312,17 @@ describe("B1: retry varyantları paket JSON'unda sızmaz", () => {
       prompt: "Aşağıdaki ifadelerden hangisi doğrudur?",
       options: ["P = F/A", "P = F·A", "P = A/F", "P = F+A"],
       answerIndex: 0,
-      explanation: "Basınç kuvvetin alana bölümüdür.",
+      explanation: "Akım kuvvetin alana bölümüdür.",
     };
-    const shifted = reviewQuestionFor(mcq as Parameters<typeof reviewQuestionFor>[0], "tr", "Basınç P = F/A bağıntısıyla yazılır.");
+    const shifted = reviewQuestionFor(mcq as Parameters<typeof reviewQuestionFor>[0], "tr", "Akım P = F/A bağıntısıyla yazılır.");
 
     for (const [check, source] of [
-      [tf, "Mutlak basınç = gösterge + atmosfer."] as const,
-      [mcq, "Basınç P = F/A bağıntısıyla yazılır."] as const,
+      [tf, "Mutlak akım = gösterge + atmosfer."] as const,
+      [mcq, "Akım P = F/A bağıntısıyla yazılır."] as const,
     ]) {
       const lesson: LessonV2 = {
-        title: "Basınç",
-        overview: "Basınç tanımı.",
+        title: "Akım",
+        overview: "Akım tanımı.",
         sections: [{ heading: "Tanım", body: source, check }],
         summary: ["P=F/A", "Mutlak", "Gösterge"],
       };

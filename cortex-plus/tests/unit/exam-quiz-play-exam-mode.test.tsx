@@ -8,11 +8,11 @@ afterEach(cleanup);
 
 const questions = [
   {
-    text: "Basınç nedir?",
+    text: "Akım nedir?",
     options: ["Kuvvetin alana oranı", "Yalnızca kuvvet"],
     multi: false,
     correct: ["Kuvvetin alana oranı"],
-    explanation: "Basınç kuvvetin alana bölümüdür.",
+    explanation: "Akım kuvvetin alana bölümüdür.",
   },
 ];
 
@@ -36,7 +36,7 @@ describe("written exam quiz play", () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: /Kuvvetin alana oranı/ }));
     fireEvent.click(screen.getByRole("button", { name: "Sınavı bitir" }));
-    expect(screen.queryByText("Basınç kuvvetin alana bölümüdür.")).toBeNull();
+    expect(screen.queryByText("Akım kuvvetin alana bölümüdür.")).toBeNull();
     expect(screen.queryByText("Harika! Doğru yanıt.")).toBeNull();
     expect(screen.queryByText("Yanıtı Kontrol Et")).toBeNull();
     expect(onContinue).toHaveBeenCalledOnce();

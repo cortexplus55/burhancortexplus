@@ -17,13 +17,13 @@ describe("belgeli podcast hazırlığın öbür konularını anlatmaz, kendi say
   const topic = "Miktar Teorisi ve Fisher'in Değişim Denklemi";
 
   it("satır öbür konuları adıyla sayar, sayfada kalan başlıkları konuya bırakır", () => {
-    const line = prepTopicScopeLine(topic, [topic, "Para Politikasının Amacı ve Politika Duruşları", "Enflasyonun Tanımı"]);
+    const line = prepTopicScopeLine(topic, [topic, "Kaynak Yönetiminın Amacı ve Politika Duruşları", "Kıtlıkun Tanımı"]);
     expect(line).toContain(`«${topic}»`);
-    expect(line).toContain("«Para Politikasının Amacı ve Politika Duruşları», «Enflasyonun Tanımı»");
+    expect(line).toContain("«Kaynak Yönetiminın Amacı ve Politika Duruşları», «Kıtlıkun Tanımı»");
     expect(line).toContain("Sayfalarda kalan öbür bütün başlıklar bu konunun kapsamındadır");
     // Konunun kendisi öbür konular arasında sayılmaz (büyük/küçük harf farkı da).
     expect(line.match(/Miktar Teorisi/g)).toHaveLength(1);
-    expect(prepTopicScopeLine(topic, [topic.toLocaleUpperCase("tr"), "Enflasyonun Tanımı"]).match(/Miktar|MİKTAR/g)).toHaveLength(1);
+    expect(prepTopicScopeLine(topic, [topic.toLocaleUpperCase("tr"), "Kıtlıkun Tanımı"]).match(/Miktar|MİKTAR/g)).toHaveLength(1);
   });
 
   it("öbür konu yoksa satır yok (bütün sayfa bu konunun)", () => {

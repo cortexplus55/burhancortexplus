@@ -203,14 +203,14 @@ describe("Paket B · 3 doğru/yanlış setinde çift ve ters önerme yok", () =>
   it("aynı ayırt edici yanılgı etiketi çifttir; farklı alt bilgiler değildir", () => {
     expect(
       sameTrueFalseFact(
-        tf("Sol ventrikül sistemik dolaşıma kan pompalar.", true, { misconceptionTag: "sağ sol ventrikül karışıklığı" }),
-        tf("Sağ atriyum oksijenli kanı alır.", false, { correctedStatement: "Sol atriyum oksijenli kanı alır.", misconceptionTag: "sağ sol ventrikül karışıklığı" }),
+        tf("Sol odacık sistemik dolaşıma kan pompalar.", true, { misconceptionTag: "sağ sol odacık karışıklığı" }),
+        tf("Sağ atriyum oksijenli kanı alır.", false, { correctedStatement: "Sol atriyum oksijenli kanı alır.", misconceptionTag: "sağ sol odacık karışıklığı" }),
       ),
     ).toBe(true);
     expect(
       sameTrueFalseFact(
-        tf("Sol ventrikül sistemik dolaşıma kan pompalar.", true),
-        tf("Sağ ventrikül pulmoner dolaşıma kan pompalar.", true),
+        tf("Sol odacık sistemik dolaşıma kan pompalar.", true),
+        tf("Sağ odacık pulmoner dolaşıma kan pompalar.", true),
       ),
     ).toBe(false);
     // Sayısı farklı iki bilgi ayrıdır.

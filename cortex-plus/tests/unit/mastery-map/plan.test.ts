@@ -123,15 +123,15 @@ describe("kapasite ve sıra", () => {
       expect(plan.plannedMinutes).toBeLessThanOrEqual(minutes);
     }
   });
-  it("canlı senaryo (10 gün × 30 dk): Mantık tamamen planda, Üçgenler kısmen; Kümeler en sonda", () => {
+  it("canlı senaryo (10 gün × 30 dk): Ünite A tamamen planda, Üçgenler kısmen; Ünite K en sonda", () => {
     for (const answered of [false, true]) {
       const plan = buildPlan(tytScenario(answered).map(buildMapUnit), capacity(10, 30));
-      expect(plan.planned.map((e) => e.unit.title)).toEqual(["Mantık", "Üçgenler"]);
+      expect(plan.planned.map((e) => e.unit.title)).toEqual(["Ünite A", "Üçgenler"]);
       expect(plan.planned[0]!.partial).toBe(false);
       expect(plan.planned[1]!.outcomes).toHaveLength(3);
       expect(plan.ifTime.map((e) => e.unit.title)[0]).toBe("Üçgenler");
-      expect(plan.ifTime.at(-1)!.unit.title).toBe("Kümeler");
-      expect(plan.ifTime.map((e) => e.unit.title)).not.toContain("Mantık");
+      expect(plan.ifTime.at(-1)!.unit.title).toBe("Ünite K");
+      expect(plan.ifTime.map((e) => e.unit.title)).not.toContain("Ünite A");
     }
     const after = buildPlan(tytScenario(true).map(buildMapUnit), capacity(10, 30));
     expect(totalsSentence(after)).toBe("Planın 33 saat 50 dk, senin 5 saatin var.");

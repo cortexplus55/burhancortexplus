@@ -149,7 +149,7 @@ describe("kapı: matematik/fen gösterimi yanlış ret üretmez", () => {
     "Hız 72 km/sa. ise 20 m/sn. olur; kesir olarak 3/4 saat sürer.",
     "İfade $\\frac{x+1}{2} \\ge [3, 4)$ olarak verilir.",
     "Satır içi \\( x \\in [0, 1) \\) ifadesi kullanılır.",
-    "Basınç 2 atm, sıcaklık 25 °C ve derişim 0,1 mol/L dir.",
+    "Akım 2 atm, sıcaklık 25 °C ve derişim 0,1 mol/L dir.",
   ];
   for (const text of ok) it(text, () => expect(garbledReason(text)).toBeNull());
 
