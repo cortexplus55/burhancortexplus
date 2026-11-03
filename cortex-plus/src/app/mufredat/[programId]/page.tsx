@@ -4,6 +4,7 @@ import { MarketingPage } from "@/components/layout/marketing-page";
 import { CURRICULUM, getProgram, programSources } from "@/lib/curriculum/registry";
 import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 import { OfficialLinks } from "@/components/curriculum/official-links";
+import { treeLabelFor, unitPath } from "@/lib/curriculum/seo";
 
 const EXAM_LABEL: Record<string, string> = {
   d1y1: "1. Dönem 1. Ortak Yazılı",
@@ -32,6 +33,11 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
       <p className="mk-eyebrow">
         <Link href="/mufredat">← Tüm programlar</Link>
       </p>
+      {treeLabelFor(program) ? (
+        <p className="mk-card mt-4 p-3 text-sm text-[var(--mk-muted)]" data-testid="tree-label">
+          {treeLabelFor(program)}
+        </p>
+      ) : null}
       {exams.length ? (
         <section className="mk-card mt-6 p-4 text-sm text-[var(--mk-muted)]">
           {exams.map(([key, info]) => (
@@ -46,7 +52,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
       ) : null}
       {program.units.map((unit, unitIndex) => (
         <section key={unit.title} className="mt-8">
-          <h2 className="text-lg font-semibold text-[var(--mk-text)]">{shownUnitTitles[unitIndex] ?? unit.title}</h2>
+          <h2 className="text-lg font-semibold text-[var(--mk-text)]">
+            <Link href={unitPath(program.id, unitIndex)}>{shownUnitTitles[unitIndex] ?? unit.title}</Link>
+          </h2>
           <ul className="mt-3 grid gap-2">
             {unit.outcomes.map((o) => {
               const quotaText = Object.entries(o.quotas)
