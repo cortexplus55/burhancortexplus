@@ -31,6 +31,8 @@ export default async function OutcomePage({ params }: Params) {
   const { program, unit, index, title, outcome, oIndex } = hit;
   const label = treeLabelFor(program);
   const prev = oIndex > 0 ? outcomePath(program.id, index, oIndex - 1) : null;
+  // Etiket sayfanın üstünde zaten gösteriliyor; aynı metin sınırlamalarda tekrar basılmaz.
+  const limitations = outcome.limitations.filter((l) => l.trim() !== label);
   const next = oIndex < unit.outcomes.length - 1 ? outcomePath(program.id, index, oIndex + 1) : null;
   return (
     <MarketingPage title={`${outcome.code} — ${title}`} description={program.label}>
@@ -44,9 +46,9 @@ export default async function OutcomePage({ params }: Params) {
       ) : null}
       <section className="mk-card mt-6 p-4 text-sm" data-testid="outcome-text">
         <p className="text-[var(--mk-text)]">{outcome.text}</p>
-        {outcome.limitations.length ? (
+        {limitations.length ? (
           <ul className="mt-3 list-disc pl-5 text-xs text-[var(--mk-muted)]">
-            {outcome.limitations.map((l, i) => (
+            {limitations.map((l, i) => (
               <li key={i}>{l}</li>
             ))}
           </ul>
