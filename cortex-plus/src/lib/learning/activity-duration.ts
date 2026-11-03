@@ -99,12 +99,22 @@ export function lessonStepCounter(input: {
   building: boolean;
   /** Ekranın ilk mühürlü toplamı; verilirse payda odur, yazılan değişse de değişmez. */
   lockedTotal?: number | null;
+  /**
+   * Yazım sürerken tahmini toplam (yazarın ekran planı ya da ders alt sınırı). 3 Kasım 2026 (canlı: akışta başlık
+   * yalnız "Adım 1" idi): verilirse etiket "1 / ~8"; tahmin hiçbir zaman yazılan + 1'in altına inmez.
+   */
+  estimatedTotal?: number | null;
 }): LessonStepCounter {
   const written = lessonStepTotal(input.writtenSteps);
   if (input.building) {
     // Yazım sürerken bir "hazırlanıyor" adımı daha var: çubuk yazılan + 1'e göre dolar.
     const reach = written + 1;
     const now = Math.min(Math.max(0, input.index) + 1, reach);
+    const est = input.estimatedTotal;
+    if (typeof est === "number" && Number.isFinite(est) && est > 0) {
+      const approx = Math.max(Math.round(est), reach);
+      return { now, max: approx, label: `${now} / ~${approx}`, indeterminate: true };
+    }
     return { now, max: reach, label: `${now}`, indeterminate: true };
   }
   const locked = input.lockedTotal;

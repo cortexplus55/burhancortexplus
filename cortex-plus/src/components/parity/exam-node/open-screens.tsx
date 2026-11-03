@@ -92,7 +92,7 @@ export function SetupScreens({ life }: { life: NodeLifecycle }) {
         <InstantLessonView lesson={instantLesson} />
       ) : stage === "setup" && (loading || autoOpening || (reviewSaved && !generationError)) && kind !== "readiness" ? (
         <NodeGenerationProgress
-          title={reviewSaved ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}
+          title={reviewSaved && !rewriteLesson ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}
           sourceName={sourceName}
           documentFree={!sourceName}
           topic={topicLabel}

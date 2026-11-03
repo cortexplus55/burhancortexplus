@@ -55,8 +55,8 @@ export function WrittenExamResult({ life }: { life: NodeLifecycle }) {
 }
 
 export function ResultScreen({ life }: { life: NodeLifecycle }) {
-  const { prepId, kind, topicId, reviewSaved, rewriteHref, rewriteLesson, resumeEnabled, router, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal } = life;
-  const { rewritePending, setRewritePending } = life;
+  const { prepId, kind, topicId, rewriteHref, beginRewrite, resumeEnabled, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal } = life;
+  const { rewritePending } = life;
   return (
     <>
       {stage === "result" && gainOpen && topicGain ? <TopicGainCard gain={topicGain} nextHref={nextHref} /> : null}
@@ -196,21 +196,17 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
             </button>
             {kind === "lesson" ? (
               <button type="button" className="cp-exam-continue" disabled={rewritePending} aria-busy={rewritePending} onClick={() => {
-                // Tık hemen görünür (3 Kasım 2026): gezinme sürerken düğme "Açılıyor…" olur, ikinci tık gerekmez.
-                setRewritePending(true);
-                // Kayıtlı ders açıkken kurulum kartı yok (yalnız "Kayıtlı içerik açılıyor" kalırdı): yeni anlatım
-                // açık seçimin adresinde yazılır (30 Ekim 2026).
-                // Düz adreste açılan ders (havuz dersi dahil) yeni anlatımı ?farkli=1 adresinde ister (3 Kasım 2026).
-                if (rewriteHref && (reviewSaved || !rewriteLesson)) {
-                  router.push(rewriteHref);
-                  return;
-                }
-                // Zaten ?farkli=1 adresinde: kurulum kartı yok, yeni anlatım hemen akar.
+                // İlk tık yerinde başlar (3 Kasım 2026): aynı rotaya router.push ekranı yeniden kurmuyordu (sonuç
+                // ekranı kalıyor, akış ikinci tıka kadar başlamıyordu). Bekleme ekranı + istek aynı tıkta.
                 setStage("setup");
                 setIndex(0);
                 setAnswers({});
                 setFeedback(null);
-                void start().finally(() => setRewritePending(false));
+                setCardOffer(null);
+                setCardRepeat(null);
+                setCardSummary(null);
+                setPodcastCheckOpen(false);
+                void beginRewrite(rewriteHref);
               }}>
                 {rewritePending ? "Açılıyor…" : "Farklı anlat"}
               </button>

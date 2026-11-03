@@ -209,7 +209,7 @@ describe("bekleme ekranı etkinliğin adını söyler", () => {
     expect(preparingTitle("flashcards")).toBe("Kartların hazırlanıyor…");
     expect(preparingTitle(undefined)).toBe("Hazırlanıyor…");
     expect(read("src/components/parity/exam-node-session.tsx")).toContain(
-      'title={reviewSaved ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}',
+      'title={reviewSaved && !rewriteLesson ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}',
     );
   });
 });
