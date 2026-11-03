@@ -4,7 +4,7 @@ import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM } from "@/lib/learning/teacher-lesson";
 
 /**
- * "Bu derste neler var" listesinde her başlığın altında tek satır (Astra,
+ * "Bu derste neler var" listesinde her başlığın altında tek satır (kıyas ürünü,
  * 3 Ekim 2026). Satırı model yazar (`lead`); eski derste kısa ilk cümle.
  */
 describe("içerik listesi satırı", () => {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /*
-  30 Ekim 2026, Astra ile yan yana tur (aynı Makroekonomi notu): öğrenci beklerken açılan konu testi 5 parçaya bölünüp
+  30 Ekim 2026, kıyas ürünüyle yan yana tur (aynı Makroekonomi notu): öğrenci beklerken açılan konu testi 5 parçaya bölünüp
   aynı anda yazılıyor (#409). Parçalar birbirinin sorusunu görmüyordu; yalnız "Aynı konunun ayrı bir noktasını sor"
   satırı vardı. Canlı testte 5 sorudan 4'ü Cagan'ın hiperenflasyon eşiğini sordu, cevabı dördünde "Hiperenflasyon".
   "Aynı cevap en çok iki" (#430) ve "neredeyse aynı kök" kuralları her parçanın kendi tek sorusuna bakıyordu.

@@ -15,7 +15,7 @@ import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
 afterEach(cleanup);
 
 /*
-  Astra'daki beş podcast türü (1 Ekim 2026): Diyalog (önerilen), Özet,
+  kıyas ürünündeki beş podcast türü (1 Ekim 2026): Diyalog (önerilen), Özet,
   Soru-Cevap, Basit anlatım, Derinlemesine.
 */
 const duoDraft = {
@@ -43,7 +43,7 @@ const duoDraft = {
 };
 
 describe("podcast türleri", () => {
-  it("beş tür, Astra sırasıyla; varsayılan Diyalog; eski standart okunur", () => {
+  it("beş tür, kıyas ürünü sırasıyla; varsayılan Diyalog; eski standart okunur", () => {
     expect(PODCAST_FORMAT_OPTIONS.map((option) => option.id)).toEqual(["diyalog", "ozet", "soru_cevap", "basit", "derin"]);
     expect(DEFAULT_PODCAST_LENGTH).toBe("diyalog");
     expect(parsePodcastLength(undefined)).toBe("diyalog");

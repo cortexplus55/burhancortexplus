@@ -34,7 +34,7 @@ export type ExamPrepCard = {
 };
 
 /**
- * Astra'nın sınav listesindeki üç kutu (17 Ekim 2026, yan yana bakıldı): her biri ayrı
+ * kıyas ürününün sınav listesindeki üç kutu (17 Ekim 2026, yan yana bakıldı): her biri ayrı
  * sayfa açar. Önceden listenin altında aynı sayfada sekmeydiler.
  */
 const CATALOG_TILES: { href: string; label: string; icon: Icon3DName }[] = [
@@ -53,7 +53,7 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
 
   return (
     <div className="cp-exam-page cp-exam-page--list">
-      {/* Astra: tek şerit — solda Ara, sağda yeni hazırlık. */}
+      {/* kıyas ürünü: tek şerit — solda Ara, sağda yeni hazırlık. */}
       <div className="cp-exam-toolbar">
         <Link href="/deneme-sinavlari/ara" className="cp-exam-toolbar-btn">
           <Search className="h-4 w-4" aria-hidden />
@@ -197,7 +197,7 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
 }
 
 /**
- * Astra'daki "Taslaklar": yarım bırakılan kurulum, kaldığı yerden tamamlanır ya da atılır.
+ * kıyas ürünündeki "Taslaklar": yarım bırakılan kurulum, kaldığı yerden tamamlanır ya da atılır.
  * Taslak tarayıcıda (24 saat) ve 18 Ekim 2026'dan beri sunucuda da durur: bu cihazda yoksa
  * sunucudaki (başka cihazda bırakılan) gösterilir. Sunucuda yarım hazırlık açılmıyor.
  */
@@ -252,7 +252,7 @@ function WizardDrafts() {
 }
 
 /**
- * Astra'nın hazırlık kartı: üstte başlık ve hedef işaretli ilerleme çubuğu (noktalı ray,
+ * kıyas ürününün hazırlık kartı: üstte başlık ve hedef işaretli ilerleme çubuğu (noktalı ray,
  * ilerleme noktası, yüzde); altta ayrı şeritte gün · konu ve Devam et.
  */
 export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTargetLabel: boolean }) {

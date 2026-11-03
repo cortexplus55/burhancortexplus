@@ -4,12 +4,12 @@ import { dailyGoalLabel, parseTutorVoice, streakRecordLine } from "@/lib/student
 import { pickVoiceFor } from "@/lib/learning/studio-speech";
 
 /*
-  Astra'nın Ayarlar > Öğrenme tercihleri sekmesi ve seri penceresi
+  kıyas ürününün Ayarlar > Öğrenme tercihleri sekmesi ve seri penceresi
   (1 Ekim 2026): günlük hedef, rekor metni, öğretmen sesi.
 */
 describe("öğrenme tercihleri", () => {
-  it("rekorun gerisindeyken Astra gibi kalan gün yazılır", () => {
-    // Astra: en uzun 3, şu an 0 → "Rekoru kırmana 4 gün daha var".
+  it("rekorun gerisindeyken kıyas ürünü gibi kalan gün yazılır", () => {
+    // kıyas ürünü: en uzun 3, şu an 0 → "Rekoru kırmana 4 gün daha var".
     expect(streakRecordLine(0, 3)).toBe("Rekoru kırmana 4 gün daha var");
     expect(streakRecordLine(2, 4)).toBe("Rekoru kırmana 3 gün daha var");
     expect(streakRecordLine(4, 4)).toBe("Rekorundasın");

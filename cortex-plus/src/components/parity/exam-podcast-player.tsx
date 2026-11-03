@@ -30,7 +30,7 @@ type AudioLine = {
   durationMs: number;
 };
 
-// Astra oynatıcısı 15 sn atlıyor ve düğmenin üstünde 15 yazıyor.
+// kıyas ürünü oynatıcısı 15 sn atlıyor ve düğmenin üstünde 15 yazıyor.
 // Etiket ile atlama aynı olsun; 10 sn'lik eski adım chrome'da 15 gibi duruyordu.
 const SKIP_MS = 15_000;
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
@@ -660,7 +660,7 @@ export function ExamPodcastPlayer({
   }
 
   if (!normalized.length) {
-    // Bölüm yoksa Astra oynatıcısı çizilmez. Kapatma yine durur;
+    // Bölüm yoksa kıyas ürünü oynatıcısı çizilmez. Kapatma yine durur;
     // oturum da bu durumda çalışma çubuğunu açık bırakır.
     return (
       <section className="cp-pod cp-pod--empty">

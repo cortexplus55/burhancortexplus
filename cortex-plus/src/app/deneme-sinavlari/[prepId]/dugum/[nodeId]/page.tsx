@@ -121,7 +121,7 @@ export default async function ExamNodePage({
     .from("exam_prep_nodes")
     .select("status")
     .eq("exam_prep_id", prepId);
-  // Tanı zorunlu kapı değil (3 Ekim 2026, Astra): öğrenci bir etkinliği
+  // Tanı zorunlu kapı değil (3 Ekim 2026, kıyas ürünü): öğrenci bir etkinliği
   // açtıysa ölçüm ertelenir; seviye tespiti yolun başında düğüm olarak kalır.
   if (needsExamIntro(prep.intro_completed_at, nodeRows ?? [], prep.intro_deferred_at)) {
     await createServiceClient()

@@ -7,7 +7,7 @@ import {
 } from "@/lib/learning/examiner-vibe";
 
 /**
- * Sözlü deneme kabuğu — Astra sözlü sınav akışının konu, öğretmen,
+ * Sözlü deneme kabuğu — kıyas ürünü sözlü sınav akışının konu, öğretmen,
  * ön kontrol, canlı küre, bitirme ve sonuç metinleri.
  *
  * Ses ve hava seçimi yeni bir ücretli ürün değil. Tek ses (Ada) ve üç

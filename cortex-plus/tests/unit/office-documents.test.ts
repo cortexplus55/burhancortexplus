@@ -14,7 +14,7 @@ import {
 import { appendFigureTranscript, figureTranscript } from "@/lib/documents/extract-image-text";
 
 /*
-  Astra vitrininde "slaytlar ve ders kitapları" diyor; bizde `.pptx` ve
+  kıyas ürünü vitrininde "slaytlar ve ders kitapları" diyor; bizde `.pptx` ve
   `.docx` yüklenemiyordu bile. Öğrenciye "slaytı PDF'e çevir" dedirtmek,
   ürünün işini öğrenciye yaptırmak.
 

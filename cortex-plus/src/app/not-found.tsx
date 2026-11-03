@@ -5,7 +5,7 @@ import { Icon3D } from "@/components/ui/icon-3d";
 import "@/styles/not-found.css";
 
 /**
- * 404 (17 Ekim 2026, tasarım 8. adım). Astra'nınki sade ve şakacı: üstte logo, ortada bir
+ * 404 (17 Ekim 2026, tasarım 8. adım). kıyas ürünününki sade ve şakacı: üstte logo, ortada bir
  * çizim ("4×0≠4"), başlık, tek düğme, destek adresi. Bizimki kendi şakamız: sıfırın yerinde
  * beyin (cortex = beyin kabuğu), rakamlar karşılamadaki piksel yazıyla. Oturumlu ya da
  * oturumsuz herkese aynı; pazarlama menüsü oturumlu öğrenciye "Giriş yap" gösteriyordu.

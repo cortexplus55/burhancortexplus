@@ -9,7 +9,7 @@ export const metadata = { title: "Sınav hazırlıklarında ara" };
 export const dynamic = "force-dynamic";
 
 /**
- * Astra'daki "Sınav hazırlıklarında ara" (1 Ekim 2026): okulda paylaşılanlar
+ * kıyas ürünündeki "Sınav hazırlıklarında ara" (1 Ekim 2026): okulda paylaşılanlar
  * ve öğrencinin kendi hazırlıkları tek listede aranır.
  */
 export default async function PrepSearchPage() {

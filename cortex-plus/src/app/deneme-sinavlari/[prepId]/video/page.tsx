@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 const SIGNED_SECONDS = 60 * 60 * 3;
 
 /**
- * Video ders (17 Ekim 2026, Astra'daki gibi; yalnız Plus). `?v=` ile oynatıcı, yoksa
+ * Video ders (17 Ekim 2026, kıyas ürünündeki gibi; yalnız Plus). `?v=` ile oynatıcı, yoksa
  * kurulum: stil → konu → hazırlanıyor.
  */
 export default async function PrepVideoPage({

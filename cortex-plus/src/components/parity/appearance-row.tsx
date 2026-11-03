@@ -12,7 +12,7 @@ const OPTIONS = [
 ] as const;
 
 /**
- * Profil menüsündeki "Görünüm" satırı — Astra'da tema seçimi profil
+ * Profil menüsündeki "Görünüm" satırı — kıyas ürününde tema seçimi profil
  * menüsünde duruyor; bizde yalnızca Ayarlar sayfasındaydı.
  */
 export function AppearanceRow() {

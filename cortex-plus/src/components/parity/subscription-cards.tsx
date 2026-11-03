@@ -720,7 +720,7 @@ export function SubscriptionCards({
                 className="cs-pay-card flex items-center justify-between p-4"
               >
                 <div>
-                  {/* Astra gibi sayı değil oran: paket, abonenin kendi aylık
+                  {/* kıyas ürünü gibi sayı değil oran: paket, abonenin kendi aylık
                       hakkına göre ne kadar ek kullanım getirdiğini söylüyor. */}
                   <h3 className="font-medium">Ek paket</h3>
                   <p className="text-sm text-[var(--cs-muted)]">

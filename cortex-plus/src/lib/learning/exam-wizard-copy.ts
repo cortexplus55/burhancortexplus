@@ -108,7 +108,7 @@ export const DOCUMENT_ANALYSIS_STAGES = [
 ] as const;
 
 /**
- * "Nasıl çalışmayı seversin?" — Astra'daki gibi birden çok seçilir ve her seçeneğin altında ne
+ * "Nasıl çalışmayı seversin?" — kıyas ürünündeki gibi birden çok seçilir ve her seçeneğin altında ne
  * olduğu yazar (17 Ekim 2026). Hiçbiri seçilmezse "auto": yolun kendi önerisi.
  */
 export const STUDY_MODALITY_CHOICES: { id: Exclude<StudyModality, "auto">; label: string; blurb: string }[] = [
@@ -215,7 +215,7 @@ export function sourceCountLabel(count: number): string {
 }
 
 /**
- * Konu satırındaki "N kaynak": yalnız birden çok dosyadan beslenen konuda (19 Ekim 2026, Astra'nın
+ * Konu satırındaki "N kaynak": yalnız birden çok dosyadan beslenen konuda (19 Ekim 2026, kıyas ürününün
  * konu listesi gibi). Tek dosyalı konuda yazılmaz — 7 Ekim'de kaldırılan "Kaynak: … s.3, 4" satırı
  * gibi her satırı doldurmasın. Dosya adları üzerine gelince.
  */

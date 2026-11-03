@@ -80,7 +80,7 @@ export function StudyToolsHub({
 }) {
   const shellAccount = useStudentShellAccount();
   const freeAccount = shellAccount ? !shellAccount.isPremium : false;
-  // Astra gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
+  // kıyas ürünü gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
   const recommended = recommendedStudyTool(nodes, preferred);
   const [group, setGroup] = useState<StudyToolGroup>(initialGroup ?? recommended?.group ?? "learn");
   const router = useRouter();

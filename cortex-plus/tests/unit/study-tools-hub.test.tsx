@@ -15,7 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** "Ders oluştur" Astra gibi sekmeli (1 Ekim 2026). */
+/** "Ders oluştur" kıyas ürünü gibi sekmeli (1 Ekim 2026). */
 const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
 
 function node(
@@ -95,7 +95,7 @@ describe("study tools hub regression", () => {
       { id: "a", name: "not-1.pdf" },
       { id: "b", name: "not-2.pdf" },
     ]);
-    // Yolda kilitli (18 Ekim 2026, Astra); menüden seçilince açılır.
+    // Yolda kilitli (18 Ekim 2026, kıyas ürünü); menüden seçilince açılır.
     const oralOnPath = screen.getAllByRole("button", { name: /AI ile Sözlü Deneme, kilitli/ });
     expect(oralOnPath.length).toBeGreaterThan(0);
 
@@ -177,7 +177,7 @@ describe("study tools hub regression", () => {
   });
 });
 
-describe("ders oluştur: Astra gibi üç sekme ve önerilen", () => {
+describe("ders oluştur: kıyas ürünü gibi üç sekme ve önerilen", () => {
   const nodes: HomeNode[] = [
     node("les-1", "lesson", "done", "Birim Çember", 0),
     node("card-1", "flashcards", "ready", "Birim Çember", 1),
@@ -194,7 +194,7 @@ describe("ders oluştur: Astra gibi üç sekme ve önerilen", () => {
     expect(screen.getByRole("tab", { name: "Öğren" }).getAttribute("aria-selected")).toBe("true");
     const cards = screen.getByRole("link", { name: "Kartlar" });
     expect(cards.textContent).toContain("Önerilen");
-    // Astra gibi: yanlış yokken Bilgi boşlukları kilitli (1 Ekim 2026).
+    // kıyas ürünü gibi: yanlış yokken Bilgi boşlukları kilitli (1 Ekim 2026).
     expect(screen.queryByRole("link", { name: "Bilgi boşlukları" })).toBeNull();
     expect(screen.getByText("🔒 Bilgi boşlukları")).toBeTruthy();
   });
@@ -227,7 +227,7 @@ describe("ders oluştur: Astra gibi üç sekme ve önerilen", () => {
   });
 });
 
-// 18 Ekim 2026 (Astra'daki gibi): yol sırayla açılır; öğrencinin seçtiği etkinlik ise hemen.
+// 18 Ekim 2026 (kıyas ürünündeki gibi): yol sırayla açılır; öğrencinin seçtiği etkinlik ise hemen.
 describe("Başka birini seç: seçilen kilitli etkinlik açılır", () => {
   it("opens the hub from the next card", () => {
     renderPrep("Kimya", chemistryNodes, ["Stokiyometri", "Gazlar"], [{ id: "a", name: "not-1.pdf" }]);

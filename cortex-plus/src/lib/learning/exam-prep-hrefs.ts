@@ -52,7 +52,7 @@ export function opensSavedLesson(input: {
   return input.query.tekrar !== "1" && input.query.farkli !== "1" && !input.query.konu?.trim();
 }
 
-/** Bitmiş etkinliğin sonucu (Astra: "Sonuçları gör" önceki sonucu açar, etkinliği baştan kurmaz). */
+/** Bitmiş etkinliğin sonucu (kıyas ürünü: "Sonuçları gör" önceki sonucu açar, etkinliği baştan kurmaz). */
 export function examPrepNodeResultHref(prepId: string, nodeId: string) {
   return `/deneme-sinavlari/${prepId}/dugum/${nodeId}/sonuc`;
 }

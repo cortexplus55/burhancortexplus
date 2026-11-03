@@ -10,7 +10,7 @@ import {
 } from "@/lib/documents/pending-doc-process";
 
 /*
-  20 Ekim 2026: 7 dosyalık sınav seti sırayla işlenince ~76 sn sürdü (Astra ~30 sn). Ücretli hesapta
+  20 Ekim 2026: 7 dosyalık sınav seti sırayla işlenince ~76 sn sürdü (kıyas ürünü ~30 sn). Ücretli hesapta
   birden çok dosya aynı anda işlenir; sekme kapanınca yarım kalan her dosya sürer; seçim sırası korunur.
   31 Ekim 2026: şerit 3 → 6, kurucu da ücretli sayılır; bir dosyanın düşmesi topluluğu durdurmaz (100 fotoğrafta
   tek bulanık fotoğraf arkadakileri kesiyordu), yalnız hak dolunca ("stop") yenisi başlamaz.

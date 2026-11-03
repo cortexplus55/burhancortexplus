@@ -7,7 +7,7 @@ const SCOPES = new Set<StarScope>(["school", "country", "schools"]);
 const PERIODS = new Set<StarPeriod>(["week", "all"]);
 
 /**
- * Yıldızlar penceresi (17 Ekim 2026, Astra'daki gibi): öğrencinin kendi yıldızları ve
+ * Yıldızlar penceresi (17 Ekim 2026, kıyas ürünündeki gibi): öğrencinin kendi yıldızları ve
  * seçilen sıralama. Okul arkadaşları sıralamasında bu hafta 3 kişi yıldız kazanmadıysa
  * geçen haftanın kazananları gelir ("Bu hafta üç kişi yıldız kazanana kadar…").
  */

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Bize özgü üç boyutlu simge seti (17 Ekim 2026, tasarım 7. adım; ürün sahibinin kararı).
- * Astra özel 3B çizimler kullanıyor (roket, altın madalya, kategori simgeleri); bizimkiler
+ * kıyas ürünü özel 3B çizimler kullanıyor (roket, altın madalya, kategori simgeleri); bizimkiler
  * tek tarzda yapay zekâyla bir kez üretildi: mavi #4353f3, beyaz, sarı #fdb300, şeffaf zemin,
  * 256 px webp (`public/illustrations/3d/`). Ad listesi buradaki tek kaynak.
  */

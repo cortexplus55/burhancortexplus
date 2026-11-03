@@ -492,7 +492,7 @@ export const lessonV2Schema = z.object({
       z.object({
         heading: z.string().min(2).max(160),
         // Giriş kartındaki "Bu derste neler var" listesinde başlığın altında
-        // duran tek cümle (3 Ekim 2026, Astra). Eski derslerde yok.
+        // duran tek cümle (3 Ekim 2026, kıyas ürünü). Eski derslerde yok.
         lead: z.string().max(200).optional().catch(undefined),
         // Anahtar terimler **iki yıldız** arasında gelir; ekranda koyu
         // görünür. Sınava iki gün kala dersi yeniden okuyan öğrenci neye
@@ -506,7 +506,7 @@ export const lessonV2Schema = z.object({
         source: lessonSourceSchema.optional().catch(undefined),
         check: sectionCheckSchema.optional().catch(undefined),
         // true ise ekranda check gövdeden ÖNCE gösterilir (geri getirme /
-        // "önce dene" — Astra kıyasında bu sıranın kavramı daha iyi
+        // "önce dene" — kıyas ürünü kıyasında bu sıranın kavramı daha iyi
         // oturttuğu görüldü). check yoksa etkisi yok; .catch ile bozuk
         // değer sessizce false sayılır, dersi düşürmez.
         checkFirst: z.boolean().optional().catch(undefined),
@@ -526,7 +526,7 @@ export const lessonV2Schema = z.object({
         // SVG'yi biz kuruyoruz (bkz. lesson-diagram.ts).
         diagram: lessonDiagramSchema.optional().catch(undefined),
         // Hesaplanabilir bir bağıntı varsa gövdeye gömülmez, ayrı bir
-        // kart olarak durur — Astra karşılaştırmasında gövdeye sıkışan
+        // kart olarak durur — kıyas ürünü karşılaştırmasında gövdeye sıkışan
         // formüllerin okunaksızlaştığı görüldü (bkz. docs kıyas notu).
         formula: lessonFormulaSchema.optional().catch(undefined),
         // Kaynakta sıralı, uygulanabilir bir işlem varsa (hesaplama,

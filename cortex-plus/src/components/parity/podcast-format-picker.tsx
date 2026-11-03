@@ -8,7 +8,7 @@ import {
 } from "@/lib/learning/podcast-formats";
 import { cn } from "@/lib/utils";
 
-/** Podcast türü — Astra'daki beş tür; ilki önerilen (1 Ekim 2026). */
+/** Podcast türü — kıyas ürünündeki beş tür; ilki önerilen (1 Ekim 2026). */
 export function PodcastFormatPicker({
   value,
   onChange,

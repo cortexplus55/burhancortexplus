@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// 17 Ekim 2026, Astra ile yan yana: hazırlık sayfasının üst çubuğunda yalnız Geri ve
+// 17 Ekim 2026, kıyas ürünüyle yan yana: hazırlık sayfasının üst çubuğunda yalnız Geri ve
 // sayfanın simgeleri var; seri, menü, avatar ve kurucu rozeti yok.
 describe("hazırlık sayfası sade üst çubuk", () => {
   it("sayfa sade üst çubuğu ister; kabuk seri, menü ve avatarı gizler", () => {
@@ -14,7 +14,7 @@ describe("hazırlık sayfası sade üst çubuk", () => {
 });
 
 // 17 Ekim 2026 canlıda: üst çubuk kayıp gidiyordu, sekme şeridinin üstünde kalan boşluktan
-// yolun düğümü görünüyordu. Astra'da Geri ve simgeler yerinde kalıyor.
+// yolun düğümü görünüyordu. kıyas ürününde Geri ve simgeler yerinde kalıyor.
 describe("hazırlık sayfası yapışkan üst çubuk", () => {
   it("sade üst çubuk sabit; sekmeler tam altında", () => {
     const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");

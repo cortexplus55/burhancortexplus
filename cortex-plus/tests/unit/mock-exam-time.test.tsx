@@ -14,7 +14,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/* Astra gibi serbest süre ve "Süre sınırı yok" (1 Ekim 2026). */
+/* kıyas ürünü gibi serbest süre ve "Süre sınırı yok" (1 Ekim 2026). */
 describe("yazılı deneme süresi", () => {
   it("süre 10–180 dk arası 5'in katına oturur; 0 süresiz", () => {
     expect(clampMockMinutes(0)).toBe(0);
@@ -48,7 +48,7 @@ describe("yazılı deneme süresi", () => {
         isAdmin={false}
       />,
     );
-    // 17 Ekim 2026: önce çözüm yolu soruluyor (Astra: "Nasıl çözmek istiyorsun?").
+    // 17 Ekim 2026: önce çözüm yolu soruluyor (kıyas ürünü: "Nasıl çözmek istiyorsun?").
     fireEvent.click(screen.getByRole("button", { name: /Uygulamada/ }));
     return bodies;
   }

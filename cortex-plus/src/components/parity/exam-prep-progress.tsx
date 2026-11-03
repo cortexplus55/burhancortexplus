@@ -17,7 +17,7 @@ const TICKS = 40;
 const TOPIC_PREVIEW = 8;
 
 /**
- * Hazırlığın İlerleme sekmesi — Astra düzeni (29 Eylül 2026).
+ * Hazırlığın İlerleme sekmesi — kıyas ürünü düzeni (29 Eylül 2026).
  * Hesap `buildPrepProgressView` içinde; bu bileşen yalnızca çiziyor.
  */
 export function ExamPrepProgress({

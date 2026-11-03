@@ -18,7 +18,7 @@ import { joinSchoolPrep } from "@/lib/parity/school-join";
 
 const SUBJECTS_SHOWN = 10;
 
-/** "Sınav hazırlıklarında ara" — Astra'daki arama sayfası (1 Ekim 2026). */
+/** "Sınav hazırlıklarında ara" — kıyas ürünündeki arama sayfası (1 Ekim 2026). */
 export function PrepSearchView({ rows, hasSchool }: { rows: PrepSearchRow[]; hasSchool: boolean }) {
   const router = useRouter();
   const [query, setQuery] = useState("");

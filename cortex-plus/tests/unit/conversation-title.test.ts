@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { cleanConversationTitle } from "@/lib/ai/conversation-title-text";
 
 /*
-  Astra her sohbete kısa başlık + emoji veriyor ("Mol, Gazlar ve Stokiyometri
+  kıyas ürünü her sohbete kısa başlık + emoji veriyor ("Mol, Gazlar ve Stokiyometri
   Çalışması 🧪"). Bizde ilk mesajın ilk 60 harfi duruyordu: "[Matematik]
   Bosluk orani ile porozite arasindaki iliski nedi" (30 Eylül 2026).
 */

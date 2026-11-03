@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  *
  * Android'deki paket bir TWA olacak (Trusted Web Activity): mağazadaki
  * uygulama bu siteyi kendi kabuğunda açıyor, ayrı bir yerel uygulama
- * yazılmıyor. Astra da aynı yöntemi kullanıyor (`co.astra_ai.app.twa`).
+ * yazılmıyor. kıyas ürünü da aynı yöntemi kullanıyor (`co.astra_ai.app.twa`).
  * Ayrıntı: `docs/delivery/MAGAZA-UYGULAMASI.md`.
  */
 export default function manifest(): MetadataRoute.Manifest {

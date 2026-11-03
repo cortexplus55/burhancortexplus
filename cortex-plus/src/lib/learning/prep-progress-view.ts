@@ -1,7 +1,7 @@
 /**
- * Hazırlığın "İlerleme" sekmesi — Astra düzeni (29 Eylül 2026).
+ * Hazırlığın "İlerleme" sekmesi — kıyas ürünü düzeni (29 Eylül 2026).
  *
- * Astra'da sekme şunları gösteriyor: hazırlık puanı ve hedef işareti,
+ * kıyas ürününde sekme şunları gösteriyor: hazırlık puanı ve hedef işareti,
  * "bu hafta" değişimi, hedefe ulaşan konu ve ders sayısı; altında Hazırlık
  * düzeyi / Denemeler / Tempo. Burada yalnızca elimizdeki gerçek kayıtlardan
  * hesaplanabileni hesaplıyoruz; uydurma bir tahmin göstermiyoruz.
@@ -120,7 +120,7 @@ export type PrepProgressView = {
   /** Tamamlama (%): biten adım / yolun adımları (`pathCompletion`); "Hazırlık"tan ayrı ad, ayrı sayı. */
   completionPct: number;
   targetPct: number;
-  /** Bu hafta biten etkinlik sayısı; Astra'nın "bu hafta" çipinin karşılığı. */
+  /** Bu hafta biten etkinlik sayısı; kıyas ürününün "bu hafta" çipinin karşılığı. */
   weekActivities: number;
   topicsAtTarget: number;
   topicCount: number;
@@ -138,7 +138,7 @@ export type PrepProgressView = {
   /** 14 günlük (veya sınava kalan) hazırlık eğrisi — SVG çizgi grafik. */
   forecastSeries: ReadinessForecastSeries;
   /**
-   * Tempo kartı (19 Ekim 2026, Astra'daki gibi): bir ders ne kazandırıyor, hedefe kaç ders kaldı,
+   * Tempo kartı (19 Ekim 2026, kıyas ürünündeki gibi): bir ders ne kazandırıyor, hedefe kaç ders kaldı,
    * günde kaç ders gerekir. Ölçülen puan ve biten ders sayısından; ikisi de yoksa null.
    */
   pace: {
@@ -177,11 +177,11 @@ export type PrepProgressView = {
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Astra'nın "Hedef ustalık %75"i. Hazırlıkta hedef puan yoksa bu. */
+/** kıyas ürününün "Hedef ustalık %75"i. Hazırlıkta hedef puan yoksa bu. */
 export const DEFAULT_TARGET_PCT = 75;
 /**
- * Sınav günü tahmini kaç biten dersten sonra görünür. 29 Eylül'de "Astra: ilk iki ders" diye 2
- * yazılmıştı; 19 Ekim 2026'da Astra'da ilk dersten hemen sonra tahmin ve tempo kartı görüldü.
+ * Sınav günü tahmini kaç biten dersten sonra görünür. 29 Eylül'de "kıyas ürünü: ilk iki ders" diye 2
+ * yazılmıştı; 19 Ekim 2026'da kıyas ürününde ilk dersten hemen sonra tahmin ve tempo kartı görüldü.
  */
 const FORECAST_MIN_LESSONS = 1;
 const WEEK_COUNT = 5;

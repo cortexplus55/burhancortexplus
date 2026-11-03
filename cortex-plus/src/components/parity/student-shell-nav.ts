@@ -47,14 +47,14 @@ export const CANONICAL_FEATURES = {
 /**
  * Ana Sayfa · Sınavlar · Araçlar · Profil
  *
- * 30 Eylül 2026: Ana Sayfa sohbet (Astra'da ilk sekme "Sor"). Ayrı "AI"
- * sekmesi aynı yere gidiyordu; yerini Astra'nın ikinci sekmesi Sınavlar aldı.
+ * 30 Eylül 2026: Ana Sayfa sohbet (kıyas ürününde ilk sekme "Sor"). Ayrı "AI"
+ * sekmesi aynı yere gidiyordu; yerini kıyas ürününün ikinci sekmesi Sınavlar aldı.
  *
  * 3 Ekim 2026: "Çalış" sekmesi kalktı. O ekran bütün hazırlıkları ve
  * belgeleri tek programda karıştırıyordu (trigonometri programının altında
- * zemin mekaniği ve pediatri tekrarları). Astra'da her sınavın yolu yalnız
+ * zemin mekaniği ve pediatri tekrarları). kıyas ürününde her sınavın yolu yalnız
  * kendi kartında; üçüncü sekme Uygulamalar — bizde Araçlar. Belgeler
- * sekmesi de kalktı (Astra'da yok): "Daha fazla" menüsünde.
+ * sekmesi de kalktı (kıyas ürününde yok): "Daha fazla" menüsünde.
  */
 export const studentBottomTabs: StudentNavItem[] = [
   {

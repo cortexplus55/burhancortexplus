@@ -71,7 +71,7 @@ describe("profil penceresi", () => {
   });
 
   /*
-    1 Ekim 2026: Astra'nın "Öğrenme tercihleri" sekmesi. Günlük hedef artık
+    1 Ekim 2026: kıyas ürününün "Öğrenme tercihleri" sekmesi. Günlük hedef artık
     dakika ("Bugün 12 / 30 dk"); her ayar seçildiği anda kaydediliyor.
   */
   it("günlük çalışma hedefini dakika olarak kaydeder ve bugünü gösterir", async () => {

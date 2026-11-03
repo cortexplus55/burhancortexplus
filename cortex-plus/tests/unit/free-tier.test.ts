@@ -11,7 +11,7 @@ import {
 import { tierComparisonRows } from "@/lib/billing/tier-presentation";
 
 /**
- * Ücretsiz katman (3 Ekim 2026, ürün sahibinin kararı; Astra'nın ücretsiz
+ * Ücretsiz katman (3 Ekim 2026, ürün sahibinin kararı; kıyas ürününün ücretsiz
  * hesabı aynı gün ölçüldü: tek sohbet mesajı günlük hakkın %64'ü, yeni
  * hazırlık kurmak kapalı):
  *   - günde 1 derslik hak (2 kredi); her şey aynı haktan
@@ -51,7 +51,7 @@ describe("ücretsiz katman sınırları", () => {
       expect(read(route)).toMatch(/if \(await freePrepLimitReached\(service, userId\)\)/);
     }
     expect(FREE_PREP_LIMIT_CODE).toBe("free_prep_limit");
-    // Astra'daki gibi ders seçilince kapı: sihirbaz ve sohbet ikisi de.
+    // kıyas ürünündeki gibi ders seçilince kapı: sihirbaz ve sohbet ikisi de.
     expect(read("src/components/parity/exam-create-wizard.tsx")).toMatch(/if \(prepLimitReached\) \{\s*openPaywall\(FREE_PREP_LIMIT_MESSAGE\)/);
     expect(read("src/components/parity/exam-create-chat.tsx")).toMatch(/if \(prepLimitReached\) \{/);
   });

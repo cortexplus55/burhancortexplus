@@ -71,6 +71,8 @@ export async function recordResponse(
     userId: string;
     item: { id: string; unit_id: string; outcome_id: string; program_id: string; difficulty: Difficulty };
     correct: boolean;
+    /** Seçilen şıkkın item_bank.choices sırasındaki yeri (karantina kuralı için). */
+    chosen?: number;
     timeMs: number;
     source: LevelSource;
     prepId: string | null;
@@ -89,7 +91,7 @@ export async function recordResponse(
     .limit(1);
   if (dupError) return false;
   if (dup?.length) return true;
-  const { error } = await service.from("item_responses").insert({
+  const response: Record<string, unknown> = {
     user_id: input.userId,
     item_id: item.id,
     unit_id: item.unit_id,
@@ -99,7 +101,12 @@ export async function recordResponse(
     difficulty: item.difficulty,
     time_ms: Math.max(0, Math.min(Math.round(input.timeMs), 3_600_000)),
     source: input.source,
-  });
+  };
+  // `chosen` sütunu ek migration'la gelir (20261103120000); sütun yoksa onsuz yazılır.
+  let { error } = await service.from("item_responses").insert(input.chosen === undefined ? response : { ...response, chosen: input.chosen });
+  if (error && input.chosen !== undefined && /chosen/i.test(`${error.message ?? ""} ${(error as { details?: string }).details ?? ""}`)) {
+    ({ error } = await service.from("item_responses").insert(response));
+  }
   if (error) return false;
   const { data: row } = await service
     .from("outcome_mastery")

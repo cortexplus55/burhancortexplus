@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         userId,
         item: { ...(item as { id: string; unit_id: string; outcome_id: string; program_id: string }), difficulty: item.difficulty as Difficulty },
         correct,
+        chosen: parsed.data.choice,
         timeMs: parsed.data.timeMs,
         source: claims.src,
         prepId: claims.prep,

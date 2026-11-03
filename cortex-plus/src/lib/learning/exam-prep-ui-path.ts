@@ -74,7 +74,7 @@ export type LearningPreferencesView = {
   notes?: string;
   modality?: StudyModality;
   /**
-   * Kurulumdaki "Nasıl çalışmayı seversin?" çoklu seçimi (17 Ekim 2026, Astra'daki gibi).
+   * Kurulumdaki "Nasıl çalışmayı seversin?" çoklu seçimi (17 Ekim 2026, kıyas ürünündeki gibi).
    * Eski kayıtlarda yalnız `modality` var; okurken ondan türetilir. Boş: öğrenci seçmedi.
    */
   modalities?: Exclude<StudyModality, "auto">[];

@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
- * Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi). Göç gerçekten
+ * Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünündeki gibi). Göç gerçekten
  * çalıştırılıyor: tek seferlik kazanç, günlük hedef (+25), haftalık seri (+100),
  * davet (+100 / +50), sıralamada ad + baş harf, gizleme ve okul sıralaması.
  */

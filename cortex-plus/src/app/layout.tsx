@@ -16,7 +16,7 @@ const figtree = Figtree({
 });
 
 /*
- * Astra'nın dört yazı tipi (17 Ekim 2026, ürün sahibinin kararı: birebir): Figtree metin,
+ * kıyas ürününün dört yazı tipi (17 Ekim 2026, ürün sahibinin kararı: birebir): Figtree metin,
  * JetBrains Mono küçük etiketler, Jersey 10 karşılama başlığı, Caveat el yazısı ("hedef puan").
  * Dördü de Google Fonts, serbest lisans. Eşaralıklı etiketler daha önce sistemin kendi
  * yazı tipine (Windows'ta Consolas) düşüyordu; "hedef puan" Segoe Print idi (yalnız Windows).

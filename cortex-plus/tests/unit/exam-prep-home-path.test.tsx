@@ -64,13 +64,13 @@ function openOptions() {
   fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
 }
 
-describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
+describe("exam prep home path (kıyas ürünü düzeni, 29 Eylül 2026)", () => {
   it("draws the zig-zag path and the next-activity card before any progress", () => {
     const { container } = renderHome();
     // Aşama başlıkları yok; yol tek zikzak.
     expect(screen.queryByRole("heading", { name: "Bugün başla" })).toBeNull();
     const card = container.querySelector(".cp-path-next") as HTMLElement;
-    // 17 Ekim 2026, Astra ile yan yana: kartta "SIRADAKİ" ve tür rozeti.
+    // 17 Ekim 2026, kıyas ürünüyle yan yana: kartta "SIRADAKİ" ve tür rozeti.
     expect([...card.querySelectorAll(".cp-prep-badge")].map((item) => item.textContent)).toEqual(["Sıradaki adım", "Giriş Dersi"]);
     const start = screen.getByRole("link", { name: "Devam et" });
     expect(start.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1");
@@ -81,7 +81,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     expect(container.querySelectorAll(".cp-path-beam")).toHaveLength(1);
   });
 
-  it("Astra sol kartı: başlık altında hazırlık ve tamamlanan ders özeti, Ders düğmesi, simgeli sekmeler", () => {
+  it("kıyas ürünü sol kartı: başlık altında hazırlık ve tamamlanan ders özeti, Ders düğmesi, simgeli sekmeler", () => {
     const { container } = renderHome({ nodes: [{ ...lesson, status: "done" }, { ...podcast, status: "ready" }], topicsDone: 1 });
     const aside = container.querySelector(".cp-prep-aside") as HTMLElement;
     expect(aside).toBeTruthy();
@@ -156,7 +156,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Öğren ve Pratik Yap/ }));
     const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
     expect(locked.getAttribute("aria-label")).toMatch(/kilitli/);
-    // Astra (18 Ekim 2026): kilitli adım açılmaz, seçilir; alt kart nedenini söyler.
+    // kıyas ürünü (18 Ekim 2026): kilitli adım açılmaz, seçilir; alt kart nedenini söyler.
     fireEvent.click(locked);
     expect(screen.getByRole("button", { name: "Bu Etkinliği Şimdi Başlat" })).toBeTruthy();
     expect(locked.getAttribute("aria-pressed")).toBe("true");
@@ -172,7 +172,7 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     );
   });
 
-  it("shows the Astra progress view: score, target, sub-tabs and topics", () => {
+  it("shows the kıyas ürünü progress view: score, target, sub-tabs and topics", () => {
     renderHome();
     fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
     expect(screen.getByText("Hazırlık puanı")).toBeTruthy();
@@ -224,9 +224,9 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
   });
 });
 
-// 17 Ekim 2026, Astra ile yan yana: başlık alanı, sıradaki etiketi, son sonuç kartı,
+// 17 Ekim 2026, kıyas ürünüyle yan yana: başlık alanı, sıradaki etiketi, son sonuç kartı,
 // hazırlık düzeyi (radar + tahmin) ve "Deneme sınavı oluştur".
-describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
+describe("hazırlık sayfası: kıyas ürünü düzeni (17 Ekim 2026)", () => {
   it("başlık alanında ders etiketi ve etiketli Düello / Daha fazla; üst çubukta sohbet ve +", () => {
     const { container } = renderHome({ canShare: true });
     expect(container.querySelector(".cp-prep-hero-kicker")?.textContent).toBe("Okul");
@@ -255,7 +255,7 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
     });
     const card = screen.getByRole("region", { name: "Son etkinlik" });
     expect(card.textContent).toContain("%80");
-    // 17 Ekim 2026: düğümü açmak etkinliği baştan kuruyordu; Astra önceki sonucu gösteriyor.
+    // 17 Ekim 2026: düğümü açmak etkinliği baştan kuruyordu; kıyas ürünü önceki sonucu gösteriyor.
     expect(screen.getByRole("link", { name: "Sonuçları gör" }).getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/lesson-1/sonuc");
   });
 
@@ -278,8 +278,8 @@ describe("hazırlık sayfası: Astra düzeni (17 Ekim 2026)", () => {
   });
 });
 
-// Astra ile yan yana (18 Ekim 2026): sıradaki kartta konunun adı, biten adımda yüzde.
-describe("path labels like Astra", () => {
+// kıyas ürünüyle yan yana (18 Ekim 2026): sıradaki kartta konunun adı, biten adımda yüzde.
+describe("path labels like kıyas ürünü", () => {
   it("titles a generic next activity with its topic and shows the done score", () => {
     renderHome({
       nodes: [

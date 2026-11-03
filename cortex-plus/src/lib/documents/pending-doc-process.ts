@@ -14,7 +14,7 @@ export type PendingDocProcess = {
  * İşlenmesi süren belgeler: sekme kapanırsa geri gelince kaldığı yerden sürsün.
  *
  * 20 Ekim 2026'ya kadar tek kayıttı: dosyalar sırayla işlenmek zorundaydı (7 dosyalık sınav seti
- * ~76 sn; Astra ~30 sn) ve bir yüzeydeki "temizle" başka bir sekmede süren belgenin kaydını da
+ * ~76 sn; kıyas ürünü ~30 sn) ve bir yüzeydeki "temizle" başka bir sekmede süren belgenin kaydını da
  * siliyordu. Artık belge başına kayıt; temizleme belgeye ya da yüzeye göre. Eski tek kayıt da okunur.
  */
 function isPending(value: unknown): value is PendingDocProcess {

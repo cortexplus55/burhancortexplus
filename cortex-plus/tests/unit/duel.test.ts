@@ -15,8 +15,8 @@ import {
 
 const q = (answer: number): DuelQuestion => ({ text: "Soru", options: ["a", "b", "c", "d"], answer });
 
-describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
-  it("kurallar Astra'daki üç madde", () => {
+describe("düello (kıyas ürünü kuralları, 30 Eylül 2026)", () => {
+  it("kurallar kıyas ürünündeki üç madde", () => {
     expect(DUEL_RULES[0]).toBe("Her biri için 20 saniyede 7 soru yanıtla.");
     expect(DUEL_RULES[1]).toMatch(/10 puan.*en fazla 5 ek puan.*ikiye katlanır/);
     expect(DUEL_RULES[2]).toMatch(/hesap gerekmiyor/);

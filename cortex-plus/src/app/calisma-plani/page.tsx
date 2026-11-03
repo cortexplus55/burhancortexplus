@@ -5,7 +5,7 @@ import { permanentRedirect } from "next/navigation";
  *
  * Bütün hazırlıkları ve belgeleri tek programda karıştırıyordu: en yakın
  * sınavın programı, altında başka derslerin tekrar konuları, son belgeler.
- * Astra'da her sınavın yolu yalnız kendi kartında; öğrenci Sınavlar'dan
+ * kıyas ürününde her sınavın yolu yalnız kendi kartında; öğrenci Sınavlar'dan
  * hazırlığını seçip o yolu yürür.
  *
  * Rota yer imleri ve eski bağlantılar için duruyor.

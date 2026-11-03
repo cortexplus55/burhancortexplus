@@ -8,7 +8,7 @@ import { toLeaderboardRows } from "@/lib/stars/view";
 export const metadata = { title: "Okulum" };
 export const dynamic = "force-dynamic";
 
-/** Sınavlar → OKULUM kutusu (Astra'da ayrı sayfa, 17 Ekim 2026). */
+/** Sınavlar → OKULUM kutusu (kıyas ürününde ayrı sayfa, 17 Ekim 2026). */
 export default async function SchoolPrepsRoute() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
@@ -17,7 +17,7 @@ export default async function SchoolPrepsRoute() {
     // Okul ağı RPC'leri yoksa sayfa çökmesin; boş akış "okulunu seç" hâlini gösterir.
     supabase.rpc("school_summary"),
     supabase.rpc("school_feed", { p_limit: 30 }),
-    // Astra: "Geçen haftanın en iyi okul arkadaşları" (yıldızla).
+    // kıyas ürünü: "Geçen haftanın en iyi okul arkadaşları" (yıldızla).
     supabase.rpc("star_leaderboard", { p_scope: "school", p_period: "last_week", p_limit: 3 }),
   ]);
   return (

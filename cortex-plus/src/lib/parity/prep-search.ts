@@ -1,7 +1,7 @@
 import { turkishFold } from "@/lib/text/turkish";
 
 /**
- * "Sınav hazırlıklarında ara" — Astra'daki arama sayfası (1 Ekim 2026).
+ * "Sınav hazırlıklarında ara" — kıyas ürünündeki arama sayfası (1 Ekim 2026).
  *
  * Satırlar iki yerden gelir: okulda paylaşılanlar (`school_feed_search`) ve
  * öğrencinin kendi hazırlıkları. Sayaç katılımı sayıyor; ekranda

@@ -188,7 +188,7 @@ export default async function KredilerPage() {
               {formatResetAt(quota.resetsAt)} tarihinde sıfırlanır
               {quota.pendingRefill ? " · hakkın yenilendi" : ""}
             </p>
-            {/* Astra gibi sayı yok, yalnızca yüzde (29 Eylül 2026 kararı).
+            {/* kıyas ürünü gibi sayı yok, yalnızca yüzde (29 Eylül 2026 kararı).
                 Ek paket de dönem hakkına oranla gösteriliyor. */}
             {extraPercent ? (
               <p className="cp-quota-detail">

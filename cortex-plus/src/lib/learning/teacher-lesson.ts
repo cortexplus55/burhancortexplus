@@ -67,7 +67,7 @@ import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula
  * metni değiştiriyordu — "Kaynak:" ekliyor, kalıp özet uyduruyor, kaynaktan
  * cümle yapıştırıyordu. Öğrenci "sıradan yapay zekâ" sesini buradan duydu.
  *
- * Yeni yol: tek, güçlü bir öğretmen istemi (aynı belgeyle okunan Astra
+ * Yeni yol: tek, güçlü bir öğretmen istemi (aynı belgeyle okunan kıyas ürünü
  * dersinin akışı, docs/delivery/ICERIK-KALITE-YOL-HARITASI.md), ardından
  * belgeyle eşleme yapan ikinci bir model çağrısı ve gerekirse modelin kendi
  * düzeltmesi. Kod metne hiçbir şey EKLEMEZ; yalnız denetler.
@@ -349,7 +349,7 @@ export const EMPHASIS_RULE =
   MNEMONIC_EXAMPLES +
   "\n\n";
 
-/** Öğretmen istemi — Astra'nın aynı belgeyle gözlenen ders akışı. */
+/** Öğretmen istemi — kıyas ürününün aynı belgeyle gözlenen ders akışı. */
 export const TEACHER_SYSTEM =
   INTRO_DOCUMENT +
   "KAYNAK KURALI: Belgede geçen olgu, sayı, tarih, madde ve kural aynen kalır; belgeyle çelişme. " +
@@ -1298,7 +1298,7 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
   if (!screenCheck(screens[lastIndex]!)) {
     add(`screens[${lastIndex}]`, `'${group.concept}' kavramı bir soruyla bitmeli: son ekranına 'check' bloğu koy.`);
   }
-  // Her ekran bir soruyla biter (20 Ekim 2026 kör kıyas: Pediatri'nin yoğun tablolu dersinde Astra 5 ekran içi soru
+  // Her ekran bir soruyla biter (20 Ekim 2026 kör kıyas: Pediatri'nin yoğun tablolu dersinde kıyas ürünü 5 ekran içi soru
   // sordu, biz 2). Yalnız ilk ekranın sorusu başta (önce dene); sonraki ekranlarda sorunun yeri denetlenmez.
   for (const index of group.screens) {
     if (index === lastIndex || index === 0 || screenCheck(screens[index]!)) continue;
@@ -1400,7 +1400,7 @@ export function flattenedTableIssue(table: { columns: string[]; rows: string[][]
 
 /**
  * Yoğun tablo (20 Ekim 2026 kör kıyas, Pediatri gelişim basamakları): 5 ve üstü satırlı tablo tek ekranda okunup
- * geçiliyordu; Astra aynı tabloyu parça parça sorarak öğretti. Kural yalnız kavramın kendi 'table' bloklarına bakar
+ * geçiliyordu; kıyas ürünü aynı tabloyu parça parça sorarak öğretti. Kural yalnız kavramın kendi 'table' bloklarına bakar
  * (kaynak tablosuna değil): "aynı tablo" döngüsü (yalnız onu ilk anan kavram ister) yeniden kurulmasın. Kavram iki
  * tablo ekranına bölündüyse ya da zaten üç ekransa sağlanmış sayılır: imkânsızı istemez. İlk kavramda öğrenci
  * bekliyor: düşük.
@@ -2146,7 +2146,7 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
     if (seenConcepts.has(key)) add(`screens[${group.screens[0]!}].concept`, `'${group.concept}' kavramının ekranları art arda olmalı.`);
     seenConcepts.add(key);
   }
-  // Astra her derste bir gündelik örnek kutusu koyuyor; bizim ilk dört dersimizde
+  // kıyas ürünü her derste bir gündelik örnek kutusu koyuyor; bizim ilk dört dersimizde
   // hiç çıkmadı (2 Ekim 2026, ürün sahibinin kararı: her derste en az bir). 20 Ekim 2026 (kör kıyas): "Günlük
   // hayattan" kutuları düz kaldı; yerine sonucu kavramın belirlediği "Örnek vaka" (eski başlık kabul edilmez).
   const caseNote = (block: LessonBlock) => block.type === "note" && block.note.tone === "info" && ORNEK_VAKA.test(block.note.title.trim());

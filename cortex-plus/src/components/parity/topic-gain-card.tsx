@@ -21,7 +21,7 @@ export function topicGainWorthShowing(gain: unknown): gain is TopicGain {
 }
 
 /**
- * Sonuç ekranından sonra "+%X kazandın" (19 Ekim 2026, Astra'da test sonrası "+6% kazandın ·
+ * Sonuç ekranından sonra "+%X kazandın" (19 Ekim 2026, kıyas ürününde test sonrası "+6% kazandın ·
  * Konu hakimiyeti 18%"). Sayı konu hâkimiyetinin kendisi (`exam_prep_topic_mastery.confidence`):
  * bu etkinliğin cevaplarıyla değişen güven, önce ve sonra.
  */

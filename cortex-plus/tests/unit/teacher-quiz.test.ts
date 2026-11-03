@@ -316,7 +316,7 @@ describe("kök cevabı ele vermez, kaynağa sormaz", () => {
   });
 });
 
-// 17 Ekim 2026, ürün sahibi: çok cevaplı soru eklensin. Astra'nın konu testinde 7 sorudan
+// 17 Ekim 2026, ürün sahibi: çok cevaplı soru eklensin. kıyas ürününün konu testinde 7 sorudan
 // sonuncusu çok cevaplıydı ("BİRDEN FAZLA YANIT SEÇEBİLİRSİN"), kısmi puanla ("%50 doğru").
 describe("çok cevaplı soru", () => {
   const multi = {

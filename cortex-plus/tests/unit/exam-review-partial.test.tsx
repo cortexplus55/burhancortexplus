@@ -12,7 +12,7 @@ afterEach(cleanup);
 /*
   17 Ekim 2026, canlı: açık uçlu "üfürüm" sorusu yapay zekâdan 7/10 aldı ama inceleme
   sayfası yalnız is_correct okuduğu için "Yanlış / Boş" yazıyordu; öğrenci neyin eksik
-  kaldığını ("ikinci kalp sesinin özellikleri") hiç görmüyordu. Astra kısmi doğruyu
+  kaldığını ("ikinci kalp sesinin özellikleri") hiç görmüyordu. kıyas ürünü kısmi doğruyu
   gösteriyor.
 */
 const questions = [

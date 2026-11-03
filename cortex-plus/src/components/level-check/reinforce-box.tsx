@@ -7,6 +7,15 @@ import "@/styles/level-check.css";
 
 export const NO_EXTRA_TEXT = "Bu kazanım için ek soru hazır değil";
 export const NO_EXTRA_LEFT_TEXT = "Şu an ek soru kalmadı; yeni sorular eklendikçe burada görünecek";
+export const NEW_TEST_LABEL = "🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç";
+
+/** Yeni pekiştirme testi başlatılamadığında öğrenciye giden dürüst metin. */
+export function newTestNotice(status: string, limit?: number): string {
+  if (status === "limit") return `Bugünlük yeni pekiştirme hakkın doldu (günde ${limit ?? 3}). Yarın yeniden açabilirsin.`;
+  if (status === "locked") return "Ücretsiz hesapta yeni pekiştirme testi yalnız açık konunda açılır.";
+  if (status === "empty") return "Bu kazanım için doğrulamadan geçen yeni soru çıkmadı; biraz sonra yeniden dene.";
+  return "Yeni sorular şu an hazırlanamadı; biraz sonra yeniden dene.";
+}
 
 /**
  * Ünite sonu pekiştirme (Plan PR 4): zayıf kazanımlara (≥1 yanıt, ustalık < %50) havuzdan en çok 2'şer ek soru.
@@ -26,6 +35,8 @@ export function ReinforceBox({
   onDone?: () => void;
 }) {
   const [phase, setPhase] = useState<"loading" | "offer" | "run" | "result" | "empty" | "hidden">("loading");
+  const [newCode, setNewCode] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [offer, setOffer] = useState<{ list: OfferOutcome[]; total: number } | null>(null);
 
   // Öneri metni sunucunun gerçek sayımından (yanıtlanmamış, doğrulanmış soru) gelir; söz = teslim.
@@ -37,6 +48,7 @@ export function ReinforceBox({
         if (!live) return;
         if (res.status === "offer") {
           setOffer({ list: res.offer, total: res.total });
+          setMissing(res.missing ?? []);
           setWeakCount(res.weakCount);
           setPhase(res.total > 0 ? "offer" : "empty");
         } else {
@@ -55,14 +67,27 @@ export function ReinforceBox({
 
   if (phase === "hidden") return null;
 
+  const openNew = (code: string) => {
+    setNotice(null);
+    setNewCode(code);
+    setPhase("run");
+  };
   const missingList = missing.length ? (
     <ul className="lc-results" data-testid="reinforce-missing">
       {missing.map((m) => (
         <li key={m.code}>
           <b>{m.code}</b>: {NO_EXTRA_TEXT}.
+          <button type="button" className="lc-cta lc-cta--new" data-testid="reinforce-new" onClick={() => openNew(m.code)}>
+            {NEW_TEST_LABEL}
+          </button>
         </li>
       ))}
     </ul>
+  ) : null;
+  const noticeLine = notice ? (
+    <p className="lc-status" role="status" data-testid="reinforce-new-notice">
+      {notice}
+    </p>
   ) : null;
 
   return (
@@ -91,9 +116,18 @@ export function ReinforceBox({
       {phase === "run" ? (
         <LevelCheckRunner
           api={api}
-          request={{ mode: "reinforce", unit: unitId, prepId }}
-          title="Pekiştirme"
+          key={newCode ?? "reinforce"}
+          request={newCode ? { mode: "reinforce_new", unit: unitId, prepId, code: newCode } : { mode: "reinforce", unit: unitId, prepId }}
+          title={newCode ? `Yeni pekiştirme · ${newCode}` : "Pekiştirme"}
           onStarted={(res) => {
+            if (newCode) {
+              if (res.status !== "ok") {
+                setNotice(newTestNotice(res.status, res.status === "limit" ? res.limit : undefined));
+                setNewCode(null);
+                setPhase(missing.length ? "empty" : results.length ? "result" : "empty");
+              }
+              return;
+            }
             setMissing("missing" in res && res.missing ? res.missing : []);
             if (res.status === "empty") {
               setWeakCount(res.weakCount ?? null);
@@ -106,6 +140,7 @@ export function ReinforceBox({
           }}
           onFinish={(r) => {
             setResults(r);
+            setNewCode(null);
             setPhase("result");
           }}
         />
@@ -117,6 +152,7 @@ export function ReinforceBox({
             {weakCount === 0 ? "Bu ünitede zayıf kazanım görünmüyor; ek soru gerekmiyor." : `${NO_EXTRA_LEFT_TEXT}.`}
           </p>
           {missingList}
+          {noticeLine}
           <button
             type="button"
             className="lc-skip"
@@ -136,6 +172,7 @@ export function ReinforceBox({
             {results.length} ek sorudan {results.filter((r) => r.correct).length} doğru. Hakimiyet haritan bu yanıtlarla güncellenir.
           </p>
           {missingList}
+          {noticeLine}
           <button
             type="button"
             className="lc-skip"

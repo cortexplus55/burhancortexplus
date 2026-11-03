@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { STUDY_TOOL_LOCK_COPY, studyToolLock } from "@/lib/learning/study-tools";
 import { lockedToolPayload } from "@/lib/learning/exam-local-session";
 
-/* Astra gibi kilitli araçlar (1 Ekim 2026). */
+/* kıyas ürünü gibi kilitli araçlar (1 Ekim 2026). */
 describe("Bilgi boşlukları ve Tekrar kilidi", () => {
   const fresh = [
     { kind: "lesson", status: "ready" },

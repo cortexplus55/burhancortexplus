@@ -389,7 +389,7 @@ describe("LessonV3 — kaynaktaki tablo derste tablo kalır", () => {
   });
 });
 
-// 16 Ekim 2026 Astra kıyası: Astra belgede olmayan sınav bilgisini ("bal 1 yaşına kadar,
+// 16 Ekim 2026 kıyas ürünü kıyası: kıyas ürünü belgede olmayan sınav bilgisini ("bal 1 yaşına kadar,
 // botulizm") "metinde belirtilmiştir" diye veriyordu. Ürün sahibinin kararı: etiketli,
 // denetlenmiş "Genel bilgi" kutusu; yalnız belgeli derste, en fazla iki.
 describe("LessonV3 — Genel bilgi kutusu", () => {

@@ -93,10 +93,10 @@ export function MockExamSetup({
         ? (realMinutes ?? PRESET_MINUTES.standard)
         : PRESET_MINUTES[value];
   const countFor = (value: LengthChoice) => (value === "custom" ? customCount : presetQuestionCount(value, realQuestionCount));
-  // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
+  // kıyas ürünü gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
   const [minutes, setMinutes] = useState(() => presetMinutes(formatSummary ? "real" : "standard"));
   const [untimed, setUntimed] = useState(false);
-  /** Astra: "Nasıl çözmek istiyorsun?" — uygulamada ya da kâğıtta (17 Ekim 2026). */
+  /** kıyas ürünü: "Nasıl çözmek istiyorsun?" — uygulamada ya da kâğıtta (17 Ekim 2026). */
   const [answerMode, setAnswerMode] = useState<"app" | "paper" | null>(null);
   const answerModeRef = useRef<"app" | "paper" | null>(null);
   answerModeRef.current = answerMode;

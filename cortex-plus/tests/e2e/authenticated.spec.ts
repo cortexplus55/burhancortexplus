@@ -42,7 +42,7 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
       }),
     ).toBeVisible();
 
-    // Ücretsiz: Satın al; kurucu: Kurucu etiketi; abone: çip yok (Astra gibi),
+    // Ücretsiz: Satın al; kurucu: Kurucu etiketi; abone: çip yok (kıyas ürünü gibi),
     // üst çubukta seri duruyor. Kredi sayısı hiçbir kademede yazılmıyor.
     const chromeCredit = page
       .getByRole("link", { name: /Satın al/ })

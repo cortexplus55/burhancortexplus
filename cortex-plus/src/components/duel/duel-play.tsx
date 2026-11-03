@@ -42,7 +42,7 @@ type BotTimeline = { level: BotLevel; name: string; steps: BotStep[]; correct: n
 const LETTERS = ["A", "B", "C", "D", "E"];
 
 /**
- * Düello oyunu — Astra'nın kurallarıyla (bkz. `@/lib/learning/duel`).
+ * Düello oyunu — kıyas ürününün kurallarıyla (bkz. `@/lib/learning/duel`).
  * Doğru cevaplar istemcide yok; tur bitince sunucu puanlayıp gösteriyor.
  *
  * Bot rakip (29 Ekim 2026): arkadaş beklemeden "AI derece öğrencisiyle" kapışılır. Botun turu

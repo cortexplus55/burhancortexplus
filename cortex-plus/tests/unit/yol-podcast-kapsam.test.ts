@@ -8,7 +8,7 @@ import { prepTopicScopeLine, topicScopeLine } from "@/lib/documents/generation-c
 /*
   30 Ekim 2026, canlı: yoldaki "Miktar Teorisi ve Fisher'in Değişim Denklemi" podcast'i aynı sayfadaki tahvil işlemleri,
   reel faiz ve Phillips eğrisi bölümlerini de anlattı. İlk düzeltme Araçlar satırını aldı ("sayfadaki başka başlıklar
-  bölüm olmaz"). Aynı gün Astra ile yan yana kurulan 4 sayfalık notta harita konuya yine bu adı verdi ama reel faiz ve
+  bölüm olmaz"). Aynı gün kıyas ürünüyle yan yana kurulan 4 sayfalık notta harita konuya yine bu adı verdi ama reel faiz ve
   Phillips eğrisi başka hiçbir konunun değildi: o satırla podcast'te hiç anlatılmayacaktı. Hazırlıkta yalnız ÖBÜR
   konuların kısımları dışarıda kalır.
 */

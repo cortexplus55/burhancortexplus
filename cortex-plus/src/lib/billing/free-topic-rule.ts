@@ -21,7 +21,7 @@ export type GateNodeInput = {
   opened: boolean;
 };
 
-function foldLabel(value: string | null | undefined): string {
+export function foldLabel(value: string | null | undefined): string {
   return String(value ?? "").trim().toLocaleLowerCase("tr");
 }
 

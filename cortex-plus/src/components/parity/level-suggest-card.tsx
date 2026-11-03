@@ -15,7 +15,7 @@ const COPY: Record<LevelHint, { title: string; body: string }> = {
 };
 
 /**
- * Astra'nın sonuç sonrası düzey önerisi (18 Ekim 2026): "Çok kolay / Tam kararında / Çok zor".
+ * kıyas ürününün sonuç sonrası düzey önerisi (18 Ekim 2026): "Çok kolay / Tam kararında / Çok zor".
  * Seçim bütün konuların düzeyini bir basamak kaydırır (`/api/learning/exam-prep/level`);
  * sıradaki etkinlik yeni düzeyde hazırlanır. "Tam kararında" hiçbir şeyi değiştirmez.
  */

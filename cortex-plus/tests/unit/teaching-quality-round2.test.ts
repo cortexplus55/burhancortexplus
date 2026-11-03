@@ -11,7 +11,7 @@ import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
 
 /*
   22 Ekim 2026, kör kıyas 2. tur (on çift, iki sıra, dört göz). Doğrulukta 20/20, sınav gözünde 18/20 bizden yana;
-  öğrenci gözünde 12/20 Astra'dan yana, podcast'te üç gözde Astra önde. Yargıçların ortak cümlesi: "kaynağın tekrarı
+  öğrenci gözünde 12/20 kıyas ürününden yana, podcast'te üç gözde kıyas ürünü önde. Yargıçların ortak cümlesi: "kaynağın tekrarı
   gibi okunuyor". Buradaki örnekler o turun Cortex malzemesinden birebir alındı.
 */
 

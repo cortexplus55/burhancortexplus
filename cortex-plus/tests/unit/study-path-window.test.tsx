@@ -5,7 +5,7 @@ import { ExamPrepHome, type HomeNode } from "@/components/parity/exam-prep-home"
 import { PATH_FAR_NOTE, PATH_LOOKAHEAD, farNodeIds } from "@/lib/learning/study-path-window";
 
 /*
-  20 Ekim 2026, ürün sahibi: "Astra mantığına geçelim — sıralamayı 2 ileri adımla aça aça
+  20 Ekim 2026, ürün sahibi: "kıyas ürünü mantığına geçelim — sıralamayı 2 ileri adımla aça aça
   ilerleyelim." Karar: yolun tamamı görünür; şu anki adım ve sonraki iki adım kesin plan,
   sonrası sonuçlara göre değişebilir ve soluk çizilir.
 */

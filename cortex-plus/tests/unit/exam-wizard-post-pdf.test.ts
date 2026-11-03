@@ -79,7 +79,7 @@ describe("post-PDF wizard order", () => {
     expect(wizard).not.toContain("ExamSetupChat");
   });
 
-  it("keeps the prep shell on path and progress (Astra düzeni)", () => {
+  it("keeps the prep shell on path and progress (kıyas ürünü düzeni)", () => {
     expect(home).toContain("PREP_HOME_COPY");
     expect(PREP_HOME_COPY.path).toBe("Çalışma yolu");
     expect(PREP_HOME_COPY.topics).toBe("Konular");

@@ -21,7 +21,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), info: vi.fn() } }));
 
 afterEach(cleanup);
 
-/* Astra'daki "Sınav hazırlıklarında ara" (1 Ekim 2026). */
+/* kıyas ürünündeki "Sınav hazırlıklarında ara" (1 Ekim 2026). */
 const shared = toSearchRows([
   { id: "a", title: "Kan Fizyolojisi", exam_type: "Tıp", view_count: 2, owner_name: "Ayşe", owner_key: "k1", is_own: false, topic_count: 4, created_at: "2026-09-30T10:00:00Z" },
   { id: "b", title: "Enzim Kinetiği", exam_type: "Biyoloji", view_count: 3, owner_name: "Berat", owner_key: "k2", is_own: false, topic_count: 5, created_at: "2026-09-20T10:00:00Z" },

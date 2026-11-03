@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 /**
- * Hazırlık Ayarları'nın üstü (Astra, 1 Ekim 2026): adı ve hedef puanı yerinde
+ * Hazırlık Ayarları'nın üstü (kıyas ürünü, 1 Ekim 2026): adı ve hedef puanı yerinde
  * düzenle, hazırlığı sil. Plan ayarları (tarih, süre, günler) aşağıda ayrı.
  */
 export function PrepBasicsPanel({

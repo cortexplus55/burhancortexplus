@@ -7,7 +7,7 @@ import { topicMasteryGain, type TopicMasterySnapshot } from "@/lib/learning/lear
 import { TopicGainCard, topicGainWorthShowing } from "@/components/parity/topic-gain-card";
 
 /*
-  19 Ekim 2026, Astra yan yana: test sonucundan sonra "+6% kazandın · Devletin Temel Nitelikleri
+  19 Ekim 2026, kıyas ürünü yan yana: test sonucundan sonra "+6% kazandın · Devletin Temel Nitelikleri
   konusunda · Konu hakimiyeti 18%". Bizde sonuçtan doğrudan sıradaki adıma geçiliyordu. Sayı konu
   hâkimiyetinin kendisi (exam_prep_topic_mastery.confidence), bu etkinlikten önce ve sonra.
 */

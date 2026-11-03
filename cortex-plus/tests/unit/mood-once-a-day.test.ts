@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { moodAskedSince, openingStage } from "@/lib/learning/lesson-open";
 
 /*
-  19 Ekim 2026, ürün sahibinin kararı: ruh hali günde bir kez sorulur. Astra'da bu kart yok;
+  19 Ekim 2026, ürün sahibinin kararı: ruh hali günde bir kez sorulur. kıyas ürününde bu kart yok;
   bizde her etkinlikten önce çıkıyordu ve derste "ruh hali → önerilen ders" iki onay kartı art
   arda geliyordu. Bugün cevap verildiyse kart atlanır, o cevap kayda yine yazılır.
 */

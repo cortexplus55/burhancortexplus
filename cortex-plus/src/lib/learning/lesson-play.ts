@@ -212,7 +212,7 @@ export function buildLessonRetryCheck(
 }
 
 /**
- * "Bu derste neler var" listesinde başlığın altındaki tek satır (Astra'daki
+ * "Bu derste neler var" listesinde başlığın altındaki tek satır (kıyas ürünündeki
  * gibi). Model `lead` yazdıysa o; yazmadıysa (eski ders) bölümün kısa ilk
  * cümlesi. Uzun cümle kesilmez — satır boş kalır.
  */

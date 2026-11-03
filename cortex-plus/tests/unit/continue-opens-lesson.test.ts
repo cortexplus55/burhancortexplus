@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /*
-  3 Ekim 2026, canlı karşılaştırma: Astra'da yeni hazırlıkta "Devam et"
+  3 Ekim 2026, canlı karşılaştırma: kıyas ürününde yeni hazırlıkta "Devam et"
   ilk dersi doğrudan açıyor. Bizde önce "Konu seç" ekranı, sonra zorunlu
   8 soruluk tanı geliyordu; ders ancak üçüncü ekranda açılıyordu.
 */

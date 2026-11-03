@@ -14,9 +14,9 @@ const SYSTEM =
 /**
  * Yeni sohbetin ilk cevabından sonra başlığı yazar.
  *
- * Astra her sohbete kısa bir başlık ve emoji veriyor; bizde ilk mesajın
+ * kıyas ürünü her sohbete kısa bir başlık ve emoji veriyor; bizde ilk mesajın
  * ilk 60 harfi duruyordu ("[Matematik] Bosluk orani ile porozite arasindaki
- * iliski nedi"). Ürün sahibi Astra gibi olmasını seçti (30 Eylül 2026).
+ * iliski nedi"). Ürün sahibi kıyas ürünü gibi olmasını seçti (30 Eylül 2026).
  *
  * Öğrenciden ücret alınmaz, cevabı geciktirmez (çağıran `after()` ile
  * çalıştırır). Başarısız olursa eski başlık kalır.

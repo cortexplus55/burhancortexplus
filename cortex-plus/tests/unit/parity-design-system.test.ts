@@ -2,8 +2,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /*
-  Astra tasarım sistemi (17 Ekim 2026, ürün sahibinin kararı: yazı tipleri ve palet birebir).
-  Canlıda yan yana ölçüldü: Astra Figtree + JetBrains Mono (etiketler) + Jersey 10 (karşılama)
+  kıyas ürünü tasarım sistemi (17 Ekim 2026, ürün sahibinin kararı: yazı tipleri ve palet birebir).
+  Canlıda yan yana ölçüldü: kıyas ürünü Figtree + JetBrains Mono (etiketler) + Jersey 10 (karşılama)
   + Caveat ("hedef puan"); zemin #0d0d0d, yüzeyler #141414 / #1f1f1f, çerçeve #242424 / #303030,
   tek eylem mavisi #4353f3. Bizde eşaralıklı etiketler sistemin yazı tipine (Windows'ta
   Consolas) düşüyordu, "hedef puan" Segoe Print idi (yalnız Windows), zemin #050505'ti.
@@ -14,7 +14,7 @@ const block = (css: string, selector: string) => {
   return start < 0 ? "" : css.slice(start, css.indexOf("}", start));
 };
 
-describe("Astra tasarım sistemi", () => {
+describe("kıyas ürünü tasarım sistemi", () => {
   it("dört yazı tipi kökte Türkçe alt kümeyle yüklenir", () => {
     const layout = read("src/app/layout.tsx");
     for (const font of ["Figtree", "JetBrains_Mono", "Jersey_10", "Caveat"]) expect(layout).toContain(font);
@@ -24,7 +24,7 @@ describe("Astra tasarım sistemi", () => {
     expect(layout.match(/subsets: \["latin", "latin-ext"\]/g)?.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("koyu tema Astra paleti; odak ve eylem mavi", () => {
+  it("koyu tema kıyas ürünü paleti; odak ve eylem mavi", () => {
     const dark = block(read("src/styles/tokens.css"), ".dark");
     expect(dark).toContain("--c-bg: #0d0d0d;");
     expect(dark).toContain("--c-surface-1: #141414;");
@@ -45,7 +45,7 @@ describe("Astra tasarım sistemi", () => {
     expect(read("src/styles/tokens.css")).toContain('--font-mono: var(--font-jetbrains-mono, "JetBrains Mono")');
   });
 
-  it("durum renkleri Astra gibi: seçili menü gri, birincil düğme mavi, zemin düz, kayıtta altın yok", () => {
+  it("durum renkleri kıyas ürünü gibi: seçili menü gri, birincil düğme mavi, zemin düz, kayıtta altın yok", () => {
     const shell = read("src/styles/parity-shell.css");
     const activeNav = shell.slice(shell.indexOf(".cp-sor-topnav-link--active,\n.cp-sor-nav-link--active {"));
     expect(activeNav.slice(0, activeNav.indexOf("}"))).not.toMatch(/ffc857|--c-brand/);
@@ -74,8 +74,8 @@ describe("Astra tasarım sistemi", () => {
   });
 });
 
-describe("Astra ayrıntıları (tasarım 8. adım)", () => {
-  it("geri bildirim Astra'nın beş seçeneği; API ve kart aynı listeyi kullanır; sonuç sayfasında görünür", () => {
+describe("kıyas ürünü ayrıntıları (tasarım 8. adım)", () => {
+  it("geri bildirim kıyas ürününün beş seçeneği; API ve kart aynı listeyi kullanır; sonuç sayfasında görünür", () => {
     const card = read("src/components/parity/lesson-rating-card.tsx");
     for (const label of ["Harikaydı", "Çok kolaydı", "Çok zordu", "Mantıklı değildi", "Başka bir şey yanlış gitti"]) expect(card).toContain(label);
     expect(read("src/app/api/learning/exam-prep/rating/route.ts")).toContain('["great", "too_easy", "too_hard", "confusing", "other"]');

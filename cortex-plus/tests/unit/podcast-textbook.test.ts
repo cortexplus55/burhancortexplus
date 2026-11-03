@@ -6,7 +6,7 @@ import { podcastSystem, podcastVerifySystem } from "@/lib/learning/teacher-podca
 import { TEXTBOOK_LINE, TEXTBOOK_MARKS, withoutTextbookLabel } from "@/lib/learning/podcast-textbook";
 import { coercePodcastDraft } from "@/lib/learning/podcast-episode";
 
-// 23 Ekim 2026 (ürün sahibi: "podcast'i Astra seviyesine taşımak için ne gerekiyorsa yap").
+// 23 Ekim 2026 (ürün sahibi: "podcast'i kıyas ürünü seviyesine taşımak için ne gerekiyorsa yap").
 describe("podcast: ders kitabı bilgisi", () => {
   it("yazar etiket koymaz; okuyucular kayıtlı podcast'lerdeki eski etiketleri yine tanır", () => {
     const system = podcastSystem("document", "diyalog");

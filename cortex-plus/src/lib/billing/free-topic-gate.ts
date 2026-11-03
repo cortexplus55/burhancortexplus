@@ -67,6 +67,11 @@ async function loadFirstTopic(service: SupabaseClient, userId: string, prepId: s
   return { first: { label: String(first.label ?? ""), ids: firstIds }, firstIds };
 }
 
+/** Ücretsiz hesapta açık olan tek konunun adı; abone, kurucu ya da konusuz hazırlıkta null (kilit yok). */
+export async function freeOpenTopicLabel(service: SupabaseClient, userId: string, prepId: string): Promise<string | null> {
+  return (await loadFirstTopic(service, userId, prepId))?.first.label ?? null;
+}
+
 /** Kilitliyse 1. konunun özeti, açıksa null. Başlatma isteği ve adım sayfası bunu çağırır (tek kaynak). */
 export async function freeTopicGate(service: SupabaseClient, input: GateInput): Promise<FirstTopicSummary | null> {
   const row = await loadFirstTopic(service, input.userId, input.prepId);

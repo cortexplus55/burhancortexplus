@@ -15,7 +15,7 @@ import { loadLevelHint } from "@/lib/learning/prep-level";
 import type { PodcastEpisode } from "@/lib/learning/podcast-episode";
 
 /*
-  20 Ekim 2026 kör kıyas: Astra'nın podcast'i sonda soru soruyordu, bizimki "Dinledin, konu
+  20 Ekim 2026 kör kıyas: kıyas ürününün podcast'i sonda soru soruyordu, bizimki "Dinledin, konu
   kulağında" deyip bitiyordu. Denetlenmiş senaryodan test motoru üç soru yazar; atlanabilir
   ("Şimdi değil" → bugünkü gibi 1/1, puansız, kanıtsız); yazılamazsa podcast yine gelir.
 */

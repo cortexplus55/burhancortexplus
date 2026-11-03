@@ -10,7 +10,7 @@ import type { PodcastChapter } from "@/lib/learning/podcast-script";
 import { TEXTBOOK_LINE } from "@/lib/learning/podcast-textbook";
 
 /**
- * Podcast'in dinleme kontrolü (20 Ekim 2026, kör kıyas): Astra'nın podcast'i sonda soru
+ * Podcast'in dinleme kontrolü (20 Ekim 2026, kör kıyas): kıyas ürününün podcast'i sonda soru
  * soruyordu, bizimki "Dinledin, konu kulağında" deyip bitiyordu. Senaryo denetimden geçince
  * test motoru (`teacherQuizLoop`) senaryonun kendisinden üç soru yazar; denetçi her soruyu önce
  * kendisi çözer. Kontrol atlanabilir ("Şimdi değil"); atlanınca podcast bugünkü gibi 1/1,
@@ -19,7 +19,7 @@ import { TEXTBOOK_LINE } from "@/lib/learning/podcast-textbook";
  * Saf modül: istemci ve sunucu aynı okuyucuyu kullanır.
  */
 
-// 23 Ekim 2026 (ürün sahibinin kararı): 3 → 5; yargıçlar her turda Astra'nın beş sorusunu (vaka ve çok cevaplı dahil) daha iyi buldu.
+// 23 Ekim 2026 (ürün sahibinin kararı): 3 → 5; yargıçlar her turda kıyas ürününün beş sorusunu (vaka ve çok cevaplı dahil) daha iyi buldu.
 export const PODCAST_CHECK_COUNT = 5;
 /** Bundan az soru kaldıysa kontrol yok (tek soruluk kontrol ölçmez). */
 export const MIN_CHECK_QUESTIONS = 2;

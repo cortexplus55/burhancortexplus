@@ -4,7 +4,7 @@ import { istanbulDay } from "@/lib/istanbul-day";
 /**
  * Ders açılışının iki ekranı.
  *
- * Aşinalık ve ruh hali zaten soruluyor. Eksik olan, Astra ders
+ * Aşinalık ve ruh hali zaten soruluyor. Eksik olan, kıyas ürünü ders
  * deneyiminde onların hemen ardından gelen kart: önce önerilen ders,
  * sonra "Ders oluştur". Slayt dersi bir sohbet değildir; metin bunu
  * "kısa bir ders" diye söyler.
@@ -45,7 +45,7 @@ export function stepAfterMood(kind: string): "recommend" | "setup" {
 }
 
 /**
- * Ruh hali günde bir kez sorulur (19 Ekim 2026, ürün sahibinin kararı): Astra'da hiç yok, bizde
+ * Ruh hali günde bir kez sorulur (19 Ekim 2026, ürün sahibinin kararı): kıyas ürününde hiç yok, bizde
  * her etkinlikten önce soruluyordu ve derste "ruh hali → önerilen ders" iki onay kartı art arda
  * çıkıyordu. Bugün (Türkiye günü) cevap verildiyse o kullanılır, kart atlanır.
  * Döner: bugünün Türkiye'de başladığı an (ISO), `created_at >=` sorgusu için.

@@ -1330,7 +1330,7 @@ function goodEnough(candidate: OutlineCandidate | null): candidate is OutlineCan
  * 18 Ekim 2026: a 20-page trigonometry note (one heading per page, clean text
  * layer) came back from gpt-4o-mini as ONE topic in 3 s. Validation dropped
  * nothing, so 1/1 passed `goodEnough` and the student got a single-topic path
- * for the whole file while Astra built seven from the same PDF. `goodEnough`
+ * for the whole file while kıyas ürünü built seven from the same PDF. `goodEnough`
  * only compares kept to proposed; it cannot see that the proposal itself was
  * thin. This floor can — and mini's thin map now escalates to the strong model.
  */

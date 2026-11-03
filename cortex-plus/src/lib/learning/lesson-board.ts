@@ -219,7 +219,7 @@ function cleanPiece(text: string): string {
 /**
  * Liste numarası: "1) …" ya da ardından büyük harf/simge gelen "1. P = F/A". Türkçe sıra sayısı
  * ("2. ay", "18. ayda", "3. basamak") liste numarası değildir — ardından küçük harfli kelime
- * gelir ve silinirse anlam gider. Astra'nın dersinde tam bu oldu: "2 ay / 6 ay / 9 ay" yerine
+ * gelir ve silinirse anlam gider. kıyas ürününün dersinde tam bu oldu: "2 ay / 6 ay / 9 ay" yerine
  * "1 Ay / 2 Ay / 3 Ay" (18 Ekim 2026, yan yana bakıldı). "1 kPa" kalır — rakamın ardında nokta yok.
  */
 const LIST_MARKER = /^(?:\d{1,2}\)\s+(?=\S)|\d{1,2}\.\s+(?=[^\sa-zçğıöşü]))/;

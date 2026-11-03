@@ -6,9 +6,9 @@ import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { nodeForTopic } from "@/lib/learning/exam-prep-ui-path";
 
 /*
-  30 Ekim 2026, Astra ile yan yana tur: ders sonundaki kart "Kendini test et · Bu dersi hızlı bir bilgi kontrolüyle
+  30 Ekim 2026, kıyas ürünüyle yan yana tur: ders sonundaki kart "Kendini test et · Bu dersi hızlı bir bilgi kontrolüyle
   tamamla · Sınavla bitir" diyordu ama düğme Eylül'den beri bütün hazırlığın yazılı deneme kurulumuna gidiyordu.
-  Astra'da aynı kart o dersin testini 1 sn'de açıyor. Düğme artık dersin konusunun ilk bitmemiş testini açar.
+  kıyas ürününde aynı kart o dersin testini 1 sn'de açıyor. Düğme artık dersin konusunun ilk bitmemiş testini açar.
 */
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));

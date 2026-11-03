@@ -1,5 +1,5 @@
 /**
- * Yazılı denemede serbest süre (Astra, 1 Ekim 2026): öğrenci süreyi kendisi
+ * Yazılı denemede serbest süre (kıyas ürünü, 1 Ekim 2026): öğrenci süreyi kendisi
  * seçer ya da süresiz çözer. Soru sayısı uzunluk seçeneğinden gelir.
  *
  * Süresiz deneme `duration_minutes = 0` ile saklanır: bitiş zamanı yazılmaz,

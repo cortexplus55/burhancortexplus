@@ -121,7 +121,7 @@ function itemsPrompt(unit: PoolUnit, pairs: string[]) {
       `${officialBlock(unit)}\n\nŞu (kazanım|zorluk) çiftlerinin her biri için tam 1 soru yaz: ${pairs.join(", ")}.\nBir çift listede birden çok kez geçiyorsa her geçişi için ayrı, birbirinden farklı köklü bir soru yaz.\n` +
       (kind ? ITEM_STYLE[kind] : "") +
       `Zorluk: easy=kavram tanıma, medium=uygulama/yorum, hard=çok adımlı çıkarım. Her soruda tam ${choices} seçenek, ` +
-      `tek doğru cevap; seçeneklerin başına harf koyma. JSON: {"items": [{"outcome_code": string, "difficulty": "easy"|"medium"|"hard", ` +
+      `tek doğru cevap; seçeneklerin başına harf koyma. explanation son satırı tam olarak "Doğru cevap: <doğru şıkkın metni>" olsun. JSON: {"items": [{"outcome_code": string, "difficulty": "easy"|"medium"|"hard", ` +
       `"stem": string, "choices": string[], "answer": number (0 tabanlı doğru seçenek), "explanation": string}]}`,
   };
 }
@@ -562,4 +562,57 @@ export async function generateUnitContent(
   if (!lessonReview.ok) return { ok: false, reason: "lesson_review", qa, usage };
   if (missing.length) return { ok: false, reason: "item_coverage", qa, usage };
   return { ok: true, lesson, items, qa, usage, model: models.generate };
+}
+
+/** Pekiştirme (Paket 3): tek kazanım için bir turda üretilen aday sayısı ve zorluk dağılımı. */
+export const REINFORCE_PAIRS: readonly ("easy" | "medium" | "hard")[] = ["easy", "medium", "medium", "hard", "hard"];
+
+/**
+ * "🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç": tek kazanıma yeni sorular. Ünite üretimiyle aynı hat ve aynı kapı
+ * (yazar → GATE v14 kod katmanları → gpt-6-luna kör çözüm → üçlü mutabakat). Tam 2 model çağrısı (yazar + kör çözücü);
+ * aday kalmazsa doğrulama çağrısı yapılmaz. Daha önce havuzda olan kökler elenir. Kayıt çağıranın işi.
+ */
+export async function generateReinforceItems(
+  unit: PoolUnit,
+  outcomeCode: string,
+  llm: LlmCall,
+  opts: { existingStems?: readonly string[]; models?: { generate: string; verify: string }; onUsage?: (entry: UsageEntry) => Promise<void> } = {},
+): Promise<{ items: PoolItem[]; rejected: { code: string; reason: string }[]; usage: UsageEntry[] }> {
+  const models = opts.models ?? { generate: env.OPENAI_CONTENT_MODEL, verify: SHARED_VERIFY_MODEL };
+  const usage: UsageEntry[] = [];
+  const call = async (actionCode: UsageCode, model: string, prompt: Omit<Parameters<LlmCall>[0], "model">) => {
+    const out = await llm({ model, ...prompt });
+    const entry = { actionCode, model, tokensIn: out.tokensIn, tokensOut: out.tokensOut };
+    usage.push(entry);
+    if (opts.onUsage) await opts.onUsage(entry);
+    return out.text;
+  };
+  const outcome = unit.outcomes.find((o) => o.code === outcomeCode);
+  if (!outcome) return { items: [], rejected: [{ code: outcomeCode, reason: "kazanım ünitede yok" }], usage };
+  const choices = choiceCount(unit.program);
+  const pairs = REINFORCE_PAIRS.map((d) => `${outcomeCode}|${d}`);
+  const rejected: { code: string; reason: string }[] = [];
+  const fresh = parseItemsLenient(await call("REINFORCE_ITEMS", models.generate, itemsPrompt(unit, pairs)));
+  for (const drop of fresh.dropped) rejected.push({ code: drop.code, reason: `çıktı: ${drop.reason}` });
+  const gateUnit = { unitId: unit.unitId, choices, outcomes: [{ code: outcome.code, outcomeId: outcome.outcomeId, limitations: outcome.limitations }] };
+  const gated = gateItems(fresh.items.filter((i) => i.outcome_code.trim() === outcomeCode), gateUnit, REINFORCE_PAIRS.length);
+  rejected.push(...gated.rejected.map((r) => ({ code: r.code, reason: `kapı: ${r.reason}` })));
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLocaleLowerCase("tr");
+  const seen = new Set((opts.existingStems ?? []).map(norm));
+  const candidates = gated.passed.filter((i) => {
+    const key = norm(i.stem);
+    if (seen.has(key)) {
+      rejected.push({ code: i.outcome_code, reason: "havuzda aynı kök var" });
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+  if (!candidates.length) return { items: [], rejected, usage };
+  const raw = await call("REINFORCE_VERIFY", models.verify, { ...verifyPrompt(unit, candidates), reasoningEffort: "low" });
+  const review = parseCompactReview(raw, candidates);
+  if (!review) return { items: [], rejected: [...rejected, ...candidates.map((c) => ({ code: c.outcome_code, reason: "doğrulama yanıtı okunamadı" }))], usage };
+  const applied = applyReview(candidates, { lesson_ok: true, lesson_issues: [], items: review.rows });
+  rejected.push(...applied.rejected.map((r) => ({ code: r.item.outcome_code, reason: r.reason })));
+  return { items: applied.kept.map((i) => ({ ...i, outcome_code: i.outcome_code.trim() })), rejected, usage };
 }

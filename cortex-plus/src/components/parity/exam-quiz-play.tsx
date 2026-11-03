@@ -57,7 +57,7 @@ export function ExamQuizPlay({
   const isOn = (option: string) => selected.includes(option);
   const hasCorrect = Array.isArray(question.correct) && question.correct.length > 0;
   const isCorrect = hasCorrect ? sameOptionSet(selected, question.correct!) : false;
-  // Çok cevaplıda kısmi puan, Astra'daki gibi: (doğru seçilen − yanlış seçilen) / doğru sayısı.
+  // Çok cevaplıda kısmi puan, kıyas ürünündeki gibi: (doğru seçilen − yanlış seçilen) / doğru sayısı.
   const partial = hasCorrect && question.multi ? multiPartialPercent(selected, question.correct!) : 0;
 
   function pick(option: string) {
@@ -115,7 +115,7 @@ export function ExamQuizPlay({
       <h2 className="text-lg sm:text-xl font-semibold text-[var(--cp-text)] leading-relaxed">
         <RichBody text={question.text} />
       </h2>
-      {/* Astra'daki gibi kökün hemen altında (17 Ekim 2026). */}
+      {/* kıyas ürünündeki gibi kökün hemen altında (17 Ekim 2026). */}
       {question.multi ? <p className="cp-quiz-multi-hint">Birden fazla yanıt seçebilirsin</p> : null}
 
       <div className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
@@ -123,7 +123,7 @@ export function ExamQuizPlay({
           const selectedThis = isOn(option);
           const isThisCorrect = hasCorrect && question.correct!.includes(option);
           // Çok cevaplıda kaçırılan doğru amber; tek seçimlide yanlış cevapta doğru şık yeşil
-          // görünür (Astra'daki gibi, 19 Ekim 2026 — öğrenci doğruyu açıklamadan aramasın).
+          // görünür (kıyas ürünündeki gibi, 19 Ekim 2026 — öğrenci doğruyu açıklamadan aramasın).
           const missedCorrect = showFeedback && isThisCorrect && !selectedThis && question.multi;
           const showGreen = showFeedback && isThisCorrect && (selectedThis || !question.multi);
           const showRed = showFeedback && selectedThis && !isThisCorrect;

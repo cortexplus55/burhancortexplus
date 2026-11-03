@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (existing) return NextResponse.json({ id: existing.id, alreadyJoined: true });
 
-  // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; Astra'da ücretsiz
+  // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; kıyas ürününde ücretsiz
   // hesap yeni hazırlık kuramıyor).
   if (await freePrepLimitReached(service, userId)) {
     return NextResponse.json(
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
     p_viewer: userId,
   });
 
-  // Yıldızlar (17 Ekim 2026, Astra: "Hazırlığında yeni öğrenci — 50"): paylaşanın, katılan başına bir kez.
+  // Yıldızlar (17 Ekim 2026, kıyas ürünü: "Hazırlığında yeni öğrenci — 50"): paylaşanın, katılan başına bir kez.
   await awardStars(service, {
     userId: source.user_id as string,
     source: "prep_joined",

@@ -8,7 +8,7 @@ import { FREE_PAGE_TOTAL } from "@/lib/billing/free-tier-copy";
  * uçları da aynı sonucu kullanır. Badge / isPremium / planTier ayrışması
  * (isim substring vs. tier kolonu) buradan kapanır.
  *
- * Kitle (2026-09-24, Astra hizası): kapı özellikte değil, kullanımda.
+ * Kitle (2026-09-24, kıyas ürünü hizası): kapı özellikte değil, kullanımda.
  * Misafir model çağırmaz. Kayıtlı ücretsiz öğrenme stüdyolarına girer ve
  * kredi yer. Plus / Sigma aynı yüzeyi daha yüksek kotayla kullanır;
  * gelişmiş model Sigma'dadır.

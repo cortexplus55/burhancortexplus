@@ -1,7 +1,7 @@
 /**
- * Kâğıtta çöz (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi).
+ * Kâğıtta çöz (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünündeki gibi).
  *
- * Astra'da canlı bakıldı: "Nasıl çözmek istiyorsun? Uygulamada / Kağıtta" → çalışma
+ * kıyas ürününde canlı bakıldı: "Nasıl çözmek istiyorsun? Uygulamada / Kağıtta" → çalışma
  * kâğıdı yazdırılır ("Önce çalışma kağıdını yazdır"; Başla ancak sonra açılır) →
  * halka sayaç "89:59 kaldı" → "Bitir ve çözümlerini yükle" → her sayfanın fotoğrafı
  * (en çok 10) → "el yazını okuyup çözümlerini değerlendirir ve not verir".

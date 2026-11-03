@@ -6,7 +6,7 @@ import { resultMood } from "@/lib/learning/result-mood";
 const session = readSource("src/components/parity/exam-node-session.tsx");
 const route = readSource("src/app/api/learning/exam-prep/rating/route.ts");
 
-describe("sonuç ekranı (Astra düzeni, 30 Eylül 2026)", () => {
+describe("sonuç ekranı (kıyas ürünü düzeni, 30 Eylül 2026)", () => {
   it("ton skora göre: harika / güzel / çalış", () => {
     expect(resultMood(6, 7)).toMatchObject({ text: "Harika iş çıkardın!", tone: "great" });
     expect(resultMood(5, 7)).toMatchObject({ text: "Güzel gidiyor", tone: "good" });

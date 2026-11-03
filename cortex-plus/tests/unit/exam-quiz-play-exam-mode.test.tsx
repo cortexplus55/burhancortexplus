@@ -43,7 +43,7 @@ describe("written exam quiz play", () => {
   });
 });
 
-// 17 Ekim 2026: çok cevaplı soru Astra'daki gibi — ipucu kökün altında, kısmi doğru yüzdeyle.
+// 17 Ekim 2026: çok cevaplı soru kıyas ürünündeki gibi — ipucu kökün altında, kısmi doğru yüzdeyle.
 describe("çok cevaplı soru ekranı", () => {
   it("kökün altında ipucu; bir doğruyu seçince 'Kısmen doğru · %50'", () => {
     const multi = [
@@ -69,7 +69,7 @@ describe("çok cevaplı soru ekranı", () => {
   });
 });
 
-// 19 Ekim 2026, Astra yan yana: tek seçimlide yanlış cevap verince doğru şık yeşil görünür.
+// 19 Ekim 2026, kıyas ürünü yan yana: tek seçimlide yanlış cevap verince doğru şık yeşil görünür.
 // Önce yalnız seçilen şık kırmızıydı; öğrenci doğruyu açıklamanın içinde arıyordu.
 describe("tek seçimli soruda yanlış cevap", () => {
   it("seçilen şık kırmızı, doğru şık yeşil işaretli", () => {

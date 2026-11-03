@@ -383,7 +383,7 @@ function ChatPanelSession({
     fileName: string;
   } | null>(null);
   const [mathOpen, setMathOpen] = useState(false);
-  /** Periyodik tablo — Astra gibi sohbetten çıkmadan açılır (1 Ekim 2026). */
+  /** Periyodik tablo — kıyas ürünü gibi sohbetten çıkmadan açılır (1 Ekim 2026). */
   const [tableOpen, setTableOpen] = useState(false);
   /** Yazı kutusundaki ayar düğmesi: bugünkü ruh hali menüsü. */
   const [moodOpen, setMoodOpen] = useState(false);
@@ -415,7 +415,7 @@ function ChatPanelSession({
   const [quickOpen, setQuickOpen] = useState(false);
   const [talking, setTalking] = useState(false);
   /**
-   * Sesli sohbet ("Konuş") — Astra'daki gibi: dinle → gönder → cevabı sesli
+   * Sesli sohbet ("Konuş") — kıyas ürünündeki gibi: dinle → gönder → cevabı sesli
    * oku → yeniden dinle. Kapalıyken mikrofon yalnızca kutuya yazıyor.
    */
   const [voiceMode, setVoiceMode] = useState(false);
@@ -993,7 +993,7 @@ function ChatPanelSession({
         sourceDoc && sourcePage
           ? `${sourceDoc} · s.${sourcePage}`
           : sourceDoc || (sourceCount ? `${sourceCount} kaynak` : "");
-      // Model adı ve harcanan kredi öğrenciye yazılmıyor (29 Eylül 2026, Astra
+      // Model adı ve harcanan kredi öğrenciye yazılmıyor (29 Eylül 2026, kıyas ürünü
       // gibi yalnızca yüzde); kaynak bilgisi kalıyor.
       const sourceLabel = sourceCount
         ? `Kaynak: ${citation}`
@@ -1030,7 +1030,7 @@ function ChatPanelSession({
       // silinir: aynı cümle ikinci kez (örneğin mod değiştirdikten sonra) sorulduğunda sunucu
       // "bu işlem kimliği başka bir soru için kullanılmış" diye reddediyordu (19 Ekim 2026).
       chatOperationIds.current.delete(opKey);
-      // Astra gibi: hesap sorusunda cevabın üstünde çözüm süresi.
+      // kıyas ürünü gibi: hesap sorusunda cevabın üstünde çözüm süresi.
       if (assistant.trim() && isProblemQuestion(text)) {
         const solvedMs = Date.now() - startedAt;
         setMessages((prev) => {
@@ -1128,7 +1128,7 @@ function ChatPanelSession({
   );
 
   const hasComposerPayload = Boolean(input.trim() || pendingFile || pendingRemote);
-  // Astra'da "Konuş" yazma kutusunda hep duruyor; ilk cevabı beklemiyor.
+  // kıyas ürününde "Konuş" yazma kutusunda hep duruyor; ilk cevabı beklemiyor.
   const showExamTalk = examChrome && (!hasComposerPayload || voiceMode);
   const showExamSend = examChrome && (hasComposerPayload || loading);
 
@@ -1150,7 +1150,7 @@ function ChatPanelSession({
     !lastMessage.isError &&
     lastMessage.content.trim().length > 0;
 
-  // Jenerik "yükleniyor" yerine ne beklediğini söylüyor — Astra'daki "Çözüm
+  // Jenerik "yükleniyor" yerine ne beklediğini söylüyor — kıyas ürünündeki "Çözüm
   // arıyor" gibi. Ekstra istek yok, yalnızca zaten elimizdeki duruma göre metin.
   const thinkingLabel = solveStage
     ? SOLVE_STAGE_LABEL[solveStage]
@@ -1410,7 +1410,7 @@ function ChatPanelSession({
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
-              {/* Astra: büyük yuvarlak ışıltı düğmesi, altında küçük "BAŞLA". */}
+              {/* kıyas ürünü: büyük yuvarlak ışıltı düğmesi, altında küçük "BAŞLA". */}
               <button
                 type="button"
                 className="cp-sor-start"
@@ -1434,7 +1434,7 @@ function ChatPanelSession({
 
               {heroFooter}
 
-              {/* Astra gibi yalnızca selam ve Başla (30 Eylül 2026 kararı).
+              {/* kıyas ürünü gibi yalnızca selam ve Başla (30 Eylül 2026 kararı).
                   Kısayollar ilk cevabın altında, kaynak seçimi ilk mesajdan
                   sonra; Günün turu Çalış ve yanlış defterinde. */}
             </div>
@@ -1846,7 +1846,7 @@ function ChatPanelSession({
                       ) : null}
                     </div>
                   ) : null}
-                  {/* Astra gibi: ayar düğmesi önce bugünkü ruh halini sorar;
+                  {/* kıyas ürünü gibi: ayar düğmesi önce bugünkü ruh halini sorar;
                       tüm ayarlar menünün sonunda (1 Ekim 2026). */}
                   <button
                     type="button"

@@ -89,7 +89,7 @@ describe("ai_model_prices tohumu", () => {
   });
 
   it("ücretsiz ders modeli abonenin ders modelinden ucuz", () => {
-    // Astra gibi: abone daha akıllı modeli alır. İkisi eşitlenirse ücretsiz
+    // kıyas ürünü gibi: abone daha akıllı modeli alır. İkisi eşitlenirse ücretsiz
     // hesabın maliyeti ~52 TL'den ~88 TL'ye çıkar (29 Eylül 2026 hesabı).
     const free = priced.get(env.OPENAI_LESSON_FREE_MODEL)!;
     const paid = priced.get(env.OPENAI_LESSON_MODEL)!;

@@ -79,7 +79,7 @@ export async function teacherQuizPayload(
     runningHeaders: edges,
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     difficulty: quizDifficulty(input.requestedDifficulty),
-    // Konu testinde bir soru çok cevaplı (17 Ekim 2026, Astra'daki gibi); tuzak testi tek cevaplı.
+    // Konu testinde bir soru çok cevaplı (17 Ekim 2026, kıyas ürünündeki gibi); tuzak testi tek cevaplı.
     multi: input.kind === "quiz" && count >= 5,
     // Yoldaki konu testinin kuralları ve dersi (20 Ekim 2026); tuzak testi (gaps) bugünkü gibi.
     scope: input.kind === "quiz" ? "topic_test" : undefined,

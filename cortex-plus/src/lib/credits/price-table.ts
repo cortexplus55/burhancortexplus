@@ -42,7 +42,7 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
   ORAL_EXAM_GENERATE: { credits: 6, per: "sözlü deneme" },
   /**
    * Video ders (17 Ekim 2026): 6-8 sahne resmi + ~1 dk seslendirme + senaryo. Resimler
-   * işin büyük kısmı (Astra: "Aylık limitinden daha fazlasını kullanır"); yalnız Plus.
+   * işin büyük kısmı (kıyas ürünü: "Aylık limitinden daha fazlasını kullanır"); yalnız Plus.
    */
   VIDEO_GENERATE: { credits: 280, per: "video ders" },
   /** Çizimli özet resim modeli çağırmaz; senaryo + şema + ses (27 Ekim 2026). */

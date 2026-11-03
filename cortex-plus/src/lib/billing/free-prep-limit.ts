@@ -9,7 +9,7 @@ export { FREE_PREP_LIMIT, FREE_PREP_LIMIT_CODE, FREE_PREP_LIMIT_MESSAGE } from "
 
 /**
  * Ücretsiz hesap bir sınav hazırlığı kurabilir (3 Ekim 2026, ürün sahibinin
- * kararı). Astra'da ücretsiz hesap, kullanım sayacı %0'dayken bile yeni
+ * kararı). kıyas ürününde ücretsiz hesap, kullanım sayacı %0'dayken bile yeni
  * hazırlık kuramıyor: sihirbazda ders seçilince "Ücretsiz kullanım limitine
  * ulaştın" duvarı çıkıyor.
  *

@@ -126,7 +126,7 @@ export function quotaView(
 /**
  * Bir miktarın dönem hakkına oranı, yüzde olarak.
  *
- * Öğrenci kredi sayısı görmüyor (29 Eylül 2026, Astra gibi): kullanım ekranı
+ * Öğrenci kredi sayısı görmüyor (29 Eylül 2026, kıyas ürünü gibi): kullanım ekranı
  * yalnızca yüzde gösteriyor, ek paket de "aylık hakkına +%13" diye satılıyor.
  * Sayının kendisi sunucuda kalıyor.
  */

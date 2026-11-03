@@ -1,7 +1,7 @@
 # Sınav seti: AYT Biyoloji — İnsan Fizyolojisi ve Homeostazi (19 Ekim 2026)
 
 Ürün sahibinin istediği "son karşılaştırma" seti: aynı konuda birbirine bağlı yedi dosya, 25 gün
-sonraki sınav için hem Cortex'te hem Astra'da sınav hazırlığı kuruldu.
+sonraki sınav için hem Cortex'te hem kıyas ürününde sınav hazırlığı kuruldu.
 
 | Dosya | Tür | Yalnız bu dosyada olan |
 |---|---|---|

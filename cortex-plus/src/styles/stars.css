@@ -1,4 +1,4 @@
-/* Yıldızlar (17 Ekim 2026, Astra'daki gibi): üst çubuk düğmesi ve pencere. */
+/* Yıldızlar (17 Ekim 2026, kıyas ürünündeki gibi): üst çubuk düğmesi ve pencere. */
 
 .cp-stars-btn {
   display: inline-flex;
@@ -381,7 +381,7 @@
   }
 }
 
-/* Sonuç ekranında "+N yıldız" (Astra'da sağ üstte). */
+/* Sonuç ekranında "+N yıldız" (kıyas ürününde sağ üstte). */
 .cp-stars-earned {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 1rem);
@@ -419,7 +419,7 @@
   }
 }
 
-/* Okulum sayfasındaki kürsü (Astra: geçen haftanın en iyi okul arkadaşları). */
+/* Okulum sayfasındaki kürsü (kıyas ürünü: geçen haftanın en iyi okul arkadaşları). */
 .cp-school-podium {
   display: flex;
   flex-direction: column;

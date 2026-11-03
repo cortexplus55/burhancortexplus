@@ -92,7 +92,7 @@ describe("kredi fiyat tablosu", () => {
     const chat = readSource("src/app/api/ai/chat/route.ts");
     expect(chat.match(/reserveCredits\(/g)).toHaveLength(1);
     const panel = readSource("src/components/chat/chat-panel.tsx");
-    // 29 Eylül 2026: öğrenci işlem başına kredi görmüyor (Astra gibi yalnızca yüzde).
+    // 29 Eylül 2026: öğrenci işlem başına kredi görmüyor (kıyas ürünü gibi yalnızca yüzde).
     expect(panel).not.toContain("cp-exam-credit");
     expect(panel).not.toMatch(/{chatCreditCost} (kr|kredi)/);
     const audioRoute = readSource("src/app/api/learning/podcast/audio/route.ts");

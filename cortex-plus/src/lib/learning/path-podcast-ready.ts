@@ -5,7 +5,7 @@ import { prefetchVariant } from "@/lib/learning/lesson-prefetch";
  * Hazırlığın podcast sayfası aynı konunun yoldaki hazır podcast'ini kullanır (30 Ekim 2026).
  *
  * Canlı tur: yoldaki podcast adımı önceden yazılmış ve hazır beklerken öğrenci aynı konuyu "Podcast oluştur"
- * sayfasından istedi; sayfa onu görmedi, 90 saniyede baştan yazdı (Astra'da 43 sn). Hazır içeriği teslim etme ve
+ * sayfasından istedi; sayfa onu görmedi, 90 saniyede baştan yazdı (kıyas ürününde 43 sn). Hazır içeriği teslim etme ve
  * ücretlendirme tek yerde, düğüm açılışında; burada ikinci bir kopyası yazılmaz. Sayfa öğrenciyi o adıma götürür.
  */
 export type PathPodcastCandidate = {

@@ -10,15 +10,21 @@ import type { LevelStartResponse, MissingOutcome } from "@/lib/level-check/types
 import { loadAnsweredItems, loadMasteryStates, plannedPoolUnits } from "@/lib/mastery-map/load";
 import { reinforceOffer, pickReinforcement } from "@/lib/mastery-map/reinforce";
 import { PRIOR } from "@/lib/level-check/mastery";
+import { createReinforceItems, REINFORCE_DAILY_LIMIT, reinforceAllowedForFree, reinforceUsedToday } from "@/lib/content-pool/reinforce-new";
 
 export const runtime = "nodejs";
+// reinforce_new tek kazanıma soru yazar ve kör çözer (2 model çağrısı).
+export const maxDuration = 90;
 
 const SETUP_ID = /^[a-z0-9-]{3,60}#\d{1,3}$/;
 const bodySchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("quick_scan"), units: z.array(z.string().regex(SETUP_ID)).min(1).max(400) }),
   z.object({ mode: z.literal("unit_check"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid() }),
   z.object({ mode: z.literal("reinforce"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid(), peek: z.boolean().optional() }),
+  z.object({ mode: z.literal("reinforce_new"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid(), code: z.string().min(1).max(40) }),
 ]);
+
+const REINFORCE_NEW_COUNT = 5;
 
 /**
  * Seviye kontrolü başlat (Plan PR 3). Yalnız havuzdaki doğrulanmış sorular; model çağrısı yok.
@@ -45,6 +51,31 @@ export async function POST(request: Request) {
     const picked = pickUnitCheck(rows.map(toPick));
     if (!picked.length) return NextResponse.json({ status: "empty" } satisfies LevelStartResponse, { headers: noStore });
     return respond(picked.map((p) => rows.find((r) => r.id === p.id)!), "unit_check", userId, body.prepId);
+  }
+
+  if (body.mode === "reinforce_new") {
+    if (!userId) return errorResponse(401, "unauthorized");
+    const { data: prep } = await service.from("exam_preps").select("id, learning_preferences").eq("id", body.prepId).eq("user_id", userId).maybeSingle();
+    if (!prep) return errorResponse(404, "not_found");
+    const unit = poolUnit(body.unit);
+    const outcome = unit?.outcomes.find((o) => o.code === body.code);
+    if (!unit || !outcome) return errorResponse(404, "not_found");
+    const planned = plannedPoolUnits(prep.learning_preferences).find((p) => p.poolId === body.unit);
+    const allowed = await reinforceAllowedForFree(service, { userId, prepId: body.prepId, unitTitle: planned?.title ?? unit.unit.title, order: planned?.order ?? null });
+    if (!allowed) return NextResponse.json({ status: "locked" } satisfies LevelStartResponse, { headers: noStore });
+    const [answered, rows] = await Promise.all([loadAnsweredItems(service, userId, [body.unit]), loadVerifiedItems(service, [body.unit])]);
+    const mine = rows.filter((r) => r.outcome_id === outcome.outcomeId);
+    // Read-through: havuzda bu kazanımın yanıtlanmamış sorusu varsa önce o (model çağrısı yok, sınırdan düşmez).
+    const ready = mine.filter((r) => !answered.has(r.id)).slice(0, REINFORCE_NEW_COUNT);
+    if (ready.length) return respond(ready, "practice", userId, body.prepId);
+    const used = await reinforceUsedToday(service, userId);
+    if (used === null) return NextResponse.json({ status: "unavailable" } satisfies LevelStartResponse, { headers: noStore });
+    if (used >= REINFORCE_DAILY_LIMIT) return NextResponse.json({ status: "limit", limit: REINFORCE_DAILY_LIMIT } satisfies LevelStartResponse, { headers: noStore });
+    const made = await createReinforceItems(service, { unit, outcomeCode: outcome.code, userId, existingStems: mine.map((r) => String(r.stem ?? "")) });
+    if (made.state !== "ok") return NextResponse.json({ status: made.state === "none" ? "empty" : "unavailable" } satisfies LevelStartResponse, { headers: noStore });
+    const fresh = (await loadVerifiedItems(service, [body.unit])).filter((r) => made.ids.includes(r.id));
+    if (!fresh.length) return NextResponse.json({ status: "unavailable" } satisfies LevelStartResponse, { headers: noStore });
+    return respond(fresh, "practice", userId, body.prepId);
   }
 
   if (body.mode === "reinforce") {

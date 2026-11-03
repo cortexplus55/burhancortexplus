@@ -18,7 +18,7 @@ export type NodeSource = {
 };
 
 /**
- * "N kaynak" — çalışmanın hangi materyallerden üretildiği (Astra, 1 Ekim
+ * "N kaynak" — çalışmanın hangi materyallerden üretildiği (kıyas ürünü, 1 Ekim
  * 2026). Belge yeni sekmede açılır: oturum yarıda kalmasın.
  */
 export function NodeSources({ sources }: { sources: NodeSource[] }) {

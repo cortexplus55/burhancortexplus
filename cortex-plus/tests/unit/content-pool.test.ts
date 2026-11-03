@@ -51,7 +51,7 @@ function fakeLlm(unit: PoolUnit, opts: { wrongAnswerFor?: string } = {}): LlmCal
         text: JSON.stringify({
           items: pairs.map((p) => {
             const [code, difficulty] = p.split("|");
-            return { outcome_code: code, difficulty, stem: `Özgün soru ${p} nedir?`, choices: ["Birinci seçenek", "İkinci seçenek", "Üçüncü seçenek", "Dördüncü seçenek", "Beşinci seçenek"], answer: 2, explanation: "Çünkü üçüncü seçenek kazanımla doğrudan örtüşür." };
+            return { outcome_code: code, difficulty, stem: `Özgün soru ${p} nedir?`, choices: ["Birinci seçenek", "İkinci seçenek", "Üçüncü seçenek", "Dördüncü seçenek", "Beşinci seçenek"], answer: 2, explanation: "Çünkü üçüncü seçenek kazanımla doğrudan örtüşür.\nDoğru cevap: Üçüncü seçenek" };
           }),
         }),
       };
@@ -292,7 +292,7 @@ describe("ortak içerik havuzu: maliyet", () => {
 
 describe("ortak içerik havuzu: sıfır maliyetli kapı", () => {
   const unit = { unitId: "p#1", choices: 5, outcomes: [{ code: "9.1.1", outcomeId: "p#1", limitations: ["Ayrıntılı takvim hesaplarına (Rumi takvim, Celali takvim) girilmez."] }] };
-  const good = { outcome_code: "9.1.1", difficulty: "easy" as const, stem: "Tarih biliminin konusu aşağıdakilerden hangisidir?", choices: ["Geçmişteki insan toplulukları", "Gök cisimleri", "Canlıların yapısı", "Maddenin halleri", "Sayıların özellikleri"], answer: 0, explanation: "Tarih, geçmişteki insan topluluklarını inceler." };
+  const good = { outcome_code: "9.1.1", difficulty: "easy" as const, stem: "Tarih biliminin konusu aşağıdakilerden hangisidir?", choices: ["Geçmişteki insan toplulukları", "Gök cisimleri", "Canlıların yapısı", "Maddenin halleri", "Sayıların özellikleri"], answer: 0, explanation: "Tarih, geçmişteki insan topluluklarını inceler.\nDoğru cevap: Geçmişteki insan toplulukları" };
 
   it("kural ihlali olan fikstür model çağrısı olmadan reddedilir", async () => {
     const fixture = [

@@ -1,5 +1,5 @@
 /**
- * Çok dosyalı yükleme (20 Ekim 2026). 7 dosyalık sınav seti sırayla işlenince ~76 sn sürdü (Astra
+ * Çok dosyalı yükleme (20 Ekim 2026). 7 dosyalık sınav seti sırayla işlenince ~76 sn sürdü (kıyas ürünü
  * ~30 sn): her fotoğrafın okunması ~11 sn ve sıradakini bekliyordu. Kredi ve taranmış sayfa hakkı
  * veritabanında atomik ayrıldığı için ücretli hesapta paralel güvenli. Ücretsiz hesapta sıra korunur:
  * toplam 5 sayfalık sınır (`free-pages.ts`) belge kaydından sayılıyor, aynı anda başlayan iki dosya ikisi

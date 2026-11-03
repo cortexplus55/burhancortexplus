@@ -1,8 +1,8 @@
 /**
- * Sınav listesinin "Müfredatım" ve "Resmî sınavlar" sekmeleri — Astra düzeni
+ * Sınav listesinin "Müfredatım" ve "Resmî sınavlar" sekmeleri — kıyas ürünü düzeni
  * (29 Eylül 2026).
  *
- * Astra bu sekmelerde hazır yollar gösteriyor ("Matematik 1. Yıl" gibi).
+ * kıyas ürünü bu sekmelerde hazır yollar gösteriyor ("Matematik 1. Yıl" gibi).
  * Bizde hazır içerik yok; kart, sohbetle kurulumu dersi ve ilk mesajı dolu
  * olarak açıyor, konular kurulumda çıkarılıyor. Buradaki metinler yalnızca
  * sınavın adı ve bölümleri — konu listesi iddiası yok (bkz. İÇERİK EV STİLİ:

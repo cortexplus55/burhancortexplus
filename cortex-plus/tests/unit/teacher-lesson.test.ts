@@ -26,7 +26,7 @@ const structureOf = (lesson: LessonV2 | LessonV3, input: { runningHeaders?: stri
   lessonStructureIssues("format" in lesson ? lesson : v2ToV3(lesson), input);
 
 /*
-  Öğretmen ders motoru (2 Ekim 2026). Kurallar aynı KPSS PDF'iyle Astra'nın
+  Öğretmen ders motoru (2 Ekim 2026). Kurallar aynı KPSS PDF'iyle kıyas ürününün
   ve bizim dersimizin yan yana okunmasından çıktı
   (docs/delivery/ICERIK-KALITE-YOL-HARITASI.md).
 */
@@ -137,7 +137,7 @@ const good: LessonV2 = {
 };
 
 describe("yapı denetimi", () => {
-  it("Astra tarzı ders geçer", () => {
+  it("kıyas ürünü tarzı ders geçer", () => {
     const lesson = v2ToV3(good);
     const screen = lesson.screens.at(-1)!;
     const at = screen.blocks.findIndex((block) => block.type === "check");
@@ -232,7 +232,7 @@ describe("yapı denetimi", () => {
     }
   });
 
-  // Faz 5 (9 Ekim 2026): Astra yanlış ifadenin doğrusunu ayrı satırda veriyor.
+  // Faz 5 (9 Ekim 2026): kıyas ürünü yanlış ifadenin doğrusunu ayrı satırda veriyor.
   it("yanlış doğru/yanlış ifadesinin doğrusu istenir; eksikliği dersi düşürmez", () => {
     for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
       expect(system).toContain("'corrected' alanına ifadenin doğru hâlini");

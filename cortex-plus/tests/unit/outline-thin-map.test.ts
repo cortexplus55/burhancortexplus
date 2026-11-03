@@ -18,7 +18,7 @@ import {
   İnce konu haritası (18 Ekim 2026): 20 sayfalık trigonometri notu (her sayfada başlık,
   temiz metin, ~28 bin karakter) gpt-4o-mini'den 3 sn'de TEK konu olarak döndü; doğrulama
   hiçbir şey düşürmedi, 1/1 "yeterince iyi" sayıldı ve öğrenci bütün dosya için tek konulu
-  yol aldı (Astra aynı PDF'ten 7 konu çıkardı). `goodEnough` yalnız tutulan/önerilen oranına
+  yol aldı (kıyas ürünü aynı PDF'ten 7 konu çıkardı). `goodEnough` yalnız tutulan/önerilen oranına
   bakar; önerinin kendisinin ince olduğunu bu kat görür — sayfa sayısı VE metin hacmiyle,
   ikisinin küçüğüyle — ve mini'nin haritası güçlü modele yükseltilir. Güçlü modelin ince
   haritası kabul edilir: tek konulu dosya olur, soracak daha iyi model yok.

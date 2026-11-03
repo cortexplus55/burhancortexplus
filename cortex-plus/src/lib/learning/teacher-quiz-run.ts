@@ -282,7 +282,7 @@ export async function teacherQuizLoop(
 }
 
 /**
- * Testte en çok bir çok cevaplı soru ve o sonda (Astra'da 7 sorudan sonuncusu). Yedekler
+ * Testte en çok bir çok cevaplı soru ve o sonda (kıyas ürününde 7 sorudan sonuncusu). Yedekler
  * kesilirken çok cevaplı soru düşmesin; fazlası atılır.
  */
 export function withOneMultiLast(questions: QuizQuestion[], count: number): QuizQuestion[] {
@@ -293,7 +293,7 @@ export function withOneMultiLast(questions: QuizQuestion[], count: number): Quiz
 }
 
 /**
- * Parçanın hedefi (30 Ekim 2026, Astra ile yan yana tur): parçalar birbirinin sorusunu görmüyor; yalnız "ayrı bir noktayı
+ * Parçanın hedefi (30 Ekim 2026, kıyas ürünüyle yan yana tur): parçalar birbirinin sorusunu görmüyor; yalnız "ayrı bir noktayı
  * sor" diyen satırla beş parçadan dördü konunun en göze batan noktasını sordu (Cagan'ın hiperenflasyon eşiği, dört kez).
  * Her parçaya ayrı bir "Sınavda sorulur" maddesi verilir; madde yoksa dersin ayrı bir terimi. Madde parçadan azsa aynı
  * maddeyi alan parça onun başka bir yönünü sorar.
@@ -464,7 +464,7 @@ async function runTeacherQuizInner(
       model,
       response_format: { type: "json_object" },
       ...tier,
-      // 19 Ekim 2026: soğuk test 30 sn sürüyordu (Astra ~15). Ders yazarındaki gibi taslak ve
+      // 19 Ekim 2026: soğuk test 30 sn sürüyordu (kıyas ürünü ~15). Ders yazarındaki gibi taslak ve
       // düzeltme düşük düşünmeyle; her soruyu kendisi çözen denetçi varsayılanda kalır.
       ...(role === "verify" ? {} : { reasoning_effort: "low" as const }),
       messages: [

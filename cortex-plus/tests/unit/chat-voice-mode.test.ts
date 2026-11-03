@@ -7,7 +7,7 @@ import { voiceModeLabel } from "@/components/chat/chat-panel";
 
 const panel = readFileSync("src/components/chat/chat-panel.tsx", "utf8");
 
-describe("sohbette Konuş = sesli sohbet (Astra, 29 Eylül 2026)", () => {
+describe("sohbette Konuş = sesli sohbet (kıyas ürünü, 29 Eylül 2026)", () => {
   it("etiket ne olduğunu ve nasıl kapanacağını söylüyor", () => {
     const base = { talking: false, listening: false, loading: false, idle: "Konuş" };
     expect(voiceModeLabel(false, base)).toBe("Konuş");

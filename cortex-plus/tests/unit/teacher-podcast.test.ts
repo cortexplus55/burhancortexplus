@@ -98,8 +98,8 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
     // Biçimin kendi kuralıyla çelişmez: Kerem yanlış cümleyi doğru gibi söylemez.
     expect(duo).not.toContain("yanlış tahmin");
     expect(podcastSystem("document", "basit")).toContain("'Tekrar edelim' kalıbı her bölümde kullanılmaz");
-    // 16 Ekim 2026 Astra kıyası: bizim her satır tek cümleydi ve belge cümlesi okuyordu;
-    // Astra'nın konuşma sıraları 2-4 cümle, nedeni ve sonucu açıyor.
+    // 16 Ekim 2026 kıyas ürünü kıyası: bizim her satır tek cümleydi ve belge cümlesi okuyordu;
+    // kıyas ürününün konuşma sıraları 2-4 cümle, nedeni ve sonucu açıyor.
     for (const length of ["diyalog", "basit"] as const) {
       const system = podcastSystem("document", length);
       expect(system).not.toContain("TEK cümle");
@@ -109,7 +109,7 @@ describe("öğretmen podcast motoru: biçim ve yapı", () => {
       expect(system).toContain("1-4 cümle");
       expect(system).toMatch(/Bilgi taşımayan cümle kurma/);
     }
-    // 17 Ekim 2026, ürün sahibi "Astra gibi iki ses de anlatsın": canlıda Kerem'in bütün sıraları tek
+    // 17 Ekim 2026, ürün sahibi "kıyas ürünü gibi iki ses de anlatsın": canlıda Kerem'in bütün sıraları tek
     // cümlelik soruydu. Diyalogda Kerem de anlatır; örnek de bunu gösterir. Soru-cevapta Kerem yine sorar.
     expect(duo).toContain("Kerem yalnız soru sormaz");
     expect(duo).toContain("en az yarısı soru değil");

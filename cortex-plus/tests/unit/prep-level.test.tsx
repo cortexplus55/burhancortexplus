@@ -15,7 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Astra ile yan yana (18 Ekim 2026): test bitince "Bu hazırlık sana fazla zor gelebilir".
+// kıyas ürünüyle yan yana (18 Ekim 2026): test bitince "Bu hazırlık sana fazla zor gelebilir".
 describe("prep level suggestion", () => {
   it("suggests easier only when the last two scored results are both low", () => {
     expect(levelHintFromScores([40, 30], "basics")).toBe("too_hard");

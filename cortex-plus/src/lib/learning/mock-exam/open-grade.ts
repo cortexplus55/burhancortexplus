@@ -1,7 +1,7 @@
 /**
- * Yazılı denemenin açık uçlu cevapları (17 Ekim 2026, ürün sahibinin kararı: Astra gibi).
+ * Yazılı denemenin açık uçlu cevapları (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünü gibi).
  *
- * Astra kâğıttaki el yazısını okuyup yapay zekâyla notluyor. Bizde `gradeRubricAnswer`
+ * kıyas ürünü kâğıttaki el yazısını okuyup yapay zekâyla notluyor. Bizde `gradeRubricAnswer`
  * zaten "her ölçüt için cevaptan birebir alıntı" bekliyordu ama alıntıyı üreten bir model
  * hiç bağlanmamıştı; yerine kelime eşleştirmesi vardı ("Ana fikir" ölçütü öğrencinin
  * cevabında geçmediği için doğru cevap yanlış sayılıyordu). Model her ölçütü cevapta

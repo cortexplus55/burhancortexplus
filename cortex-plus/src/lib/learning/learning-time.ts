@@ -1,9 +1,9 @@
 /**
  * Aktif öğrenme süresi: hesaplar ve ekran metni (saf).
  *
- * Astra'nın Aktivitelerim sayfasındaki süre ve tasarruf kartının karşılığı
+ * kıyas ürününün Aktivitelerim sayfasındaki süre ve tasarruf kartının karşılığı
  * (30 Eylül 2026). Tasarruf, ürün sahibinin seçtiği özel ders saat ücretiyle
- * hesaplanır: 500 ₺. Astra ~660 ₺ kullanıyor ve sitede geçen her dakikayı
+ * hesaplanır: 500 ₺. kıyas ürünü ~660 ₺ kullanıyor ve sitede geçen her dakikayı
  * sayıyor; biz yalnızca ders, test ve sohbette aktif geçen süreyi.
  */
 

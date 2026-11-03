@@ -14,7 +14,7 @@ function dayLabel(date: string): { weekday: string; day: string } {
 
 /**
  * Aktivitelerim: son 7 günün öğrenme süresi, tasarruf ve en sevilen dersler.
- * Astra'daki kartların karşılığı (30 Eylül 2026). Süre yalnızca ders, test ve
+ * kıyas ürünündeki kartların karşılığı (30 Eylül 2026). Süre yalnızca ders, test ve
  * sohbette aktif geçen dakikalar.
  */
 export function LearningTimeCard({ rows, today }: { rows: LearningTimeRow[]; today: string }) {

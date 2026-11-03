@@ -132,7 +132,7 @@ export type HomeNode = {
 };
 
 /**
- * Düğümün simgesi — Astra'daki gibi etkinlik türünü söylüyor, sıra numarasını
+ * Düğümün simgesi — kıyas ürünündeki gibi etkinlik türünü söylüyor, sıra numarasını
  * değil. Kilitli düğümde tür yerine kilit: "bu daha açılmadı" tek bakışta
  * okunuyor. Test düğümleri harfle (AB / ABCD), podcast altıgenle ayrılıyor.
  */
@@ -209,7 +209,7 @@ function nodeHeading(node: HomeNode): string {
   // "9. Sınıf · Mantık" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
   const parts = withoutGradeParts(raw.split(" · ").map((part) => part.trim()));
   // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
-  // kendi adı. Astra kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
+  // kendi adı. kıyas ürünü kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
   const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
   if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
   const heading = parts[0] || raw;
@@ -217,7 +217,7 @@ function nodeHeading(node: HomeNode): string {
   // (30 Ekim 2026, Paket I #8): kart "1. konu" derken sorular bütün konulardan geliyordu.
   if (ALL_TOPICS_KINDS.has(node.kind)) return heading === PLAN_NODE_META[node.kind].title ? `${heading} · ${ALL_TOPICS_LABEL}` : heading;
   // Başlık yalnız etkinliğin türüyse ("Podcast Dinle") konunun adı yazılır; tür zaten
-  // etiketinde. Astra'da "SIRADAKİ · AKILLI METİN · Büyüme Eğrileri…" (18 Ekim 2026).
+  // etiketinde. kıyas ürününde "SIRADAKİ · AKILLI METİN · Büyüme Eğrileri…" (18 Ekim 2026).
   const topic = node.sessionMeta?.topicTitle?.trim();
   return topic && heading === PLAN_NODE_META[node.kind].title ? topicOnlyLabel(topic) : heading;
 }
@@ -344,7 +344,7 @@ export function ExamPrepHome({
   topicWarnings?: Record<string, string>;
   /** İlerleme sekmesi; sayfa kayıtlardan kurar. Yoksa düğümlerden hesaplanır. */
   progressView?: PrepProgressView | null;
-  /** Ayarlar'da düzenlenir (Astra, 1 Ekim 2026). */
+  /** Ayarlar'da düzenlenir (kıyas ürünü, 1 Ekim 2026). */
   targetScore?: number | null;
   /** Menü kartında "Oluşturan": "Sen" ya da okuldan katılınan hazırlığın sahibi. */
   creatorLabel?: string;
@@ -357,9 +357,9 @@ export function ExamPrepHome({
   joinedFromSchool?: boolean;
   /** Okulda paylaşıldıysa katılım sayısı. */
   joinCount?: number;
-  /** Son biten etkinlik ve yüzdesi; Astra yolun üstünde kart olarak gösteriyor. */
+  /** Son biten etkinlik ve yüzdesi; kıyas ürünü yolun üstünde kart olarak gösteriyor. */
   lastResult?: { nodeId: string; pct: number | null } | null;
-  /** Biten adımların son yüzdesi; yolda adımın altında yazar (Astra "30% Podcast"). */
+  /** Biten adımların son yüzdesi; yolda adımın altında yazar (kıyas ürünü "30% Podcast"). */
   nodeScores?: Record<string, number>;
   /** Konu başlığı (küçük harf) → topicMasteryPercent. Yol bölümü bu sayıyı gösterir. */
   topicPercents?: Record<string, number>;
@@ -419,7 +419,7 @@ export function ExamPrepHome({
     setTopSlot(document.getElementById(PREP_TOP_SLOT_ID));
     setMounted(true);
   }, []);
-  // Astra: büyük başlık kaydırılıp gidince adı yapışkan şeritte görünür.
+  // kıyas ürünü: büyük başlık kaydırılıp gidince adı yapışkan şeritte görünür.
   const heroRef = useRef<HTMLElement | null>(null);
   const [heroVisible, setHeroVisible] = useState(true);
   useEffect(() => {
@@ -433,7 +433,7 @@ export function ExamPrepHome({
   }, []);
   /**
    * Seviye tespiti yolun ilk düğümü (3 Ekim 2026). Eskiden yolun üstünde
-   * "Seviyeni henüz ölçmedik" bandıydı; Astra'nın yolunda bant yok.
+   * "Seviyeni henüz ölçmedik" bandıydı; kıyas ürününün yolunda bant yok.
    */
   const introNode: HomeNode = {
     id: INTRO_NODE_ID,
@@ -443,7 +443,7 @@ export function ExamPrepHome({
     sortOrder: -1,
     status: "ready",
   };
-  /** "⋮" — Astra'nın hazırlık menüsü: paylaş, ders oluştur, kaynaklar, ayarlar. */
+  /** "⋮" — kıyas ürününün hazırlık menüsü: paylaş, ders oluştur, kaynaklar, ayarlar. */
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsPane, setOptionsPane] = useState<"menu" | "kaynaklar" | "ayarlar">("menu");
   const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
@@ -615,7 +615,7 @@ export function ExamPrepHome({
     }
   }
 
-  // Astra'nın üst çubuğunda yalnız sohbet ve "+" (ders oluştur) var; düello, paylaş ve
+  // kıyas ürününün üst çubuğunda yalnız sohbet ve "+" (ders oluştur) var; düello, paylaş ve
   // menü başlığın altında etiketli düğmeler (17 Ekim 2026, yan yana bakıldı). Kabuk
   // "focus" başlığında yer açıyor; yer yoksa (test ortamı) simgeler sayfanın başında kalır.
   const toolbar = (
@@ -659,11 +659,11 @@ export function ExamPrepHome({
     <div className="cp-exam-page cp-exam-trail-page cp-prep-layout">
       {topSlot ? createPortal(toolbar, topSlot) : toolbar}
 
-      {/* Astra (17 Ekim 2026): geniş ekranda solda sabit bilgi kartı (başlık, özet, sekmeler,
+      {/* kıyas ürünü (17 Ekim 2026): geniş ekranda solda sabit bilgi kartı (başlık, özet, sekmeler,
           düğmeler), sağda yol. Telefonda sıra bugünkü gibi: sekmeler üstte yapışkan. */}
       <aside className="cp-prep-aside">
 
-      {/* Astra: sekmeler en üstte ve yapışkan; başlık kaydırınca bu şeridin üstünde kalır. */}
+      {/* kıyas ürünü: sekmeler en üstte ve yapışkan; başlık kaydırınca bu şeridin üstünde kalır. */}
       <div className="cp-prep-tabbar">
         <p className={cn("cp-prep-tabbar-title", heroVisible && "is-hidden")} aria-hidden={heroVisible}>
           {title}
@@ -858,7 +858,7 @@ export function ExamPrepHome({
         </>
       ) : null}
 
-      {/* Astra'nın alt kartı (18 Ekim 2026, yan yana bakıldı): kilitli adım seçiliyse neden
+      {/* kıyas ürününün alt kartı (18 Ekim 2026, yan yana bakıldı): kilitli adım seçiliyse neden
           açılmadığı; değilse "SIRADAKİ" + tür etiketi, başlık, "Başka birini seç" ve "Devam et". */}
       {view === "yol" && nodes.length && donePick ? (
         <div
@@ -1158,13 +1158,13 @@ export function ExamPrepHome({
 }
 
 /**
- * Zikzak yol. Astra'daki gibi düğümlerin yanında yazı yok; bu yüzden satır
+ * Zikzak yol. kıyas ürünündeki gibi düğümlerin yanında yazı yok; bu yüzden satır
  * yüksekliği sabit ve çizgi SVG ile düğüm merkezlerinden geçiyor. Eski
  * denemede (d2954d2) yazı satırı değişken yükseklikteydi ve çizgi CSS ile
  * güvenilir bükülemiyordu — sebep ortadan kalktı.
  */
 /**
- * Yol düğümü: üç boyutlu disk (Astra'daki gibi basılabilir düğme; 17 Ekim 2026). Üstte
+ * Yol düğümü: üç boyutlu disk (kıyas ürünündeki gibi basılabilir düğme; 17 Ekim 2026). Üstte
  * elips yüzey, yanda gövde, altta gölge; renk duruma göre: bitmiş beyaz, sıradaki mavi
  * ışıklı, açık koyu mavi gri, kilitli koyu gri ve iç halkalı. Çizim bize ait.
  */
@@ -1414,7 +1414,7 @@ function StudyPath({
   /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
   lead?: HomeNode | null;
   currentId: string | null;
-  /** Seçilen kilitli adım (Astra'da çerçeveyle işaretli). */
+  /** Seçilen kilitli adım (kıyas ürününde çerçeveyle işaretli). */
   pickedId?: string | null;
   /** Biten adımın yüzdesi. */
   scores?: Record<string, number>;
@@ -1431,7 +1431,7 @@ function StudyPath({
   weekday?: boolean;
 }) {
   // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
-  // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları Astra'daki gibi yok.
+  // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları kıyas ürünündeki gibi yok.
   const ordered = useMemo(
     () => [
       ...(lead ? [lead] : []),
@@ -1452,7 +1452,7 @@ function StudyPath({
     [farIds, nodes, currentId],
   );
   const firstFarId = ordered.find((node) => far.has(node.id))?.id ?? null;
-  // Astra'daki aşağı ok: sıradaki düğüm ekranın dışındaysa oraya kaydırır.
+  // kıyas ürünündeki aşağı ok: sıradaki düğüm ekranın dışındaysa oraya kaydırır.
   const currentRef = useRef<HTMLLIElement | null>(null);
   const [currentVisible, setCurrentVisible] = useState(true);
   useEffect(() => {
@@ -1549,7 +1549,7 @@ function StudyPath({
                 onClick={() => onOpen(node)}
               >
                 <PathPuck state={node.status === "done" ? "done" : node.id === currentId ? "current" : node.status === "locked" ? "locked" : "ready"} />
-                {/* Astra: bitmişte onay, kilitlide kilit, sıradakinde simge huzmede, açıkta tür. */}
+                {/* kıyas ürünü: bitmişte onay, kilitlide kilit, sıradakinde simge huzmede, açıkta tür. */}
                 {node.id === currentId ? null : (
                   <span
                     className={cn("cp-puck-glyph", node.status === "done" && "cp-puck-glyph--gold")}
@@ -1588,7 +1588,7 @@ function StudyPath({
                   {PATH_FAR_NOTE}
                 </span>
               ) : null}
-              {/* Astra: sıradaki düğümün yanında "SIRADAKİ" ve konunun adı. */}
+              {/* kıyas ürünü: sıradaki düğümün yanında "SIRADAKİ" ve konunun adı. */}
               {node.id === currentId ? (
                 <span className="cp-path-current-label" aria-hidden>
                   <span className="cp-prep-badge cp-prep-badge--next">Sıradaki</span>

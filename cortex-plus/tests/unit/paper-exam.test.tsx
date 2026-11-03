@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 /*
-  Kâğıtta çöz (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi). Astra canlıda:
+  Kâğıtta çöz (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünündeki gibi). kıyas ürünü canlıda:
   "Nasıl çözmek istiyorsun? Uygulamada / Kağıtta" → "Çalışma kağıdın hazır" → Yazdır
   ("Önce çalışma kağıdını yazdır", Başla kapalı) → "89:59 kaldı" → "Bitir ve çözümlerini
   yükle" → en fazla 10 fotoğraf → el yazısı okunup notlandırılır.

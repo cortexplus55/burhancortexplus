@@ -24,7 +24,7 @@ const bodySchema = z.object({
 });
 
 /**
- * Düello turu — hesapsız da oynanıyor (Astra: "hesap gerekmiyor").
+ * Düello turu — hesapsız da oynanıyor (kıyas ürünü: "hesap gerekmiyor").
  * Doğru cevaplar yalnızca burada, sunucuda; puan burada hesaplanıyor.
  */
 export async function POST(
@@ -83,7 +83,7 @@ export async function POST(
   });
   if (error) return errorResponse(500, "save_failed");
 
-  // Yıldızlar (17 Ekim 2026): düello Astra'daki okul maçının yerinde. Hesaplı oyuncuya, düello başına bir kez.
+  // Yıldızlar (17 Ekim 2026): düello kıyas ürünündeki okul maçının yerinde. Hesaplı oyuncuya, düello başına bir kez.
   const stars = playerId
     ? await awardStars(service, { userId: playerId, source: "duel", ref: `duel:${duel.id}`, amount: duelStars(result.correct) })
     : 0;

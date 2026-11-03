@@ -28,7 +28,7 @@ const data: ProfileDashboard = {
   avatarEmoji: null,
 };
 
-describe("profil menüsü (Astra: Görünüm menüde)", () => {
+describe("profil menüsü (kıyas ürünü: Görünüm menüde)", () => {
   it("Geçmiş konuşmaların altında Görünüm seçimi var ve temayı değiştiriyor", () => {
     render(<ProfilePanel data={data} email={null} isPremium={false} subscriptionBadge={null} />);
     const group = screen.getByRole("radiogroup", { name: "Görünüm" });
@@ -50,7 +50,7 @@ describe("profil menüsü (Astra: Görünüm menüde)", () => {
   });
 });
 
-describe("profil kartı: avatar ve takvim rozeti (Astra gibi, 1 Ekim 2026)", () => {
+describe("profil kartı: avatar ve takvim rozeti (kıyas ürünü gibi, 1 Ekim 2026)", () => {
   it("seçilen emoji avatar olarak görünür, yoksa baş harf", () => {
     render(<ProfilePanel data={{ ...data, avatarEmoji: "🦊" }} email={null} isPremium={false} subscriptionBadge={null} />);
     expect(document.querySelector(".cp-pp-avatar")?.textContent).toBe("🦊");

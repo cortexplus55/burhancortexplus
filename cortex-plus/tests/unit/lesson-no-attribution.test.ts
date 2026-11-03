@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { teacherSystem, verifySystem } from "@/lib/learning/teacher-lesson";
 
 /*
-  3 Ekim 2026, Astra'yla yan yana: KPSS dersinde "Diğer sosyal düzen
+  3 Ekim 2026, kıyas ürünü yan yana: KPSS dersinde "Diğer sosyal düzen
   kurallarına aykırılık ise kaynakta manevi yaptırımlarla açıklanır" cümlesi
-  çıktı. Astra aynı bilgiyi doğrudan söylüyor. Kural yazarda ve denetçide
+  çıktı. kıyas ürünü aynı bilgiyi doğrudan söylüyor. Kural yazarda ve denetçide
   aynı: biri yasaklayıp öbürü sorun saymazsa düzeltme turu işe yaramaz.
 */
 describe("ders bilgiyi kaynağa atfetmez", () => {
