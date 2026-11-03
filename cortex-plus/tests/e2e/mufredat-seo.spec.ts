@@ -9,6 +9,10 @@ test.describe("Müfredat SEO", { tag: ["@public"] }, () => {
     await first.click();
     await expect(page).toHaveURL(/\/mufredat\/meb-5-dkab\/1\/1$/);
     await expect(page.getByTestId("outcome-text")).toBeVisible();
+    // İstemci geçişinde Next akışlı metadata eski canonical'ı kısa süre body'de tutabilir;
+    // tarayıcı/arama motorunun gördüğü tam yüklemeyi doğrula.
+    await page.goto("/mufredat/meb-5-dkab/1/1");
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://cortexplus.app/mufredat/meb-5-dkab/1/1");
   });
 
