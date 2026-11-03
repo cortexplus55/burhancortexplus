@@ -12,6 +12,19 @@ export const LESSON_PREP_STEPS = [
   "✅ Çift denetim yapılıyor",
 ] as const;
 
+/** Belgesiz hazırlık (3 Kasım 2026): not yok, "Notların taranıyor" yanlış metindi. */
+export const TOPIC_PREP_STEPS = [
+  "📚 Kazanımların okunuyor",
+  "🧠 Sınav tuzakları çıkarılıyor",
+  "🎨 Görsel kartlar ve sorular hazırlanıyor",
+  "✅ Çift denetim yapılıyor",
+] as const;
+
+/** Bekleme adımları: belgesiz hazırlıkta kazanım metni. */
+export function prepStepsFor(documentFree: boolean | undefined): readonly string[] {
+  return documentFree ? TOPIC_PREP_STEPS : LESSON_PREP_STEPS;
+}
+
 /** exam / remember / mnemonic: "Sınav ipucu", "Akılda tut", "Ezber kodu" (18 Ekim 2026). */
 export type CalloutTone = "warn" | "info" | "unit" | "general" | "exam" | "remember" | "mnemonic";
 const CALLOUT_TONES: readonly CalloutTone[] = ["warn", "info", "unit", "general", "exam", "remember", "mnemonic"];

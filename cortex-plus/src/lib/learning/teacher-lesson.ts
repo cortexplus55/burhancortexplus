@@ -501,6 +501,7 @@ export function alternativeBlock(text: string | undefined): string {
   return [
     "FARKLI ANLAT: Öğrenci bu konunun aşağıdaki anlatımını okudu ve farklı anlatılmasını istedi. Aynı kazanımları ve aynı doğru bilgiyi koru;",
     "farklı bir giriş, farklı örnek ve benzetme, farklı sıra kullan. Önceki anlatımın cümlelerini ve örneklerini tekrar etme.",
+    `Ders en az ${TOPIC_MIN_SCREENS} ekran olsun (6-8): kazanımları alt fikirlere böl, her alt fikre kendi ekranı.`,
     body.slice(0, 10_000),
   ].join("\n");
 }
@@ -2219,8 +2220,26 @@ export const COVERAGE_COMPLETION_SCREENS = 2;
 
 export type LessonCoverageGaps = { headings: string[]; facts: string[] };
 
+/**
+ * Belgesiz (konu) derste alt sınır (3 Kasım 2026 canlı ölçüm: "Farklı anlat" 5 bölümle bitti, sayaç "Adım 1/8").
+ * Kaynak dar diye yazar 4 ekranda kalabiliyordu; kapanışta kapsam tamamlaması eksik ekranları ekler.
+ */
+export const TOPIC_MIN_SCREENS = 6;
+
+export function topicDepthGap(screenCount: number): string | null {
+  if (screenCount >= TOPIC_MIN_SCREENS) return null;
+  return (
+    `Ders ${screenCount} ekranda kaldı; en az ${TOPIC_MIN_SCREENS} olmalı. Kazanımların henüz kendi ekranı olmayan alt ` +
+    "fikirleri (tanım, neden-sonuç, karşılaştırma, sınavda çıkan ayrıntı ya da çözümlü örnek)"
+  );
+}
+
 export function lessonCoverageGaps(lesson: LessonV3, input: StructureInput): LessonCoverageGaps {
-  if (input.mode === "topic" || !input.pages?.length) return { headings: [], facts: [] };
+  if (input.mode === "topic") {
+    const gap = topicDepthGap(lesson.screens.length);
+    return { headings: gap ? [gap] : [], facts: [] };
+  }
+  if (!input.pages?.length) return { headings: [], facts: [] };
   return {
     headings: uncoveredBackbone(lesson.screens, inputBackbone(input)),
     facts: uncoveredKeyFacts(lesson.screens, lessonFacts(input.pages, input.noteWarnings)).map((fact) => fact.text),

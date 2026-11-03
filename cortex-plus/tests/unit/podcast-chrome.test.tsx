@@ -82,7 +82,7 @@ describe("üretim ekranı", () => {
   it("bekleme başlığı ve dakika uyarısı duruyor", () => {
     expect(generating).toContain("Dersin hazırlanıyor…");
     expect(generating).toContain("Bu işlem birkaç dakika sürebilir.");
-    expect(generating).toContain("LESSON_PREP_STEPS");
+    expect(generating).toContain("prepStepsFor");
   });
 });
 

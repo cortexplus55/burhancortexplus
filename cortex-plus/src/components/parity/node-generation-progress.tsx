@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Info, Loader2, X } from "lucide-react";
 import { CortexLogoMotion } from "@/components/brand/cortex-logo-motion";
 import { GenerationWarmup } from "@/components/parity/generation-warmup";
-import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
+import { prepStepsFor } from "@/lib/learning/lesson-chrome";
 
 /**
  * Ders üretilirken ne olduğunu göstermek.
@@ -44,9 +44,12 @@ export function NodeGenerationProgress({
   warnSlow = true,
   ready,
   promised,
+  documentFree,
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
+  /** Belgesiz hazırlık: 1. adım "Notların taranıyor" değil, kazanımlar (3 Kasım 2026). */
+  documentFree?: boolean;
   onClose?: () => void;
   /** Sözlü deneme aynı adımları kendi başlığıyla gösterir. */
   title?: string;
@@ -62,7 +65,7 @@ export function NodeGenerationProgress({
   ready?: number;
   promised?: number;
 }) {
-  const steps = [...LESSON_PREP_STEPS];
+  const steps = [...prepStepsFor(documentFree)];
 
   const [reached, setReached] = useState(0);
   const [slow, setSlow] = useState(false);

@@ -194,7 +194,9 @@ describe("ders hattı: kapsam açığı kalırsa yalnız eksikleri öğreten ekr
     // Ek ekranın dört parçası eksik: dört parça tamamlaması koşabilir, kapsam tamamlaması koşmaz.
     const { writes } = await run([JSON.stringify(full)]);
     expect(writes.some((write) => write.user.includes("KAPSAM TAMAMLAMASI"))).toBe(false);
-    expect(lessonCoverageGaps(lawLesson, { ...input, mode: "topic" })).toEqual({ headings: [], facts: [] });
+    // Belgesiz ders (3 Kasım 2026): kaynak açığı yok; yalnız 6 ekrandan kısaysa derinlik açığı.
+    const six: LessonV3 = { ...lawLesson, screens: Array.from({ length: 6 }, (_, i) => lawLesson.screens[i % lawLesson.screens.length]!) };
+    expect(lessonCoverageGaps(six, { ...input, mode: "topic" })).toEqual({ headings: [], facts: [] });
     expect(coverageCompletionUserPrompt(lawLesson, input, { headings: ["Yargı"], facts: [] })).toContain("- Alt başlık: Yargı");
   });
 });

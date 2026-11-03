@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createLiveChannel, splitLiveBody } from "@/lib/ai/chat-live";
 import { TUTOR_PASSAGE_CHARS, capPassages } from "@/lib/ai/teacher-tutor";
-import { leadOnlyPayload, parseRewriteLead, prefixLeadScreen, rewriteBasisFrom, REWRITE_SUMMARY_CHARS } from "@/lib/learning/rewrite-lead";
+import { leadOnlyPayload, parseRewriteLead, parseRewriteLeadText, prefixLeadScreen, splitLead, rewriteBasisFrom, REWRITE_SUMMARY_CHARS } from "@/lib/learning/rewrite-lead";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -69,7 +69,20 @@ describe("Farklı anlat ilk ekranı", () => {
     const twice = prefixLeadScreen(once, lead);
     expect((twice.lesson as { screens: unknown[] }).screens).toHaveLength(2);
     expect(twice.plannedScreens).toBe(8);
-    expect((leadOnlyPayload(lead, "T").lesson as { screens: unknown[] }).screens).toEqual([lead]);
+    const only = leadOnlyPayload(lead, "T").lesson as { screens: unknown[]; overview?: string };
+    expect(only.screens).toEqual([splitLead(lead).screen]);
+    // İlk kart (overview) gerçek giriş metniyle açılır; 0. ekranda yinelenmez.
+    expect(only.overview).toBe("Giriş cümlesi.");
+    expect((twice.lesson as { overview?: string }).overview).toBe("Giriş cümlesi.");
+  });
+
+  it("akış metni: ilk paragraf tamamlanınca ekran, yarım cümle gösterilmez", () => {
+    expect(parseRewriteLeadText("Başlık", false)).toBeNull();
+    const partial = parseRewriteLeadText("Başka bir açı\nKuvvet\n\nBir arabayı ittiğini düşün; hareket ettiren şey kuvvettir. Ama dur", false)!;
+    expect(partial.heading).toBe("Başka bir açı");
+    expect((partial.blocks[0] as { text: string }).text).toBe("Bir arabayı ittiğini düşün; hareket ettiren şey kuvvettir.");
+    const full = parseRewriteLeadText("Başka bir açı\nKuvvet\n\nGiriş paragrafı burada yeterince uzun yazıldı.\n\nİlk fikir", true)!;
+    expect(full.blocks).toHaveLength(2);
   });
 
   it("kaynak: kazanımlar + tarz + kısa özet", () => {
