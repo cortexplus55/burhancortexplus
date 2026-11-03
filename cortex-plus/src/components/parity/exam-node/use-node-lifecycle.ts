@@ -319,6 +319,10 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     // yalnız açılışta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // "Farklı anlat" yerinde başlar (3 Kasım 2026, canlı: ilk tık yalnız URL'yi ?farkli=1 yapıyordu). Aynı rotada
+  // router.push ekranı yeniden kurmaz: useState ilk değerleri (sonuç ekranı) kalır, akış hiç başlamazdı. Kip
+  // durumda tutulur; adres History API ile güncellenir (yenilemede aynı akış), sunucu çizimi beklenmez.
+  const [rewriteMode, setRewriteMode] = useState(rewriteLesson);
   // "Farklı anlat" tıkı hemen görünür; gezinme olmazsa 4 sn sonra düğme yeniden açılır.
   const [rewritePending, setRewritePending] = useState(false);
   useEffect(() => {
@@ -1128,6 +1132,21 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
   }
 
+  /** "Farklı anlat": tık anında bekleme ekranı + istek; gezinme yok (bkz. rewriteMode). */
+  function beginRewrite(href: string | null) {
+    setRewriteMode(true);
+    setRewritePending(true);
+    setInstantLesson(null);
+    if (href && typeof window !== "undefined") {
+      try {
+        window.history.replaceState(window.history.state, "", href);
+      } catch {
+        // adres güncellenemese de akış sürer
+      }
+    }
+    return start({ rewrite: true }).finally(() => setRewritePending(false));
+  }
+
   function formatTimer(sec: number) {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -1148,6 +1167,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     busyTries?: number;
     /** Öbür sekmenin süren üretimini bekleme sayısı (Paket J2 #9). */
     sharedTries?: number;
+    /** "Farklı anlat" yerinde başladı: durum güncellemesi bu çağrıya yetişmez. */
+    rewrite?: boolean;
   }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
@@ -1171,7 +1192,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           // Ders parça parça açılır: ilk denetlenmiş kavram gelince ekran açılır (18 Ekim 2026).
           ...(kind === "lesson" && !overrides?.review ? { lessonStream: true } : {}),
           ...(kind === "lesson" && overrides?.replay ? { replay: true } : {}),
-          ...(kind === "lesson" && rewriteLesson && !overrides?.replay && !overrides?.review ? { rewrite: true } : {}),
+          ...(kind === "lesson" && (overrides?.rewrite ?? rewriteMode) && !overrides?.replay && !overrides?.review ? { rewrite: true } : {}),
           ...((overrides?.sharedTries ?? 0) > 0 ? { twin: true } : {}),
           ...(overrides?.review ? { review: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
@@ -1904,7 +1925,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     todayMood,
     reviewSaved,
     rewriteHref,
-    rewriteLesson,
+    rewriteLesson: rewriteMode,
+    beginRewrite,
     autoOpening,
     initialLessonPreview,
     instantLesson,

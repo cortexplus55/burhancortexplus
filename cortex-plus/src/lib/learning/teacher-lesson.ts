@@ -2224,7 +2224,8 @@ export type LessonCoverageGaps = { headings: string[]; facts: string[] };
  * Belgesiz (konu) derste alt sınır (3 Kasım 2026 canlı ölçüm: "Farklı anlat" 5 bölümle bitti, sayaç "Adım 1/8").
  * Kaynak dar diye yazar 4 ekranda kalabiliyordu; kapanışta kapsam tamamlaması eksik ekranları ekler.
  */
-export const TOPIC_MIN_SCREENS = 6;
+export { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
+import { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
 
 export function topicDepthGap(screenCount: number): string | null {
   if (screenCount >= TOPIC_MIN_SCREENS) return null;

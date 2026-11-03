@@ -449,6 +449,8 @@ describe("bitmiş ders kayıtlı hâliyle açılır; yeni anlatım yalnız 'Fark
     const result = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
     expect(result).toContain("href={examPrepLessonRewriteHref(prepId, nodeId)}");
     const session = read("src/components/parity/exam-node-session.tsx");
-    expect(session).toContain("if (rewriteHref && (reviewSaved || !rewriteLesson)) {");
+    // İlk tık yerinde başlar (3 Kasım 2026): aynı rotaya gezinme ekranı yeniden kurmuyordu; adres History API ile.
+    expect(session).toContain("void beginRewrite(rewriteHref);");
+    expect(session).toContain("window.history.replaceState(window.history.state, \"\", href);");
   });
 });

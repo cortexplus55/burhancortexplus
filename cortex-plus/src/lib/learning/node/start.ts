@@ -34,6 +34,8 @@ import { servePrefetched } from "@/lib/learning/node/prefetched";
 import { resolveStartSource } from "@/lib/learning/node/source";
 import { reserveStartAttempt } from "@/lib/learning/node/reserve";
 import { runStartGeneration } from "@/lib/learning/node/generation";
+import { env } from "@/lib/env";
+import { openRewriteLeadStream } from "@/lib/learning/node/rewrite-lead-stream";
 import { servePoolOral, servePoolContent } from "@/lib/learning/node/pool-start";
 import { serveOutcomeLesson } from "@/lib/learning/node/outcome-start";
 
@@ -41,7 +43,7 @@ import { serveOutcomeLesson } from "@/lib/learning/node/outcome-start";
 const TWIN_RESUME_MS = 3 * 60_000;
 
 export async function startAction(context: NodeContext): Promise<NextResponse> {
-  const { userId, service, options, parsed, prepId, nodeId, action, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, requestedTopic, oralTopicIds, oralMultiTopic, oralSameTopic, difficulty, voiceMode, mood, lessonReviewCards } = context;
+  const { userId, service, options, requestStarted, parsed, prepId, nodeId, action, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, requestedTopic, oralTopicIds, oralMultiTopic, oralSameTopic, difficulty, voiceMode, mood, lessonReviewCards } = context;
   let { sessionMeta, topic, topicDocumentId, topicNodeId, topicSourceRefs, topicLabel, topicWiden, title } = context;
   let peekBuildingMs: number | null = null;
 
@@ -396,8 +398,17 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     if (pooledOral) return pooledOral;
   }
 
+  // Belgesiz "Farklı anlat" girişi kredi ayırmayla paralel açılır (3 Kasım 2026): ilk metin ayırma + kayıt beklemez.
+  // Yayım yine ayrılmış kayda yapılır; ayırma düşerse çağrı kesilir.
+  const earlyLead =
+    kind === "lesson" && sourced.alternativeOf && parsed.data.lessonStream === true && teachingV2 && !prefetch && !voiceSession && env.OPENAI_API_KEY
+      ? openRewriteLeadStream({ topicLabel, basis: sourced.alternativeOf, requestStarted })
+      : null;
   const reserved = await reserveStartAttempt(context, { topic, topicLabel, title, existingForKey, variant, clientRequestId });
-  if (reserved instanceof Response) return reserved;
+  if (reserved instanceof Response) {
+    earlyLead?.abort();
+    return reserved;
+  }
 
   return runStartGeneration(
     context,
@@ -421,6 +432,7 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     },
     sourced,
     reserved,
+    earlyLead,
   );
 
 }

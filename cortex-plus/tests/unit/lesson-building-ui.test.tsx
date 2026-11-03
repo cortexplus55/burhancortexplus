@@ -61,9 +61,9 @@ describe("parça parça açılan ders ekranı", () => {
     const plan = container.querySelector(".als-intro-plan")!;
     expect(plan.querySelectorAll("li")).toHaveLength(3);
     expect(plan.querySelectorAll("li.als-intro-pending")).toHaveLength(2);
-    // Yazım sürerken payda gösterilmez (29 Ekim 2026, Paket H): kavramlar geldikçe "1 / 2" → "1 / 8" sıçramasın.
+    // Yazım sürerken payda yalnız tahmin ("1 / ~6", 3 Kasım 2026); kesin "1 / N" mühürde.
     expect(container.querySelector(".als-intro-meta")!.textContent).not.toMatch(/\d+ adım/);
-    expect(container.querySelector(".als-count")!.textContent).toMatch(/Adım\s*1(?!\s*\/)/);
+    expect(container.querySelector(".als-count")!.textContent).toMatch(/Adım\s*1 \/ ~\d+/);
     // Toplam bilinmiyor: çubukta aria-valuemax yok, "~N dk" yok.
     expect(container.querySelector('[role="progressbar"]')!.hasAttribute("aria-valuemax")).toBe(false);
     expect(container.querySelector(".als-minutes")).toBeNull();

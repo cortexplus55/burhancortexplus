@@ -35,12 +35,11 @@ import { loadTopicLesson, saveTopicLesson } from "@/lib/learning/node/lesson-sto
 import { loadSectionBackbone, loadUpcomingTopicTitles } from "@/lib/learning/node/lesson";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { generateNodePayload } from "@/lib/learning/node/generate";
-import { samplingParams } from "@/lib/ai/model-params";
-import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 import { recordUsage } from "@/lib/credits/service";
 import type { LessonScreen } from "@/lib/learning/lesson-v3";
-import { REWRITE_LEAD_NOTE, REWRITE_LEAD_STREAM_MAX_TOKENS, leadOnlyPayload, parseRewriteLeadText, prefixLeadScreen, rewriteLeadStreamPrompt } from "@/lib/learning/rewrite-lead";
+import { REWRITE_LEAD_NOTE, leadOnlyPayload, parseRewriteLeadText, prefixLeadScreen } from "@/lib/learning/rewrite-lead";
+import { openRewriteLeadStream, type RewriteLeadStream } from "@/lib/learning/node/rewrite-lead-stream";
 import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 import type { StartSource } from "./source";
@@ -51,6 +50,7 @@ export async function runStartGeneration(
   state: Pick<StartLocals, "sessionMeta" | "topic" | "topicLabel" | "topicWiden" | "title" | "warm" | "refreshTopicQuiz" | "voiceSession" | "premium" | "freeMeter" | "practiceTopics" | "finalFill" | "retargetedTopic" | "quizLesson" | "variant" | "peekBuildingMs">,
   sourced: StartSource,
   reserved: StartReserved,
+  earlyLead?: RewriteLeadStream | null,
 ) {
   const { userId, service, options, requestStarted, parsed, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, oralMultiTopic, difficulty, voiceMode, familiarity, mood, lessonReviewCards } = context;
   const { sessionMeta, topic, topicLabel, topicWiden, warm, refreshTopicQuiz, voiceSession, premium, freeMeter, practiceTopics, finalFill, retargetedTopic, quizLesson, variant, peekBuildingMs } = state;
@@ -89,6 +89,8 @@ export async function runStartGeneration(
   const leadWanted = progressive && kind === "lesson" && Boolean(alternativeOf) && Boolean(env.OPENAI_API_KEY);
   let leadScreen: LessonScreen | null = null;
   let leadMs: number | null = null;
+  let leadStartMs: number | null = null;
+  let leadFirstTokenMs: number | null = null;
   let mainShown = false;
   let announceFirst: (payload: Record<string, unknown>) => void = () => undefined;
   const firstShown = new Promise<Record<string, unknown>>((resolve) => (announceFirst = resolve));
@@ -121,22 +123,16 @@ export async function runStartGeneration(
     ? loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null })
     : Promise.resolve([]);
 
+  if (!leadWanted) earlyLead?.abort();
   if (leadWanted) {
     // Akışlı giriş (3 Kasım 2026): ilk paragraf tamamlanır tamamlanmaz yayımlanır; JSON kapanışı beklenmez.
-    const prompt = rewriteLeadStreamPrompt({ topicLabel, basis: alternativeOf });
-    const leadModel = env.OPENAI_STANDARD_MODEL;
+    // Akış, kredi ayırma sürerken başlatılmış olabilir (`earlyLead`, start.ts); yoksa burada açılır.
+    const opened = earlyLead ?? openRewriteLeadStream({ topicLabel, basis: alternativeOf, requestStarted });
+    leadStartMs = opened.startedMs;
+    const leadModel = opened.model;
     void (async () => {
       try {
-        const stream = await openaiClient({ apiKey: env.OPENAI_API_KEY! }).chat.completions.create(
-          {
-            model: leadModel,
-            ...samplingParams(leadModel, { temperature: 0.7, maxTokens: REWRITE_LEAD_STREAM_MAX_TOKENS }),
-            stream: true,
-            stream_options: { include_usage: true },
-            messages: [{ role: "system", content: prompt.system }, { role: "user", content: prompt.user }],
-          },
-          { timeout: 8_000, maxRetries: 0 },
-        );
+        const stream = await opened.stream;
         let text = "";
         let shownBlocks = 0;
         let tokensIn = 0;
@@ -158,6 +154,7 @@ export async function runStartGeneration(
           }
           const delta = chunk.choices[0]?.delta?.content ?? "";
           if (!delta) continue;
+          if (leadFirstTokenMs == null) leadFirstTokenMs = Date.now() - requestStarted;
           text += delta;
           if (delta.includes("\n") || /[.!?…]\s*$/.test(delta)) await show(false);
         }
@@ -736,7 +733,7 @@ export async function runStartGeneration(
               path: "stream_first",
               openMs: ms,
               firstScreenMs: firstPublishedMs,
-              meta: { peekBuildingMs, generationLaunchedMs, ...(leadWanted ? { rewriteLead: leadScreen ? "shown" : "skipped", leadMs } : {}) },
+              meta: { peekBuildingMs, generationLaunchedMs, ...(leadWanted ? { rewriteLead: leadScreen ? "shown" : "skipped", leadMs, leadStartMs, leadFirstTokenMs } : {}) },
             }),
           );
         }
@@ -753,6 +750,8 @@ export async function runStartGeneration(
         const timing = [
           `ttft;dur=${firstPublishedMs ?? ms}`,
           `launch;dur=${generationLaunchedMs ?? 0}`,
+          ...(leadStartMs != null ? [`prelead;dur=${leadStartMs}`] : []),
+          ...(leadFirstTokenMs != null ? [`leadfirst;dur=${leadFirstTokenMs}`] : []),
           ...(leadMs != null ? [`lead;dur=${leadMs}`] : []),
           `total;dur=${Date.now() - requestStarted}`,
         ].join(", ");

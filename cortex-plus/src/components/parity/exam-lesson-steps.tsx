@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
+import { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
 import { activityDurationMinutes, lessonStepCounter, type LessonStepCounter } from "@/lib/learning/activity-duration";
 import { prepStars } from "@/lib/stars/rules";
 import { ComparisonCarousel, ExamTrapCard, FormulaCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
@@ -848,8 +849,9 @@ export function ExamLessonSteps({
     if (lockedMinutesRef.current == null) lockedMinutesRef.current = computedMinutes;
   }, [building, base.length, computedMinutes]);
   const readingMinutes: number | null = building ? null : (lockedMinutesRef.current ?? computedMinutes);
-  // Yazarın ekran planı sayaca girmez; akış kayıt amaçlı duruyor (bkz. prop açıklaması).
-  void plannedScreens;
+  // Yazım sürerken payda tahminidir ("1 / ~8", 3 Kasım 2026): yazarın ekran planı, yoksa ders alt sınırı (6).
+  // Ders mühürlenince ilk gerçek toplam kilitlenir.
+  const estimatedTotal = building ? Math.max(plannedScreens ?? 0, TOPIC_MIN_SCREENS) : null;
   const steps = useMemo(() => {
     // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
     if (building) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
@@ -899,7 +901,7 @@ export function ExamLessonSteps({
     ];
   }, [base, missed, view, language, serverRetries, building, upcoming]);
 
-  const counter = lessonStepCounter({ index, writtenSteps: base.length, building, lockedTotal: lockedTotalRef.current });
+  const counter = lessonStepCounter({ index, writtenSteps: base.length, building, lockedTotal: lockedTotalRef.current, estimatedTotal });
   const progressMax = counter.max;
   const progressNow = counter.now;
   const progressRatio = progressNow / progressMax;
@@ -1174,7 +1176,7 @@ export function ExamLessonSteps({
         </div>
         <div className="als-top-meta">
           <p className="als-count" aria-live="polite">
-            {/^\d+( \/ \d+)?$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
+            {/^\d+( \/ ~?\d+)?$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
             <span>{countLabel}</span>
             {readingMinutes != null ? <span className="als-minutes">~{readingMinutes} dk</span> : null}
           </p>
