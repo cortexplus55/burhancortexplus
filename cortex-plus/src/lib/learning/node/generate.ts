@@ -44,6 +44,8 @@ export type NodePayloadInput = {
   lessonCore?: LessonCore | null;
   /** Belgesiz hazırlık dersi (topic_only, hazırlıkta belge yok). */
   lessonTopicOnly?: boolean;
+  /** Belgesiz "Farklı anlat": kazanımlar + önceki (havuz) anlatım; ders aynı bilgiyi farklı yoldan anlatır. */
+  alternativeOf?: string;
   repetitiveSparseEvidence?: boolean;
   /**
    * Belge yokken konunun çiti. Sohbetteki "belgede yoksa cevap verme"

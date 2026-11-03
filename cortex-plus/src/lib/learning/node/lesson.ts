@@ -124,6 +124,7 @@ export async function teacherLessonPayload(
     optionCount: await studentOptionCount(input.service, input.userId, input.prepTitle),
     upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    ...(input.alternativeOf ? { alternativeOf: input.alternativeOf } : {}),
     // Belgeli derste yalnız dersin kaynağında geçen maddeler: başka belgenin maddesi "kaynakta yok" turu açıyordu.
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,

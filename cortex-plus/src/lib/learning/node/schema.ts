@@ -67,6 +67,8 @@ export const bodySchema = z.object({
   lessonStream: z.boolean().optional(),
   /** "Dersi tekrarla": aynı ders yeniden açılır, yeniden yazılmaz (18 Ekim 2026). */
   replay: z.boolean().optional(),
+  /** "Farklı anlat" (?farkli=1, 3 Kasım 2026): yeni anlatım yazılır; belgesiz hazırlıkta havuz dersi yeniden açılmaz. */
+  rewrite: z.boolean().optional(),
   /** Öbür sekmenin yazımını bekleyen istek (Paket J2 #9): yazım bitince aynı kayıt açılır. */
   twin: z.boolean().optional(),
   /** Bitmiş adımın kayıtlı gövdesi. Üretim ve kredi yok (25 Ekim 2026). */

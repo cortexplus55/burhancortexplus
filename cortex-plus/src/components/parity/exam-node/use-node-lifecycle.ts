@@ -197,6 +197,8 @@ export type ExamNodeSessionProps = {
   reviewSaved?: boolean;
   /** "Farklı anlat" (ders): yeni anlatım açık seçimle bu adreste yazılır (30 Ekim 2026). */
   rewriteHref?: string | null;
+  /** "Farklı anlat" adresiyle açıldı (?farkli=1): başlatma isteği yeni anlatım ister. */
+  rewriteLesson?: boolean;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
   resumeEnabled?: boolean;
   /**
@@ -245,6 +247,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     replayLesson = false,
     reviewSaved = false,
     rewriteHref = null,
+    rewriteLesson = false,
     resumeEnabled = false,
     openAttempt = true,
     initialResume = null,
@@ -1123,6 +1126,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           // Ders parça parça açılır: ilk denetlenmiş kavram gelince ekran açılır (18 Ekim 2026).
           ...(kind === "lesson" && !overrides?.review ? { lessonStream: true } : {}),
           ...(kind === "lesson" && overrides?.replay ? { replay: true } : {}),
+          ...(kind === "lesson" && rewriteLesson && !overrides?.replay && !overrides?.review ? { rewrite: true } : {}),
           ...((overrides?.sharedTries ?? 0) > 0 ? { twin: true } : {}),
           ...(overrides?.review ? { review: true } : {}),
           difficulty: overrides?.difficulty ?? difficulty,
@@ -1828,6 +1832,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     todayMood,
     reviewSaved,
     rewriteHref,
+    rewriteLesson,
     resumeEnabled,
     sourceName,
     language,

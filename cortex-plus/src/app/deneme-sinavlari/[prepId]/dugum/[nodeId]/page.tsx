@@ -378,6 +378,7 @@ export default async function ExamNodePage({
         // Bitmiş ders düz adresle açılınca kayıtlı hâli (30 Ekim 2026, `opensSavedLesson`); yeni yazım "Farklı anlat"la.
         reviewSaved={opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu } })}
         rewriteHref={node.kind === "lesson" ? examPrepLessonRewriteHref(prepId, nodeId) : null}
+        rewriteLesson={node.kind === "lesson" && farkli === "1"}
         resumeEnabled={resumeEnabled}
         openAttempt={openAttempt}
         initialResume={initialResume}

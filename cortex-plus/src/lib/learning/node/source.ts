@@ -13,7 +13,7 @@ import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-
 import type { TeachingPriority } from "@/lib/learning/teacher-brain";
 import { TEACHER_PAGE_KINDS } from "@/lib/learning/node/shared";
 import { loadOralAllSource } from "@/lib/learning/node/oral";
-import { poolSourceText } from "@/lib/content-pool/serve";
+import { poolSliceForTopic, poolSourceText } from "@/lib/content-pool/serve";
 import { oralPoolLabelsFrom } from "@/lib/content-pool/oral-pool-labels";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NodeContext } from "./context";
@@ -348,6 +348,13 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
     }
   }
 
+  // Belgesiz hazırlıkta "Farklı anlat" (3 Kasım 2026): ünitenin kazanımları + havuzdaki doğrulanmış anlatım derse
+  // "farklı anlat" girdisi olur (okuma yalnız; havuz üretimi ve paylaşımlı harcama yok). Belgeli hazırlık bu yola girmez.
+  let alternativeOf = "";
+  if (kind === "lesson" && parsed.data.rewrite === true && !voiceSession && noPrepDocuments && !prepSource.document_id && topicLabel) {
+    alternativeOf = await rewriteBasisText(service, prep.learning_preferences, topicLabel).catch(() => "");
+  }
+
   // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
   // Sayfa listesi okunamadıysa buraya gelinmez; o durumda arama yedeği yok.
   let podcastSyllabus = "";
@@ -388,7 +395,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       refunded: false,
     });
   }
-  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus };
+  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf };
 }
 
 /** Kaynak aşamasının erken yanıt dışındaki dönüşü. */
@@ -406,4 +413,18 @@ async function oralPoolTopicLabels(
     .eq("exam_prep_id", input.prepId)
     .order("sort_order");
   return oralPoolLabelsFrom((data ?? []) as { id: string; label: string }[], input);
+}
+
+/** "Farklı anlat" girdisi: konunun resmî kazanımları ve havuzdaki doğrulanmış anlatım (yoksa yalnız kazanımlar). */
+export async function rewriteBasisText(service: Parameters<typeof poolSourceText>[0], prefs: unknown, topicLabel: string): Promise<string> {
+  const slice = poolSliceForTopic(prefs, topicLabel);
+  const outcomes = (slice?.units ?? [])
+    .flatMap((unit) => unit.outcomes)
+    .filter((o) => !slice?.codes || slice.codes.has(o.code))
+    .slice(0, 12)
+    .map((o) => `- ${o.code}: ${o.text}`);
+  const lesson = await poolSourceText(service, { prefs, topicLabels: [topicLabel], maxChars: 9_000 }).catch(() => "");
+  return [outcomes.length ? `KAZANIMLAR:\n${outcomes.join("\n")}` : "", lesson.trim() ? `ÖNCEKİ ANLATIM:\n${lesson.trim()}` : ""]
+    .filter(Boolean)
+    .join("\n\n");
 }

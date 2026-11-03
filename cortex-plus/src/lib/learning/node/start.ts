@@ -281,7 +281,10 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   const meterless = premium || (await billingExempt(service, userId).catch(() => false));
   // Havuz içeriği (2 Kasım 2026): resmî kurulumdaki ünitenin doğrulanmış anlatımı, kartları ve soruları 0 kredi;
   // haftalık ders sayacına sayılmaz. Havuzda yoksa aşağıdaki bugünkü üretim yolu (fiyatıyla) çalışır.
-  if (parsed.data.replay !== true && parsed.data.review !== true) {
+  // "Farklı anlat" (3 Kasım 2026): öğrenci yeni anlatım istedi; havuzdaki aynı ders yeniden açılmaz, aşağıdaki ücretli
+  // üretim yolu (belgeli dersle aynı kredi kuralı) havuz anlatımını "farklı anlat" girdisi olarak kullanır.
+  const rewriteLesson = kind === "lesson" && parsed.data.rewrite === true;
+  if (parsed.data.replay !== true && parsed.data.review !== true && !rewriteLesson) {
     // Paket 3b: tek kazanımlı konuda kazanım dersi (havuzdan 0 kredi ya da stream-first üretip havuza yazar).
     const outcome = await serveOutcomeLesson(context, { topic, topicLabel, title, clientRequestId, voiceSession }).catch(() => null);
     if (outcome) return outcome;

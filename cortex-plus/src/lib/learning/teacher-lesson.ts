@@ -87,6 +87,11 @@ export type TeacherLessonInput = {
   previousTopic?: string | null;
   /** Aşinalık ve ruh hali satırı (session-signals). */
   learnerLine?: string;
+  /**
+   * "Farklı anlat" (3 Kasım 2026): öğrencinin okuduğu anlatım ve kazanımlar. Varsa ders aynı doğru bilgiyi farklı
+   * giriş, örnek ve sırayla anlatır; cümleler tekrar edilmez.
+   */
+  alternativeOf?: string;
   /** Öğretmen analizinin "Sınavda sorulur" maddeleri (18 Ekim 2026). */
   examPoints?: string[];
   /** Sayfa kenarında tekrar eden satırlar: başlık olamaz. */
@@ -489,6 +494,17 @@ export function inputBackbone(input: Partial<Pick<TeacherLessonInput, "pages" | 
   return lessonBackbone(input.pages, { topicLabel: input.topicLabel, runningHeaders: input.runningHeaders });
 }
 
+/** "Farklı anlat" bloğu: aynı kazanımlar, farklı yol. Öğrencinin anlatım tercihi profil bloğundan gelir. */
+export function alternativeBlock(text: string | undefined): string {
+  const body = text?.trim();
+  if (!body) return "";
+  return [
+    "FARKLI ANLAT: Öğrenci bu konunun aşağıdaki anlatımını okudu ve farklı anlatılmasını istedi. Aynı kazanımları ve aynı doğru bilgiyi koru;",
+    "farklı bir giriş, farklı örnek ve benzetme, farklı sıra kullan. Önceki anlatımın cümlelerini ve örneklerini tekrar etme.",
+    body.slice(0, 10_000),
+  ].join("\n");
+}
+
 export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
@@ -498,6 +514,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     examPointsBlock(input.examPoints, "lesson"),
     officialOutcomeBlock(input.officialOutcome, "lesson"),
+    alternativeBlock(input.alternativeOf),
     input.mode === "topic" ? "" : noteWarningsPromptLine(input.noteWarnings),
     `SIRADAKİ KONULAR: ${input.upcomingTopics.length ? input.upcomingTopics.join(" | ") : "(yok)"}`,
     input.runningHeaders?.length
