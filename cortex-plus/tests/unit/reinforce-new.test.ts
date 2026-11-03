@@ -4,6 +4,13 @@ import { poolUnit } from "@/lib/content-pool/keys";
 import { generateReinforceItems, REINFORCE_PAIRS, type LlmCall } from "@/lib/content-pool/generate";
 import { istanbulDayStart, reinforceRows } from "@/lib/content-pool/reinforce-new";
 import { newTestNotice, NEW_TEST_LABEL } from "@/components/level-check/reinforce-box";
+const STEMS = [
+  "Hücre zarının seçici geçirgenliği hangi seçenekte doğru verilmiştir?",
+  "Enzimlerin çalışmasını etkileyen sıcaklık değişimi neyi gösterir?",
+  "Fotosentezde ışığa bağımlı tepkimelerin ürünü aşağıdakilerden hangisidir?",
+  "Mitokondri ile kloroplastın ortak özelliği nedir?",
+  "Bir deneyde bağımsız değişken olarak seçilen etken hangisidir?",
+];
 
 /*
   Paket 3 (3 Kasım 2026): "🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç". Tek kazanım, tam 2 model çağrısı
@@ -26,7 +33,8 @@ function llm(opts: { wrongKey?: boolean; noConclusion?: boolean } = {}) {
           items: pairs.map((p, i) => ({
             outcome_code: p.split("|")[0],
             difficulty: p.split("|")[1],
-            stem: `Pekiştirme sorusu ${i + 1} hangi seçenekte doğru verilmiştir?`,
+            // Kökler birbirinden gerçekten farklı olmalı: yakın kopya kontrolü (near-duplicate.ts) benzer kökü eler.
+            stem: STEMS[i % STEMS.length]!,
             choices: ["Birinci seçenek", "İkinci seçenek", "Üçüncü seçenek", "Dördüncü seçenek", "Beşinci seçenek"],
             answer: 2,
             explanation: opts.noConclusion ? "Üçüncü seçenek kazanımla örtüşür." : "Kazanımla örtüşen budur.\nDoğru cevap: Üçüncü seçenek",
@@ -59,7 +67,7 @@ describe("yeni pekiştirme testi", () => {
     expect(f.calls).toEqual(["w"]);
   });
   it("havuzdaki kök tekrar yazılmaz", async () => {
-    const out = await generateReinforceItems(unit, code, llm(), { models: { generate: "w", verify: "v" }, existingStems: ["Pekiştirme sorusu 1 hangi seçenekte doğru verilmiştir?"] });
+    const out = await generateReinforceItems(unit, code, llm(), { models: { generate: "w", verify: "v" }, existingStems: ["Hücre zarının seçici geçirgenliği hangi seçenekte doğru verilir?"] });
     expect(out.items).toHaveLength(REINFORCE_PAIRS.length - 1);
   });
   it("satır origin='reinforce' (CHECK yoksa qa.origin) ve 0 kredi metinleri", () => {

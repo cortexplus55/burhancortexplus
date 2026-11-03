@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Katman 1 kanonik sabitler. Değer resmî kaynaktan; 'accepted' sınav kabulleri (ör. g = 10 m/s²). Ad metinde geçip yakınında sayı varsa karşılaştırılır.",
+  "note": "Katman 1 kanonik sabitler. Değer resmî kaynaktan; 'accepted' sınav kabulleri (ör. g = 10 m/s²). Ad metinde geçip yakınında sayı varsa karşılaştırılır. 'disputed': kaynaklar arasında tartışmalı bilgi; konu+iddia+kuruluş fiili aynı cümlede, karşı görüş anılmadan geçerse ret.",
   "entries": [
     {
       "id": "speed_of_light",
@@ -93,6 +93,38 @@
       "accepted": [],
       "source": "https://www.tbmm.gov.tr/",
       "kind": "year"
+    }
+  ],
+  "disputed": [
+    {
+      "id": "gazneliler_kurucu",
+      "scope": [
+        "KPSS",
+        "YKS",
+        "LGS",
+        "Tarih"
+      ],
+      "subject": [
+        "gazneli",
+        "gazne"
+      ],
+      "claim": "sebuk tigin",
+      "verbs": [
+        "kurucu",
+        "kurdu",
+        "kurul"
+      ],
+      "unless": [
+        "alp tigin",
+        "alp tegin",
+        "alptigin"
+      ],
+      "fact": "Gazneliler: kurucu Alp Tigin (963, Gazne); Sebük Tigin hanedanı güçlendiren/asıl kurucu olarak da anılır; kurucu sorusunda tek doğru seçenek olarak Sebük Tigin kullanılmaz.",
+      "source": [
+        "https://ogmmateryal.eba.gov.tr/panel/upload/etkilesimli/kitap/defterim/9/tarih/files/basic-html/page192.html",
+        "https://orgm.meb.gov.tr/ekpssmebozel/content/magazines/flipbook/tar/turkislamtarihi/files/downloads/turkislamtarihi.pdf",
+        "https://islamansiklopedisi.org.tr/gazneliler"
+      ]
     }
   ]
 }

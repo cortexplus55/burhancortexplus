@@ -12,6 +12,22 @@ import { turkishFold } from "@/lib/text/turkish";
 
 type Canonical = { id: string; kind?: "year"; names: string[]; value: number; tolerance: number; accepted: number[]; source: string };
 const ENTRIES = (canonical as { entries: Canonical[] }).entries;
+type Disputed = { id: string; subject: string[]; claim: string; verbs: string[]; unless: string[]; fact: string };
+const DISPUTED = ((canonical as { disputed?: Disputed[] }).disputed ?? []) as Disputed[];
+
+/** Katman 1b: tartışmalı bilgi tek doğru olarak verilmiş mi (konu + iddia + fiil aynı cümlede, karşı görüş metinde yok). */
+export function disputedIssues(text: string): string[] {
+  const folded = turkishFold(text);
+  const issues: string[] = [];
+  for (const d of DISPUTED) {
+    if (d.unless.some((u) => folded.includes(turkishFold(u)))) continue;
+    const sentences = folded.split(/[.!?\n]+/u);
+    const hit = sentences.some((s) => s.includes(turkishFold(d.claim)) && d.verbs.some((v) => s.includes(turkishFold(v))));
+    const subject = d.subject.some((x) => folded.includes(turkishFold(x)));
+    if (hit && subject) issues.push(`tartışmalı bilgi tek doğru olarak verilmiş: ${d.id}`);
+  }
+  return issues;
+}
 
 const NUMBER = /(-?\d+(?:[.,]\d+)*)(?:\s*(?:[x×·*]\s*10\s*(?:\^|\*\*)?\s*\(?\s*([-−–]?\d+)\s*\)?|e([-−]?\d+)))?/iu;
 const ASSUMED = /(alin|kabul|varsay|yaklasik)/u; // turkishFold edilmiş metne uygulanır (alınız → aliniz)
@@ -128,5 +144,7 @@ export function triadIssue(item: { choices: string[]; answer: number; explanatio
 export function v14CodeIssue(item: { stem: string; choices: string[]; answer: number; explanation: string }): string | null {
   const canon = canonicalIssues(`${item.stem}\n${item.explanation}\n${item.choices.join("\n")}`);
   if (canon.length) return canon[0]!;
+  const disputed = disputedIssues(`${item.stem}\n${item.explanation}\n${item.choices.join("\n")}`);
+  if (disputed.length) return disputed[0]!;
   return numericResultIssue(item) ?? explanationAnswerIssue(item) ?? triadIssue(item);
 }
