@@ -21,10 +21,10 @@ describe("countsAsFailure", () => {
 
 describe("lessonPrompt geri bildirimi", () => {
   it("ret gerekçesi istemde yer alır", () => {
-    const unit = { program: { label: "KPSS", badge: "x", kind: "kpss" }, unit: { title: "Mantık" }, outcomes: [{ code: "A", text: "Koşullu önerme", limitations: [] }] } as never;
-    const p = lessonPrompt(unit, ["mantık terimi hatası: \"karşıtı\" q ⇒ ¬p olarak yazılmış"]);
+    const unit = { program: { label: "KPSS", badge: "x", kind: "kpss" }, unit: { title: "Konu A" }, outcomes: [{ code: "A", text: "Kazanım metni", limitations: [] }] } as never;
+    const p = lessonPrompt(unit, ["örnek ret gerekçesi: x yanlış yazılmış"]);
     expect(p.user).toContain("ÖNCEKİ TASLAK");
-    expect(p.user).toContain("karşıt tersi \\\"Bir şekil dörtgen değilse kare değildir.\\\"".replace(/\\/g, ""));
+    expect(p.user).toContain("örnek ret gerekçesi: x yanlış yazılmış");
     expect(lessonPrompt(unit).user).not.toContain("ÖNCEKİ TASLAK");
   });
 });

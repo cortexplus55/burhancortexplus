@@ -238,7 +238,7 @@ const NUMBERED_BREAK = /\s+(?=\d{1,2}\)\s+|\d{1,2}\.\s+[^\sa-zçğıöşü])/;
 
 /**
  * Her satırı "1. ", "2. ", … diye sırayla başlayan blok listedir: işaret küçük harfle başlayan
- * maddede de ("2. p ⇒ q için …", 4 Kasım 2026 canlı) silinir; yoksa liste numarasıyla çakışır.
+ * maddede de ("2. x için …") silinir; yoksa liste numarasıyla çakışır.
  */
 function stripSequentialMarkers(lines: string[]): string[] {
   const kept = lines.map((line) => line.trim()).filter(Boolean);
@@ -427,8 +427,8 @@ function peelFormulas(sentence: string): string[] {
   if (colonAt >= 0) {
     const left = sentence.slice(0, colonAt);
     const right = sentence.slice(colonAt + 1).replace(/^\s+/, "");
-    // "batar: dc < ds: yüzer" — solunda bağıntı varsa iki nokta formülü değil, sınıflama etiketini
-    // ("dc < ds: yüzer") açar; bölünürse sıra karışır (B5, 4 Kasım 2026 canlı).
+    // "… : a < b: durum" — solunda bağıntı varsa iki nokta formülü değil, sınıflama etiketini
+    // ("a < b: durum") açar; bölünürse sıra karışır (B5, 4 Kasım 2026 canlı).
     if (RELATION_SIGN.test(right) && left.trim().length >= 8 && !RELATION_SIGN.test(left)) {
       return [cleanPiece(left), ...peelFormulas(right)];
     }

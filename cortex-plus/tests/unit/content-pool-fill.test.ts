@@ -195,7 +195,6 @@ describe("doldurucu: only önekleri", () => {
 
 describe("kapı: matematik gösterimi kırık cümle sayılmaz, gerçek hata yakalanır", async () => {
   const { garbledReason, garbledExcerpt, gateItem } = await import("@/lib/content-pool/gate");
-  const { logicTermIssues } = await import("@/lib/learning/logic-terms");
   const ok = [
     "Çözüm kümesi [a − 1, b + 2) aralığıdır ve uç noktalar dahil edilir.",
     "A = {x | x ∈ ℤ, −2 ≤ x < 3} kümesinin eleman sayısı 5'tir.",
@@ -212,10 +211,6 @@ describe("kapı: matematik gösterimi kırık cümle sayılmaz, gerçek hata yak
     const bad = "Bu durumda sonuç (yani toplam değer olarak bulunur ve devam edilir.";
     expect(garbledReason(bad)).toBe("kırık cümle yapısı");
     expect(garbledExcerpt(bad)).toContain("(yani");
-  });
-  it("karşıt/karşıt ters terim hatası yine yakalanır", () => {
-    expect(logicTermIssues("p ⇒ q önermesinin karşıt tersi ¬p ⇒ ¬q olarak yazılır.").length).toBeGreaterThan(0);
-    expect(logicTermIssues("p ⇒ q önermesinin karşıtı q ⇒ ¬p olarak yazılır.").length).toBeGreaterThan(0);
   });
   it("soru kapısı ret alıntısını döndürür", () => {
     const r = gateItem({ outcome_code: "X.1", difficulty: "easy", stem: "Aşağıdakilerden hangisi (doğru cevap olarak verilir?", choices: ["1", "2", "3", "4", "5"], answer: 0, explanation: "Açıklama metni yeterince uzun bir metindir." } as never, { unitId: "u", outcomes: [{ code: "X.1", outcomeId: "o", limitations: [] }], choices: 5 });

@@ -97,8 +97,8 @@ export const WHY_NOTE_RULE =
   "Kaynak nedeni kendisi veriyorsa kutu açma, nedeni metinde anlat.";
 
 /**
- * Öğrencinin notundaki sayının mutlak önceliği (28 Ekim 2026, Paket A). Taranmış el notunda "sol ventrikül 8-12 mm"
- * yazıyordu; konu testi genel bilgiden "yaklaşık 15 mm"yi doğru cevap yaptı. Yazar ve denetçi bu metni aynen okur.
+ * Öğrencinin notundaki sayının mutlak önceliği (28 Ekim 2026, Paket A). Notta bir aralık değeri yazıyordu;
+ * konu testi genel bilgiden başka bir değeri doğru cevap yaptı. Yazar ve denetçi bu metni aynen okur.
  */
 export const SOURCE_NUMBER_PRIORITY =
   "KAYNAK BELGE / EL NOTU MUTLAK ÖNCELİĞİ: Öğrencinin yüklediği ders notunda ya da el yazısı taramasında bir kavram " +
@@ -159,8 +159,8 @@ export const MULTI_POLARITY_RULE =
 export const SAME_KIND_DISTRACTOR_RULE =
   "ÇELDİRİCİ TÜRÜ: Bütün şıklar sorulan kategoriden olur ve doğru cevapla aynı türdendir: kök bir endeks soruyorsa " +
   "her şık bir endeks, bir hormon soruyorsa her şık bir hormon, bir mahkeme soruyorsa her şık bir mahkeme, bir " +
-  "antlaşma soruyorsa her şık bir antlaşmadır. Başka türden bir kavram (endeks sorusunda bir enflasyon türü, hormon " +
-  "sorusunda bir organ) çeldirici değildir: konuyu bilmeyen biri onu eler, soru tahminle çözülür. Çeldirici doğru " +
+  "antlaşma soruyorsa her şık bir antlaşmadır. Başka türden bir kavram (sorulan kategorinin " +
+  "dışından bir kavram) çeldirici değildir: konuyu bilmeyen biri onu eler, soru tahminle çözülür. Çeldirici doğru " +
   "cevabın kardeşidir: aynı aileden, öğrencinin gerçekten karıştırdığı öğe. Tek cevaplı soruda, ders içi soruda ve " +
   "ikinci soruda (review) da aynı kural. Kardeş TERİM UYDURMA: başka türden bir kavramın sonuna tür adını eklemek " +
   "(\"Reeskont maliyeti\", \"Politika faizi maliyeti\") var olmayan bir terim kurar. Kaynakta yeterli gerçek kardeş " +
@@ -195,8 +195,7 @@ export const STUDENT_LEAK_BAN =
   "Sınav Müfredatı Tamamlaması, görünmediği için, burada görünmedi, Ders: … Dönem …. " +
   "Şekildeki değer kaynakta yoksa kullanma, görünmüyor diye de yazma. " +
   "Açıklamada 'cevap B'dir' veya 'doğru şık B' yazma; şıkkı içeriğiyle an. " +
-  // 30 Ekim 2026 (Paket I #5): canlıda derslere "Turuncu işaretli yerler sınavda çıkar", podcast'e "… bu anlatımda ele
-  // alınmıyor", örneklere uydurma kişi adları ("21 yaşındaki Ece", "Mert'in izlediği dizi") ve kaynağın alıştırma
-  // numarası ("Alıştırma 11.5") girdi. Podcast senarist istemi kısa kalmalı: kısa yazıldı.
-  "Ekranın renklerini anlatma ('turuncu işaretli yerler'); neyin ele alınmadığını söyleme; örnekte kişi adı uydurma " +
-  "(kaynaktaki ad kalır); kaynağın alıştırma numarasını ('Alıştırma 11.5') yazma.";
+  // 30 Ekim 2026 (Paket I #5): derslere ekranın renk anahtarı, podcast'e "ele alınmıyor" cümlesi, örneklere uydurma
+  // kişi adları ve kaynağın alıştırma numarası giriyordu. Podcast senarist istemi kısa kalmalı: kısa yazıldı.
+  "Ekranın renklerini ve renk anahtarını anlatma; neyin ele alınmadığını söyleme; örnekte kişi adı uydurma " +
+  "(kaynaktaki ad kalır); kaynağın alıştırma numarasını yazma.";

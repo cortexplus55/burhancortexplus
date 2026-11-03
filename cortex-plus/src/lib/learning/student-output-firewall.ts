@@ -69,7 +69,7 @@ const SPEAKER_PREFIX = /^[ \t]*(?:ada|kerem|ece|deniz|öğretmen|ogretmen|sunucu
   İstem yankısı (30 Ekim 2026, Paket I #5). Canlıda öğrenci şunları okudu; hepsi ürünün kendi istem dilinden:
   - "Turuncu işaretli yerler sınavda çıkar." (ekranın renk anahtarı; yazar istemi "ekranda turuncu" diyordu)
   - "Tekrar soruları ile boş ödev tablosu bu anlatımda ele alınmıyor." (kapsam notu)
-  - "(Alıştırma 11.5)" (kaynağın alıştırma numarası; öğrenci o numaraya bakarak soruyu bulamaz)
+  - "(Alıştırma N.M)" (kaynağın alıştırma numarası; öğrenci o numaraya bakarak soruyu bulamaz)
   - "Şekilde işaretli değerler:" ve "SINAVDA SORULUR" (iç ek ve blok adları)
   Kod cümle yazmaz; yalnız bu cümleleri ve etiketleri siler. "Turuncu renk" (kimyada gösterge rengi) gibi içerik
   cümlesi düşmez: yalnız "turuncu işaret/vurgu".

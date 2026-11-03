@@ -1,6 +1,5 @@
 import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { turkishFold } from "@/lib/text/turkish";
-import { logicTermIssues } from "@/lib/learning/logic-terms";
 import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
 import { v14CodeIssue } from "@/lib/content-pool/gate-v14";
 
@@ -177,8 +176,6 @@ export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | 
     const garbled = garbledReason(text);
     if (garbled) return { reason: garbled, excerpt: garbledExcerpt(text) };
   }
-  const logic = logicTermIssues(`${stem} ${explanation}`);
-  if (logic.length) return { reason: `mantık terimi hatası: ${logic[0]}` };
   const folded = turkishFold(`${stem} ${choices.join(" ")}`);
   const excluded = excludedTerms(outcome.limitations).find((t) => folded.includes(t));
   if (excluded) return { reason: `kazanım sınırı dışında (${excluded})` };

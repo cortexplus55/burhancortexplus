@@ -13,8 +13,8 @@ import { topicLabelsMatch } from "@/lib/learning/study-tools";
  *
  * "Bilgi boşlukları", "Kartlarla son tekrar", odaklı pratik ve son kontrol yolun sonunda tek
  * düğüm; yol kurulurken yanındaki yazılı denemenin metasını devralıyorlar — o da hazırlığın İLK
- * konusu. Öğrenci Basınç'ta zorlanırken boşluk testi 1. konunun sayfalarından yazılıyordu, odaklı
- * pratiğin istemi "zayıf konular: Basınç" derken kaynağı 1. konuydu. Artık bu düğümler öğrencinin
+ * konusu. Öğrenci başka bir konuda zorlanırken boşluk testi 1. konunun sayfalarından yazılıyordu;
+ * istem zayıf konuyu söylerken kaynağı 1. konuydu. Artık bu düğümler öğrencinin
  * en zayıf konusuna yönelir; istem, kaynak ve kanıt aynı konuyu söyler.
  *
  * Öğrenci konuyu kendisi seçtiyse (`?konu=`) ya da düğüm uyarlamalı odaklı pratikse (kendi konusu

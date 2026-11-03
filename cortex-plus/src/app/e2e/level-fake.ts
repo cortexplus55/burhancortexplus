@@ -32,7 +32,7 @@ export function fakeLevelApi(opts: { guest: boolean; empty?: boolean }): LevelAp
         items = Array.from({ length: 12 }, (_, i) => fakeItem(pool[i % pool.length]!, i, i));
         if (opts.guest) items = items.slice(0, 3);
       } else if (req.mode === "reinforce") {
-        // Canlı TYT senaryosu (f3960feb gibi): Mantık'ın zayıf kazanımlarındaki doğrulanmış soruların hepsi yanıtlanmış.
+        // Senaryo: ilk ünitenin zayıf kazanımlarındaki doğrulanmış soruların hepsi yanıtlanmış.
         if (req.peek && req.unit.startsWith("e2e-tyt"))
           return { status: "offer", offer: [], total: 0, weakCount: 3, missing: [] };
         if (req.peek)

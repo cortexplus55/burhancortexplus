@@ -145,8 +145,7 @@ const escapeLike = (value: string) => value.replace(/[%_\\]/g, (char) => `\\${ch
 
 /**
  * Kök aramasının kaçırdığı kesin belirteçler (30 Ekim 2026, Paket I #11). Kök araması 4 harften kısa kelimeyi ve
- * sayıyı aramıyordu: "AVL 15, 10, 5, 20, 25", "T(n)=3T(n/4)+n", "SMMM 95.000" el notunda vardı, öğretmen "notlarda
- * yok" dedi. Dört tür: kısaltma (2-6 büyük harf), binlik ayraçlı ya da 3+ basamaklı sayı, sayı dizisi (3+ sayı,
+ * sayıyı aramıyordu: notta geçen kısaltma, sayı dizisi ya da formül parçası için öğretmen "notlarda yok" diyordu. Dört tür: kısaltma (2-6 büyük harf), binlik ayraçlı ya da 3+ basamaklı sayı, sayı dizisi (3+ sayı,
  * virgülle), parantezli formül parçası. Derse bağlı kelime yok.
  */
 export function exactSearchTokens(question: string, max = 4): ExactToken[] {

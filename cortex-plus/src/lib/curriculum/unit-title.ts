@@ -1,7 +1,7 @@
 /**
  * Ünite başlığındaki kaynak sıra numarası (tek ortak yardımcı, 1 Kasım 2026).
  *
- * Kayıt defteri üniteleri kaynaktaki gibi numaralı tutar ("9. Sınıf · 2. Hikâye", "1. ÜNİTE: Basınç", "3) Şiir").
+ * Kayıt defteri üniteleri kaynaktaki gibi numaralı tutar ("9. Sınıf · 2. Hikâye", "1. ÜNİTE: Konu Adı", "3) Şiir").
  * Sınavda çıkmayan üniteler atlandığı için numaralar boşluklu görünür; ekranda ve yol konu adlarında atılır.
  * Kodlar ve kayıt verisi değişmez.
  *

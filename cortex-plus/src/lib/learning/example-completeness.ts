@@ -164,7 +164,7 @@ function namedExample(folded: string): boolean {
   );
 }
 
-/** Ürün miktarı: sayı, birim ve ürün aynı cümlede. Ara adım (`= 1,5 mol H₂`) sayılmaz. */
+/** Ürün miktarı: sayı, birim ve ürün aynı cümlede. Ara adım (`= x mol`) sayılmaz. */
 function hasProductAmount(text: string): boolean {
   const folded = foldTr(text);
   return /urun[^.\n]{0,50}\d+(?:[.,]\d+)?\s*(?:g|mol|kg)/.test(folded)

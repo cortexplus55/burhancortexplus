@@ -82,7 +82,7 @@ function hasUnitClash(text: string): boolean {
 
 // P fizikte hem güç (Watt) hem basınç (Pascal) için kullanılır; tek aileye
 // sabitlemek "P = 300 kPa" gibi geçerli basınç notasyonunu yanlış pozitif
-// yapar (Basınç ve sıcaklık dersi bunu somut olarak yakaladı).
+// yapar.
 const SYMBOL_FAMILY: Record<string, string[]> = {
   n: ["amount"],
   I: ["current"],
