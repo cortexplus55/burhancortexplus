@@ -170,7 +170,8 @@ export async function POST(request: Request) {
     }, timer).catch(() => null);
     timer.mark("pool");
     if (pooled) {
-      const body = publishedData({ ...pooled, resumeId: pooled.examId });
+      // Sorular yanıtta (3 Kasım 2026): istemci ilk soruyu sınav sayfası gelmeden çizer.
+      const body = { ...publishedData({ ...pooled, resumeId: pooled.examId }), title: pooled.title, questions: pooled.questions };
       const timing = { "Server-Timing": timer.header() };
       timer.log("pool");
       if (stream) {
