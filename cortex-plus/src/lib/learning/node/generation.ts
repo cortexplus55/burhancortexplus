@@ -40,7 +40,7 @@ import { openaiClient } from "@/lib/ai/openai-client";
 import { env } from "@/lib/env";
 import { recordUsage } from "@/lib/credits/service";
 import type { LessonScreen } from "@/lib/learning/lesson-v3";
-import { REWRITE_LEAD_MAX_TOKENS, REWRITE_LEAD_NOTE, leadOnlyPayload, parseRewriteLead, prefixLeadScreen, rewriteLeadPrompt } from "@/lib/learning/rewrite-lead";
+import { REWRITE_LEAD_NOTE, REWRITE_LEAD_STREAM_MAX_TOKENS, leadOnlyPayload, parseRewriteLeadText, prefixLeadScreen, rewriteLeadStreamPrompt } from "@/lib/learning/rewrite-lead";
 import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 import type { StartSource } from "./source";
@@ -60,10 +60,12 @@ export async function runStartGeneration(
   let generationLaunchedMs: number | null = null;
   let firstPublishedMs: number | null = null;
 
-  const upcomingTopics =
+  // Sonraki konu başlıkları giriş çağrısını bekletmez (3 Kasım 2026): okuma başlar, giriş akışı
+  // başladıktan sonra beklenir.
+  const upcomingTopicsEarly =
     !voiceSession && kind === "lesson"
-      ? await loadUpcomingTopicTitles(service, prepId, topicLabel)
-      : null;
+      ? loadUpcomingTopicTitles(service, prepId, topicLabel)
+      : Promise.resolve(null);
 
   // Parça parça açılış (18 Ekim 2026, ürün sahibinin kararı): ilk denetlenmiş kavram kayda
   // yazılınca öğrenciye dönülür; kalan kavramlar arka planda (`after`) aynı kayda eklenir.
@@ -92,6 +94,7 @@ export async function runStartGeneration(
   const firstShown = new Promise<Record<string, unknown>>((resolve) => (announceFirst = resolve));
   const publishLesson = async (partial: Record<string, unknown>, fromLead = false) => {
     if (!fromLead) mainShown = true;
+    else if (mainShown) return;
     const next = buildingPayload(leadScreen && !fromLead ? prefixLeadScreen(partial, leadScreen) : partial);
     const { error: publishError } = await service
       .from("exam_prep_node_attempts")
@@ -118,39 +121,55 @@ export async function runStartGeneration(
     ? loadTopicSupport(service, { userId, prepId, topicId: topic?.id ?? null })
     : Promise.resolve([]);
 
-  generationLaunchedMs = Date.now() - requestStarted;
   if (leadWanted) {
-    const prompt = rewriteLeadPrompt({ topicLabel, basis: alternativeOf });
+    // Akışlı giriş (3 Kasım 2026): ilk paragraf tamamlanır tamamlanmaz yayımlanır; JSON kapanışı beklenmez.
+    const prompt = rewriteLeadStreamPrompt({ topicLabel, basis: alternativeOf });
     const leadModel = env.OPENAI_STANDARD_MODEL;
     void (async () => {
       try {
-        const response = await openaiClient({ apiKey: env.OPENAI_API_KEY! }).chat.completions.create(
+        const stream = await openaiClient({ apiKey: env.OPENAI_API_KEY! }).chat.completions.create(
           {
             model: leadModel,
-            ...samplingParams(leadModel, { temperature: 0.7, maxTokens: REWRITE_LEAD_MAX_TOKENS }),
-            response_format: { type: "json_object" },
+            ...samplingParams(leadModel, { temperature: 0.7, maxTokens: REWRITE_LEAD_STREAM_MAX_TOKENS }),
+            stream: true,
+            stream_options: { include_usage: true },
             messages: [{ role: "system", content: prompt.system }, { role: "user", content: prompt.user }],
           },
           { timeout: 8_000, maxRetries: 0 },
         );
-        await recordUsage(service, {
-          userId,
-          actionCode: "STUDY_PLAN_GENERATE",
-          model: leadModel,
-          tokensIn: response.usage?.prompt_tokens ?? 0,
-          tokensOut: response.usage?.completion_tokens ?? 0,
-        }).catch(() => undefined);
-        const screen = parseRewriteLead(response.choices[0]?.message?.content ?? "");
-        // Asıl yazarın ilk ekranı önce geldiyse giriş atılır: okunan ekran yerinden oynamaz.
-        if (!screen || mainShown) return;
-        leadScreen = screen;
-        leadMs = Date.now() - requestStarted;
-        await publishLesson(leadOnlyPayload(screen, title), true);
+        let text = "";
+        let shownBlocks = 0;
+        let tokensIn = 0;
+        let tokensOut = 0;
+        const show = async (final: boolean) => {
+          // Asıl yazarın ilk ekranı önce geldiyse giriş atılır: okunan ekran yerinden oynamaz.
+          if (mainShown) return;
+          const screen = parseRewriteLeadText(text, final);
+          if (!screen || (!final && screen.blocks.length <= shownBlocks)) return;
+          shownBlocks = screen.blocks.length;
+          leadScreen = screen;
+          if (leadMs == null) leadMs = Date.now() - requestStarted;
+          await publishLesson(leadOnlyPayload(screen, title), true);
+        };
+        for await (const chunk of stream) {
+          if (chunk.usage) {
+            tokensIn = chunk.usage.prompt_tokens ?? 0;
+            tokensOut = chunk.usage.completion_tokens ?? 0;
+          }
+          const delta = chunk.choices[0]?.delta?.content ?? "";
+          if (!delta) continue;
+          text += delta;
+          if (delta.includes("\n") || /[.!?…]\s*$/.test(delta)) await show(false);
+        }
+        await show(true);
+        await recordUsage(service, { userId, actionCode: "STUDY_PLAN_GENERATE", model: leadModel, tokensIn, tokensOut }).catch(() => undefined);
       } catch (error) {
         console.info("rewrite_lead_skipped", { cause: error instanceof Error ? error.message.slice(0, 120) : "unknown" });
       }
     })();
   }
+  const upcomingTopics = await upcomingTopicsEarly;
+  generationLaunchedMs = Date.now() - requestStarted;
   // Podcast'in dinleme kontrolü yayımdan sonra (30 Ekim 2026): kayıt yazılınca `fillPodcastCheckLater` doldurur.
   let podcastCheckTask: (() => Promise<QuizQuestion[]>) | null = null;
   // Sözlü kalan soruları (t260u): 1. soru yanıtla gider, kalanlar kayıt yazılınca arkada eklenir.

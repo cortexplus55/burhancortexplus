@@ -87,13 +87,14 @@ export function SetupScreens({ life }: { life: NodeLifecycle }) {
         </section>
       ) : null}
 
-      {stage === "setup" && kind === "lesson" && autoOpening && !rewriteLesson && instantLesson ? (
+      {stage === "setup" && kind === "lesson" && (autoOpening || (reviewSaved && !generationError)) && !rewriteLesson && instantLesson ? (
         // Havuz dersi doğrudan açılışı: yol sayfasının belleğe yazdığı ilk ekran, gerçek ders gelene dek aynı metin.
         <InstantLessonView lesson={instantLesson} />
       ) : stage === "setup" && (loading || autoOpening || (reviewSaved && !generationError)) && kind !== "readiness" ? (
         <NodeGenerationProgress
           title={reviewSaved ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}
           sourceName={sourceName}
+          documentFree={!sourceName}
           topic={topicLabel}
           note={queueNote ? BUSY_NOTE : undefined}
           warnSlow={showsSlowWarning(kind)}

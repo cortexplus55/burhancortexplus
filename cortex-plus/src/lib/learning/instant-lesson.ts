@@ -57,3 +57,26 @@ export function previewFromSections(title: string, sections: { heading: string; 
   }
   return paragraphs.length ? { title: title.slice(0, 160), heading: first.heading.slice(0, 160), paragraphs } : null;
 }
+
+/**
+ * Kayıtlı dersten önizleme (3 Kasım 2026, "Tekrar İncele" 2,4–3,1 sn): son kaydın 0. ekranının metin blokları.
+ * Cevap anahtarı taşımaz (yalnız text blokları); ekran yoksa null.
+ */
+export function previewFromSavedLesson(title: string, payload: unknown): LessonPreview | null {
+  const lesson = (payload as { lesson?: { screens?: unknown[]; title?: unknown } } | null)?.lesson;
+  const screen = Array.isArray(lesson?.screens) ? (lesson!.screens[0] as { heading?: unknown; blocks?: unknown } | undefined) : undefined;
+  if (!screen || typeof screen.heading !== "string" || !Array.isArray(screen.blocks)) return null;
+  const paragraphs: string[] = [];
+  let budget = 1_400;
+  for (const block of screen.blocks as Array<{ type?: unknown; text?: unknown }>) {
+    if (block?.type !== "text" || typeof block.text !== "string") continue;
+    const p = block.text.replace(/\*\*/g, "").trim();
+    if (!p || budget <= 0) continue;
+    paragraphs.push(p.length > budget ? `${p.slice(0, budget).replace(/\s+\S*$/, "")}…` : p);
+    budget -= p.length;
+    if (paragraphs.length >= 3) break;
+  }
+  if (!paragraphs.length) return null;
+  const name = typeof lesson?.title === "string" && lesson.title.trim() ? lesson.title : title;
+  return { title: name.slice(0, 160), heading: screen.heading.slice(0, 160), paragraphs };
+}

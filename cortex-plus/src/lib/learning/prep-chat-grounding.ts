@@ -25,6 +25,11 @@ import type { GradedClaim } from "@/lib/learning/tutor-quant";
 import { chatMisconceptionRow } from "@/lib/learning/tutor-reply";
 import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
 import { poolSourceText } from "@/lib/content-pool/serve";
+import { ttlMemo } from "@/lib/cache/ttl-memo";
+
+/** Hazırlık başına havuz bağlamı önbelleği (3 Kasım 2026): sohbet ttft'sinde 0,7–1 sn bağlam okuması. */
+const poolMetaMemo = ttlMemo<{ prefs: unknown; labels: string[] } | null>(60_000);
+const poolTextMemo = ttlMemo<string>(10 * 60_000);
 
 /** Sorunun kelimelerine en çok değen konu; hiçbiri değmiyorsa ilk konu. Saf (test edilir). */
 export function pickPoolTopic(labels: readonly string[], message: string): string | null {
@@ -46,15 +51,30 @@ export function pickPoolTopic(labels: readonly string[], message: string): strin
  * Belgesiz hazırlık (3 Kasım 2026, canlı ölçüm): sohbet "Bu konu belgenizde geçmiyor. Genel bilgiden"
  * diyordu; belge yok, kaynak havuzdaki doğrulanmış müfredat dersidir. Model çağrısı yok.
  */
-async function poolChatGrounding(service: SupabaseClient, prepId: string, message: string): Promise<PrepChatGrounding | null> {
-  const [{ data: prep }, { data: topics }] = await Promise.all([
-    service.from("exam_preps").select("learning_preferences").eq("id", prepId).maybeSingle(),
-    service.from("exam_prep_topics").select("label").eq("exam_prep_id", prepId).order("sort_order"),
-  ]);
-  const labels = ((topics ?? []) as { label: string | null }[]).map((t) => (t.label ?? "").trim()).filter(Boolean);
-  const label = pickPoolTopic(labels, message);
-  if (!prep || !label) return null;
-  const text = await poolSourceText(service, { prefs: prep.learning_preferences, topicLabels: [label], maxChars: 6_000 });
+function loadPoolMeta(service: SupabaseClient, prepId: string) {
+  return poolMetaMemo(prepId, async () => {
+    const [{ data: prep }, { data: topics }] = await Promise.all([
+      service.from("exam_preps").select("learning_preferences").eq("id", prepId).maybeSingle(),
+      service.from("exam_prep_topics").select("label").eq("exam_prep_id", prepId).order("sort_order"),
+    ]);
+    if (!prep) return null;
+    const labels = ((topics ?? []) as { label: string | null }[]).map((t) => (t.label ?? "").trim()).filter(Boolean);
+    return { prefs: prep.learning_preferences, labels };
+  });
+}
+
+async function poolChatGrounding(
+  service: SupabaseClient,
+  prepId: string,
+  message: string,
+  metaEarly?: Promise<{ prefs: unknown; labels: string[] } | null>,
+): Promise<PrepChatGrounding | null> {
+  const meta = await (metaEarly ?? loadPoolMeta(service, prepId));
+  const label = meta ? pickPoolTopic(meta.labels, message) : null;
+  if (!meta || !label) return null;
+  const text = await poolTextMemo(`${prepId}:${label}`, () =>
+    poolSourceText(service, { prefs: meta.prefs, topicLabels: [label], maxChars: 6_000 }),
+  );
   if (!text.trim()) return null;
   return {
     decision: "unknown",
@@ -101,9 +121,11 @@ export async function loadPrepChatGrounding(
   prepId: string,
   message: string,
 ): Promise<PrepChatGrounding> {
+  // Belge listesi ile havuz bağlamı paralel okunur (belgesiz hazırlıkta sıralı bekleme yok).
+  const metaEarly = loadPoolMeta(service, prepId).catch(() => null);
   const documentIds = await loadPrepDocumentIds(service, prepId);
   if (!documentIds.length) {
-    return (await poolChatGrounding(service, prepId, message).catch(() => null))
+    return (await poolChatGrounding(service, prepId, message, metaEarly).catch(() => null))
       ?? { decision: "unknown", scope: EMPTY_SCOPE, excerpts: "", passages: [], corpus: "" };
   }
 

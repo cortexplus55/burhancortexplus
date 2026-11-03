@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { poolSliceForTopic } from "@/lib/content-pool/serve";
-import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
+import { poolLessonPreview, savedLessonPreview } from "@/lib/content-pool/lesson-preview";
 import { shouldAutoOpenLesson } from "@/lib/learning/lesson-open";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -372,9 +372,13 @@ export default async function ExamNodePage({
     poolReady: Boolean(poolSliceForTopic(prep.learning_preferences, topicLabel)),
   });
   // Önizleme loading sınırındakiyle aynı havuz ilk ekranı (250 ms sınırlı okuma; yetişmezse istemci belleği).
+  const previewTitle = (node as { title?: string | null }).title ?? topicLabel ?? "";
+  // "Tekrar İncele (Kredisiz)" (3 Kasım 2026): kayıtlı dersin ilk ekranı sunucu çiziminde; tam kayıt arkadan gelir.
   const initialLessonPreview = autoOpenLesson && farkli !== "1"
-    ? await poolLessonPreview(service, { prefs: prep.learning_preferences, topicLabel, title: ((node as { title?: string | null }).title ?? topicLabel ?? "") }).catch(() => null)
-    : null;
+    ? await poolLessonPreview(service, { prefs: prep.learning_preferences, topicLabel, title: previewTitle }).catch(() => null)
+    : lessonReviewSaved && node.kind === "lesson"
+      ? await savedLessonPreview(service, { userId: user.id, prepId: prep.id as string, nodeId: node.id as string, title: previewTitle }).catch(() => null)
+      : null;
   timer.log("node_page");
   const serverRenderMs = timer.totalMs();
 
