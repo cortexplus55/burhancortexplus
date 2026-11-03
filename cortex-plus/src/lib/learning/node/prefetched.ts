@@ -1,7 +1,7 @@
 /** Hazır önceden yazılmış etkinlik (her hazırlanabilir tür): beklemeden açılır, kredi şimdi düşer. */
 import "server-only";
 import { NextResponse, after } from "next/server";
-import { recordOpenTiming, servedOpenPath } from "@/lib/admin/beta-metrics";
+import { recordLessonTiming, recordOpenTiming, servedOpenPath } from "@/lib/admin/beta-metrics";
 import { commitCredits, refundCredits, refusalCode, reserveCredits } from "@/lib/credits/service";
 import { PREFETCH_KINDS, peekPrefetchedLesson, takePrefetchedLesson, waitForPrefetchReady } from "@/lib/learning/lesson-prefetch";
 import { podcastCheckOf, podcastPayloadEpisode } from "@/lib/learning/podcast-check";
@@ -129,6 +129,9 @@ export async function servePrefetched(context: NodeContext, state: Pick<StartLoc
         // Önceden yazımın bitmesi beklendiyse "hazır" değil, devralınan açılış.
         const path = servedOpenPath(Math.max(peekBuildingMs ?? 0, prefetchWaitMs));
         after(() => recordOpenTiming(service, { userId, kind, path, ms }));
+        after(() =>
+          recordLessonTiming(service, { userId, kind, path: path === "ready" ? "prefetch_ready" : "prefetch_adopted", openMs: ms }),
+        );
       }
       return NextResponse.json({
         ...attemptStartResponse(readyAttempt, {

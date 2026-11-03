@@ -214,11 +214,74 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(result.dropped).toEqual([]);
     expect(calls).toHaveLength(0);
     expect(published[0]).toMatchObject({ screens: 1, done: false });
-    expect(published.map((item) => item.screens)).toEqual([1, 2]);
+    // Stream-first (3 Kasım 2026): ilk ekran denetim beklenmeden ön yayımlanır, sonra denetlenmiş hâli.
+    expect(published.map((item) => item.screens)).toEqual([1, 1, 2]);
     const { firstScreenMs, firstPartMs, firstPublishMs, writeMs } = result.timing;
     expect([firstScreenMs, firstPartMs, firstPublishMs, writeMs].every((v) => typeof v === "number" && v >= 0)).toBe(true);
     expect(firstScreenMs!).toBeLessThanOrEqual(firstPartMs!);
-    expect(firstPartMs!).toBeLessThanOrEqual(firstPublishMs!);
+    // Stream-first: ilk yayım ilk ekrandan hemen sonra, kavramın kapanmasını beklemez.
+    expect(firstScreenMs!).toBeLessThanOrEqual(firstPublishMs!);
+  });
+
+  it("stream-first: ilk ekran denetimi beklemeden, sorusuz yayımlanır; soru denetimden sonra gelir", async () => {
+    const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
+    let sanityDone = 0;
+    let firstCall = true;
+    const events: { blocks: string[]; sanityDone: number }[] = [];
+    const result = await teacherLessonPipeline(
+      {
+        write: async (_system, _user, onDelta) => {
+          if (firstCall) {
+            firstCall = false;
+            const text = JSON.stringify(lesson);
+            for (const piece of chunks(text)) onDelta(piece);
+            return { text, finish: "stop" };
+          }
+          // Hafif doğrulayıcı yavaş: ilk ekran bunu beklememeli.
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          sanityDone += 1;
+          return { text: "{}", finish: "stop" };
+        },
+      },
+      { ...input, sanity: true },
+      {
+        onPublish: (item) =>
+          void events.push({ blocks: item.lesson.screens[0]!.blocks.map((block) => block.type), sanityDone }),
+      },
+    );
+    expect(events[0]!.sanityDone).toBe(0);
+    expect(events[0]!.blocks).not.toContain("check");
+    expect(events[1]!.blocks).toContain("check");
+    expect(result.timing.previewMs).not.toBeNull();
+    expect(result.timing.previewMs!).toBeLessThanOrEqual(result.timing.firstPartMs ?? Infinity);
+    expect(result.lesson?.screens[0]!.blocks.map((block) => block.type)).toContain("check");
+  });
+
+  it("stream-first kapatılırsa ilk yayım denetlenmiş hâldir", async () => {
+    const { teacherLessonPipeline } = await import("@/lib/learning/teacher-lesson-run");
+    const published: number[] = [];
+    await teacherLessonPipeline(
+      {
+        write: async (_system, _user, onDelta) => {
+          const text = JSON.stringify(lesson);
+          for (const piece of chunks(text)) onDelta(piece);
+          return { text, finish: "stop" };
+        },
+      },
+      { ...input, streamFirst: false },
+      { onPublish: (item) => void published.push(item.lesson.screens.length) },
+    );
+    expect(published).toEqual([1, 2]);
+  });
+
+  it("previewScreen soru bloklarını çıkarır; yalnız sorudan oluşan ekran ön yayımlanmaz", async () => {
+    const { previewScreen, previewMatches } = await import("@/lib/learning/teacher-lesson-run");
+    const first = lesson.screens[0]!;
+    const shown = previewScreen(first)!;
+    expect(shown.blocks.some((block) => block.type === "check")).toBe(false);
+    expect(previewMatches(shown, first)).toBe(true);
+    expect(previewMatches(shown, { ...first, heading: "Başka" })).toBe(false);
+    expect(previewScreen({ ...first, blocks: [opener as (typeof first.blocks)[number]] })).toBeNull();
   });
 
   it("taslak okunamazsa nedeni kaydedilir ve ikinci kez yazılmaz", async () => {

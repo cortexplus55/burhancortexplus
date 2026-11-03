@@ -4864,7 +4864,7 @@ exports[`yol etkinliği rotası: start × tür > ders akışla açılır, kalan�
     "lesson_quality_samples": [
       {
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
-        "id": "lesson_quality_samples-7",
+        "id": "lesson_quality_samples-8",
         "note": null,
         "scores": {
           "parts": [
@@ -4875,6 +4875,20 @@ exports[`yol etkinliği rotası: start × tür > ders akışla açılır, kalan�
         "source": "verifier",
         "topic_label": "Hücre Bölünmesi",
         "total": 4.5,
+        "user_id": "00000000-0000-4000-8000-00000000aaaa",
+      },
+    ],
+    "lesson_timings": [
+      {
+        "first_screen_ms": 0,
+        "id": "lesson_timings-7",
+        "kind": "lesson",
+        "meta": {
+          "generationLaunchedMs": 0,
+          "peekBuildingMs": 0,
+        },
+        "open_ms": 0,
+        "path": "stream_first",
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
@@ -4931,6 +4945,7 @@ exports[`yol etkinliği rotası: start × tür > ders akışla açılır, kalan�
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(id,"exam_prep_node_attempts-1") maybe",
     "log.info ["lesson_first_shown",{"nodeId":"00000000-0000-4000-8000-0000000000b1","peekBuildingMs":0,"generationLaunchedMs":0,"firstPublishedMs":0,"respondedMs":0}]",
     "after:scheduled",
+    "after:scheduled",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"lesson","title":"Giriş Dersi","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"lesson","lesson":{"format":3,"title":"Hücre Bölünmesi","overview":"Mitoz eş hücre verir.","screens":[{"heading":"Mitoz","concept":"Mitoz","blocks":[{"type":"text","text":"Mitoz eş hücre verir."},{"type":"check","check":{"type":"mcq","prompt":"Kromozomlar hangi evrede dizilir?","options":["Profaz","Metafaz","Anafaz","Telofaz","İnterfaz"]}}]}]},"title":"Hücre Bölünmesi","teachingStandard":"lesson","refunded":false,"engine":"teacher","upcoming":["Mayoz"],"plannedScreens":2,"building":true,"builtAt":"2026-10-30T09:00:00.000Z"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
@@ -4956,6 +4971,8 @@ exports[`yol etkinliği rotası: start × tür > ders akışla açılır, kalan�
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "after:run",
     "db insert open_timings payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"lesson","path":"cold","ms":0}",
+    "after:run",
+    "db insert lesson_timings payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"lesson","path":"stream_first","open_ms":0,"first_screen_ms":0,"meta":{"peekBuildingMs":0,"generationLaunchedMs":0}}",
     "after:run",
     "db insert lesson_quality_samples payload={"source":"verifier","user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_label":"Hücre Bölünmesi","scores":{"parts":[4,5]},"total":4.5,"note":null}",
     "after:run",
@@ -7658,6 +7675,20 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
       },
     ],
     "learning_goals": [],
+    "lesson_timings": [
+      {
+        "first_screen_ms": 0,
+        "id": "lesson_timings-6",
+        "kind": "quiz",
+        "meta": {
+          "generationLaunchedMs": 0,
+          "peekBuildingMs": null,
+        },
+        "open_ms": 0,
+        "path": "stream_first",
+        "user_id": "00000000-0000-4000-8000-00000000aaaa",
+      },
+    ],
     "open_timings": [
       {
         "id": "open_timings-5",
@@ -7713,6 +7744,7 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
     "db select exam_prep_node_attempts [id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at] eq(id,"exam_prep_node_attempts-1") maybe",
     "log.info ["lesson_first_shown",{"nodeId":"00000000-0000-4000-8000-0000000000b1","peekBuildingMs":null,"generationLaunchedMs":0,"firstPublishedMs":0,"respondedMs":0}]",
     "after:scheduled",
+    "after:scheduled",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."}],"promised":5,"teachingStandard":"quiz","engine":"teacher","building":true,"builtAt":"2026-10-30T09:00:00.000Z"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
@@ -7731,6 +7763,8 @@ exports[`yol etkinliği rotası: start × tür > konu testi soğuk yazılır, il
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "after:run",
     "db insert open_timings payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"quiz","path":"cold","ms":0}",
+    "after:run",
+    "db insert lesson_timings payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"quiz","path":"stream_first","open_ms":0,"first_screen_ms":0,"meta":{"peekBuildingMs":null,"generationLaunchedMs":0}}",
   ],
 }
 `;
@@ -10406,6 +10440,17 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "lesson_timings": [
+      {
+        "first_screen_ms": null,
+        "id": "lesson_timings-5",
+        "kind": "quiz",
+        "meta": {},
+        "open_ms": 0,
+        "path": "prefetch_ready",
+        "user_id": "00000000-0000-4000-8000-00000000aaaa",
+      },
+    ],
     "open_timings": [
       {
         "id": "open_timings-4",
@@ -10451,6 +10496,7 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "log.info ["prefetch_served",{"nodeId":"00000000-0000-4000-8000-0000000000b1","kind":"quiz"}]",
     "after:scheduled",
+    "after:scheduled",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000001","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"quiz","title":"Testler","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"quiz","questions":[{"text":"Mitozda kromozom sayısı nasıl değişir?","options":["Yarıya iner","Değişmez","İki katına çıkar","Dörde katlanır","Sıfırlanır"],"multi":false,"correct":["Değişmez"],"explanation":"Mitozda kromozom sayısı korunur."},{"text":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"multi":false,"correct":["4"],"explanation":"Mayoz dört hücre verir."}]},"answers":{},"cursorIndex":0,"total":2,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
@@ -10461,6 +10507,8 @@ exports[`yol etkinliği rotası: start × tür > önceden yazılmış test hazı
     "db select exam_prep_prefetch [node_id, status, updated_at] eq(node_id,"00000000-0000-4000-8000-0000000000b2") maybe",
     "after:run",
     "db insert open_timings payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"quiz","path":"ready","ms":0}",
+    "after:run",
+    "db insert lesson_timings payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","kind":"quiz","path":"prefetch_ready","open_ms":0,"first_screen_ms":null,"meta":{}}",
   ],
 }
 `;

@@ -4,7 +4,7 @@
  */
 import "server-only";
 import { NextResponse, after } from "next/server";
-import { recordOpenTiming } from "@/lib/admin/beta-metrics";
+import { recordLessonTiming, recordOpenTiming } from "@/lib/admin/beta-metrics";
 import { adoptedPrefetchAttempt, dropPrefetch, publishPrefetchPartial, storePrefetchedLesson } from "@/lib/learning/lesson-prefetch";
 import { quizPrefetchStorable } from "@/lib/learning/topic-test-prefetch";
 import { loadTopicSupport, supportPagesForEngine } from "@/lib/learning/topic-support-load";
@@ -653,7 +653,20 @@ export async function runStartGeneration(
           firstPublishedMs,
           respondedMs: Date.now() - requestStarted,
         });
-        { const ms = Date.now() - requestStarted; after(() => recordOpenTiming(service, { userId, kind, path: "cold", ms })); }
+        {
+          const ms = Date.now() - requestStarted;
+          after(() => recordOpenTiming(service, { userId, kind, path: "cold", ms }));
+          after(() =>
+            recordLessonTiming(service, {
+              userId,
+              kind,
+              path: "stream_first",
+              openMs: ms,
+              firstScreenMs: firstPublishedMs,
+              meta: { peekBuildingMs, generationLaunchedMs },
+            }),
+          );
+        }
         return NextResponse.json({
           ...attemptStartResponse(activeAttempt, {
             kind,

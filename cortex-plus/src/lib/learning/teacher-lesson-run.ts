@@ -209,7 +209,30 @@ export type PublishedLesson = {
   upcoming: string[];
   /** Yazarın baştaki planı: kaç ekran yazacağı. Yazım sürerken sayacın paydası (28 Ekim 2026). */
   plannedScreens?: number;
+  /**
+   * Stream-first (3 Kasım 2026): ilk ekran denetim beklenmeden, sorusu çıkarılmış hâliyle gösterildi.
+   * Denetim o ekranın metnini değiştirdiyse true: ekran yerinde güncellenir, öğrenciye sakin bir not düşülür.
+   */
+  previewCorrected?: boolean;
 };
+
+/**
+ * Stream-first ön yayımı (3 Kasım 2026, ürün sahibinin kararı): ilk ekranın denetlenmemiş sorusu
+ * gösterilmez. Soru blokları çıkarılır; geriye anlatım kalmazsa ön yayım yapılmaz.
+ */
+export function previewScreen(screen: LessonScreen): LessonScreen | null {
+  const blocks = screen.blocks.filter((block) => block.type !== "check");
+  if (!blocks.length) return null;
+  return { ...screen, blocks };
+}
+
+/** Ön yayımlanan ekran ile denetimden çıkan ilk ekranın anlatımı aynı mı (soru hariç). */
+export function previewMatches(preview: LessonScreen, settled: LessonScreen | undefined): boolean {
+  if (!settled) return false;
+  const body = (screen: LessonScreen) =>
+    JSON.stringify({ heading: screen.heading, blocks: screen.blocks.filter((block) => block.type !== "check") });
+  return body(preview) === body(settled);
+}
 
 export type LessonIo = {
   /** Yazar: akışla, tek çağrı. Her parça `onDelta`'ya; dönen bütün metin ve bitiş nedeni. */
@@ -246,6 +269,10 @@ export type PipelineTiming = {
   firstPublishMs: number | null;
   /** Yazarın akışı bitirdiği an. */
   writeMs: number | null;
+  /** Stream-first: ilk ekranın denetim beklenmeden öğrenciye yayımlandığı an (ön yayım). */
+  previewMs?: number | null;
+  /** Ön yayımlanan ilk ekranı denetim değiştirdi mi. */
+  previewCorrected?: boolean;
 };
 
 export type PipelineResult = {
@@ -312,7 +339,7 @@ export async function teacherLessonPipeline(
   const dropped: string[] = [];
   const teachingScores: number[] = [];
   let draftNote: string | null = null;
-  const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null };
+  const timing: PipelineTiming = { firstScreenMs: null, firstPartMs: null, firstPublishMs: null, writeMs: null, previewMs: null };
   const sinceStart = () => Date.now() - started;
 
   {
@@ -337,6 +364,33 @@ export async function teacherLessonPipeline(
       kavram bütünüyle yeniden denetlenir.
     */
     let early: { promise: Promise<PartOutcome>; valid: boolean } | null = null;
+
+    /*
+      Stream-first, verify-behind (3 Kasım 2026, ürün sahibinin kararı): ilk ekran ayrışır ayrışmaz,
+      denetim (`runLessonSanity`, en çok 9 sn) ve kavramın kalan ekranları beklenmeden yayımlanır.
+      Denetlenmemiş soru gösterilmez: ön yayımda soru blokları yoktur; soru denetimden sonra eklenir.
+      Denetim ekranı düzeltirse ekran yerinde güncellenir (`previewCorrected`), atarsa ders denetlenmiş
+      hâliyle sürer. Sonraki ekranlar her zaman denetlenmiş gelir. `input.streamFirst === false` eski yol.
+    */
+    let preview: { screen: LessonScreen; sent: Promise<void> } | null = null;
+    const sendPreview = (screen: LessonScreen) => {
+      if (!options.onPublish || input.streamFirst === false || preview) return;
+      const shown = previewScreen(screen);
+      if (!shown) return;
+      const lesson = stripLessonIssueTags({
+        format: LESSON_V3_FORMAT,
+        ...(headerOf(reader.header) ?? { title: input.topicLabel }),
+        screens: [shown],
+      });
+      timing.previewMs ??= sinceStart();
+      timing.firstPublishMs ??= timing.previewMs;
+      preview = {
+        screen: shown,
+        sent: Promise.resolve(
+          options.onPublish({ lesson, done: false, upcoming: [], ...(plannedScreens ? { plannedScreens } : {}) }),
+        ).catch(() => undefined),
+      };
+    };
 
     const reviewPart = async (index: number, _options: { early?: boolean } = {}): Promise<PartOutcome> => {
       const part = parts[index]!;
@@ -417,7 +471,10 @@ export async function teacherLessonPipeline(
       closePart(false);
       if (!parts.length) timing.firstScreenMs ??= sinceStart();
       parts.push({ concept, key, screens: [screen], last: false });
-      if (parts.length === 1) early = { promise: reviewPart(0, { early: true }), valid: true };
+      if (parts.length === 1) {
+        early = { promise: reviewPart(0, { early: true }), valid: true };
+        sendPreview(screen);
+      }
     };
 
     const writing = io
@@ -472,6 +529,8 @@ export async function teacherLessonPipeline(
           publishedHeader = { ...((await headerReady) ?? { title: input.topicLabel }), ...outcome.header };
           timing.firstPublishMs ??= sinceStart();
           failure = [];
+          // Ön yayım bu yayımdan önce kayda düşsün: sıra tersine dönerse denetlenmemiş hâl geri gelir.
+          if (preview) await (preview as { sent: Promise<void> }).sent;
         }
         if (outcome.closing) publishedClosing = outcome.closing;
         // Ders içi soru tekrarı yayımdan önce deterministik olarak düşer (25 Ekim 2026); anahtar açıklamasıyla
@@ -493,13 +552,19 @@ export async function teacherLessonPipeline(
             deduped: deduped.dropped,
           });
         }
+        const firstBatch = published.length === 0;
         published.push(...shuffleLessonChecks({ format: LESSON_V3_FORMAT, title: "", screens: fresh }).screens);
+        if (firstBatch && preview) {
+          timing.previewCorrected = !previewMatches((preview as { screen: LessonScreen }).screen, published[0]);
+          if (timing.previewCorrected) console.info("teacher_lesson_preview_corrected", { concept: parts[index]?.concept?.slice(0, 60) ?? null });
+        }
         if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
           await options.onPublish({
             lesson: stripLessonIssueTags({ format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] }),
             done: false,
             upcoming: parts.slice(index + 1).map((item) => item.concept),
             ...(plannedScreens ? { plannedScreens } : {}),
+            ...(timing.previewCorrected ? { previewCorrected: true } : {}),
           });
         }
       }
