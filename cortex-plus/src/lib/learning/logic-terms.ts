@@ -83,7 +83,9 @@ export function logicTermIssues(text: string): string[] {
 /** Üretim istemlerine eklenen kısa kural (yalnız önerme/mantık içeren ünitelerde). */
 export const LOGIC_TERMS_RULE =
   "Mantık terimleri: p ⇒ q için KARŞITI q ⇒ p, TERSİ ¬p ⇒ ¬q (p′ ⇒ q′), KARŞIT TERSİ ¬q ⇒ ¬p (q′ ⇒ p′). " +
-  "Koşullu önerme karşıt tersine denktir; karşıtı ile tersi birbirine denktir. Bu adları karıştırma.";
+  "Koşullu önerme karşıt tersine denktir; karşıtı ile tersi birbirine denktir. Bu adları karıştırma. " +
+  "Örnek: \"Bir şekil kare ise dörtgendir.\" → karşıtı \"Bir şekil dörtgen ise karedir.\"; tersi \"Bir şekil kare değilse dörtgen değildir.\"; " +
+  "karşıt tersi \"Bir şekil dörtgen değilse kare değildir.\" Kural: karşıtta yer değişir, tersinde değil alınır, karşıt tersinde ikisi birden.";
 
 export function needsLogicTermsRule(text: string): boolean {
   return /önerme|koşullu|mantık/iu.test(text);

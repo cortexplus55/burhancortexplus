@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CURRICULUM } from "@/lib/curriculum/registry";
 import { CONTENT_VERSION } from "@/lib/content-pool/keys";
 import { GATE_VERSION } from "@/lib/content-pool/gate";
+import { BLUEPRINT_VERSION } from "@/lib/content-pool/blueprint";
+import { LESSON_PROMPT_VERSION } from "@/lib/content-pool/generate";
 import { DEFAULT_CAP_USD, DEFAULT_UNIT_ESTIMATE_USD, fillOrder, MAX_FAILED_ATTEMPTS, restrictOrder, type FillTarget, type UnitState } from "@/lib/content-pool/fill";
 
 /**
@@ -108,7 +110,21 @@ export async function sharedContentSpent(service: SupabaseClient): Promise<numbe
   }
 }
 
-type Row = { unit_id: string; status: string; qa: { reason?: string; gate_version?: number } | null };
+type Qa = { reason?: string; gate_version?: number; prompt_version?: number; requeued_at?: string; lesson_review?: { blueprint_version?: number } };
+type Row = { unit_id: string; status: string; qa: Qa | null };
+
+/**
+ * Bir ret kalıcı başarısızlık hakkından sayılır mı? Sayılmaz: süresi dolan taslak, elle yeniden kuyruğa alınan
+ * (qa.requeued_at) doğrulanmış sürüm, eski kapı/iskelet/istem sürümüyle alınan ret (düzeltme sonrası hak yemez).
+ */
+export function countsAsFailure(row: { status: string; qa: Qa | null }): boolean {
+  const qa = row.qa;
+  if (row.status !== "rejected" || !qa) return false;
+  if (qa.reason === "draft_timeout" || qa.requeued_at) return false;
+  if (qa.gate_version !== GATE_VERSION || qa.prompt_version !== LESSON_PROMPT_VERSION) return false;
+  const bp = qa.lesson_review?.blueprint_version;
+  return bp === undefined || bp === BLUEPRINT_VERSION;
+}
 
 /** Ünite başına durum: doğrulanmış mı, kaç gerçek başarısızlık (terk edilmiş kilit sayılmaz). */
 export async function unitStates(service: SupabaseClient, unitIds: string[]): Promise<Map<string, UnitState & { draft: boolean }>> {
@@ -126,7 +142,7 @@ export async function unitStates(service: SupabaseClient, unitIds: string[]): Pr
       if (row.status === "verified") s.verified = true;
       if (row.status === "draft") s.draft = true;
       // Yalnız güncel kapı sürümüyle reddedilen denemeler sayılır: kapı düzeltilince eski (yanlış) retler hakkı yemez.
-      if (row.status === "rejected" && row.qa?.reason !== "draft_timeout" && row.qa?.gate_version === GATE_VERSION) s.failedAttempts += 1;
+      if (countsAsFailure(row)) s.failedAttempts += 1;
       out.set(row.unit_id, s);
     }
   }
