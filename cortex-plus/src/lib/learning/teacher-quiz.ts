@@ -806,7 +806,7 @@ export function parseQuizIssues(raw: unknown): QuizIssue[] {
 export const MAX_SAME_FRAME = 2;
 /**
  * Aynı doğru cevap bir testte en çok iki soruda (30 Ekim 2026, canlı "İkinci test": 5 sorudan 4'ünün cevabı
- * "Enflasyon"du; öğrenci ikinci sorudan sonra cevabı ezberden verir). Çift tek tek "aynı sınıfın iki ayrı durumu"
+ * "Kavram"du; öğrenci ikinci sorudan sonra cevabı ezberden verir). Çift tek tek "aynı sınıfın iki ayrı durumu"
  * diye geçiyordu (`questionConflict`); sayı testin bütününe bakar.
  */
 export const MAX_SAME_ANSWER = 2;
@@ -892,7 +892,7 @@ export function questionConflict(earlier: QuizQuestion, later: QuizQuestion, ear
     const [small, large] = leftTokens.length <= rightTokens.length ? [leftTokens, rightTokens] : [rightTokens, leftTokens];
     const sameAnswer =
       optionKey(leftAnswer) === optionKey(rightAnswer) || (short && small.length >= 2 && rootCoverage(small, large) >= 0.75);
-    // Aynı sınıfın iki ayrı durumu ("hangi enflasyon türüdür?" iki farklı olayla) aynı bilgi değildir: kökler de aynı
+    // Aynı sınıfın iki ayrı durumu ("hangi türdendir?" iki farklı olayla) aynı bilgi değildir: kökler de aynı
     // şeyden söz etmeli (küçük kökün içerik sözcüklerinin yarısı öbüründe).
     const [stemSmall, stemLarge] = smallerFirst(contentTokens(earlier.text), contentTokens(later.text));
     if (sameAnswer && rootCoverage(stemSmall, stemLarge) >= 0.5) {

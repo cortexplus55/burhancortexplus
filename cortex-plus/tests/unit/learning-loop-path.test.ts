@@ -108,7 +108,7 @@ describe("dürüst adlar", () => {
 
   it("'Aralıklı tekrar' adımı 'Kartlarla tekrar'; tür adı spaced kalır", () => {
     expect(PLAN_NODE_META.spaced.title).toBe("Kartlarla tekrar");
-    expect(studyPathItemTitle("spaced", { topicTitle: "Basınç" })).toBe("Basınç · Kartlarla tekrar");
+    expect(studyPathItemTitle("spaced", { topicTitle: "Akım" })).toBe("Akım · Kartlarla tekrar");
     expect(PLAN_PHASES.find((phase) => phase.id === "review")?.title).toBe("Kartlarla Tekrar");
     expect(studyToolById("spaced").blurb).toBe("Kartlarla tekrar");
     const plan = buildExamScheduleV2({

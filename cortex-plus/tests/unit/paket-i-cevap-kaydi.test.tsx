@@ -8,7 +8,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
   cevaplar yoktu. Kök neden: kayıt tek `fetch` (zaman aşımı ve yeniden deneme yok), askıdaki istek
   "kaydediliyor" sayacını hiç düşürmüyordu; bitirme sözlüyü yanıtın içinde dakikalarca notluyordu.
 
-  Senaryolar üç etkinlik türünden ve üç disiplinden: konu testi (Fizik · basınç), doğru/yanlış
+  Senaryolar üç etkinlik türünden ve üç disiplinden: konu testi (Fizik · akım), doğru/yanlış
   (Biyoloji · hücre), sözlü deneme (Tarih · Cumhuriyet'in ilk yılları); taslak birleştirmesi kart
   destesiyle (Kimya · mol) de denenir.
 */
@@ -226,7 +226,7 @@ describe("attempt-draft: tarayıcı taslağı ve birleştirme", () => {
 const PHYSICS_QUIZ = {
   type: "quiz",
   questions: [
-    { text: "Basınç hangi birimle ölçülür?", options: ["Pascal", "Newton"], correct: ["Pascal"], multi: false },
+    { text: "Akım hangi birimle ölçülür?", options: ["Pascal", "Newton"], correct: ["Pascal"], multi: false },
     { text: "Sıvı basıncı neye bağlıdır?", options: ["Derinliğe", "Kabın şekline"], correct: ["Derinliğe"], multi: false },
   ],
 };
@@ -261,9 +261,9 @@ describe("(1) konu testi · Fizik: askıdaki kayıt 15 sn'de düşer, yeniden de
       if (body.action === "save") return call === 1 ? "hang" : { data: { ok: true, contentVersion: 2 } };
       return { data: {} };
     });
-    render(<ExamNodeSession prepId="prep-f" nodeId="node-f" kind="quiz" prepTitle="Fizik" topicLabel="Basınç" resumeEnabled />);
+    render(<ExamNodeSession prepId="prep-f" nodeId="node-f" kind="quiz" prepTitle="Fizik" topicLabel="Akım" resumeEnabled />);
     await tick();
-    expect(screen.getByText("Basınç hangi birimle ölçülür?")).toBeTruthy();
+    expect(screen.getByText("Akım hangi birimle ölçülür?")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Pascal/ }));
     // Taslak hemen yazılır; sunucu kaydı kısa beklemeden sonra.

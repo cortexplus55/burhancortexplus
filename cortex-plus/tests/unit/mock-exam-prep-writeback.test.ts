@@ -58,7 +58,7 @@ const input = {
   practiceExamId: "e1",
   practiceAttemptId: "pa1",
   scorePct: 72.4,
-  items: [item("Basınç", "dogru"), item("Sıcaklık", "kismen")],
+  items: [item("Akım", "dogru"), item("Sıcaklık", "kismen")],
 };
 
 describe("writeBackMockToPrep", () => {
@@ -88,7 +88,7 @@ describe("writeBackMockToPrep", () => {
         practiceExamId: "e1",
         practiceAttemptId: "pa1",
         items: [
-          { topic: "Basınç", verdict: "dogru", correct: true },
+          { topic: "Akım", verdict: "dogru", correct: true },
           { topic: "Sıcaklık", verdict: "kismen", correct: false },
         ],
       },
@@ -111,7 +111,7 @@ describe("writeBackMockToPrep", () => {
     const payload = (insert.payload as { payload: unknown }).payload;
     const evidence = extractAnswerEvidence({ kind: "written_exam", payload, answers: {}, topicLabel: null, isFirstAttempt: true });
     expect(evidence.map((row) => [row.topicKey, row.correct])).toEqual([
-      ["basınç", true],
+      ["akım", true],
       ["sıcaklık", false],
     ]);
   });
@@ -149,7 +149,7 @@ describe("writeBackMockToPrep", () => {
     );
     const payload = mocks.tracking.mock.calls[0]![1].payload;
     const evidence = extractAnswerEvidence({ kind: "written_exam", payload, answers: {}, topicLabel: null, isFirstAttempt: true });
-    expect(evidence.map((row) => row.topicKey)).toEqual(["basınç", "sıcaklık"]);
+    expect(evidence.map((row) => row.topicKey)).toEqual(["akım", "sıcaklık"]);
   });
 
   it("aynı notlandırma ikinci kez gelirse düğüm yeniden tamamlanmaz", async () => {

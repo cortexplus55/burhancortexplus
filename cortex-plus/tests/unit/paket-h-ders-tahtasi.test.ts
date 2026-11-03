@@ -87,7 +87,7 @@ describe("Paket H · derinlik 0 bölme — disiplinler", () => {
 describe("Paket H · savunma katmanı", () => {
   it("harfsiz parçaya iki nokta eklenmez: '2:' doğmaz", () => {
     expect(texts("2\nP = F/A")).toEqual(["2", "P = F/A"]);
-    expect(texts("Basınç\nP = F/A")).toEqual(["Basınç:", "P = F/A"]);
+    expect(texts("Akım\nP = F/A")).toEqual(["Akım:", "P = F/A"]);
   });
 
   it("gerçek liste imleri ayraç dışında yine düşer, sıra sayıları kalır", () => {

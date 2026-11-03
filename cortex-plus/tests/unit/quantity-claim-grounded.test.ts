@@ -3,7 +3,7 @@ import { quantityClaimGrounded, unsupportedQuantities } from "@/lib/learning/tea
 
 const CHEM =
   "0,5 mol su alınır. Mol kütlesi 18 g/mol. Ideal gaz sabiti kullanılır. " +
-  "2 × 10^3 Pa basınç ölçülür. Avogadro sayısı 6,02 × 10^23.";
+  "2 × 10^3 Pa akım ölçülür. Avogadro sayısı 6,02 × 10^23.";
 
 const GAS =
   "1 mol gaz NŞA'da 22,4 L. Gaz hacmi 44,8 L. Suyun mol kütlesi 18 g/mol.";
@@ -48,7 +48,7 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
   it("doğru eşitlik + uydurma nicelik aynı cümlede → ret", () => {
     expect(
       quantityClaimGrounded(
-        "n = 44,8 / 22,4 = 2 mol olur; basınç P = 5 atm alınır.",
+        "n = 44,8 / 22,4 = 2 mol olur; akım P = 5 atm alınır.",
         GAS,
       ),
     ).toBe(false);

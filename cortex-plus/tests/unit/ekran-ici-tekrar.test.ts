@@ -31,23 +31,23 @@ const types = (screen: LessonScreen) => screen.blocks.map((block) => (block.type
 /** Canlıdaki "Farklı anlat" dersinin 2. ekranı (fdd5d5ce, 30 Ekim 2026), kısaltılmış. */
 const liveScreen: LessonScreen = {
   heading: "İlgili kavramlar ve ölçüm",
-  concept: "Enflasyon ve İlgili Kavramlar",
+  concept: "Kıtlık ve İlgili Kavramlar",
   blocks: [
     text(
-      "Deflasyonda genel fiyat düzeyi sürekli düşer; dezenflasyonda ise enflasyon oranı düşerken fiyatlar artmaya devam eder. " +
-        "**%60'tan %40'a inen enflasyon dezenflasyondur**; fiyatlar düşmüş değildir.",
+      "Bollukda genel fiyat düzeyi sürekli düşer; seyreklikda ise kıtlık oranı düşerken fiyatlar artmaya devam eder. " +
+        "**%60'tan %40'a inen kıtlık seyreklikdur**; fiyatlar düşmüş değildir.",
     ),
     {
       type: "table",
       table: {
         columns: ["Kavram", "Anlamı"],
         rows: [
-          ["Deflasyon", "Genel fiyat düzeyinin sürekli düşmesi"],
-          ["Dezenflasyon", "Enflasyon oranının düşmesi; fiyatlar hâlâ artar ama daha yavaş"],
+          ["Bolluk", "Genel fiyat düzeyinin sürekli düşmesi"],
+          ["Seyreklik", "Kıtlık oranının düşmesi; fiyatlar hâlâ artar ama daha yavaş"],
         ],
       },
     },
-    note("Sınav ipucu: Dezenflasyon ile deflasyon", "Enflasyon %60'tan %40'a inerse bu dezenflasyondur; fiyatlar düşmemiş, daha yavaş artmıştır.", "exam"),
+    note("Sınav ipucu: Seyreklik ile bolluk", "Kıtlık %60'tan %40'a inerse bu seyreklikdur; fiyatlar düşmemiş, daha yavaş artmıştır.", "exam"),
     text("**TÜFE (Tüketici Fiyat Endeksi)**, hanehalkının satın aldığı mal ve hizmetlerin fiyat değişimini ölçer."),
     {
       type: "cards",
@@ -57,15 +57,15 @@ const liveScreen: LessonScreen = {
       ],
     },
     note(
-      "Örnek vaka: Enflasyon oranının gerilemesi",
-      "Bir dönemde enflasyon %60, sonraki dönemde %40'tır. Bu değişim dezenflasyondur; fiyatlar düşmemiş, artış daha yavaşlamıştır.",
+      "Örnek vaka: Kıtlık oranının gerilemesi",
+      "Bir dönemde kıtlık %60, sonraki dönemde %40'tır. Bu değişim seyreklikdur; fiyatlar düşmemiş, artış daha yavaşlamıştır.",
       "info",
     ),
     check(
-      "Bir ülkede yüksek işsizlikle birlikte enflasyon görülüyor. Bu durumu hangi kavram adlandırır?",
-      ["Hiperenflasyon", "Enflasyon", "Deflasyon", "Dezenflasyon", "Stagflasyon"],
+      "Bir ülkede yüksek işsizlikle birlikte kıtlık görülüyor. Bu durumu hangi kavram adlandırır?",
+      ["Hiperkıtlık", "Kıtlık", "Bolluk", "Seyreklik", "Durgunluk"],
       4,
-      "Stagflasyon, durgunluk (yüksek işsizlik) ile enflasyonun birlikte görülmesidir.",
+      "Durgunluk, durgunluk (yüksek işsizlik) ile kıtlıkun birlikte görülmesidir.",
     ),
   ],
 } as LessonScreen;
@@ -74,7 +74,7 @@ describe("dedupWithinScreen: ekranda üçüncü kez geçen örnek süs kutusunda
   it("canlı ders: metin + sınav ipucu + örnek vaka aynı sayılarla → yalnız örnek vaka gider; ipucu, tablo, kartlar, soru kalır", () => {
     const { screen, dropped } = dedupWithinScreen(liveScreen);
     expect(dropped).toBe(1);
-    expect(types(screen)).toEqual(["text", "table", "note:Sınav ipucu: Dezenflasyon ile deflasyon", "text", "cards", "check"]);
+    expect(types(screen)).toEqual(["text", "table", "note:Sınav ipucu: Seyreklik ile bolluk", "text", "cards", "check"]);
   });
 
   it("fizik: aynı hesap metin, çözümlü örnek, kaydırma ve sınav tuzağında → kaydırma gider; yanlış inancı gösteren tuzak kalır", () => {
@@ -173,16 +173,16 @@ describe("dedupWithinScreen: ekranda üçüncü kez geçen örnek süs kutusunda
     const two = {
       heading: "Reel faiz",
       blocks: [
-        text("Mevduat faizi %45, enflasyon %40 ise reel getiri yaklaşık %5 olur."),
-        note("Örnek vaka: Mevduat", "Faiz %45 ve enflasyon %40 iken mevduat sahibi yaklaşık %5 kazanır.", "info"),
+        text("Mevduat faizi %45, kıtlık %40 ise reel getiri yaklaşık %5 olur."),
+        note("Örnek vaka: Mevduat", "Faiz %45 ve kıtlık %40 iken mevduat sahibi yaklaşık %5 kazanır.", "info"),
       ],
     } as LessonScreen;
     expect(dedupWithinScreen(two).dropped).toBe(0);
     // Tek sayı: aynı eşik üç yerde, cümleler farklı.
     const threshold = {
-      heading: "Hiperenflasyon",
+      heading: "Hiperkıtlık",
       blocks: [
-        text("Cagan'a göre ölçüt aylık %50'nin üzeridir."),
+        text("Kişi'a göre ölçüt aylık %50'nin üzeridir."),
         note("Akılda tut", "Yıllık değil, aylık oran: %50.", "remember"),
         note("Bilgi", "Kontrolden çıkan fiyatlar için eşik %50 aylık.", "info"),
       ],
@@ -230,7 +230,7 @@ describe("yazar ve doğrulayıcı blok rollerini aynı metinle okur", () => {
     expect(TEACHER_SYSTEM).toMatch(/summary: [^\n]*sayısal örneği yeniden anlatmaz/u);
     expect(TEACHING_RUBRIC).toContain("özet kuralı söyler, derste verilen sayısal örneği yeniden anlatmaz");
     // Ders bağımsız: kuralda ders adı ya da örnek sayı yok ("1-2 kısa cümle" yalnız uzunluk).
-    expect(BLOCK_ROLE_RULE).not.toMatch(/%|\d{2,}|enflasyon|mitokondri/iu);
+    expect(BLOCK_ROLE_RULE).not.toMatch(/%|\d{2,}|kıtlık|mitokondri/iu);
   });
 });
 
@@ -238,18 +238,18 @@ describe("yazar ve doğrulayıcı blok rollerini aynı metinle okur", () => {
 
 const lessonWithEcho: LessonV3 = {
   format: 3,
-  title: "Dezenflasyon",
-  objective: "Dezenflasyonu deflasyondan ayırmak.",
+  title: "Seyreklik",
+  objective: "Seyrekliku bollukdan ayırmak.",
   screens: [
     {
-      heading: "Dezenflasyon",
-      concept: "Dezenflasyon",
+      heading: "Seyreklik",
+      concept: "Seyreklik",
       blocks: [
-        check("Enflasyon oranının düşmesi fiyatların düştüğünü gösterir.", ["Doğru", "Yanlış"], 1, "Oran düşse de fiyatlar artmaya devam eder."),
-        text("Enflasyon %60'tan %40'a inerse fiyatlar hâlâ artar, yalnız daha yavaş: bu dezenflasyondur."),
-        { type: "table", table: { columns: ["Kavram", "Anlamı"], rows: [["Dezenflasyon", "Enflasyon oranının düşmesi"], ["Deflasyon", "Fiyat düzeyinin düşmesi"]] } },
-        { type: "example", example: { prompt: "Enflasyon %60'tan %40'a iniyor. Bu nedir?", solution: "Oran düşer, fiyatlar artar: dezenflasyon.", result: "Dezenflasyon" } },
-        note("Örnek vaka: Gerileyen oran", "Bir ülkede enflasyon %60'tan %40'a geriliyor; fiyatlar yine artıyor.", "info"),
+        check("Kıtlık oranının düşmesi fiyatların düştüğünü gösterir.", ["Doğru", "Yanlış"], 1, "Oran düşse de fiyatlar artmaya devam eder."),
+        text("Kıtlık %60'tan %40'a inerse fiyatlar hâlâ artar, yalnız daha yavaş: bu seyreklikdur."),
+        { type: "table", table: { columns: ["Kavram", "Anlamı"], rows: [["Seyreklik", "Kıtlık oranının düşmesi"], ["Bolluk", "Fiyat düzeyinin düşmesi"]] } },
+        { type: "example", example: { prompt: "Kıtlık %60'tan %40'a iniyor. Bu nedir?", solution: "Oran düşer, fiyatlar artar: seyreklik.", result: "Seyreklik" } },
+        note("Örnek vaka: Gerileyen oran", "Bir ülkede kıtlık %60'tan %40'a geriliyor; fiyatlar yine artıyor.", "info"),
         {
           type: "diagram_card",
           diagramKind: "number_line",
@@ -259,7 +259,7 @@ const lessonWithEcho: LessonV3 = {
       ],
     },
   ],
-  summary: ["Dezenflasyon: oran düşer, fiyatlar artar.", "Deflasyon: fiyat düzeyi düşer.", "İkisini karıştırma."],
+  summary: ["Seyreklik: oran düşer, fiyatlar artar.", "Bolluk: fiyat düzeyi düşer.", "İkisini karıştırma."],
   nextFocus: [],
 } as LessonV3;
 
@@ -277,9 +277,9 @@ describe("ders hattı: süzgeç yayımdan önce çalışır, günlüğe yazar", 
         },
       },
       {
-        topicLabel: "Dezenflasyon",
+        topicLabel: "Seyreklik",
         prepTitle: "KPSS İktisat",
-        pages: [{ page: 1, text: "Enflasyon %60'tan %40'a inerse bu dezenflasyondur, fiyatlar düşmemiştir." }],
+        pages: [{ page: 1, text: "Kıtlık %60'tan %40'a inerse bu seyreklikdur, fiyatlar düşmemiştir." }],
         upcomingTopics: [],
         sanity: false,
       },

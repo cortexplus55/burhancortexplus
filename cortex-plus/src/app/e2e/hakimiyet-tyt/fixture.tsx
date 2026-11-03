@@ -23,7 +23,7 @@ export function TytFixture({ units }: { units: MapUnitInput[] }) {
   const api = savingApi();
   return (
     <main style={{ padding: "1rem" }}>
-      <UnitLevelCheck prepId="e2e-tyt" unitId="e2e-tyt#1" unitTitle="Mantık" api={api} />
+      <UnitLevelCheck prepId="e2e-tyt" unitId="e2e-tyt#1" unitTitle="Ünite A" api={api} />
       <MasteryMap prepId="e2e-tyt" units={units} daysLeft={TYT_DAYS} dailyMinutes={TYT_DAILY} api={api} />
     </main>
   );

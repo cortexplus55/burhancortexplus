@@ -193,7 +193,7 @@ function smallerFirst(left: string[], right: string[]): [string[], string[]] {
 
 /**
  * İki kart aynı bilgiyi mi yokluyor (30 Ekim 2026): ön + arka yüzün içerik sözcüklerinin %75'i aynı kökle öbüründe
- * (ters çevrilmiş kart da böyle yakalanır: "Enflasyon nedir?" → tanım / "tanıma ne ad verilir?" → Enflasyon) ya da
+ * (ters çevrilmiş kart da böyle yakalanır: "Kavram nedir?" → tanım / "tanıma ne ad verilir?" → Kavram) ya da
  * kısa cevaplar aynı ve ön yüzler aynı şeyden söz ediyor (ortak sözcük ya da simge). Sayıları farklı kartlar ayrı
  * bilgidir ("1839" / "1856").
  */

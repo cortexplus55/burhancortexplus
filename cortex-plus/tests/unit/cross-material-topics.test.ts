@@ -63,7 +63,7 @@ Toplam
 Kapsam notları
 • Katlı oranlar kanunu sınav kapsamı dışındadır. Ders notlarında yer almasına rağmen bu konudan soru sorulmayacaktır.
 • Asit-baz konusunda yalnızca kuvvetli asit ve bazların pH hesabı sorulacaktır; zayıf asit/baz dengeleri ve tampon çözeltiler kapsam dışıdır.
-• Gazlarda kısmi basınçlar (Dalton yasası) ve kinetik teori bu sınavın kapsamında değildir.
+• Gazlarda kısmi akımlar (Dalton yasası) ve kinetik teori bu sınavın kapsamında değildir.
 `.trim();
 
 function candidate(
@@ -426,7 +426,7 @@ describe("law syllabus — not a chemistry special case", () => {
       id: "n1",
       title: "1876 Kanun-i Esasi",
       documentId: "notes",
-      fileName: "notlar.pdf",
+      fileName: "belge.pdf",
       summary: "Padişah, Heyet-i Ayan ve Heyet-i Mebusan",
     }),
     candidate({
@@ -440,35 +440,35 @@ describe("law syllabus — not a chemistry special case", () => {
       id: "n3",
       title: "1924 Anayasası",
       documentId: "notes",
-      fileName: "notlar.pdf",
+      fileName: "belge.pdf",
       summary: "Güçler birliği, 1924 Teşkilat-ı Esasiye",
     }),
     candidate({
       id: "n4",
       title: "1961 Anayasası",
       documentId: "notes",
-      fileName: "notlar.pdf",
+      fileName: "belge.pdf",
       summary: "Anayasa Mahkemesi kurulur",
     }),
     candidate({
       id: "n5",
       title: "1921 Teşkilat-ı Esasiye",
       documentId: "notes",
-      fileName: "notlar.pdf",
+      fileName: "belge.pdf",
       summary: "Milli egemenlik ve meclis hükümeti",
     }),
     candidate({
       id: "n5b",
       title: "1921 Teşkilat-ı Esasiye'nin geçici maddeleri",
       documentId: "notes",
-      fileName: "notlar.pdf",
+      fileName: "belge.pdf",
       summary: "Geçici maddeler sınavda yok",
     }),
     candidate({
       id: "n6",
       title: "Özet ve sık yapılan hatalar",
       documentId: "notes",
-      fileName: "notlar.pdf",
+      fileName: "belge.pdf",
       summary: "1921 ile 1924'ü karıştırmak",
       commonMistakes: ["1921 ile 1924 aynı metin değildir"],
     }),
@@ -479,7 +479,7 @@ describe("law syllabus — not a chemistry special case", () => {
       candidates: notes,
       documents: [
         { documentId: "syllabus", fileName: "izlence.docx", text: LAW_SYLLABUS },
-        { documentId: "notes", fileName: "notlar.pdf", text: "1876 ve 1924 anlatılır." },
+        { documentId: "notes", fileName: "belge.pdf", text: "1876 ve 1924 anlatılır." },
         { documentId: "slides", fileName: "slayt.pptx", text: "Kanun-i Esasi slaytları." },
       ],
     });

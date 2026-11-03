@@ -574,8 +574,8 @@ function arithmeticIssues(text: string): QuantIssue[] {
 
   /*
     Sayı bir rakamın ortasından başlayamaz ve π'ye yapışık sayı bir katsayıdır, düz sayı değil
-    (18 Ekim 2026, trigonometri podcast'i: "225 × π/180 = 5π/4" ifadesinde "180"in "80"i ile
-    "5π/4"ün "5"i eşitlik sanılıp "80 ve 5 tutmuyor" dendi; podcast iki kez düştü).
+    (18 Ekim 2026: "a × π/b = cπ/d" biçiminde bir ifadede b'nin son rakamları ile c eşitlik sanılıp
+    "tutmuyor" dendi; podcast iki kez düştü).
   */
   const singleEq = new RegExp(
     `(?<![+×÷*/\\-−–]\\s{0,4})(?<![\\d.,π])(${arithNum()})(?!π)\\s*(≈|~|=)\\s*(${arithNum()})(?!π)(?!\\s*[+×÷*/\\-−–])`,

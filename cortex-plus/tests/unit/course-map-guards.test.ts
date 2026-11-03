@@ -138,7 +138,7 @@ describe("M3: wizard-deferred files wait for the ONE course outline", () => {
 
 describe("M2: running out of attempts is final until the student retries", () => {
   it("poller ticks after exhaustion make 0 calls; an explicit retry makes one fresh attempt; re-upload works", async () => {
-    const fake = db([{ id: A, name: "notlar.pdf", pages: pages(0, 12) }, { id: C, name: "notlar.pdf", pages: pages(0, 12) }]);
+    const fake = db([{ id: A, name: "belge.pdf", pages: pages(0, 12) }, { id: C, name: "belge.pdf", pages: pages(0, 12) }]);
     model.impl = () => JUNK;
     const exhausted = await until({ documentId: A });
     expect(exhausted.status).toBe(422);
@@ -172,7 +172,7 @@ describe("M2: running out of attempts is final until the student retries", () =>
 
 describe("rebuild button", () => {
   it("keeps the rounds going until the rebuilt map is saved (no premature 'yenilendi')", async () => {
-    const fake = db([{ id: A, name: "notlar.pdf", pages: pages(0, 12) }]);
+    const fake = db([{ id: A, name: "belge.pdf", pages: pages(0, 12) }]);
     model.impl = () => titledOutline([[heading(0, 2), 2, 2]]);
     expect((await until({ documentId: A })).status).toBe(200);
     const firstNodes = fake.db.tables.document_topic_nodes!.map((n: any) => n.title);

@@ -15,8 +15,8 @@ describe("yol etiketleri", () => {
   });
   it("kart başlığı sınıf değil konu", () => {
     expect(isGradeOnlyLabel("9. Sınıf")).toBe(true);
-    expect(isGradeOnlyLabel("Mantık")).toBe(false);
-    expect(withoutGradeParts(["9. Sınıf", "Mantık"])).toEqual(["Mantık"]);
+    expect(isGradeOnlyLabel("Örüntü")).toBe(false);
+    expect(withoutGradeParts(["9. Sınıf", "Örüntü"])).toEqual(["Örüntü"]);
     expect(withoutGradeParts(["9. Sınıf"])).toEqual(["9. Sınıf"]);
   });
 });

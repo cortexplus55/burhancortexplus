@@ -210,11 +210,11 @@ describe("önceden hazırlama: geniş kapsam", () => {
     expect(lib.prefetchVariant("oral", { ...base, oralQuestionCount: 5 })).not.toBe(oralDefault);
     expect(lib.prefetchVariant("oral", { ...base, mood: "stressed", difficulty: "ileri" })).not.toBe(oralDefault);
     // 20 Ekim 2026: son kartlar zayıf konuya yönelir; başka konunun hazır destesi verilmez.
-    expect(lib.prefetchVariant("flashcards", { topicLabel: "Basınç" })).not.toBe(
+    expect(lib.prefetchVariant("flashcards", { topicLabel: "Akım" })).not.toBe(
       lib.prefetchVariant("flashcards", { topicLabel: "Sıcaklık" }),
     );
-    expect(lib.prefetchVariant("flashcards", { topicLabel: "Basınç" })).toBe(
-      lib.prefetchVariant("flashcards", { topicLabel: " basınç ", difficulty: "orta" }),
+    expect(lib.prefetchVariant("flashcards", { topicLabel: "Akım" })).toBe(
+      lib.prefetchVariant("flashcards", { topicLabel: " akım ", difficulty: "orta" }),
     );
   });
 

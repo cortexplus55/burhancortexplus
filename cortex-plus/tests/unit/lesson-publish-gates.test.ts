@@ -8,7 +8,7 @@ import { summaryLineProblem } from "@/lib/learning/lesson-grounding";
  */
 
 const BAD_SUMMARY = [
-  "İdeal gazlar, sıcaklık ve basınç gibi parametrelerle belirlenen sistemlerdir.",
+  "İdeal gazlar, sıcaklık ve akım gibi parametrelerle belirlenen sistemlerdir.",
   "Kapalı sistem: İdeal gaz enerji: Δu=c v ΔT, Δh=c p ΔT",
   "İç Enerji, Entalpi ve Özgül Isılar",
   "u ve h değişimlerini sıcaklıkla bağlayan temel malzeme bağıntılarını öğren: H = U + PV, özgül olarak h = u + Pv",
@@ -26,7 +26,7 @@ describe("ideal gaz dersinin yayın kapıları", () => {
     expect(summaryLineProblem(BAD_SUMMARY[3])).toBe("objective");
     expect(summaryLineProblem(BAD_SUMMARY[4])).toBe("truncated");
     expect(summaryLineProblem("P_mutlak = P_atm - P_vakum")).toBeNull();
-    expect(summaryLineProblem("Mutlak basınç, gösterge basıncına atmosfer eklenince bulunur: P = F/A.")).toBeNull();
+    expect(summaryLineProblem("Mutlak akım, gösterge basıncına atmosfer eklenince bulunur: P = F/A.")).toBeNull();
     expect(summaryLineProblem("0 ≤ x ≤ 1")).toBeNull();
     expect(isIncompleteExample(INCOMPLETE)).toBe(true);
     expect(isIncompleteExample("ΔU = 2 × 0.718 × (450 − 300) = 215.4 kJ")).toBe(false);

@@ -107,7 +107,7 @@ describe("Paket I-10.1 — aynı belgenin iki sürümü", () => {
   });
 
   it("aynı dersin farklı belgeleri (not ve slayt) sürüm sayılmaz; tek belgede bakılmaz", () => {
-    const notes = doc("n", "notlar.pdf", DS_NOTES);
+    const notes = doc("n", "belge.pdf", DS_NOTES);
     const slides = doc("s", "slaytlar.pptx", DS_SLIDES);
     expect(detectVersionPairs([notes, slides])).toEqual([]);
     expect(checkMaterialSet([notes])).toEqual({ versions: [], unrelated: [] });
@@ -124,7 +124,7 @@ describe("Paket I-10.1 — aynı belgenin iki sürümü", () => {
 
 describe("Paket I-10.2 — konu dışı belge", () => {
   it("veri yapıları kursundaki bitki rehberi ilgisiz görünür; not ve slayt birbirine benzer", () => {
-    const set = [doc("n", "notlar.pdf", DS_NOTES), doc("s", "slaytlar.pptx", DS_SLIDES), doc("p", "bahce-rehberi.pdf", PLANT_GUIDE)];
+    const set = [doc("n", "belge.pdf", DS_NOTES), doc("s", "slaytlar.pptx", DS_SLIDES), doc("p", "bahce-rehberi.pdf", PLANT_GUIDE)];
     const unrelated = detectUnrelatedDocuments(set, { subject: "Veri Yapıları" });
     expect(unrelated.map((item) => item.documentId)).toEqual(["p"]);
     // Ders adı verilmese de iki belge birbirini tuttuğu için üçüncüsü ilgisiz.
@@ -132,7 +132,7 @@ describe("Paket I-10.2 — konu dışı belge", () => {
   });
 
   it("iki belgede hangisinin konu dışı olduğunu ancak ders adı söyler", () => {
-    const pairOnly = [doc("n", "notlar.pdf", DS_NOTES), doc("p", "bahce-rehberi.pdf", PLANT_GUIDE)];
+    const pairOnly = [doc("n", "belge.pdf", DS_NOTES), doc("p", "bahce-rehberi.pdf", PLANT_GUIDE)];
     expect(detectUnrelatedDocuments(pairOnly, {})).toEqual([]);
     expect(detectUnrelatedDocuments(pairOnly, { subject: "Veri Yapıları" }).map((item) => item.documentId)).toEqual(["p"]);
   });

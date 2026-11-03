@@ -65,7 +65,7 @@ describe("ünite başlığında kaynak numarası gösterilmez", () => {
     ]);
   });
   it("numarasız programda '15. Yüzyıl' gibi başlıklar korunur", () => {
-    const t = ["11. Sınıf · MÖ 6. Yüzyıl Felsefesi", "11. Sınıf · 15. Yüzyıl-17. Yüzyıl Felsefesi", "11. Sınıf · 20. Yüzyıl Felsefesi", "11. Sınıf · Mantık"];
+    const t = ["11. Sınıf · MÖ 6. Yüzyıl Felsefesi", "11. Sınıf · 15. Yüzyıl-17. Yüzyıl Felsefesi", "11. Sınıf · 20. Yüzyıl Felsefesi", "11. Sınıf · Örüntü"];
     expect(displayUnitTitles(t).slice(0, 2)).toEqual(t.slice(0, 2));
   });
   it("kurulum ağacında numaralı ünite kalmaz", () => {

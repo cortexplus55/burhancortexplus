@@ -294,7 +294,7 @@ export function withOneMultiLast(questions: QuizQuestion[], count: number): Quiz
 
 /**
  * Parçanın hedefi (30 Ekim 2026, kıyas ürünüyle yan yana tur): parçalar birbirinin sorusunu görmüyor; yalnız "ayrı bir noktayı
- * sor" diyen satırla beş parçadan dördü konunun en göze batan noktasını sordu (Cagan'ın hiperenflasyon eşiği, dört kez).
+ * sor" diyen satırla beş parçadan dördü konunun en göze batan noktasını sordu (aynı tanım, dört kez).
  * Her parçaya ayrı bir "Sınavda sorulur" maddesi verilir; madde yoksa dersin ayrı bir terimi. Madde parçadan azsa aynı
  * maddeyi alan parça onun başka bir yönünü sorar.
  */

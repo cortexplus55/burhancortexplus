@@ -69,21 +69,21 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     await page.context().clearCookies();
     await page.goto("/e2e/hakimiyet-tyt");
     const map = page.getByTestId("mastery-map");
-    const mantik = map.getByTestId("mm-unit").filter({ hasText: "Mantık" });
-    await expect(mantik).toContainText("Henüz yeterli veri yok");
+    const weak = map.getByTestId("mm-unit").filter({ hasText: "Ünite A" });
+    await expect(weak).toContainText("Henüz yeterli veri yok");
     await expect(page.getByTestId("plan-totals")).toHaveText("Planın 34 saat, senin 5 saatin var.");
     const plan = page.getByTestId("plan-list").locator("li");
     await expect(plan).toHaveCount(2);
-    await expect(plan.nth(0)).toContainText("Mantık");
+    await expect(plan.nth(0)).toContainText("Ünite A");
     await expect(plan.nth(0)).toContainText("3 saat 20 dk");
     await expect(plan.nth(1)).toContainText("Üçgenler");
     await expect(plan.nth(1)).toContainText("16 kazanımdan en zayıf 3 kazanım");
     const later = page.getByTestId("plan-if-time").locator("li");
     await expect(later.first()).toContainText("Üçgenler");
     await expect(later.first()).toContainText("kalan 13 kazanım");
-    await expect(later.last()).toContainText("Kümeler");
-    await expect(page.getByTestId("plan-if-time")).not.toContainText("Mantık");
-    await expect(page.getByTestId("plan-list")).not.toContainText("Kümeler");
+    await expect(later.last()).toContainText("Ünite K");
+    await expect(page.getByTestId("plan-if-time")).not.toContainText("Ünite A");
+    await expect(page.getByTestId("plan-list")).not.toContainText("Ünite K");
     await expect(page.getByTestId("plan-list")).not.toContainText("Polinomlar");
 
     // Ünite Seviye Kontrolü → sonuç: harita, plan ve pekiştirme önerisi tam gezinti olmadan güncellenir.
@@ -94,16 +94,16 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
       await page.getByTestId("level-feedback").getByRole("button").click();
     }
     await expect(page.getByTestId("unit-check-result")).toBeVisible();
-    await expect(mantik).toContainText("Bu konuya %43 hakimsin · 4 yanıta dayalı");
+    await expect(weak).toContainText("Bu konuya %43 hakimsin · 4 yanıta dayalı");
     // Zayıf 3 kazanımın doğrulanmış soruları tükenmiş: söz verilmez, dürüst satır gösterilir.
     await expect(page.getByTestId("mm-no-extra")).toHaveText("Şu an ek soru kalmadı; yeni sorular eklendikçe burada görünecek");
-    await expect(map.getByRole("button", { name: /Mantık:/ })).toHaveCount(0);
+    await expect(map.getByRole("button", { name: /Ünite A:/ })).toHaveCount(0);
     await expect(page.getByTestId("unit-check").getByTestId("reinforce-empty")).toContainText("Şu an ek soru kalmadı");
     await expect(page.getByRole("button", { name: "Ek soruları çöz" })).toHaveCount(0);
     await page.getByTestId("unit-check").getByRole("button", { name: "Kapat" }).last().click();
-    await expect(mantik).toContainText("Bu konuya %43 hakimsin · 4 yanıta dayalı");
+    await expect(weak).toContainText("Bu konuya %43 hakimsin · 4 yanıta dayalı");
     await expect(page.getByTestId("plan-totals")).toHaveText("Planın 33 saat 50 dk, senin 5 saatin var.");
-    await expect(plan.nth(0)).toContainText("Mantık");
+    await expect(plan.nth(0)).toContainText("Ünite A");
     await expect(plan.nth(0)).toContainText("3 saat 10 dk");
     await expect(plan.nth(1)).toContainText("Üçgenler");
     await expect(page.getByTestId("mm-note")).toContainText("ortalamasıdır");

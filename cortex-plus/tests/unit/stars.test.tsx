@@ -92,7 +92,7 @@ describe("Yıldızlar penceresi", () => {
     me: { today: 11, week: 11, all: 15, sourcesWeek: { chat: 15 }, sourcesAll: { chat: 15 }, hidden: false, hasSchool: true },
     rows: [
       { rank: 1, label: "Ayşe K.", detail: "Giresun Tıp", students: null, stars: 40, is_me: false },
-      { rank: 2, label: "Mert D.", detail: "Giresun Tıp", students: null, stars: 11, is_me: true },
+      { rank: 2, label: "Can D.", detail: "Giresun Tıp", students: null, stars: 11, is_me: true },
     ],
     fallback: false,
   };
@@ -102,7 +102,7 @@ describe("Yıldızlar penceresi", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<StarsDialog open onClose={() => {}} />);
     await waitFor(() => expect(screen.getByText("Ayşe K.")).toBeTruthy());
-    expect(screen.getByText("Mert D. (sen)")).toBeTruthy();
+    expect(screen.getByText("Can D. (sen)")).toBeTruthy();
     expect(screen.getByText("Yıldızlar: bugün 11 · hedef 50")).toBeTruthy();
     expect(screen.getByRole("tab", { name: /Okul arkadaşları/ }).getAttribute("aria-selected")).toBe("true");
 
@@ -118,7 +118,7 @@ describe("Yıldızlar penceresi", () => {
   });
 
   it("okulda tek kişiysen davet çağrısı; ad gizleme ayarı kaydedilir", async () => {
-    const alone = { ...body, rows: [{ rank: 1, label: "Mert D.", detail: null, students: null, stars: 11, is_me: true }] };
+    const alone = { ...body, rows: [{ rank: 1, label: "Can D.", detail: null, students: null, stars: 11, is_me: true }] };
     const fetchMock = vi.fn(async (url: string) =>
       url === "/api/profile/me" ? new Response("{}", { status: 200 }) : new Response(JSON.stringify(alone), { status: 200 }),
     );

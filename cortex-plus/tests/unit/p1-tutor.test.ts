@@ -81,7 +81,7 @@ describe("P1-5 istemler cevabı saklamaz", () => {
 describe("P1-5 kaynak işareti sunucuda", () => {
   const pages = [
     { page: 3, text: "Hücre zarı seçici geçirgendir; madde geçişini düzenler." },
-    { page: 7, text: "Ozmoz, suyun yarı geçirgen zardan çok yoğun ortama geçişidir. Ozmotik basınç bu geçişi sağlar." },
+    { page: 7, text: "Ozmoz, suyun yarı geçirgen zardan çok yoğun ortama geçişidir. Ozmotik akım bu geçişi sağlar." },
   ];
 
   it("cevabın en çok dayandığı sayfa seçilir; örtüşme yoksa işaret yok", () => {

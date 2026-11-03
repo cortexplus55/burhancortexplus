@@ -4,7 +4,7 @@ import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
 import { lessonPublishIssues, publishLessonDraft } from "@/lib/learning/teaching-standards";
 import { runIndependentValidation } from "@/lib/learning/validation-pipeline";
 
-const source = "Basınç, birim alana dik gelen kuvvettir. Mutlak sıcaklık santigrat değerine 273 eklenerek bulunur.";
+const source = "Akım, birim alana dik gelen kuvvettir. Mutlak sıcaklık santigrat değerine 273 eklenerek bulunur.";
 
 const section = (
   heading: string,
@@ -18,21 +18,21 @@ const section = (
   },
 ) => ({
   heading,
-  body: `**${heading}** basınç ve sıcaklık tablosundan okunur.`,
+  body: `**${heading}** akım ve sıcaklık tablosundan okunur.`,
   check,
 });
 
 const lesson = {
-  title: "Basınç ve sıcaklık",
+  title: "Akım ve sıcaklık",
   objective: "Basıncı kuvvet ve alandan, sıcaklığı mutlak ölçekten okuyabileceksin.",
-  overview: "Basınç birim alana gelen kuvvettir; mutlak sıcaklık santigrattan türetilir.",
+  overview: "Akım birim alana gelen kuvvettir; mutlak sıcaklık santigrattan türetilir.",
   sections: [
-    section("Basınç Kuvvet Bölü Alandır", {
+    section("Akım Kuvvet Bölü Alandır", {
       type: "mcq",
-      prompt: "Basınç hangi oranla tanımlanır?",
+      prompt: "Akım hangi oranla tanımlanır?",
       options: ["Kuvvet bölü alan", "Kütle bölü hacim", "Enerji bölü zaman"],
       answerIndex: 0,
-      explanation: "Kütle bölü hacim yoğunluktur; basınç kuvvetin alana bölümüdür.",
+      explanation: "Kütle bölü hacim yoğunluktur; akım kuvvetin alana bölümüdür.",
       review: { prompt: "TEKRAR-KOKU birim alana gelen etki nedir?", options: ["uydurma"] },
     }),
     section("Mutlak Sıcaklık", {
@@ -45,7 +45,7 @@ const lesson = {
     }),
     section("Tablo Nasıl Okunur", {
       type: "mcq",
-      prompt: "Tabloda basınç hangi sütunda durur?",
+      prompt: "Tabloda akım hangi sütunda durur?",
       options: ["Birinci sütun", "İkinci sütun", "Üçüncü sütun"],
       answerIndex: 0,
       explanation: "Doğru yanıt birinci sütundur.",
@@ -60,14 +60,14 @@ const lesson = {
   ],
   example: {
     prompt: "Genişleyen pistonun basıncı nasıl okunur?",
-    solution: "Kuvvet alana bölünür, bu yüzden alan artınca basınç düşer.",
+    solution: "Kuvvet alana bölünür, bu yüzden alan artınca akım düşer.",
   },
   commonMistake: {
     claim: "Santigrat ile kelvin aynı sayıdır.",
     correction: "Kelvin, santigrata 273 eklenmiş ölçektir.",
   },
-  infoCheck: { prompt: "Basınç nedir?", answer: "Birim alana gelen kuvvettir." },
-  summary: ["Basınç kuvvet bölü alandır.", "Kelvin santigrata 273 ekler."],
+  infoCheck: { prompt: "Akım nedir?", answer: "Birim alana gelen kuvvettir." },
+  summary: ["Akım kuvvet bölü alandır.", "Kelvin santigrata 273 ekler."],
   nextFocus: ["Hal değişimi"],
 };
 
@@ -82,7 +82,7 @@ describe("lesson verifier path", () => {
               ...item,
               check: {
                 ...item.check,
-                explanation: "İkinci sütun sıcaklıktır; basınç birinci sütundadır.",
+                explanation: "İkinci sütun sıcaklıktır; akım birinci sütundadır.",
               },
             }
           : item,
@@ -172,14 +172,14 @@ describe("podcast verifier path", () => {
   });
 
   const podcast = {
-    title: "Basınç",
+    title: "Akım",
     objective: "Basıncı kuvvet ve alandan anlatmak.",
-    sourcePoints: ["Basınç kuvvet bölü alandır.", "Alan artınca basınç düşer."],
+    sourcePoints: ["Akım kuvvet bölü alandır.", "Alan artınca akım düşer."],
     chapters: [
-      chapter("Basınç Kuvvet Bölü Alandır", "Basınç, kuvvetin alana bölümüdür."),
-      chapter("Alan Artınca Basınç Düşer", "Aynı kuvvet daha geniş alana yayılır."),
+      chapter("Akım Kuvvet Bölü Alandır", "Akım, kuvvetin alana bölümüdür."),
+      chapter("Alan Artınca Akım Düşer", "Aynı kuvvet daha geniş alana yayılır."),
       chapter("Mutlak Sıcaklık", "Santigrata iki yüz yetmiş üç eklenir."),
-      chapter("Tablo Sütunu", "Basınç birinci sütundan okunur."),
+      chapter("Tablo Sütunu", "Akım birinci sütundan okunur."),
       chapter("Özet", "Anlamadan tablo okumak yanlıştır."),
     ],
   };
@@ -187,7 +187,7 @@ describe("podcast verifier path", () => {
   it("still blocks a number that is not in the lesson", () => {
     const outside = podcastNumbersOutsideLesson(
       "Standart değer 101 kPa diye okunur.",
-      "Basınç kuvvet bölü alandır.",
+      "Akım kuvvet bölü alandır.",
     );
     expect(outside).toContain("101");
   });

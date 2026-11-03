@@ -169,28 +169,28 @@ describe("#12 ikiz soru", () => {
   it("model şıklara harf yazarsa harf düşer, anahtar aynı biçime çekilir (31 Ekim canlı deneme)", () => {
     const original = normalizeQuizQuestion({
       text: "Genel fiyat düzeyi sürekli düşüyor. Bu durumu hangi kavram karşılar?",
-      options: ["Stagflasyon", "Enflasyon", "Dezenflasyon", "Deflasyon", "Hiperenflasyon"],
-      correct: ["Deflasyon"],
+      options: ["Durgunluk", "Kıtlık", "Seyreklik", "Bolluk", "Hiperkıtlık"],
+      correct: ["Bolluk"],
     }) as QuizQuestion;
     const twin = readTwinQuestion(
       {
         text: "Tüketici fiyatlarının genel düzeyi dönemler boyunca azalıyor. Bu olgu hangi kavramla adlandırılır?",
-        options: ["A) Stagflasyon", "B) Enflasyon", "C) Dezenflasyon", "D) Deflasyon", "E) Hiperenflasyon"],
-        correct: ["D) Deflasyon"],
+        options: ["A) Durgunluk", "B) Kıtlık", "C) Seyreklik", "D) Bolluk", "E) Hiperkıtlık"],
+        correct: ["D) Bolluk"],
       },
       original,
     );
     expect(twin?.options.every((option) => !/^[A-E]\)/.test(option))).toBe(true);
-    expect(twin?.correct).toEqual(["Deflasyon"]);
+    expect(twin?.correct).toEqual(["Bolluk"]);
     const bare = readTwinQuestion(
       {
         text: "Tüketici fiyatlarının genel düzeyi dönemler boyunca azalıyor. Bu olgu hangi kavramla adlandırılır?",
-        options: ["A) Stagflasyon", "B) Enflasyon", "C) Dezenflasyon", "D) Deflasyon", "E) Hiperenflasyon"],
+        options: ["A) Durgunluk", "B) Kıtlık", "C) Seyreklik", "D) Bolluk", "E) Hiperkıtlık"],
         correct: ["D"],
       },
       original,
     );
-    expect(bare?.correct).toEqual(["Deflasyon"]);
+    expect(bare?.correct).toEqual(["Bolluk"]);
     // Yalnız bazı şıklar harfle başlıyorsa (ör. "A vitamini") metne dokunulmaz.
     const vitamins = readTwinQuestion(
       { text: "Hangi vitamin yağda çözünür ve gece görmeyle ilgilidir?", options: ["A vitamini", "B12 vitamini", "C vitamini", "Folik asit", "Niasin"], correct: ["A vitamini"] },

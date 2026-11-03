@@ -119,7 +119,7 @@ export type TeacherLessonInput = {
    */
   noteWarnings?: FormulaTypo[];
   /**
-   * Modelli not denetiminin (paralel) sonradan gelen uyarıları (4 Kasım 2026, Senaryo B1): yazım başladıktan sonra
+   * Modelli not denetiminin (paralel) sonradan gelen uyarıları: yazım başladıktan sonra
    * bulunan yanlış formül, kavram denetiminde (`lesson-sanity`) standart kurala çevrilir.
    */
   lateNoteWarnings?: () => FormulaTypo[];
@@ -449,7 +449,7 @@ export const TEACHER_SYSTEM =
   "bloğudur. Bölünmüş bir tablonun her ekranındaki soru o ekrandaki komşu satırları ayırt ettirir (komşu iki satırı " +
   "karıştıran öğrenciyi yakalar: '9 ayda mı, 12 ayda mı?'). " +
   "Çoktan seçmeli soruda ŞIK SAYISI satırındaki kadar şık (satır yoksa 4); çeldiriciler aynı ailedeki kardeş terimler ya da " +
-  // 30 Ekim 2026 (canlı tur): ders içi soru endeks sorarken şıklarda enflasyon türleri vardı; test yazarıyla aynı metin.
+  // 30 Ekim 2026 (canlı tur): ders içi soru endeks sorarken şıklarda başka türden kavramlar vardı; test yazarıyla aynı metin.
   `öğrencinin gerçekten karıştırdığı ifadeler. ${SAME_KIND_DISTRACTOR_RULE} ${THRESHOLD_OPTIONS_RULE} ` +
   "Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
@@ -1850,8 +1850,8 @@ export function echoedCheck(screen: Pick<LessonScreen, "blocks">): string | null
   türde sondaki önce. Kart ızgarası ve kaydırma bir aileyi birlikte gösterir: tek kartı söküp aileyi eksik bırakmak
   yerine, öğelerinin en az yarısı tekrarsa bütünüyle gider, yoksa dokunulmaz. Kod yazmaz, yalnız siler.
 
-  Aynı örnek: iki birimin birer cümlesi en az iki sayıyı ortak taşıyor ("%60'tan %40'a" ile "enflasyon %60, sonra
-  %40"). Tek sayı (bir eşik) örnek değildir. Aynı cümle: içerik sözcüklerinin %85'i aynı kökle (`echoes`).
+  Aynı örnek: iki birimin birer cümlesi en az iki sayıyı ortak taşıyor ("A'dan B'ye" ile "x A, sonra
+  B"). Tek sayı (bir eşik) örnek değildir. Aynı cümle: içerik sözcüklerinin %85'i aynı kökle (`echoes`).
 */
 
 /** Bir ekrandan en çok bu kadar kutu silinir. */

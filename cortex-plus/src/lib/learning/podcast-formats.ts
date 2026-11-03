@@ -365,7 +365,7 @@ export const DUO_TURN_RULE =
   "'neden', 'nasıl', 'ne fark eder' sorusudur. 'Çünkü' gerçek bir neden söyler; cümlenin kendisini tekrar etmez.";
 
 /**
- * Açılış kancası (30 Ekim 2026, canlı tur: ders sonu podcast'i "Enflasyon, genel fiyat düzeyinin … artmasıdır" diye
+ * Açılış kancası (30 Ekim 2026, canlı tur: ders sonu podcast'i "Kavram, … -dır" tanım cümlesiyle diye
  * tanımla açıldı). Eski yazarda tek satır vardı, senarist yazarda hiç yoktu. Yazarlar (senarist, eski şema) ve
  * denetçinin J maddesi aynı metni okur; kod ilk cümlenin tanım olup olmadığını ölçer (`podcastFlowNotes`).
  */

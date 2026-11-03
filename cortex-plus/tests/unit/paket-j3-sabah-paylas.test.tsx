@@ -137,16 +137,16 @@ describe("Paket J3 #14 · sınav sabahı kâğıdı", () => {
     const titled = collectLessonCram(
       lesson({
         format: 3,
-        title: "Enflasyon",
+        title: "Kıtlık",
         screens: [
           {
-            heading: "Dezenflasyon",
-            blocks: [{ type: "note", note: { title: "Sınav ipucu: Deflasyon ile dezenflasyon", body: "Enflasyon %60'tan %40'a inerse bu dezenflasyondur.", tone: "exam" } }],
+            heading: "Seyreklik",
+            blocks: [{ type: "note", note: { title: "Sınav ipucu: Bolluk ile seyreklik", body: "Kıtlık %60'tan %40'a inerse bu seyreklikdur.", tone: "exam" } }],
           },
         ],
       }),
     );
-    expect(titled[0]!.title).toBe("Deflasyon ile dezenflasyon");
+    expect(titled[0]!.title).toBe("Bolluk ile seyreklik");
   });
 
   it("konular yolun sırasıyla; tekrar eden formül ilk konuda kalır; konusuz ders kendi adıyla sonda", () => {

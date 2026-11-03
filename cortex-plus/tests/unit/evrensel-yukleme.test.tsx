@@ -88,7 +88,7 @@ describe("ortak yükleme motoru", () => {
     const uploaded: string[] = [];
     let uploadCalls = 0;
     const result = await runUploadPipeline(
-      [file("notlar.pdf", "application/pdf"), file("a.jpg"), file("b.jpg"), file("c.jpg"), file("bozuk.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")],
+      [file("belge.pdf", "application/pdf"), file("a.jpg"), file("b.jpg"), file("c.jpg"), file("bozuk.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")],
       { lanes: 2, photoSet: true, fastStart: false, encode: encodeOk },
       {
         upload: async (f) => {
@@ -100,8 +100,8 @@ describe("ortak yükleme motoru", () => {
         process: async () => true,
       },
     );
-    expect(uploaded.sort()).toEqual(["Ders Notu Fotoğrafları (3 Sayfa).pdf", "notlar.pdf"]);
-    expect(result.order).toEqual(["notlar.pdf", "bozuk.docx", "Ders Notu Fotoğrafları (3 Sayfa).pdf"]);
+    expect(uploaded.sort()).toEqual(["Ders Notu Fotoğrafları (3 Sayfa).pdf", "belge.pdf"]);
+    expect(result.order).toEqual(["belge.pdf", "bozuk.docx", "Ders Notu Fotoğrafları (3 Sayfa).pdf"]);
     expect(result.failed).toEqual(["bozuk.docx"]);
     expect(result.firstError).toBe("Geçersiz dosya");
     expect(result.succeeded).toBe(2);

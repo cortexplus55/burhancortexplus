@@ -28,7 +28,7 @@ function sampleDraft(overrides: Partial<ExamWizardDraft> = {}): ExamWizardDraft 
     modality: "auto",
     equalFocus: true,
     focusTopics: [],
-    materials: [{ id: "doc-1", fileName: "notlar.pdf", sizeBytes: 1000, pageCount: 10 }],
+    materials: [{ id: "doc-1", fileName: "belge.pdf", sizeBytes: 1000, pageCount: 10 }],
     failedMaterials: [],
     processing: null,
     title: "Matematik sınav hazırlığı",

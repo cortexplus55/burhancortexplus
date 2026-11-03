@@ -151,8 +151,8 @@ export const MULTI_POLARITY_RULE =
   "sonuç da correct kümesiyle çelişmez.";
 
 /**
- * Çeldirici türü (30 Ekim 2026, canlı tur): ders içi soru bir endeks sorarken şıklarda enflasyon türleri vardı
- * ("Dezenflasyon", "Stagflasyon"); konuyu bilmeyen eleyip doğruyu buldu. Kural yalnız çok cevaplı soruda yazılıydı
+ * Çeldirici türü (30 Ekim 2026, canlı tur): ders içi soru bir endeks sorarken şıklarda başka türden kavramlar vardı
+ * ("Terim A", "Terim B"); konuyu bilmeyen eleyip doğruyu buldu. Kural yalnız çok cevaplı soruda yazılıydı
  * (`MULTI_DISTRACTOR_RULE`); test yazarının "sorulan kategoriden" maddesi ders yazarında yoktu. Ders ve test YAZARI ile
  * DENETÇİSİ bu metni aynen okur; kod (`offKindDistractors`) kaynağın tanım cümlesinden şıkkın türünü okur.
  */

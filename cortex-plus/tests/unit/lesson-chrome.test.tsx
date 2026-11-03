@@ -185,7 +185,7 @@ describe("ExamLessonSteps", () => {
           sections: [
             {
               heading: "Saf Maddeler ve Fazlar",
-              body: "Doymuş sıvı belirli bir basınçta kaynama başlamak üzere olan sıvıdır. Sıkıştırılmış sıvı T < T_sat(P) ve kızgın buhar T > T_sat(P) koşuluyla tanımlanır.",
+              body: "Doymuş sıvı belirli bir akımta kaynama başlamak üzere olan sıvıdır. Sıkıştırılmış sıvı T < T_sat(P) ve kızgın buhar T > T_sat(P) koşuluyla tanımlanır.",
               check: {
                 type: "mcq",
                 prompt: "Aşağıdakilerden hangisi doymuş sıvının tanımına uygundur?",
@@ -236,14 +236,14 @@ describe("ExamLessonSteps", () => {
   // kaynağın başka cümlesini doğru/yanlış diye sormaz. Yazarın ikinci sorusu yoksa aynı yargı yeniden sorulur.
   it("retries a missed true/false on the same fact and keeps prose off the formula line", () => {
     const body = [
-      "P = F/A. **Basınç** SI birimi Pascal (Pa) olarak tanımlanır",
+      "P = F/A. **Akım** SI birimi Pascal (Pa) olarak tanımlanır",
       "genelde kPa veya MPa cinsinden ifade edilir.",
       "Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir.",
     ].join("\n");
     render(
       <ExamLessonSteps
         lesson={{
-          title: "Basınç ve Sıcaklık",
+          title: "Akım ve Sıcaklık",
           sections: [
             {
               heading: "Sıcaklık",

@@ -16,7 +16,7 @@ const INVERTED =
   "Yaygın bir hata; sorularda “kJ/kg” verildiğinde toplam enerjinin, “kJ” verildiğinde özgül enerjinin kullanılması gerektiğini unutmak. Modelleme yaparken bu hatalar sıklıkla puan kaybettirir.";
 
 const PRESSURE_BODY =
-  "Basınç, yüzeye dik kuvvetin alana oranıdır: P = F/A. Basınç SI birimi Pascal (Pa) olarak tanımlanır; genelde kPa veya MPa cinsinden ifade edilir. 1 kPa = 1000 Pa, 1 MPa = 1000 kPa. Mutlak basınç, atmosfer basıncına göre ölçülür: P_mutlak = P_atm + P_man; Vakum durumunda ise: P_mutlak = P_atm - P_vakum. Örnek olarak, 50 kg kütleli bir pistonun alanı 0.010 m² ve atmosfer basıncı 95 kPa ise denge için hesaplama yapılır: P_gaz = P_atm + (mg/A) = 95 + (50×9.81/0.010)/1000 = 144.1 kPa.";
+  "Akım, yüzeye dik kuvvetin alana oranıdır: P = F/A. Akım SI birimi Pascal (Pa) olarak tanımlanır; genelde kPa veya MPa cinsinden ifade edilir. 1 kPa = 1000 Pa, 1 MPa = 1000 kPa. Mutlak akım, atmosfer basıncına göre ölçülür: P_mutlak = P_atm + P_man; Vakum durumunda ise: P_mutlak = P_atm - P_vakum. Örnek olarak, 50 kg kütleli bir pistonun alanı 0.010 m² ve atmosfer basıncı 95 kPa ise denge için hesaplama yapılır: P_gaz = P_atm + (mg/A) = 95 + (50×9.81/0.010)/1000 = 144.1 kPa.";
 
 const TEMPERATURE_BODY =
   "Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir. Sıfırıncı yasa iki sistem ısıl dengedeyse üçüncüyle de denge sağlar. Mutlak sıcaklık için T(K) = T(°C) + 273.15. Sıcaklık farkında 1 K = 1 °C. Bir gaz 20 °C'den 120 °C'ye ısıtılırsa artış 100 °C = 100 K olur.";
@@ -93,7 +93,7 @@ describe("short review and board", () => {
         prompt: "Dönüşüm için 25 °C = 298.15 K kullanılmalıdır. DOĞRU MU YANLIŞ?",
       },
       "tr",
-      "Basınç kuvvet bölü alandır.",
+      "Akım kuvvet bölü alandır.",
     );
     expect(noAnchor.prompt).toBe("Dönüşüm için 25 °C = 298.15 K kullanılmamalıdır. DOĞRU MU YANLIŞ?");
     expect(noAnchor.prompt).not.toContain("başka sözcüklerle");
@@ -102,18 +102,18 @@ describe("short review and board", () => {
 
   it("keeps one bold term and splits the board", () => {
     const published = publishLessonDraft({
-      title: "Basınç",
+      title: "Akım",
       objective: "Basıncı kuvvet ve alandan okuyabileceksin.",
       sections: [
         {
-          heading: "Basınç",
-          body: "**Basınç**, yüzeye dik kuvvettir. **Basınç** SI birimi pascaldır ve tablodan okunur.",
+          heading: "Akım",
+          body: "**Akım**, yüzeye dik kuvvettir. **Akım** SI birimi pascaldır ve tablodan okunur.",
           check,
         },
       ],
     });
     const body = published?.sections[0]?.body ?? "";
-    expect(body.split("**Basınç**").length - 1).toBe(1);
+    expect(body.split("**Akım**").length - 1).toBe(1);
 
     const lines = layoutBoard(PRESSURE_BODY);
     expect(lines.some((line) => line.kind === "formula" && line.text.includes("P = F/A"))).toBe(true);
@@ -121,7 +121,7 @@ describe("short review and board", () => {
     expect(lines.filter((line) => line.kind === "formula").length).toBeGreaterThan(1);
     expect(
       overviewDuplicatesSection(
-        "Basınç, yüzeye dik kuvvetin alana oranıdır: P = F/A.",
+        "Akım, yüzeye dik kuvvetin alana oranıdır: P = F/A.",
         PRESSURE_BODY,
       ),
     ).toBe(true);

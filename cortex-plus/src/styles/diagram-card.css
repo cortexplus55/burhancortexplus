@@ -2,7 +2,7 @@
   Parametrik şema kartı (diagram-card.tsx). Kurallar bileşenin kendi dosyasında (30 Ekim 2026, canlı tur):
   ders CSS'inde durduklarında yalnız ders ekranı yüklüyordu; çizimli videoda etiket katmanı konumsuz kaldı,
   süreç ağının kutuları boş göründü, etiketler kutuların altında bitişik bir satıra düştü
-  ("DeflasyonDezenflasyonFiyatlar").
+  (üç etiket boşluksuz yan yana).
 */
 
 .als-diagram-card {

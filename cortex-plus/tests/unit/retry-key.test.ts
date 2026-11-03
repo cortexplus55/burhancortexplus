@@ -267,10 +267,10 @@ describe("tekrarın gerekçeleri kendi şıklarının altında (C4g)", () => {
         options: ["Pascal", "Enerji", fact],
         answerIndex: 2,
         explanation: "Sıcaklık ısıl durumu gösterir.",
-        optionWhy: ["Basınç birimi.", "Sıcaklık enerji değildir.", "Doğru tanım."],
+        optionWhy: ["Akım birimi.", "Sıcaklık enerji değildir.", "Doğru tanım."],
       } as Check,
       "tr",
-      `Basınç Pascal ile ölçülür. ${fact}`,
+      `Akım Pascal ile ölçülür. ${fact}`,
     );
     expect(retry.type).toBe("trueFalse");
     expect(retry.optionWhy).toBeUndefined();
@@ -279,7 +279,7 @@ describe("tekrarın gerekçeleri kendi şıklarının altında (C4g)", () => {
 
 describe("ders içi ikinci soru aynı olguyu sınar (sameFactOnly)", () => {
   const LIVE = "Sıcaklık enerji birimidir, bu nedenle ısıl durumu gösterir. DOĞRU MU YANLIŞ?";
-  const source = "Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir. Basınç Pascal ile ölçülür.";
+  const source = "Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir. Akım Pascal ile ölçülür.";
   const tf: Check = { type: "trueFalse", prompt: LIVE, options: ["Yanlış", "Doğru"], answerIndex: 0, explanation: "Sıcaklık enerji birimi değildir." };
 
   it("odaklı pratik kaynağın başka cümlesini sorabilir; ders içi ikinci soru sormaz", () => {

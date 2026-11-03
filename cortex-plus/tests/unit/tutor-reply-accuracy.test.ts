@@ -109,7 +109,7 @@ describe("sayısal doğrulama", () => {
 
 describe("hazırlık korpusu", () => {
   const docs = [
-    { text: "İdeal gaz yasası PV = nRT. Basınç ve hacim." },
+    { text: "İdeal gaz yasası PV = nRT. Akım ve hacim." },
     { text: "Sınırlayıcı bileşen, mol sayısının katsayıya bölümüdür. Mol hesabı n = m / M." },
   ];
 
@@ -340,7 +340,7 @@ describe("canlı yol — hüküm taslağı ezer", () => {
     expect(fixed).not.toMatch(/uyuyor/);
     expect(fixed).not.toMatch(/=\s*18 g/);
     expect(auditQuantitative("0,80 × 17 = 13,6 g NH₃.").ok).toBe(true);
-    expect(auditQuantitative("3 × 0,5 = 1,5 mol.").ok).toBe(true);
+    expect(auditQuantitative("3 × 0,5 = 1,5 kg.").ok).toBe(true);
     expect(auditQuantitative("1 mol × 17 g/mol = 17 g.").ok).toBe(true);
     expect(auditQuantitative("80% = 0,8.").ok).toBe(true);
     expect(auditQuantitative("50% = 40%.").ok).toBe(false);

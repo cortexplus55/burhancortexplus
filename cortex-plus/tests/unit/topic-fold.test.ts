@@ -212,7 +212,7 @@ describe("consolidateTopics", () => {
       "Kapalı ve Açık Sistem",
       "Hal ve Proses",
       "Yoğun Özellikler",
-      "Basınç Tanımı",
+      "Akım Tanımı",
       "Sıcaklık Ölçeği",
       "Saf Madde Fazları",
       "Faz Diyagramları",
@@ -259,10 +259,10 @@ describe("consolidateTopics", () => {
   it("does not attach a chapter review via the running header or a quiz step", () => {
     const banner = "TERMODİNAMİK I | VİZE NOTLARI | BÖLÜM 1 Sayfa 20/30";
     const review = "19. Bölüm 1 Tekrarı - Mini Vize ve Formül Haritası";
-    const pressureStep = "1) Manometrik 40 kPa ve atmosfer 98 kPa ise mutlak basınç? 138 kPa.";
+    const pressureStep = "1) Manometrik 40 kPa ve atmosfer 98 kPa ise mutlak akım? 138 kPa.";
     const pages: FoldPage[] = [
       { pageNumber: 2, headings: [banner, "1. Termodinamiğe Giriş: Sistem ve Sınır"] },
-      { pageNumber: 6, headings: [banner, "5. Basınç, Mutlak Basınç ve Manometre Basıncı"] },
+      { pageNumber: 6, headings: [banner, "5. Akım, Mutlak Akım ve Manometre Basıncı"] },
       { pageNumber: 11, headings: [banner, "10. Termodinamik Tablolarda Enterpolasyon"] },
       { pageNumber: 19, headings: [banner, "18. İdeal Gazlarda Enerji Değişimi"] },
       { pageNumber: 20, headings: [banner, review, pressureStep] },
@@ -270,7 +270,7 @@ describe("consolidateTopics", () => {
     const { topics } = consolidateTopics(
       [
         topic("Termodinamiğe Giriş: Sistem ve Sınır", [2]),
-        topic("Basınç, Mutlak Basınç ve Manometre Basıncı", [6]),
+        topic("Akım, Mutlak Akım ve Manometre Basıncı", [6]),
         topic("Termodinamik Tablolarda Enterpolasyon", [11]),
         topic("İdeal Gazlarda Enerji Değişimi", [19]),
         topic(banner, [20]),
@@ -281,7 +281,7 @@ describe("consolidateTopics", () => {
       20,
     );
     expect(topics.find((item) => item.title.includes("Enterpolasyon"))?.pageNumbers).toEqual([11]);
-    expect(topics.find((item) => item.title.startsWith("Basınç"))?.pageNumbers).toEqual([6]);
+    expect(topics.find((item) => item.title.startsWith("Akım"))?.pageNumbers).toEqual([6]);
     expect(topics.flatMap((item) => item.pageNumbers)).not.toContain(20);
     expect(topics.map((item) => item.title).join(" ")).not.toMatch(/tekrar|manometrik|vize notları/i);
   });

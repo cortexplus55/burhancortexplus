@@ -35,7 +35,7 @@ export function noteRuleUserPrompt(text: string): string {
 /**
  * Karşılaştırma biçimi. El yazısı OCR'ı formülü LaTeX verir ("\\(a = b \\cdot c\\)"); model ise düz
  * yazar ("a = b · c"). LaTeX normalleştirilmeden "notta birebir geçmeli" denetimi doğru uyarıyı atıyordu
- * (4 Kasım 2026, Senaryo B1). Aynı normalleştirme katalogda da kullanılıyor.
+ * Aynı normalleştirme katalogda da kullanılıyor.
  */
 function squash(value: string): string {
   return normalizeMathSide(value.normalize("NFKC").replace(/[−–]/g, "-")).toLocaleLowerCase("tr-TR");

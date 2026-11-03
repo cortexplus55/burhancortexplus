@@ -124,7 +124,7 @@ describe("kaynak çelişkisi · disiplinler", () => {
 
   it("fizik: aynı büyüklük için farklı sayı çelişkidir", () => {
     expect(relateClaims("1 kPa = 1000 Pa", "1 kPa = 100 Pa")).toBe("conflict");
-    expect(relateClaims("Basınç birimi: 1 kPa = 1000 Pa'dır.", "1 kPa = 1000 Pa")).toBe("same");
+    expect(relateClaims("Akım birimi: 1 kPa = 1000 Pa'dır.", "1 kPa = 1000 Pa")).toBe("same");
   });
 
   it("tıp: birim eklenmiş aynı aralık aynı iddiadır", () => {

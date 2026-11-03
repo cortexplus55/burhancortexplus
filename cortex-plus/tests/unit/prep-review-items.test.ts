@@ -589,10 +589,10 @@ describe("22 Ekim 2026 inceleme: testedTopic", () => {
     const drafts = reviewDraftsFromAttempt({
       attemptId: ATTEMPT,
       kind: "final_check",
-      payload: { type: "quiz", testedTopic: "Basınç", questions: [{ text: "Hangisi soygazdır?", options: ["Argon", "Oksijen"], correct: "Argon" }] },
+      payload: { type: "quiz", testedTopic: "Akım", questions: [{ text: "Hangisi soygazdır?", options: ["Argon", "Oksijen"], correct: "Argon" }] },
       answers: { 0: "Oksijen" },
       topicLabel: "Isı",
     });
-    expect(drafts.map((draft) => draft.topicLabel)).toEqual(["Basınç"]);
+    expect(drafts.map((draft) => draft.topicLabel)).toEqual(["Akım"]);
   });
 });

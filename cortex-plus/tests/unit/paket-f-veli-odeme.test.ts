@@ -43,8 +43,8 @@ describe("Paket F · velime ödeme linki: imzalı, süreli, kurcalanamaz", () =>
   });
 
   it("paylaşım metni öğrenciyi, planı ve fiyatı söyler; WhatsApp adresi kodlanır", () => {
-    const text = parentShareText({ studentName: "Elif", planName: "Plus aylık", priceLabel: "₺399", url: "https://cortexplus.app/odeme/veli/x" });
-    expect(text).toContain("Elif için Cortex Plus Plus aylık (₺399)");
+    const text = parentShareText({ studentName: "Ayşe", planName: "Plus aylık", priceLabel: "₺399", url: "https://cortexplus.app/odeme/veli/x" });
+    expect(text).toContain("Ayşe için Cortex Plus Plus aylık (₺399)");
     expect(text).toContain("hesap açmadan");
     expect(text.endsWith("https://cortexplus.app/odeme/veli/x")).toBe(true);
     expect(whatsappShareUrl("a b&c")).toBe("https://wa.me/?text=a%20b%26c");

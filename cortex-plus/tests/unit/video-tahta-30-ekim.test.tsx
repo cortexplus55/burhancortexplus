@@ -48,7 +48,7 @@ describe("çizimli video tahtası (30 Ekim 2026, canlı tur)", () => {
   });
 
   it("metnin yanındaki sayı ve değişkenle arası açık kalır", () => {
-    expect(textifyFormulaWords("Deflasyon: fiyatlar ↓")).toBe("\\text{Deflasyon}: \\text{fiyatlar} ↓");
+    expect(textifyFormulaWords("Bolluk: fiyatlar ↓")).toBe("\\text{Bolluk}: \\text{fiyatlar} ↓");
     expect(textifyFormulaWords("toplam 5 adet")).toBe("\\text{toplam}\\  5 \\ \\text{adet}");
     expect(textifyFormulaWords("Enerji mc^2")).toBe("\\text{Enerji}\\ mc^2");
     expect(textifyFormulaWords("\\frac{Kütle}{Hacim}")).toBe("\\frac{\\text{Kütle}}{\\text{Hacim}}");
@@ -69,26 +69,26 @@ describe("çizimli video tahtası (30 Ekim 2026, canlı tur)", () => {
       <VideoLessonPlayer
         prepId="prep-1"
         videoId="video-1"
-        title="Enflasyon"
-        topicLabel="Enflasyon"
+        title="Kıtlık"
+        topicLabel="Kıtlık"
         styleLabel="1 Dk Çizimli Video"
         completed={false}
         scenes={[
           {
-            narration: "Yüksek işsizlik ve enflasyon birlikte görülür.",
+            narration: "Yüksek işsizlik ve kıtlık birlikte görülür.",
             durationMs: 4000,
             imageUrl: "",
             audioUrl: "/a.mp3",
-            sceneTitle: "Stagflasyon",
-            keyFact: "Yüksek işsizlik ve enflasyon birlikte",
-            formula: "Durgunluk + enflasyon",
+            sceneTitle: "Durgunluk",
+            keyFact: "Yüksek işsizlik ve kıtlık birlikte",
+            formula: "Durgunluk + kıtlık",
             diagram: {
               diagramKind: "process_network",
               title: "Birlikte görülen durumlar",
               items: [
                 { label: "Durgunluk", value: "" },
-                { label: "Enflasyon", value: "" },
-                { label: "Stagflasyon", value: "", highlight: true },
+                { label: "Kıtlık", value: "" },
+                { label: "Durgunluk", value: "", highlight: true },
               ],
             },
           },
@@ -98,7 +98,7 @@ describe("çizimli video tahtası (30 Ekim 2026, canlı tur)", () => {
     const facts = container.querySelectorAll(".cp-video-fact");
     expect(facts).toHaveLength(1);
     expect(facts[0].closest(".cp-video-board-body")).toBeTruthy();
-    expect(container.querySelector(".cp-sketch-formula")?.textContent).toBe("Durgunluk + enflasyon");
+    expect(container.querySelector(".cp-sketch-formula")?.textContent).toBe("Durgunluk + kıtlık");
     const css = read("src/styles/video-lesson.css");
     expect(css).toMatch(/\.cp-video-board \{[\s\S]*container-type: size/);
     // Canlı ölçüm (639 px yüksek pencere): üst çubuk 137 px, formül satırları 0 yüksekliğe eziliyordu.

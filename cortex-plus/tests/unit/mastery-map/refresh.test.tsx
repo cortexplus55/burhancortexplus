@@ -26,7 +26,7 @@ async function answerAll(count: number, wrongAt: (i: number) => boolean) {
 
 describe("hazırlık ana sayfası tazelenir (tam gezinti gerekmez)", () => {
   it("Ünite Seviye Kontrolü kaydedilince ve 'Kapat'ta router.refresh()", async () => {
-    render(<UnitLevelCheck prepId="p" unitId="e2e-tyt#1" unitTitle="Mantık" api={fakeLevelApi({ guest: false })} />);
+    render(<UnitLevelCheck prepId="p" unitId="e2e-tyt#1" unitTitle="Örüntü" api={fakeLevelApi({ guest: false })} />);
     fireEvent.click(screen.getByRole("button", { name: "Kontrolü başlat" }));
     await answerAll(4, (i) => i % 2 === 1);
     await screen.findByTestId("unit-check-result");
@@ -54,7 +54,7 @@ describe("hazırlık ana sayfası tazelenir (tam gezinti gerekmez)", () => {
 
   it("hiç ek soru yoksa öneri gösterilmez, dürüst satır", async () => {
     const api = fakeLevelApi({ guest: false });
-    render(<ReinforceBox prepId="p" unitId="e2e-tyt#1" unitTitle="Mantık" api={api} />);
+    render(<ReinforceBox prepId="p" unitId="e2e-tyt#1" unitTitle="Örüntü" api={api} />);
     expect((await screen.findByTestId("reinforce-empty")).textContent).toContain("Şu an ek soru kalmadı");
     expect(screen.queryByTestId("reinforce-offer")).toBeNull();
   });

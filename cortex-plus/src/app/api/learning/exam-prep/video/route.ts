@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   const topic = await resolvePrepTopicRow<{ id: string; label: string }>(service, prepId, topicId, "id, label");
   if (!topic) return errorResponse(404, "not_found");
 
-  // Paylaşımlı video kaynak ve öğretmen analizinden ÖNCE okunur (4 Kasım 2026, Senaryo A): havuz isabeti 0 model
+  // Paylaşımlı video kaynak ve öğretmen analizinden ÖNCE okunur: havuz isabeti 0 model
   // çağrısı ve kaynak çözümü olmadan döner.
   const earlyStyle = sketch ? "sketch_reel" : imageStyle;
   const poolUnit = await sharedMediaUnit(service, prepId, String(topic.label));

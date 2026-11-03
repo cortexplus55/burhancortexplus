@@ -83,8 +83,8 @@ export function preserveSubscriptLetters(text: string): string {
 const EXAM_MARK = /==(?=\S)(?:[^=\n]|=(?!=)){1,160}?(?<=\S)==/;
 
 /*
-  Düzenleme sırasında vurgu bir bütün olarak korunur (18 Ekim 2026, trigonometri dersi):
-  "==Derece → radyan: π/180; radyan → derece: 180/π.==" içindeki ";" ve işaretin kendi "=="
+  Düzenleme sırasında vurgu bir bütün olarak korunur (18 Ekim 2026):
+  "==A → B: x/y; B → A: y/x.==" içindeki ";" ve işaretin kendi "=="
   karakterleri formül sanılıp cümle oradan bölünüyordu; işaret iki satıra kırılınca ekranda
   ham "==" kaldı ve "=" taşıyan parçalar formül satırı olup bir önceki cümleye "şöyle
   hesaplanır:" eklendi. İşaret önce yer tutucuya alınır, satırlar kurulunca geri konur;

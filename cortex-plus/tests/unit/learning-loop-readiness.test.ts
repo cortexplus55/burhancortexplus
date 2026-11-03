@@ -40,8 +40,8 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
   it("10 cevaptan 9'u doğru, açık yanılgı yok, deneme hedefte → Hazırsın, yüzde %90'ı geçmez", () => {
     const indicators = buildLearningIndicators({
       nodes: allDone,
-      topics: [topic({ topicKey: "basınç" })],
-      plannedTopicKeys: ["Basınç"],
+      topics: [topic({ topicKey: "akım" })],
+      plannedTopicKeys: ["Akım"],
       openMisconceptions: 0,
       mockScorePct: 80,
       targetScore: 70,
@@ -54,8 +54,8 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
   it("açık yanılgı varken deneme hedefi geçtiyse yine Hazırsın; yüzde tavanı yerinde", () => {
     const indicators = buildLearningIndicators({
       nodes: allDone,
-      topics: [topic({ topicKey: "basınç" })],
-      plannedTopicKeys: ["Basınç"],
+      topics: [topic({ topicKey: "akım" })],
+      plannedTopicKeys: ["Akım"],
       openMisconceptions: 1,
       mockScorePct: 80,
       targetScore: 70,
@@ -68,8 +68,8 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
     for (const mockScorePct of [60, null]) {
       const strong = buildLearningIndicators({
         nodes: allDone,
-        topics: [topic({ topicKey: "basınç" })],
-        plannedTopicKeys: ["Basınç"],
+        topics: [topic({ topicKey: "akım" })],
+        plannedTopicKeys: ["Akım"],
         openMisconceptions: 0,
         mockScorePct,
         targetScore: 70,
@@ -78,8 +78,8 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
       expect(strong.examReadiness.pct).toBeGreaterThanOrEqual(70);
       const weak = buildLearningIndicators({
         nodes: allDone,
-        topics: [topic({ topicKey: "basınç", independentCorrect: 5, firstAttemptCorrect: 5, level: "weak", confidence: 50 })],
-        plannedTopicKeys: ["Basınç"],
+        topics: [topic({ topicKey: "akım", independentCorrect: 5, firstAttemptCorrect: 5, level: "weak", confidence: 50 })],
+        plannedTopicKeys: ["Akım"],
         openMisconceptions: 0,
         mockScorePct,
         targetScore: 70,
@@ -92,8 +92,8 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
   it("ölçülmemiş planlı konu varken genel skor Hazırsın demez; deneme hedefi geçerse der", () => {
     const partial = {
       nodes: allDone,
-      topics: [topic({ topicKey: "basınç" })],
-      plannedTopicKeys: ["Basınç", "Sıcaklık", "Hacim", "Kaldırma", "Akışkan"],
+      topics: [topic({ topicKey: "akım" })],
+      plannedTopicKeys: ["Akım", "Sıcaklık", "Hacim", "Sürtünme", "Akışkan"],
       openMisconceptions: 0,
       targetScore: 70,
     };
@@ -104,12 +104,12 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
 
   it("%89 deneme, %80 hedef: ekran Hazırsın der, düşük konu 'Çalışılacak', diğerleri 'Sağlam'", () => {
     const screen = buildReadinessScreen({
-      plannedTopics: ["Basınç", "Sıcaklık"],
+      plannedTopics: ["Akım", "Sıcaklık"],
       mastery: [
-        topic({ topicKey: "basınç" }),
+        topic({ topicKey: "akım" }),
         topic({ topicKey: "sıcaklık", independentCorrect: 6, firstAttemptCorrect: 6, level: "emerging", confidence: 60 }),
       ],
-      openMissesByTopic: [{ topic: "Basınç", count: 1 }],
+      openMissesByTopic: [{ topic: "Akım", count: 1 }],
       mockScorePct: 89,
       targetScore: 80,
       nodes: allDone,
@@ -118,9 +118,9 @@ describe("Hazırsın: deneme ya da genel skor hedefi geçtiyse", () => {
     expect(screen.ready).toBe(false);
     expect(screen.headline).not.toBe(READY);
     expect(screen.lead.length).toBeGreaterThan(0);
-    expect(screen.topics.find((row) => row.topic === "Basınç")?.state).toBe("ready");
+    expect(screen.topics.find((row) => row.topic === "Akım")?.state).toBe("ready");
     // Paket I #7: açık yanılgı "yanlış" sayısıyla karışmasın diye ayrı adla yazılır.
-    expect(screen.topics.find((row) => row.topic === "Basınç")?.detail).toContain("1 yanılgı henüz kapanmadı");
+    expect(screen.topics.find((row) => row.topic === "Akım")?.detail).toContain("1 yanılgı henüz kapanmadı");
     expect(screen.topics.find((row) => row.topic === "Sıcaklık")?.state).toBe("needs_work");
   });
 });
@@ -134,7 +134,7 @@ describe("yazılı deneme kanıtı", () => {
         practiceExamId: "e1",
         practiceAttemptId: "pa1",
         items: [
-          { topic: "Basınç", verdict: "dogru", correct: true },
+          { topic: "Akım", verdict: "dogru", correct: true },
           { topic: "Sıcaklık", verdict: "kismen", correct: false },
           { topic: "Sıcaklık", verdict: "bos", correct: false },
         ],
@@ -144,13 +144,13 @@ describe("yazılı deneme kanıtı", () => {
       isFirstAttempt: true,
     });
     expect(evidence).toHaveLength(3);
-    expect(evidence.map((row) => row.topicKey)).toEqual(["basınç", "sıcaklık", "sıcaklık"]);
+    expect(evidence.map((row) => row.topicKey)).toEqual(["akım", "sıcaklık", "sıcaklık"]);
     expect(evidence.every((row) => row.sourceKind === "written_exam" && !row.hintAssisted)).toBe(true);
     expect(evidence.map((row) => row.correct)).toEqual([true, false, false]);
     expect(evidence[2].wrongType).toBe("mock_blank");
     expect(evidence[1].wrongType).toBe("mock_miss");
     const folded = foldTopicMastery(evidence);
-    expect(folded.find((row) => row.topicKey === "basınç")?.independentCorrect).toBe(1);
+    expect(folded.find((row) => row.topicKey === "akım")?.independentCorrect).toBe(1);
     expect(folded.find((row) => row.topicKey === "sıcaklık")?.independentTotal).toBe(2);
   });
 
@@ -159,14 +159,14 @@ describe("yazılı deneme kanıtı", () => {
       kind: "gaps",
       payload: {
         type: "quiz",
-        testedTopic: "Basınç",
+        testedTopic: "Akım",
         questions: [{ text: "s1", options: ["A", "B"], correct: ["A"], multi: false }],
       },
       answers: { "0": "A" },
       topicLabel: "İlk konu",
       isFirstAttempt: true,
     });
-    expect(evidence[0].topicKey).toBe("basınç");
+    expect(evidence[0].topicKey).toBe("akım");
   });
 });
 
@@ -176,13 +176,13 @@ describe("Devam et yolun penceresinde kalır", () => {
     kind,
     status: "ready" as const,
     sortOrder,
-    sessionMeta: { topicTitle: "Basınç" },
+    sessionMeta: { topicTitle: "Akım" },
   });
 
   it("erken açılan son kartlar 'Devam et'i sınav gününe atlatmaz", () => {
     const next = preferNextNodeForTracking([node("lesson", "lesson", 10), node("cards", "flashcards", 90)], {
       openMisconceptions: 3,
-      weakOrStaleTopicKeys: ["basınç"],
+      weakOrStaleTopicKeys: ["akım"],
     });
     expect(next?.id).toBe("lesson");
   });
@@ -218,13 +218,13 @@ describe("Devam et yolun penceresinde kalır", () => {
 describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğümün kaydından", () => {
   const prep = { userId: "u1", prepId: "p1", prepTitle: "Fizik", targetScore: 70, learningPreferences: null };
   const nodes = (withMockDone: boolean) => [
-    { id: "n-lesson", kind: "lesson", status: "done", session_meta: { topicTitle: "Basınç" } },
+    { id: "n-lesson", kind: "lesson", status: "done", session_meta: { topicTitle: "Akım" } },
     { id: "n-mock", kind: "written_exam", status: withMockDone ? "done" : "ready", session_meta: null },
     ...Array.from({ length: 40 }, (_, i) => ({
       id: `n-quiz-${i}`,
       kind: "quiz",
       status: "done",
-      session_meta: { topicTitle: "Basınç" },
+      session_meta: { topicTitle: "Akım" },
     })),
   ];
   // 40 yeni test kaydı: deneme kaydı pencerenin dışında kaldı.
@@ -243,12 +243,12 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
   const handler =
     (withMockDone: boolean) =>
     (call: FakeCall): FakeResult | undefined => {
-      if (call.table === "exam_prep_topics") return { data: [{ id: "t1", label: "Basınç" }] };
+      if (call.table === "exam_prep_topics") return { data: [{ id: "t1", label: "Akım" }] };
       if (call.table === "exam_prep_topic_mastery") {
         return {
           data: [
             {
-              topic_key: "basınç",
+              topic_key: "akım",
               measured_level: "solid",
               confidence: 90,
               evidence_count: 10,
@@ -297,8 +297,8 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
   it("açık yanılgı sayısı okunamadıysa yüzde 85'i geçmez; deneme hedefi geçtiyse karar Hazırsın", () => {
     const indicators = buildLearningIndicators({
       nodes: allDone,
-      topics: [topic({ topicKey: "basınç" })],
-      plannedTopicKeys: ["Basınç"],
+      topics: [topic({ topicKey: "akım" })],
+      plannedTopicKeys: ["Akım"],
       openMisconceptions: 0,
       openMisconceptionsKnown: false,
       mockScorePct: 80,
@@ -310,8 +310,8 @@ describe("Hazırsın ekranı: deneme puanı 40'lık pencereden değil, düğüm�
 
   it("hedef girilmemişse ekran %70'i söyler ve hedef altındaki denemeyi gösterir", () => {
     const screen = buildReadinessScreen({
-      plannedTopics: ["Basınç"],
-      mastery: [topic({ topicKey: "basınç" })],
+      plannedTopics: ["Akım"],
+      mastery: [topic({ topicKey: "akım" })],
       openMissesByTopic: [],
       mockScorePct: 65,
       targetScore: null,

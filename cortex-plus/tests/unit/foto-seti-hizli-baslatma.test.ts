@@ -111,11 +111,11 @@ describe("tarayıcıdaki set kurucu", () => {
 
   it("seçim: tek fotoğraf sete girmez; fotoğraf ve belge ayrılır", () => {
     expect(PHOTO_SET_MIN_PHOTOS).toBe(2);
-    const pdf = new File(["x"], "notlar.pdf", { type: "application/pdf" });
+    const pdf = new File(["x"], "belge.pdf", { type: "application/pdf" });
     expect(splitSelection([photo(1), pdf])).toEqual({ photos: [], others: [photo(1), pdf].map((file) => expect.objectContaining({ name: file.name })) });
     const picked = splitSelection([pdf, photo(1), photo(2), photo(3)]);
     expect(picked.photos.map((file) => file.name)).toEqual(["IMG_001.jpg", "IMG_002.jpg", "IMG_003.jpg"]);
-    expect(picked.others.map((file) => file.name)).toEqual(["notlar.pdf"]);
+    expect(picked.others.map((file) => file.name)).toEqual(["belge.pdf"]);
   });
 
   it("hızlı başlatma: 30 fotoğrafta ilk 10 sayfa ayrı parça olarak ve hepsi küçültülmeden önce verilir", async () => {

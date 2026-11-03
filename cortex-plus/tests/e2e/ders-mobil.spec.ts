@@ -47,7 +47,7 @@ test("akış şeması 375 px'te alt alta numaralı liste; tablo kendi kutusunda 
   await expect(steps).toHaveCount(4);
   const boxes = await steps.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
   for (let i = 1; i < boxes.length; i += 1) expect(boxes[i]!).toBeGreaterThan(boxes[i - 1]!);
-  await expect(page.getByText("İfadelerin doğruluk değerlerini kullan")).toBeVisible();
+  await expect(page.getByText("Girdilerin değerlerini kullan")).toBeVisible();
   const table = page.locator(".als-reference-table-scroll");
   const fits = await table.evaluate((el) => el.getBoundingClientRect().right <= document.documentElement.clientWidth + 1);
   expect(fits).toBe(true);

@@ -53,7 +53,7 @@ export function readTwinQuestion(raw: unknown, original: QuizQuestion): QuizQues
   if (typeof data.text !== "string" || !Array.isArray(data.options)) return null;
   const correctRaw = Array.isArray(data.correct) ? data.correct : data.correct != null ? [data.correct] : [];
   // Model ana sorunun "A) …" biçimini kopyalayıp şık metnine harf yazabiliyor (31 Ekim 2026 canlı deneme: karışınca
-  // ekranda "A · E) Hiperenflasyon"). Bütün şıklar harfle başlıyorsa harf düşer; anahtar da aynı biçime çekilir.
+  // ekranda "A · E) Terim C"). Bütün şıklar harfle başlıyorsa harf düşer; anahtar da aynı biçime çekilir.
   const rawOptions = data.options.map((option) => String(option).trim());
   const lettered = rawOptions.length > 0 && rawOptions.every((option) => OPTION_LETTER.test(option));
   const options = lettered ? rawOptions.map((option) => option.replace(OPTION_LETTER, "").trim()) : rawOptions;

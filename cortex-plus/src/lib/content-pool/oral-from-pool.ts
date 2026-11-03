@@ -24,7 +24,7 @@ function splitMistake(text: string): { mistake: string; fix: string } {
 }
 
 /**
- * Soru ile rubrik aynı şeyi ister (4 Kasım 2026 canlı, Senaryo A): "bir hatayı söyle" sorusu bütün hataları ve
+ * Soru ile rubrik aynı şeyi ister: "bir hatayı söyle" sorusu bütün hataları ve
  * ana noktaları bekliyordu; doğru cevap %25 "yanlış" notlanıyordu. Hata sorusu artık hatayı adıyla verir ve
  * yalnız onun düzeltmesini bekler; örnek sorusu örneğin çözümünü örnek cevap yapar.
  */

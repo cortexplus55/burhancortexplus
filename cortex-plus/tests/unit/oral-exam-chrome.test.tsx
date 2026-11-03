@@ -17,13 +17,13 @@ afterEach(cleanup);
 
 const topics = [
   { id: "a", label: "Termodinamik Sistemler ve Temel Kavramlar", pct: 0 },
-  { id: "b", label: "Basınç ve Sıcaklık İlkeleri", pct: 0 },
+  { id: "b", label: "Akımın ve Sıcaklığın İlkeleri", pct: 0 },
 ];
 
 describe("oral exam chrome helpers", () => {
   it("keeps the voice topic label inside the 120 character cap", () => {
     const long = "Termodinamik Sistemler ve Temel Kavramlar ile Enerji Analizi";
-    const labels = [long, "Basınç ve Sıcaklık İlkeleri", "Saf Maddelerin Faz Değişimleri"];
+    const labels = [long, "Akımın ve Sıcaklığın İlkeleri", "Saf Maddelerin Faz Değişimleri"];
     const joined = labels.join(", ");
     expect(joined.length).toBeGreaterThan(ORAL_VOICE_TOPIC_MAX);
 

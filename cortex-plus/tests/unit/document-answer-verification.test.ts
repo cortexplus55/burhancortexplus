@@ -29,8 +29,8 @@ describe("looselyContains — canlıda belgede yazan cevaplar düşmesin (19 Eki
     expect(looselyContains(page, "Bu evrenin ürünleri: ATP, NADPH ve O2.")).toBe(true);
   });
   it("satırlara bölünmüş formül, bir iki kelime farkla bulunur", () => {
-    const source = "Sürtünmesiz eğik düzlemde cismin ivmesi kütleden bağımsızdır: a = g · sin θ . Örneğin 30°'lik\nsürtünmesiz eğik düzlemde (sin 30° = 0,5, g = 10 m/s²) ivme 5 m/s² 'dir.";
-    expect(looselyContains(source, "Örneğin 30°'lik sürtünmesiz eğik düzlemde sin 30° = 0,5 ve g = 10 m/s² için ivme 5 m/s²'dir")).toBe(true);
+    const source = "Sürtünmesiz eğik düzlemde cismin ivmesi kütleden bağımsızdır: a = g · sin θ . Örneğin 30°'lik\nsürtünmesiz eğik düzlemde (sin 30° = 0,5, g = 9,8 m/s²) ivme 4,9 m/s² 'dir.";
+    expect(looselyContains(source, "Örneğin 30°'lik sürtünmesiz eğik düzlemde sin 30° = 0,5 ve g = 9,8 m/s² için ivme 4,9 m/s²'dir")).toBe(true);
   });
   it("sayısı tutmayan alıntı geçmez", () => {
     const source = "Sırpsındığı Savaşı (1364): Haçlılarla yapılan ilk savaştır ve kazanıldı.";

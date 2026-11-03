@@ -5,13 +5,13 @@ import { SAME_KIND_DISTRACTOR_RULE } from "@/lib/learning/teaching-rubric";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 
 /*
-  30 Ekim 2026, canlı Araçlar testi (#426 yayındayken): kaynakta iki enflasyon maliyeti vardı; yazar türden olmayan
+  30 Ekim 2026, canlı Araçlar testi (#426 yayındayken): kaynakta iki kıtlık maliyeti vardı; yazar türden olmayan
   çeldiricileri atınca şıkları uydurdu: "Açık piyasa maliyeti", "Zorunlu karşılık maliyeti", "Reeskont maliyeti",
   "Politika faizi maliyeti". Belgeli testte tür adını taşıyan ama kaynakta hiç geçmeyen şık işaretlenir.
 */
 
 const economics =
-  "Enflasyonun maliyetleri: Menü maliyeti, fiyat etiketlerinin sık sık yenilenmesinin yarattığı maliyettir. " +
+  "Kıtlıkun maliyetleri: Menü maliyeti, fiyat etiketlerinin sık sık yenilenmesinin yarattığı maliyettir. " +
   "Ayakkabı eskitme maliyeti, nakit tutmaktan kaçınmak için bankaya sık gidilmesinin maliyetidir. " +
   "Para politikası araçları: açık piyasa işlemleri, reeskont oranı, zorunlu karşılık oranı ve politika faizi.";
 
@@ -32,7 +32,7 @@ describe("uydurma kardeş terim", () => {
   });
 
   it("canlı soru 5: 'Politika faizi maliyeti', 'Reeskont maliyeti' (Üretim maliyeti de kaynakta yok)", () => {
-    const stem = "Bir hane, nakit tutmanın etkilerinden kaçınmak için bankaya sık sık gidiyor. Bu davranışla bağlantılı enflasyon maliyeti hangisidir?";
+    const stem = "Bir hane, nakit tutmanın etkilerinden kaçınmak için bankaya sık sık gidiyor. Bu davranışla bağlantılı kıtlık maliyeti hangisidir?";
     const options = ["Menü maliyeti", "Üretim maliyeti", "Politika faizi maliyeti", "Reeskont maliyeti", "Ayakkabı eskitme maliyeti"];
     expect(inventedKindSiblings({ stem, options, correctIndex: 4, context: economics })).toEqual([
       "Üretim maliyeti",

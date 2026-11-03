@@ -7,9 +7,9 @@ const LIVE_PROMPT = "Sıcaklık enerji birimidir, bu nedenle ısıl durumu göst
 const TEMPERATURE_FACT = "Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir.";
 
 const source = [
-  "Basınç, yüzeye dik kuvvetin alana oranıdır. P = F/A.",
-  "Basınç SI birimi Pascal (Pa) olarak tanımlanır. Genelde kPa veya MPa cinsinden ifade edilir.",
-  "Mutlak basınç, atmosfer basıncına göre ölçülür: P_mutlak = P_atm + P_man.",
+  "Akım, yüzeye dik kuvvetin alana oranıdır. P = F/A.",
+  "Akım SI birimi Pascal (Pa) olarak tanımlanır. Genelde kPa veya MPa cinsinden ifade edilir.",
+  "Mutlak akım, atmosfer basıncına göre ölçülür: P_mutlak = P_atm + P_man.",
   "Vakum durumunda P_mutlak = P_atm - P_vakum.",
   TEMPERATURE_FACT,
 ].join(" ");
@@ -94,10 +94,10 @@ describe("formula lines stay relations", () => {
   it("puts prose back, rejoins a wrapped sentence, and drops list marks", () => {
     const lines = layoutBoard(
       [
-        "P = F/A. **Basınç** SI birimi Pascal (Pa) olarak tanımlanır",
+        "P = F/A. **Akım** SI birimi Pascal (Pa) olarak tanımlanır",
         "genelde kPa veya MPa cinsinden ifade edilir.",
         "1 kPa = 1000 Pa",
-        "1 MPa = 1000 kPa. Basınç hesaplamasında atmosfer basıncı ve manometre basıncının bilinmesi önemlidir.",
+        "1 MPa = 1000 kPa. Akım hesaplamasında atmosfer basıncı ve manometre basıncının bilinmesi önemlidir.",
         "P_mutlak = P_atm + P_man;",
         "1. P_gaz = P_atm + (mg/A)",
         "= 95 + (50×9.81/0.010)/1000 = 144.1 kPa.",
@@ -193,12 +193,12 @@ describe("lessons ask more than one check", () => {
   });
 
   const lesson = (checks: boolean[]) => ({
-    title: "Basınç ve sıcaklık",
+    title: "Akım ve sıcaklık",
     objective: "Üç kavramı birbirinden ayırt edebileceksin.",
-    overview: "Basınç, mutlak basınç ve sıcaklık ayrı bağıntılardır.",
+    overview: "Akım, mutlak akım ve sıcaklık ayrı bağıntılardır.",
     sections: [
-      section("Basınç", checks[0] ?? false),
-      section("Mutlak basınç", checks[1] ?? false),
+      section("Akım", checks[0] ?? false),
+      section("Mutlak akım", checks[1] ?? false),
       section("Sıcaklık", checks[2] ?? false),
     ],
     summary: ["P = F/A", "P_mutlak = P_atm + P_man"],
