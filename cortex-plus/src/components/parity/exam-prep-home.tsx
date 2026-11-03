@@ -208,7 +208,7 @@ export function pathNodeLabel(heading: string, kindTitle: string, sectionTitle?:
 
 function nodeHeading(node: HomeNode): string {
   const raw = node.title || PLAN_NODE_META[node.kind].title;
-  // "9. Sınıf · Mantık" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
+  // "9. Sınıf · Konu" kartta "9. Sınıf" yazıyordu (2 Kasım 2026): sınıf parçası başlık olmaz.
   const parts = withoutGradeParts(raw.split(" · ").map((part) => part.trim()));
   // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
   // kendi adı. kıyas ürünü kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).

@@ -18,7 +18,7 @@ describe("canlıda görülen sızıntılar silinir", () => {
         "Yevmiye defteri tarih sırasıyla tutulur. Tekrar soruları ile boş ödev tablosu bu anlatımda ele alınmıyor.",
         "Yevmiye defteri tarih sırasıyla tutulur.",
       ],
-      ["En kısa yolu bulun (Alıştırma 11.5).", "En kısa yolu bulun."],
+      ["En kısa yolu bulun (Alıştırma 3.2).", "En kısa yolu bulun."],
       ["Alıştırma 9.1: Yığına 3, 5, 7 eklenir.", "Yığına 3, 5, 7 eklenir."],
       ["Dönem: 2026–2027\nMizan dönem sonunda çıkarılır.", "Mizan dönem sonunda çıkarılır."],
       ["Ders: Muhasebe · Dönem: 2026\nKDV oranı %20'dir.", "KDV oranı %20'dir."],
@@ -43,7 +43,7 @@ describe("canlıda görülen sızıntılar silinir", () => {
 describe("istem kaynağı kapandı", () => {
   it("yazar renk anahtarını bilmez; yasak listesi yeni kalıpları sayar", () => {
     expect(EMPHASIS_RULE).not.toMatch(/turuncu/i);
-    for (const phrase of ["turuncu işaretli yerler", "ele alınmadığını söyleme", "kişi adı uydurma", "Alıştırma 11.5"]) {
+    for (const phrase of ["renk anahtarını anlatma", "ele alınmadığını söyleme", "kişi adı uydurma", "alıştırma numarasını"]) {
       expect(STUDENT_LEAK_BAN).toContain(phrase);
     }
   });

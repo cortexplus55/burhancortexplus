@@ -512,14 +512,14 @@ export function alternativeBlock(text: string | undefined): string {
 }
 
 /**
- * Kaynaklar arası formül çelişkisi (4 Kasım 2026, Senaryo B1): el notu «Fk = Vbatan·dcisim·g», PDF ve slayt
- * «F_k = V_batan·d_sıvı·g» diyordu; Basınç dersi el notunu doğru diye öğretti. Birden çok kaynak varken yazara tek kural:
- * evrensel formülde standart bilime uyanı anlat. Notun kendi sayısal kuralları (g = 10, yuvarlama) korunur.
+ * Kaynaklar arası formül çelişkisi (4 Kasım 2026): bir kaynak evrensel bir bağıntıyı yanlış, öbürleri doğru yazınca ders
+ * yanlışı doğru diye öğretebiliyordu. Birden çok kaynak varken yazara tek kural: standart bilime uyanı anlat. Belgedeki
+ * öğretmenin kendi sayısal kuralları (sabit değerleri, yuvarlama) aynen korunur.
  */
 export const SOURCE_CONFLICT_RULE =
   "KAYNAK ÇELİŞKİSİ: Kaynaklar aynı evrensel formülü (fizik/kimya/matematik bağıntısı) farklı yazıyorsa ya da bir not standart " +
   "bağıntıyı yanlış yazmışsa standart bilime uyanı anlat; yanlış yazımı ASLA doğru bilgi gibi öğretme, formül kartına ve özete " +
-  "koyma. Notun sınav için koyduğu sayısal kurallar (ör. g = 10 m/s², yuvarlama, yaklaşık değer) geçerlidir; onlara dokunma.";
+  "koyma. Notun sınav için koyduğu sayısal kurallar (sabitlerin alınacak değeri, yuvarlama, yaklaşık değer) aynen geçerlidir; onlara dokunma.";
 
 function sourceConflictLine(pages: readonly { label?: string }[]): string {
   return pages.some((page) => page.label) ? SOURCE_CONFLICT_RULE : "";

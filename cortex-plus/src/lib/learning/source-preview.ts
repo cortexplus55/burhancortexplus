@@ -13,7 +13,7 @@ export type SourceDocRef = {
   figureHints?: FigureHintRef[];
   /**
    * Yalnız yardımcı kaynak olarak derse giren şekil sayfaları (4 Kasım 2026, Senaryo B2): ekran anmadıkça yedek yere
-   * konmaz. Basınç dersinde slaytın "Yüzen: d_c < d_s" şekli, ders hiç anmadığı hâlde şema kartı oluyordu.
+   * konmaz. Yardımcı kaynağın şekli, ders hiç anmadığı hâlde şema kartı oluyordu.
    */
   figureSupportOnly?: number[];
 };

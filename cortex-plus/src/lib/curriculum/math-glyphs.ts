@@ -1,5 +1,5 @@
 /**
- * MEB PDF'inden çıkarılan sınırlamalarda matematik italik harfler ikilenmiş geliyor ("𝑝𝑝 ⇒ 𝑞𝑞", 4 Kasım 2026 Senaryo A).
+ * MEB PDF'inden çıkarılan sınırlamalarda matematik italik harfler ikilenmiş geliyor ("𝑥𝑥 + 𝑦𝑦" gibi).
  * Yalnız gösterim ve model girdisi için düzeltilir: kayıt metni (ve ünite özeti `unit_sha256`) değişmez, böylece
  * havuz içerikleri ve paylaşımlı medya geçersizleşmez, yeniden üretim tetiklenmez.
  */
