@@ -1,4 +1,5 @@
 import "server-only";
+import { nearestStem } from "@/lib/content-pool/near-duplicate";
 import { lessonRubricIssues, RUBRIC_JSON_FIELDS, RUBRIC_PROMPT, RUBRIC_VERSION } from "@/lib/content-pool/rubric";
 import { env } from "@/lib/env";
 import { openaiClient } from "@/lib/ai/openai-client";
@@ -65,6 +66,7 @@ export function openaiLlm(): LlmCall | null {
 export const ORIGINALITY =
   "Tüm metin ve sorular özgün olmalı (origin=cortex_original). Çıkmış sınav sorularını, yayınevi kitaplarını ya da MEB/ÖSYM " +
   "kitapçıklarını kopyalama, yeniden yazma ya da onlara atıf yapma. Kaynak bağlantısı yazma; bağlantılar sistemce eklenir. " +
+  "Kaynaklar arasında tartışmalı olan bir bilgiyi (ör. bir devletin kurucusu konusunda farklı görüşler) tek doğru cevap ya da kesin doğru/yanlış yargı olarak sorma. " +
   "Yalnız verilen kazanımların ve sınırlamalarının kapsamında kal; kapsam dışı bilgi ekleme. Dil: Türkçe.";
 
 export function officialBlock(unit: PoolUnit): string {
@@ -597,15 +599,13 @@ export async function generateReinforceItems(
   const gateUnit = { unitId: unit.unitId, choices, outcomes: [{ code: outcome.code, outcomeId: outcome.outcomeId, limitations: outcome.limitations }] };
   const gated = gateItems(fresh.items.filter((i) => i.outcome_code.trim() === outcomeCode), gateUnit, REINFORCE_PAIRS.length);
   rejected.push(...gated.rejected.map((r) => ({ code: r.code, reason: `kapı: ${r.reason}` })));
-  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLocaleLowerCase("tr");
-  const seen = new Set((opts.existingStems ?? []).map(norm));
+  const seen: string[] = [...(opts.existingStems ?? [])];
   const candidates = gated.passed.filter((i) => {
-    const key = norm(i.stem);
-    if (seen.has(key)) {
-      rejected.push({ code: i.outcome_code, reason: "havuzda aynı kök var" });
+    if (nearestStem(i.stem, seen).duplicate) {
+      rejected.push({ code: i.outcome_code, reason: "havuzda aynı ya da çok benzer kök var (yakın kopya)" });
       return false;
     }
-    seen.add(key);
+    seen.push(i.stem);
     return true;
   });
   if (!candidates.length) return { items: [], rejected, usage };
