@@ -17,7 +17,7 @@ import {
 import { lexicalPageHit, rerankByOverlap, searchStems } from "@/lib/learning/prep-corpus";
 
 /*
-  Öğretmen sohbeti (2 Ekim 2026). Astra'nın aynı KPSS belgesiyle gözlenen
+  Öğretmen sohbeti (2 Ekim 2026). kıyas ürününün aynı KPSS belgesiyle gözlenen
   tavrı: karşılık → ayırt ettiren ölçüt → karşılaştırma → sınav ipucu →
   tek kontrol sorusu; belge dışı soruda belgedeki karşılığa bağlama.
 */

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { PrepCard, type ExamPrepCard } from "@/components/parity/exam-prep";
 
 /**
- * "Sınav hazırlıklarım" — Astra'daki ayrı sayfa (1 Ekim 2026): bütün
+ * "Sınav hazırlıklarım" — kıyas ürünündeki ayrı sayfa (1 Ekim 2026): bütün
  * hazırlıklar, Yaklaşan / Geçmiş. Ana liste yalnız son birkaçını gösteriyor.
  */
 export function MyPrepsView({ cards, userInitial }: { cards: ExamPrepCard[]; userInitial: string }) {

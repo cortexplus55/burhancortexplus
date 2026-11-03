@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { redundantUnitHeader, topicSourcesChip } from "@/lib/learning/exam-wizard-copy";
 
 /*
-  20 Ekim 2026, sınav seti karşılaştırması: Astra konu listesinde her konunun kaç kaynaktan geldiğini
+  20 Ekim 2026, sınav seti karşılaştırması: kıyas ürünü konu listesinde her konunun kaç kaynaktan geldiğini
   yazıyor. Bizde nefron defteri, işaretli test ve hormon kartı #378'den beri ilgili konunun dersine
   giriyor ama kurulumda görünmüyordu. Ayrıca tek konulu ünite, konunun adıyla aynı başlığı tekrar
   ediyordu ("SİSTEMLER ARASI HOMEOSTAZİ BAĞLANTILARI" › "Sistemler Arası Homeostazi Bağlantıları").

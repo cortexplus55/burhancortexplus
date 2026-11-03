@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
   Aynı denemede 10 sorunun 4'ü bozuktu: kod çoktan seçmeli soruyu şıklarını silip
   doğru/yanlış ("hangi grupta sınıflanır?" + Doğru/Yanlış), sayısal ve açık uçlu yapıyordu.
-  Karar (ürün sahibi, Astra gibi): çoktan seçmeli + açık uçlu; açık uçlu sözlü öğretmen
+  Karar (ürün sahibi, kıyas ürünü gibi): çoktan seçmeli + açık uçlu; açık uçlu sözlü öğretmen
   motorundan, cevabı yapay zekâ ölçüt başına alıntıyla notlar.
 */
 
@@ -318,7 +318,7 @@ describe("yazılı deneme: eksik kalan konu", () => {
   });
 });
 
-describe("yazılı deneme: Astra gibi çoktan seçmeli + açık uçlu", () => {
+describe("yazılı deneme: kıyas ürünü gibi çoktan seçmeli + açık uçlu", () => {
   it("varsayılan plan doğru/yanlış ve sayısal yer açmaz; 10 soruda 7 + 1 çok cevaplı + 2 açık uçlu", () => {
     const count = (slots: { type: string }[], type: string) => slots.filter((slot) => slot.type === type).length;
     const ten = defaultSlots(10, true);

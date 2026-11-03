@@ -54,7 +54,7 @@ const LIST_ITEM_SPLIT = /\n(?=\s*(?:\d+\.|[-*])\s)/;
 /**
  * Numaralı liste mi, Türkçe sıra sayısı mı ("2. ay", "6. ay", "18. ayda")? Liste sırayla gider
  * ve kendi numarasından başlar (`start`); sayılar atlıyorsa satırlar olduğu gibi yazılır. Liste
- * sanılıp 1, 2, 3 diye yeniden numaralanırsa gerçek sayı kaybolur — Astra'nın dersinde
+ * sanılıp 1, 2, 3 diye yeniden numaralanırsa gerçek sayı kaybolur — kıyas ürününün dersinde
  * "2 ay / 6 ay / 9 ay" böyle "1 Ay / 2 Ay / 3 Ay" oldu (18 Ekim 2026, yan yana bakıldı).
  */
 function orderedListStart(lines: string[]): number | null {

@@ -303,7 +303,7 @@ export function ExamCreateWizard({
   /** Profilde sınıf yoksa tarih adımında bant ve sınav türü sorulur. */
   gradeLevel?: string | null;
   /**
-   * Ücretsiz hesabın tek hazırlık hakkı dolu (3 Ekim 2026). Astra'daki gibi
+   * Ücretsiz hesabın tek hazırlık hakkı dolu (3 Ekim 2026). kıyas ürünündeki gibi
    * ders seçilince yükseltme kapısı açılır; sunucu da kurulumu reddeder.
    */
   prepLimitReached?: boolean;
@@ -326,7 +326,7 @@ export function ExamCreateWizard({
         ? account.audience
         : "free",
   });
-  // 3 Ekim 2026, Astra sırası: ders → tarih → hedef → o dersin materyali.
+  // 3 Ekim 2026, kıyas ürünü sırası: ders → tarih → hedef → o dersin materyali.
   // Her hazırlık bir derse ve kendi materyaline bağlı; başka derslerin
   // belgeleri bu yola karışmaz. Materyali olmayan öğrenci sohbete geçer
   // (materyal adımının altındaki düğme).
@@ -686,7 +686,7 @@ export function ExamCreateWizard({
 
   // Belgeler sayfasından gelen belgenin adı. Öğrencinin bütün belgeleri
   // eskiden burada seçilebilir listeydi; başka dersin belgesi bu yola
-  // karışıyordu (3 Ekim 2026) — Astra'da da yok.
+  // karışıyordu (3 Ekim 2026) — kıyas ürününde da yok.
   useEffect(() => {
     if (!initialDocumentId) return;
     void fetch("/api/documents")
@@ -2222,7 +2222,7 @@ export function ExamCreateWizard({
         <section className="apw-step">
           <h1>{WIZARD_COPY.focusTitle}</h1>
           <p className="apw-lead">{WIZARD_COPY.focusLead}</p>
-          {/* Astra'daki gibi: eşit odakta bütün konular işaretli; birinin işaretini kaldırınca
+          {/* kıyas ürünündeki gibi: eşit odakta bütün konular işaretli; birinin işaretini kaldırınca
               işaretli kalanlar öne çıkar. Hepsi ya da hiçbiri işaretliyse eşit odak. */}
           <div className="apw-choices" role="group" aria-label="Odak konular">
             <CheckRow
@@ -2957,7 +2957,7 @@ function DateStep({
   );
 }
 
-/** Astra'nın kurulumundaki onay kutulu satır: solda kutu, başlık ve altında kısa açıklama. */
+/** kıyas ürününün kurulumundaki onay kutulu satır: solda kutu, başlık ve altında kısa açıklama. */
 function CheckRow({
   on,
   title,

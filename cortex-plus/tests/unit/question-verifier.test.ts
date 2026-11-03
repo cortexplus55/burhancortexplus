@@ -196,7 +196,7 @@ describe("repeats page does not spend credits", () => {
     const session = readSource("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("cortex-balance");
     expect(session).toContain("oralReviewItemFromGrade");
-    // 29 Eylül 2026: üst çubukta kredi çipi yok (Astra gibi), bakiye olayını
+    // 29 Eylül 2026: üst çubukta kredi çipi yok (kıyas ürünü gibi), bakiye olayını
     // dinleyecek bir sayı da yok.
     const shell = readSource("src/components/parity/sor-shell.tsx");
     expect(shell).not.toContain("cp-sor-credit-chip");

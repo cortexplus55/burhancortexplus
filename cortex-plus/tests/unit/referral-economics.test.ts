@@ -5,7 +5,7 @@ import path from "node:path";
 /*
   Davet ödülü, getirdiği gelirle finanse edilebilmeli.
 
-  Çarpan Astra'nın ilan ettiği mekanikten alınmıştı (400 kat) ve ilk
+  Çarpan kıyas ürününün ilan ettiği mekanikten alınmıştı (400 kat) ve ilk
   migration bunu bilerek tabloya koymuştu — "kısmak için tek bir UPDATE
   yeterli". Oradaki maliyet uyarısı yalnızca ücretsiz katmanı anlatıyordu;
   gözden kaçan şey çarpanın `credit_reserve` içinde PREMIUM planın aylık

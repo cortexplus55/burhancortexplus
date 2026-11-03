@@ -194,7 +194,7 @@ async function resolveTopicSuggestions(
 }
 
 /**
- * Hazırlığın adı. Önce ana konulardan model yazar (Astra gibi içerikten:
+ * Hazırlığın adı. Önce ana konulardan model yazar (kıyas ürünü gibi içerikten:
  * "Vatandaşlık ve Hukukun Temel Kavramları"); geçmezse kapak başlığı, konu
  * başlıklarının ortak kısmı ya da dosya adı. Öğrenciden kredi düşmez.
  */
@@ -385,7 +385,7 @@ export async function POST(request: Request) {
     );
   }
   // Konu başına dosyalar: konunun kendi dosyası + derse girecek yardımcı dosyalar (nefron defteri,
-  // işaretli test, hormon kartı; topic-support-pages.ts). Astra konu listesinde "N kaynak" gösteriyor;
+  // işaretli test, hormon kartı; topic-support-pages.ts). kıyas ürünü konu listesinde "N kaynak" gösteriyor;
   // bizde de öğrenci kurulumda hangi dosyasının hangi konuya girdiğini görür (19 Ekim 2026).
   const supportFiles = await supportFilesForTopics(
     service,

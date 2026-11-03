@@ -118,7 +118,7 @@ describe("test motoru: yetersiz soru sonraki taslak demek", () => {
   });
 });
 
-// 19 Ekim 2026: soğuk test 30 sn (Astra ~15). Taslak ve düzeltme düşük düşünmeyle, denetçi varsayılanla.
+// 19 Ekim 2026: soğuk test 30 sn (kıyas ürünü ~15). Taslak ve düzeltme düşük düşünmeyle, denetçi varsayılanla.
 describe("test motoru: düşünme ayarı", () => {
   it("taslak düşük düşünmeyle, denetim varsayılanla", async () => {
     ai.draftSizes = [5];

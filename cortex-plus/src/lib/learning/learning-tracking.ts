@@ -990,7 +990,7 @@ export function holdTrackingOnSuccess(
 export type TopicGain = { label: string; before: number; after: number };
 
 /**
- * Sonuç ekranından sonraki "+%X kazandın" kartı (19 Ekim 2026, Astra'da test sonrası
+ * Sonuç ekranından sonraki "+%X kazandın" kartı (19 Ekim 2026, kıyas ürününde test sonrası
  * "Konu hakimiyeti %18" ekranı). Ölçüm bu etkinliğin kanıtıyla değişen konunun güveni:
  * önce kayıttaki değer, sonra katlanmış değer. Kanıt yoksa (ders, kart, kontrolsüz ya da kontrolü
  * atlanmış podcast) null.

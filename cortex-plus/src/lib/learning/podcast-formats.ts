@@ -1,5 +1,5 @@
 /**
- * Podcast türleri — Astra'daki beş tür (1 Ekim 2026, ürün sahibinin kararı).
+ * Podcast türleri — kıyas ürünündeki beş tür (1 Ekim 2026, ürün sahibinin kararı).
  *
  * İstemci ve sunucu aynı listeyi okur; bu dosya sunucu modülü içermez.
  * Ad "length" olarak kalıyor: önbellek tablosu ve bağlantılar bu adla
@@ -25,7 +25,7 @@ export type PodcastFormatOption = {
   blurb: string;
 };
 
-/** Seçicide görünen beş tür, Astra'nın sırasıyla. `minutes` tipik süre; etiket aralığı `podcastMinutesLabel`. */
+/** Seçicide görünen beş tür, kıyas ürününün sırasıyla. `minutes` tipik süre; etiket aralığı `podcastMinutesLabel`. */
 export const PODCAST_FORMAT_OPTIONS: PodcastFormatOption[] = [
   { id: "diyalog", emoji: "💬", label: "Diyalog", minutes: 6, blurb: "Ada ile Kerem konuyu konuşarak anlatıyor" },
   { id: "ozet", emoji: "⚡", label: "Özet", minutes: 1, blurb: "Sınavdan önce bir dakikalık tekrar" },
@@ -118,8 +118,8 @@ export function podcastLengthSpec(length: PodcastLength): PodcastLengthSpec {
         words: { min: 350, max: PODCAST_CEILING_WORDS.duo },
         minTurns: 12,
         speakers: "duo",
-        // 17 Ekim 2026, ürün sahibi: "Astra gibi iki ses de anlatsın". Kerem'in bütün sıraları tek
-        // cümlelik soruydu (canlı ölçüm, solunum podcast'i); Astra'da iki sunucu da anlatıyor.
+        // 17 Ekim 2026, ürün sahibi: "kıyas ürünü gibi iki ses de anlatsın". Kerem'in bütün sıraları tek
+        // cümlelik soruydu (canlı ölçüm, solunum podcast'i); kıyas ürününde iki sunucu da anlatıyor.
         style:
           // 20 Ekim 2026 kör kıyas: "kaynaktaki bir örneği anlatır" Kerem'e dört kez "Notlarındaki örnekte …"
           // dedirtti (istemdeki kapsam satırı da bunu istiyordu, `podcastGroundingBrief`). Örnek kaynağı anmadan anlatılır.

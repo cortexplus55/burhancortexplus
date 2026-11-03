@@ -1,7 +1,7 @@
 /**
  * Sohbetteki "Problem N saniyede çözüldü" kartı (saf).
  *
- * Astra hesap sorusunda cevabın üstünde bu kartı gösteriyor; ürün sahibi
+ * kıyas ürünü hesap sorusunda cevabın üstünde bu kartı gösteriyor; ürün sahibi
  * eklenmesini seçti (1 Ekim 2026). Süre tarayıcıda ölçülür: soru gönderildiği
  * andan cevabın tamamı gelene kadar. Model çağrısı ya da maliyet yok.
  */

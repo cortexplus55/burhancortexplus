@@ -5,7 +5,7 @@ import { examPrepNodeResultHref } from "@/lib/learning/exam-prep-hrefs";
 import { nodeResultView, spentMinutes, unscoredResult } from "@/lib/learning/node-result";
 
 /*
-  17 Ekim 2026, Astra ile yan yana: bitmiş testte "Sonuçları gör" Astra'da önceki sonucu
+  17 Ekim 2026, kıyas ürünüyle yan yana: bitmiş testte "Sonuçları gör" kıyas ürününde önceki sonucu
   açıyor (3/7, doğruluk %50, harcanan zaman 3 dk, "Dersi tekrarla"). Bizde aynı düğme
   etkinliği baştan kuruyordu ("Bu konuya ne kadar aşinasın?") — devam edilse yeni deneme.
 */

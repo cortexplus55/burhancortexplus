@@ -275,7 +275,7 @@ export default async function ExamPrepDetailPage({
   // Tamamlama tek işlevden (Paket I #7, prep-metrics.ts): "Hazırsın" karar ekranı adım sayılmaz.
   const progress = pathCompletion(nodes);
   let ready = nodes.find((node) => node.status === "ready" && !skipKinds.has(node.kind));
-  // Astra: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
+  // kıyas ürünü: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
   // Eskiden önce "Konu seç", sonra zorunlu 8 soruluk tanı geliyordu. Etkin
   // konu yoksa ilk konu etkin olur; tanı yolun başında isteğe bağlı düğümdür.
   let activeTopicId = (prep.active_topic_id as string | null) ?? null;
@@ -380,7 +380,7 @@ export default async function ExamPrepDetailPage({
     if (biased) ready = biased;
   }
 
-  // İlerleme sekmesi (Astra düzeni): haftalık tablo, tempo, denemeler ve
+  // İlerleme sekmesi (kıyas ürünü düzeni): haftalık tablo, tempo, denemeler ve
   // bilgi eksikleri gerçek kayıtlardan. Tahmin uydurulmuyor; kayıt yoksa
   // bölüm "ilk derslerinden sonra görünür" diyor.
   const [{ data: attemptRows }, { data: gapRows }, { data: openMissRows }] = await Promise.all([
@@ -408,7 +408,7 @@ export default async function ExamPrepDetailPage({
         })
       : Promise.resolve({ data: [] as { topic_label: string | null }[] }),
   ]);
-  // Astra yolun üstünde son biten etkinliği yüzdesiyle gösteriyor ("30% · PODCAST · Sonuçları gör").
+  // kıyas ürünü yolun üstünde son biten etkinliği yüzdesiyle gösteriyor ("30% · PODCAST · Sonuçları gör").
   const lastAttempt = (attemptRows ?? []).find((row) => typeof row.node_id === "string");
   const lastResult = lastAttempt
     ? {
@@ -419,7 +419,7 @@ export default async function ExamPrepDetailPage({
             : null,
       }
     : null;
-  // Astra yolda biten her adımın yüzdesini yazıyor ("30% Podcast"): adımın son bitişi. Tek
+  // kıyas ürünü yolda biten her adımın yüzdesini yazıyor ("30% Podcast"): adımın son bitişi. Tek
   // öğeli bitiş (sorusuz podcast 1/1) puan sayılmaz, yüzde yazılmaz.
   // Biten adımın bitiş günü (30 Ekim 2026): yol "Yarın" değil "Tamamlandı · 29 Eki" yazar. Kayıtlar
   // yeniden eskiye sıralı; adımın son bitişi alınır.

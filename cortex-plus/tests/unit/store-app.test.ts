@@ -4,7 +4,7 @@ import manifest from "@/app/manifest";
 
 /*
   Mağaza uygulaması bir TWA olacak: site kendi kabuğunda açılıyor, ayrı bir
-  Android uygulaması yazılmıyor. Astra da aynı yöntemi kullanıyor
+  Android uygulaması yazılmıyor. kıyas ürünü da aynı yöntemi kullanıyor
   (`co.astra_ai.app.twa`).
 
   Bu dosya iki sessiz kırılma noktasını tutuyor:

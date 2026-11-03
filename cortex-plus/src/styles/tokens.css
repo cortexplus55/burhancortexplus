@@ -43,11 +43,11 @@
   /* --- Yazı --- */
   --font-display: "DM Serif Display", Georgia, serif;
   --font-ui: "Figtree", system-ui, sans-serif;
-  /* Astra yazı sistemi (17 Ekim 2026, birebir): etiket eşaralıklı, karşılama pikseli, el yazısı. */
+  /* kıyas ürünü yazı sistemi (17 Ekim 2026, birebir): etiket eşaralıklı, karşılama pikseli, el yazısı. */
   --font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, Menlo, Consolas, monospace;
   --font-pixel: var(--font-pixel-face, "Jersey 10"), var(--font-ui);
   --font-hand: var(--font-hand-face, "Caveat"), cursive;
-  /* Yazı ölçeği (Astra): başlık 600 ve -0.02em; etiketler 500 ve +0.01em. */
+  /* Yazı ölçeği (kıyas ürünü): başlık 600 ve -0.02em; etiketler 500 ve +0.01em. */
   --t-display-l: 700 3.5rem / 1 var(--font-ui);
   --t-heading-xl: 600 2.5rem / 1.02 var(--font-ui);
   --t-heading-s: 600 1.75rem / 1.02 var(--font-ui);
@@ -234,7 +234,7 @@
 
 .dark {
   /*
-   * Astra paleti birebir (17 Ekim 2026, ürün sahibinin kararı). Gri skalası: 950 zemin,
+   * kıyas ürünü paleti birebir (17 Ekim 2026, ürün sahibinin kararı). Gri skalası: 950 zemin,
    * 920 yüzey, 880 yükselmiş yüzey, 860/810 çerçeve; mavi tek eylem rengi; sarı yalnız
    * marka ve "hedef puan" gibi özel anlarda (seçim ve seçili menü nötr/mavi).
    */
@@ -285,7 +285,7 @@
   --c-info-soft: #1b1d35;
   --c-focus: #4353f3;
   --glow-action: 0 8px 24px rgba(67, 83, 243, 0.28);
-  /* Astra'nın "cam" yüzeyi: seçili sekme, seri kutusu, küçük düğmeler (üstten ışık + iç parlama). */
+  /* kıyas ürününün "cam" yüzeyi: seçili sekme, seri kutusu, küçük düğmeler (üstten ışık + iç parlama). */
   --glass-bg: radial-gradient(90% 55% at 50% 0%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 70%), linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.016)), #181818;
   --glass-inset: inset 0 1px 1px rgba(255, 255, 255, 0.05);
 

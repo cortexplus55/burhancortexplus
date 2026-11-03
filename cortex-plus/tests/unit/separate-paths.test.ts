@@ -11,11 +11,11 @@ import { TOOLS } from "@/lib/parity/tools";
   tekrarlarını, son belgeleri tek ekranda gösteriyordu; kurulumun materyal
   adımı başka derslerin belgelerini seçtiriyordu; Belgeler'deki düğme aynı
   belgeye her basışta yeni hazırlık açıyordu (trigonometri ×3).
-  Astra: ders seç → tarih → hedef → yalnız o dersin materyali; her sınavın
+  kıyas ürünü: ders seç → tarih → hedef → yalnız o dersin materyali; her sınavın
   yolu kendi kartında; menü Sor · Sınavlar · Uygulamalar.
 */
 describe("her hazırlığın kendi yolu", () => {
-  it("menüde birleşik 'Çalış' ekranı yok; Astra sırası", () => {
+  it("menüde birleşik 'Çalış' ekranı yok; kıyas ürünü sırası", () => {
     expect(studentBottomTabs.map((tab) => tab.label)).toEqual(["Ana Sayfa", "Sınavlar", "Araçlar", "Profil"]);
     expect(studentBottomTabs.some((tab) => tab.href === "/calisma-plani")).toBe(false);
     expect(TOOLS.some((tool) => tool.href === "/calisma-plani")).toBe(false);

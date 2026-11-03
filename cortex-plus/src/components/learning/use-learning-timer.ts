@@ -12,7 +12,7 @@ const ENDPOINT = "/api/activity/time";
  * Ekranda aktif geçen süreyi sayar ve sunucuya yazar.
  *
  * Sekme görünür değilse ya da öğrenci iki dakikadır dokunmadıysa saymaz:
- * Astra sitede geçen her dakikayı öğrenme süresi sayıyor, biz yalnızca
+ * kıyas ürünü sitede geçen her dakikayı öğrenme süresi sayıyor, biz yalnızca
  * ders, test ve sohbette çalışılan süreyi (30 Eylül 2026).
  */
 export function useLearningTimer(surface: LearningSurface, subject: string | null, enabled = true) {

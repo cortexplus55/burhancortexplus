@@ -15,7 +15,7 @@ import type { SchoolFeedRow, SchoolSummary } from "@/lib/parity/school-feed";
 import type { LeaderboardRow } from "@/lib/stars/view";
 
 /*
-  Sınavlar listesindeki üç kutunun sayfaları (17 Ekim 2026, Astra ile yan yana:
+  Sınavlar listesindeki üç kutunun sayfaları (17 Ekim 2026, kıyas ürünüyle yan yana:
   OKULUM / MÜFREDAT / RESMÎ SINAVLAR ayrı sayfalar açıyor — /exam-preps/school,
   /curriculum, /official). Önceden aynı sayfada sekmeydiler.
 */
@@ -175,7 +175,7 @@ function CatalogGrid({ items, icon = false }: { items: CatalogItem[]; icon?: boo
 }
 
 /**
- * Astra'nın okul sayfasındaki kürsü: geçen haftanın en çok yıldız kazanan üç okul
+ * kıyas ürününün okul sayfasındaki kürsü: geçen haftanın en çok yıldız kazanan üç okul
  * arkadaşı ve tam sıralamayı açan bağlantı (17 Ekim 2026).
  */
 function SchoolPodium({ rows }: { rows: LeaderboardRow[] }) {

@@ -2,7 +2,7 @@ import { topicTitleIssues } from "@/lib/documents/topic-title";
 import { calmHeading } from "@/lib/learning/teacher-lesson";
 
 /**
- * Hazırlığın adı içerikten (3 Ekim 2026). Astra aynı KPSS kitabına
+ * Hazırlığın adı içerikten (3 Ekim 2026). kıyas ürünü aynı KPSS kitabına
  * "Vatandaşlık ve Hukukun Temel Kavramları" diyor; biz dosya adına düşüp
  * "KPSS Vatandaslik Konu Anlatimi" yazıyorduk (Türkçe harfsiz). Ad, ana
  * konuların listesinden tek bir kısa model çağrısıyla yazılır; geçmezse

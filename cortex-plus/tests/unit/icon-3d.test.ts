@@ -4,7 +4,7 @@ import { ICON_3D_NAMES } from "@/components/ui/icon-3d";
 import { STUDY_TOOLS } from "@/lib/learning/study-tools";
 
 /*
-  Bize özgü 3B simge seti (17 Ekim 2026, tasarım 7. adım; ürün sahibinin kararı). Astra özel
+  Bize özgü 3B simge seti (17 Ekim 2026, tasarım 7. adım; ürün sahibinin kararı). kıyas ürünü özel
   3B çizimler kullanıyor; bizimkiler tek tarzda bir kez üretildi (256 px şeffaf webp).
 */
 const DIR = "public/illustrations/3d";

@@ -183,7 +183,7 @@ export function topicScopeLine(context: Pick<DocumentGenerationContext, "wholeDo
 /**
  * Yoldaki ve hazırlık sayfasındaki belgeli podcast: yalnız hazırlığın ÖBÜR konularının kısımları bölüm olmaz (30 Ekim 2026).
  *
- * İlk sürüm Araçlar satırını kullanıyordu ("sayfadaki başka başlıklar bölüm olmaz"). Aynı gün Astra ile yan yana kurulan
+ * İlk sürüm Araçlar satırını kullanıyordu ("sayfadaki başka başlıklar bölüm olmaz"). Aynı gün kıyas ürünüyle yan yana kurulan
  * 4 sayfalık notta konu haritası "Miktar Teorisi ve Fisher'in Değişim Denklemi" adını verdi; aynı sayfadaki reel faiz ve
  * Phillips eğrisi başka hiçbir konunun değildi, o satırla podcast'te hiç anlatılmayacaktı. Araçlar'da öğrenci konuyu
  * kendisi yazdığı için dar kapsam doğru; hazırlıkta konu haritanın bir düğümü ve sayfasında kalan her şey onundur.

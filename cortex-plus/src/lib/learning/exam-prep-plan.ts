@@ -186,7 +186,7 @@ export function daysUntilExam(examDate: string, from = new Date()): number {
 }
 
 /**
- * Astra'nın hazırlık kartındaki tarih: "21 gün sonra", "bugün", "12 gün önce".
+ * kıyas ürününün hazırlık kartındaki tarih: "21 gün sonra", "bugün", "12 gün önce".
  * daysUntilExam 1'de kesiyor (plan kurmak için); kart geçmişi de söylemeli.
  */
 export function examRelativeLabel(examDate: string, from = new Date()): string {

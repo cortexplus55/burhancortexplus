@@ -46,3 +46,22 @@ describe("GATE v14", () => {
     expect(verifySchema(4).schema.properties.r.items.required).toContain("celdirici");
   });
 });
+
+import { triadIssue, explanationConclusion } from "@/lib/content-pool/gate-v14";
+describe("katman 4 üçlü mutabakat", () => {
+  const base = { choices: ["Ankara", "İzmir", "Bursa", "Konya", "Adana"], answer: 1 };
+  it("sonuç şık metniyle anahtarı veriyorsa geçer", () => {
+    expect(triadIssue({ ...base, explanation: "Liman kenti.\nDoğru cevap: İzmir" })).toBeNull();
+    expect(triadIssue({ ...base, explanation: "Liman kenti.\nDoğru cevap: B) İzmir" })).toBeNull();
+  });
+  it("sonuç başka şıksa ret", () => {
+    expect(triadIssue({ ...base, explanation: "x\nDoğru cevap: Bursa" })).toMatch(/aynı değil/);
+  });
+  it("sonuç okunamıyorsa ret", () => {
+    expect(triadIssue({ ...base, explanation: "Liman kentidir." })).toMatch(/okunamadı/);
+  });
+  it("sayısal şıkta = sonucu anahtar ise geçer", () => {
+    expect(triadIssue({ choices: ["1", "2", "3", "4", "5"], answer: 2, explanation: "1+2 = 3" })).toBeNull();
+    expect(explanationConclusion({ choices: ["a b", "c"], explanation: "Doğru yanıt: c" })).toBe(1);
+  });
+});

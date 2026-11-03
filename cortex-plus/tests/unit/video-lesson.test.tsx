@@ -29,15 +29,15 @@ afterEach(cleanup);
 const read = (path: string) => readFileSync(path, "utf8");
 
 /*
-  Video ders (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi; oynatıcıda birleşen
-  video, yalnız Plus). Astra canlıda: "1 dakikalık video dersi izle — Hızlı ve görsel",
+  Video ders (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünündeki gibi; oynatıcıda birleşen
+  video, yalnız Plus). kıyas ürünü canlıda: "1 dakikalık video dersi izle — Hızlı ve görsel",
   stiller Gerçekçi · Çizgi roman · Beyaz tahta · Brainrot · Mem; dikey, 66 sn, 6-8 sahne,
   2-4 kelimelik akan alt yazı.
 */
 const scene = (narration: string) => ({ narration, visual: "a child's lungs drawn simply" });
 
 describe("video senaryosu", () => {
-  it("Astra'nın beş stili; yazar 1 dakika ve sahne kurallarını alır", () => {
+  it("kıyas ürününün beş stili; yazar 1 dakika ve sahne kurallarını alır", () => {
     expect(VIDEO_STYLES.map((item) => item.label)).toEqual([
       "Gerçekçi & Sinematik",
       "Çizgi Roman / Anime",
@@ -209,7 +209,7 @@ describe("video ekranları", () => {
 });
 
 /*
-  Videoda kilit bilgi (18 Ekim 2026, ürün sahibinin kararı). Astra'nın beyaz tahta videosunda
+  Videoda kilit bilgi (18 Ekim 2026, ürün sahibinin kararı). kıyas ürününün beyaz tahta videosunda
   takipne eşikleri tahtaya büyük yazılıydı (belgede olmasa da). Bizde kilit bilgi yalnız kaynaktan,
   resmin üstüne oynatıcı yazar (resim modeli yazıyı bozuyor); anahtar kelime alt yazıda renkli.
 */

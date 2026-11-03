@@ -31,7 +31,7 @@ const files = Object.fromEntries(
 
 const K = "kpss" as const;
 export const real: Record<string, Case[]> = {
-  astra: [
+  kiyas: [
     ["Temel Hukuk Kavramları ve Hukukun Kaynakları", 4, 14, "Hukuk kurallarının özelliklerini, yaptırım türlerini ve hukukun yazılı ve yazısız kaynaklarını öğreneceksin."],
     ["Kişiler ve Aile Hukuku ile Medeni Hukuk Esasları", 21, 35, "Gerçek ve tüzel kişiler, ehliyet, hısımlık, nişanlanma, evlenme ve boşanma kurallarını öğreneceksin."],
     ["Borçlar, Eşya ve Ticaret Hukuku", 36, 40, "Mülkiyet, zilyetlik, sözleşmeler ve ticaret hukukunun temel kavramlarını öğreneceksin."],

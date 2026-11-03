@@ -414,7 +414,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       }).catch(() => null);
     }
 
-    // Yıldızlar (17 Ekim 2026, Astra'daki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır; kayıtlı
+    // Yıldızlar (17 Ekim 2026, kıyas ürünündeki gibi): sonuç ekranında "+N yıldız". Aynı deneme bir kez sayılır; kayıtlı
     // içeriğin tekrarı düğüm başına günde bir kez (`prepStarRef`, 30 Ekim 2026).
     const stars = await awardStars(service, {
       userId,
@@ -432,7 +432,7 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       nextHref,
       learningTracking,
       topicGain,
-      // Astra: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
+      // kıyas ürünü: iki sonuç aynı yönü gösterince "fazla zor / kolay gelebilir" (18 Ekim 2026).
       levelHint: await loadLevelHint(service, prepId).catch(() => null),
       pathChange,
       reviewScheduled,

@@ -93,7 +93,7 @@ export type TeacherQuizInput = {
    */
   difficulty?: QuizDifficulty;
   /**
-   * Testte tam bir soru çok cevaplı (17 Ekim 2026, ürün sahibinin kararı; Astra'nın konu
+   * Testte tam bir soru çok cevaplı (17 Ekim 2026, ürün sahibinin kararı; kıyas ürününün konu
    * testinde 7 sorudan biri, kısmi puanla). Yalnız hazırlığın konu testi açar.
    */
   multi?: boolean;

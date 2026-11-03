@@ -96,7 +96,7 @@ export function CardsPlay({ life }: { life: NodeLifecycle }) {
   );
 }
 
-/** Kart destesinin üstündeki ilerleme çubuğu (Astra: çubuk + "1 / 10"). */
+/** Kart destesinin üstündeki ilerleme çubuğu (kıyas ürünü: çubuk + "1 / 10"). */
 export function CardProgress({ label, position, total }: { label: string | null; position: number; total: number }) {
   const pct = Math.round((Math.min(position, total) / Math.max(1, total)) * 100);
   return (

@@ -4,7 +4,7 @@ import { unzipSync, strFromU8 } from "fflate";
 /**
  * Word ve PowerPoint belgelerinden metin ve gömülü resim çıkarır.
  *
- * Neden var: Astra vitrininde "slaytlar ve ders kitapları" diyor; bizde
+ * Neden var: kıyas ürünü vitrininde "slaytlar ve ders kitapları" diyor; bizde
  * `.pptx` ve `.docx` yüklenemiyordu bile. Öğrenciye "slaytı PDF'e çevir"
  * dedirtmek, ürünün işini öğrenciye yaptırmak.
  *

@@ -15,7 +15,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * Paylaşılan düello — hesapsız açılıyor (Astra: "hesap gerekmiyor").
+ * Paylaşılan düello — hesapsız açılıyor (kıyas ürünü: "hesap gerekmiyor").
  * Sayfa servis anahtarıyla okur ama tarayıcıya yalnızca soru metni ve
  * şıklar gider; doğru cevaplar sunucuda kalır.
  */

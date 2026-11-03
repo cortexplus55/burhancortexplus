@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 
 /*
-  Sınav hazırlığı podcast kabuğu Astra envanterindeki etiketleri taşır.
+  Sınav hazırlığı podcast kabuğu kıyas ürünü envanterindeki etiketleri taşır.
   Görsel ölçü tarayıcıda bakılır; bu dosya etiketlerin ve 15 sn atlamasının
   kaybolmamasını tutar. Özellik kilidi eklenmez — kapı kredi/oturumdur.
 */
@@ -94,7 +94,7 @@ describe("konu seç ve yol", () => {
   });
 
   it("sıradaki etkinlik alt kartta türüyle, podcast düğümü altıgen", () => {
-    // 29 Eylül 2026: Astra düzeni — alt kart her türü (podcast dahil) aynı
+    // 29 Eylül 2026: kıyas ürünü düzeni — alt kart her türü (podcast dahil) aynı
     // biçimde gösteriyor; ayrı "ÖNERİLEN DERS" kartı yok.
     expect(home).toContain("PLAN_NODE_META[nextNode.kind].title");
     expect(home).toContain('if (node.kind === "podcast") return "hex"');

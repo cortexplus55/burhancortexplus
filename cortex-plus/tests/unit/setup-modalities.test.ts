@@ -5,7 +5,7 @@ import { STUDY_MODALITY_CHOICES, WIZARD_COPY } from "@/lib/learning/exam-wizard-
 import { recommendedStudyTool } from "@/lib/learning/study-tools";
 
 /*
-  17 Ekim 2026, Astra ile yan yana: kurulumun "Nasıl çalışmayı seversin?" adımı Astra'da
+  17 Ekim 2026, kıyas ürünüyle yan yana: kurulumun "Nasıl çalışmayı seversin?" adımı kıyas ürününde
   çoklu seçim, her seçeneğin altında açıklama (Okuyarak / Dinleyerek / İzleyerek / Pratik
   yaparak). Bizde tek seçimliydi, "Sen karar ver" vardı ve seçim kaydedildiği hâlde hiçbir
   yerde kullanılmıyordu ("bu tercihe göre sıralanır" diyordu).

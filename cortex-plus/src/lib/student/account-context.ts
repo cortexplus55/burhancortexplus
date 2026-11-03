@@ -35,7 +35,7 @@ export type StudentAccountContext = {
    * ol" demek eksik cevap. Beklerse de çözülüyor ve bunu saklamıyoruz.
    */
   resetsAtLabel: string;
-  /** Aynı an, ISO — yükseltme kapısındaki geri sayım için (Astra gibi). */
+  /** Aynı an, ISO — yükseltme kapısındaki geri sayım için (kıyas ürünü gibi). */
   resetsAtIso?: string;
   periodKind: PeriodKind;
   /** Dönem hakkının kullanılan yüzdesi — öğrenciye gösterilen tek sayı. */

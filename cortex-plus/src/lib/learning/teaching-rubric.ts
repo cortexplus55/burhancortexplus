@@ -1,5 +1,5 @@
 /**
- * Öğretim ölçütü (20 Ekim 2026, kör kıyas: aynı belgeyle Astra ve Cortex dersleri yan yana).
+ * Öğretim ölçütü (20 Ekim 2026, kör kıyas: aynı belgeyle kıyas ürünü ve Cortex dersleri yan yana).
  *
  * Doğruluk kapısı bizde güçlüydü (beş çiftin beşinde kaynağa sadakat), öğretim ise zayıf kalıyordu:
  * aynı bilgi iki ekranda yeniden anlatıldı, kaynağın kısaltması ("ayrı hukuk sistemi + uluslararası
@@ -11,7 +11,7 @@
  * tur açmaz (öğrenci bekliyor), sonraki kavramlarda en çok bir kavram içi tur (teacher-lesson-run.ts).
  *
  * 22 Ekim 2026, kör kıyas 2. tur: doğrulukta ve sınava hazırlıkta 20 yargının 20'si / 18'i bizden yana, öğrenci
- * gözünde 12'si Astra'dan yana. Yargıçların ortak cümlesi: "kaynağın tekrarı gibi okunuyor". Aynı bilgi ekran, kutu,
+ * gözünde 12'si kıyas ürününden yana. Yargıçların ortak cümlesi: "kaynağın tekrarı gibi okunuyor". Aynı bilgi ekran, kutu,
  * özet ve testte dört beş kez; "Örnek vaka" vaka değil; "Genel oy için verilen bilgi 1934 yılıdır"; ikinci soru ana
  * sorunun aynısı; çözümlü örnek adımsız ("b=10√2 bulursun"). 1., 6., 8. ve 9. maddeler bunun için genişledi.
  */

@@ -7,7 +7,7 @@ import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
 
 /**
  * Kredi sistemi v2 (8 Ekim 2026, ürün sahibinin kararı). 1 kredi = $0,001
- * ölçülen model maliyeti; Plus ayda 7.200 (Astra Plus ≈ 2.000 mesaj, bizde
+ * ölçülen model maliyeti; Plus ayda 7.200 (kıyas ürünü Plus ≈ 2.000 mesaj, bizde
  * 2.400), Sigma 60.000. Göç gerçekten çalıştırılıyor.
  * Kredi v3 (24 Ekim 2026): hak aynı, işlerin fiyatı gerçek maliyete çekildi (ders 30, test 10);
  * ücretsiz hesap krediyle değil sayaçla çalışır (`free-meters.ts`, günlük kredi 0).
@@ -16,7 +16,7 @@ import { allowanceWorkLine } from "@/lib/billing/tier-presentation";
 const read = (path: string) => readSource(path);
 
 describe("kredi sistemi v2: sayılar", () => {
-  it("Plus Astra'dan fazla mesaj: ayda 2.400 mesaj ya da 240 ders (kredi v3)", () => {
+  it("Plus kıyas ürününden fazla mesaj: ayda 2.400 mesaj ya da 240 ders (kredi v3)", () => {
     expect(allowanceInWork(PLAN_ALLOWANCES.plusMonthly)).toEqual({ messages: 2400, lessons: 240 });
     expect(allowanceInWork(PLAN_ALLOWANCES.sigmaMonthly)).toEqual({ messages: 20000, lessons: 2000 });
     expect(allowanceInWork(PLAN_ALLOWANCES.free)).toEqual({ messages: 0, lessons: 0 });

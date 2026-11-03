@@ -32,7 +32,7 @@ export type StudyToolId =
   | "true_false"
   | "spaced";
 
-/** Astra'daki "Sonraki ders" penceresinin üç sekmesi (1 Ekim 2026). */
+/** kıyas ürünündeki "Sonraki ders" penceresinin üç sekmesi (1 Ekim 2026). */
 export type StudyToolGroup = "learn" | "practice" | "exam";
 
 export const STUDY_TOOL_GROUPS: { id: StudyToolGroup; label: string }[] = [
@@ -59,7 +59,7 @@ export type StudyTool = {
 export const STUDY_TOOLS: StudyTool[] = [
   { id: "lesson", kind: "lesson", group: "learn", title: "Konu anlatımı", blurb: "Kısa ders" },
   { id: "podcast", kind: "podcast", group: "learn", title: "Podcast", blurb: "Sesli anlatım" },
-  // Astra'daki sırayla podcast'in ardından (17 Ekim 2026); yalnız Plus, sayfa kapıyı gösterir.
+  // kıyas ürünündeki sırayla podcast'in ardından (17 Ekim 2026); yalnız Plus, sayfa kapıyı gösterir.
   { id: "video", kind: "video", group: "learn", title: "Video", blurb: "1 dakikalık video ders" },
   { id: "flashcards", kind: "flashcards", group: "learn", title: "Kartlar", blurb: "Kısa tekrar" },
   { id: "gaps", kind: "gaps", group: "learn", title: "Bilgi boşlukları", blurb: "Eksiğini bul, kapat" },
@@ -88,7 +88,7 @@ const MODALITY_TOOL: Partial<Record<string, StudyToolId>> = {
 };
 
 /**
- * "Önerilen" rozeti: yolda sıradaki bitmemiş etkinliğin türü. Astra da
+ * "Önerilen" rozeti: yolda sıradaki bitmemiş etkinliğin türü. kıyas ürünü da
  * sıradaki önerisini bu pencerede işaretliyor.
  *
  * 17 Ekim 2026: öğrencinin kurulumda seçtiği çalışma biçimleri (`preferred`) bu
@@ -121,7 +121,7 @@ export function studyToolById(id: StudyToolId): StudyTool {
 }
 
 /**
- * Astra gibi kilitli araçlar (1 Ekim 2026): Bilgi boşlukları nerede
+ * kıyas ürünü gibi kilitli araçlar (1 Ekim 2026): Bilgi boşlukları nerede
  * zorlandığın ortaya çıkınca, Tekrar ilk çalışma bitince açılır. Kilitliyken
  * üretim yapılmaz; sunucu da aynı kuralla "kilitli" cevabı döner.
  */

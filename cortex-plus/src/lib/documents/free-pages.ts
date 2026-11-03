@@ -9,7 +9,7 @@ export { FREE_PAGE_TOTAL };
 /**
  * Ücretsiz katmanın belge sınırı (3 Ekim 2026, ürün sahibinin kararı):
  * hesap başına TOPLAM 5 sayfa işlenir; fazlası için ücretli plan gerekir.
- * Astra'da da ücretsiz hesap yeni hazırlık kuramıyor, materyal
+ * kıyas ürününde da ücretsiz hesap yeni hazırlık kuramıyor, materyal
  * yükleyemiyor; bizde küçük bir tadımlık bırakıldı.
  *
  * Sayılan: işlenmiş ya da işlenmekte olan belgelerin `page_count`'u (işlenen

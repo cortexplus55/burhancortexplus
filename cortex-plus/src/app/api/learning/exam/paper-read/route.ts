@@ -29,7 +29,7 @@ const bodySchema = z.object({
 });
 
 /**
- * Kâğıtta çözülen denemenin fotoğraflarını okur (17 Ekim 2026, Astra'daki gibi).
+ * Kâğıtta çözülen denemenin fotoğraflarını okur (17 Ekim 2026, kıyas ürünündeki gibi).
  * Yalnız cevapları okur ve uygulamadaki cevap biçimine çevirir; not yine
  * `/api/learning/exam/grade`'den çıkar. Değerlendirme denemenin ücretine dahil
  * (kurulum: "Değerlendirme dahildir"); kullanım kaydı yazılır, kredi düşmez.

@@ -30,7 +30,7 @@ export function StudyBar({ life }: { life: NodeLifecycle }) {
   return (
     <>
       {cinematicLesson || cinematicLoading || cinematicPodcast || oralOwnsChrome ? null : (
-      // Astra'da oturumda tek çıkış sağ üstteki × (3 Ekim 2026); üst çubuk da yok.
+      // kıyas ürününde oturumda tek çıkış sağ üstteki × (3 Ekim 2026); üst çubuk da yok.
       // × hiçbir durumda kilitlenmez (30 Ekim 2026): kayıt sürerken ya da düşmüşken de çıkılabilir.
       <div className="cp-exam-study-bar">
         {stage === "play" && isTimedExam ? (

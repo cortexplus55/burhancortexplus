@@ -27,7 +27,7 @@ function stubFetch() {
   return calls;
 }
 
-/* Astra'daki hazırlık Ayarlar'ı (1 Ekim 2026): ad, hedef puan, sil. */
+/* kıyas ürünündeki hazırlık Ayarlar'ı (1 Ekim 2026): ad, hedef puan, sil. */
 describe("hazırlık ayarları", () => {
   it("adı yerinde düzenler", async () => {
     const calls = stubFetch();

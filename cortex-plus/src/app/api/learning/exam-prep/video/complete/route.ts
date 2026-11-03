@@ -5,7 +5,7 @@ import { awardStars } from "@/lib/stars/award";
 
 const bodySchema = z.object({ videoId: z.string().uuid() });
 
-/** "Dersi tamamla" (Astra): video bir kez tamamlanmış sayılır ve yıldız verir. */
+/** "Dersi tamamla" (kıyas ürünü): video bir kez tamamlanmış sayılır ve yıldız verir. */
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "exam-prep-video-complete", limit: 20 });
   if (!guard.ok) return guard.response;

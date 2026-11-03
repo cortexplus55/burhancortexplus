@@ -6,7 +6,7 @@ import type { LessonV2 } from "@/lib/learning/teaching-standards";
 
 afterEach(cleanup);
 
-/* Astra gibi ders giriş kartı (1 Ekim 2026). */
+/* kıyas ürünü gibi ders giriş kartı (1 Ekim 2026). */
 const lesson: LessonV2 = {
   title: "Birim Çember",
   overview: "Trigonometrinin bütün tanımları tek bir çemberden çıkar.",

@@ -234,7 +234,7 @@ export function studyDayBudgets(studyDayDates: readonly string[], daily: number)
  * Ders kaynaktan en fazla 6.000 karakter okuyor, sayfa başına 2.200
  * (`source-context.ts`). Ana konu 18 sayfaya çıkınca tek ders her sayfanın
  * 300 karakterini görürdü. Ana konular 10–15'e toplandığından beri
- * (30 Eylül 2026) büyük konu ardışık derslere bölünür: Astra'da da bir
+ * (30 Eylül 2026) büyük konu ardışık derslere bölünür: kıyas ürününde da bir
  * konunun birden fazla dersi var.
  */
 export const LESSON_PAGE_SPAN = 3;

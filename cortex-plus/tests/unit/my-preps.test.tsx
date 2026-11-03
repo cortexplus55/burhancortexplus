@@ -11,7 +11,7 @@ import { ParityExamPrep } from "@/components/parity/exam-prep";
 
 afterEach(cleanup);
 
-/* "Sınav hazırlıklarım" — Astra'daki ayrı sayfa (1 Ekim 2026). */
+/* "Sınav hazırlıklarım" — kıyas ürünündeki ayrı sayfa (1 Ekim 2026). */
 const prep = (id: string, examDate: string | null, viewCount = 0) =>
   toPrepCard(
     { id, title: `Hazırlık ${id}`, exam_type: "Matematik", target_score: 75, exam_date: examDate, view_count: viewCount },
@@ -47,9 +47,9 @@ describe("sınav hazırlıklarım", () => {
   });
 });
 
-// 17 Ekim 2026, Astra ile yan yana: üç kutu ayrı sayfa, iki sütunlu ızgara, Yaklaşan / Geçmiş,
+// 17 Ekim 2026, kıyas ürünüyle yan yana: üç kutu ayrı sayfa, iki sütunlu ızgara, Yaklaşan / Geçmiş,
 // yarım kurulum "Taslaklar"da.
-describe("sınavlar listesi (Astra düzeni)", () => {
+describe("sınavlar listesi (kıyas ürünü düzeni)", () => {
   it("üç kutu ayrı sayfaları açar; eski sekme bağlantısı yönlenir", () => {
     render(<ParityExamPrep cards={[]} userId="u1" />);
     expect(screen.getByRole("link", { name: /Okulum/ }).getAttribute("href")).toBe("/deneme-sinavlari/okulum");

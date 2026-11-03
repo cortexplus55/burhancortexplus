@@ -41,8 +41,8 @@ const base = {
   now: NOW,
 };
 
-describe("hazırlık ilerleme görünümü (Astra düzeni)", () => {
-  it("tahmin ilk dersten önce yok, ilk dersten sonra var (19 Ekim 2026: Astra ilk dersten hemen sonra gösteriyor)", () => {
+describe("hazırlık ilerleme görünümü (kıyas ürünü düzeni)", () => {
+  it("tahmin ilk dersten önce yok, ilk dersten sonra var (19 Ekim 2026: kıyas ürünü ilk dersten hemen sonra gösteriyor)", () => {
     const none = buildPrepProgressView({
       ...base,
       nodes: nodes.map((n) => (LESSON_KINDS_FOR_TEST.has(n.kind) ? { ...n, status: "ready" as const } : n)),

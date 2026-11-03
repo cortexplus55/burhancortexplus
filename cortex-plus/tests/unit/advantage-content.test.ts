@@ -35,7 +35,7 @@ describe("vitrin farkları", () => {
     }
   });
 
-  it("pazarlama dosyalarının arayüz metninde 'Astra' yok", () => {
+  it("pazarlama dosyalarının arayüz metninde 'kıyas ürünü' yok", () => {
     for (const file of MARKETING_FILES) {
       const src = stripComments(readFileSync(file, "utf8")).replace(/export const FORBIDDEN_BRAND_NAMES[^\n]*\n/, "");
       expect(src, file).not.toMatch(/astra/i);

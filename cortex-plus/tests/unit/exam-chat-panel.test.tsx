@@ -189,7 +189,7 @@ describe("exam chat chrome", () => {
 });
 
 /*
-  Astra'nın yazı kutusu (1 Ekim 2026): ayar düğmesi bugünkü ruh halini
+  kıyas ürününün yazı kutusu (1 Ekim 2026): ayar düğmesi bugünkü ruh halini
   sorar, periyodik tablo sohbetten çıkmadan açılır; balonda ders etiketi yok.
 */
 describe("sohbet: ruh hali, periyodik tablo, ders etiketi", () => {

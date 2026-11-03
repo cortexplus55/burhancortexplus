@@ -71,7 +71,7 @@ export const envSchema = z.object({
    */
   OPENAI_LESSON_MODEL: z.string().default("gpt-4.1"),
   /**
-   * Ders taslağı — ücretsiz hesap. Astra da ücretsizde küçük model kullanıyor
+   * Ders taslağı — ücretsiz hesap. kıyas ürünü da ücretsizde küçük model kullanıyor
    * (Plus'a "1,4 kat daha akıllı model" vaat ediyor). 29 Eylül 2026 hesabı:
    * günde 6 krediyi tam kullanan ücretsiz hesap gpt-4.1 ile ayda ~88 TL,
    * bu modelle ~52 TL.

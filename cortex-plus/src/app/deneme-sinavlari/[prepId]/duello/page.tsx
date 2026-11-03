@@ -11,7 +11,7 @@ import "@/styles/duel.css";
 export const metadata = { title: "Düellolar" };
 export const dynamic = "force-dynamic";
 
-/** Hazırlığın düelloları — Astra'daki "Düellolar" ekranı. */
+/** Hazırlığın düelloları — kıyas ürünündeki "Düellolar" ekranı. */
 export default async function PrepDuelsPage({ params }: { params: Promise<{ prepId: string }> }) {
   const { prepId } = await params;
   const { supabase, user } = await requireStudentArea();

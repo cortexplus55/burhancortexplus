@@ -36,7 +36,7 @@ const QUESTION_COUNTS = [
 type Question = { id: string; text: string; options: string[]; points?: number; question_type?: string };
 
 /*
-  Yazılı deneme Astra gibi çoktan seçmeli + açık uçlu (ve bir çok cevaplı) soru içerir. 19 Ekim 2026'ya
+  Yazılı deneme kıyas ürünü gibi çoktan seçmeli + açık uçlu (ve bir çok cevaplı) soru içerir. 19 Ekim 2026'ya
   kadar bu ekran yalnız şık çiziyordu: Ekonomi yazılısının 7. sorusu açık uçluydu, şık yoktu, "Sonraki
   soru" hiç açılmadı. Açık uçlu soruya yazı alanı, çok cevaplıya çoklu işaret; boş açık uçlu geçilebilir.
 */

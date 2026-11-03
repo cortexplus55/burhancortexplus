@@ -2,7 +2,7 @@ import { CONTENT_STYLE } from "@/lib/ai/content-style";
 import type { TutorStyle } from "@/lib/learning/tutor-style";
 
 /**
- * Öğretmen sohbeti (2 Ekim 2026, ürün sahibinin kararı). Astra'nın aynı
+ * Öğretmen sohbeti (2 Ekim 2026, ürün sahibinin kararı). kıyas ürününün aynı
  * belgeyle gözlenen öğretmen tavrı (docs/delivery/ICERIK-KALITE-YOL-HARITASI.md):
  * duyguya karşılık → ayırt ettiren ölçüt → aynı başlıklarla karşılaştırma →
  * sınav ipucu → kontrol sorusu; kapsam dışı soruda belgedeki karşılığa bağlama.

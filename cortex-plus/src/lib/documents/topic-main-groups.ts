@@ -4,8 +4,8 @@ import { isJunkTopicTitle, normalizeTopicTitle, topicTitleIssues } from "@/lib/d
  * Uzun belgede alt başlıkları 10–15 ana konuda toplamak.
  *
  * 28 Eylül 2026'da 211 sayfalık KPSS Vatandaşlık belgesinden 111 konu çıktı;
- * Astra aynı belgeden 12 ana konu çıkarıyor ("Yasama Organı: TBMM'nin Yapısı,
- * Görevleri ve Seçimler" gibi). Ürün sahibi Astra gibi olmasını seçti
+ * kıyas ürünü aynı belgeden 12 ana konu çıkarıyor ("Yasama Organı: TBMM'nin Yapısı,
+ * Görevleri ve Seçimler" gibi). Ürün sahibi kıyas ürünü gibi olmasını seçti
  * (30 Eylül 2026). Hiçbir alt başlık atılmaz: her biri bir ana konuya girer,
  * sayfaları o konuya bağlanır. Ders, konuyu sayfa sayfa bölümlere ayırır
  * (bkz. `lessonPageChunks`).

@@ -14,7 +14,7 @@ import { STUDENT_LEAK_BAN } from "@/lib/learning/teaching-rubric";
 /*
   Senarist yazar (23 Ekim 2026 gecesi; ürün sahibi: "öğrenci en az 70 olacak, ne varsa planla ve uygula").
 
-  Yirmi iki kör ölçümde öğrenci gözü 48 → 60'ta takıldı; Astra 73-74. Model (luna, sol), düşünme (düşük, orta),
+  Yirmi iki kör ölçümde öğrenci gözü 48 → 60'ta takıldı; kıyas ürünü 73-74. Model (luna, sol), düşünme (düşük, orta),
   etiket (ağır, hafif, sessiz, yok), öğretmen notu, biçim örneği denendi; hiçbiri 63'ü geçmedi. Hepsinde ortak olan
   yazarın aldığı ~8.000 karakterlik kural listesi ve her konuşma satırını ayrı bir JSON nesnesine yazdıran şemaydı:
   yargıçların 22 turdaki ortak cümlesi "tablo iki sesle okunuyor". Yazar kural listesine uyuyor, sohbet yazmıyordu.

@@ -6,7 +6,7 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 export const metadata = { title: "Müfredat" };
 export const dynamic = "force-dynamic";
 
-/** Sınavlar → MÜFREDAT kutusu (Astra'da ayrı sayfa, 17 Ekim 2026). */
+/** Sınavlar → MÜFREDAT kutusu (kıyas ürününde ayrı sayfa, 17 Ekim 2026). */
 export default async function CurriculumRoute() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);

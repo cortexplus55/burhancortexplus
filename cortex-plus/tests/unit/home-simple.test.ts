@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /*
-  Astra'nın ana sayfasında selamın altında yalnızca "Başla" var. Bizde üç
+  kıyas ürününün ana sayfasında selamın altında yalnızca "Başla" var. Bizde üç
   kısayol, "Günün turu" ve üç kaynak seçeneği de duruyordu; ürün sahibi
-  Astra gibi sade olmasını seçti (30 Eylül 2026).
+  kıyas ürünü gibi sade olmasını seçti (30 Eylül 2026).
 */
 describe("ana sayfa sade", () => {
   const page = readFileSync("src/app/ogretmen/page.tsx", "utf8");

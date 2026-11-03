@@ -21,7 +21,7 @@ import { SOURCE_LINK_EXEMPTION, TEACHING_RUBRIC } from "@/lib/learning/teaching-
 import type { LessonBlock, LessonScreen, LessonV3 } from "@/lib/learning/lesson-v3";
 
 /*
-  20 Ekim 2026 kör kıyas (aynı belgeyle Astra ve Cortex dersleri yan yana; ders çiftleri KPSS, trigonometri, Pediatri).
+  20 Ekim 2026 kör kıyas (aynı belgeyle kıyas ürünü ve Cortex dersleri yan yana; ders çiftleri KPSS, trigonometri, Pediatri).
   Doğrulukta önde, öğretimde geride kaldık: şemadaki yer tutucu ekrana çıktı, yoğun tablo tek ekranda okunup geçildi,
   ezber kodları yalnız sırayı taşıdı, "Günlük hayattan" kutuları düz kaldı, ikinci soru başka kavramı sordu.
   Bu dosya yazar ve denetçinin aynı kuralı okuduğunu ve kodun kurallarını tutar.

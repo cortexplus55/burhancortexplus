@@ -22,7 +22,7 @@ export async function openLocalSession(context: NodeContext, state: Pick<StartLo
   let { title, topicLabel } = state;
   let practiceTopics: string[] | undefined;
   let finalFill: { seed: QuizQuestion[]; topics: string[]; perTopic: number; previousStems?: string[] } | null = null;
-  // Bilgi boşlukları ve Tekrar kilitliyse (Astra, 1 Ekim 2026) ücretsiz
+  // Bilgi boşlukları ve Tekrar kilitliyse (kıyas ürünü, 1 Ekim 2026) ücretsiz
   // "kilitli" cevabı döner. Bitmiş düğüm yeniden açılırken kilit sorulmaz.
   const lockable = (kind === "gaps" || kind === "spaced") && node.status !== "done";
   if (kind === "focused" || kind === "final_check" || kind === "readiness" || lockable) {

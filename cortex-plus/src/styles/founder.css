@@ -12,7 +12,7 @@
   height: 28px;
   padding: 0 10px;
   border-radius: 9999px;
-  /* Astra paletinde altın durum rengi yok (17 Ekim 2026): kurucu çipi de nötr cam kapsül. */
+  /* kıyas ürünü paletinde altın durum rengi yok (17 Ekim 2026): kurucu çipi de nötr cam kapsül. */
   border: 0;
   background: var(--glass-bg);
   box-shadow: var(--glass-inset);

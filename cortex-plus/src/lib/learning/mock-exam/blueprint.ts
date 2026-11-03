@@ -119,8 +119,8 @@ function matchInt(
 }
 
 /**
- * Varsayılan karışım (17 Ekim 2026, ürün sahibinin kararı: Astra gibi): %80 çoktan seçmeli
- * (biri çok cevaplı), %20 açık uçlu. Astra'nın kâğıdında yalnız A–D kutucuk ve yazma yeri
+ * Varsayılan karışım (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünü gibi): %80 çoktan seçmeli
+ * (biri çok cevaplı), %20 açık uçlu. kıyas ürününün kâğıdında yalnız A–D kutucuk ve yazma yeri
  * var. Doğru/yanlış ve sayısal yer yok: öğretmen motoru çoktan seçmeli yazıyordu, kod şıkları
  * silip türe çeviriyordu ("hangi grupta sınıflanır?" sorusuna Doğru/Yanlış şıkkı).
  * `allowNumeric` hesap sorusunun çoktan seçmeli yazılmasına engel değil; imza çağıranlar için.

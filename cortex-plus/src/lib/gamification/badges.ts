@@ -83,7 +83,7 @@ export type BadgeJourney = {
   next: BadgeState | null;
   /** Sıradaki seri rozeti. */
   nextStreak: BadgeState | null;
-  /** Seri penceresinin altındaki "Bugün 12 / 30 dk" (Astra gibi). */
+  /** Seri penceresinin altındaki "Bugün 12 / 30 dk" (kıyas ürünü gibi). */
   dailyGoal?: { goalMinutes: number; todayMinutes: number } | null;
 };
 

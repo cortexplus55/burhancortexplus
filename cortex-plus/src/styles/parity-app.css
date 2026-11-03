@@ -32,7 +32,7 @@
     inset 0 0 0 1px rgba(232, 168, 56, 0.15);
 }
 
-/* Astra: birincil düğme düz mavi, beyaz yazı (17 Ekim 2026). */
+/* kıyas ürünü: birincil düğme düz mavi, beyaz yazı (17 Ekim 2026). */
 .cs-app .cs-btn-primary {
   background: var(--c-action);
   color: var(--c-on-action);

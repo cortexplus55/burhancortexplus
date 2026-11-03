@@ -70,7 +70,7 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
           {payload.type === "lesson" ? (
             <h1 className="cp-exam-result-title">Dersin tamamı bu kadar</h1>
           ) : null}
-          {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,
+          {/* kıyas ürünü düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,
               altında doğruluk ve süre satırları. */}
           {unscored ? (
             <>
@@ -305,7 +305,7 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
           ) : null}
           {levelHint ? <LevelSuggestCard prepId={prepId} hint={levelHint} /> : null}
           {attemptId ? <LessonRatingCard attemptId={attemptId} kind={kind} /> : null}
-          {/* Astra her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
+          {/* kıyas ürünü her dersin sonunda "arkadaşına meydan oku" diyor (1 Ekim
               2026). Düello sayfasına gider; kurmak öğrencinin kararı. */}
           <Link href={`/deneme-sinavlari/${prepId}/duello`} className="cp-exam-challenge">
             <Swords className="h-5 w-5 shrink-0" aria-hidden />
@@ -315,7 +315,7 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
             </span>
           </Link>
           {topicGain ? (
-            // Konu hâkimiyeti arttıysa önce "+%X kazandın" kartı, sonra sıradaki adım (Astra sırası).
+            // Konu hâkimiyeti arttıysa önce "+%X kazandın" kartı, sonra sıradaki adım (kıyas ürünü sırası).
             <button
               type="button"
               className="cp-exam-continue cp-exam-continue--primary"

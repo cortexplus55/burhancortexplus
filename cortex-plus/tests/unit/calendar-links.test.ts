@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /*
-  Astra'da "Takvimim" sade bir takvim açar (ay görünümü, yaklaşan sınavlar,
+  kıyas ürününde "Takvimim" sade bir takvim açar (ay görünümü, yaklaşan sınavlar,
   etkinlik ekle). Bizde /takvimim tam bunu yapıyordu ama menü ve sınav
   sohbeti menüsü çalışma planının tamamına gidiyordu (30 Eylül 2026).
 */

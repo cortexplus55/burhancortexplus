@@ -2,8 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseFamiliarity, type Familiarity } from "@/lib/learning/session-signals";
 
 /**
- * Hazırlığın düzeyini sonuçlara göre ayarlama (18 Ekim 2026, Astra ile yan yana bakıldı).
- * Astra testi bitirince "Bu hazırlık sana fazla zor gelebilir — son dersinde çok yanlış
+ * Hazırlığın düzeyini sonuçlara göre ayarlama (18 Ekim 2026, kıyas ürünüyle yan yana bakıldı).
+ * kıyas ürünü testi bitirince "Bu hazırlık sana fazla zor gelebilir — son dersinde çok yanlış
  * yaptın, önceki derslerde de benzer zorluklar vardı" deyip kolay / tam kararında / zor
  * seçtiriyor. Bizde düzey konunun aşinalığıdır (kurulumda bir kez sorulur); öneri yalnız
  * iki puanlı sonuç aynı yönü gösterince çıkar, karar öğrencinindir.

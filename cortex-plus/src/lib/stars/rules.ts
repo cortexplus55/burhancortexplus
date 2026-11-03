@@ -1,7 +1,7 @@
 /**
- * Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi).
+ * Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünündeki gibi).
  *
- * Astra'nın "Nasıl yıldız kazanılır" listesi canlıdan okundu: sınava hazırlık 10–210,
+ * kıyas ürününün "Nasıl yıldız kazanılır" listesi canlıdan okundu: sınava hazırlık 10–210,
  * okul maçı 30–130, haftalık seri 100, arkadaş daveti 100 + 50, hazırlığında yeni öğrenci
  * 50, günlük hedef 25 (günde 50 yıldız), günlük bulmaca 20, öğretmenle sohbet 15,
  * arkadaşın abone olsun 300. Bizde okul maçı ve bulmaca yok; okul maçının yerine düello
@@ -36,7 +36,7 @@ const QUIZ_KINDS = new Set(["quiz", "true_false", "gaps", "focused", "spaced", "
 export const LEARNING_STEP_STARS = 10;
 
 /**
- * Bir hazırlık etkinliğinin yıldızı (Astra: "Dersler, testler, deneme sınavları 10–210").
+ * Bir hazırlık etkinliğinin yıldızı (kıyas ürünü: "Dersler, testler, deneme sınavları 10–210").
  * Test 10 + doğru başına 2 (en çok 40); deneme 30 + doğru başına 4 (en çok 210). Ders, kartlar, sözlü,
  * soru-cevap gibi öğrenme adımları skor çarpanı olmadan tabanı alır (25 Ekim 2026, P1-7: kart +10 yazıp sonuç
  * +17 veriyordu). `score` doğru sayısıdır; yüzde verilmez.
@@ -65,7 +65,7 @@ export function prepStarRef(input: { attemptId: string; nodeId: string; payload:
   return `attempt:${input.attemptId}`;
 }
 
-/** Düello (Astra'daki okul maçının yeri): oynamak 30, doğru başına 10, en çok 130. */
+/** Düello (kıyas ürünündeki okul maçının yeri): oynamak 30, doğru başına 10, en çok 130. */
 export function duelStars(correct: number | null | undefined): number {
   return Math.min(130, 30 + 10 * Math.max(0, Math.floor(Number(correct ?? 0))));
 }
@@ -80,7 +80,7 @@ export const PREP_JOINED_STARS = 50;
 /** Davet ettiğin arkadaş abone olunca. */
 export const INVITE_SUBSCRIBED_STARS = 300;
 
-/** "Nasıl yıldız kazanılır" — sıra ve sayılar Astra'daki gibi; metin bizim. */
+/** "Nasıl yıldız kazanılır" — sıra ve sayılar kıyas ürünündeki gibi; metin bizim. */
 export const STAR_RULES: { source: StarSource | "invite_pair"; title: string; detail: string; amount: string }[] = [
   { source: "invite_subscribed", title: "Arkadaşın abone olsun", detail: "Davet ettiğin arkadaşın abone olduğunda", amount: "300" },
   { source: "prep", title: "Sınava hazırlık", detail: "Dersler, testler, deneme sınavları", amount: "10–210" },

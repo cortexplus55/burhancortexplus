@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { isProblemQuestion, solvedLabel } from "@/lib/learning/solved-card";
 
 /*
-  Astra hesap sorusunda cevabın üstünde "Problem 5 saniyede çözüldü" kartı
+  kıyas ürünü hesap sorusunda cevabın üstünde "Problem 5 saniyede çözüldü" kartı
   gösteriyor; ürün sahibi eklenmesini seçti (1 Ekim 2026). Süre tarayıcıda
   ölçülür, model çağrısı yok.
 */

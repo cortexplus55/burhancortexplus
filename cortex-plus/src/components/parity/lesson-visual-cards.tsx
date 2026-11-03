@@ -7,7 +7,7 @@ import type { LessonCarousel, LessonHook, LessonTrap } from "@/lib/learning/less
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 
 /**
- * Bağıntı gövdeye gömülmez, ayrı bir kart olarak durur — Astra
+ * Bağıntı gövdeye gömülmez, ayrı bir kart olarak durur — kıyas ürünü
  * karşılaştırmasında gövdeye sıkışan formüllerin gövdeyi hem uzatıp hem
  * okunaksızlaştırdığı görüldü. `.als-formula` adı `RichBody`'nin satır içi
  * matematik bloğu tarafından zaten kullanılıyor; çakışmasın diye bu kart

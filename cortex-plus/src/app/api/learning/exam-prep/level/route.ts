@@ -6,7 +6,7 @@ import { shiftFamiliarity } from "@/lib/learning/prep-level";
 import { parseFamiliarity } from "@/lib/learning/session-signals";
 
 /**
- * Sonuç ekranındaki "Bu hazırlık sana fazla zor / kolay gelebilir" (18 Ekim 2026, Astra'daki
+ * Sonuç ekranındaki "Bu hazırlık sana fazla zor / kolay gelebilir" (18 Ekim 2026, kıyas ürünündeki
  * gibi). Öğrencinin seçimiyle bütün konuların düzeyi bir basamak kayar; önceden yazılmış
  * sıradaki içerik eski düzeyde kalmasın diye atılır ve yeni düzeyde yeniden yazılır.
  */

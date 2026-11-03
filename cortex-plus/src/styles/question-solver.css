@@ -1,4 +1,4 @@
-/* Soru çözücü (25 Ekim 2026). Astra paleti ve yazı ölçeği (tokens.css, yeni ara boyut yok); durum renkleri altın değil:
+/* Soru çözücü (25 Ekim 2026). kıyas ürünü paleti ve yazı ölçeği (tokens.css, yeni ara boyut yok); durum renkleri altın değil:
    eylem mavi, doğru yeşil, uyarı turuncu. Telefon 375 px: 16 px kenar, dokunma ≥ 44 px, yatay kayma yok. */
 
 .cp-solver {

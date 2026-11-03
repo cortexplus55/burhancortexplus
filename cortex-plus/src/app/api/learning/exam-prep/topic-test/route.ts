@@ -1,8 +1,8 @@
 /**
- * Konunun testi nerede? Salt okur (30 Ekim 2026, Astra ile yan yana tur).
+ * Konunun testi nerede? Salt okur (30 Ekim 2026, kıyas ürünüyle yan yana tur).
  *
  * Ders sonundaki "Kendini test et · Bu dersi hızlı bir bilgi kontrolüyle tamamla · Sınavla bitir" kartı Eylül'den beri
- * bütün hazırlığın yazılı deneme kurulumuna gidiyordu; Astra'da aynı kart o dersin testini açıyor. Bu uç yolda dersin
+ * bütün hazırlığın yazılı deneme kurulumuna gidiyordu; kıyas ürününde aynı kart o dersin testini açıyor. Bu uç yolda dersin
  * konusunun ilk bitmemiş konu testini bulur (konu kimliğinin iki biçimi de: `resolvePrepTopicRow`); yoksa `href: null`
  * ve düğme bugünkü gibi yazılı denemeye gider. Model çağırmaz, ücret yazmaz.
  */

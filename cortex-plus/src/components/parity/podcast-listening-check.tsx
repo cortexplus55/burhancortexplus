@@ -5,7 +5,7 @@ import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
 
 /**
- * Podcast bitince dinleme kontrolü (20 Ekim 2026, kör kıyas: Astra'nın podcast'i sonda soru
+ * Podcast bitince dinleme kontrolü (20 Ekim 2026, kör kıyas: kıyas ürününün podcast'i sonda soru
  * soruyordu, bizimki bitip gidiyordu). Üç soru, testteki gibi anında geri bildirimle; cevaplar
  * tamamlamaya gider ve kanıt sayılır. "Şimdi değil" ilk seçimden önce durur: atlanınca podcast
  * bugünkü gibi puansız biter (ürün sahibinin kararı).

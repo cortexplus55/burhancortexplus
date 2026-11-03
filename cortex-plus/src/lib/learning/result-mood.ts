@@ -1,5 +1,5 @@
 /**
- * Sonuç ekranının tonu — Astra'da büyük skorun altında emoji ve tek cümle
+ * Sonuç ekranının tonu — kıyas ürününde büyük skorun altında emoji ve tek cümle
  * ("Harika iş çıkardın!"), arka plan da başarıya göre yeşile dönüyor
  * (30 Eylül 2026). Eşikler bizim eski "Güzel gidiyor" ayrımıyla aynı: %70.
  */

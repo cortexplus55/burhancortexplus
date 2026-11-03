@@ -1,5 +1,5 @@
 /**
- * Bitmiş etkinliğin sonuç ekranı (17 Ekim 2026, Astra'daki gibi). Astra'da "Sonuçları gör"
+ * Bitmiş etkinliğin sonuç ekranı (17 Ekim 2026, kıyas ürünündeki gibi). kıyas ürününde "Sonuçları gör"
  * önceki sonucu açıyor: büyük "3/7", bir cümle, doğruluk ve harcanan süre; bizde etkinliği
  * baştan kuruyordu ("Bu konuya ne kadar aşinasın?"). Sayılar kayıttan, söz burada.
  */

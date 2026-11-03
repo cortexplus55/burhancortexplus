@@ -1,5 +1,5 @@
 /**
- * Öğrenme tercihleri (saf): Astra'nın Ayarlar > Öğrenme tercihleri
+ * Öğrenme tercihleri (saf): kıyas ürününün Ayarlar > Öğrenme tercihleri
  * sekmesinin karşılığı (1 Ekim 2026).
  */
 
@@ -22,7 +22,7 @@ export function dailyGoalLabel(todayMinutes: number, goalMinutes: number): strin
 }
 
 /**
- * Seri penceresindeki rekor satırı. Rekorun gerisindeyken Astra gibi kalan
+ * Seri penceresindeki rekor satırı. Rekorun gerisindeyken kıyas ürünü gibi kalan
  * gün sayısı yazılır: "Rekoru kırmana 4 gün daha var".
  */
 export function streakRecordLine(current: number, longest: number): string {

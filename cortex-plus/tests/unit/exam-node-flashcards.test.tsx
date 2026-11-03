@@ -96,10 +96,10 @@ describe("exam-prep flashcards — reveal before self-assessment", () => {
 });
 
 /*
-  Astra (1 Ekim 2026): destenin sonunda "Hayır" denen kartlar için tekrar
+  kıyas ürünü (1 Ekim 2026): destenin sonunda "Hayır" denen kartlar için tekrar
   turu; sonuç "Bildiğin kartlar"; kart ekranında "N kaynak".
 */
-describe("exam-prep flashcards — Astra gibi tekrar turu ve kaynak", () => {
+describe("exam-prep flashcards — kıyas ürünü gibi tekrar turu ve kaynak", () => {
   it("bilinmeyen kartı sonda bir kez daha sorar; kayıtta ilk tur cevabı kalır", async () => {
     const { fetchMock } = renderResumedDeck();
     await screen.findByText("Hedef boy nasıl hesaplanır?");

@@ -1,5 +1,5 @@
 /* Günü gelen tekrar (20 Ekim 2026): hazırlık sayfasındaki "Bugün N tekrar" kartı ve /tekrar oturumu.
-   Astra paleti ve yazı ölçeği (tokens.css, yeni ara boyut yok); durum renkleri altın değil — seçim
+   kıyas ürünü paleti ve yazı ölçeği (tokens.css, yeni ara boyut yok); durum renkleri altın değil — seçim
    mavi, doğru yeşil, yanlış kırmızı. Telefon 375 px: 16 px kenar, tam genişlik şıklar, dokunma ≥ 40 px. */
 
 /* Hazırlık sayfası kartı. `.cp-prep-last` geniş ekranda gizleniyor; bu kart her genişlikte görünür. */

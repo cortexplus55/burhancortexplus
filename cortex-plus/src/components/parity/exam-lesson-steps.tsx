@@ -459,7 +459,7 @@ function buildSteps(lesson: PlayLessonV3, view: LessonV2, building = false): Ste
   const overview = (lesson.overview ?? "").trim();
   const firstBody = lesson.screens[0] ? screenText(lesson.screens[0]) : "";
   const groups = conceptGroups(lesson.screens);
-  // Astra gibi giriş kartı (1 Ekim 2026): ders her zaman bir planla açılır —
+  // kıyas ürünü gibi giriş kartı (1 Ekim 2026): ders her zaman bir planla açılır —
   // okuma süresi, adım sayısı, kavramlar. Özet ilk ekranı tekrar ediyorsa
   // kanca cümlesi boş kalır, kart yine gösterilir.
   const hook = overview && !overviewDuplicatesSection(overview, firstBody) ? overview : "";

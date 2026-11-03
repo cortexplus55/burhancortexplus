@@ -24,7 +24,7 @@ const bodySchema = z.object({
 });
 
 /**
- * Video ders üretimi (17 Ekim 2026, Astra'daki gibi; yalnız Plus). Senaryo, sahne
+ * Video ders üretimi (17 Ekim 2026, kıyas ürünündeki gibi; yalnız Plus). Senaryo, sahne
  * resimleri ve sesleri tek işte; olmazsa kredi iade. Dönen kimlikle oynatıcı açılır.
  */
 export async function POST(request: Request) {

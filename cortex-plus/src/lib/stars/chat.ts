@@ -5,7 +5,7 @@ import { awardStars } from "@/lib/stars/award";
 import { CHAT_STARS, CHAT_STARS_AFTER_MESSAGES } from "@/lib/stars/rules";
 
 /**
- * "Öğretmenle sohbet: günde bir kez, 3 mesajdan sonra" (Astra). İstanbul gününde
+ * "Öğretmenle sohbet: günde bir kez, 3 mesajdan sonra" (kıyas ürünü). İstanbul gününde
  * öğrencinin üçüncü mesajından sonra bir kez 15 yıldız; ref gündür.
  */
 export async function awardChatStars(service: SupabaseClient, userId: string): Promise<number> {

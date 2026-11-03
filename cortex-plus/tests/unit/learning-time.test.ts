@@ -10,7 +10,7 @@ import {
 } from "@/lib/learning/learning-time";
 
 /*
-  Astra'nın Aktivitelerim sayfasında dakika cinsinden süre, "tüm zamanların
+  kıyas ürününün Aktivitelerim sayfasında dakika cinsinden süre, "tüm zamanların
   tasarrufu" ve en sevilen dersler var. Ürün sahibi üçünü de seçti; tasarruf
   saati 500 ₺ (30 Eylül 2026).
 */
@@ -24,7 +24,7 @@ describe("öğrenme süresi", () => {
     expect(savingsTl(-5)).toBe(0);
   });
 
-  it("süre Astra gibi yazılır", () => {
+  it("süre kıyas ürünü gibi yazılır", () => {
     expect(formatLearningDuration(10_020)).toBe("2 sa 47 dk");
     expect(formatLearningDuration(2100)).toBe("35 dk");
     expect(formatLearningDuration(7200)).toBe("2 sa");

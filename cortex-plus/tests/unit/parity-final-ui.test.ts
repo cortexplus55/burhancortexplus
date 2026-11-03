@@ -4,15 +4,15 @@ import { describe, expect, it } from "vitest";
 import { studentBottomTabs } from "@/components/parity/student-shell-nav";
 
 /*
-  3 Ekim 2026, son Astra turu (canlıda yan yana bakıldı):
-  - Oturumda (ders, test, podcast) Astra'da üst çubuk yok; yalnız ilerleme ve ×.
+  3 Ekim 2026, son kıyas ürünü turu (canlıda yan yana bakıldı):
+  - Oturumda (ders, test, podcast) kıyas ürününde üst çubuk yok; yalnız ilerleme ve ×.
     Bizde uygulama menüsü + içeride ikinci "Geri" ve "×" vardı.
-  - Hazırlık simgeleri (sohbet, düello, paylaş, ⋮) Astra'da üst çubukta.
-  - "Seviyeni henüz ölçmedik" bandı Astra'da yok; tanı yolun ilk düğümü.
-  - Belgeler sekmesi Astra'da yok; "Daha fazla" menüsünde, yeni tasarımda.
+  - Hazırlık simgeleri (sohbet, düello, paylaş, ⋮) kıyas ürününde üst çubukta.
+  - "Seviyeni henüz ölçmedik" bandı kıyas ürününde yok; tanı yolun ilk düğümü.
+  - Belgeler sekmesi kıyas ürününde yok; "Daha fazla" menüsünde, yeni tasarımda.
   - Ana sayfa "Başla": yuvarlak ışıltı düğmesi.
 */
-describe("son Astra turu", () => {
+describe("son kıyas ürünü turu", () => {
   it("oturum sayfaları üst çubuksuz; tek çıkış ×", () => {
     for (const page of [
       "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx",

@@ -6,7 +6,7 @@ import {
 } from "@/lib/learning/exam-catalog";
 import { examRelativeLabel } from "@/lib/learning/exam-prep-plan";
 
-describe("sınav listesi kataloğu (Astra: Müfredatım / Resmî sınavlar)", () => {
+describe("sınav listesi kataloğu (kıyas ürünü: Müfredatım / Resmî sınavlar)", () => {
   it("ortaokulda ortaokul, lisede lise dersleri veriyor", () => {
     const middle = curriculumFor("7. sınıf");
     expect(middle.levelLabel).toBe("7. sınıf");
@@ -31,7 +31,7 @@ describe("sınav listesi kataloğu (Astra: Müfredatım / Resmî sınavlar)", ()
     }
   });
 
-  it("kart tarihi Astra gibi göreli: sonra / önce / bugün", () => {
+  it("kart tarihi kıyas ürünü gibi göreli: sonra / önce / bugün", () => {
     const from = new Date("2026-09-29T09:00:00Z");
     expect(examRelativeLabel("2026-10-20", from)).toBe("21 gün sonra");
     expect(examRelativeLabel("2026-09-17", from)).toBe("12 gün önce");

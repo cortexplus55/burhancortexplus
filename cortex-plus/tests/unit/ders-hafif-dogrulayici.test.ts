@@ -12,7 +12,7 @@ import {
 } from "@/lib/learning/lesson-sanity";
 
 /*
-  30 Ekim 2026, Astra ile yan yana tur (aynı Makroekonomi notu, kör yargı): dersin öğrenci gözü Astra'nın gerisinde
+  30 Ekim 2026, kıyas ürünüyle yan yana tur (aynı Makroekonomi notu, kör yargı): dersin öğrenci gözü kıyas ürününün gerisinde
   kaldı. İki yargıç da aynı iki kusuru gösterdi: "hangi endeks ölçer?" sorusunun beş şıkkından üçü endeks değildi
   (Stagflasyon, Deflasyon, Dezenflasyon) ve aynı ekranda "%60'tan %40'a" örneği yedi kez geçiyordu. Ürün sahibinin
   kararları: hafif doğrulayıcı bütün kavramlara; aynı çağrı ekranda üçüncü kez tekrar eden süs kutusunu çıkarır.

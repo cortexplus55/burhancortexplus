@@ -87,9 +87,46 @@ export function explanationAnswerIssue(item: { choices: string[]; answer: number
   return idx === item.answer ? null : `açıklama başka şıkkı (${m[1]}) doğru diyor`;
 }
 
+/**
+ * Katman 4, üçlü mutabakat (3 Kasım 2026): açıklamanın vardığı şık kodla okunur; yazarın anahtarıyla aynı olmalı.
+ * Kör çözücünün anahtarla eşleşmesi schema.ts `applyReview`'da zorunlu (satırı olmayan soru "doğrulanmadı" düşer).
+ * Yazar istemi açıklamayı "Doğru cevap: <şık metni>" ile bitirir; şık metni üzerinden okunur (sunumda şık sırası
+ * karışabilir, harf değil metin bağlar). Okunamayan sonuç = mutabakat kanıtlanamadı → ret.
+ */
+export function explanationConclusion(item: { choices: string[]; explanation: string }): number | null {
+  const fold = (t: string) => turkishFold(t).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const m = /dogru\s+(?:cevap|yanit|secenek|sik)[^:]{0,20}:\s*(.+)$/u.exec(turkishFold(item.explanation.trim()).split("\n").filter(Boolean).at(-1) ?? "");
+  if (m) {
+    const tail = fold(m[1]!);
+    const letter = /^\(?([a-e])\)?(?:\s|$)/u.exec(m[1]!.trim());
+    const byText = item.choices.map(fold).findIndex((c) => c && (tail === c || tail.endsWith(` ${c}`) || tail.startsWith(c)));
+    if (byText >= 0) return byText;
+    if (letter) {
+      const idx = letter[1]!.charCodeAt(0) - 97;
+      return idx < item.choices.length ? idx : null;
+    }
+  }
+  return null;
+}
+
+export function triadIssue(item: { choices: string[]; answer: number; explanation: string }): string | null {
+  const concluded = explanationConclusion(item);
+  if (concluded === null) {
+    // Sayısal şıklarda açıklamanın "= sonuç"u anahtarı veriyorsa sonuç okunmuş sayılır.
+    const values = item.choices.map(numericChoice);
+    if (values.every((v) => v !== null)) {
+      const nums = [...item.explanation.matchAll(/=\s*(-?\d+(?:[.,]\d+)*)/g)].map((x) => parseLooseNumber(x[1]!));
+      const last = nums.at(-1);
+      if (last != null && close(last, values[item.answer]!, 1e-9)) return null;
+    }
+    return "açıklama sonucu okunamadı (üçlü mutabakat)";
+  }
+  return concluded === item.answer ? null : "açıklamanın sonucu anahtarla aynı değil (üçlü mutabakat)";
+}
+
 /** Kodla yapılan v14 katmanları (1, 2, 4-kod). İlk sorun döner. */
 export function v14CodeIssue(item: { stem: string; choices: string[]; answer: number; explanation: string }): string | null {
   const canon = canonicalIssues(`${item.stem}\n${item.explanation}\n${item.choices.join("\n")}`);
   if (canon.length) return canon[0]!;
-  return numericResultIssue(item) ?? explanationAnswerIssue(item);
+  return numericResultIssue(item) ?? explanationAnswerIssue(item) ?? triadIssue(item);
 }

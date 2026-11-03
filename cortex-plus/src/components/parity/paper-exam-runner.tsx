@@ -34,7 +34,7 @@ function clock(sec: number): string {
 }
 
 /**
- * Kâğıtta çöz (17 Ekim 2026, Astra'daki gibi). Çalışma kâğıdı → yazdır → Başla →
+ * Kâğıtta çöz (17 Ekim 2026, kıyas ürünündeki gibi). Çalışma kâğıdı → yazdır → Başla →
  * halka sayaç → "Bitir ve çözümlerini yükle" → fotoğraflar → okuma + not.
  */
 export function PaperExamRunner({
@@ -334,7 +334,7 @@ export function PaperExamRunner({
 }
 
 /**
- * Yalnız baskıda görünen çalışma kâğıdı (Astra'nın kâğıdı: başlık, tarih · soru sayısı,
+ * Yalnız baskıda görünen çalışma kâğıdı (kıyas ürününün kâğıdı: başlık, tarih · soru sayısı,
  * Ad soyad / Tarih / Puan, yönerge, numaralı sorular; şıklı soruda kutucuk, yazılı
  * cevapta satır).
  */

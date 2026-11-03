@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { layoutBoard, studentTextParts } from "@/lib/learning/lesson-board";
 
-// Astra ile yan yana (18 Ekim 2026): Astra'nın dersinde satır başındaki sayılar liste numarası
+// kıyas ürünüyle yan yana (18 Ekim 2026): kıyas ürününün dersinde satır başındaki sayılar liste numarası
 // sanılıp kayboldu — "2 ay / 6 ay / 9 ay" yerine "1 Ay / 2 Ay / 3 Ay", açıklamada "ayda sosyal
 // gülümsemenin olmaması". Bizde tahta metni sayıyı olduğu gibi göstermeli.
 describe("lesson board keeps leading numbers", () => {

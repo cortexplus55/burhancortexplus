@@ -369,7 +369,7 @@ export function applyPastWeights(slots: MockTopicSlot[], past: PastQuestion[]): 
   }
 }
 
-/** Açık uçlu yerler (Astra'nın kâğıdındaki yazma yeri) sözlü deneme motorundan gelir. */
+/** Açık uçlu yerler (kıyas ürününün kâğıdındaki yazma yeri) sözlü deneme motorundan gelir. */
 const OPEN_TYPES = new Set<MockQuestionType>(["open", "short_answer"]);
 
 type TopicGenInput = {

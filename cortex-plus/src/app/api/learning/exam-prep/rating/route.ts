@@ -3,11 +3,11 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 
 /**
- * "Bu dersi nasıl buldun?" — Astra'nın sonuç ekranındaki üç seçenek
+ * "Bu dersi nasıl buldun?" — kıyas ürününün sonuç ekranındaki üç seçenek
  * (30 Eylül 2026). Cevap denemenin kendi kaydına yazılıyor (payload
  * içinde `studentRating`); ayrı tablo ya da migration gerekmiyor.
  */
-// 17 Ekim 2026: Astra'nın beş seçeneği (Mantıklı değildi, Başka bir şey yanlış gitti eklendi).
+// 17 Ekim 2026: kıyas ürününün beş seçeneği (Mantıklı değildi, Başka bir şey yanlış gitti eklendi).
 const LESSON_RATINGS = ["great", "too_easy", "too_hard", "confusing", "other"] as const;
 
 const bodySchema = z.object({

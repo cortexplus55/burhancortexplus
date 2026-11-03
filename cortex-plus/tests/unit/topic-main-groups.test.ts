@@ -10,7 +10,7 @@ import {
 
 /*
   28 Eylül 2026: 211 sayfalık KPSS Vatandaşlık belgesinden 111 konu çıktı;
-  Astra aynı belgeden 12 ana konu çıkarıyor. Ürün sahibi Astra gibi 10–15
+  kıyas ürünü aynı belgeden 12 ana konu çıkarıyor. Ürün sahibi kıyas ürünü gibi 10–15
   ana konu seçti (30 Eylül 2026).
 */
 describe("çöp konu başlığı", () => {

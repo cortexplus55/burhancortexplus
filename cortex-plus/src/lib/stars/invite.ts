@@ -5,7 +5,7 @@ import { awardStars } from "@/lib/stars/award";
 import { INVITE_SUBSCRIBED_STARS } from "@/lib/stars/rules";
 
 /**
- * "Arkadaşın abone olsun — 300" (Astra). Ödeme tamamlanınca: ödeyen davetle
+ * "Arkadaşın abone olsun — 300" (kıyas ürünü). Ödeme tamamlanınca: ödeyen davetle
  * gelmişse ve artık etkin bir ücretli aboneliği varsa davet edene bir kez.
  * Yenilemeler ve ek paketler ikinci kez saymaz (ref davet edilenin kimliği).
  */

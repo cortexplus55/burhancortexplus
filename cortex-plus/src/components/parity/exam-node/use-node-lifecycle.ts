@@ -351,7 +351,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   /** Kart sonucu "Bildiğin kartlar N/M" — kayıttaki puan katılım puanı. */
   const [cardSummary, setCardSummary] = useState<{ known: number; partial: number; total: number; repeated: number } | null>(null);
   const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
-  /** Bu etkinlikle kazanılan yıldız (Astra: sonuç ekranında "+17 yıldız"). */
+  /** Bu etkinlikle kazanılan yıldız (kıyas ürünü: sonuç ekranında "+17 yıldız"). */
   const [starsEarned, setStarsEarned] = useState(0);
   const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
   // Harcanan zaman oturumun başından (P1-7): oynatma başlangıcı yazılmayan yolda (hazır ders, devralınan
@@ -364,7 +364,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   } | null>(null);
   const [writtenReview, setWrittenReview] = useState<WrittenExamReview | null>(null);
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
-  /** Astra'nın sonuç sonrası düzey önerisi; bitirişte sunucu söyler. */
+  /** kıyas ürününün sonuç sonrası düzey önerisi; bitirişte sunucu söyler. */
   const [levelHint, setLevelHint] = useState<LevelHint | null>(null);
   /** Sonuçtan sonra "+%X kazandın" (19 Ekim 2026); yalnız konu hâkimiyeti arttıysa. */
   const [topicGain, setTopicGain] = useState<TopicGain | null>(null);
@@ -1698,7 +1698,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     isOral && stage !== "restoring" && stage !== "grading" && !(stage === "play" && payload.type === "oral");
   /** × özetinin sayıları: kaç cevap sunucuda, kaçı yalnız bu cihazda (taslakta). */
   const exitSummary = exitPrompt ? answerSaveSummary(answersRef.current, savedAnswersRef.current) : null;
-  // Boşluk tuşu kartı çevirir (Astra). Odak bir düğmedeyse tarayıcı zaten
+  // Boşluk tuşu kartı çevirir (kıyas ürünü). Odak bir düğmedeyse tarayıcı zaten
   // o düğmeye basıyor; ikinci kez çevirmeyelim.
   useEffect(() => {
     if (!cardsPlaying) return;

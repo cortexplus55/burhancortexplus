@@ -23,7 +23,7 @@ export const metadata = { title: "Sonuç" };
 export const dynamic = "force-dynamic";
 
 /**
- * Bitmiş etkinliğin sonucu (17 Ekim 2026, Astra'daki gibi). "Sonuçları gör" ve yoldaki
+ * Bitmiş etkinliğin sonucu (17 Ekim 2026, kıyas ürünündeki gibi). "Sonuçları gör" ve yoldaki
  * bitmiş düğüm buraya gelir; etkinlik baştan kurulmaz. "Dersi tekrarla" yeniden başlatır.
  *
  * Dört aşama (29 Ekim 2026): yıldız ve seri, konu hâkimiyeti artışı, kapanan ve kalan eksik,

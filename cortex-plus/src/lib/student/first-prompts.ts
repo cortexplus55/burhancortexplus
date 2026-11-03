@@ -3,7 +3,7 @@
  * Kayıt sırasındaki sınıf / ders / hedef ile kişiselleşir.
  * AI'ya ürettirilmez: her açılışta kredi yakmamak için sabit şablon.
  *
- * Boş ekrandaki üç kısayol ve alt satır 30 Eylül 2026'da kalktı: Astra'nın
+ * Boş ekrandaki üç kısayol ve alt satır 30 Eylül 2026'da kalktı: kıyas ürününün
  * ana sayfasında yalnızca selam ve Başla var.
  */
 export function defaultStartPrompt({

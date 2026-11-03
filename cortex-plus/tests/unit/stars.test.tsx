@@ -22,12 +22,12 @@ afterEach(() => {
 const read = (path: string) => readSource(path);
 
 /*
-  Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi). Astra canlıda:
+  Yıldızlar (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünündeki gibi). kıyas ürünü canlıda:
   "Yıldızlar: bugün 11 · hedef 50", Okul arkadaşları / Türkiye / Okullar, Bu hafta / Tüm
   zamanlar, "Nasıl yıldız kazanılır", test sonucunda "+17 yıldız".
 */
 describe("yıldız kuralları", () => {
-  it("Astra'nın sayıları: hazırlık 10–210, düello 30–130, günlük hedef 50", () => {
+  it("kıyas ürününün sayıları: hazırlık 10–210, düello 30–130, günlük hedef 50", () => {
     expect(DAILY_STAR_GOAL).toBe(50);
     expect(prepStars("lesson", null, null)).toBe(10);
     // Skor çarpanı olmayan adım: kart ne yazıyorsa sonuç o (25 Ekim 2026, P1-7).

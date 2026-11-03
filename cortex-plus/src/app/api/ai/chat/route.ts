@@ -98,7 +98,7 @@ const bodySchema = z.object({
   audience: z.enum(["student"]).default("student"),
   imageDocumentId: z.string().uuid().optional(),
   prepId: z.string().uuid().optional(),
-  /** "Bugünkü ruh hali" (Astra gibi yazı kutusunun ayar düğmesinden). */
+  /** "Bugünkü ruh hali" (kıyas ürünü gibi yazı kutusunun ayar düğmesinden). */
   mood: z.string().max(20).optional(),
   /** Canlı anlatım anahtarı; yoksa profildeki `tutor_style` okunur. */
   tutorStyle: z.enum(["step_by_step", "hints_first", "direct_solve"]).optional(),
@@ -669,9 +669,9 @@ export async function POST(request: Request) {
       }).catch(() => undefined);
     }
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
-    // Yıldızlar (17 Ekim 2026, Astra: "Öğretmenle sohbet — günde bir kez, 3 mesajdan sonra").
+    // Yıldızlar (17 Ekim 2026, kıyas ürünü: "Öğretmenle sohbet — günde bir kez, 3 mesajdan sonra").
     after(() => awardChatStars(service, userId));
-    // Yeni sohbet: Astra gibi kısa başlık + emoji, cevap gittikten sonra.
+    // Yeni sohbet: kıyas ürünü gibi kısa başlık + emoji, cevap gittikten sonra.
     const savedConversationId = (saved as SavedChatResult).conversationId;
     if (!rest.conversationId && savedConversationId) {
       after(() =>

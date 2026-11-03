@@ -13,7 +13,7 @@ const OPTIONS = [
 ] as const;
 
 /**
- * "Bu dersi nasıl buldun?" — Astra'nın sonuç ekranındaki anket.
+ * "Bu dersi nasıl buldun?" — kıyas ürününün sonuç ekranındaki anket.
  * Cevap denemenin kaydına yazılıyor (`/api/learning/exam-prep/rating`).
  */
 export function LessonRatingCard({ attemptId, kind = "lesson" }: { attemptId: string; kind?: string }) {

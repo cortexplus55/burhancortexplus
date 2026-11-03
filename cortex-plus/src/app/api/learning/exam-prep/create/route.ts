@@ -198,7 +198,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Resmî konu listesi doğrulanamadı; sayfayı yenileyip tekrar dene." }, { status: 400 });
   }
 
-  // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; Astra'da ücretsiz
+  // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; kıyas ürününde ücretsiz
   // hesap yeni hazırlık kuramıyor).
   if (await freePrepLimitReached(service, userId)) {
     return NextResponse.json(
@@ -287,7 +287,7 @@ export async function POST(request: Request) {
   const hardSet = new Set(
     (parsed.data.hardTopics ?? []).map((t) => t.trim().toLocaleLowerCase("tr")),
   );
-  // Sihirbaz çalışma günü sormuyor (Astra da sormuyor). Sorulmadıysa her gün sayılır: 19 Ekim 2026'da
+  // Sihirbaz çalışma günü sormuyor (kıyas ürünü da sormuyor). Sorulmadıysa her gün sayılır: 19 Ekim 2026'da
   // 25 gün sonraki sınavın planı yalnız hafta içiyle 18 güne indi ve son güne on konu yığıldı.
   // Öğrenci günleri hazırlık ayarlarından daraltabilir; seçim kayda geçer.
   const studyDays = prepStudyDays(parsed.data.studyDays);

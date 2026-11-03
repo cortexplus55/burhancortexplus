@@ -161,7 +161,7 @@ export function ProfilePanel({
               {item.label}
             </Link>
           );
-          // Astra'daki sıra: … Geçmiş konuşmalar, Görünüm, …
+          // kıyas ürünündeki sıra: … Geçmiş konuşmalar, Görünüm, …
           return item.href === "/sohbetler"
             ? [link, <AppearanceRow key="gorunum" />]
             : [link];

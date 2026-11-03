@@ -44,7 +44,7 @@ export function UpgradeSheet({
   returnPath,
   /** "Hakkın yarın 03:00'te yenilenir" gibi bir satır. */
   resetHint,
-  /** Yenilenme anı (ISO). Varsa canlı geri sayım çizilir (Astra gibi). */
+  /** Yenilenme anı (ISO). Varsa canlı geri sayım çizilir (kıyas ürünü gibi). */
   resetsAt,
   headline,
   wins,
@@ -156,7 +156,7 @@ export function UpgradeSheet({
           <p className="ug-reset">{resetHint}</p>
         ) : null}
 
-        {/* Astra'da bu bağlantı aynı kapının içinde kısa bir açıklama açıyor;
+        {/* kıyas ürününde bu bağlantı aynı kapının içinde kısa bir açıklama açıyor;
             öğrenciyi yardım sayfasına göndermek kapıyı kapatıyordu. */}
         <button type="button" className="ug-why" onClick={() => setWhyOpen((value) => !value)}>
           Cortex Plus neden tamamen ücretsiz değil?
@@ -184,7 +184,7 @@ export function UpgradeSheet({
 
 /**
  * Geri sayımın parçaları. 24 saatten uzunsa gün ve saat ("5 gün 22 saat"): haftalık ders hakkı Salı
- * biten öğrenciye "142 saat 10 dk 05 sn" yazıyordu. Bir günün altında Astra'nın duvarındaki gibi saat,
+ * biten öğrenciye "142 saat 10 dk 05 sn" yazıyordu. Bir günün altında kıyas ürününün duvarındaki gibi saat,
  * dakika, saniye.
  */
 export function countdownParts(leftSeconds: number): { value: string; unit: string }[] {
@@ -204,7 +204,7 @@ export function countdownParts(leftSeconds: number): { value: string; unit: stri
 }
 
 /**
- * "Hakkın yenilenene kadar: 04 saat 21 dk 00 sn" — Astra'nın sohbet duvarındaki gibi. Yenilenme satırı
+ * "Hakkın yenilenene kadar: 04 saat 21 dk 00 sn" — kıyas ürününün sohbet duvarındaki gibi. Yenilenme satırı
  * ("Ders hakkın Pazartesi 00:00'da yenilenir.") hemen üstünde: eskiden geri sayım varken hiç çizilmiyordu.
  * Saniyede bir güncellenir; süre dolunca "Hakkın yenilendi" der.
  */

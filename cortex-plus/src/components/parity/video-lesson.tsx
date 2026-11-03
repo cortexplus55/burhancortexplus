@@ -25,7 +25,7 @@ import "@/styles/video-lesson.css";
 type Topic = { id: string; label: string };
 
 /**
- * Video kurulumu (Astra: "Video — 1 dakikalık video dersi izle — Hızlı ve görsel —
+ * Video kurulumu (kıyas ürünü: "Video — 1 dakikalık video dersi izle — Hızlı ve görsel —
  * Videoyu ayarla" → "Video stili" → "Konu seç" → hazırlanıyor). Yalnız Plus.
  */
 export function VideoLessonSetup({
@@ -252,7 +252,7 @@ function mmss(ms: number): string {
 }
 
 /**
- * Dikey video oynatıcı (Astra'daki gibi): üstte başlık, "1 kaynak", "Dersi tamamla";
+ * Dikey video oynatıcı (kıyas ürünündeki gibi): üstte başlık, "1 kaynak", "Dersi tamamla";
  * ortada ±15 sn ve oynat; altta ilerleme, süre, hız, tam ekran. Sahne resmi yavaşça
  * yakınlaşır, alt yazı 2-4 kelimelik parçalarla akar, ses sahne sahne çalar.
  */

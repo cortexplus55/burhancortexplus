@@ -16,7 +16,7 @@ const block = (css: string, selector: string) => {
 describe("telefon denetimi bekçileri", () => {
   it("'Geri'li üst çubuk sınav kabuğunda da daralır; kurucu çipi telefonda gizlenir", () => {
     const shell = read("src/styles/parity-shell.css");
-    const narrow = shell.slice(shell.indexOf("/* Telefonda Astra gibi tek satır"));
+    const narrow = shell.slice(shell.indexOf("/* Telefonda kıyas ürünü gibi tek satır"));
     const media = narrow.slice(0, narrow.indexOf("\n}\n") + 3);
     expect(media).toContain("@media (max-width: 480px)");
     expect(media).toMatch(/\.cp-sor-root--exam \.cp-sor-more-label \{\s*display: none;/);

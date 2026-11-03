@@ -3,9 +3,9 @@ import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesso
 import { examPointsBlock } from "@/lib/learning/exam-points";
 
 /**
- * Video ders (17 Ekim 2026, ürün sahibinin kararı: Astra'daki gibi).
+ * Video ders (17 Ekim 2026, ürün sahibinin kararı: kıyas ürünündeki gibi).
  *
- * Astra'da canlı bakıldı: "1 dakikalık video dersi izle — Hızlı ve görsel", stil seçimi
+ * kıyas ürününde canlı bakıldı: "1 dakikalık video dersi izle — Hızlı ve görsel", stil seçimi
  * (Gerçekçi & Sinematik · Çizgi roman · Beyaz tahta · Neon infografik · Hızlı odak), konu seçimi; çıktı dikey,
  * 66 sn, 6-8 sahne, her sahnede ayrı bir çizim, 2-4 kelimelik akan alt yazı ve
  * anlatıcı sesi. Kararla bizde video oynatıcıda birleşir: sahne resimleri, sahne başına
@@ -108,7 +108,7 @@ export function persistVideoStyle(id: string | null | undefined): string {
 
 /*
  * Süre: seslendirme Türkçeyi saniyede ~1,64 kelimeyle okuyor (17 Ekim canlı ölçüm: 178
- * kelime 108,5 sn — "1 dakikalık" denen video 1:48 çıktı). Astra'nın 66 sn'si ≈ 108 kelime.
+ * kelime 108,5 sn — "1 dakikalık" denen video 1:48 çıktı). kıyas ürününün 66 sn'si ≈ 108 kelime.
  * Yazara hedef verilir; hedef kaçarsa düzeltme turu, yalnız sınırın dışı videoyu düşürür.
  */
 export const VIDEO_MIN_SCENES = 6;
@@ -122,7 +122,7 @@ export const VIDEO_HARD_LIMITS = { minScenes: 5, sceneWords: 24, totalWords: { m
 
 /**
  * keyFact: sahnenin sınavda sorulacak kilit bilgisi; oynatıcı resmin üstüne büyük yazar (18 Ekim 2026,
- * Astra'nın tahtasında eşikler büyük yazılıydı). Resim yazısız kalır: model yazıyı bozuyor.
+ * kıyas ürününün tahtasında eşikler büyük yazılıydı). Resim yazısız kalır: model yazıyı bozuyor.
  * Anlatımdaki **anahtar kelime** alt yazıda renkli görünür, seslendirmede okunmaz.
  */
 export type VideoScene = { narration: string; visual: string; keyFact?: string };
@@ -276,7 +276,7 @@ export function videoImagePrompt(scene: VideoScene, style: string): string {
 }
 
 /**
- * Alt yazı parçaları: anlatım 2-4 kelimelik parçalara bölünür (Astra'da ekranda akan
+ * Alt yazı parçaları: anlatım 2-4 kelimelik parçalara bölünür (kıyas ürününde ekranda akan
  * kalın yazı); süre sahnenin sesine kelime sayısıyla oranlanır.
  */
 /** Seslendirilen metin: **anahtar kelime** işareti okunmaz. */

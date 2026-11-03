@@ -4,7 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 
 /**
  * Hazırlığın adı ve hedef puanı (PATCH), hazırlığı silme (DELETE).
- * Astra'daki hazırlık Ayarlar'ı (1 Ekim 2026). Plan ayarları ayrı uçta
+ * kıyas ürünündeki hazırlık Ayarlar'ı (1 Ekim 2026). Plan ayarları ayrı uçta
  * (`/settings`) kalıyor; bunlar planı yeniden kurmaz.
  */
 const patchSchema = z

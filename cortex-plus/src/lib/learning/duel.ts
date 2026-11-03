@@ -1,7 +1,7 @@
 /**
- * Düello — Astra'daki "sınıf arkadaşlarınla düello yap" (30 Eylül 2026).
+ * Düello — kıyas ürünündeki "sınıf arkadaşlarınla düello yap" (30 Eylül 2026).
  *
- * Kurallar Astra'nın kendi ekranından: herkes aynı 7 soruyu 20'şer saniyede
+ * Kurallar kıyas ürününün kendi ekranından: herkes aynı 7 soruyu 20'şer saniyede
  * yanıtlar; doğru cevap 10 puan, hıza göre en fazla 5 ek puan; son turda
  * puanlar ikiye katlanır. Puanı sunucu hesaplar — istemci yalnızca seçimi ve
  * süreyi yollar, doğru cevabı hiç görmez.

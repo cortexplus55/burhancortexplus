@@ -42,6 +42,14 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     }
     await expect(page.getByTestId("reinforce-result")).toContainText("2 ek sorudan 2 doğru");
     await expect(page.getByTestId("reinforce-missing")).toContainText("Bu kazanım için ek soru hazır değil");
+    // Paket 3: ek sorusu kalmayan kazanım için yeni pekiştirme testi (tek kazanım, 5 soru).
+    await page.getByTestId("reinforce-new").first().click();
+    for (let i = 0; i < 5; i++) {
+      await expect(page.getByTestId("level-runner")).toContainText(`${i + 1} / 5`);
+      await page.getByTestId("level-runner").getByRole("button", { name: /Doğru şık/ }).click();
+      await page.getByTestId("level-feedback").getByRole("button").click();
+    }
+    await expect(page.getByTestId("reinforce-result")).toContainText("5 ek sorudan 5 doğru");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });

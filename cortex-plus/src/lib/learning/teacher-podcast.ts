@@ -61,7 +61,7 @@ export type TeacherPodcastInput = {
 /*
   Ders kitabı bilgisi etiketsiz (23 Ekim 2026, ürün sahibinin kararı: "etiketsiz bilgi eklemek öğrenci tarafından bizi o
   seviyeye taşıyacaksa onu da yapalım"). Yirmi bir kör ölçümde öğrenci gözü 58 / 73'te kaldı; yargıçların ortak cümlesi
-  Astra'nın nedeni, tipik vakayı ve benzetmeyi ders kitabından katıp rahat bir sohbet kurduğuydu. Etiket (önce ağır,
+  kıyas ürününün nedeni, tipik vakayı ve benzetmeyi ders kitabından katıp rahat bir sohbet kurduğuydu. Etiket (önce ağır,
   sonra hafif ve seste okunmayan) yazarı çekingen bıraktı. Sınır aynı kaldı: sayı, eşik, doz, tanı ölçütü ve
   sınıflandırma yalnız kaynaktan; kaynakla çelişen ya da aciliyeti kaynaktan yükselten cümle yok. Denetçi (A, B, F)
   eklenen her cümlenin doğruluğuna bakar. Yalnız podcast; ders, test ve sohbetin kaynak kuralı değişmedi.
@@ -109,7 +109,7 @@ export const REPEAT_RULE =
 /*
   Sahne, neden, sıra (23 Ekim 2026, üçüncü kör ölçüm: podcast öğrenci gözünde 20+ puan geride). Yargıçların ortak
   cümlesi "sesli okunan tablo": Kerem soruyor, Ada okuyor; neden-sonuç, örnek ve benzetme yok; yaşlar 9 → 2 → 6 → 12
-  diye karışık. Astra her bölümü bir sahne ve bir nedenle anlatıyor, özeti öğrencinin ağzından yaptırıyordu. Yazar
+  diye karışık. kıyas ürünü her bölümü bir sahne ve bir nedenle anlatıyor, özeti öğrencinin ağzından yaptırıyordu. Yazar
   (AKIŞ) ve denetçi (J maddesi) üçünü aynen okur. J düzeltme turuna gider, kurtarmada satır silmez (I gibi).
 */
 export const SCENE_RULE =

@@ -20,7 +20,7 @@ import { reviewPromptKey, sealReviewItem } from "@/lib/learning/review-items";
 import { socraticConcept, socraticHint, solveDiscussPrompt } from "@/lib/solve/socratic-solve";
 
 /*
-  Soru çözücü (23 Ekim 2026, ürün sahibi: "yüzde 100 doğruluk, en çok 15 sn, Astra tarzı, bütün derslerde").
+  Soru çözücü (23 Ekim 2026, ürün sahibi: "yüzde 100 doğruluk, en çok 15 sn, kıyas ürünü tarzı, bütün derslerde").
   Model doğruluğu canlı ölçümle (`tests/unit/_tmp/solver-bench.test.ts`, 10 ders 10/10); burada kodun kendi
   kontrolleri: iki çözümün karşılaştırılması, adım aritmetiği, şık eşleşmesi, ekran durumu, sohbet metni ve
   tekrar listesine imzalı ekleme.

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { AVATAR_OPTIONS } from "@/lib/parity/signup";
 
 /**
- * Profil kartındaki "Avatarı değiştir" (Astra'da var; 1 Ekim 2026).
+ * Profil kartındaki "Avatarı değiştir" (kıyas ürününde var; 1 Ekim 2026).
  * Kayıttaki emoji listesinden seçilir ya da baş harfe dönülür.
  */
 export function AvatarPicker({

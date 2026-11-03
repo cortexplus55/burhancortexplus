@@ -46,6 +46,10 @@ export function fakeLevelApi(opts: { guest: boolean; empty?: boolean }): LevelAp
         // Zayıf iki kazanımdan biri için 2 ek soru var, diğeri için havuz boş (dürüst bildirim sınaması).
         items = [fakeItem(req.unit, 10, 1), fakeItem(req.unit, 11, 1)].map((it) => ({ ...it, difficulty: "easy" as const }));
         return { status: "ok", token: "e2e", source: "practice", guest: false, items, persisted: true, missing: [{ code: "E2E.2", text: "Fikstür kazanımı 2" }] };
+      } else if (req.mode === "reinforce_new") {
+        // Yeni pekiştirme testi: istenen kazanıma 5 yeni doğrulanmış soru.
+        items = Array.from({ length: 5 }, (_, i) => ({ ...fakeItem(req.unit, 20 + i, 2), outcomeCode: req.code }));
+        return { status: "ok", token: "e2e", source: "practice", guest: false, items, persisted: true };
       } else {
         items = Array.from({ length: 4 }, (_, i) => fakeItem(req.unit, i, i % 3));
       }

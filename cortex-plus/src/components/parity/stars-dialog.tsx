@@ -29,7 +29,7 @@ const SCOPES: { id: StarScope; label: string; icon: typeof Users; lead: string }
 const number = new Intl.NumberFormat("tr-TR");
 
 /**
- * Yıldızlar penceresi (17 Ekim 2026, Astra'daki gibi; `?dialog=stars`). Bu haftanın
+ * Yıldızlar penceresi (17 Ekim 2026, kıyas ürünündeki gibi; `?dialog=stars`). Bu haftanın
  * yıldızları, üç sıralama, Bu hafta / Tüm zamanlar, kazanç kaynakları ve kurallar.
  * Ürün sahibinin kararıyla öğrenci sıralamada adını gizleyebilir.
  */
@@ -291,7 +291,7 @@ export function StarsDialog({ open, onClose }: { open: boolean; onClose: () => v
 export const STARS_CHANGED_EVENT = "cp:stars-changed";
 
 /**
- * Üst çubuktaki yıldız düğmesi (Astra: "Yıldızlar: bugün 11 / 50"). Bugünün sayısı
+ * Üst çubuktaki yıldız düğmesi (kıyas ürünü: "Yıldızlar: bugün 11 / 50"). Bugünün sayısı
  * hafif uçtan okunur; pencere `?dialog=stars` ile açılır.
  */
 export function StarsButton() {

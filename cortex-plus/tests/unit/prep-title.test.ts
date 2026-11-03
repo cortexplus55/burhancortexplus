@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PREP_TITLE_SYSTEM, prepTitleFromModel, prepTitleUserPrompt, spreadTopics } from "@/lib/learning/prep-title";
 
 /*
-  3 Ekim 2026: aynı KPSS kitabına Astra "Vatandaşlık ve Hukukun Temel
+  3 Ekim 2026: aynı KPSS kitabına kıyas ürünü "Vatandaşlık ve Hukukun Temel
   Kavramları" diyor, biz dosya adından "KPSS Vatandaslik Konu Anlatimi"
   yazıyorduk. Ad artık ana konulardan; kartta da ana konu değil dersin adı.
 */

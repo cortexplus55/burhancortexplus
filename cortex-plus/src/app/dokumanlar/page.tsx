@@ -93,7 +93,7 @@ export default async function DokumanlarPage() {
       <DocumentStatusPoller documentIds={activeDocumentIds} />
       {/* 3 Ekim 2026: Belgeler artık "Daha fazla" menüsünde ve sınav sayfalarıyla
           aynı tasarımda. Yeni belge sınav hazırlığı kurulurken o derse
-          yüklenir (Astra); burada ayrı yükleme formu yok. */}
+          yüklenir (kıyas ürünü); burada ayrı yükleme formu yok. */}
       <div className="cp-docs">
         <div className="cp-docs-intro">
           <p>Her belge kendi sınav yoluna bağlı. Yeni belgeyi sınav hazırlığı kurarken yükle.</p>

@@ -94,7 +94,7 @@ export function ParitySorShell({
    */
   conversationBaseHref?: string;
   /**
-   * Hazırlık sayfası (17 Ekim 2026, Astra ile yan yana): üst çubukta yalnız Geri ve
+   * Hazırlık sayfası (17 Ekim 2026, kıyas ürünüyle yan yana): üst çubukta yalnız Geri ve
    * sayfanın kendi simgeleri; seri, menü, avatar ve kurucu rozeti yok.
    */
   minimalTop?: boolean;
@@ -134,8 +134,8 @@ export function ParitySorShell({
   const isStudio = pathname.startsWith("/studio");
   // "focus": sınav kabuğunun başlığı (Geri, seri, menü, avatar) ama temaya
   // uyan renk ve normal sayfa kaydırması. Hazırlık sayfası bunu kullanıyor —
-  // Astra'da hazırlığın içinde üst sekme çubuğu yok.
-  // "session": ders, test, podcast oturumu. Astra'da üst çubuk yok; yalnız
+  // kıyas ürününde hazırlığın içinde üst sekme çubuğu yok.
+  // "session": ders, test, podcast oturumu. kıyas ürününde üst çubuk yok; yalnız
   // ilerleme ve × (oturumun kendi çubuğu). 3 Ekim 2026.
   const examChrome = chrome === "exam" || chrome === "focus" || chrome === "session";
   const openConversation = (id: string) =>
@@ -232,7 +232,7 @@ export function ParitySorShell({
               ) : null}
             </Link>
 
-            {/* Astra (17 Ekim 2026): simgeli sekme grubu ve yanında ayrı "Daha fazla" kutusu.
+            {/* kıyas ürünü (17 Ekim 2026): simgeli sekme grubu ve yanında ayrı "Daha fazla" kutusu.
                 Telefonda sekmeler altta; "Daha fazla" sağ üstte kalır. */}
             <div className="cp-sor-topnav-group">
               <nav className="cp-sor-topnav" aria-label="Ana bölümler">
@@ -278,7 +278,7 @@ export function ParitySorShell({
               Plus
             </Link>
           ) : null}
-          {/* Abonede kredi çipi yok (29 Eylül 2026): Astra'da Plus'ın üst
+          {/* Abonede kredi çipi yok (29 Eylül 2026): kıyas ürününde Plus'ın üst
               çubuğunda yalnızca seri, "Daha fazla" ve avatar duruyor; kullanım
               profil → Kullanım'da yüzde olarak görülüyor. */}
           {minimalTop ? null : (
@@ -297,7 +297,7 @@ export function ParitySorShell({
               <span>{streakCount}</span>
               {freezeState ? <StreakFreezeBadge state={freezeState} compact /> : null}
             </button>
-            {/* Yıldızlar ve avatar tek cam kapsülde (Astra, 17 Ekim 2026). */}
+            {/* Yıldızlar ve avatar tek cam kapsülde (kıyas ürünü, 17 Ekim 2026). */}
             <div className="cp-sor-me">
             <StarsButton />
             <button

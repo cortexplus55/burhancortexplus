@@ -7,7 +7,7 @@ import { loadPrepCards } from "@/lib/learning/prep-cards";
 export const metadata = { title: "Sınav hazırlıklarım" };
 export const dynamic = "force-dynamic";
 
-/** Bütün hazırlıklar, Yaklaşan / Geçmiş (Astra, 1 Ekim 2026). */
+/** Bütün hazırlıklar, Yaklaşan / Geçmiş (kıyas ürünü, 1 Ekim 2026). */
 export default async function MyPrepsPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
