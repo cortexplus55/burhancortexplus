@@ -11,6 +11,11 @@ export type SourceDocRef = {
   figurePages?: number[];
   /** Şekil sayfalarının ipucu satırları: kart, değeri anan ekrana yerleşir (Paket H). */
   figureHints?: FigureHintRef[];
+  /**
+   * Yalnız yardımcı kaynak olarak derse giren şekil sayfaları (4 Kasım 2026, Senaryo B2): ekran anmadıkça yedek yere
+   * konmaz. Basınç dersinde slaytın "Yüzen: d_c < d_s" şekli, ders hiç anmadığı hâlde şema kartı oluyordu.
+   */
+  figureSupportOnly?: number[];
 };
 
 export type LessonSourceMatch = { documentId: string; page: number; fileName: string };
@@ -164,7 +169,7 @@ export type FigureScreen = {
   sectionIndex: number;
 };
 
-type FigureEntry = { documentId: string; fileName: string; page: number; lines: string[] };
+type FigureEntry = { documentId: string; fileName: string; page: number; lines: string[]; supportOnly?: boolean };
 
 function figureEntries(docs: readonly SourceDocRef[]): FigureEntry[] {
   const entries: FigureEntry[] = [];
@@ -173,12 +178,12 @@ function figureEntries(docs: readonly SourceDocRef[]): FigureEntry[] {
     for (const hint of doc.figureHints ?? []) {
       if (seen.has(hint.page)) continue;
       seen.add(hint.page);
-      entries.push({ documentId: doc.id, fileName: doc.name, page: hint.page, lines: hint.lines });
+      entries.push({ documentId: doc.id, fileName: doc.name, page: hint.page, lines: hint.lines, supportOnly: doc.figureSupportOnly?.includes(hint.page) });
     }
     for (const page of doc.figurePages ?? []) {
       if (seen.has(page)) continue;
       seen.add(page);
-      entries.push({ documentId: doc.id, fileName: doc.name, page, lines: [] });
+      entries.push({ documentId: doc.id, fileName: doc.name, page, lines: [], supportOnly: doc.figureSupportOnly?.includes(page) });
     }
   }
   return entries;
@@ -251,7 +256,7 @@ export function planFigureSources(
     return free.find((idx) => screens[idx]!.sectionIndex > 0) ?? free[0];
   };
   for (const entry of figureEntries(docs)) {
-    if (used.has(entryKey(entry))) continue;
+    if (used.has(entryKey(entry)) || entry.supportOnly) continue;
     const i = open();
     if (i == null) break;
     const match = { documentId: entry.documentId, page: entry.page, fileName: entry.fileName };

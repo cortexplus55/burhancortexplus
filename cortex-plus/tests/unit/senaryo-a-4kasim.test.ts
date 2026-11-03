@@ -30,3 +30,35 @@ describe("Senaryo A (4 Kasım 2026)", () => {
     expect(mistake.rubricCriteria).toEqual(["(p ∧ q)′ ≡ p′ ∨ q′"]);
   });
 });
+
+import { readNoteRuleWarnings } from "@/lib/learning/note-rule-check";
+import { SOURCE_CONFLICT_RULE } from "@/lib/learning/teacher-lesson";
+
+describe("Senaryo B1: el notu OCR'ında yanlış formül", () => {
+  const ocr = "Kaldırma kuvveti: \\(Fk = Vbatan \\cdot dcisim \\cdot g\\)\nYüzer: \\(dc < ds\\)";
+  it("LaTeX OCR metninde modelin bulduğu yanlış formül atılmaz", () => {
+    const out = readNoteRuleWarnings(
+      { items: [{ found: "Fk = Vbatan · dcisim · g", standard: "Fk = Vbatan · dsıvı · g", confidence: "yuksek" }] },
+      ocr,
+    );
+    expect(out).toEqual([{ id: "model", found: "Fk = Vbatan · dcisim · g", standard: "Fk = Vbatan · dsıvı · g" }]);
+  });
+  it("notta olmayan eşitlik yine atılır", () => {
+    expect(readNoteRuleWarnings({ items: [{ found: "F = m/a", standard: "F = m·a", confidence: "yuksek" }] }, ocr)).toEqual([]);
+  });
+  it("çelişki kuralı hocanın sayısal kurallarını korur", () => {
+    expect(SOURCE_CONFLICT_RULE).toMatch(/g = 10/);
+  });
+});
+
+describe("B5 ders tahtası: ';' ve sınıflama etiketi", () => {
+  it("bağıntısız cümle ve 'dc < ds: yüzer' sırası bölünmez", async () => {
+    const { layoutBoard } = await import("@/lib/learning/lesson-board");
+    const t =
+      "**Sıvı basıncı** P = d·g·h bağıntısıyla hesaplanır; **kap şekli önemsizdir**. Cismin yoğunluğu küçükse yüzer, büyükse batar: **dc < ds: yüzer; dc = ds: askıda; dc > ds: batar**.";
+    const lines = layoutBoard(t).map((l) => l.text);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("kap şekli önemsizdir");
+    expect(lines[1]).toContain("dc < ds: yüzer; dc = ds: askıda; dc > ds: batar");
+  });
+});

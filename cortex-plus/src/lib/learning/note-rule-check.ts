@@ -12,11 +12,12 @@
  * - Katalogun zaten bulduğu satır tekrar edilmez; toplam `NOTE_WARNING_CAP`.
  * Saf modül: istem, okuyucu ve birleştirme. Model çağrısı `note-rule-check-run.ts`'te.
  */
-import { NOTE_WARNING_CAP, type FormulaTypo } from "@/lib/learning/formula-typos";
+import { NOTE_WARNING_CAP, normalizeMathSide, type FormulaTypo } from "@/lib/learning/formula-typos";
 
 export const NOTE_RULE_SYSTEM =
   "Bir öğrencinin ders notunu okuyorsun. Görevin dar: notta EVRENSEL kabul görmüş bir eşitlik (formül, özdeşlik, " +
-  "tanım bağıntısı) AÇIKÇA yanlış yazılmışsa bildir (ör. üs, işaret, işlem ya da kesir ters yazılmış). Eşik, aralık, " +
+  "tanım bağıntısı) AÇIKÇA yanlış yazılmışsa bildir (ör. üs, işaret, işlem ya da kesir ters yazılmış; yanlış nicelik yazılmış: kaldırma " +
+  "kuvvetinde sıvının yerine cismin yoğunluğu gibi). Notun başka bir kaynağı aynı bağıntıyı doğru yazıyorsa bu da kanıttır. Eşik, aralık, " +
   "sınır değer, tarih, sınıflandırma, yönetmelik, tıbbi değer, hukuk kuralı, kurum ya da kitaba özgü gösterim ve " +
   "notun kendi tanımladığı semboller ASLA bildirilmez: onlarda not haklıdır. Yarım kalmış satır, soru, şık, örnek " +
   "çözüm ara adımı ya da notun kendisinin 'yanlış' dediği ifade bildirilmez. Emin değilsen bildirme; yanlış alarm, " +
@@ -31,13 +32,13 @@ export function noteRuleUserPrompt(text: string): string {
   return `NOT:\n${text.slice(0, NOTE_RULE_TEXT_CAP)}`;
 }
 
+/**
+ * Karşılaştırma biçimi. El yazısı OCR'ı formülü LaTeX verir ("\\(Fk = Vbatan \\cdot dcisim \\cdot g\\)"); model ise düz
+ * yazar ("Fk = Vbatan · dcisim · g"). LaTeX normalleştirilmeden "notta birebir geçmeli" denetimi doğru uyarıyı atıyordu
+ * (4 Kasım 2026, Senaryo B1). Aynı normalleştirme katalogda da kullanılıyor.
+ */
 function squash(value: string): string {
-  return value
-    .normalize("NFKC")
-    .replace(/[−–]/g, "-")
-    .replace(/[·×*]/g, "*")
-    .replace(/\s+/g, "")
-    .toLocaleLowerCase("tr-TR");
+  return normalizeMathSide(value.normalize("NFKC").replace(/[−–]/g, "-")).toLocaleLowerCase("tr-TR");
 }
 
 function isEquation(value: string): boolean {

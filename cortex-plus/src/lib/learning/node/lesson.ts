@@ -130,6 +130,8 @@ export async function teacherLessonPayload(
     runningHeaders: edges,
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     ...warned,
+    // Modelli denetim yazımdan sonra bitse de kavram denetimi standart kurala çevirir (Senaryo B1).
+    lateNoteWarnings: () => mergeNoteWarnings(noteWarnings, modelWarnings),
     startedAt,
     charge: input.charge,
     // Hızlı işlem yalnız öğrencinin açtığı soğuk derste (kimin alacağına `fastAllowedFor` karar verir).

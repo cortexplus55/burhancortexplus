@@ -427,7 +427,9 @@ function peelFormulas(sentence: string): string[] {
   if (colonAt >= 0) {
     const left = sentence.slice(0, colonAt);
     const right = sentence.slice(colonAt + 1).replace(/^\s+/, "");
-    if (RELATION_SIGN.test(right) && left.trim().length >= 8 && !/=/.test(left)) {
+    // "batar: dc < ds: yüzer" — solunda bağıntı varsa iki nokta formülü değil, sınıflama etiketini
+    // ("dc < ds: yüzer") açar; bölünürse sıra karışır (B5, 4 Kasım 2026 canlı).
+    if (RELATION_SIGN.test(right) && left.trim().length >= 8 && !RELATION_SIGN.test(left)) {
       return [cleanPiece(left), ...peelFormulas(right)];
     }
   }
@@ -436,7 +438,13 @@ function peelFormulas(sentence: string): string[] {
     const bits = splitOutsideBrackets(sentence, /\s*;\s*/)
       .map((part) => part.trim())
       .filter(Boolean);
-    if (bits.length > 1 && bits.some((bit) => formulaLike(bit))) return bits.flatMap((bit) => peelFormulas(bit));
+    // Bağıntısız parça ("kap şekli önemsizdir") ve "dc < ds: yüzer" gibi etiketli sınıflama
+    // maddesi kendi satırına kopmaz; cümle bütün kalır (B5, 4 Kasım 2026 canlı).
+    const splittable =
+      bits.length > 1 &&
+      bits.some((bit) => formulaLike(bit)) &&
+      bits.every((bit) => RELATION_SIGN.test(bit) && !/[=<>≤≥][^:]*:\s*\S/.test(plain(bit)));
+    if (splittable) return bits.flatMap((bit) => peelFormulas(bit));
   }
   if ((sentence.match(/=/g) ?? []).length >= 2 && /,\s*\d/.test(sentence)) {
     return splitEqualityList(sentence)
