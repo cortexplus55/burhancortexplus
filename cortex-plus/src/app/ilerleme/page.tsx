@@ -13,6 +13,10 @@ import { StreakFreezeBadge } from "@/components/parity/streak-freeze-badge";
 import { streakFreezeTitle } from "@/lib/learning/streak-freeze-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
+import { NetCard } from "@/components/level-check/mastery-map";
+import { loadPrepNet } from "@/lib/mastery-map/net-load";
+import { createServiceClient } from "@/lib/supabase/server";
+import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import { loadNearestPrepInsights } from "@/lib/learning/prep-insights-load";
 import { todayKey } from "@/lib/learning/daily-drill";
 import { normalizeLearningRows, type LearningTimeRow } from "@/lib/learning/learning-time";
@@ -127,6 +131,8 @@ export default async function IlerlemePage() {
     ),
     settle("prep_insights", () => loadNearestPrepInsights(supabase, user.id), null),
   ]);
+  // Net kartı hub'daki aynı hesapla; aynı hazırlık (yoksa son güncellenen). Hata sayfayı düşürmez.
+  const prepNet = await settle("prep_net", () => loadPrepNet(createServiceClient(), user.id, prepInsights?.prepId ?? null), null);
   const learningRows: LearningTimeRow[] = normalizeLearningRows(learningTime.data);
 
   const activityStamps = (activity.data ?? [])
@@ -194,6 +200,16 @@ export default async function IlerlemePage() {
               className="mt-4 inline-flex text-sm font-semibold text-[var(--cs-primary)]"
             >
               Hazırlık yoluna git →
+            </Link>
+          </SectionCard>
+        ) : null}
+        {prepNet ? (
+          <SectionCard title="Tahmini sınav netin" description={`${prepNet.title} · Hakimiyet Haritası yanıtlarından.`}>
+            <div className="lc-box mm" data-testid="ilerleme-net">
+              <NetCard net={prepNet.net} />
+            </div>
+            <Link href={examPrepHomeHref(prepNet.prepId)} className="mt-4 inline-flex text-sm font-semibold text-[var(--cs-primary)]">
+              {"Hakimiyet Haritası'na git →"}
             </Link>
           </SectionCard>
         ) : null}

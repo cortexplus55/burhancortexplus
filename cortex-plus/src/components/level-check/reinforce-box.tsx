@@ -28,20 +28,24 @@ export function ReinforceBox({
   unitTitle,
   api = httpLevelApi,
   onDone,
+  initialCode,
 }: {
+  /** Verilirse kutu doğrudan bu kazanımın yeni pekiştirme testiyle açılır (önce havuzdaki görülmemiş sorular). */
+  initialCode?: string;
   prepId: string;
   unitId: string;
   unitTitle: string;
   api?: LevelApi;
   onDone?: () => void;
 }) {
-  const [phase, setPhase] = useState<"loading" | "offer" | "run" | "result" | "empty" | "hidden">("loading");
-  const [newCode, setNewCode] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"loading" | "offer" | "run" | "result" | "empty" | "hidden">(initialCode ? "run" : "loading");
+  const [newCode, setNewCode] = useState<string | null>(initialCode ?? null);
   const [notice, setNotice] = useState<string | null>(null);
   const [offer, setOffer] = useState<{ list: OfferOutcome[]; total: number } | null>(null);
 
   // Öneri metni sunucunun gerçek sayımından (yanıtlanmamış, doğrulanmış soru) gelir; söz = teslim.
   useEffect(() => {
+    if (initialCode) return;
     let live = true;
     api
       .start({ mode: "reinforce", unit: unitId, prepId, peek: true })
@@ -61,7 +65,7 @@ export function ReinforceBox({
     return () => {
       live = false;
     };
-  }, [api, unitId, prepId]);
+  }, [api, unitId, prepId, initialCode]);
   const [missing, setMissing] = useState<MissingOutcome[]>([]);
   const [weakCount, setWeakCount] = useState<number | null>(null);
   const [results, setResults] = useState<LevelResult[]>([]);
@@ -150,7 +154,7 @@ export function ReinforceBox({
         <>
           <p className="lc-kicker">Pekiştirme</p>
           <p className="lc-status" data-testid="reinforce-empty">
-            {weakCount === 0 ? "Bu ünitede zayıf kazanım görünmüyor; ek soru gerekmiyor." : `${NO_EXTRA_LEFT_TEXT}.`}
+            {initialCode ? (notice ? null : `${NO_EXTRA_LEFT_TEXT}.`) : weakCount === 0 ? "Bu ünitede zayıf kazanım görünmüyor; ek soru gerekmiyor." : `${NO_EXTRA_LEFT_TEXT}.`}
           </p>
           {missingList}
           {noticeLine}

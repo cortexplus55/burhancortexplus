@@ -36,7 +36,12 @@ export type NetSubject = { key: string; exam: string; questionCount: number };
 export type NetEstimate =
   | { status: "no_data"; responses: number }
   /** Resmî ders soru sayısı yok (ör. KPSS alt dersleri): net hesaplanmaz, yalnız ustalık kazancına göre +3 konu. */
-  | { status: "no_count"; responses: number; top: { unitId: string; title: string; gain: number }[] }
+  | {
+      status: "no_count";
+      responses: number;
+      /** currentPct: ünitenin şu anki ortalama hakimiyeti (%); gainPct: %85 hedefe kadar tahmini doğru oranı artışı (puan). */
+      top: { unitId: string; title: string; gain: number; currentPct: number; gainPct: number }[];
+    }
   | {
       status: "ok";
       responses: number;
@@ -90,18 +95,28 @@ export function estimateNet(units: NetUnit[], subjects: NetSubject[]): NetEstima
 }
 
 /**
- * Soru sayısı bilinmeyen dersler için: net uydurmadan, ünitenin kazanımları %85'e çıksa kazanılacak
- * ustalık puanı (kazanım başına 0–100) ile en büyük 3 ünite. Yanıt < 3 → no_data.
+ * Soru sayısı bilinmeyen dersler için: net uydurmadan, en çok gelişme payı olan 3 ünite. Sıralama toplam açığa
+ * (kazanım başına %85 hedefe kalan, kazanım sayısıyla ağırlıklı) göre; öğrenciye ünitenin şu anki ortalama
+ * hakimiyeti (%) ve hedefe çıkınca tahmini doğru oranı artışı (yüzde puan) gösterilir. Yanıt < 3 → no_data.
  */
 export function estimateGainOnly(units: NetUnit[]): NetEstimate {
   const responses = units.reduce((n, u) => n + u.outcomes.reduce((m, o) => m + (o.state.n || 0), 0), 0);
   if (responses < NET_MIN_RESPONSES) return { status: "no_data", responses };
   const gains = units
+    .filter((u) => u.outcomes.length > 0)
     .map((u) => {
-      const gain = u.outcomes.reduce((g, o) => g + Math.max(0, NET_TARGET_MASTERY - masteryValue(o.state)), 0);
-      return { unitId: u.unitId, title: u.title, gain: Math.round(gain * 100) };
+      const values = u.outcomes.map((o) => masteryValue(o.state));
+      const gap = values.reduce((g, p) => g + Math.max(0, NET_TARGET_MASTERY - p), 0);
+      const avg = values.reduce((a, p) => a + p, 0) / values.length;
+      return {
+        unitId: u.unitId,
+        title: u.title,
+        gain: Math.round(gap * 100),
+        currentPct: Math.round(avg * 100),
+        gainPct: Math.round((gap / values.length) * 100),
+      };
     })
-    .filter((g) => g.gain >= 1)
+    .filter((g) => g.gain >= 1 && g.gainPct >= 1)
     .sort((a, b) => b.gain - a.gain)
     .slice(0, 3);
   return { status: "no_count", responses, top: gains };

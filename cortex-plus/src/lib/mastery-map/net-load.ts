@@ -39,3 +39,23 @@ function officialNet(prefs: unknown, mapUnits: MapUnitInput[]): NetEstimate | nu
   const est = estimateNet(units, [...subjects.values()]);
   return est.status === "no_data" && est.responses >= 3 ? null : est;
 }
+
+/**
+ * /ilerleme için net kartı: verilen hazırlık (yoksa son güncellenen) için hub'daki aynı hesap.
+ * Hazırlık ya da harita girdisi yoksa null (kart çizilmez); veri azsa NetCard "Henüz yeterli veri yok" der.
+ */
+export async function loadPrepNet(
+  service: import("@supabase/supabase-js").SupabaseClient,
+  userId: string,
+  prepId: string | null,
+): Promise<{ prepId: string; title: string; net: NetEstimate } | null> {
+  const base = () => service.from("exam_preps").select("id, title, learning_preferences").eq("user_id", userId);
+  const { data: prep } = prepId
+    ? await base().eq("id", prepId).maybeSingle()
+    : await base().order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (!prep?.id) return null;
+  const { loadMapInputs } = await import("@/lib/mastery-map/load");
+  const mapUnits = await loadMapInputs(service, { userId, prefs: prep.learning_preferences });
+  if (!mapUnits?.length) return null;
+  return { prepId: prep.id as string, title: (prep.title as string) ?? "Hazırlık", net: netEstimateFor(prep.learning_preferences, mapUnits) };
+}
