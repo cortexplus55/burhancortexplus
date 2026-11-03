@@ -1,5 +1,6 @@
 "use client";
 
+import { NET_MIN_RESPONSES, NET_NO_DATA, type NetEstimate } from "@/lib/mastery-map/net";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReinforceBox, NO_EXTRA_LEFT_TEXT } from "@/components/level-check/reinforce-box";
@@ -87,12 +88,14 @@ export function MasteryMap({
   daysLeft,
   dailyMinutes,
   api = httpLevelApi,
+  net = null,
 }: {
   prepId: string;
   units: MapUnitInput[];
   daysLeft: number | null;
   dailyMinutes: number | null;
   api?: LevelApi;
+  net?: NetEstimate | null;
 }) {
   const router = useRouter();
   const units = useMemo(() => inputs.map(buildMapUnit), [inputs]);
@@ -109,6 +112,7 @@ export function MasteryMap({
       <p className="lc-kicker">Hakimiyet Haritası</p>
       <p className="lc-status">Renkler tarama, ünite kontrolü ve pekiştirme yanıtlarından gelir. Üniteye dokun, kazanımlarını gör.</p>
       <p className="lc-status" data-testid="mm-note">{UNIT_PCT_NOTE}</p>
+      {net ? <NetCard net={net} /> : null}
       <ul className="mm-grid">
         {units.map((u) => (
           <UnitCell key={u.unitId} unit={u} open={open === u.unitId} onToggle={() => setOpen(open === u.unitId ? null : u.unitId)} />
@@ -170,4 +174,37 @@ export function MasteryMap({
       </div>
     </section>
   );
+}
+
+/** 📊 Tahmini sınav neti + en hızlı +net getirecek 3 konu (resmî yanlış kuralıyla; az veride sakin not). */
+function NetCard({ net }: { net: NetEstimate }) {
+  return (
+    <div className="mm-net" data-testid="net-card">
+      <p className="lc-kicker">📊 Tahmini sınav netin</p>
+      {net.status === "no_data" ? (
+        <p className="lc-status" data-testid="net-no-data">{NET_NO_DATA}. En az {NET_MIN_RESPONSES} soru yanıtlayınca tahmin burada belirir.</p>
+      ) : (
+        <>
+          <p className="lc-q" data-testid="net-value">
+            ≈ {fmt(net.net)} net <span className="lc-status">({fmt(net.low)}–{fmt(net.high)} aralığı, {net.maxNet} soru üzerinden)</span>
+          </p>
+          <p className="lc-status">Tahminidir: {net.responses} yanıta ve resmî yanlış kuralına dayanır.</p>
+          {net.top.length ? (
+            <>
+              <p className="lc-kicker">+Net getirecek 3 konu</p>
+              <ol className="mm-list" data-testid="net-top">
+                {net.top.map((t) => (
+                  <li key={t.unitId}>{t.title}: +{fmt(t.gain)} net</li>
+                ))}
+              </ol>
+            </>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+function fmt(x: number): string {
+  return x.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 }

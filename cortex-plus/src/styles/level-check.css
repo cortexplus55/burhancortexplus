@@ -84,6 +84,7 @@
 .mm-outcomes li[data-tone="mid"] { border-left-color: #f59e0b; }
 .mm-outcomes li[data-tone="high"] { border-left-color: #22c55e; }
 .mm-weak, .mm-plan { margin-top: 0.9rem; }
+.mm-net { margin: 0.6rem 0 0.9rem; padding: 0.6rem 0.75rem; border-radius: 0.6rem; background: var(--lc-soft, rgba(0,0,0,0.03)); }
 .mm-chips { list-style: none; margin: 0.3rem 0; padding: 0; display: grid; gap: 0.2rem; }
 .mm-list { margin: 0.3rem 0 0.6rem; padding-left: 1.2rem; display: grid; gap: 0.3rem; font-size: 0.88rem; }
 
