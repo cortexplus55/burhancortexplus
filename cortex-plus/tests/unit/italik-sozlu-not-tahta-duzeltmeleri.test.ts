@@ -5,7 +5,7 @@ import type { LessonBody } from "@/lib/content-pool/schema";
 import { readNoteRuleWarnings } from "@/lib/learning/note-rule-check";
 import { SOURCE_CONFLICT_RULE } from "@/lib/learning/teacher-lesson";
 
-describe("genel düzeltmeler (4 Kasım 2026)", () => {
+describe("genel düzeltmeler", () => {
   it("ikilenmiş italik harfleri düzeltir", () => {
     expect(cleanMathGlyphs("𝑥𝑥 + 𝑦𝑦 = 𝑧𝑧")).toBe("x + y = z");
     expect(cleanMathGlyphs("düz metin")).toBe("düz metin");
