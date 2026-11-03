@@ -21,6 +21,17 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     const outcomes = units.nth(0).getByTestId("mm-outcomes").locator("li");
     await expect(outcomes).toHaveCount(2);
     await expect(outcomes.nth(0)).toContainText("Bu konuya %75 hakimsin · tahmini");
+    // Canlı hata (3 Kasım 2026): satır düğmesi o satırın kazanımını taşır; öneri düğmeleri kendi kazanımını etiketler.
+    for (let i = 0; i < 2; i += 1) {
+      const code = await outcomes.nth(i).getAttribute("data-code");
+      await expect(outcomes.nth(i).getByTestId("mm-new-test")).toHaveAttribute("data-code", code ?? "");
+      await expect(outcomes.nth(i).getByTestId("mm-new-test")).toHaveAttribute("aria-label", new RegExp(`: ${(code ?? "").replace(/\./g, "\\.")} `));
+    }
+    for (const btn of await page.getByTestId("mm-weak-new-test").all()) {
+      const code = (await btn.getAttribute("data-code")) ?? "";
+      await expect(btn.locator("xpath=..")).toContainText(code);
+      await expect(btn.locator("xpath=..").getByTestId("mm-weak-outcome-text")).not.toBeEmpty();
+    }
 
     await expect(page.getByTestId("plan-totals")).toHaveText("Planın 4 saat, senin 3 saatin var.");
     await expect(page.getByTestId("plan-list").locator("li")).toHaveCount(2);

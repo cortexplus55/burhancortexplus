@@ -47,3 +47,44 @@ describe("net kartı metni", () => {
     expect(card).toMatch(/şu an %\d+ hakimsin · doğru oranında \+%\d+ gelişme payı/);
   });
 });
+
+describe("buton doğru kazanımı açar (canlı hata: açık ünitede indeks 5 → başka ünitenin kazanımı)", () => {
+  const two = [
+    {
+      unitId: "u-ilk",
+      title: "İlk Türk-İslam Devletleri",
+      outcomes: [{ outcomeId: "a1", code: "KPSS.DKTR.2.A", text: "Karahanlı ve Gazneli devletlerini açıklar.", state: weak, extra: 0 }],
+    },
+    {
+      unitId: "u-osm",
+      title: "Osmanlı Duraklama, Gerileme ve Dağılma",
+      outcomes: [
+        { outcomeId: "b1", code: "KPSS.DKTR.5.A", text: "Duraklama dönemini açıklar.", state: weak, extra: 0 },
+        { outcomeId: "b2", code: "KPSS.DKTR.5.B", text: "Gerileme dönemi ıslahatlarını açıklar.", state: weak, extra: 0 },
+      ],
+    },
+  ];
+  it("açık ünite satırındaki buton o satırın kazanımını açar, kutu satırın altında ve başlıkta kazanım yazar", async () => {
+    const start = vi.fn(async () => new Promise(() => {}));
+    render(<MasteryMap prepId="p" units={two as never} daysLeft={null} dailyMinutes={null} api={{ start, answer: vi.fn() } as never} />);
+    fireEvent.click(screen.getByRole("button", { name: /Osmanlı Duraklama/ }));
+    const rowBtns = screen.getAllByTestId("mm-new-test");
+    expect(rowBtns.map((b) => b.getAttribute("data-code"))).toEqual(["KPSS.DKTR.5.A", "KPSS.DKTR.5.B"]);
+    fireEvent.click(rowBtns[1]);
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ mode: "reinforce_new", code: "KPSS.DKTR.5.B", unit: "u-osm" }));
+    const row = rowBtns[1].closest("li")!;
+    expect(row.querySelector('[data-testid="reinforce"]')).not.toBeNull();
+    expect(row.textContent).toContain("Yeni pekiştirme · KPSS.DKTR.5.B · Gerileme dönemi");
+  });
+  it("Pekiştirme önerisi butonları kendi zayıf kazanım adını görünür etiketler", () => {
+    render(<MasteryMap prepId="p" units={two as never} daysLeft={null} dailyMinutes={null} api={{ start: vi.fn(async () => new Promise(() => {})) } as never} />);
+    const weakBtns = screen.getAllByTestId("mm-weak-new-test");
+    for (const b of weakBtns) {
+      const li = b.closest("li")!;
+      const code = b.getAttribute("data-code")!;
+      expect(li.textContent).toContain(code);
+      expect(b.getAttribute("aria-label")).toContain(code);
+    }
+    expect(weakBtns[0].closest("li")!.textContent).toContain("Karahanlı ve Gazneli");
+  });
+});

@@ -69,7 +69,12 @@ export function LevelCheckRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (state === "loading") return <p className="lc-status" role="status">Sorular havuzdan alınıyor…</p>;
+  if (state === "loading")
+    return (
+      <p className="lc-status" role="status">
+        {title} · Sorular havuzdan alınıyor…
+      </p>
+    );
   if (state === "error")
     return (
       <div className="lc-box">
