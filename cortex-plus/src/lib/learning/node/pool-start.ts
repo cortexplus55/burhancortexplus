@@ -66,23 +66,24 @@ export async function servePoolContent(
     )
     .single();
   if (error || !row) return null;
-  await upsertGenerationJob(service, { userId, prepId, nodeId, attemptId: row.id as string, clientRequestId: requestId, generationId: row.generation_id as string, status: "ready" });
-  if (kind === "lesson" && topic?.id) await saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(() => undefined);
-  if (node.status !== "done") await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+  // Paket 1b: üç bağımsız yazım paralel (sırayla ~3 gidiş-dönüş ekliyordu).
+  await Promise.all([
+    upsertGenerationJob(service, { userId, prepId, nodeId, attemptId: row.id as string, clientRequestId: requestId, generationId: row.generation_id as string, status: "ready" }),
+    kind === "lesson" && topic?.id ? saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(() => undefined) : null,
+    node.status !== "done" ? service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).then(() => undefined) : null,
+  ]);
   console.info("pool_served", { nodeId, kind, unit: (payload.pool as { unitId: string }).unitId });
   {
     const ms = Date.now() - requestStarted;
     const unitId = (payload.pool as { unitId: string }).unitId;
     after(() => recordLessonTiming(service, { userId, kind, path: "pool", openMs: ms, meta: { unitId } }));
   }
+  const [publicPayload, wallet] = await Promise.all([
+    publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
+    readWalletBalance(service, userId),
+  ]);
   return NextResponse.json({
-    ...attemptStartResponse(row, {
-      kind,
-      title,
-      topicLabel,
-      publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences), lessonFormat),
-      resumed: false,
-    }),
-    ...(await readWalletBalance(service, userId)),
+    ...attemptStartResponse(row, { kind, title, topicLabel, publicPayload, resumed: false }),
+    ...wallet,
   });
 }

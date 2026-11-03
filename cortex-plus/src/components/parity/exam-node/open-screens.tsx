@@ -5,7 +5,7 @@ import { BUSY_NOTE } from "@/lib/learning/generation-retry";
 import { showsSlowWarning } from "@/lib/learning/quiz-delivery";
 import { NodeGenerationProgress, preparingTitle } from "@/components/parity/node-generation-progress";
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
-import { difficultyFromFamiliarity, markSignalsSkipped, stepAfterMood } from "@/lib/learning/lesson-open";
+import { difficultyFromFamiliarity, markSignalsSkipped, saveSignalsChoice, stepAfterMood } from "@/lib/learning/lesson-open";
 import { activityDurationMinutes } from "@/lib/learning/activity-duration";
 import { startActionLabel } from "@/lib/learning/feedback-copy";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
@@ -14,7 +14,7 @@ import { VOICE_MODE_GATE } from "./gates";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function OpenSignals({ life }: { life: NodeLifecycle }) {
-  const { kind, todayMood, reviewSaved, unitTitle, activityMinutes, topicLabel, meta, stage, setStage, familiarity, setFamiliarity, mood, setMood, setDifficulty, start } = life;
+  const { prepId, kind, todayMood, reviewSaved, unitTitle, activityMinutes, topicLabel, meta, stage, setStage, familiarity, setFamiliarity, mood, setMood, setDifficulty, start } = life;
   return (
     <>
       {!reviewSaved && (stage === "familiarity" || stage === "mood") ? (
@@ -27,10 +27,12 @@ export function OpenSignals({ life }: { life: NodeLifecycle }) {
           onFamiliarity={(level) => {
             setFamiliarity(level);
             setDifficulty(difficultyFromFamiliarity(level));
+            saveSignalsChoice(typeof window === "undefined" ? null : window.localStorage, prepId, { familiarity: level });
             setStage(todayMood ? stepAfterMood(kind) : "mood");
           }}
           onMood={(next) => {
             setMood(next);
+            saveSignalsChoice(typeof window === "undefined" ? null : window.localStorage, prepId, { mood: next });
             setStage(stepAfterMood(kind));
           }}
           onSkip={() => {

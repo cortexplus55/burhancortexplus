@@ -558,7 +558,10 @@ export async function teacherLessonPipeline(
           timing.previewCorrected = !previewMatches((preview as { screen: LessonScreen }).screen, published[0]);
           if (timing.previewCorrected) console.info("teacher_lesson_preview_corrected", { concept: parts[index]?.concept?.slice(0, 60) ?? null });
         }
-        if (options.onPublish && !(streamEnded && index === outcomes.length - 1)) {
+        // Son kavram da hemen yayımlanır (3 Kasım 2026, Paket 1b): eskiden dönüşe kadar tutuluyordu; dönüş dört parça
+        // onarımı, kapsam ve şema çağrılarını sırayla bekliyor, öğrenci son kavramda 30 sn+ "yazıyor" ekranında kalıyordu
+        // (Boyle–Mariotte, hazırlık 7f8914bd: yazım 94 sn). Ek çağrılar artık öğrenci okurken yalnız sona ekler.
+        if (options.onPublish) {
           await options.onPublish({
             lesson: stripLessonIssueTags({ format: LESSON_V3_FORMAT, ...publishedHeader!, screens: [...published] }),
             done: false,

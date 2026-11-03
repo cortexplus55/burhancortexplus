@@ -33,10 +33,10 @@ import { ORAL_ALL_TOPICS, oralReviewItemFromGrade, oralScoreFraction, type OralE
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { topicLabelsMatch } from "@/lib/learning/study-tools";
 import { normalizeChapters } from "@/lib/learning/podcast-script";
-import { DEFAULT_FAMILIARITY, DEFAULT_MOOD, type Familiarity, type Mood } from "@/lib/learning/session-signals";
+import { DEFAULT_FAMILIARITY, DEFAULT_MOOD, parseMood, type Familiarity, type Mood } from "@/lib/learning/session-signals";
 import type { LevelHint } from "@/lib/learning/prep-level";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
-import { difficultyFromFamiliarity, openingStage, signalsSkippedToday, stepAfterMood } from "@/lib/learning/lesson-open";
+import { difficultyFromFamiliarity, openingStage, readSavedSignals, signalsSkippedToday, stepAfterMood } from "@/lib/learning/lesson-open";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
 import { missedCards } from "@/lib/learning/flashcard-round";
@@ -573,9 +573,19 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   // hemen başlar; öğrenci kartlara bakarken ilk kavram hazırlanır, "Ders oluştur" devralır.
   // Bir kez; "Dersi tekrarla" hariç (o yazdırmaz). Sunucu süren kayıt ya da hazır ders varsa atlar.
   // Bugün atlandıysa ruh hali yeniden sorulmaz (3 Kasım 2026). localStorage sunucuda yok: ilk çizimden sonra.
+  // Bugün bu hazırlıkta seçim yapıldıysa (Paket 1b) kart yeniden çıkmaz: seçim uygulanır, kurulum kartı özetini gösterir.
   useEffect(() => {
-    if (stage !== "mood" || todayMood) return;
-    if (signalsSkippedToday(window.localStorage)) setStage(stepAfterMood(kind));
+    if (stage !== "mood" && stage !== "familiarity") return;
+    const saved = readSavedSignals(window.localStorage, prepId);
+    if (saved?.familiarity && stage === "familiarity") {
+      setFamiliarity(saved.familiarity);
+      setDifficulty(difficultyFromFamiliarity(saved.familiarity));
+    }
+    if (saved?.mood) setMood(parseMood(saved.mood));
+    const familiarityDone = stage === "mood" || Boolean(saved?.familiarity);
+    const moodDone = Boolean(todayMood) || Boolean(saved?.mood);
+    if (signalsSkippedToday(window.localStorage) || (familiarityDone && moodDone)) setStage(stepAfterMood(kind));
+    else if (stage === "familiarity" && saved?.familiarity) setStage("mood");
     // yalnız açılışta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
