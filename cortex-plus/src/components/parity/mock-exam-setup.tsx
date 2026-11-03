@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { rememberMockTiming } from "@/lib/learning/mock-exam/client-timing";
+import { primeInstantExam } from "@/lib/learning/mock-exam/instant-exam";
 import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -233,6 +234,14 @@ export function MockExamSetup({
   // Soğuk başlangıç (3 Kasım 2026): kurulum açılınca deneme ucunu ısıt; tıklamadaki POST sıcak örneğe düşer.
   useEffect(() => {
     void fetch("/api/learning/exam-prep/mock-exam", { method: "GET", cache: "no-store" }).catch(() => undefined);
+    // Sınav sayfasının kodu ve anında açılış sınırı önceden iner (3 Kasım 2026); tıklamada JS beklenmez.
+    void import("@/components/parity/exam-runner").catch(() => undefined);
+    try {
+      router.prefetch(`/deneme-sinavlari/${prepId}/deneme/on-yukleme`);
+    } catch {
+      /* ön yükleme yalnız hız içindir */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -377,7 +386,13 @@ export function MockExamSetup({
         setProgress,
         { status: statusWatch() },
       );
-      if (typeof data.examId === "string") rememberMockTiming({ examId: data.examId, clickAt, postMs: Date.now() - clickAt });
+      if (typeof data.examId === "string") {
+        rememberMockTiming({ examId: data.examId, clickAt, postMs: Date.now() - clickAt });
+        // Havuz yanıtı soruları taşır: sınav sayfası gelmeden ilk soru çizilir (yalnız uygulamada çözüm).
+        if (answerModeRef.current !== "paper") {
+          primeInstantExam({ examId: data.examId, prepId, title: data.title, questions: data.questions });
+        }
+      }
       applyResult(status, data);
     } catch {
       toast.error("Yeniden dene.");

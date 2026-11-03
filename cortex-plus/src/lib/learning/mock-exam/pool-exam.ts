@@ -24,7 +24,15 @@ export async function tryPoolMockExam(input: {
   durationMinutes?: number;
   questionCount?: number;
   twin?: boolean;
-}, timer?: { mark: (name: string) => void }): Promise<{ examId: string; planned: number; topicTotal: number; ms: number } | null> {
+}, timer?: { mark: (name: string) => void }): Promise<{
+  examId: string;
+  planned: number;
+  topicTotal: number;
+  ms: number;
+  /** İstemci ilk soruyu yönlendirmeyi beklemeden çizsin diye (3 Kasım 2026); doğru cevap yok. */
+  title: string;
+  questions: Array<{ id: string; text: string; options: string[]; question_type: "mcq"; points: number }>;
+} | null> {
   const started = Date.now();
   const { service, userId, prepId } = input;
   if (input.twin || !input.isPremium) return null;
@@ -146,7 +154,10 @@ export async function tryPoolMockExam(input: {
       pool_item_id: item.id,
     };
   });
-  const { error: insertError } = await service.from("practice_exam_questions").insert(questionRows);
+  const { data: inserted, error: insertError } = await service
+    .from("practice_exam_questions")
+    .insert(questionRows)
+    .select("id, sort_order");
   if (insertError) {
     await service.from("practice_exams").delete().eq("id", examId).eq("user_id", userId);
     return null;
@@ -154,5 +165,9 @@ export async function tryPoolMockExam(input: {
   timer?.mark("pool_questions_insert");
   const ms = Date.now() - started;
   console.info(JSON.stringify({ event: "mock_pool_select", ms, count: flat.length, prepId }));
-  return { examId, planned: flat.length, topicTotal: rows.length, ms };
+  const idBySort = new Map(((inserted ?? []) as { id: string; sort_order: number }[]).map((r) => [r.sort_order, r.id]));
+  const questions = questionRows.every((_, i) => idBySort.has(i))
+    ? questionRows.map((q, i) => ({ id: idBySort.get(i)!, text: q.question_text, options: q.options, question_type: "mcq" as const, points: q.points }))
+    : [];
+  return { examId, planned: flat.length, topicTotal: rows.length, ms, title: `${String(prep.title)} · yazılı deneme`, questions };
 }
