@@ -405,7 +405,9 @@ export type UsageCode =
   | "SHARED_CONTENT_MEDIA"
   /** Pekiştirme testi (Paket 3): öğrencinin istediği tek kazanımlık yeni sorular (0 kredi, günlük sınır; havuz bütçesinden ayrı kod). */
   | "REINFORCE_ITEMS"
-  | "REINFORCE_VERIFY";
+  | "REINFORCE_VERIFY"
+  | "OUTCOME_LESSON"
+  | "OUTCOME_LESSON_VERIFY";
 
 export async function recordUsage(
   service: SupabaseClient,

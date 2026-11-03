@@ -9,7 +9,7 @@ import { freeOpenTopicLabel } from "@/lib/billing/free-topic-gate";
 
 /*
   Paket 3 (3 Kasım 2026): "🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç". Öğrenci kredisi 0; öğrenci başına günde
-  REINFORCE_DAILY_LIMIT üretim. Maliyet REINFORCE_* koduyla yazılır (havuz doldurucunun SHARED_CONTENT bütçesine girmez).
+  REINFORCE_DAILY_LIMIT üretim. Maliyet REINFORCE_* koduyla yazılır ve doldurucuyla AYNI havuz tavanına sayılır (poolBudgetAllows; Paket 3b).
   Geçen soru item_bank'a herkes için yazılır (read-through): origin='reinforce'. CHECK henüz yalnız 'cortex_original'
   kabul ediyorsa (migration 20261103130000 uygulanmadıysa) satır varsayılan origin'le, qa.origin='reinforce' ile yazılır.
 */

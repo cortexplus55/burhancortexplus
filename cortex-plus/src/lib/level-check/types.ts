@@ -36,6 +36,7 @@ export type LevelStartResponse =
   | { status: "limit"; limit: number }
   | { status: "locked" }
   | { status: "unavailable" }
+  | { status: "paused" }
   /** peek: soru göndermeden gerçek öneri (yalnız ek sorusu olan kazanımlar; toplam = sunulacak soru sayısı). */
   | { status: "offer"; offer: OfferOutcome[]; total: number; weakCount: number; missing: MissingOutcome[] };
 

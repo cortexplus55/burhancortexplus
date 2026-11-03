@@ -10,6 +10,7 @@ import type { LevelStartResponse, MissingOutcome } from "@/lib/level-check/types
 import { loadAnsweredItems, loadMasteryStates, plannedPoolUnits } from "@/lib/mastery-map/load";
 import { reinforceOffer, pickReinforcement } from "@/lib/mastery-map/reinforce";
 import { PRIOR } from "@/lib/level-check/mastery";
+import { poolBudgetAllows } from "@/lib/content-pool/fill-server";
 import { createReinforceItems, REINFORCE_DAILY_LIMIT, reinforceAllowedForFree, reinforceUsedToday } from "@/lib/content-pool/reinforce-new";
 
 export const runtime = "nodejs";
@@ -25,6 +26,8 @@ const bodySchema = z.discriminatedUnion("mode", [
 ]);
 
 const REINFORCE_NEW_COUNT = 5;
+/** Bir yeni pekiştirme üretiminin (yazar + kör çözücü) üst tahmini; tavan denetimi için. */
+const REINFORCE_ESTIMATE_USD = 0.03;
 
 /**
  * Seviye kontrolü başlat (Plan PR 3). Yalnız havuzdaki doğrulanmış sorular; model çağrısı yok.
@@ -71,6 +74,8 @@ export async function POST(request: Request) {
     const used = await reinforceUsedToday(service, userId);
     if (used === null) return NextResponse.json({ status: "unavailable" } satisfies LevelStartResponse, { headers: noStore });
     if (used >= REINFORCE_DAILY_LIMIT) return NextResponse.json({ status: "limit", limit: REINFORCE_DAILY_LIMIT } satisfies LevelStartResponse, { headers: noStore });
+    // Ortak havuz tavanı (Paket 3b): dolduysa yeni üretim yok, öğrenciye sakin mesaj.
+    if (!(await poolBudgetAllows(service, REINFORCE_ESTIMATE_USD))) return NextResponse.json({ status: "paused" } satisfies LevelStartResponse, { headers: noStore });
     const made = await createReinforceItems(service, { unit, outcomeCode: outcome.code, userId, existingStems: mine.map((r) => String(r.stem ?? "")) });
     if (made.state !== "ok") return NextResponse.json({ status: made.state === "none" ? "empty" : "unavailable" } satisfies LevelStartResponse, { headers: noStore });
     const fresh = (await loadVerifiedItems(service, [body.unit])).filter((r) => made.ids.includes(r.id));

@@ -35,6 +35,7 @@ import { resolveStartSource } from "@/lib/learning/node/source";
 import { reserveStartAttempt } from "@/lib/learning/node/reserve";
 import { runStartGeneration } from "@/lib/learning/node/generation";
 import { servePoolContent } from "@/lib/learning/node/pool-start";
+import { serveOutcomeLesson } from "@/lib/learning/node/outcome-start";
 
 /** Öbür sekmenin açtığı kayıt bu kadar yeniyse bu sekme de onu açar (Paket J2 #9). */
 const TWIN_RESUME_MS = 3 * 60_000;
@@ -281,6 +282,9 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
   // Havuz içeriği (2 Kasım 2026): resmî kurulumdaki ünitenin doğrulanmış anlatımı, kartları ve soruları 0 kredi;
   // haftalık ders sayacına sayılmaz. Havuzda yoksa aşağıdaki bugünkü üretim yolu (fiyatıyla) çalışır.
   if (parsed.data.replay !== true && parsed.data.review !== true) {
+    // Paket 3b: tek kazanımlı konuda kazanım dersi (havuzdan 0 kredi ya da stream-first üretip havuza yazar).
+    const outcome = await serveOutcomeLesson(context, { topic, topicLabel, title, clientRequestId, voiceSession }).catch(() => null);
+    if (outcome) return outcome;
     const pooled = await servePoolContent(context, { topic, topicLabel, title, clientRequestId, voiceSession });
     if (pooled) return pooled;
   }

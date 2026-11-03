@@ -62,12 +62,12 @@ export function openaiLlm(): LlmCall | null {
   };
 }
 
-const ORIGINALITY =
+export const ORIGINALITY =
   "Tüm metin ve sorular özgün olmalı (origin=cortex_original). Çıkmış sınav sorularını, yayınevi kitaplarını ya da MEB/ÖSYM " +
   "kitapçıklarını kopyalama, yeniden yazma ya da onlara atıf yapma. Kaynak bağlantısı yazma; bağlantılar sistemce eklenir. " +
   "Yalnız verilen kazanımların ve sınırlamalarının kapsamında kal; kapsam dışı bilgi ekleme. Dil: Türkçe.";
 
-function officialBlock(unit: PoolUnit): string {
+export function officialBlock(unit: PoolUnit): string {
   const rule = needsLogicTermsRule(`${unit.unit.title} ${unit.outcomes.map((o) => o.text).join(" ")}`) ? `\n${LOGIC_TERMS_RULE}` : "";
   const lines = unit.outcomes.map((o) => {
     const limits = o.limitations.length ? `\n   Sınırlamalar/açıklamalar: ${o.limitations.join(" | ")}` : "";
