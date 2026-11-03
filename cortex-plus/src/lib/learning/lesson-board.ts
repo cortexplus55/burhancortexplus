@@ -166,6 +166,10 @@ export function incompleteFormulaLine(text: string): boolean {
   return !right || /^[+×*/\-−]+$/.test(right);
 }
 
+function proseWordCount(text: string): number {
+  return (text.match(/(?<![\p{L}\p{N}_])[a-zçğıöşü]{3,}(?![\p{L}\p{N}_(])/gu) ?? []).length;
+}
+
 function formulaLike(text: string): boolean {
   const compact = plain(text).replace(/\.$/, "");
   if (compact.length > 180) return false;
@@ -177,6 +181,8 @@ function formulaLike(text: string): boolean {
     words.length <= 14;
   if (relation) return true;
   if (!/=/.test(compact)) return false;
+  // "p=D, q=Y iken ilk eşitliğin iki tarafı D, …": eşitlik içeren düz cümle formül kutusu değildir.
+  if (proseWordCount(compact) >= 5) return false;
   if (words.length > 16 && !/^[\d(ρμΔP]/.test(compact)) return false;
   return true;
 }
@@ -229,6 +235,17 @@ function stripListMarker(text: string): string {
 }
 
 const NUMBERED_BREAK = /\s+(?=\d{1,2}\)\s+|\d{1,2}\.\s+[^\sa-zçğıöşü])/;
+
+/**
+ * Her satırı "1. ", "2. ", … diye sırayla başlayan blok listedir: işaret küçük harfle başlayan
+ * maddede de ("2. p ⇒ q için …", 4 Kasım 2026 canlı) silinir; yoksa liste numarasıyla çakışır.
+ */
+function stripSequentialMarkers(lines: string[]): string[] {
+  const kept = lines.map((line) => line.trim()).filter(Boolean);
+  if (kept.length < 2) return lines;
+  const sequential = kept.every((line, index) => new RegExp(`^${index + 1}[.)]\\s+\\S`).test(line));
+  return sequential ? kept.map((line) => line.replace(/^\d{1,2}[.)]\s+/, "")) : lines;
+}
 
 function splitNumbered(text: string): string[] {
   // "(−1, 4), (0, 2)" ve "[−1, 2)" içindeki "2)" liste imi değildir: yalnız derinlik 0'da bölünür.
@@ -419,7 +436,7 @@ function peelFormulas(sentence: string): string[] {
     const bits = splitOutsideBrackets(sentence, /\s*;\s*/)
       .map((part) => part.trim())
       .filter(Boolean);
-    if (bits.length > 1) return bits.flatMap((bit) => peelFormulas(bit));
+    if (bits.length > 1 && bits.some((bit) => formulaLike(bit))) return bits.flatMap((bit) => peelFormulas(bit));
   }
   if ((sentence.match(/=/g) ?? []).length >= 2 && /,\s*\d/.test(sentence)) {
     return splitEqualityList(sentence)
@@ -504,7 +521,7 @@ function layoutGuarded(text: string): BoardLine[] {
     .replace(/\s+(?=(?:Verilen|İstenen|Bağıntı|Yerine koyma|Sonuç)\s*:)/g, "\n")
     .trim();
   if (!normalized) return [];
-  return rejoinLines(normalized.split(/\n+/))
+  return rejoinLines(stripSequentialMarkers(normalized.split(/\n+/)))
     .flatMap((block) => splitBlock(block))
     .map((line) => line.trim())
     .filter(Boolean)
