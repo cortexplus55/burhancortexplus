@@ -189,7 +189,8 @@ describe("sohbet rotası zorluğu kendisi ölçüyor", () => {
   });
 
   it("tur sayısı kullanıcıya bağlı sayılıyor", () => {
-    const block = src.slice(src.indexOf("priorUserTurns"), src.indexOf("const difficulty ="));
+    // Sayım ön okumalarla paralel başlar (t260u): sorgu `priorTurnsEarly` içinde.
+    const block = src.slice(src.indexOf("const priorTurnsEarly"), src.indexOf("const historyEarly"));
     expect(block).toContain('.eq("user_id", userId)');
   });
 

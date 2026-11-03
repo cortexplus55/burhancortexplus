@@ -7,7 +7,7 @@ import { EMPTY_ORAL_ANSWER_NOTE, oralTeacherById } from "@/lib/learning/oral-exa
 import { parseExaminerVibe, vibeGivesHints } from "@/lib/learning/examiner-vibe";
 import { ORAL_ALL_TOPICS, minutesForOralLength, oralFirstAnswerKey, oralFollowQuestionKey, type OralProbeKind } from "@/lib/learning/oral-exam";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
-import type { NodeLifecycle } from "./use-node-lifecycle";
+import { oralPendingTarget, type NodeLifecycle } from "./use-node-lifecycle";
 
 export function OralSetup({ life }: { life: NodeLifecycle }) {
   const { prepId, router, topicLabel, isOral, stage, setStage, setMood, setDifficulty, setVoiceMode, oralSelected, setOralSelected, oralMoodId, setOralMoodId, oralLength, setOralLength, oralPreflight, setOralPreflight, loading, generationError, start, oralRows } = life;
@@ -78,17 +78,22 @@ export function OralSetup({ life }: { life: NodeLifecycle }) {
 
 export function OralPlay({ life }: { life: NodeLifecycle }) {
   const { stage, oralMoodId, loading, payload, index, setIndex, answers, answersRef, finish, updateAnswer, questions } = life;
+  const target = oralPendingTarget(payload);
+  const total = Math.max(questions.length, target ?? 0);
   return (
     <>
+      {stage === "play" && payload.type === "oral" && !questions[index] && target !== null && index < target ? (
+        <OralNextPending />
+      ) : null}
       {stage === "play" && payload.type === "oral" && questions[index] ? (
         <OralAnswerDesk
           index={index}
-          total={questions.length}
+          total={total}
           prompt={questions[index].prompt ?? ""}
           probeKind={(questions[index].probeKind as OralProbeKind | undefined) ?? "detail"}
           hint={vibeGivesHints(parseExaminerVibe(oralMoodId)) ? questions[index].hint : null}
           persona={oralMoodId}
-          minutes={minutesForOralLength(questions.length)}
+          minutes={minutesForOralLength(total)}
           value={String(answers[String(index)] ?? "")}
           busy={loading}
           onChange={(text) => updateAnswer(String(index), text, { typing: true })}
@@ -108,6 +113,16 @@ export function OralPlay({ life }: { life: NodeLifecycle }) {
         />
       ) : null}
     </>
+  );
+}
+
+/** Sıradaki soru henüz yazılmadıysa (t260u): yoklamayı kanca yürütür; burada yalnız bekleme satırı. */
+function OralNextPending() {
+  return (
+    <div role="status" aria-live="polite" className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-3 px-4 text-center">
+      <span className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+      <p className="text-base font-medium">Sıradaki soru hazırlanıyor…</p>
+    </div>
   );
 }
 

@@ -205,7 +205,7 @@ describe("hız: dinleme kontrolü yayımdan sonra", () => {
     // Kayıt iki yerde yazılıyor (yazımı süren kaydın güncellenmesi, yeni kayıt): ikisinde de kontrol arkada istenir.
     expect(node.match(/schedulePodcastCheck\(/g)?.length).toBe(2);
     expect(node).toContain("after(() => fillPodcastCheckLater(service, { attemptId, prepId, userId, topicLabel, task }))");
-    expect(node).toContain('if (kind !== "lesson" && kind !== "quiz" && kind !== "podcast") return errorResponse(400, "invalid_input");');
+    expect(node).toContain('if (kind !== "lesson" && kind !== "quiz" && kind !== "podcast" && kind !== "oral") return errorResponse(400, "invalid_input");');
     const session = read("src/components/parity/exam-node-session.tsx");
     expect(session).toContain("if (!podcastCheckPending(payload) || !attemptId) return void finish();");
     expect(session).toContain('jsonPost({ prepId, nodeId, attemptId, action: "progress", lessonFormat: 3 })');

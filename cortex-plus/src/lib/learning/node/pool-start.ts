@@ -11,14 +11,16 @@ import { countTotal, readWalletBalance } from "@/lib/learning/node/shared";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { saveTopicLesson } from "@/lib/learning/node/lesson-store";
 import type { NodeContext } from "./context";
+import { stampOralQuestions, type OralQuestionDraft } from "@/lib/learning/oral-exam";
+import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import type { StartLocals } from "./start-types";
 
 export async function servePoolContent(
   context: NodeContext,
   state: Pick<StartLocals, "topic" | "topicLabel" | "title" | "clientRequestId" | "voiceSession">,
 ): Promise<NextResponse | null> {
-  const { userId, service, requestStarted, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, difficulty, familiarity, mood, lessonReviewCards } = context;
-  const { topic, topicLabel, title, clientRequestId, voiceSession } = state;
+  const { userId, service, prepId, prefetch, teachingV2, prep, kind } = context;
+  const { topicLabel, title, voiceSession } = state;
   if (!teachingV2 || voiceSession) return null;
   // Hazır ünitede arka planda önceden yazım yok (2 Kasım 2026): havuzdaki türler anında açılır; havuzda olmayan
   // türler (ör. Doğru/Yanlış) öğrenci açınca yazılır. Canlıda Doğru/Yanlış önceden yazımı CONTENT_PREFETCH düşürüyordu.
@@ -41,6 +43,17 @@ export async function servePoolContent(
       if (supplement.state === "ready") payload.supplement = { charged: supplement.charged, sections: supplement.sections.length };
     }
   }
+  return insertPoolAttempt(context, state, payload);
+}
+
+/** Havuz gövdesini deneme kaydına yazar ve açılış yanıtını döner (ders, test, kartlar, sözlü). */
+async function insertPoolAttempt(
+  context: NodeContext,
+  state: Pick<StartLocals, "topic" | "topicLabel" | "title" | "clientRequestId">,
+  payload: Record<string, unknown>,
+): Promise<NextResponse | null> {
+  const { userId, service, requestStarted, prepId, nodeId, lessonFormat, prep, node, kind, difficulty, familiarity, mood, lessonReviewCards } = context;
+  const { topic, topicLabel, title, clientRequestId } = state;
   const requestId = clientRequestId ?? crypto.randomUUID();
   const { data: row, error } = await service
     .from("exam_prep_node_attempts")
@@ -72,10 +85,10 @@ export async function servePoolContent(
     kind === "lesson" && topic?.id ? saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(() => undefined) : null,
     node.status !== "done" ? service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId).then(() => undefined) : null,
   ]);
-  console.info("pool_served", { nodeId, kind, unit: (payload.pool as { unitId: string }).unitId });
+  const unitId = (payload.pool as { unitId?: string } | undefined)?.unitId ?? null;
+  console.info("pool_served", { nodeId, kind, unit: unitId });
   {
     const ms = Date.now() - requestStarted;
-    const unitId = (payload.pool as { unitId: string }).unitId;
     after(() => recordLessonTiming(service, { userId, kind, path: "pool", openMs: ms, meta: { unitId } }));
   }
   const [publicPayload, wallet] = await Promise.all([
@@ -86,4 +99,28 @@ export async function servePoolContent(
     ...attemptStartResponse(row, { kind, title, topicLabel, publicPayload, resumed: false }),
     ...wallet,
   });
+}
+
+/**
+ * Belgesiz sözlü sınav havuzdan anında (3 Kasım 2026, t260u; ölçüm: öğretmen motoru tüm soruları yazıp
+ * doğrularken ilk soru ~30 sn). Sorular doğrulanmış havuz bölümlerinden; model çağrısı yok, kredi düşmez.
+ * Plus kapısı çağıranda (meter) kalır. Yeterli soru yoksa null: bugünkü üretim yolu.
+ */
+export async function servePoolOral(
+  context: NodeContext,
+  state: Pick<StartLocals, "topic" | "topicLabel" | "title" | "clientRequestId">,
+  drafts: readonly OralQuestionDraft[],
+): Promise<NextResponse | null> {
+  const wanted = context.oralCount ?? 5;
+  if (context.kind !== "oral" || drafts.length < Math.min(wanted, 3)) return null;
+  const scope = context.parsed.data.oralScope === "all" ? "all" : context.oralMultiTopic ? "topics" : undefined;
+  const payload: Record<string, unknown> = {
+    type: "oral",
+    testedTopic: state.topicLabel,
+    questions: stampOralQuestions(drafts.slice(0, wanted), { file: "Doğrulanmış konu anlatımı", pages: [] }),
+    teachingStandard: teachingActivityForKind("oral"),
+    engine: "pool",
+    ...(scope ? { scope } : {}),
+  };
+  return insertPoolAttempt(context, state, payload);
 }

@@ -15,7 +15,8 @@ import type { NodeContext } from "@/lib/learning/node/context";
 export async function progressAction(context: NodeContext): Promise<NextResponse> {
   const { userId, service, parsed, prepId, nodeId, lessonFormat, prep, topic, kind, topicLabel, lessonReviewCards } = context;
   // Podcast (30 Ekim 2026): oynatıcı bitince arkada yazılan dinleme kontrolünü buradan alır (`checkPending`).
-  if (kind !== "lesson" && kind !== "quiz" && kind !== "podcast") return errorResponse(400, "invalid_input");
+  // Sözlü (t260u): 1. sorudan sonra arkada eklenen kalan sorular da buradan okunur (`oralPending`).
+  if (kind !== "lesson" && kind !== "quiz" && kind !== "podcast" && kind !== "oral") return errorResponse(400, "invalid_input");
   const attemptId = parsed.data.attemptId;
   if (!attemptId) return errorResponse(400, "invalid_input");
   const { data: attempt } = await service

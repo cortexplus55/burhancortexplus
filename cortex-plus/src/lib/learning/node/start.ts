@@ -34,7 +34,7 @@ import { servePrefetched } from "@/lib/learning/node/prefetched";
 import { resolveStartSource } from "@/lib/learning/node/source";
 import { reserveStartAttempt } from "@/lib/learning/node/reserve";
 import { runStartGeneration } from "@/lib/learning/node/generation";
-import { servePoolContent } from "@/lib/learning/node/pool-start";
+import { servePoolOral, servePoolContent } from "@/lib/learning/node/pool-start";
 import { serveOutcomeLesson } from "@/lib/learning/node/outcome-start";
 
 /** Öbür sekmenin açtığı kayıt bu kadar yeniyse bu sekme de onu açar (Paket J2 #9). */
@@ -386,6 +386,12 @@ export async function startAction(context: NodeContext): Promise<NextResponse> {
     voiceSession,
   });
   if (sourced instanceof Response) return sourced;
+
+  // Belgesiz sözlü (t260u): doğrulanmış havuz bölümlerinden anında; model yok, kredi yok. Plus kapısı yukarıda.
+  if (kind === "oral" && !voiceSession && !prefetch && sourced.oralPoolDrafts.length) {
+    const pooledOral = await servePoolOral(context, { topic, topicLabel, title, clientRequestId }, sourced.oralPoolDrafts).catch(() => null);
+    if (pooledOral) return pooledOral;
+  }
 
   const reserved = await reserveStartAttempt(context, { topic, topicLabel, title, existingForKey, variant, clientRequestId });
   if (reserved instanceof Response) return reserved;
