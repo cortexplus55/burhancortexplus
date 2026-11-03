@@ -33,7 +33,11 @@ export type TutorContext = {
   mode?: TutorMode;
 };
 
-export type TutorMode = "document" | "mixed" | "general";
+/**
+ * "curriculum" (3 Kasım 2026): belgesiz hazırlık. Kaynak, havuzdaki doğrulanmış müfredat dersidir;
+ * öğrencinin belgesi yoktur, bu yüzden cevap "belgende geçmiyor" demez.
+ */
+export type TutorMode = "document" | "mixed" | "general" | "curriculum";
 
 const SOURCE_RULES: Record<TutorMode, string> = {
   document:
@@ -47,6 +51,11 @@ const SOURCE_RULES: Record<TutorMode, string> = {
     "bilgi gerekiyorsa önce bunu bir cümleyle söyle ('Bu senin belgende geçmiyor'), sonra genel bilgiyi 'Genel bilgiden:' " +
     "diye başlayan ayrı bir paragrafta kısa ve doğru ver. Genel bilgi belgeyle çelişirse belgeyi esas al ve farkı söyle. " +
     "Emin olmadığın sayı, tarih ya da kuralı uydurma. Pasajlardaki bozuk yazılmış kelimeleri doğru Türkçeyle yaz.",
+  curriculum:
+    "KAYNAK KURALI: Öğrencinin yüklediği bir belge yok; kaynağın aşağıdaki MÜFREDAT DERSİ pasajlarıdır (resmî kazanımlara " +
+    "göre doğrulanmış ders metni). Önce onlardaki tanım ve bilgiyi kendi cümlelerinle anlat ve onlarla çelişme. Pasajlarda " +
+    "olmayan bir bilgi gerekiyorsa doğru genel bilgiyle tamamla; 'belgende geçmiyor', 'belgenizde yok' ya da 'Genel bilgiden:' " +
+    "gibi ifadeler kullanma, çünkü öğrencinin belgesi yok. Emin olmadığın sayı, tarih ya da kuralı uydurma.",
   general:
     "BİLGİ: Öğrenci genel sohbeti seçti; genel bilgini kullanabilirsin. Soru belgedeki bir konuya değiyorsa BELGE " +
     "PASAJLARI'nı esas al ve onlarla çelişme. Emin olmadığın sayı, tarih ya da kuralı uydurma; emin değilsen söyle.",
@@ -88,6 +97,7 @@ const INTRO: Record<TutorMode, string> = {
   document: "Öğrencine yalnızca kendi ders belgesindeki bilgiyle, kendi cümlelerinle, birebir ders veren bir öğretmen gibi yardım ediyorsun.",
   mixed: "Öğrencine önce kendi ders belgesindeki bilgiyle, gerekirse ayrıca belirttiğin genel bilgiyle, birebir ders veren bir öğretmen gibi yardım ediyorsun.",
   general: "Öğrencine birebir ders veren bir öğretmen gibi yardım ediyorsun.",
+  curriculum: "Öğrencine sınav müfredatının doğrulanmış ders metniyle, birebir ders veren bir öğretmen gibi yardım ediyorsun.",
 };
 
 export function tutorSystemPrompt(context: TutorContext): string {
@@ -105,8 +115,8 @@ export function tutorSystemPrompt(context: TutorContext): string {
     `${SOURCE_RULES[mode]}\n\n${TEACHER_MANNER}`,
     CONTENT_STYLE,
     context.passages.length
-      ? `BELGE PASAJLARI:\n${context.passages.map((item) => `[${item.label}]\n${item.text.trim()}`).join("\n\n")}`
-      : mode === "general"
+      ? `${mode === "curriculum" ? "MÜFREDAT DERSİ PASAJLARI" : "BELGE PASAJLARI"}:\n${context.passages.map((item) => `[${item.label}]\n${item.text.trim()}`).join("\n\n")}`
+      : mode === "general" || mode === "curriculum"
         ? ""
         : "BELGE PASAJLARI: (bu soruyla ilgili pasaj bulunamadı — belgede yoksa bunu söyle, uydurma)",
   ]
@@ -135,6 +145,14 @@ const VERIFY_SYSTEMS: Record<TutorMode, string> = {
     "A) 'Genel bilgiden:' paragrafı dışında, pasajlarda dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma.\n" +
     "B) Pasajlarla çelişen ya da anlamı değiştiren ifade.\n" +
     "C) 'Genel bilgiden:' paragrafında yanlış bilgi.\n" +
+    "D) Öğrencinin cevabına yanlış hüküm.\n" +
+    "E) Bozuk, anlamsız Türkçe cümle.\n" +
+    VERIFY_JSON,
+  curriculum:
+    "Bir öğretmenin öğrencisine yazdığı cevabı MÜFREDAT DERSİ pasajlarıyla karşılaştırıyorsun; öğrencinin belgesi yok. Şunları bul:\n" +
+    "A) Yanlış olgu, tanım, sayı, tarih ya da kural.\n" +
+    "B) Pasajlarla çelişen ifade.\n" +
+    "C) 'Belgende geçmiyor' gibi, olmayan bir belgeye yapılan atıf.\n" +
     "D) Öğrencinin cevabına yanlış hüküm.\n" +
     "E) Bozuk, anlamsız Türkçe cümle.\n" +
     VERIFY_JSON,

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { markNodeClickIfMissing } from "@/lib/learning/node-open-click";
+import { InstantLessonView } from "@/components/parity/instant-lesson-view";
 import { peekInstantLesson, type InstantLesson } from "@/lib/learning/instant-lesson";
 
 /**
@@ -28,15 +29,7 @@ export default function ExamNodeLoading() {
       <main className="cp-sor-main">
         <div className="cp-exam-page mx-auto w-full max-w-2xl px-4 py-6" aria-busy="true" aria-label="Ders yükleniyor">
           {lesson ? (
-            <article data-testid="instant-lesson" className="space-y-3">
-              <h1 className="text-xl font-semibold leading-snug break-words">{lesson.title}</h1>
-              <h2 className="text-base font-semibold text-[var(--c-action)] break-words">{lesson.heading}</h2>
-              {lesson.paragraphs.map((p, i) => (
-                <p key={i} className="text-[15px] leading-relaxed break-words">
-                  {p}
-                </p>
-              ))}
-            </article>
+            <InstantLessonView lesson={lesson} />
           ) : (
             <div data-testid="lesson-skeleton" className="space-y-3 animate-pulse">
               <div className="h-6 w-3/4 rounded bg-black/10 dark:bg-white/10" />

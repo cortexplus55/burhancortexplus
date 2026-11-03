@@ -3,6 +3,7 @@
  * cevap kaydı, parça parça yoklama, bitirme, sonuç bekleme ve yoklama. Ekran bileşenleri yalnız çizer; aşama ve
  * istekler burada. `router.refresh()` sunucu özelliklerini yenilese de açılış yeniden koşmaz (`openedForRef`).
  */
+import { peekInstantLesson, type LessonPreview } from "@/lib/learning/instant-lesson";
 import { ANSWER_LOCK_KEY, lockedKeys } from "@/lib/learning/answer-lock";
 import { useRouter } from "next/navigation";
 import { takeNodeClick } from "@/lib/learning/node-open-click";
@@ -205,6 +206,10 @@ export type ExamNodeSessionProps = {
   rewriteHref?: string | null;
   /** "Farklı anlat" adresiyle açıldı (?farkli=1): başlatma isteği yeni anlatım ister. */
   rewriteLesson?: boolean;
+  /** Kurulum kartı olmadan doğrudan açılış (havuz dersi ya da "Farklı anlat"); bkz. shouldAutoOpenLesson. */
+  autoOpenLesson?: boolean;
+  /** Doğrudan açılan havuz dersinin sunucuda okunan ilk ekranı (loading önizlemesiyle aynı metin). */
+  initialLessonPreview?: LessonPreview | null;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
   resumeEnabled?: boolean;
   /**
@@ -254,6 +259,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     reviewSaved = false,
     rewriteHref = null,
     rewriteLesson = false,
+    autoOpenLesson = false,
+    initialLessonPreview = null,
     resumeEnabled = false,
     openAttempt = true,
     initialResume = null,
@@ -302,7 +309,23 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     | "oral-customize"
     | "oral-review-time"
     | "oral-review"
-  >(resumeEnabled && openAttempt ? "restoring" : reviewSaved || opensReadiness ? "setup" : isOral ? "oral-topics" : signalStage);
+  >(resumeEnabled && openAttempt ? "restoring" : reviewSaved || opensReadiness || autoOpenLesson ? "setup" : isOral ? "oral-topics" : signalStage);
+  // Doğrudan açılış sürerken kurulum kartı çizilmez (önizleme/ilerleme görünür); başlatma düşerse kart geri gelir.
+  const [autoOpening, setAutoOpening] = useState(Boolean(autoOpenLesson && !(resumeEnabled && openAttempt)));
+  // Doğrudan açılışın ilk ekranı: sunucunun önizlemesi, yoksa yol sayfasının belleğe yazdığı ilk ekran.
+  const [instantLesson, setInstantLesson] = useState<LessonPreview | null>(initialLessonPreview);
+  useEffect(() => {
+    if (!instantLesson && autoOpening) setInstantLesson(peekInstantLesson(prepId, nodeId));
+    // yalnız açılışta
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // "Farklı anlat" tıkı hemen görünür; gezinme olmazsa 4 sn sonra düğme yeniden açılır.
+  const [rewritePending, setRewritePending] = useState(false);
+  useEffect(() => {
+    if (!rewritePending) return;
+    const timer = window.setTimeout(() => setRewritePending(false), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [rewritePending]);
   // "Kaldığın yer açılıyor" yalnız açılış 300 ms'yi geçerse (3 Kasım 2026): kayıt sunucu çiziminden geldiğinde
   // ekran hiç görünmez, istemci sormak zorunda kalırsa kısa bekleyişte de yanıltıcı kart çıkmaz.
   const [restoringVisible, setRestoringVisible] = useState(false);
@@ -516,6 +539,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         if (reviewSaved || (kind === "lesson" && replayLesson)) {
           setStage("setup");
           void start(reviewSaved ? { review: true } : { replay: true });
+        } else if (autoOpenLesson) {
+          setStage("setup");
+          void start();
         }
         return;
       }
@@ -575,6 +601,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
           // Sonuç sayfasından "Dersi tekrarla": soru kartları olmadan aynı ders.
           setStage("setup");
           void start({ replay: true });
+        } else if (autoOpenLesson) {
+          setStage("setup");
+          void start();
         } else {
           setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : signalStage);
         }
@@ -597,9 +626,13 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     const openKey = `${prepId}:${nodeId}`;
     if (openedForRef.current === openKey) return;
     openedForRef.current = openKey;
-    if (!reviewSaved) return;
-    setStage("setup");
-    void start({ review: true });
+    if (reviewSaved) {
+      setStage("setup");
+      void start({ review: true });
+    } else if (autoOpenLesson) {
+      setStage("setup");
+      void start();
+    }
     // start her render'da yeni; yalnız açılışta bir kez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewSaved, resumeEnabled]);
@@ -624,6 +657,12 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     // yalnız açılışta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Doğrudan açılış düştüyse (hak, ağ, kuyruk) kurulum kartı hatayla görünür; ilk ekran gelince bayrak iner.
+  useEffect(() => {
+    if (!autoOpening) return;
+    if (stage !== "setup" || (!loading && (generationError || generationFailure))) setAutoOpening(false);
+  }, [autoOpening, stage, loading, generationError, generationFailure]);
 
   const warmedRef = useRef(false);
   useEffect(() => {
@@ -1866,6 +1905,11 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     reviewSaved,
     rewriteHref,
     rewriteLesson,
+    autoOpening,
+    initialLessonPreview,
+    instantLesson,
+    rewritePending,
+    setRewritePending,
     resumeEnabled,
     sourceName,
     language,

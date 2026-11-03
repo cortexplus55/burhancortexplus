@@ -245,6 +245,14 @@ export const oralSemanticSchema = z.object({
  * Hakemin soru bloğu (29 Ekim 2026): soru, beklenen noktalar, rubrik, örnek çözüm, ilk cevap, varsa
  * takip sorusu ve cevabı. Ham kaynak metni isteme girmez — hakem "doğrusu"nu yalnız bu bloktan yazar.
  */
+/**
+ * Sözlüde değerlendirilecek bir cevap var mı (3 Kasım 2026 kök neden: boş cevapla bitirilen sözlü yine de arka plan
+ * hakemine gidiyor, hakem boş girdide iki kez düşüp ekran uzun süre "Değerlendiriliyor…"da kalıyordu).
+ */
+export function oralHasAnswerText(questions: readonly unknown[], answers: Record<string, unknown>): boolean {
+  return questions.some((_, index) => Boolean(oralFirstAnswer(answers, index).trim() || oralFollowAnswer(answers, index).trim()));
+}
+
 export function oralJudgeBlock(question: OralQuestionDraft, answers: Record<string, unknown>, index: number): string {
   const first = oralFirstAnswer(answers, index);
   const followQuestion = oralFollowQuestion(answers, index);

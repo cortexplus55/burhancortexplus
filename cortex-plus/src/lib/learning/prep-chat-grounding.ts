@@ -24,6 +24,47 @@ import {
 import type { GradedClaim } from "@/lib/learning/tutor-quant";
 import { chatMisconceptionRow } from "@/lib/learning/tutor-reply";
 import { withOpenMisconceptions } from "@/lib/learning/misconception-store";
+import { poolSourceText } from "@/lib/content-pool/serve";
+
+/** Sorunun kelimelerine en çok değen konu; hiçbiri değmiyorsa ilk konu. Saf (test edilir). */
+export function pickPoolTopic(labels: readonly string[], message: string): string | null {
+  if (!labels.length) return null;
+  const asked = new Set(contentTokens(message));
+  let best = labels[0]!;
+  let bestScore = 0;
+  for (const label of labels) {
+    const score = contentTokens(label).filter((token) => asked.has(token)).length;
+    if (score > bestScore) {
+      best = label;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+/**
+ * Belgesiz hazırlık (3 Kasım 2026, canlı ölçüm): sohbet "Bu konu belgenizde geçmiyor. Genel bilgiden"
+ * diyordu; belge yok, kaynak havuzdaki doğrulanmış müfredat dersidir. Model çağrısı yok.
+ */
+async function poolChatGrounding(service: SupabaseClient, prepId: string, message: string): Promise<PrepChatGrounding | null> {
+  const [{ data: prep }, { data: topics }] = await Promise.all([
+    service.from("exam_preps").select("learning_preferences").eq("id", prepId).maybeSingle(),
+    service.from("exam_prep_topics").select("label").eq("exam_prep_id", prepId).order("sort_order"),
+  ]);
+  const labels = ((topics ?? []) as { label: string | null }[]).map((t) => (t.label ?? "").trim()).filter(Boolean);
+  const label = pickPoolTopic(labels, message);
+  if (!prep || !label) return null;
+  const text = await poolSourceText(service, { prefs: prep.learning_preferences, topicLabels: [label], maxChars: 6_000 });
+  if (!text.trim()) return null;
+  return {
+    decision: "unknown",
+    scope: EMPTY_SCOPE,
+    excerpts: text,
+    passages: [{ documentId: "", documentName: `Müfredat dersi: ${label}`, pageNumber: null, slide: false, content: text, href: "" }],
+    corpus: text,
+    pool: { label },
+  };
+}
 
 export type PrepPassage = {
   documentId: string;
@@ -40,6 +81,8 @@ export type PrepChatGrounding = {
   excerpts: string;
   passages: PrepPassage[];
   corpus: string;
+  /** Belgesiz hazırlık: kaynak havuzdaki müfredat dersi (3 Kasım 2026). */
+  pool?: { label: string } | null;
 };
 
 const EMPTY_SCOPE: SyllabusScope = { excluded: [], weighted: [] };
@@ -60,7 +103,8 @@ export async function loadPrepChatGrounding(
 ): Promise<PrepChatGrounding> {
   const documentIds = await loadPrepDocumentIds(service, prepId);
   if (!documentIds.length) {
-    return { decision: "unknown", scope: EMPTY_SCOPE, excerpts: "", passages: [], corpus: "" };
+    return (await poolChatGrounding(service, prepId, message).catch(() => null))
+      ?? { decision: "unknown", scope: EMPTY_SCOPE, excerpts: "", passages: [], corpus: "" };
   }
 
   const { data: docs } = await service

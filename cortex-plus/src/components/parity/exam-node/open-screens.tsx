@@ -10,6 +10,7 @@ import { activityDurationMinutes } from "@/lib/learning/activity-duration";
 import { startActionLabel } from "@/lib/learning/feedback-copy";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
 import Link from "next/link";
+import { InstantLessonView } from "@/components/parity/instant-lesson-view";
 import { VOICE_MODE_GATE } from "./gates";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
@@ -67,7 +68,8 @@ export function OpenSignals({ life }: { life: NodeLifecycle }) {
 }
 
 export function SetupScreens({ life }: { life: NodeLifecycle }) {
-  const { prepId, nodeId, kind, prepTitle, reviewSaved, rewriteHref, sourceName, unitTitle, activityMinutes, router, topicLabel, meta, stage, setStage, familiarity, difficulty, setDifficulty, podcastLength, setPodcastLength, voiceLocked, voiceMode, setVoiceMode, loading, generationError, queueNote, generationFailure, setPaywall, setPaywallGate, start } = life;
+  const { instantLesson } = life;
+  const { prepId, nodeId, kind, prepTitle, reviewSaved, rewriteHref, rewriteLesson, autoOpening, sourceName, unitTitle, activityMinutes, router, topicLabel, meta, stage, setStage, familiarity, difficulty, setDifficulty, podcastLength, setPodcastLength, voiceLocked, voiceMode, setVoiceMode, loading, generationError, queueNote, generationFailure, setPaywall, setPaywallGate, start } = life;
   return (
     <>
       {stage === "setup" && !loading && reviewSaved && generationError ? (
@@ -85,7 +87,10 @@ export function SetupScreens({ life }: { life: NodeLifecycle }) {
         </section>
       ) : null}
 
-      {stage === "setup" && (loading || (reviewSaved && !generationError)) && kind !== "readiness" ? (
+      {stage === "setup" && kind === "lesson" && autoOpening && !rewriteLesson && instantLesson ? (
+        // Havuz dersi doğrudan açılışı: yol sayfasının belleğe yazdığı ilk ekran, gerçek ders gelene dek aynı metin.
+        <InstantLessonView lesson={instantLesson} />
+      ) : stage === "setup" && (loading || autoOpening || (reviewSaved && !generationError)) && kind !== "readiness" ? (
         <NodeGenerationProgress
           title={reviewSaved ? "Kayıtlı içerik açılıyor" : preparingTitle(kind)}
           sourceName={sourceName}
@@ -103,7 +108,7 @@ export function SetupScreens({ life }: { life: NodeLifecycle }) {
         </section>
       ) : null}
 
-      {stage === "setup" && !loading && kind === "lesson" && !reviewSaved ? (
+      {stage === "setup" && !loading && !autoOpening && kind === "lesson" && !reviewSaved ? (
         <LessonOpenChrome
           step="create"
           recommendedTitle={meta.setupLabel}

@@ -41,26 +41,33 @@ export async function runTeacherTutor(input: {
   style?: TutorStyle | null;
   /** Düşünme düzeyi (t260u); yalnız akıl yürüten modelde gönderilir. */
   reasoningEffort?: "low" | "medium";
+  /**
+   * Canlı akış (3 Kasım 2026): ilk denemenin token'ları geldiği anda verilir. Denetim arkada
+   * koşar; reddedilirse çağıran kuyrukta düzeltilmiş metni ya da geri dönüşü gönderir.
+   */
+  onDelta?: (text: string) => void;
 }): Promise<TutorRunOutcome> {
   const effort = input.reasoningEffort && isReasoningModel(input.model) ? { reasoning_effort: input.reasoningEffort } : {};
   const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}`;
   let reasons: string[] = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const note = reasons.length ? `\n\n${tutorRetryNote(reasons)}` : "";
-    const response = await input.client.chat.completions.create(
-      {
-        model: input.model,
-        ...effort,
-        messages: [
-          { role: "system", content: `${system}${note}` },
-          ...input.history,
-          { role: "user", content: input.message },
-        ],
-      },
-      { signal: input.signal, timeout: 90_000, maxRetries: 0 },
-    );
-    await input.onUsage(response.usage?.prompt_tokens ?? 0, response.usage?.completion_tokens ?? 0);
-    const answer = (response.choices[0]?.message?.content ?? "").trim();
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: "system", content: `${system}${note}` },
+      ...input.history,
+      { role: "user", content: input.message },
+    ];
+    let answer: string;
+    if (input.onDelta && attempt === 0) {
+      answer = (await streamDraft(input, messages, effort)).trim();
+    } else {
+      const response = await input.client.chat.completions.create(
+        { model: input.model, ...effort, messages },
+        { signal: input.signal, timeout: 90_000, maxRetries: 0 },
+      );
+      await input.onUsage(response.usage?.prompt_tokens ?? 0, response.usage?.completion_tokens ?? 0);
+      answer = (response.choices[0]?.message?.content ?? "").trim();
+    }
     if (!answer) {
       reasons = ["Cevap boş kaldı."];
       continue;
@@ -104,4 +111,39 @@ export async function runTeacherTutor(input: {
     reasons = issues;
   }
   return { ok: false, reasons };
+}
+
+async function streamDraft(
+  input: {
+    client: OpenAI;
+    model: string;
+    signal?: AbortSignal;
+    onUsage: (tokensIn: number, tokensOut: number) => Promise<void>;
+    onDelta?: (text: string) => void;
+  },
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+  effort: Record<string, unknown>,
+): Promise<string> {
+  const stream = await input.client.chat.completions.create(
+    { model: input.model, ...effort, messages, stream: true, stream_options: { include_usage: true } },
+    { signal: input.signal, timeout: 90_000, maxRetries: 0 },
+  );
+  let text = "";
+  let usageIn = 0;
+  let usageOut = 0;
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content ?? "";
+    if (delta) {
+      // Baştaki boşluk ekrana yazılmaz (cevap trim'li saklanır).
+      const piece = text ? delta : delta.replace(/^\s+/, "");
+      text += delta;
+      if (piece) input.onDelta?.(piece);
+    }
+    if (chunk.usage) {
+      usageIn = chunk.usage.prompt_tokens ?? 0;
+      usageOut = chunk.usage.completion_tokens ?? 0;
+    }
+  }
+  await input.onUsage(usageIn, usageOut);
+  return text;
 }

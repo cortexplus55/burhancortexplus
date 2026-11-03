@@ -432,7 +432,7 @@ export async function rewriteBasisText(service: Parameters<typeof poolSourceText
     .filter((o) => !slice?.codes || slice.codes.has(o.code))
     .slice(0, 12)
     .map((o) => `- ${o.code}: ${o.text}`);
-  const lesson = await poolSourceText(service, { prefs, topicLabels: [topicLabel], maxChars: 9_000 }).catch(() => "");
+  const lesson = await poolSourceText(service, { prefs, topicLabels: [topicLabel], maxChars: 5_000 }).catch(() => "");
   return [outcomes.length ? `KAZANIMLAR:\n${outcomes.join("\n")}` : "", lesson.trim() ? `ÖNCEKİ ANLATIM:\n${lesson.trim()}` : ""]
     .filter(Boolean)
     .join("\n\n");

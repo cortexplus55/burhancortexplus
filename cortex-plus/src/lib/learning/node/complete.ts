@@ -27,7 +27,7 @@ import { adaptPathAfterResult } from "@/lib/learning/adaptive-path";
 import { upsertGenerationJob } from "@/lib/learning/attempt-lifecycle-persist";
 import { deferTask, readWalletBalance, scheduleAfter } from "@/lib/learning/node/shared";
 import { reviewSourceBlock, writtenReviewForPayload } from "@/lib/learning/node/written-review";
-import { gradeOralSemantics, oralCorpus, oralNeedsJudge, oralReviewFromPayload } from "@/lib/learning/node/oral";
+import { gradeOralSemantics, oralCorpus, oralHasAnswerText, oralNeedsJudge, oralReviewFromPayload } from "@/lib/learning/node/oral";
 import { rememberMisconceptions, unseenLessonReviews } from "@/lib/learning/node/misconceptions";
 import { claimCompletion, completedAttemptBody, releaseCompletionClaim, storeCompletionResult, type CompletionOutcome } from "@/lib/learning/node/completion";
 import { loadPrepTopicIndex, sameTopicAsNode, testedTopicRow } from "@/lib/learning/node/topics";
@@ -135,7 +135,10 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
           questions,
           answers: mergedAnswers,
         };
-        const semantics = (await gradeOralSemantics(judgeInput)) ?? (await gradeOralSemantics(judgeInput));
+        // Boş cevapta hakem çağrılmaz (ücret ve bekleme yok): kelime örtüşmesi notu 0 verir.
+        const semantics = oralHasAnswerText(questions, mergedAnswers)
+          ? ((await gradeOralSemantics(judgeInput)) ?? (await gradeOralSemantics(judgeInput)))
+          : null;
         const report = gradeOralExam(questions, mergedAnswers, sourceBlob, grounding.passages, semantics);
         const { data: practiceNodes } = await service
           .from("exam_prep_nodes")
@@ -494,7 +497,10 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
   const releaseClaim = () =>
     claim === "claimed" ? releaseCompletionClaim(service, attempt.id as string, claimId) : Promise.resolve();
 
-  if (claim === "claimed" && kind === "oral" && parsed.data.gradingAsync === true && oralNeedsJudge(attempt.payload)) {
+  if (claim === "claimed" && kind === "oral" && parsed.data.gradingAsync === true &&
+    oralNeedsJudge(attempt.payload) &&
+    oralHasAnswerText(((attempt.payload as { questions?: unknown[] } | null)?.questions ?? []), answersForClaim)
+  ) {
     const scheduled = scheduleAfter(async () => {
       const outcome = await runCompletion(true).catch((error: unknown) => {
         console.error("oral_grading_failed", {

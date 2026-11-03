@@ -123,3 +123,22 @@ export function saveSignalsChoice(
     /* gizli sekme: yalnız bu açılış */
   }
 }
+
+/**
+ * Ders kurulum kartı ("Önerilen ders / Ders oluştur") atlanıp ders doğrudan açılır mı (3 Kasım 2026, canlı ölçüm):
+ * - "Farklı anlat": öğrenci zaten istedi; ikinci tık yok, akan alternatif anlatım hemen başlar.
+ * - Belgesiz hazırlıkta havuzda dersi olan konu: havuz dersi 0 kredi, kurulacak bir şey yok.
+ * Kayıtlı ders, tekrar ve açık oturum kendi yollarından açılır.
+ */
+export function shouldAutoOpenLesson(input: {
+  kind: string;
+  reviewSaved: boolean;
+  replay: boolean;
+  rewrite: boolean;
+  hasDocuments: boolean;
+  poolReady: boolean;
+}): boolean {
+  if (input.kind !== "lesson" || input.reviewSaved || input.replay) return false;
+  if (input.rewrite) return true;
+  return !input.hasDocuments && input.poolReady;
+}
