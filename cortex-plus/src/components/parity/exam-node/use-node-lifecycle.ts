@@ -116,6 +116,12 @@ export type Payload = {
 /** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
 export const LESSON_PROGRESS_POLL_MS = 1_500;
 export const NODE_URL = "/api/learning/exam-prep/node";
+
+/** Sözlü kalan sorular arkada yazılıyorsa hedef sayı (t260u); yoksa null. */
+export function oralPendingTarget(payload: Record<string, unknown>): number | null {
+  const pending = payload.oralPending as { target?: unknown } | undefined;
+  return typeof pending?.target === "number" ? pending.target : null;
+}
 /** Seçimli cevap (şık, doğru/yanlış, kart): kısa bekleme, arada gelenler tek istekte. */
 export const SAVE_DEBOUNCE_MS = 400;
 /**
@@ -1800,6 +1806,33 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     }
     return data;
   }
+
+  // Sözlü sıradaki soru henüz yazılmadıysa (t260u): kayıttan yoklanır; 90 sn'de gelmezse sınav eldeki
+  // sorularla biter (öğrenci takılmaz).
+  const oralWaiting =
+    stage === "play" && payload.type === "oral" && !questions[index] && (oralPendingTarget(payload) ?? 0) > index;
+  useEffect(() => {
+    if (!oralWaiting || !attemptId) return;
+    let stopped = false;
+    const startedAt = Date.now();
+    void (async () => {
+      while (!stopped && Date.now() - startedAt < 90_000) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (stopped) return;
+        const res = await fetch(NODE_URL, jsonPost({ prepId, nodeId, attemptId, action: "progress" })).catch(() => null);
+        const data = (res && res.ok ? await res.json().catch(() => ({})) : {}) as { payload?: Payload };
+        if (data.payload && oralPendingTarget(data.payload as Record<string, unknown>) === null) {
+          if (!stopped) setPayload(data.payload);
+          return;
+        }
+      }
+      if (!stopped) void finish({ ...answersRef.current });
+    })();
+    return () => {
+      stopped = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oralWaiting, attemptId]);
 
   /**
    * Podcast bitti. Kontrol varsa önce sorular (atlanabilir), sonra tamamlama (20 Ekim 2026). Kontrol yayımdan sonra

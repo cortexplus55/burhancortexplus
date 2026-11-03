@@ -7180,6 +7180,9 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "ok": true,
     "payload": {
       "engine": "teacher",
+      "oralPending": {
+        "target": 3,
+      },
       "questions": [
         {
           "modelAnswer": "Profaz.",
@@ -7417,15 +7420,16 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000003","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"creating","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
     "db select exam_prep_node_attempts [payload, topic_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") not(payload,is,null) order(created_at,desc) limit(30)",
     "db select exam_prep_prefetch [payload] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"ready") neq(node_id,"00000000-0000-4000-8000-0000000000b1") limit(10)",
-    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"ORAL_EXAM_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_oral","topic":"Hücre Bölünmesi","work":"[fn]"}]",
+    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"ORAL_EXAM_GENERATE","idempotencyKey":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","freeMeter":null,"charge":true,"startedAt":1793350800000,"label":"teacher_oral","topic":"Hücre Bölünmesi","reasoningEffort":"low","work":"[fn]"}]",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"session_meta":{"topicId":"dtn1","topicTitle":"Hücre Bölünmesi","sourcePages":[1,2],"activityMinutes":2}}",
-    "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000003") in(status,["creating"]) payload={"payload":{"type":"oral","testedTopic":"Hücre Bölünmesi","questions":[{"prompt":"Mitozun evrelerini anlat.","expectedPoints":["Profaz"],"rubricCriteria":[],"modelAnswer":"Profaz.","probeKind":"detail","sourceFile":"Biyoloji.pdf","sourcePage":"s.1,2"}],"teachingStandard":"oral","engine":"teacher"},"total":1,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
+    "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(generation_id,"00000000-0000-4000-8000-900000000003") in(status,["creating"]) payload={"payload":{"type":"oral","testedTopic":"Hücre Bölünmesi","questions":[{"prompt":"Mitozun evrelerini anlat.","expectedPoints":["Profaz"],"rubricCriteria":[],"modelAnswer":"Profaz.","probeKind":"detail","sourceFile":"Biyoloji.pdf","sourcePage":"s.1,2"}],"oralPending":{"target":3},"teachingStandard":"oral","engine":"teacher"},"total":1,"status":"active","updated_at":"2026-10-30T09:00:00.000Z"} maybe",
     "db upsert exam_prep_generation_jobs payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"exam_prep_node_attempts-1","client_request_id":"00000000-0000-4000-8000-0000000000f1","generation_id":"00000000-0000-4000-8000-900000000003","credit_idempotency_key":"exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","status":"ready","error_code":null,"updated_at":"2026-10-30T09:00:00.000Z"}",
+    "after:scheduled",
     "db update exam_prep_topics eq(id,"00000000-0000-4000-8000-0000000000c1") payload={"familiarity":"basics"}",
     "db insert study_session_moods payload={"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","node_id":"00000000-0000-4000-8000-0000000000b1","mood":"calm"}",
     "db update exam_prep_nodes eq(id,"00000000-0000-4000-8000-0000000000b1") payload={"status":"ready"}",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
-    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000003","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"oral","title":"Sözlü","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"oral","testedTopic":"Hücre Bölünmesi","questions":[{"prompt":"Mitozun evrelerini anlat.","modelAnswer":"Profaz.","probeKind":"detail","sourceFile":"Biyoloji.pdf","sourcePage":"s.1,2"}],"teachingStandard":"oral","engine":"teacher"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
+    "response 200 {"ok":true,"attemptId":"exam_prep_node_attempts-1","generationId":"00000000-0000-4000-8000-900000000003","clientRequestId":"00000000-0000-4000-8000-0000000000f1","contentVersion":1,"state":"ready","kind":"oral","title":"Sözlü","topicLabel":"Hücre Bölünmesi","voiceMode":false,"payload":{"type":"oral","testedTopic":"Hücre Bölünmesi","questions":[{"prompt":"Mitozun evrelerini anlat.","modelAnswer":"Profaz.","probeKind":"detail","sourceFile":"Biyoloji.pdf","sourcePage":"s.1,2"}],"oralPending":{"target":3},"teachingStandard":"oral","engine":"teacher"},"answers":{},"cursorIndex":0,"total":1,"resumed":false,"startedAt":null,"expiresAt":null,"timeLeftSec":900,"balance":500}",
     "after:run",
     "db select subscriptions [status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") eq(status,"active") or(current_period_end.is.null,current_period_end.gt.2026-10-30T09:00:00.000Z) maybe",
     "db select admin_free_preview [user_id] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -7433,6 +7437,11 @@ exports[`yol etkinliği rotası: start × tür > kartlar, doğru/yanlış, sözl
     "db select exam_prep_nodes [id, kind, status, session_meta, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") neq(status,"done") gt(sort_order,1) order(sort_order,asc) limit(40)",
     "db select exam_prep_node_attempts [id] eq(node_id,"00000000-0000-4000-8000-0000000000b2") limit(1)",
     "db select exam_prep_prefetch [node_id, status, updated_at] eq(node_id,"00000000-0000-4000-8000-0000000000b2") maybe",
+    "after:run",
+    "call runWithTeacherModel [{"userId":"00000000-0000-4000-8000-00000000aaaa","actionCode":"ORAL_EXAM_GENERATE","idempotencyKey":"oral_rest:exam_node_slot_00000000-0000-4000-8000-00000000aaaa_00000000-0000-4000-8000-0000000000b1_exam_prep_node_attempts-1","charge":false,"startedAt":1793350800000,"label":"teacher_oral_rest","topic":"Hücre Bölünmesi","work":"[fn]"}]",
+    "db select exam_prep_node_attempts [payload, status] eq(id,"exam_prep_node_attempts-1") maybe",
+    "db update exam_prep_node_attempts eq(id,"exam_prep_node_attempts-1") eq(status,"active") payload={"payload":{"type":"oral","testedTopic":"Hücre Bölünmesi","questions":[{"prompt":"Mitozun evrelerini anlat.","expectedPoints":["Profaz"],"rubricCriteria":[],"modelAnswer":"Profaz.","probeKind":"detail","sourceFile":"Biyoloji.pdf","sourcePage":"s.1,2"}],"teachingStandard":"oral","engine":"teacher"},"total":1}",
+    "log.info ["oral_rest_later",{"attemptId":"exam_prep_node_attempts-1","added":0,"ok":true}]",
   ],
 }
 `;

@@ -84,6 +84,8 @@ export type NodePayloadInput = {
   onLessonSaved?: (topicId: string) => void;
   /** Podcast'in dinleme kontrolü yayımdan sonra (30 Ekim 2026): rota kaydı yazınca arkada koşar. */
   onPodcastCheckLater?: (task: () => Promise<QuizQuestion[]>) => void;
+  /** Sözlü 1. soru önce (t260u): kalan sorular yanıttan sonra arkada yazılır; rota kaydı yazınca koşar. */
+  onOralRestLater?: (task: () => Promise<Record<string, unknown>[]>) => void;
   /** Ders düğümü içeriğini konuya yazabilsin diye. */
   prepId?: string;
   topicId?: string | null;

@@ -294,3 +294,21 @@ export async function poolSourceText(
   );
   return parts.filter(Boolean).join("\n\n");
 }
+
+/** Belgesiz sözlü (3 Kasım 2026, t260u): konuların doğrulanmış ders gövdeleri (dilimlenmiş). Model çağrısı yok. */
+export async function poolLessonBodies(
+  service: SupabaseClient,
+  input: { prefs: unknown; topicLabels: readonly string[] },
+): Promise<LessonBody[]> {
+  const labels = [...new Set(input.topicLabels.map((l) => l.trim()).filter(Boolean))].slice(0, 12);
+  const bodies = await Promise.all(
+    labels.map(async (label) => {
+      const slice = poolSliceForTopic(input.prefs, label);
+      if (!slice) return null;
+      const read = await Promise.all(slice.units.map(async (unit) => ({ unit, body: await readPoolLesson(service, unit).catch(() => null) })));
+      const ok = read.filter((r): r is { unit: PoolUnit; body: LessonBody } => Boolean(r.body));
+      return ok.length ? sliceLesson(ok, slice.codes, label) : null;
+    }),
+  );
+  return bodies.filter((b): b is LessonBody => b !== null);
+}

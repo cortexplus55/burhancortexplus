@@ -60,6 +60,8 @@ export type ExamStructureRow = {
   minutes: number | null;
   sourceId: string;
   order: number;
+  /** Resmî olmayan, tahmini dağılım satırı (ör. KPSS GY/GK içindeki ders soru sayıları; ÖSYM yayımlamaz). */
+  estimate?: boolean;
 };
 
 export type CalendarEvent = {

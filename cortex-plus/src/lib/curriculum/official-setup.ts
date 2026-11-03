@@ -33,6 +33,19 @@ const STRUCTURE_SUBJECTS: Record<string, string[]> = {
   "lgs-2027-ingilizce": ["Yabancı Dil"],
 };
 
+/**
+ * KPSS GY/GK ders soru sayıları ÖSYM kılavuzunda yok (Tablo yalnız GY 60 + GK 60). Net kartı için "KPSS-TAHMINI"
+ * satırları (estimate: true) kullanılır; kurulum ağacında resmî sayı gibi gösterilmez.
+ */
+const ESTIMATE_STRUCTURE: Record<string, { exam: string; subjects: string[] }> = {
+  "kpss-2026-deep-turkce": { exam: "KPSS-TAHMINI", subjects: ["Türkçe"] },
+  "kpss-2026-deep-matematik": { exam: "KPSS-TAHMINI", subjects: ["Matematik"] },
+  "kpss-2026-deep-tarih": { exam: "KPSS-TAHMINI", subjects: ["Tarih"] },
+  "kpss-2026-deep-cografya": { exam: "KPSS-TAHMINI", subjects: ["Coğrafya"] },
+  "kpss-2026-deep-vatandaslik": { exam: "KPSS-TAHMINI", subjects: ["Vatandaşlık"] },
+  "kpss-2026-tree-guncel": { exam: "KPSS-TAHMINI", subjects: ["Güncel Bilgiler"] },
+};
+
 const OUTCOME_TEXT_MAX = 220;
 
 function questionCount(key: string, exam: string, structure?: { exam: string; subjects: string[] }): number | null {
@@ -124,11 +137,18 @@ export function officialUnitTopic(unitId: string, topic: string): string {
 }
 
 /** Hazırlık ünitesinin dersi ve resmî soru sayısı (examStructures); eşleşme yoksa null. */
-export function subjectForPlannedUnit(exam: SetupExam, programId: string, part: string | null): { key: string; exam: string; questionCount: number } | null {
+export function subjectForPlannedUnit(
+  exam: SetupExam,
+  programId: string,
+  part: string | null,
+): { key: string; exam: string; questionCount: number; estimated?: boolean } | null {
   const def = setupSubjectDefs(exam).find((d) => d.programIds.includes(programId) && (d.part ?? null) === (part ?? null))
     ?? setupSubjectDefs(exam).find((d) => d.programIds.includes(programId));
   if (!def) return null;
   const structureExam = def.structure?.exam ?? def.part ?? "LGS";
   const count = questionCount(def.key, structureExam, def.structure);
-  return count ? { key: def.key, exam: structureExam, questionCount: count } : null;
+  if (count) return { key: def.key, exam: structureExam, questionCount: count };
+  const est = ESTIMATE_STRUCTURE[def.key];
+  const estCount = est ? questionCount(def.key, est.exam, est) : null;
+  return est && estCount ? { key: def.key, exam: est.exam, questionCount: estCount, estimated: true } : null;
 }
