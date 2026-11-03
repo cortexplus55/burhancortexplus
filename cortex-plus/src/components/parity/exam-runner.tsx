@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { sendMockTiming } from "@/lib/learning/mock-exam/client-timing";
 import { useRouter } from "next/navigation";
 import {
   Flag,
@@ -268,6 +269,7 @@ export function ParityExamRunner({
       if (left != null && left > 0) setTimeLeft(left);
     }
     void startSession();
+    sendMockTiming(examId);
     return () => {
       // Sayfadan ayrılırken bekleyen kayıt hemen gider (taslak zaten yazılı).
       if (saveTimer.current) {

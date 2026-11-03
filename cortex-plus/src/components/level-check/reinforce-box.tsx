@@ -18,6 +18,12 @@ export function newTestNotice(status: string, limit?: number): string {
   return "Yeni sorular şu an hazırlanamadı; biraz sonra yeniden dene.";
 }
 
+/** Yeni pekiştirme testi başlığı: kazanım kodu + (varsa) kısaltılmış kazanım metni. */
+export function newTestTitle(code: string, text?: string): string {
+  if (!text) return `Yeni pekiştirme · ${code}`;
+  return `Yeni pekiştirme · ${code} · ${text.length > 90 ? `${text.slice(0, 90)}…` : text}`;
+}
+
 /**
  * Ünite sonu pekiştirme (Plan PR 4): zayıf kazanımlara (≥1 yanıt, ustalık < %50) havuzdan en çok 2'şer ek soru.
  * Sorular yalnız doğrulanmış havuzdan; yanıtlar item_responses + outcome_mastery'ye yazılır. Soru yoksa dürüstçe söylenir.
@@ -29,7 +35,10 @@ export function ReinforceBox({
   api = httpLevelApi,
   onDone,
   initialCode,
+  outcomeText,
 }: {
+  /** Testin başlığında görünecek kazanım metni (hangi kazanımın açıldığı açıkça yazsın). */
+  outcomeText?: string;
   /** Verilirse kutu doğrudan bu kazanımın yeni pekiştirme testiyle açılır (önce havuzdaki görülmemiş sorular). */
   initialCode?: string;
   prepId: string;
@@ -143,7 +152,7 @@ export function ReinforceBox({
           api={roundApi}
           key={`${newCode ?? "reinforce"}:${round}`}
           request={newCode ? { mode: "reinforce_new", unit: unitId, prepId, code: newCode } : { mode: "reinforce", unit: unitId, prepId }}
-          title={newCode ? `Yeni pekiştirme · ${newCode}` : "Pekiştirme"}
+          title={newCode ? newTestTitle(newCode, newCode === initialCode ? outcomeText : undefined) : "Pekiştirme"}
           onStarted={(res) => {
             if (newCode) {
               if (res.status === "ok" && res.more && !fillRef.current) {

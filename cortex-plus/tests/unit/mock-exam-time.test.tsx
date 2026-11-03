@@ -36,7 +36,8 @@ describe("yazılı deneme süresi", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
-        bodies.push(JSON.parse(String(init?.body ?? "{}")));
+        // Kurulum açılışındaki ısıtma GET'i gövdesiz; yalnız POST gövdeleri sayılır.
+        if (init?.method === "POST") bodies.push(JSON.parse(String(init?.body ?? "{}")));
         return new Response(JSON.stringify({ examId: "e1" }), { status: 200 });
       }),
     );

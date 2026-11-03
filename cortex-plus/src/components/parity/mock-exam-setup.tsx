@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { rememberMockTiming } from "@/lib/learning/mock-exam/client-timing";
 import { Info, Loader2, Printer, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -229,6 +230,11 @@ export function MockExamSetup({
     });
   }
 
+  // Soğuk başlangıç (3 Kasım 2026): kurulum açılınca deneme ucunu ısıt; tıklamadaki POST sıcak örneğe düşer.
+  useEffect(() => {
+    void fetch("/api/learning/exam-prep/mock-exam", { method: "GET", cache: "no-store" }).catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     const stored = readStoredMockRun(prepId);
     if (stored) resumeWatch(stored);
@@ -350,6 +356,7 @@ export function MockExamSetup({
   }
 
   async function start() {
+    const clickAt = Date.now();
     setLoading(true);
     setProgress(null);
     setRetryJobId(null);
@@ -370,6 +377,7 @@ export function MockExamSetup({
         setProgress,
         { status: statusWatch() },
       );
+      if (typeof data.examId === "string") rememberMockTiming({ examId: data.examId, clickAt, postMs: Date.now() - clickAt });
       applyResult(status, data);
     } catch {
       toast.error("Yeniden dene.");

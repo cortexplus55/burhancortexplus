@@ -1,7 +1,7 @@
 "use client";
 
 import { NET_MIN_RESPONSES, NET_NO_DATA, type NetEstimate } from "@/lib/mastery-map/net";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReinforceBox, NEW_TEST_LABEL, NO_EXTRA_LEFT_TEXT } from "@/components/level-check/reinforce-box";
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
@@ -39,11 +39,14 @@ function UnitCell({
   open,
   onToggle,
   onNewTest,
+  boxFor,
 }: {
   unit: MapUnit;
   open: boolean;
   onToggle: () => void;
-  onNewTest: (code: string) => void;
+  onNewTest: (code: string, text: string) => void;
+  /** Bu satırdan açılmış yeni pekiştirme testi: satırın hemen altında gösterilir (hangi kazanım olduğu karışmasın). */
+  boxFor?: (code: string) => ReactNode;
 }) {
   return (
     <li className="mm-unit" data-tone={tone(unit.view)} data-testid="mm-unit">
@@ -58,12 +61,20 @@ function UnitCell({
           {unit.outcomes.map((o) => {
             const v = masteryView(o.state);
             return (
-              <li key={o.outcomeId} data-tone={tone(v)}>
-                <b>{o.code}</b> {o.text.length > 120 ? `${o.text.slice(0, 120)}…` : o.text}
+              <li key={o.outcomeId} data-tone={tone(v)} data-code={o.code}>
+                <b>{o.code}</b> {shortText(o.text)}
                 <span className="mm-pct">{masteryText(v)}</span>
-                <button type="button" className="lc-cta lc-cta--new mm-new" data-testid="mm-new-test" onClick={() => onNewTest(o.code)}>
+                <button
+                  type="button"
+                  className="lc-cta lc-cta--new mm-new"
+                  data-testid="mm-new-test"
+                  data-code={o.code}
+                  aria-label={`${NEW_TEST_LABEL}: ${o.code} ${shortText(o.text, 80)}`}
+                  onClick={() => onNewTest(o.code, o.text)}
+                >
                   {NEW_TEST_LABEL}
                 </button>
+                {boxFor?.(o.code)}
               </li>
             );
           })}
@@ -71,6 +82,10 @@ function UnitCell({
       ) : null}
     </li>
   );
+}
+
+export function shortText(t: string, max = 120): string {
+  return t.length > max ? `${t.slice(0, max)}…` : t;
 }
 
 function EntryRow({ e, later = false }: { e: PlanEntry; later?: boolean }) {
@@ -116,15 +131,15 @@ export function MasteryMap({
   const [open, setOpen] = useState<string | null>(null);
   const [reinforce, setReinforce] = useState<string | null>(null);
   /** Kazanım satırından açılan yeni pekiştirme testi: havuzda görülmemiş doğrulanmış soru varsa anında o, yoksa üretim. */
-  const [newTest, setNewTest] = useState<{ unitId: string; code: string } | null>(null);
+  const [newTest, setNewTest] = useState<{ unitId: string; code: string; text: string; from: "row" | "weak" } | null>(null);
   const weakUnits = units.filter((u) => u.weakOutcomes.length > 0);
   // Öneri yalnız şu an gerçekten sunulabilecek ek sorusu olan ünitelerde (söz = teslim).
   const offerUnits = weakUnits.filter((u) => u.extraTotal > 0);
   const reinforceUnit = units.find((u) => u.unitId === reinforce) ?? null;
   const newTestUnit = newTest ? (units.find((u) => u.unitId === newTest.unitId) ?? null) : null;
-  const openNewTest = (unitId: string, code: string) => {
+  const openNewTest = (unitId: string, code: string, text: string, from: "row" | "weak") => {
     setReinforce(null);
-    setNewTest({ unitId, code });
+    setNewTest({ unitId, code, text, from });
   };
   const newTestBox =
     newTest && newTestUnit ? (
@@ -134,6 +149,7 @@ export function MasteryMap({
         unitId={newTestUnit.unitId}
         unitTitle={newTestUnit.title}
         initialCode={newTest.code}
+        outcomeText={newTest.text}
         api={api}
         onDone={() => {
           setNewTest(null);
@@ -155,11 +171,12 @@ export function MasteryMap({
             unit={u}
             open={open === u.unitId}
             onToggle={() => setOpen(open === u.unitId ? null : u.unitId)}
-            onNewTest={(code) => openNewTest(u.unitId, code)}
+            onNewTest={(code, text) => openNewTest(u.unitId, code, text, "row")}
+            boxFor={(code) => (newTest?.from === "row" && newTest.unitId === u.unitId && newTest.code === code ? newTestBox : null)}
           />
         ))}
       </ul>
-      {newTestBox}
+      {newTest?.from === "row" && open !== newTest.unitId ? newTestBox : null}
 
       {weakUnits.length ? (
         <div className="mm-weak">
@@ -183,15 +200,24 @@ export function MasteryMap({
               u.outcomes
                 .filter((o) => u.weakOutcomes.includes(o.outcomeId))
                 .map((o) => (
-                  <li key={o.outcomeId}>
-                    <b>{o.code}</b> {u.title}
-                    <button type="button" className="lc-cta lc-cta--new mm-new" data-testid="mm-weak-new-test" onClick={() => openNewTest(u.unitId, o.code)}>
+                  <li key={o.outcomeId} data-code={o.code}>
+                    <b>{o.code}</b> <span data-testid="mm-weak-outcome-text">{shortText(o.text, 100)}</span>{" "}
+                    <span className="mm-pct">({u.title})</span>
+                    <button
+                      type="button"
+                      className="lc-cta lc-cta--new mm-new"
+                      data-testid="mm-weak-new-test"
+                      data-code={o.code}
+                      aria-label={`${NEW_TEST_LABEL}: ${o.code} ${shortText(o.text, 80)}`}
+                      onClick={() => openNewTest(u.unitId, o.code, o.text, "weak")}
+                    >
                       {NEW_TEST_LABEL}
                     </button>
                   </li>
                 )),
             )}
           </ul>
+          {newTest?.from === "weak" ? newTestBox : null}
           {reinforceUnit ? (
             <ReinforceBox
               key={reinforceUnit.unitId}

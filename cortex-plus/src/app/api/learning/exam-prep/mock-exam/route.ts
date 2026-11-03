@@ -87,6 +87,11 @@ function ndjsonResponse(run: (write: (line: unknown) => void) => Promise<void>, 
   });
 }
 
+/** Isıtma (3 Kasım 2026): kurulum sayfası açılınca çağrılır; kimlik/DB yok, yalnız örneği sıcak tutar. */
+export async function GET() {
+  return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+}
+
 export async function POST(request: Request) {
   const timer = createTimer();
   const guard = await withUser(request, { scope: "exam-mock", limit: 8, trackSharing: true });
