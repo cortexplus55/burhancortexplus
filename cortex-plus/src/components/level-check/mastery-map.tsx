@@ -3,7 +3,7 @@
 import { NET_MIN_RESPONSES, NET_NO_DATA, type NetEstimate } from "@/lib/mastery-map/net";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ReinforceBox, NO_EXTRA_LEFT_TEXT } from "@/components/level-check/reinforce-box";
+import { ReinforceBox, NEW_TEST_LABEL, NO_EXTRA_LEFT_TEXT } from "@/components/level-check/reinforce-box";
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
 import {
   buildMapUnit,
@@ -34,7 +34,17 @@ export function masteryText(view: MasteryView): string {
   return `Bu konuya %${view.pct} hakimsin · ${view.label}`;
 }
 
-function UnitCell({ unit, open, onToggle }: { unit: MapUnit; open: boolean; onToggle: () => void }) {
+function UnitCell({
+  unit,
+  open,
+  onToggle,
+  onNewTest,
+}: {
+  unit: MapUnit;
+  open: boolean;
+  onToggle: () => void;
+  onNewTest: (code: string) => void;
+}) {
   return (
     <li className="mm-unit" data-tone={tone(unit.view)} data-testid="mm-unit">
       <button type="button" className="mm-unit-btn" aria-expanded={open} onClick={onToggle}>
@@ -51,6 +61,9 @@ function UnitCell({ unit, open, onToggle }: { unit: MapUnit; open: boolean; onTo
               <li key={o.outcomeId} data-tone={tone(v)}>
                 <b>{o.code}</b> {o.text.length > 120 ? `${o.text.slice(0, 120)}…` : o.text}
                 <span className="mm-pct">{masteryText(v)}</span>
+                <button type="button" className="lc-cta lc-cta--new mm-new" data-testid="mm-new-test" onClick={() => onNewTest(o.code)}>
+                  {NEW_TEST_LABEL}
+                </button>
               </li>
             );
           })}
@@ -102,10 +115,32 @@ export function MasteryMap({
   const plan = useMemo(() => buildPlan(units, capacity(daysLeft, dailyMinutes)), [units, daysLeft, dailyMinutes]);
   const [open, setOpen] = useState<string | null>(null);
   const [reinforce, setReinforce] = useState<string | null>(null);
+  /** Kazanım satırından açılan yeni pekiştirme testi: havuzda görülmemiş doğrulanmış soru varsa anında o, yoksa üretim. */
+  const [newTest, setNewTest] = useState<{ unitId: string; code: string } | null>(null);
   const weakUnits = units.filter((u) => u.weakOutcomes.length > 0);
   // Öneri yalnız şu an gerçekten sunulabilecek ek sorusu olan ünitelerde (söz = teslim).
   const offerUnits = weakUnits.filter((u) => u.extraTotal > 0);
   const reinforceUnit = units.find((u) => u.unitId === reinforce) ?? null;
+  const newTestUnit = newTest ? (units.find((u) => u.unitId === newTest.unitId) ?? null) : null;
+  const openNewTest = (unitId: string, code: string) => {
+    setReinforce(null);
+    setNewTest({ unitId, code });
+  };
+  const newTestBox =
+    newTest && newTestUnit ? (
+      <ReinforceBox
+        key={`${newTest.unitId}:${newTest.code}`}
+        prepId={prepId}
+        unitId={newTestUnit.unitId}
+        unitTitle={newTestUnit.title}
+        initialCode={newTest.code}
+        api={api}
+        onDone={() => {
+          setNewTest(null);
+          router.refresh();
+        }}
+      />
+    ) : null;
 
   return (
     <section className="lc-box mm" aria-label="Hakimiyet Haritası" data-testid="mastery-map">
@@ -115,9 +150,16 @@ export function MasteryMap({
       <NetCard net={net ?? { status: "no_data", responses: 0 }} />
       <ul className="mm-grid">
         {units.map((u) => (
-          <UnitCell key={u.unitId} unit={u} open={open === u.unitId} onToggle={() => setOpen(open === u.unitId ? null : u.unitId)} />
+          <UnitCell
+            key={u.unitId}
+            unit={u}
+            open={open === u.unitId}
+            onToggle={() => setOpen(open === u.unitId ? null : u.unitId)}
+            onNewTest={(code) => openNewTest(u.unitId, code)}
+          />
         ))}
       </ul>
+      {newTestBox}
 
       {weakUnits.length ? (
         <div className="mm-weak">
@@ -135,6 +177,21 @@ export function MasteryMap({
           ) : (
             <p className="lc-status" data-testid="mm-no-extra">{NO_EXTRA_LEFT_TEXT}</p>
           )}
+          {/* Ek havuz sorusu kalmasa da her zayıf kazanım için yeni test açılabilir (havuz → yoksa üretim + v14). */}
+          <ul className="mm-outcomes" data-testid="mm-weak-new">
+            {weakUnits.flatMap((u) =>
+              u.outcomes
+                .filter((o) => u.weakOutcomes.includes(o.outcomeId))
+                .map((o) => (
+                  <li key={o.outcomeId}>
+                    <b>{o.code}</b> {u.title}
+                    <button type="button" className="lc-cta lc-cta--new mm-new" data-testid="mm-weak-new-test" onClick={() => openNewTest(u.unitId, o.code)}>
+                      {NEW_TEST_LABEL}
+                    </button>
+                  </li>
+                )),
+            )}
+          </ul>
           {reinforceUnit ? (
             <ReinforceBox
               key={reinforceUnit.unitId}
@@ -184,26 +241,29 @@ export function MasteryMap({
 }
 
 /** 📊 Tahmini sınav neti + en hızlı +net getirecek 3 konu (resmî yanlış kuralıyla; az veride sakin not). */
-function NetCard({ net }: { net: NetEstimate }) {
+export const NET_CARD_TITLE = "📊 Tahmini Sınav Netin";
+export const NET_TOP_TITLE = "En Hızlı +Net Getirecek 3 Konun";
+
+export function NetCard({ net }: { net: NetEstimate }) {
   return (
     <div className="mm-net" data-testid="net-card">
-      <p className="lc-kicker">📊 Tahmini sınav netin</p>
+      <p className="lc-kicker">{NET_CARD_TITLE}</p>
       {net.status === "no_data" ? (
         <>
           <p className="lc-status" data-testid="net-no-data">{NET_NO_DATA}. En az {NET_MIN_RESPONSES} soru yanıtlayınca tahmin burada belirir.</p>
-          <p className="lc-kicker">+3 konu</p>
+          <p className="lc-kicker">{NET_TOP_TITLE}</p>
           <p className="lc-status" data-testid="net-top-no-data">{NET_NO_DATA}.</p>
         </>
       ) : net.status === "no_count" ? (
         <>
           <p className="lc-status" data-testid="net-no-count">
-            Bu ders için resmî soru sayısı yayımlanmadığından net hesaplanmıyor; {net.responses} yanıta göre ustalık kazancı gösteriliyor.
+            Bu sınav için resmî ders soru sayısı yayımlanmadığından net sayısı hesaplanmıyor. Aşağıdaki 3 konu, {net.responses} yanıtına göre en çok gelişme payın olan konular: şu anki hakimiyetin ve %85 hedefe çıkınca tahmini doğru oranı artışı.
           </p>
-          <p className="lc-kicker">+3 konu</p>
+          <p className="lc-kicker">{NET_TOP_TITLE}</p>
           {net.top.length ? (
             <ol className="mm-list" data-testid="net-top">
               {net.top.map((t) => (
-                <li key={t.unitId}>{t.title}: +{t.gain} ustalık puanı</li>
+                <li key={t.unitId}>{t.title}: şu an %{t.currentPct} hakimsin · doğru oranında +%{t.gainPct} gelişme payı</li>
               ))}
             </ol>
           ) : (
@@ -216,7 +276,7 @@ function NetCard({ net }: { net: NetEstimate }) {
             ≈ {fmt(net.net)} net <span className="lc-status">({fmt(net.low)}–{fmt(net.high)} aralığı, {net.maxNet} soru üzerinden)</span>
           </p>
           <p className="lc-status">Tahminidir: {net.responses} yanıta ve resmî yanlış kuralına dayanır.</p>
-          <p className="lc-kicker">+Net getirecek 3 konu</p>
+          <p className="lc-kicker">{NET_TOP_TITLE}</p>
           {net.top.length ? (
             <ol className="mm-list" data-testid="net-top">
               {net.top.map((t) => (

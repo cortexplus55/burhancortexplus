@@ -94,10 +94,12 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
+  // Plus ve yönetici rolü paralel (havuz yolunda sıralı round-trip yok).
+  const [premium, admin] = await Promise.all([isPremiumUser(service, userId), isAdminUser(service, userId)]);
   const fields: FallbackExamInput = {
     service,
     userId,
-    isPremium: await isPremiumUser(service, userId),
+    isPremium: premium,
     prepId: parsed.data.prepId,
     preset: parsed.data.preset,
     scope: parsed.data.scope,
@@ -136,7 +138,7 @@ export async function POST(request: Request) {
       userId,
       prepId: fields.prepId,
       // Kurucu/yönetici hesabı aboneliksiz de havuz kâğıdını alır (3 Kasım 2026); ücretsiz kilit aynı.
-      isPremium: fields.isPremium || (await isAdminUser(service, userId)),
+      isPremium: fields.isPremium || admin,
       preset: fields.preset,
       scope: fields.scope,
       topicIds: fields.topicIds,

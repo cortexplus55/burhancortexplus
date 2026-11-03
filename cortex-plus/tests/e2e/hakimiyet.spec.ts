@@ -98,6 +98,8 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     await expect(page.getByTestId("mm-note")).toContainText("ortalamasıdır");
 
     await expect(page.getByTestId("mm-no-extra")).toBeVisible();
+    // Ek soru kalmasa da her zayıf kazanımda "🔥 Yeni Pekiştirme Testi" (havuz → yoksa üretim + v14).
+    await expect(page.getByTestId("mm-weak-new-test").first()).toHaveText("🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });

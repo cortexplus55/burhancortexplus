@@ -28,24 +28,24 @@ export async function tryPoolMockExam(input: {
   const started = Date.now();
   const { service, userId, prepId } = input;
   if (input.twin || !input.isPremium) return null;
-  const { data: prep } = await service
-    .from("exam_preps")
-    .select("id, title, document_id, source_document_ids, learning_preferences")
-    .eq("id", prepId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  // Tek round-trip (3 Kasım 2026): hazırlık, konular ve kaynak belge bağları paralel; sonra ek okuma yok.
+  const [{ data: prep }, { data: topicRows }, { data: linkedDocs }] = await Promise.all([
+    service
+      .from("exam_preps")
+      .select("id, title, document_id, source_document_ids, learning_preferences")
+      .eq("id", prepId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    service.from("exam_prep_topics").select("id, label, status, source_refs").eq("exam_prep_id", prepId).order("sort_order"),
+    service.from("exam_prep_source_documents").select("document_id").eq("exam_prep_id", prepId).limit(1),
+  ]);
   if (!prep) return null;
   const docs = prepSourceDocumentIds({
     documentId: (prep.document_id as string | null) ?? null,
     sourceDocumentIds: (prep.source_document_ids as string[] | null) ?? null,
   });
-  if (docs.length) return null;
+  if (docs.length || (linkedDocs ?? []).length) return null;
 
-  const { data: topicRows } = await service
-    .from("exam_prep_topics")
-    .select("id, label, status, source_refs")
-    .eq("exam_prep_id", prepId)
-    .order("sort_order");
   let topics = (topicRows ?? []) as Array<{ id: string; label: string; status: string | null; source_refs: unknown }>;
   if (input.scope === "topics" && input.topicIds?.length) {
     const allowed = new Set(input.topicIds);
@@ -55,7 +55,7 @@ export async function tryPoolMockExam(input: {
   const prefs = prep.learning_preferences;
   if (topics.some((t) => !poolSliceForTopic(prefs, t.label))) return null;
 
-  const { slots, syllabus, official } = await loadMockExamSetup(service, userId, prepId, topics);
+  const { slots, syllabus, official } = await loadMockExamSetup(service, userId, prepId, topics, { syllabusText: "", prefs });
   let preset: MockLengthPreset = input.preset ?? (syllabus || official ? "real" : "standard");
   if (input.questionCount != null) preset = input.questionCount <= 12 ? "short" : "standard";
   const blueprint = buildBlueprint({

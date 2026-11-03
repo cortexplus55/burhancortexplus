@@ -273,13 +273,15 @@ export async function loadMockExamSetup(
   userId: string,
   prepId: string,
   topics: Array<{ id: string; label: string; source_refs: unknown }>,
+  /** Çağıran zaten okuduysa (havuz yolu): ek round-trip yok. */
+  known?: { syllabusText?: string; prefs?: unknown },
 ): Promise<{
   slots: MockTopicSlot[];
   syllabus: ReturnType<typeof parseExamFormatFromText>;
   syllabusText: string;
   official: OfficialExamFormat | null;
 }> {
-  const syllabusText = await loadSyllabusSnippet(service, userId, prepId);
+  const syllabusText = known?.syllabusText ?? (await loadSyllabusSnippet(service, userId, prepId));
   const syllabus = parseExamFormatFromText(syllabusText);
   const excluded = exclusionTitles(syllabusText);
   // Kayıtta ağırlık yoksa belgedeki "Yevmiye %35" (30 Ekim 2026, Paket I #4); kurulum ve üretim aynı yükleyiciyi okur.
@@ -290,7 +292,7 @@ export async function loadMockExamSetup(
     if (slot.weightPercent == null && textWeights.has(t.label)) slot.weightPercent = textWeights.get(t.label)!;
     return slot;
   });
-  const official = await applyOfficialQuotas(service, prepId, slots);
+  const official = await applyOfficialQuotas(service, prepId, slots, known && "prefs" in known ? { prefs: known.prefs } : undefined);
   return { slots, syllabus, syllabusText, official };
 }
 
@@ -304,10 +306,13 @@ export async function applyOfficialQuotas(
   service: SupabaseClient,
   prepId: string,
   slots: MockTopicSlot[],
+  known?: { prefs: unknown },
 ): Promise<OfficialExamFormat | null> {
   try {
-    const { data } = await service.from("exam_preps").select("learning_preferences").eq("id", prepId).maybeSingle();
-    const ref = (data?.learning_preferences as { curriculum?: CurriculumRef } | null)?.curriculum;
+    const prefs = known
+      ? known.prefs
+      : (await service.from("exam_preps").select("learning_preferences").eq("id", prepId).maybeSingle()).data?.learning_preferences;
+    const ref = (prefs as { curriculum?: CurriculumRef } | null)?.curriculum;
     const map = topicMapForRef(ref);
     if (!map || !map.total) return null;
     let total = 0;

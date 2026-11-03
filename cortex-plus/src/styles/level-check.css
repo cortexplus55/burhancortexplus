@@ -102,3 +102,6 @@
   white-space: normal;
   text-align: center;
 }
+/* Kazanım satırındaki "Yeni Pekiştirme Testi" butonu: mobilde satıra sığar, taşmaz. */
+.mm-outcomes .mm-new { display: block; width: 100%; max-width: 100%; margin-top: 0.35rem; white-space: normal; text-align: center; font-size: 0.8rem; padding: 0.45rem 0.6rem; box-sizing: border-box; overflow-wrap: anywhere; }
+@media (min-width: 640px) { .mm-outcomes .mm-new { width: auto; display: inline-block; } }
