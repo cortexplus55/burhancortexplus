@@ -125,7 +125,8 @@ async function streamDraft(
   effort: Record<string, unknown>,
 ): Promise<string> {
   const stream = await input.client.chat.completions.create(
-    { model: input.model, ...effort, messages, stream: true, stream_options: { include_usage: true } },
+    // prompt_cache_key: aynı sabit öneki paylaşan istekler aynı önbellek kovasına düşer (ilk token hızlanır).
+    { model: input.model, ...effort, messages, stream: true, stream_options: { include_usage: true }, prompt_cache_key: "cortex-tutor-chat" },
     { signal: input.signal, timeout: 90_000, maxRetries: 0 },
   );
   let text = "";

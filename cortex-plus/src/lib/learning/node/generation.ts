@@ -35,6 +35,12 @@ import { loadTopicLesson, saveTopicLesson } from "@/lib/learning/node/lesson-sto
 import { loadSectionBackbone, loadUpcomingTopicTitles } from "@/lib/learning/node/lesson";
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { generateNodePayload } from "@/lib/learning/node/generate";
+import { samplingParams } from "@/lib/ai/model-params";
+import { openaiClient } from "@/lib/ai/openai-client";
+import { env } from "@/lib/env";
+import { recordUsage } from "@/lib/credits/service";
+import type { LessonScreen } from "@/lib/learning/lesson-v3";
+import { REWRITE_LEAD_MAX_TOKENS, REWRITE_LEAD_NOTE, leadOnlyPayload, parseRewriteLead, prefixLeadScreen, rewriteLeadPrompt } from "@/lib/learning/rewrite-lead";
 import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 import type { StartSource } from "./source";
@@ -77,10 +83,16 @@ export async function runStartGeneration(
       Boolean(creatingAttemptId && generationId && clientRequestId)) ||
     streamQuiz;
   let shownFirst = false;
+  // Belgesiz "Farklı anlat" (3 Kasım 2026): kısa giriş + ilk bölüm hızlı modelle, asıl yazarla paralel (rewrite-lead.ts).
+  const leadWanted = progressive && kind === "lesson" && Boolean(alternativeOf) && Boolean(env.OPENAI_API_KEY);
+  let leadScreen: LessonScreen | null = null;
+  let leadMs: number | null = null;
+  let mainShown = false;
   let announceFirst: (payload: Record<string, unknown>) => void = () => undefined;
   const firstShown = new Promise<Record<string, unknown>>((resolve) => (announceFirst = resolve));
-  const publishLesson = async (partial: Record<string, unknown>) => {
-    const next = buildingPayload(partial);
+  const publishLesson = async (partial: Record<string, unknown>, fromLead = false) => {
+    if (!fromLead) mainShown = true;
+    const next = buildingPayload(leadScreen && !fromLead ? prefixLeadScreen(partial, leadScreen) : partial);
     const { error: publishError } = await service
       .from("exam_prep_node_attempts")
       .update({ payload: next, status: "active", updated_at: new Date().toISOString() })
@@ -107,6 +119,38 @@ export async function runStartGeneration(
     : Promise.resolve([]);
 
   generationLaunchedMs = Date.now() - requestStarted;
+  if (leadWanted) {
+    const prompt = rewriteLeadPrompt({ topicLabel, basis: alternativeOf });
+    const leadModel = env.OPENAI_STANDARD_MODEL;
+    void (async () => {
+      try {
+        const response = await openaiClient({ apiKey: env.OPENAI_API_KEY! }).chat.completions.create(
+          {
+            model: leadModel,
+            ...samplingParams(leadModel, { temperature: 0.7, maxTokens: REWRITE_LEAD_MAX_TOKENS }),
+            response_format: { type: "json_object" },
+            messages: [{ role: "system", content: prompt.system }, { role: "user", content: prompt.user }],
+          },
+          { timeout: 8_000, maxRetries: 0 },
+        );
+        await recordUsage(service, {
+          userId,
+          actionCode: "STUDY_PLAN_GENERATE",
+          model: leadModel,
+          tokensIn: response.usage?.prompt_tokens ?? 0,
+          tokensOut: response.usage?.completion_tokens ?? 0,
+        }).catch(() => undefined);
+        const screen = parseRewriteLead(response.choices[0]?.message?.content ?? "");
+        // Asıl yazarın ilk ekranı önce geldiyse giriş atılır: okunan ekran yerinden oynamaz.
+        if (!screen || mainShown) return;
+        leadScreen = screen;
+        leadMs = Date.now() - requestStarted;
+        await publishLesson(leadOnlyPayload(screen, title), true);
+      } catch (error) {
+        console.info("rewrite_lead_skipped", { cause: error instanceof Error ? error.message.slice(0, 120) : "unknown" });
+      }
+    })();
+  }
   // Podcast'in dinleme kontrolü yayımdan sonra (30 Ekim 2026): kayıt yazılınca `fillPodcastCheckLater` doldurur.
   let podcastCheckTask: (() => Promise<QuizQuestion[]>) | null = null;
   // Sözlü kalan soruları (t260u): 1. soru yanıtla gider, kalanlar kayıt yazılınca arkada eklenir.
@@ -166,7 +210,7 @@ export async function runStartGeneration(
                 }
               : null,
           lessonTopicOnly,
-          ...(alternativeOf ? { alternativeOf } : {}),
+          ...(alternativeOf ? { alternativeOf: leadWanted ? `${alternativeOf}\n\n${REWRITE_LEAD_NOTE}` : alternativeOf } : {}),
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
           teachingV2,
@@ -271,6 +315,7 @@ export async function runStartGeneration(
   let payload: Record<string, unknown>;
   try {
     payload = await generation;
+    if (leadScreen) payload = prefixLeadScreen(payload, leadScreen);
   } catch (error) {
     const code = error instanceof NodeGenerationError ? error.code : "generation_failed";
     const status = error instanceof NodeGenerationError ? error.status : 502;
@@ -662,8 +707,8 @@ export async function runStartGeneration(
           firstPublishedMs,
           respondedMs: Date.now() - requestStarted,
         });
+        const ms = Date.now() - requestStarted;
         {
-          const ms = Date.now() - requestStarted;
           after(() => recordOpenTiming(service, { userId, kind, path: "cold", ms }));
           after(() =>
             recordLessonTiming(service, {
@@ -672,11 +717,11 @@ export async function runStartGeneration(
               path: "stream_first",
               openMs: ms,
               firstScreenMs: firstPublishedMs,
-              meta: { peekBuildingMs, generationLaunchedMs },
+              meta: { peekBuildingMs, generationLaunchedMs, ...(leadWanted ? { rewriteLead: leadScreen ? "shown" : "skipped", leadMs } : {}) },
             }),
           );
         }
-        return NextResponse.json({
+        const firstBody = {
           ...attemptStartResponse(activeAttempt, {
             kind,
             title,
@@ -685,7 +730,14 @@ export async function runStartGeneration(
             resumed: false,
           }),
           ...(await readWalletBalance(service, userId)),
-        });
+        };
+        const timing = [
+          `ttft;dur=${firstPublishedMs ?? ms}`,
+          `launch;dur=${generationLaunchedMs ?? 0}`,
+          ...(leadMs != null ? [`lead;dur=${leadMs}`] : []),
+          `total;dur=${Date.now() - requestStarted}`,
+        ].join(", ");
+        return NextResponse.json(firstBody, { headers: { "Server-Timing": timing } });
       }
     }
   }

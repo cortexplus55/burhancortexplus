@@ -28,6 +28,18 @@ export type LiveChannel = {
   /** Akış izni ve belge modu; izin yoksa write sessizce yok sayılır. */
   enable(documentsOnly: boolean): void;
   readonly enabled: boolean;
+  /**
+   * Girdi denetimi kapısı (3 Kasım 2026): denetim model çağrısıyla paralel koşar. Kapı açılana
+   * kadar token'lar sunucuda tamponlanır, öğrenciye tek bayt gitmez; `true` gelince tampon
+   * akar, `false` (ret ya da hata) gelince tampon atılır ve kanal bir daha yazmaz.
+   */
+  gate(verdict: Promise<boolean>): void;
+  /** Kapı reddetti mi. */
+  readonly blocked: boolean;
+  /** Akış açılırken eklenecek Server-Timing değeri. */
+  timing(provider: () => string): void;
+  /** İlk İçerik token'ının modelden geldiği an (tampon dahil, ms). */
+  readonly firstModelTokenMs: number | null;
   /** İlk token'da çözülen yanıt. */
   response: Promise<Response>;
 };
@@ -40,6 +52,10 @@ export function createLiveChannel(startedAt: number): LiveChannel {
   let enabled = false;
   let closed = false;
   let firstTokenMs: number | null = null;
+  let firstModelTokenMs: number | null = null;
+  let gateState: "open" | "pending" | "blocked" = "open";
+  let buffer: string[] = [];
+  let timingProvider: (() => string) | null = null;
   let resolve!: (response: Response) => void;
   const response = new Promise<Response>((r) => { resolve = r; });
   const stream = new ReadableStream<Uint8Array>({ start(c) { controller = c; } });
@@ -47,22 +63,42 @@ export function createLiveChannel(startedAt: number): LiveChannel {
     if (started) return;
     started = true;
     firstTokenMs = Date.now() - startedAt;
+    const timing = [timingProvider?.() ?? "", `ttft;dur=${firstTokenMs}`].filter(Boolean).join(", ");
     resolve(new Response(stream, { headers: {
       "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store",
       [LIVE_HEADER]: "1", "X-Documents-Only": documentsOnly ? "1" : "0",
+      "Server-Timing": timing,
     } }));
+  };
+  const emit = (text: string) => {
+    open();
+    // İşaret karakteri model metninde geçerse kuyrukla karışmasın.
+    controller?.enqueue(encoder.encode(text.split(LIVE_TRAILER_MARK).join("")));
   };
   return {
     get started() { return started; },
     get firstTokenMs() { return firstTokenMs; },
     get enabled() { return enabled; },
+    get blocked() { return gateState === "blocked"; },
+    get firstModelTokenMs() { return firstModelTokenMs; },
     enable(flag) { enabled = true; documentsOnly = flag; },
+    timing(provider) { timingProvider = provider; },
+    gate(verdict) {
+      gateState = "pending";
+      verdict.then((ok) => ok, () => false).then((ok) => {
+        if (!ok) { gateState = "blocked"; buffer = []; return; }
+        gateState = "open";
+        const held = buffer.join("");
+        buffer = [];
+        if (held && !closed) emit(held);
+      });
+    },
     response,
     write(text) {
-      if (closed || !text || !enabled) return;
-      open();
-      // İşaret karakteri model metninde geçerse kuyrukla karışmasın.
-      controller?.enqueue(encoder.encode(text.split(LIVE_TRAILER_MARK).join("")));
+      if (closed || !text || !enabled || gateState === "blocked") return;
+      if (firstModelTokenMs == null) firstModelTokenMs = Date.now() - startedAt;
+      if (gateState === "pending") { buffer.push(text); return; }
+      emit(text);
     },
     finish(trailer) {
       if (closed || !started) return;
