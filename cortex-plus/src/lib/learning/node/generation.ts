@@ -9,6 +9,7 @@ import { adoptedPrefetchAttempt, dropPrefetch, publishPrefetchPartial, storePref
 import { quizPrefetchStorable } from "@/lib/learning/topic-test-prefetch";
 import { loadTopicSupport, supportPagesForEngine } from "@/lib/learning/topic-support-load";
 import { fillPodcastCheckLater } from "@/lib/learning/podcast-check-later";
+import { fillOralRestLater } from "@/lib/learning/oral-rest-later";
 import { errorResponse } from "@/lib/api/guards";
 import { pagesMarkedInSource } from "@/lib/learning/source-context";
 import { oralPlanBrief } from "@/lib/learning/oral-scope";
@@ -108,9 +109,13 @@ export async function runStartGeneration(
   generationLaunchedMs = Date.now() - requestStarted;
   // Podcast'in dinleme kontrolü yayımdan sonra (30 Ekim 2026): kayıt yazılınca `fillPodcastCheckLater` doldurur.
   let podcastCheckTask: (() => Promise<QuizQuestion[]>) | null = null;
+  // Sözlü kalan soruları (t260u): 1. soru yanıtla gider, kalanlar kayıt yazılınca arkada eklenir.
+  let oralRestTask: (() => Promise<Record<string, unknown>[]>) | null = null;
   const schedulePodcastCheck = (attemptId: string) => {
     const task = podcastCheckTask;
     if (task) after(() => fillPodcastCheckLater(service, { attemptId, prepId, userId, topicLabel, task }));
+    const oralTask = oralRestTask;
+    if (oralTask) after(() => fillOralRestLater(service, { attemptId, task: oralTask }));
   };
   const generation: Promise<Record<string, unknown>> = (async () =>
     voiceSession
@@ -217,6 +222,9 @@ export async function runStartGeneration(
           onLessonSaved: refreshTopicQuiz,
           onPodcastCheckLater: (task) => {
             podcastCheckTask = task;
+          },
+          onOralRestLater: (task) => {
+            oralRestTask = task;
           },
           prepId,
           topicId: topic?.id ?? null,

@@ -13,7 +13,10 @@ import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-
 import type { TeachingPriority } from "@/lib/learning/teacher-brain";
 import { TEACHER_PAGE_KINDS } from "@/lib/learning/node/shared";
 import { loadOralAllSource } from "@/lib/learning/node/oral";
-import { poolSourceText } from "@/lib/content-pool/serve";
+import { poolLessonBodies } from "@/lib/content-pool/serve";
+import { oralDraftsFromPool } from "@/lib/content-pool/oral-from-pool";
+import { poolLessonText } from "@/lib/content-pool/lesson-text";
+import type { OralQuestionDraft } from "@/lib/learning/oral-exam";
 import { oralPoolLabelsFrom } from "@/lib/content-pool/oral-pool-labels";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NodeContext } from "./context";
@@ -101,6 +104,8 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   let oralAllPlan: string[] = [];
   // Hazırlığa bağlı belge yok (havuz / konudan hazırlık): sözlü kaynağı havuz anlatımından.
   let noPrepDocuments = false;
+  // Belgesiz havuz sözlüsü: doğrulanmış bölümlerden anında sorular (boşsa bugünkü üretim).
+  let oralPoolDrafts: OralQuestionDraft[] = [];
   try {
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
@@ -340,7 +345,11 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       topicIds: oralMultiTopic ? oralTopicIds : null,
       count: oralCount ?? 5,
     });
-    const text = await poolSourceText(service, { prefs: prep.learning_preferences, topicLabels: labels }).catch(() => "");
+    // Tek okuma (t260u): aynı doğrulanmış gövdeler hem kaynak metni hem anında sözlü soruları olur.
+    const bodies = await poolLessonBodies(service, { prefs: prep.learning_preferences, topicLabels: labels }).catch(() => []);
+    oralPoolDrafts = oralDraftsFromPool(bodies, oralCount ?? 5);
+    const budget = Math.max(2_000, Math.floor(14_000 / Math.max(1, bodies.length)));
+    const text = bodies.map((body) => poolLessonText(body, body.title, budget)).join("\n\n");
     if (text.trim()) {
       source = { ...source, block: text, documentName: "Doğrulanmış konu anlatımı" };
     } else if (sourceMode === "topic_only") {
@@ -388,7 +397,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
       refunded: false,
     });
   }
-  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus };
+  return { prepSource, prepDocs, teachingPlan, sourceBoundaryMode, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, oralPoolDrafts };
 }
 
 /** Kaynak aşamasının erken yanıt dışındaki dönüşü. */

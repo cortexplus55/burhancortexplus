@@ -10,6 +10,7 @@ import { commitCredits, recordUsage, type UsageCode, refundCredits, refusalCode,
 import type { FreeMeter } from "@/lib/billing/free-meters";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
+import { isReasoningModel } from "@/lib/ai/model-params";
 
 export type AskJson = (system: string, user: string) => Promise<unknown | null>;
 
@@ -57,6 +58,11 @@ async function runWithTeacherModelInner<R>(
      */
     sharedUsageCode?: UsageCode;
     startedAt?: number;
+    /**
+     * Düşünme düzeyi (t260u): öğrenci ilk soruyu beklerken "low" (sözlü 1. soru). Yalnız akıl yürüten modelde
+     * gönderilir; verilmezse modelin varsayılanı (bugünkü davranış).
+     */
+    reasoningEffort?: "low" | "medium";
     /** Günlük satırının adı ("teacher_cards"). */
     label: string;
     topic: string;
@@ -97,6 +103,7 @@ async function runWithTeacherModelInner<R>(
       model,
       response_format: { type: "json_object" },
       ...tier,
+      ...(options.reasoningEffort && isReasoningModel(model) ? { reasoning_effort: options.reasoningEffort } : {}),
       messages: [
         { role: "system", content: withStudentProfile(system, profile) },
         { role: "user", content: user },

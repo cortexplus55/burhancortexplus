@@ -85,6 +85,7 @@ import {
 } from "@/lib/ai/document-answer-verification";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { pickStudyTopics } from "@/lib/learning/diagnostic";
+import { recordLessonTiming } from "@/lib/admin/beta-metrics";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, streamedChatResultResponse, type SavedChatResult } from "@/lib/ai/chat-operation";
 
 export const maxDuration = 300;
@@ -105,6 +106,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const routeStartedAt = Date.now();
+  const timings: [string, number][] = [];
   const guard = await withUser(request, { scope: "chat", limit: 40, trackSharing: true });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
@@ -194,21 +197,45 @@ export async function POST(request: Request) {
       } else return errorResponse(422, "Bu dosya türü sohbet içinde desteklenmiyor.");
     }
 
+    // Ön okumalar paralel (3 Kasım 2026, t260u): denetim, hak, geçmiş, profil, istem ve hazırlık bağlamı
+    // birbirini beklemiyordu ama sırayla koşuyordu. Hepsi yalnız okuma; kredi ayırma sırası değişmez.
+    const stage = (name: string) => timings.push([name, Date.now() - routeStartedAt]);
+    const quiet = <T,>(promise: Promise<T>): Promise<T> => {
+      promise.catch(() => undefined);
+      return promise;
+    };
+    const entitlementsEarly = quiet(getUserEntitlements(service, userId));
+    const priorTurnsEarly = quiet(
+      rest.conversationId
+        ? Promise.resolve(service.from("messages").select("id", { count: "exact", head: true })
+            .eq("conversation_id", rest.conversationId).eq("user_id", userId).eq("role", "user"))
+        : Promise.resolve(null),
+    );
+    const historyEarly = quiet(
+      rest.conversationId
+        ? Promise.resolve(service.from("messages").select("role,content")
+            .eq("conversation_id", rest.conversationId).eq("user_id", userId).order("created_at", { ascending: false }).limit(16))
+        : Promise.resolve(null),
+    );
+    const profileEarly = quiet(Promise.resolve(service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle()));
+    const instructionEarly = quiet(loadActivePrompt(service, PROMPT_KEYS.studentChat));
+    const examContextEarly = quiet(rest.prepId ? loadExamChatContext(service, userId, rest.prepId) : Promise.resolve(null));
+    const groundingEarly = quiet(rest.prepId ? loadPrepChatGrounding(service, userId, rest.prepId, message) : Promise.resolve(null));
     // Moderation and the free-image allowance precede any credit reservation.
     const verdict = await moderate({ text: message, imageUrls: imageUrl ? [imageUrl] : [] });
     if (verdict.action !== "allow") void recordAbuse({ signal: "moderation", severity: verdict.action === "flag" ? "low" : "high", scope: "chat", userId, request, metadata: { categories: verdict.categories, outcome: verdict.action } });
     if (verdict.action === "block" || verdict.action === "support") return new Response(verdict.message, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "X-Credits-Used": "0" },
     });
-    const entitlements = await getUserEntitlements(service, userId);
+    stage("moderation");
+    const entitlements = await entitlementsEarly;
     const isPremium = entitlements.isPremium;
 
     let priorUserTurns = 0;
     if (rest.conversationId) {
-      const { count, error } = await service.from("messages").select("id", { count: "exact", head: true })
-        .eq("conversation_id", rest.conversationId).eq("user_id", userId).eq("role", "user");
-      if (error) throw new Error("history_unavailable");
-      priorUserTurns = count ?? 0;
+      const counted = await priorTurnsEarly;
+      if (!counted || counted.error) throw new Error("history_unavailable");
+      priorUserTurns = counted.count ?? 0;
     }
     const difficulty = assessQuestionDifficulty({ message, turn: priorUserTurns + 1, hasImage: Boolean(imageUrl) });
     // Gelişmiş sohbet Sigma. Plus ve ücretsiz istese de standart modele düşer.
@@ -245,9 +272,9 @@ export async function POST(request: Request) {
     const strict = grounded && documentsOnly && useDocuments;
     const history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
     if (rest.conversationId) {
-      const { data, error } = await service.from("messages").select("role,content")
-        .eq("conversation_id", rest.conversationId).eq("user_id", userId).order("created_at", { ascending: false }).limit(16);
-      if (error) throw new Error("history_unavailable");
+      const rows = await historyEarly;
+      if (!rows || rows.error) throw new Error("history_unavailable");
+      const data = rows.data;
       let chars = 0;
       for (const row of data ?? []) {
         if (row.role !== "assistant" && row.role !== "user") continue;
@@ -267,13 +294,13 @@ export async function POST(request: Request) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
       charge = false;
     } else {
-      const { data: profile } = await service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle();
+      const { data: profile } = await profileEarly;
       const tutorStyle = parseTutorStyle(rest.tutorStyle ?? profile?.tutor_style);
-      const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
-      const examContext = rest.prepId ? await loadExamChatContext(service, userId, rest.prepId) : null;
+      const studentInstruction = await instructionEarly;
+      const examContext = await examContextEarly;
       if (rest.prepId) {
         try {
-          prepGrounding = await loadPrepChatGrounding(service, userId, rest.prepId, message);
+          prepGrounding = await groundingEarly;
         } catch (error) {
           const cause = error instanceof Error ? error.message : String(error);
           console.error("prep_grounding_failed", { operationId, cause: cause.slice(0, 200) });
@@ -425,9 +452,12 @@ export async function POST(request: Request) {
       if (teacherTutor && prepGrounding) {
         const grounding = prepGrounding;
         const lastLesson = examContext?.lastLesson ?? null;
+        stage("context");
         const outcome = await runTeacherTutor({
           client,
           model,
+          // Öğrenci cevabı bekliyor (t260u): düşünme düzeyi düşük; denetim adımı aynen sürer.
+          reasoningEffort: "low",
           signal: request.signal,
           context: {
             examTitle: examContext?.prepTitle ?? null,
@@ -678,9 +708,25 @@ export async function POST(request: Request) {
         titleConversation(service, { userId, conversationId: savedConversationId, message, answer: content }),
       );
     }
-    return rest.prepId
+    stage("saved");
+    const response = rest.prepId
       ? streamedChatResultResponse(saved as SavedChatResult, strict)
       : chatResultResponse(saved as SavedChatResult, strict);
+    // Ölçüm (t260u): Server-Timing + lesson_timings kind='chat' (ilk kelime = kayıt anı; yanıt kayıttan sonra akar).
+    const serverTiming = timings.map(([name, ms]) => `${name};dur=${ms}`).join(", ");
+    try { response.headers.set("Server-Timing", serverTiming); } catch { /* değişmez başlık */ }
+    const openMs = Date.now() - routeStartedAt;
+    after(() =>
+      recordLessonTiming(service, {
+        userId,
+        kind: "chat",
+        path: "stream_first",
+        openMs,
+        firstScreenMs: openMs,
+        meta: { source: "server", prep: Boolean(rest.prepId), stages: Object.fromEntries(timings) },
+      }),
+    );
+    return response;
   } catch (err) {
     try { await undoSpend(); } catch { console.error("chat_credit_recovery_required", { operationId }); }
     // Sebep olmadan bu satır işe yaramaz: 23 Eylül 2026'da canlıda yalnızca

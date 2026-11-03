@@ -72,6 +72,26 @@ export async function teacherOralPayload(
           topicId: input.topicId ?? null,
         })
       : [];
+  // 1. soru önce (3 Kasım 2026, t260u; canlı ölçüm: bütün sorular tek çağrıda yazılıp denetlenirken ilk soru ~30 sn).
+  // Öğrenci bekliyorsa yalnız ilk soru düşük düşünme düzeyiyle yazılır ve ekran açılır; kalan sorular yanıttan
+  // sonra aynı kurallarla (aynı yapı denetimi, aynı kaynak) arkada yazılıp kayda eklenir. Kredi bir kez (ilk
+  // çağrıda); arka yazım ek kredi düşmez. Önceden yazımda bugünkü gibi hepsi birlikte.
+  const split = input.charge !== false && asked >= 3 && Boolean(input.onOralRestLater);
+  const firstCount = split ? 1 : asked;
+  const loopInput = (count: number, extraAvoid: string[]) => ({
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: [],
+    sourceBlock: block || undefined,
+    mode: (block ? "document" : "topic") as "document" | "topic",
+    brief: input.syllabusLine?.trim() || undefined,
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    examPoints: input.examPoints,
+    examPointsUse: "oral" as const,
+    count,
+    urgent: input.charge !== false,
+    avoid: [...avoid, ...extraAvoid],
+  });
   const outcome = await runWithTeacherModel(input.service, {
     userId: input.userId,
     actionCode: actionForKind(input.kind),
@@ -81,36 +101,43 @@ export async function teacherOralPayload(
     startedAt,
     label: "teacher_oral",
     topic: input.topicLabel,
+    ...(split ? { reasoningEffort: "low" as const } : {}),
     work: async (ask, started) => {
-      const loop = await teacherOralLoop(
-        ask,
-        {
-          topicLabel: input.topicLabel,
-          prepTitle: input.prepTitle,
-          pages: [],
-          sourceBlock: block || undefined,
-          mode: block ? "document" : "topic",
-          brief: input.syllabusLine?.trim() || undefined,
-          learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
-          examPoints: input.examPoints,
-          examPointsUse: "oral",
-          count: asked,
-          urgent: input.charge !== false,
-          avoid,
-        },
-        started,
-      );
-      const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds };
-      return loop.items.length >= Math.min(asked, 3)
+      const loop = await teacherOralLoop(ask, loopInput(firstCount, []), started);
+      const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds, split };
+      return loop.items.length >= Math.min(firstCount, 3)
         ? { ok: true as const, result: loop.items, log }
         : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
     },
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  const first = stampOralQuestions(outcome.result, input.oralCitation);
+  if (split && input.onOralRestLater) {
+    const firstPrompts = first.map((q) => String(q.prompt ?? "")).filter(Boolean);
+    input.onOralRestLater(async () => {
+      const rest = await runWithTeacherModel(input.service, {
+        userId: input.userId,
+        actionCode: actionForKind(input.kind),
+        idempotencyKey: `oral_rest:${input.idempotencyKey ?? startedAt}`,
+        charge: false,
+        startedAt: Date.now(),
+        label: "teacher_oral_rest",
+        topic: input.topicLabel,
+        work: async (ask, started) => {
+          const loop = await teacherOralLoop(ask, loopInput(asked - first.length, firstPrompts), started);
+          return loop.items.length
+            ? { ok: true as const, result: loop.items }
+            : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun") };
+        },
+      });
+      return rest.ok ? stampOralQuestions(rest.result, input.oralCitation).slice(0, asked - first.length) : [];
+    });
+  }
   return {
     type: "oral",
     testedTopic: input.topicLabel,
-    questions: stampOralQuestions(outcome.result, input.oralCitation),
+    questions: first,
+    ...(split ? { oralPending: { target: asked } } : {}),
     teachingStandard: activity,
     engine: "teacher",
   };

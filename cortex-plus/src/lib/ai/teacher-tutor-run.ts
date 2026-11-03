@@ -1,3 +1,4 @@
+import { isReasoningModel } from "@/lib/ai/model-params";
 import type OpenAI from "openai";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import {
@@ -38,7 +39,10 @@ export async function runTeacherTutor(input: {
   verify?: boolean;
   /** Öğrencinin anlatım tarzı; doğrudan cevap yüklemi okur. */
   style?: TutorStyle | null;
+  /** Düşünme düzeyi (t260u); yalnız akıl yürüten modelde gönderilir. */
+  reasoningEffort?: "low" | "medium";
 }): Promise<TutorRunOutcome> {
+  const effort = input.reasoningEffort && isReasoningModel(input.model) ? { reasoning_effort: input.reasoningEffort } : {};
   const system = `${tutorSystemPrompt(input.context)}\n\n${answerFirstLine(input.message, input.style)}`;
   let reasons: string[] = [];
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -46,6 +50,7 @@ export async function runTeacherTutor(input: {
     const response = await input.client.chat.completions.create(
       {
         model: input.model,
+        ...effort,
         messages: [
           { role: "system", content: `${system}${note}` },
           ...input.history,
@@ -74,6 +79,7 @@ export async function runTeacherTutor(input: {
       const review = await input.client.chat.completions.create(
         {
           model: input.model,
+          ...effort,
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: tutorVerifySystem(input.context.mode) },
