@@ -101,4 +101,17 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
+
+  test("📊 Tahmini net kartı ve +Net getirecek 3 konu (dar ekran taşmasız)", async ({ page }) => {
+    await page.goto("/e2e/hakimiyet");
+    const card = page.getByTestId("net-card");
+    await expect(card).toBeVisible();
+    await expect(page.getByTestId("net-value")).toContainText("≈ 14,8 net");
+    await expect(page.getByTestId("net-value")).toContainText("2,9–30,8 aralığı, 40 soru üzerinden");
+    const top = page.getByTestId("net-top").locator("li");
+    await expect(top).toHaveCount(3);
+    await expect(top.first()).toContainText("Fikstür Ünitesi B: +7,2 net");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
 });

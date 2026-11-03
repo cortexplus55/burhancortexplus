@@ -2,6 +2,7 @@
 
 import { MasteryMap } from "@/components/level-check/mastery-map";
 import type { MapUnitInput } from "@/lib/mastery-map/plan";
+import { estimateNet } from "@/lib/mastery-map/net";
 import { fakeLevelApi } from "../level-fake";
 
 const o = (unit: number, i: number, alpha: number, beta: number, n: number) => ({
@@ -19,10 +20,16 @@ const UNITS: MapUnitInput[] = [
   { unitId: "e2e-prog#4", title: "10. Sınıf · Fikstür Ünitesi D", order: 3, selfRating: null, outcomes: [o(4, 1, 1, 1, 0), o(4, 2, 1, 1, 0), o(4, 3, 1, 1, 0)] },
 ];
 
+/** Tek ders (TYT 40 soru, 4 yanlış 1 doğru): tahmini net ve +net listesi. */
+const NET = estimateNet(
+  UNITS.map((u) => ({ unitId: u.unitId, title: u.title, subjectKey: "tyt-e2e", outcomes: u.outcomes })),
+  [{ key: "tyt-e2e", exam: "TYT", questionCount: 40 }],
+);
+
 export function HakimiyetFixture() {
   return (
     <main style={{ padding: "1rem" }}>
-      <MasteryMap prepId="e2e-prep" units={UNITS} daysLeft={2} dailyMinutes={90} api={fakeLevelApi({ guest: false })} />
+      <MasteryMap prepId="e2e-prep" units={UNITS} daysLeft={2} dailyMinutes={90} api={fakeLevelApi({ guest: false })} net={NET} />
     </main>
   );
 }

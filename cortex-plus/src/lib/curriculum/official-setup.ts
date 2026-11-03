@@ -122,3 +122,13 @@ export function officialUnitTopic(unitId: string, topic: string): string {
   const shown = displayUnitTitles(program.units.map((u) => u.title))[index] ?? raw;
   return shown !== raw && topic.includes(raw) ? topic.replace(raw, shown) : topic;
 }
+
+/** Hazırlık ünitesinin dersi ve resmî soru sayısı (examStructures); eşleşme yoksa null. */
+export function subjectForPlannedUnit(exam: SetupExam, programId: string, part: string | null): { key: string; exam: string; questionCount: number } | null {
+  const def = setupSubjectDefs(exam).find((d) => d.programIds.includes(programId) && (d.part ?? null) === (part ?? null))
+    ?? setupSubjectDefs(exam).find((d) => d.programIds.includes(programId));
+  if (!def) return null;
+  const structureExam = def.structure?.exam ?? def.part ?? "LGS";
+  const count = questionCount(def.key, structureExam, def.structure);
+  return count ? { key: def.key, exam: structureExam, questionCount: count } : null;
+}

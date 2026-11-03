@@ -12,6 +12,8 @@ const bodySchema = z.object({
   count: z.number().int().min(4).max(25).default(10),
   /** "Belgem" kaynağı: kartlar yalnızca bu belgeden. */
   documentId: z.string().uuid().optional(),
+  /** Paket 4: resmî kazanım kimliği (ör. "yks-2026-tarih#12"); kartlara yazılır. Sütun yoksa yok sayılır. */
+  outcomeId: z.string().regex(/^[a-z0-9-]{3,60}#\d{1,4}$/).optional(),
 });
 
 /**
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
 
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
-  const { topic, count, documentId } = parsedBody.data;
+  const { topic, count, documentId, outcomeId } = parsedBody.data;
 
   // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
   const source = await studioTeacherSource(service, { userId, topic, documentId });
@@ -83,14 +85,15 @@ export async function POST(request: Request) {
 
   if (error || !set) return errorResponse(500, "generation_failed");
 
-  await service.from("flashcards").insert(
-    outcome.result.map((card, index) => ({
-      set_id: set.id,
-      front_text: card.front,
-      back_text: card.back,
-      sort_order: index,
-    })),
-  );
+  const cardRows = outcome.result.map((card, index) => ({
+    set_id: set.id,
+    front_text: card.front,
+    back_text: card.back,
+    sort_order: index,
+  }));
+  // outcome_id migration'ı yoksa ya da kimlik kayıtta yoksa kartlar kimliksiz yazılır (deste kaybolmaz).
+  const tagged = outcomeId ? await service.from("flashcards").insert(cardRows.map((r) => ({ ...r, outcome_id: outcomeId }))) : null;
+  if (!tagged || tagged.error) await service.from("flashcards").insert(cardRows);
 
   const { data: rows } = await service
     .from("flashcards")

@@ -8,6 +8,7 @@ import { UnitLevelCheck } from "@/components/level-check/unit-level-check";
 import { unitCheckOffer } from "@/lib/level-check/unit-offer";
 import { MasteryMap } from "@/components/level-check/mastery-map";
 import { loadMapInputs } from "@/lib/mastery-map/load";
+import { netEstimateFor } from "@/lib/mastery-map/net-load";
 import { ExamPrepHome, type LearningTrackingView } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -656,6 +657,7 @@ export default async function ExamPrepDetailPage({
             units={mapUnits}
             daysLeft={prep.exam_date ? (examPassed ? 0 : daysUntilExam(prep.exam_date as string)) : null}
             dailyMinutes={typeof prep.daily_minutes === "number" ? prepDailyMinutes(prep.daily_minutes) : null}
+            net={netEstimateFor(prep.learning_preferences, mapUnits)}
           />
         </div>
       ) : null}
