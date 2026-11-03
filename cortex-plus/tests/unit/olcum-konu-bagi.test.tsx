@@ -443,7 +443,8 @@ describe("bitmiş ders kayıtlı hâliyle açılır; yeni anlatım yalnız 'Fark
 
   it("düğüm sayfası, sonuç sayfası ve oturum aynı kuralı okur", () => {
     const page = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
-    expect(page).toContain("reviewSaved={opensSavedLesson(");
+    expect(page).toContain("const lessonReviewSaved = opensSavedLesson(");
+    expect(page).toContain("reviewSaved={lessonReviewSaved}");
     expect(page).toContain("rewriteHref={node.kind === \"lesson\" ? examPrepLessonRewriteHref(prepId, nodeId) : null}");
     const result = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
     expect(result).toContain("href={examPrepLessonRewriteHref(prepId, nodeId)}");

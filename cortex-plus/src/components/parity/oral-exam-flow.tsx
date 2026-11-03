@@ -342,7 +342,7 @@ export function OralReviewTimeDialog({
     <div className="cp-oral-modal-back">
       <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="oral-review-time-title">
         <h2 id="oral-review-time-title">İnceleme zamanı!</h2>
-        <p>Cevapların değerlendiriliyor…</p>
+        <p>Cevapların değerlendirildi. Sonucun hazır.</p>
         <button type="button" className="cp-oral-cta" onClick={onSeeResults}>
           Sonuçlarımı gör
         </button>

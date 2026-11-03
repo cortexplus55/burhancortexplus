@@ -70,3 +70,49 @@ export async function loadMapInputs(service: SupabaseClient, input: { userId: st
     return null;
   }
 }
+
+/** Bir hazırlığın kendi kanıtından kazanım durumu: yalnız `prep_id` = bu hazırlık olan yanıtlar ve deneme kanıtı. */
+export function prepScopedStates(
+  responses: { outcome_id: unknown; correct: unknown }[],
+  evidence: { outcome_ids: unknown; weight: unknown; correct: unknown }[],
+): Map<string, MasteryState> {
+  const states = new Map<string, MasteryState>();
+  const add = (outcomeId: string, correct: boolean, weight: number) => {
+    const s = states.get(outcomeId) ?? { alpha: PRIOR.alpha, beta: PRIOR.beta, n: 0 };
+    states.set(outcomeId, { alpha: s.alpha + (correct ? weight : 0), beta: s.beta + (correct ? 0 : weight), n: s.n + 1 });
+  };
+  for (const r of responses) add(String(r.outcome_id), r.correct === true, 1);
+  for (const e of evidence) {
+    const w = Number(e.weight);
+    if (!Array.isArray(e.outcome_ids) || !(w > 0)) continue;
+    for (const id of e.outcome_ids) add(String(id), e.correct === true, w);
+  }
+  return states;
+}
+
+/**
+ * Net kartı yalnız bu hazırlığın verisiyle (3 Kasım 2026 kök neden: `outcome_mastery` kullanıcı düzeyinde, başka
+ * hazırlıklardaki yanıtlar yeni hazırlığın netine taşınıyordu). `carried`: kullanıcı düzeyinde olup bu hazırlığa ait
+ * olmayan yanıt sayısı (kartta "diğer hazırlıklarından" notu).
+ */
+export async function prepScopedUnits(
+  service: SupabaseClient,
+  input: { userId: string; prepId: string; mapUnits: MapUnitInput[] },
+): Promise<{ units: MapUnitInput[]; carried: number }> {
+  const ids = input.mapUnits.flatMap((u) => u.outcomes.map((o) => o.outcomeId));
+  const [resp, ev] = await Promise.all([
+    service.from("item_responses").select("outcome_id, correct").eq("user_id", input.userId).eq("prep_id", input.prepId).in("outcome_id", ids).limit(5000),
+    service.from("exam_answer_evidence").select("outcome_ids, weight, correct").eq("user_id", input.userId).eq("prep_id", input.prepId).limit(5000),
+  ]);
+  const states = prepScopedStates(resp.error ? [] : (resp.data ?? []), ev.error ? [] : (ev.data ?? []));
+  let carried = 0;
+  const units = input.mapUnits.map((u) => ({
+    ...u,
+    outcomes: u.outcomes.map((o) => {
+      const own = states.get(o.outcomeId) ?? { ...PRIOR, n: 0 };
+      carried += Math.max(0, o.state.n - own.n);
+      return { ...o, state: own };
+    }),
+  }));
+  return { units, carried };
+}

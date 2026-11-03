@@ -277,6 +277,11 @@ export function NetCard({ net }: { net: NetEstimate }) {
       {net.status === "no_data" ? (
         <>
           <p className="lc-status" data-testid="net-no-data">{NET_NO_DATA}. En az {NET_MIN_RESPONSES} soru yanıtlayınca tahmin burada belirir.</p>
+          {net.carried ? (
+            <p className="lc-status" data-testid="net-carried">
+              Diğer hazırlıklarından {net.carried} yanıtın var; bu hazırlığın netine sayılmaz. Haritadaki renkler tüm hazırlıklarından gelir.
+            </p>
+          ) : null}
           <p className="lc-kicker">{NET_TOP_TITLE}</p>
           <p className="lc-status" data-testid="net-top-no-data">{NET_NO_DATA}.</p>
         </>

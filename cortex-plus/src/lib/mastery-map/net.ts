@@ -34,7 +34,8 @@ export type NetUnit = { unitId: string; title: string; subjectKey: string; outco
 export type NetSubject = { key: string; exam: string; questionCount: number; estimated?: boolean };
 
 export type NetEstimate =
-  | { status: "no_data"; responses: number }
+  /** carried: başka hazırlıklardan gelen (bu nete sayılmayan) yanıt sayısı. */
+  | { status: "no_data"; responses: number; carried?: number }
   /** Resmî ders soru sayısı yok (ör. KPSS alt dersleri): net hesaplanmaz, yalnız ustalık kazancına göre +3 konu. */
   | {
       status: "no_count";

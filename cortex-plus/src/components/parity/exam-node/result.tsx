@@ -56,6 +56,7 @@ export function WrittenExamResult({ life }: { life: NodeLifecycle }) {
 
 export function ResultScreen({ life }: { life: NodeLifecycle }) {
   const { prepId, kind, topicId, reviewSaved, rewriteHref, rewriteLesson, resumeEnabled, router, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal } = life;
+  const { rewritePending, setRewritePending } = life;
   return (
     <>
       {stage === "result" && gainOpen && topicGain ? <TopicGainCard gain={topicGain} nextHref={nextHref} /> : null}
@@ -194,7 +195,9 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
               {replayLabel(kind)}
             </button>
             {kind === "lesson" ? (
-              <button type="button" className="cp-exam-continue" onClick={() => {
+              <button type="button" className="cp-exam-continue" disabled={rewritePending} aria-busy={rewritePending} onClick={() => {
+                // Tık hemen görünür (3 Kasım 2026): gezinme sürerken düğme "Açılıyor…" olur, ikinci tık gerekmez.
+                setRewritePending(true);
                 // Kayıtlı ders açıkken kurulum kartı yok (yalnız "Kayıtlı içerik açılıyor" kalırdı): yeni anlatım
                 // açık seçimin adresinde yazılır (30 Ekim 2026).
                 // Düz adreste açılan ders (havuz dersi dahil) yeni anlatımı ?farkli=1 adresinde ister (3 Kasım 2026).
@@ -202,12 +205,14 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
                   router.push(rewriteHref);
                   return;
                 }
+                // Zaten ?farkli=1 adresinde: kurulum kartı yok, yeni anlatım hemen akar.
                 setStage("setup");
                 setIndex(0);
                 setAnswers({});
                 setFeedback(null);
+                void start().finally(() => setRewritePending(false));
               }}>
-                Farklı anlat
+                {rewritePending ? "Açılıyor…" : "Farklı anlat"}
               </button>
             ) : null}
             {/* Podcast'te eğitmen notu yok: geri bildirim yalnız test ve doğru/yanlış cevaplarını okuyor

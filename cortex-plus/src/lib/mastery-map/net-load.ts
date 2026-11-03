@@ -40,6 +40,18 @@ function officialNet(prefs: unknown, mapUnits: MapUnitInput[]): NetEstimate | nu
   return est.status === "no_data" && est.responses >= 3 ? null : est;
 }
 
+/** Net yalnız bu hazırlığın kendi yanıtlarından; veri yoksa no_data (+ "diğer hazırlıklarından" sayısı). */
+export async function prepNetEstimate(
+  service: import("@supabase/supabase-js").SupabaseClient,
+  input: { userId: string; prepId: string; prefs: unknown; mapUnits: MapUnitInput[] },
+): Promise<NetEstimate> {
+  const { prepScopedUnits } = await import("@/lib/mastery-map/load");
+  const scoped = await prepScopedUnits(service, input).catch(() => null);
+  if (!scoped) return { status: "no_data", responses: 0 };
+  const net = netEstimateFor(input.prefs, scoped.units);
+  return net.status === "no_data" && scoped.carried > 0 ? { ...net, carried: scoped.carried } : net;
+}
+
 /**
  * /ilerleme için net kartı: hub'daki aynı hesap. Önce verilen hazırlık (sayfanın "en yakın sınav" kartı); o hazırlıkta
  * resmî plan (Hakimiyet Haritası) yoksa resmî planı olan en yeni hazırlık. 3 Kasım 2026 kök neden: en yakın sınav
@@ -70,7 +82,7 @@ export async function loadPrepNet(
     if (!plannedPoolUnits(prep.learning_preferences).length) continue;
     const mapUnits = await loadMapInputs(service, { userId, prefs: prep.learning_preferences });
     if (!mapUnits?.length) continue;
-    return { prepId: prep.id, title: prep.title ?? "Hazırlık", net: netEstimateFor(prep.learning_preferences, mapUnits) };
+    return { prepId: prep.id, title: prep.title ?? "Hazırlık", net: await prepNetEstimate(service, { userId, prepId: prep.id, prefs: prep.learning_preferences, mapUnits }) };
   }
   return null;
 }

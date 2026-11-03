@@ -1,6 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamNodeSession } from "@/components/parity/exam-node-session";
+import { poolSliceForTopic } from "@/lib/content-pool/serve";
+import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
+import { shouldAutoOpenLesson } from "@/lib/learning/lesson-open";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -82,7 +85,7 @@ export default async function ExamNodePage({
       .maybeSingle(),
     supabase
       .from("exam_prep_nodes")
-      .select("id, kind, status, session_meta")
+      .select("id, kind, title, status, session_meta")
       .eq("id", nodeId)
       .eq("exam_prep_id", prepId)
       .maybeSingle(),
@@ -357,6 +360,21 @@ export default async function ExamNodePage({
   if (openAttempt && resumeBody && resumeBody.ok === true && resumeBody.resumed === false && resumeBody.grading !== true) {
     openAttempt = false;
   }
+  // Doğrudan açılış (3 Kasım 2026, canlı ölçüm): belgesiz hazırlıkta havuzda dersi olan konu ve "Farklı anlat"
+  // "Önerilen ders / Ders oluştur" kartı göstermeden açılır. Havuz denetimi bellekte (müfredat eşlemesi), sorgu yok.
+  const lessonReviewSaved = opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu } });
+  const autoOpenLesson = shouldAutoOpenLesson({
+    kind: node.kind as string,
+    reviewSaved: lessonReviewSaved,
+    replay: tekrar === "1",
+    rewrite: farkli === "1",
+    hasDocuments: sourceIds.length > 0,
+    poolReady: Boolean(poolSliceForTopic(prep.learning_preferences, topicLabel)),
+  });
+  // Önizleme loading sınırındakiyle aynı havuz ilk ekranı (250 ms sınırlı okuma; yetişmezse istemci belleği).
+  const initialLessonPreview = autoOpenLesson && farkli !== "1"
+    ? await poolLessonPreview(service, { prefs: prep.learning_preferences, topicLabel, title: ((node as { title?: string | null }).title ?? topicLabel ?? "") }).catch(() => null)
+    : null;
   timer.log("node_page");
   const serverRenderMs = timer.totalMs();
 
@@ -376,7 +394,9 @@ export default async function ExamNodePage({
         todayMood={todayMood}
         replayLesson={tekrar === "1"}
         // Bitmiş ders düz adresle açılınca kayıtlı hâli (30 Ekim 2026, `opensSavedLesson`); yeni yazım "Farklı anlat"la.
-        reviewSaved={opensSavedLesson({ kind: node.kind as string, status: node.status as string, query: { incele, tekrar, farkli, konu } })}
+        reviewSaved={lessonReviewSaved}
+        autoOpenLesson={autoOpenLesson}
+        initialLessonPreview={initialLessonPreview}
         rewriteHref={node.kind === "lesson" ? examPrepLessonRewriteHref(prepId, nodeId) : null}
         rewriteLesson={node.kind === "lesson" && farkli === "1"}
         resumeEnabled={resumeEnabled}

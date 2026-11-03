@@ -217,7 +217,7 @@ describe("bitirme", () => {
     expect(net.of("resume")[1]).toMatchObject({ action: "resume", attemptId: "attempt-1" });
   });
 
-  it("ders sonu: 'Dersi tekrarla' kayıtlı dersi yeniden açar, 'Farklı anlat' kurulum kartına döner", async () => {
+  it("ders sonu: 'Dersi tekrarla' kayıtlı dersi yeniden açar, 'Farklı anlat' kurulum kartı olmadan yeni anlatımı hemen başlatır", async () => {
     const lesson = { type: "lesson", title: "Hücre Bölünmesi", contentMd: "Mitoz eş hücre verir." };
     const net = stubFetch((body) =>
       body.action === "resume"
@@ -239,7 +239,9 @@ describe("bitirme", () => {
     await screen.findByText("Dersin tamamı bu kadar");
     fireEvent.click(screen.getByRole("button", { name: "Farklı anlat" }));
     expect(screen.queryByText("Dersin tamamı bu kadar")).toBeNull();
-    expect(net.of("start")).toHaveLength(1);
+    // İkinci tık yok (3 Kasım 2026): tek tık yeni anlatımı başlatır, tekrar değil.
+    await waitFor(() => expect(net.of("start")).toHaveLength(2));
+    expect(net.of("start")[1]).not.toMatchObject({ replay: true });
   });
 });
 

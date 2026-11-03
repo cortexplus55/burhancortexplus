@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createLiveChannel, type LiveChannel } from "@/lib/ai/chat-live";
 import { after, NextResponse } from "next/server";
 import { studentOutputText } from "@/lib/learning/student-output-firewall";
 import { samplingParams } from "@/lib/ai/model-params";
@@ -106,6 +107,13 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // Canlı akış (3 Kasım 2026): ilk token gelince yanıt açılır, iş arkada tamamlanır.
+  const live = createLiveChannel(Date.now());
+  const work = handleChat(request, live);
+  return Promise.race([work, live.response]);
+}
+
+async function handleChat(request: Request, live: LiveChannel): Promise<Response> {
   const routeStartedAt = Date.now();
   const timings: [string, number][] = [];
   const guard = await withUser(request, { scope: "chat", limit: 40, trackSharing: true });
@@ -444,7 +452,7 @@ export async function POST(request: Request) {
       // JSON şablon, yeniden yazan denetçiler ve polishPrep bu yolda yok.
       const teacherTutor = teacherPrepChat && Boolean(prepGrounding);
       // Öğrencinin seçtiği mod: Yalnızca belgem / Belgem + genel bilgi / Genel sohbet.
-      const tutorMode = !grounded ? "general" : strict ? "document" : "mixed";
+      const tutorMode = prepGrounding?.pool ? "curriculum" : !grounded ? "general" : strict ? "document" : "mixed";
       // 24 Ekim 2026 (ürün sahibi): denetim çağrısı yalnız belgeye dayanan cevapta.
       const documentGrounded = grounded && evidence.length > 0;
       // Denetçi: luna (24 Ekim 2026). Görselli soruda gören model gerekir; gpt-4.1 kalır.
@@ -486,6 +494,11 @@ export async function POST(request: Request) {
           message,
           style: tutorStyle,
           verify: tutorMode !== "general" && grounding.decision === "in",
+          // "Yalnızca belgem" modunda denetlenmemiş taslak ekrana düşmez; öbür modlarda canlı akar.
+          onDelta: rest.prepId && tutorMode !== "document" ? (text) => {
+            if (!live.enabled) live.enable(strict);
+            live.write(text);
+          } : undefined,
           onUsage: async (usedIn, usedOut) => {
             tokensIn += usedIn;
             tokensOut += usedOut;
@@ -709,6 +722,30 @@ export async function POST(request: Request) {
       );
     }
     stage("saved");
+    if (live.started) {
+      const result = saved as SavedChatResult;
+      live.finish({
+        content: result.content,
+        conversationId: result.conversationId,
+        messageId: result.messageId,
+        // Belgesiz hazırlıkta kaynak, havuzdaki müfredat dersidir (sayfa yok).
+        sources: result.citations.length || (prepGrounding?.pool ? 1 : 0),
+        sourceDoc: result.citations[0]?.documentName ?? (prepGrounding?.pool ? `Müfredat dersi: ${prepGrounding.pool.label}` : ""),
+        sourcePage: result.citations[0]?.pageNumber != null ? String(result.citations[0].pageNumber) : "",
+      });
+      const totalMs = Date.now() - routeStartedAt;
+      after(() =>
+        recordLessonTiming(service, {
+          userId,
+          kind: "chat",
+          path: "stream_first",
+          openMs: totalMs,
+          firstScreenMs: live.firstTokenMs ?? totalMs,
+          meta: { source: "server", prep: Boolean(rest.prepId), live: true, stages: Object.fromEntries(timings) },
+        }),
+      );
+      return new Response(null, { status: 204 });
+    }
     const response = rest.prepId
       ? streamedChatResultResponse(saved as SavedChatResult, strict)
       : chatResultResponse(saved as SavedChatResult, strict);
@@ -734,6 +771,11 @@ export async function POST(request: Request) {
     // Sağlayıcı gövdesi yok, yalnızca hata adı ve mesajı.
     const cause = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error("generation_failed", { feature: "chat", operationId, cancelled: request.signal.aborted, cause: cause.slice(0, 300) });
+    if (live.started) {
+      // Akış başladıysa taslak geri çekilir; kredi yukarıda iade edildi.
+      live.finish({ content: "Yanıt bu sefer tamamlanamadı. Aynı soruyu yeniden deneyebilirsin; kredin harcanmadı.", error: true });
+      return new Response(null, { status: 204 });
+    }
     return NextResponse.json({ error: "Yanıt bu sefer gelmedi. Aynı soruyu yeniden deneyebilirsin; tamamlanmış işlem tekrar ücretlenmez." }, { status: request.signal.aborted ? 499 : 503 });
   }
 }

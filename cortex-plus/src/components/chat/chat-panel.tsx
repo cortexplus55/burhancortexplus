@@ -1,5 +1,6 @@
 "use client";
 
+import { LIVE_HEADER, splitLiveBody } from "@/lib/ai/chat-live";
 import { useRef, useState, useEffect, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
@@ -1012,16 +1013,45 @@ function ChatPanelSession({
         { role: "assistant", content: "", id: messageId },
       ]);
 
+      // Canlı akış (3 Kasım 2026): taslak token token gelir, sonda kuyruk kesin metni,
+      // mesaj kimliğini ve kaynağı getirir (denetim düzelttiyse taslak değişir).
+      const liveStream = res.headers.get(LIVE_HEADER) === "1";
+      let raw = "";
+      let finalId = messageId;
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        assistant += decoder.decode(value, { stream: true });
+        raw += decoder.decode(value, { stream: true });
+        assistant = liveStream ? splitLiveBody(raw).draft : raw;
         setMessages((prev) => {
           const copy = [...prev];
           copy[copy.length - 1] = {
             role: "assistant",
             content: assistant,
-            id: messageId,
+            id: finalId,
+          };
+          return copy;
+        });
+      }
+      if (liveStream) {
+        const { draft, trailer } = splitLiveBody(raw);
+        assistant = trailer?.content ?? draft;
+        if (trailer?.conversationId) conversationId.current = trailer.conversationId;
+        finalId = trailer?.messageId || undefined;
+        if (trailer && !trailer.error) {
+          const liveCitation = trailer.sourceDoc && trailer.sourcePage
+            ? `${trailer.sourceDoc} · s.${trailer.sourcePage}`
+            : trailer.sourceDoc || (trailer.sources ? `${trailer.sources} kaynak` : "");
+          setStatus(trailer.sources ? `Kaynak: ${liveCitation}` : useDocuments ? (documentsOnly ? "belgede yok" : "genel bilgi") : "");
+        }
+        const isError = Boolean(trailer?.error || !trailer);
+        setMessages((prev) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = {
+            role: "assistant",
+            content: trailer ? assistant : "Yanıt bu sefer tamamlanamadı. Aynı soruyu yeniden deneyebilirsin.",
+            id: finalId,
+            ...(isError ? { isError: true } : {}),
           };
           return copy;
         });
