@@ -64,6 +64,10 @@ import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
 import { loadExamBaseline } from "@/lib/learning/exam-result-load";
 import { appOrigin } from "@/lib/app-url";
 import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
+import { getUserEntitlements } from "@/lib/billing/entitlements";
+import { loadPlusPrices } from "@/lib/billing/plan-prices";
+import { campOffer } from "@/lib/camp/offer";
+import { CampCard } from "@/components/camp/camp-card";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -643,8 +647,22 @@ export default async function ExamPrepDetailPage({
   // Plan PR 4: resmî kurulumdan hazırlıkta Hakimiyet Haritası + Kişisel Program (tablolar yoksa gösterilmez).
   const mapUnits = await loadMapInputs(service, { userId: user.id, prefs: prep.learning_preferences });
 
+  // Paket 5: sınava ≤ 7 gün — ücretsiz hesapta mevcut Plus Haftalık'a sakin yönlendirme (Plus'ta gizli).
+  const camp = prep.exam_date && !examPassed
+    ? await Promise.all([getUserEntitlements(service, user.id), loadPlusPrices(service)])
+        .then(([ent, prices]) =>
+          campOffer({ daysLeft: daysUntilExam(prep.exam_date as string), examPassed, showsUpgradeChrome: ent.showsUpgradeChrome, weeklyKurus: prices.plusWeekly }),
+        )
+        .catch(() => null)
+    : null;
+
   return (
     <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari" minimalTop>
+      {camp ? (
+        <div style={{ width: "min(40rem, 100%)", margin: "0 auto", padding: "0 1rem" }}>
+          <CampCard offer={camp} />
+        </div>
+      ) : null}
       {unitCheck ? (
         <div style={{ width: "min(40rem, 100%)", margin: "0 auto", padding: "0 1rem" }}>
           <UnitLevelCheck prepId={prep.id as string} unitId={unitCheck.unitId} unitTitle={unitCheck.unitTitle} />
