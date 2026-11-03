@@ -80,12 +80,28 @@ afterEach(() => {
 });
 
 describe("açılış", () => {
+  it("sunucu çiziminden gelen kayıt: resume isteği yok, 'kaldığın yer' kartı yok, sorular hemen", async () => {
+    const net = stubFetch(() => ({ data: {} }));
+    render(
+      <ExamNodeSession
+        {...BASE}
+        resumeEnabled
+        initialResume={{ ok: true, resumed: true, attemptId: "attempt-1", generationId: "gen-1", payload: QUIZ }}
+      />,
+    );
+    await screen.findByText("Mitozda kromozom sayısı nasıl değişir?");
+    expect(screen.queryByText("Kaldığın yer açılıyor…")).toBeNull();
+    expect(net.actions()).not.toContain("resume");
+  });
+
   it("açık oturum: 'kaldığın yer' ekranı, sonra sorular; yenileme aşamayı değiştirmez, açılış bir kez", async () => {
     let release: (value: Reply) => void = () => undefined;
     const pending = new Promise<{ status?: number; data?: Body }>((resolve) => (release = resolve as typeof release));
     const net = stubFetch((body) => (body.action === "resume" ? pending : { data: {} }));
     const view = render(<ExamNodeSession {...BASE} resumeEnabled />);
-    expect(screen.getByText("Kaldığın yer açılıyor…")).toBeTruthy();
+    // 300 ms'den kısa bekleyişte yanıltıcı kart yok, uzarsa çıkar (3 Kasım 2026).
+    expect(screen.queryByText("Kaldığın yer açılıyor…")).toBeNull();
+    expect(await screen.findByText("Kaldığın yer açılıyor…", undefined, { timeout: 1500 })).toBeTruthy();
     await act(async () => {
       release({ data: { ok: true, resumed: true, attemptId: "attempt-1", generationId: "gen-1", payload: QUIZ } });
     });

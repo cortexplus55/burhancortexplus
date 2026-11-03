@@ -116,7 +116,7 @@ export function WaitScreens({ life }: { life: NodeLifecycle }) {
         </section>
       ) : null}
 
-      {stage === "restoring" ? (
+      {stage === "restoring" && life.restoringVisible ? (
         <section className="cp-exam-setup cp-exam-restoring" aria-busy="true" aria-live="polite">
           <span className="cp-exam-restoring-spin" aria-hidden />
           <p className="cp-lesson-kicker">Devam</p>

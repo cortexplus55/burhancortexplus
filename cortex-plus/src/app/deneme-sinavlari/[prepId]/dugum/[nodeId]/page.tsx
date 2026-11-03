@@ -35,6 +35,16 @@ import { ALL_TOPICS_KINDS, ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-tar
 import { freeTopicGate } from "@/lib/billing/free-topic-gate";
 import { gatePrepWide } from "@/lib/billing/free-topic-rule";
 import { FirstTopicLockPage } from "@/components/parity/first-topic-lock";
+import { headers } from "next/headers";
+import { createTimer } from "@/lib/learning/mock-exam/timing";
+import { handleNodeRequest } from "@/lib/learning/node/handler";
+
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 /**
  * Konuya bağlı etkinlikler: "N kaynak" konunun kendi dosyalarını ve sayfalarını gösterir. Deneme,
@@ -54,14 +64,16 @@ export default async function ExamNodePage({
   const { prepId, nodeId } = await params;
   const { konu, tekrar, incele, farkli } = await searchParams;
   const requestedTopic = typeof konu === "string" ? konu.trim().slice(0, 400) : "";
+  // Açılış kritik yolu (3 Kasım 2026): canlıda havuz dersi tıklamadan ilk metne 3,1–4,9 sn. Sorgular sıralıydı
+  // (~12 gidiş-dönüş) ve kayıtlı oturum ayrı bir istemci POST'uyla ("resume") okunuyordu. Şimdi bağımsız okumalar
+  // iki dalgada paralel, kayıt sunucu çiziminde okunur. Süreler `node_page_timing` log satırında.
+  const timer = createTimer();
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
-  const resumeEnabled = await isFeatureEnabled(
-    createServiceClient(),
-    PDF_LEARNING_V2_FLAG,
-  );
-
-  const [{ data: prep }, { data: node }] = await Promise.all([
+  timer.mark("auth");
+  const service = createServiceClient();
+  const [shell, resumeEnabled, { data: prep }, { data: node }] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    isFeatureEnabled(service, PDF_LEARNING_V2_FLAG),
     supabase
       .from("exam_preps")
       .select("id, title, exam_type, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences")
@@ -75,13 +87,18 @@ export default async function ExamNodePage({
       .eq("exam_prep_id", prepId)
       .maybeSingle(),
   ]);
+  timer.mark("prep_node");
 
   if (!prep || !node) notFound();
   // Gizli düğüm açılmaz. Kilitli düğüm öğrencinin kendi hazırlığındaysa ready olur ve açılır
   // (27 Ekim 2026). Bitirme fonksiyonu kilitli satırı reddeder.
   if (!studentMayStartNode(node.status, node.kind)) redirect(examPrepLockedHref(prepId, nodeId));
+  // Yazılı deneme tek motor: kurulum → practice_exams.
+  if (node.kind === "written_exam") {
+    redirect(`/deneme-sinavlari/${prepId}/deneme/kurulum`);
+  }
   if (nodeNeedsStudentUnlock(node.status)) {
-    await createServiceClient()
+    await service
       .from("exam_prep_nodes")
       .update({ status: "ready" })
       .eq("id", nodeId)
@@ -89,42 +106,81 @@ export default async function ExamNodePage({
       .eq("status", "locked");
   }
 
-  // Yazılı deneme tek motor: kurulum → practice_exams.
-  if (node.kind === "written_exam") {
-    redirect(`/deneme-sinavlari/${prepId}/deneme/kurulum`);
-  }
+  const sessionMeta = parseSessionMeta(node.session_meta);
+  const topicId = sessionMeta?.topicId ?? prep.active_topic_id;
+  // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar (`prepTopicMatch`); yalnız `id` ile
+  // arama kurulumdaki aşinalığı bulmuyor, her açılışta yeniden soruyordu (18 Ekim 2026).
+  const topicMatch = topicId ? prepTopicMatch(topicId) : null;
+  // Kayıtlı oturum sunucuda (salt okuma, istemcinin "resume" POST'uyla aynı işlev): açık kayıt varsa ilk çizimle
+  // açılır. Kilit kararı aşağıda; kilitliyse yanıt istemciye gitmez.
+  const origin = await requestOrigin();
+  const readResume = (): Promise<Record<string, unknown> | null> => resumeEnabled
+    ? handleNodeRequest({ userId: user.id, service }, { prepId, nodeId, action: "resume", lessonFormat: 3 }, { origin, prefetchNodeId: null })
+        .then(async (res) => (res.ok ? ((await res.json()) as Record<string, unknown>) : null))
+        .catch(() => null)
+    : Promise.resolve(null);
 
   // Beklemesiz kilit (Paket J takip #1): ücretsiz hesapta kilitli adım daha sayfada kartı açar — aşinalık sorusu,
   // zorluk ekranı, üretim isteği ve sayaç yok. Karar başlatma isteğiyle aynı işlevden (`freeTopicGate`, aynı girdi);
   // `start.ts` yine son söz. Okuma düşerse kilit yok sayılır (açık kalır).
-  {
-    const meta = node.session_meta as { topicId?: string; topicTitle?: string } | null;
-    const gateLabel = requestedTopic || meta?.topicTitle?.trim() || String(prep.title ?? "") || "konu";
-    const firstTopicLock = await freeTopicGate(createServiceClient(), {
-      userId: user.id,
-      prepId,
-      nodeId,
-      nodeTopicId: meta?.topicId ?? null,
-      prepWide: gatePrepWide(node.kind as string, node.session_meta, gateLabel),
-      requestedTopicLabel: requestedTopic || null,
-    }).catch(() => null);
-    if (firstTopicLock) {
-      return (
-        <ParitySorShell {...shell} chrome="session">
-          <FirstTopicLockPage prepId={prep.id} summary={firstTopicLock} />
-        </ParitySorShell>
-      );
-    }
+  const meta = node.session_meta as { topicId?: string; topicTitle?: string } | null;
+  const gateLabel = requestedTopic || meta?.topicTitle?.trim() || String(prep.title ?? "") || "konu";
+  const firstTopicLockPromise = freeTopicGate(service, {
+    userId: user.id,
+    prepId,
+    nodeId,
+    nodeTopicId: meta?.topicId ?? null,
+    prepWide: gatePrepWide(node.kind as string, node.session_meta, gateLabel),
+    requestedTopicLabel: requestedTopic || null,
+  }).catch(() => null);
+  const wave = await Promise.all([
+    firstTopicLockPromise,
+    supabase.from("exam_prep_nodes").select("status").eq("exam_prep_id", prepId),
+    topicMatch
+      ? supabase
+          .from("exam_prep_topics")
+          .select("id, label, familiarity, source_refs")
+          .eq("exam_prep_id", prepId)
+          .or(topicMatch)
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    resumeEnabled
+      ? supabase
+          .from("exam_prep_node_attempts")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("exam_prep_id", prepId)
+          .eq("node_id", nodeId)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    supabase
+      .from("study_session_moods")
+      .select("mood")
+      .eq("user_id", user.id)
+      .gte("created_at", moodAskedSince())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase.from("exam_preps").select("source_document_ids").eq("id", prepId).maybeSingle(),
+  ] as const);
+  timer.mark("wave");
+  const firstTopicLock = wave[0];
+  if (firstTopicLock) {
+    return (
+      <ParitySorShell {...shell} chrome="session">
+        <FirstTopicLockPage prepId={prep.id} summary={firstTopicLock} />
+      </ParitySorShell>
+    );
   }
 
-  const { data: nodeRows } = await supabase
-    .from("exam_prep_nodes")
-    .select("status")
-    .eq("exam_prep_id", prepId);
+  const [, { data: nodeRows }, { data: topic }, activeRead, { data: moodToday }, { data: sourceIdRow }] = wave;
   // Tanı zorunlu kapı değil (3 Ekim 2026, kıyas ürünü): öğrenci bir etkinliği
   // açtıysa ölçüm ertelenir; seviye tespiti yolun başında düğüm olarak kalır.
   if (needsExamIntro(prep.intro_completed_at, nodeRows ?? [], prep.intro_deferred_at)) {
-    await createServiceClient()
+    await service
       .from("exam_preps")
       .update({ intro_deferred_at: new Date().toISOString() })
       .eq("id", prepId)
@@ -138,24 +194,12 @@ export default async function ExamNodePage({
   // düğüm açtığında kurulum ekranı "Üs Kavramı ve Tanımı" derken üretilen ders
   // "Aynı Tabanlı İfadelerde Çarpma ve Bölme" çıkıyordu. İki taraf da aynı
   // önceliği kullanmalı.
-  const sessionMeta = parseSessionMeta(node.session_meta);
   let topicLabel: string | null = sessionMeta?.topicTitle?.trim() || null;
   let topicFamiliarity: Familiarity | null = null;
   let topicSourceRefs: unknown = null;
   let topicRowId: string | null = null;
 
-  const topicId = sessionMeta?.topicId ?? prep.active_topic_id;
-  // Belgeli hazırlıkta düğüm belgedeki konu düğümünü tutar (`prepTopicMatch`); yalnız `id` ile
-  // arama kurulumdaki aşinalığı bulmuyor, her açılışta yeniden soruyordu (18 Ekim 2026).
-  const topicMatch = topicId ? prepTopicMatch(topicId) : null;
   if (topicMatch) {
-    const { data: topic } = await supabase
-      .from("exam_prep_topics")
-      .select("id, label, familiarity, source_refs")
-      .eq("exam_prep_id", prepId)
-      .or(topicMatch)
-      .limit(1)
-      .maybeSingle();
     topicLabel = topicLabel ?? topic?.label ?? null;
     topicSourceRefs = topic?.source_refs ?? null;
     topicRowId = (topic?.id as string | undefined) ?? null;
@@ -170,28 +214,14 @@ export default async function ExamNodePage({
   // açılışta ~5 sn "Kaldığın yer açılıyor" yazıyordu). Yazılı denemede tamamlanmış kağıt incelemesi
   // aynı sorgudan geldiği için orada hep sorulur; okuma düşerse sorulur.
   let openAttempt = true;
-  if (resumeEnabled && node.kind !== "written_exam") {
-    const { data: active, error: activeError } = await supabase
-      .from("exam_prep_node_attempts")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("exam_prep_id", prepId)
-      .eq("node_id", nodeId)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-    openAttempt = Boolean(activeError) || Boolean(active);
+  if (resumeEnabled) {
+    openAttempt = Boolean(activeRead.error) || Boolean(activeRead.data);
   }
-
+  // Sunucuda okunan kayıt yalnız açık oturum ya da notlanma beklemesi varsa istemciye gider; yoksa istemci eski
+  // yoldan kendisi sorar (okuma düştüyse). Yeni açılan adımda (açık kayıt yok) "Kaldığın yer" hiç görünmez.
+  // Kayıt okuması kaynak okumalarıyla paralel; yalnız açık kayıt varken (yeni adım yavaşlamaz).
+  const resumeBodyPromise = openAttempt ? readResume() : Promise.resolve(null);
   // Ruh hali günde bir kez (19 Ekim 2026): bugün verildiyse kart atlanır, o cevap kullanılır.
-  const { data: moodToday } = await supabase
-    .from("study_session_moods")
-    .select("mood")
-    .eq("user_id", user.id)
-    .gte("created_at", moodAskedSince())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
   const todayMood = moodToday?.mood ? parseMood(moodToday.mood) : null;
 
   // Üretim ekranı "senin notundan çıkıyor" diyebilsin diye kaynak dosya adı.
@@ -228,11 +258,6 @@ export default async function ExamNodePage({
   // materyalleri. 19 Ekim 2026'ya kadar her derste yedi dosyanın yedisi "bu çalışma şu
   // materyallerden üretildi" diye listeleniyordu; ders yalnız PDF'in iki sayfasından yazılmıştı.
   // source_document_ids ayrı okunur — kolon yoksa tek belgeye düşülür (hazırlık sayfasıyla aynı).
-  const { data: sourceIdRow } = await supabase
-    .from("exam_preps")
-    .select("source_document_ids")
-    .eq("id", prepId)
-    .maybeSingle();
   const rawSourceIds = (sourceIdRow as { source_document_ids?: unknown } | null)?.source_document_ids;
   const sourceIds = prepSourceDocumentIds({
     documentId: (prep.document_id as string | null) ?? null,
@@ -259,7 +284,7 @@ export default async function ExamNodePage({
   // Konunun yardımcı kaynakları (defter, test, kart fotoğrafı): derse giren her dosya listede olsun.
   const support =
     TOPIC_SCOPED_KINDS.has(node.kind as PlanNodeKind) && topicRowId
-      ? await loadTopicSupport(createServiceClient(), { userId: user.id, prepId, topicId: topicRowId })
+      ? await loadTopicSupport(service, { userId: user.id, prepId, topicId: topicRowId })
       : [];
   const supportByDoc = new Map<string, string[]>();
   const supportPagesByDoc = new Map<string, Set<number>>();
@@ -322,6 +347,19 @@ export default async function ExamNodePage({
     sources[0]?.name ??
     null;
 
+  timer.mark("sources");
+  const resumeBody = await resumeBodyPromise;
+  timer.mark("resume");
+  const initialResume =
+    openAttempt && resumeBody && resumeBody.ok === true && (resumeBody.resumed === true || resumeBody.grading === true)
+      ? resumeBody
+      : null;
+  if (openAttempt && resumeBody && resumeBody.ok === true && resumeBody.resumed === false && resumeBody.grading !== true) {
+    openAttempt = false;
+  }
+  timer.log("node_page");
+  const serverRenderMs = timer.totalMs();
+
   return (
     <ParitySorShell {...shell} chrome="session">
       <ExamNodeSession
@@ -342,6 +380,8 @@ export default async function ExamNodePage({
         rewriteHref={node.kind === "lesson" ? examPrepLessonRewriteHref(prepId, nodeId) : null}
         resumeEnabled={resumeEnabled}
         openAttempt={openAttempt}
+        initialResume={initialResume}
+        serverRenderMs={serverRenderMs}
         sourceName={sourceName}
         sources={sources}
         oralTopics={oralTopics}

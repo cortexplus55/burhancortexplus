@@ -12,6 +12,9 @@ export function createTimer(now: () => number = Date.now) {
       marks.push([name, t - last]);
       last = t;
     },
+    totalMs() {
+      return now() - t0;
+    },
     header() {
       return [...marks, ["total", now() - t0] as [string, number]].map(([n, ms]) => `${n};dur=${ms}`).join(", ");
     },
