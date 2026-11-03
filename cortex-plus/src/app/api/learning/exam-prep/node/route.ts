@@ -40,7 +40,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, accepted: true }, { status: 202 });
   }
 
+  // Server-Timing (3 Kasım 2026): sonraki istekler (progress, check, finish) de ölçülür; üretim yanıtının kendi başlığı korunur.
+  const startedAt = performance.now();
   const guard = await withUser(request, { scope: "exam-prep-node", limit: 16 });
   if (!guard.ok) return guard.response;
-  return handleNodeRequest(guard.ctx, await request.json(), { origin, prefetchNodeId: null });
+  const authMs = performance.now() - startedAt;
+  const body = await request.json();
+  const response = await handleNodeRequest(guard.ctx, body, { origin, prefetchNodeId: null });
+  const action = body && typeof body === "object" && typeof (body as { action?: unknown }).action === "string" ? (body as { action: string }).action : "start";
+  const entry = `auth;dur=${authMs.toFixed(1)}, node;desc="${action.replace(/[^a-z_-]/gi, "").slice(0, 24)}";dur=${(performance.now() - startedAt).toFixed(1)}`;
+  const existing = response.headers.get("Server-Timing");
+  response.headers.set("Server-Timing", existing ? `${existing}, ${entry}` : entry);
+  return response;
 }

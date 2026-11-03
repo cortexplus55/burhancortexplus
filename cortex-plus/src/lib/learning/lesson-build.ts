@@ -17,6 +17,8 @@ export type BuildFlags = {
   upcoming?: string[];
   /** Yazarın ekran planı: yazım sürerken sayacın paydası. */
   plannedScreens?: number;
+  /** Ana yazım bitti; yalnız isteğe bağlı ekler sürüyor (öğrenci beklemez). */
+  writingDone?: boolean;
   truncated?: boolean;
 };
 
@@ -38,10 +40,11 @@ export function isStaleBuild(payload: unknown, now = Date.now()): boolean {
 
 /** Ders olduğu kadarıyla kapanır: öğrenci okuduğunu kaybetmez, sonu özetsiz biter. */
 export function truncatedPayload(payload: Record<string, unknown>): Record<string, unknown> {
-  const { building, builtAt, upcoming, plannedScreens, ...rest } = payload as Record<string, unknown> & BuildFlags;
+  const { building, builtAt, upcoming, plannedScreens, writingDone, ...rest } = payload as Record<string, unknown> & BuildFlags;
   void building;
   void builtAt;
   void upcoming;
   void plannedScreens;
+  void writingDone;
   return { ...rest, truncated: true };
 }

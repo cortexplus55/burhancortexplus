@@ -155,6 +155,8 @@ export async function teacherLessonPayload(
             ...(published.plannedScreens ? { plannedScreens: published.plannedScreens } : {}),
             // Stream-first: denetim ön yayımlanan ilk ekranı düzelttiyse ekran sakin bir notla güncellenir.
             ...(published.previewCorrected ? { previewCorrected: true } : {}),
+            // Ana yazım bitti: istemci sona "yazıyor" kartı koymaz (ekler arkada sürer).
+            ...(published.writingDone ? { writingDone: true } : {}),
             // Ekranın çizdiği uyarı kutusu; ders metnine girmez.
             ...warnedNow(),
           })

@@ -25,6 +25,7 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
             building={lessonBuilding}
             upcoming={lessonBuilding ? (payload.upcoming ?? []) : []}
             plannedScreens={lessonBuilding ? (payload.plannedScreens ?? null) : null}
+            writingDone={lessonBuilding && payload.writingDone === true}
             noteWarnings={readNoteWarnings(payload.noteWarnings)}
             plannedMinutes={activityMinutes}
             language={language}
