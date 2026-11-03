@@ -852,7 +852,10 @@ export function ExamLessonSteps({
     if (lockedTotalRef.current == null) lockedTotalRef.current = base.length;
     if (lockedMinutesRef.current == null) lockedMinutesRef.current = computedMinutes;
   }, [building, base.length, computedMinutes]);
-  const readingMinutes: number | null = building ? null : (lockedMinutesRef.current ?? computedMinutes);
+  // Ana yazım bittiyse (writingDone, 4 Kasım 2026 canlı: rozet ekler sürerken 49+ sn "hazırlanıyor" kaldı) süre ve
+  // toplam bilinir: yazılan ekranlar gösterilir; kilit yine ders mühürlenince konur (ekler ekran ekleyebilir).
+  const writing = building && !writingDone;
+  const readingMinutes: number | null = writing ? null : building ? computedMinutes : (lockedMinutesRef.current ?? computedMinutes);
   // Yazım sürerken payda tahminidir ("1 / ~8", 3 Kasım 2026): yazarın ekran planı, yoksa ders alt sınırı (6).
   // Ders mühürlenince ilk gerçek toplam kilitlenir.
   // Bekleme kartı (3 Kasım 2026): ana yazım bittiyse ya da öğrenci uzayan beklemede "okuduklarımla bitir" dediyse yok.
@@ -860,7 +863,7 @@ export function ExamLessonSteps({
   const waitingStep = showsWaitStep(building, writingDone, gaveUpWaiting);
   // 8 sn bekçisi: bekleme kartı bundan uzun açık kalmaz; öğrenciye çıkış sunulur.
   const [waitLate, setWaitLate] = useState(false);
-  const estimatedTotal = building ? Math.max(plannedScreens ?? 0, TOPIC_MIN_SCREENS) : null;
+  const estimatedTotal = writing ? Math.max(plannedScreens ?? 0, TOPIC_MIN_SCREENS) : null;
   const steps = useMemo(() => {
     // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
     if (waitingStep) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
@@ -910,7 +913,7 @@ export function ExamLessonSteps({
     ];
   }, [base, missed, view, language, serverRetries, waitingStep, upcoming]);
 
-  const counter = lessonStepCounter({ index, writtenSteps: base.length, building, lockedTotal: lockedTotalRef.current, estimatedTotal });
+  const counter = lessonStepCounter({ index, writtenSteps: base.length, building: writing, lockedTotal: lockedTotalRef.current, estimatedTotal });
   const progressMax = counter.max;
   const progressNow = counter.now;
   const progressRatio = progressNow / progressMax;

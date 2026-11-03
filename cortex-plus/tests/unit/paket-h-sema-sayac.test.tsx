@@ -314,7 +314,16 @@ describe("Paket H · adım sayacı", () => {
     expect(label).not.toContain("/ 11");
     const steps = read("src/components/parity/exam-lesson-steps.tsx");
     // Plan yalnız yazım sürerken tahmini paydaya girer (3 Kasım 2026); mühürlü sayaç plana bakmaz.
-    expect(steps).toMatch(/lessonStepCounter\(\{ index, writtenSteps: base\.length, building, lockedTotal: lockedTotalRef\.current, estimatedTotal \}\)/);
-    expect(steps).toContain("const estimatedTotal = building ?");
+    expect(steps).toMatch(/lessonStepCounter\(\{ index, writtenSteps: base\.length, building: writing, lockedTotal: lockedTotalRef\.current, estimatedTotal \}\)/);
+    expect(steps).toContain("const estimatedTotal = writing ?");
+  });
+});
+
+describe("writingDone rozeti (4 Kasım 2026 canlı)", () => {
+  it("ana yazım bitince sayaç ve süre 'hazırlanıyor' modundan çıkar", async () => {
+    const { readFileSync } = await import("node:fs");
+    const steps = readFileSync("src/components/parity/exam-lesson-steps.tsx", "utf8");
+    expect(steps).toContain("const writing = building && !writingDone;");
+    expect(steps).toMatch(/readingMinutes: number \| null = writing \? null/);
   });
 });
