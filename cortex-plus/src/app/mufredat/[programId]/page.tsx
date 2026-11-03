@@ -5,6 +5,7 @@ import { CURRICULUM, getProgram, programSources } from "@/lib/curriculum/registr
 import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 import { OfficialLinks } from "@/components/curriculum/official-links";
 import { treeLabelFor, unitPath } from "@/lib/curriculum/seo";
+import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
 
 const EXAM_LABEL: Record<string, string> = {
   d1y1: "1. Dönem 1. Ortak Yazılı",
@@ -74,7 +75,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
                     <details className="mt-1 text-xs text-[var(--mk-muted)]">
                       <summary>Programın sınırlamaları / açıklamaları</summary>
                       <ul className="mt-1 list-disc pl-5">
-                        {o.limitations.map((l, i) => (
+                        {o.limitations.map(cleanMathGlyphs).map((l, i) => (
                           <li key={i}>{l}</li>
                         ))}
                       </ul>

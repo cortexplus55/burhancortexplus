@@ -288,7 +288,7 @@ export function NetCard({ net }: { net: NetEstimate }) {
       ) : net.status === "no_count" ? (
         <>
           <p className="lc-status" data-testid="net-no-count">
-            Bu sınav için resmî ders soru sayısı yayımlanmadığından net sayısı hesaplanmıyor. Aşağıdaki 3 konu, {net.responses} yanıtına göre en çok gelişme payın olan konular: şu anki hakimiyetin ve %85 hedefe çıkınca tahmini doğru oranı artışı.
+            Bu sınav için resmî ders soru sayısı yayımlanmadığından net sayısı hesaplanmıyor. Aşağıdaki 3 konu, bu hazırlıktaki {net.responses} yanıtına göre en çok gelişme payın olan konular: şu anki hakimiyetin ve %85 hedefe çıkınca tahmini doğru oranı artışı.{net.carried ? ` Haritadaki yanıt sayıları diğer hazırlıklarındaki ${net.carried} yanıtı da içerir; bu tahmin yalnız bu hazırlıktaki ${net.responses} yanıta dayanır.` : ""}
           </p>
           <p className="lc-kicker">{NET_TOP_TITLE}</p>
           {net.top.length ? (
@@ -308,7 +308,8 @@ export function NetCard({ net }: { net: NetEstimate }) {
             <span className="lc-status">(≈ {fmt(net.net)} net; {fmt(net.low)}–{fmt(net.high)} aralığı, {net.maxNet} soru üzerinden)</span>
           </p>
           <p className="lc-status">
-            Tahminidir: {net.responses} yanıta ve resmî yanlış kuralına (4 yanlış 1 doğruyu götürür; YDS&apos;de götürmez) dayanır.
+            Tahminidir: bu hazırlıktaki {net.responses} yanıta ve resmî yanlış kuralına (4 yanlış 1 doğruyu götürür; YDS&apos;de götürmez) dayanır.
+            {net.carried ? ` Haritadaki yanıt sayıları diğer hazırlıklarındaki ${net.carried} yanıtı da içerir; bu tahmin yalnız bu hazırlıktaki ${net.responses} yanıta dayanır.` : ""}
             {net.estimated ? " Ders soru sayıları tahminidir: ÖSYM yalnız Genel Yetenek 60 + Genel Kültür 60 yayımlar." : ""}
           </p>
           <p className="lc-kicker">{NET_TOP_TITLE}</p>

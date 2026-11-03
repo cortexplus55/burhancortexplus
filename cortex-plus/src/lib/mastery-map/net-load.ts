@@ -49,7 +49,8 @@ export async function prepNetEstimate(
   const scoped = await prepScopedUnits(service, input).catch(() => null);
   if (!scoped) return { status: "no_data", responses: 0 };
   const net = netEstimateFor(input.prefs, scoped.units);
-  return net.status === "no_data" && scoped.carried > 0 ? { ...net, carried: scoped.carried } : net;
+  // Kart ve harita aynı yanıtları farklı kapsamla sayar (4 Kasım 2026): `carried` her durumda taşınır, etiket söyler.
+  return scoped.carried > 0 ? { ...net, carried: scoped.carried } : net;
 }
 
 /**

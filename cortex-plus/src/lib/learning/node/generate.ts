@@ -22,6 +22,7 @@ import { teacherLessonPayload } from "./lesson";
 import type { LessonCore } from "./teacher-pages";
 import { teacherQuizPayload } from "./quiz";
 import { teacherPodcastEpisode } from "./podcast";
+import { readSharedMedia, sharedMediaUnit } from "@/lib/content-pool/shared-media";
 import { teacherCardsPayload } from "./cards";
 import { teacherTrueFalsePayload } from "./true-false";
 
@@ -199,6 +200,28 @@ export async function generateNodePayload(input: NodePayloadInput) {
           teachingStandard: activity,
           // Dinleme kontrolü (20 Ekim 2026): önbellekteki podcast de kontrollü açılır.
           ...(cached.check.length ? { check: cached.check } : {}),
+        };
+      }
+    }
+    // Hazır ünite (4 Kasım 2026, Senaryo A): yoldaki podcast düğümü paylaşımlı ünite bölümünü (shared_unit_media
+    // `podcast:<süre>`) okur; model çağrısı ve kredi yok. Ses, isSharedPodcastScript ile 0 kredi sentezlenir.
+    // Önce: yalnız Podcast sayfası okuyordu, sayfa da hazır yol düğümüne yönlendirdiği için havuz hiç kullanılmıyordu.
+    if (input.prepId) {
+      const unit = await sharedMediaUnit(input.service, input.prepId, input.topicLabel).catch(() => null);
+      const shared = unit
+        ? await readSharedMedia<{ episode?: { title?: string; chapters?: unknown[] }; check?: QuizQuestion[] }>(input.service, unit, `podcast:${length}`).catch(() => null)
+        : null;
+      if (shared?.episode?.chapters?.length) {
+        return {
+          type: "podcast",
+          title: shared.episode.title ?? input.topicLabel,
+          chapters: shared.episode.chapters,
+          length,
+          reused: true,
+          scriptCredits: 0,
+          teachingStandard: activity,
+          engine: "pool",
+          ...(shared.check?.length ? { check: shared.check } : {}),
         };
       }
     }

@@ -206,6 +206,17 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
           }).catch(() => null)
         : null;
 
+    // Sözlü raporu kayıt "completed" olmadan önce yazılır (4 Kasım 2026 canlı, Senaryo A): arka plan notlamada
+    // istemci 3 sn'de bir yokluyor; tamamlama ile gradeMeta yazımı arasına düşen yoklama raporsuz "bitti" alıyordu
+    // (sonuç "Tam doğru —/3", soru başına geri bildirim yok, inceleme yalnız ipucu). Aşağıdaki yazımlar aynı değer.
+    if (oralExtras) {
+      const base = (teachingV2 ? shownPayload : attempt.payload) as Record<string, unknown> | null;
+      await service
+        .from("exam_prep_node_attempts")
+        .update({ payload: { ...(base ?? {}), gradeMeta: oralExtras } })
+        .eq("id", attempt.id)
+        .then(undefined, () => undefined);
+    }
     const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
       p_user_id: userId,
       p_prep_id: prepId,

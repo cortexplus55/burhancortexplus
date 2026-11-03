@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { programSources } from "@/lib/curriculum/registry";
 import { outcomeBySlug, outcomePath, shortText, SITE_BASE, treeLabelFor, unitPath } from "@/lib/curriculum/seo";
+import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
 
 type Params = { params: Promise<{ programId: string; unitId: string; outcomeId: string }> };
 
@@ -32,7 +33,7 @@ export default async function OutcomePage({ params }: Params) {
   const label = treeLabelFor(program);
   const prev = oIndex > 0 ? outcomePath(program.id, index, oIndex - 1) : null;
   // Etiket sayfanın üstünde zaten gösteriliyor; aynı metin sınırlamalarda tekrar basılmaz.
-  const limitations = outcome.limitations.filter((l) => l.trim() !== label);
+  const limitations = outcome.limitations.map(cleanMathGlyphs).filter((l) => l.trim() !== label);
   const next = oIndex < unit.outcomes.length - 1 ? outcomePath(program.id, index, oIndex + 1) : null;
   return (
     <MarketingPage title={`${outcome.code} — ${title}`} description={program.label}>

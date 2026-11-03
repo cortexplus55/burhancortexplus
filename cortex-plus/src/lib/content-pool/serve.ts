@@ -14,7 +14,10 @@ import { poolLessonText } from "@/lib/content-pool/lesson-text";
  * Havuzdan sunum (2 Kasım 2026, ürün sahibinin kararı): resmî kurulumdan gelen konunun doğrulanmış ünite
  * anlatımı, kartları ve soruları model çağrısı olmadan ve 0 krediyle açılır. Havuzda yoksa bugünkü üretim yolu.
  */
-export const POOL_SERVE_KINDS = new Set(["lesson", "flashcards", "spaced", "quiz"]);
+// "qa" (Soru-Cevap) 4 Kasım 2026: canlıda model yazımı 30-60 sn sürüyordu ve tek doğrulu soruda birden çok doğru
+// şık çıkmıştı; artık GATE'ten geçmiş item_bank sorularıyla anında açılır (yetmezse bugünkü yol).
+export const POOL_SERVE_KINDS = new Set(["lesson", "flashcards", "spaced", "quiz", "qa"]);
+const POOL_QUIZ_COUNT: Record<string, number> = { quiz: 10, qa: 5 };
 
 /**
  * Konunun havuz dilimi (2 Kasım 2026): kazanımlarının geldiği üniteler (sırayla) ve konunun kazanım kodları.
@@ -198,7 +201,26 @@ export function filterItemsByOutcome<T extends { outcome_id: string }>(rows: T[]
   return [...inScope, ...rows.filter((r) => !outcomeIds.has(r.outcome_id)).slice(0, min - inScope.length)];
 }
 
-export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | PoolUnit, userId: string, count = 10) {
+/** Bu hazırlıkta öğrenciye daha önce gösterilmiş havuz soruları (cevaplanmamış olsa da). */
+async function shownPoolItemIds(service: SupabaseClient, userId: string, prepId: string): Promise<Set<string>> {
+  const { data } = await service
+    .from("exam_prep_node_attempts")
+    .select("payload->questions")
+    .eq("user_id", userId)
+    .eq("exam_prep_id", prepId)
+    .limit(200);
+  const ids = new Set<string>();
+  for (const row of (data ?? []) as { questions?: unknown }[]) {
+    if (!Array.isArray(row.questions)) continue;
+    for (const q of row.questions) {
+      const id = (q as { poolItemId?: unknown } | null)?.poolItemId;
+      if (typeof id === "string") ids.add(id);
+    }
+  }
+  return ids;
+}
+
+export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | PoolUnit, userId: string, count = 10, prepId?: string) {
   const sl: PoolSlice = "units" in slice ? slice : { units: [slice], codes: null };
   const unitIds = sl.units.map((u) => u.unitId);
   const [{ data }, { data: answered }] = await Promise.all([
@@ -211,18 +233,32 @@ export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | P
       .limit(800),
     service.from("item_responses").select("item_id").eq("user_id", userId).in("unit_id", unitIds).limit(2000),
   ]);
+  const shown = prepId ? await shownPoolItemIds(service, userId, prepId).catch(() => new Set<string>()) : new Set<string>();
   const rows = filterItemsByOutcome((data ?? []) as ItemRow[], sliceOutcomeIds(sl), count);
   if (!rows.length) return [];
-  const seen = new Set((answered ?? []).map((r) => String(r.item_id)));
+  // Görülen = cevaplanan + bu hazırlıkta gösterilen (4 Kasım 2026: kısa sınav Soru-Cevap/Konu testi sorularını tekrar ediyordu).
+  const seen = new Set([...(answered ?? []).map((r) => String(r.item_id)), ...shown]);
   const fresh = rows.filter((r) => !seen.has(r.id));
-  const pool = (fresh.length >= count ? fresh : rows).slice();
-  // Kazanım ve zorluk dengesi: sırayla her kazanımdan bir soru.
+  // Havuz yetmezse önce görülmemişler, eksik görülenlerden tamamlanır (önce: hepsi karışık).
+  if (fresh.length < count) {
+    const refill = rows.filter((r) => seen.has(r.id)).sort(() => Math.random() - 0.5).slice(0, count - fresh.length);
+    return mapPoolRows(balancedPick(fresh, fresh.length).concat(refill));
+  }
+  return mapPoolRows(balancedPick(fresh, count));
+}
+
+/** Kazanım ve zorluk dengesi: sırayla her kazanımdan bir soru. */
+function balancedPick(rows: ItemRow[], count: number): ItemRow[] {
   const byOutcome = new Map<string, ItemRow[]>();
-  for (const r of pool.sort(() => Math.random() - 0.5)) byOutcome.set(r.outcome_id, [...(byOutcome.get(r.outcome_id) ?? []), r]);
+  for (const r of rows.slice().sort(() => Math.random() - 0.5)) byOutcome.set(r.outcome_id, [...(byOutcome.get(r.outcome_id) ?? []), r]);
   const picked: ItemRow[] = [];
   while (picked.length < count && [...byOutcome.values()].some((l) => l.length)) {
     for (const list of byOutcome.values()) if (list.length && picked.length < count) picked.push(list.shift()!);
   }
+  return picked;
+}
+
+function mapPoolRows(picked: ItemRow[]) {
   return picked.map((r) => ({
     text: r.stem,
     options: r.choices.map(String),
@@ -239,7 +275,7 @@ export type EnsureUnit = (unit: PoolUnit) => Promise<LessonBody | null>;
 /** Havuzdan sunulacak gövde; havuzda yoksa ve paylaşımlı üretim de olmadıysa null (bugünkü üretim yolu). */
 export async function poolPayload(
   service: SupabaseClient,
-  input: { kind: string; prefs: unknown; topicLabel: string; title: string; userId: string; ensure?: EnsureUnit },
+  input: { kind: string; prefs: unknown; topicLabel: string; title: string; userId: string; ensure?: EnsureUnit; prepId?: string },
 ): Promise<Record<string, unknown> | null> {
   if (!POOL_SERVE_KINDS.has(input.kind)) return null;
   const slice = poolSliceForTopic(input.prefs, input.topicLabel);
@@ -254,13 +290,14 @@ export async function poolPayload(
   const lessonsRead = Promise.all(
     slice.units.map(async (u) => ({ unit: u, body: (await readPoolLesson(service, u)) ?? (input.ensure ? await input.ensure(u).catch(() => null) : null) })),
   );
-  const quizRead = input.kind === "quiz" ? readPoolQuiz(service, slice, input.userId) : null;
+  const quizCount = POOL_QUIZ_COUNT[input.kind];
+  const quizRead = quizCount ? readPoolQuiz(service, slice, input.userId, quizCount, input.prepId) : null;
   const read = await lessonsRead;
   if (read.some((r) => !r.body)) return null;
   const bodies = read as { unit: PoolUnit; body: LessonBody }[];
   if (quizRead) {
     const questions = await quizRead;
-    return questions.length >= 5 ? { type: "quiz", questions, uncoveredTopics: [], ...base } : null;
+    return questions.length >= Math.min(5, quizCount ?? 5) ? { type: "quiz", questions, uncoveredTopics: [], ...base } : null;
   }
   const body = sliceLesson(bodies, slice.codes, input.title);
   if (input.kind === "lesson") {

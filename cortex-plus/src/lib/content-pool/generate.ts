@@ -1,4 +1,5 @@
 import "server-only";
+import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
 import { nearestStem } from "@/lib/content-pool/near-duplicate";
 import { lessonRubricIssues, RUBRIC_JSON_FIELDS, RUBRIC_PROMPT, RUBRIC_VERSION } from "@/lib/content-pool/rubric";
 import { env } from "@/lib/env";
@@ -72,7 +73,7 @@ export const ORIGINALITY =
 export function officialBlock(unit: PoolUnit): string {
   const rule = needsLogicTermsRule(`${unit.unit.title} ${unit.outcomes.map((o) => o.text).join(" ")}`) ? `\n${LOGIC_TERMS_RULE}` : "";
   const lines = unit.outcomes.map((o) => {
-    const limits = o.limitations.length ? `\n   Sınırlamalar/açıklamalar: ${o.limitations.join(" | ")}` : "";
+    const limits = o.limitations.length ? `\n   Sınırlamalar/açıklamalar: ${o.limitations.map(cleanMathGlyphs).join(" | ")}` : "";
     return `- ${o.code}: ${o.text}${limits}`;
   });
   return `Program: ${unit.program.label} (${unit.program.badge})\nÜnite: ${unit.unit.title}\nResmî kazanımlar:\n${lines.join("\n")}${rule}`;
@@ -164,7 +165,7 @@ export const SHARED_VERIFY_MODEL = "gpt-6-luna";
  * her soruyu kendisi çözer ve bilimsel/kazanım uyumunu tek bitle bildirir. Çıktı: {"r":[[i,çözüm,uyum],...]}.
  */
 export function verifyPrompt(unit: PoolUnit, items: PoolItem[]) {
-  const outcomes = unit.outcomes.map((o) => `${o.code}: ${o.text}${o.limitations.length ? ` [Sınır: ${o.limitations.join(" | ")}]` : ""}`);
+  const outcomes = unit.outcomes.map((o) => `${o.code}: ${o.text}${o.limitations.length ? ` [Sınır: ${o.limitations.map(cleanMathGlyphs).join(" | ")}]` : ""}`);
   const blind = items.map((item, i) => [i, item.outcome_code, item.stem, item.choices.map((c, j) => `${j}) ${c}`)]);
   return {
     system:

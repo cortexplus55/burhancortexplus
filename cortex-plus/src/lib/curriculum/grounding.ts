@@ -1,3 +1,4 @@
+import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
 /**
  * Resmî kazanım dayanağı (1 Kasım 2026): ders ve test istemine konunun bütün kazanımları — resmî metin,
  * kod ve programın "sınırlamalar / açıklamalar" maddeleri — aynen girer. Ders adına göre dal yoktur.
@@ -23,7 +24,7 @@ export function officialOutcomeBlock(
   const many = grounding.outcomes.length > 1;
   const body = grounding.outcomes.map((o) => {
     const limits = o.limitations
-      .map((line) => line.replace(/\s+/g, " ").trim())
+      .map((line) => cleanMathGlyphs(line).replace(/\s+/g, " ").trim())
       .filter(Boolean)
       .map((line) => `  - ${line.slice(0, LINE_MAX)}`);
     return [`${o.code} ${o.text}`, limits.length ? `  Sınırlamalar / açıklamalar (aynen):\n${limits.join("\n")}` : ""]
