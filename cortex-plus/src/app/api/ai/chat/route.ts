@@ -123,6 +123,10 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
   if (!parsed.success) return errorResponse(400, "invalid_input");
   const { message, useDocuments, documentsOnly, operationId: providedId, ...rest } = parsed.data;
   const operationId = providedId ?? crypto.randomUUID();
+  // Denetim en erken anda başlar (3 Kasım 2026): yalnız metinli mesajda kimlik ve işlem kaydı beklenmez.
+  // Görselli mesajın denetimi görsel adresiyle aşağıda ayrıca yapılır. Karar ve kapı değişmez.
+  const textVerdictEarly = rest.imageDocumentId ? null : moderate({ text: message });
+  textVerdictEarly?.catch(() => undefined);
   const operation = await prepareChatOperation(service, {
     userId, operationId, conversationId: rest.conversationId,
     requestHash: chatRequestHash({ message, useDocuments, documentsOnly, ...rest }),
@@ -234,7 +238,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     // denetimi beklemez. Kapı açılana kadar token'lar sunucuda tamponlanır (live.gate); ret gelirse
     // model iptal edilir, tampon atılır, kredi iade edilir ve öğrenciye yalnız güvenli mesaj gider.
     // Öbür yollarda denetim eskisi gibi kredi ayırmadan önce beklenir.
-    const verdictEarly = quiet(moderate({ text: message, imageUrls: imageUrl ? [imageUrl] : [] }));
+    const verdictEarly = quiet(!imageUrl && textVerdictEarly ? textVerdictEarly : moderate({ text: message, imageUrls: imageUrl ? [imageUrl] : [] }));
     type Verdict = Awaited<typeof verdictEarly>;
     const isBlocked = (v: Verdict): v is Extract<Verdict, { message: string }> => v.action === "block" || v.action === "support";
     const parallelModeration = Boolean(rest.prepId) && !imageUrl;

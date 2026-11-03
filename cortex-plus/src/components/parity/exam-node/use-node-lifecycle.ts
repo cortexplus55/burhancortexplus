@@ -6,6 +6,7 @@
 import { peekInstantLesson, type LessonPreview } from "@/lib/learning/instant-lesson";
 import { ANSWER_LOCK_KEY, lockedKeys } from "@/lib/learning/answer-lock";
 import { useRouter } from "next/navigation";
+import { LESSON_PROGRESS_POLL_MS, LESSON_PROGRESS_FAST_POLL_MS, LESSON_PROGRESS_FAST_POLLS, lessonProgressDelay } from "@/components/parity/lesson-wait";
 import { takeNodeClick } from "@/lib/learning/node-open-click";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -110,12 +111,13 @@ export type Payload = {
   upcoming?: string[];
   /** Yazarın ekran planı; yazım sürerken sayacın paydası. */
   plannedScreens?: number;
+  /** Ana yazım bitti; kalan yalnız isteğe bağlı ekler. */
+  writingDone?: boolean;
   /** Notta yanlış yazılmış evrensel formüller (Paket J3 #13); okuma `readNoteWarnings` ile. */
   noteWarnings?: unknown;
 };
 
-/** Yazım sürerken ekranın yeni kavramları sorma aralığı. */
-export const LESSON_PROGRESS_POLL_MS = 1_500;
+export { LESSON_PROGRESS_POLL_MS, LESSON_PROGRESS_FAST_POLL_MS, LESSON_PROGRESS_FAST_POLLS, lessonProgressDelay };
 export const NODE_URL = "/api/learning/exam-prep/node";
 
 /** Sözlü kalan sorular arkada yazılıyorsa hedef sayı (t260u); yoksa null. */
@@ -1656,7 +1658,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     let timer: ReturnType<typeof setTimeout> | null = null;
     // Değişmeyen cevapla ekran yeniden çizilmesin.
     let last = "";
+    let polls = 0;
     const poll = async () => {
+      polls += 1;
       try {
         const res = await fetch("/api/learning/exam-prep/node", {
           method: "POST",
@@ -1675,9 +1679,9 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       } catch {
         // Bağlantı anlık koptu: bir sonraki turda yeniden sorulur.
       }
-      if (!stopped) timer = setTimeout(poll, LESSON_PROGRESS_POLL_MS);
+      if (!stopped) timer = setTimeout(poll, lessonProgressDelay(polls));
     };
-    timer = setTimeout(poll, LESSON_PROGRESS_POLL_MS);
+    timer = setTimeout(poll, lessonProgressDelay(0));
     return () => {
       stopped = true;
       if (timer) clearTimeout(timer);

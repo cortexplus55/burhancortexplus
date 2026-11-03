@@ -196,6 +196,11 @@ export type TeacherLessonOutcome =
 
 const WRITE_TIMEOUT_MS = 120_000;
 /**
+ * Akış takılma bekçisi (3 Kasım 2026, canlı: sıradaki bölüm ~30 sn bekledi): ilk parçadan sonra bu kadar
+ * süre yeni parça gelmezse akış kesilir; yazılmış kavramlar yayımlanır, ders olduğu kadarıyla kapanır.
+ */
+export const WRITE_STALL_MS = 15_000;
+/**
  * Yeniden yazım sürerken ders "takıldı" sayılmasın (`BUILD_STALE_MS` 120 sn): yayımlanan kısım
  * aynı hâliyle tazelenir, giriş kartında kavram "hazırlanıyor" kalır.
  */
@@ -214,6 +219,11 @@ export type PublishedLesson = {
    * Denetim o ekranın metnini değiştirdiyse true: ekran yerinde güncellenir, öğrenciye sakin bir not düşülür.
    */
   previewCorrected?: boolean;
+  /**
+   * Yazarın akışı bitti ve bütün kavramlar yayımlandı (3 Kasım 2026, canlı: son ekranda "yazıyor" kartı ~30 sn).
+   * Sonrasında yalnız isteğe bağlı ekler (dört parça onarımı, kapsam, şema) koşar; öğrenci onları beklemez.
+   */
+  writingDone?: boolean;
 };
 
 /**
@@ -568,6 +578,7 @@ export async function teacherLessonPipeline(
             upcoming: parts.slice(index + 1).map((item) => item.concept),
             ...(plannedScreens ? { plannedScreens } : {}),
             ...(timing.previewCorrected ? { previewCorrected: true } : {}),
+            ...(streamEnded && index >= outcomes.length - 1 ? { writingDone: true } : {}),
           });
         }
       }
@@ -707,6 +718,12 @@ export function createLessonIo(
       options.onCall?.();
       const callStarted = Date.now();
       let firstTokenMs: number | undefined;
+      const stall = new AbortController();
+      let stallTimer: ReturnType<typeof setTimeout> | undefined;
+      const armStall = () => {
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => stall.abort(new Error("write_stalled")), WRITE_STALL_MS);
+      };
       const stream = await openai.chat.completions.create(
         {
           model,
@@ -720,16 +737,18 @@ export function createLessonIo(
             { role: "user", content: user },
           ],
         },
-        { signal: AbortSignal.timeout(WRITE_TIMEOUT_MS) },
+        { signal: AbortSignal.any([AbortSignal.timeout(WRITE_TIMEOUT_MS), stall.signal]) },
       );
       let text = "";
       let finish: string | null = null;
       let usage: OpenAI.CompletionUsage | null = null;
       let served: string | null = null;
+      try {
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content ?? "";
         if (delta) {
           firstTokenMs ??= Date.now() - callStarted;
+          armStall();
           text += delta;
           try {
             onDelta(delta);
@@ -740,6 +759,14 @@ export function createLessonIo(
         finish = chunk.choices[0]?.finish_reason ?? finish;
         if (chunk.usage) usage = chunk.usage;
         if (chunk.service_tier) served = chunk.service_tier;
+      }
+      } catch (error) {
+        // Takılan akış: yazılan kısım korunur, yazım "uzunluk sınırı" gibi kesilmiş sayılır.
+        if (!stall.signal.aborted || !text) throw error;
+        console.error("teacher_lesson_write_stalled", { chars: text.length });
+        finish = "length";
+      } finally {
+        if (stallTimer) clearTimeout(stallTimer);
       }
       await options.onUsage(usage, served);
       options.onTiming?.({ role: "write", ms: Date.now() - callStarted, firstTokenMs });

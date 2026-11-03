@@ -2,6 +2,7 @@
 
 import { splitTargetTime, stripOptionLetters } from "@/lib/learning/option-text";
 import { dedupePathLabels } from "@/lib/learning/path-labels";
+import { LESSON_WAIT_LIMIT_MS, showsWaitStep } from "./lesson-wait";
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence } from "@/lib/text/turkish";
@@ -710,6 +711,7 @@ export function ExamLessonSteps({
   toolbar,
   plannedMinutes = null,
   plannedScreens = null,
+  writingDone = false,
   sourceDocs = [],
   noteWarnings = [],
 }: {
@@ -744,6 +746,8 @@ export function ExamLessonSteps({
    * değil; "2/7" sonra "3/9" oluyordu); akış kayıt amaçlı duruyor, eski sekme etkilenmesin.
    */
   plannedScreens?: number | null;
+  /** Ana yazım bitti (3 Kasım 2026): sona bekleme kartı konmaz; ekler gelirse sona eklenir. */
+  writingDone?: boolean;
   /** Sunucu notlandırması. Yoksa (eski paket) istemci notlar. */
   gradeCheck?: (
     sectionIndex: number,
@@ -851,10 +855,15 @@ export function ExamLessonSteps({
   const readingMinutes: number | null = building ? null : (lockedMinutesRef.current ?? computedMinutes);
   // Yazım sürerken payda tahminidir ("1 / ~8", 3 Kasım 2026): yazarın ekran planı, yoksa ders alt sınırı (6).
   // Ders mühürlenince ilk gerçek toplam kilitlenir.
+  // Bekleme kartı (3 Kasım 2026): ana yazım bittiyse ya da öğrenci uzayan beklemede "okuduklarımla bitir" dediyse yok.
+  const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
+  const waitingStep = showsWaitStep(building, writingDone, gaveUpWaiting);
+  // 8 sn bekçisi: bekleme kartı bundan uzun açık kalmaz; öğrenciye çıkış sunulur.
+  const [waitLate, setWaitLate] = useState(false);
   const estimatedTotal = building ? Math.max(plannedScreens ?? 0, TOPIC_MIN_SCREENS) : null;
   const steps = useMemo(() => {
     // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
-    if (building) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
+    if (waitingStep) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
     const retries = missed
       .map((sectionIndex) => {
         const section = view.sections[sectionIndex] as
@@ -899,7 +908,7 @@ export function ExamLessonSteps({
       { kind: "review-gate", count: retries.length, distinct } as Step,
       ...retries,
     ];
-  }, [base, missed, view, language, serverRetries, building, upcoming]);
+  }, [base, missed, view, language, serverRetries, waitingStep, upcoming]);
 
   const counter = lessonStepCounter({ index, writtenSteps: base.length, building, lockedTotal: lockedTotalRef.current, estimatedTotal });
   const progressMax = counter.max;
@@ -908,6 +917,15 @@ export function ExamLessonSteps({
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
+  const onWaitStep = step.kind === "building";
+  useEffect(() => {
+    if (!onWaitStep) {
+      setWaitLate(false);
+      return;
+    }
+    const timer = setTimeout(() => setWaitLate(true), LESSON_WAIT_LIMIT_MS);
+    return () => clearTimeout(timer);
+  }, [onWaitStep]);
   const rawCheck =
     step.kind === "section" ? step.check : step.kind === "retry" ? step.check : undefined;
   // Kayıtlı derslerde şık harfi ("A) …") ve kökün başındaki hedef süre satırı ekranda ayrılır (eski kayıtlar dahil).
@@ -1250,12 +1268,28 @@ export function ExamLessonSteps({
         <div className="als-slide als-building" role="status" aria-live="polite">
           <p className="als-kicker">HAZIRLANIYOR</p>
           <h1 className="als-heading">{step.heading}</h1>
-          <p className="als-body">Öğretmenin bu bölümü yazıyor. Birkaç saniye içinde burada olacak.</p>
+          <p className="als-body">
+            {waitLate
+              ? "Bu bölüm beklenenden uzun sürüyor; arkada yeniden deneniyor. İstersen okuduklarınla dersi bitirebilirsin."
+              : "Öğretmenin bu bölümü yazıyor. Birkaç saniye içinde burada olacak."}
+          </p>
           <span className="als-building-dots" aria-hidden>
             <i />
             <i />
             <i />
           </span>
+          {waitLate ? (
+            <button
+              type="button"
+              className="als-primary"
+              onClick={() => {
+                setGaveUpWaiting(true);
+                setIndex(Math.max(0, steps.length - 2));
+              }}
+            >
+              Okuduklarımla bitir
+            </button>
+          ) : null}
         </div>
       ) : null}
 

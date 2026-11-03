@@ -75,10 +75,13 @@ export function parseRewriteLeadText(text: string, final: boolean): LessonScreen
  * Giriş ekranını ikiye ayırır: ilk paragraf oynatıcının ilk kartında (overview) gerçek metin olarak
  * görünür, kalan paragraflar 0. ekranda. Tek paragraflıysa bölünmez (overview yinelenmesin).
  */
-export function splitLead(lead: LessonScreen): { intro: string; screen: LessonScreen } {
+export function splitLead(lead: LessonScreen): { intro: string; screen: LessonScreen; introOnly: boolean } {
   const blocks = lead.blocks as Array<{ type?: string; text?: string }>;
-  if (blocks.length < 2 || blocks[0]?.type !== "text" || !blocks[0].text) return { intro: "", screen: lead };
-  return { intro: blocks[0].text.slice(0, 600), screen: { ...lead, blocks: lead.blocks.slice(1) } };
+  if (blocks[0]?.type !== "text" || !blocks[0].text) return { intro: "", screen: lead, introOnly: false };
+  // Tek paragraf (akışın ilk parçası, 3 Kasım 2026 canlı ölçüm): eskiden ilk kart boş kalıyor, metin ikinci
+  // paragrafla ~3,5 sn sonra geliyordu. Artık ilk paragraf hemen ilk kartta; 0. ekran ikinci paragraf gelince eklenir.
+  if (blocks.length < 2) return { intro: blocks[0].text.slice(0, 600), screen: lead, introOnly: true };
+  return { intro: blocks[0].text.slice(0, 600), screen: { ...lead, blocks: lead.blocks.slice(1) }, introOnly: false };
 }
 
 /** Model cevabı → soru içermeyen tek ekran; bozuksa null (asıl ders zaten geliyor). */
@@ -108,10 +111,12 @@ type LessonLike = { format?: unknown; title?: unknown; screens?: unknown[] } & R
 export function prefixLeadScreen(payload: Record<string, unknown>, lead: LessonScreen, cap = 16): Record<string, unknown> {
   const lesson = payload.lesson as LessonLike | undefined;
   if (!lesson || !Array.isArray(lesson.screens)) return payload;
-  const { intro, screen } = splitLead(lead);
+  const { intro, screen, introOnly } = splitLead(lead);
   // Oynatıcının ilk kartı (overview) farklı girişi gösterir; her yayında aynı kalır (okunan kart oynamaz).
   const overview = intro ? { overview: intro } : {};
   const first = lesson.screens[0] as LessonScreen | undefined;
+  // Yalnız giriş paragrafı varsa ilk kartta durur; asıl dersin başına yineleme ekranı konmaz.
+  if (introOnly) return { ...payload, lesson: { ...lesson, ...overview } };
   if (first && first.heading === screen.heading && JSON.stringify(first.blocks) === JSON.stringify(screen.blocks)) {
     return { ...payload, lesson: { ...lesson, ...overview } };
   }
@@ -121,11 +126,13 @@ export function prefixLeadScreen(payload: Record<string, unknown>, lead: LessonS
 
 /** Yalnız giriş ekranı olan ilk yayın. */
 export function leadOnlyPayload(lead: LessonScreen, title: string): Record<string, unknown> {
-  const { intro, screen } = splitLead(lead);
+  const { intro, screen, introOnly } = splitLead(lead);
+  // Şema en az bir ekran ister: tek paragrafta 0. ekran yer tutucu başlık + "devamı yazılıyor" notudur, metin yinelenmez.
+  const placeholder = { ...screen, blocks: [{ type: "text", text: "Bu bölümün devamı yazılıyor…" }] } as LessonScreen;
   return {
     type: "lesson",
     // overview: ilk kart (plan kartı) iskelet değil girişin gerçek metniyle açılır (3 Kasım 2026).
-    lesson: { format: LESSON_V3_FORMAT, title, ...(intro ? { overview: intro } : {}), screens: [screen] },
+    lesson: { format: LESSON_V3_FORMAT, title, ...(intro ? { overview: intro } : {}), screens: [introOnly ? placeholder : screen] },
     title,
     engine: "teacher",
     qualityReport: null,
