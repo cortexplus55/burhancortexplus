@@ -43,3 +43,25 @@ describe("havuz kapısı mantık terimi", () => {
     expect("reason" in result && result.reason).toMatch(/mantık terimi/);
   });
 });
+
+describe("logicTermIssues — açık temel önerme", () => {
+  it("¬p ⇒ q önermesinin karşıtı q ⇒ ¬p doğrudur (p ⇒ q metinde geçse de)", async () => {
+    const { logicTermIssues } = await import("@/lib/learning/logic-terms");
+    const t = "p ⇒ q önermesinin karşıtı q ⇒ p dir. ¬p ⇒ q önermesinin karşıtı q ⇒ ¬p olur. p ⇒ ¬q'nun karşıt tersi q ⇒ ¬p olur.";
+    expect(logicTermIssues(t)).toEqual([]);
+  });
+  it("açık temelde de yanlış ad yakalanır", async () => {
+    const { logicTermIssues } = await import("@/lib/learning/logic-terms");
+    expect(logicTermIssues("p ⇒ q verilsin. ¬p ⇒ q önermesinin karşıtı ¬q ⇒ p olur.").length).toBe(1);
+    expect(logicTermIssues("p ⇒ q önermesinin karşıtı q ⇒ ¬p olur.").length).toBe(1);
+    expect(logicTermIssues("p ⇒ q'nun tersi q ⇒ p olur.").length).toBe(1);
+  });
+});
+
+describe("logicTermIssues — bileşik dönüşüm", () => {
+  it("p ⇒ q'nun tersinin karşıtı ¬q ⇒ ¬p doğrudur; yanlışı yakalanır", () => {
+    expect(logicTermIssues("p ⇒ q önermesinin tersinin karşıtı ¬q ⇒ ¬p olur.")).toEqual([]);
+    expect(logicTermIssues("p ⇒ q önermesinin karşıtının tersi ¬q ⇒ ¬p olur.")).toEqual([]);
+    expect(logicTermIssues("p ⇒ q önermesinin tersinin karşıtı q ⇒ p olur.").length).toBe(1);
+  });
+});
