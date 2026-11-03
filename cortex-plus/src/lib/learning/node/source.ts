@@ -13,6 +13,9 @@ import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-
 import type { TeachingPriority } from "@/lib/learning/teacher-brain";
 import { TEACHER_PAGE_KINDS } from "@/lib/learning/node/shared";
 import { loadOralAllSource } from "@/lib/learning/node/oral";
+import { poolSourceText } from "@/lib/content-pool/serve";
+import { oralPoolLabelsFrom } from "@/lib/content-pool/oral-pool-labels";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 
@@ -96,6 +99,8 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   let lessonTopicOnly = false;
   // Sözlü "Tüm sınav": soru i → konu (K1..KN boyunca eşit aralık).
   let oralAllPlan: string[] = [];
+  // Hazırlığa bağlı belge yok (havuz / konudan hazırlık): sözlü kaynağı havuz anlatımından.
+  let noPrepDocuments = false;
   try {
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
@@ -121,6 +126,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
         documentId: prepSource.document_id as string | null,
         sourceDocumentIds: prepSource.source_document_ids as string[] | null,
       }).length > 0;
+    noPrepDocuments = !hasPrepDocuments;
     const topicOnlyLesson =
       kind === "lesson" && teachingV2 && !voiceSession && sourceMode === "topic_only" && !hasPrepDocuments;
 
@@ -322,6 +328,26 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
     }
   }
 
+  // Belgesiz hazırlıkta sözlü sınav (3 Kasım 2026, canlı: "Bu konu belgelerinde eşleşmedi"): kaynak boş kalıyor,
+  // üretim `lesson_core_missing` ile düşüyordu. Havuz hazırlığında konunun doğrulanmış anlatımı kaynak olur (model
+  // çağrısı ve paylaşımlı üretim yok); havuz yoksa konunun yerleşik bilgisiyle (öğretmen motorunun konu kipi).
+  // Belgeli hazırlık bu yola girmez.
+  if (kind === "oral" && !voiceSession && noPrepDocuments && !prepSource.document_id && !source.block.trim()) {
+    const labels = await oralPoolTopicLabels(service, {
+      prepId,
+      topicLabel,
+      all: parsed.data.oralScope === "all",
+      topicIds: oralMultiTopic ? oralTopicIds : null,
+      count: oralCount ?? 5,
+    });
+    const text = await poolSourceText(service, { prefs: prep.learning_preferences, topicLabels: labels }).catch(() => "");
+    if (text.trim()) {
+      source = { ...source, block: text, documentName: "Doğrulanmış konu anlatımı" };
+    } else if (sourceMode === "topic_only") {
+      lessonTopicOnly = true;
+    }
+  }
+
   // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
   // Sayfa listesi okunamadıysa buraya gelinmez; o durumda arama yedeği yok.
   let podcastSyllabus = "";
@@ -367,3 +393,17 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
 
 /** Kaynak aşamasının erken yanıt dışındaki dönüşü. */
 export type StartSource = Exclude<Awaited<ReturnType<typeof resolveStartSource>>, Response>;
+
+/** Sözlünün havuz konuları: seçilen konular, "Tüm sınav"da eşit aralıkla konular, yoksa düğümün konusu. */
+async function oralPoolTopicLabels(
+  service: SupabaseClient,
+  input: { prepId: string; topicLabel: string; all: boolean; topicIds: readonly string[] | null | undefined; count: number },
+): Promise<string[]> {
+  if (!input.all && !input.topicIds?.length) return [input.topicLabel];
+  const { data } = await service
+    .from("exam_prep_topics")
+    .select("id, label")
+    .eq("exam_prep_id", input.prepId)
+    .order("sort_order");
+  return oralPoolLabelsFrom((data ?? []) as { id: string; label: string }[], input);
+}

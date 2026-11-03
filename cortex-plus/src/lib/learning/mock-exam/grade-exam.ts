@@ -5,6 +5,7 @@ import { contentModel } from "@/lib/ai/model-router";
 import { recordUsage } from "@/lib/credits/service";
 import { env } from "@/lib/env";
 import { recordMistakes } from "@/lib/learning/mistake-notebook";
+import { recordPoolAnswers } from "@/lib/content-pool/record-answers";
 import {
   OPEN_GRADE_SYSTEM,
   openGradeUserPrompt,
@@ -70,7 +71,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
 
   const { data: exam } = await service
     .from("practice_exams")
-    .select("id, title, user_id, started_at, deadline_at, blueprint, exam_prep_id, scope")
+    .select("id, title, user_id, started_at, deadline_at, blueprint, exam_prep_id, scope, created_at")
     .eq("id", examId)
     .maybeSingle();
 
@@ -113,7 +114,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
   const { data: rows } = await service
     .from("practice_exam_questions")
     .select(
-      "id, question_text, question_type, options, correct_answer, correct_answers, points, explanation, topic_id, topic_label, rubric, model_answer, option_why, source_label",
+      "id, question_text, question_type, options, correct_answer, correct_answers, points, explanation, topic_id, topic_label, rubric, model_answer, option_why, source_label, pool_item_id",
     )
     .eq("exam_id", examId)
     .order("sort_order");
@@ -321,6 +322,15 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     })),
   );
 
+  // Havuz sorusu (3 Kasım 2026): cevap kazanım üzerinden Hakimiyet Haritası'na. Düşerse not yine döner.
+  await recordExamPoolAnswers(service, {
+    userId,
+    prepId: typeof exam.exam_prep_id === "string" ? exam.exam_prep_id : null,
+    since: String(exam.created_at ?? new Date(submittedAt).toISOString()),
+    list,
+    items,
+  });
+
   await recordMistakes(
     service,
     userId,
@@ -477,5 +487,39 @@ async function judgeOpenAnswers(
       cause: error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 200) : "unknown",
     });
     return new Map();
+  }
+}
+
+/** Havuzdan seçilmiş sorular (`pool_item_id`): çoktan seçmeli cevap şık metniyle Hakimiyet Haritası'na yazılır. */
+export async function recordExamPoolAnswers(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    prepId: string | null;
+    since: string;
+    list: Array<Record<string, unknown>>;
+    items: Pick<MockGradeItem, "questionId" | "userAnswer" | "isCorrect">[];
+  },
+): Promise<number> {
+  const poolOf = new Map(
+    input.list
+      .filter((row) => typeof row.pool_item_id === "string" && row.pool_item_id)
+      .map((row) => [row.id as string, row.pool_item_id as string]),
+  );
+  if (!poolOf.size) return 0;
+  const answers = input.items
+    .filter((item) => poolOf.has(item.questionId))
+    .map((item) => ({
+      poolItemId: poolOf.get(item.questionId)!,
+      chosenText: Array.isArray(item.userAnswer) ? (item.userAnswer[0] ?? null) : String(item.userAnswer ?? ""),
+      correct: item.isCorrect,
+    }));
+  try {
+    const written = await recordPoolAnswers(service, { userId: input.userId, prepId: input.prepId, since: input.since, answers });
+    console.info("mock_pool_mastery", { questions: poolOf.size, written });
+    return written;
+  } catch (error) {
+    console.error("mock_pool_mastery_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
+    return 0;
   }
 }

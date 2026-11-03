@@ -8,6 +8,7 @@ import type { CurriculumRef } from "@/lib/curriculum/types";
 import type { LessonBody } from "@/lib/content-pool/schema";
 import { blueprintBlocks, blueprintKind, type BlueprintKind } from "@/lib/content-pool/blueprint";
 import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
+import { poolLessonText } from "@/lib/content-pool/lesson-text";
 
 /**
  * Havuzdan sunum (2 Kasım 2026, ürün sahibinin kararı): resmî kurulumdan gelen konunun doğrulanmış ünite
@@ -268,4 +269,28 @@ export async function poolPayload(
   }
   const cards = body.cards.map((c) => ({ front: c.front, back: c.back }));
   return cards.length ? { type: "cards", cards, masteryClaim: false, ...base } : null;
+}
+
+/**
+ * Belgesiz havuz hazırlığında konuların doğrulanmış anlatım metni (3 Kasım 2026): sözlü sınavın kaynağı.
+ * Model çağrısı ve paylaşımlı üretim yok (bütçe değişmez); havuzda doğrulanmış ders yoksa o konu atlanır. Hiçbiri yoksa "".
+ */
+export async function poolSourceText(
+  service: SupabaseClient,
+  input: { prefs: unknown; topicLabels: readonly string[]; maxChars?: number },
+): Promise<string> {
+  const labels = [...new Set(input.topicLabels.map((l) => l.trim()).filter(Boolean))].slice(0, 12);
+  if (!labels.length) return "";
+  const budget = Math.max(2_000, Math.floor((input.maxChars ?? 14_000) / labels.length));
+  const parts = await Promise.all(
+    labels.map(async (label) => {
+      const slice = poolSliceForTopic(input.prefs, label);
+      if (!slice) return "";
+      const read = await Promise.all(slice.units.map(async (unit) => ({ unit, body: await readPoolLesson(service, unit).catch(() => null) })));
+      const bodies = read.filter((r): r is { unit: PoolUnit; body: LessonBody } => Boolean(r.body));
+      if (!bodies.length) return "";
+      return poolLessonText(sliceLesson(bodies, slice.codes, label), label, budget);
+    }),
+  );
+  return parts.filter(Boolean).join("\n\n");
 }

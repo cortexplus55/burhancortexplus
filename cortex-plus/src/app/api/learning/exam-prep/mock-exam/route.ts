@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
+import { tryPoolMockExam } from "@/lib/learning/mock-exam/pool-exam";
 import { pumpMockExamJob, startDurableMockExam } from "@/lib/learning/mock-exam-durable";
 import {
   hasInFlightMockBuild,
@@ -128,6 +129,28 @@ export async function POST(request: Request) {
   const inFlight = Boolean(fields.resumeId) || (await hasInFlightMockBuild(service, userId, parsed.data.prepId));
 
   if (!inFlight) {
+    // Havuz hazırlığı (3 Kasım 2026): doğrulanmış sorulardan anında kâğıt; olmazsa aşağıdaki üretim yolu.
+    const pooled = await tryPoolMockExam({
+      service,
+      userId,
+      prepId: fields.prepId,
+      isPremium: fields.isPremium,
+      preset: fields.preset,
+      scope: fields.scope,
+      topicIds: fields.topicIds,
+      durationMinutes: fields.durationMinutes,
+      questionCount: fields.questionCount,
+      twin: fields.twin,
+    }).catch(() => null);
+    if (pooled) {
+      const body = publishedData({ ...pooled, resumeId: pooled.examId });
+      if (stream) {
+        return ndjsonResponse(async (write) => {
+          write({ type: "done", status: 200, data: body });
+        });
+      }
+      return NextResponse.json(body);
+    }
     const durable = await startDurableMockExam({
       service,
       userId,

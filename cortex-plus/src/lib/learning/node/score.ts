@@ -144,3 +144,29 @@ export function mistakeDraftsFromAttempt(
 
   return drafts;
 }
+
+/**
+ * Havuz konu testinin cevapları (3 Kasım 2026): `poolItemId` taşıyan soruların seçilen şıkkı ve doğruluğu.
+ * Dizin `scoreAttempt` ile aynı (normalize edilmiş liste); boş cevap atlanır. Hakimiyet Haritası'na yazılır.
+ */
+export function poolQuizAnswers(
+  payload: unknown,
+  answers: Record<string, unknown>,
+): { poolItemId: string; chosenText: string; correct: boolean }[] {
+  const data = (payload ?? {}) as Record<string, unknown>;
+  if (data.type !== "quiz" || !Array.isArray(data.questions)) return [];
+  const out: { poolItemId: string; chosenText: string; correct: boolean }[] = [];
+  let index = 0;
+  for (const raw of data.questions as Parameters<typeof normalizeQuizQuestion>[0][]) {
+    const question = normalizeQuizQuestion(raw);
+    if (!question) continue;
+    const at = index;
+    index += 1;
+    const poolItemId = (raw as { poolItemId?: unknown } | null)?.poolItemId;
+    if (typeof poolItemId !== "string" || !poolItemId) continue;
+    const selected = selectedOptions(answers[String(at)]);
+    if (selected.length !== 1) continue;
+    out.push({ poolItemId, chosenText: selected[0]!, correct: sameOptionSet(selected, question.correct) });
+  }
+  return out;
+}

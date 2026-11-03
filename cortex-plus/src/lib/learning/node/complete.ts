@@ -31,7 +31,8 @@ import { gradeOralSemantics, oralCorpus, oralNeedsJudge, oralReviewFromPayload }
 import { rememberMisconceptions, unseenLessonReviews } from "@/lib/learning/node/misconceptions";
 import { claimCompletion, completedAttemptBody, releaseCompletionClaim, storeCompletionResult, type CompletionOutcome } from "@/lib/learning/node/completion";
 import { loadPrepTopicIndex, sameTopicAsNode, testedTopicRow } from "@/lib/learning/node/topics";
-import { mistakeDraftsFromAttempt, scoreAttempt } from "@/lib/learning/node/score";
+import { mistakeDraftsFromAttempt, poolQuizAnswers, scoreAttempt } from "@/lib/learning/node/score";
+import { recordPoolAnswers } from "@/lib/content-pool/record-answers";
 import type { NodeContext } from "./context";
 
 export async function completeAction(context: NodeContext): Promise<NextResponse> {
@@ -366,6 +367,19 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
             status: "completed",
           });
         }
+      }
+    }
+
+    // Havuz konu testi (3 Kasım 2026): cevap kazanım üzerinden Hakimiyet Haritası'na (item_responses + outcome_mastery).
+    if (attempt.status !== "completed") {
+      const poolAnswers = poolQuizAnswers(shownPayload, mergedAnswers);
+      if (poolAnswers.length) {
+        await recordPoolAnswers(service, {
+          userId,
+          prepId,
+          since: new Date(Date.now() - 12 * 3600_000).toISOString(),
+          answers: poolAnswers,
+        }).catch(() => 0);
       }
     }
 
