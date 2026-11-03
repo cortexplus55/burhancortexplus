@@ -55,7 +55,7 @@ export function WrittenExamResult({ life }: { life: NodeLifecycle }) {
 }
 
 export function ResultScreen({ life }: { life: NodeLifecycle }) {
-  const { prepId, kind, topicId, reviewSaved, rewriteHref, resumeEnabled, router, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal } = life;
+  const { prepId, kind, topicId, reviewSaved, rewriteHref, rewriteLesson, resumeEnabled, router, isOral, stage, setStage, payload, attemptId, setIndex, setAnswers, setCardOffer, setCardRepeat, cardSummary, setCardSummary, score, spentMinutes, oralGrade, nextHref, levelHint, topicGain, pathChange, reviewScheduled, gainOpen, setGainOpen, feedback, setFeedback, feedbackLoading, podcastLoading, setPodcastCheckOpen, lessonPodcast, setLessonPodcast, isTimedExam, start, loadLessonPodcast, loadFeedback, structuredLesson, unscored, heroScore, heroTotal } = life;
   return (
     <>
       {stage === "result" && gainOpen && topicGain ? <TopicGainCard gain={topicGain} nextHref={nextHref} /> : null}
@@ -197,7 +197,8 @@ export function ResultScreen({ life }: { life: NodeLifecycle }) {
               <button type="button" className="cp-exam-continue" onClick={() => {
                 // Kayıtlı ders açıkken kurulum kartı yok (yalnız "Kayıtlı içerik açılıyor" kalırdı): yeni anlatım
                 // açık seçimin adresinde yazılır (30 Ekim 2026).
-                if (reviewSaved && rewriteHref) {
+                // Düz adreste açılan ders (havuz dersi dahil) yeni anlatımı ?farkli=1 adresinde ister (3 Kasım 2026).
+                if (rewriteHref && (reviewSaved || !rewriteLesson)) {
                   router.push(rewriteHref);
                   return;
                 }

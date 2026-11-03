@@ -49,7 +49,7 @@ export async function runStartGeneration(
   const { userId, service, options, requestStarted, parsed, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, oralCount, oralMultiTopic, difficulty, voiceMode, familiarity, mood, lessonReviewCards } = context;
   const { sessionMeta, topic, topicLabel, topicWiden, warm, refreshTopicQuiz, voiceSession, premium, freeMeter, practiceTopics, finalFill, retargetedTopic, quizLesson, variant, peekBuildingMs } = state;
   let { title } = state;
-  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus } = sourced;
+  const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf } = sourced;
   const { clientRequestId, generationId, creatingAttemptId, creditKey } = reserved;
   let generationLaunchedMs: number | null = null;
   let firstPublishedMs: number | null = null;
@@ -166,6 +166,7 @@ export async function runStartGeneration(
                 }
               : null,
           lessonTopicOnly,
+          ...(alternativeOf ? { alternativeOf } : {}),
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
           teachingV2,
