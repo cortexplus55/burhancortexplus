@@ -13,7 +13,7 @@ import { StreakFreezeBadge } from "@/components/parity/streak-freeze-badge";
 import { streakFreezeTitle } from "@/lib/learning/streak-freeze-copy";
 import { PrepRadarChart } from "@/components/parity/prep-radar-chart";
 import { PrepForecastChart } from "@/components/parity/prep-forecast-chart";
-import { NetCard } from "@/components/level-check/mastery-map";
+import { IlerlemeNetSection } from "@/components/level-check/ilerleme-net";
 import { loadPrepNet } from "@/lib/mastery-map/net-load";
 import { createServiceClient } from "@/lib/supabase/server";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
@@ -203,16 +203,7 @@ export default async function IlerlemePage() {
             </Link>
           </SectionCard>
         ) : null}
-        {prepNet ? (
-          <SectionCard title="Tahmini sınav netin" description={`${prepNet.title} · Hakimiyet Haritası yanıtlarından.`}>
-            <div className="lc-box mm" data-testid="ilerleme-net">
-              <NetCard net={prepNet.net} />
-            </div>
-            <Link href={examPrepHomeHref(prepNet.prepId)} className="mt-4 inline-flex text-sm font-semibold text-[var(--cs-primary)]">
-              {"Hakimiyet Haritası'na git →"}
-            </Link>
-          </SectionCard>
-        ) : null}
+        {prepNet ? <IlerlemeNetSection prepNet={prepNet} /> : null}
         <SectionCard
           title="Çalışma serin"
           description={

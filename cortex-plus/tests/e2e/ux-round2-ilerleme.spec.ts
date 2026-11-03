@@ -5,6 +5,8 @@ for (const width of [320, 375, 412]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/e2e/ilerleme");
     await expect(page.getByText("Tüm zamanlar", { exact: true })).toBeVisible();
+    // 3 Kasım 2026: /ilerleme net kartı (canlıda hiç çizilmiyordu) başlığıyla görünür.
+    await expect(page.getByTestId("ilerleme-net")).toContainText("Tahmini Sınav Netin");
     await expect(page.getByText(/tasarruf/i)).toHaveCount(0);
     await expect(page.getByText(/₺/)).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

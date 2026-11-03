@@ -19,22 +19,18 @@ export default async function ExamPrepDenemePage({
   // Kâğıtta çöz (17 Ekim 2026): kurulumda "Kâğıtta" seçildiyse; telefondan QR ile yükleme adımı.
   const { kagit, yukle } = await searchParams;
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
-
-  const { data: exam } = await supabase
-    .from("practice_exams")
-    .select("id, title, exam_prep_id")
-    .eq("id", examId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Kabuk, kâğıt ve sorular tek round-trip'te (3 Kasım 2026: havuz denemesi açılışı < 3 sn hedefi).
+  const [shell, { data: exam }, { data: rows }] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    supabase.from("practice_exams").select("id, title, exam_prep_id").eq("id", examId).eq("user_id", user.id).maybeSingle(),
+    supabase
+      .from("practice_exam_questions")
+      .select("id, question_text, options, question_type, points")
+      .eq("exam_id", examId)
+      .order("sort_order"),
+  ]);
 
   if (!exam || exam.exam_prep_id !== prepId) notFound();
-
-  const { data: rows } = await supabase
-    .from("practice_exam_questions")
-    .select("id, question_text, options, question_type, points")
-    .eq("exam_id", examId)
-    .order("sort_order");
 
   const questions = (rows ?? []).map((row) => ({
     id: row.id as string,

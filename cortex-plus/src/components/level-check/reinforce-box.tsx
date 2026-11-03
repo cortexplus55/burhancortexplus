@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LevelCheckRunner, type LevelResult } from "@/components/level-check/level-check-runner";
-import { httpLevelApi, type LevelApi, type MissingOutcome, type OfferOutcome } from "@/lib/level-check/types";
+import { httpLevelApi, type LevelApi, type LevelStartResponse, type MissingOutcome, type OfferOutcome } from "@/lib/level-check/types";
 import "@/styles/level-check.css";
 
 export const NO_EXTRA_TEXT = "Bu kazanım için ek soru hazır değil";
@@ -70,10 +70,30 @@ export function ReinforceBox({
   const [weakCount, setWeakCount] = useState<number | null>(null);
   const [results, setResults] = useState<LevelResult[]>([]);
 
+  /** Havuz soruları çözülürken arkada üretilen yeni sorular (fill). İlk tur bitince ikinci tur bundan açılır. */
+  const fillRef = useRef<Promise<LevelStartResponse> | null>(null);
+  const [round, setRound] = useState(0);
+  const roundApi = useMemo<LevelApi>(() => {
+    const pending = round > 0 ? fillRef.current : null;
+    if (!pending) return api;
+    let used = false;
+    return {
+      answer: api.answer,
+      start: (req) => {
+        if (used) return api.start(req);
+        used = true;
+        return pending;
+      },
+    };
+  }, [api, round]);
+
   if (phase === "hidden") return null;
 
   const openNew = (code: string) => {
     setNotice(null);
+    fillRef.current = null;
+    setRound(0);
+    setResults([]);
     setNewCode(code);
     setPhase("run");
   };
@@ -120,12 +140,18 @@ export function ReinforceBox({
       ) : null}
       {phase === "run" ? (
         <LevelCheckRunner
-          api={api}
-          key={newCode ?? "reinforce"}
+          api={roundApi}
+          key={`${newCode ?? "reinforce"}:${round}`}
           request={newCode ? { mode: "reinforce_new", unit: unitId, prepId, code: newCode } : { mode: "reinforce", unit: unitId, prepId }}
           title={newCode ? `Yeni pekiştirme · ${newCode}` : "Pekiştirme"}
           onStarted={(res) => {
             if (newCode) {
+              if (res.status === "ok" && res.more && !fillRef.current) {
+                // Stream-first: ilk sorular hemen; hedefe (5) kalanları arkada üret (v14 → item_bank).
+                fillRef.current = api.start({ mode: "reinforce_new", unit: unitId, prepId, code: newCode, fill: true }).catch(
+                  () => ({ status: "unavailable" }) as LevelStartResponse,
+                );
+              }
               if (res.status !== "ok") {
                 setNotice(newTestNotice(res.status, res.status === "limit" ? res.limit : undefined));
                 setNewCode(null);
@@ -144,7 +170,14 @@ export function ReinforceBox({
             onDone?.();
           }}
           onFinish={(r) => {
-            setResults(r);
+            const all = [...results, ...r];
+            setResults(all);
+            if (newCode && fillRef.current && round === 0) {
+              // İkinci tur: arkada üretilen yeni sorular (hazır değilse runner yükleniyor gösterir).
+              setRound(1);
+              return;
+            }
+            fillRef.current = null;
             setNewCode(null);
             setPhase("result");
           }}

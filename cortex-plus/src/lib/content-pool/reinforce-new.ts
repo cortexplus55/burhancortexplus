@@ -14,6 +14,17 @@ import { freeOpenTopicLabel } from "@/lib/billing/free-topic-gate";
   kabul ediyorsa (migration 20261103130000 uygulanmadıysa) satır varsayılan origin'le, qa.origin='reinforce' ile yazılır.
 */
 export const REINFORCE_DAILY_LIMIT = 3;
+/** Bir yeni pekiştirme testinin hedef soru sayısı (havuz + yeni üretim karışık). */
+export const REINFORCE_TARGET = 5;
+
+/**
+ * reinforce_new adımı (saf, test edilir). fill=false: havuzda görülmemiş soru varsa anında sun; hedefin altındaysa
+ * `more` ile istemci arkada fill=true ister. fill=true ya da havuz boşsa: üretim (yazar → v14 → kör çözücü → item_bank).
+ */
+export function reinforceNewStep(readyCount: number, fill: boolean): { serveReady: boolean; more: boolean } {
+  if (fill || readyCount <= 0) return { serveReady: false, more: false };
+  return { serveReady: true, more: readyCount < REINFORCE_TARGET };
+}
 
 /** İstanbul gününün başlangıcı (UTC ISO). */
 export function istanbulDayStart(now = new Date()): string {

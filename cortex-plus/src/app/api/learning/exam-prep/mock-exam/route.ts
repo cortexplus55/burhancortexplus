@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import { createTimer } from "@/lib/learning/mock-exam/timing";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
@@ -67,7 +68,7 @@ function chunkData(result: Extract<ChunkOutcome, { ok: true }>) {
   };
 }
 
-function ndjsonResponse(run: (write: (line: unknown) => void) => Promise<void>) {
+function ndjsonResponse(run: (write: (line: unknown) => void) => Promise<void>, extraHeaders: Record<string, string> = {}) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -82,20 +83,42 @@ function ndjsonResponse(run: (write: (line: unknown) => void) => Promise<void>) 
     },
   });
   return new Response(stream, {
-    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" },
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", ...extraHeaders },
   });
 }
 
 export async function POST(request: Request) {
+  const timer = createTimer();
   const guard = await withUser(request, { scope: "exam-mock", limit: 8, trackSharing: true });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
+  timer.mark("guard");
 
-  // Plus ve yönetici rolü paralel (havuz yolunda sıralı round-trip yok).
-  const [premium, admin] = await Promise.all([isPremiumUser(service, userId), isAdminUser(service, userId)]);
+  // Plus, yönetici rolü, eski kâğıt kurtarma ve süren kurulum denetimi tek round-trip'te (paralel). Kurtarma yalnız
+  // bayat kurulumlara dokunur; süren kurulum denetimi yalnız taze olanlara bakar: sıra bağımlılığı yok.
+  const [premium, admin, recovery, inFlightBuild] = await Promise.all([
+    isPremiumUser(service, userId),
+    isAdminUser(service, userId),
+    recoverStaleMockBuilds({
+      service,
+      userId,
+      prepId: parsed.data.prepId,
+      resumeId: parsed.data.resumeId,
+      specKey: mockExamSpecKey({
+        preset: parsed.data.preset,
+        scope: parsed.data.scope,
+        topicIds: parsed.data.topicIds,
+        durationMinutes: clampMockMinutes(parsed.data.durationMinutes) ?? undefined,
+        questionCount: parsed.data.questionCount,
+        twin: parsed.data.twin === true || undefined,
+      }),
+    }),
+    hasInFlightMockBuild(service, userId, parsed.data.prepId),
+  ]);
+  timer.mark("checks");
   const fields: FallbackExamInput = {
     service,
     userId,
@@ -112,15 +135,9 @@ export async function POST(request: Request) {
     signal: request.signal,
   };
   const stream = request.headers.get("accept")?.includes("application/x-ndjson") === true;
-  const recovery = await recoverStaleMockBuilds({
-    service,
-    userId,
-    prepId: fields.prepId,
-    resumeId: fields.resumeId,
-    specKey: mockExamSpecKey(fields),
-  });
   if (recovery.kind === "published") {
     const body = publishedData(recovery);
+    timer.log("recovered");
     if (stream) {
       return ndjsonResponse(async (write) => {
         write({ type: "done", status: 200, data: body });
@@ -129,7 +146,7 @@ export async function POST(request: Request) {
     return NextResponse.json(body);
   }
   if (recovery.droppedResume) fields.resumeId = undefined;
-  const inFlight = Boolean(fields.resumeId) || (await hasInFlightMockBuild(service, userId, parsed.data.prepId));
+  const inFlight = Boolean(fields.resumeId) || inFlightBuild;
 
   if (!inFlight) {
     // Havuz hazırlığı (3 Kasım 2026): doğrulanmış sorulardan anında kâğıt; olmazsa aşağıdaki üretim yolu.
@@ -145,15 +162,18 @@ export async function POST(request: Request) {
       durationMinutes: fields.durationMinutes,
       questionCount: fields.questionCount,
       twin: fields.twin,
-    }).catch(() => null);
+    }, timer).catch(() => null);
+    timer.mark("pool");
     if (pooled) {
       const body = publishedData({ ...pooled, resumeId: pooled.examId });
+      const timing = { "Server-Timing": timer.header() };
+      timer.log("pool");
       if (stream) {
         return ndjsonResponse(async (write) => {
           write({ type: "done", status: 200, data: body });
-        });
+        }, timing);
       }
-      return NextResponse.json(body);
+      return NextResponse.json(body, { headers: timing });
     }
     const durable = await startDurableMockExam({
       service,

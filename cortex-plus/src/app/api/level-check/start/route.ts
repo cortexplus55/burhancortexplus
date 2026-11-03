@@ -11,7 +11,7 @@ import { loadAnsweredItems, loadMasteryStates, plannedPoolUnits } from "@/lib/ma
 import { reinforceOffer, pickReinforcement } from "@/lib/mastery-map/reinforce";
 import { PRIOR } from "@/lib/level-check/mastery";
 import { poolBudgetAllows } from "@/lib/content-pool/fill-server";
-import { createReinforceItems, REINFORCE_DAILY_LIMIT, reinforceAllowedForFree, reinforceUsedToday } from "@/lib/content-pool/reinforce-new";
+import { createReinforceItems, REINFORCE_DAILY_LIMIT, REINFORCE_TARGET, reinforceNewStep, reinforceAllowedForFree, reinforceUsedToday } from "@/lib/content-pool/reinforce-new";
 
 export const runtime = "nodejs";
 // reinforce_new tek kazanıma soru yazar ve kör çözer (2 model çağrısı).
@@ -22,10 +22,10 @@ const bodySchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("quick_scan"), units: z.array(z.string().regex(SETUP_ID)).min(1).max(400) }),
   z.object({ mode: z.literal("unit_check"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid() }),
   z.object({ mode: z.literal("reinforce"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid(), peek: z.boolean().optional() }),
-  z.object({ mode: z.literal("reinforce_new"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid(), code: z.string().min(1).max(40) }),
+  z.object({ mode: z.literal("reinforce_new"), unit: z.string().regex(UNIT_ID_PATTERN), prepId: z.string().uuid(), code: z.string().min(1).max(40), fill: z.boolean().optional() }),
 ]);
 
-const REINFORCE_NEW_COUNT = 5;
+const REINFORCE_NEW_COUNT = REINFORCE_TARGET;
 /** Bir yeni pekiştirme üretiminin (yazar + kör çözücü) üst tahmini; tavan denetimi için. */
 const REINFORCE_ESTIMATE_USD = 0.03;
 
@@ -69,8 +69,10 @@ export async function POST(request: Request) {
     const [answered, rows] = await Promise.all([loadAnsweredItems(service, userId, [body.unit]), loadVerifiedItems(service, [body.unit])]);
     const mine = rows.filter((r) => r.outcome_id === outcome.outcomeId);
     // Read-through: havuzda bu kazanımın yanıtlanmamış sorusu varsa önce o (model çağrısı yok, sınırdan düşmez).
+    // Havuzda hedeften (5) az görülmemiş soru varsa: önce onlar anında, `more` ile istemci kalanı arkada üretir (fill).
     const ready = mine.filter((r) => !answered.has(r.id)).slice(0, REINFORCE_NEW_COUNT);
-    if (ready.length) return respond(ready, "practice", userId, body.prepId);
+    const step = reinforceNewStep(ready.length, body.fill === true);
+    if (step.serveReady) return respond(ready, "practice", userId, body.prepId, undefined, step.more);
     const used = await reinforceUsedToday(service, userId);
     if (used === null) return NextResponse.json({ status: "unavailable" } satisfies LevelStartResponse, { headers: noStore });
     if (used >= REINFORCE_DAILY_LIMIT) return NextResponse.json({ status: "limit", limit: REINFORCE_DAILY_LIMIT } satisfies LevelStartResponse, { headers: noStore });
@@ -141,11 +143,12 @@ export async function POST(request: Request) {
     uid: string | null,
     prep: string | null,
     missing?: MissingOutcome[],
+    more?: boolean,
   ) {
     const token = createLevelToken({ uid, src: source, items: list.map((r) => r.id), prep });
     if (!token) return errorResponse(503, "unconfigured");
     const persisted = uid ? await levelTablesReady(service) : false;
-    const payload: LevelStartResponse = { status: "ok", token, source, guest: !uid, items: list.map(toLevelItem), persisted, ...(missing ? { missing } : {}) };
+    const payload: LevelStartResponse = { status: "ok", token, source, guest: !uid, items: list.map(toLevelItem), persisted, ...(missing ? { missing } : {}), ...(more ? { more: true } : {}) };
     return NextResponse.json(payload, { headers: noStore });
   }
 }

@@ -41,21 +41,36 @@ function officialNet(prefs: unknown, mapUnits: MapUnitInput[]): NetEstimate | nu
 }
 
 /**
- * /ilerleme için net kartı: verilen hazırlık (yoksa son güncellenen) için hub'daki aynı hesap.
- * Hazırlık ya da harita girdisi yoksa null (kart çizilmez); veri azsa NetCard "Henüz yeterli veri yok" der.
+ * /ilerleme için net kartı: hub'daki aynı hesap. Önce verilen hazırlık (sayfanın "en yakın sınav" kartı); o hazırlıkta
+ * resmî plan (Hakimiyet Haritası) yoksa resmî planı olan en yeni hazırlık. 3 Kasım 2026 kök neden: en yakın sınav
+ * belgeli (plansız) bir hazırlıktı → harita girdisi boş → kart hiç çizilmiyordu; ayrıca `exam_preps.updated_at`
+ * sütunu yok (sıralama sorgusu hata verip null dönüyordu) → sıralama created_at ile.
  */
 export async function loadPrepNet(
   service: import("@supabase/supabase-js").SupabaseClient,
   userId: string,
   prepId: string | null,
 ): Promise<{ prepId: string; title: string; net: NetEstimate } | null> {
+  type Row = { id: string; title: string | null; learning_preferences: unknown };
   const base = () => service.from("exam_preps").select("id, title, learning_preferences").eq("user_id", userId);
-  const { data: prep } = prepId
-    ? await base().eq("id", prepId).maybeSingle()
-    : await base().order("updated_at", { ascending: false }).limit(1).maybeSingle();
-  if (!prep?.id) return null;
-  const { loadMapInputs } = await import("@/lib/mastery-map/load");
-  const mapUnits = await loadMapInputs(service, { userId, prefs: prep.learning_preferences });
-  if (!mapUnits?.length) return null;
-  return { prepId: prep.id as string, title: (prep.title as string) ?? "Hazırlık", net: netEstimateFor(prep.learning_preferences, mapUnits) };
+  const { loadMapInputs, plannedPoolUnits } = await import("@/lib/mastery-map/load");
+  const candidates: Row[] = [];
+  if (prepId) {
+    const { data } = await base().eq("id", prepId).maybeSingle();
+    if (data) candidates.push(data as Row);
+  }
+  if (!candidates.some((p) => plannedPoolUnits(p.learning_preferences).length)) {
+    const { data } = await base()
+      .not("learning_preferences->officialPlan->units", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    for (const r of (data ?? []) as Row[]) if (!candidates.some((c) => c.id === r.id)) candidates.push(r);
+  }
+  for (const prep of candidates) {
+    if (!plannedPoolUnits(prep.learning_preferences).length) continue;
+    const mapUnits = await loadMapInputs(service, { userId, prefs: prep.learning_preferences });
+    if (!mapUnits?.length) continue;
+    return { prepId: prep.id, title: prep.title ?? "Hazırlık", net: netEstimateFor(prep.learning_preferences, mapUnits) };
+  }
+  return null;
 }
