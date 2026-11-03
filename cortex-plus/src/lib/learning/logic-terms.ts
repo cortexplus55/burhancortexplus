@@ -10,7 +10,7 @@ const ARROW = "(?:⇒|→|=>|⟹)";
 const NEG_PREFIX = "(?:¬|~|∼)";
 const NEG_SUFFIX = "(?:′|'|’)";
 const ATOM = `(${NEG_PREFIX}?\\s*[pqrs]\\s*${NEG_SUFFIX}?)`;
-const LABEL = "(karşıt\\s+tersi|karşıtı|tersi)";
+const LABEL = "(karşıt\\s+tersi|karşıtı|tersi)(?!\\p{L})";
 // Etiket → (en çok 12 karakter bağlaç: ise, :, =, olan, …) → formül
 const LABEL_THEN_FORMULA = new RegExp(`${LABEL}[^.;⇒→\\n]{0,12}?${ATOM}\\s*${ARROW}\\s*${ATOM}`, "giu");
 // Formül → "önermesinin|’nun" olmadan doğrudan etiket ("q ⇒ p, p ⇒ q’nun tersidir")
@@ -69,7 +69,15 @@ export function logicTermIssues(text: string): string[] {
     const kind = labelKey(label);
     const got: [Atom, Atom] = [atom(left), atom(right)];
     const b = before.match(BASE_BEFORE);
-    const base: [Atom, Atom] = b ? [atom(b[1]!), atom(b[2]!)] : P_Q;
+    let base: [Atom, Atom] = b ? [atom(b[1]!), atom(b[2]!)] : P_Q;
+    // Bileşik dönüşüm: "tersinin karşıtı" = karşıt tersi; önce iç dönüşüm uygulanır.
+    const inner = before.match(/(karşıt\s+tersinin|karşıtının|tersinin)\s*$/iu);
+    if (inner) {
+      const k = inner[1]!.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
+      const innerBase = before.slice(0, before.length - inner[0].length).match(BASE_BEFORE);
+      if (innerBase) base = [atom(innerBase[1]!), atom(innerBase[2]!)];
+      base = expected(k === "karşıt tersinin" ? "contrapositive" : k === "karşıtının" ? "converse" : "inverse", base);
+    }
     if (base.some((a) => a.name !== "p" && a.name !== "q") || base[0].name === base[1].name) return;
     const want = expected(kind, base);
     // Yalnız p/q ile yazılmış dönüşümler denetlenir; temel önermenin kendisi ("p ⇒ q") etiketin hemen ardında
@@ -86,7 +94,7 @@ export function logicTermIssues(text: string): string[] {
         (actual ? ` (bu, "${NAME[actual]}"; ${show(base[0])} ⇒ ${show(base[1])}'nun ${NAME[kind]} ${show(want[0])} ⇒ ${show(want[1])})` : ""),
     );
   };
-  for (const m of text.matchAll(LABEL_THEN_FORMULA)) check(m[1]!, m[2]!, m[3]!, text.slice(Math.max(0, m.index! - 40), m.index!));
+  for (const m of text.matchAll(LABEL_THEN_FORMULA)) check(m[1]!, m[2]!, m[3]!, text.slice(Math.max(0, m.index! - 60), m.index!));
   for (const m of text.matchAll(FORMULA_THEN_LABEL)) check(m[3]!, m[1]!, m[2]!);
   return [...new Set(issues)];
 }

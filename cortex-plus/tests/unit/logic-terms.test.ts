@@ -57,3 +57,11 @@ describe("logicTermIssues — açık temel önerme", () => {
     expect(logicTermIssues("p ⇒ q'nun tersi q ⇒ p olur.").length).toBe(1);
   });
 });
+
+describe("logicTermIssues — bileşik dönüşüm", () => {
+  it("p ⇒ q'nun tersinin karşıtı ¬q ⇒ ¬p doğrudur; yanlışı yakalanır", () => {
+    expect(logicTermIssues("p ⇒ q önermesinin tersinin karşıtı ¬q ⇒ ¬p olur.")).toEqual([]);
+    expect(logicTermIssues("p ⇒ q önermesinin karşıtının tersi ¬q ⇒ ¬p olur.")).toEqual([]);
+    expect(logicTermIssues("p ⇒ q önermesinin tersinin karşıtı q ⇒ p olur.").length).toBe(1);
+  });
+});
