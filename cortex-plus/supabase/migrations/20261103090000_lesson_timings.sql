@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS public.lesson_timings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   kind text NOT NULL,
-  path text NOT NULL CHECK (path IN ('stream_first', 'prefetch_ready', 'prefetch_adopted', 'pool')),
+  path text NOT NULL CHECK (path IN ('stream_first', 'prefetch_ready', 'prefetch_adopted', 'pool', 'client')),
   open_ms integer NOT NULL CHECK (open_ms >= 0 AND open_ms < 600000),
   first_screen_ms integer CHECK (first_screen_ms IS NULL OR (first_screen_ms >= 0 AND first_screen_ms < 600000)),
   meta jsonb NOT NULL DEFAULT '{}'::jsonb,

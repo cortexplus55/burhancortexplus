@@ -10,6 +10,7 @@ import { istanbulDay } from "@/lib/istanbul-day";
  * "kısa bir ders" diye söyler.
  */
 export const LESSON_OPEN_COPY = {
+  skip: "Atla",
   familiarityTitle: "Bu konuya ne kadar aşinasın?",
   familiarityLead: "Bu, doğru zorluk seviyesini belirlememize yardımcı olur.",
   moodTitle: "Bugün ruh halin nasıl?",
@@ -60,4 +61,25 @@ export function openingStage(
 ): "familiarity" | "mood" | "recommend" | "setup" {
   if (!signals.familiarityKnown) return "familiarity";
   return signals.moodToday ? stepAfterMood(kind) : "mood";
+}
+
+/** Açılış kartı atlandıysa bugün yeniden sorulmaz (3 Kasım 2026): tarayıcıda Türkiye gününe bağlı işaret. */
+export function signalsSkipKey(now: Date = new Date()): string {
+  return `cp-open-signals-skipped:${istanbulDay(now)}`;
+}
+
+export function signalsSkippedToday(storage: Pick<Storage, "getItem"> | null | undefined, now: Date = new Date()): boolean {
+  try {
+    return storage?.getItem(signalsSkipKey(now)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markSignalsSkipped(storage: Pick<Storage, "setItem"> | null | undefined, now: Date = new Date()): void {
+  try {
+    storage?.setItem(signalsSkipKey(now), "1");
+  } catch {
+    /* gizli sekme: yalnız bu açılış atlanır */
+  }
 }

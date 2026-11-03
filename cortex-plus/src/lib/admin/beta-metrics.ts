@@ -41,7 +41,7 @@ export async function recordOpenTiming(
   }
 }
 
-export type LessonTimingPath = "stream_first" | "prefetch_ready" | "prefetch_adopted" | "pool";
+export type LessonTimingPath = "stream_first" | "prefetch_ready" | "prefetch_adopted" | "pool" | "client";
 
 /**
  * Ders açılış telemetrisi (3 Kasım 2026, additive `lesson_timings`): öğrenci yolunun ilk ekran süresi,
