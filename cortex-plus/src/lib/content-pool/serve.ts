@@ -199,16 +199,18 @@ export function filterItemsByOutcome<T extends { outcome_id: string }>(rows: T[]
 export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | PoolUnit, userId: string, count = 10) {
   const sl: PoolSlice = "units" in slice ? slice : { units: [slice], codes: null };
   const unitIds = sl.units.map((u) => u.unitId);
-  const { data } = await service
-    .from("item_bank")
-    .select("id, outcome_id, difficulty, stem, choices, answer, explanation")
-    .in("unit_id", unitIds)
-    .in("program_id", [...new Set(sl.units.map((u) => u.program.id))])
-    .eq("status", "verified")
-    .limit(800);
+  const [{ data }, { data: answered }] = await Promise.all([
+    service
+      .from("item_bank")
+      .select("id, outcome_id, difficulty, stem, choices, answer, explanation")
+      .in("unit_id", unitIds)
+      .in("program_id", [...new Set(sl.units.map((u) => u.program.id))])
+      .eq("status", "verified")
+      .limit(800),
+    service.from("item_responses").select("item_id").eq("user_id", userId).in("unit_id", unitIds).limit(2000),
+  ]);
   const rows = filterItemsByOutcome((data ?? []) as ItemRow[], sliceOutcomeIds(sl), count);
   if (!rows.length) return [];
-  const { data: answered } = await service.from("item_responses").select("item_id").eq("user_id", userId).in("unit_id", unitIds).limit(2000);
   const seen = new Set((answered ?? []).map((r) => String(r.item_id)));
   const fresh = rows.filter((r) => !seen.has(r.id));
   const pool = (fresh.length >= count ? fresh : rows).slice();
@@ -246,14 +248,16 @@ export async function poolPayload(
     engine: "pool",
     refunded: false,
   };
-  const bodies: { unit: PoolUnit; body: LessonBody }[] = [];
-  for (const u of slice.units) {
-    const body = (await readPoolLesson(service, u)) ?? (input.ensure ? await input.ensure(u).catch(() => null) : null);
-    if (!body) return null;
-    bodies.push({ unit: u, body });
-  }
-  if (input.kind === "quiz") {
-    const questions = await readPoolQuiz(service, slice, input.userId);
+  // Paket 1b (3 Kasım 2026): üniteler ve test soruları paralel okunur; havuz testi sunucu açılışı 1 sn altına.
+  const lessonsRead = Promise.all(
+    slice.units.map(async (u) => ({ unit: u, body: (await readPoolLesson(service, u)) ?? (input.ensure ? await input.ensure(u).catch(() => null) : null) })),
+  );
+  const quizRead = input.kind === "quiz" ? readPoolQuiz(service, slice, input.userId) : null;
+  const read = await lessonsRead;
+  if (read.some((r) => !r.body)) return null;
+  const bodies = read as { unit: PoolUnit; body: LessonBody }[];
+  if (quizRead) {
+    const questions = await quizRead;
     return questions.length >= 5 ? { type: "quiz", questions, uncoveredTopics: [], ...base } : null;
   }
   const body = sliceLesson(bodies, slice.codes, input.title);

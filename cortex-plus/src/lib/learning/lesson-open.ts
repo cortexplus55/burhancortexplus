@@ -83,3 +83,43 @@ export function markSignalsSkipped(storage: Pick<Storage, "setItem"> | null | un
     /* gizli sekme: yalnız bu açılış atlanır */
   }
 }
+
+/**
+ * Bugünkü açılış seçimi (3 Kasım 2026, Paket 1b): öğrenci aşinalık ya da ruh hali seçince aynı gün aynı hazırlıkta
+ * kart yeniden çıkmaz; seçim kurulum kartında özet ("Düzey · Değiştir") olarak görünür. Türkiye gününe bağlı.
+ */
+export type SavedOpenSignals = { familiarity?: Familiarity; mood?: string };
+
+export function signalsChoiceKey(prepId: string, now: Date = new Date()): string {
+  return `cp-open-signals:${istanbulDay(now)}:${prepId}`;
+}
+
+const FAMILIARITY_LEVELS: readonly Familiarity[] = ["new", "heard", "basics", "good", "confident"];
+
+export function readSavedSignals(storage: Pick<Storage, "getItem"> | null | undefined, prepId: string, now: Date = new Date()): SavedOpenSignals | null {
+  try {
+    const raw = storage?.getItem(signalsChoiceKey(prepId, now));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: SavedOpenSignals = {};
+    if (FAMILIARITY_LEVELS.includes(parsed.familiarity as Familiarity)) out.familiarity = parsed.familiarity as Familiarity;
+    if (typeof parsed.mood === "string" && parsed.mood) out.mood = parsed.mood;
+    return out.familiarity || out.mood ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSignalsChoice(
+  storage: Pick<Storage, "getItem" | "setItem"> | null | undefined,
+  prepId: string,
+  choice: SavedOpenSignals,
+  now: Date = new Date(),
+): void {
+  try {
+    const prev = readSavedSignals(storage, prepId, now) ?? {};
+    storage?.setItem(signalsChoiceKey(prepId, now), JSON.stringify({ ...prev, ...choice }));
+  } catch {
+    /* gizli sekme: yalnız bu açılış */
+  }
+}

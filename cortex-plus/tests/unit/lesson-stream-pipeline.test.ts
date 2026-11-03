@@ -215,7 +215,7 @@ describe("kavram kavram denetim ve yayım", () => {
     expect(calls).toHaveLength(0);
     expect(published[0]).toMatchObject({ screens: 1, done: false });
     // Stream-first (3 Kasım 2026): ilk ekran denetim beklenmeden ön yayımlanır, sonra denetlenmiş hâli.
-    expect(published.map((item) => item.screens)).toEqual([1, 1, 2]);
+    expect(published.map((item) => item.screens)).toEqual([1, 1, 2, 3]);
     const { firstScreenMs, firstPartMs, firstPublishMs, writeMs } = result.timing;
     expect([firstScreenMs, firstPartMs, firstPublishMs, writeMs].every((v) => typeof v === "number" && v >= 0)).toBe(true);
     expect(firstScreenMs!).toBeLessThanOrEqual(firstPartMs!);
@@ -271,7 +271,7 @@ describe("kavram kavram denetim ve yayım", () => {
       { ...input, streamFirst: false },
       { onPublish: (item) => void published.push(item.lesson.screens.length) },
     );
-    expect(published).toEqual([1, 2]);
+    expect(published).toEqual([1, 2, 3]);
   });
 
   it("previewScreen soru bloklarını çıkarır; yalnız sorudan oluşan ekran ön yayımlanmaz", async () => {
