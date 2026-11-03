@@ -331,6 +331,8 @@ export default async function ExamNodePage({
     const extraText = extra.length ? `ek: ${extra.join(", ")}` : supportByDoc.has(id) ? "ek kaynak" : "";
     const pages = [own ? `s.${own}` : "", extraText].filter(Boolean).join(" · ");
     const figureHints = figureHintsByDoc.get(id);
+    const ownPages = new Set(topicPages.get(id) ?? []);
+    const supportOnly = topicPages.size ? (figureHints ?? []).map((hint) => hint.page).filter((page) => !ownPages.has(page)) : [];
     return row
       ? [
           {
@@ -341,6 +343,7 @@ export default async function ExamNodePage({
             ...(figureHints?.length
               ? { figurePages: figureHints.map((hint) => hint.page), figureHints }
               : {}),
+            ...(supportOnly.length ? { figureSupportOnly: supportOnly } : {}),
           },
         ]
       : [];

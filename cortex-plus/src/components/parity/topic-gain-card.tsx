@@ -41,11 +41,15 @@ export function TopicGainCard({ gain, nextHref }: { gain: TopicGain; nextHref: s
         style={{ ["--gain" as string]: `${after}` }}
       >
         <p className="cp-topic-gain-kicker">Konu hâkimiyeti</p>
+        <p className="cp-topic-gain-scope">bu hazırlıkta, önceki çalışmalarına göre</p>
         <p className="cp-topic-gain-ring">
           <strong>%{after}</strong>
         </p>
       </div>
-      <p className="cp-topic-gain-note">Her etkinlik seni hedefine biraz daha yaklaştırır.</p>
+      <p className="cp-topic-gain-note">
+        Her etkinlik seni hedefine biraz daha yaklaştırır. Hakimiyet Haritası&apos;ndaki yüzde kazanım bazında ve tüm
+        hazırlıklarındaki yanıtlardan hesaplanır; bu yüzden buradakinden farklı olabilir.
+      </p>
       <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary cp-topic-gain-continue">
         Devam et
       </Link>

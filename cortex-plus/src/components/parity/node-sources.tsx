@@ -15,6 +15,7 @@ export type NodeSource = {
   pages?: string;
   figurePages?: number[];
   figureHints?: { page: number; lines: string[] }[];
+  figureSupportOnly?: number[];
 };
 
 /**

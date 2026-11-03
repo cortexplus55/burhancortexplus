@@ -1,4 +1,5 @@
 import "server-only";
+import type { FormulaTypo } from "@/lib/learning/formula-typos";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { openaiClient } from "@/lib/ai/openai-client";
@@ -154,7 +155,7 @@ export async function completeLessonCoverage(
           topicLabel: input.topicLabel,
           source: input.pages.map((page) => page.text).join("\n"),
           screens: extra,
-          ...(input.noteWarnings?.length ? { noteWarnings: input.noteWarnings } : {}),
+          ...noteWarningsNow(input),
         },
         parseModelJson,
       );
@@ -418,7 +419,7 @@ export async function teacherLessonPipeline(
                 topicLabel: input.topicLabel,
                 source: input.pages.map((page) => page.text).join("\n"),
                 screens,
-                ...(input.noteWarnings?.length ? { noteWarnings: input.noteWarnings } : {}),
+                ...noteWarningsNow(input),
               },
               parseModelJson,
             );
@@ -779,6 +780,13 @@ export function createLessonIo(
  * Taslak → kavram kavram denetim → (gerekirse) yalnız o kavramın düzeltmesi.
  * Kredi bir kez ayrılır; ders dönerse kesinleşir, dönmezse iade edilir.
  */
+/** Yazım başında bilinen + modelli denetimin sonradan bulduğu uyarılar (Senaryo B1). */
+function noteWarningsNow(input: TeacherLessonInput): { noteWarnings?: FormulaTypo[] } {
+  const late = input.lateNoteWarnings?.() ?? [];
+  const all = late.length ? late : (input.noteWarnings ?? []);
+  return all.length ? { noteWarnings: all } : {};
+}
+
 async function runTeacherLessonInner(
   service: SupabaseClient,
   input: TeacherLessonInput & {

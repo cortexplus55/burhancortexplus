@@ -25,7 +25,7 @@ export async function servePoolContent(
   // Hazır ünitede arka planda önceden yazım yok (2 Kasım 2026): havuzdaki türler anında açılır; havuzda olmayan
   // türler (ör. Doğru/Yanlış) öğrenci açınca yazılır. Canlıda Doğru/Yanlış önceden yazımı CONTENT_PREFETCH düşürüyordu.
   if (prefetch && poolUnitForTopic(prep.learning_preferences, topicLabel)) return NextResponse.json({ ok: true, skipped: "pool" });
-  const payload = await poolPayload(service, { kind, prefs: prep.learning_preferences, topicLabel, title, userId, ensure: sharedUnitEnsurer(service, userId) }).catch(() => null);
+  const payload = await poolPayload(service, { kind, prefs: prep.learning_preferences, topicLabel, title, userId, prepId, ensure: sharedUnitEnsurer(service, userId) }).catch(() => null);
   if (!payload) return null;
   // Öğrenci belge eklediyse: havuz dersi kalır, belgenin kapsadığı üniteye "Senin belgenden ek" (bir kez 15 kredi).
   if (kind === "lesson") {

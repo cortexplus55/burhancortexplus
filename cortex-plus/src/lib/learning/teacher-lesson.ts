@@ -118,6 +118,11 @@ export type TeacherLessonInput = {
    * anlatır; uyarı kutusunu ekran çizer. Yoksa hiçbir istem değişmez.
    */
   noteWarnings?: FormulaTypo[];
+  /**
+   * Modelli not denetiminin (paralel) sonradan gelen uyarıları (4 Kasım 2026, Senaryo B1): yazım başladıktan sonra
+   * bulunan yanlış formül, kavram denetiminde (`lesson-sanity`) standart kurala çevrilir.
+   */
+  lateNoteWarnings?: () => FormulaTypo[];
   /** Resmî müfredattan kurulan hazırlıkta konunun resmî kazanımı ve sınırlamaları (1 Kasım 2026). */
   officialOutcome?: OfficialOutcomeGrounding | null;
 };
@@ -506,6 +511,20 @@ export function alternativeBlock(text: string | undefined): string {
   ].join("\n");
 }
 
+/**
+ * Kaynaklar arası formül çelişkisi (4 Kasım 2026, Senaryo B1): el notu «Fk = Vbatan·dcisim·g», PDF ve slayt
+ * «F_k = V_batan·d_sıvı·g» diyordu; Basınç dersi el notunu doğru diye öğretti. Birden çok kaynak varken yazara tek kural:
+ * evrensel formülde standart bilime uyanı anlat. Notun kendi sayısal kuralları (g = 10, yuvarlama) korunur.
+ */
+export const SOURCE_CONFLICT_RULE =
+  "KAYNAK ÇELİŞKİSİ: Kaynaklar aynı evrensel formülü (fizik/kimya/matematik bağıntısı) farklı yazıyorsa ya da bir not standart " +
+  "bağıntıyı yanlış yazmışsa standart bilime uyanı anlat; yanlış yazımı ASLA doğru bilgi gibi öğretme, formül kartına ve özete " +
+  "koyma. Notun sınav için koyduğu sayısal kurallar (ör. g = 10 m/s², yuvarlama, yaklaşık değer) geçerlidir; onlara dokunma.";
+
+function sourceConflictLine(pages: readonly { label?: string }[]): string {
+  return pages.some((page) => page.label) ? SOURCE_CONFLICT_RULE : "";
+}
+
 export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
@@ -517,6 +536,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     officialOutcomeBlock(input.officialOutcome, "lesson"),
     alternativeBlock(input.alternativeOf),
     input.mode === "topic" ? "" : noteWarningsPromptLine(input.noteWarnings),
+    input.mode === "topic" ? "" : sourceConflictLine(input.pages),
     `SIRADAKİ KONULAR: ${input.upcomingTopics.length ? input.upcomingTopics.join(" | ") : "(yok)"}`,
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`

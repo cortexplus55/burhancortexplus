@@ -724,3 +724,13 @@
     transition: none;
   }
 }
+
+/*
+  Çizimli sahnede orta kontroller (4 Kasım 2026, Senaryo A): tahtanın ortasında durunca "Önerme ayrımı" numaralı
+  listesinin üstüne biniyordu. Kontroller tahtanın alt boşluğuna (board-body alt dolgusu 6rem) iner; içerik
+  alanına girmez. Alt yazı çerçevenin en dibinde kalır.
+*/
+.cp-video-frame.is-sketch .cp-video-center {
+  inset: auto 0 2.1rem;
+  height: 3.8rem;
+}

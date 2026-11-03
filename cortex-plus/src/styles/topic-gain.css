@@ -78,3 +78,10 @@
   width: min(100%, 26rem);
   justify-content: center;
 }
+
+.cp-topic-gain-scope {
+  margin: 0;
+  font: var(--t-label-13);
+  color: var(--c-text-muted, var(--c-text));
+  opacity: 0.8;
+}

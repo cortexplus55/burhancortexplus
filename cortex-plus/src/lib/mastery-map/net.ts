@@ -33,7 +33,7 @@ export type NetOutcome = { state: MasteryState };
 export type NetUnit = { unitId: string; title: string; subjectKey: string; outcomes: NetOutcome[] };
 export type NetSubject = { key: string; exam: string; questionCount: number; estimated?: boolean };
 
-export type NetEstimate =
+export type NetEstimate = (
   /** carried: başka hazırlıklardan gelen (bu nete sayılmayan) yanıt sayısı. */
   | { status: "no_data"; responses: number; carried?: number }
   /** Resmî ders soru sayısı yok (ör. KPSS alt dersleri): net hesaplanmaz, yalnız ustalık kazancına göre +3 konu. */
@@ -53,7 +53,11 @@ export type NetEstimate =
       /** Ders soru sayılarından en az biri tahmini dağılım (ör. KPSS alt dersleri). */
       estimated?: boolean;
       top: { unitId: string; title: string; gain: number }[];
-    };
+    }
+) & {
+  /** Başka hazırlıklardan gelen, bu nete sayılmayan yanıt sayısı (haritadaki sayılar bunu da içerir). */
+  carried?: number;
+};
 
 function betaSd(s: MasteryState): number {
   const a = s.alpha;
