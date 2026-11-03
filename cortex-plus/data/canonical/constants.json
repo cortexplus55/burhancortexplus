@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "note": "Katman 1 kanonik sabitler. Değer resmî kaynaktan; 'accepted' sınav kabulleri (ör. g = 10 m/s²). Ad metinde geçip yakınında sayı varsa karşılaştırılır.",
+  "entries": [
+    {
+      "id": "speed_of_light",
+      "names": [
+        "ışık hızı",
+        "ışığın boşluktaki hızı"
+      ],
+      "value": 299792458,
+      "tolerance": 0.02,
+      "accepted": [
+        300000000
+      ],
+      "source": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+    },
+    {
+      "id": "avogadro",
+      "names": [
+        "avogadro sayısı",
+        "avogadro sabiti"
+      ],
+      "value": 6.02214076e+23,
+      "tolerance": 0.02,
+      "accepted": [
+        6e+23
+      ],
+      "source": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+    },
+    {
+      "id": "elementary_charge",
+      "names": [
+        "elektronun yükü",
+        "temel yük"
+      ],
+      "value": 1.602176634e-19,
+      "tolerance": 0.02,
+      "accepted": [
+        1.6e-19
+      ],
+      "source": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+    },
+    {
+      "id": "planck",
+      "names": [
+        "planck sabiti"
+      ],
+      "value": 6.62607015e-34,
+      "tolerance": 0.02,
+      "accepted": [
+        6.6e-34
+      ],
+      "source": "https://www.bipm.org/en/measurement-units/si-defining-constants"
+    },
+    {
+      "id": "gravity",
+      "names": [
+        "yer çekimi ivmesi",
+        "yerçekimi ivmesi"
+      ],
+      "value": 9.80665,
+      "tolerance": 0.02,
+      "accepted": [
+        10,
+        9.8,
+        9.81
+      ],
+      "source": "https://www.bipm.org/en/publications/si-brochure"
+    },
+    {
+      "id": "republic_proclaimed",
+      "names": [
+        "cumhuriyetin ilanı",
+        "cumhuriyet'in ilanı",
+        "cumhuriyet ilan edildi"
+      ],
+      "value": 1923,
+      "tolerance": 0,
+      "accepted": [],
+      "source": "https://www.tbmm.gov.tr/",
+      "kind": "year"
+    },
+    {
+      "id": "tbmm_opened",
+      "names": [
+        "tbmm'nin açılışı",
+        "tbmm açıldı",
+        "büyük millet meclisinin açılışı"
+      ],
+      "value": 1920,
+      "tolerance": 0,
+      "accepted": [],
+      "source": "https://www.tbmm.gov.tr/",
+      "kind": "year"
+    }
+  ]
+}

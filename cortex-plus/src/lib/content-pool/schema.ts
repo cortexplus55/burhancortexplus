@@ -58,6 +58,8 @@ export const reviewSchema = z.object({
         within_scope: z.boolean(),
         ok: z.boolean(),
         issue: z.string().max(400).optional().nullable(),
+        /** v14 katman 3: her yanlış şıkkın somut yanlışlığı gösterildi mi (yoksa okunmadı). */
+        distractors_ok: z.boolean().optional(),
       }),
     )
     .max(200),
@@ -134,7 +136,9 @@ export function applyReview(items: PoolItem[], review: Review): { kept: PoolItem
           ? "kazanım sınırı dışında"
           : !r.ok
             ? (r.issue ?? "doğrulayıcı reddetti")
-            : null;
+            : r.distractors_ok === false
+              ? "çeldirici kanıtı yok"
+              : null;
     if (reason) rejected.push({ item, reason });
     else kept.push(item);
   });

@@ -140,11 +140,12 @@ export function verifySchema(choices: number) {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["i", "cozum", "uyum"],
+            required: ["i", "cozum", "uyum", "celdirici"],
             properties: {
               i: { type: "integer" },
               cozum: { type: "integer", enum: Array.from({ length: choices }, (_, k) => k) },
               uyum: { type: "integer", enum: [0, 1] },
+              celdirici: { type: "integer", enum: [0, 1] },
             },
           },
         },
@@ -169,7 +170,9 @@ export function verifyPrompt(unit: PoolUnit, items: PoolItem[]) {
       "şık metni yazma. uyum=1 yalnız bilgi doğru, TAM OLARAK BİR şık doğru ve soru verilen kazanım/sınır içindeyse; değilse 0. " +
       "Her şıkkı ayrı ayrı sına: sıralama, eşleştirme, gruplama ve mantık sorularında her şıkkı tüm koşullara karşı denetle; " +
       "birden çok şık koşulları sağlıyorsa ya da hiçbiri sağlamıyorsa uyum=0. " +
-      'Yalnız JSON: {"r":[{"i":i,"cozum":şık numarası,"uyum":0|1},...]}. Örnek: {"r":[{"i":0,"cozum":2,"uyum":1},{"i":1,"cozum":0,"uyum":0}]}',
+      "celdirici=1 yalnız seçtiğin dışındaki HER şık için somut bir yanlışlık (yanlış bilgi, koşulu bozan durum) gösterebiliyorsan; " +
+      "gösteremediğin bir şık varsa celdirici=0. " +
+      'Yalnız JSON: {"r":[{"i":i,"cozum":şık numarası,"uyum":0|1,"celdirici":0|1},...]}. Örnek: {"r":[{"i":0,"cozum":2,"uyum":1,"celdirici":1},{"i":1,"cozum":0,"uyum":0,"celdirici":0}]}',
     jsonSchema: verifySchema(choiceCount(unit.program)),
     user: `${unit.unit.title}\nKazanımlar:\n${outcomes.join("\n")}${needsLogicTermsRule(outcomes.join(" ")) ? `\n${LOGIC_TERMS_RULE}` : ""}\nSorular [i,kod,kök,şıklar]:\n${JSON.stringify(blind)}`,
   };
@@ -297,12 +300,14 @@ export function parseCompactReview(text: string, items: Pick<PoolItem, "choices"
   const out: ParsedReview = { rows: [], unreadable: [] };
   rows.forEach((row, pos) => {
     let index: number | null, solvedRaw: unknown, fit: boolean | null;
-    if (Array.isArray(row)) [index, solvedRaw, fit] = [toInt(row[0]), row[1], toFit(row[2])];
+    let distractors: boolean | null = null;
+    if (Array.isArray(row)) [index, solvedRaw, fit, distractors] = [toInt(row[0]), row[1], toFit(row[2]), row.length > 3 ? toFit(row[3]) : null];
     else if (row && typeof row === "object") {
       const o = row as Record<string, unknown>;
       index = toInt(o.i ?? o.index);
       solvedRaw = o.cozum ?? o.çözüm ?? o.solved_answer ?? o.solved ?? o.answer;
       fit = toFit(o.uyum ?? o.ok ?? o.fit ?? o.within_scope);
+      distractors = o.celdirici === undefined && o.distractors_ok === undefined ? null : toFit(o.celdirici ?? o.distractors_ok);
     } else {
       out.unreadable.push({ index: pos, reason: "doğrulama satırı okunamadı" });
       return;
@@ -313,7 +318,7 @@ export function parseCompactReview(text: string, items: Pick<PoolItem, "choices"
     if (fit === null) return void out.unreadable.push({ index: at, reason: "uyum alanı okunamadı" });
     const solved = resolveSolved(solvedRaw, item.choices);
     if (typeof solved !== "number") return void out.unreadable.push({ index: at, reason: `doğrulama: ${solved.reason}` });
-    out.rows.push({ index: at, solved_answer: solved, within_scope: fit, ok: fit });
+    out.rows.push({ index: at, solved_answer: solved, within_scope: fit, ok: fit, ...(distractors === null ? {} : { distractors_ok: distractors }) });
   });
   return out;
 }

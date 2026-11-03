@@ -2,6 +2,7 @@ import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-flue
 import { turkishFold } from "@/lib/text/turkish";
 import { logicTermIssues } from "@/lib/learning/logic-terms";
 import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
+import { v14CodeIssue } from "@/lib/content-pool/gate-v14";
 
 /*
   Sıfır maliyetli kapı (model çağrısından önce). Kural ihlali modeli hiç görmez; onarılabilen yazım yerinde onarılır.
@@ -20,7 +21,7 @@ import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
  */
 // v9: check bloğu dizi gövde/öncül alanı/nesne seçenek/metin cevap biçimleri okunur
 // v10: sıralama/şık imleri ("A)", "1)") parantez dengesinde sayılmaz
-export const GATE_VERSION = 13; // 13: mantık terimi denetimi açık temel önermeyi (¬p ⇒ q) tanır; 12: boşluk doldurma çizgisi muafiyeti; 11: matematik gösterimi maskesi (2 Kasım 2026)
+export const GATE_VERSION = 14; // 14: beş katman (gate-v14.ts: kanonik sabit, sayısal sonuç, çeldirici kanıtı, üçlü mutabakat, canlı karantina); 13: mantık terimi denetimi açık temel önermeyi (¬p ⇒ q) tanır; 12: boşluk doldurma çizgisi muafiyeti; 11: matematik gösterimi maskesi (2 Kasım 2026)
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {
@@ -181,6 +182,8 @@ export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | 
   const folded = turkishFold(`${stem} ${choices.join(" ")}`);
   const excluded = excludedTerms(outcome.limitations).find((t) => folded.includes(t));
   if (excluded) return { reason: `kazanım sınırı dışında (${excluded})` };
+  const v14 = v14CodeIssue({ stem, choices, answer: item.answer, explanation });
+  if (v14) return { reason: v14 };
   return { item: { ...item, outcome_code: code, stem, explanation, choices, unit_id: unit.unitId, outcome_id: outcome.outcomeId } };
 }
 

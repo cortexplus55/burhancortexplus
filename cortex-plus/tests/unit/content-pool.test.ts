@@ -445,7 +445,7 @@ describe("doğrulama: çözüm alanı metin döndüğünde (gpt-6-luna, yks-2026
     const prompt = verifyPrompt(u, [{ outcome_code: "11.2.1", difficulty: "easy", stem: "Soru kökü burada yer alır?", choices: vest, answer: 0, explanation: "Açıklama metni burada yer alır." }]);
     expect(prompt.user).toContain('"0) Vestfalya');
     expect(prompt.user).toContain('"4) Matbaa');
-    expect(prompt.system).toContain('Örnek: {"r":[{"i":0,"cozum":2,"uyum":1}');
+    expect(prompt.system).toContain('Örnek: {"r":[{"i":0,"cozum":2,"uyum":1,"celdirici":1}');
     expect(prompt.jsonSchema).toEqual(verifySchema(5));
     expect((verifySchema(4).schema.properties.r.items.properties.cozum as { enum: number[] }).enum).toEqual([0, 1, 2, 3]);
   });
