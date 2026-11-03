@@ -10,6 +10,17 @@ const memoryBuckets = new Map<string, Bucket>();
  */
 const MEMORY_CEILING = 5000;
 
+/**
+ * Redis REST çağrısı en fazla bu kadar beklenir. Upstash takılırsa (ağ, kota,
+ * bölge kesintisi) istek süresiz asılı kalmasın: süre dolunca bellek yedeğine
+ * düşülür (fail-open değil, instance başına yedek sınır).
+ */
+export const REDIS_TIMEOUT_MS = 400;
+
+function warnRedis(op: string, err: unknown) {
+  console.warn(`[rate-limit] Redis ${op} başarısız, bellek yedeği:`, err instanceof Error ? err.name : err);
+}
+
 export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
@@ -98,6 +109,7 @@ export async function rateLimit(
           ["TTL", key],
         ]),
         cache: "no-store",
+        signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
       });
       if (res.ok) {
         const data = (await res.json()) as { result: unknown }[];
@@ -109,8 +121,8 @@ export async function rateLimit(
           resetAt: now + (ttl > 0 ? ttl : windowSeconds) * 1000,
         };
       }
-    } catch {
-      // Bellek yedeğine düş.
+    } catch (err) {
+      warnRedis("call", err);
     }
   }
 
@@ -144,13 +156,14 @@ export async function peekCount(key: string): Promise<number> {
       const res = await fetch(`${redis.url}/get/${encodeURIComponent(key)}`, {
         headers: { Authorization: `Bearer ${redis.token}` },
         cache: "no-store",
+        signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
       });
       if (res.ok) {
         const data = (await res.json()) as { result: string | null };
         return Number(data?.result ?? 0) || 0;
       }
-    } catch {
-      // Bellek yedeğine düş.
+    } catch (err) {
+      warnRedis("call", err);
     }
   }
 
@@ -191,13 +204,14 @@ export async function trackDistinct(
           ["SCARD", key],
         ]),
         cache: "no-store",
+        signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
       });
       if (res.ok) {
         const data = (await res.json()) as { result: unknown }[];
         return Number(data?.[2]?.result ?? 0) || 0;
       }
-    } catch {
-      // Bellek yedeğine düş.
+    } catch (err) {
+      warnRedis("call", err);
     }
   }
 
@@ -260,11 +274,13 @@ export async function redisPipeline(commands: string[][]): Promise<unknown[] | n
       headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" },
       body: JSON.stringify(commands),
       cache: "no-store",
+        signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { result?: unknown; error?: unknown }[];
     return data.map((row) => row?.result ?? null);
-  } catch {
+  } catch (err) {
+    warnRedis("pipeline", err);
     return null;
   }
 }
