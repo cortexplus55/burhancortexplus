@@ -789,7 +789,12 @@ export function ExamPodcastPlayer({
               className={cn("cp-pod-orbs", `is-${activeLine?.speaker ?? "ada"}`, playing && "is-on")}
               aria-hidden
             >
-              {(["ada", "kerem"] as const).map((speaker) => {
+              {/* Tek sesli özet (1 dk): konuşmayan sesin görseli çizilmez (B15). */}
+              {(["ada", "kerem"] as const)
+                .filter((speaker, _i, all) =>
+                  timeline.some((line) => line.speaker === speaker) || !all.some((s) => timeline.some((line) => line.speaker === s)),
+                )
+                .map((speaker) => {
                 const live = (activeLine?.speaker ?? "ada") === speaker;
                 return (
                   <div

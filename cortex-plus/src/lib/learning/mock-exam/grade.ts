@@ -156,7 +156,9 @@ export function partialWorkCredit(input: {
   const tol = input.tolerance ?? Math.max(1e-6, Math.abs(expected) * 0.01);
   const within = (value: number) => Math.abs(value - expected) <= tol;
   const inRange = finals.length ? finals.some(within) : num != null && within(num);
-  const bare = num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer);
+  // "d_X/d_Y = 30/24 = 5/4 = 1,25" kısa ama hesabı gösterir: sayılar arası işlem varsa çıplak sonuç değildir (B8).
+  const bare =
+    num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer) && !/\d\s*[+\-*/×·÷:]\s*\d/.test(answer);
   if (inRange && markers.length && bare) {
     const cap = Math.round(input.maxPoints * 0.6 * 1000) / 1000;
     if (input.alreadyEarned <= cap) return null;

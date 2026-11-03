@@ -62,3 +62,17 @@ describe("B5 ders tahtası: ';' ve sınıflama etiketi", () => {
     expect(lines[1]).toContain("dc < ds: yüzer; dc = ds: askıda; dc > ds: batar");
   });
 });
+
+describe("B8 klasik puanlama: eşdeğer kesir zinciri", () => {
+  it("30/24 = 5/4 = 1,25 doğru sonuç tam puan alır", async () => {
+    const { adjustScoredAnswer } = await import("@/lib/learning/mock-exam/grade");
+    const m = "X'in eğimi 30 kPa ÷ 3 m = 10 kPa/m, Y'ninki 24 kPa ÷ 3 m = 8 kPa/m’dir. dₓ/dᵧ = 10/8 = 1,25’tir.";
+    const r = adjustScoredAnswer({ answer: "d_X/d_Y = 30/24 = 5/4 = 1,25", expected: null, maxPoints: 10, modelAnswer: m, earned: 6.5 });
+    expect(r.earned).toBe(10);
+  });
+  it("çıplak sonuç yine sınırlı kalır", async () => {
+    const { adjustScoredAnswer } = await import("@/lib/learning/mock-exam/grade");
+    const r = adjustScoredAnswer({ answer: "1,25", expected: 1.25, maxPoints: 10, modelAnswer: "d = 10/8 = 1,25", criteria: ["eğim d·g"], earned: 10 });
+    expect(r.earned).toBeLessThan(10);
+  });
+});

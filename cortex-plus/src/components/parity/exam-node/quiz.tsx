@@ -41,6 +41,7 @@ export function QuizPlay({ life }: { life: NodeLifecycle }) {
               keyFixed: isTimedExam ? undefined : question.keyFixed,
             }))}
             index={index}
+            plannedTotal={quizBuilding ? payload.promised : undefined}
             value={answers[String(index)]}
             onChange={(value) => updateAnswer(String(index), value)}
             onReveal={() => lockAnswer(String(index))}
