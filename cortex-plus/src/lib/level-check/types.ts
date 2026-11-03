@@ -20,7 +20,7 @@ export type LevelStartRequest =
   /** Ünite sonu pekiştirme (Plan PR 4): zayıf kazanım başına havuzdan en çok 2 ek soru. */
   | { mode: "reinforce"; unit: string; prepId: string; peek?: boolean }
   /** Paket 3: "🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç": tek kazanıma yeni doğrulanmış sorular (0 kredi, günlük sınır). */
-  | { mode: "reinforce_new"; unit: string; prepId: string; code: string };
+  | { mode: "reinforce_new"; unit: string; prepId: string; code: string; fill?: boolean };
 
 /** Pekiştirme önerisi: zayıf kazanım + şu an sunulabilecek (yanıtlanmamış, doğrulanmış) ek soru sayısı (≤ 2). */
 export type OfferOutcome = { code: string; text: string; count: number };
@@ -29,7 +29,7 @@ export type OfferOutcome = { code: string; text: string; count: number };
 export type MissingOutcome = { code: string; text: string };
 
 export type LevelStartResponse =
-  | { status: "ok"; token: string; source: LevelSource; guest: boolean; items: LevelItem[]; persisted: boolean; missing?: MissingOutcome[] }
+  | { status: "ok"; token: string; source: LevelSource; guest: boolean; items: LevelItem[]; persisted: boolean; missing?: MissingOutcome[]; more?: boolean }
   | { status: "empty"; missing?: MissingOutcome[]; weakCount?: number }
   | { status: "done" }
   /** reinforce_new: günlük sınır doldu / ücretsiz hesapta konu kilitli / üretim şu an yapılamadı. */

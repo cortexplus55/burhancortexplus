@@ -24,7 +24,7 @@ export async function tryPoolMockExam(input: {
   durationMinutes?: number;
   questionCount?: number;
   twin?: boolean;
-}): Promise<{ examId: string; planned: number; topicTotal: number; ms: number } | null> {
+}, timer?: { mark: (name: string) => void }): Promise<{ examId: string; planned: number; topicTotal: number; ms: number } | null> {
   const started = Date.now();
   const { service, userId, prepId } = input;
   if (input.twin || !input.isPremium) return null;
@@ -39,6 +39,7 @@ export async function tryPoolMockExam(input: {
     service.from("exam_prep_topics").select("id, label, status, source_refs").eq("exam_prep_id", prepId).order("sort_order"),
     service.from("exam_prep_source_documents").select("document_id").eq("exam_prep_id", prepId).limit(1),
   ]);
+  timer?.mark("pool_prep");
   if (!prep) return null;
   const docs = prepSourceDocumentIds({
     documentId: (prep.document_id as string | null) ?? null,
@@ -87,15 +88,17 @@ export async function tryPoolMockExam(input: {
   const [{ data: items, error }, { data: answered }] = await Promise.all([
     service
       .from("item_bank")
-      .select("id, unit_id, outcome_id, difficulty, stem, choices, answer, explanation")
+      // Dar okuma: açıklama (en ağır alan) yalnız seçilen sorular için ayrıca, kâğıt kaydıyla paralel okunur.
+      .select("id, unit_id, outcome_id, difficulty, stem, choices, answer")
       .in("unit_id", unitIds)
       .eq("status", "verified")
       .limit(2000),
     service.from("item_responses").select("item_id").eq("user_id", userId).in("unit_id", unitIds).limit(4000),
   ]);
+  timer?.mark("pool_items");
   if (error || !items?.length) return null;
   const picked = pickPoolExamItems(
-    items as PoolExamItem[],
+    (items as Omit<PoolExamItem, "explanation">[]).map((i) => ({ ...i, explanation: null })),
     rows,
     new Set((answered ?? []).map((r) => String(r.item_id))),
   );
@@ -103,7 +106,8 @@ export async function tryPoolMockExam(input: {
   const flat = picked.flatMap(({ row, items: list }) => list.map((item) => ({ row, item })));
   if (flat.length !== blueprint.questionCount) return null;
 
-  const { data: exam, error: examError } = await service
+  const [{ data: exam, error: examError }, { data: explained }] = await Promise.all([
+    service
     .from("practice_exams")
     .insert({
       user_id: userId,
@@ -115,8 +119,12 @@ export async function tryPoolMockExam(input: {
       topic_ids: input.topicIds ?? null,
     })
     .select("id")
-    .single();
+    .single(),
+    service.from("item_bank").select("id, explanation").in("id", flat.map(({ item }) => item.id)),
+  ]);
+  timer?.mark("pool_exam_insert");
   if (examError || !exam) return null;
+  const explanationOf = new Map(((explained ?? []) as { id: string; explanation: string | null }[]).map((r) => [r.id, r.explanation]));
   const examId = exam.id as string;
   const questionRows = flat.map(({ row, item }, sort_order) => {
     const choices = item.choices.map((c) => String(c).trim());
@@ -132,7 +140,7 @@ export async function tryPoolMockExam(input: {
       sort_order,
       topic_id: row.topicId,
       topic_label: row.topicLabel,
-      explanation: item.explanation ?? null,
+      explanation: explanationOf.get(item.id) ?? null,
       source_label: "Doğrulanmış soru havuzu",
       difficulty: item.difficulty ?? null,
       pool_item_id: item.id,
@@ -143,6 +151,7 @@ export async function tryPoolMockExam(input: {
     await service.from("practice_exams").delete().eq("id", examId).eq("user_id", userId);
     return null;
   }
+  timer?.mark("pool_questions_insert");
   const ms = Date.now() - started;
   console.info(JSON.stringify({ event: "mock_pool_select", ms, count: flat.length, prepId }));
   return { examId, planned: flat.length, topicTotal: rows.length, ms };
