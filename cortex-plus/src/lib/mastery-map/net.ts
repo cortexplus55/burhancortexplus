@@ -31,7 +31,7 @@ export function netPerQuestion(p: number, rule: number): number {
 
 export type NetOutcome = { state: MasteryState };
 export type NetUnit = { unitId: string; title: string; subjectKey: string; outcomes: NetOutcome[] };
-export type NetSubject = { key: string; exam: string; questionCount: number };
+export type NetSubject = { key: string; exam: string; questionCount: number; estimated?: boolean };
 
 export type NetEstimate =
   | { status: "no_data"; responses: number }
@@ -49,6 +49,8 @@ export type NetEstimate =
       low: number;
       high: number;
       maxNet: number;
+      /** Ders soru sayılarından en az biri tahmini dağılım (ör. KPSS alt dersleri). */
+      estimated?: boolean;
       top: { unitId: string; title: string; gain: number }[];
     };
 
@@ -91,7 +93,8 @@ export function estimateNet(units: NetUnit[], subjects: NetSubject[]): NetEstima
   }
   if (maxNet <= 0) return { status: "no_data", responses };
   gains.sort((a, b) => b.gain - a.gain);
-  return { status: "ok", responses, net: r1(net), low: r1(low), high: r1(high), maxNet: Math.round(maxNet), top: gains.filter((g) => g.gain >= 0.1).slice(0, 3) };
+  const estimated = units.some((u) => bySubject.get(u.subjectKey)?.estimated);
+  return { status: "ok", responses, estimated, net: r1(net), low: r1(low), high: r1(high), maxNet: Math.round(maxNet), top: gains.filter((g) => g.gain >= 0.1).slice(0, 3) };
 }
 
 /**

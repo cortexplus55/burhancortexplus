@@ -62906,6 +62906,72 @@
 "minutes": null,
 "sourceId": "osym_yds_2026",
 "order": 69
+},
+{
+"exam": "KPSS-TAHMINI",
+"section": "Genel Yetenek-Genel Kültür (tahmini ders dağılımı; ÖSYM yayımlamaz)",
+"subject": "Türkçe",
+"count": 30,
+"weight": null,
+"minutes": 130,
+"sourceId": "osym_kpss_2026",
+"order": 70,
+"estimate": true
+},
+{
+"exam": "KPSS-TAHMINI",
+"section": "Genel Yetenek-Genel Kültür (tahmini ders dağılımı; ÖSYM yayımlamaz)",
+"subject": "Matematik",
+"count": 30,
+"weight": null,
+"minutes": 130,
+"sourceId": "osym_kpss_2026",
+"order": 71,
+"estimate": true
+},
+{
+"exam": "KPSS-TAHMINI",
+"section": "Genel Yetenek-Genel Kültür (tahmini ders dağılımı; ÖSYM yayımlamaz)",
+"subject": "Tarih",
+"count": 27,
+"weight": null,
+"minutes": 130,
+"sourceId": "osym_kpss_2026",
+"order": 72,
+"estimate": true
+},
+{
+"exam": "KPSS-TAHMINI",
+"section": "Genel Yetenek-Genel Kültür (tahmini ders dağılımı; ÖSYM yayımlamaz)",
+"subject": "Coğrafya",
+"count": 18,
+"weight": null,
+"minutes": 130,
+"sourceId": "osym_kpss_2026",
+"order": 73,
+"estimate": true
+},
+{
+"exam": "KPSS-TAHMINI",
+"section": "Genel Yetenek-Genel Kültür (tahmini ders dağılımı; ÖSYM yayımlamaz)",
+"subject": "Vatandaşlık",
+"count": 9,
+"weight": null,
+"minutes": 130,
+"sourceId": "osym_kpss_2026",
+"order": 74,
+"estimate": true
+},
+{
+"exam": "KPSS-TAHMINI",
+"section": "Genel Yetenek-Genel Kültür (tahmini ders dağılımı; ÖSYM yayımlamaz)",
+"subject": "Güncel Bilgiler",
+"count": 6,
+"weight": null,
+"minutes": 130,
+"sourceId": "osym_kpss_2026",
+"order": 75,
+"estimate": true
 }
 ],
 "calendar": [

@@ -119,7 +119,7 @@ test.describe("Hakimiyet Haritası + Kişisel Program", { tag: ["@public"] }, ()
     await page.goto("/e2e/hakimiyet");
     const card = page.getByTestId("net-card");
     await expect(card).toBeVisible();
-    await expect(page.getByTestId("net-value")).toContainText("≈ 14,8 net");
+    await expect(page.getByTestId("net-value")).toContainText("📊 Tahmini Sınav Netin: 14,8 / 40");
     await expect(page.getByTestId("net-value")).toContainText("2,9–30,8 aralığı, 40 soru üzerinden");
     const top = page.getByTestId("net-top").locator("li");
     await expect(top).toHaveCount(3);

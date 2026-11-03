@@ -268,12 +268,12 @@ export function MasteryMap({
 
 /** 📊 Tahmini sınav neti + en hızlı +net getirecek 3 konu (resmî yanlış kuralıyla; az veride sakin not). */
 export const NET_CARD_TITLE = "📊 Tahmini Sınav Netin";
-export const NET_TOP_TITLE = "En Hızlı +Net Getirecek 3 Konun";
+export const NET_TOP_TITLE = "+Net Getirecek Konular";
 
 export function NetCard({ net }: { net: NetEstimate }) {
   return (
     <div className="mm-net" data-testid="net-card">
-      <p className="lc-kicker">{NET_CARD_TITLE}</p>
+      {net.status === "ok" ? null : <p className="lc-kicker">{NET_CARD_TITLE}</p>}
       {net.status === "no_data" ? (
         <>
           <p className="lc-status" data-testid="net-no-data">{NET_NO_DATA}. En az {NET_MIN_RESPONSES} soru yanıtlayınca tahmin burada belirir.</p>
@@ -299,9 +299,13 @@ export function NetCard({ net }: { net: NetEstimate }) {
       ) : (
         <>
           <p className="lc-q" data-testid="net-value">
-            ≈ {fmt(net.net)} net <span className="lc-status">({fmt(net.low)}–{fmt(net.high)} aralığı, {net.maxNet} soru üzerinden)</span>
+            {NET_CARD_TITLE}: {fmt1(net.net)} / {net.maxNet}{" "}
+            <span className="lc-status">(≈ {fmt(net.net)} net; {fmt(net.low)}–{fmt(net.high)} aralığı, {net.maxNet} soru üzerinden)</span>
           </p>
-          <p className="lc-status">Tahminidir: {net.responses} yanıta ve resmî yanlış kuralına dayanır.</p>
+          <p className="lc-status">
+            Tahminidir: {net.responses} yanıta ve resmî yanlış kuralına (4 yanlış 1 doğruyu götürür; YDS&apos;de götürmez) dayanır.
+            {net.estimated ? " Ders soru sayıları tahminidir: ÖSYM yalnız Genel Yetenek 60 + Genel Kültür 60 yayımlar." : ""}
+          </p>
           <p className="lc-kicker">{NET_TOP_TITLE}</p>
           {net.top.length ? (
             <ol className="mm-list" data-testid="net-top">
@@ -316,6 +320,10 @@ export function NetCard({ net }: { net: NetEstimate }) {
       )}
     </div>
   );
+}
+
+function fmt1(x: number): string {
+  return x.toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function fmt(x: number): string {
