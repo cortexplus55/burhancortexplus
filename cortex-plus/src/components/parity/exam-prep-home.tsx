@@ -1,6 +1,7 @@
 "use client";
 
 import { markNodeClick } from "@/lib/learning/node-open-click";
+import { primeInstantLesson, type LessonPreview } from "@/lib/learning/instant-lesson";
 import { gradeOfLabel, topicOnlyLabel, withoutGradeParts } from "@/lib/learning/path-labels";
 import { FirstTopicLockCard } from "@/components/parity/first-topic-lock";
 import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
@@ -254,6 +255,7 @@ export function ExamPrepHome({
   daysLabel,
   progressPct,
   nodes,
+  lessonPreview = null,
   hasTopic,
   activeTopicLabel,
   needsIntro,
@@ -314,6 +316,8 @@ export function ExamPrepHome({
   daysLabel: string;
   progressPct: number;
   nodes: HomeNode[];
+  /** Sıradaki havuz dersinin ilk ekranı (anında açılış, `instant-lesson.ts`). */
+  lessonPreview?: { nodeId: string; preview: LessonPreview } | null;
   hasTopic: boolean;
   activeTopicLabel?: string | null;
   needsIntro: boolean;
@@ -430,6 +434,11 @@ export function ExamPrepHome({
   useEffect(() => {
     if (primaryNodeId && typeof router.prefetch === "function") router.prefetch(examPrepNodeHref(prepId, primaryNodeId));
   }, [router, prepId, primaryNodeId]);
+  useEffect(() => {
+    if (!lessonPreview) return;
+    primeInstantLesson({ prepId, nodeId: lessonPreview.nodeId, preview: lessonPreview.preview });
+    if (lessonPreview.nodeId !== primaryNodeId && typeof router.prefetch === "function") router.prefetch(examPrepNodeHref(prepId, lessonPreview.nodeId));
+  }, [router, prepId, primaryNodeId, lessonPreview]);
   // kıyas ürünü: büyük başlık kaydırılıp gidince adı yapışkan şeritte görünür.
   const heroRef = useRef<HTMLElement | null>(null);
   const [heroVisible, setHeroVisible] = useState(true);

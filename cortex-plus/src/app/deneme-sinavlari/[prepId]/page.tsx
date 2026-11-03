@@ -64,6 +64,7 @@ import { examDatePassed, examResultDue } from "@/lib/learning/exam-result";
 import { loadExamBaseline } from "@/lib/learning/exam-result-load";
 import { appOrigin } from "@/lib/app-url";
 import { freeTopicLocks } from "@/lib/billing/free-topic-gate";
+import { poolLessonPreview } from "@/lib/content-pool/lesson-preview";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { loadPlusPrices } from "@/lib/billing/plan-prices";
 import { campOffer } from "@/lib/camp/offer";
@@ -545,6 +546,15 @@ export default async function ExamPrepDetailPage({
       })),
   }).catch(() => null);
   const lockedIds = new Set(firstTopicLocks?.lockedIds ?? []);
+  // Anında havuz dersi (3 Kasım 2026): sıradaki açık ders düğümünün havuzdaki ilk ekranı; kilitli konuya önizleme yok.
+  const previewNode = ready && ready.kind === "lesson" && !lockedIds.has(ready.id) ? ready : null;
+  const previewTopic = previewNode
+    ? String((previewNode.sessionMeta as { topicTitle?: string } | undefined)?.topicTitle ?? "").trim()
+    : "";
+  // Konusu düğümde yazılı değilse (açılışta etkin konuya bağlanır) önizleme yok; yanlış konu metni gösterilmez.
+  const lessonPreview = previewNode && previewTopic
+    ? await poolLessonPreview(service, { prefs: prep.learning_preferences, topicLabel: previewTopic, title: previewNode.title ?? previewTopic }).catch(() => null)
+    : null;
   const pathNodes = lockedIds.size
     ? homeNodes.map((node) => (lockedIds.has(node.id) ? { ...node, planLocked: true } : node))
     : homeNodes;
@@ -693,6 +703,7 @@ export default async function ExamPrepDetailPage({
         daysLabel={prep.exam_date ? `${daysUntilExam(prep.exam_date)} gün kaldı` : ""}
         progressPct={progress.pct}
         nodes={pathNodes}
+        lessonPreview={lessonPreview && previewNode ? { nodeId: previewNode.id, preview: lessonPreview } : null}
         firstTopicLock={firstTopicLocks?.summary ?? null}
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
