@@ -14,7 +14,8 @@ import type { LessonBody } from "@/lib/content-pool/schema";
  *  - yds: sinyal kelimeler/eşdizimler, şık eleme tekniği, akademik eş anlamlılar tablosu, her şıkkı Türkçe açıklanan soru.
  */
 export const BLUEPRINT_VERSION = 2; // 2: iskelet soruları denetçiyle çözülür, tek doğru şık şartı (2 Kasım 2026)
-export type BlueprintKind = "klinik" | "kpss" | "akil" | "yds";
+/** "sinav": iskeleti olmayan merkezi sınav programları (YKS, LGS, okul) için; yalnız kazanım dersinde kullanılır (Paket 3b). */
+export type BlueprintKind = "klinik" | "kpss" | "akil" | "yds" | "sinav";
 
 export function blueprintKind(programKind: string): BlueprintKind | null {
   if (programKind === "tus" || programKind === "dus") return "klinik";
@@ -133,6 +134,12 @@ const PROMPTS: Record<BlueprintKind, string> = {
     'blueprint.contrast: {"long": uzun yol çözüm (adımlarıyla), "fast": 30 saniyelik kısa yol}. ' +
     'blueprint.diagram: {"kind":"process_network","title":"Tablo kurma adımları","items": 3-6 adım} — sözel mantıkta tablo/şema kurma, sayısalda çözüm akışı. ' +
     'blueprint.check: {"stem" ≤400, "options": tam 5 seçenek, "answer", "explanation" ≤600 (kısa yolu da gösterir), "seconds": hedef süre (30-120)}.',
+  sinav:
+    'Her bölümde "blueprint" nesnesi zorunlu (merkezi sınav düzeyi: YKS/LGS yeni nesil soru biçimi; okul ders kitabı anlatımı değil). ' +
+    'blueprint.table: {"caption","columns","rows"} — kural, karşılaştırma ya da örnek-sonuç tablosu (2-5 sütun, 3-8 satır). ' +
+    'blueprint.spot: {"title":"Sınavda sorulan noktalar","points": 3-5 madde} — kazanımın sınavda nasıl ölçüldüğü; uydurma oran/istatistik yazma. ' +
+    'blueprint.trap: {"title":"Sık düşülen tuzak","wrong","right","tell"} — çeldiricinin dayandığı yanılgı (wrong bilerek yanlış ifade). ' +
+    'blueprint.check: {"stem": bağlam, tablo ya da veri içeren yeni nesil soru kökü (≤400 karakter), "options": programın şık sayısı kadar seçenek, "answer": 0 tabanlı, "explanation" ≤600}.',
   yds:
     'Her bölümde "blueprint" nesnesi zorunlu (YDS düzeyi; örnek cümleler İngilizce, açıklamalar Türkçe). ' +
     'blueprint.spot: {"title":"Sinyal kelimeler ve eşdizimler","points": 3-6 madde, İngilizce ifade + Türkçe işlevi}. ' +
@@ -151,6 +158,7 @@ const REQUIRED: Record<BlueprintKind, (keyof Blueprint)[]> = {
   kpss: ["table", "spot", "trap", "check"],
   akil: ["spot", "contrast", "diagram", "check"],
   yds: ["spot", "technique", "table", "check"],
+  sinav: ["table", "spot", "trap", "check"],
 };
 
 type SectionWithBlueprint = LessonBody["sections"][number] & { blueprint?: unknown };

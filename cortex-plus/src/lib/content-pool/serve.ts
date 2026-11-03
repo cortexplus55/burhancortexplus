@@ -6,7 +6,7 @@ import { getProgram, topicMapForRef } from "@/lib/curriculum/registry";
 import { topicIndexForLabel } from "@/lib/curriculum/topic-map";
 import type { CurriculumRef } from "@/lib/curriculum/types";
 import type { LessonBody } from "@/lib/content-pool/schema";
-import { blueprintBlocks, blueprintKind } from "@/lib/content-pool/blueprint";
+import { blueprintBlocks, blueprintKind, type BlueprintKind } from "@/lib/content-pool/blueprint";
 import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
 
 /**
@@ -92,6 +92,7 @@ export async function readPoolLesson(service: SupabaseClient, unit: PoolUnit): P
     .from("topic_content")
     .select("body, unit_sha256")
     .eq("unit_id", unit.unitId)
+    .eq("kind", "lesson")
     .eq("program_id", unit.program.id)
     .eq("version", CONTENT_VERSION)
     .eq("status", "verified")
@@ -127,8 +128,8 @@ function note(title: string, body: string, tone: string) {
   return { type: "note", note: { title, body: body.slice(0, 2400), tone } };
 }
 
-export function poolLessonV3(body: LessonBody, title: string, programKind = "") {
-  const kind = blueprintKind(programKind);
+export function poolLessonV3(body: LessonBody, title: string, programKind = "", bpKind?: BlueprintKind | null) {
+  const kind = bpKind === undefined ? blueprintKind(programKind) : bpKind;
   const per = Math.ceil(body.sections.length / LESSON_SCREEN_HARD_CAP);
   const screens: Record<string, unknown>[] = [];
   for (let i = 0; i < body.sections.length; i += per) {

@@ -13,6 +13,7 @@ export const NEW_TEST_LABEL = "🔥 Bu Alt Konudan Yeni Pekiştirme Testi Aç";
 export function newTestNotice(status: string, limit?: number): string {
   if (status === "limit") return `Bugünlük yeni pekiştirme hakkın doldu (günde ${limit ?? 3}). Yarın yeniden açabilirsin.`;
   if (status === "locked") return "Ücretsiz hesapta yeni pekiştirme testi yalnız açık konunda açılır.";
+  if (status === "paused") return "Yeni soru hazırlama şu an duraklatıldı; havuzdaki hazır sorularla çalışmaya devam edebilirsin.";
   if (status === "empty") return "Bu kazanım için doğrulamadan geçen yeni soru çıkmadı; biraz sonra yeniden dene.";
   return "Yeni sorular şu an hazırlanamadı; biraz sonra yeniden dene.";
 }

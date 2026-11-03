@@ -95,14 +95,27 @@ export function currentFillOrder(only: string[] = []): FillTarget[] {
   return restrictOrder(fillOrder(CURRICULUM.programs), only);
 }
 
-/** Toplam SHARED_CONTENT harcaması (bütçe ölçüsü). Okunamazsa sonsuz: doldurucu güvenli tarafta durur. */
+/**
+ * Havuza yazan bütün üretimlerin kodları (Paket 3b, 3 Kasım 2026): doldurucu (SHARED_CONTENT_*), talep üzerine yeni
+ * pekiştirme soruları (REINFORCE_*) ve kazanım dersi (OUTCOME_LESSON*). Hepsi TEK tavana (cap_usd) sayılır; ayrı kategori yok.
+ */
+export const POOL_SPEND_PREFIXES = ["SHARED_CONTENT", "REINFORCE_", "OUTCOME_LESSON"] as const;
+export const POOL_SPEND_FILTER = POOL_SPEND_PREFIXES.map((p) => `action_code.like.${p}%`).join(",");
+
+/** Bu tahmini harcama ortak havuz tavanına sığıyor mu? Okunamazsa hayır (güvenli taraf). */
+export async function poolBudgetAllows(service: SupabaseClient, estimateUsd: number): Promise<boolean> {
+  const [spent, config] = await Promise.all([sharedContentSpent(service), readFillConfig(service)]);
+  return Number.isFinite(spent) && spent + estimateUsd <= config.capUsd;
+}
+
+/** Toplam havuz harcaması (bütçe ölçüsü; tüm POOL_SPEND_PREFIXES). Okunamazsa sonsuz: üretim güvenli tarafta durur. */
 export async function sharedContentSpent(service: SupabaseClient): Promise<number> {
   let total = 0;
   for (let from = 0; ; from += 1000) {
     const { data, error } = await service
       .from("ai_usage_events")
       .select("cost_usd_estimate")
-      .like("action_code", "SHARED_CONTENT%")
+      .or(POOL_SPEND_FILTER)
       .range(from, from + 999);
     if (error) return Number.POSITIVE_INFINITY;
     for (const row of data ?? []) total += Number(row.cost_usd_estimate ?? 0);
