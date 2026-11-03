@@ -112,7 +112,7 @@ export function MasteryMap({
       <p className="lc-kicker">Hakimiyet Haritası</p>
       <p className="lc-status">Renkler tarama, ünite kontrolü ve pekiştirme yanıtlarından gelir. Üniteye dokun, kazanımlarını gör.</p>
       <p className="lc-status" data-testid="mm-note">{UNIT_PCT_NOTE}</p>
-      {net ? <NetCard net={net} /> : null}
+      <NetCard net={net ?? { status: "no_data", responses: 0 }} />
       <ul className="mm-grid">
         {units.map((u) => (
           <UnitCell key={u.unitId} unit={u} open={open === u.unitId} onToggle={() => setOpen(open === u.unitId ? null : u.unitId)} />
@@ -149,7 +149,14 @@ export function MasteryMap({
             />
           ) : null}
         </div>
-      ) : null}
+      ) : (
+        <div className="mm-weak">
+          <p className="lc-kicker">Pekiştirme önerisi</p>
+          <p className="lc-status" data-testid="mm-no-weak">
+            {NET_NO_DATA}: zayıf kazanım görünmüyor. Deneme ve ünite kontrolü yanıtların geldikçe pekiştirme burada belirir.
+          </p>
+        </div>
+      )}
 
       <div className="mm-plan" data-testid="personal-plan">
         <p className="lc-kicker">Kişisel program</p>
@@ -182,23 +189,43 @@ function NetCard({ net }: { net: NetEstimate }) {
     <div className="mm-net" data-testid="net-card">
       <p className="lc-kicker">📊 Tahmini sınav netin</p>
       {net.status === "no_data" ? (
-        <p className="lc-status" data-testid="net-no-data">{NET_NO_DATA}. En az {NET_MIN_RESPONSES} soru yanıtlayınca tahmin burada belirir.</p>
+        <>
+          <p className="lc-status" data-testid="net-no-data">{NET_NO_DATA}. En az {NET_MIN_RESPONSES} soru yanıtlayınca tahmin burada belirir.</p>
+          <p className="lc-kicker">+3 konu</p>
+          <p className="lc-status" data-testid="net-top-no-data">{NET_NO_DATA}.</p>
+        </>
+      ) : net.status === "no_count" ? (
+        <>
+          <p className="lc-status" data-testid="net-no-count">
+            Bu ders için resmî soru sayısı yayımlanmadığından net hesaplanmıyor; {net.responses} yanıta göre ustalık kazancı gösteriliyor.
+          </p>
+          <p className="lc-kicker">+3 konu</p>
+          {net.top.length ? (
+            <ol className="mm-list" data-testid="net-top">
+              {net.top.map((t) => (
+                <li key={t.unitId}>{t.title}: +{t.gain} ustalık puanı</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="lc-status" data-testid="net-top-none">Tüm ünitelerin hedef ustalıkta.</p>
+          )}
+        </>
       ) : (
         <>
           <p className="lc-q" data-testid="net-value">
             ≈ {fmt(net.net)} net <span className="lc-status">({fmt(net.low)}–{fmt(net.high)} aralığı, {net.maxNet} soru üzerinden)</span>
           </p>
           <p className="lc-status">Tahminidir: {net.responses} yanıta ve resmî yanlış kuralına dayanır.</p>
+          <p className="lc-kicker">+Net getirecek 3 konu</p>
           {net.top.length ? (
-            <>
-              <p className="lc-kicker">+Net getirecek 3 konu</p>
-              <ol className="mm-list" data-testid="net-top">
-                {net.top.map((t) => (
-                  <li key={t.unitId}>{t.title}: +{fmt(t.gain)} net</li>
-                ))}
-              </ol>
-            </>
-          ) : null}
+            <ol className="mm-list" data-testid="net-top">
+              {net.top.map((t) => (
+                <li key={t.unitId}>{t.title}: +{fmt(t.gain)} net</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="lc-status" data-testid="net-top-none">Tüm ünitelerin hedef ustalıkta.</p>
+          )}
         </>
       )}
     </div>

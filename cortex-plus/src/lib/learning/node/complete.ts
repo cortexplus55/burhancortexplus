@@ -31,7 +31,8 @@ import { gradeOralSemantics, oralCorpus, oralNeedsJudge, oralReviewFromPayload }
 import { rememberMisconceptions, unseenLessonReviews } from "@/lib/learning/node/misconceptions";
 import { claimCompletion, completedAttemptBody, releaseCompletionClaim, storeCompletionResult, type CompletionOutcome } from "@/lib/learning/node/completion";
 import { loadPrepTopicIndex, sameTopicAsNode, testedTopicRow } from "@/lib/learning/node/topics";
-import { mistakeDraftsFromAttempt, poolQuizAnswers, scoreAttempt } from "@/lib/learning/node/score";
+import { mistakeDraftsFromAttempt, nonPoolQuizAnswers, poolQuizAnswers, scoreAttempt } from "@/lib/learning/node/score";
+import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
 import { recordPoolAnswers } from "@/lib/content-pool/record-answers";
 import type { NodeContext } from "./context";
 
@@ -379,6 +380,22 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
           prepId,
           since: new Date(Date.now() - 12 * 3600_000).toISOString(),
           answers: poolAnswers,
+        }).catch(() => 0);
+      }
+      // Havuz dışı konu testi soruları: konu → resmî ünite → kazanım; yalnız outcome_mastery (karantina tablosu değil).
+      const ownAnswers = spansTopics ? [] : nonPoolQuizAnswers(shownPayload, mergedAnswers);
+      if (ownAnswers.length) {
+        await recordAnswerEvidence(service, {
+          userId,
+          prepId,
+          prefs: prep.learning_preferences,
+          source: "konu_testi",
+          answers: ownAnswers.map((a) => ({
+            questionKey: `node:${attempt.id as string}:${a.index}`,
+            topicLabel: doneTopicLabel ?? topicLabel,
+            questionText: a.text,
+            correct: a.correct,
+          })),
         }).catch(() => 0);
       }
     }

@@ -170,3 +170,26 @@ export function poolQuizAnswers(
   }
   return out;
 }
+
+/** Havuz dışı konu testi soruları (3 Kasım 2026): yanıtlananların metni ve doğruluğu (Hakimiyet Haritası için). */
+export function nonPoolQuizAnswers(
+  payload: unknown,
+  answers: Record<string, unknown>,
+): { index: number; text: string; correct: boolean }[] {
+  const data = (payload ?? {}) as Record<string, unknown>;
+  if (data.type !== "quiz" || !Array.isArray(data.questions)) return [];
+  const out: { index: number; text: string; correct: boolean }[] = [];
+  let index = 0;
+  for (const raw of data.questions as Parameters<typeof normalizeQuizQuestion>[0][]) {
+    const question = normalizeQuizQuestion(raw);
+    if (!question) continue;
+    const at = index;
+    index += 1;
+    const poolItemId = (raw as { poolItemId?: unknown } | null)?.poolItemId;
+    if (typeof poolItemId === "string" && poolItemId) continue;
+    const selected = selectedOptions(answers[String(at)]);
+    if (!selected.length) continue;
+    out.push({ index: at, text: question.text, correct: sameOptionSet(selected, question.correct) });
+  }
+  return out;
+}

@@ -35,6 +35,8 @@ export type NetSubject = { key: string; exam: string; questionCount: number };
 
 export type NetEstimate =
   | { status: "no_data"; responses: number }
+  /** Resmî ders soru sayısı yok (ör. KPSS alt dersleri): net hesaplanmaz, yalnız ustalık kazancına göre +3 konu. */
+  | { status: "no_count"; responses: number; top: { unitId: string; title: string; gain: number }[] }
   | {
       status: "ok";
       responses: number;
@@ -85,4 +87,22 @@ export function estimateNet(units: NetUnit[], subjects: NetSubject[]): NetEstima
   if (maxNet <= 0) return { status: "no_data", responses };
   gains.sort((a, b) => b.gain - a.gain);
   return { status: "ok", responses, net: r1(net), low: r1(low), high: r1(high), maxNet: Math.round(maxNet), top: gains.filter((g) => g.gain >= 0.1).slice(0, 3) };
+}
+
+/**
+ * Soru sayısı bilinmeyen dersler için: net uydurmadan, ünitenin kazanımları %85'e çıksa kazanılacak
+ * ustalık puanı (kazanım başına 0–100) ile en büyük 3 ünite. Yanıt < 3 → no_data.
+ */
+export function estimateGainOnly(units: NetUnit[]): NetEstimate {
+  const responses = units.reduce((n, u) => n + u.outcomes.reduce((m, o) => m + (o.state.n || 0), 0), 0);
+  if (responses < NET_MIN_RESPONSES) return { status: "no_data", responses };
+  const gains = units
+    .map((u) => {
+      const gain = u.outcomes.reduce((g, o) => g + Math.max(0, NET_TARGET_MASTERY - masteryValue(o.state)), 0);
+      return { unitId: u.unitId, title: u.title, gain: Math.round(gain * 100) };
+    })
+    .filter((g) => g.gain >= 1)
+    .sort((a, b) => b.gain - a.gain)
+    .slice(0, 3);
+  return { status: "no_count", responses, top: gains };
 }

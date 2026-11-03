@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
+import { isAdminUser } from "@/lib/auth/roles";
 import { tryPoolMockExam } from "@/lib/learning/mock-exam/pool-exam";
 import { pumpMockExamJob, startDurableMockExam } from "@/lib/learning/mock-exam-durable";
 import {
@@ -134,7 +135,8 @@ export async function POST(request: Request) {
       service,
       userId,
       prepId: fields.prepId,
-      isPremium: fields.isPremium,
+      // Kurucu/yönetici hesabı aboneliksiz de havuz kâğıdını alır (3 Kasım 2026); ücretsiz kilit aynı.
+      isPremium: fields.isPremium || (await isAdminUser(service, userId)),
       preset: fields.preset,
       scope: fields.scope,
       topicIds: fields.topicIds,
