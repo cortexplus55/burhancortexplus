@@ -36,7 +36,7 @@ import { normalizeChapters } from "@/lib/learning/podcast-script";
 import { DEFAULT_FAMILIARITY, DEFAULT_MOOD, type Familiarity, type Mood } from "@/lib/learning/session-signals";
 import type { LevelHint } from "@/lib/learning/prep-level";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
-import { difficultyFromFamiliarity, openingStage } from "@/lib/learning/lesson-open";
+import { difficultyFromFamiliarity, openingStage, signalsSkippedToday, stepAfterMood } from "@/lib/learning/lesson-open";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
 import { missedCards } from "@/lib/learning/flashcard-round";
@@ -572,6 +572,14 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   // Isınma (19 Ekim 2026): ders düğümü açılıp ruh hali / aşinalık ekranı görününce yazım sunucuda
   // hemen başlar; öğrenci kartlara bakarken ilk kavram hazırlanır, "Ders oluştur" devralır.
   // Bir kez; "Dersi tekrarla" hariç (o yazdırmaz). Sunucu süren kayıt ya da hazır ders varsa atlar.
+  // Bugün atlandıysa ruh hali yeniden sorulmaz (3 Kasım 2026). localStorage sunucuda yok: ilk çizimden sonra.
+  useEffect(() => {
+    if (stage !== "mood" || todayMood) return;
+    if (signalsSkippedToday(window.localStorage)) setStage(stepAfterMood(kind));
+    // yalnız açılışta
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const warmedRef = useRef(false);
   useEffect(() => {
     if (kind !== "lesson" || replayLesson || reviewSaved || warmedRef.current) return;
@@ -1059,12 +1067,14 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
   }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
+    const clickedAt = overrides?.busyTries || overrides?.autoRetried || overrides?.sharedTries ? null : performance.now();
     setGenerationFailure(null);
     setLoading(true);
     setGenerationError(null);
     try {
       const reqId = resumeEnabled ? getOrCreateClientRequestId() : undefined;
       if (reqId) setClientRequestId(reqId);
+      const requestStartedAt = performance.now();
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1173,6 +1183,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
       }
       setPlayStartedAt(Date.now());
       setStage("play");
+      if (clickedAt !== null) reportClickToScreen(kind, clickedAt, requestStartedAt, Boolean(overrides?.review));
       onGenerationSucceeded(() => router.refresh());
     } catch {
       // Bağlantı ders yazılırken koptuysa sunucu çoğu zaman yazmayı bitiriyor
@@ -1927,3 +1938,22 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
 
 /** Ekran bileşenlerinin okuduğu oturum durumu ve işlemleri. */
 export type NodeLifecycle = ReturnType<typeof useNodeLifecycle>;
+
+/**
+ * İstemci tarafı açılış süresi (3 Kasım 2026): tıklama → ilk ekranın boyanması (çift rAF). Retry zincirinde ilk tıklamadan
+ * ölçülür; sessiz, ders etkilenmez.
+ */
+function reportClickToScreen(kind: string, clickedAt: number, requestStartedAt: number, review: boolean): void {
+  const requestMs = Math.round(performance.now() - requestStartedAt);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const clickToScreenMs = Math.round(performance.now() - clickedAt);
+      void fetch("/api/learning/lesson-timing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({ kind, clickToScreenMs, requestMs, savedReopen: review }),
+      }).catch(() => undefined);
+    }),
+  );
+}

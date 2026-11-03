@@ -14,8 +14,12 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
     <>
       {stage === "play" && payload.type === "lesson" ? (
         structuredLesson ? (
-          // Yapısal ders adım adım gelir: her bölüm kendi kontrolüyle
-          // biter ve öğrenci cevaplamadan ilerleyemez.
+          <>
+          {/* Stream-first (3 Kasım 2026): denetim ilk ekranı düzelttiyse tek satırlık sakin not. */}
+          {lessonBuilding && (payload as { previewCorrected?: boolean }).previewCorrected ? (
+            <p className="als-time-chip" role="status">İlk ekran kontrol edildi ve güncellendi.</p>
+          ) : null}
+          {/* Yapısal ders adım adım gelir: her bölüm kendi kontrolüyle biter ve öğrenci cevaplamadan ilerleyemez. */}
           <ExamLessonSteps
             lesson={structuredLesson}
             building={lessonBuilding}
@@ -41,6 +45,7 @@ export function LessonPlay({ life }: { life: NodeLifecycle }) {
             toolbar={sources.length ? <NodeSources sources={sources} /> : null}
             sourceDocs={sources}
           />
+          </>
         ) : (
           <section>
             <h1>{payload.title}</h1>

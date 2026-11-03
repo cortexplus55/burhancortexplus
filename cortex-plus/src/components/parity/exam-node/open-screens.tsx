@@ -5,7 +5,7 @@ import { BUSY_NOTE } from "@/lib/learning/generation-retry";
 import { showsSlowWarning } from "@/lib/learning/quiz-delivery";
 import { NodeGenerationProgress, preparingTitle } from "@/components/parity/node-generation-progress";
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
-import { difficultyFromFamiliarity, stepAfterMood } from "@/lib/learning/lesson-open";
+import { difficultyFromFamiliarity, markSignalsSkipped, stepAfterMood } from "@/lib/learning/lesson-open";
 import { activityDurationMinutes } from "@/lib/learning/activity-duration";
 import { startActionLabel } from "@/lib/learning/feedback-copy";
 import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
@@ -31,6 +31,11 @@ export function OpenSignals({ life }: { life: NodeLifecycle }) {
           }}
           onMood={(next) => {
             setMood(next);
+            setStage(stepAfterMood(kind));
+          }}
+          onSkip={() => {
+            // Atla: varsayılan düzey/ruh haliyle kuruluma geçer; ısınma (arka planda yazım) sürer, ders iptal olmaz.
+            markSignalsSkipped(typeof window === "undefined" ? null : window.localStorage);
             setStage(stepAfterMood(kind));
           }}
           onContinue={() => setStage("setup")}

@@ -32,6 +32,7 @@ export function LessonOpenChrome({
   onContinue,
   onCreate,
   onChangeLevel,
+  onSkip,
   minutes = null,
 }: {
   step: LessonOpenStep;
@@ -50,6 +51,8 @@ export function LessonOpenChrome({
   onCreate: () => void;
   /** Aşinalık kurulumdan geldiyse soru sorulmaz; burada görünür ve değiştirilebilir. */
   onChangeLevel?: () => void;
+  /** Aşinalık / ruh hali kartı atlanabilir; atlamak dersi iptal etmez, varsayılanla devam eder. */
+  onSkip?: () => void;
   /** Yol kartıyla aynı süre. */
   minutes?: number | null;
 }) {
@@ -104,6 +107,11 @@ export function LessonOpenChrome({
             ))}
           </>
         )}
+        {onSkip ? (
+          <button type="button" className="cp-open-level-change cp-signal-skip" onClick={onSkip}>
+            {LESSON_OPEN_COPY.skip}
+          </button>
+        ) : null}
       </article>
     );
   }

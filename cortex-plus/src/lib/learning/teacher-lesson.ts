@@ -106,6 +106,8 @@ export type TeacherLessonInput = {
   optionCount?: OptionCount;
   /** Hafif doğrulayıcı (30 Ekim 2026, `lesson-sanity.ts`); varsayılan açık. Yalnız ölçüm betikleri ve yapı testleri kapatır. */
   sanity?: boolean;
+  /** false: ilk ekran denetim beklenerek yayımlanır (eski yol). Varsayılan stream-first (3 Kasım 2026). */
+  streamFirst?: boolean;
   /**
    * Notta yanlış yazılmış evrensel formüller (31 Ekim 2026, Paket J3 #13, `formula-typos.ts`). Ders standart kuralla
    * anlatır; uyarı kutusunu ekran çizer. Yoksa hiçbir istem değişmez.

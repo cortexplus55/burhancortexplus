@@ -1,6 +1,7 @@
 /** Havuzdan açılış: model çağrısı yok, kredi ve haftalık ders sayacı düşmez (2 Kasım 2026). */
 import "server-only";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { recordLessonTiming } from "@/lib/admin/beta-metrics";
 import { poolPayload, poolUnitForTopic } from "@/lib/content-pool/serve";
 import { sharedUnitEnsurer } from "@/lib/content-pool/ensure";
 import { supplementScreens, unitSupplement } from "@/lib/content-pool/supplement";
@@ -16,7 +17,7 @@ export async function servePoolContent(
   context: NodeContext,
   state: Pick<StartLocals, "topic" | "topicLabel" | "title" | "clientRequestId" | "voiceSession">,
 ): Promise<NextResponse | null> {
-  const { userId, service, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, difficulty, familiarity, mood, lessonReviewCards } = context;
+  const { userId, service, requestStarted, prepId, nodeId, lessonFormat, prefetch, teachingV2, prep, node, kind, difficulty, familiarity, mood, lessonReviewCards } = context;
   const { topic, topicLabel, title, clientRequestId, voiceSession } = state;
   if (!teachingV2 || voiceSession) return null;
   // Hazır ünitede arka planda önceden yazım yok (2 Kasım 2026): havuzdaki türler anında açılır; havuzda olmayan
@@ -69,6 +70,11 @@ export async function servePoolContent(
   if (kind === "lesson" && topic?.id) await saveTopicLesson(service, { prepId, topicId: topic.id, payload }).catch(() => undefined);
   if (node.status !== "done") await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
   console.info("pool_served", { nodeId, kind, unit: (payload.pool as { unitId: string }).unitId });
+  {
+    const ms = Date.now() - requestStarted;
+    const unitId = (payload.pool as { unitId: string }).unitId;
+    after(() => recordLessonTiming(service, { userId, kind, path: "pool", openMs: ms, meta: { unitId } }));
+  }
   return NextResponse.json({
     ...attemptStartResponse(row, {
       kind,

@@ -41,6 +41,32 @@ export async function recordOpenTiming(
   }
 }
 
+export type LessonTimingPath = "stream_first" | "prefetch_ready" | "prefetch_adopted" | "pool" | "client";
+
+/**
+ * Ders açılış telemetrisi (3 Kasım 2026, additive `lesson_timings`): öğrenci yolunun ilk ekran süresi,
+ * önceden yazılmış dersin ve havuz dersinin açılış süresi DB'den okunsun diye. Tablo henüz yoksa
+ * (migration uygulanmadıysa) ya da yazım düşerse sessiz: ölçüm hiçbir dersi geciktirmez, çökertmez.
+ */
+export async function recordLessonTiming(
+  service: SupabaseClient,
+  row: { userId: string; kind: string; path: LessonTimingPath; openMs: number; firstScreenMs?: number | null; meta?: Record<string, unknown> },
+): Promise<void> {
+  const clamp = (value: number) => Math.max(0, Math.min(599_999, Math.round(value)));
+  try {
+    await service.from("lesson_timings").insert({
+      user_id: row.userId,
+      kind: row.kind,
+      path: row.path,
+      open_ms: clamp(row.openMs),
+      first_screen_ms: row.firstScreenMs == null ? null : clamp(row.firstScreenMs),
+      meta: row.meta ?? {},
+    });
+  } catch {
+    /* tablo yoksa ya da yazım düşerse ders etkilenmez */
+  }
+}
+
 /** En yakın sıra yöntemiyle yüzdelik (p95 = sıralı listede ⌈0,95·n⌉. değer). */
 export function percentile(values: number[], p: number): number | null {
   if (!values.length) return null;

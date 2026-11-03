@@ -152,6 +152,8 @@ export async function teacherLessonPayload(
             upcoming: published.upcoming,
             // Sayacın paydası: yazarın ekran planı (28 Ekim 2026).
             ...(published.plannedScreens ? { plannedScreens: published.plannedScreens } : {}),
+            // Stream-first: denetim ön yayımlanan ilk ekranı düzelttiyse ekran sakin bir notla güncellenir.
+            ...(published.previewCorrected ? { previewCorrected: true } : {}),
             // Ekranın çizdiği uyarı kutusu; ders metnine girmez.
             ...warnedNow(),
           })
