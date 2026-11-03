@@ -448,6 +448,6 @@ describe("bitmiş ders kayıtlı hâliyle açılır; yeni anlatım yalnız 'Fark
     const result = read("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/sonuc/page.tsx");
     expect(result).toContain("href={examPrepLessonRewriteHref(prepId, nodeId)}");
     const session = read("src/components/parity/exam-node-session.tsx");
-    expect(session).toContain("if (reviewSaved && rewriteHref) {");
+    expect(session).toContain("if (rewriteHref && (reviewSaved || !rewriteLesson)) {");
   });
 });
