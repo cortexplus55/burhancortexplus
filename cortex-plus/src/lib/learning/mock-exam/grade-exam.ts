@@ -34,6 +34,8 @@ import {
   type MockQuestionType,
   type MockRubricItem,
 } from "@/lib/learning/mock-exam";
+import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
+import { rememberMisconceptions } from "@/lib/learning/node/misconceptions";
 
 export type GradeMockExamInput = {
   service: SupabaseClient;
@@ -331,6 +333,15 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
     items,
   });
 
+  // Havuz dışı sorular (3 Kasım 2026): konu → resmî ünite → kazanım; outcome_mastery'ye (item_responses'a değil).
+  // Yanlışlar hazırlığın "Bilgi eksikleri" listesine de düşer.
+  await recordExamNonPoolEvidence(service, {
+    userId,
+    prepId: typeof exam.exam_prep_id === "string" ? exam.exam_prep_id : null,
+    list,
+    items,
+  });
+
   await recordMistakes(
     service,
     userId,
@@ -521,5 +532,73 @@ export async function recordExamPoolAnswers(
   } catch (error) {
     console.error("mock_pool_mastery_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
     return 0;
+  }
+}
+
+/** Havuz dışı soruların cevabı Hakimiyet Haritası'na; yanlışlar Bilgi eksikleri'ne. Hata notlamayı düşürmez. */
+export async function recordExamNonPoolEvidence(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    prepId: string | null;
+    list: Array<Record<string, unknown>>;
+    items: Pick<MockGradeItem, "questionId" | "userAnswer" | "isCorrect" | "verdict">[];
+  },
+): Promise<{ mastery: number; gaps: number }> {
+  if (!input.prepId) return { mastery: 0, gaps: 0 };
+  try {
+    const { data: prep } = await service
+      .from("exam_preps")
+      .select("learning_preferences")
+      .eq("id", input.prepId)
+      .eq("user_id", input.userId)
+      .maybeSingle();
+    const byId = new Map(input.list.map((row) => [String(row.id), row]));
+    const graded = input.items.filter((item) => {
+      const row = byId.get(item.questionId);
+      return row && !row.pool_item_id && item.verdict !== "bos";
+    });
+    const mastery = prep
+      ? await recordAnswerEvidence(service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          prefs: prep.learning_preferences,
+          source: "deneme",
+          answers: graded.map((item) => {
+            const row = byId.get(item.questionId)!;
+            return {
+              questionKey: `exam:${item.questionId}`,
+              topicLabel: typeof row.topic_label === "string" ? row.topic_label : null,
+              questionText: String(row.question_text ?? ""),
+              correct: item.isCorrect,
+            };
+          }),
+        })
+      : 0;
+    const wrong = input.items.filter((item) => !item.isCorrect && item.verdict !== "bos");
+    await rememberMisconceptions(
+      service,
+      wrong.map((item) => {
+        const row = byId.get(item.questionId);
+        const correct = Array.isArray(row?.correct_answers)
+          ? (row.correct_answers as string[]).join(" | ")
+          : String(row?.correct_answer ?? row?.model_answer ?? "");
+        return {
+          user_id: input.userId,
+          exam_prep_id: input.prepId,
+          topic_label: typeof row?.topic_label === "string" ? row.topic_label : null,
+          claim: String(row?.question_text ?? "").slice(0, 160) || "Deneme sorusu",
+          corrected: correct.slice(0, 300) || null,
+          wrong_type: "mock_exam_miss",
+          source_kind: "deneme",
+          question_preview: String(row?.question_text ?? "").slice(0, 200) || null,
+        };
+      }),
+    );
+    console.info("mock_non_pool_mastery", { graded: graded.length, mastery, gaps: wrong.length });
+    return { mastery, gaps: wrong.length };
+  } catch (error) {
+    console.error("mock_non_pool_mastery_failed", { cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
+    return { mastery: 0, gaps: 0 };
   }
 }
