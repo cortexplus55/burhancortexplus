@@ -1,8 +1,10 @@
+import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 /**
  * Açılışın kaynağı: hazırlığın belgeleri, öğretmen analizi, konunun kendi sayfaları (öğretmen motorları), sözlü
  * "Tüm sınav" dengeli kaynağı, podcast korpusu. Belgeli hazırlıkta boş kaynak üretime gitmez.
  */
 import "server-only";
+import { REWRITE_SUMMARY_CHARS, rewriteBasisFrom } from "@/lib/learning/rewrite-lead";
 import { errorResponse } from "@/lib/api/guards";
 import { EMPTY_SOURCE_CONTEXT, loadPageSourceAcrossDocuments, loadPageSourceContext, loadSourceContext, pagesMarkedInSource, widenSourcePages } from "@/lib/learning/source-context";
 import { enrichLessonSource, resolveLessonSource, type SourceTrace, type SourceUnavailableReason } from "@/lib/learning/lesson-source-resolver";
@@ -361,7 +363,7 @@ export async function resolveStartSource(context: NodeContext, state: Pick<Start
   // "farklı anlat" girdisi olur (okuma yalnız; havuz üretimi ve paylaşımlı harcama yok). Belgeli hazırlık bu yola girmez.
   let alternativeOf = "";
   if (kind === "lesson" && parsed.data.rewrite === true && !voiceSession && noPrepDocuments && !prepSource.document_id && topicLabel) {
-    alternativeOf = await rewriteBasisText(service, prep.learning_preferences, topicLabel).catch(() => "");
+    alternativeOf = await rewriteBasisText(service, prep.learning_preferences, topicLabel, userId).catch(() => "");
   }
 
   // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
@@ -425,15 +427,25 @@ async function oralPoolTopicLabels(
 }
 
 /** "Farklı anlat" girdisi: konunun resmî kazanımları ve havuzdaki doğrulanmış anlatım (yoksa yalnız kazanımlar). */
-export async function rewriteBasisText(service: Parameters<typeof poolSourceText>[0], prefs: unknown, topicLabel: string): Promise<string> {
+/**
+ * Belgesiz "Farklı anlat" kaynağı: kazanım listesi + öğrencinin anlatım tarzı + önceki anlatımın kısa özeti.
+ * 3 Kasım 2026: önceden 5 000 karakterlik havuz metni gidiyordu; ilk ekranı yavaşlatıyordu, kısa özet yeterli.
+ */
+export async function rewriteBasisText(service: Parameters<typeof poolSourceText>[0], prefs: unknown, topicLabel: string, userId?: string): Promise<string> {
   const slice = poolSliceForTopic(prefs, topicLabel);
   const outcomes = (slice?.units ?? [])
     .flatMap((unit) => unit.outcomes)
     .filter((o) => !slice?.codes || slice.codes.has(o.code))
     .slice(0, 12)
     .map((o) => `- ${o.code}: ${o.text}`);
-  const lesson = await poolSourceText(service, { prefs, topicLabels: [topicLabel], maxChars: 5_000 }).catch(() => "");
-  return [outcomes.length ? `KAZANIMLAR:\n${outcomes.join("\n")}` : "", lesson.trim() ? `ÖNCEKİ ANLATIM:\n${lesson.trim()}` : ""]
-    .filter(Boolean)
-    .join("\n\n");
+  const [lesson, style] = await Promise.all([
+    poolSourceText(service, { prefs, topicLabels: [topicLabel], maxChars: REWRITE_SUMMARY_CHARS }).catch(() => ""),
+    userId
+      ? Promise.resolve(service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle())
+          .then(({ data }) => tutorStyleLabel(parseTutorStyle((data as { tutor_style?: unknown } | null)?.tutor_style)))
+          .catch(() => "")
+      : Promise.resolve(""),
+  ]);
+  return rewriteBasisFrom({ outcomes, style, summary: lesson });
 }
+

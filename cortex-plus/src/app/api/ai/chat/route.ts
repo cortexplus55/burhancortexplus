@@ -137,6 +137,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     if (reservationId) await refundCredits(service, reservationId);
   }
 
+  let blockedMessage: string | null = null;
   try {
     let imageUrl: string | null = null;
     let evidence: ChatEvidence[] = [];
@@ -229,13 +230,49 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     const instructionEarly = quiet(loadActivePrompt(service, PROMPT_KEYS.studentChat));
     const examContextEarly = quiet(rest.prepId ? loadExamChatContext(service, userId, rest.prepId) : Promise.resolve(null));
     const groundingEarly = quiet(rest.prepId ? loadPrepChatGrounding(service, userId, rest.prepId, message) : Promise.resolve(null));
-    // Moderation and the free-image allowance precede any credit reservation.
-    const verdict = await moderate({ text: message, imageUrls: imageUrl ? [imageUrl] : [] });
-    if (verdict.action !== "allow") void recordAbuse({ signal: "moderation", severity: verdict.action === "flag" ? "low" : "high", scope: "chat", userId, request, metadata: { categories: verdict.categories, outcome: verdict.action } });
-    if (verdict.action === "block" || verdict.action === "support") return new Response(verdict.message, {
+    // Girdi denetimi (3 Kasım 2026): hazırlık sohbetinde model çağrısıyla PARALEL koşar; ilk kelime
+    // denetimi beklemez. Kapı açılana kadar token'lar sunucuda tamponlanır (live.gate); ret gelirse
+    // model iptal edilir, tampon atılır, kredi iade edilir ve öğrenciye yalnız güvenli mesaj gider.
+    // Öbür yollarda denetim eskisi gibi kredi ayırmadan önce beklenir.
+    const verdictEarly = quiet(moderate({ text: message, imageUrls: imageUrl ? [imageUrl] : [] }));
+    type Verdict = Awaited<typeof verdictEarly>;
+    const isBlocked = (v: Verdict): v is Extract<Verdict, { message: string }> => v.action === "block" || v.action === "support";
+    const parallelModeration = Boolean(rest.prepId) && !imageUrl;
+    const modelAbort = new AbortController();
+    const abortModel = () => modelAbort.abort();
+    if (request.signal.aborted) abortModel(); else request.signal.addEventListener("abort", abortModel, { once: true });
+    let moderationNoted = false;
+    const noteVerdict = (v: Awaited<typeof verdictEarly>) => {
+      if (moderationNoted) return;
+      moderationNoted = true;
+      stage("moderation");
+      if (v.action !== "allow") void recordAbuse({ signal: "moderation", severity: v.action === "flag" ? "low" : "high", scope: "chat", userId, request, metadata: { categories: v.categories, outcome: v.action } });
+    };
+    const blockedReply = (v: Extract<Verdict, { message: string }>) => new Response(v.message, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "X-Credits-Used": "0" },
     });
-    stage("moderation");
+    if (parallelModeration) {
+      live.gate(verdictEarly.then((v) => {
+        noteVerdict(v);
+        if (isBlocked(v)) { blockedMessage = v.message; abortModel(); }
+        return !isBlocked(v);
+      }, (error) => { abortModel(); throw error; }));
+      live.timing(() => timings.map(([name, ms]) => `${name};dur=${ms}`).join(", "));
+    } else {
+      const verdict = await verdictEarly;
+      noteVerdict(verdict);
+      if (isBlocked(verdict)) return blockedReply(verdict);
+    }
+    /** Paralel denetim reddettiyse güvenli yanıt (kredi iade); yoksa null. Denetim hatası fırlar. */
+    const settleModeration = async (): Promise<Response | null> => {
+      if (!parallelModeration) return null;
+      const verdict = await verdictEarly;
+      noteVerdict(verdict);
+      if (!isBlocked(verdict)) return null;
+      await undoSpend();
+      reservationId = null;
+      return blockedReply(verdict);
+    };
     const entitlements = await entitlementsEarly;
     const isPremium = entitlements.isPremium;
 
@@ -466,7 +503,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
           model,
           // Öğrenci cevabı bekliyor (t260u): düşünme düzeyi düşük; denetim adımı aynen sürer.
           reasoningEffort: "low",
-          signal: request.signal,
+          signal: modelAbort.signal,
           context: {
             examTitle: examContext?.prepTitle ?? null,
             daysLeft: examContext?.daysLeft ?? null,
@@ -694,6 +731,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       if (markers.length) content += `\n${markers.join("\n")}`;
     } else if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
       `- [${c.documentName.replace(/[\\[\]()*<>]/g, "")} ${c.pageNumber ? `· s.${c.pageNumber}` : ""}](${citationHref(c)})`).join("\n");
+    const refused = await settleModeration();
+    if (refused) return refused;
     if (request.signal.aborted) throw new Error("request_cancelled");
     const { data: saved, error: saveError } = await service.rpc("complete_chat_operation", {
       p_user_id: userId, p_operation_id: operationId, p_reservation_id: reservationId,
@@ -765,6 +804,11 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     );
     return response;
   } catch (err) {
+    // Model, denetim reddi yüzünden iptal edildiyse öğrenci güvenli mesajı görür.
+    if (live.blocked && blockedMessage && !live.started) {
+      try { await undoSpend(); } catch { console.error("chat_credit_recovery_required", { operationId }); }
+      return new Response(blockedMessage, { headers: { "Content-Type": "text/plain; charset=utf-8", "X-Credits-Used": "0" } });
+    }
     try { await undoSpend(); } catch { console.error("chat_credit_recovery_required", { operationId }); }
     // Sebep olmadan bu satır işe yaramaz: 23 Eylül 2026'da canlıda yalnızca
     // "generation_failed" görünüyor, hata ne diye üç kez sunucu açıldı.

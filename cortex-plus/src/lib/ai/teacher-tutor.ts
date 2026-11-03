@@ -100,22 +100,40 @@ const INTRO: Record<TutorMode, string> = {
   curriculum: "Öğrencine sınav müfredatının doğrulanmış ders metniyle, birebir ders veren bir öğretmen gibi yardım ediyorsun.",
 };
 
+/** Sohbet bağlamı tavanı (3 Kasım 2026, ilk kelime): uzun pasaj seti ilk token'ı geciktiriyordu. */
+export const TUTOR_PASSAGE_CHARS = 7_000;
+
+export function capPassages<T extends { label: string; text: string }>(passages: T[], max = TUTOR_PASSAGE_CHARS): T[] {
+  const out: T[] = [];
+  let used = 0;
+  for (const item of passages) {
+    const room = max - used;
+    if (room < 200) break;
+    const text = item.text.trim();
+    out.push(text.length > room ? { ...item, text: `${text.slice(0, room)}…` } : item);
+    used += Math.min(text.length, room);
+  }
+  return out;
+}
+
 export function tutorSystemPrompt(context: TutorContext): string {
   const mode = context.mode ?? "document";
   const who = context.examTitle
     ? `Öğrencin ${context.examTitle} için çalışıyor${typeof context.daysLeft === "number" && context.daysLeft >= 0 ? `; sınava ${context.daysLeft} gün var` : ""}${context.topic ? `; şu an "${context.topic}" konusunda` : ""}.`
     : "Öğrencin kendi ders belgesi üzerinde çalışıyor.";
+  // Sabit kısım önce (3 Kasım 2026): sağlayıcının önek önbelleği (prompt cache) yalnız değişmeyen
+  // baştaki bloğu yeniden kullanır; öğrenciye özgü satırlar ve pasajlar sona gider.
   return [
     `Sen Cortex Plus'ın öğretmenisin. Türkçe konuşursun. ${INTRO[mode]}`,
+    `${SOURCE_RULES[mode]}\n\n${TEACHER_MANNER}`,
+    CONTENT_STYLE,
     who,
     ...(context.learnerLines ?? []).filter(Boolean),
     context.pendingAnswer
       ? `Önceki mesajında sorduğun kontrol sorusunun beklenen cevabı: ${context.pendingAnswer}. Öğrencinin cevabını buna göre değerlendir.`
       : "",
-    `${SOURCE_RULES[mode]}\n\n${TEACHER_MANNER}`,
-    CONTENT_STYLE,
     context.passages.length
-      ? `${mode === "curriculum" ? "MÜFREDAT DERSİ PASAJLARI" : "BELGE PASAJLARI"}:\n${context.passages.map((item) => `[${item.label}]\n${item.text.trim()}`).join("\n\n")}`
+      ? `${mode === "curriculum" ? "MÜFREDAT DERSİ PASAJLARI" : "BELGE PASAJLARI"}:\n${capPassages(context.passages).map((item) => `[${item.label}]\n${item.text.trim()}`).join("\n\n")}`
       : mode === "general" || mode === "curriculum"
         ? ""
         : "BELGE PASAJLARI: (bu soruyla ilgili pasaj bulunamadı — belgede yoksa bunu söyle, uydurma)",
