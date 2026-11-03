@@ -1,5 +1,6 @@
 "use client";
 
+import { markNodeClick } from "@/lib/learning/node-open-click";
 import { gradeOfLabel, topicOnlyLabel, withoutGradeParts } from "@/lib/learning/path-labels";
 import { FirstTopicLockCard } from "@/components/parity/first-topic-lock";
 import type { FirstTopicSummary } from "@/components/parity/exam-node/gates";
@@ -419,6 +420,16 @@ export function ExamPrepHome({
     setTopSlot(document.getElementById(PREP_TOP_SLOT_ID));
     setMounted(true);
   }, []);
+  // Düğüm açılış ölçümü ve ön yükleme (3 Kasım 2026): yoldaki her tıklamanın zamanı saklanır (düğüm sayfası ilk
+  // ekranda okur, lesson_timings 'node_*'); sıradaki adımın rotası önceden yüklenir, tıklayınca kabuk anında çizilir.
+  useEffect(() => {
+    const onClick = () => markNodeClick();
+    document.addEventListener("click", onClick, { capture: true });
+    return () => document.removeEventListener("click", onClick, { capture: true });
+  }, []);
+  useEffect(() => {
+    if (primaryNodeId && typeof router.prefetch === "function") router.prefetch(examPrepNodeHref(prepId, primaryNodeId));
+  }, [router, prepId, primaryNodeId]);
   // kıyas ürünü: büyük başlık kaydırılıp gidince adı yapışkan şeritte görünür.
   const heroRef = useRef<HTMLElement | null>(null);
   const [heroVisible, setHeroVisible] = useState(true);

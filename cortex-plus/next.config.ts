@@ -44,6 +44,17 @@ const nextConfig: NextConfig = {
     zaten ikiliyi dağıtıma kopyalıyor.
   */
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "heic-convert", "heic-decode", "libheif-js"],
+  // Düğüm sayfası sunucuda yalnız "resume" okur; belge işleme ikilileri (canvas/pdfjs/heic) tembel yüklenir ve
+  // bu sayfada hiç çağrılmaz. İzlemeye girerse Vercel işlev boyutunu aşıp önizlemeyi düşürüyor.
+  outputFileTracingExcludes: {
+    "/deneme-sinavlari/[prepId]/dugum/[nodeId]": [
+      "./node_modules/@napi-rs/**/*",
+      "./node_modules/pdfjs-dist/**/*",
+      "./node_modules/heic-convert/**/*",
+      "./node_modules/heic-decode/**/*",
+      "./node_modules/libheif-js/**/*",
+    ],
+  },
   outputFileTracingIncludes: {
     // Resmî müfredat kayıt defteri çalışma anında fs ile okunur (src/lib/curriculum/registry.ts).
     "/**": ["./src/lib/curriculum/registry.json"],

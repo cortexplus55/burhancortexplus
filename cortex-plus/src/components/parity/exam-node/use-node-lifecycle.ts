@@ -5,6 +5,7 @@
  */
 import { ANSWER_LOCK_KEY, lockedKeys } from "@/lib/learning/answer-lock";
 import { useRouter } from "next/navigation";
+import { takeNodeClick } from "@/lib/learning/node-open-click";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { COMPLETE_TIMEOUT_MS, SAVE_RETRY_DELAYS_MS, SAVE_TIMEOUT_MS, fetchWithRetry, isTransportFailure } from "@/lib/learning/retry-fetch";
@@ -204,6 +205,13 @@ export type ExamNodeSessionProps = {
    * ~5 sn "Kaldığın yer açılıyor… Kaydedilmiş cevapların yükleniyor" yazıyordu.
    */
   openAttempt?: boolean;
+  /**
+   * Sunucu çiziminde okunmuş "resume" yanıtı (3 Kasım 2026, havuz dersi/testi anında açılış): varsa istemci ayrı
+   * resume POST'u atmaz, kayıtlı oturum ilk çizimle açılır. Yoksa (okuma düştü) eski yol: istemci sorar.
+   */
+  initialResume?: Record<string, unknown> | null;
+  /** Sunucu çiziminin süresi (ms) — yalnız açılış telemetrisi için. */
+  serverRenderMs?: number | null;
   /** Hazırlık bir belgeye bağlıysa dosya adı — üretim ekranında gösterilir. */
   sourceName?: string | null;
   /**
@@ -239,6 +247,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     rewriteHref = null,
     resumeEnabled = false,
     openAttempt = true,
+    initialResume = null,
+    serverRenderMs = null,
     sourceName = null,
     resetsAtLabel = null,
     oralTopics = [],
@@ -284,6 +294,17 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     | "oral-review-time"
     | "oral-review"
   >(resumeEnabled && openAttempt ? "restoring" : reviewSaved || opensReadiness ? "setup" : isOral ? "oral-topics" : signalStage);
+  // "Kaldığın yer açılıyor" yalnız açılış 300 ms'yi geçerse (3 Kasım 2026): kayıt sunucu çiziminden geldiğinde
+  // ekran hiç görünmez, istemci sormak zorunda kalırsa kısa bekleyişte de yanıltıcı kart çıkmaz.
+  const [restoringVisible, setRestoringVisible] = useState(false);
+  useEffect(() => {
+    if (stage !== "restoring") {
+      setRestoringVisible(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setRestoringVisible(true), RESTORING_SCREEN_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [stage]);
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
@@ -490,17 +511,22 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
         return;
       }
       try {
-        const res = await fetch("/api/learning/exam-prep/node", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prepId, nodeId, action: "resume", lessonFormat: 3 }),
-        });
-        const data = await res.json().catch(() => ({}));
+        // Sunucu çizimi kaydı zaten okuduysa ikinci istek yok (3 Kasım 2026: ayrı resume POST'u ~1-2 sn ekliyordu).
+        const res = initialResume
+          ? { ok: true, json: async () => initialResume }
+          : await fetch("/api/learning/exam-prep/node", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prepId, nodeId, action: "resume", lessonFormat: 3 }),
+            });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (res.ok && data.resumed && data.attemptId && data.payload) {
           applyStartPayload(data);
           setPlayStartedAt(Date.now());
           setStage("play");
+          reportNodeOpen(kind, serverRenderMs, Boolean(initialResume));
           return;
         }
         // Bitirme gönderilmiş, sunucu hâlâ notluyor (sözlü): sorulara dönülmez, sonuç beklenir.
@@ -1815,6 +1841,7 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
     isOral,
     signalStage,
     stage,
+    restoringVisible,
     setStage,
     familiarity,
     setFamiliarity,
@@ -1947,6 +1974,8 @@ export function useNodeLifecycle(props: ExamNodeSessionProps) {
 }
 
 /** Ekran bileşenlerinin okuduğu oturum durumu ve işlemleri. */
+export const RESTORING_SCREEN_DELAY_MS = 300;
+
 export type NodeLifecycle = ReturnType<typeof useNodeLifecycle>;
 
 /**
@@ -1963,6 +1992,35 @@ function reportClickToScreen(kind: string, clickedAt: number, requestStartedAt: 
         headers: { "Content-Type": "application/json" },
         keepalive: true,
         body: JSON.stringify({ kind, clickToScreenMs, requestMs, savedReopen: review }),
+      }).catch(() => undefined);
+    }),
+  );
+}
+
+/**
+ * Düğüm açılış süresi (3 Kasım 2026): yoldaki son tıklama (`node-open-click`) → kayıtlı ders/testin ilk ekranı (çift
+ * rAF). Tıklama kaydı yoksa sayfa yüklemesinin başı (tam yükleme). lesson_timings: kind 'node_lesson' / 'node_quiz' …,
+ * path 'client', meta.route 'node_open'. Sessiz; ders etkilenmez.
+ */
+function reportNodeOpen(kind: string, serverRenderMs: number | null, ssrResume: boolean): void {
+  const click = takeNodeClick();
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const nowEpoch = Date.now();
+      const clickToScreenMs = Math.round(click !== null ? nowEpoch - click : performance.now());
+      if (!(clickToScreenMs >= 0 && clickToScreenMs < 120_000)) return;
+      void fetch("/api/learning/lesson-timing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          kind: `node_${kind}`.slice(0, 32),
+          clickToScreenMs,
+          requestMs: serverRenderMs ?? undefined,
+          route: "node_open",
+          fromClick: click !== null,
+          ssrResume,
+        }),
       }).catch(() => undefined);
     }),
   );

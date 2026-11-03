@@ -58,13 +58,14 @@ describe("ders açılışı: açık oturum yoksa 'kaldığın yer' beklemesi yok
 
   it("açık oturum varsa kaldığı yerden sürer", async () => {
     const { actions } = renderLesson(true);
-    expect(screen.getByText("Kaldığın yer açılıyor…")).toBeTruthy();
+    // Ekran yalnız açılış 300 ms'yi geçerse (3 Kasım 2026); istek hemen gider.
     await vi.waitFor(() => expect(actions()).toContain("resume"));
   });
 
   it("sayfa açık oturumu sunucuda okur; yazılı denemede inceleme için hep sorar", () => {
     const page = readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8");
-    expect(page).toContain('node.kind !== "written_exam"');
+    expect(page).toContain('redirect(`/deneme-sinavlari/${prepId}/deneme/kurulum`)');
+    expect(page).toContain("initialResume={initialResume}");
     expect(page).toContain('.eq("status", "active")');
     expect(page).toContain("openAttempt={openAttempt}");
   });

@@ -163,6 +163,6 @@ describe("öğretmen motorunun kaynak metni", () => {
     expect(route).toContain("pages: lessonPages,");
     expect(route).toContain("support: supportPagesForEngine(await lessonSupport)");
     const page = readSource("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx");
-    expect(page).toContain("loadTopicSupport(createServiceClient()");
+    expect(page).toContain("loadTopicSupport(service");
   });
 });
