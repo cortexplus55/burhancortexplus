@@ -76,7 +76,16 @@ function officialBlock(unit: PoolUnit): string {
   return `Program: ${unit.program.label} (${unit.program.badge})\nÜnite: ${unit.unit.title}\nResmî kazanımlar:\n${lines.join("\n")}${rule}`;
 }
 
-export function lessonPrompt(unit: PoolUnit) {
+/** Anlatım istemi sürümü: değişince eski istemle alınan retler kalıcı başarısızlık hakkından düşmez. 2: ret geri bildirimi. */
+export const LESSON_PROMPT_VERSION = 2;
+
+/** Kapının reddettiği taslağın gerekçeleri yeniden yazım istemine eklenir (aynı hata tekrar edilmesin). */
+function feedbackBlock(feedback: string[] = []): string {
+  const lines = [...new Set(feedback)].slice(0, 8).map((f) => `- ${f.slice(0, 300)}`);
+  return lines.length ? `\n\nÖNCEKİ TASLAK ŞU NEDENLERLE REDDEDİLDİ; aynı hataları tekrarlama, yeni taslakta düzelt:\n${lines.join("\n")}` : "";
+}
+
+export function lessonPrompt(unit: PoolUnit, feedback: string[] = []) {
   return {
     system: `Sen ${blueprintKind(unit.program.kind) ? `Türkiye'deki ${unit.program.kind.toLocaleUpperCase("tr")} sınavına hazırlayan uzman bir eğitmensin` : "Türkiye müfredatına göre ders anlatımı yazan bir öğretmensin"}. ${ORIGINALITY} Yalnız JSON döndür.`,
     user:
@@ -85,7 +94,7 @@ export function lessonPrompt(unit: PoolUnit) {
       `"heading": string, "explanation": string (en az 3 paragraf), "key_points": string[]` +
       // İskelet bölüm nesnesinin İÇİNDE: kök düzeyde istenince model tek bir kök "blueprint" yazıyor, bölümler boş kalıyordu.
       `${blueprintKind(unit.program.kind) ? ', "blueprint": object (BU bölüm nesnesinin içinde; aşağıdaki iskelet)' : ""}}], "summary": string, ` +
-      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart), ${RUBRIC_JSON_FIELDS}}\n\n${RUBRIC_PROMPT}${blueprintPrompt(blueprintKind(unit.program.kind))}`,
+      `"cards": [{"front": string, "back": string}] (kazanım başına 2-4 kart), ${RUBRIC_JSON_FIELDS}}\n\n${RUBRIC_PROMPT}${blueprintPrompt(blueprintKind(unit.program.kind))}${feedbackBlock(feedback)}`,
   };
 }
 
@@ -378,7 +387,7 @@ export async function regenerateLesson(
   const codes = unit.outcomes.map((o) => o.code);
   let issues: string[] = ["lesson_parse"];
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const out = await llm({ model, ...lessonPrompt(unit) });
+    const out = await llm({ model, ...lessonPrompt(unit, attempt > 0 && issues[0] !== "lesson_parse" ? issues : []) });
     usage.push({ actionCode: "SHARED_CONTENT_LESSON", model, tokensIn: out.tokensIn, tokensOut: out.tokensOut });
     const lesson = parse(lessonSchema, out.text);
     if (!lesson) continue;
@@ -414,10 +423,22 @@ export async function generateUnitContent(
 
   const bpKind = blueprintKind(unit.program.kind);
   const lessonQualityIssues = (l: LessonBody) => [...lessonRubricIssues(l), ...blueprintIssues(l, bpKind, choices)];
+  const textIssues = (l: LessonBody) => {
+    const t = lessonTexts(l);
+    return [
+      ...t.map(garbledReason).filter((r): r is string => r !== null),
+      ...t.flatMap(logicTermIssues).map((i) => `mantık terimi hatası: ${i}`),
+      ...(l.cards ?? []).flatMap((c) => logicTermIssues(`${c.front} ${c.back}`)).map((i) => `mantık terimi hatası: ${i}`),
+    ];
+  };
   let lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit)));
-  // Kalite rubriği ya da sınav iskeleti tutmazsa anlatım bir kez daha yazılır (sorulardan önce; soru maliyeti boşa gitmez).
-  if (lesson && lessonQualityIssues(lesson).length) {
-    lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit))) ?? lesson;
+  // Kalite rubriği, sınav iskeleti ya da kod kapısı (bozuk metin, mantık terimi) tutmazsa anlatım en çok iki kez daha
+  // yazılır (sorulardan önce; soru maliyeti boşa gitmez). Ret gerekçeleri yeniden yazım istemine eklenir.
+  for (let rewrite = 0; rewrite < 2 && lesson; rewrite += 1) {
+    const found = [...textIssues(lesson), ...lessonQualityIssues(lesson)];
+    if (!found.length) break;
+    const next = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit, found)));
+    if (next) lesson = next;
   }
   if (!lesson) return { ok: false, reason: "lesson_parse", qa: {}, usage };
   // Kaynak metinde bir kazanımın açıklamasına gömülü başka bir kod (ör. "10.4.4. ...") model tarafından ayrı bölüm
@@ -530,6 +551,7 @@ export async function generateUnitContent(
     parse_failures: parseFailures,
     similarity_check: "not_run",
     gate_version: GATE_VERSION,
+    prompt_version: LESSON_PROMPT_VERSION,
   };
   if (shapeIssues.length) return { ok: false, reason: "lesson_coverage", qa, usage };
   if (!lessonReview.ok) return { ok: false, reason: "lesson_review", qa, usage };
