@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { saveUsdTryRate } from "@/app/admin/cockpit-actions";
 import { FX_MAX, FX_MIN } from "@/lib/admin/cockpit-math";
 
-/** Kurucu 1 USD = ? TL girer; kâr marjı bu kurla hesaplanır. Kur yoksa marj "—" kalır. */
-export function FxRateForm({ current }: { current: number | null }) {
+/** Kurucu 1 USD = ? TL girer; kâr marjı bu kurla hesaplanır. Kur girilmediyse varsayılan kur kullanılır ve kutu onu gösterir. */
+export function FxRateForm({ current, isDefault = false }: { current: number | null; isDefault?: boolean }) {
   const [value, setValue] = useState(current ? String(current) : "");
   const [note, setNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,7 +23,7 @@ export function FxRateForm({ current }: { current: number | null }) {
       }}
     >
       <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
-        1 USD = ? TL
+        1 USD = ? TL{isDefault ? " (varsayılan, güncelle)" : ""}
         <input
           name="rate"
           inputMode="decimal"

@@ -7,16 +7,19 @@ import {
   conversionStats,
   countByWindow,
   distinctByWindow,
+  effectiveUsdTry,
   FX_FLAG,
   marginPct,
   quarantineRow,
-  readUsdTry,
   reportRow,
+  supersededRow,
   type ConversionStats,
   type PaymentRow,
   type PlanRow,
   type QuarantineRow,
   type ReportRow,
+  type SupersededRow,
+  type UsdTry,
   type WindowCounts,
   type Windows,
 } from "@/lib/admin/cockpit-math";
@@ -31,7 +34,8 @@ import {
 export type CockpitEconomics = {
   spendToday: AiSpend | null;
   spendMonth: AiSpend | null;
-  usdTry: number | null;
+  /** Bayraktaki kur ya da varsayılan (`source` ekranda yazılır). */
+  usdTry: UsdTry;
   marginToday: number | null;
   marginMonth: number | null;
 };
@@ -43,12 +47,15 @@ export type Cockpit = {
   economics: CockpitEconomics;
   reports: ReportRow[];
   quarantine: QuarantineRow[];
+  /** Eski sürüm (`stale`, karantinasız) sorular: içeriği emekli edilmiş; tek tıkla arşivlenir. */
+  superseded: SupersededRow[];
   /** Okunamayan kaynakların adları (ekranda "okunamadı"). */
   failed: string[];
 };
 
 const ROW_LIMIT = 5000;
 const QUEUE_LIMIT = 30;
+const SUPERSEDED_LIMIT = 300;
 
 type Row = Record<string, unknown>;
 
@@ -77,7 +84,7 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
   const windows = cockpitWindows(now);
   const failed: string[] = [];
 
-  const [profiles, totalUsers, attempts, payments, plans, fx, spendToday, spendMonth, reportRows, quarantineRows] = await Promise.all([
+  const [profiles, totalUsers, attempts, payments, plans, fx, spendToday, spendMonth, reportRows, quarantineRows, supersededRows] = await Promise.all([
     settle<Row[]>("kayıtlar", failed, () => service.from("profiles").select("id, created_at").gte("created_at", windows.month).limit(ROW_LIMIT), []),
     settle<number | null>(
       "toplam kullanıcı",
@@ -133,7 +140,27 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
           .limit(QUEUE_LIMIT),
       [],
     ),
+    settle<Row[]>(
+      "eski sürüm",
+      failed,
+      () =>
+        service
+          .from("item_bank")
+          .select("id, program_id, unit_id, outcome_id, difficulty, stem, qa, content_id, created_at")
+          .eq("status", "stale")
+          .is("qa->quarantine", null)
+          .order("created_at", { ascending: false })
+          .limit(SUPERSEDED_LIMIT),
+      [],
+    ),
   ]);
+
+  // Eski sürüm sorusunun içeriği hâlâ yayındaysa (beklenmez) arşivlenmez: durumu birlikte okunur.
+  const supersededContentIds = [...new Set(supersededRows.map((row) => (typeof row.content_id === "string" ? row.content_id : "")).filter(Boolean))];
+  const supersededContents = supersededContentIds.length
+    ? await settle<Row[]>("eski sürüm içeriği", failed, () => service.from("topic_content").select("id, status").in("id", supersededContentIds), [])
+    : [];
+  const contentStatus = new Map(supersededContents.map((row) => [String(row.id ?? ""), typeof row.status === "string" ? row.status : null]));
 
   const paymentRows = payments.map(
     (row): PaymentRow => ({
@@ -166,13 +193,13 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
   const planRows = plans.map((row): PlanRow => ({ id: String(row.id ?? ""), slug: String(row.slug ?? ""), name: String(row.name ?? "") }));
   const conversions = conversionStats(paymentRows, planRows, earlierPayers, windows);
 
-  const usdTry = readUsdTry(fx?.metadata);
+  const usdTry = effectiveUsdTry(fx?.metadata);
   const economics: CockpitEconomics = {
     spendToday,
     spendMonth,
     usdTry,
-    marginToday: marginPct(conversions.revenueKurus.today, spendToday?.usd ?? null, usdTry),
-    marginMonth: marginPct(conversions.revenueKurus.month, spendMonth?.usd ?? null, usdTry),
+    marginToday: marginPct(conversions.revenueKurus.today, spendToday?.usd ?? null, usdTry.rate),
+    marginMonth: marginPct(conversions.revenueKurus.month, spendMonth?.usd ?? null, usdTry.rate),
   };
 
   return {
@@ -189,6 +216,9 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
     economics,
     reports: reportRows.map(reportRow).filter((row): row is ReportRow => row !== null),
     quarantine: quarantineRows.map(quarantineRow).filter((row): row is QuarantineRow => row !== null),
+    superseded: supersededRows
+      .map((row) => supersededRow(row, contentStatus.get(typeof row.content_id === "string" ? row.content_id : "") ?? null))
+      .filter((row): row is SupersededRow => row !== null),
     failed,
   };
 }
