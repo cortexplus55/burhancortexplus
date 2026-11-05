@@ -13,6 +13,7 @@ import {
   type OpenGradeItem,
   type OpenJudgement,
 } from "@/lib/learning/mock-exam/open-grade";
+import { analyzeWorkSteps, mergeStepVerdicts, workStepFeedback } from "@/lib/learning/mock-exam/work-steps";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import { writeBackMockToPrep } from "@/lib/learning/mock-exam/prep-writeback";
@@ -171,9 +172,13 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
       const answerText = Array.isArray(raw) ? raw.join(" ") : String(raw ?? "");
       const rubric = rubricOf(q);
       const judgement = judgementFor.get(q.id);
+      // Ara işlem satırları (5 Kasım 2026): kod hesabı, işareti ve birimi; model kavramı ve eksik adımı söyler.
+      // Kâğıttan okunan ve uygulamada yazılan cevap aynı yoldan geçer (satır sonlarıyla).
+      const codeSteps = answerText.trim() ? analyzeWorkSteps(answerText) : [];
       if (judgement) {
         // Yapay zekâ notu: karşılanan ölçütün alıntısı cevapta birebir yoksa sayılmaz.
         const graded = gradeRubricAnswer(answerText, rubric, judgement.quotes);
+        const steps = mergeStepVerdicts(codeSteps, judgement.steps ?? []);
         const tuned = adjustScoredAnswer({
           answer: answerText,
           expected: q.numericExpected ?? null,
@@ -183,6 +188,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
           criteria: rubric.map((row) => row.criterion),
           earned: graded.invalid ? 0 : graded.earned,
           conceptErrors: judgement.contradicted.length,
+          steps,
         });
         const verdict: MockGradeItem["verdict"] =
           tuned.earned <= 0 ? "yanlis" : tuned.earned >= graded.max ? "dogru" : "kismen";
@@ -202,7 +208,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
             invalid: false,
             quotes: judgement.quotes,
             contradicted: judgement.contradicted,
-            ...(tuned.step ? { step: tuned.step } : {}),
+            ...workStepFeedback(steps, tuned.step),
           },
           topicId: q.topicId ?? null,
           topicLabel: q.topicLabel?.trim() || "Konu",
@@ -237,6 +243,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
             modelAnswer: q.modelAnswer,
             criteria: rubric.map((row) => row.criterion),
             earned: graded.invalid ? 0 : graded.earned,
+            steps: codeSteps,
           })
         : { earned: 0 as number, step: undefined as string | undefined };
       const verdict: MockGradeItem["verdict"] = !answerText.trim()
@@ -259,7 +266,7 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
           missed: graded.missed,
           invalid: graded.invalid,
           quotes: expanded,
-          ...(tuned.step ? { step: tuned.step } : {}),
+          ...workStepFeedback(codeSteps, tuned.step),
         },
         topicId: q.topicId ?? null,
         topicLabel: q.topicLabel?.trim() || "Konu",

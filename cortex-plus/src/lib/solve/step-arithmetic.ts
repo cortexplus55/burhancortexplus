@@ -109,25 +109,42 @@ export function evaluate(expression: string): number | null {
 }
 
 /** Göreli %0,5 tolerans: adımlarda yuvarlama olağan (4,8 / 4,80; 3,14 ile π). */
-function close(a: number, b: number): boolean {
+export function closeValues(a: number, b: number): boolean {
   return Math.abs(a - b) <= Math.max(1e-9, Math.abs(a) * 0.005, Math.abs(b) * 0.005);
 }
 
-/** Bir satırdaki eşitlik zincirinde birbirini tutmayan ardışık hesaplanabilir parçalar. */
-export function stepArithmeticIssues(line: string): string[] {
-  if (/[<>≤≥≈≠]/.test(line)) return [];
+/** Yalnız sayı ve işlem içeren parçanın değeri (birim kuyruğu atılır); değişkenli ya da sözlü parça null. */
+export function segmentValue(segment: string): number | null {
+  const normalized = normalize(segment);
+  return normalized === null ? null : evaluate(normalized);
+}
+
+/**
+ * Bir satırdaki eşitlik zincirinin hesabı: tutmayan ardışık parçalar (`issues`) ve birbirini tutan,
+ * doğrulanmış parça çifti sayısı (`verified`). `verified` 0 ise satırda sınanacak hesap yoktu.
+ */
+export function stepArithmeticCheck(line: string): { issues: string[]; verified: number } {
+  if (/[<>≤≥≈≠]/.test(line)) return { issues: [], verified: 0 };
   const parts = line.split(/=|⇒|→/).map((part) => part.trim()).filter(Boolean);
   const issues: string[] = [];
+  let verified = 0;
   let previous: { text: string; value: number } | null = null;
   for (const part of parts) {
-    const normalized = normalize(part);
-    const value = normalized === null ? null : evaluate(normalized);
+    const value = segmentValue(part);
     if (value === null) {
       previous = null;
       continue;
     }
-    if (previous && !close(previous.value, value)) issues.push(`${previous.text} ≠ ${part}`);
+    if (previous) {
+      if (closeValues(previous.value, value)) verified += 1;
+      else issues.push(`${previous.text} ≠ ${part}`);
+    }
     previous = { text: part, value };
   }
-  return issues;
+  return { issues, verified };
+}
+
+/** Bir satırdaki eşitlik zincirinde birbirini tutmayan ardışık hesaplanabilir parçalar. */
+export function stepArithmeticIssues(line: string): string[] {
+  return stepArithmeticCheck(line).issues;
 }

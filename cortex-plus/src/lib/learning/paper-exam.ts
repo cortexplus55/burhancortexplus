@@ -11,8 +11,13 @@
  * yazı) ve aynı notlandırmadan geçer.
  */
 
+import { UNREADABLE_LINE_MARK } from "@/lib/learning/mock-exam/work-steps";
+
 export const PAPER_MAX_PHOTOS = 10;
 export const PAPER_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
+/** Yazılı cevaptan okunan en çok satır ve satır başına karakter. */
+const PAPER_MAX_LINES = 40;
+const PAPER_LINE_CHARS = 300;
 
 export type PaperQuestion = {
   id: string;
@@ -21,8 +26,11 @@ export type PaperQuestion = {
   question_type: string;
 };
 
-/** Modelin okuduğu tek soru: numara (1'den), işaretli harfler, yazılı cevap. */
-export type PaperRead = { n: number; choices?: string[]; text?: string; unreadable?: boolean };
+/**
+ * Modelin okuduğu tek soru: numara (1'den), işaretli harfler, yazılı cevap. `lines` çözümün satırları kâğıttaki
+ * sırayla (okunamayan satır `UNREADABLE_LINE_MARK` ile yerinde durur); `text` son cevap, yalnız yedek.
+ */
+export type PaperRead = { n: number; choices?: string[]; text?: string; lines?: string[]; unreadable?: boolean };
 
 const CHOICE_TYPES = new Set(["mcq", "multi_mcq", "true_false"]);
 
@@ -37,10 +45,49 @@ export const PAPER_READ_SYSTEM =
   "- Şıklı soruda öğrencinin işaretlediği kutu(lar)ın harfini yaz (A, B, C…). Karalanmış/silinmiş işaret sayılmaz. " +
   "İşaret yoksa choices boş dizi.\n" +
   "- Yazılı cevaplı soruda öğrencinin yazdığını OLDUĞU GİBİ yaz; düzeltme, tamamlama, yorum yok. Sayıda birimi de yaz.\n" +
+  "- Yazılı cevapta öğrencinin ÇÖZÜMÜNÜ satır satır aktar: lines dizisine kâğıttaki her satırı kâğıttaki sırayla, " +
+  "orijinal gösterimle (sayı, birim, işaret, denklem, ok) ayrı bir öğe olarak yaz; son cevap da son satır olur. " +
+  "Hiçbir satırı düzeltme, tamamlama, sadeleştirme ya da atlama; hatalı görünen satırı da olduğu gibi yaz. " +
+  "Karalanmış/üstü çizilmiş satırı alma. Okuyamadığın tek satır için o konuma {\"unreadable\":true} nesnesi koy; " +
+  "tahmin yazma. text alanına yalnız son cevabı yaz.\n" +
   "- Okuyamadığın ya da fotoğrafta görünmeyen soruda unreadable true.\n" +
   "- Cevabı sen çözme; yalnız öğrencinin yazdığını oku. Soru numarası kâğıttaki numaradır; öğrenci cevabı kendi " +
   "kâğıdında devam ettirdiyse yanındaki soru numarasına bak.\n" +
-  'Yalnız JSON döndür: {"answers":[{"n":1,"choices":["B"]},{"n":2,"text":"…"},{"n":3,"unreadable":true}]}';
+  'Yalnız JSON döndür: {"answers":[{"n":1,"choices":["B"]},{"n":2,"lines":["…","…",{"unreadable":true},"…"],"text":"…"},' +
+  '{"n":3,"unreadable":true}]}';
+
+/** Model çıktısındaki `lines`: metin ya da `{unreadable:true}` nesnesi; sıra korunur, boş satır düşer. */
+function readLines(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const lines: string[] = [];
+  for (const item of raw) {
+    if (typeof item === "string") {
+      const text = item.trim().slice(0, PAPER_LINE_CHARS);
+      if (text) lines.push(text);
+    } else if (item && typeof item === "object" && (item as { unreadable?: unknown }).unreadable === true) {
+      lines.push(UNREADABLE_LINE_MARK);
+    } else if (item && typeof item === "object" && typeof (item as { text?: unknown }).text === "string") {
+      const text = (item as { text: string }).text.trim().slice(0, PAPER_LINE_CHARS);
+      if (text) lines.push(text);
+    }
+  }
+  return lines.slice(0, PAPER_MAX_LINES);
+}
+
+const compact = (text: string) => text.toLocaleLowerCase("tr").replace(/\s+/g, "");
+
+/**
+ * Yazılı cevabın metni: satırlar `\n` ile; son cevap satırlarda geçmiyorsa sona eklenir; satır yoksa `text`.
+ * Böylece notlandırma (`/api/learning/exam/grade`) uygulamada yazılan cevapla aynı gövdeyi alır.
+ */
+export function paperAnswerText(row: Pick<PaperRead, "text" | "lines">): string {
+  const lines = (row.lines ?? []).filter(Boolean);
+  const text = row.text?.trim() ?? "";
+  if (!lines.length) return text;
+  const final = compact(text);
+  const covered = !final || lines.some((line) => compact(line).includes(final));
+  return (covered ? lines : [...lines, text]).join("\n");
+}
 
 export function paperReadUserPrompt(questions: PaperQuestion[]): string {
   const lines = questions.map((question, index) => {
@@ -62,11 +109,13 @@ export function parsePaperRead(raw: unknown): PaperRead[] {
     const row = (item ?? {}) as Record<string, unknown>;
     const n = Number(row.n);
     if (!Number.isInteger(n) || n < 1) return [];
+    const lines = readLines(row.lines);
     return [
       {
         n,
         choices: Array.isArray(row.choices) ? row.choices.map((value) => String(value).trim().toUpperCase()) : undefined,
         text: typeof row.text === "string" ? row.text.trim() : undefined,
+        ...(lines?.length ? { lines } : {}),
         unreadable: row.unreadable === true,
       },
     ];
@@ -103,7 +152,8 @@ export function paperAnswers(
       }
       return;
     }
-    if (row.text) answers[question.id] = row.text.slice(0, 2000);
+    const text = paperAnswerText(row);
+    if (text) answers[question.id] = text.slice(0, 2000);
   });
   return { answers, unread };
 }

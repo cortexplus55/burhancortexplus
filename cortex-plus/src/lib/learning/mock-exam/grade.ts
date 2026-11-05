@@ -7,6 +7,7 @@ import type { MockGradeItem, MockQuestionType, MockRubricItem } from "@/lib/lear
 import { stepArithmeticIssues } from "@/lib/solve/step-arithmetic";
 import { finalResults } from "@/lib/learning/result-values";
 import { verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
+import { firstError, stepFeedbackLine, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
 
 export type GradeableQuestion = {
   id: string;
@@ -129,6 +130,27 @@ function showsRelation(answer: string): boolean {
 export const SHORT_SOLUTION_FULL_CREDIT = "Sonuç ve bağıntı doğru; çözümün kısa olması puan düşürmez.";
 
 /**
+ * Öğrencinin son sonucu beklenen değeri tutuyor mu: `finalResults` (örnek cevabın sonuç değişkeni, "=" kuyruğu,
+ * son sayı) toleransla karşılaştırılır. Beklenen değer yoksa ya da cevapta sayı yoksa null (karar yok).
+ */
+export function finalAnswerCorrect(input: {
+  answer: string;
+  expected: number | null;
+  tolerance?: number | null;
+  modelAnswer?: string | null;
+}): boolean | null {
+  const answer = input.answer.trim();
+  const expected = input.expected;
+  if (!answer || expected == null || !Number.isFinite(expected)) return null;
+  const finals = finalResults(answer, input.modelAnswer);
+  const num = finals.at(-1) ?? parseStudentNumber(answer);
+  if (!finals.length && num == null) return null;
+  const tol = input.tolerance ?? Math.max(1e-6, Math.abs(expected) * 0.01);
+  const within = (value: number) => Math.abs(value - expected) <= tol;
+  return finals.length ? finals.some(within) : num != null && within(num);
+}
+
+/**
  * Sayısal/fen: yöntem ve kurulum doğru, son aritmetik yanlışsa %50–%80.
  * Yalnız son sayıyı yazan cevap 7/10 ve üzerine çıkmaz.
  * Sonuç doğru ve bağıntı/gerekçe doğruysa çözüm kısa diye kesinti yok (29 Ekim 2026: canlı bir denemede
@@ -153,9 +175,7 @@ export function partialWorkCredit(input: {
   const hits = markers.filter((marker) => markerHit(answer, marker));
   const finals = finalResults(answer, input.modelAnswer);
   const num = finals.at(-1) ?? parseStudentNumber(answer);
-  const tol = input.tolerance ?? Math.max(1e-6, Math.abs(expected) * 0.01);
-  const within = (value: number) => Math.abs(value - expected) <= tol;
-  const inRange = finals.length ? finals.some(within) : num != null && within(num);
+  const inRange = finalAnswerCorrect(input) === true;
   // Kısa ama sayılar arası işlem gösteren cevap ("a/b = c/d = e") çıplak sonuç değildir: eşdeğer zincir hesabı gösterir.
   const bare = num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer) && !/\d\s*[+\-*/×·÷:]\s*\d/.test(answer);
   if (inRange && markers.length && bare) {
@@ -189,6 +209,34 @@ function trailingNumber(text: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+/** Adım kısmi puanının bandı: ilk hata k. satırdaysa oran 0,3 + 0,5 × (k−1)/n, [0,3; 0,8] içinde. */
+const STEP_CREDIT_FLOOR = 0.3;
+const STEP_CREDIT_CEILING = 0.8;
+
+/**
+ * Satır satır kısmi puan (5 Kasım 2026). Sonuç yanlış ama ilk hata k. satırda ve ondan önce en az bir doğru
+ * yöntem satırı varsa puan en az `maxPoints × clamp(0,3 + 0,5 × (k−1)/n)` olur; eldeki puan daha yüksekse
+ * dokunulmaz. Sonuç doğruysa kesinti yok: satır yalnız işaretlenir (bütün satırlar doğruysa kısa çözüm kuralı,
+ * `SHORT_SOLUTION_FULL_CREDIT`, `partialWorkCredit`te olduğu gibi çalışır). Adım bilgisi yokken null.
+ */
+export function stepPartialCredit(input: {
+  steps: readonly WorkStepVerdict[];
+  maxPoints: number;
+  finalCorrect: boolean;
+  alreadyEarned: number;
+}): { earned: number; step: string } | null {
+  const total = input.steps.length;
+  if (!total || input.finalCorrect) return null;
+  const error = firstError(input.steps);
+  if (!error) return null;
+  const okBefore = input.steps.some((step) => step.n < error.n && step.status === "ok");
+  if (!okBefore) return null;
+  const ratio = Math.min(STEP_CREDIT_CEILING, Math.max(STEP_CREDIT_FLOOR, STEP_CREDIT_FLOOR + 0.5 * ((error.n - 1) / total)));
+  const earned = Math.round(input.maxPoints * ratio);
+  if (earned <= input.alreadyEarned) return null;
+  return { earned, step: stepFeedbackLine(input.steps) ?? "" };
+}
+
 /** Açık uçlu puanı: yöntem doğruysa kısmi, çıplak tahmin ve çelişen sonuç cömert puan almaz. */
 export function adjustScoredAnswer(input: {
   answer: string;
@@ -199,6 +247,8 @@ export function adjustScoredAnswer(input: {
   criteria?: string[];
   earned: number;
   conceptErrors?: number;
+  /** Satır satır karar (`work-steps.ts`); varsa `stepPartialCredit` eldeki puanı yükseltebilir, düşürmez. */
+  steps?: readonly WorkStepVerdict[];
 }): { earned: number; step?: string } {
   const expected =
     input.expected ?? (/=/.test(input.modelAnswer ?? "") ? trailingNumber(input.modelAnswer ?? "") : null);
@@ -208,8 +258,15 @@ export function adjustScoredAnswer(input: {
     return { earned: Math.min(input.earned, cap), step: "Tarih beklenenle çelişiyor." };
   }
   const partial = partialWorkCredit({ ...input, expected, alreadyEarned: input.earned });
-  if (!partial) return { earned: input.earned };
-  return { earned: partial.earned, step: partial.step };
+  const base: { earned: number; step?: string } = partial ? { earned: partial.earned, step: partial.step } : { earned: input.earned };
+  if (!input.steps?.length) return base;
+  const credit = stepPartialCredit({
+    steps: input.steps,
+    maxPoints: input.maxPoints,
+    finalCorrect: finalAnswerCorrect({ answer: input.answer, expected, tolerance: input.tolerance, modelAnswer: input.modelAnswer }) === true,
+    alreadyEarned: base.earned,
+  });
+  return credit ? { earned: credit.earned, step: credit.step } : base;
 }
 
 /**
