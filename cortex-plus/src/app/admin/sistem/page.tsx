@@ -35,6 +35,8 @@ const SERVICES: { name: string; env: string[]; critical: boolean; all?: boolean 
   { name: "Supabase service key", env: ["SUPABASE_SECRET_KEY"], critical: true },
   { name: "OpenAI", env: ["OPENAI_API_KEY"], critical: true },
   { name: "Workspace SMTP", env: ["SMTP_PASS"], critical: true },
+  // 5 Kasım 2026: işlem e-postası sağlayıcısı; anahtar tanımlıysa asıl yol Resend, SMTP yedek (mailer.ts).
+  { name: "Resend", env: ["RESEND_API_KEY"], critical: false },
   {
     name: "PayTR",
     env: ["PAYTR_MERCHANT_ID", "PAYTR_MERCHANT_KEY", "PAYTR_MERCHANT_SALT"],

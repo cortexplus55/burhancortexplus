@@ -20,20 +20,54 @@ async function sendViaResend({
     return { ok: false, reason: "resend_not_configured" };
   }
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to: [to], subject, html, text }),
-  });
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        html,
+        text,
+        reply_to: process.env.SMTP_USER?.trim() || "cortexplus@cortexplus.app",
+        headers: UNSUBSCRIBE_HEADERS,
+      }),
+      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
+    });
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    return { ok: false, reason: body.slice(0, 200) || `resend_${res.status}` };
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { ok: false, reason: body.slice(0, 200) || `resend_${res.status}` };
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? `resend_${error.name}` : "resend_failed" };
   }
-  return { ok: true };
+}
+
+const RESEND_TIMEOUT_MS = 10_000;
+/** Outlook/Hotmail teslimatı için tutarlı başlıklar (iki yolda da aynı). */
+const UNSUBSCRIBE_HEADERS = {
+  "List-Unsubscribe": "<mailto:cortexplus@cortexplus.app?subject=unsubscribe>",
+  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+};
+
+/** İşlem e-postası sağlayıcısı anahtarı tanımlıysa Resend asıl yoldur (5 Kasım 2026, ürün sahibinin kararı). */
+export function resendConfigured(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(env.RESEND_API_KEY?.trim() && env.EMAIL_FROM?.trim());
+}
+
+/**
+ * Gönderim sırası: Resend tanımlıysa önce Resend, düşerse Workspace SMTP; tanımlı değilse SMTP, düşerse Resend
+ * (anahtar yoksa "resend_not_configured"). Çağıran yalnız sonucu görür. Dönen `via` hangi yolun gönderdiğini söyler.
+ */
+export function deliveryOrder(input: { resend: boolean; smtp: boolean }): ("resend" | "smtp")[] {
+  if (input.resend) return input.smtp ? ["resend", "smtp"] : ["resend"];
+  return input.smtp ? ["smtp", "resend"] : ["resend"];
 }
 
 function appUrl() {
@@ -52,32 +86,34 @@ export async function sendEmail({
   text: string;
 }): Promise<SendResult> {
   const config = getSmtpConfig();
-  if (!config) {
-    return sendViaResend({ to, subject, html, text });
+  const order = deliveryOrder({ resend: resendConfigured(), smtp: Boolean(config) });
+  let lastReason = "email_not_configured";
+  for (const via of order) {
+    if (via === "resend") {
+      const result = await sendViaResend({ to, subject, html, text });
+      if (result.ok) return result;
+      lastReason = result.reason;
+      continue;
+    }
+    if (!config) continue;
+    try {
+      const transport = createSmtpTransport(config);
+      await transport.sendMail({
+        from: config.from,
+        to,
+        subject,
+        html,
+        text,
+        // DELIVERABILITY P1 — Outlook/Hotmail için tutarlı From + unsubscribe
+        replyTo: config.user,
+        headers: { "X-Entity-Ref-ID": `cortexplus-${Date.now()}`, ...UNSUBSCRIBE_HEADERS },
+      });
+      return { ok: true };
+    } catch {
+      lastReason = "smtp_send_failed";
+    }
   }
-
-  try {
-    const transport = createSmtpTransport(config);
-    await transport.sendMail({
-      from: config.from,
-      to,
-      subject,
-      html,
-      text,
-      // DELIVERABILITY P1 — Outlook/Hotmail için tutarlı From + unsubscribe
-      replyTo: config.user,
-      headers: {
-        "X-Entity-Ref-ID": `cortexplus-${Date.now()}`,
-        "List-Unsubscribe": `<mailto:cortexplus@cortexplus.app?subject=unsubscribe>`,
-        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-      },
-    });
-    return { ok: true };
-  } catch {
-    const fallback = await sendViaResend({ to, subject, html, text });
-    if (fallback.ok) return fallback;
-    return { ok: false, reason: "smtp_send_failed" };
-  }
+  return { ok: false, reason: lastReason };
 }
 
 function layout(title: string, body: string, cta?: { href: string; label: string }) {

@@ -50,7 +50,8 @@ export const SERVICE_NOTES: Record<string, string> = {
   "Supabase service key": "Yönetim panelinin veriye erişmesi için gerekli.",
   OpenAI: "Yapay zekâ yanıtları buradan geliyor. Eksikse AI hiç çalışmaz.",
   PayTR: "Ödeme altyapısı. Eksikse paket satın alınamaz.",
-  "Workspace SMTP": "Doğrulama ve bildirim e-postaları buradan gidiyor.",
+  "Workspace SMTP": "Doğrulama ve bildirim e-postaları buradan gidiyor (Resend tanımlıysa yedek yol).",
+  Resend: "İşlem e-postası sağlayıcısı. Anahtar tanımlıysa e-postalar önce buradan gider; eksikse Workspace SMTP tek yoldur.",
   "Upstash Redis":
     "İstek sınırlama sayacı. Tanımsızsa sayaç her sunucuda ayrı tutulur ve sınır fiilen çalışmaz.",
   PostHog: "Kullanım istatistikleri. Eksikse kimin ne yaptığı ölçülmez.",
