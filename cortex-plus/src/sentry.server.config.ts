@@ -3,6 +3,7 @@ import {
   SENTRY_DSN,
   SENTRY_ENV,
   SENTRY_IGNORE,
+  scrubBreadcrumb,
   scrubEvent,
 } from "@/lib/observability/sentry-shared";
 
@@ -23,5 +24,6 @@ if (SENTRY_DSN) {
     sendDefaultPii: false,
     ignoreErrors: SENTRY_IGNORE,
     beforeSend: (event) => scrubEvent(event),
+    beforeBreadcrumb: (breadcrumb) => scrubBreadcrumb(breadcrumb),
   });
 }

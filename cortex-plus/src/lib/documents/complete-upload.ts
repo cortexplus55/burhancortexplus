@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { maxDocumentBytes } from "@/lib/documents/store-upload";
+import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 
 /**
  * İmzalı yüklemenin son adımı: dosya depoya gerçekten yazıldı mı (boy ve tür bildirilenle aynı mı), sonra belge
@@ -27,6 +28,10 @@ export async function completeDocumentUpload(
     return doc.status === "processing" || doc.status === "completed"
       ? { ok: true, documentId: doc.id as string, status: String(doc.status), fileName }
       : { ok: false, status: 409, error: "upload_failed" };
+  }
+  if (!isOwnedDocumentPath(doc.storage_path, userId, String(doc.id))) {
+    console.error("storage_path_mismatch", { documentId });
+    return { ok: false, status: 404, error: "not_found" };
   }
   const { data: stored, error: infoError } = await service.storage.from("documents").info(doc.storage_path);
   const actualSize = Number(stored?.size);

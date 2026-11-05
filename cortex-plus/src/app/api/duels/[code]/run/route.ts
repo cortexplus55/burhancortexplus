@@ -83,7 +83,8 @@ export async function POST(
   });
   if (error) return errorResponse(500, "save_failed");
 
-  // Yıldızlar (17 Ekim 2026): düello kıyas ürünündeki okul maçının yerinde. Hesaplı oyuncuya, düello başına bir kez.
+  // Yıldızlar (17 Ekim 2026): düello kıyas ürünündeki okul maçının yerinde. Hesaplı oyuncuya, düello başına bir kez:
+  // `award_stars` (öğrenci, kaynak, ref) tekil — cevapları bilerek yeniden oynamak ikinci kez yıldız vermez.
   const stars = playerId
     ? await awardStars(service, { userId: playerId, source: "duel", ref: `duel:${duel.id}`, amount: duelStars(result.correct) })
     : 0;
@@ -103,11 +104,17 @@ export async function POST(
       .gt("score", result.score),
   ]);
 
+  // Doğru şıklar yalnız hesaplı oyuncuya (6 Kasım 2026): misafir hesap açmadan oynayıp cevap anahtarını
+  // alıyor ve paylaşabiliyordu (sıralama tablosu bozulur). Misafire soru başına yalnız doğru/yanlış gider.
+  const perQuestion = playerId
+    ? { answers: result.perQuestion.map((item) => item.answer) }
+    : { results: result.perQuestion.map((item, index) => parsed.data.answers[index]?.choice === item.answer) };
+
   return NextResponse.json({
     correct: result.correct,
     score: result.score,
     total: questions.length,
-    answers: result.perQuestion.map((item) => item.answer),
+    ...perQuestion,
     rank: (better ?? 0) + 1,
     stars,
     leaderboard: (board ?? []).map((row) => ({

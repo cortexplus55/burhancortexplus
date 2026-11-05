@@ -33,6 +33,8 @@ const nextConfig: NextConfig = {
       // 20 Ekim 2026: okul sayfası hazırlıkların altında; kısa adres 404 veriyordu.
       { source: "/okulum", destination: "/deneme-sinavlari/okulum", permanent: true },
       { source: "/fiyatlar", destination: "/fiyatlandirma", permanent: true },
+      // 6 Kasım 2026: kaynak hatası ekranları bir dönem bu adrese gidiyordu (404).
+      { source: "/belgeler", destination: "/dokumanlar", permanent: true },
     ];
   },
   /*

@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
+import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 import { missingRelation } from "@/lib/learning/missing-column";
 
 // Financial records retain the anonymised profile key: for accounts with payments the auth user is only
@@ -130,13 +130,15 @@ export async function purgeUserData(service: SupabaseClient, userId: string): Pr
     while (true) {
       step = "documents_list";
       const { data: docs, error } = await service.from("documents")
-        .select("id, storage_path").eq("user_id", userId).limit(100);
+        .select("id, storage_path, part_of").eq("user_id", userId).limit(100);
       if (error) return { ok: false, error: step };
       if (!docs?.length) break;
-      if (docs.some((d) => !isOwnedDocumentPath(d.storage_path, userId, d.id))) {
+      // Parça kopyası (document-head.ts) ana belgenin dosyasını paylaşır: yolu ana belgenin klasöründedir ve
+      // dosya ana belgeyle silinir. Eskiden parçası olan her hesabın silinmesi burada takılıyordu.
+      if (docs.some((d) => !isOwnedDocumentStoragePath(d.storage_path, userId, d))) {
         return { ok: false, error: "documents_storage_path" };
       }
-      const paths = docs.map((d) => d.storage_path as string).filter(Boolean);
+      const paths = docs.filter((d) => !d.part_of).map((d) => d.storage_path as string).filter(Boolean);
       step = "documents_storage";
       if (paths.length) {
         const { error: storageError } = await service.storage.from("documents").remove(paths);

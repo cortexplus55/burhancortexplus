@@ -9,7 +9,8 @@ import { promises as dns } from "node:dns";
  * yükleme ucundaki kurallarla aynıdır.
  *
  * Sunucu dışarıya istek attığı için adres sıkı denetlenir: yalnız http(s), özel/yerel ağ adresleri
- * (127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, ::1, fc00::/7, fe80::/10) ve bulut üst veri adresi
+ * (127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, 198.18/15, ::1, fc00::/7, fe80::/10; IPv6 içine gömülü
+ * IPv4 de çözülüp denetlenir) ve bulut üst veri adresi
  * yasak; yönlendirme en çok 3 ve her adımda aynı denetim; gövde 15 MB, süre 20 sn.
  */
 
@@ -45,17 +46,79 @@ function ipv4Private(ip: string): boolean {
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
   if (a === 100 && b >= 64 && b <= 127) return true; // taşıyıcı NAT
+  if (a === 198 && (b === 18 || b === 19)) return true; // 198.18.0.0/15 ölçüm ağı
   if (a >= 224) return true; // çoklu yayın / ayrılmış
   return false;
 }
 
+/**
+ * IPv6 adresini sekiz 16 bitlik gruba açar ("::" kısaltması ve sondaki noktalı IPv4 dahil).
+ * Çözülemeyen biçim null (çağıran güvenli saymaz).
+ */
+export function expandIpv6(ip: string): number[] | null {
+  let text = ip.toLowerCase();
+  const zone = text.indexOf("%");
+  if (zone >= 0) text = text.slice(0, zone);
+  // Sondaki noktalı IPv4 iki gruba çevrilir (::ffff:1.2.3.4 → ::ffff:102:304).
+  const dotted = text.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) {
+    const parts = dotted[2]!.split(".").map(Number);
+    if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
+    const [p0, p1, p2, p3] = parts as [number, number, number, number];
+    text = `${dotted[1]}${((p0 << 8) | p1).toString(16)}:${((p2 << 8) | p3).toString(16)}`;
+  }
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const parse = (part: string) => (part ? part.split(":") : []);
+  const head = parse(halves[0]!);
+  const tail = halves.length === 2 ? parse(halves[1]!) : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 2 ? missing < 1 : missing !== 0) return null;
+  const groups = [...head, ...Array(Math.max(0, missing)).fill("0"), ...tail];
+  if (groups.length !== 8) return null;
+  const out: number[] = [];
+  for (const group of groups) {
+    if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
+    out.push(Number.parseInt(group, 16));
+  }
+  return out;
+}
+
+function ipv4FromGroups(high: number, low: number): string {
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff].join(".");
+}
+
+/**
+ * IPv6 içine gömülü IPv4 (6 Kasım 2026). `new URL()` "[::ffff:169.254.169.254]" adresini
+ * "[::ffff:a9fe:a9fe]" diye onaltılık yazıyor; eski denetim yalnız noktalı biçimi tanıdığı için bulut
+ * üst veri adresi geçiyordu. Eşlenmiş (::ffff:0:0/96), SIIT (::ffff:0:0:0/96), uyumlu (::/96),
+ * NAT64 (64:ff9b::/96) ve 6to4 (2002::/16) biçimleri IPv4'e çevrilip aynı listeyle denetlenir.
+ */
+export function embeddedIpv4(groups: number[]): string | null {
+  const [g0, g1, g2, g3, g4, g5, g6, g7] = groups as [number, number, number, number, number, number, number, number];
+  const zeroHead = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0;
+  if (zeroHead && g4 === 0 && g5 === 0xffff) return ipv4FromGroups(g6, g7); // ::ffff:a.b.c.d
+  if (zeroHead && g4 === 0xffff && g5 === 0) return ipv4FromGroups(g6, g7); // ::ffff:0:a.b.c.d
+  if (zeroHead && g4 === 0 && g5 === 0) return ipv4FromGroups(g6, g7); // ::a.b.c.d
+  if (g0 === 0x64 && g1 === 0xff9b && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0) return ipv4FromGroups(g6, g7);
+  if (g0 === 0x2002) return ipv4FromGroups(g1, g2);
+  return null;
+}
+
 function ipv6Private(ip: string): boolean {
-  const lower = ip.toLowerCase();
-  if (lower === "::1" || lower === "::") return true;
-  if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // fc00::/7
-  if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) return true; // fe80::/10
-  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return ipv4Private(mapped[1]!);
+  const groups = expandIpv6(ip);
+  if (!groups) return true;
+  if (groups.every((group) => group === 0)) return true; // ::
+  if (groups.slice(0, 7).every((group) => group === 0) && groups[7] === 1) return true; // ::1
+  const g0 = groups[0]!;
+  if ((g0 & 0xfe00) === 0xfc00) return true; // fc00::/7
+  if ((g0 & 0xffc0) === 0xfe80) return true; // fe80::/10
+  if ((g0 & 0xffc0) === 0xfec0) return true; // fec0::/10 (eski site-yerel)
+  if ((g0 & 0xff00) === 0xff00) return true; // ff00::/8 çoklu yayın
+  if (g0 === 0x64 && groups[1] === 0xff9b && groups[2] === 1) return true; // 64:ff9b:1::/48 yerel NAT64
+  if (g0 === 0x2001 && groups[1] === 0) return true; // 2001::/32 Teredo (gömülü adres ters çevrili)
+  const v4 = embeddedIpv4(groups);
+  if (v4) return ipv4Private(v4);
   return false;
 }
 

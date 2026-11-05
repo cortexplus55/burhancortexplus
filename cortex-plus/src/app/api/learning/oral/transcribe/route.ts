@@ -15,6 +15,8 @@ import { recordUsage } from "@/lib/credits/service";
  * Çözümleme düğümün bedeline dahil — her cevap ayrıca kredi yakmıyor.
  */
 
+export const maxDuration = 60;
+
 const MAX_BYTES = 12 * 1024 * 1024;
 const ALLOWED = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"];
 

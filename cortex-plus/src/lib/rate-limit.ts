@@ -21,6 +21,56 @@ function warnRedis(op: string, err: unknown) {
   console.warn(`[rate-limit] Redis ${op} başarısız, bellek yedeği:`, err instanceof Error ? err.name : err);
 }
 
+/**
+ * Devre kesici (6 Kasım 2026). Upstash düştüğünde her istek 400 ms zaman aşımını bekleyip ancak sonra
+ * bellek yedeğine geçiyordu; yük altında bu, her API çağrısına gecikme ekliyordu. Art arda 3 hatadan
+ * sonra Redis 30 sn hiç sorulmaz, doğrudan bellek yedeği kullanılır; süre dolunca yeniden denenir.
+ */
+export const REDIS_BREAKER_THRESHOLD = 3;
+export const REDIS_BREAKER_COOLDOWN_MS = 30_000;
+const breaker = { failures: 0, openUntil: 0 };
+
+function redisFailed(op: string, err: unknown) {
+  warnRedis(op, err);
+  breaker.failures += 1;
+  if (breaker.failures >= REDIS_BREAKER_THRESHOLD) {
+    breaker.openUntil = Date.now() + REDIS_BREAKER_COOLDOWN_MS;
+    breaker.failures = 0;
+    console.warn(`[rate-limit] Redis devre kesici açık: ${REDIS_BREAKER_COOLDOWN_MS / 1000} sn bellek yedeği`);
+  }
+}
+
+function redisSucceeded() {
+  breaker.failures = 0;
+}
+
+/** Kesici açıkken Redis yok sayılır. */
+function activeRedis(): { url: string; token: string } | null {
+  const redis = redisConfig();
+  if (!redis) return null;
+  if (breaker.openUntil > Date.now()) return null;
+  return redis;
+}
+
+/** Kesici şu an açık mı (yönetim ekranı ve testler). */
+export function redisBreakerOpen(now = Date.now()): boolean {
+  return breaker.openUntil > now;
+}
+
+/** Yalnız testler: kesiciyi sıfırla. */
+export function resetRedisBreaker() {
+  breaker.failures = 0;
+  breaker.openUntil = 0;
+}
+
+type PipelineRow = { result?: unknown; error?: unknown };
+
+/** Pipeline satırlarından biri hata taşıyorsa ya da beklenen sayıda satır gelmediyse yanıt geçersizdir. */
+function pipelineRowsOk(data: unknown, rows: number): data is PipelineRow[] {
+  if (!Array.isArray(data) || data.length < rows) return false;
+  return data.every((row) => Boolean(row) && typeof row === "object" && !(row as PipelineRow).error);
+}
+
 export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
@@ -89,7 +139,7 @@ export async function rateLimit(
   limit: number,
   windowSeconds: number,
 ): Promise<RateLimitResult> {
-  const redis = redisConfig();
+  const redis = activeRedis();
   const now = Date.now();
 
   if (redis) {
@@ -111,18 +161,23 @@ export async function rateLimit(
         cache: "no-store",
         signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
       });
-      if (res.ok) {
-        const data = (await res.json()) as { result: unknown }[];
-        const count = Number(data?.[1]?.result ?? 0);
-        const ttl = Number(data?.[2]?.result ?? windowSeconds);
-        return {
-          allowed: count <= limit,
-          remaining: Math.max(0, limit - count),
-          resetAt: now + (ttl > 0 ? ttl : windowSeconds) * 1000,
-        };
-      }
+      if (!res.ok) throw new Error(`http_${res.status}`);
+      const data: unknown = await res.json();
+      // Sayı yerine hata gelen yanıt (ör. satırda `error`) eskiden 0 sayılıp isteği geçiriyordu:
+      // artık Redis hatası sayılır ve bellek yedeği karar verir.
+      if (!pipelineRowsOk(data, 3)) throw new Error("invalid_pipeline_result");
+      const count = Number(data[1]?.result);
+      if (!Number.isFinite(count) || count < 1) throw new Error("non_numeric_count");
+      const ttlRaw = Number(data[2]?.result);
+      const ttl = Number.isFinite(ttlRaw) ? ttlRaw : windowSeconds;
+      redisSucceeded();
+      return {
+        allowed: count <= limit,
+        remaining: Math.max(0, limit - count),
+        resetAt: now + (ttl > 0 ? ttl : windowSeconds) * 1000,
+      };
     } catch (err) {
-      warnRedis("call", err);
+      redisFailed("call", err);
     }
   }
 
@@ -149,7 +204,7 @@ export async function rateLimit(
  * yoklamak, doğru kodu giren öğrencinin de kotasını yerdi.
  */
 export async function peekCount(key: string): Promise<number> {
-  const redis = redisConfig();
+  const redis = activeRedis();
 
   if (redis) {
     try {
@@ -158,12 +213,13 @@ export async function peekCount(key: string): Promise<number> {
         cache: "no-store",
         signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
       });
-      if (res.ok) {
-        const data = (await res.json()) as { result: string | null };
-        return Number(data?.result ?? 0) || 0;
-      }
+      if (!res.ok) throw new Error(`http_${res.status}`);
+      const data = (await res.json()) as PipelineRow;
+      if (data?.error) throw new Error("redis_error");
+      redisSucceeded();
+      return Number(data?.result ?? 0) || 0;
     } catch (err) {
-      warnRedis("call", err);
+      redisFailed("call", err);
     }
   }
 
@@ -187,7 +243,7 @@ export async function trackDistinct(
   member: string,
   windowSeconds: number,
 ): Promise<number> {
-  const redis = redisConfig();
+  const redis = activeRedis();
   const now = Date.now();
 
   if (redis) {
@@ -206,12 +262,15 @@ export async function trackDistinct(
         cache: "no-store",
         signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
       });
-      if (res.ok) {
-        const data = (await res.json()) as { result: unknown }[];
-        return Number(data?.[2]?.result ?? 0) || 0;
-      }
+      if (!res.ok) throw new Error(`http_${res.status}`);
+      const data: unknown = await res.json();
+      if (!pipelineRowsOk(data, 3)) throw new Error("invalid_pipeline_result");
+      const size = Number(data[2]?.result);
+      if (!Number.isFinite(size)) throw new Error("non_numeric_count");
+      redisSucceeded();
+      return size;
     } catch (err) {
-      warnRedis("call", err);
+      redisFailed("call", err);
     }
   }
 
@@ -266,7 +325,7 @@ export function dailyKey(userId: string, scope: string, at = new Date()) {
  * çağıran kapıyı kapatmaz, kendi yedeğine düşer. Üretim yuvaları bunu kullanıyor.
  */
 export async function redisPipeline(commands: string[][]): Promise<unknown[] | null> {
-  const redis = redisConfig();
+  const redis = activeRedis();
   if (!redis) return null;
   try {
     const res = await fetch(`${redis.url}/pipeline`, {
@@ -274,13 +333,16 @@ export async function redisPipeline(commands: string[][]): Promise<unknown[] | n
       headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" },
       body: JSON.stringify(commands),
       cache: "no-store",
-        signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
+      signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { result?: unknown; error?: unknown }[];
+    if (!res.ok) throw new Error(`http_${res.status}`);
+    const data = (await res.json()) as PipelineRow[];
+    if (!Array.isArray(data)) throw new Error("invalid_pipeline_result");
+    redisSucceeded();
+    // Satır hatası (komutun kendi hatası) çağıranın anlamıdır: kesiciyi tetiklemez, o satır null döner.
     return data.map((row) => row?.result ?? null);
   } catch (err) {
-    warnRedis("pipeline", err);
+    redisFailed("pipeline", err);
     return null;
   }
 }

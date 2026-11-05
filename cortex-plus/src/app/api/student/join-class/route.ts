@@ -114,7 +114,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const { error } = await supabase.from("classroom_members").insert({
+  // Kod yukarıda doğrulandı; yazım sunucu anahtarıyla (6 Kasım 2026). Öğrenci rolünün üyelik
+  // tablosuna yazma izni kapandı: önceden kodsuz, yalnız sınıf kimliğiyle kendini ekleyebiliyordu.
+  const { error } = await service.from("classroom_members").insert({
     classroom_id: classroom.id,
     student_id: user.id,
   });

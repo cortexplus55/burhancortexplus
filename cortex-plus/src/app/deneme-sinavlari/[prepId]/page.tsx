@@ -234,8 +234,10 @@ export default async function ExamPrepDetailPage({
 
   const prepTopics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
   const topicsMeter = topicProgress(prepTopics);
-  await ensurePrepNodes(supabase, prep);
-  await ensurePathSkeletonNodes(supabase, prep.id);
+  // Yol adımlarını tamamlayan yazımlar sunucu anahtarıyla (6 Kasım 2026): öğrenci rolünün yol
+  // tablolarına yazma izni kapandı. Hazırlık yukarıda sahibine göre okundu.
+  await ensurePrepNodes(service, prep);
+  await ensurePathSkeletonNodes(service, prep.id);
 
   const { data: nodeRows } = await supabase
     .from("exam_prep_nodes")
@@ -291,7 +293,7 @@ export default async function ExamPrepDetailPage({
   let activeTopicId = (prep.active_topic_id as string | null) ?? null;
   if (!activeTopicId && prepTopics.length) {
     activeTopicId = prepTopics[0].id;
-    await supabase.from("exam_preps").update({ active_topic_id: activeTopicId }).eq("id", prep.id);
+    await service.from("exam_preps").update({ active_topic_id: activeTopicId }).eq("id", prep.id).eq("user_id", user.id);
   }
   const hasTopic = Boolean(activeTopicId);
   const needsIntro = false;

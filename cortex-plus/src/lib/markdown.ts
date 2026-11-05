@@ -15,10 +15,12 @@ function formatText(text: string) {
       23 Eylül 2026'da canlıda ham `[ad](/yol)` metni olarak göründü, öğrenci
       kaynağa tıklayamıyordu. `//host`, `https:`, `javascript:` bilerek eşleşmez
       — model çıktısı dış adrese götüremez. Metin zaten escape edilmiş; href
-      içinde `&amp;` tarayıcı tarafından geri çözülür.
+      içinde `&amp;` tarayıcı tarafından geri çözülür. Ters bölü de yasak
+      (6 Kasım 2026): tarayıcı `/\evil.com`'u `//evil.com` gibi okuyup dış
+      adrese gider.
     */
     .replace(
-      /\[([^\]\n]+)\]\((\/(?!\/)[^\s)]*)\)/g,
+      /\[([^\]\n]+)\]\((\/(?![/\\])[^\s)\\]*)\)/g,
       '<a href="$2" class="underline underline-offset-2 hover:opacity-80">$1</a>',
     );
 }

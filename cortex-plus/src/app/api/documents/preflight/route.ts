@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 import { preflightPdfPages } from "@/lib/documents/extract-text";
 import { getDocumentLimits } from "@/lib/documents/document-limits";
 import { AdminCheckError } from "@/lib/auth/roles";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
 
   const { data: doc } = await service
     .from("documents")
-    .select("id, user_id, mime_type, storage_path, status")
+    .select("id, user_id, mime_type, storage_path, status, part_of")
     .eq("id", parsed.data.documentId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -77,6 +78,10 @@ export async function POST(request: Request) {
     });
   }
 
+  if (!isOwnedDocumentStoragePath(doc.storage_path, userId, doc)) {
+    console.error("storage_path_mismatch", { documentId: doc.id });
+    return errorResponse(404, "not_found");
+  }
   const { data: file, error: downloadError } = await service.storage
     .from("documents")
     .download(doc.storage_path);

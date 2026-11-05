@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logOpsEvent } from "@/lib/observability/ops-log";
+import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 
 /** Signed upload tokens expire after two hours. A closed tab must not hold quota forever. */
 export async function cleanupExpiredUploads(
@@ -35,8 +36,13 @@ export async function cleanupExpiredUploads(
       ? claim.lt("created_at", cutoff)
       : claim.eq("error_message", "upload_expired");
     const { data: claimed, error: claimError } = await claim
-      .select("id,storage_path,error_message").maybeSingle();
+      .select("id,user_id,storage_path,error_message").maybeSingle();
     if (claimError || !claimed || claimed.error_message !== "upload_expired") continue;
+    // Silme: yalnız belgenin kendi klasörü; uyuşmayan yol depoya hiç gitmez.
+    if (!isOwnedDocumentPath(claimed.storage_path, String(claimed.user_id), String(claimed.id))) {
+      console.error("storage_path_mismatch", { documentId: row.id });
+      continue;
+    }
     const { error: storageError } = await service.storage.from("documents").remove([claimed.storage_path]);
     if (storageError) {
       logOpsEvent("document_upload_failed", { stage: "expired_cleanup", documentId: row.id });

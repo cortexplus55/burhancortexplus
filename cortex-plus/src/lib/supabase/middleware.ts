@@ -86,6 +86,17 @@ const ONBOARDING_SKIP = [
   "/auth",
 ];
 
+/**
+ * Yönlendirme yenilenmiş oturum çerezlerini taşır (6 Kasım 2026). `getUser()` erişim belirtecini
+ * yenilediyse yeni çerezler yalnız `supabaseResponse`'tadır; çerezsiz yönlendirme tarayıcıda eski yenileme
+ * belirtecini bırakır, sonraki istek onu ikinci kez kullanmaya çalışıp oturumu düşürebilir.
+ */
+export function redirectCarryingCookies(url: URL | string, carry: NextResponse): NextResponse {
+  const response = NextResponse.redirect(url);
+  for (const cookie of carry.cookies.getAll()) response.cookies.set(cookie);
+  return response;
+}
+
 function matches(path: string, prefixes: string[]) {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 }
@@ -171,7 +182,7 @@ export async function updateSession(request: NextRequest) {
     // sonra kutusu dolu açılır (19 Ekim 2026). Sorgusuz yolda adres eskisi gibi.
     url.search = "";
     url.searchParams.set("next", `${path}${request.nextUrl.search}`);
-    return withDevice(NextResponse.redirect(url));
+    return withDevice(redirectCarryingCookies(url, supabaseResponse));
   }
 
   if (!user) return withDevice(supabaseResponse);
@@ -205,9 +216,7 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/giris";
     url.search = status === "suspended" ? "?durum=askida" : "";
-    const response = NextResponse.redirect(url);
-    for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
-    return response;
+    return redirectCarryingCookies(url, supabaseResponse);
   }
 
   // Askı ve silinmeden sonra: kapalı hesabın cihazı sayılmaz. Sınırı aşan bir cihaz SQL'de düşer; bu tarayıcının
@@ -238,9 +247,7 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/giris";
     url.search = "";
-    const response = NextResponse.redirect(url);
-    for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
-    return response;
+    return redirectCarryingCookies(url, supabaseResponse);
   }
 
   const role = (profile?.primary_role as string | undefined) ?? "student";
@@ -250,13 +257,13 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = home;
     url.search = "";
-    return finish(NextResponse.redirect(url));
+    return finish(redirectCarryingCookies(url, supabaseResponse));
   }
 
   if (!profile?.onboarding_completed_at && !matches(path, ONBOARDING_SKIP)) {
     const url = request.nextUrl.clone();
     url.pathname = onboardingPathForRole(role);
-    return finish(NextResponse.redirect(url));
+    return finish(redirectCarryingCookies(url, supabaseResponse));
   }
 
   return finish(supabaseResponse);

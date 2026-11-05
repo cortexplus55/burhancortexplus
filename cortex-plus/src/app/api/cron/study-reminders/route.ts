@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { moreUrgent, pickReminder, type Reminder } from "@/lib/learning/study-reminder";
 import { sendEmail } from "@/lib/email/mailer";
+import { escapeHtml, safeAppHref } from "@/lib/email/escape";
 import { isFeatureEnabled, SPACED_REVIEW_FLAG } from "@/lib/admin/feature-flags";
 import { istanbulDay } from "@/lib/istanbul-day";
 import { examPrepDueReviewHref } from "@/lib/learning/exam-prep-hrefs";
@@ -202,9 +203,10 @@ export async function GET(request: Request) {
 Yoluna dön: ${link}
 
 Bu hatırlatmayı ayarlardan kapatabilirsin.`,
+        // Gövde hazırlık başlığını taşır (öğrencinin yazdığı metin): HTML kaçışı (6 Kasım 2026).
         html:
-          `<p>${row.body}</p>` +
-          `<p><a href="${link}">Yoluna dön</a></p>` +
+          `<p>${escapeHtml(row.body)}</p>` +
+          `<p><a href="${escapeHtml(safeAppHref(link, APP_URL))}">Yoluna dön</a></p>` +
           `<p style="color:#666;font-size:12px">Bu hatırlatmayı ayarlardan kapatabilirsin.</p>`,
       });
       return result.ok;

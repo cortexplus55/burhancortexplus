@@ -78,10 +78,13 @@ export async function synthesizeLine(
   }
 }
 
+/** Çözümleme süre sınırı: rota 60 sn yaşıyor; SDK varsayılanı (10 dk, 2 yeniden deneme) isteği askıda bırakıyordu. */
+export const TRANSCRIBE_TIMEOUT_MS = 45_000;
+
 export async function transcribeAudio(file: File): Promise<string | null> {
   if (!env.OPENAI_API_KEY) return null;
   try {
-    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY });
+    const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: TRANSCRIBE_TIMEOUT_MS, maxRetries: 1 });
     const result = await openai.audio.transcriptions.create({
       model: env.OPENAI_STT_MODEL,
       file,

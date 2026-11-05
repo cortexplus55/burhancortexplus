@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/guards";
+import { isAdminUser } from "@/lib/auth/roles";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { openaiLlm } from "@/lib/content-pool/generate";
 import { UNIT_ID_PATTERN } from "@/lib/content-pool/keys";
@@ -14,6 +15,9 @@ export const maxDuration = 300;
  * örn. yks-2026-tarih#1 = Tarih ve Zaman). Veritabanı, tohum betiği ve havuzla aynı kimlik.
  * Doğrulanmış içerik 0 model çağrısıyla döner; yoksa bu öğrenci için üretilir, doğrulanır, havuza yazılır.
  * Yanıt başlıkları: X-Pool (hit/generated/pending), X-Pool-LLM-Calls, Server-Timing.
+ *
+ * Yalnız yönetici (6 Kasım 2026): uç model üretimi başlatabiliyor ve hiçbir ekran çağırmıyor; oturumlu her
+ * hesap kredi ve harcama sigortası olmadan üretim tetikleyebiliyordu. Öğrenci havuzu kendi sayfalarından okur.
  */
 export async function GET(request: Request) {
   const unitId = new URL(request.url).searchParams.get("unit") ?? "";
@@ -21,6 +25,8 @@ export async function GET(request: Request) {
   const { data } = await (await createClient()).auth.getUser();
   const userId = data.user?.id;
   if (!userId) return errorResponse(401, "unauthorized");
+  const admin = await isAdminUser(createServiceClient(), userId).catch(() => false);
+  if (!admin) return errorResponse(403, "forbidden");
 
   const result = await getUnitContent(unitId, { store: supabasePoolStore(createServiceClient()), llm: openaiLlm(), userId });
   const headers: Record<string, string> = { "Cache-Control": "private, no-store", "X-Pool": result.status, "Server-Timing": `pool;dur=${result.ms}` };
