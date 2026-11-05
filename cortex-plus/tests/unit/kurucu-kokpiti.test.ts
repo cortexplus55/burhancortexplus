@@ -4,13 +4,18 @@ import {
   cockpitWindows,
   conversionStats,
   countByWindow,
+  DEFAULT_USD_TRY,
   distinctByWindow,
+  effectiveUsdTry,
   istanbulDayStartIso,
   marginPct,
   quarantineRow,
   readUsdTry,
   reportRow,
   spendKurus,
+  supersededArchivable,
+  supersededGroups,
+  supersededRow,
   type PaymentRow,
 } from "@/lib/admin/cockpit-math";
 import { ADMIN_NAV } from "@/lib/admin/nav";
@@ -109,6 +114,14 @@ describe("birim ekonomisi", () => {
     expect(readUsdTry({ rate: 0 })).toBeNull();
     expect(readUsdTry(null)).toBeNull();
   });
+  it("kur girilmediyse varsayılan kur kullanılır ve kaynağı söylenir; marj ilk açılışta boş kalmaz", () => {
+    expect(DEFAULT_USD_TRY).toBe(36);
+    expect(effectiveUsdTry(null)).toEqual({ rate: 36, source: "default" });
+    expect(effectiveUsdTry({ rate: 0 })).toEqual({ rate: 36, source: "default" });
+    expect(effectiveUsdTry({ rate: 41.5 })).toEqual({ rate: 41.5, source: "flag" });
+    const fallback = effectiveUsdTry(undefined);
+    expect(marginPct(100_000, 10, fallback.rate)).toBe(64); // 1000 TL gelir, 360 TL gider
+  });
 });
 
 describe("kuyruk satırları", () => {
@@ -143,6 +156,32 @@ describe("kuyruk satırları", () => {
     const bare = quarantineRow({ id: "i3", stem: "Kök", choices: ["a"], answer: 0, qa: { quarantine: {} } });
     expect(bare?.ruleLabel).toBe("karantina gerekçesi kayıtlı değil");
   });
+  it("eski sürüm satırı: karantinalı soru girmez; içeriği yayında olan arşivlenmez; ünite başına özet", () => {
+    const raw = (over: Record<string, unknown>) => ({
+      id: "s1",
+      program_id: "prog",
+      unit_id: "prog#7",
+      difficulty: "easy",
+      stem: "Kök",
+      content_id: "c-old",
+      qa: { outcome_code: "k.7.a" },
+      created_at: "2026-11-02T00:00:00Z",
+      ...over,
+    });
+    expect(supersededRow(raw({ qa: { quarantine: { rule: "reports" } } }), "rejected")).toBeNull();
+    const retired = supersededRow(raw({}), "rejected");
+    expect(retired).toMatchObject({ id: "s1", unitId: "prog#7", outcomeCode: "k.7.a", contentId: "c-old", contentStatus: "rejected" });
+    expect(retired && supersededArchivable(retired)).toBe(true);
+    const live = supersededRow(raw({ id: "s2", content_id: "c-live" }), "verified");
+    expect(live && supersededArchivable(live)).toBe(false);
+    const orphan = supersededRow(raw({ id: "s3", content_id: null }), null);
+    expect(orphan && supersededArchivable(orphan)).toBe(true);
+    const groups = supersededGroups([retired!, live!, orphan!, supersededRow(raw({ id: "s4", unit_id: "prog#2" }), "stale")!]);
+    expect(groups.map((group) => [group.unitId, group.count, group.archivable])).toEqual([
+      ["prog#7", 3, 2],
+      ["prog#2", 1, 1],
+    ]);
+  });
   it("bildirim satırı kararı etiketler ve soru anlık görüntüsünü taşır", () => {
     const row = reportRow({
       id: "r1",
@@ -169,10 +208,14 @@ describe("yönetim sayfası", () => {
     expect(page).toContain("loadCockpit(service)");
     const actions = readFileSync("src/app/admin/cockpit-actions.ts", "utf8");
     expect(actions.startsWith('"use server"')).toBe(true);
-    for (const name of ["saveUsdTryRate", "restoreQuarantinedItem", "rejectQuarantinedItem", "regenerateQuarantinedItem"]) {
+    for (const name of ["saveUsdTryRate", "restoreQuarantinedItem", "rejectQuarantinedItem", "regenerateQuarantinedItem", "archiveSupersededItems"]) {
       expect(actions).toContain(`export async function ${name}(`);
     }
-    expect(actions.match(/requireAdminActor\(\)/g)?.length).toBe(4);
+    expect(actions.match(/requireAdminActor\(\)/g)?.length).toBe(5);
+    // Arşiv silmez: yalnız durum ve karar yazar; karantinalı soruya ve yayındaki içeriğin sorusuna dokunmaz.
+    expect(actions).not.toMatch(/\.delete\(\)/);
+    expect(actions).toContain('row.qa?.quarantine == null');
+    expect(actions).toContain('decision: "superseded"');
   });
   it("yönetici kimlik denetimi tek kaynaktan", () => {
     for (const file of ["src/app/admin/actions.ts", "src/app/admin/adaptive/actions.ts", "src/app/admin/cockpit-actions.ts"]) {

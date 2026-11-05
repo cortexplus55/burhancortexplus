@@ -158,6 +158,20 @@ export function readUsdTry(metadata: unknown): number | null {
   return Number.isFinite(value) && value >= FX_MIN && value <= FX_MAX ? value : null;
 }
 
+/**
+ * Kur girilmemişse marj bu kurla hesaplanır (5 Kasım 2026, ürün sahibi: "kokpit ilk açılışta marjı boş
+ * göstermesin"); kurucu kutudan değiştirir, kaynak ekranda "varsayılan" diye yazılır.
+ */
+export const DEFAULT_USD_TRY = 36;
+
+export type UsdTry = { rate: number; source: "flag" | "default" };
+
+/** Kokpitin kullandığı kur: bayrak varsa o, yoksa varsayılan. */
+export function effectiveUsdTry(metadata: unknown): UsdTry {
+  const flagged = readUsdTry(metadata);
+  return flagged == null ? { rate: DEFAULT_USD_TRY, source: "default" } : { rate: flagged, source: "flag" };
+}
+
 /* ───────────── Kalite ve karantina ───────────── */
 
 export const QUARANTINE_RULE_LABEL: Record<string, string> = {
@@ -226,6 +240,62 @@ export function quarantineRow(raw: Record<string, unknown>): QuarantineRow | nul
     reports: int(quarantine.reports),
     createdAt: str(raw.created_at),
   };
+}
+
+/**
+ * Eski sürüm sorusu (5 Kasım 2026): içeriği emekli edilmiş (kayıt defteri değişti, ders yeniden kuyruğa alındı)
+ * `stale` soru. Karantina değildir: öğrenci yanlışından değil, ünitenin yeniden yazılmasından kalmıştır; ünitenin
+ * yeni sürümü doğrulanıp havuza girince bunlar arşivlenir (`rejected` · `superseded`), satır silinmez.
+ */
+export type SupersededRow = {
+  id: string;
+  programId: string;
+  unitId: string;
+  outcomeCode: string | null;
+  difficulty: string;
+  stem: string;
+  contentId: string | null;
+  /** Sorunun bağlı olduğu `topic_content` satırının durumu; `verified` ise soru arşivlenmez (anormal, sayılır). */
+  contentStatus: string | null;
+  createdAt: string;
+};
+
+export function supersededRow(raw: Record<string, unknown>, contentStatus: string | null): SupersededRow | null {
+  const id = str(raw.id);
+  const stem = str(raw.stem);
+  if (!id || !stem) return null;
+  const qa = (raw.qa ?? {}) as Record<string, unknown>;
+  if (qa.quarantine != null) return null; // karantina kuyruğunun işi
+  return {
+    id,
+    programId: str(raw.program_id),
+    unitId: str(raw.unit_id),
+    outcomeCode: typeof qa.outcome_code === "string" ? qa.outcome_code : null,
+    difficulty: str(raw.difficulty),
+    stem,
+    contentId: typeof raw.content_id === "string" ? raw.content_id : null,
+    contentStatus,
+    createdAt: str(raw.created_at),
+  };
+}
+
+/** Arşivlenebilir: içeriği artık yayında değil. Yayındaki içeriğin `stale` sorusu beklenmez; dokunulmaz, sayılır. */
+export function supersededArchivable(row: SupersededRow): boolean {
+  return row.contentStatus !== "verified";
+}
+
+export type SupersededGroup = { unitId: string; programId: string; count: number; archivable: number; contentStatus: string | null };
+
+/** Ünite başına özet (ekranda tablo satırı). */
+export function supersededGroups(rows: SupersededRow[]): SupersededGroup[] {
+  const groups = new Map<string, SupersededGroup>();
+  for (const row of rows) {
+    const group = groups.get(row.unitId) ?? { unitId: row.unitId, programId: row.programId, count: 0, archivable: 0, contentStatus: row.contentStatus };
+    group.count += 1;
+    if (supersededArchivable(row)) group.archivable += 1;
+    groups.set(row.unitId, group);
+  }
+  return [...groups.values()].sort((a, b) => b.count - a.count || a.unitId.localeCompare(b.unitId));
 }
 
 export const REPORT_VERDICT_LABEL: Record<string, string> = {

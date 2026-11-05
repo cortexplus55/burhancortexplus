@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { CockpitQuarantine } from "@/components/admin/cockpit-quarantine";
+import { CockpitSuperseded } from "@/components/admin/cockpit-superseded";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { FxRateForm } from "@/components/admin/fx-rate-form";
 import { AdminBadge, AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
@@ -52,9 +53,9 @@ export default async function AdminPage() {
     service.from("admin_free_preview").select("user_id").eq("user_id", user.id).maybeSingle(),
   ]);
 
-  const { growth, conversions, economics, reports, quarantine, failed } = cockpit;
-  const spendTodayKurus = spendKurus(economics.spendToday?.usd ?? null, economics.usdTry);
-  const spendMonthKurus = spendKurus(economics.spendMonth?.usd ?? null, economics.usdTry);
+  const { growth, conversions, economics, reports, quarantine, superseded, failed } = cockpit;
+  const spendTodayKurus = spendKurus(economics.spendToday?.usd ?? null, economics.usdTry.rate);
+  const spendMonthKurus = spendKurus(economics.spendMonth?.usd ?? null, economics.usdTry.rate);
 
   const stats = [
     { label: "Bugün yeni kayıt", value: formatNumber(growth.signups.today), hint: `Toplam ${formatNumber(growth.totalUsers)} kullanıcı · son 7 günde ${formatNumber(growth.signups.week)}` },
@@ -107,7 +108,7 @@ export default async function AdminPage() {
       <AdminCard
         title="Birim ekonomisi (kâr / zarar)"
         desc="OpenAI gideri ai_usage_events × ai_model_prices'tan; gelir başarılı ödemelerden. Marj için kur gerekir."
-        actions={<FxRateForm current={economics.usdTry} />}
+        actions={<FxRateForm current={economics.usdTry.rate} isDefault={economics.usdTry.source === "default"} />}
         bodyless
       >
         <AdminTableFrame columns={["", "Bugün", "Son 30 gün"]}>
@@ -139,8 +140,10 @@ export default async function AdminPage() {
             </tr>
           ))}
         </AdminTableFrame>
-        {economics.usdTry == null ? (
-          <p className="px-5 py-3 text-xs text-[var(--adm-muted)]">Kur girilmedi: marj hesaplanmıyor. Yukarıdaki kutuya 1 USD&apos;nin TL karşılığını yaz.</p>
+        {economics.usdTry.source === "default" ? (
+          <p className="px-5 py-3 text-xs text-[var(--adm-muted)]">
+            Kur girilmedi: marj varsayılan 1 USD = {economics.usdTry.rate} TL ile hesaplanıyor. Güncel kuru yukarıdaki kutuya yazınca bu satır kalkar.
+          </p>
         ) : null}
         {economics.spendMonth?.unpricedCalls ? (
           <p className="px-5 py-3 text-xs text-[var(--adm-muted)]">
@@ -154,6 +157,13 @@ export default async function AdminPage() {
         desc="Saatlik SQL işi doğru oranı düşük, çok bildirilen ya da güçlü öğrencilerin aynı yanlışı seçtiği havuz sorusunu 'stale' yapar. Burada okur, karar verirsin."
       >
         <CockpitQuarantine rows={quarantine} />
+      </AdminCard>
+
+      <AdminCard
+        title="Eski sürüm soruları"
+        desc="Ünite yeniden yazılınca (kayıt defteri değişti ya da ders yeniden kuyruğa alındı) eski içeriğin soruları 'stale' kalır; öğrenciye sunulmaz. Yeni sürüm doğrulandıysa tek tıkla arşivlenir; satır silinmez."
+      >
+        <CockpitSuperseded rows={superseded} />
       </AdminCard>
 
       <AdminCard

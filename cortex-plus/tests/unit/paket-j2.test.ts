@@ -1,6 +1,10 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+// Dosya düzeyinde içe aktarma: modül dönüşümü testin sayacına girmez (tam paket yükünde #7'nin
+// test içi `await import`'u 5 sn'lik varsayılan süreyi aşıp kararsız düşüyordu — 5 Kasım 2026).
+import { FAST_START_MIN_PAGES, HEAD_PAGES } from "@/lib/documents/document-head";
+import { nextWindow, SINGLE_WINDOW_MAX_PAGES, WINDOW_PAGES } from "@/lib/documents/document-windows";
 
 /*
   Paket J2 (31 Ekim 2026) — dört madde, ders bağımsız örneklerle (fizik, tarih, kimya, hukuk):
@@ -16,9 +20,7 @@ vi.mock("@/lib/rate-limit", () => ({ redisPipeline: vi.fn(async () => null) }));
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 
 describe("#7 pencereli işleme 15 sayfadan büyük belgede", () => {
-  it("16 sayfadan itibaren ilk 12 sayfa önce, kalan sayfalar pencereyle", async () => {
-    const { FAST_START_MIN_PAGES, HEAD_PAGES } = await import("@/lib/documents/document-head");
-    const { nextWindow, WINDOW_PAGES, SINGLE_WINDOW_MAX_PAGES } = await import("@/lib/documents/document-windows");
+  it("16 sayfadan itibaren ilk 12 sayfa önce, kalan sayfalar pencereyle", () => {
     expect(FAST_START_MIN_PAGES).toBe(16);
     expect(HEAD_PAGES).toBe(12);
     // 20 sayfalık fizik notu: 1-12 hemen, 13-20 tek pencere.

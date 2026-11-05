@@ -125,3 +125,51 @@ export async function regenerateQuarantinedItem(itemId: string): Promise<Cockpit
   if (result.state === "none") return { ok: true, message: "Soru reddedildi; üretim kapıdan geçen yeni soru vermedi (bir daha denenebilir)." };
   return { ok: false, error: "Soru reddedildi ama üretim başlatılamadı (model ya da kayıt hatası)." };
 }
+
+const idListSchema = z.array(idSchema).min(1).max(500);
+
+type SupersededCandidate = { id: string; qa: Record<string, unknown> | null; content_id: string | null };
+
+/**
+ * Eski sürüm sorularını arşivler (5 Kasım 2026): içeriği artık yayında olmayan (`topic_content` `verified` değil)
+ * `stale` ve karantinasız sorular `rejected` olur; karar `qa.admin_review`'a yazılır, satır silinmez. Karantinadaki
+ * soruya ya da yayındaki içeriğin sorusuna dokunmaz (kuyruk ve anomali ayrı kalır).
+ */
+export async function archiveSupersededItems(itemIds: string[]): Promise<CockpitActionResult> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return UNAUTHORIZED;
+  const parsed = idListSchema.safeParse(itemIds);
+  if (!parsed.success) return { ok: false, error: "Geçersiz soru listesi." };
+  const service = createServiceClient();
+  const { data: rows, error } = await service.from("item_bank").select("id, qa, content_id").in("id", parsed.data).eq("status", "stale");
+  if (error) return { ok: false, error: "Sorular okunamadı." };
+  const candidates = ((rows ?? []) as SupersededCandidate[]).filter((row) => row.qa?.quarantine == null);
+  const contentIds = [...new Set(candidates.map((row) => row.content_id).filter((value): value is string => typeof value === "string"))];
+  const live = new Set<string>();
+  if (contentIds.length) {
+    const { data: contents, error: contentError } = await service.from("topic_content").select("id, status").in("id", contentIds);
+    if (contentError) return { ok: false, error: "Soruların içerik durumu okunamadı." };
+    for (const row of (contents ?? []) as { id: string; status: string }[]) if (row.status === "verified") live.add(row.id);
+  }
+  const archivable = candidates.filter((row) => !(row.content_id && live.has(row.content_id)));
+  const at = new Date().toISOString();
+  let archived = 0;
+  for (const row of archivable) {
+    const { error: updateError } = await service
+      .from("item_bank")
+      .update({ status: "rejected", qa: { ...(row.qa ?? {}), admin_review: { decision: "superseded", reason: "content_retired", at, by: actorId } } })
+      .eq("id", row.id)
+      .eq("status", "stale");
+    if (!updateError) archived += 1;
+  }
+  await auditLog(service, {
+    actorId,
+    action: "pool_item.superseded_archived",
+    entityType: "item_bank",
+    entityId: archivable[0]?.id ?? "bulk",
+    metadata: { requested: parsed.data.length, archivable: archivable.length, archived },
+  });
+  revalidatePath("/admin");
+  if (!archived) return { ok: false, error: "Arşivlenecek eski sürüm sorusu bulunamadı (karantinada ya da içeriği hâlâ yayında)." };
+  return { ok: true, message: `${archived} eski sürüm sorusu arşivlendi (rejected · superseded).` };
+}
