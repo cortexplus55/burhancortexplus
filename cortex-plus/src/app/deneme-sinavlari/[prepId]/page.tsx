@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { headers } from "next/headers";
 import { requestPrepPrefetch } from "@/lib/learning/lesson-prefetch";
+import { reindexEvictedForPrep } from "@/lib/documents/vector-lifecycle";
+import { embedTexts } from "@/lib/rag/pipeline";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { UnitLevelCheck } from "@/components/level-check/unit-level-check";
 import { unitCheckOffer } from "@/lib/level-check/unit-offer";
@@ -138,6 +140,8 @@ export default async function ExamPrepDetailPage({
     const proto = head.get("x-forwarded-proto") ?? "https";
     if (host) after(() => requestPrepPrefetch(service, { origin: `${proto}://${host}`, userId: user.id, prepId }));
   }
+  // Soğuk bellek (5 Kasım 2026): bu hazırlığın gömmeleri tahliye edildiyse arka planda yeniden indekslenir (yalnız gömme çağrısı).
+  after(() => reindexEvictedForPrep(service, prepId, embedTexts).catch(() => 0));
 
   // Hazırlığın kurulduğu belge. document_id ana select'te değil: kolon
   // migration ile geldi ve ana select'e eklenseydi kod migration'dan önce

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readAiSpend, type AiSpend } from "@/lib/admin/ops-gauges";
+import { spendBreakerState, type BreakerState } from "@/lib/billing/spend-breaker";
 import { missingRelation } from "@/lib/learning/missing-column";
 import {
   cockpitWindows,
@@ -49,6 +50,8 @@ export type Cockpit = {
   quarantine: QuarantineRow[];
   /** Eski sürüm (`stale`, karantinasız) sorular: içeriği emekli edilmiş; tek tıkla arşivlenir. */
   superseded: SupersededRow[];
+  /** Günlük harcama sigortası (5 Kasım 2026): tavan, bugünkü gider, atmış mı; okunamadıysa null. */
+  breaker: BreakerState | null;
   /** Okunamayan kaynakların adları (ekranda "okunamadı"). */
   failed: string[];
 };
@@ -202,6 +205,13 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
     marginMonth: marginPct(conversions.revenueKurus.month, spendMonth?.usd ?? null, usdTry.rate),
   };
 
+  // Sigorta durumu taze okunur (önbellek atlanır): kurucu kokpitte o anki gideri ve tavanı görsün.
+  const breaker = await spendBreakerState(service, now, { fresh: true }).catch((error: unknown) => {
+    console.warn("admin_cockpit_source_failed", { label: "sigorta", cause: error instanceof Error ? error.message.slice(0, 160) : "unknown" });
+    failed.push("sigorta");
+    return null;
+  });
+
   return {
     windows,
     growth: {
@@ -219,6 +229,7 @@ export async function loadCockpit(service: SupabaseClient, now: Date = new Date(
     superseded: supersededRows
       .map((row) => supersededRow(row, contentStatus.get(typeof row.content_id === "string" ? row.content_id : "") ?? null))
       .filter((row): row is SupersededRow => row !== null),
+    breaker,
     failed,
   };
 }

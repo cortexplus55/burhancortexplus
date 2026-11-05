@@ -155,6 +155,14 @@ const DEFS: Record<string, IngestionErrorDef> = {
     userMessage: "Ücretsiz planda toplam 5 sayfa işlenebiliyor; hakkın doldu.",
     action: "Belgenin tamamını işlemek için Plus'a geç.",
   },
+  // Lansman zırhı (5 Kasım 2026): ücretsiz hesapta aynı gün 3 okunamayan fotoğraftan sonra fotoğraf denemesi durur.
+  free_photo_abuse_limit: {
+    code: "free_photo_abuse_limit",
+    retryable: false,
+    scope: "document",
+    userMessage: "Bugün 3 fotoğraf okunamadı; ücretsiz hesapta fotoğraf denemesi yarın yenilenir.",
+    action: "Net ve iyi aydınlatılmış bir fotoğrafla yeniden dene ya da Plus'a geç.",
+  },
   photo_quota_unavailable: {
     code: "photo_quota_unavailable",
     retryable: true,

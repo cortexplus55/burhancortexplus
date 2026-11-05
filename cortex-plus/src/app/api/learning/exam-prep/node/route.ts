@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { PREFETCH_HEADER, verifyPrefetchToken } from "@/lib/learning/lesson-prefetch";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { handleNodeRequest } from "@/lib/learning/node/handler";
+import { spendBreakerBlocks } from "@/lib/billing/spend-breaker";
 
 /**
  * Üretim çağrısı 90 saniye, doğrulama ve geçici 5xx yeniden denemesi buna eklenir.
@@ -21,6 +22,10 @@ export async function POST(request: Request) {
   if (prefetchHeader !== null) {
     const caller = verifyPrefetchToken(prefetchHeader);
     if (!caller) return errorResponse(401, "AUTH_REQUIRED");
+    // Lansman zırhı (5 Kasım 2026): sigorta atmışsa ücretsiz hesabın önceden yazımı (kredisiz ama model maliyetli) başlamaz.
+    if (await spendBreakerBlocks(createServiceClient(), caller.userId, { meter: "lesson" })) {
+      return NextResponse.json({ ok: true, accepted: false, skipped: "spend_cap" }, { status: 202 });
+    }
     const body = await request.json().catch(() => null);
     after(async () => {
       const result = await handleNodeRequest(

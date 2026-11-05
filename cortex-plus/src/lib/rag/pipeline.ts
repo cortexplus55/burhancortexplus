@@ -24,6 +24,8 @@ import {
 } from "@/lib/documents/photo-quota";
 import { recordUsage } from "@/lib/credits/service";
 import { freePagesRemaining } from "@/lib/documents/free-pages";
+import { PHOTO_ABUSE_CODE, photoAbuseBlocked, recordUnreadablePhoto } from "@/lib/billing/photo-abuse-guard";
+import { cloneDocumentContent, ensureDocumentEmbeddings, findDuplicateSource, sha256Hex, stampDocumentSha } from "@/lib/documents/document-dedup";
 import { recordAbuse } from "@/lib/abuse/record";
 import { chunkText } from "@/lib/rag/chunk";
 export { chunkText } from "@/lib/rag/chunk";
@@ -132,6 +134,38 @@ export async function processDocument(
   const buffer = Buffer.from(await download.data.arrayBuffer());
 
   /*
+    Aynı belgeyi tekrar okumama (5 Kasım 2026, lansman zırhı): yüklenen baytların SHA-256'sı daha önce bitmiş bir
+    belgeyle aynıysa (aynı öğrenci ya da sınıftaki başka öğrenci) görüntü okuma ve gömme çağrısı yapılmaz; sayfa,
+    parça ve gömmeler veritabanında kopyalanır. Göç yoksa ya da kopya çıkmazsa eski yol aynen sürer.
+  */
+  const sha256 = sha256Hex(buffer);
+  await stampDocumentSha(service, documentId, sha256);
+  const duplicate = await findDuplicateSource(service, { sha256, excludeId: documentId, userId });
+  if (duplicate) {
+    const cloned = await cloneDocumentContent(service, { sourceId: duplicate.id, targetId: documentId });
+    if (cloned && cloned.pages > 0) {
+      await service.from("document_topic_nodes").delete().eq("document_id", documentId);
+      await service.from("document_coverage_reports").delete().eq("document_id", documentId);
+      // Kaynağın gömmeleri tahliye edilmişse yalnız gömme çağrısı (OCR yok).
+      const embedded = cloned.embeddings < cloned.chunks ? await ensureDocumentEmbeddings(service, documentId, embedTexts) : 0;
+      console.info("pipeline_timing", {
+        documentId, stage: "dedup_clone", source: duplicate.id, pages: cloned.pages, chunks: cloned.chunks, embeddings: cloned.embeddings + embedded,
+      });
+      const reset = { topic_map_status: "none", topic_map_error: null, topic_map_updated_at: null, error_message: null, page_count: cloned.pages };
+      if (options?.deferTopicMap) {
+        const { error: deferError } = await service.from("documents").update({ status: "processing", ...reset }).eq("id", documentId);
+        if (deferError) return fail("completion_update_failed");
+        await service.from("processing_jobs").update({ status: "processing", progress: 40, error_message: null }).eq("document_id", documentId);
+        return { ok: true, chunks: cloned.chunks, pageCount: cloned.pages, scannedPages: 0, deferred: true };
+      }
+      const { error: completedError } = await service.from("documents").update({ status: "completed", ...reset }).eq("id", documentId);
+      if (completedError) return fail("completion_update_failed");
+      await service.from("processing_jobs").update({ status: "completed", progress: 100 }).eq("document_id", documentId);
+      return { ok: true, chunks: cloned.chunks, pageCount: cloned.pages, scannedPages: 0 };
+    }
+  }
+
+  /*
     Görüntüden okuma iki yerden giriyor: yüklenen fotoğraf ve METİN KATMANI
     OLMAYAN PDF.
 
@@ -188,10 +222,15 @@ export async function processDocument(
   let lateOffice: { basePages: string[]; tail: OfficeEmbeddedImage[]; fast: boolean; pageNumberOf: Map<number, number> } | null = null;
 
   if (isImageDocument(doc.mime_type)) {
+    // Lansman zırhı (5 Kasım 2026): ücretsiz hesapta aynı gün 3 okunamayan fotoğraftan sonra yeni fotoğraf okunmaz.
+    if (await photoAbuseBlocked(service, userId)) return fail(PHOTO_ABUSE_CODE);
     if (!(await claim(1))) return fail("photo_quota_exhausted");
 
     const prepared = await visionReadyImage(buffer, doc.mime_type);
-    if (!prepared) return failAndRelease("image_unreadable");
+    if (!prepared) {
+      await recordUnreadablePhoto(userId);
+      return failAndRelease("image_unreadable");
+    }
     // Ücretli hesapta ve kurucuda hızlı işlem (31 Ekim 2026): telefon fotoğrafı 18-20 sn → 8-9 sn.
     const read = await extractImageText(prepared.buffer, prepared.mimeType, { fast: await fastAllowedFor(service, userId) });
     recordVision(read.usage);
@@ -202,6 +241,7 @@ export async function processDocument(
     }
     if (!read.ok || !read.pages.length) {
       if (read.reason === "too_large") return failAndRelease("image_too_large");
+      await recordUnreadablePhoto(userId);
       return failAndRelease("image_unreadable");
     }
     pages = read.pages;

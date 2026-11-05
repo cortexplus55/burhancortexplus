@@ -370,6 +370,11 @@ export function errorResponse(
       "Bugünkü ücretsiz fotoğraftan çözüm hakkın bitti. Gece yarısı yenilenir; dilersen Plus'a geçip beklemeden devam edebilirsin.",
     free_included_limit:
       "Bugün çok sayıda çalışma adımı açtın; ücretsiz hesapta günlük sınır doldu. Gece yarısı yenilenir.",
+    // Lansman zırhı (5 Kasım 2026): küresel günlük harcama sigortası ve okunamayan fotoğraf döngüsü; yalnız ücretsiz hesap.
+    spend_cap_free:
+      "⚡ Yoğun sınav trafiği nedeniyle şu an yalnız Hazır Müfredat Havuzu ve Plus üyelerimiz için anlık AI üretimi aktiftir. Hazır müfredattan çalışmaya devam edebilir ya da Plus'a geçebilirsin.",
+    free_photo_abuse_limit:
+      "Bugün 3 fotoğraf okunamadı; ücretsiz hesapta fotoğraf denemesi yarın yenilenir. Net ve iyi aydınlatılmış bir fotoğrafla yeniden dene ya da Plus'a geç.",
   };
   /*
     `code` de gönderiliyor. Sebebi somut: podcast oynatıcısı 402'yi tek başına

@@ -14,6 +14,7 @@ import { finalizeCompletedDeletions, processPendingDeletionRequests } from "@/li
 import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { cleanupExpiredUploads } from "@/lib/documents/upload-cleanup";
+import { evictColdEmbeddings, type EvictionReport } from "@/lib/documents/vector-lifecycle";
 import { refundStalePendingReservations, refundAbandonedDocumentReservations } from "@/lib/credits/service";
 import { sendDailyDigest } from "@/lib/admin/daily-digest";
 import { sampleLessonQuality } from "@/lib/learning/lesson-quality-judge";
@@ -242,6 +243,18 @@ export async function GET(request: Request) {
     logOpsEvent("subscription_sync_failed", { stage: "abandoned_mock_builds" });
   }
 
+  /*
+    Soğuk bellek (5 Kasım 2026, lansman zırhı): sınavı 45+ gün önce geçmiş ve 30 gündür açılmamış hazırlıkların
+    belgelerinin yalnız gömme satırları silinir (sayfa, parça, ders kalır); öğrenci hazırlığı açınca yeniden
+    indekslenir. Hobby'de yeni cron açılamaz; bu turun sonunda, en çok 60 sn ve 20 belge.
+  */
+  let vectorLifecycle: EvictionReport | null = null;
+  try {
+    vectorLifecycle = await evictColdEmbeddings(service, { now, limit: 20, budgetMs: 60_000 });
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "vector_eviction" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
@@ -254,5 +267,6 @@ export async function GET(request: Request) {
     digest,
     generationJobs,
     abandonedBuilds,
+    vectorLifecycle,
   });
 }

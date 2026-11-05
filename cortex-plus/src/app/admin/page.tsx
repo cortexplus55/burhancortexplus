@@ -5,6 +5,7 @@ import { CockpitQuarantine } from "@/components/admin/cockpit-quarantine";
 import { CockpitSuperseded } from "@/components/admin/cockpit-superseded";
 import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { FxRateForm } from "@/components/admin/fx-rate-form";
+import { SpendCapForm } from "@/components/admin/spend-cap-form";
 import { AdminBadge, AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -53,7 +54,7 @@ export default async function AdminPage() {
     service.from("admin_free_preview").select("user_id").eq("user_id", user.id).maybeSingle(),
   ]);
 
-  const { growth, conversions, economics, reports, quarantine, superseded, failed } = cockpit;
+  const { growth, conversions, economics, reports, quarantine, superseded, breaker, failed } = cockpit;
   const spendTodayKurus = spendKurus(economics.spendToday?.usd ?? null, economics.usdTry.rate);
   const spendMonthKurus = spendKurus(economics.spendMonth?.usd ?? null, economics.usdTry.rate);
 
@@ -150,6 +151,24 @@ export default async function AdminPage() {
             {formatNumber(economics.spendMonth.unpricedCalls)} çağrının modeli fiyat tablosunda yok; gider o kadar eksik. <Link href="/admin/maliyetler" className="underline">Maliyetler</Link>
           </p>
         ) : null}
+        <div className="border-t border-[var(--adm-border)] px-5 py-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">Günlük harcama sigortası</span>
+            {breaker ? (
+              <AdminBadge tone={!breaker.enabled ? "mute" : breaker.tripped ? "bad" : "ok"}>
+                {!breaker.enabled ? "Kapalı (yerel)" : breaker.tripped ? "ATTI · ücretsiz üretim durdu" : "Açık"}
+              </AdminBadge>
+            ) : (
+              <AdminBadge tone="mute">okunamadı</AdminBadge>
+            )}
+            {breaker ? (
+              <span className="text-xs text-[var(--adm-muted)]">
+                Bugün {usd(breaker.spentUsd ?? 0)} / tavan {usd(breaker.cap.capUsd)} · tavan aşılınca ücretsiz hesapların model çağrısı durur, hazır müfredat ve Plus sürer
+              </span>
+            ) : null}
+          </div>
+          <SpendCapForm current={breaker?.cap.capUsd ?? 25} source={breaker?.cap.source ?? "default"} />
+        </div>
       </AdminCard>
 
       <AdminCard

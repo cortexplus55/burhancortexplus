@@ -6,12 +6,20 @@ import type { ActionCode } from "@/lib/env";
 import { defaultFreeMeter, type FreeMeter } from "@/lib/billing/free-meters";
 import { CREDIT_PRICE_TABLE, creditRuleSeed } from "@/lib/credits/price-table";
 import { parseDocumentReservationKey } from "@/lib/documents/document-reservation-key";
+import { SPEND_CAP_CODE, spendBreakerBlocks } from "@/lib/billing/spend-breaker";
+import { PHOTO_ABUSE_CODE, photoAbuseBlocked } from "@/lib/billing/photo-abuse-guard";
 
 /**
  * Ücretsiz hesabın reddi (24 Ekim 2026): sayaç doldu ya da iş Plus'ta. Sebep yine
  * `insufficient_credits` (istemciler 402'yi ve bu kodu okuyor); ayrıntı `refusal`'da.
+ * 5 Kasım 2026: küresel harcama sigortası (`spend_cap`) ve okunamayan fotoğraf döngüsü (`photo_abuse`) da
+ * ücretsiz hesabın reddidir; abone ve kurucu bu ikisini görmez.
  */
-export type FreeRefusal = { kind: "free_limit"; meter: FreeMeter } | { kind: "plus_required" };
+export type FreeRefusal =
+  | { kind: "free_limit"; meter: FreeMeter }
+  | { kind: "plus_required" }
+  | { kind: "spend_cap" }
+  | { kind: "photo_abuse" };
 
 export type ReservationResult =
   | { ok: true; reservationId: string; cost: number }
@@ -35,6 +43,8 @@ export function parseFreeRefusal(message: string): FreeRefusal | null {
 export function refusalCode(result: { reason: string; refusal?: FreeRefusal }): string {
   if (result.refusal?.kind === "plus_required") return "premium_required";
   if (result.refusal?.kind === "free_limit") return `free_${result.refusal.meter}_limit`;
+  if (result.refusal?.kind === "spend_cap") return SPEND_CAP_CODE;
+  if (result.refusal?.kind === "photo_abuse") return PHOTO_ABUSE_CODE;
   return result.reason;
 }
 
@@ -131,6 +141,14 @@ export async function reserveCredits(
   const units = Math.min(Math.max(Math.trunc(quantity) || 1, 1), 1000);
 
   const meter = options.freeMeter === undefined ? defaultFreeMeter(actionCode) : options.freeMeter;
+  // Lansman zırhı (5 Kasım 2026): günlük harcama sigortası atmışsa ücretsiz hesabın maliyetli işi burada durur
+  // (derse dahil `included` yardım hariç); abone ve kurucu geçer. Okunamayan fotoğraf döngüsü yalnız fotoğraf işinde.
+  if (await spendBreakerBlocks(service, userId, { meter })) {
+    return { ok: false, reason: "insufficient_credits", refusal: { kind: "spend_cap" } };
+  }
+  if (actionCode === "IMAGE_SOLUTION" && (await photoAbuseBlocked(service, userId))) {
+    return { ok: false, reason: "insufficient_credits", refusal: { kind: "photo_abuse" } };
+  }
   // Sıra her çağrıda aynı: sayaçlı ayırma → (fonksiyon yoksa) eski `credit_reserve`.
   const callReserve = async () => {
     let { data, error } = await service.rpc("credit_reserve_metered", {

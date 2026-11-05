@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { poolUnit } from "@/lib/content-pool/keys";
 import { createReinforceItems } from "@/lib/content-pool/reinforce-new";
 import { FX_FLAG, FX_MAX, FX_MIN } from "@/lib/admin/cockpit-math";
+import { resetSpendBreakerForTests, SPEND_CAP_FLAG, SPEND_CAP_MAX_USD, SPEND_CAP_MIN_USD } from "@/lib/billing/spend-breaker";
 
 /*
   Kurucu kokpitinin eylemleri (5 Kasım 2026): kur kaydı ve karantina kuyruğu (havuza geri al, reddet,
@@ -172,4 +173,33 @@ export async function archiveSupersededItems(itemIds: string[]): Promise<Cockpit
   revalidatePath("/admin");
   if (!archived) return { ok: false, error: "Arşivlenecek eski sürüm sorusu bulunamadı (karantinada ya da içeriği hâlâ yayında)." };
   return { ok: true, message: `${archived} eski sürüm sorusu arşivlendi (rejected · superseded).` };
+}
+
+const capSchema = z.number().finite().min(SPEND_CAP_MIN_USD).max(SPEND_CAP_MAX_USD);
+
+/**
+ * Günlük harcama sigortasının tavanı (5 Kasım 2026, lansman zırhı): kurucu dolar cinsinden yazar; bayrak
+ * `admin_ai_daily_cap` metadata.cap_usd. Ortam değişkeni ve 25 $ varsayılanı bunun yedeğidir (spend-breaker.ts).
+ */
+export async function saveDailySpendCap(capUsd: number): Promise<CockpitActionResult> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return UNAUTHORIZED;
+  const parsed = capSchema.safeParse(capUsd);
+  if (!parsed.success) return { ok: false, error: `Tavan ${SPEND_CAP_MIN_USD}–${SPEND_CAP_MAX_USD} $ arasında bir sayı olmalı.` };
+  const service = createServiceClient();
+  const { error } = await service.from("feature_flags").upsert(
+    {
+      key: SPEND_CAP_FLAG,
+      enabled: true,
+      description: "Küresel günlük OpenAI harcama sigortası: metadata.cap_usd (kurucu kokpitten yazar).",
+      metadata: { cap_usd: parsed.data, updated_at: new Date().toISOString(), updated_by: actorId },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
+  if (error) return { ok: false, error: "Tavan kaydedilemedi." };
+  await auditLog(service, { actorId, action: "cockpit.spend_cap.saved", entityType: "feature_flag", entityId: SPEND_CAP_FLAG, metadata: { capUsd: parsed.data } });
+  resetSpendBreakerForTests();
+  revalidatePath("/admin");
+  return { ok: true, message: `Günlük tavan kaydedildi: ${parsed.data} $. Bir dakika içinde bütün sunucularda geçerli olur.` };
 }
