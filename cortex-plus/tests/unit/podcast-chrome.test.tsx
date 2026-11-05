@@ -34,7 +34,8 @@ describe("podcast oynatıcı kabuğu", () => {
     expect(player).toContain("speakerLiveBadge");
     expect(player).toContain("cp-pod-orbs");
     expect(player).toContain("cp-pod-orb");
-    expect(player).toContain('(["ada", "kerem"] as const)');
+    // 5 Kasım 2026: yalnız konuşan sesler çizilir (`visibleSpeakers`, tek kaynak `podcast-speakers.ts`).
+    expect(player).toContain("visibleSpeakers(timeline)");
     expect(player).toContain("is-${activeLine?.speaker ?? \"ada\"}");
     expect(player).toContain("cp-pod-live-script");
   });
