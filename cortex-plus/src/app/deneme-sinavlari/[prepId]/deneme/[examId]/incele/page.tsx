@@ -8,18 +8,38 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { mockElapsedLabel } from "@/lib/learning/mock-exam/time-limit";
 import { scoringKeyTerms } from "@/lib/learning/mock-exam/key-terms";
 import { rowVerdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
+import { parseStoredFirstError, parseStoredSteps, type WorkStepKind, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
 
 export const metadata = { title: "Soru inceleme" };
 
-/** Açık uçlu notun ölçütleri (grade-exam: met / missed) ve puan notu (`step`). Eski kayıtta yok. */
-function reviewFeedback(raw: unknown): { met: string[]; missed: string[]; note?: string } | null {
-  const row = raw && typeof raw === "object" ? (raw as { met?: unknown; missed?: unknown; step?: unknown }) : null;
+type ReviewFeedback = {
+  met: string[];
+  missed: string[];
+  note?: string;
+  /** Çözümün satırları ve ilk hatalı satır (5 Kasım 2026). Eski kayıtta yok. */
+  steps?: WorkStepVerdict[];
+  firstError?: { line: number; kind?: WorkStepKind; note?: string };
+};
+
+/** Açık uçlu notun ölçütleri (grade-exam: met / missed), puan notu (`step`) ve adımlar. Eski kayıtta yok. */
+function reviewFeedback(raw: unknown): ReviewFeedback | null {
+  const row =
+    raw && typeof raw === "object" ? (raw as { met?: unknown; missed?: unknown; step?: unknown; steps?: unknown; firstError?: unknown }) : null;
   if (!row) return null;
   const list = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : []);
   const met = list(row.met);
   const missed = list(row.missed);
   const note = typeof row.step === "string" && row.step.trim() ? row.step.trim() : undefined;
-  return met.length || missed.length || note ? { met, missed, ...(note ? { note } : {}) } : null;
+  const steps = parseStoredSteps(row.steps);
+  const firstError = steps.length ? parseStoredFirstError(row.firstError, steps) : null;
+  if (!met.length && !missed.length && !note && !steps.length) return null;
+  return {
+    met,
+    missed,
+    ...(note ? { note } : {}),
+    ...(steps.length ? { steps } : {}),
+    ...(firstError ? { firstError } : {}),
+  };
 }
 
 export default async function ExamQuestionReviewPage({

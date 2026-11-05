@@ -14,6 +14,16 @@ import { QuestionReportButton } from "@/components/learning/question-report-butt
 import { cn } from "@/lib/utils";
 import { rowVerdict, verdictCounts } from "@/lib/learning/mock-exam/verdict-counts";
 import { KEY_TERMS_TITLE } from "@/lib/learning/mock-exam/key-terms";
+import { firstErrorSentence, type WorkStepKind, type WorkStepVerdict } from "@/lib/learning/mock-exam/work-steps";
+
+type ReviewFeedback = {
+  met: string[];
+  missed: string[];
+  note?: string;
+  /** Çözümün satırları ve ilk hatalı satır (5 Kasım 2026); eski kayıtta yok. */
+  steps?: WorkStepVerdict[];
+  firstError?: { line: number; kind?: WorkStepKind; note?: string };
+};
 
 type ReviewItem = {
   id: string;
@@ -27,8 +37,57 @@ type ReviewItem = {
   points_earned?: number | null;
   points_max?: number | null;
   /** Açık uçlu cevapta karşılanan ve eksik kalan ölçütler. */
-  feedback?: { met: string[]; missed: string[]; note?: string } | null;
+  feedback?: ReviewFeedback | null;
 };
+
+const STEP_STATUS_MARK: Record<WorkStepVerdict["status"], string> = { ok: "✓", error: "✗", unknown: "·" };
+const STEP_STATUS_LABEL: Record<WorkStepVerdict["status"], string> = { ok: "doğru", error: "hatalı", unknown: "değerlendirilmedi" };
+
+/**
+ * Çözümün satırları (5 Kasım 2026): her satır ✓ / ✗ / · ; ilk hatalı satır vurgulu, altında tek cümle
+ * ("3. satırda işaret hatası: …"). Puan notu (`note`) satır cümlesinin kendisiyse ikinci kez yazılmaz.
+ */
+export function WorkStepList({ steps, firstError, note }: { steps: WorkStepVerdict[]; firstError?: ReviewFeedback["firstError"]; note?: string }) {
+  const errorLine = firstError?.line ?? null;
+  const sentence = firstError ? note ?? firstErrorSentence(firstError) : null;
+  return (
+    <ol className="cp-review-steps space-y-1.5" aria-label="Çözümünün satırları">
+      {steps.map((step) => {
+        const highlighted = step.n === errorLine;
+        return (
+          <li
+            key={step.n}
+            className={cn(
+              "flex min-w-0 flex-wrap items-start gap-2 rounded-xl border px-3 py-2 text-sm",
+              highlighted
+                ? "border-rose-500/50 bg-rose-950/30 text-rose-100"
+                : step.status === "ok"
+                  ? "border-emerald-500/20 bg-emerald-950/10 text-[var(--cp-text)]"
+                  : "border-[var(--cp-border)] bg-[var(--cp-surface-2)] text-[var(--cp-text)]",
+            )}
+            aria-current={highlighted ? "true" : undefined}
+          >
+            <span className="w-6 shrink-0 text-xs font-bold tabular-nums text-[var(--cp-muted)]">{step.n}.</span>
+            <span
+              className={cn(
+                "w-4 shrink-0 text-center text-sm font-black",
+                step.status === "ok" ? "text-emerald-400" : step.status === "error" ? "text-rose-400" : "text-[var(--cp-muted)]",
+              )}
+              aria-label={STEP_STATUS_LABEL[step.status]}
+              role="img"
+            >
+              {STEP_STATUS_MARK[step.status]}
+            </span>
+            <span className="min-w-0 flex-1 basis-[8rem] whitespace-pre-wrap break-words leading-snug">{step.text}</span>
+            {highlighted && sentence ? (
+              <p className="basis-full pl-12 text-xs font-semibold leading-snug text-rose-300">{sentence}</p>
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 type Verdict = "dogru" | "kismen" | "yanlis" | "bos";
 
@@ -380,6 +439,14 @@ export function ExamQuestionReviewClient({
                       {review?.user_answer?.trim() || "Boş bıraktın."}
                     </p>
                   </div>
+                  {review?.feedback?.steps?.length ? (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--cp-muted)]">Satır satır</p>
+                      <div className="mt-1.5">
+                        <WorkStepList steps={review.feedback.steps} firstError={review.feedback.firstError} note={review.feedback.note} />
+                      </div>
+                    </div>
+                  ) : null}
                   {review?.feedback?.met.length ? (
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Karşıladığın noktalar</p>
@@ -406,7 +473,8 @@ export function ExamQuestionReviewClient({
                       </ul>
                     </div>
                   ) : null}
-                  {review?.feedback?.note ? (
+                  {/* Satır cümlesi ilk hatalı satırın altında yazıldı; burada yalnız hatasız çözümün puan notu kalır. */}
+                  {review?.feedback?.note && !(review.feedback.steps?.length && review.feedback.firstError) ? (
                     <p className="text-xs text-[var(--cp-muted)]">{review.feedback.note}</p>
                   ) : null}
                 </div>
