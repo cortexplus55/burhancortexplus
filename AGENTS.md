@@ -1884,3 +1884,18 @@ satırda ne hata yaptığını söylesin." PR #566. Model çağrısı sayısı d
 | Ekran: "Senin cevabın" altında numaralı satırlar ✓ / ✗ / ·, ilk hatalı satır vurgulu ve tek cümle ("{k−1}. satıra kadar kurulumun doğru; {k}. satırda {tür}: …"); eski kayıtta liste yok | `exam-question-review-client.tsx`, `incele/page.tsx` |
 
 Bekçi: `el-yazisi-adimlar.test.ts` (22), `el-yazisi-adimlar-ekran.test.tsx`.
+
+## Kapanış (5 Kasım 2026) — kararsız test yok, havuzda stale yok, dört yüzey canlıda
+
+Ürün sahibi: "'canlıda tıklanmadı', 'bekliyor', 'yük altında kararsız' denilen tek bir nokta kalmasın." PR #569, #570.
+
+| Konu | Kural | Nerede |
+|---|---|---|
+| **Kararsız test sınıfı = yük altında 5 sn'lik varsayılan süre.** Tam paket (637 dosya, 16 işçi) koşarken vite dönüşüm sunucusu tektir; tek başına 0,4 sn süren pdf-lib testi bile 5 sn'yi aşıp düşüyordu (`pencereli-yukleme`, `generate-stream-deadline`, `paket-j2 #7`) | Zamanlamayı denetleyen test **sahte zamanlayıcı** kullanır (`callGuard`: hangi sayacın önce ateşlediği yükten bağımsız); uçtan uca test yalnız **sonucu** denetler (neden, iade, istek sayısı — "yeniden denenmedi" sunucuya gelen istek sayısıyla kanıtlanır), duvar saati eşiği yazmaz; modül yükü `beforeAll`'da ya da dosya düzeyi import. Global tavan `testTimeout 30 sn / hookTimeout 60 sn` yalnız takılı testi yakalar. Düzeltmeden sonra tam paket iki kez 637/637 | `vitest.config.ts`, `generate-stream-deadline.test.ts`, `paket-j2.test.ts` |
+| **Havuzda `stale` üç kaynaktan gelir:** saatlik karantina (`qa.quarantine.rule`), elle karantina (`by: manual_review`), **içerik emekliliği** (`retire()` — `qa.quarantine` yok). Üçüncüsü karantina kuyruğunda görünmüyordu: 24 ALES Sözel #7 sorusu 3 gün `stale` kaldı | Kokpit "Eski sürüm soruları": içeriği yayında olmayanlar tek tıkla `rejected · superseded`. İlk kullanım 5 Kasım: 24/24 arşivlendi; 2 KPSS Tarih sorusu "Reddet ve yeniden ürettir" ile yenilendi (kazanım başına 5 yeni doğrulanmış soru). Sonuç: 13.1xx doğrulanmış soru, `stale` 0, 864/864 ünite doğrulanmış ders + soru | `cockpit-superseded.tsx`, `archiveSupersededItems`, `regenerateQuarantinedItem` |
+| Havuza soru yazan her yer kapı sürümünü `GATE_VERSION`'dan okur; sayı yalnız `gate.ts`'te. `reinforce-new.ts` sabit 14 yazıyordu: kokpitten yeniden üretilen ilk 5 soru v15 kurallarıyla doğrulandığı hâlde 14 etiketi aldı | Bekçi `kapi-surumu-tek-kaynak.test.ts` (`src` altında `gate_version: <sayı>` yasak) | `reinforce-new.ts` |
+| Kokpit eylemi sayfayı yenileyince biten kart ve sonuç satırı düşüyordu | Sonuç sonner bildirimiyle de verilir | `cockpit-quarantine.tsx`, `cockpit-superseded.tsx` |
+| **Dört yüzey canlıda (kurucu test hesabı, 5 Kasım):** 3 fotoğraf → tek "Ders Notu Fotoğrafları (3 Sayfa).pdf" (369 KB), 3 sayfa 17 sn'de okundu, harita 3 konu; podcast diyalog ~40 sn (29 satır, 3:58, kelime vurgusu), yoldaki podcast düğümünde "Dinledim, devam" → node 200, +20 yıldız; çizimli video ~35 sn (`SKETCH_VIDEO_GENERATE` 25, kredi anahtarı `…:sketch_reel:slot0`), 9:16 ↔ 16:9, SVG şema, formül; bot düello `/duel` → `/bot` → `/run` 200, canlı bot çubuğu, sonuç tablosu | Tek pürüz: podcast sayfasına geçişte bir `_rsc` isteği **bir kez** 503 döndü (sonraki 7'si 200; Next sert yönlendirmeyle kurtardı). Kök neden Vercel günlüğünde — panelde 2FA kurulum penceresi çıkıyor, **güvenlik ayarıdır, kod dokunmaz** | — |
+| `npm run build` Windows'ta npm script üzerinden `NODE_OPTIONS` tanımaz ("not recognized") | Bash'ten `NODE_OPTIONS=--max-old-space-size=6144 npx next build` | `package.json` |
+
+Canlı temizlik (7 sonda hesabı, kurucu test hesabının 54 hazırlığı + 200 belgesi, 722 parça gömmesi) ürün sahibinin SQL ekranında; dosya ona teslim edildi, depoda yok.
