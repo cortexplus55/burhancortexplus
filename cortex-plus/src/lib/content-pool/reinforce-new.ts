@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { GATE_VERSION } from "@/lib/content-pool/gate";
 import { generateReinforceItems, openaiLlm, type LlmCall } from "@/lib/content-pool/generate";
 import { CONTENT_VERSION, type PoolUnit } from "@/lib/content-pool/keys";
 import { supabasePoolStore } from "@/lib/content-pool/supabase-store";
@@ -66,7 +67,7 @@ export function reinforceRows(unit: PoolUnit, outcomeId: string, items: PoolItem
     explanation: item.explanation,
     status: "verified",
     ...(withOrigin ? { origin: "reinforce" } : {}),
-    qa: { outcome_code: item.outcome_code, verified_by: verifyModel, origin: "reinforce", requested_by: userId, gate_version: 14, triad: true },
+    qa: { outcome_code: item.outcome_code, verified_by: verifyModel, origin: "reinforce", requested_by: userId, gate_version: GATE_VERSION, triad: true },
   }));
 }
 

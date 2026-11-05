@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { regenerateQuarantinedItem, rejectQuarantinedItem, restoreQuarantinedItem, type CockpitActionResult } from "@/app/admin/cockpit-actions";
 import type { QuarantineRow } from "@/lib/admin/cockpit-math";
 import { formatDate } from "@/lib/format";
@@ -23,6 +24,9 @@ function QuarantineCard({ row }: { row: QuarantineRow }) {
       const outcome = await action(row.id);
       setResult(outcome);
       setBusy(null);
+      // Eylem sayfayı yeniler ve biten kart listeden düşer; sonuç satırı kartla gitmesin diye bildirim de verilir.
+      if (outcome.ok) toast.success(outcome.message);
+      else toast.error(outcome.error);
     });
   };
 

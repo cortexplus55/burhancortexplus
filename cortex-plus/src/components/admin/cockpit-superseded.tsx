@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { archiveSupersededItems, type CockpitActionResult } from "@/app/admin/cockpit-actions";
 import { supersededArchivable, supersededGroups, type SupersededRow } from "@/lib/admin/cockpit-math";
 
@@ -65,7 +66,11 @@ export function CockpitSuperseded({ rows }: { rows: SupersededRow[] }) {
           disabled={pending || result?.ok === true || archivable.length === 0}
           onClick={() => {
             startTransition(async () => {
-              setResult(await archiveSupersededItems(archivable.map((row) => row.id)));
+              const outcome = await archiveSupersededItems(archivable.map((row) => row.id));
+              setResult(outcome);
+              // Sayfa yenilenince liste boşalır ve bu bileşen "yok" satırına döner; sonuç bildirimde kalsın.
+              if (outcome.ok) toast.success(outcome.message);
+              else toast.error(outcome.error);
             });
           }}
         >
