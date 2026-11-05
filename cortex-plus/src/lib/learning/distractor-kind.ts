@@ -1,11 +1,11 @@
 /**
- * Çeldirici türü ölçüsü (30 Ekim 2026, canlı tur: Makroekonomi dersi). Ders içi soru bir endeks soruyordu, şıklarda
+ * Çeldirici türü ölçüsü (30 Ekim 2026, canlı tur). Ders içi soru bir endeks soruyordu, şıklarda
  * başka türden kavramlar ("Terim A", "Terim B") vardı. Kural (`SAME_KIND_DISTRACTOR_RULE`) yazara söyler; bu
  * dosya modelsiz bir işaret verir.
  *
  * Kod konunun türlerini bilmez. Türü iki yerden okur:
  *   1. Kökün sorduğu tür: "hangi X", "… X hangisidir", "hangisi bir X'tir".
- *   2. Şıkkın türü: kaynakta ya da derste o terimi tanımlayan cümlenin son sözcüğü ("TÜFE, … ölçen bir endekstir" →
+ *   2. Şıkkın türü: kaynakta ya da derste o terimi tanımlayan cümlenin son sözcüğü ("X, … ölçen bir endekstir" →
  *      endeks; "Terim B, Kavram oranının düşmesidir" → düşme).
  * İşaret yalnız doğru cevabın türü kökün sorduğu türle tutunca ve çeldiricinin kendi tanımı başka bir tür söyleyince
  * verilir; tanımı bulunamayan şık hakkında bir şey söylenmez. Ders adı ya da sabit kelime listesi yok (yalnız genel
@@ -80,7 +80,7 @@ function sentencesOf(context: string): string[] {
 /**
  * Terimin kaynakta ya da derste tanımlandığı türü. Tanım cümlesi terimle ve ardından virgül, iki nokta ya da noktalı
  * virgülle başlar ("Terim B, …dır") ya da terim cümlenin ilk altı sözcüğünde parantez içindedir ("Tüketici fiyat
- * endeksi (TÜFE), …"); cümle ek-fiille biter. Virgülsüz cümle ("ÜFE TÜFE'den daha oynaktır") tanım sayılmaz.
+ * endeksi (X), …"); cümle ek-fiille biter. Virgülsüz cümle ("X Y'den daha oynaktır") tanım sayılmaz.
  */
 export function termKind(term: string, context: string): string | null {
   const name = fold(term).replace(/[.,;:!?]+$/u, "").trim();

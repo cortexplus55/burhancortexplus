@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTimer } from "./timing";
+import { createTimer } from "@/lib/learning/mock-exam/timing";
 
 describe("createTimer", () => {
   it("adım sürelerini Server-Timing biçiminde verir", () => {

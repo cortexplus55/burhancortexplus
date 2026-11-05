@@ -231,8 +231,8 @@ const foldTitle = (text: string) =>
     .trim();
 
 /**
- * Tek konulu ünitenin adı konunun adıyla aynıysa başlık tekrar gibi okunuyor ("SİSTEMLER ARASI
- * HOMEOSTAZİ BAĞLANTILARI" altında "Sistemler Arası Homeostazi Bağlantıları"); başlık yazılmaz.
+ * Tek konulu ünitenin adı konunun adıyla aynıysa başlık tekrar gibi okunuyor (büyük harfli ünite başlığının
+ * altında aynı adın başlık yazımı); başlık yazılmaz.
  */
 export function redundantUnitHeader(unitTitle: string, topicTitles: string[]): boolean {
   return topicTitles.length === 1 && foldTitle(unitTitle) === foldTitle(topicTitles[0] ?? "");
@@ -240,7 +240,7 @@ export function redundantUnitHeader(unitTitle: string, topicTitles: string[]): b
 
 /**
  * Kurulumun konu listesi yolun sırasıyla (24 Ekim 2026 lansman testi): üniteye bağlı olmayan konu "Diğer"
- * başlığıyla en sona düşüyordu; beş dosyalı hazırlıkta yolun ilk konusu (Homeostazi) listenin sonunda göründü.
+ * başlığıyla en sona düşüyordu; beş dosyalı hazırlıkta yolun ilk konusu listenin sonunda göründü.
  * Ünite ilk konusunun yerinde, ünitesiz konu kendi yerinde ve başlıksız.
  */
 export function listSegments(

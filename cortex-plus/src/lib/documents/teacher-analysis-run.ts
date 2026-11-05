@@ -97,7 +97,7 @@ function rememberAnalysis(documentId: string, analysis: TeacherAnalysis | null) 
  *
  * Model susarsa, kredi yetmezse ya da kayıt yazılamazsa yükleme akışı
  * olduğu gibi sürer. Hazır kayıt varsa yeniden üretilmez — `force` bunun tek
- * istisnası: yönetici düğmesi (18 Ekim 2026, plan 4.4). Pediatri belgesinin
+ * istisnası: yönetici düğmesi (18 Ekim 2026, plan 4.4). Canlı bir belgenin
  * analizi eski 2 sayfalık sınırla yazılmış, 10 konunun 8'inde "Sınavda sorulur"
  * maddesi yoktu ve hazır kayıt yüzünden kendiliğinden düzelmiyordu.
  */

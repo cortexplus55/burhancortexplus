@@ -21,6 +21,7 @@ import { studentSafeText } from "@/lib/learning/student-safe-text";
 import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { mapWithConcurrency, type PodcastLength } from "@/lib/learning/podcast-formats";
+import { visibleSpeakers } from "@/lib/learning/podcast-speakers";
 
 type AudioLine = {
   chapterIndex: number;
@@ -789,7 +790,8 @@ export function ExamPodcastPlayer({
               className={cn("cp-pod-orbs", `is-${activeLine?.speaker ?? "ada"}`, playing && "is-on")}
               aria-hidden
             >
-              {(["ada", "kerem"] as const).map((speaker) => {
+              {/* Tek sesli özet: konuşmayan sesin görseli çizilmez (`visibleSpeakers`). */}
+              {visibleSpeakers(timeline).map((speaker) => {
                 const live = (activeLine?.speaker ?? "ada") === speaker;
                 return (
                   <div

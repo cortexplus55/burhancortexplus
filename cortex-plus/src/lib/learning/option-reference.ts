@@ -3,8 +3,8 @@
  *
  * Model doğru cevabı neredeyse hep ilk şıkka yazdığı için şıklar öğrenciye karışık sırayla
  * gösteriliyor (ders kontrolü ve öğretmen testi). Açıklama ise yazıldığı sıraya gönderme
- * yapıyordu: altın kıyasta Termodinamik dersi "İlk seçenek sabit basınçta, ikinci seçenek
- * sabit hacimde…", Pediatri dersi "Diğer seçenekler sırasıyla bronşiolit, astım ve pnömoni"
+ * yapıyordu: altın kıyasta bir ders "İlk seçenek …, ikinci seçenek …",
+ * başka bir ders "Diğer seçenekler sırasıyla …"
  * dedi — karıştırmadan sonra ikisi de yanlış şıkkı gösteriyordu. Yazar ve denetçi kuralı
  * aynı cümleyle bilir; kod yalnız yakalar.
  */
@@ -17,7 +17,7 @@ const ORDINAL = "(?:ilk|birinci|ikinci|üçüncü|dördüncü|beşinci|son|sonun
 /** Önünde harf olmayan "seçenek/şık": "ışık", "aşık" şık değildir (fizik dersinde "ışıklar sırasıyla …"). */
 const OPTION = "(?:^|[^\\p{L}])(?:seçenek|şık)";
 /**
- * Sıra sözcüğüyle birlikte şık yerine geçen adlar (20 Ekim 2026, kör kıyas): trigonometri dersinde "ilk iki ifade
+ * Sıra sözcüğüyle birlikte şık yerine geçen adlar (20 Ekim 2026, kör kıyas): bir derste "ilk iki ifade
  * aynı son kola sahip" karışık şıklarda yanlış ikiliyi gösteriyordu. Soru köklerinde numaralı öncül kullanılmıyor;
  * bu adlar burada yalnız şıkları gösterebilir. "madde" yok: "Anayasanın ilk üç maddesi değiştirilemez" KPSS'in
  * çekirdek bilgisi; itiraz edilemeyen yapı kuralı olarak yazarın o cümleyi kurmasını yasaklıyordu.
@@ -35,7 +35,7 @@ const LOWER_PATTERNS = [
   new RegExp(`(?:^|[^\\p{L}])${ORDINAL}\\s+(?:(?:iki|üç)\\s+)?${OPTION_LIKE}`, "u"),
   // "2. seçenek", "3. şık"
   new RegExp(`(?:^|[^\\p{L}\\d])[1-6]\\.\\s*(?:seçenek|şık)`, "u"),
-  // "diğer seçenekler sırasıyla", "diğer seçeneklerdeki bulgular sırasıyla" (Pediatri, 20 Ekim), "sırasıyla … şıklar"
+  // "diğer seçenekler sırasıyla", "diğer seçeneklerdeki bulgular sırasıyla" (20 Ekim), "sırasıyla … şıklar"
   new RegExp(`${OPTION}\\p{L}*[^.]{0,40}?\\s${ORDER}|${ORDER}[^.]{0,40}${OPTION}`, "u"),
 ];
 /** "A şıkkı", "B seçeneği": büyük harfe bakar, özgün metinde aranır. */

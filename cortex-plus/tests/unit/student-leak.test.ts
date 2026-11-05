@@ -34,9 +34,10 @@ describe("öğrenci sızıntısı", () => {
     expect(splitTableCells("| yaş | [−3: | 5] |")).toEqual(["yaş", "[−3, 5]"]);
   });
 
-  it("podcast satır başındaki Ece ve Deniz adını söker", () => {
-    expect(spokenSentence("Ece: Glukoz eşiği 180'dir.")).toBe("Glukoz eşiği 180'dir.");
-    expect(spokenSentence("Deniz: Eşleme oka gider.")).toBe("Eşleme oka gider.");
+  it("podcast satır başındaki ürün sesi ve rol adını söker; kişi adı listesi tutulmaz (5 Kasım 2026)", () => {
+    expect(spokenSentence("Ada: Glukoz eşiği 180'dir.")).toBe("Glukoz eşiği 180'dir.");
+    expect(spokenSentence("Sunucu: Eşleme oka gider.")).toBe("Eşleme oka gider.");
+    expect(spokenSentence("Öğrenci: Eşleme oka gider.")).toBe("Eşleme oka gider.");
   });
 
   it("Yanlış etiketi ile gövde arasında ayraç vardır", () => {

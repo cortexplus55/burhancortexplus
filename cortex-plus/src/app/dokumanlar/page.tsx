@@ -66,7 +66,7 @@ export default async function DokumanlarPage() {
     .limit(30);
 
   // Her belgenin kendi yolu (3 Ekim 2026). Düğme eskiden her basışta yeni
-  // hazırlık kuruyordu; aynı trigonometri belgesinin üç ayrı yolu olmuştu.
+  // hazırlık kuruyordu; aynı belgenin üç ayrı yolu olmuştu.
   const documentIds = (documents ?? []).map((d) => d.id);
   const { data: prepRows } = documentIds.length
     ? await service

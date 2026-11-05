@@ -346,7 +346,7 @@ function ChatPanelSession({
    * 9 Ekim 2026, ürün sahibinin kararı (Faz 5): belgede olmayan sınav bilgisi
    * sorulunca "belgende geçmiyor" deyip susmak yerine, bunu söyleyip genel
    * bilgiyi "Genel bilgiden:" diye ayrı paragrafta verir. Önceki varsayılan
-   * (2 Ekim) Yalnızca Belgem'di; Pediatri'de üç sorudan ikisi cevapsız kaldı.
+   * (2 Ekim) Yalnızca Belgem'di; canlıda üç sorudan ikisi cevapsız kaldı.
    */
   const [documentsOnly, setDocumentsOnly] = useState(false);
   const [status, setStatus] = useState<string | null>(null);

@@ -7,8 +7,8 @@ import { contentTokens, rootCoverage } from "@/lib/learning/lexical-overlap";
 import { optionKey } from "@/lib/learning/question-integrity";
 
 /**
- * Destede tekrar yok (30 Ekim 2026, canlı tur: Makroekonomi). Yoldaki 8 kartın 1, 2 ve 6'sı aynı bilgiydi ("X nedir?"
- * → tanım; "tanıma ne denir?" → X; aynı cevabın üçüncü kartı), 3 ile 4 aynı bilgiydi; Araçlar'da "MV = PY"nin her
+ * Destede tekrar yok (30 Ekim 2026, canlı tur). Yoldaki 8 kartın 1, 2 ve 6'sı aynı bilgiydi ("X nedir?"
+ * → tanım; "tanıma ne denir?" → X; aynı cevabın üçüncü kartı), 3 ile 4 aynı bilgiydi; Araçlar'da tek bir formülün her
  * harfi ayrı karttı ve 1 ile 3 aynı harfi soruyordu. Kart motorunda deste düzeyinde hiçbir denetim yoktu; yalnız
  * sonda %70 sözcük örtüşmesiyle eleme vardı ve o da "sayı eksilirse kopya kalsın" diye geri koyuyordu. Yazar ve
  * denetçi bu metni aynen okur; kod (`sameCardFact`, `formulaLetterCard`) aynı bilgiyi taşıyan kartı kabul etmez,

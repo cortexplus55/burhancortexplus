@@ -11,6 +11,7 @@ import type { UsageCode } from "@/lib/credits/service";
 import { choiceCount, itemsPerPair, type PoolUnit } from "@/lib/content-pool/keys";
 import { GATE_VERSION, garbledExcerpt, garbledReason, gateItems } from "@/lib/content-pool/gate";
 import { BLUEPRINT_VERSION, blueprintChecks, blueprintIssues, blueprintKind, blueprintPrompt } from "@/lib/content-pool/blueprint";
+import { CONDITIONAL_LOGIC_RULE, conditionalLogicIssues, needsConditionalLogicRule } from "@/lib/learning/conditional-logic";
 import {
   applyReview,
   checkShape,
@@ -70,7 +71,8 @@ export const ORIGINALITY =
   "Yalnız verilen kazanımların ve sınırlamalarının kapsamında kal; kapsam dışı bilgi ekleme. Dil: Türkçe.";
 
 export function officialBlock(unit: PoolUnit): string {
-  const rule = "";
+  // Kural yalnız önerme/mantık içeren ünitede isteme girer; öbür ünitelerin istemi değişmez.
+  const rule = needsConditionalLogicRule(`${unit.unit.title} ${unit.outcomes.map((o) => o.text).join(" ")}`) ? `\n${CONDITIONAL_LOGIC_RULE}` : "";
   const lines = unit.outcomes.map((o) => {
     const limits = o.limitations.length ? `\n   Sınırlamalar/açıklamalar: ${o.limitations.map(cleanMathGlyphs).join(" | ")}` : "";
     return `- ${o.code}: ${o.text}${limits}`;
@@ -114,7 +116,6 @@ const ITEM_STYLE: Record<string, string> = {
 
 function itemsPrompt(unit: PoolUnit, pairs: string[]) {
   const choices = choiceCount(unit.program);
-  const perPair = itemsPerPair(unit.program);
   const kind = blueprintKind(unit.program.kind);
   const role = kind ? `Türkiye'deki ${unit.program.kind.toLocaleUpperCase("tr")} sınavı için` : "Türkiye müfredatına göre";
   return {
@@ -176,7 +177,7 @@ export function verifyPrompt(unit: PoolUnit, items: PoolItem[]) {
       "gösteremediğin bir şık varsa celdirici=0. " +
       'Yalnız JSON: {"r":[{"i":i,"cozum":şık numarası,"uyum":0|1,"celdirici":0|1},...]}. Örnek: {"r":[{"i":0,"cozum":2,"uyum":1,"celdirici":1},{"i":1,"cozum":0,"uyum":0,"celdirici":0}]}',
     jsonSchema: verifySchema(choiceCount(unit.program)),
-    user: `${unit.unit.title}\nKazanımlar:\n${outcomes.join("\n")}\nSorular [i,kod,kök,şıklar]:\n${JSON.stringify(blind)}`,
+    user: `${unit.unit.title}\nKazanımlar:\n${outcomes.join("\n")}${needsConditionalLogicRule(outcomes.join(" ")) ? `\n${CONDITIONAL_LOGIC_RULE}` : ""}\nSorular [i,kod,kök,şıklar]:\n${JSON.stringify(blind)}`,
   };
 }
 
@@ -366,12 +367,19 @@ function stringsOf(value: unknown): string[] {
   return [];
 }
 
-/** Anlatımın kod kapısı (bozuk metin, kazanım kapsaması, kalite rubriği); boş = geçer. */
+/** Anlatım ve kartlardaki koşullu önerme dönüşüm adı hataları ("mantık terimi hatası: …"). */
+function lessonLogicIssues(lesson: LessonBody): string[] {
+  const texts = [...lessonTexts(lesson), ...(lesson.cards ?? []).map((c) => `${c.front} ${c.back}`)];
+  return texts.flatMap(conditionalLogicIssues).map((i) => `mantık terimi hatası: ${i}`);
+}
+
+/** Anlatımın kod kapısı (bozuk metin, mantık terimi, kazanım kapsaması, kalite rubriği); boş = geçer. */
 export function lessonGateIssues(lesson: LessonBody, codes: string[], programKind = ""): string[] {
   const texts = lessonTexts(lesson);
   return [
     ...new Set([
       ...texts.map(garbledReason).filter((r): r is string => r !== null),
+      ...lessonLogicIssues(lesson),
       ...checkShape(lesson, [], codes, 5).lessonIssues.map((i) => `${i.code}: ${i.detail}`),
       ...lessonRubricIssues(lesson),
       ...blueprintIssues(lesson, blueprintKind(programKind)),
@@ -432,10 +440,11 @@ export async function generateUnitContent(
     const t = lessonTexts(l);
     return [
       ...t.map(garbledReason).filter((r): r is string => r !== null),
+      ...lessonLogicIssues(l),
     ];
   };
   let lesson = parse(lessonSchema, await call("SHARED_CONTENT_LESSON", models.generate, lessonPrompt(unit)));
-  // Kalite rubriği, sınav iskeleti ya da kod kapısı (bozuk metin) tutmazsa anlatım en çok iki kez daha
+  // Kalite rubriği, sınav iskeleti ya da kod kapısı (bozuk metin, mantık terimi) tutmazsa anlatım en çok iki kez daha
   // yazılır (sorulardan önce; soru maliyeti boşa gitmez). Ret gerekçeleri yeniden yazım istemine eklenir.
   for (let rewrite = 0; rewrite < 2 && lesson; rewrite += 1) {
     const found = [...textIssues(lesson), ...lessonQualityIssues(lesson)];
@@ -458,6 +467,7 @@ export async function generateUnitContent(
   const lessonText = lessonTexts(lesson);
   const lessonGarbled = [
     ...lessonText.map(garbledReason).filter((r): r is string => r !== null),
+    ...lessonLogicIssues(lesson),
   ];
   // İskelet soruları da aynı denetçiyle cevapsız çözülür (tek ek çağrı): cevap anahtarı tutmayan ya da birden çok doğru
   // şıkkı olan soru dersi düşürür; ünite normal yeniden deneme yoluyla baştan üretilir.

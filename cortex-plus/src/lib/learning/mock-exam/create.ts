@@ -103,7 +103,7 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
 
   // Deneme başına tek ücret: kredi burada bir kez ayrılır, konu üretimleri bu ayrılışı
   // kullanır. 17 Ekim 2026'ya kadar her konu aynı anahtarla kendi ayırmaya çalışıyordu;
-  // yalnız ilk konu geçiyor, ötekiler "işlem sürüyor/bitti" ile boş dönüyordu (Pediatri'de
+  // yalnız ilk konu geçiyor, ötekiler "işlem sürüyor/bitti" ile boş dönüyordu (canlıda
   // 10 sorudan 1'i).
   const chargeKey = `practice-exam:${prepId}:${userId}:${Date.now()}`;
   const charge = await reserveCredits(service, userId, "PRACTICE_EXAM_GENERATE", chargeKey);
@@ -804,7 +804,7 @@ async function choiceDrafts(
     const slot = slots[drafts.length] ?? slots[0];
     // Öğretmen motorunun denetçisi soruyu kendisi çözüp onayladı; burada yalnız biçim bakılır.
     // Eski kural süzgeci (verifyChoiceQuestion) onaylı soruyu düşürüyor, kaynakta geçen tek şıkkı
-    // görünce cevap anahtarını değiştirip çok cevaplıyı tek cevaplı yapıyordu (17 Ekim: Nefroloji'nin
+    // görünce cevap anahtarını değiştirip çok cevaplıyı tek cevaplı yapıyordu (17 Ekim: bir konunun
     // tek sorusu düştü, denemede o konu hiç yoktu). Konu testi de bu süzgeçten geçmiyor.
     const options = q.options.map((option) => option.trim()).filter(Boolean);
     const correct = q.correct.filter((answer) => options.includes(answer));

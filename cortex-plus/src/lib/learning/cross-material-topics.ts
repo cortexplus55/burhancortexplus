@@ -841,7 +841,7 @@ function clusterWithoutSyllabus(candidates: MaterialCandidate[]): MaterialCandid
   const multiFile = new Set(candidates.map((item) => item.documentId).filter(Boolean)).size > 1;
   if (!multiFile) {
     // This document's ready topic map already decided which chapters stand
-    // alone. Similar words ("sinüs", "trigonometrik") are prerequisite
+    // alone. Similar words (a term and its adjective form) are prerequisite
     // relationships, not permission to merge its 11 chapters into four.
     // Only exact duplicate headings from the same file may share a bucket.
     const exact = new Map<string, MaterialCandidate[]>();

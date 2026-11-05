@@ -89,7 +89,7 @@ export type TeacherQuizInput = {
   runningHeaders?: string[];
   /**
    * Öğrencinin seçtiği zorluk. 16 Ekim 2026'ya kadar kuruluştaki kaydırıcı
-   * yazara hiç ulaşmıyordu; "Orta" seçilen Pediatri testi tanım sorularıyla geldi.
+   * yazara hiç ulaşmıyordu; "Orta" seçilen bir test tanım sorularıyla geldi.
    */
   difficulty?: QuizDifficulty;
   /**
@@ -246,7 +246,7 @@ const design = (optionCount: OptionCount) =>
   "bilgiyi kaynağa değil konuya sorar ('hangi gerekçe belirtilmiştir' değil 'neden uygun değildir').\n\n";
 
 /**
- * Yoldaki konu testinin kuralları (20 Ekim 2026). Kör kıyasta Pediatri solunum testimiz kaynak
+ * Yoldaki konu testinin kuralları (20 Ekim 2026). Kör kıyasta bir konu testimiz kaynak
  * tablosunun dört satırını aynı kalıpla sordu ("En olası tanı hangisidir?"; kök satırın "Bulgular"
  * hücresiydi), uyarı ve tedavi cümlelerini hiç sormadı; KPSS testinde 5 sorudan 4'ü aynı bloktandı.
  * Yazar, denetçi ve düzeltme aynı metni okur (denetçide "aynen"); denetçinin H-K maddeleri bunun
@@ -1106,8 +1106,8 @@ const COUNTING = /(?:^|\s)kaç\s+(?:\S+\s+){0,2}(tür|çeşit|başlık|madde|uns
  */
 /**
  * Doğru şıkta olup çeldiricilerin hiçbirinde olmayan bir kelime kökte geçiyorsa
- * soru ele veriyor (16 Ekim 2026 Pediatri testi: "annede B12 eksikliği" deyip
- * "hangi mikrobesin" diye sordu; şıklarda yalnız doğru olanda "B12" vardı).
+ * soru ele veriyor (16 Ekim 2026 canlı test: kök cevabın adını verip
+ * aynı şeyi sordu; şıklarda yalnız doğru olanda o ad geçiyordu).
  * Türkçe ek için 5 harflik kök; rakamlı kelime (B12, D3, 6) bütün olarak. Tek rakam da sayılır (23 Ekim 2026
  * podcast kontrolü: "6 aylıkken … hangi yaş basamağıyla uyumludur?" doğrusu "6 ay" idi, çeldiriciler 2, 9, 12 ay).
  */

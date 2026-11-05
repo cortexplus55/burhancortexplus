@@ -98,7 +98,7 @@ const TABLE_ROW = /^\s*\|.*\|\s*$/;
 const TABLE_SEPARATOR = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)*\|?\s*$/;
 
 /*
-  Öğretmen sohbeti iki kavramı tabloyla karşılaştırıyor ("| | Kast | Taksir |").
+  Öğretmen sohbeti iki kavramı tabloyla karşılaştırıyor ("| | Kavram A | Kavram B |").
   2 Ekim 2026'da canlıda tablo çizilmiyor, öğrenci ham çizgileri görüyordu.
   Tablodan önce ya da sonra boş satırsız gelen paragraf ayrı bloğa alınır.
 */

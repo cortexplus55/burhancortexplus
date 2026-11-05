@@ -80,8 +80,8 @@ export function searchStems(question: string, max = 4): { raw: string; folded: s
     .toLocaleLowerCase("tr")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
-    // 4 harf: "kast", "grev" gibi terimler. Canlıda "Kast ile taksiri
-    // karıştırıyorum" sorusunda "kast" atlanıp "karış" aranmıştı.
+    // 4 harf: "kast", "grev" gibi terimler. Canlıda iki kısa terimi
+    // karıştırdığını söyleyen soruda kısa terim atlanıp fiil kökü aranmıştı.
     .filter((word) => word.length >= 4 && !/^\d+$/.test(word) && !STOP.has(foldTr(word)))
     .sort((a, b) => b.length - a.length);
   for (const word of words) {
@@ -230,8 +230,8 @@ export function lexicalPageHit(
 
 /**
  * Anlam benzerliğine sorudaki kelime köklerinin ve sayıların pasajda
- * geçmesini ekler. 2 Ekim 2026 altın denemesi: "200 kPa sabit basınçta 0.1
- * m³'ten 0.3 m³'e genleşen gazın işi" sorusunda aynı örneği taşıyan s.14
+ * geçmesini ekler. 2 Ekim 2026 altın denemesi: sayısal bir örneği birebir soran
+ * soruda aynı örneği taşıyan s.14
  * anlam aramasında 7. sıradaydı; öğretmen "belgende geçmiyor" dedi.
  */
 export function rerankByOverlap<T extends { content: string; similarity: number }>(question: string, matches: T[]): T[] {

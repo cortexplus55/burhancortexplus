@@ -95,8 +95,8 @@ export function pickTopicsForCount<T>(
 /**
  * Kurulumda öğrenciye gösterilen dağılım = üretimin teslim ettiği dağılım (28 Ekim 2026, Paket A).
  * Ağırlık yalnız kayıttaki sınav ağırlığı (`weightPercent`); yoksa konular eşit. Konu metninin uzunluğu
- * (`passageChars`) dağılıma girmez: önizleme onu bilmiyordu, üretim biliyordu — Selin'in kurulumu 3+3+3+3+2+2+2+2
- * dedi, deneme K1'e 5, K2'ye 1 soru verdi. Soru sayısı yetiyorsa her kapsam içi konu en az 1 soru alır.
+ * (`passageChars`) dağılıma girmez: önizleme onu bilmiyordu, üretim biliyordu — canlıda kurulum eşit dağılım
+ * dedi, deneme ilk konuya 5, ikincisine 1 soru verdi. Soru sayısı yetiyorsa her kapsam içi konu en az 1 soru alır.
  *
  * 30 Ekim 2026 (Paket I #4): toplam HER ZAMAN seçilen sayıdır. Eskiden konu fazlaysa toplam konu sayısına büyüyordu;
  * 22 konulu hazırlıkta "Kısa" da "Standart" da 22 soru çıktı, öğrenci kısa deneme alamadı. Artık konular

@@ -2,8 +2,8 @@ import { turkishFold } from "@/lib/text/turkish";
 
 /*
   Yakın kopya kontrolü (3 Kasım 2026): pekiştirme üretiminde yeni soru kökü, aynı kazanımdaki mevcut köklerle
-  kelime kümesi benzerliğiyle (Jaccard) karşılaştırılır. Tam eşitlik yetmiyordu: "Karahanlılar ve Gaznelilerle ilgili
-  aşağıdaki yargılardan hangileri doğrudur? I. … II. …" kalıbı yargılar biraz değişince havuza ikinci kez giriyordu.
+  kelime kümesi benzerliğiyle (Jaccard) karşılaştırılır. Tam eşitlik yetmiyordu: "… ile ilgili aşağıdaki yargılardan
+  hangileri doğrudur? I. … II. …" kalıbı yargılar biraz değişince havuza ikinci kez giriyordu.
 */
 
 export const NEAR_DUPLICATE_THRESHOLD = 0.7;

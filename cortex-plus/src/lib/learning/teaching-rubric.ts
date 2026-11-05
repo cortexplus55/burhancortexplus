@@ -102,7 +102,7 @@ export const WHY_NOTE_RULE =
  */
 export const SOURCE_NUMBER_PRIORITY =
   "KAYNAK BELGE / EL NOTU MUTLAK ÖNCELİĞİ: Öğrencinin yüklediği ders notunda ya da el yazısı taramasında bir kavram " +
-  "için belirli bir sayı, aralık, birim (8-12 mm, 40 TL + 25 TL/km) ya da özel ad/yer (Amfi 2) verilmişse, genel " +
+  "için belirli bir sayı, aralık, birim (bir ölçü aralığı, bir ücret ya da oran satırı) ya da özel ad/yer (bir salon ya da yer adı) verilmişse, genel " +
   "literatürde farklı bir yaklaşık değer geçse bile notun sayısı, aralığı ve adı doğrudur. Notun aralığıyla çelişen " +
   "bir değeri doğru cevap, doğru ifade ya da anlatılan bilgi yapma; notun değerini genel bilgiyle 'düzeltme'.";
 
@@ -130,7 +130,7 @@ export const SELF_CONTAINED_STEM_RULE =
 
 /**
  * Anahtar ↔ açıklama tutarlılığı (29 Ekim 2026, Paket H). Anahtar ve açıklama aynı çağrının bağımsız alanları;
- * canlıda "%70'i: 200 × 0,70 = 140 TL" diyen açıklamanın anahtarı 160 TL'yi gösterdi. Yazar ve denetçi aynı metni
+ * canlıda bir hesabın sonucunu veren açıklamanın anahtarı başka bir şıkkı gösterdi. Yazar ve denetçi aynı metni
  * okur; kod (`explanationAnswerMismatch`) açıklamanın vardığı değeri şıklarla eşler.
  */
 export const KEY_CONSISTENCY_RULE =

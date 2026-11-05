@@ -1,3 +1,5 @@
+import { PODCAST_SPEAKERS, SPEAKER_ROLE_WORDS } from "@/lib/learning/podcast-speakers";
+
 /**
  * Öğrenciye giden metnin tek süzgeci (29 Ekim 2026).
  *
@@ -60,10 +62,11 @@ const LEAKS: RegExp[] = [
 ];
 
 /**
- * Podcast satırının başındaki konuşmacı adı: oynatıcı adı rozetle ayrıca yazar, metnin içinde bir
- * daha görünmez. Eski senaryoların "Ece / Deniz / ÖĞRETMEN" adları da aynı kuralla düşer.
+ * Satır başındaki konuşmacı öneki: ürünün sesleri (`PODCAST_SPEAKERS`, tek kaynak) ve rol adları. Oynatıcı adı
+ * rozetle ayrıca yazar, metnin içinde bir daha görünmez. Kişi adı listesi tutulmaz: yabancı persona üretimde
+ * yasaktır (`STUDENT_LEAK_BAN`), podcast ayrıştırıcısı bilinmeyen konuşmacıyı ürün sesine bağlar (`speakerIdOf`).
  */
-const SPEAKER_PREFIX = /^[ \t]*(?:ada|kerem|ece|deniz|öğretmen|ogretmen|sunucu|öğrenci|ogrenci)\s*:\s*(?=\S)/gimu;
+const SPEAKER_PREFIX = new RegExp(`^[ \\t]*(?:${[...PODCAST_SPEAKERS, ...SPEAKER_ROLE_WORDS].join("|")})\\s*:\\s*(?=\\S)`, "gimu");
 
 /*
   İstem yankısı (30 Ekim 2026, Paket I #5). Canlıda öğrenci şunları okudu; hepsi ürünün kendi istem dilinden:
@@ -78,7 +81,7 @@ const COLOR_KEY_SENTENCE =
   /[^.!?\n]*(?:turuncu|renkli)\s+(?:ile\s+)?(?:işaret|vurgu)\p{L}*[^.!?\n]*[.!?]?/giu;
 
 const SCOPE_META_SENTENCE =
-  // "işlen-" ve geniş zaman (-maz) yok: "Bu bölümdeki suçlar taksirle işlenmez" bir hukuk kuralıdır, meta değil.
+  // "işlen-" ve geniş zaman (-maz) yok: geniş zamanlı olumsuz kural cümlesi ("… bu bölümde … -maz") içerik kuralıdır, meta değil.
   /[^.!?\n]*(?:^|[^\p{L}])(?:bu|şu)\s+(?:anlatım|ders|bölüm|podcast|kısım|ünite|oturum)\p{L}*[^.!?\n]*?(?:ele\s+alın|değinil|anlatıl|yer\s+veril)(?:mıyor|miyor|mayacak|meyecek|mamış|memiş)\p{L}*[^.!?\n]*[.!?]?/giu;
 
 const SOURCE_EXERCISE_REF = [

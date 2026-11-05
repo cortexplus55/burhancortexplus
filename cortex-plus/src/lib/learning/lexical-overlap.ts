@@ -1,5 +1,5 @@
 /**
- * Türkçe metinde "aynı bilgi" ölçüsünün ortak parçaları (30 Ekim 2026, canlı tur: Makroekonomi notu).
+ * Türkçe metinde "aynı bilgi" ölçüsünün ortak parçaları (30 Ekim 2026, canlı tur).
  *
  * Eski ölçüler sözcüğün ilk beş ya da altı harfini anahtar alıyordu. Türkçe eklerde bu iki yönde yanılıyor:
  * fiil kökü üç harfli olunca ("sürerken" / "sürmesi", "artış" / "artırır", "arzı" / "arzındaki") aynı sözcük iki

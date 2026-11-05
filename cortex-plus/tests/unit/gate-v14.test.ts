@@ -5,7 +5,8 @@ import { parseCompactReview, verifySchema } from "@/lib/content-pool/generate";
 import { GATE_VERSION } from "@/lib/content-pool/gate";
 
 describe("GATE v14", () => {
-  it("sürüm 14", () => expect(GATE_VERSION).toBe(14));
+  // 15 (5 Kasım 2026): koşullu önerme dönüşüm adları genel cebirle yeniden kapıda (`conditional-logic.ts`).
+  it("sürüm 15", () => expect(GATE_VERSION).toBe(15));
 
   it("katman 1: kanonik sabit ve tarih", () => {
     expect(canonicalIssues("Avogadro sayısı 6,02 × 10^23 tanedir.")).toEqual([]);

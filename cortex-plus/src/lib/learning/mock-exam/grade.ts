@@ -131,7 +131,7 @@ export const SHORT_SOLUTION_FULL_CREDIT = "Sonuç ve bağıntı doğru; çözüm
 /**
  * Sayısal/fen: yöntem ve kurulum doğru, son aritmetik yanlışsa %50–%80.
  * Yalnız son sayıyı yazan cevap 7/10 ve üzerine çıkmaz.
- * Sonuç doğru ve bağıntı/gerekçe doğruysa çözüm kısa diye kesinti yok (29 Ekim 2026: Selin'in 18. sorusu
+ * Sonuç doğru ve bağıntı/gerekçe doğruysa çözüm kısa diye kesinti yok (29 Ekim 2026: canlı bir denemede
  * doğru sonuç + doğru bağıntıyla 5/10 almıştı); kesinti yalnız sonuç yanlışsa, hesap zinciri tutmuyorsa
  * ya da denetçi açık kavram hatası (`conceptErrors`) işaretlediyse.
  */
@@ -156,7 +156,8 @@ export function partialWorkCredit(input: {
   const tol = input.tolerance ?? Math.max(1e-6, Math.abs(expected) * 0.01);
   const within = (value: number) => Math.abs(value - expected) <= tol;
   const inRange = finals.length ? finals.some(within) : num != null && within(num);
-  const bare = num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer);
+  // Kısa ama sayılar arası işlem gösteren cevap ("a/b = c/d = e") çıplak sonuç değildir: eşdeğer zincir hesabı gösterir.
+  const bare = num != null && answer.length < 32 && !/\p{L}{4,}/u.test(answer) && !/\d\s*[+\-*/×·÷:]\s*\d/.test(answer);
   if (inRange && markers.length && bare) {
     const cap = Math.round(input.maxPoints * 0.6 * 1000) / 1000;
     if (input.alreadyEarned <= cap) return null;

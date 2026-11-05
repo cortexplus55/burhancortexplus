@@ -68,8 +68,10 @@ describe("Paket C · öğrenci metninin tek süzgeci", () => {
 
   it("podcast satırındaki konuşmacı adı ve uydurma anı düşer", () => {
     expect(studentOutputText("Ada: Bugün hücre zarını konuşuyoruz.")).toBe("Bugün hücre zarını konuşuyoruz.");
-    expect(studentOutputText("ÖĞRETMEN: Not al.\nEce: Tamam.")).toBe("Not al.\nTamam.");
-    expect(studentOutputText("Deniz: 12 Kasım'da sınav var.")).toBe("12 Kasım'da sınav var.");
+    expect(studentOutputText("ÖĞRETMEN: Not al.\nKerem: Tamam.")).toBe("Not al.\nTamam.");
+    expect(studentOutputText("Sunucu: 12 Kasım'da sınav var.")).toBe("12 Kasım'da sınav var.");
+    // Kişi adı listesi yok (5 Kasım 2026): içerik etiketi ("Tanı:") ya da bilinmeyen bir ad dokunulmadan kalır.
+    expect(studentOutputText("Tanı: Klinik bulgularla konur.")).toBe("Tanı: Klinik bulgularla konur.");
     const memory = studentOutputText("Osmoz suyun geçişidir. Geçen gün denemede bunu üç öğrenci karıştırdı. Difüzyon ise çözünenin geçişidir.");
     expect(memory).toBe("Osmoz suyun geçişidir. Difüzyon ise çözünenin geçişidir.");
     // Metnin ortasındaki ad bir isimdir, konuşmacı öneki değil.

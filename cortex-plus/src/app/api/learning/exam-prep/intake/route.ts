@@ -208,7 +208,7 @@ async function probeDocumentTitle(
   if (!documentId) return "";
   // Tek ana konu: ad o konudur. Ücretsizde 5 sayfa çoğu zaman tek konu
   // çıkarıyor ve model iki konudan azına ad yazmıyor; dosya adına
-  // düşülüyordu ("Uat 99 Sayfa Trigonometri", 8 Ekim 2026).
+  // düşülüyordu (8 Ekim 2026).
   const single = topicTitles.length === 1 ? prepTitleFromModel({ title: topicTitles[0] }) : null;
   if (single) return single;
   const named = await namePrepFromTopics(service, { userId, topics: topicTitles, units: unitTitles });
