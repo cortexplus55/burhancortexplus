@@ -131,6 +131,18 @@ describe("kuyruk satırları", () => {
     expect(row?.correctRate).toBe(0.1);
     expect(quarantineRow({ id: "x" })).toBeNull();
   });
+  it("elle karantina (`reason` + `by`) gerekçesiz görünmez", () => {
+    const row = quarantineRow({
+      id: "i2",
+      stem: "Kök",
+      choices: ["a", "b"],
+      answer: 0,
+      qa: { quarantine: { at: "2026-11-03T09:48:36Z", by: "manual_review", reason: "kaynaklar arası çelişki" } },
+    });
+    expect(row?.ruleLabel).toBe("kaynaklar arası çelişki (elle inceleme)");
+    const bare = quarantineRow({ id: "i3", stem: "Kök", choices: ["a"], answer: 0, qa: { quarantine: {} } });
+    expect(bare?.ruleLabel).toBe("karantina gerekçesi kayıtlı değil");
+  });
   it("bildirim satırı kararı etiketler ve soru anlık görüntüsünü taşır", () => {
     const row = reportRow({
       id: "r1",

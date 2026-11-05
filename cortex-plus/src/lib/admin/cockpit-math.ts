@@ -201,6 +201,10 @@ export function quarantineRow(raw: Record<string, unknown>): QuarantineRow | nul
   const qa = (raw.qa ?? {}) as Record<string, unknown>;
   const quarantine = (qa.quarantine ?? {}) as Record<string, unknown>;
   const rule = typeof quarantine.rule === "string" ? quarantine.rule : null;
+  // Elle karantina (`by: manual_review`) `rule` yerine serbest `reason` yazar; ikisi de gerekçedir.
+  const reason = typeof quarantine.reason === "string" && quarantine.reason.trim() ? quarantine.reason.trim() : null;
+  const by = typeof quarantine.by === "string" && quarantine.by.trim() ? quarantine.by.trim() : null;
+  const ruleLabel = rule ? (QUARANTINE_RULE_LABEL[rule] ?? rule) : (reason ?? "karantina gerekçesi kayıtlı değil");
   const rate = quarantine.correct_rate;
   const choices = Array.isArray(raw.choices) ? raw.choices.map((choice) => str(choice)) : [];
   return {
@@ -215,7 +219,7 @@ export function quarantineRow(raw: Record<string, unknown>): QuarantineRow | nul
     answer: int(raw.answer),
     explanation: str(raw.explanation),
     rule,
-    ruleLabel: rule ? (QUARANTINE_RULE_LABEL[rule] ?? rule) : "karantina gerekçesi kayıtlı değil",
+    ruleLabel: by === "manual_review" ? `${ruleLabel} (elle inceleme)` : ruleLabel,
     quarantinedAt: typeof quarantine.at === "string" ? quarantine.at : null,
     responses: int(quarantine.responses),
     correctRate: typeof rate === "number" ? rate : typeof rate === "string" && rate.trim() ? Number(rate) : null,
