@@ -21,7 +21,26 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      await claimUnverifiedAccount(data?.user ?? null).catch(() => undefined);
+      // Sahiplenme girişi durdurmaz; düşerse günlüğe yazılır (sessizce yutulmaz).
+      const claimed = await claimUnverifiedAccount(data?.user ?? null).catch((err: unknown) => {
+        console.error("unverified_claim_failed", {
+          userId: data?.user?.id ?? null,
+          message: err instanceof Error ? err.message : String(err),
+        });
+        return false;
+      });
+      if (claimed) {
+        // Şifreyle açılmış öbür oturumlar (hesabı başkasının adresiyle açan kişi) kapanır; bu oturum kalır.
+        const { error: revokeError } = await supabase.auth
+          .signOut({ scope: "others" })
+          .catch((err: unknown) => ({ error: err }));
+        if (revokeError) {
+          console.error("unverified_claim_revoke_failed", {
+            userId: data?.user?.id ?? null,
+            message: revokeError instanceof Error ? revokeError.message : String(revokeError),
+          });
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
     return NextResponse.redirect(`${origin}${exchangeFailurePath(error, next)}`);
@@ -36,13 +55,17 @@ export async function GET(request: Request) {
  * hesapta birleştirir ve açan kişinin şifresi çalışmaya devam ederdi. Google kutunun sahibini kanıtladı: bayrak
  * kalkar ve şifre rastgele bir değerle değişir (şifreyle girmek isteyen gerçek sahip "Şifremi unuttum"u kullanır).
  */
-async function claimUnverifiedAccount(user: { id: string; app_metadata?: Record<string, unknown> } | null) {
-  if (!user || !isEmailUnverified(user.app_metadata)) return;
+async function claimUnverifiedAccount(
+  user: { id: string; app_metadata?: Record<string, unknown> } | null,
+): Promise<boolean> {
+  if (!user || !isEmailUnverified(user.app_metadata)) return false;
   const providers = user.app_metadata?.providers;
-  if (!Array.isArray(providers) || !providers.includes("google")) return;
+  if (!Array.isArray(providers) || !providers.includes("google")) return false;
   const service = createServiceClient();
-  await service.auth.admin.updateUserById(user.id, {
+  const { error } = await service.auth.admin.updateUserById(user.id, {
     password: randomBytes(24).toString("base64url"),
     app_metadata: { ...(user.app_metadata ?? {}), [UNVERIFIED_FLAG]: false },
   });
+  if (error) throw error;
+  return true;
 }

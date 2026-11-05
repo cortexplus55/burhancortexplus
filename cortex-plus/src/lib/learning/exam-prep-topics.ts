@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapPrepTopics, type PrepTopic } from "@/lib/learning/exam-prep-progress";
+import { createServiceClient } from "@/lib/supabase/server";
 
 const NOTE_PREFIX = "Sınav notu:";
 
@@ -33,7 +34,9 @@ export async function loadOrBackfillTopics(
 
   if (!labels.length) return existing;
 
-  await supabase.from("exam_prep_topics").insert(
+  // Yazım sunucu anahtarıyla (6 Kasım 2026): öğrenci rolünün konu tablosuna yazma izni kapandı.
+  // Okuma çağıranın istemcisiyle kaldı; hazırlık bu istemcide görünmüyorsa buraya gelinmez.
+  await createServiceClient().from("exam_prep_topics").insert(
     labels.map((label, sort_order) => ({
       exam_prep_id: prepId,
       label,

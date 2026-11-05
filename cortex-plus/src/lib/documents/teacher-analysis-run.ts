@@ -271,9 +271,10 @@ export async function loadPrepDocumentIds(
 ): Promise<string[]> {
   const { data } = await service
     .from("exam_preps")
-    .select("document_id")
+    .select("user_id, document_id")
     .eq("id", prepId)
     .maybeSingle();
+  const ownerId = (data?.user_id as string | null | undefined) ?? null;
   const ids = prepDocumentIds(data as PrepDocumentRow | null);
   const extra = await service
     .from("exam_preps")
@@ -305,7 +306,32 @@ export async function loadPrepDocumentIds(
       if (node.document_id) ids.push(node.document_id as string);
     }
   }
-  return [...new Set(ids)];
+  return ownedByPrepOwner(service, ownerId, [...new Set(ids)]);
+}
+
+/**
+ * Hazırlığın belge listesi yalnız hazırlığın SAHİBİNİN belgeleri (6 Kasım 2026, 360° denetim).
+ * Belge kimlikleri hazırlık satırından ve konu düğümlerinden okunuyor; o alanlar bir dönem
+ * tarayıcıdan yazılabiliyordu. Bütün okuyucular (sohbet, ders, podcast, video, deneme) bu
+ * listeyi servis anahtarıyla kullandığı için başka öğrencinin belgesi buradan asla dönmez.
+ * Sahibi okunamazsa ya da süzme sorgusu düşerse boş liste: belge sızdırmaktansa belgesiz.
+ */
+export async function ownedByPrepOwner(
+  service: SupabaseClient,
+  ownerId: string | null,
+  ids: string[],
+): Promise<string[]> {
+  if (!ids.length) return [];
+  if (!ownerId) return [];
+  const owned = new Set<string>();
+  // Belge sayısında sınır yok (31 Ekim 2026): kimlikler adres uzunluğu aşılmasın diye 150'şerlik dilimle.
+  for (let start = 0; start < ids.length; start += 150) {
+    const slice = ids.slice(start, start + 150);
+    const { data, error } = await service.from("documents").select("id").in("id", slice).eq("user_id", ownerId);
+    if (error) return [];
+    for (const row of data ?? []) owned.add(row.id as string);
+  }
+  return ids.filter((id) => owned.has(id));
 }
 
 export type TopicTeaching = {

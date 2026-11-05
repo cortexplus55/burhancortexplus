@@ -55,19 +55,19 @@ function sourceUnavailableMessage(reason: unknown): {
       return {
         message:
           "Bu hazırlığa bağlı okunabilir belge bulunamadı. Belge ekleyip yeniden dene.",
-        action: { href: "/belgeler", label: "Belgelerime git" },
+        action: { href: "/dokumanlar", label: "Belgelerime git" },
       };
     case "no_topic_mapping":
       return {
         message:
           "Bu konu belgelerinde eşleşmedi. Konu haritasını yenileyip yeniden dene.",
-        action: { href: "/belgeler", label: "Konu haritasını yenile" },
+        action: { href: "/dokumanlar", label: "Konu haritasını yenile" },
       };
     case "pages_unusable":
       return {
         message:
           "Bu konunun işaretli sayfalarından okunabilir metin çıkmadı. Belgeyi yeniden işle veya başka sayfa seç.",
-        action: { href: "/belgeler", label: "Belgelerime git" },
+        action: { href: "/dokumanlar", label: "Belgelerime git" },
       };
     case "search_error":
       return {
@@ -79,7 +79,7 @@ function sourceUnavailableMessage(reason: unknown): {
       return {
         message:
           "Bu konu belgelerinde eşleşmedi. Konu haritasını yenileyip yeniden dene.",
-        action: { href: "/belgeler", label: "Konu haritasını yenile" },
+        action: { href: "/dokumanlar", label: "Konu haritasını yenile" },
       };
   }
 }

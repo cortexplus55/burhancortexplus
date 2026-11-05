@@ -12,12 +12,13 @@ import { billingExempt } from "@/lib/billing/free-preview";
 import { getActionCost, reserveCredits, refundCredits, recordUsage } from "@/lib/credits/service";
 import { chargeNow } from "@/lib/credits/charge-now";
 import { spendableCredits } from "@/lib/credits/spendable-server";
-import { chunkText, embedTexts } from "@/lib/rag/pipeline";
+import { chunkText, embedTexts, type EmbeddingUsage } from "@/lib/rag/pipeline";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 import { cappedPageTotal, freePagesRemaining } from "@/lib/documents/free-pages";
 import { photoSetRenderedPages } from "@/lib/documents/photo-set-read";
 import { documentReservationKey } from "@/lib/documents/document-reservation-key";
+import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 import { cloneDocumentContent, ensureDocumentEmbeddings, findDuplicateSource, sha256Hex, stampDocumentSha } from "@/lib/documents/document-dedup";
 
 /** Default pages per step; shrinks when the deadline is near. */
@@ -629,6 +630,8 @@ export async function saveBatch(
   documentId: string,
   firstPage: number,
   pages: PagePersist[],
+  /** Gömme maliyeti `ai_usage_events`e yazılsın diye (6 Kasım 2026); yoksa kayıt düşmez. */
+  usage?: EmbeddingUsage,
 ) {
   if (pages.some((page) => page.text.length > 200_000)) throw new Error("page_text_too_large");
   const rows = buildDocumentPageRows(documentId, firstPage, pages);
@@ -662,7 +665,7 @@ export async function saveBatch(
       next += 1;
       // Bir şerit düşünce öbürleri yeni parça yazmaz (yeniden deneme temiz başlasın).
       if (!batch || failed) return;
-      const vectors = await embedTexts(batch.map((chunk) => chunk.content));
+      const vectors = await embedTexts(batch.map((chunk) => chunk.content), usage);
       const { data: inserted, error: chunkError } = await service.from("document_chunks")
         .insert(batch).select("id,chunk_index");
       if (chunkError || !inserted || inserted.length !== batch.length) throw new Error("chunk_insert_failed");
@@ -739,9 +742,13 @@ export async function processPdfDocumentStep(
     await renewLease(service, documentId, lease.token);
 
     const { data: doc, error: docError } = await service.from("documents")
-      .select("storage_path, scan_pages_skipped")
+      .select("storage_path, scan_pages_skipped, part_of")
       .eq("id", documentId).eq("user_id", userId).is("deleted_at", null).maybeSingle();
     if (docError || !doc) throw new Error("not_found");
+    if (!isOwnedDocumentStoragePath(doc.storage_path, userId, { id: documentId, part_of: doc.part_of })) {
+      console.error("storage_path_mismatch", { documentId });
+      throw new Error("not_found");
+    }
     const { data: file, error: downloadError } = await service.storage.from("documents")
       .download(doc.storage_path);
     if (downloadError || !file) throw new Error("download_failed");
@@ -875,7 +882,7 @@ export async function processPdfDocumentStep(
     }
 
     await assertLease(service, documentId, lease.token);
-    await saveBatch(service, documentId, firstPage, read.pages);
+    await saveBatch(service, documentId, firstPage, read.pages, { service, userId, actionCode: "DOCUMENT_PAGE_PROCESS" });
     if (remaining === null && ocrPageNumbers.length) {
       await chargeNow(service, userId, "DOCUMENT_SCAN_PAGE", `document_scan_${documentId}_${firstPage}`, ocrPageNumbers.length);
     }

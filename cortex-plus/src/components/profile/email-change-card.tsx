@@ -40,20 +40,26 @@ export function EmailChangeCard({
       return;
     }
     setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser(
-      { email: next },
-      { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/ayarlar` },
-    );
-    setBusy(false);
-    if (error) {
-      toast.error(authErrorMessage(error));
-      return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser(
+        { email: next },
+        { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/ayarlar` },
+      );
+      if (error) {
+        toast.error(authErrorMessage(error));
+        return;
+      }
+      setSentTo(next);
+      setEditing(false);
+      setValue("");
+      toast.success("Onay bağlantıları gönderildi.");
+    } catch {
+      // Ağ hatasında düğme kilitli kalmasın (finally).
+      toast.error(authErrorMessage(null));
+    } finally {
+      setBusy(false);
     }
-    setSentTo(next);
-    setEditing(false);
-    setValue("");
-    toast.success("Onay bağlantıları gönderildi.");
   }
 
   return (

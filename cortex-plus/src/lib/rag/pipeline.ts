@@ -22,8 +22,9 @@ import {
   planTier,
   releasePhotoPages,
 } from "@/lib/documents/photo-quota";
-import { recordUsage } from "@/lib/credits/service";
+import { recordUsage, type UsageCode } from "@/lib/credits/service";
 import { freePagesRemaining } from "@/lib/documents/free-pages";
+import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 import { PHOTO_ABUSE_CODE, photoAbuseBlocked, recordUnreadablePhoto } from "@/lib/billing/photo-abuse-guard";
 import { cloneDocumentContent, ensureDocumentEmbeddings, findDuplicateSource, sha256Hex, stampDocumentSha } from "@/lib/documents/document-dedup";
 import { recordAbuse } from "@/lib/abuse/record";
@@ -42,14 +43,39 @@ import { mapExtractFailure, userMessageForProcessError } from "@/lib/documents/p
 
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 
-export async function embedTexts(texts: string[]): Promise<number[][]> {
+/** Gömme kullanımının kaydı: kimin hesabına ve hangi iş koduyla (`ai_usage_events`). */
+export type EmbeddingUsage = { service: SupabaseClient; userId: string; actionCode: UsageCode };
+
+/** Gömme isteğinin süre sınırı: SDK varsayılanı (10 dk, 2 yeniden deneme) belge işlemeyi fonksiyon ömrü boyunca askıda bırakıyordu. */
+export const EMBEDDING_TIMEOUT_MS = 30_000;
+
+export async function embedTexts(texts: string[], usage?: EmbeddingUsage): Promise<number[][]> {
   if (texts.length === 0) return [];
   if (!env.OPENAI_API_KEY) throw new Error("embedding_unavailable");
-  const openai = openaiClient({ apiKey: env.OPENAI_API_KEY });
+  const openai = openaiClient({ apiKey: env.OPENAI_API_KEY, timeout: EMBEDDING_TIMEOUT_MS, maxRetries: 1 });
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: texts,
   });
+  // Gider kaydı (6 Kasım 2026): gömmeler hiç kayda geçmiyordu, maliyet sayfası onları saymıyordu.
+  // Kayıt beklenmez (aramayı yavaşlatmasın); düşerse gömme yine döner (görüntü okumasıyla aynı kalıp).
+  const promptTokens = Number(response.usage?.prompt_tokens ?? 0);
+  if (usage && promptTokens > 0) {
+    // `Promise.resolve().then` eşzamanlı fırlatmayı da yakalar.
+    void Promise.resolve()
+      .then(() =>
+        recordUsage(usage.service, {
+          userId: usage.userId,
+          actionCode: usage.actionCode,
+          model: EMBEDDING_MODEL,
+          tokensIn: promptTokens,
+          tokensOut: 0,
+        }),
+      )
+      .catch((err: unknown) => {
+        console.warn("embedding_usage_record_failed", { message: err instanceof Error ? err.message : String(err) });
+      });
+  }
   const ordered = [...response.data].sort((a, b) => a.index - b.index);
   if (ordered.length !== texts.length || ordered.some((item, index) => item.index !== index || !item.embedding?.length || item.embedding.some((n) => !Number.isFinite(n)))) {
     throw new Error("embedding_incomplete");
@@ -80,12 +106,16 @@ export async function processDocument(
 }> {
   const { data: doc } = await service
     .from("documents")
-    .select("id, user_id, storage_path, mime_type")
+    .select("id, user_id, storage_path, mime_type, part_of")
     .eq("id", documentId)
     .is("deleted_at", null)
     .maybeSingle();
 
   if (!doc) return { ok: false, chunks: 0, error: "not_found" };
+  if (!isOwnedDocumentStoragePath(doc.storage_path, String(doc.user_id), { id: documentId, part_of: doc.part_of })) {
+    console.error("storage_path_mismatch", { documentId });
+    return { ok: false, chunks: 0, error: "not_found" };
+  }
 
   const fail = async (code: string) => {
     const message = userMessageForProcessError(code);
@@ -441,7 +471,7 @@ export async function processDocument(
   const embeddings: number[][] = [];
   for (let offset = 0; offset < allChunks.length; offset += EMBED_BATCH) {
     const slice = allChunks.slice(offset, offset + EMBED_BATCH).map((chunk) => chunk.content);
-    embeddings.push(...(await embedTexts(slice)));
+    embeddings.push(...(await embedTexts(slice, { service, userId, actionCode: "DOCUMENT_PAGE_PROCESS" })));
   }
 
   for (const [index, chunk] of allChunks.entries()) {
@@ -577,7 +607,8 @@ export async function searchDocumentChunks(
   limit = 5,
   options: { documentId?: string | null; minSimilarity?: number } = {},
 ): Promise<DocumentMatch[]> {
-  const [embedding] = await embedTexts([query]);
+  // Arama sohbetin ve öğretmenin bağlamı için yapılır; gider sohbet koduyla kayda geçer.
+  const [embedding] = await embedTexts([query], { service, userId, actionCode: "AI_CHAT_STANDARD" });
   if (!embedding) return [];
 
   const { data, error } = await service.rpc("match_document_chunks", {
@@ -627,7 +658,7 @@ export async function searchDocumentChunksAcross(
 ): Promise<DocumentMatch[]> {
   const ids = [...new Set(documentIds.filter(Boolean))].slice(0, 12);
   if (!ids.length) return [];
-  const [embedding] = await embedTexts([query]);
+  const [embedding] = await embedTexts([query], { service, userId, actionCode: "AI_CHAT_STANDARD" });
   if (!embedding) return [];
   const perDocument = options.perDocument ?? 2;
   const minSimilarity = options.minSimilarity ?? MIN_CHUNK_SIMILARITY;

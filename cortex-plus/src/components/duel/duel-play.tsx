@@ -31,10 +31,28 @@ type RunResult = {
   correct: number;
   score: number;
   total: number;
-  answers: number[];
+  /** Doğru şıklar: yalnız hesaplı oyuncuya gelir. */
+  answers?: number[];
+  /** Misafire soru başına yalnız doğru/yanlış (cevap anahtarı gönderilmez). */
+  results?: boolean[];
   rank: number;
   leaderboard: BoardRow[];
 };
+
+/** Soru doğru mu: hesaplı oyuncuda anahtardan, misafirde sunucunun doğru/yanlışından. */
+export function duelRowRight(result: Pick<RunResult, "answers" | "results">, index: number, mine: number | null | undefined): boolean {
+  if (result.answers) return mine != null && mine === result.answers[index];
+  return result.results?.[index] === true;
+}
+
+/**
+ * Kafa kafaya tablosunun beklediği "doğru şık" dizisi. Misafirde anahtar yok: doğru bilinen soruda öğrencinin
+ * kendi seçimi, öbürlerinde hiçbir şıkka denk gelmeyen -1 (yanlış ya da boş sayılır).
+ */
+export function duelCorrectIndexes(result: Pick<RunResult, "answers" | "results" | "total">, answers: readonly DuelAnswer[]): number[] {
+  if (result.answers) return result.answers;
+  return Array.from({ length: result.total }, (_, i) => (duelRowRight(result, i, answers[i]?.choice) ? (answers[i]?.choice ?? -1) : -1));
+}
 
 /** Sunucudan gelen bot turu: cevap yok, soru başına süre ve doğru/yanlış. */
 type BotTimeline = { level: BotLevel; name: string; steps: BotStep[]; correct: number; score: number; total: number };
@@ -310,7 +328,9 @@ export function DuelPlay({
   }
 
   if (stage === "result" && result) {
-    const versus = bot ? headToHead({ studentScore: result.score, studentAnswers: answers, correctIndexes: result.answers, bot }) : null;
+    const versus = bot
+      ? headToHead({ studentScore: result.score, studentAnswers: answers, correctIndexes: duelCorrectIndexes(result, answers), bot })
+      : null;
     return (
       <section className="cp-duel-card">
         {versus ? <p className="cp-duel-kicker">{versus.headline}</p> : <p className="cp-duel-kicker">Puanın</p>}
@@ -353,13 +373,22 @@ export function DuelPlay({
         <ol className="cp-duel-review">
           {questions.map((question, i) => {
             const mine = answers[i]?.choice;
-            const right = result.answers[i];
+            const right = result.answers?.[i];
+            const isRight = duelRowRight(result, i, mine);
             return (
-              <li key={i} className={cn(mine === right ? "is-right" : "is-wrong")}>
+              <li key={i} className={cn(isRight ? "is-right" : "is-wrong")}>
                 <span>{question.text}</span>
                 <em>
-                  {mine == null ? "Süre doldu" : `Senin: ${LETTERS[mine]}`} · Doğru: {LETTERS[right]}{" "}
-                  {question.options[right]}
+                  {mine == null ? "Süre doldu" : `Senin: ${LETTERS[mine]}`} ·{" "}
+                  {right != null ? (
+                    <>
+                      Doğru: {LETTERS[right]} {question.options[right]}
+                    </>
+                  ) : isRight ? (
+                    "Doğru"
+                  ) : (
+                    "Yanlış"
+                  )}
                 </em>
               </li>
             );

@@ -157,9 +157,9 @@ export function generateMerchantOid(): string {
   return `cp${crypto.randomBytes(14).toString("hex")}`;
 }
 
-const PAYTR_FETCH_TIMEOUT_MS = 20_000;
+export const PAYTR_FETCH_TIMEOUT_MS = 20_000;
 
-function paytrFetchInit(body: URLSearchParams): RequestInit {
+export function paytrFetchInit(body: URLSearchParams): RequestInit {
   return {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

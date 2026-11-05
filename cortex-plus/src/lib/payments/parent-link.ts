@@ -11,8 +11,17 @@ import { env } from "@/lib/env";
 export const PARENT_LINK_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const PREFIX = "veli";
 
+/**
+ * Yalnız `APP_SECRET` (6 Kasım 2026). Ödeme bağlantısı para hareketi açtığı için servis anahtarına
+ * düşmez: anahtar yoksa bağlantı üretilmez ve doğrulanmaz ("unconfigured"), kapı kapalı kalır.
+ */
 function secret(): string | null {
-  return env.APP_SECRET || env.SUPABASE_SECRET_KEY || null;
+  const key = env.APP_SECRET?.trim();
+  if (!key) {
+    console.error("parent_link_secret_missing", { reason: "APP_SECRET is not set" });
+    return null;
+  }
+  return key;
 }
 
 function sign(payload: string, key: string): string {

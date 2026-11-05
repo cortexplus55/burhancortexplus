@@ -36,7 +36,8 @@ import { loadSectionBackbone, loadUpcomingTopicTitles } from "@/lib/learning/nod
 import { publicPayloadForUser } from "@/lib/learning/node/payload";
 import { generateNodePayload } from "@/lib/learning/node/generate";
 import { env } from "@/lib/env";
-import { recordUsage } from "@/lib/credits/service";
+import { recordUsage, refundCredits } from "@/lib/credits/service";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LessonScreen } from "@/lib/learning/lesson-v3";
 import { REWRITE_LEAD_NOTE, leadOnlyPayload, parseRewriteLeadText, prefixLeadScreen } from "@/lib/learning/rewrite-lead";
 import { openRewriteLeadStream, type RewriteLeadStream } from "@/lib/learning/node/rewrite-lead-stream";
@@ -44,6 +45,101 @@ import type { NodeContext } from "./context";
 import type { StartLocals } from "./start-types";
 import type { StartSource } from "./source";
 import type { StartReserved } from "./reserve";
+
+/**
+ * Kaydedilemeyen içerik ücretlendirilmez (6 Kasım 2026, güvenlik paketi 1). Motor krediyi `key` ile ayırıp çoğu
+ * zaman kesinleştirmiş olur (`teacher-engine-run.ts`); kayıt yarışı kaybedilirse (409) ya da kayıt yazılamazsa
+ * (500) öğrenci içeriği hiç görmez ama ücret düşmüştü.
+ *
+ * Bekleyen ayırma `credit_refund` ile iade olur. Kesinleşmiş ayırmanın SQL iadesi yok (`credit_refund` yalnız
+ * bekleyeni iade eder): ayırma önce `committed → refunded` koşullu güncellemeyle bir kez sahiplenilir (iki kez
+ * iade olmaz), sonra ödenen tutar — ve dönemi sürüyorsa hak payı — ayrı anahtarlı hediye (`credit_gift`) olarak
+ * cüzdana döner; sayaçlı ücretsiz işte (tutar 0) sayaç bir geri alınır. Hediye düşerse ayırma geri çevrilir.
+ */
+export async function refundUnsavedGeneration(
+  service: SupabaseClient,
+  input: { userId: string; key: string | undefined; reason: string },
+): Promise<boolean> {
+  if (!input.key) return false;
+  try {
+    const { data: row } = await service
+      .from("credit_reservations")
+      .select("*")
+      .eq("user_id", input.userId)
+      .eq("idempotency_key", input.key)
+      .maybeSingle();
+    if (!row?.id) return false;
+    const id = String(row.id);
+    if (row.status === "pending") {
+      await refundCredits(service, id);
+      console.info("unsaved_generation_refunded", { reason: input.reason, reservationId: id, state: "pending" });
+      return true;
+    }
+    if (row.status !== "committed") return false;
+    const { data: claimed } = await service
+      .from("credit_reservations")
+      .update({ status: "refunded", updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("status", "committed")
+      .select("id")
+      .maybeSingle();
+    if (!claimed) return false;
+    const amount = Math.max(0, Math.trunc(Number(row.amount) || 0));
+    const freeSpent = Math.min(amount, Math.max(0, Math.trunc(Number(row.free_spent) || 0)));
+    if (amount > 0) {
+      let free = 0;
+      if (freeSpent > 0 && row.allowance_period_end) {
+        const { data: wallet } = await service
+          .from("credit_wallets")
+          .select("period_ends_at")
+          .eq("user_id", input.userId)
+          .maybeSingle();
+        const ends = Date.parse(String(wallet?.period_ends_at ?? ""));
+        if (ends === Date.parse(String(row.allowance_period_end)) && Date.now() < ends) free = freeSpent;
+      }
+      const back = amount - freeSpent + free;
+      if (back > 0) {
+        const { error: giftError } = await service.rpc("credit_gift", {
+          p_user_id: input.userId,
+          p_amount: back,
+          p_key: `unsaved_refund:${id}`,
+          p_meta: { reason: "unsaved_generation", cause: input.reason, reservation_id: id, action_code: row.action_code ?? null },
+        });
+        if (giftError) {
+          await service.from("credit_reservations").update({ status: "committed" }).eq("id", id).eq("status", "refunded");
+          console.error("unsaved_generation_refund_failed", { reason: input.reason, reservationId: id });
+          return false;
+        }
+      }
+    } else if (row.free_meter && row.free_period) {
+      const { data: usage } = await service
+        .from("free_usage")
+        .select("used")
+        .eq("user_id", input.userId)
+        .eq("meter", row.free_meter)
+        .eq("period_key", row.free_period)
+        .maybeSingle();
+      const used = Math.trunc(Number(usage?.used) || 0);
+      if (used > 0) {
+        await service
+          .from("free_usage")
+          .update({ used: used - 1, updated_at: new Date().toISOString() })
+          .eq("user_id", input.userId)
+          .eq("meter", row.free_meter)
+          .eq("period_key", row.free_period)
+          .eq("used", used);
+      }
+    }
+    console.info("unsaved_generation_refunded", { reason: input.reason, reservationId: id, state: "committed", amount });
+    return true;
+  } catch (error) {
+    console.error("unsaved_generation_refund_failed", {
+      reason: input.reason,
+      cause: error instanceof Error ? error.message.slice(0, 120) : "unknown",
+    });
+    return false;
+  }
+}
 
 export async function runStartGeneration(
   context: NodeContext,
@@ -56,7 +152,10 @@ export async function runStartGeneration(
   const { sessionMeta, topic, topicLabel, topicWiden, warm, refreshTopicQuiz, voiceSession, premium, freeMeter, practiceTopics, finalFill, retargetedTopic, quizLesson, variant, peekBuildingMs } = state;
   let { title } = state;
   const { prepSource, prepDocs, teachingPlan, sourceMode, source, sourceTrace, lessonCoreDocumentId, lessonCorePages, lessonTopicOnly, oralAllPlan, podcastSyllabus, alternativeOf } = sourced;
-  const { clientRequestId, generationId, creatingAttemptId, creditKey } = reserved;
+  const { clientRequestId, generationId, creatingAttemptId } = reserved;
+  // Kaydı önceden açılmayan yol (v1) da bilinen bir anahtarla ücretlensin: kayıt yazılamazsa iade bu anahtarı bulur.
+  // Önceden yazım ücretsizdir, anahtarı motor kendisi verir.
+  const creditKey = reserved.creditKey ?? (prefetch ? undefined : `exam_node_v1_${userId}_${nodeId}_${requestStarted}`);
   let generationLaunchedMs: number | null = null;
   let firstPublishedMs: number | null = null;
 
@@ -578,8 +677,21 @@ export async function runStartGeneration(
       .maybeSingle();
 
     if (readyErr || !readyAttempt) {
-      // Newer generation won the race — do not overwrite.
-      return errorResponse(409, "stale_generation");
+      // Newer generation won the race — do not overwrite. Kaydedilmeyen içeriğin bedeli geri döner; ama
+      // devralan üretim aynı istek kimliğiyle aynı kredi anahtarını kullanır (`creditIdempotencyKeyForStart`):
+      // satır başka üretimin elindeyse ücret onundur, iade edilmez (yoksa teslim edilen içerik bedava gider).
+      const { data: owner } = await service
+        .from("exam_prep_node_attempts")
+        .select("generation_id, status")
+        .eq("id", creatingAttemptId)
+        .maybeSingle();
+      const takenOver = Boolean(
+        owner && owner.generation_id && owner.generation_id !== generationId && owner.status !== "failed",
+      );
+      const refunded = takenOver
+        ? false
+        : await refundUnsavedGeneration(service, { userId, key: creditKey, reason: "stale_generation" });
+      return errorResponse(409, "stale_generation", { refunded });
     }
 
     await upsertGenerationJob(service, {
@@ -652,7 +764,10 @@ export async function runStartGeneration(
       .single());
   }
 
-  if (error || !attempt) return errorResponse(500, "generation_failed");
+  if (error || !attempt) {
+    const refunded = await refundUnsavedGeneration(service, { userId, key: creditKey, reason: "attempt_insert_failed" });
+    return errorResponse(500, "generation_failed", { refunded });
+  }
   schedulePodcastCheck(attempt.id as string);
 
   // Aşinalık konuya yazılır ki sonraki derste varsayılan olarak gelsin;

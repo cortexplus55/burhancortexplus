@@ -211,6 +211,16 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       } else return errorResponse(422, "Bu dosya türü sohbet içinde desteklenmiyor.");
     }
 
+    // Hazırlık sahipliği (6 Kasım 2026, 360° denetim P0): bağlam okumaları servis anahtarıyla koşuyor.
+    // Sahiplik denetlenmeden başka öğrencinin hazırlık kimliğiyle onun belgeleri modele gidiyordu
+    // (kimlik sınıf davet bağlantısında ve okul akışında görünür). Sahip değilse hiçbir şey okunmaz.
+    if (rest.prepId) {
+      const { data: ownedPrep, error: prepError } = await service
+        .from("exam_preps").select("id").eq("id", rest.prepId).eq("user_id", userId).maybeSingle();
+      if (prepError) return errorResponse(503, "Hazırlığına şu an erişilemiyor.");
+      if (!ownedPrep) return errorResponse(404, "prep_not_found");
+    }
+
     // Ön okumalar paralel (3 Kasım 2026, t260u): denetim, hak, geçmiş, profil, istem ve hazırlık bağlamı
     // birbirini beklemiyordu ama sırayla koşuyordu. Hepsi yalnız okuma; kredi ayırma sırası değişmez.
     const stage = (name: string) => timings.push([name, Date.now() - routeStartedAt]);

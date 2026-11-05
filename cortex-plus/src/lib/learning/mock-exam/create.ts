@@ -49,6 +49,7 @@ import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities"
 import { studentOptionCount, type OptionCount } from "@/lib/learning/student-pedagogy";
 import { topicWeightsFromText } from "@/lib/learning/mock-exam/weights-from-text";
 import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
+import { ownedByPrepOwner } from "@/lib/documents/teacher-analysis-run";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -344,11 +345,11 @@ export async function loadPastQuestions(service: SupabaseClient, prepId: string)
       .select("document_id")
       .eq("exam_prep_id", prepId)
       .limit(24);
-    const ids = (docs ?? []).map((d) => d.document_id as string).filter(Boolean);
-    if (!ids.length) {
-      const { data: prep } = await service.from("exam_preps").select("document_id").eq("id", prepId).maybeSingle();
-      if (prep?.document_id) ids.push(prep.document_id as string);
-    }
+    const listed = (docs ?? []).map((d) => d.document_id as string).filter(Boolean);
+    const { data: prep } = await service.from("exam_preps").select("user_id, document_id").eq("id", prepId).maybeSingle();
+    if (!listed.length && prep?.document_id) listed.push(prep.document_id as string);
+    // Yalnız hazırlık sahibinin belgeleri (6 Kasım 2026, 360° denetim).
+    const ids = await ownedByPrepOwner(service, (prep?.user_id as string | null | undefined) ?? null, listed);
     if (!ids.length) return [];
     const { data: pages } = await service
       .from("document_pages")

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildPaytrToken, generateMerchantOid } from "@/lib/payments/paytr";
+import { buildPaytrToken, generateMerchantOid, paytrFetchInit } from "@/lib/payments/paytr";
 import { auditLog } from "@/lib/audit";
 
 /**
@@ -57,10 +57,10 @@ export async function createPaytrCheckout(service: SupabaseClient, input: Checko
   const markFailed = () => service.from("payments").update({ status: "failed" }).eq("merchant_oid", merchantOid);
 
   try {
+    // Süre sınırı iade/ödeme listesiyle aynı (`PAYTR_FETCH_TIMEOUT_MS`): PayTR cevap vermezse istek
+    // fonksiyonun ömrü boyunca askıda kalmasın, satır `failed`e çekilsin.
     const response = await fetch("https://www.paytr.com/odeme/api/get-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
+      ...paytrFetchInit(params),
       cache: "no-store",
     });
     const payload = (await response.json()) as { status: string; token?: string; reason?: string };

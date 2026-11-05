@@ -29,19 +29,28 @@ export default function SifreYenilePage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password });
 
-    // Sayfa artık /ayarlar'dan da açılıyor; oturumu açık öğrenciye her hatada
-    // "bağlantının süresi dolmuş" demek yanlış yönlendiriyordu.
-    if (error) {
-      toast.error(authErrorMessage(error));
-      return;
+      // Sayfa artık /ayarlar'dan da açılıyor; oturumu açık öğrenciye her hatada
+      // "bağlantının süresi dolmuş" demek yanlış yönlendiriyordu.
+      if (error) {
+        toast.error(authErrorMessage(error));
+        return;
+      }
+
+      // Şifre değişince öbür cihazlardaki oturumlar kapanır (şifresi ele geçmiş hesap kurtarılsın);
+      // bu cihaz açık kalır. Kapatma düşerse şifre yine değişmiştir, akış sürer.
+      await supabase.auth.signOut({ scope: "others" }).catch(() => undefined);
+
+      toast.success("Şifren güncellendi.");
+      router.push("/ogretmen");
+    } catch {
+      toast.error(authErrorMessage(null));
+    } finally {
+      setLoading(false);
     }
-
-    toast.success("Şifren güncellendi.");
-    router.push("/ogretmen");
   }
 
   return (

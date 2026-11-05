@@ -19,6 +19,7 @@ import { documentTopicMapIsInUse, loadTopicMapSnapshot } from "@/lib/documents/p
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { DocumentPdfPreview } from "@/components/documents/document-pdf-preview";
+import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 
 export const metadata = { title: "Belge" };
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
   const { data: doc } = await service
     .from("documents")
     .select(
-      "id, user_id, file_name, status, page_count, mime_type, storage_path, error_message, created_at, updated_at, topic_map_status, topic_map_updated_at, deleted_at",
+      "id, user_id, file_name, status, page_count, mime_type, storage_path, error_message, created_at, updated_at, topic_map_status, topic_map_updated_at, deleted_at, part_of",
     )
     .eq("id", documentId)
     .maybeSingle();
@@ -60,10 +61,14 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
   const isPdf = doc.mime_type === "application/pdf";
   let pdfSignedUrl: string | null = null;
   if (completed && isPdf && doc.storage_path) {
-    const { data: signed } = await service.storage
-      .from("documents")
-      .createSignedUrl(doc.storage_path as string, 600);
-    pdfSignedUrl = signed?.signedUrl ?? null;
+    if (isOwnedDocumentStoragePath(doc.storage_path, user.id, doc)) {
+      const { data: signed } = await service.storage
+        .from("documents")
+        .createSignedUrl(doc.storage_path, 600);
+      pdfSignedUrl = signed?.signedUrl ?? null;
+    } else {
+      console.error("storage_path_mismatch", { documentId });
+    }
   }
   const mapReady =
     doc.topic_map_status === "ready" || doc.topic_map_status === "reviewed";

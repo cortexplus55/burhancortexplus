@@ -25,6 +25,16 @@ export function getSmtpConfig(): SmtpConfig | null {
   };
 }
 
+/**
+ * Süre sınırları: SMTP sunucusu cevap vermezse nodemailer varsayılanı (2 dk bağlantı, 10 dk soket)
+ * isteği fonksiyonun ömrü boyunca askıda tutuyordu. Kısa sınırla gönderim düşer, çağıran yedeğe geçer.
+ */
+export const SMTP_TIMEOUTS = {
+  connectionTimeout: 8_000,
+  greetingTimeout: 5_000,
+  socketTimeout: 10_000,
+} as const;
+
 export function createSmtpTransport(config: SmtpConfig) {
   const secure = config.port === 465;
   return nodemailer.createTransport({
@@ -32,6 +42,7 @@ export function createSmtpTransport(config: SmtpConfig) {
     port: config.port,
     secure,
     auth: { user: config.user, pass: config.pass },
+    ...SMTP_TIMEOUTS,
   });
 }
 

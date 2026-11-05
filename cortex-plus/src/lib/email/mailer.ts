@@ -1,5 +1,6 @@
 import "server-only";
 import { createSmtpTransport, getSmtpConfig } from "@/lib/email/smtp";
+import { escapeHtml, personName } from "@/lib/email/escape";
 
 type SendResult = { ok: true } | { ok: false; reason: string };
 
@@ -123,11 +124,11 @@ function layout(title: string, body: string, cta?: { href: string; label: string
     <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
       <p style="font-size:18px;font-weight:600;margin:0 0 24px;">Cortex Plus</p>
       <div style="background:#161616;border:1px solid #2a2a2a;border-radius:20px;padding:24px;">
-        <h1 style="font-size:20px;margin:0 0 12px;">${title}</h1>
+        <h1 style="font-size:20px;margin:0 0 12px;">${escapeHtml(title)}</h1>
         <div style="font-size:14px;line-height:1.6;color:#c9c9c9;">${body}</div>
         ${
           cta
-            ? `<a href="${cta.href}" style="display:inline-block;margin-top:20px;background:#4a6cf7;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:600;font-size:14px;">${cta.label}</a>`
+            ? `<a href="${escapeHtml(cta.href)}" style="display:inline-block;margin-top:20px;background:#4a6cf7;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:600;font-size:14px;">${escapeHtml(cta.label)}</a>`
             : ""
         }
       </div>
@@ -149,22 +150,23 @@ export async function sendParentInviteEmail({
   inviteCode?: string | null;
 }) {
   const url = `${appUrl()}/kayit`;
-  const codeBlock = inviteCode
-    ? `<p style="margin:16px 0 0;">Bağlantı kodu: <strong style="letter-spacing:4px;">${inviteCode}</strong></p>`
+  // Ad ve kod kullanıcıdan gelir: HTML kaçışı ve addan bağlantı temizliği (6 Kasım 2026).
+  const who = personName(parentName) || "Velin";
+  const code = String(inviteCode ?? "").replace(/[^A-Za-z0-9-]/g, "").slice(0, 32);
+  const codeBlock = code
+    ? `<p style="margin:16px 0 0;">Bağlantı kodu: <strong style="letter-spacing:4px;">${escapeHtml(code)}</strong></p>`
     : "";
 
   return sendEmail({
     to,
-    subject: `${parentName} seni Cortex Plus'a davet ediyor`,
+    subject: `${who} seni Cortex Plus'a davet ediyor`,
     html: layout(
       "Cortex Plus daveti",
-      `<p style="margin:0;"><strong>${parentName}</strong> seni Cortex Plus'a davet etti ve ilerlemeni takip etmek istiyor.</p>
+      `<p style="margin:0;"><strong>${escapeHtml(who)}</strong> seni Cortex Plus'a davet etti ve ilerlemeni takip etmek istiyor.</p>
        <p style="margin:12px 0 0;">Hesabını oluşturduktan sonra profilindeki veli isteğini onaylaman yeterli. Sohbet içeriklerin gizli kalır; velinle yalnızca ilerleme özetin paylaşılır.</p>${codeBlock}`,
       { href: url, label: "Hesabımı oluştur" },
     ),
-    text: `${parentName} seni Cortex Plus'a davet etti. Hesap oluştur: ${url}${
-      inviteCode ? ` (kod: ${inviteCode})` : ""
-    }`,
+    text: `${who} seni Cortex Plus'a davet etti. Hesap oluştur: ${url}${code ? ` (kod: ${code})` : ""}`,
   });
 }
 
@@ -176,16 +178,17 @@ export async function sendParentRequestEmail({
   parentName: string;
 }) {
   const url = `${appUrl()}/profil`;
+  const who = personName(parentName) || "Bir veli";
   return sendEmail({
     to,
     subject: "Yeni veli bağlantı isteği",
     html: layout(
       "Veli bağlantı isteği",
-      `<p style="margin:0;"><strong>${parentName}</strong> hesabına veli olarak bağlanmak istiyor.</p>
+      `<p style="margin:0;"><strong>${escapeHtml(who)}</strong> hesabına veli olarak bağlanmak istiyor.</p>
        <p style="margin:12px 0 0;">İsteği onaylarsan ilerleme özetin (deneme sonuçların ve çalışma serin) velinle paylaşılır. Sohbet içeriklerin her durumda gizli kalır.</p>`,
       { href: url, label: "İsteği görüntüle" },
     ),
-    text: `${parentName} hesabına veli olarak bağlanmak istiyor. Onaylamak için: ${url}`,
+    text: `${who} hesabına veli olarak bağlanmak istiyor. Onaylamak için: ${url}`,
   });
 }
 
@@ -194,13 +197,15 @@ export async function sendParentRequestEmail({
  * gider (Supabase'in saatte 30 e-posta sınırı yok). Bağlantı imzalı ve 7 gün geçerli (email-verification.ts).
  */
 export async function sendVerifyEmail({ to, name, url }: { to: string; name: string; url: string }) {
-  const hello = name ? `Merhaba ${name.split(/\s+/)[0]},` : "Merhaba,";
+  // Ad kayıtta serbest yazılıyor: yalnız harfler kalır, sonra HTML kaçışı (6 Kasım 2026).
+  const first = personName(name, 1);
+  const hello = first ? `Merhaba ${first},` : "Merhaba,";
   return sendEmail({
     to,
     subject: "Cortex Plus · E-postanı doğrula",
     html: layout(
       "E-postanı doğrula",
-      `<p style="margin:0;">${hello} hesabın açıldı ve çalışmaya başlayabilirsin.</p>
+      `<p style="margin:0;">${escapeHtml(hello)} hesabın açıldı ve çalışmaya başlayabilirsin.</p>
        <p style="margin:12px 0 0;">Hesabını güvenceye almak ve davet hediyeni açmak için e-postanı doğrula. Bağlantı 7 gün geçerli.</p>
        <p style="margin:12px 0 0;">Bu hesabı sen açmadıysan bu e-postaya tıklama; bize yazman yeterli.</p>`,
       { href: url, label: "E-postamı doğrula" },

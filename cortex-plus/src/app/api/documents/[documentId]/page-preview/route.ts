@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { isOwnedDocumentStoragePath } from "@/lib/documents/storage-path";
 
 /** Dersin içinden kaynak sayfa. Belge yalnız sahibine açılır; imza 10 dakikadır. */
 export async function GET(
@@ -16,7 +17,7 @@ export async function GET(
   const page = Math.max(1, Math.trunc(Number(new URL(request.url).searchParams.get("page")) || 1));
   const { data: doc } = await service
     .from("documents")
-    .select("id, user_id, file_name, mime_type, storage_path, status, deleted_at")
+    .select("id, user_id, file_name, mime_type, storage_path, status, deleted_at, part_of")
     .eq("id", documentId)
     .maybeSingle();
   if (!doc || doc.deleted_at || doc.user_id !== userId) return errorResponse(404, "not_found");
@@ -32,7 +33,12 @@ export async function GET(
 
   let signedUrl: string | null = null;
   if (doc.mime_type === "application/pdf" && doc.status === "completed" && doc.storage_path) {
-    const { data: signed } = await service.storage.from("documents").createSignedUrl(doc.storage_path as string, 600);
+    // Parça kopyası ana belgenin dosyasını paylaşır (document-head.ts): ana belgenin klasörü de kabul.
+    if (!isOwnedDocumentStoragePath(doc.storage_path, userId, doc)) {
+      console.error("storage_path_mismatch", { documentId });
+      return errorResponse(404, "not_found");
+    }
+    const { data: signed } = await service.storage.from("documents").createSignedUrl(doc.storage_path, 600);
     signedUrl = signed?.signedUrl ?? null;
   }
 
