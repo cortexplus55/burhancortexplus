@@ -34,6 +34,7 @@ import { loadPrepTopicIndex, sameTopicAsNode, testedTopicRow } from "@/lib/learn
 import { mistakeDraftsFromAttempt, nonPoolQuizAnswers, poolQuizAnswers, scoreAttempt } from "@/lib/learning/node/score";
 import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
 import { recordPoolAnswers } from "@/lib/content-pool/record-answers";
+import { refreshStudentMemory } from "@/lib/learning/student-memory";
 import type { NodeContext } from "./context";
 
 export async function completeAction(context: NodeContext): Promise<NextResponse> {
@@ -467,6 +468,10 @@ export async function completeAction(context: NodeContext): Promise<NextResponse
       ref: prepStarRef({ attemptId: attempt.id as string, nodeId, payload: attempt.payload, day: istanbulDay() }),
       amount: prepStars(kind, completed.score, completed.total),
     });
+
+    // Öğrenme hafızası (5 Kasım 2026): yanlış türleri, zayıf kazanımlar ve açık yanılgılar kayıtlardan modelsiz
+    // özetlenir; öğretmen sohbeti ve ders yazımı okur. Yanıttan sonra koşar, öğrenciyi bekletmez; düşerse uyarı.
+    deferTask(() => refreshStudentMemory(service, userId), background);
 
     const body: Record<string, unknown> = {
       ok: true,

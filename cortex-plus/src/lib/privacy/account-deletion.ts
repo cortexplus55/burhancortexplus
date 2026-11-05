@@ -39,6 +39,9 @@ const USER_CONTENT_TABLES = [
   "user_device_sessions",
   // 31 Ekim 2026 (Paket J2 #10): soru hata bildirimleri. Tablo yoksa atlanır.
   "question_reports",
+  // 5 Kasım 2026: öğrenme hafızası özeti. auth.users CASCADE var ama silme işçisi auth kullanıcısını her zaman
+  // silmez (ödeme kaydı olan hesap yumuşak silinir); satır burada gider. Göç canlıda yoksa atlanır.
+  "student_learning_memory",
 ] as const;
 
 const OPTIONAL_PURGE_TABLES = new Set([
@@ -46,6 +49,7 @@ const OPTIONAL_PURGE_TABLES = new Set([
   "exam_prep_pending_materials",
   "user_device_sessions",
   "question_reports",
+  "student_learning_memory",
 ]);
 
 /**
