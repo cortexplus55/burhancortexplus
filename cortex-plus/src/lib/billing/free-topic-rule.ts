@@ -1,6 +1,7 @@
 import { PREP_WIDE_TARGET_KINDS } from "@/lib/learning/prep-wide-target";
 import { adaptiveFocusTopic } from "@/lib/learning/path-change";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { PLUS_ONLY_NODE_KINDS } from "@/lib/billing/free-meters";
 
 /*
   İlk doz bedava kuralının saf hâli (Paket J takip #1, 1 Kasım 2026). Başlatma isteği (`start.ts`), adım sayfası ve
@@ -37,4 +38,23 @@ export function nodeLockedForFree(first: FirstTopicRef, input: GateNodeInput): b
     : Boolean(input.nodeTopicId) && first.ids.has(input.nodeTopicId!);
   if (open) return false;
   return !input.opened;
+}
+
+export type SummaryNode = { id: string; kind: string; status: string; title?: string | null; session_meta: { topicId?: string; role?: string } | null };
+
+/**
+ * 1. konunun ücretsiz öğrencinin BİTİREBİLECEĞİ adımları (5 Kasım 2026). Sayıya girmeyenler: hazırlık geneli adımlar
+ * (konunun kimliğini taşır ama konuya ait değildir), yolun final bloğu (`role: "mock"`: zayıf nokta, yazılı deneme,
+ * son kontrol, hazırım …) ve Plus'a özel adımlar (podcast, sözlü). Girseydi özet "0/13" derdi (yolda 7 adım) ve
+ * "1. Konuyu Başarıyla Tamamladın" kutlaması ücretsiz öğrencide hiç çıkmazdı (canlı turda görüldü).
+ */
+export function firstTopicOwnNodes(nodes: readonly SummaryNode[], firstIds: ReadonlySet<string>): SummaryNode[] {
+  return nodes.filter(
+    (node) =>
+      node.session_meta?.topicId &&
+      firstIds.has(node.session_meta.topicId) &&
+      node.session_meta.role !== "mock" &&
+      !PLUS_ONLY_NODE_KINDS.has(node.kind) &&
+      !gatePrepWide(node.kind, node.session_meta, node.title ?? ""),
+  );
 }

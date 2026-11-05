@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { billingExempt } from "@/lib/billing/free-preview";
 import { topicIdsOf } from "@/lib/learning/topic-identity";
-import { gatePrepWide, nodeLockedForFree, type FirstTopicRef } from "@/lib/billing/free-topic-rule";
+import { firstTopicOwnNodes, gatePrepWide, nodeLockedForFree, type FirstTopicRef, type SummaryNode } from "@/lib/billing/free-topic-rule";
 
 /*
   İlk doz bedava (31 Ekim 2026, ürün sahibinin kararı — Paket J1 #3).
@@ -128,10 +128,9 @@ async function summarizeFirstTopic(
 ): Promise<FirstTopicSummary> {
   const { data: nodes } = await service
     .from("exam_prep_nodes")
-    .select("id, kind, status, session_meta")
+    .select("id, kind, status, title, session_meta")
     .eq("exam_prep_id", input.prepId);
-  const mine = ((nodes ?? []) as { id: string; kind: string; status: string; session_meta: { topicId?: string } | null }[])
-    .filter((node) => node.session_meta?.topicId && input.firstIds.has(node.session_meta.topicId));
+  const mine = firstTopicOwnNodes((nodes ?? []) as SummaryNode[], input.firstIds);
   const done = mine.filter((node) => node.status === "done");
   let bestScore: number | null = null;
   const scored = mine.filter((node) => node.kind !== "lesson").map((node) => node.id);
