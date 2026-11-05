@@ -140,7 +140,7 @@ export default async function AdminPage() {
           ))}
         </AdminTableFrame>
         {economics.usdTry == null ? (
-          <p className="px-5 py-3 text-xs text-[var(--adm-muted)]">Kur girilmedi: marj hesaplanmıyor. Yukarıdaki kutuya 1 USD'nin TL karşılığını yaz.</p>
+          <p className="px-5 py-3 text-xs text-[var(--adm-muted)]">Kur girilmedi: marj hesaplanmıyor. Yukarıdaki kutuya 1 USD&apos;nin TL karşılığını yaz.</p>
         ) : null}
         {economics.spendMonth?.unpricedCalls ? (
           <p className="px-5 py-3 text-xs text-[var(--adm-muted)]">
@@ -197,7 +197,7 @@ export default async function AdminPage() {
             ))}
           </AdminTableFrame>
         ) : (
-          <AdminEmpty title="Henüz bildirim yok">Öğrenci "🚩 Soruda hata bildir" dediğinde burada görünür.</AdminEmpty>
+          <AdminEmpty title="Henüz bildirim yok">Öğrenci &quot;🚩 Soruda hata bildir&quot; dediğinde burada görünür.</AdminEmpty>
         )}
       </AdminCard>
 
