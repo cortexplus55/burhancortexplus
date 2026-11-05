@@ -223,6 +223,7 @@ button.ug-why {
    --------------------------------------------------------------------------- */
 
 .ug-aside {
+  position: relative;
   flex: 0 0 15rem;
   align-self: flex-end;
   padding: 1.1rem;
@@ -238,6 +239,25 @@ button.ug-why {
 @media (max-width: 60rem) {
   .ug-aside { flex: 1 1 auto; align-self: stretch; }
 }
+
+/* Kapat düğmesi (6 Kasım 2026): 32 px dokunma alanı, sağ üst köşe. */
+.ug-aside-close {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 0;
+  background: transparent;
+  color: #a8a29e;
+  cursor: pointer;
+}
+
+.ug-aside-close:hover { background: rgba(255, 255, 255, 0.06); color: #f2f0ec; }
+.ug-aside-close:focus-visible { outline: 2px solid var(--c-action); outline-offset: 2px; }
 
 .ug-aside-brand {
   display: flex;
