@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminActor } from "@/lib/auth/admin-actor";
 import {
   callJevSystemOne,
   listJevModels,
@@ -21,22 +22,6 @@ const PILOT_FLAGS = [
   "adaptive_daily_replan_enabled",
   "adaptive_model_router_enabled",
 ] as const;
-
-async function requireAdminActor(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .is("revoked_at", null)
-    .maybeSingle();
-  return data ? user.id : null;
-}
 
 const pilotSchema = z.object({
   flagKey: z.enum(PILOT_FLAGS),

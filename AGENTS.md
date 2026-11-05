@@ -1836,3 +1836,19 @@ dokunduğu 117 dosyada tek gerçek kural kaybı vardı, geri kalanı yorum/örne
 `example-completeness.ts`), şekil değeri okuma (`figure-pages.ts`, `extract-image-text.ts`), kilit bilgi kapsamı
 (`lesson-key-facts.ts`, `lessonCoverageGaps`). Bekçi: `kosullu-onerme-donusumu.test.ts`, `akan-sayac-kisa-cozum-tek-ses.test.tsx`,
 `src-senaryo-sabitleri.test.ts`, `gate-v14.test.ts` (sürüm 15).
+
+## Kurucu kokpiti (5 Kasım 2026) — `/admin` tek ekranda büyüme, dönüşüm, kâr/zarar, karantina
+
+Ürün sahibi: "kurucunun tek bakışta bütün işi yönetebileceği gerçek bir kokpit". Eski Özet sayfası dört kutu ve son
+ödemelerdi. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Üç pencere (Bugün / Son 7 gün / Son 30 gün) **Türkiye günüyle** (sabit UTC+3) ve tek sorgudan: son 30 günün satırları çekilir, sayım kodda. Kaynaklar birbirinden bağımsız okunur; düşen kaynak sarı notta "okunamadı" yazar, sayfa düşmez (`settle`) | `cockpit-math.ts` (saf), `cockpit.ts` (yükleyici) |
+| **Büyüme & dönüşüm:** yeni kayıt (`profiles.created_at`), aktif öğrenci (etkinlik kaydı açan farklı kullanıcı), başarılı ödeme, **ilk kez ödeyen** = ücretsiz → ücretli (penceredeki en erken başarılı ödeme; pencereden önce ödemişse sayılmaz — ödeyenler için ikinci sorgu), plan başına dağılım (`plus-aylik` "Plus (aylık)", `plus-haftalik` "Sınav Haftası (haftalık Plus)"; etiket yoksa plan adı), **velime ödeme linki** = ödeyen ≠ yararlanan (`beneficiary_user_id`), gelir (kuruş → `formatTry`) | `conversionStats` |
+| **Birim ekonomisi:** OpenAI gideri `readAiSpend` (günlük özetle aynı: `ai_usage_totals` × `ai_model_prices`; fiyatsız çağrı sayısı ayrıca yazılır), gelir başarılı ödemelerden; **kur kurucudan** — `feature_flags.admin_usd_try` `metadata.rate` (1–1000), formla kaydedilir, yoksa marj "—" ve not. Marj = (gelir − gider×kur) / gelir | `marginPct`, `FxRateForm`, `saveUsdTryRate` |
+| **Karantina kuyruğu:** `item_bank.status = 'stale'` ve `qa.quarantine` dolu (saatlik `quarantine_pool_items`); kart soru, şıklar (anahtar işaretli), açıklama, yanıt/oran/bildirim sayısı ve gerekçe etiketi. Üç tek tıklık karar: **Onayla** (status `verified`), **Reddet** (`rejected`), **Reddet ve yeniden ürettir** (reddeder, aynı kazanım için `createReinforceItems` — pekiştirme motoru, aynı kapı ve kör çözüm; tek model çağrısı, kurucunun tıklamasıyla; sayfa `maxDuration = 60`). Her karar `qa.admin_review` ve denetim kaydına yazılır; satır silinmez | `cockpit-quarantine.tsx`, `cockpit-actions.ts` |
+| **🚩 Bildirimler:** son 30 `question_reports` (karar, sebep, not, açıklama, soru anlık görüntüsü); karar modelden gelir, kokpit okur — elle karar düğmesi yok (karar zaten öğrenciye uygulanmış) | `reportRow` |
+| Yönetici kimlik denetimi (`requireAdminActor`) tek dosyada; iki eylem dosyasındaki kopyalar silindi | `src/lib/auth/admin-actor.ts` |
+
+Bekçi: `kurucu-kokpiti.test.ts` (pencereler, sayımlar, dönüşüm, marj, kuyruk satırları, tek kaynak kimlik, sayfa/eylem sözleşmesi).
