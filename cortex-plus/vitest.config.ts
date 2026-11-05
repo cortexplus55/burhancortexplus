@@ -12,6 +12,12 @@ export default defineConfig({
     environment: "node",
     // Bileşen testleri .tsx; ortam dosya başında @vitest-environment ile seçilir.
     include: ["tests/unit/**/*.test.ts", "tests/unit/**/*.test.tsx"],
+    // 5 Kasım 2026: tam paket (630+ dosya, 16 işçi) koşarken PGlite, pdf-lib/pdf.js ve gerçek HTTP kullanan
+    // testler 5 sn'lik varsayılan süreyi yalnız makine yükü yüzünden aşıp kararsız düşüyordu
+    // (`pencereli-yukleme`, `generate-stream-deadline`, `paket-j2`). Süre bir doğruluk ölçüsü değildir:
+    // zamanlamayı denetleyen testler sahte zamanlayıcı kullanır; buradaki tavan yalnız takılı testi yakalar.
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
   },
   resolve: {
     alias: {
