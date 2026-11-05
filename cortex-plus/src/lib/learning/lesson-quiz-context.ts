@@ -3,7 +3,7 @@ import { readLessonV2 } from "@/lib/learning/lesson-v3";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 
 /**
- * Konu testi dersi bilsin (20 Ekim 2026). Kör kıyasta Pediatri solunum testimiz dersin derste
+ * Konu testi dersi bilsin (20 Ekim 2026). Kör kıyasta bir konu testimiz dersin derste
  * sorduğu ayrımı yeniden sordu, dersin öğrettiği uyarıları hiç sormadı; test konunun dersini
  * hiç görmüyordu. Burada kaydedilmiş ders(ler)den yazara giden üç şey çıkar:
  *

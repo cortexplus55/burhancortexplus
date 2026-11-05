@@ -17,7 +17,7 @@
  * Bu kural boşuna yazılmadı. Belgesiz kurulan hazırlıkta kaynak sınırı
  * `documents_only`de kalıyor, arama ise belge seçili olmadığı için öğrencinin
  * BÜTÜN belgelerinde yapılıyordu. Sonuç: geçen ay biyoloji notu yüklemiş bir
- * öğrenci belgesiz "Trigonometri" hazırlığı kurduğunda, o biyoloji notundan
+ * öğrenci belgesiz bir hazırlık kurduğunda, başka dersin notundan
  * benzerlik eşiğini geçen bir parça yakalanırsa derse "YALNIZCA bu alıntılara
  * dayan" talimatı gidiyordu. Hiçbir şey çökmüyor — ders sessizce yanlış
  * kaynağa bağlanıyor.

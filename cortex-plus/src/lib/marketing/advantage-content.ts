@@ -140,8 +140,9 @@ export const ADVANTAGE_BADGES = [
 ] as const;
 
 /**
- * Kör öğrenci deneyi kanıtı: `docs/delivery/KOR-OGRENCI-DENEYI-30-EKIM.md` (ön sınav 35, son sınav 100, +65,
- * 20 soru, 6 yanılgının 6'sı düzeltildi). Öğrenci yapay zekâ ile canlandırıldı; dipnot bunu açıkça söyler.
+ * Kör öğrenci deneyi kanıtı (30 Ekim 2026; ölçüm raporu 5 Kasım 2026'da depodan kaldırıldı, sayılar kök AGENTS.md
+ * "Canlı tur (30 Ekim 2026)" tablosunda): ön sınav 35, son sınav 100, +65, 20 soru, 6 yanılgının 6'sı düzeltildi.
+ * Öğrenci yapay zekâ ile canlandırıldı; dipnot bunu açıkça söyler.
  */
 export const SHOW_BLIND_EXPERIMENT_PROOF = true;
 

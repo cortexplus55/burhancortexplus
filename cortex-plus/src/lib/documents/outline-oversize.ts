@@ -41,9 +41,9 @@ export const OVERSIZE_MIN_SECTIONS = 4;
 export const OVERSIZE_SECTIONS_MIN_SPAN = 6;
 
 /**
- * Yutulan alt başlık (29 Ekim 2026, Paket G). 15 sayfalık 10. sınıf matematik notunda
- * "Parçalı Fonksiyon" iki sayfalık kendi bölümüyle duruyordu; harita onu "Fonksiyonlar"ın içinde
- * eritti ("Düşey Atış", "Taban Fiyat" aynı). Yukarıdaki kapılar 8+ sayfa ya da 4+ alt bölüm arıyordu;
+ * Yutulan alt başlık (29 Ekim 2026, Paket G). 15 sayfalık bir ders notunda
+ * bir alt tür iki sayfalık kendi bölümüyle duruyordu; harita onu üst kavramın içinde
+ * eritti (başka derslerdeki özel durumlar da aynı). Yukarıdaki kapılar 8+ sayfa ya da 4+ alt bölüm arıyordu;
  * 1-3 sayfalık bağımsız alt bölüm hiçbir kurala takılmıyordu. Ölçü yine ders bağımsız: aralıktaki
  * başlığın kendi gövdesi var (`SWALLOWED_BODY_MIN`) ve gövde ya tam sayfalık metin taşıyor ya da
  * tanım/kural/formül/örnek/soru gibi öğretim işareti içeriyor; başlık haritada hiçbir konunun adı
@@ -197,7 +197,7 @@ function median(values: number[]): number {
 /** Başlığın gövdesi: metin, kendi sayfasındaki kısmı ve gövdenin yayıldığı sayfalar. */
 export type HeadingBody = { body: string; onOwnPage: number; pages: number[] };
 
-/** Varsayılan sınır: numaralı başlık satırı ("2.3 Parçalı Fonksiyon"). */
+/** Varsayılan sınır: numaralı başlık satırı ("2.3 Alt başlık adı"). */
 function numberedHeadingKey(line: string): string | null {
   return TEXT_HEADING.test(line) && line.length <= 90 ? fold(line) : null;
 }
@@ -331,7 +331,7 @@ function headingPages(pages: OversizePage[]): Map<string, number> {
 /**
  * Konunun aralığında kendi başlığı ve içeriği olan, haritada adı geçmeyen alt bölümler.
  * Üst konunun kendi adı (ya da ünitesi) yutulmuş sayılmaz; tek kelimelik üst ad alt başlığı
- * kapsamaz ("Fonksiyon" ⊄ "Parçalı Fonksiyon"). Aralığın son sayfasındaki BÖLÜM başlığı modelin
+ * kapsamaz (üst ad ⊄ nitelenmiş alt ad). Aralığın son sayfasındaki BÖLÜM başlığı modelin
  * sınır sayfası taşmasıdır, sayılmaz; alt bölüm (2.3) son sayfada da sayılır. Yutulan bölümler
  * dışında konunun kendi metni yoksa model başlığı başka adla yazmıştır, yutma yok.
  */
@@ -366,7 +366,7 @@ export function swallowedSubsections(
     return carriesOwnTeaching(bodies.get(key));
   });
   // Aralığın ilk içerik başlığı üst adla kök paylaşıyorsa ("Fonksiyon" ~ "Fonksiyonlar ve Grafikleri")
-  // konunun kendi bölümüdür; sonraki "Parçalı Fonksiyon" aynı kökü taşısa da ayrı alt bölümdür.
+  // konunun kendi bölümüdür; sonraki nitelenmiş alt başlık aynı kökü taşısa da ayrı alt bölümdür.
   const firstKey = [...candidates]
     .map((heading) => fold(heading))
     .sort((a, b) => (firstPageOf.get(a) ?? Infinity) - (firstPageOf.get(b) ?? Infinity))[0];

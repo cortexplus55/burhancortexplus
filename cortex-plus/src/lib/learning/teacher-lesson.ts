@@ -251,8 +251,8 @@ const EXAMPLE_TOPIC =
   "verilen örneği aynı sayılarla yeniden anlatmaz.\n";
 
 /**
- * Renkli vurgu, sınav kutuları ve ezber kodu (18 Ekim 2026, ürün sahibinin kararı; Pediatri
- * belgesi öğrenci gözüyle incelendi). Belge önemli yerleri kutularla işaretliyordu ("TUS / SINAV
+ * Renkli vurgu, sınav kutuları ve ezber kodu (18 Ekim 2026, ürün sahibinin kararı; canlı bir
+ * belge öğrenci gözüyle incelendi). Belge önemli yerleri kutularla işaretliyordu ("TUS / SINAV
  * İPUCU", "AKILDA TUT", "ALARM BULGULARI"); ders bunları ayrıca öne çıkarmıyordu. Terimler koyu
  * kalır (paragraf alacalı olmasın); renk yalnız sınavda soru olacak kesin bilgi ve kutular için.
  * Denetçi I maddesiyle aynı kuralı denetler.
@@ -823,8 +823,8 @@ export function fixPartUserPrompt(
 
 /**
  * Düzelmeyen kavramı BAŞTAN yazdırma (18 Ekim 2026, ürün sahibinin kararı: "arkada yeniden
- * yazılsın"). Düzeltme turları aynı taslağı yamalıyor; aynı yerde takılan taslak (Pediatri,
- * gelişim basamakları: üç tur aynı sorun) yamayla düzelmiyor ve kavram dersten atılıyordu —
+ * yazılsın"). Düzeltme turları aynı taslağı yamalıyor; aynı yerde takılan taslak (çok satırlı
+ * bir tablo: üç tur aynı sorun) yamayla düzelmiyor ve kavram dersten atılıyordu —
  * öğrenci sınavın en önemli bölümü eksik dersi tam sanıyordu. Önceki taslak bir kez bırakılır,
  * kavram kaynaktan yeniden yazılır; yeni taslak yine denetlenir.
  */
@@ -1023,7 +1023,7 @@ function seedOf(text: string): number {
 /**
  * Çoktan seçmeli kontrollerin şıklarını gerekçeleriyle birlikte, soru metnine
  * bağlı sabit bir sırayla karıştırır; answerIndex yeni yere taşınır. Metin
- * değişmez. Altın denemede Pediatri dersinin üç sorusunda da doğru cevap
+ * değişmez. Altın denemede bir dersin üç sorusunda da doğru cevap
  * ilk şıktı. Doğru/yanlış kontrollerine dokunulmaz.
  */
 /** `salt`: "Dersi tekrarla"da aynı ders başka bir sırayla (18 Ekim 2026); yazımda boş. */
@@ -1147,7 +1147,7 @@ function placeholderTitle(text: string | undefined): boolean {
 function shouting(text: string): boolean {
   const letters = text.replace(/[^\p{L}]/gu, "");
   if (letters.length < 6) return false;
-  // Tümüyle küçük harfli bir kelime ("ve", "ile") varsa başlık bağırmıyor, kısaltma taşıyor: "TÜFE ve Yİ-ÜFE" canlıda
+  // Tümüyle küçük harfli bir kelime ("ve", "ile") varsa başlık bağırmıyor, kısaltma taşıyor: iki kısaltmayı "ve" ile bağlayan başlık canlıda
   // "Tüfe ve Yi-üfe" oldu (30 Ekim 2026).
   if (/(?:^|[^\p{L}])\p{Ll}{2,}(?=[^\p{L}]|$)/u.test(text)) return false;
   const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
@@ -1216,8 +1216,8 @@ export function headerStructureIssues(lesson: LessonV3, input: StructureInput): 
   if (opener && /doğru\s+mu,?\s+yanlış\s+mı/i.test(screenText(opener))) {
     low("screens[0]", "Metin 'önce dene' sorusunu tekrar soruyor; soru 'check' bloğunda, metin doğrudan anlatsın.");
   }
-  // Kanca sorudan önce okunuyor (16 Ekim 2026 Gastroenterit dersi: kanca "asıl risk
-  // dehidratasyon" dedi, ardından soru "temel risk etken mi?" diye sordu).
+  // Kanca sorudan önce okunuyor (16 Ekim 2026 canlı ders: kanca sorunun cevabını
+  // söyledi, ardından soru aynı şeyi sordu).
   if (
     opener &&
     screenChecksFirst(opener) &&
@@ -1336,7 +1336,7 @@ export function conceptStructureIssues(screens: LessonV3["screens"], group: { co
   if (!screenCheck(screens[lastIndex]!)) {
     add(`screens[${lastIndex}]`, `'${group.concept}' kavramı bir soruyla bitmeli: son ekranına 'check' bloğu koy.`);
   }
-  // Her ekran bir soruyla biter (20 Ekim 2026 kör kıyas: Pediatri'nin yoğun tablolu dersinde kıyas ürünü 5 ekran içi soru
+  // Her ekran bir soruyla biter (20 Ekim 2026 kör kıyas: yoğun tablolu bir derste kıyas ürünü 5 ekran içi soru
   // sordu, biz 2). Yalnız ilk ekranın sorusu başta (önce dene); sonraki ekranlarda sorunun yeri denetlenmez.
   for (const index of group.screens) {
     if (index === lastIndex || index === 0 || screenCheck(screens[index]!)) continue;
@@ -1406,8 +1406,8 @@ export function lessonCompletionGaps(lesson: LessonV3): string[] {
 }
 
 /**
- * Kaynağın tablosu derste paragrafa dökülmüş mü (16 Ekim 2026 Pediatri solunum dersi:
- * 5 satırlık "Bulgular | Düşündürür | Ayırıcı ipucu" tablosu paragrafa döküldü, "ince
+ * Kaynağın tablosu derste paragrafa dökülmüş mü (16 Ekim 2026 canlı ders:
+ * 5 satırlık üç sütunlu karşılaştırma tablosu paragrafa döküldü, "ince
  * ral/ronküs" ve "reversibilite" düştü). `said` tablonun satırlarının arandığı metin.
  */
 function flattenedSourceTable(said: string, pages: readonly { text: string }[]) {
@@ -1437,7 +1437,7 @@ export function flattenedTableIssue(table: { columns: string[]; rows: string[][]
 }
 
 /**
- * Yoğun tablo (20 Ekim 2026 kör kıyas, Pediatri gelişim basamakları): 5 ve üstü satırlı tablo tek ekranda okunup
+ * Yoğun tablo (20 Ekim 2026 kör kıyas, çok satırlı basamak tablosu): 5 ve üstü satırlı tablo tek ekranda okunup
  * geçiliyordu; kıyas ürünü aynı tabloyu parça parça sorarak öğretti. Kural yalnız kavramın kendi 'table' bloklarına bakar
  * (kaynak tablosuna değil): "aynı tablo" döngüsü (yalnız onu ilk anan kavram ister) yeniden kurulmasın. Kavram iki
  * tablo ekranına bölündüyse ya da zaten üç ekransa sağlanmış sayılır: imkânsızı istemez. İlk kavramda öğrenci
@@ -1760,7 +1760,7 @@ export function dropRepeatedScreens(earlier: readonly LessonScreen[], screens: r
 }
 
 /*
-  Ekran içi tekrar (30 Ekim 2026, canlı tur: Makroekonomi dersi). Aynı bilgi tek ekranda beş biçimde duruyordu
+  Ekran içi tekrar (30 Ekim 2026, canlı tur). Aynı bilgi tek ekranda beş biçimde duruyordu
   (metin, "Ayırt et" tuzak kartı, hafıza çivisi, tablo, karşılaştırma kartı), ekranın sorusu hemen üstteki cümlenin
   aynısıydı, aynı tanım bir ekranda iki kez yazılmıştı. `repetitionIssues` yalnız EKRANLAR ARASI tekrara bakıyordu.
   Görsel kartlar tasarım gereği yeni bilgi taşımaz (kavramın bilgisini sınavın vurduğu yerden gösterir); bu yüzden
@@ -2231,8 +2231,8 @@ export function lessonLevelStructureIssues(lesson: LessonV3, input: StructureInp
 /* ───────────── Kapsam tamamlaması (30 Ekim 2026) ───────────── */
 
 /**
- * Tek geçişte kapsam yalnız ölçülüyordu (`done`): "Farklı anlat" ile yeniden yazılan derste kaynağın TÜİK / TÜFE /
- * Yİ-ÜFE satırı hiç işlenmedi, ders yine öğrenciye gitti; aynı derse çalışan simüle öğrenci sınavın endeks sorusunu
+ * Tek geçişte kapsam yalnız ölçülüyordu (`done`): "Farklı anlat" ile yeniden yazılan derste kaynağın kısaltma açılımlarını
+ * veren satırı hiç işlenmedi, ders yine öğrenciye gitti; aynı derse çalışan simüle öğrenci sınavın endeks sorusunu
  * boş bıraktı. Ders bitince kalan açıklar (omurga başlığı, kilit bilgi) tek küçük çağrıya gider: yalnız eksikleri
  * öğreten en çok iki yeni ekran, sona eklenir. Mevcut ekranlar yeniden yazılmaz.
  */

@@ -298,7 +298,7 @@ export function resolveCheckForGrade(
 /**
  * Anahtarı açıklamasıyla hizalanmış kontrol (29 Ekim 2026, Paket H; ürün sahibinin kararı: "anahtarı açıklama ile
  * birebir hizala"). Yayım öncesi kapı (`settleCheckKeys`) yeni dersleri düzeltir; kayıtlı eski derslerde aynı
- * hizalama notlandırma anında yapılır ki "200 × 0,70 = 140 TL" diyen sorunun 140 TL'yi seçen öğrencisi yanlış
+ * hizalama notlandırma anında yapılır ki açıklamasının vardığı değeri seçen öğrencisi yanlış
  * sayılmasın. Değer tam olarak bir şıkta ve o şık anahtar değilse `answerIndex` o şıkka alınır; aksi hâlde dokunulmaz.
  */
 export function alignedAnswerIndex(check: SectionCheck): number | undefined {

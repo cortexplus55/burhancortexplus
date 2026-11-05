@@ -469,7 +469,7 @@ function titleFromFileName(fileName: string): string {
 function titleCase(text: string): string {
   const letters = text.replace(/[^\p{L}]/gu, "");
   const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
-  // Tümüyle küçük harfli bir kelime ("ve", "ile") varsa başlık bağırmıyor, kısaltma taşıyor: "TÜFE ve Yİ-ÜFE" canlıda
+  // Tümüyle küçük harfli bir kelime ("ve", "ile") varsa başlık bağırmıyor, kısaltma taşıyor: iki kısaltmayı "ve" ile bağlayan başlık canlıda
   // "Tüfe ve Yi-üfe" oldu (30 Ekim 2026).
   const shouting = letters.length > 3 && upper / letters.length > 0.8 && !/(?:^|[^\p{L}])\p{Ll}{2,}(?=[^\p{L}]|$)/u.test(text);
   return text
@@ -573,8 +573,8 @@ const TITLE_STOPWORDS = new Set([
   "giris",
   "temel",
   "genel",
-  // Bölüm başlığındaki yapısal kuyruklar. Pediatri belgesinde "1. Sağlam
-  // Çocuk İzlemi: Çerçeve" başlığının en uzun kelimesi "çerçeve" çıkıyor
+  // Bölüm başlığındaki yapısal kuyruklar. Canlı bir belgede "1. <Bölüm Adı>: Çerçeve"
+  // başlığının en uzun kelimesi "çerçeve" çıkıyor
   // ve model doğru bir başlık yazsa bile ("Sağlam Çocuk İzlemi Sıklığı")
   // bekçi bölümü eksik sayıyordu. Bunlar konuyu adlandırmaz, çerçeveler.
   "cerceve",

@@ -1,3 +1,4 @@
+import { conditionalLogicIssues } from "@/lib/learning/conditional-logic";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathNoOptionMatches, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 import { equivalentOptionPair } from "@/lib/learning/option-equivalence";
@@ -261,5 +262,7 @@ export function singleAnswerIntegrityIssues(check: IntegrityCheck): string[] {
   }
   const counted = enumeratedCountIssue(check.prompt) ?? enumeratedCountIssue(check.explanation ?? "");
   if (counted) issues.push(counted);
+  // Koşullu önerme dönüşüm adı formülle çelişiyorsa (kök ya da açıklama): ders içi soru ve test aynı kuralı okur.
+  for (const logic of conditionalLogicIssues(`${check.prompt}\n${check.explanation ?? ""}`)) issues.push(`Mantık terimi hatası: ${logic}.`);
   return issues;
 }

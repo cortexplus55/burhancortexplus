@@ -2,7 +2,7 @@
  * Ana konular belgede sırayla, çakışmadan dizilir (3 Ekim 2026).
  *
  * Alt başlıkların sayfaları çakışabiliyor; gruplama da bunu ana konuya
- * taşıyordu. 99 sayfalık trigonometride "Sinüs ve Kosinüs" 19–27'nin yanında
+ * taşıyordu. 99 sayfalık bir notta bir konu 19–27'nin yanında
  * 37–48 ve 82–96'yı da aldı, "Dönüşüm Formülleri" iki ayrı ana konu olarak
  * aynı 64–72'yi taşıdı; KPSS'de 20 sayfa iki konuya birden bağlıydı. Sonuç:
  * aynı sayfalar iki derste anlatılıyor, öğrenci aynı dersi iki kez görüyor.

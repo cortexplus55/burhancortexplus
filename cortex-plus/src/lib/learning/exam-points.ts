@@ -48,8 +48,8 @@ const stemOf = (word: string) => foldWord(word).slice(0, 5);
 
 /**
  * Kaynağında geçen sınav maddeleri (24 Ekim 2026 lansman testi). Maddeler konu adıyla öbür belgelerin analizinden
- * de gelebiliyor: beş dosyalı hazırlıkta "Homeostazi" dersi PDF'in 1. sayfasından yazılırken maddeler Word notunun
- * analizinden geldi (reseptör–kontrol merkezi–efektör). Yazar maddeyi derse koydu, denetçi "kaynakta yer almıyor"
+ * de gelebiliyor: beş dosyalı hazırlıkta bir ders PDF'in 1. sayfasından yazılırken maddeler Word notunun
+ * analizinden geldi (öbür belgeye özgü maddeler). Yazar maddeyi derse koydu, denetçi "kaynakta yer almıyor"
  * diye tur açtı; dört tur, 181 sn. Madde, içerik sözcüklerinin (en az 5 harf) yarısı kaynakta geçiyorsa kalır;
  * düşen madde yalnız yönlendirmeyi kaybeder, ders kaynaktan yazılmaya devam eder.
  */
@@ -68,8 +68,8 @@ export function examPointsInSource(points: readonly string[] | undefined, source
  * Ders denetçisi: kavramına ait madde yanlış aktarıldıysa ciddi sorun ('high'); kısımda hiç geçmiyorsa öğretim
  * sorunu ('medium': ilk kavramda tur açmaz, sonrakilerde en çok bir tur, kavramı asla attırmaz).
  *
- * 24 Ekim 2026 lansman testi: "Homeostazi ve Geri Bildirim Temelleri" dersinde ilk kavramın adı konunun kendisiydi
- * ("Homeostazi"); denetçi listedeki bütün maddeleri (dar sınırlar, reseptör–kontrol merkezi–efektör, geri bildirim)
+ * 24 Ekim 2026 lansman testi: bir derste ilk kavramın adı konunun kendisiydi;
+ * denetçi listedeki bütün maddeleri
  * ona bağlayıp tek ekranlık ilk kavramda eksik saydı. Dört tur, ardından ana üç kavram atıldı: 257 sn, 21 çağrı.
  * Eksik madde yanlış bilgi değildir (CALIBRATION); yanlış aktarılan madde yanlış bilgidir.
  */

@@ -22,6 +22,7 @@ export function ExamQuizPlay({
   twin,
   twoOption,
   locked = false,
+  plannedTotal,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -42,6 +43,8 @@ export function ExamQuizPlay({
   twoOption?: (index: number) => ReactNode;
   /** Soru daha önce "Kontrol et" ile kilitlendi (sayfa yenilense de): açıklama açık, şık değişmez. */
   locked?: boolean;
+  /** Akışla gelen testte sözü verilen soru sayısı: sayaç "1 / 4" ile başlayıp "2 / 5" olmasın. */
+  plannedTotal?: number;
 }) {
   const [revealed, setRevealed] = useState(locked);
   const [acting, setActing] = useState(false);
@@ -96,7 +99,7 @@ export function ExamQuizPlay({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <span className="px-3 py-1 rounded-full border border-[var(--cp-border)] bg-[var(--cp-surface)] text-xs font-semibold text-[var(--cp-text)]">
-          Soru {index + 1} / {questions.length}
+          Soru {index + 1} / {Math.max(questions.length, plannedTotal ?? 0)}
         </span>
       </div>
       <div

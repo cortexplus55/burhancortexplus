@@ -5,7 +5,7 @@
  * anahtarı tutarlılığı (`answer-consistency.ts`) aynı okuyucuları ders, test ve deneme için kullanır. grade.ts
  * aynı adları yeniden dışa aktarır; davranış değişmedi, yalnız iki ekleme var:
  * - `normalizeNumberText`: Unicode eksi (−) ve işaret yerindeki uzun tire (–) ASCII eksi olur, Türkçe binlik
- *   noktası düşer ("3.500" → 3500), ondalık virgül noktaya çevrilir. Aralık tiresi ("8–12 mm") dokunulmaz.
+ *   noktası düşer ("3.500" → 3500), ondalık virgül noktaya çevrilir. Aralık tiresi ("a–b birim") dokunulmaz.
  * - `optionValueIndexes`: bir değeri taşıyan şıkların indeksleri (hoşgörülü eşitlik).
  *
  * Ders kelimesi yok; yalnız sayı ve işaret kuralları.

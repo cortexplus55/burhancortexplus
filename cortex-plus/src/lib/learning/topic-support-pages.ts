@@ -227,7 +227,7 @@ export function assignSupportExcerpts(
   return out;
 }
 
-/** Öğretmen istemindeki etiket: "Ek kaynak · Test-14-Homeostazi-Isaretli.jpg · parça 2". */
+/** Öğretmen istemindeki etiket: "Ek kaynak · <dosya adı> · parça 2". */
 export function supportLabel(excerpt: Pick<SupportExcerpt, "fileName" | "page" | "part" | "pageCount">): string {
   const where = excerpt.pageCount > 1 ? ` s.${excerpt.page}` : "";
   const part = excerpt.part ? ` · parça ${excerpt.part}` : "";

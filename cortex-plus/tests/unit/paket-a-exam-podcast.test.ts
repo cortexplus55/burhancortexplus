@@ -156,11 +156,14 @@ describe("kaynak sayı önceliği ve OCR köşe notları", () => {
     }
     expect(quizSystem("document")).toContain(SOURCE_NUMBER_PRIORITY);
     expect(quizVerifySystem("document")).toContain(SOURCE_NUMBER_PRIORITY);
-    expect(SOURCE_NUMBER_PRIORITY).toContain("8-12 mm");
+    // İstem genel (5 Kasım 2026): belirli bir ölçü ya da yer adı örneği taşımaz, biçimi anlatır.
+    expect(SOURCE_NUMBER_PRIORITY).toMatch(/ölçü aralığı/);
+    expect(SOURCE_NUMBER_PRIORITY).not.toMatch(/\d/);
   });
 
   it("OCR ve sayfa temizliği kısa başlık ve köşe notunu atmaz", () => {
-    expect(readFileSync("src/lib/documents/extract-image-text.ts", "utf8")).toContain("Amfi 2");
+    expect(readFileSync("src/lib/documents/extract-image-text.ts", "utf8")).toMatch(/köşe not/);
+    expect(readFileSync("src/lib/documents/extract-image-text.ts", "utf8")).toMatch(/yer ya da salon adı/);
     expect(readFileSync("src/lib/documents/clean-pages.ts", "utf8")).toContain("köşe notu");
   });
 });

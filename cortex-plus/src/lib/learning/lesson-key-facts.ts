@@ -345,7 +345,7 @@ export function lessonKeyFacts(pages: readonly { text?: string }[]): KeyFact[] {
 
 /*
   Terimler (30 Ekim 2026): kaynakta açılımıyla verilen kısaltma ve sözlük tablosunun satırları. Sayısız tanımlar
-  bu listeye hiç girmiyordu: "TÜFE (…) hanehalkının …, Yİ-ÜFE (…) üreticilerin … ölçer" satırı ve "Kavram | Anlamı"
+  bu listeye hiç girmiyordu: açılımıyla verilen iki kısaltmayı karşılaştıran satır ve "Kavram | Anlamı"
   tablosu yazara kilit bilgi diye gitmiyor, onları atlayan ders kapsam ölçüsünden de geçiyordu. Ölçü biçimdendir;
   ders adı ya da terim listesi yok.
 */
@@ -368,7 +368,7 @@ function isExpansion(abbr: string, expansion: string): boolean {
   return words.some((word) => fold(word).charAt(0) === first);
 }
 
-/** Kaynakta açılımıyla verilen kısaltmalar: "TÜFE (Tüketici Fiyat Endeksi)" ya da "… Merkez Bankası (TCMB)". */
+/** Kaynakta açılımıyla verilen kısaltmalar: "KISALTMA (Açılımı)" ya da "… Açılımı (KISALTMA)". */
 export function abbreviationTerms(text: string): { abbr: string; expansion: string }[] {
   const out: { abbr: string; expansion: string }[] = [];
   const add = (abbr: string, expansion: string) => {

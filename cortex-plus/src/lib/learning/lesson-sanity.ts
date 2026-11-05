@@ -8,7 +8,7 @@ import type { FormulaTypo } from "@/lib/learning/formula-typos";
  * bloğunu çıkarsın"). Testteki doğrulayıcının (`quiz-sanity.ts`) derse uzanmış hâli; "tek geçiş"in (26 Ekim) dersteki
  * bilinçli istisnası.
  *
- * kıyas ürünüyle yan yana turda (aynı Makroekonomi notu, kör yargı) dersin öğrenci gözü kıyas ürününün gerisinde kaldı; iki
+ * kıyas ürünüyle yan yana turda (aynı not, kör yargı) dersin öğrenci gözü kıyas ürününün gerisinde kaldı; iki
  * yargıç da aynı iki kusuru gösterdi: "hangi endeks ölçer?" sorusunun beş şıkkından üçü endeks değildi ve aynı ekranda
  * "%60'tan %40'a" örneği yedi kez (not, kaydırma, örnek vaka, çözümlü örnek, soru…) geçiyordu. Ders yolunda canlıda
  * yapı denetimi yok; kod işaretleri (`lessonTeachingFlags`) yalnız günlüğe yazıyordu.

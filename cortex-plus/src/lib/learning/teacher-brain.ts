@@ -19,8 +19,8 @@ export const MAX_ANALYSIS_CHUNKS = 3;
 export const MIN_ANALYSIS_CHARS = 80;
 /**
  * Ücretsiz planda öğretmen analizinin okuduğu PDF sayfası: ücretsiz katmanın işlediği sayfa kadar
- * (`FREE_PAGE_TOTAL`, 5). 18 Ekim 2026'ya kadar eski fotoğraf tavanına (2) bağlıydı; Pediatri
- * belgesinde analiz 10 bölümden yalnız ilk ikisini gördü, kalan konuların "Sınavda sorulur"
+ * (`FREE_PAGE_TOTAL`, 5). 18 Ekim 2026'ya kadar eski fotoğraf tavanına (2) bağlıydı; çok bölümlü bir
+ * belgede analiz 10 bölümden yalnız ilk ikisini gördü, kalan konuların "Sınavda sorulur"
  * maddeleri boş kaldı. Analiz artık öğrenciden kredi düşmüyor; sınırı işlenen sayfa koyar.
  */
 export const FREE_PDF_PAGE_CAP = FREE_PAGE_TOTAL;
@@ -1190,7 +1190,7 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
   // Sayfası boş formül her konuya, eşleşmeyen başlık da bütün formüllere
   // yazılmasın. Ders kapısı o sayıyı kaynakta bulamayınca taslağı düşürür.
   // Yanılgı ve hedef de belgenin ilk maddeleri değil, bu konunun sayfaları.
-  // #79 notu bütün belgenin ideal gaz yasasını basınç düğümüne taşıyordu.
+  // #79 notu bütün belgenin bir yasasını tek düğüme taşıyordu.
   const pages = new Set(topic?.pageNumbers ?? []);
   const onTopicPage = (pageNumbers: number[]) =>
     pageNumbers.some((page) => pages.has(page));
@@ -1623,9 +1623,9 @@ function trueFalsePair(options: string[]): boolean {
 /**
  * Yanlıştan sonra sorulan ikinci sorunun (review) tam öğe olarak sorunları (20 Ekim 2026, kör kıyas).
  *
- * Eski yol yalnız kökü kabul edip ana sorunun anahtarını ona veriyordu: KPSS dersinde "tek hukuk düzenini
- * milli birlik ilkesiyle kuran model" (cevabı üniter devlet) "Konfederasyon" anahtarıyla, Pediatri'de
- * "12 aylıkken dil becerisi" (cevabı 1-3 anlamlı kelime) "2 kelimeli cümleler" anahtarıyla soruldu;
+ * Eski yol yalnız kökü kabul edip ana sorunun anahtarını ona veriyordu: canlıda iki ayrı derste
+ * başka bir şıkkı soran ikinci kök ana sorunun anahtarıyla,
+ * başka bir basamağı soran kök de yine ana sorunun anahtarıyla soruldu;
  * öğrencinin gerçekten doğru ikinci cevabı yanlış sayıldı. Anahtarı denetlenemeyen kök artık kabul edilmez.
  *
  * Yapı denetimi (teacher-lesson.ts) aynı listeyi kullanır: yazar tam olarak çalışma anında reddedilecek

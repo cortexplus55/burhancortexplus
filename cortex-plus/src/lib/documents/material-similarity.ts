@@ -283,8 +283,8 @@ export function termShare(stems: ReadonlyMap<string, number>, other: ReadonlyMap
 
 /**
  * Ders adı belgede geçiyor mu (ders adının her içerik sözcüğü belgede var). Bileşik ders adı da sayılır
- * (30 Ekim 2026, canlı tur): ders "Makroekonomi", belgede yalnız "ekonomi" geçiyordu; iki belgeden hangisinin
- * alakasız olduğuna karar verilemedi ve Hukuk notu uyarısız haritaya girdi.
+ * (30 Ekim 2026, canlı tur): bileşik ders adının tamamı belgede geçmiyor, yalnız gövdesi geçiyordu; iki belgeden hangisinin
+ * alakasız olduğuna karar verilemedi ve ilgisiz not uyarısız haritaya girdi.
  */
 export function mentionsSubject(subject: string | null | undefined, stems: ReadonlyMap<string, number>): boolean {
   const own = words(subject ?? "")
@@ -295,7 +295,7 @@ export function mentionsSubject(subject: string | null | undefined, stems: Reado
 }
 
 /**
- * Bileşik ders adının ("makroekonomi", "biyokimya", "mikrobiyoloji") baştaki önekten sonraki bir parçası belgede
+ * Bileşik ders adının ("makro-", "biyo-", "mikro-" gibi önekli adlar) baştaki önekten sonraki bir parçası belgede
  * kök olarak en az iki kez geçiyor mu. Yalnız 8+ harfli adda ve 3. harften sonra bakılır: kısa ad ya da adın başı
  * zaten ilk kurala girer.
  */

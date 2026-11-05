@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REINFORCE_TARGET, reinforceNewStep } from "./reinforce-new";
+import { REINFORCE_TARGET, reinforceNewStep } from "@/lib/content-pool/reinforce-new";
 
 describe("reinforceNewStep", () => {
   it("havuzda 2 soru varsa onları hemen verir ve arka plan üretimi ister", () => {

@@ -2,9 +2,9 @@
  * Cevap anahtarı ↔ açıklama tutarlılığı ve kökün kendi içinde tamlığı (29 Ekim 2026, Paket H).
  *
  * Neden: anahtar (`answerIndex` / `correct`) ile `explanation` / `optionWhy` / `steps` / `hint` aynı model
- * çağrısının bağımsız alanları; kod yalnız `steps` → anahtar bağını kuruyordu. Canlıda "%70'i: 200 × 0,70 =
- * 140 TL" diyen ders sorusunun anahtarı 160 TL'yi gösterdi; çok cevaplıda "f(A) = {4, 5, 6}" diyen gerekçe
- * "7 ∈ f(A)" şıkkını çürütürken şık doğru listesindeydi; "haritada işaretli bölge" kökü veri taşımadan çıktı.
+ * çağrısının bağımsız alanları; kod yalnız `steps` → anahtar bağını kuruyordu. Canlıda bir yüzde hesabının sonucunu
+ * veren ders sorusunun anahtarı başka bir değeri gösterdi; çok cevaplıda bir kümeyi veren gerekçe
+ * kümede olmayan öğeyi anan şıkkı çürütürken şık doğru listesindeydi; "haritada işaretli bölge" kökü veri taşımadan çıktı.
  *
  * Bu modül ders içi check, konu testi, yazılı deneme, çok cevaplı soru ve ikinci soru (review) için ORTAKTIR;
  * yalnız `result-values` ve `option-reference`'a bakar (ders/test motorlarından bağımsız). Ders kelimesi yok:

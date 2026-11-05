@@ -184,7 +184,7 @@ export function outlineSections(
  */
 /**
  * Belgedeki bağımsız numaralı bölümler konu yoğunluğu ipucundan güçlüdür.
- * Bir sayfalık on farklı pediatri bölümü sekiz konuya zorlanırsa iki bölümü
+ * Bir sayfalık on farklı bölüm sekiz konuya zorlanırsa iki bölümü
  * öğrenci hiç ayrı ölçemez; büyük kitaplarda aynı kayıp katlanır.
  */
 function mapCeiling(pageCount: number, pages: { headings: string[] }[]): number {
@@ -368,7 +368,7 @@ function hostForRemoved(
   const headings = related.flatMap((page) => page.headings ?? []);
   const fromPage = foldedPageHost(kept, headings.length ? headings : [topic.title]);
   if (fromPage) return fromPage;
-  // "1)" normalize edilince düşer. Kalan cümle ("mutlak basınç") bir bölüm
+  // "1)" normalize edilince düşer. Kalan cümle (iki sözcüklü bir terim) bir bölüm
   // adıyla örtüşür ve bütün tekrar sayfasını o bölüme taşır.
   if (
     isCalloutLabel(topic.title) ||

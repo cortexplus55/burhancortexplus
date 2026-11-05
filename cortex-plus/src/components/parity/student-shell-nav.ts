@@ -51,8 +51,8 @@ export const CANONICAL_FEATURES = {
  * sekmesi aynı yere gidiyordu; yerini kıyas ürününün ikinci sekmesi Sınavlar aldı.
  *
  * 3 Ekim 2026: "Çalış" sekmesi kalktı. O ekran bütün hazırlıkları ve
- * belgeleri tek programda karıştırıyordu (trigonometri programının altında
- * zemin mekaniği ve pediatri tekrarları). kıyas ürününde her sınavın yolu yalnız
+ * belgeleri tek programda karıştırıyordu (bir programın altında
+ * başka derslerin tekrarları). kıyas ürününde her sınavın yolu yalnız
  * kendi kartında; üçüncü sekme Uygulamalar — bizde Araçlar. Belgeler
  * sekmesi de kalktı (kıyas ürününde yok): "Daha fazla" menüsünde.
  */

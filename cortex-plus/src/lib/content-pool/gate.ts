@@ -1,5 +1,6 @@
 import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { turkishFold } from "@/lib/text/turkish";
+import { conditionalLogicIssues } from "@/lib/learning/conditional-logic";
 import { DIFFICULTIES, type PoolItem } from "@/lib/content-pool/schema";
 import { v14CodeIssue } from "@/lib/content-pool/gate-v14";
 
@@ -20,7 +21,10 @@ import { v14CodeIssue } from "@/lib/content-pool/gate-v14";
  */
 // v9: check bloğu dizi gövde/öncül alanı/nesne seçenek/metin cevap biçimleri okunur
 // v10: sıralama/şık imleri ("A)", "1)") parantez dengesinde sayılmaz
-export const GATE_VERSION = 14; // 14: beş katman (gate-v14.ts: kanonik sabit, sayısal sonuç, çeldirici kanıtı, üçlü mutabakat, canlı karantina); 13: mantık terimi denetimi açık temel önermeyi (¬p ⇒ q) tanır; 12: boşluk doldurma çizgisi muafiyeti; 11: matematik gösterimi maskesi (2 Kasım 2026)
+// 15: koşullu önerme dönüşüm adları (karşıtı / tersi / karşıt tersi) atomlardan bağımsız cebirle yeniden denetlenir
+//     (`conditional-logic.ts`, 5 Kasım 2026; 4 Kasım'da kaldırılan özel kapının genel karşılığı: herhangi bir harf,
+//     sözel "A ise B", bileşik dönüşüm ve denklik iddiası).
+export const GATE_VERSION = 15; // 14: beş katman (gate-v14.ts: kanonik sabit, sayısal sonuç, çeldirici kanıtı, üçlü mutabakat, canlı karantina); 13: mantık terimi denetimi açık temel önermeyi (¬p ⇒ q) tanır; 12: boşluk doldurma çizgisi muafiyeti; 11: matematik gösterimi maskesi (2 Kasım 2026)
 
 /** Katı seçenek anahtarı: yalnız Unicode biçimi ve boşluk dizileri eşitlenir; harf büyüklüğü ve noktalama korunur. */
 export function strictOptionKey(option: string): string {
@@ -176,6 +180,9 @@ export function gateItem(item: PoolItem, unit: GateUnit): { item: GatedItem } | 
     const garbled = garbledReason(text);
     if (garbled) return { reason: garbled, excerpt: garbledExcerpt(text) };
   }
+  // Koşullu önerme dönüşüm adı (karşıtı / tersi / karşıt tersi) formülle çelişiyorsa soru modele hiç gitmez (v15).
+  const logic = conditionalLogicIssues(`${stem}\n${explanation}`);
+  if (logic.length) return { reason: `mantık terimi hatası: ${logic[0]}` };
   const folded = turkishFold(`${stem} ${choices.join(" ")}`);
   const excluded = excludedTerms(outcome.limitations).find((t) => folded.includes(t));
   if (excluded) return { reason: `kazanım sınırı dışında (${excluded})` };

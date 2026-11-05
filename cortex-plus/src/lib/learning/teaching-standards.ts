@@ -457,7 +457,7 @@ export const lessonProcedureSchema = z.object({
 
 /**
  * Karşılık/eşik tablosu (persentil↔SD gibi). Sınırlar kaynak tablolarına göre: 18 Ekim 2026'da
- * Pediatri belgesinin gelişim basamakları tablosu (7 satır: 2 ay … 3 yaş, 4 sütun) eski
+ * Canlı bir belgenin basamak tablosu (7 satır, 4 sütun) eski
  * "en çok 6 satır, hücre 60 karakter" sınırına takıldı. Şema tabloyu sessizce düşürdü, metin
  * "aşağıdaki tabloda" diye kaldı, düzeltme 3 turda aynı tabloyu yazdı ve sınavın en önemli
  * kavramı dersten atıldı. Ekran tabloyu yatay kaydırır; uzun tablo sorun değil.
@@ -636,7 +636,7 @@ const SCAFFOLD_HEADINGS = [
   "yaygin hatalar",
   "bilgi kontrolu",
   "orta bilgi kontrolu",
-  // Pediatri dersinde bu çıktı: dört başlığın üçü kavramdı, dördüncüsü
+  // Canlı bir derste bu çıktı: dört başlığın üçü kavramdı, dördüncüsü
   // yine şablonun adıydı. Liste sızdıkça büyüyor.
   "kontrol noktasi",
   "kontrol",
@@ -655,7 +655,7 @@ const SCAFFOLD_HEADINGS = [
   "nicin",
   "sonuc",
   "tekrar",
-  // 16 Ekim 2026 Gastroenterit podcast'i: son bölüm "Tekrar edelim: …" adını aldı.
+  // 16 Ekim 2026 canlı podcast: son bölüm "Tekrar edelim: …" adını aldı.
   "tekrar edelim",
 ];
 
@@ -2396,7 +2396,7 @@ export function validatePodcastPedagogy(
   }
   // Tek bir öğüt cümlesi podcast'i bozmuyor; sorun bölümün TAMAMININ öğüde
   // dönmesiydi (zemin podcast'inde üç maddenin üçü de böyleydi). Her satırı
-  // ayrı ayrı reddetmek üretimi tümden düşürdü: pediatri podcast'i üst üste
+  // ayrı ayrı reddetmek üretimi tümden düşürdü: bir podcast üst üste
   // iki denemede "oluşturulamadı" verdi, çünkü tek cümlenin takılması bütün
   // taslağı çöpe atıyordu.
   if (advice.length >= 2) {

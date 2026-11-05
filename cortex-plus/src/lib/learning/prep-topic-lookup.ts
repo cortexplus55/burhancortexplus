@@ -2,7 +2,7 @@
  * Düğümün konusu hangi `exam_prep_topics` satırı? AYNI KONUNUN İKİ KİMLİĞİ VAR (`nodeForTopic`
  * notu): belgesiz hazırlıkta düğümün `sessionMeta.topicId` alanı konu satırının `id`'si, belgeli
  * hazırlıkta belgeden gelen `document_topic_node_id`. Yalnız `id` ile arayan sorgu belgeli
- * hazırlıkta sessizce hiçbir şey bulmaz: 18 Ekim 2026'da Pediatri belgesinde kurulumda verilen
+ * hazırlıkta sessizce hiçbir şey bulmaz: 18 Ekim 2026'da canlı bir belgede kurulumda verilen
  * aşinalık okunmadı, her ders açılışında yeniden soruldu ve konu kaydına hiçbir şey yazılmadı.
  *
  * PostgREST `or` süzgeci; kimlikte yalnız harf, rakam, tire ve alt çizgi olabilir (virgül, nokta

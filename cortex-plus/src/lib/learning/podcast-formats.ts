@@ -1,3 +1,5 @@
+import { PODCAST_SPEAKERS, SPEAKER_ROLE_WORDS } from "@/lib/learning/podcast-speakers";
+
 /**
  * Podcast türleri — kıyas ürünündeki beş tür (1 Ekim 2026, ürün sahibinin kararı).
  *
@@ -192,7 +194,8 @@ export const SPOKEN_ONLY_RULE =
 
 const PAPER_INSTRUCTION =
   /(?<!\p{L})(?:şıkları\s+ele\p{L}*|şık\s+eleme\p{L}*|eleme\s+yöntem\p{L}*|işaretle(?:yin|yiniz|yin\p{L}*)?|kâğıd?(?:ı|a|ına)\s+yaz\p{L}*|kağıd?(?:ı|a|ına)\s+yaz\p{L}*|cevap\s+kâğıd\p{L}*|cevap\s+kağıd\p{L}*|optik\s+form\p{L}*|boşlu(?:ğu|kları)\s+doldur\p{L}*|soruları\s+cevaplayınız|aşağıdaki\s+sorular\p{L}*)(?!\p{L})/iu;
-const SPEAKER_LABEL_PREFIX = /^(?:öğretmen|ogretmen|öğrenci|ogrenci|sunucu|ece|deniz|ada|kerem)\s*[:：]\s*/iu;
+// Ürün sesleri ve rol adları tek kaynaktan (`podcast-speakers.ts`); kişi adı listesi tutulmaz.
+const SPEAKER_LABEL_PREFIX = new RegExp(`^(?:${[...SPEAKER_ROLE_WORDS, ...PODCAST_SPEAKERS].join("|")})\\s*[:：]\\s*`, "iu");
 /**
  * Sondaki boş övgü yalnız virgül/noktalı virgülle ayrılmış parçaysa düşer (28 Ekim 2026, Paket A): "Kuralın özeti
  * muazzam bir özet oldu" cümlesinden övgüyü kesmek "Kuralın özeti" yarım cümlesini bırakıyordu.

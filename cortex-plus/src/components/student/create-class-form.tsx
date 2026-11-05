@@ -48,7 +48,7 @@ export function CreateClassForm() {
           id="class-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Örn. Trigonometri grubu"
+          placeholder="Örn. Çalışma grubum"
           required
           minLength={2}
         />
