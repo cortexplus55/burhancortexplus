@@ -208,6 +208,24 @@ export function describeGenerationFailure(
         action: { href: "/pay", label: "Plus'a bak" },
       };
 
+    // Lansman zırhı (5 Kasım 2026): günlük harcama sigortası attı; ücretsiz hesap hazır müfredata yönlenir, yeniden denemek açmaz.
+    case "spend_cap_free":
+      return {
+        message:
+          "⚡ Yoğun sınav trafiği nedeniyle şu an yalnız Hazır Müfredat Havuzu ve Plus üyelerimiz için anlık AI üretimi aktiftir.",
+        retryMintsNewId: false,
+        canRetryNow: false,
+        action: { href: "/mufredat", label: "Hazır müfredata git" },
+      };
+
+    case "free_photo_abuse_limit":
+      return {
+        message: "Bugün 3 fotoğraf okunamadı; ücretsiz hesapta fotoğraf denemesi yarın yenilenir. Net bir fotoğrafla yeniden dene ya da Plus'a geç.",
+        retryMintsNewId: false,
+        canRetryNow: false,
+        action: { href: "/pay", label: "Plus'a bak" },
+      };
+
     case "insufficient_credits":
       return {
         message: resetsAtLabel

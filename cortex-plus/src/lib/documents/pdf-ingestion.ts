@@ -18,6 +18,7 @@ import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 import { cappedPageTotal, freePagesRemaining } from "@/lib/documents/free-pages";
 import { photoSetRenderedPages } from "@/lib/documents/photo-set-read";
 import { documentReservationKey } from "@/lib/documents/document-reservation-key";
+import { cloneDocumentContent, ensureDocumentEmbeddings, findDuplicateSource, sha256Hex, stampDocumentSha } from "@/lib/documents/document-dedup";
 
 /** Default pages per step; shrinks when the deadline is near. */
 export const PDF_PAGES_PER_STEP = 40;
@@ -745,6 +746,51 @@ export async function processPdfDocumentStep(
       .download(doc.storage_path);
     if (downloadError || !file) throw new Error("download_failed");
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    /*
+      Aynı belgeyi tekrar okumama (5 Kasım 2026, lansman zırhı): ilk adımda, yüklenen baytların SHA-256'sı daha
+      önce bitmiş bir belgeyle aynıysa sayfalar, parçalar ve gömmeler veritabanında kopyalanır; OCR ve gömme
+      çağrısı yapılmaz. Sayfa ücreti yine alınır (ücretsizde 25 sayfa sınırı yine sayılır); taranmış sayfa ücreti
+      alınmaz (okunmadı). Hak kopyanın tamamına yetmiyorsa eski yol: belge hak kadar okunur.
+    */
+    if ((lease.nextPage ?? 1) === 1 && !reservationId && !lease.initialized) {
+      const sha256 = sha256Hex(buffer);
+      await stampDocumentSha(service, documentId, sha256);
+      const duplicate = await findDuplicateSource(service, { sha256, excludeId: documentId, userId });
+      if (duplicate && duplicate.pageCount > 0 && (remaining === null || remaining >= duplicate.pageCount)) {
+        let affordable = duplicate.pageCount;
+        if (remaining === null) {
+          const pageCost = Math.max(1, (await getActionCost(service, "DOCUMENT_PAGE_PROCESS")) ?? 2);
+          const spendable = await spendableCredits(service, userId);
+          affordable = Number.isFinite(spendable) ? Math.floor(spendable / pageCost) : duplicate.pageCount;
+        }
+        if (affordable >= duplicate.pageCount) {
+          if (remaining === null) reservationId = await ensureReservation(service, userId, documentId, lease, duplicate.pageCount, 1);
+          const cloned = await cloneDocumentContent(service, { sourceId: duplicate.id, targetId: documentId });
+          if (cloned && cloned.pages > 0) {
+            await service.from("document_topic_nodes").delete().eq("document_id", documentId);
+            await service.from("document_coverage_reports").delete().eq("document_id", documentId);
+            const embedded = cloned.embeddings < cloned.chunks ? await ensureDocumentEmbeddings(service, documentId, embedTexts) : 0;
+            const total = cloned.pages;
+            const { error: cloneUpdateError } = await service.from("documents")
+              .update({
+                status: "processing", page_count: total, source_page_count: total, error_message: null,
+                topic_map_status: "none", topic_map_error: null, topic_map_updated_at: null, updated_at: new Date().toISOString(),
+              })
+              .eq("id", documentId).eq("user_id", userId);
+            if (cloneUpdateError) throw new Error("completion_update_failed");
+            await service.from("processing_jobs").update({ status: "processing", progress: 40, error_message: null }).eq("document_id", documentId);
+            await updateLease(service, documentId, lease.token, {
+              initialized: true, next_page: total + 1, total_pages: total, status: "ready", lease_token: null, lease_until: null,
+            });
+            console.info("pipeline_timing", {
+              documentId, stage: "dedup_clone", source: duplicate.id, pages: total, chunks: cloned.chunks, embeddings: cloned.embeddings + embedded,
+            });
+            return { status: "ready", pageCount: total, failedPages: [] };
+          }
+        }
+      }
+    }
 
     // Ücretli hesap, sayfa başına kredi (8 Ekim 2026): ilk adımda belgenin
     // sayfa sayısı kadar ayrılır; hak yetmezse yettiği kadar sayfa işlenir

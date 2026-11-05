@@ -9,6 +9,7 @@ import { visionImage } from "@/lib/ai/vision";
 import { isPremiumUser } from "@/lib/billing/entitlements";
 import { commitCredits, recordUsage, refundCredits, refusalCode, reserveCredits, type ReservationResult } from "@/lib/credits/service";
 import { FREE_CHAT_PER_DAY, FREE_PHOTO_PER_DAY } from "@/lib/billing/free-meters";
+import { recordUnreadablePhoto } from "@/lib/billing/photo-abuse-guard";
 import { fastAllowedFor } from "@/lib/learning/fast-access";
 import { studentPedagogyBlock, withStudentProfile } from "@/lib/learning/student-pedagogy";
 import { billedModel, fastTier } from "@/lib/learning/teacher-tier";
@@ -183,6 +184,9 @@ export async function runSolve(input: SolveInput, emit: (event: SolveEvent) => v
         }
         if (!solution.readable) {
           await settle(false);
+          // Lansman zırhı (5 Kasım 2026): iade dürüst kalır, ama günde 3 okunamayan fotoğraftan sonra ücretsiz hesabın
+          // fotoğraf denemesi durur (photo-abuse-guard) — bozuk fotoğrafla sonsuz görüntü çağrısı yaptırılamasın.
+          if (image) await recordUnreadablePhoto(userId);
           emit({ type: "error", code: "unreadable", message: UNREADABLE_MESSAGE, status: 422 });
           return;
         }

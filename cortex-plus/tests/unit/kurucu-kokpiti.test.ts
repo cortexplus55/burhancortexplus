@@ -208,10 +208,10 @@ describe("yönetim sayfası", () => {
     expect(page).toContain("loadCockpit(service)");
     const actions = readFileSync("src/app/admin/cockpit-actions.ts", "utf8");
     expect(actions.startsWith('"use server"')).toBe(true);
-    for (const name of ["saveUsdTryRate", "restoreQuarantinedItem", "rejectQuarantinedItem", "regenerateQuarantinedItem", "archiveSupersededItems"]) {
+    for (const name of ["saveUsdTryRate", "restoreQuarantinedItem", "rejectQuarantinedItem", "regenerateQuarantinedItem", "archiveSupersededItems", "saveDailySpendCap"]) {
       expect(actions).toContain(`export async function ${name}(`);
     }
-    expect(actions.match(/requireAdminActor\(\)/g)?.length).toBe(5);
+    expect(actions.match(/requireAdminActor\(\)/g)?.length).toBe(6);
     // Arşiv silmez: yalnız durum ve karar yazar; karantinalı soruya ve yayındaki içeriğin sorusuna dokunmaz.
     expect(actions).not.toMatch(/\.delete\(\)/);
     expect(actions).toContain('row.qa?.quarantine == null');
