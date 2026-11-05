@@ -1852,3 +1852,34 @@ dokunduğu 117 dosyada tek gerçek kural kaybı vardı, geri kalanı yorum/örne
 | Yönetici kimlik denetimi (`requireAdminActor`) tek dosyada; iki eylem dosyasındaki kopyalar silindi | `src/lib/auth/admin-actor.ts` |
 
 Bekçi: `kurucu-kokpiti.test.ts` (pencereler, sayımlar, dönüşüm, marj, kuyruk satırları, tek kaynak kimlik, sayfa/eylem sözleşmesi).
+
+## Öğrenci öğrenme hafızası (5 Kasım 2026) — modelsiz, kayıtlardan, öğretmen ve derse üç satır
+
+Ürün sahibi: "Öğrencinin farklı oturumlardaki hatalarını, zorlandığı kazanımları, yanılgı türlerini ve öğrenme stilini özetleyen
+hafif, otomatik güncellenen kişisel hafıza; AI öğretmen ve 'Farklı anlat' bunu okusun." PR #563. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Yanlış türü yapısaldır, modelsizdir:** seçilen ↔ doğru şıkkın sayısal ilişkisi (`sign`, `magnitude` 10ⁿ, `unit_factor` genel dönüşüm çarpanları, `reciprocal`, `rounding`, `arithmetic`), olumsuz kök (`polarity`: "değildir / yanlıştır / -maz"), öncül kümesi (`premise_subset`), çok cevaplıda eksik/fazla seçim, süre (`hurried` < 4 sn). Ders, konu ya da kişi adı yok; sayı okuma `result-values` + `gate-v14`'ten | `student-memory/error-kinds.ts` |
+| Özet (`StudentMemory`): hata türleri, en zayıf 8 kazanım (`outcome_mastery`, n ≥ 3), açık yanılgılar, tekrar eden yanlış konuları, tercih (`learning_preferences`), tempo (`item_responses.time_ms`); son 90 gün, en çok 300 tamamlanmış test/D-Y kaydı. Bir kaynak düşerse özet **yazılmaz** (eksik veriyle iyi özetin üstüne binmesin); tablo yoksa okuma null, yazma uyarıyla atlanır | `summary.ts`, `store.ts`, göç `20261105120000` (canlıda) |
+| Yenileme yalnız yanıttan sonra: etkinlik tamamlanınca (`node/complete.ts`, `deferTask`) ve deneme notlanınca (`grade-exam.ts`, `afterResponse`); öğrenciyi bekletmez | — |
+| **İsteme en çok 3 satır** + başlık ("yalnız bu satırlar gerçek; 'geçen gün' deme"); konu etiketiyle eşleşen yanlış/yanılgı satırı öne; firewall `FABRICATED_MEMORY` satırları silmez (bekçi). Sohbet (`chat/route.ts` learnerLines), sesli (`voice/route.ts`), ders ve "Farklı anlat" (`node/lesson.ts` learnerLine). **Ortak havuz içeriğine girmez** (bütün öğrencilere ortak) | `prompt.ts` |
+| Öğrenci kartı `/ilerleme` "🧬 Öğrenme DNA'n": en sık 3 hata türü + zayıf kazanım sayısı; veri yoksa "Henüz yeterli veri yok" | `learning-dna-card.tsx` |
+
+Canlı (5 Kasım): kurucu test hesabında 1.500 cevaptan 17 eksik seçim, 15 olumsuz kök, 15 işlem hatası; sohbette öğretmen bunları okuyup
+"çok cevaplı soruda her şıkkı tek tek değerlendir; 'değildir / yanlıştır' sözcüklerini yeniden oku" dedi. Bekçi: `ogrenme-hafizasi.test.ts`.
+
+## El yazısı çözümde ara işlem satırları (5 Kasım 2026) — satır satır okuma, adil kısmi puan, hatalı satır
+
+Ürün sahibi: "model yalnız son sayıyı okumasın; ara işlem satırlarını ayrıştırsın, doğru kurduğu adımlara kısmi puan versin ve kaçıncı
+satırda ne hata yaptığını söylesin." PR #566. Model çağrısı sayısı değişmedi (kâğıt okuma 1, açık uçlu notlama 1). Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| Kâğıt okuma yazılı cevabı **satır satır, kâğıttaki sırayla, orijinal gösterimle** aktarır (`lines`; okunamayan satır yerinde "[okunamadı]"); `paperAnswers` satırları `\n` ile birleştirir, notlama ucu ve istemci değişmez | `paper-exam.ts` |
+| **Modelsiz çekirdek:** satır bölme (satır sonu; tek satırsa `;` ve `⇒/→`); işlem (hesap zinciri; birim değişen yerde zincir kesilir), işaret (terim karşıya aynı işaretle geçmiş; çarpan/bölen ters çevrilmemiş), birim (SI ön ekleri, ²/³, s/min/h dönüşüm çarpanı tutmuyorsa), kopuk zincir yalnız not; sayısız cevapta (tarih, hukuk) satırlar `unknown`, kesinti yok | `mock-exam/work-steps.ts`, `step-arithmetic.ts` |
+| Model ayağı: cevap numaralı satırlarla gider, `steps` (n, ok, kind: islem/isaret/birim/kavram/eksik, ≤15 kelime not) döner; birleştirmede işlem/işaret/birimde **kod kazanır**, kavram/eksikte model | `open-grade.ts`, `mergeStepVerdicts` |
+| Puan: sonuç yanlış ama ilk hata k. satırdaysa ve öncesinde doğru satır varsa `max(mevcut, puan × clamp(0,3 + 0,5·(k−1)/n, 0,3, 0,8))`; yalnız yükseltir; sonuç doğruysa kesinti yok; adım bilgisi yokken eski davranış birebir | `grade.ts` `stepPartialCredit`, `grade-exam.ts` |
+| Ekran: "Senin cevabın" altında numaralı satırlar ✓ / ✗ / ·, ilk hatalı satır vurgulu ve tek cümle ("{k−1}. satıra kadar kurulumun doğru; {k}. satırda {tür}: …"); eski kayıtta liste yok | `exam-question-review-client.tsx`, `incele/page.tsx` |
+
+Bekçi: `el-yazisi-adimlar.test.ts` (22), `el-yazisi-adimlar-ekran.test.tsx`.
