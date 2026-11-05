@@ -20,6 +20,8 @@ import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 import { loadNearestPrepInsights } from "@/lib/learning/prep-insights-load";
 import { todayKey } from "@/lib/learning/daily-drill";
 import { normalizeLearningRows, type LearningTimeRow } from "@/lib/learning/learning-time";
+import { loadStudentMemory, type StudentMemory } from "@/lib/learning/student-memory";
+import { LearningDnaCard } from "@/components/student/learning-dna-card";
 
 export const metadata = { title: "Aktivitelerim" };
 export const dynamic = "force-dynamic";
@@ -133,6 +135,8 @@ export default async function IlerlemePage() {
   ]);
   // Net kartı hub'daki aynı hesapla; aynı hazırlık (yoksa son güncellenen). Hata sayfayı düşürmez.
   const prepNet = await settle("prep_net", () => loadPrepNet(createServiceClient(), user.id, prepInsights?.prepId ?? null), null);
+  // Öğrenme DNA'sı (5 Kasım 2026): tabloyu yalnız service_role okur; yoksa ya da okunamazsa kart "yeterli veri yok" der.
+  const learningMemory = await settle<StudentMemory | null>("learning_memory", () => loadStudentMemory(createServiceClient(), user.id), null);
   const learningRows: LearningTimeRow[] = normalizeLearningRows(learningTime.data);
 
   const activityStamps = (activity.data ?? [])
@@ -258,6 +262,8 @@ export default async function IlerlemePage() {
           </div>
           </>
         )}
+
+        <LearningDnaCard memory={learningMemory} />
 
         <SectionCard
           variant="parity"

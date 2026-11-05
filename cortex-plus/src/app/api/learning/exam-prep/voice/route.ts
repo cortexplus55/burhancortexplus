@@ -12,6 +12,7 @@ import { corePageRun } from "@/lib/learning/core-pages";
 import { oralTeacherStyleLine } from "@/lib/learning/oral-exam-chrome";
 import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
+import { loadStudentMemory, studentMemoryLines } from "@/lib/learning/student-memory";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { bestSourcePage } from "@/lib/learning/tutor-answer";
 import { citationMarker } from "@/lib/learning/tutor-reply";
@@ -62,6 +63,8 @@ export async function POST(request: Request) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
+  // Öğrenme hafızası (5 Kasım 2026): sayfa okumalarına paralel başlar, istemden önce beklenir; yoksa null.
+  const memoryEarly = loadStudentMemory(service, userId);
 
   const { data: node } = await service
     .from("exam_prep_nodes")
@@ -123,6 +126,7 @@ export async function POST(request: Request) {
   }
 
   const model = contentModel();
+  const memoryLines = studentMemoryLines(await memoryEarly, { topicLabel: parsed.data.topicLabel });
   try {
     const outcome = await runTeacherTutor({
       client: openaiClient({ apiKey: env.OPENAI_API_KEY }),
@@ -130,7 +134,7 @@ export async function POST(request: Request) {
       context: {
         examTitle: (prep.title as string | null) ?? (prep.exam_type as string | null),
         topic: parsed.data.topicLabel,
-        learnerLines: [voiceLine, style, `Zorluk: ${parsed.data.difficulty}.`].filter(Boolean),
+        learnerLines: [voiceLine, style, `Zorluk: ${parsed.data.difficulty}.`, ...memoryLines].filter(Boolean),
         passages: pages.map((item) => ({ label: `s.${item.page}`, text: item.text })),
         mode: pages.length ? "document" : "general",
       },

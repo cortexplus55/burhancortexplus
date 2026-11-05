@@ -51,9 +51,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       {
         href: "/admin",
-        label: "Özet",
+        label: "Kokpit",
         icon: LayoutDashboard,
-        blurb: "Sistemin bugünkü durumu tek ekranda: kaç kişi var, ne kadar gelir geldi, bekleyen iş var mı.",
+        blurb: "Bütün iş tek ekranda: kayıt ve aktif öğrenci, ücretsizden ücretliye dönüşüm, OpenAI gideri ile gelir ve kâr marjı, karantinadaki sorular ve hata bildirimleri.",
       },
       {
         href: "/admin/beta",

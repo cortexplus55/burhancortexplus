@@ -8,6 +8,7 @@ import { runTeacherLesson, type PublishedLesson } from "@/lib/learning/teacher-l
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import { sessionSignalsPrompt } from "@/lib/learning/session-signals";
+import { loadStudentMemory, studentMemoryBlock } from "@/lib/learning/student-memory";
 import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import { sectionHeadings } from "@/lib/documents/topic-title";
 import { upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
@@ -74,6 +75,9 @@ export async function teacherLessonPayload(
   core: LessonCore | null,
 ) {
   const startedAt = Date.now();
+  // Öğrenme hafızası (5 Kasım 2026): bu öğrencinin kayıtlı özeti, sayfa hazırlığına paralel okunur; istemde
+  // `ÖĞRENCİ:` satırına eklenir. Yalnız öğrencinin kendi dersi — ortak havuz içeriğine (content-pool) girmez.
+  const memoryEarly = loadStudentMemory(input.service, input.userId);
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
   const headersMs = Date.now() - startedAt;
   const clean = core
@@ -123,7 +127,9 @@ export async function teacherLessonPayload(
     // Ders içi sorunun şık sayısı testle aynı kuraldan (29 Ekim 2026): ortaokul/LGS 4, lise ve üstü 5.
     optionCount: await studentOptionCount(input.service, input.userId, input.prepTitle),
     upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
-    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    learnerLine: [sessionSignalsPrompt(input.familiarity, input.mood), studentMemoryBlock(await memoryEarly, { topicLabel: input.topicLabel })]
+      .filter(Boolean)
+      .join("\n"),
     ...(input.alternativeOf ? { alternativeOf: input.alternativeOf } : {}),
     // Belgeli derste yalnız dersin kaynağında geçen maddeler: başka belgenin maddesi "kaynakta yok" turu açıyordu.
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
