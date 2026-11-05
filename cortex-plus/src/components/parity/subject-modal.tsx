@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 
 export const PARITY_SUBJECTS = [
   "Matematik",
@@ -40,6 +41,7 @@ export function SubjectModal({
     ? [value]
     : [];
   const list = [...PARITY_SUBJECTS, ...extras];
+  useDismiss(open, onClose);
 
   if (!open) return null;
 

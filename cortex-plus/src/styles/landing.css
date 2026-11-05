@@ -222,7 +222,7 @@
   background: rgba(67, 83, 243, 0.08);
   backdrop-filter: blur(8px);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
   color: #c9cdff;
 }
@@ -417,7 +417,7 @@
 .lp-phone-kicker {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--lp-accent-text);
@@ -512,7 +512,7 @@
   .lp-eyebrow {
     gap: 0.4rem;
     padding-inline: 0.7rem;
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     letter-spacing: 0.02em;
   }
 }
@@ -599,7 +599,7 @@
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.85rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--lp-subtle);
 }
 
@@ -608,7 +608,7 @@
   border-radius: 0.3rem;
   background: rgba(239, 68, 68, 0.18);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   color: #fca5a5;
 }
 
@@ -636,7 +636,7 @@
 
 .lp-note-tip span {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   color: var(--lp-exam-text);
 }
@@ -736,7 +736,7 @@
 }
 
 .lp-path-title span {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--lp-subtle);
 }
@@ -806,7 +806,7 @@
   flex: none;
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 650;
 }
 
@@ -844,7 +844,7 @@
 }
 
 .lp-gain-detail {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: #bbf7d0;
 }
 
@@ -1029,7 +1029,7 @@
   border-radius: 999px;
   background: var(--lp-action);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #fff;
 }
 
@@ -1267,7 +1267,7 @@
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
   background: rgba(253, 179, 0, 0.16);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 650;
   color: var(--lp-brand);
 }
@@ -1288,7 +1288,7 @@
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: rgba(67, 83, 243, 0.18);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #c9cdff;
 }
@@ -1340,7 +1340,7 @@
 .lp-wave-who {
   flex: none;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--lp-subtle);
 }
 
@@ -1457,7 +1457,7 @@
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
   background: rgba(253, 179, 0, 0.14);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 650;
   color: var(--lp-brand);
 }

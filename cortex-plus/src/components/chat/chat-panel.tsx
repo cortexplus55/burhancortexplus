@@ -2474,11 +2474,11 @@ function ChatPanelSession({
           ) : (
           <div className="sticky bottom-0 space-y-2 pb-1">
             {founder ? null : quotaHint ? (
-              <p className="text-center text-[11px] text-[var(--cs-muted)]">
+              <p className="text-center text-sm text-[var(--cs-muted)]">
                 {quotaHint}
               </p>
             ) : allowAdvanced || tutorStyleLabel ? (
-              <p className="text-center text-[11px] text-[var(--cs-muted)]">
+              <p className="text-center text-sm text-[var(--cs-muted)]">
                 {[
                   tutorStyleLabel ? `Stil: ${tutorStyleLabel}` : null,
                 ]

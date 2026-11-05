@@ -106,7 +106,7 @@ export default async function AyarlarPage() {
               Kullanım koşulları
             </Link>
             {account.isAdmin ? null : (
-              <Link href="/paketler" className="underline">
+              <Link href="/pay" className="underline">
                 Paketler
               </Link>
             )}

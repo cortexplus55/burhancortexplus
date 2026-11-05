@@ -264,7 +264,7 @@
 
 .apg-warmup-kicker {
   margin: 0 0 0.55rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -321,8 +321,8 @@
 }
 
 .apg-warmup-hint {
-  font-size: 0.75rem;
-  color: #8b93a3;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
 }
 
 .apg-warmup-nav {
@@ -400,5 +400,33 @@
   }
   .apg-steps li {
     transition: none;
+  }
+}
+
+/* Dokunma alanı (6 Kasım 2026): görünen boyut aynı, tıklanan alan ortalanmış 44×44 px ::after (WCAG 2.5.5). */
+.apg-toast button {
+  position: relative;
+}
+
+.apg-close::after,
+.apg-toast button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/*
+  Bildirim alt menünün altında kalmasın (6 Kasım 2026): telefonda alt menü (.cp-sor-bottomnav,
+  yapışkan, z-index 40) görünürken bildirim onun üstüne çıkar. Yükseklik composer ile aynı
+  ölçüden: 4.6rem ≈ menü (3.9rem) + boşluk, çentik payı dahil (parity-shell.css .cp-sor-composer-zone).
+*/
+@media (max-width: 767px) {
+  :root:has(.cp-sor-bottomnav) .apg-toast {
+    bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+    z-index: 41;
   }
 }

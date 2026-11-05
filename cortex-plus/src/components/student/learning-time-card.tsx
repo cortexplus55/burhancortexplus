@@ -39,7 +39,7 @@ export function LearningTimeCard({ rows, today }: { rows: LearningTimeRow[]; tod
               const label = dayLabel(day.date);
               return (
                 <div key={day.date} role="listitem" className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                  <span className="whitespace-nowrap text-[9px] text-[var(--cs-muted)] sm:text-[10px]">{day.minutes ? `${day.minutes} dk` : ""}</span>
+                  <span className="whitespace-nowrap text-xs text-[var(--cs-muted)]">{day.minutes ? `${day.minutes} dk` : ""}</span>
                   {/* Renk satır içi: "bg-[var(--cs-primary)]/80" sınıfı üretilmedi,
                       çubuklar canlıda şeffaftı (1 Ekim 2026). */}
                   <div
@@ -50,7 +50,7 @@ export function LearningTimeCard({ rows, today }: { rows: LearningTimeRow[]; tod
                     }}
                     aria-hidden
                   />
-                  <span className="text-center text-[10px] leading-tight text-[var(--cs-muted)]">
+                  <span className="text-center text-xs leading-tight text-[var(--cs-muted)]">
                     <span className="block font-semibold text-[var(--cs-text)]">{label.weekday}</span>
                     <span className="block">{label.day}</span>
                   </span>

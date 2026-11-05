@@ -167,6 +167,6 @@ describe("podcast oynatıcısı Plus reddini hesaba göre söyler (#4)", () => {
   it("abone: hakkı bitince yine ek paket, Plus satılmaz", async () => {
     const { container } = await renderPlayer(plus, streamedError("insufficient_credits"));
     expect(container.textContent).toContain("Bu ayki seslendirme hakkın doldu.");
-    expect(screen.getByRole("link", { name: "Ek paket al" }).getAttribute("href")).toBe("/paketler");
+    expect(screen.getByRole("link", { name: "Ek paket al" }).getAttribute("href")).toBe("/pay"); // 6 Kasım 2026: /paketler → /pay (yönlendirme turu yok)
   });
 });

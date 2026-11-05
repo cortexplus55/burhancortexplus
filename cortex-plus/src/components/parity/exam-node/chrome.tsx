@@ -4,6 +4,7 @@
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { cn } from "@/lib/utils";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 import type { NodeLifecycle } from "./use-node-lifecycle";
 
 export function SaveStatus({ life }: { life: NodeLifecycle }) {
@@ -49,6 +50,7 @@ export function StudyBar({ life }: { life: NodeLifecycle }) {
 
 export function ExitDialog({ life }: { life: NodeLifecycle }) {
   const { prepId, router, saveCursorRef, setExitPrompt, answersRef, persistAnswers, exitSummary } = life;
+  useDismiss(Boolean(exitSummary), () => setExitPrompt(false));
   return (
     <>
       {exitSummary ? (

@@ -263,9 +263,9 @@
 }
 
 .cs-sor-greeting {
-  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-family: var(--font-display);
   font-size: clamp(1.625rem, 5.5vw, 2.125rem);
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.12;
   color: var(--cs-text);
@@ -625,4 +625,21 @@
   .cs-sor-messages {
     scroll-behavior: auto;
   }
+}
+
+/* Dokunma alanı (6 Kasım 2026): görünen boyut aynı, tıklanan alan ortalanmış 44×44 px ::after (WCAG 2.5.5). */
+.cs-sor-send,
+.cs-sor-attach {
+  position: relative;
+}
+
+.cs-sor-send::after,
+.cs-sor-attach::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, DM_Serif_Display, Figtree, Geist, Geist_Mono, JetBrains_Mono, Jersey_10 } from "next/font/google";
+import { Caveat, Figtree, Geist, Geist_Mono, JetBrains_Mono, Jersey_10 } from "next/font/google";
 import "./globals.css";
 // Model çıktısındaki LaTeX her yüzeyde render edilebilsin diye kök seviyede.
 import "katex/dist/katex.min.css";
@@ -40,12 +40,11 @@ const caveat = Caveat({
   display: "swap",
 });
 
-const dmSerif = DM_Serif_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: "400",
-  display: "swap",
-});
+/*
+ * Tırnaklı başlık yazısı (DM Serif Display) 6 Kasım 2026'da tümden kalktı: kök öğeye `--font-display`
+ * değişkenini bağlıyor ve tokens.css'teki Figtree değerini eziyordu; /ornek, kayıt ve sohbet başlıkları
+ * hâlâ tırnaklı görünüyordu (19 Ekim kararı). `--font-display` artık `--font-ui`.
+ */
 
 /** Fallback chain in CSS; body uses Figtree via `--font-ui`. */
 const geistSans = Geist({
@@ -124,7 +123,7 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <body
-        className={`${figtree.variable} ${dmSerif.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${jersey.variable} ${caveat.variable} min-h-screen antialiased bg-background text-foreground`}
+        className={`${figtree.variable} ${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${jersey.variable} ${caveat.variable} min-h-screen antialiased bg-background text-foreground`}
       >
         <Providers>
           {/* Instagram / Facebook / TikTok / WhatsApp tarayıcısında "tarayıcıda aç" şeridi (31 Ekim 2026). */}

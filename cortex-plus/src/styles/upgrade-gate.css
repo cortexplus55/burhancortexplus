@@ -146,7 +146,7 @@
 .ug-why {
   display: inline-block;
   margin-top: 1.25rem;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: #a3a19c;
   text-decoration: underline;
   text-underline-offset: 4px;
@@ -160,7 +160,7 @@ button.ug-why {
   padding: 0;
   cursor: pointer;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 /* Geri sayım (3 Ekim 2026, kıyas ürününün sohbet duvarı gibi). */
@@ -206,7 +206,7 @@ button.ug-why {
   padding: 0.6rem 0.8rem;
   border-radius: 0.75rem;
   background: rgba(255, 255, 255, 0.05);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: #a3a19c;
 }
 
@@ -358,7 +358,7 @@ button.ug-why {
 }
 
 .ug-promo-clock small {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #a3a19c;
 }
@@ -438,3 +438,14 @@ button.ug-why {
   }
 }
 
+
+/* Dokunma alanı (6 Kasım 2026): görünen boyut aynı, tıklanan alan ortalanmış 44×44 px ::after (WCAG 2.5.5). */
+.ug-aside-close::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}

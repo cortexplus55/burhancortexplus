@@ -180,7 +180,7 @@ export function describeGenerationFailure(
         message: "Bu içerik Plus üyeliğe özel. Yeniden denemek açmaz.",
         retryMintsNewId: false,
         canRetryNow: false,
-        action: { href: "/paketler", label: "Paketlere bak" },
+        action: { href: "/pay", label: "Paketlere bak" },
       };
 
     /**

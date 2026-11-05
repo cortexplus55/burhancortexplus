@@ -4,7 +4,8 @@
  */
 export function safeNextPath(
   raw: string | null | undefined,
-  fallback = "/dashboard",
+  // 6 Kasım 2026: doğrudan ev (`/dashboard` yalnız `/ogretmen`'e yönlenen eski rota; bir sekme kazanılır).
+  fallback = "/ogretmen",
 ): string {
   if (!raw) return fallback;
   const trimmed = raw.trim();

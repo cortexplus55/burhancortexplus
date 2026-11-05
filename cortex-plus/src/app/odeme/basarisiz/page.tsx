@@ -2,6 +2,8 @@ import { XCircle } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { ResultCard } from "@/components/marketing/result-card";
 
+export const metadata = { title: "Ödeme tamamlanamadı" };
+
 export default async function OdemeBasarisizPage() {
   return (
     <MarketingPage

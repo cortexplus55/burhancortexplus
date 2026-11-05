@@ -28,7 +28,7 @@ import { AvatarPicker } from "@/components/parity/avatar-picker";
 const MENU = [
   { href: "/profil?dialog=profile", label: "Ayarlar", icon: Settings },
   { href: "/krediler", label: "Kullanım", icon: TrendingUp },
-  { href: "/paketler", label: "Abonelikler", icon: CreditCard },
+  { href: "/pay", label: "Abonelikler", icon: CreditCard },
   { href: "/sohbetler", label: "Geçmiş konuşmalar", icon: History },
   { href: "/yardim", label: "Yardım ve destek", icon: HelpCircle },
   { href: "/mobil-uygulama", label: "Telefondan kullan", icon: Download },
@@ -96,7 +96,7 @@ export function ProfilePanel({
         </div>
         {isAdmin ? null : (
           <Link
-            href="/paketler"
+            href="/pay"
             className="cp-pp-upgrade"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
@@ -154,7 +154,7 @@ export function ProfilePanel({
         {MENU.flatMap((item) => {
           const Icon = item.icon;
           const href =
-            item.href === "/paketler" && isPremium ? "/odemeler" : item.href;
+            item.href === "/pay" && isPremium ? "/odemeler" : item.href;
           const link = (
             <Link key={item.href} href={href}>
               <Icon className="h-4 w-4" aria-hidden />

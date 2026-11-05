@@ -125,7 +125,8 @@ export function searchSchools(query: string): string[] {
 
 export function homePathForRole(role: string | null | undefined): string {
   if (role === "admin") return "/admin";
-  return "/dashboard";
+  // `/dashboard` yalnız `/ogretmen`'e yönlenen eski rota: doğrudan eve gidilir.
+  return "/ogretmen";
 }
 
 /**

@@ -7,16 +7,16 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/dokumanlar/abc")).toBe("/dokumanlar/abc");
   });
 
-  // Girişten sonra ev /dashboard: tek ana aksiyonun olduğu ekran.
+  // Girişten sonra ev /ogretmen (6 Kasım 2026: eski /dashboard yönlendirme turu atlandı).
   it("reddeder: protokol-relative ve mutlak URL", () => {
-    expect(safeNextPath("//evil.com")).toBe("/dashboard");
-    expect(safeNextPath("https://evil.com")).toBe("/dashboard");
-    expect(safeNextPath("/\\evil.com")).toBe("/dashboard");
+    expect(safeNextPath("//evil.com")).toBe("/ogretmen");
+    expect(safeNextPath("https://evil.com")).toBe("/ogretmen");
+    expect(safeNextPath("/\\evil.com")).toBe("/ogretmen");
   });
 
   it("reddeder: boş / null → fallback", () => {
-    expect(safeNextPath(null)).toBe("/dashboard");
-    expect(safeNextPath("")).toBe("/dashboard");
-    expect(safeNextPath("ogretmen")).toBe("/dashboard");
+    expect(safeNextPath(null)).toBe("/ogretmen");
+    expect(safeNextPath("")).toBe("/ogretmen");
+    expect(safeNextPath("ogretmen")).toBe("/ogretmen");
   });
 });

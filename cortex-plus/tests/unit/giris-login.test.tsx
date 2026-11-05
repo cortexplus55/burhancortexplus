@@ -38,7 +38,7 @@ describe("giriş sayfası", () => {
     signInWithPassword.mockResolvedValue({ error: null });
     render(<GirisPage />);
     submit();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/ogretmen")); // 6 Kasım 2026: yedek ev /ogretmen
   });
 
   it("still follows a same-site next", async () => {

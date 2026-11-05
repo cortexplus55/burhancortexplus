@@ -67,7 +67,7 @@ export default async function TasarimPage() {
 
       <section className="space-y-4">
         <h2 className="text-22 font-semibold">Yazı</h2>
-        <p className="font-display text-36">DM Serif Display — başlık</p>
+        <p className="font-display text-36">Figtree — başlık (600)</p>
         <p className="font-ui text-16">Figtree — gövde metni, 16px, satır 1.6</p>
         <p className="text-14 text-[var(--c-text-muted)]">Muted 14px</p>
       </section>

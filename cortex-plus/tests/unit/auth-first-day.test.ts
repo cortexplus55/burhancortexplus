@@ -61,6 +61,6 @@ describe("auth callback", () => {
   it("redirects a successful exchange to a safe next path only", async () => {
     exchange.mockResolvedValue({ error: null });
     expect(await callback("?code=abc&next=/pay")).toBe("https://cortexplus.app/pay");
-    expect(await callback("?code=abc&next=https://evil.example")).toBe("https://cortexplus.app/dashboard");
+    expect(await callback("?code=abc&next=https://evil.example")).toBe("https://cortexplus.app/ogretmen"); // 6 Kasım 2026: güvenli yedek doğrudan /ogretmen
   });
 });

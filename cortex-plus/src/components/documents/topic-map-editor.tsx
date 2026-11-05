@@ -302,7 +302,7 @@ export function TopicMapEditor({
                 Sil
               </button>
             </div>
-            <p className="text-[11px] text-[var(--cs-muted)]">
+            <p className="text-xs text-[var(--cs-muted)]">
               Sayfalar:{" "}
               {topic.pageNumbers.length
                 ? topic.pageNumbers.join(", ")

@@ -8,6 +8,7 @@ import { CalendarPlus, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react
 import { officialExamOn, schoolBreakOn } from "@/lib/curriculum/calendar";
 import { HOLIDAY_BADGE, turkishHolidayOn } from "@/lib/learning/tr-calendar";
 import { examDayLabel } from "@/lib/learning/exam-time";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 import {
   filterCalendar,
   formatDayLabel,
@@ -42,6 +43,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
   const [filter, setFilter] = useState<CalendarFilter>("all");
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
+  useDismiss(adding, () => setAdding(false));
   const [form, setForm] = useState({
     title: "",
     eventDate: toIsoDate(today),

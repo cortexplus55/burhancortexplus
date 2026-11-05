@@ -899,7 +899,7 @@ export function ExamPodcastPlayer({
           <p className="cp-pod-state">
             Bu ayki seslendirme hakkın doldu. Bölümleri transkriptten
             okuyabilirsin.{" "}
-            <Link href="/paketler" className="cp-pod-upsell">
+            <Link href="/pay" className="cp-pod-upsell">
               Ek paket al
             </Link>
           </p>

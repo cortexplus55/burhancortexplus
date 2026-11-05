@@ -207,7 +207,8 @@ function ctaFor(id: BadgeId, facts: BadgeFacts): BadgeState["cta"] {
     case "venus":
       return { label: "Deneme sınavı çöz", href: prepHref(facts, "/deneme/kurulum") };
     case "mars":
-      return { label: "Belge yükle", href: "/dokumanlar" };
+      // Belgelerim'de yükleme formu yok (3 Ekim 2026 kararı): belge hazırlık kurulurken yüklenir.
+      return { label: "Belge yükle", href: "/deneme-sinavlari/olustur" };
     case "jupiter":
       return { label: "Sesli çalış", href: prepHref(facts) };
     case "uranus":

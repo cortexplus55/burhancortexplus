@@ -111,7 +111,6 @@ export const studentMenuGroups: {
   {
     title: "Çalış",
     items: [
-      { href: "/dashboard", label: "Ana Sayfa", icon: Home },
       { href: "/ogretmen", label: CANONICAL_FEATURES.aiTeacher, icon: MessageCircle },
       { href: "/sohbetler", label: "Sohbetler", icon: History },
       { href: "/dokumanlar", label: CANONICAL_FEATURES.studyFromDoc, icon: FileText },

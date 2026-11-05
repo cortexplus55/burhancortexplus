@@ -227,7 +227,7 @@ export function ProfileDialog({
               <strong>{plan.label}</strong>
               <span>{plan.hint}</span>
             </div>
-            <a className="cp-profile-plan-cta" href="/paketler">
+            <a className="cp-profile-plan-cta" href="/pay">
               {plan.isPremium ? "Ek paket" : "Daha hızlı öğren"}
             </a>
           </div>

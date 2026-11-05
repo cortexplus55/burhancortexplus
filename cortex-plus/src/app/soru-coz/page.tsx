@@ -49,8 +49,8 @@ export default async function SoruCozPage({ searchParams }: { searchParams: Prom
             ← {prep.title}
           </Link>
         ) : null}
+        {/* Sayfa başlığı kabuğun h1'i ("Soru çöz"); burada ikinci kez yazılmaz (6 Kasım 2026). */}
         <header className="cp-solver-intro-head">
-          <h1>Soru çöz</h1>
           <p>
             Sorunun fotoğrafını çek ya da soruyu yaz. Birkaç saniyede adım adım çözüm, her şıkkın açıklaması ve
             akılda kalacak kısa kural gelir. Ücretsiz hesapta günde 1 fotoğraf sorusu.

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { formatDayLong } from "@/lib/format";
 import { PAPER_LETTERS, PAPER_MAX_PHOTOS, isChoiceQuestion, type PaperQuestion } from "@/lib/learning/paper-exam";
 import "@/styles/paper-exam.css";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 
 type Stage = "sheet" | "solve" | "upload" | "reading";
 
@@ -60,6 +61,7 @@ export function PaperExamRunner({
   const [photos, setPhotos] = useState<{ id: string; url: string }[]>([]);
   const [adding, setAdding] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  useDismiss(Boolean(qr), () => setQr(null));
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const cameraInput = useRef<HTMLInputElement | null>(null);

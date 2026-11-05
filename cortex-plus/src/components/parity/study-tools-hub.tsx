@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import "@/styles/oral-exam-chrome.css";
 import { chooseStudyNode } from "@/lib/learning/choose-study-node";
@@ -86,6 +87,7 @@ export function StudyToolsHub({
   const router = useRouter();
   const [choosing, setChoosing] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  useDismiss(true, onClose);
   // Seçilen konu iki kimliğiyle (konu satırı + belge konu düğümü): düğüm araması kimlikle (`topic-identity.ts`).
   const chosenOption = topicLabel ? topicOptions.find((option) => option.label === topicLabel) : undefined;
   const chosenTopic: StudyTopicRef | null = topicLabel

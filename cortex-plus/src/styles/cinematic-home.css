@@ -340,7 +340,7 @@
 
 :is(.cinematic-home, .cinematic-marketing) .mk-hero-product-chrome p {
   margin-left: 0.5rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--mk-muted);
@@ -386,7 +386,7 @@
 }
 
 .cinematic-auth .mk-auth-stack > .mb-6 h1.mk-display {
-  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-family: var(--font-display);
   font-weight: 650;
   letter-spacing: -0.02em;
   background: linear-gradient(180deg, #ffffff 0%, #e5e5e5 100%);
@@ -425,7 +425,7 @@
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-eyebrow {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -433,7 +433,7 @@
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-section-title {
-  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-family: var(--font-display);
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -485,7 +485,7 @@
 }
 
 .cs-marketing .mk-loop-title {
-  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-family: var(--font-display);
   font-weight: 650;
   letter-spacing: -0.02em;
 }
@@ -598,7 +598,7 @@
 }
 
 .mk-hero-title {
-  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-family: var(--font-display);
   font-weight: 650;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -668,7 +668,7 @@
 .mk-hero-window-chrome span:nth-child(3) { background: #28c840; }
 .mk-hero-window-chrome p {
   margin-left: 0.5rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--mk-muted, #a3a3a3);
@@ -688,7 +688,7 @@
 
 .mk-hero-ui-brand {
   margin: 0 0 1rem;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -706,7 +706,7 @@
 .mk-hero-ui-nav li {
   border-radius: 0.55rem;
   padding: 0.4rem 0.45rem;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: #8a8a8a;
 }
 
@@ -728,7 +728,7 @@
 
 .mk-hero-ui-label {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #9a9a9a;
 }
 
@@ -789,13 +789,13 @@
 .mk-hero-ui-list span {
   display: block;
   margin-top: 0.15rem;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: #9b9b9b;
 }
 
 .mk-hero-ui-list em {
   font-style: normal;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #0c0a06;
   background: linear-gradient(135deg, #ffc857, #e8a838);
@@ -816,7 +816,7 @@
 
 .mk-hero-ui-note p {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.45;
   color: #e8d7a8;
 }
@@ -826,7 +826,7 @@
   z-index: 1;
   margin: 0.75rem 0 0;
   text-align: center;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #8f8f8f;
@@ -865,7 +865,7 @@
 
 .mk-showcase-card-copy h3 {
   margin: 0.45rem 0 0.4rem;
-  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 650;
   letter-spacing: -0.02em;
@@ -906,7 +906,7 @@
 .mk-showcase-panel-chrome em {
   margin-left: 0.4rem;
   font-style: normal;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #9a9a9a;
@@ -1184,7 +1184,7 @@
   grid-template-columns: 132px 1fr;
   height: 100%;
   color: #f2f2f5;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-nav {
@@ -1235,7 +1235,7 @@
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-label {
   color: rgba(255,255,255,0.45);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin: 0;
@@ -1309,17 +1309,17 @@
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-list strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-list span {
   color: rgba(255,255,255,0.45);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-list em {
   font-style: normal;
-  font-size: 10px;
+  font-size: 12px;
   color: #1a1205;
   background: linear-gradient(135deg, #f5d78e, #e8b84b);
   padding: 4px 8px;
@@ -1451,7 +1451,7 @@
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-hi {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   color: rgba(255,255,255,0.5);
 }
 
@@ -1472,7 +1472,7 @@
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-sub {
   margin: 5px 0 0;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.35;
   color: rgba(255,255,255,0.55);
 }
@@ -1486,7 +1486,7 @@
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-chips span {
-  font-size: 8px;
+  font-size: 12px;
   padding: 3px 7px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -1499,7 +1499,7 @@
   width: 100%;
   border-radius: 999px;
   padding: 8px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 650;
   color: #1a1205;
   background: linear-gradient(135deg, #f5d78e, #e8b84b);

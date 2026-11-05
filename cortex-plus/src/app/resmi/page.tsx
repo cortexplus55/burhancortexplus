@@ -70,7 +70,7 @@ export default function ResmiPage() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-2 break-all text-[11px] text-[var(--mk-muted)]">
+            <p className="mt-2 break-all text-xs text-[var(--mk-muted)]">
               Kaynak: <a href={src[rows[0]!.sourceId]?.url}>{src[rows[0]!.sourceId]?.title}</a>
             </p>
           </div>
@@ -97,7 +97,7 @@ export default function ResmiPage() {
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-[var(--mk-text)]">Tüm kaynaklar</h2>
-        <ul className="mt-3 grid gap-2 text-[11px] text-[var(--mk-muted)]">
+        <ul className="mt-3 grid gap-2 text-xs text-[var(--mk-muted)]">
           {Object.values(src).map((s) => (
             <li key={s.id} className="mk-card break-all p-3">
               <a href={s.url} target="_blank" rel="noreferrer" className="text-[var(--mk-text)]">

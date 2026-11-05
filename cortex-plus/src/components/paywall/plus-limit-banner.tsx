@@ -41,7 +41,7 @@ export function PlusLimitBanner({
           Limitleri gör
         </Link>
         {" · "}
-        <Link href="/paketler" onClick={onDismiss}>
+        <Link href="/pay" onClick={onDismiss}>
           Ek paket al
         </Link>
       </div>
