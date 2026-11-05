@@ -1,0 +1,127 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { auditLog } from "@/lib/audit";
+import { requireAdminActor } from "@/lib/auth/admin-actor";
+import { createServiceClient } from "@/lib/supabase/server";
+import { poolUnit } from "@/lib/content-pool/keys";
+import { createReinforceItems } from "@/lib/content-pool/reinforce-new";
+import { FX_FLAG, FX_MAX, FX_MIN } from "@/lib/admin/cockpit-math";
+
+/*
+  Kurucu kokpitinin eylemleri (5 Kasım 2026): kur kaydı ve karantina kuyruğu (havuza geri al, reddet,
+  yeniden ürettir). Her eylem yönetici kimliği ister ve denetim kaydı yazar. Üretim yalnız "yeniden ürettir"de
+  ve mevcut pekiştirme motoruyla (`createReinforceItems`): aynı kazanım, aynı kapı, aynı doğrulayıcı.
+*/
+
+export type CockpitActionResult = { ok: true; message: string } | { ok: false; error: string };
+
+const UNAUTHORIZED: CockpitActionResult = { ok: false, error: "Yetkisiz işlem." };
+const rateSchema = z.number().finite().min(FX_MIN).max(FX_MAX);
+const idSchema = z.string().uuid();
+
+export async function saveUsdTryRate(rate: number): Promise<CockpitActionResult> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return UNAUTHORIZED;
+  const parsed = rateSchema.safeParse(rate);
+  if (!parsed.success) return { ok: false, error: `Kur ${FX_MIN}–${FX_MAX} arasında bir sayı olmalı.` };
+  const service = createServiceClient();
+  const { error } = await service.from("feature_flags").upsert(
+    {
+      key: FX_FLAG,
+      enabled: true,
+      description: "Kokpit: 1 USD kaç TL (kâr marjı için; kurucu elle girer).",
+      metadata: { rate: parsed.data, updated_at: new Date().toISOString(), updated_by: actorId },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
+  if (error) return { ok: false, error: "Kur kaydedilemedi." };
+  await auditLog(service, { actorId, action: "cockpit.fx_rate.saved", entityType: "feature_flag", entityId: FX_FLAG, metadata: { rate: parsed.data } });
+  revalidatePath("/admin");
+  return { ok: true, message: `Kur kaydedildi: 1 USD = ${parsed.data} TL.` };
+}
+
+type ItemRow = { id: string; unit_id: string; outcome_id: string; status: string; qa: Record<string, unknown> | null };
+
+async function loadItem(service: ReturnType<typeof createServiceClient>, itemId: string): Promise<ItemRow | null> {
+  const { data } = await service.from("item_bank").select("id, unit_id, outcome_id, status, qa").eq("id", itemId).maybeSingle();
+  return (data as ItemRow | null) ?? null;
+}
+
+async function setItemStatus(
+  service: ReturnType<typeof createServiceClient>,
+  item: ItemRow,
+  status: "verified" | "rejected",
+  note: Record<string, unknown>,
+): Promise<boolean> {
+  const { error } = await service
+    .from("item_bank")
+    .update({ status, qa: { ...(item.qa ?? {}), admin_review: note } })
+    .eq("id", item.id);
+  return !error;
+}
+
+/** Karantinadaki soruyu havuza geri alır (kurucu soruyu okuyup doğru buldu). */
+export async function restoreQuarantinedItem(itemId: string): Promise<CockpitActionResult> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return UNAUTHORIZED;
+  if (!idSchema.safeParse(itemId).success) return { ok: false, error: "Geçersiz soru kimliği." };
+  const service = createServiceClient();
+  const item = await loadItem(service, itemId);
+  if (!item) return { ok: false, error: "Soru bulunamadı." };
+  const ok = await setItemStatus(service, item, "verified", { decision: "restored", at: new Date().toISOString(), by: actorId });
+  if (!ok) return { ok: false, error: "Soru güncellenemedi." };
+  await auditLog(service, { actorId, action: "pool_item.restored", entityType: "item_bank", entityId: itemId, metadata: { from: item.status } });
+  revalidatePath("/admin");
+  return { ok: true, message: "Soru havuza geri alındı; öğrencilere yeniden sunulur." };
+}
+
+/** Karantinadaki soruyu kalıcı olarak reddeder (sunulmaz, silinmez). */
+export async function rejectQuarantinedItem(itemId: string): Promise<CockpitActionResult> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return UNAUTHORIZED;
+  if (!idSchema.safeParse(itemId).success) return { ok: false, error: "Geçersiz soru kimliği." };
+  const service = createServiceClient();
+  const item = await loadItem(service, itemId);
+  if (!item) return { ok: false, error: "Soru bulunamadı." };
+  const ok = await setItemStatus(service, item, "rejected", { decision: "rejected", at: new Date().toISOString(), by: actorId });
+  if (!ok) return { ok: false, error: "Soru güncellenemedi." };
+  await auditLog(service, { actorId, action: "pool_item.rejected", entityType: "item_bank", entityId: itemId, metadata: { from: item.status } });
+  revalidatePath("/admin");
+  return { ok: true, message: "Soru reddedildi; bir daha sunulmaz." };
+}
+
+/**
+ * Soruyu reddeder ve aynı kazanım için pekiştirme motoruyla yeni sorular yazdırır (kapı + kör çözüm aynen).
+ * Model çağrısı yalnız burada; kurucunun açık tıklamasıyla.
+ */
+export async function regenerateQuarantinedItem(itemId: string): Promise<CockpitActionResult> {
+  const actorId = await requireAdminActor();
+  if (!actorId) return UNAUTHORIZED;
+  if (!idSchema.safeParse(itemId).success) return { ok: false, error: "Geçersiz soru kimliği." };
+  const service = createServiceClient();
+  const item = await loadItem(service, itemId);
+  if (!item) return { ok: false, error: "Soru bulunamadı." };
+  const unit = poolUnit(item.unit_id);
+  const outcome = unit?.outcomes.find((candidate) => candidate.outcomeId === item.outcome_id);
+  const outcomeCode = (typeof item.qa?.outcome_code === "string" ? item.qa.outcome_code : null) ?? outcome?.code ?? null;
+  if (!unit || !outcomeCode) return { ok: false, error: "Sorunun ünitesi kayıt defterinde bulunamadı; yalnız reddedebilirsin." };
+  const rejected = await setItemStatus(service, item, "rejected", { decision: "regenerate", at: new Date().toISOString(), by: actorId });
+  if (!rejected) return { ok: false, error: "Soru güncellenemedi." };
+  const { data: siblings } = await service.from("item_bank").select("stem").eq("outcome_id", item.outcome_id).eq("status", "verified").limit(50);
+  const existingStems = ((siblings ?? []) as { stem: string }[]).map((row) => row.stem);
+  const result = await createReinforceItems(service, { unit, outcomeCode, userId: actorId, existingStems });
+  await auditLog(service, {
+    actorId,
+    action: "pool_item.regenerated",
+    entityType: "item_bank",
+    entityId: itemId,
+    metadata: { outcomeCode, result: result.state, created: result.state === "ok" ? result.ids.length : 0 },
+  });
+  revalidatePath("/admin");
+  if (result.state === "ok") return { ok: true, message: `Soru reddedildi; aynı kazanım için ${result.ids.length} yeni soru doğrulanıp havuza yazıldı.` };
+  if (result.state === "none") return { ok: true, message: "Soru reddedildi; üretim kapıdan geçen yeni soru vermedi (bir daha denenebilir)." };
+  return { ok: false, error: "Soru reddedildi ama üretim başlatılamadı (model ya da kayıt hatası)." };
+}

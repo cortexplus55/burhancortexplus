@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminActor } from "@/lib/auth/admin-actor";
 import { auditLog } from "@/lib/audit";
 import { verifySmtpConnection } from "@/lib/email/smtp";
 import { requestPaytrRefund, queryPaytrStatus } from "@/lib/payments/paytr";
@@ -16,24 +17,6 @@ import {
   reconcileDeltaRef,
 } from "@/lib/payments/refund";
 import { formatTry } from "@/lib/format";
-
-async function requireAdminActor() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin")
-    .is("revoked_at", null)
-    .maybeSingle();
-
-  return data ? user.id : null;
-}
 
 const decisionSchema = z.object({
   applicationId: z.string().uuid(),
