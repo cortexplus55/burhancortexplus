@@ -72,6 +72,7 @@ import { topWeightedTopic } from "@/lib/learning/prep-corpus";
 import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
 import { answerFirstLine, bestSourcePage } from "@/lib/learning/tutor-answer";
 import { CHAT_NATURAL_VOICE, teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
+import { loadStudentMemory, studentMemoryLines } from "@/lib/learning/student-memory";
 import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import {
@@ -234,6 +235,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
     const instructionEarly = quiet(loadActivePrompt(service, PROMPT_KEYS.studentChat));
     const examContextEarly = quiet(rest.prepId ? loadExamChatContext(service, userId, rest.prepId) : Promise.resolve(null));
     const groundingEarly = quiet(rest.prepId ? loadPrepChatGrounding(service, userId, rest.prepId, message) : Promise.resolve(null));
+    // Öğrenme hafızası (5 Kasım 2026): öğretmen yolunda okunur, öbür okumalara paralel; yoksa null.
+    const studentMemoryEarly = quiet(rest.prepId ? loadStudentMemory(service, userId) : Promise.resolve(null));
     // Girdi denetimi (3 Kasım 2026): hazırlık sohbetinde model çağrısıyla PARALEL koşar; ilk kelime
     // denetimi beklemez. Kapı açılana kadar token'lar sunucuda tamponlanır (live.gate); ret gelirse
     // model iptal edilir, tampon atılır, kredi iade edilir ve öğrenciye yalnız güvenli mesaj gider.
@@ -501,6 +504,8 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
       if (teacherTutor && prepGrounding) {
         const grounding = prepGrounding;
         const lastLesson = examContext?.lastLesson ?? null;
+        // Hafıza satırları sabit blokların ARKASINDA (önbellek bozulmasın); en çok üç satır, konuya bağlı olan önde.
+        const memoryLines = studentMemoryLines(await studentMemoryEarly, { topicLabel: lastLesson?.title ?? null });
         stage("context");
         const outcome = await runTeacherTutor({
           client,
@@ -516,6 +521,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
               teacherStyleLine(tutorStyle),
               moodLine.trim(),
               tutorHistoryLine(examContext?.history ?? []),
+              ...memoryLines,
             ],
             passages: [
               ...grounding.passages.map((item) => ({

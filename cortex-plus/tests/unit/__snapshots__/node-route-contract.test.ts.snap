@@ -863,6 +863,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: sözlü yanıtta
     "db select exam_prep_review_items [id, prompt_key, source_ref, lapse_count, first_missed_on] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") in(prompt_key,["81ed40181acf26c3"])",
     "db upsert exam_prep_review_items payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_id":"00000000-0000-4000-8000-0000000000c1","topic_label":"Hücre Bölünmesi","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","source_kind":"oral","reason":"miss","source_ref":"00000000-0000-4000-8000-0000000000d1:oral:0","prompt_key":"81ed40181acf26c3","item":{"mode":"recall","front":"Mitozun evrelerini anlat.","back":"Profaz, metafaz, anafaz, telofaz.","sm2":{"easeFactor":2.5,"intervalDays":1,"repetitions":0}},"interval_step":0,"due_on":"2026-10-31","first_missed_on":"2026-10-30"}]",
     "rpc award_stars {"p_user":"00000000-0000-4000-8000-00000000aaaa","p_source":"prep","p_ref":"attempt:00000000-0000-4000-8000-0000000000d1","p_amount":10}",
+    "call refreshStudentMemory ["00000000-0000-4000-8000-00000000aaaa"]",
     "db select exam_prep_node_attempts [score, total, node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"completed") gt(total,1) order(updated_at,desc) limit(8)",
     "db select exam_prep_topics [familiarity] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -1286,6 +1287,7 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
     "db select exam_prep_review_items [id, prompt_key, source_ref, lapse_count, first_missed_on] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") in(prompt_key,["18efd9ac012620c3"])",
     "db upsert exam_prep_review_items payload=[{"user_id":"00000000-0000-4000-8000-00000000aaaa","exam_prep_id":"00000000-0000-4000-8000-0000000000a1","topic_id":"00000000-0000-4000-8000-0000000000c1","topic_label":"Hücre Bölünmesi","node_id":"00000000-0000-4000-8000-0000000000b1","attempt_id":"00000000-0000-4000-8000-0000000000d1","source_kind":"quiz","reason":"miss","source_ref":"00000000-0000-4000-8000-0000000000d1:quiz:1","prompt_key":"18efd9ac012620c3","item":{"mode":"choice","prompt":"Mayozun sonunda kaç hücre oluşur?","options":["1","2","3","4","8"],"correct":["4"],"multi":false,"explanation":"Mayoz dört hücre verir.","sm2":{"easeFactor":2.5,"intervalDays":1,"repetitions":0}},"interval_step":0,"due_on":"2026-10-31","first_missed_on":"2026-10-30"}]",
     "rpc award_stars {"p_user":"00000000-0000-4000-8000-00000000aaaa","p_source":"prep","p_ref":"attempt:00000000-0000-4000-8000-0000000000d1","p_amount":12}",
+    "after:scheduled",
     "db select exam_prep_node_attempts [score, total, node_id] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") eq(status,"completed") gt(total,1) order(updated_at,desc) limit(8)",
     "db select exam_prep_topics [familiarity] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1")",
     "db select credit_wallets [balance] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
@@ -1296,6 +1298,8 @@ exports[`yol etkinliği rotası: eylem sözleşmesi > complete: test notlanır, 
     "db select exam_prep_nodes [id, kind, status, session_meta, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") neq(status,"done") gt(sort_order,1) order(sort_order,asc) limit(40)",
     "db select exam_prep_node_attempts [id] eq(node_id,"00000000-0000-4000-8000-0000000000b2") limit(1)",
     "db select exam_prep_prefetch [node_id, status, updated_at] eq(node_id,"00000000-0000-4000-8000-0000000000b2") maybe",
+    "after:run",
+    "call refreshStudentMemory ["00000000-0000-4000-8000-00000000aaaa"]",
   ],
 }
 `;
@@ -4902,6 +4906,7 @@ exports[`yol etkinliği rotası: start × tür > ders akışla açılır, kalan�
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "student_learning_memory": [],
     "study_session_moods": [
       {
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
@@ -4937,6 +4942,7 @@ exports[`yol etkinliği rotası: start × tür > ders akışla açılır, kalan�
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_topics [label, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
     "db select document_pages [page_number, headings] eq(document_id,"doc1") in(page_number,[1,2]) order(page_number,asc)",
+    "db select student_learning_memory [memory] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "log.info ["lesson_pre_timing",{"headersMs":0,"cleanMs":0,"pages":1,"cleanedByModelNow":0}]",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
@@ -5441,6 +5447,7 @@ exports[`yol etkinliği rotası: start × tür > ders akışsız (eski sekme) ve
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "student_learning_memory": [],
     "study_session_moods": [
       {
         "exam_prep_id": "00000000-0000-4000-8000-0000000000a1",
@@ -5473,6 +5480,7 @@ exports[`yol etkinliği rotası: start × tür > ders akışsız (eski sekme) ve
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_topics [label, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
     "db select document_pages [page_number, headings] eq(document_id,"doc1") in(page_number,[1,2]) order(page_number,asc)",
+    "db select student_learning_memory [memory] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "log.info ["lesson_pre_timing",{"headersMs":0,"cleanMs":0,"pages":1,"cleanedByModelNow":0}]",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",
@@ -5693,6 +5701,7 @@ exports[`yol etkinliği rotası: start × tür > ders üretimi düşer: kayıt b
         "user_id": "00000000-0000-4000-8000-00000000aaaa",
       },
     ],
+    "student_learning_memory": [],
     "subscriptions": [],
   },
   "timeline": [
@@ -5719,6 +5728,7 @@ exports[`yol etkinliği rotası: start × tür > ders üretimi düşer: kayıt b
     "db select exam_preps [document_id, source_document_ids] eq(id,"00000000-0000-4000-8000-0000000000a1") eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "db select exam_prep_topics [label, sort_order] eq(exam_prep_id,"00000000-0000-4000-8000-0000000000a1") order(sort_order,asc)",
     "db select document_pages [page_number, headings] eq(document_id,"doc1") in(page_number,[1,2]) order(page_number,asc)",
+    "db select student_learning_memory [memory] eq(user_id,"00000000-0000-4000-8000-00000000aaaa") maybe",
     "call ensureCleanPages [{"userId":"00000000-0000-4000-8000-00000000aaaa","documentId":"doc1","pages":[1,2],"edges":[]}]",
     "log.info ["lesson_pre_timing",{"headersMs":0,"cleanMs":0,"pages":1,"cleanedByModelNow":0}]",
     "db select exam_preps [learning_preferences] eq(id,"00000000-0000-4000-8000-0000000000a1") maybe",

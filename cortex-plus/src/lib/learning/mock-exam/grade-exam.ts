@@ -36,6 +36,8 @@ import {
 } from "@/lib/learning/mock-exam";
 import { recordAnswerEvidence } from "@/lib/mastery-map/exam-evidence";
 import { rememberMisconceptions } from "@/lib/learning/node/misconceptions";
+import { afterResponse } from "@/lib/learning/node/shared";
+import { refreshStudentMemory } from "@/lib/learning/student-memory";
 
 export type GradeMockExamInput = {
   service: SupabaseClient;
@@ -405,6 +407,9 @@ export async function gradeMockExam(input: GradeMockExamInput): Promise<GradeMoc
   } catch {
     // ignore
   }
+
+  // Öğrenme hafızası (5 Kasım 2026): deneme de defter ve yanılgı kaydı üretir; özet yanıttan sonra yenilenir.
+  afterResponse(() => refreshStudentMemory(service, userId));
 
   return {
     ok: true,

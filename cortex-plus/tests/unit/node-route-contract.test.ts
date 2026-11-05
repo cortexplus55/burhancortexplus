@@ -163,6 +163,15 @@ vi.mock("@/lib/learning/lesson-prefetch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/learning/lesson-prefetch")>()),
   verifyPrefetchToken: (token: string | null) => (token === "signed" ? { userId: USER, nodeId: NODE } : null),
 }));
+// Öğrenme hafızası (5 Kasım 2026): yenileme yanıttan sonra arka plan işidir; sözleşme yalnız çağrıyı kaydeder, özetin
+// kendisi kendi testinde (ogrenme-hafizasi.test.ts). Okuma (`loadStudentMemory`) gerçek kodla kayıt veritabanına gider.
+vi.mock("@/lib/learning/student-memory", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/learning/student-memory")>()),
+  refreshStudentMemory: async (_service: unknown, userId: string) => {
+    h.record("refreshStudentMemory", [userId]);
+    return null;
+  },
+}));
 
 import { POST } from "@/app/api/learning/exam-prep/node/route";
 
