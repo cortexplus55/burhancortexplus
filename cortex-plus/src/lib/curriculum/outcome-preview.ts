@@ -21,12 +21,15 @@ export type OutcomePreview = {
   workedExample: string | null;
   commonMistakes: string[];
   keyTerms: { term: string; definition: string }[];
+  /** Ünitenin tekrar kartları: önce bu bölümde geçenler, sonra kalanlar (en çok 6). Soru bankası değil, ders içeriği. */
+  cards: { front: string; back: string }[];
   unitOverview: string | null;
   unitSummary: string | null;
   sampleQuestion: { stem: string; choices: string[] } | null;
 };
 
 const MAX_KEY_TERMS = 6;
+const MAX_CARDS = 6;
 
 /** Terim bölümün metninde geçiyor mu (büyük/küçük harf ve Türkçe I/İ duyarsız). */
 function mentions(text: string, term: string): boolean {
@@ -72,6 +75,9 @@ async function readOutcomePreview(
 
   const sectionText = [section.heading, section.explanation, ...section.key_points, section.worked_example ?? ""].join("\n");
   const keyTerms = (lesson.key_terms ?? []).filter((t) => mentions(sectionText, t.term)).slice(0, MAX_KEY_TERMS);
+  const allCards = lesson.cards ?? [];
+  const related = allCards.filter((c) => mentions(sectionText, c.front.replace(/[?.:!]+$/, "")) || keyTerms.some((t) => mentions(c.front, t.term)));
+  const cards = [...related, ...allCards.filter((c) => !related.includes(c))].slice(0, MAX_CARDS);
 
   const outcomeId = unit.outcomes[input.outcomeIndex]?.outcomeId ?? null;
   let sampleQuestion: OutcomePreview["sampleQuestion"] = null;
@@ -99,6 +105,7 @@ async function readOutcomePreview(
     workedExample: section.worked_example?.trim() ? section.worked_example : null,
     commonMistakes: section.common_mistakes ?? [],
     keyTerms,
+    cards,
     unitOverview: lesson.overview?.trim() || null,
     unitSummary: lesson.summary?.trim() || null,
     sampleQuestion,
@@ -118,6 +125,7 @@ export function previewWordCount(preview: OutcomePreview, outcomeText: string): 
     preview.workedExample ?? "",
     ...preview.commonMistakes,
     ...preview.keyTerms.flatMap((t) => [t.term, t.definition]),
+    ...preview.cards.flatMap((c) => [c.front, c.back]),
     preview.unitOverview ?? "",
     preview.sampleQuestion?.stem ?? "",
     ...(preview.sampleQuestion?.choices ?? []),

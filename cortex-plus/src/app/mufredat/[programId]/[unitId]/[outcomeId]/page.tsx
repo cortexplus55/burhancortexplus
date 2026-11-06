@@ -220,6 +220,20 @@ export default async function OutcomePage({ params }: Params) {
             </section>
           ) : null}
 
+          {preview.cards.length ? (
+            <section className="mk-card p-4 sm:p-6" data-testid="review-cards">
+              <h2 className="text-base font-semibold text-[var(--mk-text)]">Tekrar kartları</h2>
+              <ul className="mt-3 grid gap-3 text-[15px] sm:grid-cols-2">
+                {preview.cards.map((card, i) => (
+                  <li key={i} className="rounded-xl border border-[var(--mk-border)] p-3">
+                    <p className="font-semibold text-[var(--mk-text)]">{card.front}</p>
+                    <p className="mt-1 text-[var(--mk-muted)]">{card.back}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           {preview.sampleQuestion ? (
             <section className="mk-card p-4 sm:p-6" data-testid="sample-question">
               <h2 className="text-base font-semibold text-[var(--mk-text)]">Örnek soru</h2>
