@@ -480,3 +480,58 @@
 @media (prefers-reduced-motion: reduce) {
   .adm * { transition: none !important; }
 }
+
+/* ---------- Kullanıcı yönetimi (6 Kasım 2026) ---------- */
+
+.adm-tool-stack { display: grid; gap: 0.85rem; min-width: 0; }
+.adm-tool-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem; min-width: 0; }
+.adm-tool-field { display: grid; gap: 0.25rem; flex: 1 1 12rem; min-width: 0; font-size: 0.8125rem; color: var(--adm-muted); }
+.adm-tool-field--narrow { flex: 0 1 9rem; }
+.adm-tool-field .adm-input { width: 100%; min-height: 44px; }
+.adm-tool-row .adm-btn { min-height: 44px; }
+.adm-tool-hint { margin: 0; font-size: 0.8125rem; color: var(--adm-muted); }
+.adm-subtitle { margin: 0 0 0.5rem; font-size: 0.9375rem; font-weight: 700; }
+
+.adm-confirm {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--adm-line);
+  background: var(--adm-panel-2);
+  min-width: 0;
+}
+.adm-confirm--danger { border-color: rgba(248, 113, 113, 0.45); background: var(--adm-bad-soft); }
+.adm-confirm p { margin: 0; overflow-wrap: anywhere; }
+.adm-confirm-list { margin: 0; padding-left: 1.1rem; font-size: 0.875rem; overflow-wrap: anywhere; }
+
+.adm-stack-list { list-style: none; margin: 0 0 0.6rem; padding: 0; display: grid; gap: 0.4rem; }
+.adm-stack-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--adm-line-soft);
+  border-radius: 0.6rem;
+  min-width: 0;
+}
+.adm-stack-main { flex: 1 1 auto; min-width: 0; }
+.adm-stack-name { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.adm-stack-main a { overflow-wrap: anywhere; }
+.adm-stack-meta { margin: 0.15rem 0 0; font-size: 0.8125rem; color: var(--adm-muted); overflow-wrap: anywhere; }
+.adm-check { width: 1.25rem; height: 1.25rem; flex: none; accent-color: var(--adm-bad); }
+
+/* Kullanıcı listesi: dar ekranda tablo yerine kart (sayfa yana kaymaz). */
+@media (max-width: 40rem) {
+  .adm-table--stack { white-space: normal; }
+  .adm-table--stack thead { display: none; }
+  .adm-table--stack tr { display: grid; gap: 0.35rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--adm-line-soft); }
+  .adm-table--stack td { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0; border: none; min-width: 0; overflow-wrap: anywhere; }
+  .adm-table--stack td[data-label]::before {
+    content: attr(data-label);
+    min-width: 6.5rem;
+    font-size: 0.75rem;
+    color: var(--adm-muted);
+  }
+  .adm-table--stack td > .flex { justify-content: flex-start; }
+}

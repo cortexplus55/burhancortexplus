@@ -81,7 +81,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/kullanicilar",
         label: "Kullanıcı Yönetimi",
         icon: Users,
-        blurb: "Hesapları ara, kredi ver ya da al, öğretmen yetkisi değiştir, hesabı askıya al.",
+        blurb: "Hesapları ara; paket tanımla ya da iptal et, hediye kredi ve yıldız ver ya da al, e-postayı onayla, cihaz oturumlarını sıfırla, hesabı askıya al. Hazırlık ve belgeyi yalnız kurucu kalıcı siler.",
       },
       {
         href: "/admin/yoneticiler",

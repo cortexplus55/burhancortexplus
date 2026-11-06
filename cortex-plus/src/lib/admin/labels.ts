@@ -30,6 +30,16 @@ export const AUDIT_LABELS: Record<string, string> = {
   "admin_gate.locked": "Kurucu yönetim girişi çok fazla yanlış PIN yüzünden kilitlendi",
   "admin_gate.misconfigured": "Kurucu yönetim girişi ayarı okunamadı",
   "admin_gate.locked_by_user": "Yönetim girişi bu cihazda kilitlendi",
+  "subscription.granted": "Kullanıcıya ücretsiz paket tanımlandı",
+  "subscription.extended": "Kullanıcının aboneliği uzatıldı",
+  "subscription.cancelled": "Kullanıcının aboneliği iptal edildi",
+  "stars.adjusted": "Kullanıcının yıldızı değiştirildi",
+  "email.confirmed_by_admin": "Kullanıcının e-postası onaylı işaretlendi",
+  "devices.reset": "Kullanıcı bütün cihazlardan çıkarıldı",
+  "exam_preps.deleted_by_founder": "Kullanıcının hazırlıkları kalıcı olarak silindi",
+  "documents.deleted_by_founder": "Kullanıcının belgeleri kalıcı olarak silindi",
+  "user.suspended": "Hesap askıya alındı",
+  "user.unsuspended": "Hesabın askısı kaldırıldı",
 };
 
 /** Kredi bedeli tablosundaki işlem kodları. */
