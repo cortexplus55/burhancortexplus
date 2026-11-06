@@ -13,8 +13,10 @@ import { countPendingApplications } from "@/lib/admin/pending";
 import { loadCockpit } from "@/lib/admin/cockpit";
 import { spendKurus, WINDOW_KEYS, WINDOW_LABEL, type WindowCounts } from "@/lib/admin/cockpit-math";
 import { formatDate, formatNumber, formatTry } from "@/lib/format";
+import { reportReasonLabel, type ReportReason } from "@/lib/learning/question-report/copy";
+import { statusLabel as rawStatusLabel } from "@/lib/admin/status-labels";
 
-export const metadata = { title: "Yönetim · Kokpit" };
+export const metadata = { title: "Yönetim · Ana Kokpit" };
 /** "Reddet ve yeniden ürettir" bir model çağrısı yapar (~20 sn); Hobby planının tavanı. */
 export const maxDuration = 60;
 
@@ -109,7 +111,7 @@ export default async function AdminPage() {
 
       <AdminCard
         title="Birim ekonomisi (kâr / zarar)"
-        desc="OpenAI gideri ai_usage_events × ai_model_prices'tan; gelir başarılı ödemelerden. Marj için kur gerekir."
+        desc="OpenAI gideri kullanım kayıtları ve model fiyat tablosundan hesaplanır; gelir başarılı ödemelerden. Marj için kur gerekir."
         actions={isFounder ? <FxRateForm current={economics.usdTry.rate} isDefault={economics.usdTry.source === "default"} /> : undefined}
         bodyless
       >
@@ -157,7 +159,7 @@ export default async function AdminPage() {
             <span className="font-medium">Günlük harcama sigortası</span>
             {breaker ? (
               <AdminBadge tone={!breaker.enabled ? "mute" : breaker.tripped ? "bad" : "ok"}>
-                {!breaker.enabled ? "Kapalı (yerel)" : breaker.tripped ? "ATTI · ücretsiz üretim durdu" : "Açık"}
+                {!breaker.enabled ? "Kapalı (yerel)" : breaker.tripped ? "Devreye girdi · ücretsiz üretim durdu" : "Açık"}
               </AdminBadge>
             ) : (
               <AdminBadge tone="mute">okunamadı</AdminBadge>
@@ -178,15 +180,15 @@ export default async function AdminPage() {
 
       <AdminCard
         id="karantina"
-        title="Canlı kalite · karantina kuyruğu"
-        desc="Saatlik SQL işi doğru oranı düşük, çok bildirilen ya da güçlü öğrencilerin aynı yanlışı seçtiği havuz sorusunu 'stale' yapar. Burada okur, karar verirsin."
+        title="Canlı kalite · Karantina kuyruğu"
+        desc="Saatlik denetim; doğru oranı düşük, çok bildirilen ya da güçlü öğrencilerin aynı yanlışı seçtiği havuz sorusunu karantinaya alır. Burada okur, karar verirsin."
       >
         <CockpitQuarantine rows={quarantine} />
       </AdminCard>
 
       <AdminCard
         title="Eski sürüm soruları"
-        desc="Ünite yeniden yazılınca (kayıt defteri değişti ya da ders yeniden kuyruğa alındı) eski içeriğin soruları 'stale' kalır; öğrenciye sunulmaz. Yeni sürüm doğrulandıysa tek tıkla arşivlenir; satır silinmez."
+        desc="Ünite yeniden yazılınca (kayıt defteri değişti ya da ders yeniden kuyruğa alındı) eski içeriğin soruları kenarda bekler (Yenilenecek); öğrenciye sunulmaz. Yeni sürüm doğrulandıysa tek tıkla arşivlenir; satır silinmez."
       >
         <CockpitSuperseded rows={superseded} />
       </AdminCard>
@@ -203,7 +205,7 @@ export default async function AdminPage() {
                 <td className="adm-num">{formatDate(row.createdAt)}</td>
                 <td>{row.source === "mock" ? "Yazılı deneme" : "Yol testi"}</td>
                 <td>
-                  {row.reason}
+                  {reportReasonLabel(row.reason as ReportReason)}
                   {row.note ? <span className="block text-xs text-[var(--adm-muted)]">{row.note}</span> : null}
                 </td>
                 <td>
@@ -287,7 +289,7 @@ export default async function AdminPage() {
                   <td>{person?.full_name || "İsimsiz kullanıcı"}</td>
                   <td className="adm-num">{formatTry(payment.amount_try ?? 0)}</td>
                   <td>
-                    <AdminBadge tone={statusTone[status] ?? "mute"}>{statusLabel[status] ?? status}</AdminBadge>
+                    <AdminBadge tone={statusTone[status] ?? "mute"}>{statusLabel[status] ?? rawStatusLabel(status)}</AdminBadge>
                   </td>
                   <td className="adm-num">{formatDate(payment.created_at)}</td>
                 </tr>
@@ -309,7 +311,7 @@ export default async function AdminPage() {
           </Link>
         }
       >
-        <p className="text-sm text-[var(--adm-muted)]">Her başarısız ders üretimi sebep kodu ve kaynak çözücü iziyle kayda geçer. TRT zaman damgası.</p>
+        <p className="text-sm text-[var(--adm-muted)]">Her başarısız ders üretimi sebep kodu ve kaynak çözücü iziyle kayda geçer. Zamanlar Türkiye saatiyle.</p>
       </AdminCard>
     </AdminShell>
   );

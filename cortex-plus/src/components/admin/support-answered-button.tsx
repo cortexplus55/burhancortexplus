@@ -20,7 +20,7 @@ export function SupportAnsweredButton({ requestId }: { requestId: string }) {
         })
       }
     >
-      {pending ? "…" : "Cevaplandı"}
+      {pending ? "Kaydediliyor…" : "Cevaplandı"}
     </button>
   );
 }

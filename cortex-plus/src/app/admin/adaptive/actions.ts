@@ -39,7 +39,7 @@ export async function updateAdaptivePilotUser(input: {
   if (!founder.ok) return { ok: false, error: founder.error };
 
   const parsed = pilotSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Geçersiz UUID veya bayrak." };
+  if (!parsed.success) return { ok: false, error: "Geçersiz kullanıcı kimliği ya da özellik anahtarı." };
 
   const service = createServiceClient();
   const { data: row, error } = await service
@@ -51,7 +51,7 @@ export async function updateAdaptivePilotUser(input: {
   if (error || !row) {
     return {
       ok: false,
-      error: `Bayrak satırı bulunamadı: ${parsed.data.flagKey}. Satır oluşturulmaz.`,
+      error: `Özellik anahtarı kaydı bulunamadı: ${parsed.data.flagKey}. Kayıt burada oluşturulmaz.`,
     };
   }
 
@@ -191,8 +191,8 @@ export async function testJevConnection(): Promise<
     estimatedCostUsd: cost,
     access: result.access,
     summary: normalized.ok
-      ? `action=${normalized.result.action} conf=${normalized.result.confidence.toFixed(2)}`
-      : `normalize_failed:${normalized.detail}`,
+      ? `seçilen adım: ${normalized.result.action} · güven ${normalized.result.confidence.toFixed(2)}`
+      : `cevap çözümlenemedi: ${normalized.detail}`,
   };
 }
 
