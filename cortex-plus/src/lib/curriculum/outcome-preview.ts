@@ -43,6 +43,24 @@ export async function loadOutcomePreview(
   service: SupabaseClient,
   input: { programId: string; unitIndex: number; outcomeCode: string; outcomeIndex: number },
 ): Promise<OutcomePreview | null> {
+  return withTimeout(readOutcomePreview(service, input), OUTCOME_PREVIEW_TIMEOUT_MS);
+}
+
+/** Havuz okumasının üst sınırı: yavaş veritabanı sayfayı askıda bırakmasın; aşılırsa sayfa eski hâliyle açılır. */
+export const OUTCOME_PREVIEW_TIMEOUT_MS = 3_500;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function readOutcomePreview(
+  service: SupabaseClient,
+  input: { programId: string; unitIndex: number; outcomeCode: string; outcomeIndex: number },
+): Promise<OutcomePreview | null> {
   const unit = poolUnit(`${input.programId}#${input.unitIndex + 1}`);
   if (!unit) return null;
   const lesson = await readPoolLesson(service, unit).catch(() => null);

@@ -7,7 +7,8 @@ test.describe("Müfredat SEO", { tag: ["@public"] }, () => {
     await expect(page.getByTestId("tree-label")).toHaveCount(0);
     const first = page.getByTestId("unit-outcomes").getByRole("link").first();
     await first.click();
-    await expect(page).toHaveURL(/\/mufredat\/meb-5-dkab\/1\/1$/);
+    // 6 Kasım 2026: kazanım sayfası artık havuzdan okuyor (ilk ISR çizimi daha uzun); geçişe süre tanınır.
+    await expect(page).toHaveURL(/\/mufredat\/meb-5-dkab\/1\/1$/, { timeout: 20_000 });
     await expect(page.getByTestId("outcome-text")).toBeVisible();
     // İstemci geçişinde Next akışlı metadata eski canonical'ı kısa süre body'de tutabilir;
     // tarayıcı/arama motorunun gördüğü tam yüklemeyi doğrula.
