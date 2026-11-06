@@ -59,11 +59,27 @@ export function rewriteLeadStreamPrompt(input: { topicLabel: string; basis: stri
  * Akış metninden ekran. `final` değilse yarım son paragraf yalnız tamamlanmış cümleye kadar alınır;
  * başlık, kavram ve en az 40 karakterlik bir paragraf yoksa null.
  */
+/** İstemdeki biçim etiketleri; model bunları satırın başına kopyalarsa ("İlk fikrin kısa adı: …") düşer. */
+const FORMAT_LABELS = ["ilk fikrin kısa adı", "ekran başlığı", "başlık", "kavram"] as const;
+
+export function dropFormatLabel(line: string): string {
+  const text = line.trim();
+  const lower = text.toLocaleLowerCase("tr-TR");
+  for (const label of FORMAT_LABELS) {
+    if (!lower.startsWith(label)) continue;
+    const rest = text.slice(label.length);
+    if (!rest.trim()) return "";
+    const cut = rest.replace(/^\s*[:：\-–—]\s*/, "");
+    if (cut !== rest) return cut.trim();
+  }
+  return text;
+}
+
 export function parseRewriteLeadText(text: string, final: boolean): LessonScreen | null {
   const clean = text.replace(/\r/g, "").replace(/^\s+/, "");
   const lines = clean.split("\n");
   if (lines.length < 3) return null;
-  const strip = (line: string) => line.replace(/^\s*(?:#+|\d+\.|başlık:|kavram:)\s*/i, "").replace(/\*\*/g, "").trim();
+  const strip = (line: string) => dropFormatLabel(line.replace(/^\s*(?:#+|\d+\.)\s*/, "").replace(/\*\*/g, ""));
   const heading = strip(lines[0]);
   const concept = strip(lines[1]) || heading;
   const blocks = lines.slice(2).join("\n").split(/\n\s*\n/).map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
@@ -110,8 +126,8 @@ export function parseRewriteLead(text: string): LessonScreen | null {
     : [];
   if (typeof value.heading !== "string" || !paragraphs.length) return null;
   const parsed = lessonScreenSchema.safeParse({
-    heading: value.heading.trim().slice(0, 160),
-    concept: typeof value.concept === "string" ? value.concept.trim().slice(0, 120) : value.heading.trim().slice(0, 120),
+    heading: (dropFormatLabel(value.heading) || value.heading.trim()).slice(0, 160),
+    concept: ((typeof value.concept === "string" ? dropFormatLabel(value.concept) : "") || dropFormatLabel(value.heading) || value.heading.trim()).slice(0, 120),
     blocks: paragraphs.map((text) => ({ type: "text", text: text.trim().slice(0, 2_500) })),
   });
   return parsed.success ? parsed.data : null;
