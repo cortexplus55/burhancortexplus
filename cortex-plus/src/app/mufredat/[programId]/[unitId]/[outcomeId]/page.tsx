@@ -151,6 +151,41 @@ export default async function OutcomePage({ params }: Params) {
             </section>
           ) : null}
 
+          {preview.steps.length ? (
+            <section className="mk-card p-4 sm:p-6">
+              <h2 className="text-base font-semibold text-[var(--mk-text)]">Adım adım</h2>
+              <ol className="mt-3 grid list-decimal gap-2 pl-5 text-[15px] text-[var(--mk-text)]">
+                {preview.steps.map((step, i) => (
+                  <li key={i}>
+                    <Rich text={step} />
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+
+          {preview.ladder ? (
+            <section className="mk-card p-4 sm:p-6">
+              <h2 className="text-base font-semibold text-[var(--mk-text)]">Seviyene göre</h2>
+              <dl className="mt-3 grid gap-3 text-[15px]">
+                {(
+                  [
+                    ["Temel", preview.ladder.temel],
+                    ["Orta", preview.ladder.orta],
+                    ["İleri", preview.ladder.ileri],
+                  ] as const
+                ).map(([level, text]) => (
+                  <div key={level}>
+                    <dt className="font-semibold text-[var(--mk-text)]">{level}</dt>
+                    <dd className="mt-0.5 text-[var(--mk-muted)]">
+                      <Rich text={text} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
+
           {preview.workedExample ? (
             <section className="mk-card p-4 sm:p-6">
               <h2 className="text-base font-semibold text-[var(--mk-text)]">Çözümlü örnek</h2>
@@ -207,6 +242,9 @@ export default async function OutcomePage({ params }: Params) {
             <section className="mk-card p-4 sm:p-6">
               <h2 className="text-base font-semibold text-[var(--mk-text)]">Ünite hakkında</h2>
               <Rich text={preview.unitOverview} className="mt-3 space-y-2 text-[15px] leading-relaxed text-[var(--mk-muted)]" />
+              {preview.unitSummary ? (
+                <Rich text={preview.unitSummary} className="mt-3 space-y-2 text-[15px] leading-relaxed text-[var(--mk-muted)]" />
+              ) : null}
             </section>
           ) : null}
         </div>

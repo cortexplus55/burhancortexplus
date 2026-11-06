@@ -55,6 +55,8 @@ describe("kazanım sayfası havuz ön izlemesi", async () => {
         key_points: ["Seçici geçirgenlik", "Difüzyon yüksekten düşüğe"],
         worked_example: "Örnek: tuzlu suya konan hücre su kaybeder.",
         common_mistakes: ["Osmozu difüzyonla karıştırmak"],
+        steps: ["Ortamı belirle", "Yoğunluğu karşılaştır"],
+        ladder: { temel: "Zar seçicidir.", orta: "Taşıma türleri ayrılır.", ileri: "Aktif taşıma enerji ister." },
       },
     ],
     key_terms: [
@@ -74,6 +76,9 @@ describe("kazanım sayfası havuz ön izlemesi", async () => {
     expect(preview!.heading).toBe("İkinci kazanım başlığı");
     expect(preview!.keyPoints).toHaveLength(2);
     expect(preview!.commonMistakes).toEqual(["Osmozu difüzyonla karıştırmak"]);
+    expect(preview!.steps).toEqual(["Ortamı belirle", "Yoğunluğu karşılaştır"]);
+    expect(preview!.ladder?.ileri).toBe("Aktif taşıma enerji ister.");
+    expect(preview!.unitSummary).toBe("Özet metni burada.");
     // Yalnız bölümde geçen kavram (Ribozom geçmiyor).
     expect(preview!.keyTerms.map((t) => t.term)).toEqual(["Hücre zarı"]);
     expect(preview!.sampleQuestion).toEqual({ stem: "Hücre zarı için hangisi doğrudur?", choices: ["A", "B", "C", "D", "E"] });

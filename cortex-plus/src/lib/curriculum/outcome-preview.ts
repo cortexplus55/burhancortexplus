@@ -16,10 +16,13 @@ export type OutcomePreview = {
   heading: string;
   explanation: string;
   keyPoints: string[];
+  steps: string[];
+  ladder: { temel: string; orta: string; ileri: string } | null;
   workedExample: string | null;
   commonMistakes: string[];
   keyTerms: { term: string; definition: string }[];
   unitOverview: string | null;
+  unitSummary: string | null;
   sampleQuestion: { stem: string; choices: string[] } | null;
 };
 
@@ -73,10 +76,13 @@ export async function loadOutcomePreview(
     heading: section.heading,
     explanation: section.explanation,
     keyPoints: section.key_points,
+    steps: section.steps ?? [],
+    ladder: section.ladder && [section.ladder.temel, section.ladder.orta, section.ladder.ileri].every((t) => t?.trim()) ? section.ladder : null,
     workedExample: section.worked_example?.trim() ? section.worked_example : null,
     commonMistakes: section.common_mistakes ?? [],
     keyTerms,
     unitOverview: lesson.overview?.trim() || null,
+    unitSummary: lesson.summary?.trim() || null,
     sampleQuestion,
   };
 }
@@ -88,6 +94,9 @@ export function previewWordCount(preview: OutcomePreview, outcomeText: string): 
     preview.heading,
     preview.explanation,
     ...preview.keyPoints,
+    ...preview.steps,
+    preview.ladder ? [preview.ladder.temel, preview.ladder.orta, preview.ladder.ileri].join(" ") : "",
+    preview.unitSummary ?? "",
     preview.workedExample ?? "",
     ...preview.commonMistakes,
     ...preview.keyTerms.flatMap((t) => [t.term, t.definition]),
