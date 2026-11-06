@@ -272,13 +272,13 @@ describe("Paket H · adım sayacı", () => {
     );
     const count = () => container.querySelector(".als-count")!.textContent ?? "";
     const bar = () => container.querySelector('[role="progressbar"]')!;
-    expect(count()).toMatch(/Adım\s*1 \/ ~\d+/);
+    expect(count()).toMatch(/^Adım\s*1$/);
     expect(bar().hasAttribute("aria-valuemax")).toBe(false);
     expect(container.querySelector(".als-minutes")).toBeNull();
     expect(container.querySelector(".als-intro-meta")!.textContent).not.toMatch(/\d+ adım|dk/);
 
     rerender(<ExamLessonSteps lesson={sealLessonV3ForPlay({ ...base, screens: zScreens(6) } as LessonV3)} building upcoming={["Yorum"]} closeHref="/d" />);
-    expect(count()).toMatch(/Adım\s*1 \/ ~\d+/);
+    expect(count()).toMatch(/^Adım\s*1$/);
     expect(bar().hasAttribute("aria-valuemax")).toBe(false);
 
     // Mühür: payda yazılan adımlardır ve kilitlenir.
@@ -313,9 +313,9 @@ describe("Paket H · adım sayacı", () => {
     expect(label).toMatch(/1 \/ \d+/);
     expect(label).not.toContain("/ 11");
     const steps = read("src/components/parity/exam-lesson-steps.tsx");
-    // Plan yalnız yazım sürerken tahmini paydaya girer (3 Kasım 2026); mühürlü sayaç plana bakmaz.
-    expect(steps).toMatch(/lessonStepCounter\(\{ index, writtenSteps: base\.length, building: writing, lockedTotal: lockedTotalRef\.current, estimatedTotal \}\)/);
-    expect(steps).toContain("const estimatedTotal = writing ?");
+    // Plan sayaca hiç girmez (6 Kasım 2026, Paket 4: 3 Kasım'daki tahmini payda kalktı).
+    expect(steps).toMatch(/lessonStepCounter\(\{ index, writtenSteps: base\.length, building, lockedTotal: lockedTotalRef\.current \}\)/);
+    expect(steps).not.toContain("estimatedTotal");
   });
 });
 

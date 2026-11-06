@@ -25,6 +25,7 @@ import type {
   CurriculumSource,
   YksPart,
 } from "@/lib/curriculum/types";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 export type OfficialCurriculumPick = {
   program: CurriculumProgram;
@@ -354,9 +355,9 @@ export function OfficialCurriculumPanel({
             {(detail?.sources ?? []).map((s, i) => (
               <span key={s.id}>
                 {i ? " · " : ""}
-                <a href={s.url} target="_blank" rel="noreferrer">
+                <ExternalAnchor href={s.url}>
                   {sourceDisplayTitle(s.title)}
-                </a>
+                </ExternalAnchor>
               </span>
             ))}
           </p>

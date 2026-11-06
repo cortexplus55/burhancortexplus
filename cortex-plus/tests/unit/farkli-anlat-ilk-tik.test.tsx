@@ -63,10 +63,10 @@ describe("Farklı anlat ilk tık (3 Kasım 2026 canlı hata)", () => {
 });
 
 describe("akış sırasında adım sayacı", () => {
-  it("tahmin verilince '1 / ~8', yazılan + 1'in altına inmez", () => {
-    expect(lessonStepCounter({ index: 0, writtenSteps: 1, building: true, estimatedTotal: 8 }).label).toBe("1 / ~8");
-    expect(lessonStepCounter({ index: 8, writtenSteps: 9, building: true, estimatedTotal: 6 }).label).toBe("9 / ~10");
+  // 6 Kasım 2026 (Paket 4): 3 Kasım'daki tahmini payda ("1 / ~8") kalktı; yazım sürerken etiket çıplak "N".
+  it("yazım sürerken payda yok; mühürde yazılan adım", () => {
     expect(lessonStepCounter({ index: 0, writtenSteps: 1, building: true }).label).toBe("1");
-    expect(lessonStepCounter({ index: 0, writtenSteps: 7, building: false, estimatedTotal: 8 }).label).toBe("1 / 7");
+    expect(lessonStepCounter({ index: 8, writtenSteps: 9, building: true }).label).toBe("9");
+    expect(lessonStepCounter({ index: 0, writtenSteps: 7, building: false }).label).toBe("1 / 7");
   });
 });

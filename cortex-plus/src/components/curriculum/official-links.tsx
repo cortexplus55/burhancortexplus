@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 import { officialLinksFor } from "@/lib/curriculum/official-links";
 
 /** "İlgili resmî kaynaklar": yalnız bağlantı; belge içeriği uygulamada gösterilmez. */
@@ -11,9 +11,9 @@ export function OfficialLinks({ exam, className }: { exam: string | null | undef
       <ul>
         {links.map((l) => (
           <li key={l.url}>
-            <a href={l.url} target="_blank" rel="noreferrer noopener">
-              {l.title} <ExternalLink className="inline h-3 w-3" aria-hidden />
-            </a>{" "}
+            <ExternalAnchor href={l.url} icon>
+              {l.title}
+            </ExternalAnchor>{" "}
             <span>· {l.publisher}</span>
           </li>
         ))}

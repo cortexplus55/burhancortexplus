@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FileText, Library, X } from "lucide-react";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 /**
  * pages: konuya bağlı etkinlikte kullanılan sayfalar ("s.5–6"); yoksa dosyanın tamamı.
@@ -70,9 +71,9 @@ export function NodeSources({ sources }: { sources: NodeSource[] }) {
                     {source.name}
                     {source.pages ? <small className="cp-node-sources-pages"> · {source.pages}</small> : null}
                   </span>
-                  <a href={source.href} target="_blank" rel="noopener noreferrer">
+                  <ExternalAnchor href={source.href}>
                     Aç
-                  </a>
+                  </ExternalAnchor>
                 </li>
               ))}
             </ul>

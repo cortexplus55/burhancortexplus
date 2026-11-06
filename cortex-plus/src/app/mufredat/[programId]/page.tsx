@@ -6,6 +6,7 @@ import { displayUnitTitles } from "@/lib/curriculum/unit-title";
 import { OfficialLinks } from "@/components/curriculum/official-links";
 import { treeLabelFor, unitPath } from "@/lib/curriculum/seo";
 import { cleanMathGlyphs } from "@/lib/curriculum/math-glyphs";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 const EXAM_LABEL: Record<string, string> = {
   d1y1: "1. Dönem 1. Ortak Yazılı",
@@ -92,9 +93,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ progra
         <ul className="mt-3 grid gap-2 text-xs text-[var(--mk-muted)]" data-testid="mufredat-sources">
           {sources.map((s) => (
             <li key={s.id} className="mk-card break-all p-3">
-              <a href={s.url} target="_blank" rel="noreferrer" className="text-[var(--mk-text)]">
+              <ExternalAnchor href={s.url} className="text-[var(--mk-text)]">
                 {s.publisher} — {s.title}
-              </a>
+              </ExternalAnchor>
               <br />
               sürüm {s.program_version} · sha256 {s.sha256} · alındı {s.fetched_at.slice(0, 10)}
             </li>

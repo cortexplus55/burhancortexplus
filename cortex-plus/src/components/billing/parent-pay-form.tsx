@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 /**
  * Velinin ödeme formu (29 Ekim 2026): e-posta (PayTR makbuzu), ad (isteğe bağlı), sözleşme onayı;
@@ -99,13 +99,13 @@ export function ParentPayForm({ token, studentName, planName, priceLabel }: { to
       <label className="flex items-start gap-2 text-sm leading-relaxed">
         <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-1" />
         <span>
-          <Link href="/on-bilgilendirme" className="underline" target="_blank" rel="noreferrer">
+          <ExternalAnchor href="/on-bilgilendirme" className="underline">
             Ön Bilgilendirme Formu
-          </Link>
+          </ExternalAnchor>
           &apos;nu ve{" "}
-          <Link href="/mesafeli-satis" className="underline" target="_blank" rel="noreferrer">
+          <ExternalAnchor href="/mesafeli-satis" className="underline">
             Mesafeli Satış Sözleşmesi
-          </Link>
+          </ExternalAnchor>
           &apos;ni okudum, kabul ediyorum. Dijital hizmet anında açıldığı için cayma hakkı bulunmadığını biliyorum.
         </span>
       </label>
