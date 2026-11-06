@@ -50,7 +50,7 @@ export const maxDuration = 120;
  */
 const SERVICES: { name: string; env: string[]; critical: boolean; all?: boolean }[] = [
   { name: "Supabase", env: ["NEXT_PUBLIC_SUPABASE_URL"], critical: true },
-  { name: "Supabase service key", env: ["SUPABASE_SECRET_KEY"], critical: true },
+  { name: "Supabase hizmet anahtarı", env: ["SUPABASE_SECRET_KEY"], critical: true },
   { name: "OpenAI", env: ["OPENAI_API_KEY"], critical: true },
   { name: "Workspace SMTP", env: ["SMTP_PASS"], critical: true },
   // 5 Kasım 2026: işlem e-postası sağlayıcısı; anahtar tanımlıysa asıl yol Resend, SMTP yedek (mailer.ts).
@@ -220,7 +220,7 @@ export default async function AdminSistemPage() {
 
       {/*
         İçerik havuzu (6 Kasım 2026): dokuz sınav ailesi. Ünite toplamı kayıt defterinden, havuz sayıları sayım
-        sorgularından (satır okunmaz). Aile eşlemesi tek yerde: `lib/admin/content-families.ts`.
+        sorgularından (satır okunmaz). Aile eşlemesi kodda tek yerde tutulur.
       */}
       <AdminCard
         title="İçerik havuzu"
@@ -270,7 +270,7 @@ export default async function AdminSistemPage() {
               onayla / reddet). <strong>Yenilenecek</strong>: ünitesi yeniden yazılınca emekliye ayrılan eski sürüm
               sorular (kokpitte &quot;Eski sürümleri arşivle&quot;).
               {pool.unmapped.length
-                ? ` Hiçbir aileye bağlanmamış ${pool.unmapped.length} program var: lib/admin/content-families.ts'e eklenmeli.`
+                ? ` Hiçbir aileye bağlanmamış ${pool.unmapped.length} program var: sınav ailesi eşlemesine eklenmeli.`
                 : ""}
             </p>
           </>

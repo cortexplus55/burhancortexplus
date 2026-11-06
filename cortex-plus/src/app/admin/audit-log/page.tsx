@@ -49,8 +49,8 @@ export default async function AdminIslemKayitlariPage() {
 
       {unlabeled.size ? (
         <AdminNote tone="warn">
-          {unlabeled.size} işlem türünün Türkçe adı henüz yok; satırda &quot;Tanımlanmamış işlem&quot; yazıyor. Adı{" "}
-          <code>src/lib/admin/labels.ts</code> dosyasına eklenmeli.
+          {unlabeled.size} işlem türünün Türkçe adı henüz yok; satırda &quot;Tanımlanmamış işlem&quot; yazıyor. Bu işlemlerin Türkçe adının
+          koda eklenmesi gerekiyor.
         </AdminNote>
       ) : null}
 

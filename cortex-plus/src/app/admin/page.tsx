@@ -154,7 +154,7 @@ export default async function AdminPage() {
             {formatNumber(economics.spendMonth.unpricedCalls)} çağrının modeli fiyat tablosunda yok; gider o kadar eksik. <Link href="/admin/maliyetler" className="underline">Maliyetler</Link>
           </p>
         ) : null}
-        <div className="border-t border-[var(--adm-border)] px-5 py-4 space-y-3">
+        <div className="border-t border-[var(--adm-line)] px-5 py-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-medium">Günlük harcama sigortası</span>
             {breaker ? (

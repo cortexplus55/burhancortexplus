@@ -140,7 +140,7 @@ export default async function AdminHazirlikPage({
         )}
       </AdminCard>
 
-      <AdminCard title="Bu hazırlığın üretim hataları" desc="Takılı üretimi kapatıp iade etmek: /admin/ders-hatalari." bodyless>
+      <AdminCard title="Bu hazırlığın üretim hataları" desc="Takılı üretimi kapatıp iade etmek için Ders Hataları sayfasını kullan." bodyless>
         {failures?.length ? (
           <AdminTableFrame columns={["Zaman", "Tür", "Sebep", "Konu", "Ret cümleleri"]}>
             {failures.map((row, index) => (
