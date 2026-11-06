@@ -542,6 +542,7 @@ async function handleChat(request: Request, live: LiveChannel): Promise<Response
               ...(lastLesson ? [{ label: `Öğrencinin belgesinden hazırlanan ders: ${lastLesson.title}`, text: lastLesson.text }] : []),
             ],
             pendingAnswer: pendingExpected?.answer ?? null,
+            sourceRules: grounding.sourceRules ?? [],
             mode: tutorMode,
           },
           history: history.map((item) =>

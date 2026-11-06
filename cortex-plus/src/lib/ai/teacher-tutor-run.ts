@@ -7,6 +7,7 @@ import {
   parseTutorIssues,
   tutorRetryNote,
   tutorSystemPrompt,
+  tutorVerifyPassages,
   tutorVerifyUserPrompt,
   type TutorContext,
 } from "@/lib/ai/teacher-tutor";
@@ -95,7 +96,7 @@ export async function runTeacherTutor(input: {
             { role: "system", content: tutorVerifySystem(input.context.mode) },
             {
               role: "user",
-              content: tutorVerifyUserPrompt({ passages: input.context.passages, question: input.message, answer }),
+              content: tutorVerifyUserPrompt({ passages: tutorVerifyPassages(input.context), question: input.message, answer }),
             },
           ],
         },

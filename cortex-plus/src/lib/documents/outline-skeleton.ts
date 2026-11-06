@@ -72,6 +72,13 @@ export type SkeletonHeading = {
   parent: boolean;
   /** Dosyanın kendi adı (kapak satırı, ilk slayt): bölüm değil, ölçülmez. */
   documentTitle: boolean;
+  /**
+   * Belgenin en üst numaralama düzeyinde ardışık numaralı (1., 2., 3. …) kardeş bölümlerden biri
+   * (`markNumberedSiblings`): gövdesi kısa olsa da ayrı bölümdür.
+   */
+  numberedSibling?: boolean;
+  /** Numaralı madde bölümü ("2. <konu> … cümlesi."): satırın kendi metninin uzunluğu; başlık satırında yok. */
+  itemChars?: number;
 };
 
 export type DocumentSkeleton = { headings: SkeletonHeading[] };
@@ -84,6 +91,72 @@ const RUNNING_MIN_PAGES = 3;
 const SLIDE_TITLE_MAX = 80;
 /** Bölümün sonraki sayfaya taşması: o sayfada en az bu kadar gövde metni (devam satırı, sayfa kenarı sayılmaz). */
 const SECTION_PAGE_MIN_CHARS = 80;
+
+/**
+ * Numaralı kardeş bölümler (6 Kasım 2026, canlı telefon denetiminde bulundu). Özet notta "1. …", "2. …", "3. …",
+ * "4. …" diye açıkça numaralanmış bölümlerin gövdesi 100-300 karakterdi; `carriesOwnTeaching` 450 karakter istediği
+ * için iskelet onları ölçmedi, ilk istemde listelemedi, yutulmuş da saymadı ve harita dört bölümü iki konuda eritti.
+ * Ölçü ders bağımsız ve yalnız numaralamaya bakar: dosyanın en üst numaralama düzeyinde, aynı önekle ardışık
+ * artan (n, n+1, n+2 …) en az `NUMBERED_SIBLING_MIN_RUN` başlığın her biri, kendi gövdesi en az
+ * `NUMBERED_SIBLING_BODY_MIN` karakterse ayrı bölümdür.
+ *
+ * Liste adımı ayrılır: gövdesi olmayan madde ("1. Konumu belirle" + tek kısa satır) sayılmaz; belgenin bölüm
+ * numaralaması ilerlemişken yeniden 1'den başlayan dizi (bir bölümün içindeki numaralı adımlar) sayılmaz.
+ */
+export const NUMBERED_SIBLING_MIN_RUN = 3;
+export const NUMBERED_SIBLING_BODY_MIN = 80;
+/** Numaralı madde bölümünde metnin kendisi de bölümdür: satır + altındaki satırlar en az bu kadar. */
+export const NUMBERED_ITEM_MIN = 30;
+
+function lastNumberPart(number: string): number {
+  return Number(number.split(".").pop());
+}
+
+function numberPrefix(number: string): string {
+  return number.split(".").slice(0, -1).join(".");
+}
+
+/** Dosyanın başlıklarında (belge sırasıyla) numaralı kardeş bölümleri işaretler. */
+export function markNumberedSiblings(fileHeadings: SkeletonHeading[]): void {
+  const numbered = fileHeadings.filter(
+    (heading): heading is SkeletonHeading & { number: string } =>
+      Boolean(heading.number) && heading.sources.includes("numbered") && !heading.documentTitle,
+  );
+  if (numbered.length < NUMBERED_SIBLING_MIN_RUN) return;
+  const top = Math.min(...numbered.map((heading) => heading.depth));
+  const level = numbered.filter((heading) => heading.depth === top);
+  // Ardışık diziler: aynı önek, son parça bir artıyor.
+  const runs: (typeof level)[] = [];
+  for (const heading of level) {
+    const run = runs[runs.length - 1];
+    const prev = run?.[run.length - 1];
+    if (
+      run &&
+      prev &&
+      numberPrefix(prev.number) === numberPrefix(heading.number) &&
+      lastNumberPart(heading.number) === lastNumberPart(prev.number) + 1
+    ) {
+      run.push(heading);
+    } else {
+      runs.push([heading]);
+    }
+  }
+  const withBody = (heading: SkeletonHeading) =>
+    heading.itemChars != null
+      ? heading.itemChars + heading.bodyChars >= NUMBERED_ITEM_MIN
+      : heading.bodyChars >= NUMBERED_SIBLING_BODY_MIN;
+  // Gövdeli bir dizinin ulaştığı en büyük numara; yeniden başlayan dizi bunu aşmadıkça liste adımıdır.
+  let reached = -Infinity;
+  for (const run of runs) {
+    const first = lastNumberPart(run[0]!.number);
+    const restart = first <= reached;
+    const sections = run.filter(withBody);
+    if (!restart && sections.length >= NUMBERED_SIBLING_MIN_RUN) {
+      for (const heading of sections) heading.numberedSibling = true;
+    }
+    if (sections.length) reached = Math.max(reached, lastNumberPart(run[run.length - 1]!.number));
+  }
+}
 
 const NUMBER_PREFIX = /^\s*(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+(?=\p{Lu})/u;
 const MARKDOWN_PREFIX = /^(#{1,4})\s+/;
@@ -125,7 +198,95 @@ function plainTitle(line: string): string | null {
   return title;
 }
 
-type LineHeading = { title: string; label: string; key: string; depth: number; number: string | null; source: SkeletonSource };
+type LineHeading = {
+  title: string;
+  label: string;
+  key: string;
+  depth: number;
+  number: string | null;
+  source: SkeletonSource;
+  /** Numaralı madde satırı (`numberedItemSections`): satırın kendi metninin uzunluğu. */
+  itemChars?: number;
+};
+
+/** Satır başında numaralı madde: "3. Büyük harfle başlayan metin" ya da "3) …". */
+const ITEM_LINE = /^(\d{1,2})[.)]\s+(?=[\p{Lu}\d])/u;
+/** Madde başlığı: satırın ilk cümleciği, en çok bu kadar kelime (yalnız istem ve eşleştirme için; konu adını model yazar). */
+const ITEM_TITLE_WORDS = 5;
+const ITEM_LABEL_MAX = 90;
+/** İlk maddeden önce en çok bu kadar metin (ya da belgenin %10'u): belgenin adı ve kısa bir giriş. */
+const ITEM_LEAD_MAX_CHARS = 400;
+
+/**
+ * Numaralı madde bölümleri (6 Kasım 2026, canlı telefon denetiminde bulundu). Özet notun bölümleri ayrı başlık satırı
+ * değil, "2. <konu> … cümlesi." diye numaralı maddelerdi; başlık bulucu cümleyi başlık saymadığı için iskelet onları hiç
+ * görmedi. Maddeler belgenin TEK bölümleme yapısıysa (dosyada en çok bir başlık var, o da ilk maddeden önce: belgenin
+ * adı) ve 1'den ya da n'den ardışık en az `NUMBERED_SIBLING_MIN_RUN` madde varsa her madde bir bölüm başlığıdır.
+ * Başlıklı belgedeki numaralı madde listesi (bir bölümün içindeki adımlar ya da olgular) bu yoldan geçmez.
+ */
+function numberedItemSections(
+  body: SkeletonPage[],
+  order: readonly { page: number; line: number; heading: LineHeading }[],
+  running: ReadonlySet<string>,
+): { page: number; index: number; line: string; heading: LineHeading }[] {
+  const structural = order.filter((row) => !running.has(row.heading.key));
+  if (structural.some((row) => row.heading.number) || structural.length > 1) return [];
+  const items: { page: number; index: number; line: string; number: number; rest: string }[] = [];
+  for (const page of body) {
+    if (isPracticePage(page.text)) continue;
+    const lines = page.text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    lines.forEach((line, index) => {
+      const match = ITEM_LINE.exec(line);
+      if (!match) return;
+      const rest = line.slice(match[0].length).trim();
+      if (!rest || ITEM_LABEL.test(rest)) return;
+      items.push({ page: page.pageNumber, index, line, number: Number(match[1]), rest });
+    });
+  }
+  // İlk ardışık dizi; tek başlık (belgenin adı) varsa ilk maddeden önce durmalı.
+  const run: typeof items = [];
+  for (const item of items) {
+    const prev = run[run.length - 1];
+    if (!prev || item.number === prev.number + 1) run.push(item);
+    else if (run.length >= NUMBERED_SIBLING_MIN_RUN) break;
+    else run.splice(0, run.length, item);
+  }
+  if (run.length < NUMBERED_SIBLING_MIN_RUN) return [];
+  const lead = structural[0];
+  const first = run[0]!;
+  if (lead && (lead.page > first.page || (lead.page === first.page && lead.line > first.index))) return [];
+  // Maddeler belgeyi baştan bölümler: ilk maddeden önceki metin (belgenin adı, kısa giriş) kısa olmalı. Başlıksız
+  // uzun bir belgenin ortasındaki numaralı liste bölüm değildir.
+  let before = 0;
+  let total = 0;
+  for (const page of body) {
+    page.text.split(/\n+/).forEach((raw, index) => {
+      const length = raw.trim().length;
+      total += length;
+      if (page.pageNumber < first.page || (page.pageNumber === first.page && index < first.index)) before += length;
+    });
+  }
+  if (before > Math.max(ITEM_LEAD_MAX_CHARS, total * 0.1)) return [];
+  return run.map((item) => {
+    const clause = item.rest.split(/[;:,(]|\.(?:\s|$)/u)[0]!.trim() || item.rest;
+    const title = clause.split(/\s+/).slice(0, ITEM_TITLE_WORDS).join(" ");
+    const label = `${item.number}. ${item.rest}`;
+    return {
+      page: item.page,
+      index: item.index,
+      line: item.line,
+      heading: {
+        title,
+        label: label.length > ITEM_LABEL_MAX ? `${label.slice(0, ITEM_LABEL_MAX - 1).trimEnd()}…` : label,
+        key: foldHeadingKey(`${item.number} ${item.rest}`),
+        depth: 1,
+        number: String(item.number),
+        source: "numbered" as const,
+        itemChars: item.rest.length,
+      },
+    };
+  });
+}
 
 /** Numaralı öğe etiketi ("Soru 5", "Şekil 2", "Örnek 3"): belgenin biçimi, bölüm değil. */
 const ITEM_LABEL =
@@ -199,6 +360,13 @@ export function buildDocumentSkeleton(files: SkeletonFile[]): DocumentSkeleton {
         if (running.has(heading.key) && heading.source !== "numbered") onPage.delete(line);
       }
       if (!onPage.size) accepted.delete(pageNumber);
+    }
+    // 2b) Numaralı madde bölümleri: başlık satırı yerine "1. … cümle." diye numaralı maddelerle bölümlenmiş not.
+    for (const item of numberedItemSections(body, order, running)) {
+      const onPage = accepted.get(item.page) ?? new Map<string, LineHeading>();
+      onPage.set(lineKey(item.line), item.heading);
+      accepted.set(item.page, onPage);
+      order.push({ page: item.page, line: item.index, heading: item.heading });
     }
     // 3) İçindekiler satırları gövdedeki başlıkla eşlenir; eşleşmeyen satır gövdede aranır.
     const tocKeys = new Map<string, { depth: number; number: string | null }>();
@@ -278,6 +446,7 @@ export function buildDocumentSkeleton(files: SkeletonFile[]): DocumentSkeleton {
         teaching: carriesOwnTeaching(detail),
         parent: false,
         documentTitle: false,
+        ...(heading.itemChars != null ? { itemChars: heading.itemChars } : {}),
       });
     }
     // Dosyanın ilk numarasız satırı, belge numaralıysa ya da dosyanın adıysa belgenin kendi adıdır.
@@ -299,6 +468,7 @@ export function buildDocumentSkeleton(files: SkeletonFile[]): DocumentSkeleton {
         break;
       }
     });
+    markNumberedSiblings(fileHeadings);
     headings.push(...fileHeadings);
   });
   return { headings };
@@ -339,6 +509,17 @@ export function headingNamedIn(heading: string, titles: Iterable<string>): boole
   return false;
 }
 
+/**
+ * Konu adı bu bölümü anıyor mu. Başlık satırında `headingNamedIn`; numaralı madde bölümünde ("2. <konu> … cümlesi.")
+ * başlık bir cümledir, o yüzden konu adı maddenin öznesini (ilk ayırt edici kelimesini) taşıyorsa anmış sayılır.
+ */
+export function topicNamesHeading(heading: { title: string; itemChars?: number; item?: boolean }, topicTitle: string): boolean {
+  if (heading.itemChars == null && !heading.item) return headingNamedIn(heading.title, [topicTitle]);
+  const subject = matchWords(heading.title)[0];
+  if (!subject) return false;
+  return matchWords(topicTitle).some((word) => sameWordStem(subject, word));
+}
+
 export type SkeletonGap = {
   heading: string;
   label: string;
@@ -347,6 +528,8 @@ export type SkeletonGap = {
   pageEnd: number;
   /** Başlığın sayfası haritada hangi konunun içinde (yoksa hiçbir konuya bağlanmamış). */
   inTopic: string | null;
+  /** Numaralı madde bölümü (başlığı bir cümle; `topicNamesHeading`). */
+  item?: boolean;
 };
 
 export type SkeletonCoverage = {
@@ -391,7 +574,9 @@ export function measuredSkeletonHeadings(
   const measured: SkeletonHeading[] = [];
   for (const heading of skeleton.headings) {
     const substantive =
-      heading.teaching || (heading.sources.includes("toc") && heading.bodyChars >= SWALLOWED_BODY_MIN);
+      heading.teaching ||
+      Boolean(heading.numberedSibling) ||
+      (heading.sources.includes("toc") && heading.bodyChars >= SWALLOWED_BODY_MIN);
     if (!substantive || heading.parent || heading.documentTitle) continue;
     const folded = foldTr(heading.title).replace(/[^a-z0-9 ]+/g, " ").trim();
     if (FRONT_BACK_MATTER.test(folded) || isNonContentSection(heading.title) || isSatelliteSection(heading.title)) continue;
@@ -462,6 +647,27 @@ export function skeletonCoverage(
 
   const { measured: measuredHeadings, excluded: excludedHeadings } = measuredSkeletonHeadings(skeleton, exclusions);
 
+  // Numaralı kardeş bölümler (6 Kasım 2026) her biri ayrı konudur: adı birden çok kardeşi anan konu ya da ünite
+  // ("A, B ve C") bir birleştirmedir, hiçbirini tek başına temsil etmez. Kodun kaydettiği birleştirme (`sourceTitles`'ta
+  // konunun kendi adı dışındaki adlar, ör. dosyalar arası birleşme) eskisi gibi sayılır.
+  const siblingMerge = (title: string, fileIndex: number | null) =>
+    measuredHeadings.filter(
+      (heading) =>
+        heading.numberedSibling &&
+        (fileIndex == null || (options.singleFile ? 0 : heading.fileIndex) === fileIndex) &&
+        topicNamesHeading(heading, title),
+    ).length >= 2;
+  const recordedMerges = topics.flatMap(({ topic }) =>
+    (topic.sourceTitles ?? []).filter((title) => foldHeadingKey(title) !== foldHeadingKey(topic.title)),
+  );
+  const siblingNames = (fileIndex: number) => [
+    ...units.map((unit) => unit.title).filter((title) => !siblingMerge(title, null)),
+    ...topics
+      .filter(({ topic }) => fileOf(topic) === fileIndex && !siblingMerge(topic.title, fileIndex))
+      .map(({ topic }) => topic.title),
+    ...recordedMerges,
+  ];
+
   // 1. Ayrı konu: konunun ilk sayfası bölümün içinde ve sayfalarının yarısı bu bölümde. Her konu bir
   //    bölümün yerini tutar (adı uyan bölüm, yoksa o sayfada başlayan ilk bölüm).
   const owned = new Set<SkeletonHeading>();
@@ -469,6 +675,7 @@ export function skeletonCoverage(
     const pages = topicPages(topic);
     if (!pages.length) continue;
     const first = pages[0]!;
+    if (siblingMerge(topic.title, fileOf(topic))) continue;
     // Konunun adını taşıyan kendi başlığı iskelette varsa (ölçülmese de, gövdesi kısa olduğu için) konu O başlığın
     // yerini tutar; aynı sayfadaki başka bir bölümü konumla sahiplenmez (6 Kasım 2026, canlı: iki bölümlü sayfada
     // haritadaki konu kısa kendi bölümüyle değil sonraki numaralı bölümle eşlendi, o bölüm hiç konu olmadı).
@@ -481,14 +688,23 @@ export function skeletonCoverage(
         !headingNamedIn(heading.title, []) &&
         (options.singleFile ? 0 : heading.fileIndex) === fileOf(topic) &&
         heading.pages.some((page) => pages.includes(page)) &&
-        (headingNamedIn(topic.title, [heading.title]) || headingNamedIn(heading.title, [topic.title])),
+        (headingNamedIn(topic.title, [heading.title]) || topicNamesHeading(heading, topic.title)),
     );
     if (ownHeading) {
       if (measuredHeadings.includes(ownHeading)) owned.add(ownHeading);
       continue;
     }
+    // Konumla sahiplenme numaralı kardeşte ancak konunun sayfalarında tek kardeş varsa: aynı sayfayı paylaşan
+    // kardeşlerden birini başka adlı bir konu konumla "temsil" edemez (6 Kasım 2026).
+    const siblingsHere = measuredHeadings.filter(
+      (heading) =>
+        heading.numberedSibling &&
+        (options.singleFile ? 0 : heading.fileIndex) === fileOf(topic) &&
+        heading.pages.some((page) => pages.includes(page)),
+    ).length;
     const candidates = measuredHeadings.filter((heading) => {
       if ((options.singleFile ? 0 : heading.fileIndex) !== fileOf(topic)) return false;
+      if (heading.numberedSibling && siblingsHere > 1) return false;
       if (!heading.pages.includes(first)) return false;
       const own = new Set(heading.pages);
       return pages.filter((page) => own.has(page)).length * 2 >= pages.length;
@@ -505,7 +721,10 @@ export function skeletonCoverage(
   for (const heading of measuredHeadings) {
     const fileIndex = options.singleFile ? 0 : heading.fileIndex;
     // 2. Konunun ya da ünitenin adı; 3. kayıtlı birleştirme (`sourceTitles`, `names` içinde).
-    if (owned.has(heading) || headingNamedIn(heading.title, names)) {
+    const named = heading.numberedSibling
+      ? siblingNames(fileIndex).some((title) => topicNamesHeading(heading, title))
+      : headingNamedIn(heading.title, names);
+    if (owned.has(heading) || named) {
       represented += 1;
       continue;
     }
@@ -517,6 +736,7 @@ export function skeletonCoverage(
       pageStart: Math.min(...heading.pages),
       pageEnd: Math.max(...heading.pages),
       inTopic: host?.topic.title ?? null,
+      ...(heading.itemChars != null ? { item: true } : {}),
     });
   }
   return {
@@ -630,7 +850,7 @@ export function mergeOutlinePatch(
   patch: OutlineUnitDraft[],
   gaps: readonly SkeletonGap[],
   maxTopics: number,
-): { units: OutlineUnitDraft[]; added: string[] } {
+): { units: OutlineUnitDraft[]; added: string[]; removed: string[] } {
   const next = units.map((unit) => ({ ...unit, topics: [...unit.topics] }));
   const keys = new Set(next.flatMap((unit) => unit.topics.map((topic) => foldHeadingKey(topic.title))));
   let total = next.reduce((sum, unit) => sum + unit.topics.length, 0);
@@ -666,5 +886,23 @@ export function mergeOutlinePatch(
       added.push(topic.title);
     }
   }
-  return { units: next, added };
+  // Şemsiye konu (6 Kasım 2026): birden çok yutulan bölümü tek adda toplayan eski konu ("A, B ve C"), onarım o
+  // bölümlerin HER BİRİNİ ayrı konu olarak yazdıysa haritadan çıkar; yazılmayan bölüm kaldıysa kalır (içerik kaybolmasın).
+  const removed: string[] = [];
+  if (added.length) {
+    const fresh = new Set(added);
+    const addedTitles = next.flatMap((unit) => unit.topics).filter((topic) => fresh.has(topic.title)).map((topic) => topic.title);
+    for (const unit of next) {
+      unit.topics = unit.topics.filter((topic) => {
+        if (fresh.has(topic.title)) return true;
+        const asHeading = (gap: SkeletonGap) => ({ title: gap.heading, item: gap.item });
+        const named = gaps.filter((gap) => topicNamesHeading(asHeading(gap), topic.title));
+        if (named.length < 2) return true;
+        if (!named.every((gap) => addedTitles.some((title) => topicNamesHeading(asHeading(gap), title)))) return true;
+        removed.push(topic.title);
+        return false;
+      });
+    }
+  }
+  return { units: next.filter((unit) => unit.topics.length), added, removed };
 }

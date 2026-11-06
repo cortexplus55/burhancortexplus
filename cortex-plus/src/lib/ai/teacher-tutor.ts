@@ -1,4 +1,6 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import { sourceRulesBlock } from "@/lib/learning/source-rules";
+import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
 import type { TutorStyle } from "@/lib/learning/tutor-style";
 
 /**
@@ -24,6 +26,11 @@ export type TutorContext = {
   learnerLines?: string[];
   /** Belgeden getirilen pasajlar (sayfa işaretiyle). */
   passages: { label: string; text: string }[];
+  /**
+   * Notun özel sayısal kuralları (`loadSourceRules`, 6 Kasım 2026): bir sabitin sınavda alınacak değeri, yuvarlama.
+   * Aramada çıkmasa da her cevapta istemde durur; denetçi de onları kaynak sayar.
+   */
+  sourceRules?: string[];
   /** Öğrencinin önceki mesajında cevapladığı kontrol sorusu varsa beklenen cevap. */
   pendingAnswer?: string | null;
   /**
@@ -126,12 +133,15 @@ export function tutorSystemPrompt(context: TutorContext): string {
   return [
     `Sen Cortex Plus'ın öğretmenisin. Türkçe konuşursun. ${INTRO[mode]}`,
     `${SOURCE_RULES[mode]}\n\n${TEACHER_MANNER}`,
+    // Öğrencinin belgesi olan her modda notun sayısı genel bilgiden önce gelir (6 Kasım 2026; dersin ve testin kuralı aynen).
+    mode === "curriculum" ? "" : SOURCE_NUMBER_PRIORITY,
     CONTENT_STYLE,
     who,
     ...(context.learnerLines ?? []).filter(Boolean),
     context.pendingAnswer
       ? `Önceki mesajında sorduğun kontrol sorusunun beklenen cevabı: ${context.pendingAnswer}. Öğrencinin cevabını buna göre değerlendir.`
       : "",
+    mode === "curriculum" ? "" : sourceRulesBlock(context.sourceRules ?? []),
     context.passages.length
       ? `${mode === "curriculum" ? "MÜFREDAT DERSİ PASAJLARI" : "BELGE PASAJLARI"}:\n${capPassages(context.passages).map((item) => `[${item.label}]\n${item.text.trim()}`).join("\n\n")}`
       : mode === "general" || mode === "curriculum"
@@ -188,6 +198,12 @@ export const TUTOR_VERIFY_SYSTEM = VERIFY_SYSTEMS.document;
 
 export function tutorVerifySystem(mode: TutorMode = "document"): string {
   return VERIFY_SYSTEMS[mode];
+}
+
+/** Denetçinin gördüğü kaynak: pasajlar ve notun özel kuralları (kuralın değeri "dayanaksız" sayılmasın). */
+export function tutorVerifyPassages(context: Pick<TutorContext, "passages" | "sourceRules" | "mode">): TutorContext["passages"] {
+  const rules = context.mode === "curriculum" ? [] : (context.sourceRules ?? []);
+  return rules.length ? [...context.passages, { label: "Notundaki özel kurallar", text: rules.join("\n") }] : context.passages;
 }
 
 export function tutorVerifyUserPrompt(input: { passages: TutorContext["passages"]; question: string; answer: string }): string {

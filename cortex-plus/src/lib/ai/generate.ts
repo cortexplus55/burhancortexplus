@@ -159,6 +159,11 @@ type GenerateJsonParams<T> = {
     "draft" | "parsed"
   >;
   schemaHint: string;
+  /**
+   * Sistem iletisinin sonuna eklenen sabit kural (6 Kasım 2026): ör. test içi eğitmende kaynak sayı önceliği.
+   * Öğrenciye özgü metin buraya değil `userPrompt`'a gider.
+   */
+  systemAddendum?: string;
   userPrompt: string;
   /**
    * Denetçinin gördüğü bağlam. Üretim istemindeki isteğe bağlı alan
@@ -535,7 +540,7 @@ export async function generateJson<T>(
         const draftMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
           {
             role: "system",
-            content: `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n${params.schemaHint}`,
+            content: `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n${params.schemaHint}${params.systemAddendum ? `\n${params.systemAddendum}` : ""}`,
           },
           {
             role: "user",

@@ -5,6 +5,7 @@ import { parseTeacherAnalysis } from "@/lib/learning/teacher-brain";
 import { searchDocumentChunksAcross, type DocumentMatch } from "@/lib/rag/pipeline";
 import { citationHref } from "@/lib/ai/chat-citations";
 import { FIGURE_APPENDIX_LABEL } from "@/lib/learning/figure-pages";
+import { loadSourceRules } from "@/lib/learning/source-rules";
 import {
   CHAT_PASSAGE_BUDGET,
   asksAboutFigure,
@@ -104,6 +105,8 @@ export type PrepChatGrounding = {
   corpus: string;
   /** Belgesiz hazırlık: kaynak havuzdaki müfredat dersi (3 Kasım 2026). */
   pool?: { label: string } | null;
+  /** Notun özel sayısal kuralları (`loadSourceRules`, 6 Kasım 2026); aramadan bağımsız, her cevapta istemde. */
+  sourceRules?: string[];
 };
 
 const EMPTY_SCOPE: SyllabusScope = { excluded: [], weighted: [] };
@@ -157,6 +160,8 @@ export async function loadPrepChatGrounding(
   // Belge listesi ile havuz bağlamı paralel okunur (belgesiz hazırlıkta sıralı bekleme yok).
   const metaEarly = loadPoolMeta(service, prepId).catch(() => null);
   const documentIds = await loadPrepDocumentIds(service, prepId);
+  // Notun kural satırları aramanın geri kalanıyla aynı anda okunur; düşerse boş liste.
+  const rulesEarly = documentIds.length ? loadSourceRules(service, documentIds).catch(() => [] as string[]) : null;
   if (!documentIds.length) {
     return (await poolChatGrounding(service, prepId, message, metaEarly).catch(() => null))
       ?? { decision: "unknown", scope: EMPTY_SCOPE, excerpts: "", passages: [], corpus: "" };
@@ -431,7 +436,8 @@ export async function loadPrepChatGrounding(
   const decision = coverageDecision(message, corpusDocs, passages.length);
   const excerpts = excerptsForQuestion(message, corpusDocs);
   const corpus = corpusDocs.map((doc) => doc.text).join("\n");
-  return { decision, scope, excerpts, passages, corpus };
+  const sourceRules = (await rulesEarly) ?? [];
+  return { decision, scope, excerpts, passages, corpus, sourceRules };
 }
 
 export async function recordChatMisconception(
