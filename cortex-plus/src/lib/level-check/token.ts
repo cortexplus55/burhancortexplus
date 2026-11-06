@@ -28,7 +28,16 @@ export function createLevelToken(claims: Omit<LevelClaims, "exp">, now = Date.no
   return `${payload}.${sign(payload, k)}`;
 }
 
-export function verifyLevelToken(token: string | null | undefined, now = Date.now()): LevelClaims | null {
+/**
+ * `graceMs`: süresi dolmuş belirteci bu kadar süre daha kabul eder. Yalnız geçmiş oturumun kimliğini kanıtlamak
+ * için (kurulumun tarama yanıtlarını yeni hazırlığa bağlamak); cevap notlamada kullanılmaz.
+ */
+export function verifyLevelToken(
+  token: string | null | undefined,
+  now = Date.now(),
+  options: { graceMs?: number } = {},
+): LevelClaims | null {
+  now -= Math.max(0, options.graceMs ?? 0);
   const k = key();
   if (!k || !token) return null;
   const [payload, mac] = token.split(".");

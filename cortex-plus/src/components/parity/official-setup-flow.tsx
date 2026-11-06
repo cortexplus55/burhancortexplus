@@ -1,7 +1,7 @@
 "use client";
 
 import { OWN_DOCUMENT_NOTE } from "@/lib/billing/own-document-copy";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -45,6 +45,8 @@ export type OfficialSetupBody = {
   hardTopics: string[];
   topicOrderManual: true;
   learningPreferences: Record<string, unknown>;
+  /** Bu kurulumda başlatılan Hızlı Tarama oturumlarının imzalı belirteçleri: yanıtlar yeni hazırlığa bağlanır. */
+  levelScanTokens?: string[];
 };
 
 /** Ağaç biçimi değişince artar; tarayıcıdaki eski (numaralı başlıklı) yanıt kullanılmaz. */
@@ -152,6 +154,8 @@ export function OfficialSetupFlow({
   const [scanRatings, setScanRatings] = useState<Record<string, UnitRating>>({});
   const [scanPhase, setScanPhase] = useState<"intro" | "run" | "result">("intro");
   const [scanResult, setScanResult] = useState<ScanUnitResult[]>([]);
+  // Taramayı yarıda bırakıp yeniden başlatan öğrencinin her oturumu (en yeni 6): yanıtlar yeni hazırlığın netine sayılır.
+  const scanTokens = useRef<string[]>([]);
   // Öğrencinin kendi işareti her zaman taramadan üstündür.
   const ratings = useMemo(() => mergeRatings(selfRatings, scanRatings), [selfRatings, scanRatings]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -257,6 +261,7 @@ export function OfficialSetupFlow({
       dailyMinutes: minutes,
       hardTopics: topics.filter((t) => ratings[t.unitId] === "zayif").map((t) => t.topic),
       topicOrderManual: true,
+      ...(scanTokens.current.length ? { levelScanTokens: scanTokens.current.slice(-6) } : {}),
       learningPreferences: {
         examTrack: treeDef ? EXAM_TRACK[exam] : exam === "lgs" ? "lgs" : alan === "tyt" ? "tyt" : "yks",
         studyBand: exam === "lgs" ? "ortaokul" : exam === "tus" || exam === "dus" || exam === "ales" ? "universite" : "sinav",
@@ -634,6 +639,11 @@ export function OfficialSetupFlow({
               api={levelApi}
               request={{ mode: "quick_scan", units: topics.map((t) => t.unitId) }}
               title="Hızlı Tarama"
+              onStarted={(res) => {
+                if (res.status === "ok" && !res.guest && !scanTokens.current.includes(res.token)) {
+                  scanTokens.current = [...scanTokens.current, res.token];
+                }
+              }}
               onSkip={goDate}
               onFinish={(results) => {
                 const summary = scanSummary(results);
