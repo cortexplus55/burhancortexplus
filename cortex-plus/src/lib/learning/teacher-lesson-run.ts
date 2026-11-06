@@ -153,7 +153,7 @@ export async function completeLessonCoverage(
         {
           mode,
           topicLabel: input.topicLabel,
-          source: input.pages.map((page) => page.text).join("\n"),
+          source: sanitySource(input),
           screens: extra,
           ...noteWarningsNow(input),
         },
@@ -417,7 +417,7 @@ export async function teacherLessonPipeline(
               {
                 mode,
                 topicLabel: input.topicLabel,
-                source: input.pages.map((page) => page.text).join("\n"),
+                source: sanitySource(input),
                 screens,
                 ...noteWarningsNow(input),
               },
@@ -780,6 +780,12 @@ export function createLessonIo(
  * Taslak → kavram kavram denetim → (gerekirse) yalnız o kavramın düzeltmesi.
  * Kredi bir kez ayrılır; ders dönerse kesinleşir, dönmezse iade edilir.
  */
+/** Hafif doğrulayıcının kaynağı: belgeli derste sayfalar, belgesiz derste konunun onaylı havuz anlatımı (6 Kasım 2026). */
+export function sanitySource(input: Pick<TeacherLessonInput, "mode" | "pages" | "approvedFacts">): string {
+  if (input.mode === "topic") return input.approvedFacts?.trim() ?? "";
+  return input.pages.map((page) => page.text).join("\n");
+}
+
 /** Yazım başında bilinen + modelli denetimin sonradan bulduğu uyarılar. */
 function noteWarningsNow(input: TeacherLessonInput): { noteWarnings?: FormulaTypo[] } {
   const late = input.lateNoteWarnings?.() ?? [];

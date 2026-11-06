@@ -8,6 +8,9 @@ import {
   isHeadingCandidate,
   isPracticePage,
 } from "@/lib/documents/outline-clean";
+import { foldTr } from "@/lib/text/math-normalize";
+
+export { foldTr };
 
 export type PageKind =
   | "content"
@@ -60,21 +63,6 @@ const FORMULA_PATTERNS = [
 ];
 const TABLE_HINT =
   /(?:\|[^|\n]+){2,}\||(?:\t[^\t\n]+){2,}/;
-
-/** Fold Turkish letters so ASCII-ish regexes match KAPAK / İÇİNDEKİLER. */
-export function foldTr(text: string): string {
-  return text
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .replace(/ı/g, "i")
-    .replace(/İ/g, "i")
-    .replace(/[ğĞ]/g, "g")
-    .replace(/[üÜ]/g, "u")
-    .replace(/[şŞ]/g, "s")
-    .replace(/[öÖ]/g, "o")
-    .replace(/[çÇ]/g, "c")
-    .toLowerCase();
-}
 
 function normalizeLines(text: string): string[] {
   return text

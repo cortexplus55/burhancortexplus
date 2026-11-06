@@ -17,6 +17,11 @@ import { findFormulaTypos } from "@/lib/learning/formula-typos";
 import { mergeNoteWarnings } from "@/lib/learning/note-rule-check";
 import { checkNoteRules } from "@/lib/learning/note-rule-check-run";
 import { loadOfficialOutcome } from "@/lib/curriculum/prep-outcome";
+import { prepTopicLabels } from "@/lib/documents/generation-context";
+import { poolSourceText } from "@/lib/content-pool/serve";
+import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
+import { narrowPagesToTopic } from "@/lib/learning/topic-section";
+import { APPROVED_FACTS_CHARS } from "@/lib/learning/teacher-lesson";
 import { NodeGenerationError, actionForKind, awaitLoggedWrite } from "./shared";
 import { saveTopicLesson } from "./lesson-store";
 import { withSupport, type LessonCore } from "./teacher-pages";
@@ -78,6 +83,17 @@ export async function teacherLessonPayload(
   // Öğrenme hafızası (5 Kasım 2026): bu öğrencinin kayıtlı özeti, sayfa hazırlığına paralel okunur; istemde
   // `ÖĞRENCİ:` satırına eklenir. Yalnız öğrencinin kendi dersi — ortak havuz içeriğine (content-pool) girmez.
   const memoryEarly = loadStudentMemory(input.service, input.userId);
+  // Hazırlığın öbür konuları (belgeli, tek konulu ders) ve belgesiz derste konunun doğrulanmış havuz anlatımı; ikisi de
+  // yalnız okuma, model çağrısı yok. Okunamazsa boş: ders bugünkü gibi yazılır.
+  const siblingsEarly =
+    core && input.prepId && input.topicLabel !== ALL_TOPICS_LABEL ? prepTopicLabels(input.service, input.prepId).catch(() => []) : null;
+  const approvedEarly = core
+    ? Promise.resolve("")
+    : poolSourceText(input.service, {
+        prefs: input.learningPreferences,
+        topicLabels: [input.topicLabel],
+        maxChars: APPROVED_FACTS_CHARS,
+      }).catch(() => "");
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
   const headersMs = Date.now() - startedAt;
   const clean = core
@@ -95,7 +111,11 @@ export async function teacherLessonPayload(
     pages: clean.length,
     cleanedByModelNow: clean.filter((item) => item.cleaned).length,
   });
-  const lessonPages = withSupport(clean, core);
+  // Konu yalıtımı (6 Kasım 2026): aynı sayfayı paylaşan öbür konuların bölümleri kaynaktan çıkar, yazar kapsam satırını okur.
+  const siblings = await (siblingsEarly ?? Promise.resolve([] as string[]));
+  const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, siblings);
+  if (scoped.narrowed) console.info("lesson_topic_scope", { topic: input.topicLabel.slice(0, 80), dropped: scoped.dropped.slice(0, 6) });
+  const lessonPages = scoped.pages;
   // Akıllı hoca uyarısı (31 Ekim 2026, Paket J3 #13): notta yanlış yazılmış evrensel formül. Yalnız belgeli derste;
   // dersin temiz sayfaları ve ham kaynak bloğu (temizlik bir yazımı sessizce düzeltmiş olabilir). Model çağrısı yok.
   const noteText = [...lessonPages.map((page) => page.text), input.sourceBlock ?? ""].join("\n");
@@ -134,6 +154,8 @@ export async function teacherLessonPayload(
     // Belgeli derste yalnız dersin kaynağında geçen maddeler: başka belgenin maddesi "kaynakta yok" turu açıyordu.
     examPoints: core ? examPointsInSource(input.examPoints, lessonPages.map((page) => page.text).join("\n")) : input.examPoints,
     runningHeaders: edges,
+    ...(siblings.length ? { siblingTopics: siblings } : {}),
+    ...((await approvedEarly) ? { approvedFacts: await approvedEarly } : {}),
     officialOutcome: await loadOfficialOutcome(input.service, input.prepId, input.topicLabel),
     ...warned,
     // Modelli denetim yazımdan sonra bitse de kavram denetimi standart kurala çevirir.

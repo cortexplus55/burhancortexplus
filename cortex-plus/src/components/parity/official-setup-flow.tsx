@@ -1,7 +1,7 @@
 "use client";
 
-import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
-import { useEffect, useMemo, useState } from "react";
+import { OWN_DOCUMENT_NOTE } from "@/lib/billing/own-document-copy";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ import { foldResponses, masteryLabel, mergeRatings, scanRating } from "@/lib/lev
 import { httpLevelApi, type LevelApi } from "@/lib/level-check/types";
 import { OfficialLinks } from "@/components/curriculum/official-links";
 import { isTreeExam, TREE_EXAMS, type TreeGroup } from "@/lib/curriculum/exam-trees";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 import "@/styles/official-setup.css";
 
 export type OfficialSetupBody = {
@@ -44,6 +45,8 @@ export type OfficialSetupBody = {
   hardTopics: string[];
   topicOrderManual: true;
   learningPreferences: Record<string, unknown>;
+  /** Bu kurulumda başlatılan Hızlı Tarama oturumlarının imzalı belirteçleri: yanıtlar yeni hazırlığa bağlanır. */
+  levelScanTokens?: string[];
 };
 
 /** Ağaç biçimi değişince artar; tarayıcıdaki eski (numaralı başlıklı) yanıt kullanılmaz. */
@@ -151,6 +154,8 @@ export function OfficialSetupFlow({
   const [scanRatings, setScanRatings] = useState<Record<string, UnitRating>>({});
   const [scanPhase, setScanPhase] = useState<"intro" | "run" | "result">("intro");
   const [scanResult, setScanResult] = useState<ScanUnitResult[]>([]);
+  // Taramayı yarıda bırakıp yeniden başlatan öğrencinin her oturumu (en yeni 6): yanıtlar yeni hazırlığın netine sayılır.
+  const scanTokens = useRef<string[]>([]);
   // Öğrencinin kendi işareti her zaman taramadan üstündür.
   const ratings = useMemo(() => mergeRatings(selfRatings, scanRatings), [selfRatings, scanRatings]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -256,6 +261,7 @@ export function OfficialSetupFlow({
       dailyMinutes: minutes,
       hardTopics: topics.filter((t) => ratings[t.unitId] === "zayif").map((t) => t.topic),
       topicOrderManual: true,
+      ...(scanTokens.current.length ? { levelScanTokens: scanTokens.current.slice(-6) } : {}),
       learningPreferences: {
         examTrack: treeDef ? EXAM_TRACK[exam] : exam === "lgs" ? "lgs" : alan === "tyt" ? "tyt" : "yks",
         studyBand: exam === "lgs" ? "ortaokul" : exam === "tus" || exam === "dus" || exam === "ales" ? "universite" : "sinav",
@@ -448,9 +454,9 @@ export function OfficialSetupFlow({
           {exam === "yks" ? (
             <p className="osf-source">
               Alan eşlemesi:{" "}
-              <a href={OSYM_YKS_GUIDE_URL} target="_blank" rel="noreferrer">
+              <ExternalAnchor href={OSYM_YKS_GUIDE_URL}>
                 ÖSYM 2026-YKS Kılavuzu, Tablo 1B ve 1E
-              </a>
+              </ExternalAnchor>
               . Konular: MEB 2026 YKS&apos;ye esas kazanımlar.
             </p>
           ) : treeDef ? (
@@ -633,6 +639,11 @@ export function OfficialSetupFlow({
               api={levelApi}
               request={{ mode: "quick_scan", units: topics.map((t) => t.unitId) }}
               title="Hızlı Tarama"
+              onStarted={(res) => {
+                if (res.status === "ok" && !res.guest && !scanTokens.current.includes(res.token)) {
+                  scanTokens.current = [...scanTokens.current, res.token];
+                }
+              }}
               onSkip={goDate}
               onFinish={(results) => {
                 const summary = scanSummary(results);
@@ -717,11 +728,12 @@ export function OfficialSetupFlow({
           <div className="osf-chips osf-source" role="radiogroup" aria-label="İçerik kaynağı" data-testid="setup-source">
             <button type="button" role="radio" aria-checked={!withDocument} className="osf-chip" data-on={!withDocument || undefined} onClick={() => setWithDocument(false)}>
               <strong>Hazır içerikle çalış — ücretsiz</strong>
-              <small>Hazır içerik kredi harcamaz. Ücretsiz hesapta ilk konu açık, tüm konular Plus ile.</small>
+              <small>Hazır içerik hakkından düşmez. Ücretsiz hesapta ilk konu açık, tüm konular Plus ile.</small>
             </button>
             <button type="button" role="radio" aria-checked={withDocument} className="osf-chip" data-on={withDocument || undefined} onClick={() => setWithDocument(true)}>
-              <strong>Kendi belgeni de ekle — sayfa başı kredi</strong>
-              <small>Belge okuma sayfa başı {CREDIT_PRICE_TABLE.DOCUMENT_PAGE_PROCESS.credits} kredi (taranmış sayfa +{CREDIT_PRICE_TABLE.DOCUMENT_SCAN_PAGE.credits}). Belgen bir üniteyi kapsıyorsa o ünitenin dersine &quot;Senin belgenden ek&quot; bölümü ünite başına bir kez {CREDIT_PRICE_TABLE.DOCUMENT_SUPPLEMENT_GENERATE.credits} kredi. Hazır içerik yine ücretsiz.</small>
+              <strong>Kendi belgeni de ekle</strong>
+              {/* Öğrenci kredi sayısı görmez (6 Kasım 2026, Paket 4): hak somut sayfa sayısıyla anlatılır. */}
+              <small>{OWN_DOCUMENT_NOTE}</small>
             </button>
           </div>
           <p className="osf-promise" data-testid="setup-promise">

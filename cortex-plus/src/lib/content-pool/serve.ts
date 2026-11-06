@@ -10,6 +10,7 @@ import { blueprintBlocks, blueprintKind, type BlueprintKind } from "@/lib/conten
 import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
 import { poolLessonText } from "@/lib/content-pool/lesson-text";
 import { applyOrder, poolChoiceOrders } from "@/lib/learning/option-balance";
+import { POOL_LESSON_MIN_CHECKS, interleavePoolChecks, type PoolCheckItem } from "@/lib/content-pool/lesson-checks";
 
 /**
  * Havuzdan sunum (2 Kasım 2026, ürün sahibinin kararı): resmî kurulumdan gelen konunun doğrulanmış ünite
@@ -275,6 +276,49 @@ export function mapPoolRows(picked: ItemRow[], salt = "") {
   }));
 }
 
+/**
+ * Ders kontrol soruları için konunun doğrulanmış banka soruları (6 Kasım 2026): önce konunun kazanımları, öğrencinin
+ * cevaplamadıkları önde. Model çağrısı yok; okunamazsa boş (ders eskisi gibi açılır).
+ */
+export async function readPoolLessonChecks(service: SupabaseClient, slice: PoolSlice, userId: string): Promise<PoolCheckItem[]> {
+  const unitIds = slice.units.map((u) => u.unitId);
+  const [{ data, error }, { data: answered }] = await Promise.all([
+    service
+      .from("item_bank")
+      .select("id, outcome_id, difficulty, stem, choices, answer, explanation")
+      .in("unit_id", unitIds)
+      .in("program_id", [...new Set(slice.units.map((u) => u.program.id))])
+      .eq("status", "verified")
+      .limit(400),
+    service.from("item_responses").select("item_id").eq("user_id", userId).in("unit_id", unitIds).limit(2000),
+  ]);
+  if (error || !data?.length) return [];
+  const seen = new Set((answered ?? []).map((row) => String(row.item_id)));
+  const rows = filterItemsByOutcome(data as ItemRow[], sliceOutcomeIds(slice), POOL_LESSON_MIN_CHECKS * 2);
+  return [...rows.filter((row) => !seen.has(row.id)), ...rows.filter((row) => seen.has(row.id))];
+}
+
+/** Havuz dersine bankanın sorularını serpiştirir; ekranın kazanımları `sliceLesson` + `poolLessonV3` gruplamasından. */
+export function withPoolChecks<L extends { screens: Record<string, unknown>[] }>(
+  lesson: L,
+  body: LessonBody,
+  units: readonly PoolUnit[],
+  items: readonly PoolCheckItem[],
+): L {
+  if (!items.length) return lesson;
+  const outcomeOf = new Map(units.flatMap((unit) => unit.outcomes.map((outcome) => [outcome.code.trim(), outcome.outcomeId] as const)));
+  const per = Math.max(1, Math.ceil(body.sections.length / LESSON_SCREEN_HARD_CAP));
+  const outcomesByScreen = lesson.screens.map((_, index) =>
+    body.sections
+      .slice(index * per, index * per + per)
+      .map((section) => outcomeOf.get(section.outcome_code.trim()))
+      .filter((id): id is string => Boolean(id)),
+  );
+  const { lesson: out, added } = interleavePoolChecks(lesson as unknown as Parameters<typeof interleavePoolChecks>[0], items, outcomesByScreen);
+  if (added) console.info("pool_lesson_checks", { added, screens: out.screens.length });
+  return out as unknown as L;
+}
+
 /** Havuzda doğrulanmış ders yoksa: paylaşımlı üretim (SHARED_CONTENT, öğrenciye 0 kredi). Yoksa null. */
 export type EnsureUnit = (unit: PoolUnit) => Promise<LessonBody | null>;
 
@@ -298,6 +342,8 @@ export async function poolPayload(
   );
   const quizCount = POOL_QUIZ_COUNT[input.kind];
   const quizRead = quizCount ? readPoolQuiz(service, slice, input.userId, quizCount, input.prepId) : null;
+  // Ders kontrol soruları doğrulanmış bankadan (6 Kasım 2026); ünite okumasıyla paralel. Okunamazsa ders eskisi gibi açılır.
+  const checksRead = input.kind === "lesson" ? readPoolLessonChecks(service, slice, input.userId).catch(() => []) : null;
   const read = await lessonsRead;
   if (read.some((r) => !r.body)) return null;
   const bodies = read as { unit: PoolUnit; body: LessonBody }[];
@@ -307,7 +353,7 @@ export async function poolPayload(
   }
   const body = sliceLesson(bodies, slice.codes, input.title);
   if (input.kind === "lesson") {
-    const lesson = poolLessonV3(body, input.title, unit.program.kind);
+    const lesson = withPoolChecks(poolLessonV3(body, input.title, unit.program.kind), body, slice.units, await (checksRead ?? Promise.resolve([])));
     return { type: "lesson", lesson, title: lesson.title, qualityReport: null, ...base };
   }
   const cards = body.cards.map((c) => ({ front: c.front, back: c.back }));

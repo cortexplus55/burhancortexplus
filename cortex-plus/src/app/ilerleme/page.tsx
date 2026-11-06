@@ -3,6 +3,7 @@ import { TrendingUp } from "lucide-react";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { TopicBars } from "@/components/student/topic-bars";
+import { weakTopicRows } from "@/lib/learning/weak-topic-rows";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { formatNumber } from "@/lib/format";
@@ -92,14 +93,14 @@ export default async function IlerlemePage() {
         .limit(10),
       { data: [] },
     ),
-    settle<RowsResult<{ topic_label: unknown; severity: unknown }>>(
+    settle<RowsResult<{ topic_label: unknown; severity: unknown; source: unknown }>>(
       "weak_topics",
       supabase
         .from("weak_topics")
-        .select("id, topic_label, severity")
+        .select("id, topic_label, severity, source")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(40),
       { data: [] },
     ),
     settle("mistakes", () => countMistakes(supabase, user.id), { open: 0, mastered: 0 }),
@@ -166,10 +167,8 @@ export default async function IlerlemePage() {
     },
   ];
 
-  const topicRows = (weak.data ?? []).filter(Boolean).map((topic) => ({
-    label: typeof topic.topic_label === "string" && topic.topic_label.trim() ? topic.topic_label : "Konu",
-    severity: Number(topic.severity) || 0,
-  }));
+  // Konu başına tek satır, en yeni ölçümle; her satır neyin yüzdesi olduğunu söyler (`weakTopicRows`).
+  const topicRows = weakTopicRows((weak.data ?? []).filter(Boolean));
   const openMistakes = Number(mistakes?.open) || 0;
   const masteredMistakes = Number(mistakes?.mastered) || 0;
 
@@ -268,7 +267,7 @@ export default async function IlerlemePage() {
         <SectionCard
           variant="parity"
           title="Eksik konular"
-          description="Deneme sınavı analizlerinden çıkarılan başlıklar."
+          description="Test, deneme ve sohbette eksik çıkan konular. Yüzde, o konudaki son ölçümde yanlış yaptığın soruların oranıdır (yüksek = daha çok eksik)."
         >
           {topicRows.length ? (
             <TopicBars topics={topicRows} />

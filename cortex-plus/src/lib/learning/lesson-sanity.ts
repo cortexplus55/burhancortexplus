@@ -1,6 +1,6 @@
 import type { LessonBlock, LessonScreen } from "@/lib/learning/lesson-v3";
 import { optionKey } from "@/lib/learning/question-integrity";
-import { BLOCK_ROLE_RULE, SAME_KIND_DISTRACTOR_RULE } from "@/lib/learning/teaching-rubric";
+import { BLOCK_ROLE_RULE, EXAMPLE_CLASSIFICATION_RULE, SAME_KIND_DISTRACTOR_RULE } from "@/lib/learning/teaching-rubric";
 import type { FormulaTypo } from "@/lib/learning/formula-typos";
 
 /**
@@ -51,7 +51,7 @@ export function removableBlock(block: LessonBlock): boolean {
 
 export function lessonSanitySystem(mode: "document" | "topic"): string {
   return (
-    "Sen hızlı bir ders editörü-denetçisisin. Yazılmış ders ekranlarında yalnız iki iş yaparsın. Metin YAZMAZSIN, ekranı " +
+    "Sen hızlı bir ders editörü-denetçisisin. Yazılmış ders ekranlarında yalnız üç iş yaparsın. Metin YAZMAZSIN, ekranı " +
     "ve soruyu SİLMEZSİN.\n" +
     "1) SORU: Çoktan seçmeli her soruda (varsa): bir şık gerçekte olmayan bir terimse (" +
     (mode === "document" ? "KAYNAKTA ve ders kitaplarında" : "ders kitaplarında") +
@@ -63,7 +63,13 @@ export function lessonSanitySystem(mode: "document" | "topic"): string {
     "2) TEKRAR: Aynı ekranda aynı bilgiyi ÜÇÜNCÜ kez (ya da daha fazla) veren kutuları bul. Yalnız [çıkarılabilir] diye " +
     "işaretli kutular çıkarılabilir; bilginin ilk iki verilişi kalır. Yeni bir şey öğreten kutu (başka örnek, başka ayrım, " +
     "başka sayı) tekrar değildir. Emin değilsen çıkarma.\n" +
-    `${BLOCK_ROLE_RULE}\n\n` +
+    `${BLOCK_ROLE_RULE}\n` +
+    // 6 Kasım 2026 (canlı sınav): günlük örnek kavramın sınıfını bozdu. Yazarla aynı kural; metin yazılmaz, yalnız
+    // çıkarılabilir kutu düşer, soru anahtarı düzeltilir.
+    "3) SINIFLANDIRMA: Bir [çıkarılabilir] kutu (benzetme, hafıza çivisi, örnek vaka, kart, karşılaştırma) bir nesneyi, " +
+    "canlıyı ya da olayı ders kitabının koymadığı bir sınıfa koyuyorsa çıkar (drop, why 'sınıflandırma: …'). Bir soru " +
+    "böyle bir örneğe dayanıp yanlış anahtarlanmışsa 1. maddedeki gibi düzelt. Emin değilsen dokunma.\n" +
+    `${EXAMPLE_CLASSIFICATION_RULE}\n\n` +
     "Yalnız JSON. Değiştirdiğin her soru için bütün alanları yeniden yaz: options (aynı sayıda, aynı sırada), answerIndex " +
     "(doğru şıkkın 0'dan sıra numarası), optionWhy (her şık için bir cümle, aynı sırada), explanation (doğrunun nedeni; " +
     "şıklara harfle ya da sırayla gönderme yapma), why (neyi neden değiştirdin, kısa). Değişiklik yoksa boş listeler.\n" +
@@ -102,10 +108,13 @@ export function lessonSanityUserPrompt(input: LessonSanityInput): string {
           .map((warning) => `«${warning.found}» yanlış yazılmış; doğrusu «${warning.standard}»`)
           .join("; ")}. Ders standart kuralı anlatır; anahtarı nottaki yazıma göre değiştirme.`
       : "";
+  // Belgesiz derste kaynak, varsa konunun doğrulanmış havuz anlatımıdır (ONAYLI BİLGİLER, 6 Kasım 2026).
   const source =
     input.mode === "document"
       ? `KAYNAK:\n${input.source.slice(0, LESSON_SANITY_SOURCE_CHARS)}${typoLine}`
-      : "KAYNAK: (belgesiz ders; konunun yerleşik ders kitabı bilgisi geçerli)";
+      : input.source.trim()
+        ? `KAYNAK: (belgesiz ders; konunun yerleşik ders kitabı bilgisi geçerli). ONAYLI BİLGİLER (doğrulanmış müfredat anlatımı):\n${input.source.slice(0, LESSON_SANITY_SOURCE_CHARS)}`
+        : "KAYNAK: (belgesiz ders; konunun yerleşik ders kitabı bilgisi geçerli)";
   const screens = input.screens
     .map((screen, screenIndex) =>
       [

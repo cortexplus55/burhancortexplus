@@ -1,4 +1,5 @@
 import type { LessonBlock, LessonV3 } from "@/lib/learning/lesson-v3";
+import { formulaRelationKeys } from "@/lib/text/math-normalize";
 
 /**
  * Sınav sabahı kâğıdı (31 Ekim 2026, Paket J3 #14, ürün sahibinin isteği): hazırlığın kayıtlı derslerinden,
@@ -48,9 +49,46 @@ export const CRAM_LIMITS = {
 } as const;
 
 export type CramItem = { kind: CramKind; title: string | null; text: string };
-export type CramSection = { topic: string; percent: number | null; weak: boolean; items: CramItem[] };
+/**
+ * Bölüm rozeti: `low` = ölçülmüş ve %75'in altında ("Zayıf · %X"), `wrongs` = başarısı yeterli ama açık
+ * yanlışı / yanılgısı var ("Dikkat · N açık yanlış"). Yüzde yalnız `low`da yazılır (6 Kasım 2026: %100 ölçülen
+ * konu açık bir yanılgısı yüzünden "Zayıf · %100" diye çıkıyordu).
+ */
+export type CramWeakReason = "low" | "wrongs";
+export type CramSection = {
+  topic: string;
+  percent: number | null;
+  weak: boolean;
+  reason: CramWeakReason | null;
+  openWrongs: number;
+  items: CramItem[];
+};
 export type CramWeakSpot = { text: string; topic: string | null };
-export type CramFocusTopic = { label: string; percent: number | null };
+export type CramFocusTopic = { label: string; percent: number | null; openWrongs?: number; reason?: CramWeakReason };
+
+/** Bu yüzdenin altındaki ölçülmüş konu zayıftır (hedef puandan bağımsız sabit taban). */
+export const CRAM_WEAK_BELOW = 75;
+
+/** Konu gerçekten dikkat istiyor mu: ölçülmüş ve %75'in altında ya da açık yanlışı var. Değilse null. */
+export function cramWeakReason(topic: { percent: number | null; openWrongs?: number | null }): CramWeakReason | null {
+  if (topic.percent != null && topic.percent < CRAM_WEAK_BELOW) return "low";
+  if ((topic.openWrongs ?? 0) > 0) return "wrongs";
+  return null;
+}
+
+/** "Önce bunlara bak" satırındaki konunun notu: "%40" ya da "2 açık yanlış". */
+export function cramFocusNote(topic: CramFocusTopic): string | null {
+  if (topic.reason === "low" && topic.percent != null) return `%${topic.percent}`;
+  if (topic.reason === "wrongs" && (topic.openWrongs ?? 0) > 0) return `${topic.openWrongs} açık yanlış`;
+  return null;
+}
+
+/** Bölüm başlığındaki rozet; zayıf değilse null. */
+export function cramSectionBadge(section: Pick<CramSection, "reason" | "percent" | "openWrongs">): string | null {
+  if (section.reason === "low") return section.percent != null ? `Zayıf · %${section.percent}` : "Zayıf";
+  if (section.reason === "wrongs") return `Dikkat · ${section.openWrongs} açık yanlış`;
+  return null;
+}
 
 export type CramSheet = {
   sections: CramSection[];
@@ -205,13 +243,27 @@ function rankOf(kind: CramKind): number {
 
 type Bucket = { topic: string; key: string | null; candidates: CramItem[] };
 
-/** Aynı satır iki kez yazılmaz: birebir anahtar ya da ilk 60 karakteri aynı (aynı formül iki derste). */
+/**
+ * Aynı satır iki kez yazılmaz: birebir anahtar ya da ilk 60 karakteri aynı. Formülde anahtar matematiksel
+ * normalizasyondan (6 Kasım 2026): `×` / `·`, `ₖ` / `k` / `_k`, boşluk ve büyük harf aynı formülü iki kez
+ * yazdırıyordu. Satır birden çok bağıntı taşıyorsa her biri ayrı anahtar; bütün bağıntıları zaten kâğıtta olan
+ * formül satırı düşer, yeni bağıntı getiren kalır.
+ */
 function makeDeduper() {
   const seen = new Set<string>();
   const prefixes = new Set<string>();
+  const relations = new Set<string>();
   return (row: { kind?: CramKind; text: string }): boolean => {
     const base = cramKey(row.text);
     if (!base) return false;
+    if (row.kind === "formula") {
+      const keys = formulaRelationKeys(row.text.split(" — ")[0] ?? row.text);
+      if (keys.length) {
+        if (keys.every((key) => relations.has(key))) return false;
+        for (const key of keys) relations.add(key);
+        return true;
+      }
+    }
     const key = row.kind === "formula" ? `f:${cramKey(row.text.split(" — ")[0] ?? row.text)}` : base;
     const prefix = base.length >= 40 ? base.slice(0, 60) : null;
     if (seen.has(key) || (prefix && prefixes.has(prefix))) return false;
@@ -284,10 +336,16 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
     }
   }
 
-  const focusTopics = (input.focusTopics ?? [])
-    .filter((topic) => clean(topic.label))
-    .slice(0, CRAM_LIMITS.focusTopics)
-    .map((topic) => ({ label: clean(topic.label), percent: topic.percent ?? null }));
+  // Yalnız gerçekten dikkat isteyen konu (6 Kasım 2026): ölçülmüş ve %75'in altında ya da açık yanlışı var.
+  const focusTopics: CramFocusTopic[] = [];
+  for (const topic of input.focusTopics ?? []) {
+    if (focusTopics.length >= CRAM_LIMITS.focusTopics) break;
+    const label = clean(topic.label);
+    const percent = topic.percent ?? null;
+    const openWrongs = Math.max(0, Math.floor(topic.openWrongs ?? 0));
+    const reason = label ? cramWeakReason({ percent, openWrongs }) : null;
+    if (reason) focusTopics.push({ label, percent, openWrongs, reason });
+  }
   const focusByKey = new Map(focusTopics.map((topic) => [topic.label.toLocaleLowerCase("tr"), topic] as const));
 
   const sections: CramSection[] = filled
@@ -295,8 +353,10 @@ export function buildCramSheet(input: CramSheetInput): CramSheet {
       const focus = focusByKey.get(bucket.topic.toLocaleLowerCase("tr"));
       return {
         topic: bucket.topic,
-        percent: focus?.percent ?? null,
+        percent: focus?.reason === "low" ? (focus.percent ?? null) : null,
         weak: Boolean(focus),
+        reason: focus?.reason ?? null,
+        openWrongs: focus?.openWrongs ?? 0,
         items: bucket.candidates
           .slice(0, taken.get(bucket) ?? 0)
           .map((row) => ({ ...row, text: clipCramText(row.text) })),

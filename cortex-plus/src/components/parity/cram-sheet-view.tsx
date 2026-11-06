@@ -6,6 +6,8 @@ import {
   CRAM_KIND_LABEL,
   CRAM_SHEET_TITLE,
   CRAM_WEAK_HEADING,
+  cramFocusNote,
+  cramSectionBadge,
   type CramSheet,
 } from "@/lib/learning/cram-sheet";
 import "@/styles/cram-sheet.css";
@@ -59,11 +61,10 @@ export function CramSheetView({
             <p className="cp-cram-focus">
               <strong>Önce bunlara bak: </strong>
               {sheet.focusTopics
-                .map((topic) =>
-                  topic.percent != null
-                    ? `${topic.label} (%${topic.percent})`
-                    : topic.label,
-                )
+                .map((topic) => {
+                  const note = cramFocusNote(topic);
+                  return note ? `${topic.label} (${note})` : topic.label;
+                })
                 .join(" · ")}
             </p>
           ) : null}
@@ -96,10 +97,9 @@ export function CramSheetView({
               >
                 <h2>
                   {section.topic}
-                  {section.weak ? (
+                  {cramSectionBadge(section) ? (
                     <span className="cp-cram-weak">
-                      Zayıf
-                      {section.percent != null ? ` · %${section.percent}` : ""}
+                      {cramSectionBadge(section)}
                     </span>
                   ) : null}
                 </h2>

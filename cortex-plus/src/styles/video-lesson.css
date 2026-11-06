@@ -324,11 +324,49 @@
   text-align: center;
 }
 
+/*
+  Başlık şeridi (6 Kasım 2026, Paket 4): canlıda 9:16 kadrajda açık renkli resmin üstüne gelen başlık ve alt
+  başlık okunmuyordu (yalnız yukarıdan inen gradyan vardı, resim parlaksa yazı zeminde kayboluyordu). Başlık
+  bloğu kendi koyu cam şeridinde; resim ne olursa olsun yazı aynı zeminde durur. Renkler oynatıcının kendi
+  tokenları: video teması açık/koyu tercihten bağımsız hep koyu.
+*/
+.cp-video-frame {
+  --cp-video-scrim: rgba(9, 13, 22, 0.78);
+  --cp-video-scrim-solid: rgba(9, 13, 22, 0.92);
+  --cp-video-scrim-border: rgba(255, 255, 255, 0.12);
+  --cp-video-scrim-blur: 8px;
+  --cp-video-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.cp-video-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: 100%;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--cp-video-scrim-border);
+  border-radius: 0.85rem;
+  background: var(--cp-video-scrim);
+  -webkit-backdrop-filter: blur(var(--cp-video-scrim-blur));
+  backdrop-filter: blur(var(--cp-video-scrim-blur));
+  text-shadow: var(--cp-video-text-shadow);
+}
+
+/* Bulanıklık desteklenmiyorsa şerit daha koyu: yazı yine okunur. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cp-video-heading {
+    background: var(--cp-video-scrim-solid);
+  }
+}
+
 .cp-video-title {
   margin: 0;
+  max-width: 100%;
   font-size: 0.95rem;
   font-weight: 700;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  overflow-wrap: break-word;
+  color: #fff;
 }
 
 .cp-video-meta {
@@ -337,7 +375,7 @@
   font-size: 0.75rem;
   line-height: 1.35;
   overflow-wrap: break-word;
-  opacity: 0.85;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .cp-video-finish {
@@ -364,7 +402,9 @@
   /* Telefonda (375 px) üst blok %21'de bitiyor, orta oynat düğmesi %45'te başlıyor; %34'te
      iki satırlık kutu duraklatınca düğmeye biniyordu (18 Ekim 2026 denetimi). Kutu ortasından değil üst kenarından
      yerleşir (30 Ekim 2026): masaüstünde üç satıra sarınca yarısı "Dersi tamamla"nın üstüne çıkıyordu. */
-  top: max(22%, 7.6rem);
+  /* 6 Kasım 2026: alt sınır sabit 7,6 rem yerine ölçülen üst çubuk (`--cp-top-h`): başlık şeridi çubuğu biraz
+     uzattı; konu satırı iki satıra sarınca da kilit bilgi şeridin altında kalır. */
+  top: max(22%, calc(var(--cp-top-h, 7.2rem) + 0.4rem));
   z-index: 2;
   margin: 0;
   padding: 0.55rem 0.8rem;

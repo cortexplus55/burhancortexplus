@@ -33,6 +33,7 @@ import { numbersIn, sameNumber } from "@/lib/learning/result-values";
 import { enumeratedCountIssue, singleAnswerIntegrityIssues } from "@/lib/learning/question-integrity";
 import {
   BLOCK_ROLE_RULE,
+  EXAMPLE_CLASSIFICATION_RULE,
   KEY_CONSISTENCY_RULE,
   SAME_KIND_DISTRACTOR_RULE,
   SELF_CONTAINED_STEM_RULE,
@@ -59,6 +60,7 @@ import {
   type KeyFact,
 } from "@/lib/learning/lesson-key-facts";
 import { noteWarningsPromptLine, type FormulaTypo } from "@/lib/learning/formula-typos";
+import { backboneWithoutSiblings, prepTopicScopeLine } from "@/lib/learning/topic-section";
 
 /**
  * Öğretmen ders motoru (2 Ekim 2026, ürün sahibinin kararı).
@@ -125,6 +127,16 @@ export type TeacherLessonInput = {
   lateNoteWarnings?: () => FormulaTypo[];
   /** Resmî müfredattan kurulan hazırlıkta konunun resmî kazanımı ve sınırlamaları (1 Kasım 2026). */
   officialOutcome?: OfficialOutcomeGrounding | null;
+  /**
+   * Hazırlığın öbür konuları (6 Kasım 2026, konu yalıtımı): aynı sayfayı paylaşan konunun bölümü ayrı kavram olmasın.
+   * Yazar kapsam satırını (`prepTopicScopeLine`) okur, omurga öbür konuların başlıklarını taşımaz. Yoksa satır yok.
+   */
+  siblingTopics?: string[];
+  /**
+   * Belgesiz derste konunun doğrulanmış havuz anlatımı (6 Kasım 2026): tanım, sınıflandırma ve örnekler buradan.
+   * Yoksa ders konunun yerleşik bilgisiyle yazılır.
+   */
+  approvedFacts?: string;
 };
 
 /** Notun yazım hatası olan formülü kilit bilgi değildir: yazar ve kapsam ölçüsü onu "işlenmedi" saymasın. */
@@ -384,6 +396,8 @@ export const TEACHER_SYSTEM =
   "Her kavram dört parçadır: (1) net tanım, (2) kural, formül ya da şema (sayı doğrusu ve devre sırayla akan bir flow " +
   "şeması, tablo ilişkisi matrix), (3) çözümlü klasik sınav örneği, (4) öğrencinin çözeceği kontrol sorusu. " +
   "Önce kavramın ne olduğunu, sonra neyle karıştırıldığını, sonra sınavda nasıl tanınacağını söyle. Zıtlıkla anlat (X böyledir, Y ise şöyle). " +
+  // 6 Kasım 2026 (canlı sınav): günlük örnek kavramın sınıfını bozdu. Belgeli ve belgesiz istem bu bölümü paylaşır.
+  `${EXAMPLE_CLASSIFICATION_RULE} ` +
   "SAYILAR: Kaynak bir sayı, eşik, aralık, oran ya da birim veriyorsa onu aynen yaz ('2 SD'nin altı', '%3', '13 cm'); " +
   "'yüksek', 'düşük', 'belirli bir değer' diye geçiştirme. Belgede olmayan standart müfredat sayısı yalnız " +
   "kavramın adını taşıyan genel bilgi kutusunda ve o kutunun çözümlü örneğinde yazılır.\n\n" +
@@ -494,10 +508,27 @@ export function teacherSystem(mode: TeacherLessonMode = "document"): string {
 }
 
 /** Konunun kendi sayfalarından omurga; belgesiz derste yok. */
-export function inputBackbone(input: Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "runningHeaders" | "mode">>): string[] {
+export function inputBackbone(
+  input: Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "runningHeaders" | "mode" | "siblingTopics">>,
+): string[] {
   if (input.mode === "topic" || !input.pages?.length) return [];
-  return lessonBackbone(input.pages, { topicLabel: input.topicLabel, runningHeaders: input.runningHeaders });
+  const backbone = lessonBackbone(input.pages, { topicLabel: input.topicLabel, runningHeaders: input.runningHeaders });
+  // Öbür konuların başlıkları omurga değildir (6 Kasım 2026): "her alt başlık bir ekranda" kuralı onları dayatmasın.
+  return input.siblingTopics?.length ? backboneWithoutSiblings(backbone, input.topicLabel ?? "", input.siblingTopics) : backbone;
 }
+
+/** Belgesiz derste konunun doğrulanmış havuz anlatımı; yazar ve hafif doğrulayıcı aynı bloğu okur. */
+export function approvedFactsBlock(text: string | undefined): string {
+  const body = text?.trim();
+  if (!body) return "";
+  return (
+    "ONAYLI BİLGİLER (konunun doğrulanmış müfredat anlatımı; tanım, sınıflandırma ve örnekleri buradan al, bununla " +
+    `çelişme; burada olmayan örneği yalnız sınıflandırması tartışmasızsa kullan):\n${body.slice(0, APPROVED_FACTS_CHARS)}`
+  );
+}
+
+/** Onaylı bilgiler bloğunun tavanı (istem kısa kalsın; ilk ekranı geciktirmesin). */
+export const APPROVED_FACTS_CHARS = 6_000;
 
 /** "Farklı anlat" bloğu: aynı kazanımlar, farklı yol. Öğrencinin anlatım tercihi profil bloğundan gelir. */
 export function alternativeBlock(text: string | undefined): string {
@@ -506,6 +537,8 @@ export function alternativeBlock(text: string | undefined): string {
   return [
     "FARKLI ANLAT: Öğrenci bu konunun aşağıdaki anlatımını okudu ve farklı anlatılmasını istedi. Aynı kazanımları ve aynı doğru bilgiyi koru;",
     "farklı bir giriş, farklı örnek ve benzetme, farklı sıra kullan. Önceki anlatımın cümlelerini ve örneklerini tekrar etme.",
+    // 6 Kasım 2026 (canlı sınav): "farklı örnek" isteği yeni bir günlük örneği yanlış sınıfa koydurdu.
+    "Yeni örnek ve benzetme ÖRNEĞİN SINIFLANDIRMASI kuralına birebir uyar; emin olmadığın yerde önceki anlatımın gerçek örneğini başka bir açıdan kullan.",
     `Ders en az ${TOPIC_MIN_SCREENS} ekran olsun (6-8): kazanımları alt fikirlere böl, her alt fikre kendi ekranı.`,
     body.slice(0, 10_000),
   ].join("\n");
@@ -529,6 +562,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
     `SINAV: ${input.prepTitle}`,
     `KONU: ${input.topicLabel}`,
+    input.mode === "topic" ? "" : prepTopicScopeLine(input.topicLabel, input.siblingTopics ?? []),
     lessonOptionCountLine(input),
     input.previousTopic ? `ÖNCEKİ KONU (gerekirse tek cümleyle bağlan): ${input.previousTopic}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
@@ -544,7 +578,7 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     input.mode === "topic" ? "" : backboneBlock(inputBackbone(input)),
     input.mode === "topic" ? "" : keyFactsBlock(lessonFacts(input.pages, input.noteWarnings)),
     input.mode === "topic"
-      ? "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
+      ? approvedFactsBlock(input.approvedFacts) || "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
       : `KAYNAK:\n${sourceText(input.pages)}`,
   ]
     .filter(Boolean)
@@ -633,7 +667,9 @@ export const VERIFY_SYSTEM =
   "Sen titiz bir ders denetçisisin. Bir dersi, yazıldığı KAYNAK ile karşılaştırıyorsun. Şunları bul:\n" +
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma. (Yeni bilgi taşımayan örnek " +
   `vaka ya da benzetme sorun değildir. ${SOURCE_LINK_EXEMPTION} tone 'general' olan 'Genel bilgi' ve 'Neden böyle?' ` +
-  "notu kaynakta olmayabilir; onu A'ya göre değil H'ye göre denetle.)\n" +
+  "notu kaynakta olmayabilir; onu A'ya göre değil H'ye göre denetle.) Örnek, benzetme, örnek vaka ya da hafıza " +
+  "çivisinde bir nesnenin, canlının ya da olayın ders kitabının koymadığı bir sınıfa konması A'dır ('high'). Yazarın " +
+  `kuralı (aynen): ${EXAMPLE_CLASSIFICATION_RULE}\n` +
   "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade; kaynaktaki bir sayının, eşiğin ya da birimin yanlış " +
   "aktarılması ya da kaynak sayıyı açıkça verirken derste 'yüksek/düşük' gibi soyut sözle geçiştirilmesi; genel bilgi " +
   "kutusu da dahil, notun sayısı, aralığı ya da adıyla çelişen değer B'dir. " +
@@ -679,7 +715,9 @@ export const VERIFY_SYSTEM =
 /** Belgesiz ders denetimi: kaynak yok, doğruluk ve öğretim kalitesi. */
 export const TOPIC_VERIFY_SYSTEM =
   "Sen titiz bir ders denetçisisin. Belgesi olmayan bir sınav dersini doğruluk açısından denetliyorsun. Şunları bul:\n" +
-  "A) Yanlış olgu, tanım, sayı, eşik, birim, tarih, kural ya da sınıflandırma.\n" +
+  "A) Yanlış olgu, tanım, sayı, eşik, birim, tarih, kural ya da sınıflandırma; örnek, benzetme, örnek vaka ya da hafıza " +
+  "çivisinde bir nesnenin, canlının ya da olayın ders kitabının koymadığı bir sınıfa konması. Yazarın kuralı (aynen): " +
+  `${EXAMPLE_CLASSIFICATION_RULE}\n` +
   "B) Emin olunamayacak kadar ayrıntılı ya da güncel olarak değişebilecek bilgi (yürürlükteki oran, son düzenleme), " +
   "tartışmalı bir görüşün kesin doğru gibi sunulması.\n" +
   "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
@@ -1181,7 +1219,7 @@ function givesAway(text: string, prompt: string, corrected: string): boolean {
 }
 
 type StructureInput = Pick<TeacherLessonInput, "runningHeaders"> &
-  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount" | "noteWarnings">>;
+  Partial<Pick<TeacherLessonInput, "pages" | "topicLabel" | "mode" | "optionCount" | "noteWarnings" | "siblingTopics">>;
 
 function collector() {
   const issues: TeacherIssue[] = [];

@@ -10,6 +10,7 @@ import { readableGap } from "@/lib/learning/prep-progress-view";
 import { createTopicIndex } from "@/lib/learning/topic-identity";
 import {
   buildCramSheet,
+  CRAM_WEAK_BELOW,
   mistakeCramText,
   reviewItemCramText,
   type CramSheet,
@@ -186,12 +187,20 @@ export async function loadCramSheet(
 
   const merged = [...masteryByPlannedTopic(labels, (masteryRows as Record<string, unknown>[]).map(masterySnapshotFromRow)).values()];
   const misconceptionRows = misconceptions as { claim?: unknown; topic_label?: unknown; question_preview?: unknown; source_kind?: unknown }[];
+  // Açık yanlış = açık yanılgı + günü gelen tekrardaki kaçırılmış soru. Konu "Dikkat" ancak bunlardan biriyle ya da
+  // ölçülmüş başarısı %75'in altındaysa olur (`cramWeakReason`); %75 tabanı hedef puandan düşük olsa da aranır.
+  const openMisses = [
+    ...misconceptionRows.map((row) => ({ topicLabel: typeof row.topic_label === "string" ? row.topic_label : null })),
+    ...(reviewRows as { topic_label?: unknown }[]).map((row) => ({
+      topicLabel: typeof row.topic_label === "string" ? row.topic_label : null,
+    })),
+  ];
   const focusTopics = rankFinalStepTopics({
     plannedTopics: labels,
     mastery: merged,
-    openMisses: misconceptionRows.map((row) => ({ topicLabel: typeof row.topic_label === "string" ? row.topic_label : null })),
-    targetScore: input.targetScore,
-  }).map((row) => ({ label: row.label, percent: row.percent }));
+    openMisses,
+    targetScore: Math.max(input.targetScore ?? CRAM_WEAK_BELOW, CRAM_WEAK_BELOW),
+  }).map((row) => ({ label: row.label, percent: row.percent, openWrongs: row.openWrongs }));
 
   const canonical = (label: string | null | undefined) => index.rowForKey(label)?.label ?? (label?.trim() || null);
   const weakSpots: CramWeakSpot[] = [];

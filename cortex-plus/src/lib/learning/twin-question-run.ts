@@ -11,9 +11,11 @@ import {
   TWIN_SYSTEM,
   TWO_OPTION_SYSTEM,
   readTwinQuestion,
-  readTwoOptionHint,
   twinUserPrompt,
+  twoOptionFallback,
+  twoOptionHintVerdict,
   twoOptionUserPrompt,
+  type TwoOptionRetry,
 } from "@/lib/learning/twin-question";
 
 /** Öğrenci soru ekranında bekliyor: kısa tavan, düşük düşünme. */
@@ -80,14 +82,22 @@ export async function writeTwoOptionHint(
   question: QuizQuestion,
   pair: [string, string],
 ): Promise<string | null> {
-  try {
-    return readTwoOptionHint(
-      await askJson(service, userId, TWO_OPTION_SYSTEM, twoOptionUserPrompt(question, pair), HINT_TIMEOUT_MS),
-      question,
-      pair,
-    );
-  } catch (error) {
-    console.warn("two_option_hint_failed", error instanceof Error ? error.message : String(error));
-    return null;
+  // İlk cevap iki şıkkı ayırmıyor ya da cevabı ele veriyorsa bir kez daha, nedeni söylenerek (6 Kasım 2026).
+  let retry: TwoOptionRetry | undefined;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const verdict = twoOptionHintVerdict(
+        await askJson(service, userId, TWO_OPTION_SYSTEM, twoOptionUserPrompt(question, pair, retry), HINT_TIMEOUT_MS),
+        question,
+        pair,
+      );
+      if (verdict.hint) return verdict.hint;
+      console.info("two_option_hint_rejected", JSON.stringify({ attempt, problem: verdict.problem }));
+      retry = verdict.problem === "unreadable" ? retry : (verdict.problem ?? undefined);
+    } catch (error) {
+      console.warn("two_option_hint_failed", error instanceof Error ? error.message : String(error));
+      break;
+    }
   }
+  return twoOptionFallback(pair);
 }

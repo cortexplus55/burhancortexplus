@@ -13,6 +13,9 @@ import { sessionSignalsPrompt } from "@/lib/learning/session-signals";
 import { teachingActivityForKind } from "@/lib/learning/teaching-standards";
 import { quizOpenStagesLog } from "@/lib/learning/quiz-delivery";
 import { NodeGenerationError, actionForKind } from "./shared";
+import { prepTopicLabels, prepTopicScopeLine } from "@/lib/documents/generation-context";
+import { ALL_TOPICS_LABEL } from "@/lib/learning/prep-wide-target";
+import { narrowPagesToTopic } from "@/lib/learning/topic-section";
 import { withSupport, type LessonCore } from "./teacher-pages";
 import type { NodePayloadInput } from "./generate";
 
@@ -31,6 +34,11 @@ export async function teacherQuizPayload(
   count: number,
 ) {
   const startedAt = input.requestStartedAt ?? Date.now();
+  // Konu yalıtımı (6 Kasım 2026): yalnız tek konulu konu testi; tuzak testi (gaps) hazırlık geneli olabilir.
+  const siblingsEarly =
+    core && input.kind === "quiz" && input.prepId && input.topicLabel !== ALL_TOPICS_LABEL
+      ? prepTopicLabels(input.service, input.prepId).catch(() => [] as string[])
+      : Promise.resolve([] as string[]);
   const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
   const clean = core
     ? await ensureCleanPages(input.service, {
@@ -55,10 +63,15 @@ export async function teacherQuizPayload(
           topicId: input.topicId ?? null,
         })
       : [];
+  const siblings = await siblingsEarly;
+  const scoped = narrowPagesToTopic<{ page: number; text: string; label?: string }>(withSupport(clean, core), input.topicLabel, siblings);
+  const scopeLine = prepTopicScopeLine(input.topicLabel, siblings);
+  // Testin dilimi konunun kendi (daraltılmış) sayfalarından; yardımcı sayfalar omurgaya girmez.
+  const ownPages = scoped.pages.filter((page) => !page.label);
   const variant = input.sessionMeta?.practiceVariant ?? practiceVariantFromTitle(input.nodeTitle);
   const coverage =
     input.kind === "quiz"
-      ? practiceCoverage(variant, lessonBackbone(clean, { topicLabel: input.topicLabel, runningHeaders: edges }))
+      ? practiceCoverage(variant, lessonBackbone(ownPages, { topicLabel: input.topicLabel, runningHeaders: edges }))
       : undefined;
   const outcome = await runTeacherQuiz(input.service, {
     mode: core ? "document" : "topic",
@@ -72,7 +85,8 @@ export async function teacherQuizPayload(
     charge: input.charge,
     topicLabel: input.topicLabel,
     prepTitle: input.prepTitle,
-    pages: withSupport(clean, core),
+    pages: scoped.pages,
+    ...(scopeLine ? { brief: scopeLine } : {}),
     count,
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     examPoints: input.examPoints,

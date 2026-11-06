@@ -81,6 +81,28 @@ function findLoadedIndex(
   return best;
 }
 
+/**
+ * Öğrencinin elle eklediği (haritada olmayan) konunun geçici takvim kimliği. Konunun kayıt kimliği hazırlık yazılınca
+ * oluşur; kurulum bu kimliği kayıttan sonra gerçek konu satırının kimliğine çevirir (`addedTopicIdMap`). 6 Kasım 2026'ya
+ * kadar çevrilmiyordu: yol adımı "added:5:…" taşıyordu, düğüm konusunu bulamayıp ilk konunun sayfalarından yazılıyordu.
+ */
+export const ADDED_TOPIC_ID_PREFIX = "added:";
+
+/** Kayıttan sonra: geçici "added:" kimliği → aynı sıradaki (`sort_order`) konu satırının kimliği. */
+export function addedTopicIdMap(
+  scheduleTopics: readonly { id?: string | null }[],
+  saved: readonly { id: string; sort_order: number }[],
+): Map<string, string> {
+  const bySort = new Map(saved.map((row) => [row.sort_order, row.id]));
+  const out = new Map<string, string>();
+  scheduleTopics.forEach((topic, index) => {
+    const id = topic.id ?? "";
+    const real = bySort.get(index);
+    if (id.startsWith(ADDED_TOPIC_ID_PREFIX) && real) out.set(id, real);
+  });
+  return out;
+}
+
 export function applyStudentTopicList(input: {
   requested: RequestedPrepTopic[];
   loaded: LoadedPrepTopics;
@@ -117,7 +139,7 @@ export function applyStudentTopicList(input: {
     titles.push(title);
     nodeIds.push(null);
     scheduleTopics.push({
-      id: `added:${titles.length}:${foldOf(title).slice(0, 24) || "konu"}`,
+      id: `${ADDED_TOPIC_ID_PREFIX}${titles.length}:${foldOf(title).slice(0, 24) || "konu"}`,
       title,
       pageNumbers: item.pageNumbers,
       sourceRefs: item.sourceRefs ?? [],

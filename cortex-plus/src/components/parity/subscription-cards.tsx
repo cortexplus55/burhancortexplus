@@ -27,6 +27,7 @@ import {
   tierComparisonRows,
   WEEKLY_PLUS_PLAN_NAME,
 } from "@/lib/billing/tier-presentation";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 export { BENEFITS_LEAD };
 
@@ -790,13 +791,13 @@ export function SubscriptionCards({
               onChange={(event) => setLegalAccepted(event.target.checked)}
             />
             <span>
-              <a href="/on-bilgilendirme" target="_blank" rel="noreferrer">
+              <ExternalAnchor href="/on-bilgilendirme">
                 Ön Bilgilendirme Formu
-              </a>
+              </ExternalAnchor>
               &apos;nu ve{" "}
-              <a href="/mesafeli-satis" target="_blank" rel="noreferrer">
+              <ExternalAnchor href="/mesafeli-satis">
                 Mesafeli Satış Sözleşmesi
-              </a>
+              </ExternalAnchor>
               &apos;ni okudum, kabul ediyorum.
             </span>
           </label>
