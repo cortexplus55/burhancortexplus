@@ -9,6 +9,7 @@ import {
   type ConversationBucket,
   type RecentConversation,
 } from "@/lib/student/conversation-time";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 
 const BUCKETS: ConversationBucket[] = ["BUGÜN", "BU AY", "DAHA ESKİ"];
 
@@ -29,6 +30,7 @@ export function ExamChatMenu({
 }) {
   const [history, setHistory] = useState(false);
   const [query, setQuery] = useState("");
+  useDismiss(true, onClose);
 
   const grouped = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");

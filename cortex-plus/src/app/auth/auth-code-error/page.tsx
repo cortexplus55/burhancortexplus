@@ -3,6 +3,8 @@ import { MarketingPage } from "@/components/layout/marketing-page";
 import { ResultCard } from "@/components/marketing/result-card";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 
+export const metadata = { title: "Giriş bağlantısı açılamadı" };
+
 export default async function AuthCodeErrorPage({
   searchParams,
 }: {

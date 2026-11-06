@@ -48,39 +48,84 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
     return buckets;
   }, [rows, query, now]);
 
-  async function rename(id: string, current: string | null) {
-    const next = window.prompt("Sohbet adı", current ?? "Yeni sohbet");
-    if (next == null) return;
-    const title = next.trim();
-    if (!title) return;
-    const res = await fetch("/api/ai/conversations", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId: id, title }),
-    });
-    if (!res.ok) {
-      toast.error("Ad değiştirilemedi. Tekrar deneyebilirsin.");
-      return;
+  /*
+    6 Kasım 2026: `window.prompt` / `window.confirm` Instagram, WhatsApp gibi uygulama içi tarayıcılarda
+    açılmıyor ya da hemen `null` dönüyordu; ad değiştirme ve silme orada hiç çalışmıyordu. Şimdi satırın
+    içinde: kalem → yazı alanı (Enter kaydeder, Esc vazgeçer), çöp kutusu → "Silinsin mi? Evet / Vazgeç".
+  */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
+
+  function startRename(id: string, current: string | null) {
+    setConfirmingId(null);
+    setRowError(null);
+    setEditingId(id);
+    setDraft(current ?? "Yeni sohbet");
+  }
+
+  function cancelRename() {
+    setEditingId(null);
+    setDraft("");
+  }
+
+  async function saveRename(id: string) {
+    const title = draft.trim();
+    if (!title || busyId) return;
+    setBusyId(id);
+    setRowError(null);
+    const failed = "Ad değiştirilemedi. Tekrar deneyebilirsin.";
+    try {
+      const res = await fetch("/api/ai/conversations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: id, title }),
+      });
+      if (!res.ok) {
+        setRowError({ id, message: failed });
+        toast.error(failed);
+        return;
+      }
+      setRows((list) => list.map((row) => (row.id === id ? { ...row, title } : row)));
+      cancelRename();
+      router.refresh();
+    } catch {
+      const message = "Bağlantı sorunu; ad değiştirilemedi. Tekrar deneyebilirsin.";
+      setRowError({ id, message });
+      toast.error(message);
+    } finally {
+      setBusyId(null);
     }
-    setRows((list) =>
-      list.map((row) => (row.id === id ? { ...row, title } : row)),
-    );
-    router.refresh();
   }
 
   async function remove(id: string) {
-    if (!window.confirm("Bu sohbeti silmek istiyor musun?")) return;
-    const res = await fetch("/api/ai/conversations", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId: id, deleted: true }),
-    });
-    if (!res.ok) {
-      toast.error("Sohbet silinemedi. Tekrar deneyebilirsin.");
-      return;
+    if (busyId) return;
+    setBusyId(id);
+    setRowError(null);
+    const failed = "Sohbet silinemedi. Tekrar deneyebilirsin.";
+    try {
+      const res = await fetch("/api/ai/conversations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: id, deleted: true }),
+      });
+      if (!res.ok) {
+        setRowError({ id, message: failed });
+        toast.error(failed);
+        return;
+      }
+      setConfirmingId(null);
+      setRows((list) => list.filter((row) => row.id !== id));
+      router.refresh();
+    } catch {
+      const message = "Bağlantı sorunu; sohbet silinemedi. Tekrar deneyebilirsin.";
+      setRowError({ id, message });
+      toast.error(message);
+    } finally {
+      setBusyId(null);
     }
-    setRows((list) => list.filter((row) => row.id !== id));
-    router.refresh();
   }
 
   return (
@@ -110,37 +155,114 @@ export function SohbetlerList({ items, now }: { items: ConversationRow[]; now: s
               <section key={group.label} className="cp-chat-group">
                 <h2>{group.label}</h2>
                 <ul>
-                  {group.rows.map((conversation) => (
-                    <li
-                      key={conversation.id}
-                      className="cs-pay-card mb-2 flex min-h-[52px] items-center gap-2 px-3 py-2"
-                    >
-                      <Link
-                        href={`/ogretmen?sohbet=${conversation.id}`}
-                        className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--cs-text)]"
+                  {group.rows.map((conversation) => {
+                    const editing = editingId === conversation.id;
+                    const confirming = confirmingId === conversation.id;
+                    const busy = busyId === conversation.id;
+                    const error = rowError?.id === conversation.id ? rowError.message : null;
+                    return (
+                      <li
+                        key={conversation.id}
+                        className="cs-pay-card mb-2 flex min-h-[52px] flex-wrap items-center gap-2 px-3 py-2"
                       >
-                        {conversation.title ?? "Başlıksız sohbet"}
-                      </Link>
-                      <button
-                        type="button"
-                        className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
-                        aria-label="Yeniden adlandır"
-                        onClick={() =>
-                          void rename(conversation.id, conversation.title)
-                        }
-                      >
-                        <Pencil className="h-4 w-4" aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
-                        aria-label="Sohbeti sil"
-                        onClick={() => void remove(conversation.id)}
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden />
-                      </button>
-                    </li>
-                  ))}
+                        {editing ? (
+                          <input
+                            autoFocus
+                            value={draft}
+                            disabled={busy}
+                            maxLength={120}
+                            onChange={(event) => setDraft(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void saveRename(conversation.id);
+                              } else if (event.key === "Escape") {
+                                event.preventDefault();
+                                cancelRename();
+                              }
+                            }}
+                            aria-label="Sohbet adı"
+                            className="min-w-0 flex-1 rounded-lg border border-white/15 bg-transparent px-2 py-1.5 text-sm text-[var(--cs-text)]"
+                          />
+                        ) : (
+                          <Link
+                            href={`/ogretmen?sohbet=${conversation.id}`}
+                            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--cs-text)]"
+                          >
+                            {conversation.title ?? "Başlıksız sohbet"}
+                          </Link>
+                        )}
+                        {editing ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy || !draft.trim()}
+                              className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[var(--cs-text)] hover:bg-white/5 disabled:opacity-50"
+                              onClick={() => void saveRename(conversation.id)}
+                            >
+                              {busy ? "Kaydediliyor…" : "Kaydet"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              className="rounded-lg px-2 py-1.5 text-xs text-[var(--cs-muted)] hover:bg-white/5"
+                              onClick={cancelRename}
+                            >
+                              Vazgeç
+                            </button>
+                          </>
+                        ) : confirming ? (
+                          <>
+                            <span className="text-xs text-[var(--cs-muted)]">Silinsin mi?</span>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              className="rounded-lg px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-white/5 disabled:opacity-50"
+                              onClick={() => void remove(conversation.id)}
+                            >
+                              {busy ? "Siliniyor…" : "Evet"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              className="rounded-lg px-2 py-1.5 text-xs text-[var(--cs-muted)] hover:bg-white/5"
+                              onClick={() => setConfirmingId(null)}
+                            >
+                              Vazgeç
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
+                              aria-label="Yeniden adlandır"
+                              onClick={() => startRename(conversation.id, conversation.title)}
+                            >
+                              <Pencil className="h-4 w-4" aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
+                              aria-label="Sohbeti sil"
+                              onClick={() => {
+                                cancelRename();
+                                setRowError(null);
+                                setConfirmingId(conversation.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
+                            </button>
+                          </>
+                        )}
+                        {error ? (
+                          <p role="alert" className="w-full text-xs text-red-300">
+                            {error}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))

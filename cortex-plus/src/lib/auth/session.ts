@@ -39,7 +39,7 @@ export async function getPrimaryRole(userId: string) {
 export async function requireAdmin() {
   const { supabase, user } = await requireUser();
   const roles = await getUserRoles(user.id);
-  if (!roles.includes("admin")) redirect("/dashboard");
+  if (!roles.includes("admin")) redirect("/ogretmen");
   return { supabase, user };
 }
 

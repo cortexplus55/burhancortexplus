@@ -45,12 +45,12 @@ export function downloadStudioCard(input: {
   ctx.fillText((TOOL_LABEL[input.tool] ?? input.tool).toUpperCase(), 88, 186);
 
   ctx.fillStyle = "#fafafa";
-  ctx.font = "400 72px 'DM Serif Display', Georgia, serif";
+  ctx.font = "700 72px Figtree, system-ui, sans-serif";
   wrapText(ctx, input.title, 88, 360, 900, 82);
 
   if (input.scoreLabel) {
     ctx.fillStyle = gold;
-    ctx.font = "400 120px 'DM Serif Display', Georgia, serif";
+    ctx.font = "800 120px Figtree, system-ui, sans-serif";
     ctx.fillText(input.scoreLabel, 88, 780);
   }
 

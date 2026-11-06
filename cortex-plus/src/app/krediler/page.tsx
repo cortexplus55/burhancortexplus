@@ -237,7 +237,7 @@ export default async function KredilerPage() {
         ) : (
           <div className="cp-quota-upsell">
             <p>{periodWord(quota.kind)} kotan dolduysa ek paket alabilirsin.</p>
-            <Link href="/paketler" className="cp-exam-continue inline-flex">
+            <Link href="/pay" className="cp-exam-continue inline-flex">
               Ek paket al
             </Link>
           </div>

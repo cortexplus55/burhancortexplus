@@ -16,6 +16,7 @@ import {
 } from "@/lib/learning/oral-exam-chrome";
 import { ORAL_ALL_TOPICS, ORAL_LENGTH_OPTIONS, type OralLength } from "@/lib/learning/oral-exam";
 import { ProgressRing } from "@/components/ui/progress-ring";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 import "@/styles/oral-exam-chrome.css";
 
 /** `measured: false`: konu ölçülmedi (3 cevaptan az); seçicide sayı değil "Ölçülmedi" yazar (Paket I #7). */
@@ -265,6 +266,8 @@ export function OralPreflightDialog({
   minutes?: number;
   copy?: { title: string; body: string; items: readonly string[]; confirm: string };
 }) {
+  // Esc yalnız "Vazgeç" varken kapatır; odak her durumda açan düğmeye döner.
+  useDismiss(open, () => onCancel?.(), { escape: Boolean(onCancel) });
   if (!open) return null;
   const resolved = copy ?? oralPreflightCopy(questionCount, minutes);
   return (
@@ -309,6 +312,10 @@ export function OralEndDialog({
   onStay: () => void;
   onConfirm: () => void;
 }) {
+  // Esc = "Sınava dön" (gönderim sürerken kapanmaz).
+  useDismiss(open, () => {
+    if (!busy) onStay();
+  });
   if (!open) return null;
   return (
     <div className="cp-oral-modal-back">
@@ -337,6 +344,8 @@ export function OralReviewTimeDialog({
   open?: boolean;
   onSeeResults: () => void;
 }) {
+  // Kapatılacak bir şey yok (tek düğme sonuca götürür): Esc dinlenmez, yalnız odak geri döner.
+  useDismiss(open, () => undefined, { escape: false });
   if (!open) return null;
   return (
     <div className="cp-oral-modal-back">

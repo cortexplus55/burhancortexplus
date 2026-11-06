@@ -8,8 +8,8 @@
 }
 
 .cs-app .cs-page-title {
-  font-family: "DM Serif Display", Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--cs-text);
 }
@@ -212,7 +212,7 @@
 }
 
 .tier-compare-grid dt {
-  font-size: 0.6875rem;
+  font-size: 0.75rem; /* 6 Kasım 2026: 11 px etiket okunmuyordu */
   font-weight: 600;
   color: var(--cs-muted);
 }

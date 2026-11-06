@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Smartphone, Upload, X } from "lucide-react";
 import { useDocumentLimits } from "@/lib/student/student-shell-context";
 import { CHAT_UPLOAD_ACCEPT } from "@/lib/documents/upload-accept";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 
 export function UploadModal({
   open,
@@ -27,6 +28,7 @@ export function UploadModal({
 
   onCloseRef.current = onClose;
   onRemoteRef.current = onRemote;
+  useDismiss(open, onClose);
 
   useEffect(() => {
     if (!open) {

@@ -17,14 +17,14 @@ export async function GET(request: Request) {
   if (limited) return limited;
 
   const token = readEmailToken(searchParams.get("t"));
-  if (!token) return NextResponse.redirect(`${origin}/dashboard?eposta=gecersiz`);
+  if (!token) return NextResponse.redirect(`${origin}/ogretmen?eposta=gecersiz`);
 
   const service = createServiceClient();
   const { data } = await service.auth.admin.getUserById(token.userId);
   const email = data.user?.email ?? "";
   if (!email || !tokenMatchesEmail(token, email)) {
-    return NextResponse.redirect(`${origin}/dashboard?eposta=gecersiz`);
+    return NextResponse.redirect(`${origin}/ogretmen?eposta=gecersiz`);
   }
   const ok = await markEmailVerified(service, token.userId);
-  return NextResponse.redirect(`${origin}/dashboard?eposta=${ok ? "dogrulandi" : "gecersiz"}`);
+  return NextResponse.redirect(`${origin}/ogretmen?eposta=${ok ? "dogrulandi" : "gecersiz"}`);
 }

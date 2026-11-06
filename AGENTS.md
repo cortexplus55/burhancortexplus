@@ -1935,3 +1935,22 @@ Bekçi: `harcama-sigortasi.test.ts`, `belge-tekillestirme.test.ts` (göç ve klo
 | Girişte sahiplenme ve şifre sıfırlamadan sonra öbür oturumlar kapanır; ara katmandaki her yönlendirme yenilenen oturum çerezini taşır; SMTP zaman aşımları (8/5/10 sn); gömme 30 sn, yazıya çevirme 45 sn; gömme maliyeti `ai_usage_events`'e; Redis 3 hatadan sonra 30 sn atlanır; PayTR tutar uyuşmazlığı günlüğe ve denetim kaydına (ödemeyi durdurmaz); veli ödeme bağlantısı yalnız `APP_SECRET` (canlıda tanımlı); `/api/content/unit` yalnız yönetici; URL içe aktarma gömülü IPv4'lü IPv6'yı da reddeder; Markdown bağlantısında `\` reddedilir; düelloda misafire cevap anahtarı gitmez; Sentry adresteki belirteçleri siler | `auth/callback`, `sifre-yenile`, `middleware.ts`, `smtp.ts`, `rag/pipeline.ts`, `speech.ts`, `rate-limit.ts`, `paytr/callback`, `parent-link.ts`, `url-import.ts`, `markdown.ts`, `duels/[code]/run`, `sentry-shared.ts` |
 
 **Yayın sırası:** önce kod, sonra göç (kod iki durumda da çalışır; göç önce gelirse hazırlık sayfası eski kodla yol adımı yazamaz). Bekçi: `tarayici-yazma-kapat.test.ts` (göçü PGlite'ta çalıştırır ve öğrenci oturumuyla izin listesi dışına yazan kodu yakalar), `paket1-cekirdek.test.ts`, `paket1-depo-yol.test.ts`, `paket1-depo-iade.test.ts`, `paket1-guvenlik-ag.test.ts`, `paket1-guvenlik-akis.test.ts`.
+
+## Görsel ve akış paketi 2 (6 Kasım 2026) — okunur yazı, tek marka, satın alma önde
+
+360° denetimin görünüm ve akış satırları. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Tırnaklı başlık yazısı (DM Serif Display) yok.** `layout.tsx` onu `--font-display` değişkenine bağlayıp tokens.css'teki Figtree'yi eziyordu; `/ornek`, kayıt ve sohbet başlıkları tırnaklıydı. `--font-display` = `--font-ui`; eskiden 400 kalınlıkla çizilen başlıklar 600 | `layout.tsx`, `tokens.css`, `paket2-sayfa.test.ts` |
+| **Yazı tabanı:** gövde, öğretim geri bildirimi, ipucu ve boş durum metni en az 14 px (ana açıklama 15 px); etiket, rozet ve sekme en az 12 px. `--t-label-11` 12 px, `--t-mono-xs` 11 px; başlık satır aralığı 1,15. Sabit kutu içindeki glifler (periyodik tablo numarası, SVG grafik etiketi) bilerek küçük. Soluk metin rengi token'dan, koyu zeminde en az 4,5:1 | `tokens.css`, `parity-shell.css`, `exam-lesson-steps.css` …, `paket2-tipografi.test.ts` |
+| **Dokunma alanı en az 44 px.** Görünüşü değiştirmemek için simge düğmelerinde ortalanmış 44×44 `::after` | aynı dosyalar |
+| **`/ornek` ortak pazarlama kabuğunda** (`ParityMarketingPage`: logo, menü, alt bilgi); birincil düğme mavi. Ana sayfanın ikinci düğmesinin hedefi ayrı bir marka gibi duruyordu | `ornek/page.tsx`, `demo.css` |
+| **Fiyat ve abonelik sayfasında satın alma önce.** Karşılaştırma tablosu plan kartlarının altında ve "Planların tüm farklarını gör" ile açılır (önce kartların üstündeydi; telefonda satın alma üçüncü ekranın sonundaydı) | `subscription-cards.tsx` |
+| **Pazarlama menüsü tam hâliyle 1024 px'te**; altında hamburger. 768 px'te öğeler iki satıra kırılıyordu | `parity-site-header.tsx` |
+| **Çıkmazsız akış:** uyarlamalı oturumun bitiş ekranı hazırlığa döner; istekler hata yakalar ve "Tekrar dene" gösterir; yanlış defteri kayıt hatasını söyler; sohbet yeniden adlandırma ve silme sayfa içinde (uygulama içi tarayıcıda `window.prompt/confirm` açılmıyordu); tanışma testi istekleri 60 sn'de keser; Araçlar testi sonuç kaydedilemezse puanı yerelden sayar | `adaptive-study-session.tsx`, `mistake-runner.tsx`, `sohbetler-list.tsx`, `exam-intro-quiz.tsx`, `quiz-studio.tsx` |
+| **Açılır pencereler** Escape ile kapanır ve odağı geri verir (ortak kanca) | `src/lib/ui/use-dismiss.ts` |
+| **Yönlendirme atlaması yok:** bağlantılar `/ogretmen` ve `/pay`'e doğrudan gider; `/dashboard` ve `/paketler` yalnız eski adresler için yönlendirme. E-posta doğrulama dönüşü `?eposta=` notunu artık kaybetmiyor | `paket2-akis-kaynak.test.ts` |
+| Her sayfanın kendi sekme başlığı var (şifre, doğrulama, kurulum, ödeme hatası, giriş hatası); `/soru-coz`'da başlık bir kez | ilgili `layout.tsx` / `page.tsx` |
+
+Bekçi: `paket2-sayfa.test.ts`, `paket2-tipografi.test.ts`, `paket2-akis.test.tsx`, `paket2-akis-kaynak.test.ts`, `paket2-akis-zaman.test.tsx`, `mobile-chrome.test.tsx`.

@@ -29,8 +29,9 @@ export function ParitySiteHeader() {
           </span>
         </Link>
 
+        {/* Tam menü 1024 px ve üstünde (6 Kasım 2026): 768 px tablette öğeler iki satıra kırılıyordu. */}
         <nav
-          className="hidden items-center gap-6 text-sm text-[var(--mk-muted)] md:flex"
+          className="hidden items-center gap-6 whitespace-nowrap text-sm text-[var(--mk-muted)] lg:flex"
           aria-label="Ana menü"
         >
           {MARKETING_NAV.map((item) => (
@@ -58,7 +59,7 @@ export function ParitySiteHeader() {
           <Link
             href={MARKETING_AUTH.loginHref}
             className={cn(
-              "hidden rounded-full px-3 py-1.5 text-sm font-medium text-[var(--mk-muted)] hover:text-[var(--mk-text)] sm:inline-flex",
+              "hidden whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium text-[var(--mk-muted)] hover:text-[var(--mk-text)] sm:inline-flex",
               navFocus,
             )}
           >
@@ -66,14 +67,14 @@ export function ParitySiteHeader() {
           </Link>
           <Link
             href={MARKETING_AUTH.signupHref}
-            className={cn("mk-btn-primary hidden min-h-[44px] items-center px-4 py-2.5 text-sm sm:inline-flex", navFocus)}
+            className={cn("mk-btn-primary hidden min-h-[44px] items-center whitespace-nowrap px-4 py-2.5 text-sm sm:inline-flex", navFocus)}
           >
             {MARKETING_AUTH.signupLabel}
           </Link>
           <button
             type="button"
             className={cn(
-              "inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-[var(--mk-border)] text-[var(--mk-text)] md:hidden",
+              "inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-[var(--mk-border)] text-[var(--mk-text)] lg:hidden",
               navFocus,
             )}
             aria-expanded={open}
@@ -89,7 +90,7 @@ export function ParitySiteHeader() {
       {open ? (
         <nav
           id="cs-mobile-nav"
-          className="border-t border-[var(--mk-border)] bg-[var(--mk-bg)] px-4 py-3 md:hidden"
+          className="border-t border-[var(--mk-border)] bg-[var(--mk-bg)] px-4 py-3 lg:hidden"
           aria-label="Mobil menü"
         >
           <ul className="flex flex-col gap-1 text-sm">

@@ -224,7 +224,7 @@ export function ParitySorShell({
           </Link>
         ) : (
           <>
-            <Link href="/dashboard" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
+            <Link href="/ogretmen" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
               <CortexMark size={20} />
               <span className="cp-sor-logo-word">cortex</span>
               {isPremium ? (

@@ -21,6 +21,14 @@ const SOURCE_LABEL: Record<MistakeQuestion["source"], string> = {
   deneme: "Deneme",
 };
 
+const SAVE_FAILED_FEEDBACK: RunnerFeedback = {
+  correct: false,
+  mastered: false,
+  correctAnswer: null,
+  explanation: "Yanıtın kaydedilemedi. Bağlantını kontrol edip tekrar dene.",
+  firstWrongAnswer: null,
+};
+
 /** "1/2" — defterden çıkmaya kaç doğru kaldığını tek bakışta gösterir. */
 export function streakLabel(correctStreak: number): string {
   return `${Math.min(correctStreak, MASTERY_STREAK)}/${MASTERY_STREAK}`;
@@ -69,19 +77,15 @@ export function MistakeRunner({
         }),
       });
       if (!res.ok) {
-        setFeedback({
-          correct: false,
-          mastered: false,
-          correctAnswer: null,
-          explanation:
-            "Yanıtın kaydedilemedi. Bağlantını kontrol edip tekrar dene.",
-          firstWrongAnswer: null,
-        });
+        setFeedback(SAVE_FAILED_FEEDBACK);
         return;
       }
       const data = (await res.json()) as RunnerFeedback;
       setFeedback(data);
       onAnswered?.(data);
+    } catch {
+      // Ağ kopması ya da bozuk cevap: düğme kilitli kalmasın, öğrenci aynı uyarıyı görsün.
+      setFeedback(SAVE_FAILED_FEEDBACK);
     } finally {
       setSending(false);
     }

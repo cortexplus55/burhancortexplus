@@ -80,7 +80,7 @@ export function WorkStepList({ steps, firstError, note }: { steps: WorkStepVerdi
             </span>
             <span className="min-w-0 flex-1 basis-[8rem] whitespace-pre-wrap break-words leading-snug">{step.text}</span>
             {highlighted && sentence ? (
-              <p className="basis-full pl-12 text-xs font-semibold leading-snug text-rose-300">{sentence}</p>
+              <p className="basis-full pl-12 text-sm font-semibold leading-snug text-rose-300">{sentence}</p>
             ) : null}
           </li>
         );
@@ -366,7 +366,7 @@ export function ExamQuestionReviewClient({
                       </li>
                     ))}
                   </ul>
-                  <p className="text-[11px] text-[var(--cp-muted)]">Kâğıdında bunlar geçmeli: puan bu noktalardan gelir.</p>
+                  <p className="text-sm text-[var(--cp-muted)]">Kâğıdında bunlar geçmeli: puan bu noktalardan gelir.</p>
                 </div>
               ) : null}
 
@@ -409,19 +409,19 @@ export function ExamQuestionReviewClient({
 
                       {/* Status Badges */}
                       {isOptionCorrect ? (
-                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">
+                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">
                           Doğru Yanıt
                         </span>
                       ) : null}
 
                       {isOptionCorrect && isOptionUserAnswer && multi ? (
-                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[11px] font-bold">
+                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-xs font-bold">
                           İşaretledin
                         </span>
                       ) : null}
 
                       {isOptionUserAnswer && !isOptionCorrect ? (
-                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-bold">
+                        <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold">
                           Senin Yanıtın
                         </span>
                       ) : null}
@@ -475,7 +475,7 @@ export function ExamQuestionReviewClient({
                   ) : null}
                   {/* Satır cümlesi ilk hatalı satırın altında yazıldı; burada yalnız hatasız çözümün puan notu kalır. */}
                   {review?.feedback?.note && !(review.feedback.steps?.length && review.feedback.firstError) ? (
-                    <p className="text-xs text-[var(--cp-muted)]">{review.feedback.note}</p>
+                    <p className="text-sm text-[var(--cp-muted)]">{review.feedback.note}</p>
                   ) : null}
                 </div>
               ) : null}
@@ -504,7 +504,7 @@ export function ExamQuestionReviewClient({
                   ) : null}
                 </div>
 
-                <p className="text-sm text-[var(--c-text-muted)] leading-relaxed">
+                <p className="text-[0.9375rem] text-[var(--c-text-muted)] leading-relaxed">
                   {explanation}
                 </p>
                 {/* "🚩 Soruda hata bildir" (31 Ekim 2026, Paket J2 #10). Düzeltilince soru ve puan yerinde güncellenir. */}

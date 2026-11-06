@@ -29,7 +29,7 @@ export function FreePreviewToggle({
         setFailed(true);
         return;
       }
-      if (!on) router.push("/dashboard");
+      if (!on) router.push("/ogretmen");
       else router.refresh();
     });
 

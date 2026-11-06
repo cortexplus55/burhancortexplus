@@ -52,6 +52,23 @@ const QUESTION_COUNTS = [
 
 export type QuizDocumentOption = StudioDocument;
 
+/** Ekrandaki cevaplardan doğru / yanlış / boş; üçünün toplamı soru sayısı. */
+export function localQuizStats(
+  questions: readonly Pick<Question, "id" | "correct">[],
+  answers: Record<string, string>,
+): { correct: number; incorrect: number; blank: number } {
+  let correct = 0;
+  let incorrect = 0;
+  let blank = 0;
+  for (const q of questions) {
+    const picked = answers[q.id];
+    if (picked == null || picked === "") blank += 1;
+    else if (picked === q.correct) correct += 1;
+    else incorrect += 1;
+  }
+  return { correct, incorrect, blank };
+}
+
 export function QuizStudio({
   creditCost,
   initialTopic = "",
@@ -90,6 +107,7 @@ export function QuizStudio({
   const [mistakesRecorded, setMistakesRecorded] = useState(0);
   const [paywall, setPaywall] = useState(false);
   const [grading, setGrading] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const isPlus = Boolean(useStudentShellAccount()?.isPremium);
 
   const question = questions[index];
@@ -155,8 +173,17 @@ export function QuizStudio({
     setPhase("reveal");
   }
 
+  /** Sunucu notlamazsa sayılar ekrandaki cevaplardan: doğru, yanlış ve boş toplamı soru sayısıdır. */
+  function applyLocalStats() {
+    const local = localQuizStats(questions, answers);
+    setScore(local.correct);
+    setIncorrect(local.incorrect);
+    setBlank(local.blank);
+  }
+
   async function finish() {
     setGrading(true);
+    setSaveFailed(false);
     try {
       if (quizId) {
         const res = await fetch("/api/learning/quiz/grade", {
@@ -186,12 +213,16 @@ export function QuizStudio({
           setWeakTopics(data.weakTopics ?? []);
           setMistakesRecorded(data.mistakesRecorded ?? 0);
         } else {
-          // Client fallback stats if grade API fails.
-          setIncorrect(questions.length - score);
+          applyLocalStats();
+          setSaveFailed(true);
         }
       } else {
-        setIncorrect(questions.length - score);
+        applyLocalStats();
       }
+    } catch {
+      // Ağ kopması: sonuç yine doğru sayılarla gösterilir, kaydedilmediği söylenir.
+      applyLocalStats();
+      setSaveFailed(true);
     } finally {
       setGrading(false);
       setPhase("results");
@@ -336,6 +367,11 @@ export function QuizStudio({
           <p className="text-sm text-[var(--cs-muted)]">
             Doğru {score} · Yanlış {incorrect} · Boş {blank}
           </p>
+          {saveFailed ? (
+            <p className="text-xs text-amber-200/90" role="status">
+              Sonuç kaydedilemedi; puanın bu cihazdaki cevaplarından hesaplandı.
+            </p>
+          ) : null}
           {weakTopics.length ? (
             <p className="text-sm text-[var(--cs-muted)]">
               Zayıf konular: {weakTopics.join(", ")}
@@ -357,7 +393,7 @@ export function QuizStudio({
               </Link>
             ) : (
               <Link
-                href="/dashboard"
+                href="/araclar"
                 className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
               >
                 Çalışmaya devam et

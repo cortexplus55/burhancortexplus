@@ -171,10 +171,10 @@ describe("#1 hemen gir, içeride onayla", () => {
     user.app_metadata = { ...user.app_metadata, provider: "email", providers: ["email"] };
     const { GET } = await import("@/app/api/auth/eposta-dogrula/route");
     const ok = await GET(new Request(`https://cortexplus.app/api/auth/eposta-dogrula${url.search}`));
-    expect(ok.headers.get("location")).toBe("https://cortexplus.app/dashboard?eposta=dogrulandi");
+    expect(ok.headers.get("location")).toBe("https://cortexplus.app/ogretmen?eposta=dogrulandi"); // 6 Kasım 2026: /dashboard sorguyu düşürüyordu, şerit notu görmüyordu
     expect(user.app_metadata).toEqual({ email_unverified: false, provider: "email", providers: ["email"] });
     const bad = await GET(new Request("https://cortexplus.app/api/auth/eposta-dogrula?t=bozuk"));
-    expect(bad.headers.get("location")).toBe("https://cortexplus.app/dashboard?eposta=gecersiz");
+    expect(bad.headers.get("location")).toBe("https://cortexplus.app/ogretmen?eposta=gecersiz");
   });
 
   it("sihirbaz önce sunucu kaydı + şifreyle giriş; düşerse eski yol; şerit kabukta; Google ile girilince şifre değişir", () => {

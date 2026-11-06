@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 import {
   FREE_PICK_TOOLS,
   freeActivityPick,
@@ -28,6 +29,9 @@ export function FreeActivityPicker({
   const [topicId, setTopicId] = useState(topics[0]?.id ?? "");
   const [missing, setMissing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  useDismiss(true, () => {
+    if (!creating) onClose();
+  });
   const topic = topics.find((item) => item.id === topicId) ?? topics[0] ?? null;
 
   async function choose(tool: StudyToolId, label: string) {

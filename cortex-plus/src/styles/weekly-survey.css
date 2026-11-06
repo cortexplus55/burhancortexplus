@@ -182,3 +182,18 @@
     font: var(--t-label-11);
   }
 }
+
+/* Dokunma alanı (6 Kasım 2026): görünen boyut aynı, tıklanan alan ortalanmış 44×44 px ::after (WCAG 2.5.5). */
+.cp-survey-close {
+  position: relative;
+}
+
+.cp-survey-close::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}

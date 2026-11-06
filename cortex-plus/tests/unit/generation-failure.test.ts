@@ -136,7 +136,7 @@ describe("hak bittiğinde", () => {
       "/krediler",
     );
     expect(describeGenerationFailure("premium_required").action?.href).toBe(
-      "/paketler",
+      "/pay", // 6 Kasım 2026: /paketler yalnız /pay'e yönlenen eski rota
     );
   });
 });

@@ -83,6 +83,10 @@ export function AdaptiveStudySession({
   const [stepNote, setStepNote] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<{ message: string; retry: () => void } | null>(
+    null,
+  );
 
   const loadContent = useCallback(
     async (sess: SessionPayload, act: GovernorAction, misconception?: string | null) => {
@@ -148,21 +152,40 @@ export function AdaptiveStudySession({
     void start();
   }, [start]);
 
-  async function refreshNext(extra?: Record<string, unknown>) {
-    if (!session) return;
-    const res = await fetch("/api/adaptive/session/next", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        examPrepId: prepId,
-        sessionId: session.id,
-        ...extra,
-      }),
-    });
-    const data = await res.json();
-    if (data.ok && data.action) {
-      setAction(data.action);
-      await loadContent(session, data.action);
+  /**
+   * Sıradaki adımı ister. Ağ kopması ya da `ok: false` cevabı ekranda görünür ve "Tekrar dene" ile
+   * aynı istek yinelenir; düğmeler `finally`'de yeniden açılır (önceden hata sessizce yutuluyordu).
+   */
+  async function refreshNext(extra?: Record<string, unknown>): Promise<boolean> {
+    if (!session) return false;
+    const retry = () => void refreshNext(extra);
+    setBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/adaptive/session/next", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          examPrepId: prepId,
+          sessionId: session.id,
+          ...extra,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setActionError({ message: "Sıradaki adım şu an alınamadı.", retry });
+        return false;
+      }
+      if (data.action) {
+        setAction(data.action);
+        await loadContent(session, data.action);
+      }
+      return true;
+    } catch {
+      setActionError({ message: "Bağlantı sorunu; sıradaki adım alınamadı.", retry });
+      return false;
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -204,6 +227,8 @@ export function AdaptiveStudySession({
       } else {
         setStepNote("Cevap kaydedilemedi; tekrar dene.");
       }
+    } catch {
+      setStepNote("Bağlantı sorunu; cevabın kaydedilemedi, tekrar dene.");
     } finally {
       setSubmitting(false);
     }
@@ -216,17 +241,30 @@ export function AdaptiveStudySession({
 
   async function complete() {
     if (!session) return;
-    const res = await fetch("/api/adaptive/session/complete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        examPrepId: prepId,
-        sessionId: session.id,
-      }),
-    });
-    const data = await res.json().catch(() => null);
-    if (data?.summary) setSummary(data.summary as CompletionSummary);
-    setDone(true);
+    const retry = () => void complete();
+    setBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/adaptive/session/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          examPrepId: prepId,
+          sessionId: session.id,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setActionError({ message: "Oturum şu an kapatılamadı.", retry });
+        return;
+      }
+      if (data.summary) setSummary(data.summary as CompletionSummary);
+      setDone(true);
+    } catch {
+      setActionError({ message: "Bağlantı sorunu; oturum kapatılamadı.", retry });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function manual(kind: (typeof MANUAL)[number]["id"]) {
@@ -234,11 +272,12 @@ export function AdaptiveStudySession({
       await complete();
       return;
     }
-    setStepNote("Tercihin kaydedildi; plan bozulmadan devam ediyoruz.");
-    await refreshNext({
+    setStepNote(null);
+    const ok = await refreshNext({
       lastAnswerCorrect: kind === "harder" ? true : null,
       hintCount: kind === "easier" ? 1 : 0,
     });
+    if (ok) setStepNote("Tercihin kaydedildi; plan bozulmadan devam ediyoruz.");
   }
 
   if (loading) {
@@ -292,12 +331,20 @@ export function AdaptiveStudySession({
             Sonraki önerilen gün: {summary.nextStudyDay}
           </p>
         ) : null}
-        <Link
-          href="/dashboard"
-          className="inline-flex rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground"
-        >
-          Ana sayfaya dön
-        </Link>
+        <div className="flex flex-col items-center gap-3">
+          <Link
+            href={`/deneme-sinavlari/${prepId}`}
+            className="inline-flex rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground"
+          >
+            Hazırlığa dön
+          </Link>
+          <Link
+            href="/ogretmen"
+            className="text-xs text-[var(--cs-muted)] underline-offset-2 hover:underline"
+          >
+            Ana sayfaya dön
+          </Link>
+        </div>
       </div>
     );
   }
@@ -396,8 +443,9 @@ export function AdaptiveStudySession({
               ) : (
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() => void continueWithoutAnswer()}
-                  className="rounded-xl bg-action px-4 py-2 text-sm font-semibold text-action-foreground"
+                  className="rounded-xl bg-action px-4 py-2 text-sm font-semibold text-action-foreground disabled:opacity-50"
                 >
                   {action.action === "advance"
                     ? "Sonraki konuya geç"
@@ -429,11 +477,26 @@ export function AdaptiveStudySession({
         <p className="text-sm text-emerald-200/90">{stepNote}</p>
       ) : null}
 
+      {actionError ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-rose-200">
+          <span>{actionError.message}</span>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={actionError.retry}
+            className="rounded-xl border border-white/20 px-3 py-1.5 text-xs font-semibold text-[var(--cs-text)] disabled:opacity-50"
+          >
+            Tekrar dene
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         {MANUAL.map((m) => (
           <button
             key={m.id}
             type="button"
+            disabled={busy}
             onClick={() => void manual(m.id)}
             className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-[var(--cs-muted)] hover:border-white/30 hover:text-[var(--cs-text)]"
           >
@@ -451,8 +514,9 @@ export function AdaptiveStudySession({
         </Link>
         <button
           type="button"
+          disabled={busy}
           onClick={() => void complete()}
-          className="rounded-xl border border-white/20 px-4 py-2 text-sm text-[var(--cs-text)]"
+          className="rounded-xl border border-white/20 px-4 py-2 text-sm text-[var(--cs-text)] disabled:opacity-50"
         >
           Oturumu bitir
         </button>

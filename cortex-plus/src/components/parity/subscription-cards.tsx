@@ -114,6 +114,7 @@ export function SubscriptionCards({
   const returnTo = searchParams.get("returnTo");
   const [yearly, setYearly] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [otherPlansOpen, setOtherPlansOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
@@ -421,79 +422,6 @@ export function SubscriptionCards({
 
       </div>
 
-      <div className="tier-compare mx-auto mb-6 w-full">
-        <p id="tier-compare-title" className="tier-compare-caption">
-          Ön izleme, ücretsiz ve premium
-        </p>
-        <div className="tier-compare-cards" aria-labelledby="tier-compare-title">
-          {comparison.map((row) => (
-            <section key={row.label} className="tier-compare-card">
-              <h3 className="tier-compare-feature">{row.label}</h3>
-              <dl className="tier-compare-grid">
-                {(
-                  [
-                    [GUEST_PREVIEW_COLUMN, row.guest],
-                    ["Ücretsiz", row.free],
-                    ["Plus", row.plus],
-                    ["Sigma", row.sigma],
-                  ] as const
-                ).map(([plan, value]) => (
-                  <div key={plan}>
-                    <dt>{plan}</dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ))}
-        </div>
-        <div className="tier-compare-scroll">
-          <table className="tier-compare-table" aria-labelledby="tier-compare-title">
-            <thead>
-              <tr className="text-[var(--cs-muted)]">
-                <th className="font-medium" scope="col">
-                  Özellik
-                </th>
-                <th className="font-medium" scope="col">
-                  {GUEST_PREVIEW_COLUMN}
-                </th>
-                <th className="font-medium" scope="col">
-                  Ücretsiz
-                </th>
-                <th className="font-medium" scope="col">
-                  Plus
-                </th>
-                <th className="font-medium" scope="col">
-                  Sigma
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparison.map((row) => (
-                <tr key={row.label} className="border-t border-[var(--cs-border)]">
-                  <th className="font-medium text-[var(--cs-text)]" scope="row">
-                    {row.label}
-                  </th>
-                  <td className="text-[var(--cs-muted)]">{row.guest}</td>
-                  <td className="text-[var(--cs-muted)]">{row.free}</td>
-                  <td className="text-[var(--cs-muted)]">{row.plus}</td>
-                  <td className="text-[var(--cs-muted)]">{row.sigma}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {guestMode ? (
-          <p className="mt-4 text-center">
-            <Link
-              href={GUEST_PREVIEW_HREF}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[var(--cs-border)] px-4 py-2 text-sm font-medium text-[var(--cs-text)]"
-            >
-              {GUEST_PREVIEW_CTA}
-            </Link>
-          </p>
-        ) : null}
-      </div>
 
       {/*
         İki sütun ancak iki kart varken. Tek kart iki sütunlu bir ızgarada sol
@@ -630,7 +558,7 @@ export function SubscriptionCards({
 
         {showSigmaCard && sigmaPlan ? (
           <article className="cs-pay-card cs-pay-card--premium relative overflow-hidden p-5">
-            <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-200">
+            <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-violet-200">
               Daha yüksek limit
             </span>
             <div className="flex items-start gap-3">
@@ -709,6 +637,101 @@ export function SubscriptionCards({
           </article>
         ) : null}
 
+      </div>
+
+      {/*
+        Fiyat ve satın alma önce (6 Kasım 2026, 360° denetim): karşılaştırma tablosu yaklaşık 20 karttı ve
+        plan kartlarının ÜSTÜNDEYDİ; telefonda "Plus'a yükselt" üçüncü ekranın sonundaydı. Tablo artık kartların
+        altında ve isteyene açılır.
+      */}
+      <div className="mx-auto mt-6 w-full">
+        <button
+          type="button"
+          className="mx-auto flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-[var(--cs-border)] px-4 py-2 text-sm font-medium text-[var(--cs-text)] hover:bg-[var(--cs-surface)]"
+          aria-expanded={compareOpen}
+          aria-controls="tier-compare-panel"
+          onClick={() => setCompareOpen((value) => !value)}
+        >
+          {compareOpen ? "Karşılaştırmayı gizle" : "Planların tüm farklarını gör"}
+          {compareOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+      {compareOpen ? (
+      <div id="tier-compare-panel" className="tier-compare mx-auto mb-6 mt-4 w-full">
+        <p id="tier-compare-title" className="tier-compare-caption">
+          Ön izleme, ücretsiz ve premium
+        </p>
+        <div className="tier-compare-cards" aria-labelledby="tier-compare-title">
+          {comparison.map((row) => (
+            <section key={row.label} className="tier-compare-card">
+              <h3 className="tier-compare-feature">{row.label}</h3>
+              <dl className="tier-compare-grid">
+                {(
+                  [
+                    [GUEST_PREVIEW_COLUMN, row.guest],
+                    ["Ücretsiz", row.free],
+                    ["Plus", row.plus],
+                    ["Sigma", row.sigma],
+                  ] as const
+                ).map(([plan, value]) => (
+                  <div key={plan}>
+                    <dt>{plan}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ))}
+        </div>
+        <div className="tier-compare-scroll">
+          <table className="tier-compare-table" aria-labelledby="tier-compare-title">
+            <thead>
+              <tr className="text-[var(--cs-muted)]">
+                <th className="font-medium" scope="col">
+                  Özellik
+                </th>
+                <th className="font-medium" scope="col">
+                  {GUEST_PREVIEW_COLUMN}
+                </th>
+                <th className="font-medium" scope="col">
+                  Ücretsiz
+                </th>
+                <th className="font-medium" scope="col">
+                  Plus
+                </th>
+                <th className="font-medium" scope="col">
+                  Sigma
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.map((row) => (
+                <tr key={row.label} className="border-t border-[var(--cs-border)]">
+                  <th className="font-medium text-[var(--cs-text)]" scope="row">
+                    {row.label}
+                  </th>
+                  <td className="text-[var(--cs-muted)]">{row.guest}</td>
+                  <td className="text-[var(--cs-muted)]">{row.free}</td>
+                  <td className="text-[var(--cs-muted)]">{row.plus}</td>
+                  <td className="text-[var(--cs-muted)]">{row.sigma}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ) : null}
+      <div className="mx-auto mt-2 w-full">
+        {guestMode ? (
+          <p className="mt-4 text-center">
+            <Link
+              href={GUEST_PREVIEW_HREF}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[var(--cs-border)] px-4 py-2 text-sm font-medium text-[var(--cs-text)]"
+            >
+              {GUEST_PREVIEW_CTA}
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       <div className="mx-auto max-w-md space-y-6">

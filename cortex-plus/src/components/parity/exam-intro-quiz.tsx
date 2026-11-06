@@ -38,6 +38,29 @@ const SKILL_TR: Record<string, string> = {
   misconception: "yanılgı",
 };
 
+/**
+ * 6 Kasım 2026: tanışma uçları model çağırıyor; istek askıda kalınca ekran sonsuza kadar "hazırlanıyor"
+ * diyordu. Her istek 60 sn'de kesilir, öğrenci ne olduğunu görür ve yeniden dener.
+ */
+export const INTRO_TIMEOUT_MS = 60_000;
+export const INTRO_TIMEOUT_MESSAGE =
+  "İstek 1 dakikada tamamlanmadı; bağlantın yavaş olabilir. Tekrar dene.";
+
+/** `AbortSignal.timeout` olmayan tarayıcıda da çalışan süre sınırı. */
+export function introDeadline(ms: number = INTRO_TIMEOUT_MS): {
+  signal: AbortSignal;
+  timedOut: () => boolean;
+  clear: () => void;
+} {
+  const controller = new AbortController();
+  let fired = false;
+  const timer = setTimeout(() => {
+    fired = true;
+    controller.abort();
+  }, ms);
+  return { signal: controller.signal, timedOut: () => fired, clear: () => clearTimeout(timer) };
+}
+
 const LEVEL_TR: Record<string, string> = {
   unknown: "henüz ölçülmedi",
   weak: "temel tekrar gerekli",
@@ -70,6 +93,7 @@ export function ExamIntroQuiz({
   const [startError, setStartError] = useState<string | null>(null);
   const [sourceLimited, setSourceLimited] = useState(false);
   const [deferring, setDeferring] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
 
   useEffect(() => {
     void start();
@@ -80,11 +104,13 @@ export function ExamIntroQuiz({
   // hatırlatma kartı kalıyor, öğrenci hazır olduğunda dönüyor.
   async function deferIntro() {
     setDeferring(true);
+    const deadline = introDeadline();
     try {
       const res = await fetch("/api/learning/exam-prep/intro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prepId, action: "skip" }),
+        signal: deadline.signal,
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || !payload.nextHref) {
@@ -96,7 +122,11 @@ export function ExamIntroQuiz({
       router.refresh();
     } catch {
       setDeferring(false);
-      toast.error("Bağlantı kesildi. Derse geçmek için tekrar dene.");
+      toast.error(
+        deadline.timedOut() ? INTRO_TIMEOUT_MESSAGE : "Bağlantı kesildi. Derse geçmek için tekrar dene.",
+      );
+    } finally {
+      deadline.clear();
     }
   }
 
@@ -106,11 +136,13 @@ export function ExamIntroQuiz({
     setSourceLimited(false);
     setQuestions([]);
     setAttemptId(null);
+    const deadline = introDeadline();
     try {
       const res = await fetch("/api/learning/exam-prep/intro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prepId, action: "start" }),
+        signal: deadline.signal,
       });
       if (res.status === 402) {
         setPaywall(true);
@@ -148,17 +180,22 @@ export function ExamIntroQuiz({
       if (data.mode === "diagnostic_v2") setMode("diagnostic_v2");
       if (typeof data.topicLabel === "string") setDisplayTopic(data.topicLabel);
     } catch {
-      setStartError("Bağlantı hatası.");
-      toast.error("Bağlantı hatası.");
+      const message = deadline.timedOut() ? INTRO_TIMEOUT_MESSAGE : "Bağlantı hatası.";
+      setStartError(message);
+      toast.error(message);
     } finally {
+      deadline.clear();
       setLoading(false);
     }
   }
 
   async function finish(nextAnswers: Record<string, unknown>) {
     setLoading(true);
+    setFinishError(null);
+    const deadline = introDeadline();
     try {
       const res = await fetch("/api/learning/exam-prep/intro", {
+        signal: deadline.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -170,7 +207,9 @@ export function ExamIntroQuiz({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data.error ?? "Kaydedilemedi.");
+        const message = data.error ?? "Kaydedilemedi.";
+        setFinishError(message);
+        toast.error(message);
         return;
       }
       setScore({ score: data.score ?? 0, total: data.total ?? questions.length });
@@ -181,8 +220,11 @@ export function ExamIntroQuiz({
       }
       setStage("result");
     } catch {
-      toast.error("Bağlantı hatası.");
+      const message = deadline.timedOut() ? INTRO_TIMEOUT_MESSAGE : "Bağlantı hatası.";
+      setFinishError(message);
+      toast.error(message);
     } finally {
+      deadline.clear();
       setLoading(false);
     }
   }
@@ -295,6 +337,19 @@ export function ExamIntroQuiz({
             continueLabel={index + 1 < questions.length ? "İleri" : "Bitir"}
             disabled={loading}
           />
+          {finishError ? (
+            <div role="alert" className="text-sm text-[var(--cp-muted)]">
+              <p>{finishError}</p>
+              <button
+                type="button"
+                className="cp-exam-continue cp-exam-continue--primary"
+                disabled={loading}
+                onClick={() => void finish(answers)}
+              >
+                Tekrar dene
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             className="cp-exam-intro-defer"

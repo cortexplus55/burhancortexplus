@@ -21,8 +21,8 @@ export const ACTIVATION_REDIRECT_MS = 2600;
  */
 export const RECENT_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000;
 /**
- * Öğrencinin uygulamadaki ana sayfası. `homePathForRole` `/dashboard` döner, o da `/ogretmen`e
- * yönlendirir; ödeme sonrası fazladan bir yönlendirme turu beklenmesin diye doğrudan hedef.
+ * Öğrencinin uygulamadaki ana sayfası (`homePathForRole` ile aynı; eski `/dashboard` rotası yalnız
+ * buraya yönlendirir).
  */
 export const APP_HOME_PATH = "/ogretmen";
 export const ACTIVATION_RETURN_PATH = "/odeme/basarili";

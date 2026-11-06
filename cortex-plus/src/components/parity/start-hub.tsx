@@ -13,6 +13,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 
 const LESSON_TOOLS = [
   { id: "quiz", href: "/studio/quiz", label: "Quiz", hint: "Çoktan seçmeli", icon: FileQuestion },
@@ -34,6 +35,7 @@ export function StartHub({
   onScanProblem: () => void;
   examDaysLabel?: string;
 }) {
+  useDismiss(open, onClose);
   if (!open) return null;
 
   return (

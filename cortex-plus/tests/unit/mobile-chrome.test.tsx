@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { SubscriptionCards } from "@/components/parity/subscription-cards";
 
 vi.mock("next/navigation", () => ({
@@ -73,6 +73,12 @@ describe("fiyatlandırma karşılaştırması", () => {
 
     render(<SubscriptionCards plans={plans} guestMode checkoutEnabled={false} />);
 
+    // 6 Kasım 2026: fiyat ve satın alma önce; tablo plan kartlarının altında ve isteyene açılır.
+    expect(screen.queryByText("Ön izleme, ücretsiz ve premium")).toBeNull();
+    const toggle = screen.getByRole("button", { name: /Planların tüm farklarını gör/ });
+    const buy = screen.getAllByRole("button", { name: /Yakında|Plus'a yükselt/ })[0]!;
+    expect(buy.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(toggle);
     expect(screen.getAllByText("Ön izleme, ücretsiz ve premium")).toHaveLength(1);
     expect(screen.getAllByText("Ayda yaklaşık 20.000 mesaj ya da 2.000 ders").length).toBeGreaterThan(0);
     // 19 Ekim 2026: "Gelişmiş model" satırı kalktı (her plan aynı model); yerine hız satırı.

@@ -99,7 +99,7 @@
 
 .cp-paper-hint {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: var(--cp-muted);
 }
 
@@ -116,7 +116,7 @@
 .cp-paper-preview-kicker {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #6b6b6b;
@@ -323,7 +323,7 @@
 
 .cp-paper-qr p {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--cp-muted);
 }
 
@@ -467,4 +467,15 @@
   .cp-paper-sheet-lines.is-long {
     height: 45mm;
   }
+}
+
+/* Dokunma alanı (6 Kasım 2026): görünen boyut aynı, tıklanan alan ortalanmış 44×44 px ::after (WCAG 2.5.5). */
+.cp-paper-qr-close::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }

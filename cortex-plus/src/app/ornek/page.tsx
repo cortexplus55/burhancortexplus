@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { DemoWalkthrough } from "@/components/demo/demo-walkthrough";
 import { AdvantageCompact } from "@/components/marketing/advantage-sections";
+import { ParityMarketingPage } from "@/components/parity/marketing";
 import { loadDemoLesson } from "@/lib/demo/lesson";
 import "@/styles/demo.css";
 
@@ -40,15 +40,10 @@ export default async function OrnekPage() {
   const lesson = await loadDemoLesson();
 
   return (
-    <main className="dm-shell">
-      <nav className="dm-topbar">
-        <Link href="/" className="dm-brand">
-          Cortex Plus
-        </Link>
-        <Link href="/kayit" className="dm-btn dm-btn--primary dm-btn--sm">
-          Ücretsiz dene
-        </Link>
-      </nav>
+    // Site başlığı, logo ve alt bilgi öbür pazarlama sayfalarıyla aynı kabuktan (6 Kasım 2026): bu sayfa
+    // ana sayfadaki ikinci düğmenin hedefi ve kendi tırnaklı yazılı logosuyla ayrı bir marka gibi duruyordu.
+    <ParityMarketingPage>
+    <div className="dm-shell">
 
       <DemoWalkthrough
         subject={{ label: "Biyoloji", icon: "🧬", colorVar: "var(--pm-subj-biyoloji)" }}
@@ -66,6 +61,7 @@ export default async function OrnekPage() {
       <div style={{ padding: "0 1rem 3rem" }}>
         <AdvantageCompact />
       </div>
-    </main>
+    </div>
+    </ParityMarketingPage>
   );
 }

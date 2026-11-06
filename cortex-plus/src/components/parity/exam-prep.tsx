@@ -6,6 +6,7 @@ import { ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Icon3D, type Icon3DName } from "@/components/ui/icon-3d";
 import { WeeklySurveyCard } from "@/components/feedback/weekly-survey-card";
 import { cn } from "@/lib/utils";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 import {
   draftStarted,
   dropExamWizardDraft,
@@ -47,6 +48,7 @@ export function ParityExamPrep({ cards, userId = null }: { cards: ExamPrepCard[]
   setExamWizardDraftOwner(userId);
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [howOpen, setHowOpen] = useState(false);
+  useDismiss(howOpen, () => setHowOpen(false));
   const upcoming = cards.filter((card) => !card.past);
   const past = cards.filter((card) => card.past);
   const shown = tab === "upcoming" ? upcoming : past;

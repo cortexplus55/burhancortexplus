@@ -170,7 +170,7 @@
   gap: 0.35rem;
   margin: 0.75rem 0 0;
   color: #b7b7b7;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
 }
 
 .cp-oral-voice {
@@ -290,7 +290,7 @@
   border-radius: 0.3rem;
   background: #2a2418;
   color: #e7c27a;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 750;
   letter-spacing: 0.04em;
 }
@@ -528,7 +528,7 @@
 
 .cp-oral-score-pill span {
   color: var(--c-text-muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
 }
 
@@ -1199,7 +1199,7 @@
   border-radius: 999px;
   background: var(--c-surface-1);
   color: var(--c-action);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1215,3 +1215,14 @@
 .cp-study-hub-icon--focused { background: var(--c-danger-soft, var(--c-warning-soft)); color: var(--c-danger, var(--c-warning)); }
 .cp-study-hub-icon--true_false { background: var(--c-success-soft); color: var(--c-success); }
 .cp-study-hub-icon--spaced { background: var(--c-info-soft); color: var(--c-info); }
+
+/* Dokunma alanı (6 Kasım 2026): görünen boyut aynı, tıklanan alan ortalanmış 44×44 px ::after (WCAG 2.5.5). */
+.cp-oral-x::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
