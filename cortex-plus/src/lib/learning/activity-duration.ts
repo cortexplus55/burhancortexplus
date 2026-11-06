@@ -92,6 +92,9 @@ export type LessonStepCounter = {
  * yazımda toplam gerçekten bilinmez: yazım sürerken payda YOK, etiket çıplak "N"; yazım bitince
  * payda yazılan adımdır ve ekran bunu ilk mühürlü değerde kilitler (`lockedTotal`): sonradan
  * tazeleme ya da onarım ekranı payload'u büyütse de "/ N" sabit kalır.
+ *
+ * Tahmini payda da yok (6 Kasım 2026, Paket 4): 3 Kasım'da (#553) eklenen "1 / ~8" canlıda "1 / ~6" iken
+ * ders 8 adımla mühürlendi; Paket H'nin kapattığı sıçrama geri geldi. İmza bilerek tahmin parametresi almaz.
  */
 export function lessonStepCounter(input: {
   index: number;
@@ -99,22 +102,12 @@ export function lessonStepCounter(input: {
   building: boolean;
   /** Ekranın ilk mühürlü toplamı; verilirse payda odur, yazılan değişse de değişmez. */
   lockedTotal?: number | null;
-  /**
-   * Yazım sürerken tahmini toplam (yazarın ekran planı ya da ders alt sınırı). 3 Kasım 2026 (canlı: akışta başlık
-   * yalnız "Adım 1" idi): verilirse etiket "1 / ~8"; tahmin hiçbir zaman yazılan + 1'in altına inmez.
-   */
-  estimatedTotal?: number | null;
 }): LessonStepCounter {
   const written = lessonStepTotal(input.writtenSteps);
   if (input.building) {
     // Yazım sürerken bir "hazırlanıyor" adımı daha var: çubuk yazılan + 1'e göre dolar.
     const reach = written + 1;
     const now = Math.min(Math.max(0, input.index) + 1, reach);
-    const est = input.estimatedTotal;
-    if (typeof est === "number" && Number.isFinite(est) && est > 0) {
-      const approx = Math.max(Math.round(est), reach);
-      return { now, max: approx, label: `${now} / ~${approx}`, indeterminate: true };
-    }
     return { now, max: reach, label: `${now}`, indeterminate: true };
   }
   const locked = input.lockedTotal;

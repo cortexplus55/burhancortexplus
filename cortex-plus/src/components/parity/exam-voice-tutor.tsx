@@ -24,6 +24,7 @@ import {
 import { X } from "lucide-react";
 import { splitTutorChrome } from "@/lib/learning/tutor-reply";
 import { CortexMark } from "@/components/brand/cortex-mark";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 
 /** `source`: sunucunun bastığı kaynak işareti; modele geri gönderilmez, seslendirilmez. */
 type Msg = { role: "user" | "assistant"; content: string; source?: string };
@@ -462,9 +463,9 @@ export function ExamVoiceTutor({
             >
               {message.content}
               {cite ? (
-                <a href={cite.href} className="cp-tutor-cite" target="_blank" rel="noreferrer">
+                <ExternalAnchor href={cite.href} className="cp-tutor-cite">
                   {` ${cite.documentName}${cite.pageNumber != null ? ` · s. ${cite.pageNumber}` : ""}`}
-                </a>
+                </ExternalAnchor>
               ) : null}
             </p>
           );

@@ -16,6 +16,7 @@ import {
   type ExamBaselineSource,
 } from "@/lib/learning/exam-result";
 import { cn } from "@/lib/utils";
+import { ExternalAnchor } from "@/components/ui/external-anchor";
 import "@/styles/cram-sheet.css";
 
 export const EXAM_RESULT_URL = "/api/learning/exam-prep/exam-result";
@@ -85,14 +86,12 @@ export function ExamResultCard({ prepId, due, stored, landingUrl }: ExamResultCa
         <p className="cp-exam-result-note">{examResultSubline(trend, result.baselineSource)}</p>
         {examResultShareable(trend) ? (
           <div className="cp-exam-result-actions">
-            <a
+            <ExternalAnchor
               href={examResultWhatsappHref(text, landingUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
               className="cp-prep-share-go"
             >
               WhatsApp&apos;ta paylaş
-            </a>
+            </ExternalAnchor>
             <button type="button" className="cp-prep-share-copy" onClick={() => void copy()}>
               Kopyala
             </button>

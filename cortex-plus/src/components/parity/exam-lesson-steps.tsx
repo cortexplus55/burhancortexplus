@@ -8,7 +8,6 @@ import { motion, useReducedMotion } from "framer-motion";
 import { nearDuplicateSentence } from "@/lib/text/turkish";
 import { Check, ChevronLeft, CornerDownLeft, Info, Star, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
-import { TOPIC_MIN_SCREENS } from "@/lib/learning/lesson-screen-floor";
 import { activityDurationMinutes, lessonStepCounter, type LessonStepCounter } from "@/lib/learning/activity-duration";
 import { prepStars } from "@/lib/stars/rules";
 import { ComparisonCarousel, ExamTrapCard, FormulaCard, MemoryHookCard } from "@/components/parity/lesson-visual-cards";
@@ -710,7 +709,6 @@ export function ExamLessonSteps({
   gradeCheck,
   toolbar,
   plannedMinutes = null,
-  plannedScreens = null,
   writingDone = false,
   sourceDocs = [],
   noteWarnings = [],
@@ -743,7 +741,8 @@ export function ExamLessonSteps({
   plannedMinutes?: number | null;
   /**
    * Yazarın ekran planı. 29 Ekim 2026'dan beri sayaç bunu OKUMAZ (plan ekran sayar, adım listesi
-   * değil; "2/7" sonra "3/9" oluyordu); akış kayıt amaçlı duruyor, eski sekme etkilenmesin.
+   * değil; "2/7" sonra "3/9" oluyordu); akış kayıt amaçlı duruyor, eski sekme etkilenmesin. 3 Kasım'da tahmini
+   * payda ("1 / ~8") için yeniden okundu, 6 Kasım 2026'da (Paket 4) yine bırakıldı: bileşen bu prop'u okumaz.
    */
   plannedScreens?: number | null;
   /** Ana yazım bitti (3 Kasım 2026): sona bekleme kartı konmaz; ekler gelirse sona eklenir. */
@@ -856,14 +855,13 @@ export function ExamLessonSteps({
   // toplam bilinir: yazılan ekranlar gösterilir; kilit yine ders mühürlenince konur (ekler ekran ekleyebilir).
   const writing = building && !writingDone;
   const readingMinutes: number | null = writing ? null : building ? computedMinutes : (lockedMinutesRef.current ?? computedMinutes);
-  // Yazım sürerken payda tahminidir ("1 / ~8", 3 Kasım 2026): yazarın ekran planı, yoksa ders alt sınırı (6).
-  // Ders mühürlenince ilk gerçek toplam kilitlenir.
+  // Payda yalnız mühürlü derste (6 Kasım 2026, Paket 4): ders `building` iken — ana yazım bitmiş olsa bile, ekler
+  // ekran ekleyebilir — sayaç çıplak "Adım N", çubuk belirsiz. Ders mühürlenince ilk gerçek toplam kilitlenir.
   // Bekleme kartı (3 Kasım 2026): ana yazım bittiyse ya da öğrenci uzayan beklemede "okuduklarımla bitir" dediyse yok.
   const [gaveUpWaiting, setGaveUpWaiting] = useState(false);
   const waitingStep = showsWaitStep(building, writingDone, gaveUpWaiting);
   // 8 sn bekçisi: bekleme kartı bundan uzun açık kalmaz; öğrenciye çıkış sunulur.
   const [waitLate, setWaitLate] = useState(false);
-  const estimatedTotal = writing ? Math.max(plannedScreens ?? 0, TOPIC_MIN_SCREENS) : null;
   const steps = useMemo(() => {
     // Yazım sürerken son adım bekleme kartı; tekrar kuyruğu ders bitince gelir.
     if (waitingStep) return [...base, { kind: "building", heading: upcoming[0] ?? "Sıradaki bölüm" } as Step];
@@ -913,7 +911,7 @@ export function ExamLessonSteps({
     ];
   }, [base, missed, view, language, serverRetries, waitingStep, upcoming]);
 
-  const counter = lessonStepCounter({ index, writtenSteps: base.length, building: writing, lockedTotal: lockedTotalRef.current, estimatedTotal });
+  const counter = lessonStepCounter({ index, writtenSteps: base.length, building, lockedTotal: lockedTotalRef.current });
   const progressMax = counter.max;
   const progressNow = counter.now;
   const progressRatio = progressNow / progressMax;
@@ -1197,7 +1195,7 @@ export function ExamLessonSteps({
         </div>
         <div className="als-top-meta">
           <p className="als-count" aria-live="polite">
-            {/^\d+( \/ ~?\d+)?$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
+            {/^\d+( \/ \d+)?$/.test(countLabel) ? <span className="als-count-label">Adım </span> : null}
             <span>{countLabel}</span>
             {readingMinutes != null ? <span className="als-minutes">~{readingMinutes} dk</span> : null}
           </p>
@@ -1303,8 +1301,12 @@ export function ExamLessonSteps({
           {step.kind === "overview" ? (
             <p className="als-intro-meta">
               <span className="als-intro-tag">Ders</span>
-              {/* Süre ve adım sayısı yalnız mühürlü derste; yazım sürerken ikisi de bilinmiyor. */}
-              {readingMinutes != null ? `yaklaşık ${readingMinutes} dk · ${progressMax} adım` : "hazırlanıyor…"}
+              {/* Süre ana yazım bitince, adım sayısı yalnız mühürlü derste (ekler ekran ekleyebilir). */}
+              {readingMinutes == null
+                ? "hazırlanıyor…"
+                : counter.indeterminate
+                  ? `yaklaşık ${readingMinutes} dk`
+                  : `yaklaşık ${readingMinutes} dk · ${progressMax} adım`}
             </p>
           ) : null}
           {step.kind === "section" && step.part ? (

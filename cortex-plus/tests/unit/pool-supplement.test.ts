@@ -15,7 +15,9 @@ describe("Senin belgenden ek", () => {
   });
   it("kredi yetmezse dürüst not, hazır ders sürer", () => {
     const s = supplementScreens({ state: "insufficient_credits", cost: 15 }, 2);
-    expect(JSON.stringify(s)).toContain("15 kredi");
+    // Öğrenci kredi sayısı görmez (6 Kasım 2026, Paket 4): not hakkın yetmediğini söyler, bedeli yazmaz.
+    expect(JSON.stringify(s)).toContain("hakkın bu sefer yetmedi");
+    expect(JSON.stringify(s)).not.toContain("kredi");
     expect(supplementScreens({ state: "none" }, 5)).toEqual([]);
     expect(supplementScreens({ state: "insufficient_credits", cost: 15 }, 0)).toEqual([]);
   });
