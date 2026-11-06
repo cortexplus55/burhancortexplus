@@ -49,7 +49,7 @@ import { sourceHasMeasurableQuantities } from "@/lib/learning/source-quantities"
 import { studentOptionCount, type OptionCount } from "@/lib/learning/student-pedagogy";
 import { topicWeightsFromText } from "@/lib/learning/mock-exam/weights-from-text";
 import { exclusionPhrases } from "@/lib/learning/cross-material-topics";
-import { ownedByPrepOwner } from "@/lib/documents/teacher-analysis-run";
+import { loadPrepDocumentIds } from "@/lib/documents/teacher-analysis-run";
 
 export type CreateMockExamInput = {
   service: SupabaseClient;
@@ -340,16 +340,10 @@ export async function applyOfficialQuotas(
  */
 export async function loadPastQuestions(service: SupabaseClient, prepId: string): Promise<PastQuestion[]> {
   try {
-    const { data: docs } = await service
-      .from("exam_prep_source_documents")
-      .select("document_id")
-      .eq("exam_prep_id", prepId)
-      .limit(24);
-    const listed = (docs ?? []).map((d) => d.document_id as string).filter(Boolean);
-    const { data: prep } = await service.from("exam_preps").select("user_id, document_id").eq("id", prepId).maybeSingle();
-    if (!listed.length && prep?.document_id) listed.push(prep.document_id as string);
-    // Yalnız hazırlık sahibinin belgeleri (6 Kasım 2026, 360° denetim).
-    const ids = await ownedByPrepOwner(service, (prep?.user_id as string | null | undefined) ?? null, listed);
+    // Hazırlığın bütün belgeleri, yalnız sahibinin (6 Kasım 2026). Önceki okuma canlıda olmayan
+    // `exam_prep_source_documents` tablosuna bakıp yalnız ana belgeyi görüyordu: ayrı yüklenen
+    // çıkmış sorular dosyası okunmuyor, İkiz Sınav seçeneği hiç çıkmıyordu.
+    const ids = await loadPrepDocumentIds(service, prepId);
     if (!ids.length) return [];
     const { data: pages } = await service
       .from("document_pages")
@@ -952,20 +946,7 @@ async function loadSyllabusSnippet(
   prepId: string,
 ): Promise<string> {
   try {
-    const { data: docs } = await service
-      .from("exam_prep_source_documents")
-      .select("document_id")
-      .eq("exam_prep_id", prepId)
-      .limit(8);
-    const ids = (docs ?? []).map((d) => d.document_id as string).filter(Boolean);
-    if (!ids.length) {
-      const { data: prep } = await service
-        .from("exam_preps")
-        .select("document_id")
-        .eq("id", prepId)
-        .maybeSingle();
-      if (prep?.document_id) ids.push(prep.document_id as string);
-    }
+    const ids = (await loadPrepDocumentIds(service, prepId)).slice(0, 8);
     if (!ids.length) return "";
     const { data: pages } = await service
       .from("document_pages")
