@@ -2,6 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ADMIN_ENGLISH_TERMS } from "./helpers/admin-english-terms";
 
 /*
   Yönetim paneli · Sistem Sağlığı ve İçerik Havuzu (6 Kasım 2026): sınav ailesi eşlemesi bütün programları kapsar,
@@ -391,11 +392,8 @@ describe("kötüye kullanım", () => {
 
 // ---- 7. Dört sayfa tamamen Türkçe -----------------------------------------------------------------
 
-const ENGLISH_TERMS: string[] = (() => {
-  const source = read("tests/unit/yonetim-temeli.test.ts");
-  const block = source.match(/const ENGLISH_TERMS = \[([\s\S]*?)\];/)?.[1] ?? "";
-  return [...block.matchAll(/"([^"]+)"/g)].map((match) => match[1]!);
-})();
+// Liste tek yerde (Gelir paketi taşıdı): tests/unit/helpers/admin-english-terms.ts
+const ENGLISH_TERMS: string[] = [...ADMIN_ENGLISH_TERMS];
 
 function visibleTexts(file: string): string[] {
   const source = read(file)
@@ -411,7 +409,7 @@ function visibleTexts(file: string): string[] {
 const isEnglish = (text: string, term: string) => new RegExp(`(^|[^\\p{L}])${term}([^\\p{L}]|$)`, "iu").test(text);
 
 describe("Türkçe bekçisi", () => {
-  it("İngilizce terim listesi yonetim-temeli'den okundu", () => {
+  it("İngilizce terim listesi ortak yardımcıdan okundu", () => {
     expect(ENGLISH_TERMS.length).toBeGreaterThan(30);
     expect(ENGLISH_TERMS).toContain("flag");
   });
