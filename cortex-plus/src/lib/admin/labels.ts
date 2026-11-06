@@ -64,6 +64,13 @@ export const AUDIT_LABELS: Record<string, string> = {
   "user.unsuspended": "Hesabın askısı kaldırıldı",
   free_preview_on: "\"Ücretsiz gibi gör\" önizlemesi açıldı",
   free_preview_off: "\"Ücretsiz gibi gör\" önizlemesi kapatıldı",
+  "subscription.granted": "Kullanıcıya ücretsiz paket tanımlandı",
+  "subscription.cancelled_by_admin": "Kullanıcının aboneliği yönetici tarafından iptal edildi",
+  "stars.adjusted": "Kullanıcının yıldızı değiştirildi",
+  "email.confirmed_by_admin": "Kullanıcının e-postası onaylı işaretlendi",
+  "devices.reset": "Kullanıcı bütün cihazlardan çıkarıldı",
+  "exam_preps.deleted_by_founder": "Kullanıcının hazırlıkları kalıcı olarak silindi",
+  "documents.deleted_by_founder": "Kullanıcının belgeleri kalıcı olarak silindi",
   "system.maintenance_run": "Elle bakım: yetim yüklemeler ve soğuk vektörler temizlendi",
 };
 

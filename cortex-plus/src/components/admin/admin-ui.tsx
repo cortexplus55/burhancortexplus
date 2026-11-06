@@ -83,13 +83,16 @@ export function AdminEmpty({
 export function AdminTableFrame({
   columns,
   children,
+  stack = false,
 }: {
   columns: string[];
   children: React.ReactNode;
+  /** Dar ekranda satırlar kart olur; hücrelerde `data-label` sütun adını taşır. */
+  stack?: boolean;
 }) {
   return (
     <div className="adm-scroll">
-      <table className="adm-table">
+      <table className={stack ? "adm-table adm-table--stack" : "adm-table"}>
         <thead>
           <tr>
             {columns.map((column) => (

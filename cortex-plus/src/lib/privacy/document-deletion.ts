@@ -15,9 +15,18 @@ export async function purgeDeletedDocument(service: SupabaseClient, userId: stri
       if (!doc.part_of) {
         step = "storage_path";
         if (!isOwnedDocumentPath(doc.storage_path, userId, documentId)) throw new Error(step);
-        step = "storage_remove";
-        const { error: storageError } = await service.storage.from("documents").remove([doc.storage_path]);
-        if (storageError) throw new Error(step);
+        // Dosyayı başka canlı bir belge de kullanıyorsa (kendi parça kopyaları hariç; onlar CASCADE ile gider)
+        // dosya kalır, yalnız bu kayıt silinir (6 Kasım 2026, yönetim paneli belge silme).
+        step = "storage_shared";
+        const { data: sharers, error: sharedError } = await service.from("documents")
+          .select("id, part_of").eq("storage_path", doc.storage_path).neq("id", documentId).is("deleted_at", null);
+        if (sharedError) throw new Error(step);
+        const shared = (sharers ?? []).some((row: { part_of?: string | null }) => row.part_of !== documentId);
+        if (!shared) {
+          step = "storage_remove";
+          const { error: storageError } = await service.storage.from("documents").remove([doc.storage_path]);
+          if (storageError) throw new Error(step);
+        }
       }
       // Repeat for recovery from work that began before the soft-delete transaction.
       step = "artifacts_remove";

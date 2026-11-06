@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
 import { hasExpired } from "@/lib/payments/subscription";
+import { latestTime } from "@/lib/admin/user-manage-copy";
 import {
   ADMIN_USER_PAGE_SIZE,
   adminUsersHref,
@@ -47,9 +48,11 @@ export default async function AdminKullanicilarPage({
     yeterli ve satır başına sorgu açmaktan çok daha ucuz.
   */
   const emails = new Map<string, string>();
+  const lastSignIn = new Map<string, string>();
   const { data: authUsers } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
   for (const authUser of authUsers?.users ?? []) {
     if (authUser.email) emails.set(authUser.id, authUser.email);
+    if (authUser.last_sign_in_at) lastSignIn.set(authUser.id, authUser.last_sign_in_at);
   }
 
   const { data: subscriptions } = await service
@@ -117,6 +120,22 @@ export default async function AdminKullanicilarPage({
     countPendingApplications(service),
   ]);
 
+  // Son etkinlik: son giriş ya da son çalışma (yol adımı kaydı), hangisi yeniyse. Yalnız bu sayfanın satırları.
+  const pageIds = (profiles ?? []).map((profile) => profile.id as string);
+  const lastStudy = new Map<string, string>();
+  if (pageIds.length) {
+    const { data: attempts } = await service
+      .from("exam_prep_node_attempts")
+      .select("user_id, updated_at")
+      .in("user_id", pageIds)
+      .order("updated_at", { ascending: false })
+      .limit(1000);
+    for (const row of attempts ?? []) {
+      const id = row.user_id as string;
+      if (!lastStudy.has(id) && row.updated_at) lastStudy.set(id, row.updated_at as string);
+    }
+  }
+
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / ADMIN_USER_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -133,6 +152,7 @@ export default async function AdminKullanicilarPage({
       email: emails.get(profile.id) ?? "—",
       grade: profile.grade_level,
       created: profile.created_at,
+      lastActive: latestTime(lastSignIn.get(profile.id), lastStudy.get(profile.id)),
       balance: wallet?.balance ?? 0,
       pack: pack === "sigma" ? "Sigma" : pack === "plus" ? "Plus" : "Ücretsiz",
       isAdmin: roles.includes("admin") || roles.includes("founder"), isFounder: roles.includes("founder"),
@@ -153,8 +173,15 @@ export default async function AdminKullanicilarPage({
       <AdminNote tone="warn">
         Buradaki işlemler <strong>anında</strong> geçerli olur ve kullanıcıya
         haber verilmez. Kredi düşerken bakiyeyi eksiye indiremezsin; yönetici
-        yetkisi verdiğin kişi bu panelin tamamını görür.
+        yetkisi verdiğin kişi bu panelin tamamını görür. Paket, yıldız, e-posta onayı, cihaz oturumları ve kalıcı
+        silme kişinin kendi sayfasında.
       </AdminNote>
+
+      <p className="text-sm">
+        <Link href={`/admin/kullanicilar/${actor.id}`} className="adm-btn">
+          👤 Benim hesabım
+        </Link>
+      </p>
 
       <AdminCard
         title={titleBits.join(" · ")}
@@ -190,10 +217,11 @@ export default async function AdminKullanicilarPage({
       >
         {rows.length ? (
           <>
-            <AdminTableFrame columns={["Kişi", "Paket", "Kredi", "Yetki", "Kayıt", "İşlem"]}>
+            <AdminTableFrame stack columns={["Kişi", "Paket", "Kredi", "Yetki", "Son etkinlik", "Kayıt", "İşlem"]}>
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td>
+                    <div className="min-w-0">
                     <div className="font-medium">
                       <Link href={`/admin/kullanicilar/${row.id}`} className="underline">
                         {row.name}
@@ -203,14 +231,15 @@ export default async function AdminKullanicilarPage({
                       {row.email}
                       {row.grade ? ` · ${row.grade}` : ""}
                     </div>
+                    </div>
                   </td>
-                  <td>
+                  <td data-label="Paket">
                     <AdminBadge tone={row.pack === "Sigma" ? "gold" : row.pack === "Plus" ? "ok" : "mute"}>
                       {row.pack}
                     </AdminBadge>
                   </td>
-                  <td className="adm-num">{formatNumber(row.balance)}</td>
-                  <td>
+                  <td data-label="Kredi" className="adm-num">{formatNumber(row.balance)}</td>
+                  <td data-label="Yetki">
                     <div className="flex flex-wrap gap-1">
                       {row.isAdmin ? <AdminBadge tone="gold">{row.isFounder ? "Kurucu" : "Yönetici"}</AdminBadge> : null}
                       {row.isTeacher ? <AdminBadge tone="ok">Öğretmen</AdminBadge> : null}
@@ -220,7 +249,10 @@ export default async function AdminKullanicilarPage({
                       {row.isSuspended ? <AdminBadge tone="warn">Askıda</AdminBadge> : null}
                     </div>
                   </td>
-                  <td className="adm-num text-xs text-[var(--adm-muted)]">
+                  <td data-label="Son etkinlik" className="adm-num text-xs text-[var(--adm-muted)]">
+                    {row.lastActive ? formatDate(row.lastActive) : "Hiç"}
+                  </td>
+                  <td data-label="Kayıt" className="adm-num text-xs text-[var(--adm-muted)]">
                     {formatDate(row.created)}
                   </td>
                   <td>

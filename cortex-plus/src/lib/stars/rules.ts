@@ -17,7 +17,9 @@ export type StarSource =
   | "invite"
   | "invite_welcome"
   | "invite_subscribed"
-  | "prep_joined";
+  | "prep_joined"
+  /** Yönetim panelinden destek düzeltmesi (6 Kasım 2026); eksi olabilir, bonus sayımına girmez. */
+  | "admin";
 
 /** Günlük yıldız hedefi; üst çubukta "bugün N · hedef 50". Tavan değildir, kazanç kesilmez. */
 export const DAILY_STAR_GOAL = 50;
@@ -103,4 +105,5 @@ export const STAR_SOURCE_LABEL: Record<StarSource, string> = {
   invite_welcome: "Davetle katılma",
   invite_subscribed: "Arkadaşın abone oldu",
   prep_joined: "Hazırlığına yeni öğrenci",
+  admin: "Destek düzeltmesi",
 };
