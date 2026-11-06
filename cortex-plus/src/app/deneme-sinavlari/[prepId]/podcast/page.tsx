@@ -55,8 +55,11 @@ export default async function PrepPodcastPage({
     .maybeSingle();
   if (!topic) notFound();
 
+  // Oturum ekranı (6 Kasım 2026 telefon denetimi): ders, test ve yoldaki podcast gibi üst çubuk ve alt
+  // menü yok, tek çıkış oynatıcının ×'i. Uygulama kabuğunun yapışkan alt menüsü oynatıcı kontrollerini
+  // ve dökümün son satırlarını örtüyordu.
   return (
-    <ParitySorShell {...shell}>
+    <ParitySorShell {...shell} chrome="session">
       <PrepPodcastSession
         prepId={prepId}
         topicId={topic.id}

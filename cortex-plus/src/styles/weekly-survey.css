@@ -173,13 +173,22 @@
     padding: 14px;
   }
 
+  /*
+    6 Kasım 2026 telefon denetimi: on bir düğme tek satırda 26×32 px kalıyordu. İki satır (0–5, 6–10),
+    düğme ~55×40 px; dokunma alanı 36 px'in üstünde.
+  */
   .cp-survey-scale--11 {
-    gap: 3px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .cp-survey-scale--11 button {
-    min-height: 32px;
-    font: var(--t-label-11);
+    min-height: 40px;
+  }
+
+  .cp-survey-close {
+    min-width: 36px;
+    min-height: 36px;
   }
 }
 

@@ -489,6 +489,29 @@
   cursor: zoom-out;
 }
 
+/* Görünür kapat (6 Kasım 2026): sağ üstte 44×44, çentik payıyla. */
+.cp-solver-lightbox-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: 12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, #fff 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 55%, transparent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.cp-solver-lightbox-close:focus-visible {
+  outline: 2px solid var(--c-action, #4353f3);
+  outline-offset: 2px;
+}
+
 .cp-solver-lightbox img {
   max-width: min(100%, 44rem);
   max-height: 90vh;

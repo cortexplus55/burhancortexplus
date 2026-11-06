@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { multiPartialPercent, sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
@@ -54,9 +54,32 @@ export function ExamQuizPlay({
     setRevealed(locked);
   }, [index, locked]);
 
+  const selected = selectedOptions(value);
+  const selectedKey = selected.join("|");
+  const optionsRef = useRef<HTMLDivElement | null>(null);
+  const twoSlotRef = useRef<HTMLDivElement | null>(null);
+  const seenSelection = useRef({ index, key: selectedKey });
+  /*
+    Yapışkan "Kontrol et / Devam et" çubuğu (.cp-quiz-action-bar) telefonda son şıkları ve
+    "İki şık arasında kaldım" çipini örtüyordu (6 Kasım 2026, 375×812). Öğrenci şık seçince çip,
+    cevap kilitlenince şıklar çubuğun üstüne kaydırılır; yalnız gerekirse ("nearest"), çubuğun payı
+    CSS scroll-padding-bottom ile. Açılışta (kayıttan gelen seçim) kaydırılmaz.
+  */
+  useEffect(() => {
+    const seen = seenSelection.current;
+    seenSelection.current = { index, key: selectedKey };
+    if (seen.index !== index || seen.key === selectedKey || !selectedKey || revealed) return;
+    revealInView(twoSlotRef.current ?? optionsRef.current);
+  }, [index, selectedKey, revealed]);
+  const wasRevealed = useRef(revealed);
+  useEffect(() => {
+    const before = wasRevealed.current;
+    wasRevealed.current = revealed;
+    if (revealed && !before) revealInView(optionsRef.current);
+  }, [revealed]);
+
   if (!question) return null;
 
-  const selected = selectedOptions(value);
   const isOn = (option: string) => selected.includes(option);
   const hasCorrect = Array.isArray(question.correct) && question.correct.length > 0;
   const isCorrect = hasCorrect ? sameOptionSet(selected, question.correct!) : false;
@@ -121,7 +144,7 @@ export function ExamQuizPlay({
       {/* kıyas ürünündeki gibi kökün hemen altında (17 Ekim 2026). */}
       {question.multi ? <p className="cp-quiz-multi-hint">Birden fazla yanıt seçebilirsin</p> : null}
 
-      <div className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
+      <div ref={optionsRef} className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
         {question.options.map((option, optionIndex) => {
           const selectedThis = isOn(option);
           const isThisCorrect = hasCorrect && question.correct!.includes(option);
@@ -192,7 +215,7 @@ export function ExamQuizPlay({
         })}
       </div>
 
-      {twoOption && !examMode && hasCorrect && !revealed ? twoOption(index) : null}
+      {twoOption && !examMode && hasCorrect && !revealed ? <div ref={twoSlotRef}>{twoOption(index)}</div> : null}
 
       {showFeedback ? (
         <div
@@ -289,6 +312,16 @@ export function ExamQuizPlay({
       </div>
     </div>
   );
+}
+
+/** Öğeyi yalnız gerekirse görünür alana kaydırır; hareket azaltma açıksa sıçrayarak. */
+function revealInView(node: HTMLElement | null) {
+  if (!node || typeof node.scrollIntoView !== "function") return;
+  const reduce =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  node.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
 }
 
 /** Quiz sonuç özeti — soru bazında inceleme ve zayıf konular. */

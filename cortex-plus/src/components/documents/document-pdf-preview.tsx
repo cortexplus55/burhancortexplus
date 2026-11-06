@@ -94,7 +94,7 @@ export function DocumentPdfPreview({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="rounded border border-white/15 px-2 py-1 disabled:opacity-40"
+              className="cp-tap rounded border border-white/15 px-2 py-1 disabled:opacity-40"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
@@ -105,7 +105,7 @@ export function DocumentPdfPreview({
             </span>
             <button
               type="button"
-              className="rounded border border-white/15 px-2 py-1 disabled:opacity-40"
+              className="cp-tap rounded border border-white/15 px-2 py-1 disabled:opacity-40"
               disabled={page >= numPages}
               onClick={() => setPage((p) => Math.min(numPages, p + 1))}
             >

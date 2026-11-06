@@ -5,6 +5,8 @@ import "./globals.css";
 // `MathText`, `RichBody`, `Markdown`, `ExamLessonBody*`, video tahtası); pazarlama sayfaları yüklemez.
 // Premium tasarım sistemi (sınıflar; token kaynağı tokens.css).
 import "@/styles/premium-design-system.css";
+// Telefonda dokunma alanı tabanı 36 px (6 Kasım 2026 mobil denetimi): her sayfada geçerli tek kural.
+import "@/styles/mobile-tap-targets.css";
 import { Providers } from "@/components/providers";
 import { InAppBrowserBanner } from "@/components/layout/in-app-browser-banner";
 import { logSchemaGaps } from "@/lib/admin/schema-probe";

@@ -401,6 +401,17 @@
   animation: cp-stars-pop 0.35s ease-out;
 }
 
+/*
+  Telefonda oturumun tek çıkışı × (.cp-back-pill) da sağ üstte: 375 px'te "+10 yıldız" onun üstüne
+  biniyordu (6 Kasım 2026 telefon denetimi). Yıldız ×'in altına iner: × üstten ~20 px'te, 36–40 px
+  yüksek; 4.25rem altı boş. Geniş ekranda × içerik sütununda kalır, çakışma yok.
+*/
+@media (max-width: 767px) {
+  :root:has(.cp-back-pill) .cp-stars-earned {
+    top: calc(env(safe-area-inset-top, 0px) + 4.25rem);
+  }
+}
+
 .cp-stars-earned svg {
   color: #8ea0ff;
   fill: #8ea0ff;

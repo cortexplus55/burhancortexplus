@@ -49,7 +49,7 @@ export function PremiumAuthShell({
             </Link>
             <Link
               href="/kayit"
-              className="text-sm font-medium text-[var(--cx-gold-hover)] hover:underline"
+              className="cp-tap text-sm font-medium text-[var(--cx-gold-hover)] hover:underline"
             >
               Ücretsiz dene
             </Link>

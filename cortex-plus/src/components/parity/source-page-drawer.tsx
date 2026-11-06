@@ -70,7 +70,7 @@ export function SourcePageButton({ documentId, page, fileName }: { documentId: s
               <h2 id="als-source-drawer-title">
                 {fileName} · Sayfa {page}
               </h2>
-              <button type="button" aria-label="Kapat" onClick={() => setOpen(false)}>
+              <button type="button" className="als-source-drawer-close" aria-label="Kapat" onClick={() => setOpen(false)}>
                 <X className="h-4 w-4" />
               </button>
             </header>

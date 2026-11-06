@@ -1,7 +1,8 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CheckCircle2, ImageUp, ListPlus, ShieldAlert, TriangleAlert } from "lucide-react";
+import { Camera, CheckCircle2, ImageUp, ListPlus, ShieldAlert, TriangleAlert, X } from "lucide-react";
+import { useDismiss } from "@/lib/ui/use-dismiss";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { MathText } from "@/components/learning/math-text";
 import { requestSolve, SOLVE_STAGE_LABEL, solvePhaseAfter, type SolveDone, type SolvePhase } from "@/lib/solve/solve-client";
@@ -247,14 +248,10 @@ export function SolutionView({
   const locked = view === "socratic" && !allShown;
   const hint = socraticHint(solution);
 
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setLightbox(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox]);
+  // Büyük fotoğraf (6 Kasım 2026 telefon denetimi): görünür × yoktu, yalnız arka plana dokununca
+  // kapanıyordu. Esc kapatır; açılınca odak ×'te, kapanınca küçük resme döner (ortak kanca).
+  const lightboxClose = useRef<HTMLButtonElement | null>(null);
+  useDismiss(lightbox, () => setLightbox(false), { initialFocus: lightboxClose });
 
   function openFull() {
     setView("full");
@@ -398,6 +395,15 @@ export function SolutionView({
           aria-label="Soru fotoğrafı"
           onClick={() => setLightbox(false)}
         >
+          <button
+            ref={lightboxClose}
+            type="button"
+            className="cp-solver-lightbox-close"
+            aria-label="Kapat"
+            onClick={() => setLightbox(false)}
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageSrc} alt="Soru fotoğrafı" />
         </div>

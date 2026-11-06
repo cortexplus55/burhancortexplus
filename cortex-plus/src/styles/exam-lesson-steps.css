@@ -1515,6 +1515,35 @@
   font-size: 1rem;
 }
 
+/*
+  Kaynak çekmecesinin "Kapat"ı yalnız 16×16 px'lik simgeydi (6 Kasım 2026 telefon denetimi).
+  Görünen kutu 36 px, tıklanan alan ortalanmış 44×44 px ::after (WCAG 2.5.5).
+*/
+.als-source-drawer-close {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.als-source-drawer-close::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
 .als-source-drawer-text {
   white-space: pre-wrap;
   font: inherit;
