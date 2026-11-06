@@ -45,5 +45,7 @@ export const nodeKindLabel = (kind: string | null | undefined) => label(KIND_LAB
 export const familiarityLabel = (value: string | null | undefined) => label(FAMILIARITY_LABEL, value);
 export const subscriptionStatusLabel = (status: string | null | undefined) => label(SUBSCRIPTION_STATUS_LABEL, status);
 export const nodeStatusLabel = (status: string | null | undefined) => label(NODE_STATUS_LABEL, status);
-export const failureReasonLabel = (reason: string | null | undefined) => label(FAILURE_REASON_LABEL, reason);
+/** Bilinmeyen sebep ham kodla değil Türkçe genel adla gösterilir (6 Kasım 2026, panel Türkçe kuralı). */
+export const failureReasonLabel = (reason: string | null | undefined) =>
+  reason ? (FAILURE_REASON_LABEL[reason] ?? "Tanımlanmamış sebep") : "—";
 export const paymentStatusLabel = (status: string | null | undefined) => label(PAYMENT_STATUS_LABEL, status);
