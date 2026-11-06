@@ -16,6 +16,7 @@ import { oralPlanBrief } from "@/lib/learning/oral-scope";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import { topicFence } from "@/lib/learning/prep-source";
 import { weakPracticeTitle } from "@/lib/learning/exam-prep-plan";
+import { retargetBindingPatch } from "@/lib/learning/node-topic-binding";
 import { syllabusWeightLineFromChecklist } from "@/lib/learning/oral-exam";
 import { DEFAULT_MOOD, contentDifficultyLine } from "@/lib/learning/session-signals";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
@@ -619,6 +620,18 @@ export async function runStartGeneration(
       patch.session_meta = nextMeta;
     }
     if (namedTitle && node.title !== namedTitle) patch.title = namedTitle;
+    // Sözlüde düğüm içinde başka konu seçildiyse düğüm o konuya bağlanır: kimlik, sayfalar ve başlık da (6 Kasım 2026).
+    const binding = retargetBindingPatch({
+      kind,
+      nodeTitle: typeof node.title === "string" ? node.title : null,
+      storedMeta: nextMeta,
+      effectiveMeta: sessionMeta,
+      retargetedTopic,
+    });
+    if (binding) {
+      patch.session_meta = binding.session_meta;
+      patch.title = binding.title;
+    }
     if (patch.session_meta || patch.title) {
       await awaitLoggedWrite("node_meta_update_failed", { nodeId }, service.from("exam_prep_nodes").update(patch).eq("id", nodeId));
     }

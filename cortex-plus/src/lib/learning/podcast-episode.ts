@@ -208,6 +208,46 @@ export function keremShare(episode: PodcastEpisode): number {
 
 const ADDRESSES = { ada: /(?<!\p{L})kerem(?!\p{L})/iu, kerem: /(?<!\p{L})ada(?!\p{L})/iu } as const;
 
+const ENDS_WITH_QUESTION = /\?\s*$/;
+
+/**
+ * Soran kendi sorusunu cevaplamaz (6 Kasım 2026). `turnShapeProblems` bunu yalnız ölçüyordu; canlıda bir konuşmacı
+ * soru satırının hemen ardından kendi cevap satırını söyledi. Yayından önce, aynı bölümde: soru satırının (dinleyene
+ * "Dur ve düşün" sorusu değil) hemen ardından gelen, aynı konuşmacının işaretsiz (`beat` yok) ve soru olmayan
+ * satırları öbür konuşmacıya geçer; ilk yeni soruda durur. Metin değişmez, yalnız konuşmacı. Taşınmaz: öbür
+ * konuşmacıya adıyla seslenen satır (kendine seslenmiş olurdu); sorunun ardından gelen ikinci soru ("bir sırada iki
+ * soru", cevap değil). Yalnız iki sesli türler; tek sesli türe dokunulmaz.
+ */
+export function handOffSelfAnswers(episode: PodcastEpisode): PodcastEpisode {
+  if (podcastLengthSpec(episode.length).speakers !== "duo") return episode;
+  const other = (speaker: string): "ada" | "kerem" | null =>
+    speaker === "ada" ? "kerem" : speaker === "kerem" ? "ada" : null;
+  let changed = false;
+  const chapters = episode.chapters.map((chapter) => {
+    const lines = chapter.lines.map((line) => ({ ...line }));
+    for (let index = 0; index < lines.length; index += 1) {
+      const question = lines[index]!;
+      if (question.beat || !ENDS_WITH_QUESTION.test(question.text)) continue;
+      const to = other(question.speaker);
+      if (!to) continue;
+      const run: number[] = [];
+      for (let next = index + 1; next < lines.length; next += 1) {
+        const line = lines[next]!;
+        if (line.speaker !== question.speaker || line.beat || ENDS_WITH_QUESTION.test(line.text)) break;
+        run.push(next);
+      }
+      if (!run.length) continue;
+      const from = question.speaker as keyof typeof ADDRESSES;
+      if (run.some((at) => ADDRESSES[from].test(lines[at]!.text))) continue;
+      for (const at of run) lines[at]!.speaker = to;
+      changed = true;
+      index = run[run.length - 1]!;
+    }
+    return { ...chapter, lines };
+  });
+  return changed ? { ...episode, chapters } : episode;
+}
+
 /** Önceki cümleye yaslanan açılış: bu cümle başka sese verilirse cümle yarım kalır. */
 const CONNECTOR_OPENER =
   /^(?:çünkü|bu\s+yüzden|bu\s+nedenle|yani|ama|ancak|fakat|ve|veya|ayrıca|dolayısıyla|üstelik|oysa|halbuki|bunun\s+için|sonuçta|örneğin)(?!\p{L})/iu;
@@ -226,6 +266,8 @@ export function balanceKerem(
 ): PodcastEpisode {
   const spec = podcastLengthSpec(episode.length);
   if (spec.speakers !== "duo") return episode;
+  // Önce soran kendi sorusunu cevaplamasın (6 Kasım 2026); pay dengesi bunun üstüne kurulur.
+  episode = handOffSelfAnswers(episode);
   const chapters = episode.chapters.map((chapter) => ({ ...chapter, lines: chapter.lines.map((line) => ({ ...line })) }));
   const flat = chapters.flatMap((chapter) => chapter.lines);
   if (flat.length < 3) return episode;

@@ -1,4 +1,10 @@
-import { foldTr } from "@/lib/documents/page-analysis";
+import {
+  denseNormalize,
+  foldTr,
+  mathNormalize,
+  mathNormalizeLoose,
+  unfoldSuperscripts,
+} from "@/lib/text/math-normalize";
 import { topicMatchKey } from "@/lib/learning/topic-merge";
 
 /**
@@ -75,30 +81,11 @@ function pagesOverlap(left: number[], right: number[]): boolean {
   return right.some((page) => have.has(page));
 }
 
-const SUPERSCRIPT: Record<string, string> = {
-  "⁰": "0",
-  "¹": "1",
-  "²": "2",
-  "³": "3",
-  "⁴": "4",
-  "⁵": "5",
-  "⁶": "6",
-  "⁷": "7",
-  "⁸": "8",
-  "⁹": "9",
-};
-
 type Measure = {
   value: number;
   family: string;
   approx: boolean;
 };
-
-function unfoldSuperscripts(text: string): string {
-  return text.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (run) =>
-    `^${[...run].map((char) => SUPERSCRIPT[char] ?? "").join("")}`,
-  );
-}
 
 function familyOf(unit: string): string | null {
   const folded = foldTr(unit).replace(/\s+/g, "");
@@ -185,28 +172,6 @@ function closeEnough(left: Measure, right: Measure): boolean {
  * Matematik normalizasyonu ve parçalar (29 Ekim 2026)
  * ---------------------------------------------------------------------------------------------- */
 
-/** `≠` gibi işleçler NFKD'de "=" + birleşik işarete ayrışır; foldTr işareti atınca `a≠0` `a=0` olurdu. Önce ASCII. */
-const UNICODE_OPERATORS: [RegExp, string][] = [
-  [/≠/g, "!="],
-  [/≤/g, "<="],
-  [/≥/g, ">="],
-  [/[×·∗⋅]/g, "*"],
-  [/[−–—]/g, "-"],
-  [/÷/g, "/"],
-  [/≈/g, "~"],
-];
-
-const LATEX: [RegExp, string][] = [
-  [/\\(?:left|right)\b/g, ""],
-  [/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "$1/$2"],
-  [/\\(?:cdot|times)\b/g, "*"],
-  [/\\(?:neq|ne)\b/g, "!="],
-  [/\\(?:leq|le)\b/g, "<="],
-  [/\\(?:geq|ge)\b/g, ">="],
-  [/\\pm\b/g, "+-"],
-  [/\\(?:mathrm|text|textrm|operatorname)\{([^{}]*)\}/g, "$1"],
-];
-
 const COMPARISON = /(!=|<=|>=|=|<|>)/;
 /** Köprü olamayacak kısa sözcükler: "x = 2 ve y = 3" iki ayrı parçadır. */
 const SHORT_NON_MATH = new Set(["ve", "ya", "da", "de", "ile", "mi", "mu", "ki"]);
@@ -217,35 +182,7 @@ const PROSE_STOPWORDS = new Set([
   "ise", "her", "en", "cok", "daha", "ama", "fakat", "ancak", "yani", "ne", "mi", "mu", "ya", "hem",
 ]);
 
-/** Boşlukları koruyan ortak normalizasyon; parçalama ve kök çıkarma bunun üstünde çalışır. */
-function mathNormalizeLoose(text: string): string {
-  let out = unfoldSuperscripts(text);
-  for (const [pattern, replacement] of UNICODE_OPERATORS) out = out.replace(pattern, replacement);
-  out = out.normalize("NFKC");
-  for (const [pattern, replacement] of LATEX) out = out.replace(pattern, replacement);
-  out = out.replace(/[\\$]/g, "");
-  out = out.replace(/(\d),(\d)/g, "$1.$2");
-  out = foldTr(out);
-  return out.replace(/\s+/g, " ").trim();
-}
-
-/** Boşluksuz parça: açık çarpım harfin önünde düşer (`m*a` = `ma`), koşul ayracı virgül olur. */
-function denseNormalize(dense: string): string {
-  let out = dense.replace(/\s+/g, "").replace(/;/g, ",");
-  out = out.replace(/\*(?=[a-z(])/g, "");
-  out = out.replace(/\(([^()]*(?:!=|<=|>=|=|<|>)[^()]*)\)/g, ",$1");
-  out = out.replace(/[.,:]+$/g, "").replace(/,+/g, ",").replace(/^,/, "");
-  return out;
-}
-
-/**
- * `mathNormalize("f(x) = ax + b (a ≠ 0)") === mathNormalize("f(x) = ax + b, a ≠ 0")`.
- * NFKC, Unicode işleçler ASCII, ondalık virgül nokta, boşluk / ters bölü / $ yok, `\frac{a}{b}` → a/b,
- * `\cdot` → *, üst simge → ^n, koşul ayracı virgül, küçük harf.
- */
-export function mathNormalize(expression: string): string {
-  return denseNormalize(mathNormalizeLoose(expression));
-}
+export { mathNormalize };
 
 type Word = { core: string; math: boolean; closes: boolean; comma: boolean };
 

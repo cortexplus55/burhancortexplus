@@ -50,6 +50,7 @@ import { getProgram } from "@/lib/curriculum/registry";
 import { orderOfficialUnits, type OrderableUnit } from "@/lib/curriculum/official-plan-order";
 import { officialUnitTopic, verifyPlannedUnits } from "@/lib/curriculum/official-setup";
 import { runPool } from "@/lib/documents/upload-batch";
+import { linkScanResponsesToPrep, SCAN_LINK_MAX_TOKENS } from "@/lib/level-check/link-scan";
 
 /** Kurulumdaki bağımsız satır güncellemeleri için eşzamanlı istek sınırı. */
 const WRITE_LANES = 16;
@@ -164,6 +165,11 @@ const bodySchema = z.object({
    * konulara yazılır; önceden yazılan ders bu düzeyle yazılır, açılıştaki soru kalkar.
    */
   familiarity: z.enum(["new", "heard", "basics", "good", "confident"]).optional(),
+  /**
+   * Resmî kurulumun ⚡ Hızlı Tarama oturum belirteçleri (6 Kasım 2026): o oturumların yanıtları yeni hazırlığa
+   * bağlanır, tahmini net onları sayar. Belirteç imzalı; başka öğrencinin ya da başka oturumun yanıtı bağlanmaz.
+   */
+  levelScanTokens: z.array(z.string().min(10).max(4000)).max(SCAN_LINK_MAX_TOKENS).optional(),
 });
 
 /** 400 cevabında öğrenciye söylenen alan adları. */
@@ -182,6 +188,7 @@ const CREATE_FIELD_LABELS: Record<string, string> = {
   hardTopics: "odak konular",
   learningPreferences: "çalışma tercihleri",
   familiarity: "aşinalık",
+  levelScanTokens: "hızlı tarama",
 };
 
 export async function POST(request: Request) {
@@ -524,6 +531,13 @@ export async function POST(request: Request) {
     }
     return true;
   });
+
+  // Kurulumun Hızlı Tarama yanıtları bu hazırlığın netine sayılsın (yanıttan önce: hazırlık sayfası ilk açılışta görsün).
+  if (parsed.data.levelScanTokens?.length) {
+    await linkScanResponsesToPrep(service, { userId, prepId: result.prepId, tokens: parsed.data.levelScanTokens }).catch(
+      (error) => console.warn("scan_link_failed", error instanceof Error ? error.message : String(error)),
+    );
+  }
 
   // Hızlı başlatma: henüz okunan belgeler hazırlığa bekleyen olarak bağlanır (kurulumun belgeleri hariç).
   const mapped = new Set([...(parsed.data.documentIds ?? []), ...(parsed.data.documentId ? [parsed.data.documentId] : [])]);
