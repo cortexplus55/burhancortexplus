@@ -8,7 +8,11 @@ import { env } from "@/lib/env";
  */
 import type { LevelSource } from "@/lib/level-check/token-types";
 export type { LevelSource };
-export type LevelClaims = { uid: string | null; src: LevelSource; items: string[]; exp: number; prep: string | null };
+/**
+ * `ord` (6 Kasım 2026, Paket 2): `items` ile aynı sırada, her sorunun gösterilen şık sırası ("20314": 1. şık özgün
+ * 3. şıktır). Eski belirteçte yok; yoksa şıklar yazıldığı sırayla sayılır.
+ */
+export type LevelClaims = { uid: string | null; src: LevelSource; items: string[]; exp: number; prep: string | null; ord?: string[] };
 
 export const LEVEL_TOKEN_TTL_MS = 45 * 60 * 1000;
 const TTL_MS = LEVEL_TOKEN_TTL_MS;

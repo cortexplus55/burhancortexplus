@@ -4,7 +4,7 @@ import { errorResponse } from "@/lib/api/guards";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { poolUnit, UNIT_ID_PATTERN } from "@/lib/content-pool/keys";
 import { GUEST_PREVIEW_COUNT, pickQuickScan, pickUnitCheck, poolIdFromSetupId } from "@/lib/level-check/select";
-import { levelTablesReady, loadVerifiedItems, toLevelItem, toPick, unitCheckDone } from "@/lib/level-check/store";
+import { encodeOrder, levelChoiceOrders, levelTablesReady, loadVerifiedItems, toLevelItem, toPick, unitCheckDone } from "@/lib/level-check/store";
 import { createLevelToken } from "@/lib/level-check/token";
 import type { LevelStartResponse, MissingOutcome } from "@/lib/level-check/types";
 import { loadAnsweredItems, loadMasteryStates, plannedPoolUnits } from "@/lib/mastery-map/load";
@@ -145,10 +145,21 @@ export async function POST(request: Request) {
     missing?: MissingOutcome[],
     more?: boolean,
   ) {
-    const token = createLevelToken({ uid, src: source, items: list.map((r) => r.id), prep });
+    // Şıklar oturumun bütününde dengelenir (6 Kasım 2026, Paket 2); sıra imzalı belirteçte, notlama oradan çevirir.
+    const [orders, persisted] = await Promise.all([
+      levelChoiceOrders(service, list, `${source}:${uid ?? "guest"}:${prep ?? ""}:${Date.now()}`),
+      uid ? levelTablesReady(service) : Promise.resolve(false),
+    ]);
+    const token = createLevelToken({
+      uid,
+      src: source,
+      items: list.map((r) => r.id),
+      prep,
+      ...(orders ? { ord: orders.map(encodeOrder) } : {}),
+    });
     if (!token) return errorResponse(503, "unconfigured");
-    const persisted = uid ? await levelTablesReady(service) : false;
-    const payload: LevelStartResponse = { status: "ok", token, source, guest: !uid, items: list.map(toLevelItem), persisted, ...(missing ? { missing } : {}), ...(more ? { more: true } : {}) };
+    const items = list.map((r, index) => toLevelItem(r, orders?.[index] ?? null));
+    const payload: LevelStartResponse = { status: "ok", token, source, guest: !uid, items, persisted, ...(missing ? { missing } : {}), ...(more ? { more: true } : {}) };
     return NextResponse.json(payload, { headers: noStore });
   }
 }

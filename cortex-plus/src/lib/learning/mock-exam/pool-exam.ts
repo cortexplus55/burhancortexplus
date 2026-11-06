@@ -6,6 +6,7 @@ import { buildBlueprint } from "@/lib/learning/mock-exam/allocate";
 import { loadMockExamSetup } from "@/lib/learning/mock-exam/create";
 import { pickPoolExamItems, type PoolExamItem, type PoolExamRow } from "@/lib/learning/mock-exam/pool-pick";
 import type { MockLengthPreset } from "@/lib/learning/mock-exam/types";
+import { applyOrder, poolChoiceOrders } from "@/lib/learning/option-balance";
 
 /**
  * Havuz hazırlığında yazılı deneme (3 Kasım 2026): canlıda "Kısa · 10 soru" 3,5-4 dk hazırlanıyordu. Belgesiz
@@ -133,9 +134,16 @@ export async function tryPoolMockExam(input: {
   if (examError || !exam) return null;
   const explanationOf = new Map(((explained ?? []) as { id: string; explanation: string | null }[]).map((r) => [r.id, r.explanation]));
   const examId = exam.id as string;
+  // Şıklar sınav düzeyinde dengelenir (6 Kasım 2026, Paket 2): havuzda doğru cevap çoğunlukla A ya da B'de; kâğıt
+  // olduğu gibi kurulunca 10 sorunun 10'u A/B çıkmıştı. Sıra kayda yazılır; notlama ve inceleme kayıttan okur.
+  const orders = poolChoiceOrders(
+    flat.map(({ item }) => ({ id: item.id, choices: item.choices, answer: item.answer, explanation: explanationOf.get(item.id) ?? null })),
+    examId,
+  );
   const questionRows = flat.map(({ row, item }, sort_order) => {
-    const choices = item.choices.map((c) => String(c).trim());
-    const correct = choices[item.answer]!;
+    const original = item.choices.map((c) => String(c).trim());
+    const correct = original[item.answer]!;
+    const choices = applyOrder(original, orders[sort_order]!);
     return {
       exam_id: examId,
       question_text: item.stem.trim(),

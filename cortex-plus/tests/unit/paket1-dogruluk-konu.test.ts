@@ -295,8 +295,9 @@ describe("4. havuz dersinde en az üç soru, her 2-3 ekranda bir", () => {
     expect(checks.map(([n]) => n)).toEqual([1, 3, 5]);
     const first = checks[0]![1] as unknown as { check: { prompt: string; options: string[]; answerIndex: number } };
     expect(first.check.prompt).toContain("a1");
-    expect(first.check.options).toEqual(["Birinci", "İkinci", "Üçüncü", "Dördüncü"]);
-    expect(first.check.answerIndex).toBe(1);
+    // Şıklar dengeli karıştırılır (Paket 2); doğru şık metniyle izlenir.
+    expect([...first.check.options].sort()).toEqual(["Birinci", "Dördüncü", "Üçüncü", "İkinci"].sort());
+    expect(first.check.options[first.check.answerIndex]).toBe("İkinci");
     // Ekranın son bloğu soru (ekran başına bir soru).
     expect(out.screens[1]!.blocks.at(-1)!.type).toBe("check");
     expect(lesson.screens[1]!.blocks.some((b) => b.type === "check")).toBe(false);
@@ -332,5 +333,19 @@ describe("4. havuz dersinde en az üç soru, her 2-3 ekranda bir", () => {
   it("havuz sunumu ve kazanım dersi bankayı okur", () => {
     expect(readFileSync("src/lib/content-pool/serve.ts", "utf8")).toContain("withPoolChecks(poolLessonV3(");
     expect(readFileSync("src/lib/learning/node/outcome-start.ts", "utf8")).toContain("readPoolLessonChecks(");
+  });
+});
+
+describe("havuz dersine giren sorular da dengeli şıkla gelir", () => {
+  it("bankada doğru cevap hep ilk şıkta olsa da derste hepsi aynı harfe düşmez; doğru şık metni korunur", () => {
+    const lesson = { screens: Array.from({ length: 9 }, (_, n) => screen(n)) };
+    const items = Array.from({ length: 6 }, (_, n) => ({ ...item(`k${n}`, `u#${n}`), answer: 0 }));
+    const { lesson: out } = interleavePoolChecks(lesson, items);
+    const checks = out.screens.flatMap((s) => s.blocks.filter((b) => b.type === "check")) as unknown as Array<{
+      check: { options: string[]; answerIndex: number };
+    }>;
+    expect(checks.length).toBeGreaterThanOrEqual(POOL_LESSON_MIN_CHECKS);
+    expect(new Set(checks.map((c) => c.check.answerIndex)).size).toBeGreaterThan(1);
+    for (const c of checks) expect(c.check.options[c.check.answerIndex]).toBe("Birinci");
   });
 });

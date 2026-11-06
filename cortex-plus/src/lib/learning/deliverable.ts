@@ -9,6 +9,7 @@
 import { examFactOverlap, itemStems, nearDuplicate } from "@/lib/learning/item-dedup";
 import { foldValidity, itemValidity, validityKind } from "@/lib/learning/item-validity";
 import { measurableTokens } from "@/lib/learning/source-quantities";
+import { sameAskedQuantity } from "@/lib/learning/asked-quantity";
 
 export type DeliverySlot = {
   topicId?: string | null;
@@ -29,6 +30,8 @@ export type DeliveryItem = {
   explanation?: string;
   sourceLabel?: string;
   material?: string;
+  /** Açık uçlu sorunun örnek cevabı: hesaplanan sonuç buradan okunur (`sameAskedQuantity`). */
+  modelAnswer?: string | null;
 };
 
 export type DeliveryVerdict<T> = {
@@ -116,6 +119,8 @@ export function semanticDuplicate(left: DeliveryItem, right: DeliveryItem): bool
   const rightAnswer = answerKey(right);
   if (leftAnswer && rightAnswer && leftAnswer.length >= 8 && leftAnswer === rightAnswer) return true;
   if (leftAnswer && rightAnswer && leftAnswer === rightAnswer && nearDuplicate(left.text, right.text, 0.55)) return true;
+  // Aynı durumda aynı büyüklük (6 Kasım 2026, Paket 2): kökler farklı yazılsa da aynı ara sonuç ikinci kez sorulmaz.
+  if (sameAskedQuantity(left, right)) return true;
   return false;
 }
 

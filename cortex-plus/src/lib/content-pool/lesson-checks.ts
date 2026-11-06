@@ -1,5 +1,6 @@
 import { stripOptionLetters } from "@/lib/learning/option-text";
 import { LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
+import { applyOrder, poolChoiceOrders } from "@/lib/learning/option-balance";
 
 /**
  * Havuz dersinde kontrol soruları (6 Kasım 2026, canlı sınav) — ders bağımsız, modelsiz.
@@ -92,7 +93,14 @@ export function interleavePoolChecks<L extends { screens: Screen[] }>(
   items: readonly PoolCheckItem[],
   outcomesByScreen: readonly (readonly string[])[] = [],
 ): { lesson: L; added: number } {
-  const pool = items.filter(usablePoolCheck);
+  // Havuzda doğru cevap çoğunlukla ilk şıkta; derse giren sorular da sınav düzeyinde dengelenir (Paket 2).
+  // Harf önekleri ("A) …") karıştırmadan önce düşer; karışık sırada temizlenemezdi.
+  const usable = items.filter(usablePoolCheck).map((row) => ({ ...row, choices: stripOptionLetters(row.choices.map((c) => String(c).trim())) }));
+  const orders = poolChoiceOrders(usable, "lesson");
+  const pool = usable.map((row, index) => {
+    const order = orders[index]!;
+    return { ...row, choices: applyOrder(row.choices, order), answer: Math.max(0, order.indexOf(row.answer)) };
+  });
   const screens = lesson.screens.map((screen) => ({ ...screen, blocks: [...screen.blocks] }));
   const existing = screens.filter(hasCheck).length;
   if (!pool.length || !screens.length) return { lesson, added: 0 };

@@ -34,6 +34,8 @@ import { OPTION_ORDER_RULE, refersToOptionOrder } from "@/lib/learning/option-re
 import { FUNCTION_NOTATION_ISSUE, FUNCTION_NOTATION_RULE, reversedFunctionNotation } from "@/lib/learning/function-notation";
 import { sourceText, type TeacherLessonMode } from "@/lib/learning/teacher-lesson";
 import { EXAM_POINTS_MAX, examPointsBlock } from "@/lib/learning/exam-points";
+import { lessonBackbone } from "@/lib/learning/lesson-backbone";
+import { cellKeys, MAX_SAME_TABLE, topicCoreRule } from "@/lib/learning/topic-test-shape";
 import { avoidListBlock, dropNearDuplicates } from "@/lib/learning/item-dedup";
 import {
   LESSON_CHECKS_MAX,
@@ -258,7 +260,12 @@ export const TOPIC_TEST_RULE =
   "- KAPSAM: Her soru tek bir SINAVDA SORULUR maddesini (madde yoksa kaynağın bir bölümünü) yoklar; \"point\" alanına " +
   "maddenin numarasını (\"3\") ya da bölümün başlığını yaz. Sıra: önce '(derste işlendi)' yazan maddeler, sonra " +
   "öbürleri; ders bilgisi yoksa bütün maddeler eşit. Sorulmamış madde varken hiçbir madde ikinci kez sorulmaz; aynı " +
-  "tablodan en çok 2 soru.\n" +
+  "tablodan en çok 2 soru (üçüncüsü testten çıkarılır).\n" +
+  // 6 Kasım 2026 (Paket 2, canlı): 5 sorunun 4'ü aynı tablonun satırlarıydı, çekirdek kural hiç sorulmadı.
+  "- ÇEKİRDEK: Testin 1. sorusu ÇEKİRDEK KURAL satırındaki kuralı ya da formülü yoklar (uygulatır, anlamını, koşulunu " +
+  "ya da sonucunu sorar). Test bir tablo satırı sorusuyla açılmaz.\n" +
+  "- ALT BAŞLIK: ALT BAŞLIKLAR listesi verildiyse her soru ayrı bir alt başlığı yoklar; sorulmamış alt başlık varken " +
+  "aynı alt başlık ikinci kez sorulmaz.\n" +
   "- KÖK KALIBI: Aynı soru kalıbı ('En olası tanı hangisidir?', 'Bu yönetim biçimi hangisidir?') en çok 2 soruda. " +
   "Ötekiler başka bir iş ister: sıradaki doğru adım, yapılmaması gereken, ağırlık ya da uyarı bulgusu, iki kardeş " +
   "kavramı ayıran bulgu, istisna, koşul.\n" +
@@ -374,6 +381,40 @@ function quizPointsBlock(input: TeacherQuizInput): string {
   return examPointsBlock(input.scope === "topic_test" ? topicTestPoints(input) : input.examPoints, "quiz");
 }
 
+export type TopicTestShapeInput = Pick<TeacherQuizInput, "scope" | "pages" | "examPoints" | "lesson"> &
+  Partial<Pick<TeacherQuizInput, "mode" | "topicLabel" | "runningHeaders">>;
+
+/** Konu testinin çekirdek kuralı (`topicCoreRule`); konu testi değilse null. */
+export function topicTestCore(input: TopicTestShapeInput): string | null {
+  if (input.scope !== "topic_test") return null;
+  return topicCoreRule({
+    topicLabel: input.topicLabel,
+    pages: input.mode === "topic" ? [] : input.pages,
+    lesson: input.lesson,
+    points: topicTestPoints(input),
+  });
+}
+
+/** Konunun kaynaktaki alt başlıkları (ders omurgasıyla aynı okuma); konu testi değilse boş. */
+export function topicTestSubheadings(input: TopicTestShapeInput): string[] {
+  if (input.scope !== "topic_test" || input.mode === "topic") return [];
+  return lessonBackbone(input.pages, { topicLabel: input.topicLabel, runningHeaders: input.runningHeaders });
+}
+
+/** Yazar ve denetçinin aynı gördüğü çekirdek kural + alt başlık bloğu (6 Kasım 2026, Paket 2). */
+function topicTestShapeBlock(input: TeacherQuizInput): string {
+  const core = topicTestCore(input);
+  const headings = topicTestSubheadings(input);
+  return [
+    core ? `ÇEKİRDEK KURAL (testin 1. sorusu bunu yoklar): ${core}` : "",
+    headings.length >= 2
+      ? `ALT BAŞLIKLAR (her soru ayrı bir alt başlığı yoklar): ${headings.map((heading, index) => `${index + 1}) ${heading}`).join(" · ")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /** Dersin sorduğu sorular ve terimleri; ders yoksa boş (istem bugünkü gibi). */
 function lessonBlock(input: TeacherQuizInput): string {
   if (input.scope !== "topic_test" || !input.lesson) return "";
@@ -410,6 +451,7 @@ export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): stri
     input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     quizPointsBlock(input),
+    topicTestShapeBlock(input),
     officialOutcomeBlock(input.officialOutcome, "quiz"),
     // Kaynak sonda kalır: model en son okuduğu talimata daha sadık.
     lessonBlock(input),
@@ -557,6 +599,7 @@ export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQu
     input.scope === "topic_test"
       ? [
           quizPointsBlock(input),
+          topicTestShapeBlock(input),
           lessonBlock(input),
           accepted.length
             ? `TESTİN KABUL EDİLEN SORULARI (bunları denetleme; yalnız tekrar ve kapsam için bak):\n${JSON.stringify({ questions: accepted.map(publicShape) })}`
@@ -917,16 +960,24 @@ export function questionConflict(earlier: QuizQuestion, later: QuizQuestion, ear
 export function appendWithoutConflicts(
   current: readonly QuizQuestion[],
   incoming: readonly QuizQuestion[],
-  options: { answerCap?: boolean } = {},
+  options: { answerCap?: boolean; tableOf?: QuizTableOf | null } = {},
 ): QuizQuestion[] {
   const out = [...current];
   for (const question of incoming) {
     if (out.some((other) => questionConflict(other, question) !== null)) continue;
     if (options.answerCap !== false && sameAnswerCount(out, question) >= MAX_SAME_ANSWER) continue;
+    // Aynı kaynak tablosundan en çok iki soru (6 Kasım 2026, Paket 2): son çarede de (kural ölçüm değil, kapı).
+    if (options.tableOf) {
+      const table = options.tableOf(question);
+      if (table !== null && out.filter((other) => options.tableOf!(other) === table).length >= MAX_SAME_TABLE) continue;
+    }
     out.push(question);
   }
   return out;
 }
+
+/** Sorunun geldiği kaynak tablosu (`questionTableOf`); tablo yoksa null. */
+export type QuizTableOf = (question: Pick<QuizQuestion, "text" | "correct">) => number | null;
 
 /**
  * Sayıyı tamamlamak için de geri konmayan sorunlar (30 Ekim 2026): soru iki cevaplı (eşdeğer, aynı ya da ikiz eşik
@@ -961,7 +1012,7 @@ export const UNSALVAGEABLE_PROBLEM = new RegExp(
 export function salvageRejected(
   rejected: readonly { question: QuizQuestion; problems: readonly string[] }[],
   current: readonly QuizQuestion[],
-  options: { optionCount?: number; previousStems?: readonly string[]; lastResort?: boolean } = {},
+  options: { optionCount?: number; previousStems?: readonly string[]; lastResort?: boolean; tableOf?: QuizTableOf | null } = {},
 ): QuizQuestion[] {
   const blocks = (problem: string) =>
     UNSALVAGEABLE_PROBLEM.test(problem) && !(options.lastResort && problem.startsWith(STEM_ECHO_PREFIX));
@@ -978,7 +1029,7 @@ export function salvageRejected(
     ...(options.previousStems ?? []),
     ...current.map((question) => question.text),
   ]);
-  return appendWithoutConflicts(current, spare, { answerCap: !options.lastResort });
+  return appendWithoutConflicts(current, spare, { answerCap: !options.lastResort, tableOf: options.tableOf });
 }
 
 /**
@@ -991,9 +1042,45 @@ export function salvageRejected(
  */
 export function quizSetIssues(
   ordered: readonly QuizQuestion[],
-  opts: { pointsAvailable: number; lessonChecks?: readonly string[] },
+  opts: { pointsAvailable: number; lessonChecks?: readonly string[]; subheadings?: readonly string[] },
 ): QuizSetIssue[] {
   const issues: QuizSetIssue[] = [];
+  // Alt başlık (6 Kasım 2026, Paket 2): sorulmamış alt başlık varken aynı alt başlığı ikinci kez soran soru J.
+  const headings = (opts.subheadings ?? []).map((heading) => [...cellKeys(heading)].filter((key) => !/^\d/.test(key)));
+  if (headings.filter((keys) => keys.length).length >= 2) {
+    const headingOf = (question: QuizQuestion): number | null => {
+      const have = cellKeys(`${question.text} ${(question.correct ?? []).join(" ")}`);
+      let best: number | null = null;
+      let bestScore = 0;
+      headings.forEach((keys, index) => {
+        if (!keys.length) return;
+        const score = keys.filter((key) => have.has(key)).length / keys.length;
+        if (score >= 0.5 && score > bestScore) {
+          best = index;
+          bestScore = score;
+        }
+      });
+      return best;
+    };
+    const assigned = ordered.map(headingOf);
+    const unasked = headings.map((_, index) => index).filter((index) => headings[index]!.length && !assigned.includes(index));
+    const asked = new Set<number>();
+    assigned.forEach((heading, index) => {
+      if (heading === null) return;
+      if (asked.has(heading) && unasked.length) {
+        issues.push({
+          index,
+          code: "J",
+          problem: `"${(opts.subheadings ?? [])[heading]}" alt başlığı ikinci kez soruluyor; sorulmamış alt başlık(lar): ${unasked
+            .slice(0, 4)
+            .map((item) => `"${(opts.subheadings ?? [])[item]}"`)
+            .join(", ")}. Bunlardan birini yokla.`,
+          forceFix: true,
+        });
+      }
+      asked.add(heading);
+    });
+  }
   const frames = new Map<string, number>();
   const used = new Set(ordered.map((question) => pointNumber(question, opts.pointsAvailable)).filter((n): n is number => n !== null));
   const unused = Array.from({ length: opts.pointsAvailable }, (_, i) => i + 1).filter((n) => !used.has(n));

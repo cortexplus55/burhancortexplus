@@ -22,7 +22,14 @@ export type LessonQuizContext = {
   key: string;
   /** Eski kayıtlardaki `missingConcepts` artık soru elemez (26 Ekim 2026). Alan okunmaz. */
   missing?: string[];
+  /**
+   * Dersin formül blokları ("Başlık: ifade"), sırayla (6 Kasım 2026, Paket 2): konu testinin ilk sorusu konunun
+   * çekirdek kuralını yoklar (`topicCoreRule`). Anahtara girmez (metin zaten formülü taşır).
+   */
+  formulas?: string[];
 };
+
+const LESSON_FORMULAS_MAX = 4;
 
 export const LESSON_CHECKS_MAX = 12;
 export const LESSON_TERMS_MAX = 25;
@@ -82,8 +89,15 @@ export function lessonQuizContext(lessons: readonly LessonV2[], missing: readonl
   const seenChecks = new Set<string>();
   const seenTerms = new Set<string>();
   const texts: string[] = [];
+  const formulas: string[] = [];
+  const seenFormulas = new Set<string>();
   for (const lesson of lessons) {
     for (const section of lesson.sections ?? []) {
+      const expression = clean(section.formula?.expression);
+      if (expression) {
+        const title = clean(section.formula?.title);
+        pushUnique(formulas, seenFormulas, title && !expression.startsWith(title) ? `${title}: ${expression}` : expression, LESSON_FORMULAS_MAX);
+      }
       // Ekran i = bölüm i: bölümün sorusu ekranın sorusu; yanlış cevapta gelen ikinci soru da derste görüldü.
       pushUnique(checks, seenChecks, clean(section.check?.prompt), LESSON_CHECKS_MAX);
       pushUnique(checks, seenChecks, clean(section.check?.review?.prompt), LESSON_CHECKS_MAX);
@@ -102,7 +116,7 @@ export function lessonQuizContext(lessons: readonly LessonV2[], missing: readonl
   if (!checks.length && !terms.length && !text) return null;
   const key = `L${fnv(`${checks.join("|")}#${terms.join("|")}#${text}`).toString(36).slice(0, 6)}`;
   const gaps = missing.map(clean).filter(Boolean).slice(0, 8);
-  return { checks, terms, text, key, ...(gaps.length ? { missing: gaps } : {}) };
+  return { checks, terms, text, key, ...(gaps.length ? { missing: gaps } : {}), ...(formulas.length ? { formulas } : {}) };
 }
 
 /**

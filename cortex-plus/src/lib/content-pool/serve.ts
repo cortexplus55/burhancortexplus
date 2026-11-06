@@ -9,6 +9,7 @@ import type { LessonBody } from "@/lib/content-pool/schema";
 import { blueprintBlocks, blueprintKind, type BlueprintKind } from "@/lib/content-pool/blueprint";
 import { LESSON_V3_FORMAT, LESSON_SCREEN_HARD_CAP } from "@/lib/learning/lesson-v3";
 import { poolLessonText } from "@/lib/content-pool/lesson-text";
+import { applyOrder, poolChoiceOrders } from "@/lib/learning/option-balance";
 import { POOL_LESSON_MIN_CHECKS, interleavePoolChecks, type PoolCheckItem } from "@/lib/content-pool/lesson-checks";
 
 /**
@@ -185,7 +186,7 @@ export function poolLessonV3(body: LessonBody, title: string, programKind = "", 
   return { format: LESSON_V3_FORMAT, title: (title || body.title).slice(0, 160), overview: body.overview.slice(0, 1500), screens, summary };
 }
 
-type ItemRow = { id: string; outcome_id: string; difficulty: string; stem: string; choices: string[]; answer: number; explanation: string | null };
+export type ItemRow = { id: string; outcome_id: string; difficulty: string; stem: string; choices: string[]; answer: number; explanation: string | null };
 
 /** Konunun outcome_id'leri; null = ünitelerin tamamı. */
 export function sliceOutcomeIds(slice: PoolSlice): Set<string> | null {
@@ -243,9 +244,9 @@ export async function readPoolQuiz(service: SupabaseClient, slice: PoolSlice | P
   // Havuz yetmezse önce görülmemişler, eksik görülenlerden tamamlanır (önce: hepsi karışık).
   if (fresh.length < count) {
     const refill = rows.filter((r) => seen.has(r.id)).sort(() => Math.random() - 0.5).slice(0, count - fresh.length);
-    return mapPoolRows(balancedPick(fresh, fresh.length).concat(refill));
+    return mapPoolRows(balancedPick(fresh, fresh.length).concat(refill), prepId ?? userId);
   }
-  return mapPoolRows(balancedPick(fresh, count));
+  return mapPoolRows(balancedPick(fresh, count), prepId ?? userId);
 }
 
 /** Kazanım ve zorluk dengesi: sırayla her kazanımdan bir soru. */
@@ -259,10 +260,15 @@ function balancedPick(rows: ItemRow[], count: number): ItemRow[] {
   return picked;
 }
 
-function mapPoolRows(picked: ItemRow[]) {
-  return picked.map((r) => ({
+/**
+ * Havuz testi / Soru-Cevap gövdesi. Şıklar testin bütününde dengelenir (6 Kasım 2026, Paket 2): havuzda doğru cevap
+ * çoğunlukla A ya da B'de. Gövde deneme kaydına yazılır; notlama şık metniyle yapılır, sıra kayıttan okunur.
+ */
+export function mapPoolRows(picked: ItemRow[], salt = "") {
+  const orders = poolChoiceOrders(picked, salt);
+  return picked.map((r, index) => ({
     text: r.stem,
-    options: r.choices.map(String),
+    options: applyOrder(r.choices.map(String), orders[index]!),
     correct: [String(r.choices[r.answer])],
     multi: false,
     ...(r.explanation ? { explanation: r.explanation } : {}),

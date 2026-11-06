@@ -443,7 +443,7 @@ describe("5 · testin bütünü: aynı cevap, birinin cevabı öbürünün doğr
   it("konu testi dışındaki testlerde de bütün teste bakılır; ikinci geçiş ve kurtarma çakışanı almaz", () => {
     const run = read("src/lib/learning/teacher-quiz-run.ts");
     expect(run).not.toContain("    if (scoped) {\n      // Bütün test");
-    expect(run).toContain("appendWithoutConflicts(questions, fresh)");
+    expect(run).toContain("appendWithoutConflicts(questions, fresh, { tableOf })");
     expect(run).toContain("salvageRejected(rejected, questions,");
     expect(appendWithoutConflicts([economics[0]!], [economics[2]!, economics[1]!])).toEqual([economics[0], economics[1]]);
   });
@@ -514,7 +514,7 @@ describe("6 · yazılı deneme S4: kökün çok sözcüklü öncülü doğru ş�
     expect(salvageRejected([{ question: wrongKey, problems: wrongKeyProblems }], [], { optionCount: 5, lastResort: true })).toEqual([]);
     const echoesWhole = ["Kök doğru şıkkı içeriyor; cevabı veriyor."];
     expect(salvageRejected([{ question: live, problems: echoesWhole }], [], { optionCount: 5, lastResort: true })).toEqual([]);
-    expect(read("src/lib/learning/teacher-quiz-run.ts")).toContain("lastResort: true }");
+    expect(read("src/lib/learning/teacher-quiz-run.ts")).toContain("lastResort: true, tableOf }");
   });
 
   it("döngü (yazılı deneme kipi) soruyu eler; sayı eksik kalsa da kurtarma onu geri koymaz", async () => {

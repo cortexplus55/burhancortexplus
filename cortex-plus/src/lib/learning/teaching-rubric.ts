@@ -119,7 +119,11 @@ export const SOURCE_NUMBER_PRIORITY =
   "KAYNAK BELGE / EL NOTU MUTLAK ÖNCELİĞİ: Öğrencinin yüklediği ders notunda ya da el yazısı taramasında bir kavram " +
   "için belirli bir sayı, aralık, birim (bir ölçü aralığı, bir ücret ya da oran satırı) ya da özel ad/yer (bir salon ya da yer adı) verilmişse, genel " +
   "literatürde farklı bir yaklaşık değer geçse bile notun sayısı, aralığı ve adı doğrudur. Notun aralığıyla çelişen " +
-  "bir değeri doğru cevap, doğru ifade ya da anlatılan bilgi yapma; notun değerini genel bilgiyle 'düzeltme'.";
+  "bir değeri doğru cevap, doğru ifade ya da anlatılan bilgi yapma; notun değerini genel bilgiyle 'düzeltme'. " +
+  // 6 Kasım 2026 (Paket 2, canlı deneme): kaynak bir sabitin değerini açıkça verdiği hâlde sorular harfle hesaplattı.
+  "Kaynak bir sabit ya da parametre için sayısal değer belirlemişse ('… alınacak', '… alınız', '… kabul edilir', " +
+  "'… olarak kullanılır'), sorular, şıklar ve çözümler o harfi ya da sembolü bırakmaz, kaynağın değerini koyar; sonucu " +
+  "'… cinsinden' bırakma, sayıyla ve birimiyle ver. Kaynak değer vermemişse sembol kalır.";
 
 /**
  * Eşdeğer iki doğru şık (28 Ekim 2026, Paket A). Tek doğru istenen soruda "örten olması" ile "tersinin fonksiyon
