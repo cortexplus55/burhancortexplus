@@ -36,7 +36,8 @@ import {
 import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 import { exclusivePageRanges } from "@/lib/documents/topic-page-ranges";
-import { orderOutlineByPosition } from "@/lib/documents/outline-skeleton";
+import { buildDocumentSkeleton, orderOutlineByPosition } from "@/lib/documents/outline-skeleton";
+import { SECTION_RESTORE_MAX_PAGES, restoreSectionLeaves } from "@/lib/documents/shared-page-sections";
 import { needsUnits, type ConceptUnit } from "@/lib/documents/concept-units";
 import { buildConceptUnits } from "@/lib/documents/concept-units-run";
 import { repeatedEdgeLines } from "@/lib/documents/clean-text";
@@ -604,7 +605,23 @@ async function persistCourseOutline(
         leafIndex += 1;
       }
     });
-    const leaves = exclusiveLeafPages(cited);
+    let leaves = exclusiveLeafPages(cited);
+    // Aynı sayfadaki ayrı bölümler (6 Kasım 2026): sayfasız kalan konunun o sayfada kendi başlığı varsa düşmez.
+    if (leaves.length < cited.length && light.length <= SECTION_RESTORE_MAX_PAGES) {
+      try {
+        const texts = await loadPageTexts(service, documentId, light.map((row) => row.page_number));
+        const skeleton = buildDocumentSkeleton([
+          { fileIndex: 0, pages: [...texts].map(([pageNumber, text]) => ({ pageNumber, text })) },
+        ]);
+        const before = leaves.length;
+        leaves = restoreSectionLeaves(cited, leaves, skeleton);
+        if (leaves.length > before) {
+          console.info("topic_map_shared_sections", { documentId, restored: leaves.length - before, topics: leaves.length });
+        }
+      } catch {
+        // Metin okunamazsa tekil dağıtım aynen kalır.
+      }
+    }
     plans.push({ fileIndex, documentId, light, leaves });
   }
   // One concept-unit call per file, all in parallel and bounded by the round

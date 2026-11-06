@@ -520,6 +520,16 @@ export function topicNamesHeading(heading: { title: string; itemChars?: number; 
   return matchWords(topicTitle).some((word) => sameWordStem(subject, word));
 }
 
+/**
+ * Bölüm bu konunun mu: başlık satırında iki yönlü ad eşleşmesi (konu adı başlıkta ya da başlık konu adında); numaralı
+ * madde bölümünde yalnız özne (`topicNamesHeading`). Madde başlığı bir cümledir: cümlede geçen sıradan bir kelime
+ * ("… asitliğine göre …") başka bir konunun adını taşıyor diye madde o konunun sayılmaz.
+ */
+export function headingBelongsTo(heading: { title: string; itemChars?: number }, topicTitle: string): boolean {
+  if (heading.itemChars != null) return topicNamesHeading(heading, topicTitle);
+  return headingNamedIn(topicTitle, [heading.title]) || headingNamedIn(heading.title, [topicTitle]);
+}
+
 export type SkeletonGap = {
   heading: string;
   label: string;
@@ -688,7 +698,7 @@ export function skeletonCoverage(
         !headingNamedIn(heading.title, []) &&
         (options.singleFile ? 0 : heading.fileIndex) === fileOf(topic) &&
         heading.pages.some((page) => pages.includes(page)) &&
-        (headingNamedIn(topic.title, [heading.title]) || topicNamesHeading(heading, topic.title)),
+        headingBelongsTo(heading, topic.title),
     );
     if (ownHeading) {
       if (measuredHeadings.includes(ownHeading)) owned.add(ownHeading);
