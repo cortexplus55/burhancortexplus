@@ -18,6 +18,10 @@ export const AUDIT_LABELS: Record<string, string> = {
   "promo.created": "Kampanya kodu oluşturuldu",
   "promo.enabled": "Kampanya kodu açıldı",
   "promo.disabled": "Kampanya kodu kapatıldı",
+  "promo.beta_batch_created": "Toplu beta kodları üretildi",
+  "promo.beta_shared_created": "Ortak beta kodu oluşturuldu",
+  "cockpit.fx_rate.saved": "Dolar kuru kaydedildi",
+  "cockpit.spend_cap.saved": "Günlük harcama tavanı kaydedildi",
   "prompt.activated": "Bir AI talimatı yayına alındı",
   "role.granted": "Kullanıcıya yetki verildi",
   "role.revoked": "Kullanıcının yetkisi geri alındı",
@@ -36,8 +40,8 @@ export const AUDIT_LABELS: Record<string, string> = {
 export const ACTION_LABELS: Record<string, string> = {
   CHAT_MESSAGE: "Sohbette bir soru sorma",
   IMAGE_SOLUTION: "Fotoğraftan soru çözme",
-  QUIZ_GENERATE: "Quiz üretme",
-  FLASHCARD_GENERATE: "Flashcard seti üretme",
+  QUIZ_GENERATE: "Konu testi üretme",
+  FLASHCARD_GENERATE: "Kart seti üretme",
   EXAM_GENERATE: "Deneme sınavı üretme",
   STUDY_PLAN_GENERATE: "Ders üretme",
   DOCUMENT_PAGE_PROCESS: "Yüklenen dokümanın bir sayfasını işleme",
@@ -49,7 +53,50 @@ export const ACTION_LABELS: Record<string, string> = {
   AI_CHAT_STANDARD: "Sohbet mesajı",
   PRACTICE_EXAM_GENERATE: "Yazılı deneme sınavı",
   WRITTEN_EXAM: "Yazılı sınav değerlendirme",
+  // Kullanım kaydındaki (ai_usage_events) iç kodlar: öğrenciden kredi düşmeyen işler de burada sayılır.
+  AI_CHAT_ADVANCED: "Sohbet mesajı (ayrıntılı)",
+  AI_CHAT_PARENT: "Veli sohbeti",
+  PRACTICE_EXAM_GRADE: "Yazılı deneme notlama",
+  VIDEO_GENERATE: "Video ders üretme",
+  SKETCH_VIDEO_GENERATE: "Çizimli video üretme",
+  AUDIO_SYNTHESIZE: "Seslendirme",
+  TTS_SYNTHESIZE: "Seslendirme (metinden sese)",
+  STT_TRANSCRIBE: "Sesi yazıya çevirme",
+  DOCUMENT_CLEAN: "Belge sayfasını temizleme",
+  DOCUMENT_SUPPLEMENT_GENERATE: "Ünite eki üretme",
+  TOPIC_MAP_OUTLINE: "Konu haritası çıkarma",
+  TOPIC_MAP_GROUP: "Konuları gruplama",
+  TOPIC_UNITS: "Kavram birimleri çıkarma",
+  PREP_TITLE: "Hazırlık adı yazma",
+  PREP_INTAKE: "Kurulum sohbeti",
+  CHAT_TITLE: "Sohbet başlığı yazma",
+  LESSON_PREFETCH: "Dersi önceden yazma (kredisiz)",
+  CONTENT_PREFETCH: "İçeriği önceden yazma (kredisiz)",
+  SHARED_CONTENT_LESSON: "Hazır müfredat dersi",
+  SHARED_CONTENT_MEDIA: "Hazır müfredat ses ve görseli",
+  ADAPTIVE_JEV: "Uyarlamalı oturum",
+  ADAPTIVE_ANSWER_EVAL: "Uyarlamalı cevap değerlendirme",
+  ADAPTIVE_ACTION_CONTENT: "Uyarlamalı içerik",
+  POOL_LESSON_VIEW: "Hazır ders açma",
+  POOL_CARDS: "Hazır kart seti",
+  POOL_QUIZ: "Hazır test",
+  EXPORT_PDF: "PDF olarak dışa aktarma",
 };
+
+/** Ödeme durumları (payments.status). */
+export const PAYMENT_STATUS = {
+  paid: { label: "Ödendi", tone: "ok" },
+  pending: { label: "Bekliyor", tone: "warn" },
+  failed: { label: "Başarısız", tone: "bad" },
+  refunded: { label: "İade edildi", tone: "mute" },
+} as const;
+
+/** PayTR bildiriminin sonucu: "success" ya da "failed". */
+export function webhookStatusLabel(status: string | null | undefined): string {
+  if (status === "success") return "Başarılı";
+  if (status === "failed") return "Başarısız";
+  return "Bilinmiyor";
+}
 
 /** Sistem durumundaki servislerin ne işe yaradığı. */
 export const SERVICE_NOTES: Record<string, string> = {
@@ -71,4 +118,9 @@ export function auditLabel(action: string): string {
 
 export function actionLabel(code: string): string {
   return ACTION_LABELS[code] ?? code;
+}
+
+/** Kullanım tablosunda: bilinmeyen iç kod ekranda kod olarak değil "Diğer işlem" diye görünür. */
+export function usageActionLabel(code: string | null | undefined): string {
+  return (code && ACTION_LABELS[code]) || "Diğer işlem";
 }
