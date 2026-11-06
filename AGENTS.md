@@ -2028,3 +2028,17 @@ Bekçi: `paket1-dogruluk-konu.test.ts`, `paket2-sik-dagilimi.test.ts`, `paket2-k
 | Sistem Sağlığı: DB, depo (`storage_size_report()`), Redis PING, OpenAI `models.list()` (üretim çağrısı yok); "Ölçülemedi" asla "Çalışıyor" sayılmaz. İçerik havuzu aile eşlemesi tek yerde (`content-families.ts`). Elle bakım günlük turun iki işlevini aynı sınırlarla çağırır | `system-health.ts`, `system-probes.ts` |
 | Ekranda ham kod yok: işlem adı `labels.ts` (her yazılan eylemin Türkçe adı olmalı), durum kodu `status-labels.ts`, ödeme `PAYMENT_STATUS`. Panelde shadcn `Button` değil `adm-btn`; kenarlık tokenı `--adm-line` | `lib/admin/*` |
 | Türkçe bekçisi `yonetim-turkce.test.ts` bütün `src/app/admin` ve `src/components/admin` ağacını tarar (hariç liste boş); İngilizce terim listesi tek yerde `tests/unit/helpers/admin-english-terms.ts` | — |
+
+## Test içi eğitmen ve numaralı kardeş bölümler (6 Kasım 2026)
+
+Telefon denetiminden iki içerik bulgusu çıktı. Birincisi: ders, notun bir sabit için verdiği değeri kullandı; aynı konunun testindeki eğitmen ise genel bilgideki yaklaşık değeri söyledi. İkincisi: özet notta açıkça 1., 2., 3., 4. diye numaralanmış dört bölüm haritada iki konuya eridi. Yeniden açmayın:
+
+| Kural | Nerede |
+|---|---|
+| **Notun özel kuralları modelsiz çıkar:** sayı ve belirleme sözü ("… alınacak / alınız / kabul edilir / olarak kullanılır / yuvarlanır") aynı satırdaysa kural sayılır; satın alma kullanımı sayılmaz; en çok 6 kural. Sayfa süzgeci veritabanında çalışır (`imatch`: rakam ile söz arasında en çok 120 karakter). Düzenli ifade reddedilirse kaba `ilike` süzgecine geçer, o da düşerse boş liste döner | `source-rules.ts` |
+| **Ana hazırlık sohbeti** kuralları her cevapta istemde taşır ("NOTUN ÖZEL KURALLARI", `loadPrepChatGrounding` → `sourceRules`). `SOURCE_NUMBER_PRIORITY` sistem isteminin sabit kısmında durur (belgesiz müfredat modunda yok). Denetçi kuralları kaynak sayar (`tutorVerifyPassages`) | `teacher-tutor.ts`, `teacher-tutor-run.ts`, `chat/route.ts` |
+| **Test içi eğitmen** (`/api/learning/exam-prep/coach`) ana sohbetle aynı okuyucudan pasajları (4.000 karakter) ve kuralları alır. Kaynak sayı önceliği sistem iletisinde (`generateJson` `systemAddendum`) ve denetçide (`reviewerAddendum`) durur. Okuma düşerse eğitmen kaynaksız da cevap verir. Rota dosyası yalnız `POST` dışa aktarır; yardımcılar `coach-sources.ts` dosyasındadır | `coach/route.ts`, `coach-sources.ts`, `generate.ts` |
+| **Numaralı kardeş bölüm 450 karakteri beklemez:** dosyanın en üst numaralama düzeyinde, aynı önekle ardışık artan en az 3 başlığın her biri, gövdesi en az 80 karakterse ayrı bölümdür (`numberedSibling`). İskelet bu bölümleri ölçer ve ilk harita isteminde listeler; yutulmuşlarsa onarım ister. Liste adımları bölüm sayılmaz: gövdesiz madde ayrılır, bölüm numaralaması ilerlemişken yeniden 1'den başlayan dizi de ayrılır | `outline-skeleton.ts` `markNumberedSiblings` |
+| Birden çok numaralı kardeşi tek adda toplayan konu ya da ünite ("A, B ve C") hiçbirini temsil etmez. Kodun kaydettiği birleştirme (`sourceTitles`'ta konunun kendi adı dışındaki adlar) temsil eder. Onarım her bölümü ayrı yazınca şemsiye konu çıkar; biri eksik kalırsa şemsiye durur. Yazar kuralı: `NUMARALI KARDEŞ BÖLÜMLER AYRI KONUDUR` | `skeletonCoverage`, `mergeOutlinePatch` (`removed`), `OUTLINE_GRANULARITY_RULE` |
+
+Bekçi: `test-ici-ogretmen-kaynak.test.ts`, `numarali-kardes-bolum.test.ts` (örnekler başka derslerden).

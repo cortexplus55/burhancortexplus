@@ -933,6 +933,7 @@ export const OUTLINE_GRANULARITY_RULE =
   "- Şemsiye başlık YASAK: \"Temel Kavramlar\", \"Temel Kavramlar ve İlkeler\", \"Genel Bilgiler\" gibi bir başlık altında alt dalları yutma. Her belirgin alt başlık, mekanizma, teorem/formül grubu ya da problem/analiz türü kendi konusu olur; belgenin hiçbir ana ya da alt dalı haritanın dışında kalmaz.\n" +
   "- Kısa dosyada (9 sayfadan az) sayfa payı tek başına konu açmaz. En az üç bağımsız, içerik taşıyan alt başlık varsa konu metin/karakter payına göre 2-4 ayrı konuya bölünür; sayfa başlığı, tekrar listesi ve hata listesi konu değildir.\n" +
   "- KISA ALT BÖLÜM DE KONUDUR: belgede kendi başlığıyla duran ve kendi tanımı, kuralı, formülü ya da örnek/soru tipi olan alt bölüm 1-2 sayfa bile olsa ayrı konu olur (kendi başlığı ve tanımı olan özel durum ya da alt tür gibi); üst başlığın içinde eritilmez. Yalnız başlığı olup gövdesi olmayan etiket, çözümlü örnek ve tekrar bölümü konu değildir.\n" +
+  "- NUMARALI KARDEŞ BÖLÜMLER AYRI KONUDUR: belge bölümlerini açıkça sırayla numaralamışsa (1., 2., 3. …) her numaralı bölüm, gövdesi birkaç satır olsa bile kendi konusudur; iki numaralı bölümü tek konuda birleştirme, adlarını tek konu adında uç uca ekleme. Bir bölümün içinde yeniden 1'den başlayan numaralı adım listesi bölüm değildir.\n" +
   "- DEVAM SAYFASI AYRI KONU DEĞİLDİR: \"(devam)\", \"(devamı)\", \"(devam 2)\", \"– devamı\" ya da \"(cont.)\" ekiyle süren başlık aynı başlığın konusudur; sayfaları o konuya eklenir, başlığa ek yazılmaz.";
 
 function studentOutlinePrompt(input: {
@@ -1672,7 +1673,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     const checked = validateOneShotOutline(patched.draft, material.validation);
     const merged = checked.ok
       ? mergeOutlinePatch(best.units, checked.normalized, gaps, MAX_TOPICS_TOTAL)
-      : { units: best.units, added: [] as string[] };
+      : { units: best.units, added: [] as string[], removed: [] as string[] };
     const patchReservation = patched.reservationId ? [patched.reservationId] : [];
     const issues = checked.ok ? checked.dropped : checked.issues;
     if (!merged.added.length) {
@@ -1693,7 +1694,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     }
     const map: OutlineCandidate = {
       units: merged.units,
-      kept: best.kept + merged.added.length,
+      kept: best.kept + merged.added.length - merged.removed.length,
       proposed: best.proposed + draftTopicCount(patched.draft),
       dropped: best.dropped + issues.length,
       model: best.model,

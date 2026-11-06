@@ -5,6 +5,9 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
 import { teacherPersona } from "@/lib/learning/teacher-brain";
 import { answerFirstLine } from "@/lib/learning/tutor-answer";
+import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
+import { COACH_SOURCE_RULE, coachSourceBlock } from "@/lib/learning/coach-sources";
+import { SOURCE_NUMBER_PRIORITY } from "@/lib/learning/teaching-rubric";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -61,6 +64,22 @@ export async function POST(request: Request) {
     .join("\n");
 
   const lastStudent = [...parsed.data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  // Ana hazırlık sohbetiyle aynı kaynak okuyucusu; düşerse eğitmen kaynaksız da cevap verir.
+  const grounding = await loadPrepChatGrounding(
+    service,
+    userId,
+    parsed.data.prepId,
+    `${parsed.data.itemText}\n${lastStudent}`.trim(),
+  ).catch(() => null);
+  const curriculum = Boolean(grounding?.pool);
+  const sources = coachSourceBlock({
+    rules: grounding?.sourceRules ?? [],
+    curriculum,
+    passages: (grounding?.passages ?? []).map((item) => ({
+      label: `${item.documentName}${item.pageNumber != null ? ` ${item.slide ? "slayt" : "s."}${item.pageNumber}` : ""}`,
+      text: item.content,
+    })),
+  });
   const outcome = await generateJson({
     service,
     userId,
@@ -69,12 +88,17 @@ export async function POST(request: Request) {
     freeMeter: "included",
     isPremium: await isPremiumUser(service, userId),
     schemaHint: 'JSON: {"reply":string}. Kısa Türkçe, 3-6 cümle. Filler yok.',
+    // Belgesiz (havuz) hazırlıkta öğrencinin notu yok; sayı önceliği yalnız belgeli hazırlıkta.
+    systemAddendum: curriculum ? undefined : COACH_SOURCE_RULE,
+    // Denetçi notun değerini "yanlış" saymasın: aynı kural denetçide de.
+    reviewerAddendum: curriculum ? undefined : SOURCE_NUMBER_PRIORITY,
     userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
 ${answerFirstLine(lastStudent)}
 ${teacherPersona()}
 Öğrenci dersin içinde yardım istedi. Kavram sorusuna ilk cümlede doğrudan cevap ver; üzerindeki sorunun doğru şıkkını harfiyle söyleme. Yanlış denemesinde neyin tutmadığını söyle.
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${topic?.label ?? prep.title}.
 Üzerindeki madde: ${parsed.data.itemText}
+${sources ? `\n${sources}\n` : ""}
 ${transcript}`,
     parse: (raw) => replySchema.safeParse(raw).data ?? null,
   });
