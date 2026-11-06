@@ -64,7 +64,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/maliyetler",
         label: "Birim Ekonomisi & Maliyetler",
         icon: TrendingUp,
-        blurb: "Yapay zekâ sağlayıcısına ödenen tahmini tutar. Gelirle karşılaştırmak için.",
+        blurb: "Bugün, son 7 ve son 30 gün: PayTR tahsilatı ve iadeler, modele göre OpenAI gideri, net kâr ve marj; günlük harcama sigortası.",
       },
       {
         href: "/admin/ai-kullanimi",
@@ -183,7 +183,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/sistem",
         label: "Sistem Sağlığı",
         icon: ServerCog,
-        blurb: "Veritabanı, e-posta ve ödeme bağlantıları çalışıyor mu.",
+        blurb: "Veritabanı ve dosya deposu ne kadar dolu, Redis ve OpenAI bağlantısı çalışıyor mu, içerik havuzunda kaç ders ve soru hazır; e-posta, ödeme ve şema durumu. Kurucu buradan elle bakım çalıştırır.",
       },
       {
         href: "/admin/feature-flags",
@@ -196,7 +196,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/audit-log",
         label: "İşlem Kayıtları",
         icon: History,
-        blurb: "Bu panelde kim, ne zaman, neyi değiştirdi.",
+        blurb: "Bu panelde kim, ne zaman, neyi değiştirdi; ödeme, kod ve günlük özet gibi sistemin kendi kayıtları da burada.",
       },
       {
         href: "/admin/adaptive",

@@ -5,7 +5,22 @@ import { DigestSendButton } from "@/components/admin/digest-send-button";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
-import { SERVICE_NOTES } from "@/lib/admin/labels";
+import { SERVICE_NOTES, serviceDisplay } from "@/lib/admin/labels";
+import { MaintenanceButton } from "@/components/admin/maintenance-button";
+import { loadContentPoolReport } from "@/lib/admin/content-pool-report";
+import { lessonCoverage, POOL_STATE_BADGE, poolRowState } from "@/lib/admin/content-families";
+import { probeOpenAi, probeRedis, readStorageSize } from "@/lib/admin/system-probes";
+import {
+  databaseHealth,
+  HEALTH_BADGE,
+  megabytes,
+  openAiHealth,
+  redisHealth,
+  storageHealth,
+  worstHealth,
+  type HealthRow,
+} from "@/lib/admin/system-health";
+import { formatNumber } from "@/lib/format";
 import { paytrMode } from "@/lib/payments/paytr";
 import {
   AUTO_RENEW_SUPPORTED,
@@ -18,7 +33,10 @@ import { generationSlotsInUse } from "@/lib/ai/generation-slots";
 import { providerQuotaSeenAt } from "@/lib/ai/provider-quota";
 import { DB_CRITICAL_SHARE, DB_WARN_SHARE, formatMegabytes, readDatabaseSize } from "@/lib/admin/ops-gauges";
 
-export const metadata = { title: "Yönetim · Sistem durumu" };
+export const metadata = { title: "Yönetim · Sistem Sağlığı" };
+
+/** Elle bakım (sunucu eylemi bu sayfanın süresiyle çalışır): soğuk vektör adımı en çok 60 sn. */
+export const maxDuration = 120;
 
 /**
  * `critical` olanlar eksikse ürünün bir parçası hiç çalışmaz; diğerleri
@@ -58,7 +76,7 @@ const SERVICES: { name: string; env: string[]; critical: boolean; all?: boolean 
 ];
 
 export default async function AdminSistemPage() {
-  await requireAdminPage();
+  const { role } = await requireAdminPage();
   const service = createServiceClient();
   const pending = await countPendingApplications(service);
 
@@ -76,12 +94,40 @@ export default async function AdminSistemPage() {
   const missingSeller = missingSellerFields();
   const schema = await probeSchema(service);
   const slots = await generationSlotsInUse();
-  const [database, quotaSeenAt] = await Promise.all([
+  const [database, quotaSeenAt, storage, redis, openAiReach, pool] = await Promise.all([
     readDatabaseSize(service).catch(() => null),
     providerQuotaSeenAt().catch(() => null),
+    readStorageSize(service),
+    probeRedis(),
+    probeOpenAi(),
+    loadContentPoolReport(service).catch(() => null),
   ]);
   const schemaBroken = schema.filter((check) => !check.ok);
   const schemaCritical = schemaBroken.filter((check) => check.critical);
+
+  const infra: { name: string; note: string; health: HealthRow }[] = [
+    { name: "Veritabanı", note: "Supabase'in kayıt sınırına ne kadar yakınız.", health: databaseHealth(database) },
+    { name: "Dosya deposu", note: "Yüklenen belgeler, fotoğraflar ve ders sesleri.", health: storageHealth(storage) },
+    { name: "Redis bağlantısı", note: "Hız Sınırı sayacı ve aynı anda süren üretim yuvaları.", health: redisHealth(redis) },
+    {
+      name: "OpenAI bağlantısı",
+      note: "Bütün dersler, testler, sohbet ve belge okuma buradan.",
+      health: openAiHealth({ configured: Boolean(process.env.OPENAI_API_KEY), reach: openAiReach, quotaSeenAt }),
+    },
+  ];
+  const infraWorst = worstHealth(infra.map((row) => row.health.state));
+  const poolRows = pool?.rows ?? [];
+  const poolTotals = poolRows.reduce(
+    (sum, row) => ({
+      units: sum.units + row.units,
+      lessonUnits: sum.lessonUnits + Math.min(row.lessonUnits ?? 0, row.units),
+      verifiedItems: sum.verifiedItems + (row.verifiedItems ?? 0),
+      quarantinedItems: sum.quarantinedItems + (row.quarantinedItems ?? 0),
+      staleItems: sum.staleItems + (row.staleItems ?? 0),
+    }),
+    { units: 0, lessonUnits: 0, verifiedItems: 0, quarantinedItems: 0, staleItems: 0 },
+  );
+  const count = (value: number | null) => (value === null ? "ölçülemedi" : formatNumber(value));
 
   return (
     <AdminShell href="/admin/sistem" pendingApplications={pending}>
@@ -130,25 +176,115 @@ export default async function AdminSistemPage() {
       {quotaSeenAt ? (
         <AdminNote tone="warn">
           <strong>OpenAI kredisi bitti:</strong> son görülme {new Date(quotaSeenAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}.
-          Dersler, testler, sohbet ve belge okuma düşüyor (öğrenciden kredi kesilmiyor). platform.openai.com → Billing.
+          Dersler, testler, sohbet ve belge okuma düşüyor (öğrenciden kredi kesilmiyor). OpenAI panelinde kredi yükleyin.
         </AdminNote>
       ) : null}
-      <AdminNote tone={database && database.level !== "ok" ? "warn" : "info"}>
-        <strong>Veritabanı:</strong>{" "}
-        {database ? (
+
+      {/*
+        Altyapı (6 Kasım 2026): dört gösterge tek tabloda, Türkçe rozetle. Yoklamalar ücretsiz: veritabanı ve depo
+        boyutu birer SQL fonksiyonu, Redis tek PING, OpenAI model listesi (üretim çağrısı yok).
+      */}
+      <AdminCard
+        title="Altyapı"
+        desc="Veritabanı ve dosya deposunun doluluğu, Redis ve OpenAI bağlantısı. Sayfa her açıldığında yeniden ölçülür."
+        actions={<AdminBadge tone={HEALTH_BADGE[infraWorst].tone}>{HEALTH_BADGE[infraWorst].label}</AdminBadge>}
+        bodyless
+      >
+        <AdminTableFrame columns={["Gösterge", "Ne işe yarar", "Durum", "Ayrıntı"]}>
+          {infra.map((row) => (
+            <tr key={row.name}>
+              <td className="font-medium">{row.name}</td>
+              <td className="max-w-xs whitespace-normal text-xs text-[var(--adm-muted)]">{row.note}</td>
+              <td>
+                <AdminBadge tone={HEALTH_BADGE[row.health.state].tone}>{HEALTH_BADGE[row.health.state].label}</AdminBadge>
+              </td>
+              <td className="max-w-md whitespace-normal text-xs text-[var(--adm-muted)]">{row.health.detail}</td>
+            </tr>
+          ))}
+        </AdminTableFrame>
+        <p className="px-4 py-3 text-xs text-[var(--adm-muted)]">
+          {database?.tables.length ? (
+            <>
+              En büyük tablolar:{" "}
+              {database.tables.slice(0, 4).map((table) => `${table.name} ${formatMegabytes(table.bytes)}`).join(", ")}.{" "}
+            </>
+          ) : null}
+          {storage?.buckets.length ? (
+            <>Depo: {storage.buckets.map((bucket) => `${bucket.name} ${megabytes(bucket.bytes)}`).join(", ")}. </>
+          ) : null}
+          Sınırlar Pro&apos;ya geçince Vercel&apos;de <code>SUPABASE_DB_LIMIT_MB</code> ve{" "}
+          <code>SUPABASE_STORAGE_LIMIT_MB</code> ile değişir; uyarı %{Math.round(DB_WARN_SHARE * 100)}, kritik %
+          {Math.round(DB_CRITICAL_SHARE * 100)}.
+        </p>
+      </AdminCard>
+
+      {/*
+        İçerik havuzu (6 Kasım 2026): dokuz sınav ailesi. Ünite toplamı kayıt defterinden, havuz sayıları sayım
+        sorgularından (satır okunmaz). Aile eşlemesi tek yerde: `lib/admin/content-families.ts`.
+      */}
+      <AdminCard
+        title="İçerik havuzu"
+        desc="Ortak havuzda hazır duran ünite dersleri ve sorular. Doğrulanmış içerik öğrenciye model çağrısı olmadan sunulur."
+        bodyless
+      >
+        {pool ? (
           <>
-            {formatMegabytes(database.totalBytes)} / {formatMegabytes(database.limitBytes)} (%{Math.round(database.share * 100)}).
-            {database.level === "critical"
-              ? ` %${Math.round(DB_CRITICAL_SHARE * 100)}'i geçti: dolunca Supabase veritabanını salt okunur yapar (kayıt, ders, ödeme yazılamaz). Supabase Pro'ya geçin.`
-              : database.level === "warn"
-                ? ` %${Math.round(DB_WARN_SHARE * 100)}'i geçti: Supabase Pro'ya geçişi planlayın.`
-                : " Sınır Vercel'de SUPABASE_DB_LIMIT_MB ile değişir (Pro'ya geçince)."}{" "}
-            En büyükler: {database.tables.slice(0, 4).map((table) => `${table.name} ${formatMegabytes(table.bytes)}`).join(", ")}.
+            <AdminTableFrame
+              columns={["Sınav ailesi", "Ünite", "Doğrulanmış dersi olan ünite", "Doğrulanmış soru", "Karantinada", "Yenilenecek", "Durum"]}
+            >
+              {poolRows.map((row) => {
+                const badge = POOL_STATE_BADGE[poolRowState(row)];
+                const coverage = lessonCoverage(row);
+                return (
+                  <tr key={row.id}>
+                    <td>
+                      <div className="font-medium">{row.label}</div>
+                      <div className="text-xs text-[var(--adm-muted)]">{formatNumber(row.programIds.length)} program</div>
+                    </td>
+                    <td className="adm-num">{formatNumber(row.units)}</td>
+                    <td className="adm-num">
+                      {count(row.lessonUnits === null ? null : Math.min(row.lessonUnits, row.units))}
+                      {coverage === null ? "" : ` (%${coverage})`}
+                    </td>
+                    <td className="adm-num">{count(row.verifiedItems)}</td>
+                    <td className="adm-num">{count(row.quarantinedItems)}</td>
+                    <td className="adm-num">{count(row.staleItems)}</td>
+                    <td>
+                      <AdminBadge tone={badge.tone}>{badge.label}</AdminBadge>
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr>
+                <td className="font-medium">Toplam</td>
+                <td className="adm-num font-medium">{formatNumber(poolTotals.units)}</td>
+                <td className="adm-num font-medium">{formatNumber(poolTotals.lessonUnits)}</td>
+                <td className="adm-num font-medium">{formatNumber(poolTotals.verifiedItems)}</td>
+                <td className="adm-num font-medium">{formatNumber(poolTotals.quarantinedItems)}</td>
+                <td className="adm-num font-medium">{formatNumber(poolTotals.staleItems)}</td>
+                <td />
+              </tr>
+            </AdminTableFrame>
+            <p className="px-4 py-3 text-xs text-[var(--adm-muted)]">
+              <strong>Karantinada</strong>: saatlik denetimin ya da elle incelemenin kenara aldığı sorular (kokpitte
+              onayla / reddet). <strong>Yenilenecek</strong>: ünitesi yeniden yazılınca emekliye ayrılan eski sürüm
+              sorular (kokpitte &quot;Eski sürümleri arşivle&quot;).
+              {pool.unmapped.length
+                ? ` Hiçbir aileye bağlanmamış ${pool.unmapped.length} program var: lib/admin/content-families.ts'e eklenmeli.`
+                : ""}
+            </p>
           </>
         ) : (
-          "ölçülemedi (göç 20261031161000 uygulanmamış olabilir)."
+          <div className="adm-card-body text-sm text-[var(--adm-muted)]">Havuz sayıları okunamadı.</div>
         )}
-      </AdminNote>
+      </AdminCard>
+
+      <AdminCard
+        title="Elle bakım"
+        desc="Günlük bakım turunun yaptığı iki temizliği beklemeden çalıştırır: 3 saatten eski yarım kalmış yüklemeler ve soğuk hazırlıkların arama vektörleri."
+      >
+        <MaintenanceButton founder={role === "founder"} />
+      </AdminCard>
 
       {/*
         Tekrarlayan tahsilat yetkisi. "Yetki alındı sanıyorum" ile "yetki var"
@@ -287,7 +423,7 @@ export default async function AdminSistemPage() {
       {missingCritical.length ? (
         <AdminNote tone="warn">
           {missingCritical.length} zorunlu ayar eksik:{" "}
-          <strong>{missingCritical.map((row) => row.name).join(", ")}</strong>.
+          <strong>{missingCritical.map((row) => serviceDisplay(row.name)).join(", ")}</strong>.
           Bunlar olmadan ürünün bir kısmı çalışmaz.
         </AdminNote>
       ) : null}
@@ -301,7 +437,7 @@ export default async function AdminSistemPage() {
           {rows.map((row) => (
             <tr key={row.name}>
               <td>
-                <div className="font-medium">{row.name}</div>
+                <div className="font-medium">{serviceDisplay(row.name)}</div>
                 <div className="text-xs text-[var(--adm-muted)]">
                   {row.env.join(" / ")}
                 </div>

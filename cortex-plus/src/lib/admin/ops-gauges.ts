@@ -30,7 +30,14 @@ export type DatabaseSize = {
   tables: { name: string; bytes: number }[];
 };
 
-export type AiSpend = { usd: number; calls: number; unpricedCalls: number; byModel: { model: string; usd: number; calls: number }[] };
+export type AiSpend = {
+  usd: number;
+  calls: number;
+  unpricedCalls: number;
+  /** Fiyat tablosunda karşılığı olmayan modellerin adları; gider bunlar kadar eksik. */
+  unpricedModels?: string[];
+  byModel: { model: string; usd: number; calls: number }[];
+};
 
 export function databaseLimitBytes(env: Record<string, string | undefined> = process.env): number {
   const mb = Number(env.SUPABASE_DB_LIMIT_MB);
@@ -78,6 +85,7 @@ export function aiSpendFrom(
   let usd = 0;
   let calls = 0;
   let unpricedCalls = 0;
+  const unpricedModels: string[] = [];
   const byModel: AiSpend["byModel"] = [];
   for (const row of totals) {
     const count = Number(row.calls) || 0;
@@ -85,6 +93,7 @@ export function aiSpendFrom(
     const price = priceForModel(row.model, prices);
     if (!price) {
       unpricedCalls += count;
+      if (!unpricedModels.includes(row.model)) unpricedModels.push(row.model);
       continue;
     }
     const cost = (Number(row.tokens_in) / 1000) * price.input + (Number(row.tokens_out) / 1000) * price.output;
@@ -92,7 +101,7 @@ export function aiSpendFrom(
     byModel.push({ model: row.model, usd: cost, calls: count });
   }
   byModel.sort((a, b) => b.usd - a.usd);
-  return { usd, calls, unpricedCalls, byModel };
+  return { usd, calls, unpricedCalls, unpricedModels, byModel };
 }
 
 export async function readAiSpend(service: SupabaseClient, sinceIso: string): Promise<AiSpend | null> {

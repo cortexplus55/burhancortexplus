@@ -9,8 +9,9 @@ import { listStuckGenerations, STUCK_AFTER_MS } from "@/lib/learning/stuck-gener
 import { StuckResetButton } from "@/components/admin/stuck-reset-button";
 import { formatDate } from "@/lib/format";
 import { FAILURE_REASON_LABEL } from "@/lib/admin/failure-labels";
+import { generationKindLabel, shortId } from "@/lib/admin/status-labels";
 
-export const metadata = { title: "Yönetim · Ders hataları" };
+export const metadata = { title: "Yönetim · Ders Hataları" };
 
 /** Sebep adları tek kaynakta (günlük özet e-postası da aynı listeyi okur). */
 const REASON_LABEL = FAILURE_REASON_LABEL;
@@ -46,7 +47,7 @@ export default async function AdminDersHatalariPage({
     <AdminShell href="/admin/ders-hatalari" pendingApplications={pending}>
       <AdminNote tone="info">
         Son 200 kayıt. Taslak metni saklanmaz — sebep kodu, kısa cümleler ve
-        kaynak çözücü izi yeter. Zamanlar Europe/Istanbul (TRT).
+        kaynak çözücü izi yeter. Zamanlar Türkiye saatiyle.
       </AdminNote>
 
       {tableMissing ? (
@@ -59,7 +60,7 @@ export default async function AdminDersHatalariPage({
       {queryError ? (
         <AdminNote tone="warn">
           Kayıtlar okunamadı. Biraz sonra yenile; sorun sürerse Vercel
-          loglarına bak.
+          sunucu günlüklerine bak.
         </AdminNote>
       ) : null}
 
@@ -110,17 +111,23 @@ export default async function AdminDersHatalariPage({
         bodyless
       >
         {stuck.rows.length ? (
-          <AdminTableFrame columns={["Son hareket (TRT)", "Hazırlık / düğüm", "Kullanıcı", "Kredi anahtarı", "İşlem"]}>
+          <AdminTableFrame columns={["Son hareket", "Hazırlık / adım", "Kullanıcı", "Kredi ayırması", "İşlem"]}>
             {stuck.rows.map((row) => (
               <tr key={row.id}>
                 <td>{formatDate(row.updatedAt)}</td>
                 <td>
-                  <Link href={`/deneme-sinavlari/${row.prepId}`}>{row.prepId.slice(0, 8)}</Link>
-                  {" · "}
-                  <span className="text-xs">{row.nodeId.slice(0, 8)}</span>
+                  <Link href={`/deneme-sinavlari/${row.prepId}`}>Hazırlığı aç</Link>
+                  <span className="block text-xs text-[var(--adm-muted)]">
+                    {shortId(row.prepId)} · adım {shortId(row.nodeId)}
+                  </span>
                 </td>
-                <td className="text-xs">{row.userId.slice(0, 8)}</td>
-                <td className="text-xs">{row.creditKey ? row.creditKey.slice(0, 18) : "—"}</td>
+                <td>
+                  <Link href={`/admin/kullanicilar/${row.userId}`} className="underline">
+                    Kullanıcıyı aç
+                  </Link>
+                  <span className="block text-xs text-[var(--adm-muted)]">{shortId(row.userId)}</span>
+                </td>
+                <td className="text-xs text-[var(--adm-muted)]">{row.creditKey ? row.creditKey.slice(0, 18) : "—"}</td>
                 <td>
                   <StuckResetButton jobId={row.id} />
                 </td>
@@ -142,7 +149,7 @@ export default async function AdminDersHatalariPage({
         {rows.length ? (
           <AdminTableFrame
             columns={[
-              "Zaman (TRT)",
+              "Zaman",
               "Tür",
               "Sebep",
               "Hazırlık / konu",
@@ -167,7 +174,7 @@ export default async function AdminDersHatalariPage({
               return (
                 <tr key={row.id}>
                   <td>{formatDate(row.created_at)}</td>
-                  <td>{row.kind ?? "—"}</td>
+                  <td>{generationKindLabel(row.kind)}</td>
                   <td>{REASON_LABEL[row.reason] ?? row.reason}</td>
                   <td>
                     {row.prep_id ? (

@@ -6,7 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatNumber, formatTry } from "@/lib/format";
 
-export const metadata = { title: "Yönetim · Paketler" };
+export const metadata = { title: "Yönetim · Paket Fiyatları" };
 
 export default async function AdminPaketlerPage() {
   await requireFounderPage();
@@ -58,7 +58,7 @@ export default async function AdminPaketlerPage() {
                 <td>
                   <div className="font-medium">{plan.name}</div>
                   <div className="text-xs text-[var(--adm-muted)]">
-                    {plan.description || plan.slug}
+                    {plan.description || `Kısa ad: ${plan.slug}`}
                   </div>
                 </td>
                 <td>

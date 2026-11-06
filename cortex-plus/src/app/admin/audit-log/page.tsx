@@ -3,12 +3,27 @@ import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
-import { auditLabel } from "@/lib/admin/labels";
+import { AUDIT_LABELS, auditLabel, entityLabel, shortEntityId } from "@/lib/admin/labels";
 import { formatDate } from "@/lib/format";
 
-export const metadata = { title: "Yönetim · İşlem geçmişi" };
+export const metadata = { title: "Yönetim · İşlem Kayıtları" };
 
-export default async function AdminIslemGecmisiPage() {
+/*
+  İşlem Kayıtları (6 Kasım 2026). Ana satır her zaman Türkçe cümle (`lib/admin/labels.ts`); eylem kodu ve kayıt
+  kimliği yalnız küçük ikincil yazıda. Etiketi olmayan bir eylem "Tanımlanmamış işlem" yazar (bekçi kaynaktaki
+  bütün eylemlerin etiketini arar).
+*/
+
+type LogRow = {
+  id: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  created_at: string;
+  profiles: { full_name?: string | null } | null;
+};
+
+export default async function AdminIslemKayitlariPage() {
   await requireAdminPage();
   const service = createServiceClient();
 
@@ -21,37 +36,45 @@ export default async function AdminIslemGecmisiPage() {
     countPendingApplications(service),
   ]);
 
-  const rows = logs ?? [];
+  const rows = (logs ?? []) as unknown as LogRow[];
+  const unlabeled = new Set(rows.map((row) => row.action).filter((action) => !AUDIT_LABELS[action]));
 
   return (
     <AdminShell href="/admin/audit-log" pendingApplications={pending}>
       <AdminNote tone="info">
-        Bu liste <strong>silinemez</strong>. Panelde yapılan her değişiklik
-        buraya yazılır; bir ayarın ne zaman ve kim tarafından değiştiğini
-        buradan bulursun.
+        Bu liste <strong>silinemez</strong>. Panelde yapılan her değişiklik ve sistemin kendi önemli işleri (ödeme,
+        kod kullanımı, günlük özet) buraya yazılır; bir ayarın ne zaman ve kim tarafından değiştiğini buradan bulursun.
+        Kişi adı yoksa işi sistem yapmıştır.
       </AdminNote>
+
+      {unlabeled.size ? (
+        <AdminNote tone="warn">
+          {unlabeled.size} işlem türünün Türkçe adı henüz yok; satırda &quot;Tanımlanmamış işlem&quot; yazıyor. Adı{" "}
+          <code>src/lib/admin/labels.ts</code> dosyasına eklenmeli.
+        </AdminNote>
+      ) : null}
 
       <AdminCard title="Son 100 işlem" desc="En yeni kayıt üstte." bodyless>
         {rows.length ? (
           <AdminTableFrame columns={["Ne oldu", "Kim yaptı", "İlgili kayıt", "Ne zaman"]}>
-            {rows.map((log) => {
-              const actor = log.profiles as { full_name?: string } | null;
-              return (
-                <tr key={log.id}>
-                  <td>
-                    <div className="font-medium">{auditLabel(log.action)}</div>
-                    <div className="text-xs text-[var(--adm-muted)]">{log.action}</div>
-                  </td>
-                  <td>{actor?.full_name || "Sistem"}</td>
-                  <td className="text-xs text-[var(--adm-muted)]">
-                    {log.entity_id ?? "—"}
-                  </td>
-                  <td className="adm-num text-xs text-[var(--adm-muted)]">
-                    {formatDate(log.created_at)}
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((log) => (
+              <tr key={log.id}>
+                <td>
+                  <div className="font-medium">{auditLabel(log.action)}</div>
+                  <div className="text-xs text-[var(--adm-muted)]">{log.action}</div>
+                </td>
+                <td>{log.profiles?.full_name || "Sistem"}</td>
+                <td>
+                  <div className="text-sm">{entityLabel(log.entity_type)}</div>
+                  {log.entity_id ? (
+                    <div className="text-xs text-[var(--adm-muted)]" title={log.entity_id}>
+                      {shortEntityId(log.entity_id)}
+                    </div>
+                  ) : null}
+                </td>
+                <td className="adm-num text-xs text-[var(--adm-muted)]">{formatDate(log.created_at)}</td>
+              </tr>
+            ))}
           </AdminTableFrame>
         ) : (
           <AdminEmpty title="Henüz kayıt yok">

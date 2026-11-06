@@ -13,12 +13,13 @@ import { countPendingApplications } from "@/lib/admin/pending";
 import {
   ABUSE_EXPLANATIONS,
   abuseLabel,
+  abuseScopeLabel,
   severityLabel,
   severityTone,
 } from "@/lib/admin/abuse-labels";
 import { formatDate, formatNumber } from "@/lib/format";
 
-export const metadata = { title: "Yönetim · Kötüye kullanım" };
+export const metadata = { title: "Yönetim · Kötüye Kullanım" };
 
 const WINDOW_DAYS = 7;
 
@@ -172,7 +173,8 @@ export default async function AdminKotuyeKullanimPage() {
                   )}
                 </td>
                 <td className="text-xs text-[var(--adm-muted)]">
-                  {row.scope ?? "—"}
+                  <div className="text-sm text-[var(--adm-text)]">{abuseScopeLabel(row.scope)}</div>
+                  {row.scope ? <div>{row.scope}</div> : null}
                 </td>
                 <td>
                   <AdminBadge tone={severityTone(row.severity)}>

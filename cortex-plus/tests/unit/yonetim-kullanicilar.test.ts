@@ -1,4 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
+import { ADMIN_ENGLISH_TERMS } from "./helpers/admin-english-terms";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -494,7 +495,7 @@ describe("paket ve hak", () => {
       ["subscriptions", expect.objectContaining({ status: "cancelled" })],
       ["credit_wallets", expect.objectContaining({ free_allowance_remaining: 0 })],
     ]);
-    expect(state.audits.map((audit) => audit.action)).toEqual(["subscription.cancelled"]);
+    expect(state.audits.map((audit) => audit.action)).toEqual(["subscription.cancelled_by_admin"]);
   });
 
   it("yıldız: SQL fonksiyonu; göç yoksa açık mesaj; sıfır geçersiz", async () => {
@@ -548,9 +549,7 @@ describe("paket ve hak", () => {
 
 /** `yonetim-temeli.test.ts`'teki liste, kopyalanmadan okunur. */
 function englishTerms(): string[] {
-  const source = read("tests/unit/yonetim-temeli.test.ts");
-  const block = source.match(/const ENGLISH_TERMS = \[([\s\S]*?)\];/)?.[1] ?? "";
-  return [...block.matchAll(/"([^"]+)"/g)].map((match) => match[1]!);
+  return [...ADMIN_ENGLISH_TERMS];
 }
 
 const UI_FILES = [
@@ -604,7 +603,7 @@ describe("metinler Türkçe", () => {
     for (const action of [
       "subscription.granted",
       "subscription.extended",
-      "subscription.cancelled",
+      "subscription.cancelled_by_admin",
       "stars.adjusted",
       "email.confirmed_by_admin",
       "devices.reset",

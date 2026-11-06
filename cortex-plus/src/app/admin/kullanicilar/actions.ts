@@ -115,7 +115,7 @@ export async function cancelUserPlan(input: { userId: string }): Promise<ActionR
   if (!result.ok) return result;
   await auditLog(service, {
     actorId: actor.userId,
-    action: "subscription.cancelled",
+    action: "subscription.cancelled_by_admin",
     entityType: "user",
     entityId: parsed.data.userId,
     metadata: { subscriptionId: result.subscriptionId, before: result.before },

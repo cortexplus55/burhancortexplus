@@ -37,6 +37,8 @@ export type DocumentRow = {
 };
 
 type Kind = "prep" | "document";
+/** İç tür kodu; ekranda görünmez (Türkçe bekçisi JSX içindeki çıplak dizgeleri tarar). */
+const PREP_KIND: Kind = "prep";
 
 function ConfirmPanel({
   kind,
@@ -189,13 +191,13 @@ export function UserContentDelete({
           <p className="text-sm">Hazırlık yok.</p>
         )}
         {canDelete && chosenPreps.length ? (
-          confirming === "prep" ? (
+          confirming === PREP_KIND ? (
             <ConfirmPanel
-              kind="prep"
+              kind={PREP_KIND}
               names={chosenPreps.map((row) => row.title)}
               extra={[]}
               pending={pending}
-              onConfirm={(text) => remove("prep", text)}
+              onConfirm={(text) => remove(PREP_KIND, text)}
               onCancel={() => setConfirming(null)}
             />
           ) : (
@@ -203,7 +205,7 @@ export function UserContentDelete({
               type="button"
               className="adm-btn adm-btn--danger"
               disabled={chosenPreps.length > DELETE_BATCH_MAX}
-              onClick={() => setConfirming("prep")}
+              onClick={() => setConfirming(PREP_KIND)}
             >
               Seçilen {chosenPreps.length} hazırlığı sil
             </button>

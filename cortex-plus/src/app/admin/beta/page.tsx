@@ -7,7 +7,7 @@ import { collectBetaMetrics, evaluateBetaCriteria, type CriterionStatus } from "
 import { REVIEW_REASK_TARGET, collectReviewMetrics, percentLabel } from "@/lib/admin/review-metrics";
 import { collectLearningSignals } from "@/lib/admin/learning-signals";
 
-export const metadata = { title: "Yönetim · Beta ölçütleri" };
+export const metadata = { title: "Yönetim · Beta Ölçütleri" };
 export const dynamic = "force-dynamic";
 
 const STATUS: Record<CriterionStatus, { label: string; tone: "ok" | "bad" | "mute" | "gold" }> = {

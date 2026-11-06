@@ -5,11 +5,11 @@ import { BetaCodeForm, PromoCreateForm, PromoToggle, SharedBetaCodeForm } from "
 import { CampaignForm } from "@/components/admin/campaign-form";
 import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
-import { countPendingApplications } from "@/lib/admin/pending";
+import { promoGrantLabel, promoStatus, promoUsage } from "@/lib/billing/promo-form";
 import { formatDate, formatNumber } from "@/lib/format";
 import { appOrigin } from "@/lib/app-url";
 
-export const metadata = { title: "Yönetim · Kampanyalar" };
+export const metadata = { title: "Yönetim · Promosyon ve Hediye Kodları" };
 export const dynamic = "force-dynamic";
 
 type PromoRow = {
@@ -29,8 +29,9 @@ type PromoRow = {
 export default async function AdminPromosyonlarPage() {
   await requireAdminPage();
   const service = createServiceClient();
+  const now = new Date();
 
-  const [{ data: promos }, { data: campaign }, pending, { count: activeTrials }] = await Promise.all([
+  const [{ data: promos }, { data: campaign }, { count: activeTrials }] = await Promise.all([
     service
       .from("promo_codes")
       .select(
@@ -42,18 +43,17 @@ export default async function AdminPromosyonlarPage() {
       .from("promo_campaigns")
       .select("title, description, href, ends_at")
       .eq("active", true)
-      .gt("ends_at", new Date().toISOString())
+      .gt("ends_at", now.toISOString())
       .order("ends_at", { ascending: true })
       .limit(1)
       .maybeSingle(),
-    countPendingApplications(service),
     // Denemesi süren öğrenci: kodla açılmış ve dönemi henüz bitmemiş abonelik.
     service
       .from("subscriptions")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
       .not("trial_until", "is", null)
-      .gt("current_period_end", new Date().toISOString()),
+      .gt("current_period_end", now.toISOString()),
   ]);
 
   const rows = (promos ?? []) as PromoRow[];
@@ -62,15 +62,92 @@ export default async function AdminPromosyonlarPage() {
   const betaUsed = betaRows.filter((row) => row.redemption_count > 0).length;
   const sharedRows = rows.filter((row) => row.plus_days && row.max_redemptions !== 1);
   const sharedUsed = sharedRows.reduce((sum, row) => sum + row.redemption_count, 0);
+  const activeCount = rows.filter((row) => promoStatus(row, now).label === "Aktif").length;
+  const origin = appOrigin();
 
   return (
-    <AdminShell href="/admin/promosyonlar" pendingApplications={pending}>
+    <AdminShell href="/admin/promosyonlar">
       <AdminNote tone="info">
-        Öğrenci kodu Abonelik sayfasındaki <strong>Kodun var mı?</strong> kutusuna
-        girer (/pay). Kampanya kodu <strong>hediye kredi</strong>, beta kodu{" "}
-        <strong>Plus denemesi</strong> tanımlar. Bir kişi aynı kodu bir kez
-        kullanabilir. Kodu kapattığında daha önce kullananların hakkı geri alınmaz.
+        Öğrenci kodu Abonelik sayfasındaki <strong>Kodun var mı?</strong> kutusuna girer ya da{" "}
+        <strong>/pay?kod=…</strong> bağlantısını açar. Bir kod ya <strong>gün Plus</strong> (deneme; bitince hesap
+        ücretsize döner, ücret alınmaz) ya da <strong>hediye kredi</strong> verir. Bir kişi aynı kodu bir kez kullanır;
+        Plus denemesi hesap başına birdir. Kodu pasif yaptığında daha önce kullananların hakkı geri alınmaz. Kod
+        oluşturmak ve açıp kapatmak yöneticiye açık; her işlem kayda geçer.
       </AdminNote>
+
+      <div className="adm-stats">
+        <div className="adm-stat">
+          <span className="adm-stat-label">Aktif kod</span>
+          <span className="adm-stat-value">{formatNumber(activeCount)}</span>
+          <span className="adm-stat-hint">Toplam {formatNumber(rows.length)} kod</span>
+        </div>
+        <div className="adm-stat">
+          <span className="adm-stat-label">Denemedeki öğrenci</span>
+          <span className="adm-stat-value">{formatNumber(activeTrials ?? 0)}</span>
+          <span className="adm-stat-hint">Kodla açılmış, süresi bitmemiş Plus</span>
+        </div>
+      </div>
+
+      <AdminCard
+        title="Yeni kod oluştur"
+        desc="Kod adını boş bırakırsan karışan harf içermeyen bir kod üretilir. Yazdığın kod büyük harfe çevrilir; yalnız harf, rakam ve tire."
+      >
+        <PromoCreateForm origin={origin} />
+      </AdminCard>
+
+      <AdminCard
+        title="Beta kodları (toplu, tek kişilik Plus denemesi)"
+        desc={`Her kod tek kişilik; belirtilen gün kadar Plus açar. Şu an: ${formatNumber(betaRows.length)} kod · ${formatNumber(betaUsed)} kullanıldı.`}
+      >
+        <BetaCodeForm origin={origin} />
+      </AdminCard>
+
+      <AdminCard
+        title="Ortak beta kodu (sosyal medya)"
+        desc={`Tek kod, tek bağlantı: ilk N kişiye Plus denemesi. Deneme hakkını daha önce kullanan ya da ücretli abonesi olan açamaz; kontenjan dolunca öğrenci "Bu kodun kullanım hakkı doldu" görür. Şu an: ${formatNumber(sharedRows.length)} ortak kod · ${formatNumber(sharedUsed)} kişi kullandı.`}
+      >
+        <SharedBetaCodeForm origin={origin} />
+      </AdminCard>
+
+      <AdminCard title="Kodlar" desc="En yeni kod üstte. Aktif / Pasif tek tıkla değişir." bodyless>
+        {rows.length ? (
+          <AdminTableFrame columns={["Kod", "Hak", "Kullanım", "Son gün", "Durum", "Oluşturma", "Kullananlar", "İşlem"]}>
+            {rows.map((promo) => {
+              const status = promoStatus(promo, now);
+              const redemptions = promo.promo_redemptions ?? [];
+              return (
+                <tr key={promo.id}>
+                  <td className="font-mono font-medium">
+                    {promo.code}
+                    {promo.batch ? <span className="block text-xs font-normal text-[var(--adm-muted)]">Grup: {promo.batch}</span> : null}
+                  </td>
+                  <td className="adm-num">{promoGrantLabel(promo)}</td>
+                  <td className="adm-num">{promoUsage(promo)}</td>
+                  <td className="adm-num text-xs">{promo.expires_at ? formatDate(promo.expires_at) : "Süresiz"}</td>
+                  <td>
+                    <AdminBadge tone={status.tone}>{status.label}</AdminBadge>
+                  </td>
+                  <td className="adm-num text-xs text-[var(--adm-muted)]">{formatDate(promo.created_at)}</td>
+                  <td className="text-xs">
+                    {redemptions.slice(0, 3).map((redemption) => (
+                      <Link key={redemption.user_id} href={`/admin/kullanicilar/${redemption.user_id}`} className="block underline">
+                        {formatDate(redemption.created_at)}
+                      </Link>
+                    ))}
+                    {redemptions.length > 3 ? `+${redemptions.length - 3} kişi` : null}
+                    {redemptions.length === 0 ? "—" : null}
+                  </td>
+                  <td>
+                    <PromoToggle promoId={promo.id} active={promo.active} code={promo.code} />
+                  </td>
+                </tr>
+              );
+            })}
+          </AdminTableFrame>
+        ) : (
+          <AdminEmpty title="Henüz kod yok">Yukarıdaki formdan ilk kodu oluşturabilirsin.</AdminEmpty>
+        )}
+      </AdminCard>
 
       <AdminCard
         title="Ana ekran duyuru bandı"
@@ -79,104 +156,10 @@ export default async function AdminPromosyonlarPage() {
         <CampaignForm
           current={
             campaign
-              ? {
-                  title: campaign.title,
-                  description: campaign.description,
-                  href: campaign.href,
-                  endsAt: campaign.ends_at,
-                }
+              ? { title: campaign.title, description: campaign.description, href: campaign.href, endsAt: campaign.ends_at }
               : null
           }
         />
-      </AdminCard>
-
-      <AdminCard
-        title="Beta kodları (Plus denemesi)"
-        desc={`Tek kullanımlık; her kod belirtilen gün kadar Plus açar, bitince hesap ücretsize döner, ücret alınmaz. Bir hesap denemeyi bir kez alır. Şu an: ${formatNumber(betaRows.length)} kod · ${formatNumber(betaUsed)} kullanıldı · ${formatNumber(activeTrials ?? 0)} öğrenci denemede.`}
-      >
-        <BetaCodeForm origin={appOrigin()} />
-      </AdminCard>
-
-      <AdminCard
-        title="Ortak beta kodu (sosyal medya)"
-        desc={`Tek kod, tek bağlantı: ilk N kişiye Plus denemesi. Kişi başına bir kez; deneme hakkını daha önce kullanan ya da ücretli abonesi olan açamaz. Kontenjan dolunca öğrenci "Bu kodun kullanım hakkı doldu" görür. Şu an: ${formatNumber(sharedRows.length)} ortak kod · ${formatNumber(sharedUsed)} kişi kullandı.`}
-      >
-        <SharedBetaCodeForm origin={appOrigin()} />
-      </AdminCard>
-
-      <AdminCard
-        title="Yeni kod oluştur"
-        desc="Kod yalnızca harf, rakam ve tire içerebilir; küçük yazsan da büyük harfe çevrilir."
-      >
-        <PromoCreateForm />
-      </AdminCard>
-
-      <AdminCard title="Kodlar" desc="En yeni kod üstte." bodyless>
-        {rows.length ? (
-          <AdminTableFrame
-            columns={["Kod", "Hediye", "Kullanım", "Kullanan", "Durum", "Oluşturma", "İşlem"]}
-          >
-            {rows.map((promo) => {
-              const limitReached =
-                promo.max_redemptions !== null &&
-                promo.redemption_count >= promo.max_redemptions;
-              const expired =
-                promo.expires_at !== null && new Date(promo.expires_at) < new Date();
-
-              return (
-                <tr key={promo.id}>
-                  <td className="font-mono font-medium">
-                    {promo.code}
-                    {promo.batch ? <span className="block text-xs font-normal text-[var(--adm-muted)]">{promo.batch}</span> : null}
-                  </td>
-                  <td className="adm-num">
-                    {promo.plus_days ? `${promo.plus_days} gün Plus` : `${formatNumber(promo.credit_amount)} kredi`}
-                  </td>
-                  <td className="adm-num">
-                    {formatNumber(promo.redemption_count)}
-                    {promo.max_redemptions !== null
-                      ? ` / ${formatNumber(promo.max_redemptions)}`
-                      : " / sınırsız"}
-                  </td>
-                  <td className="text-xs">
-                    {(promo.promo_redemptions ?? []).slice(0, 3).map((redemption) => (
-                      <Link
-                        key={redemption.user_id}
-                        href={`/admin/kullanicilar/${redemption.user_id}`}
-                        className="block underline"
-                      >
-                        {formatDate(redemption.created_at)}
-                      </Link>
-                    ))}
-                    {(promo.promo_redemptions ?? []).length > 3 ? `+${(promo.promo_redemptions ?? []).length - 3}` : null}
-                    {(promo.promo_redemptions ?? []).length === 0 ? "—" : null}
-                  </td>
-                  <td>
-                    {!promo.active ? (
-                      <AdminBadge tone="mute">Kapalı</AdminBadge>
-                    ) : expired ? (
-                      <AdminBadge tone="bad">Süresi doldu</AdminBadge>
-                    ) : limitReached ? (
-                      <AdminBadge tone="warn">Kontenjan doldu</AdminBadge>
-                    ) : (
-                      <AdminBadge tone="ok">Kullanılabilir</AdminBadge>
-                    )}
-                  </td>
-                  <td className="adm-num text-xs text-[var(--adm-muted)]">
-                    {formatDate(promo.created_at)}
-                  </td>
-                  <td>
-                    <PromoToggle promoId={promo.id} active={promo.active} />
-                  </td>
-                </tr>
-              );
-            })}
-          </AdminTableFrame>
-        ) : (
-          <AdminEmpty title="Henüz kod yok">
-            Yukarıdaki formdan ilk kampanya kodunu oluşturabilirsin.
-          </AdminEmpty>
-        )}
       </AdminCard>
     </AdminShell>
   );

@@ -39,7 +39,10 @@ describe("hızlı işlem fiyatı gizli kalmaz", () => {
     expect(priceForModel("gpt-6-luna-fast", prices)).toEqual({ input: 0.0002, output: 0.001 });
     expect(priceForModel("gpt-4.1-fast", prices)).toEqual({ input: 0.004, output: 0.016 });
     expect(priceForModel("gpt-9-fast", prices)).toBeNull();
-    expect(read("src/app/admin/maliyetler/page.tsx")).toContain("priceForModel(event.model, priceMap)");
+    // 6 Kasım 2026: maliyet sayfası gideri kokpitle aynı hesaptan okur (readAiSpend → aiSpendFrom → priceForModel).
+    expect(read("src/app/admin/maliyetler/page.tsx")).toContain("loadFinanceReport(");
+    expect(read("src/lib/admin/finance.ts")).toContain("readAiSpend(");
+    expect(read("src/lib/admin/ops-gauges.ts")).toContain("priceForModel(row.model, prices)");
   });
 
   it("göç gpt-4.1-fast satırını yazar", () => {
