@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { regenerateQuarantinedItem, rejectQuarantinedItem, restoreQuarantinedItem, type CockpitActionResult } from "@/app/admin/cockpit-actions";
 import type { QuarantineRow } from "@/lib/admin/cockpit-math";
 import { formatDate } from "@/lib/format";
+import { difficultyLabel } from "@/lib/admin/status-labels";
 
 /*
   Karantina kuyruğu (5 Kasım 2026): her soru açılır kapanır bir kart; kurucu soruyu okur, üç tek tıklık karar verir.
@@ -38,7 +39,7 @@ function QuarantineCard({ row }: { row: QuarantineRow }) {
           <h3 className="adm-card-title text-sm">{row.stem.slice(0, 140)}{row.stem.length > 140 ? "…" : ""}</h3>
           <p className="adm-card-desc">
             {row.programId} · {row.unitId}
-            {row.outcomeCode ? ` · ${row.outcomeCode}` : ""} · {row.difficulty} · {row.ruleLabel}
+            {row.outcomeCode ? ` · ${row.outcomeCode}` : ""} · {difficultyLabel(row.difficulty)} · {row.ruleLabel}
             {row.quarantinedAt ? ` · ${formatDate(row.quarantinedAt)}` : ""}
           </p>
         </div>
@@ -49,7 +50,7 @@ function QuarantineCard({ row }: { row: QuarantineRow }) {
           {row.choices.map((choice, index) => (
             <li key={`${row.id}-${index}`} className={index === row.answer ? "font-semibold text-[var(--adm-ok)]" : ""}>
               {LETTERS[index] ?? index + 1}) {choice}
-              {index === row.answer ? " ✓ anahtar" : ""}
+              {index === row.answer ? " ✓ doğru cevap" : ""}
             </li>
           ))}
         </ol>
@@ -82,7 +83,7 @@ function QuarantineCard({ row }: { row: QuarantineRow }) {
 
 export function CockpitQuarantine({ rows }: { rows: QuarantineRow[] }) {
   if (!rows.length) {
-    return <p className="text-sm text-[var(--adm-muted)]">Karantinada soru yok. Saatlik SQL işi (`quarantine_pool_items`) düşen soruyu buraya getirir.</p>;
+    return <p className="text-sm text-[var(--adm-muted)]">Karantinada soru yok. Saatlik denetim kenara aldığı soruyu buraya getirir.</p>;
   }
   return (
     <div className="space-y-3">

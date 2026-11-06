@@ -6,12 +6,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
 import { formatDate } from "@/lib/format";
+import { segmentLabel, settingKeyLabel } from "@/lib/admin/status-labels";
 import { SURVEY_FLAG, mostUsedLabel, summarizeWeeks, type SurveyRow } from "@/lib/feedback/weekly-survey";
 
-export const metadata = { title: "Yönetim · Haftalık anket" };
+export const metadata = { title: "Yönetim · Haftalık Anket" };
 export const dynamic = "force-dynamic";
-
-const SEGMENT_LABEL: Record<string, string> = { free: "Ücretsiz", plus: "Plus", sigma: "Sigma", beta: "Beta" };
 
 type Row = SurveyRow & {
   user_id: string;
@@ -49,12 +48,12 @@ export default async function AdminAnketPage() {
   return (
     <AdminShell href="/admin/anket" pendingApplications={pending}>
       {error ? (
-        <AdminNote tone="warn">Anket tablosu okunamadı ({error.code ?? "hata"}). Göç uygulanmış mı?</AdminNote>
+        <AdminNote tone="warn">Anket kayıtları okunamadı (hata kodu: {error.code ?? "yok"}). Veritabanı göçü uygulanmış mı?</AdminNote>
       ) : null}
       <AdminNote tone="info">
         Anket {enabled ? <strong>açık</strong> : <strong>kapalı</strong>}: o hafta en az bir etkinlik açan, hesabı iki
-        günden eski öğrenciye Sınavlar sayfasında haftada bir kez dört soru. Kapatmak için Özellik anahtarları →{" "}
-        <code>weekly_survey</code>.
+        günden eski öğrenciye Sınavlar sayfasında haftada bir kez dört soru. Kapatmak için Özellik Anahtarları →{" "}
+        <strong>{settingKeyLabel(SURVEY_FLAG)}</strong>.
       </AdminNote>
 
       <AdminCard
@@ -100,7 +99,7 @@ export default async function AdminAnketPage() {
                     {formatDate(row.created_at)}
                   </Link>
                 </td>
-                <td>{row.segment ? (SEGMENT_LABEL[row.segment] ?? row.segment) : "—"}</td>
+                <td>{segmentLabel(row.segment)}</td>
                 <td className="adm-num">{row.helpfulness ?? "—"}</td>
                 <td className="adm-num">{row.recommend ?? "—"}</td>
                 <td className="text-xs">{mostUsedLabel(row.most_used)}</td>

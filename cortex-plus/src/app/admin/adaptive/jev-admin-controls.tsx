@@ -7,6 +7,7 @@ import {
   testJevConnection,
   updateAdaptivePilotUser,
 } from "@/app/admin/adaptive/actions";
+import { settingKeyLabel, shortId } from "@/lib/admin/status-labels";
 
 const PILOT_FLAGS = [
   "adaptive_learning_enabled",
@@ -26,24 +27,24 @@ export function JevProbeButtons() {
         <button
           type="button"
           disabled={pending}
-          className="rounded border px-3 py-1.5 text-sm"
+          className="adm-btn"
           onClick={() =>
             start(async () => {
               const r = await testJevConnection();
               setProbe(
                 r.ok
-                  ? `OK · ${r.latencyMs}ms · ${r.model} · in=${r.inputTokens} out=${r.outputTokens} · ~$${r.estimatedCostUsd.toFixed(6)} · ${r.access} · ${r.summary}`
-                  : `Hata: ${r.error}${r.latencyMs != null ? ` (${r.latencyMs}ms)` : ""}`,
+                  ? `Bağlantı tamam · ${r.latencyMs} ms · ${r.model} · girdi ${r.inputTokens} / çıktı ${r.outputTokens} jeton · ~$${r.estimatedCostUsd.toFixed(6)} · ${r.access} · ${r.summary}`
+                  : `Hata: ${r.error}${r.latencyMs != null ? ` (${r.latencyMs} ms)` : ""}`,
               );
             })
           }
         >
-          Jev bağlantısını test et
+          Jev bağlantısını dene
         </button>
         <button
           type="button"
           disabled={pending}
-          className="rounded border px-3 py-1.5 text-sm"
+          className="adm-btn"
           onClick={() =>
             start(async () => {
               const r = await listJevModelsAction();
@@ -58,12 +59,12 @@ export function JevProbeButtons() {
           Modelleri listele
         </button>
       </div>
-      <p className="text-xs text-[var(--cs-muted)]">
-        Gerçek API çağrısı yapar (yaklaşık kuruşun binde biri). Anahtar
+      <p className="text-xs text-[var(--adm-muted)]">
+        Gerçek bir çağrı yapar (yaklaşık kuruşun binde biri). Anahtar
         gösterilmez.
       </p>
-      {probe ? <p className="text-sm break-all">{probe}</p> : null}
-      {models ? <p className="text-sm break-all">{models}</p> : null}
+      {probe ? <p role="status" className="text-sm break-all">{probe}</p> : null}
+      {models ? <p role="status" className="text-sm break-all">{models}</p> : null}
     </div>
   );
 }
@@ -82,10 +83,10 @@ export function PilotManageForm({
   return (
     <div className="space-y-3 text-sm">
       <div className="flex flex-wrap items-end gap-2">
-        <label className="block">
-          <span className="text-xs text-[var(--cs-muted)]">Bayrak</span>
+        <label className="grid gap-1 text-xs text-[var(--adm-muted)]">
+          Özellik anahtarı
           <select
-            className="mt-1 block rounded border bg-transparent px-2 py-1"
+            className="adm-select"
             value={flagKey}
             onChange={(e) =>
               setFlagKey(e.target.value as (typeof PILOT_FLAGS)[number])
@@ -93,15 +94,15 @@ export function PilotManageForm({
           >
             {PILOT_FLAGS.map((k) => (
               <option key={k} value={k}>
-                {k}
+                {settingKeyLabel(k)}
               </option>
             ))}
           </select>
         </label>
-        <label className="block min-w-[280px] flex-1">
-          <span className="text-xs text-[var(--cs-muted)]">Kullanıcı UUID</span>
+        <label className="grid min-w-[280px] flex-1 gap-1 text-xs text-[var(--adm-muted)]">
+          Kullanıcı kimliği
           <input
-            className="mt-1 w-full rounded border bg-transparent px-2 py-1 font-mono text-xs"
+            className="adm-input font-mono text-xs"
             value={userId}
             onChange={(e) => setUserId(e.target.value.trim())}
             placeholder="9d79106a-…"
@@ -110,7 +111,7 @@ export function PilotManageForm({
         <button
           type="button"
           disabled={pending}
-          className="rounded border px-3 py-1.5"
+          className="adm-btn adm-btn--primary"
           onClick={() =>
             start(async () => {
               const r = await updateAdaptivePilotUser({
@@ -120,7 +121,7 @@ export function PilotManageForm({
               });
               setMsg(
                 r.ok
-                  ? `Eklendi · ${flagKey} pilot=${r.pilotIds.length}`
+                  ? `Eklendi · ${settingKeyLabel(flagKey)}: ${r.pilotIds.length} pilot`
                   : r.error,
               );
             })
@@ -131,7 +132,7 @@ export function PilotManageForm({
         <button
           type="button"
           disabled={pending}
-          className="rounded border px-3 py-1.5"
+          className="adm-btn"
           onClick={() =>
             start(async () => {
               const r = await updateAdaptivePilotUser({
@@ -141,7 +142,7 @@ export function PilotManageForm({
               });
               setMsg(
                 r.ok
-                  ? `Çıkarıldı · ${flagKey} pilot=${r.pilotIds.length}`
+                  ? `Çıkarıldı · ${settingKeyLabel(flagKey)}: ${r.pilotIds.length} pilot`
                   : r.error,
               );
             })
@@ -152,29 +153,29 @@ export function PilotManageForm({
         <button
           type="button"
           disabled={pending}
-          className="rounded border px-3 py-1.5"
+          className="adm-btn"
           onClick={() =>
             start(async () => {
               const r = await addSelfToAdaptivePilots();
-              setMsg(r.ok ? "Oturumdaki admin tüm adaptive bayraklara eklendi." : r.error);
+              setMsg(r.ok ? "Hesabın bütün uyarlamalı öğrenme anahtarlarına pilot olarak eklendi." : r.error);
             })
           }
         >
           Beni ekle
         </button>
       </div>
-      {msg ? <p className="text-xs">{msg}</p> : null}
-      <ul className="space-y-1 text-xs text-[var(--cs-muted)]">
+      {msg ? <p role="status" className="text-xs">{msg}</p> : null}
+      <ul className="space-y-1 text-xs text-[var(--adm-muted)]">
         {flagRows.map((f) => (
           <li key={f.key}>
-            <strong className="text-[var(--cs-text)]">{f.key}</strong>:{" "}
-            {f.pilotIds.length ? f.pilotIds.join(", ") : "(boş)"}
+            <strong className="text-[var(--adm-text)]">{settingKeyLabel(f.key)}</strong>:{" "}
+            {f.pilotIds.length ? f.pilotIds.map(shortId).join(", ") : "(boş)"}
           </li>
         ))}
       </ul>
-      <p className="text-xs text-[var(--cs-muted)]">
-        Global açma/kapama bu formda yok —{" "}
-        <code>/admin/feature-flags</code>. Satır yoksa oluşturulmaz.
+      <p className="text-xs text-[var(--adm-muted)]">
+        Herkese açıp kapatmak bu formda yok: Özellik Anahtarları sayfası. Anahtar
+        kaydı yoksa burada oluşturulmaz.
       </p>
     </div>
   );
