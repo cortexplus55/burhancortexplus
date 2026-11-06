@@ -5,7 +5,7 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, NotebookPen, ShieldCheck, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { StreakFreezeBadge, type StreakFreezeBadgeState } from "@/components/parity/streak-freeze-badge";
@@ -53,6 +53,9 @@ const MORE_LINKS = [
   { href: "/krediler", label: "Limitler", icon: Gauge },
   { href: "/davet", label: "Davet et", icon: Gift },
 ] as const;
+
+/** Yalnız yönetici ve kurucuya (karar sunucuda: ccount.adminPanel); öğrenci asla görmez. 6 Kasım 2026. */
+export const ADMIN_PANEL_LINK = { href: "/admin", label: "🛡️ Yönetim Paneli" } as const;
 
 export function ParitySorShell({
   children,
@@ -401,6 +404,13 @@ export function ParitySorShell({
                   </Link>
                 );
               })}
+              {account?.adminPanel ? (
+                <Link href={ADMIN_PANEL_LINK.href} className="cp-more-action" data-testid="admin-panel-link">
+                  <ShieldCheck className="h-6 w-6" aria-hidden />
+                  <span className="cp-more-action-label">{ADMIN_PANEL_LINK.label}</span>
+                  <ChevronRight className="cp-more-action-chevron" aria-hidden />
+                </Link>
+              ) : null}
             </div>
             <Link href="/sohbetler" className="cp-more-history-head">
               Geçmiş konuşmalar <span aria-hidden>›</span>

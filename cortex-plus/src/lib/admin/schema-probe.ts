@@ -323,11 +323,13 @@ export async function probeSchema(
     .from("exam_prep_misconceptions")
     .select("resolved_at")
     .limit(1);
-  const [explainAttempts, prepVideos, generationJobs, creditRules] = await Promise.all([
+  const [explainAttempts, prepVideos, generationJobs, creditRules, founderRole] = await Promise.all([
     hasTable(service, "explain_attempts"),
     hasTable(service, "prep_videos"),
     hasTable(service, "generation_jobs"),
     probeCreditRules(service),
+    // 6 Kasım 2026: iki kademeli yönetim. Var olmayan kullanıcıyla sorulur; hiçbir satıra dokunmaz.
+    service.rpc("is_founder", { uid: "00000000-0000-0000-0000-000000000000" }),
   ]);
   const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
   const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
@@ -490,6 +492,14 @@ export async function probeSchema(
       detail: generationJobs
         ? "generation_jobs yerinde (20261026120000). Kısa sonuç yazılmaz; kira düşünce iş sürer."
         : "Tablo yok — deneme eşzamanlı dolar, kısa kâğıt yine yazılmaz (20261026120000).",
+    },
+    {
+      name: "Kurucu rolü (is_founder)",
+      ok: !founderRole.error,
+      critical: false,
+      detail: founderRole.error
+        ? "is_founder yok — kimse kurucu sayılmıyor; fiyat, kredi kuralı, harcama tavanı, kur, özellik anahtarı ve yönetici ekleme kapalı (20261106150000)."
+        : "is_founder yerinde (20261106150000); yöneticiler /admin/yoneticiler'de.",
     },
   ];
 }

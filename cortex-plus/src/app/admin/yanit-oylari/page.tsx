@@ -6,7 +6,7 @@ import {
   AdminNote,
   AdminTableFrame,
 } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -21,7 +21,7 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 export default async function AdminYanitOylariPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
 
   const [{ data: rows, error }, pending] = await Promise.all([

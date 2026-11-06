@@ -3,7 +3,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { BetaCodeForm, PromoCreateForm, PromoToggle, SharedBetaCodeForm } from "@/components/admin/promo-tools";
 import { CampaignForm } from "@/components/admin/campaign-form";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -27,7 +27,7 @@ type PromoRow = {
 };
 
 export default async function AdminPromosyonlarPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
 
   const [{ data: promos }, { data: campaign }, pending, { count: activeTrials }] = await Promise.all([

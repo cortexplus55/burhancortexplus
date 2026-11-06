@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { SupportAnsweredButton } from "@/components/admin/support-answered-button";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate } from "@/lib/format";
@@ -30,7 +30,7 @@ const hoursBetween = (from: string, to: number) => Math.round(((to - new Date(fr
  * özetin "24 saati geçti" sayısı yalnız büyüyebiliyordu. Süre sözü `SUPPORT_SLA`ten.
  */
 export default async function AdminDestekPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
   const now = Date.now();
 

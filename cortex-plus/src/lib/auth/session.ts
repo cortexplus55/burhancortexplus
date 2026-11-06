@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { homePathForRole } from "@/lib/parity/signup";
 import { accountActiveOrUnknown } from "@/lib/auth/active-account";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 
 export async function requireUser() {
   const supabase = await createClient();
@@ -36,10 +37,12 @@ export async function getPrimaryRole(userId: string) {
   return (data?.primary_role as string | undefined) ?? "student";
 }
 
+/**
+ * @deprecated Yönetim sayfaları `requireAdminPage()` / `requireFounderPage()` (`@/lib/auth/admin-guard`) kullanır.
+ * Eski çağıranlar için aynı koruma: yönetici değilse 404 (6 Kasım 2026'dan beri yönlendirme değil).
+ */
 export async function requireAdmin() {
-  const { supabase, user } = await requireUser();
-  const roles = await getUserRoles(user.id);
-  if (!roles.includes("admin")) redirect("/ogretmen");
+  const { supabase, user } = await requireAdminPage();
   return { supabase, user };
 }
 

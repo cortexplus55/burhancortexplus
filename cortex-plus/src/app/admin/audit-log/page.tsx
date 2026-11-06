@@ -1,6 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { auditLabel } from "@/lib/admin/labels";
@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/format";
 export const metadata = { title: "Yönetim · İşlem geçmişi" };
 
 export default async function AdminIslemGecmisiPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
 
   const [{ data: logs }, pending] = await Promise.all([

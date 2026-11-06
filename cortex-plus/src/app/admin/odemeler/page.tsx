@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { RefundButton } from "@/components/admin/refund-button";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatTry } from "@/lib/format";
@@ -23,7 +23,7 @@ export default async function AdminOdemelerPage({
 }: {
   searchParams?: SearchParams;
 }) {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
   const params = searchParams ? await searchParams : {};
   const onlyRefunds = params.filtre === "iadeler";

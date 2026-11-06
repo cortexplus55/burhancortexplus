@@ -23,6 +23,13 @@ export const AUDIT_LABELS: Record<string, string> = {
   "role.revoked": "Kullanıcının yetkisi geri alındı",
   "smtp.verify_ok": "E-posta bağlantısı test edildi ve çalıştı",
   "teacher_application.reviewed": "Öğretmen başvurusu sonuçlandırıldı",
+  "admin_role.granted": "Bir hesaba yönetici yetkisi verildi",
+  "admin_role.revoked": "Bir hesabın yönetici yetkisi geri alındı",
+  "admin_gate.passed": "Kurucu yönetim girişi PIN ile doğrulandı",
+  "admin_gate.wrong": "Kurucu yönetim girişinde yanlış PIN",
+  "admin_gate.locked": "Kurucu yönetim girişi çok fazla yanlış PIN yüzünden kilitlendi",
+  "admin_gate.misconfigured": "Kurucu yönetim girişi ayarı okunamadı",
+  "admin_gate.locked_by_user": "Yönetim girişi bu cihazda kilitlendi",
 };
 
 /** Kredi bedeli tablosundaki işlem kodları. */

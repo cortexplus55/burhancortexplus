@@ -18,6 +18,11 @@ describe("updateAdaptivePilotUser", () => {
             data: { user: opts.adminId ? { id: opts.adminId } : null },
           }),
         },
+        // 6 Kasım 2026: pilot listesi özellik anahtarının parçası, yalnız kurucu; rol SQL'den.
+        rpc: async (name: string) => ({
+          data: (name === "is_admin" || name === "is_founder") && opts.adminId !== null,
+          error: null,
+        }),
         from: () => ({
           select: () => ({
             eq: () => ({
@@ -75,7 +80,7 @@ describe("updateAdaptivePilotUser", () => {
       op: "add",
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/Yetkisiz/);
+    if (!r.ok) expect(r.error).toMatch(/kurucu/);
   });
 
   it("rejects invalid UUID", async () => {

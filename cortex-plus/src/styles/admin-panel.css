@@ -390,6 +390,93 @@
 .adm-empty-title { margin: 0 0 0.35rem; font-weight: 700; color: var(--adm-text); }
 .adm-empty p { margin: 0; font-size: 0.875rem; max-width: 42ch; margin-inline: auto; }
 
+/* ---------- Ortak düzen: üst çubuk, rol rozeti, kapı (6 Kasım 2026) ---------- */
+
+.adm--bare { grid-template-columns: 1fr; }
+
+.adm-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.85rem clamp(1rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--adm-line);
+  background: var(--adm-panel);
+}
+
+.adm-topbar-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.adm-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--adm-line);
+  color: var(--adm-text);
+  background: var(--adm-panel-2);
+}
+
+.adm-role--founder {
+  border-color: rgba(244, 174, 11, 0.35);
+  background: var(--adm-gold-soft);
+  color: var(--adm-gold);
+}
+
+.adm-gate-warn {
+  margin: 0;
+  padding: 0.7rem clamp(1rem, 3vw, 2.5rem);
+  background: var(--adm-warn-soft);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.35);
+  color: var(--adm-warn);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.adm-nav-link--locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.adm-nav-link--locked:hover {
+  background: transparent;
+  color: var(--adm-muted);
+}
+
+.adm-nav-lock { margin-left: auto; flex: none; }
+
+.adm-gate-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 22rem;
+}
+
+.adm-gate-form .adm-input { width: 100%; min-height: 44px; font-size: 1rem; letter-spacing: 0.2em; }
+
+.adm-team-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.adm-team-form .adm-input { flex: 1 1 14rem; min-width: 0; min-height: 44px; }
+
 @media (prefers-reduced-motion: reduce) {
   .adm * { transition: none !important; }
 }

@@ -1,6 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { actionLabel } from "@/lib/admin/labels";
@@ -11,7 +11,7 @@ export const metadata = { title: "Yönetim · AI kullanımı" };
 const SAMPLE = 500;
 
 export default async function AdminAiKullanimiPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
 
   const [{ data: events }, pending] = await Promise.all([

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auditLog } from "@/lib/audit";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminActor } from "@/lib/auth/admin-actor";
 import {
   BETA_BATCH_MAX,
   BETA_PLUS_DAYS,
@@ -41,7 +41,9 @@ export type SharedBetaCodeResult = { ok: true; code: string; uses: number; days:
  * Plus. Kişi başına bir kez, hesap başına tek deneme (`redeem_promo_code`). Kod boşsa üretilir.
  */
 export async function createSharedBetaCode(input: { code?: string; uses: number; days?: number }): Promise<SharedBetaCodeResult> {
-  const { user } = await requireAdmin();
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  const user = { id: actorId };
   const parsed = sharedSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: `2 ile ${SHARED_BETA_MAX_USES} arası kişi, 1 ile 90 arası gün gir.` };
   const code = parsed.data.code ? normalizePromoCode(parsed.data.code) : generateBetaCode();
@@ -74,7 +76,9 @@ export async function createSharedBetaCode(input: { code?: string; uses: number;
  * değil).
  */
 export async function generateBetaCodeBatch(input: { count: number; days?: number; batch?: string }): Promise<BetaCodeResult> {
-  const { user } = await requireAdmin();
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  const user = { id: actorId };
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: `1 ile ${BETA_BATCH_MAX} arası adet, 1 ile 90 arası gün gir.` };
 

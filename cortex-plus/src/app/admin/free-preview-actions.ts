@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/audit";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminActor } from "@/lib/auth/admin-actor";
 import { FREE_DAILY_ALLOWANCE } from "@/lib/credits/period";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -19,7 +19,9 @@ function nextUtcDay(now = new Date()): string {
  * hak dolu, belge ve hazırlık sayacı sıfır.
  */
 export async function setFreePreview(on: boolean): Promise<{ ok: boolean }> {
-  const { user } = await requireAdmin();
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false };
+  const user = { id: actorId };
   const service = createServiceClient();
   const { error } = on
     ? await service.from("admin_free_preview").upsert({

@@ -2,7 +2,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { SmtpTestButton } from "@/components/admin/smtp-test-button";
 import { DigestSendButton } from "@/components/admin/digest-send-button";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { SERVICE_NOTES } from "@/lib/admin/labels";
@@ -58,7 +58,7 @@ const SERVICES: { name: string; env: string[]; critical: boolean; all?: boolean 
 ];
 
 export default async function AdminSistemPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
   const pending = await countPendingApplications(service);
 

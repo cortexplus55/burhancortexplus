@@ -12,12 +12,15 @@ export function AdminBadge({
 }
 
 export function AdminCard({
+  id,
   title,
   desc,
   actions,
   children,
   bodyless = false,
 }: {
+  /** Sayfa içi bağlantı hedefi (ör. menüdeki "/admin#karantina"). */
+  id?: string;
   title?: string;
   desc?: string;
   actions?: React.ReactNode;
@@ -26,7 +29,7 @@ export function AdminCard({
   bodyless?: boolean;
 }) {
   return (
-    <section className="adm-card">
+    <section id={id} className="adm-card">
       {title ? (
         <div className="adm-card-head">
           <div>

@@ -154,8 +154,8 @@ describe("credit_reserve_metered yoklaması", () => {
         ? { error: { code: "PGRST202", message: "Could not find the function public.credit_reserve_metered(p_action_code, p_idempotency_key, p_meter, p_quantity, p_user_id) in the schema cache" } }
         : name === "unverified_allowance"
           ? { data: 0, error: null }
-          : name === "plus_only_action"
-            ? { data: true, error: null }
+          : name === "plus_only_action" || name === "is_founder"
+            ? { data: name === "plus_only_action", error: null }
             : { error: { message: "invalid_action" } },
     );
     const checks = await probeSchema(sb);
@@ -183,7 +183,9 @@ describe("diğer göç dosyaları", () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
     // 29 Ekim 2026: +4 satır (kredi kuralı satırları, bedel farkı, koddan eklenmiş kural, plus_only_action).
-    expect(checks).toHaveLength(24);
+    // 6 Kasım 2026: +1 satır (kurucu rolü, is_founder).
+    expect(checks).toHaveLength(25);
+    expect(find(checks, "Kurucu rolü")).toMatchObject({ ok: true, critical: false });
     expect(find(checks, "Kredi kuralı satırları")).toMatchObject({ ok: true, critical: true });
     expect(find(checks, "Kredi kuralı satırları").detail).toContain(`${ACTION_CODES.length} eylem kodunun hepsi`);
     expect(find(checks, "Kredi bedeli kod ile canlı ayrışıyor")).toMatchObject({ ok: true, critical: false });

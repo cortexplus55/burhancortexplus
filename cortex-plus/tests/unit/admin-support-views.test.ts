@@ -12,8 +12,8 @@ const actions = readFileSync("src/app/admin/actions.ts", "utf8");
 
 describe("destek görünümleri", () => {
   it("ikisi de yönetici ister, Suspense sınırı yok", () => {
-    expect(user).toContain("await requireAdmin()");
-    expect(prep).toContain("await requireAdmin()");
+    expect(user).toContain("await requireAdminPage()");
+    expect(prep).toContain("await requireAdminPage()");
     expect(user).toContain('export const dynamic = "force-dynamic"');
     expect(prep).toContain('export const dynamic = "force-dynamic"');
   });

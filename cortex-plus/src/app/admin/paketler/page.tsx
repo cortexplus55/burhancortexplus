@@ -1,7 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { PlanEditor } from "@/components/admin/plan-editor";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireFounderPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatNumber, formatTry } from "@/lib/format";
@@ -9,7 +9,7 @@ import { formatNumber, formatTry } from "@/lib/format";
 export const metadata = { title: "Yönetim · Paketler" };
 
 export default async function AdminPaketlerPage() {
-  await requireAdmin();
+  await requireFounderPage();
   const service = createServiceClient();
 
   const [extendedPlans, pending] = await Promise.all([

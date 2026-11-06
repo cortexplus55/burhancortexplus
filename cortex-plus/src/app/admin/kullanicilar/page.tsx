@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { UserActions } from "@/components/admin/user-actions";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -24,7 +24,7 @@ export default async function AdminKullanicilarPage({
 }: {
   searchParams: Promise<{ q?: string; plan?: string; page?: string }>;
 }) {
-  const { user: actor } = await requireAdmin();
+  const { user: actor, role: actorRole } = await requireAdminPage();
   const params = await searchParams;
   const term = (params.q ?? "").trim();
   const plan = parseAdminPlanFilter(params.plan);
@@ -135,7 +135,7 @@ export default async function AdminKullanicilarPage({
       created: profile.created_at,
       balance: wallet?.balance ?? 0,
       pack: pack === "sigma" ? "Sigma" : pack === "plus" ? "Plus" : "Ücretsiz",
-      isAdmin: roles.includes("admin"),
+      isAdmin: roles.includes("admin") || roles.includes("founder"), isFounder: roles.includes("founder"),
       isTeacher: roles.includes("teacher") || roles.includes("verified_teacher"),
       isSuspended: Boolean((profile as { suspended_at?: string | null }).suspended_at),
     };
@@ -212,7 +212,7 @@ export default async function AdminKullanicilarPage({
                   <td className="adm-num">{formatNumber(row.balance)}</td>
                   <td>
                     <div className="flex flex-wrap gap-1">
-                      {row.isAdmin ? <AdminBadge tone="gold">Yönetici</AdminBadge> : null}
+                      {row.isAdmin ? <AdminBadge tone="gold">{row.isFounder ? "Kurucu" : "Yönetici"}</AdminBadge> : null}
                       {row.isTeacher ? <AdminBadge tone="ok">Öğretmen</AdminBadge> : null}
                       {!row.isAdmin && !row.isTeacher ? (
                         <AdminBadge tone="mute">Öğrenci</AdminBadge>
@@ -229,7 +229,7 @@ export default async function AdminKullanicilarPage({
                       isAdmin={row.isAdmin}
                       isTeacher={row.isTeacher}
                       isSelf={row.id === actor.id}
-                      isSuspended={row.isSuspended}
+                      isSuspended={row.isSuspended} canManageAdmins={actorRole === "founder" && !row.isFounder}
                     />
                   </td>
                 </tr>

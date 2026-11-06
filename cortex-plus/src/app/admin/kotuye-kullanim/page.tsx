@@ -7,7 +7,7 @@ import {
   AdminNote,
   AdminTableFrame,
 } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import {
@@ -34,7 +34,7 @@ type EventRow = {
 };
 
 export default async function AdminKotuyeKullanimPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString();
 

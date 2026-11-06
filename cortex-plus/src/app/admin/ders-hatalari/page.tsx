@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminPage } from "@/lib/auth/admin-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { listLessonGenerationFailures } from "@/lib/learning/lesson-generation-failures";
@@ -20,7 +20,7 @@ export default async function AdminDersHatalariPage({
 }: {
   searchParams?: Promise<{ kind?: string; reason?: string; gun?: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminPage();
   const service = createServiceClient();
   const params = (await searchParams) ?? {};
   const kind = params.kind?.trim() || null;
